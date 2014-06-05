@@ -50,7 +50,6 @@ struct thread_ctx_regs {
 	uint32_t r10;
 	uint32_t r11;
 	uint32_t r12;
-	uint32_t usr_spsr;
 	uint32_t usr_sp;
 	uint32_t usr_lr;
 #ifdef THREAD_LOCAL_EXCEPTION_SPS
@@ -97,7 +96,7 @@ struct thread_core_local {
 void thread_init_vbar(void);
 
 /* Handles a stdcall, r0-r7 holds the parameters */
-void thread_stdcall_entry(void);
+void thread_std_smc_entry(void);
 
 /*
  * Resumes execution of currently active thread by restoring context and
@@ -115,9 +114,6 @@ void thread_resume(struct thread_ctx_regs *regs);
 
 /* Returns the temp stack for current CPU */
 void *thread_get_tmp_sp(void);
-
-/* Handles an SMC call by disptaching to the correct handler */
-void thread_handle_smc_call(struct thread_smc_args *args);
 
 /*
  * Marks the current thread as suspended. And updated the flags
@@ -143,7 +139,11 @@ void thread_set_irq_sp(vaddr_t sp);
 /* Sets sp for fiq mode */
 void thread_set_fiq_sp(vaddr_t sp);
 
-extern thread_call_handler_t thread_stdcall_handler_ptr;
+/* Handles a fast SMC by dispatching it to the registered fast SMC handler */
+void thread_handle_fast_smc(struct thread_smc_args *args);
+
+/* Handles a std SMC by dispatching it to the registered std SMC handler */
+void thread_handle_std_smc(struct thread_smc_args *args);
 
 /*
  * Suspends current thread and temorarily exits to non-secure world.

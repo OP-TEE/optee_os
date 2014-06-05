@@ -362,6 +362,7 @@ struct teesmc_meta_open_session {
 #define TEESMC_OWNER_TRUSTED_APP	48
 #define TEESMC_OWNER_TRUSTED_OS		50
 
+#define TEESMC_OWNER_TRUSTED_OS_OPTEED	62
 #define TEESMC_OWNER_TRUSTED_OS_API	63
 
 /*
@@ -542,27 +543,6 @@ struct teesmc_meta_open_session {
 #define TEESMC64_FASTCALL_RETURN_FROM_RPC \
 	TEESMC_CALL_VAL(TEESMC_64, TEESMC_STD_CALL, TEESMC_OWNER_TRUSTED_OS, \
 			TEESMC_FUNCID_RETURN_FROM_RPC)
-
-/*
- * From secure monitor to Trusted OS, handle FIQ
- *
- * A virtual call which is injected by the Secure Monitor when an FIQ is
- * raised while in normal world (SCR_NS is set). The monitor restores
- * secure architecture registers and secure EL_SP1 and jumps to previous
- * secure EL3_ELR. Trusted OS should preserve all general purpose
- * registers.
- *
- * Call register usage:
- * r0/x0	SMC Function ID, TEESMC32_CALL_HANDLE_FIQ
- * r1-7/x1-7	Not used, but must be preserved
- *
- * Return register usage:
- * Note used
- */
-#define TEESMC_FUNCID_CALL_HANDLE_FIQ	0xf000
-#define TEESMC32_CALL_HANDLE_FIQ \
-	TEESMC_CALL_VAL(TEESMC_32, TEESMC_FAST_CALL, TEESMC_OWNER_TRUSTED_OS, \
-			TEESMC_FUNCID_CALL_HANDLE_FIQ)
 
 #define TEESMC_RETURN_RPC_PREFIX_MASK	0xFFFF0000
 #define TEESMC_RETURN_RPC_PREFIX	0xFFFF0000

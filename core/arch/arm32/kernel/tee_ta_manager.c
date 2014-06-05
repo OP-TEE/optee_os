@@ -79,7 +79,10 @@ typedef enum {
 	COMMAND_DESTROY_ENTRY_POINT,
 } command_t;
 
-/* Only one session is running in the single threaded solution */
+/*
+ * Only one session is running in the single threaded solution, once
+ * we allow more threads we have to store this in thread local storage.
+ */
 static struct tee_ta_session *tee_rs;
 
 /* Enters a user TA */
@@ -657,12 +660,14 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	     ctx->head->rw_size, ctx->head->zi_size);
 	DMSG("ELF load address 0x%x", ctx->load_addr);
 
+	tee_rs = NULL;
 	tee_mmu_set_ctx(NULL);
 	/* end thread protection (multi-threaded) */
 
 	return TEE_SUCCESS;
 
 error_return:
+	tee_rs = NULL;
 	tee_mmu_set_ctx(NULL);
 	free(head);
 	free(ptr);
@@ -910,7 +915,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		goto cleanup_return;
 
 	/* Switch to user ctx */
-	tee_mmu_set_ctx(ctx);
+	tee_ta_set_current_session(session);
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(ctx->mm_heap_stack) + ctx->stack_size;
@@ -928,8 +933,6 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		goto cleanup_return;
 
 	start_uaddr = ctx->load_addr + ta_func_head[func].start;
-	/* tee_thread_set_sess(session); */
-	tee_rs = session;
 
 	switch (func) {
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
@@ -969,9 +972,6 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		res = TEE_ERROR_BAD_STATE;
 	}
 
-	/* tee_thread_set_sess(NULL); */
-	tee_rs = NULL;
-
 	if (ctx->panicked) {
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x\n",
 		     ctx->panic_code);
@@ -984,7 +984,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 cleanup_return:
 	/* Restore original ROM mapping */
-	tee_mmu_set_ctx(NULL);
+	tee_ta_set_current_session(NULL);
 
 	/*
 	 * Clear the cancel state now that the user TA has returned. The next
@@ -998,66 +998,6 @@ cleanup_return:
 	 * mapped for the user mode TA.
 	 */
 	*err = serr;
-
-	return res;
-}
-
-/*-----------------------------------------------------------------------------
- * Sets up virtual memory for the service
- *---------------------------------------------------------------------------*/
-static TEE_Result tee_ta_func_execute(TEE_ErrorOrigin *err,
-				      struct tee_ta_session *const session,
-				      const uint32_t cmd,
-				      struct tee_ta_param *param)
-{
-	TEE_Result res;
-	TEE_Result res2;
-	struct tee_ta_ctx *const ctx = session->ctx;
-	ta_func_head_t *ta_func_head =
-	    (ta_func_head_t *)((uint32_t) ctx->head + sizeof(ta_head_t));
-	uint32_t offset;
-	TEE_Operation op;
-	uint32_t n;
-
-	res = tee_compat_param_new_to_old(param, &op);
-	if (res != TEE_SUCCESS) {
-		*err = TEE_ORIGIN_TEE;
-		return res;
-	}
-
-	/* search for ta function */
-	n = 0;
-	while (n < (ctx->head->nbr_func - ctx->num_res_funcs) &&
-	       cmd != ta_func_head->cmd_id) {
-		ta_func_head++;
-		n++;
-	}
-	if (cmd != ta_func_head->cmd_id) {
-		/* sevice not found */
-		return TEE_ERROR_ITEM_NOT_FOUND;
-	}
-
-	/* call service */
-	offset =
-	    ta_func_head->start - sizeof(ta_head_t) -
-	    ctx->head->nbr_func * sizeof(ta_func_head_t) +
-	    (ctx->mm->offset << SMALL_PAGE_SHIFT);
-
-	tee_rs = session;
-	res = ((uint32_t(*)(TEE_Operation *))
-	       ((uint32_t) (TEE_PVMEM_LO + offset))) (&op);
-	tee_rs = NULL;
-	/*
-	 * According to GP spec the origin should allways be set to the TA after
-	 * TA execution
-	 */
-	*err = TEE_ORIGIN_TRUSTED_APP;
-
-	res2 = tee_compat_param_old_to_new(&op, param);
-	if (res == TEE_SUCCESS && res2 != TEE_SUCCESS) {
-		*err = TEE_ORIGIN_TEE;
-		return res2;
-	}
 
 	return res;
 }
@@ -1569,16 +1509,10 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		 * TA after TA execution
 		 */
 		*err = TEE_ORIGIN_TRUSTED_APP;
-	} else if ((sess->ctx->flags & TA_FLAG_USER_MODE) != 0) {
+	} else {
+		assert((sess->ctx->flags & TA_FLAG_USER_MODE) != 0);
 		res = tee_user_ta_enter(err, sess, USER_TA_FUNC_INVOKE_COMMAND,
 					cancel_req_to, cmd, param);
-	} else {
-		res = tee_ta_param_pa2va(sess, param);
-		if (res != TEE_SUCCESS) {
-			*err = TEE_ORIGIN_TEE;
-			goto function_exit;
-		}
-		res = tee_ta_func_execute(err, sess, cmd, param);
 	}
 
 	if (sess->ctx->panicked) {
@@ -1622,6 +1556,11 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 		tee_rs = sess;
 		tee_mmu_set_ctx(ctx);
 	}
+	/*
+	 * If sess == NULL we must have kernel mapping,
+	 * if sess != NULL we must not have kernel mapping.
+	 */
+	assert((sess == NULL) == tee_mmu_is_kernel_mapping());
 }
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id)

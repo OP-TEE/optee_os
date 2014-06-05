@@ -25,6 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <platform_config.h>
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -34,7 +36,6 @@
 
 #ifdef WITH_UART_DRV
 #include <drivers/uart.h>
-#include <plat.h>
 #else
 #include <kernel/asc.h>
 #endif
@@ -52,6 +53,8 @@ static void output_string(const char *str)
 
 	while (*p) {
 		uart_putc(*p, UART1_BASE);
+		if (*p == '\n')
+			uart_putc('\r', UART1_BASE);
 		p++;
 	}
 }

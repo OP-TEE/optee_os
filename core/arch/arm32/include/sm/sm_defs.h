@@ -36,6 +36,6 @@
  * stack. These functions can sometimes use more stack depending on
  * compiler options.
  */
-#define SM_STACK_SIZE	(12 * 4)
+#define SM_STACK_SIZE	(32 * 4)
 
 #endif /*SM_SM_DEFS_H*/

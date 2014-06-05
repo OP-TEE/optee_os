@@ -25,21 +25,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <platform_config.h>
+
 #include <stdint.h>
 #include <string.h>
 
+#include <drivers/gic.h>
+#include <drivers/uart.h>
 #include <sm/sm.h>
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/teesmc.h>
 #include <sm/teesmc_st.h>
 
+#include <kernel/kernel.h>
 #include <kernel/arch_debug.h>
 
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
-#include <kernel/kernel.h>
 #include <kernel/tee_core_trace.h>
 #include <kernel/misc.h>
 #include <mm/tee_pager_unpg.h>
@@ -47,6 +51,8 @@
 #include <tee/entry.h>
 
 #include <assert.h>
+
+#define NSEC_ENTRY_INVALID	0xffffffff
 
 #ifdef WITH_STACK_CANARIES
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
@@ -58,8 +64,6 @@
 #else
 #define STACK_CANARY_SIZE	0
 #endif
-
-#define STACK_ALIGNMENT		8
 
 #define DECLARE_STACK(name, num_stacks, stack_size) \
 	static uint32_t name[num_stacks][(stack_size + STACK_CANARY_SIZE) / \
@@ -88,13 +92,71 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 	GET_STACK(stack_tmp[3]),
 #endif
 #if CFG_TEE_CORE_NB_CORE > 4
-#error "Top of tmp stacks aren't defined for more than 4 CPUS"
+	GET_STACK(stack_tmp[4]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 5
+	GET_STACK(stack_tmp[5]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 6
+	GET_STACK(stack_tmp[6]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 7
+	GET_STACK(stack_tmp[7]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 7
+#error "Top of tmp stacks aren't defined for more than 8 CPUS"
 #endif
 };
 
+/* MMU L1 table for teecore: 16kB */
+#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
+#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
+uint32_t SEC_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
+
+/* MMU L2 table for teecore: 16 * 1kB (16MB mappeable) */
+#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
+#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
+uint32_t SEC_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
+
+/* MMU L1 table for TAs: 16kB */
+#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
+#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
+uint32_t SEC_TA_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
+
+/* MMU L2 table for TAs: 16 * 1kB (16MB mappeable) */
+#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
+#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
+uint32_t SEC_TA_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
+
+
+
+
+extern uint32_t __text_start;
+extern uint32_t __rodata_end;
+extern uint32_t __data_start;
+extern uint32_t __bss_start;
+extern uint32_t __bss_end;
+extern uint32_t _end;
+extern uint32_t _end_of_ram;
+
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
+#if defined(WITH_ARM_TRUSTED_FW)
+/* Implemented in assembly, referenced in this file only */
+uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
+
+static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1);
+static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1);
+static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1);
+#elif defined(WITH_SEC_MON)
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
+#else
+#error Platform must use either ARM_TRUSTED_FW or SEC_MON
+#endif
 
 static void init_canaries(void)
 {
@@ -106,6 +168,9 @@ static void init_canaries(void)
 									\
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
+		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
+			#name, n, (void *)(end_canary - 1));		\
+		DMSG("watch *%p\n", (void *)end_canary);	\
 	}
 
 	INIT_CANARY(stack_tmp);
@@ -138,30 +203,87 @@ static const struct thread_handlers handlers = {
 	.fiq = main_fiq,
 	.svc = NULL, /* XXX currently using hardcod svc handler */
 	.abort = tee_pager_abort_handler,
+#if defined(WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = main_cpu_off_handler,
+	.cpu_suspend = main_cpu_suspend_handler,
+	.cpu_resume = main_cpu_resume_handler,
+#elif defined(WITH_SEC_MON)
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
 	.cpu_resume = main_default_pm_handler,
+#endif
 };
 
-void main_init(uint32_t nsec_entry); /* called from assembly only */
-void main_init(uint32_t nsec_entry)
+static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
+#if defined(WITH_ARM_TRUSTED_FW)
+{
+	(void)&pos;
+	(void)&nsec_entry;
+	assert(nsec_entry == NSEC_ENTRY_INVALID);
+	/* Do nothing as we don't have a secure monitor */
+}
+#elif defined(WITH_SEC_MON)
 {
 	struct sm_nsec_ctx *nsec_ctx;
-	size_t pos = get_core_pos();
 
+	assert(nsec_entry != NSEC_ENTRY_INVALID);
+
+	/* Initialize secure monitor */
+	sm_init(GET_STACK(stack_sm[pos]));
+	nsec_ctx = sm_get_nsec_ctx();
+	nsec_ctx->mon_lr = nsec_entry;
+	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
+	sm_set_entry_vector(thread_vector_table);
+
+}
+#endif
+
+static void main_init_gic(void)
+#if PLATFORM_FLAVOR_IS(fvp)
+{
+	/* Do nothing as this flavor doesn't handle GIC yet */
+}
+#elif PLATFORM_FLAVOR_IS(qemu)
+{
+	/* Initialize GIC */
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_it_add(IT_UART1);
+	gic_it_set_cpu_mask(IT_UART1, 0x1);
+	gic_it_set_prio(IT_UART1, 0xff);
+	gic_it_enable(IT_UART1);
+}
+#endif
+
+static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
+{
 	/*
 	 * Mask IRQ and FIQ before switch to the thread vector as the
 	 * thread handler requires IRQ and FIQ to be masked while executing
-	 * with the temporary stack. The thread subsystem also asserts that
-	 * IRQ is blocked when using most if its functions.
+	 * with the temporary stack. The thread subsystem also asserts
+	 * that IRQ is blocked when using most if its functions.
 	 */
 	write_cpsr(read_cpsr() | CPSR_F | CPSR_I);
 
-	if (pos == 0) {
+	if (is_primary) {
+		uintptr_t bss_start = (uintptr_t)&__bss_start;
+		uintptr_t bss_end = (uintptr_t)&__bss_end;
 		size_t n;
 
-		/* Initialize canries around the stacks */
+		/* Initialize uart with physical address */
+		uart_init(UART1_BASE);
+
+		/*
+		 * Zero BSS area. Note that globals that would normally
+		 * would go into BSS which are used before this has to be
+		 * put into .bss.prebss.* to avoid getting overwritten.
+		 */
+		memset((void *)bss_start, 0, bss_end - bss_start);
+
+		DMSG("TEE initializing\n");
+
+		/* Initialize canaries around the stacks */
 		init_canaries();
 
 		/* Assign the thread stacks */
@@ -178,19 +300,94 @@ void main_init(uint32_t nsec_entry)
 
 	thread_init_handlers(&handlers);
 
-	/* Initialize secure monitor */
-	sm_init(GET_STACK(stack_sm[pos]));
-	nsec_ctx = sm_get_nsec_ctx();
-	nsec_ctx->mon_lr = nsec_entry;
-	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
-	sm_set_entry_vector(thread_vector_table);
+	main_init_sec_mon(pos, nsec_entry);
+
+	if (is_primary) {
+		main_init_gic();
+		if (init_teecore() != TEE_SUCCESS)
+			panic();
+		DMSG("Primary CPU switching to normal world boot\n");
+	} else {
+		DMSG("Secondary CPU Switching to normal world boot\n");
+	}
 }
+
+#if defined(WITH_ARM_TRUSTED_FW)
+uint32_t *main_init(void); /* called from assembly only */
+uint32_t *main_init(void)
+{
+	main_init_helper(true, get_core_pos(), NSEC_ENTRY_INVALID);
+	return thread_vector_table;
+}
+#elif defined(WITH_SEC_MON)
+void main_init(uint32_t nsec_entry); /* called from assembly only */
+void main_init(uint32_t nsec_entry)
+{
+	size_t pos = get_core_pos();
+
+	main_init_helper(pos == 0, pos, nsec_entry);
+}
+#endif
 
 static void main_fiq(void)
 {
-	panic();
+	uint32_t iar;
+
+	DMSG("%s\n", __func__);
+
+	iar = gic_read_iar();
+
+	while (uart_have_rx_data(UART1_BASE))
+		DMSG("got 0x%x\n", uart_getchar(UART1_BASE));
+
+	gic_write_eoir(iar);
+
+	DMSG("return from %s\n", __func__);
 }
 
+#if defined(WITH_ARM_TRUSTED_FW)
+static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1)
+{
+	(void)&a0;
+	(void)&a1;
+	/* Could stop generic timer here */
+	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	return 0;
+}
+
+static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1)
+{
+	(void)&a0;
+	(void)&a1;
+	/* Could save generic timer here */
+	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	return 0;
+}
+
+static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1)
+{
+	(void)&a0;
+	(void)&a1;
+	/* Could restore generic timer here */
+	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	return 0;
+}
+
+/* called from assembly only */
+uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1);
+uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
+{
+	size_t pos = get_core_pos();
+
+	(void)&a0;
+	(void)&a1;
+
+	DMSG("cpu %zu: a0 0%x", pos, a0);
+	main_init_helper(false, get_core_pos(), NSEC_ENTRY_INVALID);
+	return 0;
+}
+
+#elif defined(WITH_SEC_MON)
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 {
 	/*
@@ -202,6 +399,7 @@ static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 	panic();
 	return 1;
 }
+#endif
 
 static void main_tee_entry(struct thread_smc_args *args)
 {
@@ -209,10 +407,6 @@ static void main_tee_entry(struct thread_smc_args *args)
 	 * This function first catches all ST specific SMC functions
 	 * if none matches, the generic tee_entry is called.
 	 */
-
-	/* TODO move to main_init() */
-	if (init_teecore() != TEE_SUCCESS)
-		panic();
 
 	if (args->a0 == TEESMC32_ST_FASTCALL_GET_SHM_CONFIG) {
 		args->a0 = TEESMC_RETURN_OK;
@@ -240,6 +434,7 @@ static void main_tee_entry(struct thread_smc_args *args)
 
 	tee_entry(args);
 }
+
 
 
 /* Override weak function in tee/entry.c */

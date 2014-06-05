@@ -56,6 +56,11 @@ struct sm_nsec_ctx {
 	uint32_t r10;
 	uint32_t r11;
 	uint32_t r12;
+	/* Only stored on FIQ entry */
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
 };
 
 struct sm_sec_ctx {
@@ -75,6 +80,7 @@ struct sm_sec_ctx {
 	uint32_t und_lr;
 	uint32_t mon_lr;
 	uint32_t mon_spsr;
+	uint32_t entry_reason;
 };
 
 /* Returns storage location of non-secure context for current CPU */
@@ -91,5 +97,7 @@ void *sm_get_sp(void);
  * Initializes secure monitor, must be called by each CPU
  */
 void sm_init(vaddr_t stack_pointer);
+
+void sm_set_entry_vector(void *entry_vector);
 
 #endif /*SM_SM_H*/

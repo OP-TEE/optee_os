@@ -24,52 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <tee/tee_obj.h>
-
 #include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
+#include <rng_support.h>
 #include <kernel/tee_core_trace.h>
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
+/* Bad software version */
+uint8_t hw_get_random_byte(void)
 {
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
-}
+	static uint32_t lcg_state;
+	static uint32_t nb_soft = 9876543;
+#define MAX_SOFT_RNG 1024
+	static const uint32_t a = 1664525;
+	static const uint32_t c = 1013904223;
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
-{
-	struct tee_obj *o;
-
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
-
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
-
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
-
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
+	nb_soft = (nb_soft + 1) % MAX_SOFT_RNG;
+	lcg_state = (a * lcg_state + c);
+	return (uint8_t) (lcg_state >> 24);
 }

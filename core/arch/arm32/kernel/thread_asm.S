@@ -29,7 +29,105 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 #include <sm/teesmc.h>
+#include <sm/teesmc_opteed.h>
 #include <kernel/thread_defs.h>
+
+LOCAL_FUNC vector_std_smc_entry , :
+	push	{r0-r7}
+	mov	r0, sp
+	bl	thread_handle_std_smc
+	/*
+	 * Normally thread_handle_std_smc() should return via
+	 * thread_exit(), thread_rpc(), but if thread_handle_std_smc()
+	 * hasn't switched stack (error detected) it will do a normal "C"
+	 * return.
+	 */
+	pop	{r1-r8}
+	smc	#0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	b	.	/* SMC should not return */
+END_FUNC vector_std_smc_entry
+
+LOCAL_FUNC vector_fast_smc_entry , :
+	push	{r0-r7}
+	mov	r0, sp
+	bl	thread_handle_fast_smc
+	pop	{r1-r8}
+	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_fast_smc_entry
+
+LOCAL_FUNC vector_fiq_entry , :
+ 	/* Secure Monitor received a FIQ and passed control to us. */
+ 	bl	check_canaries
+ 	ldr	lr, =thread_fiq_handler_ptr
+ 	ldr	lr, [lr]
+ 	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_FIQ_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_fiq_entry
+
+LOCAL_FUNC vector_cpu_on_entry , :
+	ldr	lr, =thread_cpu_on_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_ON_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_cpu_on_entry
+
+LOCAL_FUNC vector_cpu_off_entry , :
+	ldr	lr, =thread_cpu_off_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_OFF_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_cpu_off_entry
+
+LOCAL_FUNC vector_cpu_suspend_entry , :
+	ldr	lr, =thread_cpu_suspend_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_SUSPEND_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_cpu_suspend_entry
+
+LOCAL_FUNC vector_cpu_resume_entry , :
+	ldr	lr, =thread_cpu_resume_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_RESUME_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_cpu_resume_entry
+
+/*
+ * Vector table supplied to ARM Trusted Firmware (ATF) at initialization.
+ * Also used when compiled with the internal monitor, but the
+ * cpu_*_entry are not used then.
+ *
+ * Note that ATF depends on the layout of this vector table, any change in
+ * layout has to be synced with ATF. This layout must also be kept in sync
+ * with sm_entry_vector in sm.c
+ */
+FUNC thread_vector_table , :
+	b	vector_std_smc_entry
+	b	vector_fast_smc_entry
+	b	vector_cpu_on_entry
+	b	vector_cpu_off_entry
+	b	vector_cpu_resume_entry
+	b	vector_cpu_suspend_entry
+	b	vector_fiq_entry
+END_FUNC thread_vector_table
 
 FUNC thread_set_abt_sp , :
 	mrs	r1, cpsr
@@ -47,7 +145,6 @@ FUNC thread_set_irq_sp , :
 	bx	lr
 END_FUNC thread_set_irq_sp
 
-
 FUNC thread_set_fiq_sp , :
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_FIQ
@@ -56,49 +153,12 @@ FUNC thread_set_fiq_sp , :
 	bx	lr
 END_FUNC thread_set_irq_sp
 
-FUNC thread_recv_smc_call , :
-	ldr	r9, =TEESMC32_CALL_HANDLE_FIQ
-	cmp	r0, r9
-	bne	.recv_smc
-	/*
-	 * FIQ raised while in non-secure world, unmask FIQ temporarily to
-	 * receive the FIQ in as it's normally recieved when secure world
-	 * is active when FIQ is raised.
-	 */
-	cpsie	f
-	nop
-	nop
-	nop
-	nop		/* We should have received IT by now... */
-	cpsid	f
-	mov	r0, r1
-	mov	r1, r2
-	mov	r2, r3
-	mov	r3, r4
-	b	thread_issue_smc
-.recv_smc:
-	push	{r0-r7}
-	mov	r0, sp
-	bl	thread_handle_smc_call
-	/*
-	 * Normally thread_handle_smc_call() should return via
-	 * thread_exit(), thread_rpc(), but if thread_handle_smc_call()
-	 * hasn't switched stack (fast call, FIQ, error detected) it will
-	 * do a normal "C" return.
-	 */
-	pop	{r0-r7}
-thread_issue_smc:
-	smc	#0
-	b	thread_recv_smc_call	/* Next entry to secure world is here */
-END_FUNC thread_recv_smc_call
-
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 	add	r12, r0, #(13 * 4)	/* Restore registers r0-r12 later */
 
 	cps	#CPSR_MODE_SYS
-	ldm	r12!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r12!, {sp, lr}
 
 #ifdef THREAD_LOCAL_EXCEPTION_SPS
 	cps	#CPSR_MODE_IRQ
@@ -164,8 +224,7 @@ LOCAL_FUNC thread_save_state , :
 	stm	r0!, {r12}
 
         cps     #CPSR_MODE_SYS
-        mrs     r1, spsr
-        stm     r0!, {r1, sp, lr}
+        stm     r0!, {sp, lr}
 
 #ifdef THREAD_LOCAL_EXCEPTION_SPS
         cps     #CPSR_MODE_IRQ
@@ -193,11 +252,11 @@ LOCAL_FUNC thread_save_state , :
 	bx	lr
 END_FUNC thread_save_state
 
-FUNC thread_stdcall_entry , :
+FUNC thread_std_smc_entry , :
 	/* Pass r0-r7 in a struct thread_smc_args */
 	push	{r0-r7}
 	mov	r0, sp
-	ldr	lr, =thread_stdcall_handler_ptr
+	ldr	lr, =thread_std_smc_handler_ptr
 	ldr	lr, [lr]
 	blx	lr
 	/*
@@ -215,12 +274,14 @@ FUNC thread_stdcall_entry , :
 
 	bl	thread_state_free
 
-	mov	r0, r4
-	mov	r1, r5
-	mov	r2, r6
-	mov	r3, r7
-	b	thread_issue_smc
-END_FUNC thread_stdcall_entry
+	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	mov	r1, r4
+	mov	r2, r5
+	mov	r3, r6
+	mov	r4, r7
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC thread_std_smc_entry
 
 
 /*
@@ -245,9 +306,11 @@ FUNC thread_rpc , :
 	mov	r1, r4			/* CPSR to restore */
 	ldr	r2, =.thread_rpc_return
 	bl	thread_state_suspend
-	mov	r3, r0			/* Supply thread index */
-	ldm	r5, {r0-r2}		/* Load rv[] into r0-r2 */
-	b	thread_issue_smc
+	mov	r4, r0			/* Supply thread index */
+	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldm	r5, {r1-r3}		/* Load rv[] into r0-r2 */
+	smc	#0
+	b	.	/* SMC should not return */
 
 .thread_rpc_return:
 	/*
@@ -294,7 +357,7 @@ LOCAL_FUNC thread_irq_handler , :
 	pop	{r12}
 	pop	{r2}
 	blx	thread_state_suspend
-	mov	r3, r0		/* Supply thread index */
+	mov	r4, r0		/* Supply thread index */
 
 	/*
 	 * Switch to SVC mode and copy current stack pointer as it already
@@ -304,11 +367,13 @@ LOCAL_FUNC thread_irq_handler , :
 	cps	#CPSR_MODE_SVC
 	mov	sp, r0
 
-	ldr	r0, =TEESMC_RETURN_RPC_IRQ
-	mov	r1, #0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r1, =TEESMC_RETURN_RPC_IRQ
 	mov	r2, #0
-	/* r3 is already filled in above */
-	b	thread_issue_smc
+	mov	r3, #0
+	/* r4 is already filled in above */
+	smc	#0
+	b	.	/* SMC should not return */
 END_FUNC thread_irq_handler
 
 FUNC thread_init_vbar , :

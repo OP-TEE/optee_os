@@ -25,51 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_obj.h>
+#include <kernel/tee_misc_unpg.h>
 
-#include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
-
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
+uint32_t tee_get_cutid(void)
 {
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
-}
-
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
-{
-	struct tee_obj *o;
-
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
-
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
-
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
-
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
+	return 0;
 }

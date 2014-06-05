@@ -869,6 +869,8 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 	o->info.objectUsage = TEE_USAGE_DEFAULT;
 	o->info.handleFlags = 0;
 
+	o->fd = -1;
+
 	tee_obj_add(sess->ctx, o);
 
 	res = tee_svc_copy_to_user(sess, obj, &o, sizeof(o));

@@ -8,6 +8,11 @@ arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include $(platform-dir)/conf.mk
 
+PLATFORM_FLAVOR ?= default
+platform_$(PLATFORM) := y
+platform_flavor_$(PLATFORM_FLAVOR) := y
+cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
+
 cppflags$(sm)	+= -Icore/include $(platform-cppflags) $(core-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)

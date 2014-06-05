@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,51 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_obj.h>
+#ifndef PLATFORM_CONFIG_H
+#define PLATFORM_CONFIG_H
 
-#include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+/*
+ * This file exists to avoid conditional include of a file with this name
+ * in c-files that expect to find platform defines in platform_config.h
+ * instead of getting them from the command line.
+ */
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
-}
-
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
-{
-	struct tee_obj *o;
-
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
-
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
-
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
-
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
-}
+#endif /*PLATFORM_CONFIG_H*/

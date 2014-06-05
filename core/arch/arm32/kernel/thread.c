@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <platform_config.h>
 
 #include <kernel/thread.h>
 #include <kernel/thread_defs.h>
@@ -36,6 +37,8 @@
 #include <kernel/tz_proc.h>
 #include <kernel/misc.h>
 #include <mm/tee_mmu.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/tee_core_trace.h>
 
 #include <assert.h>
 
@@ -43,11 +46,16 @@ static struct thread_ctx threads[NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 
-thread_call_handler_t thread_stdcall_handler_ptr;
-static thread_call_handler_t thread_fastcall_handler_ptr;
+thread_smc_handler_t thread_std_smc_handler_ptr;
+static thread_smc_handler_t thread_fast_smc_handler_ptr;
 thread_fiq_handler_t thread_fiq_handler_ptr;
 thread_svc_handler_t thread_svc_handler_ptr;
 thread_abort_handler_t thread_abort_handler_ptr;
+thread_pm_handler_t thread_cpu_on_handler_ptr;
+thread_pm_handler_t thread_cpu_off_handler_ptr;
+thread_pm_handler_t thread_cpu_suspend_handler_ptr;
+thread_pm_handler_t thread_cpu_resume_handler_ptr;
+
 
 static unsigned int thread_global_lock = UNLOCK;
 
@@ -133,7 +141,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	l->curr_thread = n;
 
-	threads[n].regs.pc = (uint32_t)thread_stdcall_entry;
+	threads[n].regs.pc = (uint32_t)thread_std_smc_entry;
 	/* Stdcalls starts in SVC mode with masked IRQ and unmasked FIQ */
 	threads[n].regs.cpsr = CPSR_MODE_SVC | CPSR_I;
 	threads[n].flags = 0;
@@ -229,18 +237,20 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	thread_resume(&threads[n].regs);
 }
 
-void thread_handle_smc_call(struct thread_smc_args *args)
+void thread_handle_fast_smc(struct thread_smc_args *args)
+{
+	check_canaries();
+	thread_fast_smc_handler_ptr(args);
+}
+
+void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	check_canaries();
 
-	if (TEESMC_IS_FAST_CALL(args->a0)) {
-		thread_fastcall_handler_ptr(args);
-	} else {
-		if (args->a0 == TEESMC32_CALL_RETURN_FROM_RPC)
-			thread_resume_from_rpc(args);
-		else
-			thread_alloc_and_run(args);
-	}
+	if (args->a0 == TEESMC32_CALL_RETURN_FROM_RPC)
+		thread_resume_from_rpc(args);
+	else
+		thread_alloc_and_run(args);
 }
 
 void *thread_get_tmp_sp(void)
@@ -330,11 +340,15 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 
 void thread_init_handlers(const struct thread_handlers *handlers)
 {
-	thread_stdcall_handler_ptr = handlers->stdcall;
-	thread_fastcall_handler_ptr = handlers->fastcall;
+	thread_std_smc_handler_ptr = handlers->std_smc;
+	thread_fast_smc_handler_ptr = handlers->fast_smc;
 	thread_fiq_handler_ptr = handlers->fiq;
 	thread_svc_handler_ptr = handlers->svc;
 	thread_abort_handler_ptr = handlers->abort;
+	thread_cpu_on_handler_ptr = handlers->cpu_on;
+	thread_cpu_off_handler_ptr = handlers->cpu_off;
+	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
+	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
 	thread_init_vbar();
 }
 

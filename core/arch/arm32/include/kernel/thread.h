@@ -34,14 +34,16 @@
 #define THREAD_ABT_STACK	0xfffffffe
 #define THREAD_TMP_STACK	0xffffffff
 
+extern uint32_t thread_vector_table[];
+
 struct thread_smc_args {
-	uint32_t a0;
-	uint32_t a1;
-	uint32_t a2;
-	uint32_t a3;
-	uint32_t a4;	/* Thread ID when returning from RPC */
-	uint32_t a5;
-	uint32_t a6;	/* Optional session ID */
+	uint32_t a0;	/* SMC function ID */
+	uint32_t a1;	/* Parameter */
+	uint32_t a2;	/* Parameter */
+	uint32_t a3;	/* Thread ID when returning from RPC */
+	uint32_t a4;	/* Not used */
+	uint32_t a5;	/* Not used */
+	uint32_t a6;	/* Not used */
 	uint32_t a7;	/* Hypervisor Client ID */
 };
 
@@ -69,8 +71,9 @@ struct thread_svc_regs {
 	uint32_t spsr;
 };
 typedef void (*thread_svc_handler_t)(struct thread_svc_regs *regs);
-typedef void (*thread_call_handler_t)(struct thread_smc_args *args);
+typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
+typedef uint32_t (*thread_pm_handler_t)(uint32_t a0, uint32_t a1);
 struct thread_handlers {
 	/*
 	 * stdcall and fastcall are called as regular functions and
@@ -86,11 +89,11 @@ struct thread_handlers {
 	 * cause any aborts or reenenable FIQs which are temporarily masked
 	 * while executing this handler.
 	 *
-	 * TODO execute fastcalls and FIQs on different stacks allowing
-	 * FIQs to be enabled during a fastcall.
+	 * TODO investigate if we should execute fastcalls and FIQs on
+	 * different stacks allowing FIQs to be enabled during a fastcall.
 	 */
-	thread_call_handler_t stdcall;
-	thread_call_handler_t fastcall;
+	thread_smc_handler_t std_smc;
+	thread_smc_handler_t fast_smc;
 
 	/*
 	 * fiq is called as a regular function and normal ARM Calling
@@ -102,6 +105,16 @@ struct thread_handlers {
 	 * executing this handler.
 	 */
 	thread_fiq_handler_t fiq;
+
+	/*
+	 * Power management handlers triggered from ARM Trusted Firmware.
+	 * Not used when using internal monitor.
+	 */
+	thread_pm_handler_t cpu_on;
+	thread_pm_handler_t cpu_off;
+	thread_pm_handler_t cpu_suspend;
+	thread_pm_handler_t cpu_resume;
+
 
 	/*
 	 * The SVC handler is called as a normal function and should do

@@ -55,6 +55,7 @@ void tee_svc_sys_log(const void *buf, size_t len)
 	kbuf = malloc(len);
 	if (kbuf == NULL)
 		return;
+	*kbuf = '\0';
 
 	/* log as Info/Raw traces */
 	if (tee_svc_copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
@@ -526,19 +527,14 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 		kta_signed_header_t *ta = NULL;
 		struct tee_ta_nwumap lp;
 
-		tee_mmu_set_ctx(NULL);
-
 		/* Load TA */
 		res = tee_ta_rpc_load(uuid, &ta, &lp, &ret_o);
-		if (res != TEE_SUCCESS) {
-			tee_mmu_set_ctx(sess->ctx);
+		if (res != TEE_SUCCESS)
 			goto function_exit;
-		}
 
 		res = tee_ta_open_session(&ret_o, &s, &sess->ctx->open_sessions,
 					  uuid, ta, clnt_id, cancel_req_to,
 					  param);
-		tee_mmu_set_ctx(sess->ctx);
 		if (res != TEE_SUCCESS)
 			goto function_exit;
 

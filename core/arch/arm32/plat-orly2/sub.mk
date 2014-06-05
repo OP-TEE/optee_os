@@ -1,3 +1,5 @@
+global-incdirs-y += .
+
 srcs-y += tee_common_otp.c
 cflags-tee_common_otp.c-y += -Wno-unused-parameter
 

@@ -24,52 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef SM_PRIVATE_H
+#define SM_PRIVATE_H
 
-#include <tee/tee_obj.h>
+struct sm_reg_r0_to_r3 {
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+};
 
-#include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+/* Selects entrypoint depending on value in regs->r0 */
+void sm_set_sec_smc_entry(const struct sm_reg_r0_to_r3 *regs);
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
-}
+/* Selects entrypoint to process a FIQ */
+void sm_set_sec_fiq_entry(void);
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
-{
-	struct tee_obj *o;
+/* Sets return values for return to normal world */
+void sm_set_nsec_ret_vals(struct sm_reg_r0_to_r3 *regs, uint32_t r4);
 
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
+#endif /*SM_PRIVATE_H*/
 
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
-
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
-
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
-}

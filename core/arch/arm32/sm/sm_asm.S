@@ -106,6 +106,10 @@ LOCAL_FUNC sm_smc_entry , :
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_save_modes_regs
 
+	mov	r0, sp
+	mov	r1, r4
+	bl	sm_set_nsec_ret_vals
+
 	/* Restore non-secure context */
 	bl	sm_get_nsec_ctx
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
@@ -130,6 +134,13 @@ LOCAL_FUNC sm_smc_entry , :
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_save_modes_regs
 	stm	r0!, {r4-r12}
+
+	/*
+	 * Update secure context with vector depending on SMC function,
+	 * also updates entry reason
+	 */
+	mov	r0, sp
+	bl	sm_set_sec_smc_entry
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
@@ -169,18 +180,19 @@ LOCAL_FUNC sm_fiq_entry , :
 	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_save_modes_regs
 	stm	r0!, {r4-r12}
+	pop	{r1-r4}	/* R0-R3 pushed at entry */
+	stm	r0!, {r1-r4}
+
+	/*
+	 * Update secure context with vector for FIQ handling, also updates
+	 * entry reason
+	 */
+	bl	sm_set_sec_fiq_entry
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
-	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
+	mov	r1, sp	/* No offset from sp now that {R0-R3} are poped */
 	bl	sm_restore_modes_regs
-
-	/*
-	 * FIQ handling (return from TEESMC_CALL_HANDLE_FIQ) has to return
-	 * supplied R1-R4 in R0-R3 since R0-R3 aren't saved anywhere else.
-	 */
-	pop	{r1-r4}		/* R0-R3 pushed at entry */
-	ldr	r0, =TEESMC32_CALL_HANDLE_FIQ /* Let Trusted OS handle FIQ */
 
 	rfefd	sp!
 END_FUNC sm_fiq_entry

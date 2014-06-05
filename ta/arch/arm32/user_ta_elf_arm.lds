@@ -44,7 +44,7 @@ SECTIONS
         *(.gnu.warning)
         *(.gcc_except_table)
     }
-    .rodata :
+    .rodata : ALIGN(4)
     {
         *(.rodata .rodata.*)
         *(.rodata1)
@@ -69,7 +69,7 @@ SECTIONS
     start_of_RW_sections = .;
     start_of_GOT_sections = .;
 
-    .data :
+    .data : ALIGN(4)
     {
         *(.got.*)
         *(.got)
@@ -90,7 +90,7 @@ SECTIONS
 
     start_of_ZI_sections = .;
 
-    .bss :
+    .bss : ALIGN(4)
     {
         *(.dynbss)
         *(.bss .bss.*)

@@ -30,6 +30,8 @@
  */
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
+#include <sm/teesmc.h>
+#include <sm/teesmc_opteed.h>
 
 /*
  * Booting on 1 or 2 cores ?
@@ -243,13 +245,14 @@ _wait_cpu1:
 #ifdef CONFIG_TEE_GDB_BOOT
 	/* restore linux boot arguments */
 	ldr r4, =gdb_bootargs
-	ldr r0, [r4, #0]
-	ldr r1, [r4, #4]
-	ldr r2, [r4, #8]
+	mov r0, #TEESMC32_OPTEED_RETURN_ENTRY_DONE
+	ldr r1, [r4, #0]
+	ldr r2, [r4, #4]
+	ldr r3, [r4, #8]
 #endif
 
 	smc	#0
-	b	thread_recv_smc_call
+	b	.	/* SMC should not return */
 
 _BootCPU1:
 
@@ -288,7 +291,8 @@ _wait_cpu0:
 	ldr	r0, =stm_secondary_startup
 	bl	main_init
 
+	mov	r0, #TEESMC32_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
-	b	thread_recv_smc_call
+	b	.	/* SMC should not return */
 
 /* End of tz_sinit */

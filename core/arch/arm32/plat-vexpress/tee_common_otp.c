@@ -25,51 +25,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_obj.h>
-
-#include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
+#include <stddef.h>
+#include <string.h>
 #include <kernel/tee_core_trace.h>
+#include <kernel/tee_common_otp.h>
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
+#define SHA256_HASH_SIZE 32
+uint8_t hw_key_digest[SHA256_HASH_SIZE];
+
+/*---------------------------------------------------------------------------*/
+/*                             tee_otp_get_hw_unique_key                    */
+/*---------------------------------------------------------------------------*/
+/*
+    This function reads out a hw unique key.
+
+    \param[in]  hwkey data place holder for the key data read
+    \param[out] None.
+    \return None.
+
+ */
+/*---------------------------------------------------------------------------*/
+void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
+	/* Copy the first part of the new hw key */
+	memcpy(&hwkey->data[0], &hw_key_digest[0],
+	       sizeof(struct tee_hw_unique_key));
 }
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
+int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 {
-	struct tee_obj *o;
+	size_t i;
 
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
+	char pattern[4] = { 'B', 'E', 'E', 'F' };
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
 
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
-
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
-
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
+	return 0;
 }

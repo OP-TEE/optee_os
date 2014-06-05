@@ -270,6 +270,12 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 			sect_prot |= TEE_MMU_SECTION_NS;
 		} else {
 			/*
+			 * TODO
+			 * Security checks shouldn't be done here,
+			 * tee_ta_verify_param() should take care of that.
+			 */
+#if 0
+			/*
 			 * If secure, check here if security level is
 			 * reached. This operation is likely to be
 			 * platform dependent.
@@ -280,6 +286,7 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 					(tee_paddr_t) p->memref.buffer,
 					p->memref.size) == false)
 				return TEE_ERROR_SECURITY;
+#endif
 		}
 
 		/*

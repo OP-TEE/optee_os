@@ -41,6 +41,8 @@
 
 #include "tee_api_defines.h"
 #include <kernel/tee_common_unpg.h>
+#include <kernel/tee_core_trace.h>
+#include <kernel/handle.h>
 
 /* TEE FS operation */
 #define TEE_FS_OPEN       1
@@ -79,23 +81,11 @@ struct tee_fs_fd {
 };
 
 struct tee_fs_dir {
-	uint32_t nw_dir;
+	int nw_dir;
 	struct tee_fs_dirent d;
 };
 
-/*
- * File descriptors are generated based on virtual address
- * of the effective descriptors in RAM. As all descriptor structures
- * are allocated from teecore "malloc" support, descriptor IDs
- * are generated as the offset from malloc pool start address to
- * the effective descriptor structure in RAM.
- * Could use another way. this one is quick and reliable.
- */
-
-/* Get file descriptor from tee_fs_fd pointer */
-#define TEE_FS_GET_FD(_x) ((uint32_t)(_x) - TEE_HEAP_START0)
-/* Get tee_fs_fd pointer from file descriptor */
-#define TEE_FS_GET_FDP(_x) ((void *)((uint32_t)(_x) + TEE_HEAP_START0))
+static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
 static int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 			   uint32_t mode)
@@ -195,7 +185,7 @@ int tee_fs_open(const char *file, int flags, ...)
 	fd->flags = flags;
 
 	/* return fd */
-	res = TEE_FS_GET_FD(fd);
+	res = handle_get(&fs_handle_db, fd);
 
 exit:
 	if (res == -1)
@@ -207,7 +197,7 @@ exit:
 int tee_fs_close(int fd)
 {
 	int res = -1;
-	struct tee_fs_fd *fdp = TEE_FS_GET_FDP(fd);
+	struct tee_fs_fd *fdp = handle_put(&fs_handle_db, fd);
 	struct tee_fs_rpc head = { 0 };
 
 	if (fdp == NULL)
@@ -232,7 +222,7 @@ exit:
 int tee_fs_read(int fd, void *buf, size_t len)
 {
 	int res = -1;
-	struct tee_fs_fd *fdp = TEE_FS_GET_FDP(fd);
+	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 	struct tee_fs_rpc head = { 0 };
 
 	if (len == 0) {
@@ -263,7 +253,7 @@ exit:
 int tee_fs_write(int fd, const void *buf, size_t len)
 {
 	int res = -1;
-	struct tee_fs_fd *fdp = TEE_FS_GET_FDP(fd);
+	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 	struct tee_fs_rpc head = { 0 };
 
 	if (len == 0) {
@@ -299,8 +289,11 @@ exit:
 tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence)
 {
 	tee_fs_off_t res = -1;
-	struct tee_fs_fd *fdp = TEE_FS_GET_FDP(fd);
+	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 	struct tee_fs_rpc head = { 0 };
+
+	if (!fdp)
+		goto exit;
 
 	/* fill in parameters */
 	head.op = TEE_FS_SEEK;
@@ -373,7 +366,7 @@ exit:
 int tee_fs_ftruncate(int fd, tee_fs_off_t length)
 {
 	int res = -1;
-	struct tee_fs_fd *fdp = TEE_FS_GET_FDP(fd);
+	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 	struct tee_fs_rpc head = { 0 };
 
 	if (fdp == NULL)
@@ -431,12 +424,19 @@ tee_fs_dir *tee_fs_opendir(const char *name)
 	if (tee_fs_send_cmd(&head, (void *)name, len, TEE_FS_MODE_IN))
 		goto exit;
 
-	if (head.res == 0)
+	if (head.res < 0)
 		goto exit;
 
 	dir = malloc(sizeof(struct tee_fs_dir));
-	if (dir == NULL)
+	if (dir == NULL) {
+		int nw_dir = head.res;
+
+		memset(&head, 0, sizeof(head));
+		head.op = TEE_FS_CLOSEDIR;
+		head.arg = nw_dir;
+		tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
 		goto exit;
+	}
 
 	dir->nw_dir = head.res;
 	dir->d.d_name = NULL;
@@ -487,11 +487,8 @@ struct tee_fs_dirent *tee_fs_readdir(tee_fs_dir *d)
 	if (tee_fs_send_cmd(&head, fname, sizeof(fname), TEE_FS_MODE_OUT))
 		goto exit;
 
-	if (!head.res) {
-		free(d->d.d_name);
-		d->d.d_name = NULL;
+	if (head.res < 0)
 		goto exit;
-	}
 
 	if (!head.len || head.len > sizeof(fname))
 		goto exit;

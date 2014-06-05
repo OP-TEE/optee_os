@@ -30,6 +30,7 @@
  *       It should should finer mapping (4kByte coarse pages).
  *       It should also allow core to map/unmap (and va/pa) at run-time.
  */
+#include <platform_config.h>
 
 #include <stdlib.h>
 #include <assert.h>
@@ -138,8 +139,12 @@ static bool memarea_not_mapped(struct map_area *map, void *ttbr0)
 	m = (map->pa >> 20) * 4;	/* assumes pa=va */
 	n = map->size >> 20;
 	while (n--) {
-		if (*((uint32_t *)((uint32_t)ttbr0 + m)) != 0)
+		if (*((uint32_t *)((uint32_t)ttbr0 + m)) != 0) {
+			EMSG("m %d [0x%x] map->pa 0x%x map->size 0x%x",
+			     m, *((uint32_t *)((uint32_t)ttbr0 + m)),
+			     map->pa, map->size);
 			return false;
+		}
 		m += 4;
 	}
 	return true;
@@ -213,6 +218,10 @@ static void load_bootcfg_mapping(void *ttbr0)
 
 	/* get memory bootcfg from system */
 	in = bootcfg_get_memory();
+	if (!in) {
+		EMSG("Invalid memory map");
+		assert(0);
+	}
 	bootcfg_pbuf_is = (unsigned long)bootcfg_get_pbuf_is_handler();
 	if (bootcfg_pbuf_is == 0) {
 		EMSG("invalid platform handler for pbuf_is");

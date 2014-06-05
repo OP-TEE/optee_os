@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,52 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERNEL_HANDLE_H
+#define KERNEL_HANDLE_H
 
-#include <tee/tee_obj.h>
+#include <stdint.h>
 
-#include <stdlib.h>
-#include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+struct handle_db {
+	void **ptrs;
+	size_t max_ptrs;
+};
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
-}
+#define HANDLE_DB_INITIALIZER { NULL, 0 }
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
-		       struct tee_obj **obj)
-{
-	struct tee_obj *o;
+/*
+ * Frees all internal data structures of the database, but does not free
+ * the db pointer. The database is safe to reuse after it's destroyed, it
+ * just be empty again.
+ */
+void handle_db_destroy(struct handle_db *db);
 
-	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
-			*obj = o;
-			return TEE_SUCCESS;
-		}
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
-}
+/*
+ * Allocates a new handle and assigns the supplied pointer to it,
+ * ptr must not be NULL.
+ * The function returns
+ * >= 0 on success and
+ * -1 on failure
+ */
+int handle_get(struct handle_db *db, void *ptr);
 
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
-{
-	TAILQ_REMOVE(&ctx->objects, o, link);
+/*
+ * Deallocates a handle. Returns the assiciated pointer of the handle
+ * the the handle was valid or NULL if it's invalid.
+ */
+void *handle_put(struct handle_db *db, int handle);
 
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
-		tee_pobj_release(o->pobj);
-	}
+/*
+ * Returns the assiciated pointer of the handle if the handle is a valid
+ * handle.
+ * Returns NULL on failure.
+ */
+void *handle_lookup(struct handle_db *db, int handle);
 
-	free(o->data);
-	free(o);
-}
-
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
-{
-	struct tee_obj_head *objects = &ctx->objects;
-
-	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
-}
+#endif /*KERNEL_HANDLE_H*/
