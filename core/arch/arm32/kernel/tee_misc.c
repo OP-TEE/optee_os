@@ -1,0 +1,94 @@
+/*
+ * Copyright (c) 2014, STMicroelectronics International N.V.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <kernel/tee_common.h>
+#include <kernel/chip_services.h>
+#include <kernel/tee_misc.h>
+#include <mm/core_memprot.h>
+#include <mm/tee_mmu_defs.h>
+
+
+#include <kernel/tee_common_otp.h>
+#include <kernel/tee_core_trace.h>
+
+static uint8_t tee_b2hs_add_base(uint8_t in)
+{
+	if (in > 9)
+		return in + 55;
+	else
+		return in + 48;
+}
+
+static int tee_hs2b_rem_base(uint8_t in, uint8_t *out)
+{
+	if (in < 48 || in > 70 || (in > 57 && in < 65))
+		return -1;
+
+	if (in < 58)
+		*out = in - 48;
+	else
+		*out = in - 55;
+
+	return 0;
+}
+
+uint32_t tee_b2hs(uint8_t *b, uint8_t *hs, uint32_t blen, uint32_t hslen)
+{
+	uint32_t i = 0;
+
+	if (blen * 2 + 1 > hslen)
+		return 0;
+
+	for (; i < blen; i++) {
+		hs[i * 2 + 1] = tee_b2hs_add_base(b[i] & 0xf);
+		hs[i * 2] = tee_b2hs_add_base(b[i] >> 4);
+	}
+	hs[blen * 2] = 0;
+
+	return blen * 2;
+}
+
+uint32_t tee_hs2b(uint8_t *hs, uint8_t *b, uint32_t hslen, uint32_t blen)
+{
+	uint32_t i = 0;
+	uint32_t len = TEE_HS2B_BBUF_SIZE(hslen);
+	uint8_t hi;
+	uint8_t lo;
+
+	if (len > blen)
+		return 0;
+
+	for (; i < len; i++) {
+		if (tee_hs2b_rem_base(hs[i * 2], &hi))
+			return 0;
+		if (tee_hs2b_rem_base(hs[i * 2 + 1], &lo))
+			return 0;
+		b[i] = (hi << 4) + lo;
+	}
+
+	return len;
+}

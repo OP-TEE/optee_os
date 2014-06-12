@@ -1,0 +1,69 @@
+/*
+ * Copyright (c) 2014, STMicroelectronics International N.V.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * ARMv7 Secure Services library
+ */
+
+#define CPSR_OFFSET                0x00
+#define STACK_INT_USAGE            0x04
+
+/*
+ * tee service IDs (TODO: align with the service ID list).
+ * Set by NSec in R4 before SMC to request a TEE service.
+ */
+#define SSAPI_RET_FROM_INT_SERV             4
+#define SSAPI_RET_FROM_RPC_SERV             5
+
+/*
+ * TEE monitor: status returned by the routine that checks the entry
+ * reason (valid Service ID / secure context).
+ */
+#define SEC_INVALID_ENTRY                  0
+#define SEC_PRE_INIT_ENTRY                 1
+#define SEC_RET_FROM_INT_ENTRY             2
+#define SEC_RET_FROM_RPC_ENTRY             3
+#define SEC_NORMAL_ENTRY                   4
+
+/*
+ * teecore exit reason.
+ * Set by Secure in R4 before SMC to request a switch to NSec.
+ */
+#define SEC_EXIT_NORMAL                    1
+#define SEC_EXIT_START_EXT_CODE            2
+#define SEC_EXIT_INT                       3
+#define SEC_EXIT_RPC_CALL                  4
+#define SEC_EXIT_FIRST                     5
+#define SEC_EXIT_DEEP_SLEEP                6
+
+/* misc */
+
+#define  SEC_UNDEF_STACK_OFFSET             4
+#define  SEC_ABORT_STACK_OFFSET             12
+
+#define  SEC_ENTRY_STATUS_NOK             0
+#define  SEC_ENTRY_STATUS_OK              1

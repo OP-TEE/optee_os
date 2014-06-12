@@ -1,0 +1,10 @@
+srcs-y += gcm_add_aad.c
+srcs-y += gcm_add_iv.c
+srcs-y += gcm_done.c
+srcs-y += gcm_gf_mult.c
+srcs-y += gcm_init.c
+srcs-y += gcm_memory.c
+srcs-y += gcm_mult_h.c
+srcs-y += gcm_process.c
+srcs-y += gcm_reset.c
+srcs-y += gcm_test.c

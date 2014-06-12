@@ -1,0 +1,9 @@
+srcs-y += pkcs_1_i2osp.c
+srcs-y += pkcs_1_mgf1.c
+srcs-y += pkcs_1_oaep_decode.c
+srcs-y += pkcs_1_oaep_encode.c
+srcs-y += pkcs_1_os2ip.c
+srcs-y += pkcs_1_pss_decode.c
+srcs-y += pkcs_1_pss_encode.c
+srcs-y += pkcs_1_v1_5_decode.c
+srcs-y += pkcs_1_v1_5_encode.c
