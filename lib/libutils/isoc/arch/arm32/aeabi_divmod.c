@@ -90,7 +90,7 @@ static void division_qr(unsigned n, unsigned p, struct qr *qr)
 	if (n >= p)
 		i = (i << 1) + 1;	/* increase size of q */
 
-	while ((n>=(p<<1))&&((p<<1)!=0)) {
+	while ((n >= (p << 1)) && ((p << 1) != 0)) {
 		i = (i << 1) + 1;	/* increase size of q */
 		p = p << 1;		/* increase p */
 	}
