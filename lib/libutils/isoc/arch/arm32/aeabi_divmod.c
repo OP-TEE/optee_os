@@ -81,23 +81,20 @@ unsigned ret_uidivmod_values(unsigned quotient, unsigned remainder);
 
 static void division_qr(unsigned n, unsigned p, struct qr *qr)
 {
-	unsigned i = 0, q = 0;
+	unsigned i = 1, q = 0;
 	if (p == 0) {
 		qr->r = 0xFFFFFFFF;	/* division by 0 */
 		return;
 	}
 
-	if (n >= p)
-		i = (i << 1) + 1;	/* increase size of q */
-
-	while ((n >= (p << 1)) && ((p >> 31) == 0)) {
-		i = (i << 1) + 1;	/* increase size of q */
-		p = p << 1;		/* increase p */
+	while ((p >> 31) == 0) {
+		i = i << 1;	/* count the max division steps */
+		p = p << 1;     /* increase p until it has maximum size*/
 	}
 
 	while (i>0) {
 		q = q << 1;	/* write bit in q at index (size-1) */
-		while (n >= p)
+		if (n >= p)
 		{
 			n -= p;
 			q++;
