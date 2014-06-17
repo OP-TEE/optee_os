@@ -92,7 +92,7 @@ static void division_qr(unsigned n, unsigned p, struct qr *qr)
 		p = p << 1;     /* increase p until it has maximum size*/
 	}
 
-	while (i>0) {
+	while (i > 0) {
 		q = q << 1;	/* write bit in q at index (size-1) */
 		if (n >= p)
 		{
