@@ -289,7 +289,7 @@ LOCAL_FUNC thread_irq_handler , :
 
 	bl	thread_save_state
 
-	mov	r0, #0
+	mov	r0, #THREAD_FLAGS_EXIT_ON_IRQ
 	mrs	r1, spsr
 	pop	{r12}
 	pop	{r2}

@@ -88,6 +88,19 @@ static bool have_one_active_thread(void)
 	return false;
 }
 
+static bool have_one_preempted_thread(void)
+{
+	size_t n;
+
+	for (n = 0; n < NUM_THREADS; n++) {
+		if (threads[n].state == THREAD_STATE_SUSPENDED &&
+		    (threads[n].flags & THREAD_FLAGS_EXIT_ON_IRQ))
+			return true;
+	}
+
+	return false;
+}
+
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
@@ -98,7 +111,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	lock_global();
 
-	if (!have_one_active_thread()) {
+	if (!have_one_active_thread() && !have_one_preempted_thread()) {
 		for (n = 0; n < NUM_THREADS; n++) {
 			if (threads[n].state == THREAD_STATE_FREE) {
 				threads[n].state = THREAD_STATE_ACTIVE;
@@ -164,7 +177,20 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	} else if (n < NUM_THREADS &&
 		threads[n].state == THREAD_STATE_SUSPENDED &&
 		args->a7 == threads[n].hyp_clnt_id) {
-		threads[n].state = THREAD_STATE_ACTIVE;
+		/*
+		 * If there's one preempted thread it has to be the one
+		 * we're resuming.
+		 */
+		if (have_one_preempted_thread()) {
+			if (threads[n].flags & THREAD_FLAGS_EXIT_ON_IRQ) {
+				threads[n].flags &= ~THREAD_FLAGS_EXIT_ON_IRQ;
+				threads[n].state = THREAD_STATE_ACTIVE;
+			} else {
+				rv = TEESMC_RETURN_EBUSY;
+			}
+		} else {
+			threads[n].state = THREAD_STATE_ACTIVE;
+		}
 	} else {
 		rv = TEESMC_RETURN_ERESUME;
 	}
@@ -252,8 +278,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 	lock_global();
 
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
-	threads[ct].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
-	threads[ct].flags |= flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+	threads[ct].flags |= flags;
 	threads[ct].regs.cpsr = cpsr;
 	threads[ct].regs.pc = pc;
 	threads[ct].state = THREAD_STATE_SUSPENDED;
