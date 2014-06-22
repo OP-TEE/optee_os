@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string_ext.h>
 #include <tee/tee_authenc.h>
 #include <tee/tee_cipher.h>
 #include <tee/tee_mac.h>
@@ -413,7 +414,7 @@ TEE_Result tee_authenc_dec_final(
 		goto out;
 	}
 
-	if (memcmp(dst_tag, tag, tag_len) != 0)
+	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
 		res = TEE_ERROR_MAC_INVALID;
 	else
 		res = TEE_SUCCESS;

@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <kernel/tee_core_trace.h>
 #include <tee_api_types.h>
 #include <kernel/tee_common_otp.h>
@@ -657,8 +658,8 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	}
 
 	if (rawdata->nonce != NULL) {
-		if (memcmp(rawdata->nonce, lastfrm.nonce, RPMB_NONCE_SIZE)
-				!= 0) {
+		if (buf_compare_ct(rawdata->nonce, lastfrm.nonce,
+				   RPMB_NONCE_SIZE) != 0) {
 			DMSG("%s: nonce mismatched", __func__);
 			return TEE_ERROR_SECURITY;
 		}
@@ -688,9 +689,9 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 				return res;
 		}
 
-		if (memcmp(rawdata->key_mac,
-			   (datafrm + nbr_frms - 1)->key_mac,
-			   RPMB_KEY_MAC_SIZE) != 0) {
+		if (buf_compare_ct(rawdata->key_mac,
+				   (datafrm + nbr_frms - 1)->key_mac,
+				   RPMB_KEY_MAC_SIZE) != 0) {
 			DMSG("%s: MAC mismatched:", __func__);
 #ifdef ENABLE_RPMB_DATA_DUMP
 			HEX_PRINT_BUF((uint8_t *)rawdata->key_mac, 32);

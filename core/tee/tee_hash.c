@@ -29,6 +29,7 @@
 #include <tee/tee_hash.h>
 #include <kernel/tee_core_trace.h>
 #include "tee_ltc_wrapper.h"
+#include <string_ext.h>
 
 #define MAX_DIGEST 64
 
@@ -197,7 +198,7 @@ TEE_Result tee_hash_check(
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (memcmp(digest, hash, hash_size) != 0)
+	if (buf_compare_ct(digest, hash, hash_size) != 0)
 		return TEE_ERROR_SECURITY;
 
 	return TEE_SUCCESS;
