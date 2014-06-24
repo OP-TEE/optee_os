@@ -54,7 +54,6 @@
 #include "user_ta_header.h"
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <kernel/kta_mem.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 
@@ -597,41 +596,9 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 		}
 
 	} else {
-		size_t len = ctx->head->ro_size + ctx->head->rw_size;
-
 		SMSG("no TA is currently supported in TEE RAM: abort.");
 		res = TEE_ERROR_NOT_SUPPORTED;
 		goto error_return;
-
-		/*
-		 * 'nmem' is normal world memory: saved read-only
-		 * bytes of TA in pub DDR. They are protected by the related
-		 * hashes saved in tee RAM.
-		 */
-		if (!tee_vbuf_is(TEE_MEM_NOT_RES_MMU_UL1, ctx->nmem, len)) {
-			tee_mm_entry_t *mm_nmem;
-			void *new_nmem;
-			/*
-			 * At least parts the memory backing that paging of the
-			 * TA resides in memory that will not be reachable when
-			 * a User TA is loaded.
-			 *
-			 * Allocate TEE core phys DDR and copy TA to that
-			 * instead. This is similar to what's done when making
-			 * a kernel TA resident.
-			 */
-
-			mm_nmem = tee_mm_alloc(&tee_mm_pub_ddr, len);
-			if (mm_nmem == NULL) {
-				EMSG("Out of pub DDR, cannot allocate %u", len);
-				res = TEE_ERROR_OUT_OF_MEMORY;
-				goto error_return;
-			}
-			new_nmem = (void *)tee_mm_get_smem(mm_nmem);
-			memcpy(new_nmem, ctx->nmem, len);
-			ctx->nmem = new_nmem;
-		}
-		ctx->mm = tee_mm_alloc(&tee_mm_vcore, size);
 	}
 
 	if (ctx->mm == NULL) {

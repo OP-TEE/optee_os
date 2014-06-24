@@ -24,9 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <io.h>
 #include <kernel/tee_time_unpg.h>
-#include <kernel/kta_mem.h>
 #include <mm/tee_mm_def.h>
 
 volatile uint32_t tee_time_rtt0_wrap;

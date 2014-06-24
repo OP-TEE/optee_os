@@ -24,18 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <string.h>
 #include <stdlib.h>
 
-
+#include <io.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/tee_time.h>
 #include <utee_defines.h>
 #include <kernel/tee_time_unpg.h>
-
-#include <kernel/kta_mem.h>
-
 #include <kernel/tee_core_trace.h>
 
 #define TEE_TIME_SHIFT 5

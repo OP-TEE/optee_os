@@ -27,6 +27,15 @@
 #ifndef IO_H
 #define IO_H
 
+#include <stdint.h>
+#include <sys/types.h>
+
+/*
+ * IO access macro, please avoid using this macro, since it's going to be
+ * deprecated.
+ */
+#define  IO(addr)  (*((volatile unsigned long *)(addr)))
+
 static inline void write8(uint8_t val, vaddr_t addr)
 {
 	*(volatile uint8_t *)addr = val;

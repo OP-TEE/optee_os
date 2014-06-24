@@ -25,45 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- *  \file       kta_types.h
- *  \brief      This file contains types related to the secure library API.
- *  @{
- */
-
 #ifndef KTA_TYPES_H
 #define KTA_TYPES_H
 
 #include <stdint.h>
-
-/*
- * KTA return value type
- */
-
-/* Return code type */
-typedef uint32_t t_kta_return_value;
-
-/*
- * Structure of return type
- *  -----------------------------------------------------------------
- *  | flags |        domain         |             code              |
- *  -----------------------------------------------------------------
- *   31   28 27                   16 15                            0
- */
-/* flags: 0x0 = success / 0x8 = failure */
-
-/* Success codes (domain = D, error code =Y) */
-/* #define KTA_RET_OK_REASON_X      (0x000Y000X) */
-#define KTA_RET_OK          ((t_kta_return_value)0x00000001)
-#define KTA_RET_BUSY        ((t_kta_return_value)0x00000003)
-
-/* Failure codes (domain = D, error code =Y) */
-/* #define KTA_RET_FAIL_ERROR_X      (0x900Y000X) */
-#define KTA_RET_FAIL                   ((t_kta_return_value)0x90000001)
-#define KTA_RET_NON_SUPPORTED_APPL     ((t_kta_return_value)0x90000002)
-#define KTA_RET_NON_VALID_ADDRESS      ((t_kta_return_value)0x90000003)
-#define KTA_RET_MMU_TRANSLATION_FAULT  ((t_kta_return_value)0x90000004)
-#define KTA_RET_INVALID_ARGS           ((t_kta_return_value)0x90000005)
 
 typedef struct kta_signed_header {
 	uint32_t magic;
@@ -82,5 +47,3 @@ typedef struct kta_signed_header {
 } kta_signed_header_t;
 
 #endif /* End of kta_types.h */
-
-/** @} */
