@@ -79,25 +79,22 @@ unsigned ret_uidivmod_values(unsigned quotient, unsigned remainder);
 #error "Compiler not supported"
 #endif
 
-static void division_qr(int n, int p, struct qr *qr)
+static void division_qr(unsigned n, unsigned p, struct qr *qr)
 {
-	int i = 0, q = 0;
+	unsigned i = 1, q = 0;
 	if (p == 0) {
 		qr->r = 0xFFFFFFFF;	/* division by 0 */
 		return;
 	}
 
-	if (n >= p)
-		i = (i << 1) + 1;	/* increase size of q */
-
-	while (n>=(p<<1)) {
-		i = (i << 1) + 1;	/* increase size of q */
-		p = p << 1;		/* increase p */
+	while ((p >> 31) == 0) {
+		i = i << 1;	/* count the max division steps */
+		p = p << 1;     /* increase p until it has maximum size*/
 	}
 
-	while (i>0) {
+	while (i > 0) {
 		q = q << 1;	/* write bit in q at index (size-1) */
-		while (n >= p)
+		if (n >= p)
 		{
 			n -= p;
 			q++;
@@ -111,31 +108,9 @@ static void division_qr(int n, int p, struct qr *qr)
 
 static void uint_div_qr(unsigned numerator, unsigned denominator, struct qr *qr)
 {
-	struct qr qr2;
 
-	/*
-	 * division_qr support dividing 31 bit unsigned numbers
-	 * encoded on 32bit registers. In case value is to high,
-	 * perform 2 divisions, one for each halves, and accumulate
-	 * quotient and remainders.
-	 */
-	if (numerator & (1 << 31)) {
-		unsigned num = numerator >> 1;
-		division_qr(num, denominator, qr);
-		division_qr(num + (numerator & 1), denominator, &qr2);
-		qr->q += qr2.q;
-		qr->r += qr2.r;
-		if (qr->r >= denominator) {
-			qr->q++;
-			qr->r -= denominator;
-		}
-		if (qr->r >= denominator) {
-			qr->q++;
-			qr->r -= denominator;
-		}
-	} else {
-		division_qr(numerator, denominator, qr);
-	}
+	division_qr(numerator, denominator, qr);
+
 	/* negate quotient and/or remainder according to requester */
 	if (qr->q_n)
 		qr->q = -qr->q;
