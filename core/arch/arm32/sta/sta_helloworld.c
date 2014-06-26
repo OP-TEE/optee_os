@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <compiler.h>
 #include <user_ta_header.h>
 #include <kernel/tee_core_trace.h>
 #include <tee_api_types.h>
@@ -40,7 +41,8 @@
 #define CMD_PARAMS	1
 #define CMD_DIRTY_TESTS	2
 
-static TEE_Result test_trace(uint32_t param_types, TEE_Param params[4])
+static TEE_Result test_trace(uint32_t param_types __unused,
+			TEE_Param params[4] __unused)
 {
 	IMSG("static TA \"%s\" says \"Hello world !\"", TA_NAME);
 
@@ -133,7 +135,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[4])
 		return TEE_SUCCESS;
 	}
 
-	DMSG("expect memref params: 0x%X/%d - 0x%X/%d - 0x%X/%d - 0x%X/%d",
+	DMSG("expect memref params: %p/%d - %p/%d - %p/%d - %p/%d",
 			p[0].memref.buffer, p[0].memref.size,
 			p[1].memref.buffer, p[1].memref.size,
 			p[2].memref.buffer, p[2].memref.size,
@@ -207,20 +209,20 @@ static void destroy_ta(void)
 	DMSG("destroy entry point for static ta \"%s\"", TA_NAME);
 }
 
-static TEE_Result open_session(uint32_t nParamTypes, TEE_Param pParams[4],
-				void **ppSessionContext)
+static TEE_Result open_session(uint32_t nParamTypes __unused,
+		TEE_Param pParams[4] __unused, void **ppSessionContext __unused)
 {
 	DMSG("open entry point for static ta \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
 }
 
-static void close_session(void *pSessionContext)
+static void close_session(void *pSessionContext __unused)
 {
 	DMSG("close entry point for static ta \"%s\"", TA_NAME);
 }
 
-static TEE_Result invoke_command(void *pSessionContext, uint32_t nCommandID,
-				uint32_t nParamTypes, TEE_Param pParams[4])
+static TEE_Result invoke_command(void *pSessionContext __unused,
+		uint32_t nCommandID, uint32_t nParamTypes, TEE_Param pParams[4])
 {
 	DMSG("command entry point for static ta \"%s\"", TA_NAME);
 
