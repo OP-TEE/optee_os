@@ -85,7 +85,7 @@ static inline enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode)
 #endif /* ENABLE_MDBG */
 
 /* other standard malloc apis */
-void *memalign(size_t size, size_t a);
+void *memalign(size_t align, size_t size);
 void *valloc(size_t size);
 void *pvalloc(size_t size);
 

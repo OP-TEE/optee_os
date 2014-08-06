@@ -8,4 +8,4 @@ srcs-y += ocb_init.c
 srcs-y += ocb_ntz.c
 srcs-y += ocb_shift_xor.c
 srcs-y += s_ocb_done.c
-srcs-y += ocb_test.c
+# srcs-y += ocb_test.c

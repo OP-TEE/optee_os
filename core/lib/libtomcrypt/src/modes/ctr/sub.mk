@@ -4,4 +4,4 @@ srcs-y += ctr_encrypt.c
 srcs-y += ctr_getiv.c
 srcs-y += ctr_setiv.c
 srcs-y += ctr_start.c
-srcs-y += ctr_test.c
+# srcs-y += ctr_test.c

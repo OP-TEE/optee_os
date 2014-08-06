@@ -7,4 +7,4 @@ srcs-y += gcm_memory.c
 srcs-y += gcm_mult_h.c
 srcs-y += gcm_process.c
 srcs-y += gcm_reset.c
-srcs-y += gcm_test.c
+# srcs-y += gcm_test.c

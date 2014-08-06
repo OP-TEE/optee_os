@@ -621,23 +621,12 @@ ltc_math_descriptor ltc_mp = {
 #else
 	.ecc_mul2add = &ltc_ecc_mul2add,
 #endif /* LTC_MECC_FP */
-#else
-	.ltc_ecc_mul2add = NULL,
 #endif /* LTC_ECC_SHAMIR */
-#else
-	.ecc_ptmul = NULL,
-	.ecc_ptadd = NULL,
-	.ecc_ptdbl = NULL,
-	.ecc_map = NULL,
-	.ecc_mul2add = NULL
 #endif /* LTC_MECC */
 
 #ifdef LTC_MRSA
 	.rsa_keygen = &rsa_make_key,
 	.rsa_me = &rsa_exptmod,
-#else
-	.rsa_keygen = NULL,
-	.rsa_me = NULL
 #endif
 
 };

@@ -54,7 +54,6 @@ int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 	int key_size = 0;	/* max key size, in bytes */
 	int key_size_p = 0;	/* key size of p */
 	int key_size_q = 0;	/* key size of p */
-	int key_size_x;		/* key size of the random candidate */
 	void *arg_mod;
 	uint8_t *buf = 0;	/* intermediate buffer to have a raw random  */
 	int found = 0;

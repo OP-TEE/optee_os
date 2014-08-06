@@ -144,7 +144,7 @@
    #define LTC_TEST
 #endif
 
-/* we want do not want any predefined PRNG */
+/* we do not want any predefined PRNG */
 #define LTC_NO_PRNGS
 
 /* clean the stack of functions which put private information on stack */
@@ -154,7 +154,7 @@
 #define LTC_NO_FILE
 
 /* disable all forms of ASM */
-#define LTC_NO_ASM */
+#define LTC_NO_ASM
 
 /* disable FAST mode */
 /* #define LTC_NO_FAST */

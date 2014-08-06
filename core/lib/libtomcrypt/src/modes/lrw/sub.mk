@@ -5,4 +5,4 @@ srcs-y += lrw_getiv.c
 srcs-y += lrw_process.c
 srcs-y += lrw_setiv.c
 srcs-y += lrw_start.c
-srcs-y += lrw_test.c
+# srcs-y += lrw_test.c
