@@ -15,13 +15,18 @@ srcs :=
 
 define process-subdir-srcs-y
 ifeq ($$(sub-dir),.)
-fname				:= $1
+srcs 				+= $1
 oname				:= $(out-dir)$(base-prefix)$(basename $1).o
 else
-fname				:= $(sub-dir)/$1
+ifneq ($(filter /%,$(1)),)
+# $1 is an absolute path - start with "/"
+srcs 				+= $1
+oname				:= $(out-dir)$(base-prefix)$(basename $1).o
+else
+srcs				+= $(sub-dir)/$1
 oname				:= $(out-dir)$(base-prefix)$(basename $$(sub-dir)/$1).o
 endif
-srcs 				+= $$(fname)
+endif
 cflags-$$(oname) 		:= $$(cflags-y) $$(cflags-$(1)-y)
 cflags-remove-$$(oname) 	:= $$(cflags-remove-y) \
 					$$(cflags-remove-$(1)-y)
