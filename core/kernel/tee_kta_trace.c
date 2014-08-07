@@ -30,12 +30,10 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/tee_kta_trace.h>
 
-/*****************************************************************************/
+#if (CFG_TEE_TA_LOG_LEVEL != 0)
 
 /* Default trace level */
 int _ta_trace_level = CFG_TEE_TA_LOG_LEVEL;
-
-/*****************************************************************************/
 
 void ta_trace_test(void)
 {
@@ -53,8 +51,6 @@ void ta_trace_test(void)
 	DTAMSG_RAW(" __ end of raw trace\n");
 	TAOUTMSG("");
 }
-
-/*****************************************************************************/
 
 void set_ta_trace_level(int level)
 {
@@ -80,11 +76,14 @@ int get_ta_trace_level(void)
 }
 
 #if (CFG_TEE_CORE_LOG_LEVEL == 0)
+#include <compiler.h>
 /* no log, sorry! implement a dummy _dprintf */
-int _dprintf(const char *function, int line, int level, const char *prefix,
-	     const char *fmt, ...)
+int _dprintf(const char *function __unused, int line __unused,
+	     int level __unused, const char *prefix __unused,
+	     const char *fmt __unused, ...)
 {
 	return 0;
 }
 #endif
-/*****************************************************************************/
+#endif
+

@@ -28,6 +28,7 @@
 #define TEE_CORE_TRACE_H
 
 #include <tee_trace.h>
+#include <compiler.h>
 
 /*****************************************************************************/
 
@@ -149,7 +150,7 @@ extern int _trace_level;
 
 #if (CFG_TEE_CORE_LOG_LEVEL == 0)
 #define SMSG(...)   (void)0
-static inline void set_trace_level(int level) { }
+static inline void set_trace_level(int level __unused) { }
 static inline int get_trace_level(void) { return 0; }
 static inline void core_trace_test(void) { }
 #else

@@ -39,7 +39,7 @@
 #include <kernel/asc.h>
 #endif
 
-/*****************************************************************************/
+#if (CFG_TEE_CORE_LOG_LEVEL != 0)
 
 /* Default trace level */
 int _trace_level = CFG_TEE_CORE_LOG_LEVEL;
@@ -65,8 +65,6 @@ static void output_flush(void)
 #define output_flush() __asc_flush()
 #endif
 
-/*****************************************************************************/
-
 void core_trace_test(void)
 {
 	INMSG("level: [%d]", _trace_level);
@@ -84,8 +82,6 @@ void core_trace_test(void)
 	OUTMSG("");
 }
 
-/*****************************************************************************/
-
 void set_trace_level(int level)
 {
 	if (((int)level >= TRACE_MIN) && (level <= TRACE_MAX))
@@ -101,8 +97,6 @@ int get_trace_level(void)
 {
 	return _trace_level;
 }
-
-/*****************************************************************************/
 
 static const char const *_trace_level_to_string[] = {
 	"NONE", "ALW", "ERR", "INF", "DBG", "FLW" };
@@ -166,7 +160,6 @@ static int format_trace(const char *function, int line, int level,
 	return nb_char;
 }
 
-
 int _dprintf(const char *function, int line, int level, const char *prefix,
 	     const char *fmt, ...)
 {
@@ -212,4 +205,4 @@ int _dprintf_hwsync(const char *function, int line, const char *fmt, ...)
 	return nb;
 }
 
-/*****************************************************************************/
+#endif
