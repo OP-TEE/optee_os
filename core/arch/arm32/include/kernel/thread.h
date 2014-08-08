@@ -149,11 +149,9 @@ void thread_init_handlers(const struct thread_handlers *handlers);
 bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
 
 /*
- * Set Thread Specific Data (TSD) pointer together a function
- * to free the TSD on thread_exit.
+ * Set Thread Specific Data (TSD) pointer.
  */
-typedef void (*thread_tsd_free_t)(void *tsd);
-void thread_set_tsd(void *tsd, thread_tsd_free_t free_func);
+void thread_set_tsd(void *tsd);
 
 /* Returns Thread Specific Data (TSD) pointer. */
 void *thread_get_tsd(void);

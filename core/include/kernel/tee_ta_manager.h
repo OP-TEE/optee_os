@@ -63,7 +63,6 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,
 			       struct tee_ta_session_head *open_sessions,
 			       const TEE_UUID *uuid,
-			       const kta_signed_header_t *ta,
 			       const TEE_Identity *clnt_id,
 			       uint32_t cancel_req_to,
 			       struct tee_ta_param *param);
@@ -78,15 +77,6 @@ TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
 				 const TEE_Identity *clnt_id);
 
-/*
- * Load a TA via RPC with UUID defined by input param uuid. The virtual
- * address of the TA is recieved in out parameter ta
- *
- * Function is not thread safe
- */
-TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid, kta_signed_header_t **ta,
-			   struct tee_ta_nwumap *map, uint32_t *ret_orig);
-
 /*-----------------------------------------------------------------------------
  * Function called to close a TA.
  * Parameters:
@@ -100,9 +90,6 @@ TEE_Result tee_ta_close_session(uint32_t id,
 TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess);
 
 void tee_ta_set_current_session(struct tee_ta_session *sess);
-
-TEE_Result tee_ta_make_current_session_resident(void);
-void tee_ta_unlock_current_session(void);
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id);
 

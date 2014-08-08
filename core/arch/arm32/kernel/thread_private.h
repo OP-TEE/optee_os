@@ -76,7 +76,6 @@ struct thread_ctx {
 	enum thread_state state;
 	vaddr_t stack_va_end;
 	void *tsd;
-	thread_tsd_free_t tsd_free;
 	uint32_t hyp_clnt_id;
 	uint32_t flags;
 	struct thread_ctx_regs regs;

@@ -31,21 +31,34 @@
 #include <tee_api_types.h>
 
 /*
-   signed_header
-   ta_head_t
-   ta_func_head_t (1)
-   ta_func_head_t (2)
-   ...
-   ta_func_head_t (N) N = ta_head(_t).nbr_func
-   func_1
-   func_1
-   ...
-   func_N
-   hash_1
-   hash_2
-   ...
-   hash_M
-*/
+ * The generic format of a TA header.
+ *
+ * signed_header
+ * ta_head_t
+ * ta_func_head_t (1)
+ * ta_func_head_t (2)
+ * ...
+ * ta_func_head_t (N) N = ta_head(_t).nbr_func
+ * func_1
+ * func_1
+ * ...
+ * func_N
+ * hash_1
+ * hash_2
+ * ...
+ * hash_M
+ *
+ * The currently this format is limited to N = 5, resulting in a TA header as
+ *
+ * signed_header
+ * struct user_ta_head
+ * struct user_ta_func_head (1)
+ * struct user_ta_func_head (2)
+ * struct user_ta_func_head (3)
+ * struct user_ta_sub_head
+ *
+ * Note that the last two func heads are replaced by struct user_ta_sub_head.
+ */
 
 struct user_ta_head {
 	TEE_UUID uuid;

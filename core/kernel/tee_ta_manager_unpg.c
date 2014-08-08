@@ -79,7 +79,7 @@ void *tee_ta_load_page(const uint32_t va_addr)
 
 	spage = va_addr & 0xFFFFF000;
 	smem = tee_mm_get_smem(ts->mm);
-	npage = (uint32_t) (ts->nmem) + spage - smem;
+	npage = ts->mem_swap + spage - smem;
 	page_idx = ((spage - smem) >> SMALL_PAGE_SHIFT);
 	page_bit = 1 << page_idx;
 	if (tee_hash_get_digest_size(ts->head->hash_type, &hash_size) !=

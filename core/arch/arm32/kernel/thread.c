@@ -352,25 +352,45 @@ void thread_init_handlers(const struct thread_handlers *handlers)
 	thread_init_vbar();
 }
 
-void thread_set_tsd(void *tsd, thread_tsd_free_t free_func)
+void thread_set_tsd(void *tsd)
 {
-	struct thread_core_local *l = get_core_local();
+	uint32_t cpsr = read_cpsr();
+	struct thread_core_local *l;
+	int ct;
 
-	assert(l->curr_thread != -1);
-	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	threads[l->curr_thread].tsd = tsd;
-	threads[l->curr_thread].tsd_free = free_func;
+	/* get_core_local() requires IRQs to be disabled */
+	write_cpsr(cpsr | CPSR_I);
+
+	l = get_core_local();
+	ct = l->curr_thread;
+
+	assert(ct != -1);
+	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	threads[ct].tsd = tsd;
+
+	write_cpsr(cpsr);
 }
 
 void *thread_get_tsd(void)
 {
-	struct thread_core_local *l = get_core_local();
-	int ct = l->curr_thread;
+	uint32_t cpsr = read_cpsr();
+	struct thread_core_local *l;
+	int ct;
+	void *tsd;
+
+	/* get_core_local() requires IRQs to be disabled */
+	write_cpsr(cpsr | CPSR_I);
+
+	l = get_core_local();
+	ct = l->curr_thread;
 
 	if (ct == -1 || threads[ct].state != THREAD_STATE_ACTIVE)
-		return NULL;
+		tsd = NULL;
 	else
-		return threads[ct].tsd;
+		tsd = threads[ct].tsd;
+
+	write_cpsr(cpsr);
+	return tsd;
 }
 
 struct thread_ctx_regs *thread_get_ctx_regs(void)

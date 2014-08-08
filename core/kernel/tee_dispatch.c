@@ -86,7 +86,6 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct tee_ta_session *s = NULL;
 	uint32_t res_orig = TEE_ORIGIN_TEE;
-
 	struct tee_ta_param *param = malloc(sizeof(struct tee_ta_param));
 	TEE_Identity *clnt_id = malloc(sizeof(TEE_Identity));
 
@@ -105,25 +104,7 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 	memcpy(param->param_attr, in->param_attr, sizeof(in->param_attr));
 
 	res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions, &in->uuid,
-				  in->ta, clnt_id, TEE_TIMEOUT_INFINITE, param);
-	if (res_orig == TEE_ORIGIN_TEE && res == TEE_ERROR_ITEM_NOT_FOUND) {
-		kta_signed_header_t *ta = NULL;
-		struct tee_ta_nwumap lp;
-
-		/* Load TA */
-		res = tee_ta_rpc_load(&in->uuid, &ta, &lp, &res_orig);
-		if (res != TEE_SUCCESS)
-			goto cleanup_return;
-
-		res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions,
-					  NULL, ta, clnt_id,
-					  TEE_TIMEOUT_INFINITE, param);
-		if (res != TEE_SUCCESS)
-			goto cleanup_return;
-
-		s->ctx->nwumap = lp;
-
-	}
+				  clnt_id, TEE_TIMEOUT_INFINITE, param);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 

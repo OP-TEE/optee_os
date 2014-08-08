@@ -63,9 +63,7 @@ struct tee_ta_ctx {
 	/* List of storage enumerators opened by this TA */
 	struct tee_storage_enum_head storage_enums;
 	ta_head_t *head;	/* ptr to the ta head in secure memory */
-	void *nmem;		/* ptr to code and data in normal world mem */
-	/* Normal world user mapping of the TA */
-	struct tee_ta_nwumap nwumap;
+	uintptr_t mem_swap;	/* ptr to code and data in memory swap */
 	tee_mm_entry_t *mm;	/* secure world memory */
 	uint32_t smem_size;	/* the size of the secure memory */
 	uint32_t rw_data;	/* rw data stored on heap */
@@ -80,7 +78,6 @@ struct tee_ta_ctx {
 	uint32_t panicked;	/* True if TA has panicked, written from asm */
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
-	bool locked;		/* session is locked and cannot be closed */
 	bool busy;		/* context is busy and cannot be entered */
 	void *ta_time_offs;	/* Time reference used by the TA */
 	ta_static_head_t *static_ta;	/* TA head struct for other cores */

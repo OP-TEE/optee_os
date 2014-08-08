@@ -518,28 +518,9 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 	 * code
 	 */
 	res = tee_ta_open_session(&ret_o, &s, &sess->ctx->open_sessions, uuid,
-				  NULL, clnt_id, cancel_req_to, param);
-
-	if (ret_o != TEE_ORIGIN_TEE || res != TEE_ERROR_ITEM_NOT_FOUND)
+				  clnt_id, cancel_req_to, param);
+	if (res != TEE_SUCCESS)
 		goto function_exit;
-
-	if (ret_o == TEE_ORIGIN_TEE && res == TEE_ERROR_ITEM_NOT_FOUND) {
-		kta_signed_header_t *ta = NULL;
-		struct tee_ta_nwumap lp;
-
-		/* Load TA */
-		res = tee_ta_rpc_load(uuid, &ta, &lp, &ret_o);
-		if (res != TEE_SUCCESS)
-			goto function_exit;
-
-		res = tee_ta_open_session(&ret_o, &s, &sess->ctx->open_sessions,
-					  uuid, ta, clnt_id, cancel_req_to,
-					  param);
-		if (res != TEE_SUCCESS)
-			goto function_exit;
-
-		s->ctx->nwumap = lp;
-	}
 
 	res = tee_svc_update_out_param(sess, NULL, param, tmp_buf_pa, params);
 	if (res != TEE_SUCCESS)
