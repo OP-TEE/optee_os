@@ -53,6 +53,19 @@
 #define GICD_CTLR_ENABLEGRP0	(1 << 0)
 #define GICD_CTLR_ENABLEGRP1	(1 << 1)
 
+/* Number of Private Peripheral Interrupt */
+#define NUM_PPI	32
+
+/* Number of interrupts in one register */
+#define NUM_INTS_PER_REG	32
+
+/* Number of targets in one register */
+#define NUM_TARGETS_PER_REG	4
+
+/* Accessors to access ITARGETSRn */
+#define ITARGETSR_FIELD_BITS	8
+#define ITARGETSR_FIELD_MASK	0xff
+
 /* Maximum number of interrups a GIC can support */
 #define GIC_MAX_INTS		1020
 
@@ -74,7 +87,7 @@ static size_t probe_max_it(void)
 	 */
 	old_ctlr = read32(gic.gicc_base + GICC_CTLR);
 	write32(0, gic.gicc_base + GICC_CTLR);
-	for (i = GIC_MAX_INTS / 32; i > 0; i--) {
+	for (i = GIC_MAX_INTS / NUM_INTS_PER_REG; i > 0; i--) {
 		uint32_t old_reg;
 		uint32_t reg;
 		int b;
@@ -83,9 +96,9 @@ static size_t probe_max_it(void)
 		write32(0xffffffff, gic.gicd_base + GICD_ISENABLER(i));
 		reg = read32(gic.gicd_base + GICD_ISENABLER(i));
 		write32(old_reg, gic.gicd_base + GICD_ICENABLER(i));
-		for (b = 31; b > 0; b--) {
+		for (b = NUM_INTS_PER_REG - 1; b > 0; b--) {
 			if ((1 << b) & reg) {
-				ret = i * 32 + b;
+				ret = i * NUM_INTS_PER_REG + b;
 				goto out;
 			}
 		}
@@ -103,7 +116,7 @@ void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
 	gic.gicd_base = gicd_base;
 	gic.max_it = probe_max_it();
 
-	for (n = 0; n <= gic.max_it / 32; n++) {
+	for (n = 0; n <= gic.max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
 		write32(0xffffffff, gic.gicd_base + GICD_ICENABLER(n));
 
@@ -121,10 +134,17 @@ void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
 		gic.gicd_base + GICD_CTLR);
 }
 
+void gic_init_base_addr(vaddr_t gicc_base, vaddr_t gicd_base)
+{
+	gic.gicc_base = gicc_base;
+	gic.gicd_base = gicd_base;
+	gic.max_it = probe_max_it();
+}
+
 void gic_it_add(size_t it)
 {
-	size_t idx = it / 32;
-	uint32_t mask = 1 << (it % 32);
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	assert(it <= gic.max_it); /* Not too large */
 
@@ -139,29 +159,30 @@ void gic_it_add(size_t it)
 
 void gic_it_set_cpu_mask(size_t it, uint8_t cpu_mask)
 {
-	size_t idx = it / 32;
-	uint32_t mask = 1 << (it % 32);
-	uint32_t target;
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	uint32_t target, target_shift;
 
 	assert(it <= gic.max_it); /* Not too large */
 	/* Assigned to group0 */
 	assert(!(read32(gic.gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Route it to selected CPUs */
-	target = read32(gic.gicd_base + GICD_ITARGETSR(it / 4));
-	target &= ~(0xff << ((it % 4) * 8));
-	target |= cpu_mask << ((it % 4) * 8);
+	target = read32(gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
+	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
+	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
+	target |= cpu_mask << target_shift;
 	DMSG("cpu_mask: writing 0x%x to 0x%x\n",
-		target, gic.gicd_base + GICD_ITARGETSR(it / 4));
-	write32(target, gic.gicd_base + GICD_ITARGETSR(it / 4));
+		target, gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
+	write32(target, gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
 	DMSG("cpu_mask: 0x%x\n",
-		read32(gic.gicd_base + GICD_ITARGETSR(it / 4)));
+		read32(gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG)));
 }
 
 void gic_it_set_prio(size_t it, uint8_t prio)
 {
-	size_t idx = it / 32;
-	uint32_t mask = 1 << (it % 32);
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	assert(it <= gic.max_it); /* Not too large */
 	/* Assigned to group0 */
@@ -175,8 +196,8 @@ void gic_it_set_prio(size_t it, uint8_t prio)
 
 void gic_it_enable(size_t it)
 {
-	size_t idx = it / 32;
-	uint32_t mask = 1 << (it % 32);
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	assert(it <= gic.max_it); /* Not too large */
 	/* Assigned to group0 */
@@ -190,8 +211,8 @@ void gic_it_enable(size_t it)
 
 void gic_it_disable(size_t it)
 {
-	size_t idx = it / 32;
-	uint32_t mask = 1 << (it % 32);
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	assert(it <= gic.max_it); /* Not too large */
 	/* Assigned to group0 */
@@ -211,3 +232,38 @@ void gic_write_eoir(uint32_t eoir)
 	write32(eoir, gic.gicc_base + GICC_EOIR);
 }
 
+bool gic_it_is_enabled(size_t it) {
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	return !!(read32(gic.gicd_base + GICD_ISENABLER(idx)) & mask);
+}
+
+bool gic_it_get_group(size_t it) {
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	return !!(read32(gic.gicd_base + GICD_IGROUPR(idx)) & mask);
+}
+
+uint32_t gic_it_get_target(size_t it) {
+	size_t reg_idx = it / NUM_TARGETS_PER_REG;
+	uint32_t target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
+	uint32_t target_mask = ITARGETSR_FIELD_MASK << target_shift;
+	uint32_t target =
+		read32(gic.gicd_base + GICD_ITARGETSR(reg_idx)) & target_mask;
+	target = target >> target_shift;
+	return target;
+}
+
+void gic_dump_state(void)
+{
+	int i;
+	DMSG("GICC_CTLR: 0x%x", read32(gic.gicc_base + GICC_CTLR));
+	DMSG("GICD_CTLR: 0x%x", read32(gic.gicd_base + GICD_CTLR));
+
+	for (i = 0; i < NUM_PPI; i++) {
+		if (gic_it_is_enabled(i)) {
+			DMSG("irq%d: enabled, group:%d, target:%x", i,
+				gic_it_get_group(i), gic_it_get_target(i));
+		}
+	}
+}

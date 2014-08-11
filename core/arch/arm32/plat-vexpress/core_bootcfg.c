@@ -260,6 +260,17 @@ static struct map_area bootcfg_stih416_memory[] = {
 	 .device = true, .secure = true, .rw = true,
 	 },
 
+#if PLATFORM_FLAVOR_IS(fvp)
+	{	/*
+		 * FVP's GIC Distributor is beyond SECTION_SIZE,
+		 * and need to be mapped seperately.
+		 */
+	 .type = MEM_AREA_IO_SEC,
+	 .pa = (GIC_BASE + GICD_OFFSET) & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .device = true, .secure = true, .rw = true,
+	 },
+#endif
+
 	{.type = MEM_AREA_NOTYPE}
 };
 

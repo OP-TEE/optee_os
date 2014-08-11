@@ -30,6 +30,8 @@
 #include <types_ext.h>
 
 void gic_init(paddr_t gicc_base, paddr_t gicd_base);
+/* initial base address only */
+void gic_init_base_addr(vaddr_t gicc_base, vaddr_t gicd_base);
 
 void gic_it_add(size_t it);
 void gic_it_set_cpu_mask(size_t it, uint8_t cpu_mask);
@@ -40,5 +42,9 @@ void gic_it_disable(size_t it);
 uint32_t gic_read_iar(void);
 void gic_write_eoir(uint32_t eoir);
 
+bool gic_it_is_enabled(size_t it);
+bool gic_it_get_group(size_t it);
+uint32_t gic_it_get_target(size_t it);
+void gic_dump_state(void);
 #endif /*GIC_H*/
 

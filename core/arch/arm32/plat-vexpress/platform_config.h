@@ -39,9 +39,6 @@
 #define PLATFORM_LINKER_ARCH	arm
 
 #define GIC_BASE		0x2c000000
-#define GICC_OFFSET		0x2000
-#define GICD_OFFSET		0x1000
-
 #define UART0_BASE		0x1c090000
 #define UART1_BASE		0x1c0a0000
 #define UART2_BASE		0x1c0b0000
@@ -82,9 +79,12 @@
 #define CFG_SHMEM_START		(DDR_PHYS_START + 0x1000000)
 #define CFG_SHMEM_SIZE		0x100000
 
+#define GICC_OFFSET		0x0
+#define GICD_OFFSET		0x3000000
+
 #elif PLATFORM_FLAVOR_IS(qemu)
 /*
- * FVP specifics.
+ * VE specifics.
  */
 
 #define DDR_PHYS_START	0x80000000
@@ -101,6 +101,9 @@
 
 #define TEE_RAM_START	CFG_DDR_TEETZ_RESERVED_START
 #define TEE_RAM_SIZE	0x0010000
+
+#define GICC_OFFSET		0x2000
+#define GICD_OFFSET		0x1000
 
 #else
 #error "Unknown platform flavor"

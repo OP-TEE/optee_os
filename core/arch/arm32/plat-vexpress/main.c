@@ -243,7 +243,11 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 static void main_init_gic(void)
 #if PLATFORM_FLAVOR_IS(fvp)
 {
-	/* Do nothing as this flavor doesn't handle GIC yet */
+	/*
+	 * In FVP, GIC configuration is initialized in ATF,
+	 * Initializin GIC base address here for debugging.
+	 */
+	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
 {
