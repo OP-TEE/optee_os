@@ -38,6 +38,7 @@
 
 #include <arm32.h>
 #include <kernel/thread.h>
+#include <kernel/time_source.h>
 #include <kernel/panic.h>
 #include <kernel/util.h>
 #include <kernel/tee_core_trace.h>
@@ -179,6 +180,7 @@ void main_init(uint32_t nsec_entry)
 		panic();
 
 	thread_init_handlers(&handlers);
+	time_source_init();
 
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));

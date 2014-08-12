@@ -12,7 +12,10 @@ srcs-y += tee_sleep_services.c
 cflags-tee_sleep_services.c-y += -Wno-unused-parameter
 
 srcs-y += tee_time.c
-cflags-tee_time.c-y += -Wno-unused-parameter
+
+srcs-$(WITH_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
+srcs-$(WITH_SECURE_TIME_SOURCE_RTT) += tee_time_rtt.c
+srcs-$(WITH_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 
 srcs-y += chip_services.c
 

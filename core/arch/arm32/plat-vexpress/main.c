@@ -44,9 +44,11 @@
 
 #include <arm32.h>
 #include <kernel/thread.h>
+#include <kernel/time_source.h>
 #include <kernel/panic.h>
 #include <kernel/tee_core_trace.h>
 #include <kernel/misc.h>
+#include <kernel/tee_time.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
 #include <tee/entry.h>
@@ -310,6 +312,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		panic();
 
 	thread_init_handlers(&handlers);
+	time_source_init();
 
 	main_init_sec_mon(pos, nsec_entry);
 
