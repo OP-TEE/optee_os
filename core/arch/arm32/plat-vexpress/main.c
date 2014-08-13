@@ -383,7 +383,7 @@ uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 	(void)&a1;
 
 	DMSG("cpu %zu: a0 0%x", pos, a0);
-	main_init_helper(false, get_core_pos(), NSEC_ENTRY_INVALID);
+	main_init_helper(false, pos, NSEC_ENTRY_INVALID);
 	return 0;
 }
 
