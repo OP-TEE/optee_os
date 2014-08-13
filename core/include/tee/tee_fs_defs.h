@@ -58,4 +58,8 @@
 #define TEE_FS_W_OK    0x2
 #define TEE_FS_F_OK    0x4
 
+#define TEE_FS_MODE_NONE 0
+#define TEE_FS_MODE_IN   1
+#define TEE_FS_MODE_OUT  2
+
 #endif

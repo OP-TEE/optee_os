@@ -28,7 +28,7 @@
 #ifndef KERNEL_THREAD_H
 #define KERNEL_THREAD_H
 
-#include <sys/types.h>
+#include <types_ext.h>
 
 #define THREAD_ID_0		0
 #define THREAD_ABT_STACK	0xfffffffe

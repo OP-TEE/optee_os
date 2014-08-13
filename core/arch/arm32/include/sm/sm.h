@@ -28,7 +28,7 @@
 #ifndef SM_SM_H
 #define SM_SM_H
 
-#include <sys/types.h>
+#include <types_ext.h>
 
 struct sm_nsec_ctx {
 	uint32_t usr_sp;

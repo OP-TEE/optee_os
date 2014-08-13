@@ -24,9 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SYS_TYPES_H
-#define SYS_TYPES_H
+#ifndef TYPES_EXT_H
+#define TYPES_EXT_H
 
-#include <types_ext.h>
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-#endif /*SYS_TYPES_H*/
+typedef uintptr_t vaddr_t;
+typedef uintptr_t paddr_t;
+
+typedef intptr_t ssize_t;
+
+#endif /* TYPES_EXT_H */

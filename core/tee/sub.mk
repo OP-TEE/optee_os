@@ -18,9 +18,6 @@ cflags-tee_authenc.c-y += -Wno-unused-parameter
 srcs-y += tee_mac.c
 cflags-tee_mac.c-y += -Wno-unused-parameter
 
-srcs-y += tee_rpmb.c
-cflags-tee_rpmb.c-y += -Wno-unused-parameter
-
 srcs-y += tee_cipher.c
 srcs-y += tee_fs.c
 srcs-y += tee_hash.c

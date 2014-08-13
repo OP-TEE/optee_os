@@ -27,7 +27,7 @@
 
 #ifndef GIC_H
 #define GIC_H
-#include <sys/types.h>
+#include <types_ext.h>
 
 void gic_init(paddr_t gicc_base, paddr_t gicd_base);
 

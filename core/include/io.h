@@ -28,7 +28,7 @@
 #define IO_H
 
 #include <stdint.h>
-#include <sys/types.h>
+#include <types_ext.h>
 
 /*
  * IO access macro, please avoid using this macro, since it's going to be

@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <types_ext.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>

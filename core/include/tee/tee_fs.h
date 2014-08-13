@@ -72,4 +72,15 @@ int tee_fs_rmdir(const char *pathname);
 
 int tee_fs_access(const char *name, int mode);
 
+struct tee_fs_rpc {
+	int op;
+	int flags;
+	int arg;
+	int fd;
+	uint32_t len;
+	int res;
+};
+int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
+		    uint32_t mode);
+
 #endif

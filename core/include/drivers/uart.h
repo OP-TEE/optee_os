@@ -27,7 +27,7 @@
 #ifndef UART_H
 #define UART_H
 
-#include <sys/types.h>
+#include <types_ext.h>
 
 void uart_init(vaddr_t base);
 

@@ -24,74 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <kernel/tee_time.h>
 
 #include <string.h>
 #include <stdlib.h>
-#include <kernel/tee_rpc.h>
 #include <kernel/tee_core_trace.h>
 #include <utee_defines.h>
-#include <kernel/thread.h>
-#include <sm/teesmc.h>
-#include <mm/core_mmu.h>
-
-/*
- * tee_time_get_ree_time(): this function implements the GP Internal API
- * function TEE_GetREETime()
- * Goal is to get the time of the Rich Execution Environment
- * This is why this time is provided through the supplicant
- */
-TEE_Result tee_time_get_ree_time(TEE_Time *time)
-{
-	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	paddr_t pharg = 0;
-	paddr_t phpayload = 0;
-	paddr_t cookie = 0;
-	TEE_Time *payload;
-
-	if (!time)
-		goto exit;
-
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(1));
-	if (!pharg)
-		goto exit;
-	thread_st_rpc_alloc_payload(sizeof(TEE_Time), &phpayload, &cookie);
-	if (!phpayload)
-		goto exit;
-
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg) ||
-	    !TEE_ALIGNMENT_IS_OK(phpayload, TEE_Time))
-		goto exit;
-
-	if (core_pa2va(pharg, (uint32_t *)&arg) ||
-	    core_pa2va(phpayload, (uint32_t *)&payload))
-		goto exit;
-
-	arg->cmd = TEE_RPC_GET_TIME;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = 1;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_OUTPUT |
-			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
-			  TEESMC_ATTR_CACHE_O_WRITE_THR) <<
-				TEESMC_ATTR_CACHE_SHIFT;
-	params[0].u.memref.buf_ptr = phpayload;
-	params[0].u.memref.size = sizeof(TEE_Time);
-
-	thread_rpc_cmd(pharg);
-	res = arg->ret;
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	*time = *payload;
-
-exit:
-	thread_rpc_free_arg(pharg);
-	thread_st_rpc_free_payload(cookie);
-	return res;
-}
+#include <kernel/tee_time.h>
 
 struct tee_ta_time_offs {
 	TEE_UUID uuid;

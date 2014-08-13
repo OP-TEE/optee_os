@@ -28,7 +28,7 @@
 #ifndef TEE_TA_MANAGER_UNPG_H
 #define TEE_TA_MANAGER_UNPG_H
 
-#include <sys/types.h>
+#include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
 
 #include <kernel/tee_ta.h>

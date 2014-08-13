@@ -25,20 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_fs.h>
-#include <tee/tee_fs_defs.h>
-
-#include <kernel/tee_rpc.h>
-#include <kernel/tee_rpc_types.h>
-#include <kernel/thread.h>
-#include <sm/teesmc.h>
-#include <mm/core_mmu.h>
-
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
-
-
+#include <tee/tee_fs.h>
+#include <tee/tee_fs_defs.h>
+#include <kernel/tee_rpc.h>
+#include <kernel/tee_rpc_types.h>
+#include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <kernel/tee_common_unpg.h>
 #include <kernel/tee_core_trace.h>
@@ -60,19 +53,6 @@
 #define TEE_FS_RMDIR     13
 #define TEE_FS_ACCESS    14
 
-#define TEE_FS_MODE_NONE 0
-#define TEE_FS_MODE_IN   1
-#define TEE_FS_MODE_OUT  2
-
-struct tee_fs_rpc {
-	int op;
-	int flags;
-	int arg;
-	int fd;
-	uint32_t len;
-	int res;
-};
-
 struct tee_fs_fd {
 	int nw_fd;		/* normal world fd */
 	uint32_t flags;
@@ -86,70 +66,6 @@ struct tee_fs_dir {
 };
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
-
-static int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
-			   uint32_t mode)
-{
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	const size_t num_params = 1;
-	paddr_t pharg = 0;
-	paddr_t phpayload = 0;
-	paddr_t cookie = 0;
-	struct tee_fs_rpc *bf;
-	int res = -1;
-
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
-	thread_st_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
-					        &phpayload, &cookie);
-	if (!pharg || !phpayload)
-		goto exit;
-
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg) ||
-	    !TEE_ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
-		goto exit;
-
-	if (core_pa2va(pharg, (uint32_t *)&arg) ||
-	    core_pa2va(phpayload, (uint32_t *)&bf))
-		goto exit;
-
-	arg->cmd = TEE_RPC_FS;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = num_params;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
-			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
-			  TEESMC_ATTR_CACHE_O_WRITE_THR) <<
-				TEESMC_ATTR_CACHE_SHIFT;
-
-	params[0].u.memref.buf_ptr = phpayload;
-	params[0].u.memref.size = sizeof(struct tee_fs_rpc) + len;
-
-	/* fill in parameters */
-	*bf = *bf_cmd;
-
-	if (mode & TEE_FS_MODE_IN)
-		memcpy((void *)(bf + 1), data, len);
-
-	thread_rpc_cmd(pharg);
-	/* update result */
-	*bf_cmd = *bf;
-	if (arg->ret != TEE_SUCCESS)
-		goto exit;
-
-	if (mode & TEE_FS_MODE_OUT) {
-		uint32_t olen = MIN(len, bf->len);
-
-		memcpy(data, (void *)(bf + 1), olen);
-	}
-
-	res = 0;
-
-exit:
-	thread_rpc_free_arg(pharg);
-	thread_st_rpc_free_payload(cookie);
-	return res;
-}
 
 int tee_fs_open(const char *file, int flags, ...)
 {
