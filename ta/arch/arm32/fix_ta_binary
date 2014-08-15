@@ -1,0 +1,121 @@
+#!/usr/bin/env perl
+# Copyright (c) 2014, STMicroelectronics International N.V.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+use strict;
+use warnings;
+use diagnostics;
+use Env qw($READELF);
+
+sub usage
+{
+    print STDERR "usage: $0 [-v] <elf> <binary>\n";
+    exit(1);
+}
+
+usage if ($#ARGV < 1);
+
+my $verbose = 0;
+
+if ($ARGV[0] =~ m/^-v$/) {
+    $verbose = 1;
+    shift @ARGV;
+}
+
+usage if ($#ARGV != 1);
+my ($elf, $bin) = @ARGV;
+
+open(BIN, "+<$bin") || die("Error opening TA file $bin");
+binmode(BIN);
+
+my $readelf = "readelf";
+$readelf = $READELF if ($READELF);
+
+my $readelfcmd = "$readelf -s -W $elf";
+print "$readelfcmd\n" if ($verbose);
+open(ELF, "$readelfcmd|") || die "Error exec $readelfcmd";
+
+my $offs_0x14;
+my $offs_0x14sym = "linker_RO_sections_size";
+my $offs_0x18;
+my $offs_0x18sym = "linker_RW_sections_size";
+my $offs_0x1c;
+my $offs_0x1csym = "linker_res_funcs_ZI_sections_size";
+my $offs_0x20;
+my $offs_0x20sym = "linker_rel_dyn_GOT";
+
+sub read_value
+{
+    my @args = split;
+    my $value = $args[1];
+    return $value;
+}
+
+while (<ELF>) {
+    last if defined $offs_0x14 && defined $offs_0x18 &&
+            defined $offs_0x1c && defined $offs_0x20;
+    #print "Got $_";
+    my @line = split;
+    my $line_elems = @line;
+    if ($line_elems > 6 && $line[6] =~ m/^ABS$/) {
+        if ($_ =~ m/$offs_0x14sym/) {
+            $offs_0x14 = read_value($_);
+        } elsif ($_ =~ m/$offs_0x18sym/) {
+            $offs_0x18 = read_value($_);
+        } elsif ($_ =~ m/$offs_0x1csym/) {
+            $offs_0x1c = read_value($_);
+        } elsif ($_ =~ m/$offs_0x20sym/) {
+            $offs_0x20 = read_value($_);
+        }
+    }
+}
+
+die "Didn't find required symbol $offs_0x14sym in $elf"
+    unless defined $offs_0x14;
+die "Didn't find required symbol $offs_0x18sym in $elf"
+    unless defined $offs_0x18;
+die "Didn't find required symbol $offs_0x1csym in $elf"
+    unless defined $offs_0x1c;
+die "Didn't find required symbol $offs_0x20sym in $elf"
+    unless defined $offs_0x20;
+
+sub write_value
+{
+    my ($val, $offs, $sym) = @_;
+    printf("%s = 0x%08x offset 0x%x\n", $sym, $val, $offs) if $verbose;
+    my $b = pack( 'V', $val);
+    seek(BIN, $offs, 0) || die "Couldn't seek to $_[1]: $!\n";
+    syswrite(BIN, $b, 4) || die "$!";
+}
+
+write_value(hex $offs_0x14, 0x14, $offs_0x14sym);
+write_value(hex $offs_0x18, 0x18, $offs_0x18sym);
+write_value(hex $offs_0x1c, 0x1c, $offs_0x1csym);
+write_value(hex $offs_0x20, 0x20, $offs_0x20sym);
+
+close(BIN);
+close(ELF);
+exit;
+

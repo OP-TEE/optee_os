@@ -23,7 +23,7 @@ q :=
 cmd-echo := echo
 endif
 
-cflags$(sm) += -fno-short-enums
+cflags$(sm) += -fno-short-enums -fpie
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 ifeq ($(DEBUG),1)
@@ -36,7 +36,7 @@ aflags$(sm) += -g -g3
 
 
 libdirs += $(ta-dev-kit-dir)/lib
-libnames += c mpa utee
+libnames += utils mpa utee
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a
@@ -52,5 +52,6 @@ include  $(ta-dev-kit-dir)/mk/subdir.mk
 vpath %.c $(ta-dev-kit-dir)/src
 srcs += user_ta_header.c
 
+include  $(ta-dev-kit-dir)/mk/gcc.mk
 include  $(ta-dev-kit-dir)/mk/compile.mk
 include  $(ta-dev-kit-dir)/mk/link.mk

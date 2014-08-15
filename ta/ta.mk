@@ -49,7 +49,8 @@ $(foreach f, $(libfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/lib)))
 
 # Copy .mk files
-ta-mkfiles = mk/compile.mk mk/subdir.mk $(wildcard ta/arch/$(ARCH)/link.mk) \
+ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk \
+	$(wildcard ta/arch/$(ARCH)/link.mk) \
 	ta/mk/ta_dev_kit.mk
 $(foreach f, $(ta-mkfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/mk)))
@@ -72,3 +73,8 @@ ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
 	$(wildcard ta/arch/$(ARCH)/user_ta_elf_arm.lds)
 $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/src)))
+
+# Copy the scripts
+ta-scripts = $(wildcard ta/arch/$(ARCH)/fix_ta_binary)
+$(foreach f, $(ta-scripts), \
+	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/scripts)))
