@@ -26,6 +26,7 @@
  */
 
 #include <platform_config.h>
+#include <pm_debug.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -245,7 +246,7 @@ static void main_init_gic(void)
 {
 	/*
 	 * In FVP, GIC configuration is initialized in ATF,
-	 * Initializin GIC base address here for debugging.
+	 * Initialize GIC base address here for debugging.
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
@@ -355,7 +356,7 @@ static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1)
 	(void)&a0;
 	(void)&a1;
 	/* Could stop generic timer here */
-	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
 	return 0;
 }
 
@@ -364,7 +365,7 @@ static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1)
 	(void)&a0;
 	(void)&a1;
 	/* Could save generic timer here */
-	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
 	return 0;
 }
 
@@ -373,7 +374,7 @@ static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1)
 	(void)&a0;
 	(void)&a1;
 	/* Could restore generic timer here */
-	DMSG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
 	return 0;
 }
 
@@ -385,8 +386,7 @@ uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 
 	(void)&a0;
 	(void)&a1;
-
-	DMSG("cpu %zu: a0 0%x", pos, a0);
+	PM_DEBUG("cpu %zu: a0 0%x", pos, a0);
 	main_init_helper(false, pos, NSEC_ENTRY_INVALID);
 	return 0;
 }

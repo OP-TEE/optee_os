@@ -43,11 +43,17 @@ else
 core-platform-cppflags += -DWITH_ARM_TRUSTED_FW=1
 endif
 
+CFG_PM_DEBUG ?= 0
+ifeq ($(CFG_PM_DEBUG),1)
+core-platform-cppflags += \
+	-DCFG_PM_DEBUG
+endif
+
 libutil_with_isoc := y
 
 include mk/config.mk
 
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS?=1
+CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
 core-platform-cppflags += \
 	-DCFG_TEE_CORE_EMBED_INTERNAL_TESTS=$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
 
