@@ -10,8 +10,6 @@ O		?= out/$(ARCH)-plat-$(PLATFORM)
 
 arch_$(ARCH)	:= y
 
-cmd-fixdep	:= ./scripts/fixdep
-
 ifneq ($O,)
 out-dir := $O/
 endif

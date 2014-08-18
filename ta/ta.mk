@@ -72,8 +72,3 @@ ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
 	$(wildcard ta/arch/$(ARCH)/user_ta_elf_arm.lds)
 $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/src)))
-
-# Copy the scripts
-ta-scripts = scripts/fixdep
-$(foreach f, $(ta-scripts), \
-	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/scripts)))

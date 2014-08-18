@@ -56,7 +56,6 @@ FORCE:
 define process_srcs
 objs		+= $2
 comp-dep-$2	:= $$(dir $2).$$(notdir $2).d
-comp-temp-dep-$2:= $$(comp-dep-$2).tmp
 comp-cmd-file-$2:= $$(dir $2).$$(notdir $2).cmd
 comp-sm-$2	:= $(sm)
 
@@ -78,7 +77,7 @@ $$(error "Don't know what to do with $1")
 endif
 
 
-comp-flags-$2 += -Wp,-MD,$$(comp-temp-dep-$2) \
+comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@ \
 	   $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
 			 $$(cppflags-remove-$2), \
 	      $$(nostdinc) $$(CPPFLAGS) \
@@ -101,9 +100,6 @@ $2: $1 FORCE
 		echo [$$(comp-sm-$2)] CC $1 ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
-		$(cmd-fixdep) $$(dir $2) < $$(comp-temp-dep-$2) > \
-			$$(comp-dep-$2) ;\
-		rm -f $$(comp-temp-dep-$2) ;\
 		echo "old-cmd-$2 := $$(subst \",\\\",$$(comp-cmd-$2))" > \
 			$$(comp-cmd-file-$2) ;\
 	)

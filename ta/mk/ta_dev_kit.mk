@@ -11,8 +11,6 @@ sm := ta
 sm-$(ta) := y
 binary := $(BINARY)
 
-cmd-fixdep := $(ta-dev-kit-dir)/scripts/fixdep
-
 ifneq ($O,)
 out-dir := $O/
 endif
