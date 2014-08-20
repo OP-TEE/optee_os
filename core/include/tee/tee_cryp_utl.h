@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __TEE_LTC_WRAPPER_H_
-#define __TEE_LTC_WRAPPER_H_
+#ifndef TEE_CRYP_UTL_H
+#define TEE_CRYP_UTL_H
 
-#include <tomcrypt.h>
 #include <tee_api_types.h>
 
-#define LTC_MAX_BITS_PER_VARIABLE   (4096)
+TEE_Result get_rng_array(void *buffer, int len);
+TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size);
+TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
+				 size_t datalen, uint8_t *digest,
+				 size_t digestlen);
+TEE_Result tee_hash_check(uint32_t algo, const uint8_t *hash,
+			  size_t hash_size, const uint8_t *data,
+			  size_t data_size);
+TEE_Result tee_mac_get_digest_size(uint32_t algo, size_t *size);
+TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size);
+TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
+				TEE_OperationMode mode, bool last_block,
+				const uint8_t *data, size_t len, uint8_t *dst);
+TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
+				  TEE_OperationMode mode, bool last_block,
+				  const uint8_t *data, size_t len,
+				  uint8_t *dst);
 
-void tee_ltc_init(void);
-void tee_ltc_deinit(void);
-TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex);
-TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo, int *ltc_cipherindex);
-int tee_ltc_get_rng_mpa(void);
 
-#endif /* __TEE_LTC_WRAPPER_H_ */
+#endif
