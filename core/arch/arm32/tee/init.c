@@ -24,7 +24,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <tee_ltc_wrapper.h>
 #include <assert.h>
 #include <malloc.h>		/* required for inits */
 
@@ -35,7 +34,7 @@
 #include <kernel/time_source.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
-
+#include <tee/tee_cryp_provider.h>
 
 
 
@@ -80,12 +79,20 @@ TEE_Result init_teecore(void)
 	teecore_init_ta_ram();
 	teecore_init_pub_ram();
 
-	/* Libtomcrypt initialization */
-	tee_ltc_init();
+	/* Initialize cryptographic provider */
+	tee_cryp_init();
 
 	/* time initialization */
 	time_source_init();
 
 	IMSG("teecore inits done");
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_cryp_init(void)
+{
+	if (crypto_ops.init)
+		return crypto_ops.init();
+
 	return TEE_SUCCESS;
 }

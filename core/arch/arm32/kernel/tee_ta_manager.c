@@ -48,7 +48,6 @@
 #include <kernel/tee_rpc.h>
 #include <kernel/tee_rpc_types.h>
 #include <kernel/mutex.h>
-#include <tee/tee_hash.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_storage.h>
 #include <kernel/tee_time.h>
