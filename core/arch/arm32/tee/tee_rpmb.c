@@ -37,9 +37,8 @@
 #include <kernel/tee_ta_manager.h>
 #include <tee/tee_rpmb.h>
 #include <kernel/chip_services.h>
-#include <tee/tee_hash.h>
 #include <kernel/tee_misc.h>
-#include <tee/tee_hash.h>
+#include <tee/tee_cryp_provider.h>
 #include <tee/tee_svc_cryp.h>
 #include <sm/teesmc.h>
 #include <mm/core_mmu.h>
@@ -167,23 +166,23 @@ static TEE_Result mac_calc(uint8_t *mac, uint32_t macsize,
 			   uint8_t *data, uint32_t datasize,
 			   uint8_t *key, uint32_t keylen)
 {
-	return tee_hash_createdigest(
+	return crypto_ops.hash.createdigest(
 		TEE_ALG_HMAC_SHA256, data, datasize, mac, macsize);
 }
 
 static TEE_Result mac_init(void *ctx, const uint8_t *key, uint32_t keysize)
 {
-	return tee_hash_init(ctx, TEE_ALG_HMAC_SHA256);
+	return crypto_ops.hash.init(ctx, TEE_ALG_HMAC_SHA256);
 }
 
 static TEE_Result mac_update(void *ctx, const uint8_t *data, uint32_t datasize)
 {
-	return tee_hash_update(ctx, TEE_ALG_HMAC_SHA256, data, datasize);
+	return crypto_ops.hash.update(ctx, TEE_ALG_HMAC_SHA256, data, datasize);
 }
 
 static TEE_Result mac_final(void *ctx, uint8_t *mac, uint32_t macsize)
 {
-	return tee_hash_final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
+	return crypto_ops.hash.final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
 }
 
 /*
@@ -856,7 +855,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
 
 		if ((rpmb_ctx->hash_ctx_size == 0) &&
-		    (tee_hash_get_ctx_size(
+		    (crypto_ops.hash.get_ctx_size(
 			    TEE_ALG_HMAC_SHA256,
 			    (size_t *)(&rpmb_ctx->hash_ctx_size)))) {
 			rpmb_ctx->hash_ctx_size = 0;
