@@ -34,6 +34,7 @@
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_rpc.h>
 #include <kernel/thread.h>
+#include <kernel/tee_ta_manager.h>
 #include <tee/tee_rpmb.h>
 #include <kernel/chip_services.h>
 #include <tee/tee_hash.h>
@@ -317,6 +318,7 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 {
 	if (!mem)
 		return;
+
 	thread_rpc_free_arg(mem->pharg);
 	thread_rpc_free_payload(mem->phpayload);
 	mem->pharg = 0;
@@ -911,7 +913,8 @@ func_exit:
 TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct tee_rpmb_mem mem;
+	struct tee_ta_session *sess = NULL;
+	struct tee_rpmb_mem mem = { 0 };
 	uint16_t msg_type;
 	struct rpmb_req *req = NULL;
 	struct rpmb_data_frame *resp = NULL;
@@ -919,9 +922,12 @@ TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 	uint32_t req_size;
 	uint32_t resp_size;
 
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
+
 	res = tee_rpmb_init(dev_id, true, commercial);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto func_exit;
 
 	req_size = sizeof(struct rpmb_req) + RPMB_DATA_FRAME_SIZE;
 	resp_size = RPMB_DATA_FRAME_SIZE;
@@ -957,14 +963,16 @@ TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 
 func_exit:
 	tee_rpmb_free(&mem);
+	tee_ta_set_current_session(sess);
 	return res;
 }
 
 TEE_Result tee_rpmb_read(uint16_t dev_id,
 			 uint32_t addr, uint8_t *data, uint32_t len)
 {
+	struct tee_ta_session *sess;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct tee_rpmb_mem mem;
+	struct tee_rpmb_mem mem = { 0 };
 	uint16_t msg_type;
 	uint8_t nonce[RPMB_NONCE_SIZE];
 	uint8_t hmac[RPMB_KEY_MAC_SIZE];
@@ -979,6 +987,9 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 
 	if (data == NULL || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -1035,6 +1046,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 
 func_exit:
 	tee_rpmb_free(&mem);
+	tee_ta_set_current_session(sess);
 	return res;
 }
 
@@ -1158,10 +1170,14 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 			  uint32_t addr, uint8_t *data, uint32_t len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct tee_ta_session *sess;
 	uint8_t *data_tmp = NULL;
 	uint16_t blk_idx;
 	uint16_t blkcnt;
 	uint8_t byte_offset;
+
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -1196,15 +1212,20 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 
 func_exit:
 	free(data_tmp);
+	tee_ta_set_current_session(sess);
 	return res;
 }
 
 TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter)
 {
 	TEE_Result res;
+	struct tee_ta_session *sess;
 
 	if (counter == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
 
 	if (rpmb_ctx == NULL || !rpmb_ctx->wr_cnt_synced) {
 		res = tee_rpmb_init(dev_id, false, true);
@@ -1214,5 +1235,6 @@ TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter)
 
 	*counter = rpmb_ctx->wr_cnt;
 
+	tee_ta_set_current_session(sess);
 	return TEE_SUCCESS;
 }

@@ -43,8 +43,8 @@ LOCAL_FUNC vector_std_smc_entry , :
 	 * return.
 	 */
 	pop	{r1-r8}
-	smc	#0
 	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_std_smc_entry
 

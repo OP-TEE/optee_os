@@ -133,9 +133,6 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	if (!found_thread) {
 		args->a0 = TEESMC_RETURN_EBUSY;
-		args->a1 = 0;
-		args->a2 = 0;
-		args->a3 = 0;
 		return;
 	}
 
@@ -207,9 +204,6 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	if (rv) {
 		args->a0 = rv;
-		args->a1 = 0;
-		args->a2 = 0;
-		args->a3 = 0;
 		return;
 	}
 
@@ -336,6 +330,22 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	}
 
 	return true;
+}
+
+uint32_t thread_get_id(void)
+{
+	uint32_t cpsr = read_cpsr();
+	struct thread_core_local *l;
+	int ct;
+
+	/* get_core_local() requires IRQs to be disabled */
+	write_cpsr(cpsr | CPSR_I);
+
+	l = get_core_local();
+	ct = l->curr_thread;
+
+	write_cpsr(cpsr);
+	return ct;
 }
 
 void thread_init_handlers(const struct thread_handlers *handlers)

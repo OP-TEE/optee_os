@@ -45,6 +45,7 @@
 #define CPSR_T		(1 << 5)
 #define CPSR_F		(1 << 6)
 #define CPSR_I		(1 << 7)
+#define CPSR_A		(1 << 8)
 
 #define MPIDR_CPU_MASK		0xff
 #define MPIDR_CLUSTER_MASK	(0xff << 8)

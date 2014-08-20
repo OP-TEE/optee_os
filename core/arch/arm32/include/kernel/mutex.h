@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,24 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERNEL_MUTEX_H
+#define KERNEL_MUTEX_H
 
-#ifndef TEE_RPC_H
-#define TEE_RPC_H
+#include <types_ext.h>
 
 /*
- * tee_rpc_invoke cmd definitions, keep in sync with tee-supplicant
+ * We're using static memory allocation for some bookkeeping of the mutexes
+ * to avoid memory allocations during mutex_lock(). This is to avoid problems
+ * with mutex_lock() etc failing during out of memory situations.
+ *
+ * The maximum number of mutexes that can be initialized. A mutex that is
+ * destroyed doesn't count. If the number of initialized mutexes exceeds
+ * this number we'll panic().
  */
-#define TEE_RPC_LOAD_TA		0x10000001
-#define TEE_RPC_FREE_TA		0x10000009
-#define TEE_RPC_RPMB_CMD	0x1000000A
-#define TEE_RPC_FS		0x10000010
-#define TEE_RPC_GET_TIME	0x10000011
-/* keep in sync with Linux driver */
-#define TEE_RPC_WAIT_MUTEX	0x20000000
-/* Values specific to TEE_RPC_WAIT_MUTEX */
-#define TEE_WAIT_MUTEX_SLEEP	0
-#define TEE_WAIT_MUTEX_WAKEUP	1
-#define TEE_WAIT_MUTEX_DELETE	2
-
-
+#ifndef MUTEX_MAX_NUMBER_OF
+#define MUTEX_MAX_NUMBER_OF	64
 #endif
+
+enum mutex_value {
+	MUTEX_VALUE_UNLOCKED,
+	MUTEX_VALUE_LOCKED,
+};
+
+struct mutex {
+	enum mutex_value value;
+	size_t num_waiters;	/* > 0 means that some thread(s) are waiting */
+	unsigned spin_lock;	/* used when operating on this struct */
+	int handle;		/* identifier of mutex passed to linux driver */
+	uint32_t tick;		/* how recent the operation passed to */
+				/* linux driver is */
+};
+
+#define MUTEX_INITIALIZER	{ .value = MUTEX_VALUE_UNLOCKED, .handle = -1 }
+
+void mutex_init(struct mutex *m);
+void mutex_lock(struct mutex *m);
+void mutex_unlock(struct mutex *m);
+bool mutex_trylock(struct mutex *m);
+void mutex_destroy(struct mutex *m);
+
+#endif /*KERNEL_MUTEX_H*/
+

@@ -34,12 +34,14 @@
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <kernel/util.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 
 int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode)
 {
+	struct tee_ta_session *sess = NULL;
 	struct teesmc32_arg *arg;
 	struct teesmc32_param *params;
 	const size_t num_params = 1;
@@ -48,6 +50,9 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	paddr_t cookie = 0;
 	struct tee_fs_rpc *bf;
 	int res = -1;
+
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
 
 	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
 	thread_st_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
@@ -78,8 +83,11 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	/* fill in parameters */
 	*bf = *bf_cmd;
 
-	if (mode & TEE_FS_MODE_IN)
+	if (mode & TEE_FS_MODE_IN) {
+		tee_ta_set_current_session(sess);
 		memcpy((void *)(bf + 1), data, len);
+		tee_ta_set_current_session(NULL);
+	}
 
 	thread_rpc_cmd(pharg);
 	/* update result */
@@ -90,7 +98,9 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	if (mode & TEE_FS_MODE_OUT) {
 		uint32_t olen = MIN(len, bf->len);
 
+		tee_ta_set_current_session(sess);
 		memcpy(data, (void *)(bf + 1), olen);
+		tee_ta_set_current_session(NULL);
 	}
 
 	res = 0;
@@ -98,5 +108,6 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 exit:
 	thread_rpc_free_arg(pharg);
 	thread_st_rpc_free_payload(cookie);
+	tee_ta_set_current_session(sess);
 	return res;
 }

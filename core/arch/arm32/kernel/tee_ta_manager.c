@@ -47,6 +47,7 @@
 #include <kernel/tee_core_trace.h>
 #include <kernel/tee_rpc.h>
 #include <kernel/tee_rpc_types.h>
+#include <kernel/mutex.h>
 #include <tee/tee_hash.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_storage.h>
@@ -96,6 +97,9 @@ struct param_ta {
 	struct tee_ta_param *param;
 	TEE_Result res;
 };
+
+/* This mutex protects the critical section in tee_ta_init_session */
+static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
 
 static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map);
 
@@ -1285,6 +1289,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 
 	s->cancel_mask = true;
 	TAILQ_INSERT_TAIL(open_sessions, s, link);
+	mutex_lock(&tee_ta_mutex);
 
 	/* Look for already loaded TA */
 	ctx = tee_ta_context_find(uuid);
@@ -1312,6 +1317,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	tee_ta_rpc_free(&lp);
 
 out:
+	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS) {
 		*sess = s;
 	} else {

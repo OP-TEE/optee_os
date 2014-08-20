@@ -33,6 +33,7 @@
 #include <utee_defines.h>
 #include <kernel/tee_time_unpg.h>
 #include <kernel/tee_core_trace.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 #include <kernel/tee_rpc.h>
@@ -205,6 +206,7 @@ void tee_wait_specific(uint32_t milliseconds_delay)
  */
 TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
+	struct tee_ta_session *sess = NULL;
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct teesmc32_arg *arg;
 	struct teesmc32_param *params;
@@ -212,6 +214,9 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 	paddr_t phpayload = 0;
 	paddr_t cookie = 0;
 	TEE_Time *payload;
+
+	tee_ta_get_current_session(&sess);
+	tee_ta_set_current_session(NULL);
 
 	if (!time)
 		goto exit;
@@ -252,5 +257,6 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 exit:
 	thread_rpc_free_arg(pharg);
 	thread_st_rpc_free_payload(cookie);
+	tee_ta_set_current_session(sess);
 	return res;
 }

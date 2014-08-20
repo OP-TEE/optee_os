@@ -26,3 +26,4 @@ srcs-y += tee_l2cc_mutex.c
 srcs-y += thread_asm.S
 srcs-y += thread.c
 srcs-y += misc.S
+srcs-y += mutex.c

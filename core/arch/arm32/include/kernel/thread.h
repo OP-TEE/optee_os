@@ -149,6 +149,11 @@ void thread_init_handlers(const struct thread_handlers *handlers);
 bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
 
 /*
+ * Returns current thread id.
+ */
+uint32_t thread_get_id(void);
+
+/*
  * Set Thread Specific Data (TSD) pointer.
  */
 void thread_set_tsd(void *tsd);
