@@ -33,6 +33,7 @@
 #include <tee_api_types.h>
 #include <user_ta_header.h>
 #include <tee_internal_api_extensions.h>
+#include <tee_arith_internal.h>
 
 #include <utee_syscalls.h>
 
@@ -120,8 +121,8 @@ static TEE_Result propget_gpd_tee_ta_time_protection_level(struct prop_value
 static TEE_Result propget_gpd_tee_arith_max_big_int_size(struct prop_value *pv)
 {
 	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_ARITH_MAX_BIG_INT_SIZE,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
+	pv->u.int_val = TEE_MAX_NUMBER_OF_SUPPORTED_BITS;
+	return TEE_SUCCESS;
 }
 
 static const struct prop_set propset_current_ta[] = {

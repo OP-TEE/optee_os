@@ -42,7 +42,6 @@
 #include <kernel/tee_kta_trace.h>
 #include <kernel/chip_services.h>
 #include <tee/tee_hash.h>
-#include <tee_ltc_wrapper.h>
 
 
 void tee_svc_sys_log(const void *buf, size_t len)
@@ -197,17 +196,6 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 		return tee_svc_copy_to_user(sess, (void *)buf,
 					    &ta_time_prot_lvl,
 					    sizeof(ta_time_prot_lvl));
-
-	case UTEE_PROP_TEE_ARITH_MAX_BIG_INT_SIZE:
-		{
-			uint32_t v = LTC_MAX_BITS_PER_VARIABLE / 2;
-
-			if (blen < sizeof(v))
-				return TEE_ERROR_SHORT_BUFFER;
-
-			return tee_svc_copy_to_user(sess, (void *)buf, &v,
-						    sizeof(v));
-		}
 
 	case UTEE_PROP_CLIENT_ID:
 		{
