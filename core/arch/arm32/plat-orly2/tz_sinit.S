@@ -201,9 +201,9 @@ _BootCPU0:
 	bl arm_cl2_enable
 
 	bl secure_mmu_init
-	bl mmu_enable
-	bl mmu_enable_icache
-	bl mmu_enable_dcache
+	bl cpu_mmu_enable
+	bl cpu_mmu_enable_icache
+	bl cpu_mmu_enable_dcache
 
 	/* init BSS */
 init_bss:
@@ -269,10 +269,10 @@ _wait_cpu0:
 	bl arm_cl2_cleaninvbyway
 
 	bl secure_mmu_init
-	bl mmu_enable
+	bl cpu_mmu_enable
 
-	bl mmu_enable_icache
-	bl mmu_enable_dcache
+	bl cpu_mmu_enable_icache
+	bl cpu_mmu_enable_dcache
 
 	/* syncrhonise with CPU0 */
 	ldr r0,=sem_cpu_sync

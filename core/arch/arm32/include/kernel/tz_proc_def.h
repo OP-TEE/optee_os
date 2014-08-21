@@ -165,3 +165,9 @@
 #define UNLOCK     0
 #define ARM_STORE_DONE     0
 #define ARM_STORE_FAILED   1
+
+/* IDs for cpu_mmu_va2pa() services */
+#define CPU_V2P_SEC_PRIV_RD	1
+#define CPU_V2P_SEC_PRIV_WR	2
+#define CPU_V2P_SEC_USR_RD	3
+#define CPU_V2P_SEC_USR_WR	4

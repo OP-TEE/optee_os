@@ -45,9 +45,9 @@
 .global cpu_spin_lock
 .global cpu_spin_trylock
 .global cpu_spin_unlock
-.global mmu_enable @ CeCh ADD
-.global mmu_enable_icache @ CeCh ADD
-.global mmu_enable_dcache @ CeCh ADD
+.global cpu_mmu_enable
+.global cpu_mmu_enable_icache
+.global cpu_mmu_enable_dcache
 
 .section .text
 .balign 4
@@ -151,12 +151,12 @@ cpu_spin_unlock:
     bx lr
 
 /*
- * void mmu_enable(void) - enable MMU
+ * void cpu_mmu_enable(void) - enable MMU
  *
  * TLBs are invalidated before MMU is enabled.
  * An DSB and ISB insures MMUs is enabled before routine returns
  */
-mmu_enable:
+cpu_mmu_enable:
      
     MCR     p15, 0, R0, c8, c7, 0
    
@@ -170,8 +170,8 @@ mmu_enable:
 
     MOV PC, LR
 
-/* void mmu_enable_icache(void) - enable instruction cache */
-mmu_enable_icache:
+/* void cpu_mmu_enable_icache(void) - enable instruction cache */
+cpu_mmu_enable_icache:
 
     MOV     R1, #0
     MCR     p15, 0, R1, c7, c5, 0 		/* write to Cache operations register */
@@ -188,11 +188,10 @@ mmu_enable_icache:
 
     MOV PC, LR
 
-/* void mmu_enable_dcache(void) - enable data cache */
-mmu_enable_dcache:
+/* void cpu_mmu_enable_dcache(void) - enable data cache */
+cpu_mmu_enable_dcache:
 
-   PUSH    {R4,LR}
-   
+    PUSH    {R4,LR}
 
     MRC     p15,  0, R1, c1, c0 , 0         /* read control reg */
     ORR     R1, R1, #CP15_CONTROL_C_MASK    /* set DCache enable bit */

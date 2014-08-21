@@ -48,7 +48,7 @@
 /* mmu init */
 .global secure_mmu_init
 .global secure_mmu_init_cpuN
-.global secure_mmu_disable /* TODO: align with mmu_enable() */
+.global secure_mmu_disable /* TODO: align with cpu_mmu_enable() */
 
 /* TLB maintenance */
 .global secure_mmu_datatlbinvall

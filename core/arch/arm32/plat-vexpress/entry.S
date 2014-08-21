@@ -64,9 +64,9 @@ LOCAL_FUNC reset , :
 	bl	icache_inv
 #endif
 	bl	secure_mmu_init
-	bl	mmu_enable
-	bl	mmu_enable_icache
-	bl	mmu_enable_dcache
+	bl	cpu_mmu_enable
+	bl	cpu_mmu_enable_icache
+	bl	cpu_mmu_enable_dcache
 
 	mov	r0, r4
 	bl	main_init
@@ -107,9 +107,9 @@ FUNC cpu_on_handler , :
 	bl	icache_inv
 #endif
 	bl	secure_mmu_init
-	bl	mmu_enable
-	bl	mmu_enable_icache
-	bl	mmu_enable_dcache
+	bl	cpu_mmu_enable
+	bl	cpu_mmu_enable_icache
+	bl	cpu_mmu_enable_dcache
 
 	mov	r0, r4
 	mov	r1, r5
