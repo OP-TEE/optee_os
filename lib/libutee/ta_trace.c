@@ -174,12 +174,13 @@ int puts(const char *str)
 
 #else /* CFG_TEE_TA_LOG_LEVEL */
 #include <tee_internal_api_extensions.h>
-int printf(const char *fmt, ...)
+#include <compiler.h>
+int printf(const char *fmt __unused, ...)
 {
 	return 0;
 }
 
-int puts(const char *str)
+int puts(const char *str __unused)
 {
 	return 0;
 }

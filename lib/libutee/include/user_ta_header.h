@@ -85,16 +85,27 @@ struct user_ta_sub_head {
 	uint32_t stack_size;
 };
 
-#define TA_FLAG_USER_MODE           (1 << 0)
-#define TA_FLAG_EXEC_DDR            (1 << 1)
-#define TA_FLAG_SINGLE_INSTANCE     (1 << 2)
-#define TA_FLAG_MULTI_SESSION       (1 << 3)
-#define TA_FLAG_INSTANCE_KEEP_ALIVE (1 << 4)
+#define TA_FLAG_USER_MODE		(1 << 0)
+#define TA_FLAG_EXEC_DDR		(1 << 1)
+#define TA_FLAG_SINGLE_INSTANCE		(1 << 2)
+#define TA_FLAG_MULTI_SESSION		(1 << 3)
+#define TA_FLAG_INSTANCE_KEEP_ALIVE	(1 << 4) /* remains after last close */
 /*
- * TEE Core will allow memrefs in some firewalled memory if this flag is
- * set for a User TA.
+ * TA_FLAG_UNSAFE_NW_PARAMS: May manipulate some secure memory based on
+ * physical pointers from non-secure world
  */
-#define TA_FLAG_UNSAFE_NW_PARAMS    (1 << 5)
+#define TA_FLAG_UNSAFE_NW_PARAMS	(1 << 5)
+#define TA_FLAG_REMAP_SUPPORT		(1 << 6) /* use map/unmap syscalls */
+#define TA_FLAG_CACHE_MAINTENANCE	(1 << 7) /* use cache flush syscall */
+
+#define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"
+#define TA_PROP_STR_MULTI_SESSION	"gpd.ta.multiSession"
+#define TA_PROP_STR_KEEP_ALIVE		"gpd.ta.instanceKeepAlive"
+#define TA_PROP_STR_DATA_SIZE		"gpd.ta.dataSize"
+#define TA_PROP_STR_STACK_SIZE		"gpd.ta.stackSize"
+#define TA_PROP_STR_UNSAFE_PARAM	"op-tee.unsafe_param"
+#define TA_PROP_STR_REMAP		"op-tee.remap"
+#define TA_PROP_STR_CACHE_SYNC		"op-tee.cache_sync"
 
 enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_BOOL,	/* bool */

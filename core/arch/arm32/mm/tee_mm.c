@@ -224,14 +224,14 @@ void tee_mm_free(tee_mm_entry_t *p)
 		entry = entry->next;
 
 	if (entry->next == NULL) {
-		DMSG("invalid mm_entry %p", p);
+		DMSG("invalid mm_entry %p", (void *)p);
 		TEE_ASSERT(0);
 	}
 	entry->next = entry->next->next;
 
 	if (p->pool->flags & TEE_MM_POOL_PAGED) {
 		/* unmap entry */
-		tee_pager_unmap((uint32_t) (p->offset << p->pool->shift) +
+		tee_pager_unmap((uint32_t)(p->offset << p->pool->shift) +
 				p->pool->lo, p->size);
 	}
 
