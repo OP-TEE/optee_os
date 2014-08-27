@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
+#include <kernel/util.h>
 #include <kernel/tee_core_trace.h>
 #include <tee_api_types.h>
 #include <kernel/tee_common_otp.h>
@@ -327,8 +328,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		struct tee_rpmb_mem *mem, void **req, void **resp)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t req_s = TEE_ROUNDUP(req_size, sizeof(uint32_t));
-	size_t resp_s = TEE_ROUNDUP(resp_size, sizeof(uint32_t));
+	size_t req_s = ROUNDUP(req_size, sizeof(uint32_t));
+	size_t resp_s = ROUNDUP(resp_size, sizeof(uint32_t));
 
 	if (!mem)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -983,7 +984,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 	byte_offset = addr % RPMB_DATA_SIZE;
 
 	blkcnt =
-	    TEE_ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
 
 	res = tee_rpmb_init(dev_id, false, true);
 	if (res != TEE_SUCCESS)
@@ -1166,7 +1167,7 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 	byte_offset = addr % RPMB_DATA_SIZE;
 
 	blkcnt =
-	    TEE_ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
 
 	if (byte_offset == 0 && (len % RPMB_DATA_SIZE) == 0) {
 		res = tee_rpmb_write_blk(dev_id, blk_idx, data, blkcnt);

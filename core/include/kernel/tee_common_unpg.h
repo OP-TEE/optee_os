@@ -36,18 +36,6 @@
 #include <mm/tee_mm_def.h>
 #include <kernel/tee_misc_unpg.h>
 
-#ifndef MAX
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
-
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
-#endif
-
 #define TEE_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
 #define TEE_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -60,11 +48,6 @@ typedef uintptr_t tee_vaddr_t;
 /* Virtual address valid in user mode */
 typedef uintptr_t tee_uaddr_t;
 
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define TEE_ROUNDUP(v, size) (((v) + (size - 1)) & ~(size - 1))
-
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define TEE_ROUNDDOWN(v, size) ((v) & ~(size - 1))
 
 #if (CFG_TEE_FW_DEBUG == 0)
 

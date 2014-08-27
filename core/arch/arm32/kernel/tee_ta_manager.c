@@ -33,6 +33,7 @@
 
 #include <tee_api_types.h>
 #include <user_ta_header.h>
+#include <kernel/util.h>
 #include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
 #include <mm/tee_mmu.h>
@@ -500,7 +501,7 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	}
 
 	/* Ensure proper aligment of stack */
-	ctx->stack_size = TEE_ROUNDUP(sub_head->stack_size,
+	ctx->stack_size = ROUNDUP(sub_head->stack_size,
 				      TEE_TA_STACK_ALIGNMENT);
 
 	*heap_size = sub_head->heap_size;
