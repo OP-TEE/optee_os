@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <kernel/util.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_compat.h>
@@ -286,7 +287,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				    (uintptr_t)param->params[n].memref.buffer,
 				    param->params[n].memref.size)) {
 
-				s = TEE_ROUNDUP(param->params[n].memref.size,
+				s = ROUNDUP(param->params[n].memref.size,
 						sizeof(uint32_t));
 				/* Check overflow */
 				if (req_mem + s < req_mem)
@@ -338,7 +339,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		if (ta_private_memref[n] == false)
 			continue;
 
-		s = TEE_ROUNDUP(param->params[n].memref.size, sizeof(uint32_t));
+		s = ROUNDUP(param->params[n].memref.size, sizeof(uint32_t));
 
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_INPUT:

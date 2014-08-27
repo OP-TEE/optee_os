@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <kernel/util.h>
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_unpg.h>
@@ -676,8 +677,8 @@ TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
 	size_t n;
 	uint32_t *l1 = (uint32_t *)TEE_MMU_UL1_KERN_BASE;
 	uint32_t py_offset = (uint32_t) pa >> SECTION_SHIFT;
-	uint32_t pa_s = TEE_ROUNDDOWN(pa, SECTION_SIZE);
-	uint32_t pa_e = TEE_ROUNDUP(pa + len, SECTION_SIZE);
+	uint32_t pa_s = ROUNDDOWN(pa, SECTION_SIZE);
+	uint32_t pa_e = ROUNDUP(pa + len, SECTION_SIZE);
 	uint32_t flags;
 
 	mm = tee_mm_alloc(&tee_mmu_virt_kmap, pa_e - pa_s);
