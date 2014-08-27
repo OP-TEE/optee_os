@@ -718,7 +718,7 @@ void tee_mmu_kunmap(void *va, size_t len)
 	tee_mm_entry_t *mm;
 	uint32_t *l1 = (uint32_t *)TEE_MMU_UL1_KERN_BASE;
 
-	mm = tee_mm_find(&tee_mmu_virt_kmap, (uint32_t) va);
+	mm = tee_mm_find(&tee_mmu_virt_kmap, (uint32_t)va);
 	if (mm == NULL || len > tee_mm_get_bytes(mm))
 		return;		/* Invalid range, not much to do */
 
@@ -738,11 +738,11 @@ TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 	     n < TEE_MMU_UL1_NUM_ENTRIES;
 	     n++) {
 		if (TEE_MMU_UL1_ENTRY(n) != 0 &&
-		    (uint32_t) pa >= (TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) &&
-		    (uint32_t) pa < ((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK)
+		    (uint32_t)pa >= (TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) &&
+		    (uint32_t)pa < ((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK)
 				     + (1 << SECTION_SHIFT))) {
 			*va = (void *)((n << SECTION_SHIFT) +
-				       ((uint32_t) pa & SECTION_MASK));
+				       ((uint32_t)pa & SECTION_MASK));
 			return TEE_SUCCESS;
 		}
 	}
@@ -751,18 +751,19 @@ TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 
 TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 {
-	uint32_t n = (uint32_t) va >> SECTION_SHIFT;
+	uint32_t n = (uint32_t)va >> SECTION_SHIFT;
 
 	if (n < TEE_MMU_UL1_NUM_USER_ENTRIES && n >= TEE_MMU_UL1_NUM_ENTRIES)
 		return TEE_ERROR_ACCESS_DENIED;
 	*pa = (void *)((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) |
-		       ((uint32_t) va & SECTION_MASK));
+		       ((uint32_t)va & SECTION_MASK));
+
 	return TEE_SUCCESS;
 }
 
 bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 {
-	tee_vaddr_t a = (tee_vaddr_t) va;
+	tee_vaddr_t a = (tee_vaddr_t)va;
 	tee_mm_entry_t *mm = tee_mm_find(&tee_mmu_virt_kmap, a);
 
 	if (mm == NULL)

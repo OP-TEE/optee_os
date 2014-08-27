@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Fits h407, h410.
+ */
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PL310_BASE		0xFFFE2000
-#define SCU_BASE		0xFFFE0000
-#define GIC_DIST_BASE		0xFFFE1000
-#define GIC_CPU_BASE		0xFFFE0100
+#define CPU_IOMEM_BASE		0x08760000
+#define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
+#define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)
+#define SCU_BASE		(CPU_IOMEM_BASE + 0x0000)
+#define GIC_CPU_BASE		(CPU_IOMEM_BASE + 0x0100)
+
+#define CPU_PORT_FILT_START	0x40000000
+#define CPU_PORT_FILT_END	0xC0000000
+
+#define STXH407_LPM_PERIPH_BASE	0x09400000
+#define ST_ASC20_REGS_BASE	(STXH407_LPM_PERIPH_BASE + 0x00130000)
+#define ST_ASC21_REGS_BASE	(STXH407_LPM_PERIPH_BASE + 0x00131000)
+#define ASC_NUM			20
+#define UART_CONSOLE_BASE	ST_ASC20_REGS_BASE
+
+#define RNG_BASE		0x08A89000
 
 #endif /*PLATFORM_CONFIG_H*/

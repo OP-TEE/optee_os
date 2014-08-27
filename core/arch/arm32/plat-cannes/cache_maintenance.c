@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PLATFORM_CONFIG_H
-#define PLATFORM_CONFIG_H
+#include <compiler.h>
+#include <mm/core_mmu.h>
+#include <kernel/tz_ssvce_pl310.h>
 
-#define PL310_BASE		0xFFFE2000
-#define SCU_BASE		0xFFFE0000
-#define GIC_DIST_BASE		0xFFFE1000
-#define GIC_CPU_BASE		0xFFFE0100
+unsigned int cache_maintenance_l2(int op __unused, void *start __unused, size_t len __unused)
+{
+	unsigned int ret = TEE_SUCCESS;
 
-#endif /*PLATFORM_CONFIG_H*/
+	core_l2cc_mutex_lock();
+
+	switch (op) {
+	case L2CACHE_INVALIDATE:
+		arm_cl2_invbyway();
+		break;
+	case L2CACHE_AREA_INVALIDATE:
+		arm_cl2_invbyway();
+		break;
+	case L2CACHE_CLEAN:
+		arm_cl2_cleanbyway();
+		break;
+	case L2CACHE_AREA_CLEAN:
+		arm_cl2_cleanbyway();
+		break;
+	case L2CACHE_CLEAN_INV:
+		arm_cl2_cleaninvbyway();
+		break;
+	case L2CACHE_AREA_CLEAN_INV:
+		arm_cl2_cleaninvbyway();
+		break;
+	default:
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	core_l2cc_mutex_unlock();
+	return ret;
+}

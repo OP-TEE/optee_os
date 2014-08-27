@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PLATFORM_CONFIG_H
-#define PLATFORM_CONFIG_H
+#ifndef TZ_SSVCE_PL310_H
+#define TZ_SSVCE_PL310_H
 
-#define PL310_BASE		0xFFFE2000
-#define SCU_BASE		0xFFFE0000
-#define GIC_DIST_BASE		0xFFFE1000
-#define GIC_CPU_BASE		0xFFFE0100
+void arm_cl2_cleaninvbyway(void);
+void arm_cl2_invbyway(void);
+void arm_cl2_cleanbyway(void);
+void arm_cl2_cleanbypa(unsigned long start, unsigned long end);
+void arm_cl2_invbypa(unsigned long start, unsigned long end);
+void arm_cl2_cleaninvbypa(unsigned long start, unsigned long end);
 
-#endif /*PLATFORM_CONFIG_H*/
+#endif /* TZ_SSVCE_PL310_H */

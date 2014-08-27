@@ -24,14 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef STXH416_LPM_PERIPH_BASE
-#define STXH416_LPM_PERIPH_BASE     0xFE400000
+#include <platform_config.h>
+
+#ifndef ASC_NUM
+#define ASC_NUM     21
 #endif
 
-#define ASC_NUM     21
-
 #ifndef ST_ASC21_REGS_BASE
-#define ST_ASC21_REGS_BASE     (STXH416_LPM_PERIPH_BASE + 0x00131000)
+#define ST_ASC21_REGS_BASE     0xFE531000
 #endif
 
 #define ST_32BIT_REG(address) (address)
@@ -59,6 +59,17 @@
 #define BOARD_ASC_TXRESET_REG       ST_ASC_TXRESET(ASC_NUM)
 #define BOARD_ASC_RXRESET_REG       ST_ASC_RXRESET(ASC_NUM)
 
+.section .data
+.balign 4
+
+/*
+ * ASC IP HW state: 1 not initialized, 0 HW is ready
+ * Note that we rely on NonSecure host to setup the HW.
+ */
+asc_state:
+	.word 1
+
+
 .section .text
 .align 5
 
@@ -72,6 +83,10 @@
 .type      asc_init, %function
 
 asc_init:
+    ldr r1, =asc_state
+    mov r0, #0
+    str r0, [r1]
+
     /* TODO: insure ASC is mapped (check against core_init_mmu()/core_mmu.c) */
     ldr r0, =0
     bx lr
@@ -86,6 +101,12 @@ asc_init:
     .type      __asc_xmit, %function
 
 __asc_xmit:
+
+    ldr r1, =asc_state
+    ldr r1, [r1]
+    cmp r1, #0
+    bne _asc_exit
+
     LDR r2, =BOARD_ASC_TXBUFFER_REG
     LDR r3, =BOARD_ASC_STATUS_REG
 
@@ -128,6 +149,12 @@ _asc_exit:
     .type       __asc_flush, %function
 
 __asc_flush:
+
+    ldr r1, =asc_state
+    ldr r1, [r1]
+    cmp r1, #0
+    bne _flush_exit
+
     LDR r3, =BOARD_ASC_STATUS_REG
 
 flush_wait:
@@ -135,6 +162,7 @@ flush_wait:
     ANDS r1, r1, #0x02   /* AND TX FIFO EMPTY flag */
     BEQ flush_wait          /* ANDS should have set Z bit if zero */
 
+_flush_exit:
     LDR r0, =0
     BX lr
 
@@ -148,6 +176,12 @@ flush_wait:
     .type       __asc_xmit_char, %function
 
 __asc_xmit_char:
+
+    ldr r1, =asc_state
+    ldr r1, [r1]
+    cmp r1, #0
+    bne __asc_char_exit
+
     LDR r2, =BOARD_ASC_TXBUFFER_REG
     LDR r3, =BOARD_ASC_STATUS_REG
 

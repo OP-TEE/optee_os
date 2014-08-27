@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PLATFORM_CONFIG_H
-#define PLATFORM_CONFIG_H
+#include <stddef.h>
+#include <string.h>
+#include <kernel/tee_core_trace.h>
+#include <kernel/tee_common_otp.h>
 
-#define PL310_BASE		0xFFFE2000
-#define SCU_BASE		0xFFFE0000
-#define GIC_DIST_BASE		0xFFFE1000
-#define GIC_CPU_BASE		0xFFFE0100
+#define SHA256_HASH_SIZE 32
+uint8_t hw_key_digest[SHA256_HASH_SIZE];
 
-#endif /*PLATFORM_CONFIG_H*/
+/*---------------------------------------------------------------------------*/
+/*                             tee_otp_get_hw_unique_key                    */
+/*---------------------------------------------------------------------------*/
+/*
+    This function reads out a hw unique key.
+
+    \param[in]  hwkey data place holder for the key data read
+    \param[out] None.
+    \return None.
+
+ */
+/*---------------------------------------------------------------------------*/
+void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	/* Copy the first part of the new hw key */
+	memcpy(&hwkey->data[0], &hw_key_digest[0],
+	       sizeof(struct tee_hw_unique_key));
+}
+
+int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+{
+	size_t i;
+
+	char pattern[4] = { 'B', 'E', 'E', 'F' };
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
+
+	return 0;
+}

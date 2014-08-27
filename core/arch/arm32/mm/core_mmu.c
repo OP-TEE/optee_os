@@ -497,7 +497,7 @@ int core_tlb_maintenance(int op, unsigned int a)
 		secure_mmu_unifiedtlbinv_byasid(a);
 		break;
 	case TLBINV_BY_MVA:
-		SMSG("TLB_INV_SECURE_MVA is not yet supported!");
+		EMSG("TLB_INV_SECURE_MVA is not yet supported!");
 		while (1)
 			;
 		secure_mmu_unifiedtlbinvbymva(a);
@@ -575,43 +575,28 @@ void core_l2cc_mutex_activate(bool en)
 	l2cc_mutex_required = en;
 }
 
-static unsigned int cache_maintenance_l2(int op, void *start, size_t len)
+void core_l2cc_mutex_lock(void)
 {
-	unsigned int ret;
-
-	/* is shared mutex configured */
-	if (l2cc_mutex_required && (l2cc_mutex == NULL))
-		return TEE_ERROR_GENERIC;
 	if (l2cc_mutex_required)
 		cpu_spin_lock(l2cc_mutex);
+}
 
-	ret = TEE_SUCCESS;
-	switch (op) {
-	case L2CACHE_INVALIDATE:
-		arm_cl2_invbyway();
-		break;
-	case L2CACHE_AREA_INVALIDATE:
-		arm_cl2_invbyway();
-		break;
-	case L2CACHE_CLEAN:
-		arm_cl2_cleanbyway();
-		break;
-	case L2CACHE_AREA_CLEAN:
-		arm_cl2_cleanbyway();
-		break;
-	case L2CACHE_CLEAN_INV:
-		arm_cl2_cleaninvbyway();
-		break;
-	case L2CACHE_AREA_CLEAN_INV:
-		arm_cl2_cleaninvbyway();
-		break;
-	default:
-		ret = TEE_ERROR_NOT_IMPLEMENTED;
-	}
-
+void core_l2cc_mutex_unlock(void)
+{
 	if (l2cc_mutex_required)
 		cpu_spin_unlock(l2cc_mutex);
-	return ret;
+}
+
+__attribute__((weak)) unsigned int cache_maintenance_l2(
+	int op __unused, void *start __unused, size_t len __unused)
+{
+	/*
+	 * L2 Cache is not available on each platform
+	 * This function should be redefined in platform specific
+	 * part, when L2 cache is available
+	 */
+
+	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
 unsigned int core_cache_maintenance(int op, void *start, size_t len)

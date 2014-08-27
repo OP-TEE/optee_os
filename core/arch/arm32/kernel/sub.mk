@@ -20,6 +20,7 @@ srcs-y += tee_misc.c
 srcs-y += tee_time_unpg.c
 srcs-y += tz_proc.S
 srcs-y += tz_ssvce.S
+srcs-$(WITH_PL310) += tz_ssvce_pl310.S
 srcs-y += tee_l2cc_mutex.c
 
 srcs-y += thread_asm.S

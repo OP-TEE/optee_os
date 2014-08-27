@@ -1,0 +1,32 @@
+# this script defines platform specficis settings for TEE armv7 build
+
+DDR_PHYS_START := 0x40000000
+DDR_SIZE := 0x80000000
+
+# Hard coded NB cores
+CFG_TEE_CORE_NB_CORE := 2
+
+# Static configuration of DDR reserved to TEE/TZ
+# Provide here only start address and size. TEEcore will adapt.
+# Allow these settings to be overridden.
+CFG_DDR_TEETZ_RESERVED_START ?= 0x94200000
+CFG_DDR_TEETZ_RESERVED_SIZE ?= 0x00800000
+
+TEE_SCATTER_START := $(CFG_DDR_TEETZ_RESERVED_START)
+
+
+# Plaform/Project/Board specfic static configuration
+#
+ifeq ($(BUILD_FOR_ANDROID),true)
+
+CFG_LINUX_LOAD_ADDR ?= 0x70000000
+
+else
+
+CFG_LINUX_LOAD_ADDR ?= 0x42000000
+
+endif
+
+STACK_TMP_SIZE		:= 1024	# TODO minimize
+STACK_ABT_SIZE		:= 1024
+STACK_THREAD_SIZE	:= 8192

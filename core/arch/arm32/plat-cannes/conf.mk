@@ -61,10 +61,11 @@ core-platform-cppflags += -DCFG_DDR1_START=$(DDR1_PHYS_START)
 core-platform-cppflags += -DCFG_DDR1_SIZE=$(DDR1_SIZE)
 endif
 
-
-PRIMARY_STARTUP_PHYS	 = \
-	0x$(shell grep stext $(platform-dir)/System.map | grep -v _stext | \
-		cut -d' ' -f 1)
-SECONDARY_STARTUP_PHYS	 = \
-	0x$(shell grep stm_secondary_startup $(platform-dir)/System.map | \
-		cut -d' ' -f 1)
+PRIMARY_STARTUP_PHYS	 = $(shell echo $$(( ${CFG_LINUX_LOAD_ADDR} + 0x8000 )))
+OFFSET_STARTUP_PHYS	 = $(shell echo $$((\
+ 	$(PRIMARY_STARTUP_PHYS) - \
+ 	0x$(shell grep stext $(platform-dir)/System.map | grep -v _stext | \
+ 		cut -d' ' -f 1) )) )
+SECONDARY_STARTUP_PHYS	 = $(shell echo $$((\
+	0x$(shell grep sti_secondary_startup $(platform-dir)/System.map | \
+		cut -d' ' -f 1) + $(OFFSET_STARTUP_PHYS) )) )
