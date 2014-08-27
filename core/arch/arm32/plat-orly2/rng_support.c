@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <rng_support.h>
 #include <kernel/tee_core_trace.h>
+#include <platform_config.h>
 
 /* Use the RNG of the HW on this platform */
 #define USE_RNG_HW
@@ -45,17 +46,9 @@
 
 #ifdef USE_RNG_HW
 
-/*
- * Base address of the RNG on Orly-2, taken from document
- *      http://wave.st.com/chd/SOC_HW_Design/default.aspx
- *          SOC HW Design > ORLY > ORLY2_cut1.0 > SoC_Reg_Spec
- *              top_mpe42.xls
- */
-#define RNG_BASE_ADDRESS      0xFEE80000
-
 /* Address of the register to read in the RNG IP */
-#define RNG_VAL             (RNG_BASE_ADDRESS + 0x24)
-#define RNG_STATUS          (RNG_BASE_ADDRESS + 0x20)
+#define RNG_VAL             (RNG_BASE + 0x24)
+#define RNG_STATUS          (RNG_BASE + 0x20)
 
 static volatile uint32_t *_p_addr_val    = (uint32_t *)RNG_VAL;
 static volatile uint32_t *_p_addr_status = (uint32_t *)RNG_STATUS;

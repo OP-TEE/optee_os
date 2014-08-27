@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <rng_support.h>
 #include <kernel/tee_core_trace.h>
+#include <platform_config.h>
 
 /* Use the RNG of the HW on this platform */
 #define USE_RNG_HW
@@ -45,20 +46,9 @@
 
 #ifdef USE_RNG_HW
 
-/*
- *  Base address of the RNG on Cannes, taken from document
- *
- *     http://best.st.com/docshare/products/UPD/cannes-monaco
- *        01. CANNES and MONACO cut1.0
- *            02. SoC Hardware Architecture
- *                02. Memory Map/
- *                   CannesMemoryMap_V2.4.xlsx
- */
-#define RNG_BASE_ADDRESS      0x08A89000
-
 /* Address of the register to read in the RNG IP */
-#define RNG_VAL             (RNG_BASE_ADDRESS + 0x24)
-#define RNG_STATUS          (RNG_BASE_ADDRESS + 0x20)
+#define RNG_VAL             (RNG_BASE + 0x24)
+#define RNG_STATUS          (RNG_BASE + 0x20)
 
 static volatile uint32_t *_p_addr_val    = (uint32_t *)RNG_VAL;
 static volatile uint32_t *_p_addr_status = (uint32_t *)RNG_STATUS;

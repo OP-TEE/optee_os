@@ -26,14 +26,6 @@
  */
 #include <platform_config.h>
 
-#ifndef ASC_NUM
-#define ASC_NUM     21
-#endif
-
-#ifndef ST_ASC21_REGS_BASE
-#define ST_ASC21_REGS_BASE     0xFE531000
-#endif
-
 #define ST_32BIT_REG(address) (address)
 
 /* Asynchronous Serial Controller control registers */

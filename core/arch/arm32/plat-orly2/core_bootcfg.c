@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <platform_config.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <kernel/tee_core_trace.h>
@@ -32,8 +33,9 @@
 #error "TEETZ reserved DDR start address undef: CFG_DDR_TEETZ_RESERVED_START"
 #endif
 #ifndef CFG_DDR_TEETZ_RESERVED_SIZE
-#error "TEETZ reserved DDR siez undefined: CFG_DDR_TEETZ_RESERVED_SIZE"
+#error "TEETZ reserved DDR size undefined: CFG_DDR_TEETZ_RESERVED_SIZE"
 #endif
+
 
 /*
  * TEE/TZ RAM layout:
@@ -110,13 +112,15 @@ MEMACCESS_AREA(CFG_DDR_ARM_ARMTZ_START, CFG_DDR_ARM_ARMTZ_SIZE);
 static bool buf_inside_area(unsigned long bp, size_t bs, unsigned long ap,
 			    size_t as)
 {
-	/* not malformed input data */
-	if (((bp + bs - 1) < bp) ||
-	    ((ap + as - 1) < ap) ||
-	    (bs == 0) ||
-	    (as == 0))
+	/* null size buffer or area: buffer is not inside area */
+	if ((bs == 0) || (as == 0))
 		return false;
 
+	/* malformed arguments => assert */
+	TEE_ASSERT((bp + bs) > bp);
+	TEE_ASSERT((ap + as) > ap);
+
+	/* check effective overlapping */
 	if ((bp < ap) || ((bp + bs) > (ap + as)))
 		return false;
 
@@ -134,22 +138,25 @@ static bool buf_inside_area(unsigned long bp, size_t bs, unsigned long ap,
 static bool buf_overlaps_area(unsigned long bp, size_t bs, unsigned long ap,
 			      size_t as)
 {
-	/* not malformed input data */
-	if (((bp + bs - 1) < bp) ||
-	    ((ap + as - 1) < ap) ||
-	    (bs == 0) ||
-	    (as == 0))
+	/* null size buffer or area: never overlaps */
+	if ((bs == 0) || (as == 0))
 		return false;
 
-	if ((bp < ap) || ((bp + bs) > ap))
+	/* malformed arguments => assert */
+	TEE_ASSERT((bp + bs) > bp);
+	TEE_ASSERT((ap + as) > ap);
+
+	/* check effective overlapping */
+	if ((bp < ap) && ((bp + bs) <= ap))
 		return false;
 
-	if ((bp >= ap) || (bp < (ap + as)))
+	if (bp >= ap + as)
 		return false;
 
 	return true;
 }
 
+/* pbuf_is_ddr - return true is buffer is inside the DDR */
 static bool pbuf_is_ddr(unsigned long paddr, size_t size)
 {
 	int i = sizeof(ddr) / sizeof(*ddr);
@@ -161,11 +168,16 @@ static bool pbuf_is_ddr(unsigned long paddr, size_t size)
 	return false;
 }
 
+/*
+ * pbuf_is_multipurpose - return true is buffer is inside unsafe DDR
+ *
+ * Unsafe DDR (or multipurpose DDR) is DDR that is under a firewalling
+ * reconfigured at run-time: there is no static information that can
+ * tell wether this RAM is tagged secured or not.
+ */
 static bool pbuf_is_multipurpose(unsigned long paddr, size_t size)
 {
 	if (buf_overlaps_area(paddr, size, secure_only.paddr, secure_only.size))
-		return false;
-	if (buf_overlaps_area(paddr, size, nsec_shared.paddr, nsec_shared.size))
 		return false;
 	if (buf_overlaps_area(paddr, size, nsec_shared.paddr, nsec_shared.size))
 		return false;
@@ -201,7 +213,8 @@ static bool pbuf_is(enum buf_is_attr attr, unsigned long paddr, size_t size)
 	}
 }
 
-static struct map_area bootcfg_stih416_memory[] = {
+/* platform specific memory layout provided to teecore */
+static struct map_area bootcfg_memory_map[] = {
 	{	/* teecore execution RAM */
 	 .type = MEM_AREA_TEE_RAM,
 	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_SIZE,
@@ -222,19 +235,19 @@ static struct map_area bootcfg_stih416_memory[] = {
 
 	{	/* CPU mem map HW registers */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = 0xFFF00000 & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = CPU_IOMEM_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 
 	{	/* ASC IP for UART HW tracing */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = (0xFE400000 + 0x00131000) & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = UART_CONSOLE_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
 	 .device = true, .secure = false, .rw = true,
 	 },
 
 	{	/* RNG IP for some random support */
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = (0xFEE80000) & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = RNG_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 
@@ -256,7 +269,7 @@ struct map_area *bootcfg_get_memory(void)
 {
 	struct map_area *map;
 	struct memaccess_area *a, *a2;
-	struct map_area *ret = bootcfg_stih416_memory;
+	struct map_area *ret = bootcfg_memory_map;
 
 	/* check defined memory access layout */
 	a = (struct memaccess_area *)&secure_only;
@@ -269,7 +282,7 @@ struct map_area *bootcfg_get_memory(void)
 		return ret;
 
 	/* check defined mapping (overlapping will be tested later) */
-	map = bootcfg_stih416_memory;
+	map = bootcfg_memory_map;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:

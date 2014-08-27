@@ -265,6 +265,8 @@ _wait_cpu0:
 	wfene
 	bne _wait_cpu0
 
+	bl arm_secboot_late
+
 	bl arm_cl1_d_cleaninvbysetway
 	bl arm_cl2_cleaninvbyway
 
