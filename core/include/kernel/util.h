@@ -24,8 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef KERNEL_KERNEL_H
-#define KERNEL_KERNEL_H
+#ifndef KERNEL_UTIL_H
+#define KERNEL_UTIL_H
+
+#ifndef MAX
+#define MAX(a, b) \
+	(__extension__({ __typeof__(a) _a = (a); \
+	   __typeof__(b) _b = (b); \
+	 _a > _b ? _a : _b; }))
+
+#define MIN(a, b) \
+	(__extension__({ __typeof__(a) _a = (a); \
+	   __typeof__(b) _b = (b); \
+	 _a < _b ? _a : _b; }))
+#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -35,4 +47,4 @@
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~(size - 1))
 
-#endif /*KERNEL_KERNEL_H*/
+#endif /*KERNEL_UTIL_H*/

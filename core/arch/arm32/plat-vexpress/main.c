@@ -39,7 +39,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_st.h>
 
-#include <kernel/kernel.h>
+#include <kernel/util.h>
 #include <kernel/arch_debug.h>
 
 #include <arm32.h>

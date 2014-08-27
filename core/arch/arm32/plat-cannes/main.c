@@ -39,7 +39,7 @@
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
-#include <kernel/kernel.h>
+#include <kernel/util.h>
 #include <kernel/tee_core_trace.h>
 #include <kernel/misc.h>
 #include <mm/tee_pager_unpg.h>
