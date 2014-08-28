@@ -175,24 +175,19 @@ TEE_Result tee_acipher_rsadorep(
 		goto out;
 	}
 
-	if (*dst_len < blen) {
-		*dst_len = blen;
+	/* remove the zero-padding (leave one zero if buff is all zeroes) */
+	offset = 0;
+	while ((offset < blen - 1) && (buf[offset] == 0))
+		offset++;
+
+	if (*dst_len < blen - offset) {
+		*dst_len = blen - offset;
 		res = TEE_ERROR_SHORT_BUFFER;
 		goto out;
 	}
 
 	res = TEE_SUCCESS;
-	if (ltc_key->type == PK_PUBLIC) {
-		/* encrypting / signing */
-		*dst_len = blen;
-		offset = 0;
-	} else {
-		/* remove the zero-padding */
-		offset = 0;
-		while ((buf[offset] == 0) && (offset < blen))
-			offset++;
-		*dst_len = blen - offset;
-	}
+	*dst_len = blen - offset;
 	memcpy(dst, (char *)buf + offset, *dst_len);
 
 out:
