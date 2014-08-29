@@ -48,7 +48,7 @@
 static uint32_t mempool_u32[mpa_scratch_mem_size_in_U32(
 					    MPA_INTERNAL_MEM_POOL_SIZE,
 					    TEE_MAX_NUMBER_OF_SUPPORTED_BITS)];
-static mpa_scratch_mem mempool = (mpa_scratch_mem)&mempool_u32;
+static mpa_scratch_mem mempool = (void *)mempool_u32;
 
 /*************************************************************
  * PANIC

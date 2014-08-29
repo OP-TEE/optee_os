@@ -70,7 +70,7 @@ void mpa_init_static_fmm_context(mpa_fmm_context_base *context, uint32_t len)
 	    m_alloc - U32_TO_ASIZE(MPA_NUMBASE_METADATA_SIZE_IN_U32);
 	context->r_ptr->size = 0;
 
-	context->r2_ptr = (mpa_num_base *)(context->m + m_alloc);
+	context->r2_ptr = (void *)(context->m + m_alloc);
 	context->r2_ptr->alloc =
 	    m_alloc - U32_TO_ASIZE(MPA_NUMBASE_METADATA_SIZE_IN_U32);
 	context->r2_ptr->size = 0;

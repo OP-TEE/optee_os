@@ -702,8 +702,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (core_pa2va
-			    ((uint32_t) param->params[n].memref.buffer,
-			     (uint32_t *)&va))
+			    ((uint32_t) param->params[n].memref.buffer, &va))
 				return TEE_ERROR_BAD_PARAMETERS;
 			param->params[n].memref.buffer = va;
 			break;
@@ -902,8 +901,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 		goto out;
 	}
 
-	if (core_pa2va(pharg, (uint32_t *)&arg) ||
-		core_pa2va(phpayload, (uint32_t *)&cmd_load_ta)) {
+	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &cmd_load_ta)) {
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
 		goto out;
@@ -937,7 +935,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 
 	nwunmap.ph = (paddr_t)cmd_load_ta->va;
 	nwunmap.size = params[1].u.memref.size;
-	if (core_pa2va(params[1].u.memref.buf_ptr, (uint32_t *)ta)) {
+	if (core_pa2va(params[1].u.memref.buf_ptr, ta)) {
 		tee_ta_rpc_free(&nwunmap);
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
@@ -970,7 +968,7 @@ static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map)
 		goto out;
 	}
 
-	if (core_pa2va(pharg, (uint32_t *)&arg)) {
+	if (core_pa2va(pharg, &arg)) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}

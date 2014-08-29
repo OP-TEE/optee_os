@@ -54,7 +54,7 @@ static tee_mm_entry_t *l2cc_mutex_mm;
  */
 static int alloc_l2cc_mutex(void)
 {
-	uint32_t va;
+	void *va;
 
 	if ((l2cc_mutex_va != NULL) || (l2cc_mutex_mm != NULL))
 		return -1;
@@ -69,7 +69,7 @@ static int alloc_l2cc_mutex(void)
 		return -1;
 
 	*(uint32_t *)va = 0;
-	l2cc_mutex_va = (uint32_t *)va;
+	l2cc_mutex_va = va;
 	return 0;
 }
 
@@ -82,7 +82,8 @@ static int alloc_l2cc_mutex(void)
  */
 TEE_Result tee_l2cc_mutex_configure(uint32_t service_id, uint32_t *mutex)
 {
-	uint32_t addr, va;
+	uint32_t addr;
+	void *va;
 	int ret = TEE_SUCCESS;
 
 	/*
@@ -128,10 +129,10 @@ TEE_Result tee_l2cc_mutex_configure(uint32_t service_id, uint32_t *mutex)
 		addr = *mutex;
 		if (core_pbuf_is(CORE_MEM_NSEC_SHM, addr, MUTEX_SZ) == false)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (core_pa2va(addr, (uint32_t *)&va))
+		if (core_pa2va(addr, &va))
 			return TEE_ERROR_BAD_PARAMETERS;
 		l2cc_mutex_pa = addr;
-		l2cc_mutex_va = (uint32_t *)va;
+		l2cc_mutex_va = va;
 		break;
 	default:
 		return TEE_ERROR_GENERIC;

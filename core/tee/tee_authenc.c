@@ -53,7 +53,7 @@ struct tee_ccm_state {
 	uint8_t nonce[TEE_CCM_NONCE_MAX_LENGTH];	/* the nonce */
 	size_t nonce_len;			/* nonce length */
 	uint8_t tag[TEE_CCM_TAG_MAX_LENGTH];	/* computed tag on last data */
-	size_t tag_len;			/* tag length */
+	unsigned long tag_len;			/* tag length */
 	size_t aad_len;
 	size_t payload_len;		/* final expected payload length */
 	uint8_t *payload;		/* the payload */
@@ -255,7 +255,7 @@ TEE_Result tee_authenc_update_payload(
 			ccm->nonce,  ccm->nonce_len,
 			ccm->header, ccm->header_len,
 			pt, src_len, ct,
-			ccm->tag, (unsigned long *)&ccm->tag_len, dir);
+			ccm->tag, &ccm->tag_len, dir);
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
@@ -382,6 +382,7 @@ TEE_Result tee_authenc_dec_final(
 	int ltc_res;
 	uint8_t dst_tag[TEE_xCM_TAG_MAX_LENGTH];
 	size_t dst_len, init_len;
+	unsigned long ltc_tag_len = tag_len;
 
 	res = tee_cipher_get_block_size(algo, &dst_len);
 	if (res != TEE_SUCCESS)
@@ -413,7 +414,7 @@ TEE_Result tee_authenc_dec_final(
 			ccm->header, ccm->header_len,
 			ccm->res_payload,
 			ccm->current_payload_len, ccm->payload,
-			dst_tag, (unsigned long *)&tag_len, CCM_DECRYPT);
+			dst_tag, &ltc_tag_len, CCM_DECRYPT);
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 
@@ -432,8 +433,7 @@ TEE_Result tee_authenc_dec_final(
 			return res;
 
 		/* Finalize the authentication */
-		ltc_res = gcm_done(
-				&gcm->ctx, dst_tag, (unsigned long *)&tag_len);
+		ltc_res = gcm_done(&gcm->ctx, dst_tag, &ltc_tag_len);
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
