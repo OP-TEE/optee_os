@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,45 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stddef.h>
-#include <string.h>
-#include <kernel/tee_core_trace.h>
-#include <kernel/tee_common_otp.h>
+#ifndef PLATFORM_CONFIG_H
+#define PLATFORM_CONFIG_H
 
-#define SHA256_HASH_SIZE 32
-uint8_t hw_key_digest[SHA256_HASH_SIZE];
+#define PLATFORM_FLAVOR_ID_orly2	0
+#define PLATFORM_FLAVOR_ID_cannes	1
+#define PLATFORM_FLAVOR_IS(flav) \
+	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
 
-/*---------------------------------------------------------------------------*/
-/*                             tee_otp_get_hw_unique_key                    */
-/*---------------------------------------------------------------------------*/
-/*
-    This function reads out a hw unique key.
+#if PLATFORM_FLAVOR_IS(cannes)
 
-    \param[in]  hwkey data place holder for the key data read
-    \param[out] None.
-    \return None.
+#define CPU_IOMEM_BASE		0x08760000
+#define CPU_PORT_FILT_START	0x40000000
+#define CPU_PORT_FILT_END	0xC0000000
+#define STXHxxx_LPM_PERIPH_BASE	0x09400000
+#define ASC_NUM			20
+#define UART_CONSOLE_BASE	ST_ASC20_REGS_BASE
+#define RNG_BASE		0x08A89000
 
- */
-/*---------------------------------------------------------------------------*/
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
-{
-	/* Copy the first part of the new hw key */
-	memcpy(&hwkey->data[0], &hw_key_digest[0],
-	       sizeof(struct tee_hw_unique_key));
-}
+#elif PLATFORM_FLAVOR_IS(orly2)
 
-int tee_otp_get_die_id(uint8_t *buffer, size_t len)
-{
-	size_t i;
+#define CPU_IOMEM_BASE		0xFFFE0000
+#define CPU_PORT_FILT_START	0x40000000
+#define CPU_PORT_FILT_END	0x80000000
+#define STXHxxx_LPM_PERIPH_BASE	0xFE400000
+#define ASC_NUM			21
+#define UART_CONSOLE_BASE	ST_ASC21_REGS_BASE
+#define RNG_BASE		0xFEE80000
 
-	char pattern[4] = { 'B', 'E', 'E', 'F' };
-	for (i = 0; i < len; i++)
-		buffer[i] = pattern[i % 4];
+#else
 
-	return 0;
-}
+#error "Unknown platform flavor"
+
+#endif
+
+#define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
+#define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)
+#define SCU_BASE		(CPU_IOMEM_BASE + 0x0000)
+#define GIC_CPU_BASE		(CPU_IOMEM_BASE + 0x0100)
+#define ST_ASC20_REGS_BASE	(STXHxxx_LPM_PERIPH_BASE + 0x00130000)
+#define ST_ASC21_REGS_BASE	(STXHxxx_LPM_PERIPH_BASE + 0x00131000)
+
+#endif /*PLATFORM_CONFIG_H*/

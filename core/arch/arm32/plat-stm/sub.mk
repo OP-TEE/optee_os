@@ -4,7 +4,8 @@ srcs-y += tee_common_otp.c
 cflags-tee_common_otp.c-y += -Wno-unused-parameter
 
 srcs-y += core_bootcfg.c
-srcs-y += core_chip.c
+srcs-$(platform_flavor_orly2) += core_chip_orly2.c
+srcs-$(platform_flavor_cannes) += core_chip_cannes.c
 srcs-y += rng_support.c
 
 srcs-y += asc.S

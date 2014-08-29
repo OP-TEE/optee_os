@@ -2,6 +2,8 @@ CROSS_PREFIX	?= armv7-linux
 CROSS_COMPILE	?= $(CROSS_PREFIX)-
 include mk/gcc.mk
 
+PLATFORM_FLAVOR ?= orly2
+
 platform-cpuarch = cortex-a9
 platform-cflags	 = -mcpu=$(platform-cpuarch) -mthumb
 platform-cflags	+= -pipe -mthumb-interwork -mlong-calls
@@ -61,6 +63,8 @@ core-platform-cppflags += -DCFG_DDR1_START=$(DDR1_PHYS_START)
 core-platform-cppflags += -DCFG_DDR1_SIZE=$(DDR1_SIZE)
 endif
 
+ifeq ($(PLATFORM_FLAVOR),cannes)
+
 PRIMARY_STARTUP_PHYS	 = $(shell echo $$(( ${CFG_LINUX_LOAD_ADDR} + 0x8000 )))
 OFFSET_STARTUP_PHYS	 = $(shell echo $$((\
  	$(PRIMARY_STARTUP_PHYS) - \
@@ -69,3 +73,15 @@ OFFSET_STARTUP_PHYS	 = $(shell echo $$((\
 SECONDARY_STARTUP_PHYS	 = $(shell echo $$((\
 	0x$(shell grep sti_secondary_startup $(platform-dir)/System.map | \
 		cut -d' ' -f 1) + $(OFFSET_STARTUP_PHYS) )) )
+
+else ifeq ($(PLATFORM_FLAVOR),orly2)
+
+PRIMARY_STARTUP_PHYS	 = \
+	0x$(shell grep stext $(platform-dir)/System.map | grep -v _stext | \
+		cut -d' ' -f 1)
+SECONDARY_STARTUP_PHYS	 = \
+	0x$(shell grep stm_secondary_startup $(platform-dir)/System.map | \
+		cut -d' ' -f 1)
+else
+$(error PLATFORM_FLAVOR=$(PLATFORM_FLAVOR) is not supported)
+endif

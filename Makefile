@@ -5,7 +5,7 @@ all:
 
 # Make these default for now
 ARCH            ?= arm32
-PLATFORM        ?= orly2
+PLATFORM        ?= stm
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 
 arch_$(ARCH)	:= y

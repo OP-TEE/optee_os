@@ -24,6 +24,8 @@ This software has hardware dependencies.
 The software has been tested using:
 
 - STMicroelectronics b2020-h416 (orly-2) hardware (32-bits)
+- STMicroelectronics cannes family hardware (32-bits), on b2120.
+  This includes both h310 and h410 chip.
 - Some initial testing has been done using
 [Foundation FVP](http://www.arm.com/fvp), which can be downloaded free of
 charge.
@@ -49,6 +51,16 @@ downloading and unpacking the compiler. Then export the PATH to the bin folder.
 ### Build
 	$ cd $HOME/devel/optee_os
 	$ CROSS_COMPILE=arm-linux-gnueabihf- make
+
+Default build targets stm platform orly2. Compilation of cannes is performed using cannes flavor:
+
+	$ PLATFORM_FLAVOR=cannes CROSS_COMPILE=arm-linux-gnueabihf- make
+
+To build vexpress, one have to change the default platform using command:
+
+	$ PLATFORM=vexpress CROSS_COMPILE=arm-linux-gnueabihf- make
+
+
 
 #### Compiler flags
 To be able to see the full command when building you could build using following
