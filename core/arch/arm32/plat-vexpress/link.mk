@@ -52,3 +52,12 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf
 $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
 	@echo '  GEN     $@'
 	$(q)$(NM) --print-size --reverse-sort --size-sort $< > $@
+
+cleanfiles += $(link-out-dir)/tee.mem_usage
+ifneq ($(filter mem_usage,$(MAKECMDGOALS)),)
+mem_usage: $(link-out-dir)/tee.mem_usage
+
+$(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
+	@echo '  GEN     $@'
+	$(q)$(READELF) -a -W $< | ${AWK} -f ./scripts/mem_usage.awk > $@
+endif

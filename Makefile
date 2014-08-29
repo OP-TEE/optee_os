@@ -3,6 +3,9 @@ SHELL = /bin/bash
 .PHONY: all
 all:
 
+.PHONY: mem_usage
+mem_usage:
+
 # Make these default for now
 ARCH            ?= arm32
 PLATFORM        ?= stm
