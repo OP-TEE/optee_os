@@ -37,7 +37,6 @@ comp-cflags-warns-high = \
 comp-cflags-warns-medium = \
 	-Waggregate-return -Wredundant-decls
 comp-cflags-warns-low = \
-	-Winline \
 	-Wold-style-definition -Wstrict-aliasing=2 \
 	-Wundef -pedantic \
 	-Wdeclaration-after-statement

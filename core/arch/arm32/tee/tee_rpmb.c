@@ -349,9 +349,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	mem->phreq = mem->phpayload;
 	mem->phresp = mem->phpayload + req_s;
 
-	if (core_pa2va(mem->pharg, (uint32_t *)&mem->arg) ||
-	    core_pa2va(mem->phreq, (uint32_t *)req) ||
-	    core_pa2va(mem->phresp, (uint32_t *)resp)) {
+	if (core_pa2va(mem->pharg, &mem->arg) || core_pa2va(mem->phreq, req) ||
+	    core_pa2va(mem->phresp, resp)) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}

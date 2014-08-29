@@ -155,7 +155,7 @@ static void mutex_wait_cmd(uint32_t cmd, int handle, uint32_t tick)
 	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg))
 		goto exit;
 
-	if (core_pa2va(pharg, (uint32_t *)&arg))
+	if (core_pa2va(pharg, &arg))
 		goto exit;
 
 	arg->cmd = TEE_RPC_WAIT_MUTEX;

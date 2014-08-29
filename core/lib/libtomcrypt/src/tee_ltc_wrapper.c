@@ -36,10 +36,11 @@ static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
 
 static void tee_ltc_alloc_mpa(void)
 {
-	mpa_scratch_mem pool;
-	pool = (mpa_scratch_mem_base *) &_ltc_mempool_u32;
+	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
+
 	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE);
+	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER,
+			     LTC_MAX_BITS_PER_VARIABLE);
 }
 
 static void tee_ltc_dealloc_mpa(void)

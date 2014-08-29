@@ -194,7 +194,7 @@ int mpa_compute_fmm_context(const mpanum modulus,
 
 	/* create a small mpanum on the stack */
 	uint32_t n_lsw_u32[MPA_NUMBASE_METADATA_SIZE_IN_U32 + ASIZE_TO_U32(1)];
-	mpanum n_lsw = (mpa_num_base *)&n_lsw_u32;
+	mpanum n_lsw = (void *)n_lsw_u32;
 
 	/*
 	 * compute r to be

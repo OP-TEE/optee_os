@@ -64,8 +64,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	    !TEE_ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
 		goto exit;
 
-	if (core_pa2va(pharg, (uint32_t *)&arg) ||
-	    core_pa2va(phpayload, (uint32_t *)&bf))
+	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &bf))
 		goto exit;
 
 	arg->cmd = TEE_RPC_FS;

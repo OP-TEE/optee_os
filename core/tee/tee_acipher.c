@@ -148,7 +148,7 @@ TEE_Result tee_acipher_rsadorep(
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t *buf = NULL;
-	uint32_t blen, offset;
+	unsigned long blen, offset;
 	int ltc_res;
 
 	/*
@@ -166,7 +166,7 @@ TEE_Result tee_acipher_rsadorep(
 
 	ltc_res = rsa_exptmod(
 		src, src_len,	/* input message and length */
-		buf, (unsigned long *)(&blen),	/* decrypted message and len */
+		buf, &blen,	/* decrypted message and len */
 		ltc_key->type,
 		ltc_key);
 	switch (ltc_res) {
@@ -214,7 +214,7 @@ TEE_Result tee_acipher_rsaes_decrypt(
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
-	uint32_t blen;
+	unsigned long blen;
 	int ltc_hashindex, ltc_res, ltc_stat, ltc_rsa_algo;
 	size_t mod_size;
 
@@ -253,7 +253,7 @@ TEE_Result tee_acipher_rsaes_decrypt(
 
 	ltc_res = rsa_decrypt_key_ex(
 		src, src_len,	/* input message and length */
-		buf, (unsigned long *)(&blen),	/* decrypted message and len */
+		buf, &blen,	/* decrypted message and len */
 		((label_len == 0) ? 0 : label), label_len, /* label and len */
 		ltc_hashindex,	/* hash index, based on the algo */
 		ltc_rsa_algo,
@@ -366,6 +366,7 @@ TEE_Result tee_acipher_rsassa_sign(
 	size_t hash_size;
 	size_t mod_size;
 	int ltc_res, ltc_rsa_algo, ltc_hashindex;
+	unsigned long ltc_sig_len;
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
@@ -406,16 +407,18 @@ TEE_Result tee_acipher_rsassa_sign(
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-	*sig_len = mod_size;
+	ltc_sig_len = mod_size;
 
 	ltc_res = rsa_sign_hash_ex(
 		msg, msg_len,
-		sig, (unsigned long *)(&sig_len),
+		sig, &ltc_sig_len,
 		ltc_rsa_algo,
 		0, tee_ltc_get_rng_mpa(),
 		ltc_hashindex,
 		salt_len,
 		ltc_key);
+
+	*sig_len = ltc_sig_len;
 
 	if (ltc_res != CRYPT_OK) {
 		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);

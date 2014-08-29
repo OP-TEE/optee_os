@@ -137,7 +137,7 @@ static bool get_open_session_meta(struct teesmc32_arg *arg32,
 				 sizeof(struct teesmc_meta_open_session)))
 		return false;
 
-	if (core_pa2va(phmeta, (void *)meta))
+	if (core_pa2va(phmeta, meta))
 		return false;
 
 	(*num_meta)++;
@@ -177,7 +177,7 @@ static bool get_open_session_ta(struct teesmc32_arg *arg32, size_t num_params,
 	if (!tee_pbuf_is_non_sec(ph, sizeof(kta_signed_header_t)))
 		return false;
 
-	if (core_pa2va(ph, (void *)ta))
+	if (core_pa2va(ph, ta))
 		return false;
 
 	len = (*ta)->size_of_signed_header + (*ta)->size_of_payload;
@@ -321,7 +321,7 @@ static void entry_cancel(struct thread_smc_args *args,
 
 static void tee_entry_call_with_arg(struct thread_smc_args *args)
 {
-	struct teesmc32_arg *arg32;
+	struct teesmc32_arg *arg32 = NULL;	/* fix gcc warning */
 	uint32_t num_params;
 
 	if (args->a0 != TEESMC32_CALL_WITH_ARG &&
@@ -338,7 +338,7 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 
 	if (!tee_pbuf_is_non_sec(args->a1, sizeof(struct teesmc32_arg)) ||
 	    !TEE_ALIGNMENT_IS_OK(args->a1, struct teesmc32_arg) ||
-	    core_pa2va(args->a1, (void *)&arg32)) {
+	    core_pa2va(args->a1, &arg32)) {
 		EMSG("Bad arg address 0x%x\n", args->a1);
 		args->a0 = TEESMC_RETURN_EBADADDR;
 		return;

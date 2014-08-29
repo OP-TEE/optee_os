@@ -57,7 +57,8 @@
  *   minus 4 for the 'size' member
  */
 #define SET_MPA_ALLOCSIZE(_x) \
-	((uint32_t *)(_x))[0] = (LTC_BIGNUMBERS_ALLOC_SIZE - 8)
+	memcpy((_x), &(const uint32_t){LTC_BIGNUMBERS_ALLOC_SIZE - 8}, \
+		sizeof(uint32_t))
 
 /* Set an attribute on an object */
 #define SET_ATTRIBUTE(_object, _props, _attr)	\
