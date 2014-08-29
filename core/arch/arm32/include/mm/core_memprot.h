@@ -72,8 +72,6 @@ enum buf_is_attr {
 #define tee_vbuf_is_sec(buf, len) \
 		core_vbuf_is(CORE_MEM_SEC, (void *)(buf), (len))
 
-/* See kta_mem.h for flags to tee_pbuf_is() and tee_kbuf_is() */
-
 /*
  * This function return true if the buf complies with supplied flags.
  * If this function returns false buf doesn't comply with supplied flags

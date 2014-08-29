@@ -131,10 +131,10 @@ typedef enum {
 #endif
 
 /* Round up the even multiple of size, size has to be a multiple of 2 */
-#define TEE_ROUNDUP(v, size) (((v) + (size - 1)) & ~(size - 1))
+#define ROUNDUP(v, size) (((v) + (size - 1)) & ~(size - 1))
 
 /* Round down the even multiple of size, size has to be a multiple of 2 */
-#define TEE_ROUNDDOWN(v, size) ((v) & ~(size - 1))
+#define ROUNDDOWN(v, size) ((v) & ~(size - 1))
 
 #define TEE_U32_BSWAP(x) ( \
         (((x) & 0xff000000) >> 24) | \

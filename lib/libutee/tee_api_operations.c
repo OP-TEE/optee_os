@@ -538,7 +538,7 @@ static TEE_Result tee_buffer_update(
 
 	/* If we can feed from buffer */
 	if (op->buffer_offs > 0 && (op->buffer_offs + slen) > buffer_size) {
-		l = TEE_ROUNDUP(op->buffer_offs + slen - buffer_size,
+		l = ROUNDUP(op->buffer_offs + slen - buffer_size,
 				op->block_size);
 		l = MIN(op->buffer_offs, l);
 		tmp_dlen = dlen;
@@ -563,7 +563,7 @@ static TEE_Result tee_buffer_update(
 	if (slen > buffer_size) {
 		/* Buffer is empty, feed as much as possible from src */
 		if (TEE_ALIGNMENT_IS_OK(src, uint32_t)) {
-			l = TEE_ROUNDUP(slen - buffer_size + 1, op->block_size);
+			l = ROUNDUP(slen - buffer_size + 1, op->block_size);
 
 			tmp_dlen = dlen;
 			res = update_func(op->state, src, l, dst, &tmp_dlen);
@@ -855,7 +855,7 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle op, const void *srcData,
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = TEE_ROUNDDOWN(op->buffer_offs + srcLen, op->block_size);
+	req_dlen = ROUNDDOWN(op->buffer_offs + srcLen, op->block_size);
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
 		return TEE_ERROR_SHORT_BUFFER;
