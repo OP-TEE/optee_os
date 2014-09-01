@@ -655,7 +655,7 @@ void tee_mmu_kmap_init(void)
 	tee_vaddr_t e = s + (TEE_MMU_UL1_NUM_KERN_ENTRIES << SECTION_SHIFT);
 
 	if ((TEE_MMU_UL1_PA_BASE % TEE_MMU_UL1_SIZE) != 0) {
-		DMSG("Bad MMU addr va 0x%x pa 0x%x 0x%x\n",
+		EMSG("Bad MMU addr va 0x%x pa 0x%x 0x%x\n",
 		     TEE_MMU_UL1_BASE, TEE_MMU_UL1_PA_BASE,
 		     TEE_MMU_UL1_PA_BASE % TEE_MMU_UL1_SIZE);
 		assert(0);
@@ -671,12 +671,13 @@ void tee_mmu_kmap_init(void)
 	}
 }
 
+/* dynamic map in teecore (TODO: check if this is required) */
 TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
 {
 	tee_mm_entry_t *mm;
 	size_t n;
 	uint32_t *l1 = (uint32_t *)TEE_MMU_UL1_KERN_BASE;
-	uint32_t py_offset = (uint32_t) pa >> SECTION_SHIFT;
+	uint32_t py_offset = (uint32_t)pa >> SECTION_SHIFT;
 	uint32_t pa_s = ROUNDDOWN(pa, SECTION_SIZE);
 	uint32_t pa_e = ROUNDUP(pa + len, SECTION_SIZE);
 	uint32_t flags;
@@ -713,6 +714,7 @@ TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
 	return TEE_SUCCESS;
 }
 
+/* dynamic unmap in teecore (TODO: check if this is required) */
 void tee_mmu_kunmap(void *va, size_t len)
 {
 	size_t n;
@@ -731,6 +733,7 @@ void tee_mmu_kunmap(void *va, size_t len)
 	tee_mm_free(mm);
 }
 
+/* pa/va conversion on dynamic map in teecore */
 TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 {
 	size_t n;
@@ -750,18 +753,26 @@ TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
+/* va/pa conversion on dynamic map in teecore */
 TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 {
 	uint32_t n = (uint32_t)va >> SECTION_SHIFT;
 
-	if (n < TEE_MMU_UL1_NUM_USER_ENTRIES && n >= TEE_MMU_UL1_NUM_ENTRIES)
+	/* lower sections are user TA stuff */
+	if (n < TEE_MMU_UL1_NUM_USER_ENTRIES)
 		return TEE_ERROR_ACCESS_DENIED;
+
+	if ((TEE_MMU_UL1_ENTRY(n) & 0x3) == 0)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	/* teecore is currently fully maped by section (core map or kmap) */
 	*pa = (void *)((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) |
 		       ((uint32_t)va & SECTION_MASK));
 
 	return TEE_SUCCESS;
 }
 
+/* dynamic map in teecore */
 bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 {
 	tee_vaddr_t a = (tee_vaddr_t)va;
@@ -776,6 +787,7 @@ bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 	return true;
 }
 
+/* return true is not TA currently mapped */
 bool tee_mmu_is_kernel_mapping(void)
 {
 	return (tee_mmu_get_ttbr0() == core_mmu_get_ttbr0());
