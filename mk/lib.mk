@@ -22,7 +22,7 @@ libnames	:= $(libname) $(libnames)
 libdeps		:= $(lib-libfile) $(libdeps) 
 
 $(lib-libfile): $(objs)
-	@echo AR $@
+	@echo '  AR      $@'
 	@mkdir -p $(dir $@)
 	$(q)$(AR) rcs $@ $^
 

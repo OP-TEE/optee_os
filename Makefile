@@ -28,12 +28,12 @@ include ta/ta.mk
 
 .PHONY: clean
 clean:
-	@echo Cleaning
+	@echo '  CLEAN   .'
 	${q}rm -f $(cleanfiles)
 
 .PHONY: cscope
 cscope:
-	@echo Creating cscope database
+	@echo '  CSCOPE  .'
 	${q}rm -f cscope.*
 	${q}find $(PWD) -name "*.[chSs]" > cscope.files
 	${q}cscope -b -q -k

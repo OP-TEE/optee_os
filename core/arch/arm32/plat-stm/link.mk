@@ -1,7 +1,7 @@
-link-out-dir = $(out-dir)/core/
+link-out-dir = $(out-dir)core/
 
-link-script = $(platform-dir)/tz-template.lds
-link-script-pp = $(link-out-dir)/tz.lds
+link-script = $(platform-dir)tz-template.lds
+link-script-pp = $(link-out-dir)tz.lds
 
 all: $(link-out-dir)tee.elf $(link-out-dir)tee.dmp $(link-out-dir)tee.bin
 all: $(link-out-dir)tee.symb_sizes
@@ -20,22 +20,22 @@ ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
 
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
-	@echo PP $<
+	@echo '  SED     $@'
 	$(q)sed -e "s/%in_TEE_SCATTER_START%/$(TEE_SCATTER_START)/g" < $< > $@
 
 
 $(link-out-dir)tee.elf: $(objs) $(libdeps) $(link-script-pp)
-	@echo LD $@
+	@echo '  LD      $@'
 	$(q)$(LD) $(ldargs-tee.elf) -o $@
 
 $(link-out-dir)tee.dmp: $(link-out-dir)tee.elf
-	@echo OBJDUMP $@
+	@echo '  OBJDUMP $@'
 	$(q)$(OBJDUMP) -l -x -d $< > $@
 
 $(link-out-dir)tee.bin: $(link-out-dir)tee.elf
-	@echo OBJCOPY $@
+	@echo '  OBJCOPY $@'
 	$(q)$(OBJCOPY) -O binary $< $@
 
 $(link-out-dir)tee.symb_sizes: $(link-out-dir)tee.elf
-	@echo Symb sizes $@
+	@echo '  GEN     $@'
 	$(q)$(NM) --print-size --reverse-sort --size-sort $< > $@

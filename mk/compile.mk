@@ -97,7 +97,7 @@ $2: $1 FORCE
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) ;\
-		echo [$$(comp-sm-$2)] CC $1 ;\
+		echo '  CC      $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
 		echo "old-cmd-$2 := $$(subst \",\\\",$$(comp-cmd-$2))" > \

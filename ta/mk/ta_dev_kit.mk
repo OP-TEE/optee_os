@@ -43,7 +43,7 @@ libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 
 .PHONY: clean
 clean:
-	@echo Cleaning
+	@echo '  CLEAN   .'
 	${q}rm -f $(cleanfiles)
 
 

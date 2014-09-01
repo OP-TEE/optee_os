@@ -28,19 +28,19 @@ ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
 
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
-	@echo PP $<
+	@echo '  CPP     $@'
 	$(q)cat < $< > $@
 
 
 $(link-out-dir)$(binary).elf: $(objs) $(libdeps) $(link-script-pp)
-	@echo LD $@
+	@echo '  LD      $@'
 	$(q)$(LD) $(ldargs-$(binary).elf) -o $@
 
 $(link-out-dir)$(binary).dmp: $(link-out-dir)$(binary).elf
-	@echo OBJDUMP $@
+	@echo '  OBJDUMP $@'
 	$(q)$(OBJDUMP) -l -x -d $< > $@
 
 $(link-out-dir)$(binary).bin: $(link-out-dir)$(binary).elf
-	@echo OBJCOPY $@
+	@echo '  OBJCOPY $@'
 	$(q)$(OBJCOPY) -O binary $< $@
 	$(q)$(FIX_TA_BINARY) $< $@

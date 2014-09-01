@@ -37,7 +37,9 @@ incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
 
 define copy-file
 $2/$$(notdir $1): $1
-	@mkdir -p $$(dir $$@)
+	@set -e; \
+	mkdir -p $$(dir $$@) ; \
+	echo '  INSTALL $$@' ; \
 	cp $$< $$@
 
 cleanfiles += $2/$$(notdir $1)
@@ -59,7 +61,7 @@ $(foreach f, $(ta-mkfiles), \
 define copy-incdir
 sf := $(subst $1/, , $(shell find $1 -name "*.h"))
 $$(foreach h, $$(sf), $$(eval $$(call copy-file, $1/$$(h), \
-	$$(subst /./,/,$2/$$(dir $$(h))))))
+	$$(patsubst %/,%,$$(subst /./,/,$2/$$(dir $$(h)))))))
 endef
 $(foreach d, $(incdirs$(sm)), \
 	$(eval $(call copy-incdir, $(d), $(out-dir)export-user_ta/include)))

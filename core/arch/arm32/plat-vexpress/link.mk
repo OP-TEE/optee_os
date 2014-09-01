@@ -1,8 +1,8 @@
-link-out-dir = $(out-dir)/core/
+link-out-dir = $(out-dir)core/
 
-link-script = $(platform-dir)/kern.ld.S
-link-script-pp = $(link-out-dir)/kern.ld
-link-script-dep = $(link-out-dir)/.kern.ld.d
+link-script = $(platform-dir)kern.ld.S
+link-script-pp = $(link-out-dir)kern.ld
+link-script-dep = $(link-out-dir).kern.ld.d
 
 AWK	 = awk
 
@@ -31,24 +31,24 @@ link-script-cppflags :=  \
 -include $(link-script-dep)
 
 $(link-script-pp): $(link-script)
-	@echo PP $<
+	@echo '  CPP     $@'
 	@mkdir -p $(dir $@)
 	$(q)$(CPP) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
 		$(link-script-cppflags) $< > $@
 
 
 $(link-out-dir)tee.elf: $(objs) $(libdeps) $(link-script-pp)
-	@echo LD $@
+	@echo '  LD      $@'
 	$(q)$(LD) $(ldargs-tee.elf) -o $@
 
 $(link-out-dir)tee.dmp: $(link-out-dir)tee.elf
-	@echo OBJDUMP $@
+	@echo '  OBJDUMP $@'
 	$(q)$(OBJDUMP) -l -x -d $< > $@
 
 $(link-out-dir)tee.bin: $(link-out-dir)tee.elf
-	@echo OBJCOPY $@
+	@echo '  OBJCOPY $@'
 	$(q)$(OBJCOPY) -O binary $< $@
 
 $(link-out-dir)tee.symb_sizes: $(link-out-dir)tee.elf
-	@echo Symb sizes $@
+	@echo '  GEN     $@'
 	$(q)$(NM) --print-size --reverse-sort --size-sort $< > $@
