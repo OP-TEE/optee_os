@@ -55,6 +55,8 @@ static struct {
 	uint32_t cpu_resume_entry;
 	uint32_t cpu_suspend_entry;
 	uint32_t fiq_entry;
+	uint32_t system_off_entry;
+	uint32_t system_reset_entry;
 } *sm_entry_vector;
 
 struct sm_nsec_ctx *sm_get_nsec_ctx(void)

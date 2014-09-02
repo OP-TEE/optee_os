@@ -114,6 +114,8 @@ struct thread_handlers {
 	thread_pm_handler_t cpu_off;
 	thread_pm_handler_t cpu_suspend;
 	thread_pm_handler_t cpu_resume;
+	thread_pm_handler_t system_off;
+	thread_pm_handler_t system_reset;
 
 
 	/*

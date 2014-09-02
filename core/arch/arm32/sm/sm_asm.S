@@ -183,10 +183,7 @@ LOCAL_FUNC sm_fiq_entry , :
 	pop	{r1-r4}	/* R0-R3 pushed at entry */
 	stm	r0!, {r1-r4}
 
-	/*
-	 * Update secure context with vector for FIQ handling, also updates
-	 * entry reason
-	 */
+	/* Update secure context with vector for FIQ handling */
 	bl	sm_set_sec_fiq_entry
 
 	/* Restore secure context */

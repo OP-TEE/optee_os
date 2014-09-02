@@ -142,6 +142,8 @@ static const struct thread_handlers handlers = {
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
 	.cpu_resume = main_default_pm_handler,
+	.system_off = main_default_pm_handler,
+	.system_reset = main_default_pm_handler,
 };
 
 void main_init(uint32_t nsec_entry); /* called from assembly only */

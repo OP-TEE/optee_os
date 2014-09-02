@@ -110,10 +110,30 @@ LOCAL_FUNC vector_cpu_resume_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_resume_entry
 
+LOCAL_FUNC vector_system_off_entry , :
+	ldr	lr, =thread_system_off_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_SYSTEM_OFF_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_system_off_entry
+
+LOCAL_FUNC vector_system_reset_entry , :
+	ldr	lr, =thread_system_reset_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	mov	r1, r0
+	ldr	r0, =TEESMC32_OPTEED_RETURN_SYSTEM_RESET_DONE
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC vector_system_reset_entry
+
 /*
  * Vector table supplied to ARM Trusted Firmware (ATF) at initialization.
  * Also used when compiled with the internal monitor, but the
- * cpu_*_entry are not used then.
+ * cpu_*_entry and system_*_entry are not used then.
  *
  * Note that ATF depends on the layout of this vector table, any change in
  * layout has to be synced with ATF. This layout must also be kept in sync
@@ -127,6 +147,8 @@ FUNC thread_vector_table , :
 	b	vector_cpu_resume_entry
 	b	vector_cpu_suspend_entry
 	b	vector_fiq_entry
+	b	vector_system_off_entry
+	b	vector_system_reset_entry
 END_FUNC thread_vector_table
 
 FUNC thread_set_abt_sp , :

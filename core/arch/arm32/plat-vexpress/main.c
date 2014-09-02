@@ -153,6 +153,8 @@ uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1);
+static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1);
+static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1);
 #elif defined(WITH_SEC_MON)
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 #else
@@ -209,11 +211,15 @@ static const struct thread_handlers handlers = {
 	.cpu_off = main_cpu_off_handler,
 	.cpu_suspend = main_cpu_suspend_handler,
 	.cpu_resume = main_cpu_resume_handler,
+	.system_off = main_system_off_handler,
+	.system_reset = main_system_reset_handler,
 #elif defined(WITH_SEC_MON)
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
 	.cpu_resume = main_default_pm_handler,
+	.system_off = main_default_pm_handler,
+	.system_reset = main_default_pm_handler,
 #endif
 };
 
@@ -388,6 +394,22 @@ uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 	(void)&a1;
 	PM_DEBUG("cpu %zu: a0 0%x", pos, a0);
 	main_init_helper(false, pos, NSEC_ENTRY_INVALID);
+	return 0;
+}
+
+static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1)
+{
+	(void)&a0;
+	(void)&a1;
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	return 0;
+}
+
+static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1)
+{
+	(void)&a0;
+	(void)&a1;
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
 	return 0;
 }
 

@@ -55,6 +55,8 @@ thread_pm_handler_t thread_cpu_on_handler_ptr;
 thread_pm_handler_t thread_cpu_off_handler_ptr;
 thread_pm_handler_t thread_cpu_suspend_handler_ptr;
 thread_pm_handler_t thread_cpu_resume_handler_ptr;
+thread_pm_handler_t thread_system_off_handler_ptr;
+thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
 static unsigned int thread_global_lock = UNLOCK;
@@ -359,6 +361,8 @@ void thread_init_handlers(const struct thread_handlers *handlers)
 	thread_cpu_off_handler_ptr = handlers->cpu_off;
 	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
 	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
+	thread_system_off_handler_ptr = handlers->system_off;
+	thread_system_reset_handler_ptr = handlers->system_reset;
 	thread_init_vbar();
 }
 
