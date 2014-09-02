@@ -33,7 +33,7 @@
 /* Use the RNG of the HW on this platform */
 #define USE_RNG_HW
 
-#define USE_FULLY_RNG_HW_IMP 0
+#define USE_FULLY_RNG_HW_IMP 1
 #define USE_SW_DELAY         0
 
 /*
