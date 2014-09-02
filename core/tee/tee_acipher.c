@@ -169,9 +169,20 @@ TEE_Result tee_acipher_rsadorep(
 		buf, (unsigned long *)(&blen),	/* decrypted message and len */
 		ltc_key->type,
 		ltc_key);
-	if (ltc_res != CRYPT_OK) {
+	switch (ltc_res) {
+	case CRYPT_PK_NOT_PRIVATE:
+	case CRYPT_PK_INVALID_TYPE:
+	case CRYPT_PK_INVALID_SIZE:
+	case CRYPT_INVALID_PACKET:
 		EMSG("rsa_exptmod() returned %d\n", ltc_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case CRYPT_OK:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("rsa_exptmod() returned %d\n", ltc_res);
+		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
@@ -248,10 +259,28 @@ TEE_Result tee_acipher_rsaes_decrypt(
 		ltc_rsa_algo,
 		&ltc_stat,
 		ltc_key);
-	if ((ltc_res != CRYPT_OK) || (ltc_stat != 1)) {
+
+	switch (ltc_res) {
+	case CRYPT_PK_INVALID_PADDING:
+	case CRYPT_INVALID_PACKET:
+	case CRYPT_PK_INVALID_SIZE:
+		EMSG("rsa_decrypt_key_ex() returned %d\n", ltc_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case CRYPT_OK:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("rsa_decrypt_key_ex() returned %d\n", ltc_res);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (ltc_stat != 1) {
+		/* This will result in a panic */
 		EMSG("rsa_decrypt_key_ex() returned %d and %d\n",
 		     ltc_res, ltc_stat);
-		res = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
@@ -307,9 +336,19 @@ TEE_Result tee_acipher_rsaes_encrypt(
 		ltc_hashindex,	/* hash index, based on the algo */
 		ltc_rsa_algo,
 		ltc_key);
-	if (ltc_res != CRYPT_OK) {
+	switch (ltc_res) {
+	case CRYPT_PK_INVALID_PADDING:
+	case CRYPT_INVALID_PACKET:
+	case CRYPT_PK_INVALID_SIZE:
 		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case CRYPT_OK:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);
+		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 	res = TEE_SUCCESS;

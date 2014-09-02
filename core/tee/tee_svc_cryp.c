@@ -2510,7 +2510,7 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 	if (res != TEE_SUCCESS)
 		return res;
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		return TEE_ERROR_BAD_PARAMETERS;
+		return TEE_ERROR_GENERIC;
 
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
@@ -2528,7 +2528,11 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 				crt_exist);
 
 		} else {
-			res = TEE_ERROR_BAD_PARAMETERS;
+			/*
+			 * We will panic because "the mode is not compatible
+			 * with the function"
+			 */
+			return TEE_ERROR_GENERIC;
 		}
 
 		res = tee_acipher_rsadorep(

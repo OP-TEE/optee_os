@@ -1004,7 +1004,9 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle op,
 
 	res = utee_asymm_operate(op->state, params, paramCount, srcData, srcLen,
 				 destData, destLen);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_BAD_PARAMETERS)
 		TEE_Panic(res);
 	return res;
 }
@@ -1029,7 +1031,9 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle op,
 
 	res = utee_asymm_operate(op->state, params, paramCount, srcData, srcLen,
 				 destData, destLen);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_BAD_PARAMETERS)
 		TEE_Panic(res);
 	return res;
 }
