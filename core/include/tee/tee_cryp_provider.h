@@ -123,127 +123,134 @@ struct authenc_ops {
 };
 
 /* Implementation-defined big numbers */
-typedef struct bignum bignum;
 struct bignum_ops {
-	/* Allocate a bignum of sufficient capacity for any key element */
-	bignum *(*allocate)(void);
-	TEE_Result (*bin2bn)(const uint8_t *from, size_t fromsize, bignum *to);
-	size_t (*bin_size_for)(bignum *a);
-	void (*bn2bin)(bignum *from, uint8_t *to);
-	void (*copy)(bignum *to, const bignum *from);
-	void (*free)(bignum *a);
 	/*
-	 * Pre-allocate a bignum of sufficient capacity for any key structure
-	 * member. Supply this function if key generation can be implemented
-	 * without dynamic allocations. Otherwise, it may be left NULL.
+	 * Allocate a bignum capable of holding an unsigned integer value of
+	 * up to bitsize bits
 	 */
-	bignum *(*preallocate)(void);
+	struct bignum *(*allocate)(size_t size_bits);
+	TEE_Result (*bin2bn)(const uint8_t *from, size_t fromsize,
+			     struct bignum *to);
+	size_t (*bin_size_for)(struct bignum *a);
+	void (*bn2bin)(const struct bignum *from, uint8_t *to);
+	void (*copy)(struct bignum *to, const struct bignum *from);
+	void (*free)(struct bignum *a);
 };
 
 /* Asymmetric algorithms */
 
-struct rsa_keypair_s {
-	bignum *e;	/* Public exponent */
-	bignum *d;	/* Private exponent */
-	bignum *N;	/* Modulus */
+struct rsa_keypair {
+	struct bignum *e;	/* Public exponent */
+	struct bignum *d;	/* Private exponent */
+	struct bignum *n;	/* Modulus */
 
 	/* Optional CRT parameters (all NULL if unused) */
-	bignum *p;	/* N = pq */
-	bignum *q;
-	bignum *qP;	/* 1/q mod p */
-	bignum *dP;	/* d mod (p-1) */
-	bignum *dQ;	/* d mod (q-1) */
+	struct bignum *p;	/* N = pq */
+	struct bignum *q;
+	struct bignum *qp;	/* 1/q mod p */
+	struct bignum *dp;	/* d mod (p-1) */
+	struct bignum *dq;	/* d mod (q-1) */
 };
 
-struct rsa_public_key_s {
-	bignum *e;	/* Public exponent */
-	bignum *N;	/* Modulus */
+struct rsa_public_key {
+	struct bignum *e;	/* Public exponent */
+	struct bignum *n;	/* Modulus */
 };
 
-struct dsa_keypair_s {
-	bignum *g;	/* Generator of subgroup (public) */
-	bignum *p;	/* Prime number (public) */
-	bignum *q;	/* Order of subgroup (public) */
-	bignum *y;	/* Public key */
-	bignum *x;	/* Private key */
+struct dsa_keypair {
+	struct bignum *g;	/* Generator of subgroup (public) */
+	struct bignum *p;	/* Prime number (public) */
+	struct bignum *q;	/* Order of subgroup (public) */
+	struct bignum *y;	/* Public key */
+	struct bignum *x;	/* Private key */
 };
 
-struct dsa_public_key_s {
-	bignum *g;	/* Generator of subgroup (public) */
-	bignum *p;	/* Prime number (public) */
-	bignum *q;	/* Order of subgroup (public) */
-	bignum *y;	/* Public key */
+struct dsa_public_key {
+	struct bignum *g;	/* Generator of subgroup (public) */
+	struct bignum *p;	/* Prime number (public) */
+	struct bignum *q;	/* Order of subgroup (public) */
+	struct bignum *y;	/* Public key */
 };
 
-struct dh_keypair_s {
-	bignum *g;	/* Generator of Z_p (shared) */
-	bignum *p;	/* Prime modulus (shared) */
-	bignum *x;	/* Private key */
-	bignum *y;	/* Public key y = g^x */
+struct dh_keypair {
+	struct bignum *g;	/* Generator of Z_p (shared) */
+	struct bignum *p;	/* Prime modulus (shared) */
+	struct bignum *x;	/* Private key */
+	struct bignum *y;	/* Public key y = g^x */
 
 	/*
 	 * Optional parameters used by key generation.
 	 * When not used, q == NULL and xbits == 0
 	 */
-	bignum *q;	/* x must be in the range [2, q-2] */
-	uint32_t xbits;	/* Number of bits in the private key */
+	struct bignum *q;	/* x must be in the range [2, q-2] */
+	uint32_t xbits;		/* Number of bits in the private key */
 };
 
 struct acipher_ops {
 
 	/*
-	 * Key generation functions
-	 * Called by TEE after setting each member of @key to the return
-	 * value of bignum_ops.preallocate() if preallocate != NULL.
-	 * If possible, you should allocate memory only in preallocate() and
-	 * not during key generation, because allocation failures in gen_*_key
-	 * will make the TA panic.
+	 * Key allocation functions
+	 * Allocate the bignum's inside a key structure.
+	 * TEE core will later use bignum.free().
 	 */
-	TEE_Result (*gen_rsa_key)(struct rsa_keypair_s *key, size_t key_size);
-	TEE_Result (*gen_dsa_key)(struct dsa_keypair_s *key, size_t key_size);
-	TEE_Result (*gen_dh_key)(struct dh_keypair_s *key, bignum *q, size_t xbits);
+	TEE_Result (*alloc_rsa_keypair)(struct rsa_keypair *s,
+					size_t key_size_bits);
+	TEE_Result (*alloc_rsa_public_key)(struct rsa_public_key *s,
+					   size_t key_size_bits);
+	TEE_Result (*alloc_dsa_keypair)(struct dsa_keypair *s,
+					size_t key_size_bits);
+	TEE_Result (*alloc_dsa_public_key)(struct dsa_public_key *s,
+					   size_t key_size_bits);
+	TEE_Result (*alloc_dh_keypair)(struct dh_keypair *s,
+				       size_t key_size_bits);
 
-	TEE_Result (*rsanopad_decrypt)(struct rsa_keypair_s *key,
+	/*
+	 * Key generation functions
+	 */
+	TEE_Result (*gen_rsa_key)(struct rsa_keypair *key, size_t key_size);
+	TEE_Result (*gen_dsa_key)(struct dsa_keypair *key, size_t key_size);
+	TEE_Result (*gen_dh_key)(struct dh_keypair *key, struct bignum *q,
+				 size_t xbits);
+
+	TEE_Result (*rsanopad_decrypt)(struct rsa_keypair *key,
 				       const uint8_t *src, size_t src_len,
 				       uint8_t *dst, size_t *dst_len);
-	TEE_Result (*rsanopad_encrypt)(struct rsa_public_key_s *key,
+	TEE_Result (*rsanopad_encrypt)(struct rsa_public_key *key,
 				       const uint8_t *src, size_t src_len,
 				       uint8_t *dst, size_t *dst_len);
-	TEE_Result (*rsaes_decrypt)(uint32_t algo, struct rsa_keypair_s *key,
-					const uint8_t *label,
-					size_t label_len,
-					const uint8_t *src,
-					size_t src_len, uint8_t *dst,
-					size_t *dst_len);
-	TEE_Result (*rsaes_encrypt)(uint32_t algo, struct rsa_public_key_s *key,
-					const uint8_t *label,
-					size_t label_len,
-					const uint8_t *src,
-					size_t src_len, uint8_t *dst,
-					size_t *dst_len);
+	TEE_Result (*rsaes_decrypt)(uint32_t algo, struct rsa_keypair *key,
+				    const uint8_t *label, size_t label_len,
+				    const uint8_t *src, size_t src_len,
+				    uint8_t *dst, size_t *dst_len);
+	TEE_Result (*rsaes_encrypt)(uint32_t algo,
+				    struct rsa_public_key *key,
+				    const uint8_t *label, size_t label_len,
+				    const uint8_t *src, size_t src_len,
+				    uint8_t *dst, size_t *dst_len);
 	/* RSA SSA sign/verify: if salt_len == -1, use default value */
-	TEE_Result (*rsassa_sign)(uint32_t algo, struct rsa_keypair_s *key,
-				      int salt_len, const uint8_t *msg,
-				      size_t msg_len, uint8_t *sig,
-				      size_t *sig_len);
-	TEE_Result (*rsassa_verify)(uint32_t algo, struct rsa_public_key_s *key,
-					int salt_len, const uint8_t *msg,
-					size_t msg_len, const uint8_t *sig,
-					size_t sig_len);
-	TEE_Result (*dsa_sign)(uint32_t algo, struct dsa_keypair_s *key,
-				   const uint8_t *msg, size_t msg_len,
-				   uint8_t *sig, size_t *sig_len);
-	TEE_Result (*dsa_verify)(uint32_t algo, struct dsa_public_key_s *key,
-				     const uint8_t *msg, size_t msg_len,
-				     const uint8_t *sig, size_t sig_len);
+	TEE_Result (*rsassa_sign)(uint32_t algo, struct rsa_keypair *key,
+				  int salt_len, const uint8_t *msg,
+				  size_t msg_len, uint8_t *sig,
+				  size_t *sig_len);
+	TEE_Result (*rsassa_verify)(uint32_t algo,
+				    struct rsa_public_key *key,
+				    int salt_len, const uint8_t *msg,
+				    size_t msg_len, const uint8_t *sig,
+				    size_t sig_len);
+	TEE_Result (*dsa_sign)(uint32_t algo, struct dsa_keypair *key,
+			       const uint8_t *msg, size_t msg_len,
+			       uint8_t *sig, size_t *sig_len);
+	TEE_Result (*dsa_verify)(uint32_t algo, struct dsa_public_key *key,
+				 const uint8_t *msg, size_t msg_len,
+				 const uint8_t *sig, size_t sig_len);
 };
 
 /* Key derivation */
 struct derive_ops {
-	TEE_Result (*dh_shared_secret)(struct dh_keypair_s *private_key,
-					   bignum *public_key,
-					   bignum *secret);
-	size_t (*dh_size)(bignum *private_key);
+	TEE_Result (*dh_shared_secret)(struct dh_keypair *private_key,
+				       struct bignum *public_key,
+				       struct bignum *secret);
+	size_t (*dh_size)(struct bignum *private_key);
 };
 
 /* Random data generation */
