@@ -53,67 +53,50 @@ static void tee_ltc_alloc_mpa(void)
 }
 
 /* Random generator */
-static int prng_mpa_start(prng_state *prng)
+static int prng_mpa_start(prng_state *prng __unused)
 {
-	(void)prng;
-
 	return CRYPT_OK;
 }
 
-static int prng_mpa_add_entropy(const unsigned char *in, unsigned long inlen,
-				prng_state *prng)
+static int prng_mpa_add_entropy(const unsigned char *in __unused,
+				unsigned long inlen __unused,
+				prng_state *prng __unused)
 {
-	(void)in;
-	(void)inlen;
-	(void)prng;
-
 	/* No entropy is required */
 	return CRYPT_OK;
 }
 
-static int prng_mpa_ready(prng_state *prng)
+static int prng_mpa_ready(prng_state *prng __unused)
 {
-	(void)prng;
-
 	return CRYPT_OK;
 }
 
 extern TEE_Result get_rng_array(void *buf, size_t blen);
 static unsigned long prng_mpa_read(unsigned char *out, unsigned long outlen,
-				   prng_state *prng)
+				   prng_state *prng __unused)
 {
-	(void)prng;
-
 	if (TEE_SUCCESS == get_rng_array(out, outlen))
 		return outlen;
 	else
 		return 0;
 }
 
-static int prng_mpa_done(prng_state *prng)
+static int prng_mpa_done(prng_state *prng __unused)
 {
-	(void)prng;
-
 	return CRYPT_OK;
 }
 
-static int prng_mpa_export(unsigned char *out, unsigned long *outlen,
-			   prng_state *prng)
+static int prng_mpa_export(unsigned char *out __unused,
+			   unsigned long *outlen __unused,
+			   prng_state *prng __unused)
 {
-	(void)out;
-	(void)outlen;
-	(void)prng;
-
 	return CRYPT_OK;
 }
 
-static int prng_mpa_import(const unsigned char *in, unsigned long  inlen,
-			   prng_state *prng)
+static int prng_mpa_import(const unsigned char *in  __unused,
+			   unsigned long inlen __unused,
+			   prng_state *prng __unused)
 {
-	(void)in;
-	(void)inlen;
-	(void)prng;
-
 	return CRYPT_OK;
 }
 
@@ -656,10 +639,8 @@ static bool bn_alloc_max(struct bignum **s)
 }
 
 static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
-				    size_t key_size_bits)
+				    size_t key_size_bits __unused)
 {
-	(void)key_size_bits;
-
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -690,10 +671,8 @@ err:
 }
 
 static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
-				       size_t key_size_bits)
+				       size_t key_size_bits __unused)
 {
-	(void)key_size_bits;
-
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -706,10 +685,8 @@ err:
 }
 
 static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
-				    size_t key_size_bits)
+				    size_t key_size_bits __unused)
 {
-	(void)key_size_bits;
-
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g))
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -731,10 +708,8 @@ err:
 }
 
 static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
-				       size_t key_size_bits)
+				       size_t key_size_bits __unused)
 {
-	(void)key_size_bits;
-
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g))
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -753,10 +728,8 @@ err:
 }
 
 static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
-				   size_t key_size_bits)
+				   size_t key_size_bits __unused)
 {
-	(void)key_size_bits;
-
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g))
 		return TEE_ERROR_OUT_OF_MEMORY;

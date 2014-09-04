@@ -2455,14 +2455,14 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 	case TEE_ALG_RSA_NOPAD:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
 			tee_rsa_public_key = o->data;
-			crypto_ops.acipher.rsanopad_encrypt(tee_rsa_public_key,
-							    src_data, src_len,
-							    dst_data, dst_len);
+			res = crypto_ops.acipher.rsanopad_encrypt(
+				tee_rsa_public_key, src_data, src_len,
+				dst_data, dst_len);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
 			tee_rsa_key_pair = o->data;
-			crypto_ops.acipher.rsanopad_decrypt(tee_rsa_key_pair,
-							    src_data, src_len,
-							    dst_data, dst_len);
+			res = crypto_ops.acipher.rsanopad_decrypt(
+				tee_rsa_key_pair, src_data, src_len, dst_data,
+				dst_len);
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		}
