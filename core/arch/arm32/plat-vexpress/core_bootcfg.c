@@ -60,13 +60,10 @@
 #error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
 #endif
 
-#if PLATFORM_FLAVOR_IS(fvp)
-
 #define CFG_PUB_RAM_SIZE		CFG_SHMEM_SIZE
 #define CFG_TEE_RAM_SIZE		(1 * 1024 * 1024)
 #define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
 					CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
-
 /* define the secure/unsecure memory areas */
 #define CFG_DDR_ARMTZ_ONLY_START	(CFG_DDR_TEETZ_RESERVED_START)
 #define CFG_DDR_ARMTZ_ONLY_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
@@ -77,29 +74,6 @@
 
 #define CFG_PUB_RAM_START		CFG_SHMEM_START
 
-
-
-#elif PLATFORM_FLAVOR_IS(qemu)
-
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TEE_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-					CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
-
-/* define the secure/unsecure memory areas */
-#define CFG_DDR_ARMTZ_ONLY_START	(CFG_DDR_TEETZ_RESERVED_START)
-#define CFG_DDR_ARMTZ_ONLY_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
-
-#define CFG_DDR_ARM_ARMTZ_START		\
-			(CFG_DDR_ARMTZ_ONLY_START + CFG_DDR_ARMTZ_ONLY_SIZE)
-#define CFG_DDR_ARM_ARMTZ_SIZE		(CFG_PUB_RAM_SIZE)
-
-/* define the memory areas (TEE_RAM must start at reserved DDR start addr */
-#define CFG_TEE_RAM_START		(CFG_DDR_ARMTZ_ONLY_START)
-#define CFG_TA_RAM_START		(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
-#define CFG_PUB_RAM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
-
-#endif
 
 /*
  * define the platform memory Secure layout
@@ -121,11 +95,7 @@ static struct memaccess_area secure_only =
 MEMACCESS_AREA(CFG_DDR_ARMTZ_ONLY_START, CFG_DDR_ARMTZ_ONLY_SIZE);
 
 static struct memaccess_area nsec_shared =
-#if PLATFORM_FLAVOR_IS(fvp)
 MEMACCESS_AREA(CFG_PUB_RAM_START, CFG_PUB_RAM_SIZE);
-#elif PLATFORM_FLAVOR_IS(qemu)
-MEMACCESS_AREA(CFG_DDR_ARM_ARMTZ_START, CFG_DDR_ARM_ARMTZ_SIZE);
-#endif
 
 /*
  * buf_inside_area - return true is buffer fits in target area
