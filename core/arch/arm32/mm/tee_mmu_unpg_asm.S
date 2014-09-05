@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm32_macros.S>
 #include <kernel/tz_proc_def.h>
 
         .global tee_mmu_switch
@@ -45,28 +46,22 @@
          */
         .func tee_mmu_switch
 tee_mmu_switch:
+        mrs     r3, cpsr        /* Save CPSR for later use */
+        cpsid   if              /* Disable both IRQ and FIQ */
 
-        /* save/mask IRQs/FIQs */
-        mrs     r2, cpsr
-        and     r3, r2, #CPSR_FIQ_IRQ_MASK
-        orr     r2, r2, #CPSR_FIQ_IRQ_MASK
-        msr     cpsr_cxsf, r2
-        /* set reserved context id */
+        /* Update the reserved Context ID and TTBR0 in CP15 */
         dsb                     /* ARM erratum 754322 */
         mov     r2, #0
-        mcr     p15, 0, r2, c13, c0, 1
+        write_context_id r2     /* Clear the CONTEXTIDR register */
+
         isb
-        /* set ttbr0 */
-        mcr     p15, 0, r0, c2, c0, 0
+        write_ttbr0 r0          /* Update TTBR0 with value from function arg. */
+
         isb
-        /* set context id */
-        mcr     p15, 0, r1, c13, c0, 1
+        write_context_id r1     /* Write Context ID from function arg. */
+
         isb
-        /* restore irq/fiq mask */
-        mrs     r1, cpsr
-        bic     r1, r1, #CPSR_FIQ_IRQ_MASK
-        orr     r1, r1, r3
-        msr     cpsr_cxsf, r1
+        msr     cpsr_cxsf, r3   /* Restore the saved CPSR */
 
         bx      lr
         .endfunc

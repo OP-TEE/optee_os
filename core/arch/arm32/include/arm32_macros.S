@@ -25,6 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+        /* Please keep them sorted based on the CRn register */
+	.macro read_mpidr reg
+	mrc	p15, 0, \reg, c0, c0, 5
+	.endm
+
 	.macro read_sctlr reg
 	mrc	p15, 0, \reg, c1, c0, 0
 	.endm
@@ -41,8 +46,8 @@
 	mcr	p15, 0, \reg, c1, c1, 0
 	.endm
 
-	.macro read_mpidr reg
-	mrc	p15, 0, \reg, c0, c0, 5
+	.macro write_ttbr0 reg
+	mcr	p15, 0, \reg, c2, c0, 0
 	.endm
 
 	.macro write_vbar reg
@@ -50,5 +55,9 @@
 	.endm
 
 	.macro write_mvbar reg
-	mcr     p15, 0, \reg, c12, c0, 1
+	mcr	p15, 0, \reg, c12, c0, 1
+	.endm
+
+	.macro write_context_id reg
+	mcr	p15, 0, \reg, c13, c0, 1
 	.endm
