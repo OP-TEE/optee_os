@@ -10,7 +10,7 @@ platform-cflags	+= -pipe -mthumb-interwork -mlong-calls
 platform-cflags += -fno-short-enums -mno-apcs-float -fno-common
 platform-cflags += -mno-unaligned-access
 platform-aflags	 = -mcpu=$(platform-cpuarch)
-core-platform-cppflags	 = -I$(arch-dir)include
+core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 core-platform-cppflags	+= -DWITH_STACK_CANARIES=1
 user_ta-platform-cflags = -fpie
@@ -35,9 +35,9 @@ platform-aflags += -g3
 endif
 
 core-platform-subdirs += \
-	$(addprefix $(arch-dir), kernel mm tee sta) $(patsubst %/,%,$(platform-dir))
+	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
 ifneq ($(PLATFORM_FLAVOR),fvp)
-core-platform-subdirs += $(arch-dir)sm
+core-platform-subdirs += $(arch-dir)/sm
 core-platform-cppflags += -DWITH_SEC_MON=1
 else
 core-platform-cppflags += -DWITH_ARM_TRUSTED_FW=1

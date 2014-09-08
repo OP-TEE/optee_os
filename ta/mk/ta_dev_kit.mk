@@ -1,7 +1,7 @@
 
 
 # Get the dir of the ta-dev-kit, requires make version 3.81 or later
-ta-dev-kit-dir := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+ta-dev-kit-dir := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))..))
 
 
 .PHONY: all
@@ -12,7 +12,7 @@ sm-$(ta) := y
 binary := $(BINARY)
 
 ifneq ($O,)
-out-dir := $O/
+out-dir := $O
 endif
 
 ifneq ($V,1)

@@ -4,9 +4,9 @@ include mk/cleanvars.mk
 sm := core
 sm-$(sm) := y
 
-arch-dir	:= core/arch/$(ARCH)/
-platform-dir	:= $(arch-dir)plat-$(PLATFORM)/
-include $(platform-dir)conf.mk
+arch-dir	:= core/arch/$(ARCH)
+platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
+include $(platform-dir)/conf.mk
 
 PLATFORM_FLAVOR ?= default
 platform_$(PLATFORM) := y
@@ -51,6 +51,6 @@ include mk/lib.mk
 subdirs = $(core-platform-subdirs) core
 include mk/subdir.mk
 include mk/compile.mk
-include $(platform-dir)link.mk
+include $(platform-dir)/link.mk
 
 

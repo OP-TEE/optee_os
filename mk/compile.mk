@@ -107,4 +107,4 @@ $2: $1 FORCE
 endef
 
 $(foreach f, $(srcs), $(eval $(call \
-	process_srcs,$(f),$(out-dir)$(base-prefix)$$(basename $f).o)))
+	process_srcs,$(f),$(out-dir)/$(base-prefix)$$(basename $f).o)))

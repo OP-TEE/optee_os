@@ -11,7 +11,7 @@ O		?= out/$(ARCH)-plat-$(PLATFORM)
 arch_$(ARCH)	:= y
 
 ifneq ($O,)
-out-dir := $O/
+out-dir := $O
 endif
 
 ifneq ($V,1)

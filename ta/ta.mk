@@ -48,14 +48,14 @@ endef
 
 # Copy the .a files
 $(foreach f, $(libfiles), \
-	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/lib)))
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/lib)))
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk \
 	$(wildcard ta/arch/$(ARCH)/link.mk) \
 	ta/mk/ta_dev_kit.mk
 $(foreach f, $(ta-mkfiles), \
-	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/mk)))
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/mk)))
 
 # Copy the .h files for TAs
 define copy-incdir
@@ -64,19 +64,19 @@ $$(foreach h, $$(sf), $$(eval $$(call copy-file, $1/$$(h), \
 	$$(patsubst %/,%,$$(subst /./,/,$2/$$(dir $$(h)))))))
 endef
 $(foreach d, $(incdirs$(sm)), \
-	$(eval $(call copy-incdir, $(d), $(out-dir)export-user_ta/include)))
+	$(eval $(call copy-incdir, $(d), $(out-dir)/export-user_ta/include)))
 
 # Copy the .h files needed by host
 $(foreach d, $(incdirs-host), \
-	$(eval $(call copy-incdir, $(d), $(out-dir)export-user_ta/host_include)))
+	$(eval $(call copy-incdir, $(d), $(out-dir)/export-user_ta/host_include)))
 
 # Copy the src files
 ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
 	$(wildcard ta/arch/$(ARCH)/user_ta_elf_arm.lds)
 $(foreach f, $(ta-srcfiles), \
-	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/src)))
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/src)))
 
 # Copy the scripts
 ta-scripts = $(wildcard ta/arch/$(ARCH)/fix_ta_binary)
 $(foreach f, $(ta-scripts), \
-	$(eval $(call copy-file, $(f), $(out-dir)export-user_ta/scripts)))
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/scripts)))
