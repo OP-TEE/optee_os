@@ -16,8 +16,11 @@ inside the TEE.
 
 ## License
 The software is provided under the
-[BSD 2-Clause](http://opensource.org/licenses/BSD-2-Clause) license.
-[BSD 3-Clause](http://opensource.org/licenses/BSD-3-Clause) license.
+[BSD 2-Clause](http://opensource.org/licenses/BSD-2-Clause) license,
+apart from some files in the optee_os/lib/libutils directory which
+are distributed under the
+[BSD 3-Clause](http://opensource.org/licenses/BSD-3-Clause)
+or public domain licenses
 
 ## Platforms supported
 This software has hardware dependencies.
