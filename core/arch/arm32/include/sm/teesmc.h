@@ -212,17 +212,15 @@ struct teesmc32_arg {
 	uint32_t ret;
 	uint32_t ret_origin;
 	uint32_t num_params;
-#if 0
 	/*
-	 * Commented out elements used to visualize the layout dynamic part
-	 * of the struct. Note that these fields are not available at all
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct. Note that this field is not available at all
 	 * if num_params == 0.
 	 *
 	 * params is accessed through the macro TEESMC32_GET_PARAMS
+	 *
+	 * struct teesmc32_param params[num_params];
 	 */
-
-	struct teesmc32_param params[num_params];
-#endif
 };
 
 /**
@@ -267,17 +265,15 @@ struct teesmc64_arg {
 	uint64_t ret;
 	uint64_t ret_origin;
 	uint64_t num_params;
-#if 0
 	/*
-	 * Commented out elements used to visualize the layout dynamic part
-	 * of the struct. Note that these fields are not available at all
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct. Note that this field is not available at all
 	 * if num_params == 0.
 	 *
 	 * params is accessed through the macro TEESMC64_GET_PARAMS
+	 *
+	 * struct teesmc64_param params[num_params];
 	 */
-
-	union teesmc64_param params[num_params];
-#endif
 };
 
 /**
@@ -300,7 +296,7 @@ struct teesmc64_arg {
  */
 #define TEESMC64_GET_ARG_SIZE(num_params) \
 	(sizeof(struct teesmc64_arg) + \
-	 sizeof(union teesmc64_param) * (num_params))
+	 sizeof(struct teesmc64_param) * (num_params))
 
 #define TEESMC_UUID_LEN	16
 
@@ -687,10 +683,5 @@ struct teesmc_meta_open_session {
 #define TEESMC_RETURN_EBADCMD		0x4
 #define TEESMC_RETURN_IS_RPC(ret) \
 	(((ret) & TEESMC_RETURN_RPC_PREFIX_MASK) == TEESMC_RETURN_RPC_PREFIX)
-
-/*
- * Returned in r1 by Trusted OS functions if r0 = TEESMC_RETURN_RPC
- */
-#define TEESMC_RPC_REQUEST_IRQ		0x0
 
 #endif /* TEESMC_H */
