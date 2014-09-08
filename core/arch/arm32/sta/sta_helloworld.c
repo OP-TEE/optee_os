@@ -232,7 +232,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	case CMD_PARAMS:
 		return test_entry_params(nParamTypes, pParams);
 	case CMD_DIRTY_TESTS:
-		return core_dirty_tests(nParamTypes, pParams);
+		return core_dirty_tests();
 	default:
 		break;
 	}

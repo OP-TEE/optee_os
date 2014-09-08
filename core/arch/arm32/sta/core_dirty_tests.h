@@ -31,7 +31,6 @@
 #include <tee_api_defines.h>
 
 /* basic run-time tests */
-TEE_Result core_dirty_tests(uint32_t nParamTypes,
-		TEE_Param pParams[TEE_NUM_PARAMS]);
+TEE_Result core_dirty_tests(void);
 
 #endif /*CORE_DIRTY_TESTS_H*/

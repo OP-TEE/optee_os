@@ -92,4 +92,10 @@ void *pvalloc(size_t size);
 /* entry point for malloc init in case some inits are required */
 void malloc_init(void *start, size_t size);
 
+/* get malloc stats: curr allocated heap and max allocated heap since boot */
+void malloc_reset_max_allocated(void);
+size_t malloc_get_max_allocated(void);
+size_t malloc_get_allocated(void);
+size_t malloc_get_heap_size(void);
+
 #endif /* MALLOC_H */

@@ -53,6 +53,50 @@
 #define EFFECTIVE_MALLOC    basic_malloc
 #endif
 
+static size_t max_alloc_heap;
+static size_t heap_size;
+
+#if (!defined ENABLE_MDBG) && (defined TEE_USE_DLMALLOC) && \
+	(CFG_TEE_FW_DEBUG != 0)
+
+#define SAVE_ALLOCATED_SIZE() \
+	do { \
+		struct mallinfo *_i; \
+		size_t _l; \
+		\
+		_i = dlmallinfo(); \
+		_l = (size_t)_i->uordblks + (size_t)_i->hblkhd; \
+		if (max_alloc_heap < _l) \
+			max_alloc_heap = _l; \
+	} while(0)
+#else
+#define SAVE_ALLOCATED_SIZE()	(void)0
+#endif
+
+void malloc_reset_max_allocated(void)
+{
+	max_alloc_heap = 0;
+}
+size_t malloc_get_max_allocated(void)
+{
+	return max_alloc_heap;
+}
+size_t malloc_get_allocated(void)
+{
+#ifdef TEE_USE_DLMALLOC
+	struct mallinfo *i;
+
+	i = dlmallinfo();
+	return (size_t)(i->uordblks + i->hblkhd);
+#else
+	return 0;
+#endif
+}
+size_t malloc_get_heap_size(void)
+{
+	return heap_size;
+}
+
 #ifdef TEE_USE_BASIC_MALLOC
 /*
  * Very basic malloc pool from heap. Used for TZ bringup.
@@ -365,13 +409,17 @@ void free(void *ptr)
 
 void *malloc(size_t size)
 {
-	return EFFECTIVE_MALLOC(size);
+	void *p = EFFECTIVE_MALLOC(size);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 }
 
 void *calloc(size_t nmemb, size_t size)
 {
 #ifdef TEE_USE_DLMALLOC
-	return dlcalloc(nmemb, size);
+	void *p = dlcalloc(nmemb, size);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 #else
 	size_t l = nmemb * size;
 	void *p = malloc(l);
@@ -385,7 +433,9 @@ void *calloc(size_t nmemb, size_t size)
 void *realloc(void *ptr, size_t size)
 {
 #ifdef TEE_USE_DLMALLOC
-	return dlrealloc(ptr, size);
+	void *p = dlrealloc(ptr, size);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 #else
 	assert(0);
 	return NULL;
@@ -400,6 +450,7 @@ void *realloc(void *ptr, size_t size)
 #ifdef TEE_USE_DLMALLOC		/* these are only supported by dlmalloc */
 void *memalign(size_t a, size_t l)
 {
+	void *p;
 	unsigned long i, j;
 
 	/* check a is a power of 2 */
@@ -410,25 +461,35 @@ void *memalign(size_t a, size_t l)
 	if (j != 1)
 		return NULL;
 
-	return dlmemalign(a, l);
+	p = dlmemalign(a, l);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 }
 
 void *valloc(size_t l)
 {
+	void *p;
+
 	if (l) {
 		EMSG("- assert: valloc from dlmalloc is not yet tested -");
 		assert(0);
 	}
-	return dlvalloc(l);
+	p = dlvalloc(l);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 }
 
 void *pvalloc(size_t l)
 {
+	void *p;
+
 	if (l) {
 		EMSG("- assert: pvalloc from dlmalloc is not yet tested -");
 		assert(0);
 	}
-	return dlpvalloc(l);
+	p = dlpvalloc(l);
+	SAVE_ALLOCATED_SIZE();
+	return p;
 }
 #endif /* TEE_USE_DLMALLOC */
 
@@ -466,8 +527,6 @@ void *sbrk(ptrdiff_t size)
 	return cur;
 }
 
-static void dlmalloc_init(void *start, size_t size);
-
 static void dlmalloc_init(void *start, size_t size)
 {
 	/*
@@ -492,6 +551,7 @@ void malloc_init(void *start, size_t size)
 #ifdef TEE_USE_DLMALLOC
 	dlmalloc_init(start, size);
 #endif
+	heap_size = size;
 }
 
 #endif /* !ENABLE_MDBG */

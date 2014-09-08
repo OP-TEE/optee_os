@@ -27,7 +27,6 @@
 #include <malloc.h>
 #include <stdbool.h>
 #include <kernel/tee_core_trace.h>
-
 #include "core_dirty_tests.h"
 
 /*
@@ -38,20 +37,28 @@
  */
 #define LOG(...)
 
+#if (CFG_TEE_CORE_EMBED_INTERNAL_TESTS == 0)
+
+TEE_Result core_dirty_tests(void)
+{
+	return TEE_SUCCESS;
+}
+
+#else
+
 static int dirty_test_division(void);
 static int dirty_test_malloc(void);
 
 /* exported entry points for some basic test */
-TEE_Result core_dirty_tests(uint32_t nParamTypes,
-		TEE_Param pParams[TEE_NUM_PARAMS])
+TEE_Result core_dirty_tests(void)
 {
-	(void)&nParamTypes;
-	(void)&pParams;
-
 	if (dirty_test_division() || dirty_test_malloc()) {
 		EMSG("some dirty_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
+
+	/* reset alloc stats as this test corrupts data */
+	malloc_reset_max_allocated();
 	return TEE_SUCCESS;
 }
 
@@ -182,7 +189,7 @@ static int dirty_test_malloc(void)
 	p2 = NULL;
 
 	/* test calloc */
-	p3 = calloc(0x10, 1024);
+	p3 = calloc(0x100, 1024);
 	p4 = calloc(0x100, 1024 * 1024);
 	LOG("- p3 = calloc(0x100, 1024)");
 	LOG("- p4 = calloc(0x100, 1024*1024)   too big: should fail!");
@@ -244,3 +251,5 @@ static int dirty_test_malloc(void)
 
 	return ret;
 }
+
+#endif
