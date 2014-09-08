@@ -28,6 +28,7 @@
 
 #include <sm/sm.h>
 #include <sm/teesmc.h>
+#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
 #include <arm32.h>
@@ -81,7 +82,7 @@ void sm_set_sec_smc_entry(const struct sm_reg_r0_to_r3 *regs)
 
 void sm_set_nsec_ret_vals(struct sm_reg_r0_to_r3 *regs, uint32_t r4)
 {
-	if (regs->r0 == TEESMC32_OPTEED_RETURN_FIQ_DONE) {
+	if (regs->r0 == TEESMC_OPTEED_RETURN_FIQ_DONE) {
 		/* On FIQ exit we're restoring r0-r3 from nsec context */
 		struct sm_nsec_ctx *nsec_ctx = sm_get_nsec_ctx();
 

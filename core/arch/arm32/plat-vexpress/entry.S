@@ -31,6 +31,7 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 #include <sm/teesmc.h>
+#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
 .section .text.boot
@@ -79,7 +80,7 @@ LOCAL_FUNC reset , :
 	mov	r2, #0
 	mov	r3, #0
 #endif
-	mov	r0, #TEESMC32_OPTEED_RETURN_ENTRY_DONE
+	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC reset

@@ -29,6 +29,7 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 #include <sm/teesmc.h>
+#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 #include <kernel/thread_defs.h>
 
@@ -43,7 +44,7 @@ LOCAL_FUNC vector_std_smc_entry , :
 	 * return.
 	 */
 	pop	{r1-r8}
-	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_std_smc_entry
@@ -53,7 +54,7 @@ LOCAL_FUNC vector_fast_smc_entry , :
 	mov	r0, sp
 	bl	thread_handle_fast_smc
 	pop	{r1-r8}
-	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_fast_smc_entry
@@ -65,7 +66,7 @@ LOCAL_FUNC vector_fiq_entry , :
  	ldr	lr, [lr]
  	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_FIQ_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_fiq_entry
@@ -75,7 +76,7 @@ LOCAL_FUNC vector_cpu_on_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_ON_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_ON_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_on_entry
@@ -85,7 +86,7 @@ LOCAL_FUNC vector_cpu_off_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_OFF_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_off_entry
@@ -95,7 +96,7 @@ LOCAL_FUNC vector_cpu_suspend_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_SUSPEND_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_suspend_entry
@@ -105,7 +106,7 @@ LOCAL_FUNC vector_cpu_resume_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_RESUME_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_resume_entry
@@ -115,7 +116,7 @@ LOCAL_FUNC vector_system_off_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_SYSTEM_OFF_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_system_off_entry
@@ -125,7 +126,7 @@ LOCAL_FUNC vector_system_reset_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	mov	r1, r0
-	ldr	r0, =TEESMC32_OPTEED_RETURN_SYSTEM_RESET_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC vector_system_reset_entry
@@ -296,7 +297,7 @@ FUNC thread_std_smc_entry , :
 
 	bl	thread_state_free
 
-	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	mov	r1, r4
 	mov	r2, r5
 	mov	r3, r6
@@ -329,7 +330,7 @@ FUNC thread_rpc , :
 	ldr	r2, =.thread_rpc_return
 	bl	thread_state_suspend
 	mov	r4, r0			/* Supply thread index */
-	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	ldm	r5, {r1-r3}		/* Load rv[] into r0-r2 */
 	smc	#0
 	b	.	/* SMC should not return */
@@ -389,7 +390,7 @@ LOCAL_FUNC thread_irq_handler , :
 	cps	#CPSR_MODE_SVC
 	mov	sp, r0
 
-	ldr	r0, =TEESMC32_OPTEED_RETURN_CALL_DONE
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	ldr	r1, =TEESMC_RETURN_RPC_IRQ
 	mov	r2, #0
 	mov	r3, #0
