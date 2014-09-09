@@ -42,7 +42,7 @@
 #include <kernel/tee_core_trace.h>
 #include <kernel/tee_kta_trace.h>
 #include <kernel/chip_services.h>
-#include <tee/tee_hash.h>
+#include <tee/tee_cryp_provider.h>
 
 
 void tee_svc_sys_log(const void *buf, size_t len)
@@ -157,7 +157,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 					(data + nslen, sizeof(data) - nslen))
 				return TEE_ERROR_BAD_STATE;
 
-			res = tee_hash_createdigest(
+			res = crypto_ops.hash.createdigest(
 					TEE_ALG_SHA256,
 					data, sizeof(data),
 					(uint8_t *)&uuid, sizeof(uuid));

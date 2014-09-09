@@ -29,7 +29,7 @@
 #include <user_ta_header.h>
 #include <kernel/util.h>
 #include <kernel/tee_ta_manager_unpg.h>
-#include <tee/tee_hash.h>
+#include <tee/tee_cryp_provider.h>
 #include <kernel/tee_core_trace.h>
 
 struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
@@ -83,7 +83,7 @@ void *tee_ta_load_page(const uint32_t va_addr)
 	npage = ts->mem_swap + spage - smem;
 	page_idx = ((spage - smem) >> SMALL_PAGE_SHIFT);
 	page_bit = 1 << page_idx;
-	if (tee_hash_get_digest_size(ts->head->hash_type, &hash_size) !=
+	if (crypto_ops.hash.get_digest_size(ts->head->hash_type, &hash_size) !=
 	    TEE_SUCCESS) {
 		EMSG("invalid hash type 0x%x",
 		     (unsigned int)ts->head->hash_type);
@@ -110,7 +110,7 @@ void *tee_ta_load_page(const uint32_t va_addr)
 			     hash_size * page_idx + (uint32_t) (ts->head));
 
 		/* check hash */
-		if (tee_hash_check(
+		if (crypto_ops.hash.check(
 			ts->head->hash_type,
 			hash_offset, hash_size,
 			(void *)spage, cpy_size) != TEE_SUCCESS) {
