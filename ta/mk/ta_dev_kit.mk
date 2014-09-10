@@ -13,6 +13,8 @@ binary := $(BINARY)
 
 ifneq ($O,)
 out-dir := $O
+else
+out-dir := .
 endif
 
 ifneq ($V,1)
