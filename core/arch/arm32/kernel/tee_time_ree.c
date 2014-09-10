@@ -28,21 +28,9 @@
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
 
-static void ree_wait_specific(uint32_t milliseconds_delay)
-{
-	(void)&milliseconds_delay;
-	/*
-	 * Any implementation must check it is secure, and robust to idle states
-	 * of the arm
-	 */
-	/* usleep to be implemented */
-	/* usleep(milliseconds_delay * 1000); */
-}
-
 static const struct time_source ree_time_source = {
 	.name = "ree",
 	.get_sys_time = tee_time_get_ree_time,
-	.wait_specific = ree_wait_specific,
 };
 
 REGISTER_TIME_SOURCE(ree_time_source)

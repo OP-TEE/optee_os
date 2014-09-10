@@ -178,21 +178,9 @@ static TEE_Result rtt_get_sys_time(TEE_Time *time)
 	return TEE_SUCCESS;
 }
 
-static void rtt_wait_specific(uint32_t milliseconds_delay)
-{
-	(void)&milliseconds_delay;
-	/*
-	 * Any implementation must check it is secure, and robust to idle states
-	 * of the arm
-	 */
-	/* usleep to be implemented */
-	/* usleep(milliseconds_delay * 1000); */
-}
-
 static const struct time_source rtt_time_source = {
 	.name = "rtt0",
 	.get_sys_time = rtt_get_sys_time,
-	.wait_specific = rtt_wait_specific,
 };
 
 REGISTER_TIME_SOURCE(rtt_time_source)

@@ -42,6 +42,7 @@
 #define TEE_WAIT_MUTEX_SLEEP	0
 #define TEE_WAIT_MUTEX_WAKEUP	1
 #define TEE_WAIT_MUTEX_DELETE	2
+#define TEE_RPC_WAIT		0x30000000
 
 
 #endif

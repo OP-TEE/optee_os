@@ -30,7 +30,6 @@
 struct time_source {
 	const char *name;
 	TEE_Result (*get_sys_time)(TEE_Time *time);
-	void (*wait_specific)(uint32_t milliseconds_delay);
 };
 void time_source_init(void);
 

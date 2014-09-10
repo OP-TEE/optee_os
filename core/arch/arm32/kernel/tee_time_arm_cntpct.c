@@ -67,14 +67,6 @@ static uint32_t read_cntfrq(void)
 	return frq;
 }
 
-static uint64_t usec_to_tick(uint32_t usec)
-{
-	uint64_t tick = usec;
-	tick *= read_cntfrq();
-	do_div(&tick, 1000000);
-	return tick;
-}
-
 static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 {
 	uint64_t cntpct = read_cntpct();
@@ -89,22 +81,9 @@ static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 	return TEE_SUCCESS;
 }
 
-static void arm_cntpct_wait_specific(uint32_t milliseconds_delay)
-{
-	/*
-	 * Any implementation must check it is secure, and robust to idle states
-	 * of the arm
-	 */
-	uint64_t delta_tick = usec_to_tick(milliseconds_delay * 1000);
-	uint64_t target_tick = read_cntpct() + delta_tick;
-
-	while (target_tick > read_cntpct());
-}
-
 static const struct time_source arm_cntpct_time_source = {
 	.name = "arm cntpct",
 	.get_sys_time = arm_cntpct_get_sys_time,
-	.wait_specific = arm_cntpct_wait_specific
 };
 
 REGISTER_TIME_SOURCE(arm_cntpct_time_source)

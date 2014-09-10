@@ -782,7 +782,7 @@ TEE_Result tee_svc_wait(uint32_t timeout)
 		if (mytime >= timeout)
 			return TEE_SUCCESS;
 
-		tee_wait_specific(timeout - mytime);
+		tee_time_wait(timeout - mytime);
 	}
 
 	return res;
