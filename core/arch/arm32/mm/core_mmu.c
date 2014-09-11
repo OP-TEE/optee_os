@@ -401,15 +401,21 @@ bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 {
 	uint32_t p;
+	TEE_Result res;
 
 	/* Empty buffers complies with anything */
 	if (len == 0)
 		return true;
 
-	if (core_va2pa((uint32_t) vbuf, &p))
+	if (!tee_mmu_is_kernel_mapping()) {
+		res = tee_mmu_kmap_va2pa_helper((void *)vbuf, (void **)&p);
+		if (res != TEE_SUCCESS)
+			return false;
+	} else if (core_va2pa((uint32_t)vbuf, &p)) {
 		return false;
+	}
 
-	return core_pbuf_is(attr, (tee_paddr_t) p, len);
+	return core_pbuf_is(attr, (tee_paddr_t)p, len);
 }
 
 /*

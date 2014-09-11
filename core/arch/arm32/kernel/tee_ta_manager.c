@@ -56,6 +56,7 @@
 #include "user_ta_header.h"
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu_unpg.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 
@@ -168,8 +169,10 @@ static void jumper_destroyentrypoint(void *voidargs)
 	OUTMSG("%lx", args->res);
 }
 
-/* Stack size is updated to take into account */
-/* the size of the needs of the tee internal libs */
+/*
+ * Stack size is updated to take into account
+ * the size of the needs of the tee internal libs
+ */
 
 static TEE_Result invoke_ta(struct tee_ta_session *sess, uint32_t cmd,
 			    struct tee_ta_param *param, command_t commandtype)
@@ -244,6 +247,7 @@ static struct tee_ta_ctx *tee_ta_context_find(const TEE_UUID *uuid)
 	return NULL;
 }
 
+/* user TA mngt: init got section */
 static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
 {
 	uint32_t *ptr;
@@ -271,6 +275,7 @@ static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
 	}
 }
 
+/* user TA mngt: init bss section */
 static void tee_ta_init_zi(struct tee_ta_ctx *const ctx)
 {
 	/* setup ZI data */
@@ -295,7 +300,7 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 		uint32_t *data;
 
 		if (rel_dyn->info != 0x17) {
-			DMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
+			EMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
 			TEE_ASSERT(0);
 		}
 
@@ -799,7 +804,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
 		    tee_svc_enter_user_mode(param->types, params_uaddr,
-					    (uint32_t) session, 0, stack_uaddr,
+					    (uint32_t)session, 0, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);
 
@@ -811,7 +816,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		break;
 
 	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
-		res = tee_svc_enter_user_mode((uint32_t) session, 0, 0, 0,
+		res = tee_svc_enter_user_mode((uint32_t)session, 0, 0, 0,
 					      stack_uaddr, start_uaddr,
 					      &ctx->panicked, &ctx->panic_code);
 
@@ -821,7 +826,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_INVOKE_COMMAND:
 		res =
 		    tee_svc_enter_user_mode(cmd, param->types, params_uaddr,
-					    (uint32_t) session, stack_uaddr,
+					    (uint32_t)session, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);
 
@@ -951,6 +956,11 @@ out:
 	return res;
 }
 
+/*
+ * Free allocated resources in NonSecure world related to TA load.
+ *
+ * This routine runs with the old monitor and secure gate.
+ */
 static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map)
 {
 	TEE_Result res;
@@ -1134,6 +1144,9 @@ TEE_Result tee_ta_close_session(uint32_t id,
 	return TEE_SUCCESS;
 }
 
+/*
+ * tee_ta_verify_param - check that the 4 "params" match security
+ */
 static TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 				      struct tee_ta_param *param)
 {
@@ -1281,6 +1294,8 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	kta_signed_header_t *ta = NULL;
 	struct tee_ta_nwumap lp;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
+	struct tee_mmu_mapping map;
+	bool uta_mapped;
 
 	*err = TEE_ORIGIN_TEE;
 	if (!s)
@@ -1305,7 +1320,17 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Request TA from tee-supplicant */
+	uta_mapped = !tee_mmu_is_kernel_mapping();
+	if (uta_mapped) {
+		tee_mmu_get_map(&map);
+		tee_mmu_set_map(NULL);
+	}
+
 	res = tee_ta_rpc_load(uuid, &ta, &lp, err);
+
+	if (uta_mapped)
+		tee_mmu_set_map(&map);
+
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -1339,7 +1364,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_param *param)
 {
 	TEE_Result res;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
 	struct tee_ta_ctx *ctx;
 	bool panicked;
 
