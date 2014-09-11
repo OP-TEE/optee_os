@@ -590,12 +590,6 @@ static TEE_Result hash_check(uint32_t algo, const uint8_t *hash,
  ******************************************************************************/
 
 
-/*
- * Big Numbers, used by LTC, allocation size
- */
-#define LTC_BIGNUMBERS_ALLOC_SIZE \
-	((mpa_StaticVarSizeInU32(LTC_MAX_BITS_PER_VARIABLE)) * sizeof(uint32_t))
-
 static size_t bin_size_for(struct bignum *a)
 {
 	return mp_unsigned_bin_size(a);
@@ -609,22 +603,25 @@ static void bn2bin(const struct bignum *from, uint8_t *to)
 static TEE_Result bin2bn(const uint8_t *from, size_t fromsize,
 			 struct bignum *to)
 {
-	if (fromsize > LTC_BIGNUMBERS_ALLOC_SIZE -
-		       (MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t)))
+	if (mp_read_unsigned_bin(to, (uint8_t *)from, fromsize) != CRYPT_OK)
 		return TEE_ERROR_BAD_PARAMETERS;
-	mp_read_unsigned_bin(to, (uint8_t *)from, fromsize);
 	return TEE_SUCCESS;
 }
 
 static void copy(struct bignum *to, const struct bignum *from)
 {
-	memcpy(to, from, LTC_BIGNUMBERS_ALLOC_SIZE);
+	mp_copy((void *)from, to);
 }
 
 static struct bignum *bn_allocate(size_t size_bits)
 {
-	return (struct bignum *)calloc(1, mpa_StaticVarSizeInU32(size_bits) *
-				sizeof(uint32_t));
+	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
+	struct bignum *bn = calloc(1, sz);
+	if (!bn)
+		return NULL;
+	((struct mpa_numbase_struct *)bn)->alloc =
+		sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
+	return bn;
 }
 
 static void bn_free(struct bignum *s)
@@ -634,7 +631,9 @@ static void bn_free(struct bignum *s)
 
 static bool bn_alloc_max(struct bignum **s)
 {
-	*s = bn_allocate(LTC_BIGNUMBERS_ALLOC_SIZE * 8);
+	size_t sz = mpa_StaticVarSizeInU32(LTC_MAX_BITS_PER_VARIABLE) *
+			sizeof(uint32_t) * 8;
+	*s = bn_allocate(sz);
 	return !!(*s);
 }
 
@@ -934,11 +933,13 @@ static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 	ltc_key.e = key->e;
 	ltc_key.N = key->n;
 	ltc_key.d = key->d;
-	ltc_key.p = key->p;
-	ltc_key.q = key->q;
-	ltc_key.qP = key->qp;
-	ltc_key.dP = key->dp;
-	ltc_key.dQ = key->dq;
+	if (key->p && bin_size_for(key->p)) {
+		ltc_key.p = key->p;
+		ltc_key.q = key->q;
+		ltc_key.qP = key->qp;
+		ltc_key.dP = key->dp;
+		ltc_key.dQ = key->dq;
+	}
 
 	return rsadorep(&ltc_key, src, src_len, dst, dst_len);
 }
@@ -953,17 +954,19 @@ static TEE_Result rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	uint32_t blen;
 	int ltc_hashindex, ltc_res, ltc_stat, ltc_rsa_algo;
 	size_t mod_size;
-	rsa_key ltc_key = {
-		.type = PK_PRIVATE,
-		.e = key->e,
-		.d = key->d,
-		.N = key->n,
-		.p = key->p,
-		.q = key->q,
-		.qP = key->qp,
-		.dP = key->dp,
-		.dQ = key->dq
-	};
+	rsa_key ltc_key = { 0, };
+
+	ltc_key.type = PK_PRIVATE;
+	ltc_key.e = key->e;
+	ltc_key.d = key->d;
+	ltc_key.N = key->n;
+	if (key->p && bin_size_for(key->p)) {
+		ltc_key.p = key->p;
+		ltc_key.q = key->q;
+		ltc_key.qP = key->qp;
+		ltc_key.dP = key->dp;
+		ltc_key.dQ = key->dq;
+	}
 
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
@@ -1077,17 +1080,19 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	TEE_Result res;
 	size_t hash_size, mod_size;
 	int ltc_res, ltc_rsa_algo, ltc_hashindex;
-	rsa_key ltc_key = {
-		.type = PK_PRIVATE,
-		.e = key->e,
-		.d = key->d,
-		.N = key->n,
-		.p = key->p,
-		.q = key->q,
-		.qP = key->qp,
-		.dP = key->dp,
-		.dQ = key->dq
-	};
+	rsa_key ltc_key = { 0, };
+
+	ltc_key.type = PK_PRIVATE;
+	ltc_key.e = key->e;
+	ltc_key.N = key->n;
+	ltc_key.d = key->d;
+	if (key->p && bin_size_for(key->p)) {
+		ltc_key.p = key->p;
+		ltc_key.q = key->q;
+		ltc_key.qP = key->qp;
+		ltc_key.dP = key->dp;
+		ltc_key.dQ = key->dq;
+	}
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
@@ -1206,6 +1211,7 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	void *r, *s;
 	dsa_key ltc_key = {
 		.type = PK_PRIVATE,
+		.qord = mp_unsigned_bin_size(key->g),
 		.g = key->g,
 		.p = key->p,
 		.q = key->q,
@@ -1252,6 +1258,7 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 	void *r, *s;
 	dsa_key ltc_key = {
 		.type = PK_PUBLIC,
+		.qord = mp_unsigned_bin_size(key->g),
 		.g = key->g,
 		.p = key->p,
 		.q = key->q,

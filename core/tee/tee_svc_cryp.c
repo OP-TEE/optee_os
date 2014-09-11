@@ -632,6 +632,7 @@ static void free_rsa_keypair(void *p)
 {
        struct rsa_keypair *s = (struct rsa_keypair *)p;
 
+       bn_free(&s->e);
        bn_free(&s->d);
        bn_free(&s->n);
        bn_free(&s->p);
@@ -682,16 +683,31 @@ static void free_dh_keypair(void *p)
        s->xbits = 0;
 }
 
-static void copy_rsa_public_key(struct rsa_public_key *to,
-				  const struct rsa_public_key *from)
+static TEE_Result copy_rsa_public_key(struct rsa_public_key *to,
+				      const struct rsa_public_key *from)
 {
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->n);
+	res = crypto_ops.acipher.alloc_rsa_public_key(to, keysize);
+	if (res != TEE_SUCCESS)
+		return res;
 	crypto_ops.bignum.copy(to->e, from->e);
 	crypto_ops.bignum.copy(to->n, from->n);
+	return TEE_SUCCESS;
 }
 
-static void copy_rsa_keypair(struct rsa_keypair *to,
-			       const struct rsa_keypair *from)
+static TEE_Result copy_rsa_keypair(struct rsa_keypair *to,
+				   const struct rsa_keypair *from)
 {
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->n);
+	res = crypto_ops.acipher.alloc_rsa_keypair(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	crypto_ops.bignum.copy(to->e, from->e);
 	crypto_ops.bignum.copy(to->d, from->d);
 	crypto_ops.bignum.copy(to->n, from->n);
@@ -700,37 +716,94 @@ static void copy_rsa_keypair(struct rsa_keypair *to,
 	crypto_ops.bignum.copy(to->qp, from->qp);
 	crypto_ops.bignum.copy(to->dp, from->dp);
 	crypto_ops.bignum.copy(to->dq, from->dq);
+	return TEE_SUCCESS;
 }
 
-static void copy_dsa_public_key(struct dsa_public_key *to,
-				  const struct dsa_public_key *from)
+static TEE_Result copy_dsa_public_key(struct dsa_public_key *to,
+				      const struct dsa_public_key *from)
 {
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->p);
+	res = crypto_ops.acipher.alloc_dsa_public_key(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	crypto_ops.bignum.copy(to->g, from->g);
 	crypto_ops.bignum.copy(to->p, from->p);
 	crypto_ops.bignum.copy(to->q, from->q);
 	crypto_ops.bignum.copy(to->y, from->y);
+	return TEE_SUCCESS;
 }
 
 
-static void copy_dsa_keypair(struct dsa_keypair *to,
-			       const struct dsa_keypair *from)
+static TEE_Result copy_dsa_keypair(struct dsa_keypair *to,
+				   const struct dsa_keypair *from)
 {
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->p);
+	res = crypto_ops.acipher.alloc_dsa_keypair(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	crypto_ops.bignum.copy(to->g, from->g);
 	crypto_ops.bignum.copy(to->p, from->p);
 	crypto_ops.bignum.copy(to->q, from->q);
 	crypto_ops.bignum.copy(to->y, from->y);
 	crypto_ops.bignum.copy(to->x, from->x);
+	return TEE_SUCCESS;
 }
 
-static void copy_dh_keypair(struct dh_keypair *to,
-			      const struct dh_keypair *from)
+static TEE_Result copy_dh_keypair(struct dh_keypair *to,
+				  const struct dh_keypair *from)
 {
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->p);
+	res = crypto_ops.acipher.alloc_dh_keypair(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	crypto_ops.bignum.copy(to->g, from->g);
 	crypto_ops.bignum.copy(to->p, from->p);
 	crypto_ops.bignum.copy(to->y, from->y);
 	crypto_ops.bignum.copy(to->x, from->x);
 	crypto_ops.bignum.copy(to->q, from->q);
 	to->xbits = from->xbits;
+	return TEE_SUCCESS;
+}
+
+static TEE_Result extract_rsa_public_key(struct rsa_public_key *to,
+					 const struct rsa_keypair *from)
+{
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->n);
+	res = crypto_ops.acipher.alloc_rsa_public_key(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	crypto_ops.bignum.copy(to->e, from->e);
+	crypto_ops.bignum.copy(to->n, from->n);
+	return TEE_SUCCESS;
+}
+
+static TEE_Result extract_dsa_public_key(struct dsa_public_key *to,
+					 const struct dsa_keypair *from)
+{
+	TEE_Result res;
+	size_t keysize;
+
+	keysize = crypto_ops.bignum.bin_size_for(from->p);
+	res = crypto_ops.acipher.alloc_dsa_public_key(to, keysize);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	crypto_ops.bignum.copy(to->g, from->g);
+	crypto_ops.bignum.copy(to->p, from->p);
+	crypto_ops.bignum.copy(to->q, from->q);
+	crypto_ops.bignum.copy(to->y, from->y);
+	return TEE_SUCCESS;
 }
 
 TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
@@ -864,6 +937,8 @@ TEE_Result tee_svc_cryp_obj_reset(uint32_t obj)
 		return res;
 
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) == 0) {
+		if (o->finalize)
+			o->finalize(o->data);
 		memset(o->data, 0, o->data_size);
 		o->info.objectSize = 0;
 		o->info.objectUsage = TEE_USAGE_DEFAULT;
@@ -1163,34 +1238,49 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 
 		switch (src_o->info.objectType) {
 		case TEE_TYPE_RSA_PUBLIC_KEY:
-			copy_rsa_public_key((struct rsa_public_key *)
-					    src_o->data,
-					    (struct rsa_public_key *)
-					    dst_o->data);
+			res = copy_rsa_public_key((struct rsa_public_key *)
+						  dst_o->data,
+						  (struct rsa_public_key *)
+						  src_o->data);
+			if (res != TEE_SUCCESS)
+				return res;
+			dst_o->finalize = free_rsa_public_key;
 			break;
 		case TEE_TYPE_RSA_KEYPAIR:
 			copy_rsa_keypair((struct rsa_keypair *)
-					 src_o->data,
+					 dst_o->data,
 					 (struct rsa_keypair *)
-					 dst_o->data);
+					 src_o->data);
+			if (res != TEE_SUCCESS)
+				return res;
+			dst_o->finalize = free_rsa_keypair;
 			break;
 		case TEE_TYPE_DSA_PUBLIC_KEY:
 			copy_dsa_public_key((struct dsa_public_key *)
-					    src_o->data,
+					    dst_o->data,
 					    (struct dsa_public_key *)
-					    dst_o->data);
+					    src_o->data);
+			if (res != TEE_SUCCESS)
+				return res;
+			dst_o->finalize = free_dsa_public_key;
 			break;
 		case TEE_TYPE_DSA_KEYPAIR:
 			copy_dsa_keypair((struct dsa_keypair *)
-					 src_o->data,
+					 dst_o->data,
 					 (struct dsa_keypair *)
-					 dst_o->data);
+					 src_o->data);
+			if (res != TEE_SUCCESS)
+				return res;
+			dst_o->finalize = free_dsa_keypair;
 			break;
 		case TEE_TYPE_DH_KEYPAIR:
-			copy_dh_keypair((struct dh_keypair *)
-					src_o->data,
-					(struct dh_keypair *)
-					dst_o->data);
+			res = copy_dh_keypair((struct dh_keypair *)
+					      dst_o->data,
+					      (struct dh_keypair *)
+					      src_o->data);
+			if (res != TEE_SUCCESS)
+				return res;
+			dst_o->finalize = free_dh_keypair;
 			break;
 		default:
 			/* Generic case */
@@ -1199,14 +1289,15 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 	} else if (dst_o->info.objectType == TEE_TYPE_RSA_PUBLIC_KEY &&
 		   src_o->info.objectType == TEE_TYPE_RSA_KEYPAIR) {
 		/* Extract public key from RSA key pair */
-		struct rsa_keypair *key_pair = src_o->data;
-		struct rsa_public_key *pub_key = dst_o->data;
 		size_t n;
 
-		crypto_ops.bignum.copy(pub_key->e, key_pair->e);
-		crypto_ops.bignum.copy(pub_key->n, key_pair->n);
-
-		/* Set the attributes */
+		res = extract_rsa_public_key((struct rsa_public_key *)
+					     dst_o->data,
+					     (struct rsa_keypair *)
+					     src_o->data);
+		if (res != TEE_SUCCESS)
+			return res;
+		dst_o->finalize = free_rsa_public_key;
 		dst_o->have_attrs = 0;
 		for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_rsa_pub_key_attrs);
 		     n++)
@@ -1215,16 +1306,15 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 	} else if (dst_o->info.objectType == TEE_TYPE_DSA_PUBLIC_KEY &&
 		   src_o->info.objectType == TEE_TYPE_DSA_KEYPAIR) {
 		/* Extract public key from DSA key pair */
-		struct dsa_keypair *key_pair = src_o->data;
-		struct dsa_public_key *pub_key = dst_o->data;
 		size_t n;
 
-		crypto_ops.bignum.copy(pub_key->g, key_pair->g);
-		crypto_ops.bignum.copy(pub_key->p, key_pair->p);
-		crypto_ops.bignum.copy(pub_key->q, key_pair->q);
-		crypto_ops.bignum.copy(pub_key->y, key_pair->y);
-
-		/* Set the attributes */
+		res = extract_dsa_public_key((struct dsa_public_key *)
+					     dst_o->data,
+					     (struct dsa_keypair *)
+					     src_o->data);
+		if (res != TEE_SUCCESS)
+			return res;
+		dst_o->finalize = free_dsa_public_key;
 		dst_o->have_attrs = 0;
 		for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_dsa_pub_key_attrs);
 		     n++)
@@ -2457,12 +2547,12 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 			tee_rsa_public_key = o->data;
 			res = crypto_ops.acipher.rsanopad_encrypt(
 				tee_rsa_public_key, src_data, src_len,
-				dst_data, dst_len);
+				dst_data, &dlen);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
 			tee_rsa_key_pair = o->data;
 			res = crypto_ops.acipher.rsanopad_decrypt(
 				tee_rsa_key_pair, src_data, src_len, dst_data,
-				dst_len);
+				&dlen);
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		}
