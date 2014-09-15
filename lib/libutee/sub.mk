@@ -18,8 +18,11 @@ cflags-assert.c-y += -Wno-missing-prototypes -Wno-missing-declarations
 
 srcs-y += base64.c
 srcs-y += tee_api_arith.c
+cflags-tee_api_arith.c-y += -fno-strict-aliasing
 srcs-y += tee_api.c
 srcs-y += tee_api_objects.c
+cflags-tee_api_objects.c-y += -fno-strict-aliasing
 srcs-y += tee_api_operations.c
+cflags-tee_api_operations.c-y += -fno-strict-aliasing
 
 subdirs-y += arch/$(ARCH)

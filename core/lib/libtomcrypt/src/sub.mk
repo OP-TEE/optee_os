@@ -6,6 +6,7 @@ cflags-mpa_desc.c-y += -Wno-unused-parameter
 
 srcs-y += tee_ltc_wrapper.c
 cflags-tee_ltc_wrapper.c-y += -Wno-unused-parameter
+cflags-tee_ltc_wrapper.c-y += -fno-strict-aliasing
 
 subdirs-y += ciphers
 subdirs-y += encauth

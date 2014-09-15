@@ -184,8 +184,8 @@ void mutex_lock(struct mutex *m)
 	while (true) {
 		enum mutex_value old_value;
 		uint32_t old_itr_status;
-		uint32_t tick;
-		int handle;
+		uint32_t tick = 0;
+		int handle = -1;
 
 		old_itr_status = itr_disable();
 		cpu_spin_lock(&m->spin_lock);

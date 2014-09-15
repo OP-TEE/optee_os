@@ -198,6 +198,7 @@ tee_svc_user_ta_panic_from_pager:
 
 
         .section .rodata
+.balign 4
 tee_svc_syscall_table:
 .word tee_svc_sys_return
 .word tee_svc_sys_log

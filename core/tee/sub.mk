@@ -2,21 +2,25 @@ srcs-y += tee_svc.c
 cflags-tee_svc.c-y += -Wno-format -Wno-declaration-after-statement
 cflags-tee_svc.c-y += -Wno-unused-parameter
 cflags-tee_svc.c-y += -Wno-format-nonliteral -Wno-format-security
-
+cflags-tee_svc.c-y += -fno-strict-aliasing
 
 srcs-y += tee_svc_cryp.c
 cflags-tee_svc_cryp.c-y += -Wno-declaration-after-statement
 cflags-tee_svc_cryp.c-y += -Wno-unused-parameter
 cflags-tee_svc_cryp.c-y += -Wno-cast-align
+cflags-tee_svc_cryp.c-y += -fno-strict-aliasing
 
 srcs-y += tee_acipher.c
 cflags-tee_acipher.c-y += -Wno-unused-parameter
+cflags-tee_acipher.c-y += -fno-strict-aliasing
 
 srcs-y += tee_authenc.c
 cflags-tee_authenc.c-y += -Wno-unused-parameter
+cflags-tee_authenc.c-y += -fno-strict-aliasing
 
 srcs-y += tee_mac.c
 cflags-tee_mac.c-y += -Wno-unused-parameter
+cflags-tee_mac.c-y += -fno-strict-aliasing
 
 srcs-y += tee_cipher.c
 srcs-y += tee_fs.c

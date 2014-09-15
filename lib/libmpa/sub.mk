@@ -6,6 +6,7 @@ cflags-mpa_misc.c-y += -Wno-sign-compare
 
 srcs-y += mpa_montgomery.c
 cflags-remove-mpa_montgomery.c-y += -Wdeclaration-after-statement
+cflags-mpa_montgomery.c-y += -fno-strict-aliasing
 
 srcs-y += mpa_primetest.c
 cflags-remove-mpa_primetest.c-y += -pedantic
@@ -35,7 +36,9 @@ srcs-y += mpa_addsub.c
 srcs-y += mpa_cmp.c
 srcs-y += mpa_debug.c
 srcs-y += mpa_expmod.c
+cflags-mpa_expmod.c-y += -fno-strict-aliasing
 srcs-y += mpa_init.c
+cflags-mpa_init.c-y += -fno-strict-aliasing
 srcs-y += mpa_io.c
 srcs-y += mpa_modulus.c
 

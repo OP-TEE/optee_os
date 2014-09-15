@@ -1339,7 +1339,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_param *param)
 {
 	TEE_Result res;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
 	struct tee_ta_ctx *ctx;
 	bool panicked;
 

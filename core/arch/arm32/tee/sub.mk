@@ -1,6 +1,8 @@
 srcs-y += arch_tee_fs.c
+cflags-arch_tee_fs.c-y += -fno-strict-aliasing
 srcs-y += tee_rpmb.c
 cflags-tee_rpmb.c-y += -Wno-unused-parameter
+cflags-tee_rpmb.c-y += -fno-strict-aliasing
 srcs-y += tee_svc_asm.S
 srcs-y += entry.c
 srcs-y += init.c

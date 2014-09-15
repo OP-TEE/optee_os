@@ -7,6 +7,7 @@ cflags-tee_pager_unpg.c-y += -Wno-unused-parameter
 
 srcs-y += tee_mmu.c
 cflags-tee_mmu.c-y += -Wno-unused-parameter
+cflags-tee_mmu.c-y += -fno-strict-aliasing
 
 srcs-y += kta_table_unpg_asm.S
 srcs-y += tee_mm.c
