@@ -131,13 +131,13 @@ LOCAL_FUNC vector_system_reset_entry , :
 END_FUNC vector_system_reset_entry
 
 /*
- * Vector table supplied to ARM Trusted Firmware (ATF) at initialization.
- * Also used when compiled with the internal monitor, but the
- * cpu_*_entry and system_*_entry are not used then.
+ * Vector table supplied to ARM Trusted Firmware (ARM-TF) at
+ * initialization.  Also used when compiled with the internal monitor, but
+ * the cpu_*_entry and system_*_entry are not used then.
  *
- * Note that ATF depends on the layout of this vector table, any change in
- * layout has to be synced with ATF. This layout must also be kept in sync
- * with sm_entry_vector in sm.c
+ * Note that ARM-TF depends on the layout of this vector table, any change
+ * in layout has to be synced with ARM-TF. This layout must also be kept in
+ * sync with sm_entry_vector in sm.c
  */
 FUNC thread_vector_table , :
 	b	vector_std_smc_entry

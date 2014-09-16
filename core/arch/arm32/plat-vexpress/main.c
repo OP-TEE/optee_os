@@ -253,7 +253,7 @@ static void main_init_gic(void)
 #if PLATFORM_FLAVOR_IS(fvp)
 {
 	/*
-	 * In FVP, GIC configuration is initialized in ATF,
+	 * In FVP, GIC configuration is initialized in ARM-TF,
 	 * Initialize GIC base address here for debugging.
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
