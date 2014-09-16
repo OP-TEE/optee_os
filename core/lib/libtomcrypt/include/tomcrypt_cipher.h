@@ -557,12 +557,20 @@ int xts_start(                int  cipher,
 int xts_encrypt(
    const unsigned char *pt, unsigned long ptlen,
          unsigned char *ct,
+#ifdef LTC_LINARO_FIX_XTS
+         unsigned char *tweak,
+#else
    const unsigned char *tweak,
+#endif
          symmetric_xts *xts);
 int xts_decrypt(
    const unsigned char *ct, unsigned long ptlen,
          unsigned char *pt,
+#ifdef LTC_LINARO_FIX_XTS
+         unsigned char *tweak,
+#else
    const unsigned char *tweak,
+#endif
          symmetric_xts *xts);
 
 void xts_done(symmetric_xts *xts);

@@ -46,9 +46,15 @@
  * From Global Platform: CTS = CBC-CS3
  */
 
-struct symmetric_CTS {
+struct tee_symmetric_cts {
 	symmetric_ECB ecb;
 	symmetric_CBC cbc;
+};
+
+#define XTS_TWEAK_SIZE 16
+struct tee_symmetric_xts {
+	symmetric_xts ctx;
+	uint8_t tweak[XTS_TWEAK_SIZE];
 };
 
 TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size)
@@ -77,10 +83,10 @@ TEE_Result tee_cipher_get_ctx_size(uint32_t algo, size_t *size)
 		*size = sizeof(symmetric_CTR);
 		break;
 	case TEE_ALG_AES_CTS:
-		*size = sizeof(struct symmetric_CTS);
+		*size = sizeof(struct tee_symmetric_cts);
 		break;
 	case TEE_ALG_AES_XTS:
-		*size = sizeof(symmetric_xts);
+		*size = sizeof(struct tee_symmetric_xts);
 		break;
 	case TEE_ALG_DES_ECB_NOPAD:
 		*size = sizeof(symmetric_ECB);
@@ -150,7 +156,8 @@ TEE_Result tee_cipher_init3(void *ctx, uint32_t algo,
 	int ltc_res, ltc_cipherindex;
 	uint8_t *real_key, key_array[24];
 	size_t real_key_len;
-	struct symmetric_CTS *cts;
+	struct tee_symmetric_cts *cts;
+	struct tee_symmetric_xts *xts;
 
 	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
@@ -205,7 +212,7 @@ TEE_Result tee_cipher_init3(void *ctx, uint32_t algo,
 		break;
 
 	case TEE_ALG_AES_CTS:
-		cts = (struct symmetric_CTS *)ctx;
+		cts = (struct tee_symmetric_cts *)ctx;
 		res = tee_cipher_init3(
 			(void *)(&(cts->ecb)),
 			TEE_ALG_AES_ECB_NOPAD, mode,
@@ -222,11 +229,19 @@ TEE_Result tee_cipher_init3(void *ctx, uint32_t algo,
 		break;
 
 	case TEE_ALG_AES_XTS:
+		xts = ctx;
 		if (key1_len != key2_len)
 			return TEE_ERROR_BAD_PARAMETERS;
+		if (iv) {
+			if (iv_len != XTS_TWEAK_SIZE)
+				return TEE_ERROR_BAD_PARAMETERS;
+			memcpy(xts->tweak, iv, iv_len);
+		} else {
+			memset(xts->tweak, 0, XTS_TWEAK_SIZE);
+		}
 		ltc_res = xts_start(
 			ltc_cipherindex, key1, key2, key1_len,
-			0, (symmetric_xts *)ctx);
+			0, &xts->ctx);
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -247,7 +262,8 @@ TEE_Result tee_cipher_update(void *ctx, uint32_t algo,
 	size_t block_size;
 	uint8_t tmp_block[64], tmp2_block[64];
 	int nb_blocks, len_last_block;
-	struct symmetric_CTS *cts;
+	struct tee_symmetric_cts *cts;
+	struct tee_symmetric_xts *xts;
 
 	/*
 	 * Check that the block contains the correct number of data, apart
@@ -317,14 +333,13 @@ TEE_Result tee_cipher_update(void *ctx, uint32_t algo,
 		break;
 
 	case TEE_ALG_AES_XTS:
-		return TEE_ERROR_NOT_SUPPORTED;
-/*
-if (mode == TEE_MODE_ENCRYPT) {
-	ltc_res = xts_encrypt(data, dst, len, (symmetric_xts *)ctx);
-} else {
-	ltc_res = xts_decrypt(data, dst, len, (symmetric_xts *)ctx);
-}
-*/
+		xts = ctx;
+		if (mode == TEE_MODE_ENCRYPT)
+			ltc_res = xts_encrypt(
+					data, len, dst, xts->tweak, &xts->ctx);
+		else
+			ltc_res = xts_decrypt(
+					data, len, dst, xts->tweak, &xts->ctx);
 		break;
 
 	case TEE_ALG_AES_CTS:
@@ -353,7 +368,7 @@ if (mode == TEE_MODE_ENCRYPT) {
 		 *	5. Truncate the plaintext to the length of the original
 		 *	   ciphertext.
 		 */
-		cts = (struct symmetric_CTS *)ctx;
+		cts = (struct tee_symmetric_cts *)ctx;
 		if (!last_block)
 			return tee_cipher_update(
 				&cts->cbc, TEE_ALG_AES_CBC_NOPAD, mode,
@@ -481,12 +496,12 @@ void tee_cipher_final(void *ctx, uint32_t algo)
 		break;
 
 	case TEE_ALG_AES_XTS:
-		xts_done((symmetric_xts *)ctx);
+		xts_done(&(((struct tee_symmetric_xts *)ctx)->ctx));
 		break;
 
 	case TEE_ALG_AES_CTS:
-		cbc_done(&(((struct symmetric_CTS *)ctx)->cbc));
-		ecb_done(&(((struct symmetric_CTS *)ctx)->ecb));
+		cbc_done(&(((struct tee_symmetric_cts *)ctx)->cbc));
+		ecb_done(&(((struct tee_symmetric_cts *)ctx)->ecb));
 		break;
 
 	default:

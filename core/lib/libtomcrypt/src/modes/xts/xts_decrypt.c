@@ -87,7 +87,11 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 */int xts_decrypt(
    const unsigned char *ct, unsigned long ptlen,
          unsigned char *pt,
+#ifdef LTC_LINARO_FIX_XTS
+         unsigned char *tweak,
+#else
    const unsigned char *tweak,
+#endif
          symmetric_xts *xts)
 {
    unsigned char PP[16], CC[16], T[16];
@@ -156,6 +160,13 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
          return err;
       }
    }
+
+#ifdef LTC_LINARO_FIX_XTS
+   /* Decrypt the tweak back */
+   if ((err = cipher_descriptor[xts->cipher].ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
+      return err;
+   }
+#endif
 
    return CRYPT_OK;
 }

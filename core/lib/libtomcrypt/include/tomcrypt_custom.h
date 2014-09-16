@@ -387,6 +387,13 @@
  */
 #define LTC_LINARO_FIX_DH
 
+/*
+ * XTS encryption / decryption does not update the tweak when successive
+ * operations are performed.
+ * Defining LTC_LINARO_FIX_XTS fixes this.
+ */
+#define LTC_LINARO_FIX_XTS
+
 /* Debuggers */
 
 /* define this if you use Valgrind, note: it CHANGES the way SOBER-128 and LTC_RC4 work (see the code) */
