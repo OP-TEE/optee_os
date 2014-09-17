@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "tee_syscall_numbers.h"
+#include "tee_trace_levels.h"
 
 .global tee_svc_enter_user_mode
 .global tee_svc_sys_return
@@ -87,6 +88,12 @@ tee_svc_syscall:
      *
      * System call number is passed in r7.
      */
+#if (CFG_TEE_CORE_LOG_LEVEL == TRACE_FLOW)
+    push    {r0-r3}
+    mov     r0, r7
+    blx     _trace_syscall
+    pop     {r0-r3}
+#endif
     ldr     r12, =tee_svc_syscall_table
     cmp     r7, #TEE_SCN_MAX
     /* Either syscall function should return to cleanup (.Lret) */

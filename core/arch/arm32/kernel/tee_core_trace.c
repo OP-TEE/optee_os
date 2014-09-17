@@ -208,4 +208,13 @@ int _dprintf_hwsync(const char *function, int line, const char *fmt, ...)
 	return nb;
 }
 
+#if (CFG_TEE_CORE_LOG_LEVEL == TRACE_FLOW)
+void _trace_syscall(int num)
+{
+	/* #0 is syscall return, not really interesting */
+	if (num == 0)
+		return;
+	FMSG("syscall #%d", num);
+}
+#endif
 #endif

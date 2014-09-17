@@ -167,6 +167,10 @@ void set_trace_level(int level);
 int get_trace_level(void);
 void core_trace_test(void);
 
+#if (CFG_TEE_CORE_LOG_LEVEL == TRACE_FLOW)
+void _trace_syscall(int num);
+#endif
+
 #endif /* CFG_TEE_CORE_LOG_LEVEL */
 
 #endif /* TEE_CORE_TRACE_H */
