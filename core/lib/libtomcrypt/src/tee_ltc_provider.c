@@ -616,12 +616,12 @@ static void copy(struct bignum *to, const struct bignum *from)
 static struct bignum *bn_allocate(size_t size_bits)
 {
 	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
-	struct bignum *bn = calloc(1, sz);
+	struct mpa_numbase_struct *bn = calloc(1, sz);
+
 	if (!bn)
 		return NULL;
-	((struct mpa_numbase_struct *)bn)->alloc =
-		sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
-	return bn;
+	bn->alloc = sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
+	return (struct bignum *)bn;
 }
 
 static void bn_free(struct bignum *s)
@@ -633,6 +633,7 @@ static bool bn_alloc_max(struct bignum **s)
 {
 	size_t sz = mpa_StaticVarSizeInU32(LTC_MAX_BITS_PER_VARIABLE) *
 			sizeof(uint32_t) * 8;
+
 	*s = bn_allocate(sz);
 	return !!(*s);
 }
