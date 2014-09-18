@@ -224,8 +224,8 @@ static const struct thread_handlers handlers = {
 #endif
 };
 
-static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 #if defined(WITH_ARM_TRUSTED_FW)
+static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	(void)&pos;
 	(void)&nsec_entry;
@@ -233,6 +233,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 	/* Do nothing as we don't have a secure monitor */
 }
 #elif defined(WITH_SEC_MON)
+static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
@@ -248,27 +249,34 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 }
 #endif
 
-static void main_init_gic(void)
 #if PLATFORM_FLAVOR_IS(fvp)
+static void main_init_gic(void)
 {
 	/*
 	 * In FVP, GIC configuration is initialized in ARM-TF,
 	 * Initialize GIC base address here for debugging.
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	gic_it_add(IT_UART1);
-	gic_it_set_cpu_mask(IT_UART1, 0x1);
-	gic_it_set_prio(IT_UART1, 0x1);
-	gic_it_enable(IT_UART1);
+	gic_it_add(IT_CONSOLE_UART);
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
+	gic_it_enable(IT_CONSOLE_UART);
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
+static void main_init_gic(void)
 {
 	/* Initialize GIC */
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	gic_it_add(IT_UART1);
-	gic_it_set_cpu_mask(IT_UART1, 0x1);
-	gic_it_set_prio(IT_UART1, 0xff);
-	gic_it_enable(IT_UART1);
+	gic_it_add(IT_CONSOLE_UART);
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	gic_it_set_prio(IT_CONSOLE_UART, 0xff);
+	gic_it_enable(IT_CONSOLE_UART);
+}
+#elif PLATFORM_FLAVOR_IS(qemu_virt)
+static void main_init_gic(void)
+{
+	/* Initialize GIC */
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 #endif
 
@@ -288,7 +296,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		size_t n;
 
 		/* Initialize uart with physical address */
-		uart_init(UART1_BASE);
+		uart_init(CONSOLE_UART_BASE);
 
 		/*
 		 * Zero BSS area. Note that globals that would normally
@@ -353,8 +361,8 @@ static void main_fiq(void)
 
 	iar = gic_read_iar();
 
-	while (uart_have_rx_data(UART1_BASE))
-		DMSG("got 0x%x\n", uart_getchar(UART1_BASE));
+	while (uart_have_rx_data(CONSOLE_UART_BASE))
+		DMSG("got 0x%x\n", uart_getchar(CONSOLE_UART_BASE));
 
 	gic_write_eoir(iar);
 

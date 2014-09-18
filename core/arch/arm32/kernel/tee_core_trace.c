@@ -52,16 +52,16 @@ static void output_string(const char *str)
 	const char *p = str;
 
 	while (*p) {
-		uart_putc(*p, UART1_BASE);
+		uart_putc(*p, CONSOLE_UART_BASE);
 		if (*p == '\n')
-			uart_putc('\r', UART1_BASE);
+			uart_putc('\r', CONSOLE_UART_BASE);
 		p++;
 	}
 }
 
 static void output_flush(void)
 {
-	uart_flush_tx_fifo(UART1_BASE);
+	uart_flush_tx_fifo(CONSOLE_UART_BASE);
 }
 #else
 #define output_string(x) __asc_xmit(x)
