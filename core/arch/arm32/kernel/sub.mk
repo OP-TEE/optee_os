@@ -1,8 +1,5 @@
 srcs-y += tee_core_trace.c
 srcs-y += tee_ta_manager.c
-srcs-y += tee_sleep_services.c
-cflags-tee_sleep_services.c-y += -Wno-unused-parameter
-
 srcs-y += tee_time.c
 
 srcs-$(WITH_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
