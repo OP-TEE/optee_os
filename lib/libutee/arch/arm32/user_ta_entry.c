@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <compiler.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/queue.h>
@@ -40,18 +41,15 @@ extern const size_t ta_data_size;
 
 /* Exported to user_ta_header.c, built within TA */
 
-void ta_entry_close_session(uint32_t session_id)
-	/*__attribute__((noreturn))*/;
+void ta_entry_close_session(uint32_t session_id) __noreturn;
 
 void ta_entry_open_session(uint32_t param_types,
 			   TEE_Param params[TEE_NUM_PARAMS],
-			   uint32_t session_id)
-	/*__attribute__((noreturn))*/;
+			   uint32_t session_id) __noreturn;
 
 void ta_entry_invoke_command(uint32_t cmd_id, uint32_t param_types,
 			     TEE_Param params[TEE_NUM_PARAMS],
-			     uint32_t session_id)
-	/*__attribute__((noreturn))*/;
+			     uint32_t session_id) __noreturn;
 
 /*
  * Some external allocation support from libutee or libutils.

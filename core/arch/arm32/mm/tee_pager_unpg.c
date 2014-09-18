@@ -76,9 +76,9 @@ bool tee_pager_is_abort_in_abort_handler(void)
 	    TEE_PAGER_SPSR_MODE_ABT;
 }
 
-static void tee_pager_print_abort(const uint32_t addr, const uint32_t fsr,
-				  const uint32_t pc, const uint32_t flags,
-				  const uint32_t dbgpcsr)
+static void tee_pager_print_abort(const uint32_t addr __unused,
+		const uint32_t fsr __unused, const uint32_t pc __unused,
+		const uint32_t flags __unused, const uint32_t dbgpcsr __unused)
 {
 	DMSG("%s at 0x%x: FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
 	     (flags == TEE_PAGER_DATA_ABORT) ? "data-abort" :
@@ -88,9 +88,9 @@ static void tee_pager_print_abort(const uint32_t addr, const uint32_t fsr,
 	     TEE_PAGER_GET_CPUID_asm(), dbgpcsr, tee_pager_get_spsr());
 }
 
-static void tee_pager_print_error_abort(const uint32_t addr, const uint32_t fsr,
-					const uint32_t pc, const uint32_t flags,
-					const uint32_t dbgpcsr)
+static void tee_pager_print_error_abort(const uint32_t addr __unused,
+		const uint32_t fsr __unused, const uint32_t pc __unused,
+		const uint32_t flags __unused, const uint32_t dbgpcsr __unused)
 {
 	EMSG("%s at 0x%x\n"
 	     "FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X\n"

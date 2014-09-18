@@ -28,9 +28,10 @@
 #ifndef KERNEL_PANIC_H
 #define KERNEL_PANIC_H
 
+#include <compiler.h>
+
 #define panic()	__panic(__FILE__, __LINE__, __func__)
 
-void __panic(const char *file, int line, const char *func)
-	__attribute__((noreturn));
+void __panic(const char *file, int line, const char *func) __noreturn;
 
 #endif /*KERNEL_PANIC_H*/

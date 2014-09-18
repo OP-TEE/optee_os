@@ -30,6 +30,7 @@
 #define TEE_API_H
 
 #include <stddef.h>
+#include <compiler.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
 
@@ -71,11 +72,7 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator);
 
 /* System API - Misc */
 
-void TEE_Panic(TEE_Result panicCode)
-#ifdef __GNUC__
-/* __attribute__((noreturn)) */
-#endif
-;
+void TEE_Panic(TEE_Result panicCode) __noreturn;
 
 /* System API - Internal Client API */
 

@@ -1312,7 +1312,8 @@ static TEE_Result tee_svc_obj_generate_key_dsa(
 static TEE_Result tee_svc_obj_generate_key_dh(
 	struct tee_ta_session *sess,
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
+	uint32_t key_size __unused,
+	const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct tee_ltc_dh_key_pair *tee_dh_key;
@@ -1728,7 +1729,8 @@ TEE_Result tee_svc_cryp_state_free(uint32_t state)
 }
 
 /* iv and iv_len are ignored for some algorithms */
-TEE_Result tee_svc_hash_init(uint32_t state, const void *iv, size_t iv_len)
+TEE_Result tee_svc_hash_init(uint32_t state, const void *iv __unused,
+		size_t iv_len __unused)
 {
 	TEE_Result res;
 	struct tee_cryp_state *cs;

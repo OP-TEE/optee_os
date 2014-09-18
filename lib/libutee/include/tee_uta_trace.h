@@ -46,7 +46,7 @@ int _dprintf_uta(const char *function, int line, int level, const char *prefix,
 
 /* Filtering and call backend method.
  * Retrieve the ta level strored at kernel side by a sys call */
-#define dprintf(level, ...)                                                  \
+#define dprintf_level(level, ...)                                            \
 do {                                                                         \
     if ((level) <= tahead_get_trace_level()) {                               \
         _dprintf_uta(__func__, __LINE__, level, STR_TRACE_USER_TA, __VA_ARGS__); \
@@ -64,28 +64,28 @@ do {                                                                         \
 #if (CFG_TEE_TA_LOG_LEVEL < TRACE_ERROR)
 #define EMSG(...)   (void)0
 #else
-#define EMSG(...)   dprintf(TRACE_ERROR, __VA_ARGS__)
+#define EMSG(...)   dprintf_level(TRACE_ERROR, __VA_ARGS__)
 #endif
 
 /* Formmated trace tagged with TRACE_INFO level */
 #if (CFG_TEE_TA_LOG_LEVEL < TRACE_INFO)
 #define IMSG(...)   (void)0
 #else
-#define IMSG(...)   dprintf(TRACE_INFO, __VA_ARGS__)
+#define IMSG(...)   dprintf_level(TRACE_INFO, __VA_ARGS__)
 #endif
 
 /* Formmated trace tagged with TRACE_DEBUG level */
 #if (CFG_TEE_TA_LOG_LEVEL < TRACE_INFO)
 #define DMSG(...)   (void)0
 #else
-#define DMSG(...)   dprintf(TRACE_DEBUG, __VA_ARGS__)
+#define DMSG(...)   dprintf_level(TRACE_DEBUG, __VA_ARGS__)
 #endif
 
 /* Formmated trace tagged with TRACE_FLOW level */
 #if (CFG_TEE_TA_LOG_LEVEL < TRACE_FLOW)
 #define FMSG(...)   (void)0
 #else
-#define FMSG(...)   dprintf(TRACE_FLOW, __VA_ARGS__)
+#define FMSG(...)   dprintf_level(TRACE_FLOW, __VA_ARGS__)
 #endif
 
 /* Formmated trace tagged with TRACE_FLOW level and prefix with '> ' */

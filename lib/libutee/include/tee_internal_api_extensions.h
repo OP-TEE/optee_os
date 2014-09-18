@@ -30,8 +30,7 @@
 
 /* trace support */
 #include <tee_uta_trace.h>
-int printf(const char *fmt, ...);
-int puts(const char *str);
+#include <stdio.h>
 
 /*
  * User mem module

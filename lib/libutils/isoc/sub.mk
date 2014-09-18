@@ -1,6 +1,5 @@
 global-incdirs-y += include
 
-
 srcs-$(sm-core) += dlmalloc.c
 cflags-remove-dlmalloc.c-y += -Wcast-align -Wstrict-aliasing=2
 

@@ -152,7 +152,7 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 	memcpy(out->params, in->params, sizeof(in->params));
 	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
 
-	res = tee_ta_invoke_command(&err, sess, NULL,
+	res = tee_ta_invoke_command(&err, sess,
 				    TEE_TIMEOUT_INFINITE, in->cmd, &param);
 	update_out_param(&param, out->params);
 
@@ -175,7 +175,7 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in *
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	res = tee_ta_cancel_command(&res_orig, sess, NULL);
+	res = tee_ta_cancel_command(&res_orig, sess);
 
 cleanup_return:
 	out->msg.err = res_orig;

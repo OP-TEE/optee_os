@@ -123,7 +123,7 @@ static void jumper_invokecommand(void *voidargs)
 			(uint32_t)args->cmd,
 			(uint32_t)args->param->types,
 			(TEE_Param *)args->param->params);
-	OUTMSG("%lx", args->res);
+	OUTMSG("%x", args->res);
 }
 
 static void jumper_opensession(void *voidargs)
@@ -135,7 +135,7 @@ static void jumper_opensession(void *voidargs)
 			(uint32_t)args->param->types,
 			(TEE_Param *)args->param->params,
 			(void **)&args->sess->user_ctx);
-	OUTMSG("%lx", args->res);
+	OUTMSG("%x", args->res);
 }
 
 static void jumper_createentrypoint(void *voidargs)
@@ -144,7 +144,7 @@ static void jumper_createentrypoint(void *voidargs)
 
 	INMSG("");
 	args->res = args->sess->ctx->static_ta->create_entry_point();
-	OUTMSG("%lx", args->res);
+	OUTMSG("%x", args->res);
 }
 
 static void jumper_closesession(void *voidargs)
@@ -155,7 +155,7 @@ static void jumper_closesession(void *voidargs)
 	args->sess->ctx->static_ta->close_session_entry_point(
 			(void *)args->sess->user_ctx);
 	args->res = TEE_SUCCESS;
-	OUTMSG("%lx", args->res);
+	OUTMSG("%x", args->res);
 }
 
 static void jumper_destroyentrypoint(void *voidargs)
@@ -165,7 +165,7 @@ static void jumper_destroyentrypoint(void *voidargs)
 	INMSG("");
 	args->sess->ctx->static_ta->destroy_entry_point();
 	args->res = TEE_SUCCESS;
-	OUTMSG("%lx", args->res);
+	OUTMSG("%x", args->res);
 }
 
 /* Stack size is updated to take into account */
@@ -432,7 +432,8 @@ out:
 }
 
 static TEE_Result tee_ta_load_check_head_integrity(
-		kta_signed_header_t *signed_ta, ta_head_t *head)
+		kta_signed_header_t *signed_ta __unused,
+		ta_head_t *head __unused)
 {
 	/*
 	 * This is where the signature of the signed header is verified
@@ -1165,9 +1166,7 @@ static TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ta_init_session_with_context(
-			struct tee_ta_session_head *open_sessions,
-			struct tee_ta_ctx *ctx,
+static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 			struct tee_ta_session *s)
 {
 	/*
@@ -1186,7 +1185,7 @@ static TEE_Result tee_ta_init_session_with_context(
 	if ((ctx->flags & TA_FLAG_MULTI_SESSION) == 0)
 		return TEE_ERROR_BUSY;
 
-	DMSG("   ... Re-open TA %08lx-%04x-%04x",
+	DMSG("   ... Re-open TA %08x-%04x-%04x",
 	     ctx->head->uuid.timeLow,
 	     ctx->head->uuid.timeMid, ctx->head->uuid.timeHiAndVersion);
 
@@ -1201,15 +1200,13 @@ static TEE_Result tee_ta_init_session_with_context(
  * Initialises a session based on the UUID or ptr to the ta
  * Returns ptr to the session (ta_session) and a TEE_Result
  *---------------------------------------------------------------------------*/
-static TEE_Result tee_ta_init_static_ta_session(
-				struct tee_ta_session_head *open_sessions,
-				const TEE_UUID *uuid,
+static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 				struct tee_ta_session *s)
 {
 	struct tee_ta_ctx *ctx = NULL;
 	ta_static_head_t *ta = NULL;
 
-	DMSG("   Lookup for Static TA %08lx-%04x-%04x",
+	DMSG("   Lookup for Static TA %08x-%04x-%04x",
 	     uuid->timeLow, uuid->timeMid, uuid->timeHiAndVersion);
 
 	ta = &__start_ta_head_section;
@@ -1239,7 +1236,7 @@ static TEE_Result tee_ta_init_static_ta_session(
 	ctx->static_ta = ta;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %08lx-%04x-%04x",
+	DMSG("      %s : %08x-%04x-%04x",
 	     ctx->static_ta->name,
 	     ctx->head->uuid.timeLow,
 	     ctx->head->uuid.timeMid,
@@ -1249,7 +1246,6 @@ static TEE_Result tee_ta_init_static_ta_session(
 }
 
 static TEE_Result tee_ta_init_session_with_signed_ta(
-				struct tee_ta_session_head *open_sessions,
 				const kta_signed_header_t *signed_ta,
 				struct tee_ta_session *s)
 {
@@ -1261,7 +1257,7 @@ static TEE_Result tee_ta_init_session_with_signed_ta(
 	if (res != TEE_SUCCESS)
 		return res;
 
-	DMSG("      dyn TA : %08lx-%04x-%04x",
+	DMSG("      dyn TA : %08x-%04x-%04x",
 	     s->ctx->head->uuid.timeLow,
 	     s->ctx->head->uuid.timeMid,
 	     s->ctx->head->uuid.timeHiAndVersion);
@@ -1292,13 +1288,13 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	/* Look for already loaded TA */
 	ctx = tee_ta_context_find(uuid);
 	if (ctx) {
-		res = tee_ta_init_session_with_context(open_sessions, ctx, s);
+		res = tee_ta_init_session_with_context(ctx, s);
 		if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 			goto out;
 	}
 
 	/* Look for static TA */
-	res = tee_ta_init_static_ta_session(open_sessions, uuid, s);
+	res = tee_ta_init_static_ta_session(uuid, s);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
@@ -1307,7 +1303,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_ta_init_session_with_signed_ta(open_sessions, ta, s);
+	res = tee_ta_init_session_with_signed_ta(ta, s);
 	/*
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
@@ -1343,7 +1339,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	res = tee_ta_init_session(err, open_sessions, uuid, &s);
 	if (res != TEE_SUCCESS) {
-		EMSG("tee_ta_init_session() failed with error 0x%lx", res);
+		EMSG("tee_ta_init_session() failed with error 0x%x", res);
 		return res;
 	}
 
@@ -1397,14 +1393,13 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		*err = TEE_ORIGIN_TRUSTED_APP;
 
 	if (res != TEE_SUCCESS)
-		EMSG("Failed. Return error 0x%lx", res);
+		EMSG("Failed. Return error 0x%x", res);
 
 	return res;
 }
 
 TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
-				 const TEE_Identity *clnt_id,
 				 uint32_t cancel_req_to, uint32_t cmd,
 				 struct tee_ta_param *param)
 {
@@ -1473,13 +1468,12 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 function_exit:
 	sess->ctx->busy = false;
 	if (res != TEE_SUCCESS)
-		EMSG("  => Error: %lx of %ld\n", res, *err);
+		EMSG("  => Error: %x of %d\n", res, *err);
 	return res;
 }
 
 TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
-				 struct tee_ta_session *sess,
-				 const TEE_Identity *clnt_id)
+				 struct tee_ta_session *sess)
 {
 	*err = TEE_ORIGIN_TEE;
 

@@ -69,18 +69,19 @@ void tee_svc_sys_panic(uint32_t code)
 	struct tee_ta_session *sess;
 
 	if (tee_ta_get_current_session(&sess) == TEE_SUCCESS) {
-		EMSG("Set session 0x%x to panicked", sess);
+		EMSG("Set session %p to panicked", (void *)sess);
 		sess->ctx->panicked = 1;
 		sess->ctx->panic_code = code;
 
 		{
+			int *p = 0;
+
 			/*
 			 * Force panicking. This memory error will be trapped by
 			 * the error exception handler myErrorHandler()
 			 */
 			EMSG("Following 'DTLB exception in bundle'");
 			EMSG("   is generated with code %d", code);
-			int *p = 0;
 			*p = 1;
 		}
 	} else {
@@ -88,15 +89,16 @@ void tee_svc_sys_panic(uint32_t code)
 	}
 }
 
-uint32_t tee_svc_sys_dummy(uint32_t *a)
+uint32_t tee_svc_sys_dummy(uint32_t *a __unused)
 {
 	DMSG("tee_svc_sys_dummy: a 0x%x", (unsigned int)a);
 	return 0;
 }
 
-uint32_t tee_svc_sys_dummy_7args(uint32_t a1, uint32_t a2, uint32_t a3,
-				 uint32_t a4, uint32_t a5, uint32_t a6,
-				 uint32_t a7)
+uint32_t tee_svc_sys_dummy_7args(uint32_t a1 __unused, uint32_t a2 __unused,
+				uint32_t a3 __unused, uint32_t a4 __unused,
+				uint32_t a5 __unused, uint32_t a6 __unused,
+				uint32_t a7 __unused)
 {
 	DMSG("tee_svc_sys_dummy_7args: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, %x, %x\n",
 	     a1, a2, a3, a4, a5, a6, a7);
@@ -563,7 +565,6 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	TEE_Result res;
 	uint32_t ret_o = TEE_ORIGIN_TEE;
 	struct tee_ta_param param = { 0 };
-	TEE_Identity clnt_id;
 	struct tee_ta_session *sess;
 	struct tee_ta_session *called_sess = (struct tee_ta_session *)ta_sess;
 	tee_mm_entry_t *mm_param = NULL;
@@ -585,7 +586,7 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 		goto function_exit;
 
 	res =
-	    tee_ta_invoke_command(&ret_o, called_sess, &clnt_id, cancel_req_to,
+	    tee_ta_invoke_command(&ret_o, called_sess, cancel_req_to,
 				  cmd_id, &param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;

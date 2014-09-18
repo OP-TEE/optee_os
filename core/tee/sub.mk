@@ -1,13 +1,5 @@
 srcs-y += tee_svc.c
-cflags-tee_svc.c-y += -Wno-format -Wno-declaration-after-statement
-cflags-tee_svc.c-y += -Wno-unused-parameter
-cflags-tee_svc.c-y += -Wno-format-nonliteral -Wno-format-security
-
 srcs-y += tee_svc_cryp.c
-cflags-tee_svc_cryp.c-y += -Wno-declaration-after-statement
-cflags-tee_svc_cryp.c-y += -Wno-unused-parameter
-cflags-tee_svc_cryp.c-y += -Wno-cast-align
-
 srcs-y += tee_acipher.c
 cflags-tee_acipher.c-y += -Wno-unused-parameter
 

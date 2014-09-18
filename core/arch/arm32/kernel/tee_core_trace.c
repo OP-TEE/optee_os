@@ -131,7 +131,7 @@ static int format_trace(const char *function, int line, int level,
 #endif
 
 		nb_char =
-		    snprintf(out, MAX_PRINT_SIZE, "%s [%p] %s:%s:%d: %s\n",
+		    snprintf(out, MAX_PRINT_SIZE, "%s [0x%x] %s:%s:%d: %s\n",
 			     _trace_level_to_string[level], thread_id, prefix,
 			     func, line, in);
 	} else {

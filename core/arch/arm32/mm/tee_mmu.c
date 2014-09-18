@@ -831,13 +831,13 @@ void teecore_init_pub_ram(void)
 	default_nsec_shm_size = e - s;
 }
 
-void *tee_mmu_ioremap(tee_paddr_t pa, size_t len)
+void *tee_mmu_ioremap(tee_paddr_t pa __unused, size_t len __unused)
 {
 	/* return (void *)ioremap((void *)pa, len); */
 	return (void *)NULL;
 }
 
-void tee_mmu_iounmap(void *va)
+void tee_mmu_iounmap(void *va __unused)
 {
 	/* linux API */
 	/* iounmap(va); */

@@ -510,7 +510,8 @@ int core_tlb_maintenance(int op, unsigned int a)
 	return 0;
 }
 
-static unsigned int cache_maintenance_l1(int op, void *start, size_t len)
+static unsigned int cache_maintenance_l1(int op, void *start __unused,
+			size_t len __unused)
 {
 	switch (op) {
 	case DCACHE_CLEAN:

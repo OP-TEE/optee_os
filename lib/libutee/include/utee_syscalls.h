@@ -27,6 +27,7 @@
 #ifndef UTEE_SYSCALLS_H
 #define UTEE_SYSCALLS_H
 
+#include <compiler.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -34,11 +35,11 @@
 #include <tee_api_types.h>
 #include <tee_trace.h>
 
-void utee_return(uint32_t ret) /*__attribute__((noreturn))*/ ;
+void utee_return(uint32_t ret) __noreturn;
 
 void utee_log(const void *buf, size_t len);
 
-void utee_panic(uint32_t code) /*__attribute__((noreturn))*/ ;
+void utee_panic(uint32_t code) __noreturn;
 
 uint32_t utee_dummy(uint32_t *a);
 

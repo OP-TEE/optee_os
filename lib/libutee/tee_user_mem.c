@@ -292,10 +292,13 @@ static void heap_dec(size_t size)
  */
 void *tee_user_mem_alloc(size_t len, uint32_t hint)
 {
-	INMSG("%d %p", (int)len, (void *)hint);
-
 	uint8_t *cp;
 	void *buf = NULL;
+	size_t total_len =
+	    len + sizeof(struct user_mem_elem) + CANARY_LINE_SIZE;
+
+
+	INMSG("%d %p", (int)len, (void *)hint);
 
 	if ((int)len < 0) {
 		OUTMSG("0x0");
@@ -306,9 +309,6 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 		OUTMSG("%p", ARTIST);
 		return (void *)ARTIST;
 	}
-
-	size_t total_len =
-	    len + sizeof(struct user_mem_elem) + CANARY_LINE_SIZE;
 
 	/* Check hint */
 	switch (hint) {
@@ -420,6 +420,9 @@ void *tee_user_mem_realloc(void *buffer, size_t len)
  */
 void tee_user_mem_free(void *buffer)
 {
+	uint8_t *cp;
+	struct user_mem_elem *e;
+
 	INMSG("[%p]", buffer);
 
 	/* It is OK to free NULL */
@@ -432,9 +435,8 @@ void tee_user_mem_free(void *buffer)
 		return;
 	}
 
-	uint8_t *cp = elem_addr(buffer);
-
-	struct user_mem_elem *e = (struct user_mem_elem *)(void *)cp;
+	cp = elem_addr(buffer);
+	e = (struct user_mem_elem *)(void *)cp;
 
 	PB(TRACE_DEBUG, "Free: ", (void *)e);
 

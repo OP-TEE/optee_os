@@ -165,13 +165,14 @@ static struct tee_rpmb_ctx *rpmb_ctx;
 
 static TEE_Result mac_calc(uint8_t *mac, uint32_t macsize,
 			   uint8_t *data, uint32_t datasize,
-			   uint8_t *key, uint32_t keylen)
+			   uint8_t *key __unused, uint32_t keylen __unused)
 {
 	return tee_hash_createdigest(
 		TEE_ALG_HMAC_SHA256, data, datasize, mac, macsize);
 }
 
-static TEE_Result mac_init(void *ctx, const uint8_t *key, uint32_t keysize)
+static TEE_Result mac_init(void *ctx, const uint8_t *key __unused,
+			uint32_t keysize __unused)
 {
 	return tee_hash_init(ctx, TEE_ALG_HMAC_SHA256);
 }
@@ -212,7 +213,7 @@ static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_rpmb_key_gen(uint16_t dev_id,
+static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 				   uint8_t *key, uint32_t len, bool commercial)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;

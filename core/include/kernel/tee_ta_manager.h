@@ -69,13 +69,11 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
-				 const TEE_Identity *clnt_id,
 				 uint32_t cancel_req_to, uint32_t cmd,
 				 struct tee_ta_param *param);
 
 TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
-				 struct tee_ta_session *sess,
-				 const TEE_Identity *clnt_id);
+				 struct tee_ta_session *sess);
 
 /*-----------------------------------------------------------------------------
  * Function called to close a TA.

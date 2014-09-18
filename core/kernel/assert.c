@@ -37,7 +37,7 @@ void _assert_log(const char *expr, const char *file, int line)
 	EMSG("Assertion '%s' failed at %s:%d", expr, file, line);
 }
 
-void __attribute__ ((noreturn)) _assert_break(void)
+void _assert_break(void)
 {
 	while (1)
 		;
