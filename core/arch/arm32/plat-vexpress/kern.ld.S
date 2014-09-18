@@ -103,6 +103,7 @@ SECTIONS
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
+		. = ALIGN(4);
 
 		__start_ta_head_section = . ;
 		*(ta_head_section)
