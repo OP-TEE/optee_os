@@ -48,7 +48,19 @@ END_FUNC _start
 LOCAL_FUNC reset , :
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_A
+	/*
+	 * Set ARMv7 reset values, could have undefined values on ARMv8.
+	 */
+	orr	r0, r0, #SCTLR_nTWE
+	orr	r0, r0, #SCTLR_nTWI
+	orr	r0, r0, #(SCTLR_SED | SCTLR_CP15BEN)
+	bic	r0, r0, #(SCTLR_TE | SCTLR_AFE | SCTLR_TRE | SCTLR_EE)
+	bic	r0, r0, #(SCTLR_UWXN | SCTLR_WXN)
+	bic	r0, r0, #(SCTLR_V | SCTLR_I | SCTLR_ITD)
+	bic	r0, r0, #(SCTLR_C | SCTLR_M)
 	write_sctlr r0
+	dsb
+	isb
 
 	ldr	r0, =_start
 	write_vbar r0
