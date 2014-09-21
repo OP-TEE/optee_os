@@ -84,7 +84,7 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
  * tee_mmu_user_va2pa - Translate physical address to virtual user address
  * given the user context
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_user_pa2va_helper(struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
 				     void *pa, void **va);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__

@@ -157,42 +157,41 @@ static uint32_t tee_mmu_get_io_size(const struct tee_ta_param *param)
 /*
  * tee_mmu_is_mapped - Check if range defined by input params is mapped.
  */
-static bool tee_mmu_is_mapped(const struct tee_ta_ctx *ctx, const uint32_t addr,
+static bool tee_mmu_is_mapped(const struct tee_ta_ctx *ctx, const paddr_t addr,
 			      const uint32_t length, const uint32_t type)
 {
-	uint32_t i = 0;
-	uint32_t nbr_sections = (((addr & SECTION_MASK) + length)
-				 >> SECTION_SHIFT) + 1;
-	bool ret = false;
+	size_t nbr_sections;
+	size_t n;
+	uint32_t *t;
+	void *va;
 
-	if (ctx == NULL || ctx->mmu == NULL || ctx->mmu->table == NULL ||
-	    ctx->mmu->size < ((addr + length) >> SECTION_SHIFT))
-		return ret;
+	if (!ctx || !ctx->mmu || !ctx->mmu->table)
+		return false;	/* No user mapping initialized */
 
-	while (i < ctx->mmu->size && !ret) {
-		if (addr > (ctx->mmu->table[i] & ~SECTION_MASK) &&
-		    addr < ((ctx->mmu->table[i] & ~SECTION_MASK)
-			    + (1 << SECTION_SHIFT)) &&
-		    ((ctx->mmu->table[i] & SECTION_MASK) == type)) {
-			uint32_t section = 1;
-			while (section < nbr_sections) {
-				if ((ctx->mmu->table[i] >> SECTION_SHIFT) +
-				    section !=
-				    (ctx->mmu->
-				     table[i + section] >> SECTION_SHIFT) ||
-				    ((ctx->mmu->
-				      table[i + section] & SECTION_MASK) !=
-				     type))
-					break;
-				section++;
-			}
-			if (section == nbr_sections)
-				ret = true;
-		}
-		i++;
+	if (((addr + length) >> SECTION_SHIFT) > ctx->mmu->size)
+		return false;	/* Range too large to be mapped */
+
+	/* Try to look up start of range */
+	if (tee_mmu_user_pa2va(ctx, (void *)addr, &va))
+		return false;
+
+	/* Assign the base section */
+	t = ctx->mmu->table + ((vaddr_t)va >> SECTION_SHIFT);
+
+	/*
+	 * Check all sections maps contigous memory and have the correct
+	 * type.
+	 */
+	nbr_sections = (((addr & SECTION_MASK) + length) >> SECTION_SHIFT) + 1;
+	for (n = 0; n < nbr_sections; n++) {
+		if ((t[n] & SECTION_MASK) != type)
+			return false;	/* Incorrect type */
+
+		if (t[n] >> SECTION_SHIFT != (addr >> SECTION_SHIFT) + n)
+			return false;	/* PA doesn't match */
 	}
 
-	return ret;
+	return true;
 }
 
 TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
@@ -515,7 +514,7 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
 }
 
 /* */
-TEE_Result tee_mmu_user_pa2va_helper(struct tee_ta_ctx *ctx, void *pa,
+TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx, void *pa,
 				     void **va)
 {
 	uint32_t i = 0;
