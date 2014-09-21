@@ -128,7 +128,6 @@
 
 /* Support for 31 concurrent sessions */
 static uint32_t g_asid = 0xffffffff;
-static uint32_t g_current_context;
 
 static tee_mm_pool_t tee_mmu_virt_kmap;
 
@@ -442,7 +441,6 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 
 	/* return ASID */
 	g_asid |= asid;
-	g_current_context = 0;
 
 	/* clear MMU entries to avoid clash when asid is reused */
 	tee_mmu_invtlb_asid(ctx->context & 0xff);
