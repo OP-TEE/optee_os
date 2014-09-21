@@ -28,20 +28,6 @@
 #ifndef TZ_PROC_H
 #define TZ_PROC_H
 
-void cpu_dsb(void);
-void cpu_dmb(void);
-void cpu_isb(void);
-void cpu_wfe(void);
-void cpu_sev(void);
-
-void cpu_disable_its(void);
-void cpu_enable_its(void);
-unsigned int cpu_read_cpsr(void);
-void cpu_write_cpsr(unsigned int cpsr);
-
-unsigned int cpu_read_ttbr0(void);
-void cpu_write_ttbr0(unsigned int ttbr0);
-
 void cpu_spin_lock(unsigned int *lock);
 unsigned int cpu_spin_trylock(unsigned int *lock);
 void cpu_spin_unlock(unsigned int *lock);

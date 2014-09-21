@@ -50,6 +50,21 @@
 	mcr	p15, 0, \reg, c2, c0, 0
 	.endm
 
+	.macro write_iciallu
+	/* Invalidate all instruction caches to PoU (register ignored) */
+	mcr	p15, 0, r0, c7, c5, 0
+	.endm
+
+	.macro write_bpiall
+	/* Invalidate entire branch predictor array (register ignored) */
+	mcr	p15, 0, r0, c7, c5, 0
+	.endm
+
+	.macro write_tlbiall
+	/* Invalidate entire unified TLB (register ignored) */
+	mcr	p15, 0, r0, c8, c7, 0
+	.endm
+
 	.macro write_vbar reg
 	mcr	p15, 0, \reg, c12, c0, 0
 	.endm

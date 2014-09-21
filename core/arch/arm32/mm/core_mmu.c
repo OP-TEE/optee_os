@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
+#include <arm32.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mmu.h>
@@ -306,7 +307,7 @@ skip_mmu_fill:
 	n = secure_get_cpu_id();
 	ttbr0 |= TEE_MMU_DEFAULT_ATTRS;
 	core_ttbr0[n] = ttbr0;
-	cpu_write_ttbr0(ttbr0);
+	write_ttbr0(ttbr0);
 
 	memmap_notinit[n] = false;
 

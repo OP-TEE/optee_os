@@ -30,18 +30,10 @@
  */
 
 #include <kernel/tz_proc_def.h>
+#include <asm.S>
+#include <arm32.h>
+#include <arm32_macros.S>
 
-.global cpu_dsb
-.global cpu_dmb
-.global cpu_isb
-.global cpu_wfe
-.global cpu_sev
-.global cpu_disable_its
-.global cpu_enable_its
-.global cpu_read_cpsr
-.global cpu_write_cpsr
-.global cpu_read_ttbr0
-.global cpu_write_ttbr0
 .global cpu_spin_lock
 .global cpu_spin_trylock
 .global cpu_spin_unlock
@@ -52,61 +44,6 @@
 .section .text
 .balign 4
 .code 32
-
-/* void cpu_dmb(void); */
-cpu_dmb:
-    dmb
-    bx lr
-
-/* void cpu_dsb(void); */
-cpu_dsb:
-    dsb
-    bx lr
-
-/* void cpu_isb(void); */
-cpu_isb:
-    isb
-    bx lr
-
-/* void cpu_wfe(void); */
-cpu_wfe:
-    wfe
-    bx lr
-
-/* void cpu_sev(void); */
-cpu_sev:
-    sev
-    bx lr
-
-/* void cpu_disable_its(void) - disable local core interruptions */
-cpu_disable_its:
-    cpsid if
-    mov pc, lr
-
-/* void cpu_enable_its(void) - enable local core interruptions */
-cpu_enable_its:
-    cpsie if
-    mov pc, lr
-
-/* unsigned int cpu_read_cpsr(void) - return CPRS in R0 */
-cpu_read_cpsr:
-    MRS R0, CPSR
-    BX LR
-
-/* void cpu_write_cpsr(cpsr) - write R0 content to CPSR */
-cpu_write_cpsr:
-    MSR CPSR_cxsf, R0
-    BX LR
-
-/* uint32_t cpu_read_ttbr0(void) - read CP15 TTBR0 */
-cpu_read_ttbr0:
-    mrc p15, 0, r0, c2, c0 ,0
-    bx lr
-
-/* void cpu_write_ttbr0(uint32_t ttbr0) - write CP15 TTBR0 */
-cpu_write_ttbr0:
-    mcr p15, 0, r0, c2, c0 ,0
-    bx lr
 
 /* void cpu_spin_lock(lock address) - lock mutex */
 cpu_spin_lock:
@@ -156,48 +93,46 @@ cpu_spin_unlock:
  * TLBs are invalidated before MMU is enabled.
  * An DSB and ISB insures MMUs is enabled before routine returns
  */
-cpu_mmu_enable:
-     
-    MCR     p15, 0, R0, c8, c7, 0
-   
-    MRC     p15, 0, R0, c1, c0, 0
-   
-    ORR     R0, R0, #CP15_CONTROL_M_MASK
-    MCR     p15, 0, R0, c1, c0, 0
-       
-    DSB
-    ISB
+FUNC cpu_mmu_enable , :
+	/* Invalidate TLB */
+	write_tlbiall
 
-    MOV PC, LR
+	/* Enable the MMU */
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_M
+	write_sctlr r0
+
+	dsb
+	isb
+
+	bx	lr
+END_FUNC cpu_mmu_enable
 
 /* void cpu_mmu_enable_icache(void) - enable instruction cache */
-cpu_mmu_enable_icache:
+FUNC cpu_mmu_enable_icache , :
+	/* Invalidate instruction cache and branch predictor */
+	write_iciallu
+	write_bpiall
 
-    MOV     R1, #0
-    MCR     p15, 0, R1, c7, c5, 0 		/* write to Cache operations register */
+	/* Enable the instruction cache */
+	read_sctlr r1
+	orr	r1, r1, #SCTLR_I
+	write_sctlr r1
 
-    MOV     R1, #0
-    MCR     p15, 0, R1, c7, c5, 6 		/* write to Cache operations register */
+	dsb
+	isb
 
-    MRC     p15, 0, R1, c1, c0 , 0         	/* read control reg */
-    ORR     R1, R1, #CP15_CONTROL_I_MASK    	/* set ICache enable bit */
-    MCR     p15, 0, R1, c1, c0 , 0         	/* write control reg */
-
-    DSB
-    ISB
-
-    MOV PC, LR
+	bx	lr
+END_FUNC cpu_mmu_enable_icache
 
 /* void cpu_mmu_enable_dcache(void) - enable data cache */
-cpu_mmu_enable_dcache:
+FUNC cpu_mmu_enable_dcache , :
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_C
+	write_sctlr r0
 
-    PUSH    {R4,LR}
+	dsb
+	isb
 
-    MRC     p15,  0, R1, c1, c0 , 0         /* read control reg */
-    ORR     R1, R1, #CP15_CONTROL_C_MASK    /* set DCache enable bit */
-    MCR     p15,  0, R1, c1, c0 , 0         /* write control reg */
-   
-    DSB
-    ISB
-
-    POP     {R4,PC}
+	bx	lr
+END_FUNC cpu_mmu_enable_dcache
