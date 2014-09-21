@@ -30,14 +30,6 @@
 .global translate_va2pa
 .global invalidate_mmu_tlb
 
-        .global WriteSCTLR
-        .global ReadSCTLR
-        .global WriteACTLR
-        .global ReadACTLR
-        .global WriteDIAGR
-        .global ReadDIAGR
-
-
 .func translate_va2pa
 translate_va2pa:
     // R0 contains the original logical address
@@ -68,56 +60,6 @@ invalidate_mmu_tlb:
     
     BX      LR
 .endfunc
-
-#ifdef __GRANT_RESTRICTED_ACCESS_SECURE_REGS
-
-/* __asm void WriteSCTLR(uint32_t regVal) */
-        .func WriteSCTLR
-WriteSCTLR:
-        MCR p15, 0, r0, c1, c0, 0
-        BX  LR
-        .endfunc
-        
-
-/* __asm uint32_t ReadSCTLR( void ) */
-        .func ReadSCTLR
-ReadSCTLR:
-        MRC p15, 0, r0, c1, c0, 0
-        BX  LR
-        .endfunc
-
-/* __asm void WriteACTLR(uint32_t regVal) */
-        .func WriteACTLR
-WriteACTLR:
-        MCR p15, 0, r0, c1, c0, 1
-        BX  LR
-        .endfunc
-        
-
-/* __asm uint32_t ReadACTLR( void ) */
-        .func ReadACTLR
-ReadACTLR:
-        MRC p15, 0, r0, c1, c0, 1
-        BX  LR
-        .endfunc
-        
-
-/* __asm void WriteDIAGR(uint32_t regVal) */
-        .func WriteDIAGR
-WriteDIAGR:
-        MCR p15, 0, r0, c15, c0, 1
-        BX  LR
-        .endfunc
-
-/* __asm uint32_t ReadDIAGR( void ) */
-        .func ReadDIAGR
-ReadDIAGR:
-        MRC p15, 0, r0, c15, c0, 1
-        BX  LR
-        .endfunc
-
-#endif
-
 
 /*-----------------------------------------------------------------------------
     GLOBAL VARIABLES
