@@ -1313,11 +1313,8 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	uint32_t key_size)
 {
 	TEE_Result res;
-	struct rsa_keypair *tee_rsa_key;
-
 	TEE_ASSERT(sizeof(struct rsa_keypair) == o->data_size);
-	tee_rsa_key = (struct rsa_keypair *)o->data;
-	res = crypto_ops.acipher.gen_rsa_key(tee_rsa_key, key_size);
+	res = crypto_ops.acipher.gen_rsa_key(o->data, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1331,11 +1328,9 @@ static TEE_Result tee_svc_obj_generate_key_dsa(
 	uint32_t key_size)
 {
 	TEE_Result res;
-	struct dsa_keypair *tee_dsa_key;
 
 	TEE_ASSERT(sizeof(struct dsa_keypair) == o->data_size);
-	tee_dsa_key = (struct dsa_keypair *)o->data;
-	res = crypto_ops.acipher.gen_dsa_key(tee_dsa_key, key_size);
+	res = crypto_ops.acipher.gen_dsa_key(o->data, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2081,7 +2076,6 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	const struct tee_cryp_obj_type_props *type_props;
 	struct bignum *publicvalue;
 	struct bignum *sharedsecret;
-	struct dh_keypair *tee_dh_key;
 	size_t alloc_size;
 
 	res = tee_ta_get_current_session(&sess);
@@ -2100,8 +2094,6 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	res = tee_obj_get(sess->ctx, cs->key1, &ko);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	tee_dh_key = (struct dh_keypair *)ko->data;
 
 	res = tee_obj_get(sess->ctx, derived_key, &so);
 	if (res != TEE_SUCCESS)
@@ -2124,7 +2116,7 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
 				 params[0].content.ref.length,
 				 publicvalue);
-	res = crypto_ops.derive.dh_shared_secret(tee_dh_key, publicvalue, sharedsecret);
+	res = crypto_ops.derive.dh_shared_secret(ko->data, publicvalue, sharedsecret);
 	if (res == TEE_SUCCESS) {
 		sk->key_size = crypto_ops.bignum.bin_size_for(sharedsecret);
 		crypto_ops.bignum.bn2bin(sharedsecret, (uint8_t *)(sk + 1));
@@ -2479,9 +2471,6 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 	struct tee_ta_session *sess;
 	size_t dlen;
 	struct tee_obj *o;
-	struct rsa_public_key *tee_rsa_public_key;
-	struct rsa_keypair *tee_rsa_key_pair;
-	struct dsa_keypair *tee_dsa_key;
 	void *label = NULL;
 	size_t label_len = 0;
 	size_t n;
@@ -2523,14 +2512,12 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			tee_rsa_public_key = o->data;
 			res = crypto_ops.acipher.rsanopad_encrypt(
-				tee_rsa_public_key, src_data, src_len,
+				o->data, src_data, src_len,
 				dst_data, &dlen);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			tee_rsa_key_pair = o->data;
 			res = crypto_ops.acipher.rsanopad_decrypt(
-				tee_rsa_key_pair, src_data, src_len, dst_data,
+				o->data, src_data, src_len, dst_data,
 				&dlen);
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
@@ -2552,14 +2539,12 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			tee_rsa_public_key = o->data;
 			res = crypto_ops.acipher.rsaes_encrypt(
-				cs->algo, tee_rsa_public_key, label, label_len,
+				cs->algo, o->data, label, label_len,
 				src_data, src_len, dst_data, &dlen);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			tee_rsa_key_pair = o->data;
 			res = crypto_ops.acipher.rsaes_decrypt(
-				cs->algo, tee_rsa_key_pair,
+				cs->algo, o->data,
 				label, label_len,
 				src_data, src_len, dst_data, &dlen);
 		} else {
@@ -2584,20 +2569,14 @@ TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
 		}
 		tee_svc_asymm_pkcs1_get_salt_len(params, num_params, &salt_len);
 
-		tee_rsa_key_pair = o->data;
-		res = crypto_ops.acipher.rsassa_sign(cs->algo,
-							 tee_rsa_key_pair,
-							 salt_len, src_data,
-							 src_len, dst_data,
-							 &dlen);
+		res = crypto_ops.acipher.rsassa_sign(cs->algo, o->data,
+						     salt_len, src_data,
+						     src_len, dst_data, &dlen);
 		break;
 
 	case TEE_ALG_DSA_SHA1:
-		tee_dsa_key = o->data;
-		res = crypto_ops.acipher.dsa_sign(cs->algo,
-						      tee_dsa_key, src_data,
-						      src_len, dst_data,
-						      &dlen);
+		res = crypto_ops.acipher.dsa_sign(cs->algo, o->data, src_data,
+						  src_len, dst_data, &dlen);
 		break;
 
 	default:
@@ -2627,9 +2606,7 @@ TEE_Result tee_svc_asymm_verify(uint32_t state, const TEE_Attribute *params,
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 	size_t hash_size;
-	struct rsa_public_key *tee_rsa_key;
 	int salt_len;
-	struct dsa_public_key *tee_dsa_key;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -2672,18 +2649,15 @@ TEE_Result tee_svc_asymm_verify(uint32_t state, const TEE_Attribute *params,
 
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {
 	case TEE_MAIN_ALGO_RSA:
-		tee_rsa_key = o->data;
 		tee_svc_asymm_pkcs1_get_salt_len(params, num_params, &salt_len);
-		res = crypto_ops.acipher.rsassa_verify(cs->algo, tee_rsa_key,
-							   salt_len, data,
-							   data_len, sig, sig_len);
+		res = crypto_ops.acipher.rsassa_verify(cs->algo, o->data,
+						       salt_len, data,
+						       data_len, sig, sig_len);
 		break;
 
 	case TEE_MAIN_ALGO_DSA:
-		tee_dsa_key = o->data;
-		res = crypto_ops.acipher.dsa_verify(cs->algo, tee_dsa_key,
-							data, data_len, sig,
-							sig_len);
+		res = crypto_ops.acipher.dsa_verify(cs->algo, o->data, data,
+						    data_len, sig, sig_len);
 		break;
 
 	default:
