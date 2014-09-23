@@ -1208,14 +1208,6 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 	struct tee_ta_session *sess;
 	struct tee_obj *dst_o;
 	struct tee_obj *src_o;
-	union {
-		struct rsa_public_key * rsa_pk;
-		struct rsa_keypair * rsa_kp;
-		struct dsa_public_key * dsa_pk;
-		struct dsa_keypair * dsa_kp;
-		struct dh_keypair * dh_kp;
-		void * v;
-	} skey, dkey;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -1236,9 +1228,6 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 	if ((dst_o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	skey.v = src_o->data;
-	dkey.v = dst_o->data;
-
 	if (dst_o->info.objectType == src_o->info.objectType) {
 		/* Copy whole data */
 
@@ -1249,31 +1238,31 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 
 		switch (src_o->info.objectType) {
 		case TEE_TYPE_RSA_PUBLIC_KEY:
-			res = copy_rsa_public_key(dkey.rsa_pk, skey.rsa_pk);
+			res = copy_rsa_public_key(dst_o->data, src_o->data);
 			if (res != TEE_SUCCESS)
 				return res;
 			dst_o->finalize = free_rsa_public_key;
 			break;
 		case TEE_TYPE_RSA_KEYPAIR:
-			res = copy_rsa_keypair(dkey.rsa_kp, skey.rsa_kp);
+			res = copy_rsa_keypair(dst_o->data, src_o->data);
 			if (res != TEE_SUCCESS)
 				return res;
 			dst_o->finalize = free_rsa_keypair;
 			break;
 		case TEE_TYPE_DSA_PUBLIC_KEY:
-			res = copy_dsa_public_key(dkey.dsa_pk, skey.dsa_pk);
+			res = copy_dsa_public_key(dst_o->data, src_o->data);
 			if (res != TEE_SUCCESS)
 				return res;
 			dst_o->finalize = free_dsa_public_key;
 			break;
 		case TEE_TYPE_DSA_KEYPAIR:
-			res = copy_dsa_keypair(dkey.dsa_kp, skey.dsa_kp);
+			res = copy_dsa_keypair(dst_o->data, src_o->data);
 			if (res != TEE_SUCCESS)
 				return res;
 			dst_o->finalize = free_dsa_keypair;
 			break;
 		case TEE_TYPE_DH_KEYPAIR:
-			res = copy_dh_keypair(dkey.dh_kp, skey.dh_kp);
+			res = copy_dh_keypair(dst_o->data, src_o->data);
 			if (res != TEE_SUCCESS)
 				return res;
 			dst_o->finalize = free_dh_keypair;
@@ -1287,7 +1276,7 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 		/* Extract public key from RSA key pair */
 		size_t n;
 
-		res = extract_rsa_public_key(dkey.rsa_pk, skey.rsa_kp);
+		res = extract_rsa_public_key(dst_o->data, src_o->data);
 		if (res != TEE_SUCCESS)
 			return res;
 		dst_o->finalize = free_rsa_public_key;
@@ -1301,7 +1290,7 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 		/* Extract public key from DSA key pair */
 		size_t n;
 
-		res = extract_dsa_public_key(dkey.dsa_pk, skey.dsa_kp);
+		res = extract_dsa_public_key(dst_o->data, src_o->data);
 		if (res != TEE_SUCCESS)
 			return res;
 		dst_o->finalize = free_dsa_public_key;
