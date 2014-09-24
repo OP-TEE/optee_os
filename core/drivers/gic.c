@@ -81,13 +81,15 @@ static size_t probe_max_it(void)
 	int i;
 	uint32_t old_ctlr;
 	size_t ret = 0;
+	const size_t max_regs = ((GIC_MAX_INTS + NUM_INTS_PER_REG - 1) /
+					NUM_INTS_PER_REG) - 1;
 
 	/*
 	 * Probe which interrupt number is the largest.
 	 */
 	old_ctlr = read32(gic.gicc_base + GICC_CTLR);
 	write32(0, gic.gicc_base + GICC_CTLR);
-	for (i = GIC_MAX_INTS / NUM_INTS_PER_REG; i > 0; i--) {
+	for (i = max_regs; i >= 0; i--) {
 		uint32_t old_reg;
 		uint32_t reg;
 		int b;
@@ -96,7 +98,7 @@ static size_t probe_max_it(void)
 		write32(0xffffffff, gic.gicd_base + GICD_ISENABLER(i));
 		reg = read32(gic.gicd_base + GICD_ISENABLER(i));
 		write32(old_reg, gic.gicd_base + GICD_ICENABLER(i));
-		for (b = NUM_INTS_PER_REG - 1; b > 0; b--) {
+		for (b = NUM_INTS_PER_REG - 1; b >= 0; b--) {
 			if ((1 << b) & reg) {
 				ret = i * NUM_INTS_PER_REG + b;
 				goto out;
