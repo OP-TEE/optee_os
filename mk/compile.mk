@@ -57,6 +57,7 @@ objs		+= $2
 comp-dep-$2	:= $$(dir $2).$$(notdir $2).d
 comp-cmd-file-$2:= $$(dir $2).$$(notdir $2).cmd
 comp-sm-$2	:= $(sm)
+comp-lib-$2	:= $(libname)
 
 cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 
@@ -81,7 +82,10 @@ comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@ \
 			 $$(cppflags-remove-$2), \
 	      $$(nostdinc) $$(CPPFLAGS) \
 	      $$(addprefix -I,$$(incdirs$$(comp-sm-$2))) \
-	      $$(cppflags$$(comp-sm-$2)) $$(cppflags-$2))
+	      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
+	      $$(addprefix -I,$$(incdirs-$2)) \
+	      $$(cppflags$$(comp-sm-$2)) \
+	      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
 
 comp-cmd-$2 = $$(CC) $$(comp-flags-$2) -c $$< -o $$@
 
