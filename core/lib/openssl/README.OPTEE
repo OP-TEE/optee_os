@@ -1,0 +1,4 @@
+This directory contains source code from the OpenSSL Project
+(http://www/openssl.org/). Only the libcrypto component is included.
+See LICENSE.
+
