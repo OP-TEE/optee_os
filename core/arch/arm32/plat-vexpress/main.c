@@ -257,6 +257,10 @@ static void main_init_gic(void)
 	 * Initialize GIC base address here for debugging.
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_it_add(IT_UART1);
+	gic_it_set_cpu_mask(IT_UART1, 0x1);
+	gic_it_set_prio(IT_UART1, 0x1);
+	gic_it_enable(IT_UART1);
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
 {

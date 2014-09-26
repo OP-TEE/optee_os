@@ -33,11 +33,10 @@
 #define UART_TIMEOUT	0x0C /* Timeout period */
 /* reserved space */
 #define UART_FR		0x18 /* flag register */
-#define UART_LCRH_RX	0x1C /*receive line control */
 #define UART_ILPR	0x20 /* IrDA low-poer */
 #define UART_IBRD	0x24 /* integer baud register */
 #define UART_FBRD	0x28 /* fractional baud register */
-#define UART_LCRH_TX	0x2C /* transmit line control */
+#define UART_LCR_H	0x2C /* line control register */
 #define UART_CR		0x30 /* control register */
 #define UART_IFLS	0x34 /* interrupt FIFO level select */
 #define UART_IMSC	0x38 /* interrupt mask set/clear */
@@ -99,8 +98,8 @@ void uart_init(vaddr_t base)
 {
 	write32(0, base + UART_RSR_ECR);
 
-	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo enabled. */
-	write32(UART_LCRH_WLEN_8 | UART_LCRH_FEN, base + UART_LCRH_TX);
+	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo disabled. */
+	write32(UART_LCRH_WLEN_8, base + UART_LCR_H);
 
 	write32(UART_IMSC_RXIM, base + UART_IMSC);
 

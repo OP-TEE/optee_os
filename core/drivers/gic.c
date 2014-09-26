@@ -262,7 +262,7 @@ void gic_dump_state(void)
 	DMSG("GICC_CTLR: 0x%x", read32(gic.gicc_base + GICC_CTLR));
 	DMSG("GICD_CTLR: 0x%x", read32(gic.gicd_base + GICD_CTLR));
 
-	for (i = 0; i < NUM_PPI; i++) {
+	for (i = 0; i < (int)gic.max_it; i++) {
 		if (gic_it_is_enabled(i)) {
 			DMSG("irq%d: enabled, group:%d, target:%x", i,
 				gic_it_get_group(i), gic_it_get_target(i));
