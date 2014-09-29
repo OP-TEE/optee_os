@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm32.h>
 #include <mm/tee_mmu_unpg.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/core_mmu.h>
@@ -34,14 +35,14 @@ void tee_mmu_get_map(struct tee_mmu_mapping *map)
 	if (map == NULL)
 		return;
 
-	map->ttbr0 = tee_mmu_get_ttbr0();
-	map->ctxid = tee_mmu_get_context();
+	map->ttbr0 = read_ttbr0();
+	map->ctxid = read_contextidr();
 }
 
 void tee_mmu_set_map(struct tee_mmu_mapping *map)
 {
 	if (map == NULL)
-		tee_mmu_switch(core_mmu_get_ttbr0(), 0);
+		tee_mmu_switch(read_ttbr1(), 0);
 	else
 		tee_mmu_switch(map->ttbr0, map->ctxid);
 

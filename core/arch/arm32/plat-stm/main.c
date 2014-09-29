@@ -44,6 +44,7 @@
 #include <kernel/misc.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 
 #include <assert.h>
@@ -281,3 +282,36 @@ void tee_entry_get_os_revision(struct thread_smc_args *args)
 	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
 	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }
+
+extern uint8_t *SEC_MMU_TTB_FLD;
+extern uint8_t *SEC_TA_MMU_TTB_FLD[CFG_TEE_CORE_NB_CORE][TEE_MMU_UL1_NUM_ENTRIES];
+
+paddr_t core_mmu_get_main_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_main_ttb_va(void)
+{
+	return (vaddr_t)&SEC_MMU_TTB_FLD;
+}
+
+paddr_t core_mmu_get_ul1_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_ul1_ttb_va(void)
+{
+	return (vaddr_t)SEC_TA_MMU_TTB_FLD +
+		thread_get_id() * TEE_MMU_UL1_NUM_ENTRIES;
+}
+

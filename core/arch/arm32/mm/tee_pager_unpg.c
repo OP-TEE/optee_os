@@ -83,7 +83,7 @@ static void tee_pager_print_abort(const uint32_t addr __unused,
 	DMSG("%s at 0x%x: FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
 	     (flags == TEE_PAGER_DATA_ABORT) ? "data-abort" :
 	     (flags == TEE_PAGER_PREF_ABORT) ? "prefetch-abort" : "undef-abort",
-	     addr, fsr, pc, tee_mmu_get_ttbr0(), tee_mmu_get_context());
+	     addr, fsr, pc, read_ttbr0(), read_contextidr());
 	DMSG("CPUID %dd DBGPCSR 0x%x SPSR_abt 0x%x",
 	     TEE_PAGER_GET_CPUID_asm(), dbgpcsr, tee_pager_get_spsr());
 }
@@ -97,7 +97,7 @@ static void tee_pager_print_error_abort(const uint32_t addr __unused,
 	     "CPUID 0x%x DBGPCSR 0x%x CPSR 0x%x (read from SPSR)",
 	     (flags == TEE_PAGER_DATA_ABORT) ? "data-abort" :
 	     (flags == TEE_PAGER_PREF_ABORT) ? "prefetch-abort" : "undef-abort",
-	     addr, fsr, pc, tee_mmu_get_ttbr0(), tee_mmu_get_context(),
+	     addr, fsr, pc, read_ttbr0(), read_contextidr(),
 	     TEE_PAGER_GET_CPUID_asm(), dbgpcsr, tee_pager_get_spsr());
 }
 

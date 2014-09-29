@@ -50,6 +50,7 @@
 #include <kernel/tee_time.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 
 #include <assert.h>
@@ -110,32 +111,15 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #endif
 };
 
-/* MMU L1 table for teecore: 16kB */
-#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
+/* Main MMU L1 table for teecore */
+static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"),
+		       aligned(TEE_MMU_L1_ALIGNMENT)));
 
-/* MMU L2 table for teecore: 16 * 1kB (16MB mappeable) */
-#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
-
-/* MMU L1 table for TAs: 16kB */
-#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_TA_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
-
-/* MMU L2 table for TAs: 16 * 1kB (16MB mappeable) */
-#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_TA_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
-
-
-
+/* MMU L1 table for TAs, one for each Core */
+static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
+        __attribute__((section(".bss.prebss.mmu"),
+		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
 extern uint32_t __text_start;
 extern uint32_t __rodata_end;
@@ -513,3 +497,32 @@ void tee_entry_get_os_revision(struct thread_smc_args *args)
 	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
 	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }
+
+paddr_t core_mmu_get_main_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_main_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_l1_ttb;
+}
+
+paddr_t core_mmu_get_ul1_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_ul1_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
+}
+

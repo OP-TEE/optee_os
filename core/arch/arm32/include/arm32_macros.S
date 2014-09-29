@@ -50,6 +50,10 @@
 	mcr	p15, 0, \reg, c2, c0, 0
 	.endm
 
+	.macro write_dacr reg
+	mcr	p15, 0, \reg, c3, c0, 0
+	.endm
+
 	.macro write_iciallu
 	/* Invalidate all instruction caches to PoU (register ignored) */
 	mcr	p15, 0, r0, c7, c5, 0
@@ -73,6 +77,6 @@
 	mcr	p15, 0, \reg, c12, c0, 1
 	.endm
 
-	.macro write_context_id reg
+	.macro write_contextidr reg
 	mcr	p15, 0, \reg, c13, c0, 1
 	.endm

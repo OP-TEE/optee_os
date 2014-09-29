@@ -22,7 +22,7 @@ link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(libnames))
 ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
 
-link-script-cppflags :=  \
+link-script-cppflags := -DASM=1 \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
 		$(nostdinc) $(CPPFLAGS) \
 		$(addprefix -I,$(incdirs$(sm))) $(cppflags$(sm)))

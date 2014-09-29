@@ -36,11 +36,13 @@
 #include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
+#include <kernel/thread.h>
 #include <arm32.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <kernel/misc.h>
 #include <kernel/tee_core_trace.h>
 
 /* Default NSec shared memory allocated from NSec world */
@@ -62,15 +64,6 @@ static struct map_area *static_memory_map = (void *)1;	/* not in BSS */
 static struct map_area *map_tee_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_ta_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_nsec_shm = (void *)1;	/* not in BSS */
-
-/*
- * Save TTBR0 per CPU core running ARM-TZ. (Actually only 1 cpu run TEE)
- * Save TTBR0 used for TA ampping (kTA or uTA).
- * Currently not in BSS since BSS is init after MMU setup.
- */
-static unsigned int core_ttbr0[CFG_TEE_CORE_NB_CORE] = { ~0, ~0 };
-static unsigned int coreta_ttbr0_pa[CFG_TEE_CORE_NB_CORE] = { ~0, ~0 };
-static unsigned int coreta_ttbr0_va[CFG_TEE_CORE_NB_CORE] = { ~0, ~0 };
 
 /* bss is not init: def value must be non-zero */
 static bool memmap_notinit[CFG_TEE_CORE_NB_CORE] = { true, true };
@@ -155,28 +148,20 @@ static bool memarea_not_mapped(struct map_area *map, void *ttbr0)
 * map_memarea - load mapping in target L1 table
 * A finer mapping must be supported. Currently section mapping only!
 */
-static int map_memarea(struct map_area *map, void *ttbr0)
+static void map_memarea(struct map_area *map, uint32_t *ttb)
 {
-	uint32_t m, n;
-	unsigned long attr;
+	size_t m, n;
+	uint32_t attr;
 
 	/*
 	 * invalid area confing
 	 * - only section mapping currently supported
 	 * - first section cannot be mapped (safety)
 	 */
-	if ((map == NULL) ||
-	    (ttbr0 == NULL) ||
-	    (map->va != 0) ||
-	    (map->region_size != 0) ||
-	    (map->pa == 0) ||
-	    ((map->pa + map->size - 1) < map->pa) ||
-	    (map->size == 0) ||
-	    (map->size & 0x000FFFFF) ||
-	    (map->pa & 0x000FFFFF) || (map->va & 0x000FFFFF)) {
-		while (1)
-			;
-		return 1;
+	if (!map || !ttb || !map->pa || map->va || map->region_size ||
+	    ((map->pa + map->size - 1) < map->pa) || !map->size ||
+	    (map->size & SECTION_MASK) || (map->pa & SECTION_MASK)) {
+		TEE_ASSERT(0);
 	}
 
 	attr = SECTION_SHARED | SECTION_NOTGLOBAL | SECTION_SECTION;
@@ -199,34 +184,31 @@ static int map_memarea(struct map_area *map, void *ttbr0)
 		attr |= SECTION_NOTSECURE;
 
 	map->va = map->pa;	/* 1-to-1 pa=va mapping */
-	map->region_size = 1 << 20;	/* 1MB section mapping */
+	map->region_size = 1 << SECTION_SHIFT;	/* 1MB section mapping */
 
-	m = (map->pa >> 20) * 4;
-	n = map->size >> 20;
+	m = (map->pa >> SECTION_SHIFT);
+	n = map->size >> SECTION_SHIFT;
 	while (n--) {
-		*((uint32_t *)((uint32_t)ttbr0 + m)) = (m << 18) | attr;
-		m += 4;
+		ttb[m] = (m << SECTION_SHIFT) | attr;
+		m++;
 	}
-
-	return 0;
 }
 
 /* load_bootcfg_mapping - attempt to map the teecore static mapping */
-static void load_bootcfg_mapping(void *ttbr0)
+static void load_bootcfg_mapping(void *ttb1)
 {
 	struct map_area *map, *in;
-	uint32_t *p, n;
 
 	/* get memory bootcfg from system */
 	in = bootcfg_get_memory();
 	if (!in) {
 		EMSG("Invalid memory map");
-		assert(0);
+		TEE_ASSERT(0);
 	}
 	bootcfg_pbuf_is = (unsigned long)bootcfg_get_pbuf_is_handler();
 	if (bootcfg_pbuf_is == 0) {
 		EMSG("invalid platform handler for pbuf_is");
-		assert(0);
+		TEE_ASSERT(0);
 	}
 
 	/* we must find at least a PUB_RAM area and a TEE_RAM area */
@@ -235,21 +217,17 @@ static void load_bootcfg_mapping(void *ttbr0)
 	map_nsec_shm = NULL;
 
 	/* reset L1 table */
-	for (p = (uint32_t *)ttbr0, n = 4096; n > 0; n--)
-		*(p++) = 0;
+	memset(ttb1, 0, TEE_MMU_L1_SIZE);
 
 	/* map what needs to be mapped (non-null size and non INTRAM/EXTRAM) */
 	map = in;
 	while (map->type != MEM_AREA_NOTYPE) {
-		if (memarea_not_mapped(map, ttbr0) == false) {
+		if (!memarea_not_mapped(map, ttb1)) {
 			EMSG("overlapping mapping ! trap CPU");
-			assert(0);
+			TEE_ASSERT(0);
 		}
 
-		if (map_memarea(map, ttbr0)) {
-			EMSG("mapping failed ! trap CPU");
-			assert(0);
-		}
+		map_memarea(map, ttb1);
 
 		if (map->type == MEM_AREA_TEE_RAM)
 			map_tee_ram = map;
@@ -264,7 +242,7 @@ static void load_bootcfg_mapping(void *ttbr0)
 	if ((map_tee_ram == NULL) || (map_ta_ram == NULL) ||
 	    (map_nsec_shm == NULL)) {
 		EMSG("mapping area missing");
-		assert(0);
+		TEE_ASSERT(0);
 	}
 
 	static_memory_map = in;
@@ -278,80 +256,33 @@ static void load_bootcfg_mapping(void *ttbr0)
  *
  * If an error happend: core_init_mmu.c is expected to reset.
  */
-unsigned int core_init_mmu(unsigned int ttbr0, unsigned int ta_ttbr0)
+void core_init_mmu(void)
 {
-	uint32_t n;
-	void *va = NULL;	/* fix gcc warning */
+	paddr_t ttb_pa = core_mmu_get_main_ttb_pa();
 
-	if (secure_get_cpu_id() >= CFG_TEE_CORE_NB_CORE) {
-		EMSG("invalid core ID %d. teecore supports %d cores.",
-		     secure_get_cpu_id(), CFG_TEE_CORE_NB_CORE);
-		assert(0);
+	if (memlayout_init != MEMLAYOUT_INIT) {
+		load_bootcfg_mapping((void *)core_mmu_get_main_ttb_va());
+		memlayout_init = MEMLAYOUT_INIT;
 	}
 
-	if ((ttbr0 & TEE_MMU_TTBRX_ATTR_MASK) ||
-	    (ta_ttbr0 & TEE_MMU_TTBRX_ATTR_MASK)) {
-		EMSG("invalid MMU L1 addr: core=0x%X TA=0x%X", ttbr0, ta_ttbr0);
-		assert(0);
-	}
+	/*
+	 * Program Domain access control register with two domains:
+	 * domain 0: teecore
+	 * domain 1: TA
+	 */
+	write_dacr(DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
+		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
 
-	if (memlayout_init == MEMLAYOUT_INIT)
-		goto skip_mmu_fill;
+	/*
+	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses
+	 * defined by TEE_MMU_TTBCR_N_VALUE.
+	 */
+	write_ttbcr(TEE_MMU_TTBCR_N_VALUE);
 
-	/* Note that the initialization of the mmu may depend on the cutID */
-	load_bootcfg_mapping((void *)ttbr0);
-	memlayout_init = MEMLAYOUT_INIT;
+	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
+	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
 
-skip_mmu_fill:
-	/* All CPUs currently use the same mapping, even on SMP */
-	n = secure_get_cpu_id();
-	ttbr0 |= TEE_MMU_DEFAULT_ATTRS;
-	core_ttbr0[n] = ttbr0;
-	write_ttbr0(ttbr0);
-
-	memmap_notinit[n] = false;
-
-	/* prepare TA mmu table handling */
-	/* Support 1 TA MMU table location per CPU core must be implemented */
-	if (core_pa2va(ta_ttbr0, &va)) {
-		EMSG("failed to get virtual address of ta_ttbr0 0x%X",
-		     ta_ttbr0);
-		assert(0);
-	}
-	coreta_ttbr0_va[n] = (unsigned int)va;
-	coreta_ttbr0_pa[n] = ta_ttbr0;
-
-	return 0;
-}
-
-/* return the tee core CP15 TTBR0 */
-uint32_t core_mmu_get_ttbr0(void)
-{
-	return core_ttbr0[secure_get_cpu_id()];
-}
-
-/* return the tee core mmu L1 table base address */
-uint32_t core_mmu_get_ttbr0_base(void)
-{
-	return core_mmu_get_ttbr0() & TEE_MMU_TTBRX_TTBX_MASK;
-}
-
-/* return the tee core mmu L1 attributes */
-uint32_t core_mmu_get_ttbr0_attr(void)
-{
-	return core_mmu_get_ttbr0() & TEE_MMU_TTBRX_ATTR_MASK;
-}
-
-/* return physical address of MMU L1 table of for TA mapping */
-uint32_t core_mmu_get_ta_ul1_pa(void)
-{
-	return coreta_ttbr0_pa[secure_get_cpu_id()];
-}
-
-/* return virtual address of MMU L1 table of for TA mapping */
-uint32_t core_mmu_get_ta_ul1_va(void)
-{
-	return coreta_ttbr0_va[secure_get_cpu_id()];
+	memmap_notinit[get_core_pos()] = false;
 }
 
 /* routines to retreive shared mem configuration */
@@ -422,7 +353,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
  */
 static bool is_coremap_init(void)
 {
-	return !memmap_notinit[secure_get_cpu_id()];
+	return !memmap_notinit[get_core_pos()];
 }
 
 /* core_va2pa - teecore exported service */

@@ -82,6 +82,14 @@
 #define SCTLR_AFE	(1 << 29)
 #define SCTLR_TE	(1 << 30)
 
+#define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))
+#define DACR_DOMAIN_PERM_NO_ACCESS	0x0
+#define DACR_DOMAIN_PERM_CLIENT		0x1
+#define DACR_DOMAIN_PERM_MANAGER	0x3
+
+#define TTBCR_PD0	(1 << 4)
+#define TTBCR_PD1	(1 << 5)
+
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
 {
@@ -119,6 +127,43 @@ static inline void write_ttbr0(uint32_t ttbr0)
 	);
 }
 
+static inline uint32_t read_ttbr0(void)
+{
+	uint32_t ttbr0;
+
+	asm ("mrc	p15, 0, %[ttbr0], c2, c0, 0"
+			: [ttbr0] "=r" (ttbr0)
+	);
+
+	return ttbr0;
+}
+
+static inline void write_ttbr1(uint32_t ttbr1)
+{
+	asm ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
+			: : [ttbr1] "r" (ttbr1)
+	);
+}
+
+static inline uint32_t read_ttbr1(void)
+{
+	uint32_t ttbr1;
+
+	asm ("mrc	p15, 0, %[ttbr1], c2, c0, 1"
+			: [ttbr1] "=r" (ttbr1)
+	);
+
+	return ttbr1;
+}
+
+
+static inline void write_ttbcr(uint32_t ttbcr)
+{
+	asm ("mcr	p15, 0, %[ttbcr], c2, c0, 2"
+			: : [ttbcr] "r" (ttbcr)
+	);
+}
+
 static inline void write_dacr(uint32_t dacr)
 {
 	asm ("mcr	p15, 0, %[dacr], c3, c0, 0"
@@ -141,6 +186,20 @@ static inline void write_tlbiallis(void)
 	/* Invalidate entire unified TLB Inner Shareable, r0 ignored */
 	asm ("mcr	p15, 0, r0, c8, c3, 0");
 }
+
+static inline uint32_t read_contextidr(void)
+{
+	uint32_t contextidr;
+
+	asm ("mrc	p15, 0, %[contextidr], c13, c0, 1"
+			: [contextidr] "=r" (contextidr)
+	);
+
+	return contextidr;
+}
+
+
+
 
 static inline uint32_t read_cpsr(void)
 {
