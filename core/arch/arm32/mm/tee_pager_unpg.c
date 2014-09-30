@@ -60,19 +60,19 @@ uint8_t tee_pager_npages;
 
 static bool tee_pager_is_monitor_exception(void)
 {
-	return (tee_pager_get_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
+	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
 	    TEE_PAGER_SPSR_MODE_MON;
 }
 
 bool tee_pager_is_user_exception(void)
 {
-	return (tee_pager_get_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
+	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
 	    TEE_PAGER_SPSR_MODE_USR;
 }
 
 bool tee_pager_is_abort_in_abort_handler(void)
 {
-	return (tee_pager_get_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
+	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
 	    TEE_PAGER_SPSR_MODE_ABT;
 }
 
@@ -85,7 +85,7 @@ static void tee_pager_print_abort(const uint32_t addr __unused,
 	     (flags == TEE_PAGER_PREF_ABORT) ? "prefetch-abort" : "undef-abort",
 	     addr, fsr, pc, read_ttbr0(), read_contextidr());
 	DMSG("CPUID %dd DBGPCSR 0x%x SPSR_abt 0x%x",
-	     TEE_PAGER_GET_CPUID_asm(), dbgpcsr, tee_pager_get_spsr());
+	     read_mpidr(), dbgpcsr, read_spsr());
 }
 
 static void tee_pager_print_error_abort(const uint32_t addr __unused,
@@ -98,7 +98,7 @@ static void tee_pager_print_error_abort(const uint32_t addr __unused,
 	     (flags == TEE_PAGER_DATA_ABORT) ? "data-abort" :
 	     (flags == TEE_PAGER_PREF_ABORT) ? "prefetch-abort" : "undef-abort",
 	     addr, fsr, pc, read_ttbr0(), read_contextidr(),
-	     TEE_PAGER_GET_CPUID_asm(), dbgpcsr, tee_pager_get_spsr());
+	     read_mpidr(), dbgpcsr, read_spsr());
 }
 
 static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
@@ -111,12 +111,12 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 	uint32_t fsr;
 
 	if (flags == TEE_PAGER_DATA_ABORT) {
-		fsr = TEE_PAGER_GET_DFSR_asm();
-		addr = TEE_PAGER_GET_DFAR_asm();
+		fsr = read_dfsr();
+		addr = read_dfar();
 	} else {
 		if (flags == TEE_PAGER_PREF_ABORT) {
-			fsr = TEE_PAGER_GET_IFSR_asm();
-			addr = TEE_PAGER_GET_IFAR_asm();
+			fsr = read_ifsr();
+			addr = read_ifar();
 		} else {
 			fsr = 0;
 			addr = pc;

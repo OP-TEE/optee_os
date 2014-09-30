@@ -72,21 +72,6 @@ extern uint8_t tee_pager_npages;
 void tee_pager_abort_handler(uint32_t abort_type,
 			     struct thread_abort_regs *regs);
 
-/* Returns the IFAR register */
-uint32_t TEE_PAGER_GET_IFAR_asm(void);
-/* Returns the DFAR register */
-uint32_t TEE_PAGER_GET_DFAR_asm(void);
-/* Returns the DFSR register */
-uint32_t TEE_PAGER_GET_DFSR_asm(void);
-uint32_t TEE_PAGER_GET_CPUID_asm(void);
-/* Returns the IFSR register */
-uint32_t TEE_PAGER_GET_IFSR_asm(void);
-/* Returns the SPSR register */
-uint32_t tee_pager_get_spsr(void);
-
-/* Called for each core to setup core for tee pager. */
-extern void TEE_PAGER_INIT_asm(void);
-
 /* Get VA from L2 MMU entry address */
 #define TEE_PAGER_GET_VA(a)					\
 	(((((uint32_t)a) - SEC_VIRT_MMU_L2_BASE) <<		\

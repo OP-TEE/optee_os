@@ -29,6 +29,7 @@
 #include <mm/tee_mmu_unpg.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/core_mmu.h>
+#include <kernel/tz_ssvce.h>
 
 void tee_mmu_get_map(struct tee_mmu_mapping *map)
 {
@@ -46,5 +47,30 @@ void tee_mmu_set_map(struct tee_mmu_mapping *map)
 	else
 		tee_mmu_switch(map->ttbr0, map->ctxid);
 
-	invalidate_mmu_tlb();
+	secure_mmu_unifiedtlbinvall();
+}
+
+void tee_mmu_switch(uint32_t ttbr0_base, uint32_t ctxid)
+{
+	uint32_t cpsr = read_cpsr();
+
+	/* Disable interrupts */
+	write_cpsr(cpsr | CPSR_FIA);
+
+	/*
+	 * Update the reserved Context ID and TTBR0
+	 */
+
+	dsb();	/* ARM erratum 754322 */
+	write_contextidr(0);
+	isb();
+
+	write_ttbr0(ttbr0_base);
+	isb();
+
+	write_contextidr(ctxid & 0xff);
+	isb();
+
+	/* Restore interrupts */
+	write_cpsr(cpsr);
 }

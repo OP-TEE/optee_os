@@ -171,6 +171,52 @@ static inline void write_dacr(uint32_t dacr)
 	);
 }
 
+static inline uint32_t read_ifar(void)
+{
+	uint32_t ifar;
+
+	asm ("mrc	p15, 0, %[ifar], c6, c0, 2"
+			: [ifar] "=r" (ifar)
+	);
+
+	return ifar;
+}
+
+static inline uint32_t read_dfar(void)
+{
+	uint32_t dfar;
+
+	asm ("mrc	p15, 0, %[dfar], c6, c0, 0"
+			: [dfar] "=r" (dfar)
+	);
+
+	return dfar;
+}
+
+static inline uint32_t read_dfsr(void)
+{
+	uint32_t dfsr;
+
+	asm ("mrc	p15, 0, %[dfsr], c5, c0, 0"
+			: [dfsr] "=r" (dfsr)
+	);
+
+	return dfsr;
+}
+
+static inline uint32_t read_ifsr(void)
+{
+	uint32_t ifsr;
+
+	asm ("mrc	p15, 0, %[ifsr], c5, c0, 1"
+			: [ifsr] "=r" (ifsr)
+	);
+
+	return ifsr;
+}
+
+
+
 static inline void isb(void)
 {
 	asm ("isb");
@@ -179,12 +225,6 @@ static inline void isb(void)
 static inline void dsb(void)
 {
 	asm ("dsb");
-}
-
-static inline void write_tlbiallis(void)
-{
-	/* Invalidate entire unified TLB Inner Shareable, r0 ignored */
-	asm ("mcr	p15, 0, r0, c8, c3, 0");
 }
 
 static inline uint32_t read_contextidr(void)
@@ -198,8 +238,12 @@ static inline uint32_t read_contextidr(void)
 	return contextidr;
 }
 
-
-
+static inline void write_contextidr(uint32_t contextidr)
+{
+	asm ("mcr	p15, 0, %[contextidr], c13, c0, 1"
+			: : [contextidr] "r" (contextidr)
+	);
+}
 
 static inline uint32_t read_cpsr(void)
 {
@@ -217,6 +261,18 @@ static inline void write_cpsr(uint32_t cpsr)
 			: : [cpsr] "r" (cpsr)
 	);
 }
+
+static inline uint32_t read_spsr(void)
+{
+	uint32_t spsr;
+
+	asm ("mrs	%[spsr], spsr"
+			: [spsr] "=r" (spsr)
+	);
+	return spsr;
+}
+
+
 #endif
 
 #endif /*ARM32_H*/

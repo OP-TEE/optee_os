@@ -45,6 +45,7 @@
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_io.h>
 #include <sm/teesmc.h>
+#include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
 
 #define TEE_MMU_PAGE_TEX_SHIFT 6
@@ -443,7 +444,7 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 	g_asid |= asid;
 
 	/* clear MMU entries to avoid clash when asid is reused */
-	tee_mmu_invtlb_asid(ctx->context & 0xff);
+	secure_mmu_unifiedtlbinv_byasid(ctx->context & 0xff);
 	ctx->context = 0;
 
 	if (ctx->mmu != NULL) {
