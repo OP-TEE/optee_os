@@ -141,8 +141,11 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	l->curr_thread = n;
 
 	threads[n].regs.pc = (uint32_t)thread_std_smc_entry;
-	/* Stdcalls starts in SVC mode with masked IRQ and unmasked FIQ */
-	threads[n].regs.cpsr = CPSR_MODE_SVC | CPSR_I;
+	/*
+	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
+	 * abort and unmasked FIQ.
+	  */
+	threads[n].regs.cpsr = CPSR_MODE_SVC | CPSR_I | CPSR_A;
 	threads[n].flags = 0;
 	/* Enable thumb mode if it's a thumb instruction */
 	if (threads[n].regs.pc & 1)
@@ -237,6 +240,8 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	check_canaries();
 	thread_fast_smc_handler_ptr(args);
+	/* Fast handlers must not clear F, I or A bits in CPSR */
+	assert((read_cpsr() & CPSR_FIA) == CPSR_FIA);
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)

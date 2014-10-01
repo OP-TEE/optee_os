@@ -227,7 +227,7 @@ LOCAL_FUNC thread_save_state , :
 
 	mrs	r12, cpsr
 
-	cpsid	if			/* Disable IRQ and FIQ */
+	cpsid	aif			/* Disable Async abort, IRQ and FIQ */
 
 	push	{r4-r7}
 	push	{r0-r3}
