@@ -71,7 +71,7 @@
 #define DECLARE_STACK(name, num_stacks, stack_size) \
 	static uint32_t name[num_stacks][(stack_size + STACK_CANARY_SIZE) / \
 					 sizeof(uint32_t)] \
-		__attribute__((section(".bss.prebss.stack"), \
+		__attribute__((section(".nozi.stack"), \
 			       aligned(STACK_ALIGNMENT)))
 
 #define GET_STACK(stack) \
@@ -113,12 +113,12 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 
 /* Main MMU L1 table for teecore */
 static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"),
+        __attribute__((section(".nozi.mmu.l1"),
 		       aligned(TEE_MMU_L1_ALIGNMENT)));
 
 /* MMU L1 table for TAs, one for each Core */
 static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"),
+        __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
 extern uint32_t __text_start;
@@ -285,7 +285,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		/*
 		 * Zero BSS area. Note that globals that would normally
 		 * would go into BSS which are used before this has to be
-		 * put into .bss.prebss.* to avoid getting overwritten.
+		 * put into .nozi.* to avoid getting overwritten.
 		 */
 		memset((void *)bss_start, 0, bss_end - bss_start);
 

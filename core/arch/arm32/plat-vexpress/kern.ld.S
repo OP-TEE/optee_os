@@ -136,11 +136,8 @@ SECTIONS
 	.dynamic : { *(.dynamic) }
 
 	__data_end = .;
-
-	/* unintialized data (in same segment as writable data) */
+	/* unintialized data */
 	.bss : ALIGN(4) {
-		KEEP(*(.bss.prebss.*))
-		. = ALIGN(4);
 		__bss_start = .;
 		*(.bss .bss.*)
 		*(.gnu.linkonce.b.*)
@@ -148,8 +145,27 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end = .;
 	}
+	__nozi_pad_start = .;
 
-#if PLATFORM_FLAVOR == PLATFORM_FLAVOR_FVP
+	/*
+	 * We're keeping track of the padding added before the .nozi
+	 * section so we can do something useful with this otherwise wasted
+	 * memory.
+	 */
+
+ 	/*
+	 * Uninitialized data that shouldn't be zero initialized at
+	 * runtime.
+	 *
+	 * L1 mmu table requires 16 KiB alignment
+	 */
+	.nozi : ALIGN(16 * 1024) {
+		__nozi_pad_end = .;
+		KEEP(*(.nozi .nozi.*))
+	}
+
+
+#if PLATFORM_FLAVOR_IS(fvp)
 	/*
 	 * The base address of the coherent memory section must be
 	 * page-aligned (4K) to guarantee that the coherent data are stored
