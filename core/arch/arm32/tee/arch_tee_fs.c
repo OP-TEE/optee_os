@@ -33,7 +33,7 @@
 #include <kernel/tee_rpc_types.h>
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>

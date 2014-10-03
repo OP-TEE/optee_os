@@ -27,7 +27,7 @@
 
 #include <string.h>
 #include <user_ta_header.h>
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/tee_ta_manager_unpg.h>
 #include <tee/tee_cryp_utl.h>
 #include <kernel/tee_core_trace.h>

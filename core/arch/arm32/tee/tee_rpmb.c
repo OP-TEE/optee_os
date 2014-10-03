@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/tee_core_trace.h>
 #include <tee_api_types.h>
 #include <kernel/tee_common_otp.h>

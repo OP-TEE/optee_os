@@ -33,7 +33,7 @@
 
 #include <tee_api_types.h>
 #include <user_ta_header.h>
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
 #include <mm/tee_mmu.h>

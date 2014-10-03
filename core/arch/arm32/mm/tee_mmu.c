@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include <arm32.h>
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_unpg.h>

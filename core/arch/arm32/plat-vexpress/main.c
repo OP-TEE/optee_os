@@ -39,7 +39,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
 
-#include <kernel/util.h>
+#include <util.h>
 #include <kernel/arch_debug.h>
 
 #include <arm32.h>
@@ -52,6 +52,7 @@
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
+#include <malloc.h>
 
 #include <assert.h>
 

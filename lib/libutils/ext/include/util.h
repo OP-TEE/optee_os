@@ -24,8 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef KERNEL_UTIL_H
-#define KERNEL_UTIL_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #ifndef MAX
 #define MAX(a, b) \
@@ -47,4 +47,4 @@
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~(size - 1))
 
-#endif /*KERNEL_UTIL_H*/
+#endif /*UTIL_H*/
