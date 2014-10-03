@@ -68,7 +68,7 @@ void tee_time_wait(uint32_t milliseconds_delay)
 	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg))
 		goto exit;
 
-	if (core_pa2va(pharg, (uint32_t *)&arg))
+	if (core_pa2va(pharg, &arg))
 		goto exit;
 
 	arg->cmd = TEE_RPC_WAIT;
@@ -119,8 +119,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 	    !TEE_ALIGNMENT_IS_OK(phpayload, TEE_Time))
 		goto exit;
 
-	if (core_pa2va(pharg, (uint32_t *)&arg) ||
-	    core_pa2va(phpayload, (uint32_t *)&payload))
+	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &payload))
 		goto exit;
 
 	arg->cmd = TEE_RPC_GET_TIME;

@@ -241,6 +241,7 @@ TEE_Result tee_mac_final(
 {
 	struct cbc_state *cbc;
 	size_t pad_len;
+	unsigned long ltc_digest_len = digest_len;
 
 	switch (algo) {
 	case TEE_ALG_HMAC_MD5:
@@ -253,7 +254,7 @@ TEE_Result tee_mac_final(
 			return TEE_ERROR_BAD_STATE;
 
 		if (CRYPT_OK != hmac_done((hmac_state *)ctx, digest,
-					  (unsigned long *)&digest_len))
+					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;
 		break;
 
@@ -294,7 +295,8 @@ TEE_Result tee_mac_final(
 		if ((!cbc->is_computed) || (cbc->current_block_len != 0))
 			return TEE_ERROR_BAD_STATE;
 
-		memcpy(digest, cbc->digest, MIN(digest_len, cbc->block_len));
+		memcpy(digest, cbc->digest,
+			MIN(ltc_digest_len, cbc->block_len));
 		tee_cipher_final(&cbc->cbc, algo);
 		break;
 
@@ -302,7 +304,7 @@ TEE_Result tee_mac_final(
 		if (CRYPT_OK != omac_process((omac_state *)ctx, data, data_len))
 			return TEE_ERROR_BAD_STATE;
 		if (CRYPT_OK != omac_done((omac_state *)ctx, digest,
-					  (unsigned long *)&digest_len))
+					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;
 		break;
 	default:

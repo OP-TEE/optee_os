@@ -349,7 +349,7 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t py_offset;
-	void *p;
+	paddr_t p;
 	uintptr_t smem;
 	uint32_t *buffer;
 	uint32_t section = 0, section_cnt = 0;
@@ -379,7 +379,7 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 	 * Map heap and stack
 	 */
 	smem = tee_mm_get_smem(ctx->mm_heap_stack);
-	if (core_va2pa((uint32_t)smem, (uint32_t *)&p)) {
+	if (core_va2pa((void *)smem, &p)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
@@ -397,7 +397,7 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 	 * Map code
 	 */
 	smem = tee_mm_get_smem(ctx->mm);
-	if (core_va2pa((uint32_t)smem, (uint32_t *)&p)) {
+	if (core_va2pa((void *)smem, &p)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
@@ -488,7 +488,7 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 	uint32_t i = 0;
 	uint32_t pa;
 
-	if (core_va2pa(kaddr, &pa))
+	if (core_va2pa((void *)kaddr, &pa))
 		return TEE_ERROR_SECURITY;
 
 	while (i < ctx->mmu->size) {
@@ -504,15 +504,15 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 }
 
 TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
-				     void **pa)
+				     paddr_t *pa)
 {
 	uint32_t n = (uint32_t) ua >> SECTION_SHIFT;
 
 	if (n >= ctx->mmu->size)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	*pa = (void *)((ctx->mmu->table[n] & ~SECTION_MASK) |
-		       ((uint32_t) ua & SECTION_MASK));
+	*pa = (ctx->mmu->table[n] & ~SECTION_MASK) |
+		       ((uint32_t) ua & SECTION_MASK);
 	return TEE_SUCCESS;
 }
 
@@ -558,7 +558,7 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 
 		if ((flags & TEE_MEMORY_ACCESS_ANY_OWNER) !=
 		    TEE_MEMORY_ACCESS_ANY_OWNER && n >= param_section) {
-			void *pa;
+			paddr_t pa;
 			TEE_Result res =
 			    tee_mmu_user_va2pa(ctx, (void *)a, &pa);
 
@@ -573,8 +573,7 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 			 * new memory allocated privately for the paramters to
 			 * this TA.
 			 */
-			if (!tee_mm_addr_is_within_range
-			    (&tee_mm_sec_ddr, (uint32_t) pa))
+			if (!tee_mm_addr_is_within_range(&tee_mm_sec_ddr, pa))
 				return TEE_ERROR_ACCESS_DENIED;
 		}
 
@@ -599,7 +598,8 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	if (ctx == NULL) {
 		tee_mmu_switch(core_mmu_get_ttbr0(), 0);
 	} else {
-		uint32_t base, va, i;
+		uint32_t base, i;
+		void *va = NULL;	/* fix gcc warning */
 
 		base = TEE_MMU_UL1_BASE;
 
@@ -613,7 +613,7 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 		 */
 
 		/* copy teecore mapping (priviledge mapping only) */
-		memcpy((void *)base, (void *)va, 16 * 1024);
+		memcpy((void *)base, va, 16 * 1024);
 
 		/* check the 1st entries are not mapped: we will map uTA in ! */
 		for (i = 0; i < (ctx->mmu->size * 4); i += 4) {

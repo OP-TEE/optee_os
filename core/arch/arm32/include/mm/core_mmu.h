@@ -27,7 +27,7 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
-#include <stdint.h>
+#include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
 #include <mm/core_memprot.h>
 
@@ -90,8 +90,38 @@ int core_mmu_unmap(unsigned long paddr, size_t size);
 void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
 			      unsigned int *e);
 
-int core_va2pa(uint32_t va, uint32_t *pa);
-int core_pa2va(uint32_t pa, uint32_t *va);
+int core_va2pa_helper(void *va, paddr_t *pa);
+/* Special macro to avoid breaking strict aliasing rules */
+#ifdef __GNUC__
+#define core_va2pa(va, pa) (__extension__ ({ \
+	paddr_t _p; \
+	int _res = core_va2pa_helper((va), &_p); \
+	if (!_res) \
+		*(pa) = _p; \
+	_res; \
+	}))
+#else
+#define core_va2pa(pa, va) \
+		core_va2pa_helper((pa), (va))
+#endif
+
+
+int core_pa2va_helper(paddr_t pa, void **va);
+/* Special macro to avoid breaking strict aliasing rules */
+#ifdef __GNUC__
+#define core_pa2va(pa, va) (__extension__ ({ \
+	void *_p; \
+	int _res = core_pa2va_helper((pa), &_p); \
+	if (!_res) \
+		*(va) = _p; \
+	_res; \
+	}))
+#else
+#define core_pa2va(pa, va) \
+	core_pa2va_helper((pa), (va))
+#endif
+
+
 
 /* get phys base addr of MMU L1 table used for tee core */
 uint32_t core_mmu_get_ttbr0_base(void);

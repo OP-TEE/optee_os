@@ -303,7 +303,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 
 			if (tee_mmu_user_va2pa(sess->ctx,
 					(void *)param->params[n].memref.buffer,
-					(void **)&src_pa) != TEE_SUCCESS)
+					&src_pa) != TEE_SUCCESS)
 				return TEE_ERROR_BAD_PARAMETERS;
 
 			param->param_attr[n] = tee_mmu_user_get_cache_attr(

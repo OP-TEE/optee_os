@@ -280,6 +280,7 @@ static void load_bootcfg_mapping(void *ttbr0)
 unsigned int core_init_mmu(unsigned int ttbr0, unsigned int ta_ttbr0)
 {
 	uint32_t n;
+	void *va = NULL;	/* fix gcc warning */
 
 	if (secure_get_cpu_id() >= CFG_TEE_CORE_NB_CORE) {
 		EMSG("invalid core ID %d. teecore supports %d cores.",
@@ -311,11 +312,12 @@ skip_mmu_fill:
 
 	/* prepare TA mmu table handling */
 	/* Support 1 TA MMU table location per CPU core must be implemented */
-	if (core_pa2va(ta_ttbr0, (uint32_t *)&(coreta_ttbr0_va[n]))) {
+	if (core_pa2va(ta_ttbr0, &va)) {
 		EMSG("failed to get virtual address of ta_ttbr0 0x%X",
 		     ta_ttbr0);
 		assert(0);
 	}
+	coreta_ttbr0_va[n] = (unsigned int)va;
 	coreta_ttbr0_pa[n] = ta_ttbr0;
 
 	return 0;
@@ -406,7 +408,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 	if (len == 0)
 		return true;
 
-	if (core_va2pa((uint32_t) vbuf, &p))
+	if (core_va2pa((void *)vbuf, &p))
 		return false;
 
 	return core_pbuf_is(attr, (tee_paddr_t) p, len);
@@ -423,24 +425,24 @@ static bool is_coremap_init(void)
 }
 
 /* core_va2pa - teecore exported service */
-int core_va2pa(uint32_t va, uint32_t *pa)
+int core_va2pa_helper(void *va, paddr_t *pa)
 {
 	struct map_area *map;
 
 	if (!is_coremap_init())
 		return -1;
 
-	map = find_map_by_va((void *)va);
+	map = find_map_by_va(va);
 	if (map == NULL)
 		return -1;
 
-	*pa = (va & (map->region_size - 1)) |
-	    ((map->pa + va - map->va) & ~(map->region_size - 1));
+	*pa = ((uintptr_t)va & (map->region_size - 1)) |
+	    ((map->pa + (uintptr_t)va - map->va) & ~(map->region_size - 1));
 	return 0;
 }
 
 /* core_pa2va - teecore exported service */
-int core_pa2va(uint32_t pa, uint32_t *va)
+int core_pa2va_helper(paddr_t pa, void **va)
 {
 	struct map_area *map;
 
@@ -451,8 +453,8 @@ int core_pa2va(uint32_t pa, uint32_t *va)
 	if (map == NULL)
 		return -1;
 
-	*va = (pa & (map->region_size - 1)) |
-	    (((map->va + pa - map->pa)) & ~(map->region_size - 1));
+	*va = (void *)((pa & (map->region_size - 1)) |
+	    (((map->va + pa - map->pa)) & ~(map->region_size - 1)));
 	return 0;
 }
 

@@ -65,11 +65,11 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
  * given the user context
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
-				     void **pa);
+				     paddr_t *pa);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__
 #define tee_mmu_user_va2pa(ctx, va, pa) (__extension__ ({ \
-	void *_p; \
+	paddr_t _p; \
 	TEE_Result _res = tee_mmu_user_va2pa_helper((ctx), (va), &_p); \
 	if (_res == TEE_SUCCESS) \
 		*(pa) = _p; \
