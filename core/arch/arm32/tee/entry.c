@@ -206,7 +206,7 @@ static void entry_open_session(struct thread_smc_args *args,
 	if (!get_open_session_ta(arg32, num_params, &num_meta, &in.ta))
 		goto bad_params;
 
-	TEE_COMPILE_TIME_ASSERT(sizeof(TEE_UUID) == TEESMC_UUID_LEN);
+	COMPILE_TIME_ASSERT(sizeof(TEE_UUID) == TEESMC_UUID_LEN);
 	memcpy(&in.uuid, &meta->uuid, sizeof(TEE_UUID));
 	memcpy(&in.clnt_id.uuid, &meta->clnt_uuid, sizeof(TEE_UUID));
 	in.clnt_id.login = meta->clnt_login;

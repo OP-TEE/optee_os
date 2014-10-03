@@ -98,17 +98,6 @@ typedef uintptr_t tee_uaddr_t;
 #endif
 #endif
 
-#define TEE_COMPILE_TIME_ASSERT(x) {	\
-		switch (0) {		\
-		case 0:			\
-			;		\
-		case ((x) ? 1: 0) :	\
-			;		\
-		default:		\
-			break;		\
-		}			\
-	}
-
 /*-----------------------------------------------------------------------------
  * tee_ta_load_page - Loads a page at address va_addr
  * Parameters:

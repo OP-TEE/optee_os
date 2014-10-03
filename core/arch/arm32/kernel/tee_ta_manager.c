@@ -476,7 +476,7 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	 * sub_head structure is... twice the func_head struct. magic.
 	 * sub_head stores the flags, heap_size, stack_size.
 	 */
-	TEE_COMPILE_TIME_ASSERT((sizeof(struct user_ta_sub_head)) ==
+	COMPILE_TIME_ASSERT((sizeof(struct user_ta_sub_head)) ==
 		   (2 * sizeof(struct user_ta_func_head)));
 
 	/* check input flags bitmask consistency and save flags */
