@@ -102,6 +102,15 @@ extern int _trace_level;
 	    return r;               \
 	} while (0)
 
+#if (CFG_TEE_CORE_LOG_LEVEL < TRACE_DEBUG)
+#define DHEXDUMP(buf, len) (void)0
+#else
+#define DHEXDUMP(buf, len) dhex_dump(__func__, __LINE__, TRACE_DEBUG, \
+				     STR_TRACE_CORE, buf, len)
+void dhex_dump(const char *function, int line, int level, const char *prefix,
+	       const void *buf, int len);
+#endif
+
 /*****************************************************************************/
 /* Trace api without trace formatting */
 
