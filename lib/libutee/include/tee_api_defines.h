@@ -66,7 +66,7 @@
  * Proprietary error codes.
  * All proprietary error codes should use the 0xF57E prefix.
  */
-#define TEE_STE_ERROR_SYSTEM_BUSY       0xF57E0000
+#define TEE_ERROR_SYSTEM_BUSY           0xF57E0000
 #define TEE_ERROR_FILE_NOT_FOUND        0xF57E0010
 
 /* Parameter Type Constants */

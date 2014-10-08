@@ -405,6 +405,7 @@ void mdbg_check(void)
 void free(void *ptr)
 {
 	EFFECTIVE_FREE(ptr);
+	SAVE_ALLOCATED_SIZE();
 }
 
 void *malloc(size_t size)

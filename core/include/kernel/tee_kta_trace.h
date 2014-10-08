@@ -28,6 +28,7 @@
 #define TEE_KTA_TRACE_H
 
 #include <tee_trace.h>
+#include <compiler.h>
 
 /*****************************************************************************/
 
@@ -151,7 +152,7 @@ _dprintf(__func__, __LINE__, TRACE_ALWAYS, STR_TRACE_KERNEL_TA, __VA_ARGS__);
 
 /* Accessors */
 #if (CFG_TEE_TA_LOG_LEVEL == 0)
-static inline void set_ta_trace_level(int level) { }
+static inline void set_ta_trace_level(int level __unused) { }
 static inline int get_ta_trace_level(void) { return 0; }
 static inline void ta_trace_test(void) { }
 #else

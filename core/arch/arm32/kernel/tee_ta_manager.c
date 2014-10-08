@@ -1097,7 +1097,7 @@ TEE_Result tee_ta_close_session(uint32_t id,
 	DMSG("   ... Destroy session");
 
 	if (ctx->busy)
-		return TEE_STE_ERROR_SYSTEM_BUSY;
+		return TEE_ERROR_SYSTEM_BUSY;
 	ctx->busy = true;
 
 	if (ctx->static_ta) {
@@ -1420,7 +1420,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	if (sess->ctx->busy) {
 		*err = TEE_ORIGIN_TEE;
-		return TEE_STE_ERROR_SYSTEM_BUSY;
+		return TEE_ERROR_SYSTEM_BUSY;
 	}
 	sess->ctx->busy = true;
 

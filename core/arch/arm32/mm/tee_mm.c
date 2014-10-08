@@ -120,7 +120,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 		if (((entry->offset << pool->shift) - pool->lo) < size)
 			/* out of memory */
 			return NULL;
-		if ((((entry->offset + entry->size) << pool->shift) + size) >=
+		if ((((entry->offset + entry->size) << pool->shift) + size) >
 		    (pool->hi - pool->lo))
 			/* out of memory */
 			return NULL;

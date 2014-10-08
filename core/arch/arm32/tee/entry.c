@@ -217,7 +217,7 @@ static void entry_open_session(struct thread_smc_args *args,
 		goto bad_params;
 
 	(void)tee_dispatch_open_session(&in, &out);
-	if (out.msg.res == TEE_STE_ERROR_SYSTEM_BUSY) {
+	if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
 		args->a0 = TEESMC_RETURN_EBUSY;
 		return;
 	}
@@ -248,7 +248,7 @@ static void entry_close_session(struct thread_smc_args *args,
 
 		in.sess = arg32->session;
 		ret = tee_dispatch_close_session(&in);
-		if (ret == TEE_STE_ERROR_SYSTEM_BUSY) {
+		if (ret == TEE_ERROR_SYSTEM_BUSY) {
 			args->a0 = TEESMC_RETURN_EBUSY;
 			return;
 		}
@@ -279,7 +279,7 @@ static void entry_invoke_command(struct thread_smc_args *args,
 	in.sess = (TEE_Session *)arg32->session;
 	in.cmd = arg32->ta_func;
 	(void)tee_dispatch_invoke_command(&in, &out);
-	if (out.msg.res == TEE_STE_ERROR_SYSTEM_BUSY) {
+	if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
 		args->a0 = TEESMC_RETURN_EBUSY;
 		return;
 	}
@@ -302,7 +302,7 @@ static void entry_cancel(struct thread_smc_args *args,
 		in.sess = (TEE_Session *)arg32->session;
 		(void)tee_dispatch_cancel_command(&in, &out);
 
-		if (out.msg.res == TEE_STE_ERROR_SYSTEM_BUSY) {
+		if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
 			args->a0 = TEESMC_RETURN_EBUSY;
 			return;
 		}

@@ -274,6 +274,7 @@ loop_inv_pa_sync_done:
  */
 arm_cl2_cleaninvbypa:
 
+	mov r2, r0
 	/*
 	 * ARM ERRATA #764369
 	 * Undocummented SCU Diagnostic Control Register
@@ -287,8 +288,7 @@ arm_cl2_cleaninvbypa:
 	/* Invalidate PA */
 	movw r0, #PL310_FLUSH_BY_PA
 	movt r0, #PL310_BASE_H
-	mov r1, r12		/* FIXME: buggy r12 */
-	str r1, [r0]
+	str r2, [r0]
 
 	/* Wait for PA to be invalidated */
 loop_cli_pa_done:

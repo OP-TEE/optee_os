@@ -28,13 +28,13 @@
 #ifndef TEE_MM_DEF_H
 #define TEE_MM_DEF_H
 
-#define SMALL_PAGE_SHIFT    12
-#define SMALL_PAGE_MASK     0xfff
-#define SMALL_PAGE_SIZE     0x1000
+#define SMALL_PAGE_SHIFT	12
+#define SMALL_PAGE_MASK		0x00000fff
+#define SMALL_PAGE_SIZE		0x00001000
 
-#define SECTION_SHIFT       20
-#define SECTION_MASK        0x000fffff
-#define SECTION_SIZE        0x00100000
+#define SECTION_SHIFT		20
+#define SECTION_MASK		0x000fffff
+#define SECTION_SIZE		0x00100000
 
 #define TEE_VMEM_START      0x40000000
 #define TEE_VMEM_SIZE        (1024 * 1024)

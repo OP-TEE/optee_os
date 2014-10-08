@@ -50,15 +50,13 @@ static int dirty_test_division(void);
 static int dirty_test_malloc(void);
 
 /* exported entry points for some basic test */
-TEE_Result core_dirty_tests(void)
+TEE_Result core_dirty_tests(uint32_t nParamTypes __unused,
+		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
 {
 	if (dirty_test_division() || dirty_test_malloc()) {
 		EMSG("some dirty_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
-
-	/* reset alloc stats as this test corrupts data */
-	malloc_reset_max_allocated();
 	return TEE_SUCCESS;
 }
 
@@ -156,15 +154,13 @@ static int dirty_test_malloc(void)
 	int ret = 0;
 
 	LOG("malloc tests (malloc, free, calloc, realloc, memalign):");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	/* test malloc */
 	p1 = malloc(1024);
 	LOG("- p1 = malloc(1024)");
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	r = (p1 && p2);
 	if (!r)
 		ret = -1;
@@ -178,8 +174,7 @@ static int dirty_test_malloc(void)
 	free(p2);
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	r = (p1 && p2);
 	if (!r)
 		ret = -1;
@@ -196,8 +191,7 @@ static int dirty_test_malloc(void)
 	p4 = calloc(0x100, 1024 * 1024);
 	LOG("- p3 = calloc(0x10, 1024)");
 	LOG("- p4 = calloc(0x100, 1024*1024)   too big: should fail!");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	r = (p3 && !p4);
 	if (!r)
 		ret = -1;
@@ -216,8 +210,7 @@ static int dirty_test_malloc(void)
 	LOG("- p1 = malloc(1024)");
 	p4 = memalign(0x10000, 1024);
 	LOG("- p4 = memalign(%d, 1024)", 0x10000);
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	r = (p1 && p3 && p4);
 	if (!r)
 		ret = -1;
@@ -236,8 +229,7 @@ static int dirty_test_malloc(void)
 	LOG("- p3 = memalign(%d, 1024)", 100);
 	p4 = memalign(0, 1024);
 	LOG("- p4 = memalign(%d, 1024)", 0);
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
-	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
 	r = (!p3 && !p4);
 	if (!r)
 		ret = -1;
