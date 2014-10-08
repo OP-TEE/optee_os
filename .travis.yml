@@ -1,0 +1,37 @@
+# One may have a look at http://docs.travis-ci.com/user/installing-dependencies/
+
+notifications:
+  - email: true
+
+# Installation of ia32 libs, required by the compiler
+before_install:
+  - sudo apt-get update -qq
+  - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes libgd2-xpm ia32-libs ia32-libs-multiarch; fi
+
+# Download the arm compiler to use
+before_script:
+  - wget http://releases.linaro.org/14.05/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.9-2014.05_linux.tar.xz
+  - tar xvf gcc-linaro-arm-linux-gnueabihf-4.9-2014.05_linux.tar.xz
+  - export PATH=$PATH:$PWD/gcc-linaro-arm-linux-gnueabihf-4.9-2014.05_linux/bin
+
+# Several compilation options are checked
+script:
+  # Orly2
+  -                                  PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  # - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+
+  # Cannes
+  -                                  PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  # - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+
+  # FVP
+  -                                  PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
+  # - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
+
+  # QEMU
+  -                                  PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
+  # - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
