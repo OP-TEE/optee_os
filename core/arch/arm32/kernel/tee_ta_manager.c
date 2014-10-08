@@ -81,16 +81,6 @@ typedef enum {
 	COMMAND_DESTROY_ENTRY_POINT,
 } command_t;
 
-/* Enters a user TA */
-static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
-				    struct tee_ta_session *session,
-				    enum tee_user_ta_func func,
-				    uint32_t cancel_req_to, uint32_t cmd,
-				    struct tee_ta_param *param);
-
-static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
-				     struct tee_ta_param *param);
-
 struct param_ta {
 	struct tee_ta_session *sess;
 	uint32_t cmd;
@@ -100,9 +90,11 @@ struct param_ta {
 
 /* This mutex protects the critical section in tee_ta_init_session */
 static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
-
 static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map);
 
+/*
+ * Get/Set resisdent session, to leave/re-enter session execution context.
+ */
 static struct tee_ta_session *get_tee_rs(void)
 {
 	return thread_get_tsd();
@@ -113,6 +105,9 @@ static void set_tee_rs(struct tee_ta_session *tee_rs)
 	thread_set_tsd(tee_rs);
 }
 
+/*
+ * Jumpers for the static TAs.
+ */
 static void jumper_invokecommand(void *voidargs)
 {
 	struct param_ta *args = (struct param_ta *)voidargs;
@@ -228,10 +223,10 @@ int tee_ta_set_trace_level(int level)
 	return 0;
 }
 
-/*-----------------------------------------------------------------------------
- * Find TA in session list based on a UUID (input)
+/*
+ * tee_ta_context_find - Find TA in session list based on a UUID (input)
  * Returns a pointer to the session
- *---------------------------------------------------------------------------*/
+ */
 static struct tee_ta_ctx *tee_ta_context_find(const TEE_UUID *uuid)
 {
 	struct tee_ta_ctx *ctx;
