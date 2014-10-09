@@ -51,6 +51,8 @@ endif
 
 libutil_with_isoc := y
 WITH_SECURE_TIME_SOURCE_CNTPCT := y
+WITH_UART_DRV := y
+WITH_GIC_DRV := y
 
 include mk/config.mk
 
