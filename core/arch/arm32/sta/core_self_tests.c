@@ -27,10 +27,10 @@
 #include <malloc.h>
 #include <stdbool.h>
 #include <kernel/tee_core_trace.h>
-#include "core_dirty_tests.h"
+#include "core_self_tests.h"
 
 /*
- * Enable expect LOG macro to enable/disable dirty tests traces.
+ * Enable expect LOG macro to enable/disable self tests traces.
  *
  * #define LOG     SMSG
  * #define LOG(...)
@@ -39,29 +39,29 @@
 
 #if (CFG_TEE_CORE_EMBED_INTERNAL_TESTS == 0)
 
-TEE_Result core_dirty_tests(void)
+TEE_Result core_self_tests(void)
 {
 	return TEE_SUCCESS;
 }
 
 #else
 
-static int dirty_test_division(void);
-static int dirty_test_malloc(void);
+static int self_test_division(void);
+static int self_test_malloc(void);
 
 /* exported entry points for some basic test */
-TEE_Result core_dirty_tests(uint32_t nParamTypes __unused,
+TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
 {
-	if (dirty_test_division() || dirty_test_malloc()) {
-		EMSG("some dirty_test_xxx failed! you should enable local LOG");
+	if (self_test_division() || self_test_malloc()) {
+		EMSG("some self_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
 	return TEE_SUCCESS;
 }
 
 /* test division support. resulting trace shall be manually checked */
-static int dirty_test_division(void)
+static int self_test_division(void)
 {
 	signed a, b, c, d;
 	bool r;
@@ -146,7 +146,7 @@ static int dirty_test_division(void)
 }
 
 /* test malloc support. resulting trace shall be manually checked */
-static int dirty_test_malloc(void)
+static int self_test_malloc(void)
 {
 	char *p1 = NULL, *p2 = NULL;
 	int *p3 = NULL, *p4 = NULL;

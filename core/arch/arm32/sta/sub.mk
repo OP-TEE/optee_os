@@ -1,2 +1,2 @@
-srcs-y += sta_helloworld.c
-srcs-y += core_dirty_tests.c
+srcs-y += sta_self_tests.c
+srcs-y += core_self_tests.c

@@ -24,14 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef CORE_DIRTY_TESTS_H
-#define CORE_DIRTY_TESTS_H
+#ifndef CORE_SELF_TESTS_H
+#define CORE_SELF_TESTS_H
 
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 
 /* basic run-time tests */
-TEE_Result core_dirty_tests(uint32_t nParamTypes,
+TEE_Result core_self_tests(uint32_t nParamTypes,
 		TEE_Param pParams[TEE_NUM_PARAMS]);
 
-#endif /*CORE_DIRTY_TESTS_H*/
+#endif /*CORE_SELF_TESTS_H*/

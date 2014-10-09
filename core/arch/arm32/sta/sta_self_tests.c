@@ -29,17 +29,17 @@
 #include <kernel/tee_core_trace.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
-#include "core_dirty_tests.h"
+#include "core_self_tests.h"
 
-#define TA_NAME		"sta_helloworld.ta"
+#define TA_NAME		"sta_self_tests.ta"
 
-#define STA_HELLOWORLD_UUID \
+#define STA_SELF_TEST_UUID \
 		{ 0xd96a5b40, 0xc3e5, 0x21e3, \
 			{ 0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1b } }
 
 #define CMD_TRACE	0
 #define CMD_PARAMS	1
-#define CMD_DIRTY_TESTS	2
+#define CMD_SELF_TESTS	2
 
 static TEE_Result test_trace(uint32_t param_types __unused,
 			TEE_Param params[4] __unused)
@@ -231,8 +231,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return test_trace(nParamTypes, pParams);
 	case CMD_PARAMS:
 		return test_entry_params(nParamTypes, pParams);
-	case CMD_DIRTY_TESTS:
-		return core_dirty_tests(nParamTypes, pParams);
+	case CMD_SELF_TESTS:
+		return core_self_tests(nParamTypes, pParams);
 	default:
 		break;
 	}
@@ -240,9 +240,9 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 }
 
 __attribute__ ((section("ta_head_section")))
-	const ta_static_head_t sta_helloworld_head = {
+	const ta_static_head_t sta_self_tests_head = {
 
-	.uuid = STA_HELLOWORLD_UUID,
+	.uuid = STA_SELF_TEST_UUID,
 	.name = (char *)TA_NAME,
 	.create_entry_point = create_ta,
 	.destroy_entry_point = destroy_ta,
