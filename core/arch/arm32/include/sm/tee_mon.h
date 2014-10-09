@@ -37,8 +37,4 @@ extern ta_static_head_t __start_ta_head_section;
 extern ta_static_head_t __stop_ta_head_section;
 extern TEE_Result init_teecore(void);
 
-/* teecore heap address/size is defined in scatter file */
-extern unsigned char teecore_heap_start;
-extern unsigned char teecore_heap_end;
-
 #endif /* TEE_MON_H */

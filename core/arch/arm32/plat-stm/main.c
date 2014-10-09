@@ -39,6 +39,7 @@
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
+#include <malloc.h>
 #include <util.h>
 #include <trace.h>
 #include <kernel/misc.h>
@@ -94,6 +95,11 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #error "Top of tmp stacks aren't defined for more than 4 CPUS"
 #endif
 };
+
+/* teecore heap address/size is defined in scatter file */
+extern unsigned char teecore_heap_start;
+extern unsigned char teecore_heap_end;
+
 
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
@@ -189,6 +195,22 @@ void main_init(uint32_t nsec_entry)
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
 	sm_set_entry_vector(thread_vector_table);
+
+	if (pos == 0) {
+		unsigned long a, s;
+		/* core malloc pool init */
+#ifdef CFG_TEE_MALLOC_START
+		a = CFG_TEE_MALLOC_START;
+		s = CFG_TEE_MALLOC_SIZE;
+#else
+		a = (unsigned long)&teecore_heap_start;
+		s = (unsigned long)&teecore_heap_end;
+		a = ((a + 1) & ~0x0FFFF) + 0x10000;	/* 64kB aligned */
+		s = s & ~0x0FFFF;	/* 64kB aligned */
+		s = s - a;
+#endif
+		malloc_init((void *)a, s);
+	}
 }
 
 static void main_fiq(void)

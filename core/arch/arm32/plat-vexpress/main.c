@@ -123,13 +123,17 @@ static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
-extern uint32_t __text_start;
-extern uint32_t __rodata_end;
-extern uint32_t __data_start;
-extern uint32_t __bss_start;
-extern uint32_t __bss_end;
-extern uint32_t _end;
-extern uint32_t _end_of_ram;
+extern uint8_t __text_start;
+extern uint8_t __rodata_end;
+extern uint8_t __data_start;
+extern uint8_t __bss_start;
+extern uint8_t __bss_end;
+extern uint8_t _end;
+extern uint8_t _end_of_ram;
+extern uint8_t __heap_start;
+extern uint8_t __heap_end;
+extern uint8_t __nozi_pad_start;
+extern uint8_t __nozi_pad_end;
 
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
@@ -318,6 +322,14 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 
 	if (is_primary) {
 		main_init_gic();
+
+		malloc_init(&__heap_start,
+				(uintptr_t)&__heap_end -
+					(uintptr_t)&__heap_start);
+		malloc_add_pool(&__nozi_pad_start,
+				(uintptr_t)&__nozi_pad_end -
+					(uintptr_t)&__nozi_pad_start);
+
 		if (init_teecore() != TEE_SUCCESS)
 			panic();
 		DMSG("Primary CPU switching to normal world boot\n");

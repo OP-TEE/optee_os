@@ -47,7 +47,6 @@
 TEE_Result init_teecore(void)
 {
 	static int is_first = 1;
-	unsigned long a, s;
 
 	/* (DEBUG) for inits at 1st TEE service: when UART is setup */
 	if (!is_first)
@@ -59,20 +58,6 @@ TEE_Result init_teecore(void)
 	asc_init();
 	IMSG("teecore: uart trace init");
 #endif
-
-	/* core malloc pool init */
-#ifdef CFG_TEE_MALLOC_START
-	a = CFG_TEE_MALLOC_START;
-	s = CFG_TEE_MALLOC_SIZE;
-#else
-	a = (unsigned long)&teecore_heap_start;
-	s = (unsigned long)&teecore_heap_end;
-	a = ((a + 1) & ~0x0FFFF) + 0x10000;	/* 64kB aligned */
-	s = s & ~0x0FFFF;	/* 64kB aligned */
-	s = s - a;
-#endif
-	IMSG("teecore heap: paddr=0x%lX size=0x%lX (%ldkB)", a, s, s / 1024);
-	malloc_init((void *)a, s);
 
 	/* init support for futur mapping of TAs */
 	tee_mmu_kmap_init();

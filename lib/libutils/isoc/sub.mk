@@ -1,10 +1,8 @@
 global-incdirs-y += include
 
-srcs-$(sm-core) += dlmalloc.c
-cflags-remove-dlmalloc.c-y += -Wcast-align -Wstrict-aliasing=2
-
-srcs-$(sm-core) += malloc_wrapper.c
-cflags-malloc_wrapper.c-y += -Wno-redundant-decls
+srcs-y += bget_malloc.c
+cflags-remove-bget_malloc.c-y += -Wold-style-definition -Wredundant-decls
+cflags-bget_malloc.c-y += -Wno-sign-compare -Wno-cast-align
 
 srcs-y += snprintf.c
 

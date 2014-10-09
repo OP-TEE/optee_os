@@ -35,6 +35,7 @@
 #include <utee_syscalls.h>
 #include "utee_misc.h"
 #include <tee_arith_internal.h>
+#include <malloc.h>
 
 /* From user_ta_header.c, built within TA */
 extern const size_t ta_data_size;
@@ -50,11 +51,6 @@ void ta_entry_open_session(uint32_t param_types,
 void ta_entry_invoke_command(uint32_t cmd_id, uint32_t param_types,
 			     TEE_Param params[TEE_NUM_PARAMS],
 			     uint32_t session_id) __noreturn;
-
-/*
- * Some external allocation support from libutee or libutils.
- */
-void bget_malloc_add_heap(void *buf, size_t len);
 
 struct ta_session {
 	uint32_t session_id;
@@ -106,7 +102,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 		trace_set_level(tahead_get_trace_level());
 
-		bget_malloc_add_heap(ta_heap_base, ta_data_size);
+		malloc_init(ta_heap_base, ta_data_size);
 
 		TEE_MathAPI_Init();
 

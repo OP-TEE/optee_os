@@ -187,9 +187,9 @@ SECTIONS
 	}
 #endif
 
-	teecore_heap_start = .;
+	__heap_start = .;
 	. += 0x40000 /*256KiB*/;
-	teecore_heap_end = .;
+	__heap_end = .;
 
 	_end = .;
 

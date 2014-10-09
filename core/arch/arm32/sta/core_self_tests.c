@@ -161,7 +161,10 @@ static int self_test_malloc(void)
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
 	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
-	r = (p1 && p2);
+	r = (p1 && p2 && malloc_buffer_is_within_alloced(p1, 1024) &&
+		!malloc_buffer_is_within_alloced(p1 + 25, 1000) &&
+		!malloc_buffer_is_within_alloced(p1 - 25, 500) &&
+		malloc_buffer_overlaps_heap(p1 - 25, 500));
 	if (!r)
 		ret = -1;
 	LOG("  => test %s", r ? "ok" : "FAILED");

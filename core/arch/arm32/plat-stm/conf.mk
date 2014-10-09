@@ -55,7 +55,7 @@ core-platform-cppflags += \
 	-DCFG_DDR_TEETZ_RESERVED_START=$(CFG_DDR_TEETZ_RESERVED_START) \
 	-DCFG_DDR_TEETZ_RESERVED_SIZE=$(CFG_DDR_TEETZ_RESERVED_SIZE)
 
-core-platform-cppflags += -DTEE_USE_DLMALLOC
+
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
 

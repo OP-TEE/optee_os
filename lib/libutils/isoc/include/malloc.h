@@ -28,69 +28,78 @@
 #define MALLOC_H
 
 #include <stddef.h>
+#include <types_ext.h>
 
 enum mdbg_mode {
 	MDBG_MODE_STATIC,
 	MDBG_MODE_DYNAMIC
 };
 
-/*
- * ENABLE_MDBG: malloc debug support
- *
- * When enabled, malloc, calloc, realloc and free are redirected from SLA
- * to routines that trace memory callers (filename/line) and provide few other
- * memory alloc debug features. calloc and realloc are routed to basic malloc.
- *
- * memalign and other standard mem alloc APIs are not handled by mdbg.
- *
- * If ENABLE_MDBG is not set, malloc.c acts as a wrapper to redirect std
- * malloc apis to the apis of the embedded malloc library (SLA, dlmalloc,...).
- */
 #ifdef ENABLE_MDBG
 
-/* define mdbg 'malloc' routine and redirect std apis to these. */
-void *mdbg_malloc(const char *fname, int lineno, unsigned nbytes);
-void *mdbg_calloc(const char *fname, int lineno, unsigned nelem,
-		  unsigned elsize);
-#ifdef MDBG_REALLOC_ENABLED
-void *mdbg_realloc(const char *fname, int lineno, void *ptr, unsigned size);
-#endif
+void *mdbg_malloc(const char *fname, int lineno, size_t size);
+void mdbg_free(void *ptr);
+void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
+void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
+void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
+		size_t size);
 
-void mdbg_free(void *fp);
-void mdbg_dump(int bufdump);
 enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode);
-void mdbg_check(void);
+void mdbg_check(int bufdump);
 
-/* Redefine standard memory allocator calls to use our routines instead. */
-#define free           mdbg_free
-#define malloc(x)      mdbg_malloc(__FILE__, __LINE__, (x))
-#define calloc(n, e)    mdbg_calloc(__FILE__, __LINE__, (n), (e))
-#define realloc(p, x)   mdbg_realloc(__FILE__, __LINE__, (p), (x))
+#define malloc(size)	mdbg_malloc(__FILE__, __LINE__, (size))
+#define free(ptr)	mdbg_free((ptr))
+#define calloc(nmemb, size) \
+		mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
+#define realloc(ptr, size) \
+		mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
+#define memalign(alignment, size) \
+		mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
 
 #else
 
-/* mdbg not enabled: simple define standard apis */
-void *calloc(size_t nmemb, size_t size);
-void free(void *ptr);
 void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
+void *memalign(size_t alignment, size_t size);
 
-#define mdbg_check()        do { } while (0)
-#define mdbg_dump(x)        do { } while (0)
+#define mdbg_check(x)        do { } while (0)
 static inline enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode)
 {
 	return mode;
 }
 
-#endif /* ENABLE_MDBG */
+#endif
 
-/* other standard malloc apis */
-void *memalign(size_t align, size_t size);
-void *valloc(size_t size);
-void *pvalloc(size_t size);
 
-/* entry point for malloc init in case some inits are required */
-void malloc_init(void *start, size_t size);
+/*
+ * Returns true if the supplied memory area is within a buffer
+ * previously allocated (and not freed yet).
+ *
+ * Used internally by TAs
+ */
+bool malloc_buffer_is_within_alloced(void *buf, size_t len);
+
+/*
+ * Returns true if the supplied memory area is overlapping the area used
+ * for heap.
+ *
+ * Used internally by TAs
+ */
+bool malloc_buffer_overlaps_heap(void *buf, size_t len);
+
+/*
+ * Sets an initial pool of memory to allocate from, must only be called
+ * once.
+ */
+void malloc_init(void *buf, size_t len);
+
+/*
+ * Adds a pool of memory to allocate from. If malloc_init hasn't been
+ * called before this function it will do a malloc_init internally.
+ */
+void malloc_add_pool(void *buf, size_t len);
 
 /* get malloc stats: curr allocated heap and max allocated heap since boot */
 void malloc_reset_max_allocated(void);

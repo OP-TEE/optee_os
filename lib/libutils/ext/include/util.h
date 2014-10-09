@@ -47,4 +47,7 @@
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~(size - 1))
 
+/* x has to be of an unsigned type */
+#define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
+
 #endif /*UTIL_H*/
