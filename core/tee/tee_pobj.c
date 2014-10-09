@@ -32,7 +32,7 @@
 #include <stdlib.h>
 
 static TAILQ_HEAD(tee_pobjs, tee_pobj) tee_pobjs =
-TAILQ_HEAD_INITIALIZER(tee_pobjs);
+		TAILQ_HEAD_INITIALIZER(tee_pobjs);
 
 static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 {
@@ -149,9 +149,4 @@ TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 exit:
 	free(new_obj_id);
 	return res;
-}
-
-void tee_pobj_init(void)
-{
-	TAILQ_INIT(&tee_pobjs);
 }
