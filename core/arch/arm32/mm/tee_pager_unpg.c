@@ -380,7 +380,8 @@ void tee_pager_restore_irq(void)
 	 * INTERRUPT_ENABLE(SEC_ENV_SETTINGS_READ() & SEC_ROM_IRQ_ENABLE_MASK);
 	 */
 
-	/* Make a crash on purpose as this is not implemented yet */
-	int *p = 0;
-	*p = 1;
+	/* Infinite loop as this is not implemented yet */
+	volatile bool mytrue = true;
+	while (mytrue)
+	;
 }
