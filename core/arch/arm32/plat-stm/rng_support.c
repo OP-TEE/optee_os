@@ -24,16 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <stdlib.h>
 #include <rng_support.h>
 #include <kernel/tee_core_trace.h>
 #include <platform_config.h>
 
-/* Use the RNG of the HW on this platform */
-#define USE_RNG_HW
-
-#define USE_FULLY_RNG_HW_IMP 1
 #define USE_SW_DELAY         0
 
 /*
@@ -43,8 +38,6 @@
  * else error is logged and 0x00 is returned
  */
 #define USE_USER_TIMEOUT     1
-
-#ifdef USE_RNG_HW
 
 /* Address of the register to read in the RNG IP */
 #define RNG_VAL             (RNG_BASE + 0x24)
@@ -79,7 +72,6 @@ static inline int hwrng_waithost_fifo_full(void)
 }
 
 uint8_t hw_get_random_byte(void)
-#if (USE_FULLY_RNG_HW_IMP == 1)
 {
 	/*
 	 * Only the HW RNG IP is used to generate the value through the
@@ -165,68 +157,3 @@ uint8_t hw_get_random_byte(void)
 	pos = 0;
 	return lfifo[pos];
 }
-#else  /* USE_FULLY_RNG_HW_IMP != 1 */
-{
-	/*
-	 * The HW RNG IP is used to generate a seed periodically
-	 * (MAX_SOFT_RNG) through the HOST interface.
-	 *
-	 * @see the document rng_fspec_revG_120720.pdf for details
-	 *
-	 * - Pseudo SW Random generator is used to generate the random
-	 *   value.
-	 */
-
-	static uint32_t _lcg_state;
-	static uint32_t _nb_soft;	/* 0 is the initial value */
-	int res;
-
-#define MAX_SOFT_RNG 512
-
-	static const uint32_t _a = 1664525;
-	static const uint32_t _c = 1013904223;
-
-	if (_nb_soft == 0) {
-		/* Update the seed as a "real" HW random generated number */
-		do {
-			res = hwrng_waithost_fifo_full();
-			if (res < 0)
-				return 0x00;
-			_lcg_state = *_p_addr_val & 0xFFFF;
-			_lcg_state <<= 16;
-
-#if (USE_SW_DELAY == 1)
-			/*
-			 * Wait 0.667 us (fcpu = 600Mhz -> 400 cycles)
-			 * @see doc
-			 */
-			volatile int ll = 200;
-			while (ll--)
-				;
-#endif
-			_lcg_state |= *_p_addr_val & 0xFFFF;
-		} while (_lcg_state == 0);
-	}
-	_nb_soft = (_nb_soft + 1) % MAX_SOFT_RNG;
-	_lcg_state = (_a * _lcg_state + _c);
-
-	return (uint8_t) (_lcg_state >> 24);
-}
-#endif
-
-#else
-/* Software version. Comes from the compiler */
-uint8_t hw_get_random_byte(void)
-{
-	static uint8_t value = 1;
-	static uint32_t ite;	/* 0 is the initial value */
-
-	ite++;
-	srand(ite);
-	value = (256 * ((double)rand() / RAND_MAX));
-	/* AMSG("SW Random value = 0x%02x", value); */
-	return value;
-}
-
-#endif
-
