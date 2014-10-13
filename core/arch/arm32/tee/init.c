@@ -32,6 +32,7 @@
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <kernel/tee_core_trace.h>
+#include <kernel/time_source.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
 
@@ -81,6 +82,9 @@ TEE_Result init_teecore(void)
 
 	/* Libtomcrypt initialization */
 	tee_ltc_init();
+
+	/* time initialization */
+	time_source_init();
 
 	IMSG("teecore inits done");
 	return TEE_SUCCESS;
