@@ -8,6 +8,7 @@ platform-cpuarch = cortex-a15
 platform-cflags	 = -mcpu=$(platform-cpuarch) -mthumb
 platform-cflags	+= -pipe -mthumb-interwork -mlong-calls
 platform-cflags += -fno-short-enums -mno-apcs-float -fno-common
+platform-cflags += -mfloat-abi=soft
 platform-cflags += -mno-unaligned-access
 platform-aflags	 = -mcpu=$(platform-cpuarch)
 core-platform-cppflags	 = -I$(arch-dir)/include
