@@ -233,18 +233,19 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 }
 #endif
 
-#if PLATFORM_FLAVOR_IS(fvp)
+#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno)
 static void main_init_gic(void)
 {
 	/*
-	 * In FVP, GIC configuration is initialized in ARM-TF,
-	 * Initialize GIC base address here for debugging.
+	 * On ARMv8, GIC configuration is initialized in ARM-TF,
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	gic_it_add(IT_CONSOLE_UART);
-	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	/* Route FIQ to primary CPU */
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, gic_it_get_target(0));
 	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
 	gic_it_enable(IT_CONSOLE_UART);
+
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
 static void main_init_gic(void)
@@ -266,6 +267,7 @@ static void main_init_gic(void)
 
 static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 {
+
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
 	 * vector as the thread handler requires externl Abort, IRQ and FIQ
@@ -280,7 +282,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		uintptr_t bss_end = (uintptr_t)&__bss_end;
 		size_t n;
 
-		/* Initialize uart with physical address */
+		/* Initialize uart with virtual address */
 		uart_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
 			  CONSOLE_BAUDRATE);
 
@@ -343,16 +345,18 @@ static void main_fiq(void)
 {
 	uint32_t iar;
 
-	DMSG("%s\n", __func__);
+	DMSG("enter");
 
 	iar = gic_read_iar();
 
-	while (uart_have_rx_data(CONSOLE_UART_BASE))
-		DMSG("got 0x%x\n", uart_getchar(CONSOLE_UART_BASE));
+	while (uart_have_rx_data(CONSOLE_UART_BASE)) {
+		DMSG("cpu %zu: got 0x%x",
+		     get_core_pos(), uart_getchar(CONSOLE_UART_BASE));
+	}
 
 	gic_write_eoir(iar);
 
-	DMSG("return from %s\n", __func__);
+	DMSG("return");
 }
 
 #if defined(WITH_ARM_TRUSTED_FW)

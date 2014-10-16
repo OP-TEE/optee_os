@@ -29,6 +29,9 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 
+/* Let platforms override this if needed */
+.weak get_core_pos
+
 FUNC get_core_pos , :
 	read_mpidr r0
 	/* Calculate CorePos = (ClusterId * 4) + CoreId */

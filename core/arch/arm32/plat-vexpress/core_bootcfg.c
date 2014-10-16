@@ -220,8 +220,8 @@ static struct map_area bootcfg_stih416_memory[] = {
 
 	{	/* UART */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = UART0_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
-	 .device = true, .secure = false, .rw = true,
+	 .pa = CONSOLE_UART_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .device = true, .secure = true, .rw = true,
 	 },
 
 	{	/* GIC */

@@ -25,62 +25,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-        /* Please keep them sorted based on the CRn register */
-	.macro read_mpidr reg
-	mrc	p15, 0, \reg, c0, c0, 5
-	.endm
+#include <asm.S>
+#include <arm32.h>
+#include <arm32_macros.S>
 
-	.macro read_sctlr reg
-	mrc	p15, 0, \reg, c1, c0, 0
-	.endm
+/* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
+FUNC get_core_pos , :
+	read_mpidr r0
+	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
+	and	r1, r0, #MPIDR_CPU_MASK
+	and	r0, r0, #MPIDR_CLUSTER_MASK
+	eor	r0, r0, #(1 << MPIDR_CLUSTER_SHIFT)
+	add	r0, r1, r0, LSR #6
+	bx	lr
+END_FUNC get_core_pos
 
-	.macro write_sctlr reg
-	mcr	p15, 0, \reg, c1, c0, 0
-	.endm
-
-	.macro read_scr reg
-	mrc	p15, 0, \reg, c1, c1, 0
-	.endm
-
-	.macro write_scr reg
-	mcr	p15, 0, \reg, c1, c1, 0
-	.endm
-
-	.macro write_ttbr0 reg
-	mcr	p15, 0, \reg, c2, c0, 0
-	.endm
-
-	.macro write_dacr reg
-	mcr	p15, 0, \reg, c3, c0, 0
-	.endm
-
-	.macro read_dfsr reg
-	mrc	p15, 0, \reg, c5, c0, 0
-	.endm
-
-	.macro write_iciallu
-	/* Invalidate all instruction caches to PoU (register ignored) */
-	mcr	p15, 0, r0, c7, c5, 0
-	.endm
-
-	.macro write_bpiall
-	/* Invalidate entire branch predictor array (register ignored) */
-	mcr	p15, 0, r0, c7, c5, 0
-	.endm
-
-	.macro write_tlbiall
-	/* Invalidate entire unified TLB (register ignored) */
-	mcr	p15, 0, r0, c8, c7, 0
-	.endm
-
-	.macro write_vbar reg
-	mcr	p15, 0, \reg, c12, c0, 0
-	.endm
-
-	.macro write_mvbar reg
-	mcr	p15, 0, \reg, c12, c0, 1
-	.endm
-
-	.macro write_contextidr reg
-	mcr	p15, 0, \reg, c13, c0, 1
-	.endm
