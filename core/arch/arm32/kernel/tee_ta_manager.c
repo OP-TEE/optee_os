@@ -775,9 +775,9 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(ctx->mm_heap_stack) + ctx->stack_size;
+	usr_stack -= sizeof(param->params);
 	usr_params = (TEE_Param *)usr_stack;
 	memcpy(usr_params, param->params, sizeof(param->params));
-	usr_stack -= sizeof(param->params);
 
 	res = tee_mmu_kernel_to_user(ctx, (tee_vaddr_t)usr_params,
 				     &params_uaddr);
