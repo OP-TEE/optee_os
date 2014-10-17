@@ -94,8 +94,15 @@ void uart_flush_tx_fifo(vaddr_t base)
 		;
 }
 
-void uart_init(vaddr_t base)
+void uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 {
+	if (baud_rate) {
+		uint32_t divisor = (uart_clk * 4) / baud_rate;
+
+		write32(divisor >> 6, base + UART_IBRD);
+		write32(divisor & 0x3f, base + UART_FBRD);
+	}
+
 	write32(0, base + UART_RSR_ECR);
 
 	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo disabled. */

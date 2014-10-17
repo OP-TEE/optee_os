@@ -281,7 +281,8 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		size_t n;
 
 		/* Initialize uart with physical address */
-		uart_init(CONSOLE_UART_BASE);
+		uart_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
+			  CONSOLE_BAUDRATE);
 
 		/*
 		 * Zero BSS area. Note that globals that would normally

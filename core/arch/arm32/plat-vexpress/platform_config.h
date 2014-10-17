@@ -173,4 +173,16 @@
 #error "Unknown platform flavor"
 #endif
 
+#ifndef UART_BAUDRATE
+#define UART_BAUDRATE		115200
+#endif
+#ifndef CONSOLE_BAUDRATE
+#define CONSOLE_BAUDRATE	UART_BAUDRATE
+#endif
+
+/* For virtual platforms where there isn't a clock */
+#ifndef CONSOLE_UART_CLK_IN_HZ
+#define CONSOLE_UART_CLK_IN_HZ	1
+#endif
+
 #endif /*PLATFORM_CONFIG_H*/

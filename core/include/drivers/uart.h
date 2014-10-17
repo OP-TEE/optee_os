@@ -29,7 +29,7 @@
 
 #include <types_ext.h>
 
-void uart_init(vaddr_t base);
+void uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
 
 void uart_putc(int ch, vaddr_t base);
 
