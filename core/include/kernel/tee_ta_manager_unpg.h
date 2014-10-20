@@ -37,7 +37,6 @@
 #include <sys/queue.h>
 #include "tee_api_types.h"
 #include "user_ta_header.h"
-#include "tee_trace.h"
 
 TAILQ_HEAD(tee_ta_session_head, tee_ta_session);
 TAILQ_HEAD(tee_ta_ctx_head, tee_ta_ctx);

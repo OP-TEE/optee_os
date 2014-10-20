@@ -31,7 +31,7 @@
 #include <tee_api_defines.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 /*
  * l2cc_mutex_va holds teecore virtual address of TZ L2CC mutex or NULL.

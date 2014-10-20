@@ -160,11 +160,11 @@ static int is_buffer_valid(void *buffer)
 /*
  * Common print of an element.
  */
-#if (CFG_TEE_TA_LOG_LEVEL > 0)
+#if (CFG_TRACE_LEVEL > 0)
 static void print_buf(int tl, const char *func, int line, const char *prefix,
 		      const struct user_mem_elem *e)
 {
-	dprintf_raw(tl, "%s:%d: %slink:[%p], buf:[%p:%d]\n",
+	trace_printf(NULL, 0, tl, false,  "%s:%d: %slink:[%p], buf:[%p:%d]\n",
 		    func, line, prefix, (void *)e, buf_addr(e), buf_size(e));
 }
 
@@ -506,11 +506,11 @@ void tee_user_mem_status(struct tee_user_mem_stats *stats)
 	if (stats != NULL)
 		memcpy(stats, &global_stats, sizeof(struct tee_user_mem_stats));
 
-	AMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
-	AMSG("Size:\t[%d]", global_stats.size);
+	EMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
+	EMSG("Size:\t[%d]", global_stats.size);
 
 	TAILQ_FOREACH(e, &user_mem_head, link) {
-		PB(TRACE_ALWAYS, "", e);
+		PB(TRACE_ERROR, "", e);
 	}
 }
 #else

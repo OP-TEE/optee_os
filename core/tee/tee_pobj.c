@@ -26,7 +26,7 @@
  */
 
 #include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 #include <string.h>
 #include <stdlib.h>

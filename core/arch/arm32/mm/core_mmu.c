@@ -43,7 +43,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <kernel/misc.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_misc.h>
 
 /* Default NSec shared memory allocated from NSec world */

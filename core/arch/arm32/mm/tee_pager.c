@@ -27,7 +27,7 @@
 
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu_defs.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
 

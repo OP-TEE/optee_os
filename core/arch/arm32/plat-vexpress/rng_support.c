@@ -26,7 +26,7 @@
  */
 #include <stdlib.h>
 #include <rng_support.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 /* Bad software version */
 uint8_t hw_get_random_byte(void)

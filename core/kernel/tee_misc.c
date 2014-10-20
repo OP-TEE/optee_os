@@ -29,7 +29,7 @@
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <kernel/tee_common_otp.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 static uint8_t tee_b2hs_add_base(uint8_t in)
 {

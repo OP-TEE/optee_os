@@ -26,7 +26,7 @@
  */
 
 #include <kernel/tee_common.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 #include <mm/tee_mm.h>
 #include <mm/tee_mm_unpg.h>

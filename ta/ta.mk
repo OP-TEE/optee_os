@@ -9,7 +9,7 @@ cflags$(sm)	+= $(platform-cflags) $(user_ta-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(user_ta-platform-aflags)
 
 # Config flags from mk/config.mk
-cppflags$(sm) += -DCFG_TEE_TA_LOG_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
+cppflags$(sm) += -DCFG_TRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 
 

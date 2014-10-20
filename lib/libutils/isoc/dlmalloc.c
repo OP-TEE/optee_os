@@ -3,7 +3,7 @@
  * config not revelant to exported dlmalloc.h header are defined below.
  */
 /*  redirect fprintf(stderr, ...) to teecore trace */
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #define fprintf(h, fmt, ...)    IMSG(fmt, __VA_ARGS__)
 #include "dlmalloc.h"
 

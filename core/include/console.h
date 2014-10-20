@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,36 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_TRACE_LEVELS_H
-#define TEE_TRACE_LEVELS_H
+#ifndef CONSOLE_H
+#define CONSOLE_H
 
-/*
- * Trace levels.
- *
- * ALWAYS is used when you always want a print to be seen, but it is not always
- * an error.
- *
- * ERROR is used when some kind of error has happened, this is most likely the
- * print you will use most of the time when you report some kind of error.
- *
- * INFO is used when you want to print some 'normal' text to the user.
- * This is the default level.
- *
- * DEBUG is used to print extra information to enter deeply in the module.
- *
- * FLOW is used to print the execution flox, typically the in/out of functions.
- *
- */
+void console_putc(int ch);
+void console_flush_tx_fifo(void);
 
-#define TRACE_MIN       1
-#define TRACE_ALWAYS    TRACE_MIN
-#define TRACE_ERROR     2
-#define TRACE_INFO      3
-#define TRACE_DEBUG     4
-#define TRACE_FLOW      5
-#define TRACE_MAX       TRACE_FLOW
+#endif /*CONSOLE_H*/
 
-/* Trace level of the casual printf */
-#define TRACE_PRINTF_LEVEL TRACE_ALWAYS
-
-#endif /* TEE_TRACE_LEVELS_H */

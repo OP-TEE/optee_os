@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,65 +25,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <kernel/misc.h>
-#include <kernel/tee_time.h>
+#ifndef KERNEL_TEE_KTA_TRACE_H
+#define KERNEL_TEE_KTA_TRACE_H
+
 #include <trace.h>
-#include <kernel/time_source.h>
-#include <mm/core_mmu.h>
-#include <utee_defines.h>
 
-#include <assert.h>
-#include <stdint.h>
-#include <mpa.h>
+/*
+ * This file provides legacy support for static TAs which hasn't been
+ * converted yet.
+ */
 
-static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
-{
-	mpa_word_t remainder = 0, n0, n1;
-	n0 = (*dividend) & UINT_MAX;
-	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
-	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
-	return remainder;
-}
+#define ATAMSG		EMSG
+#define ETAMSG		EMSG
+#define ITAMSG		IMSG
+#define DTAMSG		DMSG
+#define FTAMSG		FMSG
 
-static uint64_t read_cntpct(void)
-{
-	uint64_t val;
-	uint32_t low, high;
-	__asm__ volatile("mrrc	p15, 0, %0, %1, c14\n"
-		: "=r"(low), "=r"(high)
-		:
-		: "memory");
-	val = low | ((uint64_t)high << WORD_SIZE);
-	return val;
-}
+#define TAINMSG		INMSG
+#define TAOUTMSG	OUTMSG
+#define TAOUTRMSG	OUTRMSG
 
-static uint32_t read_cntfrq(void)
-{
-	uint32_t frq;
-	__asm__ volatile("mrc	p15, 0, %0, c14, c0, 0\n"
-		: "=r"(frq)
-		:
-		: "memory");
-	return frq;
-}
 
-static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
-{
-	uint64_t cntpct = read_cntpct();
-	uint32_t cntfrq = read_cntfrq();
-	uint32_t remainder;
+#define ATAMSG_RAW	EMSG_RAW
+#define ETAMSG_RAW	EMSG_RAW
+#define ITAMSG_RAW	IMSG_RAW
+#define DTAMSG_RAW	DMSG_RAW
+#define FTAMSG_RAW	FMSG_RAW
 
-	remainder = do_div(&cntpct, cntfrq);
+#define set_ta_trace_level(l)	trace_set_level((l))
+#define get_ta_trace_level()	trace_get_level()
 
-	time->seconds = (uint32_t)cntpct;
-	time->millis = remainder / (cntfrq / TEE_TIME_MILLIS_BASE);
-
-	return TEE_SUCCESS;
-}
-
-static const struct time_source arm_cntpct_time_source = {
-	.name = "arm cntpct",
-	.get_sys_time = arm_cntpct_get_sys_time,
-};
-
-REGISTER_TIME_SOURCE(arm_cntpct_time_source)
+#endif /*KERNEL_TEE_KTA_TRACE_H*/

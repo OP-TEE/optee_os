@@ -34,7 +34,7 @@
 #include <sys/queue.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_cryp_provider.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <string_ext.h>
 
 /* Set an attribute on an object */

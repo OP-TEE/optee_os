@@ -32,7 +32,7 @@
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
 {

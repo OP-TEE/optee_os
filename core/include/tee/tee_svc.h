@@ -32,7 +32,6 @@
 #include <tee_api_types.h>
 #include <tee_api_types.h>
 #include <utee_types.h>
-#include <tee_trace.h>
 
 struct tee_ta_session;
 
@@ -100,5 +99,8 @@ TEE_Result tee_svc_wait(uint32_t timeout);
 
 TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *time);
 TEE_Result tee_svc_set_ta_time(const TEE_Time *time);
+
+void tee_svc_trace_syscall(int num);
+
 
 #endif /* TEE_SVC_H */

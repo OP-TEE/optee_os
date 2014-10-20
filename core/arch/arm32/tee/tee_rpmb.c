@@ -29,7 +29,7 @@
 #include <string.h>
 #include <string_ext.h>
 #include <util.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <tee_api_types.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_rpc.h>

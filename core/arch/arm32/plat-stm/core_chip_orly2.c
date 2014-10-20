@@ -28,7 +28,7 @@
 #include <stdint.h>
 
 #include <mm/tee_mmu_io.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_misc_unpg.h>
 
 /* Cut information for Orly2 */

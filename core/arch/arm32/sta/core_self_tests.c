@@ -26,7 +26,7 @@
  */
 #include <malloc.h>
 #include <stdbool.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include "core_self_tests.h"
 
 /*

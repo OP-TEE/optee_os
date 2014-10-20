@@ -40,7 +40,7 @@
 #include "tee_api_types.h"
 #include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_misc.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_io.h>

@@ -35,7 +35,6 @@
 #include "tee_ta.h"
 #include <kernel/kta_types.h>
 #include "tee_ta_manager_unpg.h"
-#include "tee_trace.h"
 
 /*-----------------------------------------------------------------------------
  * Initializes virtual memory management by reserving virtual memory for

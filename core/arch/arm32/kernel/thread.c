@@ -38,7 +38,7 @@
 #include <kernel/misc.h>
 #include <mm/tee_mmu.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 #include <assert.h>
 

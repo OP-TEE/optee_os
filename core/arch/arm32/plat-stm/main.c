@@ -40,12 +40,14 @@
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <util.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/misc.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
+#include <console.h>
+#include <kernel/asc.h>
 
 #include <assert.h>
 
@@ -315,3 +317,12 @@ vaddr_t core_mmu_get_ul1_ttb_va(void)
 		thread_get_id() * TEE_MMU_UL1_NUM_ENTRIES;
 }
 
+void console_putc(int ch)
+{
+	__asc_xmit_char((char)ch);
+}
+
+void console_flush_tx_fifo(void)
+{
+	__asc_flush();
+}

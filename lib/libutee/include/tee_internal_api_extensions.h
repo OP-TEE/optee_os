@@ -29,7 +29,7 @@
 #define TEE_INTERNAL_API_EXTENSIONS_H
 
 /* trace support */
-#include <tee_uta_trace.h>
+#include <trace.h>
 #include <stdio.h>
 
 /*

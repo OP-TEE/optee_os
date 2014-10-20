@@ -26,7 +26,7 @@
  */
 #include <stdlib.h>
 #include <rng_support.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <platform_config.h>
 
 #define USE_SW_DELAY         0

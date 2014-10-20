@@ -27,7 +27,7 @@
 #include <platform_config.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_misc.h>
 
 #ifndef CFG_DDR_TEETZ_RESERVED_START

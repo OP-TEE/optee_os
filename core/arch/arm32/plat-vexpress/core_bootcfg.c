@@ -28,7 +28,7 @@
 
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 #ifndef CFG_DDR_TEETZ_RESERVED_START
 #error "TEETZ reserved DDR start address undef: CFG_DDR_TEETZ_RESERVED_START"

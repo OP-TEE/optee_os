@@ -27,7 +27,7 @@
 
 #include <stddef.h>
 #include <string.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_common_otp.h>
 
 #define SHA256_HASH_SIZE 32

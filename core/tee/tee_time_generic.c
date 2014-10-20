@@ -27,7 +27,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <utee_defines.h>
 #include <kernel/tee_time.h>
 

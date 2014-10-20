@@ -40,9 +40,19 @@
 #include <kernel/tee_time.h>
 
 #include <user_ta_header.h>
-#include <kernel/tee_core_trace.h>
-#include <kernel/tee_kta_trace.h>
+#include <trace.h>
+#include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
+
+#if (CFG_TRACE_LEVEL == TRACE_FLOW)
+void tee_svc_trace_syscall(int num)
+{
+	/* #0 is syscall return, not really interesting */
+	if (num == 0)
+		return;
+	FMSG("syscall #%d", num);
+}
+#endif
 
 void tee_svc_sys_log(const void *buf, size_t len)
 {
@@ -58,7 +68,7 @@ void tee_svc_sys_log(const void *buf, size_t len)
 
 	/* log as Info/Raw traces */
 	if (tee_svc_copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
-		ATAMSG_RAW("%s", kbuf);
+		TAMSG_RAW("%.*s", (int)len, kbuf);
 
 	free(kbuf);
 }

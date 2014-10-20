@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <sys/queue.h>
 
 #ifdef TEE_USE_DLMALLOC

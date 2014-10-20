@@ -31,7 +31,7 @@
 #include <kernel/tee_common_unpg.h>
 #include <tee_api_types.h>
 
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 
 /*
@@ -96,19 +96,6 @@ struct tee_dispatch_memory_in {
 	void *buffer;
 	uint32_t size;
 };
-
-#if (CFG_TEE_TA_LOG_LEVEL > 0)
-/* Input arg structure specific to TEE service 'get XXX trace level'. */
-struct tee_dispatch_set_trace_level_in {
-	int level;
-};
-
-/* Output arg structure specific to TEE service 'get XXX trace level'. */
-struct tee_dispatch_get_trace_level_out {
-	struct tee_dispatch_out msg;
-	int trace_level;
-};
-#endif
 
 #if (CFG_TEE_FW_DEBUG == 1)
 /* Output arg structure specific to TEE service 'get core status'. */

@@ -28,7 +28,7 @@
 #include <kernel/tz_proc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_unpg.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/tee_rpc.h>

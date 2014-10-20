@@ -44,7 +44,7 @@
 #include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_ta_static.h>
 #include <mm/tee_mm.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/tee_rpc.h>
 #include <kernel/tee_rpc_types.h>
 #include <kernel/mutex.h>

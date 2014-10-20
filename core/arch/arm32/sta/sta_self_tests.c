@@ -26,7 +26,7 @@
  */
 #include <compiler.h>
 #include <user_ta_header.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include "core_self_tests.h"

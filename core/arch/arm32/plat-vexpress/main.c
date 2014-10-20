@@ -45,13 +45,14 @@
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/tee_time.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
+#include <console.h>
 #include <malloc.h>
 
 #include <assert.h>
@@ -533,3 +534,14 @@ vaddr_t core_mmu_get_ul1_ttb_va(void)
 	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
 }
 
+void console_putc(int ch)
+{
+	uart_putc(ch, CONSOLE_UART_BASE);
+	if (ch == '\n')
+		uart_putc('\r', CONSOLE_UART_BASE);
+}
+
+void console_flush_tx_fifo(void)
+{
+	uart_flush_tx_fifo(CONSOLE_UART_BASE);
+}

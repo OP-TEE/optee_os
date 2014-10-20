@@ -30,7 +30,7 @@
 #include <sm/tee_mon.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/time_source.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>

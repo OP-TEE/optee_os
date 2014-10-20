@@ -104,6 +104,8 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 	if (ta_ref_count == 1) {
 		TEE_Result res;
 
+		trace_set_level(tahead_get_trace_level());
+
 		bget_malloc_add_heap(ta_heap_base, ta_data_size);
 
 		TEE_MathAPI_Init();

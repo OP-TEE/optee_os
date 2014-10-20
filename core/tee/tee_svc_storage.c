@@ -36,7 +36,7 @@
 #include <tee/tee_svc.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_pobj.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 /* SSF (Secure Storage File version 00 */
 #define TEE_SVC_STORAGE_MAGIC 0x53534600;

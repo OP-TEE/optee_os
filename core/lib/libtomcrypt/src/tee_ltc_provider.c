@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utee_defines.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <tee_api_types.h>
 #include <string_ext.h>
 #include "tomcrypt_mpa.h"

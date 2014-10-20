@@ -24,66 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <kernel/misc.h>
-#include <kernel/tee_time.h>
+#include <stdbool.h>
 #include <trace.h>
-#include <kernel/time_source.h>
-#include <mm/core_mmu.h>
-#include <utee_defines.h>
+#include <console.h>
 
-#include <assert.h>
-#include <stdint.h>
-#include <mpa.h>
+const char trace_ext_prefix[] = "TEE-CORE";
 
-static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
+void trace_ext_puts(bool sync, const char *str)
 {
-	mpa_word_t remainder = 0, n0, n1;
-	n0 = (*dividend) & UINT_MAX;
-	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
-	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
-	return remainder;
+	const char *p;
+
+	if (sync)
+		console_flush_tx_fifo();
+
+	for (p = str; *p; p++)
+		console_putc(*p);
+
+	if (sync)
+		console_flush_tx_fifo();
 }
 
-static uint64_t read_cntpct(void)
+int trace_ext_get_thread_id(void)
 {
-	uint64_t val;
-	uint32_t low, high;
-	__asm__ volatile("mrrc	p15, 0, %0, %1, c14\n"
-		: "=r"(low), "=r"(high)
-		:
-		: "memory");
-	val = low | ((uint64_t)high << WORD_SIZE);
-	return val;
+	return -1;
 }
-
-static uint32_t read_cntfrq(void)
-{
-	uint32_t frq;
-	__asm__ volatile("mrc	p15, 0, %0, c14, c0, 0\n"
-		: "=r"(frq)
-		:
-		: "memory");
-	return frq;
-}
-
-static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
-{
-	uint64_t cntpct = read_cntpct();
-	uint32_t cntfrq = read_cntfrq();
-	uint32_t remainder;
-
-	remainder = do_div(&cntpct, cntfrq);
-
-	time->seconds = (uint32_t)cntpct;
-	time->millis = remainder / (cntfrq / TEE_TIME_MILLIS_BASE);
-
-	return TEE_SUCCESS;
-}
-
-static const struct time_source arm_cntpct_time_source = {
-	.name = "arm cntpct",
-	.get_sys_time = arm_cntpct_get_sys_time,
-};
-
-REGISTER_TIME_SOURCE(arm_cntpct_time_source)

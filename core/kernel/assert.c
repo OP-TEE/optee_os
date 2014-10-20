@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <assert.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 
 /* indirected assert (see TEE_ASSERT()) */
 

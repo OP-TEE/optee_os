@@ -29,10 +29,10 @@
 #include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
 #include <user_ta_header_defines.h>
-#include <tee_uta_trace.h>
+#include <trace.h>
 
 #ifndef TA_TRACE_LEVEL_DEFAULT
-#define TA_TRACE_LEVEL_DEFAULT CFG_TEE_TA_LOG_LEVEL
+#define TA_TRACE_LEVEL_DEFAULT CFG_TRACE_LEVEL
 #endif
 
 /* exprted to user_ta_header.c, built within TA */

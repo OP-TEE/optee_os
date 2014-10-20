@@ -1,4 +1,3 @@
-srcs-y += tee_core_trace.c
 srcs-y += tee_ta_manager.c
 srcs-y += tee_time.c
 

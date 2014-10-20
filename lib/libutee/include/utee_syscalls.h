@@ -33,7 +33,7 @@
 
 #include <utee_types.h>
 #include <tee_api_types.h>
-#include <tee_trace.h>
+#include <trace.h>
 
 void utee_return(uint32_t ret) __noreturn;
 

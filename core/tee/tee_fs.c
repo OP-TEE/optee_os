@@ -34,7 +34,7 @@
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <kernel/tee_common_unpg.h>
-#include <kernel/tee_core_trace.h>
+#include <trace.h>
 #include <kernel/handle.h>
 
 /* TEE FS operation */
