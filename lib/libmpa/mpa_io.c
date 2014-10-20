@@ -107,17 +107,9 @@ static int __mpa_digit_value(int c)
  *  Returns the maximum number of words needed to binary represent a number
  *  consisting of "digits" digits and each digits is in base "base".
  */
-static mpa_word_t __mpa_digitstr_to_binary_wsize(int base, int digits)
+static mpa_word_t __mpa_digitstr_to_binary_wsize_base_16(int digits)
 {
-	switch (base) {
-	case 10:
-		return (mpa_word_t) ((3.4 * digits) + (WORD_SIZE - 1)) >>
-			LOG_OF_WORD_SIZE;
-	case 16:
 		return (digits + 7) >> 3;
-	default:
-		return 0;
-	}
 }
 
 /*  --------------------------------------------------------------------
@@ -221,10 +213,9 @@ static mpa_word_t __mpa_count_leading_zero_bits(mpa_word_t w)
 /*  --------------------------------------------------------------------
  *  Function:   mpa_SizeInBase
  *
- *  Returns the number of characters needed to print |n| in base "base".
- *  base can be 16, 10 or 2.
+ *  Returns the number of characters needed to print |n| in base 255.
  */
-static mpa_word_t __mpa_size_in_base(const mpanum n, int base)
+static mpa_word_t __mpa_size_in_base_255(const mpanum n)
 {
 	mpa_word_t totalbits;
 	/* number of leading zero bits in the msw of n */
@@ -237,17 +228,7 @@ static mpa_word_t __mpa_size_in_base(const mpanum n, int base)
 				n->d[__mpanum_size(n) - 1]);
 	totalbits = WORD_SIZE * __mpanum_size(n) - zerobits_msw;
 
-	switch (base) {
-	case UINT8_MAX:
-		return (totalbits + 7) / 8;
-	case 16:
-		return (totalbits + 3) / 4;
-	case 10:
-		/* 1/log2(10) */
-		return (mpa_word_t) (totalbits * 0.3010299956639811) + 1;
-	default:
-		return totalbits;
-	}
+	return (totalbits + 7) / 8;
 }
 
 /*  --------------------------------------------------------------------
@@ -417,7 +398,7 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 		goto cleanup;
 	}
 
-	ASSERT((__mpa_digitstr_to_binary_wsize(16, bufidx) <=
+	ASSERT((__mpa_digitstr_to_binary_wsize_base_16(bufidx) <=
 		__mpanum_alloced(dest)), "Dest is too small.");
 
 	retval = bufidx;
@@ -579,7 +560,7 @@ static void get_word(mpa_word_t in, uint8_t out[BYTES_PER_WORD])
 
 int mpa_get_oct_str(uint8_t *buffer, size_t *buffer_len, const mpanum n)
 {
-	size_t req_blen = __mpa_size_in_base(n, UINT8_MAX);
+	size_t req_blen = __mpa_size_in_base_255(n);
 	uint8_t first_word[BYTES_PER_WORD];
 	size_t bufidx = 0;
 	int d_idx;
