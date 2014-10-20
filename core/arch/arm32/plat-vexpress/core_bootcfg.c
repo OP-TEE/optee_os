@@ -199,7 +199,7 @@ static bool pbuf_is(enum buf_is_attr attr, unsigned long paddr, size_t size)
 	}
 }
 
-static struct map_area bootcfg_stih416_memory[] = {
+static struct map_area bootcfg_vexpress_memory[] = {
 	{	/* teecore execution RAM */
 	 .type = MEM_AREA_TEE_RAM,
 	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_SIZE,
@@ -258,21 +258,20 @@ unsigned long bootcfg_get_pbuf_is_handler(void)
 struct map_area *bootcfg_get_memory(void)
 {
 	struct map_area *map;
-	struct memaccess_area *a, *a2;
-	struct map_area *ret = bootcfg_stih416_memory;
+	struct memaccess_area *a;
+	struct memaccess_area *a2;
+	struct map_area *ret = bootcfg_vexpress_memory;
 
 	/* check defined memory access layout */
 	a = (struct memaccess_area *)&secure_only;
 	a2 = (struct memaccess_area *)&nsec_shared;
 	if (buf_overlaps_area(a->paddr, a->size, a2->paddr, a2->size)) {
 		EMSG("invalid memory access configuration: sec/nsec");
-		ret = NULL;
-	}
-	if (ret == NULL)
 		return ret;
+	}
 
 	/* check defined mapping (overlapping will be tested later) */
-	map = bootcfg_stih416_memory;
+	map = bootcfg_vexpress_memory;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
@@ -287,7 +286,7 @@ struct map_area *bootcfg_get_memory(void)
 			a = (struct memaccess_area *)&secure_only;
 			if (buf_inside_area
 			    (map->pa, map->size, a->paddr, a->size) == false) {
-				EMSG("TEE_RAM does not fit in secure_only");
+				EMSG("TA_RAM does not fit in secure_only");
 				ret = NULL;
 			}
 			break;
@@ -296,7 +295,7 @@ struct map_area *bootcfg_get_memory(void)
 			a = (struct memaccess_area *)&nsec_shared;
 			if (buf_inside_area
 			    (map->pa, map->size, a->paddr, a->size) == false) {
-				EMSG("TEE_RAM does not fit in secure_only");
+				EMSG("PUB_RAM does not fit in nsec_shared");
 				ret = NULL;
 			}
 			break;
