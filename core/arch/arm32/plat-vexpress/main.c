@@ -267,12 +267,13 @@ static void main_init_gic(void)
 static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 {
 	/*
-	 * Mask IRQ and FIQ before switch to the thread vector as the
-	 * thread handler requires IRQ and FIQ to be masked while executing
-	 * with the temporary stack. The thread subsystem also asserts
-	 * that IRQ is blocked when using most if its functions.
+	 * Mask external Abort, IRQ and FIQ before switch to the thread
+	 * vector as the thread handler requires externl Abort, IRQ and FIQ
+	 * to be masked while executing with the temporary stack. The
+	 * thread subsystem also asserts that IRQ is blocked when using
+	 * most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_F | CPSR_I);
+	write_cpsr(read_cpsr() | CPSR_FIA);
 
 	if (is_primary) {
 		uintptr_t bss_start = (uintptr_t)&__bss_start;
