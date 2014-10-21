@@ -257,7 +257,7 @@ static inline uint32_t read_cpsr(void)
 
 static inline void write_cpsr(uint32_t cpsr)
 {
-	asm ("msr	cpsr, %[cpsr]"
+	asm ("msr	cpsr_fsxc, %[cpsr]"
 			: : [cpsr] "r" (cpsr)
 	);
 }

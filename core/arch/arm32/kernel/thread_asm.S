@@ -186,21 +186,21 @@ FUNC thread_resume , :
 #ifdef THREAD_LOCAL_EXCEPTION_SPS
 	cps	#CPSR_MODE_IRQ
 	ldm	r12!, {r1, sp, lr}
-	msr	spsr, r1
+	msr	spsr_fsxc, r1
 #endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	cps	#CPSR_MODE_SVC
 	ldm	r12!, {r1, sp, lr}
-	msr	spsr, r1
+	msr	spsr_fsxc, r1
 
 #ifdef THREAD_LOCAL_EXCEPTION_SPS
 	cps	#CPSR_MODE_ABT
 	ldm	r12!, {r1, sp, lr}
-	msr	spsr, r1
+	msr	spsr_fsxc, r1
 
 	cps	#CPSR_MODE_UND
 	ldm	r12!, {r1, sp, lr}
-	msr	spsr, r1
+	msr	spsr_fsxc, r1
 #endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	cps	#CPSR_MODE_SVC
@@ -419,7 +419,7 @@ thread_und_handler:
 	mrs	r0, spsr
 	cps	#CPSR_MODE_ABT
 	push	{r0, r1}
-	msr	spsr, r0	/* In case some code reads spsr directly */
+	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */
 	mov	r0, #THREAD_ABORT_UNDEF
 	b	.thread_abort_generic
 
@@ -445,7 +445,7 @@ thread_pabort_handler:
 	ldr	lr, [lr]
 	blx	lr
 	pop	{r0, r1}
-	msr	spsr, r0
+	msr	spsr_fsxc, r0
 	pop	{r0-r3, ip, lr}
 	movs	pc, lr
 END_FUNC thread_abort_handler
@@ -464,7 +464,7 @@ LOCAL_FUNC thread_svc_handler , :
 	ldr	lr, [lr]
 	blx	lr
 	pop	{r0}
-	msr	spsr, r0
+	msr	spsr_fsxc, r0
 	pop	{r0-r5, lr}
 	movs	pc, lr
 #else

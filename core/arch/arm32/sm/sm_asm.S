@@ -65,19 +65,19 @@ LOCAL_FUNC sm_restore_modes_regs , :
 
 	cps	#CPSR_MODE_IRQ
 	ldm	r0!, {r2, sp, lr}
-	msr	spsr, r2
+	msr	spsr_fsxc, r2
 
 	cps	#CPSR_MODE_SVC
 	ldm	r0!, {r2, sp, lr}
-	msr	spsr, r2
+	msr	spsr_fsxc, r2
 
 	cps	#CPSR_MODE_ABT
 	ldm	r0!, {r2, sp, lr}
-	msr	spsr, r2
+	msr	spsr_fsxc, r2
 
 	cps	#CPSR_MODE_UND
 	ldm	r0!, {r2, sp, lr}
-	msr	spsr, r2
+	msr	spsr_fsxc, r2
 
 	cps	#CPSR_MODE_MON
 	ldm	r0!, {r2-r3}		/* Load SPSR and LR from context */
