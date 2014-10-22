@@ -506,11 +506,6 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 
 	*heap_size = sub_head->heap_size;
 
-	if (ctx->stack_size + *heap_size > SECTION_SIZE) {
-		EMSG("Too large combined stack and HEAP");
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
 	/*
 	 * Allocate heap and stack
 	 */
