@@ -307,20 +307,19 @@ bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 
 	switch (attr) {
 	case CORE_MEM_SEC:
-		return ((platform_pbuf_is_t) bootcfg_pbuf_is) (attr, pbuf, len);
+		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
 	case CORE_MEM_NON_SEC:
-		return ((platform_pbuf_is_t) bootcfg_pbuf_is) (attr, pbuf, len);
+		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
 	case CORE_MEM_TEE_RAM:
 		return pbuf_inside_map_area(pbuf, len, map_tee_ram);
 	case CORE_MEM_TA_RAM:
 		return pbuf_inside_map_area(pbuf, len, map_ta_ram);
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
-		/* MultiPurpose and External RAM tests are platform specific */
 	case CORE_MEM_MULTPURPOSE:
-		return ((platform_pbuf_is_t) bootcfg_pbuf_is) (attr, pbuf, len);
+		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
 	case CORE_MEM_EXTRAM:
-		return ((platform_pbuf_is_t) bootcfg_pbuf_is) (attr, pbuf, len);
+		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
 	case CORE_MEM_CACHED:
 		map = find_map_by_pa(pbuf);
 		if (map == NULL || !pbuf_inside_map_area(pbuf, len, map))

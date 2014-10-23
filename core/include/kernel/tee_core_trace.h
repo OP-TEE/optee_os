@@ -98,7 +98,7 @@ extern int _trace_level;
  * an error message if r != 0 */
 #define OUTRMSG(r)                  \
 	do {                        \
-	    OUTMSG("r=[%x]", r);   \
+	    OUTMSG("r=[%x]", r);    \
 	    return r;               \
 	} while (0)
 

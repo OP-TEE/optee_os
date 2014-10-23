@@ -56,6 +56,9 @@ void tee_svc_sys_return(uint32_t ret, uint32_t param_types, void *params);
 void tee_svc_sys_log(const void *buf, size_t len);
 
 void tee_svc_sys_panic(uint32_t code);
+
+TEE_Result tee_svc_reserved(void);
+
 uint32_t tee_svc_sys_dummy(uint32_t *a);
 uint32_t tee_svc_sys_dummy_7args(uint32_t a1, uint32_t a2, uint32_t a3,
 				 uint32_t a4, uint32_t a5, uint32_t a6,

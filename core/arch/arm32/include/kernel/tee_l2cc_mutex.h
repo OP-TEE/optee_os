@@ -24,5 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef TEE_L2CC_MUTEX_H
+#define TEE_L2CC_MUTEX_H
 
 TEE_Result tee_l2cc_mutex_configure(uint32_t service_id, uint32_t *mutex);
+
+#endif /* TEE_L2CC_MUTEX_H */
