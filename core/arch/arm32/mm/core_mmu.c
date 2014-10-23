@@ -44,6 +44,7 @@
 #include <mm/tee_mmu_defs.h>
 #include <kernel/misc.h>
 #include <kernel/tee_core_trace.h>
+#include <kernel/tee_misc.h>
 
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_paddr;
@@ -76,12 +77,7 @@ static int memlayout_init = MEMLAYOUT_NOT_INIT;
 static bool pbuf_inside_map_area(unsigned long p, size_t l,
 				 struct map_area *map)
 {
-	if ((map->size == 0) ||
-	    (((uint32_t) p + l) < (uint32_t) p) ||
-	    ((uint32_t) p < map->pa) ||
-	    (((uint32_t) p + l) > (map->pa + map->size)))
-		return false;
-	return true;
+	return core_is_buffer_inside(p, l, map->pa, map->size);
 }
 
 static struct map_area *find_map_by_va(void *va)

@@ -457,28 +457,20 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 
 /* return true only if buffer fits inside TA private memory */
 bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size)
+				  const void *va, size_t size)
 {
-	if ((va + size < va) ||
-		(va < ctx->mmu->ta_private_vmem_start) ||
-		((va + size) > ctx->mmu->ta_private_vmem_end))
-		return false;
-	return true;
+	return core_is_buffer_inside(va, size,
+	  ctx->mmu->ta_private_vmem_start,
+	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
 }
 
-/* return true only if buffer fits outside TA private memory */
-bool tee_mmu_is_vbuf_outside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size)
+/* return true only if buffer intersects TA private memory */
+bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
+					  const void *va, size_t size)
 {
-	if (va + size < va)
-		return false;
-	if ((va < ctx->mmu->ta_private_vmem_start) &&
-		((va + size) > ctx->mmu->ta_private_vmem_start))
-		return false;
-	if ((va < ctx->mmu->ta_private_vmem_end) &&
-		((va + size) > ctx->mmu->ta_private_vmem_end))
-		return false;
-	return true;
+	return core_is_buffer_intersect(va, size,
+	  ctx->mmu->ta_private_vmem_start,
+	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
 }
 
 TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,

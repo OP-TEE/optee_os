@@ -92,3 +92,51 @@ uint32_t tee_hs2b(uint8_t *hs, uint8_t *b, uint32_t hslen, uint32_t blen)
 
 	return len;
 }
+
+static bool is_valid_conf_and_notnull_size(
+		vaddr_t b, size_t bl, vaddr_t a, size_t al)
+{
+	/* invalid config return false */
+	if ((b + bl < b) || (a + al < a))
+		return false;
+	/* null sized areas are never inside / outside / overlap */
+	if (!bl || !al)
+		return false;
+	return true;
+}
+
+/* Returns true when buffer 'b' is fully contained in area 'a' */
+bool _core_is_buffer_inside(vaddr_t b, size_t bl, vaddr_t a, size_t al)
+{
+	/* invalid config or "null size" return false */
+	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
+		return false;
+
+	if ((b >= a) && (b + bl <= a + al))
+		return true;
+	return false;
+}
+
+/* Returns true when buffer 'b' is fully contained in area 'a' */
+bool _core_is_buffer_outside(vaddr_t b, size_t bl, vaddr_t a, size_t al)
+{
+	/* invalid config or "null size" return false */
+	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
+		return false;
+
+	if ((b + bl <= a) || (b >= a + al))
+		return true;
+	return false;
+}
+
+/* Returns true when buffer 'b' intersects area 'a' */
+bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al)
+{
+	/* invalid config or "null size" return false */
+	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
+		return false;
+
+	if ((b + bl <= a) || (b >= a + al))
+		return false;
+	return true;
+}

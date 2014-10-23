@@ -292,7 +292,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			}
 			/* uTA cannot expose its private memory */
 			if (tee_mmu_is_vbuf_inside_ta_private(sess->ctx,
-				    (uintptr_t)param->params[n].memref.buffer,
+				    param->params[n].memref.buffer,
 				    param->params[n].memref.size)) {
 
 				s = ROUNDUP(param->params[n].memref.size,
@@ -304,8 +304,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				ta_private_memref[n] = true;
 				break;
 			}
-			if (!tee_mmu_is_vbuf_outside_ta_private(sess->ctx,
-				    (uintptr_t)param->params[n].memref.buffer,
+			if (tee_mmu_is_vbuf_intersect_ta_private(sess->ctx,
+				    param->params[n].memref.buffer,
 				    param->params[n].memref.size))
 				return TEE_ERROR_BAD_PARAMETERS;
 
@@ -415,7 +415,7 @@ static TEE_Result tee_svc_update_out_param(
 
 			/* outside TA private => memref is valid, update size */
 			if (!tee_mmu_is_vbuf_inside_ta_private(sess->ctx,
-					(uintptr_t)callee_params[n].memref.buffer,
+					callee_params[n].memref.buffer,
 					param->params[n].memref.size)) {
 				callee_params[n].memref.size =
 					param->params[n].memref.size;
