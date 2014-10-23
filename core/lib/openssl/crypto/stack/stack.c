@@ -75,7 +75,9 @@
 
 const char STACK_version[]="Stack" OPENSSL_VERSION_PTEXT;
 
+#ifndef OPTEE
 #include <errno.h>
+#endif
 
 int (*sk_set_cmp_func(_STACK *sk, int (*c)(const void *, const void *)))
 		(const void *, const void *)

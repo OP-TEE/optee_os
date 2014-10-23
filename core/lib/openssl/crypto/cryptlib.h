@@ -75,6 +75,10 @@
 #include <openssl/err.h>
 #include <openssl/opensslconf.h>
 
+#ifdef OPTEE
+#include <kernel/tee_core_trace.h>
+#endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -100,7 +104,11 @@ extern "C" {
 
 void OPENSSL_cpuid_setup(void);
 extern unsigned int OPENSSL_ia32cap_P[];
+#ifdef OPTEE
+#define OPENSSL_showfatal(...) EMSG_RAW(__VA_ARGS__)
+#else
 void OPENSSL_showfatal(const char *fmta,...);
+#endif
 void *OPENSSL_stderr(void);
 extern int OPENSSL_NONPIC_relocated;
 

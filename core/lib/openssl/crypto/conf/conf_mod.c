@@ -64,6 +64,10 @@
 #include <openssl/dso.h>
 #include <openssl/x509.h>
 
+#ifdef OPTEE
+#include <kernel/tee_core_trace.h>
+#include <kernel/tee_common_unpg.h>
+#endif
 
 #define DSO_mod_init_name "OPENSSL_init"
 #define DSO_mod_finish_name "OPENSSL_finish"
@@ -245,6 +249,10 @@ static int module_run(const CONF *cnf, char *name, char *value,
 static CONF_MODULE *module_load_dso(const CONF *cnf, char *name, char *value,
 				    unsigned long flags)
 	{
+#ifdef OPTEE
+	TEE_ASSERT(!"Not implemented");
+	return NULL;
+#else
 	DSO *dso = NULL;
 	conf_init_func *ifunc;
 	conf_finish_func *ffunc;
@@ -285,6 +293,7 @@ static CONF_MODULE *module_load_dso(const CONF *cnf, char *name, char *value,
 	CONFerr(CONF_F_MODULE_LOAD_DSO, errcode);
 	ERR_add_error_data(4, "module=", name, ", path=", path);
 	return NULL;
+#endif
 	}
 
 /* add module to list */
@@ -322,6 +331,10 @@ static CONF_MODULE *module_add(DSO *dso, const char *name,
 
 static CONF_MODULE *module_find(char *name)
 	{
+#ifdef OPTEE
+	TEE_ASSERT(!"Not implemented");
+	return NULL;
+#else
 	CONF_MODULE *tmod;
 	int i, nchar;
 	char *p;
@@ -341,6 +354,7 @@ static CONF_MODULE *module_find(char *name)
 
 	return NULL;
 
+#endif
 	}
 
 /* initialize a module */
@@ -445,8 +459,10 @@ void CONF_modules_unload(int all)
 /* unload a single module */
 static void module_free(CONF_MODULE *md)
 	{
+#ifndef OPTEE
 	if (md->dso)
 		DSO_free(md->dso);
+#endif
 	OPENSSL_free(md->name);
 	OPENSSL_free(md);
 	}
@@ -545,6 +561,10 @@ void CONF_module_set_usr_data(CONF_MODULE *pmod, void *usr_data)
 
 char *CONF_get1_default_config_file(void)
 	{
+#ifdef OPTEE
+	TEE_ASSERT(!"Not implemented");
+	return NULL;
+#else
 	char *file;
 	int len;
 
@@ -569,6 +589,7 @@ char *CONF_get1_default_config_file(void)
 	BUF_strlcat(file,OPENSSL_CONF,len + 1);
 
 	return file;
+#endif
 	}
 
 /* This function takes a list separated by 'sep' and calls the

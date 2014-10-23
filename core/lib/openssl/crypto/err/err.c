@@ -118,6 +118,10 @@
 #include <openssl/buffer.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#ifdef OPTEE
+#include <kernel/tee_core_trace.h>
+#include <kernel/tee_common_unpg.h>
+#endif
 
 DECLARE_LHASH_OF(ERR_STRING_DATA);
 DECLARE_LHASH_OF(ERR_STATE);
@@ -572,8 +576,10 @@ static ERR_STRING_DATA SYS_str_reasons[NUM_SYS_STR_REASONS + 1];
 
 static void build_SYS_str_reasons(void)
 	{
+#ifndef OPTEE
 	/* OPENSSL_malloc cannot be used here, use static storage instead */
 	static char strerror_tab[NUM_SYS_STR_REASONS][LEN_SYS_STR_REASON];
+#endif
 	int i;
 	static int init = 1;
 
@@ -597,6 +603,7 @@ static void build_SYS_str_reasons(void)
 		ERR_STRING_DATA *str = &SYS_str_reasons[i - 1];
 
 		str->error = (unsigned long)i;
+#ifndef OPTEE
 		if (str->string == NULL)
 			{
 			char (*dest)[LEN_SYS_STR_REASON] = &(strerror_tab[i - 1]);
@@ -608,6 +615,7 @@ static void build_SYS_str_reasons(void)
 				str->string = *dest;
 				}
 			}
+#endif
 		if (str->string == NULL)
 			str->string = "unknown";
 		}
@@ -708,6 +716,10 @@ void ERR_put_error(int lib, int func, int reason, const char *file,
 	{
 	ERR_STATE *es;
 
+#ifdef OPTEE
+	EMSG("OpenSSL error: lib %d func %d reason %d file %s line %d", lib,
+	     func, reason, file, line);
+#endif
 #ifdef _OSD_POSIX
 	/* In the BS2000-OSD POSIX subsystem, the compiler generates
 	 * path names in the form "*POSIX(/etc/passwd)".

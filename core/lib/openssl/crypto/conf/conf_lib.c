@@ -90,6 +90,9 @@ int CONF_set_default_method(CONF_METHOD *meth)
 LHASH_OF(CONF_VALUE) *CONF_load(LHASH_OF(CONF_VALUE) *conf, const char *file,
 				long *eline)
 	{
+#ifdef OPTEE
+	return NULL;
+#else
 	LHASH_OF(CONF_VALUE) *ltmp;
 	BIO *in=NULL;
 
@@ -108,6 +111,7 @@ LHASH_OF(CONF_VALUE) *CONF_load(LHASH_OF(CONF_VALUE) *conf, const char *file,
 	BIO_free(in);
 
 	return ltmp;
+#endif
 	}
 
 #ifndef OPENSSL_NO_FP_API

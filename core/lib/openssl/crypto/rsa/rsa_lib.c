@@ -189,6 +189,7 @@ RSA *RSA_new_method(ENGINE *engine)
 	ret->mt_blinding=NULL;
 	ret->bignum_data=NULL;
 	ret->flags=ret->meth->flags & ~RSA_FLAG_NON_FIPS_ALLOW;
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 	if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_RSA, ret, &ret->ex_data))
 		{
 #ifndef OPENSSL_NO_ENGINE
@@ -198,6 +199,7 @@ RSA *RSA_new_method(ENGINE *engine)
 		OPENSSL_free(ret);
 		return(NULL);
 		}
+#endif
 
 	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
 		{
@@ -205,7 +207,9 @@ RSA *RSA_new_method(ENGINE *engine)
 		if (ret->engine)
 			ENGINE_finish(ret->engine);
 #endif
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 		CRYPTO_free_ex_data(CRYPTO_EX_INDEX_RSA, ret, &ret->ex_data);
+#endif
 		OPENSSL_free(ret);
 		ret=NULL;
 		}
@@ -238,7 +242,9 @@ void RSA_free(RSA *r)
 		ENGINE_finish(r->engine);
 #endif
 
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 	CRYPTO_free_ex_data(CRYPTO_EX_INDEX_RSA, r, &r->ex_data);
+#endif
 
 	if (r->n != NULL) BN_clear_free(r->n);
 	if (r->e != NULL) BN_clear_free(r->e);
@@ -270,6 +276,7 @@ int RSA_up_ref(RSA *r)
 	return ((i > 1) ? 1 : 0);
 	}
 
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
         {
@@ -286,6 +293,7 @@ void *RSA_get_ex_data(const RSA *r, int idx)
 	{
 	return(CRYPTO_get_ex_data(&r->ex_data,idx));
 	}
+#endif
 
 int RSA_memory_lock(RSA *r)
 	{

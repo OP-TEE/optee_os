@@ -406,6 +406,7 @@ void *CRYPTO_remalloc(void *a, int num, const char *file, int line)
 	return(a);
 	}
 
+#ifndef OPTEE_OPENSSL_NO_MEM_DBG
 void CRYPTO_set_mem_debug_options(long bits)
 	{
 	if (set_debug_options_func != NULL)
@@ -418,3 +419,4 @@ long CRYPTO_get_mem_debug_options(void)
 		return get_debug_options_func();
 	return 0;
 	}
+#endif

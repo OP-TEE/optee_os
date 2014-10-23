@@ -137,7 +137,9 @@ extern "C" {
 #define ERR_PUT_error(a,b,c,d,e)	ERR_put_error(a,b,c,NULL,0)
 #endif
 
+#ifndef OPTEE
 #include <errno.h>
+#endif
 
 #define ERR_TXT_MALLOCED	0x01
 #define ERR_TXT_STRING		0x02

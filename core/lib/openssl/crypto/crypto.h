@@ -342,6 +342,14 @@ DECLARE_STACK_OF(CRYPTO_EX_DATA_FUNCS)
 # endif
 #endif
 
+#ifdef OPTEE_OPENSSL_NO_MEM_DBG
+#define CRYPTO_malloc_debug_init()
+#define MemCheck_start()
+#define MemCheck_stop()
+#define MemCheck_on()
+#define MemCheck_off()
+#define is_MemCheck_on() 0
+#else
 /* Set standard debugging functions (not done by default
  * unless CRYPTO_MDEBUG is defined) */
 #define CRYPTO_malloc_debug_init()	do {\
@@ -364,6 +372,7 @@ int CRYPTO_is_mem_check_on(void);
 #define MemCheck_on()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE)
 #define MemCheck_off()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE)
 #define is_MemCheck_on() CRYPTO_is_mem_check_on()
+#endif
 
 #define OPENSSL_malloc(num)	CRYPTO_malloc((int)num,__FILE__,__LINE__)
 #define OPENSSL_strdup(str)	CRYPTO_strdup((str),__FILE__,__LINE__)
@@ -499,6 +508,10 @@ void *CRYPTO_remalloc(void *addr,int num, const char *file, int line);
 
 void OPENSSL_cleanse(void *ptr, size_t len);
 
+#ifdef OPTEE_OPENSSL_NO_MEM_DBG
+#define CRYPTO_push_info(info)
+#define CRYPTO_pop_info(info)
+#else
 void CRYPTO_set_mem_debug_options(long bits);
 long CRYPTO_get_mem_debug_options(void);
 
@@ -538,6 +551,7 @@ void CRYPTO_mem_leaks(struct bio_st *bio);
 /* unsigned long order, char *file, int line, int num_bytes, char *addr */
 typedef void *CRYPTO_MEM_LEAK_CB(unsigned long, const char *, int, int, void *);
 void CRYPTO_mem_leaks_cb(CRYPTO_MEM_LEAK_CB *cb);
+#endif /* !OPTEE_OPENSSL_NO_MEM_DBG */
 
 /* die if we have to */
 void OpenSSLDie(const char *file,int line,const char *assertion);

@@ -183,6 +183,9 @@ static int def_destroy_data(CONF *conf)
 
 static int def_load(CONF *conf, const char *name, long *line)
 	{
+#ifdef OPTEE
+	return 0;
+#else
 	int ret;
 	BIO *in=NULL;
 
@@ -204,6 +207,7 @@ static int def_load(CONF *conf, const char *name, long *line)
 	BIO_free(in);
 
 	return ret;
+#endif
 	}
 
 static int def_load_bio(CONF *conf, BIO *in, long *line)

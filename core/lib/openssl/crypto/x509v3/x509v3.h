@@ -670,7 +670,9 @@ int name_cmp(const char *name, const char *cmp);
 void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
 								 int ml);
 int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent);
+#ifndef OPENSSL_NO_FP_API
 int X509V3_EXT_print_fp(FILE *out, X509_EXTENSION *ext, int flag, int indent);
+#endif
 
 int X509V3_extensions_print(BIO *out, char *title, STACK_OF(X509_EXTENSION) *exts, unsigned long flag, int indent);
 

@@ -600,7 +600,9 @@ int BN_BLINDING_invert_ex(BIGNUM *n, const BIGNUM *r, BN_BLINDING *b, BN_CTX *);
 unsigned long BN_BLINDING_get_thread_id(const BN_BLINDING *);
 void BN_BLINDING_set_thread_id(BN_BLINDING *, unsigned long);
 #endif
+#ifndef OPTEE
 CRYPTO_THREADID *BN_BLINDING_thread_id(BN_BLINDING *);
+#endif
 unsigned long BN_BLINDING_get_flags(const BN_BLINDING *);
 void BN_BLINDING_set_flags(BN_BLINDING *, unsigned long);
 BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,

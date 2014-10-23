@@ -325,6 +325,7 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 #define DECLARE_PEM_read_fp(name, type) /**/
 #define DECLARE_PEM_write_fp(name, type) /**/
+#define DECLARE_PEM_write_fp_const(name, type) /**/
 #define DECLARE_PEM_write_cb_fp(name, type) /**/
 
 #else
@@ -425,6 +426,7 @@ int	PEM_X509_INFO_write_bio(BIO *bp,X509_INFO *xi, EVP_CIPHER *enc,
 		unsigned char *kstr, int klen, pem_password_cb *cd, void *u);
 #endif
 
+#ifndef OPTEE
 int	PEM_read(FILE *fp, char **name, char **header,
 		unsigned char **data,long *len);
 int	PEM_write(FILE *fp,char *name,char *hdr,unsigned char *data,long len);
@@ -435,6 +437,7 @@ int	PEM_ASN1_write(i2d_of_void *i2d,const char *name,FILE *fp,
 		       int klen,pem_password_cb *callback, void *u);
 STACK_OF(X509_INFO) *	PEM_X509_INFO_read(FILE *fp, STACK_OF(X509_INFO) *sk,
 	pem_password_cb *cb, void *u);
+#endif
 
 int	PEM_SealInit(PEM_ENCODE_SEAL_CTX *ctx, EVP_CIPHER *type,
 		EVP_MD *md_type, unsigned char **ek, int *ekl,
@@ -523,6 +526,7 @@ int i2d_PKCS8PrivateKey_nid_bio(BIO *bp, EVP_PKEY *x, int nid,
 				  pem_password_cb *cb, void *u);
 EVP_PKEY *d2i_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY **x, pem_password_cb *cb, void *u);
 
+#ifndef OPTEE
 int i2d_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
 				  char *kstr, int klen,
 				  pem_password_cb *cb, void *u);
@@ -537,6 +541,7 @@ EVP_PKEY *d2i_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, vo
 
 int PEM_write_PKCS8PrivateKey(FILE *fp,EVP_PKEY *x,const EVP_CIPHER *enc,
 			      char *kstr,int klen, pem_password_cb *cd, void *u);
+#endif
 
 EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
 int PEM_write_bio_Parameters(BIO *bp, EVP_PKEY *x);

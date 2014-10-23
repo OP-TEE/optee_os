@@ -13,6 +13,9 @@ platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y
 cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
+# Possible values: tomcrypt, openssl
+WITH_CRYPTO ?= tomcrypt
+
 cppflags$(sm)	+= -Icore/include $(platform-cppflags) $(core-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
@@ -41,9 +44,17 @@ libdir = lib/libmpa
 include mk/lib.mk
 base-prefix :=
 
+ifeq ($(WITH_CRYPTO), tomcrypt)
 libname = tomcrypt
 libdir = core/lib/libtomcrypt
 include mk/lib.mk
+endif
+
+ifeq ($(WITH_CRYPTO), openssl)
+libname = opensslcrypto
+libdir = core/lib/openssl
+include mk/lib.mk
+endif
 
 #
 # Do main source
