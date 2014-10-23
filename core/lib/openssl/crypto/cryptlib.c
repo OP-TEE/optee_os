@@ -116,6 +116,10 @@
 
 #include "cryptlib.h"
 #include <openssl/safestack.h>
+#ifdef OPTEE
+#include <kernel/thread.h>
+#endif
+
 
 #if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
 static double SSLeay_MSVC5_hack=0.0; /* and for VC1.5 */
@@ -502,6 +506,8 @@ void CRYPTO_THREADID_current(CRYPTO_THREADID *id)
 	CRYPTO_THREADID_set_numeric(id, (unsigned long)GetCurrentThreadId());
 #elif defined(OPENSSL_SYS_BEOS)
 	CRYPTO_THREADID_set_numeric(id, (unsigned long)find_thread(NULL));
+#elif defined(OPTEE)
+	CRYPTO_THREADID_set_numeric(id, (unsigned long)thread_get_id());
 #else
 	/* For everything else, default to using the address of 'errno' */
 	CRYPTO_THREADID_set_pointer(id, (void*)&errno);
@@ -899,9 +905,12 @@ void OPENSSL_showfatal (const char *fmta,...)
 #endif
 	MessageBox (NULL,buf,_T("OpenSSL: FATAL"),MB_OK|MB_ICONSTOP);
 }
+#elif defined(OPTEE)
+/* Nothing, OPENSSL_showfatal is a macro  */
 #else
 void OPENSSL_showfatal (const char *fmta,...)
-{ va_list ap;
+{
+    va_list ap;
 
     va_start (ap,fmta);
     vfprintf (stderr,fmta,ap);
@@ -923,7 +932,9 @@ void OpenSSLDie(const char *file,int line,const char *assertion)
 	_exit(3);
 #endif
 	}
-
+#ifdef OPTEE
+#define stderr NULL
+#endif
 void *OPENSSL_stderr(void)	{ return stderr; }
 
 int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len)

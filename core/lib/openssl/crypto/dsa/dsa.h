@@ -216,10 +216,12 @@ int	DSA_sign(int type,const unsigned char *dgst,int dlen,
 		unsigned char *sig, unsigned int *siglen, DSA *dsa);
 int	DSA_verify(int type,const unsigned char *dgst,int dgst_len,
 		const unsigned char *sigbuf, int siglen, DSA *dsa);
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int DSA_set_ex_data(DSA *d, int idx, void *arg);
 void *DSA_get_ex_data(DSA *d, int idx);
+#endif
 
 DSA *	d2i_DSAPublicKey(DSA **a, const unsigned char **pp, long length);
 DSA *	d2i_DSAPrivateKey(DSA **a, const unsigned char **pp, long length);

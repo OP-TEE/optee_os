@@ -125,7 +125,9 @@ struct bn_blinding_st
 	unsigned long thread_id; /* added in OpenSSL 0.9.6j and 0.9.7b;
 				  * used only by crypto/rsa/rsa_eay.c, rsa_lib.c */
 #endif
+#ifndef OPTEE
 	CRYPTO_THREADID tid;
+#endif
 	int counter;
 	unsigned long flags;
 	BN_MONT_CTX *m_ctx;
@@ -164,7 +166,9 @@ BN_BLINDING *BN_BLINDING_new(const BIGNUM *A, const BIGNUM *Ai, BIGNUM *mod)
 	 * to indicate that this is never-used fresh blinding
 	 * that does not need updating before first use. */
 	ret->counter = -1;
+#ifndef OPTEE
 	CRYPTO_THREADID_current(&ret->tid);
+#endif
 	return(ret);
 err:
 	if (ret != NULL) BN_BLINDING_free(ret);
@@ -288,10 +292,12 @@ void BN_BLINDING_set_thread_id(BN_BLINDING *b, unsigned long n)
 	}
 #endif
 
+#ifndef OPTEE
 CRYPTO_THREADID *BN_BLINDING_thread_id(BN_BLINDING *b)
 	{
 	return &b->tid;
 	}
+#endif
 
 unsigned long BN_BLINDING_get_flags(const BN_BLINDING *b)
 	{
@@ -343,20 +349,24 @@ BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
 		if (!BN_rand_range(ret->A, ret->mod)) goto err;
 		if (BN_mod_inverse(ret->Ai, ret->A, ret->mod, ctx) == NULL)
 			{
+#ifndef OPTEE
 			/* this should almost never happen for good RSA keys */
 			unsigned long error = ERR_peek_last_error();
 			if (ERR_GET_REASON(error) == BN_R_NO_INVERSE)
 				{
+#endif
 				if (retry_counter-- == 0)
 				{
 					BNerr(BN_F_BN_BLINDING_CREATE_PARAM,
 						BN_R_TOO_MANY_ITERATIONS);
 					goto err;
 				}
+#ifndef OPTEE
 				ERR_clear_error();
 				}
 			else
 				goto err;
+#endif
 			}
 		else
 			break;

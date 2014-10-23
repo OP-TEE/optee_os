@@ -127,7 +127,9 @@ OPENSSL_DECLARE_GLOBAL(int,DES_check_key);	/* defaults to false */
 OPENSSL_DECLARE_GLOBAL(int,DES_rw_mode);	/* defaults to DES_PCBC_MODE */
 #define DES_rw_mode OPENSSL_GLOBAL_REF(DES_rw_mode)
 
+#ifndef OPTEE
 const char *DES_options(void);
+#endif
 void DES_ecb3_encrypt(const_DES_cblock *input, DES_cblock *output,
 		      DES_key_schedule *ks1,DES_key_schedule *ks2,
 		      DES_key_schedule *ks3, int enc);

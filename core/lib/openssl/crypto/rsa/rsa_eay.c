@@ -197,14 +197,16 @@ static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		i=RSA_padding_add_PKCS1_type_2(buf,num,from,flen);
 		break;
-#ifndef OPENSSL_NO_SHA
+#if !defined(OPENSSL_NO_SHA)
 	case RSA_PKCS1_OAEP_PADDING:
 	        i=RSA_padding_add_PKCS1_OAEP(buf,num,from,flen,NULL,0);
 		break;
 #endif
+#ifndef OPTEE_OPENSSL_NO_SSLV23_PADDING
 	case RSA_SSLV23_PADDING:
 		i=RSA_padding_add_SSLv23(buf,num,from,flen);
 		break;
+#endif
 	case RSA_NO_PADDING:
 		i=RSA_padding_add_none(buf,num,from,flen);
 		break;
@@ -256,7 +258,9 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 {
 	BN_BLINDING *ret;
 	int got_write_lock = 0;
+#ifndef OPTEE
 	CRYPTO_THREADID cur;
+#endif
 
 	CRYPTO_r_lock(CRYPTO_LOCK_RSA);
 
@@ -274,6 +278,9 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 	if (ret == NULL)
 		goto err;
 
+#ifdef OPTEE
+	*local = 1;
+#else
 	CRYPTO_THREADID_current(&cur);
 	if (!CRYPTO_THREADID_cmp(&cur, BN_BLINDING_thread_id(ret)))
 		{
@@ -305,6 +312,7 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 			}
 		ret = rsa->mt_blinding;
 		}
+#endif
 
  err:
 	if (got_write_lock)
@@ -378,9 +386,11 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		i=RSA_padding_add_PKCS1_type_1(buf,num,from,flen);
 		break;
+#ifndef OPTEE_OPENSSL_NO_RSA_X931_PADDING
 	case RSA_X931_PADDING:
 		i=RSA_padding_add_X931(buf,num,from,flen);
 		break;
+#endif
 	case RSA_NO_PADDING:
 		i=RSA_padding_add_none(buf,num,from,flen);
 		break;
@@ -456,6 +466,7 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 		if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
 			goto err;
 
+#ifndef OPTEE_OPENSSL_NO_RSA_X931_PADDING
 	if (padding == RSA_X931_PADDING)
 		{
 		BN_sub(f, rsa->n, ret);
@@ -465,6 +476,7 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 			res = ret;
 		}
 	else
+#endif
 		res = ret;
 
 	/* put in leading 0 bytes if the number is less than the
@@ -553,7 +565,6 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 		if (!rsa_blinding_convert(blinding, f, unblind, ctx))
 			goto err;
 		}
-
 	/* do the decrypt */
 	if ( (rsa->flags & RSA_FLAG_EXT_PKEY) ||
 		((rsa->p != NULL) &&
@@ -597,14 +608,16 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		r=RSA_padding_check_PKCS1_type_2(to,num,buf,j,num);
 		break;
-#ifndef OPENSSL_NO_SHA
+#if !defined(OPENSSL_NO_SHA)
         case RSA_PKCS1_OAEP_PADDING:
 	        r=RSA_padding_check_PKCS1_OAEP(to,num,buf,j,num,NULL,0);
                 break;
 #endif
+#ifndef OPTEE_OPENSSL_NO_SSLV23_PADDING
  	case RSA_SSLV23_PADDING:
 		r=RSA_padding_check_SSLv23(to,num,buf,j,num);
 		break;
+#endif
 	case RSA_NO_PADDING:
 		r=RSA_padding_check_none(to,num,buf,j,num);
 		break;
@@ -696,8 +709,10 @@ static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 	if (!rsa->meth->bn_mod_exp(ret,f,rsa->e,rsa->n,ctx,
 		rsa->_method_mod_n)) goto err;
 
+#ifndef OPTEE_OPENSSL_NO_RSA_X931_PADDING
 	if ((padding == RSA_X931_PADDING) && ((ret->d[0] & 0xf) != 12))
 		if (!BN_sub(ret, rsa->n, ret)) goto err;
+#endif
 
 	p=buf;
 	i=BN_bn2bin(ret,p);
@@ -707,9 +722,11 @@ static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 	case RSA_PKCS1_PADDING:
 		r=RSA_padding_check_PKCS1_type_1(to,num,buf,i,num);
 		break;
+#ifndef OPTEE_OPENSSL_NO_RSA_X931_PADDING
 	case RSA_X931_PADDING:
 		r=RSA_padding_check_X931(to,num,buf,i,num);
 		break;
+#endif
 	case RSA_NO_PADDING:
 		r=RSA_padding_check_none(to,num,buf,i,num);
 		break;

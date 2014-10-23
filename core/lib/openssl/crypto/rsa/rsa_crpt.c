@@ -245,7 +245,9 @@ BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *in_ctx)
 		RSAerr(RSA_F_RSA_SETUP_BLINDING, ERR_R_BN_LIB);
 		goto err;
 		}
+#ifndef OPTEE
 	CRYPTO_THREADID_current(BN_BLINDING_thread_id(ret));
+#endif
 err:
 	BN_CTX_end(ctx);
 	if (in_ctx == NULL)

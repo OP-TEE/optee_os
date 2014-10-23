@@ -77,7 +77,9 @@
 #else
 # include <unistd.h>
 #endif
+#ifndef OPTEE
 #include <math.h>
+#endif
 #endif
 #endif
 #include <openssl/des.h>

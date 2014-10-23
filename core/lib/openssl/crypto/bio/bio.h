@@ -326,7 +326,9 @@ struct bio_st
 	unsigned long num_read;
 	unsigned long num_write;
 
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 	CRYPTO_EX_DATA ex_data;
+#endif
 	};
 
 DECLARE_STACK_OF(BIO)
@@ -611,10 +613,12 @@ int BIO_ctrl_reset_read_request(BIO *b);
 /* These two aren't currently implemented */
 /* int BIO_get_ex_num(BIO *bio); */
 /* void BIO_set_ex_free_func(BIO *bio,int idx,void (*cb)()); */
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 int BIO_set_ex_data(BIO *bio,int idx,void *data);
 void *BIO_get_ex_data(BIO *bio,int idx);
 int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+#endif
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
 

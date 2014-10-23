@@ -129,7 +129,9 @@ int _CONF_add_string(CONF *conf, CONF_VALUE *section, CONF_VALUE *value)
 char *_CONF_get_string(const CONF *conf, const char *section, const char *name)
 	{
 	CONF_VALUE *v,vv;
+#ifndef OPTEE
 	char *p;
+#endif
 
 	if (name == NULL) return(NULL);
 	if (conf != NULL)
@@ -140,13 +142,15 @@ char *_CONF_get_string(const CONF *conf, const char *section, const char *name)
 			vv.section=(char *)section;
 			v=lh_CONF_VALUE_retrieve(conf->data,&vv);
 			if (v != NULL) return(v->value);
+#ifndef OPTEE
 			if (strcmp(section,"ENV") == 0)
 				{
 				p=getenv(name);
 				if (p != NULL) return(p);
 				}
+#endif
 			}
-		vv.section="default";
+		vv.section=(char *)"default";
 		vv.name=(char *)name;
 		v=lh_CONF_VALUE_retrieve(conf->data,&vv);
 		if (v != NULL)
@@ -155,7 +159,11 @@ char *_CONF_get_string(const CONF *conf, const char *section, const char *name)
 			return(NULL);
 		}
 	else
+#ifdef OPTEE
+		return NULL;
+#else
 		return(getenv(name));
+#endif
 	}
 
 #if 0 /* There's no way to provide error checking with this function, so

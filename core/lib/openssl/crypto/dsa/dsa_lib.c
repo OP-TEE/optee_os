@@ -177,14 +177,18 @@ DSA *DSA_new_method(ENGINE *engine)
 
 	ret->references=1;
 	ret->flags=ret->meth->flags & ~DSA_FLAG_NON_FIPS_ALLOW;
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_DSA, ret, &ret->ex_data);
+#endif
 	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
 		{
 #ifndef OPENSSL_NO_ENGINE
 		if (ret->engine)
 			ENGINE_finish(ret->engine);
 #endif
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 		CRYPTO_free_ex_data(CRYPTO_EX_INDEX_DSA, ret, &ret->ex_data);
+#endif
 		OPENSSL_free(ret);
 		ret=NULL;
 		}
@@ -218,7 +222,9 @@ void DSA_free(DSA *r)
 		ENGINE_finish(r->engine);
 #endif
 
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 	CRYPTO_free_ex_data(CRYPTO_EX_INDEX_DSA, r, &r->ex_data);
+#endif
 
 	if (r->p != NULL) BN_clear_free(r->p);
 	if (r->q != NULL) BN_clear_free(r->q);
@@ -268,6 +274,7 @@ int DSA_size(const DSA *r)
 	return(ret);
 	}
 
+#ifndef OPTEE_OPENSSL_NO_EX_DATA
 int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
         {
@@ -284,6 +291,7 @@ void *DSA_get_ex_data(DSA *d, int idx)
 	{
 	return(CRYPTO_get_ex_data(&d->ex_data,idx));
 	}
+#endif
 
 #ifndef OPENSSL_NO_DH
 DH *DSA_dup_DH(const DSA *r)
