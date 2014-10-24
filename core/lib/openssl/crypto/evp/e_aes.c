@@ -1162,6 +1162,9 @@ static int aes_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 		memcpy(ctx->iv, iv, 16);
 		}
 
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+	xctx->xts.has_tweak = 0;
+#endif
 	return 1;
 	}
 

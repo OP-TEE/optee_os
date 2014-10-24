@@ -58,9 +58,15 @@
 #endif
 #include <assert.h>
 
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+int CRYPTO_xts128_encrypt(XTS128_CONTEXT *ctx, const unsigned char iv[16],
+	const unsigned char *inp, unsigned char *out,
+	size_t len, int enc)
+#else
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 	const unsigned char *inp, unsigned char *out,
 	size_t len, int enc)
+#endif
 {
 	const union { long one; char little; } is_endian = {1};
 	union { u64 u[2]; u32 d[4]; u8 c[16]; } tweak, scratch;
@@ -68,9 +74,16 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 
 	if (len<16) return -1;
 
-	memcpy(tweak.c, iv, 16);
-
-	(*ctx->block2)(tweak.c,tweak.c,ctx->key2);
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+	if (!ctx->has_tweak) {
+#endif
+		memcpy(tweak.c, iv, 16);
+		(*ctx->block2)(tweak.c,tweak.c,ctx->key2);
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+	} else {
+		memcpy(tweak.c, ctx->tweak, 16);
+	}
+#endif
 
 	if (!enc && (len%16)) len-=16;
 
@@ -96,7 +109,9 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 		out += 16;
 		len -= 16;
 
+#ifndef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
 		if (len==0)	return 0;
+#endif
 
 		if (is_endian.little) {
 			unsigned int carry,res;
@@ -117,6 +132,11 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 			}
 			tweak.c[0] ^= (u8)(0x87&(0-c));
 		}
+
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+		if (len == 0)
+			goto out;
+#endif
 	}
 	if (enc) {
 		for (i=0;i<len;++i) {
@@ -183,5 +203,10 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 #endif
 	}
 
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+out:
+	memcpy(ctx->tweak, tweak.c, 16);
+	ctx->has_tweak = 1;
+#endif
 	return 0;
 }

@@ -131,5 +131,10 @@ size_t CRYPTO_ccm128_tag(CCM128_CONTEXT *ctx, unsigned char *tag, size_t len);
 
 typedef struct xts128_context XTS128_CONTEXT;
 
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+int CRYPTO_xts128_encrypt(XTS128_CONTEXT *ctx, const unsigned char iv[16],
+	const unsigned char *inp, unsigned char *out, size_t len, int enc);
+#else
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 	const unsigned char *inp, unsigned char *out, size_t len, int enc);
+#endif

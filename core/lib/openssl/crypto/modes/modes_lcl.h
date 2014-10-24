@@ -117,6 +117,10 @@ struct gcm128_context {
 struct xts128_context {
 	void      *key1, *key2;
 	block128_f block1,block2;
+#ifdef OPTEE_OPENSSL_AES_XTS_MULTIPLE_UPDATES
+	u8 tweak[16];
+	int has_tweak;
+#endif
 };
 
 struct ccm128_context {
