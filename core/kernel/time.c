@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <tee_api.h>
 
-/*
- * Not used directly from any source file, but required by some compiler
- * library with some compiler options.
- */
-void abort(void)
+#include <time.h>
+#include <kernel/tee_time.h>
+#include <kernel/tee_core_trace.h>
+#include <kernel/tee_common_unpg.h>
+
+time_t time(time_t *t)
 {
-	printf("Abort!\n");
-	TEE_Panic(0);
+	TEE_Time tt = { 0 };
+
+	if (tee_time_get_sys_time(&tt) != TEE_SUCCESS)
+		TEE_ASSERT(!"tee_time_get_sys_time failed");
+	if (t)
+		*t = tt.seconds;
+
+	return tt.seconds;
 }
+
