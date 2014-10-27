@@ -1783,6 +1783,14 @@ TEE_Result tee_svc_hash_update(uint32_t state, const void *chunk,
 	struct tee_cryp_state *cs;
 	struct tee_ta_session *sess;
 
+	/* No data, but size provided isn't valid parameters. */
+	if (!chunk && chunk_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Zero length hash is valid, but nothing we need to do. */
+	if (!chunk_size)
+		return TEE_SUCCESS;
+
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -1825,6 +1833,10 @@ TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
 	struct tee_cryp_state *cs;
 	struct tee_ta_session *sess;
 
+	/* No data, but size provided isn't valid parameters. */
+	if (!chunk && chunk_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -1862,13 +1874,18 @@ TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
 			goto out;
 		}
 
-		res = tee_hash_update(cs->ctx, cs->algo, chunk, chunk_size);
-		if (res != TEE_SUCCESS)
-			return res;
+		if (chunk_size) {
+			res = tee_hash_update(cs->ctx, cs->algo, chunk,
+					      chunk_size);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
+
 		res = tee_hash_final(cs->ctx, cs->algo, hash, hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
+
 	case TEE_OPERATION_MAC:
 		res = tee_mac_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
@@ -1883,6 +1900,7 @@ TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
+
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}

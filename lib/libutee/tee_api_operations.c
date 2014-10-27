@@ -460,12 +460,12 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 void TEE_DigestUpdate(TEE_OperationHandle operation,
 		      void *chunk, size_t chunkSize)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (operation == TEE_HANDLE_NULL || chunk == NULL)
+	if (operation == TEE_HANDLE_NULL ||
+	    operation->info.operationClass != TEE_OPERATION_DIGEST)
 		TEE_Panic(0);
-	if (operation->info.operationClass != TEE_OPERATION_DIGEST)
-		TEE_Panic(0);
+
 	res = utee_hash_update(operation->state, chunk, chunkSize);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
@@ -474,11 +474,11 @@ void TEE_DigestUpdate(TEE_OperationHandle operation,
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 			     size_t chunkLen, void *hash, size_t *hashLen)
 {
-	if (operation == TEE_HANDLE_NULL || (chunk == NULL && chunkLen != 0) ||
-	    hash == NULL || hashLen == NULL)
+	if ((operation == TEE_HANDLE_NULL) || (!chunk && chunkLen) ||
+	    !hash || !hashLen ||
+	    (operation->info.operationClass != TEE_OPERATION_DIGEST))
 		TEE_Panic(0);
-	if (operation->info.operationClass != TEE_OPERATION_DIGEST)
-		TEE_Panic(0);
+
 	return utee_hash_final(operation->state, chunk, chunkLen, hash,
 			       hashLen);
 }
