@@ -31,6 +31,6 @@
 #include <stddef.h>
 
 #define __ssize_t_defined
-typedef int32_t ssize_t;
+typedef intptr_t ssize_t;
 
 #endif

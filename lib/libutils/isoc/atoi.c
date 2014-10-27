@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +24,35 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <tee_api.h>
-
 /*
- * Not used directly from any source file, but required by some compiler
- * library with some compiler options.
+ * the atoi() function below is largely inspired from _PDCLIB_atomax() in the
+ * Public Domain C Library (PDCLib). Original copyright notice follows.
  */
-void abort(void)
+/* _PDCLIB_atomax( const char * )
+ *
+ * This file is part of the Public Domain C Library (PDCLib).
+ * Permission is granted to use, modify, and / or redistribute at will.
+ */
+
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+
+static const char *digits = "0123456789";
+
+int atoi(const char *s)
 {
-	printf("Abort!\n");
-	TEE_Panic(0);
+	int rc = 0;
+	char sign = '+';
+	const char *x;
+
+	while (isspace(*s))
+		s++;
+	if (*s == '+')
+		s++;
+	else if (*s == '-')
+		sign = *(s++);
+	while ((x = memchr(digits, tolower(*(s++)), 10)) != NULL)
+		rc = 10*rc + (x - digits);
+	return (sign == '+') ? rc : -rc;
 }

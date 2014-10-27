@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +24,62 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <tee_api.h>
 
 /*
- * Not used directly from any source file, but required by some compiler
- * library with some compiler options.
+ * Crude implementation (ASCII, C locale) of the standard character
+ * classification routines
  */
-void abort(void)
+
+#include <ctype.h>
+
+int isdigit(int c)
 {
-	printf("Abort!\n");
-	TEE_Panic(0);
+	return (c >= '0' && c <= '9');
 }
+
+int isspace(int c)
+{
+	return (c == ' '  || c == '\f' || c == '\n' || c == '\r' ||
+		c == '\t' || c == '\v');
+}
+
+int isalpha(int c)
+{
+	return (islower(c) || isupper(c));
+}
+
+int isalnum(int c)
+{
+	return (isalpha(c) || isdigit(c));
+}
+
+int isxdigit(int c)
+{
+	return (isdigit(c) || (c >= 'a' && c <= 'f')
+			   || (c >= 'A' && c <= 'F'));
+}
+
+int isupper(int c)
+{
+	return (c >= 'A' && c <= 'Z');
+}
+
+int islower(int c)
+{
+	return (c >= 'a' && c <= 'z');
+}
+
+int toupper(int c)
+{
+       if (c >= 'a' && c <= 'z')
+               return 'A' + c - 'a';
+       return c;
+}
+
+int tolower(int c)
+{
+       if (c >= 'A' && c <= 'Z')
+               return 'a' + c - 'A';
+       return c;
+}
+

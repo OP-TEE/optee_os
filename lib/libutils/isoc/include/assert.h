@@ -40,4 +40,7 @@ void _assert_log(const char *expr, const char *file, int line);
 		} \
 	} while (0)
 
+/* Unconditional assert */
+#define ASSERT(expr) assert(expr)
+
 #endif

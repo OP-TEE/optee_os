@@ -27,6 +27,8 @@
 #ifndef TIME_H
 #define TIME_H
 
-#include <stddef.h>
+typedef unsigned long time_t;
 
-#endif /*TIME_H*/
+time_t time(time_t *t);
+
+#endif /* TIME_H */
