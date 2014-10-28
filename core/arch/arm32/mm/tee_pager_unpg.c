@@ -382,6 +382,7 @@ void tee_pager_restore_irq(void)
 
 	/* Infinite loop as this is not implemented yet */
 	volatile bool mytrue = true;
+	EMSG("tee_pager_restore_irq not implemented yet");
 	while (mytrue)
 	;
 }

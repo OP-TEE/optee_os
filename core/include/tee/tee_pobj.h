@@ -49,6 +49,4 @@ TEE_Result tee_pobj_release(struct tee_pobj *obj);
 TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 			   uint32_t obj_id_len);
 
-void tee_pobj_init(void);
-
 #endif

@@ -205,23 +205,18 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 					    sizeof(ta_time_prot_lvl));
 
 	case UTEE_PROP_CLIENT_ID:
-		{
-			if (blen < sizeof(TEE_Identity))
-				return TEE_ERROR_SHORT_BUFFER;
+		if (blen < sizeof(TEE_Identity))
+			return TEE_ERROR_SHORT_BUFFER;
 
-			return tee_svc_copy_to_user(sess, (void *)buf,
-						    &sess->clnt_id,
-						    sizeof(TEE_Identity));
-		}
+		return tee_svc_copy_to_user(sess, (void *)buf,
+			&sess->clnt_id, sizeof(TEE_Identity));
+
 	case UTEE_PROP_TA_APP_ID:
-		{
-			if (blen < sizeof(TEE_UUID))
-				return TEE_ERROR_SHORT_BUFFER;
+		if (blen < sizeof(TEE_UUID))
+			return TEE_ERROR_SHORT_BUFFER;
 
-			return tee_svc_copy_to_user(sess, (void *)buf,
-						    &sess->ctx->head->uuid,
-						    sizeof(TEE_UUID));
-		}
+		return tee_svc_copy_to_user(sess, (void *)buf,
+			&sess->ctx->head->uuid, sizeof(TEE_UUID));
 
 	default:
 		break;

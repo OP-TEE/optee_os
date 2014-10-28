@@ -24,14 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <kernel/tee_common.h>
 #include <kernel/chip_services.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu_defs.h>
-
-
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_core_trace.h>
 

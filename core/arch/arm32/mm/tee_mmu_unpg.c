@@ -29,7 +29,6 @@
 #include <mm/tee_mmu_unpg.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/core_mmu.h>
-#include <kernel/tz_ssvce.h>
 
 void tee_mmu_get_map(struct tee_mmu_mapping *map)
 {
@@ -47,7 +46,7 @@ void tee_mmu_set_map(struct tee_mmu_mapping *map)
 	else
 		tee_mmu_switch(map->ttbr0, map->ctxid);
 
-	secure_mmu_unifiedtlbinvall();
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 }
 
 void tee_mmu_switch(uint32_t ttbr0_base, uint32_t ctxid)

@@ -420,9 +420,6 @@ int core_tlb_maintenance(int op, unsigned int a)
 		secure_mmu_unifiedtlbinv_curasid();
 		break;
 	case TLBINV_BY_ASID:
-		SMSG("TLBINV_BY_ASID is not yet supproted. Trap CPU!");
-		while (1)
-			;
 		secure_mmu_unifiedtlbinv_byasid(a);
 		break;
 	case TLBINV_BY_MVA:

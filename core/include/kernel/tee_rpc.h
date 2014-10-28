@@ -36,6 +36,7 @@
 #define TEE_RPC_RPMB_CMD	0x1000000A
 #define TEE_RPC_FS		0x10000010
 #define TEE_RPC_GET_TIME	0x10000011
+
 /* keep in sync with Linux driver */
 #define TEE_RPC_WAIT_MUTEX	0x20000000
 /* Values specific to TEE_RPC_WAIT_MUTEX */

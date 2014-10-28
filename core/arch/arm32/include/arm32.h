@@ -273,7 +273,6 @@ static inline uint32_t read_spsr(void)
 	return spsr;
 }
 
-
 #endif
 
 #endif /*ARM32_H*/
