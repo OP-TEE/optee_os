@@ -31,26 +31,26 @@ script:
   - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl -
 
   # Orly2
-  -                                  PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm       PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  -                                  PLATFORM=stm-orly2                                  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
 
   # Cannes
-  -                                  PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm       PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  -                                  PLATFORM=stm-cannes                                 CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
 
   # FVP
-  -                                  PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress  PLATFORM_FLAVOR=fvp                                       make -j8 all
+  -                                  PLATFORM=vexpress-fvp                                                                 make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
 
   # QEMU
-  -                                  PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu                                      make -j8 all
+  -                                  PLATFORM=vexpress-qemu                                                                make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
 
   # QEMU-virt
-  -                                  PLATFORM=vexpress  PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress  PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
+  -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
