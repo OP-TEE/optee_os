@@ -33,19 +33,11 @@ unsigned int secure_get_cpu_id(void);
 void arm_cl1_d_cleanbysetway(void);
 void arm_cl1_d_invbysetway(void);
 void arm_cl1_d_cleaninvbysetway(void);
-void arm_cl1_d_cleanbypa(unsigned long start, unsigned long end);
-void arm_cl1_d_invbypa(unsigned long start, unsigned long end);
-void arm_cl1_d_cleaninvbypa(unsigned long start, unsigned long end);
-
+void arm_cl1_d_cleanbyva(void *start, void *end);
+void arm_cl1_d_invbyva(void *start, void *end);
+void arm_cl1_d_cleaninvbyva(void *start, void *end);
 void arm_cl1_i_inv_all(void);
-void arm_cl1_i_inv(unsigned long start, unsigned long end);
-
-void arm_cl2_cleaninvbyway(void);
-void arm_cl2_invbyway(void);
-void arm_cl2_cleanbyway(void);
-void arm_cl2_cleanbypa(unsigned long start, unsigned long end);
-void arm_cl2_invbypa(unsigned long start, unsigned long end);
-void arm_cl2_cleaninvbypa(unsigned long start, unsigned long end);
+void arm_cl1_i_inv(void *start, void *end);
 
 void secure_mmu_datatlbinvall(void);
 void secure_mmu_unifiedtlbinvall(void);

@@ -132,8 +132,8 @@ int core_pa2va_helper(paddr_t pa, void **va);
 bool core_mmu_is_shm_cached(void);
 
 /* L1/L2 cache maintenance (op: refer to ???) */
-unsigned int core_cache_maintenance(int op, void *start, size_t len);
-unsigned int cache_maintenance_l2(int op, void *start, size_t len);
+unsigned int cache_maintenance_l1(int op, void *va, size_t len);
+unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len);
 void core_l2cc_mutex_set(void *mutex);
 void core_l2cc_mutex_activate(bool en);
 void core_l2cc_mutex_lock(void);

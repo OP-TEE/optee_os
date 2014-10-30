@@ -28,11 +28,27 @@
 #ifndef TZ_SSVCE_PL310_H
 #define TZ_SSVCE_PL310_H
 
+#include <util.h>
+#include <kernel/tz_ssvce_def.h>
+#include <types_ext.h>
+
+#define arm_cl2_cleanbypa(start, end) \
+	_arm_cl2_cleanbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
+			ROUNDUP((end), PL310_WAY_SIZE))
+
+#define arm_cl2_invbypa(start, end) \
+	_arm_cl2_invbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
+			ROUNDUP((end), PL310_WAY_SIZE))
+
+#define arm_cl2_cleaninvbypa(start, end) \
+	_arm_cl2_cleaninvbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
+			ROUNDUP((end), PL310_WAY_SIZE))
+
 void arm_cl2_cleaninvbyway(void);
 void arm_cl2_invbyway(void);
 void arm_cl2_cleanbyway(void);
-void arm_cl2_cleanbypa(unsigned long start, unsigned long end);
-void arm_cl2_invbypa(unsigned long start, unsigned long end);
-void arm_cl2_cleaninvbypa(unsigned long start, unsigned long end);
+void _arm_cl2_cleanbypa(paddr_t start, paddr_t end);
+void _arm_cl2_invbypa(paddr_t start, paddr_t end);
+void _arm_cl2_cleaninvbypa(paddr_t start, paddr_t end);
 
 #endif /* TZ_SSVCE_PL310_H */

@@ -551,9 +551,8 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	}
 	memcpy(dst, nmem_ta, size);
 
-	core_cache_maintenance(DCACHE_AREA_CLEAN, dst, size);
-	core_cache_maintenance(ICACHE_AREA_INVALIDATE, dst,
-			      size);
+	cache_maintenance_l1(DCACHE_AREA_CLEAN, dst, size);
+	cache_maintenance_l1(ICACHE_AREA_INVALIDATE, dst, size);
 
 	ctx->load_addr = tee_mmu_get_load_addr(ctx);
 
@@ -789,7 +788,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
 		    tee_svc_enter_user_mode(param->types, params_uaddr,
-					    (uint32_t) session, 0, stack_uaddr,
+					    (uint32_t)session, 0, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);
 
@@ -801,7 +800,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		break;
 
 	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
-		res = tee_svc_enter_user_mode((uint32_t) session, 0, 0, 0,
+		res = tee_svc_enter_user_mode((uint32_t)session, 0, 0, 0,
 					      stack_uaddr, start_uaddr,
 					      &ctx->panicked, &ctx->panic_code);
 
@@ -811,7 +810,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_INVOKE_COMMAND:
 		res =
 		    tee_svc_enter_user_mode(cmd, param->types, params_uaddr,
-					    (uint32_t) session, stack_uaddr,
+					    (uint32_t)session, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);
 
@@ -989,33 +988,29 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	 * No L2 cache maintenance to avoid sync problems
 	 */
 	if ((ctx->flags & TA_FLAG_EXEC_DDR) != 0) {
-		void *pa;
+		paddr_t pa;
 		void *va;
 		uint32_t s;
 
 		tee_mmu_set_ctx(ctx);
 
 		if (ctx->mm != NULL) {
-			pa = (void *)tee_mm_get_smem(ctx->mm);
-			if (tee_mmu_user_pa2va(ctx, pa, &va) ==
+			pa = tee_mm_get_smem(ctx->mm);
+			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
 			    TEE_SUCCESS) {
 				s = tee_mm_get_bytes(ctx->mm);
 				memset(va, 0, s);
-				core_cache_maintenance
-				    (DCACHE_AREA_CLEAN, va, s);
+				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
 			}
 		}
 
 		if (ctx->mm_heap_stack != NULL) {
-			pa = (void *)tee_mm_get_smem
-					(ctx->mm_heap_stack);
-			if (tee_mmu_user_pa2va(ctx, pa, &va) ==
+			pa = tee_mm_get_smem(ctx->mm_heap_stack);
+			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
 			    TEE_SUCCESS) {
-				s = tee_mm_get_bytes
-					(ctx->mm_heap_stack);
+				s = tee_mm_get_bytes(ctx->mm_heap_stack);
 				memset(va, 0, s);
-				core_cache_maintenance
-				    (DCACHE_AREA_CLEAN, va, s);
+				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
 			}
 		}
 		tee_mmu_set_ctx(NULL);

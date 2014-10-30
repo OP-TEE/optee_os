@@ -338,7 +338,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 	if (core_va2pa((void *)vbuf, &p))
 		return false;
 
-	return core_pbuf_is(attr, (tee_paddr_t) p, len);
+	return core_pbuf_is(attr, (tee_paddr_t)p, len);
 }
 
 /*
@@ -434,27 +434,26 @@ int core_tlb_maintenance(int op, unsigned int a)
 	return 0;
 }
 
-static unsigned int cache_maintenance_l1(int op, void *start __unused,
-			size_t len __unused)
+unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 {
 	switch (op) {
 	case DCACHE_CLEAN:
 		arm_cl1_d_cleanbysetway();
 		break;
 	case DCACHE_AREA_CLEAN:
-		arm_cl1_d_cleanbysetway();
+		arm_cl1_d_cleanbyva(va, (char *)va + len);
 		break;
 	case DCACHE_INVALIDATE:
 		arm_cl1_d_invbysetway();
 		break;
 	case DCACHE_AREA_INVALIDATE:
-		arm_cl1_d_invbysetway();
+		arm_cl1_d_invbyva(va, (char *)va + len);
 		break;
 	case ICACHE_INVALIDATE:
 		arm_cl1_i_inv_all();
 		break;
 	case ICACHE_AREA_INVALIDATE:
-		arm_cl1_i_inv_all();
+		arm_cl1_i_inv(va, (char *)va + len);
 		break;
 	case WRITE_BUFFER_DRAIN:
 		DMSG("unsupported operation 0x%X (WRITE_BUFFER_DRAIN)",
@@ -464,13 +463,12 @@ static unsigned int cache_maintenance_l1(int op, void *start __unused,
 		arm_cl1_d_cleaninvbysetway();
 		break;
 	case DCACHE_AREA_CLEAN_INV:
-		arm_cl1_d_cleaninvbysetway();
+		arm_cl1_d_cleaninvbyva(va, (char *)va + len);
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 	return TEE_SUCCESS;
-
 }
 
 /*
@@ -514,8 +512,8 @@ void core_l2cc_mutex_unlock(void)
 		cpu_spin_unlock(l2cc_mutex);
 }
 
-__attribute__((weak)) unsigned int cache_maintenance_l2(
-	int op __unused, void *start __unused, size_t len __unused)
+__weak unsigned int cache_maintenance_l2(int op __unused,
+			paddr_t pa __unused, size_t len __unused)
 {
 	/*
 	 * L2 Cache is not available on each platform
@@ -524,20 +522,4 @@ __attribute__((weak)) unsigned int cache_maintenance_l2(
 	 */
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-unsigned int core_cache_maintenance(int op, void *start, size_t len)
-{
-	unsigned int ret;
-
-	ret = cache_maintenance_l1(op, start, len);
-	if (ret != TEE_ERROR_NOT_IMPLEMENTED)
-		return ret;
-
-	ret = cache_maintenance_l2(op, start, len);
-	if (ret != TEE_ERROR_NOT_IMPLEMENTED)
-		return ret;
-
-	EMSG("unsupported operation 0x%X", (unsigned int)op);
-	return TEE_ERROR_GENERIC;
 }

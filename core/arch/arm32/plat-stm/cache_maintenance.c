@@ -24,12 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <compiler.h>
+#include <arm32.h>
 #include <mm/core_mmu.h>
 #include <kernel/tz_ssvce_pl310.h>
 
-unsigned int cache_maintenance_l2(int op __unused, void *start __unused, size_t len __unused)
+unsigned int cache_maintenance_l2(int op __unused,
+				   paddr_t pa __unused, size_t len __unused)
 {
 	unsigned int ret = TEE_SUCCESS;
 

@@ -32,9 +32,9 @@
 .global arm_cl2_cleaninvbyway
 .global arm_cl2_invbyway
 .global arm_cl2_cleanbyway
-.global arm_cl2_cleanbypa
-.global arm_cl2_invbypa
-.global arm_cl2_cleaninvbypa
+.global _arm_cl2_cleanbypa
+.global _arm_cl2_invbypa
+.global _arm_cl2_cleaninvbypa
 
 /*
  * void arm_cl2_cleaninvbyway(void) - clean & invalidate the whole L2 cache.
@@ -155,11 +155,11 @@ loop_cl_way_sync_done:
 	mov pc, lr
 
 /*
- * void arm_cl2_cleanbypa(unsigned long start, unsigned long end);
+ * void _arm_cl2_cleanbypa(paddr_t start, paddr_t end);
  *
  * clean L2 cache by physical address range.
  */
-arm_cl2_cleanbypa:
+_arm_cl2_cleanbypa:
 
 	/*
 	 * ARM ERRATA #764369
@@ -185,7 +185,7 @@ loop_cl_pa_done:
 	cmp R3, #0
 	bne loop_cl_pa_done
 
-	add R0, R0, #32
+	add R0, R0, #PL310_WAY_SIZE
 	cmp R1, R0
 	bne loop_cl2_clean_by_pa
 
@@ -211,11 +211,11 @@ loop_cl_pa_sync_done:
 	mov pc, lr
 
 /*
- * void arm_cl2_invbypa(unsigned long start, unsigned long end);
+ * void _arm_cl2_invbypa(paddr_t start, paddr_t end);
  *
  * invalidate L2 cache by physical address range.
  */
-arm_cl2_invbypa:
+_arm_cl2_invbypa:
 
 	/*
 	 * ARM ERRATA #764369
@@ -241,7 +241,7 @@ loop_inv_pa_done:
 	CMP R3, #0
 	BNE loop_inv_pa_done
 
-	ADD R0, R0, #32
+	ADD R0, R0, #PL310_WAY_SIZE
 	CMP R1, R0
 	BNE loop_cl2_inv_by_pa
 
@@ -268,11 +268,11 @@ loop_inv_pa_sync_done:
 	MOV PC, LR
 
 /*
- * void arm_cl2_cleaninvbypa(unsigned long start, unsigned long end);
+ * void _arm_cl2_cleaninvbypa(paddr_t start, paddr_t end);
  *
  * clean and invalidate L2 cache by physical address range.
  */
-arm_cl2_cleaninvbypa:
+_arm_cl2_cleaninvbypa:
 
 	mov r2, r0
 	/*

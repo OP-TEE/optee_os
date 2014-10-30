@@ -50,9 +50,9 @@
 .global arm_cl1_d_cleanbysetway
 .global arm_cl1_d_invbysetway
 .global arm_cl1_d_cleaninvbysetway
-.global arm_cl1_d_cleanbypa
-.global arm_cl1_d_invbypa
-.global arm_cl1_d_cleaninvbypa
+.global arm_cl1_d_cleanbyva
+.global arm_cl1_d_invbyva
+.global arm_cl1_d_cleaninvbyva
 .global arm_cl1_i_inv_all
 .global arm_cl1_i_inv
 
@@ -219,9 +219,9 @@ _cli_nextLine:
 	MOV PC, LR
 
 /*
- * void arm_cl1_d_cleanbypa(unsigned long s, unsigned long e);
+ * void arm_cl1_d_cleanbyva(void *s, void *e);
  */
-arm_cl1_d_cleanbypa:
+arm_cl1_d_cleanbyva:
 
 	CMP     R0, R1                  @ ; check that end >= start. Otherwise return.
 	BHI     _cl_area_exit
@@ -243,9 +243,9 @@ _cl_area_exit:
 	MOV PC, LR
 
 /*
- * void arm_cl1_d_invbypa(unsigned long s, unsigned long e);
+ * void arm_cl1_d_invbyva(void *s, void *e);
  */
-arm_cl1_d_invbypa:
+arm_cl1_d_invbyva:
 
 	CMP     R0, R1                      @ ; check that end >= start. Otherwise return.
 	BHI     _inv_area_dcache_exit
@@ -267,9 +267,9 @@ _inv_area_dcache_exit:
 	MOV PC, LR
 
 /*
- * void arm_cl1_d_cleaninvbypa(unsigned long s, unsigned long e);
+ * void arm_cl1_d_cleaninvbyva(void *s, void *e);
  */
-arm_cl1_d_cleaninvbypa:
+arm_cl1_d_cleaninvbyva:
 
 	CMP     R0, R1                  @ ; check that end >= start. Otherwise return.
 	BHI     _cli_area_exit
@@ -312,9 +312,9 @@ arm_cl1_i_inv_all:
     BX      LR
 
 /*
- * void arm_cl1_i_inv(unsigned long start, unsigned long p_end);
+ * void arm_cl1_i_inv(void *start, void *end);
  *
- * Invalidates instruction cache area whose (physical) limits are given in parameters.
+ * Invalidates instruction cache area whose limits are given in parameters.
  * It also invalidates the BTAC.
  */
 arm_cl1_i_inv:

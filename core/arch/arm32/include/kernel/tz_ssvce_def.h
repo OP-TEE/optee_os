@@ -74,6 +74,8 @@
 /*
  * Outer cache iomem
  */
+#define PL310_WAY_SIZE	32
+
 #define PL310_BASE_H	((PL310_BASE >> 16) & 0xFFFF)
 #define PL310_BASE_L	(PL310_BASE & 0xFFFF)
 /* reg1 */

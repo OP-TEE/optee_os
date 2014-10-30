@@ -318,13 +318,11 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 		apage->ctx_handle = tee_ta_load_page(w_addr);
 		TEE_PAGER_SET_COPY(1);
 
-		core_cache_maintenance(DCACHE_AREA_CLEAN,
-				      (void *)(w_addr & 0xFFFFF000),
-				      SMALL_PAGE_SIZE);
+		cache_maintenance_l1(DCACHE_AREA_CLEAN,
+			(void *)(w_addr & 0xFFFFF000), SMALL_PAGE_SIZE);
 
-		core_cache_maintenance(ICACHE_AREA_INVALIDATE,
-				      (void *)(w_addr & 0xFFFFF000),
-				      SMALL_PAGE_SIZE);
+		cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
+			(void *)(w_addr & 0xFFFFF000), SMALL_PAGE_SIZE);
 	}
 
 	/* end protect (multithreded version) */
