@@ -27,7 +27,6 @@
 
 #include <tee/entry.h>
 #include <sm/teesmc.h>
-#include <sm/teesmc_st.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/tee_dispatch.h>
 #include <kernel/panic.h>

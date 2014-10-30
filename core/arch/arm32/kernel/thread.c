@@ -30,7 +30,7 @@
 #include <kernel/thread_defs.h>
 #include "thread_private.h"
 #include <sm/teesmc.h>
-#include <sm/teesmc_st.h>
+#include <sm/teesmc_optee.h>
 #include <arm32.h>
 #include <kernel/arch_debug.h>
 #include <kernel/tz_proc_def.h>
@@ -504,10 +504,11 @@ void thread_rpc_cmd(paddr_t arg)
 	thread_rpc(rpc_args);
 }
 
-void thread_st_rpc_alloc_payload(size_t size, paddr_t *payload, paddr_t *cookie)
+void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
+		paddr_t *cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-		TEESMC_RETURN_ST_RPC_ALLOC_PAYLOAD, size};
+		TEESMC_RETURN_OPTEE_RPC_ALLOC_PAYLOAD, size};
 
 	thread_rpc(rpc_args);
 	if (payload)
@@ -516,10 +517,10 @@ void thread_st_rpc_alloc_payload(size_t size, paddr_t *payload, paddr_t *cookie)
 		*cookie = rpc_args[2];
 }
 
-void thread_st_rpc_free_payload(paddr_t cookie)
+void thread_optee_rpc_free_payload(paddr_t cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] ={
-		TEESMC_RETURN_ST_RPC_FREE_PAYLOAD, cookie};
+		TEESMC_RETURN_OPTEE_RPC_FREE_PAYLOAD, cookie};
 
 	thread_rpc(rpc_args);
 }
