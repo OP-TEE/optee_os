@@ -66,7 +66,7 @@ comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 			      $$(cflags-remove-$2), \
 		   $$(CFLAGS) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$2)) $$(cflags$$(comp-sm-$2)) \
-		   $$(cflags-$2))
+		   $$(cflags-lib$$(comp-lib-$2)) $$(cflags-$2))
 else ifeq ($$(filter %.S,$1),$1)
 comp-flags-$2 = -DASM=1 $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
 				      $$(aflags-remove-$2), \
