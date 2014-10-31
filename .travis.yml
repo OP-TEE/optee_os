@@ -52,3 +52,6 @@ script:
   -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=5 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
+
+  # QEMU-virt with OpenSSL crypto
+  - WITH_CRYPTO=openssl              PLATFORM=vexpress-qemu_virt                                                           make -j8 all
