@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <arm32.h>
 #include <kernel/util.h>
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu.h>
@@ -44,6 +45,7 @@
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_io.h>
 #include <sm/teesmc.h>
+#include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
 
 #define TEE_MMU_PAGE_TEX_SHIFT 6
@@ -359,7 +361,7 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 	    tee_mm_get_size(ctx->mm) + tee_mmu_get_io_size(param) +
 	    TEE_DDR_VLOFFSET;
 
-	if (ctx->mmu->size > TEE_MMU_UL1_NUM_USER_ENTRIES) {
+	if (ctx->mmu->size > TEE_MMU_UL1_NUM_ENTRIES) {
 		res = TEE_ERROR_EXCESS_DATA;
 		goto exit;
 	}
@@ -443,7 +445,7 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 	g_asid |= asid;
 
 	/* clear MMU entries to avoid clash when asid is reused */
-	tee_mmu_invtlb_asid(ctx->context & 0xff);
+	secure_mmu_unifiedtlbinv_byasid(ctx->context & 0xff);
 	ctx->context = 0;
 
 	if (ctx->mmu != NULL) {
@@ -456,28 +458,20 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 
 /* return true only if buffer fits inside TA private memory */
 bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size)
+				  const void *va, size_t size)
 {
-	if ((va + size < va) ||
-		(va < ctx->mmu->ta_private_vmem_start) ||
-		((va + size) > ctx->mmu->ta_private_vmem_end))
-		return false;
-	return true;
+	return core_is_buffer_inside(va, size,
+	  ctx->mmu->ta_private_vmem_start,
+	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
 }
 
-/* return true only if buffer fits outside TA private memory */
-bool tee_mmu_is_vbuf_outside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size)
+/* return true only if buffer intersects TA private memory */
+bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
+					  const void *va, size_t size)
 {
-	if (va + size < va)
-		return false;
-	if ((va < ctx->mmu->ta_private_vmem_start) &&
-		((va + size) > ctx->mmu->ta_private_vmem_start))
-		return false;
-	if ((va < ctx->mmu->ta_private_vmem_end) &&
-		((va + size) > ctx->mmu->ta_private_vmem_end))
-		return false;
-	return true;
+	return core_is_buffer_intersect(va, size,
+	  ctx->mmu->ta_private_vmem_start,
+	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
 }
 
 TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
@@ -594,39 +588,16 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
 	if (ctx == NULL) {
-		tee_mmu_switch(core_mmu_get_ttbr0(), 0);
+		tee_mmu_switch(read_ttbr1(), 0);
 	} else {
-		uint32_t base, i;
-		void *va = NULL;	/* fix gcc warning */
-
-		base = TEE_MMU_UL1_BASE;
-
-		if (core_pa2va(core_mmu_get_ttbr0_base(), &va)) {
-			EMSG("unmapped teecore mmu table! trap CPU!");
-			assert(0);
-		}
-		/* TODO: why not using the same L1 table and play only on ASID
-		 * to identify tee_mmu_is_kmapping() ?
-		 * Do TEEcore need to protect against TA changing the mapping ?
-		 */
-
-		/* copy teecore mapping (priviledge mapping only) */
-		memcpy((void *)base, va, 16 * 1024);
-
-		/* check the 1st entries are not mapped: we will map uTA in ! */
-		for (i = 0; i < (ctx->mmu->size * 4); i += 4) {
-			if (*(uint32_t *)(base + i) != 0) {
-				EMSG("mmu table is not clean: cannot add map");
-				assert(0);
-			}
-		}
+		paddr_t base = core_mmu_get_ul1_ttb_pa();
+		void *va = (void *)core_mmu_get_ul1_ttb_va();
 
 		/* copy uTA mapping at begning of mmu table */
-		memcpy((void *)base, ctx->mmu->table, ctx->mmu->size * 4);
+		memcpy(va, ctx->mmu->table, ctx->mmu->size * 4);
 
 		/* Change ASID to new value */
-		tee_mmu_switch(TEE_MMU_UL1_PA_BASE | TEE_MMU_DEFAULT_ATTRS,
-			       ctx->context);
+		tee_mmu_switch(base | TEE_MMU_DEFAULT_ATTRS, ctx->context);
 	}
 	core_tlb_maintenance(TLBINV_CURRENT_ASID, 0);
 }
@@ -649,31 +620,29 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
  */
 void tee_mmu_kmap_init(void)
 {
-	tee_vaddr_t s = TEE_MMU_UL1_NUM_USER_ENTRIES << SECTION_SHIFT;
-	tee_vaddr_t e = s + (TEE_MMU_UL1_NUM_KERN_ENTRIES << SECTION_SHIFT);
-
-	if ((TEE_MMU_UL1_PA_BASE % TEE_MMU_UL1_SIZE) != 0) {
-		DMSG("Bad MMU addr va 0x%x pa 0x%x 0x%x\n",
-		     TEE_MMU_UL1_BASE, TEE_MMU_UL1_PA_BASE,
-		     TEE_MMU_UL1_PA_BASE % TEE_MMU_UL1_SIZE);
-		assert(0);
-	}
-
-	/* Configure MMU UL1 */
-	memset((void *)TEE_MMU_UL1_BASE, 0, TEE_MMU_UL1_SIZE);
+	tee_vaddr_t s = TEE_MMU_KMAP_START_VA;
+	tee_vaddr_t e = TEE_MMU_KMAP_END_VA;
 
 	if (!tee_mm_init(&tee_mmu_virt_kmap, s, e, SECTION_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS)) {
 		DMSG("Failed to init kmap. Trap CPU!");
-		assert(0);
+		TEE_ASSERT(0);
 	}
+}
+
+static uint32_t *get_kmap_l1_base(void)
+{
+	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
+
+	/* Return address where kmap entries start */
+	return l1 + TEE_MMU_KMAP_OFFS;
 }
 
 TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
 {
 	tee_mm_entry_t *mm;
 	size_t n;
-	uint32_t *l1 = (uint32_t *)TEE_MMU_UL1_KERN_BASE;
+	uint32_t *l1 = get_kmap_l1_base();
 	uint32_t py_offset = (uint32_t) pa >> SECTION_SHIFT;
 	uint32_t pa_s = ROUNDDOWN(pa, SECTION_SIZE);
 	uint32_t pa_e = ROUNDUP(pa + len, SECTION_SIZE);
@@ -715,7 +684,7 @@ void tee_mmu_kunmap(void *va, size_t len)
 {
 	size_t n;
 	tee_mm_entry_t *mm;
-	uint32_t *l1 = (uint32_t *)TEE_MMU_UL1_KERN_BASE;
+	uint32_t *l1 = get_kmap_l1_base();
 
 	mm = tee_mm_find(&tee_mmu_virt_kmap, (uint32_t)va);
 	if (mm == NULL || len > tee_mm_get_bytes(mm))
@@ -732,13 +701,13 @@ void tee_mmu_kunmap(void *va, size_t len)
 TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 {
 	size_t n;
+	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
 
-	for (n = TEE_MMU_UL1_NUM_USER_ENTRIES;
-	     n < TEE_MMU_UL1_NUM_ENTRIES;
-	     n++) {
-		if (TEE_MMU_UL1_ENTRY(n) != 0 &&
-		    (uint32_t)pa >= (TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) &&
-		    (uint32_t)pa < ((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK)
+	for (n = TEE_MMU_KMAP_OFFS;
+	     n < (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES); n++) {
+		if (l1[n] != 0 &&
+		    (uint32_t)pa >= (l1[n] & ~SECTION_MASK) &&
+		    (uint32_t)pa < ((l1[n] & ~SECTION_MASK)
 				     + (1 << SECTION_SHIFT))) {
 			*va = (void *)((n << SECTION_SHIFT) +
 				       ((uint32_t)pa & SECTION_MASK));
@@ -751,11 +720,12 @@ TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 {
 	uint32_t n = (uint32_t)va >> SECTION_SHIFT;
+	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
 
-	if (n < TEE_MMU_UL1_NUM_USER_ENTRIES && n >= TEE_MMU_UL1_NUM_ENTRIES)
+	if (n < TEE_MMU_KMAP_OFFS &&
+	    n >= (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES))
 		return TEE_ERROR_ACCESS_DENIED;
-	*pa = (void *)((TEE_MMU_UL1_ENTRY(n) & ~SECTION_MASK) |
-		       ((uint32_t)va & SECTION_MASK));
+	*pa = (void *)((l1[n] & ~SECTION_MASK) | ((uint32_t)va & SECTION_MASK));
 
 	return TEE_SUCCESS;
 }
@@ -776,7 +746,8 @@ bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 
 bool tee_mmu_is_kernel_mapping(void)
 {
-	return (tee_mmu_get_ttbr0() == core_mmu_get_ttbr0());
+	/* TODO use ASID instead */
+	return read_ttbr0() == read_ttbr1();
 }
 
 void teecore_init_ta_ram(void)
@@ -887,11 +858,12 @@ static uint32_t section_to_teesmc_cache_attr(uint32_t sect)
 uint32_t tee_mmu_kmap_get_cache_attr(void *va)
 {
 	uint32_t n = (vaddr_t)va >> SECTION_SHIFT;
+	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
 
-	assert(n >= TEE_MMU_UL1_NUM_USER_ENTRIES &&
-	       n < TEE_MMU_UL1_NUM_ENTRIES);
+	assert(n >= TEE_MMU_KMAP_OFFS &&
+	       n < (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES));
 
-	return section_to_teesmc_cache_attr(TEE_MMU_UL1_ENTRY(n));
+	return section_to_teesmc_cache_attr(l1[n]);
 }
 
 uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va)

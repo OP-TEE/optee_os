@@ -419,13 +419,25 @@ void TEE_BigIntMulMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 	mpanum mpa_op1 = (mpa_num_base *)op1;
 	mpanum mpa_op2 = (mpa_num_base *)op2;
 	mpanum mpa_n = (mpa_num_base *)n;
+	mpanum tmp_dest;
 
 	if (TEE_BigIntCmpS32(n, 2) < 0)
 		TEE_BigInt_Panic("Modulus is too short");
 
-	mpa_mul_mod(mpa_dest, mpa_op1, mpa_op2, mpa_n, mempool);
-	if (mpa_cmp_short(mpa_dest, 0) < 0)
-		mpa_add(mpa_dest, mpa_dest, mpa_n, mempool);
+	/*
+	 * From the spec, mpa_dest must be of magnitude "mpa_n"
+	 * But internal computations in mpa do not have such assumptions
+	 * (as __mpa_div_q_r, where "r" must be of magnitude "op1",
+	 * whereas GP provides a magnitude of "op2")
+	 * This is a tempory variable is used, before storing the
+	 * final result.
+	 */
+	mpa_alloc_static_temp_var(&tmp_dest, mempool);
+	mpa_mul_mod(tmp_dest, mpa_op1, mpa_op2, mpa_n, mempool);
+	if (mpa_cmp_short(tmp_dest, 0) < 0)
+		mpa_add(tmp_dest, tmp_dest, mpa_n, mempool);
+	mpa_copy(mpa_dest, tmp_dest);
+	mpa_free_static_temp_var(&tmp_dest, mempool);
 }
 
 /*

@@ -28,3 +28,4 @@ $(lib-libfile): $(objs)
 
 # Clean residues from processing
 objs		:=
+libname		:=

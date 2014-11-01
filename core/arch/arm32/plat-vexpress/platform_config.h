@@ -28,8 +28,9 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_fvp	0
-#define PLATFORM_FLAVOR_ID_qemu	1
+#define PLATFORM_FLAVOR_ID_fvp		0
+#define PLATFORM_FLAVOR_ID_qemu		1
+#define PLATFORM_FLAVOR_ID_qemu_virt	2
 #define PLATFORM_FLAVOR_IS(flav) \
 	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
 
@@ -38,6 +39,8 @@
 #define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
 #define PLATFORM_LINKER_ARCH	arm
 
+#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(qemu)
+
 #define GIC_BASE		0x2c000000
 #define UART0_BASE		0x1c090000
 #define UART1_BASE		0x1c0a0000
@@ -45,6 +48,24 @@
 #define UART3_BASE		0x1c0c0000
 
 #define IT_UART1		38
+
+#define CONSOLE_UART_BASE	UART1_BASE
+#define IT_CONSOLE_UART		IT_UART1
+
+#elif PLATFORM_FLAVOR_IS(qemu_virt)
+
+#define GIC_BASE		0x08000000
+#define UART0_BASE		0x09000000
+#define UART1_BASE		0x09010000
+
+#define IT_UART1		34
+
+#define CONSOLE_UART_BASE	UART1_BASE
+#define IT_CONSOLE_UART		IT_UART1
+
+#else
+#error "Unknown platform flavor"
+#endif
 
 #define STACK_TMP_SIZE		1024
 #define STACK_ABT_SIZE		1024
@@ -105,14 +126,48 @@
 #define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
 #define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
 
-#define TEE_RAM_START	TZDRAM_BASE
-#define TEE_RAM_SIZE	0x0010000
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_RAM_SIZE		0x0010000
 
 #define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE		0x100000
 
 #define GICC_OFFSET		0x2000
 #define GICD_OFFSET		0x1000
+
+#elif PLATFORM_FLAVOR_IS(qemu_virt)
+/*
+ * QEMU virt specifics.
+ */
+#define DRAM0_BASE		0x40000000
+#define DRAM0_SIZE		0x40000000
+
+/* Location of "trusted dram" */
+#define TZDRAM_BASE		(DRAM0_BASE + (DRAM0_SIZE - \
+				 TZDRAM_SIZE - CFG_SHMEM_SIZE))
+#define TZDRAM_SIZE		0x02000000
+
+#define DDR_PHYS_START		DRAM0_BASE
+#define DDR_SIZE		DRAM0_SIZE
+
+#define CFG_DDR_START		DDR_PHYS_START
+#define CFG_DDR_SIZE		DDR_SIZE
+
+#define CFG_TEE_CORE_NB_CORE	2
+
+
+#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
+#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
+
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_RAM_SIZE		0x0010000
+
+#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_SIZE		0x100000
+
+#define GICD_OFFSET		0
+#define GICC_OFFSET		0x10000
+
 
 #else
 #error "Unknown platform flavor"

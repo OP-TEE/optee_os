@@ -48,10 +48,10 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param);
 
 
 bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size);
+				       const void *va, size_t size);
 
-bool tee_mmu_is_vbuf_outside_ta_private(const struct tee_ta_ctx *ctx,
-				  const uint32_t va, size_t size);
+bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
+					  const void *va, size_t size);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_kernel_to_user - Translate kernel address to user space address

@@ -179,7 +179,7 @@ tz_sinit:
 	 * Case Primary CPU: proceed common cfg
 	 * Case secondary CPUs: wait CPU0 is done
 	 */
-	bl secure_get_cpu_id
+	bl get_core_pos
 	cmp r0, #CPU_ID0
 	bne _BootCPU1
 
@@ -201,7 +201,7 @@ _BootCPU0:
 	bl arm_cl2_invbyway
 	bl arm_cl2_enable
 
-	bl secure_mmu_init
+	bl core_init_mmu
 	bl cpu_mmu_enable
 	bl cpu_mmu_enable_icache
 	bl cpu_mmu_enable_dcache
@@ -271,7 +271,7 @@ _wait_cpu0:
 	bl arm_cl1_d_cleaninvbysetway
 	bl arm_cl2_cleaninvbyway
 
-	bl secure_mmu_init
+	bl core_init_mmu
 	bl cpu_mmu_enable
 
 	bl cpu_mmu_enable_icache

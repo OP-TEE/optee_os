@@ -28,6 +28,7 @@
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <kernel/tee_core_trace.h>
+#include <kernel/tee_misc.h>
 
 #ifndef CFG_DDR_TEETZ_RESERVED_START
 #error "TEETZ reserved DDR start address undef: CFG_DDR_TEETZ_RESERVED_START"
@@ -101,60 +102,6 @@ MEMACCESS_AREA(CFG_DDR_ARMTZ_ONLY_START, CFG_DDR_ARMTZ_ONLY_SIZE);
 static struct memaccess_area nsec_shared =
 MEMACCESS_AREA(CFG_DDR_ARM_ARMTZ_START, CFG_DDR_ARM_ARMTZ_SIZE);
 
-/*
- * buf_inside_area - return true is buffer fits in target area
- *
- * @bp: buffer physical address
- * @bs: buffer size in bytes
- * @ap: memory physical address
- * @as: memory size in bytes
- */
-static bool buf_inside_area(unsigned long bp, size_t bs, unsigned long ap,
-			    size_t as)
-{
-	/* null size buffer or area: buffer is not inside area */
-	if ((bs == 0) || (as == 0))
-		return false;
-
-	/* malformed arguments => assert */
-	TEE_ASSERT((bp + bs) > bp);
-	TEE_ASSERT((ap + as) > ap);
-
-	/* check effective overlapping */
-	if ((bp < ap) || ((bp + bs) > (ap + as)))
-		return false;
-
-	return true;
-}
-
-/*
- * buf_overlaps_area - return true is buffer overlaps target area
- *
- * @bp: buffer physical address
- * @bs: buffer size in bytes
- * @ap: memory physical address
- * @as: memory size in bytes
- */
-static bool buf_overlaps_area(unsigned long bp, size_t bs, unsigned long ap,
-			      size_t as)
-{
-	/* null size buffer or area: never overlaps */
-	if ((bs == 0) || (as == 0))
-		return false;
-
-	/* malformed arguments => assert */
-	TEE_ASSERT((bp + bs) > bp);
-	TEE_ASSERT((ap + as) > ap);
-
-	/* check effective overlapping */
-	if ((bp < ap) && ((bp + bs) <= ap))
-		return false;
-
-	if (bp >= ap + as)
-		return false;
-
-	return true;
-}
 
 /* pbuf_is_ddr - return true is buffer is inside the DDR */
 static bool pbuf_is_ddr(unsigned long paddr, size_t size)
@@ -162,7 +109,8 @@ static bool pbuf_is_ddr(unsigned long paddr, size_t size)
 	int i = sizeof(ddr) / sizeof(*ddr);
 
 	while (i--) {
-		if (buf_inside_area(paddr, size, ddr[i].paddr, ddr[i].size))
+		if (core_is_buffer_inside(paddr, size,
+					ddr[i].paddr, ddr[i].size))
 			return true;
 	}
 	return false;
@@ -177,9 +125,11 @@ static bool pbuf_is_ddr(unsigned long paddr, size_t size)
  */
 static bool pbuf_is_multipurpose(unsigned long paddr, size_t size)
 {
-	if (buf_overlaps_area(paddr, size, secure_only.paddr, secure_only.size))
+	if (core_is_buffer_intersect(paddr, size,
+				     secure_only.paddr, secure_only.size))
 		return false;
-	if (buf_overlaps_area(paddr, size, nsec_shared.paddr, nsec_shared.size))
+	if (core_is_buffer_intersect(paddr, size,
+				     nsec_shared.paddr, nsec_shared.size))
 		return false;
 
 	return pbuf_is_ddr(paddr, size);
@@ -192,14 +142,12 @@ static bool pbuf_is(enum buf_is_attr attr, unsigned long paddr, size_t size)
 {
 	switch (attr) {
 	case CORE_MEM_SEC:
-		if (buf_inside_area
-		    (paddr, size, secure_only.paddr, secure_only.size))
-			return true;
-		return false;
+		return core_is_buffer_inside(paddr, size,
+					secure_only.paddr, secure_only.size);
 
 	case CORE_MEM_NON_SEC:
-		return buf_inside_area(paddr, size, nsec_shared.paddr,
-				       nsec_shared.size);
+		return core_is_buffer_inside(paddr, size,
+					nsec_shared.paddr, nsec_shared.size);
 
 	case CORE_MEM_MULTPURPOSE:
 		return pbuf_is_multipurpose(paddr, size);
@@ -274,7 +222,7 @@ struct map_area *bootcfg_get_memory(void)
 	/* check defined memory access layout */
 	a = (struct memaccess_area *)&secure_only;
 	a2 = (struct memaccess_area *)&nsec_shared;
-	if (buf_overlaps_area(a->paddr, a->size, a2->paddr, a2->size)) {
+	if (core_is_buffer_intersect(a->paddr, a->size, a2->paddr, a2->size)) {
 		EMSG("invalid memory access configuration: sec/nsec");
 		ret = NULL;
 	}
@@ -287,24 +235,24 @@ struct map_area *bootcfg_get_memory(void)
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
 			a = (struct memaccess_area *)&secure_only;
-			if (buf_inside_area
-			    (map->pa, map->size, a->paddr, a->size) == false) {
+			if (!core_is_buffer_inside(map->pa, map->size,
+						a->paddr, a->size)) {
 				EMSG("TEE_RAM does not fit in secure_only");
 				ret = NULL;
 			}
 			break;
 		case MEM_AREA_TA_RAM:
 			a = (struct memaccess_area *)&secure_only;
-			if (buf_inside_area
-			    (map->pa, map->size, a->paddr, a->size) == false) {
+			if (!core_is_buffer_inside(map->pa, map->size,
+						a->paddr, a->size)) {
 				EMSG("TEE_RAM does not fit in secure_only");
 				ret = NULL;
 			}
 			break;
 		case MEM_AREA_NSEC_SHM:
 			a = (struct memaccess_area *)&nsec_shared;
-			if (buf_inside_area
-			    (map->pa, map->size, a->paddr, a->size) == false) {
+			if (!core_is_buffer_inside(map->pa, map->size,
+						a->paddr, a->size)) {
 				EMSG("TEE_RAM does not fit in secure_only");
 				ret = NULL;
 			}

@@ -35,7 +35,7 @@ SECTIONS
     .stacks :
     {
         __stacks_start = (.);
-	*(.bss.prebss.stack)
+	*(.nozi.stack)
     } > STACKS_MEM
 
     /* NSec and Secure context storage (TODO: move in C-code) */

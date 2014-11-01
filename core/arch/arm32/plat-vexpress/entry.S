@@ -47,8 +47,13 @@ FUNC _start , :
 END_FUNC _start
 
 LOCAL_FUNC reset , :
+	/*
+	 * Enable alignment checks and disable data and instruction cache.
+	 */
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_A
+	bic	r0, r0, #SCTLR_C
+	bic	r0, r0, #SCTLR_I
 	write_sctlr r0
 
 	ldr	r0, =_start
@@ -57,6 +62,9 @@ LOCAL_FUNC reset , :
 	mov	r4, lr
 	bl	get_core_pos
 	lsl	r0, #2
+	cmp	r0, #CFG_TEE_CORE_NB_CORE
+	/* Unsupported CPU, park it before it breaks something */
+	bge	unhandled_cpu
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
 
@@ -64,7 +72,7 @@ LOCAL_FUNC reset , :
 	bl	dcache_clean_inv
 	bl	icache_inv
 #endif
-	bl	secure_mmu_init
+	bl	core_init_mmu
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
@@ -84,6 +92,11 @@ LOCAL_FUNC reset , :
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC reset
+
+LOCAL_FUNC unhandled_cpu , :
+	wfi
+	b	unhandled_cpu
+END_FUNC unhandled_cpu
 
 #if PLATFORM_FLAVOR == PLATFORM_FLAVOR_FVP
 FUNC cpu_on_handler , :
@@ -107,7 +120,7 @@ FUNC cpu_on_handler , :
 	bl	dcache_clean_inv
 	bl	icache_inv
 #endif
-	bl	secure_mmu_init
+	bl	core_init_mmu
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache

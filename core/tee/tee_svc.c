@@ -89,6 +89,11 @@ void tee_svc_sys_panic(uint32_t code)
 	}
 }
 
+TEE_Result tee_svc_reserved(void)
+{
+	return TEE_ERROR_GENERIC;
+}
+
 uint32_t tee_svc_sys_dummy(uint32_t *a __unused)
 {
 	DMSG("tee_svc_sys_dummy: a 0x%x", (unsigned int)a);
@@ -237,7 +242,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				     struct tee_ta_session *called_sess,
 				     uint32_t param_types,
-				     TEE_Param params[TEE_NUM_PARAMS],
+				     TEE_Param callee_params[TEE_NUM_PARAMS],
 				     struct tee_ta_param *param,
 				     tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
 				     tee_mm_entry_t **mm)
@@ -250,13 +255,14 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	tee_paddr_t dst_pa, src_pa = 0;
 	bool ta_private_memref[TEE_NUM_PARAMS];
 
+	/* fill 'param' input struct with caller params description buffer */
 	param->types = param_types;
-	if (params == NULL) {
+	if (!callee_params) {
 		if (param->types != 0)
 			return TEE_ERROR_BAD_PARAMETERS;
 		memset(param->params, 0, sizeof(param->params));
 	} else {
-		tee_svc_copy_from_user(sess, param->params, params,
+		tee_svc_copy_from_user(sess, param->params, callee_params,
 				       sizeof(param->params));
 	}
 
@@ -286,7 +292,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			}
 			/* uTA cannot expose its private memory */
 			if (tee_mmu_is_vbuf_inside_ta_private(sess->ctx,
-				    (uintptr_t)param->params[n].memref.buffer,
+				    param->params[n].memref.buffer,
 				    param->params[n].memref.size)) {
 
 				s = ROUNDUP(param->params[n].memref.size,
@@ -298,8 +304,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				ta_private_memref[n] = true;
 				break;
 			}
-			if (!tee_mmu_is_vbuf_outside_ta_private(sess->ctx,
-				    (uintptr_t)param->params[n].memref.buffer,
+			if (tee_mmu_is_vbuf_intersect_ta_private(sess->ctx,
+				    param->params[n].memref.buffer,
 				    param->params[n].memref.size))
 				return TEE_ERROR_BAD_PARAMETERS;
 
@@ -348,13 +354,10 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (param->params[n].memref.buffer != NULL) {
 				res = tee_svc_copy_from_user(sess, dst,
-							     param->params[n].
-							     memref.buffer,
-							     param->params[n].
-							     memref.size);
+						param->params[n].memref.buffer,
+						param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
 					return res;
-
 				param->param_attr[n] =
 					tee_mmu_kmap_get_cache_attr(dst);
 				param->params[n].memref.buffer = (void *)dst_pa;
@@ -396,7 +399,7 @@ static TEE_Result tee_svc_update_out_param(
 		struct tee_ta_session *called_sess,
 		struct tee_ta_param *param,
 		tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
-		TEE_Param params[TEE_NUM_PARAMS])
+		TEE_Param callee_params[TEE_NUM_PARAMS])
 {
 	size_t n;
 	bool have_private_mem_map = (called_sess == NULL) ||
@@ -412,9 +415,9 @@ static TEE_Result tee_svc_update_out_param(
 
 			/* outside TA private => memref is valid, update size */
 			if (!tee_mmu_is_vbuf_inside_ta_private(sess->ctx,
-					(uintptr_t)params[n].memref.buffer,
+					callee_params[n].memref.buffer,
 					param->params[n].memref.size)) {
-				params[n].memref.size =
+				callee_params[n].memref.size =
 					param->params[n].memref.size;
 				break;
 			}
@@ -425,7 +428,7 @@ static TEE_Result tee_svc_update_out_param(
 			 */
 			if (have_private_mem_map &&
 			    param->params[n].memref.size <=
-			    params[n].memref.size) {
+			    callee_params[n].memref.size) {
 				uint8_t *src = 0;
 				TEE_Result res;
 
@@ -436,7 +439,7 @@ static TEE_Result tee_svc_update_out_param(
 					return TEE_ERROR_GENERIC;
 
 				res = tee_svc_copy_to_user(sess,
-							 params[n].memref.
+							 callee_params[n].memref.
 							 buffer, src,
 							 param->params[n].
 							 memref.size);
@@ -446,12 +449,12 @@ static TEE_Result tee_svc_update_out_param(
 					       param->params[n].memref.size);
 
 			}
-			params[n].memref.size = param->params[n].memref.size;
+			callee_params[n].memref.size = param->params[n].memref.size;
 			break;
 
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			params[n].value = param->params[n].value;
+			callee_params[n].value = param->params[n].value;
 			break;
 
 		default:
@@ -514,8 +517,6 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 		goto function_exit;
 
 	res = tee_svc_update_out_param(sess, NULL, param, tmp_buf_pa, params);
-	if (res != TEE_SUCCESS)
-		goto function_exit;
 
 function_exit:
 	tee_ta_set_current_session(sess);

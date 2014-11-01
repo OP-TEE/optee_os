@@ -82,7 +82,12 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 
 uint32_t core_map_area_flag(void *p, size_t l);
-unsigned int core_init_mmu(unsigned int core_ttbr0, unsigned int ta_ttbr0);
+void core_init_mmu(void);
+
+paddr_t core_mmu_get_main_ttb_pa(void);
+vaddr_t core_mmu_get_main_ttb_va(void);
+paddr_t core_mmu_get_ul1_ttb_pa(void);
+vaddr_t core_mmu_get_ul1_ttb_va(void);
 
 int core_mmu_map(unsigned long paddr, size_t size, unsigned long flags);
 int core_mmu_unmap(unsigned long paddr, size_t size);
@@ -122,15 +127,6 @@ int core_pa2va_helper(paddr_t pa, void **va);
 #endif
 
 
-
-/* get phys base addr of MMU L1 table used for tee core */
-uint32_t core_mmu_get_ttbr0_base(void);
-uint32_t core_mmu_get_ttbr0_attr(void);
-uint32_t core_mmu_get_ttbr0(void);
-
-/* get virt and phys base addr of MMU L1 table used for TAs */
-uint32_t core_mmu_get_ta_ul1_va(void);
-uint32_t core_mmu_get_ta_ul1_pa(void);
 
 /* routines to retreive shared mem configuration */
 bool core_mmu_is_shm_cached(void);

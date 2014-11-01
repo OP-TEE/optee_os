@@ -630,4 +630,3 @@ ltc_math_descriptor ltc_mp = {
 #endif
 
 };
-

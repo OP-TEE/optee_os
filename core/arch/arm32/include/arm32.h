@@ -46,6 +46,7 @@
 #define CPSR_F		(1 << 6)
 #define CPSR_I		(1 << 7)
 #define CPSR_A		(1 << 8)
+#define CPSR_FIA	(CPSR_F | CPSR_I | CPSR_A)
 
 #define MPIDR_CPU_MASK		0xff
 #define MPIDR_CLUSTER_MASK	(0xff << 8)
@@ -80,6 +81,14 @@
 #define SCTLR_TRE	(1 << 28)
 #define SCTLR_AFE	(1 << 29)
 #define SCTLR_TE	(1 << 30)
+
+#define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))
+#define DACR_DOMAIN_PERM_NO_ACCESS	0x0
+#define DACR_DOMAIN_PERM_CLIENT		0x1
+#define DACR_DOMAIN_PERM_MANAGER	0x3
+
+#define TTBCR_PD0	(1 << 4)
+#define TTBCR_PD1	(1 << 5)
 
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
@@ -118,12 +127,95 @@ static inline void write_ttbr0(uint32_t ttbr0)
 	);
 }
 
+static inline uint32_t read_ttbr0(void)
+{
+	uint32_t ttbr0;
+
+	asm ("mrc	p15, 0, %[ttbr0], c2, c0, 0"
+			: [ttbr0] "=r" (ttbr0)
+	);
+
+	return ttbr0;
+}
+
+static inline void write_ttbr1(uint32_t ttbr1)
+{
+	asm ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
+			: : [ttbr1] "r" (ttbr1)
+	);
+}
+
+static inline uint32_t read_ttbr1(void)
+{
+	uint32_t ttbr1;
+
+	asm ("mrc	p15, 0, %[ttbr1], c2, c0, 1"
+			: [ttbr1] "=r" (ttbr1)
+	);
+
+	return ttbr1;
+}
+
+
+static inline void write_ttbcr(uint32_t ttbcr)
+{
+	asm ("mcr	p15, 0, %[ttbcr], c2, c0, 2"
+			: : [ttbcr] "r" (ttbcr)
+	);
+}
+
 static inline void write_dacr(uint32_t dacr)
 {
 	asm ("mcr	p15, 0, %[dacr], c3, c0, 0"
 			: : [dacr] "r" (dacr)
 	);
 }
+
+static inline uint32_t read_ifar(void)
+{
+	uint32_t ifar;
+
+	asm ("mrc	p15, 0, %[ifar], c6, c0, 2"
+			: [ifar] "=r" (ifar)
+	);
+
+	return ifar;
+}
+
+static inline uint32_t read_dfar(void)
+{
+	uint32_t dfar;
+
+	asm ("mrc	p15, 0, %[dfar], c6, c0, 0"
+			: [dfar] "=r" (dfar)
+	);
+
+	return dfar;
+}
+
+static inline uint32_t read_dfsr(void)
+{
+	uint32_t dfsr;
+
+	asm ("mrc	p15, 0, %[dfsr], c5, c0, 0"
+			: [dfsr] "=r" (dfsr)
+	);
+
+	return dfsr;
+}
+
+static inline uint32_t read_ifsr(void)
+{
+	uint32_t ifsr;
+
+	asm ("mrc	p15, 0, %[ifsr], c5, c0, 1"
+			: [ifsr] "=r" (ifsr)
+	);
+
+	return ifsr;
+}
+
+
 
 static inline void isb(void)
 {
@@ -135,10 +227,22 @@ static inline void dsb(void)
 	asm ("dsb");
 }
 
-static inline void write_tlbiallis(void)
+static inline uint32_t read_contextidr(void)
 {
-	/* Invalidate entire unified TLB Inner Shareable, r0 ignored */
-	asm ("mcr	p15, 0, r0, c8, c3, 0");
+	uint32_t contextidr;
+
+	asm ("mrc	p15, 0, %[contextidr], c13, c0, 1"
+			: [contextidr] "=r" (contextidr)
+	);
+
+	return contextidr;
+}
+
+static inline void write_contextidr(uint32_t contextidr)
+{
+	asm ("mcr	p15, 0, %[contextidr], c13, c0, 1"
+			: : [contextidr] "r" (contextidr)
+	);
 }
 
 static inline uint32_t read_cpsr(void)
@@ -153,10 +257,22 @@ static inline uint32_t read_cpsr(void)
 
 static inline void write_cpsr(uint32_t cpsr)
 {
-	asm ("msr	cpsr, %[cpsr]"
+	asm ("msr	cpsr_fsxc, %[cpsr]"
 			: : [cpsr] "r" (cpsr)
 	);
 }
+
+static inline uint32_t read_spsr(void)
+{
+	uint32_t spsr;
+
+	asm ("mrs	%[spsr], spsr"
+			: [spsr] "=r" (spsr)
+	);
+	return spsr;
+}
+
+
 #endif
 
 #endif /*ARM32_H*/

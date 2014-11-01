@@ -250,8 +250,11 @@ TEE_Result tee_mac_final(
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
-		if (CRYPT_OK != hmac_process((hmac_state *)ctx, data, data_len))
-			return TEE_ERROR_BAD_STATE;
+		if (data && data_len) {
+			if (CRYPT_OK != hmac_process((hmac_state *)ctx,
+							data, data_len))
+				return TEE_ERROR_BAD_STATE;
+		}
 
 		if (CRYPT_OK != hmac_done((hmac_state *)ctx, digest,
 					  &ltc_digest_len))
@@ -301,8 +304,11 @@ TEE_Result tee_mac_final(
 		break;
 
 	case TEE_ALG_AES_CMAC:
-		if (CRYPT_OK != omac_process((omac_state *)ctx, data, data_len))
-			return TEE_ERROR_BAD_STATE;
+		if (data && data_len) {
+			if (CRYPT_OK != omac_process((omac_state *)ctx,
+							data, data_len))
+				return TEE_ERROR_BAD_STATE;
+		}
 		if (CRYPT_OK != omac_done((omac_state *)ctx, digest,
 					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;

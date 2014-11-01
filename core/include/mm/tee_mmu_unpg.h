@@ -43,29 +43,4 @@ void tee_mmu_set_map(struct tee_mmu_mapping *map);
  */
 void tee_mmu_switch(uint32_t ttbr0_base, uint32_t ctxid);
 
-/*
- * Get current ttbr0 configuration
- */
-uint32_t tee_mmu_get_ttbr0(void);
-
-/*
- * Get current context id
- */
-uint32_t tee_mmu_get_context(void);
-
-/*
- * Invalidate TLB entries given a asid
- */
-void tee_mmu_invtlb_asid(uint32_t asid);
-
-/*
- * Invalidate TLB entries
- */
-void invalidate_mmu_tlb(void);
-
-/*
- * Virtual to Physical address translation
- */
-uint32_t translate_va2pa(uint32_t va);
-
 #endif /* TEE_MMU_UNPG_H */

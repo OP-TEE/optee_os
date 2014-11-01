@@ -50,6 +50,7 @@
 #include <kernel/tee_time.h>
 #include <mm/tee_pager_unpg.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 
 #include <assert.h>
@@ -70,7 +71,7 @@
 #define DECLARE_STACK(name, num_stacks, stack_size) \
 	static uint32_t name[num_stacks][(stack_size + STACK_CANARY_SIZE) / \
 					 sizeof(uint32_t)] \
-		__attribute__((section(".bss.prebss.stack"), \
+		__attribute__((section(".nozi.stack"), \
 			       aligned(STACK_ALIGNMENT)))
 
 #define GET_STACK(stack) \
@@ -110,32 +111,15 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #endif
 };
 
-/* MMU L1 table for teecore: 16kB */
-#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
+/* Main MMU L1 table for teecore */
+static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
+        __attribute__((section(".nozi.mmu.l1"),
+		       aligned(TEE_MMU_L1_ALIGNMENT)));
 
-/* MMU L2 table for teecore: 16 * 1kB (16MB mappeable) */
-#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
-
-/* MMU L1 table for TAs: 16kB */
-#define MMU_L1_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_TA_MMU_TTB_FLD[MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
-
-/* MMU L2 table for TAs: 16 * 1kB (16MB mappeable) */
-#define MMU_L2_NUM_ENTRIES	(16 * 1024 / 4)
-#define MMU_L2_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
-uint32_t SEC_TA_MMU_TTB_SLD[MMU_L2_NUM_ENTRIES]
-        __attribute__((section(".bss.prebss.mmu"), aligned(MMU_L2_ALIGNMENT)));
-
-
-
+/* MMU L1 table for TAs, one for each Core */
+static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
+        __attribute__((section(".nozi.mmu.ul1"),
+		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
 extern uint32_t __text_start;
 extern uint32_t __rodata_end;
@@ -224,8 +208,8 @@ static const struct thread_handlers handlers = {
 #endif
 };
 
-static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 #if defined(WITH_ARM_TRUSTED_FW)
+static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	(void)&pos;
 	(void)&nsec_entry;
@@ -233,6 +217,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 	/* Do nothing as we don't have a secure monitor */
 }
 #elif defined(WITH_SEC_MON)
+static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
@@ -248,39 +233,47 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 }
 #endif
 
-static void main_init_gic(void)
 #if PLATFORM_FLAVOR_IS(fvp)
+static void main_init_gic(void)
 {
 	/*
 	 * In FVP, GIC configuration is initialized in ARM-TF,
 	 * Initialize GIC base address here for debugging.
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	gic_it_add(IT_UART1);
-	gic_it_set_cpu_mask(IT_UART1, 0x1);
-	gic_it_set_prio(IT_UART1, 0x1);
-	gic_it_enable(IT_UART1);
+	gic_it_add(IT_CONSOLE_UART);
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
+	gic_it_enable(IT_CONSOLE_UART);
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
+static void main_init_gic(void)
 {
 	/* Initialize GIC */
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	gic_it_add(IT_UART1);
-	gic_it_set_cpu_mask(IT_UART1, 0x1);
-	gic_it_set_prio(IT_UART1, 0xff);
-	gic_it_enable(IT_UART1);
+	gic_it_add(IT_CONSOLE_UART);
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	gic_it_set_prio(IT_CONSOLE_UART, 0xff);
+	gic_it_enable(IT_CONSOLE_UART);
+}
+#elif PLATFORM_FLAVOR_IS(qemu_virt)
+static void main_init_gic(void)
+{
+	/* Initialize GIC */
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 #endif
 
 static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 {
 	/*
-	 * Mask IRQ and FIQ before switch to the thread vector as the
-	 * thread handler requires IRQ and FIQ to be masked while executing
-	 * with the temporary stack. The thread subsystem also asserts
-	 * that IRQ is blocked when using most if its functions.
+	 * Mask external Abort, IRQ and FIQ before switch to the thread
+	 * vector as the thread handler requires externl Abort, IRQ and FIQ
+	 * to be masked while executing with the temporary stack. The
+	 * thread subsystem also asserts that IRQ is blocked when using
+	 * most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_F | CPSR_I);
+	write_cpsr(read_cpsr() | CPSR_FIA);
 
 	if (is_primary) {
 		uintptr_t bss_start = (uintptr_t)&__bss_start;
@@ -288,12 +281,12 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		size_t n;
 
 		/* Initialize uart with physical address */
-		uart_init(UART1_BASE);
+		uart_init(CONSOLE_UART_BASE);
 
 		/*
 		 * Zero BSS area. Note that globals that would normally
 		 * would go into BSS which are used before this has to be
-		 * put into .bss.prebss.* to avoid getting overwritten.
+		 * put into .nozi.* to avoid getting overwritten.
 		 */
 		memset((void *)bss_start, 0, bss_end - bss_start);
 
@@ -353,8 +346,8 @@ static void main_fiq(void)
 
 	iar = gic_read_iar();
 
-	while (uart_have_rx_data(UART1_BASE))
-		DMSG("got 0x%x\n", uart_getchar(UART1_BASE));
+	while (uart_have_rx_data(CONSOLE_UART_BASE))
+		DMSG("got 0x%x\n", uart_getchar(CONSOLE_UART_BASE));
 
 	gic_write_eoir(iar);
 
@@ -505,3 +498,32 @@ void tee_entry_get_os_revision(struct thread_smc_args *args)
 	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
 	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }
+
+paddr_t core_mmu_get_main_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_main_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_l1_ttb;
+}
+
+paddr_t core_mmu_get_ul1_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_ul1_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
+}
+

@@ -6,6 +6,13 @@ all:
 .PHONY: mem_usage
 mem_usage:
 
+# If $(PLATFORM) is defined and contains a hyphen, parse it as
+# $(PLATFORM)-$(PLATFORM_FLAVOR) for convenience
+ifneq (,$(findstring -,$(PLATFORM)))
+ops := $(join PLATFORM PLATFORM_FLAVOR,$(addprefix =,$(subst -, ,$(PLATFORM))))
+$(foreach op,$(ops),$(eval override $(op)))
+endif
+
 # Make these default for now
 ARCH            ?= arm32
 PLATFORM        ?= stm

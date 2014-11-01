@@ -33,6 +33,7 @@
 
 #define STR_TRACE_CORE "TEE-CORE-TZ"
 #include <kernel/tee_core_trace.h>
+#include <kernel/util.h>
 
 #ifdef WITH_UART_DRV
 #include <drivers/uart.h>
@@ -52,16 +53,16 @@ static void output_string(const char *str)
 	const char *p = str;
 
 	while (*p) {
-		uart_putc(*p, UART1_BASE);
+		uart_putc(*p, CONSOLE_UART_BASE);
 		if (*p == '\n')
-			uart_putc('\r', UART1_BASE);
+			uart_putc('\r', CONSOLE_UART_BASE);
 		p++;
 	}
 }
 
 static void output_flush(void)
 {
-	uart_flush_tx_fifo(UART1_BASE);
+	uart_flush_tx_fifo(CONSOLE_UART_BASE);
 }
 #else
 #define output_string(x) __asc_xmit(x)
@@ -217,4 +218,70 @@ void _trace_syscall(int num)
 	FMSG("syscall #%d", num);
 }
 #endif
+#endif
+
+#if (CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG)
+struct strbuf {
+	char buf[MAX_PRINT_SIZE];
+	char *ptr;
+};
+
+static int __printf(2, 3) append(struct strbuf *sbuf, const char *fmt, ...)
+{
+	int left;
+	int len;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (sbuf->ptr == NULL)
+		sbuf->ptr = sbuf->buf;
+	left = sizeof(sbuf->buf) - (sbuf->ptr - sbuf->buf);
+	len = vsnprintf(sbuf->ptr, left, fmt, ap);
+	if (len < 0) {
+		/* Format error */
+		return 0;
+	}
+	if (len >= left) {
+		/* Output was truncated */
+		return 0;
+	}
+	sbuf->ptr += MIN(left, len);
+	return 1;
+}
+
+void dhex_dump(const char *function, int line, int level, const char *prefix,
+	       const void *buf, int len)
+{
+	int i;
+	int ok;
+	struct strbuf sbuf;
+	char *in = (char *)buf;
+
+	if (level <= _trace_level) {
+		sbuf.ptr = NULL;
+		for (i = 0; i < len; i++) {
+			ok = append(&sbuf, "%02x ", in[i]);
+			if (!ok)
+				goto err;
+			if ((i % 16) == 7) {
+				ok = append(&sbuf, " ");
+				if (!ok)
+					goto err;
+			} else if ((i % 16) == 15) {
+				_dprintf(function, line, level, prefix, "%s",
+					 sbuf.buf);
+				sbuf.ptr = NULL;
+			}
+		}
+		if (sbuf.ptr) {
+			/* Buffer is not empty: flush it */
+			_dprintf(function, line, level, prefix, "%s",
+				 sbuf.buf);
+
+		}
+	}
+	return;
+err:
+	DMSG("Hex dump error");
+}
 #endif

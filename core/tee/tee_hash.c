@@ -86,7 +86,8 @@ TEE_Result tee_hash_init(void *ctx, uint32_t algo)
 TEE_Result tee_hash_update(void *ctx, uint32_t algo,
 			   const uint8_t *data, size_t len)
 {
-	int ltc_res, ltc_hashindex;
+	int ltc_res;
+	int ltc_hashindex;
 
 	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
 	if (ltc_res != TEE_SUCCESS)
@@ -100,9 +101,11 @@ TEE_Result tee_hash_update(void *ctx, uint32_t algo,
 
 TEE_Result tee_hash_final(void *ctx, uint32_t algo, uint8_t *digest, size_t len)
 {
-	int ltc_res, ltc_hashindex;
+	int ltc_res;
+	int ltc_hashindex;
 	size_t hash_size;
-	uint8_t block_digest[MAX_DIGEST], *tmp_digest;
+	uint8_t block_digest[MAX_DIGEST];
+	uint8_t *tmp_digest;
 
 	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
 	if (ltc_res != TEE_SUCCESS)
@@ -120,19 +123,16 @@ TEE_Result tee_hash_final(void *ctx, uint32_t algo, uint8_t *digest, size_t len)
 		return  TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (hash_size > len) {
-		/* use a tempory buffer */
-		tmp_digest = block_digest;
-	} else {
+	if (hash_size > len)
+		tmp_digest = block_digest; /* use a tempory buffer */
+	else
 		tmp_digest = digest;
-	}
 
 	if (hash_descriptor[ltc_hashindex].done(ctx, tmp_digest) == CRYPT_OK) {
 		if (hash_size > len)
 			memcpy(digest, tmp_digest, len);
-	} else {
+	} else
 		return TEE_ERROR_BAD_STATE;
-	}
 
 	return TEE_SUCCESS;
 }

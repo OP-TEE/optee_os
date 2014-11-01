@@ -28,18 +28,7 @@
 #ifndef CHIP_SERVICES_H
 #define CHIP_SERVICES_H
 
-#include <stdarg.h>
-#include <stdbool.h>
-
-
-#include <kernel/tee_common.h>
-
 /* Die ID */
 #define FVR_DIE_ID_NUM_REGS                 3
-
-/*-----------------------------------------------------------------------------
-    PUBLIC FUNCTION PROTOTYPES
- *---------------------------------------------------------------------------*/
-void enable_secure_wd(void);
 
 #endif

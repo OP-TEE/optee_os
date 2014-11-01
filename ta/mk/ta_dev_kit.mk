@@ -25,7 +25,7 @@ q :=
 cmd-echo := echo
 endif
 
-cflags$(sm) += -fno-short-enums -fpie
+cflags$(sm) += -fno-short-enums -fpie -mfloat-abi=soft
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 ifeq ($(DEBUG),1)

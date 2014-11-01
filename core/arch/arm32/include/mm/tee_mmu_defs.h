@@ -27,22 +27,40 @@
 #ifndef TEE_MMU_DEFS_H
 #define TEE_MMU_DEFS_H
 
-/* Number of sections in ttbr0 */
-#define TEE_MMU_UL1_NUM_ENTRIES         32
-#define TEE_MMU_UL1_NUM_USER_ENTRIES    (TEE_MMU_UL1_NUM_ENTRIES / 2)
-#define TEE_MMU_UL1_NUM_KERN_ENTRIES    (TEE_MMU_UL1_NUM_ENTRIES - \
-						TEE_MMU_UL1_NUM_USER_ENTRIES)
+/* Defined to the smallest possible secondary L1 MMU table */
+#define TEE_MMU_TTBCR_N_VALUE		7
 
-#define TEE_MMU_UL1_SIZE      (TEE_MMU_UL1_NUM_ENTRIES * sizeof(uint32_t))
-#define TEE_MMU_UL1_USER_SIZE (TEE_MMU_UL1_NUM_USER_ENTRIES * sizeof(uint32_t))
-#define TEE_MMU_UL1_KERN_SIZE (TEE_MMU_UL1_NUM_KERN_ENTRIES * sizeof(uint32_t))
+/* Number of sections in ttbr0 when user mapping activated */
+#define TEE_MMU_UL1_NUM_ENTRIES         ((1 << TEE_MMU_TTBCR_N_VALUE) / 4)
 
-#define TEE_MMU_UL1_KERN_BASE   (TEE_MMU_UL1_BASE + TEE_MMU_UL1_USER_SIZE)
+#define TEE_MMU_UL1_SIZE	(TEE_MMU_UL1_NUM_ENTRIES * sizeof(uint32_t))
+#define TEE_MMU_UL1_ALIGNMENT	TEE_MMU_UL1_SIZE
+
+/*
+ * kmap works in common mapping starting at virtual address just above the
+ * per CPU user mapping. kmap has 32 MiB of virtual address space.
+ */
+#define TEE_MMU_KMAP_OFFS		TEE_MMU_UL1_NUM_ENTRIES
+#define TEE_MMU_KMAP_NUM_ENTRIES	32
+#define TEE_MMU_KMAP_START_VA		(TEE_MMU_UL1_NUM_ENTRIES << \
+					 SECTION_SHIFT)
+#define TEE_MMU_KMAP_END_VA		((TEE_MMU_UL1_NUM_ENTRIES + \
+					  TEE_MMU_KMAP_NUM_ENTRIES) << \
+						SECTION_SHIFT)
+
+#define TEE_MMU_L1_NUM_ENTRIES		(TEE_MMU_L1_SIZE / 4)
+#define TEE_MMU_L1_SIZE			(1 << 14)
+#define TEE_MMU_L1_ALIGNMENT		TEE_MMU_L1_SIZE
 
 /* TTB attributes */
 
 /* Mask for all attributes */
-/* #define TEE_MMU_TTB_ATTR_MASK   ((1 << 7) - 1) */
+#define TEE_MMU_TTB_ATTR_MASK	((1 << 7) - 1)
+/* TTB0 of TTBR0 (depends on TEE_MMU_TTBCR_N_VALUE) */
+#define TEE_MMU_TTB_UL1_MASK	(~(TEE_MMU_UL1_ALIGNMENT - 1))
+/* TTB1 of TTBR1 */
+#define TEE_MMU_TTB_L1_MASK	(~(TEE_MMU_L1_ALIGNMENT - 1))
+
 
 /* Sharable */
 #define TEE_MMU_TTB_S           (1 << 1)
@@ -64,9 +82,6 @@
 
 /* Normal memory, Outer Write-Back Write-Allocate Cacheable */
 #define TEE_MMU_TTB_RNG_WBWA    (1 << 3)
-
-#define TEE_MMU_TTBRX_TTBX_MASK      (((1 << 18) - 1) << 14)
-#define TEE_MMU_TTBRX_ATTR_MASK      ((1 << 14) - 1)
 
 /*
  * Second-level descriptor Small page table Attributes

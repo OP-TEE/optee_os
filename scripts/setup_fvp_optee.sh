@@ -25,29 +25,36 @@ if [ ! -n "$SRC_FVP" ]; then
 	exit
 fi
 
-SRC_ATF=https://github.com/jenswi-linaro/arm-trusted-firmware.git
+SRC_ATF=https://github.com/ARM-software/arm-trusted-firmware.git
 DST_ATF=$DEV_PATH/arm-trusted-firmware
+STABLE_ATF_COMMIT=aa5da46138e1583990086b76b56e0a9186cb7b7d
 
 SRC_KERNEL=git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 DST_KERNEL=$DEV_PATH/linux
+STABLE_KERNEL_COMMIT=v3.18-rc1
 
 SRC_OPTEE_OS=https://github.com/OP-TEE/optee_os.git
 DST_OPTEE_OS=$DEV_PATH/optee_os
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
+STABLE_CLIENT_COMMIT=2893f86b0925bc6be358a6913a07773b2b909ee3
 
 SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
+STABLE_LK_COMMIT=eb4ea6b1094ce3452c376c12a529178d202d229b
 
 SRC_TEETEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/teetest.git
 DST_TEETEST=$DEV_PATH/teetest
+STABLE_TEETEST_COMMIT=e7cda93bf9af4b93b1629630b3aa6e3e0df57314
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
+STABLE_GEN_ROOTFS_COMMIT=e4633eb4e5d170021f45bbdfca9c65e3b41c866b
 
 SRC_EDK2=https://github.com/tianocore/edk2.git
 DST_EDK2=$DEV_PATH/edk2
+STABLE_EDK2_COMMIT=8c83d0c0b9bd102cd905c83b2644a543e9711815
 
 AARCH64_NONE_GCC=aarch64-none-elf
 AARCH64_NONE_GCC_VERSION=gcc-linaro-aarch64-none-elf-4.9-2014.07_linux
@@ -69,49 +76,56 @@ DST_AARCH32_GCC=$DEV_PATH/toolchains/$AARCH32_GCC
 ################################################################################
 cd $DEV_PATH
 if [ ! -d "$DST_ATF" ]; then
-	git clone $SRC_ATF --branch optee_140814
+	git clone $SRC_ATF && cd $DST_ATF && git reset --hard $STABLE_ATF_COMMIT
 else
 	echo " `basename $DST_ATF` already exist, not cloning"
 fi 
 
+cd $DEV_PATH
 if [ ! -d "$DST_KERNEL" ]; then
-	git clone $SRC_KERNEL
+	git clone $SRC_KERNEL && cd $DST_KERNEL && git reset --hard $STABLE_KERNEL_COMMIT
 else
 	echo " `basename $DST_KERNEL` already exist, not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_OPTEE_OS" ]; then
 	git clone $SRC_OPTEE_OS
 else
 	echo " `basename $DST_OPTEE_OS` already exist, not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_OPTEE_CLIENT" ]; then
-	git clone $SRC_OPTEE_CLIENT
+	git clone $SRC_OPTEE_CLIENT && cd $DST_OPTEE_CLIENT && git reset --hard $STABLE_CLIENT_COMMIT
 else
 	echo " `basename $DST_OPTEE_CLIENT` already exist, not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_OPTEE_LK" ]; then
-	git clone $SRC_OPTEE_LK
+	git clone $SRC_OPTEE_LK && cd $DST_OPTEE_LK && git reset --hard $STABLE_LK_COMMIT
 else
 	echo " `basename $DST_OPTEE_LK` already exist, not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_TEETEST" ] && [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
-	git clone $SRC_TEETEST
+	git clone $SRC_TEETEST && cd $DST_TEETEST && git reset --hard $STABLE_TEETEST_COMMIT
 else
 	echo " `basename $DST_TEETEST` already exist (or no access), not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_GEN_ROOTFS" ]; then
-	git clone $SRC_GEN_ROOTFS
+	git clone $SRC_GEN_ROOTFS && cd $DST_GEN_ROOTFS && git reset --hard $STABLE_GEN_ROOTFS_COMMIT
 else
 	echo " `basename $DST_GEN_ROOTFS` already exist, not cloning"
 fi
 
+cd $DEV_PATH
 if [ ! -d "$DST_EDK2" ]; then
-	git clone -n $SRC_EDK2
+	git clone -n $SRC_EDK2 && cd $DST_EDK2 && git reset --hard $STABLE_EDK2_COMMIT
 else
 	echo " `basename $DST_EDK2` already exist, not cloning"
 fi
@@ -458,3 +472,31 @@ if [ ! -n "$HAVE_ACCESS_TO_TEETEST" ]; then
 	echo "LINARO_USERNAME and HAVE_ACCESS_TO_TEETEST wasn't updated, therefore no tests"
 	echo "has been included."
 fi
+
+################################################################################
+# Generate clean_gits.sh script                                                #
+################################################################################
+cd $DEV_PATH
+cat > $DEV_PATH/clean_gits.sh << EOF
+#!/bin/bash
+CLEAN_CMD="git clean -xdf"
+CLEAN_CMD2="git reset --hard"
+
+echo "This will clean all gits using \$CLEAN_CMD && \$CLEAN_CMD2,"
+echo "if this was not your intention, then press CTRL+C immediately!"
+read -t 10
+
+cd $DST_ATF && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_ATF clean!\n"
+cd $DST_KERNEL && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e"$DST_KERNEL clean!\n"
+cd $DST_OPTEE_OS && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_OS clean!\n"
+cd $DST_OPTEE_CLIENT && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_CLIENT clean!\n"
+cd $DST_OPTEE_LK && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_LK clean!\n"
+if [ -d "$DST_TEETEST" ]; then
+	cd $DST_TEETEST && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_TEETEST clean!\n"
+	rm -rf $DEV_PATH/out
+fi
+cd $DST_GEN_ROOTFS && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_GEN_ROOTFS clean!\n"
+cd $DST_EDK2 && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_EDK2 clean!\n"
+EOF
+
+chmod 711 $DEV_PATH/clean_gits.sh

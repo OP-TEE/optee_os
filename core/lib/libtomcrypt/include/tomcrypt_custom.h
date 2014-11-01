@@ -34,6 +34,7 @@
 #define LTC_SOURCE
 #define LTC_NO_TABLES
 // #define LTC_VERBOSE
+#define LTC_NO_TEST
 
 /* macros for various libc functions you can change for embedded targets */
 #ifndef XMALLOC

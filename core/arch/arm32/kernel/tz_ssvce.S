@@ -32,23 +32,12 @@
 /*
  * Variable(s)
  */
+#include <asm.S>
+#include <arm32.h>
+#include <arm32_macros.S>
 
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
-
-/* tee inits/monitors services */
-.global ssvce_monitormutex
-.global secure_get_cpu_id
-.global secure_setstacks
-.global secure_restorecontext
-.global secure_savecontext
-.global secure_savecontext_reenter
-.global ssvce_topoftempstack
-
-/* mmu init */
-.global secure_mmu_init
-.global secure_mmu_init_cpuN
-.global secure_mmu_disable /* TODO: align with cpu_mmu_enable() */
 
 /* TLB maintenance */
 .global secure_mmu_datatlbinvall
@@ -67,81 +56,11 @@
 .global arm_cl1_i_inv_all
 .global arm_cl1_i_inv
 
-/*
- * Get CPU id: macro for local call.
- * export unsigned long secure_get_cpu_id(void).
- */
-.macro GET_CPU_ID reg
-    MRC p15, 0, \reg, c0, c0, 5     @ ; read MPIDR
-    AND \reg, #0x3                  @ ; Get CPU ID
-.endm
-
 .code 32
 .section .text
 .balign 4
 
-secure_get_cpu_id:
-	GET_CPU_ID R0
-	MOV PC, LR
 
-
-/*
- * Store TTBR0 base address for tee core and TAs.
- * These are defined from scatter file and resolved during linkage.
- * Currently all cores use the same MMU L1 tables (core and TAs).
- * Maybe some day, each CPU will use its own MMU table.
- */
-CORE0_TTBR0_ADDR:
-    .word SEC_MMU_TTB_FLD
-CORE0_TA_TTBR0_ADDR:
-    .word SEC_TA_MMU_TTB_FLD
-
-/*
- * secure_mmu_init - init MMU for primary cpu
- */
-secure_mmu_init:
-  MRC     p15, 0, r0, c1, c0, 0   @  store in r0 contain of SCTLR (system control register) from CP15 
-  BIC     r0, r0, #0x00004        @  disable data cache. (BIC = bit clear)
-  BIC     r0, r0, #0x01000        @  disable instruction cache.
-  MCR     p15, 0, r0, c1, c0, 0
-
-  MOV     r0, #0x05               @ domain 0: teecore, domain 1: TA
-  MCR     p15, 0, r0, c3, c0, 0
-
-  /* load tee core default mapping */
-  push    {lr}
-  LDR     r0, CORE0_TTBR0_ADDR
-  LDR     r1, CORE0_TA_TTBR0_ADDR
-  BL      core_init_mmu
-  pop     {lr}
-
-/*  
- * Set Table Table Base Control Reg
- * ---------------------------------
- * 31:6  - SBZ
- * 5     - PD[1], whether misses in TTBR1 causes a table walk
- * 4     - PD[0], whether misses in TTBR0 causes a table walk
- * 3     - SBZ
- * 2:0   - N, split between TTBR0 and TTBR1
- */
-  MOV     r0,#0x0    @  N=0 => no TTBR1 used
-  MCR     p15, 0, r0, c2, c0, 2
-
-  MOV PC, LR
-
-/*
- * void secure_mmu_disable(void);
- */
-secure_mmu_disable:
-	MRC     p15, 0, R0, c1, c0, 0
-
-	BIC     R0, R0, #CP15_CONTROL_M_MASK
-	MCR     p15, 0, R0, c1, c0, 0
-
-	DSB
-	ISB
-
-	MOV PC, LR
 
 /*
  * - MMU maintenaince support ---------------------------------------------

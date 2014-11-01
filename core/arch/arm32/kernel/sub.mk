@@ -6,8 +6,6 @@ srcs-$(WITH_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
 srcs-$(WITH_SECURE_TIME_SOURCE_RTT) += tee_time_rtt.c
 srcs-$(WITH_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 
-srcs-y += chip_services.c
-srcs-y += tee_misc.c
 srcs-y += tee_time_unpg.c
 srcs-y += tz_proc.S
 srcs-y += tz_ssvce.S

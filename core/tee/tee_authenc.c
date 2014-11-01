@@ -197,8 +197,7 @@ TEE_Result tee_authenc_update_payload(
 		/* aad is optional ==> add one without length */
 		gcm = ctx;
 		if (gcm->ctx.mode == LTC_GCM_MODE_IV) {
-			res = tee_authenc_update_aad(
-					&gcm->ctx, algo, mode, 0, 0);
+			res = tee_authenc_update_aad(gcm, algo, mode, 0, 0);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
