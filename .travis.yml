@@ -17,18 +17,16 @@ before_script:
   - tar xf gcc-linaro-arm-linux-gnueabihf-4.9-2014.05_linux.tar.xz
   - export PATH=$PATH:$PWD/gcc-linaro-arm-linux-gnueabihf-4.9-2014.05_linux/bin
 
-  # Download checkpatch.pl, emulating kernel root tree
-  - export DST_KERNEL=$PWD/linux && mkdir -p $DST_KERNEL/scripts
-  - cd $DST_KERNEL && touch COPYING CREDITS Kbuild MAINTAINERS Makefile README Documentation arch include drivers fs init ipc kernel lib
-  - cd $DST_KERNEL/scripts
-  - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x $DST_KERNEL/scripts/checkpatch.pl
+  # Download checkpatch.pl
+  - export DST_KERNEL=$PWD/linux && mkdir -p $DST_KERNEL/scripts && cd $DST_KERNEL/scripts
+  - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x checkpatch.pl
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt
   - cd $MYHOME
 
 # Several compilation options are checked
 script:
   # Run checkpatch.pl
-  - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl -
+  - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --no-tree -
 
   # Orly2
   -                                  PLATFORM=stm-orly2                                  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
