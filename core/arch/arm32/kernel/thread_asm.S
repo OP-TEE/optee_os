@@ -183,25 +183,9 @@ FUNC thread_resume , :
 	cps	#CPSR_MODE_SYS
 	ldm	r12!, {sp, lr}
 
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-	cps	#CPSR_MODE_IRQ
-	ldm	r12!, {r1, sp, lr}
-	msr	spsr_fsxc, r1
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
-
 	cps	#CPSR_MODE_SVC
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr_fsxc, r1
-
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-	cps	#CPSR_MODE_ABT
-	ldm	r12!, {r1, sp, lr}
-	msr	spsr_fsxc, r1
-
-	cps	#CPSR_MODE_UND
-	ldm	r12!, {r1, sp, lr}
-	msr	spsr_fsxc, r1
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	cps	#CPSR_MODE_SVC
 	ldm	r12, {r1, r2}
@@ -249,25 +233,9 @@ LOCAL_FUNC thread_save_state , :
         cps     #CPSR_MODE_SYS
         stm     r0!, {sp, lr}
 
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-        cps     #CPSR_MODE_IRQ
-        mrs     r1, spsr
-        stm     r0!, {r1, sp, lr}
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
-
         cps     #CPSR_MODE_SVC
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
-
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-        cps     #CPSR_MODE_ABT
-        mrs     r1, spsr
-        stm     r0!, {r1, sp, lr}
-
-        cps     #CPSR_MODE_UND
-        mrs     r1, spsr
-        stm     r0!, {r1, sp, lr}
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	msr	cpsr, r6		/* Restore mode */
 

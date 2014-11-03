@@ -52,22 +52,9 @@ struct thread_ctx_regs {
 	uint32_t r12;
 	uint32_t usr_sp;
 	uint32_t usr_lr;
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-	uint32_t irq_spsr;
-	uint32_t irq_sp;
-	uint32_t irq_lr;
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 	uint32_t svc_spsr;
 	uint32_t svc_sp;
 	uint32_t svc_lr;
-#ifdef THREAD_LOCAL_EXCEPTION_SPS
-	uint32_t abt_spsr;
-	uint32_t abt_sp;
-	uint32_t abt_lr;
-	uint32_t und_spsr;
-	uint32_t und_sp;
-	uint32_t und_lr;
-#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 	uint32_t pc;
 	uint32_t cpsr;
 };
