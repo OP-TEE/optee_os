@@ -38,6 +38,9 @@
 
         push    {r5-r7,lr}
         mov     r7, #(\scn)
+	.if \num_args > TEE_SVC_MAX_ARGS
+	.error "Too many arguments for syscall"
+	.endif
         .if \num_args <= 4
         @ No arguments passed on stack
         mov     r6, #0

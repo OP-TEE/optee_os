@@ -35,21 +35,6 @@
 
 struct tee_ta_session;
 
-void tee_svc_user_ta_panic_from_pager(void);
-
-/*
- * This function will not return itself, rather it will end with a system
- * call to return to kernel mode. The syscall will unwinde the stack and
- * the result will be as if this function had returned.
- *
- * User_func is called in user mode with stack setup and a0-a3 passed
- * in r0-r3.
- */
-TEE_Result tee_svc_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
-				   uint32_t a3, tee_uaddr_t sp,
-				   tee_uaddr_t user_func, uint32_t *panicked,
-				   uint32_t *panic_code);
-
 void tee_svc_sys_return(uint32_t ret, uint32_t param_types, void *params);
 
 void tee_svc_sys_log(const void *buf, size_t len);

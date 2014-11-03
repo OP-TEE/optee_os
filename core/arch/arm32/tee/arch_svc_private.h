@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,37 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef ARCH_SVC_PRIVATE_H
+#define ARCH_SVC_PRIVATE_H
 
-#include <asm.S>
-#include <arm32.h>
-#include <arm32_macros.S>
+#include <tee_api_types.h>
 
-/* Let platforms override this if needed */
-.weak get_core_pos
+/* void argument but in reality it can be any number of arguments */
+typedef TEE_Result (*tee_svc_func)(void);
 
-FUNC get_core_pos , :
-	read_mpidr r0
-	/* Calculate CorePos = (ClusterId * 4) + CoreId */
-	and	r1, r0, #MPIDR_CPU_MASK
-	and	r0, r0, #MPIDR_CLUSTER_MASK
-	add	r0, r1, r0, LSR #6
-	bx	lr
-END_FUNC get_core_pos
+/* Helper function for tee_svc_handler() */
+uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
 
-/* uint32_t read_usr_sp(void) */
-FUNC read_usr_sp , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, sp
-	msr	cpsr, r1
-	bx	lr
-END_FUNC read_usr_sp
-
-/* uint32_t read_usr_lr(void) */
-FUNC read_usr_lr , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, lr
-	msr	cpsr, r1
-	bx	lr
-END_FUNC read_usr_lr
+#endif /*ARCH_SVC_PRIVATE_H*/

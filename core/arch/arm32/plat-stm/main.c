@@ -43,6 +43,7 @@
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
+#include <tee/arch_svc.h>
 #include <console.h>
 #include <kernel/asc.h>
 #include <kernel/tee_l2cc_mutex.h>
@@ -141,7 +142,7 @@ static const struct thread_handlers handlers = {
 	.std_smc = main_tee_entry,
 	.fast_smc = main_tee_entry,
 	.fiq = main_fiq,
-	.svc = NULL, /* XXX currently using hardcod svc handler */
+	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,

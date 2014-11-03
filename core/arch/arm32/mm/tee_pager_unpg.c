@@ -36,7 +36,7 @@
 #include <mm/tee_mm_unpg.h>
 #include <mm/tee_mmu_unpg.h>
 #include <mm/core_mmu.h>
-#include <tee/tee_svc.h>
+#include <tee/arch_svc.h>
 #include <arm32.h>
 
 /* Dummies to allow the macros to be left at current places below */
@@ -357,8 +357,10 @@ void tee_pager_abort_handler(uint32_t abort_type,
 		 * It was a user exception, stop user execution and return
 		 * to TEE Core.
 		 */
-		regs->r0 = 0xdeadbeef;
-		regs->lr = (uint32_t)tee_svc_user_ta_panic_from_pager;
+		regs->r0 = TEE_ERROR_TARGET_DEAD;
+		regs->r1 = true;
+		regs->r2 = 0xdeadbeef;
+		regs->lr = (uint32_t)tee_svc_unwind_enter_user_mode;
 		regs->spsr = read_cpsr();
 		regs->spsr &= ~TEE_PAGER_SPSR_MODE_MASK;
 		regs->spsr |= TEE_PAGER_SPSR_MODE_SVC;

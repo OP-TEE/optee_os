@@ -28,9 +28,12 @@
 #ifndef KERNEL_MISC_H
 #define KERNEL_MISC_H
 
-#include <stddef.h>
+#include <types_ext.h>
 
 size_t get_core_pos(void);
+
+uint32_t read_usr_sp(void);
+uint32_t read_usr_lr(void);
 
 #endif /*KERNEL_MISC_H*/
 

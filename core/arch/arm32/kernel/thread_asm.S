@@ -419,12 +419,7 @@ thread_pabort_handler:
 END_FUNC thread_abort_handler
 
 LOCAL_FUNC thread_svc_handler , :
-/*
- * TODO figure out an efficient way of redesigning tee_svc_syscall to allow
- * usage of this code instead.
- */
-#if 0
-	push	{r0-r5, lr}
+	push	{r0-r7, lr}
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
@@ -433,11 +428,8 @@ LOCAL_FUNC thread_svc_handler , :
 	blx	lr
 	pop	{r0}
 	msr	spsr_fsxc, r0
-	pop	{r0-r5, lr}
+	pop	{r0-r7, lr}
 	movs	pc, lr
-#else
-	ldr	pc, =tee_svc_syscall
-#endif
 END_FUNC thread_svc_handler
 
         .align	5

@@ -73,31 +73,6 @@ void tee_svc_sys_log(const void *buf, size_t len)
 	free(kbuf);
 }
 
-void tee_svc_sys_panic(uint32_t code)
-{
-	struct tee_ta_session *sess;
-
-	if (tee_ta_get_current_session(&sess) == TEE_SUCCESS) {
-		EMSG("Set session %p to panicked", (void *)sess);
-		sess->ctx->panicked = 1;
-		sess->ctx->panic_code = code;
-
-		{
-			int *p = 0;
-
-			/*
-			 * Force panicking. This memory error will be trapped by
-			 * the error exception handler myErrorHandler()
-			 */
-			EMSG("Following 'DTLB exception in bundle'");
-			EMSG("   is generated with code %d", code);
-			*p = 1;
-		}
-	} else {
-		DMSG("Panic called from unknown TA");
-	}
-}
-
 TEE_Result tee_svc_reserved(void)
 {
 	return TEE_ERROR_GENERIC;

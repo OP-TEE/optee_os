@@ -47,6 +47,9 @@
 #define CPSR_I		(1 << 7)
 #define CPSR_A		(1 << 8)
 #define CPSR_FIA	(CPSR_F | CPSR_I | CPSR_A)
+#define CPSR_IT_MASK	(CPSR_IT_MASK1 | CPSR_IT_MASK2)
+#define CPSR_IT_MASK1	0x06000000
+#define CPSR_IT_MASK2	0x0000fc00
 
 #define MPIDR_CPU_MASK		0xff
 #define MPIDR_CLUSTER_SHIFT	8

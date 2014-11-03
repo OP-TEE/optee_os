@@ -36,6 +36,7 @@
 #include <util.h>
 #include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
+#include <tee/arch_svc.h>
 #include <mm/tee_mmu.h>
 #include <kernel/tee_misc.h>
 #include <tee/tee_svc_cryp.h>

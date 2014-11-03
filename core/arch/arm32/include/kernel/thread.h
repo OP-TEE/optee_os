@@ -28,12 +28,15 @@
 #ifndef KERNEL_THREAD_H
 #define KERNEL_THREAD_H
 
+#ifndef ASM
 #include <types_ext.h>
+#endif
 
 #define THREAD_ID_0		0
 #define THREAD_ABT_STACK	0xfffffffe
 #define THREAD_TMP_STACK	0xffffffff
 
+#ifndef ASM
 extern uint32_t thread_vector_table[];
 
 struct thread_smc_args {
@@ -61,15 +64,34 @@ struct thread_abort_regs {
 typedef void (*thread_abort_handler_t)(uint32_t abort_type,
 			struct thread_abort_regs *regs);
 struct thread_svc_regs {
+	uint32_t spsr;
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
 	uint32_t r3;
 	uint32_t r4;
 	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
 	uint32_t lr;
-	uint32_t spsr;
 };
+#endif /*ASM*/
+/*
+ * Correctness of these defines are asserted with COMPILE_TIME_ASSERT in
+ * thread_init_handlers().
+ */
+#define THREAD_SVC_REG_SPSR_OFFS	(0 * 4)
+#define THREAD_SVC_REG_R0_OFFS		(1 * 4)
+#define THREAD_SVC_REG_R1_OFFS		(2 * 4)
+#define THREAD_SVC_REG_R2_OFFS		(3 * 4)
+#define THREAD_SVC_REG_R3_OFFS		(4 * 4)
+#define THREAD_SVC_REG_R4_OFFS		(5 * 4)
+#define THREAD_SVC_REG_R5_OFFS		(6 * 4)
+#define THREAD_SVC_REG_R6_OFFS		(7 * 4)
+#define THREAD_SVC_REG_R7_OFFS		(8 * 4)
+#define THREAD_SVC_REG_LR_OFFS		(9 * 4)
+
+#ifndef ASM
 typedef void (*thread_svc_handler_t)(struct thread_svc_regs *regs);
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
@@ -234,5 +256,7 @@ void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
  * @cookie: cookie received when allocating the payload buffer
  */
 void thread_optee_rpc_free_payload(paddr_t cookie);
+
+#endif /*ASM*/
 
 #endif /*KERNEL_THREAD_H*/

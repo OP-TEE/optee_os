@@ -357,6 +357,32 @@ uint32_t thread_get_id(void)
 
 void thread_init_handlers(const struct thread_handlers *handlers)
 {
+	/*
+	 * The COMPILE_TIME_ASSERT only works in function context. These
+	 * checks verifies that the offsets used in assembly code matches
+	 * what's used in C code.
+	 */
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r0) ==
+				THREAD_SVC_REG_R0_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r1) ==
+				THREAD_SVC_REG_R1_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r2) ==
+				THREAD_SVC_REG_R2_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r3) ==
+				THREAD_SVC_REG_R3_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r4) ==
+				THREAD_SVC_REG_R4_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r5) ==
+				THREAD_SVC_REG_R5_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r6) ==
+				THREAD_SVC_REG_R6_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r7) ==
+				THREAD_SVC_REG_R7_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, lr) ==
+				THREAD_SVC_REG_LR_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, spsr) ==
+				THREAD_SVC_REG_SPSR_OFFS);
+
 	thread_std_smc_handler_ptr = handlers->std_smc;
 	thread_fast_smc_handler_ptr = handlers->fast_smc;
 	thread_fiq_handler_ptr = handlers->fiq;
