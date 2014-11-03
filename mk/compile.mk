@@ -62,12 +62,14 @@ comp-lib-$2	:= $(libname)
 cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 
 ifeq ($$(filter %.c,$1),$1)
+comp-q-$2 := CC
 comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 			      $$(cflags-remove-$2), \
 		   $$(CFLAGS) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$2)) $$(cflags$$(comp-sm-$2)) \
 		   $$(cflags-lib$$(comp-lib-$2)) $$(cflags-$2))
 else ifeq ($$(filter %.S,$1),$1)
+comp-q-$2 := AS
 comp-flags-$2 = -DASM=1 $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
 				      $$(aflags-remove-$2), \
 			   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
@@ -100,7 +102,7 @@ $2: $1 FORCE
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) ;\
-		echo '  CC      $$@' ;\
+		echo '  $$(comp-q-$2)      $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
 		echo "old-cmd-$2 := $$(subst \",\\\",$$(comp-cmd-$2))" > \
