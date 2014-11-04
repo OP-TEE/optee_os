@@ -21,11 +21,23 @@ libdirs 	:= $(out-dir)/$(base-prefix)$(libdir) $(libdirs)
 libnames	:= $(libname) $(libnames)
 libdeps		:= $(lib-libfile) $(libdeps) 
 
+define process-lib
+ifeq ($(lib-use-ld), y)
 $(lib-libfile): $(objs)
-	@echo '  AR      $@'
-	@mkdir -p $(dir $@)
-	$(q)$(AR) rcs $@ $^
+	@echo '  LD      $$@'
+	@mkdir -p $$(dir $$@)
+	$$(q)$$(LD) $(lib-ldflags) -o $$@ $$^
+else
+$(lib-libfile): $(objs)
+	@echo '  AR      $$@'
+	@mkdir -p $$(dir $$@)
+	$$(q)$$(AR) rcs $$@ $$^
+endif
+endef #process-lib
+
+$(eval $(call process-lib))
 
 # Clean residues from processing
 objs		:=
 libname		:=
+lib-use-ld	:=

@@ -32,8 +32,6 @@
  * Not used directly from any source file, but required by some compiler
  * library with some compiler options.
  */
-void abort(void);
-
 void abort(void)
 {
 	printf("Abort!\n");
