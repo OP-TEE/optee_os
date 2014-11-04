@@ -221,6 +221,8 @@ has a compact representation of its L1 translation table. The compact
 representation is used to initialize the thread specific L1 translation
 table when the TA context is activated.
 
+![Select xlation table](images/xlat_table.png "Select xlation table")
+
 ## Translation tables and switching to normal world
 When switching to normal world either via an IRQ or RPC there's a chance
 that secure world will resume execution on a different CPU. This means that
