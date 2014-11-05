@@ -25,18 +25,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __TEE_LTC_WRAPPER_H_
-#define __TEE_LTC_WRAPPER_H_
+#include <asm.S>
+#include <arm32.h>
+#include <arm32_macros.S>
 
-#include <tomcrypt.h>
-#include <tee_api_types.h>
+/* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
+FUNC get_core_pos , :
+	read_mpidr r0
+	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
+	and	r1, r0, #MPIDR_CPU_MASK
+	and	r0, r0, #MPIDR_CLUSTER_MASK
+	eor	r0, r0, #(1 << MPIDR_CLUSTER_SHIFT)
+	add	r0, r1, r0, LSR #6
+	bx	lr
+END_FUNC get_core_pos
 
-#define LTC_MAX_BITS_PER_VARIABLE   (4096)
-
-void tee_ltc_init(void);
-void tee_ltc_deinit(void);
-TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex);
-TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo, int *ltc_cipherindex);
-int tee_ltc_get_rng_mpa(void);
-
-#endif /* __TEE_LTC_WRAPPER_H_ */

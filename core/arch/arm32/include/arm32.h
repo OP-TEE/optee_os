@@ -49,7 +49,8 @@
 #define CPSR_FIA	(CPSR_F | CPSR_I | CPSR_A)
 
 #define MPIDR_CPU_MASK		0xff
-#define MPIDR_CLUSTER_MASK	(0xff << 8)
+#define MPIDR_CLUSTER_SHIFT	8
+#define MPIDR_CLUSTER_MASK	(0xff << MPIDR_CLUSTER_SHIFT)
 
 #define SCR_NS		(1 << 0)
 #define SCR_IRQ		(1 << 1)

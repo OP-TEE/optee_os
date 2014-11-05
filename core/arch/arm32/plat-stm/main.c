@@ -32,7 +32,7 @@
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/teesmc.h>
-#include <sm/teesmc_st.h>
+#include <sm/teesmc_optee.h>
 
 #include <kernel/arch_debug.h>
 
@@ -217,7 +217,7 @@ static void main_tee_entry(struct thread_smc_args *args)
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 
-	if (args->a0 == TEESMC32_ST_FASTCALL_GET_SHM_CONFIG) {
+	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
 		args->a0 = TEESMC_RETURN_OK;
 		args->a1 = default_nsec_shm_paddr;
 		args->a2 = default_nsec_shm_size;
@@ -226,12 +226,12 @@ static void main_tee_entry(struct thread_smc_args *args)
 		return;
 	}
 
-	if (args->a0 == TEESMC32_ST_FASTCALL_L2CC_MUTEX) {
+	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
 		switch (args->a1) {
-		case TEESMC_ST_L2CC_MUTEX_GET_ADDR:
-		case TEESMC_ST_L2CC_MUTEX_SET_ADDR:
-		case TEESMC_ST_L2CC_MUTEX_ENABLE:
-		case TEESMC_ST_L2CC_MUTEX_DISABLE:
+		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
+		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
+		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
+		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
 			/* TODO call the appropriate internal functions */
 			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
 			return;
@@ -254,17 +254,17 @@ void tee_entry_get_api_call_count(struct thread_smc_args *args)
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_uuid(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_ST_UID_R0;
-	args->a1 = TEESMC_ST_UID_R1;
-	args->a2 = TEESMC_ST_UID_R2;
-	args->a3 = TEESMC_ST_UID32_R3;
+	args->a0 = TEESMC_OPTEE_UID_R0;
+	args->a1 = TEESMC_OPTEE_UID_R1;
+	args->a2 = TEESMC_OPTEE_UID_R2;
+	args->a3 = TEESMC_OPTEE_UID32_R3;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_revision(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_ST_REVISION_MAJOR;
-	args->a1 = TEESMC_ST_REVISION_MINOR;
+	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
+	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
 }
 
 /* Override weak function in tee/entry.c */

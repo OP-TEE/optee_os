@@ -111,7 +111,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(1));
 	if (!pharg)
 		goto exit;
-	thread_st_rpc_alloc_payload(sizeof(TEE_Time), &phpayload, &cookie);
+	thread_optee_rpc_alloc_payload(sizeof(TEE_Time), &phpayload, &cookie);
 	if (!phpayload)
 		goto exit;
 
@@ -142,7 +142,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 
 exit:
 	thread_rpc_free_arg(pharg);
-	thread_st_rpc_free_payload(cookie);
+	thread_optee_rpc_free_payload(cookie);
 	tee_ta_set_current_session(sess);
 	return res;
 }

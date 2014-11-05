@@ -37,7 +37,7 @@
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/teesmc.h>
-#include <sm/teesmc_st.h>
+#include <sm/teesmc_optee.h>
 
 #include <kernel/util.h>
 #include <kernel/arch_debug.h>
@@ -233,18 +233,19 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 }
 #endif
 
-#if PLATFORM_FLAVOR_IS(fvp)
+#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno)
 static void main_init_gic(void)
 {
 	/*
-	 * In FVP, GIC configuration is initialized in ARM-TF,
-	 * Initialize GIC base address here for debugging.
+	 * On ARMv8, GIC configuration is initialized in ARM-TF,
 	 */
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	gic_it_add(IT_CONSOLE_UART);
-	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	/* Route FIQ to primary CPU */
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, gic_it_get_target(0));
 	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
 	gic_it_enable(IT_CONSOLE_UART);
+
 }
 #elif PLATFORM_FLAVOR_IS(qemu)
 static void main_init_gic(void)
@@ -266,6 +267,7 @@ static void main_init_gic(void)
 
 static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 {
+
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
 	 * vector as the thread handler requires externl Abort, IRQ and FIQ
@@ -280,8 +282,9 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		uintptr_t bss_end = (uintptr_t)&__bss_end;
 		size_t n;
 
-		/* Initialize uart with physical address */
-		uart_init(CONSOLE_UART_BASE);
+		/* Initialize uart with virtual address */
+		uart_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
+			  CONSOLE_BAUDRATE);
 
 		/*
 		 * Zero BSS area. Note that globals that would normally
@@ -342,16 +345,18 @@ static void main_fiq(void)
 {
 	uint32_t iar;
 
-	DMSG("%s\n", __func__);
+	DMSG("enter");
 
 	iar = gic_read_iar();
 
-	while (uart_have_rx_data(CONSOLE_UART_BASE))
-		DMSG("got 0x%x\n", uart_getchar(CONSOLE_UART_BASE));
+	while (uart_have_rx_data(CONSOLE_UART_BASE)) {
+		DMSG("cpu %zu: got 0x%x",
+		     get_core_pos(), uart_getchar(CONSOLE_UART_BASE));
+	}
 
 	gic_write_eoir(iar);
 
-	DMSG("return from %s\n", __func__);
+	DMSG("return");
 }
 
 #if defined(WITH_ARM_TRUSTED_FW)
@@ -432,7 +437,7 @@ static void main_tee_entry(struct thread_smc_args *args)
 	 * if none matches, the generic tee_entry is called.
 	 */
 
-	if (args->a0 == TEESMC32_ST_FASTCALL_GET_SHM_CONFIG) {
+	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
 		args->a0 = TEESMC_RETURN_OK;
 		args->a1 = default_nsec_shm_paddr;
 		args->a2 = default_nsec_shm_size;
@@ -441,12 +446,12 @@ static void main_tee_entry(struct thread_smc_args *args)
 		return;
 	}
 
-	if (args->a0 == TEESMC32_ST_FASTCALL_L2CC_MUTEX) {
+	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
 		switch (args->a1) {
-		case TEESMC_ST_L2CC_MUTEX_GET_ADDR:
-		case TEESMC_ST_L2CC_MUTEX_SET_ADDR:
-		case TEESMC_ST_L2CC_MUTEX_ENABLE:
-		case TEESMC_ST_L2CC_MUTEX_DISABLE:
+		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
+		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
+		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
+		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
 			/* TODO call the appropriate internal functions */
 			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
 			return;
@@ -470,17 +475,17 @@ void tee_entry_get_api_call_count(struct thread_smc_args *args)
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_uuid(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_ST_UID_R0;
-	args->a1 = TEESMC_ST_UID_R1;
-	args->a2 = TEESMC_ST_UID_R2;
-	args->a3 = TEESMC_ST_UID32_R3;
+	args->a0 = TEESMC_OPTEE_UID_R0;
+	args->a1 = TEESMC_OPTEE_UID_R1;
+	args->a2 = TEESMC_OPTEE_UID_R2;
+	args->a3 = TEESMC_OPTEE_UID32_R3;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_revision(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_ST_REVISION_MAJOR;
-	args->a1 = TEESMC_ST_REVISION_MINOR;
+	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
+	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
 }
 
 /* Override weak function in tee/entry.c */

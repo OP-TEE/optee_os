@@ -55,7 +55,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	tee_ta_set_current_session(NULL);
 
 	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
-	thread_st_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
+	thread_optee_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
 					        &phpayload, &cookie);
 	if (!pharg || !phpayload)
 		goto exit;
@@ -106,7 +106,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 
 exit:
 	thread_rpc_free_arg(pharg);
-	thread_st_rpc_free_payload(cookie);
+	thread_optee_rpc_free_payload(cookie);
 	tee_ta_set_current_session(sess);
 	return res;
 }

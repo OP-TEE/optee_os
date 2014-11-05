@@ -61,10 +61,10 @@ LOCAL_FUNC reset , :
 
 	mov	r4, lr
 	bl	get_core_pos
-	lsl	r0, #2
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
 	/* Unsupported CPU, park it before it breaks something */
 	bge	unhandled_cpu
+	lsl	r0, #2
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
 
@@ -80,10 +80,10 @@ LOCAL_FUNC reset , :
 	mov	r0, r4
 	bl	main_init
 
-#if PLATFORM_FLAVOR == PLATFORM_FLAVOR_FVP
+#if defined(WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
 	mov     r1, r0
-#elif PLATFORM_FLAVOR == PLATFORM_FLAVOR_QEMU
+#else
 	mov	r1, #0
 	mov	r2, #0
 	mov	r3, #0
@@ -98,7 +98,7 @@ LOCAL_FUNC unhandled_cpu , :
 	b	unhandled_cpu
 END_FUNC unhandled_cpu
 
-#if PLATFORM_FLAVOR == PLATFORM_FLAVOR_FVP
+#if defined(WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , :
 	mov	r4, r0
 	mov	r5, r1
@@ -112,6 +112,9 @@ FUNC cpu_on_handler , :
 
 	mov	r4, lr
 	bl	get_core_pos
+	cmp	r0, #CFG_TEE_CORE_NB_CORE
+	/* Unsupported CPU, park it before it breaks something */
+	bge	unhandled_cpu
 	lsl	r0, #2
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
@@ -128,6 +131,7 @@ FUNC cpu_on_handler , :
 	mov	r0, r4
 	mov	r1, r5
 	bl	main_cpu_on_handler
+
 	bx	r6
 END_FUNC cpu_on_handler
 #endif

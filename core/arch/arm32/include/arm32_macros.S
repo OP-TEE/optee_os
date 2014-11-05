@@ -54,6 +54,10 @@
 	mcr	p15, 0, \reg, c3, c0, 0
 	.endm
 
+	.macro read_dfsr reg
+	mrc	p15, 0, \reg, c5, c0, 0
+	.endm
+
 	.macro write_iciallu
 	/* Invalidate all instruction caches to PoU (register ignored) */
 	mcr	p15, 0, r0, c7, c5, 0

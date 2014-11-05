@@ -225,7 +225,7 @@ void thread_rpc_cmd(paddr_t arg);
  * @payload: returned physcial pointer to payload buffer
  * @cookie: returned cookie used when freeing the buffer
  */
-void thread_st_rpc_alloc_payload(size_t size, paddr_t *payload,
+void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
 				 paddr_t *cookie);
 
 /**
@@ -233,6 +233,6 @@ void thread_st_rpc_alloc_payload(size_t size, paddr_t *payload,
  *
  * @cookie: cookie received when allocating the payload buffer
  */
-void thread_st_rpc_free_payload(paddr_t cookie);
+void thread_optee_rpc_free_payload(paddr_t cookie);
 
 #endif /*KERNEL_THREAD_H*/

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,37 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_CIPHER_H
-#define TEE_CIPHER_H
+
+#ifndef TEE_CRYP_UTL_H
+#define TEE_CRYP_UTL_H
 
 #include <tee_api_types.h>
 
-/*
- * Algorithms in this files are as specified with the TEE_ALG_XXX from
- * TEE Internal API.
- */
-
-TEE_Result tee_cipher_get_ctx_size(uint32_t algo, size_t *size);
-
-TEE_Result tee_cipher_init(void *ctx, uint32_t algo,
-			   TEE_OperationMode mode, const uint8_t *key,
-			   size_t key_len);
-
-TEE_Result tee_cipher_init2(void *ctx, uint32_t algo,
-			    TEE_OperationMode mode, const uint8_t *key,
-			    size_t key_len, const uint8_t *iv, size_t iv_len);
-
-TEE_Result tee_cipher_init3(void *ctx, uint32_t algo,
-			    TEE_OperationMode mode, const uint8_t *key1,
-			    size_t key1_len, const uint8_t *key2,
-			    size_t key2_len, const uint8_t *iv, size_t iv_len);
-
-TEE_Result tee_cipher_update(void *ctx, uint32_t algo,
-			     TEE_OperationMode mode, bool last_block,
-			     const uint8_t *data, size_t len, uint8_t *dst);
-
-void tee_cipher_final(void *ctx, uint32_t algo);
-
+TEE_Result get_rng_array(void *buffer, int len);
+TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size);
+TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
+				 size_t datalen, uint8_t *digest,
+				 size_t digestlen);
+TEE_Result tee_hash_check(uint32_t algo, const uint8_t *hash,
+			  size_t hash_size, const uint8_t *data,
+			  size_t data_size);
+TEE_Result tee_mac_get_digest_size(uint32_t algo, size_t *size);
 TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size);
+TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
+				TEE_OperationMode mode, bool last_block,
+				const uint8_t *data, size_t len, uint8_t *dst);
+TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
+				  TEE_OperationMode mode, bool last_block,
+				  const uint8_t *data, size_t len,
+				  uint8_t *dst);
 
-#endif /* TEE_CIPHER_H */
+
+#endif

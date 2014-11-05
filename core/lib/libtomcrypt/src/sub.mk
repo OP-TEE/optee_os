@@ -4,8 +4,7 @@ cppflags-mpa_desc.c-y += -Ilib/libmpa
 cflags-mpa_desc.c-y += -Wno-declaration-after-statement
 cflags-mpa_desc.c-y += -Wno-unused-parameter
 
-srcs-y += tee_ltc_wrapper.c
-cflags-tee_ltc_wrapper.c-y += -Wno-unused-parameter
+srcs-y += tee_ltc_provider.c
 
 subdirs-y += ciphers
 subdirs-y += encauth
