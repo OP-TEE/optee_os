@@ -2,6 +2,7 @@
 #
 # The output from mk/sub.mk
 # base-prefix
+# conf-file [optional] if set, all objects will depend on $(conf-file)
 #
 # Output
 #
@@ -113,3 +114,5 @@ endef
 
 $(foreach f, $(srcs), $(eval $(call \
 	process_srcs,$(f),$(out-dir)/$(base-prefix)$$(basename $f).o)))
+
+$(objs): $(conf-file)

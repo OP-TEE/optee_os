@@ -8,3 +8,4 @@ libnames	:=
 libdeps		:=
 sm-$(sm)	:=
 incdirs		:=
+conf-file	:=

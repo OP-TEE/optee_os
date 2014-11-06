@@ -13,7 +13,8 @@ platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y
 cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
-cppflags$(sm)	+= -Icore/include $(platform-cppflags) $(core-platform-cppflags)
+cppflags$(sm)	+= -Icore/include -I$(out-dir)/core/include
+cppflags$(sm)	+= $(platform-cppflags) $(core-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 
@@ -23,6 +24,16 @@ cppflags$(sm) += -DCFG_TEE_FW_DEBUG=$(CFG_TEE_FW_DEBUG)
 cppflags$(sm) += -DCFG_TEE_CORE_LOG_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 
 cppflags$(sm)	+= -Ilib/libutee/include
+
+# Tell all libraries and sub-directories (included below) that we have a
+# configuration file
+
+conf-file := $(out-dir)/core/include/generated/conf.h
+cleanfiles += $(conf-file)
+
+include mk/checkconf.mk
+$(conf-file): FORCE
+	$(call check-conf-h)
 
 #
 # Do libraries

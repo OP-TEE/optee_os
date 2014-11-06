@@ -3,6 +3,7 @@
 # libname	tells the name of the lib and
 # libdir	tells directory of lib which also is used as input to
 #		mk/subdir.mk
+# conf-file     [optional] if set, all objects will depend on $(conf-file)
 #
 # Output
 #
@@ -36,6 +37,8 @@ endif
 endef #process-lib
 
 $(eval $(call process-lib))
+
+$(objs): $(conf-file)
 
 # Clean residues from processing
 objs		:=
