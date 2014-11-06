@@ -162,8 +162,9 @@ static uint32_t tee_mmu_get_io_size(const struct tee_ta_param *param)
 static bool tee_mmu_is_mapped(const struct tee_ta_ctx *ctx, const paddr_t addr,
 			      const uint32_t length, const uint32_t type)
 {
-	size_t nbr_sections;
-	size_t n;
+	uint32_t n;
+	uint32_t section_start;
+	uint32_t section_end;
 	uint32_t *t;
 	void *va;
 
@@ -181,15 +182,16 @@ static bool tee_mmu_is_mapped(const struct tee_ta_ctx *ctx, const paddr_t addr,
 	t = ctx->mmu->table + ((vaddr_t)va >> SECTION_SHIFT);
 
 	/*
-	 * Check all sections maps contigous memory and have the correct
-	 * type.
+	 * Check all sections maps contiguous memory and have the correct type.
 	 */
-	nbr_sections = (((addr & SECTION_MASK) + length) >> SECTION_SHIFT) + 1;
-	for (n = 0; n < nbr_sections; n++) {
+	section_start = addr >> SECTION_SHIFT;
+	section_end = (addr + length - 1) >> SECTION_SHIFT;
+	for (n = 0; n <= section_end - section_start; n++) {
 		if ((t[n] & SECTION_MASK) != type)
 			return false;	/* Incorrect type */
 
-		if (t[n] >> SECTION_SHIFT != (addr >> SECTION_SHIFT) + n)
+		if (t[n] >> SECTION_SHIFT !=
+		    ((n + section_start) >> SECTION_SHIFT))
 			return false;	/* PA doesn't match */
 	}
 
@@ -234,7 +236,10 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 	uint32_t i;
 	uint32_t vi_offset = vio;
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t nbr_sections, py_offset, v, section, sect_prot;
+	uint32_t sect_prot;
+	uint32_t sec;
+	uint32_t section_start;
+	uint32_t section_end;
 
 	/* Map IO buffers in public memory */
 	for (i = 0; i < 4; i++) {
@@ -247,24 +252,12 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 		    (p->memref.size == 0))
 			    continue;
 
-		nbr_sections =
-		    ((((uint32_t) p->memref.buffer & SECTION_MASK) +
-		      p->memref.size) >> SECTION_SHIFT) + 1;
-		py_offset = (uint32_t) p->memref.buffer >> SECTION_SHIFT;
-		v = ((vi_offset << SECTION_SHIFT) +
-			      ((uint32_t) p->memref.buffer & SECTION_MASK));
-		section = 0;
-
 		if ((ctx->flags & TA_FLAG_USER_MODE) ==
 		    TA_FLAG_USER_MODE) {
 			sect_prot = TEE_MMU_SECTION_UDATA;
 		} else {
 			sect_prot = TEE_MMU_SECTION_KDATA;
 		}
-#ifdef PAGER_DEBUG_PRINT
-		DMSG("tee_mmu_map: i 0x%x ph %p -> v %p\n nbr_sections %u", i,
-		     p->memref.buffer, v, nbr_sections);
-#endif
 		/* Set NS bit if buffer is not secure */
 		if (tee_pbuf_is_non_sec
 		    (p->memref.buffer, p->memref.size) == true) {
@@ -317,17 +310,17 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 			if (res != TEE_SUCCESS)
 				return res;
 		} else {
-			p->memref.buffer = (void *)v;
-
-			while (section < nbr_sections) {
-				**buffer =
-				    ((section + py_offset) << SECTION_SHIFT) |
-						sect_prot;
+			section_start = (uint32_t)p->memref.buffer >>
+						SECTION_SHIFT;
+			section_end = ((uint32_t)p->memref.buffer +
+				       p->memref.size - 1) >> SECTION_SHIFT;
+			p->memref.buffer = (void *)((vi_offset << SECTION_SHIFT)
+				+ ((uint32_t)p->memref.buffer & SECTION_MASK));
+			for (sec = section_start; sec <= section_end; sec++) {
+				**buffer = (sec << SECTION_SHIFT) | sect_prot;
 				(*buffer)++;
-				section++;
 			}
-
-			vi_offset += nbr_sections;
+			vi_offset += (section_end - section_start + 1);
 		}
 	}
 
