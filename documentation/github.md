@@ -147,6 +147,10 @@ contributor needs to squash the commits into a single commit (a
 * A single-point contribution for most of the cases
 * That is rebased on upstream/master, in case the master has
   been updated
+* Add tags in the commit message to grant people that reviewed and tested the patch.
+  Typically, you may add at the end of the commit message the tags *Reviewed-by*
+  and *Tested-by*, as provided in the comments of the pull-request.
+
 
 Following commands are guidelines to achieve the
 *squashed-commit-on-top-of-master*. Note that this ends with a
@@ -158,6 +162,11 @@ Following commands are guidelines to achieve the
 	git reset --hard upstream/master
 	git merge --squash feature/my_new_feature_tbs
 	git commit -s
+		(add the tag, as for example):
+		Reviewed-by: Jerome Forissier <jerome.forissier@linaro.org>
+		Reviewed-by: Jens Wiklander <jens.wiklander@linaro.org>
+		Tested-by: Joakim Bech <joakim.bech@linaro.org> (FVP platform)
+		Tested-by: Pascal Brand <pascal.brand@linaro.org> (STM platform)
 	git push -f origin feature/my_new_feature:feature/my_new_feature
 
 Note:
