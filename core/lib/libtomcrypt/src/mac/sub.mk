@@ -1,4 +1,2 @@
-subdirs-y += hmac
-subdirs-y += omac
-subdirs-y += pmac
-subdirs-y += xcbc
+subdirs-$(CFG_CRYPTO_HMAC) += hmac
+subdirs-$(CFG_CRYPTO_CMAC) += omac

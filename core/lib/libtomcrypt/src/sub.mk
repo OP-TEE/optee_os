@@ -1,17 +1,19 @@
+ifdef _CFG_CRYPTO_WITH_ACIPHER
 srcs-y += mpa_desc.c
 # Get mpa.h which normally is an internal .h file
 cppflags-mpa_desc.c-y += -Ilib/libmpa
 cflags-mpa_desc.c-y += -Wno-declaration-after-statement
 cflags-mpa_desc.c-y += -Wno-unused-parameter
+endif
 
 srcs-y += tee_ltc_provider.c
 
-subdirs-y += ciphers
-subdirs-y += encauth
+subdirs-$(_CFG_CRYPTO_WITH_CIPHER) += ciphers
+subdirs-$(_CFG_CRYPTO_WITH_AUTHENC) += encauth
 subdirs-y += hashes
-subdirs-y += mac
-subdirs-y += math
+subdirs-$(_CFG_CRYPTO_WITH_MAC) += mac
+subdirs-$(_CFG_CRYPTO_WITH_ACIPHER) += math
 subdirs-y += misc
 subdirs-y += modes
-subdirs-y += pk
-subdirs-y += prngs
+subdirs-$(_CFG_CRYPTO_WITH_ACIPHER) += pk
+subdirs-$(_CFG_CRYPTO_WITH_ACIPHER) += prngs

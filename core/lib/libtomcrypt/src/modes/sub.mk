@@ -1,8 +1,4 @@
-subdirs-y += cbc
-subdirs-y += cfb
-subdirs-y += ctr
-subdirs-y += ecb
-subdirs-y += f8
-subdirs-y += lrw
-subdirs-y += ofb
-subdirs-y += xts
+subdirs-$(_CFG_CRYPTO_WITH_CBC) += cbc
+subdirs-$(CFG_CRYPTO_CTR) += ctr
+subdirs-$(CFG_CRYPTO_ECB) += ecb
+subdirs-$(CFG_CRYPTO_XTS) += xts

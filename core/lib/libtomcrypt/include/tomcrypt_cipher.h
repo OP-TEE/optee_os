@@ -51,9 +51,13 @@ struct des3_key {
 
 
 typedef union Symmetric_key {
+#ifdef LTC_DES
    struct des_key des;
    struct des3_key des3;
+#endif
+#ifdef LTC_RIJNDAEL
    struct rijndael_key rijndael;
+#endif
    void   *data;
 } symmetric_key;
 

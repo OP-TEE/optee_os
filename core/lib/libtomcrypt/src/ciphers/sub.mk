@@ -1,5 +1,5 @@
 cflags-y += -Wno-unused-parameter
 
-srcs-y += aes.c
-srcs-y += aes_tab.c
-srcs-y += des.c
+srcs-$(CFG_CRYPTO_AES) += aes.c
+srcs-$(CFG_CRYPTO_AES) += aes_tab.c
+srcs-$(CFG_CRYPTO_DES) += des.c

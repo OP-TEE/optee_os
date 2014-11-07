@@ -1,4 +1,2 @@
-subdirs-y += ccm
-subdirs-y += eax
-subdirs-y += gcm
-subdirs-y += ocb
+subdirs-$(CFG_CRYPTO_CCM) += ccm
+subdirs-$(CFG_CRYPTO_GCM) += gcm

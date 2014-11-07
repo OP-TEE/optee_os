@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <generated/conf.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 
@@ -38,20 +39,7 @@
 #include <string_ext.h>
 #include "tomcrypt_mpa.h"
 
-#define LTC_MAX_BITS_PER_VARIABLE   (4096)
-#define LTC_VARIABLE_NUMBER         (50)
-
-static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
-	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];
-
-static void tee_ltc_alloc_mpa(void)
-{
-	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
-
-	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER,
-			     LTC_MAX_BITS_PER_VARIABLE);
-}
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
 /* Random generator */
 static int prng_mpa_start(union Prng_state *prng __unused)
@@ -118,153 +106,51 @@ static const struct ltc_prng_descriptor prng_mpa_desc = {
 	.test = &prng_mpa_test,
 };
 
+#endif /* _CFG_CRYPTO_WITH_ACIPHER */
+
+
 /*
  * tee_ltc_reg_algs(): Registers
  *	- algorithms
  *	- hash
  *	- prng (pseudo random generator)
- * This function is copied from reg_algs() from libtomcrypt/test/x86_prof.c
  */
 
 static void tee_ltc_reg_algs(void)
 {
-#ifdef LTC_RIJNDAEL
+#if defined(CFG_CRYPTO_AES)
 	register_cipher(&aes_desc);
 #endif
-#ifdef LTC_BLOWFISH
-	register_cipher(&blowfish_desc);
-#endif
-#ifdef LTC_XTEA
-	register_cipher(&xtea_desc);
-#endif
-#ifdef LTC_RC5
-	register_cipher(&rc5_desc);
-#endif
-#ifdef LTC_RC6
-	register_cipher(&rc6_desc);
-#endif
-#ifdef LTC_SAFERP
-	register_cipher(&saferp_desc);
-#endif
-#ifdef LTC_TWOFISH
-	register_cipher(&twofish_desc);
-#endif
-#ifdef LTC_SAFER
-	register_cipher(&safer_k64_desc);
-	register_cipher(&safer_sk64_desc);
-	register_cipher(&safer_k128_desc);
-	register_cipher(&safer_sk128_desc);
-#endif
-#ifdef LTC_RC2
-	register_cipher(&rc2_desc);
-#endif
-#ifdef LTC_DES
+#if defined(CFG_CRYPTO_DES)
 	register_cipher(&des_desc);
 	register_cipher(&des3_desc);
 #endif
-#ifdef LTC_CAST5
-	register_cipher(&cast5_desc);
-#endif
-#ifdef LTC_NOEKEON
-	register_cipher(&noekeon_desc);
-#endif
-#ifdef LTC_SKIPJACK
-	register_cipher(&skipjack_desc);
-#endif
-#ifdef LTC_KHAZAD
-	register_cipher(&khazad_desc);
-#endif
-#ifdef LTC_ANUBIS
-	register_cipher(&anubis_desc);
-#endif
-#ifdef LTC_KSEED
-	register_cipher(&kseed_desc);
-#endif
-#ifdef LTC_KASUMI
-	register_cipher(&kasumi_desc);
-#endif
-
-#ifdef LTC_TIGER
-	register_hash(&tiger_desc);
-#endif
-#ifdef LTC_MD2
-	register_hash(&md2_desc);
-#endif
-#ifdef LTC_MD4
-	register_hash(&md4_desc);
-#endif
-#ifdef LTC_MD5
+#if defined(CFG_CRYPTO_MD5)
 	register_hash(&md5_desc);
 #endif
-#ifdef LTC_SHA1
+#if defined(CFG_CRYPTO_SHA1)
 	register_hash(&sha1_desc);
 #endif
-#ifdef LTC_SHA224
+#if defined(CFG_CRYPTO_SHA224)
 	register_hash(&sha224_desc);
 #endif
-#ifdef LTC_SHA256
+#if defined(CFG_CRYPTO_SHA256)
 	register_hash(&sha256_desc);
 #endif
-#ifdef LTC_SHA384
+#if defined(CFG_CRYPTO_SHA384)
 	register_hash(&sha384_desc);
 #endif
-#ifdef LTC_SHA512
+#if defined(CFG_CRYPTO_SHA512)
 	register_hash(&sha512_desc);
 #endif
-#ifdef LTC_RIPEMD128
-	register_hash(&rmd128_desc);
-#endif
-#ifdef LTC_RIPEMD160
-	register_hash(&rmd160_desc);
-#endif
-#ifdef LTC_RIPEMD256
-	register_hash(&rmd256_desc);
-#endif
-#ifdef LTC_RIPEMD320
-	register_hash(&rmd320_desc);
-#endif
-#ifdef LTC_WHIRLPOOL
-	register_hash(&whirlpool_desc);
-#endif
-#ifdef LTC_CHC_HASH
-#error LTC_CHC_HASH is not supported
-	register_hash(&chc_desc);
-	err = chc_register(register_cipher(&aes_desc);
-	if (err != CRYPT_OK) {
-		fprintf(stderr, "chc_register error: %s\n",
-				error_to_string(err));
-		exit(EXIT_FAILURE);
-	}
-#endif
-
-#ifndef LTC_NO_PRNGS
-#ifndef LTC_YARROW
-#error This demo requires Yarrow.
-#endif
-	register_prng(&yarrow_desc);
-#ifdef LTC_FORTUNA
-	register_prng(&fortuna_desc);
-#endif
-#ifdef LTC_RC4
-	register_prng(&rc4_desc);
-#endif
-#ifdef LTC_SPRNG
-	register_prng(&sprng_desc);
-#endif
-
-	/*
-	if ((err = rng_make_prng(128, find_prng("yarrow"),
-	     &yarrow_prng, NULL)) != CRYPT_OK) {
-		fprintf(stderr, "rng_make_prng failed: %s\n",
-			error_to_string(err));
-		exit(EXIT_FAILURE);
-	}
-	*/
-#endif
-
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
 	register_prng(&prng_mpa_desc);
+#endif
 }
 
+
+#if defined(_CFG_CRYPTO_WITH_HASH) || defined(_CFG_CRYPTO_WITH_ACIPHER) || \
+	defined(_CFG_CRYPTO_WITH_MAC)
 
 /*
  * Compute the LibTomCrypt "hashindex" given a TEE Algorithm "algo"
@@ -277,6 +163,7 @@ static void tee_ltc_reg_algs(void)
 static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
@@ -285,13 +172,15 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_HMAC_SHA1:
 		*ltc_hashindex = find_hash("sha1");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_MD5)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_MD5:
 	case TEE_ALG_HMAC_MD5:
 		*ltc_hashindex = find_hash("md5");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_SHA224)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
@@ -299,7 +188,8 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_HMAC_SHA224:
 		*ltc_hashindex = find_hash("sha224");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_SHA256)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
@@ -307,7 +197,8 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_HMAC_SHA256:
 		*ltc_hashindex = find_hash("sha256");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_SHA384)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
@@ -315,7 +206,8 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_HMAC_SHA384:
 		*ltc_hashindex = find_hash("sha384");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_SHA512)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
@@ -323,7 +215,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_HMAC_SHA512:
 		*ltc_hashindex = find_hash("sha512");
 		break;
-
+#endif
 	case TEE_ALG_RSAES_PKCS1_V1_5:
 		/* invalid one. but it should not be used anyway */
 		*ltc_hashindex = -1;
@@ -338,7 +230,11 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	else
 		return TEE_SUCCESS;
 }
+#endif /* defined(_CFG_CRYPTO_WITH_HASH) ||
+	  defined(_CFG_CRYPTO_WITH_ACIPHER) || defined(_CFG_CRYPTO_WITH_MAC) */
 
+#if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(_CFG_CRYPTO_WITH_MAC) || \
+	defined(_CFG_CRYPTO_WITH_AUTHENC)
 /*
  * Compute the LibTomCrypt "cipherindex" given a TEE Algorithm "algo"
  * Return
@@ -351,6 +247,7 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 					      int *ltc_cipherindex)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_AES)
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
 	case TEE_ALG_AES_CMAC:
@@ -363,7 +260,8 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 	case TEE_ALG_AES_GCM:
 		*ltc_cipherindex = find_cipher("aes");
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_DES)
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES_ECB_NOPAD:
@@ -377,7 +275,7 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 	case TEE_ALG_DES3_CBC_NOPAD:
 		*ltc_cipherindex = find_cipher("3des");
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -387,44 +285,38 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 	else
 		return TEE_SUCCESS;
 }
-
-static TEE_Result tee_ltc_init(void)
-{
-	tee_ltc_alloc_mpa();
-	tee_ltc_reg_algs();
-	return TEE_SUCCESS;
-}
-
-/*
- * Get the RNG index to use
- */
-static int tee_ltc_get_rng_mpa(void)
-{
-	static int first = 1;
-	static int lindex = -1;
-
-	if (first) {
-		lindex = find_prng("prng_mpa");
-		first = 0;
-	}
-	return lindex;
-}
+#endif /* defined(_CFG_CRYPTO_WITH_CIPHER) ||
+	  defined(_CFG_CRYPTO_WITH_HASH) || defined(_CFG_CRYPTO_WITH_AUTHENC) */
 
 /******************************************************************************
  * Message digest functions
  ******************************************************************************/
+
+#if defined(_CFG_CRYPTO_WITH_HASH)
 
 #define MAX_DIGEST 64
 
 static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_MD5)
 	case TEE_ALG_MD5:
-	case TEE_ALG_SHA224:
+#endif
+#if defined(CFG_CRYPTO_SHA1)
 	case TEE_ALG_SHA1:
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+#endif
+#if defined(CFG_CRYPTO_SHA256)
 	case TEE_ALG_SHA256:
+#endif
+#if defined(CFG_CRYPTO_SHA384)
 	case TEE_ALG_SHA384:
+#endif
+#if defined(CFG_CRYPTO_SHA512)
 	case TEE_ALG_SHA512:
+#endif
 		*size = sizeof(hash_state);
 		break;
 	default:
@@ -505,10 +397,28 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 	return TEE_SUCCESS;
 }
 
+#endif /* _CFG_CRYPTO_WITH_HASH */
+
 /******************************************************************************
  * Asymmetric algorithms
  ******************************************************************************/
 
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+
+#define LTC_MAX_BITS_PER_VARIABLE   (4096)
+#define LTC_VARIABLE_NUMBER         (50)
+
+static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
+	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];
+
+static void tee_ltc_alloc_mpa(void)
+{
+	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
+
+	init_mpa_tomcrypt(pool);
+	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER,
+			     LTC_MAX_BITS_PER_VARIABLE);
+}
 
 static size_t num_bytes(struct bignum *a)
 {
@@ -565,6 +475,21 @@ static bool bn_alloc_max(struct bignum **s)
 	return !!(*s);
 }
 
+/* Get the RNG index to use */
+static int tee_ltc_get_rng_mpa(void)
+{
+	static int first = 1;
+	static int lindex = -1;
+
+	if (first) {
+		lindex = find_prng("prng_mpa");
+		first = 0;
+	}
+	return lindex;
+}
+
+#if defined(CFG_CRYPTO_RSA)
+
 static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 				    size_t key_size_bits __unused)
 {
@@ -611,72 +536,6 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
-				    size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
-		return TEE_ERROR_OUT_OF_MEMORY;
-	if (!bn_alloc_max(&s->p))
-		goto err;
-	if (!bn_alloc_max(&s->q))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	if (!bn_alloc_max(&s->x))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->q);
-	bn_free(s->y);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
-				       size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
-		return TEE_ERROR_OUT_OF_MEMORY;
-	if (!bn_alloc_max(&s->p))
-		goto err;
-	if (!bn_alloc_max(&s->q))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->q);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
-				   size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
-		return TEE_ERROR_OUT_OF_MEMORY;
-	if (!bn_alloc_max(&s->p))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	if (!bn_alloc_max(&s->x))
-		goto err;
-	if (!bn_alloc_max(&s->q))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->y);
-	bn_free(s->x);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
 static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
 	TEE_Result res;
@@ -709,86 +568,6 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	return res;
 }
 
-static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
-			     size_t xbits)
-{
-	TEE_Result res;
-	dh_key ltc_tmp_key;
-	int ltc_res;
-
-	/* Generate the DH key */
-	ltc_tmp_key.g = key->g;
-	ltc_tmp_key.p = key->p;
-	ltc_res = dh_make_key(0, tee_ltc_get_rng_mpa(), q, xbits,
-			      &ltc_tmp_key);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else {
-		ltc_mp.copy(ltc_tmp_key.y,  key->y);
-		ltc_mp.copy(ltc_tmp_key.x,  key->x);
-
-		/* Free the tempory key */
-		dh_free(&ltc_tmp_key);
-		res = TEE_SUCCESS;
-	}
-	return res;
-}
-
-static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
-{
-	TEE_Result res;
-	dsa_key ltc_tmp_key;
-	size_t group_size, modulus_size = key_size/8;
-	int ltc_res;
-
-	if (modulus_size <= 128)
-		group_size = 20;
-	else if (modulus_size <= 256)
-		group_size = 30;
-	else if (modulus_size <= 384)
-		group_size = 35;
-	else
-		group_size = 40;
-
-	/* Generate the DSA key */
-	ltc_res = dsa_make_key(0, tee_ltc_get_rng_mpa(), group_size,
-			       modulus_size, &ltc_tmp_key);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else if ((size_t)mp_count_bits(ltc_tmp_key.p) != key_size) {
-		dsa_free(&ltc_tmp_key);
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else {
-		/* Copy the key */
-		ltc_mp.copy(ltc_tmp_key.g, key->g);
-		ltc_mp.copy(ltc_tmp_key.p, key->p);
-		ltc_mp.copy(ltc_tmp_key.q, key->q);
-		ltc_mp.copy(ltc_tmp_key.y, key->y);
-		ltc_mp.copy(ltc_tmp_key.x, key->x);
-
-		/* Free the tempory key */
-		dsa_free(&ltc_tmp_key);
-		res = TEE_SUCCESS;
-	}
-	return res;
-}
-
-static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
-				      struct bignum *public_key,
-				      struct bignum *secret)
-{
-	int err;
-	dh_key pk = {
-		.type = PK_PRIVATE,
-		.g = private_key->g,
-		.p = private_key->p,
-		.y = private_key->y,
-		.x = private_key->x
-	};
-
-	err = dh_shared_secret(&pk, public_key, secret);
-	return ((err == CRYPT_OK) ? TEE_SUCCESS : TEE_ERROR_BAD_PARAMETERS);
-}
 
 static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 			   size_t src_len, uint8_t *dst, size_t *dst_len)
@@ -1174,6 +953,92 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 	return TEE_SUCCESS;
 }
 
+#endif /* CFG_CRYPTO_RSA */
+
+#if defined(CFG_CRYPTO_DSA)
+
+static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
+				    size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->g))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!bn_alloc_max(&s->p))
+		goto err;
+	if (!bn_alloc_max(&s->q))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->q);
+	bn_free(s->y);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
+				       size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->g))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!bn_alloc_max(&s->p))
+		goto err;
+	if (!bn_alloc_max(&s->q))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->q);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
+{
+	TEE_Result res;
+	dsa_key ltc_tmp_key;
+	size_t group_size, modulus_size = key_size/8;
+	int ltc_res;
+
+	if (modulus_size <= 128)
+		group_size = 20;
+	else if (modulus_size <= 256)
+		group_size = 30;
+	else if (modulus_size <= 384)
+		group_size = 35;
+	else
+		group_size = 40;
+
+	/* Generate the DSA key */
+	ltc_res = dsa_make_key(0, tee_ltc_get_rng_mpa(), group_size,
+			       modulus_size, &ltc_tmp_key);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else if ((size_t)mp_count_bits(ltc_tmp_key.p) != key_size) {
+		dsa_free(&ltc_tmp_key);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		/* Copy the key */
+		ltc_mp.copy(ltc_tmp_key.g, key->g);
+		ltc_mp.copy(ltc_tmp_key.p, key->p);
+		ltc_mp.copy(ltc_tmp_key.q, key->q);
+		ltc_mp.copy(ltc_tmp_key.y, key->y);
+		ltc_mp.copy(ltc_tmp_key.x, key->x);
+
+		/* Free the tempory key */
+		dsa_free(&ltc_tmp_key);
+		res = TEE_SUCCESS;
+	}
+	return res;
+}
+
 static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 			   const uint8_t *msg, size_t msg_len, uint8_t *sig,
 			   size_t *sig_len)
@@ -1257,10 +1122,84 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 	return res;
 }
 
+#endif /* CFG_CRYPTO_DSA */
+
+#if defined(CFG_CRYPTO_DH)
+
+static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
+				   size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->g))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!bn_alloc_max(&s->p))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->q))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->y);
+	bn_free(s->x);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
+			     size_t xbits)
+{
+	TEE_Result res;
+	dh_key ltc_tmp_key;
+	int ltc_res;
+
+	/* Generate the DH key */
+	ltc_tmp_key.g = key->g;
+	ltc_tmp_key.p = key->p;
+	ltc_res = dh_make_key(0, tee_ltc_get_rng_mpa(), q, xbits,
+			      &ltc_tmp_key);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		ltc_mp.copy(ltc_tmp_key.y,  key->y);
+		ltc_mp.copy(ltc_tmp_key.x,  key->x);
+
+		/* Free the tempory key */
+		dh_free(&ltc_tmp_key);
+		res = TEE_SUCCESS;
+	}
+	return res;
+}
+
+static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
+				      struct bignum *public_key,
+				      struct bignum *secret)
+{
+	int err;
+	dh_key pk = {
+		.type = PK_PRIVATE,
+		.g = private_key->g,
+		.p = private_key->p,
+		.y = private_key->y,
+		.x = private_key->x
+	};
+
+	err = dh_shared_secret(&pk, public_key, secret);
+	return ((err == CRYPT_OK) ? TEE_SUCCESS : TEE_ERROR_BAD_PARAMETERS);
+}
+
+#endif /* CFG_CRYPTO_DH */
+
+#endif /* _CFG_CRYPTO_WITH_ACIPHER */
+
 /******************************************************************************
  * Symmetric ciphers
  ******************************************************************************/
 
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
 /* From libtomcrypt doc:
  *	Ciphertext stealing is a method of dealing with messages
  *	in CBC mode which are not a multiple of the block
@@ -1278,16 +1217,20 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
  * From Global Platform: CTS = CBC-CS3
  */
 
+#if defined(CFG_CRYPTO_CTS)
 struct tee_symmetric_cts {
 	symmetric_ECB ecb;
 	symmetric_CBC cbc;
 };
+#endif
 
+#if defined(CFG_CRYPTO_XTS)
 #define XTS_TWEAK_SIZE 16
 struct tee_symmetric_xts {
 	symmetric_xts ctx;
 	uint8_t tweak[XTS_TWEAK_SIZE];
 };
+#endif
 
 static TEE_Result cipher_get_block_size(uint32_t algo, size_t *size)
 {
@@ -1305,34 +1248,51 @@ static TEE_Result cipher_get_block_size(uint32_t algo, size_t *size)
 static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_AES)
+#if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_AES_ECB_NOPAD:
 		*size = sizeof(symmetric_ECB);
 		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
 	case TEE_ALG_AES_CBC_NOPAD:
 		*size = sizeof(symmetric_CBC);
 		break;
+#endif
+#if defined(CFG_CRYPTO_CTR)
 	case TEE_ALG_AES_CTR:
 		*size = sizeof(symmetric_CTR);
 		break;
+#endif
+#if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
 		*size = sizeof(struct tee_symmetric_cts);
 		break;
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
 		*size = sizeof(struct tee_symmetric_xts);
 		break;
+#endif
+#endif
+#if defined(CFG_CRYPTO_DES)
+#if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_DES_ECB_NOPAD:
 		*size = sizeof(symmetric_ECB);
-		break;
-	case TEE_ALG_DES_CBC_NOPAD:
-		*size = sizeof(symmetric_CBC);
 		break;
 	case TEE_ALG_DES3_ECB_NOPAD:
 		*size = sizeof(symmetric_ECB);
 		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
+	case TEE_ALG_DES_CBC_NOPAD:
+		*size = sizeof(symmetric_CBC);
+		break;
 	case TEE_ALG_DES3_CBC_NOPAD:
 		*size = sizeof(symmetric_CBC);
 		break;
-
+#endif
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1371,14 +1331,32 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 	int ltc_res, ltc_cipherindex;
 	uint8_t *real_key, key_array[24];
 	size_t real_key_len;
+#if defined(CFG_CRYPTO_CTS)
 	struct tee_symmetric_cts *cts;
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	struct tee_symmetric_xts *xts;
+#endif
 
+	/* Unused parameters */
+#if !defined(CFG_CRYPTO_CTS) && !defined(CFG_CRYPTO_XTS)
+	(void)key2;
+	(void)key2_len;
+#endif
+#if !defined(CFG_CRYPTO_CBC) && !defined(CFG_CRYPTO_CTR) && \
+	!defined(CFG_CRYPTO_CTS) && !defined(CFG_CRYPTO_XTS)
+	(void)iv;
+	(void)iv_len;
+#endif
+#if !defined(CFG_CRYPTO_CTS)
+	(void)mode;
+#endif
 	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_DES_ECB_NOPAD:
 		ltc_res = ecb_start(
@@ -1394,7 +1372,8 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			ltc_cipherindex, real_key, real_key_len,
 			0, (symmetric_ECB *)ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC)
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 		if (iv_len !=
@@ -1416,7 +1395,8 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			ltc_cipherindex, iv, real_key, real_key_len,
 			0, (symmetric_CBC *)ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTR)
 	case TEE_ALG_AES_CTR:
 		if (iv_len !=
 		    (size_t)cipher_descriptor[ltc_cipherindex].block_length)
@@ -1425,7 +1405,8 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			ltc_cipherindex, iv, key1, key1_len,
 			0, CTR_COUNTER_BIG_ENDIAN, (symmetric_CTR *)ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
 		cts = ctx;
 		res = cipher_init((void *)(&(cts->ecb)),
@@ -1442,7 +1423,8 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			return res;
 		ltc_res = CRYPT_OK;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
 		xts = ctx;
 		if (key1_len != key2_len)
@@ -1458,6 +1440,7 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			ltc_cipherindex, key1, key2, key1_len,
 			0, &xts->ctx);
 		break;
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1474,11 +1457,20 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 				size_t len, uint8_t *dst)
 {
 	int ltc_res = CRYPT_OK;
+#if defined(CFG_CRYPTO_CTS)
 	struct tee_symmetric_cts *cts;
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	struct tee_symmetric_xts *xts;
+#endif
 
+#if !defined(CFG_CRYPTO_AES) || !defined(CFG_CRYPTO_CTS)
+	/* Unused parameters */
+	(void)last_block;
+#endif
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_DES_ECB_NOPAD:
 	case TEE_ALG_DES3_ECB_NOPAD:
@@ -1487,7 +1479,8 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 		else
 			ltc_res = ecb_decrypt(data, dst, len, ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC)
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
@@ -1496,14 +1489,16 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 		else
 			ltc_res = cbc_decrypt(data, dst, len, ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTR)
 	case TEE_ALG_AES_CTR:
 		if (mode == TEE_MODE_ENCRYPT)
 			ltc_res = ctr_encrypt(data, dst, len, ctx);
 		else
 			ltc_res = ctr_decrypt(data, dst, len, ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
 		xts = ctx;
 		if (mode == TEE_MODE_ENCRYPT)
@@ -1513,11 +1508,13 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 			ltc_res = xts_decrypt(data, len, dst, xts->tweak,
 					      &xts->ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
 		cts = ctx;
 		return tee_aes_cbc_cts_update(&cts->cbc, &cts->ecb, mode,
 					      last_block, data, len, dst);
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1531,41 +1528,50 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 static void cipher_final(void *ctx, uint32_t algo)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_DES_ECB_NOPAD:
 	case TEE_ALG_DES3_ECB_NOPAD:
 		ecb_done(ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC)
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
 		cbc_done(ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTR)
 	case TEE_ALG_AES_CTR:
 		ctr_done(ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
 		xts_done(&(((struct tee_symmetric_xts *)ctx)->ctx));
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
 		cbc_done(&(((struct tee_symmetric_cts *)ctx)->cbc));
 		ecb_done(&(((struct tee_symmetric_cts *)ctx)->ecb));
 		break;
-
+#endif
 	default:
 		/* TEE_ERROR_NOT_SUPPORTED; */
 		break;
 	}
 }
+#endif /* _CFG_CRYPTO_WITH_CIPHER */
 
 /*****************************************************************************
  * Message Authentication Code functions
  *****************************************************************************/
 
+#if defined(_CFG_CRYPTO_WITH_MAC)
+
+#if defined(CFG_CRYPTO_CBC_MAC)
 /*
  * CBC-MAC is not implemented in Libtomcrypt
  * This is implemented here as being the plain text which is encoded with IV=0.
@@ -1580,10 +1586,12 @@ struct cbc_state {
 	size_t current_block_len, block_len;
 	int is_computed;
 };
+#endif
 
 static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
 	case TEE_ALG_HMAC_MD5:
 	case TEE_ALG_HMAC_SHA224:
 	case TEE_ALG_HMAC_SHA1:
@@ -1592,7 +1600,8 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	case TEE_ALG_HMAC_SHA512:
 		*size = sizeof(hmac_state);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
@@ -1601,11 +1610,12 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
 		*size = sizeof(struct cbc_state);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
 		*size = sizeof(omac_state);
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1617,11 +1627,19 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			   size_t len)
 {
 	TEE_Result res;
-	int ltc_hashindex, ltc_cipherindex;
+#if defined(CFG_CRYPTO_HMAC)
+	int ltc_hashindex;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC) || defined(CFG_CRYPTO_CMAC)
+	int ltc_cipherindex;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
 	uint8_t iv[CBCMAC_MAX_BLOCK_LEN];
 	struct cbc_state *cbc;
+#endif
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
 	case TEE_ALG_HMAC_MD5:
 	case TEE_ALG_HMAC_SHA224:
 	case TEE_ALG_HMAC_SHA1:
@@ -1635,7 +1653,8 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 		    hmac_init((hmac_state *)ctx, ltc_hashindex, key, len))
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
@@ -1660,7 +1679,8 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 		cbc->is_computed = 0;
 		cbc->current_block_len = 0;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
 		res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
 		if (res != TEE_SUCCESS)
@@ -1669,6 +1689,7 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 					  key, len))
 			return TEE_ERROR_BAD_STATE;
 		break;
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1679,11 +1700,14 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 static TEE_Result mac_update(void *ctx, uint32_t algo,
 				     const uint8_t *data, size_t len)
 {
+#if defined(CFG_CRYPTO_CBC_MAC)
 	int ltc_res;
 	struct cbc_state *cbc;
 	size_t pad_len;
+#endif
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
 	case TEE_ALG_HMAC_MD5:
 	case TEE_ALG_HMAC_SHA224:
 	case TEE_ALG_HMAC_SHA1:
@@ -1693,7 +1717,8 @@ static TEE_Result mac_update(void *ctx, uint32_t algo,
 		if (CRYPT_OK != hmac_process((hmac_state *)ctx, data, len))
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
@@ -1730,12 +1755,13 @@ static TEE_Result mac_update(void *ctx, uint32_t algo,
 			memcpy(cbc->block, data, len);
 		cbc->current_block_len = len;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
 		if (CRYPT_OK != omac_process((omac_state *)ctx, data, len))
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1746,11 +1772,14 @@ static TEE_Result mac_update(void *ctx, uint32_t algo,
 static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			    size_t digest_len)
 {
+#if defined(CFG_CRYPTO_CBC_MAC)
 	struct cbc_state *cbc;
 	size_t pad_len;
+#endif
 	unsigned long ltc_digest_len = digest_len;
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
 	case TEE_ALG_HMAC_MD5:
 	case TEE_ALG_HMAC_SHA224:
 	case TEE_ALG_HMAC_SHA1:
@@ -1761,7 +1790,8 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
@@ -1800,22 +1830,27 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 						cbc->block_len));
 		cipher_final(&cbc->cbc, algo);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
 		if (CRYPT_OK != omac_done((omac_state *)ctx, digest,
 					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;
 		break;
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
 	return TEE_SUCCESS;
 }
+#endif /* _CFG_CRYPTO_WITH_MAC */
 
 /******************************************************************************
  * Authenticated encryption
  ******************************************************************************/
+
+#if defined(_CFG_CRYPTO_WITH_AUTHENC)
 
 #define TEE_CCM_KEY_MAX_LENGTH		32
 #define TEE_CCM_NONCE_MAX_LENGTH	13
@@ -1823,25 +1858,33 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 #define TEE_GCM_TAG_MAX_LENGTH		16
 #define TEE_xCM_TAG_MAX_LENGTH		16
 
+#if defined(CFG_CRYPTO_CCM)
 struct tee_ccm_state {
 	ccm_state ctx;			/* the ccm state as defined by LTC */
 	size_t tag_len;			/* tag length */
 };
+#endif
 
+#if defined(CFG_CRYPTO_GCM)
 struct tee_gcm_state {
 	gcm_state ctx;			/* the gcm state as defined by LTC */
 	size_t tag_len;			/* tag length */
 };
+#endif
 
 static TEE_Result authenc_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		*size = sizeof(struct tee_ccm_state);
 		break;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		*size = sizeof(struct tee_gcm_state);
 		break;
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1858,13 +1901,23 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 	TEE_Result res;
 	int ltc_res;
 	int ltc_cipherindex;
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
+
+#if !defined(CFG_CRYPTO_CCM)
+	(void)aad_len;
+	(void)payload_len;
+#endif
 
 	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		/* reset the state */
 		ccm = ctx;
@@ -1895,7 +1948,8 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		/* reset the state */
 		gcm = ctx;
@@ -1911,7 +1965,7 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1923,11 +1977,16 @@ static TEE_Result authenc_update_aad(void *ctx, uint32_t algo,
 				     TEE_OperationMode mode __unused,
 				     const uint8_t *data, size_t len)
 {
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
 	int ltc_res;
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		/* Add the AAD (note: aad can be NULL if aadlen == 0) */
 		ccm = ctx;
@@ -1935,7 +1994,8 @@ static TEE_Result authenc_update_aad(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		/* Add the AAD (note: aad can be NULL if aadlen == 0) */
 		gcm = ctx;
@@ -1943,7 +2003,7 @@ static TEE_Result authenc_update_aad(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -1958,10 +2018,16 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 					 uint8_t *dst_data,
 					 size_t *dst_len)
 {
+#if defined(CFG_CRYPTO_GCM)
 	TEE_Result res;
+#endif
 	int ltc_res, dir;
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
 	unsigned char *pt, *ct;	/* the plain and the cipher text */
 
 	if (mode == TEE_MODE_ENCRYPT) {
@@ -1973,6 +2039,7 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 	}
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		ccm = ctx;
 		dir = (mode == TEE_MODE_ENCRYPT ? CCM_ENCRYPT : CCM_DECRYPT);
@@ -1981,7 +2048,8 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 			return TEE_ERROR_BAD_STATE;
 		*dst_len = src_len;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		/* aad is optional ==> add one without length */
 		gcm = ctx;
@@ -1998,7 +2066,7 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 			return TEE_ERROR_BAD_STATE;
 		*dst_len = src_len;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -2013,8 +2081,12 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 				    size_t *dst_tag_len)
 {
 	TEE_Result res;
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
 	size_t digest_size;
 	int ltc_res;
 
@@ -2030,6 +2102,7 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 		return res;
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		/* Check the tag length */
 		ccm = ctx;
@@ -2045,7 +2118,8 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		/* Check the tag length */
 		gcm = ctx;
@@ -2061,7 +2135,7 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -2075,8 +2149,12 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 				    const uint8_t *tag, size_t tag_len)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
 	int ltc_res;
 	uint8_t dst_tag[TEE_xCM_TAG_MAX_LENGTH];
 	unsigned long ltc_tag_len = tag_len;
@@ -2093,6 +2171,7 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 		return res;
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		/* Finalize the authentication */
 		ccm = ctx;
@@ -2100,7 +2179,8 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		/* Finalize the authentication */
 		gcm = ctx;
@@ -2108,7 +2188,7 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 		if (ltc_res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 		break;
-
+#endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -2122,33 +2202,54 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 
 static void authenc_final(void *ctx, uint32_t algo)
 {
+#if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
+#endif
 
 	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
 		ccm = ctx;
 		ccm_reset(&ccm->ctx);
 		break;
-
+#endif
+#if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
 		gcm = ctx;
 		gcm_reset(&gcm->ctx);
 		break;
+#endif
 	default:
 		break;
 	}
+}
+#endif /* _CFG_CRYPTO_WITH_AUTHENC */
+
+
+static TEE_Result tee_ltc_init(void)
+{
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+	tee_ltc_alloc_mpa();
+#endif
+	tee_ltc_reg_algs();
+	return TEE_SUCCESS;
 }
 
 struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
+#if defined(_CFG_CRYPTO_WITH_HASH)
 	.hash = {
 		.get_ctx_size = hash_get_ctx_size,
 		.init = hash_init,
 		.update = hash_update,
 		.final = hash_final,
 	},
+#endif
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
 	.cipher = {
 		.final = cipher_final,
 		.get_block_size = cipher_get_block_size,
@@ -2156,12 +2257,16 @@ struct crypto_ops crypto_ops = {
 		.init = cipher_init,
 		.update = cipher_update,
 	},
+#endif
+#if defined(_CFG_CRYPTO_WITH_MAC)
 	.mac = {
 		.get_ctx_size = mac_get_ctx_size,
 		.init = mac_init,
 		.update = mac_update,
 		.final = mac_final,
 	},
+#endif
+#if defined(_CFG_CRYPTO_WITH_AUTHENC)
 	.authenc = {
 		.dec_final = authenc_dec_final,
 		.enc_final = authenc_enc_final,
@@ -2171,17 +2276,12 @@ struct crypto_ops crypto_ops = {
 		.update_aad = authenc_update_aad,
 		.update_payload = authenc_update_payload,
 	},
+#endif
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
 	.acipher = {
+#if defined(CFG_CRYPTO_RSA)
 		.alloc_rsa_keypair = alloc_rsa_keypair,
 		.alloc_rsa_public_key = alloc_rsa_public_key,
-		.alloc_dsa_keypair = alloc_dsa_keypair,
-		.alloc_dsa_public_key = alloc_dsa_public_key,
-		.alloc_dh_keypair = alloc_dh_keypair,
-		.dh_shared_secret = do_dh_shared_secret,
-		.dsa_sign = dsa_sign,
-		.dsa_verify = dsa_verify,
-		.gen_dh_key = gen_dh_key,
-		.gen_dsa_key = gen_dsa_key,
 		.gen_rsa_key = gen_rsa_key,
 		.rsaes_decrypt = rsaes_decrypt,
 		.rsaes_encrypt = rsaes_encrypt,
@@ -2189,6 +2289,19 @@ struct crypto_ops crypto_ops = {
 		.rsanopad_encrypt = rsanopad_encrypt,
 		.rsassa_sign = rsassa_sign,
 		.rsassa_verify = rsassa_verify,
+#endif
+#if defined(CFG_CRYPTO_DH)
+		.alloc_dh_keypair = alloc_dh_keypair,
+		.gen_dh_key = gen_dh_key,
+		.dh_shared_secret = do_dh_shared_secret,
+#endif
+#if defined(CFG_CRYPTO_DSA)
+		.alloc_dsa_keypair = alloc_dsa_keypair,
+		.alloc_dsa_public_key = alloc_dsa_public_key,
+		.gen_dsa_key = gen_dsa_key,
+		.dsa_sign = dsa_sign,
+		.dsa_verify = dsa_verify,
+#endif
 	},
 	.bignum = {
 		.allocate = bn_allocate,
@@ -2199,4 +2312,5 @@ struct crypto_ops crypto_ops = {
 		.free = bn_free,
 		.clear = bn_clear
 	}
+#endif /* _CFG_CRYPTO_WITH_ACIPHER */
 };

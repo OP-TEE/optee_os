@@ -137,6 +137,87 @@
    #define LTC_MECC
 #endif   
 
+/* Set LTC_ options based on OP-TEE configuration */
+#include <generated/conf.h>
+
+#define LTC_NO_CIPHERS
+
+#ifdef CFG_CRYPTO_AES
+   #define LTC_RIJNDAEL
+#endif
+#ifdef CFG_CRYPTO_DES
+   #define LTC_DES
+#endif
+
+#define LTC_NO_MODES
+
+#ifdef CFG_CRYPTO_ECB
+   #define LTC_ECB_MODE
+#endif
+#if defined(CFG_CRYPTO_CBC) || defined(CFG_CRYPTO_CBC_MAC)
+   #define LTC_CBC_MODE
+#endif
+#ifdef CFG_CRYPTO_CTR
+   #define LTC_CTR_MODE
+#endif
+#ifdef CFG_CRYPTO_XTS
+   #define LTC_XTS_MODE
+#endif
+
+#define LTC_NO_HASHES
+
+#ifdef CFG_CRYPTO_MD5
+#define LTC_MD5
+#endif
+#ifdef CFG_CRYPTO_SHA1
+#define LTC_SHA1
+#endif
+#ifdef CFG_CRYPTO_SHA224
+#define LTC_SHA224
+#endif
+#ifdef CFG_CRYPTO_SHA256
+#define LTC_SHA256
+#endif
+#ifdef CFG_CRYPTO_SHA384
+#define LTC_SHA384
+#endif
+#ifdef CFG_CRYPTO_SHA512
+#define LTC_SHA512
+#endif
+
+#define LTC_NO_MACS
+
+#ifdef CFG_CRYPTO_HMAC
+   #define LTC_HMAC
+#endif
+#ifdef CFG_CRYPTO_CMAC
+   #define LTC_OMAC
+#endif
+#ifdef CFG_CRYPTO_CCM
+   #define LTC_CCM_MODE
+#endif
+#ifdef CFG_CRYPTO_GCM
+   #define LTC_GCM_MODE
+#endif
+
+#define LTC_NO_PK
+
+#ifdef CFG_CRYPTO_RSA
+   #define LTC_MRSA
+#endif
+#ifdef CFG_CRYPTO_DSA
+   #define LTC_MDSA
+#endif
+#ifdef CFG_CRYPTO_DH
+   #define LTC_MDH
+#endif
+
+#define LTC_NO_PKCS
+
+#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA)
+   #define LTC_DER
+#endif
+
 /* Use small code where possible */
 /* #define LTC_SMALL_CODE */
 
@@ -165,11 +246,14 @@
 
 /* ---> Symmetric Block Ciphers <--- */
 
+#ifndef LTC_NO_CIPHERS
+
 #define LTC_RIJNDAEL
 
 /* LTC_DES includes EDE triple-LTC_DES */
 #define LTC_DES
 
+#endif
 
 /* ---> Block Cipher Modes of Operation <--- */
 #ifndef LTC_NO_MODES
@@ -329,7 +413,8 @@
 #endif
 #endif
 
-#if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || defined(MKATJA)
+#if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || \
+	defined(MKATJA) || defined(LTC_MDH)
    /* Include the MPI functionality?  (required by the PK algorithms) */
    #define MPI
 #endif
