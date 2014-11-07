@@ -32,6 +32,8 @@
 void gic_init(paddr_t gicc_base, paddr_t gicd_base);
 /* initial base address only */
 void gic_init_base_addr(vaddr_t gicc_base, vaddr_t gicd_base);
+/* initial cpu if only, mainly use for secondary cpu setup cpu interface */
+void gic_cpu_init(void);
 
 void gic_it_add(size_t it);
 void gic_it_set_cpu_mask(size_t it, uint8_t cpu_mask);
