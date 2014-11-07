@@ -248,9 +248,10 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 			    continue;
 
 		nbr_sections =
-		    ((((uint32_t) p->memref.buffer & SECTION_MASK) +
-		      p->memref.size) >> SECTION_SHIFT) + 1;
+			(((uint32_t)p->memref.buffer +
+			p->memref.size) >> SECTION_SHIFT) + 1;
 		py_offset = (uint32_t) p->memref.buffer >> SECTION_SHIFT;
+		nbr_sections -= py_offset;
 		v = ((vi_offset << SECTION_SHIFT) +
 			      ((uint32_t) p->memref.buffer & SECTION_MASK));
 		section = 0;
