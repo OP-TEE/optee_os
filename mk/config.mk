@@ -7,10 +7,6 @@ WARNS ?= 3
 # Define DEBUG=1 to compile with -g option
 # DEBUG=1
 
-# Define TEE_ACCEPT_UNSIGNED_BINARIES=1 so that non-signed TA are loaded
-# It should not be defined in a real product
-TEE_ACCEPT_UNSIGNED_BINARIES=1
-
 # CFG_TEE_FW_DEBUG
 #   If 1, debug mode of the tee firmware (CPU restart, Core Status)
 CFG_TEE_FW_DEBUG?=0

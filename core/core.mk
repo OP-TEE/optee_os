@@ -21,7 +21,6 @@ aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 cppflags$(sm) += -DCFG_TEE_TA_LOG_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 cppflags$(sm) += -DCFG_TEE_FW_DEBUG=$(CFG_TEE_FW_DEBUG)
 cppflags$(sm) += -DCFG_TEE_CORE_LOG_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
-cppflags$(sm) += -DCFG_TEE_CORE_DYNAMIC_SUPPORT=$(CFG_TEE_CORE_DYNAMIC_SUPPORT)
 
 cppflags$(sm)	+= -Ilib/libutee/include
 
