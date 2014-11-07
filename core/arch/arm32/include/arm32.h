@@ -86,6 +86,21 @@
 #define SCTLR_AFE	(1 << 29)
 #define SCTLR_TE	(1 << 30)
 
+#define ACTLR_SMP	(1 << 6)
+#define ACTLR_DODMBS	(1 << 10)
+#define ACTLR_L2RADIS	(1 << 11)
+#define ACTLR_L1RADIS	(1 << 12)
+#define ACTLR_L1PCTL	(1 << 13)
+#define ACTLR_DDVM	(1 << 15)
+#define ACTLR_DDI	(1 << 28)
+
+#define NSACR_CP10	(1 << 10)
+#define NSACR_CP11	(1 << 11)
+#define NSACR_NSD32DIS	(1 << 14)
+#define NSACR_NSASEDIS	(1 << 15)
+#define NSACR_NS_L2ERR	(1 << 17)
+#define NSACR_NS_SMP	(1 << 18)
+
 #define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))
 #define DACR_DOMAIN_PERM_NO_ACCESS	0x0
 #define DACR_DOMAIN_PERM_CLIENT		0x1
@@ -274,6 +289,42 @@ static inline uint32_t read_spsr(void)
 			: [spsr] "=r" (spsr)
 	);
 	return spsr;
+}
+
+static inline uint32_t read_actlr(void)
+{
+	uint32_t actlr;
+
+	asm volatile ("mrc	p15, 0, %[actlr], c1, c0, 1"
+			: [actlr] "=r" (actlr)
+	);
+
+	return actlr;
+}
+
+static inline void write_actlr(uint32_t actlr)
+{
+	asm volatile ("mcr	p15, 0, %[actlr], c1, c0, 1"
+			: : [actlr] "r" (actlr)
+	);
+}
+
+static inline uint32_t read_nsacr(void)
+{
+	uint32_t nsacr;
+
+	asm volatile ("mrc	p15, 0, %[nsacr], c1, c1, 2"
+			: [nsacr] "=r" (nsacr)
+	);
+
+	return nsacr;
+}
+
+static inline void write_nsacr(uint32_t nsacr)
+{
+	asm volatile ("mcr	p15, 0, %[nsacr], c1, c1, 2"
+			: : [nsacr] "r" (nsacr)
+	);
 }
 
 #endif

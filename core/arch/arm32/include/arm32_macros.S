@@ -110,3 +110,12 @@
 	.macro write_pcr reg
 	mcr  p15, 0, \reg, c15, c0, 0
 	.endm
+
+	.macro read_actlr reg
+	mrc	p15, 0, \reg, c1, c0, 1
+	.endm
+
+	.macro read_nsacr reg
+	mrc	p15, 0, \reg, c1, c1, 2
+	.endm
+
