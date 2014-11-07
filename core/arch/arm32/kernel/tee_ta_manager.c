@@ -505,15 +505,11 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 
 	*heap_size = sub_head->heap_size;
 
-	if (ctx->stack_size + *heap_size > SECTION_SIZE) {
-		EMSG("Too large combined stack and HEAP");
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
 	/*
 	 * Allocate heap and stack
 	 */
-	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr, SECTION_SIZE);
+	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr,
+					*heap_size + ctx->stack_size);
 	if (!ctx->mm_heap_stack) {
 		EMSG("Failed to allocate %u bytes\n", SECTION_SIZE);
 		EMSG("  of memory for user heap and stack\n");
@@ -774,9 +770,9 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(ctx->mm_heap_stack) + ctx->stack_size;
+	usr_stack -= sizeof(param->params);
 	usr_params = (TEE_Param *)usr_stack;
 	memcpy(usr_params, param->params, sizeof(param->params));
-	usr_stack -= sizeof(param->params);
 
 	res = tee_mmu_kernel_to_user(ctx, (tee_vaddr_t)usr_params,
 				     &params_uaddr);
