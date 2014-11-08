@@ -53,13 +53,13 @@ struct thread_smc_args {
 
 struct thread_abort_regs {
 	uint32_t spsr;
+	uint32_t lr;
 	uint32_t pad;
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
 	uint32_t r3;
 	uint32_t ip;
-	uint32_t lr;
 };
 typedef void (*thread_abort_handler_t)(uint32_t abort_type,
 			struct thread_abort_regs *regs);

@@ -381,29 +381,29 @@ thread_und_handler:
 	 * Switch to abort mode to use that stack instead.
 	 */
 	cps	#CPSR_MODE_ABT
-	sub	lr, lr, #4
-	push	{r0-r3, ip, lr}
+	push	{r0-r3, ip}
 	cps	#CPSR_MODE_UND
+	sub	r1, lr, #4
 	mrs	r0, spsr
 	cps	#CPSR_MODE_ABT
-	push	{r0, r1}
+	push	{r0, r1, r2}
 	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */
 	mov	r0, #THREAD_ABORT_UNDEF
 	b	.thread_abort_generic
 
 thread_dabort_handler:
-	sub	lr, lr, #8
-	push	{r0-r3, ip, lr}
+	push	{r0-r3, ip}
+	sub	r1, lr, #8
 	mrs	r0, spsr
-	push	{r0, r1}
+	push	{r0, r1, r2}
 	mov	r0, #THREAD_ABORT_DATA
 	b	.thread_abort_generic
 
 thread_pabort_handler:
-	sub	lr, lr, #4
-	push	{r0-r3, ip, lr}
+	push	{r0-r3, ip}
+	sub	r1, lr, #4
 	mrs	r0, spsr
-	push	{r0, r1}
+	push	{r0, r1, r2}
 	mov	r0, #THREAD_ABORT_PREFETCH
 	b	.thread_abort_generic
 
@@ -412,9 +412,10 @@ thread_pabort_handler:
 	ldr	lr, =thread_abort_handler_ptr;
 	ldr	lr, [lr]
 	blx	lr
-	pop	{r0, r1}
+	pop	{r0, r1, r2}
+	mov	lr, r1
 	msr	spsr_fsxc, r0
-	pop	{r0-r3, ip, lr}
+	pop	{r0-r3, ip}
 	movs	pc, lr
 END_FUNC thread_abort_handler
 
