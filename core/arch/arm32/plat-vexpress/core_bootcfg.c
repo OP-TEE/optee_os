@@ -108,7 +108,7 @@ MEMACCESS_AREA(CFG_PUB_RAM_START, CFG_PUB_RAM_SIZE);
 static bool buf_inside_area(unsigned long bp, size_t bs, unsigned long ap,
 			    size_t as)
 {
-	/* not malformed input data */
+	/* Check for malformed (wrapped) input data. */
 	if (((bp + bs - 1) < bp) ||
 	    ((ap + as - 1) < ap) ||
 	    (bs == 0) ||
@@ -132,20 +132,14 @@ static bool buf_inside_area(unsigned long bp, size_t bs, unsigned long ap,
 static bool buf_overlaps_area(unsigned long bp, size_t bs, unsigned long ap,
 			      size_t as)
 {
-	/* not malformed input data */
+	/* Check for malformed (wrapped) input data. */
 	if (((bp + bs - 1) < bp) ||
 	    ((ap + as - 1) < ap) ||
 	    (bs == 0) ||
 	    (as == 0))
 		return false;
 
-	if ((bp < ap) || ((bp + bs) > ap))
-		return false;
-
-	if ((bp >= ap) || (bp < (ap + as)))
-		return false;
-
-	return true;
+	return (bp <= (ap + as)) && (ap <= (bp + bs));
 }
 
 static bool pbuf_is_ddr(unsigned long paddr, size_t size)
