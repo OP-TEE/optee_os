@@ -283,18 +283,31 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 	uint32_t n;
 	uint32_t saddr =
 	    tee_ta_get_exec(ctx) + ctx->head->ro_size - rel_dyn_size;
+	uint32_t dynsym_addr = tee_ta_get_exec(ctx) + ctx->head->ro_size +
+			ctx->head->rw_size + ctx->head->zi_size;
 
 	for (n = 0; n < rel_dyn_size; n += sizeof(struct ta_rel_dyn)) {
 		struct ta_rel_dyn *rel_dyn = (struct ta_rel_dyn *)(saddr + n);
 		uint32_t *data;
 
-		if (rel_dyn->info != 0x17) {
+		if (rel_dyn->info != 0x17 &&
+				ELF32_R_TYPE(rel_dyn->info) != 0x02) {
 			DMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
 			TEE_ASSERT(0);
 		}
 
-		data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
-		*data += ctx->load_addr;
+		if (ELF32_R_TYPE(rel_dyn->info) == 0x02) {
+			int offset = ELF32_R_SYM(rel_dyn->info);
+			struct elf32_sym *sym =
+				((struct elf32_sym *)dynsym_addr) + offset;
+			data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
+			*data += sym->st_value + ctx->load_addr;
+		}
+
+		if (ELF32_R_TYPE(rel_dyn->info) == 0x17) {
+			data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
+			*data += ctx->load_addr;
+		}
 #ifdef PAGER_DEBUG_PRINT
 		DMSG("rel.dyn [0x%x] = 0x%x", data, *data);
 #endif
@@ -458,7 +471,8 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	void *dst;
 
 	/* full required execution size (not stack etc...) */
-	size = ctx->head->ro_size + ctx->head->rw_size + ctx->head->zi_size;
+	size = ctx->head->ro_size + ctx->head->rw_size + ctx->head->zi_size +
+		ctx->head->dynsym_size;
 
 	if (ctx->num_res_funcs != 2)
 		return TEE_ERROR_BAD_FORMAT;
