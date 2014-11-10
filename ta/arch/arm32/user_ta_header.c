@@ -72,6 +72,7 @@ const struct user_ta_head ta_head __attribute__ ((section(".ta_head"))) = {
 	(uint32_t)&linker_RW_sections_size,
 	(uint32_t)&linker_res_funcs_ZI_sections_size,
 	(uint32_t)&linker_rel_dyn_GOT,
+	(uint32_t)&linker_dynsym_size,
 	/* Hash type, filled in by sign-tool */
 	0,
 	/* TA trace level */
