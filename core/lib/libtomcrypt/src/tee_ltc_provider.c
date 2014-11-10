@@ -549,6 +549,13 @@ static void bn_free(struct bignum *s)
 	free(s);
 }
 
+static void bn_clear(struct bignum *s)
+{
+	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
+
+	memset(bn, 0, bn->alloc);
+}
+
 static bool bn_alloc_max(struct bignum **s)
 {
 	size_t sz = mpa_StaticVarSizeInU32(LTC_MAX_BITS_PER_VARIABLE) *
@@ -2204,5 +2211,6 @@ struct crypto_ops crypto_ops = {
 		.bin2bn = bin2bn,
 		.copy = copy,
 		.free = bn_free,
+		.clear = bn_clear
 	}
 };

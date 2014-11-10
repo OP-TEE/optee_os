@@ -41,7 +41,7 @@ struct tee_obj {
 	uint32_t have_attrs;	/* bitfield identifying set properties */
 	void *data;
 	size_t data_size;
-	void (*finalize)(void *); /* called with data ptr before it's freed */
+	void (*cleanup)(void *data, bool del); /* clear or delete data */
 	struct tee_pobj *pobj;	/* ptr to persistant object */
 	int fd;
 	uint32_t ds_size;	/* data stream size */

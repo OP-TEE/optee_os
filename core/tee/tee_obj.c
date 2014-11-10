@@ -62,8 +62,8 @@ void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
 		tee_pobj_release(o->pobj);
 	}
 
-	if (o->finalize)
-		o->finalize(o->data);
+	if (o->cleanup)
+		o->cleanup(o->data, true);
 	free(o->data);
 	free(o);
 }

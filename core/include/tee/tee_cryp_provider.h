@@ -131,6 +131,7 @@ struct bignum_ops {
 	void (*bn2bin)(const struct bignum *from, uint8_t *to);
 	void (*copy)(struct bignum *to, const struct bignum *from);
 	void (*free)(struct bignum *a);
+	void (*clear)(struct bignum *a);
 };
 
 /* Asymmetric algorithms */
