@@ -101,9 +101,12 @@ SECTIONS
 
     end_of_ZI_sections = .;
 
+    start_of_dynsym_section = .;
+    .dynsym         ALIGN(4) : { *(.dynsym) }
+    end_of_dynsym_section = .;
+
     .interp         ALIGN(4) : { *(.interp) }
     .hash           ALIGN(4) : { *(.hash) }
-    .dynsym         ALIGN(4) : { *(.dynsym) }
     .dynstr         ALIGN(4) : { *(.dynstr) }
     .gnu.version    ALIGN(4) : { *(.gnu.version) }
     .gnu.version_d  ALIGN(4) : { *(.gnu.version_d) }
@@ -148,6 +151,7 @@ SECTIONS
     ASSERT(GOT_sections_size <= 0xffff, "Too large GOT_sections_size")
     ASSERT(rel_sections_size <= 0xffff, "Too large rel_sections_size")
     linker_rel_dyn_GOT = (rel_sections_size << 16) + GOT_sections_size;
+    linker_dynsym_size = end_of_dynsym_section - start_of_dynsym_section;
 
 }
 
