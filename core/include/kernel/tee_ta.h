@@ -60,11 +60,13 @@ struct elf32_sym {
 	uint32_t	st_name;
 	uint32_t	st_value;
 	uint32_t	st_size;
-	unsigned char	st_info;
-	unsigned char	st_other;
-	unsigned short st_shndx;
+	uint8_t		st_info;
+	uint8_t		st_other;
+	uint16_t	 st_shndx;
 };
 
+#define R_ARM_ABS32	0x02
+#define R_ARM_RELATIVE	0x17
 
 #define ELF32_R_SYM(x) ((x) >> 8)
 #define ELF32_R_TYPE(x) ((x) & 0xff)

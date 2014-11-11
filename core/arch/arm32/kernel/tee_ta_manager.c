@@ -290,13 +290,13 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 		struct ta_rel_dyn *rel_dyn = (struct ta_rel_dyn *)(saddr + n);
 		uint32_t *data;
 
-		if (rel_dyn->info != 0x17 &&
-				ELF32_R_TYPE(rel_dyn->info) != 0x02) {
+		if (rel_dyn->info != R_ARM_RELATIVE &&
+				ELF32_R_TYPE(rel_dyn->info) != R_ARM_ABS32) {
 			DMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
 			TEE_ASSERT(0);
 		}
 
-		if (ELF32_R_TYPE(rel_dyn->info) == 0x02) {
+		if (ELF32_R_TYPE(rel_dyn->info) == R_ARM_ABS32) {
 			int offset = ELF32_R_SYM(rel_dyn->info);
 			struct elf32_sym *sym =
 				((struct elf32_sym *)dynsym_addr) + offset;
@@ -304,7 +304,7 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 			*data += sym->st_value + ctx->load_addr;
 		}
 
-		if (ELF32_R_TYPE(rel_dyn->info) == 0x17) {
+		if (ELF32_R_TYPE(rel_dyn->info) == R_ARM_RELATIVE) {
 			data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
 			*data += ctx->load_addr;
 		}

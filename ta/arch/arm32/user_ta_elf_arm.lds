@@ -101,9 +101,12 @@ SECTIONS
 
     end_of_ZI_sections = .;
 
-    start_of_dynsym_section = .;
-    .dynsym         ALIGN(4) : { *(.dynsym) }
-    end_of_dynsym_section = .;
+    .dynsym :
+    {
+    	start_of_dynsym_section = .;
+    	.dynsym         ALIGN(4) : { *(.dynsym) }
+    	end_of_dynsym_section = .;
+    }
 
     .interp         ALIGN(4) : { *(.interp) }
     .hash           ALIGN(4) : { *(.hash) }
