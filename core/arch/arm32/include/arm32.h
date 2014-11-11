@@ -99,7 +99,7 @@ static inline uint32_t read_mpidr(void)
 {
 	uint32_t mpidr;
 
-	asm ("mrc	p15, 0, %[mpidr], c0, c0, 5"
+	asm volatile ("mrc	p15, 0, %[mpidr], c0, c0, 5"
 			: [mpidr] "=r" (mpidr)
 	);
 
@@ -110,7 +110,7 @@ static inline uint32_t read_sctlr(void)
 {
 	uint32_t sctlr;
 
-	asm ("mrc	p15, 0, %[sctlr], c1, c0, 0"
+	asm volatile ("mrc	p15, 0, %[sctlr], c1, c0, 0"
 			: [sctlr] "=r" (sctlr)
 	);
 
@@ -119,14 +119,14 @@ static inline uint32_t read_sctlr(void)
 
 static inline void write_sctlr(uint32_t sctlr)
 {
-	asm ("mcr	p15, 0, %[sctlr], c1, c0, 0"
+	asm volatile ("mcr	p15, 0, %[sctlr], c1, c0, 0"
 			: : [sctlr] "r" (sctlr)
 	);
 }
 
 static inline void write_ttbr0(uint32_t ttbr0)
 {
-	asm ("mcr	p15, 0, %[ttbr0], c2, c0, 0"
+	asm volatile ("mcr	p15, 0, %[ttbr0], c2, c0, 0"
 			: : [ttbr0] "r" (ttbr0)
 	);
 }
@@ -135,7 +135,7 @@ static inline uint32_t read_ttbr0(void)
 {
 	uint32_t ttbr0;
 
-	asm ("mrc	p15, 0, %[ttbr0], c2, c0, 0"
+	asm volatile ("mrc	p15, 0, %[ttbr0], c2, c0, 0"
 			: [ttbr0] "=r" (ttbr0)
 	);
 
@@ -144,7 +144,7 @@ static inline uint32_t read_ttbr0(void)
 
 static inline void write_ttbr1(uint32_t ttbr1)
 {
-	asm ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
+	asm volatile ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
 			: : [ttbr1] "r" (ttbr1)
 	);
 }
@@ -153,7 +153,7 @@ static inline uint32_t read_ttbr1(void)
 {
 	uint32_t ttbr1;
 
-	asm ("mrc	p15, 0, %[ttbr1], c2, c0, 1"
+	asm volatile ("mrc	p15, 0, %[ttbr1], c2, c0, 1"
 			: [ttbr1] "=r" (ttbr1)
 	);
 
@@ -163,14 +163,14 @@ static inline uint32_t read_ttbr1(void)
 
 static inline void write_ttbcr(uint32_t ttbcr)
 {
-	asm ("mcr	p15, 0, %[ttbcr], c2, c0, 2"
+	asm volatile ("mcr	p15, 0, %[ttbcr], c2, c0, 2"
 			: : [ttbcr] "r" (ttbcr)
 	);
 }
 
 static inline void write_dacr(uint32_t dacr)
 {
-	asm ("mcr	p15, 0, %[dacr], c3, c0, 0"
+	asm volatile ("mcr	p15, 0, %[dacr], c3, c0, 0"
 			: : [dacr] "r" (dacr)
 	);
 }
@@ -179,7 +179,7 @@ static inline uint32_t read_ifar(void)
 {
 	uint32_t ifar;
 
-	asm ("mrc	p15, 0, %[ifar], c6, c0, 2"
+	asm volatile ("mrc	p15, 0, %[ifar], c6, c0, 2"
 			: [ifar] "=r" (ifar)
 	);
 
@@ -190,7 +190,7 @@ static inline uint32_t read_dfar(void)
 {
 	uint32_t dfar;
 
-	asm ("mrc	p15, 0, %[dfar], c6, c0, 0"
+	asm volatile ("mrc	p15, 0, %[dfar], c6, c0, 0"
 			: [dfar] "=r" (dfar)
 	);
 
@@ -201,7 +201,7 @@ static inline uint32_t read_dfsr(void)
 {
 	uint32_t dfsr;
 
-	asm ("mrc	p15, 0, %[dfsr], c5, c0, 0"
+	asm volatile ("mrc	p15, 0, %[dfsr], c5, c0, 0"
 			: [dfsr] "=r" (dfsr)
 	);
 
@@ -212,7 +212,7 @@ static inline uint32_t read_ifsr(void)
 {
 	uint32_t ifsr;
 
-	asm ("mrc	p15, 0, %[ifsr], c5, c0, 1"
+	asm volatile ("mrc	p15, 0, %[ifsr], c5, c0, 1"
 			: [ifsr] "=r" (ifsr)
 	);
 
@@ -223,19 +223,19 @@ static inline uint32_t read_ifsr(void)
 
 static inline void isb(void)
 {
-	asm ("isb");
+	asm volatile ("isb");
 }
 
 static inline void dsb(void)
 {
-	asm ("dsb");
+	asm volatile ("dsb");
 }
 
 static inline uint32_t read_contextidr(void)
 {
 	uint32_t contextidr;
 
-	asm ("mrc	p15, 0, %[contextidr], c13, c0, 1"
+	asm volatile ("mrc	p15, 0, %[contextidr], c13, c0, 1"
 			: [contextidr] "=r" (contextidr)
 	);
 
@@ -244,7 +244,7 @@ static inline uint32_t read_contextidr(void)
 
 static inline void write_contextidr(uint32_t contextidr)
 {
-	asm ("mcr	p15, 0, %[contextidr], c13, c0, 1"
+	asm volatile ("mcr	p15, 0, %[contextidr], c13, c0, 1"
 			: : [contextidr] "r" (contextidr)
 	);
 }
@@ -253,7 +253,7 @@ static inline uint32_t read_cpsr(void)
 {
 	uint32_t cpsr;
 
-	asm ("mrs	%[cpsr], cpsr"
+	asm volatile ("mrs	%[cpsr], cpsr"
 			: [cpsr] "=r" (cpsr)
 	);
 	return cpsr;
@@ -261,7 +261,7 @@ static inline uint32_t read_cpsr(void)
 
 static inline void write_cpsr(uint32_t cpsr)
 {
-	asm ("msr	cpsr_fsxc, %[cpsr]"
+	asm volatile ("msr	cpsr_fsxc, %[cpsr]"
 			: : [cpsr] "r" (cpsr)
 	);
 }
@@ -270,7 +270,7 @@ static inline uint32_t read_spsr(void)
 {
 	uint32_t spsr;
 
-	asm ("mrs	%[spsr], spsr"
+	asm volatile ("mrs	%[spsr], spsr"
 			: [spsr] "=r" (spsr)
 	);
 	return spsr;
