@@ -65,6 +65,8 @@ my $offs_0x1c;
 my $offs_0x1csym = "linker_res_funcs_ZI_sections_size";
 my $offs_0x20;
 my $offs_0x20sym = "linker_rel_dyn_GOT";
+my $offs_0x24;
+my $offs_0x24sym = "linker_dynsym_size";
 
 sub read_value
 {
@@ -75,7 +77,8 @@ sub read_value
 
 while (<ELF>) {
     last if defined $offs_0x14 && defined $offs_0x18 &&
-            defined $offs_0x1c && defined $offs_0x20;
+            defined $offs_0x1c && defined $offs_0x20 &&
+	    defined $offs_0x24;
     #print "Got $_";
     my @line = split;
     my $line_elems = @line;
@@ -88,7 +91,9 @@ while (<ELF>) {
             $offs_0x1c = read_value($_);
         } elsif ($_ =~ m/$offs_0x20sym/) {
             $offs_0x20 = read_value($_);
-        }
+        } elsif ($_ =~ m/$offs_0x24sym/) {
+	    $offs_0x24 = read_value($_);
+	}
     }
 }
 
@@ -100,6 +105,8 @@ die "Didn't find required symbol $offs_0x1csym in $elf"
     unless defined $offs_0x1c;
 die "Didn't find required symbol $offs_0x20sym in $elf"
     unless defined $offs_0x20;
+die "Didn't find required symbol $offs_0x24sym in $elf"
+    unless defined $offs_0x24;
 
 sub write_value
 {
@@ -114,6 +121,7 @@ write_value(hex $offs_0x14, 0x14, $offs_0x14sym);
 write_value(hex $offs_0x18, 0x18, $offs_0x18sym);
 write_value(hex $offs_0x1c, 0x1c, $offs_0x1csym);
 write_value(hex $offs_0x20, 0x20, $offs_0x20sym);
+write_value(hex $offs_0x24, 0x24, $offs_0x24sym);
 
 close(BIN);
 close(ELF);

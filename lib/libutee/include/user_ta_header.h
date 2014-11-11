@@ -67,6 +67,7 @@ struct user_ta_head {
 	uint32_t rw_size;
 	uint32_t zi_size;
 	uint32_t got_size;
+	uint32_t linker_dynsym_size;
 	uint32_t hash_type;
 };
 

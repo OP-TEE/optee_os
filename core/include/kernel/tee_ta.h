@@ -46,6 +46,7 @@ typedef struct {
 	uint32_t rw_size;
 	uint32_t zi_size;
 	uint32_t rel_dyn_got_size;
+	uint32_t dynsym_size;
 	uint32_t hash_type;
 	/* uint32_t prop_tracelevel; */
 } ta_head_t;
@@ -54,6 +55,21 @@ struct ta_rel_dyn {
 	uint32_t addr;
 	uint32_t info;
 };
+
+struct elf32_sym {
+	uint32_t	st_name;
+	uint32_t	st_value;
+	uint32_t	st_size;
+	uint8_t		st_info;
+	uint8_t		st_other;
+	uint16_t	 st_shndx;
+};
+
+#define R_ARM_ABS32	0x02
+#define R_ARM_RELATIVE	0x17
+
+#define ELF32_R_SYM(x) ((x) >> 8)
+#define ELF32_R_TYPE(x) ((x) & 0xff)
 
 /*-----------------------------------------------------------------------------
    signed header
