@@ -21,6 +21,7 @@ ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
 	@echo '  SED     $@'
+	@mkdir -p $(dir $@)
 	$(q)sed -e "s/%in_TEE_SCATTER_START%/$(TEE_SCATTER_START)/g" < $< > $@
 
 
