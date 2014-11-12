@@ -587,13 +587,13 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	free(s->e);
-	free(s->d);
-	free(s->n);
-	free(s->p);
-	free(s->q);
-	free(s->qp);
-	free(s->dp);
+	bn_free(s->e);
+	bn_free(s->d);
+	bn_free(s->n);
+	bn_free(s->p);
+	bn_free(s->q);
+	bn_free(s->qp);
+	bn_free(s->dp);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -607,7 +607,7 @@ static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	free(s->e);
+	bn_free(s->e);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -627,10 +627,10 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	free(s->g);
-	free(s->p);
-	free(s->q);
-	free(s->y);
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->q);
+	bn_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -648,9 +648,9 @@ static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	free(s->g);
-	free(s->p);
-	free(s->q);
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->q);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -670,10 +670,10 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	free(s->g);
-	free(s->p);
-	free(s->y);
-	free(s->x);
+	bn_free(s->g);
+	bn_free(s->p);
+	bn_free(s->y);
+	bn_free(s->x);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
