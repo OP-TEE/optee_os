@@ -4,10 +4,11 @@ ENTRY(tz_sinit)
 MEMORY
 {
     /* 1 MByte is allocated for teecore execution */
-    EXEC_MEM   (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x00000000), LENGTH = 0x000D0000
-    STACKS_MEM (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000D0000), LENGTH = 0x00010000
-    CTX_MEM    (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000E0000), LENGTH = 0x00010000
-    MMU_MEM    (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000F0000), LENGTH = 0x00010000
+    EXEC_MEM     (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x00000000), LENGTH = 0x000E0000
+    /* check stacks sizes from main.c */
+    STACKS_MEM   (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000E0000), LENGTH = 0x00018000
+    MMU_UTA_MEM  (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000FBF80), LENGTH = 0x00000080
+    MMU_CORE_MEM (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000FC000), LENGTH = 0x00004000
 }
 
 SECTIONS
@@ -38,22 +39,18 @@ SECTIONS
 	*(.nozi.stack)
     } > STACKS_MEM
 
-    /* NSec and Secure context storage (TODO: move in C-code) */
-    .context_backup :
-    {
-        PUB_CONTEXT_BACKUP  = (. + 0x000); /* Public context backup area */
-        SEC_CONTEXT_BACKUP  = (. + 0x400); /* Secure context backup area */
-    } > CTX_MEM
-
     /* MMU pages tables (TODO: should we keep them cachable?) */
-    .pagestables :
+    .mmu_uta :
     {
-        SEC_MMU_TTB_FLD    = (.);           /* MMU L1 table for teecore: 16kB */
-        SEC_MMU_TTB_SLD    = (. + 0x4000);  /* MMU L2 tables for teecore: 16*1kB (16MB mappeable) */
-        SEC_TA_MMU_TTB_FLD = (. + 0x8000);  /* MMU L1 table for TAs: 16kB */
-        SEC_TA_MMU_TTB_SLD = (. + 0xC000);  /* MMU L2 tables for TAs:: 16*1kB (16MB mappeable) */
-        SEC_MMU_TTB_END    = (. + 0x10000); /* end of teecore and TAs MMU tables */
-    } > MMU_MEM
+        SEC_TA_MMU_TTB_FLD = (.);	 /* MMU L1 table for TAs: 128B */
+        SEC_TA_MMU_TTB_END = (. + 0x80);
+    } > MMU_UTA_MEM
+    .mmu_core :
+    {
+        SEC_MMU_TTB_FLD = (.);           /* MMU L1 table for teecore: 16kB */
+        SEC_MMU_TTB_END = (. + 0x4000);
+    } > MMU_CORE_MEM
+
 }
 
     /* 64kB aligned heap start between BSS and secure stacks */

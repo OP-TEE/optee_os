@@ -318,8 +318,10 @@ void tee_entry_get_os_revision(struct thread_smc_args *args)
 	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }
 
+/* ttbr1 for teecore mapping: 16kB, fixed addr. */
 extern uint8_t *SEC_MMU_TTB_FLD;
-extern uint8_t *SEC_TA_MMU_TTB_FLD[CFG_TEE_CORE_NB_CORE][TEE_MMU_UL1_NUM_ENTRIES];
+/* ttbr0 for TA mapping (default was 128kB) */
+extern uint8_t *SEC_TA_MMU_TTB_FLD;
 
 paddr_t core_mmu_get_main_ttb_pa(void)
 {
@@ -339,15 +341,13 @@ paddr_t core_mmu_get_ul1_ttb_pa(void)
 {
 	/* Note that this depends on flat mapping of TEE Core */
 	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
-
 	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
 	return pa;
 }
 
 vaddr_t core_mmu_get_ul1_ttb_va(void)
 {
-	return (vaddr_t)SEC_TA_MMU_TTB_FLD +
-		thread_get_id() * TEE_MMU_UL1_NUM_ENTRIES;
+	return (vaddr_t)&SEC_TA_MMU_TTB_FLD;
 }
 
 void console_putc(int ch)
