@@ -38,12 +38,20 @@
 	mcr	p15, 0, \reg, c1, c0, 0
 	.endm
 
+	.macro write_actlr reg
+	mcr	p15, 0, \reg, c1, c0, 1
+	.endm
+
 	.macro read_scr reg
 	mrc	p15, 0, \reg, c1, c1, 0
 	.endm
 
 	.macro write_scr reg
 	mcr	p15, 0, \reg, c1, c1, 0
+	.endm
+
+	.macro write_nsacr reg
+	mcr	p15, 0, \reg, c1, c1, 2
 	.endm
 
 	.macro write_ttbr0 reg
@@ -83,4 +91,8 @@
 
 	.macro write_contextidr reg
 	mcr	p15, 0, \reg, c13, c0, 1
+	.endm
+
+	.macro write_pcr reg
+	mcr  p15, 0, \reg, c15, c0, 0
 	.endm

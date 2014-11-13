@@ -32,6 +32,7 @@
  * and with ARM registers R0, R1, R2, R3 being scratchable.
  */
 #include <kernel/tz_ssvce_def.h>
+#include <arm32_macros.S>
 
 .global arm_secboot_identify_cpu
 .global arm_secboot_early
@@ -196,25 +197,36 @@ _config_l2cc_r3p0:
 /*
  * Memory Cache Level2 Enable Function
  *
+ * If PL310 supports FZLW, enable also FZL in A9 core
+ *
  * Use scratables registers R0-R3.
  * No stack usage.
  * LR store return address.
  * Trap CPU in case of error.
+ * TODO: to be moved to PL310 code (tz_svce_pl310.S ?)
  */
 .func arm_cl2_enable
 arm_cl2_enable:
 
+
 	/* Enable PL310 ctrl -> only set lsb bit */
 	movw r0, #PL310_CTRL
 	movt r0, #PL310_BASE_H
-	movw r1, #0x0001
-	movt r1, #0x0000
+	mov  r1, #0x1
 	str  r1, [r0]
+
+	/* if L2 FLZW enable, enable in L1 */
+	movw r0, #PL310_AUX_CTRL
+	movt r0, #PL310_BASE_H
+	ldr  r1, [r0]
+	tst  r1, #(1 << 0) /* test AUX_CTRL[FLZ] */
+	mrc  p15, 0, r0, c1, c0, 1
+	orreq r0, r0, #(1 << 3) /* enable ACTLR[FLZW] */
+	mcr  p15, 0, r0, c1, c0, 1
 
 	mov pc, lr
 
 .endfunc
-/* End of arm_cl2_enable */
 
 /* 
  * Cortex A9 configuration early configuration
@@ -237,55 +249,49 @@ arm_secboot_early:
 
 _early_a9_r3p0:
 	/*
-	 * Register SCTLR
-	 * RR Bit[14]=1
+	 * Mandated HW config loaded
+	 *
+	 * SCTLR  0x00004000   (bit14: RoundRobin)
+	 * ACTRL  0x00000041   (see below)
+	 * NSACR  0x00020C00   (see below)
+	 * PCR    0x00000001   (no change latency, enable clk gating)
+	 *
+	 * ACTRL:
+	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
+	 * - keep WFLZ low. Will be set once outer L2is ready. bit3=0
+	 * NSACR:
+	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
+	 * - Nsec can lockdown TLB (TL bit17=1)
+	 * - NSec cannot access PLE (PLE bit16=0)
+	 * - NSec can use SIMD/VFP (bit15:14=2b00, bit11:10=2b11)
 	 */
 	movw r0, #0x4000
 	movt r0, #0x0000
-	mcr  p15, 0, r0, c1, c0, 0
+	write_sctlr r0
 
-	/*
-	 * Register ACTLR
-	 * FW Bit[0]=1
-	 * WFLZ Bit[3]=1
-	 * SMP Bit[6]=1
-	 */
-	movw r0, #0x0049
+	movw r0, #0x0041
 	movt r0, #0x0000
-	mcr  p15, 0, r0, c1, c0, 1
+	write_actlr r0
 
-	/*
-	 * Register NSACR
-	 * TL	Bit[17]=1
-	 * CPU11 Bit[11]=1
-	 * CPU10 Bit[10]=1
-	 */
 	movw r0, #0x0C00
 	movt r0, #0x0002
-	mcr  p15, 0, r0, c1, c1, 2
+	write_nsacr r0
 
-	/*
-	 * Register PCR
-	 * ECG   Bit[0]=1
-	 */
 	movw r0, #0x0000
 	movt r0, #0x0001
-	mcr  p15, 0, r0, c15, c0, 0
+	write_pcr r0
 
 	/*
 	 * GIC configuration
 	 */
-	/*
-	 * Register ICDISR0
-	 */
+
+	/* ICDISR0 */
 	movw r0, #GIC_DIST_ISR0
 	movt r0, #GIC_DIST_BASE_H
 	mov  r1, #0xFFFFFFFF
 	str  r1, [r0]
 
-	/*
-	 * Register ICCPMR
-	 */
+	/* ICCPMR */
 	movw r0, #CORE_ICC_ICCPMR
 	movt r0, #GIC_CPU_BASE_H
 	mov  r1, #0xFFFFFFFF
@@ -344,12 +350,6 @@ arm_secboot_late:
 	beq _boot_late_primary_cpu
 
 _boot_late_secondary_cpu:
-	/* cpu participates in coherency (SCU_CONFIG) */
-	movw r0, #SCU_CONFIG /* LSB */
-	movt r0, #SCU_BASE_H /* MSB */
-	ldr  r1, [r0]
-	orr  r1, r1, #0x20
-	str  r1, [r0]
 	mov pc, lr
 
 _boot_late_primary_cpu:
@@ -402,15 +402,6 @@ _boot_late_primary_cpu:
 	movt r0, #SCU_BASE_H /* MSB */
 	movw r1, #(CPU_PORT_FILT_START & 0xFFFF)
 	movt r1, #(CPU_PORT_FILT_START >> 16)
-	str  r1, [r0]
-
-	/*
-	 * Register SCU_CONFIG
-	 */
-	movw r0, #SCU_CONFIG /* LSB */
-	movt r0, #SCU_BASE_H /* MSB */
-	movw r1, #0x0511
-	movt r1, #0x0000
 	str  r1, [r0]
 
 	/*
