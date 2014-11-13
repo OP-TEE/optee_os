@@ -26,6 +26,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 
 #include <tee_api.h>
 #include <tee_internal_api_extensions.h>
@@ -773,10 +774,8 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 		return res;
 	if (computed_mac_size != macLen)
 		return TEE_ERROR_MAC_INVALID;
-	if (memcmp(mac, computed_mac, computed_mac_size) != 0)
+	if (buf_compare_ct(mac, computed_mac, computed_mac_size) != 0)
 		return TEE_ERROR_MAC_INVALID;
-	/* don't leave this on stack */
-	memset(computed_mac, 0, computed_mac_size);
 	return TEE_SUCCESS;
 }
 
