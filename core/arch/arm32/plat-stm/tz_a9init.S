@@ -136,6 +136,19 @@ _config_l2cc_r3p0:
 
 	/*
 	 * reg1_aux_control
+	 *
+	 * I/Dcache prefetch enable (bit29:28=2b11)
+	 * NS can access interrupts (bit27=1)
+	 * NS can lockown cache lines (bit26=1)
+	 * Pseudo-random replacement policy (bit25=0)
+	 * Force write allocated (default)
+	 * Shared attribute internally ignored (bit22=1, bit13=0)
+	 * Parity disable (bit21=0)
+	 * Event monitor disabled (bit20=0)
+	 * 128kB ways, 8-way associativity (bit19:17=3b100 bit16=0)
+	 * Store buffer device limitation enable (bit11=1)
+	 * Cacheable accesses have high prio (bit10=0)
+	 * Full Line Zero (FLZ) enabled (bit0=1)
 	 */
 	movw r0, #PL310_AUX_CTRL
 	movt r0, #PL310_BASE_H
@@ -145,10 +158,16 @@ _config_l2cc_r3p0:
 
 	/*
 	 * reg15_prefetch_ctrl
+	 *
+	 * Double linefill disabled (bit30=0)
+	 * I/D prefetch enable (bit29:28=2b11)
+	 * Prefetch drop enable (bit24=1)
+	 * Incr double linefill disable (bit23=0)
+	 * Prefetch offset = 7 (bit4:0)
 	 */
 	movw r0, #PL310_PREFETCH_CTRL
 	movt r0, #PL310_BASE_H
-	movw r1, #0x0000
+	movw r1, #0x0007
 	movt r1, #0x3100
 	str  r1, [r0]
 
