@@ -30,6 +30,7 @@
 
 #include <mm/tee_mm.h>
 #include <mm/tee_mm_unpg.h>
+#include <mm/pager.h>
 
 bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
 		 uint32_t flags)

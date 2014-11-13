@@ -58,17 +58,4 @@ void tee_mtime_perftest(void);
 #define tee_mtime_perftest()  do { } while (0)
 #endif
 
-/*
- * Adds physical pages to the pager to use. The supplied virtual address range
- * is searched for mapped physical pages and unmapped pages are ignored.
- *
- * vaddr is the first virtual address
- * npages is the number of pages to add
- */
-void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages);
-
-void tee_pager_unhide_all_pages(void);
-
-void tee_pager_unmap(uint32_t page, uint8_t psize);
-
 #endif /* TEE_COMMON_H */

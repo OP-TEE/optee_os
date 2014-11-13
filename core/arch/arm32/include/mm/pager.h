@@ -24,20 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_PAGER_DEFINES_H
-#define TEE_PAGER_DEFINES_H
 
-#define TEE_PAGER_NORMAL_RETURN 0
-#define TEE_PAGER_USER_TA_PANIC 1
+#ifndef TEE_PAGER_H
+#define TEE_PAGER_H
 
-#define TEE_PAGER_SPSR_MODE_MASK    0x1F
-#define TEE_PAGER_SPSR_MODE_USR     0x10
-#define TEE_PAGER_SPSR_MODE_SVC     0x13
-#define TEE_PAGER_SPSR_MODE_ABT     0x17
-#define TEE_PAGER_SPSR_MODE_MON     0x16
+#include <kernel/thread.h>
 
-#define TEE_PAGER_DATA_ABORT    0x00000000
-#define TEE_PAGER_PREF_ABORT    0x00000001
-#define TEE_PAGER_UNDEF_ABORT   0x00000002
+void tee_pager_abort_handler(uint32_t abort_type,
+			     struct thread_abort_regs *regs);
 
-#endif /* TEE_PAGER_DEFINES_H */
+/*
+ * Adds physical pages to the pager to use. The supplied virtual address range
+ * is searched for mapped physical pages and unmapped pages are ignored.
+ *
+ * vaddr is the first virtual address
+ * npages is the number of pages to add
+ */
+void tee_pager_add_pages(vaddr_t vaddr, size_t npages);
+
+void tee_pager_unhide_all_pages(void);
+
+void tee_pager_unmap(uint32_t page, uint8_t psize);
+
+
+
+#endif /*TEE_PAGER_H*/

@@ -25,13 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/queue.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/tee_common.h>
+#include <kernel/panic.h>
 #include <mm/tee_mmu_defs.h>
 #include <trace.h>
 
-#include <mm/tee_pager_unpg.h>
+#include <mm/pager.h>
 
 #include <mm/tee_mm_unpg.h>
 #include <mm/tee_mmu_unpg.h>
@@ -39,38 +42,81 @@
 #include <tee/arch_svc.h>
 #include <arm32.h>
 
-/* Dummies to allow the macros to be left at current places below */
-#define TEE_PAGER_RECORD_FAULT(x)   do { } while (0)
-#define TEE_PAGER_SET_OLD_VA(x)     do { } while (0)
-#define TEE_PAGER_SET_PA(x)         do { } while (0)
-#define TEE_PAGER_SET_COPY(x)       do { } while (0)
-#define TEE_PAGER_SET_UNHIDE(x)     do { } while (0)
-#define TEE_PAGER_DUMP_RECORDING()  do { } while (0)
-#define TEE_PRINT_SAVED_REGS()      do { } while (0)
+/* Interesting aborts for TEE pager */
+#define TEE_FSR_FS_MASK                     0x040F
+#define TEE_FSR_FS_ALIGNMENT_FAULT          0x0001 /* DFSR[10,3:0] 0b00001 */
+#define TEE_FSR_FS_DEBUG_EVENT              0x0002 /* DFSR[10,3:0] 0b00010 */
+#define TEE_FSR_FS_ASYNC_EXTERNAL_ABORT     0x0406 /* DFSR[10,3:0] 0b10110 */
+#define TEE_FSR_FS_PERMISSION_FAULT_SECTION 0x000D /* DFSR[10,3:0] 0b01101 */
+#define TEE_FSR_FS_PERMISSION_FAULT_PAGE    0x000F /* DFSR[10,3:0] 0b01111 */
+
+#define TEE_PAGER_NORMAL_RETURN 0
+#define TEE_PAGER_USER_TA_PANIC 1
+
+#define TEE_PAGER_SPSR_MODE_MASK    0x1F
+#define TEE_PAGER_SPSR_MODE_USR     0x10
+#define TEE_PAGER_SPSR_MODE_SVC     0x13
+#define TEE_PAGER_SPSR_MODE_ABT     0x17
+#define TEE_PAGER_SPSR_MODE_MON     0x16
+
+#define TEE_PAGER_DATA_ABORT    0x00000000
+#define TEE_PAGER_PREF_ABORT    0x00000001
+#define TEE_PAGER_UNDEF_ABORT   0x00000002
+
+
+
+/*
+ * Represents a physical page used for paging.
+ *
+ * mmu_entry points to currently used MMU entry. This actual physical
+ * address is stored here so even if the page isn't mapped, there's allways
+ * an MMU entry holding the physical address.
+ *
+ * session_handle is a pointer returned by tee_ta_load_page() and later
+ * used when saving rw-data.
+ */
+struct tee_pager_pmem {
+	uint32_t *mmu_entry;
+	void *ctx_handle;
+	 TAILQ_ENTRY(tee_pager_pmem) link;
+};
 
 /* The list of physical pages. The first page in the list is the oldest */
-struct tee_pager_pmem_head tee_pager_pmem_head =
+TAILQ_HEAD(tee_pager_pmem_head, tee_pager_pmem);
+static struct tee_pager_pmem_head tee_pager_pmem_head =
 TAILQ_HEAD_INITIALIZER(tee_pager_pmem_head);
 
 /* number of pages hidden */
 #define TEE_PAGER_NHIDE (tee_pager_npages / 3)
 
-/* number of pages */
-uint8_t tee_pager_npages;
 
-static bool tee_pager_is_monitor_exception(void)
+/* Get VA from L2 MMU entry address */
+#define TEE_PAGER_GET_VA(a)					\
+	(((((uint32_t)a) - SEC_VIRT_MMU_L2_BASE) <<		\
+	(SMALL_PAGE_SHIFT - 2)) + TEE_VMEM_START)
+
+/* Number of registered physical pages, used hiding pages. */
+static uint8_t tee_pager_npages;
+
+/* Get L2 MMU entry address from virtual address */
+static uint32_t *tee_pager_get_mmu_entry(tee_vaddr_t va)
 {
-	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
-	    TEE_PAGER_SPSR_MODE_MON;
+	tee_vaddr_t addr = va & ~SMALL_PAGE_MASK;
+	size_t mmu_entry_offset = (addr - TEE_VMEM_START) >> SMALL_PAGE_SHIFT;
+
+	return (uint32_t *)(TEE_VIRT_MMU_L2_BASE +
+			     mmu_entry_offset * sizeof(uint32_t));
 }
 
-bool tee_pager_is_user_exception(void)
+/* Returns true if the exception originated from user mode */
+static bool tee_pager_is_user_exception(void)
 {
 	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
 	    TEE_PAGER_SPSR_MODE_USR;
 }
 
-bool tee_pager_is_abort_in_abort_handler(void)
+/* Returns true if the exception originated from abort mode */
+static bool tee_pager_is_abort_in_abort_handler(void)
 {
 	return (read_spsr() & TEE_PAGER_SPSR_MODE_MASK) ==
 	    TEE_PAGER_SPSR_MODE_ABT;
@@ -101,6 +147,23 @@ static void tee_pager_print_error_abort(const uint32_t addr __unused,
 	     read_mpidr(), dbgpcsr, read_spsr());
 }
 
+static void tee_pager_restore_irq(void)
+{
+	/*
+	 * Restores the settings of IRQ as saved when entering secure
+	 * world, using something like
+	 * INTERRUPT_ENABLE(SEC_ENV_SETTINGS_READ() & SEC_ROM_IRQ_ENABLE_MASK);
+	 */
+
+	/* Infinite loop as this is not implemented yet */
+	volatile bool mytrue = true;
+	EMSG("tee_pager_restore_irq not implemented yet");
+	while (mytrue)
+	;
+}
+
+
+
 static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 				       const uint32_t dbgpcsr)
 {
@@ -125,14 +188,6 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 
 	w_addr = addr;
 
-	/*
-	 * w_addr is the address that we intend to handle to the page fault
-	 * for. This is normally the same as addr except in the case where we
-	 * have thumb instruction spread over two pages and the first page
-	 * already is available. In that case will addr still be the beginning
-	 * of the instruction even if the fault really is for the second page.
-	 */
-
 	/* In case of multithreaded version, this section must be protected */
 
 	if (tee_pager_is_user_exception()) {
@@ -141,29 +196,23 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 		return TEE_PAGER_USER_TA_PANIC;
 	}
 
-	if (tee_pager_is_monitor_exception())
-		EMSG("[TEE_PAGER] abort in monitor!");
-
 	if (tee_pager_is_abort_in_abort_handler()) {
 		tee_pager_print_error_abort(addr, fsr, pc, flags, dbgpcsr);
 		EMSG("[TEE_PAGER] abort in abort handler (trap CPU)");
-		while (1)
-			;
+		panic();
 	}
 
 	if (flags == TEE_PAGER_UNDEF_ABORT) {
 		tee_pager_print_error_abort(addr, fsr, pc, flags, dbgpcsr);
 		EMSG("[TEE_PAGER] undefined abort (trap CPU)");
-		while (1)
-			;
+		panic();
 	}
 
 	switch (fsr & TEE_FSR_FS_MASK) {
 	case TEE_FSR_FS_ALIGNMENT_FAULT: /* Only possible for data abort */
 		tee_pager_print_error_abort(addr, fsr, pc, flags, dbgpcsr);
 		EMSG("[TEE_PAGER] alignement fault!  (trap CPU)");
-		while (1)
-			;
+		panic();
 
 	case TEE_FSR_FS_DEBUG_EVENT:
 		tee_pager_print_abort(addr, fsr, pc, flags, dbgpcsr);
@@ -192,16 +241,11 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 		;
 #endif
 
-	TEE_PAGER_RECORD_FAULT(addr);
-
 	/* check if the access is valid */
 	if (!tee_mm_validate(&tee_mm_vcore, w_addr)) {
 		tee_pager_print_abort(addr, fsr, pc, flags, dbgpcsr);
 		DMSG("Invalid addr 0x%" PRIx32, addr);
-		TEE_PRINT_SAVED_REGS();
-		TEE_PAGER_DUMP_RECORDING();
-		while (1)
-			;
+		panic();
 	}
 
 	/* check if page is hidden */
@@ -213,14 +257,11 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 		    TEE_PAGER_GET_VA(apage->mmu_entry) + SMALL_PAGE_SIZE) {
 			/* page is hidden, show and move to back */
 			*(apage->mmu_entry) |= TEE_MMU_L2SP_PRIV_ACC;
-			TEE_PAGER_SET_UNHIDE(1);
-			TEE_PAGER_SET_PA((*(apage->mmu_entry)) & 0xFFFFF000);
 
 			TAILQ_REMOVE(&tee_pager_pmem_head, apage, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, apage, link);
 
 			w_addr = 0;
-
 			break;
 		}
 	}
@@ -245,8 +286,7 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 						      dbgpcsr);
 				DMSG("Couldn't find pmem for mmu_entry %p",
 				     (void *)mmu_entry);
-				while (1)
-					;
+				panic();
 			}
 		} else {
 			apage = TAILQ_FIRST(&tee_pager_pmem_head);
@@ -254,12 +294,9 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 				tee_pager_print_abort(addr, fsr, pc, flags,
 						      dbgpcsr);
 				DMSG("No pmem entries");
-				while (1)
-					;
+				panic();
 			}
 		}
-
-		TEE_PAGER_SET_OLD_VA(TEE_PAGER_GET_VA(apage->mmu_entry));
 
 		/* save rw data if needed */
 		if ((*apage->mmu_entry & 0xFFF) != 0 &&
@@ -284,7 +321,6 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 
 		/* add page to mmu table, small pages [31:12]PA */
 		pa = *apage->mmu_entry & 0xFFFFF000;
-		TEE_PAGER_SET_PA(pa);
 
 		*apage->mmu_entry = 0;
 		apage->mmu_entry = mmu_entry;
@@ -316,7 +352,6 @@ static uint32_t tee_pager_handle_abort(const uint32_t flags, const uint32_t pc,
 	if (w_addr) {
 		/* load page code & data */
 		apage->ctx_handle = tee_ta_load_page(w_addr);
-		TEE_PAGER_SET_COPY(1);
 
 		cache_maintenance_l1(DCACHE_AREA_CLEAN,
 			(void *)(w_addr & 0xFFFFF000), SMALL_PAGE_SIZE);
@@ -372,17 +407,104 @@ void tee_pager_abort_handler(uint32_t abort_type,
 	}
 }
 
-void tee_pager_restore_irq(void)
+void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages)
 {
-	/*
-	 * Restores the settings of IRQ as saved when entering secure
-	 * world, using something like
-	 * INTERRUPT_ENABLE(SEC_ENV_SETTINGS_READ() & SEC_ROM_IRQ_ENABLE_MASK);
-	 */
+	size_t n;
 
-	/* Infinite loop as this is not implemented yet */
-	volatile bool mytrue = true;
-	EMSG("tee_pager_restore_irq not implemented yet");
-	while (mytrue)
-	;
+	/* setup memory */
+	for (n = 0; n < npages; n++) {
+		struct tee_pager_pmem *apage;
+		tee_vaddr_t va = vaddr + n * SMALL_PAGE_SIZE;
+		uint32_t *mmu_entry = tee_pager_get_mmu_entry(va);
+
+		/* Ignore unmapped entries */
+		if (*mmu_entry == 0)
+			continue;
+
+		apage = malloc(sizeof(struct tee_pager_pmem));
+		if (apage == NULL) {
+			DMSG("Can't allocate memory");
+			while (1)
+				;
+		}
+
+		apage->mmu_entry = (uint32_t *)mmu_entry;
+
+		/*
+		 * Set to TEE_PAGER_NO_ACCESS_ATTRIBUTES and not
+		 * TEE_PAGER_PAGE_UNLOADED since pager would misstake it for a
+		 * hidden page in case the virtual address was reused before
+		 * the physical page was used for another virtual page.
+		 */
+		*mmu_entry = (*mmu_entry & ~SMALL_PAGE_MASK) |
+		    TEE_PAGER_NO_ACCESS_ATTRIBUTES;
+		apage->ctx_handle = NULL;
+
+		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, apage, link);
+		tee_pager_npages++;
+	}
+
+	/* Invalidate secure TLB */
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+}
+
+void tee_pager_unmap(uint32_t page, uint8_t psize)
+{
+	int i;
+
+	if ((page & 0xFFF) != 0) {
+		EMSG("Invalid page address");
+		while (1)
+			;
+	}
+
+	for (i = 0; i < psize; i++) {
+		uint32_t addr = page + (i << SMALL_PAGE_SHIFT);
+		uint32_t *mmu_entry = tee_pager_get_mmu_entry(addr);
+
+		if (*mmu_entry != 0) {
+			struct tee_pager_pmem *apage;
+
+			/* Invalidate mmu_entry */
+			*mmu_entry &= ~SMALL_PAGE_MASK;
+
+			/*
+			 * Unregister the session from the page entry using
+			 * this mmu_entry.
+			 */
+			TAILQ_FOREACH(apage, &tee_pager_pmem_head, link) {
+				if (apage->mmu_entry == (uint32_t *)mmu_entry) {
+					apage->ctx_handle = NULL;
+					break;
+				}
+			}
+
+			if (apage == NULL) {
+				EMSG("Physical page to unmap not found");
+				while (1)
+					;
+			}
+		}
+	}
+
+	/* Invalidate secure TLB */
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+}
+
+void tee_pager_unhide_all_pages(void)
+{
+	struct tee_pager_pmem *apage;
+	bool has_hidden_page = false;
+
+	TAILQ_FOREACH(apage, &tee_pager_pmem_head, link) {
+		if ((*apage->mmu_entry & 0xfff) == TEE_PAGER_PAGE_UNLOADED) {
+			/* Page is hidden, unhide it */
+			has_hidden_page = true;
+			*apage->mmu_entry |= 0x10;
+		}
+	}
+
+	/* Only invalidate secure TLB if something was changed */
+	if (has_hidden_page)
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 }
