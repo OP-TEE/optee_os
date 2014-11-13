@@ -39,7 +39,7 @@
 #include <util.h>
 #include <trace.h>
 #include <kernel/misc.h>
-#include <mm/tee_pager_unpg.h>
+#include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
