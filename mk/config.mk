@@ -12,18 +12,18 @@ WARNS ?= 3
 CFG_TEE_FW_DEBUG?=0
 
 # CFG_TEE_CORE_LOG_LEVEL
-#   Max level of the tee core traces. 0 means disable, 5 is max.
-#   Supported values: 0 (no traces) to 5 (all traces)
+#   Max level of the tee core traces. 0 means disable, 4 is max.
+#   Supported values: 0 (no traces) to 4 (all traces)
 #   If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
 #   dynamically changes via debugfs in the range 1 => CFG_TEE_CORE_LOG_LEVEL
-CFG_TEE_CORE_LOG_LEVEL?=2
+CFG_TEE_CORE_LOG_LEVEL?=1
 
 # CFG_TEE_TA_LOG_LEVEL
 #   TA and TEECore log level
-#   Supported values: 0 (no traces) to 5 (all traces)
+#   Supported values: 0 (no traces) to 4 (all traces)
 #   If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
 #   dynamically changes via debugfs in the range 1 => CFG_TEE_TA_LOG_LEVEL
-CFG_TEE_TA_LOG_LEVEL?=2
+CFG_TEE_TA_LOG_LEVEL?=1
 
 
 #   If 1, enable debug features of the user mem module. This module track memory
@@ -32,4 +32,3 @@ CFG_TEE_TA_LOG_LEVEL?=2
 #   marck/check heap feature
 #   Enabling this could decrease efficiency
 CFG_TEE_CORE_USER_MEM_DEBUG?=1
-

@@ -35,7 +35,6 @@
  * converted yet.
  */
 
-#define ATAMSG		EMSG
 #define ETAMSG		EMSG
 #define ITAMSG		IMSG
 #define DTAMSG		DMSG
@@ -45,8 +44,6 @@
 #define TAOUTMSG	OUTMSG
 #define TAOUTRMSG	OUTRMSG
 
-
-#define ATAMSG_RAW	EMSG_RAW
 #define ETAMSG_RAW	EMSG_RAW
 #define ITAMSG_RAW	IMSG_RAW
 #define DTAMSG_RAW	DMSG_RAW
