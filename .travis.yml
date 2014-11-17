@@ -51,4 +51,5 @@ script:
   # QEMU-virt
   -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TEE_FW_DEBUG=1 PLATFORM=vexpress PLATFORM_FLAVOR=qemu_virt                        make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
