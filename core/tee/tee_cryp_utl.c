@@ -391,3 +391,11 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 	}
 	return TEE_SUCCESS;
 }
+
+TEE_Result tee_cryp_init(void)
+{
+	if (crypto_ops.init)
+		return crypto_ops.init();
+
+	return TEE_SUCCESS;
+}

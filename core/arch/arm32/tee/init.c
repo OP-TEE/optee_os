@@ -85,14 +85,6 @@ TEE_Result init_teecore(void)
 	/* time initialization */
 	time_source_init();
 
-	IMSG("teecore inits done");
-	return TEE_SUCCESS;
-}
-
-TEE_Result tee_cryp_init(void)
-{
-	if (crypto_ops.init)
-		return crypto_ops.init();
-
+	IMSG("init_teecore done");
 	return TEE_SUCCESS;
 }
