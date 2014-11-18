@@ -325,7 +325,7 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 	int negative;		/* ==1 if number is negative, 0 otherwise */
 	int c;			/* value of characters in digitstr */
 	/* a buffer holding the integer values of the digits */
-	static unsigned char buf[MPA_STR_MAX_SIZE];
+	unsigned char buf[MPA_STR_MAX_SIZE];
 	/* number of digits in digitstr which has been place in buf */
 	int bufidx;
 	const char *endp;	/* points to the end of digitstr */
@@ -455,7 +455,7 @@ char *mpa_get_str(char *str, int mode, int groupsize, const mpanum n)
 {
 	char *str_to_fill;
 	/* internal str with only digits, and no grouping */
-	static char int_str[MPA_STR_MAX_SIZE];
+	char int_str[MPA_STR_MAX_SIZE];
 	int chars_written;
 
 	ASSERT(str != 0, "str destination buffer is null");
