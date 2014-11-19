@@ -476,43 +476,39 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 }
 
 /*
- * outer cahce maintenance mutex shared with NSec.
+ * outer cache maintenance mutex shared with NSec.
  *
  * At boot, teecore do not need a shared mutex with NSec.
+ * => l2cc_mutex == NULL.
+ *
  * Once core has entered NSec state, teecore is not allowed to run outer cache
  * maintenace sequence unless it has necogiate with NSec a shared mutex to
  * spin lock on.
+ * => l2cc_mutex default inited to &l2cc_mutex (outercache cannot be used)
  *
- * In some situation (i.e boot, hibernation), teecore natively synchronise the
- * cores and hence do not need to rely on NSec shared mutex. This can happend
- * with NSec having previously negociated a shared mutex or not. Thus if
- * teecore "disables" the outer (l2cc) shared mutex, it must be able to backup
- * the registered one when enabling back the shared mutex.
- *
- * Currently no multi-cpu lock synchronisation: teecore runs execlusivley on
- * 1 core at a given time.
+ * core_l2cc_mutex_lock() checks l2cc_mutex and return non null if l2cc_mutex
+ * is not configured.
  */
-static unsigned int *l2cc_mutex;
-static bool l2cc_mutex_required;	/* default false */
+static unsigned int *l2cc_mutex;	/* default NULL, to mutex required */
 
 void core_l2cc_mutex_set(void *mutex)
 {
 	l2cc_mutex = (unsigned int *)mutex;
 }
-void core_l2cc_mutex_activate(bool en)
-{
-	l2cc_mutex_required = en;
-}
 
-void core_l2cc_mutex_lock(void)
+int core_l2cc_mutex_lock(void)
 {
-	if (l2cc_mutex_required)
+	if (l2cc_mutex == (void *)&l2cc_mutex)
+		return 1;
+	if (l2cc_mutex)
 		cpu_spin_lock(l2cc_mutex);
+	return 0;
 }
 
 void core_l2cc_mutex_unlock(void)
 {
-	if (l2cc_mutex_required)
+	TEE_ASSERT(l2cc_mutex != (void *)&l2cc_mutex);
+	if (l2cc_mutex != NULL)
 		cpu_spin_unlock(l2cc_mutex);
 }
 

@@ -29,36 +29,39 @@
 #include <mm/core_mmu.h>
 #include <kernel/tz_ssvce_pl310.h>
 
-unsigned int cache_maintenance_l2(int op __unused,
-				   paddr_t pa __unused, size_t len __unused)
+unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 {
 	unsigned int ret = TEE_SUCCESS;
+	uint32_t cpsr = read_cpsr();
 
-	core_l2cc_mutex_lock();
+	write_cpsr(cpsr | CPSR_I);
+	if (core_l2cc_mutex_lock())
+		return TEE_ERROR_GENERIC;
 
 	switch (op) {
 	case L2CACHE_INVALIDATE:
 		arm_cl2_invbyway();
 		break;
 	case L2CACHE_AREA_INVALIDATE:
-		arm_cl2_invbyway();
+		arm_cl2_invbypa(pa, pa + len);
 		break;
 	case L2CACHE_CLEAN:
 		arm_cl2_cleanbyway();
 		break;
 	case L2CACHE_AREA_CLEAN:
-		arm_cl2_cleanbyway();
+		arm_cl2_cleanbypa(pa, pa + len);
 		break;
 	case L2CACHE_CLEAN_INV:
 		arm_cl2_cleaninvbyway();
 		break;
 	case L2CACHE_AREA_CLEAN_INV:
-		arm_cl2_cleaninvbyway();
+		arm_cl2_cleaninvbypa(pa, pa + len);
 		break;
 	default:
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
 	core_l2cc_mutex_unlock();
+	write_cpsr(cpsr);
 	return ret;
 }

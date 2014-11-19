@@ -33,16 +33,16 @@
 #include <types_ext.h>
 
 #define arm_cl2_cleanbypa(start, end) \
-	_arm_cl2_cleanbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
-			ROUNDUP((end), PL310_WAY_SIZE))
+	_arm_cl2_cleanbypa(ROUNDDOWN((start), PL310_LINE_SIZE), \
+			ROUNDUP((end), PL310_LINE_SIZE))
 
 #define arm_cl2_invbypa(start, end) \
-	_arm_cl2_invbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
-			ROUNDUP((end), PL310_WAY_SIZE))
+	_arm_cl2_invbypa(ROUNDDOWN((start), PL310_LINE_SIZE), \
+			ROUNDUP((end), PL310_LINE_SIZE))
 
 #define arm_cl2_cleaninvbypa(start, end) \
-	_arm_cl2_cleaninvbypa(ROUNDDOWN((start), PL310_WAY_SIZE), \
-			ROUNDUP((end), PL310_WAY_SIZE))
+	_arm_cl2_cleaninvbypa(ROUNDDOWN((start), PL310_LINE_SIZE), \
+			ROUNDUP((end), PL310_LINE_SIZE))
 
 void arm_cl2_cleaninvbyway(void);
 void arm_cl2_invbyway(void);

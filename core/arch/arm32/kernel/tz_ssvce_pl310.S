@@ -185,7 +185,7 @@ loop_cl_pa_done:
 	cmp R3, #0
 	bne loop_cl_pa_done
 
-	add R0, R0, #PL310_WAY_SIZE
+	add R0, R0, #PL310_LINE_SIZE
 	cmp R1, R0
 	bne loop_cl2_clean_by_pa
 
@@ -241,7 +241,7 @@ loop_inv_pa_done:
 	CMP R3, #0
 	BNE loop_inv_pa_done
 
-	ADD R0, R0, #PL310_WAY_SIZE
+	ADD R0, R0, #PL310_LINE_SIZE
 	CMP R1, R0
 	BNE loop_cl2_inv_by_pa
 
