@@ -43,19 +43,22 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 		arm_cl2_invbyway();
 		break;
 	case L2CACHE_AREA_INVALIDATE:
-		arm_cl2_invbypa(pa, pa + len);
+		if (len)
+			arm_cl2_invbypa(pa, pa + len - 1);
 		break;
 	case L2CACHE_CLEAN:
 		arm_cl2_cleanbyway();
 		break;
 	case L2CACHE_AREA_CLEAN:
-		arm_cl2_cleanbypa(pa, pa + len);
+		if (len)
+			arm_cl2_cleanbypa(pa, pa + len - 1);
 		break;
 	case L2CACHE_CLEAN_INV:
 		arm_cl2_cleaninvbyway();
 		break;
 	case L2CACHE_AREA_CLEAN_INV:
-		arm_cl2_cleaninvbypa(pa, pa + len);
+		if (len)
+			arm_cl2_cleaninvbypa(pa, pa + len - 1);
 		break;
 	default:
 		ret = TEE_ERROR_NOT_IMPLEMENTED;

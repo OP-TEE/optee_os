@@ -68,6 +68,12 @@ struct tee_mmu_info {
 	uint32_t ta_private_vend;
 };
 
+/* get uTA heap user virtual start address */
+void *tee_mmu_get_heap_uaddr(struct tee_ta_ctx *ctx __unused, size_t heap_size)
+{
+	return (void *)(((TEE_DDR_VLOFFSET + 1) << SECTION_SHIFT) - heap_size);
+}
+
 static uint32_t get_io_size(const struct tee_ta_param *param)
 {
 	uint32_t i;
@@ -542,7 +548,7 @@ bool tee_mmu_is_vbuf_outside_ta_private(const struct tee_ta_ctx *ctx,
 			mmu->ta_private_vend - mmu->ta_private_vstart);
 }
 
-/* return true only if buffer fits outside TA private memory */
+/* return true only if buffer intersects TA private memory */
 bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
 					  const void *va, size_t size)
 {

@@ -67,6 +67,7 @@ struct tee_ta_ctx {
 	uint32_t rw_data;	/* rw data stored on heap */
 	uint32_t rw_data_usage;	/* bitfield with rw data page usage */
 	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
+	size_t heap_size;	/* size of heap */
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	uint32_t context;	/* Context ID of the process */

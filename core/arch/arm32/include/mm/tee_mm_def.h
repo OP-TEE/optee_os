@@ -32,9 +32,15 @@
 #define SMALL_PAGE_MASK		0x00000fff
 #define SMALL_PAGE_SIZE		0x00001000
 
+#define LARGE_PAGE_SHIFT	16
+#define LARGE_PAGE_MASK		0x0000ffff
+#define LARGE_PAGE_SIZE		0x00010000
+
 #define SECTION_SHIFT		20
 #define SECTION_MASK		0x000fffff
 #define SECTION_SIZE		0x00100000
+
+#define COARSE_ALIGN		(1 << 10)
 
 #define TEE_VMEM_START      0x40000000
 #define TEE_VMEM_SIZE        (1024 * 1024)

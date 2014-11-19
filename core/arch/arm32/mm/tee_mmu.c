@@ -112,7 +112,8 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 		/* Change ASID to new value */
 		tee_mmu_switch(base | TEE_MMU_DEFAULT_ATTRS, ctx->context);
 	}
-	core_tlb_maintenance(TLBINV_CURRENT_ASID, 0);
+
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 }
 
 /*

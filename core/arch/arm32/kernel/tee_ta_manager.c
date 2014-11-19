@@ -302,27 +302,15 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 	}
 }
 
-/*
- * Setup global variables initialized from TEE Core
- */
-static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
+/* user TA mngt: init heap section */
+static void tee_ta_init_heap(struct tee_ta_ctx *const ctx)
 {
 	uint32_t *data;
-	tee_uaddr_t heap_start_addr;
 
-	/*
-	 * User TA
-	 *
-	 * Heap base follows right after GOT
-	 */
-
-	/* XXX this function shouldn't know this mapping */
-	heap_start_addr = ((TEE_DDR_VLOFFSET + 1) << SECTION_SHIFT) - heap_size;
-
+	/* user TA expects heap start loaded at 1st 32bit data after .got */
 	data = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size +
 			     (ctx->head->rel_dyn_got_size & TA_HEAD_GOT_MASK));
-
-	*data = heap_start_addr;
+	*data = (uint32_t)tee_mmu_get_heap_uaddr(ctx, ctx->heap_size);
 #ifdef PAGER_DEBUG_PRINT
 	DMSG("heap_base [0x%x] = 0x%x", data, *data);
 #endif
@@ -500,11 +488,12 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 		ctx->flags |= TA_FLAG_MULTI_SESSION;
 	}
 
-	/* Ensure proper aligment of stack */
+	/* Ensure proper aligment of stack and allocate heap/stack */
 	ctx->stack_size = ROUNDUP(sub_head->stack_size,
 				      TEE_TA_STACK_ALIGNMENT);
 
 	*heap_size = sub_head->heap_size;
+	ctx->heap_size = *heap_size;
 
 	/*
 	 * Allocate heap and stack
@@ -560,12 +549,12 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-static void tee_ta_load_init_user_ta(struct tee_ta_ctx *ctx, size_t heap_size)
+static void tee_ta_load_init_user_ta(struct tee_ta_ctx *ctx)
 {
 	/* Init rel.dyn, GOT, ZI and heap */
 	tee_ta_init_reldyn(ctx);
 	tee_ta_init_got(ctx);
-	tee_ta_init_heap(ctx, heap_size);
+	tee_ta_init_heap(ctx);
 	tee_ta_init_zi(ctx);
 }
 
@@ -644,12 +633,12 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	 * Note that the setup below will cause at least one page fault so it's
 	 * important that the session is fully registered at this stage.
 	 */
-	tee_ta_load_init_user_ta(ctx, heap_size);
+	tee_ta_load_init_user_ta(ctx);
 
 	DMSG("Loaded TA at 0x%x, ro_size %u, rw_size %u, zi_size %u",
 	     tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
 	     ctx->head->rw_size, ctx->head->zi_size);
-	DMSG("ELF load address 0x%x", ctx->load_addr);
+	DMSG("TA load address 0x%x", ctx->load_addr);
 
 	set_tee_rs(NULL);
 	tee_mmu_set_ctx(NULL);

@@ -478,13 +478,14 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 /*
  * outer cache maintenance mutex shared with NSec.
  *
- * At boot, teecore do not need a shared mutex with NSec.
- * => l2cc_mutex == NULL.
- *
- * Once core has entered NSec state, teecore is not allowed to run outer cache
- * maintenace sequence unless it has necogiate with NSec a shared mutex to
- * spin lock on.
- * => l2cc_mutex default inited to &l2cc_mutex (outercache cannot be used)
+ * NS can send requests to TEE code to enable/disable the l2cc_mutex:
+ * - Enable means start using specified shared mutex for outercache
+ *   maintenance.
+ *   => l2cc_mutex = teecore virtual address to negociated mutex RAM cell.
+ * - Disable means stop using the shared mutex, it is no more required as NS
+ *   world will not run L2 cache maintenance (at least until next "l2cc mutex
+ *   enable" request).
+ *   => l2cc_mutex = NULL
  *
  * core_l2cc_mutex_lock() checks l2cc_mutex and return non null if l2cc_mutex
  * is not configured.

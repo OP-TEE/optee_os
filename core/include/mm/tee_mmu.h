@@ -182,6 +182,7 @@ bool tee_mmu_is_kernel_mapping(void);
 
 uint32_t tee_mmu_kmap_get_cache_attr(void *va);
 uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va);
+void *tee_mmu_get_heap_uaddr(struct tee_ta_ctx *ctx, size_t heap_size);
 void tee_mmu_copy_table(void *va, const struct tee_ta_ctx *ctx);
 uint8_t tee_mmu_get_page_shift(void);
 
