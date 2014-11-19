@@ -59,8 +59,8 @@
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 
-
-/* Use this invalid ID for a static TA, since
+/*
+ * Use this invalid ID for a static TA, since
  * session is not needed for calling static TA.
  */
 #define TEE_SESSION_ID_STATIC_TA 0xFFFFFFFF
@@ -997,7 +997,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 
 		if (ctx->mm != NULL) {
 			pa = tee_mm_get_smem(ctx->mm);
-			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
+			if (tee_mmu_user_pa2va(ctx, pa, &va) ==
 			    TEE_SUCCESS) {
 				s = tee_mm_get_bytes(ctx->mm);
 				memset(va, 0, s);
@@ -1007,7 +1007,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 
 		if (ctx->mm_heap_stack != NULL) {
 			pa = tee_mm_get_smem(ctx->mm_heap_stack);
-			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
+			if (tee_mmu_user_pa2va(ctx, pa, &va) ==
 			    TEE_SUCCESS) {
 				s = tee_mm_get_bytes(ctx->mm_heap_stack);
 				memset(va, 0, s);
