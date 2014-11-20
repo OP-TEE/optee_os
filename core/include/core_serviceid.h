@@ -25,6 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _CORE_SERVICEID_H
+#define _CORE_SERVICEID_H
+
 /**
  * Secure services identification numbers
  *
@@ -68,5 +71,4 @@ typedef enum {
 
 } t_service_id;
 
-
-
+#endif

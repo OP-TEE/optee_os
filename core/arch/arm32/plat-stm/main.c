@@ -24,18 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <stdint.h>
 #include <string.h>
-
 #include <sm/sm.h>
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
-
 #include <kernel/arch_debug.h>
-
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
@@ -49,7 +45,7 @@
 #include <tee/entry.h>
 #include <console.h>
 #include <kernel/asc.h>
-
+#include <kernel/tee_l2cc_mutex.h>
 #include <assert.h>
 
 #ifdef WITH_STACK_CANARIES
@@ -236,6 +232,7 @@ static void main_tee_entry(struct thread_smc_args *args)
 	 * This function first catches all ST specific SMC functions
 	 * if none matches, the generic tee_entry is called.
 	 */
+	int ret;
 
 	/* TODO move to main_init() */
 	if (init_teecore() != TEE_SUCCESS)
@@ -253,16 +250,30 @@ static void main_tee_entry(struct thread_smc_args *args)
 	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
 		switch (args->a1) {
 		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_GET_L2CC_MUTEX, &args->a2);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_SET_L2CC_MUTEX, &args->a2);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_ENABLE_L2CC_MUTEX, NULL);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			/* TODO call the appropriate internal functions */
-			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
-			return;
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_DISABLE_L2CC_MUTEX, NULL);
+			break;
 		default:
 			args->a0 = TEESMC_RETURN_EBADCMD;
 			return;
 		}
+		if (ret)
+			args->a0 = TEESMC_RETURN_EBADADDR;
+		else
+			args->a0 = TEESMC_RETURN_OK;
+		return;
 	}
 
 	tee_entry(args);

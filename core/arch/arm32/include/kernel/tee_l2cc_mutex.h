@@ -26,7 +26,8 @@
  */
 #ifndef TEE_L2CC_MUTEX_H
 #define TEE_L2CC_MUTEX_H
+#include <core_serviceid.h>
 
-TEE_Result tee_l2cc_mutex_configure(uint32_t service_id, uint32_t *mutex);
+TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex);
 
 #endif /* TEE_L2CC_MUTEX_H */

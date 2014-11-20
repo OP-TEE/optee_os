@@ -80,7 +80,7 @@ static int alloc_l2cc_mutex(void)
  * - if NSec did not register a L2 mutex, default allocate it in public RAM.
  * - if NSec disables L2 mutex, disable the current mutex and unregister it.
  */
-TEE_Result tee_l2cc_mutex_configure(uint32_t service_id, uint32_t *mutex)
+TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex)
 {
 	uint32_t addr;
 	void *va;
