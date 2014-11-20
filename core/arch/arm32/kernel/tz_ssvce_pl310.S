@@ -32,9 +32,9 @@
 .global arm_cl2_cleaninvbyway
 .global arm_cl2_invbyway
 .global arm_cl2_cleanbyway
-.global _arm_cl2_cleanbypa
-.global _arm_cl2_invbypa
-.global _arm_cl2_cleaninvbypa
+.global arm_cl2_cleanbypa
+.global arm_cl2_invbypa
+.global arm_cl2_cleaninvbypa
 
 /*
  * void arm_cl2_cleaninvbyway(void) - clean & invalidate the whole L2 cache.
@@ -43,7 +43,7 @@ arm_cl2_cleaninvbyway:
 
 	/* Clean and invalidate all cache ways */
 	movw r0, #PL310_FLUSH_BY_WAY
-	movt r0, PL310_BASE_H
+	movt r0, #PL310_BASE_H
 	movw r1, #0x00FF
 	movt r1, #0x0000
 	str r1, [r0]
@@ -155,164 +155,84 @@ loop_cl_way_sync_done:
 	mov pc, lr
 
 /*
- * void _arm_cl2_cleanbypa(paddr_t start, paddr_t end);
- *
- * clean L2 cache by physical address range.
+ * void _arm_cl2_xxxbypa(paddr_t start, paddr_t end, int pl310value);
+ * pl310value is one of PL310_CLEAN_BY_PA, PL310_INV_BY_PA or PL310_FLUSH_BY_PA
  */
-_arm_cl2_cleanbypa:
+_arm_cl2_xxxbypa:
+	/* Align start address on PL310 line size */
+	and r0, #(~(PL310_LINE_SIZE - 1))
 
 	/*
 	 * ARM ERRATA #764369
 	 * Undocummented SCU Diagnostic Control Register
 	 */
-	MOVW R2, #SCU_ERRATA744369 /* LSB */
-	MOVT R2, #SCU_BASE_H /* MSB */
-	MOVW R3, #0x0001
-	MOVT R3, #0x0000
-	STR R3, [R2]
-	DSB
+	movw r12, #SCU_ERRATA744369 /* LSB */
+	movt r12, #SCU_BASE_H /* MSB */
+	movw r3, #0x0001
+	movt r3, #0x0000
+	str r3, [r12]
+	dsb
 
-	/* Clean PA */
-loop_cl2_clean_by_pa:
-	movw R2, #PL310_CLEAN_BY_PA
-	movt R2, #PL310_BASE_H
-	str R0, [R2]
+loop_cl2_xxxbypa:
+	mov r12, r2
+	str r0, [r12]
 
 	/* Wait for PA to be cleaned */
-loop_cl_pa_done:
-	ldr R3, [R2]
-	and R3,R3,R0
-	cmp R3, #0
-	bne loop_cl_pa_done
+loop_xxx_pa_done:
+	ldr r3, [r12]
+	and r3,r3,r0
+	cmp r3, #0
+	bne loop_xxx_pa_done
 
-	add R0, R0, #PL310_WAY_SIZE
-	cmp R1, R0
-	bne loop_cl2_clean_by_pa
+	add r0, r0, #PL310_LINE_SIZE
+	cmp r1, r0
+	bpl loop_cl2_xxxbypa
 
 	/* Cache Sync */
-	movw R2, #PL310_SYNC
-	movt R2, #PL310_BASE_H
+	movw r12, #PL310_SYNC
+	movt r12, #PL310_BASE_H
 
 	/* Wait for writing cache sync */
-loop_cl_pa_sync:
-	ldr R0, [R2]
-	cmp R0, #0
-	bne loop_cl_pa_sync
+loop_xxx_pa_sync:
+	ldr r0, [r12]
+	cmp r0, #0
+	bne loop_xxx_pa_sync
 
-	movw R0, #0x0001
-	movt R0, #0x0000
-	str R0, [R2]
+	movw r0, #0x0001
+	movt r0, #0x0000
+	str r0, [r12]
 
-loop_cl_pa_sync_done:
-	ldr R0, [R2]
-	cmp R0, #0
-	bne loop_cl_pa_sync_done
+loop_xxx_pa_sync_done:
+	ldr r0, [r12]
+	cmp r0, #0
+	bne loop_xxx_pa_sync_done
 
 	mov pc, lr
 
 /*
- * void _arm_cl2_invbypa(paddr_t start, paddr_t end);
- *
+ * void _arm_cl2_cleanbypa(paddr_t start, paddr_t end);
+ * clean L2 cache by physical address range.
+ */
+arm_cl2_cleanbypa:
+	movw r2, #PL310_CLEAN_BY_PA
+	movt r2, #PL310_BASE_H
+	b _arm_cl2_xxxbypa
+
+/*
+ * void arm_cl2_invbypa(paddr_t start, paddr_t end);
  * invalidate L2 cache by physical address range.
  */
-_arm_cl2_invbypa:
-
-	/*
-	 * ARM ERRATA #764369
-	 * Undocummented SCU Diagnostic Control Register
-	 */
-	MOVW R2, #SCU_ERRATA744369 /* LSB */
-	MOVT R2, #SCU_BASE_H /* MSB */
-	MOVW R3, #0x0001
-	MOVT R3, #0x0000
-	STR R3, [R2]
-	DSB
-
-	/* Invalidate PA */
-loop_cl2_inv_by_pa:
-	MOVW R2, #PL310_INV_BY_PA
-	MOVT R2, #PL310_BASE_H
-	STR R0, [R2]
-
-	/* Wait for PA to be invalidated */
-loop_inv_pa_done:
-	LDR R3, [R2]
-	AND R3,R3,R0
-	CMP R3, #0
-	BNE loop_inv_pa_done
-
-	ADD R0, R0, #PL310_WAY_SIZE
-	CMP R1, R0
-	BNE loop_cl2_inv_by_pa
-
-
-	/* Cache Sync */
-	MOVW R2, #PL310_SYNC
-	MOVT R2, #PL310_BASE_H
-
-	/* Wait for writing cache sync */
-loop_inv_pa_sync:
-	LDR R0, [R2]
-	CMP R0, #0
-	BNE loop_inv_pa_sync
-
-	MOVW R0, #0x0001
-	MOVT R0, #0x0000
-	STR R0, [R2]
-
-loop_inv_pa_sync_done:
-	LDR R0, [R2]
-	CMP R0, #0
-	BNE loop_inv_pa_sync_done
-
-	MOV PC, LR
+arm_cl2_invbypa:
+	movw r2, #PL310_INV_BY_PA
+	movt r2, #PL310_BASE_H
+	b _arm_cl2_xxxbypa
 
 /*
- * void _arm_cl2_cleaninvbypa(paddr_t start, paddr_t end);
- *
+ * void arm_cl2_cleaninvbypa(paddr_t start, paddr_t end);
  * clean and invalidate L2 cache by physical address range.
  */
-_arm_cl2_cleaninvbypa:
+arm_cl2_cleaninvbypa:
+	movw r2, #PL310_FLUSH_BY_PA
+	movt r2, #PL310_BASE_H
+	b _arm_cl2_xxxbypa
 
-	mov r2, r0
-	/*
-	 * ARM ERRATA #764369
-	 * Undocummented SCU Diagnostic Control Register
-	 */
-	MOVW R0, #SCU_ERRATA744369 /* LSB */
-	MOVT R0, #SCU_BASE_H /* MSB */
-	mov r1, #1
-	STR R1, [R0]
-	DSB
-
-	/* Invalidate PA */
-	movw r0, #PL310_FLUSH_BY_PA
-	movt r0, #PL310_BASE_H
-	str r2, [r0]
-
-	/* Wait for PA to be invalidated */
-loop_cli_pa_done:
-	ldr r2, [r0]
-	and r2,r2,r1
-	cmp r2, #0
-	bne loop_cli_pa_done
-
-	/* Cache Sync */
-	movw r0, #PL310_SYNC
-	movt r0, #PL310_BASE_H
-
-	/* Wait for writing cache sync */
-loop_cli_pa_sync:
-	ldr r1, [r0]
-	cmp r1, #0
-	bne loop_cli_pa_sync
-
-	mov r1, #1
-	str r1, [r0]
-
-loop_cli_pa_sync_done:
-	ldr r1, [r0]
-	cmp r1, #0
-	bne loop_cli_pa_sync_done
-
-	mov pc, lr
