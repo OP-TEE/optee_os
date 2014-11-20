@@ -33,10 +33,14 @@ unsigned int secure_get_cpu_id(void);
 void arm_cl1_d_cleanbysetway(void);
 void arm_cl1_d_invbysetway(void);
 void arm_cl1_d_cleaninvbysetway(void);
+/* End address is included in the range (last address in range)*/
 void arm_cl1_d_cleanbyva(void *start, void *end);
+/* End address is included in the range (last address in range)*/
 void arm_cl1_d_invbyva(void *start, void *end);
+/* End address is included in the range (last address in range)*/
 void arm_cl1_d_cleaninvbyva(void *start, void *end);
 void arm_cl1_i_inv_all(void);
+/* End address is included in the range (last address in range)*/
 void arm_cl1_i_inv(void *start, void *end);
 
 void secure_mmu_datatlbinvall(void);

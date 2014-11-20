@@ -441,19 +441,22 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 		arm_cl1_d_cleanbysetway();
 		break;
 	case DCACHE_AREA_CLEAN:
-		arm_cl1_d_cleanbyva(va, (char *)va + len);
+		if (len)
+			arm_cl1_d_cleanbyva(va, (char *)va + len - 1);
 		break;
 	case DCACHE_INVALIDATE:
 		arm_cl1_d_invbysetway();
 		break;
 	case DCACHE_AREA_INVALIDATE:
-		arm_cl1_d_invbyva(va, (char *)va + len);
+		if (len)
+			arm_cl1_d_invbyva(va, (char *)va + len - 1);
 		break;
 	case ICACHE_INVALIDATE:
 		arm_cl1_i_inv_all();
 		break;
 	case ICACHE_AREA_INVALIDATE:
-		arm_cl1_i_inv(va, (char *)va + len);
+		if (len)
+			arm_cl1_i_inv(va, (char *)va + len - 1);
 		break;
 	case WRITE_BUFFER_DRAIN:
 		DMSG("unsupported operation 0x%X (WRITE_BUFFER_DRAIN)",
@@ -463,7 +466,8 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 		arm_cl1_d_cleaninvbysetway();
 		break;
 	case DCACHE_AREA_CLEAN_INV:
-		arm_cl1_d_cleaninvbyva(va, (char *)va + len);
+		if (len)
+			arm_cl1_d_cleaninvbyva(va, (char *)va + len - 1);
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
