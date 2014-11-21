@@ -67,6 +67,12 @@ SECTIONS
 		KEEP(*(.text.boot))
 		*(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
 		__text_end = .;
+
+		. = ALIGN(4);
+		__initcall_start = .;
+		*(.initcall1)
+		*(.initcall2)
+		__initcall_end = .;
 	}
 
 	.interp : { *(.interp) }

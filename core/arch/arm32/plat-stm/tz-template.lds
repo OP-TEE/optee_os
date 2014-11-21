@@ -21,6 +21,12 @@ SECTIONS
         *(.got); *(.got.*)
         *(.data); *(.data.*)
 
+	. = ALIGN(4);
+	__initcall_start = .;
+	*(.initcall1)
+	*(.initcall2)
+	__initcall_end = .;
+
         __start_ta_head_section = . ;
         *(ta_head_section)
         __stop_ta_head_section = . ;

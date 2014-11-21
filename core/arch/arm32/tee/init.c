@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <assert.h>
+#include <initcall.h>
 #include <malloc.h>		/* required for inits */
 
 #include <sm/tee_mon.h>
@@ -43,6 +44,20 @@
 #endif
 
 #define TEE_MON_MAX_NUM_ARGS    8
+
+extern initcall_t __initcall_start, __initcall_end;
+static void call_initcalls(void)
+{
+	initcall_t *call;
+
+	for (call = &__initcall_start; call < &__initcall_end; call++) {
+		TEE_Result ret;
+		ret = (*call)();
+		if (ret != TEE_SUCCESS) {
+			EMSG("Initial call 0x%08x failed", (uint32_t)call);
+		}
+	}
+}
 
 TEE_Result init_teecore(void)
 {
@@ -69,6 +84,9 @@ TEE_Result init_teecore(void)
 	/* time initialization */
 	time_source_init();
 
-	IMSG("init_teecore done");
+	/* call pre-define initcall routines */
+	call_initcalls();
+
+	IMSG("teecore inits done");
 	return TEE_SUCCESS;
 }

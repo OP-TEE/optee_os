@@ -65,6 +65,12 @@ SECTIONS
 		KEEP(*(.text.boot.vectab2))
 		KEEP(*(.text.boot))
 
+		. = ALIGN(4);
+		__initcall_start = .;
+		KEEP(*(.initcall1))
+		KEEP(*(.initcall2))
+		__initcall_end = .;
+
 #ifdef CFG_WITH_PAGER
 		*(.text)
 /* Include list of sections needed for paging */
