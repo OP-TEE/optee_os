@@ -1743,8 +1743,7 @@ static TEE_Result mac_update(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result mac_final(void *ctx, uint32_t algo, const uint8_t *data,
-			    size_t data_len, uint8_t *digest,
+static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			    size_t digest_len)
 {
 	struct cbc_state *cbc;
@@ -1758,11 +1757,6 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, const uint8_t *data,
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
-		if (data && data_len) {
-			if (CRYPT_OK != hmac_process((hmac_state *)ctx, data,
-						     data_len))
-				return TEE_ERROR_BAD_STATE;
-		}
 		if (CRYPT_OK != hmac_done((hmac_state *)ctx, digest,
 					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;
@@ -1775,9 +1769,6 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, const uint8_t *data,
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
 		cbc = (struct cbc_state *)ctx;
-
-		if (TEE_SUCCESS != mac_update(ctx, algo, data, data_len))
-			return TEE_ERROR_BAD_STATE;
 
 		/* Padding is required */
 		switch (algo) {
@@ -1811,11 +1802,6 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, const uint8_t *data,
 		break;
 
 	case TEE_ALG_AES_CMAC:
-		if (data && data_len) {
-			if (CRYPT_OK != omac_process((omac_state *)ctx, data,
-						     data_len))
-				return TEE_ERROR_BAD_STATE;
-		}
 		if (CRYPT_OK != omac_done((omac_state *)ctx, digest,
 					  &ltc_digest_len))
 			return TEE_ERROR_BAD_STATE;

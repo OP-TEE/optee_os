@@ -78,11 +78,9 @@ struct mac_ops {
 	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
 	TEE_Result (*init)(void *ctx, uint32_t algo,
 			   const uint8_t *key, size_t len);
-
 	TEE_Result (*update)(void *ctx, uint32_t algo,
 			     const uint8_t *data, size_t len);
 	TEE_Result (*final)(void *ctx, uint32_t algo,
-			    const uint8_t *data, size_t data_len,
 			    uint8_t *digest, size_t digest_len);
 };
 

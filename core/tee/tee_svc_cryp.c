@@ -1886,7 +1886,7 @@ TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
 		break;
 
 	case TEE_OPERATION_MAC:
-		if (!crypto_ops.mac.final)
+		if (!crypto_ops.mac.update || !crypto_ops.mac.final)
 			return TEE_ERROR_NOT_IMPLEMENTED;
 		res = tee_mac_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
@@ -1896,8 +1896,14 @@ TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
 			goto out;
 		}
 
-		res = crypto_ops.mac.final(cs->ctx, cs->algo, chunk,
-					   chunk_size, hash, hash_size);
+		if (chunk_size) {
+			res = crypto_ops.mac.update(cs->ctx, cs->algo, chunk,
+						    chunk_size);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
+
+		res = crypto_ops.mac.final(cs->ctx, cs->algo, hash, hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
