@@ -154,13 +154,15 @@ static int self_test_malloc(void)
 	int ret = 0;
 
 	LOG("malloc tests (malloc, free, calloc, realloc, memalign):");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	/* test malloc */
 	p1 = malloc(1024);
 	LOG("- p1 = malloc(1024)");
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	r = (p1 && p2 && malloc_buffer_is_within_alloced(p1, 1024) &&
 		!malloc_buffer_is_within_alloced(p1 + 25, 1000) &&
 		!malloc_buffer_is_within_alloced(p1 - 25, 500) &&
@@ -177,7 +179,8 @@ static int self_test_malloc(void)
 	free(p2);
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	r = (p1 && p2);
 	if (!r)
 		ret = -1;
@@ -190,11 +193,12 @@ static int self_test_malloc(void)
 	p2 = NULL;
 
 	/* test calloc */
-	p3 = calloc(0x10, 1024);
+	p3 = calloc(4, 1024);
 	p4 = calloc(0x100, 1024 * 1024);
-	LOG("- p3 = calloc(0x10, 1024)");
+	LOG("- p3 = calloc(4, 1024)");
 	LOG("- p4 = calloc(0x100, 1024*1024)   too big: should fail!");
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	r = (p3 && !p4);
 	if (!r)
 		ret = -1;
@@ -207,14 +211,16 @@ static int self_test_malloc(void)
 	p4 = NULL;
 
 	/* test memalign */
-	p3 = memalign(0x10000, 1024);
-	LOG("- p3 = memalign(%d, 1024)", 0x10000);
+	p3 = memalign(0x1000, 1024);
+	LOG("- p3 = memalign(%d, 1024)", 0x1000);
 	p1 = malloc(1024);
 	LOG("- p1 = malloc(1024)");
-	p4 = memalign(0x10000, 1024);
-	LOG("- p4 = memalign(%d, 1024)", 0x10000);
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
-	r = (p1 && p3 && p4);
+	p4 = memalign(0x100, 512);
+	LOG("- p4 = memalign(%d, 512)", 0x100);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	r = (p1 && p3 && p4 &&
+	    !((vaddr_t)p3 % 0x1000) && !((vaddr_t)p4 % 0x100));
 	if (!r)
 		ret = -1;
 	LOG("  => test %s", r ? "ok" : "FAILED");
@@ -232,7 +238,8 @@ static int self_test_malloc(void)
 	LOG("- p3 = memalign(%d, 1024)", 100);
 	p4 = memalign(0, 1024);
 	LOG("- p4 = memalign(%d, 1024)", 0);
-	LOG("  p1=%p  p2=%p  p3=%p  p4=%p", p1, p2, p3, p4);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	r = (!p3 && !p4);
 	if (!r)
 		ret = -1;
