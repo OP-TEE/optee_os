@@ -24,42 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef TEE_SE_AID
+#define TEE_SE_AID
 
-#ifndef TEE_SE_READER_H
-#define TEE_SE_READER_H
+#define MAX_AID_LENGTH	16
+#define MIN_AID_LENGTH	5
 
-#include <tee_api_types.h>
+struct tee_se_aid;
 
-struct tee_ta_ctx;
-struct tee_se_reader_handle;
-struct tee_se_session;
+TEE_Result aid_create(const char *name, struct tee_se_aid **aid);
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len);
+void aid_acquire(struct tee_se_aid *aid);
 
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
-		TEE_SEReaderProperties *prop);
+void aid_release(struct tee_se_aid *aid);
 
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle);
-
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle);
-
-void tee_se_reader_detach(struct tee_se_reader_handle *handle);
-
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
-		struct tee_se_session **session);
-
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
-		struct tee_se_session *session);
-
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
-		uint8_t *tx_buf, size_t tx_buf_len, uint8_t *rx_buf, size_t *rx_buf_len);
-
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle);
-
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle);
-
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle);
+int aid_get_refcnt(struct tee_se_aid *aid);
 
 #endif

@@ -620,6 +620,7 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	TAILQ_INIT(&ctx->open_sessions);
 	TAILQ_INIT(&ctx->cryp_states);
 	TAILQ_INIT(&ctx->objects);
+	TAILQ_INIT(&ctx->se_sessions);
 	TAILQ_INIT(&ctx->storage_enums);
 	ctx->head = sec_head;
 

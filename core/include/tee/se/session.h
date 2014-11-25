@@ -25,41 +25,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_READER_H
-#define TEE_SE_READER_H
+#ifndef TEE_SE_SESSION_H
+#define TEE_SE_SESSION_H
 
 #include <tee_api_types.h>
 
 struct tee_ta_ctx;
-struct tee_se_reader_handle;
 struct tee_se_session;
+struct tee_se_reader_handle;
+struct tee_se_channel;
+struct tee_se_aid;
+struct cmd_apdu;
+struct resp_apdu;
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len);
+struct tee_se_session *alloc_tee_se_session(struct tee_se_reader_handle *handle);
 
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
-		TEE_SEReaderProperties *prop);
+void free_tee_se_session(struct tee_se_session *s);
 
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle);
+void add_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s);
 
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle);
+void remove_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s);
 
-void tee_se_reader_detach(struct tee_se_reader_handle *handle);
+TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
+		struct tee_se_aid *aid, struct tee_se_channel **channel);
 
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
-		struct tee_se_session **session);
+TEE_Result tee_se_session_open_logical_channel(struct tee_se_session *s,
+		struct tee_se_aid *aid, struct tee_se_channel **channel);
 
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
+void tee_se_session_close_channel(struct tee_se_session *s,
+		struct tee_se_channel *c);
+
+TEE_Result tee_se_session_transmit(struct tee_se_session *session,
+		struct cmd_apdu *c, struct resp_apdu *r);
+
+struct tee_se_reader_handle *tee_se_session_get_reader_handle(
 		struct tee_se_session *session);
-
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
-		uint8_t *tx_buf, size_t tx_buf_len, uint8_t *rx_buf, size_t *rx_buf_len);
-
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle);
-
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle);
-
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle);
 
 #endif

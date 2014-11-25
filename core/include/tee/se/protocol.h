@@ -25,41 +25,54 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_READER_H
-#define TEE_SE_READER_H
+#ifndef TEE_SE_PROTOCOL_H
+#define TEE_SE_PROTOCOL_H
 
-#include <tee_api_types.h>
+#define ISO7816_CLA	0x0
 
-struct tee_ta_ctx;
+#define ISO7816_CLA_OFFSET	0x0
+
+#define SELECT_CMD			0xA4
+/* P1 parameters */
+#define	SELECT_BY_AID			0x04
+/* P2 parameters */
+#define	FIRST_OR_ONLY_OCCURRENCE	0x0
+#define	NEXT_OCCURRENCE			0x2
+
+#define MANAGE_CHANNEL_CMD		0x70
+/* P1 parameters */
+#define	OPEN_CHANNEL			0x00
+#define	CLOSE_CHANNEL			0x80
+/* P2 parameters */
+#define	OPEN_NEXT_AVAILABLE		0x00
+
+
+#define CMD_OK_SW1	0x90
+#define CMD_OK_SW2	0x00
+
 struct tee_se_reader_handle;
 struct tee_se_session;
+struct tee_se_channel;
+struct tee_se_aid;
+struct cmd_apdu;
+struct resp_apdu;
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len);
+/* ISO7816 protocol handlers */
+TEE_Result iso7816_exchange_apdu(struct tee_se_reader_handle *handle,
+		struct cmd_apdu *cmd, struct resp_apdu *resp);
 
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
-		TEE_SEReaderProperties *prop);
+TEE_Result iso7816_select(struct tee_se_channel *c, struct tee_se_aid *aid);
 
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle);
+TEE_Result iso7816_select_next(struct tee_se_channel *c);
 
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle);
+TEE_Result iso7816_open_available_logical_channel(struct tee_se_session *s,
+		int *channel_id);
 
-void tee_se_reader_detach(struct tee_se_reader_handle *handle);
+TEE_Result iso7816_close_logical_channel(struct tee_se_session *s,
+		int channel_id);
 
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
-		struct tee_se_session **session);
+int iso7816_get_cla_channel(int channel_id);
 
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
-		struct tee_se_session *session);
-
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
-		uint8_t *tx_buf, size_t tx_buf_len, uint8_t *rx_buf, size_t *rx_buf_len);
-
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle);
-
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle);
-
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle);
 
 #endif
+

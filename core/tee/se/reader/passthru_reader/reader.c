@@ -230,7 +230,7 @@ void init_reader(struct pcsc_reader *r, uint8_t index, uint32_t mmio_base)
 	r->state = pcsc_reader_read_reg(r, PCSC_REG_READER_STATE);
 
 	snprintf(r->se_reader.name, TEE_SE_READER_NAME_MAX,
-			"tee_reader#%d", index);
+			"tee_reader_pcsc#%d", index);
 	r->se_reader.ops = &pcsc_passthru_reader_ops;
 	r->se_reader.prop.teeOnly = true;
 	r->se_reader.prop.selectResponseEnable = true;

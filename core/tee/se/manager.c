@@ -30,6 +30,7 @@
 #include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_common_unpg.h>
 #include <tee/se/manager.h>
+#include <tee/se/session.h>
 #include <tee/se/reader/interface.h>
 
 #include <kernel/mutex.h>
@@ -230,6 +231,7 @@ TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
 
 void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle)
 {
+	TEE_ASSERT(handle != NULL);
 	mutex_lock(&handle->mutex);
 	handle->basic_channel_locked = true;
 	mutex_unlock(&handle->mutex);
@@ -237,6 +239,7 @@ void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle)
 
 void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle)
 {
+	TEE_ASSERT(handle != NULL);
 	mutex_lock(&handle->mutex);
 	handle->basic_channel_locked = false;
 	mutex_unlock(&handle->mutex);
@@ -244,7 +247,54 @@ void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle)
 
 bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle)
 {
+	TEE_ASSERT(handle != NULL);
 	return handle->basic_channel_locked;
+}
+
+TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
+		struct tee_se_reader_handle *handle,
+		struct tee_se_session **session)
+{
+	TEE_Result ret;
+	struct tee_se_session *s;
+
+	TEE_ASSERT(session != NULL && *session == NULL);
+	TEE_ASSERT(handle != NULL && handle->reader != NULL);
+
+	s = alloc_tee_se_session(handle);
+	if (!s)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	ret = tee_se_reader_attach(handle);
+	if (ret != TEE_SUCCESS)
+		goto err_free_session;
+
+	*session = s;
+
+	if (ctx)
+		add_tee_se_session(ctx, s);
+
+	return TEE_SUCCESS;
+err_free_session:
+	free_tee_se_session(s);
+	return ret;
+}
+
+void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
+		struct tee_se_session *session)
+{
+	struct tee_se_reader_handle *handle;
+
+	TEE_ASSERT(session != NULL);
+
+	handle = tee_se_session_get_reader_handle(session);
+	TEE_ASSERT(handle->refcnt > 0);
+
+	tee_se_reader_detach(handle);
+
+	if (ctx)
+		remove_tee_se_session(ctx, session);
+	free_tee_se_session(session);
 }
 
 static void context_init(struct tee_se_manager_ctx *ctx)

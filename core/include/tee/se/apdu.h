@@ -24,42 +24,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef TEE_SE_APDU
+#define TEE_SE_APDU
 
-#ifndef TEE_SE_READER_H
-#define TEE_SE_READER_H
+struct cmd_apdu;
+struct resp_apdu;
+struct apdu_base;
 
-#include <tee_api_types.h>
+#define to_apdu_base(apdu)	((struct apdu_base *)(apdu))
 
-struct tee_ta_ctx;
-struct tee_se_reader_handle;
-struct tee_se_session;
+struct cmd_apdu *alloc_cmd_apdu(uint8_t cla, uint8_t ins, uint8_t p1,
+		uint8_t p2, uint8_t lc, uint8_t le, uint8_t *data);
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len);
+struct resp_apdu *alloc_resp_apdu(uint8_t le);
 
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
-		TEE_SEReaderProperties *prop);
+uint8_t *resp_apdu_get_resp_data(struct resp_apdu *apdu);
 
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle);
+size_t resp_apdu_get_resp_data_len(struct resp_apdu *apdu);
 
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle);
+uint8_t resp_apdu_get_sw1(struct resp_apdu *apdu);
 
-void tee_se_reader_detach(struct tee_se_reader_handle *handle);
+uint8_t resp_apdu_get_sw2(struct resp_apdu *apdu);
 
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
-		struct tee_se_session **session);
+struct apdu_base *alloc_apdu_from_buf(uint8_t *buf, size_t length);
 
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
-		struct tee_se_session *session);
+uint8_t *apdu_get_data(struct apdu_base *apdu);
 
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
-		uint8_t *tx_buf, size_t tx_buf_len, uint8_t *rx_buf, size_t *rx_buf_len);
+size_t apdu_get_length(struct apdu_base *apdu);
 
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle);
+int apdu_get_refcnt(struct apdu_base *apdu);
 
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle);
+void apdu_acquire(struct apdu_base *apdu);
 
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle);
+void apdu_release(struct apdu_base *apdu);
 
 #endif
