@@ -172,6 +172,14 @@ static struct map_area bootcfg_memory_map[] = {
 	 },
 #endif
 
+#ifdef WITH_PCSC_PASSTHRU_READER_DRV
+	{	/* PCSC passthru reader */
+	 .type = MEM_AREA_IO_SEC,
+	 .pa = PCSC_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .device = true, .secure = true, .rw = true,
+	 },
+#endif
+
 	{.type = MEM_AREA_NOTYPE}
 };
 

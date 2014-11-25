@@ -25,10 +25,16 @@ WITH_SECURE_TIME_SOURCE_CNTPCT := y
 WITH_UART_DRV := y
 WITH_GIC_DRV := y
 
-
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_SHA256_ARM32_CE ?= y
 CFG_CRYPTO_SHA1_ARM32_CE ?= y
+endif
+
+# SE API is only suppoorted by QEMU Virt platform
+ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+WITH_SE_API := y
+WITH_PCSC_PASSTHRU_READER_DRV := y
+core-platform-cppflags += -DWITH_PCSC_PASSTHRU_READER_DRV=1
 endif
 
 ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)

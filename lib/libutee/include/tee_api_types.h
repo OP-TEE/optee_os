@@ -168,6 +168,19 @@ typedef uint32_t TEE_BigIntFMM;
 
 typedef uint32_t TEE_BigIntFMMContext;
 
+/* Tee Secure Element APIs */
+
+typedef struct {
+	bool sePresent;
+	bool teeOnly;
+	bool selectResponseEnable;
+} TEE_SEReaderProperties;
+
+typedef struct {
+	uint8_t *buffer;
+	size_t bufferLen;
+} TEE_SEAID;
+
 /* Other definitions */
 typedef uint32_t TEE_ErrorOrigin;
 typedef void *TEE_Session;
@@ -179,5 +192,7 @@ typedef void *TEE_Session;
 #define TEE_MEMREF_1_USED  0x00000002
 #define TEE_MEMREF_2_USED  0x00000004
 #define TEE_MEMREF_3_USED  0x00000008
+
+#define TEE_SE_READER_NAME_MAX	20
 
 #endif /* TEE_API_TYPES_H */
