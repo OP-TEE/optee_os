@@ -8,6 +8,7 @@ platform-cpuarch = cortex-a9
 platform-cflags	 = -mcpu=$(platform-cpuarch) -mthumb
 platform-cflags	+= -pipe -mthumb-interwork -mlong-calls
 platform-cflags += -fno-short-enums -mno-apcs-float -fno-common
+platform-cflags += -mfloat-abi=soft
 platform-aflags	 = -mcpu=$(platform-cpuarch)
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
@@ -54,7 +55,6 @@ endif
 core-platform-cppflags += \
 	-DCFG_DDR_TEETZ_RESERVED_START=$(CFG_DDR_TEETZ_RESERVED_START) \
 	-DCFG_DDR_TEETZ_RESERVED_SIZE=$(CFG_DDR_TEETZ_RESERVED_SIZE)
-
 
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
