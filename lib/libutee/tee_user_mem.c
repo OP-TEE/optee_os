@@ -164,7 +164,8 @@ static int is_buffer_valid(void *buffer)
 static void print_buf(int tl, const char *func, int line, const char *prefix,
 		      const struct user_mem_elem *e)
 {
-	trace_printf(NULL, 0, tl, false,  "%s:%d: %slink:[%p], buf:[%p:%d]\n",
+	trace_printf(NULL, 0, tl, true, false,
+		    "%s:%d: %slink:[%p], buf:[%p:%d]\n",
 		    func, line, prefix, (void *)e, buf_addr(e), buf_size(e));
 }
 

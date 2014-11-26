@@ -63,7 +63,7 @@ int printf(const char *fmt, ...)
 	va_list ap;
 	int s;
 
-	if (trace_get_level() <= TRACE_PRINTF_LEVEL)
+	if (trace_get_level() < TRACE_PRINTF_LEVEL)
 		return 0;
 
 	s = strlcpy(to_format, prefix, sizeof(to_format));
@@ -93,7 +93,7 @@ int printf(const char *fmt, ...)
 
 int puts(const char *str)
 {
-	if (trace_get_level() > TRACE_PRINTF_LEVEL)
+	if (trace_get_level() >= TRACE_PRINTF_LEVEL)
 		trace_ext_puts(false, str);
 	return 1;
 }

@@ -51,28 +51,31 @@ int trace_get_level(void)
 	return trace_level;
 }
 
-static const char *trace_level_to_string(int level)
+static const char *trace_level_to_string(int level, bool level_ok)
 {
 	static const char lvl_strs[][4] = {
 		"UKN", "ERR", "INF", "DBG", "FLW" };
 	int l = 0;
 
-	if (l >= TRACE_MIN || l <= TRACE_MAX)
+	if (!level_ok)
+		return "MSG";
+
+	if ((level >= TRACE_MIN) && (level <= TRACE_MAX))
 		l = level;
 
 	return lvl_strs[l];
 }
 
 /* Format trace of user ta. Inline with kernel ta */
-void trace_printf(const char *function, int line, int level, bool sync,
-		const char *fmt, ...)
+void trace_printf(const char *function, int line, int level, bool level_ok,
+		  bool sync, const char *fmt, ...)
 {
 	va_list ap;
 	char buf[MAX_PRINT_SIZE];
 	size_t boffs = 0;
 	int res;
 
-	if (level > trace_level)
+	if (level_ok && level > trace_level)
 		return;
 
 	if (function) {
@@ -80,11 +83,12 @@ void trace_printf(const char *function, int line, int level, bool sync,
 
 		if (thread_id >= 0)
 			res = snprintf(buf, sizeof(buf), "%s [0x%x] %s:%s:%d: ",
-				       trace_level_to_string(level), thread_id,
-				       trace_ext_prefix, function, line);
+				       trace_level_to_string(level, level_ok),
+				       thread_id, trace_ext_prefix,
+				       function, line);
 		else
 			res = snprintf(buf, sizeof(buf), "%s %s:%s:%d: ",
-				       trace_level_to_string(level),
+				       trace_level_to_string(level, level_ok),
 				       trace_ext_prefix, function, line);
 		if (res < 0)
 			return; /* "Can't happen" */
@@ -160,14 +164,14 @@ void dhex_dump(const char *function, int line, int level,
 				if (!ok)
 					goto err;
 			} else if ((i % 16) == 15) {
-				trace_printf(function, line, level, false,
+				trace_printf(function, line, level, true, false,
 					      "%s", sbuf.buf);
 				sbuf.ptr = NULL;
 			}
 		}
 		if (sbuf.ptr) {
 			/* Buffer is not empty: flush it */
-			trace_printf(function, line, level, false, "%s",
+			trace_printf(function, line, level, true, false, "%s",
 				      sbuf.buf);
 
 		}
