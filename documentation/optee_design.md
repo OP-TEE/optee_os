@@ -241,7 +241,10 @@ Will be written soon.
 Will be written soon.
 
 # 9. Cryptographic abstraction layer
-Will be written soon.
+Cryptographic operations are implemented inside the TEE core by the
+[LibTomCrypt](https://github.com/libtom/libtomcrypt) library. An abstraction
+layer allows for replacing the default implementation, as explained in
+[crypto.md](crypto.md).
 
 # 10. libutee
 Will be written soon.
