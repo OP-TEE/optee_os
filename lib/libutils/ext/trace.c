@@ -31,7 +31,7 @@
 #include <trace.h>
 #include <util.h>
 
-#if (CFG_TRACE_LEVEL != 0)
+#if (CFG_TRACE_LEVEL > 0)
 
 #if (CFG_TRACE_LEVEL < TRACE_MIN) || (CFG_TRACE_LEVEL > TRACE_MAX)
 #error "Invalid value of CFG_TRACE_LEVEL"
@@ -113,6 +113,30 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 
 	trace_ext_puts(sync, buf);
 }
+
+#else
+
+/*
+ * In case we have a zero or negative trace level when compiling optee_os, we
+ * have to add stubs to trace functions in case they are used with TA having a
+ * non-zero trace level
+ */
+
+void trace_set_level(int level __unused)
+{
+}
+
+int trace_get_level(void)
+{
+	return 0;
+}
+
+void trace_printf(const char *function __unused, int line __unused,
+		  int level __unused, bool level_ok __unused,
+		  bool sync __unused, const char *fmt __unused, ...)
+{
+}
+
 #endif
 
 #if (CFG_TRACE_LEVEL >= TRACE_DEBUG)
@@ -180,4 +204,18 @@ void dhex_dump(const char *function, int line, int level,
 err:
 	DMSG("Hex dump error");
 }
+#else
+
+/*
+ * In case we have trace level less than debug when compiling optee_os, we have
+ * to add stubs to trace functions in case they are used with TA having a
+ * a higher trace level
+ */
+
+void dhex_dump(const char *function __unused, int line __unused,
+	       int level __unused,
+	       const void *buf __unused, int len __unused)
+{
+}
+
 #endif

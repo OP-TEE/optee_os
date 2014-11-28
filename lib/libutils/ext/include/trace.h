@@ -45,6 +45,8 @@
 extern const char trace_ext_prefix[];
 void trace_ext_puts(bool sync, const char *str);
 int trace_ext_get_thread_id(void);
+void trace_set_level(int level);
+int trace_get_level(void);
 
 /* Internal functions used by the macros below */
 void trace_printf(const char *func, int line, int level, bool level_ok,
@@ -55,7 +57,7 @@ void trace_printf(const char *func, int line, int level, bool level_ok,
 		     false, __VA_ARGS__)
 
 /* Formatted trace tagged with level independent */
-#if (CFG_TRACE_LEVEL == 0)
+#if (CFG_TRACE_LEVEL <= 0)
 #define MSG(...)   (void)0
 #else
 #define MSG(...)   trace_printf_helper(0, false, __VA_ARGS__)
@@ -101,13 +103,13 @@ void trace_printf(const char *func, int line, int level, bool level_ok,
 		return r;		\
 	} while (0)
 
+void dhex_dump(const char *function, int line, int level,
+	       const void *buf, int len);
 #if (CFG_TRACE_LEVEL < TRACE_DEBUG)
 #define DHEXDUMP(buf, len) (void)0
 #else
 #define DHEXDUMP(buf, len) dhex_dump(__func__, __LINE__, TRACE_DEBUG, \
 				     buf, len)
-void dhex_dump(const char *function, int line, int level,
-	       const void *buf, int len);
 #endif
 
 
@@ -117,7 +119,7 @@ void dhex_dump(const char *function, int line, int level,
 	trace_printf(NULL, 0, (level), (level_ok), false, __VA_ARGS__)
 
 /* No formatted trace tagged with level independent */
-#if (CFG_TRACE_LEVEL == 0)
+#if (CFG_TRACE_LEVEL <= 0)
 #define MSG_RAW(...)   (void)0
 #else
 #define MSG_RAW(...)   trace_printf_helper_raw(0, false, __VA_ARGS__)
@@ -151,16 +153,8 @@ void dhex_dump(const char *function, int line, int level,
 #define FMSG_RAW(...)   trace_printf_helper_raw(TRACE_FLOW, true, __VA_ARGS__)
 #endif
 
-#if (CFG_TRACE_LEVEL == 0)
+#if (CFG_TRACE_LEVEL <= 0)
 #define SMSG(...)   (void)0
-static inline void trace_set_level(int level __unused)
-{
-}
-
-static inline int trace_get_level(void)
-{
-	return 0;
-}
 #else
 /*
  * Synchronised flushed trace, an Always message straight to HW trace IP.
@@ -169,10 +163,6 @@ static inline int trace_get_level(void)
  */
 #define SMSG(...)   \
 	trace_printf(__func__, __LINE__, TRACE_ERROR, true, true, __VA_ARGS__)
-
-/* Accessors */
-void trace_set_level(int level);
-int trace_get_level(void);
 
 #endif /* CFG_TRACE_LEVEL */
 
