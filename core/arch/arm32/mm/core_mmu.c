@@ -497,9 +497,6 @@ void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
 int core_tlb_maintenance(int op, unsigned int a)
 {
 	switch (op) {
-	case TLBINV_DATATLB:
-		secure_mmu_datatlbinvall();	/* ??? */
-		break;
 	case TLBINV_UNIFIEDTLB:
 		secure_mmu_unifiedtlbinvall();
 		break;

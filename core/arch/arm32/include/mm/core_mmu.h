@@ -152,7 +152,6 @@ void core_l2cc_mutex_unlock(void);
 
 /* various invalidate secure TLB */
 enum teecore_tlb_op {
-	TLBINV_DATATLB,		/* invalidate data tlb */
 	TLBINV_UNIFIEDTLB,	/* invalidate unified tlb */
 	TLBINV_CURRENT_ASID,	/* invalidate unified tlb for current ASID */
 	TLBINV_BY_ASID,		/* invalidate unified tlb by ASID */

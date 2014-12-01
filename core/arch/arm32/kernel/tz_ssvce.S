@@ -40,7 +40,6 @@
 #include <kernel/tz_ssvce_def.h>
 
 /* TLB maintenance */
-.global secure_mmu_datatlbinvall
 .global secure_mmu_unifiedtlbinvall
 .global secure_mmu_unifiedtlbinvbymva
 .global secure_mmu_unifiedtlbinv_curasid
@@ -66,36 +65,13 @@
  * - MMU maintenaince support ---------------------------------------------
  */
 
-/*
- * void secure_mmu_datatlbinvall(void);
- */
-secure_mmu_datatlbinvall:
-
-	MCR     p15, 0, R0, c8, c6, 0
-
-	DSB
-	ISB
-
-	MOV     PC, LR
-
-/*
- * void secure_mmu_instrtlbinvall(void);
- */
-secure_mmu_instrtlbinvall:
-
-	MCR     p15, 0, R0, c8, c5, 0
-
-	DSB
-	ISB
-
-	MOV     PC, LR
 
 /*
  * void secure_mmu_unifiedtlbinvall(void);
  */
 secure_mmu_unifiedtlbinvall:
 
-	MCR     p15, 0, R0, c8, c7, 0
+	write_tlbiallis
 
 	DSB
 	ISB
@@ -127,13 +103,13 @@ secure_mmu_unifiedtlbinvbymva:
  * Invalidate TLB matching current ASID
  */
 secure_mmu_unifiedtlbinv_curasid:
-
-	MRC     p15, 0, R0, c13, c0, 1      /* Read CP15 Context ID Register (CONTEXTIDR) */
-	AND     R0, R0, #0xFF               /* Get current ASID */
-	MCR     p15, 0, R0, c8, c7, 2		/* Invalidate Unified TLB entry by ASID */
-	DSB
-	ISB
-	MOV     PC, LR
+	read_contextidr r0
+	and     r0, r0, #0xff               /* Get current ASID */
+	/* Invalidate unified TLB by ASID Inner Sharable */
+	write_tlbiasidis r0
+	dsb
+	isb
+	mov	pc, lr
 
 /*
  * void secure_mmu_unifiedtlbinv_byasid(unsigned int asid)
@@ -141,12 +117,12 @@ secure_mmu_unifiedtlbinv_curasid:
  * Invalidate TLB matching current ASID
  */
 secure_mmu_unifiedtlbinv_byasid:
-
-	AND     R0, R0, #0xFF               /* Get current ASID */
-	MCR     p15, 0, R0, c8, c7, 2		/* Invalidate Unified TLB entry by ASID */
-	DSB
-	ISB
-	MOV     PC, LR
+	and     r0, r0, #0xff               /* Get ASID */
+	/* Invalidate unified TLB by ASID Inner Sharable */
+	write_tlbiasidis r0
+	dsb
+	isb
+	mov	pc, lr
 
 /*
  * void arm_cl1_d_cleanbysetway(void)
