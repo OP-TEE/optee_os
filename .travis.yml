@@ -24,7 +24,7 @@ before_script:
 # Several compilation options are checked
 script:
   # Run checkpatch.pl
-  - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --no-tree -
+  - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
 
   # Orly2
   -                                  PLATFORM=stm-orly2                                  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
