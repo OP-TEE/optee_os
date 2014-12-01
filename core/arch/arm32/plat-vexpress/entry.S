@@ -72,7 +72,8 @@ LOCAL_FUNC reset , :
 	bl	dcache_clean_inv
 	bl	icache_inv
 #endif
-	bl	core_init_mmu
+	bl	core_init_mmu_tables
+	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
@@ -123,7 +124,7 @@ FUNC cpu_on_handler , :
 	bl	dcache_clean_inv
 	bl	icache_inv
 #endif
-	bl	core_init_mmu
+	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
