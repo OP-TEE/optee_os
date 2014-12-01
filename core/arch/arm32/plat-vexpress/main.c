@@ -310,6 +310,8 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
 				panic();
 		}
+
+		thread_init_handlers(&handlers);
 	}
 
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
@@ -317,7 +319,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
 		panic();
 
-	thread_init_handlers(&handlers);
+	thread_init_per_cpu();
 
 	main_init_sec_mon(pos, nsec_entry);
 
