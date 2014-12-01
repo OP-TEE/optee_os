@@ -28,6 +28,8 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <generated/conf.h>
+
 #define PLATFORM_FLAVOR_ID_fvp		0
 #define PLATFORM_FLAVOR_ID_qemu		1
 #define PLATFORM_FLAVOR_ID_qemu_virt	2
@@ -97,6 +99,7 @@
 #define STACK_TMP_SIZE		1024
 #define STACK_ABT_SIZE		1024
 #define STACK_THREAD_SIZE	8192
+#define HEAP_SIZE		(24 * 1024)
 
 #if PLATFORM_FLAVOR_IS(fvp)
 /*
@@ -107,34 +110,22 @@
 #define DRAM0_SIZE		0x80000000
 
 /* Location of trusted dram on the base fvp */
-#define TZDRAM_BASE		0x06000000
-#define TZDRAM_SIZE		0x02000000
+#define TZDRAM_BASE		(0x06000000)
+#define TZDRAM_SIZE		(0x02000000)
 
-#define CFG_TEE_CORE_NB_CORE	4
+#define CFG_TEE_CORE_NB_CORE	8
 
-#define DDR_PHYS_START		DRAM0_BASE
-#define DDR_SIZE		DRAM0_SIZE
-
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		(TZDRAM_BASE + 0x1000)
-#define TEE_RAM_SIZE		0x0010000
-
-#define CFG_SHMEM_START		(DDR_PHYS_START + 0x1000000)
+#define CFG_SHMEM_START		(DRAM0_BASE + 0x1000000)
 #define CFG_SHMEM_SIZE		0x100000
 
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
 
 #elif PLATFORM_FLAVOR_IS(juno)
-
 /*
  * Juno specifics.
  */
+
 
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x7F000000
@@ -176,6 +167,7 @@
 /*
  * QEMU specifics.
  */
+
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x40000000
 
@@ -186,17 +178,8 @@
 #define DDR_PHYS_START		DRAM0_BASE
 #define DDR_SIZE		DRAM0_SIZE
 
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
-
 #define CFG_TEE_CORE_NB_CORE	2
 
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_SIZE		0x0010000
 
 #define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE		0x100000
@@ -208,31 +191,25 @@
 /*
  * QEMU virt specifics.
  */
+
+#define ROM_BASE		0x00000000
+#define ROM_SIZE		(32 * 1024 * 1024)
+
 #define DRAM0_BASE		0x40000000
-#define DRAM0_SIZE		0x40000000
+#define DRAM0_SIZE		(0x40000000 - DRAM0_TEERES_SIZE)
 
-/* Location of "trusted dram" */
-#define TZDRAM_BASE		(DRAM0_BASE + (DRAM0_SIZE - \
-				 TZDRAM_SIZE - CFG_SHMEM_SIZE))
-#define TZDRAM_SIZE		0x02000000
+#define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
+#define DRAM0_TEERES_SIZE	(33 * 1024 * 1024)
 
-#define DDR_PHYS_START		DRAM0_BASE
-#define DDR_SIZE		DRAM0_SIZE
 
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
+#define TZDRAM_BASE		DRAM0_TEERES_BASE
+#define TZDRAM_SIZE		(32 * 1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE	2
 
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_SIZE		0x0010000
-
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x100000
+#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
+					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
+#define CFG_SHMEM_SIZE		(1024 * 1024)
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
@@ -241,6 +218,24 @@
 #else
 #error "Unknown platform flavor"
 #endif
+
+#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+
+#ifndef CFG_TEE_LOAD_ADDR
+#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#endif
+
+/*
+ * +------------------+
+ * |        | TEE_RAM |
+ * + TZDRAM +---------+
+ * |        | TA_RAM  |
+ * +--------+---------+
+ */
+#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
+#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TA_RAM_START	(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define CFG_TA_RAM_SIZE		(TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE)
 
 #ifndef UART_BAUDRATE
 #define UART_BAUDRATE		115200
