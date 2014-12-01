@@ -177,6 +177,7 @@ void main_init(uint32_t nsec_entry)
 			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
 				panic();
 		}
+		thread_init_handlers(&handlers);
 	}
 
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
@@ -184,7 +185,7 @@ void main_init(uint32_t nsec_entry)
 	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
 		panic();
 
-	thread_init_handlers(&handlers);
+	thread_init_per_cpu();
 
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));

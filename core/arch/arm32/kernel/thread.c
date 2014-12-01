@@ -394,6 +394,10 @@ void thread_init_handlers(const struct thread_handlers *handlers)
 	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
 	thread_system_off_handler_ptr = handlers->system_off;
 	thread_system_reset_handler_ptr = handlers->system_reset;
+}
+
+void thread_init_per_cpu(void)
+{
 	thread_init_vbar();
 }
 

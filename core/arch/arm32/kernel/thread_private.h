@@ -77,7 +77,7 @@ struct thread_core_local {
 
 
 /*
- * Initializes VBAR for current CPU (called by thread_init_handlers()
+ * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
 void thread_init_vbar(void);
 

@@ -166,6 +166,7 @@ struct thread_handlers {
 	thread_abort_handler_t abort;
 };
 void thread_init_handlers(const struct thread_handlers *handlers);
+void thread_init_per_cpu(void);
 
 /*
  * Sets the stacks to be used by the different threads. Use THREAD_ID_0 for
