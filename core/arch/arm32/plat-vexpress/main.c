@@ -109,7 +109,7 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #if CFG_TEE_CORE_NB_CORE > 7
 	GET_STACK(stack_tmp[7]),
 #endif
-#if CFG_TEE_CORE_NB_CORE > 7
+#if CFG_TEE_CORE_NB_CORE > 8
 #error "Top of tmp stacks aren't defined for more than 8 CPUS"
 #endif
 };

@@ -56,7 +56,7 @@ OUTPUT_ARCH(PLATFORM_LINKER_ARCH)
 ENTRY(_start)
 SECTIONS
 {
-	. = TEE_RAM_START;
+	. = CFG_TEE_LOAD_ADDR;
 
 	/* text/read-only data */
 	.text : {
@@ -193,7 +193,7 @@ SECTIONS
 
 	_end = .;
 
-	. = TEE_RAM_START + TEE_RAM_SIZE;
+	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 	_end_of_ram = .;
 
 	/* Strip unnecessary stuff */
