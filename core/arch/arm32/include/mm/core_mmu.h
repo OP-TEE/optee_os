@@ -82,12 +82,23 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 
 uint32_t core_map_area_flag(void *p, size_t l);
-void core_init_mmu(void);
+void core_init_mmu_tables(void);
+void core_init_mmu_regs(void);
 
 paddr_t core_mmu_get_main_ttb_pa(void);
 vaddr_t core_mmu_get_main_ttb_va(void);
 paddr_t core_mmu_get_ul1_ttb_pa(void);
 vaddr_t core_mmu_get_ul1_ttb_va(void);
+
+/*
+ * core_mmu_alloc_l2() - allocates a number of L2 tables
+ * @map: description of the area to allocate for
+ *
+ * Allocates a number of L2 to cover the virtual address range
+ * decribed by @map.
+ * @returns NULL on failure or a pointer to the L2 table(s)
+ */
+void *core_mmu_alloc_l2(struct map_area *map);
 
 int core_mmu_map(unsigned long paddr, size_t size, unsigned long flags);
 int core_mmu_unmap(unsigned long paddr, size_t size);

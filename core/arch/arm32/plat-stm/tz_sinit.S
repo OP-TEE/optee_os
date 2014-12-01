@@ -201,7 +201,8 @@ _BootCPU0:
 	bl arm_cl2_invbyway
 	bl arm_cl2_enable
 
-	bl core_init_mmu
+	bl core_init_mmu_tables
+	bl core_init_mmu_regs
 	bl cpu_mmu_enable
 	bl cpu_mmu_enable_icache
 	bl cpu_mmu_enable_dcache
@@ -271,7 +272,7 @@ _wait_cpu0:
 	bl arm_cl1_d_cleaninvbysetway
 	bl arm_cl2_cleaninvbyway
 
-	bl core_init_mmu
+	bl core_init_mmu_regs
 	bl cpu_mmu_enable
 
 	bl cpu_mmu_enable_icache

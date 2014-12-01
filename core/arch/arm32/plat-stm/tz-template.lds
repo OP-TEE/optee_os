@@ -8,7 +8,7 @@ MEMORY
     /* check stacks sizes from main.c */
     STACKS_MEM   (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000E0000), LENGTH = 0x00018000
     MMU_UTA_MEM  (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000FBF80), LENGTH = 0x00000080
-    MMU_CORE_MEM (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000FC000), LENGTH = 0x00004000
+    MMU_CORE_MEM (rw) : ORIGIN = (%in_TEE_SCATTER_START% + 0x000FC000), LENGTH = 0x00004400
 }
 
 SECTIONS
@@ -49,6 +49,8 @@ SECTIONS
     {
         SEC_MMU_TTB_FLD = (.);           /* MMU L1 table for teecore: 16kB */
         SEC_MMU_TTB_END = (. + 0x4000);
+        SEC_MMU_L2_TTB_FLD = (SEC_MMU_TTB_END); /* MMU L2 table for teecore */
+        SEC_MMU_L2_TTB_END = (SEC_MMU_L2_TTB_FLD + 0x400);
     } > MMU_CORE_MEM
 
 }

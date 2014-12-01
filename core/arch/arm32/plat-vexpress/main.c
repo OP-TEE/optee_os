@@ -116,8 +116,11 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 
 /* Main MMU L1 table for teecore */
 static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
-        __attribute__((section(".nozi.mmu.l1"),
+	__attribute__((section(".nozi.mmu.l1"),
 		       aligned(TEE_MMU_L1_ALIGNMENT)));
+static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.l2"),
+		       aligned(TEE_MMU_L2_ALIGNMENT)));
 
 /* MMU L1 table for TAs, one for each Core */
 static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
@@ -559,4 +562,21 @@ void console_putc(int ch)
 void console_flush_tx_fifo(void)
 {
 	uart_flush_tx_fifo(CONSOLE_UART_BASE);
+}
+
+void *core_mmu_alloc_l2(struct map_area *map)
+{
+	/* Can't have this in .bss since it's not initialized yet */
+	static size_t l2_offs __attribute__((section(".data")));
+	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
+			     TEE_MMU_L2_SIZE) * SECTION_SIZE;
+
+	if (l2_offs)
+		return NULL;
+	if (map->type != MEM_AREA_TEE_RAM)
+		return NULL;
+	if (map->size > l2_va_space)
+		return NULL;
+	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
+	return main_mmu_l2_ttb;
 }

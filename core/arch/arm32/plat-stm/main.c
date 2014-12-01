@@ -361,3 +361,25 @@ void console_flush_tx_fifo(void)
 {
 	__asc_flush();
 }
+
+/* L2 translation table(s) for teecore mapping: fixed addr. */
+extern uint8_t *SEC_MMU_L2_TTB_FLD;
+extern uint8_t *SEC_MMU_L2_TTB_END;
+
+void *core_mmu_alloc_l2(struct map_area *map)
+{
+	/* Can't have this in .bss since it's not initialized yet */
+	static size_t l2_offs __attribute__((section(".data")));
+	const size_t l2_size = SEC_MMU_L2_TTB_END - SEC_MMU_L2_TTB_FLD;
+	size_t l2_va_space = ((l2_size - l2_offs) / TEE_MMU_L2_SIZE) *
+				SECTION_SIZE;
+
+	if (l2_offs)
+		return NULL;
+	if (map->type != MEM_AREA_TEE_RAM)
+		return NULL;
+	if (map->size > l2_va_space)
+		return NULL;
+	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
+	return SEC_MMU_L2_TTB_FLD;
+}
