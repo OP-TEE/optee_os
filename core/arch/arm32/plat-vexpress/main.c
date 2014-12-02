@@ -50,6 +50,7 @@
 #include <kernel/tee_time.h>
 #include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
@@ -336,6 +337,7 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 				(uintptr_t)&__nozi_pad_end -
 					(uintptr_t)&__nozi_pad_start);
 
+		teecore_init_ta_ram();
 		if (init_teecore() != TEE_SUCCESS)
 			panic();
 		DMSG("Primary CPU switching to normal world boot\n");
