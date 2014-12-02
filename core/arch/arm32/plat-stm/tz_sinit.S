@@ -228,8 +228,6 @@ init_bss:
 	/* Flush all caches before secondary CPUs setup */
 	bl arm_cl1_d_cleaninvbysetway
 	bl arm_cl2_cleaninvbyway
-	bl arm_cl1_d_cleaninvbysetway
-
 	sev
 
 	/* Primary CPU waits secondary  */
@@ -240,6 +238,11 @@ _wait_cpu1:
 	cmp r1, r2
 	wfene
 	bne _wait_cpu1
+
+#ifdef CFG_PL310_LOCKED
+	bl arm_cl2_lockallways
+	bl arm_cl2_invbyway
+#endif
 
 	/* TODO: call teecore inits */
 

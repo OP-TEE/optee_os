@@ -40,3 +40,6 @@ endif
 # Common values
 
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
+
+# undef these to disable the related feature
+CFG_PL310_LOCKED ?= n

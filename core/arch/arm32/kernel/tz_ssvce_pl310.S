@@ -29,12 +29,28 @@
 #include <kernel/tz_ssvce_def.h>
 
  /* cache maintenance */
+.global arm_cl2_lockallways
 .global arm_cl2_cleaninvbyway
 .global arm_cl2_invbyway
 .global arm_cl2_cleanbyway
 .global arm_cl2_cleanbypa
 .global arm_cl2_invbypa
 .global arm_cl2_cleaninvbypa
+
+/* lock all L2 caches ways for data and instruction */
+arm_cl2_lockallways:
+
+	mov r0, #PL310_NB_WAYS
+	movw r1, #PL310_DCACHE_LOCKDOWN_BASE
+	movt r1, #PL310_BASE_H
+	movw r2, #0xFFFF	/* LD ways constant */
+loop_data_lockdown:
+	str r2, [r1], #0x04	/* lock way for Dcache */
+	str r2, [r1], #0x04	/* lock way for Icache  */
+	subs r0, r0, #1
+	bne loop_data_lockdown
+
+	mov pc, lr
 
 /*
  * void arm_cl2_cleaninvbyway(void) - clean & invalidate the whole L2 cache.
