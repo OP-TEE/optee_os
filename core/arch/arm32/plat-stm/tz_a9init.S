@@ -102,7 +102,8 @@ arm_cl2_config:
 
 _config_l2cc_r3p0:
 	/*
-	 * reg1_tag_ram_control (cache_l2x0.c)
+	 * TAG RAM Control Register
+	 *
 	 * bit[10:8]:1 - 2 cycle of write accesses latency
 	 * bit[6:4]:1 - 2 cycle of read accesses latency
 	 * bit[2:0]:1 - 2 cycle of setup latency
@@ -119,7 +120,8 @@ _config_l2cc_r3p0:
 	str  r2, [r0]
 
 	/*
-	 * reg1_data_ram_control (cache_l2x0.c)
+	 * DATA RAM Control Register
+	 *
 	 * bit[10:8]:2 - 3 cycle of write accesses latency
 	 * bit[6:4]:2 - 3 cycle of read accesses latency
 	 * bit[2:0]:2 - 3 cycle of setup latency
@@ -136,33 +138,33 @@ _config_l2cc_r3p0:
 	str  r2, [r0]
 
 	/*
-	 * reg1_aux_control
+	 * Auxiliary Control Register = 0x3C480800
 	 *
-	 * I/Dcache prefetch enable (bit29:28=2b11)
+	 * I/Dcache prefetch enabled (bit29:28=2b11)
 	 * NS can access interrupts (bit27=1)
 	 * NS can lockown cache lines (bit26=1)
 	 * Pseudo-random replacement policy (bit25=0)
 	 * Force write allocated (default)
 	 * Shared attribute internally ignored (bit22=1, bit13=0)
-	 * Parity disable (bit21=0)
+	 * Parity disabled (bit21=0)
 	 * Event monitor disabled (bit20=0)
 	 * 128kB ways, 8-way associativity (bit19:17=3b100 bit16=0)
-	 * Store buffer device limitation enable (bit11=1)
+	 * Store buffer device limitation enabled (bit11=1)
 	 * Cacheable accesses have high prio (bit10=0)
-	 * Full Line Zero (FLZ) enabled (bit0=1)
+	 * Full Line Zero (FLZ) disabled (bit0=0)
 	 */
 	movw r0, #PL310_AUX_CTRL
 	movt r0, #PL310_BASE_H
-	movw r1, #0x0801
+	movw r1, #0x0800
 	movt r1, #0x3C48
 	str  r1, [r0]
 
 	/*
-	 * reg15_prefetch_ctrl
+	 * Prefetch Control Register = 0x31000007
 	 *
 	 * Double linefill disabled (bit30=0)
-	 * I/D prefetch enable (bit29:28=2b11)
-	 * Prefetch drop enable (bit24=1)
+	 * I/D prefetch enabled (bit29:28=2b11)
+	 * Prefetch drop enabled (bit24=1)
 	 * Incr double linefill disable (bit23=0)
 	 * Prefetch offset = 7 (bit4:0)
 	 */
@@ -173,7 +175,10 @@ _config_l2cc_r3p0:
 	str  r1, [r0]
 
 	/*
-	 * reg15_power_ctrl
+	 * Power Register = 0x00000003
+	 *
+	 * Dynamic clock gating enabled
+	 * Standby mode enabled
 	 */
 	movw r0, #PL310_POWER_CTRL
 	movt r0, #PL310_BASE_H
@@ -181,7 +186,7 @@ _config_l2cc_r3p0:
 	movt r1, #0x0000
 	str  r1, [r0]
 
-	/* invalidate all cache ways PL310_BASE + invalidate by way offset = 0xFFFE2000 + 0x77C) */
+	/* invalidate all cache ways */
 	movw r0, #PL310_INV_BY_WAY
 	movt r0, #PL310_BASE_H
 	movw r1, #0x00FF
@@ -221,7 +226,7 @@ arm_cl2_enable:
 	ldr  r1, [r0]
 	tst  r1, #(1 << 0) /* test AUX_CTRL[FLZ] */
 	mrc  p15, 0, r0, c1, c0, 1
-	orreq r0, r0, #(1 << 3) /* enable ACTLR[FLZW] */
+	orrne r0, r0, #(1 << 3) /* enable ACTLR[FLZW] */
 	mcr  p15, 0, r0, c1, c0, 1
 
 	mov pc, lr
@@ -251,19 +256,22 @@ _early_a9_r3p0:
 	/*
 	 * Mandated HW config loaded
 	 *
-	 * SCTLR  0x00004000   (bit14: RoundRobin)
-	 * ACTRL  0x00000041   (see below)
-	 * NSACR  0x00020C00   (see below)
-	 * PCR    0x00000001   (no change latency, enable clk gating)
+	 * SCTLR = 0x00004000
+	 * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
 	 *
-	 * ACTRL:
+	 * ACTRL = 0x00000041
 	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
-	 * - keep WFLZ low. Will be set once outer L2is ready. bit3=0
-	 * NSACR:
+	 * - L2 write full line of zero disabled (bit3=0)
+	 *   (keep WFLZ low. Will be set once outer L2 is ready)
+	 *
+	 * NSACR = 0x00020C00
 	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
 	 * - Nsec can lockdown TLB (TL bit17=1)
 	 * - NSec cannot access PLE (PLE bit16=0)
-	 * - NSec can use SIMD/VFP (bit15:14=2b00, bit11:10=2b11)
+	 * - NSec can use SIMD/VFP (CP10/CP11) (bit15:14=2b00, bit11:10=2b11)
+	 *
+	 * PCR = 0x00000001
+	 * - no change latency, enable clk gating
 	 */
 	movw r0, #0x4000
 	movt r0, #0x0000
@@ -283,15 +291,18 @@ _early_a9_r3p0:
 
 	/*
 	 * GIC configuration
+	 *
+	 * Register ICDISR0 = 0xFFFFFFFF
+	 * - All local interrupts are NonSecure.
+	 *
+	 * Register ICCPMR = 0xFFFFFFFF
 	 */
 
-	/* ICDISR0 */
 	movw r0, #GIC_DIST_ISR0
 	movt r0, #GIC_DIST_BASE_H
 	mov  r1, #0xFFFFFFFF
 	str  r1, [r0]
 
-	/* ICCPMR */
 	movw r0, #CORE_ICC_ICCPMR
 	movt r0, #GIC_CPU_BASE_H
 	mov  r1, #0xFFFFFFFF
@@ -369,7 +380,8 @@ _boot_late_primary_cpu:
 	 */
 
 	/*
-	 * Register SAC: both secure CPU access SCU
+	 * SCU Access Register : SAC = 0x00000003
+	 * - both secure CPU access SCU
 	 */
 	movw r0, #SCU_SAC /* LSB */
 	movt r0, #SCU_BASE_H /* MSB */
@@ -378,7 +390,8 @@ _boot_late_primary_cpu:
 	str  r1, [r0]
 
 	/*
-	 * Register SNSAC: both nonsec cpu access SCU, private and global timer
+	 * SCU NonSecure Access Register : SNSAC : 0x00000333
+	 * - both nonsec cpu access SCU, private and global timer
 	 */
 	movw r0, #SCU_NSAC /* LSB */
 	movt r0, #SCU_BASE_H /* MSB */
@@ -387,7 +400,7 @@ _boot_late_primary_cpu:
 	str  r1, [r0]
 
 	/*
-	 * Register SFEA
+	 * SCU Filtering End Address register: SFEA
 	 */
 	movw r0, #SCU_FILT_EA /* LSB */
 	movt r0, #SCU_BASE_H /* MSB */
@@ -396,7 +409,7 @@ _boot_late_primary_cpu:
 	str  r1, [r0]
 
 	/*
-	 * Register SFSA
+	 * SCU Filtering Start Address register: SFSA
 	 */
 	movw r0, #SCU_FILT_SA /* LSB */
 	movt r0, #SCU_BASE_H /* MSB */
@@ -405,10 +418,10 @@ _boot_late_primary_cpu:
 	str  r1, [r0]
 
 	/*
-	 * Register SCU_CTRL:
-	 * ic stanby enable=1
-	 * scu standby enable=1
-	 * scu enable=1
+	 * SCU Control Register : CTRL = 0x00000065
+	 * - ic stanby enable=1
+	 * - scu standby enable=1
+	 * - scu enable=1
 	 */
 	movw r0, #SCU_CTRL /* LSB */
 	movt r0, #SCU_BASE_H /* MSB */
@@ -419,7 +432,8 @@ _boot_late_primary_cpu:
 	/*- GIC secure configuration ---*/
 
 	/*
-	 * Register ICDISR[0-31]
+	 * Register ICDISR[1-31] = 0xFFFFFFFF
+	 * - All external interrupts are NonSecure.
 	 */
 	movw r0, #GIC_DIST_ISR1
 	movt r0, #GIC_DIST_BASE_H
