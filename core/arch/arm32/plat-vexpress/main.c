@@ -36,8 +36,6 @@
 #include <sm/sm.h>
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
-#include <sm/teesmc.h>
-#include <sm/teesmc_optee.h>
 
 #include <util.h>
 #include <kernel/arch_debug.h>
@@ -50,16 +48,20 @@
 #include <kernel/tee_time.h>
 #include <mm/pager.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/tee_mmu.h>
+#include <mm/tee_mm.h>
+#include <utee_defines.h>
+#include <tee/tee_cryp_provider.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
 #include <console.h>
 #include <malloc.h>
+#include "plat_tee_func.h"
 
 #include <assert.h>
 
-#define NSEC_ENTRY_INVALID	0xffffffff
+#define PADDR_INVALID		0xffffffff
 
 #ifdef WITH_STACK_CANARIES
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
@@ -110,7 +112,7 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #if CFG_TEE_CORE_NB_CORE > 7
 	GET_STACK(stack_tmp[7]),
 #endif
-#if CFG_TEE_CORE_NB_CORE > 7
+#if CFG_TEE_CORE_NB_CORE > 8
 #error "Top of tmp stacks aren't defined for more than 8 CPUS"
 #endif
 };
@@ -128,20 +130,14 @@ static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
-extern uint8_t __text_start;
-extern uint8_t __rodata_end;
-extern uint8_t __data_start;
-extern uint8_t __bss_start;
-extern uint8_t __bss_end;
-extern uint8_t _end;
-extern uint8_t _end_of_ram;
-extern uint8_t __heap_start;
-extern uint8_t __heap_end;
-extern uint8_t __nozi_pad_start;
-extern uint8_t __nozi_pad_end;
+extern uint8_t __bss_start[];
+extern uint8_t __bss_end[];
+extern uint8_t __heap1_start[];
+extern uint8_t __heap1_end[];
+extern uint8_t __heap2_start[];
+extern uint8_t __heap2_end[];
 
 static void main_fiq(void);
-static void main_tee_entry(struct thread_smc_args *args);
 #if defined(WITH_ARM_TRUSTED_FW)
 /* Implemented in assembly, referenced in this file only */
 uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
@@ -197,8 +193,8 @@ void check_canaries(void)
 }
 
 static const struct thread_handlers handlers = {
-	.std_smc = main_tee_entry,
-	.fast_smc = main_tee_entry,
+	.std_smc = plat_tee_entry,
+	.fast_smc = plat_tee_entry,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,
@@ -224,7 +220,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	(void)&pos;
 	(void)&nsec_entry;
-	assert(nsec_entry == NSEC_ENTRY_INVALID);
+	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #elif defined(WITH_SEC_MON)
@@ -232,7 +228,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
-	assert(nsec_entry != NSEC_ENTRY_INVALID);
+	assert(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
@@ -276,8 +272,34 @@ static void main_init_gic(void)
 }
 #endif
 
-static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
+static void main_init_runtime(uint32_t pagable_part __unused)
 {
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+
+	teecore_init_ta_ram();
+}
+
+static void main_init_thread_stacks(void)
+{
+	size_t n;
+
+	/* Assign the thread stacks */
+	for (n = 0; n < NUM_THREADS; n++) {
+		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
+			panic();
+	}
+}
+
+static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
+{
+	size_t pos = get_core_pos();
 
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
@@ -288,35 +310,43 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 	 */
 	write_cpsr(read_cpsr() | CPSR_FIA);
 
-	if (is_primary) {
-		uintptr_t bss_start = (uintptr_t)&__bss_start;
-		uintptr_t bss_end = (uintptr_t)&__bss_end;
-		size_t n;
+	main_init_runtime(pagable_part);
 
-		/* Initialize uart with virtual address */
-		uart_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
-			  CONSOLE_BAUDRATE);
+	DMSG("TEE initializing\n");
 
-		/*
-		 * Zero BSS area. Note that globals that would normally
-		 * would go into BSS which are used before this has to be
-		 * put into .nozi.* to avoid getting overwritten.
-		 */
-		memset((void *)bss_start, 0, bss_end - bss_start);
+	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
+		panic();
+	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
+		panic();
 
-		DMSG("TEE initializing\n");
+	thread_init_handlers(&handlers);
+	thread_init_per_cpu();
+	main_init_sec_mon(pos, nsec_entry);
 
-		/* Initialize canaries around the stacks */
-		init_canaries();
+	/* Initialize canaries around the stacks */
+	init_canaries();
 
-		/* Assign the thread stacks */
-		for (n = 0; n < NUM_THREADS; n++) {
-			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-				panic();
-		}
+	main_init_thread_stacks();
 
-		thread_init_handlers(&handlers);
-	}
+	main_init_gic();
+
+	if (init_teecore() != TEE_SUCCESS)
+		panic();
+	DMSG("Primary CPU switching to normal world boot\n");
+}
+
+static void main_init_secondary_helper(uint32_t nsec_entry)
+{
+	size_t pos = get_core_pos();
+
+	/*
+	 * Mask external Abort, IRQ and FIQ before switch to the thread
+	 * vector as the thread handler requires externl Abort, IRQ and FIQ
+	 * to be masked while executing with the temporary stack. The
+	 * thread subsystem also asserts that IRQ is blocked when using
+	 * most if its functions.
+	 */
+	write_cpsr(read_cpsr() | CPSR_FIA);
 
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
 		panic();
@@ -324,43 +354,36 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		panic();
 
 	thread_init_per_cpu();
-
 	main_init_sec_mon(pos, nsec_entry);
 
-	if (is_primary) {
-		main_init_gic();
-
-		malloc_init(&__heap_start,
-				(uintptr_t)&__heap_end -
-					(uintptr_t)&__heap_start);
-		malloc_add_pool(&__nozi_pad_start,
-				(uintptr_t)&__nozi_pad_end -
-					(uintptr_t)&__nozi_pad_start);
-
-		teecore_init_ta_ram();
-		if (init_teecore() != TEE_SUCCESS)
-			panic();
-		DMSG("Primary CPU switching to normal world boot\n");
-	} else {
-		DMSG("Secondary CPU Switching to normal world boot\n");
-	}
+	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
+
+
 #if defined(WITH_ARM_TRUSTED_FW)
-uint32_t *main_init(void); /* called from assembly only */
-uint32_t *main_init(void)
+/* called from assembly only */
+uint32_t *main_init_primary(uint32_t pagable_part);
+uint32_t *main_init_primary(uint32_t pagable_part)
 {
-	main_init_helper(true, get_core_pos(), NSEC_ENTRY_INVALID);
+	main_init_primary_helper(pagable_part, PADDR_INVALID);
 	return thread_vector_table;
 }
 #elif defined(WITH_SEC_MON)
-void main_init(uint32_t nsec_entry); /* called from assembly only */
-void main_init(uint32_t nsec_entry)
+/* called from assembly only */
+void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry);
+void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry)
 {
-	size_t pos = get_core_pos();
-
-	main_init_helper(pos == 0, pos, nsec_entry);
+	main_init_primary_helper(pagable_part, nsec_entry);
 }
+
+/* called from assembly only */
+void main_init_secondary(uint32_t nsec_entry);
+void main_init_secondary(uint32_t nsec_entry)
+{
+	main_init_secondary_helper(nsec_entry);
+}
+
 #endif
 
 static void main_fiq(void)
@@ -413,12 +436,10 @@ static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1)
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1);
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 {
-	size_t pos = get_core_pos();
-
 	(void)&a0;
 	(void)&a1;
-	PM_DEBUG("cpu %zu: a0 0%x", pos, a0);
-	main_init_helper(false, pos, NSEC_ENTRY_INVALID);
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	main_init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
 
@@ -451,80 +472,6 @@ static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 	return 1;
 }
 #endif
-
-static void main_tee_entry(struct thread_smc_args *args)
-{
-	/*
-	 * This function first catches all ST specific SMC functions
-	 * if none matches, the generic tee_entry is called.
-	 */
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
-		args->a0 = TEESMC_RETURN_OK;
-		args->a1 = default_nsec_shm_paddr;
-		args->a2 = default_nsec_shm_size;
-		/* Should this be TEESMC cache attributes instead? */
-		args->a3 = core_mmu_is_shm_cached();
-		return;
-	}
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
-		switch (args->a1) {
-		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
-		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			/* TODO call the appropriate internal functions */
-			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
-			return;
-		default:
-			args->a0 = TEESMC_RETURN_EBADCMD;
-			return;
-		}
-	}
-
-	tee_entry(args);
-}
-
-
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_call_count(struct thread_smc_args *args)
-{
-	args->a0 = tee_entry_generic_get_api_call_count() + 2;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_UID_R0;
-	args->a1 = TEESMC_OPTEE_UID_R1;
-	args->a2 = TEESMC_OPTEE_UID_R2;
-	args->a3 = TEESMC_OPTEE_UID32_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
-	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
-	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
-	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
-}
 
 paddr_t core_mmu_get_main_ttb_pa(void)
 {
