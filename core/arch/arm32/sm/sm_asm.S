@@ -30,6 +30,8 @@
 #include <arm32_macros.S>
 #include <sm/teesmc.h>
 
+	.section .text.sm_asm
+
 LOCAL_FUNC sm_save_modes_regs , :
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
