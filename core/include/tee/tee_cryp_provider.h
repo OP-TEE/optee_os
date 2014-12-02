@@ -261,4 +261,14 @@ extern struct crypto_ops crypto_ops;
 
 TEE_Result tee_cryp_init(void);
 
+/*
+ * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in
+ * advance and has as few dependencies as possible.
+ *
+ * This function is primarily used by pager and early initialization code
+ * where the complete crypto library isn't available.
+ */
+TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
+		size_t data_size);
+
 #endif /* TEE_CRYP_PROVIDER_H */
