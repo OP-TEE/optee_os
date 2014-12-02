@@ -41,6 +41,7 @@
 #include <kernel/misc.h>
 #include <mm/pager.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
@@ -208,6 +209,8 @@ void main_init(uint32_t nsec_entry)
 		s = s - a;
 #endif
 		malloc_init((void *)a, s);
+
+		teecore_init_ta_ram();
 	}
 }
 
