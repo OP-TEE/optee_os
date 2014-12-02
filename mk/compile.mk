@@ -91,6 +91,10 @@ comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@ \
 	      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
 
 comp-cmd-$2 = $$(CC) $$(comp-flags-$2) -c $$< -o $$@
+comp-objcpy-cmd-$2 = $$(OBJCOPY) \
+	--rename-section .rodata=.rodata.$1 \
+	--rename-section .rodata.str1.1=.rodata.str1.1.$1 \
+	$2
 
 -include $$(comp-cmd-file-$2)
 -include $$(comp-dep-$2)
@@ -106,6 +110,8 @@ $2: $1 FORCE
 		echo '  $$(comp-q-$2)      $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
+		$(cmd-echo) $$(comp-objcpy-cmd-$2) ;\
+		$$(comp-objcpy-cmd-$2) ;\
 		echo "old-cmd-$2 := $$(subst \",\\\",$$(comp-cmd-$2))" > \
 			$$(comp-cmd-file-$2) ;\
 	)
