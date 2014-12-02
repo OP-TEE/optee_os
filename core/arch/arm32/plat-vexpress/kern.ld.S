@@ -145,7 +145,7 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end = .;
 	}
-	__nozi_pad_start = .;
+	__heap2_start = .;
 
 	/*
 	 * We're keeping track of the padding added before the .nozi
@@ -160,7 +160,7 @@ SECTIONS
 	 * L1 mmu table requires 16 KiB alignment
 	 */
 	.nozi : ALIGN(16 * 1024) {
-		__nozi_pad_end = .;
+		__heap2_end = .;
 		KEEP(*(.nozi .nozi.*))
 	}
 
@@ -187,9 +187,9 @@ SECTIONS
 	}
 #endif
 
-	__heap_start = .;
+	__heap1_start = .;
 	. += 0x40000 /*256KiB*/;
-	__heap_end = .;
+	__heap1_end = .;
 
 	_end = .;
 
