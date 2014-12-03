@@ -12,18 +12,119 @@ Name              | Description
 `mk/compile.mk`   | Create rules to make objects from source files
 `mk/lib.mk`       | Create rules to make a libraries (.a)
 `mk/subdir.mk`    | Process `sub.mk` files recursively
+`mk/config.mk`    | Global configuration variable
+`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Arch and platform-specific compiler flags and configuration variables for TEE Core and TA libraries
+`core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` | Make recipes link the TEE Core
+`ta/arch/arm32/link.mk` | Make recipes link Trusted Applications
 `mk/checkconf.mk` | Utility functions to manipulate configuration variables and generate a C header file
-`mk/config.mk`    | Global configuration values
-`sub.mk`          | List source files and compiler flags
+`sub.mk`          | List source files and define compiler flags
 
 `make` is always invoked from the top-level directory; there is no recursive
 invocation of make itself.
 
+## Choosing the build target
+
+The target architecture, platform and build directory may be selected by setting
+environment or make variables (**VAR=value make** or **make VAR=value**).
+
+### ARCH (CPU architecture)
+
+**$(ARCH)** is the CPU architecture to be built. Currently, the only supported
+value is **arm32** for 32-bit ARMv7.
+
+Architecture-specific source code belongs to sub-directories that follow the
+`arch/$(ARCH)` pattern, such as:
+`core/arch/arm32`, `lib/libmpa/arch/arm32`, `lib/libutee/arch/arm32` and
+so on.
+
+### PLATFORM / PLATFORM_FLAVOR (hardware platform)
+
+A *platform* is a family of closely related hardware configurations. A platform
+*flavor* is a variant of such configurations. When used together they define the
+target hardware on which OP-TEE will be run.
+
+For instance **PLATFORM=stm PLATFORM_FLAVOR=orly2** will build for the
+ST Microelectronics Orly2 board, while **PLATFORM=vexpress
+PLATFORM_FLAVOR=qemu_virt** will generate code for a para-virtualized ARM
+Versatile Express board running on QEMU.
+
+For convenience, the flavor may be appended to the platform name with a dash, so
+**make PLATFORM=stm-orly2** is a shortcut for
+**make PLATFORM=stm PLATFORM_FLAVOR=orly2**. Note that in both cases the value
+of **$(PLATFORM)** is **stm** in the makefiles.
+
+Platform-specific source code belongs to `core/arch/$(ARCH)/plat-$(PLATFORM)`,
+for instance: `core/arch/arm32/plat-vexpress` or `core/arch/arm32/plat-stm`.
+
+### O (output directory)
+
 All output files go into a platform-specific build directory, which is by default
-under `out/`. If needed, the build path may be specified as follows:
-```Shell
-make O=path/to/output/directory
+`out/$(ARCH)-plat-$(PLATFORM)`.
+
+The output directory has basically the same structure as the source tree.
+For instance, assuming **ARCH=arm32 PLATFORM=stm**,
+`core/kernel/panic.c` will compile into `out/arm32-plat-stm/core/kernel/panic.o`.
+
+However, some libraries are compiled twice: once for user mode, and once for
+kernel mode. This is because they may be used by the TEE Core as well as by
+the Trusted Applications. As a result, the `lib` source directory gives two
+build directories: `user_ta-lib` and `core-lib`.
+
+The output directory also has an `export-user_ta` directory, which
+contains:
+- All the files needed to build Trusted Applications.
+  - In `lib/`: **libutee.a** (the GlobalPlatform Internal API), **libutils.a**
+  (which implements a part of the standard C library), and **libmpa.a** (which
+  implements multiple precision arithmetic and is required by libutee.a).
+  - In `include/`: header files for the above libraries
+  - In `mk/`: **ta_dev_kit.mk**, which is a Make include file with suitable
+  rules to build a TA, and its dependencies
+  - `scripts/fix_ta_binary`: a Perl script used by ta_dev_kit.mk.
+  - In `src`: **user_ta_header.c** and **user_ta_elf_arm.lds**: source file and
+  linker script to add a suitable header to the Trusted Application (as expected
+  by the loader code in the TEE Core)
+- Some files needed to build host applications (using the Client API), under
+  `export-user_ta/host_include`.
+
+Finally, the build directory contains the auto-generated configuration file
+for the TEE Core: `$(O)/core/include/generated/conf.h` (see below).
+
+### CROSS_COMPILE (cross-compiler selection)
+
+**$(CROSS_COMPILE)** is the prefix used to invoke the cross-compiler toolchain.
+The default value is **arm-linux-gnueabihf-**. This is the variable you want to
+change in case you want to use
+[ccache](https://ccache.samba.org/) to speed you recompilations:
+```shell
+$ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 ```
+
+## Platform-specific configuration (conf.mk)
+
+The file `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` is included from
+`mk/core.mk`. Its purpose is to define some compiler flags and configuration
+variables for OP-TEE.
+
+- **$(platform-aflags)**, **$(platform-cflags)** and **$(platform-cppflags)**
+  are added to the assembler / C compiler / preprocessor flags for all source
+  files
+- **$(core-platform-aflags)**, **$(core-platform-cflags)** and
+  **$(core-platform-cppflags)** are added to the assembler / C compiler /
+  preprocessor flags when building files that will run in kernel mode in the
+  TEE Core. This applies to core-only files, but also to the kernel versions of
+  **libmpa.a** and **libutils.a**.
+- **$(user_ta-platform-aflags)**, **$(user_ta-platform-cflags)** and
+  **$(user_ta-platform-cppflags)** are added to the assembler / C compiler /
+  preprocessor flags when building the user-mode libraries (**libutee.a**,
+  **libutils.a**, **libmpa.a**).
+- **$(core-platform-subdirs)** is the list of the subdirectories that are
+  added to the TEE Core.
+
+## Platform-specific link recipes (link.mk)
+
+The file `core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` contains the rules to
+link the TEE Core and perform any related tasks, such as running **objdump**
+to produce a dump file. **link.mk** adds files to the **all:** target.
 
 ## Source files
 
@@ -57,8 +158,11 @@ directories and/or configuration variables as explained below.
 
 ## Compiler flags
 
-Default compiler flags are defined in `mk/compile.mk`. To add flags
-for a specific source file, you may use the following variables in `sub.mk`:
+Default compiler flags are defined in `mk/compile.mk`. Platform-specific flags
+are defined in `core/arch/arm32/plat-vexpress/conf.mk`
+
+To add flags for a given source file, you may use the following variables in
+`sub.mk`:
 * `cflags-<filename>-y` for C files (*.c)
 * `aflags-<filename>-y` for assembler files (*.S)
 * `cppflags-<filename>-y` for both C and assembler
@@ -85,9 +189,11 @@ and `cflags-lib-y`.
 ## Include directories
 
 Include directories may be added to `global-incdirs-y`, in which case they will
-be accessible from all the source files. When `sub.mk` is used to build a
-library, `incdirs-lib-y` may receive additional directories that will be used
-for that library only.
+be accessible from all the source files and will be copied to
+`export-user_ta/include` and `export-user_ta/host_include`.
+
+When `sub.mk` is used to build a library, `incdirs-lib-y` may receive additional
+directories that will be used for that library only.
 
 ## Configuration variables
 
