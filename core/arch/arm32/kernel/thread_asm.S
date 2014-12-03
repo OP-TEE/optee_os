@@ -174,7 +174,7 @@ FUNC thread_set_fiq_sp , :
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
-END_FUNC thread_set_irq_sp
+END_FUNC thread_set_fiq_sp
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :

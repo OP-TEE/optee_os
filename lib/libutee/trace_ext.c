@@ -98,8 +98,6 @@ int puts(const char *str)
 	return 1;
 }
 
-
-
 #else
 
 int printf(const char *fmt __unused, ...)
@@ -111,6 +109,5 @@ int puts(const char *str __unused)
 {
 	return 0;
 }
-#
 
 #endif

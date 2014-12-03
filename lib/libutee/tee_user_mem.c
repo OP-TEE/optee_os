@@ -26,11 +26,10 @@
  */
 #include <stdint.h>
 #include <string.h>
-
+#include <compiler.h>
 #include <utee_defines.h>
 #include <sys/queue.h>
 #include <assert.h>
-
 #include <tee_api.h>
 #include "tee_user_mem.h"
 #include "utee_misc.h"
@@ -173,7 +172,7 @@ static void print_buf(int tl, const char *func, int line, const char *prefix,
 					  __LINE__, prefix, elem); }
 #else
 #define PB(trace_level, prefix, elem) (void)0
-#endif /* CFG_TEE_TA_LOG_LEVEL */
+#endif /* CFG_TRACE_LEVEL */
 
 /*
  * Heap mark to track leak.
@@ -273,11 +272,11 @@ static int is_mem_coherent(void)
 }
 
 #else /* CFG_TEE_CORE_USER_MEM_DEBUG */
-static void heap_inc(size_t size)
+static void heap_inc(size_t size  __unused)
 {
 }
 
-static void heap_dec(size_t size)
+static void heap_dec(size_t size  __unused)
 {
 }
 
@@ -507,8 +506,10 @@ void tee_user_mem_status(struct tee_user_mem_stats *stats)
 	if (stats != NULL)
 		memcpy(stats, &global_stats, sizeof(struct tee_user_mem_stats));
 
-	EMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
-	EMSG("Size:\t[%d]", global_stats.size);
+	if (global_stats.nb_alloc > 0) {
+		IMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
+		IMSG("Size:\t[%d]", global_stats.size);
+	}
 
 	TAILQ_FOREACH(e, &user_mem_head, link) {
 		PB(TRACE_ERROR, "", e);

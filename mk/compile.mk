@@ -99,7 +99,7 @@ comp-cmd-$2 = $$(CC) $$(comp-flags-$2) -c $$< -o $$@
 $2: $1 FORCE
 # Check if any prerequisites are newer than the target and
 # check if command line has changed
-	$$(if $$(strip $$?  $$(filter-out $$(comp-cmd-$2), $$(old-cmd-$2)) \
+	$$(if $$(strip $$? $$(filter-out $$(comp-cmd-$2), $$(old-cmd-$2)) \
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) ;\
