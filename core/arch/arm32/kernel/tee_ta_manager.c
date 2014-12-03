@@ -24,13 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <stdio.h>
 #include <types_ext.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
-
 #include <tee_api_types.h>
 #include <user_ta_header.h>
 #include <util.h>
@@ -58,6 +57,9 @@
 #include <mm/core_mmu.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tee_kta_trace.h>
+#include <kernel/trace_ta.h>
 
 
 /* Use this invalid ID for a static TA, since
@@ -1535,4 +1537,49 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 			return TEE_SUCCESS;
 	}
 	return TEE_ERROR_BAD_PARAMETERS;
+}
+
+/*
+ * dump_state - Display TA state as an error log.
+ */
+static void dump_state(struct tee_ta_ctx *ctx)
+{
+	struct tee_ta_session *s = NULL;
+	char uuid[TEE_UUID_STRING_LEN];
+	bool active __unused;
+
+	uuid2str(uuid, &ctx->head->uuid);
+	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
+		  s && s->ctx == ctx);
+
+	EMSG_RAW("Status of TA %s (%p)", uuid, (void *)ctx);
+	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d     %s",
+		 ctx->load_addr, ctx->context, active ? "(active)" : "");
+	EMSG_RAW("- code area : 0x%x ro:%u rw:%u zi:%u",
+		 tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
+		 ctx->head->rw_size, ctx->head->zi_size);
+	EMSG_RAW("- heap/stack: 0x%x stack:%u",
+		 tee_mm_get_smem(ctx->mm_heap_stack),
+		 ctx->stack_size);
+}
+
+void tee_ta_dump_current(void)
+{
+	struct tee_ta_session *s = NULL;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS) {
+		EMSG("no valid session found, cannot log TA status");
+		return;
+	}
+
+	dump_state(s->ctx);
+}
+
+
+void tee_ta_dump_all(void)
+{
+	struct tee_ta_ctx *ctx;
+
+	TAILQ_FOREACH(ctx, &tee_ctxes, link)
+		dump_state(ctx);
 }

@@ -381,7 +381,7 @@ thread_und_handler:
 	 * Switch to abort mode to use that stack instead.
 	 */
 	cps	#CPSR_MODE_ABT
-	push	{r0-r3, ip}
+	push	{r0-r11, ip}
 	cps	#CPSR_MODE_UND
 	sub	r1, lr, #4
 	mrs	r0, spsr
@@ -392,7 +392,7 @@ thread_und_handler:
 	b	.thread_abort_generic
 
 thread_dabort_handler:
-	push	{r0-r3, ip}
+	push	{r0-r11, ip}
 	sub	r1, lr, #8
 	mrs	r0, spsr
 	push	{r0, r1, r2}
@@ -400,7 +400,7 @@ thread_dabort_handler:
 	b	.thread_abort_generic
 
 thread_pabort_handler:
-	push	{r0-r3, ip}
+	push	{r0-r11, ip}
 	sub	r1, lr, #4
 	mrs	r0, spsr
 	push	{r0, r1, r2}
@@ -415,7 +415,7 @@ thread_pabort_handler:
 	pop	{r0, r1, r2}
 	mov	lr, r1
 	msr	spsr_fsxc, r0
-	pop	{r0-r3, ip}
+	pop	{r0-r11, ip}
 	movs	pc, lr
 END_FUNC thread_abort_handler
 

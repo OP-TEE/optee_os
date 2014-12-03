@@ -102,4 +102,7 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 
 int tee_ta_set_trace_level(int level);
 
+void tee_ta_dump_current(void);
+void tee_ta_dump_all(void);
+
 #endif

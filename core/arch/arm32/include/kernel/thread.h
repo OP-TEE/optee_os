@@ -59,6 +59,14 @@ struct thread_abort_regs {
 	uint32_t r1;
 	uint32_t r2;
 	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t r8;
+	uint32_t r9;
+	uint32_t r10;
+	uint32_t r11;
 	uint32_t ip;
 };
 typedef void (*thread_abort_handler_t)(uint32_t abort_type,

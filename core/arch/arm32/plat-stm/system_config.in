@@ -52,4 +52,7 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
 
 STACK_TMP_SIZE		:= 1024	# TODO minimize
 STACK_ABT_SIZE		:= 1024
+ifneq ($(CFG_TEE_CORE_LOG_LEVEL),0) # abt stack logs needs >256 more bytes
+STACK_ABT_SIZE		:= 2048	# TODO minimize
+endif
 STACK_THREAD_SIZE	:= 8192

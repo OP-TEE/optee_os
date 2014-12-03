@@ -81,4 +81,8 @@ bool _core_is_buffer_inside(vaddr_t b, size_t bl, vaddr_t a, size_t al);
 bool _core_is_buffer_outside(vaddr_t b, size_t bl, vaddr_t a, size_t al);
 bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al);
 
+/*  UUID string: "XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX". Size includes '\0' */
+#define TEE_UUID_STRING_LEN		36
+int uuid2str(char *dst, TEE_UUID *uuid);
+
 #endif /* TEE_MISC_H */

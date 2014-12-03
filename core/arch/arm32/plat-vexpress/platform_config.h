@@ -95,7 +95,11 @@
 #endif
 
 #define STACK_TMP_SIZE		1024
+#if CFG_TRACE_LEVEL > 0
+#define STACK_ABT_SIZE		2048
+#else
 #define STACK_ABT_SIZE		1024
+#endif
 #define STACK_THREAD_SIZE	8192
 
 #if PLATFORM_FLAVOR_IS(fvp)
