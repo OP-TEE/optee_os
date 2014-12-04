@@ -35,7 +35,7 @@ STABLE_QEMU_COMMIT=c00ed157431a4a6e0c4c481ba1c809623cbf908f
 
 SRC_BIOS_QEMU=https://github.com/jenswi-linaro/bios_qemu_tz_arm.git
 DST_BIOS_QEMU=$DEV_PATH/bios_qemu
-STABLE_BIOS_QEMU_COMMIT=b93e1717a79267ec5fc5ecf4fa03e478be94d506
+STABLE_BIOS_QEMU_COMMIT=f510738399008226874504256f4e5f59e63cfa6a
 
 SRC_SOC_TERM=https://github.com/jenswi-linaro/soc_term.git
 DST_SOC_TERM=$DEV_PATH/soc_term

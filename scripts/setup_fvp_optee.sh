@@ -25,9 +25,11 @@ if [ ! -n "$SRC_FVP" ]; then
 	exit
 fi
 
-SRC_ATF=https://github.com/ARM-software/arm-trusted-firmware.git
+#Until something official ARM-TF supports loading a partitioned OP-TEE
+#SRC_ATF=https://github.com/ARM-software/arm-trusted-firmware.git
+SRC_ATF=https://github.com/jenswi-linaro/arm-trusted-firmware.git
 DST_ATF=$DEV_PATH/arm-trusted-firmware
-STABLE_ATF_COMMIT=aa5da46138e1583990086b76b56e0a9186cb7b7d
+STABLE_ATF_COMMIT=db4b9efe59b4f76e9680836a443158fde0f12e40
 
 SRC_KERNEL=git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 DST_KERNEL=$DEV_PATH/linux
