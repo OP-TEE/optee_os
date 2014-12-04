@@ -116,9 +116,6 @@
 #define TEE_MMU_SECTION_NOCACHE						\
 		TEE_MMU_SECTION_TEX(1)
 
-#define TEE_MMU_KL2_ENTRY(page_num) \
-	    (*(uint32_t *)(SEC_VIRT_MMU_L2_BASE + ((uint32_t)(page_num)) * 4))
-
 #define TEE_MMU_UL1_ENTRY(page_num) \
 	    (*(uint32_t *)(TEE_MMU_UL1_BASE + ((uint32_t)(page_num)) * 4))
 

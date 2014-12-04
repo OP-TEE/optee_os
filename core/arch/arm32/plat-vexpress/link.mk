@@ -24,8 +24,7 @@ link-script-cppflags := -DASM=1 \
 		$(addprefix -I,$(incdirs$(sm)) $(link-out-dir)) \
 		$(cppflags$(sm)))
 
-entries-unpaged += tee_pager_abort_handler
-entries-unpaged += pager_load_rodata
+entries-unpaged += pager_abort_handler
 entries-unpaged += thread_init_vbar
 entries-unpaged += sm_init
 entries-unpaged += core_init_mmu_regs
