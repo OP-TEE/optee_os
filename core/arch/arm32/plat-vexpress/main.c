@@ -87,7 +87,9 @@
 DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
 DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
+#ifndef CFG_WITH_PAGER
 DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
+#endif
 
 const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 	GET_STACK(stack_tmp[0]),
@@ -130,12 +132,21 @@ static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
+extern uint8_t __text_init_start[];
+extern uint8_t __data_start[];
+extern uint8_t __data_end[];
 extern uint8_t __bss_start[];
 extern uint8_t __bss_end[];
+extern uint8_t __init_start[];
+extern uint8_t __init_size[];
 extern uint8_t __heap1_start[];
 extern uint8_t __heap1_end[];
 extern uint8_t __heap2_start[];
 extern uint8_t __heap2_end[];
+extern uint8_t __pagable_part_start[];
+extern uint8_t __pagable_part_end[];
+extern uint8_t __pagable_start[];
+extern uint8_t __pagable_end[];
 
 static void main_fiq(void);
 #if defined(WITH_ARM_TRUSTED_FW)
@@ -171,7 +182,9 @@ static void init_canaries(void)
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
 	INIT_CANARY(stack_sm);
+#ifndef CFG_WITH_PAGER
 	INIT_CANARY(stack_thread);
+#endif
 }
 
 void check_canaries(void)
@@ -188,7 +201,9 @@ void check_canaries(void)
 	ASSERT_STACK_CANARIES(stack_tmp);
 	ASSERT_STACK_CANARIES(stack_abt);
 	ASSERT_STACK_CANARIES(stack_sm);
+#ifndef CFG_WITH_PAGER
 	ASSERT_STACK_CANARIES(stack_thread);
+#endif
 #endif /*WITH_STACK_CANARIES*/
 }
 
@@ -272,6 +287,130 @@ static void main_init_gic(void)
 }
 #endif
 
+#ifdef CFG_WITH_PAGER
+static void main_init_runtime(uint32_t pagable_part)
+{
+	size_t n;
+	size_t init_size = (size_t)__init_size;
+	size_t pagable_size = __pagable_end - __pagable_start;
+	size_t hash_size = (pagable_size / SMALL_PAGE_SIZE) *
+			   TEE_SHA256_HASH_SIZE;
+	tee_mm_entry_t *mm;
+	uint8_t *paged_store;
+	uint8_t *hashes;
+	uint8_t *tmp_hashes = __init_start + init_size;
+
+
+	TEE_ASSERT(pagable_size % SMALL_PAGE_SIZE == 0);
+
+
+	/* Copy it right after the init area. */
+	memcpy(tmp_hashes, __data_end + init_size, hash_size);
+
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+
+	hashes = malloc(hash_size);
+	EMSG("hash_size %d", hash_size);
+	TEE_ASSERT(hashes);
+	memcpy(hashes, tmp_hashes, hash_size);
+
+	/*
+	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
+	 * DDR below.
+	 */
+	teecore_init_ta_ram();
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, pagable_size);
+	TEE_ASSERT(mm);
+	paged_store = (uint8_t *)tee_mm_get_smem(mm);
+	/* Copy init part into pagable area */
+	memcpy(paged_store, __init_start, init_size);
+	/* Copy pagable part after init part into pagable area */
+	memcpy(paged_store + init_size, (void *)pagable_part,
+		__pagable_part_end - __pagable_part_start);
+
+	/* Check that hashes of what's in pagable area is OK */
+	DMSG("Checking hashes of pagable area");
+	for (n = 0; (n * SMALL_PAGE_SIZE) < pagable_size; n++) {
+		const uint8_t *hash = hashes + n * TEE_SHA256_HASH_SIZE;
+		const uint8_t *page = paged_store + n * SMALL_PAGE_SIZE;
+		TEE_Result res;
+
+		DMSG("hash pg_idx %zu hash %p page %p", n, hash, page);
+		res = hash_sha256_check(hash, page, SMALL_PAGE_SIZE);
+		if (res != TEE_SUCCESS)
+			EMSG("Hash failed for page %zu at %p: res 0x%x",
+				n, page, res);
+	}
+
+	/*
+	 * Copy what's not initialized in the last init page. Needed
+	 * because we're not going fault in the init pages again. We can't
+	 * fault in pages until we've switched to the new vector by calling
+	 * thread_init_handlers() below.
+	 */
+	if (init_size % SMALL_PAGE_SIZE) {
+		uint8_t *p;
+
+		memcpy(__init_start + init_size, paged_store + init_size,
+			SMALL_PAGE_SIZE - (init_size % SMALL_PAGE_SIZE));
+
+		p = (uint8_t *)(((vaddr_t)__init_start + init_size) &
+				~SMALL_PAGE_MASK);
+
+		cache_maintenance_l1(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
+		cache_maintenance_l1(ICACHE_AREA_INVALIDATE, p,
+				     SMALL_PAGE_SIZE);
+	}
+
+	/*
+	 * Inialize the virtual memory pool used for main_mmu_l2_ttb which
+	 * is supplied to tee_pager_init() below.
+	 */
+	if (!tee_mm_init(&tee_mm_vcore,
+			ROUNDDOWN(CFG_TEE_RAM_START, SECTION_SIZE),
+			ROUNDDOWN(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+				  SECTION_SIZE),
+			SMALL_PAGE_SHIFT, 0))
+		panic();
+
+	tee_pager_init(main_mmu_l2_ttb);
+
+	/*
+	 * Claim virtual memory which isn't paged, note that there migth be
+	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
+	 * claimed to avoid later allocations to get that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
+			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
+	TEE_ASSERT(mm);
+
+	/*
+	 * Allocate virtual memory for the pagable area and let the pager
+	 * take charge of all the pages already assigned to that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pagable_start,
+			   pagable_size);
+	TEE_ASSERT(mm);
+	tee_pager_add_area(mm, TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
+			   paged_store, hashes);
+	tee_pager_add_pages((vaddr_t)__pagable_start,
+		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
+	tee_pager_add_pages((vaddr_t)__pagable_start +
+				ROUNDUP(init_size, SMALL_PAGE_SIZE),
+			(pagable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
+				SMALL_PAGE_SIZE, true);
+
+}
+#else
 static void main_init_runtime(uint32_t pagable_part __unused)
 {
 	/*
@@ -283,9 +422,47 @@ static void main_init_runtime(uint32_t pagable_part __unused)
 
 	malloc_init(__heap1_start, __heap1_end - __heap1_start);
 
+	/*
+	 * Initialized at this stage in the pager version of this function
+	 * above
+	 */
 	teecore_init_ta_ram();
 }
+#endif
 
+#ifdef CFG_WITH_PAGER
+static void main_init_thread_stacks(void)
+{
+	size_t n;
+
+	/*
+	 * Allocate virtual memory for thread stacks.
+	 */
+	for (n = 0; n < NUM_THREADS; n++) {
+		tee_mm_entry_t *mm;
+		vaddr_t sp;
+
+		/* Get unmapped page at bottom of stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
+		TEE_ASSERT(mm);
+		/* Claim eventual physical page */
+		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+
+		/* Allocate the actual stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
+		TEE_ASSERT(mm);
+		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
+		if (!thread_init_stack(n, sp))
+			panic();
+		/* Claim eventual physical page */
+		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+		/* Add the area to the pager */
+		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
+	}
+}
+#else
 static void main_init_thread_stacks(void)
 {
 	size_t n;
@@ -296,6 +473,7 @@ static void main_init_thread_stacks(void)
 			panic();
 	}
 }
+#endif
 
 static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 {
@@ -529,3 +707,4 @@ void *core_mmu_alloc_l2(struct map_area *map)
 	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
 	return main_mmu_l2_ttb;
 }
+

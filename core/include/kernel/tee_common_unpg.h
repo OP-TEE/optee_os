@@ -108,27 +108,4 @@ typedef uintptr_t tee_uaddr_t;
  *---------------------------------------------------------------------------*/
 void *tee_ta_load_page(const uint32_t va_addr);
 
-/*-----------------------------------------------------------------------------
- * tee_ta_check_rw - Checks if a page at va_addr contains rw data which should
- * be saved
- * Parameters:
- * va_addr - The address somewhere in the page to be removed (in)
- * session_handle - The session handle of the page
- * Returns:
- *           Returns 1 if the page contains data, 0 otherwise
- * NOTE: This function is executed in abort mode. Pls take care of stack usage
- *---------------------------------------------------------------------------*/
-uint32_t tee_ta_check_rw(const uint32_t va_addr, const void *session_handle);
-
-/*-----------------------------------------------------------------------------
- * tee_ta_save_rw removes a page at address va_addr
- * Parameters:
- * va_addr - The address somewhere in the page to be removed (in)
- * session_handle - The session handle of the page
- * Returns:
- *           void
- * NOTE: This function is executed in abort mode. Pls take care of stack usage
- *---------------------------------------------------------------------------*/
-void tee_ta_save_rw(const uint32_t va_addr, const void *session_handle);
-
 #endif /* TEE_COMMON_UNPG_H */

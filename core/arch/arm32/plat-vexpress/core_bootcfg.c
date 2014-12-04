@@ -120,9 +120,20 @@ static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 }
 
 static struct map_area bootcfg_memory[] = {
+#ifdef ROM_BASE
+	{
+	 .type = MEM_AREA_IO_SEC,
+	 .pa = ROM_BASE, .size = ROM_SIZE,
+	 .cached = true, .secure = true, .rw = false, .exec = false,
+	 },
+#endif
+
 	{	/* teecore execution RAM */
 	 .type = MEM_AREA_TEE_RAM,
 	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_PH_SIZE,
+#ifdef CFG_WITH_PAGER
+	 .region_size = SMALL_PAGE_SIZE,
+#endif
 	 .cached = true, .secure = true, .rw = true, .exec = true,
 	 },
 

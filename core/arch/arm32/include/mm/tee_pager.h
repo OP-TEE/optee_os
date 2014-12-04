@@ -29,9 +29,60 @@
 #define MM_TEE_PAGER_H
 
 #include <kernel/thread.h>
+#include <mm/tee_mm_unpg.h>
+
+/* Read-only mapping */
+#define TEE_PAGER_AREA_RO	(1 << 0)
+/*
+ * Read/write mapping, pages will only be reused after explicit release of
+ * the pages. A partial area can be release for instance when shrinking a
+ * stack.
+ */
+#define TEE_PAGER_AREA_RW	(1 << 1)
+/* Executable mapping */
+#define TEE_PAGER_AREA_X	(1 << 2)
+
+/*
+ * tee_pager_add_area() - Adds a pagable area
+ * @mm:		covered memory area
+ * @flags:	describes attributes of mapping
+ * @store:	backing store for the memory area
+ * @hashes:	hashes of the pages in the backing store
+ *
+ * Exacly of TEE_PAGER_AREA_RO and TEE_PAGER_AREA_RW has to be supplied in
+ * flags.
+ *
+ * If TEE_PAGER_AREA_X is supplied the area will be mapped as executable,
+ * currently only supported together with TEE_PAGER_AREA_RO.
+ *
+ * TEE_PAGER_AREA_RO requires store and hashes to be !NULL while
+ * TEE_PAGER_AREA_RW requires store and hashes to be NULL, pages will only
+ * be reused after explicit release of the pages. A partial area can be
+ * release for instance when releasing unused parts of a stack.
+ *
+ * Invalid use of flags will cause a panic.
+ *
+ * Return true on success or false if area can't be added.
+ */
+bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
+		const void *hashes);
+
+/*
+ * tee_pager_init() - Initializes the pager
+ * @xlat_table:	Address of translation table mapping the region covered
+ *		by tee_mm_vcore
+ * @mm:		Memory region with paging activated, should be allocated
+ *		from tee_mm_vcore
+ * @store:	Address of backing store of the paged region
+ * @hashes:	Hashes for the pages in the backing store
+ *
+ * The pager will use tee_mm_vcore.lo as virtual base address for the
+ * tranlation table.
+ */
+void tee_pager_init(void *xlat_table);
 
 void tee_pager_abort_handler(uint32_t abort_type,
-			     struct thread_abort_regs *regs);
+		struct thread_abort_regs *regs);
 
 /*
  * Adds physical pages to the pager to use. The supplied virtual address range
@@ -40,7 +91,7 @@ void tee_pager_abort_handler(uint32_t abort_type,
  * vaddr is the first virtual address
  * npages is the number of pages to add
  */
-void tee_pager_add_pages(vaddr_t vaddr, size_t npages);
+void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
 
 void tee_pager_unhide_all_pages(void);
 

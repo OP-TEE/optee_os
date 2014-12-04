@@ -73,6 +73,30 @@ LOCAL_FUNC reset , :
 END_FUNC reset
 
 LOCAL_FUNC reset_primary , :
+#ifdef CFG_WITH_PAGER
+	/*
+	 * Move init code into correct location
+	 *
+	 * The binary is built as:
+	 * [Pager code, rodata and data] : In correct location
+	 * [Init code and rodata] : Should be copied to __text_init_start
+	 * [Hashes] : Should be saved before clearing bss
+	 *
+	 * When we copy init code and rodata into correct location we don't
+	 * need to worry about hashes being overwritten as size of .bss,
+	 * .heap, .nozi and .heap3 is much larger than the size of init
+	 * code and rodata and hashes.
+	 */
+	ldr	r0, =__text_init_start	/* dst */
+	ldr	r1, =__data_end 	/* src */
+	ldr	r2, =__rodata_init_end	/* dst limit */
+copy_init:
+	ldm	r1!, {r6-r12}
+	stm	r0!, {r6-r12}
+	cmp	r0, r2
+	blt	copy_init
+#endif
+
 	bl	get_core_pos
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
 	/* Unsupported CPU, park it before it breaks something */
@@ -90,7 +114,11 @@ LOCAL_FUNC reset_primary , :
 	 * Before MMU is turned on is VA == PA for cache operations.
 	 */
 	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
 	ldr	r1, =_end
+#endif
 	sub	r1, r1, #1
 	bl	arm_cl1_d_invbyva
 
@@ -117,7 +145,11 @@ LOCAL_FUNC reset_primary , :
 	 */
 	mov	r4, r0
 	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
 	ldr	r1, =_end
+#endif
 	sub	r1, r1, #1
 	bl	arm_cl1_d_cleaninvbyva
 	mov	r0, r4

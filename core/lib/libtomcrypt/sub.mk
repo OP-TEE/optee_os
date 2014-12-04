@@ -37,6 +37,13 @@ CFG_CRYPTO_GCM ?= y
 
 endif
 
+ifeq ($(CFG_WITH_PAGER),y)
+ifneq ($(CFG_CRYPTO_SHA256),y)
+$(warning Warning: Enabling CFG_CRYPTO_SHA256 [required by CFG_WITH_PAGER])
+CFG_CRYPTO_SHA256:=y
+endif
+endif
+
 # Dependency checks: warn and disable some features if dependencies are not met
 
 cryp-dep-one = $(call cfg-depends-one,CFG_CRYPTO_$(strip $(1)),$(patsubst %, CFG_CRYPTO_%,$(strip $(2))))

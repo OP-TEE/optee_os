@@ -113,9 +113,22 @@
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x80000000
 
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+#define TZSRAM_BASE		(0x06000000)
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x02000000 - CFG_TEE_RAM_VA_SIZE)
+
+#else /*CFG_WITH_PAGER*/
+
 /* Location of trusted dram on the base fvp */
 #define TZDRAM_BASE		0x06000000
 #define TZDRAM_SIZE		0x02000000
+
+#endif /*CFG_WITH_PAGER*/
 
 #define CFG_TEE_CORE_NB_CORE	8
 
@@ -133,6 +146,16 @@
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x7F000000
 
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+#define TZSRAM_BASE		0xFF000000
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x00E00000 - CFG_TEE_RAM_VA_SIZE)
+
+#else /*CFG_WITH_PAGER*/
 /*
  * Last part of DRAM is reserved as secure dram, note that the last 2MiB
  * of DRAM0 is used by SCP dor DDR retraining.
@@ -145,6 +168,7 @@
  * OP-TEE OS is mapped using small pages instead.
  */
 #define TZDRAM_SIZE		0x00E00000
+#endif /*CFG_WITH_PAGER*/
 
 #define CFG_TEE_CORE_NB_CORE	6
 
@@ -158,6 +182,9 @@
 /*
  * QEMU specifics.
  */
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for platform vepress-qemu"
+#endif
 
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x40000000
@@ -192,9 +219,21 @@
 #define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
 #define DRAM0_TEERES_SIZE	(33 * 1024 * 1024)
 
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+#define TZSRAM_BASE		DRAM0_TEERES_BASE
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(DRAM0_TEERES_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(32 * 1024 * 1024 - CFG_TEE_RAM_VA_SIZE)
+
+#else /* CFG_WITH_PAGER */
 
 #define TZDRAM_BASE		DRAM0_TEERES_BASE
 #define TZDRAM_SIZE		(32 * 1024 * 1024)
+
+#endif /* CFG_WITH_PAGER */
 
 #define CFG_TEE_CORE_NB_CORE	2
 
@@ -216,7 +255,25 @@
 #define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
 #endif
 
+#ifdef CFG_WITH_PAGER
 /*
+ * Have TZSRAM either as real physical or emulated by reserving an area
+ * somewhere else.
+ *
+ * +------------------+
+ * | TZSRAM | TEE_RAM |
+ * +--------+---------+
+ * | TZDRAM | TA_RAM  |
+ * +--------+---------+
+ */
+#define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
+#define CFG_TEE_RAM_START	TZSRAM_BASE
+#define CFG_TA_RAM_START	TZDRAM_BASE
+#define CFG_TA_RAM_SIZE		TZDRAM_SIZE
+#else
+/*
+ * Assumes that either TZSRAM isn't large enough or TZSRAM doesn't exist,
+ * everything is in TZDRAM.
  * +------------------+
  * |        | TEE_RAM |
  * + TZDRAM +---------+
@@ -227,6 +284,7 @@
 #define CFG_TEE_RAM_START	TZDRAM_BASE
 #define CFG_TA_RAM_START	(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE)
 #define CFG_TA_RAM_SIZE		(TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE)
+#endif
 
 #ifndef UART_BAUDRATE
 #define UART_BAUDRATE		115200

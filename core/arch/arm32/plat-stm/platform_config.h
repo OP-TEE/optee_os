@@ -28,10 +28,16 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <generated/conf.h>
+
 #define PLATFORM_FLAVOR_ID_orly2	0
 #define PLATFORM_FLAVOR_ID_cannes	1
 #define PLATFORM_FLAVOR_IS(flav) \
 	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
+
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for platform STM"
+#endif
 
 #if PLATFORM_FLAVOR_IS(cannes)
 
