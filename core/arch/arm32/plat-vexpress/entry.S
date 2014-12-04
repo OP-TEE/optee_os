@@ -110,6 +110,18 @@ LOCAL_FUNC reset_primary , :
 	mov	r1, r5		/* ns-entry address */
 	bl	main_init_primary
 
+	/*
+	 * In case we've touched memory that secondary CPUs will use before
+	 * they have turned on their D-cache, clean and invalidate the
+	 * D-cache before exiting to normal world.
+	 */
+	mov	r4, r0
+	ldr	r0, =__text_start
+	ldr	r1, =_end
+	sub	r1, r1, #1
+	bl	arm_cl1_d_cleaninvbyva
+	mov	r0, r4
+
 #if defined(WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
 	mov     r1, r0
