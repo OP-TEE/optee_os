@@ -1693,14 +1693,17 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result mac_update(void *ctx, uint32_t algo,
-				     const uint8_t *data, size_t len)
+static TEE_Result mac_update(void *ctx, uint32_t algo, const uint8_t *data,
+			     size_t len)
 {
 #if defined(CFG_CRYPTO_CBC_MAC)
 	int ltc_res;
 	struct cbc_state *cbc;
 	size_t pad_len;
 #endif
+
+	if (!data || !len)
+		return TEE_SUCCESS;
 
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)

@@ -144,6 +144,12 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_DH_DERIVE_SHARED_SECRET:
+	case TEE_ALG_HKDF_MD5_DERIVE_KEY:
+	case TEE_ALG_HKDF_SHA1_DERIVE_KEY:
+	case TEE_ALG_HKDF_SHA224_DERIVE_KEY:
+	case TEE_ALG_HKDF_SHA256_DERIVE_KEY:
+	case TEE_ALG_HKDF_SHA384_DERIVE_KEY:
+	case TEE_ALG_HKDF_SHA512_DERIVE_KEY:
 	case TEE_ALG_CONCAT_KDF_SHA1_DERIVE_KEY:
 	case TEE_ALG_CONCAT_KDF_SHA224_DERIVE_KEY:
 	case TEE_ALG_CONCAT_KDF_SHA256_DERIVE_KEY:
@@ -1108,6 +1114,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 		TEE_Panic(0);
 	if (paramCount != 0 && params == NULL)
 		TEE_Panic(0);
+
 	if (TEE_ALG_GET_CLASS(operation->info.algorithm) !=
 			TEE_OPERATION_KEY_DERIVATION)
 		TEE_Panic(0);

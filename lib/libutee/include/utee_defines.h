@@ -44,6 +44,7 @@
 #define TEE_MAIN_ALGO_RSA        0x30
 #define TEE_MAIN_ALGO_DSA        0x31
 #define TEE_MAIN_ALGO_DH         0x32
+#define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 
 
@@ -88,6 +89,10 @@
 	/* Extract digest hash and return hash algorithm */
 #define TEE_DIGEST_HASH_TO_ALGO(algo) \
                 TEE_ALG_HASH_ALGO(TEE_ALG_GET_DIGEST_HASH(algo))
+
+/* Return HMAC algorithm based on main hash */
+#define TEE_ALG_HMAC_ALGO(main_hash) \
+	(TEE_OPERATION_MAC << 28 | (main_hash))
 
 #define TEE_AES_BLOCK_SIZE  16UL
 #define TEE_DES_BLOCK_SIZE  8UL
