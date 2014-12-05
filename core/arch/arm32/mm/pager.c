@@ -263,7 +263,7 @@ static bool pager_is_abort_in_abort_handler(void)
 	return (read_spsr() & CPSR_MODE_MASK) == CPSR_MODE_ABT;
 }
 
-static const char *abort_type_to_str(uint32_t abort_type)
+static __unused const char *abort_type_to_str(uint32_t abort_type)
 {
 	if (abort_type == THREAD_ABORT_DATA)
 		return "data";
