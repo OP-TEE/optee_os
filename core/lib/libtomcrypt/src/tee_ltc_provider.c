@@ -2316,6 +2316,7 @@ struct crypto_ops crypto_ops = {
 };
 
 
+#if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size)
 {
@@ -2332,3 +2333,4 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		return TEE_ERROR_SECURITY;
 	return TEE_SUCCESS;
 }
+#endif
