@@ -2075,8 +2075,8 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	struct tee_cryp_state *cs;
 	struct tee_cryp_obj_secret *sk;
 	const struct tee_cryp_obj_type_props *type_props;
-	struct bignum *publicvalue;
-	struct bignum *sharedsecret;
+	struct bignum *publicvalue = NULL;
+	struct bignum *sharedsecret = NULL;
 	size_t alloc_size;
 
 	res = tee_ta_get_current_session(&sess);
@@ -2108,17 +2108,22 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	if (!type_props)
 		return TEE_ERROR_NOT_SUPPORTED;
 
+	if (!crypto_ops.bignum.allocate ||
+	    !crypto_ops.bignum.free ||
+	    !crypto_ops.bignum.bin2bn ||
+	    !crypto_ops.bignum.bn2bin ||
+	    !crypto_ops.bignum.num_bytes ||
+	    !crypto_ops.acipher.dh_shared_secret)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	/* extract information from the attributes passed to the function */
 	alloc_size = params[0].content.ref.length * 8;
 	publicvalue = crypto_ops.bignum.allocate(alloc_size);
 	sharedsecret = crypto_ops.bignum.allocate(alloc_size);
-	if (!publicvalue || !sharedsecret)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	if (!crypto_ops.bignum.bin2bn ||
-	    !crypto_ops.acipher.dh_shared_secret ||
-	    !crypto_ops.bignum.num_bytes ||
-	    !crypto_ops.bignum.bn2bin)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (!publicvalue || !sharedsecret) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 	crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
 				 params[0].content.ref.length,
 				 publicvalue);
@@ -2130,6 +2135,9 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 		so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
 		SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
 	}
+out:
+	crypto_ops.bignum.free(publicvalue);
+	crypto_ops.bignum.free(sharedsecret);
 	return res;
 }
 
