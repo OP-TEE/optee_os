@@ -338,7 +338,162 @@ data between normal and secure worlds. Two cases are considered:
   involving the Linux driver.
 
 # 8. Pager
-Will be written soon.
+OP-TEE currently requires ~256 KiB RAM for OP-TEE kernel memory. This is
+not a problem if OP-TEE uses TrustZone protected DDR, but for security
+reasons OP-TEE may need to use TrustZone protected SRAM instead. The amount
+of available SRAM varies between platforms, from just a few KiB up to over
+512 KiB. Platforms with just a few KiB of SRAM can’t be expected to be able
+to run a complete TEE solution in SRAM. But those with 128 to 256 KiB of
+SRAM can be expected to have a capable TEE solution in SRAM.
+
+The pager provides a solution to this by demand paging readonly parts of
+OP-TEE using virtual memory.
+
+## Secure memory
+TrustZone protected SRAM is generally considered more secure than
+TrustZone protected DRAM as there's usually more attack vectors on DRAM.
+The attack vectors are hardware dependent and can be different for
+different platforms.
+
+## Backing store
+TrustZone protected DRAM or in some cases non-secure DRAM is used as
+backing store. The data in the backing store is integrity protected with
+one hash (SHA-256) per page (4KiB). Only readonly pages are kept in backing
+store for performance reasons as readwrite data would need to be encrypted
+too. Readonly pages doesn't need to be encrypted since the OP-TEE binary
+itself is not encrypted.
+
+## Partitioning of memory
+The code that handles demand paging must always be available as it would
+otherwise lead to deadlock. The virtual memory is partitioned as:
+
+```
+  Type      Sections
++---------+-----------------+
+|         | text            |
+|         | rodata          |
+|         | data            |
+| unpaged | bss             |
+|         | heap1           |
+|         | nozi            |
+|         | heap2           |
++---------+-----------------+
+| init /  | text_init       |
+| paged   | rodata_init     |
++---------+-----------------+
+| paged   | text_pageable   |
+|         | rodata_pageable |
++---------+-----------------+
+| demand  |                 |
+| alloc   |                 |
++---------+-----------------+
+```
+Where "nozi" stands for "not zero initialized", this section contains small
+stacks and translation tables.
+
+The "init" area is available when OP-TEE is initializing and
+contains everything that is needed to initialize the pager. After the pager
+has been initialized this area will be used for demand paged instead.
+
+The "demand alloc" area is a special area where the pages are allocated and
+removed from the pager on demand. Those pages are returned when OP-TEE
+doesn't need them any longer. The thread stacks currently belongs this
+area. This means that when a stack isn't used the physical pages can be used
+by the pager for better performance.
+
+The technique to gather code in the different area is based on compiling
+all functions and data into separate sections. The unpaged text and rodata
+is then gathered by linking all object files with `--gc-sections` to
+eliminate sections that are outside the dependency graph of the entry
+functions for unpaged functions. A script analyzes this ELF file and
+generates the bits of the final link script. The process is repeated for
+init text and rodata.  What isn't "unpaged" or "init" becomes "paged".
+
+## Partitioning of the binary
+The binary is partitioned into four parts as:
+```
++---------+
+| Header  |
++---------+
+| Init    |
++---------+
+| Hashes  |
++---------+
+| Pagable |
++---------+
+```
+Header is defined as:
+```
+#define OPTEE_MAGIC             0x4554504f
+#define OPTEE_VERSION           1
+#define OPTEE_ARCH_ARM32        0
+#define OPTEE_ARCH_ARM64        1
+
+struct optee_header {
+        uint32_t magic;
+        uint8_t version;
+        uint8_t arch;
+        uint16_t flags;
+        uint32_t init_size;
+        uint32_t init_load_addr_hi;
+        uint32_t init_load_addr_lo;
+        uint32_t init_mem_usage;
+        uint32_t paged_size;
+};
+```
+The header is only used by the loader of OP-TEE, not OP-TEE itself. To
+initialize OP-TEE the loader loads the complete binary into memory and
+copies what follows the header and the following ```init_size``` bytes to
+```(init_load_addr_hi << 32 | init_load_addr_lo)```. ```init_mem_usage``` is
+used by the loader to be able to check that there's enough physical memory
+available for OP-TEE to be able to initialize at all. The loader supplies
+the address of the first byte following what wasn't copied in r0/x0 and jumps
+to the load address to start OP-TEE.
+
+## Initializing the pager
+The pager is initialized as early as possible during boot in order to
+minimize the "init" area. As a consequence of this the old initialization
+has been broken up a bit since the pager initialization depends on some
+internal APIs being available.
+
+The global variable `tee_mm_vcore` describes the virtual memory range that
+is covered by the level 2 translation table supplied to `tee_pager_init()`.
+
+### Assign pagable areas
+A virtual memory range to be handled by the pager is registered with a
+call to `tee_pager_add_area()`.
+```
+bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
+                    const void *hashes);
+```
+which takes a pointer to `tee_mm_entry_t` to tell
+the range, flags to tell how memory should be mapped (readonly, execute
+etc), and pointers to backing store and hashes of the pages.
+
+### Assign physical pages
+Physical SRAM pages are supplied by calling `tee_pager_add_pages()`
+```
+void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap);
+```
+`tee_pager_add_pages()` expects all physical memory to be mapped in the
+level 2 translation table already. `tee_pager_add_pages()` takes physical
+address stored in the entry mapping the virtual address "vaddr" and
+"npages" entries after that and uses it to map new pages when needed. The
+unmap parameter tells whether the pages should be unmapped immediately
+since they doesn't contain initialized data or be kept mapped until they
+need to be recycled.
+
+The pages in the "init" area are supplied with unmap == false since those
+page have valid content and are in use.
+
+## Invocation
+The pager is invoked as part of the abort handler. A pool of physical pages
+are used to map different virtual addresses. When a new virtual address
+needs to be mapped a free physical page is mapped at the new address, if a
+free physical page can't be found the oldest physical page is selected
+instead. When the page is mapped new data is copied from backing store and
+the hash of the page is verified. If it's OK the pager returns from the
+exception to resume the execution.
 
 # 9. Cryptographic abstraction layer
 Cryptographic operations are implemented inside the TEE core by the
