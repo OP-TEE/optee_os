@@ -93,10 +93,4 @@ void tee_pager_abort_handler(uint32_t abort_type,
  */
 void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
 
-void tee_pager_unhide_all_pages(void);
-
-void tee_pager_unmap(uint32_t page, uint8_t psize);
-
-
-
 #endif /*MM_TEE_PAGER_H*/
