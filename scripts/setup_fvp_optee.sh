@@ -252,7 +252,7 @@ export CROSS_COMPILE=arm-linux-gnueabihf-
 export PLATFORM=vexpress
 export PLATFORM_FLAVOR=fvp
 export O=./out-os-fvp
-export CFG_TEE_CORE_LOG_LEVEL=5
+export CFG_TEE_CORE_LOG_LEVEL=4
 #export DEBUG=1
 
 cd $DST_OPTEE_OS
