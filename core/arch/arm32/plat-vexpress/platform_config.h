@@ -37,7 +37,8 @@
 #define PLATFORM_FLAVOR_IS(flav) \
 	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
 
-#define STACK_ALIGNMENT		8
+/* Make stacks aligned to data cache line length */
+#define STACK_ALIGNMENT		64
 
 #define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
 #define PLATFORM_LINKER_ARCH	arm
