@@ -36,8 +36,6 @@
 #include <sm/sm.h>
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
-#include <sm/teesmc.h>
-#include <sm/teesmc_optee.h>
 
 #include <util.h>
 #include <kernel/arch_debug.h>
@@ -48,17 +46,22 @@
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/tee_time.h>
-#include <mm/tee_pager_unpg.h>
+#include <mm/pager.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/tee_mmu.h>
+#include <mm/tee_mm.h>
+#include <utee_defines.h>
+#include <tee/tee_cryp_provider.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
 #include <console.h>
 #include <malloc.h>
+#include "plat_tee_func.h"
 
 #include <assert.h>
 
-#define NSEC_ENTRY_INVALID	0xffffffff
+#define PADDR_INVALID		0xffffffff
 
 #ifdef WITH_STACK_CANARIES
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
@@ -84,7 +87,9 @@
 DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
 DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
+#ifndef CFG_WITH_PAGER
 DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
+#endif
 
 const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 	GET_STACK(stack_tmp[0]),
@@ -109,7 +114,7 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #if CFG_TEE_CORE_NB_CORE > 7
 	GET_STACK(stack_tmp[7]),
 #endif
-#if CFG_TEE_CORE_NB_CORE > 7
+#if CFG_TEE_CORE_NB_CORE > 8
 #error "Top of tmp stacks aren't defined for more than 8 CPUS"
 #endif
 };
@@ -118,26 +123,32 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.l1"),
 		       aligned(TEE_MMU_L1_ALIGNMENT)));
+static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
+        __attribute__((section(".nozi.mmu.l2"),
+		       aligned(TEE_MMU_L2_ALIGNMENT)));
 
 /* MMU L1 table for TAs, one for each Core */
 static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 
-extern uint8_t __text_start;
-extern uint8_t __rodata_end;
-extern uint8_t __data_start;
-extern uint8_t __bss_start;
-extern uint8_t __bss_end;
-extern uint8_t _end;
-extern uint8_t _end_of_ram;
-extern uint8_t __heap_start;
-extern uint8_t __heap_end;
-extern uint8_t __nozi_pad_start;
-extern uint8_t __nozi_pad_end;
+extern uint8_t __text_init_start[];
+extern uint8_t __data_start[];
+extern uint8_t __data_end[];
+extern uint8_t __bss_start[];
+extern uint8_t __bss_end[];
+extern uint8_t __init_start[];
+extern uint8_t __init_size[];
+extern uint8_t __heap1_start[];
+extern uint8_t __heap1_end[];
+extern uint8_t __heap2_start[];
+extern uint8_t __heap2_end[];
+extern uint8_t __pagable_part_start[];
+extern uint8_t __pagable_part_end[];
+extern uint8_t __pagable_start[];
+extern uint8_t __pagable_end[];
 
 static void main_fiq(void);
-static void main_tee_entry(struct thread_smc_args *args);
 #if defined(WITH_ARM_TRUSTED_FW)
 /* Implemented in assembly, referenced in this file only */
 uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
@@ -171,7 +182,9 @@ static void init_canaries(void)
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
 	INIT_CANARY(stack_sm);
+#ifndef CFG_WITH_PAGER
 	INIT_CANARY(stack_thread);
+#endif
 }
 
 void check_canaries(void)
@@ -188,16 +201,18 @@ void check_canaries(void)
 	ASSERT_STACK_CANARIES(stack_tmp);
 	ASSERT_STACK_CANARIES(stack_abt);
 	ASSERT_STACK_CANARIES(stack_sm);
+#ifndef CFG_WITH_PAGER
 	ASSERT_STACK_CANARIES(stack_thread);
+#endif
 #endif /*WITH_STACK_CANARIES*/
 }
 
 static const struct thread_handlers handlers = {
-	.std_smc = main_tee_entry,
-	.fast_smc = main_tee_entry,
+	.std_smc = plat_tee_entry,
+	.fast_smc = plat_tee_entry,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
-	.abort = tee_pager_abort_handler,
+	.abort = pager_abort_handler,
 #if defined(WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = main_cpu_off_handler,
@@ -220,7 +235,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	(void)&pos;
 	(void)&nsec_entry;
-	assert(nsec_entry == NSEC_ENTRY_INVALID);
+	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #elif defined(WITH_SEC_MON)
@@ -228,7 +243,7 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
-	assert(nsec_entry != NSEC_ENTRY_INVALID);
+	assert(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
@@ -272,8 +287,197 @@ static void main_init_gic(void)
 }
 #endif
 
-static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
+#ifdef CFG_WITH_PAGER
+static void main_init_runtime(uint32_t pagable_part)
 {
+	size_t n;
+	size_t init_size = (size_t)__init_size;
+	size_t pagable_size = __pagable_end - __pagable_start;
+	size_t hash_size = (pagable_size / SMALL_PAGE_SIZE) *
+			   TEE_SHA256_HASH_SIZE;
+	tee_mm_entry_t *mm;
+	uint8_t *paged_store;
+	uint8_t *hashes;
+	uint8_t *tmp_hashes = __init_start + init_size;
+
+
+	TEE_ASSERT(pagable_size % SMALL_PAGE_SIZE == 0);
+
+
+	/* Copy it right after the init area. */
+	memcpy(tmp_hashes, __data_end + init_size, hash_size);
+
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+
+	hashes = malloc(hash_size);
+	EMSG("hash_size %d", hash_size);
+	TEE_ASSERT(hashes);
+	memcpy(hashes, tmp_hashes, hash_size);
+
+	/*
+	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
+	 * DDR below.
+	 */
+	teecore_init_ta_ram();
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, pagable_size);
+	TEE_ASSERT(mm);
+	paged_store = (uint8_t *)tee_mm_get_smem(mm);
+	/* Copy init part into pagable area */
+	memcpy(paged_store, __init_start, init_size);
+	/* Copy pagable part after init part into pagable area */
+	memcpy(paged_store + init_size, (void *)pagable_part,
+		__pagable_part_end - __pagable_part_start);
+
+	/* Check that hashes of what's in pagable area is OK */
+	DMSG("Checking hashes of pagable area");
+	for (n = 0; (n * SMALL_PAGE_SIZE) < pagable_size; n++) {
+		const uint8_t *hash = hashes + n * TEE_SHA256_HASH_SIZE;
+		const uint8_t *page = paged_store + n * SMALL_PAGE_SIZE;
+		TEE_Result res;
+
+		DMSG("hash pg_idx %zu hash %p page %p", n, hash, page);
+		res = hash_sha256_check(hash, page, SMALL_PAGE_SIZE);
+		if (res != TEE_SUCCESS)
+			EMSG("Hash failed for page %zu at %p: res 0x%x",
+				n, page, res);
+	}
+
+	/*
+	 * Copy what's not initialized in the last init page. Needed
+	 * because we're not going fault in the init pages again. We can't
+	 * fault in pages until we've switched to the new vector by calling
+	 * thread_init_handlers() below.
+	 */
+	if (init_size % SMALL_PAGE_SIZE) {
+		uint8_t *p;
+
+		memcpy(__init_start + init_size, paged_store + init_size,
+			SMALL_PAGE_SIZE - (init_size % SMALL_PAGE_SIZE));
+
+		p = (uint8_t *)(((vaddr_t)__init_start + init_size) &
+				~SMALL_PAGE_MASK);
+
+		cache_maintenance_l1(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
+		cache_maintenance_l1(ICACHE_AREA_INVALIDATE, p,
+				     SMALL_PAGE_SIZE);
+	}
+
+	/*
+	 * Inialize the virtual memory pool used for main_mmu_l2_ttb which
+	 * is supplied to pager_init() below.
+	 */
+	if (!tee_mm_init(&tee_mm_vcore,
+			ROUNDDOWN(CFG_TEE_RAM_START, SECTION_SIZE),
+			ROUNDDOWN(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+				  SECTION_SIZE),
+			SMALL_PAGE_SHIFT, 0))
+		panic();
+
+	pager_init(main_mmu_l2_ttb);
+
+	/*
+	 * Claim virtual memory which isn't paged, note that there migth be
+	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
+	 * claimed to avoid later allocations to get that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
+			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
+	TEE_ASSERT(mm);
+
+	/*
+	 * Allocate virtual memory for the pagable area and let the pager
+	 * take charge of all the pages already assigned to that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pagable_start,
+			   pagable_size);
+	TEE_ASSERT(mm);
+	pager_add_area(mm, PAGER_AREA_RO | PAGER_AREA_X,
+			   paged_store, hashes);
+	pager_add_pages((vaddr_t)__pagable_start,
+		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
+	pager_add_pages((vaddr_t)__pagable_start +
+				ROUNDUP(init_size, SMALL_PAGE_SIZE),
+			(pagable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
+				SMALL_PAGE_SIZE, true);
+
+}
+#else
+static void main_init_runtime(uint32_t pagable_part __unused)
+{
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+
+	/*
+	 * Initialized at this stage in the pager version of this function
+	 * above
+	 */
+	teecore_init_ta_ram();
+}
+#endif
+
+#ifdef CFG_WITH_PAGER
+static void main_init_thread_stacks(void)
+{
+	size_t n;
+
+	/*
+	 * Allocate virtual memory for thread stacks.
+	 */
+	for (n = 0; n < NUM_THREADS; n++) {
+		tee_mm_entry_t *mm;
+		vaddr_t sp;
+
+		/* Get unmapped page at bottom of stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
+		TEE_ASSERT(mm);
+		/* Claim eventual physical page */
+		pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+
+		/* Allocate the actual stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
+		TEE_ASSERT(mm);
+		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
+		if (!thread_init_stack(n, sp))
+			panic();
+		/* Claim eventual physical page */
+		pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+		/* Add the area to the pager */
+		pager_add_area(mm, PAGER_AREA_RW, NULL, NULL);
+	}
+}
+#else
+static void main_init_thread_stacks(void)
+{
+	size_t n;
+
+	/* Assign the thread stacks */
+	for (n = 0; n < NUM_THREADS; n++) {
+		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
+			panic();
+	}
+}
+#endif
+
+static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
+{
+	size_t pos = get_core_pos();
 
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
@@ -284,33 +488,9 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 	 */
 	write_cpsr(read_cpsr() | CPSR_FIA);
 
-	if (is_primary) {
-		uintptr_t bss_start = (uintptr_t)&__bss_start;
-		uintptr_t bss_end = (uintptr_t)&__bss_end;
-		size_t n;
+	main_init_runtime(pagable_part);
 
-		/* Initialize uart with virtual address */
-		uart_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
-			  CONSOLE_BAUDRATE);
-
-		/*
-		 * Zero BSS area. Note that globals that would normally
-		 * would go into BSS which are used before this has to be
-		 * put into .nozi.* to avoid getting overwritten.
-		 */
-		memset((void *)bss_start, 0, bss_end - bss_start);
-
-		DMSG("TEE initializing\n");
-
-		/* Initialize canaries around the stacks */
-		init_canaries();
-
-		/* Assign the thread stacks */
-		for (n = 0; n < NUM_THREADS; n++) {
-			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-				panic();
-		}
-	}
+	DMSG("TEE initializing\n");
 
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
 		panic();
@@ -318,42 +498,70 @@ static void main_init_helper(bool is_primary, size_t pos, uint32_t nsec_entry)
 		panic();
 
 	thread_init_handlers(&handlers);
-
+	thread_init_per_cpu();
 	main_init_sec_mon(pos, nsec_entry);
 
-	if (is_primary) {
-		main_init_gic();
+	/* Initialize canaries around the stacks */
+	init_canaries();
 
-		malloc_init(&__heap_start,
-				(uintptr_t)&__heap_end -
-					(uintptr_t)&__heap_start);
-		malloc_add_pool(&__nozi_pad_start,
-				(uintptr_t)&__nozi_pad_end -
-					(uintptr_t)&__nozi_pad_start);
+	main_init_thread_stacks();
 
-		if (init_teecore() != TEE_SUCCESS)
-			panic();
-		DMSG("Primary CPU switching to normal world boot\n");
-	} else {
-		DMSG("Secondary CPU Switching to normal world boot\n");
-	}
+	main_init_gic();
+
+	if (init_teecore() != TEE_SUCCESS)
+		panic();
+	DMSG("Primary CPU switching to normal world boot\n");
 }
 
-#if defined(WITH_ARM_TRUSTED_FW)
-uint32_t *main_init(void); /* called from assembly only */
-uint32_t *main_init(void)
-{
-	main_init_helper(true, get_core_pos(), NSEC_ENTRY_INVALID);
-	return thread_vector_table;
-}
-#elif defined(WITH_SEC_MON)
-void main_init(uint32_t nsec_entry); /* called from assembly only */
-void main_init(uint32_t nsec_entry)
+static void main_init_secondary_helper(uint32_t nsec_entry)
 {
 	size_t pos = get_core_pos();
 
-	main_init_helper(pos == 0, pos, nsec_entry);
+	/*
+	 * Mask external Abort, IRQ and FIQ before switch to the thread
+	 * vector as the thread handler requires externl Abort, IRQ and FIQ
+	 * to be masked while executing with the temporary stack. The
+	 * thread subsystem also asserts that IRQ is blocked when using
+	 * most if its functions.
+	 */
+	write_cpsr(read_cpsr() | CPSR_FIA);
+
+	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
+		panic();
+	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
+		panic();
+
+	thread_init_per_cpu();
+	main_init_sec_mon(pos, nsec_entry);
+
+	DMSG("Secondary CPU Switching to normal world boot\n");
 }
+
+
+
+#if defined(WITH_ARM_TRUSTED_FW)
+/* called from assembly only */
+uint32_t *main_init_primary(uint32_t pagable_part);
+uint32_t *main_init_primary(uint32_t pagable_part)
+{
+	main_init_primary_helper(pagable_part, PADDR_INVALID);
+	return thread_vector_table;
+}
+#elif defined(WITH_SEC_MON)
+/* called from assembly only */
+void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry);
+void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry)
+{
+	main_init_primary_helper(pagable_part, nsec_entry);
+}
+
+/* called from assembly only */
+void main_init_secondary(uint32_t nsec_entry);
+void main_init_secondary(uint32_t nsec_entry)
+{
+	main_init_secondary_helper(nsec_entry);
+}
+
 #endif
 
 static void main_fiq(void)
@@ -406,12 +614,10 @@ static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1)
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1);
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 {
-	size_t pos = get_core_pos();
-
 	(void)&a0;
 	(void)&a1;
-	PM_DEBUG("cpu %zu: a0 0%x", pos, a0);
-	main_init_helper(false, pos, NSEC_ENTRY_INVALID);
+	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	main_init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
 
@@ -444,80 +650,6 @@ static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 	return 1;
 }
 #endif
-
-static void main_tee_entry(struct thread_smc_args *args)
-{
-	/*
-	 * This function first catches all ST specific SMC functions
-	 * if none matches, the generic tee_entry is called.
-	 */
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
-		args->a0 = TEESMC_RETURN_OK;
-		args->a1 = default_nsec_shm_paddr;
-		args->a2 = default_nsec_shm_size;
-		/* Should this be TEESMC cache attributes instead? */
-		args->a3 = core_mmu_is_shm_cached();
-		return;
-	}
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
-		switch (args->a1) {
-		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
-		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			/* TODO call the appropriate internal functions */
-			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
-			return;
-		default:
-			args->a0 = TEESMC_RETURN_EBADCMD;
-			return;
-		}
-	}
-
-	tee_entry(args);
-}
-
-
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_call_count(struct thread_smc_args *args)
-{
-	args->a0 = tee_entry_generic_get_api_call_count() + 2;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_UID_R0;
-	args->a1 = TEESMC_OPTEE_UID_R1;
-	args->a2 = TEESMC_OPTEE_UID_R2;
-	args->a3 = TEESMC_OPTEE_UID32_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
-	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
-	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
-	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
-}
 
 paddr_t core_mmu_get_main_ttb_pa(void)
 {
@@ -558,3 +690,21 @@ void console_flush_tx_fifo(void)
 {
 	uart_flush_tx_fifo(CONSOLE_UART_BASE);
 }
+
+void *core_mmu_alloc_l2(struct map_area *map)
+{
+	/* Can have this in .bss since it's not initialized yet */
+	static size_t l2_offs __attribute__((section(".data")));
+	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
+			     TEE_MMU_L2_SIZE) * SECTION_SIZE;
+
+	if (l2_offs)
+		return NULL;
+	if (map->type != MEM_AREA_TEE_RAM)
+		return NULL;
+	if (map->size > l2_va_space)
+		return NULL;
+	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
+	return main_mmu_l2_ttb;
+}
+

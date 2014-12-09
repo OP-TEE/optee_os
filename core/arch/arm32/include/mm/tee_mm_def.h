@@ -36,17 +36,6 @@
 #define SECTION_MASK		0x000fffff
 #define SECTION_SIZE		0x00100000
 
-#define TEE_VMEM_START      0x40000000
-#define TEE_VMEM_SIZE        (1024 * 1024)
-
-/* virtual addresses of ROM code variables and L2 MMU tables     */
-#define SEC_VIRT_MMU_L2_BASE            0x40000000
-
-/* Paged virtual memory defines */
-#define TEE_PVMEM_PSIZE     (TEE_VMEM_SIZE / SMALL_PAGE_SIZE)
-
-#define TEE_PVMEM_LO        TEE_VMEM_START
-
 /* define section to load */
 #define TEE_DDR_VLOFFSET    0x1
 
@@ -56,8 +45,6 @@
 /*
  * MMU related values
  */
-#define TEE_VIRT_MMU_L2_BASE        TEE_VMEM_START
-#define TEE_VIRT_MMU_L2_SIZE        0x400
 #define TEE_MMU_UL1_BASE            core_mmu_get_ta_ul1_va()
 #define TEE_MMU_UL1_PA_BASE         core_mmu_get_ta_ul1_pa()
 
@@ -81,31 +68,6 @@
 		(TEE_PAGER_PAGE_LOADED | TEE_MMU_L2SP_XN)
 
 #define TEE_PAGER_NO_ACCESS_ATTRIBUTES      0x00000000
-
-#define TEE_ROM_AREA_START         TEE_VMEM_START
-#define TEE_ROM_AREA_SIZE          0x2000
-
-#define TEE_HOLE_START            (TEE_ROM_AREA_START + TEE_ROM_AREA_SIZE)
-#define TEE_HOLE_SIZE              0x2000
-
-/* Has to be kept in sync with elf_arm.x */
-#define TEE_STACK_AREA_START      (TEE_HOLE_START + TEE_HOLE_SIZE)
-/* Stack is not physically contigious. */
-#define TEE_STACK_AREA_START0      TEE_STACK_AREA_START
-#define TEE_STACK_AREA_SIZE0       0x3000
-#define TEE_STACK_AREA_SIZE        TEE_STACK_AREA_SIZE0
-
-/* Has to be kept in sync with elf_arm.x */
-#define TEE_CODE_START           (TEE_STACK_AREA_START + TEE_STACK_AREA_SIZE)
-#define TEE_CODE_SIZE              0xA000
-
-#define TEE_HEAP_START            (TEE_CODE_START + TEE_CODE_SIZE)
-/*
- * This address has to be 16kb aligned as the first few bytes are
- * used to hold the L1 mmu descriptor for user mode mapping.
- */
-#define TEE_HEAP_START0            TEE_HEAP_START
-
 
 /*
  * Register addresses related to time

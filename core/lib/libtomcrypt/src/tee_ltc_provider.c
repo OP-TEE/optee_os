@@ -2314,3 +2314,23 @@ struct crypto_ops crypto_ops = {
 	}
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
 };
+
+
+#if defined(CFG_CRYPTO_SHA256)
+TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
+		size_t data_size)
+{
+	hash_state hs;
+	uint8_t digest[TEE_SHA256_HASH_SIZE];
+
+	if (sha256_init(&hs) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha256_process(&hs, data, data_size) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha256_done(&hs, digest) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (memcmp(digest, hash, sizeof(digest)) != 0)
+		return TEE_ERROR_SECURITY;
+	return TEE_SUCCESS;
+}
+#endif

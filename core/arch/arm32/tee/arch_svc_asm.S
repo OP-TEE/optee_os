@@ -31,9 +31,7 @@
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
 
-.section .text
-.balign 4
-.code 32
+	.section .text.arch_svc_asm
 
 /*
  * Below are low level routines handling entry and return from user mode.

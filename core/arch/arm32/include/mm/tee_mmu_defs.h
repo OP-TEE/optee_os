@@ -52,6 +52,10 @@
 #define TEE_MMU_L1_SIZE			(1 << 14)
 #define TEE_MMU_L1_ALIGNMENT		TEE_MMU_L1_SIZE
 
+#define TEE_MMU_L2_NUM_ENTRIES		(TEE_MMU_L2_SIZE / 4)
+#define TEE_MMU_L2_SIZE			(1 << 10)
+#define TEE_MMU_L2_ALIGNMENT		TEE_MMU_L2_SIZE
+
 /* TTB attributes */
 
 /* Mask for all attributes */

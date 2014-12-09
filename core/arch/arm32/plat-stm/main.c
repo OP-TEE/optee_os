@@ -39,8 +39,9 @@
 #include <util.h>
 #include <trace.h>
 #include <kernel/misc.h>
-#include <mm/tee_pager_unpg.h>
+#include <mm/pager.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
@@ -143,7 +144,7 @@ static const struct thread_handlers handlers = {
 	.fast_smc = main_tee_entry,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
-	.abort = tee_pager_abort_handler,
+	.abort = pager_abort_handler,
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
@@ -177,6 +178,7 @@ void main_init(uint32_t nsec_entry)
 			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
 				panic();
 		}
+		thread_init_handlers(&handlers);
 	}
 
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
@@ -184,7 +186,7 @@ void main_init(uint32_t nsec_entry)
 	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
 		panic();
 
-	thread_init_handlers(&handlers);
+	thread_init_per_cpu();
 
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
@@ -207,6 +209,8 @@ void main_init(uint32_t nsec_entry)
 		s = s - a;
 #endif
 		malloc_init((void *)a, s);
+
+		teecore_init_ta_ram();
 	}
 }
 

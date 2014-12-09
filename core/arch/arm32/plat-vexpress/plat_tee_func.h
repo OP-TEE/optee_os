@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,20 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_PAGER_DEFINES_H
-#define TEE_PAGER_DEFINES_H
+#ifndef PLAT_TEE_FUNC_H
+#define PLAT_TEE_FUNC_H
 
-#define TEE_PAGER_NORMAL_RETURN 0
-#define TEE_PAGER_USER_TA_PANIC 1
+#include <kernel/thread.h>
 
-#define TEE_PAGER_SPSR_MODE_MASK    0x1F
-#define TEE_PAGER_SPSR_MODE_USR     0x10
-#define TEE_PAGER_SPSR_MODE_SVC     0x13
-#define TEE_PAGER_SPSR_MODE_ABT     0x17
-#define TEE_PAGER_SPSR_MODE_MON     0x16
+void plat_tee_entry(struct thread_smc_args *args);
 
-#define TEE_PAGER_DATA_ABORT    0x00000000
-#define TEE_PAGER_PREF_ABORT    0x00000001
-#define TEE_PAGER_UNDEF_ABORT   0x00000002
-
-#endif /* TEE_PAGER_DEFINES_H */
+#endif /*PLAT_TEE_FUNC_H*/

@@ -28,6 +28,8 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <generated/conf.h>
+
 #define PLATFORM_FLAVOR_ID_fvp		0
 #define PLATFORM_FLAVOR_ID_qemu		1
 #define PLATFORM_FLAVOR_ID_qemu_virt	2
@@ -97,6 +99,7 @@
 #define STACK_TMP_SIZE		1024
 #define STACK_ABT_SIZE		1024
 #define STACK_THREAD_SIZE	8192
+#define HEAP_SIZE		(24 * 1024)
 
 #if PLATFORM_FLAVOR_IS(fvp)
 /*
@@ -106,39 +109,50 @@
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x80000000
 
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+#define TZSRAM_BASE		(0x06000000)
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x02000000 - CFG_TEE_RAM_VA_SIZE)
+
+#else /*CFG_WITH_PAGER*/
+
 /* Location of trusted dram on the base fvp */
-#define TZDRAM_BASE		0x06000000
-#define TZDRAM_SIZE		0x02000000
+#define TZDRAM_BASE		(0x06000000)
+#define TZDRAM_SIZE		(0x02000000)
 
-#define CFG_TEE_CORE_NB_CORE	4
+#endif /*CFG_WITH_PAGER*/
 
-#define DDR_PHYS_START		DRAM0_BASE
-#define DDR_SIZE		DRAM0_SIZE
+#define CFG_TEE_CORE_NB_CORE	8
 
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		(TZDRAM_BASE + 0x1000)
-#define TEE_RAM_SIZE		0x0010000
-
-#define CFG_SHMEM_START		(DDR_PHYS_START + 0x1000000)
+#define CFG_SHMEM_START		(DRAM0_BASE + 0x1000000)
 #define CFG_SHMEM_SIZE		0x100000
 
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
 
 #elif PLATFORM_FLAVOR_IS(juno)
-
 /*
  * Juno specifics.
  */
 
+
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x7F000000
 
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+#define TZSRAM_BASE		0xFF000000
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x00E00000 - CFG_TEE_RAM_VA_SIZE)
+
+#else /*CFG_WITH_PAGER*/
 /*
  * Last part of DRAM is reserved as secure dram, note that the last 2MiB
  * of DRAM0 is used by SCP dor DDR retraining.
@@ -151,6 +165,7 @@
  * OP-TEE OS is mapped using small pages instead.
  */
 #define TZDRAM_SIZE		0x00E00000
+#endif /*CFG_WITH_PAGER*/
 
 #define CFG_TEE_CORE_NB_CORE	6
 
@@ -176,6 +191,10 @@
 /*
  * QEMU specifics.
  */
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for platform vepress-qemu"
+#endif
+
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		0x40000000
 
@@ -186,17 +205,8 @@
 #define DDR_PHYS_START		DRAM0_BASE
 #define DDR_SIZE		DRAM0_SIZE
 
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
-
 #define CFG_TEE_CORE_NB_CORE	2
 
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_SIZE		0x0010000
 
 #define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE		0x100000
@@ -208,31 +218,37 @@
 /*
  * QEMU virt specifics.
  */
+
+#define ROM_BASE		0x00000000
+#define ROM_SIZE		(32 * 1024 * 1024)
+
 #define DRAM0_BASE		0x40000000
-#define DRAM0_SIZE		0x40000000
+#define DRAM0_SIZE		(0x40000000 - DRAM0_TEERES_SIZE)
 
-/* Location of "trusted dram" */
-#define TZDRAM_BASE		(DRAM0_BASE + (DRAM0_SIZE - \
-				 TZDRAM_SIZE - CFG_SHMEM_SIZE))
-#define TZDRAM_SIZE		0x02000000
+#define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
+#define DRAM0_TEERES_SIZE	(33 * 1024 * 1024)
 
-#define DDR_PHYS_START		DRAM0_BASE
-#define DDR_SIZE		DRAM0_SIZE
+#ifdef CFG_WITH_PAGER
 
-#define CFG_DDR_START		DDR_PHYS_START
-#define CFG_DDR_SIZE		DDR_SIZE
+/* Emulated SRAM */
+#define TZSRAM_BASE		DRAM0_TEERES_BASE
+#define TZSRAM_SIZE		(200 * 1024)
+
+#define TZDRAM_BASE		(DRAM0_TEERES_BASE + CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(32 * 1024 * 1024 - CFG_TEE_RAM_VA_SIZE)
+
+#else /* CFG_WITH_PAGER */
+
+#define TZDRAM_BASE		DRAM0_TEERES_BASE
+#define TZDRAM_SIZE		(32 * 1024 * 1024)
+
+#endif /* CFG_WITH_PAGER */
 
 #define CFG_TEE_CORE_NB_CORE	2
 
-
-#define CFG_DDR_TEETZ_RESERVED_START	TZDRAM_BASE
-#define CFG_DDR_TEETZ_RESERVED_SIZE	TZDRAM_SIZE
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_SIZE		0x0010000
-
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x100000
+#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
+					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
+#define CFG_SHMEM_SIZE		(1024 * 1024)
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
@@ -240,6 +256,43 @@
 
 #else
 #error "Unknown platform flavor"
+#endif
+
+#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+
+#ifndef CFG_TEE_LOAD_ADDR
+#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#endif
+
+#ifdef CFG_WITH_PAGER
+/*
+ * Have TZSRAM either as real physical or emulated by reserving an area
+ * somewhere else.
+ *
+ * +------------------+
+ * | TZSRAM | TEE_RAM |
+ * +--------+---------+
+ * | TZDRAM | TA_RAM  |
+ * +--------+---------+
+ */
+#define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
+#define CFG_TEE_RAM_START	TZSRAM_BASE
+#define CFG_TA_RAM_START	TZDRAM_BASE
+#define CFG_TA_RAM_SIZE		TZDRAM_SIZE
+#else
+/*
+ * Assumes that either TZSRAM isn't large enough or TZSRAM doesn't exist,
+ * everything is in TZDRAM.
+ * +------------------+
+ * |        | TEE_RAM |
+ * + TZDRAM +---------+
+ * |        | TA_RAM  |
+ * +--------+---------+
+ */
+#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
+#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TA_RAM_START	(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE)
+#define CFG_TA_RAM_SIZE		(TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE)
 #endif
 
 #ifndef UART_BAUDRATE

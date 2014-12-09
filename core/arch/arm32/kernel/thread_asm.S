@@ -33,6 +33,8 @@
 #include <sm/teesmc_opteed.h>
 #include <kernel/thread_defs.h>
 
+	.section .text.thread_asm
+
 LOCAL_FUNC vector_std_smc_entry , :
 	push	{r0-r7}
 	mov	r0, sp

@@ -56,7 +56,7 @@ OUTPUT_ARCH(PLATFORM_LINKER_ARCH)
 ENTRY(_start)
 SECTIONS
 {
-	. = TEE_RAM_START;
+	. = CFG_TEE_LOAD_ADDR;
 
 	/* text/read-only data */
 	.text : {
@@ -64,7 +64,15 @@ SECTIONS
 		KEEP(*(.text.boot.vectab1))
 		KEEP(*(.text.boot.vectab2))
 		KEEP(*(.text.boot))
-		*(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
+
+#ifdef CFG_WITH_PAGER
+		*(.text)
+/* Include list of sections needed for paging */
+#include <text_unpaged.ld.S>
+#else
+		*(.text .text.*)
+#endif
+		*(.sram.text.glue_7* .gnu.linkonce.t.*)
 		__text_end = .;
 	}
 
@@ -96,19 +104,26 @@ SECTIONS
 	.plt : { *(.plt) }
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
-	__exidx_start = .;
-	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
-	__exidx_end = .;
+	.ARM.exidx : {
+		__exidx_start = .;
+		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
+		__exidx_end = .;
+	}
 
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
-		*(.rodata .rodata.* .gnu.linkonce.r.*)
+		*(.gnu.linkonce.r.*)
+#ifdef CFG_WITH_PAGER
+		*(.rodata)
+#include <rodata_unpaged.ld.S>
+#else
+		*(.rodata .rodata.*)
+
 		. = ALIGN(4);
-
 		__start_ta_head_section = . ;
-		*(ta_head_section)
+		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
-
+#endif
 		. = ALIGN(4);
 		__rodata_end = .;
 	}
@@ -120,6 +135,7 @@ SECTIONS
 		/* in one segment binaries, the rom data address is on top of the ram data address */
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
+		. = ALIGN(4);
 	}
 
 	.ctors : ALIGN(4) {
@@ -145,13 +161,20 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end = .;
 	}
-	__nozi_pad_start = .;
 
-	/*
-	 * We're keeping track of the padding added before the .nozi
-	 * section so we can do something useful with this otherwise wasted
-	 * memory.
-	 */
+	.heap1 (NOLOAD) : {
+		/*
+		 * We're keeping track of the padding added before the
+		 * .nozi section so we can do something useful with
+		 * this otherwise wasted memory.
+		 */
+		__heap1_start = .;
+#ifndef CFG_WITH_PAGER
+		. += HEAP_SIZE;
+#endif
+		. = ALIGN(16 * 1024);
+		__heap1_end = .;
+	}
 
  	/*
 	 * Uninitialized data that shouldn't be zero initialized at
@@ -159,43 +182,90 @@ SECTIONS
 	 *
 	 * L1 mmu table requires 16 KiB alignment
 	 */
-	.nozi : ALIGN(16 * 1024) {
-		__nozi_pad_end = .;
+	.nozi (NOLOAD) : ALIGN(16 * 1024) {
 		KEEP(*(.nozi .nozi.*))
 	}
 
-
-#if PLATFORM_FLAVOR_IS(fvp)
-	/*
-	 * The base address of the coherent memory section must be
-	 * page-aligned (4K) to guarantee that the coherent data are stored
-	 * on their own pages and are not mixed with normal data.  This is
-	 * required to set up the correct memory attributes for the
-	 * coherent data page tables.
-	 */
-	coherent_ram (NOLOAD) : ALIGN(4096) {
-		__COHERENT_RAM_START__ = .;
-		*(tzfw_coherent_mem)
-		__COHERENT_RAM_END_UNALIGNED__ = .;
+#ifdef CFG_WITH_PAGER
+	.heap2 (NOLOAD) : {
+		__heap2_start = .;
 		/*
-		 * Memory page(s) mapped to this section will be marked as
-		 * device memory.  No other unexpected data must creep in.
-		 * Ensure the rest of the current memory page is unused.
+		 * Reserve additional memory for heap, the total should
+		 * be at least HEAP_SIZE, but count what has already been
+		 * reserved in .heap1
 		 */
-		. = NEXT(4096);
-		__COHERENT_RAM_END__ = .;
+		. += HEAP_SIZE - (__heap1_end - __heap1_start);
+		. = ALIGN(4 * 1024);
+		__heap2_end = .;
 	}
-#endif
 
-	__heap_start = .;
-	. += 0x40000 /*256KiB*/;
-	__heap_end = .;
+	.text_init : ALIGN(4 * 1024) {
+		__text_init_start = .;
+/*
+ * Include list of sections needed for boot initialization, this list
+ * overlaps with unpaged.ld.S but since unpaged.ld.S is first all those
+ * sections will go into the unpaged area.
+ */
+#include <text_init.ld.S>
+		. = ALIGN(4);
+		__text_init_end = .;
+	}
+
+	.rodata_init : ALIGN(4) {
+		__rodata_init_start = .;
+#include <rodata_init.ld.S>
+		. = ALIGN(4);
+		__rodata_init_end = .;
+	}
+	__init_start = __text_init_start;
+	__init_end = .;
+	__init_size = __init_end - __text_init_start;
+	__init_mem_usage = __init_end - CFG_TEE_LOAD_ADDR;
+
+	.text_pagable : ALIGN(4) {
+		__text_pagable_start = .;
+		*(.text*)
+		. = ALIGN(4);
+		__text_pagable_end = .;
+	}
+
+	.rodata_pagable : ALIGN(4) {
+		__rodata_pagable_start = .;
+		*(.rodata*)
+		. = ALIGN(4);
+		__start_ta_head_section = . ;
+		KEEP(*(ta_head_section))
+		__stop_ta_head_section = . ;
+		. = ALIGN(4 * 1024);
+		__rodata_pagable_end = .;
+	}
+
+	__pagable_part_start = __rodata_init_end;
+	__pagable_part_end = __rodata_pagable_end;
+	__pagable_start = __text_init_start;
+	__pagable_end = __pagable_part_end;
+
+	ASSERT(CFG_TEE_LOAD_ADDR >= CFG_TEE_RAM_START,
+		"Load address before start of physical memory")
+	ASSERT(CFG_TEE_LOAD_ADDR < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
+		"Load address after end of physical memory")
+	ASSERT(__init_end < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
+		"OP-TEE can't fit init part into available physical memory")
+
+
+#endif /*CFG_WITH_PAGER*/
 
 	_end = .;
 
-	. = TEE_RAM_START + TEE_RAM_SIZE;
+#ifndef CFG_WITH_PAGER
+	__init_size = __data_end - CFG_TEE_LOAD_ADDR;
+	__init_mem_usage = _end - CFG_TEE_LOAD_ADDR;
+#endif
+
+	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 	_end_of_ram = .;
 
 	/* Strip unnecessary stuff */
 	/DISCARD/ : { *(.comment .note .eh_frame) }
+
 }

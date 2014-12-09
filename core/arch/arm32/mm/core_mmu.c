@@ -45,6 +45,8 @@
 #include <kernel/misc.h>
 #include <trace.h>
 #include <kernel/tee_misc.h>
+#include <kernel/panic.h>
+#include <util.h>
 
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_paddr;
@@ -68,10 +70,6 @@ static struct map_area *map_nsec_shm = (void *)1;	/* not in BSS */
 
 /* bss is not init: def value must be non-zero */
 static bool memmap_notinit[CFG_TEE_CORE_NB_CORE] = { true, true };
-
-#define MEMLAYOUT_NOT_INIT 1
-#define MEMLAYOUT_INIT 2
-static int memlayout_init = MEMLAYOUT_NOT_INIT;
 
 /* check if target buffer fits in a core default map area */
 static bool pbuf_inside_map_area(unsigned long p, size_t l,
@@ -118,6 +116,21 @@ static struct map_area *find_map_by_pa(unsigned long pa)
 #define SECTION_NORMAL_CACHED        SECTION_TEXCB(1, 1, 1)
 #define SECTION_NO_EXEC              (1 << 4)
 #define SECTION_SECTION              (2 << 0)
+
+#define SECTION_PT_NOTSECURE		(1 << 3)
+#define SECTION_PT_PT			(1 << 0)
+
+#define SMALL_PAGE_SMALL_PAGE		(1 << 1)
+#define SMALL_PAGE_SHARED		(1 << 10)
+#define SMALL_PAGE_TEXCB(tex, c, b)	((tex << 6) | (c << 3) | (b << 2))
+#define SMALL_PAGE_DEVICE		SMALL_PAGE_TEXCB(0, 0, 1)
+#define SMALL_PAGE_NORMAL		SMALL_PAGE_TEXCB(1, 0, 0)
+#define SMALL_PAGE_NORMAL_CACHED	SMALL_PAGE_TEXCB(1, 1, 1)
+#define SMALL_PAGE_RW			((0 << 9) | (1 << 4))
+#define SMALL_PAGE_RO			((1 << 9) | (1 << 4))
+#define SMALL_PAGE_NO_EXEC		(1 << 0)
+
+
 /*
  * memarea_not_mapped - check memory not already (partially) mapped
  * A finer mapping must be supported. Currently section mapping only!
@@ -140,6 +153,54 @@ static bool memarea_not_mapped(struct map_area *map, void *ttbr0)
 	return true;
 }
 
+static paddr_t map_page_memarea(struct map_area *map)
+{
+	uint32_t *l2 = core_mmu_alloc_l2(map);
+	size_t pg_idx;
+	uint32_t attr;
+
+	TEE_ASSERT(l2);
+
+	attr = SMALL_PAGE_SMALL_PAGE | SMALL_PAGE_SHARED;
+
+	if (map->device)
+		attr |= SMALL_PAGE_DEVICE;
+	else if (map->cached)
+		attr |= SMALL_PAGE_NORMAL_CACHED;
+	else
+		attr |= SMALL_PAGE_NORMAL;
+
+	if (map->rw)
+		attr |= SMALL_PAGE_RW;
+	else
+		attr |= SMALL_PAGE_RO;
+
+	if (!map->exec)
+		attr |= SMALL_PAGE_NO_EXEC;
+
+	/* Zero fill initial entries */
+	pg_idx = 0;
+	while ((pg_idx * SMALL_PAGE_SIZE) < (map->pa & SECTION_MASK)) {
+		l2[pg_idx] = 0;
+		pg_idx++;
+	}
+
+	/* Fill in the entries */
+	while ((pg_idx * SMALL_PAGE_SIZE) < map->size) {
+		l2[pg_idx] = ((map->pa & ~SECTION_MASK) +
+				pg_idx * SMALL_PAGE_SIZE) | attr;
+		pg_idx++;
+	}
+
+	/* Zero fill the rest */
+	while (pg_idx < ROUNDUP(map->size, SECTION_SIZE) / SMALL_PAGE_SIZE) {
+		l2[pg_idx] = 0;
+		pg_idx++;
+	}
+
+	return (paddr_t)l2;
+}
+
 /*
 * map_memarea - load mapping in target L1 table
 * A finer mapping must be supported. Currently section mapping only!
@@ -148,45 +209,76 @@ static void map_memarea(struct map_area *map, uint32_t *ttb)
 {
 	size_t m, n;
 	uint32_t attr;
+	paddr_t pa;
+	uint32_t region_size;
+	uint32_t region_mask;
 
-	/*
-	 * invalid area confing
-	 * - only section mapping currently supported
-	 * - first section cannot be mapped (safety)
-	 */
-	if (!map || !ttb || !map->pa || map->va || map->region_size ||
-	    ((map->pa + map->size - 1) < map->pa) || !map->size ||
-	    (map->size & SECTION_MASK) || (map->pa & SECTION_MASK)) {
-		TEE_ASSERT(0);
+	TEE_ASSERT(map && ttb);
+
+	/* Default to 1MB section mapping */
+	region_size = map->region_size;
+	if (!region_size)
+		map->region_size = SECTION_SIZE;
+
+	switch (map->region_size) {
+	case 0:
+	case SECTION_SIZE:
+		region_size = SECTION_SIZE;
+		region_mask = SECTION_MASK;
+		break;
+	case SMALL_PAGE_SIZE:
+		region_size = SMALL_PAGE_SIZE;
+		region_mask = SMALL_PAGE_MASK;
+		break;
+	default:
+		panic();
 	}
 
-	attr = SECTION_SHARED | SECTION_NOTGLOBAL | SECTION_SECTION;
+	/* invalid area confing */
+	if (map->va || ((map->pa + map->size - 1) < map->pa) ||
+	    !map->size || (map->size & region_mask) ||
+	    (map->pa & region_mask))
+		panic();
 
-	if (map->device == true)
-		attr |= SECTION_DEVICE;
-	else if (map->cached == true)
-		attr |= SECTION_NORMAL_CACHED;
-	else
-		attr |= SECTION_NORMAL;
+	if (region_size == SECTION_SIZE) {
+		attr = SECTION_SHARED | SECTION_NOTGLOBAL | SECTION_SECTION;
 
-	if (map->rw == true)
-		attr |= SECTION_RW;
-	else
-		attr |= SECTION_RO;
+		if (map->device == true)
+			attr |= SECTION_DEVICE;
+		else if (map->cached == true)
+			attr |= SECTION_NORMAL_CACHED;
+		else
+			attr |= SECTION_NORMAL;
 
-	if (map->exec == false)
-		attr |= SECTION_NO_EXEC;
-	if (map->secure == false)
-		attr |= SECTION_NOTSECURE;
+		if (map->rw == true)
+			attr |= SECTION_RW;
+		else
+			attr |= SECTION_RO;
+
+		if (map->exec == false)
+			attr |= SECTION_NO_EXEC;
+		if (map->secure == false)
+			attr |= SECTION_NOTSECURE;
+
+		pa = map->pa;
+	} else {
+		attr = SECTION_PT_PT;
+		if (!map->secure)
+			attr |= SECTION_PT_NOTSECURE;
+		pa = map_page_memarea(map);
+	}
 
 	map->va = map->pa;	/* 1-to-1 pa=va mapping */
-	map->region_size = 1 << SECTION_SHIFT;	/* 1MB section mapping */
 
 	m = (map->pa >> SECTION_SHIFT);
-	n = map->size >> SECTION_SHIFT;
+	n = ROUNDUP(map->size, SECTION_SIZE) >> SECTION_SHIFT;
 	while (n--) {
-		ttb[m] = (m << SECTION_SHIFT) | attr;
+		ttb[m] = pa | attr;
 		m++;
+		if (region_size == SECTION_SIZE)
+			pa += SECTION_SIZE;
+		else
+			pa += TEE_MMU_L2_SIZE;
 	}
 }
 
@@ -252,14 +344,14 @@ static void load_bootcfg_mapping(void *ttb1)
  *
  * If an error happend: core_init_mmu.c is expected to reset.
  */
-void core_init_mmu(void)
+void core_init_mmu_tables(void)
+{
+	load_bootcfg_mapping((void *)core_mmu_get_main_ttb_va());
+}
+
+void core_init_mmu_regs(void)
 {
 	paddr_t ttb_pa = core_mmu_get_main_ttb_pa();
-
-	if (memlayout_init != MEMLAYOUT_INIT) {
-		load_bootcfg_mapping((void *)core_mmu_get_main_ttb_va());
-		memlayout_init = MEMLAYOUT_INIT;
-	}
 
 	/*
 	 * Program Domain access control register with two domains:
@@ -410,9 +502,6 @@ void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
 int core_tlb_maintenance(int op, unsigned int a)
 {
 	switch (op) {
-	case TLBINV_DATATLB:
-		secure_mmu_datatlbinvall();	/* ??? */
-		break;
 	case TLBINV_UNIFIEDTLB:
 		secure_mmu_unifiedtlbinvall();
 		break;
@@ -526,4 +615,13 @@ __weak unsigned int cache_maintenance_l2(int op __unused,
 	 */
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+__weak void *core_mmu_alloc_l2(struct map_area *map __unused)
+{
+	/*
+	 * This function should be redefined in platform specific part if
+	 * needed.
+	 */
+	return NULL;
 }

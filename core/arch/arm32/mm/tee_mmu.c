@@ -116,9 +116,6 @@
 #define TEE_MMU_SECTION_NOCACHE						\
 		TEE_MMU_SECTION_TEX(1)
 
-#define TEE_MMU_KL2_ENTRY(page_num) \
-	    (*(uint32_t *)(SEC_VIRT_MMU_L2_BASE + ((uint32_t)(page_num)) * 4))
-
 #define TEE_MMU_UL1_ENTRY(page_num) \
 	    (*(uint32_t *)(TEE_MMU_UL1_BASE + ((uint32_t)(page_num)) * 4))
 
@@ -583,10 +580,12 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 		tee_mmu_switch(read_ttbr1(), 0);
 	} else {
 		paddr_t base = core_mmu_get_ul1_ttb_pa();
-		void *va = (void *)core_mmu_get_ul1_ttb_va();
+		uint32_t *ul1 = (void *)core_mmu_get_ul1_ttb_va();
 
 		/* copy uTA mapping at begning of mmu table */
-		memcpy(va, ctx->mmu->table, ctx->mmu->size * 4);
+		memcpy(ul1, ctx->mmu->table, ctx->mmu->size * 4);
+		memset(ul1 + ctx->mmu->size, 0,
+		       (TEE_MMU_UL1_NUM_ENTRIES - ctx->mmu->size) * 4);
 
 		/* Change ASID to new value */
 		tee_mmu_switch(base | TEE_MMU_DEFAULT_ATTRS, ctx->context);

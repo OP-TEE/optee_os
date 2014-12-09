@@ -260,7 +260,7 @@ static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
 	while (ptr < end_ptr) {
 		*ptr += va_start;
 #ifdef PAGER_DEBUG_PRINT
-		DMSG("GOT [0x%x] = 0x%x", ptr, *ptr);
+		DMSG("GOT [%p] = 0x%x", (void *)ptr, *ptr);
 #endif
 		ptr++;
 	}
@@ -297,7 +297,7 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 		data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
 		*data += ctx->load_addr;
 #ifdef PAGER_DEBUG_PRINT
-		DMSG("rel.dyn [0x%x] = 0x%x", data, *data);
+		DMSG("rel.dyn [%p] = 0x%x", (void *)data, *data);
 #endif
 	}
 }
@@ -324,7 +324,7 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 
 	*data = heap_start_addr;
 #ifdef PAGER_DEBUG_PRINT
-	DMSG("heap_base [0x%x] = 0x%x", data, *data);
+	DMSG("heap_base [%p] = 0x%x", (void *)data, *data);
 #endif
 }
 

@@ -61,7 +61,6 @@ TEE_Result init_teecore(void)
 
 	/* init support for futur mapping of TAs */
 	tee_mmu_kmap_init();
-	teecore_init_ta_ram();
 	teecore_init_pub_ram();
 
 	/* Initialize cryptographic provider */

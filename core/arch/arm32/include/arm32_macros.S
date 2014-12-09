@@ -81,6 +81,16 @@
 	mcr	p15, 0, r0, c8, c7, 0
 	.endm
 
+	.macro write_tlbiallis
+	/* Invalidate entire unified TLB Inner Sharable (register ignored) */
+	mcr	p15, 0, r0, c8, c3, 0
+	.endm
+
+	.macro write_tlbiasidis reg
+	/* Invalidate unified TLB by ASID Inner Sharable */
+	mcr	p15, 0, \reg, c8, c3, 2
+	.endm
+
 	.macro write_vbar reg
 	mcr	p15, 0, \reg, c12, c0, 0
 	.endm
@@ -91,6 +101,10 @@
 
 	.macro write_contextidr reg
 	mcr	p15, 0, \reg, c13, c0, 1
+	.endm
+
+	.macro read_contextidr reg
+	mrc	p15, 0, \reg, c13, c0, 1
 	.endm
 
 	.macro write_pcr reg

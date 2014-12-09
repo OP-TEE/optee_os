@@ -30,6 +30,7 @@
 
 #include <mm/tee_mm.h>
 #include <mm/tee_mm_unpg.h>
+#include <mm/pager.h>
 
 bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
 		 uint32_t flags)
@@ -228,12 +229,6 @@ void tee_mm_free(tee_mm_entry_t *p)
 		TEE_ASSERT(0);
 	}
 	entry->next = entry->next->next;
-
-	if (p->pool->flags & TEE_MM_POOL_PAGED) {
-		/* unmap entry */
-		tee_pager_unmap((uint32_t)(p->offset << p->pool->shift) +
-				p->pool->lo, p->size);
-	}
 
 	free(p);
 
