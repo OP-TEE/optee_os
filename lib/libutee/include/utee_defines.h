@@ -31,19 +31,21 @@
  * Copied from TEE Internal API specificaion v1.0 table 6-9 "Structure of
  * Algorithm Identifier".
  */
-#define TEE_MAIN_ALGO_MD5       0x01
-#define TEE_MAIN_ALGO_SHA1      0x02
-#define TEE_MAIN_ALGO_SHA224    0x03
-#define TEE_MAIN_ALGO_SHA256    0x04
-#define TEE_MAIN_ALGO_SHA384    0x05
-#define TEE_MAIN_ALGO_SHA512    0x06
-#define TEE_MAIN_ALGO_AES       0x10
-#define TEE_MAIN_ALGO_DES       0x11
-#define TEE_MAIN_ALGO_DES2      0x12
-#define TEE_MAIN_ALGO_DES3      0x13
-#define TEE_MAIN_ALGO_RSA       0x30
-#define TEE_MAIN_ALGO_DSA       0x31
-#define TEE_MAIN_ALGO_DH        0x32
+#define TEE_MAIN_ALGO_MD5        0x01
+#define TEE_MAIN_ALGO_SHA1       0x02
+#define TEE_MAIN_ALGO_SHA224     0x03
+#define TEE_MAIN_ALGO_SHA256     0x04
+#define TEE_MAIN_ALGO_SHA384     0x05
+#define TEE_MAIN_ALGO_SHA512     0x06
+#define TEE_MAIN_ALGO_AES        0x10
+#define TEE_MAIN_ALGO_DES        0x11
+#define TEE_MAIN_ALGO_DES2       0x12
+#define TEE_MAIN_ALGO_DES3       0x13
+#define TEE_MAIN_ALGO_RSA        0x30
+#define TEE_MAIN_ALGO_DSA        0x31
+#define TEE_MAIN_ALGO_DH         0x32
+#define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
+
 
 #define TEE_CHAIN_MODE_ECB_NOPAD        0x0
 #define TEE_CHAIN_MODE_CBC_NOPAD        0x1

@@ -37,6 +37,11 @@
 #include <trace.h>
 #include <string_ext.h>
 
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+#include <tee_api_defines_extensions.h>
+#include <tee/tee_cryp_concat_kdf.h>
+#endif
+
 /* Set an attribute on an object */
 #define SET_ATTRIBUTE(_object, _props, _attr)	\
 	((_object)->have_attrs |= \
@@ -298,6 +303,19 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dh_keypair_attrs[] = {
 	},
 };
 
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+static const struct tee_cryp_obj_type_attrs
+	tee_cryp_obj_concat_kdf_z_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_CONCAT_KDF_Z,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
+	.conv_func = TEE_TYPE_CONV_FUNC_SECRET,
+	.raw_offs = 0,
+	.raw_size = 0
+	},
+};
+#endif
+
 struct tee_cryp_obj_type_props {
 	TEE_ObjectType obj_type;
 	uint16_t min_size;	/* may not be smaller than this */
@@ -353,6 +371,11 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_GENERIC_SECRET, 8, 0, 4096,
 		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+	PROP(TEE_TYPE_CONCAT_KDF_Z, 8, 0, 4096,
+		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		tee_cryp_obj_concat_kdf_z_attrs),
+#endif
 
 	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, 2048,
 		sizeof(struct rsa_public_key),
@@ -1513,6 +1536,11 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	case TEE_MAIN_ALGO_DH:
 		req_key_type = TEE_TYPE_DH_KEYPAIR;
 		break;
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+	case TEE_MAIN_ALGO_CONCAT_KDF:
+		req_key_type = TEE_TYPE_CONCAT_KDF_Z;
+		break;
+#endif
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -2070,6 +2098,48 @@ TEE_Result tee_svc_cipher_final(uint32_t state, const void *src,
 					    src, src_len, dst, dst_len);
 }
 
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+static TEE_Result get_concat_kdf_params(const TEE_Attribute *params,
+					uint32_t param_count,
+					void **other_info,
+					size_t *other_info_len,
+					size_t *derived_key_len)
+{
+	size_t n;
+	enum { LENGTH = 0x1, INFO = 0x2 };
+	uint8_t found = 0;
+
+	*other_info = NULL;
+	*other_info_len = *derived_key_len = 0;
+
+	for (n = 0; n < param_count; n++) {
+		switch (params[n].attributeID) {
+		case TEE_ATTR_CONCAT_KDF_OTHER_INFO:
+			if (!(found & INFO)) {
+				*other_info = params[n].content.ref.buffer;
+				*other_info_len = params[n].content.ref.length;
+				found |= INFO;
+			}
+			break;
+		case TEE_ATTR_CONCAT_KDF_DKM_LENGTH:
+			if (!(found & LENGTH)) {
+				*derived_key_len = params[n].content.value.a;
+				found |= LENGTH;
+			}
+			break;
+		default:
+			/* Unexpected attribute */
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+
+	if (!(found & LENGTH))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+#endif
+
 TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 				   uint32_t param_count, uint32_t derived_key)
 {
@@ -2080,9 +2150,6 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	struct tee_cryp_state *cs;
 	struct tee_cryp_obj_secret *sk;
 	const struct tee_cryp_obj_type_props *type_props;
-	struct bignum *publicvalue = NULL;
-	struct bignum *sharedsecret = NULL;
-	size_t alloc_size;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -2091,10 +2158,6 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	res = tee_svc_cryp_get_state(sess, state, &cs);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	if ((param_count != 1) ||
-	    (params[0].attributeID != TEE_ATTR_DH_PUBLIC_VALUE))
-		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* get key set in operation */
 	res = tee_obj_get(sess->ctx, cs->key1, &ko);
@@ -2105,7 +2168,7 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	/* find information needed about the object to initialize */
+	/* Find information needed about the object to initialize */
 	sk = (struct tee_cryp_obj_secret *)so->data;
 
 	/* Find description of object */
@@ -2113,36 +2176,76 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 	if (!type_props)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (!crypto_ops.bignum.allocate ||
-	    !crypto_ops.bignum.free ||
-	    !crypto_ops.bignum.bin2bn ||
-	    !crypto_ops.bignum.bn2bin ||
-	    !crypto_ops.bignum.num_bytes ||
-	    !crypto_ops.acipher.dh_shared_secret)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (cs->algo == TEE_ALG_DH_DERIVE_SHARED_SECRET) {
+		size_t alloc_size;
+		struct bignum *pub;
+		struct bignum *ss;
 
-	/* extract information from the attributes passed to the function */
-	alloc_size = params[0].content.ref.length * 8;
-	publicvalue = crypto_ops.bignum.allocate(alloc_size);
-	sharedsecret = crypto_ops.bignum.allocate(alloc_size);
-	if (!publicvalue || !sharedsecret) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
+		if (!crypto_ops.bignum.allocate ||
+		    !crypto_ops.bignum.free ||
+		    !crypto_ops.bignum.bin2bn ||
+		    !crypto_ops.bignum.bn2bin ||
+		    !crypto_ops.bignum.num_bytes ||
+		    !crypto_ops.acipher.dh_shared_secret)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		if (param_count != 1 ||
+		    params[0].attributeID != TEE_ATTR_DH_PUBLIC_VALUE)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		alloc_size = params[0].content.ref.length * 8;
+		pub = crypto_ops.bignum.allocate(alloc_size);
+		ss = crypto_ops.bignum.allocate(alloc_size);
+		if (pub && ss) {
+			crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
+					params[0].content.ref.length, pub);
+			res = crypto_ops.acipher.dh_shared_secret(ko->data,
+								  pub, ss);
+			if (res == TEE_SUCCESS) {
+				sk->key_size = crypto_ops.bignum.num_bytes(ss);
+				crypto_ops.bignum.bn2bin(ss,
+							 (uint8_t *)(sk + 1));
+				so->info.handleFlags |=
+						TEE_HANDLE_FLAG_INITIALIZED;
+				SET_ATTRIBUTE(so, type_props,
+					      TEE_ATTR_SECRET_VALUE);
+			}
+		} else {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+		}
+		crypto_ops.bignum.free(pub);
+		crypto_ops.bignum.free(ss);
 	}
-	crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
-				 params[0].content.ref.length,
-				 publicvalue);
-	res = crypto_ops.acipher.dh_shared_secret(ko->data, publicvalue,
-						  sharedsecret);
-	if (res == TEE_SUCCESS) {
-		sk->key_size = crypto_ops.bignum.num_bytes(sharedsecret);
-		crypto_ops.bignum.bn2bin(sharedsecret, (uint8_t *)(sk + 1));
-		so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-		SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+#if defined(CFG_CRYPTO_CONCAT_KDF)
+	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_CONCAT_KDF) {
+		void *info;
+		size_t info_len, derived_key_len;
+		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
+		struct tee_cryp_obj_secret *ss = ko->data;
+		const uint8_t *shared_secret = (const uint8_t *)(ss + 1);
+
+		res = get_concat_kdf_params(params, param_count, &info,
+					    &info_len, &derived_key_len);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		/* Requested size must fit into the output object's buffer */
+		if (derived_key_len >
+			ko->data_size - sizeof(struct tee_cryp_obj_secret))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = tee_cryp_concat_kdf(hash_id, shared_secret, ss->key_size,
+					  info, info_len, (uint8_t *)(sk + 1),
+					  derived_key_len);
+		if (res == TEE_SUCCESS) {
+			sk->key_size = derived_key_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
 	}
-out:
-	crypto_ops.bignum.free(publicvalue);
-	crypto_ops.bignum.free(sharedsecret);
+#endif
+	else
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	return res;
 }
 
