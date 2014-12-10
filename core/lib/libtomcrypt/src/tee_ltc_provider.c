@@ -294,8 +294,6 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 
 #if defined(_CFG_CRYPTO_WITH_HASH)
 
-#define MAX_DIGEST 64
-
 static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
@@ -363,7 +361,7 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 	int ltc_res;
 	int ltc_hashindex;
 	size_t hash_size;
-	uint8_t block_digest[MAX_DIGEST];
+	uint8_t block_digest[TEE_MAX_HASH_SIZE];
 	uint8_t *tmp_digest;
 
 	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
@@ -374,19 +372,14 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	hash_size = hash_descriptor[ltc_hashindex].hashsize;
-	if ((hash_size < len) || (hash_size > MAX_DIGEST)) {
-		/*
-		 * Caller is asking for more bytes than the computation
-		 * will produce ... might be something wrong
-		 */
-		return  TEE_ERROR_BAD_PARAMETERS;
-	}
 
-	if (hash_size > len)
+	if (hash_size > len) {
+		if (hash_size > sizeof(block_digest))
+			return TEE_ERROR_BAD_STATE;
 		tmp_digest = block_digest; /* use a tempory buffer */
-	else
+	} else {
 		tmp_digest = digest;
-
+	}
 	if (hash_descriptor[ltc_hashindex].done(ctx, tmp_digest) == CRYPT_OK) {
 		if (hash_size > len)
 			memcpy(digest, tmp_digest, len);

@@ -133,9 +133,8 @@ TEE_Result tee_hash_check(uint32_t algo, const uint8_t *hash,
 			  size_t hash_size, const uint8_t *data,
 			  size_t data_size)
 {
-#define MAX_DIGEST 64
 	TEE_Result res;
-	uint8_t digest[MAX_DIGEST];
+	uint8_t digest[TEE_MAX_HASH_SIZE];
 	size_t digestlen;
 
 	res = tee_hash_get_digest_size(algo, &digestlen);
@@ -143,10 +142,11 @@ TEE_Result tee_hash_check(uint32_t algo, const uint8_t *hash,
 		return TEE_ERROR_BAD_PARAMETERS;
 	if ((hash_size == 0) ||
 	    (digestlen < hash_size) ||
-	    (digestlen > MAX_DIGEST))
+	    (digestlen > TEE_MAX_HASH_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_hash_createdigest(algo, data, data_size, digest, digestlen);
+	res = tee_hash_createdigest(algo, data, data_size, digest,
+				    sizeof(digest));
 	if (res != TEE_SUCCESS)
 		return res;
 
