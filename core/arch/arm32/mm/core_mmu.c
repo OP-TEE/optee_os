@@ -68,9 +68,6 @@ static struct map_area *map_tee_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_ta_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_nsec_shm = (void *)1;	/* not in BSS */
 
-/* bss is not init: def value must be non-zero */
-static bool memmap_notinit[CFG_TEE_CORE_NB_CORE] = { true, true };
-
 /* check if target buffer fits in a core default map area */
 static bool pbuf_inside_map_area(unsigned long p, size_t l,
 				 struct map_area *map)
@@ -364,8 +361,6 @@ void core_init_mmu_regs(void)
 
 	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
 	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
-
-	memmap_notinit[get_core_pos()] = false;
 }
 
 /* routines to retreive shared mem configuration */
@@ -428,23 +423,10 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 	return core_pbuf_is(attr, (tee_paddr_t)p, len);
 }
 
-/*
- * Return true is MMU is initialized for current core
- * Note that this is for DEBUG only, to help preventing
- * use of pa2va va2pa before mmu table is setup !
- */
-static bool is_coremap_init(void)
-{
-	return !memmap_notinit[get_core_pos()];
-}
-
 /* core_va2pa - teecore exported service */
 int core_va2pa_helper(void *va, paddr_t *pa)
 {
 	struct map_area *map;
-
-	if (!is_coremap_init())
-		return -1;
 
 	map = find_map_by_va(va);
 	if (map == NULL)
@@ -459,9 +441,6 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 int core_pa2va_helper(paddr_t pa, void **va)
 {
 	struct map_area *map;
-
-	if (!is_coremap_init())
-		return -1;
 
 	map = find_map_by_pa((unsigned long)pa);
 	if (map == NULL)
