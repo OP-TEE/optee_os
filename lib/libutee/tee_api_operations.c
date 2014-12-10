@@ -1122,11 +1122,6 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 	if ((key_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
 		TEE_Panic(0);
 
-	if ((operation->info.algorithm == TEE_ALG_DH_DERIVE_SHARED_SECRET) &&
-	    (paramCount != 1 ||
-	     params[0].attributeID != TEE_ATTR_DH_PUBLIC_VALUE))
-		TEE_Panic(0);
-
 	res = utee_cryp_derive_key(operation->state, params, paramCount,
 				   (uint32_t) derivedKey);
 	if (res != TEE_SUCCESS)
