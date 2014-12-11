@@ -36,7 +36,8 @@
 #include <tee/tee_cryp_provider.h>
 #include <trace.h>
 #include <string_ext.h>
-#if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF)
+#if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF) || \
+	defined(CFG_CRYPTO_PBKDF2)
 #include <tee_api_defines_extensions.h>
 #endif
 #if defined(CFG_CRYPTO_HKDF)
@@ -44,6 +45,9 @@
 #endif
 #if defined(CFG_CRYPTO_CONCAT_KDF)
 #include <tee/tee_cryp_concat_kdf.h>
+#endif
+#if defined(CFG_CRYPTO_PBKDF2)
+#include <tee/tee_cryp_pbkdf2.h>
 #endif
 
 /* Set an attribute on an object */
@@ -333,6 +337,19 @@ static const struct tee_cryp_obj_type_attrs
 };
 #endif
 
+#if defined(CFG_CRYPTO_PBKDF2)
+static const struct tee_cryp_obj_type_attrs
+	tee_cryp_obj_pbkdf2_passwd_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_PBKDF2_PASSWORD,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
+	.conv_func = TEE_TYPE_CONV_FUNC_SECRET,
+	.raw_offs = 0,
+	.raw_size = 0
+	},
+};
+#endif
+
 struct tee_cryp_obj_type_props {
 	TEE_ObjectType obj_type;
 	uint16_t min_size;	/* may not be smaller than this */
@@ -397,6 +414,11 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_CONCAT_KDF_Z, 8, 0, 4096,
 		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_concat_kdf_z_attrs),
+#endif
+#if defined(CFG_CRYPTO_PBKDF2)
+	PROP(TEE_TYPE_PBKDF2_PASSWORD, 8, 0, 4096,
+		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		tee_cryp_obj_pbkdf2_passwd_attrs),
 #endif
 	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, 2048,
 		sizeof(struct rsa_public_key),
@@ -1567,6 +1589,11 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		req_key_type = TEE_TYPE_CONCAT_KDF_Z;
 		break;
 #endif
+#if defined(CFG_CRYPTO_PBKDF2)
+	case TEE_MAIN_ALGO_PBKDF2:
+		req_key_type = TEE_TYPE_PBKDF2_PASSWORD;
+		break;
+#endif
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -2215,6 +2242,53 @@ static TEE_Result get_concat_kdf_params(const TEE_Attribute *params,
 }
 #endif
 
+#if defined(CFG_CRYPTO_PBKDF2)
+static TEE_Result get_pbkdf2_params(const TEE_Attribute *params,
+				   uint32_t param_count, void **salt,
+				   size_t *salt_len, size_t *derived_key_len,
+				   size_t *iteration_count)
+{
+	size_t n;
+	enum { SALT = 0x1, LENGTH = 0x2, COUNT = 0x4 };
+	uint8_t found = 0;
+
+	*salt = NULL;
+	*salt_len = *derived_key_len = *iteration_count = 0;
+
+	for (n = 0; n < param_count; n++) {
+		switch (params[n].attributeID) {
+		case TEE_ATTR_PBKDF2_SALT:
+			if (!(found & SALT)) {
+				*salt = params[n].content.ref.buffer;
+				*salt_len = params[n].content.ref.length;
+				found |= SALT;
+			}
+			break;
+		case TEE_ATTR_PBKDF2_DKM_LENGTH:
+			if (!(found & LENGTH)) {
+				*derived_key_len = params[n].content.value.a;
+				found |= LENGTH;
+			}
+			break;
+		case TEE_ATTR_PBKDF2_ITERATION_COUNT:
+			if (!(found & COUNT)) {
+				*iteration_count = params[n].content.value.a;
+				found |= COUNT;
+			}
+			break;
+		default:
+			/* Unexpected attribute */
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+
+	if ((found & (LENGTH|COUNT)) != (LENGTH|COUNT))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+#endif
+
 TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 				   uint32_t param_count, uint32_t derived_key)
 {
@@ -2346,8 +2420,36 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
 		}
 	}
 #endif
+#if defined(CFG_CRYPTO_PBKDF2)
+	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_PBKDF2) {
+		void *salt;
+		size_t salt_len, iteration_count, derived_key_len;
+		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
+		struct tee_cryp_obj_secret *ss = ko->data;
+		const uint8_t *password = (const uint8_t *)(ss + 1);
+
+		res = get_pbkdf2_params(params, param_count, &salt, &salt_len,
+					&derived_key_len, &iteration_count);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		/* Requested size must fit into the output object's buffer */
+		if (derived_key_len >
+			ko->data_size - sizeof(struct tee_cryp_obj_secret))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = tee_cryp_pbkdf2(hash_id, password, ss->key_size, salt,
+				      salt_len, iteration_count,
+				      (uint8_t *)(sk + 1), derived_key_len);
+		if (res == TEE_SUCCESS) {
+			sk->key_size = derived_key_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+	}
+#endif
 	else
-		return TEE_ERROR_NOT_SUPPORTED;
+		res = TEE_ERROR_NOT_SUPPORTED;
 
 	return res;
 }

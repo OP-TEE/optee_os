@@ -63,4 +63,19 @@
 #define TEE_ATTR_CONCAT_KDF_OTHER_INFO        0xD00002C1
 #define TEE_ATTR_CONCAT_KDF_DKM_LENGTH        0xF00003C1
 
+/*
+ * PKCS #5 v2.0 Key Derivation Function 2 (PBKDF2)
+ * RFC 2898 section 5.2
+ * https://www.ietf.org/rfc/rfc2898.txt
+ */
+
+#define TEE_ALG_PBKDF2_HMAC_SHA1_DERIVE_KEY 0x800020C2
+
+#define TEE_TYPE_PBKDF2_PASSWORD            0xA10000C2
+
+#define TEE_ATTR_PBKDF2_PASSWORD            0xC00001C2
+#define TEE_ATTR_PBKDF2_SALT                0xD00002C2
+#define TEE_ATTR_PBKDF2_ITERATION_COUNT     0xF00003C2
+#define TEE_ATTR_PBKDF2_DKM_LENGTH          0xF00004C2
+
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */
