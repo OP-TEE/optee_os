@@ -234,8 +234,108 @@ than not that it's the same CPU that resumes execution in secure world.
 # 6. SVC
 Will be written soon.
 
+
 # 7. Shared Memory
-Will be written soon.
+
+Shared Memory is a block of memory that is shared between the non-secure
+and the secure world. It is used to transfer data between both worlds.
+
+## Shared Memory Allocation
+The shared memory is allocated by the Linux driver from a pool
+`struct shm_pool`. The pool contains:
+* the physical address of the start of the pool
+* the size of the pool
+* whether or not the memory is cached
+* list of chunk of memory allocated.
+
+Note that
+- the shared memory pool is physically contiguous.
+- the shared memory area is not protected as it is used by both
+  non-secure and secure world.
+
+### Shared Memory Configuration
+It is the Linux kernel driver for OP-TEE that is responsible for initializing
+the shared memory pool,
+given information provided by the Trusted OS. The Linux driver issues a SMC call
+TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG to retrieve the information
+* physical address of the start of the pool
+* size of the pool
+* whether or not the memory is cached
+
+The shared memory pool configuration is platform specific. The memory mapping,
+including the area MEM_AREA_NSEC_SHM (shared memory with non-secure world), is
+retrieved by calling the platform-specific function `bootcfg_get_memory()`.
+Please refer to this function and the area type MEM_AREA_NSEC_SHM to see
+the configuration for the platform of interest.
+
+The Linux driver will then initialize the shared memory pool accordingly.
+
+### Shared Memory Chunk Allocation
+A chunk of shared memory consists of the start address of the chunk,
+its size and also a reference counter. Right after the configuration of
+the shared
+memory pool, a unique chunk is created, being the whole shared memory
+area, with a reference count set to 0.
+
+Then a new chunk of memory is created on request. Chunk creation
+consists of:
+- Select the smallest free chunk (refcount==0) that fits size and
+  alignment constraint.
+- Allocation will fail if no such chunk could be found.
+- Split the found chunk in order to create a memory chunk with given
+  specification (size / alignment, and refcount=1), and create
+  potentially 2 smaller empty chunks.
+
+## Shared Memory Usage
+
+### From the Client Application
+The client application can ask for shared memory allocation using the Global
+Platform Client API function TEEC_AllocateSharedMemory().
+
+The client application can also provide shared memory through the
+GlobalPlatform Client API function TEEC_RegisterSharedMemory(). In such a case,
+the provided memory must be physically contiguous so that
+the Trusted OS, that does not handle scatter-gather memory, is able to use
+the provided range of memory addresses.
+
+Note that the reference count of a shared memory chunk is incremented
+when shared memory is registered, and initialized to 1 on allocation.
+
+### From the Linux Driver
+Occasionally the Linux kernel driver needs to allocate shared memory
+for the communication with secure world, for example when
+using buffers of type TEEC_TempMemoryReference.
+
+### From the Trusted OS
+In case the Trusted OS needs information from the TEE supplicant (dynamic
+TA loading, REE time request,...), shared memory must be allocated.
+Allocation depends on the use case.
+
+The Trusted OS asks for the following shared memory allocation:
+- `teesmc32_arg` structure, used to pass the arguments to the non-secure world,
+  where the allocation will be done by sending a
+  TEESMC_RPC_FUNC_ALLOC_ARG message
+- In some cases, a payload might be needed for storing the result from
+  TEE supplicant, for example when trying to get the REE time.
+  This type of allocation will be done by sending the message
+  TEESMC_OPTEE_RPC_FUNC_ALLOC_PAYLOAD, which then will return:
+  - the physical address of the shared memory
+  - a handle to the memory, that later on will be used later on
+    when freeing this memory.
+
+### From the TEE Supplicant
+The TEE supplicant is also working with shared memory, used to exchange
+data between normal and secure worlds. Two cases are considered:
+- The TEE supplicant receives a memory address from the
+  Trusted OS, used to store the data. This is for example the
+  case when REE time is requested. In this case, the
+  TEE supplicant must register the provided shared memory in the same
+  way a client application would do, involving the Linux driver.
+- The TEE supplicant provides a new shared memory that contains
+  the result. This is the case when a Trusted Application is dynamically
+  loaded. In this case, the TEE supplicant must allocate
+  a shared memory in the same way a client application would do,
+  involving the Linux driver.
 
 # 8. Pager
 Will be written soon.
