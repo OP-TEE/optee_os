@@ -203,15 +203,18 @@ static enum tee_se_reader_state pcsc_passthru_reader_get_state(
 		return READER_STATE_SE_EJECTED;
 }
 
-static uint8_t *pcsc_passthru_reader_get_atr(
-		struct tee_se_reader *se_reader)
+static TEE_Result pcsc_passthru_reader_get_atr(
+		struct tee_se_reader *se_reader, uint8_t **atr,
+		size_t *atr_len)
 {
 	struct pcsc_reader *r = se_reader->private_data;
 
-	if (r->atr_len > 0)
-		return r->atr;
-	else
-		return NULL;
+	if (r->atr_len > 0) {
+		*atr = r->atr;
+		*atr_len = r->atr_len;
+		return TEE_SUCCESS;
+	} else
+		return TEE_ERROR_COMMUNICATION;
 }
 
 static struct tee_se_reader_ops pcsc_passthru_reader_ops = {

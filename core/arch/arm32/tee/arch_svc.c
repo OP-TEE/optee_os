@@ -31,6 +31,7 @@
 #include <tee/arch_svc.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
+#include <tee/se/svc.h>
 #include <tee_syscall_numbers.h>
 #include <util.h>
 #include "arch_svc_private.h"
@@ -96,6 +97,21 @@ static const tee_svc_func tee_svc_syscall_table[] = {
 	(tee_svc_func)tee_svc_storage_obj_trunc,
 	(tee_svc_func)tee_svc_storage_obj_seek,
 	(tee_svc_func)tee_svc_obj_generate_key,
+	(tee_svc_func)tee_svc_se_service_open,
+	(tee_svc_func)tee_svc_se_service_close,
+	(tee_svc_func)tee_svc_se_service_get_readers,
+	(tee_svc_func)tee_svc_se_reader_get_prop,
+	(tee_svc_func)tee_svc_se_reader_get_name,
+	(tee_svc_func)tee_svc_se_reader_open_session,
+	(tee_svc_func)tee_svc_se_reader_close_sessions,
+	(tee_svc_func)tee_svc_se_session_is_closed,
+	(tee_svc_func)tee_svc_se_session_get_atr,
+	(tee_svc_func)tee_svc_se_session_open_channel,
+	(tee_svc_func)tee_svc_se_session_close,
+	(tee_svc_func)tee_svc_se_channel_select_next,
+	(tee_svc_func)tee_svc_se_channel_get_select_resp,
+	(tee_svc_func)tee_svc_se_channel_transmit,
+	(tee_svc_func)tee_svc_se_channel_close,
 };
 
 void tee_svc_handler(struct thread_svc_regs *regs)

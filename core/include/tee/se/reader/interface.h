@@ -29,7 +29,6 @@
 #define TEE_READER_INTERFACE_H
 
 #include <tee_api_types.h>
-#include <kernel/mutex.h>
 
 #include <sys/queue.h>
 
@@ -37,7 +36,6 @@ struct tee_se_reader {
 	char name[TEE_SE_READER_NAME_MAX];
 	struct tee_se_reader_ops *ops;
 	void *private_data;
-	struct mutex mutex;
 	TEE_SEReaderProperties prop;
 };
 
@@ -56,7 +54,8 @@ struct tee_se_reader_ops {
 	TEE_Result (*open)(struct tee_se_reader *);
 	void (*close)(struct tee_se_reader *);
 	enum tee_se_reader_state (*get_state)(struct tee_se_reader *);
-	uint8_t *(*get_atr)(struct tee_se_reader *);
+	TEE_Result (*get_atr)(struct tee_se_reader *,
+			uint8_t **atr, size_t *atr_len);
 	TEE_Result (*transmit)(struct tee_se_reader *, uint8_t *tx_buf,
 			size_t tx_len, uint8_t *rx_buf, size_t *rx_len);
 };

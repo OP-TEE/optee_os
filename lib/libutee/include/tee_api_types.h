@@ -170,6 +170,11 @@ typedef uint32_t TEE_BigIntFMMContext;
 
 /* Tee Secure Element APIs */
 
+typedef struct __TEE_SEServiceHandle *TEE_SEServiceHandle;
+typedef struct __TEE_SEReaderHandle *TEE_SEReaderHandle;
+typedef struct __TEE_SESessionHandle *TEE_SESessionHandle;
+typedef struct __TEE_SEChannelHandle *TEE_SEChannelHandle;
+
 typedef struct {
 	bool sePresent;
 	bool teeOnly;

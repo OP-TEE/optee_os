@@ -31,21 +31,14 @@
 #include <kernel/tee_common_unpg.h>
 #include <tee/se/session.h>
 #include <tee/se/channel.h>
-#include <tee/se/protocol.h>
+#include <tee/se/iso7816.h>
 #include <tee/se/aid.h>
 #include <tee/se/apdu.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-struct tee_se_channel {
-	int channel_id;
-	struct tee_se_session *session;
-	struct tee_se_aid *aid;
-	struct resp_apdu *select_resp;
-};
-
-struct tee_se_channel *alloc_tee_se_channel(struct tee_se_session *s,
+struct tee_se_channel *tee_se_channel_alloc(struct tee_se_session *s,
 		int channel_id)
 {
 	struct tee_se_channel *c;
@@ -60,11 +53,11 @@ struct tee_se_channel *alloc_tee_se_channel(struct tee_se_session *s,
 	return c;
 }
 
-void free_tee_se_channel(struct tee_se_channel *c)
+void tee_se_channel_free(struct tee_se_channel *c)
 {
 	TEE_ASSERT(c != NULL);
 	if (c->aid)
-		aid_release(c->aid);
+		tee_se_aid_release(c->aid);
 	if (c->select_resp)
 		apdu_release(to_apdu_base(c->select_resp));
 }
@@ -109,8 +102,8 @@ void tee_se_channel_set_aid(struct tee_se_channel *c,
 {
 	TEE_ASSERT(c != NULL);
 	if (c->aid)
-		aid_release(c->aid);
-	aid_acquire(aid);
+		tee_se_aid_release(c->aid);
+	tee_se_aid_acquire(aid);
 	c->aid = aid;
 }
 
@@ -142,52 +135,4 @@ TEE_Result tee_se_channel_transmit(struct tee_se_channel *c,
 	cmd_buf = apdu_get_data(to_apdu_base(cmd_apdu));
 	cmd_buf[ISO7816_CLA_OFFSET] = ISO7816_CLA | cla_channel;
 	return tee_se_session_transmit(s, cmd_apdu, resp_apdu);
-}
-
-
-
-/* TODO: internal API GLUES, move to another file */
-TEE_Result glue_tee_se_channel_transmit(struct tee_se_channel *c,
-		void *command, size_t command_len, void *resp, size_t *resp_len)
-{
-	TEE_Result ret;
-	struct tee_se_session *s;
-	struct cmd_apdu *cmd_apdu;
-	struct resp_apdu *resp_apdu;
-
-	TEE_ASSERT(c != NULL && command != NULL &&
-			resp != NULL && resp_len != NULL);
-
-	s = c->session;
-	cmd_apdu = (struct cmd_apdu *)alloc_apdu_from_buf(command, command_len);
-	resp_apdu = (struct resp_apdu *)alloc_apdu_from_buf(resp, *resp_len);
-
-	ret = tee_se_session_transmit(s, cmd_apdu, resp_apdu);
-
-	*resp_len = apdu_get_length(to_apdu_base(resp_apdu));
-
-	apdu_release(to_apdu_base(cmd_apdu));
-	apdu_release(to_apdu_base(resp_apdu));
-
-	return ret;
-}
-
-TEE_Result glue_tee_se_channel_get_select_response(struct tee_se_channel *c,
-		void *resp, size_t *resp_len)
-{
-	struct resp_apdu *r;
-
-	TEE_ASSERT(c != NULL && resp != NULL && resp_len != NULL);
-
-	r = c->select_resp;
-	if (r) {
-		uint8_t *data = apdu_get_data(to_apdu_base(r));
-		size_t data_len = apdu_get_length(to_apdu_base(r));
-
-		memcpy(resp, data, data_len);
-		*resp_len = data_len;
-		return TEE_SUCCESS;
-	} else {
-		return TEE_ERROR_NO_DATA;
-	}
 }

@@ -27,52 +27,45 @@
 
 #include <initcall.h>
 #include <trace.h>
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/mutex.h>
 #include <tee/se/manager.h>
 #include <tee/se/session.h>
-#include <tee/se/reader/interface.h>
-
-#include <kernel/mutex.h>
-
 #include <tee/se/reader.h>
+#include <tee/se/reader/interface.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
 
-TAILQ_HEAD(reader_handles_list, tee_se_reader_handle);
-
-struct tee_se_reader_handle {
-	struct tee_se_reader *reader;
-	uint32_t refcnt;
-	bool basic_channel_locked;
-	struct mutex mutex;
-	TAILQ_ENTRY(tee_se_reader_handle) link;
-};
+TAILQ_HEAD(reader_proxy_head, tee_se_reader_proxy);
 
 struct tee_se_manager_ctx {
-
+	/* number of readers registered */
+	size_t reader_count;
+	/* mutex to pretect the reader proxy list */
 	struct mutex mutex;
-	struct reader_handles_list reader_handles;
+	/* list of registered readers */
+	struct reader_proxy_head reader_proxies;
 };
 static struct tee_se_manager_ctx se_manager_ctx;
 
 TEE_Result tee_se_manager_register_reader(struct tee_se_reader *r)
 {
 	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
-	struct tee_se_reader_handle *handle =
-		malloc(sizeof(struct tee_se_reader_handle));
-	if (!handle)
+	struct tee_se_reader_proxy *proxy =
+		malloc(sizeof(struct tee_se_reader_proxy));
+	if (!proxy)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	handle->reader = r;
-	handle->refcnt = 0;
-	handle->basic_channel_locked = false;
-	mutex_init(&handle->mutex);
+	proxy->reader = r;
+	proxy->refcnt = 0;
+	proxy->basic_channel_locked = false;
+	mutex_init(&proxy->mutex);
 
 	mutex_lock(&ctx->mutex);
-	TAILQ_INSERT_TAIL(&ctx->reader_handles, handle, link);
+	TAILQ_INSERT_TAIL(&ctx->reader_proxies, proxy, link);
+	ctx->reader_count++;
 	mutex_unlock(&ctx->mutex);
 
 	return TEE_SUCCESS;
@@ -81,123 +74,65 @@ TEE_Result tee_se_manager_register_reader(struct tee_se_reader *r)
 TEE_Result tee_se_manager_unregister_reader(struct tee_se_reader *r)
 {
 	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
-	struct tee_se_reader_handle *handle;
+	struct tee_se_reader_proxy *proxy;
 
 	mutex_lock(&ctx->mutex);
-	TAILQ_FOREACH(handle, &ctx->reader_handles, link)
+	TAILQ_FOREACH(proxy, &ctx->reader_proxies, link)
 	{
-		if (handle->reader == r)
-			TAILQ_REMOVE(&ctx->reader_handles, handle, link);
-		free(handle);
+		if (proxy->reader == r)
+			TAILQ_REMOVE(&ctx->reader_proxies, proxy, link);
+		free(proxy);
 	}
+	ctx->reader_count--;
 	mutex_unlock(&ctx->mutex);
 
 	return TEE_SUCCESS;
 }
 
-
-TEE_Result tee_se_manager_get_readers(struct tee_se_reader_handle **handle_list,
-		size_t *handle_list_size)
+size_t tee_se_manager_get_reader_count(void)
 {
 	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
-	struct tee_se_reader_handle *handle;
+
+	return ctx->reader_count;
+}
+
+TEE_Result tee_se_manager_get_readers(
+		struct tee_se_reader_proxy **proxy_list,
+		size_t *proxy_list_size)
+{
+	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
+	struct tee_se_reader_proxy *proxy;
 	size_t i = 0;
 
-	if (TAILQ_EMPTY(&ctx->reader_handles))
+	if (TAILQ_EMPTY(&ctx->reader_proxies))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	TAILQ_FOREACH(handle, &ctx->reader_handles, link) {
-		if (i >= *handle_list_size)
+	TAILQ_FOREACH(proxy, &ctx->reader_proxies, link) {
+		if (i >= *proxy_list_size)
 			return TEE_ERROR_SHORT_BUFFER;
 
-		handle_list[i] = handle;
+		proxy_list[i] = proxy;
 		i++;
 	}
-	*handle_list_size = i;
+	*proxy_list_size = i;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len)
-{
-	size_t name_len;
-
-	TEE_ASSERT(handle != NULL && handle->reader != NULL);
-
-	name_len = strlen(handle->reader->name);
-	if (name_len > *reader_name_len)
-		return TEE_ERROR_SHORT_BUFFER;
-
-	memcpy(reader_name, handle->reader->name, *reader_name_len);
-	*reader_name_len = name_len;
-
-	return TEE_SUCCESS;
-}
-
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
-		TEE_SEReaderProperties *prop)
-{
-	TEE_ASSERT(handle != NULL && handle->reader != NULL);
-	*prop = handle->reader->prop;
-}
-
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle)
-{
-	TEE_ASSERT(handle != NULL && handle->reader != NULL);
-	return handle->refcnt;
-}
-
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle)
-{
-	TEE_Result ret;
-
-	mutex_lock(&handle->mutex);
-	if (handle->refcnt == 0) {
-		struct tee_se_reader *r = handle->reader;
-
-		if (r->ops->open) {
-			ret = r->ops->open(r);
-			if (ret != TEE_SUCCESS) {
-				mutex_unlock(&handle->mutex);
-				return ret;
-			}
-		}
-	}
-	handle->refcnt++;
-	mutex_unlock(&handle->mutex);
-	return TEE_SUCCESS;
-}
-
-void tee_se_reader_detach(struct tee_se_reader_handle *handle)
-{
-	TEE_ASSERT(handle->refcnt > 0);
-
-	mutex_lock(&handle->mutex);
-	handle->refcnt--;
-	if (handle->refcnt == 0) {
-		struct tee_se_reader *r = handle->reader;
-
-		if (r->ops->close)
-			r->ops->close(r);
-	}
-	mutex_unlock(&handle->mutex);
-
-}
-
-static TEE_Result check_reader_state(struct tee_se_reader_handle *handle)
+TEE_Result tee_se_reader_check_state(struct tee_se_reader_proxy *proxy)
 {
 	struct tee_se_reader *r;
-	if (handle->refcnt == 0)
+
+	if (proxy->refcnt == 0)
 		return TEE_ERROR_BAD_STATE;
 
-	r = handle->reader;
+	r = proxy->reader;
 	if (r->ops->get_state) {
 		enum tee_se_reader_state state;
 
-		mutex_lock(&handle->mutex);
+		mutex_lock(&proxy->mutex);
 		state = r->ops->get_state(r);
-		mutex_unlock(&handle->mutex);
+		mutex_unlock(&proxy->mutex);
 
 		if (state != READER_STATE_SE_INSERTED)
 			return TEE_ERROR_COMMUNICATION;
@@ -206,101 +141,181 @@ static TEE_Result check_reader_state(struct tee_se_reader_handle *handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
+TEE_Result tee_se_reader_get_name(struct tee_se_reader_proxy *proxy,
+		char **reader_name, size_t *reader_name_len)
+{
+	size_t name_len;
+
+	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+
+	name_len = strlen(proxy->reader->name);
+	*reader_name = proxy->reader->name;
+	*reader_name_len = name_len;
+
+	return TEE_SUCCESS;
+}
+
+void tee_se_reader_get_properties(struct tee_se_reader_proxy *proxy,
+		TEE_SEReaderProperties *prop)
+{
+	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	*prop = proxy->reader->prop;
+}
+
+int tee_se_reader_get_refcnt(struct tee_se_reader_proxy *proxy)
+{
+	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	return proxy->refcnt;
+}
+
+TEE_Result tee_se_reader_attach(struct tee_se_reader_proxy *proxy)
+{
+	TEE_Result ret;
+
+	mutex_lock(&proxy->mutex);
+	if (proxy->refcnt == 0) {
+		struct tee_se_reader *r = proxy->reader;
+
+		if (r->ops->open) {
+			ret = r->ops->open(r);
+			if (ret != TEE_SUCCESS) {
+				mutex_unlock(&proxy->mutex);
+				return ret;
+			}
+		}
+	}
+	proxy->refcnt++;
+	mutex_unlock(&proxy->mutex);
+	return TEE_SUCCESS;
+}
+
+void tee_se_reader_detach(struct tee_se_reader_proxy *proxy)
+{
+	TEE_ASSERT(proxy->refcnt > 0);
+
+	mutex_lock(&proxy->mutex);
+	proxy->refcnt--;
+	if (proxy->refcnt == 0) {
+		struct tee_se_reader *r = proxy->reader;
+
+		if (r->ops->close)
+			r->ops->close(r);
+	}
+	mutex_unlock(&proxy->mutex);
+
+}
+
+TEE_Result tee_se_reader_transmit(struct tee_se_reader_proxy *proxy,
 		uint8_t *tx_buf, size_t tx_buf_len,
 		uint8_t *rx_buf, size_t *rx_buf_len)
 {
 	struct tee_se_reader *r;
 	TEE_Result ret;
 
-	TEE_ASSERT(handle != NULL && handle->reader != NULL);
-	ret = check_reader_state(handle);
+	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	ret = tee_se_reader_check_state(proxy);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	mutex_lock(&handle->mutex);
-	r = handle->reader;
+	mutex_lock(&proxy->mutex);
+	r = proxy->reader;
 
 	TEE_ASSERT(r->ops->transmit);
 	ret = r->ops->transmit(r, tx_buf, tx_buf_len, rx_buf, rx_buf_len);
 
-	mutex_unlock(&handle->mutex);
+	mutex_unlock(&proxy->mutex);
 
 	return ret;
 }
 
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle)
+void tee_se_reader_lock_basic_channel(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(handle != NULL);
-	mutex_lock(&handle->mutex);
-	handle->basic_channel_locked = true;
-	mutex_unlock(&handle->mutex);
+	TEE_ASSERT(proxy != NULL);
+
+	mutex_lock(&proxy->mutex);
+	proxy->basic_channel_locked = true;
+	mutex_unlock(&proxy->mutex);
 }
 
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle)
+void tee_se_reader_unlock_basic_channel(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(handle != NULL);
-	mutex_lock(&handle->mutex);
-	handle->basic_channel_locked = false;
-	mutex_unlock(&handle->mutex);
+	TEE_ASSERT(proxy != NULL);
+
+	mutex_lock(&proxy->mutex);
+	proxy->basic_channel_locked = false;
+	mutex_unlock(&proxy->mutex);
 }
 
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle)
+bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(handle != NULL);
-	return handle->basic_channel_locked;
+	TEE_ASSERT(proxy != NULL);
+	return proxy->basic_channel_locked;
 }
 
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
+bool tee_se_reader_is_proxy_valid(struct tee_se_reader_proxy *proxy)
+{
+	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
+	struct tee_se_reader_proxy *h;
+
+	TAILQ_FOREACH(h, &ctx->reader_proxies, link) {
+		if (h == proxy)
+			return true;
+	}
+
+	return false;
+}
+
+TEE_Result tee_se_reader_get_atr(struct tee_se_reader_proxy *proxy,
+		uint8_t **atr, size_t *atr_len)
+{
+	TEE_Result ret;
+	struct tee_se_reader *r;
+
+	TEE_ASSERT(proxy != NULL && atr != NULL && atr_len != NULL);
+	ret = tee_se_reader_check_state(proxy);
+	if (ret != TEE_SUCCESS)
+		return ret;
+
+	mutex_lock(&proxy->mutex);
+	r = proxy->reader;
+
+	TEE_ASSERT(r->ops->get_atr);
+	ret = r->ops->get_atr(r, atr, atr_len);
+
+	mutex_unlock(&proxy->mutex);
+	return ret;
+}
+
+TEE_Result tee_se_reader_open_session(struct tee_se_reader_proxy *proxy,
 		struct tee_se_session **session)
 {
 	TEE_Result ret;
 	struct tee_se_session *s;
 
 	TEE_ASSERT(session != NULL && *session == NULL);
-	TEE_ASSERT(handle != NULL && handle->reader != NULL);
+	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
 
-	s = alloc_tee_se_session(handle);
+	s = tee_se_session_alloc(proxy);
 	if (!s)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	ret = tee_se_reader_attach(handle);
+	ret = tee_se_reader_attach(proxy);
 	if (ret != TEE_SUCCESS)
 		goto err_free_session;
 
 	*session = s;
 
-	if (ctx)
-		add_tee_se_session(ctx, s);
-
 	return TEE_SUCCESS;
 err_free_session:
-	free_tee_se_session(s);
+	tee_se_session_free(s);
 	return ret;
-}
-
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
-		struct tee_se_session *session)
-{
-	struct tee_se_reader_handle *handle;
-
-	TEE_ASSERT(session != NULL);
-
-	handle = tee_se_session_get_reader_handle(session);
-	TEE_ASSERT(handle->refcnt > 0);
-
-	tee_se_reader_detach(handle);
-
-	if (ctx)
-		remove_tee_se_session(ctx, session);
-	free_tee_se_session(session);
 }
 
 static void context_init(struct tee_se_manager_ctx *ctx)
 {
-	TAILQ_INIT(&ctx->reader_handles);
+	TAILQ_INIT(&ctx->reader_proxies);
 	mutex_init(&ctx->mutex);
+	ctx->reader_count = 0;
 }
 
 static TEE_Result tee_se_manager_init(void)

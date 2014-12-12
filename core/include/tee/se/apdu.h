@@ -36,17 +36,17 @@ struct apdu_base;
 struct cmd_apdu *alloc_cmd_apdu(uint8_t cla, uint8_t ins, uint8_t p1,
 		uint8_t p2, uint8_t lc, uint8_t le, uint8_t *data);
 
+struct cmd_apdu *alloc_cmd_apdu_from_buf(uint8_t *buf, size_t length);
+
 struct resp_apdu *alloc_resp_apdu(uint8_t le);
 
-uint8_t *resp_apdu_get_resp_data(struct resp_apdu *apdu);
+uint8_t *resp_apdu_get_data(struct resp_apdu *apdu);
 
-size_t resp_apdu_get_resp_data_len(struct resp_apdu *apdu);
+size_t resp_apdu_get_data_len(struct resp_apdu *apdu);
 
 uint8_t resp_apdu_get_sw1(struct resp_apdu *apdu);
 
 uint8_t resp_apdu_get_sw2(struct resp_apdu *apdu);
-
-struct apdu_base *alloc_apdu_from_buf(uint8_t *buf, size_t length);
 
 uint8_t *apdu_get_data(struct apdu_base *apdu);
 

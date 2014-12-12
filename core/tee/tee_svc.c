@@ -78,6 +78,11 @@ TEE_Result tee_svc_reserved(void)
 	return TEE_ERROR_GENERIC;
 }
 
+TEE_Result tee_svc_not_supported(void)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 uint32_t tee_svc_sys_dummy(uint32_t *a __unused)
 {
 	DMSG("tee_svc_sys_dummy: a 0x%x", (unsigned int)a);

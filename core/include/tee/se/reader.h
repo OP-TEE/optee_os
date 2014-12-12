@@ -29,37 +29,56 @@
 #define TEE_SE_READER_H
 
 #include <tee_api_types.h>
+#include <kernel/mutex.h>
+#include <sys/queue.h>
 
-struct tee_ta_ctx;
-struct tee_se_reader_handle;
 struct tee_se_session;
 
-TEE_Result tee_se_reader_get_name(struct tee_se_reader_handle *handle,
-		char *reader_name, size_t *reader_name_len);
+/*
+ * Reader Proxy is used to serialize access from multiple seesions,
+ * and maintain reference counter. All access to the reader should
+ * go through Reader Proxy
+ */
+struct tee_se_reader_proxy {
+	struct tee_se_reader *reader;
+	int refcnt;
+	bool basic_channel_locked;
+	struct mutex mutex;
 
-void tee_se_reader_get_properties(struct tee_se_reader_handle *handle,
+	TAILQ_ENTRY(tee_se_reader_proxy) link;
+};
+
+TEE_Result tee_se_reader_get_name(struct tee_se_reader_proxy *proxy,
+		char **reader_name, size_t *reader_name_len);
+
+void tee_se_reader_get_properties(struct tee_se_reader_proxy *proxy,
 		TEE_SEReaderProperties *prop);
 
-int tee_se_reader_get_refcnt(struct tee_se_reader_handle *handle);
+int tee_se_reader_get_refcnt(struct tee_se_reader_proxy *proxy);
 
-TEE_Result tee_se_reader_attach(struct tee_se_reader_handle *handle);
+TEE_Result tee_se_reader_attach(struct tee_se_reader_proxy *proxy);
 
-void tee_se_reader_detach(struct tee_se_reader_handle *handle);
+void tee_se_reader_detach(struct tee_se_reader_proxy *proxy);
 
-TEE_Result tee_se_reader_open_session(struct tee_ta_ctx *ctx,
-		struct tee_se_reader_handle *handle,
+TEE_Result tee_se_reader_open_session(struct tee_se_reader_proxy *proxy,
 		struct tee_se_session **session);
 
-void tee_se_reader_close_session(struct tee_ta_ctx *ctx,
-		struct tee_se_session *session);
+void tee_se_reader_close_sessions(struct tee_se_reader_proxy *proxy);
 
-TEE_Result tee_se_reader_transmit(struct tee_se_reader_handle *handle,
+TEE_Result tee_se_reader_get_atr(struct tee_se_reader_proxy *proxy,
+		uint8_t **atr, size_t *atr_len);
+
+TEE_Result tee_se_reader_transmit(struct tee_se_reader_proxy *proxy,
 		uint8_t *tx_buf, size_t tx_buf_len, uint8_t *rx_buf, size_t *rx_buf_len);
 
-void tee_se_reader_lock_basic_channel(struct tee_se_reader_handle *handle);
+TEE_Result tee_se_reader_check_state(struct tee_se_reader_proxy *proxy);
 
-void tee_se_reader_unlock_basic_channel(struct tee_se_reader_handle *handle);
+void tee_se_reader_lock_basic_channel(struct tee_se_reader_proxy *proxy);
 
-bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_handle *handle);
+void tee_se_reader_unlock_basic_channel(struct tee_se_reader_proxy *proxy);
+
+bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_proxy *proxy);
+
+bool tee_se_reader_is_proxy_valid(struct tee_se_reader_proxy *proxy);
 
 #endif

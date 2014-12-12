@@ -29,22 +29,30 @@
 #define TEE_SE_SESSION_H
 
 #include <tee_api_types.h>
+#include <kernel/mutex.h>
 
-struct tee_ta_ctx;
-struct tee_se_session;
-struct tee_se_reader_handle;
+#include <sys/queue.h>
+
+struct tee_se_reader_proxy;
 struct tee_se_channel;
 struct tee_se_aid;
 struct cmd_apdu;
 struct resp_apdu;
 
-struct tee_se_session *alloc_tee_se_session(struct tee_se_reader_handle *handle);
+TAILQ_HEAD(channel_list, tee_se_channel);
 
-void free_tee_se_session(struct tee_se_session *s);
+struct tee_se_session {
+	struct tee_se_reader_proxy *reader_proxy;
 
-void add_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s);
+	/* list of channels opened on the session*/
+	struct channel_list channels;
 
-void remove_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s);
+	TAILQ_ENTRY(tee_se_session) link;
+};
+
+struct tee_se_session *tee_se_session_alloc(struct tee_se_reader_proxy *proxy);
+
+void tee_se_session_free(struct tee_se_session *s);
 
 TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 		struct tee_se_aid *aid, struct tee_se_channel **channel);
@@ -52,13 +60,18 @@ TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 TEE_Result tee_se_session_open_logical_channel(struct tee_se_session *s,
 		struct tee_se_aid *aid, struct tee_se_channel **channel);
 
+bool tee_se_session_is_channel_exist(struct tee_se_session *s,
+		struct tee_se_channel *c);
+
 void tee_se_session_close_channel(struct tee_se_session *s,
 		struct tee_se_channel *c);
 
-TEE_Result tee_se_session_transmit(struct tee_se_session *session,
+TEE_Result tee_se_session_get_atr(struct tee_se_session *s,
+		uint8_t **atr, size_t *atr_len);
+
+TEE_Result tee_se_session_transmit(struct tee_se_session *s,
 		struct cmd_apdu *c, struct resp_apdu *r);
 
-struct tee_se_reader_handle *tee_se_session_get_reader_handle(
-		struct tee_se_session *session);
+void tee_se_session_close(struct tee_se_session *s);
 
 #endif

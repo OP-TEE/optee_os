@@ -30,7 +30,7 @@
 #include <kernel/tee_common_unpg.h>
 #include <tee/se/reader.h>
 #include <tee/se/session.h>
-#include <tee/se/protocol.h>
+#include <tee/se/iso7816.h>
 #include <tee/se/aid.h>
 #include <tee/se/apdu.h>
 #include <tee/se/channel.h>
@@ -133,6 +133,18 @@ struct cmd_apdu *alloc_cmd_apdu(uint8_t cla, uint8_t ins, uint8_t p1,
 	return apdu;
 }
 
+struct cmd_apdu *alloc_cmd_apdu_from_buf(uint8_t *buf, size_t length)
+{
+	struct cmd_apdu *apdu = malloc(sizeof(struct cmd_apdu));
+
+	if (!apdu)
+		return NULL;
+	apdu->base.length = length;
+	apdu->base.data_buf = buf;
+	apdu->base.refcnt = 1;
+	return apdu;
+}
+
 struct resp_apdu *alloc_resp_apdu(uint8_t le)
 {
 	size_t total_length = sizeof(struct resp_apdu) + RESP_APDU_SIZE(le);
@@ -150,13 +162,13 @@ struct resp_apdu *alloc_resp_apdu(uint8_t le)
 	return apdu;
 }
 
-uint8_t *resp_apdu_get_resp_data(struct resp_apdu *apdu)
+uint8_t *resp_apdu_get_data(struct resp_apdu *apdu)
 {
 	TEE_ASSERT(apdu != NULL);
 	return apdu->resp_data;
 }
 
-size_t resp_apdu_get_resp_data_len(struct resp_apdu *apdu)
+size_t resp_apdu_get_data_len(struct resp_apdu *apdu)
 {
 	TEE_ASSERT(apdu != NULL);
 	return apdu->resp_data_len;
@@ -172,18 +184,6 @@ uint8_t resp_apdu_get_sw2(struct resp_apdu *apdu)
 {
 	TEE_ASSERT(apdu != NULL);
 	return apdu->sw2;
-}
-
-struct apdu_base *alloc_apdu_from_buf(uint8_t *buf, size_t length)
-{
-	struct apdu_base *apdu = malloc(sizeof(struct apdu_base));
-
-	if (!apdu)
-		return NULL;
-	apdu->length = length;
-	apdu->data_buf = buf;
-	apdu->refcnt = 1;
-	return apdu;
 }
 
 uint8_t *apdu_get_data(struct apdu_base *apdu)
@@ -216,7 +216,7 @@ void apdu_release(struct apdu_base *apdu)
 
 
 
-TEE_Result aid_create(const char *name, struct tee_se_aid **aid)
+TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid)
 {
 	size_t str_length = strlen(name);
 	size_t aid_length = str_length / 2;
@@ -235,19 +235,32 @@ TEE_Result aid_create(const char *name, struct tee_se_aid **aid)
 	return TEE_SUCCESS;
 }
 
-void aid_acquire(struct tee_se_aid *aid)
+TEE_Result tee_se_aid_create_from_buffer(uint8_t *id, size_t length,
+		struct tee_se_aid **aid)
+{
+	*aid = malloc(sizeof(struct tee_se_aid));
+	if (!(*aid))
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy((*aid)->aid, id, length);
+	(*aid)->length = length;
+	(*aid)->refcnt = 1;
+	return TEE_SUCCESS;
+}
+
+void tee_se_aid_acquire(struct tee_se_aid *aid)
 {
 	TEE_ASSERT(aid != NULL);
 	aid->refcnt++;
 }
 
-int aid_get_refcnt(struct tee_se_aid *aid)
+int tee_se_aid_get_refcnt(struct tee_se_aid *aid)
 {
 	TEE_ASSERT(aid != NULL);
 	return aid->refcnt;
 }
 
-void aid_release(struct tee_se_aid *aid)
+void tee_se_aid_release(struct tee_se_aid *aid)
 {
 	TEE_ASSERT(aid != NULL && aid->refcnt > 0);
 	aid->refcnt--;
@@ -268,13 +281,14 @@ static void parse_resp_apdu(struct resp_apdu *apdu)
 	apdu->sw2 = buf[RDATA + apdu->resp_data_len + OFF_SW2];
 }
 
-TEE_Result iso7816_exchange_apdu(struct tee_se_reader_handle *handle,
+TEE_Result iso7816_exchange_apdu(struct tee_se_reader_proxy *proxy,
 		struct cmd_apdu *cmd, struct resp_apdu *resp)
 {
 	TEE_Result ret;
 
 	TEE_ASSERT(cmd != NULL && resp != NULL);
-	ret = tee_se_reader_transmit(handle, cmd->base.data_buf, cmd->base.length,
+	ret = tee_se_reader_transmit(proxy,
+			cmd->base.data_buf, cmd->base.length,
 			resp->base.data_buf, &resp->base.length);
 
 	if (ret == TEE_SUCCESS)
@@ -305,7 +319,6 @@ static TEE_Result internal_select(struct tee_se_channel *c,
 	struct cmd_apdu *cmd;
 	struct resp_apdu *resp;
 	struct tee_se_session *s;
-	struct tee_se_reader_handle *handle;
 	TEE_Result ret;
 	TEE_SEReaderProperties prop;
 	size_t rx_buf_len = 0;
@@ -315,7 +328,6 @@ static TEE_Result internal_select(struct tee_se_channel *c,
 	TEE_ASSERT(c != NULL);
 
 	s = tee_se_channel_get_session(c);
-	handle = tee_se_session_get_reader_handle(s);
 	channel_id = tee_se_channel_get_id(c);
 
 	TEE_ASSERT(channel_id < MAX_LOGICAL_CHANNEL);
@@ -341,7 +353,7 @@ static TEE_Result internal_select(struct tee_se_channel *c,
 		return ret;
 	}
 
-	tee_se_reader_get_properties(handle, &prop);
+	tee_se_reader_get_properties(s->reader_proxy, &prop);
 	if (prop.selectResponseEnable)
 		tee_se_channel_set_select_response(c, resp);
 	if (aid)
@@ -370,7 +382,7 @@ static TEE_Result internal_manage_channel(struct tee_se_session *s,
 	struct cmd_apdu *cmd;
 	struct resp_apdu *resp;
 	TEE_Result ret;
-	size_t tx_buf_len = 0, rx_buf_len = 0;
+	size_t tx_buf_len = 0, rx_buf_len = 1;
 
 	uint8_t open_flag = (open_ops) ? OPEN_CHANNEL : CLOSE_CHANNEL;
 	uint8_t channel_flag =

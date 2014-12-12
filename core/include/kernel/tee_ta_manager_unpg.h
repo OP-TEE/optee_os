@@ -34,7 +34,9 @@
 #include <kernel/tee_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mm_unpg.h>
-#include <tee/se/session.h>
+#if defined(WITH_SE_API)
+#include <tee/se/manager.h>
+#endif
 #include <sys/queue.h>
 #include "tee_api_types.h"
 #include "user_ta_header.h"
@@ -43,7 +45,6 @@ TAILQ_HEAD(tee_ta_session_head, tee_ta_session);
 TAILQ_HEAD(tee_ta_ctx_head, tee_ta_ctx);
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
-TAILQ_HEAD(tee_se_session_head, tee_se_session);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
 /* normal world user mapping if loaded by tee supplicant */
@@ -61,8 +62,6 @@ struct tee_ta_ctx {
 	struct tee_cryp_state_head cryp_states;
 	/* List of storage objects opened by this TA */
 	struct tee_obj_head objects;
-	/* List of SE sessions opened by this TA */
-	struct tee_se_session_head se_sessions;
 	/* List of storage enumerators opened by this TA */
 	struct tee_storage_enum_head storage_enums;
 	ta_head_t *head;	/* ptr to the ta head in secure memory */
@@ -85,6 +84,9 @@ struct tee_ta_ctx {
 	void *ta_time_offs;	/* Time reference used by the TA */
 	ta_static_head_t *static_ta;	/* TA head struct for other cores */
 	void *rlhandle;		/* private handle for other cores */
+#if defined(WITH_SE_API)
+	struct tee_se_service *se_service;
+#endif
 };
 
 struct tee_ta_session {

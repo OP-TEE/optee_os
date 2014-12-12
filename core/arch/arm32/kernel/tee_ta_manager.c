@@ -620,9 +620,11 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	TAILQ_INIT(&ctx->open_sessions);
 	TAILQ_INIT(&ctx->cryp_states);
 	TAILQ_INIT(&ctx->objects);
-	TAILQ_INIT(&ctx->se_sessions);
 	TAILQ_INIT(&ctx->storage_enums);
 	ctx->head = sec_head;
+#if defined(WITH_SE_API)
+	ctx->se_service = NULL;
+#endif
 
 	/* by default NSec DDR: starts at TA function code. */
 	ctx->mem_swap = (uintptr_t)(nmem_ta + sizeof(ta_head_t) +

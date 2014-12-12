@@ -26,75 +26,70 @@
  */
 
 #include <trace.h>
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/mutex.h>
 
 #include <tee/se/reader.h>
 #include <tee/se/session.h>
 #include <tee/se/channel.h>
-#include <tee/se/protocol.h>
+#include <tee/se/iso7816.h>
 
 #include <stdlib.h>
 #include <sys/queue.h>
 
-TAILQ_HEAD(channel_list, tee_se_channel);
-
-struct tee_se_session {
-
-	TAILQ_ENTRY(tee_se_session) link;
-
-	struct tee_se_reader_handle *handle;
-
-	/* list of channels opened on the session*/
-	struct channel_list channels;
-};
-
-struct tee_se_session *alloc_tee_se_session(struct tee_se_reader_handle *handle)
+struct tee_se_session *tee_se_session_alloc(
+		struct tee_se_reader_proxy *proxy)
 {
 	struct tee_se_session *s;
-	TEE_ASSERT(handle != NULL);
+	TEE_ASSERT(proxy != NULL);
 
 	s = malloc(sizeof(struct tee_se_session));
 	if (s) {
 		TAILQ_INIT(&s->channels);
-		s->handle = handle;
+		s->reader_proxy = proxy;
 	}
 	return s;
 }
 
-void free_tee_se_session(struct tee_se_session *s) {
+void tee_se_session_free(struct tee_se_session *s)
+{
 	free(s);
 }
 
-void add_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s)
+bool tee_se_session_is_channel_exist(struct tee_se_session *s,
+		struct tee_se_channel *c)
 {
-	TAILQ_INSERT_TAIL(&ctx->se_sessions, s, link);
+	struct tee_se_channel *c1;
+
+	TAILQ_FOREACH(c1, &s->channels, link) {
+		if (c1 == c)
+			return true;
+	}
+	return false;
 }
 
-void remove_tee_se_session(struct tee_ta_ctx *ctx, struct tee_se_session *s)
+TEE_Result tee_se_session_get_atr(struct tee_se_session *s,
+		uint8_t **atr, size_t *atr_len)
 {
-	TAILQ_REMOVE(&ctx->se_sessions, s, link);
-}
+	TEE_ASSERT(s != NULL && atr != NULL && atr_len != NULL);
 
+	return tee_se_reader_get_atr(s->reader_proxy, atr, atr_len);
+}
 
 TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 		struct tee_se_aid *aid, struct tee_se_channel **channel)
 {
-	struct tee_se_reader_handle *handle;
 	struct tee_se_channel *c;
 	TEE_Result ret;
 
 	TEE_ASSERT(s != NULL && channel != NULL && *channel == NULL);
 
-	handle = tee_se_session_get_reader_handle(s);
-
-	if (tee_se_reader_is_basic_channel_locked(handle)) {
+	if (tee_se_reader_is_basic_channel_locked(s->reader_proxy)) {
 		*channel = NULL;
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	c = alloc_tee_se_channel(s, 0);
+	c = tee_se_channel_alloc(s, 0);
 	if (!c)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -104,13 +99,14 @@ TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 			goto err_free_channel;
 	}
 
-	tee_se_reader_lock_basic_channel(handle);
+	tee_se_reader_lock_basic_channel(s->reader_proxy);
 	*channel = c;
+	TAILQ_INSERT_TAIL(&s->channels, c, link);
 
 	return TEE_SUCCESS;
 
 err_free_channel:
-	free_tee_se_channel(c);
+	tee_se_channel_free(c);
 	return ret;
 }
 
@@ -127,7 +123,7 @@ TEE_Result tee_se_session_open_logical_channel(struct tee_se_session *s,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	c = alloc_tee_se_channel(s, channel_id);
+	c = tee_se_channel_alloc(s, channel_id);
 	if (!c)
 		goto err_close_channel;
 
@@ -138,11 +134,12 @@ TEE_Result tee_se_session_open_logical_channel(struct tee_se_session *s,
 	}
 
 	*channel = c;
+	TAILQ_INSERT_TAIL(&s->channels, c, link);
 
 	return TEE_SUCCESS;
 
 err_free_channel:
-	free_tee_se_channel(c);
+	tee_se_channel_free(c);
 err_close_channel:
 	iso7816_close_logical_channel(s, channel_id);
 
@@ -159,30 +156,37 @@ void tee_se_session_close_channel(struct tee_se_session *s,
 	if (channel_id > 0) {
 		iso7816_close_logical_channel(s, channel_id);
 	} else {
-		struct tee_se_reader_handle *handle;
-
-		handle = tee_se_session_get_reader_handle(s);
-		tee_se_reader_unlock_basic_channel(handle);
+		tee_se_reader_unlock_basic_channel(s->reader_proxy);
 	}
-	free_tee_se_channel(c);
+
+	TAILQ_REMOVE(&s->channels, c, link);
+	tee_se_channel_free(c);
 }
 
-TEE_Result tee_se_session_transmit(struct tee_se_session *session,
+TEE_Result tee_se_session_transmit(struct tee_se_session *s,
 		struct cmd_apdu *c, struct resp_apdu *r)
 {
-	struct tee_se_reader_handle *h = session->handle;
+	struct tee_se_reader_proxy *h = s->reader_proxy;
 
 	/*
 	 * This call might block the caller.
-	 * The reader handle will make sure only 1 session
+	 * The reader proxy will make sure only 1 session
 	 * is transmitting. Others should wait until the
 	 * activating transation finished.
 	 */
 	return iso7816_exchange_apdu(h, c, r);
 }
 
-struct tee_se_reader_handle *tee_se_session_get_reader_handle(
-		struct tee_se_session *session)
+void tee_se_session_close(struct tee_se_session *s)
 {
-	return session->handle;
+	struct tee_se_channel *c;
+
+	TEE_ASSERT(s != NULL);
+
+	TAILQ_FOREACH(c, &s->channels, link)
+		tee_se_session_close_channel(s, c);
+
+	tee_se_reader_detach(s->reader_proxy);
+
+	tee_se_session_free(s);
 }

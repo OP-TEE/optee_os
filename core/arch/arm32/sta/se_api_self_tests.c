@@ -34,7 +34,7 @@
 #include <tee/se/manager.h>
 #include <tee/se/reader.h>
 #include <tee/se/session.h>
-#include <tee/se/protocol.h>
+#include <tee/se/iso7816.h>
 #include <tee/se/aid.h>
 #include <tee/se/apdu.h>
 #include <tee/se/channel.h>
@@ -96,7 +96,7 @@ static void close_session(void *pSessionContext __unused)
 	DMSG("close entry point for static ta \"%s\"", TA_NAME);
 }
 
-static TEE_Result test_reader(struct tee_se_reader_handle **handle)
+static TEE_Result test_reader(struct tee_se_reader_proxy **handle)
 {
 	TEE_Result ret;
 	uint8_t cmd[] = { ISO7816_CLA, MANAGE_CHANNEL_CMD,
@@ -136,7 +136,7 @@ static TEE_Result test_reader(struct tee_se_reader_handle **handle)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result test_aid(struct tee_se_reader_handle **handles)
+static TEE_Result test_aid(struct tee_se_reader_proxy **proxies)
 {
 	struct tee_se_session *s = NULL;
 	struct tee_se_channel *b = NULL, *l = NULL;
@@ -144,10 +144,10 @@ static TEE_Result test_aid(struct tee_se_reader_handle **handles)
 	TEE_Result ret;
 
 	DMSG("entry");
-	ret = aid_create("D0000CAFE00001", &aid);
+	ret = tee_se_aid_create("D0000CAFE00001", &aid);
 	ASSERT(ret == TEE_SUCCESS);
 
-	ret = tee_se_reader_open_session(NULL, handles[0], &s);
+	ret = tee_se_reader_open_session(proxies[0], &s);
 	ASSERT(ret == TEE_SUCCESS);
 
 	ret = tee_se_session_open_basic_channel(s, aid, &b);
@@ -156,32 +156,32 @@ static TEE_Result test_aid(struct tee_se_reader_handle **handles)
 	ret = tee_se_session_open_logical_channel(s, aid, &l);
 	ASSERT(ret == TEE_SUCCESS);
 
-	ASSERT(aid_get_refcnt(aid) == 3);
+	ASSERT(tee_se_aid_get_refcnt(aid) == 3);
 
 	tee_se_session_close_channel(s, b);
 	tee_se_session_close_channel(s, l);
 
-	ASSERT(aid_get_refcnt(aid) == 1);
+	ASSERT(tee_se_aid_get_refcnt(aid) == 1);
 
-	tee_se_reader_close_session(NULL, s);
-	aid_release(aid);
+	tee_se_session_close(s);
+	tee_se_aid_release(aid);
 	DMSG("exit");
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result test_session(struct tee_se_reader_handle **handles)
+static TEE_Result test_session(struct tee_se_reader_proxy **proxies)
 {
 	struct tee_se_channel *c1 = NULL, *c2 = NULL;
 	struct tee_se_session *s1 = NULL, *s2 = NULL;
 	TEE_Result ret;
 
 	DMSG("entry");
-	ret = tee_se_reader_open_session(NULL, handles[0], &s1);
+	ret = tee_se_reader_open_session(proxies[0], &s1);
 	ASSERT(ret == TEE_SUCCESS);
 
 	/* should success, multiple sessions open by different user */
-	ret = tee_se_reader_open_session(NULL, handles[0], &s2);
+	ret = tee_se_reader_open_session(proxies[0], &s2);
 	ASSERT(ret == TEE_SUCCESS);
 
 	/* open basic channel on s1 (should success) */
@@ -217,14 +217,14 @@ static TEE_Result test_session(struct tee_se_reader_handle **handles)
 	tee_se_session_close_channel(s1, c1);
 	tee_se_session_close_channel(s2, c2);
 
-	tee_se_reader_close_session(NULL, s1);
-	tee_se_reader_close_session(NULL, s2);
+	tee_se_session_close(s1);
+	tee_se_session_close(s2);
 	DMSG("exit");
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result test_select_resp(struct tee_se_reader_handle **handles)
+static TEE_Result test_select_resp(struct tee_se_reader_proxy **proxies)
 {
 	struct tee_se_aid *aid = NULL;
 	struct tee_se_session *s = NULL;
@@ -233,10 +233,10 @@ static TEE_Result test_select_resp(struct tee_se_reader_handle **handles)
 	TEE_Result ret;
 
 	DMSG("entry");
-	ret = aid_create("D0000CAFE00001", &aid);
+	ret = tee_se_aid_create("D0000CAFE00001", &aid);
 	ASSERT(ret == TEE_SUCCESS);
 
-	ret = tee_se_reader_open_session(NULL, handles[0], &s);
+	ret = tee_se_reader_open_session(proxies[0], &s);
 	ASSERT(ret == TEE_SUCCESS);
 
 	ret = tee_se_session_open_logical_channel(s, aid, &c);
@@ -264,8 +264,8 @@ static TEE_Result test_select_resp(struct tee_se_reader_handle **handles)
 	ASSERT(apdu_get_refcnt(to_apdu_base(resp)) == 1);
 	apdu_release(to_apdu_base(resp));
 
-	tee_se_reader_close_session(NULL, s);
-	aid_release(aid);
+	tee_se_session_close(s);
+	tee_se_aid_release(aid);
 	DMSG("exit");
 
 	return TEE_SUCCESS;
@@ -283,7 +283,7 @@ static TEE_Result test_select_resp(struct tee_se_reader_handle **handles)
  * -------------------------------------+----------------------
  *
  */
-static TEE_Result test_logical_channel(struct tee_se_reader_handle **handles)
+static TEE_Result test_logical_channel(struct tee_se_reader_proxy **proxies)
 {
 	struct tee_se_channel *channel[MAX_LOGICAL_CHANNEL] = { NULL };
 	struct tee_se_aid *aid = NULL;
@@ -292,7 +292,7 @@ static TEE_Result test_logical_channel(struct tee_se_reader_handle **handles)
 	int i;
 
 	DMSG("entry");
-	ret = tee_se_reader_open_session(NULL, handles[0], &s);
+	ret = tee_se_reader_open_session(proxies[0], &s);
 	ASSERT(ret == TEE_SUCCESS);
 
 	/*
@@ -326,7 +326,7 @@ static TEE_Result test_logical_channel(struct tee_se_reader_handle **handles)
 	}
 
 	/* logical channel 1 select D0000CAFE00002 (should success) */
-	aid_create("D0000CAFE00002", &aid);
+	tee_se_aid_create("D0000CAFE00002", &aid);
 	ret = tee_se_channel_select(channel[1], aid);
 	ASSERT(ret == TEE_SUCCESS);
 
@@ -339,8 +339,8 @@ static TEE_Result test_logical_channel(struct tee_se_reader_handle **handles)
 	/* clean up */
 	for (i = 1; i < MAX_LOGICAL_CHANNEL; i++)
 		tee_se_session_close_channel(s, channel[i]);
-	tee_se_reader_close_session(NULL, s);
-	aid_release(aid);
+	tee_se_session_close(s);
+	tee_se_aid_release(aid);
 	DMSG("exit");
 
 	return TEE_SUCCESS;
@@ -350,8 +350,8 @@ static TEE_Result verify_result(struct resp_apdu *apdu, const char *data)
 {
 	size_t str_length = strlen(data);
 	size_t byte_length = strlen(data) / 2;
-	uint8_t *resp_data = resp_apdu_get_resp_data(apdu);
-	size_t resp_len = resp_apdu_get_resp_data_len(apdu);
+	uint8_t *resp_data = resp_apdu_get_data(apdu);
+	size_t resp_len = resp_apdu_get_data_len(apdu);
 	uint8_t bytes[byte_length];
 	size_t i = 0;
 
@@ -365,7 +365,7 @@ static TEE_Result verify_result(struct resp_apdu *apdu, const char *data)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result test_transmit(struct tee_se_reader_handle **handles)
+static TEE_Result test_transmit(struct tee_se_reader_proxy **proxies)
 {
 	struct tee_se_channel *c1 = NULL, *c2 = NULL;
 	struct tee_se_session *s1 = NULL, *s2 = NULL;
@@ -376,10 +376,10 @@ static TEE_Result test_transmit(struct tee_se_reader_handle **handles)
 	TEE_Result ret;
 
 	DMSG("entry");
-	ret = aid_create("D0000CAFE00001", &full_aid);
+	ret = tee_se_aid_create("D0000CAFE00001", &full_aid);
 	ASSERT(ret == TEE_SUCCESS);
 
-	ret = aid_create("D0000CAFE0000", &partial_aid);
+	ret = tee_se_aid_create("D0000CAFE0000", &partial_aid);
 	ASSERT(ret == TEE_SUCCESS);
 
 	cmd = alloc_cmd_apdu(ISO7816_CLA, 0xFF, 0x0, 0x0,
@@ -388,10 +388,10 @@ static TEE_Result test_transmit(struct tee_se_reader_handle **handles)
 	resp = alloc_resp_apdu(rx_buf_len);
 	ASSERT(resp);
 
-	ret = tee_se_reader_open_session(NULL, handles[0], &s1);
+	ret = tee_se_reader_open_session(proxies[0], &s1);
 	ASSERT(ret == TEE_SUCCESS);
 
-	ret = tee_se_reader_open_session(NULL, handles[0], &s2);
+	ret = tee_se_reader_open_session(proxies[0], &s2);
 	ASSERT(ret == TEE_SUCCESS);
 
 	/* open logical channel on s1 (given full aid) */
@@ -454,11 +454,11 @@ static TEE_Result test_transmit(struct tee_se_reader_handle **handles)
 	tee_se_session_close_channel(s1, c1);
 	tee_se_session_close_channel(s2, c2);
 
-	tee_se_reader_close_session(NULL, s1);
-	tee_se_reader_close_session(NULL, s2);
+	tee_se_session_close(s1);
+	tee_se_session_close(s2);
 
-	aid_release(full_aid);
-	aid_release(partial_aid);
+	tee_se_aid_release(full_aid);
+	tee_se_aid_release(partial_aid);
 	DMSG("exit");
 
 	return TEE_SUCCESS;
@@ -469,30 +469,30 @@ static TEE_Result se_api_self_tests(uint32_t nParamTypes __attribute__((__unused
 {
 	size_t size = MAX_READERS;
 	TEE_Result ret;
-	struct tee_se_reader_handle **handles =
+	struct tee_se_reader_proxy **proxies =
 		malloc(sizeof(void *) * MAX_READERS);
 
-	tee_se_manager_get_readers(handles, &size);
+	tee_se_manager_get_readers(proxies, &size);
 
-	ret = test_aid(handles);
+	ret = test_aid(proxies);
 	CHECK(ret);
 
-	ret = test_select_resp(handles);
+	ret = test_select_resp(proxies);
 	CHECK(ret);
 
-	ret = test_session(handles);
+	ret = test_session(proxies);
 	CHECK(ret);
 
-	ret = test_logical_channel(handles);
+	ret = test_logical_channel(proxies);
 	CHECK(ret);
 
-	ret = test_transmit(handles);
+	ret = test_transmit(proxies);
 	CHECK(ret);
 
-	ret = test_reader(handles);
+	ret = test_reader(proxies);
 	CHECK(ret);
 
-	free(handles);
+	free(proxies);
 
 	return TEE_SUCCESS;
 }

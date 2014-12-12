@@ -188,4 +188,45 @@ TEE_Result utee_storage_obj_trunc(TEE_ObjectHandle obj, size_t len);
 TEE_Result utee_storage_obj_seek(TEE_ObjectHandle obj, int32_t offset,
 				 TEE_Whence whence);
 
+TEE_Result utee_se_service_open(
+		TEE_SEServiceHandle *seServiceHandle);
+
+TEE_Result utee_se_service_close(
+		TEE_SEServiceHandle seServiceHandle);
+
+TEE_Result utee_se_service_get_readers(
+		TEE_SEServiceHandle seServiceHandle,
+		TEE_SEReaderHandle *r, size_t *len);
+
+TEE_Result utee_se_reader_get_prop(TEE_SEReaderHandle r,
+				TEE_SEReaderProperties *p);
+
+TEE_Result utee_se_reader_get_name(TEE_SEReaderHandle r,
+		char *name, size_t *name_len);
+
+TEE_Result utee_se_reader_open_session(TEE_SEReaderHandle r,
+		TEE_SESessionHandle *s);
+
+TEE_Result utee_se_reader_close_sessions(TEE_SEReaderHandle r);
+
+TEE_Result utee_se_session_is_closed(TEE_SESessionHandle s);
+
+TEE_Result utee_se_session_get_atr(TEE_SESessionHandle s,
+		void *atr, size_t *atr_len);
+
+TEE_Result utee_se_session_open_channel(TEE_SESessionHandle s,
+		bool is_logical, TEE_SEAID *aid, TEE_SEChannelHandle *c);
+
+TEE_Result utee_se_session_close(TEE_SESessionHandle s);
+
+TEE_Result utee_se_channel_select_next(TEE_SEChannelHandle c);
+
+TEE_Result utee_se_channel_get_select_resp(TEE_SEChannelHandle c,
+	void *resp, size_t *resp_len);
+
+TEE_Result utee_se_channel_transmit(TEE_SEChannelHandle c,
+	void *cmd, size_t cmd_len, void *resp, size_t *resp_len);
+
+TEE_Result utee_se_channel_close(TEE_SEChannelHandle c);
+
 #endif /* UTEE_SYSCALLS_H */

@@ -30,10 +30,12 @@
 
 #include <tee_api_types.h>
 
-struct tee_se_reader_handle;
+struct tee_se_reader_proxy;
 
-TEE_Result tee_se_manager_get_readers(struct tee_se_reader_handle **handle_list,
-		size_t *handle_list_size);
+TEE_Result tee_se_manager_get_readers(
+		struct tee_se_reader_proxy **proxy_list,
+		size_t *proxy_list_size);
 
+size_t tee_se_manager_get_reader_count(void);
 
 #endif

@@ -25,54 +25,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_PROTOCOL_H
-#define TEE_SE_PROTOCOL_H
+#ifndef TEE_SE_SERVICE_H
+#define TEE_SE_SERVICE_H
 
-#define ISO7816_CLA	0x0
+#include <tee_api_types.h>
+#include <kernel/mutex.h>
 
-#define ISO7816_CLA_OFFSET	0x0
-
-#define SELECT_CMD			0xA4
-/* P1 parameters */
-#define	SELECT_BY_AID			0x04
-/* P2 parameters */
-#define	FIRST_OR_ONLY_OCCURRENCE	0x0
-#define	NEXT_OCCURRENCE			0x2
-
-#define MANAGE_CHANNEL_CMD		0x70
-/* P1 parameters */
-#define	OPEN_CHANNEL			0x00
-#define	CLOSE_CHANNEL			0x80
-/* P2 parameters */
-#define	OPEN_NEXT_AVAILABLE		0x00
-
-
-#define CMD_OK_SW1	0x90
-#define CMD_OK_SW2	0x00
-
-struct tee_se_reader_handle;
 struct tee_se_session;
 struct tee_se_channel;
-struct tee_se_aid;
-struct cmd_apdu;
-struct resp_apdu;
+struct tee_se_reader_proxy;
 
-/* ISO7816 protocol handlers */
-TEE_Result iso7816_exchange_apdu(struct tee_se_reader_handle *handle,
-		struct cmd_apdu *cmd, struct resp_apdu *resp);
+TAILQ_HEAD(se_session_head, tee_se_session);
 
-TEE_Result iso7816_select(struct tee_se_channel *c, struct tee_se_aid *aid);
+struct tee_se_service {
+	/* list of sessions opened on the service */
+	struct se_session_head opened_sessions;
+	/* list of sessions closed on the service */
+	struct se_session_head closed_sessions;
+	/* mutex to pretect the session lists */
+	struct mutex mutex;
+};
 
-TEE_Result iso7816_select_next(struct tee_se_channel *c);
+TEE_Result tee_se_service_open(
+		struct tee_se_service **service);
 
-TEE_Result iso7816_open_available_logical_channel(struct tee_se_session *s,
-		int *channel_id);
+TEE_Result tee_se_service_add_session(
+		struct tee_se_service *service,
+		struct tee_se_session *session);
 
-TEE_Result iso7816_close_logical_channel(struct tee_se_session *s,
-		int channel_id);
+void tee_se_service_close_session(
+		struct tee_se_service *service,
+		struct tee_se_session *session);
 
-int iso7816_get_cla_channel(int channel_id);
+void tee_se_service_close_sessions_by_reader(
+		struct tee_se_service *service,
+		struct tee_se_reader_proxy *proxy);
 
+TEE_Result tee_se_service_is_session_closed(
+		struct tee_se_service *service,
+		struct tee_se_session *session_service);
+
+TEE_Result tee_se_service_close(
+		struct tee_se_service *service);
+
+bool tee_se_service_is_valid(
+		struct tee_se_service *service);
+
+bool tee_se_service_is_session_valid(
+		struct tee_se_service *service,
+		struct tee_se_session *session_service);
+
+bool tee_se_service_is_channel_valid(
+		struct tee_se_service *service,
+		struct tee_se_channel *channel);
 
 #endif
-

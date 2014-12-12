@@ -33,7 +33,9 @@ endif
 # SE API is only suppoorted by QEMU Virt platform
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 WITH_SE_API := y
+WITH_SE_API_SELF_TEST := y
 WITH_PCSC_PASSTHRU_READER_DRV := y
+platform-cppflags += -DWITH_SE_API=1
 core-platform-cppflags += -DWITH_PCSC_PASSTHRU_READER_DRV=1
 endif
 
