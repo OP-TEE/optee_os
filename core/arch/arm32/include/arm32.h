@@ -231,6 +231,11 @@ static inline void dsb(void)
 	asm volatile ("dsb");
 }
 
+static inline void dmb(void)
+{
+	asm volatile ("dmb");
+}
+
 static inline uint32_t read_contextidr(void)
 {
 	uint32_t contextidr;

@@ -32,7 +32,6 @@
 #include <kernel/tee_common_unpg.h>
 
 #include <kernel/tee_ta.h>
-#include <mm/tee_mmu_types.h>
 #include <mm/tee_mm_unpg.h>
 #include <sys/queue.h>
 #include "tee_api_types.h"
@@ -68,10 +67,11 @@ struct tee_ta_ctx {
 	uint32_t rw_data;	/* rw data stored on heap */
 	uint32_t rw_data_usage;	/* bitfield with rw data page usage */
 	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
+	size_t heap_size;	/* size of heap */
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	uint32_t context;	/* Context ID of the process */
-	tee_mmu_info_t *mmu;	/* Saved MMU information (ddr only) */
+	void *mmu;		/* TA mmu support (section or coarse mapping) */
 	uint32_t num_res_funcs;	/* number of reserved ta_func_head_t (2 or 0) */
 	uint32_t flags;		/* TA_FLAGS from sub header */
 	uint32_t panicked;	/* True if TA has panicked, written from asm */

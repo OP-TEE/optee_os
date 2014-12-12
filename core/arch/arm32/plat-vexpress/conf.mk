@@ -63,6 +63,7 @@ libtomcrypt_with_optimize_size := y
 WITH_SECURE_TIME_SOURCE_CNTPCT := y
 WITH_UART_DRV := y
 WITH_GIC_DRV := y
+WITH_MMU_SECTION := y
 
 include mk/config.mk
 

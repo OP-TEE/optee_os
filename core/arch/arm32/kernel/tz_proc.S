@@ -38,6 +38,7 @@
 .global cpu_spin_trylock
 .global cpu_spin_unlock
 .global cpu_mmu_enable
+.global cpu_mmu_va2pa
 .global cpu_mmu_enable_icache
 .global cpu_mmu_enable_dcache
 
@@ -107,6 +108,45 @@ FUNC cpu_mmu_enable , :
 
 	bx	lr
 END_FUNC cpu_mmu_enable
+/*
+ * int cpu_mmu_va2pa(unsigned int id, unsigned int va, unsigned int *pa);
+ * TODO: mask out the 12 LSB of input virt addr and mask in the output pa.
+ */
+cpu_mmu_va2pa:
+
+	cmp r2, #0
+	beq _va2pa_err
+	cmp r0, #CPU_V2P_SEC_PRIV_RD
+	beq _va2pa_pr
+	cmp r0, #CPU_V2P_SEC_PRIV_WR
+	beq _va2pa_pw
+	cmp r0, #CPU_V2P_SEC_USR_RD
+	beq _va2pa_ur
+	cmp r0, #CPU_V2P_SEC_USR_WR
+	beq _va2pa_uw
+_va2pa_err:
+	mov r0, #1
+	mov pc, lr
+_va2pa_pr:
+	mcr p15, 0, r1, c7, c8, 0
+	b _va2pa_end
+_va2pa_pw:
+	mcr p15, 0, r1, c7, c8, 1
+	b _va2pa_end
+_va2pa_ur:
+	mcr p15, 0, r1, c7, c8, 2
+	b _va2pa_end
+_va2pa_uw:
+	mcr p15, 0, r1, c7, c8, 3
+_va2pa_end:
+	mrc p15, 0, r0, c7, c4, 0
+	str r0, [r2]
+	tst r0, #1
+	moveq r0, #0
+	movne r0, #1
+_va2pa_out:
+	mov pc, lr
+
 
 /* void cpu_mmu_enable_icache(void) - enable instruction cache */
 FUNC cpu_mmu_enable_icache , :

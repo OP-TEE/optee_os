@@ -34,11 +34,14 @@
  * Allocate context resources like ASID and MMU table information
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx);
+TEE_Result tee_mmu_init_with_asid(struct tee_ta_ctx *ctx, uint32_t asid);
+
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_final - Release context resources like ASID
  *---------------------------------------------------------------------------*/
 void tee_mmu_final(struct tee_ta_ctx *ctx);
+void tee_mmu_final_reset(struct tee_ta_ctx *ctx);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_map - Map parameters, heap, stack and code to user memory map to
@@ -50,6 +53,8 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param);
 bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
 				       const void *va, size_t size);
 
+bool tee_mmu_is_vbuf_outside_ta_private(const struct tee_ta_ctx *ctx,
+					const void *va, size_t size);
 bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
 					  const void *va, size_t size);
 
@@ -85,7 +90,7 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
  * given the user context
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
-				     void *pa, void **va);
+				     paddr_t pa, void **va);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__
 #define tee_mmu_user_pa2va(ctx, pa, va) (__extension__ ({ \
@@ -103,7 +108,7 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
 /*-----------------------------------------------------------------------------
  * tee_mmu_check_access_rights -
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
 				       uint32_t flags, tee_uaddr_t uaddr,
 				       size_t len);
 
@@ -177,6 +182,8 @@ bool tee_mmu_is_kernel_mapping(void);
 
 uint32_t tee_mmu_kmap_get_cache_attr(void *va);
 uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va);
-
+void *tee_mmu_get_heap_uaddr(struct tee_ta_ctx *ctx, size_t heap_size);
+void tee_mmu_copy_table(void *va, const struct tee_ta_ctx *ctx);
+uint8_t tee_mmu_get_page_shift(void);
 
 #endif

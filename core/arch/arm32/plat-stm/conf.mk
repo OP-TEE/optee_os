@@ -30,6 +30,7 @@ core-platform-subdirs += \
 libutil_with_isoc := y
 WITH_PL310 := y
 WITH_SECURE_TIME_SOURCE_REE := y
+WITH_MMU_COARSE := y
 
 include mk/config.mk
 include $(platform-dir)/system_config.in
