@@ -26,7 +26,7 @@ SECTIONS
         __stop_ta_head_section = . ;
 
         __bss_start = (.) ;
-        *(.bss)
+        *(.bss .bss.*)
         __bss_end = (.) ;
 
         *(COMMON)

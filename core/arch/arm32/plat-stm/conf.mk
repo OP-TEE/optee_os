@@ -15,6 +15,8 @@ core-platform-cppflags	+= -DNUM_THREADS=2
 core-platform-cppflags	+= -DWITH_STACK_CANARIES=1
 user_ta-platform-cflags = -fpie
 
+platform-cflags += -ffunction-sections -fdata-sections
+
 DEBUG		?= 1
 ifeq ($(DEBUG),1)
 platform-cflags += -O0
