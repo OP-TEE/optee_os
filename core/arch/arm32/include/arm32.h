@@ -109,6 +109,9 @@
 #define TTBCR_PD0	(1 << 4)
 #define TTBCR_PD1	(1 << 5)
 
+#define NSACR_CP10	(1 << 10)
+#define NSACR_CP11	(1 << 11)
+
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
 {

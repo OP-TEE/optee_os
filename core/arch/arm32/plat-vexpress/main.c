@@ -256,6 +256,18 @@ static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
 }
 #endif
 
+#if defined(WITH_ARM_TRUSTED_FW)
+static void main_init_nsacr(void)
+{
+}
+#else
+static void main_init_nsacr(void)
+{
+	/* Normal world can use CP10 and CP11 (SIMD/VFP) */
+	write_nsacr(read_nsacr() | NSACR_CP10 | NSACR_CP11);
+}
+#endif
+
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno)
 static void main_init_gic(void)
 {
@@ -508,6 +520,7 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 	main_init_thread_stacks();
 
 	main_init_gic();
+	main_init_nsacr();
 
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
@@ -534,6 +547,7 @@ static void main_init_secondary_helper(uint32_t nsec_entry)
 
 	thread_init_per_cpu();
 	main_init_sec_mon(pos, nsec_entry);
+	main_init_nsacr();
 
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
