@@ -8,6 +8,7 @@ platform-cflags += -fno-short-enums -mno-apcs-float -fno-common
 platform-cflags += -mfloat-abi=soft
 platform-cflags += -mno-unaligned-access
 platform-aflags	 = -mcpu=$(platform-cpuarch)
+platform-aflags	+= -mfpu=neon
 
 platform-cflags += -ffunction-sections -fdata-sections
 

@@ -46,11 +46,23 @@ static struct thread_ctx threads[NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 
+#ifdef CFG_WITH_VFP
+struct thread_vfp_state {
+	bool ns_saved;
+	bool sec_saved;
+	bool sec_lazy_saved;
+	struct vfp_state ns;
+	struct vfp_state sec;
+};
+
+static struct thread_vfp_state thread_vfp_state;
+#endif /*CFG_WITH_VFP*/
+
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
 thread_fiq_handler_t thread_fiq_handler_ptr;
 thread_svc_handler_t thread_svc_handler_ptr;
-thread_abort_handler_t thread_abort_handler_ptr;
+static thread_abort_handler_t thread_abort_handler_ptr;
 thread_pm_handler_t thread_cpu_on_handler_ptr;
 thread_pm_handler_t thread_cpu_off_handler_ptr;
 thread_pm_handler_t thread_cpu_suspend_handler_ptr;
@@ -111,6 +123,29 @@ static bool have_one_preempted_thread(void)
 	return false;
 }
 
+#ifdef CFG_WITH_VFP
+static void thread_lazy_save_ns_vfp(void)
+{
+	thread_vfp_state.ns_saved = false;
+	vfp_lazy_save_state_init(&thread_vfp_state.ns);
+}
+
+static void thread_lazy_restore_ns_vfp(void)
+{
+	assert(!thread_vfp_state.sec_lazy_saved && !thread_vfp_state.sec_saved);
+	vfp_lazy_restore_state(&thread_vfp_state.ns, thread_vfp_state.ns_saved);
+	thread_vfp_state.ns_saved = false;
+}
+#else
+static void thread_lazy_save_ns_vfp(void)
+{
+}
+
+static void thread_lazy_restore_ns_vfp(void)
+{
+}
+#endif /*CFG_WITH_VFP*/
+
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
@@ -169,6 +204,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	/* Save Hypervisor Client ID */
 	threads[n].hyp_clnt_id = args->a7;
 
+	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
 
@@ -233,6 +269,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
+	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
 
@@ -254,6 +291,28 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_alloc_and_run(args);
 }
 
+void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
+{
+#ifdef CFG_WITH_VFP
+	if (vfp_is_enabled()) {
+		vfp_lazy_save_state_init(&thread_vfp_state.sec);
+		thread_vfp_state.sec_lazy_saved = true;
+	}
+#endif
+
+	thread_abort_handler_ptr(abort_type, regs);
+
+#ifdef CFG_WITH_VFP
+	assert(!vfp_is_enabled());
+	if (thread_vfp_state.sec_lazy_saved) {
+		vfp_lazy_restore_state(&thread_vfp_state.sec,
+				       thread_vfp_state.sec_saved);
+		thread_vfp_state.sec_saved = false;
+		thread_vfp_state.sec_lazy_saved = false;
+	}
+#endif
+}
+
 void *thread_get_tmp_sp(void)
 {
 	struct thread_core_local *l = get_core_local();
@@ -264,14 +323,17 @@ void *thread_get_tmp_sp(void)
 void thread_state_free(void)
 {
 	struct thread_core_local *l = get_core_local();
+	int ct = l->curr_thread;
 
-	assert(l->curr_thread != -1);
+	assert(ct != -1);
+
+	thread_lazy_restore_ns_vfp();
 
 	lock_global();
 
-	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	threads[l->curr_thread].state = THREAD_STATE_FREE;
-	threads[l->curr_thread].flags = 0;
+	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	threads[ct].state = THREAD_STATE_FREE;
+	threads[ct].flags = 0;
 	l->curr_thread = -1;
 
 	unlock_global();
@@ -285,6 +347,8 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 	assert(ct != -1);
 
 	check_canaries();
+
+	thread_lazy_restore_ns_vfp();
 
 	lock_global();
 
@@ -489,6 +553,44 @@ void thread_restore_irq(void)
 	if (threads[l->curr_thread].flags & THREAD_FLAGS_IRQ_ENABLE)
 		write_cpsr(cpsr & ~CPSR_I);
 }
+
+#ifdef CFG_WITH_VFP
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t cpsr = read_cpsr();
+
+	write_cpsr(cpsr | CPSR_I);
+
+	assert(!vfp_is_enabled());
+
+	if (!thread_vfp_state.ns_saved) {
+		vfp_lazy_save_state_final(&thread_vfp_state.ns);
+		thread_vfp_state.ns_saved = true;
+	} else if (thread_vfp_state.sec_lazy_saved &&
+		   !thread_vfp_state.sec_saved) {
+		vfp_lazy_save_state_final(&thread_vfp_state.sec);
+		thread_vfp_state.sec_saved = true;
+	}
+
+	vfp_enable();
+	return cpsr;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	uint32_t cpsr;
+
+	assert(vfp_is_enabled());
+
+	vfp_disable();
+	cpsr = read_cpsr();
+	assert(cpsr & CPSR_I);
+	cpsr &= ~CPSR_I;
+	cpsr |= state & CPSR_I;
+	write_cpsr(cpsr);
+}
+#endif /*CFG_WITH_VFP*/
+
 
 paddr_t thread_rpc_alloc_arg(size_t size)
 {

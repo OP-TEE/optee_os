@@ -411,9 +411,7 @@ thread_pabort_handler:
 
 .thread_abort_generic:
 	mov	r1, sp
-	ldr	lr, =thread_abort_handler_ptr;
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_handle_abort
 	pop	{r0, r1, r2}
 	mov	lr, r1
 	msr	spsr_fsxc, r0

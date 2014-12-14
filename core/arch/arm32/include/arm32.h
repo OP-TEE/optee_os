@@ -112,6 +112,11 @@
 #define NSACR_CP10	(1 << 10)
 #define NSACR_CP11	(1 << 11)
 
+#define CPACR_CP(co_proc, access)	((access) << ((co_proc) * 2))
+#define CPACR_CP_ACCESS_DENIED		0x0
+#define CPACR_CP_ACCESS_PL1_ONLY	0x1
+#define CPACR_CP_ACCESS_FULL		0x2
+
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
 {
@@ -139,6 +144,24 @@ static inline void write_sctlr(uint32_t sctlr)
 {
 	asm volatile ("mcr	p15, 0, %[sctlr], c1, c0, 0"
 			: : [sctlr] "r" (sctlr)
+	);
+}
+
+static inline uint32_t read_cpacr(void)
+{
+	uint32_t cpacr;
+
+	asm volatile ("mrc	p15, 0, %[cpacr], c1, c0, 2"
+			: [cpacr] "=r" (cpacr)
+	);
+
+	return cpacr;
+}
+
+static inline void write_cpacr(uint32_t cpacr)
+{
+	asm volatile ("mcr	p15, 0, %[cpacr], c1, c0, 2"
+			: : [cpacr] "r" (cpacr)
 	);
 }
 
@@ -330,6 +353,6 @@ static inline void write_nsacr(uint32_t nsacr)
 	);
 }
 
-#endif
+#endif /*ASM*/
 
 #endif /*ARM32_H*/

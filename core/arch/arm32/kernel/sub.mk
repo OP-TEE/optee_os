@@ -13,6 +13,8 @@ srcs-y += tee_l2cc_mutex.c
 
 srcs-y += thread_asm.S
 srcs-y += thread.c
+srcs-$(CFG_WITH_VFP) += vfp.c
+srcs-$(CFG_WITH_VFP) += vfp_asm.S
 srcs-y += trace_ext.c
 srcs-y += misc.S
 srcs-y += mutex.c

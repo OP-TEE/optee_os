@@ -268,6 +268,25 @@ static void main_init_nsacr(void)
 }
 #endif
 
+#ifdef CFG_WITH_VFP
+static void main_init_cpacr(void)
+{
+	uint32_t cpacr = read_cpacr();
+
+	/* Enabled usage of CP10 and CP11 (SIMD/VFP) */
+	cpacr &= ~CPACR_CP(10, CPACR_CP_ACCESS_FULL);
+	cpacr |= CPACR_CP(10, CPACR_CP_ACCESS_PL1_ONLY);
+	cpacr &= ~CPACR_CP(11, CPACR_CP_ACCESS_FULL);
+	cpacr |= CPACR_CP(11, CPACR_CP_ACCESS_PL1_ONLY);
+	write_cpacr(cpacr);
+}
+#else
+static void main_init_cpacr(void)
+{
+	/* We're not using VFP/SIMD instructions, leave it disabled */
+}
+#endif
+
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno)
 static void main_init_gic(void)
 {
@@ -520,6 +539,7 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 	main_init_thread_stacks();
 
 	main_init_gic();
+	main_init_cpacr();
 	main_init_nsacr();
 
 	if (init_teecore() != TEE_SUCCESS)
@@ -547,6 +567,7 @@ static void main_init_secondary_helper(uint32_t nsec_entry)
 
 	thread_init_per_cpu();
 	main_init_sec_mon(pos, nsec_entry);
+	main_init_cpacr();
 	main_init_nsacr();
 
 	DMSG("Secondary CPU Switching to normal world boot\n");

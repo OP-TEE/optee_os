@@ -29,6 +29,7 @@
 #define THREAD_PRIVATE_H
 
 #include <mm/tee_mmu_unpg.h>
+#include <kernel/vfp.h>
 
 enum thread_state {
 	THREAD_STATE_FREE,
@@ -83,6 +84,8 @@ void thread_init_vbar(void);
 
 /* Handles a stdcall, r0-r7 holds the parameters */
 void thread_std_smc_entry(void);
+
+void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs);
 
 /*
  * Resumes execution of currently active thread by restoring context and
