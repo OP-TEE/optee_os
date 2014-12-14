@@ -10,6 +10,7 @@
     4. [ARM Juno board](#43-juno)
     4. [QEMU](#44-qemu)
     4. [STMicroelectronics boards](#45-stmicroelectronics-boards)
+    4. [Allwinner A80](#46-allwinner-a80)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
 
@@ -50,6 +51,7 @@ please read the file [build_system.md](documentation/build_system.md).
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`|
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`|
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`|
+| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
 
 ## 4. Get and build the software
 There are a couple of different build options depending on the target you are
@@ -370,6 +372,84 @@ For Cannes family do as follows
 ```
 To be written.
 ```
+
+---
+### 4.6 Allwinner A80
+Allwinner A80 platform has been supported in OP-TEE since mid December 2014.
+#### 4.6.1 Get the compiler and source
+Follow the instructions in the "4.1 Basic setup".
+
+#### 4.6.2 Build
+```
+$ cd optee_os
+$ export PLATFORM=sunxi
+$ export CROSS_COMPILE=arm-linux-gnueabihf-
+$ make
+```
+
+#### 4.6.3 Prepare the images to run on A80 Board
+
+Download Allwinner A80 platform SDK.
+The SDK refer to Allwinner A80 platform SDK root directory.
+A80 SDK directory tree like this:
+```
+SDK/
+    Android
+    lichee
+```
+Android include all Android source code,
+lichee include bootloader and linux kernel.
+
+##### 4.6.3.1 Copy OP-TEE output to package directory
+copy the OP-TEE output binary to SDK/lichee/tools/pack/sun9i/bin
+```
+$ cd optee_os
+$ cp ./out/arm32-plat-sunxi/core/tee.bin SDK/lichee/tools/pack/sun9i/bin
+```
+
+##### 4.6.3.2 Build linux kernel
+In lichee directory, Type the following commands:
+```
+$ cd SDK/lichee
+$ ./build.sh
+```
+
+##### 4.6.3.3 Build Android
+In Android directory, Type the following commands:
+```
+$ cd SDK/android
+$ extract-bsp
+$ make -j
+```
+
+##### 4.6.3.4 Create Android image
+In andoid directory, Type the following commands:
+```
+$ cd SDK/android
+$ pack
+```
+The output image will been signed internally when pack.
+The output image name is a80_android_board.img.
+
+##### 4.6.3.5 Download Android image
+Use Allwinner PhoenixSuit tool to download to A80 board.
+Choose the output image(a80_android_board.img),
+Choose download,
+Wait for the download to complete.
+
+#### 4.6.4 Boot and run the software on A80 Board
+When the host platform is Windows, Use a console application
+to connect A80 board uart0. In the console window,
+You can install OP-TEE linux kernel driver optee.ko,
+Load OP-TEE-Client daemon tee-supplicant,
+Run OP-TEE example hello world application.
+This is done by the following lines:
+```
+$ insmod /system/vendor/modules/optee.ko
+$ /system/bin/tee-supplicant &
+$ /system/bin/tee-helloworld
+```
+Enjoying OP-TEE on A80 board.
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
