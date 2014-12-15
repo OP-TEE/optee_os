@@ -57,3 +57,4 @@ script:
   - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{H,C,CBC_}MAC=n
   - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{G,C}CM=n
   - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
+  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_WITH_PAGER=y
