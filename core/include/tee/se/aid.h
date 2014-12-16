@@ -32,15 +32,9 @@
 
 struct tee_se_aid;
 
-TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid);
-
 TEE_Result tee_se_aid_create_from_buffer(uint8_t *id, size_t length,
 		struct tee_se_aid **aid);
 
-void tee_se_aid_acquire(struct tee_se_aid *aid);
-
 void tee_se_aid_release(struct tee_se_aid *aid);
-
-int tee_se_aid_get_refcnt(struct tee_se_aid *aid);
 
 #endif

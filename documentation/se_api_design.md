@@ -127,7 +127,7 @@ The following figure shows initial architecture of SE API.
 - [PC/SC Passthru Reader]
 
 ### How to verify
-To test SE API, you need [Modified QEMU] and enhacned [JavaCard simulator].
+To test SE API, you need [Modified QEMU] and enhanced [JavaCard simulator].
 Please use this [setup script] to setup test environment.
 
 [Modified QEMU]:https://github.com/m943040028/qemu/tree/smart_card_emul

@@ -52,10 +52,9 @@ uint8_t *apdu_get_data(struct apdu_base *apdu);
 
 size_t apdu_get_length(struct apdu_base *apdu);
 
-int apdu_get_refcnt(struct apdu_base *apdu);
-
 void apdu_acquire(struct apdu_base *apdu);
 
 void apdu_release(struct apdu_base *apdu);
+
 
 #endif

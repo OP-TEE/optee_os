@@ -25,48 +25,66 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_SERVICE_H
-#define TEE_SE_SERVICE_H
-
 #include <tee_api_types.h>
-#include <kernel/mutex.h>
+#include <trace.h>
 
-struct tee_se_service;
-struct tee_se_session;
-struct tee_se_channel;
-struct tee_se_reader_proxy;
+#include <kernel/tee_common_unpg.h>
+#include <tee/se/aid.h>
+#include <tee/se/util.h>
 
-TEE_Result tee_se_service_open(
-		struct tee_se_service **service);
+#include <stdlib.h>
+#include <string.h>
 
-TEE_Result tee_se_service_add_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
+#include "aid_priv.h"
 
-void tee_se_service_close_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
+TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid)
+{
+	size_t str_length = strlen(name);
+	size_t aid_length = str_length / 2;
 
-void tee_se_service_close_sessions_by_reader(
-		struct tee_se_service *service,
-		struct tee_se_reader_proxy *proxy);
+	TEE_ASSERT(aid != NULL && *aid == NULL);
+	if (str_length < MIN_AID_LENGTH || str_length > MAX_AID_LENGTH)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-TEE_Result tee_se_service_is_session_closed(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
+	*aid = malloc(sizeof(struct tee_se_aid));
+	if (!(*aid))
+		return TEE_ERROR_OUT_OF_MEMORY;
 
-TEE_Result tee_se_service_close(
-		struct tee_se_service *service);
+	hex_decode(name, str_length, (*aid)->aid);
+	(*aid)->length = aid_length;
+	(*aid)->refcnt = 1;
+	return TEE_SUCCESS;
+}
 
-bool tee_se_service_is_valid(
-		struct tee_se_service *service);
+TEE_Result tee_se_aid_create_from_buffer(uint8_t *id, size_t length,
+		struct tee_se_aid **aid)
+{
+	*aid = malloc(sizeof(struct tee_se_aid));
+	if (!(*aid))
+		return TEE_ERROR_OUT_OF_MEMORY;
 
-bool tee_se_service_is_session_valid(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
+	memcpy((*aid)->aid, id, length);
+	(*aid)->length = length;
+	(*aid)->refcnt = 1;
+	return TEE_SUCCESS;
+}
 
-bool tee_se_service_is_channel_valid(
-		struct tee_se_service *service,
-		struct tee_se_channel *channel);
+void tee_se_aid_acquire(struct tee_se_aid *aid)
+{
+	TEE_ASSERT(aid != NULL);
+	aid->refcnt++;
+}
 
-#endif
+int tee_se_aid_get_refcnt(struct tee_se_aid *aid)
+{
+	TEE_ASSERT(aid != NULL);
+	return aid->refcnt;
+}
+
+void tee_se_aid_release(struct tee_se_aid *aid)
+{
+	TEE_ASSERT(aid != NULL && aid->refcnt > 0);
+	aid->refcnt--;
+	if (aid->refcnt == 0)
+		free(aid);
+}

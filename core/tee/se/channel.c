@@ -38,6 +38,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "aid_priv.h"
+#include "channel_priv.h"
+
 struct tee_se_channel *tee_se_channel_alloc(struct tee_se_session *s,
 		int channel_id)
 {

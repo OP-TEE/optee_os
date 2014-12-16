@@ -43,6 +43,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "aid_priv.h"
+#include "apdu_priv.h"
+#include "reader_priv.h"
+
 
 #define TA_NAME		"se_api_self_tests.ta"
 

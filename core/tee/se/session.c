@@ -37,6 +37,9 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 
+#include "session_priv.h"
+#include "channel_priv.h"
+
 struct tee_se_session *tee_se_session_alloc(
 		struct tee_se_reader_proxy *proxy)
 {

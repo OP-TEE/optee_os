@@ -25,48 +25,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_SERVICE_H
-#define TEE_SE_SERVICE_H
+#ifndef TEE_SE_AID_PRIV_H
+#define TEE_SE_AID_PRIV_H
 
-#include <tee_api_types.h>
-#include <kernel/mutex.h>
+struct tee_se_aid {
+	uint8_t aid[MAX_AID_LENGTH];
+	size_t length;
+	int refcnt;
+};
 
-struct tee_se_service;
-struct tee_se_session;
-struct tee_se_channel;
-struct tee_se_reader_proxy;
+int tee_se_aid_get_refcnt(struct tee_se_aid *aid);
 
-TEE_Result tee_se_service_open(
-		struct tee_se_service **service);
+TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid);
 
-TEE_Result tee_se_service_add_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
-
-void tee_se_service_close_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
-
-void tee_se_service_close_sessions_by_reader(
-		struct tee_se_service *service,
-		struct tee_se_reader_proxy *proxy);
-
-TEE_Result tee_se_service_is_session_closed(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
-
-TEE_Result tee_se_service_close(
-		struct tee_se_service *service);
-
-bool tee_se_service_is_valid(
-		struct tee_se_service *service);
-
-bool tee_se_service_is_session_valid(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
-
-bool tee_se_service_is_channel_valid(
-		struct tee_se_service *service,
-		struct tee_se_channel *channel);
+void tee_se_aid_acquire(struct tee_se_aid *aid);
 
 #endif

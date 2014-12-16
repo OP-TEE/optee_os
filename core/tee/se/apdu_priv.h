@@ -25,48 +25,45 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_SE_SERVICE_H
-#define TEE_SE_SERVICE_H
+#ifndef TEE_SE_APDU_PRIV_H
+#define TEE_SE_APDU_PRIV_H
 
-#include <tee_api_types.h>
-#include <kernel/mutex.h>
+enum {
+	/* command APDU */
+	CLA = 0,
+	INS = 1,
+	P1 = 2,
+	P2 = 3,
+	LC = 4,
+	CDATA = 5,
+	OFF_LE = 0,
 
-struct tee_se_service;
-struct tee_se_session;
-struct tee_se_channel;
-struct tee_se_reader_proxy;
+	/* response APDU */
+	RDATA = 0,
+	OFF_SW1 = 0,
+	OFF_SW2 = 1,
+};
 
-TEE_Result tee_se_service_open(
-		struct tee_se_service **service);
+struct apdu_base {
+	uint8_t *data_buf;
+	size_t length;
+	int refcnt;
+};
 
-TEE_Result tee_se_service_add_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
+struct cmd_apdu {
+	struct apdu_base base;
+};
 
-void tee_se_service_close_session(
-		struct tee_se_service *service,
-		struct tee_se_session *session);
+struct resp_apdu {
+	struct apdu_base base;
+	uint8_t sw1;
+	uint8_t sw2;
+	uint8_t *resp_data;
+	size_t resp_data_len;
+};
 
-void tee_se_service_close_sessions_by_reader(
-		struct tee_se_service *service,
-		struct tee_se_reader_proxy *proxy);
+void parse_resp_apdu(struct resp_apdu *apdu);
 
-TEE_Result tee_se_service_is_session_closed(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
-
-TEE_Result tee_se_service_close(
-		struct tee_se_service *service);
-
-bool tee_se_service_is_valid(
-		struct tee_se_service *service);
-
-bool tee_se_service_is_session_valid(
-		struct tee_se_service *service,
-		struct tee_se_session *session_service);
-
-bool tee_se_service_is_channel_valid(
-		struct tee_se_service *service,
-		struct tee_se_channel *channel);
+int apdu_get_refcnt(struct apdu_base *apdu);
 
 #endif

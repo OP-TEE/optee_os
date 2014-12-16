@@ -35,24 +35,10 @@
 
 struct tee_se_reader_proxy;
 struct tee_se_channel;
+struct tee_se_session;
 struct tee_se_aid;
 struct cmd_apdu;
 struct resp_apdu;
-
-TAILQ_HEAD(channel_list, tee_se_channel);
-
-struct tee_se_session {
-	struct tee_se_reader_proxy *reader_proxy;
-
-	/* list of channels opened on the session*/
-	struct channel_list channels;
-
-	TAILQ_ENTRY(tee_se_session) link;
-};
-
-struct tee_se_session *tee_se_session_alloc(struct tee_se_reader_proxy *proxy);
-
-void tee_se_session_free(struct tee_se_session *s);
 
 TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 		struct tee_se_aid *aid, struct tee_se_channel **channel);

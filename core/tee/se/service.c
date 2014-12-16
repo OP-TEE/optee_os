@@ -35,6 +35,10 @@
 #include <tee/se/session.h>
 #include <tee/se/reader.h>
 
+#include "service_priv.h"
+#include "reader_priv.h"
+#include "session_priv.h"
+
 TEE_Result tee_se_service_open(
 		struct tee_se_service **service)
 {

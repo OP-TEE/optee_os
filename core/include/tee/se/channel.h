@@ -28,31 +28,14 @@
 #ifndef TEE_SE_CHANNEL_H
 #define TEE_SE_CHANNEL_H
 
+struct tee_se_aid;
+
 /*
  * GP Card API define the maximum logical channel number is 20,
  * Numbered from 0 ~ 19, number 0 is basic logical channel
  */
 #define MAX_LOGICAL_CHANNEL	20
 
-struct tee_se_aid;
-
-struct tee_se_channel {
-	int channel_id;
-	struct tee_se_session *session;
-	struct tee_se_aid *aid;
-	struct resp_apdu *select_resp;
-
-	TAILQ_ENTRY(tee_se_channel) link;
-};
-
-/* Channel allocator */
-struct tee_se_channel *tee_se_channel_alloc(struct tee_se_session *s,
-		int channel_id);
-
-void tee_se_channel_free(struct tee_se_channel *c);
-
-
-/* Channel operators */
 struct tee_se_session *tee_se_channel_get_session(struct tee_se_channel *c);
 
 int tee_se_channel_get_id(struct tee_se_channel *c);
@@ -61,7 +44,6 @@ TEE_Result tee_se_channel_select_next(struct tee_se_channel *c);
 
 TEE_Result tee_se_channel_select(struct tee_se_channel *c,
 		struct tee_se_aid *aid);
-
 
 void tee_se_channel_set_aid(struct tee_se_channel *c,
 		struct tee_se_aid *aid);
