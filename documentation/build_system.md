@@ -13,9 +13,11 @@ Name              | Description
 `mk/lib.mk`       | Create rules to make a libraries (.a)
 `mk/subdir.mk`    | Process `sub.mk` files recursively
 `mk/config.mk`    | Global configuration variable
-`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Arch and platform-specific compiler flags and configuration variables for TEE Core and TA libraries
-`core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` | Make recipes link the TEE Core
-`ta/arch/arm32/link.mk` | Make recipes link Trusted Applications
+`core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk` | Arch and platform-specific compiler flags
+`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Arch and platform-specific compiler flags and configuration variables for the TEE Core only
+`core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` | Make recipes to link the TEE Core
+`ta/arch/arm32/link.mk` | Make recipes to link Trusted Applications
+`ta/mk/ta_dev_kit.mk` | Main Makefile to be included when building Trusted Applications
 `mk/checkconf.mk` | Utility functions to manipulate configuration variables and generate a C header file
 `sub.mk`          | List source files and define compiler flags
 
@@ -99,28 +101,29 @@ change in case you want to use
 $ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 ```
 
-## Platform-specific configuration (conf.mk)
+## Platform-specific configuration and flags
 
-The file `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` is included from
-`mk/core.mk`. Its purpose is to define some compiler flags and configuration
-variables for OP-TEE.
+The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk`:
 
 - **$(platform-aflags)**, **$(platform-cflags)** and **$(platform-cppflags)**
   are added to the assembler / C compiler / preprocessor flags for all source
   files
+- **$(user_ta-platform-aflags)**, **$(user_ta-platform-cflags)** and
+  **$(user_ta-platform-cppflags)** are added to the assembler / C compiler /
+  preprocessor flags when building the user-mode libraries (**libutee.a**,
+  **libutils.a**, **libmpa.a**) or Trusted Applications.
+
+The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk`:
+
 - **$(core-platform-aflags)**, **$(core-platform-cflags)** and
   **$(core-platform-cppflags)** are added to the assembler / C compiler /
   preprocessor flags when building files that will run in kernel mode in the
   TEE Core. This applies to core-only files, but also to the kernel versions of
   **libmpa.a** and **libutils.a**.
-- **$(user_ta-platform-aflags)**, **$(user_ta-platform-cflags)** and
-  **$(user_ta-platform-cppflags)** are added to the assembler / C compiler /
-  preprocessor flags when building the user-mode libraries (**libutee.a**,
-  **libutils.a**, **libmpa.a**).
 - **$(core-platform-subdirs)** is the list of the subdirectories that are
   added to the TEE Core.
 
-## Platform-specific link recipes (link.mk)
+## Platform-specific link recipes for the TEE Core
 
 The file `core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` contains the rules to
 link the TEE Core and perform any related tasks, such as running **objdump**
@@ -158,8 +161,7 @@ directories and/or configuration variables as explained below.
 
 ## Compiler flags
 
-Default compiler flags are defined in `mk/compile.mk`. Platform-specific flags
-are defined in `core/arch/arm32/plat-vexpress/conf.mk`
+Default compiler flags are defined in `mk/compile.mk`. Note that platform-specific flags must not appear in this file which is common to all platforms.
 
 To add flags for a given source file, you may use the following variables in
 `sub.mk`:

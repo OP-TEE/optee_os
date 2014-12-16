@@ -1,30 +1,12 @@
+include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
+
 CROSS_PREFIX	?= armv7-linux
 CROSS_COMPILE	?= $(CROSS_PREFIX)-
 include mk/gcc.mk
 
-PLATFORM_FLAVOR ?= orly2
-
-platform-cpuarch = cortex-a9
-platform-cflags	 = -mcpu=$(platform-cpuarch) -mthumb
-platform-cflags	+= -pipe -mthumb-interwork -mlong-calls
-platform-cflags += -fno-short-enums -mno-apcs-float -fno-common
-platform-cflags += -mfloat-abi=soft
-platform-aflags	 = -mcpu=$(platform-cpuarch)
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 core-platform-cppflags	+= -DWITH_STACK_CANARIES=1
-user_ta-platform-cflags = -fpie
-
-platform-cflags += -ffunction-sections -fdata-sections
-
-DEBUG		?= 1
-ifeq ($(DEBUG),1)
-platform-cflags += -O0
-else
-platform-cflags += -Os
-endif
-platform-cflags += -g
-platform-aflags += -g
 
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm sm tee sta) $(platform-dir)

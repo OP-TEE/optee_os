@@ -25,17 +25,12 @@ q :=
 cmd-echo := echo
 endif
 
-cflags$(sm) += -fno-short-enums -fpie -mfloat-abi=soft
+-include $(ta-dev-kit-dir)/mk/platform_flags.mk
+
+aflags$(sm) += $(platform-aflags) $(user_ta-platform-aflags)
+cflags$(sm) += $(platform-cflags) $(user_ta-platform-cflags)
+
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
-
-ifeq ($(DEBUG),1)
-cflags$(sm) += -O0
-else
-cflags$(sm) += -Os
-endif
-cflags$(sm) += -g -g3
-aflags$(sm) += -g -g3
-
 
 libdirs += $(ta-dev-kit-dir)/lib
 libnames += utils mpa utee
