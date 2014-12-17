@@ -27,14 +27,15 @@
 #include <platform_config.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
-#include <trace.h>
+#include <util.h>
 #include <kernel/tee_misc.h>
+#include <trace.h>
 
 /*
  * define the platform memory Secure layout
  */
 struct memaccess_area {
-	unsigned long paddr;
+	paddr_t paddr;
 	size_t size;
 };
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
@@ -46,64 +47,67 @@ static struct memaccess_area ddr[] = {
 #endif
 };
 
-static struct memaccess_area secure_only =
-MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE);
+static struct memaccess_area secure_only[] = {
+	MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE),
+};
 
-static struct memaccess_area nsec_shared =
-MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE);
+static struct memaccess_area nsec_shared[] = {
+	MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE),
+};
 
-
-/* pbuf_is_ddr - return true is buffer is inside the DDR */
-static bool pbuf_is_ddr(unsigned long paddr, size_t size)
+static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
+			     paddr_t pa, size_t size)
 {
-	int i = sizeof(ddr) / sizeof(*ddr);
+	size_t n;
 
-	while (i--) {
-		if (core_is_buffer_inside(paddr, size,
-					ddr[i].paddr, ddr[i].size))
+	for (n = 0; n < alen; n++)
+		if (core_is_buffer_intersect(pa, size, a[n].paddr, a[n].size))
 			return true;
-	}
 	return false;
 }
+#define pbuf_intersects(a, pa, size) \
+	_pbuf_intersects((a), ARRAY_SIZE(a), (pa), (size))
 
-/*
- * pbuf_is_multipurpose - return true is buffer is inside unsafe DDR
- *
- * Unsafe DDR (or multipurpose DDR) is DDR that is under a firewalling
- * reconfigured at run-time: there is no static information that can
- * tell wether this RAM is tagged secured or not.
- */
-static bool pbuf_is_multipurpose(unsigned long paddr, size_t size)
+static bool _pbuf_is_inside(struct memaccess_area *a, size_t alen,
+			    paddr_t pa, size_t size)
 {
-	if (core_is_buffer_intersect(paddr, size,
-				     secure_only.paddr, secure_only.size))
+	size_t n;
+
+	for (n = 0; n < alen; n++)
+		if (core_is_buffer_inside(pa, size, a[n].paddr, a[n].size))
+			return true;
+	return false;
+}
+#define pbuf_is_inside(a, pa, size) \
+	_pbuf_is_inside((a), ARRAY_SIZE(a), (pa), (size))
+
+static bool pbuf_is_multipurpose(paddr_t paddr, size_t size)
+{
+	if (pbuf_intersects(secure_only, paddr, size))
 		return false;
-	if (core_is_buffer_intersect(paddr, size,
-				     nsec_shared.paddr, nsec_shared.size))
+	if (pbuf_intersects(nsec_shared, paddr, size))
 		return false;
 
-	return pbuf_is_ddr(paddr, size);
+	return pbuf_is_inside(ddr, paddr, size);
 }
 
 /*
  * Wrapper for the platform specific pbuf_is() service.
  */
-static bool pbuf_is(enum buf_is_attr attr, unsigned long paddr, size_t size)
+static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 {
 	switch (attr) {
 	case CORE_MEM_SEC:
-		return core_is_buffer_inside(paddr, size,
-					secure_only.paddr, secure_only.size);
+		return pbuf_is_inside(secure_only, paddr, size);
 
 	case CORE_MEM_NON_SEC:
-		return core_is_buffer_inside(paddr, size,
-					nsec_shared.paddr, nsec_shared.size);
+		return pbuf_is_inside(nsec_shared, paddr, size);
 
 	case CORE_MEM_MULTPURPOSE:
 		return pbuf_is_multipurpose(paddr, size);
 
 	case CORE_MEM_EXTRAM:
-		return pbuf_is_ddr(paddr, size);
+		return pbuf_is_inside(ddr, paddr, size);
 
 	default:
 		EMSG("unpexted request: attr=%X", attr);
@@ -166,45 +170,37 @@ unsigned long bootcfg_get_pbuf_is_handler(void)
 struct map_area *bootcfg_get_memory(void)
 {
 	struct map_area *map;
-	struct memaccess_area *a, *a2;
-	struct map_area *ret = bootcfg_memory_map;
+	size_t n;
 
 	/* check defined memory access layout */
-	a = (struct memaccess_area *)&secure_only;
-	a2 = (struct memaccess_area *)&nsec_shared;
-	if (core_is_buffer_intersect(a->paddr, a->size, a2->paddr, a2->size)) {
-		EMSG("invalid memory access configuration: sec/nsec");
-		ret = NULL;
+	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
+		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
+				    secure_only[n].size)) {
+			EMSG("invalid memory access configuration: sec/nsec");
+			return NULL;
+		}
 	}
-	if (ret == NULL)
-		return ret;
 
 	/* check defined mapping (overlapping will be tested later) */
 	map = bootcfg_memory_map;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
-			a = (struct memaccess_area *)&secure_only;
-			if (!core_is_buffer_inside(map->pa, map->size,
-						a->paddr, a->size)) {
+			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
 				EMSG("TEE_RAM does not fit in secure_only");
-				ret = NULL;
+				return NULL;
 			}
 			break;
 		case MEM_AREA_TA_RAM:
-			a = (struct memaccess_area *)&secure_only;
-			if (!core_is_buffer_inside(map->pa, map->size,
-						a->paddr, a->size)) {
-				EMSG("TEE_RAM does not fit in secure_only");
-				ret = NULL;
+			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
+				EMSG("TA_RAM does not fit in secure_only");
+				return NULL;
 			}
 			break;
 		case MEM_AREA_NSEC_SHM:
-			a = (struct memaccess_area *)&nsec_shared;
-			if (!core_is_buffer_inside(map->pa, map->size,
-						a->paddr, a->size)) {
-				EMSG("TEE_RAM does not fit in secure_only");
-				ret = NULL;
+			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
+				EMSG("NSEC_SHM does not fit in nsec_shared");
+				return NULL;
 			}
 			break;
 		default:
@@ -214,5 +210,5 @@ struct map_area *bootcfg_get_memory(void)
 		map++;
 	}
 
-	return ret;
+	return bootcfg_memory_map;
 }

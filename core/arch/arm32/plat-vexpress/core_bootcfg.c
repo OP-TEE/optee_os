@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <platform_config.h>
-
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <util.h>
@@ -60,7 +59,7 @@ static struct memaccess_area nsec_shared[] = {
 };
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
-		paddr_t pa, size_t size)
+			     paddr_t pa, size_t size)
 {
 	size_t n;
 
@@ -73,7 +72,7 @@ static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 	_pbuf_intersects((a), ARRAY_SIZE(a), (pa), (size))
 
 static bool _pbuf_is_inside(struct memaccess_area *a, size_t alen,
-		paddr_t pa, size_t size)
+			    paddr_t pa, size_t size)
 {
 	size_t n;
 
@@ -119,7 +118,8 @@ static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 	}
 }
 
-static struct map_area bootcfg_memory[] = {
+/* platform specific memory layout provided to teecore */
+static struct map_area bootcfg_memory_map[] = {
 #ifdef ROM_BASE
 	{
 	 .type = MEM_AREA_IO_SEC,
@@ -200,9 +200,8 @@ struct map_area *bootcfg_get_memory(void)
 		}
 	}
 
-
 	/* check defined mapping (overlapping will be tested later) */
-	map = bootcfg_memory;
+	map = bootcfg_memory_map;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
@@ -230,5 +229,5 @@ struct map_area *bootcfg_get_memory(void)
 		map++;
 	}
 
-	return bootcfg_memory;
+	return bootcfg_memory_map;
 }
