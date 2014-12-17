@@ -30,54 +30,6 @@
 #include <trace.h>
 #include <kernel/tee_misc.h>
 
-#ifndef CFG_DDR_TEETZ_RESERVED_START
-#error "TEETZ reserved DDR start address undef: CFG_DDR_TEETZ_RESERVED_START"
-#endif
-#ifndef CFG_DDR_TEETZ_RESERVED_SIZE
-#error "TEETZ reserved DDR size undefined: CFG_DDR_TEETZ_RESERVED_SIZE"
-#endif
-
-
-/*
- * TEE/TZ RAM layout:
- *
- *  +-----------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEETZ private RAM  |  TEE_RAM           |   ^
- *  |                    +--------------------+   |
- *  |                    |  TA_RAM            |   |
- *  +-----------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  |                    |      teecore alloc |   |
- *  |  TEE/TZ and NSec   |  PUB_RAM   --------|   |
- *  |   shared memory    |         NSec alloc |   |
- *  +-----------------------------------------+   v
- *
- *  TEE_RAM : 1MByte
- *  PUB_RAM : 1MByte
- *  TA_RAM  : all what is left (at least 2MByte !)
- */
-
-/* define the several memory area sizes */
-#if (CFG_DDR_TEETZ_RESERVED_SIZE < (4 * 1024 * 1024))
-#error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
-#endif
-
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TEE_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-					CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
-
-/* define the secure/unsecure memory areas */
-#define TZDRAM_BASE	(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
-
-#define CFG_SHMEM_START		\
-			(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		(SECTION_SIZE)
-
-/* define the memory areas (TEE_RAM must start at reserved DDR start addr */
-#define CFG_TEE_RAM_START		(TZDRAM_BASE)
-#define CFG_TA_RAM_START		(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
-
 /*
  * define the platform memory Secure layout
  */

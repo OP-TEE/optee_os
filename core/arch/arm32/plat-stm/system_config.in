@@ -2,9 +2,6 @@
 
 ifeq ($(PLATFORM_FLAVOR),cannes)
 
-DDR_PHYS_START := 0x40000000
-DDR_SIZE := 0x80000000
-
 # Static configuration of DDR reserved to TEE/TZ
 # Provide here only start address and size. TEEcore will adapt.
 # Allow these settings to be overridden.
@@ -20,11 +17,6 @@ CFG_LINUX_LOAD_ADDR ?= 0x42000000
 endif
 
 else ifeq ($(PLATFORM_FLAVOR),orly2)
-
-DDR_PHYS_START := 0x40000000
-DDR_SIZE := 0x40000000
-DDR1_PHYS_START := 0x80000000
-DDR1_SIZE := 0x40000000
 
 # Static configuration of DDR reserved to TEE/TZ
 # Provide here only start address and size. TEEcore will adapt.
@@ -47,12 +39,4 @@ endif
 
 # Common values
 
-CFG_TEE_CORE_NB_CORE := 2
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
-
-STACK_TMP_SIZE		:= 1024	# TODO minimize
-STACK_ABT_SIZE		:= 1024
-ifneq ($(CFG_TEE_CORE_LOG_LEVEL),0) # abt stack logs needs >256 more bytes
-STACK_ABT_SIZE		:= 2048	# TODO minimize
-endif
-STACK_THREAD_SIZE	:= 8192

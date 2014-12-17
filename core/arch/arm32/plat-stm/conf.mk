@@ -36,12 +36,6 @@ WITH_SECURE_TIME_SOURCE_REE := y
 include mk/config.mk
 include $(platform-dir)/system_config.in
 
-ifndef CFG_TEE_CORE_NB_CORE
-$(error "CFG_TEE_CORE_NB_CORE should be set from system_config.in")
-endif
-core-platform-cppflags += -DCFG_TEE_CORE_NB_CORE=$(CFG_TEE_CORE_NB_CORE)
-core-cppflags += -DCFG_TEE_CORE_NB_CORE=$(CFG_TEE_CORE_NB_CORE)
-
 ifndef CFG_TEE_CORE_EMBED_INTERNAL_TESTS
 $(error "CFG_TEE_CORE_EMBED_INTERNAL_TESTS should be set from system_config.in")
 endif
@@ -60,28 +54,6 @@ core-platform-cppflags += \
 
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
-
-ifndef STACK_TMP_SIZE
-$(error "STACK_TMP_SIZE should be set from system_config.in")
-endif
-ifndef STACK_ABT_SIZE
-$(error "STACK_ABT_SIZE should be set from system_config.in")
-endif
-ifndef STACK_THREAD_SIZE
-$(error "STACK_THREAD_SIZE should be set from system_config.in")
-endif
-core-platform-cppflags += -DSTACK_TMP_SIZE=$(STACK_TMP_SIZE)
-core-platform-cppflags += -DSTACK_ABT_SIZE=$(STACK_ABT_SIZE)
-core-platform-cppflags += -DSTACK_THREAD_SIZE=$(STACK_THREAD_SIZE)
-
-ifdef DDR_PHYS_START
-core-platform-cppflags += -DDRAM0_BASE=$(DDR_PHYS_START)
-core-platform-cppflags += -DDRAM0_SIZE=$(DDR_SIZE)
-endif
-ifdef DDR1_PHYS_START
-core-platform-cppflags += -DDRAM1_BASE=$(DDR1_PHYS_START)
-core-platform-cppflags += -DDRAM1_SIZE=$(DDR1_SIZE)
-endif
 
 ifeq ($(PLATFORM_FLAVOR),cannes)
 

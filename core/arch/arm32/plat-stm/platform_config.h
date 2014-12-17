@@ -37,12 +37,63 @@
 
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		32
+#define STACK_TMP_SIZE		1024
+#if CFG_TRACE_LEVEL > 0
+#define STACK_ABT_SIZE		2048
+#else
+#define STACK_ABT_SIZE		1024
+#endif
+#define STACK_THREAD_SIZE	8192
+
+#define CFG_TEE_CORE_NB_CORE	2
 
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform STM"
 #endif
 
+/*
+ * TEE/TZ RAM layout:
+ *
+ *  +-----------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
+ *  | TEETZ private RAM  |  TEE_RAM           |   ^
+ *  |                    +--------------------+   |
+ *  |                    |  TA_RAM            |   |
+ *  +-----------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  |                    |      teecore alloc |   |
+ *  |  TEE/TZ and NSec   |  PUB_RAM   --------|   |
+ *  |   shared memory    |         NSec alloc |   |
+ *  +-----------------------------------------+   v
+ *
+ *  TEE_RAM : 1MByte
+ *  PUB_RAM : 1MByte
+ *  TA_RAM  : all what is left (at least 2MByte !)
+ */
+
+/* define the several memory area sizes */
+#if (CFG_DDR_TEETZ_RESERVED_SIZE < (4 * 1024 * 1024))
+#error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
+#endif
+
+#define CFG_PUB_RAM_SIZE                (1 * 1024 * 1024)
+#define CFG_TEE_RAM_SIZE                (1 * 1024 * 1024)
+#define CFG_TA_RAM_SIZE                 (CFG_DDR_TEETZ_RESERVED_SIZE - \
+					 CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
+
+/* define the secure/unsecure memory areas */
+#define TZDRAM_BASE                     (CFG_DDR_TEETZ_RESERVED_START)
+#define TZDRAM_SIZE                     (CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+
+#define CFG_SHMEM_START                 (TZDRAM_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_SIZE                  (SECTION_SIZE)
+
+/* define the memory areas (TEE_RAM must start at reserved DDR start addr */
+#define CFG_TEE_RAM_START               (TZDRAM_BASE)
+#define CFG_TA_RAM_START                (CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
+
 #if PLATFORM_FLAVOR_IS(cannes)
+
+#define DRAM0_BASE		0x40000000
+#define DRAM0_SIZE		0x80000000
 
 #define CPU_IOMEM_BASE		0x08760000
 #define CPU_PORT_FILT_START	0x40000000
@@ -53,6 +104,11 @@
 #define RNG_BASE		0x08A89000
 
 #elif PLATFORM_FLAVOR_IS(orly2)
+
+#define DRAM0_BASE		0x40000000
+#define DRAM0_SIZE		0x40000000
+#define DRAM1_BASE		0x80000000
+#define DRAM1_SIZE		0x40000000
 
 #define CPU_IOMEM_BASE		0xFFFE0000
 #define CPU_PORT_FILT_START	0x40000000
