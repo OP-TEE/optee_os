@@ -67,18 +67,16 @@
 					CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
 
 /* define the secure/unsecure memory areas */
-#define CFG_DDR_ARMTZ_ONLY_START	(CFG_DDR_TEETZ_RESERVED_START)
-#define CFG_DDR_ARMTZ_ONLY_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_BASE	(CFG_DDR_TEETZ_RESERVED_START)
+#define TZDRAM_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
 
-#define CFG_DDR_ARM_ARMTZ_START		\
-			(CFG_DDR_ARMTZ_ONLY_START + CFG_DDR_ARMTZ_ONLY_SIZE)
-#define CFG_DDR_ARM_ARMTZ_SIZE		(CFG_PUB_RAM_SIZE)
+#define CFG_SHMEM_START		\
+			(TZDRAM_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_SIZE		(SECTION_SIZE)
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
-#define CFG_TEE_RAM_START		(CFG_DDR_ARMTZ_ONLY_START)
+#define CFG_TEE_RAM_START		(TZDRAM_BASE)
 #define CFG_TA_RAM_START		(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
-#define CFG_PUB_RAM_START		(CFG_DDR_ARM_ARMTZ_START)
-
 
 /*
  * define the platform memory Secure layout
@@ -90,17 +88,17 @@ struct memaccess_area {
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
 
 static struct memaccess_area ddr[] = {
-	MEMACCESS_AREA(CFG_DDR_START, CFG_DDR_SIZE),
-#ifdef CFG_DDR1_START
-	MEMACCESS_AREA(CFG_DDR1_START, CFG_DDR1_SIZE),
+	MEMACCESS_AREA(DRAM0_BASE, DRAM0_SIZE),
+#ifdef DRAM1_BASE
+	MEMACCESS_AREA(DRAM1_BASE, DRAM1_SIZE),
 #endif
 };
 
 static struct memaccess_area secure_only =
-MEMACCESS_AREA(CFG_DDR_ARMTZ_ONLY_START, CFG_DDR_ARMTZ_ONLY_SIZE);
+MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE);
 
 static struct memaccess_area nsec_shared =
-MEMACCESS_AREA(CFG_DDR_ARM_ARMTZ_START, CFG_DDR_ARM_ARMTZ_SIZE);
+MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE);
 
 
 /* pbuf_is_ddr - return true is buffer is inside the DDR */
@@ -177,7 +175,7 @@ static struct map_area bootcfg_memory_map[] = {
 
 	{	/* teecore public RAM - NonSecure, non-exec. */
 	 .type = MEM_AREA_NSEC_SHM,
-	 .pa = CFG_PUB_RAM_START, .size = SECTION_SIZE,
+	 .pa = CFG_SHMEM_START, .size = CFG_SHMEM_SIZE,
 	 .cached = true, .secure = false, .rw = true, .exec = false,
 	 },
 

@@ -75,12 +75,12 @@ core-platform-cppflags += -DSTACK_ABT_SIZE=$(STACK_ABT_SIZE)
 core-platform-cppflags += -DSTACK_THREAD_SIZE=$(STACK_THREAD_SIZE)
 
 ifdef DDR_PHYS_START
-core-platform-cppflags += -DCFG_DDR_START=$(DDR_PHYS_START)
-core-platform-cppflags += -DCFG_DDR_SIZE=$(DDR_SIZE)
+core-platform-cppflags += -DDRAM0_BASE=$(DDR_PHYS_START)
+core-platform-cppflags += -DDRAM0_SIZE=$(DDR_SIZE)
 endif
 ifdef DDR1_PHYS_START
-core-platform-cppflags += -DCFG_DDR1_START=$(DDR1_PHYS_START)
-core-platform-cppflags += -DCFG_DDR1_SIZE=$(DDR1_SIZE)
+core-platform-cppflags += -DDRAM1_BASE=$(DDR1_PHYS_START)
+core-platform-cppflags += -DDRAM1_SIZE=$(DDR1_SIZE)
 endif
 
 ifeq ($(PLATFORM_FLAVOR),cannes)
