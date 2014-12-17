@@ -1245,10 +1245,15 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	uint32_t key_size)
 {
 	TEE_Result res;
+	struct rsa_keypair *key = o->data;
+	uint32_t e = TEE_U32_TO_BIG_ENDIAN(65537);
 
 	TEE_ASSERT(sizeof(struct rsa_keypair) == o->data_size);
-	if (!crypto_ops.acipher.gen_rsa_key)
+	if (!crypto_ops.acipher.gen_rsa_key || !crypto_ops.bignum.bin2bn)
 		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (!GET_ATTRIBUTE(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
+		crypto_ops.bignum.bin2bn((const uint8_t *)&e, sizeof(e),
+					 key->e);
 	res = crypto_ops.acipher.gen_rsa_key(o->data, key_size);
 	if (res != TEE_SUCCESS)
 		return res;

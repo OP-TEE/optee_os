@@ -533,9 +533,13 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	TEE_Result res;
 	rsa_key ltc_tmp_key;
 	int ltc_res;
+	long e;
+
+	/* get the public exponent */
+	e = mp_get_int(key->e);
 
 	/* Generate a temporary RSA key */
-	ltc_res = rsa_make_key(0, tee_ltc_get_rng_mpa(), key_size/8, 65537,
+	ltc_res = rsa_make_key(0, tee_ltc_get_rng_mpa(), key_size/8, e,
 			       &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
