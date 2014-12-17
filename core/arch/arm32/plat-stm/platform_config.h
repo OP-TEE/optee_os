@@ -35,6 +35,9 @@
 #define PLATFORM_FLAVOR_IS(flav) \
 	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
 
+/* Make stacks aligned to data cache line length */
+#define STACK_ALIGNMENT		32
+
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform STM"
 #endif

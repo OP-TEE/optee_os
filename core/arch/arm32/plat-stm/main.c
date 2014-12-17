@@ -49,6 +49,7 @@
 #include <kernel/asc.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <assert.h>
+#include <platform_config.h>
 
 #ifdef WITH_STACK_CANARIES
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
@@ -61,11 +62,10 @@
 #define STACK_CANARY_SIZE	0
 #endif
 
-#define STACK_ALIGNMENT		8
-
 #define DECLARE_STACK(name, num_stacks, stack_size) \
-	static uint32_t name[num_stacks][(stack_size + STACK_CANARY_SIZE) / \
-					 sizeof(uint32_t)] \
+	static uint32_t name[num_stacks][ \
+		ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
+		sizeof(uint32_t)] \
 		__attribute__((section(".nozi.stack"), \
 			       aligned(STACK_ALIGNMENT)))
 
