@@ -213,7 +213,10 @@ may be defined in `sub.mk` when then pertain to a specific library for instance.
 Variables with the `CFG_` prefix are treated in a special
 way: their value is automatically reflected in the generated header
 file `$(out-dir)/core/include/generated/conf.h`, after all the included
-makefiles have been processed. Depending on their value, variables may
+makefiles have been processed. `conf.h` is automatically included by the
+preprocessor when a source file belonging to the TEE core is built.
+
+Depending on their value, variables may
 be considered either boolean or non-boolean, which affects how they are
 translated into `conf.h`.
 
@@ -254,8 +257,6 @@ code to use constructs like:
 
 ```C
 /* core/lib/libtomcrypt/src/tee_ltc_provider.c */
-
-#include <generated/conf.h>
 
 /* ... */
 

@@ -54,11 +54,7 @@ core-platform-subdirs += $(arch-dir)/sm
 core-platform-cppflags += -DWITH_SEC_MON=1
 endif
 
-CFG_PM_DEBUG ?= 0
-ifeq ($(CFG_PM_DEBUG),1)
-core-platform-cppflags += \
-	-DCFG_PM_DEBUG
-endif
+CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
@@ -69,8 +65,6 @@ WITH_GIC_DRV := y
 include mk/config.mk
 
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
-core-platform-cppflags += \
-	-DCFG_TEE_CORE_EMBED_INTERNAL_TESTS=$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
 
 core-platform-cppflags += -D_USE_SLAPORT_LIB
 
@@ -79,6 +73,6 @@ core-platform-cppflags += -D_USE_SLAPORT_LIB
 core-platform-cppflags += -DTEE_MULTI_CPU
 # define flag to support booting from GDB
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
-core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
+CFG_NO_TA_HASH_SIGN ?= y
 
 core-platform-cppflags += -DWITH_UART_DRV=1

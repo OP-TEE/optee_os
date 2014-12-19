@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <generated/conf.h>
 #include <sys/queue.h>
 #include <stdlib.h>
 #include <inttypes.h>

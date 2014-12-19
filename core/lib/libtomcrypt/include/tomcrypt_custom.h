@@ -138,7 +138,6 @@
 #endif   
 
 /* Set LTC_ options based on OP-TEE configuration */
-#include <generated/conf.h>
 
 #define LTC_NO_CIPHERS
 

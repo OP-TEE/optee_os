@@ -28,8 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#include <generated/conf.h>
-
 #define PLATFORM_FLAVOR_ID_fvp		0
 #define PLATFORM_FLAVOR_ID_qemu		1
 #define PLATFORM_FLAVOR_ID_qemu_virt	2

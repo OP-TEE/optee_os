@@ -13,7 +13,8 @@ platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y
 cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
-cppflags$(sm)	+= -Icore/include -I$(out-dir)/core/include
+cppflags$(sm)	+= -Icore/include
+cppflags$(sm)	+= -include $(out-dir)/core/include/generated/conf.h
 cppflags$(sm)	+= $(platform-cppflags) $(core-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)

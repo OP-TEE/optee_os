@@ -39,7 +39,8 @@
 
 #if (CFG_TEE_CORE_EMBED_INTERNAL_TESTS == 0)
 
-TEE_Result core_self_tests(void)
+TEE_Result core_self_tests(uint32_t nParamTypes __unused,
+			   TEE_Param pParams[TEE_NUM_PARAMS] __unused)
 {
 	return TEE_SUCCESS;
 }

@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <generated/conf.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 
