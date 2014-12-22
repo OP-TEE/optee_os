@@ -5,16 +5,16 @@
 DEV_PATH=$HOME/devel/fvp_optee
 SRC_FVP=
 
-# You only need to set these variables if you have access to the TEETEST
-# (requires a Linaro account and access to the git called teetest.git)
-LINARO_USERNAME=_joakim.bech # Should _NOT_ contain @linaro.org.
-HAVE_ACCESS_TO_TEETEST=
+# You only need to set these variables if you have access to the OPTEE_TEST
+# (requires a Linaro account and access to the git called optee_test.git)
+LINARO_USERNAME=firstname.lastname # Should _NOT_ contain @linaro.org.
+HAVE_ACCESS_TO_OPTEE_TEST=
 ################################################################################
 # Don't touch anything below this comment                                      #
 ################################################################################
 mkdir -p $DEV_PATH
 
-DST_FVP=$DEV_PATH/Foundation_v8pkg
+DST_FVP=$DEV_PATH/Foundation_Platformpkg
 if [ ! -n "$SRC_FVP" ]; then
 	echo "FVP must be downloaded first, please go to: "
 	echo "  http://www.arm.com/products/tools/models/fast-models/foundation-model.php"
@@ -25,11 +25,11 @@ if [ ! -n "$SRC_FVP" ]; then
 	exit
 fi
 
-#Until something official ARM-TF supports loading a partitioned OP-TEE
-#SRC_ATF=https://github.com/ARM-software/arm-trusted-firmware.git
-SRC_ATF=https://github.com/jenswi-linaro/arm-trusted-firmware.git
-DST_ATF=$DEV_PATH/arm-trusted-firmware
-STABLE_ATF_COMMIT=db4b9efe59b4f76e9680836a443158fde0f12e40
+# Until something official ARM-TF supports loading a partitioned OP-TEE
+# SRC_ARM_TF=https://github.com/ARM-software/arm-trusted-firmware.git
+SRC_ARM_TF=https://github.com/jenswi-linaro/arm-trusted-firmware.git
+DST_ARM_TF=$DEV_PATH/arm-trusted-firmware
+STABLE_ARM_TF_COMMIT=db4b9efe59b4f76e9680836a443158fde0f12e40
 
 SRC_KERNEL=git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 DST_KERNEL=$DEV_PATH/linux
@@ -46,9 +46,9 @@ SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
 STABLE_LK_COMMIT=eb4ea6b1094ce3452c376c12a529178d202d229b
 
-SRC_TEETEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/teetest.git
-DST_TEETEST=$DEV_PATH/teetest
-STABLE_TEETEST_COMMIT=e7cda93bf9af4b93b1629630b3aa6e3e0df57314
+SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
+DST_OPTEE_TEST=$DEV_PATH/optee_test
+STABLE_OPTEE_TEST_COMMIT=774cc3c10954eba316d56f48112652eff05f33a0
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
@@ -77,11 +77,11 @@ DST_AARCH32_GCC=$DEV_PATH/toolchains/$AARCH32_GCC
 # Cloning all needed repositories                                              #
 ################################################################################
 cd $DEV_PATH
-if [ ! -d "$DST_ATF" ]; then
-	git clone $SRC_ATF && cd $DST_ATF && git reset --hard $STABLE_ATF_COMMIT
+if [ ! -d "$DST_ARM_TF" ]; then
+	git clone $SRC_ARM_TF && cd $DST_ARM_TF && git reset --hard $STABLE_ARM_TF_COMMIT
 else
-	echo " `basename $DST_ATF` already exist, not cloning"
-fi 
+	echo " `basename $DST_ARM_TF` already exist, not cloning"
+fi
 
 cd $DEV_PATH
 if [ ! -d "$DST_KERNEL" ]; then
@@ -112,10 +112,10 @@ else
 fi
 
 cd $DEV_PATH
-if [ ! -d "$DST_TEETEST" ] && [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
-	git clone $SRC_TEETEST && cd $DST_TEETEST && git reset --hard $STABLE_TEETEST_COMMIT
+if [ ! -d "$DST_OPTEE_TEST" ] && [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
+	git clone $SRC_OPTEE_TEST && cd $DST_OPTEE_TEST && git reset --hard $STABLE_OPTEE_TEST_COMMIT
 else
-	echo " `basename $DST_TEETEST` already exist (or no access), not cloning"
+	echo " `basename $DST_OPTEE_TEST` already exist (or no access), not cloning"
 fi
 
 cd $DEV_PATH
@@ -213,9 +213,9 @@ dir /lib/modules/$KERNEL_VERSION 755 0 0
 file /lib/modules/$KERNEL_VERSION/optee.ko $DST_OPTEE_LK/optee.ko 755 0 0
 
 # OP-TEE Client
-file /bin/tee-supplicant $DST_OPTEE_CLIENT/out-client-aarch64/export/bin/tee-supplicant 755 0 0
+file /bin/tee-supplicant $DST_OPTEE_CLIENT/out/export/bin/tee-supplicant 755 0 0
 dir /lib/aarch64-linux-gnu 755 0 0
-file /lib/aarch64-linux-gnu/libteec.so.1.0 $DST_OPTEE_CLIENT/out-client-aarch64/export/lib/libteec.so.1.0 755 0 0
+file /lib/aarch64-linux-gnu/libteec.so.1.0 $DST_OPTEE_CLIENT/out/export/lib/libteec.so.1.0 755 0 0
 slink /lib/aarch64-linux-gnu/libteec.so.1 libteec.so.1.0 755 0 0
 slink /lib/aarch64-linux-gnu/libteec.so libteec.so.1 755 0 0
 
@@ -227,18 +227,17 @@ dir /data/tee 755 0 0
 dir /lib/teetz 755 0 0
 EOF
 
-if [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
+if [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
 cat >> $DST_GEN_ROOTFS/filelist-tee.txt << EOF
-file /lib/teetz/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta $DEV_PATH/out/utest/user_ta/create_fail_test/armv7/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta 444 0 0
-file /lib/teetz/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/crypt/armv7/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta 444 0 0
-file /lib/teetz/7897ba75-4624-4897-80dc91cce44c9c56.ta $DEV_PATH/out/utest/user_ta/hello_world_ta/armv7/7897ba75-4624-4897-80dc91cce44c9c56.ta 444 0 0
-file /lib/teetz/50b8ff20-e55c-11e3-87b70002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/object/armv7/50b8ff20-e55c-11e3-87b70002a5d5c51b.ta 444 0 0
-file /lib/teetz/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/os_test/armv7/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta 444 0 0
-file /lib/teetz/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/rpc_test/armv7/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta 444 0 0
-file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_ta/sims/armv7/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta 444 0 0
+# Trusted Applications
+file /lib/teetz/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/rpc_test/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta 444 0 0
+file /lib/teetz/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/crypt/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta 444 0 0
+file /lib/teetz/b689f2a7-8adf-477a-9f9932e90c0ad0a2.ta $DEV_PATH/out/utest/user_ta/armv7/storage/b689f2a7-8adf-477a-9f9932e90c0ad0a2.ta 444 0 0
+file /lib/teetz/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/os_test/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta 444 0 0
+file /lib/teetz/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta $DEV_PATH/out/utest/user_ta/armv7/create_fail_test/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta 444 0 0
+file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_ta/armv7/sims/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta 444 0 0
 
 # OP-TEE Tests
-file /bin/tee_ut_helloworld3 $DEV_PATH/out/utest/host/tee_ut_helloworld3/bin/tee_ut_helloworld3 755 0 0
 file /bin/xtest $DEV_PATH/out/utest/host/xtest/bin/xtest 755 0 0
 EOF
 fi
@@ -253,7 +252,6 @@ export PATH=$DST_AARCH32_GCC/bin:\$PATH
 export CROSS_COMPILE=arm-linux-gnueabihf-
 export PLATFORM=vexpress
 export PLATFORM_FLAVOR=fvp
-export O=./out-os-fvp
 export CFG_TEE_CORE_LOG_LEVEL=4
 #export DEBUG=1
 
@@ -272,11 +270,6 @@ $DEV_PATH/build_optee_os.sh
 cd $DST_EDK2
 git remote add -f --tags arm-software https://github.com/ARM-software/edk2.git
 git checkout --detach v1.2
-. edksetup.sh
-
-# Build the EDK host tools
-make -C BaseTools clean
-make -C BaseTools
 
 cd $DEV_PATH
 cat > $DEV_PATH/build_uefi.sh << EOF
@@ -285,6 +278,11 @@ export GCC49_AARCH64_PREFIX=$DST_AARCH64_NONE_GCC/bin/aarch64-none-elf-
 
 cd $DST_EDK2
 . edksetup.sh
+
+# Build the EDK host tools
+make -C BaseTools clean
+make -C BaseTools
+
 make -f ArmPlatformPkg/Scripts/Makefile EDK2_ARCH=AARCH64 \\
 	EDK2_DSC=ArmPlatformPkg/ArmVExpressPkg/ArmVExpress-FVP-AArch64.dsc \\
 	EDK2_TOOLCHAIN=GCC49 EDK2_BUILD=RELEASE \\
@@ -295,20 +293,20 @@ chmod 711 $DEV_PATH/build_uefi.sh
 $DEV_PATH/build_uefi.sh
 
 ################################################################################
-# Generate build_atf_opteed.sh for building ATF and opteed                     #
+# Generate build_arm_tf_opteed.sh for building ARM TF and opteed               #
 ################################################################################
 cd $DEV_PATH
 
-cat > $DEV_PATH/build_atf_opteed.sh << EOF
+cat > $DEV_PATH/build_arm_tf_opteed.sh << EOF
 #!/bin/bash
 export PATH=$DST_AARCH64_NONE_GCC/bin:\$PATH
 export CROSS_COMPILE=$DST_AARCH64_NONE_GCC/bin/aarch64-none-elf-
 export CFLAGS='-O0 -gdwarf-2'
 export DEBUG=1
-export BL32=$DST_OPTEE_OS/out-os-fvp/core/tee.bin
+export BL32=$DST_OPTEE_OS/out/arm32-plat-vexpress/core/tee.bin
 export BL33=$DST_EDK2/Build/ArmVExpress-FVP-AArch64/RELEASE_GCC49/FV/FVP_AARCH64_EFI.fd
 
-cd $DST_ATF
+cd $DST_ARM_TF
 make -j\`getconf _NPROCESSORS_ONLN\`   \\
 	DEBUG=$DEBUG                   \\
 	FVP_TSP_RAM_LOCATION=tdram     \\
@@ -318,8 +316,8 @@ make -j\`getconf _NPROCESSORS_ONLN\`   \\
 	\$@
 EOF
 
-chmod 711 $DEV_PATH/build_atf_opteed.sh
-$DEV_PATH/build_atf_opteed.sh all fip
+chmod 711 $DEV_PATH/build_arm_tf_opteed.sh
+$DEV_PATH/build_arm_tf_opteed.sh all fip
 
 ################################################################################
 # Generate build_optee_client.sh for building optee_client                     #
@@ -331,13 +329,13 @@ cat > $DEV_PATH/build_optee_client.sh << EOF
 export PATH=$DST_AARCH64_GCC/bin:\$PATH
 
 cd $DST_OPTEE_CLIENT
-make -j\`getconf _NPROCESSORS_ONLN\` O=./out-client-aarch64 CROSS_COMPILE=aarch64-linux-gnu- \$@
+make -j\`getconf _NPROCESSORS_ONLN\` CROSS_COMPILE=aarch64-linux-gnu- \$@
 EOF
 
 chmod 711 $DEV_PATH/build_optee_client.sh
 $DEV_PATH/build_optee_client.sh
 
-if [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
+if [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
 ################################################################################
 # Generate build_optee_tests.sh                                                #
 ################################################################################
@@ -345,19 +343,14 @@ cd $DEV_PATH
 
 cat > $DEV_PATH/build_optee_tests.sh << EOF
 #!/bin/bash
-export PATH=$DST_AARCH64_GCC/bin:\$PATH
-export PATH=$DST_AARCH32_GCC/bin:\$PATH
+cd $DST_OPTEE_TEST
+export CFG_DEV_PATH=$DEV_PATH
+export CFG_ROOTFS_DIR=\$CFG_DEV_PATH/out
 
-TA_DEV_KIT_DIR=$DST_OPTEE_OS/out-os-fvp/export-user_ta
-PUBLIC_DIR=$DST_OPTEE_CLIENT/out-client-aarch64/export
+export PATH=\$CFG_DEV_PATH/toolchains/aarch64/bin:\$PATH
+export PATH=\$CFG_DEV_PATH/toolchains/aarch32/bin:\$PATH
 
-cd $DST_TEETEST
-make O=./out-client-aarch64 \\
-                PUBLIC_DIR=\$PUBLIC_DIR \\
-                TA_DEV_KIT_DIR=\$TA_DEV_KIT_DIR \\
-                HOST_CROSS_COMPILE=aarch64-linux-gnu- \\
-                TA_CROSS_COMPILE=arm-linux-gnueabihf- \\
-                \$@
+make $@
 EOF
 
 chmod 711 $DEV_PATH/build_optee_tests.sh
@@ -420,11 +413,11 @@ ln -sf $DST_OPTEE_LK/fdts/fvp-foundation-gicv2-psci.dtb fdt.dtb
 cd $DEV_PATH
 cat > $DEV_PATH/run_foundation.sh << EOF
 #!/bin/bash
-BL1=$DST_ATF/build/fvp/debug/bl1.bin
-FIP=$DST_ATF/build/fvp/debug/fip.bin
+BL1=$DST_ARM_TF/build/fvp/debug/bl1.bin
+FIP=$DST_ARM_TF/build/fvp/debug/fip.bin
 
 cd $DST_FVP
-$DST_FVP/models/Linux64_GCC-4.1/Foundation_v8 \\
+$DST_FVP/models/Linux64_GCC-4.1/Foundation_Platform \\
         --cores=4                             \\
         --no-secure-memory                    \\
         --visualization                       \\
@@ -443,7 +436,7 @@ cd $DEV_PATH
 cat > $DEV_PATH/build_secure.sh << EOF
 #!/bin/bash
 cd $DEV_PATH
-./build_optee_os.sh && ./build_atf_opteed.sh all fip
+./build_optee_os.sh && ./build_arm_tf_opteed.sh all fip
 
 EOF
 
@@ -470,8 +463,8 @@ EOF
 chmod 711 $DEV_PATH/build_normal.sh
 
 echo "OP-TEE and FVP setup completed."
-if [ ! -n "$HAVE_ACCESS_TO_TEETEST" ]; then
-	echo "LINARO_USERNAME and HAVE_ACCESS_TO_TEETEST wasn't updated, therefore no tests"
+if [ ! -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
+	echo "LINARO_USERNAME and HAVE_ACCESS_TO_OPTEE_TEST wasn't updated, therefore no tests"
 	echo "has been included."
 fi
 
@@ -488,13 +481,13 @@ echo "This will clean all gits using \$CLEAN_CMD && \$CLEAN_CMD2,"
 echo "if this was not your intention, then press CTRL+C immediately!"
 read -t 10
 
-cd $DST_ATF && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_ATF clean!\n"
+cd $DST_ARM_TF && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_ARM_TF clean!\n"
 cd $DST_KERNEL && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e"$DST_KERNEL clean!\n"
 cd $DST_OPTEE_OS && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_OS clean!\n"
 cd $DST_OPTEE_CLIENT && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_CLIENT clean!\n"
 cd $DST_OPTEE_LK && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_LK clean!\n"
-if [ -d "$DST_TEETEST" ]; then
-	cd $DST_TEETEST && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_TEETEST clean!\n"
+if [ -d "$DST_OPTEE_TEST" ]; then
+	cd $DST_OPTEE_TEST && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_OPTEE_TEST clean!\n"
 	rm -rf $DEV_PATH/out
 fi
 cd $DST_GEN_ROOTFS && \$CLEAN_CMD && \$CLEAN_CMD2 && echo -e "$DST_GEN_ROOTFS clean!\n"

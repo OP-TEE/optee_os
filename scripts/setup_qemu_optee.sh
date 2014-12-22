@@ -4,10 +4,10 @@
 ################################################################################
 DEV_PATH=$HOME/devel/qemu_optee
 
-# You only need to set these variables if you have access to the TEETEST
-# (requires a Linaro account and access to the git called teetest.git)
+# You only need to set these variables if you have access to the OPTEE_TEST
+# (requires a Linaro account and access to the git called optee_test.git)
 #LINARO_USERNAME=firstname.lastname # Should _NOT_ contain @linaro.org.
-#HAVE_ACCESS_TO_TEETEST=1
+#HAVE_ACCESS_TO_OPTEE_TEST=1
 
 
 # If configure/make of QEMU fails it could be due to missing packages
@@ -56,9 +56,9 @@ SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
 STABLE_OPTEE_LK_COMMIT=f435628cbba777d7e46f46f9f813a1dd9206a68b
 
-SRC_TEETEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/teetest.git
-DST_TEETEST=$DEV_PATH/teetest
-STABLE_TEETEST_COMMIT=e7cda93bf9af4b93b1629630b3aa6e3e0df57314
+SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
+DST_OPTEE_TEST=$DEV_PATH/optee_test
+STABLE_OPTEE_TEST_COMMIT=774cc3c10954eba316d56f48112652eff05f33a0
 
 SRC_GEN_ROOTFS=https://github.com/jenswi-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
@@ -125,11 +125,11 @@ else
 	echo " `basename $DST_OPTEE_LK` already exist, not cloning"
 fi
 
-if [ ! -d "$DST_TEETEST" ] && [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
-	git clone $SRC_TEETEST $DST_TEETEST
-	(cd $DST_TEETEST && git reset --hard $STABLE_TEETEST_COMMIT)
+if [ ! -d "$DST_OPTEE_TEST" ] && [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
+	git clone $SRC_OPTEE_TEST $DST_OPTEE_TEST
+	(cd $DST_OPTEE_TEST && git reset --hard $STABLE_OPTEE_TEST_COMMIT)
 else
-	echo " `basename $DST_TEETEST` already exist (or no access), not cloning"
+	echo " `basename $DST_OPTEE_TEST` already exist (or no access), not cloning"
 fi
 
 if [ ! -d "$DST_GEN_ROOTFS" ]; then
@@ -165,7 +165,7 @@ cat > $DEV_PATH/run_qemu.sh << EOF
 SERIAL0="-serial tcp:localhost:54320"
 SERIAL1="-serial tcp:localhost:54321"
 
-BIOS="-bios $DEV_PATH/out-bios-qemu/bios.bin"
+BIOS="-bios $DEV_PATH/out/bios-qemu/bios.bin"
 #SMP="-smp 1"
 MEM="-m 1057"
 
@@ -220,10 +220,10 @@ export PATH=$DST_AARCH32_GCC/bin:\$PATH
 export CROSS_COMPILE=$DST_AARCH32_GCC/bin/arm-linux-gnueabihf-
 
 cd $DST_BIOS_QEMU
-export O=$DEV_PATH/out-bios-qemu
+export O=$DEV_PATH/out/bios-qemu
 export BIOS_NSEC_BLOB=$DST_KERNEL/arch/arm/boot/zImage
 export BIOS_NSEC_ROOTFS=$DST_GEN_ROOTFS/filesystem.cpio.gz
-export BIOS_SECURE_BLOB=$DEV_PATH/out-os-qemu/core/tee.bin
+export BIOS_SECURE_BLOB=$DEV_PATH/optee_os/out/arm32-plat-vexpress/core/tee.bin
 export PLATFORM_FLAVOR=virt
 make $*
 EOF
@@ -280,9 +280,9 @@ dir /lib/modules/$KERNEL_VERSION 755 0 0
 file /lib/modules/$KERNEL_VERSION/optee.ko $DST_OPTEE_LK/optee.ko 755 0 0
 
 # OP-TEE Client
-file /bin/tee-supplicant $DEV_PATH/out-client-armv7/export/bin/tee-supplicant 755 0 0
+file /bin/tee-supplicant $DEV_PATH/optee_client/out/export/bin/tee-supplicant 755 0 0
 dir /lib/arm-linux-gnueabihf 755 0 0
-file /lib/arm-linux-gnueabihf/libteec.so.1.0 $DEV_PATH/out-client-armv7/export/lib/libteec.so.1.0 755 0 0
+file /lib/arm-linux-gnueabihf/libteec.so.1.0 $DEV_PATH/optee_client/out/export/lib/libteec.so.1.0 755 0 0
 slink /lib/arm-linux-gnueabihf/libteec.so.1 libteec.so.1.0 755 0 0
 slink /lib/arm-linux-gnueabihf/libteec.so libteec.so.1 755 0 0
 
@@ -294,18 +294,17 @@ dir /data/tee 755 0 0
 dir /lib/teetz 755 0 0
 EOF
 
-if [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
+if [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
 cat >> $DST_GEN_ROOTFS/filelist-tee.txt << EOF
-file /lib/teetz/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta $DEV_PATH/out/utest/user_ta/create_fail_test/armv7/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta 444 0 0
-file /lib/teetz/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/crypt/armv7/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta 444 0 0
-file /lib/teetz/7897ba75-4624-4897-80dc91cce44c9c56.ta $DEV_PATH/out/utest/user_ta/hello_world_ta/armv7/7897ba75-4624-4897-80dc91cce44c9c56.ta 444 0 0
-file /lib/teetz/50b8ff20-e55c-11e3-87b70002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/object/armv7/50b8ff20-e55c-11e3-87b70002a5d5c51b.ta 444 0 0
-file /lib/teetz/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/os_test/armv7/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta 444 0 0
-file /lib/teetz/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/rpc_test/armv7/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta 444 0 0
-file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_ta/sims/armv7/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta 444 0 0
+# Trusted Applications
+file /lib/teetz/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/rpc_test/d17f73a0-36ef-11e1-984a0002a5d5c51b.ta 444 0 0
+file /lib/teetz/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/crypt/cb3e5ba0-adf1-11e0-998b0002a5d5c51b.ta 444 0 0
+file /lib/teetz/b689f2a7-8adf-477a-9f9932e90c0ad0a2.ta $DEV_PATH/out/utest/user_ta/armv7/storage/b689f2a7-8adf-477a-9f9932e90c0ad0a2.ta 444 0 0
+file /lib/teetz/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta $DEV_PATH/out/utest/user_ta/armv7/os_test/5b9e0e40-2636-11e1-ad9e0002a5d5c51b.ta 444 0 0
+file /lib/teetz/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta $DEV_PATH/out/utest/user_ta/armv7/create_fail_test/c3f6e2c0-3548-11e1-b86c0800200c9a66.ta 444 0 0
+file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_ta/armv7/sims/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta 444 0 0
 
 # OP-TEE Tests
-file /bin/tee_ut_helloworld3 $DEV_PATH/out/utest/host/tee_ut_helloworld3/bin/tee_ut_helloworld3 755 0 0
 file /bin/xtest $DEV_PATH/out/utest/host/xtest/bin/xtest 755 0 0
 EOF
 fi
@@ -320,7 +319,6 @@ export PATH=$DST_AARCH32_GCC/bin:\$PATH
 export CROSS_COMPILE=arm-linux-gnueabihf-
 export PLATFORM=vexpress
 export PLATFORM_FLAVOR=qemu_virt
-export O=$DEV_PATH/out-os-qemu
 export CFG_TEE_CORE_LOG_LEVEL=4
 export DEBUG=0
 
@@ -340,13 +338,12 @@ cat > $DEV_PATH/build_optee_client.sh << EOF
 export PATH=$DST_AARCH32_GCC/bin:\$PATH
 
 cd $DST_OPTEE_CLIENT
-make -j\`getconf _NPROCESSORS_ONLN\` \
-	O=../out-client-armv7 CROSS_COMPILE=arm-linux-gnueabihf- \$@
+make -j\`getconf _NPROCESSORS_ONLN\` CROSS_COMPILE=arm-linux-gnueabihf- \$@
 EOF
 
 chmod 711 $DEV_PATH/build_optee_client.sh
 
-if [ -n "$HAVE_ACCESS_TO_TEETEST" ]; then
+if [ -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
 ################################################################################
 # Generate build_optee_tests.sh                                                #
 ################################################################################
@@ -354,18 +351,15 @@ cd $DEV_PATH
 
 cat > $DEV_PATH/build_optee_tests.sh << EOF
 #!/bin/bash
+cd $DST_OPTEE_TEST
 export PATH=$DST_AARCH32_GCC/bin:\$PATH
 
-TA_DEV_KIT_DIR=$DEV_PATH/out-os-qemu/export-user_ta
-PUBLIC_DIR=$DEV_PATH/out-client-armv7/export
+export CFG_DEV_PATH=$DEV_PATH
+export CFG_PLATFORM_FLAVOR=qemu_virt
+export CFG_ROOTFS_DIR=\$CFG_DEV_PATH/out
 
-cd $DST_TEETEST
-make O=./out-client-armv7 \\
-                PUBLIC_DIR=\$PUBLIC_DIR \\
-                TA_DEV_KIT_DIR=\$TA_DEV_KIT_DIR \\
-                HOST_CROSS_COMPILE=arm-linux-gnueabihf- \\
-                TA_CROSS_COMPILE=arm-linux-gnueabihf- \\
-                \$@
+
+make -j\`getconf _NPROCESSORS_ONLN\` $@
 EOF
 
 chmod 711 $DEV_PATH/build_optee_tests.sh
@@ -422,8 +416,8 @@ EOF
 chmod 711 $DEV_PATH/build.sh
 
 echo "OP-TEE and QEMU setup completed."
-if [ ! -n "$HAVE_ACCESS_TO_TEETEST" ]; then
-	echo "LINARO_USERNAME and HAVE_ACCESS_TO_TEETEST wasn't updated, therefore no tests"
+if [ ! -n "$HAVE_ACCESS_TO_OPTEE_TEST" ]; then
+	echo "LINARO_USERNAME and HAVE_ACCESS_TO_OPTEE_TEST wasn't updated, therefore no tests"
 	echo "has been included."
 fi
 
