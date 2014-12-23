@@ -531,11 +531,15 @@ static TEE_Result tee_buffer_update(
 	size_t tmp_dlen;
 	size_t l;
 	size_t buffer_size;
+	size_t buffer_left;
 
-	if (op->buffer_two_blocks)
+	if (op->buffer_two_blocks) {
 		buffer_size = op->block_size * 2;
-	else
+		buffer_left = 1;
+	} else {
 		buffer_size = op->block_size;
+		buffer_left = 0;
+	}
 
 	if (op->buffer_offs > 0) {
 		/* Fill up complete block */
@@ -552,7 +556,8 @@ static TEE_Result tee_buffer_update(
 	}
 
 	/* If we can feed from buffer */
-	if (op->buffer_offs > 0 && (op->buffer_offs + slen) > buffer_size) {
+	if ((op->buffer_offs > 0) &&
+	    ((op->buffer_offs + slen) >= (buffer_size + buffer_left))) {
 		l = ROUNDUP(op->buffer_offs + slen - buffer_size,
 				op->block_size);
 		l = MIN(op->buffer_offs, l);
@@ -575,7 +580,7 @@ static TEE_Result tee_buffer_update(
 		}
 	}
 
-	if (slen > buffer_size) {
+	if (slen >= (buffer_size + buffer_left)) {
 		/* Buffer is empty, feed as much as possible from src */
 		if (TEE_ALIGNMENT_IS_OK(src, uint32_t)) {
 			l = ROUNDUP(slen - buffer_size + 1, op->block_size);
