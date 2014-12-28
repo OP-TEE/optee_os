@@ -38,6 +38,11 @@
 #include <string_ext.h>
 #include "tomcrypt_mpa.h"
 
+#if defined(CFG_WITH_VFP)
+#include <tomcrypt_arm_neon.h>
+#include <kernel/thread.h>
+#endif
+
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
 /* Random generator */
@@ -133,7 +138,7 @@ static void tee_ltc_reg_algs(void)
 #if defined(CFG_CRYPTO_SHA224)
 	register_hash(&sha224_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA256)
+#if defined(CFG_CRYPTO_SHA256_ARM32_CE) || defined(CFG_CRYPTO_SHA256)
 	register_hash(&sha256_desc);
 #endif
 #if defined(CFG_CRYPTO_SHA384)
@@ -188,7 +193,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		*ltc_hashindex = find_hash("sha224");
 		break;
 #endif
-#if defined(CFG_CRYPTO_SHA256)
+#if defined(CFG_CRYPTO_SHA256) || defined(CFG_CRYPTO_SHA256_ARM32_CE)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
@@ -2314,8 +2319,19 @@ struct crypto_ops crypto_ops = {
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
 };
 
+#if defined(CFG_WITH_VFP)
+void tomcrypt_arm_neon_enable(struct tomcrypt_arm_neon_state *state)
+{
+	state->state = thread_kernel_enable_vfp();
+}
 
-#if defined(CFG_CRYPTO_SHA256)
+void tomcrypt_arm_neon_disable(struct tomcrypt_arm_neon_state *state)
+{
+	thread_kernel_disable_vfp(state->state);
+}
+#endif
+
+#if defined(CFG_CRYPTO_SHA256_ARM32_CE) || defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size)
 {

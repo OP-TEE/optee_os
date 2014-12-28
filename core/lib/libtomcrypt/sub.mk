@@ -39,8 +39,10 @@ endif
 
 ifeq ($(CFG_WITH_PAGER),y)
 ifneq ($(CFG_CRYPTO_SHA256),y)
+ifneq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
 $(warning Warning: Enabling CFG_CRYPTO_SHA256 [required by CFG_WITH_PAGER])
 CFG_CRYPTO_SHA256:=y
+endif
 endif
 endif
 

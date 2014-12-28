@@ -25,6 +25,15 @@ WITH_SECURE_TIME_SOURCE_CNTPCT := y
 WITH_UART_DRV := y
 WITH_GIC_DRV := y
 
+
+ifeq ($(PLATFORM_FLAVOR),juno)
+CFG_CRYPTO_SHA256_ARM32_CE ?= y
+endif
+
+ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
+CFG_WITH_VFP := y
+endif
+
 include mk/config.mk
 
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1

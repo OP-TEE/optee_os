@@ -378,9 +378,11 @@ static void main_init_runtime(uint32_t pagable_part)
 
 		DMSG("hash pg_idx %zu hash %p page %p", n, hash, page);
 		res = hash_sha256_check(hash, page, SMALL_PAGE_SIZE);
-		if (res != TEE_SUCCESS)
+		if (res != TEE_SUCCESS) {
 			EMSG("Hash failed for page %zu at %p: res 0x%x",
 				n, page, res);
+			panic();
+		}
 	}
 
 	/*
@@ -519,6 +521,7 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 	 * most if its functions.
 	 */
 	write_cpsr(read_cpsr() | CPSR_FIA);
+	main_init_cpacr();
 
 	main_init_runtime(pagable_part);
 
@@ -539,7 +542,6 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 	main_init_thread_stacks();
 
 	main_init_gic();
-	main_init_cpacr();
 	main_init_nsacr();
 
 	if (init_teecore() != TEE_SUCCESS)
