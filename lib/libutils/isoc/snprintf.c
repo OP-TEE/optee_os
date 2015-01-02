@@ -3,11 +3,11 @@
  * function
  */
 
-/*    $NetBSD: subr_prf.c,v 1.124.4.1 2009/02/02 19:47:47 snj Exp $    */
+/*	$NetBSD: subr_prf.c,v 1.156 2014/08/15 11:05:35 apb Exp $	*/
 
 /*-
  * Copyright (c) 1986, 1988, 1991, 1993
- *    The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *    @(#)subr_prf.c    8.4 (Berkeley) 5/4/95
+ *	@(#)subr_prf.c	8.4 (Berkeley) 5/4/95
  */
 
 #include <unistd.h>
@@ -81,35 +81,37 @@ static const char HEXDIGITS[] = "0123456789ABCDEF";
 /*
  * snprintf: print a message to a buffer
  */
-int snprintf(char *bf, size_t size, const char *fmt, ...)
+int
+snprintf(char *bf, size_t size, const char *fmt, ...)
 {
 	int retval;
 	va_list ap;
-	char *p;
 
-	if (size < 1)
-		return -1;
-	p = bf + size - 1;
 	va_start(ap, fmt);
-	retval = kprintf(fmt, TOBUFONLY, &p, bf, ap);
+	retval = vsnprintf(bf, size, fmt, ap);
 	va_end(ap);
-	*(p) = 0; /* null terminate */
+
 	return retval;
 }
 
 /*
- * vsnprintf: print a message to a buffer [already have va_alist]
+ * vsnprintf: print a message to a buffer [already have va_list]
  */
-int vsnprintf(char *bf, size_t size, const char *fmt, va_list ap)
+int
+vsnprintf(char *bf, size_t size, const char *fmt, va_list ap)
 {
 	int retval;
 	char *p;
 
-	if (size < 1)
-		return -1;
-	p = bf + size - 1;
+	p = bf + size;
 	retval = kprintf(fmt, TOBUFONLY, &p, bf, ap);
-	*(p) = 0; /* null terminate */
+	if (bf && size > 0) {
+		/* nul terminate */
+		if (size <= (size_t)retval)
+			bf[size - 1] = '\0';
+		else
+			bf[retval] = '\0';
+	}
 	return retval;
 }
 
@@ -124,55 +126,55 @@ int vsnprintf(char *bf, size_t size, const char *fmt, va_list ap)
 /*
  * macros for converting digits to letters and vice versa
  */
-#define    to_digit(c)    ((c) - '0')
-#define is_digit(c)    ((unsigned)to_digit(c) <= 9)
-#define    to_char(n)    ((n) + '0')
+#define	to_digit(c)	((c) - '0')
+#define is_digit(c)	((unsigned)to_digit(c) <= 9)
+#define	to_char(n)	((n) + '0')
 
 /*
  * flags used during conversion.
  */
-#define    ALT        0x001	/* alternate form */
-#define    HEXPREFIX    0x002	/* add 0x or 0X prefix */
-#define    LADJUST        0x004	/* left adjustment */
-#define    LONGDBL        0x008	/* long double; unimplemented */
-#define    LONGINT        0x010	/* long integer */
-#define    SHORTINT    0x040	/* short integer */
-#define    MAXINT        0x080	/* intmax_t */
-#define    PTRINT        0x100	/* intptr_t */
-#define    SIZEINT        0x200	/* size_t */
-#define    ZEROPAD        0x400	/* zero (as opposed to blank) pad */
-#define FPT        0x800	/* Floating point number */
+#define	ALT		0x001		/* alternate form */
+#define	HEXPREFIX	0x002		/* add 0x or 0X prefix */
+#define	LADJUST		0x004		/* left adjustment */
+#define	LONGDBL		0x008		/* long double; unimplemented */
+#define	LONGINT		0x010		/* long integer */
+#define	QUADINT		0x020		/* quad integer */
+#define	SHORTINT	0x040		/* short integer */
+#define	MAXINT		0x080		/* intmax_t */
+#define	PTRINT		0x100		/* intptr_t */
+#define	SIZEINT		0x200		/* size_t */
+#define	ZEROPAD		0x400		/* zero (as opposed to blank) pad */
+#define FPT		0x800		/* Floating point number */
 
-    /*
-     * To extend shorts properly, we need both signed and unsigned
-     * argument extraction methods.
-     */
-#define    SARG() \
+	/*
+	 * To extend shorts properly, we need both signed and unsigned
+	 * argument extraction methods.
+	 */
+#define	SARG() \
 	(flags&MAXINT ? va_arg(ap, intmax_t) : \
-	 flags&PTRINT ? va_arg(ap, intptr_t) : \
-	 flags&SIZEINT ? va_arg(ap, ssize_t) : /* XXX */ \
-	 flags&LONGINT ? va_arg(ap, long) : \
-	 flags&SHORTINT ? (long)(short)va_arg(ap, int) : \
-	 (long)va_arg(ap, int))
-#define    UARG() \
+	    flags&PTRINT ? va_arg(ap, intptr_t) : \
+	    flags&SIZEINT ? va_arg(ap, ssize_t) : /* XXX */ \
+	    flags&QUADINT ? va_arg(ap, int64_t) : \
+	    flags&LONGINT ? va_arg(ap, long) : \
+	    flags&SHORTINT ? (long)(short)va_arg(ap, int) : \
+	    (long)va_arg(ap, int))
+#define	UARG() \
 	(flags&MAXINT ? va_arg(ap, uintmax_t) : \
-	 flags&PTRINT ? va_arg(ap, uintptr_t) : \
-	 flags&SIZEINT ? va_arg(ap, size_t) : \
-	 flags&LONGINT ? va_arg(ap, unsigned long) : \
-	 flags&SHORTINT ? (unsigned long)(unsigned short)va_arg(ap, int) : \
-	 (unsigned long)va_arg(ap, unsigned))
+	    flags&PTRINT ? va_arg(ap, uintptr_t) : \
+	    flags&SIZEINT ? va_arg(ap, size_t) : \
+	    flags&QUADINT ? va_arg(ap, uint64_t) : \
+	    flags&LONGINT ? va_arg(ap, unsigned long) : \
+	    flags&SHORTINT ? (unsigned long)(unsigned short)va_arg(ap, int) : \
+	    (unsigned long)va_arg(ap, unsigned int))
 
-#define KPRINTF_PUTCHAR(C) { \
-		if (oflags == TOBUFONLY) { \
-			if ((vp != NULL) && (sbuf == tailp)) { \
-				ret += 1; /* indicate error */ \
-				goto overflow; \
-			} \
-			*sbuf++ = (C); \
-		} else { \
-			putchar((C), oflags, (struct tty *)vp); \
-		} \
-	}
+#define KPRINTF_PUTCHAR(C) {						\
+	if (oflags == TOBUFONLY) {					\
+		if (sbuf && ((vp == NULL) || (sbuf < tailp))) 		\
+			*sbuf++ = (C);					\
+	} else {							\
+		putchar((C), oflags, vp);				\
+	}								\
+}
 
 /*
  * Guts of kernel printf.  Note, we already expect to be in a mutex!
@@ -190,21 +192,22 @@ kprintf(const char *fmt0, int oflags, void *vp, char *sbuf, va_list ap)
 	int prec;		/* precision from format (%.3d), or -1 */
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 
-	uint32_t _uquad;	/* integer arguments %[diouxX] */
-	enum { OCT, DEC, HEX } base;	/* base for [diouxX] conversion */
+	uint64_t _uquad;	/* integer arguments %[diouxX] */
+	enum { OCT, DEC, HEX } base;/* base for [diouxX] conversion */
 	int dprec;		/* a copy of prec if [diouxX], 0 otherwise */
 	int realsz;		/* field size expanded by dprec */
 	int size;		/* size of converted field or string */
 	const char *xdigs;	/* digits for [xX] conversion */
-	char bf[KPRINTF_BUFSIZE];	/* space for %c, %[diouxX] */
+	char bf[KPRINTF_BUFSIZE]; /* space for %c, %[diouxX] */
 	char *tailp;		/* tail pointer for snprintf */
 
-	tailp = NULL;		/* XXX: shutup gcc */
 	if (oflags == TOBUFONLY && (vp != NULL))
 		tailp = *(char **)vp;
+	else
+		tailp = NULL;
 
-	cp = NULL;		/* XXX: shutup gcc */
-	size = 0;		/* XXX: shutup gcc */
+	cp = NULL;	/* XXX: shutup gcc */
+	size = 0;	/* XXX: shutup gcc */
 
 	fmt = fmt0;
 	ret = 0;
@@ -215,9 +218,9 @@ kprintf(const char *fmt0, int oflags, void *vp, char *sbuf, va_list ap)
 	 * Scan the format for conversions (`%' character).
 	 */
 	for (;;) {
-		while (*fmt != '%' && *fmt) {
+		for (; *fmt != '%' && *fmt; fmt++) {
 			ret++;
-			KPRINTF_PUTCHAR(*fmt++);
+			KPRINTF_PUTCHAR(*fmt);
 		}
 		if (*fmt == 0)
 			goto done;
@@ -236,7 +239,7 @@ reswitch:	switch (ch) {
 			/*
 			 * ``If the space and + flags both appear, the space
 			 * flag will be ignored.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 */
 			if (!sign)
 				sign = ' ';
@@ -248,7 +251,7 @@ reswitch:	switch (ch) {
 			/*
 			 * ``A negative field width argument is taken as a
 			 * - flag followed by a positive field width.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 * They don't exclude field widths read from args.
 			 */
 			if ((width = va_arg(ap, int)) >= 0)
@@ -278,19 +281,12 @@ reswitch:	switch (ch) {
 			/*
 			 * ``Note that 0 is taken as a flag, not as the
 			 * beginning of a field width.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 */
 			flags |= ZEROPAD;
 			goto rflag;
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
+		case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
 			n = 0;
 			do {
 				n = 10 * n + to_digit(ch);
@@ -305,7 +301,15 @@ reswitch:	switch (ch) {
 			flags |= MAXINT;
 			goto rflag;
 		case 'l':
-			flags |= LONGINT;
+			if (*fmt == 'l') {
+				fmt++;
+				flags |= QUADINT;
+			} else {
+				flags |= LONGINT;
+			}
+			goto rflag;
+		case 'q':
+			flags |= QUADINT;
 			goto rflag;
 		case 't':
 			flags |= PTRINT;
@@ -320,10 +324,11 @@ reswitch:	switch (ch) {
 			break;
 		case 'D':
 			flags |= LONGINT;
-		 /* FALLTHROUGH */ case 'd':
+			/*FALLTHROUGH*/
+		case 'd':
 		case 'i':
 			_uquad = SARG();
-			if ((int32_t) _uquad < 0) {
+			if ((int64_t)_uquad < 0) {
 				_uquad = -_uquad;
 				sign = '-';
 			}
@@ -336,6 +341,8 @@ reswitch:	switch (ch) {
 				*va_arg(ap, intptr_t *) = ret;
 			else if (flags & SIZEINT)
 				*va_arg(ap, ssize_t *) = ret;
+			else if (flags & QUADINT)
+				*va_arg(ap, int64_t *) = ret;
 			else if (flags & LONGINT)
 				*va_arg(ap, long *) = ret;
 			else if (flags & SHORTINT)
@@ -345,7 +352,8 @@ reswitch:	switch (ch) {
 			continue;	/* no output */
 		case 'O':
 			flags |= LONGINT;
-		 /* FALLTHROUGH */ case 'o':
+			/*FALLTHROUGH*/
+		case 'o':
 			_uquad = UARG();
 			base = OCT;
 			goto nosign;
@@ -355,7 +363,7 @@ reswitch:	switch (ch) {
 			 * value of the pointer is converted to a sequence
 			 * of printable characters, in an implementation-
 			 * defined manner.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 */
 			/* NOSTRICT */
 			_uquad = (unsigned long)va_arg(ap, void *);
@@ -366,7 +374,8 @@ reswitch:	switch (ch) {
 			goto nosign;
 		case 's':
 			if ((cp = va_arg(ap, char *)) == NULL)
-				/* XXXUNCONST */ cp = __UNCONST("(null)");
+				/*XXXUNCONST*/
+				cp = __UNCONST("(null)");
 			if (prec >= 0) {
 				/*
 				 * can't use strlen; can only look for the
@@ -379,17 +388,16 @@ reswitch:	switch (ch) {
 					size = p - cp;
 					if (size > prec)
 						size = prec;
-				} else {
+				} else
 					size = prec;
-				}
-			} else {
+			} else
 				size = strlen(cp);
-			}
 			sign = '\0';
 			break;
 		case 'U':
 			flags |= LONGINT;
-		 /* FALLTHROUGH */ case 'u':
+			/*FALLTHROUGH*/
+		case 'u':
 			_uquad = UARG();
 			base = DEC;
 			goto nosign;
@@ -405,19 +413,19 @@ hex:			_uquad = UARG();
 				flags |= HEXPREFIX;
 
 			/* unsigned conversions */
-nosign:		sign = '\0';
+nosign:			sign = '\0';
 			/*
 			 * ``... diouXx conversions ... if a precision is
 			 * specified, the 0 flag will be ignored.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 */
-number:		if ((dprec = prec) >= 0)
+number:			if ((dprec = prec) >= 0)
 				flags &= ~ZEROPAD;
 
 			/*
 			 * ``The result of converting a zero value with an
 			 * explicit precision of zero is no characters.''
-			 *    -- ANSI X3J11
+			 *	-- ANSI X3J11
 			 */
 			cp = bf + KPRINTF_BUFSIZE;
 			if (_uquad != 0 || prec != 0) {
@@ -454,16 +462,14 @@ number:		if ((dprec = prec) >= 0)
 					break;
 
 				default:
-					 /* XXXUNCONST */
-					    cp =
-					    __UNCONST
-					    ("bug in kprintf: bad base");
+					/*XXXUNCONST*/
+					cp = __UNCONST("bug in kprintf: bad base");
 					size = strlen(cp);
 					goto skipsize;
 				}
 			}
 			size = bf + KPRINTF_BUFSIZE - cp;
-skipsize:
+		skipsize:
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -494,13 +500,13 @@ skipsize:
 		if (sign)
 			realsz++;
 		else if (flags & HEXPREFIX)
-			realsz += 2;
+			realsz+= 2;
 
 		/* adjust ret */
 		ret += width > realsz ? width : realsz;
 
 		/* right-adjusting blank padding */
-		if ((flags & (LADJUST | ZEROPAD)) == 0) {
+		if ((flags & (LADJUST|ZEROPAD)) == 0) {
 			n = width - realsz;
 			while (n-- > 0)
 				KPRINTF_PUTCHAR(' ');
@@ -515,7 +521,7 @@ skipsize:
 		}
 
 		/* right-adjusting zero padding */
-		if ((flags & (LADJUST | ZEROPAD)) == ZEROPAD) {
+		if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD) {
 			n = width - realsz;
 			while (n-- > 0)
 				KPRINTF_PUTCHAR('0');
@@ -527,8 +533,8 @@ skipsize:
 			KPRINTF_PUTCHAR('0');
 
 		/* the string or number proper */
-		while (size--)
-			KPRINTF_PUTCHAR(*cp++);
+		for (; size--; cp++)
+			KPRINTF_PUTCHAR(*cp);
 		/* left-adjusting padding (always blank) */
 		if (flags & LADJUST) {
 			n = width - realsz;
@@ -540,6 +546,5 @@ skipsize:
 done:
 	if ((oflags == TOBUFONLY) && (vp != NULL))
 		*(char **)vp = sbuf;
-overflow:
 	return ret;
 }
