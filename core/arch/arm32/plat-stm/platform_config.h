@@ -48,6 +48,9 @@
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform STM"
 #endif
+#ifdef CFG_WITH_LPAE
+#error "LPAE not supported for platform STM"
+#endif
 
 /*
  * TEE/TZ RAM layout:
@@ -82,7 +85,7 @@
 #define TZDRAM_SIZE                     (CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
 
 #define CFG_SHMEM_START                 (TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE                  (SECTION_SIZE)
+#define CFG_SHMEM_SIZE                  CFG_PUB_RAM_SIZE
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
 #define CFG_TEE_RAM_START               (TZDRAM_BASE)

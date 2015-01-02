@@ -74,7 +74,7 @@ struct tee_ta_ctx {
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	uint32_t context;	/* Context ID of the process */
-	tee_mmu_info_t *mmu;	/* Saved MMU information (ddr only) */
+	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
 	uint32_t num_res_funcs;	/* number of reserved ta_func_head_t (2 or 0) */
 	uint32_t flags;		/* TA_FLAGS from sub header */
 	uint32_t panicked;	/* True if TA has panicked, written from asm */

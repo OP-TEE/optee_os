@@ -251,7 +251,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	l->curr_thread = n;
 
 	if (threads[n].have_user_map)
-		tee_mmu_set_map(&threads[n].user_map);
+		core_mmu_set_user_map(&threads[n].user_map);
 
 	/*
 	 * Return from RPC to request service of an IRQ must not
@@ -358,10 +358,10 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 	threads[ct].regs.pc = pc;
 	threads[ct].state = THREAD_STATE_SUSPENDED;
 
-	threads[ct].have_user_map = !tee_mmu_is_kernel_mapping();
+	threads[ct].have_user_map = core_mmu_user_mapping_is_active();
 	if (threads[ct].have_user_map) {
-		tee_mmu_get_map(&threads[ct].user_map);
-		tee_mmu_set_map(NULL);
+		core_mmu_get_user_map(&threads[ct].user_map);
+		core_mmu_set_user_map(NULL);
 	}
 
 

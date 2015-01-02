@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_MMU_UNPG_H
-#define TEE_MMU_UNPG_H
+#ifndef CORE_MMU_PRIVATE_H
+#define CORE_MMU_PRIVATE_H
 
-#include <stdint.h>
+#include <mm/core_mmu.h>
+#include <mm/tee_mmu_types.h>
 
-struct tee_mmu_mapping {
-	uint32_t ttbr0;
-	uint32_t ctxid;
-};
 
-void tee_mmu_get_map(struct tee_mmu_mapping *map);
+void core_init_mmu_tables(struct tee_mmap_region *mm);
 
-void tee_mmu_set_map(struct tee_mmu_mapping *map);
+#endif /*CORE_MMU_PRIVATE_H*/
 
-/*
- * Switch TTBR0 configuration and Context ID (PROCID & ASID)
- */
-void tee_mmu_switch(uint32_t ttbr0_base, uint32_t ctxid);
-
-#endif /* TEE_MMU_UNPG_H */

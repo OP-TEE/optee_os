@@ -26,12 +26,12 @@
  */
 #include <assert.h>
 #include <stdlib.h>
+#include <types_ext.h>
 
 #include <arm32.h>
 #include <util.h>
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu.h>
-#include <mm/tee_mmu_unpg.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
 #include <user_ta_header.h>
@@ -48,152 +48,173 @@
 #include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
 
-#define TEE_MMU_PAGE_TEX_SHIFT 6
+#define TEE_MMU_UMAP_HEAP_STACK_IDX	0
+#define TEE_MMU_UMAP_CODE_IDX		1
+#define TEE_MMU_UMAP_PARAM_IDX		2
+#define TEE_MMU_UMAP_MAX_ENTRIES	6
 
-/* MMU table page flags */
-#define TEE_MMU_PAGE_NG (1 << 11)
-#define TEE_MMU_PAGE_S (1 << 10)
-#define TEE_MMU_PAGE_AP2 (1 << 9)
-#define TEE_MMU_PAGE_TEX(x) (x << TEE_MMU_PAGE_TEX_SHIFT)
-#define TEE_MMU_PAGE_AP1 (1 << 5)
-#define TEE_MMU_PAGE_AP0 (1 << 4)
-#define TEE_MMU_PAGE_C (1 << 3)
-#define TEE_MMU_PAGE_B (1 << 2)
-#define TEE_MMU_PAGE (1 << 1)
-#define TEE_MMU_PAGE_XN (1 << 0)
+#define TEE_MMU_UDATA_ATTR		(TEE_MATTR_VALID_BLOCK | \
+					 TEE_MATTR_PRW | TEE_MATTR_URW | \
+					 TEE_MATTR_SECURE)
+#define TEE_MMU_UCODE_ATTR		(TEE_MATTR_VALID_BLOCK | \
+					 TEE_MATTR_PRW | TEE_MATTR_URWX | \
+					 TEE_MATTR_SECURE)
 
-#define TEE_MMU_PAGE_CACHE_MASK                             \
-		(TEE_MMU_PAGE_TEX(7) | TEE_MMU_PAGE_C | TEE_MMU_PAGE_B)
-
-#define TEE_MMU_PAGE_MASK ((1 << 12) - 1)
-
-/* For legacy */
-#define TEE_MMU_PAGE_LEGACY 0
-
-/* MMU table section flags */
-#define TEE_MMU_SECTION_NS (1 << 19)
-#define TEE_MMU_SECTION_NG (1 << 17)
-#define TEE_MMU_SECTION_S  (1 << 16)
-#define TEE_MMU_SECTION_AP2 (1 << 15)
-#define TEE_MMU_SECTION_TEX(x) (x << 12)
-#define TEE_MMU_SECTION_AP1 (1 << 11)
-#define TEE_MMU_SECTION_AP0 (1 << 10)
-#define TEE_MMU_SECTION_DOMAIN(x) (x << 5)
-#define TEE_MMU_SECTION_XN (1 << 4)
-#define TEE_MMU_SECTION_C (1 << 3)
-#define TEE_MMU_SECTION_B (1 << 2)
-#define TEE_MMU_SECTION (1 << 1)
-
-/* User data, no cache attributes */
-#define TEE_MMU_SECTION_UDATA						\
-	(TEE_MMU_SECTION_NG | TEE_MMU_SECTION_S |			\
-	TEE_MMU_SECTION_AP1 | TEE_MMU_SECTION_AP0 | TEE_MMU_SECTION_XN |\
-	TEE_MMU_SECTION_DOMAIN(1) | TEE_MMU_SECTION)
-
-/* User code, no cache attributes */
-#define TEE_MMU_SECTION_UCODE						\
-	(TEE_MMU_SECTION_NG | TEE_MMU_SECTION_S |			\
-	TEE_MMU_SECTION_AP1 | TEE_MMU_SECTION_AP0 |			\
-	TEE_MMU_SECTION_DOMAIN(1) | TEE_MMU_SECTION)
-
-/* Kernel data, global, privonly access, no exec, no cache attributes */
-#define TEE_MMU_SECTION_KDATA						\
-	(TEE_MMU_SECTION_S |						\
-	TEE_MMU_SECTION_AP0 | TEE_MMU_SECTION_XN |			\
-	TEE_MMU_SECTION_DOMAIN(1) | TEE_MMU_SECTION)
-
-/* Kernel data, global, privonly access, no exec, no cache attributes */
-#define TEE_MMU_SECTION_KCODE						\
-	(TEE_MMU_SECTION_S |						\
-	TEE_MMU_SECTION_AP0 |						\
-	TEE_MMU_SECTION_DOMAIN(1) | TEE_MMU_SECTION)
-
-/* Outer & Inner Write-Back, Write-Allocate. Default cache settings */
-#define TEE_MMU_SECTION_CACHEMASK					\
-		(TEE_MMU_SECTION_TEX(7) | TEE_MMU_SECTION_C | TEE_MMU_SECTION_B)
-#define TEE_MMU_SECTION_OIWBWA						\
-		(TEE_MMU_SECTION_TEX(1) | TEE_MMU_SECTION_C | TEE_MMU_SECTION_B)
-#define TEE_MMU_SECTION_NOCACHE						\
-		TEE_MMU_SECTION_TEX(1)
-
-#define TEE_MMU_UL1_ENTRY(page_num) \
-	    (*(uint32_t *)(TEE_MMU_UL1_BASE + ((uint32_t)(page_num)) * 4))
-
-/* Extract AP[2] and AP[1:0] */
-#define TEE_MMU_L1_AP(e) (((e >> 13) & 1) | ((e >> 10) & 3))
-
-#define TEE_MMU_AP_USER_RO  0x02
-#define TEE_MMU_AP_USER_RW  0x03
+#define TEE_MMU_UCACHE_DEFAULT_ATTR	(TEE_MATTR_I_WRITE_BACK | \
+					 TEE_MATTR_O_WRITE_BACK)
 
 /* Support for 31 concurrent sessions */
 static uint32_t g_asid = 0xffffffff;
 
 static tee_mm_pool_t tee_mmu_virt_kmap;
 
-static uint32_t tee_mmu_get_io_size(const struct tee_ta_param *param)
+
+static void tee_mmu_umap_clear(struct tee_mmu_info *mmu)
 {
-	uint32_t i;
-	uint32_t res = 0;
+	if (mmu->table && mmu->size != TEE_MMU_UMAP_MAX_ENTRIES) {
+		free(mmu->table);
+		mmu->table = NULL;
+	}
 
-	for (i = 0; i < 4; i++) {
-		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, i);
+	if (!mmu->table)
+		return;
 
-		if ((param_type == TEE_PARAM_TYPE_MEMREF_INPUT ||
-		     param_type == TEE_PARAM_TYPE_MEMREF_OUTPUT ||
-		     param_type == TEE_PARAM_TYPE_MEMREF_INOUT) &&
-		    param->params[i].memref.size != 0) {
-			res +=
-			    ((((uint32_t) param->params[i].memref.
-			       buffer & SECTION_MASK) +
-			      param->params[i].memref.size) >> SECTION_SHIFT) +
-			    1;
+	memset(mmu->table, 0, sizeof(struct tee_mmap_region) *
+				TEE_MMU_UMAP_MAX_ENTRIES);
+}
+
+
+
+static TEE_Result tee_mmu_umap_init(struct tee_mmu_info *mmu)
+{
+	tee_mmu_umap_clear(mmu);
+
+	if (!mmu->table) {
+		mmu->table = calloc(TEE_MMU_UMAP_MAX_ENTRIES,
+				    sizeof(struct tee_mmap_region));
+		if (!mmu->table)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		mmu->size = TEE_MMU_UMAP_MAX_ENTRIES;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void tee_mmu_umap_set_pa(struct tee_mmap_region *tbl,
+			size_t granule, paddr_t pa, size_t size, uint32_t attr)
+{
+	paddr_t upa = ROUNDDOWN(pa, granule);
+	size_t usz = ROUNDUP(pa - upa + size, granule);
+
+	tbl->pa = upa;
+	tbl->size = usz;
+	tbl->attr = attr;
+}
+
+static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu, paddr_t pa,
+			size_t size, uint32_t attr)
+{
+	struct tee_mmap_region *last_entry = NULL;
+	size_t n;
+	paddr_t npa;
+	size_t nsz;
+
+	/* Check that we can map memory using this attribute */
+	if (!core_mmu_mattr_is_ok(attr))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Find empty entry */
+	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++)
+		if (!mmu->table[n].size)
+			break;
+
+	if (n == TEE_MMU_UMAP_MAX_ENTRIES) {
+		/* No entries left "can't happen" */
+		return TEE_ERROR_EXCESS_DATA;
+	}
+
+	tee_mmu_umap_set_pa(mmu->table + n, CORE_MMU_USER_PARAM_SIZE,
+			    pa, size, attr);
+
+	/* Try to coalesce some entries */
+	while (true) {
+		/* Find last param */
+		n = TEE_MMU_UMAP_MAX_ENTRIES - 1;
+
+		while (!mmu->table[n].size) {
+			n--;
+			if (n < TEE_MMU_UMAP_PARAM_IDX) {
+				/* No param entries found, "can't happen" */
+				return TEE_ERROR_BAD_STATE;
+			}
+		}
+
+		if (last_entry == mmu->table + n)
+			return TEE_SUCCESS; /* Can't coalesc more */
+		last_entry = mmu->table + n;
+
+		n--;
+		while (n >= TEE_MMU_UMAP_PARAM_IDX) {
+			struct tee_mmap_region *entry = mmu->table + n;
+
+			n--;
+			if (last_entry->attr != entry->attr) {
+				if (core_is_buffer_intersect(last_entry->pa,
+							     last_entry->size,
+							     entry->pa,
+							     entry->size))
+					return TEE_ERROR_ACCESS_CONFLICT;
+				continue;
+			}
+
+			if ((last_entry->pa + last_entry->size) == entry->pa ||
+			    (entry->pa + entry->size) == last_entry->pa ||
+			    core_is_buffer_intersect(last_entry->pa,
+						     last_entry->size,
+						     entry->pa, entry->size)) {
+				npa = MIN(last_entry->pa, entry->pa);
+				nsz = MAX(last_entry->pa + last_entry->size,
+					  entry->pa + entry->size) - npa;
+				entry->pa = npa;
+				entry->size = nsz;
+				last_entry->pa = 0;
+				last_entry->size = 0;
+				last_entry->attr = 0;
+				break;
+			}
 		}
 	}
-
-	return res;
 }
 
-/*
- * tee_mmu_is_mapped - Check if range defined by input params is mapped.
- */
-static bool tee_mmu_is_mapped(const struct tee_ta_ctx *ctx, const paddr_t addr,
-			      const uint32_t length, const uint32_t type)
+static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 {
-	uint32_t n;
-	uint32_t section_start;
-	uint32_t section_end;
-	uint32_t *t;
-	void *va;
+	size_t n;
+	vaddr_t va;
 
-	if (!ctx || !ctx->mmu || !ctx->mmu->table)
-		return false;	/* No user mapping initialized */
+	assert(mmu->table && mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
 
-	if (((addr + length) >> SECTION_SHIFT) > ctx->mmu->size)
-		return false;	/* Range too large to be mapped */
-
-	/* Try to look up start of range */
-	if (tee_mmu_user_pa2va(ctx, (void *)addr, &va))
-		return false;
-
-	/* Assign the base section */
-	t = ctx->mmu->table + ((vaddr_t)va >> SECTION_SHIFT);
-
-	/*
-	 * Check all sections maps contiguous memory and have the correct type.
-	 */
-	section_start = addr >> SECTION_SHIFT;
-	section_end = (addr + length - 1) >> SECTION_SHIFT;
-	for (n = 0; n <= section_end - section_start; n++) {
-		if ((t[n] & SECTION_MASK) != type)
-			return false;	/* Incorrect type */
-
-		if (t[n] >> SECTION_SHIFT !=
-		    ((n + section_start) >> SECTION_SHIFT))
-			return false;	/* PA doesn't match */
+	va = CORE_MMU_USER_CODE_SIZE;
+	for (n = 0; n < TEE_MMU_UMAP_PARAM_IDX; n++) {
+		assert(mmu->table[n].size); /* PA must be assigned by now */
+		mmu->table[n].va = va;
+		va += CORE_MMU_USER_CODE_SIZE;
 	}
 
-	return true;
+	va = ROUNDUP(va, CORE_MMU_USER_PARAM_SIZE);
+	for (; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
+		if (!mmu->table[n].size)
+			continue;
+		mmu->table[n].va = va;
+		va += mmu->table[n].size;
+		/* Put some empty space between each area */
+		va += CORE_MMU_USER_PARAM_SIZE;
+		if (va >= CORE_MMU_USER_MAX_ADDR)
+			return TEE_ERROR_EXCESS_DATA;
+	}
+
+	return TEE_SUCCESS;
 }
+
 
 TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
 {
@@ -215,113 +236,11 @@ TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
 		g_asid &= ~asid;
 	}
 
-	ctx->mmu = malloc(sizeof(tee_mmu_info_t));
-	if (ctx->mmu) {
-		tee_mmu_info_t *p = ctx->mmu;
-		p->table = 0;
-		p->size = 0;
-	} else {
+	ctx->mmu = calloc(1, sizeof(struct tee_mmu_info));
+	if (!ctx->mmu)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	}
 
 	return TEE_SUCCESS;
-}
-
-static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
-				 const uint32_t vio, struct tee_ta_param *param)
-{
-	uint32_t i;
-	uint32_t vi_offset = vio;
-	TEE_Result res = TEE_SUCCESS;
-	uint32_t sect_prot;
-	uint32_t sec;
-	uint32_t section_start;
-	uint32_t section_end;
-
-	/* Map IO buffers in public memory */
-	for (i = 0; i < 4; i++) {
-		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, i);
-		TEE_Param *p = &param->params[i];
-
-		if ((!((param_type == TEE_PARAM_TYPE_MEMREF_INPUT) ||
-		       (param_type == TEE_PARAM_TYPE_MEMREF_OUTPUT) ||
-		       (param_type == TEE_PARAM_TYPE_MEMREF_INOUT))) ||
-		    (p->memref.size == 0))
-			    continue;
-
-		if ((ctx->flags & TA_FLAG_USER_MODE) ==
-		    TA_FLAG_USER_MODE) {
-			sect_prot = TEE_MMU_SECTION_UDATA;
-		} else {
-			sect_prot = TEE_MMU_SECTION_KDATA;
-		}
-		/* Set NS bit if buffer is not secure */
-		if (tee_pbuf_is_non_sec
-		    (p->memref.buffer, p->memref.size) == true) {
-			sect_prot |= TEE_MMU_SECTION_NS;
-		} else {
-			/*
-			 * TODO
-			 * Security checks shouldn't be done here,
-			 * tee_ta_verify_param() should take care of that.
-			 */
-#if 0
-			/*
-			 * If secure, check here if security level is
-			 * reached. This operation is likely to be
-			 * platform dependent.
-			 */
-
-			/* case STTEE on Orly2: it has to be TEE external DDR */
-			if (core_pbuf_is(CORE_MEM_EXTRAM,
-					(tee_paddr_t) p->memref.buffer,
-					p->memref.size) == false)
-				return TEE_ERROR_SECURITY;
-#endif
-		}
-
-		/*
-		 * Configure inner and outer cache settings.
-		 */
-		sect_prot &= ~TEE_MMU_SECTION_CACHEMASK;
-		sect_prot |= TEE_MMU_SECTION_TEX(4);
-		if (param->param_attr[i] & TEESMC_ATTR_CACHE_O_WRITE_THR)
-			sect_prot |= TEE_MMU_SECTION_TEX(2);
-		if (param->param_attr[i] & TEESMC_ATTR_CACHE_I_WRITE_BACK)
-			sect_prot |= TEE_MMU_SECTION_TEX(1);
-		if (param->param_attr[i] & TEESMC_ATTR_CACHE_O_WRITE_THR)
-			sect_prot |= TEE_MMU_SECTION_C;
-		if (param->param_attr[i] & TEESMC_ATTR_CACHE_O_WRITE_BACK)
-			sect_prot |= TEE_MMU_SECTION_B;
-
-		if (((sect_prot & TEE_MMU_SECTION_NS) == TEE_MMU_SECTION_NS) &&
-		    ((sect_prot & TEE_MMU_SECTION_XN) == 0)) {
-			EMSG("invalid map config: nsec mem map as executable!");
-			sect_prot |= TEE_MMU_SECTION_XN;
-		}
-
-		if (tee_mmu_is_mapped(ctx, (uint32_t) p->memref.buffer,
-				      p->memref.size, sect_prot)) {
-			res = tee_mmu_user_pa2va(ctx, p->memref.buffer,
-						 &p->memref.buffer);
-			if (res != TEE_SUCCESS)
-				return res;
-		} else {
-			section_start = (uint32_t)p->memref.buffer >>
-						SECTION_SHIFT;
-			section_end = ((uint32_t)p->memref.buffer +
-				       p->memref.size - 1) >> SECTION_SHIFT;
-			p->memref.buffer = (void *)((vi_offset << SECTION_SHIFT)
-				+ ((uint32_t)p->memref.buffer & SECTION_MASK));
-			for (sec = section_start; sec <= section_end; sec++) {
-				**buffer = (sec << SECTION_SHIFT) | sect_prot;
-				(*buffer)++;
-			}
-			vi_offset += (section_end - section_start + 1);
-		}
-	}
-
-	return res;
 }
 
 /*
@@ -338,87 +257,108 @@ static TEE_Result tee_mmu_map_io(struct tee_ta_ctx *ctx, uint32_t **buffer,
 TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t py_offset;
-	paddr_t p;
+	paddr_t pa;
 	uintptr_t smem;
-	uint32_t *buffer;
-	uint32_t section = 0, section_cnt = 0;
+	size_t n;
 
 	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
 
-	ctx->mmu->size = tee_mm_get_size(ctx->mm_heap_stack) +
-	    tee_mm_get_size(ctx->mm) + tee_mmu_get_io_size(param) +
-	    TEE_DDR_VLOFFSET;
-
-	if (ctx->mmu->size > TEE_MMU_UL1_NUM_ENTRIES) {
-		res = TEE_ERROR_EXCESS_DATA;
+	res = tee_mmu_umap_init(ctx->mmu);
+	if (res != TEE_SUCCESS)
 		goto exit;
-	}
-
-	if (ctx->mmu->table)
-		free(ctx->mmu->table);
-
-	ctx->mmu->table = malloc(ctx->mmu->size * 4);
-	if (ctx->mmu->table == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-	memset(ctx->mmu->table, 0, ctx->mmu->size * 4);
 
 	/*
 	 * Map heap and stack
 	 */
 	smem = tee_mm_get_smem(ctx->mm_heap_stack);
-	if (core_va2pa((void *)smem, &p)) {
+	if (core_va2pa((void *)smem, &pa)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
-
-	py_offset = (uint32_t)p >> SECTION_SHIFT;
-
-	buffer = (uint32_t *)ctx->mmu->table + TEE_DDR_VLOFFSET;
-	while (section < tee_mm_get_size(ctx->mm_heap_stack)) {
-		*buffer++ = ((section++ + py_offset) << SECTION_SHIFT) |
-		    TEE_MMU_SECTION_UDATA | TEE_MMU_SECTION_OIWBWA;
-		section_cnt++;
-	}
+	tee_mmu_umap_set_pa(ctx->mmu->table + TEE_MMU_UMAP_HEAP_STACK_IDX,
+			    CORE_MMU_USER_CODE_SIZE,
+			    pa, tee_mm_get_bytes(ctx->mm_heap_stack),
+			    TEE_MMU_UDATA_ATTR | TEE_MMU_UCACHE_DEFAULT_ATTR);
 
 	/*
 	 * Map code
 	 */
 	smem = tee_mm_get_smem(ctx->mm);
-	if (core_va2pa((void *)smem, &p)) {
+	if (core_va2pa((void *)smem, &pa)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
+	tee_mmu_umap_set_pa(ctx->mmu->table + TEE_MMU_UMAP_CODE_IDX,
+			    CORE_MMU_USER_CODE_SIZE,
+			    pa, tee_mm_get_bytes(ctx->mm),
+			    TEE_MMU_UCODE_ATTR | TEE_MMU_UCACHE_DEFAULT_ATTR);
 
-	py_offset = (uint32_t) p >> SECTION_SHIFT;
 
-	section = 0;
-	while (section < tee_mm_get_size(ctx->mm)) {
-		*buffer++ = ((section++ + py_offset) << SECTION_SHIFT) |
-		    (TEE_MMU_SECTION_UCODE | TEE_MMU_SECTION_OIWBWA);
-		section_cnt++;
+	for (n = 0; n < 4; n++) {
+		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
+		TEE_Param *p = &param->params[n];
+		uint32_t attr = TEE_MMU_UDATA_ATTR;
+
+		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+			continue;
+		if (p->memref.size == 0)
+			continue;
+
+		if (tee_pbuf_is_non_sec(p->memref.buffer, p->memref.size))
+			attr &= ~TEE_MATTR_SECURE;
+
+		if (param->param_attr[n] & TEESMC_ATTR_CACHE_I_WRITE_THR)
+			attr |= TEE_MATTR_I_WRITE_THR;
+		if (param->param_attr[n] & TEESMC_ATTR_CACHE_I_WRITE_BACK)
+			attr |= TEE_MATTR_I_WRITE_BACK;
+		if (param->param_attr[n] & TEESMC_ATTR_CACHE_O_WRITE_THR)
+			attr |= TEE_MATTR_O_WRITE_THR;
+		if (param->param_attr[n] & TEESMC_ATTR_CACHE_O_WRITE_BACK)
+			attr |= TEE_MATTR_O_WRITE_BACK;
+
+
+		res = tee_mmu_umap_add_param(ctx->mmu,
+				(paddr_t)p->memref.buffer, p->memref.size,
+				attr);
+		if (res != TEE_SUCCESS)
+			goto exit;
 	}
 
-	ctx->mmu->ta_private_vmem_start = TEE_DDR_VLOFFSET << SECTION_SHIFT;
-	ctx->mmu->ta_private_vmem_end = (TEE_DDR_VLOFFSET + section_cnt) <<
-					SECTION_SHIFT;
+	res = tee_mmu_umap_set_vas(ctx->mmu);
+	if (res != TEE_SUCCESS)
+		goto exit;
 
-	/*
-	 * Map io parameters
-	 */
-	res =
-	    tee_mmu_map_io(ctx, &buffer,
-			   ((uint32_t) buffer - (uint32_t) ctx->mmu->table) / 4,
-			   param);
+	for (n = 0; n < 4; n++) {
+		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
+		TEE_Param *p = &param->params[n];
+
+		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+			continue;
+		if (p->memref.size == 0)
+			continue;
+
+		res = tee_mmu_user_pa2va(ctx, p->memref.buffer,
+					 &p->memref.buffer);
+		if (res != TEE_SUCCESS)
+			goto exit;
+	}
+
+	ctx->mmu->ta_private_vmem_start = ctx->mmu->table[0].va;
+
+	n = TEE_MMU_UMAP_MAX_ENTRIES;
+	do {
+		n--;
+	} while (n && !ctx->mmu->table[n].size);
+	ctx->mmu->ta_private_vmem_end = ctx->mmu->table[n].va +
+					ctx->mmu->table[n].size;
 
 exit:
-	if (res != TEE_SUCCESS) {
-		free(ctx->mmu->table);
-		ctx->mmu->table = NULL;
-		ctx->mmu->size = 0;
-	}
+	if (res != TEE_SUCCESS)
+		tee_mmu_umap_clear(ctx->mmu);
 
 	return res;
 }
@@ -438,8 +378,7 @@ void tee_mmu_final(struct tee_ta_ctx *ctx)
 	ctx->context = 0;
 
 	if (ctx->mmu != NULL) {
-		tee_mmu_info_t *p = ctx->mmu;
-		free(p->table);
+		free(ctx->mmu->table);
 		free(ctx->mmu);
 	}
 	ctx->mmu = NULL;
@@ -466,53 +405,62 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
 TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 				  const uint32_t kaddr, uint32_t *uaddr)
 {
-	uint32_t i = 0;
-	uint32_t pa;
+	TEE_Result res;
+	void *ua;
+	paddr_t pa;
 
 	if (core_va2pa((void *)kaddr, &pa))
-		return TEE_ERROR_SECURITY;
+		return TEE_ERROR_ACCESS_DENIED;
 
-	while (i < ctx->mmu->size) {
-		if ((pa & (~SECTION_MASK)) ==
-		    (ctx->mmu->table[i] & (~SECTION_MASK))) {
-			*uaddr = (i << SECTION_SHIFT) + (kaddr & SECTION_MASK);
+	res = tee_mmu_user_pa2va(ctx, (void *)pa, &ua);
+	if (res == TEE_SUCCESS)
+		*uaddr = (uint32_t)ua;
+	return res;
+}
+
+static TEE_Result tee_mmu_user_va2pa_attr(const struct tee_ta_ctx *ctx,
+			void *ua, paddr_t *pa, uint32_t *attr)
+{
+	size_t n;
+
+	if (!ctx->mmu->table)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	for (n = 0; n < ctx->mmu->size; n++) {
+		if (core_is_buffer_inside(ua, 1, ctx->mmu->table[n].va,
+					  ctx->mmu->table[n].size)) {
+			*pa = (paddr_t)ua - ctx->mmu->table[n].va +
+				ctx->mmu->table[n].pa;
+			if (attr)
+				*attr = ctx->mmu->table[n].attr;
 			return TEE_SUCCESS;
 		}
-		i++;
 	}
-
-	return TEE_ERROR_ITEM_NOT_FOUND;
+	return TEE_ERROR_ACCESS_DENIED;
 }
 
 TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
 				     paddr_t *pa)
 {
-	uint32_t n = (uint32_t) ua >> SECTION_SHIFT;
-
-	if (n >= ctx->mmu->size)
-		return TEE_ERROR_ACCESS_DENIED;
-
-	*pa = (ctx->mmu->table[n] & ~SECTION_MASK) |
-		       ((uint32_t) ua & SECTION_MASK);
-	return TEE_SUCCESS;
+	return tee_mmu_user_va2pa_attr(ctx, ua, pa, NULL);
 }
 
 /* */
 TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx, void *pa,
 				     void **va)
 {
-	uint32_t i = 0;
+	size_t n;
 
-	while (i < ctx->mmu->size) {
-		if (ctx->mmu->table[i] != 0 &&
-		    (uint32_t) pa >= (ctx->mmu->table[i] & ~SECTION_MASK) &&
-		    (uint32_t) pa < ((ctx->mmu->table[i] & ~SECTION_MASK)
-				     + (1 << SECTION_SHIFT))) {
-			*va = (void *)((i << SECTION_SHIFT) +
-				       ((uint32_t) pa & SECTION_MASK));
+	if (!ctx->mmu->table)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	for (n = 0; n < ctx->mmu->size; n++) {
+		if (core_is_buffer_inside(pa, 1, ctx->mmu->table[n].pa,
+					  ctx->mmu->table[n].size)) {
+			*va = (void *)((paddr_t)pa - ctx->mmu->table[n].pa +
+					ctx->mmu->table[n].va);
 			return TEE_SUCCESS;
 		}
-		i++;
 	}
 	return TEE_ERROR_ACCESS_DENIED;
 }
@@ -522,30 +470,27 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 				       size_t len)
 {
 	tee_uaddr_t a;
-	uint32_t param_section;
+	size_t addr_incr = MIN(CORE_MMU_USER_CODE_SIZE,
+			       CORE_MMU_USER_PARAM_SIZE);
 
 	/* Address wrap */
-	if (uaddr + len < uaddr)
+	if ((uaddr + len) < uaddr)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	param_section = TEE_DDR_VLOFFSET +
-	    tee_mm_get_size(ctx->mm_heap_stack) + tee_mm_get_size(ctx->mm);
+	for (a = uaddr; a < (uaddr + len); a += addr_incr) {
+		paddr_t pa;
+		uint32_t attr;
+		TEE_Result res;
 
-	for (a = uaddr; a < (uaddr + len); a += SECTION_SIZE) {
-		uint32_t n = a >> SECTION_SHIFT;
+		res = tee_mmu_user_va2pa_attr(ctx, (void *)a, &pa, &attr);
+		if (res != TEE_SUCCESS)
+			return res;
 
-		if (n >= ctx->mmu->size)
-			return TEE_ERROR_ACCESS_DENIED;
-
-		if ((flags & TEE_MEMORY_ACCESS_ANY_OWNER) !=
-		    TEE_MEMORY_ACCESS_ANY_OWNER && n >= param_section) {
-			paddr_t pa;
-			TEE_Result res =
-			    tee_mmu_user_va2pa(ctx, (void *)a, &pa);
-
-			if (res != TEE_SUCCESS)
-				return res;
+		if (!(flags & TEE_MEMORY_ACCESS_ANY_OWNER)) {
 			/*
+			 * Strict check that no one else (wich equal or
+			 * less trust) may can access this memory.
+			 *
 			 * Parameters are shared with normal world if they
 			 * aren't in secure DDR.
 			 *
@@ -553,22 +498,20 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 			 * TA is invoking another TA and in that case there's
 			 * new memory allocated privately for the paramters to
 			 * this TA.
+			 *
+			 * If we do this check for an address on TA
+			 * internal memory it's harmless as it will always
+			 * be in secure DDR.
 			 */
 			if (!tee_mm_addr_is_within_range(&tee_mm_sec_ddr, pa))
 				return TEE_ERROR_ACCESS_DENIED;
+
 		}
 
-		/* Check Access Protection from L1 entry */
-		switch (TEE_MMU_L1_AP(ctx->mmu->table[n])) {
-		case TEE_MMU_AP_USER_RO:
-			if ((flags & TEE_MEMORY_ACCESS_WRITE) != 0)
-				return TEE_ERROR_ACCESS_DENIED;
-			break;
-		case TEE_MMU_AP_USER_RW:
-			break;
-		default:
+		if ((flags & TEE_MEMORY_ACCESS_WRITE) && !(attr & TEE_MATTR_UW))
 			return TEE_ERROR_ACCESS_DENIED;
-		}
+		if ((flags & TEE_MEMORY_ACCESS_READ) && !(attr & TEE_MATTR_UR))
+			return TEE_ERROR_ACCESS_DENIED;
 	}
 
 	return TEE_SUCCESS;
@@ -576,29 +519,23 @@ TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
 
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
-	if (ctx == NULL) {
-		tee_mmu_switch(read_ttbr1(), 0);
+	if (!ctx) {
+		core_mmu_set_user_map(NULL);
 	} else {
-		paddr_t base = core_mmu_get_ul1_ttb_pa();
-		uint32_t *ul1 = (void *)core_mmu_get_ul1_ttb_va();
+		struct core_mmu_user_map map;
 
-		/* copy uTA mapping at begning of mmu table */
-		memcpy(ul1, ctx->mmu->table, ctx->mmu->size * 4);
-		memset(ul1 + ctx->mmu->size, 0,
-		       (TEE_MMU_UL1_NUM_ENTRIES - ctx->mmu->size) * 4);
-
-		/* Change ASID to new value */
-		tee_mmu_switch(base | TEE_MMU_DEFAULT_ATTRS, ctx->context);
+		core_mmu_create_user_map(ctx->mmu, ctx->context, &map);
+		core_mmu_set_user_map(&map);
 	}
-	core_tlb_maintenance(TLBINV_CURRENT_ASID, 0);
 }
 
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
 	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
+	TEE_ASSERT(ctx->mmu && ctx->mmu->table &&
+		   ctx->mmu->size >= TEE_MMU_UMAP_CODE_IDX);
 
-	return (TEE_DDR_VLOFFSET + tee_mm_get_size(ctx->mm_heap_stack)) <<
-	    SECTION_SHIFT;
+	return ctx->mmu->table[TEE_MMU_UMAP_CODE_IDX].va;
 }
 
 /*
@@ -611,63 +548,60 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
  */
 void tee_mmu_kmap_init(void)
 {
-	tee_vaddr_t s = TEE_MMU_KMAP_START_VA;
-	tee_vaddr_t e = TEE_MMU_KMAP_END_VA;
+	vaddr_t s = TEE_MMU_KMAP_START_VA;
+	vaddr_t e = TEE_MMU_KMAP_END_VA;
+	struct core_mmu_table_info tbl_info;
 
-	if (!tee_mm_init(&tee_mmu_virt_kmap, s, e, SECTION_SHIFT,
+	if (!core_mmu_find_table(s, UINT_MAX, &tbl_info))
+		panic();
+
+	if (!tee_mm_init(&tee_mmu_virt_kmap, s, e, tbl_info.shift,
 			 TEE_MM_POOL_NO_FLAGS)) {
 		DMSG("Failed to init kmap. Trap CPU!");
-		TEE_ASSERT(0);
+		panic();
 	}
-}
-
-static uint32_t *get_kmap_l1_base(void)
-{
-	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
-
-	/* Return address where kmap entries start */
-	return l1 + TEE_MMU_KMAP_OFFS;
 }
 
 TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
 {
 	tee_mm_entry_t *mm;
+	uint32_t attr;
+	struct core_mmu_table_info tbl_info;
+	uint32_t pa_s;
+	uint32_t pa_e;
 	size_t n;
-	uint32_t *l1 = get_kmap_l1_base();
-	uint32_t py_offset = (uint32_t) pa >> SECTION_SHIFT;
-	uint32_t pa_s = ROUNDDOWN(pa, SECTION_SIZE);
-	uint32_t pa_e = ROUNDUP(pa + len, SECTION_SIZE);
-	uint32_t flags;
+	size_t offs;
+
+	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
+		panic();
+
+	pa_s = ROUNDDOWN(pa, 1 << tbl_info.shift);
+	pa_e = ROUNDUP(pa + len, 1 << tbl_info.shift);
 
 	mm = tee_mm_alloc(&tee_mmu_virt_kmap, pa_e - pa_s);
-	if (mm == NULL)
+	if (!mm)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	/*
-	 * check memory attributes (must either secure or unsecured)
-	 *
-	 * Warning: platform depedancy: was is cached and uncached.
-	 */
-	flags = TEE_MMU_SECTION_KDATA;
-	if (tee_pbuf_is_sec(pa, len) == true) {
-		flags |= TEE_MMU_SECTION_OIWBWA;
-	} else if (tee_pbuf_is_non_sec(pa, len) == true) {
-		flags |= TEE_MMU_SECTION_NS;
+	attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW | TEE_MATTR_GLOBAL;
+	if (tee_pbuf_is_sec(pa, len)) {
+		attr |= TEE_MATTR_SECURE;
+		attr |= TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK;
+	} else if (tee_pbuf_is_non_sec(pa, len)) {
 		if (core_mmu_is_shm_cached())
-			flags |= TEE_MMU_SECTION_OIWBWA;
-		else
-			flags |= TEE_MMU_SECTION_NOCACHE;
-	} else {
+			attr |= TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK;
+	} else
 		return TEE_ERROR_GENERIC;
-	}
 
+
+	offs = (tee_mm_get_smem(mm) - tbl_info.va_base) >> tbl_info.shift;
 	for (n = 0; n < tee_mm_get_size(mm); n++)
-		l1[n + tee_mm_get_offset(mm)] =
-		    ((n + py_offset) << SECTION_SHIFT) | flags;
+		core_mmu_set_entry(&tbl_info, n + offs,
+				   pa_s + (n << tbl_info.shift), attr);
 
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
-	*va = (void *)(tee_mm_get_smem(mm) + (pa & SECTION_MASK));
+	*va = (void *)(tee_mm_get_smem(mm) +
+		       core_mmu_get_block_offset(&tbl_info, pa));
 	return TEE_SUCCESS;
 }
 
@@ -675,15 +609,20 @@ void tee_mmu_kunmap(void *va, size_t len)
 {
 	size_t n;
 	tee_mm_entry_t *mm;
-	uint32_t *l1 = get_kmap_l1_base();
+	struct core_mmu_table_info tbl_info;
+	size_t offs;
+
+	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
+		panic();
 
 	mm = tee_mm_find(&tee_mmu_virt_kmap, (uint32_t)va);
 	if (mm == NULL || len > tee_mm_get_bytes(mm))
 		return;		/* Invalid range, not much to do */
 
 	/* Clear the mmu entries */
+	offs = (tee_mm_get_smem(mm) - tbl_info.va_base) >> tbl_info.shift;
 	for (n = 0; n < tee_mm_get_size(mm); n++)
-		l1[n + tee_mm_get_offset(mm)] = 0;
+		core_mmu_set_entry(&tbl_info, n + offs, 0, 0);
 
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 	tee_mm_free(mm);
@@ -692,33 +631,67 @@ void tee_mmu_kunmap(void *va, size_t len)
 TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
 {
 	size_t n;
-	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
+	struct core_mmu_table_info tbl_info;
+	size_t shift;
+	paddr_t match_pa;
 
-	for (n = TEE_MMU_KMAP_OFFS;
-	     n < (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES); n++) {
-		if (l1[n] != 0 &&
-		    (uint32_t)pa >= (l1[n] & ~SECTION_MASK) &&
-		    (uint32_t)pa < ((l1[n] & ~SECTION_MASK)
-				     + (1 << SECTION_SHIFT))) {
-			*va = (void *)((n << SECTION_SHIFT) +
-				       ((uint32_t)pa & SECTION_MASK));
+	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
+		panic();
+
+	shift = tbl_info.shift;
+	match_pa = ROUNDDOWN((paddr_t)pa, 1 << shift);
+
+	for (n = core_mmu_va2idx(&tbl_info, TEE_MMU_KMAP_START_VA);
+	     n < core_mmu_va2idx(&tbl_info, TEE_MMU_KMAP_END_VA); n++) {
+		uint32_t attr;
+		paddr_t npa;
+
+		core_mmu_get_entry(&tbl_info, n, &npa, &attr);
+		if (!(attr & TEE_MATTR_VALID_BLOCK))
+			continue;
+		assert(!(attr & TEE_MATTR_TABLE));
+
+		if (npa == match_pa) {
+			*va = (void *)(core_mmu_idx2va(&tbl_info, n) +
+				       ((paddr_t)pa - match_pa));
 			return TEE_SUCCESS;
 		}
 	}
+
 	return TEE_ERROR_ACCESS_DENIED;
+}
+
+static TEE_Result tee_mmu_kmap_va2pa_attr(void *va, void **pa, uint32_t *attr)
+{
+	struct core_mmu_table_info tbl_info;
+	size_t block_offset;
+	size_t n;
+	paddr_t npa;
+	uint32_t nattr;
+
+	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
+		panic();
+
+	if (!tee_mm_addr_is_within_range(&tee_mmu_virt_kmap, (vaddr_t)va))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	n = core_mmu_va2idx(&tbl_info, (vaddr_t)va);
+	core_mmu_get_entry(&tbl_info, n, &npa, &nattr);
+	if (!(nattr & TEE_MATTR_VALID_BLOCK))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	block_offset = core_mmu_get_block_offset(&tbl_info, (vaddr_t)va);
+	*pa = (void *)(npa + block_offset);
+
+	if (attr)
+		*attr = nattr;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 {
-	uint32_t n = (uint32_t)va >> SECTION_SHIFT;
-	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
-
-	if (n < TEE_MMU_KMAP_OFFS &&
-	    n >= (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES))
-		return TEE_ERROR_ACCESS_DENIED;
-	*pa = (void *)((l1[n] & ~SECTION_MASK) | ((uint32_t)va & SECTION_MASK));
-
-	return TEE_SUCCESS;
+	return tee_mmu_kmap_va2pa_attr(va, pa, NULL);
 }
 
 bool tee_mmu_kmap_is_mapped(void *va, size_t len)
@@ -735,12 +708,6 @@ bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 	return true;
 }
 
-bool tee_mmu_is_kernel_mapping(void)
-{
-	/* TODO use ASID instead */
-	return read_ttbr0() == read_ttbr1();
-}
-
 void teecore_init_ta_ram(void)
 {
 	unsigned int s, e;
@@ -749,8 +716,8 @@ void teecore_init_ta_ram(void)
 	 * shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
 
-	TEE_ASSERT((s & (SECTION_SIZE - 1)) == 0);
-	TEE_ASSERT((e & (SECTION_SIZE - 1)) == 0);
+	TEE_ASSERT((s & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	TEE_ASSERT((e & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
 	TEE_ASSERT(tee_vbuf_is_sec(s, e - s) == true);
 
@@ -758,7 +725,8 @@ void teecore_init_ta_ram(void)
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
-	tee_mm_init(&tee_mm_sec_ddr, s, e, SECTION_SHIFT, TEE_MM_POOL_NO_FLAGS);
+	tee_mm_init(&tee_mm_sec_ddr, s, e, CORE_MMU_USER_CODE_SHIFT,
+		    TEE_MM_POOL_NO_FLAGS);
 }
 
 void teecore_init_pub_ram(void)
@@ -770,8 +738,8 @@ void teecore_init_pub_ram(void)
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
 
 	TEE_ASSERT(s < e);
-	TEE_ASSERT((s & (SECTION_SIZE - 1)) == 0);
-	TEE_ASSERT((e & (SECTION_SIZE - 1)) == 0);
+	TEE_ASSERT((s & SMALL_PAGE_MASK) == 0);
+	TEE_ASSERT((e & SMALL_PAGE_MASK) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
 	TEE_ASSERT(tee_vbuf_is_non_sec(s, e - s) == true);
 
@@ -803,65 +771,43 @@ void tee_mmu_iounmap(void *va __unused)
 	/* iounmap(va); */
 }
 
-static uint32_t section_to_teesmc_cache_attr(uint32_t sect)
+static uint32_t mattr_to_teesmc_cache_attr(uint32_t mattr)
 {
+	uint32_t attr = 0;
 
-	if (sect & TEE_MMU_SECTION_TEX(4)) {
-		uint32_t attr = 0;
+	if (mattr & TEE_MATTR_I_WRITE_THR)
+		attr |= TEESMC_ATTR_CACHE_I_WRITE_THR;
+	if (mattr & TEE_MATTR_I_WRITE_BACK)
+		attr |= TEESMC_ATTR_CACHE_I_WRITE_BACK;
+	if (mattr & TEE_MATTR_O_WRITE_THR)
+		attr |= TEESMC_ATTR_CACHE_O_WRITE_THR;
+	if (mattr & TEE_MATTR_O_WRITE_BACK)
+		attr |= TEESMC_ATTR_CACHE_O_WRITE_BACK;
 
-		if (sect & TEE_MMU_SECTION_TEX(2))
-			attr |= TEESMC_ATTR_CACHE_O_WRITE_THR;
-		if (sect & TEE_MMU_SECTION_TEX(1))
-			attr |= TEESMC_ATTR_CACHE_I_WRITE_BACK;
-		if (sect & TEE_MMU_SECTION_C)
-			attr |= TEESMC_ATTR_CACHE_O_WRITE_THR;
-		if (sect & TEE_MMU_SECTION_B)
-			attr |= TEESMC_ATTR_CACHE_O_WRITE_BACK;
-		assert(attr == TEESMC_ATTR_CACHE_DEFAULT);
-		return attr;
-	}
-
-	switch (sect & TEE_MMU_SECTION_CACHEMASK) {
-	/* outer and inner write-back */
-	/* no write-allocate */
-	case TEE_MMU_SECTION_TEX(0) | TEE_MMU_SECTION_B:
-	/* write-allocate */
-	case TEE_MMU_SECTION_TEX(1) | TEE_MMU_SECTION_B | TEE_MMU_SECTION_C:
-		return TEESMC_ATTR_CACHE_I_WRITE_BACK |
-		       TEESMC_ATTR_CACHE_O_WRITE_BACK;
-
-	/* outer and inner write-through */
-	case TEE_MMU_SECTION_TEX(0) | TEE_MMU_SECTION_C:
-		panic();
-		return TEESMC_ATTR_CACHE_I_WRITE_THR |
-		       TEESMC_ATTR_CACHE_O_WRITE_THR;
-
-	/* outer and inner no-cache */
-	case TEE_MMU_SECTION_TEX(1):
-		panic();
-		return TEESMC_ATTR_CACHE_I_NONCACHE |
-		       TEESMC_ATTR_CACHE_O_NONCACHE;
-	default:
-		panic();
-	}
+	return attr;
 }
 
 uint32_t tee_mmu_kmap_get_cache_attr(void *va)
 {
-	uint32_t n = (vaddr_t)va >> SECTION_SHIFT;
-	uint32_t *l1 = (uint32_t *)core_mmu_get_main_ttb_va();
+	TEE_Result res;
+	void *pa;
+	uint32_t attr;
 
-	assert(n >= TEE_MMU_KMAP_OFFS &&
-	       n < (TEE_MMU_KMAP_OFFS + TEE_MMU_KMAP_NUM_ENTRIES));
+	res = tee_mmu_kmap_va2pa_attr(va, &pa, &attr);
+	assert(res == TEE_SUCCESS);
 
-	return section_to_teesmc_cache_attr(l1[n]);
+	return mattr_to_teesmc_cache_attr(attr);
 }
+
 
 uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va)
 {
-	uint32_t n = (vaddr_t)va >> SECTION_SHIFT;
+	TEE_Result res;
+	paddr_t pa;
+	uint32_t attr;
 
-	assert(n < ctx->mmu->size);
+	res = tee_mmu_user_va2pa_attr(ctx, va, &pa, &attr);
+	assert(res == TEE_SUCCESS);
 
-	return section_to_teesmc_cache_attr(ctx->mmu->table[n]);
+	return mattr_to_teesmc_cache_attr(attr);
 }

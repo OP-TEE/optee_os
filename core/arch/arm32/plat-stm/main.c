@@ -369,20 +369,19 @@ void console_flush_tx_fifo(void)
 extern uint8_t *SEC_MMU_L2_TTB_FLD;
 extern uint8_t *SEC_MMU_L2_TTB_END;
 
-void *core_mmu_alloc_l2(struct map_area *map)
+void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 {
 	/* Can't have this in .bss since it's not initialized yet */
 	static size_t l2_offs __attribute__((section(".data")));
 	const size_t l2_size = SEC_MMU_L2_TTB_END - SEC_MMU_L2_TTB_FLD;
+	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
 	size_t l2_va_space = ((l2_size - l2_offs) / TEE_MMU_L2_SIZE) *
-				SECTION_SIZE;
+				l2_va_size;
 
 	if (l2_offs)
 		return NULL;
-	if (map->type != MEM_AREA_TEE_RAM)
+	if (mm->size > l2_va_space)
 		return NULL;
-	if (map->size > l2_va_space)
-		return NULL;
-	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
+	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
 	return SEC_MMU_L2_TTB_FLD;
 }

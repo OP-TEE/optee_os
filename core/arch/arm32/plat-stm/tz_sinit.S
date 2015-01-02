@@ -201,7 +201,7 @@ _BootCPU0:
 	bl arm_cl2_invbyway
 	bl arm_cl2_enable
 
-	bl core_init_mmu_tables
+	bl core_init_mmu_map
 	bl core_init_mmu_regs
 	bl cpu_mmu_enable
 	bl cpu_mmu_enable_icache

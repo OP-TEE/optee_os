@@ -27,6 +27,7 @@
 #ifndef TEE_MMU_DEFS_H
 #define TEE_MMU_DEFS_H
 
+#ifndef CFG_WITH_LPAE
 /* Defined to the smallest possible secondary L1 MMU table */
 #define TEE_MMU_TTBCR_N_VALUE		7
 
@@ -35,18 +36,15 @@
 
 #define TEE_MMU_UL1_SIZE	(TEE_MMU_UL1_NUM_ENTRIES * sizeof(uint32_t))
 #define TEE_MMU_UL1_ALIGNMENT	TEE_MMU_UL1_SIZE
+#endif
 
 /*
  * kmap works in common mapping starting at virtual address just above the
  * per CPU user mapping. kmap has 32 MiB of virtual address space.
  */
-#define TEE_MMU_KMAP_OFFS		TEE_MMU_UL1_NUM_ENTRIES
-#define TEE_MMU_KMAP_NUM_ENTRIES	32
-#define TEE_MMU_KMAP_START_VA		(TEE_MMU_UL1_NUM_ENTRIES << \
-					 SECTION_SHIFT)
-#define TEE_MMU_KMAP_END_VA		((TEE_MMU_UL1_NUM_ENTRIES + \
-					  TEE_MMU_KMAP_NUM_ENTRIES) << \
-						SECTION_SHIFT)
+#define TEE_MMU_KMAP_START_VA		(32 * 1024 * 1024)
+#define TEE_MMU_KMAP_END_VA		(64 * 1024 * 1024)
+
 
 #define TEE_MMU_L1_NUM_ENTRIES		(TEE_MMU_L1_SIZE / 4)
 #define TEE_MMU_L1_SIZE			(1 << 14)
@@ -58,58 +56,9 @@
 
 /* TTB attributes */
 
-/* Mask for all attributes */
-#define TEE_MMU_TTB_ATTR_MASK	((1 << 7) - 1)
 /* TTB0 of TTBR0 (depends on TEE_MMU_TTBCR_N_VALUE) */
 #define TEE_MMU_TTB_UL1_MASK	(~(TEE_MMU_UL1_ALIGNMENT - 1))
 /* TTB1 of TTBR1 */
 #define TEE_MMU_TTB_L1_MASK	(~(TEE_MMU_L1_ALIGNMENT - 1))
-
-
-/* Sharable */
-#define TEE_MMU_TTB_S           (1 << 1)
-
-/* Not Outer Sharable */
-#define TEE_MMU_TTB_NOS         (1 << 5)
-
-/* Normal memory, Inner Non-cacheable */
-#define TEE_MMU_TTB_IRGN_NC     0
-
-/* Normal memory, Inner Write-Back Write-Allocate Cacheable */
-#define TEE_MMU_TTB_IRGN_WBWA   (1 << 6)
-
-/* Normal memory, Inner Write-Through Cacheable */
-#define TEE_MMU_TTB_IRGN_WT     1
-
-/* Normal memory, Inner Write-Back no Write-Allocate Cacheable */
-#define TEE_MMU_TTB_IRGN_WB     (1 | (1 << 6))
-
-/* Normal memory, Outer Write-Back Write-Allocate Cacheable */
-#define TEE_MMU_TTB_RNG_WBWA    (1 << 3)
-
-/*
- * Second-level descriptor Small page table Attributes
- */
-
-/* Small page */
-#define TEE_MMU_L2SP_SMALL_PAGE (1 << 1)
-
-/* Execute never */
-#define TEE_MMU_L2SP_XN         1
-
-/* Normal memory, Outer Write-Back Write-Allocate Cacheable */
-#define TEE_MMU_L2SP_WBWA       ((1 << 6) | (1 << 3) | (1 << 2))
-
-/* Not global */
-#define TEE_MMU_L2SP_NG         (1 << 11)
-
-/* Sharable */
-#define TEE_MMU_L2SP_S          (1 << 10)
-
-/* Privileged access only */
-#define TEE_MMU_L2SP_PRIV_ACC   (1 << 4)
-
-/* Clear access from attribute */
-#define TEE_MMU_L2SP_CLEAR_ACC(attr)    ((attr) & ~((1 << 5) | (1 << 4)))
 
 #endif /* TEE_MMU_DEFS_H */

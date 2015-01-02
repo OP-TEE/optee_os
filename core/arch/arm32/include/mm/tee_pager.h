@@ -67,20 +67,6 @@
 bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 		const void *hashes);
 
-/*
- * tee_pager_init() - Initializes the pager
- * @xlat_table:	Address of translation table mapping the region covered
- *		by tee_mm_vcore
- * @mm:		Memory region with paging activated, should be allocated
- *		from tee_mm_vcore
- * @store:	Address of backing store of the paged region
- * @hashes:	Hashes for the pages in the backing store
- *
- * The pager will use tee_mm_vcore.lo as virtual base address for the
- * tranlation table.
- */
-void tee_pager_init(void *xlat_table);
-
 void tee_pager_abort_handler(uint32_t abort_type,
 		struct thread_abort_regs *regs);
 

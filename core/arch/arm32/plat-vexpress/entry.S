@@ -128,7 +128,7 @@ copy_init:
 	ldr	r2, =CONSOLE_BAUDRATE
 	bl	uart_init
 
-	bl	core_init_mmu_tables
+	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache

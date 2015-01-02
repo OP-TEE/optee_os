@@ -29,12 +29,53 @@
 
 #include <stdint.h>
 
-struct _tee_mmu_info_t {
-	uint32_t *table;
-	uint32_t size;
-	uint32_t ta_private_vmem_start;
-	uint32_t ta_private_vmem_end;
+#define TEE_MATTR_VALID_BLOCK	(1 << 0)
+#define TEE_MATTR_HIDDEN_BLOCK	(1 << 1)
+#define TEE_MATTR_PHYS_BLOCK	(1 << 2)
+#define	TEE_MATTR_TABLE		(1 << 3)
+#define	TEE_MATTR_PR		(1 << 4)
+#define	TEE_MATTR_PW		(1 << 5)
+#define	TEE_MATTR_PX		(1 << 6)
+#define	TEE_MATTR_PRW		(TEE_MATTR_PR | TEE_MATTR_PW)
+#define	TEE_MATTR_PRX		(TEE_MATTR_PR | TEE_MATTR_PX)
+#define	TEE_MATTR_PRWX		(TEE_MATTR_PRW | TEE_MATTR_PX)
+#define	TEE_MATTR_UR		(1 << 7)
+#define	TEE_MATTR_UW		(1 << 8)
+#define	TEE_MATTR_UX		(1 << 9)
+#define	TEE_MATTR_URW		(TEE_MATTR_UR | TEE_MATTR_UW)
+#define	TEE_MATTR_URX		(TEE_MATTR_UR | TEE_MATTR_UX)
+#define	TEE_MATTR_URWX		(TEE_MATTR_URW | TEE_MATTR_UX)
+
+#define TEE_MATTR_GLOBAL	(1 << 10)
+#define TEE_MATTR_I_NONCACHE	 0
+#define TEE_MATTR_I_WRITE_THR	(1 << 11)
+#define TEE_MATTR_I_WRITE_BACK	(1 << 12)
+#define TEE_MATTR_O_NONCACHE	 0
+#define TEE_MATTR_O_WRITE_THR	(1 << 13)
+#define TEE_MATTR_O_WRITE_BACK	(1 << 14)
+
+#define TEE_MATTR_NONCACHE	 0
+#define TEE_MATTR_CACHE_DEFAULT	(TEE_MATTR_I_WRITE_BACK | \
+				 TEE_MATTR_O_WRITE_BACK)
+
+#define TEE_MATTR_CACHE_UNKNOWN	(1 << 15)
+
+#define	TEE_MATTR_SECURE	(1 << 16)
+
+struct tee_mmap_region {
+	paddr_t pa;
+	vaddr_t va;
+	size_t size;
+	uint32_t attr; /* TEE_MATTR_* above */
 };
-typedef struct _tee_mmu_info_t tee_mmu_info_t;
+
+struct tee_mmu_info {
+	struct tee_mmap_region *table;
+	size_t size;
+	vaddr_t ta_private_vmem_start;
+	vaddr_t ta_private_vmem_end;
+};
+/* Note use of tee_mmu_info_t is deprecated */
+typedef struct tee_mmu_info tee_mmu_info_t;
 
 #endif

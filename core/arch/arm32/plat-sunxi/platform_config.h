@@ -33,6 +33,13 @@
 #define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
 #define PLATFORM_LINKER_ARCH	arm
 
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for platform sunxi"
+#endif
+#ifdef CFG_WITH_LPAE
+#error "LPAE not supported for platform sunxi"
+#endif
+
 #define GIC_BASE		0x01c40000
 #define GICC_OFFSET		0x2000
 #define GICD_OFFSET		0x1000

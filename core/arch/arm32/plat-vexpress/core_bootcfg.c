@@ -120,14 +120,6 @@ static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 
 /* platform specific memory layout provided to teecore */
 static struct map_area bootcfg_memory_map[] = {
-#ifdef ROM_BASE
-	{
-	 .type = MEM_AREA_IO_SEC,
-	 .pa = ROM_BASE, .size = ROM_SIZE,
-	 .cached = true, .secure = true, .rw = false, .exec = false,
-	 },
-#endif
-
 	{	/* teecore execution RAM */
 	 .type = MEM_AREA_TEE_RAM,
 	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_PH_SIZE,
@@ -149,37 +141,30 @@ static struct map_area bootcfg_memory_map[] = {
 	 .cached = true, .secure = false, .rw = true, .exec = false,
 	 },
 
-	{	/* UART */
+	{
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = CONSOLE_UART_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = DEVICE0_BASE, .size = DEVICE0_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
-
-	{	/* GIC */
+	{
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = GIC_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = DEVICE1_BASE, .size = DEVICE1_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
-
-#if PLATFORM_FLAVOR_IS(fvp)
-	{	/*
-		 * FVP's GIC Distributor is beyond SECTION_SIZE,
-		 * and need to be mapped seperately.
-		 */
+#ifdef DEVICE2_BASE
+	{
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = (GIC_BASE + GICD_OFFSET) & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = DEVICE2_BASE, .size = DEVICE2_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 #endif
-
-#ifdef CFG_PCSC_PASSTHRU_READER_DRV
-	{	/* PCSC passthru reader */
+#ifdef DEVICE3_BASE
+	{
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = PCSC_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = DEVICE3_BASE, .size = DEVICE3_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 #endif
-
 	{.type = MEM_AREA_NOTYPE}
 };
 

@@ -319,7 +319,8 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 	 */
 
 	/* XXX this function shouldn't know this mapping */
-	heap_start_addr = ((TEE_DDR_VLOFFSET + 1) << SECTION_SHIFT) - heap_size;
+	heap_start_addr = ((TEE_DDR_VLOFFSET + 1) << CORE_MMU_USER_CODE_SHIFT) -
+			  heap_size;
 
 	data = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size +
 			     (ctx->head->rel_dyn_got_size & TA_HEAD_GOT_MASK));
@@ -514,7 +515,8 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr,
 					*heap_size + ctx->stack_size);
 	if (!ctx->mm_heap_stack) {
-		EMSG("Failed to allocate %u bytes\n", SECTION_SIZE);
+		EMSG("Failed to allocate %u bytes\n",
+			*heap_size + ctx->stack_size);
 		EMSG("  of memory for user heap and stack\n");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
@@ -1493,10 +1495,10 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 		tee_mmu_set_ctx(ctx);
 	}
 	/*
-	 * If sess == NULL we must have kernel mapping,
-	 * if sess != NULL we must not have kernel mapping.
+	 * If sess == NULL we must not have user mapping active,
+	 * if sess != NULL we must have have user mapping active.
 	 */
-	assert((sess == NULL) == tee_mmu_is_kernel_mapping());
+	assert((sess == NULL) == !core_mmu_user_mapping_is_active());
 }
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id)

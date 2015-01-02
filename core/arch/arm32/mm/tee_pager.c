@@ -36,9 +36,9 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/tee_kta_trace.h>
 #include <kernel/misc.h>
+#include <kernel/tee_misc.h>
 #include <mm/tee_pager.h>
-#include <mm/tee_mm_unpg.h>
-#include <mm/tee_mmu_unpg.h>
+#include <mm/tee_mm.h>
 #include <mm/core_mmu.h>
 #include <tee/arch_svc.h>
 #include <arm32.h>
@@ -46,19 +46,6 @@
 #include <tee_api_defines.h>
 #include <utee_defines.h>
 #include <trace.h>
-
-/* Interesting aborts for TEE pager */
-#define TEE_PAGER_FSR_FS_MASK                     0x040F
-	/* DFSR[10,3:0] 0b00001 */
-#define TEE_PAGER_FSR_FS_ALIGNMENT_FAULT          0x0001
-	/* DFSR[10,3:0] 0b00010 */
-#define TEE_PAGER_FSR_FS_DEBUG_EVENT              0x0002
-	/* DFSR[10,3:0] 0b10110 */
-#define TEE_PAGER_FSR_FS_ASYNC_EXTERNAL_ABORT     0x0406
-	/* DFSR[10,3:0] 0b01101 */
-#define TEE_PAGER_FSR_FS_PERMISSION_FAULT_SECTION 0x000D
-	/* DFSR[10,3:0] 0b01111 */
-#define TEE_PAGER_FSR_FS_PERMISSION_FAULT_PAGE    0x000F
 
 struct tee_pager_abort_info {
 	uint32_t abort_type;
@@ -87,17 +74,16 @@ static TAILQ_HEAD(tee_pager_area_head, tee_pager_area) tee_pager_area_head =
 	TAILQ_HEAD_INITIALIZER(tee_pager_area_head);
 
 /*
- * Represents a physical page used for paging.
+ * struct tee_pager_pmem - Represents a physical page used for paging.
  *
- * mmu_entry points to currently used MMU entry. This actual physical
- * address is stored here so even if the page isn't mapped, there's allways
- * an MMU entry holding the physical address.
+ * @pgidx	an index of the entry in tbl_info. The actual physical
+ *		address is stored here so even if the page isn't mapped,
+ *		there's always an MMU entry holding the physical address.
  *
- * session_handle is a pointer returned by tee_ta_load_page() and later
- * used when saving rw-data.
+ * @area	a pointer to the pager area
  */
 struct tee_pager_pmem {
-	uint32_t *mmu_entry;
+	unsigned pgidx;
 	struct tee_pager_area *area;
 	 TAILQ_ENTRY(tee_pager_pmem) link;
 };
@@ -118,15 +104,16 @@ static struct tee_pager_pmem_head tee_pager_rw_pmem_head =
 static size_t tee_pager_npages;
 
 /*
- * Pointer to L2 translation table used to map the virtual memory range
+ * Reference to translation table used to map the virtual memory range
  * covered by the pager.
  */
-static uint32_t *l2_table;
+static struct core_mmu_table_info tbl_info;
 
 bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 		const void *hashes)
 {
 	struct tee_pager_area *area;
+	size_t tbl_va_size;
 
 	DMSG("0x%x - 0x%x : flags 0x%x, store %p, hashes %p",
 		tee_mm_get_smem(mm),
@@ -140,9 +127,33 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	else
 		panic();
 
+	if (!tbl_info.num_entries) {
+		if (!core_mmu_find_table(tee_mm_get_smem(mm), UINT_MAX,
+					&tbl_info))
+			return false;
+		if ((1 << tbl_info.shift) != SMALL_PAGE_SIZE) {
+			DMSG("Unsupported page size in translation table %u",
+			     1 << tbl_info.shift);
+			return false;
+		}
+	}
+
+	tbl_va_size = (1 << tbl_info.shift) * tbl_info.num_entries;
+	if (!core_is_buffer_inside(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
+				   tbl_info.va_base, tbl_va_size)) {
+		DMSG("area 0x%x len 0x%x doesn't fit it translation table 0x%x len 0x%x",
+			tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
+			tbl_info.va_base, tbl_va_size);
+		return false;
+	}
+
+
+
 	area = malloc(sizeof(struct tee_pager_area));
 	if (!area)
 		return false;
+
+
 	area->mm = mm;
 	area->flags = flags;
 	area->store = store;
@@ -165,27 +176,17 @@ static struct tee_pager_area *tee_pager_find_area(vaddr_t va)
 	return NULL;
 }
 
-void tee_pager_init(void *xlat_table)
+static uint32_t get_area_mattr(struct tee_pager_area *area __unused)
 {
-	l2_table = xlat_table;
+	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
+			TEE_MATTR_CACHE_DEFAULT | TEE_MATTR_SECURE;
+
+	attr |= TEE_MATTR_PRWX;
+
+	return attr;
 }
 
 
-/* Get L2 translation entry address from virtual address */
-static uint32_t *tee_pager_va_to_xe(vaddr_t va)
-{
-	vaddr_t page_va = va & ~SMALL_PAGE_MASK;
-	size_t mmu_entry_offset = (page_va - tee_mm_vcore.lo) >>
-					SMALL_PAGE_SHIFT;
-
-	return l2_table + mmu_entry_offset;
-}
-
-/* Get virtual address of page from translation entry */
-static vaddr_t tee_pager_xe_to_va(uint32_t *xe)
-{
-	return (vaddr_t)(xe - l2_table) * SMALL_PAGE_SIZE + tee_mm_vcore.lo;
-}
 
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va)
 {
@@ -224,11 +225,18 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 	struct tee_pager_pmem *pmem;
 
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
-		if (((*pmem->mmu_entry & SMALL_PAGE_MASK) ==
-			TEE_PAGER_PAGE_UNLOADED) &&
-		    page_va == tee_pager_xe_to_va(pmem->mmu_entry)) {
+		paddr_t pa;
+		uint32_t attr;
+
+		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
+
+		if (!(attr & TEE_MATTR_HIDDEN_BLOCK))
+			continue;
+
+		if (core_mmu_va2idx(&tbl_info, page_va) == pmem->pgidx) {
 			/* page is hidden, show and move to back */
-			*pmem->mmu_entry |= TEE_MMU_L2SP_PRIV_ACC;
+			core_mmu_set_entry(&tbl_info, pmem->pgidx, pa,
+					   get_area_mattr(pmem->area));
 
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
@@ -248,10 +256,19 @@ static void tee_pager_hide_pages(void)
 	size_t n = 0;
 
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
+		paddr_t pa;
+		uint32_t attr;
+
 		if (n >= TEE_PAGER_NHIDE)
 			break;
 		n++;
-		*pmem->mmu_entry = TEE_MMU_L2SP_CLEAR_ACC(*pmem->mmu_entry);
+		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
+		if (!(attr & TEE_MATTR_VALID_BLOCK))
+			continue;
+
+		core_mmu_set_entry(&tbl_info, pmem->pgidx, pa,
+				   TEE_MATTR_HIDDEN_BLOCK);
+
 	}
 
 	/* TODO only invalidate entries touched above */
@@ -321,7 +338,6 @@ static void tee_pager_print_error_abort(
 }
 
 
-
 static enum tee_pager_fault_type tee_pager_get_fault_type(
 		struct tee_pager_abort_info *ai)
 {
@@ -346,28 +362,33 @@ static enum tee_pager_fault_type tee_pager_get_fault_type(
 		panic();
 	}
 
-	switch (ai->fsr & TEE_PAGER_FSR_FS_MASK) {
-	/* Only possible for data abort */
-	case TEE_PAGER_FSR_FS_ALIGNMENT_FAULT:
+	switch (core_mmu_get_fault_type(ai->fsr)) {
+	case CORE_MMU_FAULT_ALIGNMENT:
 		tee_pager_print_error_abort(ai);
 		EMSG("[TEE_PAGER] alignement fault!  (trap CPU)");
 		panic();
+		break;
 
-	case TEE_PAGER_FSR_FS_DEBUG_EVENT:
+	case CORE_MMU_FAULT_DEBUG_EVENT:
 		tee_pager_print_abort(ai);
 		DMSG("[TEE_PAGER] Ignoring debug event!");
 		return TEE_PAGER_FAULT_TYPE_IGNORE;
 
-	/* Only possible for data abort */
-	case TEE_PAGER_FSR_FS_ASYNC_EXTERNAL_ABORT:
+	case CORE_MMU_FAULT_TRANSLATION:
+	case CORE_MMU_FAULT_PERMISSION:
+		return TEE_PAGER_FAULT_TYPE_PAGABLE;
+
+	case CORE_MMU_FAULT_ASYNC_EXTERNAL:
 		tee_pager_print_abort(ai);
 		DMSG("[TEE_PAGER] Ignoring async external abort!");
 		return TEE_PAGER_FAULT_TYPE_IGNORE;
 
+	case CORE_MMU_FAULT_OTHER:
 	default:
-		break;
+		tee_pager_print_abort(ai);
+		DMSG("[TEE_PAGER] Unhandled fault!");
+		return TEE_PAGER_FAULT_TYPE_IGNORE;
 	}
-	return TEE_PAGER_FAULT_TYPE_PAGABLE;
 }
 
 
@@ -378,25 +399,27 @@ static struct tee_pager_pmem *tee_pager_get_page(
 		struct tee_pager_abort_info *ai,
 		struct tee_pager_area *area)
 {
-	vaddr_t page_va = ai->va & ~SMALL_PAGE_MASK;
-
-	uint32_t pa;
-	uint32_t *mmu_entry = tee_pager_va_to_xe(page_va);
+	unsigned pgidx = core_mmu_va2idx(&tbl_info, ai->va);
 	struct tee_pager_pmem *pmem;
+	paddr_t pa;
+	uint32_t attr;
 
-	if (*mmu_entry != 0) {
+	core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+
+	assert(!(attr & (TEE_MATTR_VALID_BLOCK | TEE_MATTR_HIDDEN_BLOCK)));
+
+	if (attr & TEE_MATTR_PHYS_BLOCK) {
 		/*
 		 * There's an pmem entry using this mmu entry, let's use
 		 * that entry in the new mapping.
 		 */
 		TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
-			if (pmem->mmu_entry == mmu_entry)
+			if (pmem->pgidx == pgidx)
 				break;
 		}
 		if (!pmem) {
 			tee_pager_print_abort(ai);
-			DMSG("Couldn't find pmem for mmu_entry %p",
-			     (void *)mmu_entry);
+			DMSG("Couldn't find pmem for pgidx %u", pgidx);
 			panic();
 		}
 	} else {
@@ -406,14 +429,13 @@ static struct tee_pager_pmem *tee_pager_get_page(
 			DMSG("No pmem entries");
 			panic();
 		}
+		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
+		core_mmu_set_entry(&tbl_info, pmem->pgidx, 0, 0);
 	}
 
-	/* add page to mmu table, small pages [31:12]PA */
-	pa = *pmem->mmu_entry & ~SMALL_PAGE_MASK;
-
-	*pmem->mmu_entry = 0;
-	pmem->mmu_entry = mmu_entry;
-	*pmem->mmu_entry = pa | TEE_PAGER_PAGE_LOADED;
+	pmem->pgidx = pgidx;
+	pmem->area = area;
+	core_mmu_set_entry(&tbl_info, pgidx, pa, get_area_mattr(area));
 
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 	if (area->store) {
@@ -430,7 +452,7 @@ static struct tee_pager_pmem *tee_pager_get_page(
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
 #ifdef TEE_PAGER_DEBUG_PRINT
-	DMSG("Mapped 0x%x -> 0x%x", page_va, pa);
+	DMSG("Mapped 0x%x -> 0x%x", core_mmu_idx2va(&tbl_info, pgidx), pa);
 #endif
 
 	return pmem;
@@ -455,12 +477,9 @@ static void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
 
 	if (!tee_pager_unhide_page(page_va)) {
 		/* the page wasn't hidden */
-		struct tee_pager_pmem *pmem;
-
-		pmem = tee_pager_get_page(ai, area);
+		tee_pager_get_page(ai, area);
 
 		/* load page code & data */
-		pmem->area = area;
 		tee_pager_load_page(area, page_va);
 		/* TODO remap readonly if TEE_PAGER_AREA_RO */
 		tee_pager_verify_page(area, page_va);
@@ -558,10 +577,14 @@ void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap)
 	for (n = 0; n < npages; n++) {
 		struct tee_pager_pmem *pmem;
 		tee_vaddr_t va = vaddr + n * SMALL_PAGE_SIZE;
-		uint32_t *mmu_entry = tee_pager_va_to_xe(va);
+		unsigned pgidx = core_mmu_va2idx(&tbl_info, va);
+		paddr_t pa;
+		uint32_t attr;
 
-		/* Ignore unmapped entries */
-		if (*mmu_entry == 0)
+		core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+
+		/* Ignore unmapped pages/blocks */
+		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
 		pmem = malloc(sizeof(struct tee_pager_pmem));
@@ -570,20 +593,18 @@ void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap)
 			panic();
 		}
 
-		pmem->mmu_entry = (uint32_t *)mmu_entry;
+		pmem->pgidx = pgidx;
 		pmem->area = NULL;
 
 		if (unmap) {
 			/*
-			 * Set to TEE_PAGER_NO_ACCESS_ATTRIBUTES and not
-			 * TEE_PAGER_PAGE_UNLOADED since pager would
-			 * misstake it for a hidden page in case the
-			 * virtual address was reused before the physical
-			 * page was used for another virtual page.
+			 * Note that we're making the page inaccessible
+			 * with the TEE_MATTR_PHYS_BLOCK attribute to
+			 * indicate that the descriptor still holds a valid
+			 * physical address of a page.
 			 */
-			*mmu_entry = (*mmu_entry & ~SMALL_PAGE_MASK) |
-			    TEE_PAGER_NO_ACCESS_ATTRIBUTES;
-
+			core_mmu_set_entry(&tbl_info, pgidx, pa,
+					   TEE_MATTR_PHYS_BLOCK);
 		}
 		tee_pager_npages++;
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);

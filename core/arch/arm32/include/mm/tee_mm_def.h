@@ -32,42 +32,9 @@
 #define SMALL_PAGE_MASK		0x00000fff
 #define SMALL_PAGE_SIZE		0x00001000
 
-#define SECTION_SHIFT		20
-#define SECTION_MASK		0x000fffff
-#define SECTION_SIZE		0x00100000
-
 /* define section to load */
 #define TEE_DDR_VLOFFSET    0x1
 
-/* Reset error code */
-#define TEE_RESET_INVALID_PAGE_ERROR       0xBADB7000
-
-/*
- * MMU related values
- */
-#define TEE_MMU_UL1_BASE            core_mmu_get_ta_ul1_va()
-#define TEE_MMU_UL1_PA_BASE         core_mmu_get_ta_ul1_pa()
-
-#define TEE_MMU_DEFAULT_ATTRS \
-		(TEE_MMU_TTB_S | TEE_MMU_TTB_IRGN_WBWA | TEE_MMU_TTB_RNG_WBWA)
-
-/* Page attributes */
-
-/*
- * Small pages [31:12]PA, not Global, Sharable, Access Permission,
- * Memory region attribute [8:6], Access permissions [5:4],
- * C, B, Small page, Outer and Inner Write-Back, Write-Allocate
- */
-#define TEE_PAGER_PAGE_UNLOADED \
-		(TEE_MMU_L2SP_SMALL_PAGE | TEE_MMU_L2SP_WBWA | TEE_MMU_L2SP_S)
-
-#define TEE_PAGER_PAGE_LOADED \
-		(TEE_PAGER_PAGE_UNLOADED | TEE_MMU_L2SP_PRIV_ACC)
-
-#define TEE_PAGER_STACKS_ATTRIBUTES \
-		(TEE_PAGER_PAGE_LOADED | TEE_MMU_L2SP_XN)
-
-#define TEE_PAGER_NO_ACCESS_ATTRIBUTES      0x00000000
 
 /*
  * Register addresses related to time

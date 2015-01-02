@@ -26,6 +26,7 @@
  */
 
 #include <kernel/tee_common.h>
+#include <util.h>
 #include <trace.h>
 
 #include <mm/tee_mm.h>
@@ -38,8 +39,8 @@ bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
 	if (pool == NULL)
 		return false;
 
-	pool->lo = lo;
-	pool->hi = hi;
+	pool->lo = ROUNDUP(lo, 1 << shift);
+	pool->hi = ROUNDDOWN(hi, 1 << shift);
 	pool->shift = shift;
 	pool->flags = flags;
 	pool->entry = calloc(1, sizeof(tee_mm_entry_t));

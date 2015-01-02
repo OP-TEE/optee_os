@@ -73,7 +73,7 @@ LOCAL_FUNC reset , :
 	orr     r0, r0, #ACTLR_SMP
 	write_actlr  r0
 
-	bl	core_init_mmu_tables
+	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache

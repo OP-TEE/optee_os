@@ -101,21 +101,68 @@
 #define NSACR_NS_L2ERR	(1 << 17)
 #define NSACR_NS_SMP	(1 << 18)
 
+#define CPACR_CP(co_proc, access)	((access) << ((co_proc) * 2))
+#define CPACR_CP_ACCESS_DENIED		0x0
+#define CPACR_CP_ACCESS_PL1_ONLY	0x1
+#define CPACR_CP_ACCESS_FULL		0x2
+
+
 #define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))
 #define DACR_DOMAIN_PERM_NO_ACCESS	0x0
 #define DACR_DOMAIN_PERM_CLIENT		0x1
 #define DACR_DOMAIN_PERM_MANAGER	0x3
 
+/*
+ * TTBCR has different register layout if LPAE is enabled or not.
+ * TTBCR.EAE == 0 => LPAE is not enabled
+ * TTBCR.EAE == 1 => LPAE is enabled
+ */
+#define TTBCR_EAE	(1 << 31)
+
+/* When TTBCR.EAE == 0 */
 #define TTBCR_PD0	(1 << 4)
 #define TTBCR_PD1	(1 << 5)
 
-#define NSACR_CP10	(1 << 10)
-#define NSACR_CP11	(1 << 11)
+/* When TTBCR.EAE == 1 */
+#define TTBCR_T0SZ_SHIFT	0
+#define TTBCR_EPD0		(1 << 7)
+#define TTBCR_IRGN0_SHIFT	8
+#define TTBCR_ORGN0_SHIFT	10
+#define TTBCR_SH0_SHIFT		12
+#define TTBCR_T1SZ_SHIFT	16
+#define TTBCR_A1		(1 << 22)
+#define TTBCR_EPD1		(1 << 23)
+#define TTBCR_IRGN1_SHIFT	24
+#define TTBCR_ORGN1_SHIFT	26
+#define TTBCR_SH1_SHIFT		28
 
-#define CPACR_CP(co_proc, access)	((access) << ((co_proc) * 2))
-#define CPACR_CP_ACCESS_DENIED		0x0
-#define CPACR_CP_ACCESS_PL1_ONLY	0x1
-#define CPACR_CP_ACCESS_FULL		0x2
+/* Normal memory, Inner/Outer Non-cacheable */
+#define TTBCR_XRGNX_NC		0x0
+/* Normal memory, Inner/Outer Write-Back Write-Allocate Cacheable */
+#define TTBCR_XRGNX_WB		0x1
+/* Normal memory, Inner/Outer Write-Through Cacheable */
+#define TTBCR_XRGNX_WT		0x2
+/* Normal memory, Inner/Outer Write-Back no Write-Allocate Cacheable */
+#define TTBCR_XRGNX_WBWA	0x3
+
+/* Non-shareable */
+#define TTBCR_SHX_NSH		0x0
+/* Outer Shareable */
+#define TTBCR_SHX_OSH		0x2
+/* Inner Shareable */
+#define TTBCR_SHX_ISH		0x3
+
+#define TTBR_ASID_MASK		0xff
+#define TTBR_ASID_SHIFT		48
+
+
+#define FSR_LPAE		(1 << 9)
+
+/* Valid if FSR.LPAE is 1 */
+#define FSR_STATUS_MASK		((1 << 6) - 1)
+
+/* Valid if FSR.LPAE is 0 */
+#define FSR_FS_MASK		((1 << 10) | ((1 << 3) - 1))
 
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
@@ -172,6 +219,13 @@ static inline void write_ttbr0(uint32_t ttbr0)
 	);
 }
 
+static inline void write_ttbr0_64bit(uint64_t ttbr0)
+{
+	asm volatile ("mcrr	p15, 0, %Q[ttbr0], %R[ttbr0], c2"
+			: : [ttbr0] "r" (ttbr0)
+	);
+}
+
 static inline uint32_t read_ttbr0(void)
 {
 	uint32_t ttbr0;
@@ -183,26 +237,27 @@ static inline uint32_t read_ttbr0(void)
 	return ttbr0;
 }
 
-static inline void write_ats1cpw(uint32_t va)
+static inline uint64_t read_ttbr0_64bit(void)
 {
-	asm volatile ("mcr	p15, 0, %[va], c7, c8, 1"
-			: : [va] "r" (va)
-	);
-}
+	uint64_t ttbr0;
 
-static inline uint32_t read_par(void)
-{
-	uint32_t par;
-
-	asm volatile ("mrc	p15, 0, %[par], c7, c4, 0"
-			: [par] "=r" (par)
+	asm volatile ("mrrc	p15, 0, %Q[ttbr0], %R[ttbr0], c2"
+			: [ttbr0] "=r" (ttbr0)
 	);
-	return par;
+
+	return ttbr0;
 }
 
 static inline void write_ttbr1(uint32_t ttbr1)
 {
 	asm volatile ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
+			: : [ttbr1] "r" (ttbr1)
+	);
+}
+
+static inline void write_ttbr1_64bit(uint64_t ttbr1)
+{
+	asm volatile ("mcrr	p15, 1, %Q[ttbr1], %R[ttbr1], c2"
 			: : [ttbr1] "r" (ttbr1)
 	);
 }
@@ -224,6 +279,17 @@ static inline void write_ttbcr(uint32_t ttbcr)
 	asm volatile ("mcr	p15, 0, %[ttbcr], c2, c0, 2"
 			: : [ttbcr] "r" (ttbcr)
 	);
+}
+
+static inline uint32_t read_ttbcr(void)
+{
+	uint32_t ttbcr;
+
+	asm volatile ("mrc	p15, 0, %[ttbcr], c2, c0, 2"
+			: [ttbcr] "=r" (ttbcr)
+	);
+
+	return ttbcr;
 }
 
 static inline void write_dacr(uint32_t dacr)
@@ -287,6 +353,61 @@ static inline void isb(void)
 static inline void dsb(void)
 {
 	asm volatile ("dsb");
+}
+
+static inline void write_ats1cpw(uint32_t va)
+{
+	asm volatile ("mcr	p15, 0, %[va], c7, c8, 1"
+			: : [va] "r" (va)
+	);
+}
+
+static inline uint32_t read_par(void)
+{
+	uint32_t par;
+
+	asm volatile ("mrc	p15, 0, %[par], c7, c4, 0"
+			: [par] "=r" (par)
+	);
+	return par;
+}
+
+static inline void write_mair0(uint32_t mair0)
+{
+	asm volatile ("mcr	p15, 0, %[mair0], c10, c2, 0"
+			: : [mair0] "r" (mair0)
+	);
+}
+
+static inline void write_prrr(uint32_t prrr)
+{
+	/*
+	 * Same physical register as MAIR0.
+	 *
+	 * When an implementation includes the Large Physical Address
+	 * Extension, and address translation is using the Long-descriptor
+	 * translation table formats, MAIR0 replaces the PRRR
+	 */
+	write_mair0(prrr);
+}
+
+static inline void write_mair1(uint32_t mair1)
+{
+	asm volatile ("mcr	p15, 0, %[mair1], c10, c2, 1"
+			: : [mair1] "r" (mair1)
+	);
+}
+
+static inline void write_nmrr(uint32_t nmrr)
+{
+	/*
+	 * Same physical register as MAIR1.
+	 *
+	 * When an implementation includes the Large Physical Address
+	 * Extension, and address translation is using the Long-descriptor
+	 * translation table formats, MAIR1 replaces the NMRR
+	 */
+	write_mair1(nmrr);
 }
 
 static inline uint32_t read_contextidr(void)

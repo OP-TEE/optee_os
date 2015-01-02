@@ -137,19 +137,21 @@ static struct map_area bootcfg_memory_map[] = {
 
 	{	/* CPU mem map HW registers */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = CPU_IOMEM_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = CPU_IOMEM_BASE & ~CORE_MMU_DEVICE_MASK,
+	 .size = CORE_MMU_DEVICE_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 
 	{	/* ASC IP for UART HW tracing */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = UART_CONSOLE_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = UART_CONSOLE_BASE & ~CORE_MMU_DEVICE_MASK,
+	 .size = CORE_MMU_DEVICE_SIZE,
 	 .device = true, .secure = false, .rw = true,
 	 },
 
 	{	/* RNG IP for some random support */
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = RNG_BASE & ~SECTION_MASK, .size = SECTION_SIZE,
+	 .pa = RNG_BASE & ~CORE_MMU_DEVICE_MASK, .size = CORE_MMU_DEVICE_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 

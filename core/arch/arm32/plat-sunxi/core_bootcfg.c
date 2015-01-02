@@ -173,29 +173,33 @@ static struct map_area bootcfg_memory[] = {
 
 	{ /* teecore public RAM - NonSecure, non-exec. */
 	 .type = MEM_AREA_NSEC_SHM,
-	 .pa = CFG_PUB_RAM_START, .size = SECTION_SIZE,
+	 .pa = CFG_PUB_RAM_START, .size = CFG_PUB_RAM_SIZE,
 	 .cached = true, .secure = false, .rw = true, .exec = false,
 	 },
-	 
+
 	{ /* AHB0 devices */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = 0x01400000 & ~SECTION_MASK, .size = 0x00900000,
+	 .pa = 0x01400000 & ~CORE_MMU_DEVICE_MASK,
+	 .size = ROUNDUP(0x00900000, CORE_MMU_DEVICE_SIZE),
 	 .device = true, .secure = true, .rw = true,
 	 },
 
 	{ /* AHB1 devices */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = (0x00800000) & ~SECTION_MASK, .size = 0x00300000,
+	 .pa = (0x00800000) & ~CORE_MMU_DEVICE_MASK,
+	 .size = ROUNDUP(0x00300000, CORE_MMU_DEVICE_SIZE),
 	 .device = true, .secure = true, .rw = true,
 	 },
 	{ /* AHB2 devices */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = (0x03000000) & ~SECTION_MASK, .size = 0x01000000,
+	 .pa = (0x03000000) & ~CORE_MMU_DEVICE_MASK,
+	 .size = ROUNDUP(0x01000000, CORE_MMU_DEVICE_SIZE),
 	 .device = true, .secure = true, .rw = true,
 	 },
 	{ /* AHBS devices */
 	 .type = MEM_AREA_IO_NSEC,
-	 .pa = (0x06000000) & ~SECTION_MASK, .size = 0x02200000,
+	 .pa = (0x06000000) & ~CORE_MMU_DEVICE_MASK,
+	 .size = ROUNDUP(0x02200000, CORE_MMU_DEVICE_SIZE),
 	 .device = true, .secure = true, .rw = true,
 	 },
 

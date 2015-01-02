@@ -28,7 +28,7 @@
 #ifndef THREAD_PRIVATE_H
 #define THREAD_PRIVATE_H
 
-#include <mm/tee_mmu_unpg.h>
+#include <mm/core_mmu.h>
 #include <kernel/vfp.h>
 
 enum thread_state {
@@ -67,7 +67,7 @@ struct thread_ctx {
 	uint32_t hyp_clnt_id;
 	uint32_t flags;
 	struct thread_ctx_regs regs;
-	struct tee_mmu_mapping user_map;
+	struct core_mmu_user_map user_map;
 	bool have_user_map;
 };
 

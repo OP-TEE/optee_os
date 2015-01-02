@@ -30,6 +30,37 @@
 #include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
 #include <mm/core_memprot.h>
+#include <mm/tee_mmu_types.h>
+
+#include <assert.h>
+
+/*
+ * PGDIR is the translation table above the translation table that holds
+ * the pages.
+ */
+#ifdef CFG_WITH_LPAE
+#define CORE_MMU_PGDIR_SHIFT	21
+#else
+#define CORE_MMU_PGDIR_SHIFT	20
+#endif
+
+/* Devices are mapped using this granularity */
+#define CORE_MMU_DEVICE_SHIFT		CORE_MMU_PGDIR_SHIFT
+#define CORE_MMU_DEVICE_SIZE		(1 << CORE_MMU_DEVICE_SHIFT)
+#define CORE_MMU_DEVICE_MASK		(CORE_MMU_DEVICE_SIZE - 1)
+
+/* TA user space code, data, stack and heap are mapped using this granularity */
+#define CORE_MMU_USER_CODE_SHIFT	CORE_MMU_PGDIR_SHIFT
+#define CORE_MMU_USER_CODE_SIZE		(1 << CORE_MMU_USER_CODE_SHIFT)
+#define CORE_MMU_USER_CODE_MASK		(CORE_MMU_USER_CODE_SIZE - 1)
+
+/* TA user space parameters are mapped using this granularity */
+#define CORE_MMU_USER_PARAM_SHIFT	CORE_MMU_PGDIR_SHIFT
+#define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
+#define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
+
+/* The maximum VA for user space */
+#define CORE_MMU_USER_MAX_ADDR	(32 * 1024 * 1024)
 
 /*
  * @type:  enumerate: specifiy the purpose of the memory area.
@@ -81,10 +112,179 @@ enum teecore_memtypes {
 extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 
-uint32_t core_map_area_flag(void *p, size_t l);
-void core_init_mmu_tables(void);
+void core_init_mmu_map(void);
 void core_init_mmu_regs(void);
 
+
+#ifdef CFG_WITH_LPAE
+/*
+ * struct core_mmu_user_map - current user mapping register state
+ * @ttbr0:	content of ttbr0
+ * @enabled:	true if usage of ttbr0 is enabled
+ *
+ * Note that this struct should be treated as an opaque struct since
+ * the content depends on descriptor table format.
+ */
+struct core_mmu_user_map {
+	uint64_t ttbr0;
+	bool enabled;
+};
+#else
+/*
+ * struct core_mmu_user_map - current user mapping register state
+ * @ttbr0:	content of ttbr0
+ * @ctxid:	content of contextidr
+ *
+ * Note that this struct should be treated as an opaque struct since
+ * the content depends on descriptor table format.
+ */
+struct core_mmu_user_map {
+	uint32_t ttbr0;
+	uint32_t ctxid;
+};
+#endif
+
+/*
+ * enum core_mmu_fault - different kinds of faults
+ * @CORE_MMU_FAULT_ALIGNMENT:		alignment fault
+ * @CORE_MMU_FAULT_DEBUG_EVENT:		debug event
+ * @CORE_MMU_FAULT_TRANSLATION:		translation fault
+ * @CORE_MMU_FAULT_ASYNC_EXTERNAL:	asynchronous external abort
+ * @CORE_MMU_FAULT_OTHER:		Other/unknown fault
+ */
+enum core_mmu_fault {
+	CORE_MMU_FAULT_ALIGNMENT,
+	CORE_MMU_FAULT_DEBUG_EVENT,
+	CORE_MMU_FAULT_TRANSLATION,
+	CORE_MMU_FAULT_PERMISSION,
+	CORE_MMU_FAULT_ASYNC_EXTERNAL,
+	CORE_MMU_FAULT_OTHER,
+};
+
+/*
+ * core_mmu_get_fault_type() - get fault type
+ * @fsr:	Content of fault status register
+ * @returns an enum describing the content of fault status register.
+ */
+enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr);
+
+/*
+ * core_mmu_create_user_map() - Create user space mapping
+ * @mmu:	Generic representation of user space mapping
+ * @asid:	Address space identifier for this mapping
+ * @map:	MMU configuration to use when activating this VA space
+ */
+void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
+		struct core_mmu_user_map *map);
+/*
+ * core_mmu_get_user_map() - Reads current MMU configuration for user VA space
+ * @map:	MMU configuration for current user VA space.
+ */
+void core_mmu_get_user_map(struct core_mmu_user_map *map);
+
+/*
+ * core_mmu_set_user_map() - Set new MMU configuration for user VA space
+ * @map:	If NULL will disable user VA space, if not NULL the user
+ *		VA space to activate.
+ */
+void core_mmu_set_user_map(struct core_mmu_user_map *map);
+
+/*
+ * struct core_mmu_table_info - Properties for a translation table
+ * @table:	Pointer to translation table
+ * @va_base:	VA base address of the transaltion table
+ * @level:	Translation table level
+ * @shift:	The shift of each entry in the table
+ * @num_entries: Number of entries in this table.
+ */
+struct core_mmu_table_info {
+	void *table;
+	vaddr_t va_base;
+	unsigned level;
+	unsigned shift;
+	unsigned num_entries;
+};
+
+/*
+ * core_mmu_find_table() - Locates a translation table
+ * @va:		Virtual address for the table to cover
+ * @max_level:	Don't traverse beyond this level
+ * @tbl_info:	Pointer to where to store properties.
+ * @return true if a translation table was found, false on error
+ */
+bool core_mmu_find_table(vaddr_t va, unsigned max_level,
+		struct core_mmu_table_info *tbl_info);
+
+/*
+ * core_mmu_set_entry() - Set entry in translation table
+ * @tbl_info:	Translation table properties
+ * @idx:	Index of entry to update
+ * @pa:		Physical address to assign entry
+ * @attr:	Attributes to assign entry
+ */
+void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
+		paddr_t pa, uint32_t attr);
+
+/*
+ * core_mmu_get_entry() - Get entry from translation table
+ * @tbl_info:	Translation table properties
+ * @idx:	Index of entry to read
+ * @pa:		Physical address is returned here if pa is not NULL
+ * @attr:	Attributues are returned here if attr is not NULL
+ */
+void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
+		paddr_t *pa, uint32_t *attr);
+
+/*
+ * core_mmu_va2idx() - Translate from virtual address to table index
+ * @tbl_info:	Translation table properties
+ * @va:		Virtual address to translate
+ * @returns index in transaltion table
+ */
+static inline unsigned core_mmu_va2idx(struct core_mmu_table_info *tbl_info,
+			vaddr_t va)
+{
+	return (va - tbl_info->va_base) >> tbl_info->shift;
+}
+
+/*
+ * core_mmu_idx2va() - Translate from table index to virtual address
+ * @tbl_info:	Translation table properties
+ * @idx:	Index to translate
+ * @returns Virtual address
+ */
+static inline vaddr_t core_mmu_idx2va(struct core_mmu_table_info *tbl_info,
+			unsigned idx)
+{
+	return (idx << tbl_info->shift) + tbl_info->va_base;
+}
+
+/*
+ * core_mmu_get_block_offset() - Get offset inside a block/page
+ * @tbl_info:	Translation table properties
+ * @pa:		Physical address
+ * @returns offset within one block of the translation table
+ */
+static inline size_t core_mmu_get_block_offset(
+			struct core_mmu_table_info *tbl_info, paddr_t pa)
+{
+	return pa & ((1 << tbl_info->shift) - 1);
+}
+
+/*
+ * core_mmu_user_mapping_is_active() - Report if user mapping is active
+ * @returns true if a user VA space is active, false if user VA space is
+ *          inactive.
+ */
+bool core_mmu_user_mapping_is_active(void);
+
+/*
+ * core_mmu_mattr_is_ok() - Check that supplied mem attributes can be used
+ * @returns true if the attributes can be used, false if not.
+ */
+bool core_mmu_mattr_is_ok(uint32_t mattr);
+
+#ifndef CFG_WITH_LPAE
 paddr_t core_mmu_get_main_ttb_pa(void);
 vaddr_t core_mmu_get_main_ttb_va(void);
 paddr_t core_mmu_get_ul1_ttb_pa(void);
@@ -98,10 +298,8 @@ vaddr_t core_mmu_get_ul1_ttb_va(void);
  * decribed by @map.
  * @returns NULL on failure or a pointer to the L2 table(s)
  */
-void *core_mmu_alloc_l2(struct map_area *map);
-
-int core_mmu_map(unsigned long paddr, size_t size, unsigned long flags);
-int core_mmu_unmap(unsigned long paddr, size_t size);
+void *core_mmu_alloc_l2(struct tee_mmap_region *mm);
+#endif
 
 void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
 			      unsigned int *e);

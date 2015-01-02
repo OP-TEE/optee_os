@@ -120,6 +120,7 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 #endif
 };
 
+#ifndef CFG_WITH_LPAE
 /* Main MMU L1 table for teecore */
 static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
 	__attribute__((section(".nozi.mmu.l1"),
@@ -132,6 +133,7 @@ static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
 static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
+#endif
 
 extern uint8_t __text_init_start[];
 extern uint8_t __data_start[];
@@ -320,6 +322,20 @@ static void main_init_gic(void)
 #endif
 
 #ifdef CFG_WITH_PAGER
+
+static size_t get_block_size(void)
+{
+	struct core_mmu_table_info tbl_info;
+	unsigned l;
+
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info))
+		panic();
+	l = tbl_info.level - 1;
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info))
+		panic();
+	return 1 << tbl_info.shift;
+}
+
 static void main_init_runtime(uint32_t pagable_part)
 {
 	size_t n;
@@ -331,6 +347,7 @@ static void main_init_runtime(uint32_t pagable_part)
 	uint8_t *paged_store;
 	uint8_t *hashes;
 	uint8_t *tmp_hashes = __init_start + init_size;
+	size_t block_size;
 
 
 	TEE_ASSERT(pagable_size % SMALL_PAGE_SIZE == 0);
@@ -409,14 +426,13 @@ static void main_init_runtime(uint32_t pagable_part)
 	 * Inialize the virtual memory pool used for main_mmu_l2_ttb which
 	 * is supplied to tee_pager_init() below.
 	 */
+	block_size = get_block_size();
 	if (!tee_mm_init(&tee_mm_vcore,
-			ROUNDDOWN(CFG_TEE_RAM_START, SECTION_SIZE),
-			ROUNDDOWN(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
-				  SECTION_SIZE),
+			ROUNDDOWN(CFG_TEE_RAM_START, block_size),
+			ROUNDUP(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+				block_size),
 			SMALL_PAGE_SHIFT, 0))
 		panic();
-
-	tee_pager_init(main_mmu_l2_ttb);
 
 	/*
 	 * Claim virtual memory which isn't paged, note that there migth be
@@ -689,6 +705,7 @@ static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 }
 #endif
 
+#ifndef CFG_WITH_LPAE
 paddr_t core_mmu_get_main_ttb_pa(void)
 {
 	/* Note that this depends on flat mapping of TEE Core */
@@ -716,6 +733,7 @@ vaddr_t core_mmu_get_ul1_ttb_va(void)
 {
 	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
 }
+#endif
 
 void console_putc(int ch)
 {
@@ -729,20 +747,20 @@ void console_flush_tx_fifo(void)
 	uart_flush_tx_fifo(CONSOLE_UART_BASE);
 }
 
-void *core_mmu_alloc_l2(struct map_area *map)
+#ifndef CFG_WITH_LPAE
+void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 {
 	/* Can't have this in .bss since it's not initialized yet */
 	static size_t l2_offs __attribute__((section(".data")));
+	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
 	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
-			     TEE_MMU_L2_SIZE) * SECTION_SIZE;
+			     TEE_MMU_L2_SIZE) * l2_va_size;
 
 	if (l2_offs)
 		return NULL;
-	if (map->type != MEM_AREA_TEE_RAM)
+	if (mm->size > l2_va_space)
 		return NULL;
-	if (map->size > l2_va_space)
-		return NULL;
-	l2_offs += ROUNDUP(map->size, SECTION_SIZE) / SECTION_SIZE;
+	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
 	return main_mmu_l2_ttb;
 }
-
+#endif

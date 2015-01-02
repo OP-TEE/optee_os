@@ -173,8 +173,6 @@ TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa);
 
 bool tee_mmu_kmap_is_mapped(void *va, size_t len);
 
-bool tee_mmu_is_kernel_mapping(void);
-
 uint32_t tee_mmu_kmap_get_cache_attr(void *va);
 uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va);
 

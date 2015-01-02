@@ -36,17 +36,14 @@
 #include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
-#include <kernel/thread.h>
-#include <arm32.h>
 #include <mm/core_mmu.h>
-#include <mm/core_memprot.h>
-#include <mm/tee_mmu.h>
-#include <mm/tee_mmu_defs.h>
-#include <kernel/misc.h>
 #include <trace.h>
 #include <kernel/tee_misc.h>
 #include <kernel/panic.h>
 #include <util.h>
+#include "core_mmu_private.h"
+
+#define MAX_MMAP_REGIONS	10
 
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_paddr;
@@ -100,183 +97,100 @@ static struct map_area *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
-/* armv7 memory mapping attributes: section mapping */
-#define SECTION_SECURE               (0 << 19)
-#define SECTION_NOTSECURE            (1 << 19)
-#define SECTION_SHARED               (1 << 16)
-#define SECTION_NOTGLOBAL            (1 << 17)
-#define SECTION_RW                   ((0 << 15) | (1 << 10))
-#define SECTION_RO                   ((1 << 15) | (1 << 10))
-#define SECTION_TEXCB(tex, c, b)     ((tex << 12) | (c << 3) | (b << 2))
-#define SECTION_DEVICE               SECTION_TEXCB(0, 0, 1)
-#define SECTION_NORMAL               SECTION_TEXCB(1, 0, 0)
-#define SECTION_NORMAL_CACHED        SECTION_TEXCB(1, 1, 1)
-#define SECTION_NO_EXEC              (1 << 4)
-#define SECTION_SECTION              (2 << 0)
-
-#define SECTION_PT_NOTSECURE		(1 << 3)
-#define SECTION_PT_PT			(1 << 0)
-
-#define SMALL_PAGE_SMALL_PAGE		(1 << 1)
-#define SMALL_PAGE_SHARED		(1 << 10)
-#define SMALL_PAGE_TEXCB(tex, c, b)	((tex << 6) | (c << 3) | (b << 2))
-#define SMALL_PAGE_DEVICE		SMALL_PAGE_TEXCB(0, 0, 1)
-#define SMALL_PAGE_NORMAL		SMALL_PAGE_TEXCB(1, 0, 0)
-#define SMALL_PAGE_NORMAL_CACHED	SMALL_PAGE_TEXCB(1, 1, 1)
-#define SMALL_PAGE_RW			((0 << 9) | (1 << 4))
-#define SMALL_PAGE_RO			((1 << 9) | (1 << 4))
-#define SMALL_PAGE_NO_EXEC		(1 << 0)
-
-
-/*
- * memarea_not_mapped - check memory not already (partially) mapped
- * A finer mapping must be supported. Currently section mapping only!
- */
-static bool memarea_not_mapped(struct map_area *map, void *ttbr0)
+static void insert_mmap(struct tee_mmap_region *mm, size_t max_elem,
+		struct tee_mmap_region *mme)
 {
-	uint32_t m, n;
+	size_t n;
 
-	m = (map->pa >> 20) * 4;	/* assumes pa=va */
-	n = map->size >> 20;
-	while (n--) {
-		if (*((uint32_t *)((uint32_t)ttbr0 + m)) != 0) {
-			EMSG("m %d [0x%x] map->pa 0x%x map->size 0x%x",
-			     m, *((uint32_t *)((uint32_t)ttbr0 + m)),
-			     map->pa, map->size);
-			return false;
+	for (n = 0; n < (max_elem - 1); n++) {
+		if (!mm[n].size) {
+			mm[n] = *mme;
+			return;
 		}
-		m += 4;
+
+		if (core_is_buffer_intersect(mme->va, mme->size, mm[n].va,
+					     mm[n].size)) {
+			vaddr_t end_va;
+
+			/* Check that the overlapping maps are compatible */
+			if (mme->attr != mm[n].attr ||
+			    (mme->pa - mme->va) != (mm[n].pa - mm[n].va)) {
+				EMSG("Incompatible mmap regions");
+				panic();
+			}
+
+			/* Grow the current map */
+			end_va = MAX(mme->va + mme->size,
+				     mm[n].va + mm[n].size);
+			mm[n].va = MIN(mme->va, mm[n].va);
+			mm[n].pa = MIN(mme->pa, mm[n].pa);
+			mm[n].size = end_va - mm[n].va;
+			return;
+		}
+
+		if (mme->va < mm[n].va) {
+			memmove(mm + n + 1, mm + n,
+				(max_elem - n - 1) * sizeof(*mm));
+			mm[n] = *mme;
+			/*
+			 * Panics if the terminating element was
+			 * overwritten.
+			 */
+			if (mm[max_elem - 1].size)
+				break;
+			return;
+		}
 	}
-	return true;
+	EMSG("Too many mmap regions");
+	panic();
 }
 
-static paddr_t map_page_memarea(struct map_area *map)
+static void core_mmu_mmap_init(struct tee_mmap_region *mm, size_t max_elem,
+		struct map_area *map)
 {
-	uint32_t *l2 = core_mmu_alloc_l2(map);
-	size_t pg_idx;
-	uint32_t attr;
+	struct tee_mmap_region mme;
+	size_t n;
 
-	TEE_ASSERT(l2);
+	memset(mm, 0, max_elem * sizeof(struct tee_mmap_region));
 
-	attr = SMALL_PAGE_SMALL_PAGE | SMALL_PAGE_SHARED;
+	for (n = 0; map[n].type != MEM_AREA_NOTYPE; n++) {
+		mme.pa = map[n].pa;
+		mme.va = map[n].pa;
+		mme.size = map[n].size;
 
-	if (map->device)
-		attr |= SMALL_PAGE_DEVICE;
-	else if (map->cached)
-		attr |= SMALL_PAGE_NORMAL_CACHED;
-	else
-		attr |= SMALL_PAGE_NORMAL;
+		mme.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PR |
+			   TEE_MATTR_GLOBAL;
 
-	if (map->rw)
-		attr |= SMALL_PAGE_RW;
-	else
-		attr |= SMALL_PAGE_RO;
+		if (map[n].device || !map[n].cached)
+			mme.attr |= TEE_MATTR_NONCACHE;
+		else
+			mme.attr |= TEE_MATTR_CACHE_DEFAULT;
 
-	if (!map->exec)
-		attr |= SMALL_PAGE_NO_EXEC;
+		if (map[n].rw)
+			mme.attr |= TEE_MATTR_PW;
 
-	/* Zero fill initial entries */
-	pg_idx = 0;
-	while ((pg_idx * SMALL_PAGE_SIZE) < (map->pa & SECTION_MASK)) {
-		l2[pg_idx] = 0;
-		pg_idx++;
+		if (map[n].exec)
+			mme.attr |= TEE_MATTR_PX;
+
+		if (map[n].secure)
+			mme.attr |= TEE_MATTR_SECURE;
+
+		insert_mmap(mm, max_elem, &mme);
 	}
-
-	/* Fill in the entries */
-	while ((pg_idx * SMALL_PAGE_SIZE) < map->size) {
-		l2[pg_idx] = ((map->pa & ~SECTION_MASK) +
-				pg_idx * SMALL_PAGE_SIZE) | attr;
-		pg_idx++;
-	}
-
-	/* Zero fill the rest */
-	while (pg_idx < ROUNDUP(map->size, SECTION_SIZE) / SMALL_PAGE_SIZE) {
-		l2[pg_idx] = 0;
-		pg_idx++;
-	}
-
-	return (paddr_t)l2;
 }
+
+
 
 /*
-* map_memarea - load mapping in target L1 table
-* A finer mapping must be supported. Currently section mapping only!
-*/
-static void map_memarea(struct map_area *map, uint32_t *ttb)
+ * core_init_mmu_map - init tee core default memory mapping
+ *
+ * this routine sets the static default tee core mapping.
+ *
+ * If an error happend: core_init_mmu_map is expected to reset.
+ */
+void core_init_mmu_map(void)
 {
-	size_t m, n;
-	uint32_t attr;
-	paddr_t pa;
-	uint32_t region_size;
-	uint32_t region_mask;
-
-	TEE_ASSERT(map && ttb);
-
-	switch (map->region_size) {
-	case 0:	/* Default to 1MB section mapping */
-	case SECTION_SIZE:
-		region_size = SECTION_SIZE;
-		region_mask = SECTION_MASK;
-		break;
-	case SMALL_PAGE_SIZE:
-		region_size = SMALL_PAGE_SIZE;
-		region_mask = SMALL_PAGE_MASK;
-		break;
-	default:
-		panic();
-	}
-
-	/* invalid area confing */
-	if (map->va || ((map->pa + map->size - 1) < map->pa) ||
-	    !map->size || (map->size & region_mask) ||
-	    (map->pa & region_mask))
-		panic();
-
-	if (region_size == SECTION_SIZE) {
-		attr = SECTION_SHARED | SECTION_NOTGLOBAL | SECTION_SECTION;
-
-		if (map->device == true)
-			attr |= SECTION_DEVICE;
-		else if (map->cached == true)
-			attr |= SECTION_NORMAL_CACHED;
-		else
-			attr |= SECTION_NORMAL;
-
-		if (map->rw == true)
-			attr |= SECTION_RW;
-		else
-			attr |= SECTION_RO;
-
-		if (map->exec == false)
-			attr |= SECTION_NO_EXEC;
-		if (map->secure == false)
-			attr |= SECTION_NOTSECURE;
-
-		pa = map->pa;
-	} else {
-		attr = SECTION_PT_PT;
-		if (!map->secure)
-			attr |= SECTION_PT_NOTSECURE;
-		pa = map_page_memarea(map);
-	}
-
-	map->va = map->pa;	/* 1-to-1 pa=va mapping */
-
-	m = (map->pa >> SECTION_SHIFT);
-	n = ROUNDUP(map->size, SECTION_SIZE) >> SECTION_SHIFT;
-	while (n--) {
-		ttb[m] = pa | attr;
-		m++;
-		if (region_size == SECTION_SIZE)
-			pa += SECTION_SIZE;
-		else
-			pa += TEE_MMU_L2_SIZE;
-	}
-}
-
-/* load_bootcfg_mapping - attempt to map the teecore static mapping */
-static void load_bootcfg_mapping(void *ttb1)
-{
+	struct tee_mmap_region mm[MAX_MMAP_REGIONS + 1];
 	struct map_area *map, *in;
 
 	/* get memory bootcfg from system */
@@ -296,19 +210,13 @@ static void load_bootcfg_mapping(void *ttb1)
 	map_ta_ram = NULL;
 	map_nsec_shm = NULL;
 
-	/* reset L1 table */
-	memset(ttb1, 0, TEE_MMU_L1_SIZE);
-
 	/* map what needs to be mapped (non-null size and non INTRAM/EXTRAM) */
 	map = in;
 	while (map->type != MEM_AREA_NOTYPE) {
-		if (!memarea_not_mapped(map, ttb1)) {
-			EMSG("overlapping mapping ! trap CPU");
-			TEE_ASSERT(0);
-		}
+		if (map->va)
+			panic();
 
-		map_memarea(map, ttb1);
-
+		map->va = map->pa;	/* 1-to-1 pa = va mapping */
 		if (map->type == MEM_AREA_TEE_RAM)
 			map_tee_ram = map;
 		else if (map->type == MEM_AREA_TA_RAM)
@@ -326,56 +234,33 @@ static void load_bootcfg_mapping(void *ttb1)
 	}
 
 	static_memory_map = in;
+
+	core_mmu_mmap_init(mm, ARRAY_SIZE(mm), in);
+
+	core_init_mmu_tables(mm);
 }
 
-/*
- * core_init_mmu - init tee core default memory mapping
- *
- * location of target MMU L1 table is provided as argument.
- * this routine sets the static default tee core mapping.
- *
- * If an error happend: core_init_mmu.c is expected to reset.
- */
-void core_init_mmu_tables(void)
-{
-	load_bootcfg_mapping((void *)core_mmu_get_main_ttb_va());
-}
-
-void core_init_mmu_regs(void)
-{
-	uint32_t sctlr;
-	paddr_t ttb_pa = core_mmu_get_main_ttb_pa();
-
-	/*
-	 * Program Domain access control register with two domains:
-	 * domain 0: teecore
-	 * domain 1: TA
-	 */
-	write_dacr(DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
-		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
-
-	/*
-	 * Disable TEX Remap
-	 * (This allows TEX field in page table entry take affect)
-	 */
-	sctlr = read_sctlr();
-	sctlr &= ~SCTLR_TRE;
-	write_sctlr(sctlr);
-
-	/*
-	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses
-	 * defined by TEE_MMU_TTBCR_N_VALUE.
-	 */
-	write_ttbcr(TEE_MMU_TTBCR_N_VALUE);
-
-	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
-	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
-}
-
-/* routines to retreive shared mem configuration */
+/* routines to retrieve shared mem configuration */
 bool core_mmu_is_shm_cached(void)
 {
 	return map_nsec_shm ? map_nsec_shm->cached : false;
+}
+
+bool core_mmu_mattr_is_ok(uint32_t mattr)
+{
+	/*
+	 * Keep in sync with core_mmu_lpae.c:mattr_to_desc and
+	 * core_mmu_v7.c:mattr_to_texcb
+	 */
+
+	switch (mattr & (TEE_MATTR_I_WRITE_THR | TEE_MATTR_I_WRITE_BACK |
+			 TEE_MATTR_O_WRITE_THR | TEE_MATTR_O_WRITE_BACK)) {
+	case TEE_MATTR_NONCACHE:
+	case TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /*
@@ -598,13 +483,4 @@ __weak unsigned int cache_maintenance_l2(int op __unused,
 	 */
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-__weak void *core_mmu_alloc_l2(struct map_area *map __unused)
-{
-	/*
-	 * This function should be redefined in platform specific part if
-	 * needed.
-	 */
-	return NULL;
 }
