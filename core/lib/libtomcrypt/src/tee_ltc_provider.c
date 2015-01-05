@@ -132,7 +132,7 @@ static void tee_ltc_reg_algs(void)
 #if defined(CFG_CRYPTO_MD5)
 	register_hash(&md5_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA1)
+#if defined(CFG_CRYPTO_SHA1_ARM32_CE) || defined(CFG_CRYPTO_SHA1)
 	register_hash(&sha1_desc);
 #endif
 #if defined(CFG_CRYPTO_SHA224)
@@ -167,7 +167,7 @@ static void tee_ltc_reg_algs(void)
 static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 {
 	switch (algo) {
-#if defined(CFG_CRYPTO_SHA1)
+#if defined(CFG_CRYPTO_SHA1) || defined(CFG_CRYPTO_SHA1_ARM32_CE)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:

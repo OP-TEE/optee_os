@@ -171,6 +171,9 @@
 #ifdef CFG_CRYPTO_SHA1
 #define LTC_SHA1
 #endif
+#ifdef CFG_CRYPTO_SHA1_ARM32_CE
+#define LTC_SHA1_ARM32_CE
+#endif
 #ifdef CFG_CRYPTO_SHA224
 #define LTC_SHA224
 #endif

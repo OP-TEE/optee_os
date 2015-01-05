@@ -28,9 +28,13 @@ WITH_GIC_DRV := y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_SHA256_ARM32_CE ?= y
+CFG_CRYPTO_SHA1_ARM32_CE ?= y
 endif
 
 ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
+CFG_WITH_VFP := y
+endif
+ifeq ($(CFG_CRYPTO_SHA1_ARM32_CE),y)
 CFG_WITH_VFP := y
 endif
 
