@@ -31,6 +31,7 @@
 #include <kernel/time_source.h>
 #include <mm/core_mmu.h>
 #include <utee_defines.h>
+#include <arm32.h>
 
 #include <assert.h>
 #include <stdint.h>
@@ -40,13 +41,14 @@
 static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
 {
 	mpa_word_t remainder = 0, n0, n1;
+
 	n0 = (*dividend) & UINT_MAX;
 	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
 	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
 	return remainder;
 }
 
-static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
+static TEE_Result arm_generic_timer_get_sys_time(TEE_Time *time)
 {
 	uint64_t cntpct = read_cntpct();
 	uint32_t cntfrq = read_cntfrq();
@@ -60,9 +62,9 @@ static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 	return TEE_SUCCESS;
 }
 
-static const struct time_source arm_cntpct_time_source = {
-	.name = "arm cntpct",
-	.get_sys_time = arm_cntpct_get_sys_time,
+static const struct time_source arm_generic_timer_time_source = {
+	.name = "arm generic timer",
+	.get_sys_time = arm_generic_timer_get_sys_time,
 };
 
-REGISTER_TIME_SOURCE(arm_cntpct_time_source)
+REGISTER_TIME_SOURCE(arm_generic_timer_time_source)

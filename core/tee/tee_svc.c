@@ -33,6 +33,7 @@
 #include <utee_types.h>
 #include <tee/tee_svc.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/tee_cryp_provider.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mm.h>
 #include <kernel/tee_rpc.h>
@@ -43,6 +44,8 @@
 #include <trace.h>
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
+
+#define MAX_BASE64_BUFFER_SIZE 120
 
 #if (CFG_TRACE_LEVEL == TRACE_FLOW)
 void tee_svc_trace_syscall(int num)
@@ -120,6 +123,10 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 	static const uint32_t ta_time_prot_lvl = 100;
 	struct tee_ta_session *sess;
 	TEE_Result res;
+	uint8_t base64_buf[MAX_BASE64_BUFFER_SIZE];
+	uint32_t base64_buf_size = MAX_BASE64_BUFFER_SIZE;
+	struct generic_timer_info timer_info;
+	bool ret;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -193,6 +200,23 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 		return tee_svc_copy_to_user(sess, (void *)buf,
 					    &ta_time_prot_lvl,
 					    sizeof(ta_time_prot_lvl));
+
+	case UTEE_PROP_TEE_GENERIC_TIMER_INFO:
+		if (blen < sizeof(timer_info))
+			return TEE_ERROR_SHORT_BUFFER;
+
+		ret = tee_time_get_generic_timer_info(&timer_info);
+		if (ret != 0)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = crypto_ops.codec.base64_encode((uint8_t *)&timer_info,
+			sizeof(timer_info), base64_buf, &base64_buf_size);
+
+		if (ret != 0)
+			return TEE_ERROR_SHORT_BUFFER;
+		else
+			return tee_svc_copy_to_user(sess, (void *)buf,
+					base64_buf, base64_buf_size);
 
 	case UTEE_PROP_CLIENT_ID:
 		if (blen < sizeof(TEE_Identity))

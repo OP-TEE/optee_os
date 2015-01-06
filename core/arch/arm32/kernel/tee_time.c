@@ -34,6 +34,7 @@
 #include <sm/teesmc.h>
 #include <kernel/tee_rpc.h>
 #include <mm/core_mmu.h>
+#include <arm32.h>
 
 struct time_source _time_source;
 
@@ -146,3 +147,15 @@ exit:
 	tee_ta_set_current_session(sess);
 	return res;
 }
+
+int tee_time_get_generic_timer_info(struct generic_timer_info *timer_info)
+{
+	if (timer_info == NULL)
+		return -1;
+
+	timer_info->counter_frequency = read_cntfrq();
+	timer_info->counter_value = read_cntvct();
+
+	return 0;
+}
+

@@ -2232,6 +2232,49 @@ static void authenc_final(void *ctx, uint32_t algo)
 }
 #endif /* _CFG_CRYPTO_WITH_AUTHENC */
 
+/******************************************************************************
+ * ENCODE/DECODE functions
+ ******************************************************************************/
+
+#if defined(_CFG_CRYPTO_WITH_CODEC)
+static TEE_Result base64_encode_wrapper(const uint8_t *in, uint32_t inlen,
+			 uint8_t *out, uint32_t *outlen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	int ret;
+
+	ret = base64_encode(in, (unsigned long)inlen,
+			out, (unsigned long *)outlen);
+	if (ret != CRYPT_OK) {
+		if (ret == CRYPT_BUFFER_OVERFLOW)
+			res = TEE_ERROR_SHORT_BUFFER;
+		else
+			res = TEE_ERROR_GENERIC;
+	}
+
+	return res;
+}
+
+static TEE_Result base64_decode_wrapper(const uint8_t *in,  uint32_t inlen,
+			 uint8_t *out, uint32_t *outlen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	int ret;
+
+	ret = base64_decode(in, (unsigned long)inlen,
+			out, (unsigned long *)outlen);
+	if (ret != CRYPT_OK) {
+		if (ret == CRYPT_BUFFER_OVERFLOW)
+			res = TEE_ERROR_SHORT_BUFFER;
+		else if (ret == CRYPT_INVALID_PACKET)
+			res = TEE_ERROR_BAD_FORMAT;
+		else
+			res = TEE_ERROR_GENERIC;
+	}
+
+	return res;
+}
+#endif /* _CFG_CRYPTO_WITH_CODEC */
 
 static TEE_Result tee_ltc_init(void)
 {
@@ -2279,6 +2322,14 @@ struct crypto_ops crypto_ops = {
 		.init = authenc_init,
 		.update_aad = authenc_update_aad,
 		.update_payload = authenc_update_payload,
+	},
+#endif
+#if defined(_CFG_CRYPTO_WITH_CODEC)
+	.codec = {
+#if defined(CFG_CRYPTO_BASE64)
+		.base64_encode = base64_encode_wrapper,
+		.base64_decode = base64_decode_wrapper,
+#endif
 	},
 #endif
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)

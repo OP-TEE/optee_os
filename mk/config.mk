@@ -32,3 +32,8 @@ CFG_TEE_TA_LOG_LEVEL?=1
 #   marck/check heap feature
 #   Enabling this could decrease efficiency
 CFG_TEE_CORE_USER_MEM_DEBUG?=1
+
+# CFG_TEE_TRACE_PERFORMANCE
+#   If 'y', TEECore will print CNTVCT (virtual counter) register values to console
+#   after receiving SMC call and before returning to normal world
+CFG_TEE_TRACE_PERFORMANCE?=n

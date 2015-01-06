@@ -12,8 +12,8 @@ core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm sm tee sta) $(platform-dir)
 
 libutil_with_isoc := y
-WITH_PL310 := y
-WITH_SECURE_TIME_SOURCE_REE := y
+CFG_WITH_PL310 := y
+CFG_SECURE_TIME_SOURCE_REE := y
 CFG_CACHE_API := y
 
 include mk/config.mk

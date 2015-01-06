@@ -21,7 +21,7 @@ CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
-WITH_SECURE_TIME_SOURCE_CNTPCT := y
+CFG_SECURE_TIME_SOURCE_ARM_GENERIC_TIMER := y
 WITH_UART_DRV := y
 WITH_GIC_DRV := y
 CFG_HWSUPP_MEM_PERM_PXN := y

@@ -19,7 +19,7 @@ core-platform-cppflags += \
 endif
 
 libutil_with_isoc := y
-WITH_SECURE_TIME_SOURCE_CNTPCT := y
+CFG_SECURE_TIME_SOURCE_ARM_GENERIC_TIMER := y
 
 include mk/config.mk
 

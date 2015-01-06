@@ -35,6 +35,9 @@ CFG_CRYPTO_DH ?= y
 CFG_CRYPTO_CCM ?= y
 CFG_CRYPTO_GCM ?= y
 
+# Encode/Decode
+CFG_CRYPTO_BASE64 ?= y
+
 endif
 
 ifeq ($(CFG_WITH_PAGER),y)
@@ -77,6 +80,7 @@ _CFG_CRYPTO_WITH_HASH := $(call cryp-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 
 _CFG_CRYPTO_WITH_MAC := $(call cryp-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CRYPTO_WITH_CBC := $(call cryp-one-enabled, CBC CBC_MAC)
 _CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA)
+_CFG_CRYPTO_WITH_CODEC := $(call cryp-one-enabled, BASE64)
 
 cppflags-lib-$(libtomcrypt_with_optimize_size) += -DLTC_SMALL_CODE -DLTC_NO_FAST
 
