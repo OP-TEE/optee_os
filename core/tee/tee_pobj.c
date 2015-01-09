@@ -41,14 +41,14 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 		return TEE_ERROR_ACCESS_CONFLICT;
 
 	/*second open/create need set flags to TEE_DATA_FLAG_SHARE_READ */
-	if ((oflags & TEE_DATA_FLAG_ACCESS_READ) ||
-		(oflags & TEE_DATA_FLAG_SHARE_READ) &&
+	if (((oflags & TEE_DATA_FLAG_ACCESS_READ) ||
+		(oflags & TEE_DATA_FLAG_SHARE_READ)) &&
 		!(nflags & TEE_DATA_FLAG_SHARE_READ))
 			return TEE_ERROR_ACCESS_CONFLICT;
 
 	/*second open/create need set flags to TEE_DATA_FLAG_SHARE_WRITE */
-	if ((oflags & TEE_DATA_FLAG_ACCESS_WRITE) ||
-		(oflags & TEE_DATA_FLAG_SHARE_WRITE) &&
+	if (((oflags & TEE_DATA_FLAG_ACCESS_WRITE) ||
+		(oflags & TEE_DATA_FLAG_SHARE_WRITE)) &&
 		!(nflags & TEE_DATA_FLAG_SHARE_WRITE ))
 			return TEE_ERROR_ACCESS_CONFLICT;
 	
