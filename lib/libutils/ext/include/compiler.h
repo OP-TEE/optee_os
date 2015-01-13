@@ -46,5 +46,9 @@
 #define __used		__attribute__((__used__))
 #define __must_check	__attribute__((warn_unused_result))
 #define __cold		__attribute__((__cold__))
+#define __section(x)	__attribute__((section(x)))
+#define __data		__section(".data")
+#define __bss		__section(".bss")
+#define __rodata	__section(".rodata")
 
 #endif /*COMPILER_H*/
