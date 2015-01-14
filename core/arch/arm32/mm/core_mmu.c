@@ -343,6 +343,7 @@ void core_init_mmu_tables(void)
 
 void core_init_mmu_regs(void)
 {
+	uint32_t sctlr;
 	paddr_t ttb_pa = core_mmu_get_main_ttb_pa();
 
 	/*
@@ -352,6 +353,14 @@ void core_init_mmu_regs(void)
 	 */
 	write_dacr(DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
 		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
+
+	/*
+	 * Disable TEX Remap
+	 * (This allows TEX field in page table entry take affect)
+	 */
+	sctlr = read_sctlr();
+	sctlr &= ~SCTLR_TRE;
+	write_sctlr(sctlr);
 
 	/*
 	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses

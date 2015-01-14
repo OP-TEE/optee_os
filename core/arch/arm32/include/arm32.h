@@ -183,6 +183,23 @@ static inline uint32_t read_ttbr0(void)
 	return ttbr0;
 }
 
+static inline void write_ats1cpw(uint32_t va)
+{
+	asm volatile ("mcr	p15, 0, %[va], c7, c8, 1"
+			: : [va] "r" (va)
+	);
+}
+
+static inline uint32_t read_par(void)
+{
+	uint32_t par;
+
+	asm volatile ("mrc	p15, 0, %[par], c7, c4, 0"
+			: [par] "=r" (par)
+	);
+	return par;
+}
+
 static inline void write_ttbr1(uint32_t ttbr1)
 {
 	asm volatile ("mcr	p15, 0, %[ttbr1], c2, c0, 1"
