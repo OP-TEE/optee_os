@@ -33,6 +33,7 @@
 #include <tee_internal_api_extensions.h>
 #include <utee_syscalls.h>
 #include <utee_defines.h>
+#include <util.h>
 
 struct __TEE_OperationHandle {
 	TEE_OperationInfo info;

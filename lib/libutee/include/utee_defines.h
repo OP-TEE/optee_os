@@ -126,24 +126,6 @@ typedef enum {
  */
 #define TEE_ATTR_BIT_VALUE                  (1 << 29)
 
-#ifndef MAX
-#define MAX(a, b) \
-       __extension__({ __typeof__(a) _a = (a); \
-           __typeof__(b) _b = (b); \
-         _a > _b ? _a : _b; })
-
-#define MIN(a, b) \
-       __extension__({ __typeof__(a) _a = (a); \
-           __typeof__(b) _b = (b); \
-         _a < _b ? _a : _b; })
-#endif
-
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + (size - 1)) & ~(size - 1))
-
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~(size - 1))
-
 #define TEE_U32_BSWAP(x) ( \
         (((x) & 0xff000000) >> 24) | \
         (((x) & 0x00ff0000) >>  8) | \

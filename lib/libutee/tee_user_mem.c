@@ -31,6 +31,7 @@
 #include <sys/queue.h>
 #include <assert.h>
 #include <tee_api.h>
+#include <util.h>
 #include "tee_user_mem.h"
 #include "utee_misc.h"
 
