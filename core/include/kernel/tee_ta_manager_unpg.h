@@ -81,6 +81,7 @@ struct tee_ta_ctx {
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
 	bool busy;		/* context is busy and cannot be entered */
+	bool trace;		/* TA traces to be flushed */
 	void *ta_time_offs;	/* Time reference used by the TA */
 	ta_static_head_t *static_ta;	/* TA head struct for other cores */
 	void *rlhandle;		/* private handle for other cores */

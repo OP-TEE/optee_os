@@ -40,6 +40,7 @@ endif
 # Common values
 
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
+CFG_TEE_CORE_NO_TA_TRACE ?= n
 
 # undef these to disable the related feature
 CFG_PL310_LOCKED ?= n
