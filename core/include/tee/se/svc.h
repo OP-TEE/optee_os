@@ -39,7 +39,7 @@
 #include <tee/se/apdu.h>
 #include <tee/se/util.h>
 
-#if defined(WITH_SE_API)
+#if defined(CFG_SE_API)
 
 TEE_Result tee_svc_se_service_open(struct tee_se_service *h);
 
@@ -99,6 +99,6 @@ TEE_Result tee_svc_se_channel_close(struct tee_se_channel *c);
 #define  tee_svc_se_channel_transmit		tee_svc_not_supported
 #define  tee_svc_se_channel_close		tee_svc_not_supported
 
-#endif /* if defined(WITH_SE_API) */
+#endif /* if defined(CFG_SE_API) */
 
 #endif

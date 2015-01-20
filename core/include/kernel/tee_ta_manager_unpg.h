@@ -34,7 +34,7 @@
 #include <kernel/tee_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mm_unpg.h>
-#if defined(WITH_SE_API)
+#if defined(CFG_SE_API)
 #include <tee/se/manager.h>
 #endif
 #include <sys/queue.h>
@@ -84,7 +84,7 @@ struct tee_ta_ctx {
 	void *ta_time_offs;	/* Time reference used by the TA */
 	ta_static_head_t *static_ta;	/* TA head struct for other cores */
 	void *rlhandle;		/* private handle for other cores */
-#if defined(WITH_SE_API)
+#if defined(CFG_SE_API)
 	struct tee_se_service *se_service;
 #endif
 };

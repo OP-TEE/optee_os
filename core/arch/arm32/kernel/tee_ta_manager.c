@@ -622,7 +622,7 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	TAILQ_INIT(&ctx->objects);
 	TAILQ_INIT(&ctx->storage_enums);
 	ctx->head = sec_head;
-#if defined(WITH_SE_API)
+#if defined(CFG_SE_API)
 	ctx->se_service = NULL;
 #endif
 

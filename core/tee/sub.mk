@@ -30,4 +30,4 @@ srcs-y += tee_pobj.c
 srcs-y += tee_rpmb_fs.c
 srcs-y += tee_time_generic.c
 
-subdirs-${WITH_SE_API} += se
+subdirs-${CFG_SE_API} += se
