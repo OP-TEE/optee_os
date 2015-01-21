@@ -1462,8 +1462,6 @@ TEE_Result tee_svc_obj_generate_key(
 		if (res != TEE_SUCCESS)
 			return res;
 
-		/* Force the last bit to have exactly a value on byte_size */
-		((char *)key)[sizeof(key->key_size) + byte_size - 1] |= 0x80;
 		key->key_size = byte_size;
 
 		/* Set bits for all known attributes for this object type */
