@@ -30,7 +30,7 @@ link-script-cppflags :=  \
 
 -include $(link-script-dep)
 
-$(link-script-pp): $(link-script)
+$(link-script-pp): $(link-script) $(conf-file)
 	@echo '  CPP     $@'
 	@mkdir -p $(dir $@)
 	$(q)$(CPP) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \

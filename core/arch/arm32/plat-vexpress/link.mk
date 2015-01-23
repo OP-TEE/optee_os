@@ -84,6 +84,7 @@ link-script-extra-deps += $(link-out-dir)/text_unpaged.ld.S
 link-script-extra-deps += $(link-out-dir)/rodata_unpaged.ld.S
 link-script-extra-deps += $(link-out-dir)/text_init.ld.S
 link-script-extra-deps += $(link-out-dir)/rodata_init.ld.S
+link-script-extra-deps += $(conf-file)
 cleanfiles += $(link-script-pp) $(link-script-dep)
 $(link-script-pp): $(link-script) $(link-script-extra-deps)
 	@echo '  CPP     $@'
