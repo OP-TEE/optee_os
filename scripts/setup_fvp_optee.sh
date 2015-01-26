@@ -7,6 +7,12 @@ SRC_FVP=
 
 # You only need to set these variables if you have access to the OPTEE_TEST
 # (requires a Linaro account and access to the git called optee_test.git)
+# If, in addition to the base OPTEE_TEST, you have access to the GlobalPlatform
+# "TEE Initial Configuration" test suite, you may add the tests by extracting
+# the test package in the current directory and run:
+#   $ export CFG_GP_PACKAGE_PATH=<path to the test suite directory>
+#   $ export CFG_GP_TESTSUITE_ENABLE=y
+#   $ ./setup_fvp_optee.sh
 LINARO_USERNAME=firstname.lastname # Should _NOT_ contain @linaro.org.
 HAVE_ACCESS_TO_OPTEE_TEST=
 ################################################################################
@@ -48,7 +54,7 @@ STABLE_LK_COMMIT=eb4ea6b1094ce3452c376c12a529178d202d229b
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=774cc3c10954eba316d56f48112652eff05f33a0
+STABLE_OPTEE_TEST_COMMIT=7f3746c396b61117dca0729577ce10b6a4be49ec
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
@@ -240,6 +246,28 @@ file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_
 # OP-TEE Tests
 file /bin/xtest $DEV_PATH/out/utest/host/xtest/bin/xtest 755 0 0
 EOF
+
+if [ "$CFG_GP_TESTSUITE_ENABLE" = y ]; then
+cat >> $DST_GEN_ROOTFS/filelist-tee.txt << EOF
+
+# Additional TAs for GP tests
+file /lib/teetz/534d4152-5443-534c-4d4c54494e535443.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_TCF_MultipleInstanceTA/534d4152-5443-534c-4d4c54494e535443.ta 444 0 0
+file /lib/teetz/534d4152-542d-4353-4c542d54412d5354.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_testingClientAPI/534d4152-542d-4353-4c542d54412d5354.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-5444415441535431.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_DS/534d4152-5443-534c-5444415441535431.ta 444 0 0
+file /lib/teetz/534d4152-542d-4353-4c542d54412d5355.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_answerSuccessTo_OpenSession_Invoke/534d4152-542d-4353-4c542d54412d5355.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-5443525950544f31.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_Crypto/534d4152-5443-534c-5443525950544f31.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-5f54494d45415049.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_Time/534d4152-5443-534c-5f54494d45415049.ta 444 0 0
+file /lib/teetz/534d4152-5443-4c53-41524954484d4554.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_Arithmetical/534d4152-5443-4c53-41524954484d4554.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-544f53345041524d.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_check_OpenSession_with_4_parameters/534d4152-5443-534c-544f53345041524d.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-54455252544f4f53.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_answerErrorTo_OpenSession/534d4152-5443-534c-54455252544f4f53.ta 444 0 0
+file /lib/teetz/534d4152-542d-4353-4c542d54412d4552.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_answerErrorTo_Invoke/534d4152-542d-4353-4c542d54412d4552.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-53474c494e535443.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_TCF_SingleInstanceTA/534d4152-5443-534c-53474c494e535443.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-5441544346494341.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_TCF_ICA/534d4152-5443-534c-5441544346494341.ta 444 0 0
+file /lib/teetz/534d4152-5443-534c-5454434649434132.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_TCF_ICA2/534d4152-5443-534c-5454434649434132.ta 444 0 0
+file /lib/teetz/534d4152-542d-4353-4c542d54412d3031.ta $DEV_PATH/out/utest/user_ta/armv7/GP_TTA_TCF/534d4152-542d-4353-4c542d54412d3031.ta 444 0 0
+EOF
+fi
+
 fi
 
 ################################################################################
@@ -346,6 +374,14 @@ cat > $DEV_PATH/build_optee_tests.sh << EOF
 cd $DST_OPTEE_TEST
 export CFG_DEV_PATH=$DEV_PATH
 export CFG_ROOTFS_DIR=\$CFG_DEV_PATH/out
+
+if [ "\$CFG_GP_TESTSUITE_ENABLE" = y ]; then
+export CFG_GP_PACKAGE_PATH=\${CFG_GP_PACKAGE_PATH:-$DST_OPTEE_TEST/TEE_Initial_Configuration-Test_Suite_v1_0_0-2014-12-03-STM}
+if [ ! -d "\$CFG_GP_PACKAGE_PATH" ]; then
+  echo "CFG_GP_PACKAGE_PATH must be the path to the GP testsuite directory"
+  exit 1
+fi
+fi
 
 export PATH=\$CFG_DEV_PATH/toolchains/aarch64/bin:\$PATH
 export PATH=\$CFG_DEV_PATH/toolchains/aarch32/bin:\$PATH
