@@ -9,6 +9,16 @@ DEV_PATH=$HOME/devel/qemu_optee
 #LINARO_USERNAME=firstname.lastname # Should _NOT_ contain @linaro.org.
 #HAVE_ACCESS_TO_OPTEE_TEST=1
 
+# Notices for Secure Element API test:
+# If configure/make of QEMU fails it could be due to missing packages
+# For Ubuntu 14.04 the following helps:
+# sudo apt-get install libtool autoconf automake help2man pcscd libpcsclite-dev
+#
+# You also need Java SDK:
+# sudo apt-get install default-jdk
+#
+# uncomment this to enable test environment for Secure Element API
+#WITH_SE_API_TEST=1
 
 # If configure/make of QEMU fails it could be due to missing packages
 # For Ubuntu 14.04 the following helps:
@@ -60,6 +70,17 @@ SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-p
 DST_OPTEE_TEST=$DEV_PATH/optee_test
 STABLE_OPTEE_TEST_COMMIT=774cc3c10954eba316d56f48112652eff05f33a0
 
+QEMU_PCSC_PASSTHRU_PATCHES=https://github.com/m943040028/qemu/releases/download/0.1/pcsc_patches.tbz2
+
+JCARDSIM_BINARY=https://github.com/m943040028/jcardsim/releases/download/release2/jcardsim.jar
+
+SRC_VPCD=https://github.com/frankmorgner/vsmartcard.git
+DST_VPCD=${DEV_PATH}/vsmartcard
+
+SRC_SE_API_TEST=https://github.com/m943040028/se_api_test.git
+DST_SE_API_TEST=${DEV_PATH}/se_api_test
+STABLE_SE_API_TEST_COMMIT=227a65bbe9ffef3bb33ba8aa0192182e41290212
+
 SRC_GEN_ROOTFS=https://github.com/jenswi-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
 STATBLE_GEN_ROOTFS_COMMIT=6f0097b91a36e00fb45ae77f916f683763e7f286
@@ -77,9 +98,20 @@ DST_AARCH32_GCC=$DEV_PATH/toolchains/$AARCH32_GCC
 
 if [ ! -d "$DST_QEMU" ]; then
 	git clone $SRC_QEMU $DST_QEMU
-	echo Configuring and compiling QEMU
-	(cd $DST_QEMU && git reset --hard $STABLE_QEMU_COMMIT && \
-		./configure --target-list=arm-softmmu && make)
+
+	if [ -n "$WITH_SE_API_TEST" ]; then
+		echo Configuring and compiling QEMU with PC/SC passthru
+		wget ${QEMU_PCSC_PASSTHRU_PATCHES} -O ${DEV_PATH}/pcsc_patches.tbz2
+		tar jxf ${DEV_PATH}/pcsc_patches.tbz2 -C ${DEV_PATH}
+		(cd $DST_QEMU && git reset --hard $STABLE_QEMU_COMMIT && \
+			git am ${DEV_PATH}/pcsc_patches/*.patch && \
+			./configure --target-list=arm-softmmu \
+			--enable-pcsc-passthru && make)
+	else
+		echo Configuring and compiling QEMU
+		(cd $DST_QEMU && git reset --hard $STABLE_QEMU_COMMIT && \
+			./configure --target-list=arm-softmmu && make)
+	fi
 else
 	echo " `basename $DST_QEMU` already exist, not cloning"
 fi
@@ -137,6 +169,25 @@ if [ ! -d "$DST_GEN_ROOTFS" ]; then
 	(cd $DST_GEN_ROOTFS && git reset --hard $STATBLE_GEN_ROOTFS_COMMIT)
 else
 	echo " `basename $DST_GEN_ROOTFS` already exist, not cloning"
+fi
+
+if [ ! -d "$DST_VPCD" ] && [ -n "$WITH_SE_API_TEST" ] ; then
+	git clone $SRC_VPCD $DST_VPCD
+	(cd $DST_VPCD/virtualsmartcard && autoreconf --verbose --install && \
+		./configure --sysconfdir=/etc && cd src/vpcd && make)
+else
+	echo " `basename $DST_VPCD` already exist, not cloning"
+fi
+
+if [ -n "$WITH_SE_API_TEST" ]; then
+	wget ${JCARDSIM_BINARY} -O ${DEV_PATH}/jcardsim.jar
+fi
+
+if [ ! -d "$DST_SE_API_TEST" ] && [ -n "$WITH_SE_API_TEST" ]; then
+	git clone $SRC_SE_API_TEST $DST_SE_API_TEST
+	(cd $DST_SE_API_TEST && git reset --hard $STABLE_SE_API_TEST_COMMIT)
+else
+	echo " `basename $DST_SE_API_TEST` already exist, not cloning"
 fi
 
 ################################################################################
@@ -254,6 +305,27 @@ $DEV_PATH/build_linux.sh
 # Save kernel version for later use
 export KERNEL_VERSION=`cd $DST_KERNEL && make kernelversion`
 
+
+################################################################################
+# Generate the build script for SE API test                                    #
+################################################################################
+if [ -n "$WITH_SE_API_TEST" ]; then
+
+cat > ${DEV_PATH}/build_se_api_test.sh << EOF
+#!/bin/bash
+
+export PATH=${DEV_PATH}/toolchains/aarch32/bin:$PATH
+(cd se_api_test && \\
+	make TEEC_EXPORT=../../optee_client/out/export/ \\
+	TA_DEV_KIT_DIR=../../optee_os/out/arm32-plat-vexpress/export-user_ta \\
+	HOST_CROSS_COMPILE=arm-linux-gnueabihf- \\
+	TA_CROSS_COMPILE=arm-linux-gnueabihf- $*)
+EOF
+
+chmod 711 ${DEV_PATH}/build_se_api_test.sh
+
+fi
+
 ################################################################################
 # Generate the filesystem using gen_init_cpio                                  #
 ################################################################################
@@ -306,6 +378,15 @@ file /lib/teetz/e6a33ed4-562b-463a-bb7eff5e15a493c8.ta $DEV_PATH/out/utest/user_
 
 # OP-TEE Tests
 file /bin/xtest $DEV_PATH/out/utest/host/xtest/bin/xtest 755 0 0
+EOF
+fi
+
+if [ -n "$WITH_SE_API_TEST" ]; then
+cat >> $DST_GEN_ROOTFS/filelist-tee.txt << EOF
+
+# SE API Test
+file /bin/se_api_test $DEV_PATH/se_api_test/host/se_api_test 755 0 0"
+file /lib/teetz/aeb79790-6f03-11e5-98030800200c9a67.ta $DEV_PATH/se_api_test/ta/aeb79790-6f03-11e5-98030800200c9a67.ta 444 0 0
 EOF
 fi
 
@@ -408,6 +489,9 @@ cd $DEV_PATH
 if [ -f "build_optee_tests.sh" ]; then
 	./build_optee_tests.sh
 fi
+if [ -f "build_se_api_test.sh" ]; then
+	./build_se_api_test.sh
+fi
 ./build_optee_linuxkernel.sh
 ./update_rootfs.sh
 ./build_bios.sh cscope all
@@ -434,3 +518,17 @@ to run emulator after build is complete:
 The serial scripts will normally not exit after QEMU has exited, instead
 they are waiting for QEMU to be started again
 EOF
+
+if [ -n "$WITH_SE_API_TEST" ]; then
+cat << EOF
+
+You need to install VPCD first, to install VPCD
+(you need sudo permission to install it):
+cd $DST_VPCD/virtualsmartcard/src/vpcd
+sudo make install
+
+To activate the java card simulator (jcardsim), run the following
+java -cp jcardsim.jar org.linaro.seapi.VpcdClient  # at a separate prompt
+
+EOF
+fi
