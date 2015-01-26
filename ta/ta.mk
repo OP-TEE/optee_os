@@ -31,6 +31,7 @@ include mk/lib.mk
 base-prefix :=
 
 incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
+incfiles-extra-host := lib/libutils/ext/include/compiler.h
 
 #
 # Copy lib files and exported headers from each lib
@@ -72,6 +73,8 @@ $(foreach d, $(incdirs$(sm)), \
 # Copy the .h files needed by host
 $(foreach d, $(incdirs-host), \
 	$(eval $(call copy-incdir, $(d), $(out-dir)/export-user_ta/host_include)))
+$(foreach f, $(incfiles-extra-host), \
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/host_include)))
 
 # Copy the src files
 ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
