@@ -32,6 +32,7 @@ base-prefix :=
 
 incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
 incfiles-extra-host := lib/libutils/ext/include/compiler.h
+incfiles-extra-host += lib/libutils/ext/include/util.h
 
 #
 # Copy lib files and exported headers from each lib
