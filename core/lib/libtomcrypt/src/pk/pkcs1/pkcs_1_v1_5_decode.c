@@ -78,11 +78,12 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     return CRYPT_PK_INVALID_SIZE;
   }
 
+  result = CRYPT_OK;
+
   /* separate encoded message */
 
   if ((msg[0] != 0x00) || (msg[1] != (unsigned char)block_type)) {
     result = CRYPT_INVALID_PACKET;
-    goto bail;
   }
 
   if (block_type == LTC_LTC_PKCS_1_EME) {
@@ -92,12 +93,10 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     }
     ps_len = i++ - 2;
 
-    if ((i >= modulus_len) || (ps_len < 8)) {
-      /* There was no octet with hexadecimal value 0x00 to separate ps from m,
-       * or the length of ps is less than 8 octets.
+    if (i >= modulus_len) {
+      /* There was no octet with hexadecimal value 0x00 to separate ps from m.
        */
       result = CRYPT_INVALID_PACKET;
-      goto bail;
     }
   } else {
     for (i = 2; i < modulus_len - 1; i++) {
@@ -108,25 +107,30 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     if (msg[i] != 0) {
       /* There was no octet with hexadecimal value 0x00 to separate ps from m. */
       result = CRYPT_INVALID_PACKET;
-      goto bail;
     }
 
     ps_len = i - 2;
   }
 
-  if (*outlen < (msglen - (2 + ps_len + 1))) {
-    *outlen = msglen - (2 + ps_len + 1);
-    result = CRYPT_BUFFER_OVERFLOW;
-    goto bail;
+  if (ps_len < 8)
+  {
+    /* The length of ps is less than 8 octets.
+     */
+    result = CRYPT_INVALID_PACKET;
   }
 
-  *outlen = (msglen - (2 + ps_len + 1));
-  XMEMCPY(out, &msg[2 + ps_len + 1], *outlen);
+  if (*outlen < (msglen - (2 + ps_len + 1))) {
+    result = CRYPT_INVALID_PACKET;
+  }
 
-  /* valid packet */
-  *is_valid = 1;
-  result    = CRYPT_OK;
-bail:
+  if (result == CRYPT_OK) {
+     *outlen = (msglen - (2 + ps_len + 1));
+     XMEMCPY(out, &msg[2 + ps_len + 1], *outlen);
+
+     /* valid packet */
+     *is_valid = 1;
+  }
+
   return result;
 } /* pkcs_1_v1_5_decode */
 

@@ -25,27 +25,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* ---- LTC_BASE64 Routines ---- */
-#ifdef LTC_BASE64
-int base64_encode(const unsigned char *in,  unsigned long len, 
-                        unsigned char *out, unsigned long *outlen);
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis
+ *
+ * LibTomCrypt is a library that provides various cryptographic
+ * algorithms in a highly modular and flexible manner.
+ *
+ * The library is free for all purposes without any express
+ * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
+ */
+#include "tomcrypt.h"
 
-int base64_decode(const unsigned char *in,  unsigned long len, 
-                        unsigned char *out, unsigned long *outlen);
-#endif
+/**
+   @file mem_neq.c
+   Compare two blocks of memory for inequality.
+   Steffen Jaeckel
+*/
 
-/* ---- MEM routines ---- */
-int mem_neq(const void *a, const void *b, size_t len);
-void zeromem(void *dst, size_t len);
-void burn_stack(unsigned long len);
+/**
+   Compare two blocks of memory for inequality.
 
-const char *error_to_string(int err);
+   The usage is similar to that of standard memcmp(), but you can only test
+   if the memory is equal or not - you can not determine by how much the
+   first different byte differs.
 
-extern const char *crypt_build_settings;
+   @param a     The first memory region
+   @param b     The second memory region
+   @param len   The length of the area to compare (octets)
 
-/* ---- HMM ---- */
-int crypt_fsa(void *mp, ...);
+   @return 0 when a and b are equal for len bytes, else they are not equal.
+*/
+int mem_neq(const void *a, const void *b, size_t len)
+{
+   unsigned char ret = 0;
+   const unsigned char* pa;
+   const unsigned char* pb;
 
-/* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_misc.h,v $ */
-/* $Revision: 1.5 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+   LTC_ARGCHK(a != NULL);
+   LTC_ARGCHK(b != NULL);
+
+   pa = a;
+   pb = b;
+
+   while (len-- > 0) {
+      ret |= *pa ^ *pb;
+      ++pa;
+      ++pb;
+   }
+
+   return ret;
+}
+
+/* $Source$ */
+/* $Revision$ */
+/* $Date$ */

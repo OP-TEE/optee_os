@@ -176,7 +176,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    /* mask == hash means valid signature */
-   if (XMEMCMP(mask, hash, hLen) == 0) {
+   if (mem_neq(mask, hash, hLen) == 0) {
       *res = 1;
    }
 
