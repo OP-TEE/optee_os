@@ -44,6 +44,21 @@
 
 #ifdef LTC_MRSA
 
+#ifdef CFG_LTC_USE_MRSA_PREALLOC_TMPBUF
+/*
+ * Prevent 32kByte buffer allocation at each RSA key import.
+ * This cost 30kByte of statically allocated rw data.
+ */
+static unsigned char rsa_prealloc_tmpbuf[MAX_RSA_SIZE*8];
+#undef XCALLOC
+#define XCALLOC(_n1, _n2) \
+	(memset(rsa_prealloc_tmpbuf, 0, sizeof(rsa_prealloc_tmpbuf)), \
+	rsa_prealloc_tmpbuf)
+
+#undef XFREE
+#define XFREE(_p)
+#endif
+
 /**
   Import an RSAPublicKey or RSAPrivateKey [two-prime only, only support >= 1024-bit keys, defined in LTC_PKCS #1 v2.1]
   @param in      The packet to import from
