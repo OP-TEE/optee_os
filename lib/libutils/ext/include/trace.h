@@ -42,6 +42,7 @@
 /*
  * Symbols provided by the entity that uses this API.
  */
+extern int trace_level;
 extern const char trace_ext_prefix[];
 void trace_ext_puts(bool sync, const char *str);
 int trace_ext_get_thread_id(void);

@@ -35,8 +35,6 @@
 
 #if CFG_TRACE_LEVEL > 0
 
-const char trace_ext_prefix[] = "USER-TA";
-
 void trace_ext_puts(bool sync __unused, const char *str)
 {
 	utee_log(str, strlen(str));

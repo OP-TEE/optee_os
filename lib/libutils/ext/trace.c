@@ -36,7 +36,6 @@
 #if (CFG_TRACE_LEVEL < TRACE_MIN) || (CFG_TRACE_LEVEL > TRACE_MAX)
 #error "Invalid value of CFG_TRACE_LEVEL"
 #endif
-static int trace_level = CFG_TRACE_LEVEL;
 
 void trace_set_level(int level)
 {
