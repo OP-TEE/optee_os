@@ -38,8 +38,15 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
+#ifdef ARM32
 #define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
 #define PLATFORM_LINKER_ARCH	arm
+#endif /*ARM32*/
+
+#ifdef ARM64
+#define PLATFORM_LINKER_FORMAT	"elf64-littleaarch64"
+#define PLATFORM_LINKER_ARCH	aarch64
+#endif /*ARM64*/
 
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(qemu)
 

@@ -79,19 +79,18 @@ else
 $$(error "Don't know what to do with $1")
 endif
 
-
 comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@ \
 	   $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
 			 $$(cppflags-remove-$2), \
-	      $$(nostdinc) $$(CPPFLAGS) \
+	      $$(nostdinc$$(comp-sm-$2)) $$(CPPFLAGS) \
 	      $$(addprefix -I,$$(incdirs$$(comp-sm-$2))) \
 	      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
 	      $$(addprefix -I,$$(incdirs-$2)) \
 	      $$(cppflags$$(comp-sm-$2)) \
 	      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
 
-comp-cmd-$2 = $$(CC) $$(comp-flags-$2) -c $$< -o $$@
-comp-objcpy-cmd-$2 = $$(OBJCOPY) \
+comp-cmd-$2 = $$(CC$(sm)) $$(comp-flags-$2) -c $$< -o $$@
+comp-objcpy-cmd-$2 = $$(OBJCOPY$(sm)) \
 	--rename-section .rodata=.rodata.$1 \
 	--rename-section .rodata.str1.1=.rodata.str1.1.$1 \
 	$2

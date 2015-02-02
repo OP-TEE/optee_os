@@ -1,17 +1,30 @@
 
-CC	= $(CROSS_COMPILE)gcc
-LD	= $(CROSS_COMPILE)ld
-AR	= $(CROSS_COMPILE)ar
-NM	= $(CROSS_COMPILE)nm
-OBJCOPY	= $(CROSS_COMPILE)objcopy
-OBJDUMP	= $(CROSS_COMPILE)objdump
-READELF = $(CROSS_COMPILE)readelf
+CC$(sm)		:= $(CROSS_COMPILE_$(sm))gcc
+CPP$(sm)	:= $(CROSS_COMPILE_$(sm))cpp
+LD$(sm)		:= $(CROSS_COMPILE_$(sm))ld
+AR$(sm)		:= $(CROSS_COMPILE_$(sm))ar
+NM$(sm)		:= $(CROSS_COMPILE_$(sm))nm
+OBJCOPY$(sm)	:= $(CROSS_COMPILE_$(sm))objcopy
+OBJDUMP$(sm)	:= $(CROSS_COMPILE_$(sm))objdump
+READELF$(sm)	:= $(CROSS_COMPILE_$(sm))readelf
 
-nostdinc	:= -nostdinc -isystem $(shell $(CC) -print-file-name=include \
-			2> /dev/null)
+nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
+			-print-file-name=include 2> /dev/null)
 
 # Get location of libgcc from gcc
-libgcc  	:= $(shell $(CC) $(comp-cflags$(sm)) -print-libgcc-file-name \
-			2> /dev/null)
+libgcc$(sm)  	:= $(shell $(CC$(sm)) $(comp-cflags$(sm)) \
+			-print-libgcc-file-name 2> /dev/null)
+
+# Define these to something to discover accidental use
+CC		:= false
+CPP		:= false
+LD		:= false
+AR		:= false
+NM		:= false
+OBJCOPY		:= false
+OBJDUMP		:= false
+READELF		:= false
+nostdinc	:= --bad-nostdinc-variable
+libgcc  	:= --bad-libgcc-variable
 
 

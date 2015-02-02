@@ -2,7 +2,7 @@ include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
 CROSS_PREFIX	?= arm-linux-gnueabihf
 CROSS_COMPILE	?= $(CROSS_PREFIX)-
-include mk/gcc.mk
+COMPILER	?= gcc
 
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=4

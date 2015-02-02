@@ -20,12 +20,12 @@ link-ldflags += --sort-section=alignment
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(libnames))
-ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
+ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcccore)
 
 link-script-cppflags :=  \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
-		$(nostdinc) $(CPPFLAGS) \
-		$(addprefix -I,$(incdirs$(sm))) $(cppflags$(sm)))
+		$(nostdinccore) $(CPPFLAGS) \
+		$(addprefix -I,$(incdirscore)) $(cppflagscore))
 
 
 -include $(link-script-dep)
@@ -33,22 +33,22 @@ link-script-cppflags :=  \
 $(link-script-pp): $(link-script) $(conf-file)
 	@echo '  CPP     $@'
 	@mkdir -p $(dir $@)
-	$(q)$(CPP) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
+	$(q)$(CPPcore) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
 		$(link-script-cppflags) $< > $@
 
 
 $(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
 	@echo '  LD      $@'
-	$(q)$(LD) $(ldargs-tee.elf) -o $@
+	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
 $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 	@echo '  OBJDUMP $@'
-	$(q)$(OBJDUMP) -l -x -d $< > $@
+	$(q)$(OBJDUMPcore) -l -x -d $< > $@
 
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf
 	@echo '  OBJCOPY $@'
-	$(q)$(OBJCOPY) -O binary $< $@
+	$(q)$(OBJCOPYcore) -O binary $< $@
 
 $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
 	@echo '  GEN     $@'
-	$(q)$(NM) --print-size --reverse-sort --size-sort $< > $@
+	$(q)$(NMcore) --print-size --reverse-sort --size-sort $< > $@

@@ -27,12 +27,12 @@ ifeq ($(lib-use-ld), y)
 $(lib-libfile): $(objs)
 	@echo '  LD      $$@'
 	@mkdir -p $$(dir $$@)
-	$$(q)$$(LD) $(lib-ldflags) -o $$@ $$^
+	$$(q)$$(LD$(sm)) $(lib-ldflags) -o $$@ $$^
 else
 $(lib-libfile): $(objs)
 	@echo '  AR      $$@'
 	@mkdir -p $$(dir $$@)
-	$$(q)$$(AR) rcs $$@ $$^
+	$$(q)$$(AR$(sm)) rcs $$@ $$^
 endif
 endef #process-lib
 

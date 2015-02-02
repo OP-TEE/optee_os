@@ -8,6 +8,12 @@ arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include $(platform-dir)/conf.mk
 
+# Setup compiler for this sub module
+CROSS_PREFIX_$(sm)	?= $(CROSS_PREFIX)
+CROSS_COMPILE_$(sm)	?= $(CROSS_PREFIX_$(sm))-
+COMPILER_$(sm)		?= $(COMPILER)
+include mk/$(COMPILER_$(sm)).mk
+
 PLATFORM_FLAVOR ?= default
 platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y

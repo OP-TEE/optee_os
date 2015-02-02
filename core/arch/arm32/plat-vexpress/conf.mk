@@ -2,9 +2,25 @@ include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
 CROSS_PREFIX	?= arm-linux-gnueabihf
 CROSS_COMPILE	?= $(CROSS_PREFIX)-
-include mk/gcc.mk
+COMPILER	?= gcc
 
-core-platform-cppflags	 = -I$(arch-dir)/include
+ifeq ($(CFG_ARM64_core),y)
+CFG_WITH_LPAE := y
+else
+CFG_ARM32_core ?= y
+endif
+
+ifeq ($(CFG_ARM64_core),y)
+core-platform-cppflags += $(arm64-platform-cppflags)
+core-platform-cflags += $(arm64-platform-cflags)
+core-platform-aflags += $(arm64-platform-aflags)
+else
+core-platform-cppflags += $(arm32-platform-cppflags)
+core-platform-cflags += $(arm32-platform-cflags)
+core-platform-aflags += $(arm32-platform-aflags)
+endif
+
+core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 
 core-platform-subdirs += \

@@ -1,9 +1,14 @@
 include mk/cleanvars.mk
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
 # Set current submodule (used for module specific flags compile result etc)
 sm := user_ta
 sm-$(sm) := y
+
+# Setup compiler for this sub module
+CROSS_PREFIX_$(sm)	?= $(CROSS_PREFIX)
+CROSS_COMPILE_$(sm)	?= $(CROSS_PREFIX_$(sm))-
+COMPILER_$(sm)		?= $(COMPILER)
+include mk/$(COMPILER_$(sm)).mk
 
 cppflags$(sm)	+= $(platform-cppflags) $(user_ta-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(user_ta-platform-cflags)

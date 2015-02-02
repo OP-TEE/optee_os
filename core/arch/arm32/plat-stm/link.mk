@@ -16,7 +16,7 @@ link-ldflags += --sort-section=alignment
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(libfiles)
-ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
+ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcccore)
 
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
@@ -27,16 +27,16 @@ $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
 
 $(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
 	@echo '  LD      $@'
-	$(q)$(LD) $(ldargs-tee.elf) -o $@
+	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
 $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 	@echo '  OBJDUMP $@'
-	$(q)$(OBJDUMP) -l -x -d $< > $@
+	$(q)$(OBJDUMPcore) -l -x -d $< > $@
 
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf
 	@echo '  OBJCOPY $@'
-	$(q)$(OBJCOPY) -O binary $< $@
+	$(q)$(OBJCOPYcore) -O binary $< $@
 
 $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
 	@echo '  GEN     $@'
-	$(q)$(NM) --print-size --reverse-sort --size-sort $< > $@
+	$(q)$(NMcore) --print-size --reverse-sort --size-sort $< > $@
