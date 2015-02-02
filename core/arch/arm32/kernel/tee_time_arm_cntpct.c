@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <mpa.h>
+#include <arm32.h>
 
 static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
 {
@@ -43,28 +44,6 @@ static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
 	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
 	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
 	return remainder;
-}
-
-static uint64_t read_cntpct(void)
-{
-	uint64_t val;
-	uint32_t low, high;
-	__asm__ volatile("mrrc	p15, 0, %0, %1, c14\n"
-		: "=r"(low), "=r"(high)
-		:
-		: "memory");
-	val = low | ((uint64_t)high << WORD_SIZE);
-	return val;
-}
-
-static uint32_t read_cntfrq(void)
-{
-	uint32_t frq;
-	__asm__ volatile("mrc	p15, 0, %0, c14, c0, 0\n"
-		: "=r"(frq)
-		:
-		: "memory");
-	return frq;
 }
 
 static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)

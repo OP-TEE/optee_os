@@ -491,6 +491,21 @@ static inline void write_nsacr(uint32_t nsacr)
 	);
 }
 
+static inline uint64_t read_cntpct(void)
+{
+	uint64_t val;
+
+	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	return val;
+}
+
+static inline uint32_t read_cntfrq(void)
+{
+	uint32_t frq;
+
+	asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (frq));
+	return frq;
+}
 #endif /*ASM*/
 
 #endif /*ARM32_H*/
