@@ -87,6 +87,13 @@ TEE_Result tee_svc_wait(uint32_t timeout);
 TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *time);
 TEE_Result tee_svc_set_ta_time(const TEE_Time *time);
 
+#ifdef CFG_CACHE_API
+TEE_Result tee_svc_cache_operation(void *va, size_t len,
+				   enum utee_cache_operation op);
+#else
+#define  tee_svc_cache_operation tee_svc_not_supported
+#endif
+
 void tee_svc_trace_syscall(int num);
 
 

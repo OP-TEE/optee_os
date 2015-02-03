@@ -35,6 +35,7 @@
 #include "tee_ta.h"
 #include <kernel/kta_types.h>
 #include "tee_ta_manager_unpg.h"
+#include "utee_types.h"
 
 /*-----------------------------------------------------------------------------
  * Initializes virtual memory management by reserving virtual memory for
@@ -101,8 +102,13 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 					 *open_sessions);
 
 int tee_ta_set_trace_level(int level);
-
 void tee_ta_dump_current(void);
 void tee_ta_dump_all(void);
+
+#ifdef CFG_CACHE_API
+TEE_Result tee_uta_cache_operation(struct tee_ta_session *s,
+				   enum utee_cache_operation op,
+				   void *va, size_t len);
+#endif
 
 #endif

@@ -61,8 +61,8 @@
 #include <kernel/tee_kta_trace.h>
 #include <kernel/trace_ta.h>
 
-
-/* Use this invalid ID for a static TA, since
+/*
+ * Use this invalid ID for a static TA, since
  * session is not needed for calling static TA.
  */
 #define TEE_SESSION_ID_STATIC_TA 0xFFFFFFFF
@@ -698,7 +698,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (core_pa2va
-			    ((uint32_t) param->params[n].memref.buffer, &va))
+			    ((uint32_t)param->params[n].memref.buffer, &va))
 				return TEE_ERROR_BAD_PARAMETERS;
 			param->params[n].memref.buffer = va;
 			break;
@@ -710,7 +710,6 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 
 	return TEE_SUCCESS;
 }
-
 
 static void tee_ta_set_invoke_timeout(struct tee_ta_session *sess,
 				      uint32_t cancel_req_to)
@@ -1541,6 +1540,55 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 	}
 	return TEE_ERROR_BAD_PARAMETERS;
 }
+
+/*
+ * tee_uta_cache_operation - dynamic cache clean/inval request from a TA
+ */
+#ifdef CFG_CACHE_API
+TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
+				   enum utee_cache_operation op,
+				   void *va, size_t len)
+{
+	TEE_Result ret;
+	paddr_t pa = 0;
+	int l1op, l2op;
+
+	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	ret = tee_mmu_check_access_rights(sess->ctx,
+			TEE_MEMORY_ACCESS_WRITE, (tee_uaddr_t)va, len);
+	if (ret != TEE_SUCCESS)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	ret = tee_mmu_user_va2pa(sess->ctx, va, &pa);
+	if (ret != TEE_SUCCESS)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	switch (op) {
+	case TEE_CACHEFLUSH:
+		l1op = DCACHE_AREA_CLEAN_INV;
+		l2op = L2CACHE_AREA_CLEAN_INV;
+		break;
+	case TEE_CACHECLEAN:
+		l1op = DCACHE_AREA_CLEAN;
+		l2op = L2CACHE_AREA_CLEAN;
+		break;
+	case TEE_CACHEINVALIDATE:
+		l1op = DCACHE_INVALIDATE;
+		l2op = L2CACHE_INVALIDATE;
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	ret = cache_maintenance_l1(l1op, va, len);
+	if (ret != TEE_SUCCESS)
+		return ret;
+
+	return cache_maintenance_l2(l2op, pa, len);
+}
+#endif
 
 /*
  * dump_state - Display TA state as an error log.

@@ -44,4 +44,15 @@ enum utee_time_category {
 	UTEE_TIME_CAT_REE
 };
 
+/*
+ * Cache operation types.
+ * Used when extensions TEE_CacheClean() / TEE_CacheFlush() /
+ * TEE_CacheInvalidate() are used
+ */
+enum utee_cache_operation {
+	TEE_CACHECLEAN = 0,
+	TEE_CACHEFLUSH,
+	TEE_CACHEINVALIDATE,
+};
+
 #endif /* UTEE_TYPES_H */

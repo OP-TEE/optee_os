@@ -229,4 +229,7 @@ TEE_Result utee_se_channel_transmit(TEE_SEChannelHandle c,
 
 TEE_Result utee_se_channel_close(TEE_SEChannelHandle c);
 
+TEE_Result utee_cache_operation(void *va, size_t l,
+				enum utee_cache_operation op);
+
 #endif /* UTEE_SYSCALLS_H */

@@ -112,6 +112,7 @@ static const tee_svc_func tee_svc_syscall_table[] = {
 	(tee_svc_func)tee_svc_se_channel_get_select_resp,
 	(tee_svc_func)tee_svc_se_channel_transmit,
 	(tee_svc_func)tee_svc_se_channel_close,
+	(tee_svc_func)tee_svc_cache_operation,
 };
 
 void tee_svc_handler(struct thread_svc_regs *regs)

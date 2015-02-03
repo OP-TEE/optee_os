@@ -54,8 +54,8 @@ uint32_t tee_hs2b(uint8_t *hs, uint8_t *b, uint32_t hslen, uint32_t blen);
  *
  * core_is_buffer_inside() - return true if buffer is inside memory area
  * core_is_buffer_outside() - return true if buffer is outside area
- * core_is_buffer_over() - return true if buffer overlaps area
-
+ * core_is_buffer_intersect() - return true if buffer overlaps area
+ *
  * Warning: core_is_buffer_inside(x,x,x,x)==false does NOT mean
  * core_is_buffer_outside(x,x,x,x)==true.
  *

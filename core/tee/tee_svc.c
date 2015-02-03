@@ -825,3 +825,21 @@ TEE_Result tee_svc_set_ta_time(const TEE_Time *mytime)
 
 	return tee_time_set_ta_time((const void *)&s->ctx->head->uuid, &t);
 }
+
+#ifdef CFG_CACHE_API
+TEE_Result tee_svc_cache_operation(void *va, size_t len,
+				   enum utee_cache_operation op)
+{
+	TEE_Result res;
+	struct tee_ta_session *s = NULL;
+
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if ((s->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return tee_uta_cache_operation(s, op, va, len);
+}
+#endif
