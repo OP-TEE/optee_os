@@ -211,7 +211,7 @@ $ ./run_foundation.sh
 ```
 and in the console write
 ```
-root@FVP:/ modprobe optee
+root@FVP:/ modprobe optee_armtz
 root@FVP:/ tee-supplicant &
 ```
 Now everything has been set up and OP-TEE is ready to be used.
@@ -319,7 +319,7 @@ you need to load and OP-TEEs Linux Kernel driver and also load tee-supplicant.
 This is done by the following lines:
 
 ```
-$ root@Vexpress:/ modprobe optee
+$ root@Vexpress:/ modprobe optee_armtz
 $ root@Vexpress:/ tee-supplicant &
 ```
 
