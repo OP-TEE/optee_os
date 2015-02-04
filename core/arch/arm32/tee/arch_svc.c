@@ -115,9 +115,26 @@ static const tee_svc_func tee_svc_syscall_table[] = {
 	(tee_svc_func)tee_svc_cache_operation,
 };
 
+#ifdef ARM32
+static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
+		size_t *max_args)
+{
+	*scn = regs->r7;
+	*max_args = regs->r6;
+}
+#endif /*ARM32*/
+
+#ifdef ARM32
+static void set_svc_retval(struct thread_svc_regs *regs, uint32_t ret_val)
+{
+	regs->r0 = ret_val;
+}
+#endif /*ARM32*/
+
 void tee_svc_handler(struct thread_svc_regs *regs)
 {
-	const uint32_t scn = regs->r7;
+	size_t scn;
+	size_t max_args;
 	tee_svc_func scf;
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
@@ -126,13 +143,15 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 
+	get_scn_max_args(regs, &scn, &max_args);
+
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 	tee_svc_trace_syscall(scn);
 #endif
 
-	if (regs->r6 > TEE_SVC_MAX_ARGS) {
-		DMSG("Too many arguments for SCN %u (%u)", scn, regs->r6);
-		regs->r0 = TEE_ERROR_GENERIC;
+	if (max_args > TEE_SVC_MAX_ARGS) {
+		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
+		set_svc_retval(regs, TEE_ERROR_GENERIC);
 		return;
 	}
 
@@ -141,9 +160,10 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	else
 		scf = tee_svc_syscall_table[scn];
 
-	regs->r0 = tee_svc_do_call(regs, scf);
+	set_svc_retval(regs, tee_svc_do_call(regs, scf));
 }
 
+#ifdef ARM32
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 			uint32_t panic_code, struct thread_svc_regs *regs)
 {
@@ -157,3 +177,4 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	regs->spsr = read_cpsr();
 	return ret;
 }
+#endif /*ARM32*/

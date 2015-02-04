@@ -167,10 +167,10 @@ enum core_mmu_fault {
 
 /*
  * core_mmu_get_fault_type() - get fault type
- * @fsr:	Content of fault status register
+ * @fault_descr:	Content of fault status or exception syndrome register
  * @returns an enum describing the content of fault status register.
  */
-enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr);
+enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 
 /*
  * core_mmu_create_user_map() - Create user space mapping

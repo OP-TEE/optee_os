@@ -467,6 +467,8 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	assert(max_va < ADDR_SPACE_SIZE);
 }
 
+
+#ifdef ARM32
 void core_init_mmu_regs(void)
 {
 	uint32_t ttbcr = TTBCR_EAE;
@@ -489,6 +491,7 @@ void core_init_mmu_regs(void)
 	write_ttbr0_64bit((paddr_t)l1_xlation_table[get_core_pos()]);
 	write_ttbr1_64bit(0);
 }
+#endif /*ARM32*/
 
 static void set_region(struct core_mmu_table_info *tbl_info,
 		struct tee_mmap_region *region)
@@ -647,6 +650,7 @@ bool core_mmu_user_mapping_is_active(void)
 	return !!l1_xlation_table[get_core_pos()][user_va_idx];
 }
 
+#ifdef ARM32
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
 	assert(user_va_idx != -1);
@@ -692,10 +696,10 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	write_cpsr(cpsr);
 }
 
-enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
+enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 {
-	assert(fsr & FSR_LPAE);
-	switch (fsr & FSR_STATUS_MASK) {
+	assert(fault_descr & FSR_LPAE);
+	switch (fault_descr & FSR_STATUS_MASK) {
 	case 0x21: /* b100001 Alignment fault */
 		return CORE_MMU_FAULT_ALIGNMENT;
 	case 0x11: /* b010001 Asynchronous extern abort (DFSR only) */
@@ -706,7 +710,7 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 		break;
 	}
 
-	switch ((fsr & FSR_STATUS_MASK) >> 2) {
+	switch ((fault_descr & FSR_STATUS_MASK) >> 2) {
 	case 0x1: /* b0001LL Translation fault */
 		return CORE_MMU_FAULT_TRANSLATION;
 	case 0x2: /* b0010LL Access flag fault */
@@ -716,3 +720,4 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 		return CORE_MMU_FAULT_OTHER;
 	}
 }
+#endif /*ARM32*/

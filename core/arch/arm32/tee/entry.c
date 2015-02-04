@@ -60,13 +60,23 @@ static bool copy_in_params(const struct teesmc32_param *params,
 		param_attr[n] = (params[n].attr >> TEESMC_ATTR_CACHE_SHIFT) &
 				TEESMC_ATTR_CACHE_MASK;
 
-		if ((params[n].attr & TEESMC_ATTR_TYPE_MASK) ==
-		    TEESMC_ATTR_TYPE_NONE) {
-			tee_params[n].value.a = 0;
-			tee_params[n].value.b = 0;
-		} else {
+		switch (params[n].attr & TEESMC_ATTR_TYPE_MASK) {
+		case TEESMC_ATTR_TYPE_VALUE_INPUT:
+		case TEESMC_ATTR_TYPE_VALUE_OUTPUT:
+		case TEESMC_ATTR_TYPE_VALUE_INOUT:
 			tee_params[n].value.a = params[n].u.value.a;
 			tee_params[n].value.b = params[n].u.value.b;
+			break;
+		case TEESMC_ATTR_TYPE_MEMREF_INPUT:
+		case TEESMC_ATTR_TYPE_MEMREF_OUTPUT:
+		case TEESMC_ATTR_TYPE_MEMREF_INOUT:
+			tee_params[n].memref.buffer =
+				(void *)(uintptr_t)params[n].u.memref.buf_ptr;
+			tee_params[n].memref.size = params[n].u.memref.size;
+			break;
+		default:
+			memset(tee_params + n, 0, sizeof(TEE_Param));
+			break;
 		}
 	}
 	for (; n < TEE_NUM_PARAMS; n++) {
@@ -320,12 +330,13 @@ static void entry_cancel(struct thread_smc_args *args,
 
 static void tee_entry_call_with_arg(struct thread_smc_args *args)
 {
+	paddr_t arg_pa;
 	struct teesmc32_arg *arg32 = NULL;	/* fix gcc warning */
 	uint32_t num_params;
 
 	if (args->a0 != TEESMC32_CALL_WITH_ARG &&
 	    args->a0 != TEESMC32_FASTCALL_WITH_ARG) {
-		EMSG("Unknown SMC 0x%x\n", args->a0);
+		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)args->a0);
 		DMSG("Expected 0x%x or 0x%x\n",
 		     TEESMC32_CALL_WITH_ARG, TEESMC32_FASTCALL_WITH_ARG);
 		args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
@@ -335,17 +346,18 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 	if (args->a0 == TEESMC32_CALL_WITH_ARG)
 		thread_set_irq(true);	/* Enable IRQ for STD calls */
 
-	if (!tee_pbuf_is_non_sec(args->a1, sizeof(struct teesmc32_arg)) ||
-	    !TEE_ALIGNMENT_IS_OK(args->a1, struct teesmc32_arg) ||
-	    core_pa2va(args->a1, &arg32)) {
-		EMSG("Bad arg address 0x%x\n", args->a1);
+	arg_pa = args->a1;
+	if (!tee_pbuf_is_non_sec(arg_pa, sizeof(struct teesmc32_arg)) ||
+	    !TEE_ALIGNMENT_IS_OK(arg_pa, struct teesmc32_arg) ||
+	    core_pa2va(arg_pa, &arg32)) {
+		EMSG("Bad arg address 0x%" PRIxPA, arg_pa);
 		args->a0 = TEESMC_RETURN_EBADADDR;
 		return;
 	}
 
 	num_params = arg32->num_params;
-	if (!tee_pbuf_is_non_sec(args->a1, TEESMC32_GET_ARG_SIZE(num_params))) {
-		EMSG("Bad arg address 0x%x\n", args->a1);
+	if (!tee_pbuf_is_non_sec(arg_pa, TEESMC32_GET_ARG_SIZE(num_params))) {
+		EMSG("Bad arg address 0x%" PRIxPA, arg_pa);
 		args->a0 = TEESMC_RETURN_EBADADDR;
 		return;
 	}

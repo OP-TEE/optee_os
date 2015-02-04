@@ -30,6 +30,7 @@
 
 #ifndef ASM
 #include <types_ext.h>
+#include <compiler.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -37,6 +38,7 @@
 #ifndef ASM
 extern uint32_t thread_vector_table[];
 
+#ifdef ARM32
 struct thread_smc_args {
 	uint32_t a0;	/* SMC function ID */
 	uint32_t a1;	/* Parameter */
@@ -47,12 +49,15 @@ struct thread_smc_args {
 	uint32_t a6;	/* Not used */
 	uint32_t a7;	/* Hypervisor Client ID */
 };
+#endif /*ARM32*/
 
-
+#ifdef ARM32
 struct thread_abort_regs {
-	uint32_t spsr;
-	uint32_t lr;
+	uint32_t usr_sp;
+	uint32_t usr_lr;
 	uint32_t pad;
+	uint32_t spsr;
+	uint32_t elr;
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
@@ -67,8 +72,9 @@ struct thread_abort_regs {
 	uint32_t r11;
 	uint32_t ip;
 };
-typedef void (*thread_abort_handler_t)(uint32_t abort_type,
-			struct thread_abort_regs *regs);
+#endif /*ARM32*/
+
+#ifdef ARM32
 struct thread_svc_regs {
 	uint32_t spsr;
 	uint32_t r0;
@@ -81,11 +87,15 @@ struct thread_svc_regs {
 	uint32_t r7;
 	uint32_t lr;
 };
+#endif /*ARM32*/
 #endif /*ASM*/
+
+
 /*
  * Correctness of these defines are asserted with COMPILE_TIME_ASSERT in
  * thread_init_handlers().
  */
+#ifdef ARM32
 #define THREAD_SVC_REG_SPSR_OFFS	(0 * 4)
 #define THREAD_SVC_REG_R0_OFFS		(1 * 4)
 #define THREAD_SVC_REG_R1_OFFS		(2 * 4)
@@ -96,8 +106,11 @@ struct thread_svc_regs {
 #define THREAD_SVC_REG_R6_OFFS		(7 * 4)
 #define THREAD_SVC_REG_R7_OFFS		(8 * 4)
 #define THREAD_SVC_REG_LR_OFFS		(9 * 4)
+#endif /*ARM32*/
 
 #ifndef ASM
+typedef void (*thread_abort_handler_t)(uint32_t abort_type,
+			struct thread_abort_regs *regs);
 typedef void (*thread_svc_handler_t)(struct thread_svc_regs *regs);
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);

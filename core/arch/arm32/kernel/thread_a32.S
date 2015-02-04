@@ -277,9 +277,7 @@ FUNC thread_std_smc_entry , :
 END_FUNC thread_std_smc_entry
 
 
-/*
- * void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
- */
+/* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
 	push	{lr}
 	push	{r0}
@@ -496,7 +494,7 @@ thread_und_handler:
 	sub	r1, lr, #4
 	mrs	r0, spsr
 	cps	#CPSR_MODE_ABT
-	push	{r0, r1, r2}
+	push	{r0, r1}
 	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */
 	mov	r0, #THREAD_ABORT_UNDEF
 	b	.thread_abort_generic
@@ -505,7 +503,7 @@ thread_dabort_handler:
 	push	{r0-r11, ip}
 	sub	r1, lr, #8
 	mrs	r0, spsr
-	push	{r0, r1, r2}
+	push	{r0, r1}
 	mov	r0, #THREAD_ABORT_DATA
 	b	.thread_abort_generic
 
@@ -513,14 +511,24 @@ thread_pabort_handler:
 	push	{r0-r11, ip}
 	sub	r1, lr, #4
 	mrs	r0, spsr
-	push	{r0, r1, r2}
+	push	{r0, r1}
 	mov	r0, #THREAD_ABORT_PREFETCH
 	b	.thread_abort_generic
 
 .thread_abort_generic:
+	cps	#CPSR_MODE_SYS
+	mov	r1, sp
+	mov	r2, lr
+	cps	#CPSR_MODE_ABT
+	push	{r1-r3}
 	mov	r1, sp
 	bl	thread_handle_abort
-	pop	{r0, r1, r2}
+	pop	{r1-r3}
+	cps	#CPSR_MODE_SYS
+	mov	sp, r1
+	mov	lr, r2
+	cps	#CPSR_MODE_ABT
+	pop	{r0, r1}
 	mov	lr, r1
 	msr	spsr_fsxc, r0
 	pop	{r0-r11, ip}
