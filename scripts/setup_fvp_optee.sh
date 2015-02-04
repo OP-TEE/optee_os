@@ -54,7 +54,7 @@ STABLE_LK_COMMIT=eb4ea6b1094ce3452c376c12a529178d202d229b
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=7f3746c396b61117dca0729577ce10b6a4be49ec
+STABLE_OPTEE_TEST_COMMIT=71e52146d2cef1325dea14099255ac06c13fe63d
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
@@ -376,17 +376,18 @@ export CFG_DEV_PATH=$DEV_PATH
 export CFG_ROOTFS_DIR=\$CFG_DEV_PATH/out
 
 if [ "\$CFG_GP_TESTSUITE_ENABLE" = y ]; then
-export CFG_GP_PACKAGE_PATH=\${CFG_GP_PACKAGE_PATH:-$DST_OPTEE_TEST/TEE_Initial_Configuration-Test_Suite_v1_0_0-2014-12-03-STM}
+export CFG_GP_PACKAGE_PATH=\${CFG_GP_PACKAGE_PATH:-$DST_OPTEE_TEST/TEE_Initial_Configuration-Test_Suite_v1_1_0_4-2014_11_07}
 if [ ! -d "\$CFG_GP_PACKAGE_PATH" ]; then
   echo "CFG_GP_PACKAGE_PATH must be the path to the GP testsuite directory"
   exit 1
 fi
+make patch
 fi
 
 export PATH=\$CFG_DEV_PATH/toolchains/aarch64/bin:\$PATH
 export PATH=\$CFG_DEV_PATH/toolchains/aarch32/bin:\$PATH
 
-make $@
+make \$@
 EOF
 
 chmod 711 $DEV_PATH/build_optee_tests.sh
