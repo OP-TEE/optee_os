@@ -68,8 +68,6 @@ struct tee_ta_ctx {
 	uintptr_t mem_swap;	/* ptr to code and data in memory swap */
 	tee_mm_entry_t *mm;	/* secure world memory */
 	uint32_t smem_size;	/* the size of the secure memory */
-	uint32_t rw_data;	/* rw data stored on heap */
-	uint32_t rw_data_usage;	/* bitfield with rw data page usage */
 	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */

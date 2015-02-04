@@ -1047,7 +1047,6 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	}
 	if (ctx->static_ta == NULL) {
 		tee_mm_free(ctx->mm);
-		free((void *)ctx->rw_data);
 		free(ctx->head);
 	}
 
