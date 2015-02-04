@@ -46,8 +46,8 @@
 #define MAX_MMAP_REGIONS	10
 
 /* Default NSec shared memory allocated from NSec world */
-unsigned long default_nsec_shm_paddr;
-unsigned long default_nsec_shm_size;
+unsigned long default_nsec_shm_size __data; /* XXX __data is a workaround */
+unsigned long default_nsec_shm_paddr __data; /* XXX __data is a workaround */
 
 /* platform handler for core_pbuf_is()  */
 static unsigned long bootcfg_pbuf_is = 1;	/* NOT is BSS */
