@@ -37,6 +37,7 @@ enum thread_state {
 	THREAD_STATE_ACTIVE,
 };
 
+#ifdef ARM32
 struct thread_ctx_regs {
 	uint32_t r0;
 	uint32_t r1;
@@ -59,14 +60,15 @@ struct thread_ctx_regs {
 	uint32_t pc;
 	uint32_t cpsr;
 };
+#endif /*ARM32*/
 
 struct thread_ctx {
+	struct thread_ctx_regs regs;
 	enum thread_state state;
 	vaddr_t stack_va_end;
 	void *tsd;
 	uint32_t hyp_clnt_id;
 	uint32_t flags;
-	struct thread_ctx_regs regs;
 	struct core_mmu_user_map user_map;
 	bool have_user_map;
 };
@@ -75,7 +77,6 @@ struct thread_core_local {
 	vaddr_t tmp_stack_va_end;
 	int curr_thread;
 };
-
 
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
@@ -86,6 +87,8 @@ void thread_init_vbar(void);
 void thread_std_smc_entry(void);
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs);
+
+struct thread_core_local *thread_get_core_local(void);
 
 /*
  * Resumes execution of currently active thread by restoring context and
@@ -109,7 +112,7 @@ void *thread_get_tmp_sp(void);
  * for the thread context (see thread resume for use of flags).
  * Returns thread index of the thread that was suspended.
  */
-int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc);
+int thread_state_suspend(uint32_t flags, uint32_t cpsr, uintptr_t pc);
 
 /*
  * Marks the current thread as free.
@@ -119,6 +122,7 @@ void thread_state_free(void);
 /* Returns a pointer to the saved registers in current thread context. */
 struct thread_ctx_regs *thread_get_ctx_regs(void);
 
+#ifdef ARM32
 /* Sets sp for abort mode */
 void thread_set_abt_sp(vaddr_t sp);
 
@@ -127,6 +131,7 @@ void thread_set_irq_sp(vaddr_t sp);
 
 /* Sets sp for fiq mode */
 void thread_set_fiq_sp(vaddr_t sp);
+#endif /*ARM32*/
 
 /* Handles a fast SMC by dispatching it to the registered fast SMC handler */
 void thread_handle_fast_smc(struct thread_smc_args *args);

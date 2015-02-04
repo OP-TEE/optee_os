@@ -28,7 +28,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <arm32.h>
+#include <arm.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <trace.h>
@@ -363,6 +363,10 @@ static paddr_t populate_user_map(struct tee_mmu_info *mmu)
 	struct core_mmu_table_info tbl_info;
 	unsigned n;
 	struct tee_mmap_region region;
+	vaddr_t va_range_base;
+	size_t va_range_size;
+
+	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
 
 	tbl_info.table = (void *)core_mmu_get_ul1_ttb_va();
 	tbl_info.va_base = 0;
@@ -371,7 +375,7 @@ static paddr_t populate_user_map(struct tee_mmu_info *mmu)
 	tbl_info.num_entries = TEE_MMU_UL1_NUM_ENTRIES;
 
 	region.pa = 0;
-	region.va = 0;
+	region.va = va_range_base;
 	region.attr = 0;
 
 	for (n = 0; n < mmu->size; n++) {
@@ -384,9 +388,9 @@ static paddr_t populate_user_map(struct tee_mmu_info *mmu)
 
 		set_region(&tbl_info, mmu->table + n);
 		region.va = mmu->table[n].va + mmu->table[n].size;
-		assert(region.va <= CORE_MMU_USER_MAX_ADDR);
+		assert((region.va - va_range_base) <= va_range_size);
 	}
-	region.size = CORE_MMU_USER_MAX_ADDR - region.va;
+	region.size = va_range_size - (region.va - va_range_base);
 	set_region(&tbl_info, &region);
 
 	return core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
@@ -488,6 +492,19 @@ void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 		*attr = desc_to_mattr(tbl_info->level, table[idx]);
 }
 
+void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
+{
+	if (base) {
+		/* Leaving the first entry unmapped to make NULL unmapped */
+		*base = 1 << SECTION_SHIFT;
+	}
+
+	if (size)
+		*size = (TEE_MMU_UL1_NUM_ENTRIES - 1) << SECTION_SHIFT;
+}
+
+
+
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
 	map->ttbr0 = read_ttbr0();
@@ -580,7 +597,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		 * good enough, panic.
 		 */
 		if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK) {
-			EMSG("va 0x%x pa 0x%x size 0x%x can't be mapped",
+			EMSG("va 0x%" PRIxVA " pa 0x%" PRIxPA " size 0x%x can't be mapped",
 				mm->va, mm->pa, mm->size);
 			panic();
 		}

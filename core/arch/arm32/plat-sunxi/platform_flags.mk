@@ -1,3 +1,4 @@
+platform-cppflags += -DARM32=1 -DILP32=1
 platform-cpuarch = cortex-a15
 platform-cflags	 = -mcpu=$(platform-cpuarch) -mthumb
 platform-cflags	+= -pipe -mthumb-interwork -mlong-calls

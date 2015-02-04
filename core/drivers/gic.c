@@ -197,7 +197,7 @@ void gic_it_set_cpu_mask(size_t it, uint8_t cpu_mask)
 	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
 	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
 	target |= cpu_mask << target_shift;
-	DMSG("cpu_mask: writing 0x%x to 0x%x\n",
+	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA,
 		target, gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
 	write32(target, gic.gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
 	DMSG("cpu_mask: 0x%x\n",
@@ -214,7 +214,7 @@ void gic_it_set_prio(size_t it, uint8_t prio)
 	assert(!(read32(gic.gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Set prio it to selected CPUs */
-	DMSG("prio: writing 0x%x to 0x%x\n",
+	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
 		prio, gic.gicd_base + GICD_IPRIORITYR(0) + it);
 	write8(prio, gic.gicd_base + GICD_IPRIORITYR(0) + it);
 }

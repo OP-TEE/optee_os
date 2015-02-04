@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,37 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_ARCH_SVC_H
-#define TEE_ARCH_SVC_H
 
-#include <kernel/tee_common_unpg.h>
+#include <asm.S>
+#include <arm.h>
+#include <arm32_macros.S>
 
-struct thread_svc_regs;
+/* Let platforms override this if needed */
+.weak get_core_pos
 
-void tee_svc_handler(struct thread_svc_regs *regs);
+FUNC get_core_pos , :
+	read_mpidr r0
+	/* Calculate CorePos = (ClusterId * 4) + CoreId */
+	and	r1, r0, #MPIDR_CPU_MASK
+	and	r0, r0, #MPIDR_CLUSTER_MASK
+	add	r0, r1, r0, LSR #6
+	bx	lr
+END_FUNC get_core_pos
 
-/*
- * Called from the assembly functions tee_svc_sys_return() and
- * tee_svc_sys_panic() to update the register values in the struct
- * thread_svc_regs to return back to TEE Core from an erlier call to
- * tee_svc_enter_user_mode().
- */
-uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs);
+/* uint32_t read_usr_sp(void) */
+FUNC read_usr_sp , :
+	mrs	r1, cpsr
+	cps     #CPSR_MODE_SYS
+	mov     r0, sp
+	msr	cpsr, r1
+	bx	lr
+END_FUNC read_usr_sp
 
-#endif /*TEE_ARCH_SVC_H*/
+/* uint32_t read_usr_lr(void) */
+FUNC read_usr_lr , :
+	mrs	r1, cpsr
+	cps     #CPSR_MODE_SYS
+	mov     r0, lr
+	msr	cpsr, r1
+	bx	lr
+END_FUNC read_usr_lr

@@ -41,7 +41,7 @@
 #include <mm/tee_mm.h>
 #include <mm/core_mmu.h>
 #include <tee/arch_svc.h>
-#include <arm32.h>
+#include <arm.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee_api_defines.h>
 #include <utee_defines.h>
@@ -49,7 +49,7 @@
 
 struct tee_pager_abort_info {
 	uint32_t abort_type;
-	uint32_t fsr;
+	uint32_t fault_descr;
 	vaddr_t va;
 	uint32_t pc;
 	struct thread_abort_regs *regs;
@@ -115,7 +115,7 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	struct tee_pager_area *area;
 	size_t tbl_va_size;
 
-	DMSG("0x%x - 0x%x : flags 0x%x, store %p, hashes %p",
+	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : flags 0x%x, store %p, hashes %p",
 		tee_mm_get_smem(mm),
 		tee_mm_get_smem(mm) + (mm->size << mm->pool->shift),
 		flags, store, hashes);
@@ -141,7 +141,7 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	tbl_va_size = (1 << tbl_info.shift) * tbl_info.num_entries;
 	if (!core_is_buffer_inside(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
 				   tbl_info.va_base, tbl_va_size)) {
-		DMSG("area 0x%x len 0x%x doesn't fit it translation table 0x%x len 0x%x",
+		DMSG("area 0x%" PRIxPTR " len 0x%zx doesn't fit it translation table 0x%" PRIxVA " len 0x%zx",
 			tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
 			tbl_info.va_base, tbl_va_size);
 		return false;
@@ -214,7 +214,7 @@ static void tee_pager_verify_page(struct tee_pager_area *area, vaddr_t page_va)
 
 		if (hash_sha256_check(hash, (void *)page_va, SMALL_PAGE_SIZE) !=
 				TEE_SUCCESS) {
-			EMSG("PH 0x%x failed", page_va);
+			EMSG("PH 0x%" PRIxVA " failed", page_va);
 			panic();
 		}
 	}
@@ -276,17 +276,21 @@ static void tee_pager_hide_pages(void)
 }
 #endif /*CFG_WITH_PAGER*/
 
+#ifdef ARM32
 /* Returns true if the exception originated from user mode */
-static bool tee_pager_is_user_exception(void)
+static bool tee_pager_is_user_exception(struct tee_pager_abort_info *ai)
 {
-	return (read_spsr() & CPSR_MODE_MASK) == CPSR_MODE_USR;
+	return (ai->regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_USR;
 }
+#endif /*ARM32*/
 
+#ifdef ARM32
 /* Returns true if the exception originated from abort mode */
-static bool tee_pager_is_abort_in_abort_handler(void)
+static bool tee_pager_is_abort_in_abort_handler(struct tee_pager_abort_info *ai)
 {
-	return (read_spsr() & CPSR_MODE_MASK) == CPSR_MODE_ABT;
+	return (ai->regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_ABT;
 }
+#endif /*ARM32*/
 
 static __unused const char *abort_type_to_str(uint32_t abort_type)
 {
@@ -300,12 +304,14 @@ static __unused const char *abort_type_to_str(uint32_t abort_type)
 static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE
-	EMSG_RAW("\nUser TA %s-abort at address 0x%x\n",
+	EMSG_RAW("\nUser TA %s-abort at address 0x%" PRIxVA,
 		abort_type_to_str(ai->abort_type), ai->va);
+#ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x   ttbr1 0x%08x   cidr 0x%X\n",
-		 ai->fsr, read_ttbr0(), read_ttbr1(), read_contextidr());
-	EMSG_RAW(" cpu #%d          cpsr 0x%08x\n",
-		 get_core_pos(), read_spsr());
+		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
+		 read_contextidr());
+	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
+		 get_core_pos(), ai->regs->spsr);
 	EMSG_RAW(" r0 0x%08x     r4 0x%08x     r8 0x%08x    r12 0x%08x\n",
 		 ai->regs->r0, ai->regs->r4, ai->regs->r8, ai->regs->ip);
 	EMSG_RAW(" r1 0x%08x     r5 0x%08x     r9 0x%08x     sp 0x%08x\n",
@@ -314,29 +320,33 @@ static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 		 ai->regs->r2, ai->regs->r6, ai->regs->r10, read_usr_lr());
 	EMSG_RAW(" r3 0x%08x     r7 0x%08x    r11 0x%08x     pc 0x%08x\n",
 		 ai->regs->r3, ai->regs->r7, ai->regs->r11, ai->pc);
-
+#endif
 	tee_ta_dump_current();
 #endif
 }
 
 static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 {
-	DMSG("%s-abort at 0x%x: FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
+#ifdef ARM32
+	DMSG("%s-abort at 0x%" PRIxVA ": FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
 	     abort_type_to_str(ai->abort_type),
-	     ai->va, ai->fsr, ai->pc, read_ttbr0(), read_contextidr());
+	     ai->va, ai->fault_descr, ai->pc, read_ttbr0(), read_contextidr());
 	DMSG("CPUID 0x%x SPSR_abt 0x%x",
 	     read_mpidr(), read_spsr());
+#endif /*ARM32*/
 }
 
 static void tee_pager_print_error_abort(
 		struct tee_pager_abort_info *ai __unused)
 {
-	EMSG("%s-abort at 0x%x\n"
+#ifdef ARM32
+	EMSG("%s-abort at 0x%" PRIxVA "\n"
 	     "FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X\n"
 	     "CPUID 0x%x CPSR 0x%x (read from SPSR)",
 	     abort_type_to_str(ai->abort_type),
-	     ai->va, ai->fsr, ai->pc, read_ttbr0(), read_contextidr(),
+	     ai->va, ai->fault_descr, ai->pc, read_ttbr0(), read_contextidr(),
 	     read_mpidr(), read_spsr());
+#endif /*ARM32*/
 }
 
 
@@ -345,14 +355,13 @@ static enum tee_pager_fault_type tee_pager_get_fault_type(
 {
 
 	/* In case of multithreaded version, this section must be protected */
-
-	if (tee_pager_is_user_exception()) {
+	if (tee_pager_is_user_exception(ai)) {
 		tee_pager_print_user_abort(ai);
 		DMSG("[TEE_PAGER] abort in User mode (TA will panic)");
 		return TEE_PAGER_FAULT_TYPE_USER_TA_PANIC;
 	}
 
-	if (tee_pager_is_abort_in_abort_handler()) {
+	if (tee_pager_is_abort_in_abort_handler(ai)) {
 		tee_pager_print_error_abort(ai);
 		EMSG("[PAGER] abort in abort handler (trap CPU)");
 		panic();
@@ -364,7 +373,7 @@ static enum tee_pager_fault_type tee_pager_get_fault_type(
 		panic();
 	}
 
-	switch (core_mmu_get_fault_type(ai->fsr)) {
+	switch (core_mmu_get_fault_type(ai->fault_descr)) {
 	case CORE_MMU_FAULT_ALIGNMENT:
 		tee_pager_print_error_abort(ai);
 		EMSG("[TEE_PAGER] alignement fault!  (trap CPU)");
@@ -473,7 +482,7 @@ static void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
 	area = tee_pager_find_area(ai->va);
 	if (!area) {
 		tee_pager_print_abort(ai);
-		DMSG("Invalid addr 0x%" PRIx32, ai->va);
+		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
 		panic();
 	}
 
@@ -514,51 +523,66 @@ static void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
 
 #endif /*CFG_WITH_PAGER*/
 
+#ifdef ARM32
+static void set_abort_info(uint32_t abort_type, struct thread_abort_regs *regs,
+		struct tee_pager_abort_info *ai)
+{
+	switch (abort_type) {
+	case THREAD_ABORT_DATA:
+		ai->fault_descr = read_dfsr();
+		ai->va = read_dfar();
+		break;
+	case THREAD_ABORT_PREFETCH:
+		ai->fault_descr = read_ifsr();
+		ai->va = read_ifar();
+		break;
+	default:
+		ai->fault_descr = 0;
+		ai->va = regs->elr;
+		break;
+	}
+	ai->abort_type = abort_type;
+	ai->pc = regs->elr;
+	ai->regs = regs;
+}
+#endif /*ARM32*/
+
+#ifdef ARM32
+static void handle_user_ta_panic(struct tee_pager_abort_info *ai)
+{
+	/*
+	 * It was a user exception, stop user execution and return
+	 * to TEE Core.
+	 */
+	ai->regs->r0 = TEE_ERROR_TARGET_DEAD;
+	ai->regs->r1 = true;
+	ai->regs->r2 = 0xdeadbeef;
+	ai->regs->elr = (uint32_t)thread_unwind_user_mode;
+	ai->regs->spsr = read_cpsr();
+	ai->regs->spsr &= ~CPSR_MODE_MASK;
+	ai->regs->spsr |= CPSR_MODE_SVC;
+	ai->regs->spsr &= ~CPSR_FIA;
+	ai->regs->spsr |= read_spsr() & CPSR_FIA;
+	/* Select Thumb or ARM mode */
+	if (ai->regs->elr & 1)
+		ai->regs->spsr |= CPSR_T;
+	else
+		ai->regs->spsr &= ~CPSR_T;
+}
+#endif /*ARM32*/
+
 void tee_pager_abort_handler(uint32_t abort_type,
 		struct thread_abort_regs *regs)
 {
 	struct tee_pager_abort_info ai;
 
-	switch (abort_type) {
-	case THREAD_ABORT_DATA:
-		ai.fsr = read_dfsr();
-		ai.va = read_dfar();
-		break;
-	case THREAD_ABORT_PREFETCH:
-		ai.fsr = read_ifsr();
-		ai.va = read_ifar();
-		break;
-	default:
-		ai.fsr = 0;
-		ai.va = regs->lr;
-		break;
-	}
-	ai.abort_type = abort_type;
-	ai.pc = regs->lr;
-	ai.regs = regs;
+	set_abort_info(abort_type, regs, &ai);
 
 	switch (tee_pager_get_fault_type(&ai)) {
 	case TEE_PAGER_FAULT_TYPE_IGNORE:
 		break;
 	case TEE_PAGER_FAULT_TYPE_USER_TA_PANIC:
-		/*
-		 * It was a user exception, stop user execution and return
-		 * to TEE Core.
-		 */
-		regs->r0 = TEE_ERROR_TARGET_DEAD;
-		regs->r1 = true;
-		regs->r2 = 0xdeadbeef;
-		regs->lr = (uint32_t)tee_svc_unwind_enter_user_mode;
-		regs->spsr = read_cpsr();
-		regs->spsr &= ~CPSR_MODE_MASK;
-		regs->spsr |= CPSR_MODE_SVC;
-		regs->spsr &= ~CPSR_FIA;
-		regs->spsr |= read_spsr() & CPSR_FIA;
-		/* Select Thumb or ARM mode */
-		if (regs->lr & 1)
-			regs->spsr |= CPSR_T;
-		else
-			regs->spsr &= ~CPSR_T;
+		handle_user_ta_panic(&ai);
 		break;
 	case TEE_PAGER_FAULT_TYPE_PAGABLE:
 	default:
@@ -568,11 +592,11 @@ void tee_pager_abort_handler(uint32_t abort_type,
 }
 
 #ifdef CFG_WITH_PAGER
-void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap)
+void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 {
 	size_t n;
 
-	DMSG("0x%x - 0x%x : %d",
+	DMSG("0x%" PRIxVA " - 0x%" PRIxVA " : %d",
 	     vaddr, vaddr + npages * SMALL_PAGE_SIZE, (int)unmap);
 
 	/* setup memory */

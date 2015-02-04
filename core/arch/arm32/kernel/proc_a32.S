@@ -29,9 +29,10 @@
  * ARMv7 core support routines
  */
 
+#include <kernel/tz_proc.h>
 #include <kernel/tz_proc_def.h>
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <arm32_macros.S>
 
 .global cpu_spin_lock
@@ -47,10 +48,10 @@
 
 /* void cpu_spin_lock(lock address) - lock mutex */
 cpu_spin_lock:
-    mov r2, #LOCK
+    mov r2, #SPINLOCK_LOCK
 _spinlock_loop:
     ldrex r1, [r0]
-    cmp r1, #UNLOCK
+    cmp r1, #SPINLOCK_UNLOCK
     wfene
     bne _spinlock_loop
     strex r1, r2, [r0]
@@ -62,7 +63,7 @@ _spinlock_loop:
 
 /* int cpu_spin_trylock(lock address) - return 0 on success */
 cpu_spin_trylock:
-    mov r2, #LOCK
+    mov r2, #SPINLOCK_LOCK
     mov r1, r0
 _trylock_loop:
     ldrex r0, [r1]
@@ -81,7 +82,7 @@ _trylock_out:
 /* void cpu_spin_unlock(lock address) - unlock mutex */
 cpu_spin_unlock:
     dmb
-    mov r1, #UNLOCK
+    mov r1, #SPINLOCK_UNLOCK
     str r1, [r0]
     dsb
     sev

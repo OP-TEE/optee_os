@@ -44,8 +44,13 @@
 typedef signed char             int8_t;
 typedef short int               int16_t;
 typedef int                     int32_t;
+#ifdef ILP32
 __extension__
 typedef long long int           int64_t;
+#endif /*ILP32*/
+#ifdef LP64
+typedef long int		int64_t;
+#endif /*LP64*/
 #endif
 
 /* Unsigned.  */
@@ -55,16 +60,20 @@ typedef unsigned short int      uint16_t;
 typedef unsigned int            uint32_t;
 # define __uint32_t_defined
 #endif
+#ifdef ILP32
 __extension__
 typedef unsigned long long int  uint64_t;
+#endif /*ILP32*/
+#ifdef LP64
+typedef unsigned long int	uint64_t;
+#endif /*LP64*/
 
 /* 7.18.1.4 Integer types capable of holding object pointers */
+typedef long intptr_t;
+typedef unsigned long uintptr_t;
 
-typedef int32_t intptr_t;
-typedef uint32_t uintptr_t;
-
-typedef int32_t intmax_t;
-typedef uint32_t uintmax_t;
+typedef long intmax_t;
+typedef unsigned long uintmax_t;
 
 /*
  * 7.18.2 Limits of specified-width integer types
@@ -89,8 +98,8 @@ typedef uint32_t uintmax_t;
 
 /* 7.18.2.4 Limits of integer types capable of holding object pointers */
 
-#define INTPTR_MIN  INT32_MIN
-#define INTPTR_MAX  INT32_MAX
-#define UINTPTR_MAX UINT32_MAX
+#define INTPTR_MIN  LONG_MIN
+#define INTPTR_MAX  LONG_MAX
+#define UINTPTR_MAX ULONG_MAX
 
 #endif /* STDINT_H */

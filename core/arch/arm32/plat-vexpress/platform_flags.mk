@@ -15,6 +15,7 @@ arm32-platform-aflags	+= -mfpu=neon
 # 64-bit flags
 arm64-platform-cppflags	+= -DARM64=1 -DLP64=1
 arm64-platform-cflags	+= -mgeneral-regs-only
+arm64-platform-cflags	+= -mstrict-align
 
 platform-cflags += -ffunction-sections -fdata-sections
 

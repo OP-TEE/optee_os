@@ -149,7 +149,7 @@ struct rpmb_dev_info {
 struct tee_rpmb_ctx {
 	uint8_t key[RPMB_KEY_MAC_SIZE];
 	uint8_t cid[RPMB_EMMC_CID_SIZE];
-	uint32_t hash_ctx_size;
+	size_t hash_ctx_size;
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
@@ -857,7 +857,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 		if ((rpmb_ctx->hash_ctx_size == 0) &&
 		    (crypto_ops.mac.get_ctx_size(
 			    TEE_ALG_HMAC_SHA256,
-			    (size_t *)(&rpmb_ctx->hash_ctx_size)))) {
+			    &rpmb_ctx->hash_ctx_size))) {
 			rpmb_ctx->hash_ctx_size = 0;
 			res = TEE_ERROR_GENERIC;
 			goto func_exit;

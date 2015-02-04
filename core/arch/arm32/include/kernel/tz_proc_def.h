@@ -160,9 +160,6 @@
 #define SEVEN_REGS_OFFSET  0x1C
 #define EIGHT_REGS_OFFSET  0x20
 #define TEN_REGS_OFFSET    0x28
-#define LOCK_INIT  2
-#define LOCK       1
-#define UNLOCK     0
 #define ARM_STORE_DONE     0
 #define ARM_STORE_FAILED   1
 

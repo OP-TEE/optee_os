@@ -31,7 +31,7 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
-#include <arm32.h>
+#include <arm.h>
 
 #include <kernel/misc.h>
 

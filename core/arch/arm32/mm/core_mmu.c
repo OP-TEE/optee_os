@@ -348,8 +348,7 @@ int core_pa2va_helper(paddr_t pa, void **va)
 /*
  * teecore gets some memory area definitions
  */
-void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
-			      unsigned int *e)
+void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 {
 	struct map_area *map;
 

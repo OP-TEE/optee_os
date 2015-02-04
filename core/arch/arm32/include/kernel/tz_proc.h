@@ -28,6 +28,10 @@
 #ifndef TZ_PROC_H
 #define TZ_PROC_H
 
+#define SPINLOCK_LOCK       1
+#define SPINLOCK_UNLOCK     0
+
+#ifndef ASM
 void cpu_spin_lock(unsigned int *lock);
 unsigned int cpu_spin_trylock(unsigned int *lock);
 void cpu_spin_unlock(unsigned int *lock);
@@ -35,7 +39,6 @@ void cpu_spin_unlock(unsigned int *lock);
 void cpu_mmu_enable(void);
 void cpu_mmu_enable_icache(void);
 void cpu_mmu_enable_dcache(void);
-
-int cpu_mmu_va2pa(unsigned int id, void *va, unsigned int *pa);
+#endif /*ASM*/
 
 #endif

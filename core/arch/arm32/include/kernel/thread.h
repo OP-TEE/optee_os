@@ -30,6 +30,7 @@
 
 #ifndef ASM
 #include <types_ext.h>
+#include <compiler.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -37,6 +38,7 @@
 #ifndef ASM
 extern uint32_t thread_vector_table[];
 
+#ifdef ARM32
 struct thread_smc_args {
 	uint32_t a0;	/* SMC function ID */
 	uint32_t a1;	/* Parameter */
@@ -47,12 +49,15 @@ struct thread_smc_args {
 	uint32_t a6;	/* Not used */
 	uint32_t a7;	/* Hypervisor Client ID */
 };
+#endif /*ARM32*/
 
-
+#ifdef ARM32
 struct thread_abort_regs {
-	uint32_t spsr;
-	uint32_t lr;
+	uint32_t usr_sp;
+	uint32_t usr_lr;
 	uint32_t pad;
+	uint32_t spsr;
+	uint32_t elr;
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
@@ -67,8 +72,9 @@ struct thread_abort_regs {
 	uint32_t r11;
 	uint32_t ip;
 };
-typedef void (*thread_abort_handler_t)(uint32_t abort_type,
-			struct thread_abort_regs *regs);
+#endif /*ARM32*/
+
+#ifdef ARM32
 struct thread_svc_regs {
 	uint32_t spsr;
 	uint32_t r0;
@@ -81,11 +87,15 @@ struct thread_svc_regs {
 	uint32_t r7;
 	uint32_t lr;
 };
+#endif /*ARM32*/
 #endif /*ASM*/
+
+
 /*
  * Correctness of these defines are asserted with COMPILE_TIME_ASSERT in
  * thread_init_handlers().
  */
+#ifdef ARM32
 #define THREAD_SVC_REG_SPSR_OFFS	(0 * 4)
 #define THREAD_SVC_REG_R0_OFFS		(1 * 4)
 #define THREAD_SVC_REG_R1_OFFS		(2 * 4)
@@ -96,8 +106,11 @@ struct thread_svc_regs {
 #define THREAD_SVC_REG_R6_OFFS		(7 * 4)
 #define THREAD_SVC_REG_R7_OFFS		(8 * 4)
 #define THREAD_SVC_REG_LR_OFFS		(9 * 4)
+#endif /*ARM32*/
 
 #ifndef ASM
+typedef void (*thread_abort_handler_t)(uint32_t abort_type,
+			struct thread_abort_regs *regs);
 typedef void (*thread_svc_handler_t)(struct thread_svc_regs *regs);
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
@@ -202,6 +215,29 @@ void thread_set_irq(bool enable);
  */
 void thread_restore_irq(void);
 
+#define THREAD_EXCP_FIQ	(1 << 0)
+#define THREAD_EXCP_IRQ	(1 << 1)
+#define THREAD_EXCP_ABT	(1 << 2)
+#define THREAD_EXCP_ALL	(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ | THREAD_EXCP_ABT)
+
+uint32_t thread_get_exceptions(void);
+
+void thread_set_exceptions(uint32_t excpetions);
+
+/*
+ * thread_mask_exceptions() - Masks (disables) specified asynchronous exceptions
+ * @exceptions	exceptions to mask
+ * @returns old exception state
+ */
+uint32_t thread_mask_exceptions(uint32_t exceptions);
+
+/*
+ * thread_unmask_exceptions() - Unmasks asynchronous exceptions
+ * @exceptions	Old asynchronous exception state to restore (returned by
+ *		thread_mask_exceptions())
+ */
+void thread_unmask_exceptions(uint32_t exceptions);
+
 /*
  * thread_kernel_enable_vfp() - Enables usage of VFP
  *
@@ -228,6 +264,50 @@ uint32_t thread_kernel_enable_vfp(void);
  * thread_kernel_enable_vfp().
  */
 void thread_kernel_disable_vfp(uint32_t state);
+
+/*
+ * thread_enter_user_mode() - Enters user mode
+ * @a0:		Passed in r/x0 for user_func
+ * @a1:		Passed in r/x1 for user_func
+ * @a2:		Passed in r/x2 for user_func
+ * @a3:		Passed in r/x3 for user_func
+ * @user_sp:	Assigned sp value in user mode
+ * @user_func:	Function to execute in user mode
+ * @exit_status0: Pointer to opaque exit staus 0
+ * @exit_status1: Pointer to opaque exit staus 1
+ *
+ * This functions enters user mode with the argument described above,
+ * @exit_status0 and @exit_status1 are filled in by thread_unwind_user_mode()
+ * when returning back to the caller of this function through an exception
+ * handler.
+ *
+ * @Returns what's passed in "ret" to thread_unwind_user_mode()
+ */
+
+uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
+		uint32_t a3, vaddr_t user_sp, vaddr_t user_func,
+		uint32_t *exit_status0, uint32_t *exit_status1);
+
+/*
+ * thread_unwind_user_mode() - Unwinds kernel stack from user entry
+ * @ret:	Value to return from thread_enter_user_mode()
+ * @exit_status0: Exit status 0
+ * @exit_status1: Exit status 1
+ *
+ * This is the function that exception handlers can return into
+ * to resume execution in kernel mode instead of user mode.
+ *
+ * This function is closely coupled with thread_enter_user_mode() since it
+ * need to restore registers saved by thread_enter_user_mode() and when it
+ * returns make it look like thread_enter_user_mode() just returned. It is
+ * expected that the stack pointer is where thread_enter_user_mode() left
+ * it. The stack will be unwound and the function will return to where
+ * thread_enter_user_mode() was called from.  Exit_status0 and exit_status1
+ * are filled in the corresponding pointers supplied to
+ * thread_enter_user_mode().
+ */
+void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
+		uint32_t exit_status1);
 
 /**
  * Allocates data for struct teesmc32_arg.

@@ -1,2 +1,2 @@
-srcs-y += sm_asm.S
+srcs-y += sm_a32.S
 srcs-y += sm.c

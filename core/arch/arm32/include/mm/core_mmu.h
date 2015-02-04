@@ -59,9 +59,6 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
-/* The maximum VA for user space */
-#define CORE_MMU_USER_MAX_ADDR	(32 * 1024 * 1024)
-
 /*
  * @type:  enumerate: specifiy the purpose of the memory area.
  * @pa:    memory area physical start address
@@ -126,8 +123,8 @@ void core_init_mmu_regs(void);
  * the content depends on descriptor table format.
  */
 struct core_mmu_user_map {
-	uint64_t ttbr0;
-	bool enabled;
+	uint64_t user_map;
+	uint32_t asid;
 };
 #else
 /*
@@ -143,6 +140,13 @@ struct core_mmu_user_map {
 	uint32_t ctxid;
 };
 #endif
+
+/*
+ * core_mmu_get_user_va_range() - Return range of user va space
+ * @base:	Lowest user virtual address
+ * @size:	Size in bytes of user address space
+ */
+void core_mmu_get_user_va_range(vaddr_t *base, size_t *size);
 
 /*
  * enum core_mmu_fault - different kinds of faults
@@ -163,10 +167,10 @@ enum core_mmu_fault {
 
 /*
  * core_mmu_get_fault_type() - get fault type
- * @fsr:	Content of fault status register
+ * @fault_descr:	Content of fault status or exception syndrome register
  * @returns an enum describing the content of fault status register.
  */
-enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr);
+enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 
 /*
  * core_mmu_create_user_map() - Create user space mapping
@@ -301,8 +305,7 @@ vaddr_t core_mmu_get_ul1_ttb_va(void);
 void *core_mmu_alloc_l2(struct tee_mmap_region *mm);
 #endif
 
-void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
-			      unsigned int *e);
+void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
 
 int core_va2pa_helper(void *va, paddr_t *pa);
 /* Special macro to avoid breaking strict aliasing rules */

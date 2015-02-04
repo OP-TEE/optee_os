@@ -74,8 +74,8 @@ static int self_test_division(void)
 	/* => use the stack address */
 
 	LOG("- test with unsigned small integers:");
-	a = (signed)((unsigned)(&a) & 0xFFFFF);
-	b = (signed)((unsigned)(&b) & 0x00FFF) + 1;
+	a = (signed)((unsigned)(vaddr_t)&a & 0xFFFFF);
+	b = (signed)((unsigned)(vaddr_t)&b & 0x00FFF) + 1;
 	c = a / b;
 	d = a % b;
 	r = ((b * c + d) == a);
@@ -90,8 +90,8 @@ static int self_test_division(void)
 	LOG("");
 
 	LOG("- test with signed small integers, negative numerator:");
-	a = (signed)(&a);
-	b = (signed)((unsigned)(&b) & 0x00FFF) - 1;
+	a = (signed)(vaddr_t)&a;
+	b = (signed)((unsigned)(vaddr_t)&b & 0x00FFF) - 1;
 	c = a / b;
 	d = a % b;
 	r = ((b * c + d) == a);
@@ -106,14 +106,14 @@ static int self_test_division(void)
 	LOG("");
 
 	LOG("- test with signed small integers, negative denominator:");
-	a = (signed)((unsigned)(&a) & 0xFFFFF);
-	b = -(signed)((unsigned)(&b) & 0x00FFF) + 1;
+	a = (signed)((unsigned)(vaddr_t)&a & 0xFFFFF);
+	b = -(signed)((unsigned)(vaddr_t)&b & 0x00FFF) + 1;
 	c = a / b;
 	d = a % b;
 
 	LOG("- test with unsigned integers, big numerator (> 0x80000000):");
-	a = (signed)(&a);
-	b = (signed)((unsigned)(&b) & 0x00FFF) + 1;
+	a = (signed)(vaddr_t)&a;
+	b = (signed)((unsigned)(vaddr_t)&b & 0x00FFF) + 1;
 	c = (signed)((unsigned)a / (unsigned)b);
 	d = (signed)((unsigned)a % (unsigned)b);
 	r = (((unsigned)b * (unsigned)c + (unsigned)d) == (unsigned)a);
@@ -128,8 +128,8 @@ static int self_test_division(void)
 	LOG("");
 
 	LOG("- test with unsigned integers, big num. & denom. (> 0x80000000):");
-	a = (signed)(&a);
-	b = (signed)((unsigned)(&a) - 1);
+	a = (signed)(vaddr_t)&a;
+	b = (signed)((unsigned)(vaddr_t)&a - 1);
 	c = (signed)((unsigned)a / (unsigned)b);
 	d = (signed)((unsigned)a % (unsigned)b);
 	r = (((unsigned)b * (unsigned)c + (unsigned)d) == (unsigned)a);

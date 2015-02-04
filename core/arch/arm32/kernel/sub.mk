@@ -6,15 +6,15 @@ srcs-$(WITH_SECURE_TIME_SOURCE_RTT) += tee_time_rtt.c
 srcs-$(WITH_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 
 srcs-y += tee_time_unpg.c
-srcs-y += tz_proc.S
-srcs-y += tz_ssvce.S
-srcs-$(WITH_PL310) += tz_ssvce_pl310.S
+srcs-$(CFG_ARM32_core) += proc_a32.S
+srcs-$(CFG_ARM32_core) += ssvce_a32.S
+srcs-$(WITH_PL310) += tz_ssvce_pl310_a32.S
 srcs-y += tee_l2cc_mutex.c
 
-srcs-y += thread_asm.S
+srcs-$(CFG_ARM32_core) += thread_a32.S
 srcs-y += thread.c
 srcs-$(CFG_WITH_VFP) += vfp.c
-srcs-$(CFG_WITH_VFP) += vfp_asm.S
+srcs-$(CFG_WITH_VFP) += vfp_a32.S
 srcs-y += trace_ext.c
-srcs-y += misc.S
+srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-y += mutex.c

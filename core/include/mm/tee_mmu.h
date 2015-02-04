@@ -58,7 +58,7 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
  * given the user context
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
-				  const uint32_t kaddr, uint32_t *uaddr);
+				  const vaddr_t kaddr, tee_uaddr_t *uaddr);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_user_va2pa - Translate virtual user address to physical address
