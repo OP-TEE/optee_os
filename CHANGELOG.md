@@ -1,8 +1,51 @@
-OP-TEE - version 0.1.0
-======================
+# OP-TEE - version 0.2.0
 
-New features
-------------
+## New features
+
+### Linux Driver Refactoring
+
+Linux Driver has been refactored. It is now split in two parts:
+*	optee.ko, the generic Linux driver. It contains all functionality
+	common to all backends.
+*	optee_armtz.ko, a specific backend dedicated to the TrustZone optee.
+	It depends on optee.ko.
+
+Loading the TrustZone optee linux driver module is now performed using
+
+    modprobe optee_armtz
+
+Thanks to the dependency between the generic and the backend modules, optee.ko is then automatically loaded.
+
+### Misc new features
+* support PL310 lock down at TEE boot
+* add 64bits support (division / print)
+
+## Tested on
+Definitions:
+
+| Type | Meaning |
+| ---- | ------- |
+| Standard tests | The optee_test project. |
+| Extended tests | optee_test with tests from the GlobalPlatform™ TEE Initial Configuration Test Suite v1.1.0.4. |
+| Hello world test | Plain hello world Trusted Application such as [this][hello_world]. |
+
+*   ARM Juno Board (vexpress-juno), standard tests + extended tests.
+
+*   Foundation Models (vexpress-fvp), standard + extended tests.
+
+*   QEMU (vexpress-qemu), standard + extended tests.
+
+*   STM Cannes (stm-cannes), standard + extended tests.
+
+
+## Issues resolved since last release
+*	Fix user TA trace issue, in order each TA is able to select its own trace level
+
+
+-------------------------------------------
+#OP-TEE - version 0.1.0
+
+## New features
 Below is a summary of the most important features added, but at the end you will
 find a link that present you all commits between the current and previous
 release tag.
@@ -55,8 +98,7 @@ release tag.
     previous release.
 
 
-Tested on
----------
+## Tested on
 Definitions:
 
 | Type | Meaning |
@@ -77,13 +119,11 @@ Definitions:
 *   STM Cannes (plat-stm-cannes), standard + extended tests.
 
 
-Issues resolved since last release
-----------------------------------
+## Issues resolved since last release
 N/A since this is the first release tag on OP-TEE.
 
 
-Known issues
-------------
+## Known issues
 *   Storage is implemented, but not "Secure storage", meaning that a client
     needs to do encrypt files on their own before storing the files.
 
