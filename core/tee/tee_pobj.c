@@ -37,20 +37,21 @@ static TAILQ_HEAD(tee_pobjs, tee_pobj) tee_pobjs =
 static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 {
 	/* meta is exclusive */
-	if (oflags | TEE_DATA_FLAG_ACCESS_WRITE_META ||
-	    nflags | TEE_DATA_FLAG_ACCESS_WRITE_META)
+	if (oflags & TEE_DATA_FLAG_ACCESS_WRITE_META)
 		return TEE_ERROR_ACCESS_CONFLICT;
 
-	if (oflags | TEE_DATA_FLAG_ACCESS_READ &&
-	    !((nflags | TEE_DATA_FLAG_SHARE_READ) &&
-	      oflags | TEE_DATA_FLAG_SHARE_READ))
-		return TEE_ERROR_ACCESS_CONFLICT;
+	/*second open/create need set flags to TEE_DATA_FLAG_SHARE_READ */
+	if (((oflags & TEE_DATA_FLAG_ACCESS_READ) ||
+		(oflags & TEE_DATA_FLAG_SHARE_READ)) &&
+		!(nflags & TEE_DATA_FLAG_SHARE_READ))
+			return TEE_ERROR_ACCESS_CONFLICT;
 
-	if (oflags | TEE_DATA_FLAG_ACCESS_WRITE &&
-	    !((nflags | TEE_DATA_FLAG_SHARE_WRITE) &&
-	      oflags | TEE_DATA_FLAG_SHARE_WRITE))
-		return TEE_ERROR_ACCESS_CONFLICT;
-
+	/*second open/create need set flags to TEE_DATA_FLAG_SHARE_WRITE */
+	if (((oflags & TEE_DATA_FLAG_ACCESS_WRITE) ||
+		(oflags & TEE_DATA_FLAG_SHARE_WRITE)) &&
+		!(nflags & TEE_DATA_FLAG_SHARE_WRITE ))
+			return TEE_ERROR_ACCESS_CONFLICT;
+	
 	return TEE_SUCCESS;
 }
 
