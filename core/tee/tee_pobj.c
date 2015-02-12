@@ -37,18 +37,42 @@ static TAILQ_HEAD(tee_pobjs, tee_pobj) tee_pobjs =
 static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 {
 	/* meta is exclusive */
-	if (oflags | TEE_DATA_FLAG_ACCESS_WRITE_META ||
-	    nflags | TEE_DATA_FLAG_ACCESS_WRITE_META)
+	if ((oflags & TEE_DATA_FLAG_ACCESS_WRITE_META) ||
+	    (nflags & TEE_DATA_FLAG_ACCESS_WRITE_META))
 		return TEE_ERROR_ACCESS_CONFLICT;
 
-	if (oflags | TEE_DATA_FLAG_ACCESS_READ &&
-	    !((nflags | TEE_DATA_FLAG_SHARE_READ) &&
-	      oflags | TEE_DATA_FLAG_SHARE_READ))
+	/*
+	 * Excerpt of TEE Internal Core API Specification v1.1:
+	 * If more than one handle is opened on the same  object, and if any
+	 * of these object handles was opened with the flag
+	 * TEE_DATA_FLAG_ACCESS_READ, then all the object handles MUST have been
+	 * opened with the flag TEE_DATA_FLAG_SHARE_READ
+	 */
+	if (((oflags & TEE_DATA_FLAG_ACCESS_READ) ||
+	     (nflags & TEE_DATA_FLAG_ACCESS_READ)) &&
+	    !((nflags & TEE_DATA_FLAG_SHARE_READ) &&
+	      (oflags & TEE_DATA_FLAG_SHARE_READ)))
 		return TEE_ERROR_ACCESS_CONFLICT;
 
-	if (oflags | TEE_DATA_FLAG_ACCESS_WRITE &&
-	    !((nflags | TEE_DATA_FLAG_SHARE_WRITE) &&
-	      oflags | TEE_DATA_FLAG_SHARE_WRITE))
+	/*
+	 * Excerpt of TEE Internal Core API Specification v1.1:
+	 * An object can be opened with only share flags, which locks the access
+	 * to an object against a given mode.
+	 * An object can be opened with no flag set, which completely locks all
+	 * subsequent attempts to access the object
+	 */
+	if ((nflags & TEE_DATA_FLAG_SHARE_READ) !=
+	    (oflags & TEE_DATA_FLAG_SHARE_READ))
+		return TEE_ERROR_ACCESS_CONFLICT;
+
+	/* Same on WRITE access */
+	if (((oflags & TEE_DATA_FLAG_ACCESS_WRITE) ||
+	     (nflags & TEE_DATA_FLAG_ACCESS_WRITE)) &&
+	    !((nflags & TEE_DATA_FLAG_SHARE_WRITE) &&
+	      (oflags & TEE_DATA_FLAG_SHARE_WRITE)))
+		return TEE_ERROR_ACCESS_CONFLICT;
+	if ((nflags & TEE_DATA_FLAG_SHARE_WRITE) !=
+	    (oflags & TEE_DATA_FLAG_SHARE_WRITE))
 		return TEE_ERROR_ACCESS_CONFLICT;
 
 	return TEE_SUCCESS;
