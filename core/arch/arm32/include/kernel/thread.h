@@ -33,8 +33,6 @@
 #endif
 
 #define THREAD_ID_0		0
-#define THREAD_ABT_STACK	0xfffffffe
-#define THREAD_TMP_STACK	0xffffffff
 
 #ifndef ASM
 extern uint32_t thread_vector_table[];
@@ -165,17 +163,12 @@ struct thread_handlers {
 	 */
 	thread_abort_handler_t abort;
 };
-void thread_init_handlers(const struct thread_handlers *handlers);
+void thread_init_primary(const struct thread_handlers *handlers);
 void thread_init_per_cpu(void);
 
 /*
  * Sets the stacks to be used by the different threads. Use THREAD_ID_0 for
  * first stack, THREAD_ID_0 + 1 for the next and so on.
- *
- * If stack_id == THREAD_ID_TMP_STACK the temporary stack used by current
- * CPU is selected.
- * If stack_id == THREAD_ID_ABT_STACK the abort stack used by current CPU
- * is selected.
  *
  * Returns true on success and false on errors.
  */

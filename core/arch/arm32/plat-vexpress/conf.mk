@@ -6,15 +6,14 @@ include mk/gcc.mk
 
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
-core-platform-cppflags	+= -DWITH_STACK_CANARIES=1
 
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
 ifeq ($(platform-flavor-armv8),1)
-core-platform-cppflags += -DWITH_ARM_TRUSTED_FW=1
+CFG_WITH_ARM_TRUSTED_FW := y
 else
 core-platform-subdirs += $(arch-dir)/sm
-core-platform-cppflags += -DWITH_SEC_MON=1
+CFG_WITH_SEC_MON := y
 endif
 
 CFG_PM_DEBUG ?= n
@@ -25,6 +24,7 @@ WITH_SECURE_TIME_SOURCE_CNTPCT := y
 WITH_UART_DRV := y
 WITH_GIC_DRV := y
 CFG_HWSUPP_MEM_PERM_PXN := y
+CFG_WITH_STACK_CANARIES := y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_SHA256_ARM32_CE ?= y

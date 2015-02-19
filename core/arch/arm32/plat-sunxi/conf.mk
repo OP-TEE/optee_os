@@ -6,11 +6,9 @@ include mk/gcc.mk
 
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=4
-core-platform-cppflags	+= -DWITH_STACK_CANARIES=1
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
 core-platform-subdirs += $(arch-dir)/sm
-core-platform-cppflags += -DWITH_SEC_MON=1
 
 CFG_PM_DEBUG ?= 0
 ifeq ($(CFG_PM_DEBUG),1)
@@ -20,6 +18,8 @@ endif
 
 libutil_with_isoc := y
 WITH_SECURE_TIME_SOURCE_CNTPCT := y
+CFG_WITH_SEC_MON := y
+CFG_WITH_STACK_CANARIES := y
 
 include mk/config.mk
 

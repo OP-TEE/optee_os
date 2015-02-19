@@ -27,11 +27,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <sm/sm.h>
-#include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
-#include <kernel/arch_debug.h>
 #include <arm32.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
@@ -51,49 +49,6 @@
 #include <assert.h>
 #include <platform_config.h>
 
-#ifdef WITH_STACK_CANARIES
-#define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
-#define START_CANARY_VALUE	0xdededede
-#define END_CANARY_VALUE	0xabababab
-#define GET_START_CANARY(name, stack_num) name[stack_num][0]
-#define GET_END_CANARY(name, stack_num) \
-	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
-#else
-#define STACK_CANARY_SIZE	0
-#endif
-
-#define DECLARE_STACK(name, num_stacks, stack_size) \
-	static uint32_t name[num_stacks][ \
-		ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
-		sizeof(uint32_t)] \
-		__attribute__((section(".nozi.stack"), \
-			       aligned(STACK_ALIGNMENT)))
-
-#define GET_STACK(stack) \
-	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
-
-
-DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
-DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
-DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
-DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
-
-const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
-	GET_STACK(stack_tmp[0]),
-#if CFG_TEE_CORE_NB_CORE > 1
-	GET_STACK(stack_tmp[1]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 2
-	GET_STACK(stack_tmp[2]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 3
-	GET_STACK(stack_tmp[3]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 4
-#error "Top of tmp stacks aren't defined for more than 4 CPUS"
-#endif
-};
-
 /* teecore heap address/size is defined in scatter file */
 extern unsigned char teecore_heap_start;
 extern unsigned char teecore_heap_end;
@@ -102,42 +57,6 @@ extern unsigned char teecore_heap_end;
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
-
-static void init_canaries(void)
-{
-	size_t n;
-#define INIT_CANARY(name)						\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
-		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
-									\
-		*start_canary = START_CANARY_VALUE;			\
-		*end_canary = END_CANARY_VALUE;				\
-	}
-
-	INIT_CANARY(stack_tmp);
-	INIT_CANARY(stack_abt);
-	INIT_CANARY(stack_sm);
-	INIT_CANARY(stack_thread);
-}
-
-void check_canaries(void)
-{
-#ifdef WITH_STACK_CANARIES
-	size_t n;
-
-#define ASSERT_STACK_CANARIES(name)					\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		assert(GET_START_CANARY(name, n) == START_CANARY_VALUE);\
-		assert(GET_END_CANARY(name, n) == END_CANARY_VALUE);	\
-	} while (0)
-
-	ASSERT_STACK_CANARIES(stack_tmp);
-	ASSERT_STACK_CANARIES(stack_abt);
-	ASSERT_STACK_CANARIES(stack_sm);
-	ASSERT_STACK_CANARIES(stack_thread);
-#endif /*WITH_STACK_CANARIES*/
-}
 
 static const struct thread_handlers handlers = {
 	.std_smc = main_tee_entry,
@@ -167,33 +86,15 @@ void main_init(uint32_t nsec_entry)
 	 */
 	write_cpsr(read_cpsr() | CPSR_F | CPSR_I);
 
-	if (pos == 0) {
-		size_t n;
-
-		/* Initialize canries around the stacks */
-		init_canaries();
-
-		/* Assign the thread stacks */
-		for (n = 0; n < NUM_THREADS; n++) {
-			if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-				panic();
-		}
-		thread_init_handlers(&handlers);
-	}
-
-	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
-		panic();
-	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
-		panic();
+	if (pos == 0)
+		thread_init_primary(&handlers);
 
 	thread_init_per_cpu();
 
 	/* Initialize secure monitor */
-	sm_init(GET_STACK(stack_sm[pos]));
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
-	sm_set_entry_vector(thread_vector_table);
 
 	if (pos == 0) {
 		unsigned long a, s;

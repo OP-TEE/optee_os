@@ -60,10 +60,6 @@
 /* console uart define */
 #define CONSOLE_UART_BASE       UART0_BASE
 
-#define STACK_TMP_SIZE		1024
-#define STACK_ABT_SIZE		1024
-#define STACK_THREAD_SIZE	8192
-
 #define DRAM0_BASE		0x20000000
 #define DRAM0_SIZE		0x80000000
 

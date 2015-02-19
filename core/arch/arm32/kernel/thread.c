@@ -26,21 +26,37 @@
  */
 #include <platform_config.h>
 
+#include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/thread_defs.h>
 #include "thread_private.h"
+#include <sm/sm_defs.h>
+#include <sm/sm.h>
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
 #include <arm32.h>
-#include <kernel/arch_debug.h>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_proc.h>
 #include <kernel/misc.h>
 #include <mm/tee_mmu.h>
+#include <mm/tee_mmu_defs.h>
+#include <mm/tee_mm.h>
+#include <mm/tee_pager.h>
 #include <kernel/tee_ta_manager.h>
+#include <util.h>
 #include <trace.h>
 
 #include <assert.h>
+
+#define STACK_TMP_SIZE		1024
+#define STACK_THREAD_SIZE	8192
+
+#if CFG_TRACE_LEVEL > 0
+#define STACK_ABT_SIZE		2048
+#else
+#define STACK_ABT_SIZE		1024
+#endif
+
 
 static struct thread_ctx threads[NUM_THREADS];
 
@@ -58,6 +74,65 @@ struct thread_vfp_state {
 static struct thread_vfp_state thread_vfp_state;
 #endif /*CFG_WITH_VFP*/
 
+#ifdef CFG_WITH_STACK_CANARIES
+#define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
+#define START_CANARY_VALUE	0xdededede
+#define END_CANARY_VALUE	0xabababab
+#define GET_START_CANARY(name, stack_num) name[stack_num][0]
+#define GET_END_CANARY(name, stack_num) \
+	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
+#else
+#define STACK_CANARY_SIZE	0
+#endif
+
+#define DECLARE_STACK(name, num_stacks, stack_size) \
+	static uint32_t name[num_stacks][ \
+		ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
+		sizeof(uint32_t)] \
+		__attribute__((section(".nozi.stack"), \
+			       aligned(STACK_ALIGNMENT)))
+
+#define GET_STACK(stack) \
+	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
+
+
+DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
+DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
+#if defined(CFG_WITH_SEC_MON)
+DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
+#endif
+#ifndef CFG_WITH_PAGER
+DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
+#endif
+
+const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
+	GET_STACK(stack_tmp[0]),
+#if CFG_TEE_CORE_NB_CORE > 1
+	GET_STACK(stack_tmp[1]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 2
+	GET_STACK(stack_tmp[2]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 3
+	GET_STACK(stack_tmp[3]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 4
+	GET_STACK(stack_tmp[4]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 5
+	GET_STACK(stack_tmp[5]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 6
+	GET_STACK(stack_tmp[6]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 7
+	GET_STACK(stack_tmp[7]),
+#endif
+#if CFG_TEE_CORE_NB_CORE > 8
+#error "Top of tmp stacks aren't defined for more than 8 CPUS"
+#endif
+};
+
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
 thread_fiq_handler_t thread_fiq_handler_ptr;
@@ -72,6 +147,55 @@ thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
 static unsigned int thread_global_lock = UNLOCK;
+
+static void init_canaries(void)
+{
+#ifdef CFG_WITH_STACK_CANARIES
+	size_t n;
+#define INIT_CANARY(name)						\
+	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
+		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
+		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
+									\
+		*start_canary = START_CANARY_VALUE;			\
+		*end_canary = END_CANARY_VALUE;				\
+		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
+			#name, n, (void *)(end_canary - 1));		\
+		DMSG("watch *%p\n", (void *)end_canary);		\
+	}
+
+	INIT_CANARY(stack_tmp);
+	INIT_CANARY(stack_abt);
+#ifdef CFG_WITH_SEC_MON
+	INIT_CANARY(stack_sm);
+#endif
+#ifndef CFG_WITH_PAGER
+	INIT_CANARY(stack_thread);
+#endif
+#endif/*CFG_WITH_STACK_CANARIES*/
+}
+
+void thread_check_canaries(void)
+{
+#ifdef CFG_WITH_STACK_CANARIES
+	size_t n;
+
+#define ASSERT_STACK_CANARIES(name)					\
+	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
+		assert(GET_START_CANARY(name, n) == START_CANARY_VALUE);\
+		assert(GET_END_CANARY(name, n) == END_CANARY_VALUE);	\
+	} while (0)
+
+	ASSERT_STACK_CANARIES(stack_tmp);
+	ASSERT_STACK_CANARIES(stack_abt);
+#ifdef CFG_WITH_SEC_MON
+	ASSERT_STACK_CANARIES(stack_sm);
+#endif
+#ifndef CFG_WITH_PAGER
+	ASSERT_STACK_CANARIES(stack_thread);
+#endif
+#endif/*CFG_WITH_STACK_CANARIES*/
+}
 
 static void lock_global(void)
 {
@@ -123,28 +247,22 @@ static bool have_one_preempted_thread(void)
 	return false;
 }
 
-#ifdef CFG_WITH_VFP
 static void thread_lazy_save_ns_vfp(void)
 {
+#ifdef CFG_WITH_VFP
 	thread_vfp_state.ns_saved = false;
 	vfp_lazy_save_state_init(&thread_vfp_state.ns);
+#endif /*CFG_WITH_VFP*/
 }
 
 static void thread_lazy_restore_ns_vfp(void)
 {
+#ifdef CFG_WITH_VFP
 	assert(!thread_vfp_state.sec_lazy_saved && !thread_vfp_state.sec_saved);
 	vfp_lazy_restore_state(&thread_vfp_state.ns, thread_vfp_state.ns_saved);
 	thread_vfp_state.ns_saved = false;
-}
-#else
-static void thread_lazy_save_ns_vfp(void)
-{
-}
-
-static void thread_lazy_restore_ns_vfp(void)
-{
-}
 #endif /*CFG_WITH_VFP*/
+}
 
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
@@ -275,7 +393,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 void thread_handle_fast_smc(struct thread_smc_args *args)
 {
-	check_canaries();
+	thread_check_canaries();
 	thread_fast_smc_handler_ptr(args);
 	/* Fast handlers must not clear F, I or A bits in CPSR */
 	assert((read_cpsr() & CPSR_FIA) == CPSR_FIA);
@@ -283,7 +401,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 
 void thread_handle_std_smc(struct thread_smc_args *args)
 {
-	check_canaries();
+	thread_check_canaries();
 
 	if (args->a0 == TEESMC32_CALL_RETURN_FROM_RPC)
 		thread_resume_from_rpc(args);
@@ -346,7 +464,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 
 	assert(ct != -1);
 
-	check_canaries();
+	thread_check_canaries();
 
 	thread_lazy_restore_ns_vfp();
 
@@ -372,34 +490,30 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 	return ct;
 }
 
+static void set_tmp_stack(vaddr_t sp)
+{
+	struct thread_core_local *l = get_core_local();
+
+	l->tmp_stack_va_end = sp;
+	l->curr_thread = -1;
+
+	thread_set_irq_sp(sp);
+	thread_set_fiq_sp(sp);
+}
+
+static void set_abt_stack(vaddr_t sp)
+{
+	thread_set_abt_sp(sp);
+}
 
 bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
-	switch (thread_id) {
-	case THREAD_TMP_STACK: {
-		struct thread_core_local *l = get_core_local();
+	if (thread_id >= NUM_THREADS)
+		return false;
+	if (threads[thread_id].state != THREAD_STATE_FREE)
+		return false;
 
-		l->tmp_stack_va_end = sp;
-		l->curr_thread = -1;
-
-		thread_set_irq_sp(sp);
-		thread_set_fiq_sp(sp);
-		break;
-	}
-
-	case THREAD_ABT_STACK:
-		thread_set_abt_sp(sp);
-		break;
-
-	default:
-		if (thread_id >= NUM_THREADS)
-			return false;
-		if (threads[thread_id].state != THREAD_STATE_FREE)
-			return false;
-
-		threads[thread_id].stack_va_end = sp;
-	}
-
+	threads[thread_id].stack_va_end = sp;
 	return true;
 }
 
@@ -419,7 +533,68 @@ uint32_t thread_get_id(void)
 	return ct;
 }
 
-void thread_init_handlers(const struct thread_handlers *handlers)
+static void init_handlers(const struct thread_handlers *handlers)
+{
+	thread_std_smc_handler_ptr = handlers->std_smc;
+	thread_fast_smc_handler_ptr = handlers->fast_smc;
+	thread_fiq_handler_ptr = handlers->fiq;
+	thread_svc_handler_ptr = handlers->svc;
+	thread_abort_handler_ptr = handlers->abort;
+	thread_cpu_on_handler_ptr = handlers->cpu_on;
+	thread_cpu_off_handler_ptr = handlers->cpu_off;
+	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
+	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
+	thread_system_off_handler_ptr = handlers->system_off;
+	thread_system_reset_handler_ptr = handlers->system_reset;
+}
+
+
+#ifdef CFG_WITH_PAGER
+static void init_thread_stacks(void)
+{
+	size_t n;
+
+	/*
+	 * Allocate virtual memory for thread stacks.
+	 */
+	for (n = 0; n < NUM_THREADS; n++) {
+		tee_mm_entry_t *mm;
+		vaddr_t sp;
+
+		/* Get unmapped page at bottom of stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
+		TEE_ASSERT(mm);
+		/* Claim eventual physical page */
+		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+
+		/* Allocate the actual stack */
+		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
+		TEE_ASSERT(mm);
+		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
+		if (!thread_init_stack(n, sp))
+			panic();
+		/* Claim eventual physical page */
+		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
+				    true);
+		/* Add the area to the pager */
+		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
+	}
+}
+#else
+static void init_thread_stacks(void)
+{
+	size_t n;
+
+	/* Assign the thread stacks */
+	for (n = 0; n < NUM_THREADS; n++) {
+		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
+			panic();
+	}
+}
+#endif /*CFG_WITH_PAGER*/
+
+void thread_init_primary(const struct thread_handlers *handlers)
 {
 	/*
 	 * The COMPILE_TIME_ASSERT only works in function context. These
@@ -447,21 +622,32 @@ void thread_init_handlers(const struct thread_handlers *handlers)
 	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, spsr) ==
 				THREAD_SVC_REG_SPSR_OFFS);
 
-	thread_std_smc_handler_ptr = handlers->std_smc;
-	thread_fast_smc_handler_ptr = handlers->fast_smc;
-	thread_fiq_handler_ptr = handlers->fiq;
-	thread_svc_handler_ptr = handlers->svc;
-	thread_abort_handler_ptr = handlers->abort;
-	thread_cpu_on_handler_ptr = handlers->cpu_on;
-	thread_cpu_off_handler_ptr = handlers->cpu_off;
-	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
-	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
-	thread_system_off_handler_ptr = handlers->system_off;
-	thread_system_reset_handler_ptr = handlers->system_reset;
+	init_handlers(handlers);
+
+	/* Initialize canaries around the stacks */
+	init_canaries();
+
+	init_thread_stacks();
+}
+
+static void init_sec_mon(size_t __unused pos)
+{
+#if defined(CFG_WITH_SEC_MON)
+	/* Initialize secure monitor */
+	sm_init(GET_STACK(stack_sm[pos]));
+	sm_set_entry_vector(thread_vector_table);
+#endif /*CFG_WITH_SEC_MON*/
 }
 
 void thread_init_per_cpu(void)
 {
+	size_t pos = get_core_pos();
+
+	init_sec_mon(pos);
+
+	set_tmp_stack(GET_STACK(stack_tmp[pos]));
+	set_abt_stack(GET_STACK(stack_abt[pos]));
+
 	thread_init_vbar();
 }
 

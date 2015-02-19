@@ -144,4 +144,7 @@ void thread_handle_std_smc(struct thread_smc_args *args);
 #define THREAD_RPC_NUM_ARGS     3
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
+/* Checks stack canaries */
+void thread_check_canaries(void);
+
 #endif /*THREAD_PRIVATE_H*/

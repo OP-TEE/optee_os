@@ -35,13 +35,6 @@
 
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		32
-#define STACK_TMP_SIZE		1024
-#if CFG_TRACE_LEVEL > 0
-#define STACK_ABT_SIZE		2048
-#else
-#define STACK_ABT_SIZE		1024
-#endif
-#define STACK_THREAD_SIZE	8192
 
 #define CFG_TEE_CORE_NB_CORE	2
 

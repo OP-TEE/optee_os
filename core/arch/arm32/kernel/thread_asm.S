@@ -63,7 +63,7 @@ END_FUNC vector_fast_smc_entry
 
 LOCAL_FUNC vector_fiq_entry , :
  	/* Secure Monitor received a FIQ and passed control to us. */
- 	bl	check_canaries
+	bl	thread_check_canaries
  	ldr	lr, =thread_fiq_handler_ptr
  	ldr	lr, [lr]
  	blx	lr
@@ -323,7 +323,7 @@ LOCAL_FUNC thread_fiq_handler , :
 	/* FIQ has a +4 offset for lr compared to preferred return address */
 	sub     lr, lr, #4
 	push	{r0-r12, lr}
-	bl	check_canaries
+	bl	thread_check_canaries
 	ldr	lr, =thread_fiq_handler_ptr
 	ldr	lr, [lr]
 	blx	lr

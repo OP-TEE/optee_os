@@ -34,11 +34,9 @@
 #include <drivers/gic.h>
 #include <drivers/uart.h>
 #include <sm/sm.h>
-#include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 
 #include <util.h>
-#include <kernel/arch_debug.h>
 
 #include <arm32.h>
 #include <kernel/thread.h>
@@ -62,63 +60,6 @@
 #include <assert.h>
 
 #define PADDR_INVALID		0xffffffff
-
-#ifdef WITH_STACK_CANARIES
-#define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
-#define START_CANARY_VALUE	0xdededede
-#define END_CANARY_VALUE	0xabababab
-#define GET_START_CANARY(name, stack_num) name[stack_num][0]
-#define GET_END_CANARY(name, stack_num) \
-	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
-#else
-#define STACK_CANARY_SIZE	0
-#endif
-
-#define DECLARE_STACK(name, num_stacks, stack_size) \
-	static uint32_t name[num_stacks][ \
-		ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
-		sizeof(uint32_t)] \
-		__attribute__((section(".nozi.stack"), \
-			       aligned(STACK_ALIGNMENT)))
-
-#define GET_STACK(stack) \
-	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
-
-
-DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
-DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
-DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
-#ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
-#endif
-
-const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
-	GET_STACK(stack_tmp[0]),
-#if CFG_TEE_CORE_NB_CORE > 1
-	GET_STACK(stack_tmp[1]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 2
-	GET_STACK(stack_tmp[2]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 3
-	GET_STACK(stack_tmp[3]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 4
-	GET_STACK(stack_tmp[4]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 5
-	GET_STACK(stack_tmp[5]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 6
-	GET_STACK(stack_tmp[6]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 7
-	GET_STACK(stack_tmp[7]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 8
-#error "Top of tmp stacks aren't defined for more than 8 CPUS"
-#endif
-};
 
 #ifndef CFG_WITH_LPAE
 /* Main MMU L1 table for teecore */
@@ -152,7 +93,7 @@ extern uint8_t __pagable_start[];
 extern uint8_t __pagable_end[];
 
 static void main_fiq(void);
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* Implemented in assembly, referenced in this file only */
 uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
 
@@ -161,54 +102,11 @@ static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1);
-#elif defined(WITH_SEC_MON)
+#elif defined(CFG_WITH_SEC_MON)
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 #else
 #error Platform must use either ARM_TRUSTED_FW or SEC_MON
 #endif
-
-static void init_canaries(void)
-{
-	size_t n;
-#define INIT_CANARY(name)						\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
-		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
-									\
-		*start_canary = START_CANARY_VALUE;			\
-		*end_canary = END_CANARY_VALUE;				\
-		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
-			#name, n, (void *)(end_canary - 1));		\
-		DMSG("watch *%p\n", (void *)end_canary);	\
-	}
-
-	INIT_CANARY(stack_tmp);
-	INIT_CANARY(stack_abt);
-	INIT_CANARY(stack_sm);
-#ifndef CFG_WITH_PAGER
-	INIT_CANARY(stack_thread);
-#endif
-}
-
-void check_canaries(void)
-{
-#ifdef WITH_STACK_CANARIES
-	size_t n;
-
-#define ASSERT_STACK_CANARIES(name)					\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		assert(GET_START_CANARY(name, n) == START_CANARY_VALUE);\
-		assert(GET_END_CANARY(name, n) == END_CANARY_VALUE);	\
-	} while (0)
-
-	ASSERT_STACK_CANARIES(stack_tmp);
-	ASSERT_STACK_CANARIES(stack_abt);
-	ASSERT_STACK_CANARIES(stack_sm);
-#ifndef CFG_WITH_PAGER
-	ASSERT_STACK_CANARIES(stack_thread);
-#endif
-#endif /*WITH_STACK_CANARIES*/
-}
 
 static const struct thread_handlers handlers = {
 	.std_smc = plat_tee_entry,
@@ -216,14 +114,14 @@ static const struct thread_handlers handlers = {
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = main_cpu_off_handler,
 	.cpu_suspend = main_cpu_suspend_handler,
 	.cpu_resume = main_cpu_resume_handler,
 	.system_off = main_system_off_handler,
 	.system_reset = main_system_reset_handler,
-#elif defined(WITH_SEC_MON)
+#elif defined(CFG_WITH_SEC_MON)
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
@@ -233,32 +131,28 @@ static const struct thread_handlers handlers = {
 #endif
 };
 
-#if defined(WITH_ARM_TRUSTED_FW)
-static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+static void main_init_sec_mon(uint32_t nsec_entry __unused)
 {
-	(void)&pos;
-	(void)&nsec_entry;
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
-#elif defined(WITH_SEC_MON)
-static void main_init_sec_mon(size_t pos, uint32_t nsec_entry)
+#elif defined(CFG_WITH_SEC_MON)
+static void main_init_sec_mon(uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
 	assert(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
-	sm_init(GET_STACK(stack_sm[pos]));
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
-	sm_set_entry_vector(thread_vector_table);
 
 }
 #endif
 
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 static void main_init_nsacr(void)
 {
 }
@@ -480,55 +374,8 @@ static void main_init_runtime(uint32_t pagable_part __unused)
 }
 #endif
 
-#ifdef CFG_WITH_PAGER
-static void main_init_thread_stacks(void)
-{
-	size_t n;
-
-	/*
-	 * Allocate virtual memory for thread stacks.
-	 */
-	for (n = 0; n < NUM_THREADS; n++) {
-		tee_mm_entry_t *mm;
-		vaddr_t sp;
-
-		/* Get unmapped page at bottom of stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
-		TEE_ASSERT(mm);
-		/* Claim eventual physical page */
-		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
-				    true);
-
-		/* Allocate the actual stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
-		TEE_ASSERT(mm);
-		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
-		if (!thread_init_stack(n, sp))
-			panic();
-		/* Claim eventual physical page */
-		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
-				    true);
-		/* Add the area to the pager */
-		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
-	}
-}
-#else
-static void main_init_thread_stacks(void)
-{
-	size_t n;
-
-	/* Assign the thread stacks */
-	for (n = 0; n < NUM_THREADS; n++) {
-		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-			panic();
-	}
-}
-#endif
-
 static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 {
-	size_t pos = get_core_pos();
-
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
 	 * vector as the thread handler requires externl Abort, IRQ and FIQ
@@ -543,19 +390,10 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 
 	DMSG("TEE initializing\n");
 
-	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
-		panic();
-	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
-		panic();
-
-	thread_init_handlers(&handlers);
+	thread_init_primary(&handlers);
 	thread_init_per_cpu();
-	main_init_sec_mon(pos, nsec_entry);
+	main_init_sec_mon(nsec_entry);
 
-	/* Initialize canaries around the stacks */
-	init_canaries();
-
-	main_init_thread_stacks();
 
 	main_init_gic();
 	main_init_nsacr();
@@ -567,8 +405,6 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 
 static void main_init_secondary_helper(uint32_t nsec_entry)
 {
-	size_t pos = get_core_pos();
-
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
 	 * vector as the thread handler requires externl Abort, IRQ and FIQ
@@ -578,22 +414,15 @@ static void main_init_secondary_helper(uint32_t nsec_entry)
 	 */
 	write_cpsr(read_cpsr() | CPSR_FIA);
 
-	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[pos])))
-		panic();
-	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[pos])))
-		panic();
-
 	thread_init_per_cpu();
-	main_init_sec_mon(pos, nsec_entry);
+	main_init_sec_mon(nsec_entry);
 	main_init_cpacr();
 	main_init_nsacr();
 
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
-
-
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* called from assembly only */
 uint32_t *main_init_primary(uint32_t pagable_part);
 uint32_t *main_init_primary(uint32_t pagable_part)
@@ -601,7 +430,7 @@ uint32_t *main_init_primary(uint32_t pagable_part)
 	main_init_primary_helper(pagable_part, PADDR_INVALID);
 	return thread_vector_table;
 }
-#elif defined(WITH_SEC_MON)
+#elif defined(CFG_WITH_SEC_MON)
 /* called from assembly only */
 void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry);
 void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry)
@@ -636,7 +465,7 @@ static void main_fiq(void)
 	DMSG("return");
 }
 
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1)
 {
 	(void)&a0;
@@ -691,7 +520,7 @@ static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1)
 	return 0;
 }
 
-#elif defined(WITH_SEC_MON)
+#elif defined(CFG_WITH_SEC_MON)
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 {
 	/*

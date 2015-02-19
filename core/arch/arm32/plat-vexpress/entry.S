@@ -62,7 +62,7 @@ LOCAL_FUNC reset , :
 	ldr	r0, =_start
 	write_vbar r0
 
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	b	reset_primary
 #else
 	bl	get_core_pos
@@ -154,7 +154,7 @@ copy_init:
 	bl	arm_cl1_d_cleaninvbyva
 	mov	r0, r4
 
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
 	mov     r1, r0
 #else
@@ -173,7 +173,7 @@ LOCAL_FUNC unhandled_cpu , :
 	b	unhandled_cpu
 END_FUNC unhandled_cpu
 
-#if defined(WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , :
 	mov	r4, r0
 	mov	r5, r1
@@ -206,7 +206,7 @@ FUNC cpu_on_handler , :
 	bx	r6
 END_FUNC cpu_on_handler
 
-#else /* defined(WITH_ARM_TRUSTED_FW) */
+#else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
 LOCAL_FUNC reset_secondary , :
 	bl	get_core_pos
@@ -232,4 +232,4 @@ LOCAL_FUNC reset_secondary , :
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC reset_primary
-#endif /* defined(WITH_ARM_TRUSTED_FW) */
+#endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */
