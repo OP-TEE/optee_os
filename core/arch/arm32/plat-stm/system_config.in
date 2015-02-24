@@ -40,6 +40,7 @@ endif
 # Common values
 
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
+CFG_LTC_USE_MRSA_PREALLOC_TMPBUF := y
 
 # undef these to disable the related feature
 CFG_PL310_LOCKED ?= n
