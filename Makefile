@@ -6,6 +6,13 @@ all:
 .PHONY: mem_usage
 mem_usage:
 
+# log and load eventual tee config file
+# path is absolute or relative to current source root directory.
+ifdef CFG_OPTEE_CONFIG
+$(info Loading OPTEE configuration file $(CFG_OPTEE_CONFIG))
+include $(CFG_OPTEE_CONFIG)
+endif
+
 # If $(PLATFORM) is defined and contains a hyphen, parse it as
 # $(PLATFORM)-$(PLATFORM_FLAVOR) for convenience
 ifneq (,$(findstring -,$(PLATFORM)))

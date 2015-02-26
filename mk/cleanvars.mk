@@ -9,3 +9,4 @@ libdeps		:=
 sm-$(sm)	:=
 incdirs		:=
 conf-file	:=
+conf-mk-file	:=

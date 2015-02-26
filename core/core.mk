@@ -29,11 +29,18 @@ cppflags$(sm)	+= -Ilib/libutee/include
 # configuration file
 
 conf-file := $(out-dir)/core/include/generated/conf.h
+conf-mk-file := $(out-dir)/core/conf.mk
+$(conf-file): $(conf-mk-file)
+
 cleanfiles += $(conf-file)
+cleanfiles += $(conf-mk-file)
 
 include mk/checkconf.mk
 $(conf-file): FORCE
 	$(call check-conf-h)
+
+$(conf-mk-file):  FORCE
+	$(call build-conf-mk)
 
 #
 # Do libraries
