@@ -80,6 +80,10 @@
    #endif
 #define XMEMCMP  memcmp
 #endif
+#ifndef XMEM_NEQ
+#include <string_ext.h>
+#define XMEM_NEQ  buf_compare_ct
+#endif
 #ifndef XSTRCMP
    #ifdef strcmp
    #define LTC_NO_PROTOTYPES

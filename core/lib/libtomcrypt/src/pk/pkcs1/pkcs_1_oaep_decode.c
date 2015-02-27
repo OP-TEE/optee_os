@@ -165,7 +165,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* compare the lhash'es */
-   if (mem_neq(seed, DB, hLen) != 0) {
+   if (XMEM_NEQ(seed, DB, hLen) != 0) {
       ret = CRYPT_INVALID_PACKET;
    }
 
