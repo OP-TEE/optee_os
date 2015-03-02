@@ -299,6 +299,7 @@ static __unused const char *abort_type_to_str(uint32_t abort_type)
 
 static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 {
+#ifdef CFG_TEE_CORE_TA_TRACE
 	EMSG_RAW("\nUser TA %s-abort at address 0x%x\n",
 		abort_type_to_str(ai->abort_type), ai->va);
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x   ttbr1 0x%08x   cidr 0x%X\n",
@@ -315,6 +316,7 @@ static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 		 ai->regs->r3, ai->regs->r7, ai->regs->r11, ai->pc);
 
 	tee_ta_dump_current();
+#endif
 }
 
 static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)

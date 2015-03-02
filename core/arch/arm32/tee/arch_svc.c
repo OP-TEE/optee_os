@@ -126,7 +126,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 
-#if (CFG_TRACE_LEVEL == TRACE_FLOW)
+#if (CFG_TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 	tee_svc_trace_syscall(scn);
 #endif
 

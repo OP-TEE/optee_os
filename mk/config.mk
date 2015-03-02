@@ -1,7 +1,7 @@
 # WARNS from undefined, 1, 2 and 3. 3 means we have the most warning messages
 WARNS ?= 3
 
-# Define NOWERROR=1 so that warnings are not treated as errors 
+# Define NOWERROR=1 so that warnings are not treated as errors
 # NOWERROR=1
 
 # Define DEBUG=1 to compile with -g option
@@ -25,6 +25,11 @@ CFG_TEE_CORE_LOG_LEVEL?=1
 #   dynamically changes via debugfs in the range 1 => CFG_TEE_TA_LOG_LEVEL
 CFG_TEE_TA_LOG_LEVEL?=1
 
+# CFG_TEE_CORE_TA_TRACE
+#   TA enablement
+#   When defined to "y", TA traces are output according to
+#   CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
+CFG_TEE_CORE_TA_TRACE?=y
 
 #   If 1, enable debug features of the user mem module. This module track memory
 #   allocation of the user ta.

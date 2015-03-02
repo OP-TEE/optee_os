@@ -44,7 +44,7 @@
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 
-#if (CFG_TRACE_LEVEL == TRACE_FLOW)
+#if (CFG_TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 void tee_svc_trace_syscall(int num)
 {
 	/* #0 is syscall return, not really interesting */
@@ -54,8 +54,9 @@ void tee_svc_trace_syscall(int num)
 }
 #endif
 
-void tee_svc_sys_log(const void *buf, size_t len)
+void tee_svc_sys_log(const void *buf __unused, size_t len __unused)
 {
+#ifdef CFG_TEE_CORE_TA_TRACE
 	char *kbuf;
 
 	if (len == 0)
@@ -71,6 +72,7 @@ void tee_svc_sys_log(const void *buf, size_t len)
 		TAMSG_RAW("%.*s", (int)len, kbuf);
 
 	free(kbuf);
+#endif
 }
 
 TEE_Result tee_svc_reserved(void)
