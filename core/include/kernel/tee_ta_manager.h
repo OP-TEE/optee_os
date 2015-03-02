@@ -104,6 +104,7 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 int tee_ta_set_trace_level(int level);
 void tee_ta_dump_current(void);
 void tee_ta_dump_all(void);
+bool tee_ta_is_crash_logged(void);
 
 #ifdef CFG_CACHE_API
 TEE_Result tee_uta_cache_operation(struct tee_ta_session *s,

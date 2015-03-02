@@ -627,6 +627,9 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 #if defined(CFG_SE_API)
 	ctx->se_service = NULL;
 #endif
+#if !defined(CFG_TEE_CORE_NO_TA_TRACE)
+	ctx->trace = true;
+#endif
 
 	/* by default NSec DDR: starts at TA function code. */
 	ctx->mem_swap = (uintptr_t)(nmem_ta + sizeof(ta_head_t) +
@@ -1627,11 +1630,22 @@ void tee_ta_dump_current(void)
 	dump_state(s->ctx);
 }
 
-
 void tee_ta_dump_all(void)
 {
 	struct tee_ta_ctx *ctx;
 
 	TAILQ_FOREACH(ctx, &tee_ctxes, link)
 		dump_state(ctx);
+}
+
+bool tee_ta_is_crash_logged(void)
+{
+	struct tee_ta_session *s = NULL;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS) {
+		EMSG("no valid session found: log wath you can...");
+		return true;
+	}
+
+	return s->ctx->trace;
 }

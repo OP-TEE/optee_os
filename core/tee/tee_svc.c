@@ -56,9 +56,18 @@ void tee_svc_trace_syscall(int num)
 
 void tee_svc_sys_log(const void *buf, size_t len)
 {
+	struct tee_ta_session *sess;
+	TEE_Result res;
 	char *kbuf;
 
 	if (len == 0)
+		return;
+
+	res = tee_ta_get_current_session(&sess);
+	if (res != TEE_SUCCESS)
+		return;
+
+	if (!sess->ctx->trace)
 		return;
 
 	kbuf = malloc(len);
