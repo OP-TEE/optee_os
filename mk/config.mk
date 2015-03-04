@@ -37,3 +37,13 @@ CFG_TEE_CORE_TA_TRACE?=y
 #   marck/check heap feature
 #   Enabling this could decrease efficiency
 CFG_TEE_CORE_USER_MEM_DEBUG?=1
+
+
+# PRNG Configuration:
+#
+# If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
+# software PRNG implementation is used.
+#
+# Otherwise, you need to implement hw_get_random_byte() for your platform
+#
+CFG_WITH_SOFTWARE_PRNG ?= y

@@ -1481,7 +1481,7 @@ TEE_Result tee_svc_obj_generate_key(
 		if (byte_size > (o->data_size - sizeof(*key)))
 			return TEE_ERROR_EXCESS_DATA;
 
-		res = get_rng_array((void *)(key + 1), byte_size);
+		res = crypto_ops.prng.read((void *)(key + 1), byte_size);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -2495,7 +2495,7 @@ TEE_Result tee_svc_cryp_random_number_generate(void *buf, size_t blen)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = get_rng_array(buf, blen);
+	res = crypto_ops.prng.read(buf, blen);
 	if (res != TEE_SUCCESS)
 		return res;
 

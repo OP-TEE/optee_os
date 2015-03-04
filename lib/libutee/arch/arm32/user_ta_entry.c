@@ -104,7 +104,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 		malloc_init(ta_heap_base, ta_data_size);
 
-		TEE_MathAPI_Init();
+		_TEE_MathAPI_Init();
 
 		res = TA_CreateEntryPoint();
 		if (res != TEE_SUCCESS)

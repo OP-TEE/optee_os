@@ -69,6 +69,7 @@ $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 $(eval $(call cryp-dep-one, DES, ECB CBC))
 
 cryp-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
+cryp-all-enabled = $(call cfg-all-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
 
 _CFG_CRYPTO_WITH_ACIPHER := $(call cryp-one-enabled, RSA DSA DH)
 _CFG_CRYPTO_WITH_AUTHENC := $(and $(filter y,$(CFG_CRYPTO_AES)), $(call cryp-one-enabled, CCM GCM))
@@ -77,6 +78,7 @@ _CFG_CRYPTO_WITH_HASH := $(call cryp-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 
 _CFG_CRYPTO_WITH_MAC := $(call cryp-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CRYPTO_WITH_CBC := $(call cryp-one-enabled, CBC CBC_MAC)
 _CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA)
+_CFG_CRYPTO_WITH_FORTUNA_PRNG := $(call cryp-all-enabled, AES SHA256)
 
 cppflags-lib-$(libtomcrypt_with_optimize_size) += -DLTC_SMALL_CODE -DLTC_NO_FAST
 

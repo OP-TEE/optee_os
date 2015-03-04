@@ -33,6 +33,8 @@ endif
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 CFG_NO_TA_HASH_SIGN ?= y
 
+CFG_WITH_SOFTWARE_PRNG ?= n
+
 ifeq ($(PLATFORM_FLAVOR),cannes)
 
 PRIMARY_STARTUP_PHYS	 = $(shell echo $$(( ${CFG_LINUX_LOAD_ADDR} + 0x8000 )))

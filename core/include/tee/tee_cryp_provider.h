@@ -243,6 +243,11 @@ struct acipher_ops {
 				 const uint8_t *sig, size_t sig_len);
 };
 
+struct prng_ops {
+	/* to read random data from PRNG implementation	 */
+	TEE_Result (*read)(void *buf, size_t blen);
+};
+
 /* Cryptographic Provider API */
 struct crypto_ops {
 	/* Human-readable provider name */
@@ -255,6 +260,7 @@ struct crypto_ops {
 	struct authenc_ops authenc;
 	struct acipher_ops acipher;
 	struct bignum_ops bignum;
+	struct prng_ops prng;
 };
 
 extern struct crypto_ops crypto_ops;

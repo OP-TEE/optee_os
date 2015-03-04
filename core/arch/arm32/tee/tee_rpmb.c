@@ -781,7 +781,7 @@ static TEE_Result tee_rpmb_init_read_wr_cnt(uint16_t dev_id,
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
-	res = get_rng_array(nonce, RPMB_NONCE_SIZE);
+	res = crypto_ops.prng.read(nonce, RPMB_NONCE_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -1008,7 +1008,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 		goto func_exit;
 
 	msg_type = RPMB_MSG_TYPE_REQ_AUTH_DATA_READ;
-	res = get_rng_array(nonce, RPMB_NONCE_SIZE);
+	res = crypto_ops.prng.read(nonce, RPMB_NONCE_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 

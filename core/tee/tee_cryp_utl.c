@@ -33,6 +33,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <rng_support.h>
 
+#if !defined(CFG_WITH_SOFTWARE_PRNG)
 TEE_Result get_rng_array(void *buffer, int len)
 {
 	char *buf_char = buffer;
@@ -47,6 +48,7 @@ TEE_Result get_rng_array(void *buffer, int len)
 
 	return TEE_SUCCESS;
 }
+#endif
 
 TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size)
 {

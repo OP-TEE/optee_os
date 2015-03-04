@@ -132,7 +132,6 @@
 
    #define LTC_NO_PRNGS
    #define LTC_SPRNG
-   #define LTC_YARROW
    #define LTC_DEVRANDOM
    #define TRY_URANDOM_FIRST
       
@@ -234,9 +233,6 @@
 #ifndef LTC_NO_TEST
    #define LTC_TEST
 #endif
-
-/* we do not want any predefined PRNG */
-#define LTC_NO_PRNGS
 
 /* clean the stack of functions which put private information on stack */
 /* #define LTC_CLEAN_STACK */
@@ -340,18 +336,18 @@
 /* --> Pseudo Random Number Generators <--- */
 #ifndef LTC_NO_PRNGS
 
-/* Yarrow */
-#define LTC_YARROW
-/* which descriptor of AES to use?  */
-/* 0 = rijndael_enc 1 = aes_enc, 2 = rijndael [full], 3 = aes [full] */
-#define LTC_YARROW_AES 3
-
-#if defined(LTC_YARROW) && !defined(LTC_CTR_MODE)
-   #error LTC_YARROW requires LTC_CTR_MODE chaining mode to be defined!
-#endif
-
 /* a PRNG that simply reads from an available system source */
 #define LTC_SPRNG
+
+/* The LTC_RC4 stream cipher */
+#define LTC_RC4
+
+/* Fortuna PRNG */
+#define LTC_FORTUNA
+/* reseed every N calls to the read function */
+#define LTC_FORTUNA_WD    10
+/* number of pools (4..32) can save a bit of ram by lowering the count */
+#define LTC_FORTUNA_POOLS 32
 
 /* the *nix style /dev/random device */
 #define LTC_DEVRANDOM

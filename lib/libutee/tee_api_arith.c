@@ -72,12 +72,14 @@ static void __attribute__ ((noreturn)) TEE_BigInt_Panic(const char *msg)
  *************************************************************/
 
 /*
- * TEE_MathAPI_Init
+ * _TEE_MathAPI_Init
  */
-void TEE_MathAPI_Init(void)
+void _TEE_MathAPI_Init(void)
 {
 	mpa_init_scratch_mem(mempool, MPA_INTERNAL_MEM_POOL_SIZE,
 			     TEE_MAX_NUMBER_OF_SUPPORTED_BITS);
+
+	mpa_set_random_generator(get_rng_array);
 #ifdef DEBUG
 	printf("TEE Math Lib configured to max %d bit integers.\n",
 	       TEE_MAX_NUMBER_OF_SUPPORTED_BITS);

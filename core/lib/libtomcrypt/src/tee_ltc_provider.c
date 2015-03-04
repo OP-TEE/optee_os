@@ -27,6 +27,7 @@
 
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
+#include <kernel/tee_common_unpg.h>
 
 #include <tomcrypt.h>
 #include <mpalib.h>
@@ -36,6 +37,7 @@
 #include <trace.h>
 #include <tee_api_types.h>
 #include <string_ext.h>
+#include <util.h>
 #include "tomcrypt_mpa.h"
 
 #if defined(CFG_WITH_VFP)
@@ -43,7 +45,7 @@
 #include <kernel/thread.h>
 #endif
 
-#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_WITH_SOFTWARE_PRNG)
 
 /* Random generator */
 static int prng_mpa_start(union Prng_state *prng __unused)
@@ -110,8 +112,61 @@ static const struct ltc_prng_descriptor prng_mpa_desc = {
 	.test = &prng_mpa_test,
 };
 
-#endif /* _CFG_CRYPTO_WITH_ACIPHER */
+#endif /* !CFG_WITH_SOFTWARE_PRNG */
 
+struct tee_ltc_prng {
+	int index;
+	const char *name;
+	prng_state state;
+};
+
+static struct tee_ltc_prng _tee_ltc_prng =
+#if defined(CFG_WITH_SOFTWARE_PRNG)
+	{
+#if defined(_CFG_CRYPTO_WITH_FORTUNA_PRNG)
+		.name = "fortuna",
+#else
+		/*
+		 * we need AES and SHA256 for fortuna PRNG,
+		 * if the system configuration can't provide those,
+		 * fallback to RC4
+		 */
+		.name = "rc4",
+#endif
+	};
+#else
+	{
+		.name = "prng_mpa",
+	};
+#endif
+
+static struct tee_ltc_prng *tee_ltc_get_prng(void)
+{
+	return &_tee_ltc_prng;
+}
+
+static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
+{
+	int res;
+	int prng_index;
+
+	TEE_ASSERT(prng != NULL);
+
+	prng_index = find_prng(prng->name);
+	if (prng_index == -1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = prng_descriptor[prng_index].start(&prng->state);
+	if (res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	res = prng_descriptor[prng_index].ready(&prng->state);
+	if (res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	prng->index = prng_index;
+	return  TEE_SUCCESS;
+}
 
 /*
  * tee_ltc_reg_algs(): Registers
@@ -147,7 +202,14 @@ static void tee_ltc_reg_algs(void)
 #if defined(CFG_CRYPTO_SHA512)
 	register_hash(&sha512_desc);
 #endif
-#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+
+#if defined(CFG_WITH_SOFTWARE_PRNG)
+#if defined(_CFG_CRYPTO_WITH_FORTUNA_PRNG)
+	register_prng(&fortuna_desc);
+#else
+	register_prng(&rc4_desc);
+#endif
+#else
 	register_prng(&prng_mpa_desc);
 #endif
 }
@@ -415,6 +477,8 @@ static void tee_ltc_alloc_mpa(void)
 	init_mpa_tomcrypt(pool);
 	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER,
 			     LTC_MAX_BITS_PER_VARIABLE);
+
+	mpa_set_random_generator(crypto_ops.prng.read);
 }
 
 static size_t num_bytes(struct bignum *a)
@@ -472,19 +536,6 @@ static bool bn_alloc_max(struct bignum **s)
 	return !!(*s);
 }
 
-/* Get the RNG index to use */
-static int tee_ltc_get_rng_mpa(void)
-{
-	static int first = 1;
-	static int lindex = -1;
-
-	if (first) {
-		lindex = find_prng("prng_mpa");
-		first = 0;
-	}
-	return lindex;
-}
-
 #if defined(CFG_CRYPTO_RSA)
 
 static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
@@ -539,12 +590,13 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	rsa_key ltc_tmp_key;
 	int ltc_res;
 	long e;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	/* get the public exponent */
 	e = mp_get_int(key->e);
 
 	/* Generate a temporary RSA key */
-	ltc_res = rsa_make_key(0, tee_ltc_get_rng_mpa(), key_size/8, e,
+	ltc_res = rsa_make_key(&prng->state, prng->index, key_size/8, e,
 			       &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -775,6 +827,7 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 		.e = key->e,
 		.N = key->n
 	};
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	mod_size =  ltc_mp.unsigned_size((void *)(ltc_key.N));
 	if (*dst_len < mod_size) {
@@ -797,7 +850,7 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
-				     label_len, 0, tee_ltc_get_rng_mpa(),
+				     label_len, &prng->state, prng->index,
 				     ltc_hashindex, ltc_rsa_algo, &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
@@ -830,6 +883,7 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	int ltc_res, ltc_rsa_algo, ltc_hashindex;
 	unsigned long ltc_sig_len;
 	rsa_key ltc_key = { 0, };
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	ltc_key.type = PK_PRIVATE;
 	ltc_key.e = key->e;
@@ -885,7 +939,7 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	ltc_sig_len = mod_size;
 
 	ltc_res = rsa_sign_hash_ex(msg, msg_len, sig, &ltc_sig_len,
-				   ltc_rsa_algo, 0, tee_ltc_get_rng_mpa(),
+				   ltc_rsa_algo, &prng->state, prng->index,
 				   ltc_hashindex, salt_len, &ltc_key);
 
 	*sig_len = ltc_sig_len;
@@ -1007,6 +1061,7 @@ static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 	dsa_key ltc_tmp_key;
 	size_t group_size, modulus_size = key_size/8;
 	int ltc_res;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	if (modulus_size <= 128)
 		group_size = 20;
@@ -1018,7 +1073,7 @@ static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 		group_size = 40;
 
 	/* Generate the DSA key */
-	ltc_res = dsa_make_key(0, tee_ltc_get_rng_mpa(), group_size,
+	ltc_res = dsa_make_key(&prng->state, prng->index, group_size,
 			       modulus_size, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1056,6 +1111,7 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 		.y = key->y,
 		.x = key->x,
 	};
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	if (algo != TEE_ALG_DSA_SHA1)
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -1068,8 +1124,8 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	ltc_res = mp_init_multi(&r, &s, NULL);
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, 0,
-				    tee_ltc_get_rng_mpa(), &ltc_key);
+	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, &prng->state,
+				    prng->index, &ltc_key);
 
 	if (ltc_res == CRYPT_OK) {
 		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
@@ -1156,11 +1212,12 @@ static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	TEE_Result res;
 	dh_key ltc_tmp_key;
 	int ltc_res;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	/* Generate the DH key */
 	ltc_tmp_key.g = key->g;
 	ltc_tmp_key.p = key->p;
-	ltc_res = dh_make_key(0, tee_ltc_get_rng_mpa(), q, xbits,
+	ltc_res = dh_make_key(&prng->state, prng->index, q, xbits,
 			      &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -2232,6 +2289,25 @@ static void authenc_final(void *ctx, uint32_t algo)
 }
 #endif /* _CFG_CRYPTO_WITH_AUTHENC */
 
+/******************************************************************************
+ * Pseudo Random Number Generator
+ ******************************************************************************/
+static TEE_Result prng_read(void *buf, size_t blen)
+{
+	int err;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
+
+	err = prng_is_valid(prng->index);
+
+	if (err != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	if (prng_descriptor[prng->index].read(buf, blen, &prng->state) !=
+			(unsigned long)blen)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
 
 static TEE_Result tee_ltc_init(void)
 {
@@ -2239,7 +2315,8 @@ static TEE_Result tee_ltc_init(void)
 	tee_ltc_alloc_mpa();
 #endif
 	tee_ltc_reg_algs();
-	return TEE_SUCCESS;
+
+	return tee_ltc_prng_init(tee_ltc_get_prng());
 }
 
 struct crypto_ops crypto_ops = {
@@ -2315,8 +2392,11 @@ struct crypto_ops crypto_ops = {
 		.copy = copy,
 		.free = bn_free,
 		.clear = bn_clear
-	}
+	},
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
+	.prng = {
+		.read = prng_read,
+	}
 };
 
 #if defined(CFG_WITH_VFP)

@@ -35,12 +35,12 @@
 #include "mpa_assert.h"
 #include <tee_api_types.h>
 
-/* This function ends to the real RNG of the platform
- * Depending where the libmpa is used:
- * - kernel side: the implementation is found in the TEECore
- * - user side: the implementation is found in libutee
- */
-TEE_Result get_rng_array(void *buf, size_t blen);
+static random_generator_cb get_rng_array;
+
+void mpa_set_random_generator(random_generator_cb callback)
+{
+	get_rng_array = callback;
+}
 
 static uint8_t get_random_byte(void)
 {
@@ -59,6 +59,8 @@ static uint8_t get_random_byte(void)
 void mpa_get_random(mpanum dest, mpanum limit)
 {
 	int done = 0;
+
+	ASSERT(get_rng_array != NULL, "random generator is not set");
 
 	mpa_wipe(dest);
 	if (__mpanum_alloced(dest) < __mpanum_size(limit))
