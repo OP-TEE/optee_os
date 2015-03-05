@@ -28,12 +28,15 @@
 #ifndef UTEE_TYPES_H
 #define UTEE_TYPES_H
 
+#include <stdint.h>
+
 enum utee_property {
 	UTEE_PROP_TEE_API_VERSION = 0,
 	UTEE_PROP_TEE_DESCR,
 	UTEE_PROP_TEE_DEV_ID,
 	UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
 	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
+	UTEE_PROP_TEE_GENERIC_TIMER_INFO,
 	UTEE_PROP_CLIENT_ID,
 	UTEE_PROP_TA_APP_ID,
 };
@@ -53,6 +56,11 @@ enum utee_cache_operation {
 	TEE_CACHECLEAN = 0,
 	TEE_CACHEFLUSH,
 	TEE_CACHEINVALIDATE,
+};
+
+struct generic_timer_info {
+	uint32_t counter_frequency;
+	uint64_t counter_value;
 };
 
 #endif /* UTEE_TYPES_H */

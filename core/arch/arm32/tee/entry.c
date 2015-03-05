@@ -317,6 +317,27 @@ static void entry_cancel(struct thread_smc_args *args,
 }
 
 
+#ifdef CFG_TEE_TRACE_PERFORMANCE
+
+static inline void print_cntvct_with_message(uint32_t cmd  __unused,
+		const char *msg __unused)
+{
+	uint32_t cntvct_low, cntvct_high;
+
+	__asm__ volatile("mrrc	p15, 1, %0, %1, c14"
+			: "=r"(cntvct_low), "=r"(cntvct_high));
+
+	MSG("%s, cmd=%d, cntvct=0x%x%08x", msg, cmd, cntvct_high, cntvct_low);
+}
+
+#else
+
+static inline void print_cntvct_with_message(uint32_t cmd __unused,
+		const char *msg __unused)
+{
+}
+
+#endif
 
 static void tee_entry_call_with_arg(struct thread_smc_args *args)
 {
@@ -351,6 +372,8 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 	}
 
 	if (args->a0 == TEESMC32_CALL_WITH_ARG) {
+		print_cntvct_with_message(arg32->cmd,
+				"TEECore: receiving smc call");
 		switch (arg32->cmd) {
 		case TEESMC_CMD_OPEN_SESSION:
 			entry_open_session(args, arg32, num_params);
@@ -368,6 +391,8 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 			EMSG("Unknown cmd 0x%x\n", arg32->cmd);
 			args->a0 = TEESMC_RETURN_EBADCMD;
 		}
+		print_cntvct_with_message(arg32->cmd,
+				"TEECore: finish smc call");
 	} else {
 		EMSG("Unknown fastcall cmd 0x%x\n", arg32->cmd);
 		args->a0 = TEESMC_RETURN_EBADCMD;

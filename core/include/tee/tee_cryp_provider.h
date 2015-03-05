@@ -243,6 +243,16 @@ struct acipher_ops {
 				 const uint8_t *sig, size_t sig_len);
 };
 
+/* Encode/Decode operations */
+
+struct codec_ops {
+	TEE_Result (*base64_encode)(const uint8_t *in, uint32_t inlen,
+				 uint8_t *out, uint32_t *outlen);
+	TEE_Result (*base64_decode)(const uint8_t *in,  uint32_t inlen,
+				 uint8_t *out, uint32_t *outlen);
+};
+
+
 /* Cryptographic Provider API */
 struct crypto_ops {
 	/* Human-readable provider name */
@@ -254,6 +264,7 @@ struct crypto_ops {
 	struct mac_ops mac;
 	struct authenc_ops authenc;
 	struct acipher_ops acipher;
+	struct codec_ops codec;
 	struct bignum_ops bignum;
 };
 

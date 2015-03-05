@@ -125,6 +125,13 @@ static TEE_Result propget_gpd_tee_arith_max_big_int_size(struct prop_value *pv)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result propget_ext_tee_generic_timer_info(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_BINARY_BLOCK;
+	return utee_get_property(UTEE_PROP_TEE_GENERIC_TIMER_INFO,
+				 &pv->u.str_val, sizeof(pv->u.str_val));
+}
+
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
 };
@@ -148,6 +155,8 @@ static const struct prop_set propset_implementation[] = {
 	{"gpd.tee.TAPersistentTime.protectionLevel",
 	 propget_gpd_tee_ta_time_protection_level},
 	{"gpd.tee.arith.maxBigIntSize", propget_gpd_tee_arith_max_big_int_size},
+	{"ext.tee.arm.genericTimerInfo",
+	 propget_ext_tee_generic_timer_info},
 };
 
 static const size_t propset_implementation_len =

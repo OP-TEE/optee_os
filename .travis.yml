@@ -40,11 +40,17 @@ script:
   -                                  PLATFORM=vexpress-fvp                                                                 make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  - CFG_TEE_TA_LOG_LEVEL=0           PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  - CFG_TEE_TRACE_PERFORMANCE=y      PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TRACE_PERFORMANCE=y         PLATFORM=vexpress        PLATFORM_FLAVOR=fvp              make -j8 all
 
   # QEMU
   -                                  PLATFORM=vexpress-qemu                                                                make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
+  - CFG_TEE_TA_LOG_LEVEL=0           PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
+  - CFG_TEE_TRACE_PERFORMANCE=y      PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TRACE_PERFORMANCE=y         PLATFORM=vexpress        PLATFORM_FLAVOR=qemu             make -j8 all
 
   # QEMU-virt
   -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all
