@@ -33,17 +33,17 @@
 TEE_Result tee_svc_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info);
 TEE_Result tee_svc_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage);
 TEE_Result tee_svc_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
-			     void *buffer, size_t *size);
+			     void *buffer, uint32_t *size);
 
 TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 			  uint32_t max_obj_size, uint32_t *obj);
 TEE_Result tee_svc_cryp_obj_close(uint32_t obj);
 TEE_Result tee_svc_cryp_obj_reset(uint32_t obj);
-TEE_Result tee_svc_cryp_obj_populate(uint32_t obj, TEE_Attribute *attrs,
-			     uint32_t attr_count);
+TEE_Result tee_svc_cryp_obj_populate(uint32_t obj,
+		struct abi_user32_attribute *usr_attrs, uint32_t attr_count);
 TEE_Result tee_svc_cryp_obj_copy(uint32_t dst_obj, uint32_t src_obj);
 TEE_Result tee_svc_obj_generate_key(uint32_t obj, uint32_t key_size,
-			    const TEE_Attribute *params,
+			    const struct abi_user32_attribute *usr_params,
 			    uint32_t param_count);
 
 TEE_Result tee_svc_cryp_state_alloc(uint32_t algo, uint32_t op_mode,
@@ -58,16 +58,17 @@ TEE_Result tee_svc_hash_init(uint32_t state, const void *iv, size_t iv_len);
 TEE_Result tee_svc_hash_update(uint32_t state, const void *chunk,
 		       size_t chunk_size);
 TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
-		      size_t chunk_size, void *hash, size_t *hash_len);
+		      size_t chunk_size, void *hash, uint32_t *hash_len);
 
 TEE_Result tee_svc_cipher_init(uint32_t state, const void *iv, size_t iv_len);
 TEE_Result tee_svc_cipher_update(uint32_t state, const void *src,
-			 size_t src_len, void *dest, size_t *dest_len);
+			 size_t src_len, void *dest, uint32_t *dest_len);
 TEE_Result tee_svc_cipher_final(uint32_t state, const void *src,
-			size_t src_len, void *dest, size_t *dest_len);
+			size_t src_len, void *dest, uint32_t *dest_len);
 
-TEE_Result tee_svc_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
-			   uint32_t param_count, uint32_t derived_key);
+TEE_Result tee_svc_cryp_derive_key(uint32_t state,
+			const struct abi_user32_attribute *usr_params,
+			uint32_t param_count, uint32_t derived_key);
 
 TEE_Result tee_svc_cryp_random_number_generate(void *buf, size_t blen);
 
@@ -78,23 +79,23 @@ TEE_Result tee_svc_authenc_update_aad(uint32_t state, const void *aad_data,
 			      size_t aad_data_len);
 TEE_Result tee_svc_authenc_update_payload(uint32_t state, const void *src_data,
 				  size_t src_len, void *dest_data,
-				  size_t *dest_len);
+				  uint32_t *dest_len);
 TEE_Result tee_svc_authenc_enc_final(uint32_t state, const void *src_data,
 			     size_t src_len, void *dest_data,
-			     size_t *dest_len, void *tag,
-			     size_t *tag_len);
+			     uint32_t *dest_len, void *tag,
+			     uint32_t *tag_len);
 TEE_Result tee_svc_authenc_dec_final(uint32_t state, const void *src_data,
 			     size_t src_len, void *dest_data,
-			     size_t *dest_len, const void *tag,
+			     uint32_t *dest_len, const void *tag,
 			     size_t tag_len);
 
-TEE_Result tee_svc_asymm_operate(uint32_t state, const TEE_Attribute *params,
-			 uint32_t num_params, const void *src_data,
-			 size_t src_len, void *dest_data,
-			 size_t *dest_len);
-TEE_Result tee_svc_asymm_verify(uint32_t state, const TEE_Attribute *params,
+TEE_Result tee_svc_asymm_operate(uint32_t state,
+			const struct abi_user32_attribute *usr_params,
+			uint32_t num_params, const void *src_data,
+			size_t src_len, void *dest_data, uint32_t *dest_len);
+TEE_Result tee_svc_asymm_verify(uint32_t state,
+			const struct abi_user32_attribute *usr_params,
 			uint32_t num_params, const void *data,
-			size_t data_len, const void *sig,
-			size_t sig_len);
+			size_t data_len, const void *sig, size_t sig_len);
 
 #endif /* TEE_SVC_CRYP_H */

@@ -33,6 +33,7 @@
 #include <utee_types.h>
 #include <tee/tee_svc.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/abi.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mm.h>
 #include <kernel/tee_rpc.h>
@@ -228,7 +229,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				     struct tee_ta_session *called_sess,
 				     uint32_t param_types,
-				     TEE_Param callee_params[TEE_NUM_PARAMS],
+				     struct abi_user32_param *callee_params,
 				     struct tee_ta_param *param,
 				     tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
 				     tee_mm_entry_t **mm)
@@ -248,8 +249,14 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			return TEE_ERROR_BAD_PARAMETERS;
 		memset(param->params, 0, sizeof(param->params));
 	} else {
-		tee_svc_copy_from_user(sess, param->params, callee_params,
-				       sizeof(param->params));
+		res = tee_mmu_check_access_rights(sess->ctx,
+			TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER,
+			(tee_uaddr_t)callee_params,
+			sizeof(struct abi_user32_param));
+		if (res != TEE_SUCCESS)
+			return res;
+		abi_user32_param_to_param(param->params, callee_params,
+					  param_types);
 	}
 
 	if ((called_sess != NULL) &&
@@ -385,14 +392,16 @@ static TEE_Result tee_svc_update_out_param(
 		struct tee_ta_session *called_sess,
 		struct tee_ta_param *param,
 		tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
-		TEE_Param callee_params[TEE_NUM_PARAMS])
+		struct abi_user32_param *usr_param)
 {
 	size_t n;
+	TEE_Param callee_params[TEE_NUM_PARAMS];
 	bool have_private_mem_map = (called_sess == NULL) ||
 		(called_sess->ctx->static_ta != NULL) ||
 		((called_sess->ctx->flags & TA_FLAG_USER_MODE) != 0);
 
 	tee_ta_set_current_session(sess);
+	abi_user32_param_to_param(callee_params, usr_param, param->types);
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
@@ -448,13 +457,15 @@ static TEE_Result tee_svc_update_out_param(
 		}
 	}
 
+	abi_param_to_user32_param(usr_param, callee_params, param->types);
+
 	return TEE_SUCCESS;
 }
 
 /* Called when a TA calls an OpenSession on another TA */
 TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 				   uint32_t cancel_req_to, uint32_t param_types,
-				   TEE_Param params[4],
+				   struct abi_user32_param *usr_param,
 				   TEE_TASessionHandle *ta_sess,
 				   uint32_t *ret_orig)
 {
@@ -487,7 +498,7 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 	clnt_id->login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id->uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
 
-	res = tee_svc_copy_param(sess, NULL, param_types, params, param,
+	res = tee_svc_copy_param(sess, NULL, param_types, usr_param, param,
 				 tmp_buf_pa, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
@@ -502,7 +513,8 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = tee_svc_update_out_param(sess, NULL, param, tmp_buf_pa, params);
+	res = tee_svc_update_out_param(sess, NULL, param, tmp_buf_pa,
+				       usr_param);
 
 function_exit:
 	tee_ta_set_current_session(sess);
@@ -549,7 +561,8 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
 
 TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 				     uint32_t cancel_req_to, uint32_t cmd_id,
-				     uint32_t param_types, TEE_Param params[4],
+				     uint32_t param_types,
+				     struct abi_user32_param *usr_param,
 				     uint32_t *ret_orig)
 {
 	TEE_Result res;
@@ -574,7 +587,7 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
 
-	res = tee_svc_copy_param(sess, called_sess, param_types, params,
+	res = tee_svc_copy_param(sess, called_sess, param_types, usr_param,
 				 &param, tmp_buf_pa, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
@@ -586,7 +599,7 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 		goto function_exit;
 
 	res = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_pa,
-				       params);
+				       usr_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 

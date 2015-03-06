@@ -36,6 +36,7 @@
 #include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
+#include <tee/abi.h>
 #include <mm/tee_mmu.h>
 #include <kernel/tee_misc.h>
 #include <tee/tee_svc_cryp.h>
@@ -748,7 +749,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 				    struct tee_ta_param *param)
 {
 	TEE_Result res;
-	TEE_Param *usr_params;
+	struct abi_user32_param *usr_params;
 	tee_paddr_t usr_stack;
 	tee_uaddr_t stack_uaddr;
 	tee_uaddr_t start_uaddr;
@@ -776,9 +777,9 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(ctx->mm_heap_stack) + ctx->stack_size;
-	usr_stack -= sizeof(param->params);
-	usr_params = (TEE_Param *)usr_stack;
-	memcpy(usr_params, param->params, sizeof(param->params));
+	usr_stack -= sizeof(struct abi_user32_param);
+	usr_params = (struct abi_user32_param *)usr_stack;
+	abi_param_to_user32_param(usr_params, param->params, param->types);
 
 	res = tee_mmu_kernel_to_user(ctx, (tee_vaddr_t)usr_params,
 				     &params_uaddr);
@@ -837,7 +838,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	}
 
 	/* Copy out value results */
-	memcpy(param->params, usr_params, sizeof(param->params));
+	abi_user32_param_to_param(param->params, usr_params, param->types);
 
 cleanup_return:
 	/* Restore original ROM mapping */

@@ -260,6 +260,9 @@
 #define TEE_ATTR_ECC_PRIVATE_VALUE          0xC0000341
 #define TEE_ATTR_ECC_CURVE                  0xF0000441
 
+#define TEE_ATTR_BIT_PROTECTED		    (1 << 28)
+#define TEE_ATTR_BIT_VALUE		    (1 << 29)
+
 /*
  * The macro TEE_PARAM_TYPES can be used to construct a value that you can
  * compare against an incoming paramTypes to check the type of all the

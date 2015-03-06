@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <kernel/tee_common_unpg.h>	/* tee_uaddr_t */
 #include <tee_api_types.h>
-#include <tee_api_types.h>
+#include <tee/abi.h>
 #include <utee_types.h>
 
 struct tee_ta_session;
@@ -57,7 +57,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf,
 
 TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 				   uint32_t cancel_req_to, uint32_t param_types,
-				   TEE_Param params[4],
+				   struct abi_user32_param *usr_params,
 				   TEE_TASessionHandle *sess,
 				   uint32_t *ret_orig);
 
@@ -65,7 +65,8 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle sess);
 
 TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle sess,
 				     uint32_t cancel_req_to, uint32_t cmd_id,
-				     uint32_t param_types, TEE_Param params[4],
+				     uint32_t param_types,
+				     struct abi_user32_param *usr_params,
 				     uint32_t *ret_orig);
 
 TEE_Result tee_svc_check_access_rights(uint32_t flags, const void *buf,
