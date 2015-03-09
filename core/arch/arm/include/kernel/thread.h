@@ -50,6 +50,18 @@ struct thread_smc_args {
 	uint32_t a7;	/* Hypervisor Client ID */
 };
 #endif /*ARM32*/
+#ifdef ARM64
+struct thread_smc_args {
+	uint64_t a0;	/* SMC function ID */
+	uint64_t a1;	/* Parameter */
+	uint64_t a2;	/* Parameter */
+	uint64_t a3;	/* Thread ID when returning from RPC */
+	uint64_t a4;	/* Not used */
+	uint64_t a5;	/* Not used */
+	uint64_t a6;	/* Not used */
+	uint64_t a7;	/* Hypervisor Client ID */
+};
+#endif /*ARM64*/
 
 #ifdef ARM32
 struct thread_abort_regs {
@@ -73,6 +85,44 @@ struct thread_abort_regs {
 	uint32_t ip;
 };
 #endif /*ARM32*/
+#ifdef ARM64
+struct thread_abort_regs {
+	uint64_t x0;	/* r0_usr */
+	uint64_t x1;	/* r1_usr */
+	uint64_t x2;	/* r2_usr */
+	uint64_t x3;	/* r3_usr */
+	uint64_t x4;	/* r4_usr */
+	uint64_t x5;	/* r5_usr */
+	uint64_t x6;	/* r6_usr */
+	uint64_t x7;	/* r7_usr */
+	uint64_t x8;	/* r8_usr */
+	uint64_t x9;	/* r9_usr */
+	uint64_t x10;	/* r10_usr */
+	uint64_t x11;	/* r11_usr */
+	uint64_t x12;	/* r12_usr */
+	uint64_t x13;	/* r13/sp_usr */
+	uint64_t x14;	/* r14/lr_usr */
+	uint64_t x15;
+	uint64_t x16;
+	uint64_t x17;
+	uint64_t x18;
+	uint64_t x19;
+	uint64_t x20;
+	uint64_t x21;
+	uint64_t x22;
+	uint64_t x23;
+	uint64_t x24;
+	uint64_t x25;
+	uint64_t x26;
+	uint64_t x27;
+	uint64_t x28;
+	uint64_t x29;
+	uint64_t x30;
+	uint64_t elr;
+	uint64_t spsr;
+	uint64_t sp_el0;
+};
+#endif /*ARM64*/
 
 #ifdef ARM32
 struct thread_svc_regs {
@@ -88,6 +138,28 @@ struct thread_svc_regs {
 	uint32_t lr;
 };
 #endif /*ARM32*/
+#ifdef ARM64
+struct thread_svc_regs {
+	uint64_t elr;
+	uint64_t spsr;
+	uint64_t pad;
+	uint64_t x0;	/* r0_usr */
+	uint64_t x1;	/* r1_usr */
+	uint64_t x2;	/* r2_usr */
+	uint64_t x3;	/* r3_usr */
+	uint64_t x4;	/* r4_usr */
+	uint64_t x5;	/* r5_usr */
+	uint64_t x6;	/* r6_usr */
+	uint64_t x7;	/* r7_usr */
+	uint64_t x8;	/* r8_usr */
+	uint64_t x9;	/* r9_usr */
+	uint64_t x10;	/* r10_usr */
+	uint64_t x11;	/* r11_usr */
+	uint64_t x12;	/* r12_usr */
+	uint64_t x13;	/* r13/sp_usr */
+	uint64_t x14;	/* r14/lr_usr */
+} __aligned(16);
+#endif /*ARM64*/
 #endif /*ASM*/
 
 
@@ -107,6 +179,24 @@ struct thread_svc_regs {
 #define THREAD_SVC_REG_R7_OFFS		(8 * 4)
 #define THREAD_SVC_REG_LR_OFFS		(9 * 4)
 #endif /*ARM32*/
+
+#ifdef ARM64
+#define THREAD_ABT_REG_X_OFFS(x)	((x) * 8)
+#define THREAD_ABT_REG_ELR_OFFS		(THREAD_ABT_REG_X_OFFS(30) + 1 * 8)
+#define THREAD_ABT_REG_SPSR_OFFS	(THREAD_ABT_REG_X_OFFS(30) + 2 * 8)
+#define THREAD_ABT_REG_SP_EL0_OFFS	(THREAD_ABT_REG_X_OFFS(30) + 3 * 8)
+#define THREAD_ABT_REGS_SIZE		(THREAD_ABT_REG_X_OFFS(30) + 4 * 8)
+
+#define THREAD_SMC_ARGS_X_OFFS(x)	((x) * 8)
+#define THREAD_SMC_ARGS_SIZE		THREAD_SMC_ARGS_X_OFFS(8)
+
+#define THREAD_SVC_REG_ELR_OFFS		(8 * 0)
+#define THREAD_SVC_REG_SPSR_OFFS	(8 * 1)
+#define THREAD_SVC_REG_PAD_OFFS		(8 * 2)
+#define THREAD_SVC_REG_X_OFFS(x)	(8 * (3 + (x)))
+#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(15)
+
+#endif /*ARM64*/
 
 #ifndef ASM
 typedef void (*thread_abort_handler_t)(uint32_t abort_type,
@@ -322,6 +412,19 @@ uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
  */
 void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
 		uint32_t exit_status1);
+
+#ifdef ARM64
+/*
+ * thread_get_saved_thread_sp() - Returns the saved sp of current thread
+ *
+ * When switching from the thread stack pointer the value is stored
+ * separately in the current thread context. This function returns this
+ * saved value.
+ *
+ * @returns stack pointer
+ */
+vaddr_t thread_get_saved_thread_sp(void);
+#endif /*ARM64*/
 
 /**
  * Allocates data for struct teesmc32_arg.

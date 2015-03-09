@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,41 +24,19 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ARM_H
-#define ARM_H
+
+#include <asm.S>
+#include <arm.h>
+
+/* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
+FUNC get_core_pos , :
+	mrs	x0, mpidr_el1
+	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
+	and	x1, x0, #MPIDR_CPU_MASK
+	and	x0, x0, #MPIDR_CLUSTER_MASK
+	eor	x0, x0, #(1 << MPIDR_CLUSTER_SHIFT)
+	add	x0, x1, x0, LSR #6
+	ret
+END_FUNC get_core_pos
 
 
-#define MPIDR_CPU_MASK		0xff
-#define MPIDR_CLUSTER_SHIFT	8
-#define MPIDR_CLUSTER_MASK	(0xff << MPIDR_CLUSTER_SHIFT)
-
-#define ARM32_CPSR_MODE_MASK	0x1f
-#define ARM32_CPSR_MODE_USR	0x10
-#define ARM32_CPSR_MODE_FIQ	0x11
-#define ARM32_CPSR_MODE_IRQ	0x12
-#define ARM32_CPSR_MODE_SVC	0x13
-#define ARM32_CPSR_MODE_MON	0x16
-#define ARM32_CPSR_MODE_ABT	0x17
-#define ARM32_CPSR_MODE_UND	0x1b
-#define ARM32_CPSR_MODE_SYS	0x1f
-
-#define ARM32_CPSR_T		(1 << 5)
-#define ARM32_CPSR_F_SHIFT	6
-#define ARM32_CPSR_F		(1 << 6)
-#define ARM32_CPSR_I		(1 << 7)
-#define ARM32_CPSR_A		(1 << 8)
-#define ARM32_CPSR_FIA		(ARM32_CPSR_F | ARM32_CPSR_I | ARM32_CPSR_A)
-#define ARM32_CPSR_IT_MASK	(ARM32_CPSR_IT_MASK1 | ARM32_CPSR_IT_MASK2)
-#define ARM32_CPSR_IT_MASK1	0x06000000
-#define ARM32_CPSR_IT_MASK2	0x0000fc00
-
-
-#ifdef ARM32
-#include <arm32.h>
-#endif
-
-#ifdef ARM64
-#include <arm64.h>
-#endif
-
-#endif /*ARM_H*/

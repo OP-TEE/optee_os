@@ -46,6 +46,13 @@
 #ifdef ARM64
 #define PLATFORM_LINKER_FORMAT	"elf64-littleaarch64"
 #define PLATFORM_LINKER_ARCH	aarch64
+
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for ARM64"
+#endif
+#ifdef CFG_WITH_VFP
+#error "VFP not supported for ARM64"
+#endif
 #endif /*ARM64*/
 
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(qemu)
