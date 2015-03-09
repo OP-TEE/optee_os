@@ -37,6 +37,11 @@
 #include "tee_ta_manager_unpg.h"
 #include "utee_types.h"
 
+/* Magic TEE identity pointer: set when teecore requests a TA close */
+#define KERN_IDENTITY	((TEE_Identity *)-1)
+/* Operation is initiated by a client (non-secure) app */
+#define NSAPP_IDENTITY	(NULL)
+
 /*-----------------------------------------------------------------------------
  * Initializes virtual memory management by reserving virtual memory for
  * memory areas not available TA virtual memroy allocation.
@@ -69,11 +74,13 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
+				 const TEE_Identity *clnt_id,
 				 uint32_t cancel_req_to, uint32_t cmd,
 				 struct tee_ta_param *param);
 
 TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
-				 struct tee_ta_session *sess);
+				 struct tee_ta_session *sess,
+				 const TEE_Identity *clnt_id);
 
 /*-----------------------------------------------------------------------------
  * Function called to close a TA.
@@ -83,7 +90,8 @@ TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
  *        TEE_Result
  *---------------------------------------------------------------------------*/
 TEE_Result tee_ta_close_session(uint32_t id,
-				struct tee_ta_session_head *open_sessions);
+				struct tee_ta_session_head *open_sessions,
+				const TEE_Identity *clnt_id);
 
 TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess);
 

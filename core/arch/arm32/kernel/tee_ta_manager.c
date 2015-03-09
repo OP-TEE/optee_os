@@ -292,7 +292,7 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 		uint32_t *data;
 
 		if (rel_dyn->info != 0x17) {
-			DMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
+			EMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
 			TEE_ASSERT(0);
 		}
 
@@ -1034,7 +1034,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	 */
 	while (!TAILQ_EMPTY(&ctx->open_sessions)) {
 		tee_ta_close_session((uint32_t)TAILQ_FIRST(&ctx->open_sessions),
-				     &ctx->open_sessions);
+				     &ctx->open_sessions, KERN_IDENTITY);
 	}
 
 
@@ -1060,11 +1060,33 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	free(ctx);
 }
 
+/* check if requester (client ID) matches session initial client */
+static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
+{
+	if (id == KERN_IDENTITY)
+		return TEE_SUCCESS;
+
+	if (id == NSAPP_IDENTITY) {
+		if (s->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
+			DMSG("nsec tries to hijack TA session");
+			return TEE_ERROR_ACCESS_DENIED;
+		}
+		return TEE_SUCCESS;
+	}
+
+	if (memcmp(&s->clnt_id, id, sizeof(TEE_Identity)) != 0) {
+		DMSG("client id mismatch");
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+	return TEE_SUCCESS;
+}
+
 /*-----------------------------------------------------------------------------
  * Close a Trusted Application and free available resources
  *---------------------------------------------------------------------------*/
 TEE_Result tee_ta_close_session(uint32_t id,
-				struct tee_ta_session_head *open_sessions)
+				struct tee_ta_session_head *open_sessions,
+				const TEE_Identity *clnt_id)
 {
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
@@ -1082,6 +1104,9 @@ TEE_Result tee_ta_close_session(uint32_t id,
 		EMSG(" .... Session 0x%x to removed is not found", id);
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
+
+	if (check_client(sess, clnt_id) != TEE_SUCCESS)
+		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
 
 	ctx = sess->ctx;
 	DMSG("   ... Destroy session");
@@ -1124,6 +1149,9 @@ TEE_Result tee_ta_close_session(uint32_t id,
 	return TEE_SUCCESS;
 }
 
+/*
+ * tee_ta_verify_param - check that the 4 "params" match security
+ */
 static TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 				      struct tee_ta_param *param)
 {
@@ -1330,21 +1358,21 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	res = tee_ta_init_session(err, open_sessions, uuid, &s);
 	if (res != TEE_SUCCESS) {
-		EMSG("tee_ta_init_session() failed with error 0x%x", res);
+		DMSG("init session failed 0x%x", res);
 		return res;
 	}
 
 	ctx = s->ctx;
 
 	if (ctx->panicked) {
-		EMSG("Calls tee_ta_close_session()");
-		tee_ta_close_session((uint32_t)s, open_sessions);
+		DMSG("panicked, call tee_ta_close_session()");
+		tee_ta_close_session((uint32_t)s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
 
 	*sess = s;
-	/* Save idenity of the owner of the session */
+	/* Save identity of the owner of the session */
 	s->clnt_id = *clnt_id;
 
 	res = tee_ta_verify_param(s, param);
@@ -1372,7 +1400,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	panicked = ctx->panicked;
 
 	if (panicked || (res != TEE_SUCCESS))
-		tee_ta_close_session((uint32_t)s, open_sessions);
+		tee_ta_close_session((uint32_t)s, open_sessions, KERN_IDENTITY);
 
 	/*
 	 * Origin error equal to TEE_ORIGIN_TRUSTED_APP for "regular" error,
@@ -1391,13 +1419,17 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
+				 const TEE_Identity *clnt_id,
 				 uint32_t cancel_req_to, uint32_t cmd,
 				 struct tee_ta_param *param)
 {
 	TEE_Result res;
 
+	if (check_client(sess, clnt_id) != TEE_SUCCESS)
+		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
+
 	if (sess->ctx->panicked) {
-		EMSG("   Panicked !");
+		DMSG("   Panicked !");
 		*err = TEE_ORIGIN_TEE;
 		OUTRMSG(TEE_ERROR_TARGET_DEAD);
 	}
@@ -1445,10 +1477,15 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 			 */
 			goto function_exit;
 		}
-	} else {
-		assert((sess->ctx->flags & TA_FLAG_USER_MODE) != 0);
+
+	} else if ((sess->ctx->flags & TA_FLAG_USER_MODE) != 0) {
 		res = tee_user_ta_enter(err, sess, USER_TA_FUNC_INVOKE_COMMAND,
 					cancel_req_to, cmd, param);
+	} else {
+		EMSG("only user TA are supported");
+		*err = TEE_ORIGIN_TEE;
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto function_exit;
 	}
 
 	if (sess->ctx->panicked) {
@@ -1459,14 +1496,18 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 function_exit:
 	sess->ctx->busy = false;
 	if (res != TEE_SUCCESS)
-		EMSG("  => Error: %x of %d\n", res, *err);
+		DMSG("  => Error: %x of %d\n", res, *err);
 	return res;
 }
 
 TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
-				 struct tee_ta_session *sess)
+				 struct tee_ta_session *sess,
+				 const TEE_Identity *clnt_id)
 {
 	*err = TEE_ORIGIN_TEE;
+
+	if (check_client(sess, clnt_id) != TEE_SUCCESS)
+		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
 
 	sess->cancel = true;
 	return TEE_SUCCESS;
@@ -1626,7 +1667,6 @@ void tee_ta_dump_current(void)
 
 	dump_state(s->ctx);
 }
-
 
 void tee_ta_dump_all(void)
 {

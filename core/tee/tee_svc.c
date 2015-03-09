@@ -531,15 +531,18 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
+	TEE_Identity clnt_id;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	tee_ta_set_current_session(NULL);
+	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
+	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
 
-	res =
-	    tee_ta_close_session((uint32_t)ta_sess, &sess->ctx->open_sessions);
+	tee_ta_set_current_session(NULL);
+	res = tee_ta_close_session((uint32_t)ta_sess, &sess->ctx->open_sessions,
+				   &clnt_id);
 	tee_ta_set_current_session(sess);
 	return res;
 }
@@ -552,6 +555,7 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	TEE_Result res;
 	uint32_t ret_o = TEE_ORIGIN_TEE;
 	struct tee_ta_param param = { 0 };
+	TEE_Identity clnt_id;
 	struct tee_ta_session *sess;
 	struct tee_ta_session *called_sess = (struct tee_ta_session *)ta_sess;
 	tee_mm_entry_t *mm_param = NULL;
@@ -567,14 +571,17 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
+	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
+
 	res = tee_svc_copy_param(sess, called_sess, param_types, params,
 				 &param, tmp_buf_pa, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res =
-	    tee_ta_invoke_command(&ret_o, called_sess, cancel_req_to,
-				  cmd_id, &param);
+	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
+				    cancel_req_to, cmd_id, &param);
+
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 

@@ -125,7 +125,8 @@ cleanup_return:
 
 TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {
-	return tee_ta_close_session(in->sess, &tee_open_sessions);
+	return tee_ta_close_session(in->sess, &tee_open_sessions,
+				    NSAPP_IDENTITY);
 }
 
 TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
@@ -152,7 +153,7 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 	memcpy(out->params, in->params, sizeof(in->params));
 	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
 
-	res = tee_ta_invoke_command(&err, sess,
+	res = tee_ta_invoke_command(&err, sess, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, in->cmd, &param);
 	update_out_param(&param, out->params);
 
@@ -175,7 +176,7 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in *
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	res = tee_ta_cancel_command(&res_orig, sess);
+	res = tee_ta_cancel_command(&res_orig, sess, NSAPP_IDENTITY);
 
 cleanup_return:
 	out->msg.err = res_orig;
