@@ -64,7 +64,7 @@ DST_OPTEE_OS=$DEV_PATH/optee_os
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
-STABLE_OPTEE_CLIENT_COMMIT=f2b0ed41c8c7b3a4fd16314b5f744d0e8f0673ea
+STABLE_OPTEE_CLIENT_COMMIT=1b830c9ca51547cf90cb929a904caa57a5e42853
 
 SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
@@ -72,7 +72,7 @@ STABLE_OPTEE_LK_COMMIT=724298b6e425d9ce6daae3131bb4b1029190aa2a
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=64d3035b2856f55f26aeaaaff06f4ecf7638bfb6
+STABLE_OPTEE_TEST_COMMIT=bdc720eb11d698dfc79d5acd0f8257c313d8a687
 
 QEMU_PCSC_PASSTHRU_PATCHES=https://github.com/m943040028/qemu/releases/download/0.1/pcsc_patches.tbz2
 
@@ -278,7 +278,7 @@ cd $DST_BIOS_QEMU
 export O=$DEV_PATH/out/bios-qemu
 export BIOS_NSEC_BLOB=$DST_KERNEL/arch/arm/boot/zImage
 export BIOS_NSEC_ROOTFS=$DST_GEN_ROOTFS/filesystem.cpio.gz
-export BIOS_SECURE_BLOB=$DEV_PATH/optee_os/out/arm32-plat-vexpress/core/tee.bin
+export BIOS_SECURE_BLOB=$DEV_PATH/optee_os/out/arm-plat-vexpress/core/tee.bin
 export PLATFORM_FLAVOR=virt
 make $*
 EOF
@@ -323,7 +323,7 @@ cat > ${DEV_PATH}/build_se_api_test.sh << EOF
 export PATH=${DEV_PATH}/toolchains/aarch32/bin:$PATH
 (cd se_api_test && \\
 	make TEEC_EXPORT=../../optee_client/out/export/ \\
-	TA_DEV_KIT_DIR=../../optee_os/out/arm32-plat-vexpress/export-user_ta \\
+	TA_DEV_KIT_DIR=../../optee_os/out/arm-plat-vexpress/export-user_ta \\
 	HOST_CROSS_COMPILE=arm-linux-gnueabihf- \\
 	TA_CROSS_COMPILE=arm-linux-gnueabihf- $*)
 EOF

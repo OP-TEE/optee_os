@@ -52,10 +52,10 @@ $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	$(q)$(READELFcore) -a -W $< | \
 		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
 
-objs-init-rem += core/arch/arm32/tee/arch_svc.o
-objs-init-rem += core/arch/arm32/tee/arch_svc_asm.o
-objs-init-rem += core/arch/arm32/plat-vexpress/plat_tee_func.o
-objs-init-rem += core/arch/arm32/tee/init.o
+objs-init-rem += core/arch/arm/tee/arch_svc.o
+objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
+objs-init-rem += core/arch/arm/plat-vexpress/plat_tee_func.o
+objs-init-rem += core/arch/arm/tee/init.o
 entries-init += _start
 objs-init := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs))

@@ -22,10 +22,10 @@ Directory | Description
 ## Structure of /core/arch
 Directory | Description
 :---------|:------------
-/arm32	  | ARMv7 and Aarch32 specific architecture and platform specific files
+/arm	  | ARMv7 and Aarch32 specific architecture and platform specific files
 /user_mode| Linux used space specific files when debugging TEE Core as a user space process, only used for some development
 
-## Structure of /core/arch/arm32
+## Structure of /core/arch/arm
 Directory | Description
 :---------|:------------
 /include  | Include files used in rest of TEE core but not in any supporting libraries
@@ -35,12 +35,12 @@ Directory | Description
 /sm	  | Secure Monitor
 /plat-orly| Specific files for the Orly platform
 
-## Structure of /core/arch/arm32/include
+## Structure of /core/arch/arm/include
 Directory | Description
 :---------|:------------
-/kern	  | Include files exposing API for /core/arch/arm32/kern files
+/kern	  | Include files exposing API for /core/arch/arm/kern files
 /kta	  | Include files exposing the KTA API that is mainly used by kernel TAs
-/mm	  | Include files exposing API for /core/arch/arm32/mm files
+/mm	  | Include files exposing API for /core/arch/arm/mm files
 /rom	  | Old ROM files that should be removed before going public
 /sm	  | Include files exposing API for Secure Monitor
 
@@ -55,6 +55,6 @@ Directory | Description
 :---------|:------------
 /	  | Source file for the library
 /arch	  | Architecture specific source files
-/arch/arm32 | ARMv7 and Aarch32 specific source files
-/arch/arm32/include | ARMv7 and Aarch32 specific include files
+/arch/arm | ARMv7 and Aarch32 specific source files
+/arch/arm/include | ARMv7 and Aarch32 specific include files
 /include  | Include files exposing the API of the library

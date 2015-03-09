@@ -21,7 +21,7 @@ $(foreach op,$(ops),$(eval override $(op)))
 endif
 
 # Make these default for now
-ARCH            ?= arm32
+ARCH            ?= arm
 PLATFORM        ?= stm
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 

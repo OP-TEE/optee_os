@@ -40,7 +40,7 @@ low-level work.
 The **utee_\*** functions are declared in
 [utee_syscalls.h](../lib/libutee/include/utee_syscalls.h)
 and implemented in
-[utee_syscalls_asm.S](../lib/libutee/arch/arm32/utee_syscalls_asm.S).
+[utee_syscalls_asm.S](../lib/libutee/arch/arm/utee_syscalls_asm.S).
 They are simple system call wrappers which use the **SVC**
 instruction to switch to the appropriate system service in the OP-TEE kernel.
 

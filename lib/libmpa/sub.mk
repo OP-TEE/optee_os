@@ -39,4 +39,4 @@ srcs-y += mpa_init.c
 srcs-y += mpa_io.c
 srcs-y += mpa_modulus.c
 
-subdirs-(arch_arm32) += arch/$(ARCH)
+subdirs-$(arch_arm) += arch/$(ARCH)

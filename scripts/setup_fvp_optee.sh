@@ -46,7 +46,7 @@ DST_OPTEE_OS=$DEV_PATH/optee_os
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
-STABLE_CLIENT_COMMIT=f2b0ed41c8c7b3a4fd16314b5f744d0e8f0673ea
+STABLE_CLIENT_COMMIT=1b830c9ca51547cf90cb929a904caa57a5e42853
 
 SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
@@ -54,7 +54,7 @@ STABLE_LK_COMMIT=724298b6e425d9ce6daae3131bb4b1029190aa2a
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=64d3035b2856f55f26aeaaaff06f4ecf7638bfb6
+STABLE_OPTEE_TEST_COMMIT=bdc720eb11d698dfc79d5acd0f8257c313d8a687
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
@@ -334,7 +334,7 @@ export PATH=$DST_AARCH64_NONE_GCC/bin:\$PATH
 export CROSS_COMPILE=$DST_AARCH64_NONE_GCC/bin/aarch64-none-elf-
 export CFLAGS='-O0 -gdwarf-2'
 export DEBUG=1
-export BL32=$DST_OPTEE_OS/out/arm32-plat-vexpress/core/tee.bin
+export BL32=$DST_OPTEE_OS/out/arm-plat-vexpress/core/tee.bin
 export BL33=$DST_EDK2/Build/ArmVExpress-FVP-AArch64/RELEASE_GCC49/FV/FVP_AARCH64_EFI.fd
 
 cd $DST_ARM_TF

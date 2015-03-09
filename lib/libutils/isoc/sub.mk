@@ -15,4 +15,4 @@ srcs-y += strdup.c
 srcs-y += strndup.c
 
 subdirs-y += newlib
-subdirs-$(arch_arm32) += arch/$(ARCH)
+subdirs-$(arch_arm) += arch/$(ARCH)
