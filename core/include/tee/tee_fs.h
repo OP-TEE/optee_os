@@ -44,33 +44,22 @@ struct tee_fs_dirent {
 /*
  * tee_fs implemets a POSIX like secure file system
  */
-int tee_fs_open(const char *file, int flags, ...);
-
-int tee_fs_close(int fd);
-
-int tee_fs_read(int fd, void *buf, size_t len);
-
-int tee_fs_write(int fd, const void *buf, size_t len);
-
-tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence);
-
-int tee_fs_rename(const char *old, const char *new);
-
-int tee_fs_unlink(const char *file);
-
-int tee_fs_ftruncate(int fd, tee_fs_off_t length);
-
-int tee_fs_mkdir(const char *path, tee_fs_mode_t mode);
-
-tee_fs_dir *tee_fs_opendir(const char *name);
-
-int tee_fs_closedir(tee_fs_dir *d);
-
-struct tee_fs_dirent *tee_fs_readdir(tee_fs_dir *d);
-
-int tee_fs_rmdir(const char *pathname);
-
-int tee_fs_access(const char *name, int mode);
+struct tee_file_operations {
+	int (*open)(const char *file, int flags, ...);
+	int (*close)(int fd);
+	int (*read)(int fd, void *buf, size_t len);
+	int (*write)(int fd, const void *buf, size_t len);
+	tee_fs_off_t (*lseek)(int fd, tee_fs_off_t offset, int whence);
+	int (*rename)(const char *old, const char *new);
+	int (*unlink)(const char *file);
+	int (*ftruncate)(int fd, tee_fs_off_t length);
+	int (*mkdir)(const char *path, tee_fs_mode_t mode);
+	tee_fs_dir *(*opendir)(const char *name);
+	int (*closedir)(tee_fs_dir *d);
+	struct tee_fs_dirent *(*readdir)(tee_fs_dir *d);
+	int (*rmdir)(const char *pathname);
+	int (*access)(const char *name, int mode);
+};
 
 struct tee_fs_rpc {
 	int op;
@@ -80,6 +69,9 @@ struct tee_fs_rpc {
 	uint32_t len;
 	int res;
 };
+
+extern struct tee_file_operations tee_file_ops;
+
 int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode);
 
