@@ -58,7 +58,7 @@ void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
 	TAILQ_REMOVE(&ctx->objects, o, link);
 
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
-		tee_fs_close(o->fd);
+		tee_file_ops.close(o->fd);
 		tee_pobj_release(o->pobj);
 	}
 

@@ -67,7 +67,7 @@ struct tee_fs_dir {
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
-int tee_fs_open(const char *file, int flags, ...)
+static int tee_fs_open(const char *file, int flags, ...)
 {
 	int res = -1;
 	size_t len;
@@ -110,7 +110,7 @@ exit:
 	return res;
 }
 
-int tee_fs_close(int fd)
+static int tee_fs_close(int fd)
 {
 	int res = -1;
 	struct tee_fs_fd *fdp = handle_put(&fs_handle_db, fd);
@@ -135,7 +135,7 @@ exit:
 	return res;
 }
 
-int tee_fs_read(int fd, void *buf, size_t len)
+static int tee_fs_read(int fd, void *buf, size_t len)
 {
 	int res = -1;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
@@ -166,7 +166,7 @@ exit:
 	return res;
 }
 
-int tee_fs_write(int fd, const void *buf, size_t len)
+static int tee_fs_write(int fd, const void *buf, size_t len)
 {
 	int res = -1;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
@@ -202,7 +202,7 @@ exit:
 	return res;
 }
 
-tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence)
+static tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence)
 {
 	tee_fs_off_t res = -1;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
@@ -227,7 +227,7 @@ exit:
 	return res;
 }
 
-int tee_fs_rename(const char *old, const char *new)
+static int tee_fs_rename(const char *old, const char *new)
 {
 	int res = -1;
 	char *tmp = NULL;
@@ -258,7 +258,7 @@ exit:
 	return res;
 }
 
-int tee_fs_unlink(const char *file)
+static int tee_fs_unlink(const char *file)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
@@ -279,7 +279,7 @@ exit:
 	return res;
 }
 
-int tee_fs_ftruncate(int fd, tee_fs_off_t length)
+static int tee_fs_ftruncate(int fd, tee_fs_off_t length)
 {
 	int res = -1;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
@@ -302,7 +302,7 @@ exit:
 	return res;
 }
 
-int tee_fs_mkdir(const char *path, tee_fs_mode_t mode)
+static int tee_fs_mkdir(const char *path, tee_fs_mode_t mode)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
@@ -325,7 +325,7 @@ exit:
 	return res;
 }
 
-tee_fs_dir *tee_fs_opendir(const char *name)
+static tee_fs_dir *tee_fs_opendir(const char *name)
 {
 	struct tee_fs_rpc head = { 0 };
 	uint32_t len;
@@ -361,7 +361,7 @@ exit:
 	return dir;
 }
 
-int tee_fs_closedir(tee_fs_dir *d)
+static int tee_fs_closedir(tee_fs_dir *d)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
@@ -388,7 +388,7 @@ exit:
 	return res;
 }
 
-struct tee_fs_dirent *tee_fs_readdir(tee_fs_dir *d)
+static struct tee_fs_dirent *tee_fs_readdir(tee_fs_dir *d)
 {
 	struct tee_fs_dirent *res = NULL;
 	struct tee_fs_rpc head = { 0 };
@@ -420,7 +420,7 @@ exit:
 	return res;
 }
 
-int tee_fs_rmdir(const char *name)
+static int tee_fs_rmdir(const char *name)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
@@ -442,7 +442,7 @@ exit:
 	return res;
 }
 
-int tee_fs_access(const char *name, int mode)
+static int tee_fs_access(const char *name, int mode)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
@@ -464,3 +464,20 @@ int tee_fs_access(const char *name, int mode)
 exit:
 	return res;
 }
+
+struct tee_file_operations tee_file_ops = {
+	.open = tee_fs_open,
+	.close = tee_fs_close,
+	.read = tee_fs_read,
+	.write = tee_fs_write,
+	.lseek = tee_fs_lseek,
+	.rename = tee_fs_rename,
+	.unlink = tee_fs_unlink,
+	.ftruncate = tee_fs_ftruncate,
+	.mkdir = tee_fs_mkdir,
+	.opendir = tee_fs_opendir,
+	.closedir = tee_fs_closedir,
+	.readdir = tee_fs_readdir,
+	.rmdir = tee_fs_rmdir,
+	.access = tee_fs_access
+};
