@@ -62,7 +62,7 @@ static TAILQ_HEAD(ta_sessions, ta_session) ta_sessions =
 TAILQ_HEAD_INITIALIZER(ta_sessions);
 
 static uint32_t ta_ref_count;
-static bool ta_dead;
+static bool context_init;
 
 extern uint8_t *ta_heap_base;
 
@@ -100,11 +100,12 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 	if (ta_ref_count == 1) {
 		TEE_Result res;
 
-		trace_set_level(tahead_get_trace_level());
-
-		malloc_init(ta_heap_base, ta_data_size);
-
-		_TEE_MathAPI_Init();
+		if (!context_init) {
+			trace_set_level(tahead_get_trace_level());
+			malloc_init(ta_heap_base, ta_data_size);
+			_TEE_MathAPI_Init();
+			context_init = true;
+		}
 
 		res = TA_CreateEntryPoint();
 		if (res != TEE_SUCCESS)
@@ -132,10 +133,8 @@ static void ta_header_remove_session(uint32_t session_id)
 			TEE_Free(itr);
 
 			ta_ref_count--;
-			if (ta_ref_count == 0) {
+			if (ta_ref_count == 0)
 				TA_DestroyEntryPoint();
-				ta_dead = true;
-			}
 
 			return;
 		}
@@ -147,11 +146,8 @@ void /*__attribute__((noreturn))*/ ta_entry_open_session(
 					 TEE_Param params[TEE_NUM_PARAMS],
 					 uint32_t session_id)
 {
-	TEE_Result res = TEE_ERROR_BAD_STATE;
+	TEE_Result res;
 	struct ta_session *session;
-
-	if (ta_dead)
-		goto function_exit;
 
 	res = ta_header_add_session(session_id);
 	if (res != TEE_SUCCESS)
@@ -180,9 +176,6 @@ void /*__attribute__((noreturn))*/ ta_entry_close_session(uint32_t session_id)
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ta_session *session;
 
-	if (ta_dead)
-		goto function_exit;
-
 	session = ta_header_get_session(session_id);
 	if (session == NULL)
 		goto function_exit;
@@ -204,9 +197,6 @@ void /*__attribute__((noreturn))*/ ta_entry_invoke_command(
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ta_session *session;
-
-	if (ta_dead)
-		goto function_exit;
 
 	session = ta_header_get_session(session_id);
 	if (session == NULL)

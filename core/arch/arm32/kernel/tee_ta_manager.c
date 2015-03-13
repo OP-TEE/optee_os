@@ -1143,7 +1143,8 @@ TEE_Result tee_ta_close_session(uint32_t id,
 
 	TEE_ASSERT(ctx->ref_count > 0);
 	ctx->ref_count--;
-	if (!ctx->ref_count)
+	if (!ctx->ref_count &&
+	    !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE))
 		tee_ta_destroy_context(ctx);
 
 	return TEE_SUCCESS;
@@ -1199,9 +1200,13 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 
 	/*
 	 * The TA is single instance, if it isn't multi session we
-	 * can't create another session.
+	 * can't create another session unless it's the first
+	 * new session towards a keepAlive TA.
 	 */
-	if ((ctx->flags & TA_FLAG_MULTI_SESSION) == 0)
+
+	if (((ctx->flags & TA_FLAG_MULTI_SESSION) == 0) &&
+	    !(((ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) != 0) &&
+	      (ctx->ref_count == 0)))
 		return TEE_ERROR_BUSY;
 
 	DMSG("   ... Re-open TA %08x-%04x-%04x",
