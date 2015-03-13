@@ -118,7 +118,7 @@ bool TEE_MaskCancellation(void)
 /* System API - Memory Management */
 
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
-				       size_t size)
+				       uint32_t size)
 {
 	TEE_Result res;
 
@@ -203,7 +203,7 @@ void TEE_GetREETime(TEE_Time *time)
 		TEE_Panic(0);
 }
 
-void *TEE_Malloc(size_t len, uint32_t hint)
+void *TEE_Malloc(uint32_t len, uint32_t hint)
 {
 	return tee_user_mem_alloc(len, hint);
 }

@@ -38,7 +38,7 @@
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   char *name, char *valueBuffer,
-				   size_t *valueBufferLen);
+				   uint32_t *valueBufferLen);
 
 TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 				 char *name, bool *value);
@@ -48,7 +48,7 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 					char *name, void *valueBuffer,
-					size_t *valueBufferLen);
+					uint32_t *valueBufferLen);
 
 TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 				 char *name, TEE_UUID *value);
@@ -66,7 +66,7 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 void TEE_ResetPropertyEnumerator(TEE_PropSetHandle enumerator);
 
 TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
-			       void *nameBuffer, size_t *nameBufferLen);
+			       void *nameBuffer, uint32_t *nameBufferLen);
 
 TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator);
 
@@ -100,13 +100,13 @@ bool TEE_MaskCancellation(void);
 /* System API - Memory Management */
 
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
-				       size_t size);
+				       uint32_t size);
 
 void TEE_SetInstanceData(void *instanceData);
 
 void *TEE_GetInstanceData(void);
 
-void *TEE_Malloc(size_t size, uint32_t hint);
+void *TEE_Malloc(uint32_t size, uint32_t hint);
 
 void *TEE_Realloc(void *buffer, uint32_t newSize);
 
@@ -126,7 +126,7 @@ void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage);
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
-					size_t *size);
+					uint32_t *size);
 
 TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 				       uint32_t attributeID, uint32_t *a,
@@ -137,7 +137,7 @@ void TEE_CloseObject(TEE_ObjectHandle object);
 /* Data and Key Storage API  - Transient Object Functions */
 
 TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
-				       uint32_t maxObjectSize,
+				       uint32_t maxKeySize,
 				       TEE_ObjectHandle *object);
 
 void TEE_FreeTransientObject(TEE_ObjectHandle object);
@@ -149,7 +149,7 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 				       uint32_t attrCount);
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  void *buffer, size_t length);
+			  void *buffer, uint32_t length);
 
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b);
@@ -163,21 +163,21 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 /* Data and Key Storage API  - Persistent Object Functions */
 
 TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
-				    size_t objectIDLen, uint32_t flags,
+				    uint32_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object);
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
-				      size_t objectIDLen, uint32_t flags,
+				      uint32_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
-				      size_t initialDataLen,
+				      uint32_t initialDataLen,
 				      TEE_ObjectHandle *object);
 
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object);
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
-				      size_t newObjectIDLen);
+				      uint32_t newObjectIDLen);
 
 TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 						  objectEnumerator);
@@ -192,15 +192,15 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
-				       void *objectID, size_t *objectIDLen);
+				       void *objectID, uint32_t *objectIDLen);
 
 /* Data and Key Storage API  - Data Stream Access Functions */
 
 TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
-			      size_t size, uint32_t *count);
+			      uint32_t size, uint32_t *count);
 
 TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, void *buffer,
-			       size_t size);
+			       uint32_t size);
 
 TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, uint32_t size);
 
@@ -232,85 +232,85 @@ void TEE_CopyOperation(TEE_OperationHandle dstOperation,
 /* Cryptographic Operations API - Message Digest Functions */
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,
-		      void *chunk, size_t chunkSize);
+		      void *chunk, uint32_t chunkSize);
 
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
-			     size_t chunkLen, void *hash, size_t *hashLen);
+			     uint32_t chunkLen, void *hash, uint32_t *hashLen);
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
-		    size_t IVLen);
+		    uint32_t IVLen);
 
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
-			    size_t srcLen, void *destData, size_t *destLen);
+			    uint32_t srcLen, void *destData, uint32_t *destLen);
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
-			     const void *srcData, size_t srcLen, void *destData,
-			     size_t *destLen);
+			     const void *srcData, uint32_t srcLen, void *destData,
+			     uint32_t *destLen);
 
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen);
+void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen);
 
 void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
-		   size_t chunkSize);
+		   uint32_t chunkSize);
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, size_t messageLen,
-			       void *mac, size_t *macLen);
+			       const void *message, uint32_t messageLen,
+			       void *mac, uint32_t *macLen);
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, size_t messageLen,
-			       const void *mac, size_t macLen);
+			       const void *message, uint32_t messageLen,
+			       const void *mac, uint32_t macLen);
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
 TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
-		      size_t nonceLen, uint32_t tagLen, uint32_t AADLen,
+		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
 		      uint32_t payloadLen);
 
 void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
-		     size_t AADdataLen);
+		     uint32_t AADdataLen);
 
 TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
-			size_t srcLen, void *destData, size_t *destLen);
+			uint32_t srcLen, void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, size_t srcLen,
-			      void *destData, size_t *destLen, void *tag,
-			      size_t *tagLen);
+			      const void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, void *tag,
+			      uint32_t *tagLen);
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, size_t srcLen,
-			      void *destData, size_t *destLen, const void *tag,
-			      size_t tagLen);
+			      const void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, const void *tag,
+			      uint32_t tagLen);
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 size_t srcLen, void *destData,
-				 size_t *destLen);
+				 uint32_t srcLen, void *destData,
+				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 size_t srcLen, void *destData,
-				 size_t *destLen);
+				 uint32_t srcLen, void *destData,
+				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
-				    size_t digestLen, void *signature,
-				    size_t *signatureLen);
+				    uint32_t digestLen, void *signature,
+				    uint32_t *signatureLen);
 
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
-				      size_t digestLen, const void *signature,
-				      size_t signatureLen);
+				      uint32_t digestLen, const void *signature,
+				      uint32_t signatureLen);
 
 /* Cryptographic Operations API - Key Derivation Functions */
 
@@ -320,7 +320,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
-void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen);
+void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen);
 
 /* Date & Time API */
 
@@ -336,27 +336,27 @@ void TEE_GetREETime(TEE_Time *time);
 
 /* TEE Arithmetical API - Memory allocation and size of objects */
 
-size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits);
+size_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
 
-size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits);
+size_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
 
 /* TEE Arithmetical API - Initialization functions */
 
-void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len);
+void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
 
-void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, size_t len,
+void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, uint32_t len,
 			      const TEE_BigInt *modulus);
 
-void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, size_t len);
+void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, uint32_t len);
 
 /* TEE Arithmetical API - Converter functions */
 
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
-					    size_t bufferLen,
+					    uint32_t bufferLen,
 					    int32_t sign);
 
-TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
+TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
 					  const TEE_BigInt *bigInt);
 
 void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal);

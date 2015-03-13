@@ -64,7 +64,6 @@ static TEE_Result update_clnt_id(const TEE_Identity *in, TEE_Identity *out)
 	out->login = in->login;
 	switch (out->login) {
 	case TEE_LOGIN_PUBLIC:
-	case TEE_LOGIN_KERNEL:
 		memset(&out->uuid, 0, sizeof(TEE_UUID));
 		break;
 	case TEE_LOGIN_USER:

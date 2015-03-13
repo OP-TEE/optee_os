@@ -58,7 +58,7 @@ void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage)
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
-					size_t *size)
+					uint32_t *size)
 {
 	TEE_Result res;
 	TEE_ObjectInfo info;
@@ -136,13 +136,13 @@ void TEE_CloseObject(TEE_ObjectHandle object)
 /* Data and Key Storage API  - Transient Object Functions */
 
 TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
-				       uint32_t maxObjectSize,
+				       uint32_t maxKeySize,
 				       TEE_ObjectHandle *object)
 {
 	TEE_Result res;
 	uint32_t obj;
 
-	res = utee_cryp_obj_alloc(objectType, maxObjectSize, &obj);
+	res = utee_cryp_obj_alloc(objectType, maxKeySize, &obj);
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle) obj;
 	return res;
@@ -214,7 +214,7 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 }
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  void *buffer, size_t length)
+			  void *buffer, uint32_t length)
 {
 	if (attr == NULL)
 		TEE_Panic(0);
@@ -281,7 +281,7 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 /* Data and Key Storage API  - Persistent Object Functions */
 
 TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
-				    size_t objectIDLen, uint32_t flags,
+				    uint32_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object)
 {
 	if (storageID != TEE_STORAGE_PRIVATE)
@@ -301,10 +301,10 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
 }
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
-				      size_t objectIDLen, uint32_t flags,
+				      uint32_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
-				      size_t initialDataLen,
+				      uint32_t initialDataLen,
 				      TEE_ObjectHandle *object)
 {
 	if (storageID != TEE_STORAGE_PRIVATE)
@@ -339,7 +339,7 @@ void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object)
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
-				      size_t newObjectIDLen)
+				      uint32_t newObjectIDLen)
 {
 	TEE_Result res;
 
@@ -421,7 +421,7 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
-				       void *objectID, size_t *objectIDLen)
+				       void *objectID, uint32_t *objectIDLen)
 {
 	TEE_Result res;
 
@@ -438,7 +438,7 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 /* Data and Key Storage API  - Data Stream Access Functions */
 
 TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
-			      size_t size, uint32_t *count)
+			      uint32_t size, uint32_t *count)
 {
 	TEE_Result res;
 
@@ -454,7 +454,7 @@ TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 }
 
 TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, void *buffer,
-			       size_t size)
+			       uint32_t size)
 {
 	TEE_Result res;
 

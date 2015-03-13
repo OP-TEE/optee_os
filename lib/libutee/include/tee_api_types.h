@@ -70,7 +70,7 @@ typedef struct {
 typedef union {
 	struct {
 		void *buffer;
-		size_t size;
+		uint32_t size;
 	} memref;
 	struct {
 		uint32_t a;
@@ -113,8 +113,8 @@ typedef struct {
 
 typedef enum {
 	TEE_DATA_SEEK_SET = 0,
-	TEE_DATA_SEEK_CUR,
-	TEE_DATA_SEEK_END
+	TEE_DATA_SEEK_CUR = 1,
+	TEE_DATA_SEEK_END = 2
 } TEE_Whence;
 
 typedef struct {
@@ -122,7 +122,7 @@ typedef struct {
 	union {
 		struct {
 			void *buffer;
-			size_t length;
+			uint32_t length;
 		} ref;
 		struct {
 			uint32_t a, b;
@@ -133,13 +133,13 @@ typedef struct {
 /* Cryptographic Operations API */
 
 typedef enum {
-	TEE_MODE_ENCRYPT,
-	TEE_MODE_DECRYPT,
-	TEE_MODE_SIGN,
-	TEE_MODE_VERIFY,
-	TEE_MODE_MAC,
-	TEE_MODE_DIGEST,
-	TEE_MODE_DERIVE
+	TEE_MODE_ENCRYPT = 0,
+	TEE_MODE_DECRYPT = 1,
+	TEE_MODE_SIGN = 2,
+	TEE_MODE_VERIFY = 3,
+	TEE_MODE_MAC = 4,
+	TEE_MODE_DIGEST = 5,
+	TEE_MODE_DERIVE = 6
 } TEE_OperationMode;
 
 typedef struct {
@@ -152,6 +152,23 @@ typedef struct {
 	uint32_t requiredKeyUsage;
 	uint32_t handleState;
 } TEE_OperationInfo;
+
+typedef struct {
+	uint32_t keySize;
+	uint32_t requiredKeyUsage;
+} TEE_OperationInfoKey;
+
+typedef struct {
+	uint32_t algorithm;
+	uint32_t operationClass;
+	uint32_t mode;
+	uint32_t digestLength;
+	uint32_t maxKeySize;
+	uint32_t handleState;
+	uint32_t operationState;
+	uint32_t numberOfKeys;
+	TEE_OperationInfoKey keyInformation[];
+} TEE_OperationInfoMultiple;
 
 /* Time & Date API */
 

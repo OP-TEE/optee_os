@@ -98,7 +98,7 @@ void _TEE_MathAPI_Init(void)
 /*
  * TEE_BigIntInit
  */
-void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
+void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
 {
 	mpa_init_static((mpa_num_base *)bigInt, (uint32_t)len);
 }
@@ -106,7 +106,7 @@ void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
 /*
  * TEE_BigIntInitFMM
  */
-void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, size_t len)
+void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, uint32_t len)
 {
 	mpanum op = (mpa_num_base *)bigIntFMM;
 
@@ -118,7 +118,7 @@ void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, size_t len)
  * TEE_BigIntInitFMMContext
  */
 void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
-			      size_t len, const TEE_BigInt *modulus)
+			      uint32_t len, const TEE_BigInt *modulus)
 {
 	mpa_fmm_context mpa_context = (mpa_fmm_context_base *)context;
 	mpanum mpa_modulus = (mpa_num_base *)modulus;
@@ -136,7 +136,7 @@ void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
 /*
  * TEE_BigIntFMMSizeInU32
  */
-size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits)
+size_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
 {
 	return TEE_BigIntSizeInU32(modulusSizeInBits) + 1;
 }
@@ -144,7 +144,7 @@ size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits)
 /*
  * TEE_BigIntFMMContextSizeInU32
  */
-size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits)
+size_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits)
 {
 	return mpa_fmm_context_size_in_U32(modulusSizeInBits);
 }
@@ -158,7 +158,7 @@ size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits)
  */
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
-					    size_t bufferLen,
+					    uint32_t bufferLen,
 					    int32_t sign)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
@@ -174,7 +174,7 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
  * TEE_BigIntConvertToOctetString
  */
 TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer,
-					  size_t *bufferLen,
+					  uint32_t *bufferLen,
 					  const TEE_BigInt *bigInt)
 {
 	mpanum n = (mpa_num_base *)bigInt;

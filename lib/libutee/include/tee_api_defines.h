@@ -25,42 +25,48 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Based on GP TEE Internal API Specification Version 0.11 */
+/* Based on GP TEE Internal Core API Specification Version 1.1 */
+
 #ifndef TEE_API_DEFINES_H
 #define TEE_API_DEFINES_H
 
-#define TEE_HANDLE_NULL                 0
+#define TEE_INT_CORE_API_SPEC_VERSION     0x0000000A
 
-#define TEE_TIMEOUT_INFINITE            0xFFFFFFFF
+#define TEE_HANDLE_NULL                   0
+
+#define TEE_TIMEOUT_INFINITE              0xFFFFFFFF
 
 /* API Error Codes */
-#define TEE_SUCCESS                     0x00000000
-#define TEE_ERROR_GENERIC               0xFFFF0000
-#define TEE_ERROR_ACCESS_DENIED         0xFFFF0001
-#define TEE_ERROR_CANCEL                0xFFFF0002
-#define TEE_ERROR_ACCESS_CONFLICT       0xFFFF0003
-#define TEE_ERROR_EXCESS_DATA           0xFFFF0004
-#define TEE_ERROR_BAD_FORMAT            0xFFFF0005
-#define TEE_ERROR_BAD_PARAMETERS        0xFFFF0006
-#define TEE_ERROR_BAD_STATE             0xFFFF0007
-#define TEE_ERROR_ITEM_NOT_FOUND        0xFFFF0008
-#define TEE_ERROR_NOT_IMPLEMENTED       0xFFFF0009
-#define TEE_ERROR_NOT_SUPPORTED         0xFFFF000A
-#define TEE_ERROR_NO_DATA               0xFFFF000B
-#define TEE_ERROR_OUT_OF_MEMORY         0xFFFF000C
-#define TEE_ERROR_BUSY                  0xFFFF000D
-#define TEE_ERROR_COMMUNICATION         0xFFFF000E
-#define TEE_ERROR_SECURITY              0xFFFF000F
-#define TEE_ERROR_SHORT_BUFFER          0xFFFF0010
-#define TEE_PENDING                     0xFFFF2000
-#define TEE_ERROR_TIMEOUT               0xFFFF3001
-#define TEE_ERROR_OVERFLOW              0xFFFF300F
-#define TEE_ERROR_TARGET_DEAD           0xFFFF3024
-#define TEE_ERROR_STORAGE_NO_SPACE      0xFFFF3041
-#define TEE_ERROR_MAC_INVALID           0xFFFF3071
-#define TEE_ERROR_SIGNATURE_INVALID     0xFFFF3072
-#define TEE_ERROR_TIME_NOT_SET          0xFFFF5000
-#define TEE_ERROR_TIME_NEEDS_RESET      0xFFFF5001
+#define TEE_SUCCESS                       0x00000000
+#define TEE_ERROR_CORRUPT_OBJECT          0xF0100001
+#define TEE_ERROR_CORRUPT_OBJECT_2        0xF0100002
+#define TEE_ERROR_STORAGE_NOT_AVAILABLE   0xF0100003
+#define TEE_ERROR_STORAGE_NOT_AVAILABLE_2 0xF0100004
+#define TEE_ERROR_GENERIC                 0xFFFF0000
+#define TEE_ERROR_ACCESS_DENIED           0xFFFF0001
+#define TEE_ERROR_CANCEL                  0xFFFF0002
+#define TEE_ERROR_ACCESS_CONFLICT         0xFFFF0003
+#define TEE_ERROR_EXCESS_DATA             0xFFFF0004
+#define TEE_ERROR_BAD_FORMAT              0xFFFF0005
+#define TEE_ERROR_BAD_PARAMETERS          0xFFFF0006
+#define TEE_ERROR_BAD_STATE               0xFFFF0007
+#define TEE_ERROR_ITEM_NOT_FOUND          0xFFFF0008
+#define TEE_ERROR_NOT_IMPLEMENTED         0xFFFF0009
+#define TEE_ERROR_NOT_SUPPORTED           0xFFFF000A
+#define TEE_ERROR_NO_DATA                 0xFFFF000B
+#define TEE_ERROR_OUT_OF_MEMORY           0xFFFF000C
+#define TEE_ERROR_BUSY                    0xFFFF000D
+#define TEE_ERROR_COMMUNICATION           0xFFFF000E
+#define TEE_ERROR_SECURITY                0xFFFF000F
+#define TEE_ERROR_SHORT_BUFFER            0xFFFF0010
+#define TEE_ERROR_EXTERNAL_CANCEL         0xFFFF0011
+#define TEE_ERROR_OVERFLOW                0xFFFF300F
+#define TEE_ERROR_TARGET_DEAD             0xFFFF3024
+#define TEE_ERROR_STORAGE_NO_SPACE        0xFFFF3041
+#define TEE_ERROR_MAC_INVALID             0xFFFF3071
+#define TEE_ERROR_SIGNATURE_INVALID       0xFFFF3072
+#define TEE_ERROR_TIME_NOT_SET            0xFFFF5000
+#define TEE_ERROR_TIME_NEEDS_RESET        0xFFFF5001
 
 /*
  * Proprietary error codes.
@@ -85,7 +91,6 @@
 #define TEE_LOGIN_APPLICATION           0x00000004
 #define TEE_LOGIN_APPLICATION_USER      0x00000005
 #define TEE_LOGIN_APPLICATION_GROUP     0x00000006
-#define TEE_LOGIN_KERNEL                0xA0000000
 #define TEE_LOGIN_TRUSTED_APP           0xF0000000
 
 /* Origin Code Constants */
@@ -95,44 +100,46 @@
 #define TEE_ORIGIN_TRUSTED_APP          0x00000004
 
 /* Property Sets pseudo handles */
-#define TEE_PROPSET_CURRENT_TA          (TEE_PropSetHandle)0xFFFFFFFF
-#define TEE_PROPSET_CURRENT_CLIENT      (TEE_PropSetHandle)0xFFFFFFFE
 #define TEE_PROPSET_TEE_IMPLEMENTATION  (TEE_PropSetHandle)0xFFFFFFFD
+#define TEE_PROPSET_CURRENT_CLIENT      (TEE_PropSetHandle)0xFFFFFFFE
+#define TEE_PROPSET_CURRENT_TA          (TEE_PropSetHandle)0xFFFFFFFF
 
 /* Memory Access Rights Constants */
-#define TEE_MEMORY_ACCESS_READ          0x00000001
-#define TEE_MEMORY_ACCESS_WRITE         0x00000002
-#define TEE_MEMORY_ACCESS_ANY_OWNER     0x00000004
+#define TEE_MEMORY_ACCESS_READ             0x00000001
+#define TEE_MEMORY_ACCESS_WRITE            0x00000002
+#define TEE_MEMORY_ACCESS_ANY_OWNER        0x00000004
 
 /* Other constants */
-#define TEE_STORAGE_PRIVATE             0x00000001
-#define TEE_DATA_FLAG_ACCESS_READ       0x00000001
-#define TEE_DATA_FLAG_ACCESS_WRITE      0x00000002
-#define TEE_DATA_FLAG_ACCESS_WRITE_META 0x00000004
-#define TEE_DATA_FLAG_SHARE_READ        0x00000010
-#define TEE_DATA_FLAG_SHARE_WRITE       0x00000020
-#define TEE_DATA_FLAG_CREATE            0x00000200
-#define TEE_DATA_FLAG_EXCLUSIVE         0x00000400
-#define TEE_DATA_MAX_POSITION           0xFFFFFFFF
-#define TEE_OBJECT_ID_MAX_LEN           64
-#define TEE_USAGE_EXTRACTABLE           0x00000001
-#define TEE_USAGE_ENCRYPT               0x00000002
-#define TEE_USAGE_DECRYPT               0x00000004
-#define TEE_USAGE_MAC                   0x00000008
-#define TEE_USAGE_SIGN                  0x00000010
-#define TEE_USAGE_VERIFY                0x00000020
-#define TEE_USAGE_DERIVE                0x00000040
-#define TEE_HANDLE_FLAG_PERSISTENT      0x00010000
-#define TEE_HANDLE_FLAG_INITIALIZED     0x00020000
-#define TEE_HANDLE_FLAG_KEY_SET         0x00040000
-#define TEE_HANDLE_FLAG_EXPECT_TWO_KEYS 0x00080000
-#define TEE_OPERATION_CIPHER            1
-#define TEE_OPERATION_MAC               3
-#define TEE_OPERATION_AE                4
-#define TEE_OPERATION_DIGEST            5
-#define TEE_OPERATION_ASYMMETRIC_CIPHER 6
+#define TEE_STORAGE_PRIVATE                0x00000001
+
+#define TEE_DATA_FLAG_ACCESS_READ          0x00000001
+#define TEE_DATA_FLAG_ACCESS_WRITE         0x00000002
+#define TEE_DATA_FLAG_ACCESS_WRITE_META    0x00000004
+#define TEE_DATA_FLAG_SHARE_READ           0x00000010
+#define TEE_DATA_FLAG_SHARE_WRITE          0x00000020
+#define TEE_DATA_FLAG_EXCLUSIVE            0x00000400
+#define TEE_DATA_MAX_POSITION              0xFFFFFFFF
+#define TEE_OBJECT_ID_MAX_LEN              64
+#define TEE_USAGE_EXTRACTABLE              0x00000001
+#define TEE_USAGE_ENCRYPT                  0x00000002
+#define TEE_USAGE_DECRYPT                  0x00000004
+#define TEE_USAGE_MAC                      0x00000008
+#define TEE_USAGE_SIGN                     0x00000010
+#define TEE_USAGE_VERIFY                   0x00000020
+#define TEE_USAGE_DERIVE                   0x00000040
+#define TEE_HANDLE_FLAG_PERSISTENT         0x00010000
+#define TEE_HANDLE_FLAG_INITIALIZED        0x00020000
+#define TEE_HANDLE_FLAG_KEY_SET            0x00040000
+#define TEE_HANDLE_FLAG_EXPECT_TWO_KEYS    0x00080000
+#define TEE_OPERATION_CIPHER               1
+#define TEE_OPERATION_MAC                  3
+#define TEE_OPERATION_AE                   4
+#define TEE_OPERATION_DIGEST               5
+#define TEE_OPERATION_ASYMMETRIC_CIPHER    6
 #define TEE_OPERATION_ASYMMETRIC_SIGNATURE 7
-#define TEE_OPERATION_KEY_DERIVATION    8
+#define TEE_OPERATION_KEY_DERIVATION       8
+#define TEE_OPERATION_STATE_INITIAL        0x00000000
+#define TEE_OPERATION_STATE_ACTIVE         0x00000001
 
 /* Algorithm Identifiers */
 #define TEE_ALG_AES_ECB_NOPAD                   0x10000010
@@ -173,6 +180,8 @@
 #define TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512    0x60610230
 #define TEE_ALG_RSA_NOPAD                       0x60000030
 #define TEE_ALG_DSA_SHA1                        0x70002131
+#define TEE_ALG_DSA_SHA224                      0x70003131
+#define TEE_ALG_DSA_SHA256                      0x70004131
 #define TEE_ALG_DH_DERIVE_SHARED_SECRET         0x80000032
 #define TEE_ALG_MD5                             0x50000001
 #define TEE_ALG_SHA1                            0x50000002
@@ -187,6 +196,16 @@
 #define TEE_ALG_HMAC_SHA256                     0x30000004
 #define TEE_ALG_HMAC_SHA384                     0x30000005
 #define TEE_ALG_HMAC_SHA512                     0x30000006
+#define TEE_ALG_ECDSA_P192                      0x70001042
+#define TEE_ALG_ECDSA_P224                      0x70002042
+#define TEE_ALG_ECDSA_P256                      0x70003042
+#define TEE_ALG_ECDSA_P384                      0x70004042
+#define TEE_ALG_ECDSA_P521                      0x70005042
+#define TEE_ALG_ECDH_P192                       0x80001042
+#define TEE_ALG_ECDH_P224                       0x80002042
+#define TEE_ALG_ECDH_P256                       0x80003042
+#define TEE_ALG_ECDH_P384                       0x80004042
+#define TEE_ALG_ECDH_P521                       0x80005042
 
 /* Object Types */
 
@@ -204,7 +223,13 @@
 #define TEE_TYPE_DSA_PUBLIC_KEY             0xA0000031
 #define TEE_TYPE_DSA_KEYPAIR                0xA1000031
 #define TEE_TYPE_DH_KEYPAIR                 0xA1000032
+#define TEE_TYPE_ECDSA_PUBLIC_KEY           0xA0000041
+#define TEE_TYPE_ECDSA_KEYPAIR              0xA1000041
+#define TEE_TYPE_ECDH_PUBLIC_KEY            0xA0000042
+#define TEE_TYPE_ECDH_KEYPAIR               0xA1000042
 #define TEE_TYPE_GENERIC_SECRET             0xA0000000
+#define TEE_TYPE_CORRUPTED_OBJECT           0xA00000BE
+#define TEE_TYPE_DATA                       0xA00000BF
 
 /* List of Object or Operation Attributes */
 
@@ -230,6 +255,10 @@
 #define TEE_ATTR_DH_PRIVATE_VALUE           0xC0000232
 #define TEE_ATTR_RSA_OAEP_LABEL             0xD0000930
 #define TEE_ATTR_RSA_PSS_SALT_LENGTH        0xF0000A30
+#define TEE_ATTR_ECC_PUBLIC_VALUE_X         0xD0000141
+#define TEE_ATTR_ECC_PUBLIC_VALUE_Y         0xD0000241
+#define TEE_ATTR_ECC_PRIVATE_VALUE          0xC0000341
+#define TEE_ATTR_ECC_CURVE                  0xF0000441
 
 /*
  * The macro TEE_PARAM_TYPES can be used to construct a value that you can

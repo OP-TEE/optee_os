@@ -261,7 +261,7 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   char *name, char *valueBuffer,
-				   size_t *valueBufferLen)
+				   uint32_t *valueBufferLen)
 {
 	TEE_Result res;
 	struct prop_value pv;
@@ -381,7 +381,7 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 					char *name, void *valueBuffer,
-					size_t *valueBufferLen)
+					uint32_t *valueBufferLen)
 {
 	TEE_Result res;
 	struct prop_value pv;
@@ -489,7 +489,7 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 }
 
 TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
-			       void *nameBuffer, size_t *nameBufferLen)
+			       void *nameBuffer, uint32_t *nameBufferLen)
 {
 	TEE_Result res;
 	struct prop_enumerator *pe = (struct prop_enumerator *)enumerator;

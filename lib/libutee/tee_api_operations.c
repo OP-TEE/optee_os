@@ -473,7 +473,7 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 /* Cryptographic Operations API - Message Digest Functions */
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,
-		      void *chunk, size_t chunkSize)
+		      void *chunk, uint32_t chunkSize)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -487,7 +487,7 @@ void TEE_DigestUpdate(TEE_OperationHandle operation,
 }
 
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
-			     size_t chunkLen, void *hash, size_t *hashLen)
+			     uint32_t chunkLen, void *hash, uint32_t *hashLen)
 {
 	if ((operation == TEE_HANDLE_NULL) || (!chunk && chunkLen) ||
 	    !hash || !hashLen ||
@@ -500,7 +500,7 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
-void TEE_CipherInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
+void TEE_CipherInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
 {
 	TEE_Result res;
 
@@ -627,7 +627,7 @@ out:
 }
 
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle op, const void *srcData,
-			    size_t srcLen, void *destData, size_t *destLen)
+			    uint32_t srcLen, void *destData, uint32_t *destLen)
 {
 	size_t req_dlen;
 
@@ -665,8 +665,8 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle op, const void *srcData,
 }
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
-			     const void *srcData, size_t srcLen, void *destData,
-			     size_t *destLen)
+			     const void *srcData, uint32_t srcLen, void *destData,
+			     uint32_t *destLen)
 {
 	TEE_Result res;
 	uint8_t *dst = destData;
@@ -727,7 +727,7 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
+void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
 {
 	TEE_Result res;
 
@@ -744,7 +744,7 @@ void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 }
 
-void TEE_MACUpdate(TEE_OperationHandle op, const void *chunk, size_t chunkSize)
+void TEE_MACUpdate(TEE_OperationHandle op, const void *chunk, uint32_t chunkSize)
 {
 	TEE_Result res;
 
@@ -761,8 +761,8 @@ void TEE_MACUpdate(TEE_OperationHandle op, const void *chunk, size_t chunkSize)
 }
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle op,
-			       const void *message, size_t messageLen,
-			       void *mac, size_t *macLen)
+			       const void *message, uint32_t messageLen,
+			       void *mac, uint32_t *macLen)
 {
 	TEE_Result res;
 
@@ -780,8 +780,8 @@ TEE_Result TEE_MACComputeFinal(TEE_OperationHandle op,
 }
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, size_t messageLen,
-			       const void *mac, size_t macLen)
+			       const void *message, uint32_t messageLen,
+			       const void *mac, uint32_t macLen)
 {
 	TEE_Result res;
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE];
@@ -801,7 +801,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
 TEE_Result TEE_AEInit(TEE_OperationHandle op, const void *nonce,
-		      size_t nonceLen, uint32_t tagLen, uint32_t AADLen,
+		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
 		      uint32_t payloadLen)
 {
 	TEE_Result res;
@@ -839,7 +839,7 @@ TEE_Result TEE_AEInit(TEE_OperationHandle op, const void *nonce,
 }
 
 void TEE_AEUpdateAAD(TEE_OperationHandle op, const void *AADdata,
-		     size_t AADdataLen)
+		     uint32_t AADdataLen)
 {
 	TEE_Result res;
 
@@ -856,7 +856,7 @@ void TEE_AEUpdateAAD(TEE_OperationHandle op, const void *AADdata,
 }
 
 TEE_Result TEE_AEUpdate(TEE_OperationHandle op, const void *srcData,
-			size_t srcLen, void *destData, size_t *destLen)
+			uint32_t srcLen, void *destData, uint32_t *destLen)
 {
 	size_t req_dlen;
 
@@ -886,9 +886,9 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle op, const void *srcData,
 }
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle op,
-			      const void *srcData, size_t srcLen,
-			      void *destData, size_t *destLen, void *tag,
-			      size_t *tagLen)
+			      const void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, void *tag,
+			      uint32_t *tagLen)
 {
 	TEE_Result res;
 	uint8_t *dst = destData;
@@ -946,9 +946,9 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle op,
 }
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle op,
-			      const void *srcData, size_t srcLen,
-			      void *destData, size_t *destLen, const void *tag,
-			      size_t tagLen)
+			      const void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, const void *tag,
+			      uint32_t tagLen)
 {
 	TEE_Result res;
 	uint8_t *dst = destData;
@@ -1005,8 +1005,8 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle op,
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle op,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 size_t srcLen, void *destData,
-				 size_t *destLen)
+				 uint32_t srcLen, void *destData,
+				 uint32_t *destLen)
 {
 	TEE_Result res;
 
@@ -1032,8 +1032,8 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle op,
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle op,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 size_t srcLen, void *destData,
-				 size_t *destLen)
+				 uint32_t srcLen, void *destData,
+				 uint32_t *destLen)
 {
 	TEE_Result res;
 
@@ -1059,8 +1059,8 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle op,
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle op,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
-				    size_t digestLen, void *signature,
-				    size_t *signatureLen)
+				    uint32_t digestLen, void *signature,
+				    uint32_t *signatureLen)
 {
 	TEE_Result res;
 
@@ -1085,8 +1085,8 @@ TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle op,
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle op,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
-				      size_t digestLen, const void *signature,
-				      size_t signatureLen)
+				      uint32_t digestLen, const void *signature,
+				      uint32_t signatureLen)
 {
 	TEE_Result res;
 
@@ -1149,7 +1149,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
-void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen)
+void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
 {
 	TEE_Result res;
 
