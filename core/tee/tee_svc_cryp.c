@@ -1338,7 +1338,8 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 
 static TEE_Result tee_svc_obj_generate_key_rsa(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size)
+	uint32_t key_size,
+	const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct rsa_keypair *key = o->data;
@@ -1347,6 +1348,12 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	TEE_ASSERT(sizeof(struct rsa_keypair) == o->data_size);
 	if (!crypto_ops.acipher.gen_rsa_key || !crypto_ops.bignum.bin2bn)
 		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	/* Copy the present attributes into the obj before starting */
+	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
+					     param_count);
+	if (res != TEE_SUCCESS)
+		return res;
 	if (!GET_ATTRIBUTE(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
 		crypto_ops.bignum.bin2bn((const uint8_t *)&e, sizeof(e),
 					 key->e);
@@ -1509,7 +1516,8 @@ TEE_Result tee_svc_obj_generate_key(uint32_t obj, uint32_t key_size,
 		break;
 
 	case TEE_TYPE_RSA_KEYPAIR:
-		res = tee_svc_obj_generate_key_rsa(o, type_props, key_size);
+		res = tee_svc_obj_generate_key_rsa(o, type_props, key_size,
+						   params, param_count);
 		if (res != TEE_SUCCESS)
 			goto out;
 		break;
