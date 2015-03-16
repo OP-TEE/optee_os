@@ -126,3 +126,23 @@ cfg-depends-one =                                                               
              )                                                                       \
          )                                                                           \
      )
+
+
+# Enable all depend variables
+# Example:
+# $(eval $(call cfg-enable-all-depends,FOO,BAR BAZ))
+# Will enable BAR and BAZ if FOO is initially 'y'
+cfg-enable-all-depends =                                                                   \
+    $(strip                                                                                \
+        $(if $(2),                                                                         \
+            $(if $(filter y, $($(1))),                                                     \
+                $(if $(filter y,$($(firstword $(2)))),                                     \
+                    ,                                                                      \
+                    $(warning Warning: Enabling $(firstword $(2)) [required by $(1)])      \
+                        $(eval $(firstword $(2)) = y)                                      \
+                 )                                                                         \
+                 $(call cfg-enable-all-depends,$(1),$(filter-out $(firstword $(2)),$(2))), \
+             )                                                                             \
+             ,                                                                             \
+        )                                                                                  \
+     )

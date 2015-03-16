@@ -37,7 +37,7 @@ CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
 CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_ARM32_core)
 endif
 
-# SE API is only suppoorted by QEMU Virt platform
+# SE API is only supported by QEMU Virt platform
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 CFG_SE_API := y
 CFG_SE_API_SELF_TEST := y
@@ -52,3 +52,7 @@ CFG_WITH_VFP := y
 endif
 
 include mk/config.mk
+
+ifeq ($(CFG_ENC_FS),y)
+CFG_ENC_FS_KEY_MANAGER_TEST := y
+endif
