@@ -51,5 +51,6 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 				  const uint8_t *data, size_t len,
 				  uint8_t *dst);
 
+TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len);
 
 #endif

@@ -2309,6 +2309,25 @@ static TEE_Result prng_read(void *buf, size_t blen)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result prng_add_entropy(const uint8_t *inbuf, size_t len)
+{
+	int err;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
+
+	err = prng_is_valid(prng->index);
+
+	if (err != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	err = prng_descriptor[prng->index].add_entropy(
+			inbuf, len, &prng->state);
+
+	if (err != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_ltc_init(void)
 {
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
@@ -2395,6 +2414,7 @@ struct crypto_ops crypto_ops = {
 	},
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
 	.prng = {
+		.add_entropy = prng_add_entropy,
 		.read = prng_read,
 	}
 };

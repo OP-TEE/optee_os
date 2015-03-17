@@ -394,6 +394,14 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 	return TEE_SUCCESS;
 }
 
+TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len)
+{
+	if (crypto_ops.prng.add_entropy)
+		return crypto_ops.prng.add_entropy(in, len);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result tee_cryp_init(void)
 {
 	if (crypto_ops.init)

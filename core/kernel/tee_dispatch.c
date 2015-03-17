@@ -31,6 +31,8 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <kernel/tee_compat.h>
+#include <kernel/tee_time.h>
+#include <tee/tee_cryp_utl.h>
 
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
@@ -79,6 +81,14 @@ static TEE_Result update_clnt_id(const TEE_Identity *in, TEE_Identity *out)
 	return TEE_SUCCESS;
 }
 
+static void inject_entropy_with_timestamp(void)
+{
+	TEE_Time current;
+
+	tee_time_get_sys_time(&current);
+	tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
+}
+
 TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 				     struct tee_dispatch_open_session_out *out)
 {
@@ -110,6 +120,13 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 	out->sess = (TEE_Session *)s;
 	update_out_param(param, out->params);
 
+	/*
+	 * The occurrence of open/close session command is usually
+	 * un-predictable, using this property to increase randomness
+	 * of prng
+	 */
+	inject_entropy_with_timestamp();
+
 cleanup_return:
 	if (res != TEE_SUCCESS)
 		DMSG("  => Error: %x of %d", (unsigned int)res, (int)res_orig);
@@ -124,6 +141,8 @@ cleanup_return:
 
 TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {
+	inject_entropy_with_timestamp();
+
 	return tee_ta_close_session(in->sess, &tee_open_sessions,
 				    NSAPP_IDENTITY);
 }

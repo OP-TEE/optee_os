@@ -244,6 +244,9 @@ struct acipher_ops {
 };
 
 struct prng_ops {
+	/* add entropy to PRNG entropy pool */
+	TEE_Result (*add_entropy)(const uint8_t *inbuf, size_t len);
+
 	/* to read random data from PRNG implementation	 */
 	TEE_Result (*read)(void *buf, size_t blen);
 };
