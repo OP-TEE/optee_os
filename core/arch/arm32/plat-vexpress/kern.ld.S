@@ -228,28 +228,28 @@ SECTIONS
 	__init_size = __init_end - __text_init_start;
 	__init_mem_usage = __init_end - CFG_TEE_LOAD_ADDR;
 
-	.text_pagable : ALIGN(4) {
-		__text_pagable_start = .;
+	.text_pageable : ALIGN(4) {
+		__text_pageable_start = .;
 		*(.text*)
 		. = ALIGN(4);
-		__text_pagable_end = .;
+		__text_pageable_end = .;
 	}
 
-	.rodata_pagable : ALIGN(4) {
-		__rodata_pagable_start = .;
+	.rodata_pageable : ALIGN(4) {
+		__rodata_pageable_start = .;
 		*(.rodata*)
 		. = ALIGN(4);
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
 		. = ALIGN(4 * 1024);
-		__rodata_pagable_end = .;
+		__rodata_pageable_end = .;
 	}
 
-	__pagable_part_start = __rodata_init_end;
-	__pagable_part_end = __rodata_pagable_end;
-	__pagable_start = __text_init_start;
-	__pagable_end = __pagable_part_end;
+	__pageable_part_start = __rodata_init_end;
+	__pageable_part_end = __rodata_pageable_end;
+	__pageable_start = __text_init_start;
+	__pageable_end = __pageable_part_end;
 
 	ASSERT(CFG_TEE_LOAD_ADDR >= CFG_TEE_RAM_START,
 		"Load address before start of physical memory")

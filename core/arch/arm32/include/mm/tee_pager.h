@@ -43,7 +43,7 @@
 #define TEE_PAGER_AREA_X	(1 << 2)
 
 /*
- * tee_pager_add_area() - Adds a pagable area
+ * tee_pager_add_area() - Adds a pageable area
  * @mm:		covered memory area
  * @flags:	describes attributes of mapping
  * @store:	backing store for the memory area

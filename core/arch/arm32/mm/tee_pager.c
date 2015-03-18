@@ -57,7 +57,7 @@ struct tee_pager_abort_info {
 
 enum tee_pager_fault_type {
 	TEE_PAGER_FAULT_TYPE_USER_TA_PANIC,
-	TEE_PAGER_FAULT_TYPE_PAGABLE,
+	TEE_PAGER_FAULT_TYPE_PAGEABLE,
 	TEE_PAGER_FAULT_TYPE_IGNORE,
 };
 
@@ -378,7 +378,7 @@ static enum tee_pager_fault_type tee_pager_get_fault_type(
 
 	case CORE_MMU_FAULT_TRANSLATION:
 	case CORE_MMU_FAULT_PERMISSION:
-		return TEE_PAGER_FAULT_TYPE_PAGABLE;
+		return TEE_PAGER_FAULT_TYPE_PAGEABLE;
 
 	case CORE_MMU_FAULT_ASYNC_EXTERNAL:
 		tee_pager_print_abort(ai);
@@ -560,7 +560,7 @@ void tee_pager_abort_handler(uint32_t abort_type,
 		else
 			regs->spsr &= ~CPSR_T;
 		break;
-	case TEE_PAGER_FAULT_TYPE_PAGABLE:
+	case TEE_PAGER_FAULT_TYPE_PAGEABLE:
 	default:
 		tee_pager_handle_fault(&ai);
 		break;

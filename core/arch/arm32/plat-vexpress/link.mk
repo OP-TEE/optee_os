@@ -104,22 +104,22 @@ $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 	@echo '  OBJDUMP $@'
 	$(q)$(OBJDUMPcore) -l -x -d $< > $@
 
-pagable_sections := .*_pagable
+pageable_sections := .*_pageable
 init_sections := .*_init
 cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf
 	@echo '  OBJCOPY $@'
 	$(q)$(OBJCOPYcore) -O binary \
-		--remove-section="$(pagable_sections)" \
+		--remove-section="$(pageable_sections)" \
 		--remove-section="$(init_sections)" \
 		$< $@
 
-cleanfiles += $(link-out-dir)/tee-pagable.bin
-$(link-out-dir)/tee-pagable.bin: $(link-out-dir)/tee.elf
+cleanfiles += $(link-out-dir)/tee-pageable.bin
+$(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 	@echo '  OBJCOPY $@'
 	$(q)$(OBJCOPYcore) -O binary \
 		--only-section="$(init_sections)" \
-		--only-section="$(pagable_sections)" \
+		--only-section="$(pageable_sections)" \
 		$< $@
 
 cleanfiles += $(link-out-dir)/tee-init_size.txt
@@ -143,7 +143,7 @@ $(link-out-dir)/tee-init_mem_usage.txt: $(link-out-dir)/tee.elf
 all: $(link-out-dir)/tee.bin
 cleanfiles += $(link-out-dir)/tee.bin
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
-			 $(link-out-dir)/tee-pagable.bin \
+			 $(link-out-dir)/tee-pageable.bin \
 			 $(link-out-dir)/tee-init_size.txt \
 			 $(link-out-dir)/tee-init_load_addr.txt \
 			 $(link-out-dir)/tee-init_mem_usage.txt \
@@ -156,7 +156,7 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
 			`cat $(link-out-dir)/tee-init_load_addr.txt` \
 		--init_mem_usage `cat $(link-out-dir)/tee-init_mem_usage.txt` \
 		--tee_pager_bin $(link-out-dir)/tee-pager.bin \
-		--tee_pagable_bin $(link-out-dir)/tee-pagable.bin \
+		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin \
 		--out $@
 
 

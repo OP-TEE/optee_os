@@ -87,10 +87,10 @@ extern uint8_t __heap1_start[];
 extern uint8_t __heap1_end[];
 extern uint8_t __heap2_start[];
 extern uint8_t __heap2_end[];
-extern uint8_t __pagable_part_start[];
-extern uint8_t __pagable_part_end[];
-extern uint8_t __pagable_start[];
-extern uint8_t __pagable_end[];
+extern uint8_t __pageable_part_start[];
+extern uint8_t __pageable_part_end[];
+extern uint8_t __pageable_start[];
+extern uint8_t __pageable_end[];
 
 static void main_fiq(void);
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -230,12 +230,12 @@ static size_t get_block_size(void)
 	return 1 << tbl_info.shift;
 }
 
-static void main_init_runtime(uint32_t pagable_part)
+static void main_init_runtime(uint32_t pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)__init_size;
-	size_t pagable_size = __pagable_end - __pagable_start;
-	size_t hash_size = (pagable_size / SMALL_PAGE_SIZE) *
+	size_t pageable_size = __pageable_end - __pageable_start;
+	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
 	tee_mm_entry_t *mm;
 	uint8_t *paged_store;
@@ -244,7 +244,7 @@ static void main_init_runtime(uint32_t pagable_part)
 	size_t block_size;
 
 
-	TEE_ASSERT(pagable_size % SMALL_PAGE_SIZE == 0);
+	TEE_ASSERT(pageable_size % SMALL_PAGE_SIZE == 0);
 
 
 	/* Copy it right after the init area. */
@@ -271,18 +271,18 @@ static void main_init_runtime(uint32_t pagable_part)
 	 */
 	teecore_init_ta_ram();
 
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, pagable_size);
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
 	TEE_ASSERT(mm);
 	paged_store = (uint8_t *)tee_mm_get_smem(mm);
-	/* Copy init part into pagable area */
+	/* Copy init part into pageable area */
 	memcpy(paged_store, __init_start, init_size);
-	/* Copy pagable part after init part into pagable area */
-	memcpy(paged_store + init_size, (void *)pagable_part,
-		__pagable_part_end - __pagable_part_start);
+	/* Copy pageable part after init part into pageable area */
+	memcpy(paged_store + init_size, (void *)pageable_part,
+		__pageable_part_end - __pageable_part_start);
 
-	/* Check that hashes of what's in pagable area is OK */
-	DMSG("Checking hashes of pagable area");
-	for (n = 0; (n * SMALL_PAGE_SIZE) < pagable_size; n++) {
+	/* Check that hashes of what's in pageable area is OK */
+	DMSG("Checking hashes of pageable area");
+	for (n = 0; (n * SMALL_PAGE_SIZE) < pageable_size; n++) {
 		const uint8_t *hash = hashes + n * TEE_SHA256_HASH_SIZE;
 		const uint8_t *page = paged_store + n * SMALL_PAGE_SIZE;
 		TEE_Result res;
@@ -338,24 +338,24 @@ static void main_init_runtime(uint32_t pagable_part)
 	TEE_ASSERT(mm);
 
 	/*
-	 * Allocate virtual memory for the pagable area and let the pager
+	 * Allocate virtual memory for the pageable area and let the pager
 	 * take charge of all the pages already assigned to that memory.
 	 */
-	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pagable_start,
-			   pagable_size);
+	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
+			   pageable_size);
 	TEE_ASSERT(mm);
 	tee_pager_add_area(mm, TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
 			   paged_store, hashes);
-	tee_pager_add_pages((vaddr_t)__pagable_start,
+	tee_pager_add_pages((vaddr_t)__pageable_start,
 		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
-	tee_pager_add_pages((vaddr_t)__pagable_start +
+	tee_pager_add_pages((vaddr_t)__pageable_start +
 				ROUNDUP(init_size, SMALL_PAGE_SIZE),
-			(pagable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
+			(pageable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
 				SMALL_PAGE_SIZE, true);
 
 }
 #else
-static void main_init_runtime(uint32_t pagable_part __unused)
+static void main_init_runtime(uint32_t pageable_part __unused)
 {
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -374,7 +374,8 @@ static void main_init_runtime(uint32_t pagable_part __unused)
 }
 #endif
 
-static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
+static void main_init_primary_helper(uint32_t pageable_part,
+				     uint32_t nsec_entry)
 {
 	/*
 	 * Mask external Abort, IRQ and FIQ before switch to the thread
@@ -386,7 +387,7 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 	write_cpsr(read_cpsr() | CPSR_FIA);
 	main_init_cpacr();
 
-	main_init_runtime(pagable_part);
+	main_init_runtime(pageable_part);
 
 	DMSG("TEE initializing\n");
 
@@ -424,18 +425,18 @@ static void main_init_secondary_helper(uint32_t nsec_entry)
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* called from assembly only */
-uint32_t *main_init_primary(uint32_t pagable_part);
-uint32_t *main_init_primary(uint32_t pagable_part)
+uint32_t *main_init_primary(uint32_t pageable_part);
+uint32_t *main_init_primary(uint32_t pageable_part)
 {
-	main_init_primary_helper(pagable_part, PADDR_INVALID);
+	main_init_primary_helper(pageable_part, PADDR_INVALID);
 	return thread_vector_table;
 }
 #elif defined(CFG_WITH_SEC_MON)
 /* called from assembly only */
-void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry);
-void main_init_primary(uint32_t pagable_part, uint32_t nsec_entry)
+void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry);
+void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry)
 {
-	main_init_primary_helper(pagable_part, nsec_entry);
+	main_init_primary_helper(pageable_part, nsec_entry);
 }
 
 /* called from assembly only */
