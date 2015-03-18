@@ -101,10 +101,10 @@ change in case you want to use
 $ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 ```
 
-The CROSS_PREFIX variable can be overridden with **CROSS_PREFIX_core** and
-**CROSS_PREFIX_ta** for TEE Core and Trusted Applications respectively.
-This is needed TEE Core and Trusted Application libraries need to be
-compiled with different compilers due to a mix of 64bit and 32bit code
+The CROSS_COMPILE variable can be overridden with **CROSS_COMPILE_core** and
+**CROSS_COMPILE_user_ta** for TEE Core and Trusted Applications respectively.
+This is needed if TEE Core and Trusted Application libraries need to be
+compiled with different compilers due to a mix of 64bit and 32bit code.
 
 
 ## Platform-specific configuration and flags

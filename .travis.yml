@@ -27,14 +27,14 @@ script:
   - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
 
   # Orly2
-  -                                  PLATFORM=stm-orly2                                  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  -                                  PLATFORM=stm-orly2                                  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
 
   # Cannes
-  -                                  PLATFORM=stm-cannes                                 CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_PREFIX=arm-linux-gnueabihf  make -j8 all
+  -                                  PLATFORM=stm-cannes                                 CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
 
   # FVP
   -                                  PLATFORM=vexpress-fvp                                                                 make -j8 all

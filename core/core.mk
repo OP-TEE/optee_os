@@ -9,8 +9,7 @@ platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include $(platform-dir)/conf.mk
 
 # Setup compiler for this sub module
-CROSS_PREFIX_$(sm)	?= $(CROSS_PREFIX)
-CROSS_COMPILE_$(sm)	?= $(CROSS_PREFIX_$(sm))-
+CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
