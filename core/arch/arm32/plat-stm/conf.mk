@@ -1,7 +1,6 @@
 include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
-CROSS_PREFIX	?= armv7-linux
-CROSS_COMPILE	?= $(CROSS_PREFIX)-
+CROSS_COMPILE	?= armv7-linux-
 COMPILER	?= gcc
 
 core-platform-cppflags	 = -I$(arch-dir)/include
