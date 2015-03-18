@@ -47,7 +47,7 @@ FUNC _start , :
 END_FUNC _start
 
 LOCAL_FUNC reset , :
-	mov	r4, r0		/* Save pagable part address */
+	mov	r4, r0		/* Save pageable part address */
 	mov	r5, lr		/* Save ns-entry address */
 
 	/*
@@ -134,7 +134,7 @@ copy_init:
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
-	mov	r0, r4		/* pagable part address */
+	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	main_init_primary
 

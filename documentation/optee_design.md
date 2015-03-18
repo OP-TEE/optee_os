@@ -412,15 +412,15 @@ init text and rodata.  What isn't "unpaged" or "init" becomes "paged".
 ## Partitioning of the binary
 The binary is partitioned into four parts as:
 ```
-+---------+
-| Header  |
-+---------+
-| Init    |
-+---------+
-| Hashes  |
-+---------+
-| Pagable |
-+---------+
++----------+
+| Header   |
++----------+
+| Init     |
++----------+
+| Hashes   |
++----------+
+| Pageable |
++----------+
 ```
 Header is defined as:
 ```
@@ -459,7 +459,7 @@ internal APIs being available.
 The global variable `tee_mm_vcore` describes the virtual memory range that
 is covered by the level 2 translation table supplied to `tee_pager_init()`.
 
-### Assign pagable areas
+### Assign pageable areas
 A virtual memory range to be handled by the pager is registered with a
 call to `tee_pager_add_area()`.
 ```

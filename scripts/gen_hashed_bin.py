@@ -111,9 +111,9 @@ def get_args():
 		required=True, \
 		help='The input tee_pager.bin')
 
-	parser.add_argument('--tee_pagable_bin', \
+	parser.add_argument('--tee_pageable_bin', \
 		required=True, \
-		help='The input tee_pagable.bin')
+		help='The input tee_pageable.bin')
 
 	parser.add_argument('--out', \
 		required=True, type=argparse.FileType('w'), \
@@ -123,18 +123,18 @@ def get_args():
 
 def main():
 	args = get_args()
-	init_bin_size 	  = args.init_size
-	tee_pager_fname   = args.tee_pager_bin
-	tee_pagable_fname = args.tee_pagable_bin
-	outf		  = args.out
+	init_bin_size	   = args.init_size
+	tee_pager_fname	   = args.tee_pager_bin
+	tee_pageable_fname = args.tee_pageable_bin
+	outf		   = args.out
 
 	write_header(outf, 0, args, 0)
 	header_size = outf.tell();
 	append_to(outf, 0, tee_pager_fname)
-	append_to(outf, 0, tee_pagable_fname, init_bin_size)
-	append_hashes(outf, tee_pagable_fname)
+	append_to(outf, 0, tee_pageable_fname, init_bin_size)
+	append_hashes(outf, tee_pageable_fname)
 	init_size = outf.tell() - header_size;
-	append_to(outf, init_bin_size, tee_pagable_fname)
+	append_to(outf, init_bin_size, tee_pageable_fname)
 	paged_size = outf.tell() - init_size - header_size;
 
 	outf.seek(0)
