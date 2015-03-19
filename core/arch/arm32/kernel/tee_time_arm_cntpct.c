@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014, 2015 Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,25 +37,13 @@
 #include <mpa.h>
 #include <arm.h>
 
-static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
-{
-	mpa_word_t remainder = 0, n0, n1;
-	n0 = (*dividend) & UINT_MAX;
-	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
-	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
-	return remainder;
-}
-
 static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 {
 	uint64_t cntpct = read_cntpct();
 	uint32_t cntfrq = read_cntfrq();
-	uint32_t remainder;
 
-	remainder = do_div(&cntpct, cntfrq);
-
-	time->seconds = (uint32_t)cntpct;
-	time->millis = remainder / (cntfrq / TEE_TIME_MILLIS_BASE);
+	time->seconds = cntpct / cntfrq;
+	time->millis = (cntpct % cntfrq) / (cntfrq / TEE_TIME_MILLIS_BASE);
 
 	return TEE_SUCCESS;
 }
