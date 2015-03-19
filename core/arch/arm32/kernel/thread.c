@@ -146,7 +146,7 @@ thread_pm_handler_t thread_system_off_handler_ptr;
 thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
-static unsigned int thread_global_lock = UNLOCK;
+static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 
 static void init_canaries(void)
 {
