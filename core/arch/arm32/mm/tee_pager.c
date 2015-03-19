@@ -568,7 +568,7 @@ void tee_pager_abort_handler(uint32_t abort_type,
 }
 
 #ifdef CFG_WITH_PAGER
-void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap)
+void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 {
 	size_t n;
 

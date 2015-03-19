@@ -305,8 +305,7 @@ vaddr_t core_mmu_get_ul1_ttb_va(void);
 void *core_mmu_alloc_l2(struct tee_mmap_region *mm);
 #endif
 
-void core_mmu_get_mem_by_type(unsigned int type, unsigned int *s,
-			      unsigned int *e);
+void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
 
 int core_va2pa_helper(void *va, paddr_t *pa);
 /* Special macro to avoid breaking strict aliasing rules */

@@ -406,7 +406,7 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
 }
 
 TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
-				  const uint32_t kaddr, tee_uaddr_t *uaddr)
+				  const vaddr_t kaddr, tee_uaddr_t *uaddr)
 {
 	TEE_Result res;
 	void *ua;
@@ -417,7 +417,7 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 
 	res = tee_mmu_user_pa2va(ctx, (void *)pa, &ua);
 	if (res == TEE_SUCCESS)
-		*uaddr = (uint32_t)ua;
+		*uaddr = (tee_uaddr_t)ua;
 	return res;
 }
 
@@ -618,7 +618,7 @@ void tee_mmu_kunmap(void *va, size_t len)
 	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
 		panic();
 
-	mm = tee_mm_find(&tee_mmu_virt_kmap, (uint32_t)va);
+	mm = tee_mm_find(&tee_mmu_virt_kmap, (vaddr_t)va);
 	if (mm == NULL || len > tee_mm_get_bytes(mm))
 		return;		/* Invalid range, not much to do */
 
@@ -713,7 +713,8 @@ bool tee_mmu_kmap_is_mapped(void *va, size_t len)
 
 void teecore_init_ta_ram(void)
 {
-	unsigned int s, e;
+	vaddr_t s;
+	vaddr_t e;
 
 	/* get virtual addr/size of RAM where TA are loaded/executedNSec
 	 * shared mem allcated from teecore */
@@ -734,7 +735,8 @@ void teecore_init_ta_ram(void)
 
 void teecore_init_pub_ram(void)
 {
-	unsigned int s, e;
+	vaddr_t s;
+	vaddr_t e;
 	unsigned int nsec_tee_size = 32 * 1024;
 
 	/* get virtual addr/size of NSec shared mem allcated from teecore */

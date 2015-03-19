@@ -492,7 +492,7 @@ void thread_state_free(void)
 	unlock_global();
 }
 
-int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
+int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 {
 	struct thread_core_local *l = get_core_local();
 	int ct = l->curr_thread;

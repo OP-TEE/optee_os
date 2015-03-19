@@ -435,7 +435,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		paddr_t pa_end;
 		vaddr_t va_end;
 
-		debug_print(" %010" PRIx32 " %010" PRIx32 " %10" PRIx32 " %x",
+		debug_print(" %010" PRIxVA " %010" PRIxPA " %10zx %x",
 			    mm[n].va, mm[n].pa, mm[n].size, mm[n].attr);
 
 		assert(IS_PAGE_ALIGNED(mm[n].pa));
