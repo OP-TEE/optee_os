@@ -304,7 +304,7 @@ static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 		abort_type_to_str(ai->abort_type), ai->va);
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x   ttbr1 0x%08x   cidr 0x%X\n",
 		 ai->fsr, read_ttbr0(), read_ttbr1(), read_contextidr());
-	EMSG_RAW(" cpu #%d          cpsr 0x%08x\n",
+	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
 		 get_core_pos(), read_spsr());
 	EMSG_RAW(" r0 0x%08x     r4 0x%08x     r8 0x%08x    r12 0x%08x\n",
 		 ai->regs->r0, ai->regs->r4, ai->regs->r8, ai->regs->ip);

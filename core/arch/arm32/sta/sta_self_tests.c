@@ -135,7 +135,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[4])
 		return TEE_SUCCESS;
 	}
 
-	DMSG("expect memref params: %p/%d - %p/%d - %p/%d - %p/%d",
+	DMSG("expect memref params: %p/%zu - %p/%zu - %p/%zu - %p/%zu",
 			p[0].memref.buffer, p[0].memref.size,
 			p[1].memref.buffer, p[1].memref.size,
 			p[2].memref.buffer, p[2].memref.size,

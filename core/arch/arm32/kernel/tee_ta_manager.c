@@ -517,7 +517,7 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr,
 					*heap_size + ctx->stack_size);
 	if (!ctx->mm_heap_stack) {
-		EMSG("Failed to allocate %u bytes\n",
+		EMSG("Failed to allocate %zu bytes\n",
 			*heap_size + ctx->stack_size);
 		EMSG("  of memory for user heap and stack\n");
 		return TEE_ERROR_OUT_OF_MEMORY;
