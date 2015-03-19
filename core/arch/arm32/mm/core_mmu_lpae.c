@@ -65,7 +65,7 @@
 #include <mm/tee_mmu_defs.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
-#include <arm32.h>
+#include <arm.h>
 #include "core_mmu_private.h"
 
 #ifndef DEBUG_XLAT_TABLE

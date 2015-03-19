@@ -35,7 +35,7 @@
 #include <mm/core_mmu.h>
 #include <sm/teesmc.h>
 #include <bitstring.h>
-#include <arm32.h>
+#include <arm.h>
 
 /*
  * Mutex design:

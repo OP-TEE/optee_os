@@ -31,7 +31,7 @@
 
 #include <kernel/tz_proc_def.h>
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <arm32_macros.S>
 
 .global cpu_spin_lock

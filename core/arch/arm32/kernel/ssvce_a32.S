@@ -33,7 +33,7 @@
  * Variable(s)
  */
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <arm32_macros.S>
 
 #include <kernel/tz_proc_def.h>

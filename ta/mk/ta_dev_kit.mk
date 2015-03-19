@@ -32,6 +32,8 @@ cflags$(sm) += $(platform-cflags) $(user_ta-platform-cflags)
 
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
+include $(ta-dev-kit-dir)/mk/arch.mk
+
 libdirs += $(ta-dev-kit-dir)/lib
 libnames += utils mpa utee
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a

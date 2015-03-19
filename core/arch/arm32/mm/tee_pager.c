@@ -41,7 +41,7 @@
 #include <mm/tee_mm.h>
 #include <mm/core_mmu.h>
 #include <tee/arch_svc.h>
-#include <arm32.h>
+#include <arm.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee_api_defines.h>
 #include <utee_defines.h>

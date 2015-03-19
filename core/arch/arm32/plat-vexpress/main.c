@@ -38,7 +38,7 @@
 
 #include <util.h>
 
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <trace.h>

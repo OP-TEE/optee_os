@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,45 +24,37 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef ARM_H
+#define ARM_H
 
-#include <kernel/misc.h>
-#include <kernel/tee_time.h>
-#include <trace.h>
-#include <kernel/time_source.h>
-#include <mm/core_mmu.h>
-#include <utee_defines.h>
 
-#include <assert.h>
-#include <stdint.h>
-#include <mpa.h>
-#include <arm.h>
+#define MPIDR_CPU_MASK		0xff
+#define MPIDR_CLUSTER_SHIFT	8
+#define MPIDR_CLUSTER_MASK	(0xff << MPIDR_CLUSTER_SHIFT)
 
-static uint32_t do_div(uint64_t *dividend, uint32_t divisor)
-{
-	mpa_word_t remainder = 0, n0, n1;
-	n0 = (*dividend) & UINT_MAX;
-	n1 = ((*dividend) >> WORD_SIZE) & UINT_MAX;
-	*dividend = __mpa_div_dword(n0, n1, divisor, &remainder);
-	return remainder;
-}
+#define ARM32_CPSR_MODE_MASK	0x1f
+#define ARM32_CPSR_MODE_USR	0x10
+#define ARM32_CPSR_MODE_FIQ	0x11
+#define ARM32_CPSR_MODE_IRQ	0x12
+#define ARM32_CPSR_MODE_SVC	0x13
+#define ARM32_CPSR_MODE_MON	0x16
+#define ARM32_CPSR_MODE_ABT	0x17
+#define ARM32_CPSR_MODE_UND	0x1b
+#define ARM32_CPSR_MODE_SYS	0x1f
 
-static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
-{
-	uint64_t cntpct = read_cntpct();
-	uint32_t cntfrq = read_cntfrq();
-	uint32_t remainder;
+#define ARM32_CPSR_T		(1 << 5)
+#define ARM32_CPSR_F_SHIFT	6
+#define ARM32_CPSR_F		(1 << 6)
+#define ARM32_CPSR_I		(1 << 7)
+#define ARM32_CPSR_A		(1 << 8)
+#define ARM32_CPSR_FIA		(ARM32_CPSR_F | ARM32_CPSR_I | ARM32_CPSR_A)
+#define ARM32_CPSR_IT_MASK	(ARM32_CPSR_IT_MASK1 | ARM32_CPSR_IT_MASK2)
+#define ARM32_CPSR_IT_MASK1	0x06000000
+#define ARM32_CPSR_IT_MASK2	0x0000fc00
 
-	remainder = do_div(&cntpct, cntfrq);
 
-	time->seconds = (uint32_t)cntpct;
-	time->millis = remainder / (cntfrq / TEE_TIME_MILLIS_BASE);
+#ifdef ARM32
+#include <arm32.h>
+#endif
 
-	return TEE_SUCCESS;
-}
-
-static const struct time_source arm_cntpct_time_source = {
-	.name = "arm cntpct",
-	.get_sys_time = arm_cntpct_get_sys_time,
-};
-
-REGISTER_TIME_SOURCE(arm_cntpct_time_source)
+#endif /*ARM_H*/

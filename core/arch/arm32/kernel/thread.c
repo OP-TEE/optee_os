@@ -34,7 +34,7 @@
 #include <sm/sm.h>
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_proc.h>
 #include <kernel/misc.h>

@@ -28,7 +28,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <arm32.h>
+#include <arm.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <trace.h>

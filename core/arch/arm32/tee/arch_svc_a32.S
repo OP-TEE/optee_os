@@ -27,7 +27,7 @@
 #include "tee_syscall_numbers.h"
 #include "trace_levels.h"
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
 

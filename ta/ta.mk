@@ -9,6 +9,8 @@ CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
+include ta/arch/$(ARCH)/$(ARCH).mk
+
 cppflags$(sm)	+= $(platform-cppflags) $(user_ta-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(user_ta-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(user_ta-platform-aflags)
@@ -65,6 +67,17 @@ ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk \
 
 $(foreach f, $(ta-mkfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/mk)))
+
+# Special treatment for ta/arch/$(ARCH)/$(ARCH).mk
+arch-arch-mk := $(out-dir)/export-user_ta/mk/arch.mk
+$(arch-arch-mk): ta/arch/$(ARCH)/$(ARCH).mk
+	@set -e; \
+	mkdir -p $(dir $@) ; \
+	echo '  INSTALL $@' ; \
+	cp $< $@
+
+cleanfiles += $(arch-arch-mk)
+all: $(arch-arch-mk)
 
 # Copy the .h files for TAs
 define copy-incdir

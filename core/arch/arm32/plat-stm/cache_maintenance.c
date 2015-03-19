@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <compiler.h>
-#include <arm32.h>
+#include <arm.h>
 #include <mm/core_mmu.h>
 #include <kernel/tz_ssvce_pl310.h>
 

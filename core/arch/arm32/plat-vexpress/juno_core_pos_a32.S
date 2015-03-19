@@ -26,7 +26,7 @@
  */
 
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <arm32_macros.S>
 
 /* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */

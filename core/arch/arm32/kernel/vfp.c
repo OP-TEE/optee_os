@@ -1,4 +1,4 @@
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/vfp.h>
 #include "vfp_private.h"
 #include <assert.h>

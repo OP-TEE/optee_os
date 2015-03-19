@@ -7,6 +7,7 @@ sm-$(sm) := y
 arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include $(platform-dir)/conf.mk
+include core/arch/$(ARCH)/$(ARCH).mk
 
 # Setup compiler for this sub module
 CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)

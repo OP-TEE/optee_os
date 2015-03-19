@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <types_ext.h>
 
-#include <arm32.h>
+#include <arm.h>
 #include <util.h>
 #include <kernel/tee_common.h>
 #include <mm/tee_mmu.h>

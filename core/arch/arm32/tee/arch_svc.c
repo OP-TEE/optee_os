@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/thread.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
