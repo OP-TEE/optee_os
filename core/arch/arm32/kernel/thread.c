@@ -180,19 +180,26 @@ void thread_check_canaries(void)
 #ifdef CFG_WITH_STACK_CANARIES
 	size_t n;
 
-#define ASSERT_STACK_CANARIES(name)					\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		assert(GET_START_CANARY(name, n) == START_CANARY_VALUE);\
-		assert(GET_END_CANARY(name, n) == END_CANARY_VALUE);	\
-	} while (0)
+	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
+		assert(GET_START_CANARY(stack_tmp, n) == START_CANARY_VALUE);
+		assert(GET_END_CANARY(stack_tmp, n) == END_CANARY_VALUE);
+	}
 
-	ASSERT_STACK_CANARIES(stack_tmp);
-	ASSERT_STACK_CANARIES(stack_abt);
+	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
+		assert(GET_START_CANARY(stack_abt, n) == START_CANARY_VALUE);
+		assert(GET_END_CANARY(stack_abt, n) == END_CANARY_VALUE);
+	}
 #ifdef CFG_WITH_SEC_MON
-	ASSERT_STACK_CANARIES(stack_sm);
+	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
+		assert(GET_START_CANARY(stack_sm, n) == START_CANARY_VALUE);
+		assert(GET_END_CANARY(stack_sm, n) == END_CANARY_VALUE);
+	}
 #endif
 #ifndef CFG_WITH_PAGER
-	ASSERT_STACK_CANARIES(stack_thread);
+	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
+		assert(GET_START_CANARY(stack_thread, n) == START_CANARY_VALUE);
+		assert(GET_END_CANARY(stack_thread, n) == END_CANARY_VALUE);
+	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
