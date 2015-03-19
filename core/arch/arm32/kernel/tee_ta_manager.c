@@ -312,6 +312,7 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 {
 	uint32_t *data;
 	tee_uaddr_t heap_start_addr;
+	vaddr_t va_start;
 
 	/*
 	 * User TA
@@ -319,9 +320,9 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 	 * Heap base follows right after GOT
 	 */
 
+	core_mmu_get_user_va_range(&va_start, NULL);
 	/* XXX this function shouldn't know this mapping */
-	heap_start_addr = ((TEE_DDR_VLOFFSET + 1) << CORE_MMU_USER_CODE_SHIFT) -
-			  heap_size;
+	heap_start_addr = va_start + CORE_MMU_USER_CODE_SIZE - heap_size;
 
 	data = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size +
 			     (ctx->head->rel_dyn_got_size & TA_HEAD_GOT_MASK));

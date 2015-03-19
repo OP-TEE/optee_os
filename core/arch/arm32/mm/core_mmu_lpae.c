@@ -65,6 +65,7 @@
 #include <mm/tee_mmu_defs.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
+#include <kernel/misc.h>
 #include <arm.h>
 #include "core_mmu_private.h"
 
@@ -82,10 +83,6 @@
 /*
  * Miscellaneous MMU related constants
  */
-
-/* Defined to the smallest possible secondary L1 MMU table */
-#define TEE_MMU_TTBCR_T0SZ	7
-#define	TEE_MMU_TTBCR_T1SZ	0
 
 #define INVALID_DESC		0x0
 #define BLOCK_DESC		0x1
@@ -119,7 +116,7 @@
 #define ATTR_DEVICE			(0x4)
 #define ATTR_IWBWA_OWBWA_NTR		(0xff)
 
-#define MAIR_ATTR_SET(attr, index)	(attr << ((index) << 3))
+#define MAIR_ATTR_SET(attr, index)	(((uint64_t)attr) << ((index) << 3))
 
 /* (internal) physical address size bits in EL3/EL1 */
 #define TCR_PS_BITS_4GB		(0x0)
@@ -169,19 +166,21 @@
 #define NUM_L1_ENTRIES		(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
 
 
-static uint64_t l1_xlation_table[NUM_L1_ENTRIES]
+/* MMU L1 table, one for each core */
+static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
 	__aligned(NUM_L1_ENTRIES * sizeof(uint64_t)) __section(".nozi.mmu.l1");
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
-/* MMU L2 table for TAs, one for each Core */
+/* MMU L2 table for TAs, one for each thread */
 static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 
 static unsigned next_xlat __data;
 static uint64_t tcr_ps_bits __data;
+static int user_va_idx = -1;
 
 static uint32_t desc_to_mattr(uint64_t desc)
 {
@@ -437,7 +436,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		vaddr_t va_end;
 
 		debug_print(" %010" PRIx32 " %010" PRIx32 " %10" PRIx32 " %x",
-			    mm[n].pa, mm[n].pa, mm[n].size, mm[n].attr);
+			    mm[n].va, mm[n].pa, mm[n].size, mm[n].attr);
 
 		assert(IS_PAGE_ALIGNED(mm[n].pa));
 		assert(IS_PAGE_ALIGNED(mm[n].size));
@@ -450,7 +449,19 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 			max_va = va_end;
 	}
 
-	init_xlation_table(mm, 0, l1_xlation_table, 1);
+	init_xlation_table(mm, 0, l1_xlation_table[0], 1);
+	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
+		memcpy(l1_xlation_table[n], l1_xlation_table[0],
+			sizeof(uint64_t) * NUM_L1_ENTRIES);
+
+	for (n = 0; n < NUM_L1_ENTRIES; n++) {
+		if (!l1_xlation_table[0][n]) {
+			user_va_idx = n;
+			break;
+		}
+	}
+	assert(user_va_idx != -1);
+
 	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
 	COMPILE_TIME_ASSERT(ADDR_SPACE_SIZE > 0);
 	assert(max_va < ADDR_SPACE_SIZE);
@@ -465,24 +476,18 @@ void core_init_mmu_regs(void)
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
 	write_mair0(mair);
 
-	ttbcr |= TEE_MMU_TTBCR_T0SZ << TTBCR_T0SZ_SHIFT;
-	ttbcr |= TEE_MMU_TTBCR_T1SZ << TTBCR_T1SZ_SHIFT;
 	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_IRGN0_SHIFT;
 	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_ORGN0_SHIFT;
-	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_IRGN1_SHIFT;
-	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_ORGN1_SHIFT;
 	ttbcr |= TTBCR_SHX_ISH << TTBCR_SH0_SHIFT;
-	ttbcr |= TTBCR_SHX_ISH << TTBCR_SH1_SHIFT;
 
-	/* Disable the use of TTBR0 which handles low addresses */
-	ttbcr |= TTBCR_EPD0;
+	/* Disable the use of TTBR1 */
+	ttbcr |= TTBCR_EPD1;
 
 	/* TTBCR.A1 = 0 => ASID is stored in TTBR0 */
 
 	write_ttbcr(ttbcr);
-
-	write_ttbr0_64bit(0);
-	write_ttbr1_64bit((paddr_t)l1_xlation_table);
+	write_ttbr0_64bit((paddr_t)l1_xlation_table[get_core_pos()]);
+	write_ttbr1_64bit(0);
 }
 
 static void set_region(struct core_mmu_table_info *tbl_info,
@@ -508,20 +513,24 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	}
 }
 
-static paddr_t populate_user_map(struct tee_mmu_info *mmu)
+static uint64_t populate_user_map(struct tee_mmu_info *mmu)
 {
 	struct core_mmu_table_info tbl_info;
 	unsigned n;
 	struct tee_mmap_region region;
+	vaddr_t va_range_base;
+	size_t va_range_size;
+
+	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
 
 	tbl_info.table = xlat_tables_ul1[thread_get_id()];
-	tbl_info.va_base = 0;
+	tbl_info.va_base = va_range_base;
 	tbl_info.level = 2;
 	tbl_info.shift = L2_XLAT_ADDRESS_SHIFT;
 	tbl_info.num_entries = XLAT_TABLE_ENTRIES;
 
 	region.pa = 0;
-	region.va = 0;
+	region.va = va_range_base;
 	region.attr = 0;
 
 	for (n = 0; n < mmu->size; n++) {
@@ -534,32 +543,30 @@ static paddr_t populate_user_map(struct tee_mmu_info *mmu)
 
 		set_region(&tbl_info, mmu->table + n);
 		region.va = mmu->table[n].va + mmu->table[n].size;
-		assert(region.va <= CORE_MMU_USER_MAX_ADDR);
+		assert((region.va - va_range_base) <= va_range_size);
 	}
-	region.size = CORE_MMU_USER_MAX_ADDR - region.va;
+	region.size = va_range_size - (region.va - va_range_base);
 	set_region(&tbl_info, &region);
 
-	return (paddr_t)tbl_info.table;
+	return (uintptr_t)tbl_info.table | TABLE_DESC;
 }
 
 void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
 		struct core_mmu_user_map *map)
 {
 	if (mmu) {
-		map->ttbr0 = populate_user_map(mmu);
-		map->ttbr0 |= (uint64_t)(asid & TTBR_ASID_MASK) <<
-				TTBR_ASID_SHIFT;
-		map->enabled = true;
+		map->user_map = populate_user_map(mmu);
+		map->asid = asid & TTBR_ASID_MASK;
 	} else {
-		map->ttbr0 = 0;
-		map->enabled = false;
+		map->user_map = 0;
+		map->asid = 0;
 	}
 }
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info)
 {
-	uint64_t *tbl = l1_xlation_table;
+	uint64_t *tbl = l1_xlation_table[get_core_pos()];
 	uintptr_t ntbl;
 	unsigned level = 1;
 	vaddr_t va_base = 0;
@@ -624,43 +631,65 @@ void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 		*attr = desc_to_mattr(table[idx]);
 }
 
-void core_mmu_get_user_map(struct core_mmu_user_map *map)
+void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 {
-	map->ttbr0 = read_ttbr0_64bit();
-	if (read_ttbcr() & TTBCR_EPD0)
-		map->enabled = false;
-	else
-		map->enabled = true;
-}
+	assert(user_va_idx != -1);
 
-void core_mmu_set_user_map(struct core_mmu_user_map *map)
-{
-	uint32_t ttbcr;
-	uint64_t ttbr;
-	uint32_t cpsr = read_cpsr();
-
-	write_cpsr(cpsr | CPSR_FIA);
-
-	ttbcr = read_ttbcr();
-
-	if (map && map->enabled) {
-		ttbr = map->ttbr0;
-		ttbcr &= ~TTBCR_EPD0;
-	} else {
-		ttbr = 0;
-		ttbcr |= TTBCR_EPD0;
-	}
-	write_ttbr0_64bit(ttbr);
-	write_ttbcr(ttbcr);
-	isb();
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
-
-	write_cpsr(cpsr);
+	if (base)
+		*base = (vaddr_t)user_va_idx << L1_XLAT_ADDRESS_SHIFT;
+	if (size)
+		*size = 1 << L1_XLAT_ADDRESS_SHIFT;
 }
 
 bool core_mmu_user_mapping_is_active(void)
 {
-	return !(read_ttbcr() & TTBCR_EPD0);
+	assert(user_va_idx != -1);
+	return !!l1_xlation_table[get_core_pos()][user_va_idx];
+}
+
+void core_mmu_get_user_map(struct core_mmu_user_map *map)
+{
+	assert(user_va_idx != -1);
+
+	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
+	if (map->user_map) {
+		map->asid = (read_ttbr0_64bit() >> TTBR_ASID_SHIFT) &
+			    TTBR_ASID_MASK;
+	} else {
+		map->asid = 0;
+	}
+}
+
+void core_mmu_set_user_map(struct core_mmu_user_map *map)
+{
+	uint64_t ttbr;
+	uint32_t cpsr = read_cpsr();
+
+	assert(user_va_idx != -1);
+
+	write_cpsr(cpsr | CPSR_FIA);
+
+	ttbr = read_ttbr0_64bit();
+	/* Clear ASID */
+	ttbr &= ~((uint64_t)TTBR_ASID_MASK << TTBR_ASID_SHIFT);
+	write_ttbr0_64bit(ttbr);
+	isb();
+
+	/* Set the new map */
+	if (map && map->user_map) {
+		l1_xlation_table[get_core_pos()][user_va_idx] = map->user_map;
+		dsb();	/* Make sure the write above is visible */
+		ttbr |= ((uint64_t)map->asid << TTBR_ASID_SHIFT);
+		write_ttbr0_64bit(ttbr);
+		isb();
+	} else {
+		l1_xlation_table[get_core_pos()][user_va_idx] = 0;
+		dsb();	/* Make sure the write above is visible */
+	}
+
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
+	write_cpsr(cpsr);
 }
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)

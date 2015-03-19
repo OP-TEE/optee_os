@@ -59,9 +59,6 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
-/* The maximum VA for user space */
-#define CORE_MMU_USER_MAX_ADDR	(32 * 1024 * 1024)
-
 /*
  * @type:  enumerate: specifiy the purpose of the memory area.
  * @pa:    memory area physical start address
@@ -119,15 +116,15 @@ void core_init_mmu_regs(void);
 #ifdef CFG_WITH_LPAE
 /*
  * struct core_mmu_user_map - current user mapping register state
- * @ttbr0:	content of ttbr0
- * @enabled:	true if usage of ttbr0 is enabled
+ * @user_map:	physical address of user map translation table
+ * @asid:	ASID for the user map
  *
  * Note that this struct should be treated as an opaque struct since
  * the content depends on descriptor table format.
  */
 struct core_mmu_user_map {
-	uint64_t ttbr0;
-	bool enabled;
+	uint64_t user_map;
+	uint32_t asid;
 };
 #else
 /*
@@ -143,6 +140,13 @@ struct core_mmu_user_map {
 	uint32_t ctxid;
 };
 #endif
+
+/*
+ * core_mmu_get_user_va_range() - Return range of user va space
+ * @base:	Lowest user virtual address
+ * @size:	Size in bytes of user address space
+ */
+void core_mmu_get_user_va_range(vaddr_t *base, size_t *size);
 
 /*
  * enum core_mmu_fault - different kinds of faults

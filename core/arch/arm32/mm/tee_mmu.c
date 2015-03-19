@@ -190,10 +190,13 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 {
 	size_t n;
 	vaddr_t va;
+	vaddr_t va_range_base;
+	size_t va_range_size;
 
 	assert(mmu->table && mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
 
-	va = CORE_MMU_USER_CODE_SIZE;
+	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
+	va = va_range_base;
 	for (n = 0; n < TEE_MMU_UMAP_PARAM_IDX; n++) {
 		assert(mmu->table[n].size); /* PA must be assigned by now */
 		mmu->table[n].va = va;
@@ -208,7 +211,7 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 		va += mmu->table[n].size;
 		/* Put some empty space between each area */
 		va += CORE_MMU_USER_PARAM_SIZE;
-		if (va >= CORE_MMU_USER_MAX_ADDR)
+		if ((va - va_range_base) >= va_range_size)
 			return TEE_ERROR_EXCESS_DATA;
 	}
 
