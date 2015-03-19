@@ -376,6 +376,114 @@ FUNC thread_init_vbar , :
 	bx	lr
 END_FUNC thread_init_vbar
 
+/*
+ * Below are low level routines handling entry and return from user mode.
+ *
+ * thread_enter_user_mode() saves all that registers user mode can change
+ * so kernel mode can restore needed registers when resuming execution
+ * after the call to thread_enter_user_mode() has returned.
+ * thread_enter_user_mode() doesn't return directly since it enters user
+ * mode instead, it's thread_unwind_user_mode() that does the
+ * returning by restoring the registers saved by thread_enter_user_mode().
+ *
+ * There's three ways for thread_enter_user_mode() to return to caller,
+ * user TA calls utee_return, user TA calls utee_panic or through an abort.
+ *
+ * Calls to utee_return or utee_panic are handled as:
+ * thread_svc_handler() -> tee_svc_handler() ->	tee_svc_do_call() which
+ * calls tee_svc_sys_return() or tee_svc_sys_panic().
+ *
+ * These function calls returns normally except thread_svc_handler() which
+ * which is an exception handling routine so it reads return address and
+ * SPSR to restore from the stack. tee_svc_sys_return() and tee_svc_sys_panic()
+ * changes return address and SPSR used by thread_svc_handler() to instead of
+ * returning into user mode as with other syscalls it returns into
+ * thread_unwind_user_mode() in kernel mode instead.  When
+ * thread_svc_handler() returns the stack pointer at the point where
+ * thread_enter_user_mode() left it so this is where
+ * thread_unwind_user_mode() can operate.
+ *
+ * Aborts are handled in a similar way but by thread_abort_handler()
+ * instead, when the pager sees that it's an abort from user mode that
+ * can't be handled it updates SPSR and return address used by
+ * thread_abort_handler() to return into thread_unwind_user_mode()
+ * instead.
+ */
+
+/*
+ * TEE_Result thread_enter_user_mode(
+ *              uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+ *              tee_uaddr_t sp, tee_uaddr_t user_func,
+ *              uint32_t *panicked, uint32_t *panic_code);
+ * See description in thread.h
+ */
+FUNC thread_enter_user_mode , :
+	/*
+	 * Save all registers to allow tee_svc_sys_return() to
+	 * resume execution as if this function would have returned.
+	 * This is also used in tee_svc_sys_panic().
+	 *
+	 * If stack usage of this function is changed
+	 * thread_unwind_user_mode() has to be updated.
+	 */
+	push    {r4-r12,lr}
+
+	ldr     r4, [sp, #(10 * 0x4)]   /* user stack pointer */
+	ldr     r5, [sp, #(11 * 0x4)]   /* user function */
+
+	/*
+	 * Save old user sp and set new user sp.
+	 */
+	cps	#CPSR_MODE_SYS
+	mov	r6, sp
+	mov     sp, r4
+	cps	#CPSR_MODE_SVC
+	push	{r6}
+
+	/*
+	 * Set the saved Processors Status Register to user mode to allow
+	 * entry of user mode through movs below. Also update thumbstate
+	 * since movs doesn't do that automatically.
+	 */
+	mrs     r6, cpsr
+	bic     r6, #CPSR_MODE_MASK
+	orr	r6, #CPSR_MODE_USR
+	tst     r5, #1	/* If it's odd we should switch to thumb mode */
+	orrne   r6, #CPSR_T		/* Enable thumb mode */
+	biceq   r6, #CPSR_T		/* Disable thumb mode */
+	bicne   r6, #CPSR_IT_MASK1	/* Clear IT state for thumb mode */
+	bicne   r6, #CPSR_IT_MASK2	/* Clear IT state for thumb mode */
+	msr     spsr_cxsf, r6
+
+	/*
+	* Don't allow return from this function, return is done through
+	* thread_unwind_user_mode() below.
+	*/
+	mov     lr, #0
+	/* Call the user function with its arguments */
+	movs    pc, r5
+END_FUNC thread_enter_user_mode
+
+/*
+ * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
+ *              uint32_t exit_status1);
+ * See description in thread.h
+ */
+FUNC thread_unwind_user_mode , :
+	ldr     ip, [sp, #(13 * 0x4)]   /* &ctx->panicked */
+	str	r1, [ip]
+	ldr     ip, [sp, #(14 * 0x4)]   /* &ctx->panic_code */
+	str	r2, [ip]
+
+	/* Restore old user sp */
+	pop	{r4}
+	cps	#CPSR_MODE_SYS
+	mov	sp, r4
+	cps	#CPSR_MODE_SVC
+
+	pop     {r4-r12,pc}	/* Match the push in thread_enter_user_mode()*/
+END_FUNC thread_unwind_user_mode
+
 LOCAL_FUNC thread_abort_handler , :
 thread_abort_handler:
 thread_und_handler:

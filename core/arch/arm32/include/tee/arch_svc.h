@@ -34,29 +34,6 @@ struct thread_svc_regs;
 void tee_svc_handler(struct thread_svc_regs *regs);
 
 /*
- * This function will not return itself, rather it will end with a system
- * call to return to kernel mode. The syscall will unwinde the stack and
- * the result will be as if this function had returned.
- *
- * User_func is called in user mode with stack setup and a0-a3 passed
- * in r0-r3.
- */
-TEE_Result tee_svc_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
-			uint32_t a3, tee_uaddr_t sp,
-			tee_uaddr_t user_func, uint32_t *panicked,
-			uint32_t *panic_code);
-
-
-/*
- * Expects stack pointer where tee_svc_enter_user_mode() left it, will
- * unwind the stack and return to where tee_svc_enter_user_mode() was
- * expected to return to.
- */
-uint32_t tee_svc_unwind_enter_user_mode(uint32_t ret, bool panic,
-			uint32_t panic_code);
-
-
-/*
  * Called from the assembly functions tee_svc_sys_return() and
  * tee_svc_sys_panic() to update the register values in the struct
  * thread_svc_regs to return back to TEE Core from an erlier call to

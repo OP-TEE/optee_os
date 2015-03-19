@@ -252,6 +252,50 @@ uint32_t thread_kernel_enable_vfp(void);
  */
 void thread_kernel_disable_vfp(uint32_t state);
 
+/*
+ * thread_enter_user_mode() - Enters user mode
+ * @a0:		Passed in r/x0 for user_func
+ * @a1:		Passed in r/x1 for user_func
+ * @a2:		Passed in r/x2 for user_func
+ * @a3:		Passed in r/x3 for user_func
+ * @user_sp:	Assigned sp value in user mode
+ * @user_func:	Function to execute in user mode
+ * @exit_status0: Pointer to opaque exit staus 0
+ * @exit_status1: Pointer to opaque exit staus 1
+ *
+ * This functions enters user mode with the argument described above,
+ * @exit_status0 and @exit_status1 are filled in by thread_unwind_user_mode()
+ * when returning back to the caller of this function through an exception
+ * handler.
+ *
+ * @Returns what's passed in "ret" to thread_unwind_user_mode()
+ */
+
+uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
+		uint32_t a3, vaddr_t user_sp, vaddr_t user_func,
+		uint32_t *exit_status0, uint32_t *exit_status1);
+
+/*
+ * thread_unwind_user_mode() - Unwinds kernel stack from user entry
+ * @ret:	Value to return from thread_enter_user_mode()
+ * @exit_status0: Exit status 0
+ * @exit_status1: Exit status 1
+ *
+ * This is the function that exception handlers can return into
+ * to resume execution in kernel mode instead of user mode.
+ *
+ * This function is closely coupled with thread_enter_user_mode() since it
+ * need to restore registers saved by thread_enter_user_mode() and when it
+ * returns make it look like thread_enter_user_mode() just returned. It is
+ * expected that the stack pointer is where thread_enter_user_mode() left
+ * it. The stack will be unwound and the function will return to where
+ * thread_enter_user_mode() was called from.  Exit_status0 and exit_status1
+ * are filled in the corresponding pointers supplied to
+ * thread_enter_user_mode().
+ */
+void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
+		uint32_t exit_status1);
+
 /**
  * Allocates data for struct teesmc32_arg.
  *

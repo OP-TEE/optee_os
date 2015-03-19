@@ -153,7 +153,7 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	}
 	regs->r1 = panic;
 	regs->r2 = panic_code;
-	regs->lr = (uintptr_t)tee_svc_unwind_enter_user_mode;
+	regs->lr = (uintptr_t)thread_unwind_user_mode;
 	regs->spsr = read_cpsr();
 	return ret;
 }

@@ -795,7 +795,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	switch (func) {
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
-		    tee_svc_enter_user_mode(param->types, params_uaddr,
+		    thread_enter_user_mode(param->types, params_uaddr,
 					    (uint32_t)session, 0, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);
@@ -808,7 +808,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		break;
 
 	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
-		res = tee_svc_enter_user_mode((uint32_t)session, 0, 0, 0,
+		res = thread_enter_user_mode((uint32_t)session, 0, 0, 0,
 					      stack_uaddr, start_uaddr,
 					      &ctx->panicked, &ctx->panic_code);
 
@@ -817,7 +817,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	case USER_TA_FUNC_INVOKE_COMMAND:
 		res =
-		    tee_svc_enter_user_mode(cmd, param->types, params_uaddr,
+		    thread_enter_user_mode(cmd, param->types, params_uaddr,
 					    (uint32_t)session, stack_uaddr,
 					    start_uaddr, &ctx->panicked,
 					    &ctx->panic_code);

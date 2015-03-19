@@ -548,7 +548,7 @@ void tee_pager_abort_handler(uint32_t abort_type,
 		regs->r0 = TEE_ERROR_TARGET_DEAD;
 		regs->r1 = true;
 		regs->r2 = 0xdeadbeef;
-		regs->lr = (uint32_t)tee_svc_unwind_enter_user_mode;
+		regs->lr = (uint32_t)thread_unwind_user_mode;
 		regs->spsr = read_cpsr();
 		regs->spsr &= ~CPSR_MODE_MASK;
 		regs->spsr |= CPSR_MODE_SVC;
