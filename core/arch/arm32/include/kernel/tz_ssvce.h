@@ -28,6 +28,7 @@
 #ifndef TZ_SSVCE_H
 #define TZ_SSVCE_H
 
+#ifndef ASM
 unsigned int secure_get_cpu_id(void);
 
 void arm_cl1_d_cleanbysetway(void);
@@ -50,5 +51,6 @@ void secure_mmu_unifiedtlbinv_curasid(void);
 void secure_mmu_unifiedtlbinv_byasid(unsigned long asid);
 
 void secure_mmu_disable(void);
+#endif /*!ASM*/
 
 #endif

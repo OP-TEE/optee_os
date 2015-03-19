@@ -26,35 +26,17 @@
  */
 
 #include <asm.S>
-#include <arm32.h>
+#include <arm.h>
 #include <arm32_macros.S>
 
-/* Let platforms override this if needed */
-.weak get_core_pos
-
+/* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
 FUNC get_core_pos , :
 	read_mpidr r0
-	/* Calculate CorePos = (ClusterId * 4) + CoreId */
+	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK
+	eor	r0, r0, #(1 << MPIDR_CLUSTER_SHIFT)
 	add	r0, r1, r0, LSR #6
 	bx	lr
 END_FUNC get_core_pos
 
-/* uint32_t read_usr_sp(void) */
-FUNC read_usr_sp , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, sp
-	msr	cpsr, r1
-	bx	lr
-END_FUNC read_usr_sp
-
-/* uint32_t read_usr_lr(void) */
-FUNC read_usr_lr , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, lr
-	msr	cpsr, r1
-	bx	lr
-END_FUNC read_usr_lr

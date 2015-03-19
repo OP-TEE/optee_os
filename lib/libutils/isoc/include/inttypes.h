@@ -29,7 +29,12 @@
 
 #include <stdint.h>
 
+#ifdef ILP32
 #define __PRI64_PREFIX	"ll"
+#endif
+#ifdef LP64
+#define __PRI64_PREFIX	"l"
+#endif
 #define __PRIPTR_PREFIX "l"
 
 #define PRId8		"d"

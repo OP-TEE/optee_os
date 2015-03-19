@@ -45,7 +45,7 @@ TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
 	struct tee_obj *o;
 
 	TAILQ_FOREACH(o, &ctx->objects, link) {
-		if (obj_id == (uint32_t) o) {
+		if (obj_id == (vaddr_t)o) {
 			*obj = o;
 			return TEE_SUCCESS;
 		}

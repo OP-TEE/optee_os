@@ -35,7 +35,7 @@
 #include <mm/core_mmu.h>
 #include <sm/teesmc.h>
 #include <bitstring.h>
-#include <arm32.h>
+#include <arm.h>
 
 /*
  * Mutex design:
@@ -60,22 +60,6 @@
 
 static bitstr_t bit_decl(mutex_handle_db, MUTEX_MAX_NUMBER_OF);
 static unsigned mutex_handle_db_spin_lock;
-
-static uint32_t itr_disable(void)
-{
-	uint32_t cpsr = read_cpsr();
-	const uint32_t itrs = CPSR_A | CPSR_I | CPSR_F;
-
-	write_cpsr(cpsr & ~itrs);
-	return cpsr & itrs;
-}
-
-static void itr_enable(uint32_t itr_status)
-{
-	uint32_t cpsr = read_cpsr();
-
-	write_cpsr(cpsr | itr_status);
-}
 
 static int mutex_handle_get(void)
 {
@@ -113,14 +97,14 @@ static void mutex_check_init(struct mutex *m)
 	if (m->handle != -1)
 		return;
 
-	old_itr_status = itr_disable();
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&mutex_handle_db_spin_lock);
 
 	if (m->handle == -1)
 		m->handle = mutex_handle_get();
 
 	cpu_spin_unlock(&mutex_handle_db_spin_lock);
-	itr_enable(old_itr_status);
+	thread_unmask_exceptions(old_itr_status);
 }
 
 void mutex_init(struct mutex *m)
@@ -187,7 +171,7 @@ void mutex_lock(struct mutex *m)
 		uint32_t tick = 0;
 		int handle = -1;
 
-		old_itr_status = itr_disable();
+		old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 		cpu_spin_lock(&m->spin_lock);
 
 		if (did_sleep)
@@ -204,7 +188,7 @@ void mutex_lock(struct mutex *m)
 
 
 		cpu_spin_unlock(&m->spin_lock);
-		itr_enable(old_itr_status);
+		thread_unmask_exceptions(old_itr_status);
 
 		if (old_value == MUTEX_VALUE_UNLOCKED)
 			return; /* We have the lock */
@@ -226,7 +210,7 @@ void mutex_unlock(struct mutex *m)
 	int handle;
 	uint32_t tick;
 
-	old_itr_status = itr_disable();
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&m->spin_lock);
 
 	TEE_ASSERT(m->value == MUTEX_VALUE_LOCKED);
@@ -242,7 +226,7 @@ void mutex_unlock(struct mutex *m)
 	}
 
 	cpu_spin_unlock(&m->spin_lock);
-	itr_enable(old_itr_status);
+	thread_unmask_exceptions(old_itr_status);
 
 	if (num_waiters) {
 		DMSG("thread: %u waking someone", thread_get_id());
@@ -255,7 +239,7 @@ bool mutex_trylock(struct mutex *m)
 	uint32_t old_itr_status;
 	enum mutex_value old_value;
 
-	old_itr_status = itr_disable();
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&m->spin_lock);
 
 	old_value = m->value;
@@ -263,7 +247,7 @@ bool mutex_trylock(struct mutex *m)
 		m->value = MUTEX_VALUE_LOCKED;
 
 	cpu_spin_unlock(&m->spin_lock);
-	itr_enable(old_itr_status);
+	thread_unmask_exceptions(old_itr_status);
 
 	return old_value == MUTEX_VALUE_UNLOCKED;
 }
@@ -285,11 +269,11 @@ void mutex_destroy(struct mutex *m)
 	m->handle = -1;
 	mutex_wait_cmd(TEE_WAIT_MUTEX_DELETE, handle, 0);
 
-	old_itr_status = itr_disable();
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&mutex_handle_db_spin_lock);
 
 	mutex_handle_put(handle);
 
 	cpu_spin_unlock(&mutex_handle_db_spin_lock);
-	itr_enable(old_itr_status);
+	thread_unmask_exceptions(old_itr_status);
 }

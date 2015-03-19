@@ -150,7 +150,7 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
 			./scripts/gen_hashed_bin.py
 	@echo '  GEN     $@'
 	$(q)./scripts/gen_hashed_bin.py \
-		--arch 0 \
+		--arch $(core-tee-bin-arch) \
 		--init_size `cat $(link-out-dir)/tee-init_size.txt` \
 		--init_load_addr_lo \
 			`cat $(link-out-dir)/tee-init_load_addr.txt` \

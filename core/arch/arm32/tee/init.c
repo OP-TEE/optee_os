@@ -54,7 +54,8 @@ static void call_initcalls(void)
 		TEE_Result ret;
 		ret = (*call)();
 		if (ret != TEE_SUCCESS) {
-			EMSG("Initial call 0x%08x failed", (uint32_t)call);
+			EMSG("Initial call 0x%08" PRIxVA " failed",
+			     (vaddr_t)call);
 		}
 	}
 }

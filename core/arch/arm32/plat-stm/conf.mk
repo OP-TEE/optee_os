@@ -3,6 +3,8 @@ include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 CROSS_COMPILE	?= armv7-linux-
 COMPILER	?= gcc
 
+CFG_ARM32_core ?= y
+
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 

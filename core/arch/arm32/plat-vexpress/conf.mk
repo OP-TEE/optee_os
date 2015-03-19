@@ -10,10 +10,12 @@ CFG_ARM32_core ?= y
 endif
 
 ifeq ($(CFG_ARM64_core),y)
+core-tee-bin-arch := 1
 core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-aflags += $(arm64-platform-aflags)
 else
+core-tee-bin-arch := 0
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-aflags += $(arm32-platform-aflags)

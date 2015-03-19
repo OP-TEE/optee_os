@@ -32,7 +32,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_optee.h>
 
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/thread.h>
 #include <kernel/time_source.h>
 #include <kernel/panic.h>

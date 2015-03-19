@@ -38,7 +38,7 @@
 
 #include <util.h>
 
-#include <arm32.h>
+#include <arm.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <trace.h>
@@ -261,7 +261,7 @@ static void main_init_runtime(uint32_t pagable_part)
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
-	EMSG("hash_size %d", hash_size);
+	EMSG("hash_size %zu", hash_size);
 	TEE_ASSERT(hashes);
 	memcpy(hashes, tmp_hashes, hash_size);
 
@@ -377,13 +377,12 @@ static void main_init_runtime(uint32_t pagable_part __unused)
 static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 {
 	/*
-	 * Mask external Abort, IRQ and FIQ before switch to the thread
-	 * vector as the thread handler requires externl Abort, IRQ and FIQ
-	 * to be masked while executing with the temporary stack. The
-	 * thread subsystem also asserts that IRQ is blocked when using
-	 * most if its functions.
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_FIA);
+	thread_set_exceptions(THREAD_EXCP_ALL);
 	main_init_cpacr();
 
 	main_init_runtime(pagable_part);
@@ -406,13 +405,12 @@ static void main_init_primary_helper(uint32_t pagable_part, uint32_t nsec_entry)
 static void main_init_secondary_helper(uint32_t nsec_entry)
 {
 	/*
-	 * Mask external Abort, IRQ and FIQ before switch to the thread
-	 * vector as the thread handler requires externl Abort, IRQ and FIQ
-	 * to be masked while executing with the temporary stack. The
-	 * thread subsystem also asserts that IRQ is blocked when using
-	 * most if its functions.
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_FIA);
+	thread_set_exceptions(THREAD_EXCP_ALL);
 
 	thread_init_per_cpu();
 	main_init_sec_mon(nsec_entry);

@@ -1547,7 +1547,7 @@ static TEE_Result tee_svc_cryp_get_state(struct tee_ta_session *sess,
 	struct tee_cryp_state *s;
 
 	TAILQ_FOREACH(s, &sess->ctx->cryp_states, link) {
-		if (state_id == (uint32_t) s) {
+		if (state_id == (vaddr_t)s) {
 			*state = s;
 			return TEE_SUCCESS;
 		}
