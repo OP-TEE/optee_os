@@ -654,7 +654,7 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	 */
 	tee_ta_load_init_user_ta(ctx, heap_size);
 
-	DMSG("Loaded TA at 0x%x, ro_size %u, rw_size %u, zi_size %u",
+	DMSG("Loaded TA at 0x%" PRIxPTR ", ro_size %u, rw_size %u, zi_size %u",
 	     tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
 	     ctx->head->rw_size, ctx->head->zi_size);
 	DMSG("ELF load address 0x%x", ctx->load_addr);
@@ -1654,10 +1654,10 @@ static void dump_state(struct tee_ta_ctx *ctx)
 	EMSG_RAW("Status of TA %s (%p)", uuid, (void *)ctx);
 	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d     %s",
 		 ctx->load_addr, ctx->context, active ? "(active)" : "");
-	EMSG_RAW("- code area : 0x%x ro:%u rw:%u zi:%u",
+	EMSG_RAW("- code area : 0x%" PRIxPTR " ro:%u rw:%u zi:%u",
 		 tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
 		 ctx->head->rw_size, ctx->head->zi_size);
-	EMSG_RAW("- heap/stack: 0x%x stack:%u",
+	EMSG_RAW("- heap/stack: 0x%" PRIxPTR " stack:%zu",
 		 tee_mm_get_smem(ctx->mm_heap_stack),
 		 ctx->stack_size);
 }

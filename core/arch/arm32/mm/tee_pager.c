@@ -115,7 +115,7 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	struct tee_pager_area *area;
 	size_t tbl_va_size;
 
-	DMSG("0x%x - 0x%x : flags 0x%x, store %p, hashes %p",
+	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : flags 0x%x, store %p, hashes %p",
 		tee_mm_get_smem(mm),
 		tee_mm_get_smem(mm) + (mm->size << mm->pool->shift),
 		flags, store, hashes);
@@ -141,7 +141,7 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	tbl_va_size = (1 << tbl_info.shift) * tbl_info.num_entries;
 	if (!core_is_buffer_inside(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
 				   tbl_info.va_base, tbl_va_size)) {
-		DMSG("area 0x%x len 0x%x doesn't fit it translation table 0x%x len 0x%x",
+		DMSG("area 0x%" PRIxPTR " len 0x%zx doesn't fit it translation table 0x%" PRIxVA " len 0x%zx",
 			tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
 			tbl_info.va_base, tbl_va_size);
 		return false;
@@ -214,7 +214,7 @@ static void tee_pager_verify_page(struct tee_pager_area *area, vaddr_t page_va)
 
 		if (hash_sha256_check(hash, (void *)page_va, SMALL_PAGE_SIZE) !=
 				TEE_SUCCESS) {
-			EMSG("PH 0x%x failed", page_va);
+			EMSG("PH 0x%" PRIxVA " failed", page_va);
 			panic();
 		}
 	}
@@ -300,7 +300,7 @@ static __unused const char *abort_type_to_str(uint32_t abort_type)
 static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE
-	EMSG_RAW("\nUser TA %s-abort at address 0x%x\n",
+	EMSG_RAW("\nUser TA %s-abort at address 0x%" PRIxVA,
 		abort_type_to_str(ai->abort_type), ai->va);
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x   ttbr1 0x%08x   cidr 0x%X\n",
 		 ai->fsr, read_ttbr0(), read_ttbr1(), read_contextidr());
@@ -321,7 +321,7 @@ static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 
 static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 {
-	DMSG("%s-abort at 0x%x: FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
+	DMSG("%s-abort at 0x%" PRIxVA ": FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
 	     abort_type_to_str(ai->abort_type),
 	     ai->va, ai->fsr, ai->pc, read_ttbr0(), read_contextidr());
 	DMSG("CPUID 0x%x SPSR_abt 0x%x",
@@ -331,7 +331,7 @@ static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 static void tee_pager_print_error_abort(
 		struct tee_pager_abort_info *ai __unused)
 {
-	EMSG("%s-abort at 0x%x\n"
+	EMSG("%s-abort at 0x%" PRIxVA "\n"
 	     "FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X\n"
 	     "CPUID 0x%x CPSR 0x%x (read from SPSR)",
 	     abort_type_to_str(ai->abort_type),
@@ -473,7 +473,7 @@ static void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
 	area = tee_pager_find_area(ai->va);
 	if (!area) {
 		tee_pager_print_abort(ai);
-		DMSG("Invalid addr 0x%" PRIx32, ai->va);
+		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
 		panic();
 	}
 
@@ -572,7 +572,7 @@ void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap)
 {
 	size_t n;
 
-	DMSG("0x%x - 0x%x : %d",
+	DMSG("0x%" PRIxVA " - 0x%" PRIxVA " : %d",
 	     vaddr, vaddr + npages * SMALL_PAGE_SIZE, (int)unmap);
 
 	/* setup memory */

@@ -38,14 +38,39 @@
 #define STDINT_H
 #define _STDINT_H
 
+/*
+ * If compiler supplies neither __ILP32__ or __LP64__, try to figure it out
+ * here.
+ */
+#if !defined(__ILP32__) && !defined(__LP64__)
+#if defined(__SIZEOF_INT__) && defined(__SIZEOF_POINTER__) && \
+	defined(__SIZEOF_LONG__)
+#if __SIZEOF_INT__ == 4 && __SIZEOF_POINTER__ == 4 && __SIZEOF_LONG__ == 4
+#define __ILP32__ 1
+#endif
+#if __SIZEOF_INT__ == 4 && __SIZEOF_POINTER__ == 8 && __SIZEOF_LONG__ == 8
+#define __LP64__ 1
+#endif
+#endif
+#endif /* !defined(__ILP32__) && !defined(__LP64__) */
+
+#if !defined(__ILP32__) && !defined(__LP64__)
+#error Neither __ILP32__ nor __LP64__ is defined
+#endif
+
 /* 7.18.1.1 Exact-width interger types */
 #ifndef __int8_t_defined
 # define __int8_t_defined
 typedef signed char             int8_t;
 typedef short int               int16_t;
 typedef int                     int32_t;
+#ifdef __ILP32__
 __extension__
 typedef long long int           int64_t;
+#endif /*__ILP32__*/
+#ifdef __LP64__
+typedef long int		int64_t;
+#endif /*__LP64__*/
 #endif
 
 /* Unsigned.  */
@@ -55,16 +80,20 @@ typedef unsigned short int      uint16_t;
 typedef unsigned int            uint32_t;
 # define __uint32_t_defined
 #endif
+#ifdef __ILP32__
 __extension__
 typedef unsigned long long int  uint64_t;
+#endif /*__ILP32__*/
+#ifdef __LP64__
+typedef unsigned long int	uint64_t;
+#endif /*__LP64__*/
 
 /* 7.18.1.4 Integer types capable of holding object pointers */
+typedef long intptr_t;
+typedef unsigned long uintptr_t;
 
-typedef int32_t intptr_t;
-typedef uint32_t uintptr_t;
-
-typedef int32_t intmax_t;
-typedef uint32_t uintmax_t;
+typedef int64_t intmax_t;
+typedef uint64_t uintmax_t;
 
 /*
  * 7.18.2 Limits of specified-width integer types
@@ -89,8 +118,12 @@ typedef uint32_t uintmax_t;
 
 /* 7.18.2.4 Limits of integer types capable of holding object pointers */
 
-#define INTPTR_MIN  INT32_MIN
-#define INTPTR_MAX  INT32_MAX
-#define UINTPTR_MAX UINT32_MAX
+#define INTPTR_MIN  LONG_MIN
+#define INTPTR_MAX  LONG_MAX
+#define UINTPTR_MAX ULONG_MAX
+
+#define INTMAX_MAX  INT64_MAX
+#define INTMAX_MIN  INT64_MIN
+#define UINTMAX_MAX UINT64_MAX
 
 #endif /* STDINT_H */

@@ -580,7 +580,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		 * good enough, panic.
 		 */
 		if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK) {
-			EMSG("va 0x%x pa 0x%x size 0x%x can't be mapped",
+			EMSG("va 0x%" PRIxVA " pa 0x%" PRIxPA " size 0x%x can't be mapped",
 				mm->va, mm->pa, mm->size);
 			panic();
 		}
