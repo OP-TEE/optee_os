@@ -207,16 +207,44 @@ static void unlock_global(void)
 	cpu_spin_unlock(&thread_global_lock);
 }
 
+uint32_t thread_get_exceptions(void)
+{
+	uint32_t cpsr = read_cpsr();
+
+	return (cpsr >> CPSR_F_SHIFT) & THREAD_EXCP_ALL;
+}
+
+void thread_set_exceptions(uint32_t exceptions)
+{
+	uint32_t cpsr = read_cpsr();
+
+	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
+	write_cpsr(cpsr);
+}
+
+uint32_t thread_mask_exceptions(uint32_t exceptions)
+{
+	uint32_t state = thread_get_exceptions();
+
+	thread_set_exceptions(state | (exceptions & THREAD_EXCP_ALL));
+	return state;
+}
+
+void thread_unmask_exceptions(uint32_t state)
+{
+	thread_set_exceptions(state & THREAD_EXCP_ALL);
+}
+
 static struct thread_core_local *get_core_local(void)
 {
 	uint32_t cpu_id = get_core_pos();
 
 	/*
 	 * IRQs must be disabled before playing with core_local since
-	 * we otherwhise may be rescheduled to a different core in the
+	 * we otherwise may be rescheduled to a different core in the
 	 * middle of this function.
 	 */
-	assert(read_cpsr() & CPSR_I);
+	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
 
 	assert(cpu_id < CFG_TEE_CORE_NB_CORE);
 	return &thread_core_local[cpu_id];
@@ -395,8 +423,8 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 	thread_fast_smc_handler_ptr(args);
-	/* Fast handlers must not clear F, I or A bits in CPSR */
-	assert((read_cpsr() & CPSR_FIA) == CPSR_FIA);
+	/* Fast handlers must not unmask any exceptions */
+	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)
@@ -519,17 +547,14 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 
 uint32_t thread_get_id(void)
 {
-	uint32_t cpsr = read_cpsr();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
-
-	/* get_core_local() requires IRQs to be disabled */
-	write_cpsr(cpsr | CPSR_I);
 
 	l = get_core_local();
 	ct = l->curr_thread;
 
-	write_cpsr(cpsr);
+	thread_unmask_exceptions(exceptions);
 	return ct;
 }
 
@@ -653,12 +678,9 @@ void thread_init_per_cpu(void)
 
 void thread_set_tsd(void *tsd)
 {
-	uint32_t cpsr = read_cpsr();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
-
-	/* get_core_local() requires IRQs to be disabled */
-	write_cpsr(cpsr | CPSR_I);
 
 	l = get_core_local();
 	ct = l->curr_thread;
@@ -667,18 +689,15 @@ void thread_set_tsd(void *tsd)
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
 	threads[ct].tsd = tsd;
 
-	write_cpsr(cpsr);
+	thread_unmask_exceptions(exceptions);
 }
 
 void *thread_get_tsd(void)
 {
-	uint32_t cpsr = read_cpsr();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
 	void *tsd;
-
-	/* get_core_local() requires IRQs to be disabled */
-	write_cpsr(cpsr | CPSR_I);
 
 	l = get_core_local();
 	ct = l->curr_thread;
@@ -688,7 +707,7 @@ void *thread_get_tsd(void)
 	else
 		tsd = threads[ct].tsd;
 
-	write_cpsr(cpsr);
+	thread_unmask_exceptions(exceptions);
 	return tsd;
 }
 
@@ -702,11 +721,8 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 
 void thread_set_irq(bool enable)
 {
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
-	uint32_t cpsr = read_cpsr();
-
-	/* get_core_local() requires IRQs to be disabled */
-	write_cpsr(cpsr | CPSR_I);
 
 	l = get_core_local();
 
@@ -714,7 +730,7 @@ void thread_set_irq(bool enable)
 
 	if (enable) {
 		threads[l->curr_thread].flags |= THREAD_FLAGS_IRQ_ENABLE;
-		write_cpsr(cpsr & ~CPSR_I);
+		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
 	} else {
 		/*
 		 * No need to disable IRQ here since it's already disabled
@@ -726,26 +742,21 @@ void thread_set_irq(bool enable)
 
 void thread_restore_irq(void)
 {
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
-	uint32_t cpsr = read_cpsr();
-
-	/* get_core_local() requires IRQs to be disabled */
-	write_cpsr(cpsr | CPSR_I);
 
 	l = get_core_local();
 
 	assert(l->curr_thread != -1);
 
 	if (threads[l->curr_thread].flags & THREAD_FLAGS_IRQ_ENABLE)
-		write_cpsr(cpsr & ~CPSR_I);
+		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
 }
 
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void)
 {
-	uint32_t cpsr = read_cpsr();
-
-	write_cpsr(cpsr | CPSR_I);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 
 	assert(!vfp_is_enabled());
 
@@ -759,21 +770,21 @@ uint32_t thread_kernel_enable_vfp(void)
 	}
 
 	vfp_enable();
-	return cpsr;
+	return exceptions;
 }
 
 void thread_kernel_disable_vfp(uint32_t state)
 {
-	uint32_t cpsr;
+	uint32_t exceptions;
 
 	assert(vfp_is_enabled());
 
 	vfp_disable();
-	cpsr = read_cpsr();
-	assert(cpsr & CPSR_I);
-	cpsr &= ~CPSR_I;
-	cpsr |= state & CPSR_I;
-	write_cpsr(cpsr);
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_IRQ);
+	exceptions &= ~THREAD_EXCP_IRQ;
+	exceptions |= state & THREAD_EXCP_IRQ;
+	thread_set_exceptions(exceptions);
 }
 #endif /*CFG_WITH_VFP*/
 

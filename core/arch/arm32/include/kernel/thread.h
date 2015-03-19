@@ -202,6 +202,29 @@ void thread_set_irq(bool enable);
  */
 void thread_restore_irq(void);
 
+#define THREAD_EXCP_FIQ	(1 << 0)
+#define THREAD_EXCP_IRQ	(1 << 1)
+#define THREAD_EXCP_ABT	(1 << 2)
+#define THREAD_EXCP_ALL	(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ | THREAD_EXCP_ABT)
+
+uint32_t thread_get_exceptions(void);
+
+void thread_set_exceptions(uint32_t excpetions);
+
+/*
+ * thread_mask_exceptions() - Masks (disables) specified asynchronous exceptions
+ * @exceptions	exceptions to mask
+ * @returns old exception state
+ */
+uint32_t thread_mask_exceptions(uint32_t exceptions);
+
+/*
+ * thread_unmask_exceptions() - Unmasks asynchronous exceptions
+ * @exceptions	Old asynchronous exception state to restore (returned by
+ *		thread_mask_exceptions())
+ */
+void thread_unmask_exceptions(uint32_t exceptions);
+
 /*
  * thread_kernel_enable_vfp() - Enables usage of VFP
  *

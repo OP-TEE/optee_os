@@ -378,13 +378,12 @@ static void main_init_primary_helper(uint32_t pageable_part,
 				     uint32_t nsec_entry)
 {
 	/*
-	 * Mask external Abort, IRQ and FIQ before switch to the thread
-	 * vector as the thread handler requires externl Abort, IRQ and FIQ
-	 * to be masked while executing with the temporary stack. The
-	 * thread subsystem also asserts that IRQ is blocked when using
-	 * most if its functions.
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_FIA);
+	thread_set_exceptions(THREAD_EXCP_ALL);
 	main_init_cpacr();
 
 	main_init_runtime(pageable_part);
@@ -407,13 +406,12 @@ static void main_init_primary_helper(uint32_t pageable_part,
 static void main_init_secondary_helper(uint32_t nsec_entry)
 {
 	/*
-	 * Mask external Abort, IRQ and FIQ before switch to the thread
-	 * vector as the thread handler requires externl Abort, IRQ and FIQ
-	 * to be masked while executing with the temporary stack. The
-	 * thread subsystem also asserts that IRQ is blocked when using
-	 * most if its functions.
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_FIA);
+	thread_set_exceptions(THREAD_EXCP_ALL);
 
 	thread_init_per_cpu();
 	main_init_sec_mon(nsec_entry);
