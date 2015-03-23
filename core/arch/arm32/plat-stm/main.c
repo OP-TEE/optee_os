@@ -44,7 +44,7 @@
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
 #include <console.h>
-#include <kernel/asc.h>
+#include <asc.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <assert.h>
 #include <platform_config.h>
@@ -261,7 +261,7 @@ void console_putc(int ch)
 	__asc_xmit_char((char)ch);
 }
 
-void console_flush_tx_fifo(void)
+void console_flush(void)
 {
 	__asc_flush();
 }

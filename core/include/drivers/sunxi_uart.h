@@ -33,7 +33,7 @@ void sunxi_uart_init(vaddr_t base);
 
 void sunxi_uart_putc(int ch, vaddr_t base);
 
-void sunxi_uart_flush_tx_fifo(vaddr_t base);
+void sunxi_uart_flush(vaddr_t base);
 
 bool sunxi_uart_have_rx_data(vaddr_t base);
 

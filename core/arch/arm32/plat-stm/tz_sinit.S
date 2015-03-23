@@ -281,7 +281,10 @@ _wait_cpu0:
 	bl cpu_mmu_enable_icache
 	bl cpu_mmu_enable_dcache
 
-	/* syncrhonise with CPU0 */
+	/* initialize the asc */
+	bl	asc_init
+
+	/* synchronise with CPU0 */
 	ldr r0,=sem_cpu_sync
 	ldr r1, =SEM_CPU1_READY
 	str r1, [r0]
@@ -297,6 +300,9 @@ _wait_cpu0:
 	/* Initialize thread handling and secure monitor */
 	ldr	r0, =stm_secondary_startup
 	bl	main_init
+
+	/* initialize the asc */
+	bl	asc_init
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0

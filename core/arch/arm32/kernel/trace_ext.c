@@ -36,13 +36,13 @@ void trace_ext_puts(bool sync, const char *str)
 	const char *p;
 
 	if (sync)
-		console_flush_tx_fifo();
+		console_flush();
 
 	for (p = str; *p; p++)
 		console_putc(*p);
 
 	if (sync)
-		console_flush_tx_fifo();
+		console_flush();
 }
 
 int trace_ext_get_thread_id(void)

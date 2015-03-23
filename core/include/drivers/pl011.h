@@ -24,20 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef UART_H
-#define UART_H
+#ifndef PL011_H
+#define PL011_H
 
 #include <types_ext.h>
 
-void uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
+void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
 
-void uart_putc(int ch, vaddr_t base);
+void pl011_putc(int ch, vaddr_t base);
 
-void uart_flush_tx_fifo(vaddr_t base);
+void pl011_flush(vaddr_t base);
 
-bool uart_have_rx_data(vaddr_t base);
+bool pl011_have_rx_data(vaddr_t base);
 
-int uart_getchar(vaddr_t base);
+int pl011_getchar(vaddr_t base);
 
-#endif /*UART_H*/
+#endif /* PL011_H */
 

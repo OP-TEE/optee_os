@@ -126,7 +126,7 @@ copy_init:
 	ldr	r0, =CONSOLE_UART_BASE
 	ldr	r1, =CONSOLE_UART_CLK_IN_HZ
 	ldr	r2, =CONSOLE_BAUDRATE
-	bl	uart_init
+	bl	pl011_init
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs

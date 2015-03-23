@@ -29,7 +29,7 @@
 #define CONSOLE_H
 
 void console_putc(int ch);
-void console_flush_tx_fifo(void);
+void console_flush(void);
 
-#endif /*CONSOLE_H*/
+#endif /* CONSOLE_H */
 

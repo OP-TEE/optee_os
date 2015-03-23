@@ -34,7 +34,7 @@ void console_putc(int ch)
 	sunxi_uart_putc(ch, CONSOLE_UART_BASE);
 }
 
-void console_flush_tx_fifo(void)
+void console_flush(void)
 {
-	sunxi_uart_flush_tx_fifo(CONSOLE_UART_BASE);
+	sunxi_uart_flush(CONSOLE_UART_BASE);
 }

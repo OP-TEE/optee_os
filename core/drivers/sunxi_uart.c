@@ -27,7 +27,6 @@
 #include <platform_config.h>
 
 #include <drivers/sunxi_uart.h>
-#include <console.h>
 #include <io.h>
 #include <assert.h>
 #include <compiler.h>
@@ -64,7 +63,7 @@ void sunxi_uart_init(vaddr_t __unused base)
 	 */
 }
 
-void sunxi_uart_flush_tx_fifo(vaddr_t base)
+void sunxi_uart_flush(vaddr_t base)
 {
 	while (read32(base + UART_REG_TFL)) {
 		/* waiting transmit fifo empty */

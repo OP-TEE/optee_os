@@ -32,7 +32,7 @@
 #include <string.h>
 
 #include <drivers/gic.h>
-#include <drivers/uart.h>
+#include <drivers/pl011.h>
 #include <sm/sm.h>
 #include <sm/tee_mon.h>
 
@@ -456,9 +456,9 @@ static void main_fiq(void)
 
 	iar = gic_read_iar();
 
-	while (uart_have_rx_data(CONSOLE_UART_BASE)) {
+	while (pl011_have_rx_data(CONSOLE_UART_BASE)) {
 		DMSG("cpu %zu: got 0x%x",
-		     get_core_pos(), uart_getchar(CONSOLE_UART_BASE));
+		     get_core_pos(), pl011_getchar(CONSOLE_UART_BASE));
 	}
 
 	gic_write_eoir(iar);
@@ -567,14 +567,14 @@ vaddr_t core_mmu_get_ul1_ttb_va(void)
 
 void console_putc(int ch)
 {
-	uart_putc(ch, CONSOLE_UART_BASE);
+	pl011_putc(ch, CONSOLE_UART_BASE);
 	if (ch == '\n')
-		uart_putc('\r', CONSOLE_UART_BASE);
+		pl011_putc('\r', CONSOLE_UART_BASE);
 }
 
-void console_flush_tx_fifo(void)
+void console_flush(void)
 {
-	uart_flush_tx_fifo(CONSOLE_UART_BASE);
+	pl011_flush(CONSOLE_UART_BASE);
 }
 
 #ifndef CFG_WITH_LPAE

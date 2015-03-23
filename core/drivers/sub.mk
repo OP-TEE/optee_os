@@ -1,3 +1,3 @@
-srcs-$(WITH_UART_DRV) += uart.c
+srcs-$(CFG_PL011) += pl011.c
 srcs-$(WITH_GIC_DRV) += gic.c
-srcs-$(WITH_SUNXI_UART) += sunxi_uart.c
+srcs-$(CFG_SUNXI_UART) += sunxi_uart.c

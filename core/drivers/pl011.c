@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <drivers/uart.h>
+#include <drivers/pl011.h>
 #include <io.h>
 
 #define UART_DR		0x00 /* data register */
@@ -61,7 +61,7 @@
 #define UART_FR_DSR	(1 << 1)
 #define UART_FR_CTS	(1 << 0)
 
-/* transmit/recieve line register bits */
+/* transmit/receive line register bits */
 #define UART_LCRH_SPS		(1 << 7)
 #define UART_LCRH_WLEN_8	(3 << 5)
 #define UART_LCRH_WLEN_7	(2 << 5)
@@ -88,13 +88,13 @@
 
 #define UART_IMSC_RXIM		(1 << 4)
 
-void uart_flush_tx_fifo(vaddr_t base)
+void pl011_flush(vaddr_t base)
 {
 	while (!(read32(base + UART_FR) & UART_FR_TXFE))
 		;
 }
 
-void uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
+void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 {
 	if (baud_rate) {
 		uint32_t divisor = (uart_clk * 4) / baud_rate;
@@ -113,10 +113,10 @@ void uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 	/* Enable UART and TX */
 	write32(UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE, base + UART_CR);
 
-	uart_flush_tx_fifo(base);
+	pl011_flush(base);
 }
 
-void uart_putc(int ch, vaddr_t base)
+void pl011_putc(int ch, vaddr_t base)
 {
 	/*
 	 * Wait until there is space in the FIFO
@@ -128,14 +128,14 @@ void uart_putc(int ch, vaddr_t base)
 	write32(ch, base + UART_DR);
 }
 
-bool uart_have_rx_data(vaddr_t base)
+bool pl011_have_rx_data(vaddr_t base)
 {
 	return !(read32(base + UART_FR) & UART_FR_RXFE);
 }
 
-int uart_getchar(vaddr_t base)
+int pl011_getchar(vaddr_t base)
 {
-	while (!uart_have_rx_data(base))
+	while (!pl011_have_rx_data(base))
 		;
 	return read32(base + UART_DR) & 0xff;
 }

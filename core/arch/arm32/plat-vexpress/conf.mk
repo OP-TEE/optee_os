@@ -36,7 +36,7 @@ CFG_PM_DEBUG ?= n
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
 WITH_SECURE_TIME_SOURCE_CNTPCT := y
-WITH_UART_DRV := y
+CFG_PL011 := y
 WITH_GIC_DRV := y
 CFG_HWSUPP_MEM_PERM_PXN := y
 CFG_WITH_STACK_CANARIES := y
@@ -72,5 +72,3 @@ core-platform-cppflags += -DTEE_MULTI_CPU
 # define flag to support booting from GDB
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 CFG_NO_TA_HASH_SIGN ?= y
-
-core-platform-cppflags += -DWITH_UART_DRV=1

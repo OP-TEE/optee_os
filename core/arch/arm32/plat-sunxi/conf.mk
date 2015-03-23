@@ -21,6 +21,7 @@ libutil_with_isoc := y
 WITH_SECURE_TIME_SOURCE_CNTPCT := y
 CFG_WITH_SEC_MON := y
 CFG_WITH_STACK_CANARIES := y
+CFG_SUNXI_UART ?= y
 
 include mk/config.mk
 
@@ -37,6 +38,4 @@ core-platform-cppflags += -DTEE_MULTI_CPU
 # define flag to support booting from GDB
 core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
-core-platform-cppflags += -DWITH_UART_DRV=1
-WITH_SUNXI_UART := y
 WITH_GIC_DRV := y
