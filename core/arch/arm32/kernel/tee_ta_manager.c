@@ -1623,8 +1623,8 @@ TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
 		l2op = L2CACHE_AREA_CLEAN;
 		break;
 	case TEE_CACHEINVALIDATE:
-		l1op = DCACHE_INVALIDATE;
-		l2op = L2CACHE_INVALIDATE;
+		l1op = DCACHE_AREA_INVALIDATE;
+		l2op = L2CACHE_AREA_INVALIDATE;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
