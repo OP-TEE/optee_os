@@ -66,9 +66,4 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
 
 core-platform-cppflags += -D_USE_SLAPORT_LIB
 
-
-# Several CPU suppoorted
-core-platform-cppflags += -DTEE_MULTI_CPU
-# define flag to support booting from GDB
-core-platform-cppflags += -DCONFIG_TEE_GDB_BOOT
 CFG_NO_TA_HASH_SIGN ?= y
