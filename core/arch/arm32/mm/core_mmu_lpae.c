@@ -176,7 +176,7 @@ static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 /* MMU L2 table for TAs, one for each Core */
-static uint64_t xlat_tables_ul1[NUM_THREADS][XLAT_TABLE_ENTRIES]
+static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 

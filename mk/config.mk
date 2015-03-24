@@ -1,4 +1,23 @@
-# WARNS from undefined, 1, 2 and 3. 3 means we have the most warning messages
+# Default configuration values for OP-TEE core (all platforms).
+#
+# Platform-specific overrides are in core/arch/arm32/plat-*/conf.mk.
+# Some subsystem-specific defaults are not here but rather in */sub.mk.
+#
+# Configuration values may be assigned from multiple sources.
+# From higher to lower priority:
+#
+#   1. Make arguments ('make CFG_FOO=bar...')
+#   2. The file specified by $(CFG_OPTEE_CONFIG) (if defined)
+#   3. The environment ('CFG_FOO=bar make...')
+#   4. The platform-specific configuration file: core/arch/arm32/plat-*/conf.mk
+#   5. This file
+#   6. Subsystem-specific makefiles (*/sub.mk)
+#
+# Actual values used during the build are output to $(out-dir)/core/conf.mk
+# (CFG_* variables only).
+
+# Compiler warning level.
+# Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
 
 # Define NOWERROR=1 so that warnings are not treated as errors
@@ -7,43 +26,36 @@ WARNS ?= 3
 # Define DEBUG=1 to compile with -g option
 # DEBUG=1
 
-# CFG_TEE_FW_DEBUG
-#   If 1, debug mode of the tee firmware (CPU restart, Core Status)
-CFG_TEE_FW_DEBUG?=0
+# If 1, debug mode of the tee firmware (CPU restart, Core Status)
+CFG_TEE_FW_DEBUG ?= 0
 
-# CFG_TEE_CORE_LOG_LEVEL
-#   Max level of the tee core traces. 0 means disable, 4 is max.
-#   Supported values: 0 (no traces) to 4 (all traces)
-#   If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
-#   dynamically changes via debugfs in the range 1 => CFG_TEE_CORE_LOG_LEVEL
-CFG_TEE_CORE_LOG_LEVEL?=1
+# Max level of the tee core traces. 0 means disable, 4 is max.
+# Supported values: 0 (no traces) to 4 (all traces)
+# If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
+# dynamically changes via debugfs in the range 1 => CFG_TEE_CORE_LOG_LEVEL
+CFG_TEE_CORE_LOG_LEVEL ?= 1
 
-# CFG_TEE_TA_LOG_LEVEL
-#   TA and TEECore log level
-#   Supported values: 0 (no traces) to 4 (all traces)
-#   If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
-#   dynamically changes via debugfs in the range 1 => CFG_TEE_TA_LOG_LEVEL
-CFG_TEE_TA_LOG_LEVEL?=1
+# TA and TEECore log level
+# Supported values: 0 (no traces) to 4 (all traces)
+# If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
+# dynamically changes via debugfs in the range 1 => CFG_TEE_TA_LOG_LEVEL
+CFG_TEE_TA_LOG_LEVEL ?= 1
 
-# CFG_TEE_CORE_TA_TRACE
-#   TA enablement
-#   When defined to "y", TA traces are output according to
-#   CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
-CFG_TEE_CORE_TA_TRACE?=y
+# TA enablement
+# When defined to "y", TA traces are output according to
+# CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
+CFG_TEE_CORE_TA_TRACE ?= y
 
-#   If 1, enable debug features of the user mem module. This module track memory
-#   allocation of the user ta.
-#   Debug features include check of buffer overflow, statistics,
-#   marck/check heap feature
-#   Enabling this could decrease efficiency
-CFG_TEE_CORE_USER_MEM_DEBUG?=1
+# If 1, enable debug features in TA memory allocation.
+# Debug features include check of buffer overflow, statistics, mark/check heap
+# feature.
+CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
 
-
-# PRNG Configuration:
-#
+# PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.
-#
 # Otherwise, you need to implement hw_get_random_byte() for your platform
-#
 CFG_WITH_SOFTWARE_PRNG ?= y
+
+# Number of threads
+CFG_NUM_THREADS ?= 2

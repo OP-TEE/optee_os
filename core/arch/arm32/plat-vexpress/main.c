@@ -71,7 +71,7 @@ static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
 		       aligned(TEE_MMU_L2_ALIGNMENT)));
 
 /* MMU L1 table for TAs, one for each Core */
-static uint32_t main_mmu_ul1_ttb[NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
+static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
         __attribute__((section(".nozi.mmu.ul1"),
 		      aligned(TEE_MMU_UL1_ALIGNMENT)));
 #endif

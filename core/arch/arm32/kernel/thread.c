@@ -58,7 +58,7 @@
 #endif
 
 
-static struct thread_ctx threads[NUM_THREADS];
+static struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 
@@ -102,7 +102,7 @@ DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
 DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
 #endif
 #ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread,	NUM_THREADS,		STACK_THREAD_SIZE);
+DECLARE_STACK(stack_thread,	CFG_NUM_THREADS,	STACK_THREAD_SIZE);
 #endif
 
 const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
@@ -254,7 +254,7 @@ static bool have_one_active_thread(void)
 {
 	size_t n;
 
-	for (n = 0; n < NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].state == THREAD_STATE_ACTIVE)
 			return true;
 	}
@@ -266,7 +266,7 @@ static bool have_one_preempted_thread(void)
 {
 	size_t n;
 
-	for (n = 0; n < NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].state == THREAD_STATE_SUSPENDED &&
 		    (threads[n].flags & THREAD_FLAGS_EXIT_ON_IRQ))
 			return true;
@@ -303,7 +303,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	lock_global();
 
 	if (!have_one_active_thread() && !have_one_preempted_thread()) {
-		for (n = 0; n < NUM_THREADS; n++) {
+		for (n = 0; n < CFG_NUM_THREADS; n++) {
 			if (threads[n].state == THREAD_STATE_FREE) {
 				threads[n].state = THREAD_STATE_ACTIVE;
 				found_thread = true;
@@ -366,7 +366,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	if (have_one_active_thread()) {
 		rv = TEESMC_RETURN_EBUSY;
-	} else if (n < NUM_THREADS &&
+	} else if (n < CFG_NUM_THREADS &&
 		threads[n].state == THREAD_STATE_SUSPENDED &&
 		args->a7 == threads[n].hyp_clnt_id) {
 		/*
@@ -536,7 +536,7 @@ static void set_abt_stack(vaddr_t sp)
 
 bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
-	if (thread_id >= NUM_THREADS)
+	if (thread_id >= CFG_NUM_THREADS)
 		return false;
 	if (threads[thread_id].state != THREAD_STATE_FREE)
 		return false;
@@ -582,7 +582,7 @@ static void init_thread_stacks(void)
 	/*
 	 * Allocate virtual memory for thread stacks.
 	 */
-	for (n = 0; n < NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		tee_mm_entry_t *mm;
 		vaddr_t sp;
 
@@ -612,7 +612,7 @@ static void init_thread_stacks(void)
 	size_t n;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
 			panic();
 	}

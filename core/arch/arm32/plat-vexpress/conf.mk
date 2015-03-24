@@ -35,9 +35,9 @@ CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
-WITH_SECURE_TIME_SOURCE_CNTPCT := y
+CFG_SECURE_TIME_SOURCE_CNTPCT := y
 CFG_PL011 := y
-WITH_GIC_DRV := y
+CFG_GIC := y
 CFG_HWSUPP_MEM_PERM_PXN := y
 CFG_WITH_STACK_CANARIES := y
 
