@@ -155,7 +155,7 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 	struct tee_ta_param param;
 	struct tee_ta_session *sess; /*= (struct tee_ta_session *)arg->sess; */
 	TEE_Result res;
-	TEE_ErrorOrigin err;
+	TEE_ErrorOrigin err = TEE_ORIGIN_TEE;
 
 	/* PRINTF("in tee_dispatch_invoke_command\n"); */
 	/* PRINTF("arg : %08x\n", (unsigned int)arg); */
