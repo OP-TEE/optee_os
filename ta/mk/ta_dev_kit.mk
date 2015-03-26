@@ -7,9 +7,11 @@ ta-dev-kit-dir := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST))).
 .PHONY: all
 all:
 
-sm := ta
+sm := user_ta
 sm-$(ta) := y
 binary := $(BINARY)
+
+CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 
 ifneq ($O,)
 out-dir := $O
