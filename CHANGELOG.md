@@ -143,3 +143,6 @@ N/A since this is the first release tag on OP-TEE.
 [pr149]: https://github.com/OP-TEE/optee_os/issues/149
 [pr161]: https://github.com/OP-TEE/optee_os/issues/161
 
+*   Global Platform Device Internal Core API v1.1
+    *   [#230][pr230]: Persistent object corruption support (TEE_ERROR_CORRUPT_OBJECT/_2)
+    *   [#230][pr230]: Persistent object access support (TEE_ERROR_STORAGE_NOT_AVAILABLE/_2)

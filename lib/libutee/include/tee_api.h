@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Based on GP TEE Internal API Specification Version 0.27 */
+/* Based on GP TEE Internal API Specification Version 1.1 */
 #ifndef TEE_API_H
 #define TEE_API_H
 
@@ -121,8 +121,10 @@ void *TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 /* Data and Key Storage API  - Generic Object Functions */
 
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
+TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
 
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage);
+TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsage);
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
@@ -157,6 +159,9 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject);
 
+TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
+			      TEE_ObjectHandle srcObject);
+
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 			   TEE_Attribute *params, uint32_t paramCount);
 
@@ -174,6 +179,8 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 				      TEE_ObjectHandle *object);
 
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object);
+
+TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object);
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,

@@ -454,6 +454,8 @@ TEE_Result tee_svc_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info)
 	if (res != TEE_SUCCESS)
 		return res;
 
+	/* TODO add TEE_ERROR_STORAGE_NOT_AVAILABLE implementation */
+
 	return tee_svc_copy_to_user(sess, info, &o->info, sizeof(o->info));
 }
 
@@ -470,6 +472,8 @@ TEE_Result tee_svc_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage)
 	res = tee_obj_get(sess->ctx, obj, &o);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	/* TODO add TEE_ERROR_STORAGE_NOT_AVAILABLE implementation */
 
 	o->info.objectUsage &= usage;
 
@@ -799,7 +803,7 @@ static void extract_dsa_public_key(struct dsa_public_key *to,
 }
 
 TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
-				  uint32_t max_obj_size, uint32_t *obj)
+				  uint32_t max_key_size, uint32_t *obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -811,7 +815,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 		return res;
 
 	/*
-	 * Verify that maxObjectSize is supported and find out how
+	 * Verify that maxKeySize is supported and find out how
 	 * much should be allocated.
 	 */
 
@@ -820,12 +824,12 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 	if (!type_props)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	/* Check that maxObjectSize follows restrictions */
-	if (max_obj_size % type_props->quanta != 0)
+	/* Check that maxKeySize follows restrictions */
+	if (max_key_size % type_props->quanta != 0)
 		return TEE_ERROR_NOT_SUPPORTED;
-	if (max_obj_size < type_props->min_size)
+	if (max_key_size < type_props->min_size)
 		return TEE_ERROR_NOT_SUPPORTED;
-	if (max_obj_size > type_props->max_size)
+	if (max_key_size > type_props->max_size)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	o = calloc(1, sizeof(*o));
@@ -844,7 +848,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 		if (!crypto_ops.acipher.alloc_rsa_public_key)
 			goto notimpl;
 		if (crypto_ops.acipher.alloc_rsa_public_key(o->data,
-							    max_obj_size)
+							    max_key_size)
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_rsa_public_key;
@@ -853,7 +857,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 		if (!crypto_ops.acipher.alloc_rsa_keypair)
 			goto notimpl;
 		if (crypto_ops.acipher.alloc_rsa_keypair(o->data,
-							 max_obj_size)
+							 max_key_size)
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_rsa_keypair;
@@ -862,7 +866,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 		if (!crypto_ops.acipher.alloc_dsa_public_key)
 			goto notimpl;
 		if (crypto_ops.acipher.alloc_dsa_public_key(o->data,
-							    max_obj_size)
+							    max_key_size)
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_dsa_public_key;
@@ -870,7 +874,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 	case TEE_TYPE_DSA_KEYPAIR:
 		if (!crypto_ops.acipher.alloc_dsa_keypair)
 			goto notimpl;
-		if (crypto_ops.acipher.alloc_dsa_keypair(o->data, max_obj_size)
+		if (crypto_ops.acipher.alloc_dsa_keypair(o->data, max_key_size)
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_dsa_keypair;
@@ -878,7 +882,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 	case TEE_TYPE_DH_KEYPAIR:
 		if (!crypto_ops.acipher.alloc_dh_keypair)
 			goto notimpl;
-		if (crypto_ops.acipher.alloc_dh_keypair(o->data, max_obj_size)
+		if (crypto_ops.acipher.alloc_dh_keypair(o->data, max_key_size)
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_dh_keypair;
@@ -888,7 +892,7 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 	}
 
 	o->info.objectType = obj_type;
-	o->info.maxObjectSize = max_obj_size;
+	o->info.maxKeySize = max_key_size;
 	o->info.objectUsage = TEE_USAGE_DEFAULT;
 	o->info.handleFlags = 0;
 
@@ -960,7 +964,7 @@ TEE_Result tee_svc_cryp_obj_reset(uint32_t obj)
 		} else {
 			memset(o->data, 0, o->data_size);
 		}
-		o->info.objectSize = 0;
+		o->info.keySize = 0;
 		o->info.objectUsage = TEE_USAGE_DEFAULT;
 	} else {
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1194,7 +1198,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		obj_size -= obj_size / 8; /* Exclude parity in size of key */
 
 	o->have_attrs = have_attrs;
-	o->info.objectSize = obj_size;
+	o->info.keySize = obj_size;
 	return TEE_SUCCESS;
 }
 
@@ -1331,7 +1335,7 @@ TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
 	}
 
 	dst_o->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-	dst_o->info.objectSize = src_o->info.objectSize;
+	dst_o->info.keySize = src_o->info.keySize;
 	dst_o->info.objectUsage = src_o->info.objectUsage;
 	return TEE_SUCCESS;
 }
@@ -1456,7 +1460,7 @@ TEE_Result tee_svc_obj_generate_key(uint32_t obj, uint32_t key_size,
 	if (!type_props)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	/* Check that maxObjectSize follows restrictions */
+	/* Check that maxKeySize follows restrictions */
 	if (key_size % type_props->quanta != 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 	if (key_size < type_props->min_size)
@@ -1542,7 +1546,7 @@ TEE_Result tee_svc_obj_generate_key(uint32_t obj, uint32_t key_size,
 out:
 	free(params);
 	if (res == TEE_SUCCESS) {
-		o->info.objectSize = key_size;
+		o->info.keySize = key_size;
 		o->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
 	}
 	return res;

@@ -312,6 +312,7 @@ void TEE_ResetOperation(TEE_OperationHandle operation)
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 			       TEE_ObjectHandle key)
 {
+	TEE_Result res;
 	uint32_t key_size = 0;
 
 	if (operation == TEE_HANDLE_NULL)
@@ -329,35 +330,51 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 	if (key != TEE_HANDLE_NULL) {
 		TEE_ObjectInfo key_info;
 
-		TEE_GetObjectInfo(key, &key_info);
+		res = TEE_GetObjectInfo1(key, &key_info);
+		if (res != TEE_SUCCESS)
+			goto err;
+
 		/* Supplied key has to meet required usage */
 		if ((key_info.objectUsage & operation->info.requiredKeyUsage) !=
 		    operation->info.requiredKeyUsage) {
 			TEE_Panic(0);
 		}
 
-		if (operation->info.maxKeySize < key_info.objectSize)
+		if (operation->info.maxKeySize < key_info.keySize)
 			TEE_Panic(0);
 
-		key_size = key_info.objectSize;
+		key_size = key_info.keySize;
 	}
 
 	TEE_ResetTransientObject(operation->key1);
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
 
 	if (key != TEE_HANDLE_NULL) {
-		TEE_CopyObjectAttributes(operation->key1, key);
+		res = TEE_CopyObjectAttributes1(operation->key1, key);
+		if (res != TEE_SUCCESS)
+			goto err;
+
 		operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
 	}
 
 	operation->info.keySize = key_size;
 
+	goto out;
+
+err:
+	if (res == TEE_ERROR_CORRUPT_OBJECT ||
+	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		return res;
+	else
+		TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
 TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
 {
+	TEE_Result res;
 	uint32_t key_size = 0;
 
 	if (operation == TEE_HANDLE_NULL)
@@ -377,14 +394,23 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 		TEE_ObjectInfo key_info1;
 		TEE_ObjectInfo key_info2;
 
-		TEE_GetObjectInfo(key1, &key_info1);
+		res = TEE_GetObjectInfo1(key1, &key_info1);
+		if (res != TEE_SUCCESS)
+			goto err;
+
 		/* Supplied key has to meet required usage */
 		if ((key_info1.objectUsage & operation->info.
 		     requiredKeyUsage) != operation->info.requiredKeyUsage) {
 			TEE_Panic(0);
 		}
 
-		TEE_GetObjectInfo(key2, &key_info2);
+		res = TEE_GetObjectInfo1(key2, &key_info2);
+		if (res != TEE_SUCCESS) {
+			if (res == TEE_ERROR_CORRUPT_OBJECT)
+				res = TEE_ERROR_CORRUPT_OBJECT_2;
+			goto err;
+		}
+
 		/* Supplied key has to meet required usage */
 		if ((key_info2.objectUsage & operation->info.
 		     requiredKeyUsage) != operation->info.requiredKeyUsage) {
@@ -396,17 +422,17 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 		 * keys to be of equal size.
 		 */
 		if (operation->info.algorithm == TEE_ALG_AES_XTS &&
-		    key_info1.objectSize != key_info2.objectSize)
+		    key_info1.keySize != key_info2.keySize)
 			TEE_Panic(0);
 
-		if (operation->info.maxKeySize < key_info1.objectSize)
+		if (operation->info.maxKeySize < key_info1.keySize)
 			TEE_Panic(0);
 
 		/*
 		 * Odd that only the size of one key should be reported while
 		 * size of two key are used when allocating the operation.
 		 */
-		key_size = key_info1.objectSize;
+		key_size = key_info1.keySize;
 	}
 
 	TEE_ResetTransientObject(operation->key1);
@@ -414,13 +440,33 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
 
 	if (key1 != TEE_HANDLE_NULL) {
-		TEE_CopyObjectAttributes(operation->key1, key1);
-		TEE_CopyObjectAttributes(operation->key2, key2);
+		res = TEE_CopyObjectAttributes1(operation->key1, key1);
+		if (res != TEE_SUCCESS)
+			goto err;
+
+		res = TEE_CopyObjectAttributes1(operation->key2, key2);
+		if (res != TEE_SUCCESS) {
+			if (res == TEE_ERROR_CORRUPT_OBJECT)
+				res = TEE_ERROR_CORRUPT_OBJECT_2;
+			goto err;
+		}
+
 		operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
 	}
 
 	operation->info.keySize = key_size;
 
+	goto out;
+
+err:
+	if (res == TEE_ERROR_CORRUPT_OBJECT ||
+	    res == TEE_ERROR_CORRUPT_OBJECT_2 ||
+	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE ||
+	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE_2)
+		return res;
+	else
+		TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 

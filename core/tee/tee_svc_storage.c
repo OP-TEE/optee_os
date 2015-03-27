@@ -632,13 +632,14 @@ TEE_Result tee_svc_storage_obj_del(uint32_t obj)
 	if (o->pobj == NULL || o->pobj->obj_id == NULL)
 		return TEE_ERROR_BAD_STATE;
 
-	file =
-	    tee_svc_storage_create_filename(sess, o->pobj->obj_id,
-					    o->pobj->obj_id_len);
+	file = tee_svc_storage_create_filename(sess, o->pobj->obj_id,
+						o->pobj->obj_id_len);
 	if (file == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	tee_obj_close(sess->ctx, o);
+
+	/* TODO add TEE_ERROR_STORAGE_NOT_AVAILABLE implementation */
 
 	err = tee_file_ops.unlink(file);
 	free(file);

@@ -38,22 +38,88 @@
 #define TEE_ATTR_BIT_PROTECTED              (1 << 28)
 
 /* Data and Key Storage API  - Generic Object Functions */
+/*
+ * Use of this function is deprecated
+ * new code SHOULD use the TEE_GetObjectInfo1 function instead
+ * These functions will be removed at some future major revision of
+ * this specification
+ */
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 {
 	TEE_Result res;
 
 	res = utee_cryp_obj_get_info((uint32_t)object, objectInfo);
+
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
+
+	if (objectInfo->objectType == TEE_TYPE_CORRUPTED_OBJECT) {
+		objectInfo->keySize = 0;
+		objectInfo->maxKeySize = 0;
+		objectInfo->objectUsage = 0;
+		objectInfo->dataSize = 0;
+		objectInfo->dataPosition = 0;
+		objectInfo->handleFlags = 0;
+	}
 }
 
+TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
+{
+	TEE_Result res;
+
+	res = utee_cryp_obj_get_info((uint32_t)object, objectInfo);
+
+	if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		res = utee_storage_obj_del(object);
+		if (res != TEE_SUCCESS)
+			TEE_Panic(0);
+		return TEE_ERROR_CORRUPT_OBJECT;
+	}
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
+
+	return res;
+}
+
+/*
+ * Use of this function is deprecated
+ * new code SHOULD use the TEE_RestrictObjectUsage1 function instead
+ * These functions will be removed at some future major revision of
+ * this specification
+ */
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage)
 {
 	TEE_Result res;
-	res = utee_cryp_obj_restrict_usage((uint32_t)object, objectUsage);
+	TEE_ObjectInfo objectInfo;
+
+	res = utee_cryp_obj_get_info((uint32_t)object, &objectInfo);
+	if (objectInfo.objectType == TEE_TYPE_CORRUPTED_OBJECT)
+		return;
+
+	res = TEE_RestrictObjectUsage1(object, objectUsage);
 
 	if (res != TEE_SUCCESS)
 		TEE_Panic(0);
+}
+
+TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsage)
+{
+	TEE_Result res;
+
+	res = utee_cryp_obj_restrict_usage((uint32_t)object, objectUsage);
+
+	if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		res = utee_storage_obj_del(object);
+		if (res != TEE_SUCCESS)
+			TEE_Panic(0);
+		return TEE_ERROR_CORRUPT_OBJECT;
+	}
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(0);
+
+	return res;
 }
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
@@ -237,7 +303,28 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 	attr->content.value.b = b;
 }
 
+/*
+ * Use of this function is deprecated
+ * new code SHOULD use the TEE_CopyObjectAttributes1 function instead
+ * These functions will be removed at some future major revision of
+ * this specification
+ */
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
+			      TEE_ObjectHandle srcObject)
+{
+	TEE_Result res;
+	TEE_ObjectInfo src_info;
+
+	res = utee_cryp_obj_get_info((uint32_t)srcObject, &src_info);
+	if (src_info.objectType == TEE_TYPE_CORRUPTED_OBJECT)
+		return;
+
+	res = TEE_CopyObjectAttributes1(destObject, srcObject);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(0);
+}
+
+TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject)
 {
 	TEE_Result res;
@@ -246,11 +333,11 @@ void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 
 	res = utee_cryp_obj_get_info((uint32_t)destObject, &dst_info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		goto err;
 
 	res = utee_cryp_obj_get_info((uint32_t)srcObject, &src_info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		goto err;
 
 	if ((src_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 		TEE_Panic(0);
@@ -262,6 +349,21 @@ void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 	res = utee_cryp_obj_copy((uint32_t)destObject, (uint32_t)srcObject);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(0);
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		res = utee_storage_obj_del(srcObject);
+		if (res != TEE_SUCCESS)
+			TEE_Panic(0);
+		return TEE_ERROR_CORRUPT_OBJECT;
+	}
+	if (res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		return res;
+	TEE_Panic(0);
+out:
+	return TEE_SUCCESS;
 }
 
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
@@ -324,6 +426,12 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 				       object);
 }
 
+/*
+ * Use of this function is deprecated
+ * new code SHOULD use the TEE_CloseAndDeletePersistentObject1 function instead
+ * These functions will be removed at some future major revision of
+ * this specification
+ */
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object)
 {
 	TEE_Result res;
@@ -331,11 +439,27 @@ void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object)
 	if (object == TEE_HANDLE_NULL)
 		return;
 
-	res = utee_storage_obj_del(object);
+	res = TEE_CloseAndDeletePersistentObject1(object);
 
 	if (res != TEE_SUCCESS)
 		TEE_Panic(0);
 }
+
+TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object)
+{
+	TEE_Result res;
+
+	if (object == TEE_HANDLE_NULL)
+		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+
+	res = utee_storage_obj_del(object);
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(0);
+
+	return res;
+}
+
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
