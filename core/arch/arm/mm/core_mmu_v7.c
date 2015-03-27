@@ -229,32 +229,16 @@ static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 
 static uint32_t texcb_to_mattr(uint32_t texcb)
 {
-	switch (texcb) {
-	case ATTR_IWBWA_OWBWA_INDEX:
-		return TEE_MATTR_CACHE_DEFAULT;
-	case ATTR_DEVICE_INDEX:
-		return TEE_MATTR_NONCACHE;
-	default:
-		return TEE_MATTR_CACHE_UNKNOWN;
-	}
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_CACHE_NONCACHE);
+	COMPILE_TIME_ASSERT(ATTR_IWBWA_OWBWA_INDEX == TEE_MATTR_CACHE_CACHED);
+
+	return texcb << TEE_MATTR_CACHE_SHIFT;
 }
 
 static uint32_t mattr_to_texcb(uint32_t attr)
 {
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
-	switch (attr & (TEE_MATTR_I_WRITE_THR | TEE_MATTR_I_WRITE_BACK |
-			TEE_MATTR_O_WRITE_THR | TEE_MATTR_O_WRITE_BACK)) {
-	case TEE_MATTR_NONCACHE:
-		return ATTR_DEVICE_INDEX;
-	case TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK:
-		return ATTR_IWBWA_OWBWA_INDEX;
-	default:
-		/*
-		 * "Can't happen" the attribute is supposed to be checked
-		 * with core_mmu_mattr_is_ok() before.
-		 */
-		panic();
-	}
+	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }
 
 

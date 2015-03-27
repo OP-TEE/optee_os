@@ -7,8 +7,8 @@ OP-TEE design
 2.  Platform Initialization
 3.  Secure Monitor Calls - SMC
     1. SMC handling
-    2. TEE SMC Interface
-    3. Communication using TEE SMC Interface
+    2. SMC Interface
+    3. Communication using SMC Interface
 4.  Thread handling
 5.  MMU
     1. Translation tables
@@ -96,11 +96,12 @@ OP-TEE.
    ([thread.c](../core/arch/arm/kernel/thread.c)) will be called. In this
    function the Trusted OS will try to find an unused thread for the new
    request. If there isn't any thread available (all existing threads already in
-   use), then the Trusted OS will return back `TEESMC_RETURN_EBUSY`
-   ([teesmc.h](../core/arch/arm/include/sm/teesmc.h)) to the normal world. If
-   an unused thread was found the Trusted OS will copy relevant registers,
-   preparing the PC to jump to, namely the function `thread_std_smc_entry`. When
-   all that has been done, the thread is prepared to be started.
+   use), then the Trusted OS will return back `OPTEE_SMC_RETURN_ETHREAD_LIMIT`
+   ([optee_smc.h](../core/arch/arm/include/sm/optee_smc.h)) to the normal
+   world. If an unused thread was found the Trusted OS will copy relevant
+   registers, preparing the PC to jump to, namely the function
+   `thread_std_smc_entry`. When all that has been done, the thread is prepared
+   to be started.
 
 4. When the thread is started (or resuming) the function `thread_std_smc_entry`
    ([thread_a32.S](../core/arch/arm/kernel/thread_a32.S)) will be called,
@@ -121,73 +122,81 @@ normal world (via the Secure Monitor).
 
 ![SMC exception handling](images/smc_exception_handling.png "SMC exception handling")
 
-## 3.2 TEE SMC Interface
-TEE SMC Interface ([teesmc.h](../core/arch/arm/include/sm/teesmc.h)) is the interface
-used to communicate TEE related data between normal and secure world. The main
-structure used for this communication is:
+## 3.2 SMC Interface
+The OP-TEE SMC interface is defined in two levels using
+[optee_smc.h](../core/arch/arm/include/sm/optee_smc.h) and
+[optee_msg.h](../core/include/optee_msg.h). The former file defines SMC
+identifiers and what is passed in the registers for each SMC. The latter
+file defines the OP-TEE Message protocol which is not restricted to only
+SMC even if that currently is the only option available.
 
-	struct teesmc32_arg {
-	        uint32_t cmd;
-	        uint32_t ta_func;
-	        uint32_t session;
-	        uint32_t ret;
-	        uint32_t ret_origin;
-	        uint32_t num_params;
-	#if 0
-	        /*
-	         * Commented out elements used to visualize the layout dynamic part
-	         * of the struct. Note that these fields are not available at all
-	         * if num_params == 0.
-	         *
-	         * params is accessed through the macro TEESMC32_GET_PARAMS
-	         */
+The main structure used for this communication is:
+```
+/**
+ * struct optee_msg_arg - call argument
+ * @cmd: Command, one of OPTEE_MSG_CMD_* or OPTEE_MSG_RPC_CMD_*
+ * @func: Trusted Application function, specific to the Trusted Application,
+ *	     used if cmd == OPTEE_MSG_CMD_INVOKE_COMMAND
+ * @session: In parameter for all OPTEE_MSG_CMD_* except
+ *	     OPTEE_MSG_CMD_OPEN_SESSION where it's an output parameter instead
+ * @cancel_id: Cancellation id, a unique value to identify this request
+ * @ret: return value
+ * @ret_origin: origin of the return value
+ * @num_params: number of parameters supplied to the OS Command
+ * @params: the parameters supplied to the OS Command
+ *
+ * All normal calls to Trusted OS uses this struct. If cmd requires further
+ * information than what these field holds it can be passed as a parameter
+ * tagged as meta (setting the OPTEE_MSG_ATTR_META bit in corresponding
+ * attrs field). All parameters tagged as meta has to come first.
+ *
+ * Temp memref parameters can be fragmented if supported by the Trusted OS
+ * (when optee_smc.h is bearer of this protocol this is indicated with
+ * OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM). If a logical memref parameter is
+ * fragmented then has all but the last fragment the
+ * OPTEE_MSG_ATTR_FRAGMENT bit set in attrs. Even if a memref is fragmented
+ * it will still be presented as a single logical memref to the Trusted
+ * Application.
+ */
+struct optee_msg_arg {
+	uint32_t cmd;
+	uint32_t func;
+	uint32_t session;
+	uint32_t cancel_id;
+	uint32_t pad;
+	uint32_t ret;
+	uint32_t ret_origin;
+	uint32_t num_params;
 
-	        struct teesmc32_param params[num_params];
-	#endif
-	}
+	/*
+	 * this struct is 8 byte aligned since the 'struct optee_msg_param'
+	 * which follows requires 8 byte alignment.
+	 *
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct. This field is not available at all if
+	 * num_params == 0.
+	 *
+	 * params is accessed through the macro OPTEE_MSG_GET_PARAMS
+	 *
+	 * struct optee_msg_param params[num_params];
+	 */
+}
+```
 
-* `cmd` is one of
-	* `TEESMC_CMD_OPEN_SESSION`: Which is used when establishing a session
-	   between normal and secure world.
-	* `TEESMC_CMD_INVOKE_COMMAND`: Which is the main command used when
-	   invoking functions in the Trusted OS and/or Trusted Applications.
-	* `TEESMC_CMD_CLOSE_SESSION`: Used to close the session between normal
-	   and secure world.
-	* `TEESMC_CMD_CANCEL`: Used to cancel a pending command.
-* `ta_func` is the function id for the specific function to be called within the
-   Trusted Application. This is only used when `cmd` is
-   `TEESMC_CMD_INVOKE_COMMAND` since the other commands never directly talk with
-   the Trusted Applications.
-* `session` is the TEE session that is shared between the both worlds. This
-   variable will be initialized when opening a new session by calling
-   `TEESMC_CMD_OPEN_SESSION`.
-* `ret` is the return value either from the Trusted OS or the Trusted
-   Application.
-* `ret_origin` is the origin for the return value. This is a important
-   information, since OP-TEE spans other  a couple of different layers (normal
-   world user space, Linux kernel, Secure Monitor, Trusted OS and Trusted
-   Applications).
-* `num_params` tells how many parameters that has been provided and used by this
-   structure.
-* `params` all parameters are allocated at the end of the structure. There
-   can be 0..n `num_params` allocated.
+For more information see [optee_msg.h](../core/include/optee_msg.h).
 
-## 3.3 Communication using TEE SMC Interface
-If we are looking into the source code, we could see that communication mainly
-is achieved using `teesmc32_arg`, `smc_param` and `thread_smc_args`, where
-`teesmc32_arg` could be seen as the main structure. What will happen is that the
-[TEE driver](https://github.com/OP-TEE/optee_linuxdriver) will get the
-parameters either from [normal world user
-space](https://github.com/OP-TEE/optee_client) or directly from an internal
-service in the Linux kernel. The TEE driver will populate the struct
-`teesmc32_arg` with the parameters plus some additional bookkeeping information.
-The secure monitor uses the smc_param structure, so just before issuing the SMC,
-the kernel will assign the `teesmc32_arg` structure, setting whether it is a
-std- or fastcall withing the `smc_param` structure. As the final step in the
-TEE driver the SMC will be issued. The relation between the structures involved
-has been illustrated below.
-
-![SMC structure relations](images/smc_structure_relations.png "SMC structure relations")
+## 3.3 Communication using SMC Interface
+If we are looking into the source code, we could see that communication
+mainly is achieved using `optee_msg_arg` and `thread_smc_args`, where
+`optee_msg_arg` could be seen as the main structure. What will happen is
+that the [TEE driver](https://github.com/OP-TEE/optee_linuxdriver) will get
+the parameters either from
+[normal world user space](https://github.com/OP-TEE/optee_client) or
+directly from an internal service in the Linux kernel. The TEE driver will
+populate the struct `optee_msg_arg` with the parameters plus some
+additional bookkeeping information.  Parameters for the SMC are passed in
+registers 1 to 7, register 0 holds the SMC id which among other things
+tells whether it is a standard or a fast call.
 
 # 4. Thread handling
 The Trusted OS uses a couple of threads to be able to support running jobs in
@@ -421,7 +430,7 @@ Note that
 It is the Linux kernel driver for OP-TEE that is responsible for initializing
 the shared memory pool,
 given information provided by the Trusted OS. The Linux driver issues a SMC call
-TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG to retrieve the information
+OPTEE_SMC_GET_SHM_CONFIG to retrieve the information
 * physical address of the start of the pool
 * size of the pool
 * whether or not the memory is cached
@@ -476,30 +485,27 @@ TA loading, REE time request,...), shared memory must be allocated.
 Allocation depends on the use case.
 
 The Trusted OS asks for the following shared memory allocation:
-- `teesmc32_arg` structure, used to pass the arguments to the non-secure world,
+- `optee_msg_arg` structure, used to pass the arguments to the non-secure world,
   where the allocation will be done by sending a
-  TEESMC_RPC_FUNC_ALLOC_ARG message
+  OPTEE_SMC_RPC_FUNC_ALLOC message
 - In some cases, a payload might be needed for storing the result from
-  TEE supplicant, for example when trying to get the REE time.
+  TEE supplicant, for example when loading a Trusted Application.
   This type of allocation will be done by sending the message
-  TEESMC_OPTEE_RPC_FUNC_ALLOC_PAYLOAD, which then will return:
+  OPTEE_MSG_RPC_CMD_SHM_ALLOC(OPTEE_MSG_RPC_SHM_TYPE_APPL,...),
+  which then will return:
   - the physical address of the shared memory
   - a handle to the memory, that later on will be used later on
     when freeing this memory.
 
 ### From the TEE Supplicant
 The TEE supplicant is also working with shared memory, used to exchange
-data between normal and secure worlds. Two cases are considered:
-- The TEE supplicant receives a memory address from the
-  Trusted OS, used to store the data. This is for example the
-  case when REE time is requested. In this case, the
-  TEE supplicant must register the provided shared memory in the same
-  way a client application would do, involving the Linux driver.
-- The TEE supplicant provides a new shared memory that contains
-  the result. This is the case when a Trusted Application is dynamically
-  loaded. In this case, the TEE supplicant must allocate
-  a shared memory in the same way a client application would do,
-  involving the Linux driver.
+data between normal and secure worlds.
+
+The TEE supplicant receives a memory address from the Trusted OS, used to
+store the data. This is for example the case when a Trusted Application is
+loaded. In this case, the TEE supplicant must register the provided shared
+memory in the same way a client application would do, involving the Linux
+driver.
 
 # 8. Pager
 OP-TEE currently requires ~256 KiB RAM for OP-TEE kernel memory. This is

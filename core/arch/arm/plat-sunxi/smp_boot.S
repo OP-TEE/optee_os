@@ -28,7 +28,7 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <sm/teesmc.h>
+#include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 #include <kernel/unwind.h>

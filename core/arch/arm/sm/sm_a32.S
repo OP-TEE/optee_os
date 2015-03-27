@@ -28,7 +28,6 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <sm/teesmc.h>
 #include <kernel/unwind.h>
 
 	.section .text.sm_asm

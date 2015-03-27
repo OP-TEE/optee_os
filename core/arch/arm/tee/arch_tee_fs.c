@@ -29,31 +29,30 @@
 #include <string.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
-#include <kernel/tee_rpc.h>
-#include <kernel/tee_rpc_types.h>
+#include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <util.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
-#include <sm/teesmc.h>
+#include <optee_msg.h>
 
 int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode)
 {
 	TEE_Result ret;
 	struct tee_ta_session *sess = NULL;
-	struct teesmc32_param params;
+	struct optee_msg_param params;
 	paddr_t phpayload = 0;
-	paddr_t cookie = 0;
+	uint64_t cpayload = 0;
 	struct tee_fs_rpc *bf;
 	int res = -1;
 
 	tee_ta_get_current_session(&sess);
 	tee_ta_set_current_session(NULL);
 
-	thread_optee_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
-					        &phpayload, &cookie);
+	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
+				 &phpayload, &cpayload);
 	if (!phpayload)
 		goto exit;
 
@@ -64,13 +63,10 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		goto exit;
 
 	memset(&params, 0, sizeof(params));
-	params.attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
-			(TEESMC_ATTR_CACHE_I_WRITE_THR |
-			 TEESMC_ATTR_CACHE_O_WRITE_THR) <<
-				TEESMC_ATTR_CACHE_SHIFT;
-
-	params.u.memref.buf_ptr = phpayload;
-	params.u.memref.size = sizeof(struct tee_fs_rpc) + len;
+	params.attr = OPTEE_MSG_ATTR_TYPE_TMEM_INOUT;
+	params.u.tmem.buf_ptr = phpayload;
+	params.u.tmem.size = sizeof(struct tee_fs_rpc) + len;
+	params.u.tmem.shm_ref = cpayload;
 
 	/* fill in parameters */
 	*bf = *bf_cmd;
@@ -81,7 +77,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		tee_ta_set_current_session(NULL);
 	}
 
-	ret = thread_rpc_cmd(TEE_RPC_FS, 1, &params);
+	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, 1, &params);
 	/* update result */
 	*bf_cmd = *bf;
 	if (ret != TEE_SUCCESS)
@@ -98,7 +94,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	res = 0;
 
 exit:
-	thread_optee_rpc_free_payload(cookie);
+	thread_rpc_free(cpayload);
 	tee_ta_set_current_session(sess);
 	return res;
 }

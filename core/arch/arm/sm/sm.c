@@ -24,10 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <compiler.h>
 #include <platform_config.h>
 
 #include <sm/sm.h>
-#include <sm/teesmc.h>
+#include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
@@ -74,7 +75,7 @@ void sm_set_sec_smc_entry(const struct sm_reg_r0_to_r3 *regs)
 {
 	struct sm_sec_ctx *sec_ctx = sm_get_sec_ctx();
 
-	if (TEESMC_IS_FAST_CALL(regs->r0))
+	if (OPTEE_SMC_IS_FAST_CALL(regs->r0))
 		sec_ctx->mon_lr = (uint32_t)&sm_entry_vector->fast_smc_entry;
 	else
 		sec_ctx->mon_lr = (uint32_t)&sm_entry_vector->std_smc_entry;

@@ -29,8 +29,8 @@
 #include <sm/sm.h>
 #include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
-#include <sm/teesmc.h>
-#include <sm/teesmc_optee.h>
+#include <sm/optee_smc.h>
+#include <optee_msg.h>
 
 #include <arm.h>
 #include <kernel/thread.h>
@@ -87,7 +87,7 @@ uint32_t platform_smc_handle(struct thread_smc_args *smc_args)
 {
 	uint32_t ret = TEE_SUCCESS;
 	switch (smc_args->a1) {
-	case TEESMC_OPTEE_SIP_SUNXI_SET_SMP_BOOTENTRY:
+	case OPTEE_SMC_SIP_SUNXI_SET_SMP_BOOTENTRY:
 		sunxi_secondary_ns_entry = smc_args->a2;
 		
 		/* in order to sync with secondary up cpu */
@@ -96,7 +96,7 @@ uint32_t platform_smc_handle(struct thread_smc_args *smc_args)
 		                       sizeof(uint32_t));
 		break;
 	default:
-		ret = TEESMC_RETURN_EBADCMD;
+		ret = OPTEE_SMC_RETURN_EBADCMD;
 		break;
 	}
 	smc_args->a0 = ret;

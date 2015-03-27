@@ -115,7 +115,7 @@ TEE_Result tee_disable_l2cc_mutex(void)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_get_l2cc_mutex(uint32_t *mutex)
+TEE_Result tee_get_l2cc_mutex(paddr_t *mutex)
 {
 	int ret;
 
@@ -128,7 +128,7 @@ TEE_Result tee_get_l2cc_mutex(uint32_t *mutex)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_set_l2cc_mutex(uint32_t *mutex)
+TEE_Result tee_set_l2cc_mutex(paddr_t *mutex)
 {
 	uint32_t addr;
 	void *va;

@@ -31,8 +31,8 @@
 #include "thread_private.h"
 #include <sm/sm_defs.h>
 #include <sm/sm.h>
-#include <sm/teesmc.h>
-#include <sm/teesmc_optee.h>
+#include <optee_msg.h>
+#include <sm/optee_smc.h>
 #include <arm.h>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_proc.h>
@@ -69,7 +69,7 @@
 #endif
 #endif /*ARM64*/
 
-#define RPC_MAX_PARAMS		2
+#define RPC_MAX_NUM_PARAMS	2
 
 struct thread_ctx threads[CFG_NUM_THREADS];
 
@@ -150,6 +150,7 @@ thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
+static bool thread_prealloc_rpc_cache;
 
 static void init_canaries(void)
 {
@@ -428,7 +429,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!found_thread) {
-		args->a0 = TEESMC_RETURN_ETHREAD_LIMIT;
+		args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 		return;
 	}
 
@@ -445,7 +446,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 }
 
 #ifdef ARM32
-static void copy_a0_to_a3(struct thread_ctx_regs *regs,
+static void copy_a0_to_a5(struct thread_ctx_regs *regs,
 		struct thread_smc_args *args)
 {
 	/*
@@ -456,11 +457,13 @@ static void copy_a0_to_a3(struct thread_ctx_regs *regs,
 	regs->r1 = args->a1;
 	regs->r2 = args->a2;
 	regs->r3 = args->a3;
+	regs->r4 = args->a4;
+	regs->r5 = args->a5;
 }
 #endif /*ARM32*/
 
 #ifdef ARM64
-static void copy_a0_to_a3(struct thread_ctx_regs *regs,
+static void copy_a0_to_a5(struct thread_ctx_regs *regs,
 		struct thread_smc_args *args)
 {
 	/*
@@ -471,6 +474,8 @@ static void copy_a0_to_a3(struct thread_ctx_regs *regs,
 	regs->x[1] = args->a1;
 	regs->x[2] = args->a2;
 	regs->x[3] = args->a3;
+	regs->x[4] = args->a4;
+	regs->x[5] = args->a5;
 }
 #endif /*ARM64*/
 
@@ -489,7 +494,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	    args->a7 == threads[n].hyp_clnt_id)
 		threads[n].state = THREAD_STATE_ACTIVE;
 	else
-		rv = TEESMC_RETURN_ERESUME;
+		rv = OPTEE_SMC_RETURN_ERESUME;
 
 	unlock_global();
 
@@ -508,7 +513,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	 * get parameters from non-secure world.
 	 */
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
-		copy_a0_to_a3(&threads[n].regs, args);
+		copy_a0_to_a5(&threads[n].regs, args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
@@ -528,7 +533,7 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
-	if (args->a0 == TEESMC32_CALL_RETURN_FROM_RPC)
+	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC)
 		thread_resume_from_rpc(args);
 	else
 		thread_alloc_and_run(args);
@@ -541,22 +546,30 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 
 	if (!thr->rpc_arg) {
 		paddr_t parg;
+		uint64_t carg;
 		void *arg;
 
-		parg = thread_rpc_alloc_arg(
-				TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
-		if (!parg || !ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
+		thread_rpc_alloc_arg(
+			OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS),
+			&parg, &carg);
+		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 		     core_pa2va(parg, &arg)) {
-			thread_rpc_free_arg(parg);
-			args->a0 = TEESMC_RETURN_ENOMEM;
+			thread_rpc_free(carg);
+			args->a0 = OPTEE_SMC_RETURN_ENOMEM;
 			return;
 		}
 
 		thr->rpc_arg = arg;
-		thr->rpc_parg = parg;
+		thr->rpc_carg = carg;
 	}
 
 	thread_std_smc_handler_ptr(args);
+
+	if (!thread_prealloc_rpc_cache) {
+		thread_rpc_free(thr->rpc_carg);
+		thr->rpc_carg = 0;
+		thr->rpc_arg = 0;
+	}
 }
 
 void *thread_get_tmp_sp(void)
@@ -1062,84 +1075,102 @@ void thread_rem_mutex(struct mutex *m)
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
 
-paddr_t thread_rpc_alloc_arg(size_t size)
+bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-		TEESMC_RETURN_RPC_ALLOC_ARG, size};
+	bool rv;
+	size_t n;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 
-	thread_rpc(rpc_args);
-	return rpc_args[1];
-}
+	lock_global();
 
-paddr_t thread_rpc_alloc_payload(size_t size)
-{
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-		TEESMC_RETURN_RPC_ALLOC_PAYLOAD, size};
-
-	thread_rpc(rpc_args);
-	return rpc_args[1];
-}
-
-void thread_rpc_free_arg(paddr_t arg)
-{
-	if (arg) {
-		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-			TEESMC_RETURN_RPC_FREE_ARG, arg};
-
-		thread_rpc(rpc_args);
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		if (threads[n].state != THREAD_STATE_FREE) {
+			rv = false;
+			goto out;
+		}
 	}
-}
-void thread_rpc_free_payload(paddr_t payload)
-{
-	if (payload) {
-		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-			TEESMC_RETURN_RPC_FREE_PAYLOAD, payload};
 
-		thread_rpc(rpc_args);
+	rv = true;
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		if (threads[n].rpc_arg) {
+			*cookie = threads[n].rpc_carg;
+			threads[n].rpc_carg = 0;
+			threads[n].rpc_arg = NULL;
+			goto out;
+		}
 	}
+
+	*cookie = 0;
+	thread_prealloc_rpc_cache = false;
+out:
+	unlock_global();
+	thread_unmask_exceptions(exceptions);
+	return rv;
+}
+
+bool thread_enable_prealloc_rpc_cache(void)
+{
+	bool rv;
+	size_t n;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+
+	lock_global();
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		if (threads[n].state != THREAD_STATE_FREE) {
+			rv = false;
+			goto out;
+		}
+	}
+
+	rv = true;
+	thread_prealloc_rpc_cache = true;
+out:
+	unlock_global();
+	thread_unmask_exceptions(exceptions);
+	return rv;
 }
 
 static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
-		struct teesmc32_param *params)
+		struct optee_msg_param *params)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { 0 };
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct thread_ctx *thr = threads + thread_get_id();
-	struct teesmc32_arg *arg = thr->rpc_arg;
-	paddr_t parg = thr->rpc_parg;
-	const size_t params_size = sizeof(struct teesmc32_param) * num_params;
+	struct optee_msg_arg *arg = thr->rpc_arg;
+	uint64_t carg = thr->rpc_carg;
+	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
 	size_t n;
 
-	TEE_ASSERT(arg && parg && num_params <= RPC_MAX_PARAMS);
+	TEE_ASSERT(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
 
-	memset(arg, 0, TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 	arg->num_params = num_params;
-	memcpy(TEESMC32_GET_PARAMS(arg), params, params_size);
+	memcpy(OPTEE_MSG_GET_PARAMS(arg), params, params_size);
 
-	rpc_args[0] = TEESMC_RETURN_RPC_CMD;
-	rpc_args[1] = parg;
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
-
 	for (n = 0; n < num_params; n++) {
-		switch (params[n].attr & TEESMC_ATTR_TYPE_MASK) {
-		case TEESMC_ATTR_TYPE_VALUE_OUTPUT:
-		case TEESMC_ATTR_TYPE_VALUE_INOUT:
-		case TEESMC_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEESMC_ATTR_TYPE_MEMREF_INOUT:
-			memcpy(params + n, TEESMC32_GET_PARAMS(arg) + n,
-			       sizeof(struct teesmc32_param));
+		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
+		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
+			memcpy(params + n, OPTEE_MSG_GET_PARAMS(arg) + n,
+			       sizeof(struct optee_msg_param));
 			break;
 		default:
 			break;
 		}
 	}
-
 	return arg->ret;
 }
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-		struct teesmc32_param *params)
+		struct optee_msg_param *params)
 {
 	uint32_t ret;
 
@@ -1148,23 +1179,76 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return ret;
 }
 
-void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
-		paddr_t *cookie)
+void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-		TEESMC_RETURN_OPTEE_RPC_ALLOC_PAYLOAD, size};
+		OPTEE_SMC_RETURN_RPC_ALLOC, size};
 
 	thread_rpc(rpc_args);
-	if (payload)
-		*payload = rpc_args[1];
-	if (cookie)
-		*cookie = rpc_args[2];
+	*arg = reg_pair_to_64(rpc_args[1], rpc_args[2]);
+	*cookie = reg_pair_to_64(rpc_args[4], rpc_args[5]);
 }
 
-void thread_optee_rpc_free_payload(paddr_t cookie)
+/**
+ * Allocates shared memory buffer via RPC
+ *
+ * @size:	size in bytes of shared memory buffer
+ * @align:	required alignment of buffer
+ * @bt:		buffer type OPTEE_MSG_RPC_SHM_TYPE_*
+ * @payload:	returned physical pointer to buffer, 0 if allocation
+ *		failed.
+ * @cookie:	returned cookie used when freeing the buffer
+ */
+static void thread_rpc_alloc(size_t size, size_t align, unsigned bt,
+			paddr_t *payload, uint64_t *cookie)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] ={
-		TEESMC_RETURN_OPTEE_RPC_FREE_PAYLOAD, cookie};
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct optee_msg_arg *arg = thr->rpc_arg;
+	uint64_t carg = thr->rpc_carg;
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
+	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_ALLOC;
+	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
+	arg->num_params = 1;
+
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[0].u.value.a = bt;
+	params[0].u.value.b = size;
+	params[0].u.value.c = align;
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
+	if (arg->ret != TEE_SUCCESS)
+		goto fail;
+
+	if (arg->num_params != 1)
+		goto fail;
+
+	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
+		goto fail;
+
+	*payload = params[0].u.tmem.buf_ptr;
+	*cookie = params[0].u.tmem.shm_ref;
+	return;
+fail:
+	*payload = 0;
+	*cookie = 0;
+}
+
+void thread_rpc_free(uint64_t cookie)
+{
+	if (cookie) {
+		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+			OPTEE_SMC_RETURN_RPC_FREE};
+
+		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
+		thread_rpc(rpc_args);
+	}
+}
+
+void thread_rpc_alloc_payload(size_t size, paddr_t *payload, uint64_t *cookie)
+{
+	thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL, payload, cookie);
 }

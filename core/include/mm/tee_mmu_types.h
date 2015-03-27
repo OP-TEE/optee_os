@@ -47,20 +47,14 @@
 #define	TEE_MATTR_URWX		(TEE_MATTR_URW | TEE_MATTR_UX)
 
 #define TEE_MATTR_GLOBAL	(1 << 10)
-#define TEE_MATTR_I_NONCACHE	 0
-#define TEE_MATTR_I_WRITE_THR	(1 << 11)
-#define TEE_MATTR_I_WRITE_BACK	(1 << 12)
-#define TEE_MATTR_O_NONCACHE	 0
-#define TEE_MATTR_O_WRITE_THR	(1 << 13)
-#define TEE_MATTR_O_WRITE_BACK	(1 << 14)
+#define	TEE_MATTR_SECURE	(1 << 11)
 
-#define TEE_MATTR_NONCACHE	 0
-#define TEE_MATTR_CACHE_DEFAULT	(TEE_MATTR_I_WRITE_BACK | \
-				 TEE_MATTR_O_WRITE_BACK)
+#define TEE_MATTR_CACHE_MASK	0x7
+#define TEE_MATTR_CACHE_SHIFT	12
+/* These are shifted TEE_MATTR_CACHE_SHIFT */
+#define TEE_MATTR_CACHE_NONCACHE 0
+#define TEE_MATTR_CACHE_CACHED	1
 
-#define TEE_MATTR_CACHE_UNKNOWN	(1 << 15)
-
-#define	TEE_MATTR_SECURE	(1 << 16)
 
 struct tee_mmap_region {
 	paddr_t pa;

@@ -108,10 +108,12 @@
 #define AP_UNPRIV		(0x1 << 4)
 
 #define NS				(0x1 << 3)
-#define LOWER_ATTRS(x)			(((x) & 0xfff) << 2)
+#define LOWER_ATTRS_SHIFT		2
+#define LOWER_ATTRS(x)			(((x) & 0xfff) << LOWER_ATTRS_SHIFT)
 
 #define ATTR_DEVICE_INDEX		0x0
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x1
+#define ATTR_INDEX_MASK			0x7
 
 #define ATTR_DEVICE			(0x4)
 #define ATTR_IWBWA_OWBWA_NTR		(0xff)
@@ -214,17 +216,12 @@ static uint32_t desc_to_mattr(uint64_t desc)
 	if (desc & UPPER_ATTRS(PXN))
 		a &= ~TEE_MATTR_PX;
 
-	switch (desc & LOWER_ATTRS(0x7)) {
-	case LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX):
-		a |= TEE_MATTR_CACHE_DEFAULT;
-		break;
-	case LOWER_ATTRS(ATTR_DEVICE_INDEX):
-		a |= TEE_MATTR_NONCACHE;
-		break;
-	default:
-		a |= TEE_MATTR_CACHE_UNKNOWN;
-		break;
-	}
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_CACHE_NONCACHE);
+	COMPILE_TIME_ASSERT(ATTR_IWBWA_OWBWA_NTR_INDEX ==
+			    TEE_MATTR_CACHE_CACHED);
+
+	a |= ((desc & LOWER_ATTRS(ATTR_INDEX_MASK)) >> LOWER_ATTRS_SHIFT) <<
+	     TEE_MATTR_CACHE_SHIFT;
 
 	if (!(desc & LOWER_ATTRS(NON_GLOBAL)))
 		a |= TEE_MATTR_GLOBAL;
@@ -272,12 +269,11 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 		desc |= LOWER_ATTRS(AP_RO);
 
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
-	switch (a & (TEE_MATTR_I_WRITE_THR | TEE_MATTR_I_WRITE_BACK |
-		     TEE_MATTR_O_WRITE_THR | TEE_MATTR_O_WRITE_BACK)) {
-	case TEE_MATTR_NONCACHE:
+	switch ((a >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK) {
+	case TEE_MATTR_CACHE_NONCACHE:
 		desc |= LOWER_ATTRS(ATTR_DEVICE_INDEX | OSH);
 		break;
-	case TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK:
+	case TEE_MATTR_CACHE_CACHED:
 		desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
 		break;
 	default:
@@ -369,7 +365,8 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 						 level);
 				debug_print("%*s%010" PRIx64 " %8x %s-%s-%s-%s",
 					level * 2, "", base_va, level_size,
-					attr & TEE_MATTR_CACHE_DEFAULT ?
+					attr & (TEE_MATTR_CACHE_CACHED <<
+						TEE_MATTR_CACHE_SHIFT) ?
 						"MEM" : "DEV",
 					attr & TEE_MATTR_PW ? "RW" : "RO",
 					attr & TEE_MATTR_PX ? "X" : "XN",

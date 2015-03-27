@@ -110,7 +110,7 @@ struct thread_ctx {
 	struct thread_vfp_state vfp_state;
 #endif
 	void *rpc_arg;
-	paddr_t rpc_parg;
+	uint64_t rpc_carg;
 	struct mutex_head mutexes;
 	struct thread_specific_data tsd;
 };
@@ -233,7 +233,7 @@ void thread_handle_std_smc(struct thread_smc_args *args);
  * The purpose of this function is to request services from non-secure
  * world.
  */
-#define THREAD_RPC_NUM_ARGS     3
+#define THREAD_RPC_NUM_ARGS     6
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
 /* Checks stack canaries */

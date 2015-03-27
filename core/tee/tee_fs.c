@@ -29,8 +29,6 @@
 #include <string.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
-#include <kernel/tee_rpc.h>
-#include <kernel/tee_rpc_types.h>
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <kernel/tee_common_unpg.h>

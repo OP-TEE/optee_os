@@ -28,7 +28,7 @@
 #include <asm.S>
 #include <arm64_macros.S>
 #include <arm64.h>
-#include <sm/teesmc.h>
+#include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 #include <asm-defines.h>
@@ -235,7 +235,7 @@ FUNC thread_rpc , :
 	bl	thread_state_suspend
 	mov	x4, x0		/* Supply thread index */
 	ldr	w0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	load_wregs x20, 0, 1, 3	/* Load rv[] into x0-x2 */
+	load_wregs x20, 0, 1, 3	/* Load rv[] into w0-w2 */
 	smc	#0
 	b	.		/* SMC should not return */
 
@@ -248,8 +248,8 @@ FUNC thread_rpc , :
 	 * IRQ and FIQ bits are restored to what they where when this
 	 * function was originally entered.
 	 */
-	pop	x4, xzr		/* Get pointer to rv[] */
-	store_wregs x4, 0, 0, 2	/* Store x0-x2 into rv[] */
+	pop	x16, xzr	/* Get pointer to rv[] */
+	store_wregs x16, 0, 0, 5	/* Store w0-w5 into rv[] */
 	ret
 END_FUNC thread_rpc
 
@@ -733,7 +733,7 @@ LOCAL_FUNC elx_irq , :
 	 */
 
 	ldr	w0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	ldr	w1, =TEESMC_RETURN_RPC_IRQ
+	ldr	w1, =OPTEE_SMC_RETURN_RPC_IRQ
 	mov	w2, #0
 	mov	w3, #0
 	/* w4 is already filled in above */

@@ -30,8 +30,6 @@
 #include <keep.h>
 #include <types_ext.h>
 #include <stdlib.h>
-#include <kernel/tee_rpc.h>
-#include <kernel/tee_rpc_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
@@ -490,16 +488,6 @@ cleanup_return:
 	return res;
 }
 
-static TEE_Result rpc_free(uint32_t handle)
-{
-	struct teesmc32_param params;
-
-	memset(&params, 0, sizeof(params));
-	params.attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
-	params.u.value.a = handle;
-	return thread_rpc_cmd(TEE_RPC_FREE_TA, 1, &params);
-}
-
 /*
  * Load a TA via RPC with UUID defined by input param uuid. The virtual
  * address of the TA is recieved in out parameter ta
@@ -507,63 +495,50 @@ static TEE_Result rpc_free(uint32_t handle)
  * Function is not thread safe
  */
 static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
-			uint32_t *handle)
+			uint64_t *cookie_ta)
 {
 	TEE_Result res;
-	struct teesmc32_param params[2];
-	paddr_t phpayload = 0;
-	paddr_t cookie = 0;
-	struct tee_rpc_load_ta_cmd *cmd_load_ta;
-	uint32_t lhandle;
+	struct optee_msg_param params[2];
+	paddr_t phta = 0;
+	uint64_t cta = 0;
 
-	if (!uuid || !ta || !handle)
+
+	if (!uuid || !ta || !cookie_ta)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	/* get a rpc buffer */
-	thread_optee_rpc_alloc_payload(sizeof(struct tee_rpc_load_ta_cmd),
-				   &phpayload, &cookie);
-	if (!phpayload)
+	memset(params, 0, sizeof(params));
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	memcpy(&params[0].u.value, uuid, sizeof(TEE_UUID));
+	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	params[1].u.tmem.buf_ptr = 0;
+	params[1].u.tmem.size = 0;
+	params[1].u.tmem.shm_ref = 0;
+
+	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	thread_rpc_alloc_payload(params[1].u.tmem.size, &phta, &cta);
+	if (!phta)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if (!ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
+	if (core_pa2va(phta, ta)) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
+	*cookie_ta = cta;
 
-	if (core_pa2va(phpayload, &cmd_load_ta)) {
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	memcpy(&params[0].u.value, uuid, sizeof(TEE_UUID));
+	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	params[1].u.tmem.buf_ptr = phta;
+	params[1].u.tmem.shm_ref = cta;
+	/* Note that params[1].u.tmem.size is already assigned */
 
-	memset(params, 0, sizeof(params));
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
-			 TEESMC_ATTR_CACHE_DEFAULT << TEESMC_ATTR_CACHE_SHIFT;
-	params[1].attr = TEESMC_ATTR_TYPE_MEMREF_OUTPUT |
-			 TEESMC_ATTR_CACHE_DEFAULT << TEESMC_ATTR_CACHE_SHIFT;
-
-	params[0].u.memref.buf_ptr = phpayload;
-	params[0].u.memref.size = sizeof(struct tee_rpc_load_ta_cmd);
-	params[1].u.memref.buf_ptr = 0;
-	params[1].u.memref.size = 0;
-
-	memset(cmd_load_ta, 0, sizeof(struct tee_rpc_load_ta_cmd));
-	memcpy(&cmd_load_ta->uuid, uuid, sizeof(TEE_UUID));
-
-	res = thread_rpc_cmd(TEE_RPC_LOAD_TA, 2, params);
-	if (res != TEE_SUCCESS) {
-		goto out;
-	}
-
-	lhandle = cmd_load_ta->supp_ta_handle;
-	if (core_pa2va(params[1].u.memref.buf_ptr, ta)) {
-		rpc_free(lhandle);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-	*handle = lhandle;
-
+	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
 out:
-	thread_optee_rpc_free_payload(cookie);
+	if (res != TEE_SUCCESS)
+		thread_rpc_free(cta);
 	return res;
 }
 
@@ -690,11 +665,11 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 {
 	TEE_Result res;
 	struct shdr *ta = NULL;
-	uint32_t handle = 0;
+	uint64_t cookie_ta = 0;
 
 
 	/* Request TA from tee-supplicant */
-	res = rpc_load(uuid, &ta, &handle);
+	res = rpc_load(uuid, &ta, &cookie_ta);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -703,7 +678,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
 	 */
-	rpc_free(handle);
+	thread_rpc_free(cookie_ta);
 
 	if (res == TEE_SUCCESS)
 		s->ctx->ops = &user_ta_ops;

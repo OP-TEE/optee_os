@@ -33,8 +33,8 @@
 
 #include <sm/sm.h>
 #include <sm/tee_mon.h>
-#include <sm/teesmc.h>
-#include <sm/teesmc_optee.h>
+#include <sm/optee_smc.h>
+#include <optee_msg.h>
 
 #include <arm.h>
 #include <kernel/thread.h>
@@ -137,22 +137,22 @@ static void main_tee_entry_fast(struct thread_smc_args *args)
 		panic();
 
 	/* SiP Service Call Count */
-	if (args->a0 == TEESMC32_SIP_SUNXI_CALLS_COUNT) {
+	if (args->a0 == OPTEE_SMC_SIP_SUNXI_CALLS_COUNT) {
 		args->a0 = 1;
 		return;
 	}
 
 	/*  SiP Service Call UID */
-	if (args->a0 == TEESMC32_SIP_SUNXI_CALLS_UID) {
-		args->a0 = TEESMC_SIP_SUNXI_UID_R0;
-		args->a1 = TEESMC_SIP_SUNXI_UID_R1;
-		args->a2 = TEESMC_SIP_SUNXI_UID_R2;
-		args->a3 = TEESMC_SIP_SUNXI_UID_R3;
+	if (args->a0 == OPTEE_SMC_SIP_SUNXI_CALLS_UID) {
+		args->a0 = OPTEE_SMC_SIP_SUNXI_UID_R0;
+		args->a1 = OPTEE_SMC_SIP_SUNXI_UID_R1;
+		args->a2 = OPTEE_SMC_SIP_SUNXI_UID_R2;
+		args->a3 = OPTEE_SMC_SIP_SUNXI_UID_R3;
 		return;
 	}
 
 	/* SiP Service Calls */
-	if (args->a0 == TEESMC32_OPTEE_FAST_CALL_SIP_SUNXI) {
+	if (args->a0 == OPTEE_SMC_OPTEE_FAST_CALL_SIP_SUNXI) {
 		platform_smc_handle(args);
 		return;
 	}

@@ -166,9 +166,11 @@ static void core_mmu_mmap_init(struct tee_mmap_region *mm, size_t max_elem,
 			   TEE_MATTR_GLOBAL;
 
 		if (map[n].device || !map[n].cached)
-			mme.attr |= TEE_MATTR_NONCACHE;
+			mme.attr |= TEE_MATTR_CACHE_NONCACHE <<
+				    TEE_MATTR_CACHE_SHIFT;
 		else
-			mme.attr |= TEE_MATTR_CACHE_DEFAULT;
+			mme.attr |= TEE_MATTR_CACHE_CACHED <<
+				    TEE_MATTR_CACHE_SHIFT;
 
 		if (map[n].rw)
 			mme.attr |= TEE_MATTR_PW;
@@ -257,10 +259,9 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
 	 * core_mmu_v7.c:mattr_to_texcb
 	 */
 
-	switch (mattr & (TEE_MATTR_I_WRITE_THR | TEE_MATTR_I_WRITE_BACK |
-			 TEE_MATTR_O_WRITE_THR | TEE_MATTR_O_WRITE_BACK)) {
-	case TEE_MATTR_NONCACHE:
-	case TEE_MATTR_I_WRITE_BACK | TEE_MATTR_O_WRITE_BACK:
+	switch ((mattr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK) {
+	case TEE_MATTR_CACHE_NONCACHE:
+	case TEE_MATTR_CACHE_CACHED:
 		return true;
 	default:
 		return false;

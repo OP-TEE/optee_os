@@ -212,8 +212,8 @@ static void *pager_add_alias_page(paddr_t pa)
 	unsigned idx;
 	struct core_mmu_table_info ti;
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
-			TEE_MATTR_CACHE_DEFAULT | TEE_MATTR_SECURE |
-			TEE_MATTR_PRW;
+			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
+			TEE_MATTR_SECURE | TEE_MATTR_PRW;
 
 	DMSG("0x%" PRIxPA, pa);
 
@@ -296,8 +296,8 @@ static struct tee_pager_area *tee_pager_find_area(vaddr_t va)
 static uint32_t get_area_mattr(struct tee_pager_area *area)
 {
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
-			TEE_MATTR_CACHE_DEFAULT | TEE_MATTR_SECURE |
-			TEE_MATTR_PR;
+			TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
+			TEE_MATTR_SECURE | TEE_MATTR_PR;
 
 	if (!(area->flags & TEE_PAGER_AREA_RO))
 		attr |= TEE_MATTR_PW;

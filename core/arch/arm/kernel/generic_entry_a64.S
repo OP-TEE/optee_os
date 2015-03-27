@@ -29,7 +29,7 @@
 
 #include <asm.S>
 #include <arm.h>
-#include <sm/teesmc.h>
+#include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
