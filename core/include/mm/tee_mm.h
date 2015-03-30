@@ -51,6 +51,9 @@ struct _tee_mm_pool_t {
 	uint32_t hi;		/* high boundery pf the pool */
 	uint32_t flags;		/* Config flags for the pool */
 	uint8_t shift;		/* size shift */
+#ifdef CFG_WITH_STATS
+	size_t max_allocated;
+#endif
 };
 typedef struct _tee_mm_pool_t tee_mm_pool_t;
 
@@ -128,5 +131,17 @@ size_t tee_mm_get_bytes(const tee_mm_entry_t *mm);
 bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, uint32_t addr);
 
 bool tee_mm_is_empty(tee_mm_pool_t *pool);
+
+#ifdef CFG_WITH_STATS
+#define TEE_MM_POOL_DESC_LENGTH 32
+struct tee_mm_pool_stats {
+	char desc[TEE_MM_POOL_DESC_LENGTH];
+	uint32_t allocated;
+	uint32_t max_allocated;
+	uint32_t size;
+};
+void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct tee_mm_pool_stats *stats,
+			   bool reset);
+#endif
 
 #endif

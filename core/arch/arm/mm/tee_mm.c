@@ -87,6 +87,48 @@ static tee_mm_entry_t *tee_mm_add(tee_mm_entry_t *p)
 	return p->next;
 }
 
+#ifdef CFG_WITH_STATS
+static size_t tee_mm_stats_allocated(tee_mm_pool_t *pool)
+{
+	tee_mm_entry_t *entry;
+	uint32_t sz = 0;
+
+	if (!pool)
+		return 0;
+
+	entry = pool->entry;
+	while (entry) {
+		sz += entry->size;
+		entry = entry->next;
+	}
+
+	return sz << pool->shift;
+}
+
+void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct tee_mm_pool_stats *stats,
+			   bool reset)
+{
+	stats->size = pool->hi - pool->lo;
+	stats->max_allocated = pool->max_allocated;
+	stats->allocated = tee_mm_stats_allocated(pool);
+
+	if (reset)
+		stats->max_allocated = 0;
+}
+
+static void update_max_allocated(tee_mm_pool_t *pool)
+{
+	size_t sz = tee_mm_stats_allocated(pool);
+
+	if (sz > pool->max_allocated)
+		pool->max_allocated = sz;
+}
+#else /* CFG_WITH_STATS */
+static inline void update_max_allocated(tee_mm_pool_t *pool __unused)
+{
+}
+#endif /* CFG_WITH_STATS */
+
 tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 {
 	uint32_t psize;
@@ -155,6 +197,8 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 	nn->size = psize;
 	nn->pool = pool;
 
+	update_max_allocated(pool);
+
 	/* Protect with mutex end (multi thread) */
 
 	return nn;
@@ -222,6 +266,8 @@ tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, tee_vaddr_t base,
 	mm->offset = offslo;
 	mm->size = offshi - offslo;
 	mm->pool = pool;
+
+	update_max_allocated(pool);
 
 	return mm;
 }
