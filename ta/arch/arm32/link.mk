@@ -24,7 +24,7 @@ reverse = $(if $(wordlist 2,2,$(1)),$(call reverse,$(wordlist 2,$(words $(1)),$(
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(call reverse,$(libnames)))
-ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc)
+ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
@@ -34,13 +34,13 @@ $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
 
 $(link-out-dir)/$(binary).elf: $(objs) $(libdeps) $(link-script-pp)
 	@echo '  LD      $@'
-	$(q)$(LD) $(ldargs-$(binary).elf) -o $@
+	$(q)$(LD$(sm)) $(ldargs-$(binary).elf) -o $@
 
 $(link-out-dir)/$(binary).dmp: $(link-out-dir)/$(binary).elf
 	@echo '  OBJDUMP $@'
-	$(q)$(OBJDUMP) -l -x -d $< > $@
+	$(q)$(OBJDUMP$(sm)) -l -x -d $< > $@
 
 $(link-out-dir)/$(binary).bin: $(link-out-dir)/$(binary).elf
 	@echo '  OBJCOPY $@'
-	$(q)$(OBJCOPY) -O binary $< $@
+	$(q)$(OBJCOPY$(sm)) -O binary $< $@
 	$(q)$(FIX_TA_BINARY) $< $@
