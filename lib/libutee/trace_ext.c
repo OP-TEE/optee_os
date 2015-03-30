@@ -33,7 +33,7 @@
 #include <util.h>
 #include <utee_syscalls.h>
 
-#if CFG_TRACE_LEVEL > 0
+#if TRACE_LEVEL > 0
 
 void trace_ext_puts(bool sync __unused, const char *str)
 {

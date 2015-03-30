@@ -35,8 +35,8 @@
 #define MAX_PRINT_SIZE      256
 #define MAX_FUNC_PRINT_SIZE 32
 
-#ifndef CFG_TRACE_LEVEL
-#define CFG_TRACE_LEVEL TRACE_MAX
+#ifndef TRACE_LEVEL
+#define TRACE_LEVEL TRACE_MAX
 #endif
 
 /*
@@ -58,35 +58,35 @@ void trace_printf(const char *func, int line, int level, bool level_ok,
 		     false, __VA_ARGS__)
 
 /* Formatted trace tagged with level independent */
-#if (CFG_TRACE_LEVEL <= 0)
+#if (TRACE_LEVEL <= 0)
 #define MSG(...)   (void)0
 #else
 #define MSG(...)   trace_printf_helper(0, false, __VA_ARGS__)
 #endif
 
 /* Formatted trace tagged with TRACE_ERROR level */
-#if (CFG_TRACE_LEVEL < TRACE_ERROR)
+#if (TRACE_LEVEL < TRACE_ERROR)
 #define EMSG(...)   (void)0
 #else
 #define EMSG(...)   trace_printf_helper(TRACE_ERROR, true, __VA_ARGS__)
 #endif
 
 /* Formatted trace tagged with TRACE_INFO level */
-#if (CFG_TRACE_LEVEL < TRACE_INFO)
+#if (TRACE_LEVEL < TRACE_INFO)
 #define IMSG(...)   (void)0
 #else
 #define IMSG(...)   trace_printf_helper(TRACE_INFO, true, __VA_ARGS__)
 #endif
 
 /* Formatted trace tagged with TRACE_DEBUG level */
-#if (CFG_TRACE_LEVEL < TRACE_DEBUG)
+#if (TRACE_LEVEL < TRACE_DEBUG)
 #define DMSG(...)   (void)0
 #else
 #define DMSG(...)   trace_printf_helper(TRACE_DEBUG, true, __VA_ARGS__)
 #endif
 
 /* Formatted trace tagged with TRACE_FLOW level */
-#if (CFG_TRACE_LEVEL < TRACE_FLOW)
+#if (TRACE_LEVEL < TRACE_FLOW)
 #define FMSG(...)   (void)0
 #else
 #define FMSG(...)   trace_printf_helper(TRACE_FLOW, true, __VA_ARGS__)
@@ -106,7 +106,7 @@ void trace_printf(const char *func, int line, int level, bool level_ok,
 
 void dhex_dump(const char *function, int line, int level,
 	       const void *buf, int len);
-#if (CFG_TRACE_LEVEL < TRACE_DEBUG)
+#if (TRACE_LEVEL < TRACE_DEBUG)
 #define DHEXDUMP(buf, len) (void)0
 #else
 #define DHEXDUMP(buf, len) dhex_dump(__func__, __LINE__, TRACE_DEBUG, \
@@ -120,41 +120,41 @@ void dhex_dump(const char *function, int line, int level,
 	trace_printf(NULL, 0, (level), (level_ok), false, __VA_ARGS__)
 
 /* No formatted trace tagged with level independent */
-#if (CFG_TRACE_LEVEL <= 0)
+#if (TRACE_LEVEL <= 0)
 #define MSG_RAW(...)   (void)0
 #else
 #define MSG_RAW(...)   trace_printf_helper_raw(0, false, __VA_ARGS__)
 #endif
 
 /* No formatted trace tagged with TRACE_ERROR level */
-#if (CFG_TRACE_LEVEL < TRACE_ERROR)
+#if (TRACE_LEVEL < TRACE_ERROR)
 #define EMSG_RAW(...)   (void)0
 #else
 #define EMSG_RAW(...)   trace_printf_helper_raw(TRACE_ERROR, true, __VA_ARGS__)
 #endif
 
 /* No formatted trace tagged with TRACE_INFO level */
-#if (CFG_TRACE_LEVEL < TRACE_INFO)
+#if (TRACE_LEVEL < TRACE_INFO)
 #define IMSG_RAW(...)   (void)0
 #else
 #define IMSG_RAW(...)   trace_printf_helper_raw(TRACE_INFO, true, __VA_ARGS__)
 #endif
 
 /* No formatted trace tagged with TRACE_DEBUG level */
-#if (CFG_TRACE_LEVEL < TRACE_DEBUG)
+#if (TRACE_LEVEL < TRACE_DEBUG)
 #define DMSG_RAW(...)   (void)0
 #else
 #define DMSG_RAW(...)   trace_printf_helper_raw(TRACE_DEBUG, true, __VA_ARGS__)
 #endif
 
 /* No formatted trace tagged with TRACE_FLOW level */
-#if (CFG_TRACE_LEVEL < TRACE_FLOW)
+#if (TRACE_LEVEL < TRACE_FLOW)
 #define FMSG_RAW(...)   (void)0
 #else
 #define FMSG_RAW(...)   trace_printf_helper_raw(TRACE_FLOW, true, __VA_ARGS__)
 #endif
 
-#if (CFG_TRACE_LEVEL <= 0)
+#if (TRACE_LEVEL <= 0)
 #define SMSG(...)   (void)0
 #else
 /*
@@ -165,6 +165,6 @@ void dhex_dump(const char *function, int line, int level,
 #define SMSG(...)   \
 	trace_printf(__func__, __LINE__, TRACE_ERROR, true, true, __VA_ARGS__)
 
-#endif /* CFG_TRACE_LEVEL */
+#endif /* TRACE_LEVEL */
 
 #endif /* TRACE_H */

@@ -29,7 +29,7 @@
 #include <console.h>
 
 const char trace_ext_prefix[] = "TEE-CORE";
-int trace_level = CFG_TRACE_LEVEL;
+int trace_level = TRACE_LEVEL;
 
 void trace_ext_puts(bool sync, const char *str)
 {

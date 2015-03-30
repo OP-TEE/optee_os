@@ -27,7 +27,7 @@ aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 
 # Config flags from mk/config.mk
 cppflags$(sm) += -DCFG_TEE_FW_DEBUG=$(CFG_TEE_FW_DEBUG)
-cppflags$(sm) += -DCFG_TRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
+cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 
 cppflags$(sm)	+= -Ilib/libutee/include
 

@@ -45,7 +45,7 @@
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 
-#if (CFG_TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
+#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 void tee_svc_trace_syscall(int num)
 {
 	/* #0 is syscall return, not really interesting */

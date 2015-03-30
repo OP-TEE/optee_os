@@ -160,7 +160,7 @@ static int is_buffer_valid(void *buffer)
 /*
  * Common print of an element.
  */
-#if (CFG_TRACE_LEVEL > 0)
+#if (TRACE_LEVEL > 0)
 static void print_buf(int tl, const char *func, int line, const char *prefix,
 		      const struct user_mem_elem *e)
 {
@@ -173,7 +173,7 @@ static void print_buf(int tl, const char *func, int line, const char *prefix,
 					  __LINE__, prefix, elem); }
 #else
 #define PB(trace_level, prefix, elem) (void)0
-#endif /* CFG_TRACE_LEVEL */
+#endif /* TRACE_LEVEL */
 
 /*
  * Heap mark to track leak.

@@ -31,7 +31,7 @@
 #include <user_ta_header_defines.h>
 #include <trace.h>
 
-int trace_level = CFG_TRACE_LEVEL;
+int trace_level = TRACE_LEVEL;
 
 #ifdef TA_LOG_PREFIX
 const char trace_ext_prefix[]  = TA_LOG_PREFIX;
@@ -119,5 +119,5 @@ int tahead_get_trace_level(void)
 	/*
 	 * Store trace level in TA head structure, as ta_head.prop_tracelevel
 	 */
-	return CFG_TRACE_LEVEL;
+	return TRACE_LEVEL;
 }

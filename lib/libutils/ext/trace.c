@@ -31,10 +31,10 @@
 #include <trace.h>
 #include <util.h>
 
-#if (CFG_TRACE_LEVEL > 0)
+#if (TRACE_LEVEL > 0)
 
-#if (CFG_TRACE_LEVEL < TRACE_MIN) || (CFG_TRACE_LEVEL > TRACE_MAX)
-#error "Invalid value of CFG_TRACE_LEVEL"
+#if (TRACE_LEVEL < TRACE_MIN) || (TRACE_LEVEL > TRACE_MAX)
+#error "Invalid value of TRACE_LEVEL"
 #endif
 
 void trace_set_level(int level)
@@ -138,7 +138,7 @@ void trace_printf(const char *function __unused, int line __unused,
 
 #endif
 
-#if (CFG_TRACE_LEVEL >= TRACE_DEBUG)
+#if (TRACE_LEVEL >= TRACE_DEBUG)
 struct strbuf {
 	char buf[MAX_PRINT_SIZE];
 	char *ptr;
