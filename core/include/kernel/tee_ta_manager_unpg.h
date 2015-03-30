@@ -67,7 +67,6 @@ struct tee_ta_ctx {
 	ta_head_t *head;	/* ptr to the ta head in secure memory */
 	uintptr_t mem_swap;	/* ptr to code and data in memory swap */
 	tee_mm_entry_t *mm;	/* secure world memory */
-	uint32_t smem_size;	/* the size of the secure memory */
 	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
