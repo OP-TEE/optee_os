@@ -27,7 +27,7 @@
 use strict;
 use warnings;
 use diagnostics;
-use Env qw($READELF);
+use Env qw($READELF $CROSS_COMPILE_ta);
 
 sub usage
 {
@@ -51,7 +51,17 @@ open(BIN, "+<$bin") || die("Error opening TA file $bin");
 binmode(BIN);
 
 my $readelf = "readelf";
-$readelf = $READELF if ($READELF);
+
+# In some build environments $READELF is not defined.
+# As a 2nd alternative we use the environment variable $CROSS_COMPILE_ta
+# to target the correct "readelf"
+
+if ($READELF) {
+    $readelf = $READELF
+}
+elsif ($CROSS_COMPILE_ta) {
+    $readelf = "${CROSS_COMPILE_ta}readelf"
+}
 
 my $readelfcmd = "$readelf -s -W $elf";
 print "$readelfcmd\n" if ($verbose);
