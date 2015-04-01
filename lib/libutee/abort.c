@@ -27,15 +27,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <tee_api.h>
+#include <compiler.h>
+#include <utee_syscalls.h>
 
 /*
  * Not used directly from any source file, but required by some compiler
  * library with some compiler options.
  */
-void abort(void);
+void abort(void) __noreturn;
 
 void abort(void)
 {
 	printf("Abort!\n");
-	TEE_Panic(0);
+	utee_panic(0);
 }

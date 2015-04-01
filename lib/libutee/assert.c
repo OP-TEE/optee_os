@@ -25,15 +25,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <assert.h>
+#include <compiler.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <utee_syscalls.h>
 
-void _assert_log(const char *expr, const char *file, int line)
+void _assert_log(const char *expr __unused, const char *file __unused,
+		 int line __unused)
 {
 	EMSG("Assertion '%s' failed at %s:%d", expr, file, line);
 }
 
-void _assert_break(void)
+void __noreturn _assert_break(void)
 {
-	TEE_Panic(TEE_ERROR_GENERIC);
+	utee_panic(TEE_ERROR_GENERIC);
 }
