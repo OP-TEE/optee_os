@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <tee_api.h>
+#include <utee_syscalls.h>
 
 /*
  * Not used directly from any source file, but required by some compiler
@@ -37,5 +38,5 @@ void abort(void);
 void abort(void)
 {
 	printf("Abort!\n");
-	TEE_Panic(0);
+	utee_panic(0);
 }

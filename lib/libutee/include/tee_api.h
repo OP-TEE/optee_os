@@ -72,7 +72,7 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator);
 
 /* System API - Misc */
 
-void TEE_Panic(TEE_Result panicCode) __noreturn;
+void TEE_Panic(TEE_Result panicCode);
 
 /* System API - Internal Client API */
 

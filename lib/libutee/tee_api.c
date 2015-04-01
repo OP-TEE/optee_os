@@ -36,7 +36,7 @@ static void *tee_api_instance_data;
 
 /* System API - Misc */
 
-void TEE_Panic(TEE_Result panicCode)
+void __noreturn TEE_Panic(TEE_Result panicCode)
 {
 	utee_panic(panicCode);
 }

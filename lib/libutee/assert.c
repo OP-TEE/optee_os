@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <utee_syscalls.h>
 
 void _assert_log(const char *expr, const char *file, int line)
 {
@@ -35,5 +36,5 @@ void _assert_log(const char *expr, const char *file, int line)
 
 void _assert_break(void)
 {
-	TEE_Panic(TEE_ERROR_GENERIC);
+	utee_panic(TEE_ERROR_GENERIC);
 }
