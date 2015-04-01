@@ -518,9 +518,9 @@ void TEE_CipherInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLe
 static TEE_Result tee_buffer_update(
 		TEE_OperationHandle op,
 		TEE_Result(*update_func) (uint32_t state, const void *src,
-					  size_t slen, void *dst, size_t *dlen),
+					  size_t slen, void *dst, uint32_t *dlen),
 		const void *src_data, size_t src_len,
-		void *dest_data, size_t *dest_len)
+		void *dest_data, uint32_t *dest_len)
 {
 	TEE_Result res;
 	const uint8_t *src = src_data;
@@ -528,7 +528,7 @@ static TEE_Result tee_buffer_update(
 	uint8_t *dst = dest_data;
 	size_t dlen = *dest_len;
 	size_t acc_dlen = 0;
-	size_t tmp_dlen;
+	uint32_t tmp_dlen;
 	size_t l;
 	size_t buffer_size;
 	size_t buffer_left;
@@ -671,7 +671,7 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 	TEE_Result res;
 	uint8_t *dst = destData;
 	size_t acc_dlen = 0;
-	size_t tmp_dlen;
+	uint32_t tmp_dlen;
 	size_t req_dlen;
 
 	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
@@ -785,7 +785,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 {
 	TEE_Result res;
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE];
-	size_t computed_mac_size = TEE_MAX_HASH_SIZE;
+	uint32_t computed_mac_size = TEE_MAX_HASH_SIZE;
 
 	res = TEE_MACComputeFinal(operation, message, messageLen, computed_mac,
 				  &computed_mac_size);
@@ -893,7 +893,7 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle op,
 	TEE_Result res;
 	uint8_t *dst = destData;
 	size_t acc_dlen = 0;
-	size_t tmp_dlen;
+	uint32_t tmp_dlen;
 	size_t req_dlen;
 
 	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
@@ -953,7 +953,7 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle op,
 	TEE_Result res;
 	uint8_t *dst = destData;
 	size_t acc_dlen = 0;
-	size_t tmp_dlen;
+	uint32_t tmp_dlen;
 	size_t req_dlen;
 
 	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||

@@ -387,6 +387,7 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	struct prop_value pv;
 	void *val;
 	int val_len;
+	size_t size;
 
 	if (valueBuffer == NULL || valueBufferLen == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -400,9 +401,13 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 
 	val = pv.u.str_val;
 	val_len = strlen(val);
-	if (!base64_dec(val, val_len, valueBuffer, valueBufferLen))
-		return TEE_ERROR_SHORT_BUFFER;
-	return TEE_SUCCESS;
+	size = *valueBufferLen;
+	if (!base64_dec(val, val_len, valueBuffer, &size))
+		res = TEE_ERROR_SHORT_BUFFER;
+	else
+		res = TEE_SUCCESS;
+	*valueBufferLen = size;
+	return res;
 }
 
 TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,

@@ -88,19 +88,19 @@ TEE_Result utee_hash_init(uint32_t state, const void *iv, size_t iv_len);
 TEE_Result utee_hash_update(uint32_t state, const void *chunk,
 			    size_t chunk_size);
 TEE_Result utee_hash_final(uint32_t state, const void *chunk,
-			   size_t chunk_size, void *hash, size_t *hash_len);
+			   size_t chunk_size, void *hash, uint32_t *hash_len);
 
 TEE_Result utee_cipher_init(uint32_t state, const void *iv, size_t iv_len);
 TEE_Result utee_cipher_update(uint32_t state, const void *src, size_t src_len,
-			      void *dest, size_t *dest_len);
+			      void *dest, uint32_t *dest_len);
 TEE_Result utee_cipher_final(uint32_t state, const void *src, size_t src_len,
-			     void *dest, size_t *dest_len);
+			     void *dest, uint32_t *dest_len);
 
 /* Generic Object Functions */
 TEE_Result utee_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info);
 TEE_Result utee_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage);
 TEE_Result utee_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
-				  void *buffer, size_t *size);
+				  void *buffer, uint32_t *size);
 
 /* Transient Object Functions */
 TEE_Result utee_cryp_obj_alloc(TEE_ObjectType type, uint32_t max_size,
@@ -127,20 +127,20 @@ TEE_Result utee_authenc_update_aad(uint32_t state, const void *aad_data,
 				   size_t aad_data_len);
 TEE_Result utee_authenc_update_payload(uint32_t state, const void *src_data,
 				       size_t src_len, void *dest_data,
-				       size_t *dest_len);
+				       uint32_t *dest_len);
 TEE_Result utee_authenc_enc_final(uint32_t state, const void *src_data,
 				  size_t src_len, void *dest_data,
-				  size_t *dest_len, void *tag,
-				  size_t *tag_len);
+				  uint32_t *dest_len, void *tag,
+				  uint32_t *tag_len);
 TEE_Result utee_authenc_dec_final(uint32_t state, const void *src_data,
 				  size_t src_len, void *dest_data,
-				  size_t *dest_len, const void *tag,
+				  uint32_t *dest_len, const void *tag,
 				  size_t tag_len);
 
 TEE_Result utee_asymm_operate(uint32_t state, const TEE_Attribute *params,
 			      uint32_t num_params, const void *src_data,
 			      size_t src_len, void *dest_data,
-			      size_t *dest_len);
+			      uint32_t *dest_len);
 
 TEE_Result utee_asymm_verify(uint32_t state,
 			     const TEE_Attribute *params, uint32_t num_params,
@@ -174,7 +174,7 @@ TEE_Result utee_storage_start_enum(TEE_ObjectEnumHandle obj_enum,
 
 TEE_Result utee_storage_next_enum(TEE_ObjectEnumHandle obj_enum,
 				  TEE_ObjectInfo *info, void *obj_id,
-				  size_t *len);
+				  uint32_t *len);
 
 /* Data Stream Access Functions */
 TEE_Result utee_storage_obj_read(TEE_ObjectHandle obj, void *data, size_t len,

@@ -178,10 +178,15 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer,
 					  const TEE_BigInt *bigInt)
 {
 	mpanum n = (mpa_num_base *)bigInt;
+	size_t size = *bufferLen;
+	TEE_Result res;
 
-	if (mpa_get_oct_str(buffer, bufferLen, n) != 0)
-		return TEE_ERROR_SHORT_BUFFER;
-	return TEE_SUCCESS;
+	if (mpa_get_oct_str(buffer, &size, n) != 0)
+		res = TEE_ERROR_SHORT_BUFFER;
+	else
+		res = TEE_SUCCESS;
+	*bufferLen = size;
+	return res;
 }
 
 /*

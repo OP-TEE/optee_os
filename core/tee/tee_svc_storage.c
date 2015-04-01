@@ -849,7 +849,7 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 }
 
 TEE_Result tee_svc_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
-				     void *obj_id, size_t *len)
+				     void *obj_id, uint32_t *len)
 {
 	struct tee_storage_enum *e;
 	struct tee_fs_dirent *d;

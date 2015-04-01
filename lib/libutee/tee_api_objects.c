@@ -92,7 +92,7 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 	TEE_Result res;
 	TEE_ObjectInfo info;
 	uint32_t buf[2];
-	size_t size = sizeof(buf);
+	uint32_t size = sizeof(buf);
 
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
