@@ -583,6 +583,7 @@ uint32_t thread_get_id(void)
 
 	l = thread_get_core_local();
 	ct = l->curr_thread;
+	assert((ct >= 0) && (ct < CFG_NUM_THREADS));
 
 	thread_unmask_exceptions(exceptions);
 	return ct;
