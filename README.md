@@ -53,6 +53,7 @@ please read the file [build_system.md](documentation/build_system.md).
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`|
 | [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
+| MediaTek MT8173 EVB Board|`PLATFORM=mediatek-mt8173`|
 
 ## 4. Get and build the software
 There are a couple of different build options depending on the target you are

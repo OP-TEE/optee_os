@@ -106,7 +106,12 @@ copy_init:
 	ldr	x0, =CONSOLE_UART_BASE
 	ldr	x1, =CONSOLE_UART_CLK_IN_HZ
 	ldr	x2, =CONSOLE_BAUDRATE
+#ifdef CFG_PL011
 	bl	pl011_init
+#endif
+#ifdef CFG_8250_UART
+	bl	serial8250_uart_init
+#endif
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
