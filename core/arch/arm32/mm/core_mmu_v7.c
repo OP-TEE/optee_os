@@ -545,7 +545,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 
 	/* Fill in the entries */
 	while ((pg_idx * SMALL_PAGE_SIZE) <
-        	(mm->size + (mm->pa & SECTION_MASK))) {
+		(mm->size + (mm->pa & SECTION_MASK))) {
 		l2[pg_idx] = ((mm->pa & ~SMALL_PAGE_MASK) +
 				pg_idx * SMALL_PAGE_SIZE) | attr;
 		pg_idx++;
