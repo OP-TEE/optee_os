@@ -722,22 +722,29 @@ static void init_thread_stacks(void)
 		tee_mm_entry_t *mm;
 		vaddr_t sp;
 
-		/* Get unmapped page at bottom of stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
+		/* Find vmem for thread stack and its protection gap */
+		mm = tee_mm_alloc(&tee_mm_vcore,
+				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
 		TEE_ASSERT(mm);
+
 		/* Claim eventual physical page */
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
 				    true);
 
-		/* Allocate the actual stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
+		/* Realloc both protection vmem and stack vmem separately */
+		sp = tee_mm_get_smem(mm);
+		tee_mm_free(mm);
+		mm = tee_mm_alloc2(&tee_mm_vcore, sp, SMALL_PAGE_SIZE);
 		TEE_ASSERT(mm);
+		mm = tee_mm_alloc2(&tee_mm_vcore, sp + SMALL_PAGE_SIZE,
+						  STACK_THREAD_SIZE);
+		TEE_ASSERT(mm);
+
+		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
 		if (!thread_init_stack(n, sp))
 			panic();
-		/* Claim eventual physical page */
-		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
-				    true);
+
 		/* Add the area to the pager */
 		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
 	}
