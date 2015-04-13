@@ -229,6 +229,7 @@ void thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t cpsr = read_cpsr();
 
+	cpsr &= ~(THREAD_EXCP_ALL << CPSR_F_SHIFT);
 	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
 	write_cpsr(cpsr);
 }
