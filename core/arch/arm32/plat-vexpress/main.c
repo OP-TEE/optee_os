@@ -261,7 +261,7 @@ static void main_init_runtime(uint32_t pageable_part)
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
-	EMSG("hash_size %d", hash_size);
+	EMSG("hash_size %zu", hash_size);
 	TEE_ASSERT(hashes);
 	memcpy(hashes, tmp_hashes, hash_size);
 

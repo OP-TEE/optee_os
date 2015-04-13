@@ -40,7 +40,7 @@
 #endif
 
 
-#define SizeQuant   4		/* Buffer allocation size quantum:
+#define SizeQuant   8		/* Buffer allocation size quantum:
 				   all buffers allocated are a
 				   multiple of this size.  This
 				   MUST be a power of two. */
@@ -254,7 +254,7 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	 * The assumption is that uintptr_t will be as wide as the largest
 	 * required alignment of any type.
 	 */
-	COMPILE_TIME_ASSERT(SizeQuant == sizeof(uintptr_t));
+	COMPILE_TIME_ASSERT(SizeQuant >= sizeof(uintptr_t));
 
 	raw_malloc_validate_pools();
 

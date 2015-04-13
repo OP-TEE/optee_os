@@ -48,6 +48,7 @@
 
 #include <assert.h>
 
+#ifdef ARM32
 #define STACK_TMP_SIZE		1024
 #define STACK_THREAD_SIZE	8192
 
@@ -57,6 +58,7 @@
 #define STACK_ABT_SIZE		1024
 #endif
 
+#endif /*ARM32*/
 
 static struct thread_ctx threads[CFG_NUM_THREADS];
 
@@ -75,7 +77,9 @@ static struct thread_vfp_state thread_vfp_state;
 #endif /*CFG_WITH_VFP*/
 
 #ifdef CFG_WITH_STACK_CANARIES
+#ifdef ARM32
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
+#endif
 #define START_CANARY_VALUE	0xdededede
 #define END_CANARY_VALUE	0xabababab
 #define GET_START_CANARY(name, stack_num) name[stack_num][0]
@@ -94,7 +98,6 @@ static struct thread_vfp_state thread_vfp_state;
 
 #define GET_STACK(stack) \
 	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
-
 
 DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
@@ -146,7 +149,7 @@ thread_pm_handler_t thread_system_off_handler_ptr;
 thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
-static unsigned int thread_global_lock = UNLOCK;
+static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 
 static void init_canaries(void)
 {
@@ -214,6 +217,7 @@ static void unlock_global(void)
 	cpu_spin_unlock(&thread_global_lock);
 }
 
+#ifdef ARM32
 uint32_t thread_get_exceptions(void)
 {
 	uint32_t cpsr = read_cpsr();
@@ -228,6 +232,7 @@ void thread_set_exceptions(uint32_t exceptions)
 	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
 	write_cpsr(cpsr);
 }
+#endif /*ARM32*/
 
 uint32_t thread_mask_exceptions(uint32_t exceptions)
 {
@@ -242,7 +247,8 @@ void thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
-static struct thread_core_local *get_core_local(void)
+
+struct thread_core_local *thread_get_core_local(void)
 {
 	uint32_t cpu_id = get_core_pos();
 
@@ -299,10 +305,42 @@ static void thread_lazy_restore_ns_vfp(void)
 #endif /*CFG_WITH_VFP*/
 }
 
+#ifdef ARM32
+static void init_regs(struct thread_ctx *thread,
+		struct thread_smc_args *args)
+{
+	thread->regs.pc = (uint32_t)thread_std_smc_entry;
+
+	/*
+	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
+	 * abort and unmasked FIQ.
+	  */
+	thread->regs.cpsr = CPSR_MODE_SVC | CPSR_I | CPSR_A;
+	/* Enable thumb mode if it's a thumb instruction */
+	if (thread->regs.pc & 1)
+		thread->regs.cpsr |= CPSR_T;
+	/* Reinitialize stack pointer */
+	thread->regs.svc_sp = thread->stack_va_end;
+
+	/*
+	 * Copy arguments into context. This will make the
+	 * arguments appear in r0-r7 when thread is started.
+	 */
+	thread->regs.r0 = args->a0;
+	thread->regs.r1 = args->a1;
+	thread->regs.r2 = args->a2;
+	thread->regs.r3 = args->a3;
+	thread->regs.r4 = args->a4;
+	thread->regs.r5 = args->a5;
+	thread->regs.r6 = args->a6;
+	thread->regs.r7 = args->a7;
+}
+#endif /*ARM32*/
+
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
 	assert(l->curr_thread == -1);
@@ -328,31 +366,8 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	l->curr_thread = n;
 
-	threads[n].regs.pc = (uint32_t)thread_std_smc_entry;
-	/*
-	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
-	 * abort and unmasked FIQ.
-	  */
-	threads[n].regs.cpsr = CPSR_MODE_SVC | CPSR_I | CPSR_A;
 	threads[n].flags = 0;
-	/* Enable thumb mode if it's a thumb instruction */
-	if (threads[n].regs.pc & 1)
-		threads[n].regs.cpsr |= CPSR_T;
-	/* Reinitialize stack pointer */
-	threads[n].regs.svc_sp = threads[n].stack_va_end;
-
-	/*
-	 * Copy arguments into context. This will make the
-	 * arguments appear in r0-r7 when thread is started.
-	 */
-	threads[n].regs.r0 = args->a0;
-	threads[n].regs.r1 = args->a1;
-	threads[n].regs.r2 = args->a2;
-	threads[n].regs.r3 = args->a3;
-	threads[n].regs.r4 = args->a4;
-	threads[n].regs.r5 = args->a5;
-	threads[n].regs.r6 = args->a6;
-	threads[n].regs.r7 = args->a7;
+	init_regs(threads + n, args);
 
 	/* Save Hypervisor Client ID */
 	threads[n].hyp_clnt_id = args->a7;
@@ -361,10 +376,25 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	thread_resume(&threads[n].regs);
 }
 
+#ifdef ARM32
+static void copy_a0_to_a3(struct thread_ctx_regs *regs,
+		struct thread_smc_args *args)
+{
+	/*
+	 * Update returned values from RPC, values will appear in
+	 * r0-r3 when thread is resumed.
+	 */
+	regs->r0 = args->a0;
+	regs->r1 = args->a1;
+	regs->r2 = args->a2;
+	regs->r3 = args->a3;
+}
+#endif /*ARM32*/
+
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
 	size_t n = args->a3; /* thread id */
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 	uint32_t rv = 0;
 
 	assert(l->curr_thread == -1);
@@ -411,14 +441,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	 * get parameters from non-secure world.
 	 */
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
-		/*
-		 * Update returned values from RPC, values will appear in
-		 * r0-r3 when thread is resumed.
-		 */
-		threads[n].regs.r0 = args->a0;
-		threads[n].regs.r1 = args->a1;
-		threads[n].regs.r2 = args->a2;
-		threads[n].regs.r3 = args->a3;
+		copy_a0_to_a3(&threads[n].regs, args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
@@ -468,14 +491,14 @@ void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
 
 void *thread_get_tmp_sp(void)
 {
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 
 	return (void *)l->tmp_stack_va_end;
 }
 
 void thread_state_free(void)
 {
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
@@ -492,9 +515,9 @@ void thread_state_free(void)
 	unlock_global();
 }
 
-int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
+int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 {
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
@@ -525,21 +548,19 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 	return ct;
 }
 
-static void set_tmp_stack(vaddr_t sp)
+#ifdef ARM32
+static void set_tmp_stack(struct thread_core_local *l, vaddr_t sp)
 {
-	struct thread_core_local *l = get_core_local();
-
 	l->tmp_stack_va_end = sp;
-	l->curr_thread = -1;
-
 	thread_set_irq_sp(sp);
 	thread_set_fiq_sp(sp);
 }
 
-static void set_abt_stack(vaddr_t sp)
+static void set_abt_stack(struct thread_core_local *l __unused, vaddr_t sp)
 {
 	thread_set_abt_sp(sp);
 }
+#endif /*ARM32*/
 
 bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
@@ -554,11 +575,12 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 
 uint32_t thread_get_id(void)
 {
+	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
 
-	l = get_core_local();
+	l = thread_get_core_local();
 	ct = l->curr_thread;
 
 	thread_unmask_exceptions(exceptions);
@@ -633,6 +655,7 @@ void thread_init_primary(const struct thread_handlers *handlers)
 	 * checks verifies that the offsets used in assembly code matches
 	 * what's used in C code.
 	 */
+#ifdef ARM32
 	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r0) ==
 				THREAD_SVC_REG_R0_OFFS);
 	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, r1) ==
@@ -653,6 +676,7 @@ void thread_init_primary(const struct thread_handlers *handlers)
 				THREAD_SVC_REG_LR_OFFS);
 	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, spsr) ==
 				THREAD_SVC_REG_SPSR_OFFS);
+#endif /*ARM32*/
 
 	init_handlers(handlers);
 
@@ -674,22 +698,25 @@ static void init_sec_mon(size_t __unused pos)
 void thread_init_per_cpu(void)
 {
 	size_t pos = get_core_pos();
+	struct thread_core_local *l = thread_get_core_local();
 
 	init_sec_mon(pos);
 
-	set_tmp_stack(GET_STACK(stack_tmp[pos]));
-	set_abt_stack(GET_STACK(stack_abt[pos]));
+	l->curr_thread = -1;
+	set_tmp_stack(l, GET_STACK(stack_tmp[pos]));
+	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 
 	thread_init_vbar();
 }
 
 void thread_set_tsd(void *tsd)
 {
+	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
 
-	l = get_core_local();
+	l = thread_get_core_local();
 	ct = l->curr_thread;
 
 	assert(ct != -1);
@@ -701,12 +728,13 @@ void thread_set_tsd(void *tsd)
 
 void *thread_get_tsd(void)
 {
+	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 	int ct;
 	void *tsd;
 
-	l = get_core_local();
+	l = thread_get_core_local();
 	ct = l->curr_thread;
 
 	if (ct == -1 || threads[ct].state != THREAD_STATE_ACTIVE)
@@ -720,7 +748,7 @@ void *thread_get_tsd(void)
 
 struct thread_ctx_regs *thread_get_ctx_regs(void)
 {
-	struct thread_core_local *l = get_core_local();
+	struct thread_core_local *l = thread_get_core_local();
 
 	assert(l->curr_thread != -1);
 	return &threads[l->curr_thread].regs;
@@ -728,10 +756,11 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 
 void thread_set_irq(bool enable)
 {
+	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 
-	l = get_core_local();
+	l = thread_get_core_local();
 
 	assert(l->curr_thread != -1);
 
@@ -749,10 +778,11 @@ void thread_set_irq(bool enable)
 
 void thread_restore_irq(void)
 {
+	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_core_local *l;
 
-	l = get_core_local();
+	l = thread_get_core_local();
 
 	assert(l->curr_thread != -1);
 

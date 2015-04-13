@@ -61,7 +61,7 @@ static TEE_Result tee_svc_storage_get_enum(struct tee_ta_ctx *ctx,
 	struct tee_storage_enum *e;
 
 	TAILQ_FOREACH(e, &ctx->storage_enums, link) {
-		if (enum_id == (uint32_t) e) {
+		if (enum_id == (vaddr_t)e) {
 			*e_out = e;
 			return TEE_SUCCESS;
 		}

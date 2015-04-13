@@ -37,7 +37,7 @@ cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 include $(ta-dev-kit-dir)/mk/arch.mk
 
 libdirs += $(ta-dev-kit-dir)/lib
-libnames += utils mpa utee
+libnames += utee mpa utils utee
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a

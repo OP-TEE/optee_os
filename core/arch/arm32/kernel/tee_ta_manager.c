@@ -257,8 +257,8 @@ static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
 	va_start = ctx->load_addr;
 
 	ptr = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size);
-	end_ptr = (uint32_t *)((uint32_t) ptr +
-			(TA_HEAD_GOT_MASK & ctx->head->rel_dyn_got_size));
+	end_ptr = ptr + (TA_HEAD_GOT_MASK & ctx->head->rel_dyn_got_size) /
+			sizeof(uint32_t);
 
 	while (ptr < end_ptr) {
 		*ptr += va_start;
@@ -272,7 +272,7 @@ static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
 static void tee_ta_init_zi(struct tee_ta_ctx *const ctx)
 {
 	/* setup ZI data */
-	uint32_t start = tee_ta_get_exec(ctx) +
+	vaddr_t start = tee_ta_get_exec(ctx) +
 	    ctx->head->rw_size + ctx->head->ro_size;
 
 	memset((void *)start, 0, ctx->head->zi_size);
@@ -285,8 +285,8 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 {
 	uint32_t rel_dyn_size = ctx->head->rel_dyn_got_size >> 16;
 	uint32_t n;
-	uint32_t saddr =
-	    tee_ta_get_exec(ctx) + ctx->head->ro_size - rel_dyn_size;
+	vaddr_t saddr = tee_ta_get_exec(ctx) + ctx->head->ro_size -
+			rel_dyn_size;
 
 	for (n = 0; n < rel_dyn_size; n += sizeof(struct ta_rel_dyn)) {
 		struct ta_rel_dyn *rel_dyn = (struct ta_rel_dyn *)(saddr + n);
@@ -297,7 +297,7 @@ static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
 			TEE_ASSERT(0);
 		}
 
-		data = (uint32_t *)(ctx->load_addr + rel_dyn->addr);
+		data = (uint32_t *)((vaddr_t)ctx->load_addr + rel_dyn->addr);
 		*data += ctx->load_addr;
 #ifdef PAGER_DEBUG_PRINT
 		DMSG("rel.dyn [%p] = 0x%x", (void *)data, *data);
@@ -312,6 +312,7 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 {
 	uint32_t *data;
 	tee_uaddr_t heap_start_addr;
+	vaddr_t va_start;
 
 	/*
 	 * User TA
@@ -319,9 +320,9 @@ static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
 	 * Heap base follows right after GOT
 	 */
 
+	core_mmu_get_user_va_range(&va_start, NULL);
 	/* XXX this function shouldn't know this mapping */
-	heap_start_addr = ((TEE_DDR_VLOFFSET + 1) << CORE_MMU_USER_CODE_SHIFT) -
-			  heap_size;
+	heap_start_addr = va_start + CORE_MMU_USER_CODE_SIZE - heap_size;
 
 	data = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size +
 			     (ctx->head->rel_dyn_got_size & TA_HEAD_GOT_MASK));
@@ -468,7 +469,7 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	if (ctx->num_res_funcs != 2)
 		return TEE_ERROR_BAD_FORMAT;
 
-	ta_func_head = (ta_func_head_t *)((uint32_t)ctx->head +
+	ta_func_head = (ta_func_head_t *)((vaddr_t)ctx->head +
 					  sizeof(ta_head_t));
 
 	sub_head = (struct user_ta_sub_head *)&ta_func_head[
@@ -516,7 +517,7 @@ static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
 	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr,
 					*heap_size + ctx->stack_size);
 	if (!ctx->mm_heap_stack) {
-		EMSG("Failed to allocate %u bytes\n",
+		EMSG("Failed to allocate %zu bytes\n",
 			*heap_size + ctx->stack_size);
 		EMSG("  of memory for user heap and stack\n");
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -584,7 +585,7 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 {
 	/* ta & ta_session is assumed to be != NULL from previous checks */
 	TEE_Result res;
-	uint32_t heap_size = 0;	/* gcc warning */
+	size_t heap_size = 0;	/* gcc warning */
 	struct tee_ta_ctx *ctx = NULL;
 	const uint8_t *nmem_ta;
 	kta_signed_header_t *sec_signed_ta = NULL;
@@ -700,8 +701,8 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			if (core_pa2va
-			    ((uint32_t)param->params[n].memref.buffer, &va))
+			if (core_pa2va((paddr_t)param->params[n].memref.buffer,
+				       &va))
 				return TEE_ERROR_BAD_PARAMETERS;
 			param->params[n].memref.buffer = va;
 			break;
@@ -754,8 +755,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	tee_uaddr_t stack_uaddr;
 	tee_uaddr_t start_uaddr;
 	struct tee_ta_ctx *ctx = session->ctx;
-	ta_func_head_t *ta_func_head =
-	    (ta_func_head_t *)((uint32_t) ctx->head + sizeof(ta_head_t));
+	ta_func_head_t *ta_func_head = (ta_func_head_t *)((vaddr_t)ctx->head +
+							  sizeof(ta_head_t));
 	tee_uaddr_t params_uaddr;
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 
@@ -796,9 +797,9 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
 		    thread_enter_user_mode(param->types, params_uaddr,
-					    (uint32_t)session, 0, stack_uaddr,
-					    start_uaddr, &ctx->panicked,
-					    &ctx->panic_code);
+					   (vaddr_t)session, 0, stack_uaddr,
+					   start_uaddr, &ctx->panicked,
+					   &ctx->panic_code);
 
 		/*
 		 * According to GP spec the origin should allways be set to the
@@ -808,19 +809,18 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		break;
 
 	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
-		res = thread_enter_user_mode((uint32_t)session, 0, 0, 0,
-					      stack_uaddr, start_uaddr,
-					      &ctx->panicked, &ctx->panic_code);
+		res = thread_enter_user_mode((vaddr_t)session, 0, 0, 0,
+					     stack_uaddr, start_uaddr,
+					     &ctx->panicked, &ctx->panic_code);
 
 		serr = TEE_ORIGIN_TRUSTED_APP;
 		break;
 
 	case USER_TA_FUNC_INVOKE_COMMAND:
-		res =
-		    thread_enter_user_mode(cmd, param->types, params_uaddr,
-					    (uint32_t)session, stack_uaddr,
-					    start_uaddr, &ctx->panicked,
-					    &ctx->panic_code);
+		res = thread_enter_user_mode(cmd, param->types, params_uaddr,
+					     (vaddr_t)session, stack_uaddr,
+					     start_uaddr, &ctx->panicked,
+					     &ctx->panic_code);
 
 		serr = TEE_ORIGIN_TRUSTED_APP;
 		break;
@@ -1034,7 +1034,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	 * from the ctx->open_sessions list.
 	 */
 	while (!TAILQ_EMPTY(&ctx->open_sessions)) {
-		tee_ta_close_session((uint32_t)TAILQ_FIRST(&ctx->open_sessions),
+		tee_ta_close_session((vaddr_t)TAILQ_FIRST(&ctx->open_sessions),
 				     &ctx->open_sessions, KERN_IDENTITY);
 	}
 
@@ -1098,7 +1098,7 @@ TEE_Result tee_ta_close_session(uint32_t id,
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	TAILQ_FOREACH(sess, open_sessions, link) {
-		if (id == (uint32_t)sess)
+		if (id == (vaddr_t)sess)
 			break;
 	}
 	if (!sess) {
@@ -1372,7 +1372,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	if (ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
-		tee_ta_close_session((uint32_t)s, open_sessions, KERN_IDENTITY);
+		tee_ta_close_session((vaddr_t)s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -1406,7 +1406,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	panicked = ctx->panicked;
 
 	if (panicked || (res != TEE_SUCCESS))
-		tee_ta_close_session((uint32_t)s, open_sessions, KERN_IDENTITY);
+		tee_ta_close_session((vaddr_t)s, open_sessions, KERN_IDENTITY);
 
 	/*
 	 * Origin error equal to TEE_ORIGIN_TRUSTED_APP for "regular" error,
@@ -1623,8 +1623,8 @@ TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
 		l2op = L2CACHE_AREA_CLEAN;
 		break;
 	case TEE_CACHEINVALIDATE:
-		l1op = DCACHE_INVALIDATE;
-		l2op = L2CACHE_INVALIDATE;
+		l1op = DCACHE_AREA_INVALIDATE;
+		l2op = L2CACHE_AREA_INVALIDATE;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;

@@ -32,10 +32,6 @@
 #define SMALL_PAGE_MASK		0x00000fff
 #define SMALL_PAGE_SIZE		0x00001000
 
-/* define section to load */
-#define TEE_DDR_VLOFFSET    0x1
-
-
 /*
  * Register addresses related to time
  * RTT = Real-Time Timer

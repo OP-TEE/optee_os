@@ -43,10 +43,8 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 
 	switch (hint) {
 	case 0:
-#if (CFG_TEE_CORE_USER_MEM_DEBUG == 1)
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		break;
-#endif
 	default:
 		EMSG("Invalid alloc hint [%X]", (unsigned int)hint);
 		return NULL;
@@ -314,9 +312,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	/* Check hint */
 	switch (hint) {
 	case 0:
-#if (CFG_TEE_CORE_USER_MEM_DEBUG == 1)
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
-#endif
 		break;
 	default:
 		EMSG("Invalid alloc hint [%p]", (void *)hint);
