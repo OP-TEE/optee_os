@@ -23,16 +23,12 @@ define check-conf-h
 	echo "#define $${guard}" >>$@.tmp;			\
 	echo -n "$${cnf}" | sed 's/_nl_ */\n/g' >>$@.tmp;	\
 	echo "#endif" >>$@.tmp;					\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then			\
-		rm -f $@.tmp;					\
-	else							\
-		echo '  UPD     $@';				\
-		mv $@.tmp $@;					\
-	fi
+	$(call mv-if-changed,$@.tmp,$@)
 endef
 
-define build-conf-mk
+define check-conf-mk
 	$(q)set -e;						\
+	echo '  CHK     $@';					\
 	cnf="$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,CFG_),		\
 		$(call cfg-make-variable,$(var))))";		\
@@ -43,8 +39,17 @@ define build-conf-mk
 	echo "PLATFORM=${PLATFORM}" >>$@.tmp;			\
 	echo "PLATFORM_FLAVOR=${PLATFORM_FLAVOR}" >>$@.tmp; 	\
 	echo -n "$${cnf}" | sed 's/_nl_ */\n/g' >>$@.tmp;	\
-	echo '  UPD     $@';					\
-	mv $@.tmp $@;
+	$(call mv-if-changed,$@.tmp,$@)
+endef
+
+# Rename $1 to $2 only if file content differs. Otherwise just delete $1.
+define mv-if-changed
+	if [ -r $2 ] && cmp -s $2 $1; then			\
+		rm -f $1;					\
+	else							\
+		echo '  UPD     $2';				\
+		mv $1 $2;					\
+	fi
 endef
 
 define cfg-vars-by-prefix
