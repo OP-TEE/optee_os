@@ -78,9 +78,17 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 			       uint32_t commandID, uint32_t paramTypes,
 			       TEE_Param params[4], uint32_t *returnOrigin)
 {
-	return utee_invoke_ta_command(session, cancellationRequestTimeout,
+	TEE_Result res;
+
+	res = utee_invoke_ta_command(session, cancellationRequestTimeout,
 				      commandID, paramTypes, params,
 				      returnOrigin);
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_TARGET_DEAD)
+		TEE_Panic(res);
+
+	return res;
 }
 
 /* System API - Cancellations */
@@ -89,9 +97,8 @@ bool TEE_GetCancellationFlag(void)
 {
 	bool c;
 	TEE_Result res = utee_get_cancellation_flag(&c);
-
 	if (res != TEE_SUCCESS)
-		TEE_Panic(res);
+		c = false;
 	return c;
 }
 
