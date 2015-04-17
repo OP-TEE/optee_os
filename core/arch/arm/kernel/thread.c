@@ -101,7 +101,7 @@ static struct thread_vfp_state thread_vfp_state;
 
 DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
-#if defined(CFG_WITH_SEC_MON)
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
 #endif
 #ifndef CFG_WITH_PAGER
@@ -169,7 +169,7 @@ static void init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#ifdef CFG_WITH_SEC_MON
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	INIT_CANARY(stack_sm);
 #endif
 #ifndef CFG_WITH_PAGER
@@ -192,7 +192,7 @@ void thread_check_canaries(void)
 		assert(GET_START_CANARY(stack_abt, n) == START_CANARY_VALUE);
 		assert(GET_END_CANARY(stack_abt, n) == END_CANARY_VALUE);
 	}
-#ifdef CFG_WITH_SEC_MON
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
 		assert(GET_START_CANARY(stack_sm, n) == START_CANARY_VALUE);
 		assert(GET_END_CANARY(stack_sm, n) == END_CANARY_VALUE);
@@ -690,11 +690,11 @@ void thread_init_primary(const struct thread_handlers *handlers)
 
 static void init_sec_mon(size_t __unused pos)
 {
-#if defined(CFG_WITH_SEC_MON)
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
 	sm_set_entry_vector(thread_vector_table);
-#endif /*CFG_WITH_SEC_MON*/
+#endif
 }
 
 void thread_init_per_cpu(void)

@@ -15,7 +15,6 @@ CFG_PL310 := y
 CFG_SECURE_TIME_SOURCE_REE := y
 CFG_CACHE_API := y
 CFG_WITH_STACK_CANARIES := y
-CFG_WITH_SEC_MON := y
 
 include mk/config.mk
 include $(platform-dir)/system_config.in

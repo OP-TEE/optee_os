@@ -31,7 +31,6 @@ ifeq ($(platform-flavor-armv8),1)
 CFG_WITH_ARM_TRUSTED_FW := y
 else
 core-platform-subdirs += $(arch-dir)/sm
-CFG_WITH_SEC_MON := y
 endif
 
 CFG_PM_DEBUG ?= n
