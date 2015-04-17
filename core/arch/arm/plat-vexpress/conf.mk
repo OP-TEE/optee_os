@@ -7,6 +7,7 @@ ifeq ($(CFG_ARM64_core),y)
 CFG_WITH_LPAE := y
 else
 CFG_ARM32_core ?= y
+CFG_MMU_V7_TTB ?= y
 endif
 
 ifeq ($(CFG_ARM64_core),y)

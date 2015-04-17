@@ -5,6 +5,7 @@ ifeq ($(CFG_WITH_LPAE),y)
 srcs-y += core_mmu_lpae.c
 else
 srcs-y += core_mmu_v7.c
+srcs-$(CFG_MMU_V7_TTB) += core_mmu_v7_ttb.c
 endif
 srcs-y += tee_mm.c
 srcs-y += tee_mm_unpg.c
