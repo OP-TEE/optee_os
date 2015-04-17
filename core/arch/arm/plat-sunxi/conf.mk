@@ -13,7 +13,6 @@ core-platform-subdirs += $(arch-dir)/sm
 
 libutil_with_isoc := y
 CFG_SECURE_TIME_SOURCE_CNTPCT := y
-CFG_WITH_SEC_MON := y
 CFG_WITH_STACK_CANARIES := y
 CFG_SUNXI_UART ?= y
 

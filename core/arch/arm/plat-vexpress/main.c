@@ -102,10 +102,8 @@ static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1);
 static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1);
-#elif defined(CFG_WITH_SEC_MON)
-static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 #else
-#error Platform must use either ARM_TRUSTED_FW or SEC_MON
+static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 #endif
 
 static const struct thread_handlers handlers = {
@@ -121,7 +119,7 @@ static const struct thread_handlers handlers = {
 	.cpu_resume = main_cpu_resume_handler,
 	.system_off = main_system_off_handler,
 	.system_reset = main_system_reset_handler,
-#elif defined(CFG_WITH_SEC_MON)
+#else
 	.cpu_on = main_default_pm_handler,
 	.cpu_off = main_default_pm_handler,
 	.cpu_suspend = main_default_pm_handler,
@@ -137,7 +135,7 @@ static void main_init_sec_mon(uint32_t nsec_entry __unused)
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
-#elif defined(CFG_WITH_SEC_MON)
+#else
 static void main_init_sec_mon(uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
@@ -429,7 +427,7 @@ uint32_t *main_init_primary(uint32_t pageable_part)
 	main_init_primary_helper(pageable_part, PADDR_INVALID);
 	return thread_vector_table;
 }
-#elif defined(CFG_WITH_SEC_MON)
+#else
 /* called from assembly only */
 void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry);
 void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry)
@@ -443,7 +441,6 @@ void main_init_secondary(uint32_t nsec_entry)
 {
 	main_init_secondary_helper(nsec_entry);
 }
-
 #endif
 
 static void main_fiq(void)
@@ -519,7 +516,7 @@ static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1)
 	return 0;
 }
 
-#elif defined(CFG_WITH_SEC_MON)
+#else /* !CFG_WITH_ARM_TRUSTED_FW */
 static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 {
 	/*
