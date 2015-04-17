@@ -46,7 +46,6 @@
 #include <kernel/tee_time.h>
 #include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu_defs.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mm.h>
 #include <utee_defines.h>
@@ -60,21 +59,6 @@
 #include <assert.h>
 
 #define PADDR_INVALID		0xffffffff
-
-#ifndef CFG_WITH_LPAE
-/* Main MMU L1 table for teecore */
-static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
-	__attribute__((section(".nozi.mmu.l1"),
-		       aligned(TEE_MMU_L1_ALIGNMENT)));
-static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
-	__attribute__((section(".nozi.mmu.l2"),
-		       aligned(TEE_MMU_L2_ALIGNMENT)));
-
-/* MMU L1 table for TAs, one for each Core */
-static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
-        __attribute__((section(".nozi.mmu.ul1"),
-		      aligned(TEE_MMU_UL1_ALIGNMENT)));
-#endif
 
 extern uint8_t __text_init_start[];
 extern uint8_t __data_start[];
@@ -530,36 +514,6 @@ static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
 }
 #endif
 
-#ifndef CFG_WITH_LPAE
-paddr_t core_mmu_get_main_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
-
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_main_ttb_va(void)
-{
-	return (vaddr_t)main_mmu_l1_ttb;
-}
-
-paddr_t core_mmu_get_ul1_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
-
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_ul1_ttb_va(void)
-{
-	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
-}
-#endif
-
 void console_putc(int ch)
 {
 	pl011_putc(ch, CONSOLE_UART_BASE);
@@ -571,21 +525,3 @@ void console_flush(void)
 {
 	pl011_flush(CONSOLE_UART_BASE);
 }
-
-#ifndef CFG_WITH_LPAE
-void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
-{
-	/* Can't have this in .bss since it's not initialized yet */
-	static size_t l2_offs __attribute__((section(".data")));
-	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
-	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
-			     TEE_MMU_L2_SIZE) * l2_va_size;
-
-	if (l2_offs)
-		return NULL;
-	if (mm->size > l2_va_space)
-		return NULL;
-	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
-	return main_mmu_l2_ttb;
-}
-#endif
