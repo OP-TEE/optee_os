@@ -231,5 +231,5 @@ LOCAL_FUNC reset_secondary , :
 	mov	r3, #0
 	smc	#0
 	b	.	/* SMC should not return */
-END_FUNC reset_primary
+END_FUNC reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */
