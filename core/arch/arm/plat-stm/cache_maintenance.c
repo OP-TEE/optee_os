@@ -28,10 +28,12 @@
 #include <arm.h>
 #include <mm/core_mmu.h>
 #include <kernel/tz_ssvce_pl310.h>
+#include <kernel/thread.h>
 
 unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 {
 	unsigned int ret = TEE_SUCCESS;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 
 	core_l2cc_mutex_lock();
 
@@ -62,5 +64,6 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 	}
 
 	core_l2cc_mutex_unlock();
+	thread_set_exceptions(exceptions);
 	return ret;
 }
