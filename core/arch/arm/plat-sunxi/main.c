@@ -40,6 +40,7 @@
 #include <kernel/thread.h>
 #include <kernel/time_source.h>
 #include <kernel/panic.h>
+#include <kernel/pm_stubs.h>
 #include <kernel/misc.h>
 #include <mm/tee_pager.h>
 #include <mm/tee_mmu.h>
@@ -58,7 +59,6 @@ extern unsigned char teecore_heap_end;
 
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
-static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 
 static const struct thread_handlers handlers = {
 	.std_smc = main_tee_entry,
@@ -66,12 +66,12 @@ static const struct thread_handlers handlers = {
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,
-	.cpu_on = main_default_pm_handler,
-	.cpu_off = main_default_pm_handler,
-	.cpu_suspend = main_default_pm_handler,
-	.cpu_resume = main_default_pm_handler,
-	.system_off = main_default_pm_handler,
-	.system_reset = main_default_pm_handler,
+	.cpu_on = pm_panic,
+	.cpu_off = pm_panic,
+	.cpu_suspend = pm_panic,
+	.cpu_resume = pm_panic,
+	.system_off = pm_panic,
+	.system_reset = pm_panic,
 };
 
 void main_init(uint32_t nsec_entry); /* called from assembly only */
@@ -130,18 +130,6 @@ void main_init(uint32_t nsec_entry)
 static void main_fiq(void)
 {
 	panic();
-}
-
-static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
-{
-	/*
-	 * This function is not supported in this configuration, and
-	 * should never be called. Panic to catch unintended calls.
-	 */
-	(void)&a0;
-	(void)&a1;
-	panic();
-	return 1;
 }
 
 static void main_tee_entry(struct thread_smc_args *args)

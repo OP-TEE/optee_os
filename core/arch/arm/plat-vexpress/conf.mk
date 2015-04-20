@@ -33,8 +33,6 @@ else
 core-platform-subdirs += $(arch-dir)/sm
 endif
 
-CFG_PM_DEBUG ?= n
-
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
 CFG_SECURE_TIME_SOURCE_CNTPCT := y
@@ -42,6 +40,7 @@ CFG_PL011 := y
 CFG_GIC := y
 CFG_HWSUPP_MEM_PERM_PXN := y
 CFG_WITH_STACK_CANARIES := y
+CFG_PM_STUBS := y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
