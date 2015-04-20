@@ -28,8 +28,8 @@ entries-unpaged += tee_pager_abort_handler
 entries-unpaged += thread_init_vbar
 entries-unpaged += sm_init
 entries-unpaged += core_init_mmu_regs
-entries-unpaged += main_cpu_on_handler
-entries-unpaged += main_init_secondary
+entries-unpaged += plat_common_cpu_on_handler
+entries-unpaged += plat_common_init_secondary
 entries-unpaged += stack_tmp_top
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))

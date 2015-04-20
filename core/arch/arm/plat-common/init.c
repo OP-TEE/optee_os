@@ -76,13 +76,13 @@ extern uint8_t __pageable_start[];
 extern uint8_t __pageable_end[];
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-static void main_init_sec_mon(uint32_t nsec_entry __unused)
+static void init_sec_mon(uint32_t nsec_entry __unused)
 {
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #else
-static void main_init_sec_mon(uint32_t nsec_entry)
+static void init_sec_mon(uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
@@ -97,11 +97,11 @@ static void main_init_sec_mon(uint32_t nsec_entry)
 #endif
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-static void main_init_nsacr(void)
+static void init_nsacr(void)
 {
 }
 #else
-static void main_init_nsacr(void)
+static void init_nsacr(void)
 {
 	/* Normal world can use CP10 and CP11 (SIMD/VFP) */
 	write_nsacr(read_nsacr() | NSACR_CP10 | NSACR_CP11);
@@ -109,7 +109,7 @@ static void main_init_nsacr(void)
 #endif
 
 #ifdef CFG_WITH_VFP
-static void main_init_cpacr(void)
+static void init_cpacr(void)
 {
 	uint32_t cpacr = read_cpacr();
 
@@ -121,7 +121,7 @@ static void main_init_cpacr(void)
 	write_cpacr(cpacr);
 }
 #else
-static void main_init_cpacr(void)
+static void init_cpacr(void)
 {
 	/* We're not using VFP/SIMD instructions, leave it disabled */
 }
@@ -142,7 +142,7 @@ static size_t get_block_size(void)
 	return 1 << tbl_info.shift;
 }
 
-static void main_init_runtime(uint32_t pageable_part)
+static void init_runtime(uint32_t pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)__init_size;
@@ -267,7 +267,7 @@ static void main_init_runtime(uint32_t pageable_part)
 
 }
 #else
-static void main_init_runtime(uint32_t pageable_part __unused)
+static void init_runtime(uint32_t pageable_part __unused)
 {
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -286,8 +286,7 @@ static void main_init_runtime(uint32_t pageable_part __unused)
 }
 #endif
 
-static void main_init_primary_helper(uint32_t pageable_part,
-				     uint32_t nsec_entry)
+static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -296,26 +295,26 @@ static void main_init_primary_helper(uint32_t pageable_part,
 	 * asserts that IRQ is blocked when using most if its functions.
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
-	main_init_cpacr();
+	init_cpacr();
 
-	main_init_runtime(pageable_part);
+	init_runtime(pageable_part);
 
 	DMSG("TEE initializing\n");
 
 	thread_init_primary(&handlers);
 	thread_init_per_cpu();
-	main_init_sec_mon(nsec_entry);
+	init_sec_mon(nsec_entry);
 
 
 	main_init_gic();
-	main_init_nsacr();
+	init_nsacr();
 
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 
-static void main_init_secondary_helper(uint32_t nsec_entry)
+static void init_secondary_helper(uint32_t nsec_entry)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -326,46 +325,44 @@ static void main_init_secondary_helper(uint32_t nsec_entry)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 
 	thread_init_per_cpu();
-	main_init_sec_mon(nsec_entry);
-	main_init_cpacr();
-	main_init_nsacr();
+	init_sec_mon(nsec_entry);
+	init_cpacr();
+	init_nsacr();
 
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* called from assembly only */
-uint32_t *main_init_primary(uint32_t pageable_part);
-uint32_t *main_init_primary(uint32_t pageable_part)
+uint32_t *plat_common_init_primary(uint32_t pageable_part);
+uint32_t *plat_common_init_primary(uint32_t pageable_part)
 {
-	main_init_primary_helper(pageable_part, PADDR_INVALID);
+	init_primary_helper(pageable_part, PADDR_INVALID);
 	return thread_vector_table;
 }
 #else
 /* called from assembly only */
-void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry);
-void main_init_primary(uint32_t pageable_part, uint32_t nsec_entry)
+void plat_common_init_primary(uint32_t pageable_part, uint32_t nsec_entry);
+void plat_common_init_primary(uint32_t pageable_part, uint32_t nsec_entry)
 {
-	main_init_primary_helper(pageable_part, nsec_entry);
+	init_primary_helper(pageable_part, nsec_entry);
 }
 
 /* called from assembly only */
-void main_init_secondary(uint32_t nsec_entry);
-void main_init_secondary(uint32_t nsec_entry)
+void plat_common_init_secondary(uint32_t nsec_entry);
+void plat_common_init_secondary(uint32_t nsec_entry)
 {
-	main_init_secondary_helper(nsec_entry);
+	init_secondary_helper(nsec_entry);
 }
 #endif
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* called from assembly only */
-uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1);
-uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
+uint32_t plat_common_cpu_on_handler(uint32_t a0, uint32_t a1);
+uint32_t plat_common_cpu_on_handler(uint32_t a0 __unused, uint32_t a1 __unused)
 {
-	(void)&a0;
-	(void)&a1;
 	DMSG("cpu %zu: a0 0x%x", get_core_pos(), a0);
-	main_init_secondary_helper(PADDR_INVALID);
+	init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
 #endif
