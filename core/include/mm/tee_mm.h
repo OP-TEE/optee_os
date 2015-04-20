@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <kernel/tee_common_unpg.h>
 #include "tee_mm_unpg.h"
 
 /*-----------------------------------------------------------------------------

@@ -31,4 +31,10 @@
 
 void plat_common_tee_entry(struct thread_smc_args *args);
 
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
+#endif
+
+void main_init_gic(void);
+
 #endif /* PLAT_COMMON_H */
