@@ -25,3 +25,10 @@ srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c
 srcs-$(CFG_PM_STUBS) += pm_stubs.c
+
+srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
+srcs-$(CFG_GENERIC_BOOT) += generic_core_bootcfg.c
+ifeq ($(CFG_GENERIC_BOOT),y)
+srcs-$(CFG_ARM32_core) += generic_entry_a32.S
+srcs-$(CFG_ARM64_core) += generic_entry_a64.S
+endif

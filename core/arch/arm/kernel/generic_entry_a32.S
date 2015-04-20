@@ -136,7 +136,7 @@ copy_init:
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
-	bl	main_init_primary
+	bl	generic_boot_init_primary
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
@@ -201,7 +201,7 @@ FUNC cpu_on_handler , :
 
 	mov	r0, r4
 	mov	r1, r5
-	bl	main_cpu_on_handler
+	bl	generic_boot_cpu_on_handler
 
 	bx	r6
 END_FUNC cpu_on_handler
@@ -223,7 +223,7 @@ LOCAL_FUNC reset_secondary , :
 	bl	cpu_mmu_enable_dcache
 
 	mov	r0, r5		/* ns-entry address */
-	bl	main_init_secondary
+	bl	generic_boot_init_secondary
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	mov	r1, #0

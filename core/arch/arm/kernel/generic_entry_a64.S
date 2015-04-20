@@ -116,7 +116,7 @@ copy_init:
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
-	bl	main_init_primary
+	bl	generic_boot_init_primary
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
@@ -187,7 +187,7 @@ FUNC cpu_on_handler , :
 	mov	x0, x19
 	mov	x1, x20
 	mov	x30, x21
-	b	main_cpu_on_handler
+	b	generic_boot_cpu_on_handler
 END_FUNC cpu_on_handler
 
 LOCAL_FUNC unhandled_cpu , :

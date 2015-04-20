@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,18 +24,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERNEL_GENERIC_BOOT_H
+#define KERNEL_GENERIC_BOOT_H
 
-#ifndef KERNEL_MISC_H
-#define KERNEL_MISC_H
+#include <stdint.h>
 
-#include <types_ext.h>
-#include <arm.h>
-#include <kernel/thread.h>
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
+uint32_t *generic_boot_init_primary(uint32_t pageable_part);
+uint32_t generic_boot_cpu_on_handler(uint32_t a0, uint32_t a1);
+#else
+void generic_boot_init_primary(uint32_t pageable_part, uint32_t nsec_entry);
+void generic_boot_init_secondary(uint32_t nsec_entry);
+#endif
 
-size_t get_core_pos(void);
+void main_init_gic(void);
 
-uint32_t read_mode_sp(int cpu_mode);
-uint32_t read_mode_lr(int cpu_mode);
+const struct thread_handlers *generic_boot_get_handlers(void);
 
-#endif /*KERNEL_MISC_H*/
+extern uint8_t __text_init_start[];
+extern uint8_t __data_start[];
+extern uint8_t __data_end[];
+extern uint8_t __bss_start[];
+extern uint8_t __bss_end[];
+extern uint8_t __init_start[];
+extern uint8_t __init_size[];
+extern uint8_t __heap1_start[];
+extern uint8_t __heap1_end[];
+extern uint8_t __heap2_start[];
+extern uint8_t __heap2_end[];
+extern uint8_t __pageable_part_start[];
+extern uint8_t __pageable_part_end[];
+extern uint8_t __pageable_start[];
+extern uint8_t __pageable_end[];
 
+#endif /* KERNEL_GENERIC_BOOT_H */

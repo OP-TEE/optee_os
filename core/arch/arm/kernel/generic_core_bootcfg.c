@@ -169,7 +169,7 @@ static struct map_area bootcfg_memory_map[] = {
 };
 
 /*
- * bootcfg_get_pbuf_is_handler - return the platform specfic pbuf_is
+ * bootcfg_get_pbuf_is_handler - return the platform specific pbuf_is
  */
 unsigned long bootcfg_get_pbuf_is_handler(void)
 {
