@@ -13,7 +13,7 @@ srcs-$(CFG_ARM32_core) += ssvce_a32.S
 srcs-$(CFG_ARM64_core) += ssvce_a64.S
 srcs-$(CFG_ARM64_core) += cache_helpers_a64.S
 srcs-$(CFG_PL310) += tz_ssvce_pl310_a32.S
-srcs-y += tee_l2cc_mutex.c
+srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 
 srcs-$(CFG_ARM32_core) += thread_a32.S
 srcs-$(CFG_ARM64_core) += thread_a64.S

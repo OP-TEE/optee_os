@@ -54,8 +54,6 @@
 #include <tee/arch_svc.h>
 #include <console.h>
 #include <malloc.h>
-#include "plat_tee_func.h"
-
 #include <assert.h>
 
 #define PADDR_INVALID		0xffffffff
@@ -83,8 +81,8 @@ uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
 #endif
 
 static const struct thread_handlers handlers = {
-	.std_smc = plat_tee_entry,
-	.fast_smc = plat_tee_entry,
+	.std_smc = tee_entry,
+	.fast_smc = tee_entry,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,

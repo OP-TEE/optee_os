@@ -46,7 +46,6 @@
 #include <tee/arch_svc.h>
 #include <console.h>
 #include <asc.h>
-#include <kernel/tee_l2cc_mutex.h>
 #include <assert.h>
 #include <platform_config.h>
 
@@ -122,94 +121,11 @@ static void main_fiq(void)
 
 static void main_tee_entry(struct thread_smc_args *args)
 {
-	/*
-	 * This function first catches all ST specific SMC functions
-	 * if none matches, the generic tee_entry is called.
-	 */
-	int ret;
-
 	/* TODO move to main_init() */
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
-		args->a0 = TEESMC_RETURN_OK;
-		args->a1 = default_nsec_shm_paddr;
-		args->a2 = default_nsec_shm_size;
-		/* Should this be TEESMC cache attributes instead? */
-		args->a3 = core_mmu_is_shm_cached();
-		return;
-	}
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
-		switch (args->a1) {
-		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
-			ret = tee_l2cc_mutex_configure(
-					SERVICEID_GET_L2CC_MUTEX, &args->a2);
-			break;
-		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
-			ret = tee_l2cc_mutex_configure(
-					SERVICEID_SET_L2CC_MUTEX, &args->a2);
-			break;
-		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
-			ret = tee_l2cc_mutex_configure(
-					SERVICEID_ENABLE_L2CC_MUTEX, NULL);
-			break;
-		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			ret = tee_l2cc_mutex_configure(
-					SERVICEID_DISABLE_L2CC_MUTEX, NULL);
-			break;
-		default:
-			args->a0 = TEESMC_RETURN_EBADCMD;
-			return;
-		}
-		if (ret)
-			args->a0 = TEESMC_RETURN_EBADADDR;
-		else
-			args->a0 = TEESMC_RETURN_OK;
-		return;
-	}
-
 	tee_entry(args);
-}
-
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_call_count(struct thread_smc_args *args)
-{
-	args->a0 = tee_entry_generic_get_api_call_count() + 2;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_UID_R0;
-	args->a1 = TEESMC_OPTEE_UID_R1;
-	args->a2 = TEESMC_OPTEE_UID_R2;
-	args->a3 = TEESMC_OPTEE_UID32_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
-	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
-	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
-	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }
 
 /* ttbr1 for teecore mapping: 16kB, fixed addr. */
