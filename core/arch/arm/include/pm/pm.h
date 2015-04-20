@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM_DEBUG_H
-#define PM_DEBUG_H
+#ifndef PM_H
+#define PM_H
 
-#if defined(CFG_PM_DEBUG)
-#define PM_DEBUG(...)	DMSG(__VA_ARGS__)
-#else
-#define PM_DEBUG(...)	(void)0
-#endif
+#include <stdint.h>
+#include <compiler.h>
 
-#endif /* PM_DEBUG_H */
+uint32_t pm_panic(uint32_t a0, uint32_t a1) __noreturn;
+uint32_t pm_do_nothing(uint32_t a0, uint32_t a1);
+
+#endif /* PM_H */

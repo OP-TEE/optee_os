@@ -26,7 +26,6 @@
  */
 
 #include <platform_config.h>
-#include <pm_debug.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -54,6 +53,7 @@
 #include <tee/arch_svc.h>
 #include <console.h>
 #include <malloc.h>
+#include <pm/pm.h>
 #include "plat_tee_func.h"
 
 #include <assert.h>
@@ -80,14 +80,6 @@ static void main_fiq(void);
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 /* Implemented in assembly, referenced in this file only */
 uint32_t cpu_on_handler(uint32_t a0, uint32_t a1);
-
-static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1);
-static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1);
-static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1);
-static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1);
-static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1);
-#else
-static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1);
 #endif
 
 static const struct thread_handlers handlers = {
@@ -98,18 +90,18 @@ static const struct thread_handlers handlers = {
 	.abort = tee_pager_abort_handler,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
-	.cpu_off = main_cpu_off_handler,
-	.cpu_suspend = main_cpu_suspend_handler,
-	.cpu_resume = main_cpu_resume_handler,
-	.system_off = main_system_off_handler,
-	.system_reset = main_system_reset_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
 #else
-	.cpu_on = main_default_pm_handler,
-	.cpu_off = main_default_pm_handler,
-	.cpu_suspend = main_default_pm_handler,
-	.cpu_resume = main_default_pm_handler,
-	.system_off = main_default_pm_handler,
-	.system_reset = main_default_pm_handler,
+	.cpu_on = pm_panic,
+	.cpu_off = pm_panic,
+	.cpu_suspend = pm_panic,
+	.cpu_resume = pm_panic,
+	.system_off = pm_panic,
+	.system_reset = pm_panic,
 #endif
 };
 
@@ -446,71 +438,15 @@ static void main_fiq(void)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-static uint32_t main_cpu_off_handler(uint32_t a0, uint32_t a1)
-{
-	(void)&a0;
-	(void)&a1;
-	/* Could stop generic timer here */
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
-	return 0;
-}
-
-static uint32_t main_cpu_suspend_handler(uint32_t a0, uint32_t a1)
-{
-	(void)&a0;
-	(void)&a1;
-	/* Could save generic timer here */
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
-	return 0;
-}
-
-static uint32_t main_cpu_resume_handler(uint32_t a0, uint32_t a1)
-{
-	(void)&a0;
-	(void)&a1;
-	/* Could restore generic timer here */
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
-	return 0;
-}
-
 /* called from assembly only */
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1);
 uint32_t main_cpu_on_handler(uint32_t a0, uint32_t a1)
 {
 	(void)&a0;
 	(void)&a1;
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
+	DMSG("cpu %zu: a0 0x%x", get_core_pos(), a0);
 	main_init_secondary_helper(PADDR_INVALID);
 	return 0;
-}
-
-static uint32_t main_system_off_handler(uint32_t a0, uint32_t a1)
-{
-	(void)&a0;
-	(void)&a1;
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
-	return 0;
-}
-
-static uint32_t main_system_reset_handler(uint32_t a0, uint32_t a1)
-{
-	(void)&a0;
-	(void)&a1;
-	PM_DEBUG("cpu %zu: a0 0%x", get_core_pos(), a0);
-	return 0;
-}
-
-#else /* !CFG_WITH_ARM_TRUSTED_FW */
-static uint32_t main_default_pm_handler(uint32_t a0, uint32_t a1)
-{
-	/*
-	 * This function is not supported in this configuration, and
-	 * should never be called. Panic to catch unintended calls.
-	 */
-	(void)&a0;
-	(void)&a1;
-	panic();
-	return 1;
 }
 #endif
 

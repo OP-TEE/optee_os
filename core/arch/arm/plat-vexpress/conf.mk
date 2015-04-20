@@ -26,14 +26,12 @@ core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm pm tee sta) $(platform-dir)
 ifeq ($(platform-flavor-armv8),1)
 CFG_WITH_ARM_TRUSTED_FW := y
 else
 core-platform-subdirs += $(arch-dir)/sm
 endif
-
-CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
