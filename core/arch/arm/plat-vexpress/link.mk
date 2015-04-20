@@ -54,7 +54,7 @@ $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 
 objs-init-rem += core/arch/arm/tee/arch_svc.o
 objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
-objs-init-rem += core/arch/arm/plat-vexpress/plat_tee_func.o
+objs-init-rem += core/arch/arm/plat-common/tee_entry.o
 objs-init-rem += core/arch/arm/tee/init.o
 entries-init += _start
 objs-init := \

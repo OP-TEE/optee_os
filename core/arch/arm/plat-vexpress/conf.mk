@@ -26,7 +26,7 @@ core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm pm tee sta) $(platform-dir)
+        $(addprefix $(arch-dir)/, plat-common kernel mm pm tee sta) $(platform-dir)
 ifeq ($(platform-flavor-armv8),1)
 CFG_WITH_ARM_TRUSTED_FW := y
 else

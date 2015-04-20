@@ -8,7 +8,7 @@ CFG_NUM_THREADS ?= 4
 
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm pm tee sta) $(platform-dir)
+	$(addprefix $(arch-dir)/, plat-common kernel mm pm tee sta) $(platform-dir)
 core-platform-subdirs += $(arch-dir)/sm
 
 libutil_with_isoc := y

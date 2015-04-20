@@ -45,6 +45,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <plat_common.h>
 #include <pm/pm.h>
 #include <tee/entry.h>
 #include <tee/arch_svc.h>
@@ -138,34 +139,6 @@ static void main_tee_entry(struct thread_smc_args *args)
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 
-	/*
-	 * This function first catches platform specific SMC functions
-	 * if none matches, the generic tee_entry is called.
-	 */
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
-		args->a0 = TEESMC_RETURN_OK;
-		args->a1 = default_nsec_shm_paddr;
-		args->a2 = default_nsec_shm_size;
-		/* Should this be TEESMC cache attributes instead? */
-		args->a3 = core_mmu_is_shm_cached();
-		return;
-	}
-
-	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
-		switch (args->a1) {
-		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
-		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
-		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			/* A80 platform not support L2CC_MUTEX */
-			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
-			return;
-		default:
-			args->a0 = TEESMC_RETURN_EBADCMD;
-			return;
-		}
-	}
-
 	/* SiP Service Call Count */
 	if (args->a0 == TEESMC32_SIP_SUNXI_CALLS_COUNT) {
 		args->a0 = 1;
@@ -187,44 +160,5 @@ static void main_tee_entry(struct thread_smc_args *args)
 		return;
 	}
 
-	tee_entry(args);
-}
-
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_call_count(struct thread_smc_args *args)
-{
-	args->a0 = tee_entry_generic_get_api_call_count() + 2;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_UID_R0;
-	args->a1 = TEESMC_OPTEE_UID_R1;
-	args->a2 = TEESMC_OPTEE_UID_R2;
-	args->a3 = TEESMC_OPTEE_UID32_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_api_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_uuid(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
-	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
-	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
-	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
-}
-
-/* Override weak function in tee/entry.c */
-void tee_entry_get_os_revision(struct thread_smc_args *args)
-{
-	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
+	plat_common_tee_entry(args);
 }

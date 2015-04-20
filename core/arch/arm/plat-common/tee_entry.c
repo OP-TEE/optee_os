@@ -30,10 +30,14 @@
 #include <sm/teesmc_optee.h>
 #include <mm/core_mmu.h>
 #include <tee/entry.h>
-#include "plat_tee_func.h"
+#include <kernel/tee_l2cc_mutex.h>
+#include <plat_common.h>
+#include <tee_api_types.h>
 
-void plat_tee_entry(struct thread_smc_args *args)
+void plat_common_tee_entry(struct thread_smc_args *args)
 {
+	TEE_Result ret;
+
 	/*
 	 * This function first catches all OPTEE specific SMC functions
 	 * if none matches, the generic tee_entry is called.
@@ -51,16 +55,32 @@ void plat_tee_entry(struct thread_smc_args *args)
 	if (args->a0 == TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX) {
 		switch (args->a1) {
 		case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_GET_L2CC_MUTEX, &args->a2);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_SET_L2CC_MUTEX, &args->a2);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_ENABLE_L2CC_MUTEX, NULL);
+			break;
 		case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-			/* TODO call the appropriate internal functions */
-			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
-			return;
+			ret = tee_l2cc_mutex_configure(
+					SERVICEID_DISABLE_L2CC_MUTEX, NULL);
+			break;
 		default:
 			args->a0 = TEESMC_RETURN_EBADCMD;
 			return;
 		}
+		if (ret == TEE_ERROR_NOT_SUPPORTED)
+			args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
+		else if (ret)
+			args->a0 = TEESMC_RETURN_EBADADDR;
+		else
+			args->a0 = TEESMC_RETURN_OK;
+		return;
 	}
 
 	tee_entry(args);
@@ -69,37 +89,37 @@ void plat_tee_entry(struct thread_smc_args *args)
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_call_count(struct thread_smc_args *args)
 {
-	args->a0 = tee_entry_generic_get_api_call_count() + 2;
+       args->a0 = tee_entry_generic_get_api_call_count() + 2;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_uuid(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_OPTEE_UID_R0;
-	args->a1 = TEESMC_OPTEE_UID_R1;
-	args->a2 = TEESMC_OPTEE_UID_R2;
-	args->a3 = TEESMC_OPTEE_UID32_R3;
+       args->a0 = TEESMC_OPTEE_UID_R0;
+       args->a1 = TEESMC_OPTEE_UID_R1;
+       args->a2 = TEESMC_OPTEE_UID_R2;
+       args->a3 = TEESMC_OPTEE_UID32_R3;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_api_revision(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
+       args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
+       args->a1 = TEESMC_OPTEE_REVISION_MINOR;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_os_uuid(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
-	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
-	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
-	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
+       args->a0 = TEESMC_OS_OPTEE_UUID_R0;
+       args->a1 = TEESMC_OS_OPTEE_UUID_R1;
+       args->a2 = TEESMC_OS_OPTEE_UUID_R2;
+       args->a3 = TEESMC_OS_OPTEE_UUID_R3;
 }
 
 /* Override weak function in tee/entry.c */
 void tee_entry_get_os_revision(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
-	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
+       args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
+       args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }

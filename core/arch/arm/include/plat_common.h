@@ -24,11 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef PLAT_TEE_FUNC_H
-#define PLAT_TEE_FUNC_H
+#ifndef PLAT_COMMON_H
+#define PLAT_COMMON_H
 
 #include <kernel/thread.h>
 
-void plat_tee_entry(struct thread_smc_args *args);
+void plat_common_tee_entry(struct thread_smc_args *args);
 
-#endif /*PLAT_TEE_FUNC_H*/
+#endif /* PLAT_COMMON_H */

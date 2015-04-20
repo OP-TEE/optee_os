@@ -25,8 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_ENTRY_H
-#define TEE_ENTRY_H
+#ifndef ENTRY_H
+#define ENTRY_H
 
 #include <kernel/thread.h>
 
@@ -46,4 +46,4 @@ size_t tee_entry_generic_get_api_call_count(void);
 
 void tee_entry(struct thread_smc_args *args);
 
-#endif /*TEE_ENTRY_H*/
+#endif /* ENTRY_H */
