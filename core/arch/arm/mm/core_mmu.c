@@ -455,10 +455,6 @@ void core_l2cc_mutex_set(void *mutex)
 {
 	l2cc_mutex = (unsigned int *)mutex;
 }
-void core_l2cc_mutex_activate(bool en)
-{
-	l2cc_mutex_required = en;
-}
 
 void core_l2cc_mutex_lock(void)
 {
