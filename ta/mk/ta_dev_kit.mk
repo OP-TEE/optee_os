@@ -27,10 +27,18 @@ q :=
 cmd-echo := echo
 endif
 
+include $(ta-dev-kit-dir)/mk/arch.mk
 -include $(ta-dev-kit-dir)/mk/platform_flags.mk
 
-aflags$(sm) += $(platform-aflags) $(user_ta-platform-aflags)
-cflags$(sm) += $(platform-cflags) $(user_ta-platform-cflags)
+cppflags$(sm)  += $(platform-cppflags) $(user_ta-platform-cppflags)
+aflags$(sm)    += $(platform-aflags) $(user_ta-platform-aflags)
+cflags$(sm)    += $(platform-cflags) $(user_ta-platform-cflags)
+
+CFG_TEE_TA_LOG_LEVEL ?= 2
+cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
+
+CFG_TEE_CORE_USER_MEM_DEBUG ?= 0
+cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
