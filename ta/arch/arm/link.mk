@@ -11,6 +11,7 @@ all: $(link-out-dir)/$(binary).elf $(link-out-dir)/$(binary).dmp \
 cleanfiles += $(link-out-dir)/$(binary).elf $(link-out-dir)/$(binary).dmp
 cleanfiles += $(link-out-dir)/$(binary).map
 cleanfiles += $(link-out-dir)/$(binary).bin
+cleanfiles += $(link-out-dir)/$(binary).ta
 cleanfiles += $(link-script-pp)
 
 link-ldflags  = $(LDFLAGS)
