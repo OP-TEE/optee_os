@@ -29,11 +29,13 @@
 #define KERNEL_MISC_H
 
 #include <types_ext.h>
+#include <arm32.h>
+#include <kernel/thread.h>
 
 size_t get_core_pos(void);
 
-uint32_t read_usr_sp(void);
-uint32_t read_usr_lr(void);
+uint32_t read_mode_sp(int cpu_mode);
+uint32_t read_mode_lr(int cpu_mode);
 
 #endif /*KERNEL_MISC_H*/
 

@@ -41,20 +41,39 @@ FUNC get_core_pos , :
 	bx	lr
 END_FUNC get_core_pos
 
-/* uint32_t read_usr_sp(void) */
-FUNC read_usr_sp , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, sp
-	msr	cpsr, r1
+/*
+ * uint32_t temp_set_mode(int cpu_mode)
+ *   returns cpsr to be set
+ */
+LOCAL_FUNC temp_set_mode , :
+	mov	r1, r0
+	cmp	r1, #CPSR_MODE_USR	/* update mode: usr -> sys */
+	moveq	r1, #CPSR_MODE_SYS
+	cpsid	aif			/* disable interrupts */
+	mrs	r0, cpsr		/* get cpsr with disabled its*/
+	bic	r0, #CPSR_MODE_MASK	/* clear mode */
+	orr	r0, r1			/* set expected mode */
 	bx	lr
-END_FUNC read_usr_sp
+END_FUNC temp_set_mode
 
-/* uint32_t read_usr_lr(void) */
-FUNC read_usr_lr , :
-	mrs	r1, cpsr
-	cps     #CPSR_MODE_SYS
-	mov     r0, lr
-	msr	cpsr, r1
-	bx	lr
-END_FUNC read_usr_lr
+/* uint32_t read_mode_sp(int cpu_mode) */
+FUNC read_mode_sp , :
+	push	{r4, lr}
+	mrs	r4, cpsr		/* save cpsr */
+	bl	temp_set_mode
+	msr	cpsr, r0		/* set the new mode */
+	mov	r0, sp			/* get the function result */
+	msr	cpsr, r4		/* back to the old mode */
+	pop	{r4, pc}
+END_FUNC read_mode_sp
+
+/* uint32_t read_mode_lr(int cpu_mode) */
+FUNC read_mode_lr , :
+	push	{r4, lr}
+	mrs	r4, cpsr		/* save cpsr */
+	bl	temp_set_mode
+	msr	cpsr, r0		/* set the new mode */
+	mov	r0, lr			/* get the function result */
+	msr	cpsr, r4		/* back to the old mode */
+	pop	{r4, pc}
+END_FUNC read_mode_lr

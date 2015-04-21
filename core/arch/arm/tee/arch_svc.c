@@ -185,7 +185,8 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
-			panic_code, read_usr_sp(), read_usr_lr());
+		      panic_code, read_mode_sp(CPSR_MODE_SYS),
+		      read_mode_lr(CPSR_MODE_SYS));
 	}
 	regs->r1 = panic;
 	regs->r2 = panic_code;
