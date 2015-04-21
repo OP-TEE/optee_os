@@ -302,11 +302,6 @@
 #define DEVICE3_SIZE		CORE_MMU_DEVICE_SIZE
 #endif
 
-
-#ifdef CFG_WITH_LPAE
-#define MAX_XLAT_TABLES		5
-#endif
-
 #ifndef UART_BAUDRATE
 #define UART_BAUDRATE		115200
 #endif
