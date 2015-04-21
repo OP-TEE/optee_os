@@ -62,3 +62,6 @@ script:
   # SUNXI(Allwinner A80)
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=sunxi make -j8 all
+
+  # HiKey board (HiSilicon Kirin 620)
+  - make -j8 PLATFORM=hikey
