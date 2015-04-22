@@ -39,6 +39,14 @@ const char trace_ext_prefix[]  = TA_LOG_PREFIX;
 const char trace_ext_prefix[]  = "USER-TA";
 #endif
 
+#ifndef TA_VERSION
+#define TA_VERSION "Undefined version"
+#endif
+
+#ifndef TA_DESCRIPTION
+#define TA_DESCRIPTION "Undefined description"
+#endif
+
 /* exprted to user_ta_header.c, built within TA */
 void ta_entry_close_session(uint32_t session_id) __noreturn;
 
@@ -102,6 +110,12 @@ const struct user_ta_property ta_props[] = {
 
 	{TA_PROP_STR_STACK_SIZE, USER_TA_PROP_TYPE_U32,
 	 &(const uint32_t){TA_STACK_SIZE}},
+
+	{TA_PROP_STR_VERSION, USER_TA_PROP_TYPE_STRING,
+	 TA_VERSION},
+
+	{TA_PROP_STR_DESCRIPTION, USER_TA_PROP_TYPE_STRING,
+	 TA_DESCRIPTION},
 
 /*
  * Extended propietary properties, name of properties must not begin with
