@@ -35,7 +35,7 @@
 #define TEE_FS_O_WRONLY 0x2
 #define TEE_FS_O_RDWR   0x4
 #define TEE_FS_O_CREATE 0x8
-#define TEE_FS_O_EXCL   0x10
+#define TEE_FS_O_OVWR   0x10
 
 /*
  * tee_fs_lseek

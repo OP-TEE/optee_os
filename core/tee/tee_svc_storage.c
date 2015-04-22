@@ -148,8 +148,8 @@ static uint32_t tee_svc_storage_conv_oflags(uint32_t flags)
 			out |= TEE_FS_O_WRONLY;
 	}
 
-	if (flags & TEE_DATA_FLAG_EXCLUSIVE)
-		out |= TEE_FS_O_EXCL;
+	if (flags & TEE_DATA_FLAG_OVERWRITE)
+		out |= TEE_FS_O_OVWR;
 
 	return out;
 }
@@ -177,8 +177,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 	int tmp;
 	uint32_t cflags = TEE_FS_O_WRONLY | TEE_FS_O_CREATE;
 
-	if (flags & TEE_DATA_FLAG_EXCLUSIVE)
-		cflags |= TEE_FS_O_EXCL;
+	if (flags & TEE_DATA_FLAG_OVERWRITE)
+		cflags |= TEE_FS_O_OVWR;
 
 	*fd = tee_file_ops.open(file, cflags);
 
