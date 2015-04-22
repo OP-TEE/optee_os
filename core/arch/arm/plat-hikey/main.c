@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Allwinner Technology Co., Ltd.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,45 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stddef.h>
-#include <string.h>
-#include <trace.h>
-#include <kernel/tee_common_otp.h>
+#include <console.h>
+#include <drivers/pl011.h>
+#include <kernel/panic.h>
+#include <mm/tee_pager.h>
+#include <plat_common.h>
+#include <platform_config.h>
+#include <pm/pm.h>
+#include <stdint.h>
+#include <tee/arch_svc.h>
 
-#define SHA256_HASH_SIZE 32
-uint8_t hw_key_digest[SHA256_HASH_SIZE];
+static void main_fiq(void);
 
-/*---------------------------------------------------------------------------*/
-/*                             tee_otp_get_hw_unique_key                    */
-/*---------------------------------------------------------------------------*/
-/*
-    This function reads out a hw unique key.
+const struct thread_handlers handlers = {
+	.std_smc = plat_common_tee_entry,
+	.fast_smc = plat_common_tee_entry,
+	.fiq = main_fiq,
+	.svc = tee_svc_handler,
+	.abort = tee_pager_abort_handler,
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+};
 
-    \param[in]  hwkey data place holder for the key data read
-    \param[out] None.
-    \return None.
-
- */
-/*---------------------------------------------------------------------------*/
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static void main_fiq(void)
 {
-	/* Copy the first part of the new hw key */
-	memcpy(&hwkey->data[0], &hw_key_digest[0],
-	       sizeof(struct tee_hw_unique_key));
+	panic();
 }
 
-int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+void console_putc(int ch)
 {
-	size_t i;
+	pl011_putc(ch, CONSOLE_UART_BASE);
+	if (ch == '\n')
+		pl011_putc('\r', CONSOLE_UART_BASE);
+}
 
-	char pattern[4] = { 'B', 'E', 'E', 'F' };
-	for (i = 0; i < len; i++)
-		buffer[i] = pattern[i % 4];
-
-	return 0;
+void console_flush(void)
+{
+	pl011_flush(CONSOLE_UART_BASE);
 }

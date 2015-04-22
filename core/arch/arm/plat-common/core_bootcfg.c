@@ -146,11 +146,13 @@ static struct map_area bootcfg_memory_map[] = {
 	 .pa = DEVICE0_BASE, .size = DEVICE0_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
+#ifdef DEVICE1_BASE
 	{
 	 .type = MEM_AREA_IO_SEC,
 	 .pa = DEVICE1_BASE, .size = DEVICE1_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
+#endif
 #ifdef DEVICE2_BASE
 	{
 	 .type = MEM_AREA_IO_SEC,

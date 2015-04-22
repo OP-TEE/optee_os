@@ -8,14 +8,13 @@ CFG_ARM32_core ?= y
 core-platform-cppflags	 = -I$(arch-dir)/include
 
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm sm tee sta) $(platform-dir)
+        $(addprefix $(arch-dir)/, plat-common kernel mm pm sm tee sta) $(platform-dir)
 
 libutil_with_isoc := y
 CFG_PL310 := y
 CFG_SECURE_TIME_SOURCE_REE := y
 CFG_CACHE_API := y
 CFG_WITH_STACK_CANARIES := y
-CFG_WITH_SEC_MON := y
 
 include mk/config.mk
 include $(platform-dir)/system_config.in

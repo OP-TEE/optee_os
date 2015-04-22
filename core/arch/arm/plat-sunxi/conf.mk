@@ -8,14 +8,14 @@ CFG_NUM_THREADS ?= 4
 
 core-platform-cppflags	 = -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
+	$(addprefix $(arch-dir)/, plat-common kernel mm pm tee sta) $(platform-dir)
 core-platform-subdirs += $(arch-dir)/sm
 
 libutil_with_isoc := y
 CFG_SECURE_TIME_SOURCE_CNTPCT := y
-CFG_WITH_SEC_MON := y
 CFG_WITH_STACK_CANARIES := y
 CFG_SUNXI_UART ?= y
+CFG_MMU_V7_TTB ?= y
 
 include mk/config.mk
 

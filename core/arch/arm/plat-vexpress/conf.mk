@@ -7,6 +7,7 @@ ifeq ($(CFG_ARM64_core),y)
 CFG_WITH_LPAE := y
 else
 CFG_ARM32_core ?= y
+CFG_MMU_V7_TTB ?= y
 endif
 
 ifeq ($(CFG_ARM64_core),y)
@@ -25,15 +26,12 @@ core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-cppflags	+= -DNUM_THREADS=2
 
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
+        $(addprefix $(arch-dir)/, plat-common kernel mm pm tee sta) $(platform-dir)
 ifeq ($(platform-flavor-armv8),1)
 CFG_WITH_ARM_TRUSTED_FW := y
 else
 core-platform-subdirs += $(arch-dir)/sm
-CFG_WITH_SEC_MON := y
 endif
-
-CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
@@ -42,6 +40,8 @@ CFG_PL011 := y
 CFG_GIC := y
 CFG_HWSUPP_MEM_PERM_PXN := y
 CFG_WITH_STACK_CANARIES := y
+CFG_COMMON_INIT := y
+CFG_COMMON_BOOTCFG := y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_SHA256_ARM32_CE ?= y

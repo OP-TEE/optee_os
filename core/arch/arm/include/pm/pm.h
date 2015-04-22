@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,11 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef PLAT_TEE_FUNC_H
-#define PLAT_TEE_FUNC_H
 
-#include <kernel/thread.h>
+#ifndef PM_H
+#define PM_H
 
-void plat_tee_entry(struct thread_smc_args *args);
+#include <stdint.h>
+#include <compiler.h>
 
-#endif /*PLAT_TEE_FUNC_H*/
+uint32_t pm_panic(uint32_t a0, uint32_t a1) __noreturn;
+uint32_t pm_do_nothing(uint32_t a0, uint32_t a1);
+
+#endif /* PM_H */

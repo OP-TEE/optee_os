@@ -165,6 +165,9 @@
 #define MAX_MMAP_REGIONS	16
 #define NUM_L1_ENTRIES		(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
 
+#ifndef MAX_XLAT_TABLES
+#define MAX_XLAT_TABLES		5
+#endif
 
 /* MMU L1 table, one for each core */
 static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
