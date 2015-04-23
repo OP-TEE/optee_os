@@ -79,10 +79,18 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 			       TEE_Param params[4], uint32_t *returnOrigin)
 {
 	TEE_Result res;
+	uint32_t ret_origin;
 
 	res = utee_invoke_ta_command(session, cancellationRequestTimeout,
 				      commandID, paramTypes, params,
-				      returnOrigin);
+				      &ret_origin);
+
+	if (returnOrigin != NULL)
+		*returnOrigin = ret_origin;
+
+	if (ret_origin == TEE_ORIGIN_TRUSTED_APP)
+		return res;
+
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_OUT_OF_MEMORY &&
 	    res != TEE_ERROR_TARGET_DEAD)
