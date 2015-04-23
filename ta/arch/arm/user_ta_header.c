@@ -104,10 +104,10 @@ const struct user_ta_property ta_props[] = {
 	 &(const uint32_t){TA_STACK_SIZE}},
 
 	{TA_PROP_STR_VERSION, USER_TA_PROP_TYPE_STRING,
-	 &(const char[]){TA_VERSION}},
+	 TA_VERSION},
 
 	{TA_PROP_STR_DESCRIPTION, USER_TA_PROP_TYPE_STRING,
-	 &(const char[]){TA_DESCRIPTION}},
+	 TA_DESCRIPTION},
 
 /*
  * Extended propietary properties, name of properties must not begin with
