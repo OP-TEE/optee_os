@@ -78,6 +78,67 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 	return TEE_SUCCESS;
 }
 
+TEE_Result tee_pobj_find(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
+			uint32_t flags, struct tee_pobj **obj)
+{
+	TEE_Result res;
+	struct tee_pobj *o;
+
+	*obj = NULL;
+
+	/* Check if file is open */
+	TAILQ_FOREACH(o, &tee_pobjs, link) {
+		if ((obj_id_len == o->obj_id_len) &&
+		    (memcmp(obj_id, o->obj_id, obj_id_len) == 0) &&
+		    (memcmp(uuid, &o->uuid, sizeof(TEE_UUID)) == 0)) {
+			*obj = o;
+		}
+	}
+
+	if (!*obj)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = tee_pobj_check_access((*obj)->flags, flags);
+	if (res != TEE_SUCCESS) {
+		*obj = NULL;
+		return res;
+	}
+
+	(*obj)->refcnt++;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_pobj_add(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
+			uint32_t flags, struct tee_pobj **obj)
+{
+	struct tee_pobj *o;
+
+	*obj = NULL;
+
+	o = calloc(sizeof(struct tee_pobj), 1);
+
+	if (o == NULL)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	o->refcnt = 1;
+	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
+	o->flags = flags;
+
+	o->obj_id = malloc(obj_id_len);
+	if (o->obj_id == NULL) {
+		free(o);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+	memcpy(o->obj_id, obj_id, obj_id_len);
+	o->obj_id_len = obj_id_len;
+
+	TAILQ_INSERT_TAIL(&tee_pobjs, o, link);
+	*obj = o;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 			uint32_t flags, struct tee_pobj **obj)
 {

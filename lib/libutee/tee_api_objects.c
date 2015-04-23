@@ -410,7 +410,6 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 				      TEE_ObjectHandle *object)
 {
 	TEE_Result res;
-	TEE_ObjectInfo objectInfo;
 
 	if (storageID != TEE_STORAGE_PRIVATE) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -432,24 +431,11 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 		goto err;
 	}
 
-	res = utee_cryp_obj_get_info((uint32_t)object, &objectInfo);
-	if (res == TEE_SUCCESS) {
-		if (flags & TEE_DATA_FLAG_OVERWRITE) {
-			res = utee_storage_obj_del((TEE_ObjectHandle)object);
-			if (res != TEE_SUCCESS)
-				TEE_Panic(0);
-		} else {
-			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto err;
-		}
-	}
-
 	res = utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				       attributes, initialData, initialDataLen,
 				       object);
-	if (res != TEE_SUCCESS)
-		goto err;
-	goto out;
+	if (res == TEE_SUCCESS)
+		goto out;
 err:
 	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
 	    res == TEE_ERROR_ACCESS_CONFLICT ||

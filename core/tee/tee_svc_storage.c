@@ -149,7 +149,7 @@ static uint32_t tee_svc_storage_conv_oflags(uint32_t flags)
 	}
 
 	if (flags & TEE_DATA_FLAG_OVERWRITE)
-		out |= TEE_FS_O_OVWR;
+		out |= TEE_FS_O_EXCL;
 
 	return out;
 }
@@ -177,8 +177,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 	int tmp;
 	uint32_t cflags = TEE_FS_O_WRONLY | TEE_FS_O_CREATE;
 
-	if (flags & TEE_DATA_FLAG_OVERWRITE)
-		cflags |= TEE_FS_O_OVWR;
+	if (!(flags & TEE_DATA_FLAG_OVERWRITE))
+		cflags |= TEE_FS_O_EXCL;
 
 	*fd = tee_file_ops.open(file, cflags);
 
@@ -527,7 +527,28 @@ TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_pobj_get((void *)&sess->ctx->head->uuid, object_id,
+	res = tee_pobj_find((void *)&sess->ctx->head->uuid, object_id,
+			   object_id_len, flags, &po);
+
+	if (res == TEE_ERROR_ACCESS_CONFLICT)
+		goto exit;
+
+	if (res == TEE_SUCCESS) {
+		if (po->refcnt > 1) {
+			if (flags & TEE_DATA_FLAG_OVERWRITE) {
+				res = tee_svc_storage_obj_del((uint32_t)obj);
+				if (res != TEE_SUCCESS) {
+					res = TEE_ERROR_GENERIC;
+					goto exit;
+				}
+			} else {
+				res = TEE_ERROR_ACCESS_CONFLICT;
+				goto exit;
+			}
+		}
+	}
+
+	res = tee_pobj_add((void *)&sess->ctx->head->uuid, object_id,
 			   object_id_len, flags, &po);
 	if (res != TEE_SUCCESS)
 		goto exit;

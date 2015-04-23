@@ -41,6 +41,12 @@ struct tee_pobj {
 	uint32_t flags;
 };
 
+TEE_Result tee_pobj_find(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
+			uint32_t flags, struct tee_pobj **obj);
+
+TEE_Result tee_pobj_add(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
+			uint32_t flags, struct tee_pobj **obj);
+
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 			uint32_t flags, struct tee_pobj **obj);
 
