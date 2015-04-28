@@ -108,46 +108,112 @@ uint32_t tee_svc_sys_nocall(void)
 	return 0x1;
 }
 
+/* Configuration properties */
+/* API implementation version */
+static const char api_vers[] = TO_STR(CFG_TEE_API_VERSION);
+
+/* Implementation description (implementation-dependent) */
+static const char descr[] = TO_STR(CFG_TEE_IMPL_DESCR);
+
+/*
+ * System time protection level
+ * 100: System time based on REE-controlled timers (default).
+ * Can be tampered by the REE
+ * The implementation must still guarantee that the system time
+ * is monotonous, i.e., successive calls to TEE_GetSystemTime must
+ * return increasing values of the system time.
+ * 1000: System time based on a TEE-controlled secure timer.
+ * The REE cannot interfere with the system time. It may still
+ * interfere with the scheduling of TEE tasks, but is not able to
+ * hide delays from a TA calling TEE_GetSystemTime.
+ */
+static const uint32_t sys_time_prot_lvl = 100;
+
+/*
+ * TA persistent time protection level
+ * 100: Persistent time based on an REE-controlled real-time clock
+ * and on the TEE Trusted Storage for the storage of origins (default).
+ * 1000: Persistent time based on a TEE-controlled real-time clock
+ * and the TEE Trusted Storage.
+ * The real-time clock MUST be out of reach of software attacks
+ * from the REE.
+ */
+static const uint32_t ta_time_prot_lvl = 100;
+
+/* Elliptic Curve Cryptographic support (false by default) */
+static const bool crypto_ecc_en;
+
+/*
+ * Trusted storage anti rollback protection level
+ * 0 (or missing): No antirollback protection (default)
+ * 100: Antirollback enforced at REE level
+ * 1000: Antirollback TEE-controlled hardware
+ */
+static const uint32_t ts_antiroll_prot_lvl;
+
+/* Trusted OS implementation version */
+static const char trustedos_impl_version[] = TO_STR(CFG_TEE_IMPL_VERSION);
+
+/* Trusted OS implementation version (binary value) */
+static const uint32_t trustedos_impl_bin_version; /* 0 by default */
+
+/* Trusted OS implementation manufacturer name */
+static const char trustedos_manufacturer[] = TO_STR(CFG_TEE_MANUFACTURER);
+
+/* Trusted firmware version */
+static const char fw_impl_version[] = TO_STR(CFG_TEE_FW_IMPL_VERSION);
+
+/* Trusted firmware version (binary value) */
+static const uint32_t fw_impl_bin_version; /* 0 by default */
+
+/* Trusted firmware manufacturer name */
+static const char fw_manufacturer[] = TO_STR(CFG_TEE_FW_MANUFACTURER);
+
+struct tee_props {
+	const void *data;
+	const size_t len;
+};
+
+/* Consistent with enum utee_property */
+const struct tee_props tee_props_lut[] = {
+	{api_vers, sizeof(api_vers)},
+	{descr, sizeof(descr)},
+	{0, 0}, /* dev_id */
+	{&sys_time_prot_lvl, sizeof(sys_time_prot_lvl)},
+	{&ta_time_prot_lvl, sizeof(ta_time_prot_lvl)},
+	{&crypto_ecc_en, sizeof(crypto_ecc_en)},
+	{&ts_antiroll_prot_lvl, sizeof(ts_antiroll_prot_lvl)},
+	{trustedos_impl_version, sizeof(trustedos_impl_version)},
+	{&trustedos_impl_bin_version,
+		sizeof(trustedos_impl_bin_version)},
+	{trustedos_manufacturer, sizeof(trustedos_manufacturer)},
+	{fw_impl_version, sizeof(fw_impl_version)},
+	{&fw_impl_bin_version, sizeof(fw_impl_bin_version)},
+	{fw_manufacturer, sizeof(fw_manufacturer)},
+	{0, 0}, /* client_id */
+	{0, 0}, /* ta_app_id */
+};
+
 TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 {
-	static const char api_vers[] = "1.0";
-	static const char descr[] = "Version N.N";
-	/*
-	 * Value 100 means:
-	 * System time based on REE-controlled timers. Can be tampered by the
-	 * REE.  The implementation must still guarantee that the system time
-	 * is monotonous, i.e., successive calls to TEE_GetSystemTime must
-	 * return increasing values of the system time.
-	 */
-	static const uint32_t sys_time_prot_lvl = 100;
-	static const uint32_t ta_time_prot_lvl = 100;
 	struct tee_ta_session *sess;
 	TEE_Result res;
+
+	if (prop > ARRAY_SIZE(tee_props_lut)-1)
+		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	switch (prop) {
-	case UTEE_PROP_TEE_API_VERSION:
-		if (blen < sizeof(api_vers))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, (void *)buf, api_vers,
-					    sizeof(api_vers));
-
-	case UTEE_PROP_TEE_DESCR:
-		if (blen < sizeof(descr))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, (void *)buf, descr,
-					    sizeof(descr));
-
 	case UTEE_PROP_TEE_DEV_ID:
 		{
 			TEE_UUID uuid;
-			const size_t nslen = 4;
-			uint8_t data[4 +
+			const size_t nslen = 5;
+			uint8_t data[5 +
 				     FVR_DIE_ID_NUM_REGS * sizeof(uint32_t)] = {
-			    'S', 'T', 'E', 'E' };
+			    'O', 'P', 'T', 'E', 'E' };
 
 			if (blen < sizeof(uuid))
 				return TEE_ERROR_SHORT_BUFFER;
@@ -183,38 +249,26 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 						    sizeof(TEE_UUID));
 		}
 
-	case UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL:
-		if (blen < sizeof(sys_time_prot_lvl))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, (void *)buf,
-					    &sys_time_prot_lvl,
-					    sizeof(sys_time_prot_lvl));
-
-	case UTEE_PROP_TEE_TA_TIME_PROT_LEVEL:
-		if (blen < sizeof(ta_time_prot_lvl))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, (void *)buf,
-					    &ta_time_prot_lvl,
-					    sizeof(ta_time_prot_lvl));
-
 	case UTEE_PROP_CLIENT_ID:
 		if (blen < sizeof(TEE_Identity))
 			return TEE_ERROR_SHORT_BUFFER;
-
 		return tee_svc_copy_to_user(sess, (void *)buf,
-			&sess->clnt_id, sizeof(TEE_Identity));
+					    &sess->clnt_id,
+					    sizeof(TEE_Identity));
 
 	case UTEE_PROP_TA_APP_ID:
 		if (blen < sizeof(TEE_UUID))
 			return TEE_ERROR_SHORT_BUFFER;
-
 		return tee_svc_copy_to_user(sess, (void *)buf,
-			&sess->ctx->head->uuid, sizeof(TEE_UUID));
-
+					    &sess->ctx->head->uuid,
+					    sizeof(TEE_UUID));
 	default:
-		break;
+		if (blen < tee_props_lut[prop].len)
+			return TEE_ERROR_SHORT_BUFFER;
+		return tee_svc_copy_to_user(sess, (void *)buf,
+					    tee_props_lut[prop].data,
+					    tee_props_lut[prop].len);
 	}
-	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
 /*

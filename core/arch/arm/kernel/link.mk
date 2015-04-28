@@ -102,14 +102,13 @@ define update-buildcount
 		expr 0`cat $(1)` + 1 >$(1); \
 	fi
 endef
-VERSION_STR = `git describe --always --dirty 2>/dev/null || echo Unknown`
 DATE_STR = `date -u`
 BUILD_COUNT_STR = `cat $(link-out-dir)/.buildcount`
 define gen-version-o
 	$(call update-buildcount,$(link-out-dir)/.buildcount)
 	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/version.o'
 	$(q)echo -e "const char core_v_str[] =" \
-		"\"$(VERSION_STR) \"" \
+		"\"$(CFG_TEE_IMPL_VERSION) \"" \
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \
