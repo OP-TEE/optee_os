@@ -34,6 +34,8 @@
 
 #if defined(CFG_PL310)
 TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex);
+void tee_l2cc_mutex_lock(void);
+void tee_l2cc_mutex_unlock(void);
 #else
 static
 TEE_Result tee_l2cc_mutex_configure(t_service_id service_id __unused,

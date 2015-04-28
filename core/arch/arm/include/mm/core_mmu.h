@@ -346,9 +346,6 @@ bool core_mmu_is_shm_cached(void);
 /* L1/L2 cache maintenance (op: refer to ???) */
 unsigned int cache_maintenance_l1(int op, void *va, size_t len);
 unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len);
-void core_l2cc_mutex_set(void *mutex);
-void core_l2cc_mutex_lock(void);
-void core_l2cc_mutex_unlock(void);
 
 /* various invalidate secure TLB */
 enum teecore_tlb_op {

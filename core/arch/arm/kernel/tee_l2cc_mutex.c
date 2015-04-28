@@ -31,6 +31,7 @@
 #include <tee_api_defines.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <kernel/tz_proc.h>
 #include <trace.h>
 
 /*
@@ -47,12 +48,12 @@
 static uint32_t *l2cc_mutex_va;
 static uint32_t l2cc_mutex_pa;
 static tee_mm_entry_t *l2cc_mutex_mm;
-
+static unsigned int *l2cc_mutex;
 /*
  * Allocate public RAM to get a L2CC mutex to shared with NSec.
  * Return 0 on success.
  */
-static int alloc_l2cc_mutex(void)
+static int l2cc_mutex_alloc(void)
 {
 	void *va;
 
@@ -71,6 +72,11 @@ static int alloc_l2cc_mutex(void)
 	*(uint32_t *)va = 0;
 	l2cc_mutex_va = va;
 	return 0;
+}
+
+static void l2cc_mutex_set(void *mutex)
+{
+	l2cc_mutex = (unsigned int *)mutex;
 }
 
 /*
@@ -101,11 +107,11 @@ TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex)
 	switch (service_id) {
 	case SERVICEID_ENABLE_L2CC_MUTEX:
 		if (l2cc_mutex_va == 0) {
-			ret = alloc_l2cc_mutex();
+			ret = l2cc_mutex_alloc();
 			if (ret)
 				return TEE_ERROR_GENERIC;
 		}
-		core_l2cc_mutex_set(l2cc_mutex_va);
+		l2cc_mutex_set(l2cc_mutex_va);
 		break;
 	case SERVICEID_DISABLE_L2CC_MUTEX:
 		if (l2cc_mutex_mm) {
@@ -113,11 +119,11 @@ TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex)
 			l2cc_mutex_mm = NULL;
 		}
 		l2cc_mutex_va = NULL;
-		core_l2cc_mutex_set(NULL);
+		l2cc_mutex_set(NULL);
 		break;
 	case SERVICEID_GET_L2CC_MUTEX:
 		if (l2cc_mutex_va == NULL) {
-			ret = alloc_l2cc_mutex();
+			ret = l2cc_mutex_alloc();
 			if (ret)
 				return TEE_ERROR_GENERIC;
 		}
@@ -139,4 +145,16 @@ TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex)
 	}
 
 	return ret;
+}
+
+void tee_l2cc_mutex_lock(void)
+{
+	if (l2cc_mutex)
+		cpu_spin_lock(l2cc_mutex);
+}
+
+void tee_l2cc_mutex_unlock(void)
+{
+	if (l2cc_mutex)
+		cpu_spin_unlock(l2cc_mutex);
 }
