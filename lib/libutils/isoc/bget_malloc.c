@@ -89,7 +89,7 @@
 #define FreeWipe    1
 #endif
 
-#if defined(CFG_TEE_FW_DEBUG) && CFG_TEE_FW_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
 #define BufStats    1
 #endif
 

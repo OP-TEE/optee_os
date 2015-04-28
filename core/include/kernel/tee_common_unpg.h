@@ -49,7 +49,7 @@ typedef uintptr_t tee_vaddr_t;
 typedef uintptr_t tee_uaddr_t;
 
 
-#if (CFG_TEE_FW_DEBUG == 0)
+#if (CFG_TEE_CORE_DEBUG == 0)
 
 #define TEE_ASSERT(expr) \
 	do { \
