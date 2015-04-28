@@ -125,6 +125,14 @@ static TEE_Result propget_gpd_tee_arith_max_big_int_size(struct prop_value *pv)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result propget_gpd_tee_cryptography_ecc(struct prop_value
+							   *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_BOOL;
+	return utee_get_property(UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
+				 &pv->u.bool_val, sizeof(pv->u.bool_val));
+}
+
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
 };
@@ -148,6 +156,7 @@ static const struct prop_set propset_implementation[] = {
 	{"gpd.tee.TAPersistentTime.protectionLevel",
 	 propget_gpd_tee_ta_time_protection_level},
 	{"gpd.tee.arith.maxBigIntSize", propget_gpd_tee_arith_max_big_int_size},
+	{"gpd.tee.cryptography.ecc", propget_gpd_tee_cryptography_ecc},
 };
 
 static const size_t propset_implementation_len =

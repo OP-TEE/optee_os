@@ -36,6 +36,7 @@ enum utee_property {
 	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
 	UTEE_PROP_CLIENT_ID,
 	UTEE_PROP_TA_APP_ID,
+	UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
 };
 
 enum utee_time_category {

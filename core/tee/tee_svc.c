@@ -121,6 +121,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 	 */
 	static const uint32_t sys_time_prot_lvl = 100;
 	static const uint32_t ta_time_prot_lvl = 100;
+	static const bool crypto_ecc_en = false;
 	struct tee_ta_session *sess;
 	TEE_Result res;
 
@@ -210,6 +211,13 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 
 		return tee_svc_copy_to_user(sess, (void *)buf,
 			&sess->ctx->head->uuid, sizeof(TEE_UUID));
+
+	case UTEE_PROP_TEE_CRYPTOGRAPHY_ECC:
+		if (blen < sizeof(crypto_ecc_en))
+			return TEE_ERROR_SHORT_BUFFER;
+		return tee_svc_copy_to_user(sess, (void *)buf,
+					    &crypto_ecc_en,
+					    sizeof(crypto_ecc_en));
 
 	default:
 		break;
