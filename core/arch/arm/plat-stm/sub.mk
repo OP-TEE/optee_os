@@ -8,7 +8,6 @@ srcs-y += rng_support.c
 srcs-y += asc.S
 srcs-y += tz_a9init.S
 srcs-y += main.c
-srcs-y += cache_maintenance.c
 
 srcs-y += tz_sinit.S
 aflags-tz_sinit.S-y += \

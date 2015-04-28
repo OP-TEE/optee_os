@@ -345,7 +345,17 @@ bool core_mmu_is_shm_cached(void);
 
 /* L1/L2 cache maintenance (op: refer to ???) */
 unsigned int cache_maintenance_l1(int op, void *va, size_t len);
+#ifdef CFG_PL310
 unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len);
+#else
+static inline unsigned int cache_maintenance_l2(int op __unused,
+						paddr_t pa __unused,
+						size_t len __unused)
+{
+	/* Nothing to do about L2 Cache Maintenance when no PL310 */
+	return TEE_SUCCESS;
+}
+#endif
 
 /* various invalidate secure TLB */
 enum teecore_tlb_op {

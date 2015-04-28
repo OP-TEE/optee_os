@@ -42,6 +42,9 @@
 #include <kernel/panic.h>
 #include <util.h>
 #include "core_mmu_private.h"
+#include <kernel/tz_ssvce_pl310.h>
+#include <kernel/tee_l2cc_mutex.h>
+#include <kernel/thread.h>
 
 #define MAX_MMAP_REGIONS	10
 
@@ -431,14 +434,41 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 	return TEE_SUCCESS;
 }
 
-__weak unsigned int cache_maintenance_l2(int op __unused,
-			paddr_t pa __unused, size_t len __unused)
+#ifdef CFG_PL310
+unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 {
-	/*
-	 * L2 Cache is not available on each platform
-	 * This function should be redefined in platform specific
-	 * part, when L2 cache is available
-	 */
+	unsigned int ret = TEE_SUCCESS;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	tee_l2cc_mutex_lock();
+	switch (op) {
+	case L2CACHE_INVALIDATE:
+		arm_cl2_invbyway();
+		break;
+	case L2CACHE_AREA_INVALIDATE:
+		if (len)
+			arm_cl2_invbypa(pa, pa + len - 1);
+		break;
+	case L2CACHE_CLEAN:
+		arm_cl2_cleanbyway();
+		break;
+	case L2CACHE_AREA_CLEAN:
+		if (len)
+			arm_cl2_cleanbypa(pa, pa + len - 1);
+		break;
+	case L2CACHE_CLEAN_INV:
+		arm_cl2_cleaninvbyway();
+		break;
+	case L2CACHE_AREA_CLEAN_INV:
+		if (len)
+			arm_cl2_cleaninvbypa(pa, pa + len - 1);
+		break;
+	default:
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	tee_l2cc_mutex_unlock();
+	thread_set_exceptions(exceptions);
+	return ret;
 }
+#endif /*CFG_PL310*/
