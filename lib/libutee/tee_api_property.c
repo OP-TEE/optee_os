@@ -133,6 +133,13 @@ static TEE_Result propget_gpd_tee_cryptography_ecc(struct prop_value
 				 &pv->u.bool_val, sizeof(pv->u.bool_val));
 }
 
+static TEE_Result propget_gpd_tee_ts_antiroll_protection_level(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_U32;
+	pv->u.int_val = TEE_MAX_NUMBER_OF_SUPPORTED_BITS;
+	return TEE_SUCCESS;
+}
+
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
 };
@@ -157,6 +164,8 @@ static const struct prop_set propset_implementation[] = {
 	 propget_gpd_tee_ta_time_protection_level},
 	{"gpd.tee.arith.maxBigIntSize", propget_gpd_tee_arith_max_big_int_size},
 	{"gpd.tee.cryptography.ecc", propget_gpd_tee_cryptography_ecc},
+	{"gpd.tee.trustedStorage.antiRollback.protectionLevel",
+	 propget_gpd_tee_ts_antiroll_protection_level},
 };
 
 static const size_t propset_implementation_len =
