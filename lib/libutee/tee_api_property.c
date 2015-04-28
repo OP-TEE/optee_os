@@ -136,8 +136,22 @@ static TEE_Result propget_gpd_tee_cryptography_ecc(struct prop_value
 static TEE_Result propget_gpd_tee_ts_antiroll_protection_level(struct prop_value *pv)
 {
 	pv->type = USER_TA_PROP_TYPE_U32;
-	pv->u.int_val = TEE_MAX_NUMBER_OF_SUPPORTED_BITS;
-	return TEE_SUCCESS;
+	return utee_get_property(UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
+				 &pv->u.int_val, sizeof(pv->u.int_val));
+}
+
+static TEE_Result propget_gpd_tee_trustedos_impl_version(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_STRING;
+	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION, &pv->u.str_val,
+				 sizeof(pv->u.str_val));
+}
+
+static TEE_Result propget_gpd_tee_trustedos_impl_bin_version(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_U32;
+	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
+				 &pv->u.int_val, sizeof(pv->u.int_val));
 }
 
 static const struct prop_set propset_current_ta[] = {
@@ -166,6 +180,11 @@ static const struct prop_set propset_implementation[] = {
 	{"gpd.tee.cryptography.ecc", propget_gpd_tee_cryptography_ecc},
 	{"gpd.tee.trustedStorage.antiRollback.protectionLevel",
 	 propget_gpd_tee_ts_antiroll_protection_level},
+	{"gpd.tee.trustedos.implementation.version",
+	 propget_gpd_tee_trustedos_impl_version},
+	{"gpd.tee.trustedos.implementation.binaryversion",
+	 propget_gpd_tee_trustedos_impl_bin_version},
+
 };
 
 static const size_t propset_implementation_len =
