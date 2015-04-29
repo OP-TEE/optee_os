@@ -10,6 +10,9 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y gcc-arm-linux-gnueabihf
   - arm-linux-gnueabihf-gcc --version
+  - apt-cache show 'aarch64*'
+  - sudo apt-get install -y gcc-4.8-aarch64-linux-gnu
+  - aarch64-linux-gnu-gcc --version
 
 before_script:
   # Store the home repository
@@ -40,6 +43,17 @@ script:
   -                                  PLATFORM=vexpress-fvp                                                                 make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  -                                  PLATFORM=vexpress-fvp       CFG_ARM64_core=y                                          make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM64_core=y                                          make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM64_core=y                                          make -j8 all
+
+  # Juno
+  -                                  PLATFORM=vexpress-juno                                                                make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno                                                                make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno                                                                make -j8 all
+  -                                  PLATFORM=vexpress-juno      CFG_ARM64_core=y                                          make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM64_core=y                                          make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM64_core=y                                          make -j8 all
 
   # QEMU
   -                                  PLATFORM=vexpress-qemu                                                                make -j8 all
