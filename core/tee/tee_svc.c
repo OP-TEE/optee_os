@@ -126,6 +126,9 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 	static const char trustedos_impl_version[] = "Version 0.0";
 	static const uint32_t trustedos_impl_bin_version = 0x00000000;
 	static const char trustedos_manufacturer[] = "Linaro";
+	static const char fw_impl_version[] = "Version 0.0";
+	static const uint32_t fw_impl_bin_version = 0x00000000;
+	static const char fw_manufacturer[] = "Linaro";
 	struct tee_ta_session *sess;
 	TEE_Result res;
 
@@ -250,6 +253,27 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 		return tee_svc_copy_to_user(sess, (void *)buf,
 					    &trustedos_manufacturer,
 					    sizeof(trustedos_manufacturer));
+
+	case UTEE_PROP_TEE_FW_IMPL_VERSION:
+		if (blen < sizeof(fw_impl_version))
+			return TEE_ERROR_SHORT_BUFFER;
+		return tee_svc_copy_to_user(sess, (void *)buf,
+					    &fw_impl_version,
+					    sizeof(fw_impl_version));
+
+	case UTEE_PROP_TEE_FW_IMPL_BIN_VERSION:
+		if (blen < sizeof(fw_impl_bin_version))
+			return TEE_ERROR_SHORT_BUFFER;
+		return tee_svc_copy_to_user(sess, (void *)buf,
+					    &fw_impl_bin_version,
+					    sizeof(fw_impl_bin_version));
+
+	case UTEE_PROP_TEE_FW_MANUFACTURER:
+		if (blen < sizeof(fw_manufacturer))
+			return TEE_ERROR_SHORT_BUFFER;
+		return tee_svc_copy_to_user(sess, (void *)buf,
+					    &fw_manufacturer,
+					    sizeof(fw_manufacturer));
 
 	default:
 		break;
