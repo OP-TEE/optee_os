@@ -20,23 +20,23 @@ ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcccore)
 
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
-	@echo '  SED     $@'
+	@$(cmd-echo-silent) '  SED     $@'
 	@mkdir -p $(dir $@)
 	$(q)sed -e "s/%in_TEE_SCATTER_START%/$(TEE_SCATTER_START)/g" < $< > $@
 
 
 $(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
-	@echo '  LD      $@'
+	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
 $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
-	@echo '  OBJDUMP $@'
+	@$(cmd-echo-silent) '  OBJDUMP $@'
 	$(q)$(OBJDUMPcore) -l -x -d $< > $@
 
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf
-	@echo '  OBJCOPY $@'
+	@$(cmd-echo-silent) '  OBJCOPY $@'
 	$(q)$(OBJCOPYcore) -O binary $< $@
 
 $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
-	@echo '  GEN     $@'
+	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(NMcore) --print-size --reverse-sort --size-sort $< > $@

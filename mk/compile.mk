@@ -107,7 +107,7 @@ $2: $1 FORCE
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) ;\
-		echo '  $$(comp-q-$2)      $$@' ;\
+		$(cmd-echo-silent) '  $$(comp-q-$2)      $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
 		$(cmd-echo) $$(comp-objcpy-cmd-$2) ;\

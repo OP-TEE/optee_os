@@ -13,7 +13,7 @@
 #	$(call check-conf-h,CFG_CRYPTO_ CRYPTO_)
 define check-conf-h
 	$(q)set -e;						\
-	echo '  CHK     $@';					\
+	$(cmd-echo-silent) '  CHK     $@';			\
 	cnf="$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,$1),			\
 		$(call cfg-make-define,$(var))))";		\
@@ -28,7 +28,7 @@ endef
 
 define check-conf-mk
 	$(q)set -e;						\
-	echo '  CHK     $@';					\
+	$(cmd-echo-silent) '  CHK     $@';			\
 	cnf="$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,CFG_),		\
 		$(call cfg-make-variable,$(var))))";		\
@@ -47,7 +47,7 @@ define mv-if-changed
 	if [ -r $2 ] && cmp -s $2 $1; then			\
 		rm -f $1;					\
 	else							\
-		echo '  UPD     $2';				\
+		$(cmd-echo-silent) '  UPD     $2';		\
 		mv $1 $2;					\
 	fi
 endef

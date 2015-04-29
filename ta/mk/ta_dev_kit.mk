@@ -22,10 +22,23 @@ endif
 ifneq ($V,1)
 q := @
 cmd-echo := true
+cmd-echo-silent := echo
 else
 q :=
 cmd-echo := echo
+cmd-echo-silent := true
 endif
+
+ifneq ($(filter 4.%,$(MAKE_VERSION)),)  # make-4
+ifneq ($(filter %s ,$(firstword x$(MAKEFLAGS))),)
+cmd-echo-silent := true
+endif
+else                                    # make-3.8x
+ifneq ($(filter s% -s%,$(MAKEFLAGS)),)
+cmd-echo-silent := true
+endif
+endif
+
 
 include $(ta-dev-kit-dir)/mk/arch.mk
 -include $(ta-dev-kit-dir)/mk/platform_flags.mk
@@ -52,7 +65,7 @@ libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 
 .PHONY: clean
 clean:
-	@echo '  CLEAN   .'
+	@$(cmd-echo-silent) '  CLEAN   .'
 	${q}rm -f $(cleanfiles)
 
 

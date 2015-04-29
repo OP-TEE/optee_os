@@ -30,7 +30,7 @@ $(lib-libfile): $(objs)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) -o $$@ $$^
 else
 $(lib-libfile): $(objs)
-	@echo '  AR      $$@'
+	@$(cmd-echo-silent) '  AR      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(AR$(sm)) rcs $$@ $$^
 endif
