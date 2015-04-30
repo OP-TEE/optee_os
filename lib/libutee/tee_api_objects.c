@@ -215,7 +215,6 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 	res = utee_cryp_obj_alloc(objectType, maxKeySize, &obj);
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle) obj;
-
 	return res;
 }
 

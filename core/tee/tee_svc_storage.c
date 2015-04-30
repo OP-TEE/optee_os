@@ -583,6 +583,9 @@ TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
 	o->flags = flags;
 	o->pobj = po;
 
+	if (attr == TEE_HANDLE_NULL)
+		o->info.objectType = TEE_TYPE_DATA;
+
 	res = tee_svc_storage_init_file(sess, o, attr_o, data, len, flags);
 	if (res != TEE_SUCCESS) {
 		free(o);
