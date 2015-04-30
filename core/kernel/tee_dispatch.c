@@ -103,13 +103,13 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 		goto cleanup_return;
 	}
 
+	/* copy client info in a safe place */
 	res = update_clnt_id(&in->clnt_id, clnt_id);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
 	param->types = in->param_types;
 	memcpy(param->params, in->params, sizeof(in->params));
-	memcpy(out->params, in->params, sizeof(in->params));
 	memcpy(param->param_attr, in->param_attr, sizeof(in->param_attr));
 
 	res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions, &in->uuid,
@@ -118,6 +118,7 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 		goto cleanup_return;
 
 	out->sess = (TEE_Session *)s;
+	memcpy(out->params, in->params, sizeof(in->params));
 	update_out_param(param, out->params);
 
 	/*
@@ -157,9 +158,6 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 	TEE_Result res;
 	TEE_ErrorOrigin err = TEE_ORIGIN_TEE;
 
-	/* PRINTF("in tee_dispatch_invoke_command\n"); */
-	/* PRINTF("arg : %08x\n", (unsigned int)arg); */
-
 	sess = (struct tee_ta_session *)in->sess;
 
 	res = tee_ta_verify_session_pointer(sess, &tee_open_sessions);
@@ -168,11 +166,12 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 
 	param.types = in->param_types;
 	memcpy(param.params, in->params, sizeof(in->params));
-	memcpy(out->params, in->params, sizeof(in->params));
 	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
 
 	res = tee_ta_invoke_command(&err, sess, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, in->cmd, &param);
+
+	memcpy(out->params, in->params, sizeof(in->params));
 	update_out_param(&param, out->params);
 
 cleanup_return:
