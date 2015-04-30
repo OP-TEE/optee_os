@@ -33,7 +33,6 @@
 
 #include <trace.h>
 
-
 /*
  * output argument data structure is always TEE service specific but always
  * starts with the generic output data structure tee_dispatch_out.
@@ -95,14 +94,6 @@ struct tee_dispatch_memory_in {
 	void *buffer;
 	uint32_t size;
 };
-
-#if (CFG_TEE_CORE_DEBUG == 1)
-/* Output arg structure specific to TEE service 'get core status'. */
-struct tee_core_status_out {
-	struct tee_dispatch_out msg;
-	char raw[80];
-};
-#endif /* CFG_TEE_CORE_DEBUG */
 
 TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 				     struct tee_dispatch_open_session_out *out);
