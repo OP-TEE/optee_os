@@ -140,12 +140,14 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
 		TEE_Panic(0);
 
-	res =
-	    utee_cryp_obj_get_attr((uint32_t)object, attributeID, buffer,
-				   size);
+	res = utee_cryp_obj_get_attr((uint32_t)object,
+				     attributeID, buffer, size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND &&
-	    res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -171,11 +173,13 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
 		TEE_Panic(0);
 
-	res =
-	    utee_cryp_obj_get_attr((uint32_t)object, attributeID, buf, &size);
+	res = utee_cryp_obj_get_attr((uint32_t)object,
+				     attributeID, buf, &size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND &&
-	    res != TEE_ERROR_ACCESS_DENIED)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	if (size != sizeof(buf))
@@ -211,6 +215,7 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 	res = utee_cryp_obj_alloc(objectType, maxKeySize, &obj);
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle) obj;
+
 	return res;
 }
 
