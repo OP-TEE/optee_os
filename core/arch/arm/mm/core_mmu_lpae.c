@@ -703,11 +703,9 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
 	uint64_t ttbr;
-	uint32_t cpsr = read_cpsr();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	assert(user_va_idx != -1);
-
-	write_cpsr(cpsr | CPSR_FIA);
 
 	ttbr = read_ttbr0_64bit();
 	/* Clear ASID */
@@ -729,7 +727,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
-	write_cpsr(cpsr);
+	thread_unmask_exceptions(exceptions);
 }
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)

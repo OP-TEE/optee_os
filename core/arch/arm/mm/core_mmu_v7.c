@@ -518,9 +518,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
-	uint32_t cpsr = read_cpsr();
-
-	write_cpsr(cpsr | CPSR_FIA);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	/*
 	 * Update the reserved Context ID and TTBR0
@@ -540,7 +538,8 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	isb();
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
-	write_cpsr(cpsr);
+	/* Restore interrupts */
+	thread_unmask_exceptions(exceptions);
 }
 
 bool core_mmu_user_mapping_is_active(void)

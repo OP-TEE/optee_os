@@ -83,7 +83,7 @@ void main_init(uint32_t nsec_entry)
 	 * with the temporary stack. The thread subsystem also asserts that
 	 * IRQ is blocked when using most if its functions.
 	 */
-	write_cpsr(read_cpsr() | CPSR_F | CPSR_I);
+	thread_mask_exceptions(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ);
 
 	if (pos == 0)
 		thread_init_primary(&handlers);
