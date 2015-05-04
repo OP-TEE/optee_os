@@ -32,6 +32,7 @@
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_cryp_provider.h>
 #include <rng_support.h>
+#include <initcall.h>
 
 #if !defined(CFG_WITH_SOFTWARE_PRNG)
 TEE_Result get_rng_array(void *buffer, int len)
@@ -402,10 +403,12 @@ TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_cryp_init(void)
+static TEE_Result tee_cryp_init(void)
 {
 	if (crypto_ops.init)
 		return crypto_ops.init();
 
 	return TEE_SUCCESS;
 }
+
+service_init(tee_cryp_init);
