@@ -36,25 +36,23 @@ CFG_NO_TA_HASH_SIGN ?= y
 
 CFG_WITH_SOFTWARE_PRNG ?= n
 
+grep-system-map = 0x$(firstword \
+	$(shell grep -s $(1) $(platform-dir)/System.map || echo 0))
+
 ifeq ($(PLATFORM_FLAVOR),cannes)
 
 PRIMARY_STARTUP_PHYS	 = $(shell echo $$(( ${CFG_LINUX_LOAD_ADDR} + 0x8000 )))
 OFFSET_STARTUP_PHYS	 = $(shell echo $$((\
- 	$(PRIMARY_STARTUP_PHYS) - \
- 	0x$(shell grep stext $(platform-dir)/System.map | grep -v _stext | \
- 		cut -d' ' -f 1) )) )
+	$(PRIMARY_STARTUP_PHYS) - \
+	$(call grep-system-map,"[^_]stext") )) )
 SECONDARY_STARTUP_PHYS	 = $(shell echo $$((\
-	0x$(shell grep sti_secondary_startup $(platform-dir)/System.map | \
-		cut -d' ' -f 1) + $(OFFSET_STARTUP_PHYS) )) )
+	$(call grep-system-map,"sti_secondary_startup") + \
+	$(OFFSET_STARTUP_PHYS) )) )
 
 else ifeq ($(PLATFORM_FLAVOR),orly2)
 
-PRIMARY_STARTUP_PHYS	 = \
-	0x$(shell grep stext $(platform-dir)/System.map | grep -v _stext | \
-		cut -d' ' -f 1)
-SECONDARY_STARTUP_PHYS	 = \
-	0x$(shell grep stm_secondary_startup $(platform-dir)/System.map | \
-		cut -d' ' -f 1)
+PRIMARY_STARTUP_PHYS	 = $(call grep-system-map,"[^_]stext")
+SECONDARY_STARTUP_PHYS	 = $(call grep-system-map,"stm_secondary_startup")
 else
 $(error PLATFORM_FLAVOR=$(PLATFORM_FLAVOR) is not supported)
 endif
