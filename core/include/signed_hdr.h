@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,54 +24,52 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef SIGNED_HDR_H
+#define SIGNED_HDR_H
 
-#ifndef TEE_TA_H
-#define TEE_TA_H
+#include <types_ext.h>
 
-#include <stdint.h>
-#include <tee_api_types.h>
-
-#define TA_HASH_SIZE 32
-#define TA_UUID_CLOCK_SIZE 8
-#define TA_SIGNATURE_SIZE 264
-
-#define TA_HEAD_FLAG_MASK 0xFFF00000UL
-#define TA_HEAD_GOT_MASK  0xFFFFUL
-
-/* Trusted Application header */
-typedef struct {
-	TEE_UUID uuid;
-	uint32_t nbr_func;
-	uint32_t ro_size;
-	uint32_t rw_size;
-	uint32_t zi_size;
-	uint32_t rel_dyn_got_size;
-	uint32_t hash_type;
-	/* uint32_t prop_tracelevel; */
-} ta_head_t;
-
-struct ta_rel_dyn {
-	uint32_t addr;
-	uint32_t info;
+enum shdr_img_type {
+	SHDR_TA = 0,
 };
 
-/*-----------------------------------------------------------------------------
-   signed header
-   ta_head_t
-   ta_func_head_t (1)
-   ta_func_head_t (2)
-   ...
-   ta_func_head_t (N) N = ta_head(_t).nbr_func
-   func_1
-   func_1
-   ...
-   func_N
-   GOT
-   find_service_addr
-   hash_1
-   hash_2
-   ...
-   hash_M
- *---------------------------------------------------------------------------*/
+#define SHDR_MAGIC	0x4f545348
 
-#endif
+/**
+ * struct shdr - signed header
+ * @magic:	magic number must match SHDR_MAGIC
+ * @img_type:	image type, values defined by enum shdr_img_type
+ * @img_size:	image size in bytes
+ * @algo:	algorithm, defined by public key algorithms TEE_ALG_*
+ *		from TEE Internal API specification
+ * @hash_size:	size of the signed hash
+ * @sig_size:	size of the signature
+ * @hash:	hash of an image
+ * @sig:	signature of @hash
+ */
+struct shdr {
+	uint32_t magic;
+	uint32_t img_type;
+	uint32_t img_size;
+	uint32_t algo;
+	uint16_t hash_size;
+	uint16_t sig_size;
+	/*
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct.
+	 *
+	 * hash is accessed through the macro SHDR_GET_HASH and
+	 * signature is accessed through the macro SHDR_GET_SIG
+	 *
+	 * uint8_t hash[hash_size];
+	 * uint8_t sig[size_size];
+	 */
+};
+
+#define SHDR_GET_SIZE(x)	(sizeof(struct shdr) + (x)->hash_size + \
+				 (x)->sig_size)
+#define SHDR_GET_HASH(x)	(uint8_t *)(((struct shdr *)(x)) + 1)
+#define SHDR_GET_SIG(x)		(SHDR_GET_HASH(x) + (x)->hash_size)
+
+#endif /*SIGNED_HDR_H*/
+

@@ -41,6 +41,8 @@
 #include <mm/tee_mmu.h>
 #include <kernel/tee_misc.h>
 #include <tee/tee_svc_cryp.h>
+#include <tee/tee_cryp_provider.h>
+#include <tee/tee_cryp_utl.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/tee_ta_manager_unpg.h>
@@ -54,14 +56,18 @@
 #include <tee/tee_svc_storage.h>
 #include <kernel/tee_time.h>
 #include <sm/tee_mon.h>
-#include "user_ta_header.h"
+#include <user_ta_header.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <kernel/thread.h>
 #include <sm/teesmc.h>
 #include <kernel/tee_misc.h>
+#include <ta_pub_key.h>
 #include <kernel/tee_kta_trace.h>
 #include <kernel/trace_ta.h>
+#include <signed_hdr.h>
+#include <utee_defines.h>
+#include "elf_load.h"
 
 /*
  * Use this invalid ID for a static TA, since
@@ -69,7 +75,6 @@
  */
 #define TEE_SESSION_ID_STATIC_TA 0xFFFFFFFF
 
-#define TEE_TA_STACK_ALIGNMENT   8
 
 enum tee_user_ta_func {
 	USER_TA_FUNC_OPEN_CLIENT_SESSION = 0,
@@ -236,373 +241,164 @@ static struct tee_ta_ctx *tee_ta_context_find(const TEE_UUID *uuid)
 	struct tee_ta_ctx *ctx;
 
 	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
-		if (memcmp(&ctx->head->uuid, uuid, sizeof(TEE_UUID)) == 0)
+		if (memcmp(&ctx->uuid, uuid, sizeof(TEE_UUID)) == 0)
 			return ctx;
 	}
 
 	return NULL;
 }
 
-static void tee_ta_init_got(struct tee_ta_ctx *const ctx)
+static TEE_Result tee_ta_load_header(const struct shdr *signed_ta,
+		struct shdr **sec_signed_ta)
 {
-	uint32_t *ptr;
-	uint32_t *end_ptr;
-	uint32_t va_start;
-
-	/*
-	 * GOT and find_service_addr follows right after ro section.
-	 */
-	if ((TA_HEAD_GOT_MASK & ctx->head->rel_dyn_got_size) == 0)
-		return;
-
-	va_start = ctx->load_addr;
-
-	ptr = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size);
-	end_ptr = ptr + (TA_HEAD_GOT_MASK & ctx->head->rel_dyn_got_size) /
-			sizeof(uint32_t);
-
-	while (ptr < end_ptr) {
-		*ptr += va_start;
-#ifdef PAGER_DEBUG_PRINT
-		DMSG("GOT [%p] = 0x%x", (void *)ptr, *ptr);
-#endif
-		ptr++;
-	}
-}
-
-static void tee_ta_init_zi(struct tee_ta_ctx *const ctx)
-{
-	/* setup ZI data */
-	vaddr_t start = tee_ta_get_exec(ctx) +
-	    ctx->head->rw_size + ctx->head->ro_size;
-
-	memset((void *)start, 0, ctx->head->zi_size);
-}
-
-/*
- * Process rel.dyn
- */
-static void tee_ta_init_reldyn(struct tee_ta_ctx *const ctx)
-{
-	uint32_t rel_dyn_size = ctx->head->rel_dyn_got_size >> 16;
-	uint32_t n;
-	vaddr_t saddr = tee_ta_get_exec(ctx) + ctx->head->ro_size -
-			rel_dyn_size;
-
-	for (n = 0; n < rel_dyn_size; n += sizeof(struct ta_rel_dyn)) {
-		struct ta_rel_dyn *rel_dyn = (struct ta_rel_dyn *)(saddr + n);
-		uint32_t *data;
-
-		if (rel_dyn->info != 0x17) {
-			EMSG("Unknown rel_dyn info 0x%x", rel_dyn->info);
-			TEE_ASSERT(0);
-		}
-
-		data = (uint32_t *)((vaddr_t)ctx->load_addr + rel_dyn->addr);
-		*data += ctx->load_addr;
-#ifdef PAGER_DEBUG_PRINT
-		DMSG("rel.dyn [%p] = 0x%x", (void *)data, *data);
-#endif
-	}
-}
-
-/*
- * Setup global variables initialized from TEE Core
- */
-static void tee_ta_init_heap(struct tee_ta_ctx *const ctx, size_t heap_size)
-{
-	uint32_t *data;
-	tee_uaddr_t heap_start_addr;
-	vaddr_t va_start;
-
-	/*
-	 * User TA
-	 *
-	 * Heap base follows right after GOT
-	 */
-
-	core_mmu_get_user_va_range(&va_start, NULL);
-	/* XXX this function shouldn't know this mapping */
-	heap_start_addr = va_start + CORE_MMU_USER_CODE_SIZE - heap_size;
-
-	data = (uint32_t *)(tee_ta_get_exec(ctx) + ctx->head->ro_size +
-			     (ctx->head->rel_dyn_got_size & TA_HEAD_GOT_MASK));
-
-	*data = heap_start_addr;
-#ifdef PAGER_DEBUG_PRINT
-	DMSG("heap_base [%p] = 0x%x", (void *)data, *data);
-#endif
-}
-
-static TEE_Result tee_ta_load_header(const kta_signed_header_t *signed_ta,
-		kta_signed_header_t **sec_signed_ta, ta_head_t **sec_head,
-		const uint8_t **nmem_ta)
-{
-	TEE_Result res;
-	size_t sz_sign_header;
-	size_t sz_ta_head;
-	size_t sz_hash_type;
-	size_t sz_ro;
-	size_t sz_rw;
-	size_t sz_hashes;
-	size_t num_hashes;
-	size_t sz_funcs;
-	const ta_head_t *nmem_head;
-	ta_head_t *head = NULL;
-	uint8_t *nmem_hashes;
-	uint8_t *hashes;
+	size_t s;
 
 	if (!tee_vbuf_is_non_sec(signed_ta, sizeof(*signed_ta)))
 		return TEE_ERROR_SECURITY;
 
-	sz_sign_header = signed_ta->size_of_signed_header;
-	if (!tee_vbuf_is_non_sec(signed_ta, sz_sign_header))
+	s = SHDR_GET_SIZE(signed_ta);
+	if (!tee_vbuf_is_non_sec(signed_ta, s))
 		return TEE_ERROR_SECURITY;
-
-	nmem_head = (const void *)((uint8_t *)(signed_ta) + sz_sign_header);
-	if (!tee_vbuf_is_non_sec(nmem_head, sizeof(*nmem_head)))
-		return TEE_ERROR_SECURITY;
-
-	sz_ro = nmem_head->ro_size;
-	sz_rw = nmem_head->rw_size;
-
-	/* Obviously a fake TA since there's no code or data */
-	if ((sz_ro + sz_rw) == 0)
-		return TEE_ERROR_SECURITY;
-
-	/* One hash per supplied page of code and data */
-	num_hashes = ((sz_ro + sz_rw - 1) >> SMALL_PAGE_SHIFT) + 1;
-
-#ifdef CFG_NO_TA_HASH_SIGN
-	sz_hash_type = 0;
-#else
-	/* COPY HEADERS & HASHES: ta_head + ta_func_head(s) + hashes */
-	if (tee_hash_get_digest_size(nmem_head->hash_type, &sz_hash_type) !=
-			TEE_SUCCESS) {
-		DMSG("warning: invalid signed header: invalid hash id found!");
-		return TEE_ERROR_SECURITY;
-	}
-#endif
-
-	sz_hashes = sz_hash_type * num_hashes;
-	sz_funcs = nmem_head->nbr_func * sizeof(ta_func_head_t);
-	sz_ta_head = sizeof(*head) + sz_funcs + sz_hashes;
-
-	if (!tee_vbuf_is_non_sec(nmem_head, sz_ta_head - sz_hashes))
-		return TEE_ERROR_SECURITY;
-
-	/* Copy TA header into secure memory */
-	head = malloc(sz_ta_head);
-	if (!head)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	memcpy(head, nmem_head, sz_ta_head - sz_hashes);
-
-	/*
-	 * Check that the GOT ends up at a properly aligned address.
-	 * See tee_ta_init_got() for update of GOT.
-	 */
-	if ((head->ro_size % 4) != 0) {
-		DMSG("Bad ro_size %u", head->ro_size);
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	/* Copy hashes into secure memory */
-	hashes = (uint8_t *)head + sz_funcs;
-	nmem_hashes = (uint8_t *)nmem_head + sz_funcs +
-			head->ro_size + head->rw_size;
-	memcpy(hashes, nmem_hashes, sz_hashes);
 
 	/* Copy signed header into secure memory */
-	*sec_signed_ta = malloc(sz_sign_header);
-	if (!*sec_signed_ta) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-	memcpy(*sec_signed_ta, signed_ta, sz_sign_header);
+	*sec_signed_ta = malloc(s);
+	if (!*sec_signed_ta)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	memcpy(*sec_signed_ta, signed_ta, s);
 
-	*sec_head = head;
-	*nmem_ta = (const uint8_t *)nmem_head;
-	res = TEE_SUCCESS;
-
-out:
-	if (res != TEE_SUCCESS) {
-		free(head);
-	}
-	return res;
-}
-
-static TEE_Result tee_ta_load_check_head_integrity(
-		kta_signed_header_t *signed_ta __unused,
-		ta_head_t *head __unused)
-{
-	/*
-	 * This is where the signature of the signed header is verified
-	 * and that the payload that "head" is a valid payload for
-	 * that signed header.
-	 *
-	 * If this function returns success "head" together with
-	 * the appended hashes are OK and we can continue to load
-	 * the TA.
-	 */
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ta_load_user_ta(struct tee_ta_ctx *ctx,
-			ta_head_t *sec_head, const void *nmem_ta,
-			size_t *heap_size)
+static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
 {
+	struct rsa_public_key key;
 	TEE_Result res;
-	size_t size;
-	ta_func_head_t *ta_func_head;
-	struct user_ta_sub_head *sub_head;
-	/* man_flags: mandatory flags */
-	uint32_t man_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
-	/* opt_flags: optional flags */
-	uint32_t opt_flags = man_flags | TA_FLAG_SINGLE_INSTANCE |
-	    TA_FLAG_MULTI_SESSION | TA_FLAG_UNSAFE_NW_PARAMS;
-	struct tee_ta_param param = { 0 };
-	void *dst;
+	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
+	size_t hash_size;
 
-	/* full required execution size (not stack etc...) */
-	size = ctx->head->ro_size + ctx->head->rw_size + ctx->head->zi_size;
+	if (shdr->magic != SHDR_MAGIC || shdr->img_type != SHDR_TA)
+		return TEE_ERROR_SECURITY;
 
-	if (ctx->num_res_funcs != 2)
-		return TEE_ERROR_BAD_FORMAT;
+	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
+		return TEE_ERROR_SECURITY;
 
-	ta_func_head = (ta_func_head_t *)((vaddr_t)ctx->head +
-					  sizeof(ta_head_t));
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
+				       &hash_size);
+	if (res != TEE_SUCCESS)
+		return res;
+	if (hash_size != shdr->hash_size)
+		return TEE_ERROR_SECURITY;
 
-	sub_head = (struct user_ta_sub_head *)&ta_func_head[
-				ctx->head->nbr_func - ctx->num_res_funcs];
+	if (!crypto_ops.acipher.alloc_rsa_public_key ||
+	    !crypto_ops.acipher.rsassa_verify ||
+	    !crypto_ops.bignum.bin2bn || !crypto_ops.bignum.free)
+		return TEE_ERROR_NOT_SUPPORTED;
 
-
-	/*
-	 * sub_head is the end area of func_head; the 2 last
-	 * (2 'resisdent func') func_head area.
-	 * sub_head structure is... twice the func_head struct. magic.
-	 * sub_head stores the flags, heap_size, stack_size.
-	 */
-	COMPILE_TIME_ASSERT((sizeof(struct user_ta_sub_head)) ==
-		   (2 * sizeof(struct user_ta_func_head)));
-
-	/* check input flags bitmask consistency and save flags */
-	if ((sub_head->flags & opt_flags) != sub_head->flags ||
-	    (sub_head->flags & man_flags) != man_flags) {
-		EMSG("TA flag issue: flags=%x opt=%X man=%X",
-		     sub_head->flags, opt_flags, man_flags);
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	ctx->flags = sub_head->flags;
-
-	/* Check if multi instance && single session config  */
-	if (((ctx->flags & TA_FLAG_SINGLE_INSTANCE) == 0) &&
-	    ((ctx->flags & TA_FLAG_MULTI_SESSION) == 0)) {
-		/*
-		 * assume MultiInstance/SingleSession,
-		 * same as MultiInstance/MultiSession
-		 */
-		ctx->flags |= TA_FLAG_MULTI_SESSION;
-	}
-
-	/* Ensure proper aligment of stack */
-	ctx->stack_size = ROUNDUP(sub_head->stack_size,
-				      TEE_TA_STACK_ALIGNMENT);
-
-	*heap_size = sub_head->heap_size;
-
-	/*
-	 * Allocate heap and stack
-	 */
-	ctx->mm_heap_stack = tee_mm_alloc(&tee_mm_sec_ddr,
-					*heap_size + ctx->stack_size);
-	if (!ctx->mm_heap_stack) {
-		EMSG("Failed to allocate %zu bytes\n",
-			*heap_size + ctx->stack_size);
-		EMSG("  of memory for user heap and stack\n");
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-	/*
-	 * Note that only User TA can be supported in DDR
-	 * if executing in DDR, the size of the execution area
-	 */
-	size += sizeof(ta_head_t) +
-		sec_head->nbr_func * sizeof(ta_func_head_t) +
-		(sec_head->rel_dyn_got_size & TA_HEAD_GOT_MASK);
-
-	ctx->mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
-	if (!ctx->mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	/*
-	 * Copy TA into reserved memory space (DDR).
-	 */
-
-	res = tee_mmu_init(ctx);
+	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_map(ctx, &param);
-	if (res != TEE_SUCCESS) {
-		EMSG("call tee_mmu_map_uta() failed %X", res);
-		return res;
-	}
+	res = crypto_ops.bignum.bin2bn((uint8_t *)&e, sizeof(e), key.e);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_ops.bignum.bin2bn(ta_pub_key_modulus,
+				       ta_pub_key_modulus_size, key.n);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	tee_mmu_set_ctx(ctx);
-
-	dst = (void *)tee_mmu_get_load_addr(ctx);
-	if (!tee_vbuf_is_non_sec(nmem_ta, size)) {
-		EMSG("User TA isn't in non-secure memory");
-		return TEE_ERROR_SECURITY;
-	}
-	memcpy(dst, nmem_ta, size);
-
-	cache_maintenance_l1(DCACHE_AREA_CLEAN, dst, size);
-	cache_maintenance_l1(ICACHE_AREA_INVALIDATE, dst, size);
-
-	ctx->load_addr = tee_mmu_get_load_addr(ctx);
-
-	return TEE_SUCCESS;
+	res = crypto_ops.acipher.rsassa_verify(shdr->algo, &key, -1,
+				SHDR_GET_HASH(shdr), shdr->hash_size,
+				SHDR_GET_SIG(shdr), shdr->sig_size);
+out:
+	crypto_ops.bignum.free(key.n);
+	crypto_ops.bignum.free(key.e);
+	return res;
 }
 
-static void tee_ta_load_init_user_ta(struct tee_ta_ctx *ctx, size_t heap_size)
+static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
+			const struct shdr *nmem_shdr)
 {
-	/* Init rel.dyn, GOT, ZI and heap */
-	tee_ta_init_reldyn(ctx);
-	tee_ta_init_got(ctx);
-	tee_ta_init_heap(ctx, heap_size);
-	tee_ta_init_zi(ctx);
+	TEE_Result res;
+	size_t hash_ctx_size;
+	struct elf_load_state el_state = { .ctx = ctx };
+	void *digest = NULL;
+
+	el_state.nwdata = (uint8_t *)nmem_shdr + SHDR_GET_SIZE(shdr);
+	el_state.nwdata_len = shdr->img_size;
+
+	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
+	    !crypto_ops.hash.update || ! crypto_ops.hash.final) {
+		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto out;
+	}
+	el_state.hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
+	res = crypto_ops.hash.get_ctx_size(el_state.hash_algo, &hash_ctx_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+	el_state.hash_ctx = malloc(hash_ctx_size);
+	if (!el_state.hash_ctx) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	res = crypto_ops.hash.init(el_state.hash_ctx, el_state.hash_algo);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_ops.hash.update(el_state.hash_ctx, el_state.hash_algo,
+				     (uint8_t *)shdr, sizeof(struct shdr));
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = elf_load(&el_state);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	digest = malloc(shdr->hash_size);
+	if (!digest) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	res = crypto_ops.hash.final(el_state.hash_ctx, el_state.hash_algo,
+				    digest, shdr->hash_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	if (memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size) != 0)
+		res = TEE_ERROR_SECURITY;
+out:
+	free(digest);
+	free(el_state.hash_ctx);
+	return res;
 }
+
+
 
 /*-----------------------------------------------------------------------------
  * Loads TA header and hashes.
  * Verifies the TA signature.
  * Returns session ptr and TEE_Result.
  *---------------------------------------------------------------------------*/
-static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
-			      struct tee_ta_ctx **ta_ctx)
+static TEE_Result tee_ta_load(const TEE_UUID *uuid,
+			const struct shdr *signed_ta,
+			struct tee_ta_ctx **ta_ctx)
 {
-	/* ta & ta_session is assumed to be != NULL from previous checks */
 	TEE_Result res;
-	size_t heap_size = 0;	/* gcc warning */
+	/* man_flags: mandatory flags */
+	uint32_t man_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
+	/* opt_flags: optional flags */
+	uint32_t opt_flags = man_flags | TA_FLAG_SINGLE_INSTANCE |
+	    TA_FLAG_MULTI_SESSION | TA_FLAG_UNSAFE_NW_PARAMS;
 	struct tee_ta_ctx *ctx = NULL;
-	const uint8_t *nmem_ta;
-	kta_signed_header_t *sec_signed_ta = NULL;
-	ta_head_t *sec_head = NULL;
+	struct shdr *sec_signed_ta = NULL;
+	struct ta_head *ta_head;
 
-	res = tee_ta_load_header(signed_ta, &sec_signed_ta, &sec_head,
-				 &nmem_ta);
+	res = tee_ta_load_header(signed_ta, &sec_signed_ta);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
-	res = tee_ta_load_check_head_integrity(sec_signed_ta, sec_head);
+	res = tee_ta_load_check_shdr(sec_signed_ta);
 	if (res != TEE_SUCCESS)
 		goto error_return;
-	free(sec_signed_ta);
-	sec_signed_ta = NULL;
-
 
 	/*
 	 * ------------------------------------------------------------------
@@ -626,57 +422,71 @@ static TEE_Result tee_ta_load(const kta_signed_header_t *signed_ta,
 	TAILQ_INIT(&ctx->cryp_states);
 	TAILQ_INIT(&ctx->objects);
 	TAILQ_INIT(&ctx->storage_enums);
-	ctx->head = sec_head;
 #if defined(CFG_SE_API)
 	ctx->se_service = NULL;
 #endif
 
-	/* by default NSec DDR: starts at TA function code. */
-	ctx->mem_swap = (uintptr_t)(nmem_ta + sizeof(ta_head_t) +
-			     sec_head->nbr_func * sizeof(ta_func_head_t));
+	res = tee_ta_load_elf(ctx, sec_signed_ta, signed_ta);
+	if (res != TEE_SUCCESS)
+		goto error_return;
 
-	ctx->num_res_funcs = ctx->head->zi_size >> 20;
-	ctx->head->zi_size &= 0xfffff;
-	if (ctx->num_res_funcs > ctx->head->nbr_func) {
+	ctx->load_addr = tee_mmu_get_load_addr(ctx);
+	ta_head = (struct ta_head *)(vaddr_t)ctx->load_addr;
+
+	if (memcmp(&ta_head->uuid, uuid, sizeof(TEE_UUID)) != 0) {
+		res = TEE_ERROR_SECURITY;
+		goto error_return;
+	}
+
+	/* check input flags bitmask consistency and save flags */
+	if ((ta_head->flags & opt_flags) != ta_head->flags ||
+	    (ta_head->flags & man_flags) != man_flags) {
+		EMSG("TA flag issue: flags=%x opt=%X man=%X",
+		     ta_head->flags, opt_flags, man_flags);
 		res = TEE_ERROR_BAD_FORMAT;
 		goto error_return;
 	}
 
-	res = tee_ta_load_user_ta(ctx, sec_head, nmem_ta, &heap_size);
-	if (res != TEE_SUCCESS)
-		goto error_return;
+	ctx->flags = ta_head->flags;
+
+	/* Check if multi instance && single session config  */
+	if (((ctx->flags & TA_FLAG_SINGLE_INSTANCE) == 0) &&
+	    ((ctx->flags & TA_FLAG_MULTI_SESSION) == 0)) {
+		/*
+		 * assume MultiInstance/SingleSession,
+		 * same as MultiInstance/MultiSession
+		 */
+		ctx->flags |= TA_FLAG_MULTI_SESSION;
+	}
+
+	ctx->uuid = ta_head->uuid;
+	ctx->open_session_func = ta_head->open_session;
+	ctx->close_session_func = ta_head->close_session;
+	ctx->invoke_command_func = ta_head->invoke_command;
 
 	ctx->ref_count = 1;
 
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 	*ta_ctx = ctx;
-	/*
-	 * Note that the setup below will cause at least one page fault so it's
-	 * important that the session is fully registered at this stage.
-	 */
-	tee_ta_load_init_user_ta(ctx, heap_size);
 
-	DMSG("Loaded TA at 0x%" PRIxPTR ", ro_size %u, rw_size %u, zi_size %u",
-	     tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
-	     ctx->head->rw_size, ctx->head->zi_size);
+	DMSG("Loaded TA at 0x%" PRIxPTR, tee_mm_get_smem(ctx->mm));
 	DMSG("ELF load address 0x%x", ctx->load_addr);
 
 	set_tee_rs(NULL);
 	tee_mmu_set_ctx(NULL);
 	/* end thread protection (multi-threaded) */
 
+	free(sec_signed_ta);
 	return TEE_SUCCESS;
 
 error_return:
+	free(sec_signed_ta);
 	set_tee_rs(NULL);
 	tee_mmu_set_ctx(NULL);
 	if (ctx != NULL) {
-		if ((ctx->flags & TA_FLAG_USER_MODE) != 0)
-			tee_mmu_final(ctx);
-		tee_mm_free(ctx->mm_heap_stack);
+		tee_mmu_final(ctx);
+		tee_mm_free(ctx->mm_stack);
 		tee_mm_free(ctx->mm);
-		/* If sec DDR was allocated for mem_swap free it */
-		tee_mm_free(tee_mm_find(&tee_mm_sec_ddr, ctx->mem_swap));
 		free(ctx);
 	}
 	return res;
@@ -754,17 +564,11 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	struct abi_user32_param *usr_params;
 	tee_paddr_t usr_stack;
 	tee_uaddr_t stack_uaddr;
-	tee_uaddr_t start_uaddr;
 	struct tee_ta_ctx *ctx = session->ctx;
-	ta_func_head_t *ta_func_head = (ta_func_head_t *)((vaddr_t)ctx->head +
-							  sizeof(ta_head_t));
 	tee_uaddr_t params_uaddr;
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 
 	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
-
-	TEE_ASSERT((uint32_t) func <=
-		   (ctx->head->nbr_func - ctx->num_res_funcs));
 
 	/* Set timeout of entry */
 	tee_ta_set_invoke_timeout(session, cancel_req_to);
@@ -778,7 +582,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_set_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = tee_mm_get_smem(ctx->mm_heap_stack) + ctx->stack_size;
+	usr_stack = tee_mm_get_smem(ctx->mm_stack) + ctx->stack_size;
 	usr_stack -= sizeof(struct abi_user32_param);
 	usr_params = (struct abi_user32_param *)usr_stack;
 	abi_param_to_user32_param(usr_params, param->params, param->types);
@@ -792,15 +596,15 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	start_uaddr = ctx->load_addr + ta_func_head[func].start;
+	/*start_uaddr = ctx->load_addr + ta_func_head[func].start; */
 
 	switch (func) {
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
 		    thread_enter_user_mode(param->types, params_uaddr,
 					   (vaddr_t)session, 0, stack_uaddr,
-					   start_uaddr, &ctx->panicked,
-					   &ctx->panic_code);
+					   ctx->open_session_func,
+					   &ctx->panicked, &ctx->panic_code);
 
 		/*
 		 * According to GP spec the origin should allways be set to the
@@ -811,7 +615,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
 		res = thread_enter_user_mode((vaddr_t)session, 0, 0, 0,
-					     stack_uaddr, start_uaddr,
+					     stack_uaddr,
+					     ctx->close_session_func,
 					     &ctx->panicked, &ctx->panic_code);
 
 		serr = TEE_ORIGIN_TRUSTED_APP;
@@ -820,8 +625,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	case USER_TA_FUNC_INVOKE_COMMAND:
 		res = thread_enter_user_mode(cmd, param->types, params_uaddr,
 					     (vaddr_t)session, stack_uaddr,
-					     start_uaddr, &ctx->panicked,
-					     &ctx->panic_code);
+					     ctx->invoke_command_func,
+					     &ctx->panicked, &ctx->panic_code);
 
 		serr = TEE_ORIGIN_TRUSTED_APP;
 		break;
@@ -868,7 +673,7 @@ cleanup_return:
  * Function is not thread safe
  */
 static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
-			kta_signed_header_t **ta,
+			struct shdr **ta,
 			uint32_t *handle,
 			uint32_t *ret_orig)
 {
@@ -970,11 +775,11 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 			}
 		}
 
-		if (ctx->mm_heap_stack != NULL) {
-			pa = tee_mm_get_smem(ctx->mm_heap_stack);
+		if (ctx->mm_stack) {
+			pa = tee_mm_get_smem(ctx->mm_stack);
 			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
 			    TEE_SUCCESS) {
-				s = tee_mm_get_bytes(ctx->mm_heap_stack);
+				s = tee_mm_get_bytes(ctx->mm_stack);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
 			}
@@ -996,17 +801,10 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 				     &ctx->open_sessions, KERN_IDENTITY);
 	}
 
-
-	/* If TA was loaded in reserved DDR free the alloc. */
-	tee_mm_free(tee_mm_find(&tee_mm_sec_ddr, ctx->mem_swap));
-
-	if ((ctx->flags & TA_FLAG_USER_MODE) != 0) {
+	if (!ctx->static_ta) {
 		tee_mmu_final(ctx);
-		tee_mm_free(ctx->mm_heap_stack);
-	}
-	if (ctx->static_ta == NULL) {
+		tee_mm_free(ctx->mm_stack);
 		tee_mm_free(ctx->mm);
-		free(ctx->head);
 	}
 
 	/* Free cryp states created by this TA */
@@ -1084,7 +882,7 @@ TEE_Result tee_ta_close_session(uint32_t id,
 			DMSG("   ... destroy_entry_point");
 			invoke_ta(sess, 0, 0, COMMAND_DESTROY_ENTRY_POINT);
 		}
-	} else if (((ctx->flags & TA_FLAG_USER_MODE) != 0) && !ctx->panicked) {
+	} else if (!ctx->panicked) {
 		TEE_ErrorOrigin err;
 		struct tee_ta_param param = { 0 };
 
@@ -1169,8 +967,8 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 		return TEE_ERROR_BUSY;
 
 	DMSG("   ... Re-open TA %08x-%04x-%04x",
-	     ctx->head->uuid.timeLow,
-	     ctx->head->uuid.timeMid, ctx->head->uuid.timeHiAndVersion);
+	     ctx->uuid.timeLow,
+	     ctx->uuid.timeMid, ctx->uuid.timeHiAndVersion);
 
 
 	ctx->ref_count++;
@@ -1211,39 +1009,37 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	TAILQ_INIT(&ctx->open_sessions);
 	TAILQ_INIT(&ctx->cryp_states);
 	TAILQ_INIT(&ctx->objects);
-	ctx->num_res_funcs = 0;
 	ctx->ref_count = 1;
 	s->ctx = ctx;
 	ctx->flags = TA_FLAG_MULTI_SESSION;
-	ctx->head = (ta_head_t *)ta;
 	ctx->static_ta = ta;
+	ctx->uuid = ta->uuid;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
 	DMSG("      %s : %08x-%04x-%04x",
 	     ctx->static_ta->name,
-	     ctx->head->uuid.timeLow,
-	     ctx->head->uuid.timeMid,
-	     ctx->head->uuid.timeHiAndVersion);
+	     ctx->uuid.timeLow,
+	     ctx->uuid.timeMid,
+	     ctx->uuid.timeHiAndVersion);
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ta_init_session_with_signed_ta(
-				const kta_signed_header_t *signed_ta,
+static TEE_Result tee_ta_init_session_with_signed_ta(const TEE_UUID *uuid,
+				const struct shdr *signed_ta,
 				struct tee_ta_session *s)
 {
 	TEE_Result res;
 
 	DMSG("   Load dynamic TA");
 	/* load and verify */
-	res = tee_ta_load(signed_ta, &s->ctx);
+	res = tee_ta_load(uuid, signed_ta, &s->ctx);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	DMSG("      dyn TA : %08x-%04x-%04x",
-	     s->ctx->head->uuid.timeLow,
-	     s->ctx->head->uuid.timeMid,
-	     s->ctx->head->uuid.timeHiAndVersion);
+	     s->ctx->uuid.timeLow, s->ctx->uuid.timeMid,
+	     s->ctx->uuid.timeHiAndVersion);
 
 	return res;
 }
@@ -1255,7 +1051,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 {
 	TEE_Result res;
 	struct tee_ta_ctx *ctx;
-	kta_signed_header_t *ta = NULL;
+	struct shdr *ta = NULL;
 	uint32_t handle = 0;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
 
@@ -1286,7 +1082,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_ta_init_session_with_signed_ta(ta, s);
+	res = tee_ta_init_session_with_signed_ta(uuid, ta, s);
 	/*
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
@@ -1442,14 +1238,9 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 			goto function_exit;
 		}
 
-	} else if ((sess->ctx->flags & TA_FLAG_USER_MODE) != 0) {
+	} else {
 		res = tee_user_ta_enter(err, sess, USER_TA_FUNC_INVOKE_COMMAND,
 					cancel_req_to, cmd, param);
-	} else {
-		EMSG("only user TA are supported");
-		*err = TEE_ORIGIN_TEE;
-		res = TEE_ERROR_NOT_SUPPORTED;
-		goto function_exit;
 	}
 
 	if (sess->ctx->panicked) {
@@ -1519,16 +1310,6 @@ TEE_Result tee_ta_get_client_id(TEE_Identity *id)
 
 	*id = sess->clnt_id;
 	return TEE_SUCCESS;
-}
-
-uintptr_t tee_ta_get_exec(const struct tee_ta_ctx *const ctx)
-{
-	if ((ctx->flags & TA_FLAG_EXEC_DDR) == 0) {
-		return tee_mm_get_smem(ctx->mm);
-	} else {
-		return tee_mmu_get_load_addr(ctx) + sizeof(ta_head_t) +
-		    ctx->head->nbr_func * sizeof(ta_func_head_t);
-	}
 }
 
 TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
@@ -1615,19 +1396,17 @@ static void dump_state(struct tee_ta_ctx *ctx)
 	char uuid[TEE_UUID_STRING_LEN];
 	bool active __unused;
 
-	uuid2str(uuid, &ctx->head->uuid);
+	uuid2str(uuid, &ctx->uuid);
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);
 
 	EMSG_RAW("Status of TA %s (%p)", uuid, (void *)ctx);
 	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d     %s",
 		 ctx->load_addr, ctx->context, active ? "(active)" : "");
-	EMSG_RAW("- code area : 0x%" PRIxPTR " ro:%u rw:%u zi:%u",
-		 tee_mm_get_smem(ctx->mm), ctx->head->ro_size,
-		 ctx->head->rw_size, ctx->head->zi_size);
-	EMSG_RAW("- heap/stack: 0x%" PRIxPTR " stack:%zu",
-		 tee_mm_get_smem(ctx->mm_heap_stack),
-		 ctx->stack_size);
+	EMSG_RAW("- code area : 0x%" PRIxPTR " %zu",
+		 tee_mm_get_smem(ctx->mm), tee_mm_get_bytes(ctx->mm));
+	EMSG_RAW("- stack: 0x%" PRIxPTR " stack:%zu",
+		 tee_mm_get_smem(ctx->mm_stack), ctx->stack_size);
 }
 
 void tee_ta_dump_current(void)

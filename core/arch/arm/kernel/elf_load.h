@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,26 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef ELF_LOAD_H
+#define ELF_LOAD_H
 
-#ifndef KTA_TYPES_H
-#define KTA_TYPES_H
+#include <types_ext.h>
+#include <tee_api_types.h>
 
-#include <stdint.h>
+struct elf_load_state {
+	uint8_t *nwdata;
+	size_t nwdata_len;
 
-typedef struct kta_signed_header {
-	uint32_t magic;
-	uint16_t size_of_signed_header;
-	uint16_t size_of_signature;
-	uint32_t sign_hash_type;        /* see t_hash_type */
-	uint32_t signature_type;        /* see t_signature_type */
-	uint32_t hash_type;	        /* see t_hash_type */
-	uint32_t payload_type;	        /* see enum kta_payload_type */
-	uint32_t flags;		        /* reserved */
-	uint32_t size_of_payload;
-	uint32_t sw_vers_nbr;
-	uint32_t load_address;
-	uint32_t startup_address;
-	uint32_t spare;		/* reserved */
-} kta_signed_header_t;
+	void *hash_ctx;
+	uint32_t hash_algo;
 
-#endif /* End of kta_types.h */
+	struct tee_ta_ctx *ctx;
+
+	size_t next_offs;
+};
+
+TEE_Result elf_load(struct elf_load_state *state);
+
+#endif /*ELF_LOAD_H*/

@@ -1,153 +1,79 @@
 OUTPUT_FORMAT("elf32-littlearm")
 OUTPUT_ARCH(arm)
 
-/* The format of the TA binary should be
- *
- * ta_head
- * ta_func_head
- * RO Sections
- * RW Sections
- * ZI Sections
- */
+PHDRS {
+	rodata PT_LOAD;
+	rwdata PT_LOAD;
+	dyn PT_DYNAMIC;
+}
 
-SECTIONS
-{
-    .ta_head : {*(.ta_head)}
-    .ta_func_head : {*(.ta_func_head)}
+SECTIONS {
+	.ta_head : {*(.ta_head)} :rodata
 
-    /* RO sections */
+	.text : {
+		*(.text .text.*)
+		*(.stub)
+		*(.glue_7)
+		*(.glue_7t)
+		*(.gnu.linkonce.t.*)
+		/* Workaround for an erratum in ARM's VFP11 coprocessor */
+		*(.vfp11_veneer)
+	}
+	.eh_frame : { *(.eh_frame) }
+	.rodata : {
+		*(.gnu.linkonce.r.*)
+		*(.rodata .rodata.*)
+	}
+	/* .ARM.exidx is sorted, so has to go in its own output section.  */
+	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 
-    start_of_RO_sections = .;
+        .ctors : { *(.ctors) }
+        .dtors : { *(.dtors) }
+        .plt : { *(.plt) }
+	.got : { *(.got.plt) *(.got) }
 
-    /*. = 0x00100000 */ /* uTA runs in vmem at 1st MiB */
-    .text :
-    {
-        *(.text .text.*)
-        *(.stub)
+	.rel.text : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
+	.rela.text : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
+	.rel.data : { *(.rel.data) *(.rel.gnu.linkonce.d*) }
+	.rela.data : { *(.rela.data) *(.rela.gnu.linkonce.d*) }
+	.rel.rodata : { *(.rel.rodata) *(.rel.gnu.linkonce.r*) }
+	.rela.rodata : { *(.rela.rodata) *(.rela.gnu.linkonce.r*) }
+	.rel.dyn : { *(.rel.dyn) }
+	.rel.got : { *(.rel.got) }
+	.rela.got : { *(.rela.got) }
+	.rel.ctors : { *(.rel.ctors) }
+	.rela.ctors : { *(.rela.ctors) }
+	.rel.dtors : { *(.rel.dtors) }
+	.rela.dtors : { *(.rela.dtors) }
+	.rel.init : { *(.rel.init) }
+	.rela.init : { *(.rela.init) }
+	.rel.fini : { *(.rel.fini) }
+	.rela.fini : { *(.rela.fini) }
+	.rel.bss : { *(.rel.bss) }
+	.rela.bss : { *(.rela.bss) }
+	.rel.plt : { *(.rel.plt) }
+	.rela.plt : { *(.rela.plt) }
 
-        /* ARM glue code for ARM and thumb */
-        *(.glue_7)
-        *(.glue_7t)
+	/* Page align to allow dropping execute bit for RW data */
+	. = ALIGN(4096);
 
-        /*
-         * The below input sections should not be of use, but put
-         * in this output section to define their position.
-         */
+	.data : { *(.data .data.* .gnu.linkonce.d.*) } :rwdata
 
-        /* Workaround for an erratum in ARM's VFP11 coprocessor */
-        *(.vfp11_veneer)
-        /* ARMv4 interworking compatibility */
-        *(.v4_bx)
-        /* GCC/ld specific */
-        *(.gnu.linkonce.t.*)
-        *(.gnu.linkonce.r.*)
-        *(.gnu.warning)
-        *(.gcc_except_table)
-    }
-    .rodata : ALIGN(4)
-    {
-        *(.rodata .rodata.*)
-        *(.rodata1)
-        . = ALIGN(4);
-    }
-    .rel.dyn :
-    {
-        start_of_rel_data_section = .;
-        *(.rel.data)
-        *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
-        end_of_rel_data_section = .;
-        start_of_rela_data_section = .;
-        *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
-        end_of_rela_data_section = .;
-    }
+	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
 
-    . = ALIGN(4);
-    end_of_RO_sections = .;
+	/* Page align to separate from RW data */
+	. = ALIGN(4096);
 
-    /* RW sections */
+	.dynamic : { *(.dynamic) } :dyn
+	.dynsym : { *(.dynsym) }
+	.dynstr : { *(.dynstr) }
+	.hash : { *(.hash) }
 
-    start_of_RW_sections = .;
-    start_of_GOT_sections = .;
+	/DISCARD/ : { *(.interp) }
 
-    .data : ALIGN(4)
-    {
-        *(.got.*)
-        *(.got)
-        end_of_GOT_sections = .;
-
-        *(.ta_heap_base)
-
-        *(.data .data.*)
-        /* GCC/ld specific */
-        *(.gnu.linkonce.d.*)
-    }
-    .data1 : {*(.data1)}
-    .tdata : {*(.tdata .tdata.*)}
-
-    end_of_RW_sections = .;
-
-    /* ZI sections */
-
-    start_of_ZI_sections = .;
-
-    .bss : ALIGN(4)
-    {
-        *(.dynbss)
-        *(.bss .bss.*)
-        /* GCC/ld specific */
-        *(.gnu.linkonce.b.*)
-    }
-    .tbss : {*(.tbss .tbss.*)}
-
-    end_of_ZI_sections = .;
-
-    .interp         ALIGN(4) : { *(.interp) }
-    .hash           ALIGN(4) : { *(.hash) }
-    .dynsym         ALIGN(4) : { *(.dynsym) }
-    .dynstr         ALIGN(4) : { *(.dynstr) }
-    .gnu.version    ALIGN(4) : { *(.gnu.version) }
-    .gnu.version_d  ALIGN(4) : { *(.gnu.version_d) }
-    .gnu.version_r  ALIGN(4) : { *(.gnu.version_r) }
-    .dynamic        ALIGN(4) : { *(.dynamic) }
-
-    /* Stabs debugging sections.  */
-    .stab          : { *(.stab) }
-    .stabstr       : { *(.stabstr) }
-    .stab.excl     : { *(.stab.excl) }
-    .stab.exclstr  : { *(.stab.exclstr) }
-    .stab.index    : { *(.stab.index) }
-    .stab.indexstr : { *(.stab.indexstr) }
-    .comment       : { *(.comment) }
-
-    /*
-     * Remove relocation information for GOT and the headers.
-     * All needed relocation informtion should already be matched above.
-     */
-    .junkedrel /*ALIGN(4)*/ :
-    {
-        *(.rel.*)
-        *(.rela.*)
-    }
-
-    PROVIDE(linker_RO_sections_size = end_of_RO_sections - start_of_RO_sections);
-
-    linker_RW_sections_size = end_of_RW_sections - start_of_RW_sections;
-
-    ZI_sections_size = end_of_ZI_sections - start_of_ZI_sections;
-    ASSERT(ZI_sections_size <= 0xfffff, "Too large ZI_sections_size")
-    /*
-     * Reserve the last two struct user_ta_func_head elements for the
-     * properties
-     */
-    linker_res_funcs_ZI_sections_size = (2 << 20) + ZI_sections_size;
-
-    GOT_sections_size = end_of_GOT_sections - start_of_GOT_sections;
-    rel_sections_size = end_of_rel_data_section - start_of_rel_data_section;
-    rela_sections_size = end_of_rela_data_section - start_of_rela_data_section;
-    ASSERT(rela_sections_size == 0, "Can't handle nonzero rela_sections_size")
-    ASSERT(GOT_sections_size <= 0xffff, "Too large GOT_sections_size")
-    ASSERT(rel_sections_size <= 0xffff, "Too large rel_sections_size")
-    linker_rel_dyn_GOT = (rel_sections_size << 16) + GOT_sections_size;
-
+	linker_RO_sections_size = 12;
+	linker_RW_sections_size = 12;
+	linker_res_funcs_ZI_sections_size = 12;
+	linker_rel_dyn_GOT = 12;
 }
 
