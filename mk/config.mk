@@ -59,3 +59,6 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
 CFG_NUM_THREADS ?= 2
+
+# Embed public part of this key in OP-TEE OS
+TA_SIGN_KEY ?= keys/default_ta.pem
