@@ -140,12 +140,14 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
 		TEE_Panic(0);
 
-	res =
-	    utee_cryp_obj_get_attr((uint32_t)object, attributeID, buffer,
-				   size);
+	res = utee_cryp_obj_get_attr((uint32_t)object,
+				     attributeID, buffer, size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND &&
-	    res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -171,11 +173,13 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
 		TEE_Panic(0);
 
-	res =
-	    utee_cryp_obj_get_attr((uint32_t)object, attributeID, buf, &size);
+	res = utee_cryp_obj_get_attr((uint32_t)object,
+				     attributeID, buf, &size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND &&
-	    res != TEE_ERROR_ACCESS_DENIED)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	if (size != sizeof(buf))
@@ -409,21 +413,44 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 				      uint32_t initialDataLen,
 				      TEE_ObjectHandle *object)
 {
-	if (storageID != TEE_STORAGE_PRIVATE)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	TEE_Result res;
 
-	if (objectID == NULL)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (storageID != TEE_STORAGE_PRIVATE) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto err;
+	}
 
-	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN)
-		TEE_Panic(0);
+	if (objectID == NULL) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto err;
+	}
 
-	if (object == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
-	return utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
+	if (object == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+
+	res = utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				       attributes, initialData, initialDataLen,
 				       object);
+	if (res == TEE_SUCCESS)
+		goto out;
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_ACCESS_CONFLICT ||
+	    res == TEE_ERROR_OUT_OF_MEMORY ||
+	    res == TEE_ERROR_STORAGE_NO_SPACE ||
+	    res == TEE_ERROR_CORRUPT_OBJECT ||
+	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		return res;
+	TEE_Panic(0);
+out:
+	return TEE_SUCCESS;
 }
 
 /*

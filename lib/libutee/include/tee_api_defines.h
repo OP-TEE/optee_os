@@ -109,6 +109,9 @@
 #define TEE_MEMORY_ACCESS_WRITE            0x00000002
 #define TEE_MEMORY_ACCESS_ANY_OWNER        0x00000004
 
+/* Memory Management Constant */
+#define TEE_MALLOC_FILL_ZERO               0x00000000
+
 /* Other constants */
 #define TEE_STORAGE_PRIVATE                0x00000001
 
@@ -117,7 +120,7 @@
 #define TEE_DATA_FLAG_ACCESS_WRITE_META    0x00000004
 #define TEE_DATA_FLAG_SHARE_READ           0x00000010
 #define TEE_DATA_FLAG_SHARE_WRITE          0x00000020
-#define TEE_DATA_FLAG_EXCLUSIVE            0x00000400
+#define TEE_DATA_FLAG_OVERWRITE            0x00000400
 #define TEE_DATA_MAX_POSITION              0xFFFFFFFF
 #define TEE_OBJECT_ID_MAX_LEN              64
 #define TEE_USAGE_EXTRACTABLE              0x00000001
