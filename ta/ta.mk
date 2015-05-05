@@ -100,7 +100,12 @@ ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
 $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/src)))
 
+# Copy keys
+ta-keys = keys/default_ta.pem
+$(foreach f, $(ta-keys), \
+	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/keys)))
+
 # Copy the scripts
-ta-scripts = $(wildcard ta/arch/$(ARCH)/fix_ta_binary)
+ta-scripts = $(wildcard scripts/sign.py)
 $(foreach f, $(ta-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-user_ta/scripts)))

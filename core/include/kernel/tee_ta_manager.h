@@ -28,14 +28,10 @@
 #ifndef TEE_TA_MANAGER_H
 #define TEE_TA_MANAGER_H
 
+#include <tee_api_types.h>
+#include <utee_types.h>
 #include <kernel/tee_common.h>
-
-#include "tee_api_types.h"
-#include "tee_api_types.h"
-#include "tee_ta.h"
-#include <kernel/kta_types.h>
-#include "tee_ta_manager_unpg.h"
-#include "utee_types.h"
+#include <kernel/tee_ta_manager_unpg.h>
 
 /* Magic TEE identity pointer: set when teecore requests a TA close */
 #define KERN_IDENTITY	((TEE_Identity *)-1)
@@ -98,11 +94,6 @@ TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess);
 void tee_ta_set_current_session(struct tee_ta_session *sess);
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id);
-
-/*
- * Get pointer of executable part of the TA located in virtual kernel memory
- */
-uintptr_t tee_ta_get_exec(const struct tee_ta_ctx *const ctx);
 
 /* Returns OK is sess is a valid session pointer or static TA */
 TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,

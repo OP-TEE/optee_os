@@ -69,8 +69,16 @@ include mk/lib.mk
 #
 # Do main source
 #
+
 subdirs = $(core-platform-subdirs) core
 include mk/subdir.mk
+
+# Generate C file to embed public key for TA verification
+gen-srcs += core/ta_pub_key.c
+$(out-dir)/core/ta_pub_key.c: $(TA_SIGN_KEY)
+	@$(cmd-echo-silent) '  GEN     $@'
+	@$(q)scripts/pem_to_pub_c.py --prefix ta_pub_key --key $< --out $@
+
 include mk/compile.mk
 include $(platform-dir)/link.mk
 

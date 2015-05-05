@@ -30,60 +30,6 @@
 
 #include <tee_api_types.h>
 
-/*
- * The generic format of a TA header.
- *
- * signed_header
- * ta_head_t
- * ta_func_head_t (1)
- * ta_func_head_t (2)
- * ...
- * ta_func_head_t (N) N = ta_head(_t).nbr_func
- * func_1
- * func_1
- * ...
- * func_N
- * hash_1
- * hash_2
- * ...
- * hash_M
- *
- * The currently this format is limited to N = 5, resulting in a TA header as
- *
- * signed_header
- * struct user_ta_head
- * struct user_ta_func_head (1)
- * struct user_ta_func_head (2)
- * struct user_ta_func_head (3)
- * struct user_ta_sub_head
- *
- * Note that the last two func heads are replaced by struct user_ta_sub_head.
- */
-
-struct user_ta_head {
-	TEE_UUID uuid;
-	uint32_t nbr_func;
-	uint32_t ro_size;
-	uint32_t rw_size;
-	uint32_t zi_size;
-	uint32_t got_size;
-	uint32_t hash_type;
-};
-
-#define USER_TA_HEAD_FLAG_USER_MODE 0x80000000UL
-#define USER_TA_HEAD_FLAG_DDR_EXEC  0x40000000UL
-
-struct user_ta_func_head {
-	uint32_t cmd_id;
-	uint32_t start;		/* offset to start func */
-};
-
-struct user_ta_sub_head {
-	uint32_t flags;
-	uint32_t spare;
-	uint32_t heap_size;
-	uint32_t stack_size;
-};
 
 #define TA_FLAG_USER_MODE		(1 << 0)
 #define TA_FLAG_EXEC_DDR		(1 << 1)
@@ -97,6 +43,15 @@ struct user_ta_sub_head {
 #define TA_FLAG_UNSAFE_NW_PARAMS	(1 << 5)
 #define TA_FLAG_REMAP_SUPPORT		(1 << 6) /* use map/unmap syscalls */
 #define TA_FLAG_CACHE_MAINTENANCE	(1 << 7) /* use cache flush syscall */
+
+struct ta_head {
+	TEE_UUID uuid;
+	uint32_t stack_size;
+	uint32_t flags;
+	uint32_t open_session;
+	uint32_t close_session;
+	uint32_t invoke_command;
+};
 
 #define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"
 #define TA_PROP_STR_MULTI_SESSION	"gpd.ta.multiSession"

@@ -37,8 +37,6 @@
 #include <tee_arith_internal.h>
 #include <malloc.h>
 
-/* From user_ta_header.c, built within TA */
-extern const size_t ta_data_size;
 
 /* Exported to user_ta_header.c, built within TA */
 
@@ -64,7 +62,9 @@ TAILQ_HEAD_INITIALIZER(ta_sessions);
 static uint32_t ta_ref_count;
 static bool context_init;
 
-extern uint8_t *ta_heap_base;
+/* From user_ta_header.c, built within TA */
+extern uint8_t ta_heap[];
+extern const size_t ta_heap_size;
 
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
@@ -102,7 +102,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 		if (!context_init) {
 			trace_set_level(tahead_get_trace_level());
-			malloc_init(ta_heap_base, ta_data_size);
+			malloc_init(ta_heap, ta_heap_size);
 			_TEE_MathAPI_Init();
 			context_init = true;
 		}
