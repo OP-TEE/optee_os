@@ -1,4 +1,5 @@
 srcs-y += tee_ta_manager.c
+srcs-y += elf_load.c
 srcs-y += tee_time.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c

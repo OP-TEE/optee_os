@@ -31,7 +31,6 @@
 #include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
 
-#include <kernel/tee_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mm_unpg.h>
 #if defined(CFG_SE_API)
@@ -49,6 +48,12 @@ TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
 /* Context of a loaded TA */
 struct tee_ta_ctx {
+	TEE_UUID uuid;
+	tee_uaddr_t open_session_func;
+	tee_uaddr_t close_session_func;
+	tee_uaddr_t invoke_command_func;
+	size_t stack_size;	/* size of stack */
+	uint32_t flags;		/* TA_FLAGS from TA header */
 	TAILQ_ENTRY(tee_ta_ctx) link;
 	/* list of sessions opened by this TA */
 	struct tee_ta_session_head open_sessions;
@@ -58,16 +63,11 @@ struct tee_ta_ctx {
 	struct tee_obj_head objects;
 	/* List of storage enumerators opened by this TA */
 	struct tee_storage_enum_head storage_enums;
-	ta_head_t *head;	/* ptr to the ta head in secure memory */
-	uintptr_t mem_swap;	/* ptr to code and data in memory swap */
 	tee_mm_entry_t *mm;	/* secure world memory */
-	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
-	size_t stack_size;	/* size of stack */
+	tee_mm_entry_t *mm_stack;/* stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	uint32_t context;	/* Context ID of the process */
 	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
-	uint32_t num_res_funcs;	/* number of reserved ta_func_head_t (2 or 0) */
-	uint32_t flags;		/* TA_FLAGS from sub header */
 	uint32_t panicked;	/* True if TA has panicked, written from asm */
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */

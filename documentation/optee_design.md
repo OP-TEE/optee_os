@@ -505,7 +505,31 @@ layer allows for replacing the default implementation, as explained in
 Will be written soon.
 
 # 11. Trusted Applications
-Will be written soon.
+## Format
+Trusted Applications consists of a signed ELF file.
+
+The format a TA is:
+```
+<Signed header>
+<ELF>
+```
+
+Where `<ELF>` is the content of a standard ELF file and `<Signed header>`
+consists of:
+
+| Type | Name | Comment |
+|------|------|---------|
+| `uint32_t` | magic | Holds the magic number `0x4f545348` |
+| `uint32_t` | img_type | image type, values defined by enum shdr_img_type |
+| `uint32_t` | img_size | image size in bytes |
+| `uint32_t` | algo | algorithm, defined by public key algorithms `TEE_ALG_*` from TEE Internal API specification |
+| `uint16_t` | hash_size | size of the signed hash |
+| `uint16_t` | sig_size | size of the signature |
+| `uint8_t[hash_size]` | hash | Hash of the fields above and the `<ELF>` above |
+| `uint8_t[sig_size]` | signature | Signature of hash |
+
+
+## Will be written soon.
 ### Initialize context
 ### Open Session
 ### Invoke command

@@ -81,7 +81,7 @@ contains:
   - In `include/`: header files for the above libraries
   - In `mk/`: **ta_dev_kit.mk**, which is a Make include file with suitable
   rules to build a TA, and its dependencies
-  - `scripts/fix_ta_binary`: a Perl script used by ta_dev_kit.mk.
+  - `scripts/sign.py`: a Python script used by ta_dev_kit.mk to sign TAs.
   - In `src`: **user_ta_header.c** and **user_ta_elf_arm.lds**: source file and
   linker script to add a suitable header to the Trusted Application (as expected
   by the loader code in the TEE Core)

@@ -110,7 +110,7 @@ static char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
 	if (file == NULL)
 		return NULL;
 
-	pos = tee_b2hs((uint8_t *)&sess->ctx->head->uuid, file,
+	pos = tee_b2hs((uint8_t *)&sess->ctx->uuid, file,
 		       sizeof(TEE_UUID), hslen);
 	file[pos] = '/';
 	pos++;
@@ -136,7 +136,7 @@ static char *tee_svc_storage_create_dirname(struct tee_ta_session *sess)
 	if (dir == NULL)
 		return NULL;
 
-	tee_b2hs((uint8_t *)&sess->ctx->head->uuid, dir, sizeof(TEE_UUID),
+	tee_b2hs((uint8_t *)&sess->ctx->uuid, dir, sizeof(TEE_UUID),
 		 hslen);
 
 	return (char *)dir;
@@ -434,7 +434,7 @@ TEE_Result tee_svc_storage_obj_open(uint32_t storage_id, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_pobj_get((void *)&sess->ctx->head->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, flags, &po);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -543,7 +543,7 @@ TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto err;
 
-	res = tee_pobj_get((void *)&sess->ctx->head->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, flags, &po);
 	if (res != TEE_SUCCESS)
 		goto err;
@@ -766,7 +766,7 @@ TEE_Result tee_svc_storage_obj_rename(uint32_t obj, void *object_id,
 	}
 
 	/* reserve dest name */
-	res = tee_pobj_get((void *)&sess->ctx->head->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, TEE_DATA_FLAG_ACCESS_WRITE_META, &po);
 	if (res != TEE_SUCCESS)
 		goto exit;

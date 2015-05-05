@@ -22,5 +22,4 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 core-platform-cppflags += -DTEE_USE_DLMALLOC
 core-platform-cppflags += -D_USE_SLAPORT_LIB
 
-core-platform-cppflags += -DCFG_NO_TA_HASH_SIGN
 CFG_GIC := y
