@@ -31,7 +31,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <kernel/kta_types.h>
 #include <tee_api_types.h>
 #include <mm/tee_mm_def.h>
 #include <kernel/tee_misc_unpg.h>

@@ -155,53 +155,6 @@ static bool get_open_session_meta(struct teesmc32_arg *arg32,
 	return true;
 }
 
-/*
- * Extracts optional pointer to a Trusted Application.
- *
- * Returns
- * false : malformatted TA parameter
- * true  : if TA parameter wasn't found or if it was found and OK
- */
-static bool get_open_session_ta(struct teesmc32_arg *arg32, size_t num_params,
-		size_t *num_meta, kta_signed_header_t **ta)
-{
-	struct teesmc32_param *params = TEESMC32_GET_PARAMS(arg32);
-	uint32_t ph;
-	size_t len;
-	const uint8_t req_attr = TEESMC_ATTR_META |
-				 TEESMC_ATTR_TYPE_MEMREF_INPUT |
-				 SHM_CACHE_ATTRS;
-
-	if (num_params < (*num_meta + 1))
-		return false;
-
-	if (!(params[*num_meta].attr & TEESMC_ATTR_META))
-		return true;
-
-	if (params[*num_meta].attr != req_attr)
-		return false;
-
-	ph = params[*num_meta].u.memref.buf_ptr;
-	if (params[*num_meta].u.memref.size < sizeof(kta_signed_header_t))
-		return false;
-
-	if (!tee_pbuf_is_non_sec(ph, sizeof(kta_signed_header_t)))
-		return false;
-
-	if (core_pa2va(ph, ta))
-		return false;
-
-	len = (*ta)->size_of_signed_header + (*ta)->size_of_payload;
-	if (params[*num_meta].u.memref.size < len)
-		return false;
-
-	if (!tee_pbuf_is_non_sec(ph, len))
-		return false;
-
-	(*num_meta)++;
-	return true;
-}
-
 static void entry_open_session(struct thread_smc_args *args,
 			struct teesmc32_arg *arg32, uint32_t num_params)
 {
@@ -212,10 +165,6 @@ static void entry_open_session(struct thread_smc_args *args,
 	size_t num_meta = 0;
 
 	if (!get_open_session_meta(arg32, num_params, &num_meta, &meta))
-		goto bad_params;
-
-	in.ta = NULL;
-	if (!get_open_session_ta(arg32, num_params, &num_meta, &in.ta))
 		goto bad_params;
 
 	COMPILE_TIME_ASSERT(sizeof(TEE_UUID) == TEESMC_UUID_LEN);

@@ -46,7 +46,6 @@ struct tee_dispatch_out {
 
 /* Input arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_in {
-	kta_signed_header_t *ta;
 	TEE_UUID uuid;
 	uint32_t param_types;
 	TEE_Param params[4];

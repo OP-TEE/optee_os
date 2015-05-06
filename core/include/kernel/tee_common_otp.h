@@ -30,7 +30,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <kernel/kta_types.h>
 #include <utee_defines.h>
 
 struct tee_hw_unique_key {
