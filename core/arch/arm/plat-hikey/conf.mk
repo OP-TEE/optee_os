@@ -5,12 +5,6 @@ COMPILER	?= gcc
 
 CFG_ARM32_core ?= y
 
-core-tee-bin-arch := 0
-
-core-platform-cppflags += $(arm32-platform-cppflags)
-core-platform-cflags += $(arm32-platform-cflags)
-core-platform-aflags += $(arm32-platform-aflags)
-
 core-platform-cppflags	+= -I$(arch-dir)/include
 
 core-platform-subdirs += \

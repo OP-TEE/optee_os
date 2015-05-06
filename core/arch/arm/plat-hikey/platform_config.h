@@ -31,10 +31,7 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM32
-#define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
-#define PLATFORM_LINKER_ARCH	arm
-#else
+#ifndef ARM32
 #error "Only ARM32 is supported"
 #endif
 

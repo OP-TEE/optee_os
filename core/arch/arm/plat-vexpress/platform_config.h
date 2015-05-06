@@ -38,15 +38,7 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM32
-#define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
-#define PLATFORM_LINKER_ARCH	arm
-#endif /*ARM32*/
-
 #ifdef ARM64
-#define PLATFORM_LINKER_FORMAT	"elf64-littleaarch64"
-#define PLATFORM_LINKER_ARCH	aarch64
-
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for ARM64"
 #endif
