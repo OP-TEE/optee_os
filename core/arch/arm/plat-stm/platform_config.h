@@ -69,20 +69,20 @@
 #endif
 
 #define CFG_PUB_RAM_SIZE                (1 * 1024 * 1024)
-#define CFG_TEE_RAM_SIZE                (1 * 1024 * 1024)
+#define CFG_TEE_RAM_PH_SIZE                (1 * 1024 * 1024)
 #define CFG_TA_RAM_SIZE                 (CFG_DDR_TEETZ_RESERVED_SIZE - \
-					 CFG_TEE_RAM_SIZE - CFG_PUB_RAM_SIZE)
+					 CFG_TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
 
 /* define the secure/unsecure memory areas */
 #define TZDRAM_BASE                     (CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE                     (CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_SIZE                     (CFG_TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
 
 #define CFG_SHMEM_START                 (TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE                  CFG_PUB_RAM_SIZE
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
 #define CFG_TEE_RAM_START               (TZDRAM_BASE)
-#define CFG_TA_RAM_START                (CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
+#define CFG_TA_RAM_START                (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE)
 
 #if PLATFORM_FLAVOR_IS(cannes)
 
@@ -124,5 +124,20 @@
 #define GIC_CPU_BASE		(CPU_IOMEM_BASE + 0x0100)
 #define ST_ASC20_REGS_BASE	(STXHxxx_LPM_PERIPH_BASE + 0x00130000)
 #define ST_ASC21_REGS_BASE	(STXHxxx_LPM_PERIPH_BASE + 0x00131000)
+
+#define DEVICE0_BASE		ROUNDDOWN(CPU_IOMEM_BASE, \
+					  CORE_MMU_DEVICE_SIZE)
+#define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE0_TYPE		MEM_AREA_IO_NSEC
+
+#define DEVICE1_BASE		ROUNDDOWN(UART_CONSOLE_BASE, \
+					  CORE_MMU_DEVICE_SIZE)
+#define DEVICE1_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE1_TYPE		MEM_AREA_IO_NSEC
+
+#define DEVICE2_BASE		ROUNDDOWN(RNG_BASE, \
+					  CORE_MMU_DEVICE_SIZE)
+#define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE2_TYPE		MEM_AREA_IO_SEC
 
 #endif /*PLATFORM_CONFIG_H*/

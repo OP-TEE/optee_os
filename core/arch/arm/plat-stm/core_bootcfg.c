@@ -31,9 +31,7 @@
 #include <kernel/tee_misc.h>
 #include <trace.h>
 
-/*
- * define the platform memory Secure layout
- */
+/* Define the platform's memory layout. */
 struct memaccess_area {
 	paddr_t paddr;
 	size_t size;
@@ -48,6 +46,9 @@ static struct memaccess_area ddr[] = {
 };
 
 static struct memaccess_area secure_only[] = {
+#ifdef TZSRAM_BASE
+	MEMACCESS_AREA(TZSRAM_BASE, TZSRAM_SIZE),
+#endif
 	MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE),
 };
 
@@ -91,9 +92,7 @@ static bool pbuf_is_multipurpose(paddr_t paddr, size_t size)
 	return pbuf_is_inside(ddr, paddr, size);
 }
 
-/*
- * Wrapper for the platform specific pbuf_is() service.
- */
+/* Wrapper for the platform specific pbuf_is() service. */
 static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 {
 	switch (attr) {
@@ -110,80 +109,87 @@ static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 		return pbuf_is_inside(ddr, paddr, size);
 
 	default:
-		EMSG("unpexted request: attr=%X", attr);
+		EMSG("Unexpected request: attr=%X", attr);
 		return false;
 	}
 }
 
-/* platform specific memory layout provided to teecore */
+/* Platform-specific memory layout provided to TEE core. */
 static struct map_area bootcfg_memory_map[] = {
-	{	/* teecore execution RAM */
+	/* TEE core execution RAM. */
+	{
 	 .type = MEM_AREA_TEE_RAM,
 	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_SIZE,
 	 .cached = true, .secure = true, .rw = true, .exec = true,
 	 },
 
-	{	/* teecore TA load/exec RAM - Secure, exec user only! */
+	/* TEE core TA load/exec RAM: secure, user exec only. */
+	{
 	 .type = MEM_AREA_TA_RAM,
 	 .pa = CFG_TA_RAM_START, .size = CFG_TA_RAM_SIZE,
 	 .cached = true, .secure = true, .rw = true, .exec = false,
 	 },
 
-	{	/* teecore public RAM - NonSecure, non-exec. */
+	/* TEE core public RAM: non-secure, non-exec. */
+	{
 	 .type = MEM_AREA_NSEC_SHM,
 	 .pa = CFG_SHMEM_START, .size = CFG_SHMEM_SIZE,
 	 .cached = true, .secure = false, .rw = true, .exec = false,
 	 },
 
-	{	/* CPU mem map HW registers */
-	 .type = MEM_AREA_IO_NSEC,
-	 .pa = CPU_IOMEM_BASE & ~CORE_MMU_DEVICE_MASK,
-	 .size = CORE_MMU_DEVICE_SIZE,
+	{
+	 .type = DEVICE0_TYPE,
+	 .pa = DEVICE0_BASE, .size = DEVICE0_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
-
-	{	/* ASC IP for UART HW tracing */
-	 .type = MEM_AREA_IO_NSEC,
-	 .pa = UART_CONSOLE_BASE & ~CORE_MMU_DEVICE_MASK,
-	 .size = CORE_MMU_DEVICE_SIZE,
-	 .device = true, .secure = false, .rw = true,
+#ifdef DEVICE1_BASE
+	{
+	 .type = DEVICE1_TYPE,
+	 .pa = DEVICE1_BASE, .size = DEVICE1_SIZE,
+	 .device = true, .secure = true, .rw = true,
 	 },
-
-	{	/* RNG IP for some random support */
+#endif
+#ifdef DEVICE2_BASE
+	{
+	 .type = DEVICE2_TYPE,
+	 .pa = DEVICE2_BASE, .size = DEVICE2_SIZE,
+	 .device = true, .secure = true, .rw = true,
+	 },
+#endif
+#ifdef DEVICE3_BASE
+	{
 	 .type = MEM_AREA_IO_SEC,
-	 .pa = RNG_BASE & ~CORE_MMU_DEVICE_MASK, .size = CORE_MMU_DEVICE_SIZE,
+	 .pa = DEVICE3_BASE, .size = DEVICE3_SIZE,
 	 .device = true, .secure = true, .rw = true,
 	 },
-
+#endif
 	{.type = MEM_AREA_NOTYPE}
 };
 
-/*
- * bootcfg_get_pbuf_is_handler - return the platform specfic pbuf_is
- */
+/* Return the platform specific pbuf_is(). */
 unsigned long bootcfg_get_pbuf_is_handler(void)
 {
 	return (unsigned long)pbuf_is;
 }
 
 /*
- * This routine is called while MMU and core memory management are not init.
+ * This routine is called when MMU and core memory management are not
+ * initialized.
  */
 struct map_area *bootcfg_get_memory(void)
 {
 	struct map_area *map;
 	size_t n;
 
-	/* check defined memory access layout */
 	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
 		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
 				    secure_only[n].size)) {
-			EMSG("invalid memory access configuration: sec/nsec");
+			EMSG("Invalid memory access configuration: sec/nsec");
 			return NULL;
 		}
 	}
 
-	/* check defined mapping (overlapping will be tested later) */
+	/* Overlapping will be tested later */
 	map = bootcfg_memory_map;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
@@ -206,7 +212,7 @@ struct map_area *bootcfg_get_memory(void)
 			}
 			break;
 		default:
-			/* other mapped areas are not checked */
+			/* Other mapped areas are not checked. */
 			break;
 		}
 		map++;
