@@ -2,7 +2,6 @@ global-incdirs-y += .
 srcs-y += entry.S
 srcs-y += main.c
 srcs-y += core_bootcfg.c
-srcs-y += core_chip.c
 srcs-y += rng_support.c
 srcs-y += platform.c
 srcs-y += smp_boot.S
