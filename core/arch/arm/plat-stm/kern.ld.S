@@ -45,20 +45,15 @@ SECTIONS
 	*(.nozi.stack)
     } > STACKS_MEM
 
-    /* MMU pages tables (TODO: should we keep them cachable?) */
-    .mmu_uta :
-    {
-        SEC_TA_MMU_TTB_FLD = (.);	 /* MMU L1 table for TAs: 128B */
-        SEC_TA_MMU_TTB_END = (. + 0x80);
-    } > MMU_UTA_MEM
-    .mmu_core :
-    {
-        SEC_MMU_TTB_FLD = (.);           /* MMU L1 table for teecore: 16kB */
-        SEC_MMU_TTB_END = (. + 0x4000);
-        SEC_MMU_L2_TTB_FLD = (SEC_MMU_TTB_END); /* MMU L2 table for teecore */
-        SEC_MMU_L2_TTB_END = (SEC_MMU_L2_TTB_FLD + 0x400);
-    } > MMU_CORE_MEM
-
+	/*
+	 * Uninitialized data that shouldn't be zero initialized at
+	 * runtime.
+	 *
+	 * L1 mmu table requires 16 KiB alignment
+	 */
+	.nozi (NOLOAD) : ALIGN(16 * 1024) {
+		KEEP(*(.nozi .nozi.*))
+	}
 }
 
     /* 64kB aligned heap start between BSS and secure stacks */

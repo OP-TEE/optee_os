@@ -128,38 +128,6 @@ static void main_tee_entry(struct thread_smc_args *args)
 	tee_entry(args);
 }
 
-/* ttbr1 for teecore mapping: 16kB, fixed addr. */
-extern uint8_t *SEC_MMU_TTB_FLD;
-/* ttbr0 for TA mapping (default was 128kB) */
-extern uint8_t *SEC_TA_MMU_TTB_FLD;
-
-paddr_t core_mmu_get_main_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
-
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_main_ttb_va(void)
-{
-	return (vaddr_t)&SEC_MMU_TTB_FLD;
-}
-
-paddr_t core_mmu_get_ul1_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_ul1_ttb_va(void)
-{
-	return (vaddr_t)&SEC_TA_MMU_TTB_FLD;
-}
-
 void console_putc(int ch)
 {
 	__asc_xmit_char((char)ch);
@@ -168,25 +136,4 @@ void console_putc(int ch)
 void console_flush(void)
 {
 	__asc_flush();
-}
-
-/* L2 translation table(s) for teecore mapping: fixed addr. */
-extern uint8_t *SEC_MMU_L2_TTB_FLD;
-extern uint8_t *SEC_MMU_L2_TTB_END;
-
-void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
-{
-	/* Can't have this in .bss since it's not initialized yet */
-	static size_t l2_offs __attribute__((section(".data")));
-	const size_t l2_size = SEC_MMU_L2_TTB_END - SEC_MMU_L2_TTB_FLD;
-	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
-	size_t l2_va_space = ((l2_size - l2_offs) / TEE_MMU_L2_SIZE) *
-				l2_va_size;
-
-	if (l2_offs)
-		return NULL;
-	if (mm->size > l2_va_space)
-		return NULL;
-	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
-	return SEC_MMU_L2_TTB_FLD;
 }
