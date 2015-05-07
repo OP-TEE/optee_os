@@ -62,7 +62,7 @@
  *  SECONDARY_STARTUP_PHYS is set by build env and defines linux econdary CPUs
  *  entry physical address.
  *
- * 2) linux boot arguments (CONFIG_TEE_GDB_BOOT)
+ * 2) linux boot arguments (CFG_TEE_GDB_BOOT)
  *
  * In current setup (GDB boot), when here, DDR is ready, linux and tee images
  * are loaded in DDR, linux boot arguments are stored in DDR. CPU0 register
@@ -97,7 +97,7 @@
 sem_cpu_sync:
 	.word SEM_NOT_READY;
 
-#ifdef CONFIG_TEE_GDB_BOOT
+#ifdef CFG_TEE_GDB_BOOT
 gdb_bootargs:
 	.word 0
 	.word 0
@@ -153,7 +153,7 @@ secure_init_vector_table:
 
 tz_sinit:
 
-#ifdef CONFIG_TEE_GDB_BOOT
+#ifdef CFG_TEE_GDB_BOOT
 	/* boot preloaded linux: save linux boot args from GDB */
 	mov r10, r0
 	mov r11, r1
@@ -188,7 +188,7 @@ _BootCPU0:
 	/* complete ARM secure MP common configuration */
 	bl arm_secboot_late
 
-#ifdef CONFIG_TEE_GDB_BOOT
+#ifdef CFG_TEE_GDB_BOOT
 	ldr r0, =gdb_bootargs
 	str r10, [r0, #0]
 	str r11, [r0, #4]
@@ -247,7 +247,7 @@ _wait_cpu1:
 	/* TODO: call teecore inits */
 
 	/* ask monitor to enter NSec from TEE boot sequence */
-#ifdef CONFIG_TEE_GDB_BOOT
+#ifdef CFG_TEE_GDB_BOOT
 	/* restore linux boot arguments */
 	ldr r4, =gdb_bootargs
 	mov r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE

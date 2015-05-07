@@ -1,6 +1,6 @@
 link-out-dir = $(out-dir)/core
 
-link-script = $(platform-dir)/tz-template.lds
+link-script = $(platform-dir)/kern.ld.S
 link-script-pp = $(link-out-dir)/kern.ld
 link-script-dep = $(link-out-dir)/.kern.ld.d
 
@@ -48,3 +48,12 @@ cleanfiles += $(link-out-dir)/tee.symb_sizes
 $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(NMcore) --print-size --reverse-sort --size-sort $< > $@
+
+cleanfiles += $(link-out-dir)/tee.mem_usage
+ifneq ($(filter mem_usage,$(MAKECMDGOALS)),)
+mem_usage: $(link-out-dir)/tee.mem_usage
+
+$(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/mem_usage.awk > $@
+endif
