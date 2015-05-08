@@ -62,6 +62,13 @@ static void main_fiq(void)
 	panic();
 }
 
+void console_init(void)
+{
+	serial8250_uart_init(CONSOLE_UART_BASE,
+			     CONSOLE_UART_CLK_IN_HZ,
+			     CONSOLE_BAUDRATE);
+}
+
 void console_putc(int ch)
 {
 	serial8250_uart_putc(ch, CONSOLE_UART_BASE);

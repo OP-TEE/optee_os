@@ -384,6 +384,10 @@ static void main_tee_entry(struct thread_smc_args *args)
 	tee_entry(args);
 }
 
+void console_init(void)
+{
+}
+
 void console_putc(int ch)
 {
 	__asc_xmit_char((char)ch);

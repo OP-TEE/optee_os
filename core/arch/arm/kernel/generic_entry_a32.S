@@ -122,16 +122,8 @@ copy_init:
 	sub	r1, r1, #1
 	bl	arm_cl1_d_invbyva
 
-	/* Enable UART */
-	ldr	r0, =CONSOLE_UART_BASE
-	ldr	r1, =CONSOLE_UART_CLK_IN_HZ
-	ldr	r2, =CONSOLE_BAUDRATE
-#ifdef CFG_PL011
-	bl	pl011_init
-#endif
-#ifdef CFG_8250_UART
-	bl	serial8250_uart_init
-#endif
+	/* Enable Console */
+	bl	console_init
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
