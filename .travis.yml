@@ -7,13 +7,13 @@ notifications:
 
 # Install the cross compiler
 before_install:
-  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-x86_64_arm-linux-gnueabihf.tar.xz
-  - tar xf gcc-linaro-4.9-2015.02-x86_64_arm-linux-gnueabihf.tar.xz
-  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-x86_64_arm-linux-gnueabihf/bin:${PATH}
+  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf/bin:${PATH}
   - arm-linux-gnueabihf-gcc --version
-  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/aarch64-linux-gnu/gcc-linaro-4.9-2015.02-x86_64_aarch64-linux-gnu.tar.xz
-  - tar xf gcc-linaro-4.9-2015.02-x86_64_aarch64-linux-gnu.tar.xz
-  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-x86_64_aarch64-linux-gnu/bin:${PATH}
+  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/aarch64-linux-gnu/gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu.tar.xz
+  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu.tar.xz
+  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu/bin:${PATH}
   - aarch64-linux-gnu-gcc --version
 
 before_script:
