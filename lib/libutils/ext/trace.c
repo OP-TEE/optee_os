@@ -53,12 +53,13 @@ int trace_get_level(void)
 
 static const char *trace_level_to_string(int level, bool level_ok)
 {
-	static const char lvl_strs[][4] = {
-		"UKN", "ERR", "INF", "DBG", "FLW" };
+	static const char lvl_strs[][9] = {
+		"UNKNOWN:", "ERROR:  ", "INFO:   ", "DEBUG:  ",
+		"FLOW:   " };
 	int l = 0;
 
 	if (!level_ok)
-		return "MSG";
+		return "MESSAGE:";
 
 	if ((level >= TRACE_MIN) && (level <= TRACE_MAX))
 		l = level;
@@ -74,26 +75,51 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	char buf[MAX_PRINT_SIZE];
 	size_t boffs = 0;
 	int res;
+	int thread_id;
 
 	if (level_ok && level > trace_level)
 		return;
 
-	if (function) {
-		int thread_id = trace_ext_get_thread_id();
+	res = snprintk(buf, sizeof(buf), "%s ",
+		       trace_level_to_string(level, level_ok));
+	if (res < 0)
+		return;
+	boffs += res;
 
-		if (thread_id >= 0)
-			res = snprintk(buf, sizeof(buf), "%s [0x%x] %s:%s:%d: ",
-				       trace_level_to_string(level, level_ok),
-				       thread_id, trace_ext_prefix,
-				       function, line);
-		else
-			res = snprintk(buf, sizeof(buf), "%s %s:%s:%d: ",
-				       trace_level_to_string(level, level_ok),
-				       trace_ext_prefix, function, line);
+	if (level_ok && level < CFG_MSG_LONG_PREFIX_THRESHOLD)
+		thread_id = -1;
+	else
+		thread_id = trace_ext_get_thread_id();
+
+	if (thread_id >= 0) {
+		res = snprintk(buf + boffs, sizeof(buf) - boffs, "[0x%x] ",
+			       thread_id);
 		if (res < 0)
-			return; /* "Can't happen" */
-		boffs = res;
+			return;
+		boffs += res;
 	}
+
+	res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:",
+		       trace_ext_prefix);
+	if (res < 0)
+		return;
+	boffs += res;
+
+	if (level_ok && level < CFG_MSG_LONG_PREFIX_THRESHOLD)
+		function = NULL;
+
+	if (function) {
+		res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d:",
+			       function, line);
+		if (res < 0)
+			return;
+		boffs += res;
+	}
+
+	res = snprintk(buf + boffs, sizeof(buf) - boffs, " ");
+	if (res < 0)
+		return;
+	boffs += res;
 
 	va_start(ap, fmt);
 	res = vsnprintk(buf + boffs, sizeof(buf) - boffs, fmt, ap);

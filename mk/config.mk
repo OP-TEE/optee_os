@@ -72,6 +72,13 @@ CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
 CFG_TEE_CORE_MALLOC_DEBUG ?= n
 CFG_TEE_TA_MALLOC_DEBUG ?= n
 
+# All message with level equal or higher to the following value will be
+# prefixed with long debugging information (severity, thread ID, component
+# name, function name, line number). Otherwise a short prefix is used
+# (severity and component name only).
+# Levels: 0=none 1=error 2=info 3=debug 4=flow
+CFG_MSG_LONG_PREFIX_THRESHOLD ?= 3
+
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.
