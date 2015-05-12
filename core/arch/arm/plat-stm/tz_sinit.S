@@ -217,7 +217,7 @@ init_bss:
 
 	/* Initialize thread handling and secure monitor */
 	ldr	r0, =stext
-	bl	main_init
+	bl	generic_boot_init_primary
 
 	/* release secondary CPUs */
 	ldr r0,=sem_cpu_sync
@@ -299,7 +299,7 @@ _wait_cpu0:
 
 	/* Initialize thread handling and secure monitor */
 	ldr	r0, =stm_secondary_startup
-	bl	main_init
+	bl	generic_boot_init_secondary
 
 	/* initialize the asc */
 	bl	asc_init

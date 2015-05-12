@@ -71,31 +71,90 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
-void main_init(uint32_t nsec_entry); /* called from assembly only */
-void main_init(uint32_t nsec_entry)
+#define PADDR_INVALID		0xffffffff
+
+/* May be overridden in plat-$(PLATFORM)/main.c */
+void main_init_gic(void);
+__weak void main_init_gic(void)
+{
+}
+
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+static void init_sec_mon(uint32_t nsec_entry __unused)
+{
+	assert(nsec_entry == PADDR_INVALID);
+	/* Do nothing as we don't have a secure monitor */
+}
+#else
+static void init_sec_mon(uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
-	size_t pos = get_core_pos();
 
-	/*
-	 * Mask IRQ and FIQ before switch to the thread vector as the
-	 * thread handler requires IRQ and FIQ to be masked while executing
-	 * with the temporary stack. The thread subsystem also asserts that
-	 * IRQ is blocked when using most if its functions.
-	 */
-	thread_mask_exceptions(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ);
-
-	if (pos == 0)
-		thread_init_primary(&handlers);
-
-	thread_init_per_cpu();
+	assert(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
 
-	if (pos == 0) {
+}
+#endif
+
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+static void init_nsacr(void)
+{
+}
+#else
+static void init_nsacr(void)
+{
+	/* Normal world can use CP10 and CP11 (SIMD/VFP) */
+	write_nsacr(read_nsacr() | NSACR_CP10 | NSACR_CP11);
+}
+#endif
+
+#ifdef CFG_WITH_VFP
+static void init_cpacr(void)
+{
+	uint32_t cpacr = read_cpacr();
+
+	/* Enabled usage of CP10 and CP11 (SIMD/VFP) */
+	cpacr &= ~CPACR_CP(10, CPACR_CP_ACCESS_FULL);
+	cpacr |= CPACR_CP(10, CPACR_CP_ACCESS_PL1_ONLY);
+	cpacr &= ~CPACR_CP(11, CPACR_CP_ACCESS_FULL);
+	cpacr |= CPACR_CP(11, CPACR_CP_ACCESS_PL1_ONLY);
+	write_cpacr(cpacr);
+}
+#else
+static void init_cpacr(void)
+{
+	/* We're not using VFP/SIMD instructions, leave it disabled */
+}
+#endif
+
+static void init_primary_helper(uint32_t nsec_entry)
+{
+	/*
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
+	 */
+	thread_set_exceptions(THREAD_EXCP_ALL);
+	init_cpacr();
+
+	/* init_runtime(pageable_part); */
+
+	DMSG("TEE initializing\n");
+
+	thread_init_primary(&handlers);
+	thread_init_per_cpu();
+	init_sec_mon(nsec_entry);
+
+
+	main_init_gic();
+	init_nsacr();
+
+	{
 		unsigned long a, s;
 		/* core malloc pool init */
 #ifdef CFG_TEE_MALLOC_START
@@ -113,6 +172,51 @@ void main_init(uint32_t nsec_entry)
 		teecore_init_ta_ram();
 	}
 }
+
+static void init_secondary_helper(uint32_t nsec_entry)
+{
+	/*
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that IRQ is blocked when using most if its functions.
+	 */
+	thread_set_exceptions(THREAD_EXCP_ALL);
+
+	thread_init_per_cpu();
+	init_sec_mon(nsec_entry);
+	init_cpacr();
+	init_nsacr();
+
+	DMSG("Secondary CPU Switching to normal world boot\n");
+}
+
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+uint32_t *generic_boot_init_primary(uint32_t pageable_part)
+{
+	init_primary_helper(pageable_part, PADDR_INVALID);
+	return thread_vector_table;
+}
+
+uint32_t generic_boot_cpu_on_handler(uint32_t a0 __unused, uint32_t a1 __unused)
+{
+	DMSG("cpu %zu: a0 0x%x", get_core_pos(), a0);
+	init_secondary_helper(PADDR_INVALID);
+	return 0;
+}
+#else
+void generic_boot_init_primary(uint32_t nsec_entry);
+void generic_boot_init_primary(uint32_t nsec_entry)
+{
+	init_primary_helper(nsec_entry);
+}
+
+void generic_boot_init_secondary(uint32_t nsec_entry);
+void generic_boot_init_secondary(uint32_t nsec_entry)
+{
+	init_secondary_helper(nsec_entry);
+}
+#endif
 
 static void main_fiq(void)
 {
