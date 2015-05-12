@@ -45,6 +45,8 @@
 #error "LPAE not supported for platform STM"
 #endif
 
+#define HEAP_SIZE		(24 * 1024)
+
 /*
  * TEE/TZ RAM layout:
  *

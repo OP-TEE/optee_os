@@ -49,10 +49,21 @@
 #include <assert.h>
 #include <platform_config.h>
 
-/* teecore heap address/size is defined in scatter file */
-extern unsigned char teecore_heap_start;
-extern unsigned char teecore_heap_end;
-
+extern uint8_t __text_init_start[];
+extern uint8_t __data_start[];
+extern uint8_t __data_end[];
+extern uint8_t __bss_start[];
+extern uint8_t __bss_end[];
+extern uint8_t __init_start[];
+extern uint8_t __init_size[];
+extern uint8_t __heap1_start[];
+extern uint8_t __heap1_end[];
+extern uint8_t __heap2_start[];
+extern uint8_t __heap2_end[];
+extern uint8_t __pageable_part_start[];
+extern uint8_t __pageable_part_end[];
+extern uint8_t __pageable_start[];
+extern uint8_t __pageable_end[];
 
 static void main_fiq(void);
 static void main_tee_entry(struct thread_smc_args *args);
@@ -131,6 +142,165 @@ static void init_cpacr(void)
 }
 #endif
 
+#ifdef CFG_WITH_PAGER
+
+static size_t get_block_size(void)
+{
+	struct core_mmu_table_info tbl_info;
+	unsigned l;
+
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info))
+		panic();
+	l = tbl_info.level - 1;
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info))
+		panic();
+	return 1 << tbl_info.shift;
+}
+
+static void init_runtime(uint32_t pageable_part)
+{
+	size_t n;
+	size_t init_size = (size_t)__init_size;
+	size_t pageable_size = __pageable_end - __pageable_start;
+	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
+			   TEE_SHA256_HASH_SIZE;
+	tee_mm_entry_t *mm;
+	uint8_t *paged_store;
+	uint8_t *hashes;
+	uint8_t *tmp_hashes = __init_start + init_size;
+	size_t block_size;
+
+
+	TEE_ASSERT(pageable_size % SMALL_PAGE_SIZE == 0);
+
+
+	/* Copy it right after the init area. */
+	memcpy(tmp_hashes, __data_end + init_size, hash_size);
+
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+
+	hashes = malloc(hash_size);
+	EMSG("hash_size %zu", hash_size);
+	TEE_ASSERT(hashes);
+	memcpy(hashes, tmp_hashes, hash_size);
+
+	/*
+	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
+	 * DDR below.
+	 */
+	teecore_init_ta_ram();
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
+	TEE_ASSERT(mm);
+	paged_store = (uint8_t *)tee_mm_get_smem(mm);
+	/* Copy init part into pageable area */
+	memcpy(paged_store, __init_start, init_size);
+	/* Copy pageable part after init part into pageable area */
+	memcpy(paged_store + init_size, (void *)pageable_part,
+		__pageable_part_end - __pageable_part_start);
+
+	/* Check that hashes of what's in pageable area is OK */
+	DMSG("Checking hashes of pageable area");
+	for (n = 0; (n * SMALL_PAGE_SIZE) < pageable_size; n++) {
+		const uint8_t *hash = hashes + n * TEE_SHA256_HASH_SIZE;
+		const uint8_t *page = paged_store + n * SMALL_PAGE_SIZE;
+		TEE_Result res;
+
+		DMSG("hash pg_idx %zu hash %p page %p", n, hash, page);
+		res = hash_sha256_check(hash, page, SMALL_PAGE_SIZE);
+		if (res != TEE_SUCCESS) {
+			EMSG("Hash failed for page %zu at %p: res 0x%x",
+				n, page, res);
+			panic();
+		}
+	}
+
+	/*
+	 * Copy what's not initialized in the last init page. Needed
+	 * because we're not going fault in the init pages again. We can't
+	 * fault in pages until we've switched to the new vector by calling
+	 * thread_init_handlers() below.
+	 */
+	if (init_size % SMALL_PAGE_SIZE) {
+		uint8_t *p;
+
+		memcpy(__init_start + init_size, paged_store + init_size,
+			SMALL_PAGE_SIZE - (init_size % SMALL_PAGE_SIZE));
+
+		p = (uint8_t *)(((vaddr_t)__init_start + init_size) &
+				~SMALL_PAGE_MASK);
+
+		cache_maintenance_l1(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
+		cache_maintenance_l1(ICACHE_AREA_INVALIDATE, p,
+				     SMALL_PAGE_SIZE);
+	}
+
+	/*
+	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
+	 * is supplied to tee_pager_init() below.
+	 */
+	block_size = get_block_size();
+	if (!tee_mm_init(&tee_mm_vcore,
+			ROUNDDOWN(CFG_TEE_RAM_START, block_size),
+			ROUNDUP(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+				block_size),
+			SMALL_PAGE_SHIFT, 0))
+		panic();
+
+	/*
+	 * Claim virtual memory which isn't paged, note that there migth be
+	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
+	 * claimed to avoid later allocations to get that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
+			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
+	TEE_ASSERT(mm);
+
+	/*
+	 * Allocate virtual memory for the pageable area and let the pager
+	 * take charge of all the pages already assigned to that memory.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
+			   pageable_size);
+	TEE_ASSERT(mm);
+	tee_pager_add_area(mm, TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
+			   paged_store, hashes);
+	tee_pager_add_pages((vaddr_t)__pageable_start,
+		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
+	tee_pager_add_pages((vaddr_t)__pageable_start +
+				ROUNDUP(init_size, SMALL_PAGE_SIZE),
+			(pageable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
+				SMALL_PAGE_SIZE, true);
+
+}
+#else
+static void init_runtime(uint32_t pageable_part __unused)
+{
+	/*
+	 * Zero BSS area. Note that globals that would normally would go
+	 * into BSS which are used before this has to be put into .nozi.*
+	 * to avoid getting overwritten.
+	 */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+
+	/*
+	 * Initialized at this stage in the pager version of this function
+	 * above
+	 */
+	teecore_init_ta_ram();
+}
+#endif
+
 static void init_primary_helper(uint32_t nsec_entry)
 {
 	/*
@@ -142,7 +312,7 @@ static void init_primary_helper(uint32_t nsec_entry)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	init_cpacr();
 
-	/* init_runtime(pageable_part); */
+	init_runtime(0);
 
 	DMSG("TEE initializing\n");
 
@@ -153,24 +323,6 @@ static void init_primary_helper(uint32_t nsec_entry)
 
 	main_init_gic();
 	init_nsacr();
-
-	{
-		unsigned long a, s;
-		/* core malloc pool init */
-#ifdef CFG_TEE_MALLOC_START
-		a = CFG_TEE_MALLOC_START;
-		s = CFG_TEE_MALLOC_SIZE;
-#else
-		a = (unsigned long)&teecore_heap_start;
-		s = (unsigned long)&teecore_heap_end;
-		a = ((a + 1) & ~0x0FFFF) + 0x10000;	/* 64kB aligned */
-		s = s & ~0x0FFFF;	/* 64kB aligned */
-		s = s - a;
-#endif
-		malloc_init((void *)a, s);
-
-		teecore_init_ta_ram();
-	}
 }
 
 static void init_secondary_helper(uint32_t nsec_entry)

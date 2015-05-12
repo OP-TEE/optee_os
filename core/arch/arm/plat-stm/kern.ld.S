@@ -1,3 +1,5 @@
+#include <platform_config.h>
+
 OUTPUT_ARCH(arm)
 ENTRY(tz_sinit)
 
@@ -31,9 +33,18 @@ SECTIONS
         *(ta_head_section)
         __stop_ta_head_section = . ;
 
-        __bss_start = (.) ;
-        *(.bss .bss.*)
-        __bss_end = (.) ;
+	/* uninitialized data */
+	. = ALIGN(4);
+	__bss_start = (.);
+	*(.bss .bss.*)
+	*(.gnu.linkonce.b.*)
+	. = ALIGN(4);
+	__bss_end = (.);
+
+
+	__heap1_start = .;
+	. += HEAP_SIZE;
+	__heap1_end = .;
 
         *(COMMON)
 
@@ -55,8 +66,3 @@ SECTIONS
 		KEEP(*(.nozi .nozi.*))
 	}
 }
-
-    /* 64kB aligned heap start between BSS and secure stacks */
-    PROVIDE(teecore_heap_start = __bss_end);
-    PROVIDE(teecore_heap_end = __stacks_start);
-

@@ -183,7 +183,7 @@ SECTIONS
 		__heap1_end = .;
 	}
 
- 	/*
+	/*
 	 * Uninitialized data that shouldn't be zero initialized at
 	 * runtime.
 	 *

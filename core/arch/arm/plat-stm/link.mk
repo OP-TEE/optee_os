@@ -18,12 +18,22 @@ link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(libnames))
 ldargs-tee.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcccore)
 
+link-script-cppflags := -DASM=1 \
+	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
+		$(nostdinccore) $(CPPFLAGS) \
+		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
+		$(cppflagscore))
 
-cleanfiles += $(link-script-pp)
-$(link-script-pp): $(link-script) $(MAKEFILE_LIST)
-	@$(cmd-echo-silent) '  SED     $@'
+-include $(link-script-dep)
+
+link-script-extra-deps += $(conf-file)
+cleanfiles += $(link-script-pp) $(link-script-dep)
+$(link-script-pp): $(link-script) $(link-script-extra-deps)
+	@$(cmd-echo-silent) '  CPP     $@'
 	@mkdir -p $(dir $@)
-	$(q)sed -e "s/%in_TEE_SCATTER_START%/$(TEE_SCATTER_START)/g" < $< > $@
+	$(q)$(CPPcore) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
+		$(link-script-cppflags) $< | \
+		sed -e "s/%in_TEE_SCATTER_START%/$(TEE_SCATTER_START)/g" > $@
 
 all: $(link-out-dir)/tee.elf
 cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
