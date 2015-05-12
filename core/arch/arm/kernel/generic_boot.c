@@ -281,7 +281,7 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
 
 	init_runtime(pageable_part);
 
-	DMSG("TEE initializing\n");
+	IMSG("Initializing (%s)\n", core_v_str);
 
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
