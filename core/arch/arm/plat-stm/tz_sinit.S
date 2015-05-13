@@ -30,72 +30,37 @@
  */
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
+#include <platform_config.h>
+
+#include <asm.S>
+#include <arm.h>
+#include <arm32_macros.S>
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
-/*
- * Booting on 1 or 2 cores ?
- * - currently teecore boot on both cores. It expected 2 cores and synchronise
- *   between the 2 cores execution during boot sequence, mainly to enable
- *   mmu and cache in a coherent way.
- *
- * - If FORCE_UNIPROC is set (internal switch, below), once both core are
- *   booted, only the primary CPU will branch to the next boot stage.
- */
+.section .data
+.balign 4
 
-/*
- * Booting linux
- * -------------
- *
- * Current tz init routine is designed to init Secure Mode/Monitor, switch to
- * NSec world and boot a linux kernel image pre-loaded in RAM.
- *
- * 1) jumping into linux entries
- *
- * physical address of linux entry routine =
- *  virtual address of the linux entry routine read from vmlinux
- *  - linux configuration value for CONFIG_PAGE_OFFSET
- *  + physical address where linux is loaded by bootloader or GDB
- *
- *  PRIMARY_STARTUP_PHYS is set by build env and defines linux boot CPU physical entry.
- *  SECONDARY_STARTUP_PHYS is set by build env and defines linux econdary CPUs
- *  entry physical address.
- *
- * 2) linux boot arguments (CFG_TEE_GDB_BOOT)
- *
- * In current setup (GDB boot), when here, DDR is ready, linux and tee images
- * are loaded in DDR, linux boot arguments are stored in DDR. CPU0 register
- * R0 = 0, R1 = linux machine ID, R2 = devtree/atags address.
- *
- * Since the current GDB boot, the content of registers R0, R1, and R2 should
- * be preserved (backed-up) for restore once Secure inits are done and CPUs
- * jump to linux kernel entry in Nsec mode.
- * To do so, save R0/R1/R2 to R10/R11/R12, which are preserved by all
- * execution code until a stack is setup for the inits, for CPU0.
- */
-
-/* Image */
-.equ stext, STEXT
-.equ stm_secondary_startup, STM_SECONDARY_STARTUP
-
-/* Global Functions */
-.global tz_sinit
-
-
+#ifdef CFG_BOOT_SYNC_CPU
 /*
  * Semaphore to let primary CPU runs its inits
  * before secondary CPUs run their own inits
  */
+/* Semaphores sync CPU0 and CPU1 */
 .equ SEM_NOT_READY, 2
-.equ SEM_CPU0_READY, 4
-.equ SEM_CPU1_READY, 8
-
-.section .data
-.balign 4
+.equ SEM_CPU_READY, 4
 
 sem_cpu_sync:
-	.word SEM_NOT_READY;
+	.word SEM_NOT_READY;	/* cpu0 */
+	.word SEM_NOT_READY;	/* cpu1 */
+	.word SEM_NOT_READY;	/* cpu2 */
+	.word SEM_NOT_READY;	/* cpu3 */
+	.word SEM_NOT_READY;	/* cpu4 */
+	.word SEM_NOT_READY;	/* cpu5 */
+	.word SEM_NOT_READY;	/* cpu6 */
+	.word SEM_NOT_READY;	/* cpu7 */
+#endif
 
 #ifdef CFG_TEE_GDB_BOOT
 gdb_bootargs:
@@ -105,12 +70,9 @@ gdb_bootargs:
 	.word 0
 #endif
 
-	.section .vector_table
-	.align 5
-	.code 32
-
-initial_vector:
-	b	tz_sinit
+.section .text.boot
+FUNC _start , :
+	b	reset
 	b	.	/* Undef */
 	b	.	/* Syscall */
 	b	.	/* Prefetch abort */
@@ -118,40 +80,91 @@ initial_vector:
 	b	.	/* Reserved */
 	b	.	/* IRQ */
 	b	.	/* FIQ */
+END_FUNC _start
+
+/* Let platforms override this if needed */
+.weak arm_secboot_early
+.weak arm_secboot_late
 
 /*
- * Vector Table Initialization Function
- *
- * Use scratables registers R0-R3.
- * No stack usage. stack is setup by this routine
- * LR store return address.
+ * Enable alignment checks and disable data and instruction cache.
  */
-.section .text
-.code 32
-.balign 4
-
-secure_init_vector_table:
-	/* Set initial vector table base registers (VBAR and MVBAR) */
-	ldr	r0, =initial_vector
-
-	/* write VBAR (Secure Mode Vector Base Address Register) */
-	mcr	p15, 0, r0, c12, c0, 0
-
-	/* write MVBAR (Monitor Vector Base Address Register) */
-	mcr	p15, 0, r0, c12, c0, 1
-
+FUNC arm_secboot_early , :
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_A
+	bic	r0, r0, #SCTLR_C
+	bic	r0, r0, #SCTLR_I
+	write_sctlr r0
 	bx	lr
-/* End of secure_init_vector_table */
+END_FUNC arm_secboot_early
 
+FUNC arm_secboot_late , :
+	bx	lr
+END_FUNC arm_secboot_late
 
+#ifdef CFG_BOOT_SYNC_CPU
+LOCAL_FUNC cpu_is_ready , :
+	lsl	r0, r0, #2
+	ldr	r1,=sem_cpu_sync
+	ldr	r2, =SEM_CPU_READY
+	str	r2, [r1, r0]
+	dsb
+	sev
+	bx	lr
+END_FUNC cpu_is_ready
+
+LOCAL_FUNC wait_primary , :
+	ldr	r0, =sem_cpu_sync
+	mov	r2, #SEM_CPU_READY
+	sev
+_wait_cpu0:
+	ldr	r1, [r0]
+	cmp	r1, r2
+	wfene
+	bne	_wait_cpu0
+	bx	lr
+END_FUNC wait_primary
+
+LOCAL_FUNC wait_secondary , :
+	ldr	r0, =sem_cpu_sync
+	mov	r3, #CFG_TEE_CORE_NB_CORE
+	mov	r2, #SEM_CPU_READY
+	sev
+_wait_next:
+	subs	r3, r3, #1
+	beq	_synced_cpun
+	add	r0, r0, #4
+_wait_cpun:
+	ldr	r1, [r0]
+	cmp	r1, r2
+	wfene
+	bne	_wait_cpun
+	b	_wait_next
+_synced_cpun:
+	bx	lr
+END_FUNC wait_secondary
+
+#else
 /*
- * TrustZone Initialization Function
+ * CFG_BOOT_SYNC_CPU is not defined
+ * So cpu synchronization functions are empty
  */
-.section .text
-.code 32
-.balign 4
+LOCAL_FUNC cpu_is_ready , :
+	bx	lr
+END_FUNC cpu_is_ready
 
-tz_sinit:
+LOCAL_FUNC wait_primary , :
+	bx	lr
+END_FUNC wait_primary
+
+LOCAL_FUNC wait_secondary , :
+	bx	lr
+END_FUNC wait_secondary
+#endif
+
+LOCAL_FUNC reset , :
+	mov	r4, r0		/* Save pageable part address */
+	mov	r5, lr		/* Save ns-entry address */
 
 #ifdef CFG_TEE_GDB_BOOT
 	/* boot preloaded linux: save linux boot args from GDB */
@@ -162,28 +175,27 @@ tz_sinit:
 #endif
 
 	/*
-	 * Primary CPU and secondary CPUs internal initialization
+	 * Enable alignment checks and disable data and instruction cache.
 	 */
-	bl arm_secboot_identify_cpu
 	bl arm_secboot_early
-	bl arm_secboot_errata
-	bl secure_init_vector_table
 
-	/* Setup tmp stack */
+	ldr	r0, =_start
+	write_vbar r0
+
 	bl	get_core_pos
+	cmp	r0, #0
+	beq	reset_primary
+	b	reset_secondary
+END_FUNC reset
+
+LOCAL_FUNC reset_primary , :
+	bl	get_core_pos
+	cmp	r0, #CFG_TEE_CORE_NB_CORE
+	/* Unsupported CPU, park it before it breaks something */
+	bge	unhandled_cpu
 	lsl	r0, #2
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
-
-	/*
-	 * Case Primary CPU: proceed common cfg
-	 * Case secondary CPUs: wait CPU0 is done
-	 */
-	bl get_core_pos
-	cmp r0, #CPU_ID0
-	bne _BootCPU1
-
-_BootCPU0:
 
 	/* complete ARM secure MP common configuration */
 	bl arm_secboot_late
@@ -195,110 +207,140 @@ _BootCPU0:
 	str r12, [r0, #8]
 #endif
 
-	/* Cache/MMU Initialization */
-	bl arm_cl2_config
-	bl arm_cl1_d_invbysetway
-	bl arm_cl2_invbyway
-	bl arm_cl2_enable
+	/* Enable Console */
+	bl	console_init
 
-	bl core_init_mmu_map
-	bl core_init_mmu_regs
-	bl cpu_mmu_enable
-	bl cpu_mmu_enable_icache
-	bl cpu_mmu_enable_dcache
-
-	/* Initialize thread handling and secure monitor */
-	mov	r0, #0	/* pageable part - not supported on plat-stm yet */
-	ldr	r1, =stext
-	bl	generic_boot_init_primary
-
-	/* release secondary CPUs */
-	ldr r0,=sem_cpu_sync
-	ldr r1, =SEM_CPU0_READY
-	str r1, [r0]
-	dsb
-
-	/* Flush all caches before secondary CPUs setup */
-	bl arm_cl1_d_cleaninvbysetway
-	bl arm_cl2_cleaninvbyway
-	sev
-
-	/* Primary CPU waits secondary  */
-	ldr r0,=sem_cpu_sync
-	mov r2, #SEM_CPU1_READY
-_wait_cpu1:
-	ldr r1, [r0]
-	cmp r1, r2
-	wfene
-	bne _wait_cpu1
-
-#ifdef CFG_PL310_LOCKED
-	bl arm_cl2_lockallways
-	bl arm_cl2_invbyway
+#ifdef CFG_PL310
+	bl	arm_cl2_config
 #endif
 
-	/* TODO: call teecore inits */
+	/*
+	 * Invalidate dcache for all memory used during initialization to
+	 * avoid nasty surprices when the cache is turned on. We must not
+	 * invalidate memory not used by OP-TEE since we may invalidate
+	 * entries used by for instance ARM Trusted Firmware.
+	 *
+	 * Before MMU is turned on is VA == PA for cache operations.
+	 */
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl1_d_invbyva
 
-	/* ask monitor to enter NSec from TEE boot sequence */
+#ifdef CFG_PL310
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl2_invbypa
+
+	bl	arm_cl2_enable
+#endif
+
+	bl	core_init_mmu_map
+	bl	core_init_mmu_regs
+	bl	cpu_mmu_enable
+	bl	cpu_mmu_enable_icache
+	bl	cpu_mmu_enable_dcache
+
+	mov	r0, r4		/* pageable part address */
+	mov	r1, r5		/* ns-entry address */
+	bl	generic_boot_init_primary
+
+	bl	get_core_pos
+	bl	cpu_is_ready
+
+	/*
+	 * In case we've touched memory that secondary CPUs will use before
+	 * they have turned on their D-cache, clean and invalidate the
+	 * D-cache before exiting to normal world.
+	 */
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl1_d_cleaninvbyva
+
+#ifdef CFG_PL310
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl2_cleaninvbypa
+
+#endif
+
+#ifdef CFG_PL310_LOCKED
+	bl	arm_cl2_lockallways
+	bl	arm_cl2_invbyway
+#endif
+
+	bl	wait_secondary
+
 #ifdef CFG_TEE_GDB_BOOT
 	/* restore linux boot arguments */
 	ldr r4, =gdb_bootargs
-	mov r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	ldr r1, [r4, #0]
 	ldr r2, [r4, #4]
 	ldr r3, [r4, #8]
+#else
+	mov	r1, #0
+	mov	r2, #0
+	mov	r3, #0
 #endif
-
-	smc	#0
-	b	.	/* SMC should not return */
-
-_BootCPU1:
-
-	/* secondary CPUs wait that primary boot CPU have made the MMU/bss inits */
-	ldr r0,=sem_cpu_sync
-	mov r2, #SEM_CPU0_READY
-_wait_cpu0:
-	ldr r1, [r0]
-	cmp r1, r2
-	wfene
-	bne _wait_cpu0
-
-	bl arm_secboot_late
-
-	bl arm_cl1_d_cleaninvbysetway
-	bl arm_cl2_cleaninvbyway
-
-	bl core_init_mmu_regs
-	bl cpu_mmu_enable
-
-	bl cpu_mmu_enable_icache
-	bl cpu_mmu_enable_dcache
-
-	/* initialize the asc */
-	bl	asc_init
-
-	/* synchronise with CPU0 */
-	ldr r0,=sem_cpu_sync
-	ldr r1, =SEM_CPU1_READY
-	str r1, [r0]
-	dsb
-	sev
-
-	/* Comment out next line to force booting NSec on 1 core only */
-//#define FORCE_UNIPROC
-#ifdef FORCE_UNIPROC
-	b .
-#endif
-
-	/* Initialize thread handling and secure monitor */
-	ldr	r0, =stm_secondary_startup
-	bl	generic_boot_init_secondary
-
-	/* initialize the asc */
-	bl	asc_init
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
+END_FUNC reset_primary
 
-/* End of tz_sinit */
+
+LOCAL_FUNC unhandled_cpu , :
+	wfi
+	b	unhandled_cpu
+END_FUNC unhandled_cpu
+
+LOCAL_FUNC reset_secondary , :
+	bl	wait_primary
+
+	bl	get_core_pos
+	cmp	r0, #CFG_TEE_CORE_NB_CORE
+	/* Unsupported CPU, park it before it breaks something */
+	bge	unhandled_cpu
+	lsl	r0, #2
+	ldr	r1, =stack_tmp_top
+	ldr	sp, [r1, r0]
+
+	bl	arm_secboot_late
+
+	bl	core_init_mmu_regs
+	bl	cpu_mmu_enable
+	bl	cpu_mmu_enable_icache
+	bl	cpu_mmu_enable_dcache
+
+	bl	get_core_pos
+	bl	cpu_is_ready
+
+	mov	r0, r5		/* ns-entry address */
+	bl	generic_boot_init_secondary
+
+	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
+	mov	r1, #0
+	mov	r2, #0
+	mov	r3, #0
+	smc	#0
+	b	.	/* SMC should not return */
+END_FUNC reset_secondary

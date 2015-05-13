@@ -72,6 +72,7 @@ static void main_fiq(void)
 
 void console_init(void)
 {
+	asc_init();
 }
 
 void console_putc(int ch)

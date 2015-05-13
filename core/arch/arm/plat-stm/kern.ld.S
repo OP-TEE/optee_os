@@ -1,7 +1,7 @@
 #include <platform_config.h>
 
 OUTPUT_ARCH(arm)
-ENTRY(tz_sinit)
+ENTRY(_start)
 
 MEMORY
 {
@@ -17,7 +17,7 @@ SECTIONS
 {
     .teecore_exec :
     {
-        *(.vector_table)
+	__text_start = .;
         *(.text); *(.text.*)
         *(.rodata); *(.rodata.*)
         *(.got); *(.got.*)
@@ -65,4 +65,5 @@ SECTIONS
 	.nozi (NOLOAD) : ALIGN(16 * 1024) {
 		KEEP(*(.nozi .nozi.*))
 	}
+	_end = .;
 }

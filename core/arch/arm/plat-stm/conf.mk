@@ -25,6 +25,7 @@ CFG_MMU_V7_TTB ?= y
 CFG_NO_TA_HASH_SIGN ?= y
 CFG_PL310_LOCKED ?= n
 CFG_TEE_GDB_BOOT ?= y
+CFG_BOOT_SYNC_CPU ?= y
 
 include mk/config.mk
 include $(platform-dir)/system_config.mk
