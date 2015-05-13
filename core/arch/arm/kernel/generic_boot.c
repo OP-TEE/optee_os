@@ -211,7 +211,7 @@ static void init_runtime(uint32_t pageable_part)
 	}
 
 	/*
-	 * Inialize the virtual memory pool used for main_mmu_l2_ttb which
+	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
 	 * is supplied to tee_pager_init() below.
 	 */
 	block_size = get_block_size();

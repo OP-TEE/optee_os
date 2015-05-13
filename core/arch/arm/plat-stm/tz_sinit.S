@@ -207,16 +207,9 @@ _BootCPU0:
 	bl cpu_mmu_enable_icache
 	bl cpu_mmu_enable_dcache
 
-	/* init BSS */
-init_bss:
-	ldr r0, =__bss_start
-	ldr r2, =__bss_end
-	sub r2, r2, r0
-	ldr r1, =0
-	bl memset
-
 	/* Initialize thread handling and secure monitor */
-	ldr	r0, =stext
+	mov	r0, #0	/* pageable part - not supported on plat-stm yet */
+	ldr	r1, =stext
 	bl	generic_boot_init_primary
 
 	/* release secondary CPUs */
