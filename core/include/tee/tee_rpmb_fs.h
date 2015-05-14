@@ -32,7 +32,7 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 
-#define FILENAME_LENGTH 48
+#define TEE_RPMB_FS_FILENAME_LENGTH 48
 
 struct tee_rpmb_fs_stat {
 	uint32_t size;
@@ -40,25 +40,41 @@ struct tee_rpmb_fs_stat {
 };
 
 /**
+ * tee_rpmb_fs_open: Opens a file descriptor to the file.
+ * If the file does not exist and TEE_FS_O_CREATE flag is specified
+ * the file will be created empty.
+ *
+ * Returns the file descriptor or
+ * a value < 0 on failure.
+ */
+int tee_rpmb_fs_open(const char *file, int flags, ...);
+
+/**
+ * tee_rpmb_fs_close: Closes the file opened by tee_rpmb_fs_open.
+ *
+ * Returns a value < 0 on failure.
+ */
+int tee_rpmb_fs_close(int fd);
+
+/**
  * tee_rpmb_fs_read: Read entire file
- * Reads data from file pointed to by filename.
+ * Reads data from file pointed to by fd.
  * buf should be allocated by the client and its size must >= file size.
  *
  * Returns number of bytes read from the file or
  * a value < 0 on failure.
  */
-int tee_rpmb_fs_read(const char *filename, uint8_t *buf, size_t size);
+int tee_rpmb_fs_read(int fd, uint8_t *buf, size_t size);
 
 /**
  * tee_rpmb_fs_write: Write data to file
  * Write data to an existing file or create a new file and Write data.
- * If the file pointed to by filename exists, data will be overwritten,
- * otherwise the file will be created.
+ * The file contents will be overwritten with the new data.
  * size bytes of data will be copied from buf.
  *
  * Return n bytes written on success or a value < 0 on failure.
  */
-int tee_rpmb_fs_write(const char *filename, uint8_t *buf, size_t size);
+int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size);
 
 /**
  * tee_rpmb_fs_rm: Remove a file.
