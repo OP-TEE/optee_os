@@ -34,9 +34,8 @@ STABLE_KERNLE_COMMIT=origin/4.0rc1
 SRC_KERNEL_PATCHES=https://github.com/ibanezchen/patches-upstream
 DST_KERNEL_PATCHES=$DEV_PATH/patches-upstream
 
-SRC_OPTEE_OS=https://github.com/jamescfkung/optee_os.git
+SRC_OPTEE_OS=https://github.com/OP-TEE/optee_os.git
 DST_OPTEE_OS=$DEV_PATH/optee_os
-STABLE_OPTEE_OS_COMMIT=origin/mt8173_64bit
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
@@ -93,7 +92,6 @@ fi
 
 if [ ! -d "$DST_OPTEE_OS" ]; then
 	git clone $SRC_OPTEE_OS $DST_OPTEE_OS
-	(cd $DST_OPTEE_OS && git reset --hard $STABLE_OPTEE_OS_COMMIT)
 else
 	echo " `basename $DST_OPTEE_OS` already exist, not cloning"
 fi
