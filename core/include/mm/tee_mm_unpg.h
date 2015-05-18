@@ -31,7 +31,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <mm/tee_mm_def.h>
 
 /* Define to indicate default pool initiation */
 #define TEE_MM_POOL_NO_FLAGS            0

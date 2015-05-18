@@ -35,7 +35,6 @@
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
 #include <user_ta_header.h>
-#include <mm/tee_mm_def.h>
 #include <mm/tee_mm.h>
 #include "tee_api_types.h"
 #include <kernel/tee_ta_manager_unpg.h>

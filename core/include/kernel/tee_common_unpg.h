@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <tee_api_types.h>
-#include <mm/tee_mm_def.h>
 
 #define TEE_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
