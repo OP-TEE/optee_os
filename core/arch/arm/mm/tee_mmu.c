@@ -271,16 +271,16 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 		goto exit;
 
 	/*
-	 * Map heap and stack
+	 * Map stack
 	 */
-	smem = tee_mm_get_smem(ctx->mm_heap_stack);
+	smem = tee_mm_get_smem(ctx->mm_stack);
 	if (core_va2pa((void *)smem, &pa)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
 	tee_mmu_umap_set_pa(ctx->mmu->table + TEE_MMU_UMAP_HEAP_STACK_IDX,
 			    CORE_MMU_USER_CODE_SIZE,
-			    pa, tee_mm_get_bytes(ctx->mm_heap_stack),
+			    pa, tee_mm_get_bytes(ctx->mm_stack),
 			    TEE_MMU_UDATA_ATTR | TEE_MMU_UCACHE_DEFAULT_ATTR);
 
 	/*
