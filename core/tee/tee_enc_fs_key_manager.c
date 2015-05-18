@@ -284,7 +284,8 @@ static TEE_Result do_file_encryption(struct enc_fs_file_header *hdr,
 	ciphertext_size = plaintext_size;
 
 	res = do_auth_enc(TEE_MODE_ENCRYPT, hdr, fek, fek_len,
-			plaintext, plaintext_size, ciphertext, &ciphertext_size);
+			plaintext, plaintext_size,
+			ciphertext, &ciphertext_size);
 
 	if (res == TEE_SUCCESS) {
 		memcpy(data_out, hdr, header_size);

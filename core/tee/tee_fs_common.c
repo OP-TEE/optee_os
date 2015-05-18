@@ -34,6 +34,22 @@
 
 #include "tee_fs_private.h"
 
+int tee_fs_common_close(int fd)
+{
+	int res = -1;
+	struct tee_fs_rpc head = { 0 };
+
+	/* fill in parameters */
+	head.op = TEE_FS_CLOSE;
+	head.fd = fd;
+
+	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
+	if (!res)
+		res = head.res;
+
+	return res;
+}
+
 tee_fs_off_t tee_fs_common_lseek(int fd, tee_fs_off_t offset, int whence)
 {
 	tee_fs_off_t res = -1;

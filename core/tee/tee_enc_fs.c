@@ -54,6 +54,8 @@ struct tee_enc_fs_fd {
 	uint32_t flags;
 	uint32_t pos;
 	uint32_t len;
+	uint8_t is_new_file;
+	char *filename;
 	uint8_t *data;
 };
 
@@ -103,6 +105,18 @@ static int update_file_size(struct tee_enc_fs_fd *fdp,
 	return 0;
 }
 
+static void do_fail_recovery(struct tee_enc_fs_fd *fdp)
+{
+	/* Try to delete the file for new created file */
+	if (fdp->is_new_file) {
+		tee_fs_common_unlink(fdp->filename);
+		EMSG("New created file was deleted, file=%s",
+				fdp->filename);
+		return;
+	}
+
+	/* TODO: Roll back to previous version for existed file */
+}
 
 static int tee_enc_fs_open(const char *file, int flags, ...)
 {
@@ -145,14 +159,23 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 	res = get_file_length(nw_fd, &encrypted_data_len);
 	if (res < 0) {
 		res = -1;
-		goto exit;
+		goto exit_free_fd;
 	}
+
+	fd->nw_fd = nw_fd;
+	fd->flags = flags;
+	fd->pos = 0;
+	fd->filename = malloc(name_len);
+	if (!fd->filename) {
+		res = -1;
+		goto exit_free_fd;
+	}
+	memcpy(fd->filename, file, name_len);
 
 	/* new created file? */
 	if (encrypted_data_len == 0) {
-		fd->nw_fd = nw_fd;
-		fd->flags = flags;
-		fd->pos = fd->len = 0;
+		fd->len = 0;
+		fd->is_new_file = 1;
 		fd->data = NULL;
 		return handle_get(&fs_handle_db, fd);
 	}
@@ -175,10 +198,8 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 	 * init internal status, also allocate buffer for
 	 * decrypted file content
 	 */
-	fd->nw_fd = nw_fd;
-	fd->flags = flags;
-	fd->pos = 0;
 	fd->len = file_len;
+	fd->is_new_file = 0;
 	fd->data = malloc(file_len);
 	if (!fd->data) {
 		res = -1;
@@ -209,8 +230,11 @@ exit_free_decrypted_data:
 exit_free_encrypted_data:
 	free(encrypted_data);
 exit_free_fd:
-	if (res < 0)
+	if (res < 0) {
+		if (fd->filename)
+			free(fd->filename);
 		free(fd);
+	}
 exit:
 	return res;
 }
@@ -218,12 +242,12 @@ exit:
 static int tee_enc_fs_close(int fd)
 {
 	int res = -1;
+	int res2 = -1;
 	size_t encrypted_data_len;
 	size_t file_header_len = tee_enc_fs_get_file_header_size();
 	void *encrypted_data;
 	TEE_Result ret;
 	struct tee_enc_fs_fd *fdp = handle_put(&fs_handle_db, fd);
-	struct tee_fs_rpc head = { 0 };
 
 	DMSG("close, fd=%d", fd);
 
@@ -260,18 +284,19 @@ static int tee_enc_fs_close(int fd)
 	}
 	DMSG("%d bytes written", res);
 
-	/* fill in parameters */
-	head.op = TEE_FS_CLOSE;
-	head.fd = fdp->nw_fd;
-
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (!res)
-		res = head.res;
-
 exit_free_encrypted_data:
 	free(encrypted_data);
+
 exit_free_fd:
+	res2 = tee_fs_common_close(fdp->nw_fd);
+
+	if (res < 0 || res2 < 0) {
+		EMSG("Fail to close file, start fail recovery function");
+		do_fail_recovery(fdp);
+	}
+
 	free(fdp->data);
+	free(fdp->filename);
 	free(fdp);
 
 	return res;

@@ -95,22 +95,12 @@ static int tee_fs_close(int fd)
 {
 	int res = -1;
 	struct tee_fs_fd *fdp = handle_put(&fs_handle_db, fd);
-	struct tee_fs_rpc head = { 0 };
 
 	if (fdp == NULL)
 		return -1;
 
-	/* fill in parameters */
-	head.op = TEE_FS_CLOSE;
-	head.fd = fdp->nw_fd;
+	res = tee_fs_common_close(fdp->nw_fd);
 
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (res)
-		goto exit;
-
-	res = head.res;
-
-exit:
 	free(fdp);
 
 	return res;

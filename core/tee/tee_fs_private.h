@@ -49,6 +49,8 @@ struct tee_fs_dir {
 	struct tee_fs_dirent d;
 };
 
+int tee_fs_common_close(int fd);
+
 tee_fs_off_t tee_fs_common_lseek(int fd, tee_fs_off_t offset, int whence);
 
 int tee_fs_common_ftruncate(int fd, tee_fs_off_t length);
