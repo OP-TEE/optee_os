@@ -12,6 +12,7 @@
     4. [STMicroelectronics boards](#45-stmicroelectronics-boards)
     4. [Allwinner A80](#46-allwinner-a80)
     4. [Mediatek MT8173 EVB](#47-mediatek-mt8173-evb)
+    4. [HiKey Board](#48-hikey-board)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
 
@@ -626,6 +627,30 @@ $ ./flash_image.sh
   ```
 
   4. Press RESET button to reboot system
+
+---
+### 4.8 HiKey board
+[HiKey](https://www.96boards.org/products/hikey/) is a 96Boards Consumer
+Edition compliant board equipped with a HiSilicon Kirin 620 SoC (8-core,
+64-bit ARM Cortex A53). It can run OP-TEE in 32- and 64-bit modes.
+
+To obtain all the required software pieces to run OP-TEE on this board, you
+may want to clone the [hikey_optee](https://github.com/jforissier/hikey_optee)
+repository. This GitHub project contains a master Makefile as well as Git
+submodules, which helps putting all the compatible pieces together, including:
+- Toolchains (Linaro Aarch32 and Aarch64 cross-compilers)
+- ARM Trusted Firmware
+- OP-TEE OS, client and driver
+- EDK2 UEFI bootloader
+- Linux kernel
+- A BusyBox-based root filesystem
+- The optee_test applications
+
+Clone the project with:
+```
+$ git clone https://github.com/jforissier/hikey_optee
+```
+Then, refer to the instructions in the project's README.md.
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
