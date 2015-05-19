@@ -37,7 +37,6 @@
 #include <tee/entry.h>
 #include <asc.h>
 
-const char core_v_str[] = "unknown";
 static void main_fiq(void);
 
 static const struct thread_handlers handlers = {

@@ -120,6 +120,13 @@
 
 #endif
 
+#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+
+#ifndef CFG_TEE_LOAD_ADDR
+#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#endif
+
+
 #define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
 #define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)
 #define SCU_BASE		(CPU_IOMEM_BASE + 0x0000)

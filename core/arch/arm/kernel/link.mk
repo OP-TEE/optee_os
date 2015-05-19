@@ -113,7 +113,7 @@ define gen-version-o
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \
-		| $(CCcore) $(core-platform-cflags) \
+		| $(CCcore) $(core-platform-cflags) $(platform-cflags) \
 			-xc - -c -o $(link-out-dir)/version.o
 endef
 $(link-out-dir)/version.o:
