@@ -34,6 +34,20 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
+.section .data
+.balign 4
+
+#ifdef CFG_BOOT_SYNC_CPU
+.equ SEM_CPU_READY, 1
+#endif
+
+#ifdef CFG_TEE_GDB_BOOT
+gdb_bootargs:
+	.word 0
+	.word 0
+	.word 0
+#endif
+
 .section .text.boot
 FUNC _start , :
 	b	reset
@@ -46,18 +60,101 @@ FUNC _start , :
 	b	.	/* FIQ */
 END_FUNC _start
 
+/* Let platforms override this if needed */
+.weak plat_cpu_reset_early
+FUNC plat_cpu_reset_early , :
+	bx	lr
+END_FUNC plat_cpu_reset_early
+
+.weak plat_cpu_reset_late
+FUNC plat_cpu_reset_late , :
+	bx	lr
+END_FUNC plat_cpu_reset_late
+
+#ifdef CFG_BOOT_SYNC_CPU
+LOCAL_FUNC cpu_is_ready , :
+	lsl	r0, r0, #2
+	ldr	r1,=sem_cpu_sync
+	ldr	r2, =SEM_CPU_READY
+	str	r2, [r1, r0]
+	dsb
+	sev
+	bx	lr
+END_FUNC cpu_is_ready
+
+LOCAL_FUNC wait_primary , :
+	ldr	r0, =sem_cpu_sync
+	mov	r2, #SEM_CPU_READY
+	sev
+_wait_cpu0:
+	ldr	r1, [r0]
+	cmp	r1, r2
+	wfene
+	bne	_wait_cpu0
+	bx	lr
+END_FUNC wait_primary
+
+LOCAL_FUNC wait_secondary , :
+	ldr	r0, =sem_cpu_sync
+	mov	r3, #CFG_TEE_CORE_NB_CORE
+	mov	r2, #SEM_CPU_READY
+	sev
+_wait_next:
+	subs	r3, r3, #1
+	beq	_synced_cpun
+	add	r0, r0, #4
+_wait_cpun:
+	ldr	r1, [r0]
+	cmp	r1, r2
+	wfene
+	bne	_wait_cpun
+	b	_wait_next
+_synced_cpun:
+	bx	lr
+END_FUNC wait_secondary
+
+#else
+/*
+ * CFG_BOOT_SYNC_CPU is not defined
+ * So cpu synchronization functions are empty
+ */
+LOCAL_FUNC cpu_is_ready , :
+	bx	lr
+END_FUNC cpu_is_ready
+
+LOCAL_FUNC wait_primary , :
+	bx	lr
+END_FUNC wait_primary
+
+LOCAL_FUNC wait_secondary , :
+	bx	lr
+END_FUNC wait_secondary
+#endif
+
 LOCAL_FUNC reset , :
 	mov	r4, r0		/* Save pageable part address */
 	mov	r5, lr		/* Save ns-entry address */
 
+#ifdef CFG_TEE_GDB_BOOT
 	/*
-	 * Enable alignment checks and disable data and instruction cache.
+	 * boot preloaded linux: save linux boot args from GDB
+	 * all following routines, until reset_primary is called,
+	 * preserve r6/r7/r8
 	 */
+	mov	r6, r0
+	mov	r7, r1
+	mov	r8, r2
+#endif
+
+	/* Enable alignment checks and disable data and instruction cache. */
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_A
 	bic	r0, r0, #SCTLR_C
 	bic	r0, r0, #SCTLR_I
 	write_sctlr r0
+
+	/* Early ARM secure MP specific configuration */
+	bl	plat_cpu_reset_early
 
 	ldr	r0, =_start
 	write_vbar r0
@@ -73,6 +170,12 @@ LOCAL_FUNC reset , :
 END_FUNC reset
 
 LOCAL_FUNC reset_primary , :
+#ifdef CFG_TEE_GDB_BOOT
+	/* save linux boot args from GDB */
+	ldr	r0, =gdb_bootargs
+	stm	r0, {r6-r8}
+#endif
+
 #ifdef CFG_WITH_PAGER
 	/*
 	 * Move init code into correct location
@@ -105,6 +208,16 @@ copy_init:
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
 
+	/* complete ARM secure MP common configuration */
+	bl	plat_cpu_reset_late
+
+	/* Enable Console */
+	bl	console_init
+
+#ifdef CFG_PL310
+	bl	arm_cl2_config
+#endif
+
 	/*
 	 * Invalidate dcache for all memory used during initialization to
 	 * avoid nasty surprices when the cache is turned on. We must not
@@ -122,8 +235,18 @@ copy_init:
 	sub	r1, r1, #1
 	bl	arm_cl1_d_invbyva
 
-	/* Enable Console */
-	bl	console_init
+#ifdef CFG_PL310
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl2_invbypa
+
+	bl	arm_cl2_enable
+#endif
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
@@ -134,13 +257,16 @@ copy_init:
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	generic_boot_init_primary
+	mov	r4, r0		/* save entry test vector */
+
+	bl	get_core_pos
+	bl	cpu_is_ready
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
 	 * they have turned on their D-cache, clean and invalidate the
 	 * D-cache before exiting to normal world.
 	 */
-	mov	r4, r0
 	ldr	r0, =__text_start
 #ifdef CFG_WITH_PAGER
 	ldr	r1, =__init_end
@@ -149,16 +275,42 @@ copy_init:
 #endif
 	sub	r1, r1, #1
 	bl	arm_cl1_d_cleaninvbyva
-	mov	r0, r4
 
+#ifdef CFG_PL310
+	ldr	r0, =__text_start
+#ifdef CFG_WITH_PAGER
+	ldr	r1, =__init_end
+#else
+	ldr	r1, =_end
+#endif
+	sub	r1, r1, #1
+	bl	arm_cl2_cleaninvbypa
+
+#endif
+
+#ifdef CFG_PL310_LOCKED
+	bl	arm_cl2_lockallways
+	bl	arm_cl2_invbyway
+#endif
+
+	bl	wait_secondary
+
+#ifdef CFG_TEE_GDB_BOOT
+	/* restore linux boot arguments */
+	ldr	r4, =gdb_bootargs
+	ldm	r4, {r1-r3}
+#else
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
-	mov     r1, r0
+	mov	r0, r4
+	mov	r1, r0
 #else
 	mov	r1, #0
 	mov	r2, #0
 	mov	r3, #0
-#endif
+#endif /*CFG_WITH_ARM_TRUSTED_FW*/
+#endif /*CFG_TEE_GDB_BOOT*/
+
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
@@ -206,6 +358,8 @@ END_FUNC cpu_on_handler
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
 LOCAL_FUNC reset_secondary , :
+	bl	wait_primary
+
 	bl	get_core_pos
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
 	/* Unsupported CPU, park it before it breaks something */
@@ -214,10 +368,15 @@ LOCAL_FUNC reset_secondary , :
 	ldr	r1, =stack_tmp_top
 	ldr	sp, [r1, r0]
 
+	bl	plat_cpu_reset_late
+
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
+
+	bl	get_core_pos
+	bl	cpu_is_ready
 
 	mov	r0, r5		/* ns-entry address */
 	bl	generic_boot_init_secondary

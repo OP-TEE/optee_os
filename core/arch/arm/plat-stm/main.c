@@ -37,12 +37,6 @@
 #include <tee/entry.h>
 #include <asc.h>
 
-/*
- * Going to generic boot
- * Temporary step
- */
-#include "../kernel/generic_boot.c"
-
 const char core_v_str[] = "unknown";
 static void main_fiq(void);
 

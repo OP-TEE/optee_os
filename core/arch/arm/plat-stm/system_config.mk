@@ -42,27 +42,5 @@ endif
 ifndef CFG_DDR_TEETZ_RESERVED_SIZE
 $(error "CFG_DDR_TEETZ_RESERVED_SIZE should be set from system_config.in")
 endif
-
-grep-system-map = 0x$(firstword \
-	$(shell grep -s $(1) $(platform-dir)/System.map || echo 0))
-
-ifeq ($(PLATFORM_FLAVOR),cannes)
-
-PRIMARY_STARTUP_PHYS	 = $(shell echo $$(( ${CFG_LINUX_LOAD_ADDR} + 0x8000 )))
-OFFSET_STARTUP_PHYS	 = $(shell echo $$((\
-	$(PRIMARY_STARTUP_PHYS) - \
-	$(call grep-system-map,"[^_]stext") )) )
-SECONDARY_STARTUP_PHYS	 = $(shell echo $$((\
-	$(call grep-system-map,"sti_secondary_startup") + \
-	$(OFFSET_STARTUP_PHYS) )) )
-
-else ifeq ($(PLATFORM_FLAVOR),orly2)
-
-PRIMARY_STARTUP_PHYS	 = $(call grep-system-map,"[^_]stext")
-SECONDARY_STARTUP_PHYS	 = $(call grep-system-map,"stm_secondary_startup")
-else
-$(error PLATFORM_FLAVOR=$(PLATFORM_FLAVOR) is not supported)
-endif
-
 TEE_SCATTER_START=$(CFG_DDR_TEETZ_RESERVED_START)
 export TEE_SCATTER_START

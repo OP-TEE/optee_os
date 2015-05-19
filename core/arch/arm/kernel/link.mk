@@ -32,6 +32,7 @@ entries-unpaged += core_init_mmu_regs
 entries-unpaged += generic_boot_cpu_on_handler
 entries-unpaged += generic_boot_init_secondary
 entries-unpaged += stack_tmp_top
+entries-unpaged += sem_cpu_sync
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
 ldargs-unpaged := -i --gc-sections \
