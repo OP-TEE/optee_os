@@ -87,7 +87,7 @@ END_FUNC tee_svc_do_call
  * tee_svc_do_call() with pointer to the struct thread_svc_regs saved by
  * thread_svc_handler() in r8. The argument ret is already in r0 so we
  * don't touch that and let it propagate as return value of the called
- * tee_svc_unwind_enter_user_mode().
+ * thread_unwind_user_mode().
  */
 FUNC tee_svc_sys_return , :
 	mov	r1, #0	/* panic = false */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Allwinner Technology Co., Ltd.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,9 +25,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <kernel/tee_misc_unpg.h>
+#include <asm.S>
+#include <arm.h>
 
-uint32_t tee_get_cutid(void)
-{
-	return 0;
-}
+/* Let platforms override this if needed */
+.weak get_core_pos
+
+FUNC get_core_pos , :
+	mrs	x0, mpidr_el1
+	/* Calculate CorePos = (ClusterId * 4) + CoreId */
+	and	x1, x0, #MPIDR_CPU_MASK
+	and	x0, x0, #MPIDR_CLUSTER_MASK
+	add	x0, x1, x0, LSR #6
+	ret
+END_FUNC get_core_pos

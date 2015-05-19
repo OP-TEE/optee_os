@@ -153,7 +153,8 @@ int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 
 	if (!found) {
 		/* key is not found */
-		return CRYPT_PK_NOT_FOUND;
+		err = CRYPT_PK_NOT_FOUND;
+		goto error;
 	}
 
 	/* generate the public key key->y */

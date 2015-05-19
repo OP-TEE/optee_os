@@ -28,6 +28,8 @@
 #ifndef THREAD_PRIVATE_H
 #define THREAD_PRIVATE_H
 
+#ifndef ASM
+
 #include <mm/core_mmu.h>
 #include <kernel/vfp.h>
 
@@ -62,6 +64,23 @@ struct thread_ctx_regs {
 };
 #endif /*ARM32*/
 
+#ifdef ARM64
+struct thread_ctx_regs {
+	uint64_t sp;
+	uint64_t pc;
+	uint64_t cpsr;
+	uint64_t x[31];
+};
+#endif /*ARM64*/
+
+#ifdef ARM64
+struct thread_user_mode_rec {
+	uint64_t exit_status0_ptr;
+	uint64_t exit_status1_ptr;
+	uint64_t x[31 - 19]; /* x19..x30 */
+};
+#endif /*ARM64*/
+
 struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
@@ -71,13 +90,67 @@ struct thread_ctx {
 	uint32_t flags;
 	struct core_mmu_user_map user_map;
 	bool have_user_map;
+#ifdef ARM64
+	vaddr_t kern_sp;	/* Saved kernel SP during user TA execution */
+#endif
 };
+
+#ifdef ARM64
+/*
+ * struct thread_core_local need to have alignment suitable for a stack
+ * pointer since SP_EL1 points to this
+ */
+#define THREAD_CORE_LOCAL_ALIGNED __aligned(16)
+#else
+#define THREAD_CORE_LOCAL_ALIGNED
+#endif
 
 struct thread_core_local {
 	vaddr_t tmp_stack_va_end;
 	int curr_thread;
-};
+#ifdef ARM64
+	uint32_t flags;
+	vaddr_t abt_stack_va_end;
+	uint64_t x[8];
+#endif
+} THREAD_CORE_LOCAL_ALIGNED;
 
+#endif /*ASM*/
+
+#ifdef ARM64
+#define THREAD_CTX_KERN_SP_OFFSET			\
+		(THREAD_CTX_REGS_SIZE + (4 + 2 + 1) * 8)
+#define THREAD_CTX_SIZE				(THREAD_CTX_KERN_SP_OFFSET + 8)
+
+#define THREAD_CTX_REGS_SP_OFFSET			(8 * 0)
+#define THREAD_CTX_REGS_PC_OFFSET			(8 * 1)
+#define THREAD_CTX_REGS_SPSR_OFFSET			(8 * 2)
+#define THREAD_CTX_REGS_X_OFFSET(x)			(8 * (3 + (x)))
+#define THREAD_CTX_REGS_SIZE			THREAD_CTX_REGS_X_OFFSET(31)
+
+#define THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET	(8 * 0)
+#define THREAD_CORE_LOCAL_CURR_THREAD_OFFSET		(8 * 1)
+#define THREAD_CORE_LOCAL_FLAGS_OFFSET			(8 * 1 + 4)
+#define THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET	(8 * 2)
+#define THREAD_CORE_LOCAL_X_OFFSET(x)			(8 * (3 + (x)))
+#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(9)
+
+/* Describes the flags field of struct thread_core_local */
+#define THREAD_CLF_SAVED_SHIFT				4
+#define THREAD_CLF_CURR_SHIFT				0
+#define THREAD_CLF_MASK					0xf
+#define THREAD_CLF_TMP					(1 << 0)
+#define THREAD_CLF_ABORT				(1 << 1)
+#define THREAD_CLF_THREAD				(1 << 2)
+
+#define THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET	(0)
+#define THREAD_USER_MODE_REC_EXIT_STATUS1_PTR_OFFSET	(8 * 1)
+#define THREAD_USER_MODE_REC_X_OFFSET(x)		(8 * (2 + (x) - 19))
+#define THREAD_USER_MODE_REC_SIZE   THREAD_USER_MODE_REC_X_OFFSET(31)
+
+#endif /*ARM64*/
+
+#ifndef ASM
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
@@ -151,5 +224,7 @@ void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
 /* Checks stack canaries */
 void thread_check_canaries(void);
+
+#endif /*ASM*/
 
 #endif /*THREAD_PRIVATE_H*/

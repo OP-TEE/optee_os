@@ -46,4 +46,4 @@ size_t tee_entry_generic_get_api_call_count(void);
 
 void tee_entry(struct thread_smc_args *args);
 
-#endif /*TEE_ENTRY_H*/
+#endif /* TEE_ENTRY_H */

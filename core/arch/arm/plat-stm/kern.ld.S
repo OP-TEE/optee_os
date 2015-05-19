@@ -1,3 +1,5 @@
+#include <platform_config.h>
+
 OUTPUT_ARCH(arm)
 ENTRY(tz_sinit)
 
@@ -31,9 +33,18 @@ SECTIONS
         *(ta_head_section)
         __stop_ta_head_section = . ;
 
-        __bss_start = (.) ;
-        *(.bss .bss.*)
-        __bss_end = (.) ;
+	/* uninitialized data */
+	. = ALIGN(4);
+	__bss_start = (.);
+	*(.bss .bss.*)
+	*(.gnu.linkonce.b.*)
+	. = ALIGN(4);
+	__bss_end = (.);
+
+
+	__heap1_start = .;
+	. += HEAP_SIZE;
+	__heap1_end = .;
 
         *(COMMON)
 
@@ -45,23 +56,13 @@ SECTIONS
 	*(.nozi.stack)
     } > STACKS_MEM
 
-    /* MMU pages tables (TODO: should we keep them cachable?) */
-    .mmu_uta :
-    {
-        SEC_TA_MMU_TTB_FLD = (.);	 /* MMU L1 table for TAs: 128B */
-        SEC_TA_MMU_TTB_END = (. + 0x80);
-    } > MMU_UTA_MEM
-    .mmu_core :
-    {
-        SEC_MMU_TTB_FLD = (.);           /* MMU L1 table for teecore: 16kB */
-        SEC_MMU_TTB_END = (. + 0x4000);
-        SEC_MMU_L2_TTB_FLD = (SEC_MMU_TTB_END); /* MMU L2 table for teecore */
-        SEC_MMU_L2_TTB_END = (SEC_MMU_L2_TTB_FLD + 0x400);
-    } > MMU_CORE_MEM
-
+	/*
+	 * Uninitialized data that shouldn't be zero initialized at
+	 * runtime.
+	 *
+	 * L1 mmu table requires 16 KiB alignment
+	 */
+	.nozi (NOLOAD) : ALIGN(16 * 1024) {
+		KEEP(*(.nozi .nozi.*))
+	}
 }
-
-    /* 64kB aligned heap start between BSS and secure stacks */
-    PROVIDE(teecore_heap_start = __bss_end);
-    PROVIDE(teecore_heap_end = __stacks_start);
-

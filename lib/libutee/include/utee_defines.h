@@ -124,8 +124,6 @@ typedef enum {
  * See TEE Internal API specificaion v1.0 table 6-12 "Partial Structure of
  * Attribute Identifier"
  */
-#define TEE_ATTR_BIT_VALUE                  (1 << 29)
-
 #define TEE_U32_BSWAP(x) ( \
         (((x) & 0xff000000) >> 24) | \
         (((x) & 0x00ff0000) >>  8) | \

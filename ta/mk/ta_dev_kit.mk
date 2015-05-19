@@ -22,15 +22,36 @@ endif
 ifneq ($V,1)
 q := @
 cmd-echo := true
+cmd-echo-silent := echo
 else
 q :=
 cmd-echo := echo
+cmd-echo-silent := true
 endif
 
+ifneq ($(filter 4.%,$(MAKE_VERSION)),)  # make-4
+ifneq ($(filter %s ,$(firstword x$(MAKEFLAGS))),)
+cmd-echo-silent := true
+endif
+else                                    # make-3.8x
+ifneq ($(filter s% -s%,$(MAKEFLAGS)),)
+cmd-echo-silent := true
+endif
+endif
+
+
+include $(ta-dev-kit-dir)/mk/arch.mk
 -include $(ta-dev-kit-dir)/mk/platform_flags.mk
 
-aflags$(sm) += $(platform-aflags) $(user_ta-platform-aflags)
-cflags$(sm) += $(platform-cflags) $(user_ta-platform-cflags)
+cppflags$(sm)  += $(platform-cppflags) $(user_ta-platform-cppflags)
+aflags$(sm)    += $(platform-aflags) $(user_ta-platform-aflags)
+cflags$(sm)    += $(platform-cflags) $(user_ta-platform-cflags)
+
+CFG_TEE_TA_LOG_LEVEL ?= 2
+cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
+
+CFG_TEE_CORE_USER_MEM_DEBUG ?= 0
+cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
@@ -44,7 +65,7 @@ libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 
 .PHONY: clean
 clean:
-	@echo '  CLEAN   .'
+	@$(cmd-echo-silent) '  CLEAN   .'
 	${q}rm -f $(cleanfiles)
 
 

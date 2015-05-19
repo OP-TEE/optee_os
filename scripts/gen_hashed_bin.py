@@ -33,12 +33,13 @@ import os
 import struct
 import hashlib
 
+arch_id = {'arm32': 0, 'arm64': 1}
 
 def write_header(outf, init_size, args, paged_size):
 	magic = 0x4554504f # 'OPTE'
 	version = 1;
 	outf.write(struct.pack('<IBBHIIIII', \
-		magic, version, args.arch, args.flags, init_size, \
+		magic, version, arch_id[args.arch], args.flags, init_size, \
 		args.init_load_addr_hi, args.init_load_addr_lo, \
 		args.init_mem_usage, paged_size))
 	
@@ -84,8 +85,8 @@ def int_parse(str):
 def get_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--arch', required=True, \
-		type=int, choices=[0, 1], \
-		help='Architecture: ARM32 = 0, ARM64 = 1')
+		choices=arch_id.keys(), \
+		help='Architecture')
 
 	parser.add_argument('--flags', \
 		type=int, default=0, \

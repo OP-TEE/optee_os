@@ -124,12 +124,28 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
+		size_t *max_args)
+{
+	*scn = regs->x7;
+	*max_args = regs->x6;
+}
+#endif /*ARM64*/
+
 #ifdef ARM32
 static void set_svc_retval(struct thread_svc_regs *regs, uint32_t ret_val)
 {
 	regs->r0 = ret_val;
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
+{
+	regs->x0 = ret_val;
+}
+#endif /*ARM64*/
 
 void tee_svc_handler(struct thread_svc_regs *regs)
 {
@@ -169,7 +185,8 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
-			panic_code, read_usr_sp(), read_usr_lr());
+		      panic_code, read_mode_sp(CPSR_MODE_SYS),
+		      read_mode_lr(CPSR_MODE_SYS));
 	}
 	regs->r1 = panic;
 	regs->r2 = panic_code;
@@ -178,3 +195,19 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	return ret;
 }
 #endif /*ARM32*/
+#ifdef ARM64
+uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
+			uint32_t panic_code, struct thread_svc_regs *regs)
+{
+	if (panic) {
+		TAMSG("TA panicked with code 0x%x usr_sp 0x%" PRIx64 " usr_lr 0x%" PRIx64,
+			panic_code, regs->x13, regs->x14);
+	}
+	regs->x1 = panic;
+	regs->x2 = panic_code;
+	regs->elr = (uintptr_t)thread_unwind_user_mode;
+	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
+	regs->spsr |= read_daif();
+	return ret;
+}
+#endif /*ARM64*/

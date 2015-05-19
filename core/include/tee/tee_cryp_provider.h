@@ -268,8 +268,6 @@ struct crypto_ops {
 
 extern struct crypto_ops crypto_ops;
 
-TEE_Result tee_cryp_init(void);
-
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in
  * advance and has as few dependencies as possible.

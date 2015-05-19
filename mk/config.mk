@@ -27,7 +27,7 @@ WARNS ?= 3
 # DEBUG=1
 
 # If 1, debug mode of the tee firmware (CPU restart, Core Status)
-CFG_TEE_FW_DEBUG ?= 0
+CFG_TEE_CORE_DEBUG ?= 0
 
 # Max level of the tee core traces. 0 means disable, 4 is max.
 # Supported values: 0 (no traces) to 4 (all traces)

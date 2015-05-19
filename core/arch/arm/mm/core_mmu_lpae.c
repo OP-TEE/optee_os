@@ -165,6 +165,9 @@
 #define MAX_MMAP_REGIONS	16
 #define NUM_L1_ENTRIES		(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
 
+#ifndef MAX_XLAT_TABLES
+#define MAX_XLAT_TABLES		5
+#endif
 
 /* MMU L1 table, one for each core */
 static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
@@ -493,6 +496,36 @@ void core_init_mmu_regs(void)
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+void core_init_mmu_regs(void)
+{
+	uint64_t mair;
+	uint64_t tcr;
+
+	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
+	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
+	write_mair_el1(mair);
+
+	tcr  = TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT;
+	tcr |= TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT;
+	tcr |= TCR_SHX_ISH << TCR_SH0_SHIFT;
+	tcr |= tcr_ps_bits << TCR_EL1_IPS_SHIFT;
+	tcr |= 64 - __builtin_ctzl(ADDR_SPACE_SIZE);
+
+	/* Disable the use of TTBR1 */
+	tcr |= TCR_EPD1;
+
+	/*
+	 * TCR.A1 = 0 => ASID is stored in TTBR0
+	 * TCR.AS = 0 => Same ASID size as in Aarch32/ARMv7
+	 */
+
+	write_tcr_el1(tcr);
+	write_ttbr0_el1((paddr_t)l1_xlation_table[get_core_pos()]);
+	write_ttbr1_el1(0);
+}
+#endif /*ARM64*/
+
 static void set_region(struct core_mmu_table_info *tbl_info,
 		struct tee_mmap_region *region)
 {
@@ -508,6 +541,9 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	idx = core_mmu_va2idx(tbl_info, region->va);
 	end = core_mmu_va2idx(tbl_info, region->va + region->size);
 	pa = region->pa;
+
+	debug_print("set_region va %016" PRIxVA " pa %016" PRIxPA " size %016zu",
+		region->va, region->pa, region->size);
 
 	while (idx < end) {
 		core_mmu_set_entry(tbl_info, idx, pa, region->attr);
@@ -667,11 +703,9 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
 	uint64_t ttbr;
-	uint32_t cpsr = read_cpsr();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	assert(user_va_idx != -1);
-
-	write_cpsr(cpsr | CPSR_FIA);
 
 	ttbr = read_ttbr0_64bit();
 	/* Clear ASID */
@@ -693,7 +727,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
-	write_cpsr(cpsr);
+	thread_unmask_exceptions(exceptions);
 }
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
@@ -721,3 +755,79 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 	}
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+void core_mmu_get_user_map(struct core_mmu_user_map *map)
+{
+	assert(user_va_idx != -1);
+
+	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
+	if (map->user_map) {
+		map->asid = (read_ttbr0_el1() >> TTBR_ASID_SHIFT) &
+			    TTBR_ASID_MASK;
+	} else {
+		map->asid = 0;
+	}
+}
+
+void core_mmu_set_user_map(struct core_mmu_user_map *map)
+{
+	uint64_t ttbr;
+	uint32_t daif = read_daif();
+
+	write_daif(daif | DAIF_AIF);
+
+	ttbr = read_ttbr0_el1();
+	/* Clear ASID */
+	ttbr &= ~((uint64_t)TTBR_ASID_MASK << TTBR_ASID_SHIFT);
+	write_ttbr0_el1(ttbr);
+	isb();
+
+	/* Set the new map */
+	if (map && map->user_map) {
+		l1_xlation_table[get_core_pos()][user_va_idx] = map->user_map;
+		dsb();	/* Make sure the write above is visible */
+		ttbr |= ((uint64_t)map->asid << TTBR_ASID_SHIFT);
+		write_ttbr0_el1(ttbr);
+		isb();
+	} else {
+		l1_xlation_table[get_core_pos()][user_va_idx] = 0;
+		dsb();	/* Make sure the write above is visible */
+	}
+
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
+	write_daif(daif);
+}
+
+enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
+{
+	switch ((fault_descr >> ESR_EC_SHIFT) & ESR_EC_MASK) {
+	case ESR_EC_SP_ALIGN:
+	case ESR_EC_PC_ALIGN:
+		return CORE_MMU_FAULT_ALIGNMENT;
+	case ESR_EC_IABT_EL1:
+	case ESR_EC_DABT_EL1:
+		switch (fault_descr & ESR_FSC_MASK) {
+		case ESR_FSC_TRANS_L0:
+		case ESR_FSC_TRANS_L1:
+		case ESR_FSC_TRANS_L2:
+		case ESR_FSC_TRANS_L3:
+			return CORE_MMU_FAULT_TRANSLATION;
+		case ESR_FSC_ACCF_L1:
+		case ESR_FSC_ACCF_L2:
+		case ESR_FSC_ACCF_L3:
+		case ESR_FSC_PERMF_L1:
+		case ESR_FSC_PERMF_L2:
+		case ESR_FSC_PERMF_L3:
+			return CORE_MMU_FAULT_PERMISSION;
+		case ESR_FSC_ALIGN:
+			return CORE_MMU_FAULT_ALIGNMENT;
+		default:
+			return CORE_MMU_FAULT_OTHER;
+		}
+	default:
+		return CORE_MMU_FAULT_OTHER;
+	}
+}
+#endif /*ARM64*/

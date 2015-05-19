@@ -60,7 +60,18 @@
 
 #endif /*ARM32*/
 
-static struct thread_ctx threads[CFG_NUM_THREADS];
+#ifdef ARM64
+#define STACK_TMP_SIZE		2048
+#define STACK_THREAD_SIZE	8192
+
+#if TRACE_LEVEL > 0
+#define STACK_ABT_SIZE		3072
+#else
+#define STACK_ABT_SIZE		1024
+#endif
+#endif /*ARM64*/
+
+struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 
@@ -79,6 +90,9 @@ static struct thread_vfp_state thread_vfp_state;
 #ifdef CFG_WITH_STACK_CANARIES
 #ifdef ARM32
 #define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
+#endif
+#ifdef ARM64
+#define STACK_CANARY_SIZE	(8 * sizeof(uint32_t))
 #endif
 #define START_CANARY_VALUE	0xdededede
 #define END_CANARY_VALUE	0xabababab
@@ -101,7 +115,7 @@ static struct thread_vfp_state thread_vfp_state;
 
 DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
-#if defined(CFG_WITH_SEC_MON)
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
 #endif
 #ifndef CFG_WITH_PAGER
@@ -169,7 +183,7 @@ static void init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#ifdef CFG_WITH_SEC_MON
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	INIT_CANARY(stack_sm);
 #endif
 #ifndef CFG_WITH_PAGER
@@ -192,7 +206,7 @@ void thread_check_canaries(void)
 		assert(GET_START_CANARY(stack_abt, n) == START_CANARY_VALUE);
 		assert(GET_END_CANARY(stack_abt, n) == END_CANARY_VALUE);
 	}
-#ifdef CFG_WITH_SEC_MON
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
 		assert(GET_START_CANARY(stack_sm, n) == START_CANARY_VALUE);
 		assert(GET_END_CANARY(stack_sm, n) == END_CANARY_VALUE);
@@ -234,6 +248,24 @@ void thread_set_exceptions(uint32_t exceptions)
 	write_cpsr(cpsr);
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+uint32_t thread_get_exceptions(void)
+{
+	uint32_t daif = read_daif();
+
+	return (daif >> DAIF_F_SHIFT) & THREAD_EXCP_ALL;
+}
+
+void thread_set_exceptions(uint32_t exceptions)
+{
+	uint32_t daif = read_daif();
+
+	daif &= ~(THREAD_EXCP_ALL << DAIF_F_SHIFT);
+	daif |= ((exceptions & THREAD_EXCP_ALL) << DAIF_F_SHIFT);
+	write_daif(daif);
+}
+#endif /*ARM64*/
 
 uint32_t thread_mask_exceptions(uint32_t exceptions)
 {
@@ -338,6 +370,36 @@ static void init_regs(struct thread_ctx *thread,
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+static void init_regs(struct thread_ctx *thread,
+		struct thread_smc_args *args)
+{
+	thread->regs.pc = (uint64_t)thread_std_smc_entry;
+
+	/*
+	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
+	 * abort and unmasked FIQ.
+	  */
+	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
+				    DAIFBIT_IRQ | DAIFBIT_ABT);
+	/* Reinitialize stack pointer */
+	thread->regs.sp = thread->stack_va_end;
+
+	/*
+	 * Copy arguments into context. This will make the
+	 * arguments appear in x0-x7 when thread is started.
+	 */
+	thread->regs.x[0] = args->a0;
+	thread->regs.x[1] = args->a1;
+	thread->regs.x[2] = args->a2;
+	thread->regs.x[3] = args->a3;
+	thread->regs.x[4] = args->a4;
+	thread->regs.x[5] = args->a5;
+	thread->regs.x[6] = args->a6;
+	thread->regs.x[7] = args->a7;
+}
+#endif /*ARM64*/
+
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
@@ -391,6 +453,21 @@ static void copy_a0_to_a3(struct thread_ctx_regs *regs,
 	regs->r3 = args->a3;
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+static void copy_a0_to_a3(struct thread_ctx_regs *regs,
+		struct thread_smc_args *args)
+{
+	/*
+	 * Update returned values from RPC, values will appear in
+	 * x0-x3 when thread is resumed.
+	 */
+	regs->x[0] = args->a0;
+	regs->x[1] = args->a1;
+	regs->x[2] = args->a2;
+	regs->x[3] = args->a3;
+}
+#endif /*ARM64*/
 
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
@@ -497,6 +574,17 @@ void *thread_get_tmp_sp(void)
 	return (void *)l->tmp_stack_va_end;
 }
 
+#ifdef ARM64
+vaddr_t thread_get_saved_thread_sp(void)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	int ct = l->curr_thread;
+
+	assert(ct != -1);
+	return threads[ct].kern_sp;
+}
+#endif /*ARM64*/
+
 void thread_state_free(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -563,6 +651,23 @@ static void set_abt_stack(struct thread_core_local *l __unused, vaddr_t sp)
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+static void set_tmp_stack(struct thread_core_local *l, vaddr_t sp)
+{
+	/*
+	 * We're already using the tmp stack when this function is called
+	 * so there's no need to assign it to any stack pointer. However,
+	 * we'll need to restore it at different times so store it here.
+	 */
+	l->tmp_stack_va_end = sp;
+}
+
+static void set_abt_stack(struct thread_core_local *l, vaddr_t sp)
+{
+	l->abt_stack_va_end = sp;
+}
+#endif /*ARM64*/
+
 bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
 	if (thread_id >= CFG_NUM_THREADS)
@@ -617,22 +722,29 @@ static void init_thread_stacks(void)
 		tee_mm_entry_t *mm;
 		vaddr_t sp;
 
-		/* Get unmapped page at bottom of stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, SMALL_PAGE_SIZE);
+		/* Find vmem for thread stack and its protection gap */
+		mm = tee_mm_alloc(&tee_mm_vcore,
+				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
 		TEE_ASSERT(mm);
+
 		/* Claim eventual physical page */
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
 				    true);
 
-		/* Allocate the actual stack */
-		mm = tee_mm_alloc(&tee_mm_vcore, STACK_THREAD_SIZE);
+		/* Realloc both protection vmem and stack vmem separately */
+		sp = tee_mm_get_smem(mm);
+		tee_mm_free(mm);
+		mm = tee_mm_alloc2(&tee_mm_vcore, sp, SMALL_PAGE_SIZE);
 		TEE_ASSERT(mm);
+		mm = tee_mm_alloc2(&tee_mm_vcore, sp + SMALL_PAGE_SIZE,
+						  STACK_THREAD_SIZE);
+		TEE_ASSERT(mm);
+
+		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
 		if (!thread_init_stack(n, sp))
 			panic();
-		/* Claim eventual physical page */
-		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
-				    true);
+
 		/* Add the area to the pager */
 		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
 	}
@@ -679,6 +791,69 @@ void thread_init_primary(const struct thread_handlers *handlers)
 	COMPILE_TIME_ASSERT(offsetof(struct thread_svc_regs, spsr) ==
 				THREAD_SVC_REG_SPSR_OFFS);
 #endif /*ARM32*/
+#ifdef ARM64
+	/* struct thread_abort_regs */
+	COMPILE_TIME_ASSERT(offsetof(struct thread_abort_regs, x22) ==
+			    THREAD_ABT_REG_X_OFFS(22));
+	COMPILE_TIME_ASSERT(offsetof(struct thread_abort_regs, elr) ==
+			    THREAD_ABT_REG_ELR_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_abort_regs, spsr) ==
+			    THREAD_ABT_REG_SPSR_OFFS);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_abort_regs, sp_el0) ==
+			    THREAD_ABT_REG_SP_EL0_OFFS);
+	COMPILE_TIME_ASSERT(sizeof(struct thread_abort_regs) ==
+			    THREAD_ABT_REGS_SIZE);
+
+	/* struct thread_ctx */
+	COMPILE_TIME_ASSERT(offsetof(struct thread_ctx, kern_sp) ==
+			    THREAD_CTX_KERN_SP_OFFSET);
+	COMPILE_TIME_ASSERT(sizeof(struct thread_ctx) == THREAD_CTX_SIZE);
+
+	/* struct thread_ctx_regs */
+	COMPILE_TIME_ASSERT(offsetof(struct thread_ctx_regs, sp) ==
+			    THREAD_CTX_REGS_SP_OFFSET);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_ctx_regs, pc) ==
+			    THREAD_CTX_REGS_PC_OFFSET);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_ctx_regs, cpsr) ==
+			    THREAD_CTX_REGS_SPSR_OFFSET);
+	COMPILE_TIME_ASSERT(offsetof(struct thread_ctx_regs, x[23]) ==
+			    THREAD_CTX_REGS_X_OFFSET(23));
+	COMPILE_TIME_ASSERT(sizeof(struct thread_ctx_regs) ==
+			    THREAD_CTX_REGS_SIZE);
+
+	/* struct thread_user_mode_rec */
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_user_mode_rec, exit_status0_ptr) ==
+		THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_user_mode_rec, exit_status1_ptr) ==
+		THREAD_USER_MODE_REC_EXIT_STATUS1_PTR_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_user_mode_rec, x[1]) ==
+		THREAD_USER_MODE_REC_X_OFFSET(20));
+	COMPILE_TIME_ASSERT(sizeof(struct thread_user_mode_rec) ==
+			    THREAD_USER_MODE_REC_SIZE);
+
+	/* struct thread_core_local */
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_core_local, tmp_stack_va_end) ==
+		THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_core_local, curr_thread) ==
+		THREAD_CORE_LOCAL_CURR_THREAD_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_core_local, flags) ==
+		THREAD_CORE_LOCAL_FLAGS_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_core_local, abt_stack_va_end) ==
+		THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET);
+	COMPILE_TIME_ASSERT(
+		offsetof(struct thread_core_local, x[3]) ==
+		THREAD_CORE_LOCAL_X_OFFSET(3));
+	COMPILE_TIME_ASSERT(sizeof(struct thread_core_local) ==
+		THREAD_CORE_LOCAL_SIZE);
+
+#endif /*ARM64*/
 
 	init_handlers(handlers);
 
@@ -690,11 +865,11 @@ void thread_init_primary(const struct thread_handlers *handlers)
 
 static void init_sec_mon(size_t __unused pos)
 {
-#if defined(CFG_WITH_SEC_MON)
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
 	sm_set_entry_vector(thread_vector_table);
-#endif /*CFG_WITH_SEC_MON*/
+#endif
 }
 
 void thread_init_per_cpu(void)

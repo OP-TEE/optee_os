@@ -33,8 +33,13 @@
 #include <mm/tee_mmu_defs.h>
 #include <trace.h>
 #include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <util.h>
 #include "core_mmu_private.h"
+
+#ifdef CFG_WITH_LPAE
+#error This file is not to be used with LPAE
+#endif
 
 /*
  * MMU related values
@@ -513,9 +518,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
-	uint32_t cpsr = read_cpsr();
-
-	write_cpsr(cpsr | CPSR_FIA);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	/*
 	 * Update the reserved Context ID and TTBR0
@@ -535,7 +538,8 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	isb();
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
-	write_cpsr(cpsr);
+	/* Restore interrupts */
+	thread_unmask_exceptions(exceptions);
 }
 
 bool core_mmu_user_mapping_is_active(void)
@@ -671,15 +675,6 @@ void core_init_mmu_regs(void)
 	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
 }
 
-__weak void *core_mmu_alloc_l2(struct tee_mmap_region *mm __unused)
-{
-	/*
-	 * This function should be redefined in platform specific part if
-	 * needed.
-	 */
-	return NULL;
-}
-
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {
 	assert(!(fsr & FSR_LPAE));
@@ -703,3 +698,75 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 		return CORE_MMU_FAULT_OTHER;
 	}
 }
+
+#if defined(CFG_MMU_V7_TTB)
+
+/* Main MMU L1 table for teecore */
+static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.l1"),
+		       aligned(TEE_MMU_L1_ALIGNMENT)));
+static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.l2"),
+		       aligned(TEE_MMU_L2_ALIGNMENT)));
+
+/* MMU L1 table for TAs, one for each Core */
+static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.ul1"),
+		      aligned(TEE_MMU_UL1_ALIGNMENT)));
+
+paddr_t core_mmu_get_main_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_main_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_l1_ttb;
+}
+
+paddr_t core_mmu_get_ul1_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	return pa;
+}
+
+vaddr_t core_mmu_get_ul1_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
+}
+
+void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
+{
+	/* Can't have this in .bss since it's not initialized yet */
+	static size_t l2_offs __attribute__((section(".data")));
+	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
+	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
+			     TEE_MMU_L2_SIZE) * l2_va_size;
+
+	if (l2_offs)
+		return NULL;
+	if (mm->size > l2_va_space)
+		return NULL;
+	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
+	return main_mmu_l2_ttb;
+}
+
+#else /* defined(CFG_MMU_V7_TTB) */
+
+__weak void *core_mmu_alloc_l2(struct tee_mmap_region *mm __unused)
+{
+	/*
+	 * This function should be redefined in platform specific part if
+	 * needed.
+	 */
+	return NULL;
+}
+
+#endif /* !defined(CFG_MMU_V7_TTB) */

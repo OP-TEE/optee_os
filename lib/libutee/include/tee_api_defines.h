@@ -109,6 +109,9 @@
 #define TEE_MEMORY_ACCESS_WRITE            0x00000002
 #define TEE_MEMORY_ACCESS_ANY_OWNER        0x00000004
 
+/* Memory Management Constant */
+#define TEE_MALLOC_FILL_ZERO               0x00000000
+
 /* Other constants */
 #define TEE_STORAGE_PRIVATE                0x00000001
 

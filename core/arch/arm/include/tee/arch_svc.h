@@ -37,7 +37,7 @@ void tee_svc_handler(struct thread_svc_regs *regs);
  * Called from the assembly functions tee_svc_sys_return() and
  * tee_svc_sys_panic() to update the register values in the struct
  * thread_svc_regs to return back to TEE Core from an erlier call to
- * tee_svc_enter_user_mode().
+ * thread_enter_user_mode().
  */
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 			uint32_t panic_code, struct thread_svc_regs *regs);

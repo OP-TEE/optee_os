@@ -42,12 +42,15 @@
 #include <kernel/panic.h>
 #include <util.h>
 #include "core_mmu_private.h"
+#include <kernel/tz_ssvce_pl310.h>
+#include <kernel/tee_l2cc_mutex.h>
+#include <kernel/thread.h>
 
 #define MAX_MMAP_REGIONS	10
 
 /* Default NSec shared memory allocated from NSec world */
-unsigned long default_nsec_shm_paddr;
-unsigned long default_nsec_shm_size;
+unsigned long default_nsec_shm_size __data; /* XXX __data is a workaround */
+unsigned long default_nsec_shm_paddr __data; /* XXX __data is a workaround */
 
 /* platform handler for core_pbuf_is()  */
 static unsigned long bootcfg_pbuf_is = 1;	/* NOT is BSS */
@@ -431,55 +434,41 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 	return TEE_SUCCESS;
 }
 
-/*
- * outer cahce maintenance mutex shared with NSec.
- *
- * At boot, teecore do not need a shared mutex with NSec.
- * Once core has entered NSec state, teecore is not allowed to run outer cache
- * maintenace sequence unless it has necogiate with NSec a shared mutex to
- * spin lock on.
- *
- * In some situation (i.e boot, hibernation), teecore natively synchronise the
- * cores and hence do not need to rely on NSec shared mutex. This can happend
- * with NSec having previously negociated a shared mutex or not. Thus if
- * teecore "disables" the outer (l2cc) shared mutex, it must be able to backup
- * the registered one when enabling back the shared mutex.
- *
- * Currently no multi-cpu lock synchronisation: teecore runs execlusivley on
- * 1 core at a given time.
- */
-static unsigned int *l2cc_mutex;
-static bool l2cc_mutex_required;	/* default false */
-
-void core_l2cc_mutex_set(void *mutex)
+#ifdef CFG_PL310
+unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 {
-	l2cc_mutex = (unsigned int *)mutex;
-}
-void core_l2cc_mutex_activate(bool en)
-{
-	l2cc_mutex_required = en;
-}
+	unsigned int ret = TEE_SUCCESS;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 
-void core_l2cc_mutex_lock(void)
-{
-	if (l2cc_mutex_required)
-		cpu_spin_lock(l2cc_mutex);
-}
+	tee_l2cc_mutex_lock();
+	switch (op) {
+	case L2CACHE_INVALIDATE:
+		arm_cl2_invbyway();
+		break;
+	case L2CACHE_AREA_INVALIDATE:
+		if (len)
+			arm_cl2_invbypa(pa, pa + len - 1);
+		break;
+	case L2CACHE_CLEAN:
+		arm_cl2_cleanbyway();
+		break;
+	case L2CACHE_AREA_CLEAN:
+		if (len)
+			arm_cl2_cleanbypa(pa, pa + len - 1);
+		break;
+	case L2CACHE_CLEAN_INV:
+		arm_cl2_cleaninvbyway();
+		break;
+	case L2CACHE_AREA_CLEAN_INV:
+		if (len)
+			arm_cl2_cleaninvbypa(pa, pa + len - 1);
+		break;
+	default:
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+	}
 
-void core_l2cc_mutex_unlock(void)
-{
-	if (l2cc_mutex_required)
-		cpu_spin_unlock(l2cc_mutex);
+	tee_l2cc_mutex_unlock();
+	thread_set_exceptions(exceptions);
+	return ret;
 }
-
-__weak unsigned int cache_maintenance_l2(int op __unused,
-			paddr_t pa __unused, size_t len __unused)
-{
-	/*
-	 * L2 Cache is not available on each platform
-	 * This function should be redefined in platform specific
-	 * part, when L2 cache is available
-	 */
-
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
+#endif /*CFG_PL310*/

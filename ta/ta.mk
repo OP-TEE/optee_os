@@ -48,7 +48,7 @@ define copy-file
 $2/$$(notdir $1): $1
 	@set -e; \
 	mkdir -p $$(dir $$@) ; \
-	echo '  INSTALL $$@' ; \
+	$(cmd-echo-silent) '  INSTALL $$@' ; \
 	cp $$< $$@
 
 cleanfiles += $2/$$(notdir $1)
@@ -73,7 +73,7 @@ arch-arch-mk := $(out-dir)/export-user_ta/mk/arch.mk
 $(arch-arch-mk): ta/arch/$(ARCH)/$(ARCH).mk
 	@set -e; \
 	mkdir -p $(dir $@) ; \
-	echo '  INSTALL $@' ; \
+	$(cmd-echo-silent) '  INSTALL $@' ; \
 	cp $< $@
 
 cleanfiles += $(arch-arch-mk)

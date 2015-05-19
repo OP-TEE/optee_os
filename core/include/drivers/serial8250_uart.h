@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef SERIAL8250_UART_H
+#define SERIAL8250_UART_H
 
-#include <kernel/tee_misc_unpg.h>
+#include <types_ext.h>
 
-uint32_t tee_get_cutid(void)
-{
-	return 0;
-}
+void serial8250_uart_init(vaddr_t base,
+		uint32_t uart_clk, uint32_t baud_rate);
+
+void serial8250_uart_putc(int ch, vaddr_t base);
+
+void serial8250_uart_flush_tx_fifo(vaddr_t base);
+
+bool serial8250_uart_have_rx_data(vaddr_t base);
+
+int serial8250_uart_getchar(vaddr_t base);
+
+#endif /* SERIAL8250_UART_H */
+

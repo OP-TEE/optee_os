@@ -30,9 +30,6 @@
 
 #define STACK_ALIGNMENT		8
 
-#define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
-#define PLATFORM_LINKER_ARCH	arm
-
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform sunxi"
 #endif

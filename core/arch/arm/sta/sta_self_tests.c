@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <compiler.h>
+#include <types_ext.h>
 #include <user_ta_header.h>
 #include <trace.h>
 #include <tee_api_types.h>
@@ -135,7 +136,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[4])
 		return TEE_SUCCESS;
 	}
 
-	DMSG("expect memref params: %p/%zu - %p/%zu - %p/%zu - %p/%zu",
+	DMSG("expect memref params: %p/%" PRIu32 " - %p/%" PRIu32 "zu - %p/%" PRIu32 "zu - %p/%" PRIu32 "zu",
 			p[0].memref.buffer, p[0].memref.size,
 			p[1].memref.buffer, p[1].memref.size,
 			p[2].memref.buffer, p[2].memref.size,

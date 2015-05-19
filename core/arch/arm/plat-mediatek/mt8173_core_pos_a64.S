@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Allwinner Technology Co., Ltd.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stddef.h>
-#include <string.h>
-#include <trace.h>
-#include <kernel/tee_common_otp.h>
+#include <asm.S>
+#include <arm.h>
 
-#define SHA256_HASH_SIZE 32
-uint8_t hw_key_digest[SHA256_HASH_SIZE];
+FUNC get_core_pos , :
+	mrs	x0, mpidr_el1
+	and	x1, x0, #MPIDR_CPU_MASK
+	and	x0, x0, #MPIDR_CLUSTER_MASK
+	/*
+	 * Number of cores in cluster is 2,
+	 * we should have the following mapping:
+	 * MPIDR     core_pos
+	 * 0x0000 -> 0
+	 * 0x0001 -> 1
+	 * 0x0100 -> 2
+	 * 0x0101 -> 3
+	 */
+	add	x0, x1, x0, LSR #7
+	ret
+END_FUNC get_core_pos
 
-/*---------------------------------------------------------------------------*/
-/*                             tee_otp_get_hw_unique_key                    */
-/*---------------------------------------------------------------------------*/
-/*
-    This function reads out a hw unique key.
-
-    \param[in]  hwkey data place holder for the key data read
-    \param[out] None.
-    \return None.
-
- */
-/*---------------------------------------------------------------------------*/
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
-{
-	/* Copy the first part of the new hw key */
-	memcpy(&hwkey->data[0], &hw_key_digest[0],
-	       sizeof(struct tee_hw_unique_key));
-}
-
-int tee_otp_get_die_id(uint8_t *buffer, size_t len)
-{
-	size_t i;
-
-	char pattern[4] = { 'B', 'E', 'E', 'F' };
-	for (i = 0; i < len; i++)
-		buffer[i] = pattern[i % 4];
-
-	return 0;
-}

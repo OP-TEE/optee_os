@@ -284,6 +284,21 @@ static bool tee_pager_is_user_exception(struct tee_pager_abort_info *ai)
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+/* Returns true if the exception originated from user mode */
+static bool tee_pager_is_user_exception(struct tee_pager_abort_info *ai)
+{
+	uint32_t spsr = ai->regs->spsr;
+
+	if (spsr & (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT))
+		return true;
+	if (((spsr >> SPSR_64_MODE_EL_SHIFT) & SPSR_64_MODE_EL_MASK) ==
+	    SPSR_64_MODE_EL0)
+		return true;
+	return false;
+}
+#endif /*ARM64*/
+
 #ifdef ARM32
 /* Returns true if the exception originated from abort mode */
 static bool tee_pager_is_abort_in_abort_handler(struct tee_pager_abort_info *ai)
@@ -291,6 +306,15 @@ static bool tee_pager_is_abort_in_abort_handler(struct tee_pager_abort_info *ai)
 	return (ai->regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_ABT;
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+/* Returns true if the exception originated from abort mode */
+static bool tee_pager_is_abort_in_abort_handler(
+		struct tee_pager_abort_info *ai __unused)
+{
+	return false;
+}
+#endif /*ARM64*/
 
 static __unused const char *abort_type_to_str(uint32_t abort_type)
 {
@@ -301,44 +325,93 @@ static __unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
-static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
+static __unused void tee_pager_print_detailed_abort(
+				struct tee_pager_abort_info *ai __unused,
+				const char *ctx __unused)
 {
-#ifdef CFG_TEE_CORE_TA_TRACE
-	EMSG_RAW("\nUser TA %s-abort at address 0x%" PRIxVA,
-		abort_type_to_str(ai->abort_type), ai->va);
+	EMSG_RAW("\n%s %s-abort at address 0x%" PRIxVA "\n",
+		ctx, abort_type_to_str(ai->abort_type), ai->va);
 #ifdef ARM32
-	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x   ttbr1 0x%08x   cidr 0x%X\n",
+	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X\n",
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
 		 read_contextidr());
 	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
 		 get_core_pos(), ai->regs->spsr);
-	EMSG_RAW(" r0 0x%08x     r4 0x%08x     r8 0x%08x    r12 0x%08x\n",
+	EMSG_RAW(" r0 0x%08x      r4 0x%08x    r8 0x%08x   r12 0x%08x\n",
 		 ai->regs->r0, ai->regs->r4, ai->regs->r8, ai->regs->ip);
-	EMSG_RAW(" r1 0x%08x     r5 0x%08x     r9 0x%08x     sp 0x%08x\n",
-		 ai->regs->r1, ai->regs->r5, ai->regs->r9, read_usr_sp());
-	EMSG_RAW(" r2 0x%08x     r6 0x%08x    r10 0x%08x     lr 0x%08x\n",
-		 ai->regs->r2, ai->regs->r6, ai->regs->r10, read_usr_lr());
-	EMSG_RAW(" r3 0x%08x     r7 0x%08x    r11 0x%08x     pc 0x%08x\n",
+	EMSG_RAW(" r1 0x%08x      r5 0x%08x    r9 0x%08x    sp 0x%08x\n",
+		 ai->regs->r1, ai->regs->r5, ai->regs->r9,
+		 read_mode_sp(ai->regs->spsr & CPSR_MODE_MASK));
+	EMSG_RAW(" r2 0x%08x      r6 0x%08x   r10 0x%08x    lr 0x%08x\n",
+		 ai->regs->r2, ai->regs->r6, ai->regs->r10,
+		 read_mode_lr(ai->regs->spsr & CPSR_MODE_MASK));
+	EMSG_RAW(" r3 0x%08x      r7 0x%08x   r11 0x%08x    pc 0x%08x\n",
 		 ai->regs->r3, ai->regs->r7, ai->regs->r11, ai->pc);
-#endif
+#endif /*ARM32*/
+#ifdef ARM64
+	EMSG_RAW(" esr 0x%08x  ttbr0 0x%08" PRIx64 "   ttbr1 0x%08" PRIx64 "   cidr 0x%X\n",
+		 ai->fault_descr, read_ttbr0_el1(), read_ttbr1_el1(),
+		 read_contextidr_el1());
+	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
+		 get_core_pos(), (uint32_t)ai->regs->spsr);
+	EMSG_RAW("x0  %016" PRIx64 " x1  %016" PRIx64,
+		 ai->regs->x0, ai->regs->x1);
+	EMSG_RAW("x2  %016" PRIx64 " x3  %016" PRIx64,
+		 ai->regs->x2, ai->regs->x3);
+	EMSG_RAW("x4  %016" PRIx64 " x5  %016" PRIx64,
+		 ai->regs->x4, ai->regs->x5);
+	EMSG_RAW("x6  %016" PRIx64 " x7  %016" PRIx64,
+		 ai->regs->x6, ai->regs->x7);
+	EMSG_RAW("x8  %016" PRIx64 " x9  %016" PRIx64,
+		 ai->regs->x8, ai->regs->x9);
+	EMSG_RAW("x10 %016" PRIx64 " x11 %016" PRIx64,
+		 ai->regs->x10, ai->regs->x11);
+	EMSG_RAW("x12 %016" PRIx64 " x13 %016" PRIx64,
+		 ai->regs->x12, ai->regs->x13);
+	EMSG_RAW("x14 %016" PRIx64 " x15 %016" PRIx64,
+		 ai->regs->x14, ai->regs->x15);
+	EMSG_RAW("x16 %016" PRIx64 " x17 %016" PRIx64,
+		 ai->regs->x16, ai->regs->x17);
+	EMSG_RAW("x18 %016" PRIx64 " x19 %016" PRIx64,
+		 ai->regs->x18, ai->regs->x19);
+	EMSG_RAW("x20 %016" PRIx64 " x21 %016" PRIx64,
+		 ai->regs->x20, ai->regs->x21);
+	EMSG_RAW("x22 %016" PRIx64 " x23 %016" PRIx64,
+		 ai->regs->x22, ai->regs->x23);
+	EMSG_RAW("x24 %016" PRIx64 " x25 %016" PRIx64,
+		 ai->regs->x24, ai->regs->x25);
+	EMSG_RAW("x26 %016" PRIx64 " x27 %016" PRIx64,
+		 ai->regs->x26, ai->regs->x27);
+	EMSG_RAW("x28 %016" PRIx64 " x29 %016" PRIx64,
+		 ai->regs->x28, ai->regs->x29);
+	EMSG_RAW("x30 %016" PRIx64 " elr %016" PRIx64,
+		 ai->regs->x30, ai->regs->elr);
+	EMSG_RAW("sp_el0 %016" PRIx64, ai->regs->sp_el0);
+#endif /*ARM64*/
+}
+
+static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
+{
+#ifdef CFG_TEE_CORE_TA_TRACE
+	tee_pager_print_detailed_abort(ai, "user TA");
 	tee_ta_dump_current();
 #endif
 }
 
 static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 {
-#ifdef ARM32
-	DMSG("%s-abort at 0x%" PRIxVA ": FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X",
-	     abort_type_to_str(ai->abort_type),
-	     ai->va, ai->fault_descr, ai->pc, read_ttbr0(), read_contextidr());
-	DMSG("CPUID 0x%x SPSR_abt 0x%x",
-	     read_mpidr(), read_spsr());
-#endif /*ARM32*/
+#if (TRACE_LEVEL >= TRACE_DEBUG)
+	tee_pager_print_detailed_abort(ai, "core");
+#endif /*TRACE_LEVEL >= TRACE_DEBUG*/
 }
 
 static void tee_pager_print_error_abort(
 		struct tee_pager_abort_info *ai __unused)
 {
+#if (TRACE_LEVEL >= TRACE_DEBUG)
+	/* full verbose log at DEBUG level */
+	tee_pager_print_detailed_abort(ai, "core");
+#else
 #ifdef ARM32
 	EMSG("%s-abort at 0x%" PRIxVA "\n"
 	     "FSR 0x%x PC 0x%x TTBR0 0x%X CONTEXIDR 0x%X\n"
@@ -347,8 +420,17 @@ static void tee_pager_print_error_abort(
 	     ai->va, ai->fault_descr, ai->pc, read_ttbr0(), read_contextidr(),
 	     read_mpidr(), read_spsr());
 #endif /*ARM32*/
+#ifdef ARM64
+	EMSG("%s-abort at 0x%" PRIxVA "\n"
+	     "ESR 0x%x PC 0x%x TTBR0 0x%" PRIx64 " CONTEXIDR 0x%X\n"
+	     "CPUID 0x%" PRIx64 " CPSR 0x%x (read from SPSR)",
+	     abort_type_to_str(ai->abort_type),
+	     ai->va, ai->fault_descr, ai->pc, read_ttbr0_el1(),
+	     read_contextidr_el1(),
+	     read_mpidr_el1(), (uint32_t)ai->regs->spsr);
+#endif /*ARM64*/
+#endif /*TRACE_LEVEL >= TRACE_DEBUG*/
 }
-
 
 static enum tee_pager_fault_type tee_pager_get_fault_type(
 		struct tee_pager_abort_info *ai)
@@ -547,6 +629,32 @@ static void set_abort_info(uint32_t abort_type, struct thread_abort_regs *regs,
 }
 #endif /*ARM32*/
 
+#ifdef ARM64
+static void set_abort_info(uint32_t abort_type __unused,
+		struct thread_abort_regs *regs, struct tee_pager_abort_info *ai)
+{
+	ai->fault_descr = read_esr_el1();
+	switch ((ai->fault_descr >> ESR_EC_SHIFT) & ESR_EC_MASK) {
+	case ESR_EC_IABT_EL0:
+	case ESR_EC_IABT_EL1:
+		ai->abort_type = THREAD_ABORT_PREFETCH;
+		ai->va = read_far_el1();
+		break;
+	case ESR_EC_DABT_EL0:
+	case ESR_EC_DABT_EL1:
+	case ESR_EC_SP_ALIGN:
+		ai->abort_type = THREAD_ABORT_DATA;
+		ai->va = read_far_el1();
+		break;
+	default:
+		ai->abort_type = THREAD_ABORT_UNDEF;
+		ai->va = regs->elr;
+	}
+	ai->pc = regs->elr;
+	ai->regs = regs;
+}
+#endif /*ARM64*/
+
 #ifdef ARM32
 static void handle_user_ta_panic(struct tee_pager_abort_info *ai)
 {
@@ -570,6 +678,27 @@ static void handle_user_ta_panic(struct tee_pager_abort_info *ai)
 		ai->regs->spsr &= ~CPSR_T;
 }
 #endif /*ARM32*/
+
+#ifdef ARM64
+static void handle_user_ta_panic(struct tee_pager_abort_info *ai)
+{
+	uint32_t daif;
+
+	/*
+	 * It was a user exception, stop user execution and return
+	 * to TEE Core.
+	 */
+	ai->regs->x0 = TEE_ERROR_TARGET_DEAD;
+	ai->regs->x1 = true;
+	ai->regs->x2 = 0xdeadbeef;
+	ai->regs->elr = (vaddr_t)thread_unwind_user_mode;
+	ai->regs->sp_el0 = thread_get_saved_thread_sp();
+
+	daif = (ai->regs->spsr >> SPSR_32_AIF_SHIFT) & SPSR_32_AIF_MASK;
+	/* XXX what about DAIF_D? */
+	ai->regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, daif);
+}
+#endif /*ARM64*/
 
 void tee_pager_abort_handler(uint32_t abort_type,
 		struct thread_abort_regs *regs)

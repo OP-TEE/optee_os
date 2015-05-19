@@ -365,8 +365,7 @@ err:
 	if (res == TEE_ERROR_CORRUPT_OBJECT ||
 	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		return res;
-	else
-		TEE_Panic(0);
+	TEE_Panic(0);
 out:
 	return TEE_SUCCESS;
 }
@@ -464,8 +463,7 @@ err:
 	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE ||
 	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE_2)
 		return res;
-	else
-		TEE_Panic(0);
+	TEE_Panic(0);
 out:
 	return TEE_SUCCESS;
 }

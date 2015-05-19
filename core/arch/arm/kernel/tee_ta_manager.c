@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <arm.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
 #include <util.h>
@@ -1591,6 +1592,11 @@ TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
 
 /*
  * tee_uta_cache_operation - dynamic cache clean/inval request from a TA
+ * It follows ARM recommendation:
+ *     http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246d/Beicdhde.html
+ * Note that this implementation assumes dsb operations are part of
+ * cache_maintenance_l1(), and L2 cache sync are part of
+ * cache_maintenance_l2()
  */
 #ifdef CFG_CACHE_API
 TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
@@ -1599,7 +1605,6 @@ TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
 {
 	TEE_Result ret;
 	paddr_t pa = 0;
-	int l1op, l2op;
 
 	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -1615,26 +1620,32 @@ TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
 
 	switch (op) {
 	case TEE_CACHEFLUSH:
-		l1op = DCACHE_AREA_CLEAN_INV;
-		l2op = L2CACHE_AREA_CLEAN_INV;
-		break;
+		/* Clean L1, Flush L2, Flush L1 */
+		ret = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		if (ret != TEE_SUCCESS)
+			return ret;
+		ret = cache_maintenance_l2(L2CACHE_AREA_CLEAN_INV, pa, len);
+		if (ret != TEE_SUCCESS)
+			return ret;
+		return cache_maintenance_l1(DCACHE_AREA_CLEAN_INV, va, len);
+
 	case TEE_CACHECLEAN:
-		l1op = DCACHE_AREA_CLEAN;
-		l2op = L2CACHE_AREA_CLEAN;
-		break;
+		/* Clean L1, Clean L2 */
+		ret = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		if (ret != TEE_SUCCESS)
+			return ret;
+		return cache_maintenance_l2(L2CACHE_AREA_CLEAN, pa, len);
+
 	case TEE_CACHEINVALIDATE:
-		l1op = DCACHE_AREA_INVALIDATE;
-		l2op = L2CACHE_AREA_INVALIDATE;
-		break;
+		/* Inval L2, Inval L1 */
+		ret = cache_maintenance_l2(L2CACHE_AREA_INVALIDATE, pa, len);
+		if (ret != TEE_SUCCESS)
+			return ret;
+		return cache_maintenance_l1(DCACHE_AREA_INVALIDATE, va, len);
+
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
-
-	ret = cache_maintenance_l1(l1op, va, len);
-	if (ret != TEE_SUCCESS)
-		return ret;
-
-	return cache_maintenance_l2(l2op, pa, len);
 }
 #endif
 

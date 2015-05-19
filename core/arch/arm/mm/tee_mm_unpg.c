@@ -27,15 +27,16 @@
 
 #include <mm/tee_mm_unpg.h>
 #include <mm/tee_mm_def.h>
+#include <compiler.h>
 
 /* Physical Public DDR pool */
-tee_mm_pool_t tee_mm_pub_ddr;
+tee_mm_pool_t tee_mm_pub_ddr __data; /* XXX __data is a workaround */
 
 /* Physical Secure DDR pool */
-tee_mm_pool_t tee_mm_sec_ddr;
+tee_mm_pool_t tee_mm_sec_ddr __data; /* XXX __data is a workaround */
 
 /* Virtual eSRAM pool */
-tee_mm_pool_t tee_mm_vcore;
+tee_mm_pool_t tee_mm_vcore __data; /* XXX __data is a workaround */
 
 tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr)
 {

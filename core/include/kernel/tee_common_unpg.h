@@ -31,10 +31,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <kernel/kta_types.h>
 #include <tee_api_types.h>
 #include <mm/tee_mm_def.h>
-#include <kernel/tee_misc_unpg.h>
 
 #define TEE_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
@@ -49,7 +47,7 @@ typedef uintptr_t tee_vaddr_t;
 typedef uintptr_t tee_uaddr_t;
 
 
-#if (CFG_TEE_FW_DEBUG == 0)
+#if (CFG_TEE_CORE_DEBUG == 0)
 
 #define TEE_ASSERT(expr) \
 	do { \

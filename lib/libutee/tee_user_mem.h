@@ -37,9 +37,9 @@ void tee_user_mem_free(void *buffer);
 void tee_user_mem_garbage(void);
 
 /******************************************************************************
- * By default, the hint of a buffer is 0, means the buffer is fill with 0
- * after its allocation
+ * By default, the hint of a buffer is TEE_MALLOC_FILL_ZERO,
+ * means the buffer is fill with zeroes after its allocation
  */
-static const uint32_t DEFAULT_TEE_MALLOC_HINT = 0x0;
+static const uint32_t DEFAULT_TEE_MALLOC_HINT = TEE_MALLOC_FILL_ZERO;
 
 #endif /* TEE_USER_MEM_H */

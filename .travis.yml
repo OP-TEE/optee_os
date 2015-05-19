@@ -7,9 +7,14 @@ notifications:
 
 # Install the cross compiler
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y gcc-arm-linux-gnueabihf
+  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf/bin:${PATH}
   - arm-linux-gnueabihf-gcc --version
+  - wget http://releases.linaro.org/15.02/components/toolchain/binaries/aarch64-linux-gnu/gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu.tar.xz
+  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu.tar.xz
+  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_aarch64-linux-gnu/bin:${PATH}
+  - aarch64-linux-gnu-gcc --version
 
 before_script:
   # Store the home repository
@@ -27,38 +32,55 @@ script:
   - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
 
   # Orly2
-  -                                  PLATFORM=stm-orly2                                  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  -                                  PLATFORM=stm-orly2                                  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
 
   # Cannes
-  -                                  PLATFORM=stm-cannes                                 CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all
+  -                                  PLATFORM=stm-cannes                                 CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
 
   # FVP
-  -                                  PLATFORM=vexpress-fvp                                                                 make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=fvp                                       make -j8 all
+  -                                  PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  -                                  PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+
+  # Juno
+  -                                  PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
+  -                                  PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
 
   # QEMU
-  -                                  PLATFORM=vexpress-qemu                                                                make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all
+  -                                  PLATFORM=vexpress-qemu                                                                make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all -s
 
   # QEMU-virt
-  -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TEE_FW_DEBUG=1 PLATFORM=vexpress PLATFORM_FLAVOR=qemu_virt                        make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{AES,DES}=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH}=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{H,C,CBC_}MAC=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{G,C}CM=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
-  - make -j8 all PLATFORM=vexpress-qemu_virt CFG_WITH_PAGER=y
+  -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt CFG_TEE_CORE_DEBUG=1            make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all -s
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{AES,DES}=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH}=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{H,C,CBC_}MAC=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{G,C}CM=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_WITH_PAGER=y
 
   # SUNXI(Allwinner A80)
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=sunxi make -j8 all
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=sunxi make -j8 all -s
+
+  # HiKey board (HiSilicon Kirin 620)
+  - make -j8 -s PLATFORM=hikey
+
+  # Mediatek mt8173 EVB
+  - PLATFORM=mediatek  PLATFORM_FLAVOR=mt8173  CFG_ARM64_core=y  CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,25 +24,19 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_MISC_UNPG_H
-#define TEE_MISC_UNPG_H
 
-#include <stdint.h>
+#include <asm.S>
+#include <arm.h>
 
-/* value for tee_get_cutid() result */
-#define ORLY2_CUTID_VAL    0x04160AA0
-#define ORLY2_CUTID_MASK   0xFFFFFFF0
+/* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
+FUNC get_core_pos , :
+	mrs	x0, mpidr_el1
+	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
+	and	x1, x0, #MPIDR_CPU_MASK
+	and	x0, x0, #MPIDR_CLUSTER_MASK
+	eor	x0, x0, #(1 << MPIDR_CLUSTER_SHIFT)
+	add	x0, x1, x0, LSR #6
+	ret
+END_FUNC get_core_pos
 
-#define CANNES_CUTID_VAL    0x03050000
-#define CANNES_CUTID_MASK   0xFFFF0000
 
-#define CANNES_CUTID_1_VAL    0x03050010
-#define CANNES_CUTID_1_MASK   0xFFFFFFF0
-
-#define CANNES_CUTID_2_VAL    0x03050020
-#define CANNES_CUTID_2_MASK   0xFFFFFFF0
-
-/* This function returns the cut id of DBB hardware */
-uint32_t tee_get_cutid(void) __attribute__ ((pure));
-
-#endif /* TEE_MISC_UNPG_H */

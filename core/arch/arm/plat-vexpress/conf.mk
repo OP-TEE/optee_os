@@ -7,22 +7,10 @@ ifeq ($(CFG_ARM64_core),y)
 CFG_WITH_LPAE := y
 else
 CFG_ARM32_core ?= y
-endif
-
-ifeq ($(CFG_ARM64_core),y)
-core-tee-bin-arch := 1
-core-platform-cppflags += $(arm64-platform-cppflags)
-core-platform-cflags += $(arm64-platform-cflags)
-core-platform-aflags += $(arm64-platform-aflags)
-else
-core-tee-bin-arch := 0
-core-platform-cppflags += $(arm32-platform-cppflags)
-core-platform-cflags += $(arm32-platform-cflags)
-core-platform-aflags += $(arm32-platform-aflags)
+CFG_MMU_V7_TTB ?= y
 endif
 
 core-platform-cppflags	+= -I$(arch-dir)/include
-core-platform-cppflags	+= -DNUM_THREADS=2
 
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
@@ -30,10 +18,7 @@ ifeq ($(platform-flavor-armv8),1)
 CFG_WITH_ARM_TRUSTED_FW := y
 else
 core-platform-subdirs += $(arch-dir)/sm
-CFG_WITH_SEC_MON := y
 endif
-
-CFG_PM_DEBUG ?= n
 
 libutil_with_isoc := y
 libtomcrypt_with_optimize_size := y
@@ -42,10 +27,14 @@ CFG_PL011 := y
 CFG_GIC := y
 CFG_HWSUPP_MEM_PERM_PXN := y
 CFG_WITH_STACK_CANARIES := y
+CFG_PM_STUBS := y
+CFG_GENERIC_BOOT := y
+CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
+CFG_NO_TA_HASH_SIGN ?= y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
-CFG_CRYPTO_SHA256_ARM32_CE ?= y
-CFG_CRYPTO_SHA1_ARM32_CE ?= y
+CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
+CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_ARM32_core)
 endif
 
 # SE API is only suppoorted by QEMU Virt platform
@@ -63,9 +52,3 @@ CFG_WITH_VFP := y
 endif
 
 include mk/config.mk
-
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
-
-core-platform-cppflags += -D_USE_SLAPORT_LIB
-
-CFG_NO_TA_HASH_SIGN ?= y

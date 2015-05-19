@@ -27,8 +27,10 @@
 
 #include <tee/entry.h>
 #include <sm/teesmc.h>
+#include <sm/teesmc_optee.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/tee_dispatch.h>
+#include <kernel/tee_l2cc_mutex.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
 
@@ -153,53 +155,6 @@ static bool get_open_session_meta(struct teesmc32_arg *arg32,
 	return true;
 }
 
-/*
- * Extracts optional pointer to a Trusted Application.
- *
- * Returns
- * false : malformatted TA parameter
- * true  : if TA parameter wasn't found or if it was found and OK
- */
-static bool get_open_session_ta(struct teesmc32_arg *arg32, size_t num_params,
-		size_t *num_meta, kta_signed_header_t **ta)
-{
-	struct teesmc32_param *params = TEESMC32_GET_PARAMS(arg32);
-	uint32_t ph;
-	size_t len;
-	const uint8_t req_attr = TEESMC_ATTR_META |
-				 TEESMC_ATTR_TYPE_MEMREF_INPUT |
-				 SHM_CACHE_ATTRS;
-
-	if (num_params < (*num_meta + 1))
-		return false;
-
-	if (!(params[*num_meta].attr & TEESMC_ATTR_META))
-		return true;
-
-	if (params[*num_meta].attr != req_attr)
-		return false;
-
-	ph = params[*num_meta].u.memref.buf_ptr;
-	if (params[*num_meta].u.memref.size < sizeof(kta_signed_header_t))
-		return false;
-
-	if (!tee_pbuf_is_non_sec(ph, sizeof(kta_signed_header_t)))
-		return false;
-
-	if (core_pa2va(ph, ta))
-		return false;
-
-	len = (*ta)->size_of_signed_header + (*ta)->size_of_payload;
-	if (params[*num_meta].u.memref.size < len)
-		return false;
-
-	if (!tee_pbuf_is_non_sec(ph, len))
-		return false;
-
-	(*num_meta)++;
-	return true;
-}
-
 static void entry_open_session(struct thread_smc_args *args,
 			struct teesmc32_arg *arg32, uint32_t num_params)
 {
@@ -210,10 +165,6 @@ static void entry_open_session(struct thread_smc_args *args,
 	size_t num_meta = 0;
 
 	if (!get_open_session_meta(arg32, num_params, &num_meta, &meta))
-		goto bad_params;
-
-	in.ta = NULL;
-	if (!get_open_session_ta(arg32, num_params, &num_meta, &in.ta))
 		goto bad_params;
 
 	COMPILE_TIME_ASSERT(sizeof(TEE_UUID) == TEESMC_UUID_LEN);
@@ -326,8 +277,6 @@ static void entry_cancel(struct thread_smc_args *args,
 	args->a0 = TEESMC_RETURN_OK;
 }
 
-
-
 static void tee_entry_call_with_arg(struct thread_smc_args *args)
 {
 	paddr_t arg_pa;
@@ -386,9 +335,57 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 	}
 }
 
+static void tee_entry_get_shm_config(struct thread_smc_args *args)
+{
+	args->a0 = TEESMC_RETURN_OK;
+	args->a1 = default_nsec_shm_paddr;
+	args->a2 = default_nsec_shm_size;
+	/* Should this be TEESMC cache attributes instead? */
+	args->a3 = core_mmu_is_shm_cached();
+}
+
+static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
+{
+	TEE_Result ret;
+
+#ifdef ARM32
+	switch (args->a1) {
+	case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
+		ret = tee_l2cc_mutex_configure(
+			SERVICEID_GET_L2CC_MUTEX, &args->a2);
+		break;
+	case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
+		ret = tee_l2cc_mutex_configure(
+			SERVICEID_SET_L2CC_MUTEX, &args->a2);
+		break;
+	case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
+		ret = tee_l2cc_mutex_configure(
+			SERVICEID_ENABLE_L2CC_MUTEX, NULL);
+		break;
+	case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
+		ret = tee_l2cc_mutex_configure(
+			SERVICEID_DISABLE_L2CC_MUTEX, NULL);
+		break;
+	default:
+		args->a0 = TEESMC_RETURN_EBADCMD;
+		return;
+	}
+#else
+	ret = TEE_ERROR_NOT_SUPPORTED;
+#endif
+	if (ret == TEE_ERROR_NOT_SUPPORTED)
+		args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
+	else if (ret)
+		args->a0 = TEESMC_RETURN_EBADADDR;
+	else
+		args->a0 = TEESMC_RETURN_OK;
+}
+
 void tee_entry(struct thread_smc_args *args)
 {
 	switch (args->a0) {
+
+	/* Generic functions */
 	case TEESMC32_CALLS_COUNT:
 		tee_entry_get_api_call_count(args);
 		break;
@@ -408,6 +405,14 @@ void tee_entry(struct thread_smc_args *args)
 	case TEESMC64_CALL_WITH_ARG:
 		tee_entry_call_with_arg(args);
 		break;
+
+	/* OP-TEE specific SMC functions */
+	case TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG:
+		tee_entry_get_shm_config(args);
+		break;
+	case TEESMC32_OPTEE_FASTCALL_L2CC_MUTEX:
+		tee_entry_fastcall_l2cc_mutex(args);
+		break;
 	default:
 		args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
 		break;
@@ -417,43 +422,42 @@ void tee_entry(struct thread_smc_args *args)
 size_t tee_entry_generic_get_api_call_count(void)
 {
 	/*
-	 * All the differnt calls handled in this file. If the specific
+	 * All the different calls handled in this file. If the specific
 	 * target has additional calls it will call this function and
 	 * add the number of calls the target has added.
 	 */
-	return 7;
+	return 9;
 }
 
-void __attribute__((weak)) tee_entry_get_api_call_count(
-		struct thread_smc_args *args)
+void __weak tee_entry_get_api_call_count(struct thread_smc_args *args)
 {
 	args->a0 = tee_entry_generic_get_api_call_count();
 }
 
-void __attribute__((weak)) tee_entry_get_api_uuid(struct thread_smc_args *args)
+void __weak tee_entry_get_api_uuid(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_UID_R0;
-	args->a1 = TEESMC_UID_R1;
-	args->a2 = TEESMC_UID_R2;
-	args->a3 = TEESMC_UID32_R3;
+	args->a0 = TEESMC_OPTEE_UID_R0;
+	args->a1 = TEESMC_OPTEE_UID_R1;
+	args->a2 = TEESMC_OPTEE_UID_R2;
+	args->a3 = TEESMC_OPTEE_UID32_R3;
 }
 
-void __attribute__((weak)) tee_entry_get_api_revision(
-		struct thread_smc_args *args)
+void __weak tee_entry_get_api_revision(struct thread_smc_args *args)
 {
-	args->a0 = TEESMC_REVISION_MAJOR;
-	args->a1 = TEESMC_REVISION_MINOR;
+	args->a0 = TEESMC_OPTEE_REVISION_MAJOR;
+	args->a1 = TEESMC_OPTEE_REVISION_MINOR;
 }
 
-void __attribute__((weak)) tee_entry_get_os_uuid(struct thread_smc_args *args)
+void __weak tee_entry_get_os_uuid(struct thread_smc_args *args)
 {
-	/* Not implemented */
-	args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
+	args->a0 = TEESMC_OS_OPTEE_UUID_R0;
+	args->a1 = TEESMC_OS_OPTEE_UUID_R1;
+	args->a2 = TEESMC_OS_OPTEE_UUID_R2;
+	args->a3 = TEESMC_OS_OPTEE_UUID_R3;
 }
 
-void __attribute__((weak)) tee_entry_get_os_revision(
-		struct thread_smc_args *args)
+void __weak tee_entry_get_os_revision(struct thread_smc_args *args)
 {
-	/* Not implemented */
-	args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
+	args->a0 = TEESMC_OS_OPTEE_REVISION_MAJOR;
+	args->a1 = TEESMC_OS_OPTEE_REVISION_MINOR;
 }

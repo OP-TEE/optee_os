@@ -38,14 +38,13 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM32
-#define PLATFORM_LINKER_FORMAT	"elf32-littlearm"
-#define PLATFORM_LINKER_ARCH	arm
-#endif /*ARM32*/
-
 #ifdef ARM64
-#define PLATFORM_LINKER_FORMAT	"elf64-littleaarch64"
-#define PLATFORM_LINKER_ARCH	aarch64
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for ARM64"
+#endif
+#ifdef CFG_WITH_VFP
+#error "VFP not supported for ARM64"
+#endif
 #endif /*ARM64*/
 
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(qemu)
@@ -289,22 +288,21 @@
 #define DEVICE0_BASE		ROUNDDOWN(CONSOLE_UART_BASE, \
 					  CORE_MMU_DEVICE_SIZE)
 #define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE0_TYPE		MEM_AREA_IO_NSEC
 
 #define DEVICE1_BASE		ROUNDDOWN(GIC_BASE, CORE_MMU_DEVICE_SIZE)
 #define DEVICE1_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE1_TYPE		MEM_AREA_IO_SEC
 
 #define DEVICE2_BASE		ROUNDDOWN(GIC_BASE + GICD_OFFSET, \
 					  CORE_MMU_DEVICE_SIZE)
 #define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE2_TYPE		MEM_AREA_IO_SEC
 
 #ifdef CFG_PCSC_PASSTHRU_READER_DRV
 #define DEVICE3_BASE		ROUNDDOWN(PCSC_BASE, CORE_MMU_DEVICE_SIZE)
 #define DEVICE3_SIZE		CORE_MMU_DEVICE_SIZE
-#endif
-
-
-#ifdef CFG_WITH_LPAE
-#define MAX_XLAT_TABLES		5
+#define DEVICE3_TYPE		MEM_AREA_IO_SEC
 #endif
 
 #ifndef UART_BAUDRATE

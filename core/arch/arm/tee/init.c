@@ -68,9 +68,6 @@ TEE_Result init_teecore(void)
 	tee_mmu_kmap_init();
 	teecore_init_pub_ram();
 
-	/* Initialize cryptographic provider */
-	tee_cryp_init();
-
 	/* time initialization */
 	time_source_init();
 
