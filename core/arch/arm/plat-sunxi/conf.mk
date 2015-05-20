@@ -20,9 +20,7 @@ CFG_PM_STUBS ?= y
 
 include mk/config.mk
 
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= 1
-core-platform-cppflags += \
-	-DCFG_TEE_CORE_EMBED_INTERNAL_TESTS=$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
+CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 
 core-platform-cppflags += -DTEE_USE_DLMALLOC
 core-platform-cppflags += -D_USE_SLAPORT_LIB
