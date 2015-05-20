@@ -94,7 +94,7 @@ struct param_ta {
 
 /* This mutex protects the critical section in tee_ta_init_session */
 static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
-static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map);
+static TEE_Result tee_ta_rpc_free(uint32_t handle);
 
 /*
  * Get/Set resisdent session, to leave/re-enter session execution context.
@@ -868,7 +868,8 @@ cleanup_return:
  * Function is not thread safe
  */
 static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
-			kta_signed_header_t **ta, struct tee_ta_nwumap *map,
+			kta_signed_header_t **ta,
+			uint32_t *handle,
 			uint32_t *ret_orig)
 {
 	TEE_Result res;
@@ -878,9 +879,9 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 	paddr_t phpayload = 0;
 	paddr_t cookie = 0;
 	struct tee_rpc_load_ta_cmd *cmd_load_ta;
-	struct tee_ta_nwumap nwunmap;
+	uint32_t lhandle;
 
-	if (uuid == NULL || ta == NULL || ret_orig == NULL)
+	if (!uuid || !ta || !handle || !ret_orig)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* get a rpc buffer */
@@ -932,15 +933,14 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 		goto out;
 	}
 
-	nwunmap.ph = (paddr_t)cmd_load_ta->va;
-	nwunmap.size = params[1].u.memref.size;
+	lhandle = cmd_load_ta->supp_ta_handle;
 	if (core_pa2va(params[1].u.memref.buf_ptr, ta)) {
-		tee_ta_rpc_free(&nwunmap);
+		tee_ta_rpc_free(lhandle);
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
-	*map = nwunmap;
+	*handle = lhandle;
 
 out:
 	thread_rpc_free_arg(pharg);
@@ -948,7 +948,7 @@ out:
 	return res;
 }
 
-static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map)
+static TEE_Result tee_ta_rpc_free(uint32_t handle)
 {
 	TEE_Result res;
 	struct teesmc32_arg *arg;
@@ -977,11 +977,8 @@ static TEE_Result tee_ta_rpc_free(struct tee_ta_nwumap *map)
 	/* Set a suitable error code in case our resquest is ignored. */
 	arg->ret = TEE_ERROR_NOT_IMPLEMENTED;
 	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INPUT |
-			 TEESMC_ATTR_CACHE_DEFAULT << TEESMC_ATTR_CACHE_SHIFT;
-
-	params[0].u.memref.buf_ptr = map->ph;
-	params[0].u.memref.size = map->size;
+	params[0].attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
+	params[0].u.value.a = handle;
 
 	thread_rpc_cmd(pharg);
 	res = arg->ret;
@@ -1299,7 +1296,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	TEE_Result res;
 	struct tee_ta_ctx *ctx;
 	kta_signed_header_t *ta = NULL;
-	struct tee_ta_nwumap lp;
+	uint32_t handle;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
 
 	*err = TEE_ORIGIN_TEE;
@@ -1325,7 +1322,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Request TA from tee-supplicant */
-	res = tee_ta_rpc_load(uuid, &ta, &lp, err);
+	res = tee_ta_rpc_load(uuid, &ta, &handle, err);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -1334,7 +1331,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
 	 */
-	tee_ta_rpc_free(&lp);
+	tee_ta_rpc_free(handle);
 
 out:
 	mutex_unlock(&tee_ta_mutex);
