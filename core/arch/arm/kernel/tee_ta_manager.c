@@ -1296,7 +1296,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	TEE_Result res;
 	struct tee_ta_ctx *ctx;
 	kta_signed_header_t *ta = NULL;
-	uint32_t handle;
+	uint32_t handle = 0;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
 
 	*err = TEE_ORIGIN_TEE;
