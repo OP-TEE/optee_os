@@ -264,6 +264,8 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 	int i;
 	bool entry_found = false;
 	bool last_entry_found = false;
+	bool expand_fat = false;
+	struct rpmb_file_handle last_fh;
 
 	res = rpmb_fs_setup();
 	if (res != TEE_SUCCESS)
@@ -306,8 +308,9 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 
 			/* Add existing files to memory pool. (write) */
 			if (p != NULL) {
-				if ((fat_entries[i].flags & FILE_IS_ACTIVE) !=
-				    0) {
+				if ((fat_entries[i].flags & FILE_IS_ACTIVE) &&
+				    (fat_entries[i].data_size > 0)) {
+
 					mm = tee_mm_alloc2
 						(p,
 						 fat_entries[i].start_address,
@@ -329,10 +332,20 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 
 			if ((fat_entries[i].flags & FILE_IS_LAST_ENTRY) != 0) {
 				last_entry_found = true;
-				if (p != NULL && fh->rpmb_fat_address == 0) {
-					fh->rpmb_fat_address = fat_address;
-					fh->fat_entry.flags =
-					    FILE_IS_LAST_ENTRY;
+
+				/* 
+				 * If the last entry was reached and was chosen
+				 * by the previous check, then the FAT needs to
+				 * be expanded.
+				 * fh->rpmb_fat_address is the address chosen
+				 * to store the files FAT entry and fat_address
+				 * is the current FAT entry address being
+				 * compared.
+				 */
+				if (p != NULL &&
+				    fh->rpmb_fat_address == fat_address) {
+				    
+					expand_fat = true;
 				}
 				break;
 			}
@@ -342,8 +355,13 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		}
 	}
 
-	if ((p != NULL) && last_entry_found) {
-		/* Make room for yet a FAT entry and add to memory pool. */
+	if ((p != NULL) && expand_fat) {
+		/*
+		 * Make room for yet a FAT entry and add to memory pool.
+		 * Since fat_address is the start of the last entry it needs to
+		 * be moved up by 2 entries to point to the end of the "new"
+		 * FAT entry.
+		 */
 		fat_address += 2 * sizeof(struct rpmb_fat_entry);
 		mm = tee_mm_alloc2(p, RPMB_STORAGE_START_ADDRESS, fat_address);
 		if (mm == NULL) {
@@ -351,8 +369,15 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 			goto out;
 		}
 
-		/* TODO: It seems like the new entries need to written to the FAT but 
-		 * are not. */
+		/* Point fat_address to the beginning of the new entry */
+		fat_address -= sizeof(struct rpmb_fat_entry);
+		memset(&last_fh, 0, sizeof(last_fh));
+		last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
+		last_fh.rpmb_fat_address = fat_address;
+		res = write_fat_entry(&last_fh, true);
+		if (res != TEE_SUCCESS) {
+			goto out;
+		}
 	}
 
 	if (fh->filename != NULL && fh->rpmb_fat_address == 0)
@@ -407,10 +432,10 @@ int tee_rpmb_fs_open(const char *file, int flags, ...)
 	if (flags & TEE_FS_O_CREATE) {
 		/* Upper memory allocation must be used for RPMB_FS. */
 		pool_result = tee_mm_init(&p,
-								  RPMB_STORAGE_START_ADDRESS,
-								  RPMB_STORAGE_END_ADDRESS,
-								  RPMB_BLOCK_SIZE_SHIFT,
-								  TEE_MM_POOL_HI_ALLOC);
+					  RPMB_STORAGE_START_ADDRESS,
+					  RPMB_STORAGE_END_ADDRESS,
+					  RPMB_BLOCK_SIZE_SHIFT,
+					  TEE_MM_POOL_HI_ALLOC);
 		
 		if (!pool_result) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
@@ -439,9 +464,10 @@ int tee_rpmb_fs_open(const char *file, int flags, ...)
 	 * then this is a new file and the FAT entry must be written */
 	if (flags & TEE_FS_O_CREATE) {
 		if ((fh->fat_entry.flags & FILE_IS_ACTIVE) == 0) {
-			memset(&fh->fat_entry, 0, sizeof(struct rpmb_fat_entry));
+			memset(&fh->fat_entry, 0,
+				sizeof(struct rpmb_fat_entry));
 			memcpy(fh->fat_entry.filename, file, strlen(file));
-			/* Start address and size are 0 because of the memset */
+			/* Start address and size are 0 */
 			fh->fat_entry.flags = FILE_IS_ACTIVE;
 
 			res = write_fat_entry(fh, true);
@@ -511,7 +537,7 @@ int tee_rpmb_fs_read(int fd, uint8_t *buf, size_t size)
 
 	if (fh->fat_entry.data_size > 0) {
 		res = tee_rpmb_read(DEV_ID, fh->fat_entry.start_address, buf,
-							fh->fat_entry.data_size);
+				    fh->fat_entry.data_size);
 
 		if (res != TEE_SUCCESS) {
 			goto out;
@@ -550,10 +576,10 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 
 	/* Upper memory allocation must be used for RPMB_FS. */
 	pool_result = tee_mm_init(&p,
-							  RPMB_STORAGE_START_ADDRESS,
-							  RPMB_STORAGE_END_ADDRESS,
-							  RPMB_BLOCK_SIZE_SHIFT,
-							  TEE_MM_POOL_HI_ALLOC);
+				  RPMB_STORAGE_START_ADDRESS,
+				  RPMB_STORAGE_END_ADDRESS,
+				  RPMB_BLOCK_SIZE_SHIFT,
+				  TEE_MM_POOL_HI_ALLOC);
 	
 	if (!pool_result) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
