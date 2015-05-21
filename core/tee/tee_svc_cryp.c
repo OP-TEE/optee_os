@@ -970,6 +970,9 @@ TEE_Result tee_svc_cryp_obj_reset(uint32_t obj)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	/* the object is no more initialized */
+	o->info.handleFlags &= ~TEE_HANDLE_FLAG_INITIALIZED;
+
 	return TEE_SUCCESS;
 }
 
