@@ -76,6 +76,7 @@ static tee_mm_entry_t *tee_mm_add(tee_mm_entry_t *p)
 		p->next->next = NULL;
 	} else {
 		tee_mm_entry_t *nn = malloc(sizeof(tee_mm_entry_t));
+
 		if (nn == NULL)
 			return NULL;
 		nn->next = p->next;
@@ -89,6 +90,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 	uint32_t psize;
 	tee_mm_entry_t *entry;
 	tee_mm_entry_t *nn;
+	uint32_t remaining;
 
 	/* Check that pool is initialized */
 	if (!pool || !pool->entry)
@@ -114,18 +116,30 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 	}
 
 	/* check if we have enough memory */
-	if (pool->flags & TEE_MM_POOL_HI_ALLOC) {
-		if (((entry->offset << pool->shift) - pool->lo) < size)
-			/* out of memory */
-			return NULL;
-	} else {
-		if (((entry->offset << pool->shift) - pool->lo) < size)
-			/* out of memory */
-			return NULL;
-		if ((((entry->offset + entry->size) << pool->shift) + size) >
-		    (pool->hi - pool->lo))
-			/* out of memory */
-			return NULL;
+	if (entry->next == NULL) {
+		if (pool->flags & TEE_MM_POOL_HI_ALLOC) {
+			/*
+			 * entry->offset is a "block count" offset from
+			 * pool->lo. The byte offset is
+			 * (entry->offset << pool->shift).
+			 * In the HI_ALLOC allocation scheme the memory is
+			 * allocated from the end of the segment, thus to
+			 * validate there is sufficient memory validate that
+			 * (entry->offset << pool->shift) > size.
+			 */
+			if ((entry->offset << pool->shift) < size)
+				/* out of memory */
+				return NULL;
+		} else {
+			TEE_ASSERT(pool->hi > pool->lo);
+			remaining = (pool->hi - pool->lo);
+			remaining -= ((entry->offset + entry->size) <<
+				      pool->shift);
+
+			if (remaining < size)
+				/* out of memory */
+				return NULL;
+		}
 	}
 
 	nn = tee_mm_add(entry);
