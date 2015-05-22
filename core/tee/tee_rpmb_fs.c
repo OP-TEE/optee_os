@@ -282,7 +282,13 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		goto out;
 	}
 
-	while (!last_entry_found && !entry_found) {
+	/*
+	 * The pool is used to represent the current RPMB layout. To find
+	 * a slot for the file tee_mm_alloc is called on the pool. Thus
+	 * if it is not NULL the entire FAT must be traversed to fill in
+	 * the pool.
+	 */
+	while (!last_entry_found && (!entry_found || p != NULL)) {
 		res = tee_rpmb_read(DEV_ID, fat_address,
 				    (uint8_t *)fat_entries, size);
 		if (res != TEE_SUCCESS)
@@ -355,28 +361,40 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		}
 	}
 
-	if ((p != NULL) && expand_fat) {
+	/*
+	 * Represent the FAT table in the pool.
+	 */
+	if (p != NULL) {
 		/*
-		 * Make room for yet a FAT entry and add to memory pool.
 		 * Since fat_address is the start of the last entry it needs to
-		 * be moved up by 2 entries to point to the end of the "new"
-		 * FAT entry.
+		 * be moved up by an entry.
 		 */
-		fat_address += 2 * sizeof(struct rpmb_fat_entry);
+		fat_address += sizeof(struct rpmb_fat_entry);
+		
+		/* Make room for yet a FAT entry and add to memory pool. */
+		if (expand_fat) {
+			fat_address += sizeof(struct rpmb_fat_entry);
+		}
+		
 		mm = tee_mm_alloc2(p, RPMB_STORAGE_START_ADDRESS, fat_address);
 		if (mm == NULL) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
 
-		/* Point fat_address to the beginning of the new entry */
-		fat_address -= sizeof(struct rpmb_fat_entry);
-		memset(&last_fh, 0, sizeof(last_fh));
-		last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
-		last_fh.rpmb_fat_address = fat_address;
-		res = write_fat_entry(&last_fh, true);
-		if (res != TEE_SUCCESS) {
-			goto out;
+		if (expand_fat) {
+			/* 
+			 * Point fat_address to the beginning of the new
+			 * entry.
+			 */
+			fat_address -= sizeof(struct rpmb_fat_entry);
+			memset(&last_fh, 0, sizeof(last_fh));
+			last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
+			last_fh.rpmb_fat_address = fat_address;
+			res = write_fat_entry(&last_fh, true);
+			if (res != TEE_SUCCESS) {
+				goto out;
+			}
 		}
 	}
 
