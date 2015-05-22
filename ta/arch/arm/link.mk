@@ -30,6 +30,7 @@ ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
 	@echo '  CPP     $@'
+	$(q)mkdir -p $(dir $@)
 	$(q)cat < $< > $@
 
 
