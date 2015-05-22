@@ -35,34 +35,6 @@ bool vfp_is_enabled(void)
 	return !!(vfp_read_fpexc() & FPEXC_EN);
 }
 
-static bool instr_match_cp10_cp11(uint32_t instr, uint32_t mask)
-{
-	if ((instr & mask) == mask) {
-		uint32_t coprocessor = instr & 0xf0;
-
-		if (coprocessor == 10 || coprocessor == 11)
-			return true;
-	}
-	return false;
-}
-
-bool vfp_is_vpfinstr(uint32_t instr, uint32_t spsr)
-{
-
-
-	if (spsr & CPSR_T) {
-		/* Thumb mode */
-		return instr_match_cp10_cp11(instr, 0xec000000) ||
-		       ((instr & 0xef000000) == 0xef000000) ||
-		       ((instr & 0xff100000) == 0xf9000000);
-	} else {
-		/* ARM mode */
-		return instr_match_cp10_cp11(instr, 0x0c000000) ||
-		       ((instr & 0xfe000000) == 0xf2000000) ||
-		       ((instr & 0xff100000) == 0xf4000000);
-	}
-}
-
 void vfp_enable(void)
 {
 	vfp_write_fpexc(vfp_read_fpexc() | FPEXC_EN);

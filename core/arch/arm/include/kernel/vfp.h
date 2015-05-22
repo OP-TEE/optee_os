@@ -12,7 +12,6 @@ struct vfp_state {
 };
 
 bool vfp_is_enabled(void);
-bool vfp_is_vpfinstr(uint32_t instr, uint32_t spsr);
 void vfp_enable(void);
 void vfp_disable(void);
 
