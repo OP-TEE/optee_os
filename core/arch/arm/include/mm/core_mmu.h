@@ -34,6 +34,11 @@
 
 #include <assert.h>
 
+/* A small page is the smallest unit of memory that can be mapped */
+#define SMALL_PAGE_SHIFT	12
+#define SMALL_PAGE_MASK		0x00000fff
+#define SMALL_PAGE_SIZE		0x00001000
+
 /*
  * PGDIR is the translation table above the translation table that holds
  * the pages.

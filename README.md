@@ -11,6 +11,8 @@
     4. [QEMU](#44-qemu)
     4. [STMicroelectronics boards](#45-stmicroelectronics-boards)
     4. [Allwinner A80](#46-allwinner-a80)
+    4. [Mediatek MT8173 EVB](#47-mediatek-mt8173-evb)
+    4. [HiKey Board](#48-hikey-board)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
 
@@ -246,7 +248,7 @@ Linux kernel version 3-16.0-rc5)
 	+ config.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
 	+ juno.dts.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
 
-#### 4.3.1 Prerequisites 
+#### 4.3.1 Prerequisites
 + The following packages must be installed:
 
 ```
@@ -564,6 +566,91 @@ $ /system/bin/tee-supplicant &
 $ /system/bin/tee-helloworld
 ```
 Enjoying OP-TEE on A80 board.
+
+---
+### 4.7 Mediatek MT8173 EVB
+Please refer to [8173 wiki](https://github.com/ibanezchen/linux-8173/wiki)
+to setup MT8173 evaluation board.
+
+#### 4.7.1 Setup MT8173 OP-TEE development environment
+```
+$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_mtk_optee.sh
+$ chmod 711 setup_mtk_optee.sh
+$ ./setup_mtk_optee.sh
+```
+
+#### 4.7.2 Compile source
+Run `build.sh` to compile all sources and generate firmware images
+(boot.img and trustzone.bin).
+```
+$ ./build.sh
+```
+
+#### 4.7.3 Update MT8173 EVB firmware images
+Run `flash_image.sh` to update MT8173 EVB firmware images
+```
+$ ./flash_image.sh
+```
+
+#### 4.7.4 Firmware recovery
+
+  1. Download pre-built images and recovery tools
+  ```
+  $ git clone https://github.com/m943040028/evb-utils.git
+  $ cd evb-utils
+  $ ./get-fbtool.sh
+  ```
+
+  2. Force EVB to enter fastboot mode (root privileges required)
+  ```
+  $ ./update-recover.sh
+  ```
+
+  The shell script will hold and wait for user to do the following actions:
+  `Press the DOWNLOAD button down and hold, click RESET button and wait 2~3 seconds
+  before release the DOWNLOAD button`
+
+  3. After `.update-recover.sh` command returned and EVB successfully enter
+  fastboot mode, run `./update.sh` to download the pre-built images to EVB
+
+  ```
+  $ ./update.sh
+  ```
+
+  **NOTE** - How to make sure EVB already enter fastboot mode:
+
+  If you can see the following messages in UART console, it means EVB is in
+  fastboot mode and ready to receive new images.
+  ```
+  [2340] fastboot_init()
+  [3380] fastboot: processing commands: fastboot_mode=2
+  ```
+
+  4. Press RESET button to reboot system
+
+---
+### 4.8 HiKey board
+[HiKey](https://www.96boards.org/products/hikey/) is a 96Boards Consumer
+Edition compliant board equipped with a HiSilicon Kirin 620 SoC (8-core,
+64-bit ARM Cortex A53). It can run OP-TEE in 32- and 64-bit modes.
+
+To obtain all the required software pieces to run OP-TEE on this board, you
+may want to clone the [hikey_optee](https://github.com/jforissier/hikey_optee)
+repository. This GitHub project contains a master Makefile as well as Git
+submodules, which helps putting all the compatible pieces together, including:
+- Toolchains (Linaro Aarch32 and Aarch64 cross-compilers)
+- ARM Trusted Firmware
+- OP-TEE OS, client and driver
+- EDK2 UEFI bootloader
+- Linux kernel
+- A BusyBox-based root filesystem
+- The optee_test applications
+
+Clone the project with:
+```
+$ git clone https://github.com/jforissier/hikey_optee
+```
+Then, refer to the instructions in the project's README.md.
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in

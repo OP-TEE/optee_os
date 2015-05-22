@@ -47,12 +47,6 @@ TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
-/* normal world user mapping if loaded by tee supplicant */
-struct tee_ta_nwumap {
-	paddr_t ph;
-	size_t size;
-};
-
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TAILQ_ENTRY(tee_ta_ctx) link;

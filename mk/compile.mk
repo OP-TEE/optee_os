@@ -50,8 +50,11 @@ WARNS		?= 3
 
 comp-cflags$(sm)	+= $(comp-cflags-warns-$(WARNS))
 
+CHECK ?= sparse
+
 .PHONY: FORCE
 FORCE:
+
 
 define process_srcs
 objs		+= $2
@@ -69,31 +72,45 @@ comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 		   $$(CFLAGS) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$2)) $$(cflags$$(comp-sm-$2)) \
 		   $$(cflags-lib$$(comp-lib-$2)) $$(cflags-$2))
+ifeq ($C,1)
+check-cmd-$2 = $(CHECK) $$(comp-cppflags-$2) $$<
+echo-check-$2 := $(cmd-echo-silent)
+echo-check-cmd-$2 = $(cmd-echo) $$(subst \",\\\",$$(check-cmd-$2))
+endif
+
 else ifeq ($$(filter %.S,$1),$1)
 comp-q-$2 := AS
 comp-flags-$2 = -DASM=1 $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
 				      $$(aflags-remove-$2), \
 			   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
 			   $$(aflags$$(comp-sm-$2)) $$(aflags-$2))
+
 else
 $$(error "Don't know what to do with $1")
 endif
 
-comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@ \
-	   $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
+comp-cppflags-$2 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
 			 $$(cppflags-remove-$2), \
-	      $$(nostdinc$$(comp-sm-$2)) $$(CPPFLAGS) \
-	      $$(addprefix -I,$$(incdirs$$(comp-sm-$2))) \
-	      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
-	      $$(addprefix -I,$$(incdirs-$2)) \
-	      $$(cppflags$$(comp-sm-$2)) \
-	      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
+		      $$(nostdinc$$(comp-sm-$2)) $$(CPPFLAGS) \
+		      $$(addprefix -I,$$(incdirs$$(comp-sm-$2))) \
+		      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
+		      $$(addprefix -I,$$(incdirs-$2)) \
+		      $$(cppflags$$(comp-sm-$2)) \
+		      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
+
+comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@
+comp-flags-$2 += $$(comp-cppflags-$2)
 
 comp-cmd-$2 = $$(CC$(sm)) $$(comp-flags-$2) -c $$< -o $$@
 comp-objcpy-cmd-$2 = $$(OBJCOPY$(sm)) \
 	--rename-section .rodata=.rodata.$1 \
 	--rename-section .rodata.str1.1=.rodata.str1.1.$1 \
 	$2
+
+# Assign defaults if unassigned
+echo-check-$2 ?= true
+echo-check-cmd-$2 ?= true
+check-cmd-$2 ?= true
 
 -include $$(comp-cmd-file-$2)
 -include $$(comp-dep-$2)
@@ -107,6 +124,9 @@ $2: $1 FORCE
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) ;\
+		$$(echo-check-$2) '  CHECK   $$<' ;\
+		$$(echo-check-cmd-$2) ;\
+		$$(check-cmd-$2) ;\
 		$(cmd-echo-silent) '  $$(comp-q-$2)      $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\

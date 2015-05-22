@@ -26,7 +26,6 @@
  */
 
 #include <mm/tee_mm_unpg.h>
-#include <mm/tee_mm_def.h>
 #include <compiler.h>
 
 /* Physical Public DDR pool */

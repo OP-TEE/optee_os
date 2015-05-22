@@ -59,3 +59,22 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
 CFG_NUM_THREADS ?= 2
+
+# API implementation version
+CFG_TEE_API_VERSION ?= GPD-1.1-dev
+
+# Implementation description (implementation-dependent)
+CFG_TEE_IMPL_DESCR ?= OPTEE
+
+# Trusted OS implementation version
+CFG_TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
+
+# Trusted OS implementation manufacturer name
+CFG_TEE_MANUFACTURER ?= LINARO
+
+# Trusted firmware version
+CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
+
+# Trusted OS implementation manufacturer name
+CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
+

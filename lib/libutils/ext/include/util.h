@@ -50,4 +50,7 @@
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
 
+#define TO_STR(x) _TO_STR(x)
+#define _TO_STR(x) #x
+
 #endif /*UTIL_H*/

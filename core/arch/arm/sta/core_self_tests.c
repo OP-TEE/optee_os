@@ -32,20 +32,10 @@
 /*
  * Enable expect LOG macro to enable/disable self tests traces.
  *
- * #define LOG     SMSG
+ * #define LOG     DMSG_RAW
  * #define LOG(...)
  */
 #define LOG(...)
-
-#if (CFG_TEE_CORE_EMBED_INTERNAL_TESTS == 0)
-
-TEE_Result core_self_tests(uint32_t nParamTypes __unused,
-			   TEE_Param pParams[TEE_NUM_PARAMS] __unused)
-{
-	return TEE_SUCCESS;
-}
-
-#else
 
 static int self_test_division(void);
 static int self_test_malloc(void);
@@ -260,5 +250,3 @@ static int self_test_malloc(void)
 
 	return ret;
 }
-
-#endif
