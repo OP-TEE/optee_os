@@ -8,7 +8,8 @@
 	1. [Use graphical frontends](#15-use-graphical-frontends)
 		1. [ddd](#151-ddd)
 		2. [GNU Visual Debugger (gvd)](#152-gnu-visual-debugger-gvd)
-2. [Known issues](#2-known-issues)
+2. [Ftrace](#2-ftrace)
+3. [Known issues](#3-known-issues)
 
 In this document we would like to describe how to debug OP-TEE. Depending on the
 platform you are using you will have a couple of different options.
@@ -141,8 +142,161 @@ gvd --debugger $HOME/devel/toolchains/gcc-linaro-arm-none-eabi-4.9-2014.09_linux
 
 Similarly to ddd, just simply run `optee` in the lower gdb command pane in gvd.
 
+# 2. Ftrace
+Ftrace is useful set of tools for debugging both kernel and to some extent user
+space. Ftrace is really useful if you want to learn how some piece of code
+interact with other parts of the system. It's nothing special you have to do to
+make use of ftrace for OP-TEE. But for a reference we list a couple of commands
+and scenarios that could be handy to have ready to be copy/pasted.
 
-# 2. Known issues
+## 2.1 Enable ftrace in menuconfig
+First you will need to enable ftrace in the kernel. Depending on which version
+you are using it might look a bit different compared to what is shown below
+(here we were using `4.1.0-rc4`)
+
+```
+make ARCH=arm menuconfig
+    # Go into "Kernel hacking"
+    General setup  --->
+    ...
+    Kernel hacking  --->
+
+    # Enable and go into Tracers
+    ...
+    [*] Tracers  --->
+
+    # Below is a good set of features (*) to enable
+    --- Tracers
+    -*-   Kernel Function Tracer
+    [*]     Kernel Function Graph Tracer
+    [ ]   Interrupts-off Latency Tracer
+    [ ]   Scheduling Latency Tracer
+    [*]   Trace syscalls
+    [ ]   Create a snapshot trace buffer
+          Branch Profiling (No branch profiling)  --->
+    [*]   Trace max stack
+    [ ]   Support for tracing block IO actions
+    [ ]   Enable uprobes-based dynamic events
+    [*]   enable/disable function tracing dynamically
+    [*]   Kernel function profiler
+    [ ]   Perform a startup test on ftrace
+    [ ]   Add tracepoint that benchmarks tracepoints
+    < >   Ring buffer benchmark stress tester
+    [ ]   Ring buffer startup self test
+    [ ]   Show enum mappings for trace events
+```
+
+Then simply recompile the kernel.
+
+## 2.2 Use cases
+### 2.2.1 Filter OP-TEE functions
+```
+modprobe optee_armtz
+cd /sys/kernel/debug/tracing
+echo ':mod:optee' > set_ftrace_filter
+echo ':mod:optee_armtz' >> set_ftrace_filter
+```
+
+### 2.2.2 Use the function tracer and function profiling
+Using the commands below will enable function profiling for the functions
+currently mentioned in the `set_ftrace_filter`
+
+```
+echo "function" > current_tracer
+echo "1" > function_profile_enabled
+```
+
+If you now run `xtest` for example, then when done you can get profiling data
+by reading the content of the files in `/sys/kernel/debug/tracing/trace_stat`
+
+```
+cat trace_stat/function0
+cat trace_stat/function1
+...
+```
+
+The result will look something like this:
+```
+  Function                               Hit    Time            Avg             s^2
+  --------                               ---    ----            ---             ---
+  call_tee.isra.13                     13499    55772240 us     4131.583 us     1537657 us
+  tee_session_ioctl                    11330    54380860 us     4799.722 us     35403.79 us
+  tee_session_invoke_be                11330    54330744 us     4795.299 us     162939.5 us
+  tz_invoke                            11330    54014297 us     4767.369 us     573472.7 us
+  tee_ioctl                             1139    2893849 us     2540.692 us     2841179 us
+  tee_session_create_fd                 1135    2889859 us     2546.131 us     2615175 us
+  ...
+```
+
+#### 2.2.2.1 Oneliners
+```
+# Print also the core number in the log
+for core in `seq 0 7`; do echo core: $core; cat trace_stat/function$core; done
+```
+
+```
+# The functions that are called mostly:
+cat trace_stat/function0  | sort -nk2 -r | less
+```
+
+```
+# The functions taking most time:
+cat trace_stat/function0  | sort -nk5 -r | less
+```
+
+### 2.2.3 Using the function_graph
+The function_graph will give you the call flow and also tell you the amount of
+time spent in the functions. There are ways to turn of sleep time and not count
+time spent when calling other functions. Let us say that your are interested in
+knowing how much various open, invoke and close and the call_tee command takes,
+then you can do like this:
+
+```
+echo "tz_open" > set_ftrace_filter
+echo "tz_close" >> set_ftrace_filter
+echo "tz_invoke" >> set_ftrace_filter
+echo "call_tee*" >> set_ftrace_filter
+
+# Don't count the time if you are being schduled out
+echo 0 > options/sleep-time
+
+# Enable the function_graph tracer
+echo "function_graph" > current_tracer
+```
+
+Now if you run `xtest` and then done, read the contents of trace, you will see
+something like this:
+```
+# CPU  DURATION                  FUNCTION CALLS
+# |     |   |                     |   |   |   |
+ 2)               |  tz_open [optee_armtz]() {
+ 2) ! 3145.834 us |    call_tee.isra.13 [optee_armtz]();
+ 2) ! 3222.500 us |  }
+ 2)               |  tz_invoke [optee_armtz]() {
+ 2) ! 125.833 us  |    call_tee.isra.13 [optee_armtz]();
+ 2) ! 166.667 us  |  }
+ 2)               |  tz_invoke [optee_armtz]() {
+ 2) ! 135.833 us  |    call_tee.isra.13 [optee_armtz]();
+ 2) ! 170.833 us  |  }
+ 2)               |  tz_invoke [optee_armtz]() {
+ 2) ! 153.334 us  |    call_tee.isra.13 [optee_armtz]();
+ 2) ! 186.667 us  |  }
+...
+```
+
+### 2.2.4 Options
+If you don't want to count the time when being scheduled out, then run:
+```
+echo 0 > options/sleep-time
+```
+
+If you only want to measure the time spent *in* the function, then disable the
+graph-time.
+```
+echo 0 > options/graph-time
+```
+
+# 3. Known issues
 1. Printing the call stack using `bt` makes gdb go into an endless loop.
    Temporary workaround, in gdb, instead of simply writing `bt`, also mention
    how many frames you would like to see, for example `bt 10`.
