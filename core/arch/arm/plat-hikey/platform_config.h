@@ -35,9 +35,6 @@
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for ARM64"
 #endif
-#ifdef CFG_WITH_VFP
-#error "VFP not supported for ARM64"
-#endif
 #endif /* ARM64 */
 
 /* PL011 UART */

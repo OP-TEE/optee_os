@@ -343,23 +343,25 @@ uint32_t thread_mask_exceptions(uint32_t exceptions);
 void thread_unmask_exceptions(uint32_t state);
 
 /*
- * thread_kernel_enable_vfp() - Enables usage of VFP
+ * thread_kernel_enable_vfp() - Temporarily enables usage of VFP
  *
- * Temporarily enables usage of VFP.  IRQ is masked while VFP is enabled.
- * User space must not be entered before thread_kernel_disable_vfp() has
- * been called to disable VFP and restore the IRQ status.
+ * IRQ is masked while VFP is enabled. User space must not be entered before
+ * thread_kernel_disable_vfp() has been called to disable VFP and restore the
+ * IRQ status.
  *
  * This function may only be called from an active thread context and may
  * not be called again before thread_kernel_disable_vfp() has been called.
  *
+ * VFP state is saved as needed.
+ *
  * Returns a state variable that should be passed to
- * thread_kernel_disable_vfp() when disabling VFP again.
+ * thread_kernel_disable_vfp().
  */
 uint32_t thread_kernel_enable_vfp(void);
 
 /*
  * thread_kernel_disable_vfp() - Disables usage of VFP
- * @state:	state variable used to restore IRQ status
+ * @state:	state variable returned by thread_kernel_enable_vfp()
  *
  * Disables usage of VFP and restores IRQ status after a call to
  * thread_kernel_enable_vfp().
