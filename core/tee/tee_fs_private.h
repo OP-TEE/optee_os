@@ -44,20 +44,40 @@
 #define TEE_FS_RMDIR     13
 #define TEE_FS_ACCESS    14
 
+struct tee_fs_fd {
+	int fd;
+	int nw_fd;		/* normal world fd */
+	uint32_t flags;
+	bool is_new_file;
+	char *filename;
+	void *private;
+};
+#define tee_fs_fd_priv(fdp) ((fdp)->private)
+
 struct tee_fs_dir {
 	int nw_dir;
 	struct tee_fs_dirent d;
 };
 
-int tee_fs_common_close(int fd);
+struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 
-tee_fs_off_t tee_fs_common_lseek(int fd, tee_fs_off_t offset, int whence);
+void tee_fs_fail_recovery(struct tee_fs_fd *fdp);
 
-int tee_fs_common_ftruncate(int fd, tee_fs_off_t length);
+int tee_fs_common_open(const char *file, int flags, ...);
 
-int tee_fs_common_read(int fd, void *buf, size_t len);
+int tee_fs_common_close(struct tee_fs_fd *fdp);
 
-int tee_fs_common_write(int fd, const void *buf, size_t len);
+tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
+		tee_fs_off_t offset, int whence);
+
+int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
+		tee_fs_off_t length);
+
+int tee_fs_common_read(struct tee_fs_fd *fdp,
+		void *buf, size_t len);
+
+int tee_fs_common_write(struct tee_fs_fd *fdp,
+		const void *buf, size_t len);
 
 int tee_fs_common_rename(const char *old, const char *new);
 

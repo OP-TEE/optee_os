@@ -30,34 +30,152 @@
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/handle.h>
 #include <trace.h>
 
 #include "tee_fs_private.h"
 
-int tee_fs_common_close(int fd)
+static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
+
+static void do_fail_recovery(struct tee_fs_fd *fdp)
+{
+	/* Try to delete the file for new created file */
+	if (fdp->is_new_file) {
+		tee_fs_common_unlink(fdp->filename);
+		EMSG("New created file was deleted, file=%s",
+				fdp->filename);
+		return;
+	}
+
+	/* TODO: Roll back to previous version for existed file */
+}
+
+struct tee_fs_fd *tee_fs_fd_lookup(int fd)
+{
+	return handle_lookup(&fs_handle_db, fd);
+}
+
+void tee_fs_fail_recovery(struct tee_fs_fd *fdp)
+{
+	int res;
+
+	res = tee_fs_common_close(fdp);
+	if (!res)
+		do_fail_recovery(fdp);
+}
+
+int tee_fs_common_open(const char *file, int flags, ...)
+{
+	int res = -1;
+	size_t len;
+	bool is_new_file = false;
+	struct tee_fs_fd *fdp = NULL;
+	struct tee_fs_rpc head = { 0 };
+
+	len = strlen(file) + 1;
+	if (len > TEE_FS_NAME_MAX)
+		goto exit;
+
+	/* fill in parameters */
+	head.op = TEE_FS_OPEN;
+	head.flags = flags & ~TEE_FS_O_CREATE;
+	head.fd = 0;
+
+	/*
+	 * try to open file without O_CREATE flag, if failed try again with
+	 * O_CREATE flag (to distinguish whether it's a new file or not)
+	 */
+	res = tee_fs_send_cmd(&head, (void *)file, len, TEE_FS_MODE_IN);
+	if (!res)
+		res = head.res;
+	if (res < 0) {
+		if (!(flags & TEE_FS_O_CREATE))
+			goto exit;
+
+		head.flags |= TEE_FS_O_CREATE;
+		res = tee_fs_send_cmd(&head, (void *)file, len, TEE_FS_MODE_IN);
+		if (!res)
+			res = head.res;
+		if (res < 0)
+			goto exit;
+		is_new_file = true;
+	}
+
+	res = head.res;
+
+	if (res == -1)
+		goto exit;
+
+	fdp = (struct tee_fs_fd *)malloc(sizeof(struct tee_fs_fd));
+	if (!fdp)
+		goto exit;
+
+	/* init internal status */
+	fdp->nw_fd = head.fd;
+	fdp->flags = flags;
+	fdp->is_new_file = is_new_file;
+	fdp->private = NULL;
+	fdp->filename = malloc(len);
+	if (!fdp->filename) {
+		res = -1;
+		goto exit;
+	}
+	memcpy(fdp->filename, file, len);
+
+	/* return fd */
+	res = handle_get(&fs_handle_db, fdp);
+	fdp->fd = res;
+
+exit:
+	if (res == -1)
+		free(fdp);
+
+	return res;
+}
+
+int tee_fs_common_close(struct tee_fs_fd *fdp)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 
+	if (!fdp)
+		return -1;
+
+	handle_put(&fs_handle_db, fdp->fd);
+
 	/* fill in parameters */
 	head.op = TEE_FS_CLOSE;
-	head.fd = fd;
+	head.fd = fdp->nw_fd;
 
 	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
 	if (!res)
 		res = head.res;
 
+	if (res < 0) {
+		EMSG("Failed to close file, start fail recovery");
+		do_fail_recovery(fdp);
+	}
+
+	if (fdp->private)
+		free(fdp->private);
+	free(fdp->filename);
+	free(fdp);
+
 	return res;
 }
 
-tee_fs_off_t tee_fs_common_lseek(int fd, tee_fs_off_t offset, int whence)
+tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
+				tee_fs_off_t offset, int whence)
 {
 	tee_fs_off_t res = -1;
 	struct tee_fs_rpc head = { 0 };
 
+	if (!fdp)
+		return -1;
+
 	/* fill in parameters */
 	head.op = TEE_FS_SEEK;
-	head.fd = fd;
+	head.fd = fdp->nw_fd;
 	head.arg = offset;
 	head.flags = whence;
 
@@ -68,13 +186,16 @@ tee_fs_off_t tee_fs_common_lseek(int fd, tee_fs_off_t offset, int whence)
 	return res;
 }
 
-int tee_fs_common_ftruncate(int fd, tee_fs_off_t length)
+int tee_fs_common_ftruncate(struct tee_fs_fd *fdp, tee_fs_off_t length)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 
+	if (!fdp)
+		return -1;
+
 	head.op = TEE_FS_TRUNC;
-	head.fd = fd;
+	head.fd = fdp->nw_fd;
 	head.arg = length;
 
 	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
@@ -84,12 +205,15 @@ int tee_fs_common_ftruncate(int fd, tee_fs_off_t length)
 	return res;
 }
 
-int tee_fs_common_read(int fd, void *buf, size_t len)
+int tee_fs_common_read(struct tee_fs_fd *fdp, void *buf, size_t len)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 
-	if (len == 0) {
+	if (!fdp)
+		return -1;
+
+	if (!len) {
 		res = 0;
 		goto exit;
 	}
@@ -99,7 +223,7 @@ int tee_fs_common_read(int fd, void *buf, size_t len)
 
 	/* fill in parameters */
 	head.op = TEE_FS_READ;
-	head.fd = fd;
+	head.fd = fdp->nw_fd;
 	head.len = (uint32_t) len;
 
 	res = tee_fs_send_cmd(&head, (void *)buf, len, TEE_FS_MODE_OUT);
@@ -109,12 +233,16 @@ exit:
 	return res;
 }
 
-int tee_fs_common_write(int fd, const void *buf, size_t len)
+int tee_fs_common_write(struct tee_fs_fd *fdp,
+			const void *buf, size_t len)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 
-	if (len == 0) {
+	if (!fdp)
+		return -1;
+
+	if (!len) {
 		res = 0;
 		goto exit;
 	}
@@ -124,7 +252,7 @@ int tee_fs_common_write(int fd, const void *buf, size_t len)
 
 	/* fill in parameters */
 	head.op = TEE_FS_WRITE;
-	head.fd = fd;
+	head.fd = fdp->nw_fd;
 	head.len = len;
 
 	res = tee_fs_send_cmd(&head, (void *)buf, len, TEE_FS_MODE_IN);

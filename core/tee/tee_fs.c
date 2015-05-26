@@ -39,115 +39,43 @@
 
 #include "tee_fs_private.h"
 
-struct tee_fs_fd {
-	int nw_fd;		/* normal world fd */
-	uint32_t flags;
-	uint32_t fp;		/* file pointer offset */
-	uint32_t len;
-};
-
-static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
-
-static int tee_fs_open(const char *file, int flags, ...)
-{
-	int res = -1;
-	size_t len;
-	struct tee_fs_fd *fd = NULL;
-	struct tee_fs_rpc head = { 0 };
-
-	len = strlen(file) + 1;
-	if (len > TEE_FS_NAME_MAX)
-		goto exit;
-
-	/* fill in parameters */
-	head.op = TEE_FS_OPEN;
-	head.flags = flags;
-	head.fd = 0;
-
-	res = tee_fs_send_cmd(&head, (void *)file, len, TEE_FS_MODE_IN);
-	if (res)
-		goto exit;
-
-	res = head.res;
-
-	if (res == -1)
-		goto exit;
-
-	fd = (struct tee_fs_fd *)malloc(sizeof(struct tee_fs_fd));
-	if (fd == NULL)
-		goto exit;
-
-	/* init internal status */
-	fd->nw_fd = head.fd;
-	fd->flags = flags;
-
-	/* return fd */
-	res = handle_get(&fs_handle_db, fd);
-
-exit:
-	if (res == -1)
-		free(fd);
-
-	return res;
-}
-
 static int tee_fs_close(int fd)
 {
-	int res = -1;
-	struct tee_fs_fd *fdp = handle_put(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	if (fdp == NULL)
-		return -1;
-
-	res = tee_fs_common_close(fdp->nw_fd);
-
-	free(fdp);
-
-	return res;
+	return tee_fs_common_close(fdp);
 }
 
 static int tee_fs_read(int fd, void *buf, size_t len)
 {
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	if (!fdp)
-		return -1;
-
-	return tee_fs_common_read(fdp->nw_fd, buf, len);
+	return tee_fs_common_read(fdp, buf, len);
 }
 
 static int tee_fs_write(int fd, const void *buf, size_t len)
 {
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	if (!fdp)
-		return -1;
-
-	return tee_fs_common_write(fdp->nw_fd, buf, len);
+	return tee_fs_common_write(fdp, buf, len);
 }
 
 static tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence)
 {
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	if (!fdp)
-		return -1;
-
-	return tee_fs_common_lseek(fdp->nw_fd, offset, whence);
+	return tee_fs_common_lseek(fdp, offset, whence);
 }
 
 static int tee_fs_ftruncate(int fd, tee_fs_off_t length)
 {
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	if (!fdp)
-		return -1;
-
-	return tee_fs_common_ftruncate(fdp->nw_fd, length);
+	return tee_fs_common_ftruncate(fdp, length);
 }
 
 struct tee_file_operations tee_file_ops = {
-	.open = tee_fs_open,
+	.open = tee_fs_common_open,
 	.close = tee_fs_close,
 	.read = tee_fs_read,
 	.write = tee_fs_write,
