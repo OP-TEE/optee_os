@@ -45,42 +45,17 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 void tee_time_wait(uint32_t milliseconds_delay)
 {
 	struct tee_ta_session *sess = NULL;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	const size_t num_params = 1;
-	paddr_t pharg = 0;
+	struct teesmc32_param params;
 
 	tee_ta_get_current_session(&sess);
 	if (sess)
 		tee_ta_set_current_session(NULL);
 
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
+	memset(&params, 0, sizeof(params));
+	params.attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
+	params.u.value.a = milliseconds_delay;
+	thread_rpc_cmd(TEE_RPC_WAIT, 1, &params);
 
-	/*
-	 * If allocation fails, spin on the mutex, maybe there's another
-	 * thread that will release the mutex. The only other option is to
-	 * panic.
-	 */
-
-	if (!pharg)
-		goto exit;
-
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg))
-		goto exit;
-
-	if (core_pa2va(pharg, &arg))
-		goto exit;
-
-	arg->cmd = TEE_RPC_WAIT;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = num_params;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
-	params[0].u.value.a = milliseconds_delay;
-
-	thread_rpc_cmd(pharg);
-exit:
-	thread_rpc_free_arg(pharg);
 	if (sess)
 		tee_ta_set_current_session(sess);
 }
@@ -95,9 +70,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
 	struct tee_ta_session *sess = NULL;
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	paddr_t pharg = 0;
+	struct teesmc32_param params;
 	paddr_t phpayload = 0;
 	paddr_t cookie = 0;
 	TEE_Time *payload;
@@ -108,40 +81,31 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 	if (!time)
 		goto exit;
 
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(1));
-	if (!pharg)
-		goto exit;
 	thread_optee_rpc_alloc_payload(sizeof(TEE_Time), &phpayload, &cookie);
 	if (!phpayload)
 		goto exit;
 
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg) ||
-	    !TEE_ALIGNMENT_IS_OK(phpayload, TEE_Time))
+	if (!TEE_ALIGNMENT_IS_OK(phpayload, TEE_Time))
 		goto exit;
 
-	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &payload))
+	if (core_pa2va(phpayload, &payload))
 		goto exit;
 
-	arg->cmd = TEE_RPC_GET_TIME;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = 1;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_OUTPUT |
+	memset(&params, 0, sizeof(params));
+	params.attr = TEESMC_ATTR_TYPE_MEMREF_OUTPUT |
 			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
 			  TEESMC_ATTR_CACHE_O_WRITE_THR) <<
 				TEESMC_ATTR_CACHE_SHIFT;
-	params[0].u.memref.buf_ptr = phpayload;
-	params[0].u.memref.size = sizeof(TEE_Time);
+	params.u.memref.buf_ptr = phpayload;
+	params.u.memref.size = sizeof(TEE_Time);
 
-	thread_rpc_cmd(pharg);
-	res = arg->ret;
+	res = thread_rpc_cmd(TEE_RPC_GET_TIME, 1, &params);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	*time = *payload;
 
 exit:
-	thread_rpc_free_arg(pharg);
 	thread_optee_rpc_free_payload(cookie);
 	tee_ta_set_current_session(sess);
 	return res;

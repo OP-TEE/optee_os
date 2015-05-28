@@ -71,6 +71,8 @@
 #endif
 #endif /*ARM64*/
 
+#define RPC_MAX_PARAMS		2
+
 struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
@@ -551,6 +553,31 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_resume_from_rpc(args);
 	else
 		thread_alloc_and_run(args);
+}
+
+/* Helper routine for the assembly function thread_std_smc_entry() */
+void __thread_std_smc_entry(struct thread_smc_args *args)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	if (!thr->rpc_arg) {
+		paddr_t parg;
+		void *arg;
+
+		parg = thread_rpc_alloc_arg(
+				TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
+		if (!parg || !TEE_ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
+		     core_pa2va(parg, &arg)) {
+			thread_rpc_free_arg(parg);
+			args->a0 = TEESMC_RETURN_ENOMEM;
+			return;
+		}
+
+		thr->rpc_arg = arg;
+		thr->rpc_parg = parg;
+	}
+
+	thread_std_smc_handler_ptr(args);
 }
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
@@ -1048,12 +1075,45 @@ void thread_rpc_free_payload(paddr_t payload)
 	}
 }
 
-void thread_rpc_cmd(paddr_t arg)
+uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+		struct teesmc32_param *params)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {TEESMC_RETURN_RPC_CMD, arg};
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { 0 };
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct teesmc32_arg *arg = thr->rpc_arg;
+	paddr_t parg = thr->rpc_parg;
+	const size_t params_size = sizeof(struct teesmc32_param) * num_params;
+	size_t n;
 
+	TEE_ASSERT(arg && parg && num_params <= RPC_MAX_PARAMS);
+
+	memset(arg, 0, TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
+	arg->cmd = cmd;
+	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
+	arg->num_params = num_params;
+	memcpy(TEESMC32_GET_PARAMS(arg), params, params_size);
+
+	rpc_args[0] = TEESMC_RETURN_RPC_CMD;
+	rpc_args[1] = parg;
 	thread_rpc(rpc_args);
+
+	for (n = 0; n < num_params; n++) {
+		switch (params[n].attr & TEESMC_ATTR_TYPE_MASK) {
+		case TEESMC_ATTR_TYPE_VALUE_OUTPUT:
+		case TEESMC_ATTR_TYPE_VALUE_INOUT:
+		case TEESMC_ATTR_TYPE_MEMREF_OUTPUT:
+		case TEESMC_ATTR_TYPE_MEMREF_INOUT:
+			memcpy(params + n, TEESMC32_GET_PARAMS(arg) + n,
+			       sizeof(struct teesmc32_param));
+			break;
+		default:
+			break;
+		}
+	}
+
+	return arg->ret;
 }
+
 
 void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
 		paddr_t *cookie)

@@ -116,45 +116,20 @@ void mutex_init(struct mutex *m)
 static void mutex_wait_cmd(uint32_t cmd, int handle, uint32_t tick)
 {
 	struct tee_ta_session *sess = NULL;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	const size_t num_params = 2;
-	paddr_t pharg = 0;
+	struct teesmc32_param params[2];
 
 	tee_ta_get_current_session(&sess);
 	if (sess)
 		tee_ta_set_current_session(NULL);
 
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
-
-	/*
-	 * If allocation fails, spin on the mutex, maybe there's another
-	 * thread that will release the mutex. The only other option is to
-	 * panic.
-	 */
-
-	if (!pharg)
-		goto exit;
-
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg))
-		goto exit;
-
-	if (core_pa2va(pharg, &arg))
-		goto exit;
-
-	arg->cmd = TEE_RPC_WAIT_MUTEX;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = num_params;
-	params = TEESMC32_GET_PARAMS(arg);
+	memset(params, 0, sizeof(params));
 	params[0].attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
 	params[1].attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
 	params[0].u.value.a = cmd;
 	params[1].u.value.a = handle;
 	params[1].u.value.b = tick;
+	thread_rpc_cmd(TEE_RPC_WAIT_MUTEX, 2, params);
 
-	thread_rpc_cmd(pharg);
-exit:
-	thread_rpc_free_arg(pharg);
 	if (sess)
 		tee_ta_set_current_session(sess);
 }

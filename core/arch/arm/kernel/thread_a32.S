@@ -249,9 +249,7 @@ FUNC thread_std_smc_entry , :
 	/* Pass r0-r7 in a struct thread_smc_args */
 	push	{r0-r7}
 	mov	r0, sp
-	ldr	lr, =thread_std_smc_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	__thread_std_smc_entry
 	/*
 	 * Load the returned r0-r3 into preserved registers and skip the
 	 * "returned" r4-r7 since they will not be returned to normal

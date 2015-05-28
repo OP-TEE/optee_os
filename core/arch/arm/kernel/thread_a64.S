@@ -183,9 +183,7 @@ FUNC thread_std_smc_entry , :
 	mov	x0, sp
 
 	/* Call the registered handler */
-	adr	x16, thread_std_smc_handler_ptr
-	ldr	x16, [x16]
-	blr	x16
+	bl	__thread_std_smc_entry
 
 	/*
 	 * Load the returned x0-x3 into preserved registers and skip the

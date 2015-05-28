@@ -31,6 +31,7 @@
 #ifndef ASM
 #include <types_ext.h>
 #include <compiler.h>
+#include <sm/teesmc.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -462,11 +463,14 @@ void thread_rpc_free_arg(paddr_t arg);
 void thread_rpc_free_payload(paddr_t payload);
 
 /**
- * Does an RPC with a physical pointer to a struct teesmc32_arg
- *
- * @arg: physical pointer to struct teesmc32_arg
+ * Does an RPC using a preallocated argument buffer
+ * @cmd: RPC cmd
+ * @num_params: number of parameters (max 2)
+ * @params: RPC parameters
+ * @returns RPC return value
  */
-void thread_rpc_cmd(paddr_t arg);
+uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+		struct teesmc32_param *params);
 
 /**
  * Extension: Allocates data for payload buffers.
