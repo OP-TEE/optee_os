@@ -41,11 +41,9 @@
 int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode)
 {
+	TEE_Result ret;
 	struct tee_ta_session *sess = NULL;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	const size_t num_params = 1;
-	paddr_t pharg = 0;
+	struct teesmc32_param params;
 	paddr_t phpayload = 0;
 	paddr_t cookie = 0;
 	struct tee_fs_rpc *bf;
@@ -54,30 +52,25 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	tee_ta_get_current_session(&sess);
 	tee_ta_set_current_session(NULL);
 
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(num_params));
 	thread_optee_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
 					        &phpayload, &cookie);
-	if (!pharg || !phpayload)
+	if (!phpayload)
 		goto exit;
 
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg) ||
-	    !TEE_ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
+	if (!TEE_ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
 		goto exit;
 
-	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &bf))
+	if (core_pa2va(phpayload, &bf))
 		goto exit;
 
-	arg->cmd = TEE_RPC_FS;
-	arg->ret = TEE_ERROR_GENERIC;
-	arg->num_params = num_params;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
-			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
-			  TEESMC_ATTR_CACHE_O_WRITE_THR) <<
+	memset(&params, 0, sizeof(params));
+	params.attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
+			(TEESMC_ATTR_CACHE_I_WRITE_THR |
+			 TEESMC_ATTR_CACHE_O_WRITE_THR) <<
 				TEESMC_ATTR_CACHE_SHIFT;
 
-	params[0].u.memref.buf_ptr = phpayload;
-	params[0].u.memref.size = sizeof(struct tee_fs_rpc) + len;
+	params.u.memref.buf_ptr = phpayload;
+	params.u.memref.size = sizeof(struct tee_fs_rpc) + len;
 
 	/* fill in parameters */
 	*bf = *bf_cmd;
@@ -88,10 +81,10 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		tee_ta_set_current_session(NULL);
 	}
 
-	thread_rpc_cmd(pharg);
+	ret = thread_rpc_cmd(TEE_RPC_FS, 1, &params);
 	/* update result */
 	*bf_cmd = *bf;
-	if (arg->ret != TEE_SUCCESS)
+	if (ret != TEE_SUCCESS)
 		goto exit;
 
 	if (mode & TEE_FS_MODE_OUT) {
@@ -105,7 +98,6 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	res = 0;
 
 exit:
-	thread_rpc_free_arg(pharg);
 	thread_optee_rpc_free_payload(cookie);
 	tee_ta_set_current_session(sess);
 	return res;

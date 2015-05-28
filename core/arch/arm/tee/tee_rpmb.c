@@ -305,8 +305,6 @@ func_exit:
 }
 
 struct tee_rpmb_mem {
-	struct teesmc32_arg *arg;
-	paddr_t pharg;
 	paddr_t phpayload;
 	paddr_t phreq;
 	paddr_t phresp;
@@ -319,9 +317,7 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 	if (!mem)
 		return;
 
-	thread_rpc_free_arg(mem->pharg);
 	thread_rpc_free_payload(mem->phpayload);
-	mem->pharg = 0;
 	mem->phpayload = 0;
 }
 
@@ -336,12 +332,10 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	if (!mem)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	mem->pharg = 0;
 	mem->phpayload = 0;
 
-	mem->pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(2));
 	mem->phpayload = thread_rpc_alloc_payload(req_s + resp_s);
-	if (!mem->pharg || !mem->phpayload) {
+	if (!mem->phpayload) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
@@ -349,8 +343,7 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	mem->phreq = mem->phpayload;
 	mem->phresp = mem->phpayload + req_s;
 
-	if (core_pa2va(mem->pharg, &mem->arg) || core_pa2va(mem->phreq, req) ||
-	    core_pa2va(mem->phresp, resp)) {
+	if (core_pa2va(mem->phreq, req) || core_pa2va(mem->phresp, resp)) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -366,16 +359,9 @@ out:
 
 static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 {
-	struct teesmc32_param *params;
+	struct teesmc32_param params[2];
 
-	memset(mem->arg, 0, TEESMC32_GET_ARG_SIZE(2));
-
-	mem->arg->cmd = TEE_RPC_RPMB_CMD;
-	/* In case normal world doesn't update anything */
-	mem->arg->ret = TEE_ERROR_GENERIC;
-
-	mem->arg->num_params = 2;
-	params = TEESMC32_GET_PARAMS(mem->arg);
+	memset(params, 0, sizeof(params));
 	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INPUT |
 			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
 				TEESMC_ATTR_CACHE_O_WRITE_THR) <<
@@ -390,8 +376,7 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	params[1].u.memref.buf_ptr = mem->phresp;
 	params[1].u.memref.size = mem->resp_size;
 
-	thread_rpc_cmd(mem->pharg);
-	return mem->arg->ret;
+	return thread_rpc_cmd(TEE_RPC_RPMB_CMD, 2, params);
 }
 
 

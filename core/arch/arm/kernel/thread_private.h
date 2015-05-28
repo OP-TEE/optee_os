@@ -93,6 +93,8 @@ struct thread_ctx {
 #ifdef ARM64
 	vaddr_t kern_sp;	/* Saved kernel SP during user TA execution */
 #endif
+	void *rpc_arg;
+	paddr_t rpc_parg;
 };
 
 #ifdef ARM64
@@ -120,7 +122,8 @@ struct thread_core_local {
 #ifdef ARM64
 #define THREAD_CTX_KERN_SP_OFFSET			\
 		(THREAD_CTX_REGS_SIZE + (4 + 2 + 1) * 8)
-#define THREAD_CTX_SIZE				(THREAD_CTX_KERN_SP_OFFSET + 8)
+#define THREAD_CTX_SIZE					\
+		(THREAD_CTX_KERN_SP_OFFSET + 3 * 8)
 
 #define THREAD_CTX_REGS_SP_OFFSET			(8 * 0)
 #define THREAD_CTX_REGS_PC_OFFSET			(8 * 1)
@@ -224,6 +227,8 @@ void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
 /* Checks stack canaries */
 void thread_check_canaries(void);
+
+void __thread_std_smc_entry(struct thread_smc_args *args);
 
 #endif /*ASM*/
 

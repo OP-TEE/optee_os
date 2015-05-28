@@ -873,9 +873,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 			uint32_t *ret_orig)
 {
 	TEE_Result res;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	paddr_t pharg = 0;
+	struct teesmc32_param params[2];
 	paddr_t phpayload = 0;
 	paddr_t cookie = 0;
 	struct tee_rpc_load_ta_cmd *cmd_load_ta;
@@ -885,33 +883,27 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* get a rpc buffer */
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(2));
 	thread_optee_rpc_alloc_payload(sizeof(struct tee_rpc_load_ta_cmd),
 				   &phpayload, &cookie);
-	if (!pharg || !phpayload) {
+	if (!phpayload) {
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg) ||
-	    !TEE_ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
+	if (!TEE_ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
-	if (core_pa2va(pharg, &arg) || core_pa2va(phpayload, &cmd_load_ta)) {
+	if (core_pa2va(phpayload, &cmd_load_ta)) {
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
-	arg->cmd = TEE_RPC_LOAD_TA;
-	arg->num_params = 2;
-	/* Set a suitable error code in case our resquest is ignored. */
-	arg->ret = TEE_ERROR_NOT_IMPLEMENTED;
-	params = TEESMC32_GET_PARAMS(arg);
+	memset(params, 0, sizeof(params));
 	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INOUT |
 			 TEESMC_ATTR_CACHE_DEFAULT << TEESMC_ATTR_CACHE_SHIFT;
 	params[1].attr = TEESMC_ATTR_TYPE_MEMREF_OUTPUT |
@@ -925,9 +917,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 	memset(cmd_load_ta, 0, sizeof(struct tee_rpc_load_ta_cmd));
 	memcpy(&cmd_load_ta->uuid, uuid, sizeof(TEE_UUID));
 
-	thread_rpc_cmd(pharg);
-	res = arg->ret;
-
+	res = thread_rpc_cmd(TEE_RPC_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS) {
 		*ret_orig = TEE_ORIGIN_COMMS;
 		goto out;
@@ -943,48 +933,18 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 	*handle = lhandle;
 
 out:
-	thread_rpc_free_arg(pharg);
 	thread_optee_rpc_free_payload(cookie);
 	return res;
 }
 
 static TEE_Result tee_ta_rpc_free(uint32_t handle)
 {
-	TEE_Result res;
-	struct teesmc32_arg *arg;
-	struct teesmc32_param *params;
-	paddr_t pharg = 0;
+	struct teesmc32_param params;
 
-	/* get a rpc buffer */
-	pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(1));
-	if (!pharg) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	if (!TEE_ALIGNMENT_IS_OK(pharg, struct teesmc32_arg)) {
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
-	if (core_pa2va(pharg, &arg)) {
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
-	arg->cmd = TEE_RPC_FREE_TA;
-	arg->num_params = 1;
-	/* Set a suitable error code in case our resquest is ignored. */
-	arg->ret = TEE_ERROR_NOT_IMPLEMENTED;
-	params = TEESMC32_GET_PARAMS(arg);
-	params[0].attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
-	params[0].u.value.a = handle;
-
-	thread_rpc_cmd(pharg);
-	res = arg->ret;
-out:
-	thread_rpc_free_arg(pharg);
-	return res;
+	memset(&params, 0, sizeof(params));
+	params.attr = TEESMC_ATTR_TYPE_VALUE_INPUT;
+	params.u.value.a = handle;
+	return thread_rpc_cmd(TEE_RPC_FREE_TA, 1, &params);
 }
 
 static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
