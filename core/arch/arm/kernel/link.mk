@@ -32,6 +32,7 @@ entries-unpaged += core_init_mmu_regs
 entries-unpaged += generic_boot_cpu_on_handler
 entries-unpaged += generic_boot_init_secondary
 entries-unpaged += stack_tmp_top
+entries-unpaged += sem_cpu_sync
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
 ldargs-unpaged := -i --gc-sections \
@@ -112,7 +113,7 @@ define gen-version-o
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \
-		| $(CCcore) $(core-platform-cflags) \
+		| $(CCcore) $(core-platform-cflags) $(platform-cflags) \
 			-xc - -c -o $(link-out-dir)/version.o
 endef
 $(link-out-dir)/version.o:

@@ -35,11 +35,11 @@
 #include <arm32_macros.S>
 
 .global arm_secboot_identify_cpu
-.global arm_secboot_early
+.global plat_cpu_reset_early
 .global arm_secboot_errata
 .global arm_cl2_config
 .global arm_cl2_enable
-.global arm_secboot_late
+.global plat_cpu_reset_late
 
 #define CPUID_A9_R2P2_H 0x412f
 #define CPUID_A9_R2P2_L 0xc092
@@ -241,8 +241,8 @@ arm_cl2_enable:
  * LR store return address.
  * Trap CPU in case of error.
  */
-.func arm_secboot_early
-arm_secboot_early:
+.func plat_cpu_reset_early
+plat_cpu_reset_early:
 
 	/* only r3p0 is supported */
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
@@ -353,8 +353,8 @@ _errata_a9_r3p0:
  *
  * TODO: size optim in code
  */
-.func arm_secboot_late
-arm_secboot_late:
+.func plat_cpu_reset_late
+plat_cpu_reset_late:
 
 	mrc p15, 0, r0, c0, c0, 5
 	ands r0, #3

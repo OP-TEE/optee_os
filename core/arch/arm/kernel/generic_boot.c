@@ -52,6 +52,15 @@
 
 #define PADDR_INVALID		0xffffffff
 
+#ifdef CFG_BOOT_SYNC_CPU
+/*
+ * Array used when booting, to synchronize cpu.
+ * When 0, the cpu has not started.
+ * When 1, it has started
+ */
+uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __data;
+#endif
+
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)
 {
