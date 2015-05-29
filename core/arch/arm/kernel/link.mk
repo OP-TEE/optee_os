@@ -105,6 +105,9 @@ define update-buildcount
 		expr 0`cat $(1)` + 1 >$(1); \
 	fi
 endef
+
+version-o-cflags = $(filter-out -g3,$(core-platform-cflags) \
+			$(platform-cflags)) # Workaround objdump warning
 DATE_STR = `date -u`
 BUILD_COUNT_STR = `cat $(link-out-dir)/.buildcount`
 define gen-version-o
@@ -115,7 +118,7 @@ define gen-version-o
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \
-		| $(CCcore) $(core-platform-cflags) $(platform-cflags) \
+		| $(CCcore) $(version-o-cflags) \
 			-xc - -c -o $(link-out-dir)/version.o
 endef
 $(link-out-dir)/version.o:
