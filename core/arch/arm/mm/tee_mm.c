@@ -39,8 +39,10 @@ bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
 	if (pool == NULL)
 		return false;
 
-	pool->lo = ROUNDUP(lo, 1 << shift);
-	pool->hi = ROUNDDOWN(hi, 1 << shift);
+	lo = ROUNDUP(lo, 1 << shift);
+	hi = ROUNDDOWN(hi, 1 << shift);
+	pool->lo = lo;
+	pool->hi = hi;
 	pool->shift = shift;
 	pool->flags = flags;
 	pool->entry = calloc(1, sizeof(tee_mm_entry_t));
