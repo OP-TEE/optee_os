@@ -60,12 +60,14 @@ objs-init-rem += core/arch/arm/tee/init.o
 objs-init-rem += core/arch/arm/tee/entry.o
 entries-init += _start
 objs-init := \
-	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs))
+	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
+		$(link-out-dir)/version.o)
 ldargs-init := -i --gc-sections \
 	$(addprefix -u, $(entries-init)) \
 	$(objs-init) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
 $(link-out-dir)/init.o: $(objs-init) $(libdeps) $(MAKEFILE_LIST)
+	$(call gen-version-o)
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-init) -o $@
 
@@ -124,7 +126,6 @@ cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
 cleanfiles += $(link-out-dir)/version.o
 cleanfiles += $(link-out-dir)/.buildcount
 $(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
-	$(call gen-version-o)
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
