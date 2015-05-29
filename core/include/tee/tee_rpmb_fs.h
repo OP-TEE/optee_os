@@ -113,7 +113,7 @@ tee_fs_off_t tee_rpmb_fs_lseek(int fd, tee_fs_off_t offset, int whence);
  *
  * Returns a pointer to tee_fs_dir or NULL on failure.
  */
-tee_fs_dir* tee_rpmb_fs_opendir(const char *path);
+tee_fs_dir *tee_rpmb_fs_opendir(const char *path);
 
 /**
  * tee_rpmb_fs_readdir: Cycles through the directory contents opened
