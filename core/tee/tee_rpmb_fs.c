@@ -30,7 +30,9 @@
 #include <tee/tee_rpmb_fs.h>
 #include <tee/tee_rpmb.h>
 #include <tee/tee_fs_defs.h>
+#include <tee/tee_fs.h>
 #include <mm/tee_mm.h>
+#include <trace.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -91,6 +93,27 @@ struct rpmb_fs_partition {
 	/* Do not use reserved[] for other purpose than partition data. */
 	uint8_t reserved[112];
 };
+
+/**
+ * A node in a list of directory entries. entry->name is a
+ * pointer to name here.
+ */
+typedef struct tee_rpmb_fs_dirent {
+	struct tee_rpmb_fs_dirent *next;
+	struct tee_fs_dirent entry;
+	char name[TEE_RPMB_FS_FILENAME_LENGTH];
+}tee_rpmb_fs_dirent_t;
+
+/**
+ * The RPMB directory representation. It contains a list of
+ * RPMB directory entries pointed to by the next pointer.
+ * The current pointer points to the last returned directory entry.
+ */
+struct tee_fs_dir {
+	tee_rpmb_fs_dirent_t *current;
+	tee_rpmb_fs_dirent_t *next;
+};
+
 
 static struct rpmb_fs_parameters *fs_par;
 
@@ -441,6 +464,11 @@ int tee_rpmb_fs_open(const char *file, int flags, ...)
 		goto out;
 	}
 
+	if (file[filelen - 1] == '/') {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	fh = alloc_file_handle(file);
 	if (fh == NULL) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -640,6 +668,19 @@ out:
 	return -1;
 }
 
+tee_fs_off_t tee_rpmb_fs_lseek(int fd, tee_fs_off_t offset, int whence)
+{
+	/* 
+	 * Currently, RPMB only returns success for seek to 0 since the
+	 * entire file must be read at once.
+	 */
+	if(whence != TEE_FS_SEEK_SET || offset != 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
 TEE_Result tee_rpmb_fs_rm(const char *filename)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -729,6 +770,313 @@ out:
 	return res;
 }
 
+int tee_rpmb_fs_mkdir(const char *path, tee_fs_mode_t mode)
+{
+	(void)path;
+	(void)mode;
+
+	/* mkdir is not supported in RPMB and should not be called*/
+	TEE_ASSERT(0);
+	
+	return -1;
+}
+
+int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
+{
+	struct rpmb_file_handle *fh;
+	
+	TEE_Result res = TEE_ERROR_GENERIC;
+	
+	if (length != 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	fh = handle_lookup(&fs_handle_db, fd);
+	if (fh == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* Need to update the contents because the file could have already been
+	 * written to by someone else */
+	 
+	res = read_fat(fh, NULL);
+	if (res != TEE_SUCCESS) {
+		goto out;
+	}
+	
+	/* Clear the size and the address */
+	fh->fat_entry.data_size = 0;
+	fh->fat_entry.start_address = 0;
+	res = write_fat_entry(fh, false);
+
+out:
+	if (res == TEE_SUCCESS) {
+		return 0;
+	}
+	
+	return -1;
+}
+
+static void tee_rpmb_fs_dir_free(tee_fs_dir *dir)
+{
+	tee_rpmb_fs_dirent_t *current;
+	tee_rpmb_fs_dirent_t *next;
+	
+	if (dir == NULL) {
+		return;
+	}
+	
+	if (dir->current) {
+		free(dir->current);
+	}
+
+	for (current = dir->next; current != NULL; current = next) {
+		next = current->next;
+		free(current);
+	}
+
+	return;
+}
+
+static TEE_Result tee_rpmb_fs_dir_populate(const char *path, tee_fs_dir *dir)
+{
+	tee_rpmb_fs_dirent_t *current = NULL;
+	struct rpmb_fat_entry *fat_entries = NULL;
+	uint32_t fat_address;
+	char *filename;
+	int i;
+	bool last_entry_found = false;
+	tee_rpmb_fs_dirent_t *next = NULL;
+	uint32_t pathlen;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t size;
+	
+	res = rpmb_fs_setup();
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = get_fat_start_address(&fat_address);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	size = N_ENTRIES * sizeof(struct rpmb_fat_entry);
+	fat_entries = malloc(size);
+	if (fat_entries == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	pathlen = strlen(path);
+	while (!last_entry_found) {
+		res = tee_rpmb_read(DEV_ID, fat_address,
+				    (uint8_t *)fat_entries, size);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		for (i = 0; i < N_ENTRIES; i++) {
+			filename = fat_entries[i].filename;
+			if ((fat_entries[i].flags & FILE_IS_ACTIVE) &&
+			    (strstr(filename, path) == filename) ) {
+
+				next = malloc(sizeof(tee_rpmb_fs_dirent_t));
+				if (next == NULL) {
+					res = TEE_ERROR_OUT_OF_MEMORY;
+					goto out;
+				}
+
+				memset(next, 0, sizeof(tee_rpmb_fs_dirent_t));
+				next->entry.d_name = next->name;
+				memcpy(next->name,
+					&filename[pathlen],
+				   	strlen(filename) - pathlen);
+
+				if (current) {
+					current->next = next;
+					
+				} else {
+					dir->next = next;
+				}
+				
+				current = next;
+				next = NULL;			    
+			}
+
+			if (fat_entries[i].flags & FILE_IS_LAST_ENTRY) {
+				last_entry_found = true;
+				break;
+			}
+
+			/* Move to next fat_entry. */
+			fat_address += sizeof(struct rpmb_fat_entry);
+		}
+	}
+
+	/* No directories were found. */
+	if (current == NULL) {
+		res = TEE_ERROR_NO_DATA;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+
+out:
+	if (res != TEE_SUCCESS) {
+		tee_rpmb_fs_dir_free(dir);
+	}
+	
+	return res;
+}
+
+TEE_Result tee_rpmb_fs_opendir_internal(const char *path, tee_fs_dir **dir)
+{
+	uint32_t len;
+	uint32_t max_size;
+	char path_local[TEE_RPMB_FS_FILENAME_LENGTH];
+	TEE_Result res = TEE_ERROR_GENERIC;
+	tee_fs_dir *rpmb_dir = NULL;
+
+	if (path == NULL || dir == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/*
+	 * There must be room for at least the NULL char and a char for the
+	 * filename after the path.
+	 */
+	max_size = TEE_RPMB_FS_FILENAME_LENGTH - 2;
+	len = strlen(path);	
+	if (len > max_size || len == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	memset(path_local, 0, sizeof(path_local));
+	memcpy(path_local, path, len);
+	
+	/* Add a slash to correctly match the full directory name. */
+	if (path_local[len - 1] != '/') {
+		path_local[len] = '/';
+	}
+
+	rpmb_dir = calloc(1, sizeof(tee_fs_dir));
+	if (rpmb_dir == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	res = tee_rpmb_fs_dir_populate(path_local, rpmb_dir);
+	if (res != TEE_SUCCESS) {
+		free(rpmb_dir);
+		rpmb_dir = NULL;
+		goto out;
+	}
+
+	*dir = rpmb_dir;
+
+out:
+	return res;
+}
+
+tee_fs_dir* tee_rpmb_fs_opendir(const char *path)
+{
+	tee_fs_dir *dir = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = tee_rpmb_fs_opendir_internal(path, &dir);
+	if (res != TEE_SUCCESS) {
+		dir = NULL;
+	}
+	
+	return dir;
+}
+
+
+struct tee_fs_dirent *tee_rpmb_fs_readdir(tee_fs_dir *dir)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	
+	if (dir == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (dir->current != NULL) {
+		free(dir->current);
+		dir->current = NULL;
+	}
+
+	if (dir->next == NULL) {
+		res = TEE_ERROR_NO_DATA;
+		goto out;
+	}
+
+	/*
+	 * next pointer is the head of the list and represents the next entry
+	 * to be returned to the user. 
+	 * Pop the head (next) of the list off and save it in current.
+	 * Current will be returned to the user and freed on subsequent
+	 * calls to read.
+	 */
+	dir->current = dir->next;
+	dir->next = dir->current->next;
+	dir->current->next = NULL;
+	res = TEE_SUCCESS;
+
+out:
+	if (res == TEE_SUCCESS) {
+		return &dir->current->entry;
+	}
+	
+	return NULL;
+}
+
+int tee_rpmb_fs_closedir(tee_fs_dir *dir)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	
+	if (dir == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	tee_rpmb_fs_dir_free(dir);
+	free(dir);
+	res = TEE_SUCCESS;
+out:
+	if (res == TEE_SUCCESS) {
+		return 0;
+	}
+
+	return -1;
+}
+
+int tee_rpmb_fs_rmdir(const char *path)
+{
+	tee_fs_dir *dir = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int ret = -1;
+
+	/* Open the directory anyting other than NO_DATA is a failure */
+	res = tee_rpmb_fs_opendir_internal(path, &dir);
+	if (res == TEE_SUCCESS) {
+		tee_rpmb_fs_closedir(dir);
+		ret = -1;
+
+	} else if (res == TEE_ERROR_NO_DATA) {
+		ret = 0;
+
+	} else {
+		/* The case any other failure is returned */
+		ret = -1;
+	}
+
+
+	return ret;
+}
+
 TEE_Result tee_rpmb_fs_stat(const char *filename,
 			    struct tee_rpmb_fs_stat *stat)
 {
@@ -757,3 +1105,21 @@ out:
 	free(fh);
 	return res;
 }
+
+int tee_rpmb_fs_access(const char *filename, int mode)
+{
+	struct tee_rpmb_fs_stat stat;
+	TEE_Result res;
+
+	/* Mode is currently ignored, this only checks for existance */
+	(void)mode;
+
+	res = tee_rpmb_fs_stat(filename, &stat);
+
+	if (res == TEE_SUCCESS) {
+		return 0;
+	}
+	
+	return -1;
+}
+
