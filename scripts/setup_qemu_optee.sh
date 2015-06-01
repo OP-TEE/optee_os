@@ -42,7 +42,7 @@ DEV_PATH=$HOME/devel/qemu_optee
 set -e
 mkdir -p $DEV_PATH
 
-SRC_QEMU=ssh://git@git.linaro.org/people/greg.bellows/qemu.git
+SRC_QEMU=https://git.linaro.org/people/christoffer.dall/qemu.git
 DST_QEMU=$DEV_PATH/qemu
 # pmm.v6.uart branch
 STABLE_QEMU_COMMIT=c00ed157431a4a6e0c4c481ba1c809623cbf908f
@@ -55,7 +55,7 @@ SRC_SOC_TERM=https://github.com/jenswi-linaro/soc_term.git
 DST_SOC_TERM=$DEV_PATH/soc_term
 STABLE_SOC_TERM_COMMIT=5ae80428709fa1a9d0854a2684c20eb0ec27e994
 
-SRC_KERNEL=git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+SRC_KERNEL=https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 DST_KERNEL=$DEV_PATH/linux
 STABLE_KERNEL_COMMIT=v3.18-rc1
 
@@ -245,7 +245,7 @@ $DEV_PATH/qemu/arm-softmmu/qemu-system-arm \
 	-s -S -machine virt -cpu cortex-a15 \
 	\${SMP} \${MEM} \${BIOS} \
 || echo Did you forget to run serial_0.sh and serial_1.sh?
-	
+
 EOF
 chmod 711  $DEV_PATH/run_qemu.sh
 
