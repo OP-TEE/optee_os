@@ -188,6 +188,14 @@
 #define ESR_FSC_PERMF_L3	0x0f
 #define ESR_FSC_ALIGN		0x21
 
+#define CPACR_EL1_FPEN_SHIFT	20
+#define CPACR_EL1_FPEN_MASK	0x3
+#define CPACR_EL1_FPEN_NONE	0x0
+#define CPACR_EL1_FPEN_EL1	0x1
+#define CPACR_EL1_FPEN_EL0EL1	0x3
+#define CPACR_EL1_FPEN(x)	((x) >> CPACR_EL1_FPEN_SHIFT \
+				      & CPACR_EL1_FPEN_MASK)
+
 #ifndef ASM
 static inline uint32_t read_daif(void)
 {
@@ -317,6 +325,45 @@ static inline void isb(void)
 static inline void dsb(void)
 {
 	asm volatile ("dsb sy");
+}
+
+static inline uint32_t read_cpacr_el1(void)
+{
+	uint32_t val;
+
+	asm volatile("mrs %0, cpacr_el1" : "=r" (val));
+	return val;
+}
+
+static inline void write_cpacr_el1(uint32_t val)
+{
+	asm volatile("msr cpacr_el1, %0" : : "r" (val));
+}
+
+static inline uint32_t read_fpcr(void)
+{
+	uint32_t val;
+
+	asm volatile("mrs %0, fpcr" : "=r" (val));
+	return val;
+}
+
+static inline void write_fpcr(uint32_t val)
+{
+	asm volatile("msr fpcr, %0" : : "r" (val));
+}
+
+static inline uint32_t read_fpsr(void)
+{
+	uint32_t val;
+
+	asm volatile("mrs %0, fpsr" : "=r" (val));
+	return val;
+}
+
+static inline void write_fpsr(uint32_t val)
+{
+	asm volatile("msr fpsr, %0" : : "r" (val));
 }
 #endif /*ASM*/
 

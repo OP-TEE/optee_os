@@ -325,6 +325,14 @@ static void thread_lazy_save_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
 	thread_vfp_state.ns_saved = false;
+#if defined(ARM64) && defined(CFG_WITH_ARM_TRUSTED_FW)
+	/*
+	 * ARM TF saves and restores CPACR_EL1, so we must assume NS world
+	 * uses VFP and always preserve the register file when secure world
+	 * is about to use it
+	 */
+	thread_vfp_state.ns.force_save = true;
+#endif
 	vfp_lazy_save_state_init(&thread_vfp_state.ns);
 #endif /*CFG_WITH_VFP*/
 }

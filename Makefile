@@ -46,7 +46,7 @@ ifneq ($(filter %s ,$(firstword x$(MAKEFLAGS))),)
 cmd-echo-silent := true
 endif
 else                                    # make-3.8x
-ifneq ($(filter s% -s%,$(MAKEFLAGS)),)
+ifneq ($(findstring s, $(MAKEFLAGS)),)
 cmd-echo-silent := true
 endif
 endif

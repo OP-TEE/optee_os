@@ -25,29 +25,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VFP_PRIVATE
-#define VFP_PRIVATE
+#ifndef TEE_ENC_FS_KEY_MANAGER_H
+#define TEE_ENC_FS_KEY_MANAGER_H
 
-#include <kernel/vfp.h>
+#include <tee_api_types.h>
 
-void vfp_save_extension_regs(struct vfp_reg regs[VFP_NUM_REGS]);
-void vfp_restore_extension_regs(struct vfp_reg regs[VFP_NUM_REGS]);
-void vfp_clear_extension_regs(void);
+size_t tee_enc_fs_get_file_header_size(void);
+TEE_Result tee_enc_fs_file_encryption(uint8_t *data_in, size_t in_size,
+		uint8_t *data_out, size_t *out_size);
+TEE_Result tee_enc_fs_file_decryption(uint8_t *data_in, size_t in_size,
+		uint8_t *data_out, size_t *out_size);
 
-#ifdef ARM32
-
-#define FPEXC_EN	(1 << 30)
-
-/*
- * These functions can't be implemented in inline assembly when compiling
- * for thumb mode, to make it easy always implement then in ARM assembly as
- * ordinary functions.
- */
-void vfp_write_fpexc(uint32_t fpexc);
-uint32_t vfp_read_fpexc(void);
-void vfp_write_fpscr(uint32_t fpscr);
-uint32_t vfp_read_fpscr(void);
-
-#endif /* ARM32 */
-
-#endif /*VFP_PRIVATE*/
+#endif

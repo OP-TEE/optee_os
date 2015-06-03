@@ -50,6 +50,10 @@
 #include <sm/sm.h>
 #endif
 
+#if defined(CFG_WITH_VFP)
+#include <kernel/vfp.h>
+#endif
+
 #define PADDR_INVALID		0xffffffff
 
 #ifdef CFG_BOOT_SYNC_CPU
@@ -88,33 +92,46 @@ static void init_sec_mon(uint32_t nsec_entry)
 #endif
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-static void init_nsacr(void)
+static void init_vfp_nsec(void)
 {
 }
 #else
-static void init_nsacr(void)
+static void init_vfp_nsec(void)
 {
 	/* Normal world can use CP10 and CP11 (SIMD/VFP) */
 	write_nsacr(read_nsacr() | NSACR_CP10 | NSACR_CP11);
 }
 #endif
 
-#ifdef CFG_WITH_VFP
-static void init_cpacr(void)
+#if defined(CFG_WITH_VFP)
+
+#ifdef ARM32
+static void init_vfp_sec(void)
 {
 	uint32_t cpacr = read_cpacr();
 
-	/* Enabled usage of CP10 and CP11 (SIMD/VFP) */
+	/* Enable usage of CP10 and CP11 (SIMD/VFP) */
 	cpacr &= ~CPACR_CP(10, CPACR_CP_ACCESS_FULL);
 	cpacr |= CPACR_CP(10, CPACR_CP_ACCESS_PL1_ONLY);
 	cpacr &= ~CPACR_CP(11, CPACR_CP_ACCESS_FULL);
 	cpacr |= CPACR_CP(11, CPACR_CP_ACCESS_PL1_ONLY);
 	write_cpacr(cpacr);
 }
-#else
-static void init_cpacr(void)
+#endif /* ARM32 */
+
+#ifdef ARM64
+static void init_vfp_sec(void)
 {
-	/* We're not using VFP/SIMD instructions, leave it disabled */
+	/* Not using VFP until thread_kernel_enable_vfp() */
+	vfp_disable();
+}
+#endif /* ARM64 */
+
+#else /* CFG_WITH_VFP */
+
+static void init_vfp_sec(void)
+{
+	/* Not using VFP */
 }
 #endif
 
@@ -286,7 +303,7 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
 	 * asserts that IRQ is blocked when using most if its functions.
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
-	init_cpacr();
+	init_vfp_sec();
 
 	init_runtime(pageable_part);
 
@@ -298,7 +315,7 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
 
 
 	main_init_gic();
-	init_nsacr();
+	init_vfp_nsec();
 
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
@@ -317,8 +334,8 @@ static void init_secondary_helper(uint32_t nsec_entry)
 
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	init_cpacr();
-	init_nsacr();
+	init_vfp_sec();
+	init_vfp_nsec();
 
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }

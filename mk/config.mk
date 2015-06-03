@@ -78,3 +78,5 @@ CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
 # Trusted OS implementation manufacturer name
 CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 
+# Encrypted File System Support
+CFG_ENC_FS ?= y
