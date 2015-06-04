@@ -98,11 +98,11 @@ struct rpmb_fs_partition {
  * A node in a list of directory entries. entry->name is a
  * pointer to name here.
  */
-typedef struct tee_rpmb_fs_dirent {
+struct tee_rpmb_fs_dirent {
 	struct tee_rpmb_fs_dirent *next;
 	struct tee_fs_dirent entry;
 	char name[TEE_RPMB_FS_FILENAME_LENGTH];
-} tee_rpmb_fs_dirent_t;
+};
 
 /**
  * The RPMB directory representation. It contains a list of
@@ -110,8 +110,8 @@ typedef struct tee_rpmb_fs_dirent {
  * The current pointer points to the last returned directory entry.
  */
 struct tee_fs_dir {
-	tee_rpmb_fs_dirent_t *current;
-	tee_rpmb_fs_dirent_t *next;
+	struct tee_rpmb_fs_dirent *current;
+	struct tee_rpmb_fs_dirent *next;
 };
 
 
@@ -395,9 +395,8 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		fat_address += sizeof(struct rpmb_fat_entry);
 
 		/* Make room for yet a FAT entry and add to memory pool. */
-		if (expand_fat) {
+		if (expand_fat)
 			fat_address += sizeof(struct rpmb_fat_entry);
-		}
 
 		mm = tee_mm_alloc2(p, RPMB_STORAGE_START_ADDRESS, fat_address);
 		if (mm == NULL) {
@@ -415,9 +414,8 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 			last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
 			last_fh.rpmb_fat_address = fat_address;
 			res = write_fat_entry(&last_fh, true);
-			if (res != TEE_SUCCESS) {
+			if (res != TEE_SUCCESS)
 				goto out;
-			}
 		}
 	}
 
@@ -529,9 +527,8 @@ int tee_rpmb_fs_open(const char *file, int flags, ...)
 
 out:
 	if (res != TEE_SUCCESS) {
-		if (fh) {
+		if (fh)
 			free(fh);
-		}
 
 		fd = -1;
 	}
@@ -585,18 +582,16 @@ int tee_rpmb_fs_read(int fd, uint8_t *buf, size_t size)
 		res = tee_rpmb_read(DEV_ID, fh->fat_entry.start_address, buf,
 				    fh->fat_entry.data_size);
 
-		if (res != TEE_SUCCESS) {
+		if (res != TEE_SUCCESS)
 			goto out;
-		}
 	}
 
 	read_size = fh->fat_entry.data_size;
 	res = TEE_SUCCESS;
 
 out:
-	if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS)
 		read_size = -1;
-	}
 
 	return read_size;
 }
@@ -670,13 +665,14 @@ out:
 
 tee_fs_off_t tee_rpmb_fs_lseek(int fd, tee_fs_off_t offset, int whence)
 {
+	(void)fd;
+
 	/*
 	 * Currently, RPMB only returns success for seek to 0 since the
 	 * entire file must be read at once.
 	 */
-	if (whence != TEE_FS_SEEK_SET || offset != 0) {
+	if (whence != TEE_FS_SEEK_SET || offset != 0)
 		return -1;
-	}
 
 	return 0;
 }
@@ -776,7 +772,7 @@ int tee_rpmb_fs_mkdir(const char *path, tee_fs_mode_t mode)
 	(void)mode;
 
 	/* mkdir is not supported in RPMB and should not be called*/
-	TEE_ASSERT(0);
+	EMSG("tee_rpmb_fs_mkdir called when not expected");
 
 	return -1;
 }
@@ -802,9 +798,8 @@ int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
 	 * written to by someone else */
 
 	res = read_fat(fh, NULL);
-	if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	/* Clear the size and the address */
 	fh->fat_entry.data_size = 0;
@@ -812,46 +807,44 @@ int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
 	res = write_fat_entry(fh, false);
 
 out:
-	if (res == TEE_SUCCESS) {
+	if (res == TEE_SUCCESS)
 		return 0;
-	}
 
 	return -1;
 }
 
 static void tee_rpmb_fs_dir_free(tee_fs_dir *dir)
 {
-	tee_rpmb_fs_dirent_t *current;
-	tee_rpmb_fs_dirent_t *next;
+	struct tee_rpmb_fs_dirent *current;
+	struct tee_rpmb_fs_dirent *next;
 
-	if (dir == NULL) {
+	if (dir == NULL)
 		return;
-	}
 
-	if (dir->current) {
+	if (dir->current)
 		free(dir->current);
-	}
 
 	for (current = dir->next; current != NULL; current = next) {
 		next = current->next;
 		free(current);
 	}
-
-	return;
 }
 
 static TEE_Result tee_rpmb_fs_dir_populate(const char *path, tee_fs_dir *dir)
 {
-	tee_rpmb_fs_dirent_t *current = NULL;
+	struct tee_rpmb_fs_dirent *current = NULL;
 	struct rpmb_fat_entry *fat_entries = NULL;
 	uint32_t fat_address;
+	uint32_t filelen;
 	char *filename;
 	int i;
 	bool last_entry_found = false;
-	tee_rpmb_fs_dirent_t *next = NULL;
+	bool matched;
+	struct tee_rpmb_fs_dirent *next = NULL;
 	uint32_t pathlen;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t size;
+	char temp;
 
 	res = rpmb_fs_setup();
 	if (res != TEE_SUCCESS)
@@ -877,30 +870,39 @@ static TEE_Result tee_rpmb_fs_dir_populate(const char *path, tee_fs_dir *dir)
 
 		for (i = 0; i < N_ENTRIES; i++) {
 			filename = fat_entries[i].filename;
-			if ((fat_entries[i].flags & FILE_IS_ACTIVE) &&
-			    (strstr(filename, path) == filename)) {
+			if (fat_entries[i].flags & FILE_IS_ACTIVE) {
+				matched = false;
+				filelen = strlen(filename);
+				if (filelen > pathlen) {
+					temp = filename[pathlen];
+					filename[pathlen] = '\0';
+					if (strcmp(filename, path) == 0)
+						matched = true;
 
-				next = malloc(sizeof(tee_rpmb_fs_dirent_t));
-				if (next == NULL) {
-					res = TEE_ERROR_OUT_OF_MEMORY;
-					goto out;
+					filename[pathlen] = temp;
 				}
 
-				memset(next, 0, sizeof(tee_rpmb_fs_dirent_t));
-				next->entry.d_name = next->name;
-				memcpy(next->name,
-					&filename[pathlen],
-					strlen(filename) - pathlen);
+				if (matched) {
+					next = malloc(sizeof(*next));
+					if (next == NULL) {
+						res = TEE_ERROR_OUT_OF_MEMORY;
+						goto out;
+					}
 
-				if (current) {
-					current->next = next;
+					memset(next, 0, sizeof(*next));
+					next->entry.d_name = next->name;
+					memcpy(next->name,
+						&filename[pathlen],
+						filelen - pathlen);
 
-				} else {
-					dir->next = next;
+					if (current)
+						current->next = next;
+					else
+						dir->next = next;
+
+					current = next;
+					next = NULL;
 				}
-
-				current = next;
-				next = NULL;
 			}
 
 			if (fat_entries[i].flags & FILE_IS_LAST_ENTRY) {
@@ -922,14 +924,14 @@ static TEE_Result tee_rpmb_fs_dir_populate(const char *path, tee_fs_dir *dir)
 	res = TEE_SUCCESS;
 
 out:
-	if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS)
 		tee_rpmb_fs_dir_free(dir);
-	}
 
 	return res;
 }
 
-TEE_Result tee_rpmb_fs_opendir_internal(const char *path, tee_fs_dir **dir)
+static TEE_Result tee_rpmb_fs_opendir_internal(const char *path,
+						tee_fs_dir **dir)
 {
 	uint32_t len;
 	uint32_t max_size;
@@ -957,9 +959,8 @@ TEE_Result tee_rpmb_fs_opendir_internal(const char *path, tee_fs_dir **dir)
 	memcpy(path_local, path, len);
 
 	/* Add a slash to correctly match the full directory name. */
-	if (path_local[len - 1] != '/') {
+	if (path_local[len - 1] != '/')
 		path_local[len] = '/';
-	}
 
 	rpmb_dir = calloc(1, sizeof(tee_fs_dir));
 	if (rpmb_dir == NULL) {
@@ -986,9 +987,8 @@ tee_fs_dir *tee_rpmb_fs_opendir(const char *path)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	res = tee_rpmb_fs_opendir_internal(path, &dir);
-	if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS)
 		dir = NULL;
-	}
 
 	return dir;
 }
@@ -1026,9 +1026,8 @@ struct tee_fs_dirent *tee_rpmb_fs_readdir(tee_fs_dir *dir)
 	res = TEE_SUCCESS;
 
 out:
-	if (res == TEE_SUCCESS) {
+	if (res == TEE_SUCCESS)
 		return &dir->current->entry;
-	}
 
 	return NULL;
 }
@@ -1046,9 +1045,8 @@ int tee_rpmb_fs_closedir(tee_fs_dir *dir)
 	free(dir);
 	res = TEE_SUCCESS;
 out:
-	if (res == TEE_SUCCESS) {
+	if (res == TEE_SUCCESS)
 		return 0;
-	}
 
 	return -1;
 }
@@ -1116,9 +1114,8 @@ int tee_rpmb_fs_access(const char *filename, int mode)
 
 	res = tee_rpmb_fs_stat(filename, &stat);
 
-	if (res == TEE_SUCCESS) {
+	if (res == TEE_SUCCESS)
 		return 0;
-	}
 
 	return -1;
 }
