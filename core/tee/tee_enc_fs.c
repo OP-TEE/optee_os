@@ -54,26 +54,6 @@ struct tee_enc_fs_private {
 	uint8_t *data;
 };
 
-static int get_file_length(struct tee_fs_fd *fdp, size_t *length)
-{
-	size_t file_len;
-	int res;
-
-	*length = 0;
-
-	res = tee_fs_common_lseek(fdp, 0, TEE_FS_SEEK_END);
-	if (res < 0)
-		return res;
-	file_len = res;
-
-	res = tee_fs_common_lseek(fdp, 0, TEE_FS_SEEK_SET);
-	if (res < 0)
-		return res;
-
-	*length = file_len;
-	return 0;
-}
-
 static int update_file_size(struct tee_enc_fs_private *priv,
 		size_t new_file_len)
 {
@@ -134,7 +114,7 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 		return fd;
 	}
 
-	res = get_file_length(fdp, &encrypted_data_len);
+	res = tee_fs_get_file_length(fdp, &encrypted_data_len);
 	if (res < 0) {
 		res = -1;
 		goto exit_close_file;
@@ -228,7 +208,7 @@ static int tee_enc_fs_close(int fd)
 	if (res < 0)
 		goto exit_free_encrypted_data;
 
-	res = tee_fs_common_ftruncate(fdp, encrypted_data_len);
+	res = tee_fs_common_ftruncate(fdp, 0);
 	if (res < 0)
 		goto exit_free_encrypted_data;
 

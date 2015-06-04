@@ -36,7 +36,7 @@
 #define TEE_RPMB_FS_FILENAME_LENGTH 48
 
 struct tee_rpmb_fs_stat {
-	uint32_t size;
+	size_t size;
 	uint32_t reserved;
 };
 

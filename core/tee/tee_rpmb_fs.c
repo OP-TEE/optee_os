@@ -1096,7 +1096,7 @@ TEE_Result tee_rpmb_fs_stat(const char *filename,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	stat->size = fh->fat_entry.data_size;
+	stat->size = (size_t)fh->fat_entry.data_size;
 	stat->reserved = 0;
 
 out:
