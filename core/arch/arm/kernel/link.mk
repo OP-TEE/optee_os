@@ -25,14 +25,14 @@ link-script-cppflags := -DASM=1 \
 		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
 		$(cppflagscore))
 
-entries-unpaged += tee_pager_abort_handler
 entries-unpaged += thread_init_vbar
 entries-unpaged += sm_init
 entries-unpaged += core_init_mmu_regs
-entries-unpaged += generic_boot_cpu_on_handler
-entries-unpaged += generic_boot_init_secondary
 entries-unpaged += stack_tmp_top
 entries-unpaged += sem_cpu_sync
+entries-unpaged += generic_boot_get_handlers
+objs-unpaged-rem += core/arch/arm/tee/entry.o
+objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
 ldargs-unpaged := -i --gc-sections \
