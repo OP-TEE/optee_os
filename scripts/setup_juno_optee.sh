@@ -20,7 +20,7 @@ DEV_PATH=$HOME/devel/juno_optee
 mkdir -p $DEV_PATH
 
 if [ ! -d "$DEV_PATH/pre-built-binaries" ]; then
-	mkdir -p $DEV_PATH/pre-built-binaries 
+	mkdir -p $DEV_PATH/pre-built-binaries
 fi
 
 if [ ! -f "$DEV_PATH/pre-built-binaries/bl30.bin" ]; then
@@ -50,19 +50,19 @@ STABLE_KERNEL_COMMIT=a226b22057c22b433caafc58eeae6e9b13ac6c8d
 
 SRC_OPTEE_OS=https://github.com/OP-TEE/optee_os.git
 DST_OPTEE_OS=$DEV_PATH/optee_os
-STABLE_OS_COMMIT=7c876f12032eebe8f71e1a01cb55436d01b21e74
+STABLE_OS_COMMIT=432f1e656513695d303010033603da17c076ec0f
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
-STABLE_CLIENT_COMMIT=2893f86b0925bc6be358a6913a07773b2b909ee3
+STABLE_CLIENT_COMMIT=21cd14f2a7feb589dade1f8897925b55f5d0be49
 
 SRC_OPTEE_LINUXDRIVER=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LINUXDRIVER=$DEV_PATH/optee_linuxdriver
-STABLE_LINUXDRIVER_COMMIT=eb4ea6b1094ce3452c376c12a529178d202d229b
+STABLE_LINUXDRIVER_COMMIT=4f76d0cd96167e43cb9eecd02122a11bd91d61f1
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=71e52146d2cef1325dea14099255ac06c13fe63d
+STABLE_OPTEE_TEST_COMMIT=d0c601e7cfaddce9e00eefe17950fb020dacbd05
 
 AARCH64_NONE_GCC=aarch64-none-elf
 AARCH64_NONE_GCC_VERSION=gcc-linaro-aarch64-none-elf-4.9-2014.07_linux
