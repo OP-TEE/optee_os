@@ -34,23 +34,22 @@
 #define TEE_FS_NAME_MAX 350
 
 /*
- * We split a TEE file into multiple blocks and stored
- * on REE filesystem. TEE file is represented by small
- * REE files and a special file called meta, which is used
- * to concatenate multiple REE files.
+ * We split a TEE file into multiple blocks and store them
+ * on REE filesystem. A TEE file is represented by a REE file
+ * called meta and a number of REE files called blocks. Meta
+ * file is used for storing file information, e.g. file size
+ * and backup version of each block.
  *
- * Thus, REE file path should be slightly longer than
- * TEE file path, it's name should look like:
+ * REE files naming rule is as follows:
  *
  *   <tee_file_name>/meta.<backup_version>
  *   <tee_file_name>/block0.<backup_version>
  *   ...
  *   <tee_file_name>/block15.<backup_version>
  *
- * backup_version is used to support atomic update operation
- * any update to file block(s) and meta will not directly on
- * original file, we create new version of the given file and
- * update it instead.
+ * Backup_version is used to support atomic update operation.
+ * Original file will not be updated, instead we create a new
+ * version of the same file and update the new file instead.
  *
  * The backup_version of each block file is stored in meta
  * file (see @backup_version_table in tee_fs_private.h), the

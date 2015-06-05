@@ -25,15 +25,33 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_ENC_FS_KEY_MANAGER_H
-#define TEE_ENC_FS_KEY_MANAGER_H
+#ifndef TEE_FS_KEY_MANAGER_H
+#define TEE_FS_KEY_MANAGER_H
 
 #include <tee_api_types.h>
 
-size_t tee_enc_fs_get_file_header_size(void);
-TEE_Result tee_enc_fs_file_encryption(uint8_t *data_in, size_t in_size,
-		uint8_t *data_out, size_t *out_size);
-TEE_Result tee_enc_fs_file_decryption(uint8_t *data_in, size_t in_size,
-		uint8_t *data_out, size_t *out_size);
+#define TEE_FS_KM_CHIP_ID_LENGTH    32
+#define TEE_FS_KM_HMAC_ALG          TEE_ALG_HMAC_SHA256
+#define TEE_FS_KM_AUTH_ENC_ALG      TEE_ALG_AES_GCM
+#define TEE_FS_KM_ENC_FEK_ALG       TEE_ALG_AES_ECB_NOPAD
+#define TEE_FS_KM_SSK_SIZE          TEE_SHA256_HASH_SIZE
+#define TEE_FS_KM_FEK_SIZE          16  /* bytes */
+#define TEE_FS_KM_IV_LEN            12  /* bytes */
+#define TEE_FS_KM_MAX_TAG_LEN       16  /* bytes */
 
+enum tee_fs_file_type {
+	META_FILE,
+	BLOCK_FILE
+};
+
+size_t tee_fs_get_header_size(enum tee_fs_file_type type);
+TEE_Result tee_fs_generate_fek(uint8_t *encrypted_fek, int fek_size);
+TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
+		const uint8_t *plaintext, size_t plaintext_size,
+		uint8_t *ciphertext, size_t *ciphertext_size,
+		const uint8_t *encrypted_fek);
+TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
+		const uint8_t *data_in, size_t data_in_size,
+		uint8_t *plaintext, size_t *plaintext_size,
+		uint8_t *encrypted_fek);
 #endif

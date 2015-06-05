@@ -27,6 +27,7 @@ CFG_WITH_STACK_CANARIES := y
 CFG_PM_STUBS := y
 CFG_GENERIC_BOOT := y
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
+CFG_TEE_FS_KEY_MANAGER_TEST := y
 CFG_NO_TA_HASH_SIGN ?= y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
@@ -49,7 +50,3 @@ CFG_WITH_VFP := y
 endif
 
 include mk/config.mk
-
-ifeq ($(CFG_ENC_FS),y)
-CFG_ENC_FS_KEY_MANAGER_TEST := y
-endif

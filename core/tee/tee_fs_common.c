@@ -43,24 +43,11 @@ static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 struct block_operation_args {
 	struct tee_fs_fd *fdp;
 	tee_fs_off_t offset;
-	int block_num;
+	size_t block_num;
 	void *buf;
 	size_t len;
 	void *extra;
 };
-
-static void do_fail_recovery(struct tee_fs_fd *fdp)
-{
-	/* Try to delete the file for new created file */
-	if (fdp->is_new_file) {
-		tee_fs_common_unlink(fdp->filename);
-		EMSG("New created file was deleted, file=%s",
-				fdp->filename);
-		return;
-	}
-
-	/* TODO: Roll back to previous version for existed file */
-}
 
 static int ree_fs_open(const char *file, int flags, ...)
 {
@@ -127,7 +114,7 @@ static int ree_fs_write(int fd,
 	/* fill in parameters */
 	head.op = TEE_FS_WRITE;
 	head.fd = fd;
-	head.len = len;
+	head.len = (uint32_t) len;
 
 	res = tee_fs_send_cmd(&head, (void *)buf, len, TEE_FS_MODE_IN);
 	if (!res)
@@ -274,56 +261,27 @@ exit:
 	return res;
 }
 
-static TEE_Result sha256_digest(uint8_t *digest,
-			const uint8_t *data, size_t data_size)
+static int get_file_length(int fd, size_t *length)
 {
-	TEE_Result res;
-	size_t ctx_size;
-	void *ctx;
+	size_t file_len;
+	int res;
 
-	res = crypto_ops.hash.get_ctx_size(TEE_ALG_SHA256, &ctx_size);
-	if (res != TEE_SUCCESS)
+	TEE_ASSERT(length);
+
+	*length = 0;
+
+	res = ree_fs_lseek(fd, 0, TEE_FS_SEEK_END);
+	if (res < 0)
+		return res;
+	file_len = res;
+
+	res = ree_fs_lseek(fd, 0, TEE_FS_SEEK_SET);
+	if (res < 0)
 		return res;
 
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = crypto_ops.hash.init(ctx, TEE_ALG_SHA256);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.hash.update(ctx, TEE_ALG_SHA256,
-			data, data_size);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.hash.final(ctx, TEE_ALG_SHA256,
-			digest, TEE_SHA256_HASH_SIZE);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	free(ctx);
-
-	return TEE_SUCCESS;
-exit:
-	return res;
+	*length = file_len;
+	return 0;
 }
-
-static TEE_Result sha256_check(const uint8_t *hash, const uint8_t *data,
-		size_t data_size)
-{
-	TEE_Result res;
-	uint8_t digest[TEE_SHA256_HASH_SIZE];
-	res = sha256_digest(digest, data, data_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	if (buf_compare_ct(digest, hash, sizeof(digest)) != 0)
-		return TEE_ERROR_SECURITY;
-	return TEE_SUCCESS;
-}
-
 
 static void get_meta_filepath(const char *file, int version,
 				char *meta_path)
@@ -332,14 +290,14 @@ static void get_meta_filepath(const char *file, int version,
 			file, version);
 }
 
-static void get_block_filepath(const char *file, int block_num,
+static void get_block_filepath(const char *file, size_t block_num,
 				int version, char *meta_path)
 {
-	snprintf(meta_path, REE_FS_NAME_MAX, "%s/block%d.%d",
+	snprintf(meta_path, REE_FS_NAME_MAX, "%s/block%zu.%d",
 			file, block_num, version);
 }
 
-static int alloc_block(struct tee_fs_fd *fdp, int block_num)
+static int alloc_block(struct tee_fs_fd *fdp, size_t block_num)
 {
 	char block_path[REE_FS_NAME_MAX];
 
@@ -349,7 +307,7 @@ static int alloc_block(struct tee_fs_fd *fdp, int block_num)
 	return ree_fs_open(block_path, TEE_FS_O_CREATE | TEE_FS_O_WRONLY);
 }
 
-static int free_block(struct tee_fs_fd *fdp, int block_num)
+static int free_block(struct tee_fs_fd *fdp, size_t block_num)
 {
 	char block_path[REE_FS_NAME_MAX];
 	uint8_t version =
@@ -361,20 +319,128 @@ static int free_block(struct tee_fs_fd *fdp, int block_num)
 	return ree_fs_unlink(block_path);
 }
 
-static bool is_tee_file_meta_valid(struct tee_fs_file_meta *meta)
+/*
+ * encrypted_fek: as input for META_FILE and BLOCK_FILE
+ */
+static int encrypt_and_write_file(int fd,
+		enum tee_fs_file_type file_type,
+		void *data_in, size_t data_in_size,
+		uint8_t *encrypted_fek)
 {
-	TEE_Result res;
-	res = sha256_check(meta->hash, (void *)&meta->info,
-			sizeof(meta->info));
-	if (res != TEE_SUCCESS)
-		return false;
-	else
-		return true;
+	TEE_Result tee_res;
+	int res = 0;
+	int bytes;
+	uint8_t *ciphertext;
+	size_t header_size = tee_fs_get_header_size(file_type);
+	size_t ciphertext_size = header_size + data_in_size;
+
+	ciphertext = malloc(ciphertext_size);
+	if (!ciphertext) {
+		EMSG("Failed to allocate ciphertext buffer, size=%zd",
+				ciphertext_size);
+		return -1;
+	}
+
+	tee_res = tee_fs_encrypt_file(file_type,
+			data_in, data_in_size,
+			ciphertext, &ciphertext_size, encrypted_fek);
+	if (tee_res != TEE_SUCCESS) {
+		EMSG("error code=%x", tee_res);
+		res = -1;
+		goto fail;
+	}
+
+	bytes = ree_fs_write(fd, ciphertext, ciphertext_size);
+	if (bytes != (int)ciphertext_size) {
+		EMSG("bytes(%d) != ciphertext size(%zu)",
+				bytes, ciphertext_size);
+		res = -1;
+		goto fail;
+	}
+
+fail:
+	free(ciphertext);
+
+	return res;
 }
 
-static struct tee_fs_file_meta *tee_fs_file_create(const char *file)
+/*
+ * encrypted_fek: as output for META_FILE
+ *                as input for BLOCK_FILE
+ */
+static int read_and_decrypt_file(int fd,
+		enum tee_fs_file_type file_type,
+		void *data_out, size_t *data_out_size,
+		uint8_t *encrypted_fek)
 {
-	struct tee_fs_file_meta *meta;
+	TEE_Result tee_res;
+	int res;
+	int bytes;
+	void *ciphertext = NULL;
+	size_t file_size;
+	size_t header_size = tee_fs_get_header_size(file_type);
+
+	res = get_file_length(fd, &file_size);
+	if (res < 0)
+		return res;
+
+	TEE_ASSERT(file_size >= header_size);
+
+	ciphertext = malloc(file_size);
+	if (!ciphertext) {
+		EMSG("Failed to allocate file data buffer, size=%zd",
+				file_size);
+		return -1;
+	}
+
+	bytes = ree_fs_read(fd, ciphertext, file_size);
+	if (bytes != (int)file_size) {
+		EMSG("return bytes(%d) != file_size(%zd)",
+				bytes, file_size);
+		res = -1;
+		goto fail;
+	}
+
+	tee_res = tee_fs_decrypt_file(file_type,
+			ciphertext, file_size,
+			data_out, data_out_size,
+			encrypted_fek);
+	if (tee_res != TEE_SUCCESS) {
+		EMSG("Failed to decrypt file, res=0x%x", tee_res);
+		res = -1;
+	}
+
+fail:
+	free(ciphertext);
+
+	return (res < 0) ? res : 0;
+}
+
+static int write_meta_file(const char *filename,
+		struct tee_fs_file_meta *new_meta, int version)
+{
+	int res, fd = -1;
+	char meta_path[REE_FS_NAME_MAX];
+
+	get_meta_filepath(filename, version, meta_path);
+
+	fd = ree_fs_open(meta_path, TEE_FS_O_CREATE | TEE_FS_O_WRONLY);
+	if (fd < 0)
+		return -1;
+
+	res = encrypt_and_write_file(fd, META_FILE,
+			(void *)&new_meta->info, sizeof(new_meta->info),
+			new_meta->encrypted_fek);
+
+	ree_fs_close(fd);
+	return res;
+}
+
+static struct tee_fs_file_meta *tee_fs_create_meta_file(const char *file,
+		int meta_version)
+{
+	TEE_Result tee_res;
+	struct tee_fs_file_meta *meta = NULL;
 	int res = ree_fs_mkdir(file,
 			TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
 	if (res)
@@ -385,18 +451,27 @@ static struct tee_fs_file_meta *tee_fs_file_create(const char *file)
 		goto exit_rmdir;
 
 	memset(&meta->info, 0, sizeof(meta->info));
+	tee_res = tee_fs_generate_fek(meta->encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	if (tee_res != TEE_SUCCESS)
+		goto exit_rmdir;
+
+	res = write_meta_file(file, meta, meta_version);
+	if (res < 0)
+		goto exit_rmdir;
+
 	return meta;
 
 exit_rmdir:
+	free(meta);
 	ree_fs_rmdir(file);
 exit:
 	return NULL;
 }
 
-static struct tee_fs_file_meta *create_new_file_meta(
+static struct tee_fs_file_meta *duplicate_meta(
 		struct tee_fs_fd *fdp)
 {
-	struct tee_fs_file_meta *new_meta;
+	struct tee_fs_file_meta *new_meta = NULL;
 
 	new_meta = malloc(sizeof(*new_meta));
 	if (!new_meta)
@@ -406,39 +481,24 @@ exit:
 	return new_meta;
 }
 
-static int commit_file_meta(struct tee_fs_fd *fdp,
+static int tee_fs_commit_meta_file(struct tee_fs_fd *fdp,
 		struct tee_fs_file_meta *new_meta)
 {
-	TEE_Result ret;
-	int res, fd;
+	int res;
 	uint8_t new_version, old_version;
 	char meta_path[REE_FS_NAME_MAX];
 
 	old_version = fdp->meta_version;
 	new_version = !old_version;
-	get_meta_filepath(fdp->filename, new_version, meta_path);
-	DMSG("%s", meta_path);
 
-	ret = sha256_digest(new_meta->hash, (void *)&new_meta->info,
-				sizeof(new_meta->info));
-	if (ret != TEE_SUCCESS)
-		return -1;
+	res = write_meta_file(fdp->filename, new_meta, new_version);
 
-	fd = ree_fs_open(meta_path, TEE_FS_O_CREATE | TEE_FS_O_WRONLY);
-	if (fd < 0)
-		return fd;
-
-	res = ree_fs_write(fd, new_meta, sizeof(*new_meta));
-	if (res != sizeof(*new_meta))
-		return res;
-
-	res = ree_fs_close(fd);
 	if (res < 0)
 		return res;
 
 	/*
-	 * From now on new meta is successfully committed,
-	 * change tee_fd_fd accordingly
+	 * From now on the new meta is successfully committed,
+	 * change tee_fs_fd accordingly
 	 */
 	memcpy(fdp->meta, new_meta, sizeof(*new_meta));
 	fdp->meta_version = new_version;
@@ -455,40 +515,41 @@ static int commit_file_meta(struct tee_fs_fd *fdp,
 	return res;
 }
 
-static int read_file_meta(const char *meta_path,
+static int read_meta_file(const char *meta_path,
 		struct tee_fs_file_meta *meta)
 {
 	int res, fd;
+	size_t meta_info_size = sizeof(struct tee_fs_file_info);
 
 	res = ree_fs_open(meta_path, TEE_FS_O_RDWR);
 	if (res < 0)
 		return res;
 
 	fd = res;
-	res = ree_fs_read(fd, meta, sizeof(*meta));
-	if (res != sizeof(*meta))
-		return -1;
 
-	if (!is_tee_file_meta_valid(meta))
-		return -1;
+	res = read_and_decrypt_file(fd, META_FILE,
+			(void *)&meta->info, &meta_info_size,
+			meta->encrypted_fek);
 
-	return ree_fs_close(fd);
+	ree_fs_close(fd);
+
+	return res;
 }
 
-static struct tee_fs_file_meta *tee_fs_meta_open(
+static struct tee_fs_file_meta *tee_fs_open_meta_file(
 		const char *file, int version)
 {
 	int res;
 	char meta_path[REE_FS_NAME_MAX];
-	struct tee_fs_file_meta *meta;
+	struct tee_fs_file_meta *meta = NULL;
 
 	meta = malloc(sizeof(struct tee_fs_file_meta));
 	if (!meta)
 		return NULL;
 
 	get_meta_filepath(file, version, meta_path);
-	res = read_file_meta(meta_path, meta);
-	if (res)
+	res = read_meta_file(meta_path, meta);
+	if (res < 0)
 		goto exit_free_meta;
 
 	return meta;
@@ -499,13 +560,189 @@ exit_free_meta:
 }
 
 static bool need_to_allocate_new_block(struct tee_fs_fd *fdp,
-					int block_num)
+					size_t block_num)
 {
-	int num_blocks_allocated =
+	size_t num_blocks_allocated =
 		size_to_num_blocks(fdp->meta->info.length);
 	return (block_num >= num_blocks_allocated);
 }
 
+#ifdef CFG_ENC_FS
+static int read_one_block(struct block_operation_args *args)
+{
+	int fd, res;
+	struct tee_fs_fd *fdp = args->fdp;
+	uint8_t *plaintext = NULL;
+	char block_path[REE_FS_NAME_MAX];
+	size_t block_file_size = FILE_BLOCK_SIZE;
+	uint8_t version = get_backup_version_of_block(fdp->meta,
+			args->block_num);
+
+	get_block_filepath(fdp->filename, args->block_num, version,
+			block_path);
+
+	fd = ree_fs_open(block_path, TEE_FS_O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	plaintext = malloc(block_file_size);
+	if (!plaintext) {
+		EMSG("Failed to allocate plaintext buffer, size=%zd",
+				block_file_size);
+		res = -1;
+		goto fail;
+	}
+
+	res = read_and_decrypt_file(fd, BLOCK_FILE,
+			plaintext, &block_file_size,
+			fdp->meta->encrypted_fek);
+	if (res < 0) {
+		EMSG("Failed to read and decrypt file");
+		goto fail;
+	}
+
+	if (args->len == READ_ALL) {
+		DMSG("read all");
+		args->len = block_file_size;
+		args->offset = 0;
+	}
+
+	DMSG("offset=%d, length=%zu, block_file_size=%zu",
+			args->offset, args->len, block_file_size);
+
+	if ((args->offset + args->len) > block_file_size) {
+		EMSG("Read (offset(%u) + length(%zu)) > block file size(%zu)",
+				args->offset, args->len, block_file_size);
+		res = -1;
+		goto fail;
+	}
+
+	memcpy(args->buf, plaintext + args->offset, args->len);
+
+	res = args->len;
+
+fail:
+	free(plaintext);
+	ree_fs_close(fd);
+
+	return res;
+}
+
+static int create_empty_new_version_block(struct tee_fs_fd *fdp,
+		struct tee_fs_file_meta *new_meta, int block_num)
+{
+	int fd;
+	int res = -1;
+	char block_path[REE_FS_NAME_MAX];
+	uint8_t new_version =
+		!get_backup_version_of_block(fdp->meta, block_num);
+
+	get_block_filepath(fdp->filename, block_num, new_version,
+			block_path);
+
+	fd = ree_fs_open(block_path, TEE_FS_O_CREATE | TEE_FS_O_RDWR);
+	if (fd < 0)
+		goto exit;
+
+	res = ree_fs_ftruncate(fd, 0);
+	if (res < 0)
+		goto exit;
+
+	/*
+	 * toggle block version in new meta to indicate
+	 * we are currently working on new block file
+	 */
+	toggle_backup_version_for_block(new_meta, block_num);
+	res = fd;
+
+exit:
+	return res;
+}
+
+static int write_one_block(struct block_operation_args *args)
+{
+	int fd = -1;
+	int res;
+	struct tee_fs_fd *fdp = args->fdp;
+	size_t block_num = args->block_num;
+	struct tee_fs_file_meta *new_meta = args->extra;
+	uint8_t *plaintext;
+	size_t old_file_size, new_file_size;
+
+	if ((args->offset + args->len) > FILE_BLOCK_SIZE) {
+		EMSG("Write (offset(%d) + length(%zu)) > FILE_BLOCK_SIZE(%u)",
+				args->offset, args->len, FILE_BLOCK_SIZE);
+		return -1;
+	}
+
+	plaintext = malloc(FILE_BLOCK_SIZE);
+	if (!plaintext) {
+		EMSG("Failed to allocate plaintext buffer, size=%d",
+				FILE_BLOCK_SIZE);
+		res = -1;
+		goto fail;
+	}
+
+	if (need_to_allocate_new_block(fdp, block_num)) {
+		fd = alloc_block(fdp, block_num);
+		if (fd < 0) {
+			EMSG("Failed to allocate block");
+			res = -1;
+			goto fail;
+		}
+		old_file_size = 0;
+	} else {
+		struct block_operation_args read_op_args = {
+			.fdp = fdp,
+			.block_num = args->block_num,
+			.buf = plaintext,
+			.extra = NULL,
+			.len = READ_ALL
+		};
+
+		res = read_one_block(&read_op_args);
+		if (res < 0) {
+			EMSG("Failed to read block");
+			goto fail;
+		}
+
+		old_file_size = read_op_args.len;
+
+		fd = create_empty_new_version_block(
+				fdp, new_meta, block_num);
+		if (fd < 0) {
+			EMSG("Failed to create new version of block");
+			res = -1;
+			goto fail;
+		}
+	}
+
+	memcpy(plaintext + args->offset, args->buf, args->len);
+
+	if ((args->offset + args->len) > old_file_size)
+		new_file_size = args->offset + args->len;
+	else
+		new_file_size = old_file_size;
+
+	res = encrypt_and_write_file(fd, BLOCK_FILE,
+			plaintext, new_file_size,
+			new_meta->encrypted_fek);
+	if (res < 0) {
+		EMSG("Failed to encrypt and write block file");
+		goto fail;
+	}
+
+	res = args->len;
+
+fail:
+	free(plaintext);
+
+	if (fd > 0)
+		ree_fs_close(fd);
+
+	return res;
+}
+#else
 static int create_new_version_for_block(struct tee_fs_fd *fdp,
 		struct tee_fs_file_meta *new_meta, int block_num)
 {
@@ -581,8 +818,10 @@ static int write_one_block(struct block_operation_args *args)
 		fd = create_new_version_for_block(
 				fdp, new_meta, block_num);
 
-	if (fd < 0)
+	if (fd < 0) {
+		EMSG("fd < 0");
 		return fd;
+	}
 
 	if (off) {
 		res = ree_fs_lseek(fd, off, TEE_FS_SEEK_SET);
@@ -625,13 +864,20 @@ static int read_one_block(struct block_operation_args *args)
 	ree_fs_close(fd);
 	return bytes;
 }
+#endif
+
+static inline size_t fix_block_ops_length(size_t offset, size_t len)
+{
+	return (len + offset > FILE_BLOCK_SIZE) ?
+			FILE_BLOCK_SIZE - offset : len;
+}
 
 static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 		int (*do_block_ops)(struct block_operation_args *args),
 		void *buf, size_t len, void *extra)
 {
 	int start_block, end_block, num_blocks_to_process;
-	int block_num, remain_bytes = len;
+	size_t block_num, remain_bytes = len;
 	size_t offset_in_block;
 	uint8_t *data = buf;
 
@@ -641,7 +887,8 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 	block_num = start_block;
 	offset_in_block = fdp->pos & (FILE_BLOCK_SIZE - 1);
 
-	DMSG("start_block:%d, end_block:%d", start_block, end_block);
+	DMSG("start_block:%d, end_block:%d, len:%zu",
+			start_block, end_block, len);
 
 	while (num_blocks_to_process) {
 		struct block_operation_args args = {
@@ -650,17 +897,18 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 			.block_num = block_num,
 			.buf = data,
 			.extra = extra,
-			.len = (remain_bytes > FILE_BLOCK_SIZE) ?
-				FILE_BLOCK_SIZE :
-				remain_bytes
+			.len = fix_block_ops_length(offset_in_block,
+					remain_bytes)
 		};
 		int bytes_consumed = do_block_ops(&args);
 
 		if (bytes_consumed < 0)
 			return -1;
 
-		DMSG("block_num: %d, offset: %zu, bytes_consumed: %d",
+		DMSG("block_num: %zu, offset: %zu, bytes_consumed: %d",
 			block_num, offset_in_block, bytes_consumed);
+
+		TEE_ASSERT(remain_bytes >= (size_t)bytes_consumed);
 
 		data += bytes_consumed;
 		remain_bytes -= bytes_consumed;
@@ -740,45 +988,41 @@ struct tee_fs_fd *tee_fs_fd_lookup(int fd)
 	return handle_lookup(&fs_handle_db, fd);
 }
 
-void tee_fs_fail_recovery(struct tee_fs_fd *fdp)
-{
-	int res;
-
-	res = tee_fs_common_close(fdp);
-	if (!res)
-		do_fail_recovery(fdp);
-}
-
 int tee_fs_common_open(const char *file, int flags, ...)
 {
 	int res = -1;
 	int meta_version;
 	size_t len;
-	struct tee_fs_file_meta *meta;
+	struct tee_fs_file_meta *meta = NULL;
 	struct tee_fs_fd *fdp = NULL;
-
-	DMSG("file=%s", file);
 
 	len = strlen(file) + 1;
 	if (len > TEE_FS_NAME_MAX)
 		goto exit;
 
 	meta_version = 0;
-	meta = tee_fs_meta_open(file, meta_version);
+	meta = tee_fs_open_meta_file(file, meta_version);
 	if (!meta) {
 		meta_version = 1;
-		meta = tee_fs_meta_open(file, meta_version);
+		meta = tee_fs_open_meta_file(file, meta_version);
 
 		/* cannot find meta file, assumed file not existed */
 		if (!meta) {
 			if (flags & TEE_FS_O_CREATE) {
-				meta = tee_fs_file_create(file);
-				if (!meta)
+				meta_version = 0;
+				meta = tee_fs_create_meta_file(file,
+						meta_version);
+				if (!meta) {
+					EMSG("Fail to create new meta file");
 					return -1;
-			} else
+				}
+			} else {
+				EMSG("Meta file not found");
 				return -1;
+			}
 		}
 	}
+	DMSG("Open file=%s, meta version=%d", file, meta_version);
 
 	fdp = (struct tee_fs_fd *)malloc(sizeof(struct tee_fs_fd));
 	if (!fdp)
@@ -802,8 +1046,13 @@ int tee_fs_common_open(const char *file, int flags, ...)
 	fdp->fd = res;
 
 exit_free_fd:
-	if (res == -1)
-		free(fdp);
+	if (res < 0) {
+		free(meta);
+		if (fdp) {
+			free(fdp->filename);
+			free(fdp);
+		}
+	}
 exit:
 	return res;
 }
@@ -817,8 +1066,7 @@ int tee_fs_common_close(struct tee_fs_fd *fdp)
 
 	handle_put(&fs_handle_db, fdp->fd);
 
-	if (fdp->private)
-		free(fdp->private);
+	free(fdp->private);
 	free(fdp->meta);
 	free(fdp->filename);
 	free(fdp);
@@ -862,7 +1110,7 @@ tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
 	 * restrict the file postion within file length
 	 * for simplicity
 	 */
-	if (new_pos > (tee_fs_off_t)filelen)
+	if ((new_pos < 0) || (new_pos > (tee_fs_off_t)filelen))
 		goto exit;
 
 	res = fdp->pos = new_pos;
@@ -877,8 +1125,7 @@ exit:
  *  - commit new meta
  *
  * (Any failure in above steps is considered as update failed,
- *  and the file context will be keepped as is before the update
- *  operation)
+ *  and the file content will not be updated)
  *
  * After previous step the update is considered complete, but
  * we should do the following clean-up step(s):
@@ -894,7 +1141,7 @@ int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 	int res = -1;
 	size_t old_file_len;
 	int old_block_num, new_block_num, diff_blocks, i = 0;
-	struct tee_fs_file_meta *new_meta;
+	struct tee_fs_file_meta *new_meta = NULL;
 
 	if (!fdp)
 		goto exit;
@@ -902,10 +1149,12 @@ int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 	if (fdp->flags & TEE_FS_O_RDONLY)
 		goto exit;
 
-	if (new_file_len > (tee_fs_off_t)fdp->meta->info.length)
+	if (new_file_len > (tee_fs_off_t)fdp->meta->info.length) {
+		EMSG("Extending file size is not support yet");
 		goto exit;
+	}
 
-	new_meta = create_new_file_meta(fdp);
+	new_meta = duplicate_meta(fdp);
 	if (!new_meta)
 		goto exit;
 
@@ -917,20 +1166,26 @@ int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 	new_meta->info.length = new_file_len;
 	DMSG("truncated length=%d", new_file_len);
 
-	res = commit_file_meta(fdp, new_meta);
-	if (res < 0)
+	res = tee_fs_commit_meta_file(fdp, new_meta);
+	if (res < 0) {
+		EMSG("Failed to commit meta file");
 		goto exit;
+	}
 
 	/* now we are safe to free blocks */
 	TEE_ASSERT(diff_blocks <= 0);
 	while (diff_blocks) {
 		res = free_block(fdp, old_block_num - i);
-		if (res)
+		if (res) {
+			EMSG("Failed to free block: %d", old_block_num - i);
 			goto exit;
+		}
 		i++;
 		diff_blocks++;
 	}
 exit:
+	if (new_meta)
+		free(new_meta);
 	return res;
 }
 
@@ -979,8 +1234,7 @@ exit:
  *  - Write the new file meta.
  *
  * (Any failure in above steps is considered as update failed,
- *  and the file context will be keepped as is before the update
- *  operation)
+ *  and the file content will not be updated)
  *
  * After previous step the update is considered complete, but
  * we should do the following clean-up step(s):
@@ -1010,7 +1264,12 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 	if (fdp->flags & TEE_FS_O_RDONLY)
 		goto exit;
 
-	new_meta = create_new_file_meta(fdp);
+	if ((fdp->pos + len) > MAX_FILE_SIZE) {
+		EMSG("Over maximum file size(%d)", MAX_FILE_SIZE);
+		goto exit;
+	}
+
+	new_meta = duplicate_meta(fdp);
 	if (!new_meta)
 		goto exit;
 
@@ -1025,9 +1284,9 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 		if (fdp->pos > (tee_fs_off_t)new_meta->info.length)
 			new_meta->info.length = fdp->pos;
 
-		r = commit_file_meta(fdp, new_meta);
-		if (r)
-			res = r;
+		r = tee_fs_commit_meta_file(fdp, new_meta);
+		if (r < 0)
+			res = -1;
 	}
 
 	free(new_meta);
@@ -1043,11 +1302,10 @@ exit:
  *  - For each REE blocks files, create a hard link under the just
  *    created folder (new TEE file)
  *  - Now we are ready to commit meta, create hard link for the
- *    mata file
+ *    meta file
  *
  * (Any failure in above steps is considered as update failed,
- *  and the file context will be keepped as is before the update
- *  operation)
+ *  and the file content will not be updated)
  *
  * After previous step the update is considered complete, but
  * we should do the following clean-up step(s):
@@ -1117,8 +1375,7 @@ exit:
  *  - rename("file", "file.trash");
  *
  * (Any failure in above steps is considered as update failed,
- *  and the file context will be keepped as is before the update
- *  operation)
+ *  and the file content will not be updated)
  *
  * After previous step the update is considered complete, but
  * we should do the following clean-up step(s):
@@ -1133,7 +1390,7 @@ int tee_fs_common_unlink(const char *file)
 	int res = -1;
 	char trash_file[TEE_FS_NAME_MAX + 6];
 
-	snprintf(trash_file, REE_FS_NAME_MAX + 6, "%s.trash",
+	snprintf(trash_file, TEE_FS_NAME_MAX + 6, "%s.trash",
 		file);
 
 	res = tee_fs_common_rename(file, trash_file);

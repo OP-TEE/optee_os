@@ -29,6 +29,7 @@
 #define TEE_FS_PRIV_H
 
 #include <utee_defines.h>
+#include <tee/tee_fs_key_manager.h>
 
 /* TEE FS operation */
 #define TEE_FS_OPEN       1
@@ -47,13 +48,15 @@
 #define TEE_FS_ACCESS    14
 #define TEE_FS_LINK      15
 
-#define FILE_BLOCK_SHIFT	4
+#define FILE_BLOCK_SHIFT	12
 
 #define FILE_BLOCK_SIZE		(1 << FILE_BLOCK_SHIFT)
 
 #define NUM_BLOCKS_PER_FILE	1024
 
 #define MAX_FILE_SIZE	(FILE_BLOCK_SIZE * NUM_BLOCKS_PER_FILE)
+
+#define READ_ALL 0
 
 #define COPY_BUF_SIZE	1024
 
@@ -64,7 +67,7 @@ struct tee_fs_file_info {
 
 struct tee_fs_file_meta {
 	struct tee_fs_file_info info;
-	uint8_t hash[TEE_SHA256_HASH_SIZE];
+	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
 };
 
 struct tee_fs_fd {
@@ -89,9 +92,9 @@ static inline int pos_to_block_num(int addr)
 	return addr >> FILE_BLOCK_SHIFT;
 }
 
-static inline int size_to_num_blocks(size_t size)
+static inline size_t size_to_num_blocks(size_t size)
 {
-	int num_blocks = size >> FILE_BLOCK_SHIFT;
+	size_t num_blocks = size >> FILE_BLOCK_SHIFT;
 
 	if ((size & (FILE_BLOCK_SIZE - 1)) > 0)
 		num_blocks++;
@@ -100,9 +103,9 @@ static inline int size_to_num_blocks(size_t size)
 
 static inline uint8_t get_backup_version_of_block(
 		struct tee_fs_file_meta *meta,
-		int block_num)
+		size_t block_num)
 {
-	int index = (block_num / 32);
+	uint32_t index = (block_num / 32);
 	uint32_t block_mask = 1 << (block_num % 32);
 
 	return !!(meta->info.backup_version_table[index] & block_mask);
@@ -110,17 +113,15 @@ static inline uint8_t get_backup_version_of_block(
 
 static inline void toggle_backup_version_for_block(
 		struct tee_fs_file_meta *meta,
-		int block_num)
+		size_t block_num)
 {
-	int index = (block_num / 32);
+	uint32_t index = (block_num / 32);
 	uint32_t block_mask = 1 << (block_num % 32);
 
 	meta->info.backup_version_table[index] ^= block_mask;
 }
 
 struct tee_fs_fd *tee_fs_fd_lookup(int fd);
-
-void tee_fs_fail_recovery(struct tee_fs_fd *fdp);
 
 int tee_fs_common_open(const char *file, int flags, ...);
 

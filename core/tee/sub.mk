@@ -26,12 +26,8 @@ srcs-$(CFG_CRYPTO_CONCAT_KDF) += tee_cryp_concat_kdf.c
 srcs-$(CFG_CRYPTO_PBKDF2) += tee_cryp_pbkdf2.c
 
 srcs-y += tee_fs_common.c
-ifeq (y,$(CFG_ENC_FS))
-srcs-y += tee_enc_fs_key_manager.c
-srcs-y += tee_enc_fs.c
-else
+srcs-y += tee_fs_key_manager.c
 srcs-y += tee_fs.c
-endif
 
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
