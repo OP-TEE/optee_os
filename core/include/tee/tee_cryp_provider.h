@@ -181,6 +181,20 @@ struct dh_keypair {
 	uint32_t xbits;		/* Number of bits in the private key */
 };
 
+/* TODO ECC (optional) */
+struct ecc_public_key {
+	struct bignum *x;	/* Public value x */
+	struct bignum *y;	/* Public value y */
+	uint32_t curve;	        /* Curve type */
+};
+
+struct ecc_keypair {
+	struct bignum *d;	/* Private value */
+	struct bignum *x;	/* Public value x */
+	struct bignum *y;	/* Public value y */
+	uint32_t curve;	        /* Curve type */
+};
+
 struct acipher_ops {
 
 	/*
@@ -198,6 +212,14 @@ struct acipher_ops {
 					   size_t key_size_bits);
 	TEE_Result (*alloc_dh_keypair)(struct dh_keypair *s,
 				       size_t key_size_bits);
+	/*
+	 * TODO ECC (optional)
+	 * TODO update core/lib/libtomcrypt/src/tee_ltc_provider.c
+	 */
+	TEE_Result (*alloc_ecc_public_key)(struct ecc_public_key *s,
+					   size_t key_size_bits);
+	TEE_Result (*alloc_ecc_keypair)(struct ecc_keypair *s,
+					size_t key_size_bits);
 
 	/*
 	 * Key generation functions

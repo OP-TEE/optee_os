@@ -349,6 +349,112 @@ static const struct tee_cryp_obj_type_attrs
 };
 #endif
 
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecdsa_pub_key_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_public_key, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_public_key, y)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_CURVE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_VALUE,
+	RAW_DATA(struct ecc_public_key, curve)
+	},
+};
+
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecdsa_keypair_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, d)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, y)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_CURVE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_VALUE,
+	RAW_DATA(struct ecc_keypair, curve)
+	},
+};
+
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecdh_pub_key_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_public_key, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_public_key, y)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_CURVE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_VALUE,
+	RAW_DATA(struct ecc_public_key, curve)
+	},
+};
+
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecdh_keypair_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, d)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_BIGNUM,
+	RAW_DATA(struct ecc_keypair, y)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_CURVE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.conv_func = TEE_TYPE_CONV_FUNC_VALUE,
+	RAW_DATA(struct ecc_keypair, curve)
+	},
+};
+
 struct tee_cryp_obj_type_props {
 	TEE_ObjectType obj_type;
 	uint16_t min_size;	/* may not be smaller than this */
@@ -427,17 +533,33 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 		sizeof(struct rsa_keypair),
 		tee_cryp_obj_rsa_keypair_attrs),
 
-	PROP(TEE_TYPE_DSA_PUBLIC_KEY, 64, 512, 1024,
+	PROP(TEE_TYPE_DSA_PUBLIC_KEY, 64, 512, 3072,
 		sizeof(struct dsa_public_key),
 		tee_cryp_obj_dsa_pub_key_attrs),
 
-	PROP(TEE_TYPE_DSA_KEYPAIR, 64, 512, 1024,
+	PROP(TEE_TYPE_DSA_KEYPAIR, 64, 512, 3072,
 		sizeof(struct dsa_keypair),
 		tee_cryp_obj_dsa_keypair_attrs),
 
 	PROP(TEE_TYPE_DH_KEYPAIR, 1, 256, 2048,
 		sizeof(struct dh_keypair),
 		tee_cryp_obj_dh_keypair_attrs),
+
+	PROP(TEE_TYPE_ECDSA_PUBLIC_KEY, 1, 192, 521,
+		sizeof(struct ecc_public_key),
+		tee_cryp_obj_ecdsa_pub_key_attrs),
+
+	PROP(TEE_TYPE_ECDSA_KEYPAIR, 1, 192, 521,
+		sizeof(struct ecc_keypair),
+		tee_cryp_obj_ecdsa_keypair_attrs),
+
+	PROP(TEE_TYPE_ECDH_PUBLIC_KEY, 1, 192, 521,
+		sizeof(struct ecc_public_key),
+		tee_cryp_obj_ecdh_pub_key_attrs),
+
+	PROP(TEE_TYPE_ECDH_KEYPAIR, 1, 192, 521,
+		sizeof(struct ecc_keypair),
+		tee_cryp_obj_ecdh_keypair_attrs),
 };
 
 TEE_Result tee_svc_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info)
@@ -735,6 +857,25 @@ static void cleanup_dh_keypair(void *p, bool del)
 	s->xbits = 0;
 }
 
+static void cleanup_ecc_public_key(void *p, bool del)
+{
+	struct ecc_public_key *s = (struct ecc_public_key *)p;
+
+	bn_cleanup(s->x, del);
+	bn_cleanup(s->y, del);
+	s->curve = 0;
+}
+
+static void cleanup_ecc_keypair(void *p, bool del)
+{
+	struct ecc_keypair *s = (struct ecc_keypair *)p;
+
+	bn_cleanup(s->d, del);
+	bn_cleanup(s->x, del);
+	bn_cleanup(s->y, del);
+	s->curve = 0;
+}
+
 static void copy_rsa_public_key(struct rsa_public_key *to,
 				const struct rsa_public_key *from)
 {
@@ -886,6 +1027,26 @@ TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
 				!= TEE_SUCCESS)
 			goto alloc_err;
 		o->cleanup = cleanup_dh_keypair;
+		break;
+	/* TODO ECC (optional) */
+	case TEE_TYPE_ECDSA_PUBLIC_KEY:
+	case TEE_TYPE_ECDH_PUBLIC_KEY:
+		if (!crypto_ops.acipher.alloc_ecc_public_key)
+			goto notimpl;
+		if (crypto_ops.acipher.alloc_ecc_public_key(o->data,
+							    max_key_size)
+				!= TEE_SUCCESS)
+			goto alloc_err;
+		o->cleanup = cleanup_ecc_public_key;
+		break;
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+		if (!crypto_ops.acipher.alloc_ecc_keypair)
+			goto notimpl;
+		if (crypto_ops.acipher.alloc_ecc_keypair(o->data, max_key_size)
+				!= TEE_SUCCESS)
+			goto alloc_err;
+		o->cleanup = cleanup_ecc_keypair;
 		break;
 	default:
 		break;
@@ -1091,6 +1252,9 @@ static TEE_Result tee_svc_cryp_check_attr(enum attr_usage usage,
 	uint32_t opt_grp_attrs = 0;
 	uint32_t attrs_found = 0;
 	size_t n;
+	uint32_t bit = 0;
+	uint32_t flags;
+	int idx = -1;
 
 	if (usage == ATTR_USAGE_POPULATE) {
 		required_flag = TEE_TYPE_ATTR_REQUIRED;
@@ -1107,8 +1271,8 @@ static TEE_Result tee_svc_cryp_check_attr(enum attr_usage usage,
 	 * the optional group
 	 */
 	for (n = 0; n < type_props->num_type_attrs; n++) {
-		uint32_t bit = 1 << n;
-		uint32_t flags = type_props->type_attrs[n].flags;
+		bit = 1 << n;
+		flags = type_props->type_attrs[n].flags;
 
 		if (flags & required_flag)
 			req_attrs |= bit;
@@ -1121,17 +1285,20 @@ static TEE_Result tee_svc_cryp_check_attr(enum attr_usage usage,
 	 * that the same attribute isn't repeated.
 	 */
 	for (n = 0; n < attr_count; n++) {
-		int idx =
-		    tee_svc_cryp_obj_find_type_attr_idx(attrs[n].attributeID,
+		idx = tee_svc_cryp_obj_find_type_attr_idx(
+							attrs[n].attributeID,
 							type_props);
-		if (idx >= 0) {
-			uint32_t bit = 1 << idx;
 
-			if ((attrs_found & bit) != 0)
-				return TEE_ERROR_ITEM_NOT_FOUND;
+		/* attribute not defined in current object type */
+		if (idx < 0)
+			return TEE_ERROR_ITEM_NOT_FOUND;
 
-			attrs_found |= bit;
-		}
+		bit = 1 << idx;
+
+		if ((attrs_found & bit) != 0)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		attrs_found |= bit;
 	}
 	/* Required attribute missing */
 	if ((attrs_found & req_attrs) != req_attrs)
@@ -1162,11 +1329,16 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	for (n = 0; n < attr_count; n++) {
 		size_t raw_size;
 		void *raw_data;
-		int idx =
-		    tee_svc_cryp_obj_find_type_attr_idx(attrs[n].attributeID,
+		int idx = tee_svc_cryp_obj_find_type_attr_idx(
+							attrs[n].attributeID,
 							type_props);
+		/* attribute not defined in current object type */
 		if (idx < 0)
-			continue;
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		/* attribute bigger than maximum object size */
+		if (o->info.maxKeySize < attrs[n].content.ref.length)
+			return TEE_ERROR_OUT_OF_MEMORY;
 
 		have_attrs |= 1 << idx;
 
@@ -1175,10 +1347,9 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res =
-		    tee_svc_cryp_obj_store_attr_raw(
-			    type_props->type_attrs[idx].conv_func,
-			    attrs + n, raw_data, raw_size);
+		res = tee_svc_cryp_obj_store_attr_raw(
+					type_props->type_attrs[idx].conv_func,
+					attrs + n, raw_data, raw_size);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -1187,9 +1358,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		 * of the object
 		 */
 		if (type_props->type_attrs[idx].flags &
-		    TEE_TYPE_ATTR_SIZE_INDICATOR) {
+		    TEE_TYPE_ATTR_SIZE_INDICATOR)
 			obj_size += attrs[n].content.ref.length * 8;
-		}
 	}
 
 	/*
@@ -1202,6 +1372,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 
 	o->have_attrs = have_attrs;
 	o->info.keySize = obj_size;
+
 	return TEE_SUCCESS;
 }
 
