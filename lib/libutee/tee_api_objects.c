@@ -213,6 +213,12 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 	uint32_t obj;
 
 	res = utee_cryp_obj_alloc(objectType, maxKeySize, &obj);
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_NOT_SUPPORTED)
+		TEE_Panic(0);
+
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle) obj;
 
@@ -379,7 +385,7 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 	res = utee_cryp_obj_generate_key((uint32_t)object, keySize,
 					 params, paramCount);
 
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS && res != TEE_ERROR_BAD_PARAMETERS)
 		TEE_Panic(0);
 
 	return res;
@@ -421,7 +427,7 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 		goto err;
 	}
 
-	if (objectID == NULL) {
+	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto err;
 	}
@@ -431,7 +437,7 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 		goto err;
 	}
 
-	if (object == NULL) {
+	if (!object) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
