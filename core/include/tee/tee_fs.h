@@ -33,6 +33,22 @@
 
 #define TEE_FS_NAME_MAX 350
 
+/*
+ * We split a TEE file into multiple blocks and stored
+ * on REE filesystem. TEE file is represented by small
+ * REE files and a special file called meta, which is used
+ * to concatenate multiple REE files.
+ *
+ * Thus, REE file path should be slightly longer than
+ * TEE file path, it's name should look like:
+ *
+ *   <tee_file_name>/meta
+ *   <tee_file_name>/block0
+ *   ...
+ *   <tee_file_name>/block15
+ */
+#define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
+
 typedef int tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;
 typedef struct tee_fs_dir tee_fs_dir;

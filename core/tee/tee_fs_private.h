@@ -28,6 +28,8 @@
 #ifndef TEE_FS_PRIV_H
 #define TEE_FS_PRIV_H
 
+#include <utee_defines.h>
+
 /* TEE FS operation */
 #define TEE_FS_OPEN       1
 #define TEE_FS_CLOSE      2
@@ -44,10 +46,41 @@
 #define TEE_FS_RMDIR     13
 #define TEE_FS_ACCESS    14
 
+#define FILE_BLOCK_SHIFT	4
+
+#define FILE_BLOCK_SIZE		(1 << FILE_BLOCK_SHIFT)
+
+#define NUM_BLOCKS_PER_FILE	1024
+
+#define MAX_FILE_SIZE	(FILE_BLOCK_SIZE * NUM_BLOCKS_PER_FILE)
+
+static inline int pos_to_block_num(int addr)
+{
+	return addr >> FILE_BLOCK_SHIFT;
+}
+
+static inline int size_to_num_blocks(size_t size)
+{
+	int num_blocks = size >> FILE_BLOCK_SHIFT;
+	if ((size & (FILE_BLOCK_SIZE - 1)) > 0)
+		num_blocks++;
+	return num_blocks;
+}
+
+struct tee_fs_file_info {
+	size_t length;
+};
+
+struct tee_fs_file_meta {
+	struct tee_fs_file_info info;
+	uint8_t hash[TEE_SHA256_HASH_SIZE];
+};
+
 struct tee_fs_fd {
-	int fd;
-	int nw_fd;		/* normal world fd */
+	struct tee_fs_file_meta *meta;
+	int pos;
 	uint32_t flags;
+	int fd;
 	bool is_new_file;
 	char *filename;
 	void *private;
