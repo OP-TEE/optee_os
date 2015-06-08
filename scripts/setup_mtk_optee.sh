@@ -33,6 +33,7 @@ STABLE_KERNLE_COMMIT=origin/4.0rc1
 
 SRC_KERNEL_PATCHES=https://github.com/ibanezchen/patches-upstream
 DST_KERNEL_PATCHES=$DEV_PATH/patches-upstream
+STABLE_KERNEL_PATCHES_COMMIT=origin/4.0rc1
 
 SRC_OPTEE_OS=https://github.com/OP-TEE/optee_os.git
 DST_OPTEE_OS=$DEV_PATH/optee_os
@@ -86,6 +87,7 @@ fi
 
 if [ ! -d "$DST_KERNEL_PATCHES" ]; then
 	git clone $SRC_KERNEL_PATCHES $DST_KERNEL_PATCHES
+	(cd $DST_KERNEL_PATCHES && git reset --hard $STABLE_KERNEL_PATCHES_COMMIT)
 else
 	echo " `basename $DST_KERNEL_PATCHES` already exist, not cloning"
 fi
