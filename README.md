@@ -453,7 +453,7 @@ set the architecture
 ```
 (gdb) set architecture arm
 ```
-The `run_qemu.sh` script set qemu wait for a gdb connection. Skip the `(qemu) c` step above, and connect to qemu from gdb:  
+The script`run_qemu.sh`  sets qemu to wait for a gdb connection. Skip the `(qemu) c` step above, and connect to qemu from gdb:  
 ```
 (gdb) target remote localhost:1234
 ...
