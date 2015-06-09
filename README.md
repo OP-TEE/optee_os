@@ -445,7 +445,7 @@ To debug arm on a x86/x86-64 machine, you need a gdb cross-debugger:
 ```
 $ sudo apt-get install gdb-multiarch
 ```
-Start gdb
+Start gdb from another terminal
 ```
 $ gdb-multiarch
 ```
