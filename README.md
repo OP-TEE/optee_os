@@ -459,7 +459,7 @@ The script `run_qemu.sh`  sets qemu to wait for a gdb connection. Skip the `(qem
 ...
 Qemu is by default set to listen on port 1234.
 ```
-Now you can start debugging:
+Now, you can start debugging:
 ```
 (gdb) c
 ```
