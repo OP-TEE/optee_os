@@ -439,30 +439,6 @@ $ root@Vexpress:/ modprobe optee_armtz
 $ root@Vexpress:/ tee-supplicant &
 ```
 
-#### 4.4.5 Debug Qemu using gdb
-
-To debug arm on a x86/x86-64 machine, you need a gdb cross-debugger:
-```
-$ sudo apt-get install gdb-multiarch
-```
-Start gdb from another terminal
-```
-$ gdb-multiarch
-```
-Set the architecture to arm
-```
-(gdb) set architecture arm
-```
-The script `run_qemu.sh`  sets qemu to wait for a gdb connection. Skip the `(qemu) c` step above, and connect to qemu from gdb:  
-```
-(gdb) target remote localhost:1234
-...
-Qemu is by default set to listen on port 1234.
-```
-Now, you can start debugging:
-```
-(gdb) c
-```
 ---
 ### 4.5 STMicroelectronics boards
 Currently OP-TEE is supported on Orly-2 (b2020-h416) and Cannes family (b2120
