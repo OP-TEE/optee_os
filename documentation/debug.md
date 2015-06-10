@@ -62,7 +62,7 @@ set print pretty on
 
 define optee
 	handle SIGTRAP noprint nostop pass
-	symbol-file $HOME/devel/qemu_optee/optee_os/out/arm-plat-vexpress/core/tee.elf
+	symbol-file ~/devel/qemu_optee/optee_os/out/arm-plat-vexpress/core/tee.elf
 	target remote localhost:1234
 end
 document optee
@@ -97,8 +97,8 @@ terminal]
 Now it is time to set the breakpoints. For example
 
 ```
-(gdb) b plat_tee_entry
-Breakpoint 1 at 0x7df104d6: file core/arch/arm/plat-vexpress/plat_tee_func.c, line 42.
+(gdb) b tee_entry
+Breakpoint 1 at 0x7df0677c: file core/arch/arm/tee/entry.c, line 385.
 ```
 
 and then start the execution by writing the continue command in gdb.
@@ -112,8 +112,9 @@ When the driver has been loaded and you start using OP-TEE the breakpoint will
 trigger, which will look something like this:
 
 ```
-Breakpoint 1, plat_tee_entry (args=0x7df64918 <stack_tmp+1048>) at core/arch/arm/plat-vexpress/plat_tee_func.c:42
-42              if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
+Breakpoint 1, tee_entry (args=0x7df44918 <stack_tmp+1048>)
+    at core/arch/arm/tee/entry.c:385
+385	{
 (gdb)
 ```
 
