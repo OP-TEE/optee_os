@@ -379,6 +379,12 @@ static paddr_t populate_user_map(struct tee_mmu_info *mmu)
 	tbl_info.shift = SECTION_SHIFT;
 	tbl_info.num_entries = TEE_MMU_UL1_NUM_ENTRIES;
 
+	/*
+	 * Need to clear the table before use, because there maybe junk
+	 * data at tlb_info.table, which may corrupt system when set ttbr0
+	 */
+	memset(tbl_info.table, 0x00, TEE_MMU_UL1_SIZE);
+
 	region.pa = 0;
 	region.va = va_range_base;
 	region.attr = 0;
