@@ -197,126 +197,6 @@
 				      & CPACR_EL1_FPEN_MASK)
 
 #ifndef ASM
-static inline uint32_t read_daif(void)
-{
-	uint32_t val;
-
-	asm volatile("mrs %[val], daif"
-			: [val] "=r" (val));
-	return val;
-}
-
-static inline void write_daif(uint32_t val)
-{
-	asm volatile("msr daif, %[val]"
-			: : [val] "r" (val));
-}
-
-static inline void write_mair_el1(uint64_t val)
-{
-	asm volatile("msr mair_el1, %[val]"
-			: : [val] "r" (val));
-}
-
-static inline uint64_t read_tcr_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], tcr_el1"
-			: [val] "=r" (val));
-	return val;
-}
-
-static inline void write_tcr_el1(uint64_t val)
-{
-	asm volatile("msr tcr_el1, %[val]"
-			: : [val] "r" (val));
-}
-
-static inline uint64_t read_ttbr0_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], ttbr0_el1"
-			: [val] "=r" (val));
-	return val;
-}
-
-static inline void write_ttbr0_el1(uint64_t val)
-{
-	asm volatile("msr ttbr0_el1, %[val]"
-			: : [val] "r" (val));
-}
-
-static inline uint64_t read_ttbr1_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], ttbr1_el1"
-			: [val] "=r" (val));
-	return val;
-}
-
-static inline void write_ttbr1_el1(uint64_t val)
-{
-	asm volatile("msr ttbr1_el1, %[val]"
-			: : [val] "r" (val));
-}
-
-static inline uint64_t read_mpidr_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], mpidr_el1"
-			: [val] "=r"(val));
-	return val;
-}
-
-static inline uint32_t read_contextidr_el1(void)
-{
-	uint32_t val;
-
-	asm volatile("mrs %[val], contextidr_el1"
-			: [val] "=r"(val));
-	return val;
-}
-
-static inline uint64_t read_cntpct(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], cntpct_el0"
-			: [val] "=r"(val));
-	return val;
-}
-
-static inline uint32_t read_cntfrq(void)
-{
-	uint32_t frq;
-
-	asm volatile("mrs %[frq], cntfrq_el0"
-			: [frq] "=r"(frq));
-	return frq;
-}
-
-static inline uint64_t read_esr_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], esr_el1"
-			: [val] "=r"(val));
-	return val;
-}
-
-static inline uint64_t read_far_el1(void)
-{
-	uint64_t val;
-
-	asm volatile("mrs %[val], far_el1"
-			: [val] "=r"(val));
-	return val;
-}
-
 static inline void isb(void)
 {
 	asm volatile ("isb");
@@ -327,44 +207,70 @@ static inline void dsb(void)
 	asm volatile ("dsb sy");
 }
 
-static inline uint32_t read_cpacr_el1(void)
-{
-	uint32_t val;
+/*
+ * Templates for register read/write functions based on mrs/msr
+ */
 
-	asm volatile("mrs %0, cpacr_el1" : "=r" (val));
-	return val;
+#define DEFINE_REG_READ_FUNC_(reg, type, asmreg)	\
+static inline type read_##reg(void)			\
+{							\
+	type val;					\
+							\
+	asm volatile("mrs %0, " #asmreg : "=r" (val));	\
+	return val;					\
 }
 
-static inline void write_cpacr_el1(uint32_t val)
-{
-	asm volatile("msr cpacr_el1, %0" : : "r" (val));
+#define DEFINE_REG_WRITE_FUNC_(reg, type, asmreg)		\
+static inline void write_##reg(type val)			\
+{								\
+	asm volatile("msr " #asmreg ", %0" : : "r" (val));	\
 }
 
-static inline uint32_t read_fpcr(void)
-{
-	uint32_t val;
+#define DEFINE_U32_REG_READ_FUNC(reg) \
+		DEFINE_REG_READ_FUNC_(reg, uint32_t, reg)
 
-	asm volatile("mrs %0, fpcr" : "=r" (val));
-	return val;
-}
+#define DEFINE_U32_REG_WRITE_FUNC(reg) \
+		DEFINE_REG_WRITE_FUNC_(reg, uint32_t, reg)
 
-static inline void write_fpcr(uint32_t val)
-{
-	asm volatile("msr fpcr, %0" : : "r" (val));
-}
+#define DEFINE_U32_REG_READWRITE_FUNCS(reg)	\
+		DEFINE_U32_REG_READ_FUNC(reg)	\
+		DEFINE_U32_REG_WRITE_FUNC(reg)
 
-static inline uint32_t read_fpsr(void)
-{
-	uint32_t val;
+#define DEFINE_U64_REG_READ_FUNC(reg) \
+		DEFINE_REG_READ_FUNC_(reg, uint64_t, reg)
 
-	asm volatile("mrs %0, fpsr" : "=r" (val));
-	return val;
-}
+#define DEFINE_U64_REG_WRITE_FUNC(reg) \
+		DEFINE_REG_WRITE_FUNC_(reg, uint64_t, reg)
 
-static inline void write_fpsr(uint32_t val)
-{
-	asm volatile("msr fpsr, %0" : : "r" (val));
-}
+#define DEFINE_U64_REG_READWRITE_FUNCS(reg)	\
+		DEFINE_U64_REG_READ_FUNC(reg)	\
+		DEFINE_U64_REG_WRITE_FUNC(reg)
+
+/*
+ * Define register access functions
+ */
+
+DEFINE_U32_REG_READWRITE_FUNCS(cpacr_el1)
+DEFINE_U32_REG_READWRITE_FUNCS(daif)
+DEFINE_U32_REG_READWRITE_FUNCS(fpcr)
+DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
+
+DEFINE_U32_REG_READ_FUNC(contextidr_el1)
+
+DEFINE_REG_READ_FUNC_(cntfrq, uint32_t, cntfrq_el0)
+
+DEFINE_U64_REG_READWRITE_FUNCS(ttbr0_el1)
+DEFINE_U64_REG_READWRITE_FUNCS(ttbr1_el1)
+DEFINE_U64_REG_READWRITE_FUNCS(tcr_el1)
+
+DEFINE_U64_REG_READ_FUNC(esr_el1)
+DEFINE_U64_REG_READ_FUNC(far_el1)
+DEFINE_U64_REG_READ_FUNC(mpidr_el1)
+
+DEFINE_U64_REG_WRITE_FUNC(mair_el1)
+
+DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
+
 #endif /*ASM*/
 
 #endif /*ARM64_H*/

@@ -46,15 +46,15 @@ DST_OPTEE_OS=$DEV_PATH/optee_os
 
 SRC_OPTEE_CLIENT=https://github.com/OP-TEE/optee_client.git
 DST_OPTEE_CLIENT=$DEV_PATH/optee_client
-STABLE_CLIENT_COMMIT=1b830c9ca51547cf90cb929a904caa57a5e42853
+STABLE_CLIENT_COMMIT=21cd14f2a7feb589dade1f8897925b55f5d0be49
 
 SRC_OPTEE_LK=https://github.com/OP-TEE/optee_linuxdriver.git
 DST_OPTEE_LK=$DEV_PATH/optee_linuxdriver
-STABLE_LK_COMMIT=724298b6e425d9ce6daae3131bb4b1029190aa2a
+STABLE_LK_COMMIT=4f76d0cd96167e43cb9eecd02122a11bd91d61f1
 
 SRC_OPTEE_TEST=ssh://$LINARO_USERNAME@linaro-private.git.linaro.org/srv/linaro-private.git.linaro.org/swg/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=bdc720eb11d698dfc79d5acd0f8257c313d8a687
+STABLE_OPTEE_TEST_COMMIT=d0c601e7cfaddce9e00eefe17950fb020dacbd05
 
 SRC_GEN_ROOTFS=https://github.com/jbech-linaro/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
