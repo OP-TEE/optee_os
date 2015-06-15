@@ -1136,8 +1136,8 @@ TEE_Result tee_svc_storage_obj_seek(uint32_t obj, int32_t offset,
 
 	off = tee_file_ops.lseek(o->fd, e_off + offset, fw);
 	if (off > -1 && off >= e_off)
-		o->info.dataPosition =
-		    off - sizeof(struct tee_svc_storage_head) + o->data_size;
+		o->info.dataPosition = off -
+			(sizeof(struct tee_svc_storage_head) + o->data_size);
 	else
 		return TEE_ERROR_GENERIC;
 

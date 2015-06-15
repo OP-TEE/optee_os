@@ -370,7 +370,7 @@ static tee_fs_off_t tee_enc_fs_lseek(int fd, tee_fs_off_t offset, int whence)
 	 * restrict the file postion within file length
 	 * for simplicity
 	 */
-	if (new_pos > (tee_fs_off_t)priv->len)
+	if ((new_pos < 0) || (new_pos > (tee_fs_off_t)priv->len))
 		goto exit;
 
 	res = priv->pos = new_pos;
