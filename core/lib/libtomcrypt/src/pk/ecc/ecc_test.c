@@ -83,14 +83,14 @@ int ecc_test(void)
        /* is prime actually prime? */
        if ((err = mp_prime_is_prime(modulus, 8, &primality)) != CRYPT_OK)                   { goto done; }
        if (primality == 0) {
-          err = CRYPT_PK_INVALID_SYSTEM;
+          err = CRYPT_FAIL_TESTVECTOR;
           goto done;
        }
 
        /* is order prime ? */
        if ((err = mp_prime_is_prime(order, 8, &primality)) != CRYPT_OK)                     { goto done; }
        if (primality == 0) {
-          err = CRYPT_PK_TYPE_MISMATCH;
+          err = CRYPT_FAIL_TESTVECTOR;
           goto done;
        }
 

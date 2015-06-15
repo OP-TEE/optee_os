@@ -107,8 +107,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "BD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34",
 },
 #endif
-//#ifdef ECC256
-#if 0
+#ifdef ECC256
 {
         32,
         "ECC-256",
