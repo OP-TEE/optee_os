@@ -81,7 +81,7 @@ static struct map_area *find_map_by_va(void *va)
 	unsigned long a = (unsigned long)va;
 
 	while (map->type != MEM_AREA_NOTYPE) {
-		if ((a >= map->va) && (a < (map->va + map->size)))
+		if ((a >= map->va) && (a <= (map->va - 1 + map->size)))
 			return map;
 		map++;
 	}
