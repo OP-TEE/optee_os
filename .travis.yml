@@ -70,6 +70,7 @@ script:
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{AES,DES}=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH}=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH,ECC}=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{H,C,CBC_}MAC=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{G,C}CM=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n

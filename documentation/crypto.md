@@ -152,10 +152,10 @@ Some algorithms may be disabled at compile time if they are not needed, in order
 to reduce the size of the OP-TEE image and reduces its memory usage. This is done
 by setting the appropriate configuration variable. For example:
 
-    $ make CFG_CRYPTO_AES=n          # disable AES only
-    $ make CFG_CRYPTO_{AES,DES}=n    # disable symmetric ciphers
-    $ make CFG_CRYPTO_{DSA,RSA,DH}=n # disable public key algorithms
-    $ make CFG_CRYPTO=n              # disable all algorithms
+    $ make CFG_CRYPTO_AES=n              # disable AES only
+    $ make CFG_CRYPTO_{AES,DES}=n        # disable symmetric ciphers
+    $ make CFG_CRYPTO_{DSA,RSA,DH,ECC}=n # disable public key algorithms
+    $ make CFG_CRYPTO=n                  # disable all algorithms
 
 Please refer to [core/lib/libtomcrypt/sub.mk](../core/lib/libtomcrypt/sub.mk)
 for the list of all supported variables.

@@ -30,6 +30,7 @@ CFG_CRYPTO_SHA512 ?= y
 CFG_CRYPTO_DSA ?= y
 CFG_CRYPTO_RSA ?= y
 CFG_CRYPTO_DH ?= y
+CFG_CRYPTO_ECC ?= y
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -74,7 +75,7 @@ $(eval $(call cryp-dep-one, DES, ECB CBC))
 cryp-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
 cryp-all-enabled = $(call cfg-all-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
 
-_CFG_CRYPTO_WITH_ACIPHER := $(call cryp-one-enabled, RSA DSA DH)
+_CFG_CRYPTO_WITH_ACIPHER := $(call cryp-one-enabled, RSA DSA DH ECC)
 _CFG_CRYPTO_WITH_AUTHENC := $(and $(filter y,$(CFG_CRYPTO_AES)), $(call cryp-one-enabled, CCM GCM))
 _CFG_CRYPTO_WITH_CIPHER := $(call cryp-one-enabled, AES DES)
 _CFG_CRYPTO_WITH_HASH := $(call cryp-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 SHA512)

@@ -1251,6 +1251,28 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 
 #endif /* CFG_CRYPTO_DH */
 
+#if defined(CFG_CRYPTO_ECC)
+
+static TEE_Result alloc_ecc_keypair_dummy(struct ecc_keypair *s,
+				   size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->d))
+		goto err;
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->d);
+	bn_free(s->x);
+	bn_free(s->y);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+#endif /* CFG_CRYPTO_ECC */
+
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
 
 /******************************************************************************
@@ -2401,6 +2423,10 @@ struct crypto_ops crypto_ops = {
 		.gen_dsa_key = gen_dsa_key,
 		.dsa_sign = dsa_sign,
 		.dsa_verify = dsa_verify,
+#endif
+#if defined(CFG_CRYPTO_ECC)
+		/* temporary dummy function update next patch */
+		.alloc_ecc_keypair = alloc_ecc_keypair_dummy,
 #endif
 	},
 	.bignum = {
