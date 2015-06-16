@@ -892,39 +892,17 @@ static TEE_Result tee_buffer_update(
 
 	if (slen >= (buffer_size + buffer_left)) {
 		/* Buffer is empty, feed as much as possible from src */
-		if (TEE_ALIGNMENT_IS_OK(src, uint32_t)) {
-			l = ROUNDUP(slen - buffer_size + 1, op->block_size);
+		l = ROUNDUP(slen - buffer_size + 1, op->block_size);
 
-			tmp_dlen = dlen;
-			res = update_func(op->state, src, l, dst, &tmp_dlen);
-			if (res != TEE_SUCCESS)
-				TEE_Panic(res);
-			src += l;
-			slen -= l;
-			dst += tmp_dlen;
-			dlen -= tmp_dlen;
-			acc_dlen += tmp_dlen;
-		} else {
-			/*
-			 * Supplied data isn't well aligned, we're forced to
-			 * feed through the buffer.
-			 */
-			while (slen >= op->block_size) {
-				memcpy(op->buffer, src, op->block_size);
-
-				tmp_dlen = dlen;
-				res =
-				    update_func(op->state, op->buffer,
-						op->block_size, dst, &tmp_dlen);
-				if (res != TEE_SUCCESS)
-					TEE_Panic(res);
-				src += op->block_size;
-				slen -= op->block_size;
-				dst += tmp_dlen;
-				dlen -= tmp_dlen;
-				acc_dlen += tmp_dlen;
-			}
-		}
+		tmp_dlen = dlen;
+		res = update_func(op->state, src, l, dst, &tmp_dlen);
+		if (res != TEE_SUCCESS)
+			TEE_Panic(res);
+		src += l;
+		slen -= l;
+		dst += tmp_dlen;
+		dlen -= tmp_dlen;
+		acc_dlen += tmp_dlen;
 	}
 
 	/* Slen is small enough to be contained in buffer. */
