@@ -1253,7 +1253,7 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 
 #if defined(CFG_CRYPTO_ECC)
 
-static TEE_Result alloc_ecc_keypair_dummy(struct ecc_keypair *s,
+static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
 				   size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
@@ -1269,6 +1269,72 @@ err:
 	bn_free(s->x);
 	bn_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
+				   size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->x);
+	bn_free(s->y);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result gen_ecc_key(struct ecc_keypair *key)
+{
+	TEE_Result res;
+	ecc_key ltc_tmp_key;
+	int ltc_res;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
+	size_t key_size;
+
+	switch (key->curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		key_size = 192;
+		break;
+
+	case TEE_ECC_CURVE_NIST_P224:
+		key_size = 224;
+		break;
+
+	case TEE_ECC_CURVE_NIST_P256:
+		key_size = 256;
+		break;
+
+	case TEE_ECC_CURVE_NIST_P384:
+		key_size = 384;
+		break;
+
+	case TEE_ECC_CURVE_NIST_P521:
+		key_size = 521;
+		break;
+
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	/* Generate the ECC key */
+	ltc_res = ecc_make_key(&prng->state, prng->index,
+			       key_size, &ltc_tmp_key);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		/* Copy the key */
+		ltc_mp.copy(ltc_tmp_key.k, key->d);
+		ltc_mp.copy(ltc_tmp_key.pubkey.x, key->x);
+		ltc_mp.copy(ltc_tmp_key.pubkey.y, key->y);
+
+		/* Free the tempory key */
+		ecc_free(&ltc_tmp_key);
+		res = TEE_SUCCESS;
+	}
+	return res;
 }
 
 #endif /* CFG_CRYPTO_ECC */
@@ -2425,8 +2491,9 @@ struct crypto_ops crypto_ops = {
 		.dsa_verify = dsa_verify,
 #endif
 #if defined(CFG_CRYPTO_ECC)
-		/* temporary dummy function update next patch */
-		.alloc_ecc_keypair = alloc_ecc_keypair_dummy,
+		.alloc_ecc_keypair = alloc_ecc_keypair,
+		.alloc_ecc_public_key = alloc_ecc_public_key,
+		.gen_ecc_key = gen_ecc_key,
 #endif
 	},
 	.bignum = {

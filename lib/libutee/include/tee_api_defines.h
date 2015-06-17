@@ -266,6 +266,14 @@
 #define TEE_ATTR_BIT_PROTECTED		(1 << 28)
 #define TEE_ATTR_BIT_VALUE		(1 << 29)
 
+/* List of Supported ECC Curves */
+#define TEE_ECC_CURVE_NIST_P192             0x00000001
+#define TEE_ECC_CURVE_NIST_P224             0x00000002
+#define TEE_ECC_CURVE_NIST_P256             0x00000003
+#define TEE_ECC_CURVE_NIST_P384             0x00000004
+#define TEE_ECC_CURVE_NIST_P521             0x00000005
+
+
 /* Panicked Functions Identification */
 /* TA Interface */
 #define TEE_PANIC_ID_TA_CLOSESESSIONENTRYPOINT      0x00000101
