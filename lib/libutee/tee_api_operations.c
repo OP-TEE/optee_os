@@ -69,6 +69,32 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	if (algorithm == TEE_ALG_AES_XTS)
 		handle_state = TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
 
+	/* Check algorithm max key size */
+	switch (algorithm) {
+	case TEE_ALG_DSA_SHA1:
+		if (maxKeySize < 512)
+			return TEE_ERROR_NOT_SUPPORTED;
+		if (maxKeySize > 1024)
+			return TEE_ERROR_NOT_SUPPORTED;
+		if (maxKeySize % 64 != 0)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_DSA_SHA224:
+		if (maxKeySize != 2048)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_DSA_SHA256:
+		if (maxKeySize != 2048 && maxKeySize != 3072)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	default:
+		break;
+	}
+
+	/* Check algorithm mode */
 	switch (algorithm) {
 	case TEE_ALG_AES_CTS:
 	case TEE_ALG_AES_XTS:
@@ -107,6 +133,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_DSA_SHA1:
+	case TEE_ALG_DSA_SHA224:
+	case TEE_ALG_DSA_SHA256:
 		if (mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_SIGN;
