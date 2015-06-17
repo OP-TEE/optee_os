@@ -90,6 +90,36 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
+	case TEE_ALG_ECDSA_P192:
+	case TEE_ALG_ECDH_P192:
+		if (maxKeySize != 192)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_ECDSA_P224:
+	case TEE_ALG_ECDH_P224:
+		if (maxKeySize != 224)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_ECDSA_P256:
+	case TEE_ALG_ECDH_P256:
+		if (maxKeySize != 256)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_ECDSA_P384:
+	case TEE_ALG_ECDH_P384:
+		if (maxKeySize != 384)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDH_P521:
+		if (maxKeySize != 521)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
 	default:
 		break;
 	}
@@ -135,6 +165,11 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
+	case TEE_ALG_ECDSA_P192:
+	case TEE_ALG_ECDSA_P224:
+	case TEE_ALG_ECDSA_P256:
+	case TEE_ALG_ECDSA_P384:
+	case TEE_ALG_ECDSA_P521:
 		if (mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_SIGN;
@@ -173,6 +208,11 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_DH_DERIVE_SHARED_SECRET:
+	case TEE_ALG_ECDH_P192:
+	case TEE_ALG_ECDH_P224:
+	case TEE_ALG_ECDH_P256:
+	case TEE_ALG_ECDH_P384:
+	case TEE_ALG_ECDH_P521:
 	case TEE_ALG_HKDF_MD5_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA1_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA224_DERIVE_KEY:
