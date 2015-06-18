@@ -486,6 +486,16 @@ static size_t num_bytes(struct bignum *a)
 	return mp_unsigned_bin_size(a);
 }
 
+static size_t num_bits(struct bignum *a)
+{
+	return mp_count_bits(a);
+}
+
+static int32_t compare(struct bignum *a, struct bignum *b)
+{
+	return mp_cmp(a, b);
+}
+
 static void bn2bin(const struct bignum *from, uint8_t *to)
 {
 	mp_to_unsigned_bin((struct bignum *)from, to);
@@ -1253,7 +1263,7 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 
 #if defined(CFG_CRYPTO_ECC)
 
-static TEE_Result alloc_ecc_keypair_dummy(struct ecc_keypair *s,
+static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
 				   size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
@@ -1269,6 +1279,93 @@ err:
 	bn_free(s->x);
 	bn_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
+				   size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	bn_free(s->x);
+	bn_free(s->y);
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static TEE_Result gen_ecc_key(struct ecc_keypair *key)
+{
+	TEE_Result res;
+	ecc_key ltc_tmp_key;
+	int ltc_res;
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
+	size_t key_size_bytes = 0;
+	size_t key_size_bits = 0;
+
+	/*
+	 * Excerpt of libtomcrypt documentation:
+	 * ecc_make_key(... key_size ...): The keysize is the size of the
+	 * modulus in bytes desired. Currently directly supported values
+	 * are 12, 16, 20, 24, 28, 32, 48, and 65 bytes which correspond
+	 * to key sizes of 112, 128, 160, 192, 224, 256, 384, and 521 bits
+	 * respectively.
+	 */
+	switch (key->curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		key_size_bits = 192;
+		key_size_bytes = 24;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		key_size_bits = 224;
+		key_size_bytes = 28;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		key_size_bits = 256;
+		key_size_bytes = 32;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		key_size_bits = 384;
+		key_size_bytes = 48;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		key_size_bits = 521;
+		key_size_bytes = 65;
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	/* Generate the ECC key */
+	ltc_res = ecc_make_key(&prng->state, prng->index,
+			       key_size_bytes, &ltc_tmp_key);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
+	/* check the size of the keys */
+	if (((size_t)mp_count_bits(ltc_tmp_key.pubkey.x) > key_size_bits) ||
+	    ((size_t)mp_count_bits(ltc_tmp_key.pubkey.y) > key_size_bits) ||
+	    ((size_t)mp_count_bits(ltc_tmp_key.k) > key_size_bits)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
+	/* Copy the key */
+	ltc_mp.copy(ltc_tmp_key.k, key->d);
+	ltc_mp.copy(ltc_tmp_key.pubkey.x, key->x);
+	ltc_mp.copy(ltc_tmp_key.pubkey.y, key->y);
+
+	res = TEE_SUCCESS;
+
+exit:
+	/* Free the temporary key */
+	ecc_free(&ltc_tmp_key);
+
+	return res;
 }
 
 #endif /* CFG_CRYPTO_ECC */
@@ -2425,13 +2522,16 @@ struct crypto_ops crypto_ops = {
 		.dsa_verify = dsa_verify,
 #endif
 #if defined(CFG_CRYPTO_ECC)
-		/* temporary dummy function update next patch */
-		.alloc_ecc_keypair = alloc_ecc_keypair_dummy,
+		.alloc_ecc_keypair = alloc_ecc_keypair,
+		.alloc_ecc_public_key = alloc_ecc_public_key,
+		.gen_ecc_key = gen_ecc_key,
 #endif
 	},
 	.bignum = {
 		.allocate = bn_allocate,
 		.num_bytes = num_bytes,
+		.num_bits = num_bits,
+		.compare = compare,
 		.bn2bin = bn2bin,
 		.bin2bn = bin2bn,
 		.copy = copy,

@@ -126,10 +126,14 @@ struct bignum_ops {
 	TEE_Result (*bin2bn)(const uint8_t *from, size_t fromsize,
 			     struct bignum *to);
 	size_t (*num_bytes)(struct bignum *a);
+	size_t (*num_bits)(struct bignum *a);
 	void (*bn2bin)(const struct bignum *from, uint8_t *to);
 	void (*copy)(struct bignum *to, const struct bignum *from);
 	void (*free)(struct bignum *a);
 	void (*clear)(struct bignum *a);
+
+	/* return -1 if a<b, 0 if a==b, +1 if a>b */
+	int32_t (*compare)(struct bignum *a, struct bignum *b);
 };
 
 /* Asymmetric algorithms */
