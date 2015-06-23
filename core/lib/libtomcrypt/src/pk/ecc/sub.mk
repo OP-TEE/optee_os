@@ -1,4 +1,5 @@
 srcs-y += ecc.c
+srcs-y += ecc_free.c
 srcs-y += ecc_make_key.c
 srcs-y += ecc_shared_secret.c
 srcs-y += ecc_sign_hash.c
