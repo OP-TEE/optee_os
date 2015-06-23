@@ -522,18 +522,28 @@ TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 {
 	TEE_Result res;
 
-	if (object == TEE_HANDLE_NULL)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (object == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
+	}
 
-	if (newObjectID == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (!newObjectID) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
-	if (newObjectIDLen > TEE_OBJECT_ID_MAX_LEN)
-		TEE_Panic(0);
+	if (newObjectIDLen > TEE_OBJECT_ID_MAX_LEN) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	res = utee_storage_obj_rename(object, newObjectID, newObjectIDLen);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ACCESS_CONFLICT)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ACCESS_CONFLICT &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
