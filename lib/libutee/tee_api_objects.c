@@ -397,20 +397,41 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
 				    uint32_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object)
 {
-	if (storageID != TEE_STORAGE_PRIVATE)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	TEE_Result res;
 
-	if (objectID == NULL)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (storageID != TEE_STORAGE_PRIVATE) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
+	}
 
-	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN)
+	if (!objectID) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
+	}
+
+	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (!object) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = utee_storage_obj_open(storageID, objectID, objectIDLen, flags,
+				     object);
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_ACCESS_CONFLICT &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
-	if (object == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	return utee_storage_obj_open(storageID, objectID, objectIDLen, flags,
-				     object);
+	return res;
 }
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
