@@ -46,6 +46,7 @@ struct block_operation_args {
 	int block_num;
 	void *buf;
 	size_t len;
+	void *extra;
 };
 
 static void do_fail_recovery(struct tee_fs_fd *fdp)
@@ -135,6 +136,22 @@ exit:
 	return res;
 }
 
+static int ree_fs_ftruncate(int fd, tee_fs_off_t length)
+{
+	int res = -1;
+	struct tee_fs_rpc head = { 0 };
+
+	head.op = TEE_FS_TRUNC;
+	head.fd = fd;
+	head.arg = length;
+
+	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
+	if (!res)
+		res = head.res;
+
+	return res;
+}
+
 static int ree_fs_close(int fd)
 {
 	int res = -1;
@@ -176,7 +193,7 @@ static int ree_fs_mkdir(const char *path, tee_fs_mode_t mode)
 	uint32_t len;
 
 	len = strlen(path) + 1;
-	if (len > TEE_FS_NAME_MAX)
+	if (len > REE_FS_NAME_MAX)
 		goto exit;
 
 	head.op = TEE_FS_MKDIR;
@@ -197,7 +214,7 @@ static int ree_fs_rmdir(const char *name)
 	uint32_t len;
 
 	len = strlen(name) + 1;
-	if (len > TEE_FS_NAME_MAX)
+	if (len > REE_FS_NAME_MAX)
 		goto exit;
 
 	head.op = TEE_FS_RMDIR;
@@ -210,13 +227,42 @@ exit:
 	return res;
 }
 
+static int ree_fs_link(const char *old, const char *new)
+{
+	int res = -1;
+	char *tmp = NULL;
+	struct tee_fs_rpc head = { 0 };
+	size_t len_old = strlen(old) + 1;
+	size_t len_new = strlen(new) + 1;
+	size_t len = len_old + len_new;
+
+	if (len_old > REE_FS_NAME_MAX || len_new > REE_FS_NAME_MAX)
+		goto exit;
+
+	tmp = malloc(len);
+	if (!tmp)
+		goto exit;
+	memcpy(tmp, old, len_old);
+	memcpy(tmp + len_old, new, len_new);
+
+	head.op = TEE_FS_LINK;
+
+	res = tee_fs_send_cmd(&head, tmp, len, TEE_FS_MODE_IN);
+	if (!res)
+		res = head.res;
+
+exit:
+	free(tmp);
+	return res;
+}
+
 static int ree_fs_unlink(const char *file)
 {
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 	size_t len = strlen(file) + 1;
 
-	if (len > TEE_FS_NAME_MAX)
+	if (len > REE_FS_NAME_MAX)
 		goto exit;
 
 	head.op = TEE_FS_UNLINK;
@@ -279,23 +325,25 @@ static TEE_Result sha256_check(const uint8_t *hash, const uint8_t *data,
 }
 
 
-static void get_meta_filepath(const char *file, char *meta_path)
+static void get_meta_filepath(const char *file, int version,
+				char *meta_path)
 {
-	snprintf(meta_path, REE_FS_NAME_MAX, "%s/meta", file);
+	snprintf(meta_path, REE_FS_NAME_MAX, "%s/meta.%d",
+			file, version);
 }
 
 static void get_block_filepath(const char *file, int block_num,
-						char *meta_path)
+				int version, char *meta_path)
 {
-	snprintf(meta_path, REE_FS_NAME_MAX, "%s/block%d", file,
-			block_num);
+	snprintf(meta_path, REE_FS_NAME_MAX, "%s/block%d.%d",
+			file, block_num, version);
 }
 
 static int alloc_block(struct tee_fs_fd *fdp, int block_num)
 {
 	char block_path[REE_FS_NAME_MAX];
 
-	get_block_filepath(fdp->filename, block_num, block_path);
+	get_block_filepath(fdp->filename, block_num, 0, block_path);
 	DMSG("%s", block_path);
 
 	return ree_fs_open(block_path, TEE_FS_O_CREATE | TEE_FS_O_WRONLY);
@@ -304,8 +352,10 @@ static int alloc_block(struct tee_fs_fd *fdp, int block_num)
 static int free_block(struct tee_fs_fd *fdp, int block_num)
 {
 	char block_path[REE_FS_NAME_MAX];
+	uint8_t version =
+		get_backup_version_of_block(fdp->meta, block_num);
 
-	get_block_filepath(fdp->filename, block_num, block_path);
+	get_block_filepath(fdp->filename, block_num, version, block_path);
 	DMSG("%s", block_path);
 
 	return ree_fs_unlink(block_path);
@@ -334,7 +384,7 @@ static struct tee_fs_file_meta *tee_fs_file_create(const char *file)
 	if (!meta)
 		goto exit_rmdir;
 
-	meta->info.length = 0;
+	memset(&meta->info, 0, sizeof(meta->info));
 	return meta;
 
 exit_rmdir:
@@ -343,17 +393,34 @@ exit:
 	return NULL;
 }
 
-static int write_file_meta(struct tee_fs_fd *fdp)
+static struct tee_fs_file_meta *create_new_file_meta(
+		struct tee_fs_fd *fdp)
+{
+	struct tee_fs_file_meta *new_meta;
+
+	new_meta = malloc(sizeof(*new_meta));
+	if (!new_meta)
+		goto exit;
+	memcpy(new_meta, fdp->meta, sizeof(*new_meta));
+exit:
+	return new_meta;
+}
+
+static int commit_file_meta(struct tee_fs_fd *fdp,
+		struct tee_fs_file_meta *new_meta)
 {
 	TEE_Result ret;
 	int res, fd;
+	uint8_t new_version, old_version;
 	char meta_path[REE_FS_NAME_MAX];
-	struct tee_fs_file_meta *meta;
-	get_meta_filepath(fdp->filename, meta_path);
 
-	meta = fdp->meta;
-	ret = sha256_digest(meta->hash, (void *)&meta->info,
-				sizeof(meta->info));
+	old_version = fdp->meta_version;
+	new_version = !old_version;
+	get_meta_filepath(fdp->filename, new_version, meta_path);
+	DMSG("%s", meta_path);
+
+	ret = sha256_digest(new_meta->hash, (void *)&new_meta->info,
+				sizeof(new_meta->info));
 	if (ret != TEE_SUCCESS)
 		return -1;
 
@@ -361,11 +428,31 @@ static int write_file_meta(struct tee_fs_fd *fdp)
 	if (fd < 0)
 		return fd;
 
-	res = ree_fs_write(fd, meta, sizeof(*meta));
-	if (res != sizeof(*meta))
+	res = ree_fs_write(fd, new_meta, sizeof(*new_meta));
+	if (res != sizeof(*new_meta))
 		return res;
 
-	return ree_fs_close(fd);
+	res = ree_fs_close(fd);
+	if (res < 0)
+		return res;
+
+	/*
+	 * From now on new meta is successfully committed,
+	 * change tee_fd_fd accordingly
+	 */
+	memcpy(fdp->meta, new_meta, sizeof(*new_meta));
+	fdp->meta_version = new_version;
+
+	/*
+	 * Remove outdated file meta, there is nothing we can
+	 * do if we fail here, but that is OK because both
+	 * new & old version of block files are kept. The context
+	 * of the file is still consistent.
+	 */
+	get_meta_filepath(fdp->filename, old_version, meta_path);
+	ree_fs_unlink(meta_path);
+
+	return res;
 }
 
 static int read_file_meta(const char *meta_path,
@@ -388,7 +475,8 @@ static int read_file_meta(const char *meta_path,
 	return ree_fs_close(fd);
 }
 
-static struct tee_fs_file_meta *tee_fs_meta_open(const char *file)
+static struct tee_fs_file_meta *tee_fs_meta_open(
+		const char *file, int version)
 {
 	int res;
 	char meta_path[REE_FS_NAME_MAX];
@@ -398,7 +486,7 @@ static struct tee_fs_file_meta *tee_fs_meta_open(const char *file)
 	if (!meta)
 		return NULL;
 
-	get_meta_filepath(file, meta_path);
+	get_meta_filepath(file, version, meta_path);
 	res = read_file_meta(meta_path, meta);
 	if (res)
 		goto exit_free_meta;
@@ -418,6 +506,59 @@ static bool need_to_allocate_new_block(struct tee_fs_fd *fdp,
 	return (block_num >= num_blocks_allocated);
 }
 
+static int create_new_version_for_block(struct tee_fs_fd *fdp,
+		struct tee_fs_file_meta *new_meta, int block_num)
+{
+	char block_path[REE_FS_NAME_MAX];
+	char buffer[COPY_BUF_SIZE];
+	uint8_t version =
+		get_backup_version_of_block(fdp->meta, block_num);
+	int new_fd, fd, num_read, res = -1;
+
+	get_block_filepath(fdp->filename, block_num, version,
+			block_path);
+	fd = ree_fs_open(block_path, TEE_FS_O_RDONLY);
+	if (fd < 0)
+		goto exit;
+
+	get_block_filepath(fdp->filename, block_num, !version,
+			block_path);
+	new_fd = ree_fs_open(block_path, TEE_FS_O_CREATE | TEE_FS_O_RDWR);
+	if (new_fd < 0)
+		goto exit_close_fd;
+
+	res = ree_fs_ftruncate(new_fd, 0);
+	if (res)
+		goto exit_close_fd;
+
+	while ((num_read = ree_fs_read(fd, buffer, COPY_BUF_SIZE)) > 0) {
+		if (num_read < 0)
+			goto exit_close_new_fd;
+
+		if (ree_fs_write(new_fd, buffer, num_read) != num_read)
+			goto exit_close_new_fd;
+	}
+
+	res = ree_fs_lseek(new_fd, 0, TEE_FS_SEEK_SET);
+	if (res != 0)
+		return res;
+
+	/*
+	 * toggle block version in new meta to indicate
+	 * we are currently working on new block file
+	 */
+	toggle_backup_version_for_block(new_meta, block_num);
+	res = new_fd;
+
+exit_close_new_fd:
+	if (res < 0)
+		ree_fs_close(new_fd);
+exit_close_fd:
+	ree_fs_close(fd);
+exit:
+	return res;
+}
+
 static int write_one_block(struct block_operation_args *args)
 {
 	int fd, res, bytes;
@@ -426,14 +567,20 @@ static int write_one_block(struct block_operation_args *args)
 	tee_fs_off_t off = args->offset;
 	size_t len = args->len;
 	const void *buf = args->buf;
+	struct tee_fs_file_meta *new_meta = args->extra;
 
-	if (need_to_allocate_new_block(fdp, block_num)) {
+	if (need_to_allocate_new_block(fdp, block_num))
 		fd = alloc_block(fdp, block_num);
-	} else {
-		char block_path[REE_FS_NAME_MAX];
-		get_block_filepath(fdp->filename, block_num, block_path);
-		fd = ree_fs_open(block_path, TEE_FS_O_RDWR);
-	}
+	else
+		/*
+		 * Create new version of current block file,
+		 * consequent write will happen on new version,
+		 * old version is still valid until new file meta
+		 * is written.
+		 */
+		fd = create_new_version_for_block(
+				fdp, new_meta, block_num);
+
 	if (fd < 0)
 		return fd;
 
@@ -444,13 +591,8 @@ static int write_one_block(struct block_operation_args *args)
 	}
 
 	bytes = ree_fs_write(fd, buf, len);
-	if (bytes < 0)
-		return -1;
 
-	res = ree_fs_close(fd);
-	if (res)
-		return res;
-
+	ree_fs_close(fd);
 	return bytes;
 }
 
@@ -463,10 +605,12 @@ static int read_one_block(struct block_operation_args *args)
 	size_t len = args->len;
 	void *buf = args->buf;
 	char block_path[REE_FS_NAME_MAX];
+	uint8_t version =
+		get_backup_version_of_block(fdp->meta, block_num);
 
-	get_block_filepath(fdp->filename, block_num,
+	get_block_filepath(fdp->filename, block_num, version,
 			block_path);
-	fd = ree_fs_open(block_path, TEE_FS_O_RDWR);
+	fd = ree_fs_open(block_path, TEE_FS_O_RDONLY);
 	if (fd < 0)
 		return fd;
 
@@ -477,19 +621,14 @@ static int read_one_block(struct block_operation_args *args)
 	}
 
 	bytes = ree_fs_read(fd, buf, len);
-	if (bytes < 0)
-		return -1;
 
-	res = ree_fs_close(fd);
-	if (res)
-		return res;
-
+	ree_fs_close(fd);
 	return bytes;
 }
 
 static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 		int (*do_block_ops)(struct block_operation_args *args),
-		void *buf, size_t len)
+		void *buf, size_t len, void *extra)
 {
 	int start_block, end_block, num_blocks_to_process;
 	int block_num, remain_bytes = len;
@@ -497,10 +636,12 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 	uint8_t *data = buf;
 
 	start_block = pos_to_block_num(fdp->pos);
-	end_block = pos_to_block_num(fdp->pos + len);
+	end_block = pos_to_block_num(fdp->pos + len - 1);
 	num_blocks_to_process = end_block - start_block + 1;
 	block_num = start_block;
 	offset_in_block = fdp->pos & (FILE_BLOCK_SIZE - 1);
+
+	DMSG("start_block:%d, end_block:%d", start_block, end_block);
 
 	while (num_blocks_to_process) {
 		struct block_operation_args args = {
@@ -508,6 +649,7 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 			.offset = offset_in_block,
 			.block_num = block_num,
 			.buf = data,
+			.extra = extra,
 			.len = (remain_bytes > FILE_BLOCK_SIZE) ?
 				FILE_BLOCK_SIZE :
 				remain_bytes
@@ -517,7 +659,7 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 		if (bytes_consumed < 0)
 			return -1;
 
-		DMSG("block_num: %d, offset: %d, bytes_consumed: %d",
+		DMSG("block_num: %d, offset: %zu, bytes_consumed: %d",
 			block_num, offset_in_block, bytes_consumed);
 
 		data += bytes_consumed;
@@ -534,6 +676,64 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 
 	return len;
 }
+
+static inline int create_hard_link(const char *old_dir,
+			const char *new_dir,
+			const char *filename)
+{
+	char old_path[REE_FS_NAME_MAX];
+	char new_path[REE_FS_NAME_MAX];
+
+	snprintf(old_path, REE_FS_NAME_MAX, "%s/%s",
+			old_dir, filename);
+	snprintf(new_path, REE_FS_NAME_MAX, "%s/%s",
+			new_dir, filename);
+
+	DMSG("create hard link %s -> %s", old_path, new_path);
+	return ree_fs_link(old_path, new_path);
+}
+
+
+static int unlink_tee_file(const char *file)
+{
+	int res = -1;
+	size_t len = strlen(file) + 1;
+	struct tee_fs_dirent *dirent;
+	struct tee_fs_dir *dir;
+
+	DMSG("file=%s", file);
+
+	if (len > TEE_FS_NAME_MAX)
+		goto exit;
+
+	dir = tee_fs_common_opendir(file);
+	if (!dir)
+		goto exit;
+
+	dirent = tee_fs_common_readdir(dir);
+	while (dirent) {
+		char path[REE_FS_NAME_MAX];
+
+		snprintf(path, REE_FS_NAME_MAX, "%s/%s",
+			file, dirent->d_name);
+
+		DMSG("unlink %s", path);
+		res = ree_fs_unlink(path);
+		if (res)
+			goto exit;
+
+		dirent = tee_fs_common_readdir(dir);
+	}
+
+	res = tee_fs_common_closedir(dir);
+	if (res)
+		goto exit;
+
+	res = tee_fs_common_rmdir(file);
+exit:
+	return res;
+}
+
 
 struct tee_fs_fd *tee_fs_fd_lookup(int fd)
 {
@@ -552,6 +752,7 @@ void tee_fs_fail_recovery(struct tee_fs_fd *fdp)
 int tee_fs_common_open(const char *file, int flags, ...)
 {
 	int res = -1;
+	int meta_version;
 	size_t len;
 	struct tee_fs_file_meta *meta;
 	struct tee_fs_fd *fdp = NULL;
@@ -562,15 +763,21 @@ int tee_fs_common_open(const char *file, int flags, ...)
 	if (len > TEE_FS_NAME_MAX)
 		goto exit;
 
-	meta = tee_fs_meta_open(file);
+	meta_version = 0;
+	meta = tee_fs_meta_open(file, meta_version);
 	if (!meta) {
+		meta_version = 1;
+		meta = tee_fs_meta_open(file, meta_version);
+
 		/* cannot find meta file, assumed file not existed */
-		if (flags & TEE_FS_O_CREATE) {
-			meta = tee_fs_file_create(file);
-			if (!meta)
+		if (!meta) {
+			if (flags & TEE_FS_O_CREATE) {
+				meta = tee_fs_file_create(file);
+				if (!meta)
+					return -1;
+			} else
 				return -1;
-		} else
-			return -1;
+		}
 	}
 
 	fdp = (struct tee_fs_fd *)malloc(sizeof(struct tee_fs_fd));
@@ -581,6 +788,7 @@ int tee_fs_common_open(const char *file, int flags, ...)
 	fdp->flags = flags;
 	fdp->private = NULL;
 	fdp->meta = meta;
+	fdp->meta_version = meta_version;
 	fdp->pos = 0;
 	fdp->filename = malloc(len);
 	if (!fdp->filename) {
@@ -608,10 +816,6 @@ int tee_fs_common_close(struct tee_fs_fd *fdp)
 		return -1;
 
 	handle_put(&fs_handle_db, fdp->fd);
-
-	res = write_file_meta(fdp);
-	if (res)
-		return res;
 
 	if (fdp->private)
 		free(fdp->private);
@@ -666,12 +870,31 @@ exit:
 	return res;
 }
 
+/*
+ * To ensure atomic ftruncate operation, we can:
+ *
+ *  - update file length to new length
+ *  - commit new meta
+ *
+ * (Any failure in above steps is considered as update failed,
+ *  and the file context will be keepped as is before the update
+ *  operation)
+ *
+ * After previous step the update is considered complete, but
+ * we should do the following clean-up step(s):
+ *
+ *  - free the trucated file blocks
+ *
+ * (Any failure in above steps is considered as a successfully
+ *  update)
+ */
 int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 				tee_fs_off_t new_file_len)
 {
 	int res = -1;
 	size_t old_file_len;
 	int old_block_num, new_block_num, diff_blocks, i = 0;
+	struct tee_fs_file_meta *new_meta;
 
 	if (!fdp)
 		goto exit;
@@ -682,12 +905,23 @@ int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 	if (new_file_len > (tee_fs_off_t)fdp->meta->info.length)
 		goto exit;
 
+	new_meta = create_new_file_meta(fdp);
+	if (!new_meta)
+		goto exit;
+
 	old_file_len = fdp->meta->info.length;
-	old_block_num = pos_to_block_num(old_file_len);
-	new_block_num = pos_to_block_num(new_file_len);
+	old_block_num = pos_to_block_num(old_file_len - 1);
+	new_block_num = pos_to_block_num(new_file_len - 1);
 	diff_blocks = new_block_num - old_block_num;
 
-	/* free blocks */
+	new_meta->info.length = new_file_len;
+	DMSG("truncated length=%d", new_file_len);
+
+	res = commit_file_meta(fdp, new_meta);
+	if (res < 0)
+		goto exit;
+
+	/* now we are safe to free blocks */
 	TEE_ASSERT(diff_blocks <= 0);
 	while (diff_blocks) {
 		res = free_block(fdp, old_block_num - i);
@@ -696,9 +930,6 @@ int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 		i++;
 		diff_blocks++;
 	}
-
-	fdp->meta->info.length = new_file_len;
-	DMSG("truncated length=%d", new_file_len);
 exit:
 	return res;
 }
@@ -721,23 +952,49 @@ int tee_fs_common_read(struct tee_fs_fd *fdp, void *buf, size_t len)
 	if (fdp->flags & TEE_FS_O_WRONLY)
 		goto exit;
 
-	DMSG("len=%d", len);
+	DMSG("len=%zu", len);
 
 	if (fdp->pos + len > fdp->meta->info.length) {
 		len = fdp->meta->info.length - fdp->pos;
-		DMSG("reached EOF, update read length to %d", len);
+		DMSG("reached EOF, update read length to %zu", len);
 	}
 
-	res = tee_fs_do_block_operation(
-			fdp, read_one_block, buf, len);
+	res = tee_fs_do_block_operation(fdp, read_one_block,
+			buf, len, NULL);
 exit:
 	return res;
 }
 
+/*
+ * To ensure atomicity of write operation, we need to
+ * do the following steps:
+ * (The sequence of operations is very important)
+ *
+ *  - Create a new backup version of file meta as a copy
+ *    of current file meta.
+ *  - For each blocks to write:
+ *    - Create new backup version for current block.
+ *    - Write data to new backup version.
+ *    - Update the new file meta accordingly.
+ *  - Write the new file meta.
+ *
+ * (Any failure in above steps is considered as update failed,
+ *  and the file context will be keepped as is before the update
+ *  operation)
+ *
+ * After previous step the update is considered complete, but
+ * we should do the following clean-up step(s):
+ *
+ *  - Delete the old file meta.
+ *
+ * (Any failure in above steps is considered as a successfully
+ *  update)
+ */
 int tee_fs_common_write(struct tee_fs_fd *fdp,
 			const void *buf, size_t len)
 {
 	int res = -1;
+	struct tee_fs_file_meta *new_meta;
 
 	if (!fdp)
 		return -1;
@@ -753,92 +1010,138 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 	if (fdp->flags & TEE_FS_O_RDONLY)
 		goto exit;
 
-	DMSG("len=%d", len);
-	res = tee_fs_do_block_operation(
-			fdp, write_one_block, (void *)buf, len);
+	new_meta = create_new_file_meta(fdp);
+	if (!new_meta)
+		goto exit;
 
-	/* update file length if necessary */
+	DMSG("len=%zu", len);
+	res = tee_fs_do_block_operation(fdp, write_one_block,
+			(void *)buf, len, new_meta);
+
 	if (res > 0) {
-		if (fdp->pos > (tee_fs_off_t)fdp->meta->info.length)
-			fdp->meta->info.length = fdp->pos;
+		int r;
+
+		/* update file length if necessary */
+		if (fdp->pos > (tee_fs_off_t)new_meta->info.length)
+			new_meta->info.length = fdp->pos;
+
+		r = commit_file_meta(fdp, new_meta);
+		if (r)
+			res = r;
 	}
 
-	/*
-	 * TODO:
-	 * Ideally we should write meta file every time we
-	 * update TEE file, we will do it when implemnting
-	 * atomic update for TEE file. Current we write the
-	 * meta file upon close.
-	 */
+	free(new_meta);
 exit:
 	return res;
 }
 
+/*
+ * To ensure atomicity of rename operation, we need to
+ * do the following steps:
+ *
+ *  - Create a new folder that represents the renamed TEE file
+ *  - For each REE blocks files, create a hard link under the just
+ *    created folder (new TEE file)
+ *  - Now we are ready to commit meta, create hard link for the
+ *    mata file
+ *
+ * (Any failure in above steps is considered as update failed,
+ *  and the file context will be keepped as is before the update
+ *  operation)
+ *
+ * After previous step the update is considered complete, but
+ * we should do the following clean-up step(s):
+ *
+ *  - Unlink all REE files represents the old TEE file (including
+ *    meta and block files)
+ *
+ * (Any failure in above steps is considered as a successfully
+ *  update)
+ */
 int tee_fs_common_rename(const char *old, const char *new)
 {
 	int res = -1;
-	char *tmp = NULL;
-	struct tee_fs_rpc head = { 0 };
-	size_t len_old = strlen(old) + 1;
-	size_t len_new = strlen(new) + 1;
-	size_t len = len_old + len_new;
-
-	if (len > TEE_FS_NAME_MAX)
-		goto exit;
-
-	tmp = malloc(len);
-	if (!tmp)
-		goto exit;
-	memcpy(tmp, old, len_old);
-	memcpy(tmp + len_old, new, len_new);
-
-	head.op = TEE_FS_RENAME;
-
-	res = tee_fs_send_cmd(&head, tmp, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	free(tmp);
-	return res;
-}
-
-int tee_fs_common_unlink(const char *file)
-{
-	int res = -1;
-	size_t len = strlen(file) + 1;
+	size_t old_len = strlen(old) + 1;
+	size_t new_len = strlen(old) + 1;
+	struct tee_fs_dir *old_dir;
 	struct tee_fs_dirent *dirent;
-	struct tee_fs_dir *dir;
-	DMSG("file=%s", file);
+	char *meta_filename = NULL;
 
-	if (len > TEE_FS_NAME_MAX)
+	DMSG("old=%s, new=%s", old, new);
+
+	if (old_len > TEE_FS_NAME_MAX || new_len >TEE_FS_NAME_MAX)
 		goto exit;
 
-	dir = tee_fs_common_opendir(file);
-	if (!dir)
-		goto exit;
-
-	dirent = tee_fs_common_readdir(dir);
-	while (dirent) {
-		char path[REE_FS_NAME_MAX];
-
-		snprintf(path, REE_FS_NAME_MAX, "%s/%s",
-			file, dirent->d_name);
-
-		DMSG("unlink %s", path);
-		res = ree_fs_unlink(path);
-		if (res)
-			goto exit;
-
-		dirent = tee_fs_common_readdir(dir);
-	}
-
-	res = tee_fs_common_closedir(dir);
+	res = ree_fs_mkdir(new,
+			TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
 	if (res)
 		goto exit;
 
-	res = tee_fs_common_rmdir(file);
+	old_dir = tee_fs_common_opendir(old);
+	if (!old_dir)
+		goto exit;
+
+	dirent = tee_fs_common_readdir(old_dir);
+	while (dirent) {
+		if (!strncmp(dirent->d_name, "meta.", 5)) {
+			meta_filename = strdup(dirent->d_name);
+		} else {
+			res = create_hard_link(old, new, dirent->d_name);
+			if (res)
+				goto exit_close_old_dir;
+		}
+
+		dirent = tee_fs_common_readdir(old_dir);
+	}
+
+	/* finally, link the meta file, rename operation completed */
+	TEE_ASSERT(meta_filename);
+	res = create_hard_link(old, new, meta_filename);
+	if (res)
+		goto exit_close_old_dir;
+
+	/* we are safe now, remove old TEE file */
+	unlink_tee_file(old);
+
+exit_close_old_dir:
+	tee_fs_common_closedir(old_dir);
 exit:
+	free(meta_filename);
+	return res;
+}
+
+/*
+ * To ensure atomic unlink operation, we can simply
+ * split the unlink operation into:
+ *
+ *  - rename("file", "file.trash");
+ *
+ * (Any failure in above steps is considered as update failed,
+ *  and the file context will be keepped as is before the update
+ *  operation)
+ *
+ * After previous step the update is considered complete, but
+ * we should do the following clean-up step(s):
+ *
+ *  - unlink("file.trash");
+ *
+ * (Any failure in above steps is considered as a successfully
+ *  update)
+ */
+int tee_fs_common_unlink(const char *file)
+{
+	int res = -1;
+	char trash_file[TEE_FS_NAME_MAX + 6];
+
+	snprintf(trash_file, REE_FS_NAME_MAX + 6, "%s.trash",
+		file);
+
+	res = tee_fs_common_rename(file, trash_file);
+	if (res < 0)
+		return res;
+
+	unlink_tee_file(trash_file);
+
 	return res;
 }
 

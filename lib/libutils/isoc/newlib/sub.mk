@@ -18,6 +18,9 @@ cflags-memset.c-y += -Wno-sign-compare
 srcs-y += strcmp.c
 cflags-remove-strcmp.c-y += -Wcast-align
 
+srcs-y += strncmp.c
+cflags-remove-strncmp.c-y += -Wcast-align
+
 srcs-y += strlen.c
 cflags-remove-strlen.c-y += -Wcast-align
 

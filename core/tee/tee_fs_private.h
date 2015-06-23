@@ -45,6 +45,7 @@
 #define TEE_FS_READDIR   12
 #define TEE_FS_RMDIR     13
 #define TEE_FS_ACCESS    14
+#define TEE_FS_LINK      15
 
 #define FILE_BLOCK_SHIFT	4
 
@@ -54,21 +55,11 @@
 
 #define MAX_FILE_SIZE	(FILE_BLOCK_SIZE * NUM_BLOCKS_PER_FILE)
 
-static inline int pos_to_block_num(int addr)
-{
-	return addr >> FILE_BLOCK_SHIFT;
-}
-
-static inline int size_to_num_blocks(size_t size)
-{
-	int num_blocks = size >> FILE_BLOCK_SHIFT;
-	if ((size & (FILE_BLOCK_SIZE - 1)) > 0)
-		num_blocks++;
-	return num_blocks;
-}
+#define COPY_BUF_SIZE	1024
 
 struct tee_fs_file_info {
 	size_t length;
+	uint32_t backup_version_table[NUM_BLOCKS_PER_FILE / 32];
 };
 
 struct tee_fs_file_meta {
@@ -78,6 +69,7 @@ struct tee_fs_file_meta {
 
 struct tee_fs_fd {
 	struct tee_fs_file_meta *meta;
+	uint8_t meta_version;
 	int pos;
 	uint32_t flags;
 	int fd;
@@ -91,6 +83,40 @@ struct tee_fs_dir {
 	int nw_dir;
 	struct tee_fs_dirent d;
 };
+
+static inline int pos_to_block_num(int addr)
+{
+	return addr >> FILE_BLOCK_SHIFT;
+}
+
+static inline int size_to_num_blocks(size_t size)
+{
+	int num_blocks = size >> FILE_BLOCK_SHIFT;
+
+	if ((size & (FILE_BLOCK_SIZE - 1)) > 0)
+		num_blocks++;
+	return num_blocks;
+}
+
+static inline uint8_t get_backup_version_of_block(
+		struct tee_fs_file_meta *meta,
+		int block_num)
+{
+	int index = (block_num / 32);
+	uint32_t block_mask = 1 << (block_num % 32);
+
+	return !!(meta->info.backup_version_table[index] & block_mask);
+}
+
+static inline void toggle_backup_version_for_block(
+		struct tee_fs_file_meta *meta,
+		int block_num)
+{
+	int index = (block_num / 32);
+	uint32_t block_mask = 1 << (block_num % 32);
+
+	meta->info.backup_version_table[index] ^= block_mask;
+}
 
 struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 

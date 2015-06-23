@@ -42,10 +42,20 @@
  * Thus, REE file path should be slightly longer than
  * TEE file path, it's name should look like:
  *
- *   <tee_file_name>/meta
- *   <tee_file_name>/block0
+ *   <tee_file_name>/meta.<backup_version>
+ *   <tee_file_name>/block0.<backup_version>
  *   ...
- *   <tee_file_name>/block15
+ *   <tee_file_name>/block15.<backup_version>
+ *
+ * backup_version is used to support atomic update operation
+ * any update to file block(s) and meta will not directly on
+ * original file, we create new version of the given file and
+ * update it instead.
+ *
+ * The backup_version of each block file is stored in meta
+ * file (see @backup_version_table in tee_fs_private.h), the
+ * meta file itself also has backup_version, the update is
+ * successful after new version of meta has been written.
  */
 #define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
 
