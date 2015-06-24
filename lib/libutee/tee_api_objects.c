@@ -554,13 +554,17 @@ TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 {
 	TEE_Result res;
 
-	if (objectEnumerator == NULL)
+	if (!objectEnumerator)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = utee_storage_alloc_enum(objectEnumerator);
 
 	if (res != TEE_SUCCESS)
 		*objectEnumerator = TEE_HANDLE_NULL;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ACCESS_CONFLICT)
+		TEE_Panic(0);
 
 	return res;
 }
@@ -602,7 +606,10 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 	res = utee_storage_start_enum(objectEnumerator, storageID);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -614,10 +621,24 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 {
 	TEE_Result res;
 
+	if (!objectID) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (!objectIDLen) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	res = utee_storage_next_enum(objectEnumerator, objectInfo, objectID,
 				     objectIDLen);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
