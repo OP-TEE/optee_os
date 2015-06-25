@@ -46,7 +46,7 @@
 /**
   @file ecc_test.c
   ECC Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MECC
 

@@ -288,9 +288,17 @@ int  ecc_decrypt_key(const unsigned char *in,  unsigned long  inlen,
                            unsigned char *out, unsigned long *outlen, 
                            ecc_key *key);
 
+int ecc_sign_hash_raw(const unsigned char *in,  unsigned long inlen,
+                            void   *r,   void *s,
+                            prng_state *prng, int wprng, ecc_key *key);
+
 int  ecc_sign_hash(const unsigned char *in,  unsigned long inlen, 
                          unsigned char *out, unsigned long *outlen, 
                          prng_state *prng, int wprng, ecc_key *key);
+
+int ecc_verify_hash_raw(      void   *r, void   *s,
+                        const unsigned char *hash, unsigned long hashlen,
+                        int *stat, ecc_key *key);
 
 int  ecc_verify_hash(const unsigned char *sig,  unsigned long siglen,
                      const unsigned char *hash, unsigned long hashlen, 

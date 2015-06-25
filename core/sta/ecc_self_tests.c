@@ -28,10 +28,14 @@
 #include <tee/tee_cryp_provider.h>
 #include <tee_api_defines.h>
 #include <user_ta_header.h>
+#include <util.h>
+#include <malloc.h>
+#include <string.h>
 
 #define TA_NAME		"ecc_self_test.ta"
 
 #define CMD_ECC_GEN_KEY_SELF_TESTS	0
+#define CMD_ECC_DSA_TESTS		1
 
 #define ECC_SELF_TEST_UUID \
 		{ 0xf34f4f3c, 0xab30, 0x4573,  \
@@ -81,6 +85,30 @@ static TEE_Result ecc_check_equal(struct bignum *p, struct bignum *q)
 	}
 }
 
+static TEE_Result ecc_get_size(uint32_t curve, uint32_t *key_size_bits)
+{
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		*key_size_bits = 192;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		*key_size_bits = 224;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		*key_size_bits = 256;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		*key_size_bits = 384;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		*key_size_bits = 521;
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
+}
+
 static TEE_Result ecc_generate_key_curve(struct ecc_keypair *key1,
 					 struct ecc_keypair *key2,
 					 uint32_t curve)
@@ -109,25 +137,9 @@ static TEE_Result ecc_generate_key_curve(struct ecc_keypair *key1,
 		return res;
 	}
 
-	switch (curve) {
-	case TEE_ECC_CURVE_NIST_P192:
-		key_size_bits = 192;
-		break;
-	case TEE_ECC_CURVE_NIST_P224:
-		key_size_bits = 224;
-		break;
-	case TEE_ECC_CURVE_NIST_P256:
-		key_size_bits = 256;
-		break;
-	case TEE_ECC_CURVE_NIST_P384:
-		key_size_bits = 384;
-		break;
-	case TEE_ECC_CURVE_NIST_P521:
-		key_size_bits = 521;
-		break;
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	res = ecc_get_size(curve, &key_size_bits);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	/* Check the keys size */
 	res = ecc_check_size(key1->x, key_size_bits);
@@ -163,8 +175,8 @@ static TEE_Result ecc_generate_key_curve(struct ecc_keypair *key1,
 	return TEE_SUCCESS;
 }
 
-/* ecc_algo is part of TEE_ECC_CURVE_NIST_PXXX */
-static TEE_Result ecc_generate_key_tests(uint32_t ecc_algo)
+/* ecc_curve is part of TEE_ECC_CURVE_NIST_PXXX */
+static TEE_Result ecc_generate_key_tests(uint32_t ecc_curve)
 {
 	TEE_Result res;
 	struct ecc_keypair key1;
@@ -187,7 +199,7 @@ static TEE_Result ecc_generate_key_tests(uint32_t ecc_algo)
 	}
 
 	/* Generates and check all the curves */
-	res = ecc_generate_key_curve(&key1, &key2, ecc_algo);
+	res = ecc_generate_key_curve(&key1, &key2, ecc_curve);
 
 	/* free the keys */
 	crypto_ops.bignum.free(key1.x);
@@ -196,6 +208,159 @@ static TEE_Result ecc_generate_key_tests(uint32_t ecc_algo)
 	crypto_ops.bignum.free(key2.x);
 	crypto_ops.bignum.free(key2.y);
 	crypto_ops.bignum.free(key2.d);
+	return res;
+}
+
+static TEE_Result ecc_get_curve(uint32_t ecc_algo, uint32_t *ecc_curve)
+{
+	switch (ecc_algo) {
+	case TEE_ALG_ECDSA_P192:
+		*ecc_curve = TEE_ECC_CURVE_NIST_P192;
+		break;
+	case TEE_ALG_ECDSA_P224:
+		*ecc_curve = TEE_ECC_CURVE_NIST_P224;
+		break;
+	case TEE_ALG_ECDSA_P256:
+		*ecc_curve = TEE_ECC_CURVE_NIST_P256;
+		break;
+	case TEE_ALG_ECDSA_P384:
+		*ecc_curve = TEE_ECC_CURVE_NIST_P384;
+		break;
+	case TEE_ALG_ECDSA_P521:
+		*ecc_curve = TEE_ECC_CURVE_NIST_P521;
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/* ecc_algo is part of TEE_ALG_ECDSA_PXXX */
+static TEE_Result ecc_dsa_tests(uint32_t ecc_algo)
+{
+	TEE_Result res;
+	struct ecc_keypair key_private;
+	struct ecc_public_key key_public;
+	char msg[256];
+	char msg_len;
+	uint32_t key_size_bits;
+	uint32_t key_size;
+	uint8_t *pt_sig = 0;
+	size_t sig_len;
+	uint32_t ecc_curve = 0;
+
+	/* create the private and public keys */
+	res = crypto_ops.acipher.alloc_ecc_keypair(&key_private, 521);
+	if (res != TEE_SUCCESS) {
+		EMSG("crypto_ops.acipher.alloc_ecc_keypair() FAILED");
+		return res;
+	}
+
+	res = crypto_ops.acipher.alloc_ecc_public_key(&key_public, 521);
+	if (res != TEE_SUCCESS) {
+		EMSG("crypto_ops.acipher.alloc_ecc_public_key() FAILED");
+		goto error_freeprivate;
+	}
+
+	/* get the curve */
+	res = ecc_get_curve(ecc_algo, &ecc_curve);
+	if (res != TEE_SUCCESS) {
+		EMSG("ecc_get_curve(%d) failed with 0x%x", ecc_curve, res);
+		goto err;
+	}
+
+	/* create a random message */
+	do {
+		crypto_ops.prng.read(&msg_len, 1);
+
+	} while (msg_len == 0);
+	crypto_ops.prng.read(msg, msg_len);
+
+	res = ecc_get_size(ecc_curve, &key_size_bits);
+	if (res != TEE_SUCCESS)
+		goto err;
+	key_size = (key_size_bits + 7) / 8;
+
+	/* create the private key */
+	key_private.curve = ecc_curve;
+	res = crypto_ops.acipher.gen_ecc_key(&key_private);
+	if (res != TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		return res;
+	}
+
+	/* Populate public key */
+	key_public.curve = key_private.curve;
+	crypto_ops.bignum.copy(key_public.x, key_private.x);
+	crypto_ops.bignum.copy(key_public.y, key_private.y);
+
+	sig_len = 2 * key_size;
+	pt_sig = malloc(sig_len);
+	memset(pt_sig, 0, sig_len);
+	res = crypto_ops.acipher.ecc_sign(ecc_algo, &key_private,
+					  (const uint8_t *)msg, msg_len,
+					  pt_sig, &sig_len);
+	if (res != TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		goto err;
+	}
+
+	/* check signature is correct */
+	res = crypto_ops.acipher.ecc_verify(ecc_algo, &key_public,
+					    (const uint8_t *)msg, msg_len,
+					    pt_sig, sig_len);
+	if (res != TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		goto err;
+	}
+
+	/* check a wrong signature is not recognized */
+	pt_sig[sig_len / 4] ^= 0xFF;
+	res = crypto_ops.acipher.ecc_verify(ecc_algo, &key_public,
+					    (const uint8_t *)msg, msg_len,
+					    pt_sig, sig_len);
+	pt_sig[sig_len / 4] ^= 0xFF;
+	if (res == TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	/* check a wrong signature is not recognized */
+	pt_sig[3 * sig_len / 4] ^= 0xFF;
+	res = crypto_ops.acipher.ecc_verify(ecc_algo, &key_public,
+					    (const uint8_t *)msg, msg_len,
+					    pt_sig, sig_len);
+	pt_sig[3 * sig_len / 4] ^= 0xFF;
+	if (res == TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	/* check a wrong message is not recognized */
+	msg[msg_len / 2] ^= 0xFF;
+	res = crypto_ops.acipher.ecc_verify(ecc_algo, &key_public,
+					    (const uint8_t *)msg, msg_len,
+					    pt_sig, sig_len);
+	msg[msg_len / 2] ^= 0xFF;
+	if (res == TEE_SUCCESS) {
+		EMSG("Error 0x%x - curve=%d", res, ecc_curve);
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = TEE_SUCCESS;
+err:
+	if (pt_sig)
+		free(pt_sig);
+	crypto_ops.bignum.free(key_public.x);
+	crypto_ops.bignum.free(key_public.y);
+error_freeprivate:
+	crypto_ops.bignum.free(key_private.x);
+	crypto_ops.bignum.free(key_private.y);
+	crypto_ops.bignum.free(key_private.d);
 	return res;
 }
 
@@ -208,6 +373,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	switch (nCommandID) {
 	case CMD_ECC_GEN_KEY_SELF_TESTS:
 		return ecc_generate_key_tests(pParams[0].value.a);
+	case CMD_ECC_DSA_TESTS:
+		return ecc_dsa_tests(pParams[0].value.a);
 	default:
 		break;
 	}

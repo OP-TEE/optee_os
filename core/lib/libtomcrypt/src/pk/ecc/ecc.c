@@ -46,13 +46,13 @@
 /**
   @file ecc.c
   ECC Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MECC
 
 /* This holds the key settings.  ***MUST*** be organized by size from smallest to largest. */
 const ltc_ecc_set_type ltc_ecc_sets[] = {
-#ifdef ECC112
+#ifdef LTC_ECC112
 {
         14,
         "SECP112R1",
@@ -63,7 +63,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "A89CE5AF8724C0A23E0E0FF77500"
 },
 #endif
-#ifdef ECC128
+#ifdef LTC_ECC128
 {
         16,
         "SECP128R1",
@@ -74,7 +74,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "CF5AC8395BAFEB13C02DA292DDED7A83",
 },
 #endif
-#ifdef ECC160
+#ifdef LTC_ECC160
 {
         20,
         "SECP160R1",
@@ -85,7 +85,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "23A628553168947D59DCC912042351377AC5FB32",
 },
 #endif
-#ifdef ECC192
+#ifdef LTC_ECC192
 {
         24,
         "ECC-192",
@@ -96,7 +96,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "7192B95FFC8DA78631011ED6B24CDD573F977A11E794811",
 },
 #endif
-#ifdef ECC224
+#ifdef LTC_ECC224
 {
         28,
         "ECC-224",
@@ -107,7 +107,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "BD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34",
 },
 #endif
-#ifdef ECC256
+#ifdef LTC_ECC256
 {
         32,
         "ECC-256",
@@ -118,7 +118,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5",
 },
 #endif
-#ifdef ECC384
+#ifdef LTC_ECC384
 {
         48,
         "ECC-384",
@@ -129,7 +129,7 @@ const ltc_ecc_set_type ltc_ecc_sets[] = {
         "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F",
 },
 #endif
-#ifdef ECC521
+#ifdef LTC_ECC521
 {
         66,
         "ECC-521",

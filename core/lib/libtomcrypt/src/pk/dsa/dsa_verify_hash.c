@@ -63,6 +63,7 @@ int dsa_verify_hash_raw(         void   *r,          void   *s,
 
    LTC_ARGCHK(r    != NULL);
    LTC_ARGCHK(s    != NULL);
+   LTC_ARGCHK(hash != NULL);
    LTC_ARGCHK(stat != NULL);
    LTC_ARGCHK(key  != NULL);
 

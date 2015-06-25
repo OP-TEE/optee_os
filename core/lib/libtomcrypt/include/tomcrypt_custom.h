@@ -235,11 +235,11 @@
    /* Timing Resistant */
    #define LTC_ECC_TIMING_RESISTANT
 
-   #define ECC192
-   #define ECC224
-   #define ECC256
-   #define ECC384
-   #define ECC521
+   #define LTC_ECC192
+   #define LTC_ECC224
+   #define LTC_ECC256
+   #define LTC_ECC384
+   #define LTC_ECC521
 #endif
 
 #define LTC_NO_PKCS

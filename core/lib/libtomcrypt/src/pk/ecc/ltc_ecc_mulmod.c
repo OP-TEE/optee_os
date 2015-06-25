@@ -46,13 +46,13 @@
 /**
   @file ltc_ecc_mulmod.c
   ECC Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MECC
 #ifndef LTC_ECC_TIMING_RESISTANT
 
 /* size of sliding window, don't change this! MUST BE A POWER OF TWO */
-#define WINSIZE (2)
+#define WINSIZE 4
 #define WINVARS (1 << (WINSIZE - 1))
 
 /**
@@ -90,7 +90,7 @@ int ltc_ecc_mulmod(void *k, ecc_point *G, ecc_point *R, void *modulus, int map)
       mp_clear(mu);
       return err;
    }
-  
+
   /* alloc ram for window temps */
   for (i = 0; i < WINVARS; i++) {
       M[i] = ltc_ecc_new_point();
@@ -113,14 +113,14 @@ int ltc_ecc_mulmod(void *k, ecc_point *G, ecc_point *R, void *modulus, int map)
       if ((err = mp_copy(G->x, tG->x)) != CRYPT_OK)                                  { goto done; }
       if ((err = mp_copy(G->y, tG->y)) != CRYPT_OK)                                  { goto done; }
       if ((err = mp_copy(G->z, tG->z)) != CRYPT_OK)                                  { goto done; }
-   } else {      
+   } else {
       if ((err = mp_mulmod(G->x, mu, modulus, tG->x)) != CRYPT_OK)                   { goto done; }
       if ((err = mp_mulmod(G->y, mu, modulus, tG->y)) != CRYPT_OK)                   { goto done; }
       if ((err = mp_mulmod(G->z, mu, modulus, tG->z)) != CRYPT_OK)                   { goto done; }
    }
    mp_clear(mu);
    mu = NULL;
-   
+
    /* calc the M tab, which holds kG for k==8..15 */
    /* M[0] == [WINVARS].G */
    if ((err = ltc_mp.ecc_ptdbl(tG, M[0], modulus, mp)) != CRYPT_OK)                 { goto done; }

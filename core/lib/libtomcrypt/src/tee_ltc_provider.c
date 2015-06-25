@@ -465,7 +465,11 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
 #define LTC_MAX_BITS_PER_VARIABLE   (4096)
+#ifdef CFG_CRYPTO_ECC
+#define LTC_VARIABLE_NUMBER         (80)
+#else
 #define LTC_VARIABLE_NUMBER         (50)
+#endif
 
 static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
 	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];
@@ -1296,6 +1300,65 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+/*
+ * curve is part of TEE_ECC_CURVE_NIST_P192,...
+ * algo is part of TEE_ALG_ECDSA_P192,..., and 0 if we do not have it
+ */
+static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
+				  size_t *key_size_bytes, size_t *key_size_bits)
+{
+	/*
+	 * Excerpt of libtomcrypt documentation:
+	 * ecc_make_key(... key_size ...): The keysize is the size of the
+	 * modulus in bytes desired. Currently directly supported values
+	 * are 12, 16, 20, 24, 28, 32, 48, and 65 bytes which correspond
+	 * to key sizes of 112, 128, 160, 192, 224, 256, 384, and 521 bits
+	 * respectively.
+	 */
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		*key_size_bits = 192;
+		*key_size_bytes = 24;
+		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P192))
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		*key_size_bits = 224;
+		*key_size_bytes = 28;
+		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P224))
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		*key_size_bits = 256;
+		*key_size_bytes = 32;
+		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P256))
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		*key_size_bits = 384;
+		*key_size_bytes = 48;
+		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P384))
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		*key_size_bits = 521;
+		/*
+		 * set 66 instead of 65 wrt to Libtomcrypt documentation as
+		 * if it the real key size
+		 */
+		*key_size_bytes = 66;
+		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P521))
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
+	default:
+		*key_size_bits = 0;
+		*key_size_bytes = 0;
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 {
 	TEE_Result res;
@@ -1305,51 +1368,27 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 	size_t key_size_bytes = 0;
 	size_t key_size_bits = 0;
 
-	/*
-	 * Excerpt of libtomcrypt documentation:
-	 * ecc_make_key(... key_size ...): The keysize is the size of the
-	 * modulus in bytes desired. Currently directly supported values
-	 * are 12, 16, 20, 24, 28, 32, 48, and 65 bytes which correspond
-	 * to key sizes of 112, 128, 160, 192, 224, 256, 384, and 521 bits
-	 * respectively.
-	 */
-	switch (key->curve) {
-	case TEE_ECC_CURVE_NIST_P192:
-		key_size_bits = 192;
-		key_size_bytes = 24;
-		break;
-	case TEE_ECC_CURVE_NIST_P224:
-		key_size_bits = 224;
-		key_size_bytes = 28;
-		break;
-	case TEE_ECC_CURVE_NIST_P256:
-		key_size_bits = 256;
-		key_size_bytes = 32;
-		break;
-	case TEE_ECC_CURVE_NIST_P384:
-		key_size_bits = 384;
-		key_size_bytes = 48;
-		break;
-	case TEE_ECC_CURVE_NIST_P521:
-		key_size_bits = 521;
-		key_size_bytes = 65;
-		break;
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	res = ecc_get_keysize(key->curve, 0, &key_size_bytes, &key_size_bits);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	/* Generate the ECC key */
 	ltc_res = ecc_make_key(&prng->state, prng->index,
 			       key_size_bytes, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	/* check the size of the keys */
 	if (((size_t)mp_count_bits(ltc_tmp_key.pubkey.x) > key_size_bits) ||
 	    ((size_t)mp_count_bits(ltc_tmp_key.pubkey.y) > key_size_bits) ||
 	    ((size_t)mp_count_bits(ltc_tmp_key.k) > key_size_bits)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
+	/* check LTC is returning z==1 */
+	if (mp_count_bits(ltc_tmp_key.pubkey.z) != 1) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
@@ -1362,9 +1401,140 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 	res = TEE_SUCCESS;
 
 exit:
-	/* Free the temporary key */
-	ecc_free(&ltc_tmp_key);
 
+	ecc_free(&ltc_tmp_key);		/* Free the temporary key */
+	return res;
+}
+
+static TEE_Result ecc_compute_key_idx(ecc_key *ltc_key, size_t keysize)
+{
+	size_t x;
+
+	for (x = 0; ((int)keysize > ltc_ecc_sets[x].size) &&
+		    (ltc_ecc_sets[x].size != 0);
+	     x++)
+		;
+	keysize = (size_t)ltc_ecc_sets[x].size;
+
+	if ((keysize > ECC_MAXSIZE) || (ltc_ecc_sets[x].size == 0))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ltc_key->idx = -1;
+	ltc_key->dp  = &ltc_ecc_sets[x];
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
+			   const uint8_t *msg, size_t msg_len, uint8_t *sig,
+			   size_t *sig_len)
+{
+	TEE_Result res;
+	int ltc_res;
+	void *r, *s;
+	size_t key_size_bytes;
+	size_t key_size_bits;
+	ecc_key ltc_key = {
+		.type = PK_PRIVATE,
+		.idx = 0,	/* computed later by ecc_compute_key_idx*/
+		.dp = 0,	/* computed later */
+		.pubkey = { .x = 0, .y = 0, .z = 0},	/* no need */
+		.k = key->d	/* private key */
+	};
+	struct tee_ltc_prng *prng = tee_ltc_get_prng();
+
+	if (algo == 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* compute the index of the ecc curve */
+	res = ecc_get_keysize(key->curve, algo,
+			      &key_size_bytes, &key_size_bits);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = ecc_compute_key_idx(&ltc_key, key_size_bytes);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (*sig_len < 2 * key_size_bytes) {
+		*sig_len = 2 * key_size_bytes;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	ltc_res = mp_init_multi(&r, &s, NULL);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	ltc_res = ecc_sign_hash_raw(msg, msg_len, r, s,
+				    &prng->state, prng->index, &ltc_key);
+
+	if (ltc_res == CRYPT_OK) {
+		*sig_len = 2 * key_size_bytes;
+		memset(sig, 0, *sig_len);
+		mp_to_unsigned_bin(r, (uint8_t *)sig + *sig_len/2 -
+				   mp_unsigned_bin_size(r));
+		mp_to_unsigned_bin(s, (uint8_t *)sig + *sig_len -
+				   mp_unsigned_bin_size(s));
+		res = TEE_SUCCESS;
+	} else {
+		res = TEE_ERROR_GENERIC;
+	}
+
+	mp_clear_multi(r, s, NULL);
+	return res;
+}
+
+static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
+			     const uint8_t *msg, size_t msg_len,
+			     const uint8_t *sig, size_t sig_len)
+{
+	TEE_Result res;
+	int ltc_stat;
+	int ltc_res;
+	void *r, *s;
+	size_t key_size_bytes;
+	size_t key_size_bits;
+	ecc_key ltc_key = {
+		.type = PK_PUBLIC,
+		.idx = 0,	/* computed later by ecc_compute_key_idx*/
+		.dp = 0,	/* computed later */
+		.pubkey = { .x = key->x, .y = key->y },
+		/* create .z == "1" later on */
+		.k = 0,
+	};
+	uint8_t one[1] = { 1 };
+
+	if (algo == 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* compute the index of the ecc curve */
+	res = ecc_get_keysize(key->curve, algo,
+			      &key_size_bytes, &key_size_bits);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = ecc_compute_key_idx(&ltc_key, key_size_bytes);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* check keysize vs sig_len */
+	if ((key_size_bytes * 2) != sig_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ltc_res = mp_init_multi(&ltc_key.pubkey.z, &r, &s, NULL);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	mp_read_unsigned_bin(ltc_key.pubkey.z, one, sizeof(one));
+	mp_read_unsigned_bin(r, (uint8_t *)sig, sig_len/2);
+	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
+
+	ltc_res = ecc_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
+	mp_clear_multi(ltc_key.pubkey.z, r, s, NULL);
+
+	if ((ltc_res == CRYPT_OK) && (ltc_stat == 1))
+		res = TEE_SUCCESS;
+	else
+		res = TEE_ERROR_GENERIC;
 	return res;
 }
 
@@ -2525,6 +2695,8 @@ struct crypto_ops crypto_ops = {
 		.alloc_ecc_keypair = alloc_ecc_keypair,
 		.alloc_ecc_public_key = alloc_ecc_public_key,
 		.gen_ecc_key = gen_ecc_key,
+		.ecc_sign = ecc_sign,
+		.ecc_verify = ecc_verify,
 #endif
 	},
 	.bignum = {

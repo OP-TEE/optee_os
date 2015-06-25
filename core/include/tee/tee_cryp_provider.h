@@ -264,6 +264,12 @@ struct acipher_ops {
 	TEE_Result (*dsa_verify)(uint32_t algo, struct dsa_public_key *key,
 				 const uint8_t *msg, size_t msg_len,
 				 const uint8_t *sig, size_t sig_len);
+	TEE_Result (*ecc_sign)(uint32_t algo, struct ecc_keypair *key,
+			       const uint8_t *msg, size_t msg_len,
+			       uint8_t *sig, size_t *sig_len);
+	TEE_Result (*ecc_verify)(uint32_t algo, struct ecc_public_key *key,
+				 const uint8_t *msg, size_t msg_len,
+				 const uint8_t *sig, size_t sig_len);
 };
 
 struct prng_ops {
