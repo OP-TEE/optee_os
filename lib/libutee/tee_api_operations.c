@@ -348,16 +348,22 @@ out:
 
 void TEE_FreeOperation(TEE_OperationHandle operation)
 {
-	if (operation != TEE_HANDLE_NULL) {
-		/*
-		 * Note that keys should not be freed here, since they are
-		 * claimed by the operation they will be freed by
-		 * utee_cryp_state_free().
-		 */
-		utee_cryp_state_free(operation->state);
-		TEE_Free(operation->buffer);
-		TEE_Free(operation);
-	}
+	TEE_Result res;
+
+	if (operation == TEE_HANDLE_NULL)
+		TEE_Panic(0);
+
+	/*
+	 * Note that keys should not be freed here, since they are
+	 * claimed by the operation they will be freed by
+	 * utee_cryp_state_free().
+	 */
+	res = utee_cryp_state_free(operation->state);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(0);
+
+	TEE_Free(operation->buffer);
+	TEE_Free(operation);
 }
 
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
