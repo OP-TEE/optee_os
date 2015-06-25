@@ -63,7 +63,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	bool with_private_key = false;
 	bool buffer_two_blocks = false;
 
-	if (operation == NULL)
+	if (!operation)
 		TEE_Panic(0);
 
 	if (algorithm == TEE_ALG_AES_XTS)
@@ -266,7 +266,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	}
 
 	op = TEE_Malloc(sizeof(*op), 0);
-	if (op == NULL)
+	if (!op)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	op->info.algorithm = algorithm;
@@ -282,11 +282,11 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		if (buffer_two_blocks)
 			buffer_size *= 2;
 
-		op->buffer =
-		    TEE_Malloc(buffer_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		op->buffer = TEE_Malloc(buffer_size,
+					TEE_USER_MEM_HINT_NO_FILL_ZERO);
 		if (op->buffer == NULL) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+			goto err0;
 		}
 	}
 	op->block_size = block_size;
@@ -306,34 +306,43 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 		res = TEE_AllocateTransientObject(key_type, mks, &op->key1);
 		if (res != TEE_SUCCESS)
-			goto out;
+			goto err1;
 
 		if ((op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
 		    0) {
-			res =
-			    TEE_AllocateTransientObject(key_type, mks,
-							&op->key2);
+			res = TEE_AllocateTransientObject(key_type, mks,
+							  &op->key2);
 			if (res != TEE_SUCCESS)
-				goto out;
+				goto err2;
 		}
 	}
 
 	res = utee_cryp_state_alloc(algorithm, mode, (uint32_t) op->key1,
 				    (uint32_t) op->key2, &op->state);
-	if (res != TEE_SUCCESS)
-		goto out;
+	if (res != TEE_SUCCESS) {
+		if ((op->info.handleState &
+		     TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) != 0)
+			goto err2;
+		goto err1;
+	}
 
 	/* For multi-stage operation do an "init". */
 	TEE_ResetOperation(op);
 	*operation = op;
+	goto out;
 
+err2:
+	TEE_FreeTransientObject(op->key2);
+err1:
+	TEE_FreeTransientObject(op->key1);
+err0:
+	TEE_FreeOperation(op);
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_NOT_SUPPORTED)
+		TEE_Panic(0);
 out:
-	if (res != TEE_SUCCESS) {
-		TEE_FreeTransientObject(op->key1);
-		TEE_FreeTransientObject(op->key2);
-		TEE_FreeOperation(op);
-	}
-
 	return res;
 }
 
