@@ -583,9 +583,8 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 {
 	TEE_Result res;
 
-	res =
-	    utee_storage_next_enum(objectEnumerator, objectInfo, objectID,
-				   objectIDLen);
+	res = utee_storage_next_enum(objectEnumerator, objectInfo, objectID,
+				     objectIDLen);
 
 	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
 		TEE_Panic(0);
@@ -600,12 +599,17 @@ TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 {
 	TEE_Result res;
 
-	if (object == TEE_HANDLE_NULL)
-		TEE_Panic(0);
+	if (object == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	res = utee_storage_obj_read(object, buffer, size, count);
 
-	if (res != TEE_SUCCESS)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -616,12 +620,24 @@ TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, void *buffer,
 {
 	TEE_Result res;
 
-	if (object == TEE_HANDLE_NULL)
-		TEE_Panic(0);
+	if (object == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (size > TEE_DATA_MAX_POSITION) {
+		res = TEE_ERROR_OVERFLOW;
+		goto out;
+	}
 
 	res = utee_storage_obj_write(object, buffer, size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NO_SPACE)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_STORAGE_NO_SPACE &&
+	    res != TEE_ERROR_OVERFLOW &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -631,12 +647,18 @@ TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, uint32_t size)
 {
 	TEE_Result res;
 
-	if (object == TEE_HANDLE_NULL)
-		TEE_Panic(0);
+	if (object == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	res = utee_storage_obj_trunc(object, size);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NO_SPACE)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_STORAGE_NO_SPACE &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -648,39 +670,52 @@ TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 	TEE_Result res;
 	TEE_ObjectInfo info;
 
-	if (object == TEE_HANDLE_NULL)
-		TEE_Panic(0);
+	if (object == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		goto out;
 
 	switch (whence) {
 	case TEE_DATA_SEEK_SET:
-		if (offset > 0 && (uint32_t)offset > TEE_DATA_MAX_POSITION)
-			return TEE_ERROR_OVERFLOW;
+		if (offset > 0 && (uint32_t)offset > TEE_DATA_MAX_POSITION) {
+			res = TEE_ERROR_OVERFLOW;
+			goto out;
+		}
 		break;
 	case TEE_DATA_SEEK_CUR:
 		if (offset > 0 &&
 		    ((uint32_t)offset + info.dataPosition >
 		     TEE_DATA_MAX_POSITION ||
 		     (uint32_t)offset + info.dataPosition <
-		     info.dataPosition))
-			return TEE_ERROR_OVERFLOW;
+		     info.dataPosition)) {
+			res = TEE_ERROR_OVERFLOW;
+			goto out;
+		}
 		break;
 	case TEE_DATA_SEEK_END:
 		if (offset > 0 &&
 		    ((uint32_t)offset + info.dataSize > TEE_DATA_MAX_POSITION ||
-		     (uint32_t)offset + info.dataSize < info.dataSize))
-			return TEE_ERROR_OVERFLOW;
+		     (uint32_t)offset + info.dataSize < info.dataSize)) {
+			res = TEE_ERROR_OVERFLOW;
+			goto out;
+		}
 		break;
 	default:
-		TEE_Panic(0);
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
 	}
 
 	res = utee_storage_obj_seek(object, offset, whence);
 
-	if (res != TEE_SUCCESS && res != TEE_ERROR_OVERFLOW)
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OVERFLOW &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
