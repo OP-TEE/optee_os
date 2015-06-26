@@ -61,6 +61,10 @@ void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, u8 iv[], int first);
 void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, u8 ctr[], int first);
+void ce_aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
+			int blocks, u8 const rk2[], u8 iv[]);
+void ce_aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
+			int blocks, u8 const rk2[], u8 iv[]);
 
 
 struct aes_block {
@@ -425,6 +429,58 @@ static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 	return CRYPT_OK;
 }
 
+static int aes_xts_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
+				   unsigned long blocks, unsigned char *tweak,
+				   symmetric_key *skey1, symmetric_key *skey2)
+{
+	struct tomcrypt_arm_neon_state state;
+	u8 *rk1, *rk2;
+	int Nr;
+
+	LTC_ARGCHK(pt);
+	LTC_ARGCHK(ct);
+	LTC_ARGCHK(tweak);
+	LTC_ARGCHK(skey1);
+	LTC_ARGCHK(skey2);
+	LTC_ARGCHK(skey1->rijndael.Nr == skey2->rijndael.Nr);
+
+	Nr = skey1->rijndael.Nr;
+	rk1 = (u8 *)skey1->rijndael.eK;
+	rk2 = (u8 *)skey2->rijndael.eK;
+
+	tomcrypt_arm_neon_enable(&state);
+	ce_aes_xts_encrypt(ct, pt, rk1, Nr, blocks, rk2, tweak);
+	tomcrypt_arm_neon_disable(&state);
+
+	return CRYPT_OK;
+}
+
+static int aes_xts_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
+				   unsigned long blocks, unsigned char *tweak,
+				   symmetric_key *skey1, symmetric_key *skey2)
+{
+	struct tomcrypt_arm_neon_state state;
+	u8 *rk1, *rk2;
+	int Nr;
+
+	LTC_ARGCHK(pt);
+	LTC_ARGCHK(ct);
+	LTC_ARGCHK(tweak);
+	LTC_ARGCHK(skey1);
+	LTC_ARGCHK(skey2);
+	LTC_ARGCHK(skey1->rijndael.Nr == skey2->rijndael.Nr);
+
+	Nr = skey1->rijndael.Nr;
+	rk1 = (u8 *)skey1->rijndael.dK;
+	rk2 = (u8 *)skey2->rijndael.eK;
+
+	tomcrypt_arm_neon_enable(&state);
+	ce_aes_xts_decrypt(pt, ct, rk1, Nr, blocks, rk2, tweak);
+	tomcrypt_arm_neon_disable(&state);
+
+	return CRYPT_OK;
+}
+
 const struct ltc_cipher_descriptor aes_desc = {
 	.name = "aes",
 	.ID = 6,
@@ -442,4 +498,6 @@ const struct ltc_cipher_descriptor aes_desc = {
 	.accel_cbc_encrypt = aes_cbc_encrypt_nblocks,
 	.accel_cbc_decrypt = aes_cbc_decrypt_nblocks,
 	.accel_ctr_encrypt = aes_ctr_encrypt_nblocks,
+	.accel_xts_encrypt = aes_xts_encrypt_nblocks,
+	.accel_xts_decrypt = aes_xts_decrypt_nblocks,
 };
