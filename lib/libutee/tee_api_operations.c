@@ -384,6 +384,12 @@ void TEE_ResetOperation(TEE_OperationHandle operation)
 
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) != 0) {
+		if (operation->info.keySize == 0)
+			TEE_Panic(0);
+	}
+
 	if (operation->info.operationClass == TEE_OPERATION_DIGEST) {
 		res = utee_hash_init(operation->state, NULL, 0);
 		if (res != TEE_SUCCESS)
