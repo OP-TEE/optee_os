@@ -94,6 +94,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 #endif
          symmetric_xts *xts)
 {
+   struct ltc_cipher_descriptor *desc;
    unsigned char PP[16], CC[16], T[16];
    unsigned long i, m, mo, lim;
    int           err;
@@ -118,24 +119,39 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
       return CRYPT_INVALID_ARG;
    }
 
-   /* encrypt the tweak */
-   if ((err = cipher_descriptor[xts->cipher].ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
-      return err;
-   }
-
-   /* for i = 0 to m-2 do */
    if (mo == 0) {
       lim = m;
    } else {
       lim = m - 1;
    }
 
-   for (i = 0; i < lim; i++) {
-      err = tweak_uncrypt(ct, pt, T, xts);
-      ct += 16;
-      pt += 16;
+   desc = &cipher_descriptor[xts->cipher];
+
+   if (desc->accel_xts_encrypt && lim > 0) {
+
+	   /* use accelerated decryption for whole blocks */
+	   if ((err = desc->accel_xts_decrypt(ct, pt, lim, tweak, &xts->key1,
+					      &xts->key2) != CRYPT_OK)) {
+	      return err;
+	   }
+	   ct += lim * 16;
+	   pt += lim * 16;
+
+	   /* tweak is encrypted on output */
+	   memcpy(T, tweak, sizeof(T));
+   } else {
+      /* encrypt the tweak */
+      if ((err = desc->ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
+	 return err;
+      }
+
+      for (i = 0; i < lim; i++) {
+	 err = tweak_uncrypt(ct, pt, T, xts);
+	 ct += 16;
+	 pt += 16;
+      }
    }
-   
+
    /* if ptlen not divide 16 then */
    if (mo > 0) {
       XMEMCPY(CC, T, 16);
@@ -163,7 +179,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 
 #ifdef LTC_LINARO_FIX_XTS
    /* Decrypt the tweak back */
-   if ((err = cipher_descriptor[xts->cipher].ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
+   if ((err = desc->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
       return err;
    }
 #endif

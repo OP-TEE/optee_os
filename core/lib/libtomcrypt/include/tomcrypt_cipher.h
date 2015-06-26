@@ -407,6 +407,36 @@ extern struct ltc_cipher_descriptor {
        const unsigned char *key, unsigned long keylen,
        const unsigned char *in,  unsigned long inlen,
              unsigned char *out, unsigned long *outlen);
+
+   /** Accelerated XTS encryption
+       @param pt      Plaintext
+       @param ct      Ciphertext
+       @param blocks  The number of complete blocks to process
+       @param tweak   The 128-bit encryption tweak (input/output).
+                      The tweak should not be encrypted on input, but
+                      next tweak will be copied encrypted on output.
+       @param skey1   The first scheduled key context
+       @param skey2   The second scheduled key context
+       @return CRYPT_OK if successful
+    */
+    int (*accel_xts_encrypt)(const unsigned char *pt, unsigned char *ct,
+        unsigned long blocks, unsigned char *tweak, symmetric_key *skey1,
+        symmetric_key *skey2);
+
+    /** Accelerated XTS decryption
+        @param ct      Ciphertext
+        @param pt      Plaintext
+        @param blocks  The number of complete blocks to process
+        @param tweak   The 128-bit encryption tweak (input/output).
+                       The tweak should not be encrypted on input, but
+                       next tweak will be copied encrypted on output.
+        @param skey1   The first scheduled key context
+        @param skey2   The second scheduled key context
+        @return CRYPT_OK if successful
+     */
+     int (*accel_xts_decrypt)(const unsigned char *ct, unsigned char *pt,
+         unsigned long blocks, unsigned char *tweak, symmetric_key *skey1,
+         symmetric_key *skey2);
 } cipher_descriptor[];
 
 

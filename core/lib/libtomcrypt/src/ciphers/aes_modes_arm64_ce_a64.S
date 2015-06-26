@@ -520,9 +520,9 @@ ENDPROC(ce_aes_ctr_encrypt)
 
 	/*
 	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 const rk2[], u8 iv[], int first)
+	 *		   int blocks, u8 const rk2[], u8 iv[])
 	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 const rk2[], u8 iv[], int first)
+	 *		   int blocks, u8 const rk2[], u8 iv[])
 	 */
 
 	.macro		next_tweak, out, in, const, tmp
@@ -538,7 +538,6 @@ ENDPROC(ce_aes_ctr_encrypt)
 
 ENTRY(ce_aes_xts_encrypt)
 	FRAME_PUSH
-	cbz		w7, .LxtsencloopNx
 
 	ld1		{v4.16b}, [x6]
 	enc_prepare	w3, x5, x6
@@ -603,6 +602,8 @@ ENTRY(ce_aes_xts_encrypt)
 	next_tweak	v4, v4, v7, v8
 	b		.Lxtsencloop
 .Lxtsencout:
+	next_tweak	v4, v4, v7, v8
+	st1		{v4.16b}, [x6], #16
 	FRAME_POP
 	ret
 ENDPROC(ce_aes_xts_encrypt)
@@ -610,7 +611,6 @@ ENDPROC(ce_aes_xts_encrypt)
 
 ENTRY(ce_aes_xts_decrypt)
 	FRAME_PUSH
-	cbz		w7, .LxtsdecloopNx
 
 	ld1		{v4.16b}, [x6]
 	enc_prepare	w3, x5, x6
@@ -676,5 +676,7 @@ ENTRY(ce_aes_xts_decrypt)
 	b		.Lxtsdecloop
 .Lxtsdecout:
 	FRAME_POP
+	next_tweak	v4, v4, v7, v8
+	st1		{v4.16b}, [x6], #16
 	ret
 ENDPROC(ce_aes_xts_decrypt)
