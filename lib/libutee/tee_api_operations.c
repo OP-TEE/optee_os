@@ -657,13 +657,26 @@ void TEE_DigestUpdate(TEE_OperationHandle operation,
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 			     uint32_t chunkLen, void *hash, uint32_t *hashLen)
 {
-	if ((operation == TEE_HANDLE_NULL) || (!chunk && chunkLen) ||
-	    !hash || !hashLen ||
-	    (operation->info.operationClass != TEE_OPERATION_DIGEST))
+	TEE_Result res;
+
+	if ((operation == TEE_HANDLE_NULL) ||
+	    (!chunk && chunkLen) ||
+	    !hash ||
+	    !hashLen ||
+	    (operation->info.operationClass != TEE_OPERATION_DIGEST)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = utee_hash_final(operation->state, chunk, chunkLen, hash,
+			       hashLen);
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
 		TEE_Panic(0);
 
-	return utee_hash_final(operation->state, chunk, chunkLen, hash,
-			       hashLen);
+	return res;
 }
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
