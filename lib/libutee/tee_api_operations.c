@@ -403,60 +403,72 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 {
 	TEE_Result res;
 	uint32_t key_size = 0;
+	TEE_ObjectInfo key_info;
 
-	if (operation == TEE_HANDLE_NULL)
-		TEE_Panic(0);
-
-	/* No key for digests */
-	if (operation->info.operationClass == TEE_OPERATION_DIGEST)
-		TEE_Panic(0);
-
-	/* Two keys expected */
-	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
-	    0)
-		TEE_Panic(0);
-
-	if (key != TEE_HANDLE_NULL) {
-		TEE_ObjectInfo key_info;
-
-		res = TEE_GetObjectInfo1(key, &key_info);
-		if (res != TEE_SUCCESS)
-			goto err;
-
-		/* Supplied key has to meet required usage */
-		if ((key_info.objectUsage & operation->info.requiredKeyUsage) !=
-		    operation->info.requiredKeyUsage) {
-			TEE_Panic(0);
-		}
-
-		if (operation->info.maxKeySize < key_info.keySize)
-			TEE_Panic(0);
-
-		key_size = key_info.keySize;
+	/* Operation is not a valid handle */
+	if (operation == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
+
+	/* Key is not initialized */
+	if (key == TEE_HANDLE_NULL) {
+		/* Operation key cleared */
+		TEE_ResetTransientObject(operation->key1);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* No key for digest operation */
+	if (operation->info.operationClass == TEE_OPERATION_DIGEST) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* Two keys flag not expected (TEE_ALG_AES_XTS excluded) */
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
+	    0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = TEE_GetObjectInfo1(key, &key_info);
+	/* Key is not a valid handle */
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	/* Supplied key has to meet required usage */
+	if ((key_info.objectUsage & operation->info.requiredKeyUsage) !=
+	    operation->info.requiredKeyUsage) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (operation->info.maxKeySize < key_info.keySize) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	key_size = key_info.keySize;
 
 	TEE_ResetTransientObject(operation->key1);
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
 
-	if (key != TEE_HANDLE_NULL) {
-		res = TEE_CopyObjectAttributes1(operation->key1, key);
-		if (res != TEE_SUCCESS)
-			goto err;
+	res = TEE_CopyObjectAttributes1(operation->key1, key);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-		operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
-	}
+	operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
 
 	operation->info.keySize = key_size;
 
-	goto out;
-
-err:
-	if (res == TEE_ERROR_CORRUPT_OBJECT ||
-	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		return res;
-	TEE_Panic(0);
 out:
-	return TEE_SUCCESS;
+	if (res != TEE_SUCCESS  &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(0);
+
+	return res;
 }
 
 TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
@@ -464,97 +476,120 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 {
 	TEE_Result res;
 	uint32_t key_size = 0;
+	TEE_ObjectInfo key_info1;
+	TEE_ObjectInfo key_info2;
 
-	if (operation == TEE_HANDLE_NULL)
-		TEE_Panic(0);
-
-	/* Two keys not expected */
-	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) ==
-	    0)
-		TEE_Panic(0);
-
-	/* Either both keys are NULL or both are not NULL */
-	if ((key1 == TEE_HANDLE_NULL || key2 == TEE_HANDLE_NULL) &&
-	    key1 != key2)
-		TEE_Panic(0);
-
-	if (key1 != TEE_HANDLE_NULL) {
-		TEE_ObjectInfo key_info1;
-		TEE_ObjectInfo key_info2;
-
-		res = TEE_GetObjectInfo1(key1, &key_info1);
-		if (res != TEE_SUCCESS)
-			goto err;
-
-		/* Supplied key has to meet required usage */
-		if ((key_info1.objectUsage & operation->info.
-		     requiredKeyUsage) != operation->info.requiredKeyUsage) {
-			TEE_Panic(0);
-		}
-
-		res = TEE_GetObjectInfo1(key2, &key_info2);
-		if (res != TEE_SUCCESS) {
-			if (res == TEE_ERROR_CORRUPT_OBJECT)
-				res = TEE_ERROR_CORRUPT_OBJECT_2;
-			goto err;
-		}
-
-		/* Supplied key has to meet required usage */
-		if ((key_info2.objectUsage & operation->info.
-		     requiredKeyUsage) != operation->info.requiredKeyUsage) {
-			TEE_Panic(0);
-		}
-
-		/*
-		 * AES-XTS (the only multi key algorithm supported, requires the
-		 * keys to be of equal size.
-		 */
-		if (operation->info.algorithm == TEE_ALG_AES_XTS &&
-		    key_info1.keySize != key_info2.keySize)
-			TEE_Panic(0);
-
-		if (operation->info.maxKeySize < key_info1.keySize)
-			TEE_Panic(0);
-
-		/*
-		 * Odd that only the size of one key should be reported while
-		 * size of two key are used when allocating the operation.
-		 */
-		key_size = key_info1.keySize;
+	/* Operation is not a valid handle */
+	if (operation == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
+
+	/*
+	 * Key1/Key2 and/or are not initialized and
+	 * Either both keys are NULL or both are not NULL
+	 */
+	if (key1 == TEE_HANDLE_NULL || key2 == TEE_HANDLE_NULL) {
+		/* Clear operation key1 (if needed) */
+		if (key1 == TEE_HANDLE_NULL)
+			TEE_ResetTransientObject(operation->key1);
+		/* Clear operation key2 (if needed) */
+		if (key2 == TEE_HANDLE_NULL)
+			TEE_ResetTransientObject(operation->key2);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* No key for digest operation */
+	if (operation->info.operationClass == TEE_OPERATION_DIGEST) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* Two keys flag expected (TEE_ALG_AES_XTS only) */
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) ==
+	    0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = TEE_GetObjectInfo1(key1, &key_info1);
+	/* Key1 is not a valid handle */
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	/* Supplied key has to meet required usage */
+	if ((key_info1.objectUsage & operation->info.
+	     requiredKeyUsage) != operation->info.requiredKeyUsage) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = TEE_GetObjectInfo1(key2, &key_info2);
+	/* Key2 is not a valid handle */
+	if (res != TEE_SUCCESS) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT)
+			res = TEE_ERROR_CORRUPT_OBJECT_2;
+		goto out;
+	}
+
+	/* Supplied key has to meet required usage */
+	if ((key_info2.objectUsage & operation->info.
+	     requiredKeyUsage) != operation->info.requiredKeyUsage) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/*
+	 * AES-XTS (the only multi key algorithm supported, requires the
+	 * keys to be of equal size.
+	 */
+	if (operation->info.algorithm == TEE_ALG_AES_XTS &&
+	    key_info1.keySize != key_info2.keySize) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+
+	}
+
+	if (operation->info.maxKeySize < key_info1.keySize) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/*
+	 * Odd that only the size of one key should be reported while
+	 * size of two key are used when allocating the operation.
+	 */
+	key_size = key_info1.keySize;
 
 	TEE_ResetTransientObject(operation->key1);
 	TEE_ResetTransientObject(operation->key2);
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
 
-	if (key1 != TEE_HANDLE_NULL) {
-		res = TEE_CopyObjectAttributes1(operation->key1, key1);
-		if (res != TEE_SUCCESS)
-			goto err;
+	res = TEE_CopyObjectAttributes1(operation->key1, key1);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-		res = TEE_CopyObjectAttributes1(operation->key2, key2);
-		if (res != TEE_SUCCESS) {
-			if (res == TEE_ERROR_CORRUPT_OBJECT)
-				res = TEE_ERROR_CORRUPT_OBJECT_2;
-			goto err;
-		}
-
-		operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
+	res = TEE_CopyObjectAttributes1(operation->key2, key2);
+	if (res != TEE_SUCCESS) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT)
+			res = TEE_ERROR_CORRUPT_OBJECT_2;
+		goto out;
 	}
+
+	operation->info.handleState |= TEE_HANDLE_FLAG_KEY_SET;
 
 	operation->info.keySize = key_size;
 
-	goto out;
-
-err:
-	if (res == TEE_ERROR_CORRUPT_OBJECT ||
-	    res == TEE_ERROR_CORRUPT_OBJECT_2 ||
-	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE ||
-	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE_2)
-		return res;
-	TEE_Panic(0);
 out:
-	return TEE_SUCCESS;
+	if (res != TEE_SUCCESS  &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_CORRUPT_OBJECT_2 &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE_2)
+		TEE_Panic(0);
+
+	return res;
 }
 
 void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
