@@ -583,7 +583,12 @@ function_exit:
 			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
 	}
 	tee_mm_free(mm_param);
-	tee_svc_copy_to_user(sess, ta_sess, &s, sizeof(s));
+	/*
+	 * We know that sizeof(TEE_TASessionHandle) in user mode (TA) is 4,
+	 * because we only support 32-bit TAs, so take care not to overflow it
+	 * if kernel addresses are 64-bit
+	 */
+	tee_svc_copy_kaddr_to_user32(sess, (uint32_t *)ta_sess, s);
 	tee_svc_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
@@ -741,6 +746,22 @@ TEE_Result tee_svc_copy_to_user(struct tee_ta_session *sess, void *uaddr,
 
 	memcpy(uaddr, kaddr, len);
 	return TEE_SUCCESS;
+}
+
+/*
+ * Copy a kernel address into a 32-bit user buffer. In 64-bit mode, this will
+ * fail if the address is not in the lower 4 GiB.
+ */
+TEE_Result tee_svc_copy_kaddr_to_user32(struct tee_ta_session *sess,
+					uint32_t *uaddr, const void *kaddr)
+{
+	uint32_t lo = (long)kaddr & 0xFFFFFFFF;
+
+	if ((long)lo != (long)kaddr) {
+		EMSG("Unexpected high kernel address\n");
+		return TEE_ERROR_GENERIC;
+	}
+	return tee_svc_copy_to_user(sess, uaddr, &lo, sizeof(lo));
 }
 
 static bool session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)

@@ -476,7 +476,7 @@ TEE_Result tee_svc_storage_obj_open(uint32_t storage_id, void *object_id,
 
 	tee_obj_add(sess->ctx, o);
 
-	res = tee_svc_copy_to_user(sess, obj, &o, sizeof(o));
+	res = tee_svc_copy_kaddr_to_user32(sess, obj, o);
 	if (res != TEE_SUCCESS)
 		tee_obj_close(sess->ctx, o);
 
@@ -626,7 +626,7 @@ TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
 
 	tee_obj_add(sess->ctx, o);
 
-	res = tee_svc_copy_to_user(sess, obj, &o, sizeof(o));
+	res = tee_svc_copy_kaddr_to_user32(sess, obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -818,8 +818,7 @@ TEE_Result tee_svc_storage_alloc_enum(uint32_t *obj_enum)
 	e->dir = NULL;
 	TAILQ_INSERT_TAIL(&sess->ctx->storage_enums, e, link);
 
-	return tee_svc_copy_to_user(sess, obj_enum, &e,
-				    sizeof(TEE_ObjectEnumHandle *));
+	return tee_svc_copy_kaddr_to_user32(sess, obj_enum, e);
 }
 
 TEE_Result tee_svc_storage_free_enum(uint32_t obj_enum)
