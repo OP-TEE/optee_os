@@ -1301,6 +1301,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	size_t raw_size;
 	void *raw_data;
 	int idx;
+	uint16_t conv_func;
 
 	for (n = 0; n < attr_count; n++) {
 		idx = tee_svc_cryp_obj_find_type_attr_idx(
@@ -1310,8 +1311,11 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		if (idx < 0)
 			return TEE_ERROR_ITEM_NOT_FOUND;
 
+		conv_func = type_props->type_attrs[idx].conv_func;
+
 		/* attribute bigger than maximum object size */
-		if (o->info.maxKeySize < attrs[n].content.ref.length)
+		if (conv_func != TEE_TYPE_CONV_FUNC_VALUE &&
+		    o->info.maxKeySize < attrs[n].content.ref.length)
 			return TEE_ERROR_OUT_OF_MEMORY;
 
 		have_attrs |= 1 << idx;
@@ -1321,9 +1325,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_svc_cryp_obj_store_attr_raw(
-					type_props->type_attrs[idx].conv_func,
-					attrs + n, raw_data, raw_size);
+		res = tee_svc_cryp_obj_store_attr_raw(conv_func, attrs + n,
+						      raw_data, raw_size);
 		if (res != TEE_SUCCESS)
 			return res;
 
