@@ -810,15 +810,26 @@ out:
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle op, const void *srcData,
 			    uint32_t srcLen, void *destData, uint32_t *destLen)
 {
+	TEE_Result res;
 	size_t req_dlen;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
-	    destLen == NULL || (destData == NULL && *destLen != 0))
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_CIPHER)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (op == TEE_HANDLE_NULL ||
+	    (srcData == NULL && srcLen != 0) ||
+	    destLen == NULL ||
+	    (destData == NULL && *destLen != 0)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (op->info.operationClass != TEE_OPERATION_CIPHER) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/* Calculate required dlen */
 	req_dlen = ((op->buffer_offs + srcLen) / op->block_size) *
@@ -836,13 +847,19 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle op, const void *srcData,
 	 */
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
-	tee_buffer_update(op, utee_cipher_update, srcData, srcLen, destData,
-			  destLen);
+	res = tee_buffer_update(op, utee_cipher_update, srcData, srcLen,
+				destData, destLen);
 
-	return TEE_SUCCESS;
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(0);
+
+	return res;
 }
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
@@ -855,13 +872,23 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 	uint32_t tmp_dlen;
 	size_t req_dlen;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
-	    destLen == NULL || (destData == NULL && *destLen != 0))
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_CIPHER)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (op == TEE_HANDLE_NULL ||
+	    (srcData == NULL && srcLen != 0) ||
+	    destLen == NULL ||
+	    (destData == NULL && *destLen != 0)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (op->info.operationClass != TEE_OPERATION_CIPHER) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/*
 	 * Check that the final block doesn't require padding for those
@@ -873,8 +900,10 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 	    op->info.algorithm == TEE_ALG_DES_CBC_NOPAD ||
 	    op->info.algorithm == TEE_ALG_DES3_ECB_NOPAD ||
 	    op->info.algorithm == TEE_ALG_DES3_CBC_NOPAD) {
-		if (((op->buffer_offs + srcLen) % op->block_size) != 0)
-			return TEE_ERROR_BAD_PARAMETERS;
+		if (((op->buffer_offs + srcLen) % op->block_size) != 0) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
 	}
 
 	/*
@@ -885,12 +914,16 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 	req_dlen = op->buffer_offs + srcLen;
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
 	tmp_dlen = *destLen - acc_dlen;
-	tee_buffer_update(op, utee_cipher_update, srcData, srcLen, dst,
-			  &tmp_dlen);
+	res = tee_buffer_update(op, utee_cipher_update, srcData, srcLen, dst,
+				&tmp_dlen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	dst += tmp_dlen;
 	acc_dlen += tmp_dlen;
 
@@ -898,12 +931,19 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle op,
 	res = utee_cipher_final(op->state, op->buffer, op->buffer_offs,
 				dst, &tmp_dlen);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(res);
+		goto out;
+
 	acc_dlen += tmp_dlen;
 
 	op->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 	*destLen = acc_dlen;
-	return TEE_SUCCESS;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(0);
+
+	return res;
 }
 
 /* Cryptographic Operations API - MAC Functions */
