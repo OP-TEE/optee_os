@@ -273,24 +273,24 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
-TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
+TEE_Result TEE_AEInit(TEE_OperationHandle operation, void *nonce,
 		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
 		      uint32_t payloadLen);
 
-void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+void TEE_AEUpdateAAD(TEE_OperationHandle operation, void *AADdata,
 		     uint32_t AADdataLen);
 
-TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
+TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, void *srcData,
 			uint32_t srcLen, void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
+			      void *srcData, uint32_t srcLen,
 			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t *tagLen);
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, const void *tag,
+			      void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t tagLen);
 
 /* Cryptographic Operations API - Asymmetric Functions */

@@ -1068,16 +1068,21 @@ out:
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
-TEE_Result TEE_AEInit(TEE_OperationHandle op, const void *nonce,
+TEE_Result TEE_AEInit(TEE_OperationHandle operation, void *nonce,
 		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
 		      uint32_t payloadLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || nonce == NULL)
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_AE)
-		TEE_Panic(0);
+	if (operation == TEE_HANDLE_NULL || nonce == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (operation->info.operationClass != TEE_OPERATION_AE) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/*
 	 * AES-CCM tag len is specified by AES-CCM spec and handled in TEE Core
@@ -1085,76 +1090,100 @@ TEE_Result TEE_AEInit(TEE_OperationHandle op, const void *nonce,
 	 * according to the same principle so we have to check here instead to
 	 * be GP compliant.
 	 */
-	if (op->info.algorithm == TEE_ALG_AES_GCM) {
+	if (operation->info.algorithm == TEE_ALG_AES_GCM) {
 		/*
 		 * From GP spec: For AES-GCM, can be 128, 120, 112, 104, or 96
 		 */
-		if (tagLen < 96 || tagLen > 128 || (tagLen % 8 != 0))
-			return TEE_ERROR_NOT_SUPPORTED;
+		if (tagLen < 96 || tagLen > 128 || (tagLen % 8 != 0)) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto out;
+		}
 	}
 
-	res = utee_authenc_init(op->state, nonce, nonceLen, tagLen / 8, AADLen,
-				payloadLen);
-	if (res != TEE_SUCCESS) {
-		if (res != TEE_ERROR_NOT_SUPPORTED)
+	res = utee_authenc_init(operation->state, nonce, nonceLen,
+				tagLen / 8, AADLen, payloadLen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	operation->ae_tag_len = tagLen / 8;
+	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_NOT_SUPPORTED)
 			TEE_Panic(res);
-		return res;
-	}
-	op->ae_tag_len = tagLen / 8;
 
-	op->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
-	return TEE_SUCCESS;
+	return res;
 }
 
-void TEE_AEUpdateAAD(TEE_OperationHandle op, const void *AADdata,
+void TEE_AEUpdateAAD(TEE_OperationHandle operation, void *AADdata,
 		     uint32_t AADdataLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (AADdata == NULL && AADdataLen != 0))
+	if (operation == TEE_HANDLE_NULL ||
+	    (AADdata == NULL && AADdataLen != 0))
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_AE)
+	if (operation->info.operationClass != TEE_OPERATION_AE)
 		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 		TEE_Panic(0);
 
-	res = utee_authenc_update_aad(op->state, AADdata, AADdataLen);
+	res = utee_authenc_update_aad(operation->state, AADdata, AADdataLen);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 }
 
-TEE_Result TEE_AEUpdate(TEE_OperationHandle op, const void *srcData,
+TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, void *srcData,
 			uint32_t srcLen, void *destData, uint32_t *destLen)
 {
+	TEE_Result res;
 	size_t req_dlen;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
-	    destLen == NULL || (destData == NULL && *destLen != 0))
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_AE)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (operation == TEE_HANDLE_NULL ||
+	    (srcData == NULL && srcLen != 0) ||
+	    destLen == NULL ||
+	    (destData == NULL && *destLen != 0)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (operation->info.operationClass != TEE_OPERATION_AE) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/*
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = ROUNDDOWN(op->buffer_offs + srcLen, op->block_size);
+	req_dlen = ROUNDDOWN(operation->buffer_offs + srcLen,
+			     operation->block_size);
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
-	tee_buffer_update(op, utee_authenc_update_payload, srcData, srcLen,
-			  destData, destLen);
+	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
+				srcLen, destData, destLen);
 
-	return TEE_SUCCESS;
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+			TEE_Panic(res);
+
+	return res;
 }
 
-TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle op,
-			      const void *srcData, uint32_t srcLen,
+TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
+			      void *srcData, uint32_t srcLen,
 			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t *tagLen)
 {
@@ -1164,58 +1193,78 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle op,
 	uint32_t tmp_dlen;
 	size_t req_dlen;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
-	    destLen == NULL || (destData == NULL && *destLen != 0) ||
-	    tag == NULL || tagLen == NULL)
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_AE)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (operation == TEE_HANDLE_NULL ||
+	    (srcData == NULL && srcLen != 0) ||
+	    destLen == NULL ||
+	    (destData == NULL && *destLen != 0) ||
+	    tag == NULL || tagLen == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (operation->info.operationClass != TEE_OPERATION_AE) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/*
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = op->buffer_offs + srcLen;
+	req_dlen = operation->buffer_offs + srcLen;
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
 	/*
 	 * Need to check this before update_payload since sync would be lost if
 	 * we return short buffer after that.
 	 */
-	if (*tagLen < op->ae_tag_len) {
-		*tagLen = op->ae_tag_len;
-		return TEE_ERROR_SHORT_BUFFER;
+	if (*tagLen < operation->ae_tag_len) {
+		*tagLen = operation->ae_tag_len;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
 	tmp_dlen = *destLen - acc_dlen;
-	tee_buffer_update(op, utee_authenc_update_payload, srcData, srcLen,
-			  dst, &tmp_dlen);
+	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
+				srcLen, dst, &tmp_dlen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	dst += tmp_dlen;
 	acc_dlen += tmp_dlen;
 
 	tmp_dlen = *destLen - acc_dlen;
-	res =
-	    utee_authenc_enc_final(op->state, op->buffer, op->buffer_offs, dst,
-				   &tmp_dlen, tag, tagLen);
+	res = utee_authenc_enc_final(operation->state, operation->buffer,
+				     operation->buffer_offs, dst, &tmp_dlen,
+				     tag, tagLen);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(res);
-	acc_dlen += tmp_dlen;
+		goto out;
 
+	acc_dlen += tmp_dlen;
 	*destLen = acc_dlen;
-	op->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+			TEE_Panic(res);
 
 	return res;
 }
 
-TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle op,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, const void *tag,
+TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
+			      void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t tagLen)
 {
 	TEE_Result res;
@@ -1224,46 +1273,67 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle op,
 	uint32_t tmp_dlen;
 	size_t req_dlen;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
-	    destLen == NULL || (destData == NULL && *destLen != 0) ||
-	    (tag == NULL && tagLen != 0))
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_AE)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (operation == TEE_HANDLE_NULL ||
+	    (srcData == NULL && srcLen != 0) ||
+	    destLen == NULL ||
+	    (destData == NULL && *destLen != 0) ||
+	    (tag == NULL && tagLen != 0)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (operation->info.operationClass != TEE_OPERATION_AE) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/*
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = op->buffer_offs + srcLen;
+	req_dlen = operation->buffer_offs + srcLen;
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 
 	tmp_dlen = *destLen - acc_dlen;
-	tee_buffer_update(op, utee_authenc_update_payload, srcData, srcLen,
-			  dst, &tmp_dlen);
+	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
+				srcLen, dst, &tmp_dlen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	dst += tmp_dlen;
 	acc_dlen += tmp_dlen;
 
 	tmp_dlen = *destLen - acc_dlen;
-	res =
-	    utee_authenc_dec_final(op->state, op->buffer, op->buffer_offs, dst,
-				   &tmp_dlen, tag, tagLen);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_MAC_INVALID)
-		TEE_Panic(res);
+	res = utee_authenc_dec_final(operation->state, operation->buffer,
+				     operation->buffer_offs, dst, &tmp_dlen,
+				     tag, tagLen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	/* Supplied tagLen should match what we initiated with */
-	if (tagLen != op->ae_tag_len)
+	if (tagLen != operation->ae_tag_len)
 		res = TEE_ERROR_MAC_INVALID;
 
 	acc_dlen += tmp_dlen;
 
 	*destLen = acc_dlen;
-	op->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_MAC_INVALID)
+			TEE_Panic(res);
 
 	return res;
 }
