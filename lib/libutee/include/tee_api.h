@@ -258,18 +258,18 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen);
+void TEE_MACInit(TEE_OperationHandle operation, void *IV, uint32_t IVLen);
 
-void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
+void TEE_MACUpdate(TEE_OperationHandle operation, void *chunk,
 		   uint32_t chunkSize);
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
+			       void *message, uint32_t messageLen,
 			       void *mac, uint32_t *macLen);
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen);
+			       void *message, uint32_t messageLen,
+			       void *mac, uint32_t macLen);
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 

@@ -948,16 +948,20 @@ out:
 
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
+void TEE_MACInit(TEE_OperationHandle operation, void *IV, uint32_t IVLen)
 {
 	TEE_Result res;
 
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
-	if (IV == NULL && IVLen != 0)
+	if (!operation->key1)
 		TEE_Panic(0);
 	if (operation->info.operationClass != TEE_OPERATION_MAC)
 		TEE_Panic(0);
+	/*
+	 * Note : IV and IVLen are never used in current implementation
+	 * This is why coherent values of IV and IVLen are not checked
+	 */
 	res = utee_hash_init(operation->state, IV, IVLen);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
@@ -965,58 +969,101 @@ void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 }
 
-void TEE_MACUpdate(TEE_OperationHandle op, const void *chunk, uint32_t chunkSize)
+void TEE_MACUpdate(TEE_OperationHandle operation, void *chunk,
+		   uint32_t chunkSize)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (chunk == NULL && chunkSize != 0))
+	if (operation == TEE_HANDLE_NULL || (chunk == NULL && chunkSize != 0))
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_MAC)
+	if (operation->info.operationClass != TEE_OPERATION_MAC)
 		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 		TEE_Panic(0);
 
-	res = utee_hash_update(op->state, chunk, chunkSize);
+	res = utee_hash_update(operation->state, chunk, chunkSize);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 }
 
-TEE_Result TEE_MACComputeFinal(TEE_OperationHandle op,
-			       const void *message, uint32_t messageLen,
+TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
+			       void *message, uint32_t messageLen,
 			       void *mac, uint32_t *macLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (message == NULL && messageLen != 0) ||
-	    mac == NULL || macLen == NULL)
-		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_MAC)
-		TEE_Panic(0);
-	if ((op->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+	if (operation == TEE_HANDLE_NULL ||
+	    (message == NULL && messageLen != 0) ||
+	    mac == NULL ||
+	    macLen == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
-	res = utee_hash_final(op->state, message, messageLen, mac, macLen);
-	op->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+	if (operation->info.operationClass != TEE_OPERATION_MAC) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = utee_hash_final(operation->state, message, messageLen, mac,
+			      macLen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(res);
+
 	return res;
 }
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen)
+			       void *message, uint32_t messageLen,
+			       void *mac, uint32_t macLen)
 {
 	TEE_Result res;
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE];
 	uint32_t computed_mac_size = TEE_MAX_HASH_SIZE;
 
+	if (operation->info.operationClass != TEE_OPERATION_MAC) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	res = TEE_MACComputeFinal(operation, message, messageLen, computed_mac,
 				  &computed_mac_size);
 	if (res != TEE_SUCCESS)
-		return res;
-	if (computed_mac_size != macLen)
-		return TEE_ERROR_MAC_INVALID;
-	if (buf_compare_ct(mac, computed_mac, computed_mac_size) != 0)
-		return TEE_ERROR_MAC_INVALID;
-	return TEE_SUCCESS;
+		goto out;
+
+	if (computed_mac_size != macLen) {
+		res = TEE_ERROR_MAC_INVALID;
+		goto out;
+	}
+
+	if (buf_compare_ct(mac, computed_mac, computed_mac_size) != 0) {
+		res = TEE_ERROR_MAC_INVALID;
+		goto out;
+	}
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_MAC_INVALID)
+		TEE_Panic(res);
+
+	return res;
 }
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
