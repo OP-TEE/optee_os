@@ -270,6 +270,11 @@ struct acipher_ops {
 	TEE_Result (*ecc_verify)(uint32_t algo, struct ecc_public_key *key,
 				 const uint8_t *msg, size_t msg_len,
 				 const uint8_t *sig, size_t sig_len);
+	TEE_Result (*ecc_shared_secret)(struct ecc_keypair *private_key,
+					struct ecc_public_key *public_key,
+					void *secret,
+					unsigned long *secret_len);
+
 };
 
 struct prng_ops {
