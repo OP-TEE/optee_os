@@ -296,27 +296,27 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 /* Cryptographic Operations API - Asymmetric Functions */
 
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
-				    const TEE_Attribute *params,
-				    uint32_t paramCount, const void *digest,
+				    TEE_Attribute *params,
+				    uint32_t paramCount, void *digest,
 				    uint32_t digestLen, void *signature,
 				    uint32_t *signatureLen);
 
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
-				      const TEE_Attribute *params,
-				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen, const void *signature,
+				      TEE_Attribute *params,
+				      uint32_t paramCount, void *digest,
+				      uint32_t digestLen, void *signature,
 				      uint32_t signatureLen);
 
 /* Cryptographic Operations API - Key Derivation Functions */

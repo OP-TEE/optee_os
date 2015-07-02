@@ -973,6 +973,7 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 {
 	TEE_Result res;
 	uint32_t bigint_size;
+	size_t hash_size;
 	int stat, ltc_hashindex, ltc_res, ltc_rsa_algo;
 	rsa_key ltc_key = {
 		.type = PK_PUBLIC,
@@ -980,10 +981,17 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 		.N = key->n
 	};
 
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				       &hash_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (msg_len != hash_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	bigint_size = ltc_mp.unsigned_size(ltc_key.N);
 	if (sig_len < bigint_size)
 		return TEE_ERROR_SIGNATURE_INVALID;
-
 
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);

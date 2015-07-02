@@ -1340,109 +1340,127 @@ out:
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
-TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle op,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
+	if (operation == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
 	    destLen == NULL || (destData == NULL && *destLen != 0))
 		TEE_Panic(0);
-	if (paramCount != 0 && params == NULL)
+	if (params == NULL && paramCount != 0)
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+	if (!operation->key1)
 		TEE_Panic(0);
-	if (op->info.mode != TEE_MODE_ENCRYPT)
+	if (operation->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_ENCRYPT)
 		TEE_Panic(0);
 
-	res = utee_asymm_operate(op->state, params, paramCount, srcData, srcLen,
-				 destData, destLen);
+	res = utee_asymm_operate(operation->state, params, paramCount, srcData,
+				 srcLen, destData, destLen);
+
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
 	    res != TEE_ERROR_BAD_PARAMETERS)
 		TEE_Panic(res);
+
 	return res;
 }
 
-TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle op,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
+	if (operation == TEE_HANDLE_NULL || (srcData == NULL && srcLen != 0) ||
 	    destLen == NULL || (destData == NULL && *destLen != 0))
 		TEE_Panic(0);
-	if (paramCount != 0 && params == NULL)
+	if (params == NULL && paramCount != 0)
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+	if (!operation->key1)
 		TEE_Panic(0);
-	if (op->info.mode != TEE_MODE_DECRYPT)
+	if (operation->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_DECRYPT)
 		TEE_Panic(0);
 
-	res = utee_asymm_operate(op->state, params, paramCount, srcData, srcLen,
-				 destData, destLen);
+	res = utee_asymm_operate(operation->state, params, paramCount, srcData,
+				 srcLen, destData, destLen);
+
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
 	    res != TEE_ERROR_BAD_PARAMETERS)
 		TEE_Panic(res);
+
 	return res;
 }
 
-TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle op,
-				    const TEE_Attribute *params,
-				    uint32_t paramCount, const void *digest,
+TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
+				    TEE_Attribute *params,
+				    uint32_t paramCount, void *digest,
 				    uint32_t digestLen, void *signature,
 				    uint32_t *signatureLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (digest == NULL && digestLen != 0) ||
+	if (operation == TEE_HANDLE_NULL ||
+	    (digest == NULL && digestLen != 0) ||
 	    signature == NULL || signatureLen == NULL)
 		TEE_Panic(0);
-	if (paramCount != 0 && params == NULL)
+	if (params == NULL && paramCount != 0)
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+	if (!operation->key1)
 		TEE_Panic(0);
-	if (op->info.mode != TEE_MODE_SIGN)
+	if (operation->info.operationClass !=
+	    TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_SIGN)
 		TEE_Panic(0);
 
-	res =
-	    utee_asymm_operate(op->state, params, paramCount, digest, digestLen,
-			       signature, signatureLen);
+	res = utee_asymm_operate(operation->state, params, paramCount, digest,
+				 digestLen, signature, signatureLen);
+
 	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
 		TEE_Panic(res);
+
 	return res;
 }
 
-TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle op,
-				      const TEE_Attribute *params,
-				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen, const void *signature,
+TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
+				      TEE_Attribute *params,
+				      uint32_t paramCount, void *digest,
+				      uint32_t digestLen, void *signature,
 				      uint32_t signatureLen)
 {
 	TEE_Result res;
 
-	if (op == TEE_HANDLE_NULL || (digest == NULL && digestLen != 0) ||
+	if (operation == TEE_HANDLE_NULL ||
+	    (digest == NULL && digestLen != 0) ||
 	    (signature == NULL && signatureLen != 0))
 		TEE_Panic(0);
-	if (paramCount != 0 && params == NULL)
+	if (params == NULL && paramCount != 0)
 		TEE_Panic(0);
-	if (op->info.operationClass != TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+	if (!operation->key1)
 		TEE_Panic(0);
-	if (op->info.mode != TEE_MODE_VERIFY)
+	if (operation->info.operationClass !=
+	    TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_VERIFY)
 		TEE_Panic(0);
 
-	res =
-	    utee_asymm_verify(op->state, params, paramCount, digest, digestLen,
-			      signature, signatureLen);
+	res = utee_asymm_verify(operation->state, params, paramCount, digest,
+				digestLen, signature, signatureLen);
+
 	if (res != TEE_SUCCESS && res != TEE_ERROR_SIGNATURE_INVALID)
 		TEE_Panic(res);
+
 	return res;
 }
 
@@ -1460,7 +1478,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 	if (paramCount != 0 && params == NULL)
 		TEE_Panic(0);
 	if (TEE_ALG_GET_CLASS(operation->info.algorithm) !=
-			TEE_OPERATION_KEY_DERIVATION)
+	    TEE_OPERATION_KEY_DERIVATION)
 		TEE_Panic(0);
 
 	if (operation->info.operationClass != TEE_OPERATION_KEY_DERIVATION)
