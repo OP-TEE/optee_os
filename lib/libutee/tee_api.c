@@ -202,12 +202,37 @@ TEE_Result TEE_Wait(uint32_t timeout)
 
 TEE_Result TEE_GetTAPersistentTime(TEE_Time *time)
 {
-	return utee_get_time(UTEE_TIME_CAT_TA_PERSISTENT, time);
+	TEE_Result res;
+
+	res = utee_get_time(UTEE_TIME_CAT_TA_PERSISTENT, time);
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_OVERFLOW) {
+		time->seconds = 0;
+		time->millis = 0;
+	}
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_TIME_NOT_SET &&
+	    res != TEE_ERROR_TIME_NEEDS_RESET &&
+	    res != TEE_ERROR_OVERFLOW &&
+	    res != TEE_ERROR_OUT_OF_MEMORY)
+		TEE_Panic(res);
+
+	return res;
 }
 
 TEE_Result TEE_SetTAPersistentTime(const TEE_Time *time)
 {
-	return utee_set_ta_time(time);
+	TEE_Result res;
+
+	res = utee_set_ta_time(time);
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_STORAGE_NO_SPACE)
+		TEE_Panic(res);
+
+	return res;
 }
 
 void TEE_GetREETime(TEE_Time *time)

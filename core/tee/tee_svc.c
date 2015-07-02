@@ -886,8 +886,8 @@ TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *mytime)
 		res = tee_time_get_sys_time(&t);
 		break;
 	case UTEE_TIME_CAT_TA_PERSISTENT:
-		res =
-		    tee_time_get_ta_time((const void *)&s->ctx->head->uuid, &t);
+		res = tee_time_get_ta_time((const void *)&s->ctx->head->uuid,
+					   &t);
 		break;
 	case UTEE_TIME_CAT_REE:
 		res = tee_time_get_ree_time(&t);
