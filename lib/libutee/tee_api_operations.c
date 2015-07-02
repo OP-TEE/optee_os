@@ -1475,13 +1475,15 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 
 	if (operation == TEE_HANDLE_NULL || derivedKey == 0)
 		TEE_Panic(0);
-	if (paramCount != 0 && params == NULL)
+	if (params == NULL && paramCount != 0)
 		TEE_Panic(0);
 	if (TEE_ALG_GET_CLASS(operation->info.algorithm) !=
 	    TEE_OPERATION_KEY_DERIVATION)
 		TEE_Panic(0);
 
 	if (operation->info.operationClass != TEE_OPERATION_KEY_DERIVATION)
+		TEE_Panic(0);
+	if (!operation->key1)
 		TEE_Panic(0);
 	if (operation->info.mode != TEE_MODE_DERIVE)
 		TEE_Panic(0);
