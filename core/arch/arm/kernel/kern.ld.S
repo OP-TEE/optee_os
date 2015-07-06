@@ -125,7 +125,12 @@ SECTIONS
 #else
 		*(.rodata .rodata.*)
 
-		. = ALIGN(4);
+		/*
+		 * 8 to avoid unwanted padding between __start_ta_head_section
+		 * and the first structure in ta_head_section, in 64-bit
+		 * builds
+		 */
+		. = ALIGN(8);
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
