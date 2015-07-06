@@ -225,6 +225,10 @@ void TEE_FreeOperation(TEE_OperationHandle operation);
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
 			  TEE_OperationInfo *operationInfo);
 
+TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
+			  TEE_OperationInfoMultiple *operationInfoMultiple,
+			  uint32_t *operationSize);
+
 void TEE_ResetOperation(TEE_OperationHandle operation);
 
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,

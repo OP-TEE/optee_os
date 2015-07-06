@@ -39,6 +39,7 @@ struct __TEE_OperationHandle {
 	TEE_OperationInfo info;
 	TEE_ObjectHandle key1;
 	TEE_ObjectHandle key2;
+	uint32_t operationState;
 	uint8_t *buffer;	/* buffer to collect complete blocks */
 	bool buffer_two_blocks;	/* True if two blocks need to be buffered */
 	size_t block_size;	/* Block size of cipher */
@@ -239,6 +240,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_SHA512:
 		if (mode != TEE_MODE_DIGEST)
 			return TEE_ERROR_NOT_SUPPORTED;
+		/* v1.1: flags always set for digest operations */
 		handle_state |= TEE_HANDLE_FLAG_KEY_SET;
 		req_key_usage = 0;
 		break;
@@ -308,8 +310,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		if (res != TEE_SUCCESS)
 			goto err1;
 
-		if ((op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
-		    0) {
+		if (op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) {
 			res = TEE_AllocateTransientObject(key_type, mks,
 							  &op->key2);
 			if (res != TEE_SUCCESS)
@@ -326,8 +327,19 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		goto err1;
 	}
 
-	/* For multi-stage operation do an "init". */
-	TEE_ResetOperation(op);
+	/*
+	 * Initialize digest operations
+	 * Other multi-stage operations initialized w/ TEE_xxxInit functions
+	 * Non-applicable on asymmetric operations
+	 */
+	if (TEE_ALG_GET_CLASS(algorithm) == TEE_OPERATION_DIGEST) {
+		res = utee_hash_init(op->state, NULL, 0);
+		if (res != TEE_SUCCESS)
+			goto err0;
+		/* v1.1: flags always set for digest operations */
+		op->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+	}
+
 	*operation = op;
 	goto out;
 
@@ -372,10 +384,106 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
 
-	if (operationInfo == NULL)
+	if (!operationInfo)
 		TEE_Panic(0);
 
 	*operationInfo = operation->info;
+}
+
+TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
+			  TEE_OperationInfoMultiple *operationInfoMultiple,
+			  uint32_t *operationSize)
+{
+	TEE_Result res = TEE_SUCCESS;
+	TEE_ObjectInfo key_info1;
+	TEE_ObjectInfo key_info2;
+	uint32_t num_of_keys;
+	size_t n;
+
+	if (operation == TEE_HANDLE_NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (!operationInfoMultiple) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (!operationSize) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	num_of_keys = (*operationSize-sizeof(TEE_OperationInfoMultiple))/
+			sizeof(TEE_OperationInfoKey);
+
+	if (num_of_keys > 2) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/* Two keys flag (TEE_ALG_AES_XTS only) */
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
+	    0 &&
+	    (num_of_keys != 2)) {
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+
+	/* Clear */
+	for (n = 0; n < num_of_keys; n++) {
+		operationInfoMultiple->keyInformation[n].keySize = 0;
+		operationInfoMultiple->keyInformation[n].requiredKeyUsage = 0;
+	}
+
+	if (num_of_keys == 2) {
+		res = TEE_GetObjectInfo1(operation->key2, &key_info2);
+		/* Key2 is not a valid handle */
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		operationInfoMultiple->keyInformation[1].keySize =
+			key_info2.keySize;
+		operationInfoMultiple->keyInformation[1].requiredKeyUsage =
+			operation->info.requiredKeyUsage;
+	}
+
+	if (num_of_keys >= 1) {
+		res = TEE_GetObjectInfo1(operation->key1, &key_info1);
+		/* Key1 is not a valid handle */
+		if (res != TEE_SUCCESS) {
+			if (num_of_keys == 2) {
+				operationInfoMultiple->keyInformation[1].
+							keySize = 0;
+				operationInfoMultiple->keyInformation[1].
+							requiredKeyUsage = 0;
+			}
+			goto out;
+		}
+
+		operationInfoMultiple->keyInformation[0].keySize =
+			key_info1.keySize;
+		operationInfoMultiple->keyInformation[0].requiredKeyUsage =
+			operation->info.requiredKeyUsage;
+	}
+
+	/* No key */
+	operationInfoMultiple->algorithm = operation->info.algorithm;
+	operationInfoMultiple->operationClass = operation->info.operationClass;
+	operationInfoMultiple->mode = operation->info.mode;
+	operationInfoMultiple->digestLength = operation->info.digestLength;
+	operationInfoMultiple->maxKeySize = operation->info.maxKeySize;
+	operationInfoMultiple->handleState = operation->info.handleState;
+	operationInfoMultiple->operationState = operation->operationState;
+	operationInfoMultiple->numberOfKeys = num_of_keys;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(0);
+
+	return res;
 }
 
 void TEE_ResetOperation(TEE_OperationHandle operation)
@@ -385,17 +493,17 @@ void TEE_ResetOperation(TEE_OperationHandle operation)
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
 
-	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) != 0) {
-		if (operation->info.keySize == 0)
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_KEY_SET) == 0)
 			TEE_Panic(0);
-	}
 
 	if (operation->info.operationClass == TEE_OPERATION_DIGEST) {
 		res = utee_hash_init(operation->state, NULL, 0);
 		if (res != TEE_SUCCESS)
 			TEE_Panic(res);
+		operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+	} else {
+		operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 	}
-	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 }
 
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
