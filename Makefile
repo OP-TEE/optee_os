@@ -22,7 +22,8 @@ endif
 
 # Make these default for now
 ARCH            ?= arm
-PLATFORM        ?= stm
+PLATFORM        ?= vexpress
+PLATFORM_FLAVOR ?= qemu_virt
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 
 arch_$(ARCH)	:= y

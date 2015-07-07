@@ -16,6 +16,10 @@
 # Actual values used during the build are output to $(out-dir)/core/conf.mk
 # (CFG_* variables only).
 
+# Cross-compiler prefix and suffix
+CROSS_COMPILE ?= arm-linux-gnueabihf-
+COMPILER ?= gcc
+
 # Compiler warning level.
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3

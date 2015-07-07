@@ -1,8 +1,5 @@
 include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
-CROSS_COMPILE	?= arm-linux-gnueabihf-
-COMPILER	?= gcc
-
 CFG_ARM32_core ?= y
 CFG_NUM_THREADS ?= 4
 

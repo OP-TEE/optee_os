@@ -1,8 +1,5 @@
 include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
 
-CROSS_COMPILE	?= arm-linux-gnueabihf-
-COMPILER	?= gcc
-
 ifeq ($(CFG_ARM64_core),y)
 CFG_WITH_LPAE := y
 else
