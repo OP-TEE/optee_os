@@ -206,7 +206,7 @@ static void entry_close_session(struct thread_smc_args *args,
 		struct tee_close_session_in in;
 		uint32_t ret;
 
-		in.sess = arg32->session;
+		in.sess = (TEE_Session *)(vaddr_t)arg32->session;
 		ret = tee_dispatch_close_session(&in);
 		if (ret == TEE_ERROR_SYSTEM_BUSY) {
 			args->a0 = TEESMC_RETURN_EBUSY;

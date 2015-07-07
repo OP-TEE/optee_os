@@ -612,7 +612,8 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
 	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
 
 	tee_ta_set_current_session(NULL);
-	res = tee_ta_close_session((vaddr_t)ta_sess, &sess->ctx->open_sessions,
+	res = tee_ta_close_session((struct tee_ta_session *)ta_sess,
+			&sess->ctx->open_sessions,
 				   &clnt_id);
 	tee_ta_set_current_session(sess);
 	return res;

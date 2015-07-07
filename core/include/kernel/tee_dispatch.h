@@ -87,7 +87,7 @@ struct tee_dispatch_cancel_command_out {
 
 /* Input arg structure specific to TEE service 'close session'. */
 struct tee_close_session_in {
-	uint32_t sess;
+	TEE_Session *sess;
 };
 
 /* Input arg structure specific to TEE service 'register shared memory'. */

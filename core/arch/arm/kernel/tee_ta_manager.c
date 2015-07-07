@@ -992,7 +992,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	 * from the ctx->open_sessions list.
 	 */
 	while (!TAILQ_EMPTY(&ctx->open_sessions)) {
-		tee_ta_close_session((vaddr_t)TAILQ_FIRST(&ctx->open_sessions),
+		tee_ta_close_session(TAILQ_FIRST(&ctx->open_sessions),
 				     &ctx->open_sessions, KERN_IDENTITY);
 	}
 
@@ -1043,24 +1043,25 @@ static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
 /*-----------------------------------------------------------------------------
  * Close a Trusted Application and free available resources
  *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_close_session(uint32_t id,
+TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id)
 {
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
 
-	DMSG("tee_ta_close_session(%x)", (unsigned int)id);
+	DMSG("tee_ta_close_session(0x%" PRIxVA ")",  (vaddr_t)csess);
 
-	if (id == 0)
+	if (!csess)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	TAILQ_FOREACH(sess, open_sessions, link) {
-		if (id == (vaddr_t)sess)
+		if (csess == sess)
 			break;
 	}
 	if (!sess) {
-		EMSG(" .... Session 0x%x to removed is not found", id);
+		EMSG("session 0x%" PRIxVA " to removed is not found",
+		     (vaddr_t)csess);
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
@@ -1330,7 +1331,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	if (ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
-		tee_ta_close_session((vaddr_t)s, open_sessions, KERN_IDENTITY);
+		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -1364,7 +1365,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	panicked = ctx->panicked;
 
 	if (panicked || (res != TEE_SUCCESS))
-		tee_ta_close_session((vaddr_t)s, open_sessions, KERN_IDENTITY);
+		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 
 	/*
 	 * Origin error equal to TEE_ORIGIN_TRUSTED_APP for "regular" error,

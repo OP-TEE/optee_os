@@ -89,7 +89,7 @@ TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
  * Returns:
  *        TEE_Result
  *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_close_session(uint32_t id,
+TEE_Result tee_ta_close_session(struct tee_ta_session *sess,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id);
 

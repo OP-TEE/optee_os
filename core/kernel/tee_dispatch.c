@@ -143,8 +143,8 @@ TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {
 	inject_entropy_with_timestamp();
 
-	return tee_ta_close_session(in->sess, &tee_open_sessions,
-				    NSAPP_IDENTITY);
+	return tee_ta_close_session((struct tee_ta_session *)in->sess,
+				    &tee_open_sessions, NSAPP_IDENTITY);
 }
 
 TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
@@ -153,7 +153,7 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 				       out)
 {
 	struct tee_ta_param param;
-	struct tee_ta_session *sess; /*= (struct tee_ta_session *)arg->sess; */
+	struct tee_ta_session *sess;
 	TEE_Result res;
 	TEE_ErrorOrigin err = TEE_ORIGIN_TEE;
 
