@@ -465,11 +465,7 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
 #define LTC_MAX_BITS_PER_VARIABLE   (4096)
-#ifdef CFG_CRYPTO_ECC
-#define LTC_VARIABLE_NUMBER         (80)
-#else
 #define LTC_VARIABLE_NUMBER         (50)
-#endif
 
 static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
 	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];

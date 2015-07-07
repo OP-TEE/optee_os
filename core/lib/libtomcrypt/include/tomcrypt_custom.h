@@ -240,6 +240,9 @@
    #define LTC_ECC256
    #define LTC_ECC384
    #define LTC_ECC521
+
+   /* ECC 521 bits is the max supported key size */
+   #define LTC_MAX_ECC 521
 #endif
 
 #define LTC_NO_PKCS
@@ -502,6 +505,7 @@
 /* define this if you use Valgrind, note: it CHANGES the way SOBER-128 and LTC_RC4 work (see the code) */
 /* #define LTC_VALGRIND */
 
+#define LTC_INIT_ARRAY_SIZE 16
 #endif
 
 
