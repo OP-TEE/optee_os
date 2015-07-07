@@ -30,7 +30,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef __ssize_t_defined
 #define __ssize_t_defined
 typedef int32_t ssize_t;
+#endif
 
 #endif

@@ -38,6 +38,9 @@ typedef uintptr_t vaddr_t;
 typedef uintptr_t paddr_t;
 #define PRIxPA	PRIxPTR
 
+#ifndef __ssize_t_defined
+#define __ssize_t_defined
 typedef intptr_t ssize_t;
+#endif
 
 #endif /* TYPES_EXT_H */
