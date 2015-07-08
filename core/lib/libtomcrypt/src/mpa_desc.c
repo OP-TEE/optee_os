@@ -46,6 +46,44 @@ static int init(void **a)
 	return CRYPT_OK;
 }
 
+static int init_size_array(int size_bits, void *array_mp[LTC_INIT_ARRAY_SIZE])
+{
+	int size_u32;
+	int size_u32_remaining;
+	int i;
+	mpanum *array_bn = (mpanum *)array_mp;
+	char *pt;
+
+	LTC_ARGCHK(size_bits != 0);
+	LTC_ARGCHK(array_mp != NULL);
+
+	memset(array_mp, 0, LTC_INIT_ARRAY_SIZE * sizeof(void *));
+	size_u32 = (size_bits + 31) / 32;
+	/* we may need twice the size in intermediate computation */
+	size_u32 *= 2;
+	/* a big number contains some meta-data */
+	size_u32 += MPA_NUMBASE_METADATA_SIZE_IN_U32;
+
+	if (!mpa_alloc_static_temp_var(&(array_bn[0]), external_mem_pool))
+		return CRYPT_MEM;
+
+	size_u32_remaining = array_bn[0]->alloc +
+			     MPA_NUMBASE_METADATA_SIZE_IN_U32;
+	pt = array_mp[0];
+	for (i = 0;
+	     i < LTC_INIT_ARRAY_SIZE && size_u32 <= size_u32_remaining;
+	     i++) {
+		array_mp[i] = pt;
+		array_bn[i]->alloc = size_u32 -
+				     MPA_NUMBASE_METADATA_SIZE_IN_U32;
+		mpa_set_S32(array_bn[i], 0);
+		pt += sizeof(uint32_t) * size_u32;
+		size_u32_remaining -= size_u32;
+	}
+
+	return CRYPT_OK;
+}
+
 static void deinit(void *a)
 {
 	LTC_ARGCHKVD(a != NULL);
@@ -558,6 +596,7 @@ ltc_math_descriptor ltc_mp = {
 	.bits_per_digit = MPA_WORD_SIZE,
 
 	.init = &init,
+	.init_size_array = &init_size_array,
 	.init_copy = &init_copy,
 	.deinit = &deinit,
 
