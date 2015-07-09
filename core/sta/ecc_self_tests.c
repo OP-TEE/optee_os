@@ -457,7 +457,7 @@ static TEE_Result ecc_dh_tests(uint32_t ecc_algo)
 	uint8_t *pt_sig = 0;
 	unsigned long sig_len;
 	uint32_t ecc_curve = 0;
-	unsigned long i, n;
+	unsigned long n;
 	char binnumber[256];
 
 	for (n = 0; n < ARRAY_SIZE(testvector_ecdh); n++)
@@ -518,9 +518,6 @@ static TEE_Result ecc_dh_tests(uint32_t ecc_algo)
 
 	/* check signature is correct */
 	ecc_convert_binnumber(testvector_ecdh[n].ZIUT, binnumber, key_size);
-	for (i = 0; i < sig_len; i++)
-		EMSG("PASCAL 0x%x  vs  0x%x", pt_sig[i], binnumber[i]);
-
 	if (memcmp(pt_sig, binnumber, key_size) == 0)
 		res = TEE_SUCCESS;
 	else
