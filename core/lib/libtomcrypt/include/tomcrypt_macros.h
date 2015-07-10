@@ -40,7 +40,8 @@
 /* this is the "32-bit at least" data type 
  * Re-define it to suit your platform but it must be at least 32-bits 
  */
-#if defined(__x86_64__) || (defined(__sparc__) && defined(__arch64__))
+#if defined(__x86_64__) || (defined(__sparc__) && defined(__arch64__)) || \
+    defined(__LP64__)
    typedef unsigned ulong32;
 #else
    typedef unsigned long ulong32;

@@ -40,13 +40,7 @@
 #include "tomcrypt.h"
 #include "tomcrypt_arm_neon.h"
 
-/**
-  @file sha1.c
-  LTC_SHA1 code by Tom St Denis 
-*/
-
-
-#ifdef LTC_SHA1_ARM32_CE
+#if defined(LTC_SHA1_ARM32_CE) || defined(LTC_SHA1_ARM64_CE)
 
 const struct ltc_hash_descriptor sha1_desc =
 {
@@ -66,6 +60,8 @@ const struct ltc_hash_descriptor sha1_desc =
     NULL
 };
 
+#if defined(LTC_SHA1_ARM32_CE)
+
 /* Implemented in assembly */
 int sha1_transform(ulong32 *state, unsigned char *buf);
 
@@ -81,6 +77,52 @@ static int sha1_compress(hash_state *md, unsigned char *buf)
 #endif
     return CRYPT_OK;
 }
+
+/**
+   Process a block of memory though the hash
+   @param md     The hash state
+   @param in     The data to hash
+   @param inlen  The length of the data (octets)
+   @return CRYPT_OK if successful
+*/
+HASH_PROCESS(sha1_process, sha1_compress, sha1, 64)
+
+#endif /* LTC_SHA1_ARM32_CE */
+
+#if defined(LTC_SHA1_ARM64_CE)
+
+/* Implemented in assembly */
+void sha1_ce_transform(ulong32 *state, unsigned char *src, int blocks);
+
+static int sha1_compress_nblocks(hash_state *md, unsigned char *buf, int blocks)
+{
+   struct tomcrypt_arm_neon_state state;
+
+   /* sha1_ce_transform() assumes this */
+   COMPILE_TIME_ASSERT(sizeof(md->sha1.state[0]) == 4);
+
+   tomcrypt_arm_neon_enable(&state);
+   sha1_ce_transform(md->sha1.state, buf, blocks);
+   tomcrypt_arm_neon_disable(&state);
+   return CRYPT_OK;
+}
+
+static int sha1_compress(hash_state *md, unsigned char *buf)
+{
+   return sha1_compress_nblocks(md, buf, 1);
+}
+
+/**
+   Process a block of memory though the hash
+   @param md     The hash state
+   @param in     The data to hash
+   @param inlen  The length of the data (octets)
+   @return CRYPT_OK if successful
+*/
+HASH_PROCESS_NBLOCKS(sha1_process, sha1_compress_nblocks, sha1, 64)
+
+#endif /* LTC_SHA1_ARM64_CE */
+
 
 /**
    Initialize the hash state
@@ -99,15 +141,6 @@ int sha1_init(hash_state * md)
    md->sha1.length = 0;
    return CRYPT_OK;
 }
-
-/**
-   Process a block of memory though the hash
-   @param md     The hash state
-   @param in     The data to hash
-   @param inlen  The length of the data (octets)
-   @return CRYPT_OK if successful
-*/
-HASH_PROCESS(sha1_process, sha1_compress, sha1, 64)
 
 /**
    Terminate the hash to get the digest
@@ -166,12 +199,12 @@ int sha1_done(hash_state * md, unsigned char *out)
 /**
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
-*/  
+*/
 int  sha1_test(void)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
- #else    
+ #else
   static const struct {
       const char *msg;
       unsigned char hash[20];

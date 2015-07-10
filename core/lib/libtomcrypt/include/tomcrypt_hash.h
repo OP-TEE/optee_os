@@ -42,7 +42,7 @@ struct sha256_state {
 };
 #endif
 
-#if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE)
+#if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE) || defined(LTC_SHA1_ARM64_CE)
 struct sha1_state {
     ulong64 length;
     ulong32 state[5], curlen;
@@ -364,12 +364,14 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
 int hash_filehandle(int hash, FILE *in, unsigned char *out, unsigned long *outlen);
 int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *outlen);
 
-/* a simple macro for making hash "process" functions */
-#define HASH_PROCESS(func_name, compress_name, state_var, block_size)                       \
+/* a macro for making hash "process" functions */
+#define HASH_PROCESS_(func_name, compress_name, compress_n_name, state_var, block_size)     \
 int func_name (hash_state * md, const unsigned char *in, unsigned long inlen)               \
 {                                                                                           \
-    unsigned long n;                                                                        \
+    unsigned long n, blocks;                                                                \
     int           err;                                                                      \
+    int           (*compress)(hash_state *, unsigned char *) = compress_name;               \
+    int           (*compress_n)(hash_state *, unsigned char *, int) = compress_n_name;      \
     LTC_ARGCHK(md != NULL);                                                                 \
     LTC_ARGCHK(in != NULL);                                                                 \
     if (md-> state_var .curlen > sizeof(md-> state_var .buf)) {                             \
@@ -377,12 +379,18 @@ int func_name (hash_state * md, const unsigned char *in, unsigned long inlen)   
     }                                                                                       \
     while (inlen > 0) {                                                                     \
         if (md-> state_var .curlen == 0 && inlen >= block_size) {                           \
-           if ((err = compress_name (md, (unsigned char *)in)) != CRYPT_OK) {               \
-              return err;                                                                   \
+           if (compress_n) {                                                                \
+              blocks = inlen / block_size;                                                  \
+              err = compress_n (md, (unsigned char *)in, blocks);                           \
+           } else {                                                                         \
+              blocks = 1;                                                                   \
+              err = compress (md, (unsigned char *)in);                                     \
            }                                                                                \
-           md-> state_var .length += block_size * 8;                                        \
-           in             += block_size;                                                    \
-           inlen          -= block_size;                                                    \
+           if (err != CRYPT_OK)                                                             \
+              return err;                                                                   \
+           md-> state_var .length += blocks * block_size * 8;                               \
+           in             += blocks * block_size;                                           \
+           inlen          -= blocks * block_size;                                           \
         } else {                                                                            \
            n = MIN(inlen, (block_size - md-> state_var .curlen));                           \
            memcpy(md-> state_var .buf + md-> state_var.curlen, in, (size_t)n);              \
@@ -390,7 +398,12 @@ int func_name (hash_state * md, const unsigned char *in, unsigned long inlen)   
            in             += n;                                                             \
            inlen          -= n;                                                             \
            if (md-> state_var .curlen == block_size) {                                      \
-              if ((err = compress_name (md, md-> state_var .buf)) != CRYPT_OK) {            \
+              if (compress_n) {                                                             \
+                 err = compress_n (md, md-> state_var .buf, 1);                             \
+              } else {                                                                      \
+                 err = compress (md, md-> state_var .buf);                                  \
+              }                                                                             \
+              if (err != CRYPT_OK) {                                                        \
                  return err;                                                                \
               }                                                                             \
               md-> state_var .length += 8*block_size;                                       \
@@ -400,6 +413,14 @@ int func_name (hash_state * md, const unsigned char *in, unsigned long inlen)   
     }                                                                                       \
     return CRYPT_OK;                                                                        \
 }
+
+/* define a hash "process" function based on a 1-block compress function */
+#define HASH_PROCESS(func_name, compress_name, state_var, block_size)                       \
+        HASH_PROCESS_(func_name, compress_name, NULL, state_var, block_size)
+
+/* define a hash "process" function based on a n-block compress function */
+#define HASH_PROCESS_NBLOCKS(func_name, compress_n_name, state_var, block_size)             \
+	HASH_PROCESS_(func_name, NULL, compress_n_name, state_var, block_size)
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_hash.h,v $ */
 /* $Revision: 1.22 $ */
