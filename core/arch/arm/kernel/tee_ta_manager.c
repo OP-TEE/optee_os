@@ -65,7 +65,7 @@
 #include <ta_pub_key.h>
 #include <kernel/tee_kta_trace.h>
 #include <kernel/trace_ta.h>
-#include <signed_hdr.h>
+#include <kernel/firmware_pkg.h>
 #include <utee_defines.h>
 #include "elf_load.h"
 
@@ -248,55 +248,101 @@ static struct tee_ta_ctx *tee_ta_context_find(const TEE_UUID *uuid)
 	return NULL;
 }
 
-static TEE_Result tee_ta_load_header(const struct shdr *signed_ta,
-		struct shdr **sec_signed_ta)
+static TEE_Result tee_ta_load_header(const uint8_t *ta, size_t ta_len,
+			struct firmware_pkg_info *fwp)
 {
-	size_t s;
+	TEE_Result res;
+	struct firmware_pkg_info fwp2;
+	void *p;
 
-	if (!tee_vbuf_is_non_sec(signed_ta, sizeof(*signed_ta)))
+	memset(fwp, 0, sizeof(struct firmware_pkg_info));
+
+	if (!tee_vbuf_is_non_sec(ta, ta_len))
 		return TEE_ERROR_SECURITY;
 
-	s = SHDR_GET_SIZE(signed_ta);
-	if (!tee_vbuf_is_non_sec(signed_ta, s))
-		return TEE_ERROR_SECURITY;
+	res = firmware_pkg_info_parse(ta, ta_len, &fwp2);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	/* Copy signed header into secure memory */
-	*sec_signed_ta = malloc(s);
-	if (!*sec_signed_ta)
+	fwp->algo = fwp2.algo;
+
+	p = malloc(fwp2.signature_len);
+	if (!p) {
+		firmware_pkg_info_free(&fwp2);
 		return TEE_ERROR_OUT_OF_MEMORY;
-	memcpy(*sec_signed_ta, signed_ta, s);
+	}
+	memcpy(p, fwp2.signature, fwp2.signature_len);
+	fwp->signature = p;
+	fwp->signature_len = fwp2.signature_len;
 
+	fwp->content = fwp2.content;
+	fwp->content_len = fwp2.content_len;
+
+	fwp->digest = fwp2.digest;
+	fwp->digest_len = fwp2.digest_len;
+
+	fwp->attrs = fwp2.attrs;
+	fwp->attrs_len = fwp2.attrs_len;
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
+static void tee_ta_load_free_header(struct firmware_pkg_info *fwp)
 {
-	struct rsa_public_key key;
+	free((void *)fwp->signature);
+	fwp->signature = NULL;
+	firmware_pkg_info_free(fwp);
+}
+
+static TEE_Result tee_ta_load_check_shdr(struct firmware_pkg_info *fwp)
+{
+	struct rsa_public_key key = { NULL, NULL };
 	TEE_Result res;
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
-	size_t hash_size;
+	size_t digest_size;
+	uint8_t digest[TEE_MAX_HASH_SIZE];
+	size_t hash_ctx_size;
+	void *hash_ctx;
+	uint32_t hash_algo;
 
-	if (shdr->magic != SHDR_MAGIC || shdr->img_type != SHDR_TA)
+	if (TEE_ALG_GET_MAIN_ALG(fwp->algo) != TEE_MAIN_ALGO_RSA)
 		return TEE_ERROR_SECURITY;
+	hash_algo = TEE_DIGEST_HASH_TO_ALGO(fwp->algo);
 
-	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
-		return TEE_ERROR_SECURITY;
-
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
-				       &hash_size);
+	res = crypto_ops.hash.get_ctx_size(hash_algo, &hash_ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
-	if (hash_size != shdr->hash_size)
-		return TEE_ERROR_SECURITY;
+	res = tee_hash_get_digest_size(hash_algo, &digest_size);
+	if (res != TEE_SUCCESS)
+		return res;
+	hash_ctx = malloc(hash_ctx_size);
+	if (!hash_ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = crypto_ops.hash.init(hash_ctx, hash_algo);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_ops.hash.update(hash_ctx, hash_algo, fwp->content,
+				     fwp->content_len);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_ops.hash.update(hash_ctx, hash_algo, fwp->attrs,
+				     fwp->attrs_len);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_ops.hash.final(hash_ctx, hash_algo, digest, digest_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
 
 	if (!crypto_ops.acipher.alloc_rsa_public_key ||
 	    !crypto_ops.acipher.rsassa_verify ||
-	    !crypto_ops.bignum.bin2bn || !crypto_ops.bignum.free)
-		return TEE_ERROR_NOT_SUPPORTED;
+	    !crypto_ops.bignum.bin2bn || !crypto_ops.bignum.free) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
 
-	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
+	res = crypto_ops.acipher.alloc_rsa_public_key(&key, fwp->signature_len);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	res = crypto_ops.bignum.bin2bn((uint8_t *)&e, sizeof(e), key.e);
 	if (res != TEE_SUCCESS)
@@ -306,32 +352,33 @@ static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.acipher.rsassa_verify(shdr->algo, &key, -1,
-				SHDR_GET_HASH(shdr), shdr->hash_size,
-				SHDR_GET_SIG(shdr), shdr->sig_size);
+	res = crypto_ops.acipher.rsassa_verify(fwp->algo, &key, -1,
+				digest, digest_size,
+				fwp->signature, fwp->signature_len);
 out:
+	free(hash_ctx);
 	crypto_ops.bignum.free(key.n);
 	crypto_ops.bignum.free(key.e);
 	return res;
 }
 
-static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
-			const struct shdr *nmem_shdr)
+static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx,
+				struct firmware_pkg_info *fwp)
 {
 	TEE_Result res;
 	size_t hash_ctx_size;
 	struct elf_load_state el_state = { .ctx = ctx };
 	void *digest = NULL;
 
-	el_state.nwdata = (uint8_t *)nmem_shdr + SHDR_GET_SIZE(shdr);
-	el_state.nwdata_len = shdr->img_size;
+	el_state.nwdata = (void *)fwp->content;
+	el_state.nwdata_len = fwp->content_len;
 
 	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
 	    !crypto_ops.hash.update || ! crypto_ops.hash.final) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
-	el_state.hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
+	el_state.hash_algo = TEE_DIGEST_HASH_TO_ALGO(fwp->algo);
 	res = crypto_ops.hash.get_ctx_size(el_state.hash_algo, &hash_ctx_size);
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -343,27 +390,23 @@ static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 	res = crypto_ops.hash.init(el_state.hash_ctx, el_state.hash_algo);
 	if (res != TEE_SUCCESS)
 		goto out;
-	res = crypto_ops.hash.update(el_state.hash_ctx, el_state.hash_algo,
-				     (uint8_t *)shdr, sizeof(struct shdr));
-	if (res != TEE_SUCCESS)
-		goto out;
 
 	res = elf_load(&el_state);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	digest = malloc(shdr->hash_size);
+	digest = malloc(fwp->digest_len);
 	if (!digest) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
 	res = crypto_ops.hash.final(el_state.hash_ctx, el_state.hash_algo,
-				    digest, shdr->hash_size);
+				    digest, fwp->digest_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size) != 0)
+	if (memcmp(digest, fwp->digest, fwp->digest_len) != 0)
 		res = TEE_ERROR_SECURITY;
 out:
 	free(digest);
@@ -371,16 +414,13 @@ out:
 	return res;
 }
 
-
-
 /*-----------------------------------------------------------------------------
  * Loads TA header and hashes.
  * Verifies the TA signature.
  * Returns session ptr and TEE_Result.
  *---------------------------------------------------------------------------*/
-static TEE_Result tee_ta_load(const TEE_UUID *uuid,
-			const struct shdr *signed_ta,
-			struct tee_ta_ctx **ta_ctx)
+static TEE_Result tee_ta_load(const TEE_UUID *uuid, const uint8_t *ta,
+			size_t ta_len, struct tee_ta_ctx **ta_ctx)
 {
 	TEE_Result res;
 	/* man_flags: mandatory flags */
@@ -389,14 +429,14 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 	uint32_t opt_flags = man_flags | TA_FLAG_SINGLE_INSTANCE |
 	    TA_FLAG_MULTI_SESSION | TA_FLAG_UNSAFE_NW_PARAMS;
 	struct tee_ta_ctx *ctx = NULL;
-	struct shdr *sec_signed_ta = NULL;
 	struct ta_head *ta_head;
+	struct firmware_pkg_info fwp;
 
-	res = tee_ta_load_header(signed_ta, &sec_signed_ta);
+	res = tee_ta_load_header(ta, ta_len, &fwp);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
-	res = tee_ta_load_check_shdr(sec_signed_ta);
+	res = tee_ta_load_check_shdr(&fwp);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
@@ -426,7 +466,7 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 	ctx->se_service = NULL;
 #endif
 
-	res = tee_ta_load_elf(ctx, sec_signed_ta, signed_ta);
+	res = tee_ta_load_elf(ctx, &fwp);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
@@ -476,11 +516,11 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 	tee_mmu_set_ctx(NULL);
 	/* end thread protection (multi-threaded) */
 
-	free(sec_signed_ta);
+	tee_ta_load_free_header(&fwp);
 	return TEE_SUCCESS;
 
 error_return:
-	free(sec_signed_ta);
+	tee_ta_load_free_header(&fwp);
 	set_tee_rs(NULL);
 	tee_mmu_set_ctx(NULL);
 	if (ctx != NULL) {
@@ -672,10 +712,8 @@ cleanup_return:
  *
  * Function is not thread safe
  */
-static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
-			struct shdr **ta,
-			uint32_t *handle,
-			uint32_t *ret_orig)
+static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid, uint8_t **ta,
+			size_t *ta_len, uint32_t *handle, uint32_t *ret_orig)
 {
 	TEE_Result res;
 	struct teesmc32_param params[2];
@@ -684,7 +722,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 	struct tee_rpc_load_ta_cmd *cmd_load_ta;
 	uint32_t lhandle;
 
-	if (!uuid || !ta || !handle || !ret_orig)
+	if (!uuid || !ta || !ta_len || !handle || !ret_orig)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* get a rpc buffer */
@@ -735,6 +773,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
+	*ta_len = params[1].u.memref.size;
 	*handle = lhandle;
 
 out:
@@ -1026,14 +1065,14 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 }
 
 static TEE_Result tee_ta_init_session_with_signed_ta(const TEE_UUID *uuid,
-				const struct shdr *signed_ta,
+				const uint8_t *ta, size_t ta_len,
 				struct tee_ta_session *s)
 {
 	TEE_Result res;
 
 	DMSG("   Load dynamic TA");
 	/* load and verify */
-	res = tee_ta_load(uuid, signed_ta, &s->ctx);
+	res = tee_ta_load(uuid, ta, ta_len, &s->ctx);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1051,7 +1090,8 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 {
 	TEE_Result res;
 	struct tee_ta_ctx *ctx;
-	struct shdr *ta = NULL;
+	uint8_t *ta = NULL;
+	size_t ta_len = 0;
 	uint32_t handle = 0;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
 
@@ -1078,11 +1118,11 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Request TA from tee-supplicant */
-	res = tee_ta_rpc_load(uuid, &ta, &handle, err);
+	res = tee_ta_rpc_load(uuid, &ta, &ta_len, &handle, err);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_ta_init_session_with_signed_ta(uuid, ta, s);
+	res = tee_ta_init_session_with_signed_ta(uuid, ta, ta_len, s);
 	/*
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
