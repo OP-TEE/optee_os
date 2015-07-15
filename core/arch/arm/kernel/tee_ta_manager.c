@@ -745,6 +745,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
+	thread_enable_concurrency();
+
 	switch (func) {
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
 		res =
@@ -782,6 +784,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		serr = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_BAD_STATE;
 	}
+
+	thread_disable_concurrency();
 
 	if (ctx->panicked) {
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x\n",

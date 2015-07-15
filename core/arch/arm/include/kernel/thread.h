@@ -457,6 +457,36 @@ void thread_take_big_lock(void);
  */
 void thread_release_big_lock(void);
 
+/*
+ * Almost the same thing as thread_release_big_lock() except that the
+ * function is a null operation if CFG_DISABLE_CONCURRENT_EXEC is set.
+ *
+ * This function should be used instead of thread_release_big_lock() when
+ * the behaviour need to be controlled by CFG_DISABLE_CONCURRENT_EXEC, for
+ * instance prior to entering a TA.
+ */
+static inline void thread_enable_concurrency(void)
+{
+#ifndef CFG_DISABLE_CONCURRENT_EXEC
+	thread_release_big_lock();
+#endif
+}
+
+/*
+ * Almost the same thing as thread_take_big_lock() except that the function
+ * is a null operation if CFG_DISABLE_CONCURRENT_EXEC is set.
+ *
+ * This function should be used instead of thread_take_big_lock() when the
+ * behaviour need to be controlled by CFG_DISABLE_CONCURRENT_EXEC, for
+ * instance on reentry of TEE Core from a TA.
+ */
+static inline void thread_disable_concurrency(void)
+{
+#ifndef CFG_DISABLE_CONCURRENT_EXEC
+	thread_take_big_lock();
+#endif
+}
+
 /**
  * Allocates data for struct teesmc32_arg.
  *

@@ -63,6 +63,11 @@ enum tee_pager_fault_type {
 };
 
 #ifdef CFG_WITH_PAGER
+
+#ifndef CFG_DISABLE_CONCURRENT_EXEC
+#error "Pager can't be configured together with concurrent execution"
+#endif
+
 struct tee_pager_area {
 	const uint8_t *hashes;
 	const uint8_t *store;
