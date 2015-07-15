@@ -678,7 +678,7 @@ struct teesmc_meta_open_session {
 
 /* Returned in r0 only from Trusted OS functions */
 #define TEESMC_RETURN_OK		0x0
-#define TEESMC_RETURN_EBUSY		0x1
+#define TEESMC_RETURN_ETHREAD_LIMIT	0x1
 #define TEESMC_RETURN_ERESUME		0x2
 #define TEESMC_RETURN_EBADADDR		0x3
 #define TEESMC_RETURN_EBADCMD		0x4

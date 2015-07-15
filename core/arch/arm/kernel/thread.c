@@ -412,7 +412,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!found_thread) {
-		args->a0 = TEESMC_RETURN_EBUSY;
+		args->a0 = TEESMC_RETURN_ETHREAD_LIMIT;
 		return;
 	}
 
