@@ -253,8 +253,8 @@ static TEE_Result ecc_dsa_tests(uint32_t ecc_algo)
 	TEE_Result res;
 	struct ecc_keypair key_private;
 	struct ecc_public_key key_public;
-	char msg[256];
-	char msg_len;
+	char msg[160 / 8];	/* SHA1 digest size */
+	const char msg_len = 160 / 8;
 	uint32_t key_size_bits;
 	uint32_t key_size;
 	uint8_t *pt_sig = 0;
@@ -282,10 +282,6 @@ static TEE_Result ecc_dsa_tests(uint32_t ecc_algo)
 	}
 
 	/* create a random message */
-	do {
-		crypto_ops.prng.read(&msg_len, 1);
-
-	} while (msg_len == 0);
 	crypto_ops.prng.read(msg, msg_len);
 
 	res = ecc_get_size(ecc_curve, &key_size_bits);

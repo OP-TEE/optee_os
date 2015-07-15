@@ -44,6 +44,8 @@
 #define TEE_MAIN_ALGO_RSA        0x30
 #define TEE_MAIN_ALGO_DSA        0x31
 #define TEE_MAIN_ALGO_DH         0x32
+#define TEE_MAIN_ALGO_ECDSA      0x41
+#define TEE_MAIN_ALGO_ECDH       0x42
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */

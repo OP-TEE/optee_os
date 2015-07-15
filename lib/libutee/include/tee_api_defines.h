@@ -199,11 +199,21 @@
 #define TEE_ALG_HMAC_SHA256                     0x30000004
 #define TEE_ALG_HMAC_SHA384                     0x30000005
 #define TEE_ALG_HMAC_SHA512                     0x30000006
-#define TEE_ALG_ECDSA_P192                      0x70001042
-#define TEE_ALG_ECDSA_P224                      0x70002042
-#define TEE_ALG_ECDSA_P256                      0x70003042
-#define TEE_ALG_ECDSA_P384                      0x70004042
-#define TEE_ALG_ECDSA_P521                      0x70005042
+/*
+ * Fix GP Internal Core API v1.1
+ *     "Table 6-12:  Structure of Algorithm Identifier"
+ *     indicates ECDSA have the algorithm "0x41" and ECDH "0x42"
+ * whereas
+ *     "Table 6-11:  List of Algorithm Identifiers" defines
+ *     TEE_ALG_ECDSA_P192 as 0x70001042
+ *
+ * We chose to define TEE_ALG_ECDSA_P192 as 0x70001041 (conform to table 6-12)
+ */
+#define TEE_ALG_ECDSA_P192                      0x70001041
+#define TEE_ALG_ECDSA_P224                      0x70002041
+#define TEE_ALG_ECDSA_P256                      0x70003041
+#define TEE_ALG_ECDSA_P384                      0x70004041
+#define TEE_ALG_ECDSA_P521                      0x70005041
 #define TEE_ALG_ECDH_P192                       0x80001042
 #define TEE_ALG_ECDH_P224                       0x80002042
 #define TEE_ALG_ECDH_P256                       0x80003042

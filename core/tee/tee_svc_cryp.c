@@ -1844,6 +1844,15 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	case TEE_MAIN_ALGO_DH:
 		req_key_type = TEE_TYPE_DH_KEYPAIR;
 		break;
+	case TEE_MAIN_ALGO_ECDSA:
+		if (mode == TEE_MODE_VERIFY)
+			req_key_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
+		else
+			req_key_type = TEE_TYPE_ECDSA_KEYPAIR;
+		break;
+	case TEE_MAIN_ALGO_ECDH:
+		req_key_type = TEE_TYPE_ECDH_KEYPAIR;
+		break;
 #if defined(CFG_CRYPTO_HKDF)
 	case TEE_MAIN_ALGO_HKDF:
 		req_key_type = TEE_TYPE_HKDF_IKM;
@@ -3243,6 +3252,18 @@ TEE_Result tee_svc_asymm_operate(uint32_t state,
 		res = crypto_ops.acipher.dsa_sign(cs->algo, o->data, src_data,
 						  src_len, dst_data, &dlen);
 		break;
+	case TEE_ALG_ECDSA_P192:
+	case TEE_ALG_ECDSA_P224:
+	case TEE_ALG_ECDSA_P256:
+	case TEE_ALG_ECDSA_P384:
+	case TEE_ALG_ECDSA_P521:
+		if (!crypto_ops.acipher.ecc_sign) {
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+			break;
+		}
+		res = crypto_ops.acipher.ecc_sign(cs->algo, o->data, src_data,
+						  src_len, dst_data, &dlen);
+		break;
 
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -3277,6 +3298,7 @@ TEE_Result tee_svc_asymm_verify(uint32_t state,
 	size_t hash_size;
 	int salt_len;
 	TEE_Attribute *params = NULL;
+	uint32_t hash_algo;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -3318,8 +3340,12 @@ TEE_Result tee_svc_asymm_verify(uint32_t state,
 		goto out;
 	}
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(cs->algo),
-				       &hash_size);
+	if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDSA)
+		hash_algo = TEE_ALG_SHA1;
+	else
+		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
+
+	res = tee_hash_get_digest_size(hash_algo, &hash_size);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -3346,6 +3372,15 @@ TEE_Result tee_svc_asymm_verify(uint32_t state,
 			break;
 		}
 		res = crypto_ops.acipher.dsa_verify(cs->algo, o->data, data,
+						    data_len, sig, sig_len);
+		break;
+
+	case TEE_MAIN_ALGO_ECDSA:
+		if (!crypto_ops.acipher.ecc_verify) {
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+			break;
+		}
+		res = crypto_ops.acipher.ecc_verify(cs->algo, o->data, data,
 						    data_len, sig, sig_len);
 		break;
 
