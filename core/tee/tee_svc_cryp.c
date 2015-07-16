@@ -2654,6 +2654,78 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state,
 		}
 		crypto_ops.bignum.free(pub);
 		crypto_ops.bignum.free(ss);
+	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
+		size_t alloc_size;
+		struct ecc_public_key key_public;
+		uint8_t *pt_secret;
+		unsigned long pt_secret_len;
+
+		if (!crypto_ops.bignum.allocate ||
+		    !crypto_ops.bignum.free ||
+		    !crypto_ops.bignum.bin2bn ||
+		    !crypto_ops.bignum.bn2bin ||
+		    !crypto_ops.bignum.num_bytes ||
+		    !crypto_ops.acipher.alloc_ecc_public_key ||
+		    !crypto_ops.acipher.ecc_shared_secret) {
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+			goto out;
+		}
+		if (param_count != 2 ||
+		    params[0].attributeID != TEE_ATTR_ECC_PUBLIC_VALUE_X ||
+		    params[1].attributeID != TEE_ATTR_ECC_PUBLIC_VALUE_Y) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		switch (cs->algo) {
+		case TEE_ALG_ECDH_P192:
+			alloc_size = 192;
+			break;
+		case TEE_ALG_ECDH_P224:
+			alloc_size = 224;
+			break;
+		case TEE_ALG_ECDH_P256:
+			alloc_size = 256;
+			break;
+		case TEE_ALG_ECDH_P384:
+			alloc_size = 384;
+			break;
+		case TEE_ALG_ECDH_P521:
+			alloc_size = 521;
+			break;
+		default:
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+			goto out;
+		}
+
+		/* Create the public key */
+		res = crypto_ops.acipher.alloc_ecc_public_key(&key_public,
+							      alloc_size);
+		if (res != TEE_SUCCESS)
+			goto out;
+		key_public.curve = ((struct ecc_keypair *)ko->data)->curve;
+		crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
+					 params[0].content.ref.length,
+					 key_public.x);
+		crypto_ops.bignum.bin2bn(params[1].content.ref.buffer,
+					 params[1].content.ref.length,
+					 key_public.y);
+
+		pt_secret = (uint8_t *)(sk + 1);
+		pt_secret_len = so->data_size -
+				sizeof(struct tee_cryp_obj_secret);
+		res = crypto_ops.acipher.ecc_shared_secret(ko->data,
+				&key_public, pt_secret, &pt_secret_len);
+
+		if (res == TEE_SUCCESS) {
+			sk->key_size = pt_secret_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+
+		/* free the public key */
+		crypto_ops.bignum.free(key_public.x);
+		crypto_ops.bignum.free(key_public.y);
 	}
 #if defined(CFG_CRYPTO_HKDF)
 	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_HKDF) {
