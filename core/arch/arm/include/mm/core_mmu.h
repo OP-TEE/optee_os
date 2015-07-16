@@ -158,6 +158,8 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size);
  * @CORE_MMU_FAULT_ALIGNMENT:		alignment fault
  * @CORE_MMU_FAULT_DEBUG_EVENT:		debug event
  * @CORE_MMU_FAULT_TRANSLATION:		translation fault
+ * @CORE_MMU_FAULT_WRITE_PERMISSION:	Permission fault during write
+ * @CORE_MMU_FAULT_READ_PERMISSION:	Permission fault during read
  * @CORE_MMU_FAULT_ASYNC_EXTERNAL:	asynchronous external abort
  * @CORE_MMU_FAULT_ACCESS_BIT:		access bit fault
  * @CORE_MMU_FAULT_OTHER:		Other/unknown fault
@@ -166,7 +168,8 @@ enum core_mmu_fault {
 	CORE_MMU_FAULT_ALIGNMENT,
 	CORE_MMU_FAULT_DEBUG_EVENT,
 	CORE_MMU_FAULT_TRANSLATION,
-	CORE_MMU_FAULT_PERMISSION,
+	CORE_MMU_FAULT_WRITE_PERMISSION,
+	CORE_MMU_FAULT_READ_PERMISSION,
 	CORE_MMU_FAULT_ASYNC_EXTERNAL,
 	CORE_MMU_FAULT_ACCESS_BIT,
 	CORE_MMU_FAULT_OTHER,

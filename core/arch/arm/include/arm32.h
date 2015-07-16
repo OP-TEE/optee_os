@@ -154,6 +154,7 @@
 
 
 #define FSR_LPAE		(1 << 9)
+#define FSR_WNR			(1 << 11)
 
 /* Valid if FSR.LPAE is 1 */
 #define FSR_STATUS_MASK		((1 << 6) - 1)

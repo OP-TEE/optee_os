@@ -247,6 +247,17 @@ static void init_runtime(uint32_t pageable_part)
 		panic();
 
 	/*
+	 * Assign alias area for pager end of the small page block the rest
+	 * of the binary is loaded into. We're taking more than needed, but
+	 * we're guaranteed to not need more than the physical amount of
+	 * TZSRAM.
+	 */
+	mm = tee_mm_alloc2(&tee_mm_vcore,
+		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
+	TEE_ASSERT(mm);
+	tee_pager_set_alias_area(mm);
+
+	/*
 	 * Claim virtual memory which isn't paged, note that there migth be
 	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
 	 * claimed to avoid later allocations to get that memory.
@@ -262,8 +273,9 @@ static void init_runtime(uint32_t pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
 	TEE_ASSERT(mm);
-	tee_pager_add_area(mm, TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
-			   paged_store, hashes);
+	if (!tee_pager_add_area(mm, TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
+				paged_store, hashes))
+		panic();
 	tee_pager_add_pages((vaddr_t)__pageable_start,
 		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
 	tee_pager_add_pages((vaddr_t)__pageable_start +

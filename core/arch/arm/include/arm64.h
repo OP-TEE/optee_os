@@ -188,6 +188,9 @@
 #define ESR_FSC_PERMF_L3	0x0f
 #define ESR_FSC_ALIGN		0x21
 
+/* WnR for DABT and RES0 for IABT */
+#define ESR_ABT_WNR		(1 << 6)
+
 #define CPACR_EL1_FPEN_SHIFT	20
 #define CPACR_EL1_FPEN_MASK	0x3
 #define CPACR_EL1_FPEN_NONE	0x0

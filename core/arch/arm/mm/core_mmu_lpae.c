@@ -756,7 +756,10 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 		return CORE_MMU_FAULT_TRANSLATION;
 	case 0x2: /* b0010LL Access flag fault */
 	case 0x3: /* b0011LL Permission fault */
-		return CORE_MMU_FAULT_PERMISSION;
+		if (fault_descr & FSR_WNR)
+			return CORE_MMU_FAULT_WRITE_PERMISSION;
+		else
+			return CORE_MMU_FAULT_READ_PERMISSION;
 	default:
 		return CORE_MMU_FAULT_OTHER;
 	}
@@ -827,7 +830,10 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 		case ESR_FSC_PERMF_L1:
 		case ESR_FSC_PERMF_L2:
 		case ESR_FSC_PERMF_L3:
-			return CORE_MMU_FAULT_PERMISSION;
+			if (fault_descr & ESR_ABT_WNR)
+				return CORE_MMU_FAULT_WRITE_PERMISSION;
+			else
+				return CORE_MMU_FAULT_READ_PERMISSION;
 		case ESR_FSC_ALIGN:
 			return CORE_MMU_FAULT_ALIGNMENT;
 		default:

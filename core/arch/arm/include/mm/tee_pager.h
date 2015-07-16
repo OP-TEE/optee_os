@@ -43,14 +43,24 @@
 #define TEE_PAGER_AREA_X	(1 << 2)
 
 /*
+ * tee_pager_set_alias_area() - Set aliased area
+ * @mm:		The alias area
+ *
+ * All physical pages managed by the pager are aliased in this area
+ *
+ * Panics if called twice or some other error occurs.
+ */
+void tee_pager_set_alias_area(tee_mm_entry_t *mm);
+
+/*
  * tee_pager_add_area() - Adds a pageable area
  * @mm:		covered memory area
  * @flags:	describes attributes of mapping
  * @store:	backing store for the memory area
  * @hashes:	hashes of the pages in the backing store
  *
- * Exacly of TEE_PAGER_AREA_RO and TEE_PAGER_AREA_RW has to be supplied in
- * flags.
+ * Exacly one of TEE_PAGER_AREA_RO and TEE_PAGER_AREA_RW has to be supplied
+ * in flags.
  *
  * If TEE_PAGER_AREA_X is supplied the area will be mapped as executable,
  * currently only supported together with TEE_PAGER_AREA_RO.

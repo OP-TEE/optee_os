@@ -18,7 +18,3 @@ core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
-
-ifeq ($(CFG_WITH_PAGER),y)
-$(call force,CFG_DISABLE_CONCURRENT_EXEC,y,required by CFG_WITH_PAGER)
-endif
