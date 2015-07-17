@@ -130,6 +130,8 @@ void ocb3_int_xor_blocks(unsigned char *out, const unsigned char *block_a, const
 /* some handy macros */
 #define mp_init(a)                   ltc_mp.init(a)
 #define mp_init_multi                ltc_init_multi
+#define mp_init_size(a, b)           ltc_mp.init_size(a, b)
+#define mp_init_multi_size           ltc_init_multi_size
 #define mp_clear(a)                  ltc_mp.deinit(a)
 #define mp_clear_multi               ltc_deinit_multi
 #define mp_cleanup_multi             ltc_cleanup_multi
