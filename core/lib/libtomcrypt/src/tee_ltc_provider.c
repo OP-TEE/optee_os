@@ -479,7 +479,7 @@ static void tee_ltc_alloc_mpa(void)
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
 	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, LTC_VARIABLE_NUMBER,
+	mpa_init_scratch_mem(pool, sizeof(_ltc_mempool_u32),
 			     LTC_MAX_BITS_PER_VARIABLE);
 
 	mpa_set_random_generator(crypto_ops.prng.read);

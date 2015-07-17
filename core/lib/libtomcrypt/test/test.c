@@ -17,7 +17,7 @@ void __init(const uint32_t number_of_variable, const uint32_t bits_per_variable)
 	}
 	pool = (mpa_scratch_mem_base *) &mempool_u32;
 	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, number_of_variable, bits_per_variable);
+	mpa_init_scratch_mem(pool, sizeof(mempool_u32), bits_per_variable);
 	//	__mpa_init_random(0xdeadbeef);
 }
 

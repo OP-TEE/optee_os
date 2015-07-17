@@ -161,7 +161,6 @@ extern const mpa_num_base const_one;
  *  From mpa_mem_static.
  *
  */
-uint32_t __mpa_get_alloced_pattern(mpa_scratch_mem pool);
 
 /*------------------------------------------------------------
  *

@@ -50,7 +50,7 @@ static void deinit(void *a)
 {
 	LTC_ARGCHKVD(a != NULL);
 
-	mpa_free_static_temp_var((mpanum *) &a, NULL);
+	mpa_free_static_temp_var((mpanum *) &a, external_mem_pool);
 }
 
 static int neg(void *a, void *b)

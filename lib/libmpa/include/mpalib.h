@@ -100,19 +100,21 @@ typedef struct mpa_fmm_context_struct {
 
 typedef mpa_fmm_context_base *mpa_fmm_context;
 
-/*
- *
- * bit_size is the number of bits of the regular vars
- * that this pool was created for.
- */
 typedef struct mpa_scratch_mem_struct {
-	uint32_t nrof_vars;
-	uint32_t alloc_size;
-	uint32_t bit_size;
-	uint32_t m[];
+	uint32_t size;	/* size of the memory pool, in bytes */
+	uint32_t bn_bits; /* default size of a temporary variables */
+	uint32_t last_offset;	/* offset to the last one */
+	uint32_t m[];		/* mpa_scratch_item are stored there */
 } mpa_scratch_mem_base;
-
 typedef mpa_scratch_mem_base *mpa_scratch_mem;
+
+struct mpa_scratch_item {
+	uint32_t size;		/* total size of this item */
+	/* the offset of the previous and next mpa_scratch_item */
+	uint32_t prev_item_offset;
+	uint32_t next_item_offset;
+	/* followed by a mpa_num_base, being the big number to save */
+};
 
 /*************************************************************
  *
@@ -187,8 +189,9 @@ typedef mpa_scratch_mem_base *mpa_scratch_mem;
  *
  */
 #define mpa_scratch_mem_size_in_U32(nr_temp_vars, max_bits) \
-	((nr_temp_vars) * mpa_StaticTempVarSizeInU32(max_bits) + \
-	 MPA_SCRATCHMEM_METADATA_SIZE_IN_U32)
+	(((nr_temp_vars) * (mpa_StaticTempVarSizeInU32((max_bits)) + \
+			sizeof(struct mpa_scratch_item))) + \
+	  sizeof(struct mpa_scratch_mem_struct))
 
 /*
  *
@@ -217,12 +220,11 @@ typedef mpa_scratch_mem_base *mpa_scratch_mem;
  * with the same parameters 'nr_vars' and 'max_bits'
  *
  * \param pool         The pool to initialize
- * \param nr_vars      The number of temp vars that it is sized to hold
- * \param max_bits     The maximum number of bits that the library
- *                     can handle.
+ * \param size         the size, in bytes, of the pool
+ * \prama bn_bits      default size, in bits, of a big number
  */
-MPALIB_EXPORT void mpa_init_scratch_mem(mpa_scratch_mem pool,
-					int nr_vars, int max_bits);
+MPALIB_EXPORT void mpa_init_scratch_mem(mpa_scratch_mem pool, size_t size,
+					uint32_t bn_bits);
 
 /*
  * mpa_init_static

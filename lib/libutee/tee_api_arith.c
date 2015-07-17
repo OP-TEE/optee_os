@@ -76,23 +76,9 @@ static void __attribute__ ((noreturn)) TEE_BigInt_Panic(const char *msg)
  */
 void _TEE_MathAPI_Init(void)
 {
-	mpa_init_scratch_mem(mempool, MPA_INTERNAL_MEM_POOL_SIZE,
+	mpa_init_scratch_mem(mempool, sizeof(mempool_u32),
 			     TEE_MAX_NUMBER_OF_SUPPORTED_BITS);
-
 	mpa_set_random_generator(get_rng_array);
-#ifdef DEBUG
-	printf("TEE Math Lib configured to max %d bit integers.\n",
-	       TEE_MAX_NUMBER_OF_SUPPORTED_BITS);
-	printf("Using %d bytes for each variable.\n",
-	       mpa_StaticVarSizeInU32(TEE_MAX_NUMBER_OF_SUPPORTED_BITS));
-	printf("Using %d bytes for each temporary variable.\n",
-	       mpa_StaticTempVarSizeInU32(TEE_MAX_NUMBER_OF_SUPPORTED_BITS));
-	printf("Using %d temporary variables.\n", MPA_INTERNAL_MEM_POOL_SIZE);
-	printf("Total scratch memory is %lu bytes.\n",
-	       (unsigned long)mpa_scratch_memsize_in_U32(
-				 MPA_INTERNAL_MEM_POOL_SIZE,
-				 TEE_MAX_NUMBER_OF_SUPPORTED_BITS));
-#endif
 }
 
 /*
