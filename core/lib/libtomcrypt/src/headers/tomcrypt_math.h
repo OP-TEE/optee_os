@@ -49,6 +49,13 @@ typedef struct {
    */
    int (*init)(void **a);
 
+   /** initialize a bignum
+     @param   size_bits   The size of the number we compute on
+     @param   a           The number to initialize
+     @return  CRYPT_OK on success
+   */
+   int (*init_size)(int size_bits, void **a);
+
    /** init copy
      @param  dst    The number to initialize and write to
      @param  src    The number to copy from
@@ -509,6 +516,7 @@ typedef struct {
 extern ltc_math_descriptor ltc_mp;
 
 int ltc_init_multi(void **a, ...);
+int ltc_init_multi_size(int size_bits, void **a, ...);
 void ltc_deinit_multi(void *a, ...);
 void ltc_cleanup_multi(void **a, ...);
 

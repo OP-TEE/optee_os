@@ -27,7 +27,8 @@ ecc_point *ltc_ecc_new_point(void)
    if (p == NULL) {
       return NULL;
    }
-   if (mp_init_multi(&p->x, &p->y, &p->z, NULL) != CRYPT_OK) {
+   if (mp_init_multi_size(LTC_MAX_ECC * 2,
+			  &p->x, &p->y, &p->z, NULL) != CRYPT_OK) {
       XFREE(p);
       return NULL;
    }
