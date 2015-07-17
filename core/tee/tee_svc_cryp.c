@@ -1800,6 +1800,7 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 					      TEE_OperationMode mode)
 {
 	uint32_t req_key_type;
+	uint32_t req_key_type2 = 0;
 
 	switch (TEE_ALG_GET_MAIN_ALG(algo)) {
 	case TEE_MAIN_ALGO_MD5:
@@ -1830,25 +1831,22 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		req_key_type = TEE_TYPE_DES3;
 		break;
 	case TEE_MAIN_ALGO_RSA:
+		req_key_type = TEE_TYPE_RSA_KEYPAIR;
 		if (mode == TEE_MODE_ENCRYPT || mode == TEE_MODE_VERIFY)
-			req_key_type = TEE_TYPE_RSA_PUBLIC_KEY;
-		else
-			req_key_type = TEE_TYPE_RSA_KEYPAIR;
+			req_key_type2 = TEE_TYPE_RSA_PUBLIC_KEY;
 		break;
 	case TEE_MAIN_ALGO_DSA:
+		req_key_type = TEE_TYPE_DSA_KEYPAIR;
 		if (mode == TEE_MODE_ENCRYPT || mode == TEE_MODE_VERIFY)
-			req_key_type = TEE_TYPE_DSA_PUBLIC_KEY;
-		else
-			req_key_type = TEE_TYPE_DSA_KEYPAIR;
+			req_key_type2 = TEE_TYPE_DSA_PUBLIC_KEY;
 		break;
 	case TEE_MAIN_ALGO_DH:
 		req_key_type = TEE_TYPE_DH_KEYPAIR;
 		break;
 	case TEE_MAIN_ALGO_ECDSA:
+		req_key_type = TEE_TYPE_ECDSA_KEYPAIR;
 		if (mode == TEE_MODE_VERIFY)
-			req_key_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
-		else
-			req_key_type = TEE_TYPE_ECDSA_KEYPAIR;
+			req_key_type2 = TEE_TYPE_ECDSA_PUBLIC_KEY;
 		break;
 	case TEE_MAIN_ALGO_ECDH:
 		req_key_type = TEE_TYPE_ECDH_KEYPAIR;
@@ -1872,7 +1870,8 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (req_key_type != o->info.objectType)
+	if (req_key_type != o->info.objectType &&
+	    req_key_type2 != o->info.objectType)
 		return TEE_ERROR_BAD_PARAMETERS;
 	return TEE_SUCCESS;
 }
