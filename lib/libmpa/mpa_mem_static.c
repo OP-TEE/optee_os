@@ -75,7 +75,8 @@ void mpa_init_scratch_mem(mpa_scratch_mem pool, size_t size, uint32_t bn_bits)
  *     released after B.
  *   So the potential fragmentation is mitigated.
  */
-mpanum mpa_alloc_static_temp_var(mpanum *var, mpa_scratch_mem pool)
+mpanum mpa_alloc_static_temp_var_size(int size_bits, mpanum *var,
+				      mpa_scratch_mem pool)
 {
 	uint32_t offset;
 	size_t size;
@@ -96,7 +97,7 @@ mpanum mpa_alloc_static_temp_var(mpanum *var, mpa_scratch_mem pool)
 		goto error;
 
 	size = sizeof(struct mpa_scratch_item) +
-	       mpa_StaticVarSizeInU32(pool->bn_bits) * sizeof(uint32_t);
+	       mpa_StaticVarSizeInU32(size_bits) * sizeof(uint32_t);
 	size = ROUNDUP(size, sizeof(uint32_t));
 	if (offset + size > pool->size)
 		goto error;
@@ -116,6 +117,12 @@ mpanum mpa_alloc_static_temp_var(mpanum *var, mpa_scratch_mem pool)
 error:
 	*var = 0;
 	return *var;
+}
+
+
+mpanum mpa_alloc_static_temp_var(mpanum *var, mpa_scratch_mem pool)
+{
+	return mpa_alloc_static_temp_var_size(pool->bn_bits, var, pool);
 }
 
 /*------------------------------------------------------------

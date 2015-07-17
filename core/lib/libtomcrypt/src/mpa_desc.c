@@ -39,9 +39,18 @@ void init_mpa_tomcrypt(const mpa_scratch_mem pool)
 static int init(void **a)
 {
 	LTC_ARGCHK(a != NULL);
-	if (mpa_alloc_static_temp_var((mpanum *)a, external_mem_pool) == NULL) {
+	if (!mpa_alloc_static_temp_var((mpanum *)a, external_mem_pool))
 		return CRYPT_MEM;
-	}
+	mpa_set_S32(*a, 0);
+	return CRYPT_OK;
+}
+
+static int init_size(int size_bits, void **a)
+{
+	LTC_ARGCHK(a != NULL);
+	if (!mpa_alloc_static_temp_var_size(size_bits, (mpanum *)a,
+					    external_mem_pool))
+		return CRYPT_MEM;
 	mpa_set_S32(*a, 0);
 	return CRYPT_OK;
 }
@@ -558,6 +567,7 @@ ltc_math_descriptor ltc_mp = {
 	.bits_per_digit = MPA_WORD_SIZE,
 
 	.init = &init,
+	.init_size = &init_size,
 	.init_copy = &init_copy,
 	.deinit = &deinit,
 

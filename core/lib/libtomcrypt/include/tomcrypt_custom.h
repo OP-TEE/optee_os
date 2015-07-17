@@ -240,6 +240,9 @@
    #define LTC_ECC256
    #define LTC_ECC384
    #define LTC_ECC521
+
+   /* ECC 521 bits is the max supported key size */
+   #define LTC_MAX_ECC 521
 #endif
 
 #define LTC_NO_PKCS

@@ -58,6 +58,13 @@ typedef struct {
    */
    int (*init)(void **a);
    
+   /** initialize a bignum
+     @param   size_bits   The size of the number we compute on
+     @param   a           The number to initialize
+     @return  CRYPT_OK on success
+   */
+   int (*init_size)(int size_bits, void **a);
+
    /** init copy 
      @param  dst    The number to initialize and write to
      @param  src    The number to copy from
@@ -452,6 +459,7 @@ typedef struct {
 extern ltc_math_descriptor ltc_mp;
 
 int ltc_init_multi(void **a, ...);
+int ltc_init_multi_size(int size_bits, void **a, ...);
 void ltc_deinit_multi(void *a, ...);
 
 #ifdef LTM_DESC
@@ -473,6 +481,8 @@ extern const ltc_math_descriptor gmp_desc;
 /* some handy macros */
 #define mp_init(a)                   ltc_mp.init(a)
 #define mp_init_multi                ltc_init_multi
+#define mp_init_size(a, b)           ltc_mp.init_size(a, b)
+#define mp_init_multi_size           ltc_init_multi_size
 #define mp_clear(a)                  ltc_mp.deinit(a)
 #define mp_clear_multi               ltc_deinit_multi
 #define mp_init_copy(a, b)           ltc_mp.init_copy(a, b)

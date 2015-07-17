@@ -404,7 +404,9 @@ MPALIB_EXPORT void mpa_montgomery_mul(mpanum dest, mpanum op1, mpanum op2,
  */
 MPALIB_EXPORT mpanum mpa_alloc_static_temp_var(mpanum *var,
 					       mpa_scratch_mem pool);
-
+MPALIB_EXPORT mpanum mpa_alloc_static_temp_var_size(int size_bits,
+						    mpanum *var,
+						    mpa_scratch_mem pool);
 MPALIB_EXPORT void mpa_free_static_temp_var(mpanum *var, mpa_scratch_mem pool);
 
 /*
