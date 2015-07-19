@@ -31,7 +31,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define TEE_FS_NAME_MAX 150
+#define TEE_FS_NAME_MAX 350
 
 typedef int tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;

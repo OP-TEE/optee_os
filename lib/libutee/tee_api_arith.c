@@ -106,7 +106,7 @@ void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
 /*
  * TEE_BigIntInitFMM
  */
-void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, uint32_t len)
+void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len)
 {
 	mpanum op = (mpa_num_base *)bigIntFMM;
 
@@ -118,7 +118,7 @@ void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, uint32_t len)
  * TEE_BigIntInitFMMContext
  */
 void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
-			      uint32_t len, const TEE_BigInt *modulus)
+			      uint32_t len, TEE_BigInt *modulus)
 {
 	mpa_fmm_context mpa_context = (mpa_fmm_context_base *)context;
 	mpanum mpa_modulus = (mpa_num_base *)modulus;
@@ -136,7 +136,7 @@ void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
 /*
  * TEE_BigIntFMMSizeInU32
  */
-size_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
+uint32_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
 {
 	return TEE_BigIntSizeInU32(modulusSizeInBits) + 1;
 }
@@ -144,7 +144,7 @@ size_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
 /*
  * TEE_BigIntFMMContextSizeInU32
  */
-size_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits)
+uint32_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits)
 {
 	return mpa_fmm_context_size_in_U32(modulusSizeInBits);
 }
@@ -157,17 +157,24 @@ size_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits)
  * TEE_BigIntConvertFromOctetString
  */
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
-					    const uint8_t *buffer,
+					    uint8_t *buffer,
 					    uint32_t bufferLen,
 					    int32_t sign)
 {
+	TEE_Result res;
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	bool negative = sign < 0;
 
 	if (mpa_set_oct_str(mpa_dest, buffer, bufferLen, negative) != 0)
-		return TEE_ERROR_OVERFLOW;
+		res = TEE_ERROR_OVERFLOW;
+	else
+		res = TEE_SUCCESS;
 
-	return TEE_SUCCESS;
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OVERFLOW)
+		TEE_Panic(res);
+
+	return res;
 }
 
 /*
@@ -175,7 +182,7 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
  */
 TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer,
 					  uint32_t *bufferLen,
-					  const TEE_BigInt *bigInt)
+					  TEE_BigInt *bigInt)
 {
 	mpanum n = (mpa_num_base *)bigInt;
 	size_t size = *bufferLen;
@@ -185,7 +192,13 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer,
 		res = TEE_ERROR_SHORT_BUFFER;
 	else
 		res = TEE_SUCCESS;
+
 	*bufferLen = size;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(res);
+
 	return res;
 }
 
@@ -206,14 +219,21 @@ void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal)
 /*
  * TEE_BigIntConvertToS32
  */
-TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
+TEE_Result TEE_BigIntConvertToS32(int32_t *dest, TEE_BigInt *src)
 {
+	TEE_Result res;
 	mpanum mpa_src = (mpa_num_base *)src;
 
 	if (mpa_get_S32(dest, mpa_src) == 0)
-		return TEE_SUCCESS;
+		res = TEE_SUCCESS;
 	else
-		return TEE_ERROR_OVERFLOW;
+		res = TEE_ERROR_OVERFLOW;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OVERFLOW)
+		TEE_Panic(res);
+
+	return res;
 }
 
 /*************************************************************
@@ -223,7 +243,7 @@ TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
 /*
  * TEE_BigIntCmp
  */
-int32_t TEE_BigIntCmp(const TEE_BigInt *op1, const TEE_BigInt *op2)
+int32_t TEE_BigIntCmp(TEE_BigInt *op1, TEE_BigInt *op2)
 {
 	mpanum mpa_op1 = (mpa_num_base *)op1;
 	mpanum mpa_op2 = (mpa_num_base *)op2;
@@ -234,7 +254,7 @@ int32_t TEE_BigIntCmp(const TEE_BigInt *op1, const TEE_BigInt *op2)
 /*
  * TEE_BigIntCmpS32
  */
-int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal)
+int32_t TEE_BigIntCmpS32(TEE_BigInt *op, int32_t shortVal)
 {
 	mpanum mpa_op = (mpa_num_base *)op;
 
@@ -244,7 +264,7 @@ int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal)
 /*
  * TEE_BigIntShiftRight
  */
-void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
+void TEE_BigIntShiftRight(TEE_BigInt *dest, TEE_BigInt *op,
 			  size_t bits)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
@@ -256,7 +276,7 @@ void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
 /*
  * TEE_BigIntGetBit
  */
-bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex)
+bool TEE_BigIntGetBit(TEE_BigInt *src, uint32_t bitIndex)
 {
 	mpanum mpa_src = (mpa_num_base *)src;
 
@@ -266,7 +286,7 @@ bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex)
 /*
  * TEE_BigIntGetBitCount
  */
-uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
+uint32_t TEE_BigIntGetBitCount(TEE_BigInt *src)
 {
 	mpanum mpa_src = (mpa_num_base *)src;
 
@@ -280,8 +300,8 @@ uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
 /*
  * TEE_BigIntAdd
  */
-void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2)
+void TEE_BigIntAdd(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -293,8 +313,8 @@ void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  * TEE_BigIntSub
  */
-void TEE_BigIntSub(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2)
+void TEE_BigIntSub(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -306,7 +326,7 @@ void TEE_BigIntSub(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  * TEE_BigIntNeg
  */
-void TEE_BigIntNeg(TEE_BigInt *dest, const TEE_BigInt *src)
+void TEE_BigIntNeg(TEE_BigInt *dest, TEE_BigInt *src)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_src = (mpa_num_base *)src;
@@ -317,8 +337,8 @@ void TEE_BigIntNeg(TEE_BigInt *dest, const TEE_BigInt *src)
 /*
  * TEE_BigIntMul
  */
-void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2)
+void TEE_BigIntMul(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -330,7 +350,7 @@ void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  * TEE_BigIntSquare
  */
-void TEE_BigIntSquare(TEE_BigInt *dest, const TEE_BigInt *op)
+void TEE_BigIntSquare(TEE_BigInt *dest, TEE_BigInt *op)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op = (mpa_num_base *)op;
@@ -342,7 +362,7 @@ void TEE_BigIntSquare(TEE_BigInt *dest, const TEE_BigInt *op)
  * TEE_BigIntDiv
  */
 void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
-		   const TEE_BigInt *op1, const TEE_BigInt *op2)
+		   TEE_BigInt *op1, TEE_BigInt *op2)
 {
 	mpanum mpa_dest_q = (mpa_num_base *)dest_q;
 	mpanum mpa_dest_r = (mpa_num_base *)dest_r;
@@ -362,8 +382,8 @@ void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
 /*
  * TEE_BigIntMod
  */
-void TEE_BigIntMod(TEE_BigInt *dest, const TEE_BigInt *op,
-		   const TEE_BigInt *n)
+void TEE_BigIntMod(TEE_BigInt *dest, TEE_BigInt *op,
+		   TEE_BigInt *n)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op = (mpa_num_base *)op;
@@ -381,8 +401,8 @@ void TEE_BigIntMod(TEE_BigInt *dest, const TEE_BigInt *op,
 /*
  * TEE_BigIntAddMod
  */
-void TEE_BigIntAddMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n)
+void TEE_BigIntAddMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -400,8 +420,8 @@ void TEE_BigIntAddMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  * TEE_BigIntSubMod
  */
-void TEE_BigIntSubMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n)
+void TEE_BigIntSubMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -419,8 +439,8 @@ void TEE_BigIntSubMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  *  TEE_BigIntMulMod
  */
-void TEE_BigIntMulMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n)
+void TEE_BigIntMulMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;
@@ -450,8 +470,8 @@ void TEE_BigIntMulMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 /*
  * TEE_BigIntSquareMod
  */
-void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
-			 const TEE_BigInt *n)
+void TEE_BigIntSquareMod(TEE_BigInt *dest, TEE_BigInt *op,
+			 TEE_BigInt *n)
 {
 	TEE_BigIntMulMod(dest, op, op, n);
 }
@@ -459,8 +479,8 @@ void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
 /*
  * TEE_BigIntInvMod
  */
-void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
-		      const TEE_BigInt *n)
+void TEE_BigIntInvMod(TEE_BigInt *dest, TEE_BigInt *op,
+		      TEE_BigInt *n)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op = (mpa_num_base *)op;
@@ -479,7 +499,7 @@ void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 /*
  * TEE_BigIntRelativePrime
  */
-bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
+bool TEE_BigIntRelativePrime(TEE_BigInt *op1, TEE_BigInt *op2)
 {
 	mpanum mpa_op1 = (mpa_num_base *)op1;
 	mpanum mpa_op2 = (mpa_num_base *)op2;
@@ -500,8 +520,8 @@ bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
  * TEE_BigIntExtendedGcd
  */
 void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
-				  TEE_BigInt *v, const TEE_BigInt *op1,
-				  const TEE_BigInt *op2)
+				  TEE_BigInt *v, TEE_BigInt *op1,
+				  TEE_BigInt *op2)
 {
 	mpanum mpa_gcd_res = (mpa_num_base *)gcd;
 	mpanum mpa_u = (mpa_num_base *)u;
@@ -515,7 +535,7 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 /*
  *  TEE_BigIntIsProbablePrime
  */
-int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
+int32_t TEE_BigIntIsProbablePrime(TEE_BigInt *op,
 				  uint32_t confidenceLevel)
 {
 	mpanum mpa_op = (mpa_num_base *)op;
@@ -537,9 +557,9 @@ int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
  * TEE_BigIntConvertToFMM
  */
 void TEE_BigIntConvertToFMM(TEE_BigIntFMM *dest,
-			    const TEE_BigInt *src,
-			    const TEE_BigInt *n,
-			    const TEE_BigIntFMMContext *context)
+			    TEE_BigInt *src,
+			    TEE_BigInt *n,
+			    TEE_BigIntFMMContext *context)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)src;
@@ -555,9 +575,9 @@ void TEE_BigIntConvertToFMM(TEE_BigIntFMM *dest,
  * TEE_BigIntConvertFromFMM
  */
 void TEE_BigIntConvertFromFMM(TEE_BigInt *dest,
-			      const TEE_BigIntFMM *src,
-			      const TEE_BigInt *n,
-			      const TEE_BigIntFMMContext *context)
+			      TEE_BigIntFMM *src,
+			      TEE_BigInt *n,
+			      TEE_BigIntFMMContext *context)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op2 = (mpa_num_base *)src;
@@ -584,10 +604,10 @@ void TEE_BigIntConvertFromFMM(TEE_BigInt *dest,
  *  TEE_BigIntComputeFMM
  */
 void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest,
-			  const TEE_BigIntFMM *op1,
-			  const TEE_BigIntFMM *op2,
-			  const TEE_BigInt *n,
-			  const TEE_BigIntFMMContext *context)
+			  TEE_BigIntFMM *op1,
+			  TEE_BigIntFMM *op2,
+			  TEE_BigInt *n,
+			  TEE_BigIntFMMContext *context)
 {
 	mpanum mpa_dest = (mpa_num_base *)dest;
 	mpanum mpa_op1 = (mpa_num_base *)op1;

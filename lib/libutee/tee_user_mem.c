@@ -42,7 +42,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	uint8_t *p;
 
 	switch (hint) {
-	case 0:
+	case TEE_MALLOC_FILL_ZERO:
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		break;
 	default:
@@ -54,7 +54,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	if (p == NULL)
 		return NULL;
 
-	if (hint == 0)
+	if (hint == TEE_MALLOC_FILL_ZERO)
 		memset(p, 0, len);
 #if (CFG_TEE_CORE_USER_MEM_DEBUG == 1)
 	if (hint == (typeof(hint)) TEE_USER_MEM_HINT_NO_FILL_ZERO)
@@ -311,7 +311,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 
 	/* Check hint */
 	switch (hint) {
-	case 0:
+	case TEE_MALLOC_FILL_ZERO:
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		break;
 	default:
@@ -340,7 +340,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 
 		buf = buf_addr(e);
 
-		if (hint == 0)
+		if (hint == TEE_MALLOC_FILL_ZERO)
 			memset(buf, 0, len);
 #if (CFG_TEE_CORE_USER_MEM_DEBUG == 1)
 		else if (hint == (typeof(hint)) TEE_USER_MEM_HINT_NO_FILL_ZERO)

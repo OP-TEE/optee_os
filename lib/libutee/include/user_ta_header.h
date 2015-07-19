@@ -103,6 +103,8 @@ struct user_ta_sub_head {
 #define TA_PROP_STR_KEEP_ALIVE		"gpd.ta.instanceKeepAlive"
 #define TA_PROP_STR_DATA_SIZE		"gpd.ta.dataSize"
 #define TA_PROP_STR_STACK_SIZE		"gpd.ta.stackSize"
+#define TA_PROP_STR_VERSION		"gpd.ta.version"
+#define TA_PROP_STR_DESCRIPTION		"gpd.ta.description"
 #define TA_PROP_STR_UNSAFE_PARAM	"op-tee.unsafe_param"
 #define TA_PROP_STR_REMAP		"op-tee.remap"
 #define TA_PROP_STR_CACHE_SYNC		"op-tee.cache_sync"

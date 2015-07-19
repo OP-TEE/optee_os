@@ -27,19 +27,38 @@
 #ifndef TEE_COMMON_OTP_H
 #define TEE_COMMON_OTP_H
 
-#include "stddef.h"
-#include "stdint.h"
-#include <kernel/kta_types.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 #include <utee_defines.h>
 
 struct tee_hw_unique_key {
 	uint8_t data[HW_UNIQUE_KEY_LENGTH];
 };
 
-/* exposed to let tee_init set the key */
-extern uint8_t hw_key_digest[TEE_SHA256_HASH_SIZE];
+#if defined(CFG_OTP_SUPPORT)
 
 void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
 int tee_otp_get_die_id(uint8_t *buffer, size_t len);
+
+#else
+
+static inline void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
+}
+
+static inline int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+{
+	size_t i;
+
+	char pattern[4] = { 'B', 'E', 'E', 'F' };
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
+
+	return 0;
+}
+
+#endif /* !defined(CFG_OTP_SUPPORT) */
 
 #endif /* TEE_COMMON_OTP_H */

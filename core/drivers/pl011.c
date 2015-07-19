@@ -86,6 +86,7 @@
 #define UART_CR_OVSFACT		(1 << 3)
 #define UART_CR_UARTEN		(1 << 0)
 
+#define UART_IMSC_RTIM		(1 << 6)
 #define UART_IMSC_RXIM		(1 << 4)
 
 void pl011_flush(vaddr_t base)
@@ -96,6 +97,11 @@ void pl011_flush(vaddr_t base)
 
 void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 {
+	/* Clear all errors */
+	write32(0, base + UART_RSR_ECR);
+	/* Disable everything */
+	write32(0, base + UART_CR);
+
 	if (baud_rate) {
 		uint32_t divisor = (uart_clk * 4) / baud_rate;
 
@@ -103,14 +109,13 @@ void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 		write32(divisor & 0x3f, base + UART_FBRD);
 	}
 
-	write32(0, base + UART_RSR_ECR);
-
 	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo disabled. */
 	write32(UART_LCRH_WLEN_8, base + UART_LCR_H);
 
-	write32(UART_IMSC_RXIM, base + UART_IMSC);
+	/* Enable interrupts for receive and receive timeout */
+	write32(UART_IMSC_RXIM | UART_IMSC_RTIM, base + UART_IMSC);
 
-	/* Enable UART and TX */
+	/* Enable UART and RX/TX */
 	write32(UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE, base + UART_CR);
 
 	pl011_flush(base);

@@ -21,8 +21,9 @@ $(foreach op,$(ops),$(eval override $(op)))
 endif
 
 # Make these default for now
-ARCH            ?= arm32
-PLATFORM        ?= stm
+ARCH            ?= arm
+PLATFORM        ?= vexpress
+PLATFORM_FLAVOR ?= qemu_virt
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 
 arch_$(ARCH)	:= y
@@ -34,10 +35,23 @@ endif
 ifneq ($V,1)
 q := @
 cmd-echo := true
+cmd-echo-silent := echo
 else
 q :=
 cmd-echo := echo
+cmd-echo-silent := true
 endif
+
+ifneq ($(filter 4.%,$(MAKE_VERSION)),)  # make-4
+ifneq ($(filter %s ,$(firstword x$(MAKEFLAGS))),)
+cmd-echo-silent := true
+endif
+else                                    # make-3.8x
+ifneq ($(findstring s, $(MAKEFLAGS)),)
+cmd-echo-silent := true
+endif
+endif
+
 
 include core/core.mk
 
@@ -45,7 +59,7 @@ include ta/ta.mk
 
 .PHONY: clean
 clean:
-	@echo '  CLEAN   .'
+	@$(cmd-echo-silent) '  CLEAN   .'
 	${q}rm -f $(cleanfiles)
 
 .PHONY: cscope

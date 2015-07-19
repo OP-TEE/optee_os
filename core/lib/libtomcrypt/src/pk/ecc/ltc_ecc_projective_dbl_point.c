@@ -46,7 +46,7 @@
 /**
   @file ltc_ecc_projective_dbl_point.c
   ECC Crypto, Tom St Denis
-*/  
+*/
 
 #if defined(LTC_MECC) && (!defined(LTC_MECC_ACCEL) || defined(LTM_LTC_DESC))
 
@@ -89,7 +89,7 @@ int ltc_ecc_projective_dbl_point(ecc_point *P, ecc_point *R, void *modulus, void
    if (mp_cmp(R->z, modulus) != LTC_MP_LT) {
       if ((err = mp_sub(R->z, modulus, R->z)) != CRYPT_OK)                        { goto done; }
    }
-   
+
    /* T2 = X - T1 */
    if ((err = mp_sub(R->x, t1, t2)) != CRYPT_OK)                                  { goto done; }
    if (mp_cmp_d(t2, 0) == LTC_MP_LT) {
@@ -148,7 +148,7 @@ int ltc_ecc_projective_dbl_point(ecc_point *P, ecc_point *R, void *modulus, void
       if ((err = mp_add(R->x, modulus, R->x)) != CRYPT_OK)                        { goto done; }
    }
 
-   /* Y = Y - X */     
+   /* Y = Y - X */
    if ((err = mp_sub(R->y, R->x, R->y)) != CRYPT_OK)                              { goto done; }
    if (mp_cmp_d(R->y, 0) == LTC_MP_LT) {
       if ((err = mp_add(R->y, modulus, R->y)) != CRYPT_OK)                        { goto done; }
@@ -161,7 +161,7 @@ int ltc_ecc_projective_dbl_point(ecc_point *P, ecc_point *R, void *modulus, void
    if (mp_cmp_d(R->y, 0) == LTC_MP_LT) {
       if ((err = mp_add(R->y, modulus, R->y)) != CRYPT_OK)                        { goto done; }
    }
- 
+
    err = CRYPT_OK;
 done:
    mp_clear_multi(t1, t2, NULL);

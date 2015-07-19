@@ -76,6 +76,8 @@ TEE_Result tee_svc_copy_from_user(struct tee_ta_session *sess, void *kaddr,
 				  const void *uaddr, size_t len);
 TEE_Result tee_svc_copy_to_user(struct tee_ta_session *sess, void *uaddr,
 				const void *kaddr, size_t len);
+TEE_Result tee_svc_copy_kaddr_to_user32(struct tee_ta_session *sess,
+					uint32_t *uaddr, const void *kaddr);
 
 TEE_Result tee_svc_get_cancellation_flag(bool *cancel);
 

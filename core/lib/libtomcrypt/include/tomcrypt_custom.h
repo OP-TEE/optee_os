@@ -219,10 +219,33 @@
 #ifdef CFG_CRYPTO_DH
    #define LTC_MDH
 #endif
+#ifdef CFG_CRYPTO_ECC
+   #define LTC_MECC
+
+   /* use Shamir's trick for point mul (speeds up signature verification) */
+   #define LTC_ECC_SHAMIR
+
+   #if defined(TFM_LTC_DESC) && defined(LTC_MECC)
+   #define LTC_MECC_ACCEL
+   #endif
+
+   /* do we want fixed point ECC */
+   /* #define LTC_MECC_FP */
+
+   /* Timing Resistant */
+   #define LTC_ECC_TIMING_RESISTANT
+
+   #define LTC_ECC192
+   #define LTC_ECC224
+   #define LTC_ECC256
+   #define LTC_ECC384
+   #define LTC_ECC521
+#endif
 
 #define LTC_NO_PKCS
 
-#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA)
+#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
+	    defined(CFG_CRYPTO_ECC)
    #define LTC_DER
 #endif
 
@@ -406,17 +429,6 @@
 #endif /* LTC_NO_PKCS */
 
 /* cleanup */
-
-#ifdef LTC_MECC
-/* Supported ECC Key Sizes */
-#ifndef LTC_NO_CURVES
-   #define ECC192
-   #define ECC224
-   #define ECC256
-   #define ECC384
-   #define ECC521
-#endif
-#endif
 
 #if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || \
 	defined(MKATJA) || defined(LTC_MDH)

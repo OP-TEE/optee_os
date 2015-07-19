@@ -11,6 +11,8 @@
     4. [QEMU](#44-qemu)
     4. [STMicroelectronics boards](#45-stmicroelectronics-boards)
     4. [Allwinner A80](#46-allwinner-a80)
+    4. [Mediatek MT8173 EVB](#47-mediatek-mt8173-evb)
+    4. [HiKey Board](#48-hikey-board)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
 
@@ -52,6 +54,8 @@ please read the file [build_system.md](documentation/build_system.md).
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`|
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`|
 | [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
+| [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
+| MediaTek MT8173 EVB Board|`PLATFORM=mediatek-mt8173`|
 
 ## 4. Get and build the software
 There are a couple of different build options depending on the target you are
@@ -228,20 +232,132 @@ Now everything has been set up and OP-TEE is ready to be used.
 ---
 ### 4.3 Juno
 Juno has been supported in OP-TEE since mid October 2014.
-#### 4.3.1 Get the compiler and source
-Follow the instructions in the "4.1 Basic setup".
 
-#### 4.3.2 Build
+#### WARNING:
+
++ The ```setup_juno_optee.sh``` script provides a coherent set of components (OP-TEE client/driver/os,
+Linux kernel version 3-16.0-rc5)
+
++ Further release will align the ARM Juno setup with other OP-TEE supported platforms:
+
+	+ Linux kernel version alignment (3.18-rc1) with QEMU/FVP (DMA_BUF API change).
+	+ Will need arch/arm/Kconfig patch(es) (i.e DMA_SHARED_BUFFER etc...).
+
++ Temporary patch files required for linux kernel and juno dtb definition:
+
+	+ config.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
+	+ juno.dts.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
+
+#### 4.3.1 Prerequisites
++ The following packages must be installed:
+
 ```
-$ cd optee_os
-$ PLATFORM=vexpress PLATFORM_FLAVOR=juno CROSS_COMPILE=arm-linux-gnueabihf- make
+$ sudo apt-get install zlib1g-dev libglib2.0-dev libpixman-1-dev libfdt-dev \
+		       libc6:i386 libstdc++6:i386 libz1:i386 cscope
 ```
 
-#### 4.3.3 Prepare the images to run on Juno
-Will be written soon.
++ Download ARM Juno pre-built binaries:
 
-#### 4.3.4 Boot and run the software on Juno
-Will be written soon.
+	+ ARM Juno Pre-built binary bl30.bin (SCP runtime)
+	+ ARM Juno Pre-built binary bl33.bin (UEFI)
+	+ Download at http://community.arm.com/docs/DOC-8401
+
+
+#### 4.3.2 Download and install ARM Juno
+```
+$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_juno_optee.sh
+$ chmod 711 setup_juno_optee.sh
+$ ./setup_juno_optee.sh
+```
+
+#### 4.3.3 Build
++ List of helper scripts generated during installation:
+
+* `build_atf_opteed.sh`: This is used to build ARM-Trusted-Firmware and must be
+  called when you have updated any component that are included in the FIP (like
+  for example OP-TEE os).
+
+* `build_linux.sh`: This is used to build the Linux Kernel.
+
+* `build_normal.sh`: This is a pure helper script that build all the normal
+   world components (in correct order).
+
+* `build_optee_client.sh`: This will build OP-TEEs client library.
+
+* `build_optee_linuxdriver.sh`: This will build OP-TEEs Linux Kernel driver (as
+   a module).
+
+* `build_optee_os.sh`: Builds the Trusted OS itself.
+
+* `build_optee_tests.sh`: This will build the test suite (pay attention to the
+   access needed).
+
+* `build_secure.sh`: This is the helper script for the secure side that will
+  build all secure side components in the correct order.
+
+* `clean_gits.sh`: This will clean all gits. Beware that it will not reset the
+  commit to the one used when first cloning. Also note that it will only clean
+  git's.
+
++ Run the scripts in the following order:
+
+```
+$ ./build_secure.sh
+$ ./build_normal.sh
+```
+
+#### 4.3.4 Booting up ARM Juno
+
++ Update the ARM Juno embedded flash memory (path: JUNO/SOFTWARE):
+
+	+ bl1.bin
+	+ fip.bin
+	+ Image
+	+ juno.dtb
+
++ Copy OP-TEE binaries on the filesystem(*) located on the external USB key:
+
+	+ user client libraries: libteec.so*
+	+ supplicant: tee-supplicant
+	+ driver modules: optee.ko. optee_armtz.ko
+	+ CA: xtest
+	+ TAs: *.ta
+
++ Connect the USB key (filesystem) on any connector of the rear panel
+
++ Connect a serial terminal (115200, 8, n, 1)
+to the upper 9-pin (UART0) connector.
+
++ Connect the 12 volt power, then press the red button on the rear panel.
+
+Note:
+The default configuration is to automatically boot a Linux kernel,
+which expects to find a root filesystem on /dev/sda1
+(any one of the rear panel USB ports).
+
+(*)Download a minimal filesytem at:
+http://releases.linaro.org/14.02/openembedded/aarch64/
+linaro-image-minimal-genericarmv8-20140223-649.rootfs.tar.gz
+
+UEFI offers a 10 second window to interrupt the boot sequence by pressing
+a key on the serial terminal, after which the kernel is launched.
+
+Once booted you will get the prompt:
+```
+root@genericarmv8:~#
+```
+
+#### 4.3.4 Run OP-TEE on ARM Juno
+Write in the console:
+```
+root@genericarmv8:~# modprobe optee
+root@genericarmv8:~# tee-supplicant &
+```
+Now everything has been set up and OP-TEE is ready to be used.
+
+#### 4.3.5 Known problems and limitations
+ARM Juno could be sensitive on the USB memory type (filesystem)
+Recommendation: Use USB memory 3.0 (ext3/ext4 filesystem)
 
 ---
 ### 4.4 QEMU
@@ -450,6 +566,91 @@ $ /system/bin/tee-supplicant &
 $ /system/bin/tee-helloworld
 ```
 Enjoying OP-TEE on A80 board.
+
+---
+### 4.7 Mediatek MT8173 EVB
+Please refer to [8173 wiki](https://github.com/ibanezchen/linux-8173/wiki)
+to setup MT8173 evaluation board.
+
+#### 4.7.1 Setup MT8173 OP-TEE development environment
+```
+$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_mtk_optee.sh
+$ chmod 711 setup_mtk_optee.sh
+$ ./setup_mtk_optee.sh
+```
+
+#### 4.7.2 Compile source
+Run `build.sh` to compile all sources and generate firmware images
+(boot.img and trustzone.bin).
+```
+$ ./build.sh
+```
+
+#### 4.7.3 Update MT8173 EVB firmware images
+Run `flash_image.sh` to update MT8173 EVB firmware images
+```
+$ ./flash_image.sh
+```
+
+#### 4.7.4 Firmware recovery
+
+  1. Download pre-built images and recovery tools
+  ```
+  $ git clone https://github.com/m943040028/evb-utils.git
+  $ cd evb-utils
+  $ ./get-fbtool.sh
+  ```
+
+  2. Force EVB to enter fastboot mode (root privileges required)
+  ```
+  $ ./update-recover.sh
+  ```
+
+  The shell script will hold and wait for user to do the following actions:
+  `Press the DOWNLOAD button down and hold, click RESET button and wait 2~3 seconds
+  before release the DOWNLOAD button`
+
+  3. After `.update-recover.sh` command returned and EVB successfully enter
+  fastboot mode, run `./update.sh` to download the pre-built images to EVB
+
+  ```
+  $ ./update.sh
+  ```
+
+  **NOTE** - How to make sure EVB already enter fastboot mode:
+
+  If you can see the following messages in UART console, it means EVB is in
+  fastboot mode and ready to receive new images.
+  ```
+  [2340] fastboot_init()
+  [3380] fastboot: processing commands: fastboot_mode=2
+  ```
+
+  4. Press RESET button to reboot system
+
+---
+### 4.8 HiKey board
+[HiKey](https://www.96boards.org/products/hikey/) is a 96Boards Consumer
+Edition compliant board equipped with a HiSilicon Kirin 620 SoC (8-core,
+64-bit ARM Cortex A53). It can run OP-TEE in 32- and 64-bit modes.
+
+To obtain all the required software pieces to run OP-TEE on this board, you
+may want to clone the [hikey_optee](https://github.com/jforissier/hikey_optee)
+repository. This GitHub project contains a master Makefile as well as Git
+submodules, which helps putting all the compatible pieces together, including:
+- Toolchains (Linaro Aarch32 and Aarch64 cross-compilers)
+- ARM Trusted Firmware
+- OP-TEE OS, client and driver
+- EDK2 UEFI bootloader
+- Linux kernel
+- A BusyBox-based root filesystem
+- The optee_test applications
+
+Clone the project with:
+```
+$ git clone https://github.com/jforissier/hikey_optee
+```
+Then, refer to the instructions in the project's README.md.
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in

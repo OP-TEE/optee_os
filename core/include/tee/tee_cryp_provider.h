@@ -126,10 +126,14 @@ struct bignum_ops {
 	TEE_Result (*bin2bn)(const uint8_t *from, size_t fromsize,
 			     struct bignum *to);
 	size_t (*num_bytes)(struct bignum *a);
+	size_t (*num_bits)(struct bignum *a);
 	void (*bn2bin)(const struct bignum *from, uint8_t *to);
 	void (*copy)(struct bignum *to, const struct bignum *from);
 	void (*free)(struct bignum *a);
 	void (*clear)(struct bignum *a);
+
+	/* return -1 if a<b, 0 if a==b, +1 if a>b */
+	int32_t (*compare)(struct bignum *a, struct bignum *b);
 };
 
 /* Asymmetric algorithms */
@@ -181,6 +185,19 @@ struct dh_keypair {
 	uint32_t xbits;		/* Number of bits in the private key */
 };
 
+struct ecc_public_key {
+	struct bignum *x;	/* Public value x */
+	struct bignum *y;	/* Public value y */
+	uint32_t curve;	        /* Curve type */
+};
+
+struct ecc_keypair {
+	struct bignum *d;	/* Private value */
+	struct bignum *x;	/* Public value x */
+	struct bignum *y;	/* Public value y */
+	uint32_t curve;	        /* Curve type */
+};
+
 struct acipher_ops {
 
 	/*
@@ -198,6 +215,10 @@ struct acipher_ops {
 					   size_t key_size_bits);
 	TEE_Result (*alloc_dh_keypair)(struct dh_keypair *s,
 				       size_t key_size_bits);
+	TEE_Result (*alloc_ecc_public_key)(struct ecc_public_key *s,
+					   size_t key_size_bits);
+	TEE_Result (*alloc_ecc_keypair)(struct ecc_keypair *s,
+					size_t key_size_bits);
 
 	/*
 	 * Key generation functions
@@ -206,6 +227,8 @@ struct acipher_ops {
 	TEE_Result (*gen_dsa_key)(struct dsa_keypair *key, size_t key_size);
 	TEE_Result (*gen_dh_key)(struct dh_keypair *key, struct bignum *q,
 				 size_t xbits);
+	TEE_Result (*gen_ecc_key)(struct ecc_keypair *key);
+
 	TEE_Result (*dh_shared_secret)(struct dh_keypair *private_key,
 				       struct bignum *public_key,
 				       struct bignum *secret);
@@ -241,6 +264,17 @@ struct acipher_ops {
 	TEE_Result (*dsa_verify)(uint32_t algo, struct dsa_public_key *key,
 				 const uint8_t *msg, size_t msg_len,
 				 const uint8_t *sig, size_t sig_len);
+	TEE_Result (*ecc_sign)(uint32_t algo, struct ecc_keypair *key,
+			       const uint8_t *msg, size_t msg_len,
+			       uint8_t *sig, size_t *sig_len);
+	TEE_Result (*ecc_verify)(uint32_t algo, struct ecc_public_key *key,
+				 const uint8_t *msg, size_t msg_len,
+				 const uint8_t *sig, size_t sig_len);
+	TEE_Result (*ecc_shared_secret)(struct ecc_keypair *private_key,
+					struct ecc_public_key *public_key,
+					void *secret,
+					unsigned long *secret_len);
+
 };
 
 struct prng_ops {
@@ -267,8 +301,6 @@ struct crypto_ops {
 };
 
 extern struct crypto_ops crypto_ops;
-
-TEE_Result tee_cryp_init(void);
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in

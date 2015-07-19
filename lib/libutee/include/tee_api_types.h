@@ -103,8 +103,8 @@ typedef uint32_t TEE_ObjectType;
 
 typedef struct {
 	uint32_t objectType;
-	uint32_t objectSize;
-	uint32_t maxObjectSize;
+	uint32_t keySize;
+	uint32_t maxKeySize;
 	uint32_t objectUsage;
 	uint32_t dataSize;
 	uint32_t dataPosition;

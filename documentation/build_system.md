@@ -16,7 +16,7 @@ Name              | Description
 `core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk` | Arch and platform-specific compiler flags
 `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Arch and platform-specific compiler flags and configuration variables for the TEE Core only
 `core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` | Make recipes to link the TEE Core
-`ta/arch/arm32/link.mk` | Make recipes to link Trusted Applications
+`ta/arch/arm/link.mk` | Make recipes to link Trusted Applications
 `ta/mk/ta_dev_kit.mk` | Main Makefile to be included when building Trusted Applications
 `mk/checkconf.mk` | Utility functions to manipulate configuration variables and generate a C header file
 `sub.mk`          | List source files and define compiler flags
@@ -32,11 +32,11 @@ environment or make variables (**VAR=value make** or **make VAR=value**).
 ### ARCH (CPU architecture)
 
 **$(ARCH)** is the CPU architecture to be built. Currently, the only supported
-value is **arm32** for 32-bit ARMv7.
+value is **arm** for 32-bit ARMv7.
 
 Architecture-specific source code belongs to sub-directories that follow the
 `arch/$(ARCH)` pattern, such as:
-`core/arch/arm32`, `lib/libmpa/arch/arm32`, `lib/libutee/arch/arm32` and
+`core/arch/arm`, `lib/libmpa/arch/arm`, `lib/libutee/arch/arm` and
 so on.
 
 ### PLATFORM / PLATFORM_FLAVOR (hardware platform)
@@ -56,7 +56,7 @@ For convenience, the flavor may be appended to the platform name with a dash, so
 of **$(PLATFORM)** is **stm** in the makefiles.
 
 Platform-specific source code belongs to `core/arch/$(ARCH)/plat-$(PLATFORM)`,
-for instance: `core/arch/arm32/plat-vexpress` or `core/arch/arm32/plat-stm`.
+for instance: `core/arch/arm/plat-vexpress` or `core/arch/arm/plat-stm`.
 
 ### O (output directory)
 
@@ -64,8 +64,8 @@ All output files go into a platform-specific build directory, which is by defaul
 `out/$(ARCH)-plat-$(PLATFORM)`.
 
 The output directory has basically the same structure as the source tree.
-For instance, assuming **ARCH=arm32 PLATFORM=stm**,
-`core/kernel/panic.c` will compile into `out/arm32-plat-stm/core/kernel/panic.o`.
+For instance, assuming **ARCH=arm PLATFORM=stm**,
+`core/kernel/panic.c` will compile into `out/arm-plat-stm/core/kernel/panic.o`.
 
 However, some libraries are compiled twice: once for user mode, and once for
 kernel mode. This is because they may be used by the TEE Core as well as by
@@ -143,7 +143,7 @@ as any subdirectories that should be processed, too.
 
 For example:
 ```Makefile
-# core/arch/arm32/sm/sub.mk
+# core/arch/arm/sm/sub.mk
 srcs-y += sm_asm.S
 srcs-y += sm.c
 ```
@@ -285,7 +285,7 @@ unchanged into `<generated/conf.h>`. For instance:
 $ make CFG_TEE_CORE_LOG_LEVEL=4
 ```
 ```C
-/* out/arm32-plat-vexpress/core/include/generated/conf.h */
+/* out/arm-plat-vexpress/core/include/generated/conf.h */
 
 #define CFG_TEE_CORE_LOG_LEVEL 4 /* '4' */
 ```

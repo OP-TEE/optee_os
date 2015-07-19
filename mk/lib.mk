@@ -17,10 +17,10 @@ include mk/compile.mk
 
 lib-libfile	 = $(out-dir)/$(base-prefix)$(libdir)/lib$(libname).a
 cleanfiles	:= $(cleanfiles) $(lib-libfile)
-libfiles	:= $(lib-libfile) $(libfiles) 
+libfiles	:= $(lib-libfile) $(libfiles)
 libdirs 	:= $(out-dir)/$(base-prefix)$(libdir) $(libdirs)
 libnames	:= $(libname) $(libnames)
-libdeps		:= $(lib-libfile) $(libdeps) 
+libdeps		:= $(lib-libfile) $(libdeps)
 
 define process-lib
 ifeq ($(lib-use-ld), y)
@@ -30,7 +30,7 @@ $(lib-libfile): $(objs)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) -o $$@ $$^
 else
 $(lib-libfile): $(objs)
-	@echo '  AR      $$@'
+	@$(cmd-echo-silent) '  AR      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(AR$(sm)) rcs $$@ $$^
 endif

@@ -32,7 +32,7 @@
 
 struct tee_rpc_load_ta_cmd {
 	TEE_UUID uuid;
-	void *va;
+	uint32_t supp_ta_handle;
 };
 
 #endif

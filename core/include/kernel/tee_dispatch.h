@@ -46,7 +46,6 @@ struct tee_dispatch_out {
 
 /* Input arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_in {
-	kta_signed_header_t *ta;
 	TEE_UUID uuid;
 	uint32_t param_types;
 	TEE_Param params[4];
@@ -97,13 +96,13 @@ struct tee_dispatch_memory_in {
 	uint32_t size;
 };
 
-#if (CFG_TEE_FW_DEBUG == 1)
+#if (CFG_TEE_CORE_DEBUG == 1)
 /* Output arg structure specific to TEE service 'get core status'. */
 struct tee_core_status_out {
 	struct tee_dispatch_out msg;
 	char raw[80];
 };
-#endif /* CFG_TEE_FW_DEBUG */
+#endif /* CFG_TEE_CORE_DEBUG */
 
 TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 				     struct tee_dispatch_open_session_out *out);

@@ -94,7 +94,7 @@ static bool is_valid_conf_and_notnull_size(
 		vaddr_t b, size_t bl, vaddr_t a, size_t al)
 {
 	/* invalid config return false */
-	if ((b + bl < b) || (a + al < a))
+	if ((b - 1 + bl < b) || (a - 1 + al < a))
 		return false;
 	/* null sized areas are never inside / outside / overlap */
 	if (!bl || !al)
@@ -109,7 +109,7 @@ bool _core_is_buffer_inside(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
 		return false;
 
-	if ((b >= a) && (b + bl <= a + al))
+	if ((b >= a) && (b - 1 + bl <= a - 1 + al))
 		return true;
 	return false;
 }

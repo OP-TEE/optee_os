@@ -31,13 +31,12 @@
 #include <stddef.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 typedef uintptr_t vaddr_t;
 #define PRIxVA	PRIxPTR
 
 typedef uintptr_t paddr_t;
 #define PRIxPA	PRIxPTR
-
-typedef intptr_t ssize_t;
 
 #endif /* TYPES_EXT_H */

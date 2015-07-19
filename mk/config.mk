@@ -16,6 +16,10 @@
 # Actual values used during the build are output to $(out-dir)/core/conf.mk
 # (CFG_* variables only).
 
+# Cross-compiler prefix and suffix
+CROSS_COMPILE ?= arm-linux-gnueabihf-
+COMPILER ?= gcc
+
 # Compiler warning level.
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
@@ -27,7 +31,7 @@ WARNS ?= 3
 # DEBUG=1
 
 # If 1, debug mode of the tee firmware (CPU restart, Core Status)
-CFG_TEE_FW_DEBUG ?= 0
+CFG_TEE_CORE_DEBUG ?= 0
 
 # Max level of the tee core traces. 0 means disable, 4 is max.
 # Supported values: 0 (no traces) to 4 (all traces)
@@ -59,3 +63,24 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
 CFG_NUM_THREADS ?= 2
+
+# API implementation version
+CFG_TEE_API_VERSION ?= GPD-1.1-dev
+
+# Implementation description (implementation-dependent)
+CFG_TEE_IMPL_DESCR ?= OPTEE
+
+# Trusted OS implementation version
+CFG_TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
+
+# Trusted OS implementation manufacturer name
+CFG_TEE_MANUFACTURER ?= LINARO
+
+# Trusted firmware version
+CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
+
+# Trusted OS implementation manufacturer name
+CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
+
+# Encrypted File System Support
+CFG_ENC_FS ?= y

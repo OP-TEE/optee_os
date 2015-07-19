@@ -3,28 +3,28 @@
 #ifdef LTC_MECC
 
 static int sizes[] = {
-#ifdef ECC112
+#ifdef LTC_ECC112
 14,
 #endif
-#ifdef ECC128
+#ifdef LTC_ECC128
 16,
 #endif
-#ifdef ECC160
+#ifdef LTC_ECC160
 20,
 #endif
-#ifdef ECC192
+#ifdef LTC_ECC192
 24,
 #endif
-#ifdef ECC224
+#ifdef LTC_ECC224
 28,
 #endif
-#ifdef ECC256
+#ifdef LTC_ECC256
 32,
 #endif
-#ifdef ECC384
+#ifdef LTC_ECC384
 48,
 #endif
-#ifdef ECC521
+#ifdef LTC_ECC521
 65
 #endif
 };

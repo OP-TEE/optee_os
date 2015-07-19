@@ -44,7 +44,7 @@ $(conf-file): FORCE
 	$(call check-conf-h)
 
 $(conf-mk-file):  FORCE
-	$(call build-conf-mk)
+	$(call check-conf-mk)
 
 #
 # Do libraries

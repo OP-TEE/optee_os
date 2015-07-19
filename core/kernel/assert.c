@@ -26,6 +26,7 @@
  */
 #include <assert.h>
 #include <trace.h>
+#include <compiler.h>
 
 /* indirected assert (see TEE_ASSERT()) */
 
@@ -37,7 +38,7 @@ void _assert_log(const char *expr, const char *file, int line)
 	EMSG("Assertion '%s' failed at %s:%d", expr, file, line);
 }
 
-void _assert_break(void)
+void __noreturn _assert_break(void)
 {
 	while (1)
 		;

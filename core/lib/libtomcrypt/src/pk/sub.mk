@@ -4,3 +4,4 @@ subdirs-$(CFG_CRYPTO_DSA) += dsa
 subdirs-$(CFG_CRYPTO_RSA) += pkcs1
 subdirs-$(CFG_CRYPTO_RSA) += rsa
 subdirs-$(CFG_CRYPTO_DH) += dh
+subdirs-$(CFG_CRYPTO_ECC) += ecc

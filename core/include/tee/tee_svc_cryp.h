@@ -36,7 +36,7 @@ TEE_Result tee_svc_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
 			     void *buffer, uint32_t *size);
 
 TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
-			  uint32_t max_obj_size, uint32_t *obj);
+			  uint32_t max_key_size, uint32_t *obj);
 TEE_Result tee_svc_cryp_obj_close(uint32_t obj);
 TEE_Result tee_svc_cryp_obj_reset(uint32_t obj);
 TEE_Result tee_svc_cryp_obj_populate(uint32_t obj,

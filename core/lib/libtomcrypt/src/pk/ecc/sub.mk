@@ -1,0 +1,14 @@
+srcs-y += ecc.c
+srcs-y += ecc_free.c
+srcs-y += ecc_make_key.c
+srcs-y += ecc_shared_secret.c
+srcs-y += ecc_sign_hash.c
+srcs-y += ecc_verify_hash.c
+srcs-y += ltc_ecc_is_valid_idx.c
+srcs-y += ltc_ecc_map.c
+srcs-y += ltc_ecc_mulmod.c
+srcs-y += ltc_ecc_mulmod_timing.c
+srcs-y += ltc_ecc_mul2add.c
+srcs-y += ltc_ecc_points.c
+srcs-y += ltc_ecc_projective_add_point.c
+srcs-y += ltc_ecc_projective_dbl_point.c

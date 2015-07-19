@@ -47,12 +47,6 @@ TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
-/* normal world user mapping if loaded by tee supplicant */
-struct tee_ta_nwumap {
-	paddr_t ph;
-	size_t size;
-};
-
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TAILQ_ENTRY(tee_ta_ctx) link;
@@ -67,7 +61,6 @@ struct tee_ta_ctx {
 	ta_head_t *head;	/* ptr to the ta head in secure memory */
 	uintptr_t mem_swap;	/* ptr to code and data in memory swap */
 	tee_mm_entry_t *mm;	/* secure world memory */
-	uint32_t smem_size;	/* the size of the secure memory */
 	tee_mm_entry_t *mm_heap_stack;	/* shared section of heap and stack */
 	size_t stack_size;	/* size of stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */

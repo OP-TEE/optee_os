@@ -48,7 +48,7 @@ steps.
 
 1. When the system boots up, the entry function, `tz_sinit`, specified in the
    linker script
-   ([tz-template.lds](../core/arch/arm32/plat-stm/tz-template.lds)) will be
+   ([tz-template.lds](../core/arch/arm/plat-stm/tz-template.lds)) will be
    called. This function will initialize all cores. Main setup is done using a
    single core and let the other cores wait until a certain point in the
    initialization phase has been reached, which then also will release the other
@@ -75,7 +75,7 @@ vector table. The way to register this is by writing to the register MVBAR. The
 monitor vector table states the functions to be called when a SMC exception
 occurs. In the current design the monitor is listening for two exceptions which
 are regular SMC calls and FIQ requests ([see,
-sm_vect_table in sm_asm.S](../core/arch/arm32/sm/sm_asm.S)).
+sm_vect_table in sm_a32.S](../core/arch/arm/sm/sm_a32.S)).
 
 The picture below shows and describes the main flow for a standard SMC call in
 OP-TEE. 
@@ -93,21 +93,21 @@ OP-TEE.
    will be assigned for the task. When that has been done the thread will
    start/resume from the PC stored in the context belonging to the thread. In
    the case when it is a standard call, the function `thread_alloc_and_run`
-   ([thread.c](../core/arch/arm32/kernel/thread.c)) will be called. In this
+   ([thread.c](../core/arch/arm/kernel/thread.c)) will be called. In this
    function the Trusted OS will try to find an unused thread for the new
    request. If there isn't any thread available (all existing threads already in
    use), then the Trusted OS will return back `TEESMC_RETURN_EBUSY`
-   ([teesmc.h](../core/arch/arm32/include/sm/teesmc.h)) to the normal world. If
+   ([teesmc.h](../core/arch/arm/include/sm/teesmc.h)) to the normal world. If
    an unused thread was found the Trusted OS will copy relevant registers,
    preparing the PC to jump to, namely the function `thread_std_smc_entry`. When
    all that has been done, the thread is prepared to be started.
 
 4. When the thread is started (or resuming) the function `thread_std_smc_entry`
-   ([thread_asm.S](../core/arch/arm32/kernel/thread_asm.S)) will be called,
+   ([thread_a32.S](../core/arch/arm/kernel/thread_a32.S)) will be called,
    which in turn will call the `thread_stdcall_handler_ptr` that is pointing to
    the function used when registering the thread handlers. Normally this points
    to the `main_tee_entry` function
-   ([entry.c](../core/arch/arm32/plat-vexpress/main.c)). But in case the
+   ([entry.c](../core/arch/arm/plat-vexpress/main.c)). But in case the
    platform we are intended to work with doesn't require any special handling
    one can ignore calling (and register this function) and instead directly call
    the generic `tee_entry` function.
@@ -122,7 +122,7 @@ normal world (via the Secure Monitor).
 ![SMC exception handling](images/smc_exception_handling.png "SMC exception handling")
 
 ## 3.2 TEE SMC Interface
-TEE SMC Interface ([teesmc.h](../core/arch/arm32/include/sm/teesmc.h)) is the interface
+TEE SMC Interface ([teesmc.h](../core/arch/arm/include/sm/teesmc.h)) is the interface
 used to communicate TEE related data between normal and secure world. The main
 structure used for this communication is:
 
@@ -192,7 +192,7 @@ has been illustrated below.
 # 4. Thread handling
 The Trusted OS uses a couple of threads to be able to support running jobs in
 parallel (not fully enabled!). There are handlers for different purposes. In
-[`thread.c`](../core/arch/arm32/kernel/thread.c) you will
+[`thread.c`](../core/arch/arm/kernel/thread.c) you will
 find a function called `thread_init_handlers` which assigns handlers (functions)
 that should be called when Trusted OS receives standard or fast calls, FIQ,
 SVC and ABORT and even PSCI calls. These handlers are platform specific,

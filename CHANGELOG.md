@@ -1,3 +1,35 @@
+# OP-TEE - version 0.3.0
+
+## New features
+
+*   Add hardware support for
+	*   Mediatek MT8173 Board, ARMv8-A (plat-mediatek)
+	*   Hisilicon HiKey Board, ARMv8-A (plat-hikey)
+*   AArch64 build of optee_os is now possible through the configuration `CFG_ARM64_core=y`
+*	Secure Storage: Data can be encrypted prior to their storage in the non-secure.
+	Build is configured using `CFG_ENC_FS=y`
+*	A generic boot scheme can be used. Boot configuration is commonalized. This helps
+	new board support. It is applied on plat-hikey, plat-vexpress, plat-mediatek, plat-stm
+    and plat-vexpress.
+
+## Tested on
+Definitions:
+
+| Type | Meaning |
+| ---- | ------- |
+| Standard tests | The optee_test project. |
+| Extended tests | optee_test with tests from the GlobalPlatform™ TEE Initial Configuration Test Suite v1.1.0.4. |
+| Hello world test | Plain hello world Trusted Application such as [this][hello_world]. |
+
+*	ARM Juno Board (vexpress-juno), standard tests.
+*	Foundation Models (vexpress-fvp), standard tests.
+*	HiKey (hikey), standard tests.
+*	MT8173 (mediatek), standard tests.
+*	QEMU (vexpress-qemu), standard + extended tests.
+*	STM Cannes (stm-cannes), standard + extended tests.
+
+-------------------------------------------
+
 # OP-TEE - version 0.2.0
 
 ## New features
@@ -143,3 +175,6 @@ N/A since this is the first release tag on OP-TEE.
 [pr149]: https://github.com/OP-TEE/optee_os/issues/149
 [pr161]: https://github.com/OP-TEE/optee_os/issues/161
 
+*   Global Platform Device Internal Core API v1.1
+    *   [#230][pr230]: Persistent object corruption support (TEE_ERROR_CORRUPT_OBJECT/_2)
+    *   [#230][pr230]: Persistent object access support (TEE_ERROR_STORAGE_NOT_AVAILABLE/_2)

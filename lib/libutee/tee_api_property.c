@@ -125,6 +125,65 @@ static TEE_Result propget_gpd_tee_arith_max_big_int_size(struct prop_value *pv)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result propget_gpd_tee_cryptography_ecc(struct prop_value
+							   *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_BOOL;
+	return utee_get_property(UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
+				 &pv->u.bool_val, sizeof(pv->u.bool_val));
+}
+
+static TEE_Result propget_gpd_tee_ts_antiroll_protection_level(
+						struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_U32;
+	return utee_get_property(UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
+				 &pv->u.int_val, sizeof(pv->u.int_val));
+}
+
+static TEE_Result propget_gpd_tee_trustedos_impl_version(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_STRING;
+	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
+				 &pv->u.str_val, sizeof(pv->u.str_val));
+}
+
+static TEE_Result propget_gpd_tee_trustedos_impl_bin_version(
+						struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_U32;
+	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
+				 &pv->u.int_val, sizeof(pv->u.int_val));
+}
+
+static TEE_Result propget_gpd_tee_trustedos_manufacturer(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_STRING;
+	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
+				 &pv->u.str_val, sizeof(pv->u.str_val));
+}
+
+static TEE_Result propget_gpd_tee_fw_impl_version(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_STRING;
+	return utee_get_property(UTEE_PROP_TEE_FW_IMPL_VERSION, &pv->u.str_val,
+				 sizeof(pv->u.str_val));
+}
+
+static TEE_Result propget_gpd_tee_fw_impl_bin_version(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_U32;
+	return utee_get_property(UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
+				 &pv->u.int_val, sizeof(pv->u.int_val));
+}
+
+static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_STRING;
+	return utee_get_property(UTEE_PROP_TEE_FW_MANUFACTURER, &pv->u.str_val,
+				 sizeof(pv->u.str_val));
+}
+
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
 };
@@ -148,6 +207,21 @@ static const struct prop_set propset_implementation[] = {
 	{"gpd.tee.TAPersistentTime.protectionLevel",
 	 propget_gpd_tee_ta_time_protection_level},
 	{"gpd.tee.arith.maxBigIntSize", propget_gpd_tee_arith_max_big_int_size},
+	{"gpd.tee.cryptography.ecc", propget_gpd_tee_cryptography_ecc},
+	{"gpd.tee.trustedStorage.antiRollback.protectionLevel",
+	 propget_gpd_tee_ts_antiroll_protection_level},
+	{"gpd.tee.trustedos.implementation.version",
+	 propget_gpd_tee_trustedos_impl_version},
+	{"gpd.tee.trustedos.implementation.binaryversion",
+	 propget_gpd_tee_trustedos_impl_bin_version},
+	{"gpd.tee.trustedos.manufacturer",
+	 propget_gpd_tee_trustedos_manufacturer},
+	{"gpd.tee.firmware.implementation.version",
+	 propget_gpd_tee_fw_impl_version},
+	{"gpd.tee.firmware.implementation.binaryversion",
+	 propget_gpd_tee_fw_impl_bin_version},
+	{"gpd.tee.firmware.manufacturer",
+	 propget_gpd_tee_fw_manufacturer},
 };
 
 static const size_t propset_implementation_len =
@@ -268,14 +342,16 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 	size_t l;
 	size_t bufferlen;
 
-	if (valueBuffer == NULL || valueBufferLen == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (valueBuffer == NULL || valueBufferLen == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	bufferlen = *valueBufferLen;
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
 	switch (pv.type) {
 	case USER_TA_PROP_TYPE_BOOL:
@@ -327,15 +403,26 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 		break;
 
 	default:
-		return TEE_ERROR_BAD_FORMAT;
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
 	}
 
 	/* The size "must account for the zero terminator" */
 	*valueBufferLen = l + 1;
 
-	if (l >= bufferlen)
-		return TEE_ERROR_SHORT_BUFFER;
+	if (l >= bufferlen) {
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
+	}
 
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_SHORT_BUFFER)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -345,17 +432,30 @@ TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	struct prop_value pv;
 
-	if (value == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (value == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (pv.type != USER_TA_PROP_TYPE_BOOL)
-		return TEE_ERROR_BAD_FORMAT;
+	if (pv.type != USER_TA_PROP_TYPE_BOOL) {
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
 
 	*value = pv.u.bool_val;
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_BAD_FORMAT)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -365,17 +465,30 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	struct prop_value pv;
 
-	if (value == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (value == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (pv.type != USER_TA_PROP_TYPE_U32)
-		return TEE_ERROR_BAD_FORMAT;
+	if (pv.type != USER_TA_PROP_TYPE_U32) {
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
 
 	*value = pv.u.int_val;
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_BAD_FORMAT)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -389,25 +502,40 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	int val_len;
 	size_t size;
 
-	if (valueBuffer == NULL || valueBufferLen == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (valueBuffer == NULL || valueBufferLen == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (pv.type != USER_TA_PROP_TYPE_BINARY_BLOCK)
-		return TEE_ERROR_BAD_FORMAT;
+	if (pv.type != USER_TA_PROP_TYPE_BINARY_BLOCK) {
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
 
 	val = pv.u.str_val;
 	val_len = strlen(val);
 	size = *valueBufferLen;
-	if (!base64_dec(val, val_len, valueBuffer, &size))
+	if (!base64_dec(val, val_len, valueBuffer, &size)) {
 		res = TEE_ERROR_SHORT_BUFFER;
-	else
-		res = TEE_SUCCESS;
+		goto err;
+	}
+
 	*valueBufferLen = size;
-	return res;
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_BAD_FORMAT ||
+	    res == TEE_ERROR_SHORT_BUFFER)
+		return res;
+	TEE_Panic(0);
+out:
+	return TEE_SUCCESS;
 }
 
 TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
@@ -416,17 +544,30 @@ TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	struct prop_value pv;
 
-	if (value == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (value == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (pv.type != USER_TA_PROP_TYPE_UUID)
-		return TEE_ERROR_BAD_FORMAT;
+	if (pv.type != USER_TA_PROP_TYPE_UUID) {
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
 
 	*value = pv.u.uuid_val;	/* struct copy */
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_BAD_FORMAT)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -436,34 +577,60 @@ TEE_Result TEE_GetPropertyAsIdentity(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	struct prop_value pv;
 
-	if (value == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (value == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = propget_get_property(propsetOrEnumerator, name, &pv);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (pv.type != USER_TA_PROP_TYPE_IDENTITY)
-		return TEE_ERROR_BAD_FORMAT;
+	if (pv.type != USER_TA_PROP_TYPE_IDENTITY) {
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
 
 	*value = pv.u.identity_val;	/* struct copy */
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_BAD_FORMAT)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
 TEE_Result TEE_AllocatePropertyEnumerator(TEE_PropSetHandle *enumerator)
 {
+	TEE_Result res;
 	struct prop_enumerator *pe;
 
-	if (enumerator == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (enumerator == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	pe = TEE_Malloc(sizeof(struct prop_enumerator),
 			TEE_USER_MEM_HINT_NO_FILL_ZERO);
-	if (pe == NULL)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (pe == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
 
 	*enumerator = (TEE_PropSetHandle) pe;
 	TEE_ResetPropertyEnumerator(*enumerator);
+
+	goto out;
+
+err:
+	if (res == TEE_ERROR_OUT_OF_MEMORY)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -506,29 +673,43 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 	const char *str;
 	size_t bufferlen;
 
-	if (pe == NULL || nameBuffer == NULL || nameBufferLen == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (pe == NULL || nameBuffer == NULL || nameBufferLen == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	bufferlen = *nameBufferLen;
 	res = propset_get(pe->prop_set, &ps, &ps_len, &eps, &eps_len);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
 	if (pe->idx < ps_len)
 		str = ps[pe->idx].str;
 	else if ((pe->idx - ps_len) < eps_len)
 		str = ta_props[pe->idx - ps_len].name;
-	else
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	else {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto err;
+	}
 
 	l = strlcpy(nameBuffer, str, bufferlen);
 
 	/* The size "must account for the zero terminator" */
 	*nameBufferLen = l + 1;
 
-	if (l >= bufferlen)
-		return TEE_ERROR_SHORT_BUFFER;
+	if (l >= bufferlen) {
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
+	}
 
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+	    res == TEE_ERROR_SHORT_BUFFER)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }
 
@@ -542,20 +723,33 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator)
 	const struct user_ta_property *eps;
 	size_t eps_len;
 
-	if (pe == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (pe == NULL) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
-	if (pe->idx == PROP_ENUMERATOR_NOT_STARTED)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (pe->idx == PROP_ENUMERATOR_NOT_STARTED) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto err;
+	}
 
 	res = propset_get(pe->prop_set, &ps, &ps_len, &eps, &eps_len);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
 	next_idx = pe->idx + 1;
 	pe->idx = next_idx;
-	if (next_idx >= (ps_len + eps_len))
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (next_idx >= (ps_len + eps_len)) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto err;
+	}
 
+	goto out;
+
+err:
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
+	TEE_Panic(0);
+out:
 	return TEE_SUCCESS;
 }

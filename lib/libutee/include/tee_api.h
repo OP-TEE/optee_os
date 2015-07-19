@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Based on GP TEE Internal API Specification Version 0.27 */
+/* Based on GP TEE Internal API Specification Version 1.1 */
 #ifndef TEE_API_H
 #define TEE_API_H
 
@@ -121,8 +121,10 @@ void *TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 /* Data and Key Storage API  - Generic Object Functions */
 
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
+TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
 
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage);
+TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsage);
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
@@ -157,6 +159,9 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject);
 
+TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
+			      TEE_ObjectHandle srcObject);
+
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 			   TEE_Attribute *params, uint32_t paramCount);
 
@@ -174,6 +179,8 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 				      TEE_ObjectHandle *object);
 
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object);
+
+TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object);
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
@@ -251,65 +258,65 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen);
+void TEE_MACInit(TEE_OperationHandle operation, void *IV, uint32_t IVLen);
 
-void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
+void TEE_MACUpdate(TEE_OperationHandle operation, void *chunk,
 		   uint32_t chunkSize);
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
+			       void *message, uint32_t messageLen,
 			       void *mac, uint32_t *macLen);
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen);
+			       void *message, uint32_t messageLen,
+			       void *mac, uint32_t macLen);
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
-TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
+TEE_Result TEE_AEInit(TEE_OperationHandle operation, void *nonce,
 		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
 		      uint32_t payloadLen);
 
-void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+void TEE_AEUpdateAAD(TEE_OperationHandle operation, void *AADdata,
 		     uint32_t AADdataLen);
 
-TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
+TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, void *srcData,
 			uint32_t srcLen, void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
+			      void *srcData, uint32_t srcLen,
 			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t *tagLen);
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, const void *tag,
+			      void *srcData, uint32_t srcLen,
+			      void *destData, uint32_t *destLen, void *tag,
 			      uint32_t tagLen);
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
-				 const TEE_Attribute *params,
-				 uint32_t paramCount, const void *srcData,
+				 TEE_Attribute *params,
+				 uint32_t paramCount, void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
-				    const TEE_Attribute *params,
-				    uint32_t paramCount, const void *digest,
+				    TEE_Attribute *params,
+				    uint32_t paramCount, void *digest,
 				    uint32_t digestLen, void *signature,
 				    uint32_t *signatureLen);
 
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
-				      const TEE_Attribute *params,
-				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen, const void *signature,
+				      TEE_Attribute *params,
+				      uint32_t paramCount, void *digest,
+				      uint32_t digestLen, void *signature,
 				      uint32_t signatureLen);
 
 /* Cryptographic Operations API - Key Derivation Functions */
@@ -336,116 +343,109 @@ void TEE_GetREETime(TEE_Time *time);
 
 /* TEE Arithmetical API - Memory allocation and size of objects */
 
-size_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
+uint32_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
 
-size_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
+uint32_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
 
 /* TEE Arithmetical API - Initialization functions */
 
 void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
 
 void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, uint32_t len,
-			      const TEE_BigInt *modulus);
+			      TEE_BigInt *modulus);
 
-void TEE_BigIntInitFMM(const TEE_BigIntFMM *bigIntFMM, uint32_t len);
+void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len);
 
 /* TEE Arithmetical API - Converter functions */
 
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
-					    const uint8_t *buffer,
+					    uint8_t *buffer,
 					    uint32_t bufferLen,
 					    int32_t sign);
 
 TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
-					  const TEE_BigInt *bigInt);
+					  TEE_BigInt *bigInt);
 
 void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal);
 
-TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src);
-
-void TEE_BigIntSetShort(TEE_BigInt *dest, int32_t shortVal);
-
-TEE_Result TEE_BigIntGetShort(int32_t *dest, const TEE_BigInt *src);
+TEE_Result TEE_BigIntConvertToS32(int32_t *dest, TEE_BigInt *src);
 
 /* TEE Arithmetical API - Logical operations */
 
-int32_t TEE_BigIntCmp(const TEE_BigInt *op1, const TEE_BigInt *op2);
+int32_t TEE_BigIntCmp(TEE_BigInt *op1, TEE_BigInt *op2);
 
-int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal);
+int32_t TEE_BigIntCmpS32(TEE_BigInt *op, int32_t shortVal);
 
-void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
+void TEE_BigIntShiftRight(TEE_BigInt *dest, TEE_BigInt *op,
 			  size_t bits);
 
-bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex);
+bool TEE_BigIntGetBit(TEE_BigInt *src, uint32_t bitIndex);
 
-uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src);
+uint32_t TEE_BigIntGetBitCount(TEE_BigInt *src);
 
-void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2);
+void TEE_BigIntAdd(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2);
 
-void TEE_BigIntSub(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2);
+void TEE_BigIntSub(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2);
 
-void TEE_BigIntNeg(TEE_BigInt *dest, const TEE_BigInt *op);
+void TEE_BigIntNeg(TEE_BigInt *dest, TEE_BigInt *op);
 
-void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
-		   const TEE_BigInt *op2);
+void TEE_BigIntMul(TEE_BigInt *dest, TEE_BigInt *op1,
+		   TEE_BigInt *op2);
 
-void TEE_BigIntSquare(TEE_BigInt *dest, const TEE_BigInt *op);
+void TEE_BigIntSquare(TEE_BigInt *dest, TEE_BigInt *op);
 
 void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
-		   const TEE_BigInt *op1, const TEE_BigInt *op2);
-
-void TEE_BigIntReduceMod(TEE_BigInt *dest, const TEE_BigInt *op,
-			 const TEE_BigInt *n);
+		   TEE_BigInt *op1, TEE_BigInt *op2);
 
 /* TEE Arithmetical API - Modular arithmetic operations */
 
-void TEE_BigIntMod(TEE_BigInt *dest, const TEE_BigInt *op,
-		   const TEE_BigInt *n);
+void TEE_BigIntMod(TEE_BigInt *dest, TEE_BigInt *op,
+		   TEE_BigInt *n);
 
-void TEE_BigIntAddMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n);
+void TEE_BigIntAddMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n);
 
-void TEE_BigIntSubMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n);
+void TEE_BigIntSubMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n);
 
-void TEE_BigIntMulMod(TEE_BigInt *dest, const TEE_BigInt *op1,
-		      const TEE_BigInt *op2, const TEE_BigInt *n);
+void TEE_BigIntMulMod(TEE_BigInt *dest, TEE_BigInt *op1,
+		      TEE_BigInt *op2, TEE_BigInt *n);
 
-void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
-			 const TEE_BigInt *n);
+void TEE_BigIntSquareMod(TEE_BigInt *dest, TEE_BigInt *op,
+			 TEE_BigInt *n);
 
-void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
-		      const TEE_BigInt *n);
+void TEE_BigIntInvMod(TEE_BigInt *dest, TEE_BigInt *op,
+		      TEE_BigInt *n);
 
 /* TEE Arithmetical API - Other arithmetic operations */
 
-bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2);
+bool TEE_BigIntRelativePrime(TEE_BigInt *op1, TEE_BigInt *op2);
 
 void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
-				  TEE_BigInt *v, const TEE_BigInt *op1,
-				  const TEE_BigInt *op2);
+				  TEE_BigInt *v, TEE_BigInt *op1,
+				  TEE_BigInt *op2);
 
-int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
+int32_t TEE_BigIntIsProbablePrime(TEE_BigInt *op,
 				  uint32_t confidenceLevel);
 
 /* TEE Arithmetical API - Fast modular multiplication operations */
 
-void TEE_BigIntConvertToFMM(TEE_BigIntFMM *dest, const TEE_BigInt *src,
-			    const TEE_BigInt *n,
-			    const TEE_BigIntFMMContext *context);
+void TEE_BigIntConvertToFMM(TEE_BigIntFMM *dest, TEE_BigInt *src,
+			    TEE_BigInt *n,
+			    TEE_BigIntFMMContext *context);
 
-void TEE_BigIntConvertFromFMM(TEE_BigInt *dest, const TEE_BigIntFMM *src,
-			      const TEE_BigInt *n,
-			      const TEE_BigIntFMMContext *context);
+void TEE_BigIntConvertFromFMM(TEE_BigInt *dest, TEE_BigIntFMM *src,
+			      TEE_BigInt *n,
+			      TEE_BigIntFMMContext *context);
 
-void TEE_BigIntFMMConvertToBigInt(TEE_BigInt *dest, const TEE_BigIntFMM *src,
-				  const TEE_BigInt *n,
-				  const TEE_BigIntFMMContext *context);
+void TEE_BigIntFMMConvertToBigInt(TEE_BigInt *dest, TEE_BigIntFMM *src,
+				  TEE_BigInt *n,
+				  TEE_BigIntFMMContext *context);
 
-void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, const TEE_BigIntFMM *op1,
-			  const TEE_BigIntFMM *op2, const TEE_BigInt *n,
-			  const TEE_BigIntFMMContext *context);
+void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, TEE_BigIntFMM *op1,
+			  TEE_BigIntFMM *op2, TEE_BigInt *n,
+			  TEE_BigIntFMMContext *context);
 
 #endif /* TEE_API_H */

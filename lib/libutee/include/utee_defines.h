@@ -44,6 +44,8 @@
 #define TEE_MAIN_ALGO_RSA        0x30
 #define TEE_MAIN_ALGO_DSA        0x31
 #define TEE_MAIN_ALGO_DH         0x32
+#define TEE_MAIN_ALGO_ECDSA      0x41
+#define TEE_MAIN_ALGO_ECDH       0x42
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */
@@ -124,8 +126,6 @@ typedef enum {
  * See TEE Internal API specificaion v1.0 table 6-12 "Partial Structure of
  * Attribute Identifier"
  */
-#define TEE_ATTR_BIT_VALUE                  (1 << 29)
-
 #define TEE_U32_BSWAP(x) ( \
         (((x) & 0xff000000) >> 24) | \
         (((x) & 0x00ff0000) >>  8) | \
