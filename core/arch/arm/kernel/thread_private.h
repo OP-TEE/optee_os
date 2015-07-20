@@ -81,6 +81,17 @@ struct thread_user_mode_rec {
 };
 #endif /*ARM64*/
 
+#ifdef CFG_WITH_VFP
+struct thread_vfp_state {
+	bool ns_saved;
+	bool sec_saved;
+	bool sec_lazy_saved;
+	struct vfp_state ns;
+	struct vfp_state sec;
+};
+
+#endif /*CFG_WITH_VFP*/
+
 struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
@@ -92,6 +103,9 @@ struct thread_ctx {
 	bool have_user_map;
 #ifdef ARM64
 	vaddr_t kern_sp;	/* Saved kernel SP during user TA execution */
+#endif
+#ifdef CFG_WITH_VFP
+	struct thread_vfp_state vfp_state;
 #endif
 	void *rpc_arg;
 	paddr_t rpc_parg;
@@ -121,10 +135,17 @@ struct thread_core_local {
 #endif /*ASM*/
 
 #ifdef ARM64
+#ifdef CFG_WITH_VFP
+#define THREAD_VFP_STATE_SIZE				\
+	(16 + (16 * 32 + 16) * 2)
+#else
+#define THREAD_VFP_STATE_SIZE				0
+#endif
+
 #define THREAD_CTX_KERN_SP_OFFSET			\
 		(THREAD_CTX_REGS_SIZE + (4 + 2 + 1) * 8)
 #define THREAD_CTX_SIZE					\
-		(THREAD_CTX_KERN_SP_OFFSET + 5 * 8)
+		(THREAD_CTX_KERN_SP_OFFSET + THREAD_VFP_STATE_SIZE + 5 * 8)
 
 #define THREAD_CTX_REGS_SP_OFFSET			(8 * 0)
 #define THREAD_CTX_REGS_PC_OFFSET			(8 * 1)
