@@ -470,6 +470,13 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
 	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];
 
+static inline void tee_ltc_acipher_postactions(void)
+{
+	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
+
+	TEE_ASSERT(pool->last_offset == 0);
+}
+
 static void tee_ltc_alloc_mpa(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
@@ -552,8 +559,10 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 				    size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->e))
+	if (!bn_alloc_max(&s->e)) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
 	if (!bn_alloc_max(&s->d))
 		goto err;
 	if (!bn_alloc_max(&s->n))
@@ -568,6 +577,8 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->dq))
 		goto err;
+
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->e);
@@ -577,6 +588,8 @@ err:
 	bn_free(s->q);
 	bn_free(s->qp);
 	bn_free(s->dp);
+
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -584,13 +597,17 @@ static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
 				       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->e))
+	if (!bn_alloc_max(&s->e)) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
 	if (!bn_alloc_max(&s->n))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->e);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -628,6 +645,8 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 		rsa_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
+
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -691,6 +710,7 @@ out:
 	if (buf)
 		free(buf);
 
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -698,19 +718,23 @@ static TEE_Result rsanopad_encrypt(struct rsa_public_key *key,
 				   const uint8_t *src, size_t src_len,
 				   uint8_t *dst, size_t *dst_len)
 {
+	TEE_Result res;
 	rsa_key ltc_key = { 0, };
 
 	ltc_key.type = PK_PUBLIC;
 	ltc_key.e = key->e;
 	ltc_key.N = key->n;
 
-	return rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	res =  rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	tee_ltc_acipher_postactions();
+	return res;
 }
 
 static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 				   const uint8_t *src, size_t src_len,
 				   uint8_t *dst, size_t *dst_len)
 {
+	TEE_Result res;
 	rsa_key ltc_key = { 0, };
 
 	ltc_key.type = PK_PRIVATE;
@@ -725,7 +749,9 @@ static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 		ltc_key.dQ = key->dq;
 	}
 
-	return rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	tee_ltc_acipher_postactions();
+	return res;
 }
 
 static TEE_Result rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
@@ -821,6 +847,7 @@ out:
 	if (buf)
 		free(buf);
 
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -842,16 +869,15 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 	mod_size =  ltc_mp.unsigned_size((void *)(ltc_key.N));
 	if (*dst_len < mod_size) {
 		*dst_len = mod_size;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
 	}
 	*dst_len = mod_size;
 
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-	if (res != TEE_SUCCESS) {
-		EMSG("tee_algo_to_ltc_hashindex() returned %d\n", (int)res);
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
 		ltc_rsa_algo = LTC_LTC_PKCS_1_V1_5;
@@ -873,13 +899,13 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 		break;
 	default:
 		/* This will result in a panic */
-		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 	res = TEE_SUCCESS;
 
 out:
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -924,26 +950,32 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		ltc_rsa_algo = LTC_LTC_PKCS_1_PSS;
 		break;
 	default:
-		return TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
 	}
 
 	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
 				       &hash_size);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (msg_len != hash_size)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	mod_size = ltc_mp.unsigned_size((void *)(ltc_key.N));
 
 	if (*sig_len < mod_size) {
 		*sig_len = mod_size;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
 	}
 
 	ltc_sig_len = mod_size;
@@ -955,11 +987,14 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	*sig_len = ltc_sig_len;
 
 	if (ltc_res != CRYPT_OK) {
-		EMSG("rsa_sign_hash_ex() returned %d\n", ltc_res);
-		return TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
 	}
+	res = TEE_SUCCESS;
 
-	return TEE_SUCCESS;
+err:
+	tee_ltc_acipher_postactions();
+	return res;
 }
 
 static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
@@ -980,21 +1015,23 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
 				       &hash_size);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
-	if (msg_len != hash_size)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	bigint_size = ltc_mp.unsigned_size(ltc_key.N);
-	if (sig_len < bigint_size)
-		return TEE_ERROR_SIGNATURE_INVALID;
+	if (sig_len < bigint_size) {
+		res = TEE_ERROR_SIGNATURE_INVALID;
+		goto err;
+	}
 
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-	if (res != TEE_SUCCESS) {
-		EMSG("tee_algo_to_ltc_hashindex() returned %d\n", (int)res);
-		return res;
-	}
+	if (res != TEE_SUCCESS)
+		goto err;
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
@@ -1013,17 +1050,21 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 		ltc_rsa_algo = LTC_LTC_PKCS_1_PSS;
 		break;
 	default:
-		return TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
 	}
 
 	ltc_res = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
 				     ltc_hashindex, salt_len, &stat, &ltc_key);
 	if ((ltc_res != CRYPT_OK) || (stat != 1)) {
-		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);
-		return TEE_ERROR_SIGNATURE_INVALID;
+		res = TEE_ERROR_SIGNATURE_INVALID;
+		goto err;
 	}
+	res = TEE_SUCCESS;
 
-	return TEE_SUCCESS;
+err:
+	tee_ltc_acipher_postactions();
+	return res;
 }
 
 #endif /* CFG_CRYPTO_RSA */
@@ -1034,8 +1075,11 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 				    size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
+	if (!bn_alloc_max(&s->g)) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	if (!bn_alloc_max(&s->p))
 		goto err;
 	if (!bn_alloc_max(&s->q))
@@ -1044,12 +1088,14 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->x))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->q);
 	bn_free(s->y);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1057,19 +1103,24 @@ static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
 				       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
+	if (!bn_alloc_max(&s->g)) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	if (!bn_alloc_max(&s->p))
 		goto err;
 	if (!bn_alloc_max(&s->q))
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->q);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1110,6 +1161,7 @@ static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 		dsa_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1131,17 +1183,23 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	};
 	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
-	if (algo != TEE_ALG_DSA_SHA1)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (algo != TEE_ALG_DSA_SHA1) {
+		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto err;
+	}
 
 	if (*sig_len < 2 * mp_unsigned_bin_size(ltc_key.q)) {
 		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
 	}
 
 	ltc_res = mp_init_multi(&r, &s, NULL);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
 	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, &prng->state,
 				    prng->index, &ltc_key);
 
@@ -1158,6 +1216,9 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	}
 
 	mp_clear_multi(r, s, NULL);
+
+err:
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1177,12 +1238,16 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 		.y = key->y
 	};
 
-	if (algo != TEE_ALG_DSA_SHA1)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (algo != TEE_ALG_DSA_SHA1) {
+		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto err;
+	}
 
 	ltc_res = mp_init_multi(&r, &s, NULL);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
 	mp_read_unsigned_bin(r, (uint8_t *)sig, sig_len/2);
 	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
 	ltc_res = dsa_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
@@ -1193,7 +1258,8 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 	else
 		res = TEE_ERROR_GENERIC;
 
-	mp_clear_multi(r, s, NULL);
+err:
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1205,8 +1271,11 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 				   size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g))
+	if (!bn_alloc_max(&s->g)) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	if (!bn_alloc_max(&s->p))
 		goto err;
 	if (!bn_alloc_max(&s->y))
@@ -1215,12 +1284,14 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->q))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->y);
 	bn_free(s->x);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1247,6 +1318,7 @@ static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
 		dh_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1264,6 +1336,7 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 	};
 
 	err = dh_shared_secret(&pk, public_key, secret);
+	tee_ltc_acipher_postactions();
 	return ((err == CRYPT_OK) ? TEE_SUCCESS : TEE_ERROR_BAD_PARAMETERS);
 }
 
@@ -1281,11 +1354,13 @@ static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->d);
 	bn_free(s->x);
 	bn_free(s->y);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1297,10 +1372,12 @@ static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
+	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->x);
 	bn_free(s->y);
+	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1384,13 +1461,16 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 	size_t key_size_bits = 0;
 
 	res = ecc_get_keysize(key->curve, 0, &key_size_bytes, &key_size_bits);
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS) {
+		tee_ltc_acipher_postactions();
 		return res;
+	}
 
 	/* Generate the ECC key */
 	ltc_res = ecc_make_key(&prng->state, prng->index,
 			       key_size_bytes, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -1416,8 +1496,8 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 	res = TEE_SUCCESS;
 
 exit:
-
 	ecc_free(&ltc_tmp_key);		/* Free the temporary key */
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1462,11 +1542,7 @@ static TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = ecc_compute_key_idx(ltc_key, *key_size_bytes);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return TEE_SUCCESS;
+	return ecc_compute_key_idx(ltc_key, *key_size_bytes);
 }
 
 /*
@@ -1497,11 +1573,7 @@ static TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = ecc_compute_key_idx(ltc_key, *key_size_bytes);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return TEE_SUCCESS;
+	return ecc_compute_key_idx(ltc_key, *key_size_bytes);
 }
 
 static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
@@ -1515,22 +1587,27 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	ecc_key ltc_key;
 	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
-	if (algo == 0)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (algo == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
 
 	res = ecc_populate_ltc_private_key(&ltc_key, key, algo,
 					   &key_size_bytes);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err;
 
 	if (*sig_len < 2 * key_size_bytes) {
 		*sig_len = 2 * key_size_bytes;
-		return TEE_ERROR_SHORT_BUFFER;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
 	}
 
 	ltc_res = mp_init_multi(&r, &s, NULL);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
 
 	ltc_res = ecc_sign_hash_raw(msg, msg_len, r, s,
 				    &prng->state, prng->index, &ltc_key);
@@ -1548,6 +1625,9 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	}
 
 	mp_clear_multi(r, s, NULL);
+
+err:
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1564,12 +1644,16 @@ static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	size_t key_size_bytes;
 	ecc_key ltc_key;
 
-	if (algo == 0)
+	if (algo == 0) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	ltc_res = mp_init_multi(&key_z, &r, &s, NULL);
-	if (ltc_res != CRYPT_OK)
+	if (ltc_res != CRYPT_OK) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
 
 	res = ecc_populate_ltc_public_key(&ltc_key, key, key_z, algo,
 					  &key_size_bytes);
@@ -1593,6 +1677,7 @@ static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
 
 out:
 	mp_clear_multi(key_z, r, s, NULL);
+	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1608,12 +1693,16 @@ static TEE_Result do_ecc_shared_secret(struct ecc_keypair *private_key,
 	void *key_z;
 
 	/* Check the curves are the same */
-	if (private_key->curve != public_key->curve)
+	if (private_key->curve != public_key->curve) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	ltc_res = mp_init_multi(&key_z, NULL);
-	if (ltc_res != CRYPT_OK)
+	if (ltc_res != CRYPT_OK) {
+		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
 
 	res = ecc_populate_ltc_private_key(&ltc_private_key, private_key,
 					   0, &key_size_bytes);
@@ -1633,6 +1722,7 @@ static TEE_Result do_ecc_shared_secret(struct ecc_keypair *private_key,
 
 out:
 	mp_clear_multi(key_z, NULL);
+	tee_ltc_acipher_postactions();
 	return res;
 }
 #endif /* CFG_CRYPTO_ECC */
