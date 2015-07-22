@@ -223,7 +223,7 @@ static int write_radix(void *a, char *b, int radix)
 {
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
-	if (mpa_get_str(b, MPA_STRING_MODE_HEX_UC, 0, (const mpanum) a) == 0) {
+	if (mpa_get_str(b, MPA_STRING_MODE_HEX_UC, (const mpanum)a) == 0) {
 		return CRYPT_MEM;
 	}
 	return CRYPT_OK;

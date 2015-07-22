@@ -102,7 +102,7 @@ void __mpa_dbg_dump_mpanum(mpanum a)
 void __mpa_dbg_print_mpanum_hexstr(const mpanum val)
 {
 	static char _str_[MPA_STR_MAX_SIZE];
-	mpa_get_str(_str_, MPA_STRING_MODE_HEX_UC, 8, val);
+	mpa_get_str(_str_, MPA_STRING_MODE_HEX_UC, val);
 	fprintf(logfd, "%s", _str_);
 	fflush(logfd);
 }

@@ -232,62 +232,6 @@ static mpa_word_t __mpa_size_in_base_255(const mpanum n)
 }
 
 /*  --------------------------------------------------------------------
- *  Function:   __mpa_add_grouping
- *
- *  Adds grouping and pad left with zeros up to groupsize chars
- *  src_len is length of src without the terminating '\0'.
- *  It will add a terminating '\0' to dest.
- */
-static void __mpa_add_grouping(char *dest,
-			       const char *src, int src_len, int groupsize)
-{
-	int grppos;
-	const char *endptr;
-
-	if (!(groupsize > 0)) {
-		DPRINT("Groupsize is zero or negative. Cannot do grouping.\n");
-		return;
-	}
-
-	if (src_len <= 0) {
-		while (groupsize--)
-			*dest++ = '0';
-		*dest++ = '\0';
-		return;
-	}
-	endptr = src + src_len;
-	if (src_len % groupsize != 0) {
-		/*
-		 * Digits cannot be evenly divided into groups of the right
-		 * size.
-		 */
-
-		grppos = (groupsize - (src_len % groupsize)) % groupsize;
-		while (grppos--)
-			*dest++ = '0';
-		grppos = (src_len % groupsize);
-		while (grppos--)
-			*dest++ = *src++;
-
-		/* insert first space */
-		if (src < endptr)
-			*dest++ = ' ';
-	}
-	grppos = groupsize;
-	while (src < endptr) {
-		*dest++ = *src++;
-		grppos--;
-		if (grppos == 0 && src < endptr) {
-			*dest++ = ' ';
-			grppos = groupsize;
-		}
-	}
-
-	/* terminate dest */
-	*dest++ = '\0';
-}
-
-/*  --------------------------------------------------------------------
  *  Function:   mpa_get_str_size
  *
  *  Return the max size of the string representing a Big Number
@@ -442,8 +386,6 @@ cleanup:
  *  Prints a representation of n into str.
  *  The length allocated is the space needed to print n plus additional
  *  chars for the minus sign and the terminating '\0' char.
- *  If grouping is used, we allocate space to pad the number string with
- *  zeros to the left, up to the current group size.
  *  A pointer to str is returned. If something went wrong, we return 0.
  *
  *  mode is one of the following:
@@ -451,39 +393,28 @@ cleanup:
  *  MPA_STRING_MODE_HEX_LC      hex notation using lower case
  *
  */
-char *mpa_get_str(char *str, int mode, int groupsize, const mpanum n)
+char *mpa_get_str(char *str, int mode, const mpanum n)
 {
-	char *str_to_fill;
-	/* internal str with only digits, and no grouping */
-	static char int_str[MPA_STR_MAX_SIZE];
-	int chars_written;
+	char *s = str;
 
 	ASSERT(str != 0, "str destination buffer is null");
 
-	if (groupsize == 0)
-		str_to_fill = str;
-	else
-		str_to_fill = int_str;
-
 	/* insert a minus sign */
 	if (__mpanum_sign(n) == MPA_NEG_SIGN) {
-		*str_to_fill = '-';
-		str_to_fill++;
+		*s = '-';
+		s++;
 	}
 	switch (mode) {
 	case MPA_STRING_MODE_HEX_UC:
-		chars_written = __mpa_mpanum_to_hexstr(str_to_fill, 0, n);
+		__mpa_mpanum_to_hexstr(s, 0, n);
 		break;
 	case MPA_STRING_MODE_HEX_LC:
-		chars_written = __mpa_mpanum_to_hexstr(str_to_fill, 1, n);
+		__mpa_mpanum_to_hexstr(s, 1, n);
 		break;
 	default:
 		DPRINT("Unknown mode %d\n", mode);
 		return 0;
 	}
-
-	if (groupsize != 0)
-		__mpa_add_grouping(str, int_str, chars_written, groupsize);
 
 	return str;
 }

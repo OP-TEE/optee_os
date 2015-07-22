@@ -341,8 +341,7 @@ MPALIB_EXPORT int mpa_get_str_size(void);
 
 MPALIB_EXPORT int mpa_set_str(mpanum dest, const char *digitstr);
 
-MPALIB_EXPORT char *mpa_get_str(char *str, int mode, int groupsize,
-				const mpanum n);
+MPALIB_EXPORT char *mpa_get_str(char *str, int mode, const mpanum n);
 
 MPALIB_EXPORT int mpa_set_oct_str(mpanum dest, const uint8_t *buffer,
 				  size_t buffer_len, bool negative);
