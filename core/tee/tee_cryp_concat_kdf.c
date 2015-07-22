@@ -45,7 +45,7 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	uint32_t be_count;
 	uint8_t *out = derived_key;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
-	struct hash_ops *hash = &crypto_ops.hash;
+	const struct hash_ops *hash = &crypto_ops.hash;
 
 	if (!hash->get_ctx_size || !hash->init || !hash->update ||
 	    !hash->final) {

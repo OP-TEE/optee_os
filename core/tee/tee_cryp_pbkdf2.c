@@ -53,7 +53,7 @@ static TEE_Result pbkdf2_f(uint8_t *out, size_t len, uint32_t idx,
 	uint8_t u[TEE_MAX_HASH_SIZE];
 	uint32_t be_index;
 	size_t i, j;
-	struct mac_ops *mac = &crypto_ops.mac;
+	const struct mac_ops *mac = &crypto_ops.mac;
 
 	memset(out, 0, len);
 	for (i = 1; i <= p->iteration_count; i++) {
@@ -102,7 +102,7 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 	uint8_t *out = derived_key;
 	struct pbkdf2_parms pbkdf2_parms;
 	struct hmac_parms hmac_parms = {0, };
-	struct mac_ops *mac = &crypto_ops.mac;
+	const struct mac_ops *mac = &crypto_ops.mac;
 
 	if (!mac->get_ctx_size || !mac->init || !mac->update ||
 	    !mac->final)

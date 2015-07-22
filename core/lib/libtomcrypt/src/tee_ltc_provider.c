@@ -2814,7 +2814,7 @@ static TEE_Result tee_ltc_init(void)
 	return tee_ltc_prng_init(tee_ltc_get_prng());
 }
 
-struct crypto_ops crypto_ops = {
+const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
 #if defined(_CFG_CRYPTO_WITH_HASH)

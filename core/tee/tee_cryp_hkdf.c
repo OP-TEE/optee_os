@@ -44,7 +44,7 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 	void *ctx = NULL;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = (TEE_OPERATION_MAC << 28) | hash_id;
-	struct mac_ops *m = &crypto_ops.mac;
+	const struct mac_ops *m = &crypto_ops.mac;
 
 	if (!m->get_ctx_size || !m->init || !m->update) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
@@ -105,7 +105,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	size_t tn_len, hash_len, i, n, where, ctx_size;
 	TEE_Result res = TEE_SUCCESS;
 	void *ctx = NULL;
-	struct mac_ops *m = &crypto_ops.mac;
+	const struct mac_ops *m = &crypto_ops.mac;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = TEE_ALG_HMAC_ALGO(hash_id);
 

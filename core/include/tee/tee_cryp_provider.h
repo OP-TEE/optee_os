@@ -300,7 +300,7 @@ struct crypto_ops {
 	struct prng_ops prng;
 };
 
-extern struct crypto_ops crypto_ops;
+extern const struct crypto_ops crypto_ops;
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in
