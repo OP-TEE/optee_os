@@ -171,7 +171,7 @@
 
 /* MMU L1 table, one for each core */
 static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
-	__aligned(NUM_L1_ENTRIES * sizeof(uint64_t)) __section(".nozi.mmu.l1");
+	__aligned(NUM_L1_ENTRIES * XLAT_ENTRY_SIZE) __section(".nozi.mmu.l1");
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
@@ -459,7 +459,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	init_xlation_table(mm, 0, l1_xlation_table[0], 1);
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
 		memcpy(l1_xlation_table[n], l1_xlation_table[0],
-			sizeof(uint64_t) * NUM_L1_ENTRIES);
+			XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
 
 	for (n = 0; n < NUM_L1_ENTRIES; n++) {
 		if (!l1_xlation_table[0][n]) {
