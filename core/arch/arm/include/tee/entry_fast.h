@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2015, Linaro Limited
+ * All rights reserved.
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -25,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_ENTRY_H
-#define TEE_ENTRY_H
+#ifndef TEE_ENTRY_FAST_H
+#define TEE_ENTRY_FAST_H
 
 #include <kernel/thread.h>
 
@@ -44,6 +46,7 @@ void tee_entry_get_os_revision(struct thread_smc_args *args);
  */
 size_t tee_entry_generic_get_api_call_count(void);
 
-void tee_entry(struct thread_smc_args *args);
+/* Fast call entry */
+void tee_entry_fast(struct thread_smc_args *args);
 
-#endif /* TEE_ENTRY_H */
+#endif /* TEE_ENTRY_FAST_H */

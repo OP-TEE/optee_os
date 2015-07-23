@@ -46,7 +46,8 @@
 #include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
-#include <tee/entry.h>
+#include <tee/entry_std.h>
+#include <tee/entry_fast.h>
 #include <tee/arch_svc.h>
 #include <platform.h>
 #include <util.h>
@@ -58,11 +59,12 @@ extern unsigned char teecore_heap_start;
 extern unsigned char teecore_heap_end;
 
 static void main_fiq(void);
-static void main_tee_entry(struct thread_smc_args *args);
+static void main_tee_entry_std(struct thread_smc_args *args);
+static void main_tee_entry_fast(struct thread_smc_args *args);
 
 static const struct thread_handlers handlers = {
-	.std_smc = main_tee_entry,
-	.fast_smc = main_tee_entry,
+	.std_smc = main_tee_entry_std,
+	.fast_smc = main_tee_entry_fast,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,
@@ -132,7 +134,7 @@ static void main_fiq(void)
 	panic();
 }
 
-static void main_tee_entry(struct thread_smc_args *args)
+static void main_tee_entry_fast(struct thread_smc_args *args)
 {
 	/* TODO move to main_init() */
 	if (init_teecore() != TEE_SUCCESS)
@@ -159,10 +161,21 @@ static void main_tee_entry(struct thread_smc_args *args)
 		return;
 	}
 
-	tee_entry(args);
+	tee_entry_fast(args);
 }
 
-/* main_tee_entry() supports 3 platform-specific functions */
+
+
+static void main_tee_entry_std(struct thread_smc_args *args)
+{
+	/* TODO move to main_init() */
+	if (init_teecore() != TEE_SUCCESS)
+		panic();
+
+	tee_entry_std(args);
+}
+
+/* main_tee_entry_fast() supports 3 platform-specific functions */
 void tee_entry_get_api_call_count(struct thread_smc_args *args)
 {
 	args->a0 = tee_entry_generic_get_api_call_count() + 3;

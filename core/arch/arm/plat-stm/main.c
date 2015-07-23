@@ -34,14 +34,15 @@
 #include <platform_config.h>
 #include <stdint.h>
 #include <tee/arch_svc.h>
-#include <tee/entry.h>
+#include <tee/entry_std.h>
+#include <tee/entry_fast.h>
 #include <asc.h>
 
 static void main_fiq(void);
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry,
-	.fast_smc = tee_entry,
+	.std_smc = tee_entry_std,
+	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
 	.abort = tee_pager_abort_handler,

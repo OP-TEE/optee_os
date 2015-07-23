@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (c) 2015, Linaro Limited
+ * All rights reserved.
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,61 +27,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
+#ifndef TEE_ENTRY_STD_H
+#define TEE_ENTRY_STD_H
 
-#include <console.h>
-#include <drivers/ns16550.h>
-#include <kernel/generic_boot.h>
 #include <kernel/thread.h>
-#include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
-#include <mm/tee_pager.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
-#include <tee/arch_svc.h>
 
-static void main_fiq(void);
+/* Standard call entry */
+void tee_entry_std(struct thread_smc_args *args);
 
-static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
-	.fast_smc = tee_entry_fast,
-	.fiq = main_fiq,
-	.svc = tee_svc_handler,
-	.abort = tee_pager_abort_handler,
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
-
-const struct thread_handlers *generic_boot_get_handlers(void)
-{
-	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
-}
-
-void console_init(void)
-{
-	/*
-	 * Do nothing, uart driver shared with normal world,
-	 * everything for uart driver intialization is done in bootloader.
-	 */
-}
-
-void console_putc(int ch)
-{
-	ns16550_putc(ch, CONSOLE_UART_BASE);
-	if (ch == '\n')
-		ns16550_putc('\r', CONSOLE_UART_BASE);
-}
-
-void console_flush(void)
-{
-	ns16550_flush(CONSOLE_UART_BASE);
-}
+#endif /* TEE_ENTRY_STD_H */

@@ -34,7 +34,7 @@ entries-unpaged += generic_boot_get_handlers
 entries-unpaged += tee_pager_release_zi
 entries-unpaged += tee_pager_request_zi
 
-objs-unpaged-rem += core/arch/arm/tee/entry.o
+objs-unpaged-rem += core/arch/arm/tee/entry_std.o
 objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
@@ -60,7 +60,7 @@ $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 objs-init-rem += core/arch/arm/tee/arch_svc.o
 objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
 objs-init-rem += core/arch/arm/tee/init.o
-objs-init-rem += core/arch/arm/tee/entry.o
+objs-init-rem += core/arch/arm/tee/entry_std.o
 entries-init += _start
 objs-init := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \

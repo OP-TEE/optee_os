@@ -39,7 +39,6 @@
 #include <kernel/misc.h>
 #include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
-#include <tee/entry.h>
 
 #include <drivers/gic.h>
 #include <drivers/sunxi_uart.h>
