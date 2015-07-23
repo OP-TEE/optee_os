@@ -2168,6 +2168,9 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 	int ltc_cipherindex;
 #endif
 #if defined(CFG_CRYPTO_CBC_MAC)
+	uint8_t *real_key;
+	uint8_t key_array[24];
+	size_t real_key_len;
 	uint8_t iv[CBCMAC_MAX_BLOCK_LEN];
 	struct cbc_state *cbc;
 #endif
@@ -2207,6 +2210,13 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			return TEE_ERROR_BAD_PARAMETERS;
 		memset(iv, 0, cbc->block_len);
 
+		if (algo == TEE_ALG_DES3_CBC_MAC_NOPAD ||
+		    algo == TEE_ALG_DES3_CBC_MAC_PKCS5) {
+			get_des2_key(key, len, key_array,
+				     &real_key, &real_key_len);
+			key = real_key;
+			len = real_key_len;
+		}
 		if (CRYPT_OK != cbc_start(
 			ltc_cipherindex, iv, key, len, 0, &cbc->cbc))
 				return TEE_ERROR_BAD_STATE;
