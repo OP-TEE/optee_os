@@ -245,19 +245,19 @@ void TEE_CopyOperation(TEE_OperationHandle dstOperation,
 void TEE_DigestUpdate(TEE_OperationHandle operation,
 		      void *chunk, uint32_t chunkSize);
 
-TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
+TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, void *chunk,
 			     uint32_t chunkLen, void *hash, uint32_t *hashLen);
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
-void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
+void TEE_CipherInit(TEE_OperationHandle operation, void *IV,
 		    uint32_t IVLen);
 
-TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
+TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, void *srcData,
 			    uint32_t srcLen, void *destData, uint32_t *destLen);
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
-			     const void *srcData, uint32_t srcLen, void *destData,
+			     void *srcData, uint32_t srcLen, void *destData,
 			     uint32_t *destLen);
 
 /* Cryptographic Operations API - MAC Functions */
