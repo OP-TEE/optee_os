@@ -384,6 +384,8 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 		if (desc == UNSET_DESC) {
 			/* Area not covered by a region so need finer table */
 			uint64_t *new_table = xlat_tables[next_xlat++];
+			/* Clear table before use */
+			memset(new_table, 0, XLAT_TABLE_SIZE);
 
 			assert(next_xlat <= MAX_XLAT_TABLES);
 			desc = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
@@ -452,6 +454,8 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 			max_va = va_end;
 	}
 
+	/* Clear table before use */
+	memset(l1_xlation_table[0], 0, NUM_L1_ENTRIES * XLAT_ENTRY_SIZE);
 	init_xlation_table(mm, 0, l1_xlation_table[0], 1);
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
 		memcpy(l1_xlation_table[n], l1_xlation_table[0],
@@ -567,6 +571,9 @@ static uint64_t populate_user_map(struct tee_mmu_info *mmu)
 	tbl_info.level = 2;
 	tbl_info.shift = L2_XLAT_ADDRESS_SHIFT;
 	tbl_info.num_entries = XLAT_TABLE_ENTRIES;
+
+	/* Clear the table before use */
+	memset(tbl_info.table, 0, XLAT_TABLE_SIZE);
 
 	region.pa = 0;
 	region.va = va_range_base;
