@@ -600,6 +600,25 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 
 	TEE_ASSERT(mm && ttb);
 
+	/*
+	 * If mm->va is smaller than 32M, then mm->va will conflict with
+	 * user TA address space. This mapping will be overridden/hidden
+	 * later when a user TA is loaded since these low addresses are
+	 * used as TA virtual address space.
+	 *
+	 * Some SoCs have devices at low addresses, so we need to map at
+	 * least those devices at a virtual address which isn't the same
+	 * as the physical.
+	 *
+	 * TODO: support mapping devices at a virtual address which isn't
+	 * the same as the physical address.
+	 */
+	if (mm->va < (TEE_MMU_UL1_NUM_ENTRIES * SECTION_SIZE)) {
+		EMSG("va 0x%" PRIxVA " conflicts with user ta address!",
+		     mm->va);
+		panic();
+	}
+
 	if ((mm->va | mm->pa | mm->size) & SECTION_MASK) {
 		region_size = SMALL_PAGE_SIZE;
 
