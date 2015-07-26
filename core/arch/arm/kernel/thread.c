@@ -358,7 +358,8 @@ static void init_regs(struct thread_ctx *thread,
 	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
 	 * abort and unmasked FIQ.
 	  */
-	thread->regs.cpsr = CPSR_MODE_SVC | CPSR_I | CPSR_A;
+	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
 	/* Enable thumb mode if it's a thumb instruction */
 	if (thread->regs.pc & 1)
 		thread->regs.cpsr |= CPSR_T;
