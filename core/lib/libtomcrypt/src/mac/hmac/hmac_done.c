@@ -116,7 +116,6 @@ int hmac_done(hmac_state *hmac, unsigned char *out, unsigned long *outlen)
 
     err = CRYPT_OK;
 LBL_ERR:
-    XFREE(hmac->key);
 #ifdef LTC_CLEAN_STACK
     zeromem(isha, hashsize);
     zeromem(buf,  hashsize);

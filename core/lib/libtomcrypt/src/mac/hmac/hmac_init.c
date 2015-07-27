@@ -82,11 +82,10 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
        return CRYPT_MEM;
     }
 
-    /* allocate memory for key */
-    hmac->key = XMALLOC(LTC_HMAC_BLOCKSIZE);
-    if (hmac->key == NULL) {
-       XFREE(buf);
-       return CRYPT_MEM;
+    /* check hash blocks fits */
+    if (sizeof(hmac->key) < LTC_HMAC_BLOCKSIZE) {
+        err = CRYPT_BUFFER_OVERFLOW;
+        goto LBL_ERR;
     }
 
     /* (1) make sure we have a large enough key */
@@ -121,8 +120,6 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
     }
     goto done;
 LBL_ERR:
-    /* free the key since we failed */
-    XFREE(hmac->key);
 done:
 #ifdef LTC_CLEAN_STACK
    zeromem(buf, LTC_HMAC_BLOCKSIZE);
