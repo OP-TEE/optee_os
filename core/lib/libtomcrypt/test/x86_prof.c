@@ -1421,7 +1421,7 @@ __attribute__ ((aligned (16)))
    }
 
 #endif
-
+   XFREE(buf);
 } 
 
 void time_encmacs(void)
