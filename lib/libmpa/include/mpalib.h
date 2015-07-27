@@ -101,8 +101,8 @@ typedef struct mpa_fmm_context_struct {
 typedef mpa_fmm_context_base *mpa_fmm_context;
 
 typedef struct mpa_scratch_mem_struct {
-	uint32_t size;	/* size of the memory pool, in bytes */
-	uint32_t bn_bits; /* default size of a temporary variables */
+	uint32_t size;		/* size of the memory pool, in bytes */
+	uint32_t bn_bits;	/* default size of a temporary variables */
 	uint32_t last_offset;	/* offset to the last one */
 	uint32_t m[];		/* mpa_scratch_item are stored there */
 } mpa_scratch_mem_base;
