@@ -748,6 +748,22 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 
 /* Cryptographic Operations API - Message Digest Functions */
 
+static void init_hash_operation(TEE_OperationHandle operation, void *IV,
+				uint32_t IVLen)
+{
+	TEE_Result res;
+
+	/*
+	 * Note : IV and IVLen are never used in current implementation
+	 * This is why coherent values of IV and IVLen are not checked
+	 */
+	res = utee_hash_init(operation->state, IV, IVLen);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+	operation->buffer_offs = 0;
+	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+}
+
 void TEE_DigestUpdate(TEE_OperationHandle operation,
 		      void *chunk, uint32_t chunkSize)
 {
@@ -778,6 +794,11 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 
 	res = utee_hash_final(operation->state, chunk, chunkLen, hash,
 			       hashLen);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	/* Reset operation state */
+	init_hash_operation(operation, NULL, 0);
 
 out:
 	if (res != TEE_SUCCESS &&
@@ -1058,23 +1079,13 @@ out:
 
 void TEE_MACInit(TEE_OperationHandle operation, void *IV, uint32_t IVLen)
 {
-	TEE_Result res;
-
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
 	if (!operation->key1)
 		TEE_Panic(0);
 	if (operation->info.operationClass != TEE_OPERATION_MAC)
 		TEE_Panic(0);
-	/*
-	 * Note : IV and IVLen are never used in current implementation
-	 * This is why coherent values of IV and IVLen are not checked
-	 */
-	res = utee_hash_init(operation->state, IV, IVLen);
-	if (res != TEE_SUCCESS)
-		TEE_Panic(res);
-	operation->buffer_offs = 0;
-	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+	init_hash_operation(operation, IV, IVLen);
 }
 
 void TEE_MACUpdate(TEE_OperationHandle operation, void *chunk,
