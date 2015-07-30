@@ -5,6 +5,8 @@ language: c
 notifications:
   - email: true
 
+sudo: false
+
 # Install the cross compiler
 before_install:
   - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
