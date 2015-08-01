@@ -176,7 +176,7 @@ static void core_mmu_mmap_init(struct tee_mmap_region *mm, size_t max_elem,
 
 	for (n = 0; map[n].type != MEM_AREA_NOTYPE; n++) {
 		mme.pa = map[n].pa;
-		mme.va = map[n].pa;
+		mme.va = map[n].va;
 		mme.size = map[n].size;
 
 		mme.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PR |
