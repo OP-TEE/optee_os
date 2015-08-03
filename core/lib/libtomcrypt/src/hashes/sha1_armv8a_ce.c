@@ -66,36 +66,6 @@ const struct ltc_hash_descriptor sha1_desc =
     NULL
 };
 
-#if defined(LTC_SHA1_ARM32_CE)
-
-/* Implemented in assembly */
-int sha1_transform(ulong32 *state, unsigned char *buf);
-
-static int sha1_compress(hash_state *md, unsigned char *buf)
-{
-    struct tomcrypt_arm_neon_state state;
-
-    tomcrypt_arm_neon_enable(&state);
-    sha1_transform(md->sha1.state, buf);
-    tomcrypt_arm_neon_disable(&state);
-#ifdef LTC_CLEAN_STACK
-    burn_stack(sizeof(ulong32) * 87);
-#endif
-    return CRYPT_OK;
-}
-
-/**
-   Process a block of memory though the hash
-   @param md     The hash state
-   @param in     The data to hash
-   @param inlen  The length of the data (octets)
-   @return CRYPT_OK if successful
-*/
-HASH_PROCESS(sha1_process, sha1_compress, sha1, 64)
-
-#endif /* LTC_SHA1_ARM32_CE */
-
-#if defined(LTC_SHA1_ARM64_CE)
 
 /* Implemented in assembly */
 void sha1_ce_transform(ulong32 *state, unsigned char *src, int blocks);
@@ -126,9 +96,6 @@ static int sha1_compress(hash_state *md, unsigned char *buf)
    @return CRYPT_OK if successful
 */
 HASH_PROCESS_NBLOCKS(sha1_process, sha1_compress_nblocks, sha1, 64)
-
-#endif /* LTC_SHA1_ARM64_CE */
-
 
 /**
    Initialize the hash state
