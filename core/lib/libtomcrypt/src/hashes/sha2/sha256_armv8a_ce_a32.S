@@ -82,23 +82,24 @@
 	.word		0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208
 	.word		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 
-	.global		sha256_transform
-	.type		sha256_transform, %function
-sha256_transform:
-	/* load round constants */
-	adr		r3, .Lsha256_rcon
-	vld1.32		{k0}, [r3]!
-
+	.global		sha256_ce_transform
+	.type		sha256_ce_transform, %function
+sha256_ce_transform:
 	/* load state */
 	vld1.8		{dga-dgb}, [r0]
 
 	/* load input */
-	vld1.8		{q0-q1}, [r1]!
+0:	vld1.8		{q0-q1}, [r1]!
 	vrev32.8	q0, q0
 	vrev32.8	q1, q1
-	vld1.8		{q2-q3}, [r1]
+	vld1.8		{q2-q3}, [r1]!
 	vrev32.8	q2, q2
 	vrev32.8	q3, q3
+	subs            r2, r2, #1
+
+	/* load round constants */
+	adr		r3, .Lsha256_rcon
+	vld1.32		{k0}, [r3]!
 
 	vadd.u32	ta0, q0, k0
 	vmov		dg0, dga
@@ -125,6 +126,7 @@ sha256_transform:
 	/* update state */
 	vadd.u32	dga, dga, dg0
 	vadd.u32	dgb, dgb, dg1
+	bne		0b
 
 	/* store new state */
 	vst1.8		{dga-dgb}, [r0]
