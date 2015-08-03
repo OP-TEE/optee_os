@@ -29,25 +29,15 @@
 
 #if defined(DEBUG)
 
-FILE *logfd = stdout;
-
-#if defined(__x86_64)
-#include <execinfo.h>
 /*------------------------------------------------------------
  *
  *   __mpa_dbg_print_stack
  *
  */
-void __mpa_dbg_print_stack()
+void __mpa_dbg_print_stack(void)
 {
-	fprintf(logfd, "Cannot print stack with __x86_64\n");
+	MSG_RAW("Cannot print stack with __x86_64\n");
 }
-#else
-void __mpa_dbg_print_stack()
-{
-	fprintf(logfd, "Cannot print stack. (execinfo.h not included)\n");
-}
-#endif
 
 /*  --------------------------------------------------------------------
  *  Function:  __mpa_dbg_print_header
@@ -56,22 +46,7 @@ void __mpa_dbg_print_stack()
  */
 void __mpa_dbg_print_header(const char *f_str, const int l_num)
 {
-	fprintf(logfd, "DEBUG: %s:%d:", f_str, l_num);
-	fflush(logfd);
-}
-
-/*  --------------------------------------------------------------------
- *  Function:  __mpa_dbg_print
- *
- *
- */
-void __mpa_dbg_print(const char *format, ...)
-{
-	va_list varg;
-	va_start(varg, format);
-	vfprintf(logfd, format, varg);
-	va_end(varg);
-	fflush(logfd);
+	MSG_RAW("DEBUG: %s:%d:", f_str, l_num);
 }
 
 /*  --------------------------------------------------------------------
@@ -83,16 +58,15 @@ void __mpa_dbg_dump_mpanum(mpanum a)
 {
 	int i;
 
-	fprintf(logfd, " ---- Dump :\n");
-	fprintf(logfd, " mpanum->size = %d\n", a->size);
-	fprintf(logfd, " mpanum->alloc = %u\n", a->alloc);
-	fprintf(logfd, " mpanum->d (MSW to LSW) :\n");
+	MSG_RAW(" ---- Dump :\n");
+	MSG_RAW(" mpanum->size = %d\n", a->size);
+	MSG_RAW(" mpanum->alloc = %u\n", a->alloc);
+	MSG_RAW(" mpanum->d (MSW to LSW) :\n");
 	for (i = __mpanum_alloced(a) - 1; i >= __mpanum_size(a); i--)
-		fprintf(logfd, "%.8X ", a->d[i]);
-	fprintf(logfd, "\n");
+		MSG_RAW("%.8X ", a->d[i]);
+	MSG_RAW("\n");
 	for (i = __mpanum_size(a) - 1; i >= 0; i--)
-		fprintf(logfd, "[%d] : %.8X\n", i, a->d[i]);
-	fflush(logfd);
+		MSG_RAW("[%d] : %.8X\n", i, a->d[i]);
 }
 
 /*  --------------------------------------------------------------------
@@ -103,8 +77,7 @@ void __mpa_dbg_print_mpanum_hexstr(const mpanum val)
 {
 	static char _str_[MPA_STR_MAX_SIZE];
 	mpa_get_str(_str_, MPA_STRING_MODE_HEX_UC, val);
-	fprintf(logfd, "%s", _str_);
-	fflush(logfd);
+	MSG_RAW("%s", _str_);
 }
 
 #endif

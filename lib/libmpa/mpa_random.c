@@ -60,8 +60,6 @@ void mpa_get_random(mpanum dest, mpanum limit)
 {
 	int done = 0;
 
-	ASSERT(get_rng_array != NULL, "random generator is not set");
-
 	mpa_wipe(dest);
 	if (__mpanum_alloced(dest) < __mpanum_size(limit))
 		dest->size = __mpanum_alloced(dest);

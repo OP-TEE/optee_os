@@ -28,6 +28,7 @@
 #define GUARD_MPA_ASSERT_H
 
 #include "mpa_debug.h"
+#include <assert.h>
 
 #if defined(DEBUG)
 
@@ -35,14 +36,10 @@
 	do { \
 		if (!(cond)) { \
 			__mpa_dbg_print_header(__func__, __LINE__); \
-			__mpa_dbg_print("Assertion failed. Msg: %s\n", \
-					(str)); \
+			DMSG_RAW("Assertion failed. Msg: %s\n", (str)); \
 			__mpa_dbg_print_header(__func__, __LINE__); \
-			__mpa_dbg_print( \
-				"Program will exit, waiting for keypress.\n"); \
-			fflush(stdout); \
-			getchar(); \
-			exit(1); \
+			DMSG_RAW("Program will exit, waiting for keypress.\n"); \
+			assert(0); \
 		} \
 	} while (0)
 

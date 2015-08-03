@@ -34,12 +34,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <trace.h>
 
 /* console debug function declaration */
 void __mpa_dbg_print_stack(void);
 
 void __mpa_dbg_print_header(const char *f_str, const int l_num);
-void __mpa_dbg_print(const char *format, ...);
 void __mpa_dbg_print_mpanum_hexstr(const mpanum a);
 void __mpa_dbg_dump_mpanum(const mpanum val);
 
@@ -58,19 +58,19 @@ void __mpa_dbg_dump_mpanum(const mpanum val);
 
 #define DPRINT   \
 	DPRINT_WHERE \
-	__mpa_dbg_print
+	DMSG_RAW
 #define DPRINT_MPANUM_HEXSTR(h, v, f) \
 	do { \
 		DPRINT_WHERE \
-		__mpa_dbg_print("%s ", (h));\
+		DMSG_RAW("%s ", (h));\
 		__mpa_dbg_print_mpanum_hexstr((v));\
-		__mpa_dbg_print(" %s", (f));
+		DMSG_RAW(" %s", (f)); \
 	} while (0)
 #define DPRINT_DUMP_MPANUM(h, v) \
 	do { \
 		DPRINT_WHERE\
-		__mpa_dbg_print("%s ", (h));\
-		__mpa_dbg_dump_mpanum((v))
+		DMSG_RAW("%s ", (h));\
+		__mpa_dbg_dump_mpanum((v)) \
 	} while (0)
 
 #else /* !defined(DEBUG && DEBUG_ME) */

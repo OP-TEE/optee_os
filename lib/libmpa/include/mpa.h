@@ -122,10 +122,11 @@
 #if defined(DEBUG)
 
 #define MEMPOOL_MARKER(x) \
-	uint32_t mpa_mempool_marker = __mpa_get_alloced_pattern((x));
+	uint32_t mpa_mempool_marker = ((mpa_scratch_mem)(x))->last_offset;
 #define MEMPOOL_SANITY_CHECK(x)    \
 	do { \
-		if (mpa_mempool_marker != __mpa_get_alloced_pattern((x))) { \
+		if (mpa_mempool_marker != \
+		   ((mpa_scratch_mem)(x))->last_offset) { \
 			DPRINT("MemPool is leaking!\n"); \
 		} \
 	} while (0)
