@@ -76,9 +76,9 @@
 	.word		0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc
 	.word		0xca62c1d6, 0xca62c1d6, 0xca62c1d6, 0xca62c1d6
 
-	.global		sha1_transform
-	.type		sha1_transform, %function
-sha1_transform:
+	.global		sha1_ce_transform
+	.type		sha1_ce_transform, %function
+sha1_ce_transform:
 	/* load round constants */
 	adr		r3, .Lsha1_rcon
 	vld1.32		{k0-k1}, [r3]!
@@ -88,13 +88,14 @@ sha1_transform:
 	vld1.32		{dga}, [r0]
 	vldr		dgbs, [r0, #16]
 
-	/* load input */
+0:	/* load input */
 	vld1.8		{q8-q9}, [r1]!
 	vrev32.8	q8, q8
 	vrev32.8	q9, q9
 	vld1.8		{q10-q11}, [r1]
 	vrev32.8	q10, q10
 	vrev32.8	q11, q11
+	subs		r2, r2, #1
 
 	vadd.u32	ta0, q8, k0
 	vmov		dg0, dga
@@ -126,6 +127,7 @@ sha1_transform:
 	/* update state */
 	vadd.u32	dga, dga, dg0
 	vadd.u32	dgb, dgb, dg1a0
+	bne		0b
 
 	/* store new state */
 	vst1.32		{dga}, [r0]
