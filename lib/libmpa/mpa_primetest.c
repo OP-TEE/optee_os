@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 #define USE_PRIME_TABLE
 
 #if defined(USE_PRIME_TABLE)
@@ -97,26 +89,20 @@ int mpa_is_prob_prime(mpanum n, int conf_level, mpa_scratch_mem pool)
 {
 	int result = 0;
 
-	MEMPOOL_MARKER(pool);
-
 	/* Check if it's a small prime */
 	result = is_small_prime(n);
-	if (result != PROB_PRIME) {
-		DPRINT("IsProbPrime: is_small_prime decided = %d\n", result);
+	if (result != PROB_PRIME)
 		goto cleanup;
-	}
+
 	/* Test if n is divisible by any prime < 1000 */
 	if (has_small_factors(n, pool)) {
-		DPRINT("IsProbPrime: has_small_factors decided = 0.\n");
 		result = DEF_COMPOSITE;
 		goto cleanup;
 	}
 	/* Check with Miller Rabin */
 	result = primality_test_miller_rabin(n, conf_level, pool);
-	DPRINT("IsPrime: MR decided = %d.\n", result);
 
 cleanup:
-	MEMPOOL_SANITY_CHECK(pool);
 	return result;
 }
 
@@ -181,14 +167,11 @@ static int has_small_factors(mpanum n, mpa_scratch_mem pool)
 	int result;
 	mpanum res;
 
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&res, pool);
 	mpa_gcd(res, n, (const mpanum)factors, pool);
 	result = (mpa_cmp_short(res, 1) == 0) ? 0 : 1;
 	mpa_free_static_temp_var(&res, pool);
 
-	MEMPOOL_SANITY_CHECK(pool);
 	return result;
 }
 
@@ -216,21 +199,13 @@ static int primality_test_miller_rabin(mpanum n, int conf_level,
 	mpanum r2_modn;
 	mpa_word_t n_inv;
 
-	/* DPRINT("Checking primality\n"); */
-	/* DPRINT_MPANUM_HEXSTR("n is", n, "\n"); */
-
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&r_modn, pool);
 	mpa_alloc_static_temp_var(&r2_modn, pool);
 
 	if (mpa_compute_fmm_context(n, r_modn, r2_modn, &n_inv, pool) == -1) {
-		DPRINT("Couldn't compute n_inv so n is not prime\n");
 		result = DEF_COMPOSITE;
 		goto cleanup_short;
 	}
-	/* DPRINT_MPANUM_HEXSTR("r_modn is ", r_modn, "\n"); */
-	/* DPRINT_MPANUM_HEXSTR("r2_modn is ", r2_modn, "\n"); */
 
 	mpa_alloc_static_temp_var(&a, pool);
 	mpa_alloc_static_temp_var(&q, pool);
@@ -240,13 +215,10 @@ static int primality_test_miller_rabin(mpanum n, int conf_level,
 	proof_version =
 	    (mpa_cmp(n, (mpanum) &const_miller_rabin_proof_limit) < 0);
 
-	if (proof_version) {
-		DPRINT("Using proof version of Miller-Rabin\n");
+	if (proof_version)
 		cnt = 7;
-	} else {
-		/* MR has 1/4 chance in failing a composite */
+	else	/* MR has 1/4 chance in failing a composite */
 		cnt = (conf_level + 1) / 2;
-	}
 
 	mpa_sub_word(n_minus_1, n, 1, pool);
 	mpa_set(q, n_minus_1);
@@ -256,8 +228,6 @@ static int primality_test_miller_rabin(mpanum n, int conf_level,
 		mpa_shift_right(q, q, 1);
 		t++;
 	}
-
-	/* DPRINT_MPANUM_HEXSTR("q is ", q, "\n"); */
 
 	result = PROB_PRIME;
 	for (idx = 0; idx < cnt && result == PROB_PRIME; idx++) {
@@ -279,12 +249,9 @@ static int primality_test_miller_rabin(mpanum n, int conf_level,
 			mpa_add_word(n_minus_1, n_minus_1, 1, pool);
 			/* and a is now 2 <= a < N */
 			mpa_add_word(a, a, 2, pool);
-
-			/* DPRINT_MPANUM_HEXSTR("a is", a, "\n"); */
 		}
 
 		mpa_exp_mod(b, a, q, n, r_modn, r2_modn, n_inv, pool);
-		/* DPRINT_MPANUM_HEXSTR("first b is", b, "\n"); */
 		e = 0;
 
 inner_loop:
@@ -304,7 +271,6 @@ inner_loop:
 		if (e < t) {
 			mpa_exp_mod(b, b, (mpanum) &const_two, n, r_modn,
 				    r2_modn, n_inv, pool);
-			/* DPRINT_MPANUM_HEXSTR("later b is", b, "\n"); */
 			goto inner_loop;
 		}
 		result = DEF_COMPOSITE;
@@ -321,6 +287,5 @@ cleanup_short:
 	mpa_free_static_temp_var(&r_modn, pool);
 	mpa_free_static_temp_var(&r2_modn, pool);
 
-	MEMPOOL_SANITY_CHECK(pool);
 	return result;
 }

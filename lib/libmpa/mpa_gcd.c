@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-#undef DEBUG_ME
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   HELPER FUNCTIONS
@@ -131,8 +123,6 @@ static void __mpa_egcd(mpanum gcd,
 	mpanum u;
 	mpa_word_t k;
 
-	MEMPOOL_MARKER(pool);
-
 	/* have y < x from assumption */
 	if (__mpanum_is_zero(y_in)) {
 		if (a != 0)
@@ -212,8 +202,6 @@ static void __mpa_egcd(mpanum gcd,
 	mpa_free_static_temp_var(&x, pool);
 	mpa_free_static_temp_var(&y, pool);
 	mpa_free_static_temp_var(&u, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------
@@ -229,8 +217,6 @@ static void __mpa_gcd(mpanum gcd,
 	mpanum y;
 	mpanum t;
 	mpa_word_t k;
-
-	MEMPOOL_MARKER(pool);
 
 	/* have y < x from assumption */
 	if (__mpanum_is_zero(y_in)) {
@@ -271,8 +257,6 @@ static void __mpa_gcd(mpanum gcd,
 	mpa_free_static_temp_var(&t, pool);
 	mpa_free_static_temp_var(&x, pool);
 	mpa_free_static_temp_var(&y, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*************************************************************
@@ -292,8 +276,6 @@ void mpa_gcd(mpanum dest,
 	int cmp;
 	int sign1;
 	int sign2;
-
-	MEMPOOL_MARKER(pool);
 
 	/* remember sign and take abs value */
 	sign1 = __mpanum_sign(src1);
@@ -316,7 +298,6 @@ cleanup:
 	/* restore sign */
 	__mpanum_set_sign(src1, sign1);
 	__mpanum_set_sign(src2, sign2);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------
@@ -339,8 +320,6 @@ void mpa_extended_gcd(mpanum gcd,
 	int sign2;
 	int mem_marker;
 	mpanum tmp_gcd;
-
-	MEMPOOL_MARKER(pool);
 
 	if (dest1 == 0 && dest2 == 0) {
 		if (gcd != 0)
@@ -380,7 +359,6 @@ void mpa_extended_gcd(mpanum gcd,
 		mpa_copy(gcd, tmp_gcd);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_gcd, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 
 cleanup:
 	/* restore sign */

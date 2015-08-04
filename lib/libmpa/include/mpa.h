@@ -110,33 +110,6 @@
 #define NULL (void *)0
 #endif
 
-/*
- *  Always turn on debug print-outs if DEBUG is defined
- *  You can disable DPRINTS for each .c-file by
- *  #undef DEBUG_ME before the #include "mpa_debug.h"
- */
-#if defined(DEBUG)
-#define DEBUG_ME
-#endif
-
-#if defined(DEBUG)
-
-#define MEMPOOL_MARKER(x) \
-	uint32_t mpa_mempool_marker = __mpa_get_alloced_pattern((x));
-#define MEMPOOL_SANITY_CHECK(x)    \
-	do { \
-		if (mpa_mempool_marker != __mpa_get_alloced_pattern((x))) { \
-			DPRINT("MemPool is leaking!\n"); \
-		} \
-	} while (0)
-
-#else
-
-#define MEMPOOL_MARKER(x)
-#define MEMPOOL_SANITY_CHECK(x)
-
-#endif
-
 /*************************************************************
  *
  *   GLOBAL CONSTANTS AND VARIABLES

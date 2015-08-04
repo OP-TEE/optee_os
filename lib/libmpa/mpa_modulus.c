@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   LIB FUNCTIONS
@@ -47,11 +39,7 @@
  */
 void mpa_mod(mpanum dest, const mpanum op, const mpanum n, mpa_scratch_mem pool)
 {
-	MEMPOOL_MARKER(pool);
-
 	mpa_div(NULL, dest, op, n, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*------------------------------------------------------------
@@ -65,15 +53,12 @@ void mpa_add_mod(mpanum dest,
 {
 	mpanum tmp_dest;
 
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&tmp_dest, pool);
 
 	mpa_add(tmp_dest, op1, op2, pool);
 	mpa_div(NULL, dest, tmp_dest, n, pool);
 
 	mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*------------------------------------------------------------
@@ -87,16 +72,12 @@ void mpa_sub_mod(mpanum dest,
 {
 	mpanum tmp_dest;
 
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&tmp_dest, pool);
 
 	mpa_sub(tmp_dest, op1, op2, pool);
 	mpa_div(NULL, dest, tmp_dest, n, pool);
 
 	mpa_free_static_temp_var(&tmp_dest, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*------------------------------------------------------------
@@ -110,16 +91,12 @@ void mpa_mul_mod(mpanum dest,
 {
 	mpanum tmp_dest;
 
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&tmp_dest, pool);
 
 	mpa_mul(tmp_dest, op1, op2, pool);
 	mpa_div(NULL, dest, tmp_dest, n, pool);
 
 	mpa_free_static_temp_var(&tmp_dest, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*------------------------------------------------------------
@@ -134,8 +111,6 @@ int mpa_inv_mod(mpanum dest,
 	mpanum tmp_dest;
 	int mem_marker;
 	int res;
-
-	MEMPOOL_MARKER(pool);
 
 	if (mpa_cmp_short(op, 1) == 0) {
 		mpa_set_S32(dest, 1);
@@ -159,8 +134,6 @@ int mpa_inv_mod(mpanum dest,
 	}
 
 	mpa_free_static_temp_var(&gcd, pool);
-	MEMPOOL_SANITY_CHECK(pool);
-
 	if (res == 0) {
 		while (mpa_cmp_short(dest, 0) < 0)
 			mpa_add(dest, dest, n, pool);

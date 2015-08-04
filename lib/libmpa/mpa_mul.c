@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   HELPERS
@@ -178,8 +170,6 @@ void mpa_mul(mpanum dest,
 	mpanum tmp_dest;
 	char mem_marker;
 
-	MEMPOOL_MARKER(pool);
-
 	if (__mpanum_is_zero(op1) || __mpanum_is_zero(op2)) {
 		mpa_set_word(dest, 0);
 		return;
@@ -200,7 +190,6 @@ void mpa_mul(mpanum dest,
 	mpa_copy(dest, tmp_dest);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------

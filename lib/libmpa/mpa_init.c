@@ -28,14 +28,6 @@
 #include "mpa.h"
 
 /*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
-/*
  *  mpa_init_static
  */
 void mpa_init_static(mpanum src, uint32_t len)

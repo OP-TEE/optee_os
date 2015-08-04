@@ -33,7 +33,6 @@ cflags-mpa_shift.c-y += -Wno-sign-compare
 
 srcs-y += mpa_addsub.c
 srcs-y += mpa_cmp.c
-srcs-y += mpa_debug.c
 srcs-y += mpa_expmod.c
 srcs-y += mpa_init.c
 srcs-y += mpa_io.c

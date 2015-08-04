@@ -25,19 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "mpa.h"
+#include "assert.h"
 
 /*
  * Big #ifdef to get rid of string conversion routines
  */
 #if defined(MPA_INCLUDE_STRING_CONVERSION)
-
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
 
 /*************************************************************
  *
@@ -282,10 +275,8 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 	int i;			/* loop variable */
 
 	/* some basic sanity checks first */
-	if (*digitstr == 0) {
-		DPRINT("digitstr was empty, leaving dest unchanged\n");
+	if (*digitstr == 0)
 		return 0;
-	}
 
 	/* remove leading spaces */
 	do {
@@ -299,7 +290,6 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 		c = (unsigned char)*digitstr++;
 	}
 	if (c == '\0') {
-		DPRINT("digitstr consisted of only white spaces and possibly a single '-' sign. Setting dest to zero\n");
 		mpa_set_word(dest, 0);
 		return 0;
 	}
@@ -328,7 +318,7 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 
 	/* + 1 since we have one character in 'c' */
 	dlen = (int)(endp - digitstr) + 1;
-	ASSERT(dlen <= MPA_STR_MAX_SIZE, "String max size is too small");
+	assert(dlen <= MPA_STR_MAX_SIZE);
 	/* convert to a buffer of bytes */
 	bufidx = 0;
 	while (__mpa_is_char_in_base(16, c)) {
@@ -342,8 +332,8 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 		goto cleanup;
 	}
 
-	ASSERT((__mpa_digitstr_to_binary_wsize_base_16(bufidx) <=
-		__mpanum_alloced(dest)), "Dest is too small.");
+	assert((__mpa_digitstr_to_binary_wsize_base_16(bufidx) <=
+		__mpanum_alloced(dest)));
 
 	retval = bufidx;
 	w = dest->d;
@@ -397,7 +387,7 @@ char *mpa_get_str(char *str, int mode, const mpanum n)
 {
 	char *s = str;
 
-	ASSERT(str != 0, "str destination buffer is null");
+	assert(str != 0);
 
 	/* insert a minus sign */
 	if (__mpanum_sign(n) == MPA_NEG_SIGN) {
@@ -412,7 +402,6 @@ char *mpa_get_str(char *str, int mode, const mpanum n)
 		__mpa_mpanum_to_hexstr(s, 1, n);
 		break;
 	default:
-		DPRINT("Unknown mode %d\n", mode);
 		return 0;
 	}
 

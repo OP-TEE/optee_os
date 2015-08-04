@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*------------------------------------------------------------
  *
  *  mpa_exp_mod
@@ -56,8 +48,6 @@ void mpa_exp_mod(mpanum dest,
 	mpanum *ptr_b;
 	mpanum *swapper;
 	int idx;
-
-	MEMPOOL_MARKER(pool);
 
 	mpa_alloc_static_temp_var(&A, pool);
 	mpa_alloc_static_temp_var(&B, pool);
@@ -92,6 +82,4 @@ void mpa_exp_mod(mpanum dest,
 	mpa_free_static_temp_var(&A, pool);
 	mpa_free_static_temp_var(&B, pool);
 	mpa_free_static_temp_var(&xtilde, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }

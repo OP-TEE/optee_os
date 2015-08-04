@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-#undef DEBUG_ME
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   HELPERS
@@ -190,8 +182,6 @@ int mpa_compute_fmm_context(const mpanum modulus,
 	mpanum tmp_n_inv;
 	mpanum gcd;
 
-	MEMPOOL_MARKER(pool);
-
 	/* create a small mpanum on the stack */
 	uint32_t n_lsw_u32[MPA_NUMBASE_METADATA_SIZE_IN_U32 + ASIZE_TO_U32(1)];
 	mpanum n_lsw = (void *)n_lsw_u32;
@@ -248,8 +238,6 @@ cleanup:
 	mpa_free_static_temp_var(&gcd, pool);
 	mpa_free_static_temp_var(&tmp_n_inv, pool);
 
-	MEMPOOL_SANITY_CHECK(pool);
-
 	if (cmpresult != 0)
 		return -1;
 	return 0;
@@ -269,14 +257,10 @@ void mpa_montgomery_mul(mpanum dest,
 {
 	mpanum tmp_dest;
 
-	MEMPOOL_MARKER(pool);
-
 	mpa_alloc_static_temp_var(&tmp_dest, pool);
 
 	__mpa_montgomery_mul(tmp_dest, op1, op2, n, n_inv);
 
 	mpa_copy(dest, tmp_dest);
 	mpa_free_static_temp_var(&tmp_dest, pool);
-
-	MEMPOOL_SANITY_CHECK(pool);
 }

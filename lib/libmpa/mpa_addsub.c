@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   HELPERS
@@ -294,8 +286,6 @@ void mpa_add(mpanum dest,
 	mpanum tmp_dest;
 	int mem_marker;
 
-	MEMPOOL_MARKER(pool);
-
 	size_1 = __mpanum_size(op1);
 	size_2 = __mpanum_size(op2);
 
@@ -356,7 +346,6 @@ void mpa_add(mpanum dest,
 	mpa_copy(dest, tmp_dest);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------
@@ -374,8 +363,6 @@ void mpa_sub(mpanum dest,
 	mpa_word_t size_2;
 	mpanum tmp_dest;
 	int mem_marker;
-
-	MEMPOOL_MARKER(pool);
 
 	size_1 = __mpanum_size(op1);
 	size_2 = __mpanum_size(op2);
@@ -439,7 +426,6 @@ void mpa_sub(mpanum dest,
 	mpa_copy(dest, tmp_dest);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------
@@ -466,8 +452,6 @@ void mpa_add_word(mpanum dest,
 	mpanum tmp_dest;
 	mpa_word_t size_1;
 	int mem_marker;
-
-	MEMPOOL_MARKER(pool);
 
 	if (op2 == 0) {
 		mpa_copy(dest, op1);
@@ -513,7 +497,6 @@ void mpa_add_word(mpanum dest,
 	mpa_copy(dest, tmp_dest);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }
 
 /*  --------------------------------------------------------------------
@@ -528,8 +511,6 @@ void mpa_sub_word(mpanum dest,
 	mpanum tmp_dest;
 	mpa_word_t size_1;
 	char mem_marker;
-
-	MEMPOOL_MARKER(pool);
 
 	if (op2 == 0) {
 		mpa_copy(dest, op1);
@@ -577,5 +558,4 @@ void mpa_sub_word(mpanum dest,
 	mpa_copy(dest, tmp_dest);
 	if (mem_marker)
 		mpa_free_static_temp_var(&tmp_dest, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }

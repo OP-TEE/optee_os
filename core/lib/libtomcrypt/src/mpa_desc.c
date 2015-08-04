@@ -414,7 +414,6 @@ static int mod(void *a, void *b, void *c)
 	return CRYPT_OK;
 }
 
-#include "mpa_debug.h"
 static int mulmod(void *a, void *b, void *c, void *d)
 {
 	LTC_ARGCHK(a != NULL);

@@ -26,14 +26,6 @@
  */
 #include "mpa.h"
 
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
-
 /*************************************************************
  *
  *   HELPER FUNCTIONS
@@ -339,12 +331,8 @@ void __mpa_div_q_r(mpanum q,
 		return;
 	}
 	if (__mpanum_is_zero(op2)) {
-#if defined(DEBUG)
-		DPRINT("You are trying to divide by zero. Shame on you.\n");
-#else
 		/* generate a divide by zero error */
 		q_sign = 42 / op2->size;
-#endif
 		return;
 	}
 
@@ -394,8 +382,6 @@ void mpa_div(mpanum q,
 	char mem_marker_q;
 	char mem_marker_r;
 
-	MEMPOOL_MARKER(pool);
-
 	/* handle the case when q is one of the operands or zero */
 	if (q == op1 || q == op2 || q == 0) {
 		mpa_alloc_static_temp_var(&tmp_q, pool);
@@ -424,5 +410,4 @@ void mpa_div(mpanum q,
 		mpa_copy(r, tmp_r);
 	if (mem_marker_r)
 		mpa_free_static_temp_var(&tmp_r, pool);
-	MEMPOOL_SANITY_CHECK(pool);
 }

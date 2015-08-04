@@ -25,14 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "mpa.h"
-
-/*
- * Remove the #undef if you like debug print outs and assertions
- * for this file.
- */
-/*#undef DEBUG_ME */
-#include "mpa_debug.h"
-#include "mpa_assert.h"
 #include <tee_api_types.h>
 
 static random_generator_cb get_rng_array;
@@ -59,8 +51,6 @@ static uint8_t get_random_byte(void)
 void mpa_get_random(mpanum dest, mpanum limit)
 {
 	int done = 0;
-
-	ASSERT(get_rng_array != NULL, "random generator is not set");
 
 	mpa_wipe(dest);
 	if (__mpanum_alloced(dest) < __mpanum_size(limit))

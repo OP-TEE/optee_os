@@ -25,8 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "mpa.h"
-#include "mpa_debug.h"
-#include "mpa_assert.h"
 #include <util.h>
 #include <trace.h>
 
