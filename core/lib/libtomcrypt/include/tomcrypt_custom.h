@@ -189,6 +189,9 @@
 #ifdef CFG_CRYPTO_SHA256_ARM32_CE
 #define LTC_SHA256_ARM32_CE
 #endif
+#ifdef CFG_CRYPTO_SHA256_ARM64_CE
+#define LTC_SHA256_ARM64_CE
+#endif
 #ifdef CFG_CRYPTO_SHA384
 #define LTC_SHA384
 #endif

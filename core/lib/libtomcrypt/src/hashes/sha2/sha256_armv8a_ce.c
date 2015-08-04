@@ -45,7 +45,7 @@
   LTC_SHA256_ARM32_CE
 */
 
-#ifdef LTC_SHA256_ARM32_CE
+#if defined(LTC_SHA256_ARM32_CE) || defined(LTC_SHA256_ARM64_CE)
 
 const struct ltc_hash_descriptor sha256_desc =
 {
