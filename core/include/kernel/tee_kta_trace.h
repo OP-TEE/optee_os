@@ -49,7 +49,4 @@
 #define DTAMSG_RAW	DMSG_RAW
 #define FTAMSG_RAW	FMSG_RAW
 
-#define set_ta_trace_level(l)	trace_set_level((l))
-#define get_ta_trace_level()	trace_get_level()
-
 #endif /*KERNEL_TEE_KTA_TRACE_H*/
