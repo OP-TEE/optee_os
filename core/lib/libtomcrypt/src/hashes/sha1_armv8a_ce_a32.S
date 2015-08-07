@@ -92,7 +92,7 @@ sha1_ce_transform:
 	vld1.8		{q8-q9}, [r1]!
 	vrev32.8	q8, q8
 	vrev32.8	q9, q9
-	vld1.8		{q10-q11}, [r1]
+	vld1.8		{q10-q11}, [r1]!
 	vrev32.8	q10, q10
 	vrev32.8	q11, q11
 	subs		r2, r2, #1
