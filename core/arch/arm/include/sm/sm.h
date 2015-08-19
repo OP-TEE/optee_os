@@ -29,6 +29,7 @@
 #ifndef SM_SM_H
 #define SM_SM_H
 
+#include <compiler.h>
 #include <types_ext.h>
 
 struct sm_mode_regs {
@@ -119,5 +120,18 @@ void *sm_get_sp(void);
  * Initializes secure monitor, must be called by each CPU
  */
 void sm_init(vaddr_t stack_pointer);
+
+#ifndef CFG_SM_PLATFORM_HANDLER
+/*
+ * Returns false if we handled the monitor service and should now return
+ * back to the non-secure state
+ */
+static inline bool sm_platform_handler(__unused struct sm_ctx *ctx)
+{
+	return true;
+}
+#else
+bool sm_platform_handler(struct sm_ctx *ctx);
+#endif
 
 #endif /*SM_SM_H*/
