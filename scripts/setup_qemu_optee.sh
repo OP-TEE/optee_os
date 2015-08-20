@@ -38,16 +38,16 @@ DEV_PATH=$HOME/devel/qemu_optee
 set -e
 mkdir -p $DEV_PATH
 
-SRC_QEMU=https://git.linaro.org/people/christoffer.dall/qemu.git
+SRC_QEMU=https://github.com/linaro-swg/qemu.git
 DST_QEMU=$DEV_PATH/qemu
 # pmm.v6.uart branch
 STABLE_QEMU_COMMIT=c00ed157431a4a6e0c4c481ba1c809623cbf908f
 
-SRC_BIOS_QEMU=https://github.com/jenswi-linaro/bios_qemu_tz_arm.git
+SRC_BIOS_QEMU=https://github.com/linaro-swg/bios_qemu_tz_arm.git
 DST_BIOS_QEMU=$DEV_PATH/bios_qemu
 STABLE_BIOS_QEMU_COMMIT=baf44144616e8b9b4f92e12d8a4e80379a5506b6
 
-SRC_SOC_TERM=https://github.com/jenswi-linaro/soc_term.git
+SRC_SOC_TERM=https://github.com/linaro-swg/soc_term.git
 DST_SOC_TERM=$DEV_PATH/soc_term
 STABLE_SOC_TERM_COMMIT=5ae80428709fa1a9d0854a2684c20eb0ec27e994
 
@@ -68,7 +68,7 @@ STABLE_OPTEE_LK_COMMIT=4f76d0cd96167e43cb9eecd02122a11bd91d61f1
 
 SRC_OPTEE_TEST=https://github.com/OP-TEE/optee_test.git
 DST_OPTEE_TEST=$DEV_PATH/optee_test
-STABLE_OPTEE_TEST_COMMIT=c639ac89fdc09f0370dc26674cfa57936a4cb13a
+STABLE_OPTEE_TEST_COMMIT=98efa506388993bd57d67c5f1054119326be2db3
 
 QEMU_PCSC_PASSTHRU_PATCHES=https://github.com/m943040028/qemu/releases/download/0.1/pcsc_patches.tbz2
 
@@ -81,7 +81,7 @@ SRC_SE_API_TEST=https://github.com/m943040028/se_api_test.git
 DST_SE_API_TEST=${DEV_PATH}/se_api_test
 STABLE_SE_API_TEST_COMMIT=227a65bbe9ffef3bb33ba8aa0192182e41290212
 
-SRC_GEN_ROOTFS=https://github.com/jenswi-linaro/gen_rootfs.git
+SRC_GEN_ROOTFS=https://github.com/linaro-swg/gen_rootfs.git
 DST_GEN_ROOTFS=$DEV_PATH/gen_rootfs
 STATBLE_GEN_ROOTFS_COMMIT=6f0097b91a36e00fb45ae77f916f683763e7f286
 
