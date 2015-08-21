@@ -84,3 +84,6 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 
 # Encrypted File System Support
 CFG_ENC_FS ?= y
+
+# Embed public part of this key in OP-TEE OS
+TA_SIGN_KEY ?= keys/default_ta.pem

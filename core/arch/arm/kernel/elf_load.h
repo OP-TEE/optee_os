@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,54 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef ELF_LOAD_H
+#define ELF_LOAD_H
 
-#ifndef TEE_TA_H
-#define TEE_TA_H
-
-#include <stdint.h>
+#include <types_ext.h>
 #include <tee_api_types.h>
 
-#define TA_HASH_SIZE 32
-#define TA_UUID_CLOCK_SIZE 8
-#define TA_SIGNATURE_SIZE 264
+struct elf_load_state {
+	uint8_t *nwdata;
+	size_t nwdata_len;
 
-#define TA_HEAD_FLAG_MASK 0xFFF00000UL
-#define TA_HEAD_GOT_MASK  0xFFFFUL
+	void *hash_ctx;
+	uint32_t hash_algo;
 
-/* Trusted Application header */
-typedef struct {
-	TEE_UUID uuid;
-	uint32_t nbr_func;
-	uint32_t ro_size;
-	uint32_t rw_size;
-	uint32_t zi_size;
-	uint32_t rel_dyn_got_size;
-	uint32_t hash_type;
-	/* uint32_t prop_tracelevel; */
-} ta_head_t;
+	struct tee_ta_ctx *ctx;
 
-struct ta_rel_dyn {
-	uint32_t addr;
-	uint32_t info;
+	size_t next_offs;
 };
 
-/*-----------------------------------------------------------------------------
-   signed header
-   ta_head_t
-   ta_func_head_t (1)
-   ta_func_head_t (2)
-   ...
-   ta_func_head_t (N) N = ta_head(_t).nbr_func
-   func_1
-   func_1
-   ...
-   func_N
-   GOT
-   find_service_addr
-   hash_1
-   hash_2
-   ...
-   hash_M
- *---------------------------------------------------------------------------*/
+TEE_Result elf_load(struct elf_load_state *state);
 
-#endif
+#endif /*ELF_LOAD_H*/

@@ -141,4 +141,8 @@ endef
 $(foreach f, $(srcs), $(eval $(call \
 	process_srcs,$(f),$(out-dir)/$(base-prefix)$$(basename $f).o)))
 
+# Handle generated source files, that is, files that are compiled from out-dir
+$(foreach f, $(gen-srcs), $(eval $(call \
+	process_srcs,$(out-dir)/$(f),$(out-dir)/$(base-prefix)$$(basename $f).o)))
+
 $(objs): $(conf-file)

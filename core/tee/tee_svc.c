@@ -260,7 +260,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 		if (blen < sizeof(TEE_UUID))
 			return TEE_ERROR_SHORT_BUFFER;
 		return tee_svc_copy_to_user(sess, (void *)buf,
-					    &sess->ctx->head->uuid,
+					    &sess->ctx->uuid,
 					    sizeof(TEE_UUID));
 	default:
 		if (blen < tee_props_lut[prop].len)
@@ -281,7 +281,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
  *   - if so, converts memref virtual address into a physical address.
  */
 static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
-				     struct tee_ta_session *called_sess,
+				     struct tee_ta_session *called_sess __unused,
 				     uint32_t param_types,
 				     struct abi_user32_param *callee_params,
 				     struct tee_ta_param *param,
@@ -311,17 +311,6 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			return res;
 		abi_user32_param_to_param(param->params, callee_params,
 					  param_types);
-	}
-
-	if ((called_sess != NULL) &&
-		(called_sess->ctx->static_ta == NULL) &&
-		(called_sess->ctx->flags & TA_FLAG_USER_MODE) == 0) {
-		/*
-		 * kernel TA, borrow the mapping of the calling
-		 * during this call.
-		 */
-		called_sess->calling_sess = sess;
-		return TEE_SUCCESS;
 	}
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -443,16 +432,14 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
  */
 static TEE_Result tee_svc_update_out_param(
 		struct tee_ta_session *sess,
-		struct tee_ta_session *called_sess,
+		struct tee_ta_session *called_sess __unused,
 		struct tee_ta_param *param,
 		tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
 		struct abi_user32_param *usr_param)
 {
 	size_t n;
 	TEE_Param callee_params[TEE_NUM_PARAMS];
-	bool have_private_mem_map = (called_sess == NULL) ||
-		(called_sess->ctx->static_ta != NULL) ||
-		((called_sess->ctx->flags & TA_FLAG_USER_MODE) != 0);
+	bool have_private_mem_map = true;
 
 	tee_ta_set_current_session(sess);
 	abi_user32_param_to_param(callee_params, usr_param, param->types);
@@ -550,7 +537,7 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 		goto function_exit;
 
 	clnt_id->login = TEE_LOGIN_TRUSTED_APP;
-	memcpy(&clnt_id->uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
+	memcpy(&clnt_id->uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	res = tee_svc_copy_param(sess, NULL, param_types, usr_param, param,
 				 tmp_buf_pa, &mm_param);
@@ -609,7 +596,7 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
 		return res;
 
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
-	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
+	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	tee_ta_set_current_session(NULL);
 	res = tee_ta_close_session((struct tee_ta_session *)ta_sess,
@@ -645,7 +632,7 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 		return res;
 
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
-	memcpy(&clnt_id.uuid, &sess->ctx->head->uuid, sizeof(TEE_UUID));
+	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	res = tee_svc_copy_param(sess, called_sess, param_types, usr_param,
 				 &param, tmp_buf_pa, &mm_param);
@@ -887,8 +874,7 @@ TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *mytime)
 		res = tee_time_get_sys_time(&t);
 		break;
 	case UTEE_TIME_CAT_TA_PERSISTENT:
-		res = tee_time_get_ta_time((const void *)&s->ctx->head->uuid,
-					   &t);
+		res = tee_time_get_ta_time((const void *)&s->ctx->uuid, &t);
 		break;
 	case UTEE_TIME_CAT_REE:
 		res = tee_time_get_ree_time(&t);
@@ -921,7 +907,7 @@ TEE_Result tee_svc_set_ta_time(const TEE_Time *mytime)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_time_set_ta_time((const void *)&s->ctx->head->uuid, &t);
+	return tee_time_set_ta_time((const void *)&s->ctx->uuid, &t);
 }
 
 #ifdef CFG_CACHE_API
