@@ -15,6 +15,19 @@
     4. [HiKey Board](#48-hikey-board)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
+6. [repo manifests](#6-repo-manifests)
+	6. [Install repo](#61-install-repo)
+	6. [Get the source code](#62-get-the-source-code)
+		6. [Targets](#621-targets)
+		6. [Branches](#622-branches)
+		6. [Get the toolchains](#623-get-the-toolchains)
+	6. [QEMU](#63-qemu)
+	6. [FVP](#64-fvp)
+	6. [Hikey](#65-hikey)
+	6. [MT8173-EVB](#66-mt8173-evb)
+	6. [Tips and tricks](#67-tips-and-tricks)
+		6. [Reference existing project to speed up repo sync](#671-reference-existing-project-to-speed-up-repo-sync)
+		6. [Use ccache](#672-use-ccache)
 
 # 1. Introduction
 The optee_os git, contains the source code for the TEE in Linux using the ARM(R)
@@ -114,120 +127,8 @@ $ make CFG_TEE_CORE_LOG_LEVEL=4
 
 ---
 ### 4.2 Foundation Models
-By following this section will setup OP-TEE using FVP (Foundation Models and
-also Fast Models). You will have to download a script in this git and then run
-it, modify it slightly and then run it again. The reason for this is that we
-are not allowed to share Foundation models. I.e, the user has to download it
-from ARM directly.
 
-#### 4.2.1 Prerequisites
-To be able run this script you will need to install a couple of dependencies. On
-a Debian based system (Ubuntu, Mint etc.), you will at least need to install the
-following packages:
-
-```
-$ sudo apt-get install uuid-dev
-```
-and in case you are running on a 64bits system, then you will need to install
-the following packages.
-
-```
-$ sudo apt-get install libc6:i386 libstdc++6:i386 libz1:i386
-```
-
-#### 4.2.2 Download and setup FVP
-```
-$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_fvp_optee.sh
-$ chmod 711 setup_fvp_optee.sh
-$ ./setup_fvp_optee.sh
-```
-Follow the instructions to download Foundation Models and then update the first
-few lines under the "EDIT" section in the script. Note that if you are not
-working in Linaro and belongs to Security Working Group you will probably not
-have access to teetest.git, hence you should most likely leave this as it is.
-Run the script again.
-```
-$ ./setup_fvp_optee.sh
-```
-After about one hour (it's mainly cloning the kernel and edk2 that takes time)
-everything should have been cloned and built and you should be ready to use
-this. Pay attention to the line saying `OP-TEE and FVP setup completed.` that
-would be displayed when the script successfully ended. If you don't see this at
-the end, then something went wrong.
-
-#### 4.2.3 Compile
-During installation a couple of helper scripts were generated, the main reason
-for this is that there is a lot of interdependencies between the different
-software components and it's a bit tricky to point to the correct toolchains and
-to know in which order to build things.
-
-* `build_atf_opteed.sh`: This is used to build ARM-Trusted-Firmware and must be
-  called when you have updated any component that are included in the FIP (like
-  for example OP-TEE os).
-
-* `build_linux.sh`: This is used to build the Linux Kernel.
-
-* `build_normal.sh`: This is a pure helper script that build all the normal
-   world components (in correct order).
-
-* `build_optee_client.sh`: This will build OP-TEEs client library.
-
-* `build_optee_linuxkernel.sh`: This will build OP-TEEs Linux Kernel driver (as
-   a module).
-
-* `build_optee_os.sh`: Builds the Trusted OS itself.
-
-* `build_optee_tests.sh`: This will build the test suite (pay attention to the
-   access needed).
-
-* `build_secure.sh`: This is the helper script for the secure side that will
-  build all secure side components in the correct order.
-
-* `build_uefi.sh`: This will build Tianocore (UEFI).
-
-* `clean_gits.sh`: This will clean all gits. Beware that it will not reset the
-  commit to the one used when first cloning. Also note that it will only clean
-  git's (meaning that it will not clean Foundation models, toolchain folders).
-
-* `run_foundation.sh`: This is the script to use when starting FVP.
-
-* `update_rootfs.sh`: This script will update rootfs. For example when you have
-  updated normal world component, you will need to put them into rootfs. Calling
-  this script will do so. In case you are creating a new Trusted Application,
-  you must also edit filelist-tee.text in the gen_rootfs folder accordingly.
-
-Depending on how you are working you have the option to build components
-separately or you can build everything by running two of the scripts above.
-In case you want to make sure that everything was built and updated, we suggest
-that you call the scripts in the following order.
-```
-$ ./build_secure.sh
-$ ./build_normal.sh
-```
-By doing so all components should be (re-)built in the correct order and rootfs
-will be updated accordingly.
-
-#### 4.2.4 Run Foundation models and OP-TEE
-You simply run the script `run_foundation.sh`, load the module and start
-tee-supplicant.
-```
-$ ./run_foundation.sh
-```
-and in the console write
-```
-root@FVP:/ modprobe optee_armtz
-root@FVP:/ tee-supplicant &
-```
-Now everything has been set up and OP-TEE is ready to be used.
-
-#### 4.2.5 Known problems and limitations
-* The script `setup_fvp_optee.sh` doesn't do much error checking and doesn't
-  have many fallbacks in case of a problem.
-* The script `setup_fvp_optee.sh` setup things using absolute paths, i.e, you
-  cannot just copy a working environment to a new location.
-* In some situations you will get an error message about `undefined reference to
-  raise`. We know about this issue and it is being tracked in
-  [#issue95](https://github.com/OP-TEE/optee_os/issues/95) at GitHub.
+See section [6. repo manifests]((#6-repo-manifests).
 
 ---
 ### 4.3 Juno
@@ -361,83 +262,8 @@ Recommendation: Use USB memory 3.0 (ext3/ext4 filesystem)
 
 ---
 ### 4.4 QEMU
-You can run OP-TEE using QEMU since October 2014.
 
-#### 4.4.1 Prerequisites
-To be able run this script you will need to install a couple of dependencies. On
-a Debian based system (Ubuntu, Mint etc.), you will at least need to install the
-following packages:
-
-```
-$ sudo apt-get install zlib1g-dev libglib2.0-dev libpixman-1-dev libfdt-dev \
-		       libc6:i386 libstdc++6:i386 libz1:i386 cscope
-```
-
-#### 4.4.2 Download and setup QEMU
-```
-$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_qemu_optee.sh
-$ chmod 711 setup_qemu_optee.sh
-$ ./setup_qemu_optee.sh
-```
-
-#### 4.4.3 Compile for QEMU
-During installation a couple of helper scripts were generated, the main reason
-for this is that there is a lot of interdependencies between the different
-software components and it's a bit tricky to point to the correct toolchains and
-to know in which order to build things.
-
-* `build_bios.sh`: This build the BIOS needed in QEMU
-
-* `build_linux.sh`: This is used to build the Linux Kernel.
-
-* `build_optee_client.sh`: This will build OP-TEEs client library.
-
-* `build_optee_linuxkernel.sh`: This will build OP-TEEs Linux Kernel driver (as
-   a module).
-
-* `build_optee_os.sh`: Builds the Trusted OS itself.
-
-* `build.sh`: Builds all software components in the correct order.
-
-* `run_qemu.sh`: This script starts QEMU.
-
-* `serial_0.sh`: Starts listening to QEMUs normal world UART console.
-
-* `serial_1.sh`: Starts listening to QEMUs secure world UART console.
-
-* `update_rootfs.sh`: This script will update rootfs. For example when you have
-  updated normal world component, you will need to put them into rootfs. Calling
-  this script will do so. In case you are creating a new Trusted Application,
-  you must also edit filelist-tee.text in the gen_rootfs folder accordingly.
-
-To build everything you will need to run the script `build.sh`, which will build
-all gits and in the correct order.
-
-#### 4.4.4 Boot and run QEMU and OP-TEE
-To run this you need to lunch two consoles for the UARTs and one console for
-QEMU itself, so in separate shell windows run:
-```
-$ ./serial_0.sh
-```
-```
-$ ./serial_1.sh
-```
-and finally
-```
-$ ./run_qemu.sh
-...
-QEMU 2.1.50 monitor - type 'help' for more information
-(qemu) c
-```
-
-In the window for serial_0 you will now get the normal world console and here
-you need to load and OP-TEEs Linux Kernel driver and also load tee-supplicant.
-This is done by the following lines:
-
-```
-$ root@Vexpress:/ modprobe optee_armtz
-$ root@Vexpress:/ tee-supplicant &
-```
+Please refer to section [6. repo manifests](#6-repo-manifests).
 
 ---
 ### 4.5 STMicroelectronics boards
@@ -572,61 +398,7 @@ Enjoying OP-TEE on A80 board.
 Please refer to [8173 wiki](https://github.com/ibanezchen/linux-8173/wiki)
 to setup MT8173 evaluation board.
 
-#### 4.7.1 Setup MT8173 OP-TEE development environment
-```
-$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_mtk_optee.sh
-$ chmod 711 setup_mtk_optee.sh
-$ ./setup_mtk_optee.sh
-```
-
-#### 4.7.2 Compile source
-Run `build.sh` to compile all sources and generate firmware images
-(boot.img and trustzone.bin).
-```
-$ ./build.sh
-```
-
-#### 4.7.3 Update MT8173 EVB firmware images
-Run `flash_image.sh` to update MT8173 EVB firmware images
-```
-$ ./flash_image.sh
-```
-
-#### 4.7.4 Firmware recovery
-
-  1. Download pre-built images and recovery tools
-  ```
-  $ git clone https://github.com/m943040028/evb-utils.git
-  $ cd evb-utils
-  $ ./get-fbtool.sh
-  ```
-
-  2. Force EVB to enter fastboot mode (root privileges required)
-  ```
-  $ ./update-recover.sh
-  ```
-
-  The shell script will hold and wait for user to do the following actions:
-  `Press the DOWNLOAD button down and hold, click RESET button and wait 2~3 seconds
-  before release the DOWNLOAD button`
-
-  3. After `.update-recover.sh` command returned and EVB successfully enter
-  fastboot mode, run `./update.sh` to download the pre-built images to EVB
-
-  ```
-  $ ./update.sh
-  ```
-
-  **NOTE** - How to make sure EVB already enter fastboot mode:
-
-  If you can see the following messages in UART console, it means EVB is in
-  fastboot mode and ready to receive new images.
-  ```
-  [2340] fastboot_init()
-  [3380] fastboot: processing commands: fastboot_mode=2
-  ```
-
-  4. Press RESET button to reboot system
+To build the software, please see section [6. repo manifests](#6-repo-manifests).
 
 ---
 ### 4.8 HiKey board
@@ -634,23 +406,7 @@ $ ./flash_image.sh
 Edition compliant board equipped with a HiSilicon Kirin 620 SoC (8-core,
 64-bit ARM Cortex A53). It can run OP-TEE in 32- and 64-bit modes.
 
-To obtain all the required software pieces to run OP-TEE on this board, you
-may want to clone the [hikey_optee](https://github.com/jforissier/hikey_optee)
-repository. This GitHub project contains a master Makefile as well as Git
-submodules, which helps putting all the compatible pieces together, including:
-- Toolchains (Linaro Aarch32 and Aarch64 cross-compilers)
-- ARM Trusted Firmware
-- OP-TEE OS, client and driver
-- EDK2 UEFI bootloader
-- Linux kernel
-- A BusyBox-based root filesystem
-- The optee_test applications
-
-Clone the project with:
-```
-$ git clone https://github.com/jforissier/hikey_optee
-```
-Then, refer to the instructions in the project's README.md.
+To build for HiKey, please refer to [6. repo manifests](#6-repo-manifests).
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
@@ -681,3 +437,120 @@ thereafter it should be possible to use one of the different checkpatch targets
 in the [Makefile](Makefile). There are targets for checking all files, checking
 against latest commit, against a certain base-commit etc. For the details, read
 the [Makefile](Makefile).
+
+## 6. repo manifests
+
+A Git repository is available at https://github.com/OP-TEE/manifest where you
+will find configuration files for use with the Android 'repo' tool.
+This sections explains how to use it.
+
+### 6.1. Install repo
+Follow the instructions under the "Installing Repo" section
+[here](https://source.android.com/source/downloading.html).
+
+### 6.2. Get the source code
+```
+$ mkdir -p $HOME/devel/optee
+$ cd $HOME/devel/optee
+$ repo init -u https://github.com/OP-TEE/manifest.git -m ${TARGET}.xml [-b ${BRANCH}]
+$ repo sync
+```
+
+#### 6.2.1 Targets
+* QEMU: default.xml
+* FVP: fvp.xml
+* Hikey: hikey.xml
+* MediaTek MT8173 EVB Board: mt8173-evb.xml
+
+#### 6.2.2 Branches
+Currently we are only using one branch, i.e, the master branch.
+
+#### 6.2.3 Get the toolchains
+```
+$ cd build
+$ make toolchains
+```
+
+**Notes**<br>
+* The folder could be at any location, we are just giving a suggestion by
+  saying `$HOME/devel/optee`.
+* `repo sync` can take an additional parameter -j to sync multiple remotes. For
+   example `repo sync -j3` will sync three remotes in parallel.
+
+### 6.3. QEMU
+After getting the source and toolchain, just run:
+```
+$ make all run
+```
+and everything should compile and at the end QEMU should start.
+
+### 6.4. FVP
+After getting the source and toolchain you must also get the get Foundation
+Model
+([link](http://www.arm.com/products/tools/models/fast-models/foundation-model.php))
+and untar it to the forest root, then just run:
+```
+$ make all run
+```
+and everything should compile and at the end FVP should start.
+
+### 6.5. Hikey
+After running `make` above, follow the instructions at
+[flash-binaries-to-emmc](https://github.com/96boards/documentation/wiki/HiKeyUEFI#flash-binaries-to-emmc-)
+to flash all the required images to and boot the board.
+
+Location of files/images mentioned in the link above:
+* ```$HOME/devel/optee/burn-boot/hisi-idt.py```
+* ```$HOME/devel/optee/l-loader/l-loader.bin```
+* ```$HOME/devel/optee/l-loader/ptable.img```
+* ```$HOME/devel/optee/arm-trusted-firmware/build/hikey/release/fip.bin```
+* ```$HOME/devel/optee/out/boot-fat.uefi.img```
+
+### 6.6. MT8173-EVB
+After getting the source and toolchain, please run:
+
+```
+$ make all run
+```
+
+When `< waiting for device >` prompt appears, press reset button
+
+### 6.7 Tips and tricks
+#### 6.7.1 Reference existing project to speed up repo sync
+Doing a `repo init`, `repo sync` from scratch can take a fair amount of time.
+The main reason for that is simply because of the size of some of the gits we
+are using, like for the Linux kernel and EDK2. With repo you can reference an
+existing forest and by doing so you can speed up repo sync to instead taking ~20
+seconds instead of an hour. The way to do this are as follows.
+
+1. Start by setup a clean forest that you will not touch, in this example, let
+   us call that `optee-ref` and put that under for `$HOME/devel/optee-ref`. This
+   step will take roughly an hour.
+2. Then setup a cronjob (`crontab -e`) that does a `repo sync` in this folder
+   particular folder once a night (that is more than enough).
+3. Now you should setup your actual tree which you are going to use as your
+   working tree. The way to do this is almost the same as stated in the
+   instructions above, the only difference is that you reference the other local
+   forest when running `repo init`, like this
+   ```
+   repo init -u https://github.com/OP-TEE/manifest.git --reference /home/jbech/devel/optee-ref
+   ```
+4. The rest is the same above, but now it will only take a couple of seconds to
+   clone a forest.
+
+Normally step 1 and 2 above is something you will only do once. Also if you
+ignore step 2, then you will still get the latest from official git trees, since
+repo will also check for updates that aren't at the local reference.
+
+#### 6.7.2. Use ccache
+ccache is a tool that caches build object-files etc locally on the disc and can
+speed up build time significantly in subsequent builds. On Debian-based systems
+(Ubuntu, Mint etc) you simply install it by running:
+```
+$ sudo apt-get install ccache
+```
+
+The helper makefiles are configured to automatically find and use ccache if
+ccache is installed on your system, so other than having it installed you don't
+have to think about anything.
+

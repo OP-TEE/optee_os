@@ -22,13 +22,12 @@ feel comfortable using a command line debugging tool.
 ## 1.1 Prerequisites
 Since there are inter-dependencies between the gits used when building OP-TEE,
 we recommend that you have been using the
-[setup_qemu_optee.sh](https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_qemu_optee.sh)
-script when setting up the environment for running OP-TEE using QEMU. In this
-guide we will use the default paths used in that particular script. I.e.
+[Android repo manifest](https://github.com/OP-TEE/manifest) when setting up the environment for running OP-TEE using QEMU. In this
+guide we will use the default paths used in that particular setup, i.e.,
 
 ```
 # Root folder for the project
-$HOME/devel/qemu_optee
+$HOME/devel/optee
 ```
 
 
@@ -47,7 +46,7 @@ and put it in the toolchain folder
 
 
 ```
-cd $HOME/devel/qemu_optee/toolchains
+cd $HOME/devel/optee/toolchains
 tar xvf $DOWNLOAD_FOLDER/gcc-linaro-arm-none-eabi-4.9-2014.09_linux.tar.xz
 ```
 
@@ -62,7 +61,7 @@ set print pretty on
 
 define optee
 	handle SIGTRAP noprint nostop pass
-	symbol-file $HOME/devel/qemu_optee/optee_os/out/arm-plat-vexpress/core/tee.elf
+	symbol-file $HOME/devel/optee/optee_os/out/arm-plat-vexpress/core/tee.elf
 	target remote localhost:1234
 end
 document optee
@@ -82,7 +81,7 @@ secure side when when kernel has booted up (if anyone knows why, please let us
 now about it, we haven't investigated it) and then in another shell start gdb
 like this:
 ```
-$ $HOME/devel/qemu_optee/toolchains/gcc-linaro-arm-none-eabi-4.9-2014.09_linux/bin/arm-none-eabi-gdb -q
+$ $HOME/devel/optee/toolchains/aarch32/bin/arm-linux-gnueabihf-gdb -q
 ```
 
 To connect to the remote and to load the `tee.elf`, simply type:
