@@ -69,14 +69,9 @@ TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInf
 
 	res = utee_cryp_obj_get_info((uint32_t)object, objectInfo);
 
-	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		res = utee_storage_obj_del(object);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(0);
-		return TEE_ERROR_CORRUPT_OBJECT;
-	}
-
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
 	return res;
@@ -109,14 +104,9 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsag
 
 	res = utee_cryp_obj_restrict_usage((uint32_t)object, objectUsage);
 
-	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		res = utee_storage_obj_del(object);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(0);
-		return TEE_ERROR_CORRUPT_OBJECT;
-	}
-
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(0);
 
 	return res;
@@ -129,20 +119,25 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 	TEE_Result res;
 	TEE_ObjectInfo info;
 
+	/* This function only supports reference attributes */
+	if ((attributeID & TEE_ATTR_BIT_VALUE)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		goto exit;
 
-	if ((info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
-
-	/* This function only supports reference attributes */
-	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
-		TEE_Panic(0);
+	if (!(info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
 
 	res = utee_cryp_obj_get_attr((uint32_t)object,
 				     attributeID, buffer, size);
 
+exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
@@ -162,20 +157,24 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 	uint32_t buf[2];
 	uint32_t size = sizeof(buf);
 
+	/* This function only supports value attributes */
+	if (!(attributeID & TEE_ATTR_BIT_VALUE)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
+		goto exit;
+
+	if (!(info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
 		TEE_Panic(0);
 
-	if ((info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
-
-	/* This function only supports value attributes */
-	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
-		TEE_Panic(0);
 
 	res = utee_cryp_obj_get_attr((uint32_t)object,
 				     attributeID, buf, &size);
 
+exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&

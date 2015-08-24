@@ -57,4 +57,6 @@ void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o);
 
 void tee_obj_close_all(struct tee_ta_ctx *ctx);
 
+TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o);
+
 #endif

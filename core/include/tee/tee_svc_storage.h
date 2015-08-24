@@ -30,6 +30,7 @@
 
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
+#include <tee/tee_fs.h>
 
 /*
  * Persistant Object Functions
@@ -78,5 +79,12 @@ TEE_Result tee_svc_storage_obj_seek(uint32_t obj, int32_t offset,
 void tee_svc_storage_close_all_enum(struct tee_ta_ctx *ctx);
 
 void tee_svc_storage_init(void);
+
+char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
+				      void *object_id,
+				      uint32_t object_id_len,
+				      bool transient);
+
+char *tee_svc_storage_create_dirname(struct tee_ta_session *sess);
 
 #endif /* TEE_SVC_STORAGE_H */

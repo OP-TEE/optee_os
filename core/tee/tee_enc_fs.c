@@ -114,17 +114,23 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 		open_flags |= TEE_FS_O_CREATE;
 
 	fd = tee_fs_common_open(file, open_flags);
-	if (fd < 0)
+	if (fd < 0) {
+		res = FD_MAP_ERR(TEE_ERROR_ITEM_NOT_FOUND);
 		goto exit;
+	}
 
 	fdp = tee_fs_fd_lookup(fd);
-	if (!fdp)
+	if (!fdp) {
+		res = FD_MAP_ERR(TEE_ERROR_ITEM_NOT_FOUND);
 		goto exit;
+	}
 
 	priv = (struct tee_enc_fs_private *)
 		malloc(sizeof(struct tee_enc_fs_private));
-	if (!priv)
+	if (!priv) {
+		res = FD_MAP_ERR(TEE_ERROR_OUT_OF_MEMORY);
 		goto exit;
+	}
 	tee_fs_fd_priv(fdp) = priv;
 
 	if (fdp->is_new_file) {
@@ -136,7 +142,7 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 
 	res = get_file_length(fdp, &encrypted_data_len);
 	if (res < 0) {
-		res = -1;
+		res = FD_MAP_ERR(TEE_ERROR_ITEM_NOT_FOUND);
 		goto exit_close_file;
 	}
 
@@ -150,7 +156,7 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 	/* allocate buffer to hold encrypted file context + header */
 	encrypted_data = malloc(encrypted_data_len);
 	if (!encrypted_data) {
-		res = -1;
+		res = FD_MAP_ERR(TEE_ERROR_OUT_OF_MEMORY);
 		goto exit_close_file;
 	}
 
@@ -162,14 +168,14 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 	priv->len = file_len;
 	priv->data = malloc(file_len);
 	if (!priv->data) {
-		res = -1;
+		res = FD_MAP_ERR(TEE_ERROR_OUT_OF_MEMORY);
 		goto exit_free_encrypted_data;
 	}
 
 	/* read encrypted file content */
 	res = tee_fs_common_read(fdp, encrypted_data, encrypted_data_len);
 	if (res != (int)encrypted_data_len) {
-		res = -1;
+		res = FD_MAP_ERR(TEE_ERROR_CORRUPT_OBJECT);
 		goto exit_free_decrypted_data;
 	}
 	DMSG("%d bytes read", res);
@@ -178,7 +184,7 @@ static int tee_enc_fs_open(const char *file, int flags, ...)
 	ret = tee_enc_fs_file_decryption(encrypted_data, encrypted_data_len,
 			priv->data, &file_len);
 	if (ret != TEE_SUCCESS) {
-		res = -1;
+		res = FD_MAP_ERR(TEE_ERROR_CORRUPT_OBJECT);
 		goto exit_free_decrypted_data;
 	}
 	res = fd;
