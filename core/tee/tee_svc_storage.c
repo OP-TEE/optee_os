@@ -90,10 +90,10 @@ static TEE_Result tee_svc_close_enum(struct tee_ta_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-static char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
-					     void *object_id,
-					     uint32_t object_id_len,
-					     bool transient)
+char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
+				      void *object_id,
+				      uint32_t object_id_len,
+				      bool transient)
 {
 	uint8_t *file = NULL;
 	/* +1 for the '/' (default) */
@@ -126,7 +126,7 @@ static char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
 	return (char *)file;
 }
 
-static char *tee_svc_storage_create_dirname(struct tee_ta_session *sess)
+char *tee_svc_storage_create_dirname(struct tee_ta_session *sess)
 {
 	uint8_t *dir = NULL;
 	uint32_t hslen = TEE_B2HS_HSBUF_SIZE(sizeof(TEE_UUID));
@@ -208,8 +208,7 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 		*fd = tee_file_ops.open(file, cflags);
 
 		if (*fd < 0) {
-			/* error codes needs better granularity */
-			res = TEE_ERROR_GENERIC;
+			res = TEE_ERROR_ITEM_NOT_FOUND;
 			goto exit;
 		}
 	}

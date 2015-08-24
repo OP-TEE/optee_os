@@ -62,4 +62,12 @@
 #define TEE_FS_MODE_IN   1
 #define TEE_FS_MODE_OUT  2
 
+#if defined(CFG_ARM32)
+#define FD_MAP_ERR(_err)	\
+	(_err)
+#else
+#define FD_MAP_ERR(_err)	\
+	(_err | 0xFFFFFFFF00000000)
+#endif
+
 #endif

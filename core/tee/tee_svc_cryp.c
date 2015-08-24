@@ -517,15 +517,22 @@ TEE_Result tee_svc_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info)
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto exit;
 
 	res = tee_obj_get(sess->ctx, obj, &o);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto exit;
 
-	/* TODO add TEE_ERROR_STORAGE_NOT_AVAILABLE implementation */
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		res = tee_obj_verify(sess, o);
+		if (res != TEE_SUCCESS)
+			goto exit;
+	}
 
-	return tee_svc_copy_to_user(sess, info, &o->info, sizeof(o->info));
+	res = tee_svc_copy_to_user(sess, info, &o->info, sizeof(o->info));
+
+exit:
+	return res;
 }
 
 TEE_Result tee_svc_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage)
@@ -536,17 +543,22 @@ TEE_Result tee_svc_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage)
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto exit;
 
 	res = tee_obj_get(sess->ctx, obj, &o);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto exit;
 
-	/* TODO add TEE_ERROR_STORAGE_NOT_AVAILABLE implementation */
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		res = tee_obj_verify(sess, o);
+		if (res != TEE_SUCCESS)
+			goto exit;
+	}
 
 	o->info.objectUsage &= usage;
 
-	return TEE_SUCCESS;
+exit:
+	return res;
 }
 
 static TEE_Result tee_svc_cryp_obj_get_raw_data(
@@ -713,13 +725,13 @@ TEE_Result tee_svc_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	/* Check that the object is initialized */
-	if ((o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (!(o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Check that getting the attribute is allowed */
-	if ((attr_id & TEE_ATTR_BIT_PROTECTED) == 0 &&
-	    (o->info.objectUsage & TEE_USAGE_EXTRACTABLE) == 0)
-		return TEE_ERROR_ACCESS_DENIED;
+	if (!(attr_id & TEE_ATTR_BIT_PROTECTED) &&
+	    !(o->info.objectUsage & TEE_USAGE_EXTRACTABLE))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	type_props = tee_svc_find_type_props(o->info.objectType);
 	if (!type_props) {
