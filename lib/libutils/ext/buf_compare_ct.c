@@ -38,5 +38,10 @@ int buf_compare_ct(const void *s1, const void *s2, size_t n)
 		c2++;
 	}
 
+	res |= res >> 4;
+	res |= res >> 2;
+	res |= res >> 1;
+	res &= 1;
+
 	return res;
 }

@@ -74,6 +74,11 @@ int mem_neq(const void *a, const void *b, size_t len)
       ++pb;
    }
 
+   ret |= ret >> 4;
+   ret |= ret >> 2;
+   ret |= ret >> 1;
+   ret &= 1;
+
    return ret;
 }
 
