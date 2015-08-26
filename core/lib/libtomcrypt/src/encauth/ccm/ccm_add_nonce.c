@@ -53,6 +53,9 @@ int ccm_add_nonce(ccm_state *ccm,
    unsigned long x, y, len;
    int           err;
 
+   LTC_ARGCHK(ccm   != NULL);
+   LTC_ARGCHK(nonce != NULL);
+
    /* increase L to match the nonce len */
    ccm->noncelen = (noncelen > 13) ? 13 : noncelen;
    if ((15 - ccm->noncelen) > ccm->L) {

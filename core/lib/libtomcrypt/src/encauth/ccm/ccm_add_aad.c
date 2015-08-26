@@ -53,6 +53,9 @@ int ccm_add_aad(ccm_state *ccm,
    unsigned long y;
    int            err;
 
+   LTC_ARGCHK(ccm   != NULL);
+   LTC_ARGCHK(adata != NULL);
+
    if (ccm->aadlen < ccm->current_aadlen + adatalen) {
       return CRYPT_INVALID_ARG;
    }

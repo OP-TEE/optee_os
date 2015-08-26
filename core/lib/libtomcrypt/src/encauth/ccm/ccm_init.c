@@ -57,10 +57,11 @@ int ccm_init(ccm_state *ccm, int cipher,
 {
    int            err;
 
+   LTC_ARGCHK(ccm    != NULL);
    LTC_ARGCHK(key    != NULL);
    LTC_ARGCHK(taglen != 0);
 
-   memset(ccm, 0, sizeof(ccm_state));
+   XMEMSET(ccm, 0, sizeof(ccm_state));
 
    /* check cipher input */
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {

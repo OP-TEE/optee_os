@@ -57,6 +57,8 @@ int ccm_process(ccm_state *ccm,
    unsigned char  y, z, b;
    int err;
 
+   LTC_ARGCHK(ccm != NULL);
+
    /* Check aad has been correctly added */
    if (ccm->aadlen != ccm->current_aadlen) {
       return CRYPT_ERROR;

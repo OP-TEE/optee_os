@@ -53,6 +53,8 @@ int ccm_done(ccm_state *ccm,
    unsigned long x, y;
    int            err;
 
+   LTC_ARGCHK(ccm != NULL);
+
    /* Check all data have been processed */
    if (ccm->ptlen != ccm->current_ptlen) {
       return CRYPT_ERROR;
