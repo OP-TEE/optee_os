@@ -897,7 +897,7 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 	char *dir;
 	TEE_Result res;
 	struct tee_ta_session *sess;
-	struct tee_fs_dirent *d;
+	struct tee_fs_dirent *d = NULL;
 	struct tee_obj *o = NULL;
 
 	if (obj_enum == TEE_HANDLE_NULL)
@@ -938,9 +938,10 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 		goto exit;
 	}
 
-	while (d) {
+	do {
 		d = tee_file_ops.readdir(e->dir);
 		if (d) {
+			EMSG("d->d_name %s\n", d->d_name);
 			res = tee_svc_storage_set_enum(d->d_name, o);
 			if (res != TEE_SUCCESS)
 				goto exit;
@@ -948,9 +949,9 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 			if (res != TEE_SUCCESS)
 				goto exit;
 		}
-	}
+	} while (d);
 
-	/* re-start */ 
+	/* re-start */
 	res = tee_file_ops.closedir(e->dir);
 	e->dir = NULL;
 	if (res != 0)
@@ -1019,7 +1020,7 @@ TEE_Result tee_svc_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto exit;
 	}
-	
+
 	o = calloc(1, sizeof(struct tee_obj));
 	if (o == NULL) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
