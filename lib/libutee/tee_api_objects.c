@@ -69,14 +69,9 @@ TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInf
 
 	res = utee_cryp_obj_get_info((uint32_t)object, objectInfo);
 
-	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		res = utee_storage_obj_del(object);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(0);
-		return TEE_ERROR_CORRUPT_OBJECT;
-	}
-
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
 	return res;
@@ -109,15 +104,10 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsag
 
 	res = utee_cryp_obj_restrict_usage((uint32_t)object, objectUsage);
 
-	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		res = utee_storage_obj_del(object);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(0);
-		return TEE_ERROR_CORRUPT_OBJECT;
-	}
-
-	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
 
 	return res;
 }
@@ -131,18 +121,18 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
-
-	if ((info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+		goto exit;
 
 	/* This function only supports reference attributes */
-	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
-		TEE_Panic(0);
+	if ((attributeID & TEE_ATTR_BIT_VALUE)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
 
 	res = utee_cryp_obj_get_attr((uint32_t)object,
 				     attributeID, buffer, size);
 
+exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
@@ -164,18 +154,18 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 
 	res = utee_cryp_obj_get_info((uint32_t)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
-
-	if ((info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
-		TEE_Panic(0);
+		goto exit;
 
 	/* This function only supports value attributes */
-	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
-		TEE_Panic(0);
+	if (!(attributeID & TEE_ATTR_BIT_VALUE)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
 
 	res = utee_cryp_obj_get_attr((uint32_t)object,
 				     attributeID, buf, &size);
 
+exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
@@ -344,37 +334,30 @@ TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 
 	res = utee_cryp_obj_get_info((uint32_t)destObject, &dst_info);
 	if (res != TEE_SUCCESS)
-		goto err;
+		goto exit;
 
 	res = utee_cryp_obj_get_info((uint32_t)srcObject, &src_info);
 	if (res != TEE_SUCCESS)
-		goto err;
+		goto exit;
 
-	if ((src_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
+	if (!(src_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
 		TEE_Panic(0);
-	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
+
+	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT))
 		TEE_Panic(0);
-	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
+
+	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
 		TEE_Panic(0);
 
 	res = utee_cryp_obj_copy((uint32_t)destObject, (uint32_t)srcObject);
-	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
 
-	goto out;
+exit:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
 
-err:
-	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		res = utee_storage_obj_del(srcObject);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(0);
-		return TEE_ERROR_CORRUPT_OBJECT;
-	}
-	if (res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		return res;
-	TEE_Panic(0);
-out:
-	return TEE_SUCCESS;
+	return res;
 }
 
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
