@@ -343,7 +343,7 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 		if (p->memref.size == 0)
 			continue;
 
-		res = tee_mmu_user_pa2va(ctx, p->memref.buffer,
+		res = tee_mmu_user_pa2va(ctx, (paddr_t)p->memref.buffer,
 					 &p->memref.buffer);
 		if (res != TEE_SUCCESS)
 			goto exit;
@@ -414,7 +414,7 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 	if (core_va2pa((void *)kaddr, &pa))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = tee_mmu_user_pa2va(ctx, (void *)pa, &ua);
+	res = tee_mmu_user_pa2va(ctx, pa, &ua);
 	if (res == TEE_SUCCESS)
 		*uaddr = (tee_uaddr_t)ua;
 	return res;
@@ -448,8 +448,8 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
 }
 
 /* */
-TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx, void *pa,
-				     void **va)
+TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
+				      paddr_t pa, void **va)
 {
 	size_t n;
 
@@ -467,7 +467,7 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx, void *pa,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
 				       uint32_t flags, tee_uaddr_t uaddr,
 				       size_t len)
 {

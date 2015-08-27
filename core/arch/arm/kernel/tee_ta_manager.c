@@ -962,8 +962,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 
 		if (ctx->mm != NULL) {
 			pa = tee_mm_get_smem(ctx->mm);
-			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
-			    TEE_SUCCESS) {
+			if (tee_mmu_user_pa2va(ctx, pa, &va) == TEE_SUCCESS) {
 				s = tee_mm_get_bytes(ctx->mm);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
@@ -972,8 +971,7 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 
 		if (ctx->mm_heap_stack != NULL) {
 			pa = tee_mm_get_smem(ctx->mm_heap_stack);
-			if (tee_mmu_user_pa2va(ctx, (void *)pa, &va) ==
-			    TEE_SUCCESS) {
+			if (tee_mmu_user_pa2va(ctx, pa, &va) == TEE_SUCCESS) {
 				s = tee_mm_get_bytes(ctx->mm_heap_stack);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);

@@ -85,8 +85,8 @@ static void inject_entropy_with_timestamp(void)
 {
 	TEE_Time current;
 
-	tee_time_get_sys_time(&current);
-	tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
+	if (tee_time_get_sys_time(&current) == TEE_SUCCESS)
+		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
 }
 
 TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,

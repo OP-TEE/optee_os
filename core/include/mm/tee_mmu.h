@@ -85,7 +85,7 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
  * given the user context
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
-				     void *pa, void **va);
+				     paddr_t pa, void **va);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__
 #define tee_mmu_user_pa2va(ctx, pa, va) (__extension__ ({ \
@@ -103,7 +103,7 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
 /*-----------------------------------------------------------------------------
  * tee_mmu_check_access_rights -
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_check_access_rights(struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
 				       uint32_t flags, tee_uaddr_t uaddr,
 				       size_t len);
 
