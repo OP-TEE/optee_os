@@ -27,7 +27,6 @@
 #include <kernel/tee_common.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <mm/tee_mm.h>
-#include <core_serviceid.h>
 #include <tee_api_defines.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -80,71 +79,75 @@ static void l2cc_mutex_set(void *mutex)
 }
 
 /*
- * tee_l2cc_mutex_configure - Handle L2 mutex configuration requests from NSec
+ * tee_xxx_l2cc_mutex():  Handle L2 mutex configuration requests from NSec
  *
  * Policy:
  * - if NSec did not register a L2 mutex, default allocate it in public RAM.
  * - if NSec disables L2 mutex, disable the current mutex and unregister it.
+ *
+ * Enable L2CC: NSec allows teecore to run safe outer maintance
+ *		with shared mutex.
+ * Disable L2CC: NSec will run outer maintenance with locking
+ *               shared mutex. teecore cannot run outer maintenance.
+ * Set L2CC: NSec proposes a Shared Memory locaiotn for the outer
+ *           maintenance shared mutex.
+ * Get L2CC: NSec requests the outer maintenance shared mutex
+ *           location. If NSec has successufully registered one,
+ *           return its location, otherwise, allocated one in NSec
+ *           and provided NSec the physical location.
  */
-TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex)
+TEE_Result tee_enable_l2cc_mutex(void)
+{
+	int ret;
+
+	if (!l2cc_mutex_va) {
+		ret = l2cc_mutex_alloc();
+		if (ret)
+			return TEE_ERROR_GENERIC;
+	}
+	l2cc_mutex_set(l2cc_mutex_va);
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_disable_l2cc_mutex(void)
+{
+	if (l2cc_mutex_mm) {
+		tee_mm_free(l2cc_mutex_mm);
+		l2cc_mutex_mm = NULL;
+	}
+	l2cc_mutex_va = NULL;
+	l2cc_mutex_set(NULL);
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_get_l2cc_mutex(uint32_t *mutex)
+{
+	int ret;
+
+	if (!l2cc_mutex_va) {
+		ret = l2cc_mutex_alloc();
+		if (ret)
+			return TEE_ERROR_GENERIC;
+	}
+	*mutex = l2cc_mutex_pa;
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_set_l2cc_mutex(uint32_t *mutex)
 {
 	uint32_t addr;
 	void *va;
-	int ret = TEE_SUCCESS;
 
-	/*
-	 * Enable L2CC: NSec allows teecore to run safe outer maintance
-	 *		with shared mutex.
-	 * Disable L2CC: NSec will run outer maintenance with locking
-	 *		shared mutex. teecore cannot run outer maintenance.
-	 * Set L2CC: NSec proposes a Shared Memory locaiotn for the outer
-	 *		maintenance shared mutex.
-	 * Get L2CC: NSec requests the outer maintenance shared mutex
-	 *		location. If NSec has successufully registered one,
-	 *		return its location, otherwise, allocated one in NSec
-	 *		and provided NSec the physical location.
-	 */
-	switch (service_id) {
-	case SERVICEID_ENABLE_L2CC_MUTEX:
-		if (l2cc_mutex_va == 0) {
-			ret = l2cc_mutex_alloc();
-			if (ret)
-				return TEE_ERROR_GENERIC;
-		}
-		l2cc_mutex_set(l2cc_mutex_va);
-		break;
-	case SERVICEID_DISABLE_L2CC_MUTEX:
-		if (l2cc_mutex_mm) {
-			tee_mm_free(l2cc_mutex_mm);
-			l2cc_mutex_mm = NULL;
-		}
-		l2cc_mutex_va = NULL;
-		l2cc_mutex_set(NULL);
-		break;
-	case SERVICEID_GET_L2CC_MUTEX:
-		if (l2cc_mutex_va == NULL) {
-			ret = l2cc_mutex_alloc();
-			if (ret)
-				return TEE_ERROR_GENERIC;
-		}
-		*mutex = l2cc_mutex_pa;
-		break;
-	case SERVICEID_SET_L2CC_MUTEX:
-		if (l2cc_mutex_va != NULL)
-			return TEE_ERROR_BAD_PARAMETERS;
-		addr = *mutex;
-		if (core_pbuf_is(CORE_MEM_NSEC_SHM, addr, MUTEX_SZ) == false)
-			return TEE_ERROR_BAD_PARAMETERS;
-		if (core_pa2va(addr, &va))
-			return TEE_ERROR_BAD_PARAMETERS;
-		l2cc_mutex_pa = addr;
-		l2cc_mutex_va = va;
-		break;
-	default:
-		return TEE_ERROR_GENERIC;
-	}
-
-	return ret;
+	if (l2cc_mutex_va != NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+	addr = *mutex;
+	if (core_pbuf_is(CORE_MEM_NSEC_SHM, addr, MUTEX_SZ) == false)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (core_pa2va(addr, &va))
+		return TEE_ERROR_BAD_PARAMETERS;
+	l2cc_mutex_pa = addr;
+	l2cc_mutex_va = va;
+	return TEE_SUCCESS;
 }
 
 void tee_l2cc_mutex_lock(void)

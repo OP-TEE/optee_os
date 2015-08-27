@@ -27,22 +27,36 @@
 #ifndef TEE_L2CC_MUTEX_H
 #define TEE_L2CC_MUTEX_H
 #include <inttypes.h>
-#include <core_serviceid.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include <compiler.h>
 
 #if defined(CFG_PL310)
-TEE_Result tee_l2cc_mutex_configure(t_service_id service_id, uint32_t *mutex);
+TEE_Result tee_enable_l2cc_mutex(void);
+TEE_Result tee_disable_l2cc_mutex(void);
+TEE_Result tee_get_l2cc_mutex(uint32_t *mutex);
+TEE_Result tee_set_l2cc_mutex(uint32_t *mutex);
 void tee_l2cc_mutex_lock(void);
 void tee_l2cc_mutex_unlock(void);
 #else
-static
-TEE_Result tee_l2cc_mutex_configure(t_service_id service_id __unused,
-				    uint32_t *mutex __unused);
-static inline
-TEE_Result tee_l2cc_mutex_configure(t_service_id service_id __unused,
-				    uint32_t *mutex __unused)
+static TEE_Result tee_enable_l2cc_mutex(void);
+static TEE_Result tee_disable_l2cc_mutex(void);
+static TEE_Result tee_get_l2cc_mutex(uint32_t *mutex);
+static TEE_Result tee_set_l2cc_mutex(uint32_t *mutex);
+
+static inline TEE_Result tee_enable_l2cc_mutex(void)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+static inline TEE_Result tee_disable_l2cc_mutex(void)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+static inline TEE_Result tee_get_l2cc_mutex(uint32_t *mutex __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+static inline TEE_Result tee_set_l2cc_mutex(uint32_t *mutex __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }

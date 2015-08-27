@@ -351,20 +351,16 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 #ifdef ARM32
 	switch (args->a1) {
 	case TEESMC_OPTEE_L2CC_MUTEX_GET_ADDR:
-		ret = tee_l2cc_mutex_configure(
-			SERVICEID_GET_L2CC_MUTEX, &args->a2);
+		ret = tee_get_l2cc_mutex(&args->a2);
 		break;
 	case TEESMC_OPTEE_L2CC_MUTEX_SET_ADDR:
-		ret = tee_l2cc_mutex_configure(
-			SERVICEID_SET_L2CC_MUTEX, &args->a2);
+		ret = tee_set_l2cc_mutex(&args->a2);
 		break;
 	case TEESMC_OPTEE_L2CC_MUTEX_ENABLE:
-		ret = tee_l2cc_mutex_configure(
-			SERVICEID_ENABLE_L2CC_MUTEX, NULL);
+		ret = tee_enable_l2cc_mutex();
 		break;
 	case TEESMC_OPTEE_L2CC_MUTEX_DISABLE:
-		ret = tee_l2cc_mutex_configure(
-			SERVICEID_DISABLE_L2CC_MUTEX, NULL);
+		ret = tee_disable_l2cc_mutex();
 		break;
 	default:
 		args->a0 = TEESMC_RETURN_EBADCMD;
