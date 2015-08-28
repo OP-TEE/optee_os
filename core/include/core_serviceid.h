@@ -69,6 +69,8 @@ typedef enum {
 	SERVICEID_SET_L2CC_MUTEX = 0x20000003,
 	SERVICEID_LOAD_TEE = 0x20000004,
 
+	/* Vendor specific services start here */
+	SERVICEID_VENDOR_START = 0x30000000,
 } t_service_id;
 
 #endif
