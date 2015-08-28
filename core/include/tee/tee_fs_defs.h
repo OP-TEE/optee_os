@@ -62,4 +62,6 @@
 #define TEE_FS_MODE_IN   1
 #define TEE_FS_MODE_OUT  2
 
+#define FD_MAP_ERR(_err) (_err)
+
 #endif
