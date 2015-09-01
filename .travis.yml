@@ -7,8 +7,10 @@ notifications:
 
 sudo: false
 
-# Install the cross compiler
+cache: ccache
+
 before_install:
+  # Install the cross compilers
   - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
   - tar xf gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
   - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf/bin:${PATH}
@@ -26,6 +28,25 @@ before_script:
   - export DST_KERNEL=$PWD/linux && mkdir -p $DST_KERNEL/scripts && cd $DST_KERNEL/scripts
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x checkpatch.pl
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt
+  - cd $MYHOME
+
+  # Tools required for 'make check'
+  # 'apt-get install' cannot be used in the new container-based infrastructure
+  # (which is the only allowing caching), so we just build from sources
+  # bc
+  - cd $HOME
+  - wget http://ftp.gnu.org/gnu/bc/bc-1.06.tar.gz
+  - tar xf bc-1.06.tar.gz
+  - (cd bc-1.06 && CC="ccache gcc" ./configure --quiet && make -j4)
+  - export PATH=${HOME}/bc-1.06/bc:$PATH
+  # Tcl/Expect
+  - wget http://prdownloads.sourceforge.net/tcl/tcl8.6.4-src.tar.gz
+  - tar xf tcl8.6.4-src.tar.gz
+  - (cd tcl8.6.4/unix && ./configure --quiet --prefix=${HOME}/inst CC="ccache gcc" && make -j4 install)
+  - wget http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download -O expect5.45.tar.gz
+  - tar xf expect5.45.tar.gz
+  - (cd expect5.45 && ./configure --quiet --with-tcl=${HOME}/inst/lib --prefix=${HOME}/inst CC="ccache gcc" && make -j4 expect && make -j4 install)
+  - export PATH=${HOME}/inst/bin:$PATH
   - cd $MYHOME
 
 # Several compilation options are checked
@@ -88,3 +109,6 @@ script:
 
   # Mediatek mt8173 EVB
   - PLATFORM=mediatek  PLATFORM_FLAVOR=mt8173  CFG_ARM64_core=y  CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+
+  # Run regression tests in QEMU
+  - make -j8 check CROSS_COMPILE="ccache arm-linux-gnueabihf-" DUMP_LOGS_ON_ERROR=1

@@ -1,0 +1,100 @@
+#!/usr/bin/expect -f
+#
+# This scripts starts QEMU, loads and boots Linux/OP-TEE, then runs
+# xtest in the guest. The return code is 0 for success, >0 for error.
+#
+# Options:
+#   --bios    Path to the binary to be run [../out/bios-qemu/bios.bin]
+#   -q        Suppress output to stdout (quiet)
+#   --timeout Timeout for each test (sub)case, in seconds [480]
+
+set bios "../out/bios-qemu/bios.bin"
+set cmd "xtest"
+set quiet 0
+
+# The time required to run some tests (e.g., key generation tests [4007.*])
+# can be significant and vary widely -- typically, from about one minute to
+# several minutes depending on the host machine.
+set timeout 480
+
+# Parse command line
+set myargs $argv
+while {[llength $myargs]} {
+	set myargs [lassign $myargs arg]
+	switch -exact -- $arg {
+		"--bios"	{set myargs [lassign $myargs ::bios]}
+		"--timeout"	{set myargs [lassign $myargs ::timeout]}
+		"-q"		{set ::quiet 1}
+	}
+}
+
+proc info arg {
+	if {$::quiet==1} { return }
+	puts -nonewline $arg
+	flush stdout
+}
+
+# Disable echoing of guest output
+log_user 0
+# Save guest console output to a file
+log_file -a -noappend "serial0.log"
+info "Starting QEMU..."
+spawn qemu-system-arm -nographic -monitor none -machine virt -cpu cortex-a15 -m 1057 -serial stdio -serial file:serial1.log -bios $bios
+expect "Freeing unused kernel memory"
+#expect "Please press Enter to activate this console. "
+send -- "\r"
+expect "root@Vexpress:/ "
+info " done, guest is booted.\nLoading OP-TEE driver and tee-supplicant..."
+# FIXME: this should not be needed, but for some reason tee-supplicant
+# (or xtest) will not load on the Travis server without this. I failed
+# to reproduce the issue on my PC ; is it due to the use of different
+# toolchains?
+send -- "export LD_LIBRARY_PATH=/lib:/lib/arm-linux-gnueabihf\r"
+expect "root@Vexpress:/ "
+send -- "modprobe optee_armtz\r"
+expect "root@Vexpress:/ "
+sleep 1
+send -- "tee-supplicant&\r"
+expect "root@Vexpress:/ "
+sleep 1
+info " done.\nRunning: $cmd...\n"
+send -- "$cmd\r"
+set casenum "none"
+expect {
+	# Exit with error status as soon as a test fails
+	-re {  XTEST_TEE_([^ ]+) FAIL} {
+		info " $expect_out(1,string) FAIL\n"
+		exit 1
+	}
+	-re {rcu_sched detected stalls} {
+		info " Kernel error: '$expect_out(0,string)'\n"
+		exit 1
+	}
+	# Crude progress indicator: print one # when each test [sub]case starts
+	-re {([\*o]) XTEST_TEE_([^ ]+) } {
+		set casenum $expect_out(2,string)
+		if {$expect_out(1,string) == "o"} {
+			if {$star == 1} {
+				# Do not count first subcase ('o') since start
+				# of test ('*') was counted already
+				set star 0
+				exp_continue
+			}
+		} else {
+			set star 1
+		}
+		info "#"
+		incr ncases
+		if {$ncases % 50 == 0} { info "\n" }
+		exp_continue
+	}
+	# Exit when result separator is seen
+	"+-----------------------------------------------------\r\r" {}
+	timeout {
+		info "!!! Timeout\n"
+		info "TIMEOUT - test case too long or hung? (last test started: $casenum)\n"
+		exit 2
+	}
+}
+info "\nStatus: PASS ($ncases test cases)\n"
+

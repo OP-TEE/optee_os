@@ -57,6 +57,8 @@ include core/core.mk
 
 include ta/ta.mk
 
+include mk/check.mk
+
 .PHONY: clean
 clean:
 	@$(cmd-echo-silent) '  CLEAN   .'
