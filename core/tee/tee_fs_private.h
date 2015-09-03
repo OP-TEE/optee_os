@@ -63,6 +63,8 @@ struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 
 void tee_fs_fail_recovery(struct tee_fs_fd *fdp);
 
+int tee_fs_get_file_length(struct tee_fs_fd *fdp, size_t *length);
+
 int tee_fs_common_open(const char *file, int flags, ...);
 
 int tee_fs_common_close(struct tee_fs_fd *fdp);

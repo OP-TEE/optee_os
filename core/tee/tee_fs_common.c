@@ -64,6 +64,26 @@ void tee_fs_fail_recovery(struct tee_fs_fd *fdp)
 		do_fail_recovery(fdp);
 }
 
+int tee_fs_get_file_length(struct tee_fs_fd *fdp, size_t *length)
+{
+	size_t file_len;
+	int res;
+
+	*length = 0;
+
+	res = tee_fs_common_lseek(fdp, 0, TEE_FS_SEEK_END);
+	if (res < 0)
+		return res;
+	file_len = res;
+
+	res = tee_fs_common_lseek(fdp, 0, TEE_FS_SEEK_SET);
+	if (res < 0)
+		return res;
+
+	*length = file_len;
+	return 0;
+}
+
 int tee_fs_common_open(const char *file, int flags, ...)
 {
 	int res = -1;
