@@ -59,10 +59,10 @@ struct prop_value {
 		TEE_UUID uuid_val;
 		TEE_Identity identity_val;
 		char str_val[PROP_STR_MAX];
-        struct {
-            size_t len;
-            uint8_t val[PROP_BIN_MAX];
-        } binary;
+		struct {
+			size_t len;
+			uint8_t val[PROP_BIN_MAX];
+		} binary;
 	} u;
 };
 
@@ -407,38 +407,38 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 		l = strlcpy(valueBuffer, pv.u.str_val, bufferlen);
 		break;
 
-    /*
-     * This is returned as a binary blob and thus must be converted
-     * into base64 per the GP specification.
-     *
-     * Note that the behaviour of base64_enc does not copy any data
-     * into the buffer if all of it will not fit. This appears slightly
-     * different than the above implementations that copy into the buffer
-     * as many bytes as will fit and return a short buffer error.
-     * The GP specification for TEE_GetPropertyAsString does not explicitly
-     * state this partial data behaviour in response to a short buffer.
-     */
+	/*
+	 * This is returned as a binary blob and thus must be converted
+	 * into base64 per the GP specification.
+	 *
+	 * Note that the behaviour of base64_enc does not copy any data
+	 * into the buffer if all of it will not fit. This appears slightly
+	 * different than the above implementations that copy into the buffer
+	 * as many bytes as will fit and return a short buffer error.
+	 * The GP specification for TEE_GetPropertyAsString does not explicitly
+	 * state this partial data behaviour in response to a short buffer.
+	 */
 	case USER_TA_PROP_TYPE_BINARY_BLOCK: {
 
-        size_t blen = bufferlen;
+		size_t blen = bufferlen;
 
-        if (!base64_enc(pv.u.binary.val, pv.u.binary.len,
-                valueBuffer, &blen)) {
-            assert(blen > bufferlen);
-        }
-        else {
-            assert(blen <= bufferlen);
-        }
+		if (!base64_enc(pv.u.binary.val, pv.u.binary.len,
+				valueBuffer, &blen)) {
+			assert(blen > bufferlen);
+		}
+		else {
+			assert(blen <= bufferlen);
+		}
 
-        /*
-         * The base64_enc call above returns the size including the null
-         * terminator so we need to subtract it because the null is
-         * accounted for below for all types.
-         */
-        assert(blen > 0);
-        l = (blen - 1);
+		/*
+		 * The base64_enc call above returns the size including the null
+		 * terminator so we need to subtract it because the null is
+		 * accounted for below for all types.
+		 */
+		assert(blen > 0);
+		l = (blen - 1);
 
-        break;
+		break;
 	}
 
 	default:
@@ -558,8 +558,8 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	val = pv.u.binary.val;
 	val_len = pv.u.binary.len;
 
-    assert(pv.u.binary.len
-        <= (sizeof(pv.u.binary) - sizeof(pv.u.binary.len)));
+	assert(pv.u.binary.len
+		<= (sizeof(pv.u.binary) - sizeof(pv.u.binary.len)));
 
 	size = (size_t) *valueBufferLen;
 
@@ -568,7 +568,7 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 		goto err;
 	}
 
-    memcpy(valueBuffer, val, val_len);
+	memcpy(valueBuffer, val, val_len);
 	*valueBufferLen = (uint32_t) val_len;
 
 	goto out;
