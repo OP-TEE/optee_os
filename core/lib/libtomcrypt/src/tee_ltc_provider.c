@@ -251,6 +251,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
 	case TEE_ALG_SHA224:
+	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_HMAC_SHA224:
 		*ltc_hashindex = find_hash("sha224");
 		break;
@@ -260,6 +261,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 	case TEE_ALG_SHA256:
+	case TEE_ALG_DSA_SHA256:
 	case TEE_ALG_HMAC_SHA256:
 		*ltc_hashindex = find_hash("sha256");
 		break;
@@ -1183,7 +1185,9 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	};
 	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
-	if (algo != TEE_ALG_DSA_SHA1) {
+	if (algo != TEE_ALG_DSA_SHA1 &&
+	    algo != TEE_ALG_DSA_SHA224 &&
+	    algo != TEE_ALG_DSA_SHA256) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
 		goto err;
 	}
@@ -1238,7 +1242,9 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 		.y = key->y
 	};
 
-	if (algo != TEE_ALG_DSA_SHA1) {
+	if (algo != TEE_ALG_DSA_SHA1 &&
+	    algo != TEE_ALG_DSA_SHA224 &&
+	    algo != TEE_ALG_DSA_SHA256) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
 		goto err;
 	}
