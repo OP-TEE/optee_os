@@ -3316,6 +3316,8 @@ TEE_Result tee_svc_asymm_operate(uint32_t state,
 		break;
 
 	case TEE_ALG_DSA_SHA1:
+	case TEE_ALG_DSA_SHA224:
+	case TEE_ALG_DSA_SHA256:
 		if (!crypto_ops.acipher.dsa_sign) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			break;
@@ -3420,9 +3422,22 @@ TEE_Result tee_svc_asymm_verify(uint32_t state,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (data_len != hash_size) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+	if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_DSA) {
+		/*
+		 * Depending on the DSA algorithm (NIST), the digital signature
+		 * output size may be truncated to the size of a key pair
+		 * (Q prime size). Q prime size must be less or equal than the
+		 * hash output length of the hash algorithm involved.
+		 */
+		if (data_len > hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+	} else {
+		if (data_len != hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
 	}
 
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {

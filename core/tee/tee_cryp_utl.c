@@ -65,10 +65,12 @@ TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size)
 		break;
 	case TEE_ALG_SHA224:
 	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_DSA_SHA224:
 		*size = TEE_SHA224_HASH_SIZE;
 		break;
 	case TEE_ALG_SHA256:
 	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_DSA_SHA256:
 		*size = TEE_SHA256_HASH_SIZE;
 		break;
 	case TEE_ALG_SHA384:
