@@ -425,8 +425,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 		if (!base64_enc(pv.u.binary.val, pv.u.binary.len,
 				valueBuffer, &blen)) {
 			assert(blen > bufferlen);
-		}
-		else {
+		} else {
 			assert(blen <= bufferlen);
 		}
 
