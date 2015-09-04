@@ -199,7 +199,7 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	for (n = 0; n < TEE_MMU_UMAP_PARAM_IDX; n++) {
 		assert(mmu->table[n].size); /* PA must be assigned by now */
 		mmu->table[n].va = va;
-		va += CORE_MMU_USER_CODE_SIZE;
+		va += ROUNDUP(mmu->table[n].size, CORE_MMU_USER_CODE_SIZE);
 	}
 
 	va = ROUNDUP(va, CORE_MMU_USER_PARAM_SIZE);
