@@ -40,6 +40,8 @@ void generic_boot_init_secondary(uint32_t nsec_entry);
 
 void main_init_gic(void);
 
+void init_sec_mon(uint32_t nsec_entry);
+
 const struct thread_handlers *generic_boot_get_handlers(void);
 
 extern uint8_t __text_init_start[];
