@@ -71,13 +71,14 @@ __weak void main_init_gic(void)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-static void init_sec_mon(uint32_t nsec_entry __unused)
+void init_sec_mon(uint32_t nsec_entry __unused)
 {
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #else
-static void init_sec_mon(uint32_t nsec_entry)
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void init_sec_mon(uint32_t nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 

@@ -69,6 +69,7 @@ please read the file [build_system.md](documentation/build_system.md).
 | [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
 | MediaTek MT8173 EVB Board|`PLATFORM=mediatek-mt8173`|
+| Texas Instruments DRA7xx|`PLATFORM=ti-dra7xx`|
 
 ## 4. Get and build the software
 There are a couple of different build options depending on the target you are
