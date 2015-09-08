@@ -96,8 +96,8 @@ terminal]
 Now it is time to set the breakpoints. For example
 
 ```
-(gdb) b plat_tee_entry
-Breakpoint 1 at 0x7df104d6: file core/arch/arm/plat-vexpress/plat_tee_func.c, line 42.
+(gdb) b tee_entry
+Breakpoint 1 at 0x7df0e5ba: file core/arch/arm/tee/entry.c, line 386.
 ```
 
 and then start the execution by writing the continue command in gdb.
@@ -111,8 +111,8 @@ When the driver has been loaded and you start using OP-TEE the breakpoint will
 trigger, which will look something like this:
 
 ```
-Breakpoint 1, plat_tee_entry (args=0x7df64918 <stack_tmp+1048>) at core/arch/arm/plat-vexpress/plat_tee_func.c:42
-42              if (args->a0 == TEESMC32_OPTEE_FASTCALL_GET_SHM_CONFIG) {
+Breakpoint 1, tee_entry (args=0x7df70918 <stack_tmp+1048>) at core/arch/arm/tee/entry.c:386
+386		switch (args->a0) {
 (gdb)
 ```
 
