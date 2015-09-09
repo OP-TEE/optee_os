@@ -594,7 +594,7 @@ TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
 		/* file exists */
 		if (!(flags & TEE_DATA_FLAG_OVERWRITE)) {
 			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto rmfile;
+			goto err;
 		}
 	}
 

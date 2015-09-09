@@ -652,7 +652,7 @@ static int create_empty_new_version_block(struct tee_fs_fd *fdp,
 	 * toggle block version in new meta to indicate
 	 * we are currently working on new block file
 	 */
-	toggle_backup_version_for_block(new_meta, block_num);
+	toggle_backup_version_of_block(new_meta, block_num);
 	res = fd;
 
 exit:
@@ -743,7 +743,7 @@ fail:
 	return res;
 }
 #else
-static int create_new_version_for_block(struct tee_fs_fd *fdp,
+static int create_new_version_block(struct tee_fs_fd *fdp,
 		struct tee_fs_file_meta *new_meta, int block_num)
 {
 	char block_path[REE_FS_NAME_MAX];
@@ -784,7 +784,7 @@ static int create_new_version_for_block(struct tee_fs_fd *fdp,
 	 * toggle block version in new meta to indicate
 	 * we are currently working on new block file
 	 */
-	toggle_backup_version_for_block(new_meta, block_num);
+	toggle_backup_version_of_block(new_meta, block_num);
 	res = new_fd;
 
 exit_close_new_fd:
@@ -815,7 +815,7 @@ static int write_one_block(struct block_operation_args *args)
 		 * old version is still valid until new file meta
 		 * is written.
 		 */
-		fd = create_new_version_for_block(
+		fd = create_new_version_block(
 				fdp, new_meta, block_num);
 
 	if (fd < 0) {
@@ -872,7 +872,7 @@ static inline size_t fix_block_ops_length(size_t offset, size_t len)
 			FILE_BLOCK_SIZE - offset : len;
 }
 
-static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
+static int tee_fs_do_multi_blocks_transfer(struct tee_fs_fd *fdp,
 		int (*do_block_ops)(struct block_operation_args *args),
 		void *buf, size_t len, void *extra)
 {
@@ -905,6 +905,12 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 		if (bytes_consumed < 0)
 			return -1;
 
+		if (args.len != (size_t)bytes_consumed) {
+			EMSG("consumed doesn't match requested(%d, %zu)",
+				bytes_consumed, args.len);
+			return -1;
+		}
+
 		DMSG("block_num: %zu, offset: %zu, bytes_consumed: %d",
 			block_num, offset_in_block, bytes_consumed);
 
@@ -922,7 +928,7 @@ static int tee_fs_do_block_operation(struct tee_fs_fd *fdp,
 
 	fdp->pos += len;
 
-	return len;
+	return 0;
 }
 
 static inline int create_hard_link(const char *old_dir,
@@ -995,6 +1001,9 @@ int tee_fs_common_open(const char *file, int flags, ...)
 	size_t len;
 	struct tee_fs_file_meta *meta = NULL;
 	struct tee_fs_fd *fdp = NULL;
+
+	if (!file)
+		goto exit;
 
 	len = strlen(file) + 1;
 	if (len > TEE_FS_NAME_MAX)
@@ -1081,10 +1090,10 @@ tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
 	tee_fs_off_t new_pos;
 	size_t filelen;
 
-	DMSG("offset=%d", offset);
-
 	if (!fdp)
-		return -1;
+		goto exit;
+
+	DMSG("offset=%d", offset);
 
 	filelen = fdp->meta->info.length;
 
@@ -1194,7 +1203,7 @@ int tee_fs_common_read(struct tee_fs_fd *fdp, void *buf, size_t len)
 	int res = -1;
 
 	if (!fdp)
-		return -1;
+		goto exit;
 
 	if (!len) {
 		res = 0;
@@ -1214,10 +1223,10 @@ int tee_fs_common_read(struct tee_fs_fd *fdp, void *buf, size_t len)
 		DMSG("reached EOF, update read length to %zu", len);
 	}
 
-	res = tee_fs_do_block_operation(fdp, read_one_block,
+	res = tee_fs_do_multi_blocks_transfer(fdp, read_one_block,
 			buf, len, NULL);
 exit:
-	return res;
+	return (res < 0) ? res : (int)len;
 }
 
 /*
@@ -1251,7 +1260,7 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 	struct tee_fs_file_meta *new_meta;
 
 	if (!fdp)
-		return -1;
+		goto exit;
 
 	if (!len) {
 		res = 0;
@@ -1274,10 +1283,10 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 		goto exit;
 
 	DMSG("len=%zu", len);
-	res = tee_fs_do_block_operation(fdp, write_one_block,
+	res = tee_fs_do_multi_blocks_transfer(fdp, write_one_block,
 			(void *)buf, len, new_meta);
 
-	if (res > 0) {
+	if (res == 0) {
 		int r;
 
 		/* update file length if necessary */
@@ -1291,7 +1300,7 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 
 	free(new_meta);
 exit:
-	return res;
+	return (res < 0) ? res : (int)len;
 }
 
 /*
@@ -1299,7 +1308,7 @@ exit:
  * do the following steps:
  *
  *  - Create a new folder that represents the renamed TEE file
- *  - For each REE blocks files, create a hard link under the just
+ *  - For each REE block files, create a hard link under the just
  *    created folder (new TEE file)
  *  - Now we are ready to commit meta, create hard link for the
  *    meta file
@@ -1319,13 +1328,19 @@ exit:
 int tee_fs_common_rename(const char *old, const char *new)
 {
 	int res = -1;
-	size_t old_len = strlen(old) + 1;
-	size_t new_len = strlen(old) + 1;
+	size_t old_len;
+	size_t new_len;
 	struct tee_fs_dir *old_dir;
 	struct tee_fs_dirent *dirent;
 	char *meta_filename = NULL;
 
+	if (!old || !new)
+		return -1;
+
 	DMSG("old=%s, new=%s", old, new);
+
+	old_len = strlen(old) + 1;
+	new_len = strlen(new) + 1;
 
 	if (old_len > TEE_FS_NAME_MAX || new_len >TEE_FS_NAME_MAX)
 		goto exit;
@@ -1390,6 +1405,9 @@ int tee_fs_common_unlink(const char *file)
 	int res = -1;
 	char trash_file[TEE_FS_NAME_MAX + 6];
 
+	if (!file)
+		return -1;
+
 	snprintf(trash_file, TEE_FS_NAME_MAX + 6, "%s.trash",
 		file);
 
@@ -1407,6 +1425,9 @@ int tee_fs_common_mkdir(const char *path, tee_fs_mode_t mode)
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 	uint32_t len;
+
+	if (!path)
+		return -1;
 
 	len = strlen(path) + 1;
 	if (len > TEE_FS_NAME_MAX)
@@ -1428,6 +1449,9 @@ tee_fs_dir *tee_fs_common_opendir(const char *name)
 	struct tee_fs_rpc head = { 0 };
 	uint32_t len;
 	struct tee_fs_dir *dir = NULL;
+
+	if (!name)
+		goto exit;
 
 	len = strlen(name) + 1;
 	if (len > TEE_FS_NAME_MAX)
@@ -1522,6 +1546,9 @@ int tee_fs_common_rmdir(const char *name)
 	struct tee_fs_rpc head = { 0 };
 	uint32_t len;
 
+	if (!name)
+		goto exit;
+
 	len = strlen(name) + 1;
 	if (len > TEE_FS_NAME_MAX)
 		goto exit;
@@ -1541,6 +1568,9 @@ int tee_fs_common_access(const char *name, int mode)
 	int res = -1;
 	struct tee_fs_rpc head = { 0 };
 	uint32_t len;
+
+	if (!name)
+		goto exit;
 
 	len = strlen(name) + 1;
 	if (len > TEE_FS_NAME_MAX)
