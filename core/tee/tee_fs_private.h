@@ -111,7 +111,7 @@ static inline uint8_t get_backup_version_of_block(
 	return !!(meta->info.backup_version_table[index] & block_mask);
 }
 
-static inline void toggle_backup_version_for_block(
+static inline void toggle_backup_version_of_block(
 		struct tee_fs_file_meta *meta,
 		size_t block_num)
 {
