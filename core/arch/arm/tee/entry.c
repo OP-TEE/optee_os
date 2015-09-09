@@ -272,9 +272,6 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 		return;
 	}
 
-	if (args->a0 == TEESMC32_CALL_WITH_ARG)
-		thread_set_irq(true);	/* Enable IRQ for STD calls */
-
 	arg_pa = args->a1;
 	if (!tee_pbuf_is_non_sec(arg_pa, sizeof(struct teesmc32_arg)) ||
 	    !TEE_ALIGNMENT_IS_OK(arg_pa, struct teesmc32_arg) ||
@@ -292,6 +289,7 @@ static void tee_entry_call_with_arg(struct thread_smc_args *args)
 	}
 
 	if (args->a0 == TEESMC32_CALL_WITH_ARG) {
+		thread_set_irq(true);	/* Enable IRQ for STD calls */
 		switch (arg32->cmd) {
 		case TEESMC_CMD_OPEN_SESSION:
 			entry_open_session(args, arg32, num_params);

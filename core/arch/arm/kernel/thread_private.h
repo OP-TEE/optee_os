@@ -95,6 +95,7 @@ struct thread_ctx {
 #endif
 	void *rpc_arg;
 	paddr_t rpc_parg;
+	struct mutex_head mutexes;
 };
 
 #ifdef ARM64
@@ -123,7 +124,7 @@ struct thread_core_local {
 #define THREAD_CTX_KERN_SP_OFFSET			\
 		(THREAD_CTX_REGS_SIZE + (4 + 2 + 1) * 8)
 #define THREAD_CTX_SIZE					\
-		(THREAD_CTX_KERN_SP_OFFSET + 3 * 8)
+		(THREAD_CTX_KERN_SP_OFFSET + 5 * 8)
 
 #define THREAD_CTX_REGS_SP_OFFSET			(8 * 0)
 #define THREAD_CTX_REGS_PC_OFFSET			(8 * 1)

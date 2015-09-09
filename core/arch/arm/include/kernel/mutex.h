@@ -28,6 +28,7 @@
 #define KERNEL_MUTEX_H
 
 #include <types_ext.h>
+#include <sys/queue.h>
 #include <kernel/wait_queue.h>
 
 enum mutex_value {
@@ -39,10 +40,14 @@ struct mutex {
 	enum mutex_value value;
 	unsigned spin_lock;	/* used when operating on this struct */
 	struct wait_queue wq;
+	int owner_id;
+	TAILQ_ENTRY(mutex) link;
 };
+#define MUTEX_INITIALIZER \
+	{ .value = MUTEX_VALUE_UNLOCKED, .owner_id = -1, \
+	  .wq = WAIT_QUEUE_INITIALIZER, }
 
-#define MUTEX_INITIALIZER	{ .value = MUTEX_VALUE_UNLOCKED, \
-				  .wq = WAIT_QUEUE_INITIALIZER, }
+TAILQ_HEAD(mutex_head, mutex);
 
 void mutex_init(struct mutex *m);
 void mutex_lock(struct mutex *m);

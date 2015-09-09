@@ -32,6 +32,7 @@
 #include <types_ext.h>
 #include <compiler.h>
 #include <sm/teesmc.h>
+#include <kernel/mutex.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -428,6 +429,32 @@ void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
  */
 vaddr_t thread_get_saved_thread_sp(void);
 #endif /*ARM64*/
+
+/*
+ * Adds a mutex to the list of held mutexes for current thread
+ * Requires IRQs to be disabled.
+ */
+void thread_add_mutex(struct mutex *m);
+
+/*
+ * Removes a mutex from the list of held mutexes for current thread
+ * Requires IRQs to be disabled.
+ */
+void thread_rem_mutex(struct mutex *m);
+
+/*
+ * Takes big lock. Since OP-TEE currently is single threaded all standard
+ * calls (non-fast calls) must call this function before starting to do any
+ * real work.
+ */
+void thread_take_big_lock(void);
+
+/*
+ * Releases big lock. Since OP-TEE currently is single threaded all standard
+ * calls (non-fast calls) must call this function before doing a normal
+ * return (non-RPC) return to nonsecure world.
+ */
+void thread_release_big_lock(void);
 
 /**
  * Allocates data for struct teesmc32_arg.

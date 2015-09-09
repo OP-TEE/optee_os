@@ -59,6 +59,7 @@ void mutex_lock(struct mutex *m)
 			wq_wait_init(&m->wq, &wqe);
 		} else {
 			m->value = MUTEX_VALUE_LOCKED;
+			thread_add_mutex(m);
 		}
 
 		cpu_spin_unlock(&m->spin_lock);
@@ -83,6 +84,7 @@ void mutex_unlock(struct mutex *m)
 	cpu_spin_lock(&m->spin_lock);
 
 	TEE_ASSERT(m->value == MUTEX_VALUE_LOCKED);
+	thread_rem_mutex(m);
 	m->value = MUTEX_VALUE_UNLOCKED;
 
 	cpu_spin_unlock(&m->spin_lock);
@@ -100,8 +102,10 @@ bool mutex_trylock(struct mutex *m)
 	cpu_spin_lock(&m->spin_lock);
 
 	old_value = m->value;
-	if (old_value == MUTEX_VALUE_UNLOCKED)
+	if (old_value == MUTEX_VALUE_UNLOCKED) {
 		m->value = MUTEX_VALUE_LOCKED;
+		thread_add_mutex(m);
+	}
 
 	cpu_spin_unlock(&m->spin_lock);
 	thread_unmask_exceptions(old_itr_status);
@@ -177,6 +181,7 @@ void condvar_wait(struct condvar *cv, struct mutex *m)
 
 	/* Unlock the mutex */
 	TEE_ASSERT(m->value == MUTEX_VALUE_LOCKED);
+	thread_rem_mutex(m);
 	m->value = MUTEX_VALUE_UNLOCKED;
 
 	cpu_spin_unlock(&m->spin_lock);

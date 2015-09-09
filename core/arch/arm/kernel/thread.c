@@ -73,6 +73,13 @@
 
 #define RPC_MAX_PARAMS		2
 
+/*
+ * The big lock for threads. Since OP-TEE currently is single threaded
+ * all standard calls (non-fast calls) must take this mutex before starting
+ * to do any real work.
+ */
+static struct mutex thread_big_lock = MUTEX_INITIALIZER;
+
 struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
@@ -298,31 +305,6 @@ struct thread_core_local *thread_get_core_local(void)
 	return &thread_core_local[cpu_id];
 }
 
-static bool have_one_active_thread(void)
-{
-	size_t n;
-
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state == THREAD_STATE_ACTIVE)
-			return true;
-	}
-
-	return false;
-}
-
-static bool have_one_preempted_thread(void)
-{
-	size_t n;
-
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state == THREAD_STATE_SUSPENDED &&
-		    (threads[n].flags & THREAD_FLAGS_EXIT_ON_IRQ))
-			return true;
-	}
-
-	return false;
-}
-
 static void thread_lazy_save_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
@@ -421,13 +403,11 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	lock_global();
 
-	if (!have_one_active_thread() && !have_one_preempted_thread()) {
-		for (n = 0; n < CFG_NUM_THREADS; n++) {
-			if (threads[n].state == THREAD_STATE_FREE) {
-				threads[n].state = THREAD_STATE_ACTIVE;
-				found_thread = true;
-				break;
-			}
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		if (threads[n].state == THREAD_STATE_FREE) {
+			threads[n].state = THREAD_STATE_ACTIVE;
+			found_thread = true;
+			break;
 		}
 	}
 
@@ -490,28 +470,12 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	lock_global();
 
-	if (have_one_active_thread()) {
-		rv = TEESMC_RETURN_EBUSY;
-	} else if (n < CFG_NUM_THREADS &&
-		threads[n].state == THREAD_STATE_SUSPENDED &&
-		args->a7 == threads[n].hyp_clnt_id) {
-		/*
-		 * If there's one preempted thread it has to be the one
-		 * we're resuming.
-		 */
-		if (have_one_preempted_thread()) {
-			if (threads[n].flags & THREAD_FLAGS_EXIT_ON_IRQ) {
-				threads[n].flags &= ~THREAD_FLAGS_EXIT_ON_IRQ;
-				threads[n].state = THREAD_STATE_ACTIVE;
-			} else {
-				rv = TEESMC_RETURN_EBUSY;
-			}
-		} else {
-			threads[n].state = THREAD_STATE_ACTIVE;
-		}
-	} else {
+	if (n < CFG_NUM_THREADS &&
+	    threads[n].state == THREAD_STATE_SUSPENDED &&
+	    args->a7 == threads[n].hyp_clnt_id)
+		threads[n].state = THREAD_STATE_ACTIVE;
+	else
 		rv = TEESMC_RETURN_ERESUME;
-	}
 
 	unlock_global();
 
@@ -578,7 +542,14 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		thr->rpc_parg = parg;
 	}
 
+	/*
+	 * Take big lock before entering the callback registered in
+	 * thread_std_smc_handler_ptr as the callback can reside in the
+	 * paged area and the pager can only serve one core at a time.
+	 */
+	thread_take_big_lock();
 	thread_std_smc_handler_ptr(args);
+	thread_release_big_lock();
 }
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
@@ -800,6 +771,8 @@ static void init_thread_stacks(void)
 
 void thread_init_primary(const struct thread_handlers *handlers)
 {
+	size_t n;
+
 	/*
 	 * The COMPILE_TIME_ASSERT only works in function context. These
 	 * checks verifies that the offsets used in assembly code matches
@@ -895,6 +868,9 @@ void thread_init_primary(const struct thread_handlers *handlers)
 
 	/* Initialize canaries around the stacks */
 	init_canaries();
+
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		TAILQ_INIT(&threads[n].mutexes);
 
 	init_thread_stacks();
 }
@@ -1038,6 +1014,58 @@ void thread_kernel_disable_vfp(uint32_t state)
 }
 #endif /*CFG_WITH_VFP*/
 
+void thread_add_mutex(struct mutex *m)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	int ct = l->curr_thread;
+
+	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
+	assert(m->owner_id == -1);
+	m->owner_id = ct;
+	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
+}
+
+void thread_rem_mutex(struct mutex *m)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	int ct = l->curr_thread;
+
+	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
+	assert(m->owner_id == ct);
+	m->owner_id = -1;
+	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
+}
+
+static bool may_unlock_big_lock(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	struct thread_core_local *l = thread_get_core_local();
+	int ct = l->curr_thread;
+	struct mutex *m;
+	bool have_bl = false;
+	bool have_other = false;
+
+	TAILQ_FOREACH(m, &threads[ct].mutexes, link) {
+		if (m == &thread_big_lock)
+			have_bl = true;
+		else
+			have_other = true;
+	}
+
+	thread_unmask_exceptions(exceptions);
+	return have_bl && !have_other;
+}
+
+void thread_take_big_lock(void)
+{
+	mutex_lock(&thread_big_lock);
+}
+
+void thread_release_big_lock(void)
+{
+	assert(may_unlock_big_lock());
+	mutex_unlock(&thread_big_lock);
+}
 
 paddr_t thread_rpc_alloc_arg(size_t size)
 {
@@ -1076,7 +1104,7 @@ void thread_rpc_free_payload(paddr_t payload)
 	}
 }
 
-uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 		struct teesmc32_param *params)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { 0 };
@@ -1115,6 +1143,27 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return arg->ret;
 }
 
+uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+		struct teesmc32_param *params)
+{
+	bool unlock_big_lock = may_unlock_big_lock();
+	uint32_t ret;
+
+	/*
+	 * If current thread doesn't hold any other mutexes:
+	 * Let other threads get the big lock to do some work while this
+	 * thread is doing some potentially slow RPC in normal world.
+	 */
+	if (unlock_big_lock)
+		mutex_unlock(&thread_big_lock);
+
+	ret = rpc_cmd_nolock(cmd, num_params, params);
+
+	if (unlock_big_lock)
+		mutex_lock(&thread_big_lock);
+
+	return ret;
+}
 
 void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
 		paddr_t *cookie)
