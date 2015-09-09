@@ -44,6 +44,20 @@ enum tee_fs_file_type {
 	BLOCK_FILE
 };
 
+struct common_header {
+	uint8_t iv[TEE_FS_KM_IV_LEN];
+	uint8_t tag[TEE_FS_KM_MAX_TAG_LEN];
+};
+
+struct meta_header {
+	uint8_t encrypted_key[TEE_FS_KM_FEK_SIZE];
+	struct common_header common;
+};
+
+struct block_header {
+	struct common_header common;
+};
+
 size_t tee_fs_get_header_size(enum tee_fs_file_type type);
 TEE_Result tee_fs_generate_fek(uint8_t *encrypted_fek, int fek_size);
 TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
