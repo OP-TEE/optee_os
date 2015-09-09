@@ -87,18 +87,14 @@ struct tee_fs_dir {
 	struct tee_fs_dirent d;
 };
 
-static inline int pos_to_block_num(int addr)
+static inline int pos_to_block_num(int position)
 {
-	return addr >> FILE_BLOCK_SHIFT;
+	return position >> FILE_BLOCK_SHIFT;
 }
 
-static inline size_t size_to_num_blocks(size_t size)
+static inline int get_last_block_num(size_t size)
 {
-	size_t num_blocks = size >> FILE_BLOCK_SHIFT;
-
-	if ((size & (FILE_BLOCK_SIZE - 1)) > 0)
-		num_blocks++;
-	return num_blocks;
+	return pos_to_block_num(size - 1);
 }
 
 static inline uint8_t get_backup_version_of_block(

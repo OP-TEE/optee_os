@@ -58,7 +58,7 @@
  */
 #define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
 
-typedef int tee_fs_off_t;
+typedef int64_t tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;
 typedef struct tee_fs_dir tee_fs_dir;
 

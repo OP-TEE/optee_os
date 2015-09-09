@@ -273,6 +273,7 @@ static int get_file_length(int fd, size_t *length)
 	res = ree_fs_lseek(fd, 0, TEE_FS_SEEK_END);
 	if (res < 0)
 		return res;
+
 	file_len = res;
 
 	res = ree_fs_lseek(fd, 0, TEE_FS_SEEK_SET);
@@ -447,8 +448,10 @@ static struct tee_fs_file_meta *tee_fs_create_meta_file(const char *file,
 		goto exit;
 
 	meta = malloc(sizeof(struct tee_fs_file_meta));
-	if (!meta)
+	if (!meta) {
+		EMSG("Failed to allocate memory");
 		goto exit_rmdir;
+	}
 
 	memset(&meta->info, 0, sizeof(meta->info));
 	tee_res = tee_fs_generate_fek(meta->encrypted_fek, TEE_FS_KM_FEK_SIZE);
@@ -474,9 +477,13 @@ static struct tee_fs_file_meta *duplicate_meta(
 	struct tee_fs_file_meta *new_meta = NULL;
 
 	new_meta = malloc(sizeof(*new_meta));
-	if (!new_meta)
+	if (!new_meta) {
+		EMSG("Failed to allocate memory for new meta");
 		goto exit;
+	}
+
 	memcpy(new_meta, fdp->meta, sizeof(*new_meta));
+
 exit:
 	return new_meta;
 }
@@ -562,9 +569,12 @@ exit_free_meta:
 static bool need_to_allocate_new_block(struct tee_fs_fd *fdp,
 					size_t block_num)
 {
-	size_t num_blocks_allocated =
-		size_to_num_blocks(fdp->meta->info.length);
-	return (block_num >= num_blocks_allocated);
+	size_t file_size = fdp->meta->info.length;
+
+	if (file_size == 0)
+		return true;
+
+	return block_num > (size_t)get_last_block_num(file_size);
 }
 
 #ifdef CFG_ENC_FS
@@ -607,12 +617,13 @@ static int read_one_block(struct block_operation_args *args)
 		args->offset = 0;
 	}
 
-	DMSG("offset=%d, length=%zu, block_file_size=%zu",
-			args->offset, args->len, block_file_size);
+	DMSG("offset=%zu, length=%zu, block_file_size=%zu",
+			(size_t)args->offset, args->len, block_file_size);
 
 	if ((args->offset + args->len) > block_file_size) {
-		EMSG("Read (offset(%u) + length(%zu)) > block file size(%zu)",
-				args->offset, args->len, block_file_size);
+		EMSG("offset(%zu) + length(%zu) > block file size(%zu)",
+				(size_t)args->offset, args->len,
+				block_file_size);
 		res = -1;
 		goto fail;
 	}
@@ -669,9 +680,13 @@ static int write_one_block(struct block_operation_args *args)
 	uint8_t *plaintext;
 	size_t old_file_size, new_file_size;
 
+	DMSG("offset=%zu, length=%zu",
+			(size_t)args->offset, args->len);
+
 	if ((args->offset + args->len) > FILE_BLOCK_SIZE) {
-		EMSG("Write (offset(%d) + length(%zu)) > FILE_BLOCK_SIZE(%u)",
-				args->offset, args->len, FILE_BLOCK_SIZE);
+		EMSG("offset(%zu) + length(%zu) > FILE_BLOCK_SIZE(%u)",
+				(size_t)args->offset, args->len,
+				FILE_BLOCK_SIZE);
 		return -1;
 	}
 
@@ -1093,7 +1108,7 @@ tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
 	if (!fdp)
 		goto exit;
 
-	DMSG("offset=%d", offset);
+	DMSG("offset=%d, whence=%d", (int)offset, whence);
 
 	filelen = fdp->meta->info.length;
 
@@ -1114,13 +1129,13 @@ tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
 		goto exit;
 	}
 
-	/*
-	 * file hole is not supported in this implementation,
-	 * restrict the file postion within file length
-	 * for simplicity
-	 */
-	if ((new_pos < 0) || (new_pos > (tee_fs_off_t)filelen))
+	if (new_pos < 0)
+		new_pos = 0;
+
+	if (new_pos > TEE_DATA_MAX_POSITION) {
+		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
 		goto exit;
+	}
 
 	res = fdp->pos = new_pos;
 exit:
@@ -1128,73 +1143,124 @@ exit:
 }
 
 /*
- * To ensure atomic ftruncate operation, we can:
+ * To ensure atomic truncate operation, we can:
  *
  *  - update file length to new length
  *  - commit new meta
+ *  - free unused blocks
  *
- * (Any failure in above steps is considered as update failed,
- *  and the file content will not be updated)
+ * To ensure atomic extend operation, we can:
  *
- * After previous step the update is considered complete, but
- * we should do the following clean-up step(s):
+ *  - update file length to new length
+ *  - allocate and fill zero data to new blocks
+ *  - commit new meta
  *
- *  - free the trucated file blocks
+ * Any failure before committing new meta is considered as
+ * update failed, and the file content will not be updated
  *
- * (Any failure in above steps is considered as a successfully
- *  update)
  */
 int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
 				tee_fs_off_t new_file_len)
 {
 	int res = -1;
-	size_t old_file_len;
-	int old_block_num, new_block_num, diff_blocks, i = 0;
+	size_t old_file_len = fdp->meta->info.length;
 	struct tee_fs_file_meta *new_meta = NULL;
+	uint8_t *buf = NULL;
 
 	if (!fdp)
-		goto exit;
+		return -1;
 
-	if (fdp->flags & TEE_FS_O_RDONLY)
-		goto exit;
+	if (fdp->flags & TEE_FS_O_RDONLY) {
+		EMSG("Read only");
+		return -1;
+	}
 
-	if (new_file_len > (tee_fs_off_t)fdp->meta->info.length) {
-		EMSG("Extending file size is not support yet");
-		goto exit;
+	if ((size_t)new_file_len == old_file_len) {
+		DMSG("Ignore due to file length does not changed");
+		return 0;
+	}
+
+	if (new_file_len > MAX_FILE_SIZE) {
+		EMSG("Over maximum file size(%d)", MAX_FILE_SIZE);
+		return -1;
 	}
 
 	new_meta = duplicate_meta(fdp);
 	if (!new_meta)
 		goto exit;
 
-	old_file_len = fdp->meta->info.length;
-	old_block_num = pos_to_block_num(old_file_len - 1);
-	new_block_num = pos_to_block_num(new_file_len - 1);
-	diff_blocks = new_block_num - old_block_num;
-
 	new_meta->info.length = new_file_len;
-	DMSG("truncated length=%d", new_file_len);
 
-	res = tee_fs_commit_meta_file(fdp, new_meta);
-	if (res < 0) {
-		EMSG("Failed to commit meta file");
-		goto exit;
-	}
+	if ((size_t)new_file_len < old_file_len) {
+		int old_block_num = get_last_block_num(old_file_len);
+		int new_block_num = get_last_block_num(new_file_len);
 
-	/* now we are safe to free blocks */
-	TEE_ASSERT(diff_blocks <= 0);
-	while (diff_blocks) {
-		res = free_block(fdp, old_block_num - i);
-		if (res) {
-			EMSG("Failed to free block: %d", old_block_num - i);
+		DMSG("Truncate file length to %zu", (size_t)new_file_len);
+
+		res = tee_fs_commit_meta_file(fdp, new_meta);
+		if (res < 0) {
+			EMSG("Failed to commit meta file");
 			goto exit;
 		}
-		i++;
-		diff_blocks++;
+
+		/* now we are safe to free unused blocks */
+		while (old_block_num > new_block_num) {
+			if (free_block(fdp, old_block_num)) {
+				IMSG("Warning: Failed to free block: %d",
+						old_block_num);
+			}
+
+			old_block_num--;
+		}
+
+	} else {
+		size_t ext_len = new_file_len - old_file_len;
+		int orig_pos = fdp->pos;
+
+		buf = malloc(FILE_BLOCK_SIZE);
+		if (!buf) {
+			EMSG("Failed to allocate buffer, size=%d",
+					FILE_BLOCK_SIZE);
+			res = -1;
+			goto exit;
+		}
+
+		memset(buf, 0x0, FILE_BLOCK_SIZE);
+
+		DMSG("Extend file length to %zu", (size_t)new_file_len);
+
+		fdp->pos = old_file_len;
+
+		res = 0;
+		while (ext_len > 0) {
+			size_t data_len = (ext_len > FILE_BLOCK_SIZE) ?
+					FILE_BLOCK_SIZE : ext_len;
+
+			DMSG("fill len=%zu", data_len);
+			res = tee_fs_do_multi_blocks_transfer(fdp,
+					write_one_block, (void *)buf,
+					data_len, new_meta);
+			if (res < 0) {
+				EMSG("Failed to fill data");
+				break;
+			}
+
+			ext_len -= data_len;
+		}
+
+		fdp->pos = orig_pos;
+
+		if (res == 0) {
+			res = tee_fs_commit_meta_file(fdp, new_meta);
+			if (res < 0)
+				EMSG("Failed to commit meta file");
+		}
 	}
+
 exit:
-	if (new_meta)
-		free(new_meta);
+	free(new_meta);
+	free(buf);
+
 	return res;
 }
 
@@ -1258,6 +1324,7 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 {
 	int res = -1;
 	struct tee_fs_file_meta *new_meta;
+	size_t file_size = fdp->meta->info.length;
 
 	if (!fdp)
 		goto exit;
@@ -1278,11 +1345,19 @@ int tee_fs_common_write(struct tee_fs_fd *fdp,
 		goto exit;
 	}
 
+	DMSG("data len=%zu", len);
+
+	if (file_size < (size_t)fdp->pos) {
+		DMSG("File hole detected, try to extend file size");
+		res = tee_fs_common_ftruncate(fdp, fdp->pos);
+		if (res < 0)
+			goto exit;
+	}
+
 	new_meta = duplicate_meta(fdp);
 	if (!new_meta)
 		goto exit;
 
-	DMSG("len=%zu", len);
 	res = tee_fs_do_multi_blocks_transfer(fdp, write_one_block,
 			(void *)buf, len, new_meta);
 
