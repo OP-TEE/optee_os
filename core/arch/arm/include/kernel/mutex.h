@@ -28,19 +28,7 @@
 #define KERNEL_MUTEX_H
 
 #include <types_ext.h>
-
-/*
- * We're using static memory allocation for some bookkeeping of the mutexes
- * to avoid memory allocations during mutex_lock(). This is to avoid problems
- * with mutex_lock() etc failing during out of memory situations.
- *
- * The maximum number of mutexes that can be initialized. A mutex that is
- * destroyed doesn't count. If the number of initialized mutexes exceeds
- * this number we'll panic().
- */
-#ifndef MUTEX_MAX_NUMBER_OF
-#define MUTEX_MAX_NUMBER_OF	64
-#endif
+#include <kernel/wait_queue.h>
 
 enum mutex_value {
 	MUTEX_VALUE_UNLOCKED,
@@ -49,14 +37,12 @@ enum mutex_value {
 
 struct mutex {
 	enum mutex_value value;
-	size_t num_waiters;	/* > 0 means that some thread(s) are waiting */
 	unsigned spin_lock;	/* used when operating on this struct */
-	int handle;		/* identifier of mutex passed to linux driver */
-	uint32_t tick;		/* how recent the operation passed to */
-				/* linux driver is */
+	struct wait_queue wq;
 };
 
-#define MUTEX_INITIALIZER	{ .value = MUTEX_VALUE_UNLOCKED, .handle = -1 }
+#define MUTEX_INITIALIZER	{ .value = MUTEX_VALUE_UNLOCKED, \
+				  .wq = WAIT_QUEUE_INITIALIZER, }
 
 void mutex_init(struct mutex *m);
 void mutex_lock(struct mutex *m);
