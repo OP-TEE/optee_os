@@ -198,6 +198,90 @@ that should be called when Trusted OS receives standard or fast calls, FIQ,
 SVC and ABORT and even PSCI calls. These handlers are platform specific,
 therefore this is something that needs to be implemented by each platform.
 
+## Synchronization
+OP-TEE has three primitives for synchronization of threads and CPUs:
+spin-lock, mutex, and condvar.
+
+### Spin-lock
+A spin-lock is represented as an `unsigned int`. This is the most primitive
+lock. Interrupts should be disabled before attempting to take a spin-lock
+and should remain disabled until the lock is released.
+
+A spin-lock is initialized with `SPINLOCK_UNLOCK`.
+
+`cpu_spin_lock()` locks a spin-lock
+
+`cpu_spin_trylock()` locks a spin-lock if unlocked and returns `0` else
+the spin-lock is unchanged and the function returns `!0`.
+
+`cpu_spin_unlock()` unlocks a spin-lock
+
+### Mutex
+A mutex is represented by `struct mutex`. A mutex can be locked and
+unlocked with interrupts enabled or disabled, but only from a normal
+thread. A mutex can't be used in an interrupt handler, abort handler or
+before a thread has been selected for the CPU.
+
+A mutex is initialized with either `MUTEX_INITIALIZER` or `mutex_init()`.
+
+`mutex_lock()` locks a mutex. If the mutex is unlocked this is a fast
+operation, else the function issues an RPC to wait in normal world.
+
+`mutex_unlock()` unlocks a mutex. If there's no waiters this is a fast
+operation, else the function issues an RPC to wake up a waiter in normal
+world.
+
+`mutex_trylock()` locks a mutex if unlocked and returns `true` else the
+mutex is unchanged and the function returns `false`.
+
+`mutex_destroy()` asserts that the mutex is unlocked and there's no
+waiters, after this the memory used by the mutex can be freed.
+
+When a mutex is locked it's owned by the thread calling `mutex_lock()` or
+`mutex_trylock()`, the mutex may only be unlocked by the thread owning the
+mutex.
+
+A thread should not exit to TA user space when holding a mutex, the only
+exception is the *big lock* mutex which is handled in a special way.
+
+### Condvar
+A condvar is represented by `struct condvar`. A condvar is similar to a
+pthread_condvar_t in the pthreads standard, only less advanced. Condition
+variables are used to wait for some condition to be fulfilled and are
+always used together a mutex. Once a condition variable has been used
+together with a certain mutex, it must only be used with that mutex until
+destroyed.
+
+A condvar is initialized with `CONDVAR_INITIALIZER` or `condvar_init()`.
+
+`condvar_wait()` atomically unlocks the supplied mutex and waits in normal
+world via an RPC for the condition variable to be signaled, when the
+function returns the mutex is locked again.
+
+`condvar_signal()` wakes up one waiter of the condition variable (waiting
+in `condvar_wait()`)
+
+`condvar_broadcast()` wake up all waiters of the condition variable.
+
+The caller of `condvar_signal()` or `condvar_broadcast()` should hold the
+mutex associated with the condition variable to guarantee that a waiter
+doesn't miss the signal.
+
+## Big lock
+OP-TEE is currently designed for one active thread at a time. As an
+intermediate step towards multiple concurrent threads a *big lock* mutex is
+used.
+
+The *big lock* mutex keeps secure world effectively single threaded. The
+*big lock* is taken just before the SMC handler is called and released when
+the function has returned. A thread may temporarily unlock the *big lock*
+lock when concurrency can be enabled. The *big lock* should be back in the
+locked state before the SMC handler returns.
+
+The *big lock* is released when a thread does RPC and reacquired when RPC
+returns. If the thread doing RPC holds other mutexes at that time or if the
+*big lock* isn't held the *big lock* is unchanged.
+
 # 5. MMU
 ## Translation tables
 OP-TEE uses several L1 translation tables, one large spanning 4 GiB and two
