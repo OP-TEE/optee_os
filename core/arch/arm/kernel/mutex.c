@@ -118,3 +118,75 @@ void mutex_destroy(struct mutex *m)
 	TEE_ASSERT(m->value == MUTEX_VALUE_UNLOCKED);
 	TEE_ASSERT(wq_is_empty(&m->wq));
 }
+
+void condvar_init(struct condvar *cv)
+{
+	*cv = (struct condvar)CONDVAR_INITIALIZER;
+}
+
+void condvar_destroy(struct condvar *cv)
+{
+	if (cv->m)
+		TEE_ASSERT(!wq_have_condvar(&cv->m->wq, cv));
+	condvar_init(cv);
+}
+
+static void cv_signal(struct condvar *cv, bool only_one)
+{
+	uint32_t old_itr_status;
+	struct mutex *m;
+
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
+	cpu_spin_lock(&cv->spin_lock);
+	m = cv->m;
+	cpu_spin_unlock(&cv->spin_lock);
+	thread_unmask_exceptions(old_itr_status);
+
+	if (m)
+		wq_promote_condvar(&m->wq, cv, only_one);
+
+}
+
+void condvar_signal(struct condvar *cv)
+{
+	cv_signal(cv, true /* only one */);
+}
+
+void condvar_broadcast(struct condvar *cv)
+{
+	cv_signal(cv, false /* all */);
+}
+
+void condvar_wait(struct condvar *cv, struct mutex *m)
+{
+	uint32_t old_itr_status;
+	struct wait_queue_elem wqe;
+
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	/* Link this condvar to this mutex until reinitialized */
+	cpu_spin_lock(&cv->spin_lock);
+	TEE_ASSERT(!cv->m || cv->m == m);
+	cv->m = m;
+	cpu_spin_unlock(&cv->spin_lock);
+
+	cpu_spin_lock(&m->spin_lock);
+
+	/* Add to mutex wait queue as a condvar waiter */
+	wq_wait_init_condvar(&m->wq, &wqe, cv);
+
+	/* Unlock the mutex */
+	TEE_ASSERT(m->value == MUTEX_VALUE_LOCKED);
+	m->value = MUTEX_VALUE_UNLOCKED;
+
+	cpu_spin_unlock(&m->spin_lock);
+
+	thread_unmask_exceptions(old_itr_status);
+
+	/* Wake eventual waiters */
+	wq_wake_one(&m->wq);
+
+	wq_wait_final(&m->wq, &wqe);
+
+	mutex_lock(m);
+}

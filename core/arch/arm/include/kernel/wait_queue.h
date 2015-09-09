@@ -30,15 +30,18 @@
 #include <types_ext.h>
 #include <sys/queue.h>
 
-struct wait_queue_elem {
-	short handle;
-	bool done;
-	SLIST_ENTRY(wait_queue_elem) link;
-};
-
+struct wait_queue_elem;
 SLIST_HEAD(wait_queue, wait_queue_elem);
 
 #define WAIT_QUEUE_INITIALIZER { .slh_first = NULL }
+
+struct condvar;
+struct wait_queue_elem {
+	short handle;
+	bool done;
+	struct condvar *cv;
+	SLIST_ENTRY(wait_queue_elem) link;
+};
 
 /*
  * Initializes a wait queue
@@ -53,7 +56,14 @@ void wq_init(struct wait_queue *wq);
  * One call to this function must be followed by one call to wq_wait_final()
  * on the same wait queue element.
  */
-void wq_wait_init(struct wait_queue *wq, struct wait_queue_elem *wqe);
+void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
+			struct condvar *cv);
+
+static inline void wq_wait_init(struct wait_queue *wq,
+			struct wait_queue_elem *wqe)
+{
+	wq_wait_init_condvar(wq, wqe, NULL);
+}
 
 /* Waits for the wait queue element to the awakened. */
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe);
@@ -63,6 +73,10 @@ void wq_wake_one(struct wait_queue *wq);
 
 /* Returns true if the wait queue doesn't contain any elements */
 bool wq_is_empty(struct wait_queue *wq);
+
+void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
+			bool only_one);
+bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv);
 
 #endif /*KERNEL_WAIT_QUEUE_H*/
 

@@ -50,5 +50,18 @@ void mutex_unlock(struct mutex *m);
 bool mutex_trylock(struct mutex *m);
 void mutex_destroy(struct mutex *m);
 
+
+struct condvar {
+	unsigned spin_lock;
+	struct mutex *m;
+};
+#define CONDVAR_INITIALIZER { .m = NULL }
+
+void condvar_init(struct condvar *cv);
+void condvar_destroy(struct condvar *cv);
+void condvar_signal(struct condvar *cv);
+void condvar_broadcast(struct condvar *cv);
+void condvar_wait(struct condvar *cv, struct mutex *m);
+
 #endif /*KERNEL_MUTEX_H*/
 

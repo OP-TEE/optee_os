@@ -81,15 +81,16 @@ static void slist_add_tail(struct wait_queue *wq, struct wait_queue_elem *wqe)
 		SLIST_INSERT_AFTER(wqe_iter, wqe, link);
 	} else
 		SLIST_INSERT_HEAD(wq, wqe, link);
-
 }
 
-void wq_wait_init(struct wait_queue *wq, struct wait_queue_elem *wqe)
+void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
+		struct condvar *cv)
 {
 	uint32_t old_itr_status;
 
 	wqe->handle = thread_get_id();
 	wqe->done = false;
+	wqe->cv = cv;
 
 	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&wq_spin_lock);
@@ -130,11 +131,13 @@ void wq_wake_one(struct wait_queue *wq)
 	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&wq_spin_lock);
 
-	wqe = SLIST_FIRST(wq);
-	if (wqe) {
-		do_wakeup = !wqe->done;
-		wqe->done = true;
-		handle = wqe->handle;
+	SLIST_FOREACH(wqe, wq, link) {
+		if (!wqe->cv) {
+			do_wakeup = !wqe->done;
+			wqe->done = true;
+			handle = wqe->handle;
+			break;
+		}
 	}
 
 	cpu_spin_unlock(&wq_spin_lock);
@@ -142,6 +145,58 @@ void wq_wake_one(struct wait_queue *wq)
 
 	if (do_wakeup)
 		wq_rpc(TEE_RPC_WAIT_QUEUE_WAKEUP, handle);
+}
+
+void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
+			bool only_one)
+{
+	uint32_t old_itr_status;
+	struct wait_queue_elem *wqe;
+
+	if (!cv)
+		return;
+
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
+	cpu_spin_lock(&wq_spin_lock);
+
+	/*
+	 * Find condvar waiter(s) and promote each to an active waiter.
+	 * This is a bit unfair to eventual other active waiters as a
+	 * condvar waiter is added the the queue when waiting for the
+	 * condvar.
+	 */
+	SLIST_FOREACH(wqe, wq, link) {
+		if (wqe->cv == cv) {
+			wqe->cv = NULL;
+			if (only_one)
+				break;
+		}
+	}
+
+	cpu_spin_unlock(&wq_spin_lock);
+	thread_unmask_exceptions(old_itr_status);
+}
+
+bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv)
+{
+	uint32_t old_itr_status;
+	struct wait_queue_elem *wqe;
+	bool rc = false;
+
+	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
+	cpu_spin_lock(&wq_spin_lock);
+
+	SLIST_FOREACH(wqe, wq, link) {
+		if (wqe->cv == cv) {
+			rc = true;
+			break;
+		}
+	}
+
+	cpu_spin_unlock(&wq_spin_lock);
+	thread_unmask_exceptions(old_itr_status);
+
+	return rc;
 }
 
 bool wq_is_empty(struct wait_queue *wq)
