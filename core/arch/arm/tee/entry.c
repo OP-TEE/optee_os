@@ -177,10 +177,6 @@ static void entry_open_session(struct thread_smc_args *args,
 		goto bad_params;
 
 	(void)tee_dispatch_open_session(&in, &out);
-	if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
-		args->a0 = TEESMC_RETURN_EBUSY;
-		return;
-	}
 
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
@@ -204,15 +200,9 @@ static void entry_close_session(struct thread_smc_args *args,
 
 	if (num_params == 0) {
 		struct tee_close_session_in in;
-		uint32_t ret;
 
 		in.sess = (TEE_Session *)(vaddr_t)arg32->session;
-		ret = tee_dispatch_close_session(&in);
-		if (ret == TEE_ERROR_SYSTEM_BUSY) {
-			args->a0 = TEESMC_RETURN_EBUSY;
-			return;
-		}
-		arg32->ret = ret;
+		arg32->ret = tee_dispatch_close_session(&in);
 	} else {
 		arg32->ret = TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -239,10 +229,6 @@ static void entry_invoke_command(struct thread_smc_args *args,
 	in.sess = (TEE_Session *)(vaddr_t)arg32->session;
 	in.cmd = arg32->ta_func;
 	(void)tee_dispatch_invoke_command(&in, &out);
-	if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
-		args->a0 = TEESMC_RETURN_EBUSY;
-		return;
-	}
 
 	copy_out_param(out.params, in.param_types, num_params, params);
 
@@ -261,12 +247,6 @@ static void entry_cancel(struct thread_smc_args *args,
 
 		in.sess = (TEE_Session *)(vaddr_t)arg32->session;
 		(void)tee_dispatch_cancel_command(&in, &out);
-
-		if (out.msg.res == TEE_ERROR_SYSTEM_BUSY) {
-			args->a0 = TEESMC_RETURN_EBUSY;
-			return;
-		}
-
 		arg32->ret = out.msg.res;
 		arg32->ret_origin = out.msg.err;
 	} else {

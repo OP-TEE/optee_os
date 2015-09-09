@@ -115,6 +115,24 @@ static void set_tee_rs(struct tee_ta_session *tee_rs)
 	thread_set_tsd(tee_rs);
 }
 
+static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
+{
+	mutex_lock(&tee_ta_mutex);
+	while (ctx->busy)
+		condvar_wait(&ctx->busy_cv, &tee_ta_mutex);
+	ctx->busy = true;
+	mutex_unlock(&tee_ta_mutex);
+}
+
+static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
+{
+	mutex_lock(&tee_ta_mutex);
+	assert(ctx->busy);
+	ctx->busy = false;
+	condvar_signal(&ctx->busy_cv);
+	mutex_unlock(&tee_ta_mutex);
+}
+
 /*
  * Jumpers for the static TAs.
  */
@@ -517,6 +535,7 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 
 	ctx->ref_count = 1;
 
+	condvar_init(&ctx->busy_cv);
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 	*ta_ctx = ctx;
 
@@ -863,6 +882,8 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	/* Free emums created by this TA */
 	tee_svc_storage_close_all_enum(ctx);
 
+	condvar_destroy(&ctx->busy_cv);
+
 	free(ctx);
 }
 
@@ -918,9 +939,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	ctx = sess->ctx;
 	DMSG("   ... Destroy session");
 
-	if (ctx->busy)
-		return TEE_ERROR_SYSTEM_BUSY;
-	ctx->busy = true;
+	tee_ta_set_busy(ctx);
 
 	if (ctx->static_ta) {
 		if (ctx->static_ta->close_session_entry_point) {
@@ -946,7 +965,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	TAILQ_REMOVE(open_sessions, sess, link);
 	free(sess);
 
-	ctx->busy = false;
+	tee_ta_clear_busy(ctx);
 
 	TEE_ASSERT(ctx->ref_count > 0);
 	ctx->ref_count--;
@@ -1200,10 +1219,12 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 						COMMAND_OPEN_SESSION);
 			}
 		} else {
+			tee_ta_set_busy(ctx);
 			res = tee_user_ta_enter(
 				err, s,
 				USER_TA_FUNC_OPEN_CLIENT_SESSION,
 				cancel_req_to, 0, param);
+			tee_ta_clear_busy(ctx);
 		}
 	}
 
@@ -1244,11 +1265,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		OUTRMSG(TEE_ERROR_TARGET_DEAD);
 	}
 
-	if (sess->ctx->busy) {
-		*err = TEE_ORIGIN_TEE;
-		return TEE_ERROR_SYSTEM_BUSY;
-	}
-	sess->ctx->busy = true;
+	tee_ta_set_busy(sess->ctx);
 
 	res = tee_ta_verify_param(sess, param);
 	if (res != TEE_SUCCESS) {
@@ -1304,7 +1321,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	}
 
 function_exit:
-	sess->ctx->busy = false;
+	tee_ta_clear_busy(sess->ctx);
 	if (res != TEE_SUCCESS)
 		DMSG("  => Error: %x of %d\n", res, *err);
 	return res;
