@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,29 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERNEL_WAIT_QUEUE_H
+#define KERNEL_WAIT_QUEUE_H
 
-#ifndef TEE_RPC_H
-#define TEE_RPC_H
+#include <types_ext.h>
+#include <sys/queue.h>
+
+struct wait_queue_elem {
+	short handle;
+	bool done;
+	SLIST_ENTRY(wait_queue_elem) link;
+};
+
+SLIST_HEAD(wait_queue, wait_queue_elem);
+
+#define WAIT_QUEUE_INITIALIZER { .slh_first = NULL }
 
 /*
- * tee_rpc_invoke cmd definitions, keep in sync with tee-supplicant
+ * Initializes a wait queue
  */
-#define TEE_RPC_LOAD_TA		0x10000001
-#define TEE_RPC_FREE_TA		0x10000009
-#define TEE_RPC_RPMB_CMD	0x1000000A
-#define TEE_RPC_FS		0x10000010
-#define TEE_RPC_GET_TIME	0x10000011
+void wq_init(struct wait_queue *wq);
 
-/* keep in sync with Linux driver */
-#define TEE_RPC_WAIT_MUTEX	0x20000000
-/* Values specific to TEE_RPC_WAIT_MUTEX */
-#define TEE_WAIT_MUTEX_SLEEP	0
-#define TEE_WAIT_MUTEX_WAKEUP	1
-#define TEE_WAIT_MUTEX_DELETE	2
+/*
+ * Initializes a wait queue element and adds it to the wait queue.  This
+ * function is supposed to be called before the lock that protects the
+ * resource we need to wait for is released.
+ *
+ * One call to this function must be followed by one call to wq_wait_final()
+ * on the same wait queue element.
+ */
+void wq_wait_init(struct wait_queue *wq, struct wait_queue_elem *wqe);
 
-#define TEE_RPC_WAIT_QUEUE_SLEEP	0x20000001
-#define TEE_RPC_WAIT_QUEUE_WAKEUP	0x20000002
+/* Waits for the wait queue element to the awakened. */
+void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe);
 
-#define TEE_RPC_WAIT		0x30000000
+/* Wakes up the first wait queue element in the wait queue, if there is one */
+void wq_wake_one(struct wait_queue *wq);
 
-#endif
+/* Returns true if the wait queue doesn't contain any elements */
+bool wq_is_empty(struct wait_queue *wq);
+
+#endif /*KERNEL_WAIT_QUEUE_H*/
+
