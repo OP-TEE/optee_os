@@ -67,7 +67,7 @@ static const char *trace_level_to_string(int level, bool level_ok)
 
 /* Format trace of user ta. Inline with kernel ta */
 void trace_printf(const char *function, int line, int level, bool level_ok,
-		  bool sync, const char *fmt, ...)
+		  const char *fmt, ...)
 {
 	va_list ap;
 	char buf[MAX_PRINT_SIZE];
@@ -110,7 +110,7 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		buf[boffs + 1] = '\0';
 	}
 
-	trace_ext_puts(sync, buf);
+	trace_ext_puts(buf);
 }
 
 #else
@@ -132,7 +132,7 @@ int trace_get_level(void)
 
 void trace_printf(const char *function __unused, int line __unused,
 		  int level __unused, bool level_ok __unused,
-		  bool sync __unused, const char *fmt __unused, ...)
+		  const char *fmt __unused, ...)
 {
 }
 
@@ -187,15 +187,15 @@ void dhex_dump(const char *function, int line, int level,
 				if (!ok)
 					goto err;
 			} else if ((i % 16) == 15) {
-				trace_printf(function, line, level, true, false,
-					      "%s", sbuf.buf);
+				trace_printf(function, line, level, true, "%s",
+					     sbuf.buf);
 				sbuf.ptr = NULL;
 			}
 		}
 		if (sbuf.ptr) {
 			/* Buffer is not empty: flush it */
-			trace_printf(function, line, level, true, false, "%s",
-				      sbuf.buf);
+			trace_printf(function, line, level, true, "%s",
+				     sbuf.buf);
 
 		}
 	}

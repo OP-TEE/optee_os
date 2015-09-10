@@ -44,18 +44,18 @@
  */
 extern int trace_level;
 extern const char trace_ext_prefix[];
-void trace_ext_puts(bool sync, const char *str);
+void trace_ext_puts(const char *str);
 int trace_ext_get_thread_id(void);
 void trace_set_level(int level);
 int trace_get_level(void);
 
 /* Internal functions used by the macros below */
 void trace_printf(const char *func, int line, int level, bool level_ok,
-		  bool sync, const char *fmt, ...) __printf(6, 7);
+		  const char *fmt, ...) __printf(5, 6);
 
 #define trace_printf_helper(level, level_ok, ...) \
 	trace_printf(__func__, __LINE__, (level), (level_ok), \
-		     false, __VA_ARGS__)
+		     __VA_ARGS__)
 
 /* Formatted trace tagged with level independent */
 #if (TRACE_LEVEL <= 0)
@@ -117,7 +117,7 @@ void dhex_dump(const char *function, int line, int level,
 /* Trace api without trace formatting */
 
 #define trace_printf_helper_raw(level, level_ok, ...) \
-	trace_printf(NULL, 0, (level), (level_ok), false, __VA_ARGS__)
+	trace_printf(NULL, 0, (level), (level_ok), __VA_ARGS__)
 
 /* No formatted trace tagged with level independent */
 #if (TRACE_LEVEL <= 0)
@@ -163,7 +163,7 @@ void dhex_dump(const char *function, int line, int level,
  * in another context.
  */
 #define SMSG(...)   \
-	trace_printf(__func__, __LINE__, TRACE_ERROR, true, true, __VA_ARGS__)
+	trace_printf(__func__, __LINE__, TRACE_ERROR, true, __VA_ARGS__)
 
 #endif /* TRACE_LEVEL */
 

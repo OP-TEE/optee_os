@@ -35,7 +35,7 @@
 
 #if TRACE_LEVEL > 0
 
-void trace_ext_puts(bool sync __unused, const char *str)
+void trace_ext_puts(const char *str)
 {
 	utee_log(str, strlen(str));
 }
@@ -92,7 +92,7 @@ int printf(const char *fmt, ...)
 int puts(const char *str)
 {
 	if (trace_get_level() >= TRACE_PRINTF_LEVEL)
-		trace_ext_puts(false, str);
+		trace_ext_puts(str);
 	return 1;
 }
 
