@@ -68,11 +68,11 @@ struct tee_fs_file_info {
 struct tee_fs_file_meta {
 	struct tee_fs_file_info info;
 	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
+	uint8_t backup_version;
 };
 
 struct tee_fs_fd {
 	struct tee_fs_file_meta *meta;
-	uint8_t meta_version;
 	int pos;
 	uint32_t flags;
 	int fd;
@@ -119,20 +119,20 @@ static inline void toggle_backup_version_of_block(
 
 struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 
-int tee_fs_common_open(const char *file, int flags, ...);
+int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...);
 
 int tee_fs_common_close(struct tee_fs_fd *fdp);
 
-tee_fs_off_t tee_fs_common_lseek(struct tee_fs_fd *fdp,
+tee_fs_off_t tee_fs_common_lseek(TEE_Result *errno, struct tee_fs_fd *fdp,
 		tee_fs_off_t offset, int whence);
 
-int tee_fs_common_ftruncate(struct tee_fs_fd *fdp,
+int tee_fs_common_ftruncate(TEE_Result *errno, struct tee_fs_fd *fdp,
 		tee_fs_off_t length);
 
-int tee_fs_common_read(struct tee_fs_fd *fdp,
+int tee_fs_common_read(TEE_Result *errno, struct tee_fs_fd *fdp,
 		void *buf, size_t len);
 
-int tee_fs_common_write(struct tee_fs_fd *fdp,
+int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
 		const void *buf, size_t len);
 
 int tee_fs_common_rename(const char *old, const char *new);

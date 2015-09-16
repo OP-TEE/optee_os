@@ -31,8 +31,10 @@
 #include <tee_api_defines.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
+#include <tee/tee_fs_defs.h>
 #include <tee/tee_pobj.h>
 #include <trace.h>
+#include <tee/tee_svc_storage.h>
 
 void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
 {
@@ -74,4 +76,53 @@ void tee_obj_close_all(struct tee_ta_ctx *ctx)
 
 	while (!TAILQ_EMPTY(objects))
 		tee_obj_close(ctx, TAILQ_FIRST(objects));
+}
+
+TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
+{
+	TEE_Result res;
+	char *file = NULL;
+	char *dir = NULL;
+	int fd = -1;
+	int err = -1;
+
+	file = tee_svc_storage_create_filename(sess,
+					       o->pobj->obj_id,
+					       o->pobj->obj_id_len,
+					       false);
+	if (file == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
+	err = tee_file_ops.access(file, TEE_FS_F_OK);
+	if (err) {
+		/* file not found */
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		goto err;
+	}
+
+	fd = tee_file_ops.open(&res, file, TEE_FS_O_RDONLY);
+	if (fd < 0) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT) {
+			EMSG("Object corrupt\n");
+			tee_obj_close(sess->ctx, o);
+			tee_file_ops.unlink(file);
+			dir = tee_svc_storage_create_dirname(sess);
+			if (dir != NULL) {
+				tee_file_ops.rmdir(dir);
+				free(dir);
+			}
+		}
+		goto err;
+	}
+
+	res = TEE_SUCCESS;
+
+err:
+	free(file);
+	if (fd >= 0)
+		tee_file_ops.close(fd);
+exit:
+	return res;
 }

@@ -46,32 +46,33 @@ static int tee_fs_close(int fd)
 	return tee_fs_common_close(fdp);
 }
 
-static int tee_fs_read(int fd, void *buf, size_t len)
+static int tee_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 {
 	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	return tee_fs_common_read(fdp, buf, len);
+	return tee_fs_common_read(errno, fdp, buf, len);
 }
 
-static int tee_fs_write(int fd, const void *buf, size_t len)
+static int tee_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 {
 	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	return tee_fs_common_write(fdp, buf, len);
+	return tee_fs_common_write(errno, fdp, buf, len);
 }
 
-static tee_fs_off_t tee_fs_lseek(int fd, tee_fs_off_t offset, int whence)
+static tee_fs_off_t tee_fs_lseek(TEE_Result *errno,
+				 int fd, tee_fs_off_t offset, int whence)
 {
 	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	return tee_fs_common_lseek(fdp, offset, whence);
+	return tee_fs_common_lseek(errno, fdp, offset, whence);
 }
 
-static int tee_fs_ftruncate(int fd, tee_fs_off_t length)
+static int tee_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
 {
 	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
-	return tee_fs_common_ftruncate(fdp, length);
+	return tee_fs_common_ftruncate(errno, fdp, length);
 }
 
 struct tee_file_operations tee_file_ops = {

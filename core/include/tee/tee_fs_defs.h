@@ -36,6 +36,8 @@
 #define TEE_FS_O_RDWR   0x4
 #define TEE_FS_O_CREATE 0x8
 #define TEE_FS_O_EXCL   0x10
+#define TEE_FS_O_APPEND 0x20
+#define TEE_FS_O_TRUNC  0x40
 
 /*
  * tee_fs_lseek

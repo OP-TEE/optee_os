@@ -30,6 +30,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <tee_api_types.h>
 
 #define TEE_FS_NAME_MAX 350
 
@@ -66,18 +67,20 @@ struct tee_fs_dirent {
 	char *d_name;
 };
 
+
 /*
- * tee_fs implemets a POSIX like secure file system
+ * tee_fs implemets a POSIX like secure file system with GP extension
  */
 struct tee_file_operations {
-	int (*open)(const char *file, int flags, ...);
+	int (*open)(TEE_Result *errno, const char *file, int flags, ...);
 	int (*close)(int fd);
-	int (*read)(int fd, void *buf, size_t len);
-	int (*write)(int fd, const void *buf, size_t len);
-	tee_fs_off_t (*lseek)(int fd, tee_fs_off_t offset, int whence);
+	int (*read)(TEE_Result *errno, int fd, void *buf, size_t len);
+	int (*write)(TEE_Result *errno, int fd, const void *buf, size_t len);
+	tee_fs_off_t (*lseek)(TEE_Result *errno,
+			      int fd, tee_fs_off_t offset, int whence);
 	int (*rename)(const char *old, const char *new);
 	int (*unlink)(const char *file);
-	int (*ftruncate)(int fd, tee_fs_off_t length);
+	int (*ftruncate)(TEE_Result *errno, int fd, tee_fs_off_t length);
 	int (*mkdir)(const char *path, tee_fs_mode_t mode);
 	tee_fs_dir *(*opendir)(const char *name);
 	int (*closedir)(tee_fs_dir *d);
