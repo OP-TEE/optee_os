@@ -686,7 +686,7 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
-uint32_t thread_get_id(void)
+int thread_get_id(void)
 {
 	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);

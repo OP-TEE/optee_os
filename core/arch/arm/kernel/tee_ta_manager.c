@@ -40,6 +40,7 @@
 #include <tee/abi.h>
 #include <mm/tee_mmu.h>
 #include <kernel/tee_misc.h>
+#include <kernel/panic.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
@@ -100,6 +101,10 @@ struct param_ta {
 
 /* This mutex protects the critical section in tee_ta_init_session */
 static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
+static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
+static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
+static size_t tee_ta_single_instance_count;
+
 static TEE_Result tee_ta_rpc_free(uint32_t handle);
 
 /*
@@ -115,21 +120,93 @@ static void set_tee_rs(struct tee_ta_session *tee_rs)
 	thread_set_tsd(tee_rs);
 }
 
+static void lock_single_instance(void)
+{
+	/* Requires tee_ta_mutex to be held */
+	if (tee_ta_single_instance_thread != thread_get_id()) {
+		/* Wait until the single-instance lock is available. */
+		while (tee_ta_single_instance_thread != THREAD_ID_INVALID)
+			condvar_wait(&tee_ta_cv, &tee_ta_mutex);
+
+		tee_ta_single_instance_thread = thread_get_id();
+		assert(tee_ta_single_instance_count == 0);
+	}
+
+	tee_ta_single_instance_count++;
+}
+
+static void unlock_single_instance(void)
+{
+	/* Requires tee_ta_mutex to be held */
+	assert(tee_ta_single_instance_thread == thread_get_id());
+	assert(tee_ta_single_instance_count > 0);
+
+	tee_ta_single_instance_count--;
+	if (tee_ta_single_instance_count == 0) {
+		tee_ta_single_instance_thread = THREAD_ID_INVALID;
+		condvar_signal(&tee_ta_cv);
+	}
+}
+
+static bool has_single_instance_lock(void)
+{
+	/* Requires tee_ta_mutex to be held */
+	return tee_ta_single_instance_thread == thread_get_id();
+}
+
+static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
+{
+	bool rc = true;
+
+	mutex_lock(&tee_ta_mutex);
+
+	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+		lock_single_instance();
+
+	if (has_single_instance_lock()) {
+		if (ctx->busy) {
+			/*
+			 * We're holding the single-instance lock and the
+			 * TA is busy, as waiting now would only cause a
+			 * dead-lock, we release the lock and return false.
+			 */
+			rc = false;
+			if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+				unlock_single_instance();
+		}
+	} else {
+		/*
+		 * We're not holding the single-instance lock, we're free to
+		 * wait for the TA to become available.
+		 */
+		while (ctx->busy)
+			condvar_wait(&ctx->busy_cv, &tee_ta_mutex);
+	}
+
+	/* Either it's already true or we should set it to true */
+	ctx->busy = true;
+
+	mutex_unlock(&tee_ta_mutex);
+	return rc;
+}
+
 static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
 {
-	mutex_lock(&tee_ta_mutex);
-	while (ctx->busy)
-		condvar_wait(&ctx->busy_cv, &tee_ta_mutex);
-	ctx->busy = true;
-	mutex_unlock(&tee_ta_mutex);
+	if (!tee_ta_try_set_busy(ctx))
+		panic();
 }
 
 static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 {
 	mutex_lock(&tee_ta_mutex);
+
 	assert(ctx->busy);
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
+
+	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+		unlock_single_instance();
+
 	mutex_unlock(&tee_ta_mutex);
 }
 
@@ -1184,6 +1261,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	struct tee_ta_session *s = NULL;
 	struct tee_ta_ctx *ctx;
 	bool panicked;
+	bool was_busy = false;
 
 	res = tee_ta_init_session(err, open_sessions, uuid, &s);
 	if (res != TEE_SUCCESS) {
@@ -1219,12 +1297,16 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 						COMMAND_OPEN_SESSION);
 			}
 		} else {
-			tee_ta_set_busy(ctx);
-			res = tee_user_ta_enter(
-				err, s,
-				USER_TA_FUNC_OPEN_CLIENT_SESSION,
-				cancel_req_to, 0, param);
-			tee_ta_clear_busy(ctx);
+			if (tee_ta_try_set_busy(ctx)) {
+				res = tee_user_ta_enter(err, s,
+					USER_TA_FUNC_OPEN_CLIENT_SESSION,
+					cancel_req_to, 0, param);
+				tee_ta_clear_busy(ctx);
+			} else {
+				/* Deadlock avoided */
+				res = TEE_ERROR_BUSY;
+				was_busy = true;
+			}
 		}
 	}
 
@@ -1237,7 +1319,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	 * Origin error equal to TEE_ORIGIN_TRUSTED_APP for "regular" error,
 	 * apart from panicking.
 	 */
-	if (panicked)
+	if (panicked || was_busy)
 		*err = TEE_ORIGIN_TEE;
 	else
 		*err = TEE_ORIGIN_TRUSTED_APP;

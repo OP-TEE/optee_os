@@ -36,6 +36,7 @@
 #endif
 
 #define THREAD_ID_0		0
+#define THREAD_ID_INVALID	-1
 
 #ifndef ASM
 extern uint32_t thread_vector_table[];
@@ -282,7 +283,7 @@ bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
 /*
  * Returns current thread id.
  */
-uint32_t thread_get_id(void);
+int thread_get_id(void);
 
 /*
  * Set Thread Specific Data (TSD) pointer.
