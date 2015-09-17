@@ -80,6 +80,15 @@ static TEE_Result propget_gpd_ta_app_id(struct prop_value *pv)
 				 sizeof(pv->u.uuid_val));
 }
 
+#ifdef CFG_MICROSOFT_PROPERTIES
+static TEE_Result propget_com_microsoft_ta_endorsement_seed(struct prop_value *pv)
+{
+	pv->type = USER_TA_PROP_TYPE_BINARY_BLOCK;
+	return utee_get_property(UTEE_PROP_TA_ENDORSEMENT_SEED, &pv->u.binary,
+				 sizeof(pv->u.binary));
+}
+#endif
+
 static TEE_Result propget_gpd_client_identity(struct prop_value *pv)
 {
 	pv->type = USER_TA_PROP_TYPE_IDENTITY;
@@ -192,6 +201,10 @@ static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
 
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
+#ifdef CFG_MICROSOFT_PROPERTIES
+    {"com.microsoft.ta.endorsementSeed",
+     propget_com_microsoft_ta_endorsement_seed},
+#endif
 };
 
 static const size_t propset_current_ta_len =
@@ -422,19 +435,13 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 		size_t blen = bufferlen;
 
-		if (!base64_enc(pv.u.binary.val, pv.u.binary.len,
-				valueBuffer, &blen)) {
-			assert(blen > bufferlen);
-		} else {
-			assert(blen <= bufferlen);
-		}
+		base64_enc(pv.u.binary.val, pv.u.binary.len, valueBuffer, &blen);
 
 		/*
 		 * The base64_enc call above returns the size including the null
 		 * terminator so we need to subtract it because the null is
 		 * accounted for below for all types.
 		 */
-		assert(blen > 0);
 		l = (blen - 1);
 
 		break;
@@ -557,10 +564,10 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	val = pv.u.binary.val;
 	val_len = pv.u.binary.len;
 
-	assert(pv.u.binary.len
-		<= (sizeof(pv.u.binary) - sizeof(pv.u.binary.len)));
+	assert(pv.u.binary.len <= sizeof(pv.u.binary.val));
 
 	size = (size_t) *valueBufferLen;
+	*valueBufferLen = (uint32_t) val_len;
 
 	if (size < val_len) {
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -568,7 +575,6 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	}
 
 	memcpy(valueBuffer, val, val_len);
-	*valueBufferLen = (uint32_t) val_len;
 
 	goto out;
 
