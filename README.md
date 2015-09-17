@@ -155,7 +155,7 @@ Linux kernel version 3-16.0-rc5)
 
 ```
 $ sudo apt-get install zlib1g-dev libglib2.0-dev libpixman-1-dev libfdt-dev \
-		       libc6:i386 libstdc++6:i386 libz1:i386 cscope
+		       libc6:i386 libstdc++6:i386 libz1:i386 cscope netcat
 ```
 
 + Download ARM Juno pre-built binaries:
