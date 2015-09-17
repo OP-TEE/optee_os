@@ -81,7 +81,8 @@ static TEE_Result propget_gpd_ta_app_id(struct prop_value *pv)
 }
 
 #ifdef CFG_MICROSOFT_PROPERTIES
-static TEE_Result propget_com_microsoft_ta_endorsement_seed(struct prop_value *pv)
+static TEE_Result propget_com_microsoft_ta_endorsement_seed(
+	struct prop_value *pv)
 {
 	pv->type = USER_TA_PROP_TYPE_BINARY_BLOCK;
 	return utee_get_property(UTEE_PROP_TA_ENDORSEMENT_SEED, &pv->u.binary,
@@ -202,8 +203,8 @@ static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
 #ifdef CFG_MICROSOFT_PROPERTIES
-    {"com.microsoft.ta.endorsementSeed",
-     propget_com_microsoft_ta_endorsement_seed},
+	{"com.microsoft.ta.endorsementSeed",
+	propget_com_microsoft_ta_endorsement_seed},
 #endif
 };
 
@@ -435,7 +436,8 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 		size_t blen = bufferlen;
 
-		base64_enc(pv.u.binary.val, pv.u.binary.len, valueBuffer, &blen);
+		base64_enc(pv.u.binary.val, pv.u.binary.len,
+			valueBuffer, &blen);
 
 		/*
 		 * The base64_enc call above returns the size including the null

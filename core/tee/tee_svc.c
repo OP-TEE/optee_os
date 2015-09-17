@@ -294,7 +294,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 			uint8_t bin[sizeof(size_t)
 				+ ta_endorsement_seed_size];
 
-			size_t *bin_len = (size_t*) (void*) (&bin[0]);
+			size_t *bin_len = (size_t *) (void *) (&bin[0]);
 			uint8_t *bin_val = &bin[sizeof(size_t)];
 
 			if (blen < sizeof(bin))
@@ -303,8 +303,8 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 			memcpy(&data[0], &sess->ctx->head->uuid,
 				sizeof(TEE_UUID));
 
-			if (tee_otp_get_die_id
-				(&data[sizeof(TEE_UUID)], ta_endorsement_seed_size))
+			if (tee_otp_get_die_id(&data[sizeof(TEE_UUID)],
+									ta_endorsement_seed_size))
 				return TEE_ERROR_BAD_STATE;
 
 			res = tee_hash_createdigest(TEE_ALG_SHA256, data,
@@ -318,7 +318,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 
 			return tee_svc_copy_to_user(sess, (void *)buf, bin,
 					sizeof(bin));
-        }
+		}
 #endif
 	default:
 		if (blen < tee_props_lut[prop].len)
