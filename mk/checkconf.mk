@@ -139,7 +139,7 @@ cfg-enable-all-depends =                                                        
                 $(if $(filter y,$($(firstword $(2)))),                                     \
                     ,                                                                      \
                     $(warning Warning: Enabling $(firstword $(2)) [required by $(1)])      \
-                        $(eval $(firstword $(2)) = y)                                      \
+                        $(eval override $(firstword $(2)) := y)                            \
                  )                                                                         \
                  $(call cfg-enable-all-depends,$(1),$(filter-out $(firstword $(2)),$(2))), \
              )                                                                             \
