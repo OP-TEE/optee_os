@@ -32,7 +32,7 @@ else
 $(lib-libfile): $(objs)
 	@$(cmd-echo-silent) '  AR      $$@'
 	@mkdir -p $$(dir $$@)
-	$$(q)$$(AR$(sm)) rcs $$@ $$^
+	$$(q)rm -f $$@ && $$(AR$(sm)) rcs $$@ $$^
 endif
 endef #process-lib
 
