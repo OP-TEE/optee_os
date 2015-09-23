@@ -81,7 +81,7 @@ _CFG_CRYPTO_WITH_CIPHER := $(call cryp-one-enabled, AES DES)
 _CFG_CRYPTO_WITH_HASH := $(call cryp-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 SHA512)
 _CFG_CRYPTO_WITH_MAC := $(call cryp-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CRYPTO_WITH_CBC := $(call cryp-one-enabled, CBC CBC_MAC)
-_CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA)
+_CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA ECC)
 _CFG_CRYPTO_WITH_FORTUNA_PRNG := $(call cryp-all-enabled, AES SHA256)
 
 cppflags-lib-$(libtomcrypt_with_optimize_size) += -DLTC_SMALL_CODE -DLTC_NO_FAST
