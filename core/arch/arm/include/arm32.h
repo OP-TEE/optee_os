@@ -159,7 +159,7 @@
 #define FSR_STATUS_MASK		((1 << 6) - 1)
 
 /* Valid if FSR.LPAE is 0 */
-#define FSR_FS_MASK		((1 << 10) | ((1 << 3) - 1))
+#define FSR_FS_MASK		((1 << 10) | ((1 << 4) - 1))
 
 #ifndef ASM
 static inline uint32_t read_mpidr(void)

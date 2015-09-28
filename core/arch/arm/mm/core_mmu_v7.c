@@ -715,7 +715,9 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 	case 0xd: /* DFSR[10,3:0] b01101 Permission fault first level */
 	case 0xf: /* DFSR[10,3:0] b01111 Permission fault second level */
 		return CORE_MMU_FAULT_PERMISSION;
-
+	case 0x3: /* DFSR[10,3:0] b00011 access bit fault on section */
+	case 0x6: /* DFSR[10,3:0] b00110 access bit fault on page */
+		return CORE_MMU_FAULT_ACCESS_BIT;
 	case (1 << 10) | 0x6:
 		/* DFSR[10,3:0] 0b10110 Async external abort (DFSR only) */
 		return CORE_MMU_FAULT_ASYNC_EXTERNAL;

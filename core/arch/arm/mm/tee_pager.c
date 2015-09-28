@@ -508,6 +508,12 @@ static enum tee_pager_fault_type tee_pager_get_fault_type(
 		panic();
 		break;
 
+	case CORE_MMU_FAULT_ACCESS_BIT:
+		tee_pager_print_error_abort(ai);
+		EMSG("[TEE_PAGER] access bit fault!  (trap CPU)");
+		panic();
+		break;
+
 	case CORE_MMU_FAULT_DEBUG_EVENT:
 		tee_pager_print_abort(ai);
 		DMSG("[TEE_PAGER] Ignoring debug event!");
