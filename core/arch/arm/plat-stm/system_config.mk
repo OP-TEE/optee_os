@@ -5,8 +5,8 @@ ifeq ($(PLATFORM_FLAVOR),cannes)
 # Static configuration of DDR reserved to TEE/TZ
 # Provide here only start address and size. TEEcore will adapt.
 # Allow these settings to be overridden.
-CFG_DDR_TEETZ_RESERVED_START ?= 0x94200000
-CFG_DDR_TEETZ_RESERVED_SIZE ?= 0x00800000
+CFG_DDR_TEETZ_RESERVED_START ?= 0x93a00000
+CFG_DDR_TEETZ_RESERVED_SIZE ?= 0x01000000
 
 else ifeq ($(PLATFORM_FLAVOR),orly2)
 

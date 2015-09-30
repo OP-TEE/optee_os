@@ -50,15 +50,15 @@
 /*
  * TEE/TZ RAM layout:
  *
- *  +-----------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEETZ private RAM  |  TEE_RAM           |   ^
- *  |                    +--------------------+   |
- *  |                    |  TA_RAM            |   |
- *  +-----------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  |                    |      teecore alloc |   |
- *  |  TEE/TZ and NSec   |  PUB_RAM   --------|   |
- *  |   shared memory    |         NSec alloc |   |
- *  +-----------------------------------------+   v
+ *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
+ *  | TEETZ private RAM  |  TEE_RAM         |   ^
+ *  |                    +------------------+   |
+ *  |                    |  TA_RAM          |   |
+ *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  |                    |    teecore alloc |   |
+ *  |  TEE/TZ and NSec   |  PUB_RAM   ------|   |
+ *  |   shared memory    |       NSec alloc |   |
+ *  +---------------------------------------+   v
  *
  *  TEE_RAM : 1MByte
  *  PUB_RAM : 1MByte
@@ -70,21 +70,19 @@
 #error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
 #endif
 
-#define CFG_PUB_RAM_SIZE                (1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE                (1 * 1024 * 1024)
-#define CFG_TA_RAM_SIZE                 (CFG_DDR_TEETZ_RESERVED_SIZE - \
-					 CFG_TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
+#define CFG_SHMEM_SIZE		(1 * 1024 * 1024)
+#define CFG_TEE_RAM_PH_SIZE	(1 * 1024 * 1024)
+#define CFG_TA_RAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
+				 CFG_TEE_RAM_PH_SIZE - CFG_SHMEM_SIZE)
 
-/* define the secure/unsecure memory areas */
-#define TZDRAM_BASE                     (CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE                     (CFG_TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
-
-#define CFG_SHMEM_START                 (TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE                  CFG_PUB_RAM_SIZE
+/* define the secure memory area */
+#define TZDRAM_BASE		(CFG_DDR_TEETZ_RESERVED_START)
+#define TZDRAM_SIZE		(CFG_TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
-#define CFG_TEE_RAM_START               (TZDRAM_BASE)
-#define CFG_TA_RAM_START                (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE)
+#define CFG_TEE_RAM_START	(TZDRAM_BASE)
+#define CFG_TA_RAM_START	(CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE)
+#define CFG_SHMEM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
 
 #if PLATFORM_FLAVOR_IS(cannes)
 
