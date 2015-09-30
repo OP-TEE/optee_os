@@ -41,6 +41,8 @@ platform-aflags += -gdwarf-2
 else
 platform-cflags += -g3
 platform-aflags += -g3
+CFG_PLATFORM_SPECIFIC_PROPERTIES := y
+platform-cflags += -DCFG_PLATFORM_SPECIFIC_PROPERTIES
 endif
 
 CFG_ARM32_user_ta := y
@@ -48,3 +50,4 @@ user_ta-platform-cflags += $(arm32-platform-cflags)
 user_ta-platform-cflags += -fpie
 user_ta-platform-cppflags += $(arm32-platform-cppflags)
 user_ta-platform-aflags += $(arm32-platform-aflags)
+

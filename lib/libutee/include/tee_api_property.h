@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,49 +24,33 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef TEE_API_PROPERTY_H
+#define TEE_API_PROPERTY_H
 
-#ifndef UTEE_TYPES_H
-#define UTEE_TYPES_H
+#include <tee_api_types.h>
+#include <user_ta_header.h>
 
-enum utee_property {
-	UTEE_PROP_TEE_API_VERSION = 0,
-	UTEE_PROP_TEE_DESCR,
-	UTEE_PROP_TEE_DEV_ID,
-	UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
-	UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
-	UTEE_PROP_TEE_FW_IMPL_VERSION,
-	UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_FW_MANUFACTURER,
-	UTEE_PROP_CLIENT_ID,
-	UTEE_PROP_TA_APP_ID,
+#define PROP_STR_MAX    80
+#define PROP_BIN_MAX    64
 
-	/*
-	 * Platform Specific properties should start from
-	 * UTEE_PROP_PLATFORM_SPECIFIC
-	 */
-	UTEE_PROP_PLATFORM_SPECIFIC = 0x40,
+struct prop_enumerator {
+	uint32_t idx;
+	TEE_PropSetHandle prop_set;
 };
 
-enum utee_time_category {
-	UTEE_TIME_CAT_SYSTEM = 0,
-	UTEE_TIME_CAT_TA_PERSISTENT,
-	UTEE_TIME_CAT_REE
+struct prop_value {
+	enum user_ta_prop_type type;
+	union {
+		bool bool_val;
+		uint32_t int_val;
+		TEE_UUID uuid_val;
+		TEE_Identity identity_val;
+		char str_val[PROP_STR_MAX];
+		struct {
+			size_t len;
+			uint8_t val[PROP_BIN_MAX];
+		} binary;
+	} u;
 };
 
-/*
- * Cache operation types.
- * Used when extensions TEE_CacheClean() / TEE_CacheFlush() /
- * TEE_CacheInvalidate() are used
- */
-enum utee_cache_operation {
-	TEE_CACHECLEAN = 0,
-	TEE_CACHEFLUSH,
-	TEE_CACHEINVALIDATE,
-};
-
-#endif /* UTEE_TYPES_H */
+#endif /* TEE_API_PROPERTY_H */

@@ -34,37 +34,22 @@
 #include <user_ta_header.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_arith_internal.h>
-
+#include <tee_api_property.h>
 #include <utee_syscalls.h>
 
 #include "string_ext.h"
 #include "base64.h"
 #include "assert.h"
 
-#define PROP_STR_MAX    80
-#define PROP_BIN_MAX    64
+#ifdef CFG_PLATFORM_SPECIFIC_PROPERTIES
+#include <platform_properties.h>
+#else
+#define PLATFORM_TA_PROPERTIES
+#define PLATFORM_CLIENT_PROPERTIES
+#define PLATFORM_IMPLEMENTATION_PROPERTIES
+#endif
 
 #define PROP_ENUMERATOR_NOT_STARTED 0xffffffff
-
-struct prop_enumerator {
-	uint32_t idx;
-	TEE_PropSetHandle prop_set;
-};
-
-struct prop_value {
-	enum user_ta_prop_type type;
-	union {
-		bool bool_val;
-		uint32_t int_val;
-		TEE_UUID uuid_val;
-		TEE_Identity identity_val;
-		char str_val[PROP_STR_MAX];
-		struct {
-			size_t len;
-			uint8_t val[PROP_BIN_MAX];
-		} binary;
-	} u;
-};
 
 typedef TEE_Result(*ta_propget_func_t) (struct prop_value *pv);
 
@@ -79,16 +64,6 @@ static TEE_Result propget_gpd_ta_app_id(struct prop_value *pv)
 	return utee_get_property(UTEE_PROP_TA_APP_ID, &pv->u.uuid_val,
 				 sizeof(pv->u.uuid_val));
 }
-
-#ifdef CFG_MICROSOFT_PROPERTIES
-static TEE_Result propget_com_microsoft_ta_endorsement_seed(
-	struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_BINARY_BLOCK;
-	return utee_get_property(UTEE_PROP_TA_ENDORSEMENT_SEED, &pv->u.binary,
-				 sizeof(pv->u.binary));
-}
-#endif
 
 static TEE_Result propget_gpd_client_identity(struct prop_value *pv)
 {
@@ -202,10 +177,7 @@ static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
 
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
-#ifdef CFG_MICROSOFT_PROPERTIES
-	{"com.microsoft.ta.endorsementSeed",
-	propget_com_microsoft_ta_endorsement_seed},
-#endif
+	PLATFORM_TA_PROPERTIES
 };
 
 static const size_t propset_current_ta_len =
@@ -213,6 +185,7 @@ static const size_t propset_current_ta_len =
 
 static const struct prop_set propset_current_client[] = {
 	{"gpd.client.identity", propget_gpd_client_identity},
+	PLATFORM_CLIENT_PROPERTIES
 };
 
 static const size_t propset_current_client_len =
@@ -242,6 +215,7 @@ static const struct prop_set propset_implementation[] = {
 	 propget_gpd_tee_fw_impl_bin_version},
 	{"gpd.tee.firmware.manufacturer",
 	 propget_gpd_tee_fw_manufacturer},
+	PLATFORM_IMPLEMENTATION_PROPERTIES
 };
 
 static const size_t propset_implementation_len =
