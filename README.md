@@ -25,9 +25,10 @@
 	6. [FVP](#64-fvp)
 	6. [Hikey](#65-hikey)
 	6. [MT8173-EVB](#66-mt8173-evb)
-	6. [Tips and tricks](#67-tips-and-tricks)
-		6. [Reference existing project to speed up repo sync](#671-reference-existing-project-to-speed-up-repo-sync)
-		6. [Use ccache](#672-use-ccache)
+	6. [Juno](#67-juno)
+	6. [Tips and tricks](#68-tips-and-tricks)
+		6. [Reference existing project to speed up repo sync](#681-reference-existing-project-to-speed-up-repo-sync)
+		6. [Use ccache](#682-use-ccache)
 
 # 1. Introduction
 The optee_os git, contains the source code for the TEE in Linux using the ARM(R)
@@ -129,137 +130,12 @@ $ make CFG_TEE_CORE_LOG_LEVEL=4
 ---
 ### 4.2 Foundation Models
 
-See section [6. repo manifests]((#6-repo-manifests).
+Please refer to section [6. repo manifests](#6-repo-manifests).
 
 ---
 ### 4.3 Juno
-Juno has been supported in OP-TEE since mid October 2014.
 
-#### WARNING:
-
-+ The ```setup_juno_optee.sh``` script provides a coherent set of components (OP-TEE client/driver/os,
-Linux kernel version 3-16.0-rc5)
-
-+ Further release will align the ARM Juno setup with other OP-TEE supported platforms:
-
-	+ Linux kernel version alignment (3.18-rc1) with QEMU/FVP (DMA_BUF API change).
-	+ Will need arch/arm/Kconfig patch(es) (i.e DMA_SHARED_BUFFER etc...).
-
-+ Temporary patch files required for linux kernel and juno dtb definition:
-
-	+ config.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
-	+ juno.dts.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
-
-#### 4.3.1 Prerequisites
-+ The following packages must be installed:
-
-```
-$ sudo apt-get install zlib1g-dev libglib2.0-dev libpixman-1-dev libfdt-dev \
-		       libc6:i386 libstdc++6:i386 libz1:i386 cscope
-```
-
-+ Download ARM Juno pre-built binaries:
-
-	+ ARM Juno Pre-built binary bl30.bin (SCP runtime)
-	+ ARM Juno Pre-built binary bl33.bin (UEFI)
-	+ Download at http://community.arm.com/docs/DOC-8401
-
-
-#### 4.3.2 Download and install ARM Juno
-```
-$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_juno_optee.sh
-$ chmod 711 setup_juno_optee.sh
-$ ./setup_juno_optee.sh
-```
-
-#### 4.3.3 Build
-+ List of helper scripts generated during installation:
-
-* `build_atf_opteed.sh`: This is used to build ARM-Trusted-Firmware and must be
-  called when you have updated any component that are included in the FIP (like
-  for example OP-TEE os).
-
-* `build_linux.sh`: This is used to build the Linux Kernel.
-
-* `build_normal.sh`: This is a pure helper script that build all the normal
-   world components (in correct order).
-
-* `build_optee_client.sh`: This will build OP-TEEs client library.
-
-* `build_optee_linuxdriver.sh`: This will build OP-TEEs Linux Kernel driver (as
-   a module).
-
-* `build_optee_os.sh`: Builds the Trusted OS itself.
-
-* `build_optee_tests.sh`: This will build the test suite (pay attention to the
-   access needed).
-
-* `build_secure.sh`: This is the helper script for the secure side that will
-  build all secure side components in the correct order.
-
-* `clean_gits.sh`: This will clean all gits. Beware that it will not reset the
-  commit to the one used when first cloning. Also note that it will only clean
-  git's.
-
-+ Run the scripts in the following order:
-
-```
-$ ./build_secure.sh
-$ ./build_normal.sh
-```
-
-#### 4.3.4 Booting up ARM Juno
-
-+ Update the ARM Juno embedded flash memory (path: JUNO/SOFTWARE):
-
-	+ bl1.bin
-	+ fip.bin
-	+ Image
-	+ juno.dtb
-
-+ Copy OP-TEE binaries on the filesystem(*) located on the external USB key:
-
-	+ user client libraries: libteec.so*
-	+ supplicant: tee-supplicant
-	+ driver modules: optee.ko. optee_armtz.ko
-	+ CA: xtest
-	+ TAs: *.ta
-
-+ Connect the USB key (filesystem) on any connector of the rear panel
-
-+ Connect a serial terminal (115200, 8, n, 1)
-to the upper 9-pin (UART0) connector.
-
-+ Connect the 12 volt power, then press the red button on the rear panel.
-
-Note:
-The default configuration is to automatically boot a Linux kernel,
-which expects to find a root filesystem on /dev/sda1
-(any one of the rear panel USB ports).
-
-(*)Download a minimal filesytem at:
-http://releases.linaro.org/14.02/openembedded/aarch64/
-linaro-image-minimal-genericarmv8-20140223-649.rootfs.tar.gz
-
-UEFI offers a 10 second window to interrupt the boot sequence by pressing
-a key on the serial terminal, after which the kernel is launched.
-
-Once booted you will get the prompt:
-```
-root@genericarmv8:~#
-```
-
-#### 4.3.4 Run OP-TEE on ARM Juno
-Write in the console:
-```
-root@genericarmv8:~# modprobe optee
-root@genericarmv8:~# tee-supplicant &
-```
-Now everything has been set up and OP-TEE is ready to be used.
-
-#### 4.3.5 Known problems and limitations
-ARM Juno could be sensitive on the USB memory type (filesystem)
-Recommendation: Use USB memory 3.0 (ext3/ext4 filesystem)
+Please refer to section [6. repo manifests](#6-repo-manifests).
 
 ---
 ### 4.4 QEMU
@@ -462,6 +338,7 @@ $ repo sync
 * FVP: fvp.xml
 * Hikey: hikey.xml
 * MediaTek MT8173 EVB Board: mt8173-evb.xml
+* Juno: juno.xml
 
 #### 6.2.2 Branches
 Currently we are only using one branch, i.e, the master branch.
@@ -516,8 +393,104 @@ $ make all run
 
 When `< waiting for device >` prompt appears, press reset button
 
-### 6.7 Tips and tricks
-#### 6.7.1 Reference existing project to speed up repo sync
+### 6.7 Juno
+
+Juno has been supported in OP-TEE since mid October 2014.
+
+### 6.7.1 Warnigs
+
+`juno.xml` provides a coherent set of components (OP-TEE client/driver/os,
+Linux kernel version 3-16.0-rc5)
+
++ Further release will align the ARM Juno setup with other OP-TEE supported platforms:
+
+	+ Linux kernel version alignment with QEMU/FVP (DMA_BUF API change).
+	+ Will need arch/arm/Kconfig patch(es) (i.e DMA_SHARED_BUFFER etc...).
+
++ Temporary patch files required for linux kernel and juno dtb definition:
+
+	+ config.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
+	+ juno.dts.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch
+
+
+#### 6.7.2 Prerequisites
++ The following packages must be installed:
+
+```
+$ sudo apt-get install zlib1g-dev libglib2.0-dev libpixman-1-dev libfdt-dev \
+		       libc6:i386 libstdc++6:i386 libz1:i386 cscope
+```
+
++ Download ARM Juno pre-built binaries:
+
+	+ ARM Juno Pre-built binary bl30.bin (SCP runtime)
+	+ ARM Juno Pre-built binary bl33.bin (UEFI)
+	+ Download at http://community.arm.com/docs/DOC-8401
+
+
+#### 6.7.3 Build
+```
+$ cd build
+$ make toolchains
+$ make -j8 all
+```
+
+#### 6.7.4 Booting up ARM Juno
+
++ Update the ARM Juno embedded flash memory (path: JUNO/SOFTWARE):
+
+	+ bl1.bin
+	+ fip.bin
+	+ Image
+	+ juno.dtb
+
++ Copy OP-TEE binaries on the filesystem(*) located on the external USB key:
+
+	+ user client libraries: libteec.so*
+	+ supplicant: tee-supplicant
+	+ driver modules: optee.ko. optee_armtz.ko
+	+ CA: xtest
+	+ TAs: *.ta
+
++ Connect the USB key (filesystem) on any connector of the rear panel
+
++ Connect a serial terminal (115200, 8, n, 1)
+to the upper 9-pin (UART0) connector.
+
++ Connect the 12 volt power, then press the red button on the rear panel.
+
+Note:
+The default configuration is to automatically boot a Linux kernel,
+which expects to find a root filesystem on /dev/sda1
+(any one of the rear panel USB ports).
+
+(*)Download a minimal filesytem at:
+http://releases.linaro.org/14.02/openembedded/aarch64/
+linaro-image-minimal-genericarmv8-20140223-649.rootfs.tar.gz
+
+UEFI offers a 10 second window to interrupt the boot sequence by pressing
+a key on the serial terminal, after which the kernel is launched.
+
+Once booted you will get the prompt:
+```
+root@genericarmv8:~#
+```
+
+#### 6.7.5 Run OP-TEE on ARM Juno
+Write in the console:
+```
+root@genericarmv8:~# modprobe optee
+root@genericarmv8:~# tee-supplicant &
+```
+Now everything has been set up and OP-TEE is ready to be used.
+
+#### 6.7.6 Known problems and limitations
+* ARM Juno could be sensitive on the USB memory type (filesystem)
+* Recommendation: Use USB memory 3.0 (ext3/ext4 filesystem)
+
+
+### 6.8 Tips and tricks
+#### 6.8.1 Reference existing project to speed up repo sync
 Doing a `repo init`, `repo sync` from scratch can take a fair amount of time.
 The main reason for that is simply because of the size of some of the gits we
 are using, like for the Linux kernel and EDK2. With repo you can reference an
@@ -543,7 +516,7 @@ Normally step 1 and 2 above is something you will only do once. Also if you
 ignore step 2, then you will still get the latest from official git trees, since
 repo will also check for updates that aren't at the local reference.
 
-#### 6.7.2. Use ccache
+#### 6.8.2. Use ccache
 ccache is a tool that caches build object-files etc locally on the disc and can
 speed up build time significantly in subsequent builds. On Debian-based systems
 (Ubuntu, Mint etc) you simply install it by running:
