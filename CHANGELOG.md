@@ -1,3 +1,60 @@
+# OP-TEE - version 1.0.0
+
+OP-TEE is now maintained by Linaro. Contributors do not need to
+sign a CLA anymore, but must follow the rules of the [DCO][DCO]
+(Developer Certificate of Origin) instead.
+
+
+## New features
+
+* Add hardware support for Texas Instruments DRA7xx, ARMv7 (plat-ti)
+
+* GlobalPlatform™ TEE Internal Core API Specification v1.1,
+  including ECC algorithms.
+
+* Secure Storage: Files stored by the REE are now encrypted. Operations
+  are made atomic in order to prevent inconsistencies in case of errors
+  during the storage operations. [Slides][LCStorage] describing the
+  Secure Storage have been presented at the Linaro Connect SFO15.
+
+* Change of format of the Trusted Applications: they follow a
+  [signed ELF format][elf]
+
+* Rework thread [synchronization][synchro] in optee_os.
+
+* Use of ARMv8 native cryptographic support.
+
+* [OP-TEE/optee_test][optee_test] test suite is released.
+
+* Introduce [OP-TEE/manifest][manifest] and [OP-TEE/build][build]
+  to setup and build QEMU, FVP, HiKey and Mediatek platforms. Setup scripts
+  that used to be in optee_os have been removed, except for Juno board.
+
+
+## Tested on
+Definitions:
+
+| Type | Meaning |
+| ---- | ------- |
+| Standard tests | The [optee_test][optee_test] project. |
+| Extended tests | optee_test with tests from the GlobalPlatform™ TEE Initial Configuration Test Suite v1.1.0.4. |
+| Hello world test | Plain hello world Trusted Application such as [this][hello_world]. |
+
+*	ARM Juno Board (vexpress-juno), standard + extended tests.
+*	Foundation Models (vexpress-fvp), standard tests.
+*	HiKey (hikey), standard + extended tests.
+*	MT8173 (mediatek), standard tests.
+*	QEMU (vexpress-qemu), standard + extended tests.
+*	STM Cannes (stm-cannes), standard + extended tests.
+
+[DCO]: https://github.com/OP-TEE/optee_os/blob/master/Notice.md#contributions
+[LCStorage]: http://www.slideshare.net/linaroorg/sfo15503-secure-storage-in-optee
+[synchro]: https://github.com/OP-TEE/optee_os/blob/master/documentation/optee_design.md#4-thread-handling
+[elf]: https://github.com/OP-TEE/optee_os/blob/master/documentation/optee_design.md#format
+[optee_test]: https://github.com/OP-TEE/optee_test
+[manifest]: https://github.com/OP-TEE/manifest
+[build]: https://github.com/OP-TEE/build
+
 # OP-TEE - version 0.3.0
 
 ## New features
