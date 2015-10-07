@@ -4,6 +4,7 @@
 1. [Introduction](#1-introduction)
 2. [License](#2-license)
 3. [Platforms supported](#3-platforms-supported)
+    3. [Development board for community user] (#31-development-board-for-community-user)
 4. [Get and build the software](#4-get-and-build-the-software)
     4. [Basic setup](#41-basic-setup)
     4. [Foundation Models](#42-foundation-models)
@@ -68,8 +69,14 @@ please read the file [build_system.md](documentation/build_system.md).
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`|
 | [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
-| MediaTek MT8173 EVB Board|`PLATFORM=mediatek-mt8173`|
+| [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173/)|`PLATFORM=mediatek-mt8173`|
 | Texas Instruments DRA7xx|`PLATFORM=ti-dra7xx`|
+
+### 3.1 Development board for community user
+For community users, we suggest using [Hikey board](https://www.96boards.org/products/ce/hikey/)
+as development board. It provides detailed documentation including chip
+datasheet, board schematics, ...etc. and also related open source software
+download link on the website.
 
 ## 4. Get and build the software
 There are a couple of different build options depending on the target you are
