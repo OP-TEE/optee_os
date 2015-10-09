@@ -1557,7 +1557,7 @@ int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
 			const void *buf, size_t len)
 {
 	int res = -1;
-	struct tee_fs_file_meta *new_meta;
+	struct tee_fs_file_meta *new_meta = NULL;
 	size_t file_size = fdp->meta->info.length;
 
 	assert(errno != NULL);
@@ -1625,8 +1625,8 @@ int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
 		}
 	}
 
-	free(new_meta);
 exit:
+	free(new_meta);
 	return (res < 0) ? res : (int)len;
 }
 
