@@ -30,6 +30,9 @@ sign a CLA anymore, but must follow the rules of the [DCO][DCO]
   to setup and build QEMU, FVP, HiKey and Mediatek platforms. Setup scripts
   that used to be in optee_os have been removed, except for Juno board.
 
+* [Link][github_commits_1_0_0] to a list of all commits between this and
+  previous release.
+
 
 ## Tested on
 Definitions:
@@ -47,6 +50,22 @@ Definitions:
 *	QEMU (vexpress-qemu), standard + extended tests.
 *	STM Cannes (stm-cannes), standard + extended tests.
 
+## Known issues
+* Secure Storage is implemented, but note that anti-rollback protection
+  is not implemented yet.
+
+* Issue(s) open on GitHub
+  * [#210][pr210]: libteec.so 32-bit does not communicate well
+    with 64-bit kernel module
+  * [#296][pr296]: Connecting RPMB to the storage APIs.
+  * [#493][pr493]: setup_juno_optee: unable to find pre-built binaries
+  * [#494][pr494]: HiKey: xtest 7671 fails (1.0.0-rc2)
+
+[pr210]: https://github.com/OP-TEE/optee_os/issues/210
+[pr296]: https://github.com/OP-TEE/optee_os/issues/296
+[pr493]: https://github.com/OP-TEE/optee_os/issues/493
+[pr494]: https://github.com/OP-TEE/optee_os/issues/494
+[github_commits_1_0_0]: https://github.com/OP-TEE/optee_os/compare/0.3.0...1.0.0
 [DCO]: https://github.com/OP-TEE/optee_os/blob/master/Notice.md#contributions
 [LCStorage]: http://www.slideshare.net/linaroorg/sfo15503-secure-storage-in-optee
 [synchro]: https://github.com/OP-TEE/optee_os/blob/master/documentation/optee_design.md#4-thread-handling
@@ -54,6 +73,8 @@ Definitions:
 [optee_test]: https://github.com/OP-TEE/optee_test
 [manifest]: https://github.com/OP-TEE/manifest
 [build]: https://github.com/OP-TEE/build
+
+
 
 # OP-TEE - version 0.3.0
 
