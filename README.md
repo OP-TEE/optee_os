@@ -71,6 +71,7 @@ please read the file [build_system.md](documentation/build_system.md).
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
 | [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173/)|`PLATFORM=mediatek-mt8173`|
 | Texas Instruments DRA7xx|`PLATFORM=ti-dra7xx`|
+| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`|
 
 ### 3.1 Development board for community user
 For community users, we suggest using [Hikey board](https://www.96boards.org/products/ce/hikey/)
