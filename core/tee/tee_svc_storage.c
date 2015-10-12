@@ -910,7 +910,7 @@ static TEE_Result tee_svc_storage_set_enum(char *d_name, struct tee_obj *o)
 	hslen = strlen(d_name);
 	blen = TEE_HS2B_BBUF_SIZE(hslen);
 	o->pobj->obj_id = malloc(blen);
-	if (o->pobj->obj_id == NULL) {
+	if (!o->pobj->obj_id) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
@@ -971,15 +971,21 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 		goto exit;
 	}
 
+	/* object enumeration loop */
 	do {
 		d = tee_file_ops.readdir(e->dir);
 		if (d) {
+			/* allocate obj_id and set object */
 			res = tee_svc_storage_set_enum(d->d_name, o);
 			if (res != TEE_SUCCESS)
 				goto exit;
 			res = tee_obj_verify(sess, o);
 			if (res != TEE_SUCCESS)
 				goto exit;
+			/* free obj_id for each iteration */
+			free(o->pobj->obj_id);
+			/* force obj_id to skip freeing at exit statement */
+			o->pobj->obj_id = NULL;
 		}
 	} while (d);
 
