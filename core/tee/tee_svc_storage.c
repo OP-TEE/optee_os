@@ -914,7 +914,7 @@ exit:
 	return res;
 }
 
-static TEE_Result tee_svc_storage_set_enum(struct tee_obj *o, char *d_name)
+static TEE_Result storage_set_enum(struct tee_obj *o, char *d_name)
 {
 	TEE_Result res;
 	uint32_t blen;
@@ -935,26 +935,6 @@ static TEE_Result tee_svc_storage_set_enum(struct tee_obj *o, char *d_name)
 	o->pobj->obj_id_len = blen;
 
 	res = TEE_SUCCESS;
-
-exit:
-	return res;
-
-}
-
-static TEE_Result tee_svc_storage_verify_enum(struct tee_ta_session *sess,
-					      struct tee_obj *o, char *d_name)
-{
-	TEE_Result res;
-
-	/* allocate obj_id and set object */
-	res = tee_svc_storage_set_enum(o, d_name);
-	if (res != TEE_SUCCESS)
-		goto exit;
-	res = tee_obj_verify(sess, o);
-	if (res != TEE_SUCCESS)
-		goto exit;
-	/* free obj_id */
-	free(o->pobj->obj_id);
 
 exit:
 	return res;
@@ -1019,9 +999,15 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 	do {
 		d = tee_file_ops.readdir(e->dir);
 		if (d) {
-			res = tee_svc_storage_verify_enum(sess, o, d->d_name);
+			/* allocate obj_id and set object */
+			res = storage_set_enum(o, d->d_name);
 			if (res != TEE_SUCCESS)
 				goto exit;
+			res = tee_obj_verify(sess, o);
+			if (res != TEE_SUCCESS)
+				goto exit;
+			/* free obj_id for each iteration */
+			free(o->pobj->obj_id);
 			/* force obj_id to skip freeing at exit statement */
 			o->pobj->obj_id = NULL;
 		}
@@ -1113,7 +1099,7 @@ TEE_Result tee_svc_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
 		goto exit;
 	}
 
-	res = tee_svc_storage_set_enum(o, d->d_name);
+	res = storage_set_enum(o, d->d_name);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
