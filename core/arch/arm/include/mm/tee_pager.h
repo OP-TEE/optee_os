@@ -79,4 +79,19 @@ void tee_pager_abort_handler(uint32_t abort_type,
  */
 void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
 
+/*
+ * Unmap vmem and free physical pages for the pager.
+ *
+ * vaddr is the first virtual address (must be page aligned)
+ * size is the vmem size in bytes (must be page size aligned)
+ */
+void tee_pager_release_zi(vaddr_t vaddr, size_t size);
+
+/*
+ * allocate RW vmem and register to the pager.
+ *
+ * size is the vmem size in bytes
+ */
+void *tee_pager_request_zi(size_t size);
+
 #endif /*MM_TEE_PAGER_H*/

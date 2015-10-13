@@ -31,6 +31,9 @@ entries-unpaged += core_init_mmu_regs
 entries-unpaged += stack_tmp_top
 entries-unpaged += sem_cpu_sync
 entries-unpaged += generic_boot_get_handlers
+entries-unpaged += tee_pager_release_zi
+entries-unpaged += tee_pager_request_zi
+
 objs-unpaged-rem += core/arch/arm/tee/entry.o
 objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \

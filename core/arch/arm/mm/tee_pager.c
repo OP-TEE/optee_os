@@ -46,6 +46,7 @@
 #include <tee_api_defines.h>
 #include <utee_defines.h>
 #include <trace.h>
+#include <util.h>
 
 struct tee_pager_abort_info {
 	uint32_t abort_type;
@@ -176,12 +177,14 @@ static struct tee_pager_area *tee_pager_find_area(vaddr_t va)
 	return NULL;
 }
 
-static uint32_t get_area_mattr(struct tee_pager_area *area __unused)
+static uint32_t get_area_mattr(struct tee_pager_area *area)
 {
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
 			TEE_MATTR_CACHE_DEFAULT | TEE_MATTR_SECURE;
 
-	attr |= TEE_MATTR_PRWX;
+	attr |= TEE_MATTR_PRW;
+	if (area->flags & TEE_PAGER_AREA_X)
+		attr |= TEE_MATTR_PX;
 
 	return attr;
 }
@@ -243,6 +246,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 
 			/* TODO only invalidate entry touched above */
 			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
 			return true;
 		}
 	}
@@ -262,6 +266,14 @@ static void tee_pager_hide_pages(void)
 		if (n >= TEE_PAGER_NHIDE)
 			break;
 		n++;
+
+		/*
+		 * we cannot hide pages when pmem->area is not defined as
+		 * unhide requires pmem->area to be defined
+		 */
+		if (!pmem->area)
+			continue;
+
 		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
@@ -273,6 +285,39 @@ static void tee_pager_hide_pages(void)
 
 	/* TODO only invalidate entries touched above */
 	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+}
+
+/*
+ * Find mapped pmem, hide and move to pageble pmem.
+ * Return false if page was not mapped, and true if page was mapped.
+ */
+static bool tee_pager_release_one_zi(vaddr_t page_va)
+{
+	struct tee_pager_pmem *pmem;
+	unsigned pgidx;
+	paddr_t pa;
+	uint32_t attr;
+
+	pgidx = core_mmu_va2idx(&tbl_info, page_va);
+	core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+
+#ifdef TEE_PAGER_DEBUG_PRINT
+	DMSG("%" PRIxVA " : %" PRIxPA "|%x", page_va, pa, attr);
+#endif
+
+	TAILQ_FOREACH(pmem, &tee_pager_rw_pmem_head, link) {
+		if (pmem->pgidx != pgidx)
+			continue;
+
+		core_mmu_set_entry(&tbl_info, pgidx, pa, TEE_MATTR_PHYS_BLOCK);
+		TAILQ_REMOVE(&tee_pager_rw_pmem_head, pmem, link);
+		tee_pager_npages++;
+		TAILQ_INSERT_HEAD(&tee_pager_pmem_head, pmem, link);
+
+		return true;
+	}
+
+	return false;
 }
 #endif /*CFG_WITH_PAGER*/
 
@@ -329,7 +374,8 @@ static __unused void tee_pager_print_detailed_abort(
 				struct tee_pager_abort_info *ai __unused,
 				const char *ctx __unused)
 {
-	EMSG_RAW("\n%s %s-abort at address 0x%" PRIxVA "\n",
+	EMSG_RAW("\n");
+	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "\n",
 		ctx, abort_type_to_str(ai->abort_type), ai->va);
 #ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X\n",
@@ -400,7 +446,7 @@ static void tee_pager_print_user_abort(struct tee_pager_abort_info *ai __unused)
 
 static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 {
-#if (TRACE_LEVEL >= TRACE_DEBUG)
+#if (TRACE_LEVEL >= TRACE_INFO)
 	tee_pager_print_detailed_abort(ai, "core");
 #endif /*TRACE_LEVEL >= TRACE_DEBUG*/
 }
@@ -408,7 +454,7 @@ static void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused)
 static void tee_pager_print_error_abort(
 		struct tee_pager_abort_info *ai __unused)
 {
-#if (TRACE_LEVEL >= TRACE_DEBUG)
+#if (TRACE_LEVEL >= TRACE_INFO)
 	/* full verbose log at DEBUG level */
 	tee_pager_print_detailed_abort(ai, "core");
 #else
@@ -769,5 +815,39 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 		/* Invalidate secure TLB */
 		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 	}
+}
+
+void tee_pager_release_zi(vaddr_t vaddr, size_t size)
+{
+	bool unmaped = false;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	if ((vaddr & SMALL_PAGE_MASK) || (size & SMALL_PAGE_MASK))
+		panic();
+
+	for (; size; vaddr += SMALL_PAGE_SIZE, size -= SMALL_PAGE_SIZE)
+		unmaped |= tee_pager_release_one_zi(vaddr);
+
+	/* Invalidate secure TLB */
+	if (unmaped)
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
+	thread_set_exceptions(exceptions);
+}
+
+void *tee_pager_request_zi(size_t size)
+{
+	tee_mm_entry_t *mm;
+
+	if (!size)
+		return NULL;
+
+	mm = tee_mm_alloc(&tee_mm_vcore, ROUNDUP(size, SMALL_PAGE_SIZE));
+	if (!mm)
+		return NULL;
+
+	tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
+
+	return (void *)tee_mm_get_smem(mm);
 }
 #endif /*CFG_WITH_PAGER*/

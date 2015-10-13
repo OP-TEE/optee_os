@@ -469,23 +469,86 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #define LTC_MAX_BITS_PER_VARIABLE   (4096)
 #define LTC_VARIABLE_NUMBER         (50)
 
-static uint32_t _ltc_mempool_u32[mpa_scratch_mem_size_in_U32(
-	LTC_VARIABLE_NUMBER, LTC_MAX_BITS_PER_VARIABLE)];
+#define LTC_MEMPOOL_U32_SIZE \
+	mpa_scratch_mem_size_in_U32(LTC_VARIABLE_NUMBER, \
+				    LTC_MAX_BITS_PER_VARIABLE)
+
+#if defined(CFG_WITH_PAGER)
+#include <mm/tee_pager.h>
+#include <util.h>
+#include <kernel/panic.h>
+#include <mm/core_mmu.h>
+
+static uint32_t *_ltc_mempool_u32;
+
+/* allocate pageable_zi vmem for mpa scratch memory pool */
+static uint32_t *get_mpa_scratch_memory_pool(size_t *size_pool)
+{
+	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
+			     SMALL_PAGE_SIZE);
+	_ltc_mempool_u32 = tee_pager_request_zi(*size_pool);
+	if (!_ltc_mempool_u32)
+		panic();
+
+	return _ltc_mempool_u32;
+}
+
+/* release unused pageable_zi vmem */
+static void release_unused_mpa_scratch_memory(void)
+{
+	mpa_scratch_mem pool = (mpa_scratch_mem)_ltc_mempool_u32;
+	struct mpa_scratch_item *item;
+	vaddr_t start;
+	vaddr_t end;
+
+	/* we never free the header */
+	if (pool->last_offset) {
+		item = (struct mpa_scratch_item *)
+				((vaddr_t)pool + pool->last_offset);
+		start = (vaddr_t)item + item->size;
+	} else {
+		start = (vaddr_t)pool + sizeof(struct mpa_scratch_mem_struct);
+	}
+	end = (vaddr_t)pool + pool->size;
+	start = ROUNDUP(start, SMALL_PAGE_SIZE);
+	end = ROUNDDOWN(end, SMALL_PAGE_SIZE);
+
+	if (start < end)
+		tee_pager_release_zi(start, end - start);
+}
+#else /* CFG_WITH_PAGER */
+
+static uint32_t _ltc_mempool_u32[LTC_MEMPOOL_U32_SIZE];
+
+static uint32_t *get_mpa_scratch_memory_pool(size_t *size_pool)
+{
+	*size_pool = sizeof(_ltc_mempool_u32);
+	return _ltc_mempool_u32;
+}
+
+static void release_unused_mpa_scratch_memory(void)
+{
+	/* nothing to do in non-pager mode */
+}
+
+#endif
 
 static inline void tee_ltc_acipher_postactions(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
 	TEE_ASSERT(pool->last_offset == 0);
+	release_unused_mpa_scratch_memory();
 }
 
 static void tee_ltc_alloc_mpa(void)
 {
-	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
+	mpa_scratch_mem pool;
+	size_t size_pool;
 
+	pool = (mpa_scratch_mem)get_mpa_scratch_memory_pool(&size_pool);
 	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, sizeof(_ltc_mempool_u32),
-			     LTC_MAX_BITS_PER_VARIABLE);
+	mpa_init_scratch_mem(pool, size_pool, LTC_MAX_BITS_PER_VARIABLE);
 
 	mpa_set_random_generator(crypto_ops.prng.read);
 }
@@ -727,7 +790,7 @@ static TEE_Result rsanopad_encrypt(struct rsa_public_key *key,
 	ltc_key.e = key->e;
 	ltc_key.N = key->n;
 
-	res =  rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
 	tee_ltc_acipher_postactions();
 	return res;
 }
