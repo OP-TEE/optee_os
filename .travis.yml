@@ -124,5 +124,9 @@ script:
   # Texas Instruments dra7xx
   - PLATFORM=ti  PLATFORM_FLAVOR=dra7xx  make -j8 all -s
 
+  # FSL ls1021a
+  - PLATFORM=ls  PLATFORM_FLAVOR=ls1021atwr  make -j8 all -s
+  - PLATFORM=ls  PLATFORM_FLAVOR=ls1021aqds  make -j8 all -s
+
   # Run regression tests (xtest in QEMU)
   - (cd ${HOME}/optee_repo/build && make -s -j8 check CROSS_COMPILE="ccache arm-linux-gnueabihf-" DUMP_LOGS_ON_ERROR=1)
