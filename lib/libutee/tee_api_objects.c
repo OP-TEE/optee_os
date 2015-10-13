@@ -532,8 +532,8 @@ out:
 	return res;
 }
 
-TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
-						  objectEnumerator)
+TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle
+						  *objectEnumerator)
 {
 	TEE_Result res;
 
