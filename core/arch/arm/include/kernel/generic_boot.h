@@ -51,6 +51,8 @@ extern uint8_t __bss_start[];
 extern uint8_t __bss_end[];
 extern uint8_t __init_start[];
 extern uint8_t __init_size[];
+extern uint8_t __tmp_hashes_start[];
+extern uint8_t __tmp_hashes_size[];
 extern uint8_t __heap1_start[];
 extern uint8_t __heap1_end[];
 extern uint8_t __heap2_start[];

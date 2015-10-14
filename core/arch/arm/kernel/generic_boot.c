@@ -161,15 +161,10 @@ static void init_runtime(uint32_t pageable_part)
 	tee_mm_entry_t *mm;
 	uint8_t *paged_store;
 	uint8_t *hashes;
-	uint8_t *tmp_hashes = __init_start + init_size;
 	size_t block_size;
 
-
 	TEE_ASSERT(pageable_size % SMALL_PAGE_SIZE == 0);
-
-
-	/* Copy it right after the init area. */
-	memcpy(tmp_hashes, __data_end + init_size, hash_size);
+	TEE_ASSERT(hash_size == (size_t)__tmp_hashes_size);
 
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -184,7 +179,7 @@ static void init_runtime(uint32_t pageable_part)
 	hashes = malloc(hash_size);
 	EMSG("hash_size %zu", hash_size);
 	TEE_ASSERT(hashes);
-	memcpy(hashes, tmp_hashes, hash_size);
+	memcpy(hashes, __tmp_hashes_start, hash_size);
 
 	/*
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure

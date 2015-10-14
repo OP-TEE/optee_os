@@ -232,7 +232,6 @@ SECTIONS
 	__init_start = __text_init_start;
 	__init_end = .;
 	__init_size = __init_end - __text_init_start;
-	__init_mem_usage = __init_end - CFG_TEE_LOAD_ADDR;
 
 	.text_pageable : ALIGN(4) {
 		__text_pageable_start = .;
@@ -256,6 +255,17 @@ SECTIONS
 	__pageable_part_end = __rodata_pageable_end;
 	__pageable_start = __text_init_start;
 	__pageable_end = __pageable_part_end;
+
+	/*
+	 * Assign a safe spot to store the hashes of the pages before
+	 * heap is initialized.
+	 */
+	__tmp_hashes_start = __rodata_init_end;
+	__tmp_hashes_size = ((__pageable_end - __pageable_start) /
+				(4 * 1024)) * 32;
+	__tmp_hashes_end = __tmp_hashes_start + __tmp_hashes_size;
+
+	__init_mem_usage = __tmp_hashes_end - CFG_TEE_LOAD_ADDR;
 
 	ASSERT(CFG_TEE_LOAD_ADDR >= CFG_TEE_RAM_START,
 		"Load address before start of physical memory")
