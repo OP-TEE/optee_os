@@ -992,12 +992,16 @@ TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 	/* re-start */
 	res = tee_file_ops.closedir(e->dir);
 	e->dir = NULL;
-	if (res != 0)
-		return TEE_ERROR_GENERIC;
+	if (res != 0) {
+		res = TEE_ERROR_GENERIC;
+		goto exit;
+	}
 
 	dir = tee_svc_storage_create_dirname(sess);
-	if (dir == NULL)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (dir == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
 
 	e->dir = tee_file_ops.opendir(dir);
 	free(dir);
