@@ -834,29 +834,22 @@ TEE_Result tee_svc_storage_alloc_enum(uint32_t *obj_enum)
 	struct tee_ta_session *sess;
 	TEE_Result res;
 
-	if (!obj_enum) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+	if (!obj_enum)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
 	e = malloc(sizeof(struct tee_storage_enum));
 
-	if (!e) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
+	if (!e)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	e->dir = NULL;
 	TAILQ_INSERT_TAIL(&sess->ctx->storage_enums, e, link);
 
-	res = tee_svc_copy_kaddr_to_user32(sess, obj_enum, e);
-
-exit:
-	return res;
+	return tee_svc_copy_kaddr_to_user32(sess, obj_enum, e);
 }
 
 TEE_Result tee_svc_storage_free_enum(uint32_t obj_enum)
