@@ -50,7 +50,7 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry,
 	.fast_smc = tee_entry,
 	.fiq = main_fiq,
-	.svc = tee_svc_handler,
+	.svc = svc_handler,
 	.abort = tee_pager_abort_handler,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,

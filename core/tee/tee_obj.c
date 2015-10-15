@@ -86,10 +86,8 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 	int fd = -1;
 	int err = -1;
 
-	file = tee_svc_storage_create_filename(sess,
-					       o->pobj->obj_id,
-					       o->pobj->obj_id_len,
-					       false);
+	file = storage_create_filename(sess, o->pobj->obj_id,
+				       o->pobj->obj_id_len, false);
 	if (file == NULL) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
@@ -108,7 +106,7 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 			EMSG("Object corrupt\n");
 			tee_obj_close(sess->ctx, o);
 			tee_file_ops.unlink(file);
-			dir = tee_svc_storage_create_dirname(sess);
+			dir = storage_create_dirname(sess);
 			if (dir != NULL) {
 				tee_file_ops.rmdir(dir);
 				free(dir);
