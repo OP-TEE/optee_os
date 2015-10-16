@@ -14,6 +14,7 @@
     4. [Allwinner A80](#46-allwinner-a80)
     4. [Mediatek MT8173 EVB](#47-mediatek-mt8173-evb)
     4. [HiKey Board](#48-hikey-board)
+    4. [Freescale MX6UL EVK](#49-freescale-mx6ul-evk)
 5. [Coding standards](#5-coding-standards)
 	5. [checkpatch](#51-checkpatch)
 6. [repo manifests](#6-repo-manifests)
@@ -72,6 +73,7 @@ please read the file [build_system.md](documentation/build_system.md).
 | [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173/)|`PLATFORM=mediatek-mt8173`|
 | Texas Instruments DRA7xx|`PLATFORM=ti-dra7xx`|
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`|
+| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`|
 
 ### 3.1 Development board for community user
 For community users, we suggest using [Hikey board](https://www.96boards.org/products/ce/hikey/)
@@ -416,6 +418,26 @@ Edition compliant board equipped with a HiSilicon Kirin 620 SoC (8-core,
 64-bit ARM Cortex A53). It can run OP-TEE in 32- and 64-bit modes.
 
 To build for HiKey, please refer to [6. repo manifests](#6-repo-manifests).
+
+---
+### 4.9 Freescale MX6UL EVK
+Build:
+```
+    PLATFORM_FLAVOR=mx6ulevk make PLATFORM=imx
+    ${CROSS_COMPILE}-objcopy -O binary out/arm-plat-imx/core/tee.elf optee.bin
+    copy optee.bin to the first partition of SD card which is used for boot.
+```
+Run using uboot:
+```
+    run loadfdt;
+    run loadimage;
+    fatload mmc 1:1 0x9c100000 optee.bin;
+    run mmcargs;
+    bootz ${loadaddr} - ${fdt_addr};
+```
+
+Note:
+    CAAM is not implemented now, this will be added later.
 
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
