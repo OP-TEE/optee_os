@@ -209,6 +209,7 @@ struct acipher_ops {
 					size_t key_size_bits);
 	TEE_Result (*alloc_rsa_public_key)(struct rsa_public_key *s,
 					   size_t key_size_bits);
+	void (*free_rsa_public_key)(struct rsa_public_key *s);
 	TEE_Result (*alloc_dsa_keypair)(struct dsa_keypair *s,
 					size_t key_size_bits);
 	TEE_Result (*alloc_dsa_public_key)(struct dsa_public_key *s,
@@ -219,6 +220,7 @@ struct acipher_ops {
 					   size_t key_size_bits);
 	TEE_Result (*alloc_ecc_keypair)(struct ecc_keypair *s,
 					size_t key_size_bits);
+	void (*free_ecc_public_key)(struct ecc_public_key *s);
 
 	/*
 	 * Key generation functions

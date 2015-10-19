@@ -386,8 +386,9 @@ static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
 		return TEE_ERROR_SECURITY;
 
 	if (!crypto_ops.acipher.alloc_rsa_public_key ||
+	    !crypto_ops.acipher.free_rsa_public_key ||
 	    !crypto_ops.acipher.rsassa_verify ||
-	    !crypto_ops.bignum.bin2bn || !crypto_ops.bignum.free)
+	    !crypto_ops.bignum.bin2bn)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
@@ -406,8 +407,7 @@ static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
 				SHDR_GET_HASH(shdr), shdr->hash_size,
 				SHDR_GET_SIG(shdr), shdr->sig_size);
 out:
-	crypto_ops.bignum.free(key.n);
-	crypto_ops.bignum.free(key.e);
+	crypto_ops.acipher.free_rsa_public_key(&key);
 	return res;
 }
 

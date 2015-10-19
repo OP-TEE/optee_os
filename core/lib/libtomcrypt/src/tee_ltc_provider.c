@@ -676,6 +676,14 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+static void free_rsa_public_key(struct rsa_public_key *s)
+{
+	if (!s)
+		return;
+	bn_free(s->n);
+	bn_free(s->e);
+}
+
 static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
 	TEE_Result res;
@@ -1448,6 +1456,15 @@ err:
 	bn_free(s->y);
 	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static void free_ecc_public_key(struct ecc_public_key *s)
+{
+	if (!s)
+		return;
+
+	bn_free(s->x);
+	bn_free(s->y);
 }
 
 /*
@@ -2937,6 +2954,7 @@ const struct crypto_ops crypto_ops = {
 #if defined(CFG_CRYPTO_RSA)
 		.alloc_rsa_keypair = alloc_rsa_keypair,
 		.alloc_rsa_public_key = alloc_rsa_public_key,
+		.free_rsa_public_key = free_rsa_public_key,
 		.gen_rsa_key = gen_rsa_key,
 		.rsaes_decrypt = rsaes_decrypt,
 		.rsaes_encrypt = rsaes_encrypt,
@@ -2962,6 +2980,8 @@ const struct crypto_ops crypto_ops = {
 		.alloc_ecc_keypair = alloc_ecc_keypair,
 		.alloc_ecc_public_key = alloc_ecc_public_key,
 		.gen_ecc_key = gen_ecc_key,
+		.free_ecc_public_key = free_ecc_public_key,
+
 		/* ECDSA only */
 		.ecc_sign = ecc_sign,
 		.ecc_verify = ecc_verify,

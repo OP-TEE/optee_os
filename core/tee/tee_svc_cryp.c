@@ -2672,12 +2672,9 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state,
 		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
 
-		if (!crypto_ops.bignum.allocate ||
-		    !crypto_ops.bignum.free ||
-		    !crypto_ops.bignum.bin2bn ||
-		    !crypto_ops.bignum.bn2bin ||
-		    !crypto_ops.bignum.num_bytes ||
+		if (!crypto_ops.bignum.bin2bn ||
 		    !crypto_ops.acipher.alloc_ecc_public_key ||
+		    !crypto_ops.acipher.free_ecc_public_key ||
 		    !crypto_ops.acipher.ecc_shared_secret) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			goto out;
@@ -2736,8 +2733,7 @@ TEE_Result tee_svc_cryp_derive_key(uint32_t state,
 		}
 
 		/* free the public key */
-		crypto_ops.bignum.free(key_public.x);
-		crypto_ops.bignum.free(key_public.y);
+		crypto_ops.acipher.free_ecc_public_key(&key_public);
 	}
 #if defined(CFG_CRYPTO_HKDF)
 	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_HKDF) {
