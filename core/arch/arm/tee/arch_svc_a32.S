@@ -34,11 +34,12 @@
 	.section .text.arch_svc_asm
 
 /*
- * uint32_t svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
+ * uint32_t tee_sys_svc_do_call(struct thread_svc_regs *regs,
+ *				tee_svc_func func);
  *
- * Called from svc_handler()
+ * Called from tee_sys_svc_handler()
  */
-FUNC svc_do_call , :
+FUNC tee_sys_svc_do_call , :
 	push	{r7-r9, lr}
 	mov	r7, sp
 	mov	r8, r0
@@ -52,17 +53,17 @@ FUNC svc_do_call , :
 	 * r5 holds the address of the first word
 	 * r6 holds the number of words
 	 *
-	 * svc_handler() who calls this function has already checked
+	 * tee_sys_svc_handler() who calls this function has already checked
 	 * that we don't copy too much data.
 	 */
 	cmp     r6, #0
 	beq     .Lno_args
 	sub     sp, sp, r6, lsl #2
-	mov     r0, #0	/* Let copy_from_user() lookup the session */
+	mov     r0, #0	/* Let tee_copy_from_user() lookup the session */
 	mov     r1, sp
 	mov     r2, r5
 	mov     r3, r6, lsl #2
-	ldr     lr, =copy_from_user
+	ldr     lr, =tee_copy_from_user
 	blx     lr
 
 	/* If copy failed return the error */
@@ -77,14 +78,14 @@ FUNC svc_do_call , :
 .Lret:
 	mov	sp, r7
 	pop	{r7-r9, pc}
-END_FUNC svc_do_call
+END_FUNC tee_sys_svc_do_call
 
 /*
  * User space sees this function as:
  * void tee_svc_sys_return(uint32_t ret) __noreturn;
  *
  * But internally the function depends on being called from
- * svc_do_call() with pointer to the struct thread_svc_regs saved by
+ * tee_sys_svc_do_call() with pointer to the struct thread_svc_regs saved by
  * thread_svc_handler() in r8. The argument ret is already in r0 so we
  * don't touch that and let it propagate as return value of the called
  * thread_unwind_user_mode().
@@ -93,7 +94,7 @@ FUNC tee_svc_sys_return , :
 	mov	r1, #0	/* panic = false */
 	mov	r2, #0	/* panic_code = 0 */
 	mov	r3, r8
-	b	sys_return_helper
+	b	tee_sys_return_helper
 END_FUNC tee_svc_sys_return
 
 /*
@@ -101,7 +102,7 @@ END_FUNC tee_svc_sys_return
  * void tee_svc_sys_panic(uint32_t code) __noreturn;
  *
  * But internally the function depends on being called from
- * svc_do_call() with pointer to the struct thread_svc_regs saved by
+ * tee_sys_svc_do_call() with pointer to the struct thread_svc_regs saved by
  * thread_svc_handler() in r8.
  */
 FUNC tee_svc_sys_panic , :
@@ -109,5 +110,5 @@ FUNC tee_svc_sys_panic , :
 	mov	r2, r0	/* panic_code = 0 */
 	mov	r3, r8
 	ldr	r0, =TEE_ERROR_TARGET_DEAD
-	b	sys_return_helper
+	b	tee_sys_return_helper
 END_FUNC tee_svc_sys_panic

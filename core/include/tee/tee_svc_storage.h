@@ -76,11 +76,11 @@ TEE_Result tee_svc_storage_obj_trunc(uint32_t obj, size_t len);
 TEE_Result tee_svc_storage_obj_seek(uint32_t obj, int32_t offset,
 				    TEE_Whence whence);
 
-void storage_close_all_enum(struct tee_ta_ctx *ctx);
+void tee_storage_close_all_enum(struct tee_ta_ctx *ctx);
 
-char *storage_create_filename(struct tee_ta_session *sess, void *object_id,
-			      uint32_t object_id_len, bool transient);
+char *tee_storage_create_filename(struct tee_ta_session *sess, void *object_id,
+				  uint32_t object_id_len, bool transient);
 
-char *storage_create_dirname(struct tee_ta_session *sess);
+char *tee_storage_create_dirname(struct tee_ta_session *sess);
 
 #endif /* TEE_SVC_STORAGE_H */

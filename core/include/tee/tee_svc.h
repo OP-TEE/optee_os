@@ -72,6 +72,13 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle sess,
 TEE_Result tee_svc_check_access_rights(uint32_t flags, const void *buf,
 				       size_t len);
 
+TEE_Result tee_copy_from_user(struct tee_ta_session *sess, void *kaddr,
+			      const void *uaddr, size_t len);
+TEE_Result tee_copy_to_user(struct tee_ta_session *sess, void *uaddr,
+			    const void *kaddr, size_t len);
+TEE_Result tee_copy_kaddr_to_user32(struct tee_ta_session *sess,
+				    uint32_t *uaddr, const void *kaddr);
+
 TEE_Result tee_svc_get_cancellation_flag(bool *cancel);
 
 TEE_Result tee_svc_unmask_cancellation(bool *old_mask);
@@ -90,13 +97,7 @@ TEE_Result tee_svc_cache_operation(void *va, size_t len,
 #define  tee_svc_cache_operation tee_svc_not_supported
 #endif
 
-void trace_syscall(int num);
+void tee_trace_syscall(int num);
 
-TEE_Result copy_from_user(struct tee_ta_session *sess, void *kaddr,
-			  const void *uaddr, size_t len);
-TEE_Result copy_to_user(struct tee_ta_session *sess, void *uaddr,
-			const void *kaddr, size_t len);
-TEE_Result copy_kaddr_to_user32(struct tee_ta_session *sess, uint32_t *uaddr,
-				const void *kaddr);
 
 #endif /* TEE_SVC_H */

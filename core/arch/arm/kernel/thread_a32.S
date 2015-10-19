@@ -386,7 +386,7 @@ END_FUNC thread_init_vbar
  * user TA calls utee_return, user TA calls utee_panic or through an abort.
  *
  * Calls to utee_return or utee_panic are handled as:
- * thread_svc_handler() -> svc_handler() -> svc_do_call() which
+ * thread_svc_handler() -> tee_sys_svc_handler() -> tee_sys_svc_do_call() which
  * calls tee_svc_sys_return() or tee_svc_sys_panic().
  *
  * These function calls returns normally except thread_svc_handler() which

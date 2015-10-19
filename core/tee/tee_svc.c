@@ -46,7 +46,7 @@
 #include <kernel/chip_services.h>
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
-void trace_syscall(int num)
+void tee_trace_syscall(int num)
 {
 	/* #0 is syscall return, not really interesting */
 	if (num == 0)
@@ -69,7 +69,7 @@ void tee_svc_sys_log(const void *buf __unused, size_t len __unused)
 	*kbuf = '\0';
 
 	/* log as Info/Raw traces */
-	if (copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
+	if (tee_copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
 		TAMSG_RAW("%.*s", (int)len, kbuf);
 
 	free(kbuf);
@@ -245,25 +245,25 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 			uuid.clockSeqAndNode[0] &= 0x3f;
 			uuid.clockSeqAndNode[0] |= 0x80;
 
-			return copy_to_user(sess, (void *)buf, &uuid,
+			return tee_copy_to_user(sess, (void *)buf, &uuid,
 					    sizeof(TEE_UUID));
 		}
 
 	case UTEE_PROP_CLIENT_ID:
 		if (blen < sizeof(TEE_Identity))
 			return TEE_ERROR_SHORT_BUFFER;
-		return copy_to_user(sess, (void *)buf,  &sess->clnt_id,
+		return tee_copy_to_user(sess, (void *)buf,  &sess->clnt_id,
 				    sizeof(TEE_Identity));
 
 	case UTEE_PROP_TA_APP_ID:
 		if (blen < sizeof(TEE_UUID))
 			return TEE_ERROR_SHORT_BUFFER;
-		return copy_to_user(sess, (void *)buf, &sess->ctx->uuid,
+		return tee_copy_to_user(sess, (void *)buf, &sess->ctx->uuid,
 				    sizeof(TEE_UUID));
 	default:
 		if (blen < tee_props_lut[prop].len)
 			return TEE_ERROR_SHORT_BUFFER;
-		return copy_to_user(sess, (void *)buf,
+		return tee_copy_to_user(sess, (void *)buf,
 				    tee_props_lut[prop].data,
 				    tee_props_lut[prop].len);
 	}
@@ -278,7 +278,7 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
  *   - if the memref was mapped to the TA, TA is allowed to expose it.
  *   - if so, converts memref virtual address into a physical address.
  */
-static TEE_Result copy_param(struct tee_ta_session *sess,
+static TEE_Result tee_copy_param(struct tee_ta_session *sess,
 			     struct tee_ta_session *called_sess,
 			     uint32_t param_types,
 			     struct abi_user32_param *callee_params,
@@ -398,7 +398,7 @@ static TEE_Result copy_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (param->params[n].memref.buffer != NULL) {
-				res = copy_from_user(sess, dst,
+				res = tee_copy_from_user(sess, dst,
 						param->params[n].memref.buffer,
 						param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
@@ -439,11 +439,11 @@ static TEE_Result copy_param(struct tee_ta_session *sess,
  * - either the memref was temporary: copy back data and update size
  * - or it was the original TA memref: update only the size value.
  */
-static TEE_Result update_out_param(struct tee_ta_session *sess,
-				   struct tee_ta_session *called_sess,
-				   struct tee_ta_param *param,
-				   tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
-				   struct abi_user32_param *usr_param)
+static TEE_Result tee_update_out_param(struct tee_ta_session *sess,
+				       struct tee_ta_session *called_sess,
+				       struct tee_ta_param *param,
+				       tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
+				       struct abi_user32_param *usr_param)
 {
 	size_t n;
 	TEE_Param callee_params[TEE_NUM_PARAMS];
@@ -485,7 +485,7 @@ static TEE_Result update_out_param(struct tee_ta_session *sess,
 				if (res != TEE_SUCCESS)
 					return TEE_ERROR_GENERIC;
 
-				res = copy_to_user(sess,
+				res = tee_copy_to_user(sess,
 						   callee_params[n].memref.
 						   buffer, src,
 						   param->params[n].
@@ -543,15 +543,15 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto out_free_only;
 
-	res = copy_from_user(sess, uuid, dest, sizeof(TEE_UUID));
+	res = tee_copy_from_user(sess, uuid, dest, sizeof(TEE_UUID));
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
 	clnt_id->login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id->uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
-	res = copy_param(sess, NULL, param_types, usr_param, param, tmp_buf_pa,
-			 &mm_param);
+	res = tee_copy_param(sess, NULL, param_types, usr_param, param,
+			     tmp_buf_pa, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -565,7 +565,7 @@ TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = update_out_param(sess, NULL, param, tmp_buf_pa, usr_param);
+	res = tee_update_out_param(sess, NULL, param, tmp_buf_pa, usr_param);
 
 function_exit:
 	tee_ta_set_current_session(sess);
@@ -585,8 +585,8 @@ function_exit:
 	 * because we only support 32-bit TAs, so take care not to overflow it
 	 * if kernel addresses are 64-bit
 	 */
-	copy_kaddr_to_user32(sess, (uint32_t *)ta_sess, s);
-	copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
+	tee_copy_kaddr_to_user32(sess, (uint32_t *)ta_sess, s);
+	tee_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
 	free(param);
@@ -644,8 +644,8 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
-	res = copy_param(sess, called_sess, param_types, usr_param, &param,
-			 tmp_buf_pa, &mm_param);
+	res = tee_copy_param(sess, called_sess, param_types, usr_param, &param,
+			     tmp_buf_pa, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -655,8 +655,8 @@ TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = update_out_param(sess, called_sess, &param, tmp_buf_pa,
-			       usr_param);
+	res = tee_update_out_param(sess, called_sess, &param, tmp_buf_pa,
+				   usr_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -675,7 +675,7 @@ function_exit:
 	}
 	tee_mm_free(mm_param);
 	if (ret_orig)
-		copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
+		tee_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
 	return res;
 }
 
@@ -693,8 +693,8 @@ TEE_Result tee_svc_check_access_rights(uint32_t flags, const void *buf,
 					   len);
 }
 
-TEE_Result copy_from_user(struct tee_ta_session *sess, void *kaddr,
-			  const void *uaddr, size_t len)
+TEE_Result tee_copy_from_user(struct tee_ta_session *sess, void *kaddr,
+			      const void *uaddr, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *s;
@@ -719,7 +719,7 @@ TEE_Result copy_from_user(struct tee_ta_session *sess, void *kaddr,
 	return TEE_SUCCESS;
 }
 
-TEE_Result copy_to_user(struct tee_ta_session *sess, void *uaddr,
+TEE_Result tee_copy_to_user(struct tee_ta_session *sess, void *uaddr,
 			const void *kaddr, size_t len)
 {
 	TEE_Result res;
@@ -750,8 +750,8 @@ TEE_Result copy_to_user(struct tee_ta_session *sess, void *uaddr,
  * Copy a kernel address into a 32-bit user buffer. In 64-bit mode, this will
  * fail if the address is not in the lower 4 GiB.
  */
-TEE_Result copy_kaddr_to_user32(struct tee_ta_session *sess, uint32_t *uaddr,
-				const void *kaddr)
+TEE_Result tee_copy_kaddr_to_user32(struct tee_ta_session *sess,
+				    uint32_t *uaddr, const void *kaddr)
 {
 	uint32_t lo = (long)kaddr & 0xFFFFFFFF;
 
@@ -759,7 +759,7 @@ TEE_Result copy_kaddr_to_user32(struct tee_ta_session *sess, uint32_t *uaddr,
 		EMSG("Unexpected high kernel address\n");
 		return TEE_ERROR_GENERIC;
 	}
-	return copy_to_user(sess, uaddr, &lo, sizeof(lo));
+	return tee_copy_to_user(sess, uaddr, &lo, sizeof(lo));
 }
 
 static bool session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)
@@ -801,7 +801,7 @@ TEE_Result tee_svc_get_cancellation_flag(bool *cancel)
 
 	c = session_is_cancelled(s, NULL);
 
-	return copy_to_user(s, cancel, &c, sizeof(c));
+	return tee_copy_to_user(s, cancel, &c, sizeof(c));
 }
 
 TEE_Result tee_svc_unmask_cancellation(bool *old_mask)
@@ -816,7 +816,7 @@ TEE_Result tee_svc_unmask_cancellation(bool *old_mask)
 
 	m = s->cancel_mask;
 	s->cancel_mask = false;
-	return copy_to_user(s, old_mask, &m, sizeof(m));
+	return tee_copy_to_user(s, old_mask, &m, sizeof(m));
 }
 
 TEE_Result tee_svc_mask_cancellation(bool *old_mask)
@@ -831,7 +831,7 @@ TEE_Result tee_svc_mask_cancellation(bool *old_mask)
 
 	m = s->cancel_mask;
 	s->cancel_mask = true;
-	return copy_to_user(s, old_mask, &m, sizeof(m));
+	return tee_copy_to_user(s, old_mask, &m, sizeof(m));
 }
 
 TEE_Result tee_svc_wait(uint32_t timeout)
@@ -895,7 +895,7 @@ TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *mytime)
 	}
 
 	if (res == TEE_SUCCESS || res == TEE_ERROR_OVERFLOW) {
-		res2 = copy_to_user(s, mytime, &t, sizeof(t));
+		res2 = tee_copy_to_user(s, mytime, &t, sizeof(t));
 		if (res2 != TEE_SUCCESS)
 			res = res2;
 	}
@@ -913,7 +913,7 @@ TEE_Result tee_svc_set_ta_time(const TEE_Time *mytime)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = copy_from_user(s, &t, mytime, sizeof(t));
+	res = tee_copy_from_user(s, &t, mytime, sizeof(t));
 	if (res != TEE_SUCCESS)
 		return res;
 

@@ -953,11 +953,11 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	}
 
 	/* Free cryp states created by this TA */
-	cryp_free_states(ctx);
+	tee_cryp_free_states(ctx);
 	/* Close cryp objects opened by this TA */
 	tee_obj_close_all(ctx);
 	/* Free emums created by this TA */
-	storage_close_all_enum(ctx);
+	tee_storage_close_all_enum(ctx);
 
 	condvar_destroy(&ctx->busy_cv);
 
