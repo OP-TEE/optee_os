@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <platform_config.h>
-
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/thread_defs.h>
@@ -45,7 +44,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <util.h>
 #include <trace.h>
-
 #include <assert.h>
 
 #ifdef ARM32

@@ -38,28 +38,6 @@
 /* Operation is initiated by a client (non-secure) app */
 #define NSAPP_IDENTITY	(NULL)
 
-/*-----------------------------------------------------------------------------
- * Initializes virtual memory management by reserving virtual memory for
- * memory areas not available TA virtual memroy allocation.
- *
- * Spare physical pages are passed in the memory range between ta_start and
- * ta_spare_end.  Spare physical pages are supposed to be mapped with "no
- * access" attribute.
- *
- * All addresses will be rounded up the the next page.
- *
- * Parameters:
- * ro_start - start of read only section for paging,
- * ro_end   - end of read only section for paging,
- * ta_start - start of section used for TA virtual memory
- * ta_spare_end - end of spare pages used for paging
- *
- * Returns:
- *        void
- *---------------------------------------------------------------------------*/
-void tee_ta_vmem_init(tee_vaddr_t ro_start, tee_vaddr_t ro_end,
-		      tee_vaddr_t ta_start, tee_vaddr_t ta_spare_end);
-
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,
 			       struct tee_ta_session_head *open_sessions,

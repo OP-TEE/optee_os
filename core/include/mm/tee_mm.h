@@ -30,8 +30,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "tee_mm_unpg.h"
+#include <mm/tee_mm_unpg.h>
 
 /*-----------------------------------------------------------------------------
  * Init managed memory area

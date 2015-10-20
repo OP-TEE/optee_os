@@ -75,7 +75,5 @@ struct tee_mmu_info {
 	vaddr_t ta_private_vmem_start;
 	vaddr_t ta_private_vmem_end;
 };
-/* Note use of tee_mmu_info_t is deprecated */
-typedef struct tee_mmu_info tee_mmu_info_t;
 
 #endif

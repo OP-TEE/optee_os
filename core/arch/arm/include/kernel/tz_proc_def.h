@@ -24,13 +24,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* *****************************************************************************
- * *                                                                           *
- * *  Description: This file contains constant assembly definitions for Orly2  *
- * *               configuration                                               *
- * *****************************************************************************
- */
-
 /*
  *  General constants
  */
@@ -115,56 +108,3 @@
 #define LINE_FIELD_OVERFLOW      13
 /* start of way number field offset in way/index format */
 #define WAY_FIELD_OFFSET         30
-
-/*
- * CPSR definitions
- */
-
- /* Values */
-#define CPSR_USER_MODE                  0x10	/* 10000b */
-#define CPSR_FIQ_MODE                   0x11	/* 10001b */
-#define CPSR_IRQ_MODE                   0x12	/* 10010b */
-#define CPSR_SVC_MODE                   0x13	/* 10011b */
-#define CPSR_MON_MODE                   0x16	/* 10110b */
-#define CPSR_ABORT_MODE                 0x17	/* 10111b */
-#define CPSR_UNDEF_MODE                 0x1B	/* 11011b */
-#define CPSR_SYSTEM_MODE                0x1F	/* 11111b */
-#define CPSR_CLR_MASK_MODE              0x1F	/* 11111b */
-
- /* Masks */
-#define CPSR_ARM_THUMB_MODE_MASK        0x020	/* 100000b ARM = 0, THUMB = 1 */
-#define CPSR_FIQ_IRQ_MASK               0x0C0	/* 11000000b */
-#define CPSR_FIQ_MASK                   0x040	/* 01000000b */
-#define CPSR_IRQ_MASK                   0x080	/* 10000000b */
-#define CPSR_A_MASK                     0x100	/* 100000000b */
-#define CPSR_INST_MODE_FIQ_IRQ_MASK     0x0E0	/* 11100000b */
-
- /* Bits */
-#define CPSR_FIQ_BIT                    0x6
-#define CPSR_IRQ_BIT                    0x7
-
-/*
- * SCU related definitions
- */
-#define SCU_INV_ALL_WAYS_CPU0            0xF
-#define SCU_INV_ALL_WAYS_CPU1            0xF0
-#define SCU_ENABLE_MASK                  1
-#define SCU_FILTERING_ENABLE_MASK        2
-#define END_FILTERING_SCU_ADDR           0x3FFFFFFF
-
-/* Stack OFFSET definition */
-#define TWO_REGS_OFFSET    0x08
-#define THREE_REGS_OFFSET  0x0C
-#define FOUR_REGS_OFFSET   0x10
-#define SIX_REGS_OFFSET    0x18
-#define SEVEN_REGS_OFFSET  0x1C
-#define EIGHT_REGS_OFFSET  0x20
-#define TEN_REGS_OFFSET    0x28
-#define ARM_STORE_DONE     0
-#define ARM_STORE_FAILED   1
-
-/* IDs for cpu_mmu_va2pa() services */
-#define CPU_V2P_SEC_PRIV_RD	1
-#define CPU_V2P_SEC_PRIV_WR	2
-#define CPU_V2P_SEC_USR_RD	3
-#define CPU_V2P_SEC_USR_WR	4
