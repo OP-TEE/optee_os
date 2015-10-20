@@ -94,4 +94,16 @@ void tee_pager_release_zi(vaddr_t vaddr, size_t size);
  */
 void *tee_pager_request_zi(size_t size);
 
+/*
+ * Statistics on the pager
+ */
+struct tee_pager_stats {
+	size_t hidden_hits;
+	size_t ro_hits;
+	size_t rw_hits;
+	size_t zi_released;
+	size_t npages;		/* number of load pages */
+	size_t npages_all;	/* number of pages */
+};
+void tee_pager_get_stats(struct tee_pager_stats *stats);
 #endif /*MM_TEE_PAGER_H*/

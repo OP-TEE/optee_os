@@ -104,6 +104,63 @@ static struct tee_pager_pmem_head tee_pager_rw_pmem_head =
 /* Number of registered physical pages, used hiding pages. */
 static size_t tee_pager_npages;
 
+#ifdef CFG_WITH_STATS
+static struct tee_pager_stats pager_stats;
+
+static inline void incr_ro_hits(void)
+{
+	pager_stats.ro_hits++;
+}
+
+static inline void incr_rw_hits(void)
+{
+	pager_stats.rw_hits++;
+}
+
+static inline void incr_hidden_hits(void)
+{
+	pager_stats.hidden_hits++;
+}
+
+static inline void incr_zi_released(void)
+{
+	pager_stats.zi_released++;
+}
+
+static inline void incr_npages_all(void)
+{
+	pager_stats.npages_all++;
+}
+
+static inline void set_npages(void)
+{
+	pager_stats.npages = tee_pager_npages;
+}
+
+void tee_pager_get_stats(struct tee_pager_stats *stats)
+{
+	*stats = pager_stats;
+
+	pager_stats.hidden_hits = 0;
+	pager_stats.ro_hits = 0;
+	pager_stats.rw_hits = 0;
+	pager_stats.zi_released = 0;
+}
+
+#else /* CFG_WITH_STATS */
+static inline void incr_ro_hits(void) { }
+static inline void incr_rw_hits(void) { }
+static inline void incr_hidden_hits(void) { }
+static inline void incr_zi_released(void) { }
+static inline void incr_npages_all(void) { }
+static inline void set_npages(void) { }
+
+void tee_pager_get_stats(struct tee_pager_stats *stats)
+{
+	memset(stats, 0, sizeof(struct tee_pager_stats));
+}
+#endif /* CFG_WITH_STATS */
+
 /*
  * Reference to translation table used to map the virtual memory range
  * covered by the pager.
@@ -201,8 +258,10 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va)
 					  rel_pg_idx * SMALL_PAGE_SIZE;
 
 		memcpy((void *)page_va, stored_page, SMALL_PAGE_SIZE);
+		incr_ro_hits();
 	} else {
 		memset((void *)page_va, 0, SMALL_PAGE_SIZE);
+		incr_rw_hits();
 	}
 }
 
@@ -247,6 +306,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			/* TODO only invalidate entry touched above */
 			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
+			incr_hidden_hits();
 			return true;
 		}
 	}
@@ -312,7 +372,10 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 		core_mmu_set_entry(&tbl_info, pgidx, pa, TEE_MATTR_PHYS_BLOCK);
 		TAILQ_REMOVE(&tee_pager_rw_pmem_head, pmem, link);
 		tee_pager_npages++;
+		set_npages();
 		TAILQ_INSERT_HEAD(&tee_pager_pmem_head, pmem, link);
+		incr_zi_released();
+
 
 		return true;
 	}
@@ -590,6 +653,7 @@ static struct tee_pager_pmem *tee_pager_get_page(
 		/* Move page to rw list */
 		TEE_ASSERT(tee_pager_npages > 0);
 		tee_pager_npages--;
+		set_npages();
 		TAILQ_INSERT_TAIL(&tee_pager_rw_pmem_head, pmem, link);
 	}
 
@@ -814,6 +878,8 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 					   TEE_MATTR_PHYS_BLOCK);
 		}
 		tee_pager_npages++;
+		incr_npages_all();
+		set_npages();
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 	}
 
@@ -856,4 +922,12 @@ void *tee_pager_request_zi(size_t size)
 
 	return (void *)tee_mm_get_smem(mm);
 }
+
+#else /*CFG_WITH_PAGER*/
+
+void tee_pager_get_stats(struct tee_pager_stats *stats)
+{
+	memset(stats, 0, sizeof(struct tee_pager_stats));
+}
+
 #endif /*CFG_WITH_PAGER*/
