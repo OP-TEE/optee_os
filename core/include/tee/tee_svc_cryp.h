@@ -51,7 +51,7 @@ TEE_Result tee_svc_cryp_state_alloc(uint32_t algo, uint32_t op_mode,
 			    uint32_t *state);
 TEE_Result tee_svc_cryp_state_copy(uint32_t dst, uint32_t src);
 TEE_Result tee_svc_cryp_state_free(uint32_t state);
-void tee_svc_cryp_free_states(struct tee_ta_ctx *ctx);
+void tee_cryp_free_states(struct tee_ta_ctx *ctx);
 
 /* iv and iv_len are ignored for hash algorithms */
 TEE_Result tee_svc_hash_init(uint32_t state, const void *iv, size_t iv_len);

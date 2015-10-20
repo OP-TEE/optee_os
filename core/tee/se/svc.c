@@ -44,7 +44,7 @@ TEE_Result tee_svc_se_service_open(uint32_t *service_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	return tee_svc_copy_kaddr_to_user32(sess, service_handle, kservice);
+	return tee_copy_kaddr_to_user32(sess, service_handle, kservice);
 }
 
 TEE_Result tee_svc_se_service_close(uint32_t service_handle)
@@ -74,7 +74,7 @@ TEE_Result tee_svc_se_service_get_readers(uint32_t service_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_from_user(sess, &klen, len, sizeof(size_t));
+	ret = tee_copy_from_user(sess, &klen, len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -91,13 +91,13 @@ TEE_Result tee_svc_se_service_get_readers(uint32_t service_handle,
 		goto err_free_kreaders;
 
 	for (i = 0; i < klen; i++) {
-		ret = tee_svc_copy_kaddr_to_user32(
-				sess, &reader_handles[i], kreaders[i]);
+		ret = tee_copy_kaddr_to_user32(sess, &reader_handles[i],
+					   kreaders[i]);
 		if (ret != TEE_SUCCESS)
 			goto err_free_kreaders;
 	}
 
-	ret = tee_svc_copy_to_user(sess, len, &klen, sizeof(size_t));
+	ret = tee_copy_to_user(sess, len, &klen, sizeof(size_t));
 
 err_free_kreaders:
 	free(kreaders);
@@ -123,7 +123,7 @@ TEE_Result tee_svc_se_reader_get_prop(uint32_t reader_handle,
 
 	tee_se_reader_get_properties(r, &kprop);
 
-	ret = tee_svc_copy_to_user(sess, p, &kprop, sizeof(kprop));
+	ret = tee_copy_to_user(sess, p, &kprop, sizeof(kprop));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -147,8 +147,7 @@ TEE_Result tee_svc_se_reader_get_name(uint32_t reader_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_from_user(sess, &uname_len,
-			name_len, sizeof(size_t));
+	ret = tee_copy_from_user(sess, &uname_len, name_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -158,11 +157,11 @@ TEE_Result tee_svc_se_reader_get_name(uint32_t reader_handle,
 	if (uname_len < kname_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	ret = tee_svc_copy_to_user(sess, name, kname, kname_len);
+	ret = tee_copy_to_user(sess, name, kname, kname_len);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, name_len,
+	ret = tee_copy_to_user(sess, name_len,
 			&kname_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
@@ -196,7 +195,7 @@ TEE_Result tee_svc_se_reader_open_session(uint32_t reader_handle,
 	service = ctx->se_service;
 	ret = tee_se_service_add_session(service, ksession);
 
-	ret = tee_svc_copy_kaddr_to_user32(sess, session_handle, ksession);
+	ret = tee_copy_kaddr_to_user32(sess, session_handle, ksession);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -265,8 +264,7 @@ TEE_Result tee_svc_se_session_get_atr(uint32_t session_handle,
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ret = tee_svc_copy_from_user(sess,
-			&uatr_len, atr_len, sizeof(size_t));
+	ret = tee_copy_from_user(sess, &uatr_len, atr_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -278,13 +276,11 @@ TEE_Result tee_svc_se_session_get_atr(uint32_t session_handle,
 	if (uatr_len < katr_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	ret = tee_svc_copy_to_user(sess, atr, katr,
-			katr_len);
+	ret = tee_copy_to_user(sess, atr, katr, katr_len);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, atr_len, &katr_len,
-			sizeof(size_t));
+	ret = tee_copy_to_user(sess, atr_len, &katr_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -313,8 +309,7 @@ TEE_Result tee_svc_se_session_open_channel(
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (aid) {
-		ret = tee_svc_copy_from_user(sess,
-				&kaid, aid, sizeof(TEE_SEAID));
+		ret = tee_copy_from_user(sess, &kaid, aid, sizeof(TEE_SEAID));
 		if (ret != TEE_SUCCESS)
 			return ret;
 
@@ -332,7 +327,7 @@ TEE_Result tee_svc_se_session_open_channel(
 	if (ret != TEE_SUCCESS)
 		goto error_free_aid;
 
-	ret = tee_svc_copy_kaddr_to_user32(sess, channel_handle, kc);
+	ret = tee_copy_kaddr_to_user32(sess, channel_handle, kc);
 	if (ret != TEE_SUCCESS)
 		goto error_free_aid;
 
@@ -405,8 +400,7 @@ TEE_Result tee_svc_se_channel_get_select_resp(uint32_t channel_handle,
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ret = tee_svc_copy_from_user(sess, &uresp_len, resp_len,
-			sizeof(size_t));
+	ret = tee_copy_from_user(sess, &uresp_len, resp_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -418,13 +412,13 @@ TEE_Result tee_svc_se_channel_get_select_resp(uint32_t channel_handle,
 	if (uresp_len < kresp_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	ret = tee_svc_copy_to_user(sess, resp,
-			apdu_get_data(to_apdu_base(resp_apdu)), kresp_len);
+	ret = tee_copy_to_user(sess, resp,
+			       apdu_get_data(to_apdu_base(resp_apdu)),
+			       kresp_len);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, resp_len,
-			&kresp_len, sizeof(size_t));
+	ret = tee_copy_to_user(sess, resp_len, &kresp_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -452,8 +446,7 @@ TEE_Result tee_svc_se_channel_transmit(uint32_t channel_handle,
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ret = tee_svc_copy_from_user(sess, &kresp_len,
-			resp_len, sizeof(size_t));
+	ret = tee_copy_from_user(sess, &kresp_len, resp_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -461,7 +454,7 @@ TEE_Result tee_svc_se_channel_transmit(uint32_t channel_handle,
 	if (kcmd_buf == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	ret = tee_svc_copy_from_user(sess, kcmd_buf, cmd, cmd_len);
+	ret = tee_copy_from_user(sess, kcmd_buf, cmd, cmd_len);
 	if (ret != TEE_SUCCESS)
 		goto err_free_cmd_buf;
 
@@ -480,14 +473,12 @@ TEE_Result tee_svc_se_channel_transmit(uint32_t channel_handle,
 		goto err_free_resp_apdu;
 
 	kresp_len = apdu_get_length(to_apdu_base(resp_apdu));
-	ret = tee_svc_copy_to_user(sess, resp_len, &kresp_len,
-			sizeof(size_t));
+	ret = tee_copy_to_user(sess, resp_len, &kresp_len, sizeof(size_t));
 	if (ret != TEE_SUCCESS)
 		goto err_free_resp_apdu;
 
-	ret = tee_svc_copy_to_user(sess, resp,
-			resp_apdu_get_data(resp_apdu),
-			kresp_len);
+	ret = tee_copy_to_user(sess, resp, resp_apdu_get_data(resp_apdu),
+			   kresp_len);
 	if (ret != TEE_SUCCESS)
 		goto err_free_resp_apdu;
 

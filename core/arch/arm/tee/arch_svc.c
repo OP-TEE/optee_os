@@ -147,7 +147,7 @@ static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
 }
 #endif /*ARM64*/
 
-void tee_svc_handler(struct thread_svc_regs *regs)
+void tee_sys_svc_handler(struct thread_svc_regs *regs)
 {
 	size_t scn;
 	size_t max_args;
@@ -162,7 +162,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	get_scn_max_args(regs, &scn, &max_args);
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
-	tee_svc_trace_syscall(scn);
+	tee_trace_syscall(scn);
 #endif
 
 	if (max_args > TEE_SVC_MAX_ARGS) {
@@ -176,12 +176,12 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	else
 		scf = tee_svc_syscall_table[scn];
 
-	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+	set_svc_retval(regs, tee_sys_svc_do_call(regs, scf));
 }
 
 #ifdef ARM32
-uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
+uint32_t tee_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
+			       struct thread_svc_regs *regs)
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
@@ -196,8 +196,8 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 }
 #endif /*ARM32*/
 #ifdef ARM64
-uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
+uint32_t tee_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
+			       struct thread_svc_regs *regs)
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%" PRIx64 " usr_lr 0x%" PRIx64,

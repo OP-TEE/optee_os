@@ -32,7 +32,7 @@
 /* void argument but in reality it can be any number of arguments */
 typedef TEE_Result (*tee_svc_func)(void);
 
-/* Helper function for tee_svc_handler() */
-uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
+/* Helper function for tee_sys_svc_handler() */
+uint32_t tee_sys_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
 
 #endif /*ARCH_SVC_PRIVATE_H*/
