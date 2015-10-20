@@ -509,7 +509,7 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 		tee_cryp_obj_ecc_keypair_attrs),
 };
 
-TEE_Result tee_svc_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info)
+TEE_Result syscall_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -535,7 +535,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage)
+TEE_Result syscall_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -705,7 +705,7 @@ static TEE_Result tee_svc_cryp_obj_copy_out(struct tee_ta_session *sess,
 	}
 }
 
-TEE_Result tee_svc_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
+TEE_Result syscall_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
 				     void *buffer, uint32_t *size)
 {
 	TEE_Result res;
@@ -928,7 +928,7 @@ static void extract_ecc_public_key(struct ecc_public_key *to,
 	to->curve = from->curve;
 }
 
-TEE_Result tee_svc_cryp_obj_alloc(TEE_ObjectType obj_type,
+TEE_Result syscall_cryp_obj_alloc(TEE_ObjectType obj_type,
 				  uint32_t max_key_size, uint32_t *obj)
 {
 	TEE_Result res;
@@ -1060,7 +1060,7 @@ notimpl:
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-TEE_Result tee_svc_cryp_obj_close(uint32_t obj)
+TEE_Result syscall_cryp_obj_close(uint32_t obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1085,7 +1085,7 @@ TEE_Result tee_svc_cryp_obj_close(uint32_t obj)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_cryp_obj_reset(uint32_t obj)
+TEE_Result syscall_cryp_obj_reset(uint32_t obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1365,7 +1365,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_cryp_obj_populate(uint32_t obj,
+TEE_Result syscall_cryp_obj_populate(uint32_t obj,
 		struct abi_user32_attribute *usr_attrs, uint32_t attr_count)
 {
 	TEE_Result res;
@@ -1415,7 +1415,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_cryp_obj_copy(uint32_t dst, uint32_t src)
+TEE_Result syscall_cryp_obj_copy(uint32_t dst, uint32_t src)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1643,7 +1643,7 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_obj_generate_key(uint32_t obj, uint32_t key_size,
+TEE_Result syscall_obj_generate_key(uint32_t obj, uint32_t key_size,
 			const struct abi_user32_attribute *usr_params,
 			uint32_t param_count)
 {
@@ -1888,7 +1888,7 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_cryp_state_alloc(uint32_t algo, uint32_t mode,
+TEE_Result syscall_cryp_state_alloc(uint32_t algo, uint32_t mode,
 				    uint32_t key1, uint32_t key2,
 				    uint32_t *state)
 {
@@ -2032,7 +2032,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_cryp_state_copy(uint32_t dst, uint32_t src)
+TEE_Result syscall_cryp_state_copy(uint32_t dst, uint32_t src)
 {
 	TEE_Result res;
 	struct tee_cryp_state *cs_dst;
@@ -2067,7 +2067,7 @@ void tee_svc_cryp_free_states(struct tee_ta_ctx *ctx)
 		cryp_state_free(ctx, TAILQ_FIRST(states));
 }
 
-TEE_Result tee_svc_cryp_state_free(uint32_t state)
+TEE_Result syscall_cryp_state_free(uint32_t state)
 {
 	TEE_Result res;
 	struct tee_cryp_state *cs;
@@ -2085,7 +2085,7 @@ TEE_Result tee_svc_cryp_state_free(uint32_t state)
 }
 
 /* iv and iv_len are ignored for some algorithms */
-TEE_Result tee_svc_hash_init(uint32_t state, const void *iv __unused,
+TEE_Result syscall_hash_init(uint32_t state, const void *iv __unused,
 		size_t iv_len __unused)
 {
 	TEE_Result res;
@@ -2137,7 +2137,7 @@ TEE_Result tee_svc_hash_init(uint32_t state, const void *iv __unused,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_hash_update(uint32_t state, const void *chunk,
+TEE_Result syscall_hash_update(uint32_t state, const void *chunk,
 			       size_t chunk_size)
 {
 	TEE_Result res;
@@ -2191,7 +2191,7 @@ TEE_Result tee_svc_hash_update(uint32_t state, const void *chunk,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_hash_final(uint32_t state, const void *chunk,
+TEE_Result syscall_hash_final(uint32_t state, const void *chunk,
 			      size_t chunk_size, void *hash, uint32_t *hash_len)
 {
 	TEE_Result res, res2;
@@ -2290,7 +2290,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_cipher_init(uint32_t state, const void *iv, size_t iv_len)
+TEE_Result syscall_cipher_init(uint32_t state, const void *iv, size_t iv_len)
 {
 	TEE_Result res;
 	struct tee_cryp_state *cs;
@@ -2425,14 +2425,14 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_cipher_update(uint32_t state, const void *src,
+TEE_Result syscall_cipher_update(uint32_t state, const void *src,
 				 size_t src_len, void *dst, uint32_t *dst_len)
 {
 	return tee_svc_cipher_update_helper(state, false /* last_block */,
 					    src, src_len, dst, dst_len);
 }
 
-TEE_Result tee_svc_cipher_final(uint32_t state, const void *src,
+TEE_Result syscall_cipher_final(uint32_t state, const void *src,
 				size_t src_len, void *dst, uint32_t *dst_len)
 {
 	return tee_svc_cipher_update_helper(state, true /* last_block */,
@@ -2577,7 +2577,7 @@ static TEE_Result get_pbkdf2_params(const TEE_Attribute *params,
 }
 #endif
 
-TEE_Result tee_svc_cryp_derive_key(uint32_t state,
+TEE_Result syscall_cryp_derive_key(uint32_t state,
 			const struct abi_user32_attribute *usr_params,
 			uint32_t param_count, uint32_t derived_key)
 {
@@ -2833,7 +2833,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_cryp_random_number_generate(void *buf, size_t blen)
+TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -2856,7 +2856,7 @@ TEE_Result tee_svc_cryp_random_number_generate(void *buf, size_t blen)
 	return res;
 }
 
-TEE_Result tee_svc_authenc_init(uint32_t state, const void *nonce,
+TEE_Result syscall_authenc_init(uint32_t state, const void *nonce,
 				size_t nonce_len, size_t tag_len,
 				size_t aad_len, size_t payload_len)
 {
@@ -2895,7 +2895,7 @@ TEE_Result tee_svc_authenc_init(uint32_t state, const void *nonce,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_authenc_update_aad(uint32_t state, const void *aad_data,
+TEE_Result syscall_authenc_update_aad(uint32_t state, const void *aad_data,
 				      size_t aad_data_len)
 {
 	TEE_Result res;
@@ -2928,7 +2928,7 @@ TEE_Result tee_svc_authenc_update_aad(uint32_t state, const void *aad_data,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_authenc_update_payload(uint32_t state, const void *src_data,
+TEE_Result syscall_authenc_update_payload(uint32_t state, const void *src_data,
 					  size_t src_len, void *dst_data,
 					  uint32_t *dst_len)
 {
@@ -2989,7 +2989,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_authenc_enc_final(uint32_t state, const void *src_data,
+TEE_Result syscall_authenc_enc_final(uint32_t state, const void *src_data,
 				     size_t src_len, void *dst_data,
 				     uint32_t *dst_len, void *tag,
 				     uint32_t *tag_len)
@@ -3084,7 +3084,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_authenc_dec_final(uint32_t state, const void *src_data,
+TEE_Result syscall_authenc_dec_final(uint32_t state, const void *src_data,
 				     size_t src_len, void *dst_data,
 				     uint32_t *dst_len, const void *tag,
 				     size_t tag_len)
@@ -3178,7 +3178,7 @@ static void tee_svc_asymm_pkcs1_get_salt_len(const TEE_Attribute *params,
 	*salt_len = -1;
 }
 
-TEE_Result tee_svc_asymm_operate(uint32_t state,
+TEE_Result syscall_asymm_operate(uint32_t state,
 			const struct abi_user32_attribute *usr_params,
 			uint32_t num_params, const void *src_data,
 			size_t src_len, void *dst_data, uint32_t *dst_len)
@@ -3367,7 +3367,7 @@ out:
 	return res;
 }
 
-TEE_Result tee_svc_asymm_verify(uint32_t state,
+TEE_Result syscall_asymm_verify(uint32_t state,
 			const struct abi_user32_attribute *usr_params,
 			uint32_t num_params, const void *data,
 			size_t data_len, const void *sig, size_t sig_len)

@@ -41,62 +41,62 @@
 
 #if defined(CFG_SE_API)
 
-TEE_Result tee_svc_se_service_open(uint32_t *service_handle);
+TEE_Result syscall_se_service_open(uint32_t *service_handle);
 
-TEE_Result tee_svc_se_service_close(uint32_t service_handle);
+TEE_Result syscall_se_service_close(uint32_t service_handle);
 
-TEE_Result tee_svc_se_service_get_readers(uint32_t service_handle,
+TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
 		uint32_t *reader_handles, size_t *len);
 
-TEE_Result tee_svc_se_reader_get_prop(uint32_t reader_handle,
+TEE_Result syscall_se_reader_get_prop(uint32_t reader_handle,
 		TEE_SEReaderProperties *p);
 
-TEE_Result tee_svc_se_reader_get_name(uint32_t reader_handle,
+TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
 		char *name, size_t *name_len);
 
-TEE_Result tee_svc_se_reader_open_session(uint32_t reader_handle,
+TEE_Result syscall_se_reader_open_session(uint32_t reader_handle,
 		uint32_t *session_handle);
 
-TEE_Result tee_svc_se_reader_close_sessions(uint32_t reader_handle);
+TEE_Result syscall_se_reader_close_sessions(uint32_t reader_handle);
 
-TEE_Result tee_svc_se_session_is_closed(uint32_t session_handle);
+TEE_Result syscall_se_session_is_closed(uint32_t session_handle);
 
-TEE_Result tee_svc_se_session_get_atr(uint32_t session_handle,
+TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
 		void *atr, size_t *atr_len);
 
-TEE_Result tee_svc_se_session_open_channel(
+TEE_Result syscall_se_session_open_channel(
 		uint32_t session_handle, bool is_logical,
 		TEE_SEAID *aid, uint32_t *channel_handle);
 
-TEE_Result tee_svc_se_session_close(uint32_t session_handle);
+TEE_Result syscall_se_session_close(uint32_t session_handle);
 
-TEE_Result tee_svc_se_channel_select_next(uint32_t channel_handle);
+TEE_Result syscall_se_channel_select_next(uint32_t channel_handle);
 
-TEE_Result tee_svc_se_channel_get_select_resp(uint32_t channel_handle,
+TEE_Result syscall_se_channel_get_select_resp(uint32_t channel_handle,
 	void *resp, size_t *resp_len);
 
-TEE_Result tee_svc_se_channel_transmit(uint32_t channel_handle,
+TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
 	void *cmd, size_t cmd_len, void *resp, size_t *resp_len);
 
-TEE_Result tee_svc_se_channel_close(uint32_t channel_handle);
+TEE_Result syscall_se_channel_close(uint32_t channel_handle);
 
 #else
 
-#define  tee_svc_se_service_open		tee_svc_not_supported
-#define  tee_svc_se_service_close		tee_svc_not_supported
-#define  tee_svc_se_service_get_readers		tee_svc_not_supported
-#define  tee_svc_se_reader_get_prop		tee_svc_not_supported
-#define  tee_svc_se_reader_get_name		tee_svc_not_supported
-#define  tee_svc_se_reader_open_session		tee_svc_not_supported
-#define  tee_svc_se_reader_close_sessions	tee_svc_not_supported
-#define  tee_svc_se_session_is_closed		tee_svc_not_supported
-#define  tee_svc_se_session_get_atr		tee_svc_not_supported
-#define  tee_svc_se_session_open_channel	tee_svc_not_supported
-#define  tee_svc_se_session_close		tee_svc_not_supported
-#define  tee_svc_se_channel_select_next		tee_svc_not_supported
-#define  tee_svc_se_channel_get_select_resp	tee_svc_not_supported
-#define  tee_svc_se_channel_transmit		tee_svc_not_supported
-#define  tee_svc_se_channel_close		tee_svc_not_supported
+#define  syscall_se_service_open		syscall_not_supported
+#define  syscall_se_service_close		syscall_not_supported
+#define  syscall_se_service_get_readers		syscall_not_supported
+#define  syscall_se_reader_get_prop		syscall_not_supported
+#define  syscall_se_reader_get_name		syscall_not_supported
+#define  syscall_se_reader_open_session		syscall_not_supported
+#define  syscall_se_reader_close_sessions	syscall_not_supported
+#define  syscall_se_session_is_closed		syscall_not_supported
+#define  syscall_se_session_get_atr		syscall_not_supported
+#define  syscall_se_session_open_channel	syscall_not_supported
+#define  syscall_se_session_close		syscall_not_supported
+#define  syscall_se_channel_select_next		syscall_not_supported
+#define  syscall_se_channel_get_select_resp	syscall_not_supported
+#define  syscall_se_channel_transmit		syscall_not_supported
+#define  syscall_se_channel_close		syscall_not_supported
 
 #endif /* if defined(CFG_SE_API) */
 

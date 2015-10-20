@@ -398,7 +398,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_open(uint32_t storage_id, void *object_id,
+TEE_Result syscall_storage_obj_open(uint32_t storage_id, void *object_id,
 				    uint32_t object_id_len, uint32_t flags,
 				    uint32_t *obj)
 {
@@ -522,7 +522,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_create(uint32_t storage_id, void *object_id,
+TEE_Result syscall_storage_obj_create(uint32_t storage_id, void *object_id,
 				      uint32_t object_id_len, uint32_t flags,
 				      uint32_t attr, void *data, uint32_t len,
 				      uint32_t *obj)
@@ -681,7 +681,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_del(uint32_t obj)
+TEE_Result syscall_storage_obj_del(uint32_t obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -733,7 +733,7 @@ TEE_Result tee_svc_storage_obj_del(uint32_t obj)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_storage_obj_rename(uint32_t obj, void *object_id,
+TEE_Result syscall_storage_obj_rename(uint32_t obj, void *object_id,
 				      uint32_t object_id_len)
 {
 	TEE_Result res;
@@ -828,7 +828,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_alloc_enum(uint32_t *obj_enum)
+TEE_Result syscall_storage_alloc_enum(uint32_t *obj_enum)
 {
 	struct tee_storage_enum *e;
 	struct tee_ta_session *sess;
@@ -852,7 +852,7 @@ TEE_Result tee_svc_storage_alloc_enum(uint32_t *obj_enum)
 	return tee_svc_copy_kaddr_to_user32(sess, obj_enum, e);
 }
 
-TEE_Result tee_svc_storage_free_enum(uint32_t obj_enum)
+TEE_Result syscall_storage_free_enum(uint32_t obj_enum)
 {
 	struct tee_storage_enum *e;
 	TEE_Result res;
@@ -872,7 +872,7 @@ TEE_Result tee_svc_storage_free_enum(uint32_t obj_enum)
 	return tee_svc_close_enum(sess->ctx, e);
 }
 
-TEE_Result tee_svc_storage_reset_enum(uint32_t obj_enum)
+TEE_Result syscall_storage_reset_enum(uint32_t obj_enum)
 {
 	struct tee_storage_enum *e;
 	int res;
@@ -924,7 +924,7 @@ exit:
 
 }
 
-TEE_Result tee_svc_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
+TEE_Result syscall_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 {
 	struct tee_storage_enum *e;
 	char *dir;
@@ -1018,7 +1018,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
+TEE_Result syscall_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
 				     void *obj_id, uint32_t *len)
 {
 	struct tee_storage_enum *e;
@@ -1105,7 +1105,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_read(uint32_t obj, void *data, size_t len,
+TEE_Result syscall_storage_obj_read(uint32_t obj, void *data, size_t len,
 				    uint32_t *count)
 {
 	TEE_Result res;
@@ -1161,7 +1161,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_write(uint32_t obj, void *data, size_t len)
+TEE_Result syscall_storage_obj_write(uint32_t obj, void *data, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1206,7 +1206,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_trunc(uint32_t obj, size_t len)
+TEE_Result syscall_storage_obj_trunc(uint32_t obj, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1254,7 +1254,7 @@ exit:
 	return res;
 }
 
-TEE_Result tee_svc_storage_obj_seek(uint32_t obj, int32_t offset,
+TEE_Result syscall_storage_obj_seek(uint32_t obj, int32_t offset,
 				    TEE_Whence whence)
 {
 	TEE_Result res;

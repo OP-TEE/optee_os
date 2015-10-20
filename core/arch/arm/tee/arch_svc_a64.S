@@ -161,7 +161,7 @@ END_FUNC tee_svc_do_call
 
 /*
  * User space sees this function as:
- * void tee_svc_sys_return(uint32_t ret) __noreturn;
+ * void syscall_sys_return(uint32_t ret) __noreturn;
  *
  * But internally the function depends on being called from
  * tee_svc_do_call() with pointer to the struct thread_svc_regs saved by
@@ -169,25 +169,25 @@ END_FUNC tee_svc_do_call
  * don't touch that and let it propagate as return value of the called
  * tee_svc_unwind_enter_user_mode().
  */
-FUNC tee_svc_sys_return , :
+FUNC syscall_sys_return , :
 	mov	x1, #0  /* panic = false */
 	mov	x2, #0  /* panic_code = 0 */
 	ldr	x3, [x19, #SC_REC_X0_OFFS]
 	b	tee_svc_sys_return_helper
-END_FUNC tee_svc_sys_return
+END_FUNC syscall_sys_return
 
 /*
  * User space sees this function as:
- * void tee_svc_sys_panic(uint32_t code) __noreturn;
+ * void syscall_panic(uint32_t code) __noreturn;
  *
  * But internally the function depends on being called from
  * tee_svc_do_call() with pointer to the struct thread_svc_regs saved by
  * thread_svc_handler() in r8.
  */
-FUNC tee_svc_sys_panic , :
+FUNC syscall_panic , :
 	mov	x1, #1  /* panic = true */
 	mov	x2, x0  /* code */
 	ldr	w0, =TEE_ERROR_TARGET_DEAD
 	ldr	x3, [x19, #SC_REC_X0_OFFS]
 	b	tee_svc_sys_return_helper
-END_FUNC tee_svc_sys_panic
+END_FUNC syscall_panic

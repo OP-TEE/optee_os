@@ -387,11 +387,11 @@ END_FUNC thread_init_vbar
  *
  * Calls to utee_return or utee_panic are handled as:
  * thread_svc_handler() -> tee_svc_handler() ->	tee_svc_do_call() which
- * calls tee_svc_sys_return() or tee_svc_sys_panic().
+ * calls syscall_return() or syscall_panic().
  *
  * These function calls returns normally except thread_svc_handler() which
  * which is an exception handling routine so it reads return address and
- * SPSR to restore from the stack. tee_svc_sys_return() and tee_svc_sys_panic()
+ * SPSR to restore from the stack. syscall_return() and syscall_panic()
  * changes return address and SPSR used by thread_svc_handler() to instead of
  * returning into user mode as with other syscalls it returns into
  * thread_unwind_user_mode() in kernel mode instead.  When
@@ -415,9 +415,9 @@ END_FUNC thread_init_vbar
  */
 FUNC thread_enter_user_mode , :
 	/*
-	 * Save all registers to allow tee_svc_sys_return() to
-	 * resume execution as if this function would have returned.
-	 * This is also used in tee_svc_sys_panic().
+	 * Save all registers to allow syscall_return() to resume execution
+	 * as if this function would have returned. This is also used in
+	 * syscall_panic().
 	 *
 	 * If stack usage of this function is changed
 	 * thread_unwind_user_mode() has to be updated.

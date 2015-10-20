@@ -55,7 +55,7 @@ void tee_svc_trace_syscall(int num)
 }
 #endif
 
-void tee_svc_sys_log(const void *buf __unused, size_t len __unused)
+void syscall_log(const void *buf __unused, size_t len __unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE
 	char *kbuf;
@@ -76,23 +76,23 @@ void tee_svc_sys_log(const void *buf __unused, size_t len __unused)
 #endif
 }
 
-TEE_Result tee_svc_reserved(void)
+TEE_Result syscall_reserved(void)
 {
 	return TEE_ERROR_GENERIC;
 }
 
-TEE_Result tee_svc_not_supported(void)
+TEE_Result syscall_not_supported(void)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-uint32_t tee_svc_sys_dummy(uint32_t *a __unused)
+uint32_t syscall_dummy(uint32_t *a __unused)
 {
 	DMSG("tee_svc_sys_dummy: a 0x%" PRIxVA, (vaddr_t)a);
 	return 0;
 }
 
-uint32_t tee_svc_sys_dummy_7args(uint32_t a1 __unused, uint32_t a2 __unused,
+uint32_t syscall_dummy_7args(uint32_t a1 __unused, uint32_t a2 __unused,
 				uint32_t a3 __unused, uint32_t a4 __unused,
 				uint32_t a5 __unused, uint32_t a6 __unused,
 				uint32_t a7 __unused)
@@ -102,7 +102,7 @@ uint32_t tee_svc_sys_dummy_7args(uint32_t a1 __unused, uint32_t a2 __unused,
 	return 0;
 }
 
-uint32_t tee_svc_sys_nocall(void)
+uint32_t syscall_nocall(void)
 {
 	DMSG("No syscall");
 	return 0x1;
@@ -194,7 +194,7 @@ const struct tee_props tee_props_lut[] = {
 	{0, 0}, /* ta_app_id */
 };
 
-TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
+TEE_Result syscall_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 {
 	struct tee_ta_session *sess;
 	TEE_Result res;
@@ -518,7 +518,7 @@ static TEE_Result tee_svc_update_out_param(
 }
 
 /* Called when a TA calls an OpenSession on another TA */
-TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
+TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 				   uint32_t cancel_req_to, uint32_t param_types,
 				   struct abi_user32_param *usr_param,
 				   TEE_TASessionHandle *ta_sess,
@@ -599,7 +599,7 @@ out_free_only:
 	return res;
 }
 
-TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
+TEE_Result syscall_close_ta_session(TEE_TASessionHandle ta_sess)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -620,7 +620,7 @@ TEE_Result tee_svc_close_ta_session(TEE_TASessionHandle ta_sess)
 	return res;
 }
 
-TEE_Result tee_svc_invoke_ta_command(TEE_TASessionHandle ta_sess,
+TEE_Result syscall_invoke_ta_command(TEE_TASessionHandle ta_sess,
 				     uint32_t cancel_req_to, uint32_t cmd_id,
 				     uint32_t param_types,
 				     struct abi_user32_param *usr_param,
@@ -683,7 +683,7 @@ function_exit:
 	return res;
 }
 
-TEE_Result tee_svc_check_access_rights(uint32_t flags, const void *buf,
+TEE_Result syscall_check_access_rights(uint32_t flags, const void *buf,
 				       size_t len)
 {
 	TEE_Result res;
@@ -793,7 +793,7 @@ static bool session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)
 	return false;
 }
 
-TEE_Result tee_svc_get_cancellation_flag(bool *cancel)
+TEE_Result syscall_get_cancellation_flag(bool *cancel)
 {
 	TEE_Result res;
 	struct tee_ta_session *s = NULL;
@@ -808,7 +808,7 @@ TEE_Result tee_svc_get_cancellation_flag(bool *cancel)
 	return tee_svc_copy_to_user(s, cancel, &c, sizeof(c));
 }
 
-TEE_Result tee_svc_unmask_cancellation(bool *old_mask)
+TEE_Result syscall_unmask_cancellation(bool *old_mask)
 {
 	TEE_Result res;
 	struct tee_ta_session *s = NULL;
@@ -823,7 +823,7 @@ TEE_Result tee_svc_unmask_cancellation(bool *old_mask)
 	return tee_svc_copy_to_user(s, old_mask, &m, sizeof(m));
 }
 
-TEE_Result tee_svc_mask_cancellation(bool *old_mask)
+TEE_Result syscall_mask_cancellation(bool *old_mask)
 {
 	TEE_Result res;
 	struct tee_ta_session *s = NULL;
@@ -838,7 +838,7 @@ TEE_Result tee_svc_mask_cancellation(bool *old_mask)
 	return tee_svc_copy_to_user(s, old_mask, &m, sizeof(m));
 }
 
-TEE_Result tee_svc_wait(uint32_t timeout)
+TEE_Result syscall_wait(uint32_t timeout)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t mytime = 0;
@@ -873,7 +873,7 @@ TEE_Result tee_svc_wait(uint32_t timeout)
 	return res;
 }
 
-TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *mytime)
+TEE_Result syscall_get_time(enum utee_time_category cat, TEE_Time *mytime)
 {
 	TEE_Result res, res2;
 	struct tee_ta_session *s = NULL;
@@ -907,7 +907,7 @@ TEE_Result tee_svc_get_time(enum utee_time_category cat, TEE_Time *mytime)
 	return res;
 }
 
-TEE_Result tee_svc_set_ta_time(const TEE_Time *mytime)
+TEE_Result syscall_set_ta_time(const TEE_Time *mytime)
 {
 	TEE_Result res;
 	struct tee_ta_session *s = NULL;
@@ -925,7 +925,7 @@ TEE_Result tee_svc_set_ta_time(const TEE_Time *mytime)
 }
 
 #ifdef CFG_CACHE_API
-TEE_Result tee_svc_cache_operation(void *va, size_t len,
+TEE_Result syscall_cache_operation(void *va, size_t len,
 				   enum utee_cache_operation op)
 {
 	TEE_Result res;

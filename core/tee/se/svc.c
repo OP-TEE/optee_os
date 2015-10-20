@@ -30,7 +30,7 @@
 #include <tee/se/svc.h>
 #include <trace.h>
 
-TEE_Result tee_svc_se_service_open(uint32_t *service_handle)
+TEE_Result syscall_se_service_open(uint32_t *service_handle)
 {
 	struct tee_ta_session *sess;
 	struct tee_se_service *kservice;
@@ -47,7 +47,7 @@ TEE_Result tee_svc_se_service_open(uint32_t *service_handle)
 	return tee_svc_copy_kaddr_to_user32(sess, service_handle, kservice);
 }
 
-TEE_Result tee_svc_se_service_close(uint32_t service_handle)
+TEE_Result syscall_se_service_close(uint32_t service_handle)
 {
 	struct tee_se_service *h = (struct tee_se_service *)service_handle;
 
@@ -57,7 +57,7 @@ TEE_Result tee_svc_se_service_close(uint32_t service_handle)
 	return tee_se_service_close(h);
 }
 
-TEE_Result tee_svc_se_service_get_readers(uint32_t service_handle,
+TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
 		uint32_t *reader_handles, size_t *len)
 {
 	TEE_Result ret;
@@ -105,7 +105,7 @@ err_free_kreaders:
 	return ret;
 }
 
-TEE_Result tee_svc_se_reader_get_prop(uint32_t reader_handle,
+TEE_Result syscall_se_reader_get_prop(uint32_t reader_handle,
 		TEE_SEReaderProperties *p)
 {
 	TEE_Result ret;
@@ -130,7 +130,7 @@ TEE_Result tee_svc_se_reader_get_prop(uint32_t reader_handle,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_reader_get_name(uint32_t reader_handle,
+TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
 		char *name, size_t *name_len)
 {
 	TEE_Result ret;
@@ -170,7 +170,7 @@ TEE_Result tee_svc_se_reader_get_name(uint32_t reader_handle,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_reader_open_session(uint32_t reader_handle,
+TEE_Result syscall_se_reader_open_session(uint32_t reader_handle,
 		uint32_t *session_handle)
 {
 	TEE_Result ret;
@@ -203,7 +203,7 @@ TEE_Result tee_svc_se_reader_open_session(uint32_t reader_handle,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_reader_close_sessions(uint32_t reader_handle)
+TEE_Result syscall_se_reader_close_sessions(uint32_t reader_handle)
 {
 	TEE_Result ret;
 	struct tee_se_reader_proxy *r =
@@ -224,7 +224,7 @@ TEE_Result tee_svc_se_reader_close_sessions(uint32_t reader_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_session_is_closed(uint32_t session_handle)
+TEE_Result syscall_se_session_is_closed(uint32_t session_handle)
 {
 	TEE_Result ret;
 	struct tee_se_session *s =
@@ -246,7 +246,7 @@ TEE_Result tee_svc_se_session_is_closed(uint32_t session_handle)
 	return tee_se_service_is_session_closed(service, s);
 }
 
-TEE_Result tee_svc_se_session_get_atr(uint32_t session_handle,
+TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
 		void *atr, size_t *atr_len)
 {
 	TEE_Result ret;
@@ -291,7 +291,7 @@ TEE_Result tee_svc_se_session_get_atr(uint32_t session_handle,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_session_open_channel(
+TEE_Result syscall_se_session_open_channel(
 		uint32_t session_handle, bool is_logical,
 		TEE_SEAID *aid, uint32_t *channel_handle)
 {
@@ -344,7 +344,7 @@ error_free_aid:
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_session_close(uint32_t session_handle)
+TEE_Result syscall_se_session_close(uint32_t session_handle)
 {
 	TEE_Result ret;
 	struct tee_se_session *s =
@@ -365,7 +365,7 @@ TEE_Result tee_svc_se_session_close(uint32_t session_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_channel_select_next(uint32_t channel_handle)
+TEE_Result syscall_se_channel_select_next(uint32_t channel_handle)
 {
 	TEE_Result ret;
 	struct tee_se_channel *c =
@@ -386,7 +386,7 @@ TEE_Result tee_svc_se_channel_select_next(uint32_t channel_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_channel_get_select_resp(uint32_t channel_handle,
+TEE_Result syscall_se_channel_get_select_resp(uint32_t channel_handle,
 	void *resp, size_t *resp_len)
 {
 	TEE_Result ret;
@@ -431,7 +431,7 @@ TEE_Result tee_svc_se_channel_get_select_resp(uint32_t channel_handle,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_se_channel_transmit(uint32_t channel_handle,
+TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
 	void *cmd, size_t cmd_len, void *resp, size_t *resp_len)
 {
 	TEE_Result ret;
@@ -506,7 +506,7 @@ err_free_cmd_buf:
 	return ret;
 }
 
-TEE_Result tee_svc_se_channel_close(uint32_t channel_handle)
+TEE_Result syscall_se_channel_close(uint32_t channel_handle)
 {
 	TEE_Result ret;
 	struct tee_se_channel *c =
