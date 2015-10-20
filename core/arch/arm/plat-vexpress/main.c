@@ -44,6 +44,14 @@
 #include <tee/arch_svc.h>
 #include <console.h>
 
+#ifdef CFG_PLATFORM_SPECIFIC_PROPERTIES
+#include <tee/tee_svc.h>
+#include <platform_properties.h>
+#include <kernel/tee_ta_manager_unpg.h>
+#include <kernel/tee_common_otp.h>
+#include <tee/tee_cryp_utl.h>
+#endif
+
 static void main_fiq(void);
 
 static const struct thread_handlers handlers = {
@@ -142,3 +150,67 @@ void console_flush(void)
 {
 	pl011_flush(CONSOLE_UART_BASE);
 }
+
+#ifdef CFG_PLATFORM_SPECIFIC_PROPERTIES
+TEE_Result tee_svc_sys_get_property_platform(uint32_t prop,
+					     tee_uaddr_t buf, size_t blen,
+					     struct tee_ta_session *sess)
+{
+	static const size_t ta_endorsement_seed_size = 32;
+	TEE_Result res;
+
+	switch (prop) {
+	case UTEE_PROP_TA_ENDORSEMENT_SEED:
+		{
+			/*
+			 * The data to hash is 48 bytes made up of:
+			 * - 16 bytes: the UUID of the calling TA.
+			 * - 32 bytes: the hardware device ID
+			 * The resulting endorsement seed is 32 bytes.
+			 *
+			 * The output buffer is the "binary" struct defined in
+			 * the "prop_value" union and therefore comprises:
+			 * -  4 bytes: the size of the binary value data (32)
+			 * - 32 bytes: the binary value data (endorsement seed)
+			 *
+			 * Note that this code assumes an endoresement seed
+			 * size == device ID size for convenience.
+			 */
+			uint8_t data[sizeof(TEE_UUID)
+				+ ta_endorsement_seed_size];
+
+			size_t bin[1
+				+ ta_endorsement_seed_size / sizeof(size_t)];
+
+			size_t *bin_len = (size_t *)(vaddr_t)(bin);
+			uint8_t *bin_val = (uint8_t *)(&bin[1]);
+
+			if (blen < sizeof(bin))
+				return TEE_ERROR_SHORT_BUFFER;
+
+			memcpy(&data[0], &sess->ctx->head->uuid,
+				sizeof(TEE_UUID));
+
+			if (tee_otp_get_die_id(&data[sizeof(TEE_UUID)],
+					       ta_endorsement_seed_size))
+				return TEE_ERROR_BAD_STATE;
+
+			res = tee_hash_createdigest(TEE_ALG_SHA256, data,
+					sizeof(data),
+					bin_val,
+					ta_endorsement_seed_size);
+			if (res != TEE_SUCCESS)
+				return TEE_ERROR_BAD_STATE;
+
+			*bin_len = ta_endorsement_seed_size;
+
+			return tee_svc_copy_to_user(sess, (void *)buf, bin,
+					sizeof(bin));
+		}
+		break;
+
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+}
+#endif

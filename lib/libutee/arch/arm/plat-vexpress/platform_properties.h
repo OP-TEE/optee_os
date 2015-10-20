@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,49 +24,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef PLATFORM_PROPERTIES_H
+#define PLATFORM_PROPERTIES_H
 
-#ifndef UTEE_TYPES_H
-#define UTEE_TYPES_H
+#include <utee_types.h>
+#include <tee_api_property.h>
 
-enum utee_property {
-	UTEE_PROP_TEE_API_VERSION = 0,
-	UTEE_PROP_TEE_DESCR,
-	UTEE_PROP_TEE_DEV_ID,
-	UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
-	UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
-	UTEE_PROP_TEE_FW_IMPL_VERSION,
-	UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_FW_MANUFACTURER,
-	UTEE_PROP_CLIENT_ID,
-	UTEE_PROP_TA_APP_ID,
+/* Specific properties indexes */
+#define UTEE_PROP_TA_ENDORSEMENT_SEED (UTEE_PROP_PLATFORM_SPECIFIC + 0)
 
-	/*
-	 * Platform Specific properties should start from
-	 * UTEE_PROP_PLATFORM_SPECIFIC
-	 */
-	UTEE_PROP_PLATFORM_SPECIFIC = 0x40,
-};
+#define PLATFORM_TA_PROPERTIES \
+	{ "com.microsoft.ta.endorsementSeed", \
+	  propget_com_microsoft_ta_endorsement_seed },
 
-enum utee_time_category {
-	UTEE_TIME_CAT_SYSTEM = 0,
-	UTEE_TIME_CAT_TA_PERSISTENT,
-	UTEE_TIME_CAT_REE
-};
+#define PLATFORM_CLIENT_PROPERTIES
 
-/*
- * Cache operation types.
- * Used when extensions TEE_CacheClean() / TEE_CacheFlush() /
- * TEE_CacheInvalidate() are used
- */
-enum utee_cache_operation {
-	TEE_CACHECLEAN = 0,
-	TEE_CACHEFLUSH,
-	TEE_CACHEINVALIDATE,
-};
+#define PLATFORM_IMPLEMENTATION_PROPERTIES
 
-#endif /* UTEE_TYPES_H */
+TEE_Result propget_com_microsoft_ta_endorsement_seed(struct prop_value *pv);
+
+#endif /* PLATFORM_PROPERTIES_H */

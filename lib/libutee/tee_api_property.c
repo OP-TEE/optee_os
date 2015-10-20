@@ -34,31 +34,22 @@
 #include <user_ta_header.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_arith_internal.h>
-
+#include <tee_api_property.h>
 #include <utee_syscalls.h>
 
 #include "string_ext.h"
 #include "base64.h"
+#include "assert.h"
 
-#define PROP_STR_MAX    80
+#ifdef CFG_PLATFORM_SPECIFIC_PROPERTIES
+#include <platform_properties.h>
+#else
+#define PLATFORM_TA_PROPERTIES
+#define PLATFORM_CLIENT_PROPERTIES
+#define PLATFORM_IMPLEMENTATION_PROPERTIES
+#endif
 
 #define PROP_ENUMERATOR_NOT_STARTED 0xffffffff
-
-struct prop_enumerator {
-	uint32_t idx;
-	TEE_PropSetHandle prop_set;
-};
-
-struct prop_value {
-	enum user_ta_prop_type type;
-	union {
-		bool bool_val;
-		uint32_t int_val;
-		TEE_UUID uuid_val;
-		TEE_Identity identity_val;
-		char str_val[PROP_STR_MAX];
-	} u;
-};
 
 typedef TEE_Result(*ta_propget_func_t) (struct prop_value *pv);
 
@@ -186,6 +177,7 @@ static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
 
 static const struct prop_set propset_current_ta[] = {
 	{"gpd.ta.appID", propget_gpd_ta_app_id},
+	PLATFORM_TA_PROPERTIES
 };
 
 static const size_t propset_current_ta_len =
@@ -193,6 +185,7 @@ static const size_t propset_current_ta_len =
 
 static const struct prop_set propset_current_client[] = {
 	{"gpd.client.identity", propget_gpd_client_identity},
+	PLATFORM_CLIENT_PROPERTIES
 };
 
 static const size_t propset_current_client_len =
@@ -222,6 +215,7 @@ static const struct prop_set propset_implementation[] = {
 	 propget_gpd_tee_fw_impl_bin_version},
 	{"gpd.tee.firmware.manufacturer",
 	 propget_gpd_tee_fw_manufacturer},
+	PLATFORM_IMPLEMENTATION_PROPERTIES
 };
 
 static const size_t propset_implementation_len =
@@ -398,9 +392,36 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 		break;
 
 	case USER_TA_PROP_TYPE_STRING:
-	case USER_TA_PROP_TYPE_BINARY_BLOCK:
 		l = strlcpy(valueBuffer, pv.u.str_val, bufferlen);
 		break;
+
+	/*
+	 * This is returned as a binary blob and thus must be converted
+	 * into base64 per the GP specification.
+	 *
+	 * Note that the behaviour of base64_enc does not copy any data
+	 * into the buffer if all of it will not fit. This appears slightly
+	 * different than the above implementations that copy into the buffer
+	 * as many bytes as will fit and return a short buffer error.
+	 * The GP specification for TEE_GetPropertyAsString does not explicitly
+	 * state this partial data behaviour in response to a short buffer.
+	 */
+	case USER_TA_PROP_TYPE_BINARY_BLOCK: {
+
+		size_t blen = bufferlen;
+
+		base64_enc(pv.u.binary.val, pv.u.binary.len,
+			valueBuffer, &blen);
+
+		/*
+		 * The base64_enc call above returns the size including the null
+		 * terminator so we need to subtract it because the null is
+		 * accounted for below for all types.
+		 */
+		l = (blen - 1);
+
+		break;
+	}
 
 	default:
 		res = TEE_ERROR_BAD_FORMAT;
@@ -499,7 +520,7 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	struct prop_value pv;
 	void *val;
-	int val_len;
+	size_t val_len;
 	size_t size;
 
 	if (valueBuffer == NULL || valueBufferLen == NULL) {
@@ -516,15 +537,20 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 		goto err;
 	}
 
-	val = pv.u.str_val;
-	val_len = strlen(val);
-	size = *valueBufferLen;
-	if (!base64_dec(val, val_len, valueBuffer, &size)) {
+	val = pv.u.binary.val;
+	val_len = pv.u.binary.len;
+
+	assert(pv.u.binary.len <= sizeof(pv.u.binary.val));
+
+	size = (size_t) *valueBufferLen;
+	*valueBufferLen = (uint32_t) val_len;
+
+	if (size < val_len) {
 		res = TEE_ERROR_SHORT_BUFFER;
 		goto err;
 	}
 
-	*valueBufferLen = size;
+	memcpy(valueBuffer, val, val_len);
 
 	goto out;
 

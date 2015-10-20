@@ -28,6 +28,9 @@ aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 
 cppflags$(sm)	+= -Ilib/libutee/include
+ifeq ($(CFG_PLATFORM_SPECIFIC_PROPERTIES),y)
+cppflags$(sm)   += -Ilib/libutee/arch/$(ARCH)/plat-$(PLATFORM)
+endif
 
 # Tell all libraries and sub-directories (included below) that we have a
 # configuration file

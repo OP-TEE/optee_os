@@ -192,19 +192,31 @@ const struct tee_props tee_props_lut[] = {
 	{fw_manufacturer, sizeof(fw_manufacturer)},
 	{0, 0}, /* client_id */
 	{0, 0}, /* ta_app_id */
+
+	/*
+	 * Properties specific to a given platform are not in the lut.
+	 * They are accessed through tee_svc_sys_get_property_platform()
+	 */
 };
+
+TEE_Result __weak tee_svc_sys_get_property_platform(uint32_t prop __unused,
+		tee_uaddr_t buf __unused, size_t blen __unused,
+		struct tee_ta_session *sess __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
 
 TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 {
 	struct tee_ta_session *sess;
 	TEE_Result res;
 
-	if (prop > ARRAY_SIZE(tee_props_lut)-1)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (prop > ARRAY_SIZE(tee_props_lut)-1)
+		return tee_svc_sys_get_property_platform(prop, buf, blen, sess);
 
 	switch (prop) {
 	case UTEE_PROP_TEE_DEV_ID:
@@ -262,6 +274,8 @@ TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 		return tee_svc_copy_to_user(sess, (void *)buf,
 					    &sess->ctx->uuid,
 					    sizeof(TEE_UUID));
+
+
 	default:
 		if (blen < tee_props_lut[prop].len)
 			return TEE_ERROR_SHORT_BUFFER;

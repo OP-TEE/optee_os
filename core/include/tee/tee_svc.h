@@ -54,6 +54,9 @@ uint32_t tee_svc_sys_nocall(void);
 
 TEE_Result tee_svc_sys_get_property(uint32_t prop, tee_uaddr_t buf,
 				    size_t blen);
+TEE_Result tee_svc_sys_get_property_platform(uint32_t prop,
+					     tee_uaddr_t buf, size_t blen,
+					     struct tee_ta_session *sess);
 
 TEE_Result tee_svc_open_ta_session(const TEE_UUID *dest,
 				   uint32_t cancel_req_to, uint32_t param_types,
