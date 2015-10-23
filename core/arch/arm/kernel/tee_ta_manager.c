@@ -408,7 +408,9 @@ static TEE_Result tee_ta_load_check_shdr(struct shdr *shdr)
 				SHDR_GET_SIG(shdr), shdr->sig_size);
 out:
 	crypto_ops.acipher.free_rsa_public_key(&key);
-	return res;
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_SECURITY;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
