@@ -6,6 +6,7 @@ sm-$(sm) := y
 
 arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
+include mk/checkconf.mk
 include $(platform-dir)/conf.mk
 include core/arch/$(ARCH)/$(ARCH).mk
 
@@ -39,7 +40,6 @@ $(conf-file): $(conf-mk-file)
 cleanfiles += $(conf-file)
 cleanfiles += $(conf-mk-file)
 
-include mk/checkconf.mk
 $(conf-file): FORCE
 	$(call check-conf-h)
 

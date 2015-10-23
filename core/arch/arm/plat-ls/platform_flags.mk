@@ -1,3 +1,6 @@
+PLATFORM_FLAVOR ?= ls1021atwr
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
+
 platform-cpuarch = cortex-a7
 platform-cflags = -mcpu=$(platform-cpuarch) -mthumb
 platform-cflags += -pipe -mthumb-interwork -mlong-calls
