@@ -267,7 +267,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	op = TEE_Malloc(sizeof(*op), 0);
+	op = TEE_Malloc(sizeof(*op), TEE_MALLOC_FILL_ZERO);
 	if (!op)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -288,7 +288,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 					TEE_USER_MEM_HINT_NO_FILL_ZERO);
 		if (op->buffer == NULL) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
-			goto err0;
+			goto out;
 		}
 	}
 	op->block_size = block_size;
@@ -308,24 +308,20 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 		res = TEE_AllocateTransientObject(key_type, mks, &op->key1);
 		if (res != TEE_SUCCESS)
-			goto err1;
+			goto out;
 
 		if (op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) {
 			res = TEE_AllocateTransientObject(key_type, mks,
 							  &op->key2);
 			if (res != TEE_SUCCESS)
-				goto err2;
+				goto out;
 		}
 	}
 
 	res = utee_cryp_state_alloc(algorithm, mode, (uint32_t) op->key1,
 				    (uint32_t) op->key2, &op->state);
-	if (res != TEE_SUCCESS) {
-		if ((op->info.handleState &
-		     TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) != 0)
-			goto err2;
-		goto err1;
-	}
+	if (res != TEE_SUCCESS)
+		goto out;
 
 	/*
 	 * Initialize digest operations
@@ -335,7 +331,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	if (TEE_ALG_GET_CLASS(algorithm) == TEE_OPERATION_DIGEST) {
 		res = utee_hash_init(op->state, NULL, 0);
 		if (res != TEE_SUCCESS)
-			goto err0;
+			goto out;
 		/* v1.1: flags always set for digest operations */
 		op->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 	}
@@ -343,20 +339,24 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	op->operationState = TEE_OPERATION_STATE_INITIAL;
 
 	*operation = op;
-	goto out;
 
-err2:
-	TEE_FreeTransientObject(op->key2);
-err1:
-	TEE_FreeTransientObject(op->key1);
-err0:
-	TEE_FreeOperation(op);
-
-	if (res != TEE_SUCCESS &&
-	    res != TEE_ERROR_OUT_OF_MEMORY &&
-	    res != TEE_ERROR_NOT_SUPPORTED)
-		TEE_Panic(0);
 out:
+	if (res != TEE_SUCCESS) {
+		if (res != TEE_ERROR_OUT_OF_MEMORY &&
+		    res != TEE_ERROR_NOT_SUPPORTED)
+			TEE_Panic(0);
+		if (op) {
+			if (op->state) {
+				TEE_FreeOperation(op);
+			} else {
+				TEE_Free(op->buffer);
+				TEE_FreeTransientObject(op->key1);
+				TEE_FreeTransientObject(op->key2);
+				TEE_Free(op);
+			}
+		}
+	}
+
 	return res;
 }
 
