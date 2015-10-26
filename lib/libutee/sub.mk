@@ -11,5 +11,6 @@ srcs-y += tee_api.c
 srcs-y += tee_api_objects.c
 srcs-y += tee_api_operations.c
 srcs-y += tee_api_se.c
+srcs-y += tee_api_panic.c
 
 subdirs-y += arch/$(ARCH)

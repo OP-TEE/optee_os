@@ -50,6 +50,11 @@ CFG_TEE_TA_LOG_LEVEL ?= 1
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
 CFG_TEE_CORE_TA_TRACE ?= y
 
+# Define TEE_Panic as a macro to help debugging panics caused by calls to
+# TEE_Panic. This flag can have a different value when later compiling the
+# TA
+CFG_TEE_PANIC_DEBUG ?= y
+
 # If 1, enable debug features in TA memory allocation.
 # Debug features include check of buffer overflow, statistics, mark/check heap
 # feature.

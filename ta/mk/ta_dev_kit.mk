@@ -53,6 +53,10 @@ cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 CFG_TEE_CORE_USER_MEM_DEBUG ?= 0
 cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 
+ifeq ($(CFG_TEE_PANIC_DEBUG),y)
+cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
+endif
+
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 include $(ta-dev-kit-dir)/mk/arch.mk

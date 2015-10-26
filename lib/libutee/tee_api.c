@@ -34,13 +34,6 @@
 
 static void *tee_api_instance_data;
 
-/* System API - Misc */
-
-void __noreturn TEE_Panic(TEE_Result panicCode)
-{
-	utee_panic(panicCode);
-}
-
 /* System API - Internal Client API */
 
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
