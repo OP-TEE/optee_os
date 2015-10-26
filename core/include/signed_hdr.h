@@ -27,7 +27,7 @@
 #ifndef SIGNED_HDR_H
 #define SIGNED_HDR_H
 
-#include <types_ext.h>
+#include <inttypes.h>
 
 enum shdr_img_type {
 	SHDR_TA = 0,
