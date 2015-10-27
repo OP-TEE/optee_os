@@ -31,8 +31,7 @@
 #include <mpalib.h>
 #include "tomcrypt.h"
 
-extern mpa_scratch_mem external_mem_pool;
-
-void init_mpa_tomcrypt(mpa_scratch_mem pool);
+void init_mpa_tomcrypt(mpa_scratch_mem pool, void (*get_pool)(void),
+			void (*put_pool)(void));
 
 #endif /* TOMCRYPT_MPA_H_ */

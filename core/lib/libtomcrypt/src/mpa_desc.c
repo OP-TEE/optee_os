@@ -28,19 +28,27 @@
 #include "tomcrypt_mpa.h"
 #include <mpa.h>
 
-mpa_scratch_mem external_mem_pool;
+static mpa_scratch_mem external_pool;
+static void (*get_external_pool)(void);
+static void (*put_external_pool)(void);
 
-void init_mpa_tomcrypt(const mpa_scratch_mem pool)
+void init_mpa_tomcrypt(mpa_scratch_mem pool, void (*get_pool)(void),
+			void (*put_pool)(void))
 {
-	external_mem_pool = pool;
+	external_pool = pool;
+	get_external_pool = get_pool;
+	put_external_pool = put_pool;
 }
 
 
 static int init(void **a)
 {
 	LTC_ARGCHK(a != NULL);
-	if (!mpa_alloc_static_temp_var((mpanum *)a, external_mem_pool))
+	get_external_pool();
+	if (!mpa_alloc_static_temp_var((mpanum *)a, external_pool)) {
+		put_external_pool();
 		return CRYPT_MEM;
+	}
 	mpa_set_S32(*a, 0);
 	return CRYPT_OK;
 }
@@ -48,9 +56,12 @@ static int init(void **a)
 static int init_size(int size_bits, void **a)
 {
 	LTC_ARGCHK(a != NULL);
+	get_external_pool();
 	if (!mpa_alloc_static_temp_var_size(size_bits, (mpanum *)a,
-					    external_mem_pool))
+					    external_pool)) {
+		put_external_pool();
 		return CRYPT_MEM;
+	}
 	mpa_set_S32(*a, 0);
 	return CRYPT_OK;
 }
@@ -59,7 +70,8 @@ static void deinit(void *a)
 {
 	LTC_ARGCHKVD(a != NULL);
 
-	mpa_free_static_temp_var((mpanum *) &a, external_mem_pool);
+	mpa_free_static_temp_var((mpanum *) &a, external_pool);
+	put_external_pool();
 }
 
 static int neg(void *a, void *b)
@@ -264,7 +276,9 @@ static int add(void *a, void *b, void *c)
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
-	mpa_add((mpanum) c, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_add(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -275,7 +289,9 @@ static int addi(void *a, unsigned long b, void *c)
 	if (b > (unsigned long) UINT32_MAX) {
 		return CRYPT_INVALID_ARG;
 	}
-	mpa_add_word((mpanum) c, (const mpanum) a, b, external_mem_pool);
+	get_external_pool();
+	mpa_add_word(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -285,7 +301,9 @@ static int sub(void *a, void *b, void *c)
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
-	mpa_sub((mpanum) c, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_sub(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -296,7 +314,9 @@ static int subi(void *a, unsigned long b, void *c)
 	if (b > (unsigned long) UINT32_MAX) {
 		return CRYPT_INVALID_ARG;
 	}
-	mpa_sub_word((mpanum) c, (const mpanum) a, b, external_mem_pool);
+	get_external_pool();
+	mpa_sub_word(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -306,7 +326,9 @@ static int mul(void *a, void *b, void *c)
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
-	mpa_mul((mpanum) c, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_mul(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -317,7 +339,9 @@ static int muli(void *a, unsigned long b, void *c)
 	if (b > (unsigned long) UINT32_MAX) {
 		return CRYPT_INVALID_ARG;
 	}
-	mpa_mul_word((mpanum) c, (const mpanum) a, b, external_mem_pool);
+	get_external_pool();
+	mpa_mul_word(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -326,7 +350,9 @@ static int sqr(void *a, void *b)
 {
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
-	mpa_mul((mpanum) b, (const mpanum) a, (const mpanum) a, external_mem_pool);
+	get_external_pool();
+	mpa_mul(b, a, a, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -335,7 +361,9 @@ static int divide(void *a, void *b, void *c, void *d)
 {
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
-	mpa_div(c, d, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_div(c, d, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -377,7 +405,9 @@ static int gcd(void *a, void *b, void *c)
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
-	mpa_gcd((mpanum) c, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_gcd(c, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -407,10 +437,12 @@ static int mod(void *a, void *b, void *c)
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
-	mpa_mod((mpanum) c, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_mod(c, a, b, external_pool);
 	if (mpa_cmp_short(c, 0) < 0) {
-		mpa_add(c, c, b, external_mem_pool);
+		mpa_add(c, c, b, external_pool);
 	}
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -426,7 +458,9 @@ static int mulmod(void *a, void *b, void *c, void *d)
 
 	mod(a, c, tmpa);
 	mod(b, c, tmpb);
-	mpa_mul_mod((mpanum) d, (const mpanum) tmpa, (const mpanum) tmpb, (const mpanum) c, external_mem_pool);
+	get_external_pool();
+	mpa_mul_mod(d, tmpa, tmpb, c, external_pool);
+	put_external_pool();
 	mp_clear_multi(tmpa, tmpb, NULL);
 	return CRYPT_OK;
 }
@@ -447,9 +481,12 @@ static int invmod(void *a, void *b, void *c)
 	LTC_ARGCHK(c != NULL);
 	LTC_ARGCHK(b != c);
 	mod(a, b, c);
-	if (mpa_inv_mod((mpanum) c, (const mpanum) c, (const mpanum) b, external_mem_pool) != 0) {
+	get_external_pool();
+	if (mpa_inv_mod(c, c, b, external_pool) != 0) {
+		put_external_pool();
 		return CRYPT_ERROR;
 	}
+	put_external_pool();
 
 	return CRYPT_OK;
 }
@@ -466,7 +503,10 @@ static int montgomery_setup(void *a, void **b)
 	}
 	mpa_fmm_context_base * b_tmp = (mpa_fmm_context_base *) *b;
 	mpa_init_static_fmm_context(b_tmp, len);
-	mpa_compute_fmm_context((const mpanum) a, b_tmp->r_ptr, b_tmp->r2_ptr, &(b_tmp->n_inv), external_mem_pool);
+	get_external_pool();
+	mpa_compute_fmm_context(a, b_tmp->r_ptr, b_tmp->r2_ptr, &b_tmp->n_inv,
+				external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -478,7 +518,9 @@ static int montgomery_normalization(void *a, void *b)
 	mpa_asize_t s;
 	s = __mpanum_size((mpanum) b);
 	twoexpt(a, s * MPA_WORD_SIZE);
-	mpa_mod((mpanum) a, (const mpanum) a, (const mpanum) b, external_mem_pool);
+	get_external_pool();
+	mpa_mod(a, a, b, external_pool);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -489,20 +531,19 @@ static int montgomery_reduce(void *a, void *b, void *c)
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
 	mpanum tmp;
+
+	get_external_pool();
 	init((void **)&tmp);
 	// WARNING
 	//  Workaround for a bug when a > b (a greater than the modulus)
 	if (compare(a, b) == LTC_MP_GT) {
-		mpa_mod((mpanum) a, (const mpanum) a, (const mpanum) b, external_mem_pool);
+		mpa_mod(a, a, b, external_pool);
 	}
-	mpa_montgomery_mul(tmp,
-			(mpanum) a,
-			mpa_constant_one(),
-			(mpanum) b,
-			((mpa_fmm_context) c)->n_inv,
-			external_mem_pool);
+	mpa_montgomery_mul(tmp, a, mpa_constant_one(), b,
+			   ((mpa_fmm_context)c)->n_inv, external_pool);
 	mpa_copy(a, tmp);
 	deinit(tmp);
+	put_external_pool();
 	return CRYPT_OK;
 }
 
@@ -519,10 +560,10 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	LTC_ARGCHK(c != NULL);
 	LTC_ARGCHK(d != NULL);
 	void *c_mont;
-	montgomery_setup(c, &c_mont);
-
 	void *d_tmp;
 	int memguard;
+
+	montgomery_setup(c, &c_mont);
 
 	memguard = (a == d || b == d);
 
@@ -538,14 +579,11 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	mod(a, c, d_tmp);
 
 
-	mpa_exp_mod((mpanum) d,
-			(const mpanum) d_tmp,
-			(const mpanum) b,
-			(const mpanum) c,
-			((mpa_fmm_context)c_mont)->r_ptr,
-			((mpa_fmm_context)c_mont)->r2_ptr,
-			((mpa_fmm_context)c_mont)->n_inv,
-			external_mem_pool);
+	get_external_pool();
+	mpa_exp_mod(d, d_tmp, b, c, ((mpa_fmm_context)c_mont)->r_ptr,
+		   ((mpa_fmm_context)c_mont)->r2_ptr,
+		   ((mpa_fmm_context)c_mont)->n_inv, external_pool);
+	put_external_pool();
 	montgomery_deinit(c_mont);
 	if (memguard) {
 		deinit(d_tmp);
@@ -557,7 +595,10 @@ static int isprime(void *a, int *b)
 {
 	LTC_ARGCHK(a != NULL);
 	LTC_ARGCHK(b != NULL);
-	*b = mpa_is_prob_prime((mpanum) a, 100, external_mem_pool) != 0 ? LTC_MP_YES : LTC_MP_NO;
+	get_external_pool();
+	*b = mpa_is_prob_prime(a, 100, external_pool) != 0 ?
+		LTC_MP_YES : LTC_MP_NO;
+	put_external_pool();
 	return CRYPT_OK;
 }
 
