@@ -159,8 +159,6 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 
-	thread_disable_concurrency();
-
 	get_scn_max_args(regs, &scn, &max_args);
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
@@ -179,8 +177,6 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 		scf = tee_svc_syscall_table[scn];
 
 	set_svc_retval(regs, tee_svc_do_call(regs, scf));
-
-	thread_enable_concurrency();
 }
 
 #ifdef ARM32

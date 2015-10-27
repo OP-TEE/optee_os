@@ -71,13 +71,6 @@
 
 #define RPC_MAX_PARAMS		2
 
-/*
- * The big lock for threads. Since OP-TEE currently is single threaded
- * all standard calls (non-fast calls) must take this mutex before starting
- * to do any real work.
- */
-static struct mutex thread_big_lock = MUTEX_INITIALIZER;
-
 struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
@@ -558,14 +551,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		thr->rpc_parg = parg;
 	}
 
-	/*
-	 * Take big lock before entering the callback registered in
-	 * thread_std_smc_handler_ptr as the callback can reside in the
-	 * paged area and the pager can only serve one core at a time.
-	 */
-	thread_take_big_lock();
 	thread_std_smc_handler_ptr(args);
-	thread_release_big_lock();
 }
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
@@ -1051,37 +1037,6 @@ void thread_rem_mutex(struct mutex *m)
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
 
-static bool may_unlock_big_lock(void)
-{
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-	struct mutex *m;
-	bool have_bl = false;
-	bool have_other = false;
-
-	TAILQ_FOREACH(m, &threads[ct].mutexes, link) {
-		if (m == &thread_big_lock)
-			have_bl = true;
-		else
-			have_other = true;
-	}
-
-	thread_unmask_exceptions(exceptions);
-	return have_bl && !have_other;
-}
-
-void thread_take_big_lock(void)
-{
-	mutex_lock(&thread_big_lock);
-}
-
-void thread_release_big_lock(void)
-{
-	assert(may_unlock_big_lock());
-	mutex_unlock(&thread_big_lock);
-}
-
 paddr_t thread_rpc_alloc_arg(size_t size)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
@@ -1161,21 +1116,9 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct teesmc32_param *params)
 {
-	bool unlock_big_lock = may_unlock_big_lock();
 	uint32_t ret;
 
-	/*
-	 * If current thread doesn't hold any other mutexes:
-	 * Let other threads get the big lock to do some work while this
-	 * thread is doing some potentially slow RPC in normal world.
-	 */
-	if (unlock_big_lock)
-		mutex_unlock(&thread_big_lock);
-
 	ret = rpc_cmd_nolock(cmd, num_params, params);
-
-	if (unlock_big_lock)
-		mutex_lock(&thread_big_lock);
 
 	return ret;
 }
