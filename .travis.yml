@@ -110,6 +110,8 @@ script:
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_WITH_PAGER=y
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=n
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=y CFS_FS_BLOCK_CACHE=y
+  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=n CFS_FS_BLOCK_CACHE=y
 
   # SUNXI(Allwinner A80)
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all -s

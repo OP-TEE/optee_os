@@ -129,6 +129,21 @@ static inline void toggle_backup_version_of_block(
 	meta->info.backup_version_table[index] ^= block_mask;
 }
 
+struct block_operations {
+
+	/*
+	 * Read a block from REE File System which is corresponding
+	 * to the given block_num.
+	 */
+	struct block *(*read)(struct tee_fs_fd *fdp, int block_num);
+
+	/*
+	 * Write the given block to REE File System
+	 */
+	int (*write)(struct tee_fs_fd *fdp, struct block *b,
+			struct tee_fs_file_meta *new_meta);
+};
+
 struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 
 int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...);

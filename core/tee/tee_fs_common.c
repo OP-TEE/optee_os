@@ -35,6 +35,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/handle.h>
+#include <kernel/mutex.h>
 #include <trace.h>
 
 #include "tee_fs_private.h"
@@ -779,7 +780,7 @@ static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
 	int res;
 	size_t block_num = b->block_num;
 
-	fd = create_empty_new_version_block_file(
+	fd = create_block_file(
 			fdp, new_meta, block_num);
 	if (fd < 0) {
 		EMSG("Failed to create new version of block");
@@ -896,6 +897,7 @@ exit:
 	return NULL;
 }
 
+#ifdef CFG_FS_BLOCK_CACHE
 static void free_block(struct block *b)
 {
 	if (b) {
@@ -974,6 +976,16 @@ static void destroy_block_cache(struct block_cache *cache)
 		free_block(b);
 	}
 }
+#else
+static int init_block_cache(struct block_cache *cache __unused)
+{
+	return 0;
+}
+
+static void destroy_block_cache(struct block_cache *cache __unused)
+{
+}
+#endif
 
 static void write_data_to_block(struct block *b, int offset,
 				void *buf, size_t len)
@@ -1001,7 +1013,8 @@ static void read_data_from_block(struct block *b, int offset,
 	memcpy(buf, b->data + offset, bytes_to_read);
 }
 
-static struct block *block_cache_lookup(struct tee_fs_fd *fdp, int block_num)
+#ifdef CFG_FS_BLOCK_CACHE
+static struct block *read_block_with_cache(struct tee_fs_fd *fdp, int block_num)
 {
 	struct block *b;
 
@@ -1015,6 +1028,37 @@ static struct block *block_cache_lookup(struct tee_fs_fd *fdp, int block_num)
 
 	return b;
 }
+#else
+
+static struct mutex block_mutex = MUTEX_INITIALIZER;
+static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
+{
+	static struct block *b;
+	int res;
+
+	mutex_lock(&block_mutex);
+	if (!b)
+		b = alloc_block();
+	b->block_num = block_num;
+
+	res = read_block_from_storage(fdp, b);
+	if (res)
+		EMSG("Unable to read block%d from storage",
+				block_num);
+	mutex_unlock(&block_mutex);
+
+	return res ? NULL : b;
+}
+#endif
+
+static struct block_operations block_ops = {
+#ifdef CFG_FS_BLOCK_CACHE
+	.read = read_block_with_cache,
+#else
+	.read = read_block_no_cache,
+#endif
+	.write = flush_block_to_storage,
+};
 
 static int out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 		size_t len, struct tee_fs_file_meta *new_meta)
@@ -1034,7 +1078,7 @@ static int out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 		if (size_to_write + offset > BLOCK_FILE_SIZE)
 			size_to_write = BLOCK_FILE_SIZE - offset;
 
-		b = block_cache_lookup(fdp, start_block_num);
+		b = block_ops.read(fdp, start_block_num);
 		if (!b)
 			goto failed;
 
@@ -1042,7 +1086,7 @@ static int out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 			offset, size_to_write);
 		write_data_to_block(b, offset, data_ptr, size_to_write);
 
-		if (flush_block_to_storage(fdp, b, new_meta)) {
+		if (block_ops.write(fdp, b, new_meta)) {
 			EMSG("Unable to wrtie block%d to storage",
 					b->block_num);
 			goto failed;
@@ -1545,7 +1589,7 @@ int tee_fs_common_read(TEE_Result *errno, struct tee_fs_fd *fdp,
 		DMSG("block_num:%d, offset:%d, size_to_read: %zd",
 			start_block_num, offset, size_to_read);
 
-		b = block_cache_lookup(fdp, start_block_num);
+		b = block_ops.read(fdp, start_block_num);
 		if (!b) {
 			*errno = TEE_ERROR_CORRUPT_OBJECT;
 			goto exit;
