@@ -29,13 +29,24 @@
 #include <trace.h>
 
 /*
- *  mpa_init_scratch_mem
+ *  mpa_init_scratch_mem_sync
  */
-void mpa_init_scratch_mem(mpa_scratch_mem pool, size_t size, uint32_t bn_bits)
+void mpa_init_scratch_mem_sync(mpa_scratch_mem pool, size_t size,
+			uint32_t bn_bits, mpa_scratch_mem_sync_fn get,
+			mpa_scratch_mem_sync_fn put,
+			struct mpa_scratch_mem_sync *sync)
 {
 	pool->size = size;
 	pool->last_offset = 0;	/* nothing is allocated yet in the pool */
 	pool->bn_bits = bn_bits * 2;
+	pool->get = get;
+	pool->put = put;
+	pool->sync = sync;
+}
+
+void mpa_init_scratch_mem(mpa_scratch_mem pool, size_t size, uint32_t bn_bits)
+{
+	mpa_init_scratch_mem_sync(pool, size, bn_bits, NULL, NULL, NULL);
 }
 
 /*
@@ -81,6 +92,9 @@ mpanum mpa_alloc_static_temp_var_size(int size_bits, mpanum *var,
 	struct mpa_scratch_item *new_item;
 	struct mpa_scratch_item *last_item = NULL;
 
+	if (pool->get)
+		pool->get(pool->sync);
+
 	if (!pool->last_offset)
 		offset = sizeof(struct mpa_scratch_mem_struct);
 	else {
@@ -114,7 +128,9 @@ mpanum mpa_alloc_static_temp_var_size(int size_bits, mpanum *var,
 
 error:
 	*var = 0;
-	return *var;
+	if (pool->put)
+		pool->put(pool->sync);
+	return 0;
 }
 
 
@@ -155,5 +171,7 @@ void mpa_free_static_temp_var(mpanum *var, mpa_scratch_mem pool)
 	}
 
 	pool->last_offset = last_offset;
+	if (pool->put)
+		pool->put(pool->sync);
 }
 

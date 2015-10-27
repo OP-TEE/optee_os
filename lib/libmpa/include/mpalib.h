@@ -100,10 +100,16 @@ typedef struct mpa_fmm_context_struct {
 
 typedef mpa_fmm_context_base *mpa_fmm_context;
 
+struct mpa_scratch_mem_sync;
+typedef void (mpa_scratch_mem_sync_fn)(struct mpa_scratch_mem_sync *sync);
+
 typedef struct mpa_scratch_mem_struct {
 	uint32_t size;	/* size of the memory pool, in bytes */
 	uint32_t bn_bits; /* default size of a temporary variables */
 	uint32_t last_offset;	/* offset to the last one */
+	mpa_scratch_mem_sync_fn *get;
+	mpa_scratch_mem_sync_fn *put;
+	struct mpa_scratch_mem_sync *sync;
 	uint32_t m[];		/* mpa_scratch_item are stored there */
 } mpa_scratch_mem_base;
 typedef mpa_scratch_mem_base *mpa_scratch_mem;
@@ -222,9 +228,18 @@ struct mpa_scratch_item {
  * \param pool         The pool to initialize
  * \param size         the size, in bytes, of the pool
  * \prama bn_bits      default size, in bits, of a big number
+ * \param get          increase reference counter to pool
+ * \param put          decrease reference counter to pool
+ * \param sync         argument to supply to get() and put()
  */
+MPALIB_EXPORT void mpa_init_scratch_mem_sync(mpa_scratch_mem pool, size_t size,
+			uint32_t bn_bits, mpa_scratch_mem_sync_fn get,
+			mpa_scratch_mem_sync_fn put,
+			struct mpa_scratch_mem_sync *sync);
+
 MPALIB_EXPORT void mpa_init_scratch_mem(mpa_scratch_mem pool, size_t size,
 					uint32_t bn_bits);
+
 
 /*
  * mpa_init_static
