@@ -14,7 +14,6 @@ core-platform-subdirs += $(arch-dir)/sm
 libutil_with_isoc := y
 CFG_GENERIC_BOOT ?= y
 CFG_IMX_UART ?= y
-CFG_MMU_V7_TTB ?= y
 CFG_NO_TA_HASH_SIGN ?= y
 CFG_PM_STUBS ?= y
 CFG_SECURE_TIME_SOURCE_CNTPCT := y
