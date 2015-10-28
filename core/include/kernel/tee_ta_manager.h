@@ -73,10 +73,10 @@ void tee_ta_set_current_session(struct tee_ta_session *sess);
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id);
 
-/* Returns OK is sess is a valid session pointer or static TA */
-TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
-					 struct tee_ta_session_head
-					 *open_sessions);
+struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
+			struct tee_ta_session_head *open_sessions);
+
+void tee_ta_put_session(struct tee_ta_session *sess);
 
 int tee_ta_set_trace_level(int level);
 void tee_ta_dump_current(void);
