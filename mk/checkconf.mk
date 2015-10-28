@@ -147,17 +147,21 @@ cfg-enable-all-depends =                                                        
         )                                                                                  \
      )
 
-# Set a variable and error out if it was previously set to a different value
+# Set a variable or error out if it was previously set to a different value
+# The reason message (3rd parameter) is optional
 # Example:
-# $(call force,CFG_FOO,foo)
+# $(call force,CFG_FOO,foo,required by CFG_BAR)
 define force
-$(eval $(call _force,$(1),$(2)))
+$(eval $(call _force,$(1),$(2),$(3)))
 endef
 
 define _force
 ifdef $(1)
 ifneq ($($(1)),$(2))
-$$(error $(1) is set to '$($(1))' (from $(origin $(1))) but its value must be '$2')
+ifneq (,$(3))
+_reason := $$(_empty) [$(3)]
+endif
+$$(error $(1) is set to '$($(1))' (from $(origin $(1))) but its value must be '$(2)'$$(_reason))
 endif
 endif
 $(1) := $(2)
