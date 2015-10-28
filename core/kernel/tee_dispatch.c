@@ -150,11 +150,11 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 	TEE_Result res;
 	TEE_ErrorOrigin err = TEE_ORIGIN_TEE;
 
-	sess = (struct tee_ta_session *)in->sess;
-
-	res = tee_ta_verify_session_pointer(sess, &tee_open_sessions);
-	if (res != TEE_SUCCESS)
+	sess = tee_ta_get_session((vaddr_t)in->sess, true, &tee_open_sessions);
+	if (!sess) {
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto cleanup_return;
+	}
 
 	param.types = in->param_types;
 	memcpy(param.params, in->params, sizeof(in->params));
@@ -162,6 +162,8 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 
 	res = tee_ta_invoke_command(&err, sess, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, in->cmd, &param);
+
+	tee_ta_put_session(sess);
 
 	memcpy(out->params, in->params, sizeof(in->params));
 	update_out_param(&param, out->params);
@@ -181,11 +183,15 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in *
 	struct tee_ta_session *sess = (struct tee_ta_session *)in->sess;
 	uint32_t res_orig = TEE_ORIGIN_TEE;
 
-	res = tee_ta_verify_session_pointer(sess, &tee_open_sessions);
-	if (res != TEE_SUCCESS)
+	sess = tee_ta_get_session((vaddr_t)in->sess, false, &tee_open_sessions);
+	if (!sess) {
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto cleanup_return;
+	}
 
 	res = tee_ta_cancel_command(&res_orig, sess, NSAPP_IDENTITY);
+
+	tee_ta_put_session(sess);
 
 cleanup_return:
 	out->msg.err = res_orig;

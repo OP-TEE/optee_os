@@ -628,7 +628,7 @@ TEE_Result syscall_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	struct tee_ta_param param = { 0 };
 	TEE_Identity clnt_id;
 	struct tee_ta_session *sess;
-	struct tee_ta_session *called_sess = (struct tee_ta_session *)ta_sess;
+	struct tee_ta_session *called_sess;
 	tee_mm_entry_t *mm_param = NULL;
 	tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS];
 
@@ -636,11 +636,10 @@ TEE_Result syscall_invoke_ta_command(TEE_TASessionHandle ta_sess,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res =
-	    tee_ta_verify_session_pointer(called_sess,
-					  &sess->ctx->open_sessions);
-	if (res != TEE_SUCCESS)
-		return res;
+	called_sess = tee_ta_get_session((vaddr_t)ta_sess, true,
+					 &sess->ctx->open_sessions);
+	if (!called_sess)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
@@ -664,6 +663,7 @@ TEE_Result syscall_invoke_ta_command(TEE_TASessionHandle ta_sess,
 function_exit:
 	tee_ta_set_current_session(sess);
 	called_sess->calling_sess = NULL; /* clear eventual borrowed mapping */
+	tee_ta_put_session(called_sess);
 
 	if (mm_param != NULL) {
 		TEE_Result res2;

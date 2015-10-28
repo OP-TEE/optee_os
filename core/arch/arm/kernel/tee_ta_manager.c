@@ -210,6 +210,97 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 	mutex_unlock(&tee_ta_mutex);
 }
 
+static void dec_session_ref_count(struct tee_ta_session *s)
+{
+	assert(s->ref_count > 0);
+	s->ref_count--;
+	if (s->ref_count == 1)
+		condvar_signal(&s->refc_cv);
+}
+
+void tee_ta_put_session(struct tee_ta_session *s)
+{
+	mutex_lock(&tee_ta_mutex);
+
+	if (s->lock_thread == thread_get_id()) {
+		s->lock_thread = THREAD_ID_INVALID;
+		condvar_signal(&s->lock_cv);
+	}
+	dec_session_ref_count(s);
+
+	mutex_unlock(&tee_ta_mutex);
+}
+
+static struct tee_ta_session *find_session(uint32_t id,
+			struct tee_ta_session_head *open_sessions)
+{
+	struct tee_ta_session *s;
+
+	TAILQ_FOREACH(s, open_sessions, link) {
+		if ((vaddr_t)s == id)
+			return s;
+	}
+	return NULL;
+}
+
+struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
+			struct tee_ta_session_head *open_sessions)
+{
+	struct tee_ta_session *s;
+
+	mutex_lock(&tee_ta_mutex);
+
+	while (true) {
+		s = find_session(id, open_sessions);
+		if (!s)
+			break;
+		if (s->unlink) {
+			s = NULL;
+			break;
+		}
+		s->ref_count++;
+		if (!exclusive)
+			break;
+
+		assert(s->lock_thread != thread_get_id());
+
+		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
+			condvar_wait(&s->lock_cv, &tee_ta_mutex);
+
+		if (s->unlink) {
+			dec_session_ref_count(s);
+			s = NULL;
+			break;
+		}
+
+		s->lock_thread = thread_get_id();
+		break;
+	}
+
+	mutex_unlock(&tee_ta_mutex);
+	return s;
+}
+
+static void tee_ta_unlink_session(struct tee_ta_session *s,
+			struct tee_ta_session_head *open_sessions)
+{
+	mutex_lock(&tee_ta_mutex);
+
+	assert(s->ref_count >= 1);
+	assert(s->lock_thread == thread_get_id());
+	assert(!s->unlink);
+
+	s->unlink = true;
+	condvar_broadcast(&s->lock_cv);
+
+	while (s->ref_count != 1)
+		condvar_wait(&s->refc_cv, &tee_ta_mutex);
+
+	TAILQ_REMOVE(open_sessions, s, link);
+
+	mutex_unlock(&tee_ta_mutex);
+}
+
 /*
  * Jumpers for the static TAs.
  */
@@ -946,8 +1037,10 @@ static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
 	 * from the ctx->open_sessions list.
 	 */
 	while (!TAILQ_EMPTY(&ctx->open_sessions)) {
+		mutex_unlock(&tee_ta_mutex);
 		tee_ta_close_session(TAILQ_FIRST(&ctx->open_sessions),
 				     &ctx->open_sessions, KERN_IDENTITY);
+		mutex_lock(&tee_ta_mutex);
 	}
 
 	if ((ctx->flags & TA_FLAG_USER_MODE) != 0) {
@@ -1006,18 +1099,18 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	if (!csess)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	TAILQ_FOREACH(sess, open_sessions, link) {
-		if (csess == sess)
-			break;
-	}
+	sess = tee_ta_get_session((vaddr_t)csess, true, open_sessions);
+
 	if (!sess) {
-		EMSG("session 0x%" PRIxVA " to removed is not found",
+		EMSG("session 0x%" PRIxVA " to be removed is not found",
 		     (vaddr_t)csess);
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	if (check_client(sess, clnt_id) != TEE_SUCCESS)
+	if (check_client(sess, clnt_id) != TEE_SUCCESS) {
+		tee_ta_put_session(sess);
 		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
+	}
 
 	ctx = sess->ctx;
 	DMSG("   ... Destroy session");
@@ -1045,16 +1138,20 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 			&param);
 	}
 
-	TAILQ_REMOVE(open_sessions, sess, link);
+	tee_ta_unlink_session(sess, open_sessions);
 	free(sess);
 
 	tee_ta_clear_busy(ctx);
+
+	mutex_lock(&tee_ta_mutex);
 
 	TEE_ASSERT(ctx->ref_count > 0);
 	ctx->ref_count--;
 	if (!ctx->ref_count &&
 	    !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE))
 		tee_ta_destroy_context(ctx);
+
+	mutex_unlock(&tee_ta_mutex);
 
 	return TEE_SUCCESS;
 }
@@ -1211,10 +1308,22 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	if (!s)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-
 	s->cancel_mask = true;
-	TAILQ_INSERT_TAIL(open_sessions, s, link);
+	condvar_init(&s->refc_cv);
+	condvar_init(&s->lock_cv);
+	s->lock_thread = THREAD_ID_INVALID;
+	s->ref_count = 1;
+
+
+	/*
+	 * We take the global TA mutex here and hold it while doing
+	 * RPC to load the TA. This big critical section should be broken
+	 * down into smaller pieces.
+	 */
+
+
 	mutex_lock(&tee_ta_mutex);
+	TAILQ_INSERT_TAIL(open_sessions, s, link);
 
 	/* Look for already loaded TA */
 	ctx = tee_ta_context_find(uuid);
@@ -1242,13 +1351,13 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	tee_ta_rpc_free(handle);
 
 out:
-	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS) {
 		*sess = s;
 	} else {
 		TAILQ_REMOVE(open_sessions, s, link);
 		free(s);
 	}
+	mutex_unlock(&tee_ta_mutex);
 	return res;
 }
 
@@ -1318,6 +1427,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	panicked = ctx->panicked;
 
+	tee_ta_put_session(s);
 	if (panicked || (res != TEE_SUCCESS))
 		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 
@@ -1470,22 +1580,6 @@ TEE_Result tee_ta_get_client_id(TEE_Identity *id)
 
 	*id = sess->clnt_id;
 	return TEE_SUCCESS;
-}
-
-TEE_Result tee_ta_verify_session_pointer(struct tee_ta_session *sess,
-					 struct tee_ta_session_head
-					 *open_sessions)
-{
-	struct tee_ta_session *s;
-
-	if (sess == (struct tee_ta_session *)TEE_SESSION_ID_STATIC_TA)
-		return TEE_SUCCESS;
-
-	TAILQ_FOREACH(s, open_sessions, link) {
-		if (s == sess)
-			return TEE_SUCCESS;
-	}
-	return TEE_ERROR_BAD_PARAMETERS;
 }
 
 /*
