@@ -65,7 +65,7 @@ SECTIONS
 		KEEP(*(.text.boot.vectab2))
 		KEEP(*(.text.boot))
 
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__initcall_start = .;
 		KEEP(*(.initcall1))
 		KEEP(*(.initcall2))
