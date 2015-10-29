@@ -173,6 +173,8 @@ static void init_runtime(uint32_t pageable_part)
 	 */
 	memset(__bss_start, 0, __bss_end - __bss_start);
 
+	thread_init_boot_thread();
+
 	malloc_init(__heap1_start, __heap1_end - __heap1_start);
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
@@ -279,6 +281,8 @@ static void init_runtime(uint32_t pageable_part __unused)
 	 * to avoid getting overwritten.
 	 */
 	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	thread_init_boot_thread();
 
 	malloc_init(__heap1_start, __heap1_end - __heap1_start);
 

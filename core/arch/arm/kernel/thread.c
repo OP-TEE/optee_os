@@ -391,6 +391,32 @@ static void init_regs(struct thread_ctx *thread,
 }
 #endif /*ARM64*/
 
+void thread_init_boot_thread(void)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	size_t n;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		TAILQ_INIT(&threads[n].mutexes);
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		thread_core_local[n].curr_thread = -1;
+
+	l->curr_thread = 0;
+	threads[0].state = THREAD_STATE_ACTIVE;
+}
+
+void thread_clr_boot_thread(void)
+{
+	struct thread_core_local *l = thread_get_core_local();
+
+	assert(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
+	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
+	assert(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
+	threads[l->curr_thread].state = THREAD_STATE_FREE;
+	l->curr_thread = -1;
+}
+
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
@@ -596,6 +622,7 @@ void thread_state_free(void)
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
+	assert(TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
 
@@ -677,9 +704,6 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
 	if (thread_id >= CFG_NUM_THREADS)
 		return false;
-	if (threads[thread_id].state != THREAD_STATE_FREE)
-		return false;
-
 	threads[thread_id].stack_va_end = sp;
 	return true;
 }
@@ -769,8 +793,6 @@ static void init_thread_stacks(void)
 
 void thread_init_primary(const struct thread_handlers *handlers)
 {
-	size_t n;
-
 	/*
 	 * The COMPILE_TIME_ASSERT only works in function context. These
 	 * checks verifies that the offsets used in assembly code matches
@@ -867,9 +889,6 @@ void thread_init_primary(const struct thread_handlers *handlers)
 	/* Initialize canaries around the stacks */
 	init_canaries();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++)
-		TAILQ_INIT(&threads[n].mutexes);
-
 	init_thread_stacks();
 }
 
@@ -889,7 +908,6 @@ void thread_init_per_cpu(void)
 
 	init_sec_mon(pos);
 
-	l->curr_thread = -1;
 	set_tmp_stack(l, GET_STACK(stack_tmp[pos]));
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 

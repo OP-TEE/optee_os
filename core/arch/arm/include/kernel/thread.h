@@ -281,6 +281,17 @@ void thread_init_per_cpu(void);
 bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
 
 /*
+ * Initializes a thread to be used during boot
+ */
+void thread_init_boot_thread(void);
+
+/*
+ * Clears the current thread id
+ * Only supposed to be used during initialization.
+ */
+void thread_clr_boot_thread(void);
+
+/*
  * Returns current thread id.
  */
 int thread_get_id(void);

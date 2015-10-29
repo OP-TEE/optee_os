@@ -292,6 +292,13 @@ copy_init:
 
 	bl	wait_secondary
 
+	/*
+	 * Clear current thread id now to allow the thread to be reused on
+	 * next entry. Matches the thread_init_boot_thread() in
+	 * generic_boot.c.
+	 */
+	bl 	thread_clr_boot_thread
+
 #ifdef CFG_TEE_GDB_BOOT
 	/* restore linux boot arguments */
 	ldr	r4, =gdb_bootargs

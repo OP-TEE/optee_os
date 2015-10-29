@@ -130,6 +130,14 @@ copy_init:
 	sub	x1, x1, x0
 	bl	flush_dcache_range
 
+
+	/*
+	 * Clear current thread id now to allow the thread to be reused on
+	 * next entry. Matches the thread_init_boot_thread in
+	 * generic_boot.c.
+	 */
+	bl 	thread_clr_boot_thread
+
 	/* Pass the vector address returned from main_init */
 	mov	x1, x19
 	mov	x0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
