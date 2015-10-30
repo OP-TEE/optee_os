@@ -103,6 +103,10 @@ void main_init_gic(void)
 {
 	/* Initialize GIC */
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_it_add(IT_CONSOLE_UART);
+	gic_it_set_cpu_mask(IT_CONSOLE_UART, 0x1);
+	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
+	gic_it_enable(IT_CONSOLE_UART);
 }
 #endif
 
