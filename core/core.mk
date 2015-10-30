@@ -15,6 +15,8 @@ CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
+cppflags$(sm)	+= -D__KERNEL__
+
 PLATFORM_FLAVOR ?= default
 platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y

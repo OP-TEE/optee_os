@@ -100,6 +100,33 @@
 #include "bget.c"		/* this is ugly, but this is bget */
 #include <util.h>
 
+#ifdef __KERNEL__
+/* Compiling for TEE Core */
+#include <kernel/mutex.h>
+
+static struct mutex malloc_mu = MUTEX_INITIALIZER;
+
+static void malloc_lock(void)
+{
+	mutex_lock(&malloc_mu);
+}
+
+static void malloc_unlock(void)
+{
+	mutex_unlock(&malloc_mu);
+}
+
+#else /*__KERNEL__*/
+/* Compiling for TA */
+static void malloc_lock(void)
+{
+}
+
+static void malloc_unlock(void)
+{
+}
+#endif /*__KERNEL__*/
+
 struct malloc_pool {
 	void *buf;
 	size_t len;
@@ -119,17 +146,29 @@ static void raw_malloc_save_max_alloced_size(void)
 
 void malloc_reset_max_allocated(void)
 {
+	malloc_lock();
 	max_alloc_heap = 0;
+	malloc_unlock();
 }
 
 size_t malloc_get_max_allocated(void)
 {
-	return max_alloc_heap;
+	size_t r;
+
+	malloc_lock();
+	r = max_alloc_heap;
+	malloc_unlock();
+	return r;
 }
 
 size_t malloc_get_allocated(void)
 {
-	return totalloc;
+	size_t r;
+
+	malloc_lock();
+	r = totalloc;
+	malloc_unlock();
+	return r;
 }
 
 #else /* BufStats */
@@ -158,8 +197,12 @@ size_t malloc_get_heap_size(void)
 	size_t n;
 	size_t s = 0;
 
+	malloc_lock();
+
 	for (n = 0; n < malloc_pool_len; n++)
 		s += malloc_pool[n].len;
+
+	malloc_unlock();
 
 	return s;
 }
@@ -249,6 +292,8 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	void *ptr;
 	size_t s = hdr_size + ftr_size + pl_size;
 
+	malloc_lock();
+
 	/*
 	 * Make sure that malloc has correct alignment of returned buffers.
 	 * The assumption is that uintptr_t will be as wide as the largest
@@ -268,15 +313,21 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 
 	ptr = bget(s);
 	raw_malloc_save_max_alloced_size();
+
+	malloc_unlock();
 	return ptr;
 }
 
 static void raw_free(void *ptr)
 {
+	malloc_lock();
+
 	raw_malloc_validate_pools();
 
 	if (ptr)
 		brel(ptr);
+
+	malloc_unlock();
 }
 
 static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
@@ -284,6 +335,8 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 {
 	size_t s = hdr_size + ftr_size + pl_nmemb * pl_size;
 	void *ptr;
+
+	malloc_lock();
 
 	raw_malloc_validate_pools();
 
@@ -297,6 +350,9 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 
 	ptr = bgetz(s);
 	raw_malloc_save_max_alloced_size();
+
+	malloc_unlock();
+
 	return ptr;
 }
 
@@ -306,11 +362,13 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 	size_t s = hdr_size + ftr_size + pl_size;
 	void *p;
 
-	raw_malloc_validate_pools();
-
 	/* Check wrapping */
 	if (s < pl_size)
 		return NULL;
+
+	malloc_lock();
+
+	raw_malloc_validate_pools();
 
 	/* BGET doesn't like 0 sized allocations */
 	if (!s)
@@ -318,6 +376,9 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 
 	p = bgetr(ptr, s);
 	raw_malloc_save_max_alloced_size();
+
+	malloc_unlock();
+
 	return p;
 }
 
@@ -473,6 +534,8 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 	size_t s;
 	uintptr_t b;
 
+	malloc_lock();
+
 	raw_malloc_validate_pools();
 
 	if (!IS_POWER_OF_TWO(alignment))
@@ -530,6 +593,8 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 	brel_after((void *)b, hdr_size + ftr_size + size);
 
 	raw_malloc_save_max_alloced_size();
+
+	malloc_unlock();
 
 	return (void *)b;
 }
@@ -802,12 +867,15 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len)
 	void *b;
 	uint8_t *start_buf = buf;
 	uint8_t *end_buf = start_buf + len;
+	bool ret = false;
+
+	malloc_lock();
 
 	raw_malloc_validate_pools();
 
 	/* Check for wrapping */
 	if (start_buf > end_buf)
-		return false;
+		goto out;
 
 	BPOOL_FOREACH(&itr, &b) {
 		uint8_t *start_b;
@@ -817,10 +885,16 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len)
 		start_b = get_payload_start_size(b, &s);
 		end_b = start_b + s;
 
-		if (start_buf >= start_b && end_buf <= end_b)
-			return true;
+		if (start_buf >= start_b && end_buf <= end_b) {
+			ret = true;
+			goto out;
+		}
 	}
-	return false;
+
+out:
+	malloc_unlock();
+
+	return ret;
 }
 
 bool malloc_buffer_overlaps_heap(void *buf, size_t len)
@@ -828,6 +902,9 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 	uintptr_t buf_start = (uintptr_t) buf;
 	uintptr_t buf_end = buf_start + len;
 	size_t n;
+	bool ret = false;
+
+	malloc_lock();
 
 	raw_malloc_validate_pools();
 
@@ -835,12 +912,18 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 		uintptr_t pool_start = (uintptr_t)malloc_pool[n].buf;
 		uintptr_t pool_end = pool_start + malloc_pool[n].len;
 
-		if (buf_start > buf_end || pool_start > pool_end)
-			return true;	/* Wrapping buffers, shouldn't happen */
+		if (buf_start > buf_end || pool_start > pool_end) {
+			ret = true;	/* Wrapping buffers, shouldn't happen */
+			goto out;
+		}
 
-		if (buf_end > pool_start || buf_start < pool_end)
-			return true;
+		if (buf_end > pool_start || buf_start < pool_end) {
+			ret = true;
+			goto out;
+		}
 	}
 
-	return false;
+out:
+	malloc_unlock();
+	return ret;
 }
