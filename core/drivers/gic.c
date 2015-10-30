@@ -112,16 +112,16 @@ out:
 
 void gic_cpu_init(void)
 {
-    /* per-CPU inerrupts config:
-    * ID0-ID7(SGI)   for Non-secure interrupts
-    * ID8-ID15(SGI)  for Secure interrupts.
-    * All PPI config as Non-secure interrupts.
-    */
-    write32(0xffff00ff, gic.gicd_base + GICD_IGROUPR(0));
+	/* per-CPU interrupts config:
+	 * ID0-ID7(SGI)   for Non-secure interrupts
+	 * ID8-ID15(SGI)  for Secure interrupts.
+	 * All PPI config as Non-secure interrupts.
+	 */
+	write32(0xffff00ff, gic.gicd_base + GICD_IGROUPR(0));
 
-    /* Enable GIC */
-    write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
-        gic.gicc_base + GICC_CTLR);
+	/* Enable GIC */
+	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
+		gic.gicc_base + GICC_CTLR);
 }
 
 void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
