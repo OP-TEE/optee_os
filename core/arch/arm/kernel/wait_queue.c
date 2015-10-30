@@ -41,14 +41,14 @@ void wq_init(struct wait_queue *wq)
 	*wq = (struct wait_queue)WAIT_QUEUE_INITIALIZER;
 }
 
-static void wq_rpc(uint32_t cmd, int id)
+static void wq_rpc(uint32_t cmd, int id, const void *lock_obj __unused)
 {
 	uint32_t ret;
 	struct tee_ta_session *sess = NULL;
 	struct teesmc32_param params[2];
 
-	DMSG("%s thread %u",
-	     cmd == TEE_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ", id);
+	DMSG("%s thread %u %p",
+	     cmd == TEE_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ", id, lock_obj);
 
 	tee_ta_get_current_session(&sess);
 	if (sess)
@@ -101,13 +101,14 @@ void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
 	thread_unmask_exceptions(old_itr_status);
 }
 
-void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe)
+void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
+			const void *lock_obj __unused)
 {
 	uint32_t old_itr_status;
 	unsigned done;
 
 	do {
-		wq_rpc(TEE_RPC_WAIT_QUEUE_SLEEP, wqe->handle);
+		wq_rpc(TEE_RPC_WAIT_QUEUE_SLEEP, wqe->handle, lock_obj);
 
 		old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 		cpu_spin_lock(&wq_spin_lock);
@@ -121,7 +122,7 @@ void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe)
 	} while (!done);
 }
 
-void wq_wake_one(struct wait_queue *wq)
+void wq_wake_one(struct wait_queue *wq, const void *lock_obj __unused)
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem *wqe;
@@ -144,7 +145,7 @@ void wq_wake_one(struct wait_queue *wq)
 	thread_unmask_exceptions(old_itr_status);
 
 	if (do_wakeup)
-		wq_rpc(TEE_RPC_WAIT_QUEUE_WAKEUP, handle);
+		wq_rpc(TEE_RPC_WAIT_QUEUE_WAKEUP, handle, lock_obj);
 }
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,

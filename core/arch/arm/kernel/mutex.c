@@ -70,7 +70,7 @@ void mutex_lock(struct mutex *m)
 			 * Someone else is holding the lock, wait in normal
 			 * world for the lock to become available.
 			 */
-			wq_wait_final(&m->wq, &wqe);
+			wq_wait_final(&m->wq, &wqe, m);
 		} else
 			return;
 	}
@@ -90,7 +90,7 @@ void mutex_unlock(struct mutex *m)
 	cpu_spin_unlock(&m->spin_lock);
 	thread_unmask_exceptions(old_itr_status);
 
-	wq_wake_one(&m->wq);
+	wq_wake_one(&m->wq, m);
 }
 
 bool mutex_trylock(struct mutex *m)
@@ -189,9 +189,9 @@ void condvar_wait(struct condvar *cv, struct mutex *m)
 	thread_unmask_exceptions(old_itr_status);
 
 	/* Wake eventual waiters */
-	wq_wake_one(&m->wq);
+	wq_wake_one(&m->wq, m);
 
-	wq_wait_final(&m->wq, &wqe);
+	wq_wait_final(&m->wq, &wqe, m);
 
 	mutex_lock(m);
 }
