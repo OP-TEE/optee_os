@@ -33,6 +33,7 @@
 
 /* Offsets from gic.gicc_base */
 #define GICC_CTLR		(0x000)
+#define GICC_PMR		(0x004)
 #define GICC_IAR		(0x00C)
 #define GICC_EOIR		(0x010)
 
@@ -119,6 +120,11 @@ void gic_cpu_init(void)
 	 */
 	write32(0xffff00ff, gic.gicd_base + GICD_IGROUPR(0));
 
+	/* Set the priority mask to permit Non-secure interrupts, and to
+	 * allow the Non-secure world to adjust the priority mask itself
+	 */
+	write32(0x80, gic.gicc_base + GICC_PMR);
+
 	/* Enable GIC */
 	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
 		gic.gicc_base + GICC_CTLR);
@@ -151,6 +157,11 @@ void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
 			write32(0xffffffff, gic.gicd_base + GICD_IGROUPR(n));
 		}
 	}
+
+	/* Set the priority mask to permit Non-secure interrupts, and to
+	 * allow the Non-secure world to adjust the priority mask itself
+	 */
+	write32(0x80, gic.gicc_base + GICC_PMR);
 
 	/* Enable GIC */
 	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
