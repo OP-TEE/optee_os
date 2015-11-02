@@ -5,7 +5,6 @@ core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
 core-platform-subdirs += $(arch-dir)/sm
 
-$(call force,libutil_with_isoc,y)
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SUNXI_UART,y)

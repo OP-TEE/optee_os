@@ -1,2 +1,2 @@
-subdirs-$(libutil_with_isoc) += isoc
+subdirs-y += isoc
 subdirs-y += ext
