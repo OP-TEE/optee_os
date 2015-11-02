@@ -4,7 +4,6 @@ core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
 
-$(call force,libutil_with_isoc,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
 $(call force,CFG_PL011,y)
