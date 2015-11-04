@@ -225,7 +225,7 @@ copy_init:
 	 */
 	ldr	r0, =__text_start
 #ifdef CFG_WITH_PAGER
-	ldr	r1, =__init_end
+	ldr	r1, =__tmp_hashes_end
 #else
 	ldr	r1, =_end
 #endif
