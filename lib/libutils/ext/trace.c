@@ -30,6 +30,7 @@
 #include <string.h>
 #include <trace.h>
 #include <util.h>
+#include <types_ext.h>
 
 #if (TRACE_LEVEL > 0)
 
@@ -168,6 +169,8 @@ static int __printf(2, 3) append(struct strbuf *sbuf, const char *fmt, ...)
 	return 1;
 }
 
+#define PRIxVA_WIDTH ((int)(sizeof(vaddr_t)*2))
+
 void dhex_dump(const char *function, int line, int level,
 	       const void *buf, int len)
 {
@@ -179,6 +182,12 @@ void dhex_dump(const char *function, int line, int level,
 	if (level <= trace_level) {
 		sbuf.ptr = NULL;
 		for (i = 0; i < len; i++) {
+			if ((i % 16) == 0) {
+				ok = append(&sbuf, "%0*" PRIxVA "  ",
+					    PRIxVA_WIDTH, (vaddr_t)(in + i));
+				if (!ok)
+					goto err;
+			}
 			ok = append(&sbuf, "%02x ", in[i]);
 			if (!ok)
 				goto err;
