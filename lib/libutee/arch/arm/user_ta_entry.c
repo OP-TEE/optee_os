@@ -36,19 +36,7 @@
 #include "utee_misc.h"
 #include <tee_arith_internal.h>
 #include <malloc.h>
-
-
-/* Exported to user_ta_header.c, built within TA */
-
-void ta_entry_close_session(uint32_t session_id) __noreturn;
-
-void ta_entry_open_session(uint32_t param_types,
-			   TEE_Param params[TEE_NUM_PARAMS],
-			   uint32_t session_id) __noreturn;
-
-void ta_entry_invoke_command(uint32_t cmd_id, uint32_t param_types,
-			     TEE_Param params[TEE_NUM_PARAMS],
-			     uint32_t session_id) __noreturn;
+#include "tee_api_private.h"
 
 struct ta_session {
 	uint32_t session_id;
@@ -141,13 +129,12 @@ static void ta_header_remove_session(uint32_t session_id)
 	}
 }
 
-void /*__attribute__((noreturn))*/ ta_entry_open_session(
-					 uint32_t param_types,
-					 TEE_Param params[TEE_NUM_PARAMS],
-					 uint32_t session_id)
+void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
 {
 	TEE_Result res;
 	struct ta_session *session;
+	uint32_t param_types;
+	TEE_Param params[TEE_NUM_PARAMS];
 
 	res = ta_header_add_session(session_id);
 	if (res != TEE_SUCCESS)
@@ -157,10 +144,14 @@ void /*__attribute__((noreturn))*/ ta_entry_open_session(
 	if (session == NULL)
 		goto function_exit;
 
+	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
-	res =
-	    TA_OpenSessionEntryPoint(param_types, params,
-				     &session->session_ctx);
+
+	res = TA_OpenSessionEntryPoint(param_types, params,
+				       &session->session_ctx);
+
+	__utee_from_param(up, param_types, params);
+
 	if (res != TEE_SUCCESS) {
 		ta_header_remove_session(session_id);
 		goto function_exit;
@@ -171,7 +162,7 @@ function_exit:
 	utee_return(res);
 }
 
-void /*__attribute__((noreturn))*/ ta_entry_close_session(uint32_t session_id)
+void __utee_entry_close_session(unsigned long session_id)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ta_session *session;
@@ -189,24 +180,25 @@ function_exit:
 	utee_return(res);
 }
 
-void /*__attribute__((noreturn))*/ ta_entry_invoke_command(
-				uint32_t cmd_id,
-				uint32_t param_types,
-				TEE_Param params[TEE_NUM_PARAMS],
-				uint32_t session_id)
+void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
+			unsigned long session_id)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ta_session *session;
+	uint32_t param_types;
+	TEE_Param params[TEE_NUM_PARAMS];
 
 	session = ta_header_get_session(session_id);
 	if (session == NULL)
 		goto function_exit;
 
+	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
 
-	res =
-	    TA_InvokeCommandEntryPoint(session->session_ctx, cmd_id,
-				       param_types, params);
+	res = TA_InvokeCommandEntryPoint(session->session_ctx, cmd_id,
+					 param_types, params);
+
+	__utee_from_param(up, param_types, params);
 
 function_exit:
 	ta_header_save_params(0, NULL);

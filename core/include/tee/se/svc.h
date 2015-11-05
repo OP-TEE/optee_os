@@ -43,42 +43,42 @@
 
 TEE_Result syscall_se_service_open(uint32_t *service_handle);
 
-TEE_Result syscall_se_service_close(uint32_t service_handle);
+TEE_Result syscall_se_service_close(unsigned long service_handle);
 
-TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
-		uint32_t *reader_handles, size_t *len);
+TEE_Result syscall_se_service_get_readers(unsigned long service_handle,
+			uint32_t *reader_handles, uint64_t *len);
 
-TEE_Result syscall_se_reader_get_prop(uint32_t reader_handle,
-		TEE_SEReaderProperties *p);
+TEE_Result syscall_se_reader_get_prop(unsigned long reader_handle, uint32_t *p);
 
-TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
-		char *name, size_t *name_len);
+TEE_Result syscall_se_reader_get_name(unsigned long reader_handle,
+			char *name, uint64_t *name_len);
 
-TEE_Result syscall_se_reader_open_session(uint32_t reader_handle,
-		uint32_t *session_handle);
+TEE_Result syscall_se_reader_open_session(unsigned long reader_handle,
+			uint32_t *session_handle);
 
-TEE_Result syscall_se_reader_close_sessions(uint32_t reader_handle);
+TEE_Result syscall_se_reader_close_sessions(unsigned long reader_handle);
 
-TEE_Result syscall_se_session_is_closed(uint32_t session_handle);
+TEE_Result syscall_se_session_is_closed(unsigned long session_handle);
 
-TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
-		void *atr, size_t *atr_len);
+TEE_Result syscall_se_session_get_atr(unsigned long session_handle,
+			void *atr, uint64_t *atr_len);
 
-TEE_Result syscall_se_session_open_channel(
-		uint32_t session_handle, bool is_logical,
-		TEE_SEAID *aid, uint32_t *channel_handle);
+TEE_Result syscall_se_session_open_channel(unsigned long session_handle,
+			unsigned long is_logical, const void *aid_buf,
+			size_t aid_buf_len, uint32_t *channel_handle);
 
-TEE_Result syscall_se_session_close(uint32_t session_handle);
+TEE_Result syscall_se_session_close(unsigned long session_handle);
 
-TEE_Result syscall_se_channel_select_next(uint32_t channel_handle);
+TEE_Result syscall_se_channel_select_next(unsigned long channel_handle);
 
-TEE_Result syscall_se_channel_get_select_resp(uint32_t channel_handle,
-	void *resp, size_t *resp_len);
+TEE_Result syscall_se_channel_get_select_resp(unsigned long channel_handle,
+			void *resp, uint64_t *resp_len);
 
-TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
-	void *cmd, size_t cmd_len, void *resp, size_t *resp_len);
+TEE_Result syscall_se_channel_transmit(unsigned long channel_handle,
+			void *cmd, unsigned long cmd_len, void *resp,
+			uint64_t *resp_len);
 
-TEE_Result syscall_se_channel_close(uint32_t channel_handle);
+TEE_Result syscall_se_channel_close(unsigned long channel_handle);
 
 #else
 

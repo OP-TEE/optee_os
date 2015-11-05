@@ -29,6 +29,7 @@
 #include <tee/tee_svc.h>
 #include <tee/se/svc.h>
 #include <trace.h>
+#include <utee_defines.h>
 
 TEE_Result syscall_se_service_open(uint32_t *service_handle)
 {
@@ -44,12 +45,12 @@ TEE_Result syscall_se_service_open(uint32_t *service_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	return tee_svc_copy_kaddr_to_user32(sess, service_handle, kservice);
+	return tee_svc_copy_kaddr_to_uref(sess, service_handle, kservice);
 }
 
-TEE_Result syscall_se_service_close(uint32_t service_handle)
+TEE_Result syscall_se_service_close(unsigned long service_handle)
 {
-	struct tee_se_service *h = (struct tee_se_service *)service_handle;
+	struct tee_se_service *h = tee_svc_uref_to_kaddr(service_handle);
 
 	if (!tee_se_service_is_valid(h))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -57,12 +58,14 @@ TEE_Result syscall_se_service_close(uint32_t service_handle)
 	return tee_se_service_close(h);
 }
 
-TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
-		uint32_t *reader_handles, size_t *len)
+TEE_Result syscall_se_service_get_readers(unsigned long service_handle,
+			uint32_t *reader_handles, uint64_t *len)
 {
 	TEE_Result ret;
-	size_t i, klen;
-	struct tee_se_service *h = (struct tee_se_service *)service_handle;
+	size_t i;
+	size_t tmp_klen;
+	uint64_t klen;
+	struct tee_se_service *h = tee_svc_uref_to_kaddr(service_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_reader_proxy **kreaders;
 	size_t kreaders_size;
@@ -74,7 +77,7 @@ TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_from_user(sess, &klen, len, sizeof(size_t));
+	ret = tee_svc_copy_from_user(sess, &klen, len, sizeof(klen));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -86,18 +89,20 @@ TEE_Result syscall_se_service_get_readers(uint32_t service_handle,
 	if (kreaders == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	ret = tee_se_manager_get_readers(kreaders, &klen);
+	tmp_klen = klen;
+	ret = tee_se_manager_get_readers(kreaders, &tmp_klen);
 	if (ret != TEE_SUCCESS)
 		goto err_free_kreaders;
+	klen = tmp_klen;
 
 	for (i = 0; i < klen; i++) {
-		ret = tee_svc_copy_kaddr_to_user32(
-				sess, &reader_handles[i], kreaders[i]);
+		ret = tee_svc_copy_kaddr_to_uref(sess, &reader_handles[i],
+						 kreaders[i]);
 		if (ret != TEE_SUCCESS)
 			goto err_free_kreaders;
 	}
 
-	ret = tee_svc_copy_to_user(sess, len, &klen, sizeof(size_t));
+	ret = tee_svc_copy_to_user(sess, len, &klen, sizeof(*len));
 
 err_free_kreaders:
 	free(kreaders);
@@ -105,13 +110,12 @@ err_free_kreaders:
 	return ret;
 }
 
-TEE_Result syscall_se_reader_get_prop(uint32_t reader_handle,
-		TEE_SEReaderProperties *p)
+TEE_Result syscall_se_reader_get_prop(unsigned long reader_handle, uint32_t *p)
 {
 	TEE_Result ret;
 	TEE_SEReaderProperties kprop;
-	struct tee_se_reader_proxy *r =
-		(struct tee_se_reader_proxy *)reader_handle;
+	uint32_t kp = 0;
+	struct tee_se_reader_proxy *r = tee_svc_uref_to_kaddr(reader_handle);
 	struct tee_ta_session *sess;
 
 	if (!tee_se_manager_is_reader_proxy_valid(r))
@@ -122,23 +126,28 @@ TEE_Result syscall_se_reader_get_prop(uint32_t reader_handle,
 		return ret;
 
 	tee_se_reader_get_properties(r, &kprop);
-
-	ret = tee_svc_copy_to_user(sess, p, &kprop, sizeof(kprop));
+	if (kprop.sePresent)
+		kp |= UTEE_SE_READER_PRESENT;
+	if (kprop.teeOnly)
+		kp |= UTEE_SE_READER_TEE_ONLY;
+	if (kprop.selectResponseEnable)
+		kp |= UTEE_SE_READER_SELECT_RESPONE_ENABLE;
+	ret = tee_svc_copy_to_user(sess, p, &kp, sizeof(kp));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
-		char *name, size_t *name_len)
+TEE_Result syscall_se_reader_get_name(unsigned long reader_handle,
+			char *name, uint64_t *name_len)
 {
 	TEE_Result ret;
-	struct tee_se_reader_proxy *r =
-		(struct tee_se_reader_proxy *)reader_handle;
+	struct tee_se_reader_proxy *r = tee_svc_uref_to_kaddr(reader_handle);
 	struct tee_ta_session *sess;
 	char *kname;
-	size_t kname_len, uname_len;
+	size_t kname_len;
+	uint64_t uname_len;
 
 	if (!tee_se_manager_is_reader_proxy_valid(r))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -147,8 +156,8 @@ TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_from_user(sess, &uname_len,
-			name_len, sizeof(size_t));
+	ret = tee_svc_copy_from_user(sess, &uname_len, name_len,
+				     sizeof(uname_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -162,20 +171,20 @@ TEE_Result syscall_se_reader_get_name(uint32_t reader_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, name_len,
-			&kname_len, sizeof(size_t));
+	uname_len = kname_len;
+	ret = tee_svc_copy_to_user(sess, name_len, &uname_len,
+				   sizeof(*name_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_reader_open_session(uint32_t reader_handle,
-		uint32_t *session_handle)
+TEE_Result syscall_se_reader_open_session(unsigned long reader_handle,
+			uint32_t *session_handle)
 {
 	TEE_Result ret;
-	struct tee_se_reader_proxy *r =
-		(struct tee_se_reader_proxy *)reader_handle;
+	struct tee_se_reader_proxy *r = tee_svc_uref_to_kaddr(reader_handle);
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
 	struct tee_se_service *service;
@@ -196,18 +205,17 @@ TEE_Result syscall_se_reader_open_session(uint32_t reader_handle,
 	service = ctx->se_service;
 	ret = tee_se_service_add_session(service, ksession);
 
-	ret = tee_svc_copy_kaddr_to_user32(sess, session_handle, ksession);
+	ret = tee_svc_copy_kaddr_to_uref(sess, session_handle, ksession);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_reader_close_sessions(uint32_t reader_handle)
+TEE_Result syscall_se_reader_close_sessions(unsigned long reader_handle)
 {
 	TEE_Result ret;
-	struct tee_se_reader_proxy *r =
-		(struct tee_se_reader_proxy *)reader_handle;
+	struct tee_se_reader_proxy *r = tee_svc_uref_to_kaddr(reader_handle);
 	struct tee_se_service *service;
 	struct tee_ta_session *sess;
 
@@ -224,11 +232,10 @@ TEE_Result syscall_se_reader_close_sessions(uint32_t reader_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_session_is_closed(uint32_t session_handle)
+TEE_Result syscall_se_session_is_closed(unsigned long session_handle)
 {
 	TEE_Result ret;
-	struct tee_se_session *s =
-		(struct tee_se_session *)session_handle;
+	struct tee_se_session *s = tee_svc_uref_to_kaddr(session_handle);
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
 	struct tee_se_service *service;
@@ -246,15 +253,15 @@ TEE_Result syscall_se_session_is_closed(uint32_t session_handle)
 	return tee_se_service_is_session_closed(service, s);
 }
 
-TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
-		void *atr, size_t *atr_len)
+TEE_Result syscall_se_session_get_atr(unsigned long session_handle,
+			void *atr, uint64_t *atr_len)
 {
 	TEE_Result ret;
-	struct tee_se_session *s =
-		(struct tee_se_session *)session_handle;
+	struct tee_se_session *s = tee_svc_uref_to_kaddr(session_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
-	size_t katr_len, uatr_len;
+	size_t katr_len;
+	uint64_t uatr_len;
 	uint8_t *katr;
 
 	ret = tee_ta_get_current_session(&sess);
@@ -266,7 +273,7 @@ TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = tee_svc_copy_from_user(sess,
-			&uatr_len, atr_len, sizeof(size_t));
+			&uatr_len, atr_len, sizeof(uatr_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -278,29 +285,27 @@ TEE_Result syscall_se_session_get_atr(uint32_t session_handle,
 	if (uatr_len < katr_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	ret = tee_svc_copy_to_user(sess, atr, katr,
-			katr_len);
+	ret = tee_svc_copy_to_user(sess, atr, katr, katr_len);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, atr_len, &katr_len,
-			sizeof(size_t));
+	uatr_len = katr_len;
+	ret = tee_svc_copy_to_user(sess, atr_len, &uatr_len,
+				   sizeof(*atr_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_session_open_channel(
-		uint32_t session_handle, bool is_logical,
-		TEE_SEAID *aid, uint32_t *channel_handle)
+TEE_Result syscall_se_session_open_channel(unsigned long session_handle,
+			unsigned long is_logical, const void *aid_buf,
+			size_t aid_buf_len, uint32_t *channel_handle)
 {
 	TEE_Result ret;
-	struct tee_se_session *s =
-		(struct tee_se_session *)session_handle;
+	struct tee_se_session *s = tee_svc_uref_to_kaddr(session_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
-	TEE_SEAID kaid;
 	struct tee_se_aid *se_aid = NULL;
 	struct tee_se_channel *kc = NULL;
 
@@ -312,15 +317,9 @@ TEE_Result syscall_se_session_open_channel(
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (aid) {
-		ret = tee_svc_copy_from_user(sess,
-				&kaid, aid, sizeof(TEE_SEAID));
-		if (ret != TEE_SUCCESS)
-			return ret;
-
-		ret = tee_se_aid_create_from_buffer(
-				kaid.buffer, kaid.bufferLen,
-				&se_aid);
+	if (aid_buf) {
+		ret = tee_se_aid_create_from_buffer((void *)aid_buf,
+						    aid_buf_len, &se_aid);
 		if (ret != TEE_SUCCESS)
 			return ret;
 	}
@@ -332,7 +331,7 @@ TEE_Result syscall_se_session_open_channel(
 	if (ret != TEE_SUCCESS)
 		goto error_free_aid;
 
-	ret = tee_svc_copy_kaddr_to_user32(sess, channel_handle, kc);
+	ret = tee_svc_copy_kaddr_to_uref(sess, channel_handle, kc);
 	if (ret != TEE_SUCCESS)
 		goto error_free_aid;
 
@@ -344,11 +343,10 @@ error_free_aid:
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_session_close(uint32_t session_handle)
+TEE_Result syscall_se_session_close(unsigned long session_handle)
 {
 	TEE_Result ret;
-	struct tee_se_session *s =
-		(struct tee_se_session *)session_handle;
+	struct tee_se_session *s = tee_svc_uref_to_kaddr(session_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
 
@@ -365,11 +363,10 @@ TEE_Result syscall_se_session_close(uint32_t session_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_channel_select_next(uint32_t channel_handle)
+TEE_Result syscall_se_channel_select_next(unsigned long channel_handle)
 {
 	TEE_Result ret;
-	struct tee_se_channel *c =
-		(struct tee_se_channel *)channel_handle;
+	struct tee_se_channel *c = tee_svc_uref_to_kaddr(channel_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
 
@@ -386,16 +383,16 @@ TEE_Result syscall_se_channel_select_next(uint32_t channel_handle)
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_channel_get_select_resp(uint32_t channel_handle,
-	void *resp, size_t *resp_len)
+TEE_Result syscall_se_channel_get_select_resp(unsigned long channel_handle,
+			void *resp, uint64_t *resp_len)
 {
 	TEE_Result ret;
-	struct tee_se_channel *c =
-		(struct tee_se_channel *)channel_handle;
+	struct tee_se_channel *c = tee_svc_uref_to_kaddr(channel_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
 	struct resp_apdu *resp_apdu;
-	size_t kresp_len, uresp_len;
+	size_t kresp_len;
+	uint64_t uresp_len;
 
 	ret = tee_ta_get_current_session(&sess);
 	if (ret != TEE_SUCCESS)
@@ -423,26 +420,27 @@ TEE_Result syscall_se_channel_get_select_resp(uint32_t channel_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = tee_svc_copy_to_user(sess, resp_len,
-			&kresp_len, sizeof(size_t));
+	uresp_len = kresp_len;
+	ret = tee_svc_copy_to_user(sess, resp_len, &uresp_len,
+				   sizeof(*resp_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
-	void *cmd, size_t cmd_len, void *resp, size_t *resp_len)
+TEE_Result syscall_se_channel_transmit(unsigned long channel_handle,
+			void *cmd, unsigned long cmd_len, void *resp,
+			uint64_t *resp_len)
 {
 	TEE_Result ret;
-	struct tee_se_channel *c =
-		(struct tee_se_channel *)channel_handle;
+	struct tee_se_channel *c = tee_svc_uref_to_kaddr(channel_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_service *service;
 	struct cmd_apdu *cmd_apdu;
 	struct resp_apdu *resp_apdu;
 	void *kcmd_buf;
-	size_t kresp_len;
+	uint64_t kresp_len;
 
 	ret = tee_ta_get_current_session(&sess);
 	if (ret != TEE_SUCCESS)
@@ -452,8 +450,8 @@ TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ret = tee_svc_copy_from_user(sess, &kresp_len,
-			resp_len, sizeof(size_t));
+	ret = tee_svc_copy_from_user(sess, &kresp_len, resp_len,
+				     sizeof(kresp_len));
 	if (ret != TEE_SUCCESS)
 		return ret;
 
@@ -481,7 +479,7 @@ TEE_Result syscall_se_channel_transmit(uint32_t channel_handle,
 
 	kresp_len = apdu_get_length(to_apdu_base(resp_apdu));
 	ret = tee_svc_copy_to_user(sess, resp_len, &kresp_len,
-			sizeof(size_t));
+			sizeof(*resp_len));
 	if (ret != TEE_SUCCESS)
 		goto err_free_resp_apdu;
 
@@ -506,11 +504,10 @@ err_free_cmd_buf:
 	return ret;
 }
 
-TEE_Result syscall_se_channel_close(uint32_t channel_handle)
+TEE_Result syscall_se_channel_close(unsigned long channel_handle)
 {
 	TEE_Result ret;
-	struct tee_se_channel *c =
-		(struct tee_se_channel *)channel_handle;
+	struct tee_se_channel *c = tee_svc_uref_to_kaddr(channel_handle);
 	struct tee_ta_session *sess;
 	struct tee_se_session *s;
 	struct tee_se_service *service;

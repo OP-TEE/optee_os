@@ -398,9 +398,9 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_open(uint32_t storage_id, void *object_id,
-				    uint32_t object_id_len, uint32_t flags,
-				    uint32_t *obj)
+TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
+			size_t object_id_len, unsigned long flags,
+			uint32_t *obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -490,7 +490,7 @@ TEE_Result syscall_storage_obj_open(uint32_t storage_id, void *object_id,
 
 	tee_obj_add(sess->ctx, o);
 
-	res = tee_svc_copy_kaddr_to_user32(sess, obj, o);
+	res = tee_svc_copy_kaddr_to_uref(sess, obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -522,10 +522,10 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_create(uint32_t storage_id, void *object_id,
-				      uint32_t object_id_len, uint32_t flags,
-				      uint32_t attr, void *data, uint32_t len,
-				      uint32_t *obj)
+TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
+			size_t object_id_len, unsigned long flags,
+			unsigned long attr, void *data, size_t len,
+			uint32_t *obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -640,7 +640,7 @@ TEE_Result syscall_storage_obj_create(uint32_t storage_id, void *object_id,
 
 	tee_obj_add(sess->ctx, o);
 
-	res = tee_svc_copy_kaddr_to_user32(sess, obj, o);
+	res = tee_svc_copy_kaddr_to_uref(sess, obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -681,7 +681,7 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_del(uint32_t obj)
+TEE_Result syscall_storage_obj_del(unsigned long obj)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -694,7 +694,7 @@ TEE_Result syscall_storage_obj_del(uint32_t obj)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -733,8 +733,8 @@ TEE_Result syscall_storage_obj_del(uint32_t obj)
 	return TEE_SUCCESS;
 }
 
-TEE_Result syscall_storage_obj_rename(uint32_t obj, void *object_id,
-				      uint32_t object_id_len)
+TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
+			size_t object_id_len)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -751,7 +751,7 @@ TEE_Result syscall_storage_obj_rename(uint32_t obj, void *object_id,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -849,43 +849,39 @@ TEE_Result syscall_storage_alloc_enum(uint32_t *obj_enum)
 	e->dir = NULL;
 	TAILQ_INSERT_TAIL(&sess->ctx->storage_enums, e, link);
 
-	return tee_svc_copy_kaddr_to_user32(sess, obj_enum, e);
+	return tee_svc_copy_kaddr_to_uref(sess, obj_enum, e);
 }
 
-TEE_Result syscall_storage_free_enum(uint32_t obj_enum)
+TEE_Result syscall_storage_free_enum(unsigned long obj_enum)
 {
 	struct tee_storage_enum *e;
 	TEE_Result res;
 	struct tee_ta_session *sess;
 
-	if (obj_enum == TEE_HANDLE_NULL)
-		return TEE_SUCCESS;
-
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_storage_get_enum(sess->ctx, obj_enum, &e);
+	res = tee_svc_storage_get_enum(sess->ctx,
+			tee_svc_uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	return tee_svc_close_enum(sess->ctx, e);
 }
 
-TEE_Result syscall_storage_reset_enum(uint32_t obj_enum)
+TEE_Result syscall_storage_reset_enum(unsigned long obj_enum)
 {
 	struct tee_storage_enum *e;
-	int res;
+	TEE_Result res;
 	struct tee_ta_session *sess;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (obj_enum == TEE_HANDLE_NULL)
-		return TEE_SUCCESS;
-
-	res = tee_svc_storage_get_enum(sess->ctx, obj_enum, &e);
+	res = tee_svc_storage_get_enum(sess->ctx,
+			tee_svc_uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -924,7 +920,8 @@ exit:
 
 }
 
-TEE_Result syscall_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
+TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
+			unsigned long storage_id)
 {
 	struct tee_storage_enum *e;
 	char *dir;
@@ -933,14 +930,12 @@ TEE_Result syscall_storage_start_enum(uint32_t obj_enum, uint32_t storage_id)
 	struct tee_fs_dirent *d = NULL;
 	struct tee_obj *o = NULL;
 
-	if (obj_enum == TEE_HANDLE_NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_storage_get_enum(sess->ctx, obj_enum, &e);
+	res = tee_svc_storage_get_enum(sess->ctx,
+			tee_svc_uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1018,25 +1013,22 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
-				     void *obj_id, uint32_t *len)
+TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
+			TEE_ObjectInfo *info, void *obj_id, uint64_t *len)
 {
 	struct tee_storage_enum *e;
 	struct tee_fs_dirent *d;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_ta_session *sess;
 	struct tee_obj *o = NULL;
-
-	if (obj_enum == TEE_HANDLE_NULL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+	uint64_t l;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_svc_storage_get_enum(sess->ctx, obj_enum, &e);
+	res = tee_svc_storage_get_enum(sess->ctx,
+			tee_svc_uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1090,8 +1082,8 @@ TEE_Result syscall_storage_next_enum(uint32_t obj_enum, TEE_ObjectInfo *info,
 	memcpy(info, &o->info, sizeof(TEE_ObjectInfo));
 	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
 
-	res = tee_svc_copy_to_user(sess, len, &o->pobj->obj_id_len,
-				 sizeof(uint32_t));
+	l = o->pobj->obj_id_len;
+	res = tee_svc_copy_to_user(sess, len, &l, sizeof(*len));
 
 exit:
 	if (o) {
@@ -1105,20 +1097,20 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_read(uint32_t obj, void *data, size_t len,
-				    uint32_t *count)
+TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
+			uint64_t *count)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 	int n_count;
-	uint32_t u_count;
+	uint64_t u_count;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1149,9 +1141,9 @@ TEE_Result syscall_storage_obj_read(uint32_t obj, void *data, size_t len,
 		}
 		goto exit;
 	}
-	u_count = (uint32_t) ((n_count < 0) ? 0 : n_count);
+	u_count = (uint64_t)((n_count < 0) ? 0 : n_count);
 
-	res = tee_svc_copy_to_user(sess, count, &u_count, sizeof(uint32_t));
+	res = tee_svc_copy_to_user(sess, count, &u_count, sizeof(*count));
 
 	o->info.dataPosition += u_count;
 
@@ -1161,7 +1153,7 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_write(uint32_t obj, void *data, size_t len)
+TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1172,7 +1164,7 @@ TEE_Result syscall_storage_obj_write(uint32_t obj, void *data, size_t len)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1206,7 +1198,7 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_trunc(uint32_t obj, size_t len)
+TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1218,7 +1210,7 @@ TEE_Result syscall_storage_obj_trunc(uint32_t obj, size_t len)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1254,8 +1246,8 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_seek(uint32_t obj, int32_t offset,
-				    TEE_Whence whence)
+TEE_Result syscall_storage_obj_seek(unsigned long obj, long offset,
+				    unsigned long whence)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess;
@@ -1268,7 +1260,7 @@ TEE_Result syscall_storage_obj_seek(uint32_t obj, int32_t offset,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(sess->ctx, obj, &o);
+	res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

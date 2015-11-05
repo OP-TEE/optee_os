@@ -24,61 +24,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_ABI_H
-#define TEE_ABI_H
+#ifndef TEE_API_PRIVATE
+#define TEE_API_PRIVATE
 
-#include <types_ext.h>
 #include <tee_api_types.h>
-
-/*
- * This file defines types specific to the ABI (Application Binary
- * Interface) provided by TEE Core. More types than those below are used,
- * but when they differ between 64-bit and 32-bit they are added in this
- * file.
- */
+#include <utee_types.h>
 
 
-/* Defines parameters for 32-bit user TAs */
-struct abi_user32_param {
-	union {
-		struct {
-			uint32_t buf_ptr;
-			uint32_t size;
-		} memref;
-		struct {
-			uint32_t a;
-			uint32_t b;
-		} value;
-	} u[TEE_NUM_PARAMS];
-};
+void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
+			uint32_t attr_count);
 
-void abi_param_to_user32_param(struct abi_user32_param *usr_param,
-			const TEE_Param *param, uint32_t param_types);
-void abi_user32_param_to_param(TEE_Param *param,
-			const struct abi_user32_param *usr_param,
-			uint32_t param_types);
+void __utee_from_param(struct utee_params *up, uint32_t param_types,
+			const TEE_Param params[TEE_NUM_PARAMS]);
+
+void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
+			uint32_t *param_types, const struct utee_params *up);
+
+void __utee_entry_close_session(unsigned long session_id) __noreturn;
+
+void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
+			__noreturn;
+
+void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
+			unsigned long session_id) __noreturn;
 
 
-/* Defines TEE_Attribute for 32-bit user TAs */
-struct abi_user32_attribute {
-	uint32_t attr_id;
-	union {
-		struct {
-			uint32_t buf_ptr;
-			uint32_t length;
-		} ref;
-		struct {
-			uint32_t a;
-			uint32_t b;
-		} value;
-	} u;
-};
-
-void abi_attr_to_user32_attr(struct abi_user32_attribute *usr_attr,
-			const TEE_Attribute *attr, size_t num_attrs);
-void abi_user_attr32_to_attr(TEE_Attribute *attr,
-			const struct abi_user32_attribute *usr_attr,
-			size_t num_attrs);
-
-#endif /*TEE_ABI_H*/
+#endif /*TEE_API_PRIVATE*/
 

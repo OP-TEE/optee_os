@@ -44,13 +44,21 @@
 #define TA_FLAG_REMAP_SUPPORT		(1 << 6) /* use map/unmap syscalls */
 #define TA_FLAG_CACHE_MAINTENANCE	(1 << 7) /* use cache flush syscall */
 
+union ta_head_func_ptr {
+	uint64_t ptr64;
+	struct ta_head_func_ptr32 {
+		uint32_t lo;
+		uint32_t hi;
+	} ptr32;
+};
+
 struct ta_head {
 	TEE_UUID uuid;
 	uint32_t stack_size;
 	uint32_t flags;
-	uint32_t open_session;
-	uint32_t close_session;
-	uint32_t invoke_command;
+	union ta_head_func_ptr open_session;
+	union ta_head_func_ptr close_session;
+	union ta_head_func_ptr invoke_command;
 };
 
 #define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"

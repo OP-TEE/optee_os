@@ -48,24 +48,34 @@ const char trace_ext_prefix[]  = "USER-TA";
 #endif
 
 /* exprted to user_ta_header.c, built within TA */
-void ta_entry_close_session(uint32_t session_id) __noreturn;
+struct utee_params;
 
-void ta_entry_open_session(uint32_t param_types,
-			   TEE_Param params[TEE_NUM_PARAMS],
-			   uint32_t session_id) __noreturn;
+void __utee_entry_close_session(unsigned long session_id) __noreturn;
 
-void ta_entry_invoke_command(uint32_t cmd_id, uint32_t param_types,
-			     TEE_Param params[TEE_NUM_PARAMS],
-			     uint32_t session_id) __noreturn;
+void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
+			__noreturn;
+
+void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
+			unsigned long session_id) __noreturn;
 
 const struct ta_head ta_head __section(".ta_head") = {
 	/* UUID, unique to each TA */
-	TA_UUID,
-	TA_STACK_SIZE,
-	TA_FLAG_USER_MODE | TA_FLAGS,
-	(uint32_t)ta_entry_open_session,
-	(uint32_t)ta_entry_close_session,
-	(uint32_t)ta_entry_invoke_command
+	.uuid = TA_UUID,
+	.stack_size = TA_STACK_SIZE,
+	.flags = TA_FLAG_USER_MODE | TA_FLAGS,
+#ifdef __ILP32__
+	/*
+	 * This workaround is neded on 32-bit because it seems we can't
+	 * initialize a 64-bit integer from the address of a function.
+	 */
+	.open_session.ptr32 = { .lo = (uint32_t)__utee_entry_open_session },
+	.close_session.ptr32 = { .lo = (uint32_t)__utee_entry_close_session },
+	.invoke_command.ptr32 = { .lo = (uint32_t)__utee_entry_invoke_command },
+#else
+	.open_session.ptr64 = (uint64_t)__utee_entry_open_session,
+	.close_session.ptr64 = (uint64_t)__utee_entry_close_session,
+	.invoke_command.ptr64 = (uint64_t)__utee_entry_invoke_command,
+#endif
 };
 
 /* Keeping the heap in bss */

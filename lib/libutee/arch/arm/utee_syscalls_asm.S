@@ -69,20 +69,20 @@
 
         UTEE_SYSCALL utee_get_property, TEE_SCN_GET_PROPERTY, 3
 
-        UTEE_SYSCALL utee_open_ta_session, TEE_SCN_OPEN_TA_SESSION, 6
+        UTEE_SYSCALL utee_open_ta_session, TEE_SCN_OPEN_TA_SESSION, 5
 
         UTEE_SYSCALL utee_close_ta_session, TEE_SCN_CLOSE_TA_SESSION, 1
 
-        UTEE_SYSCALL utee_invoke_ta_command, TEE_SCN_INVOKE_TA_COMMAND, 6
+        UTEE_SYSCALL utee_invoke_ta_command, TEE_SCN_INVOKE_TA_COMMAND, 5
         
         UTEE_SYSCALL utee_get_cancellation_flag, \
-                     TEE_SCN_GET_CANCELLATION_FLAG, 0
+                     TEE_SCN_GET_CANCELLATION_FLAG, 1
 
         UTEE_SYSCALL utee_check_access_rights, TEE_SCN_CHECK_ACCESS_RIGHTS, 3
 
-        UTEE_SYSCALL utee_unmask_cancellation, TEE_SCN_UNMASK_CANCELLATION, 0
+        UTEE_SYSCALL utee_unmask_cancellation, TEE_SCN_UNMASK_CANCELLATION, 1
 
-        UTEE_SYSCALL utee_mask_cancellation, TEE_SCN_MASK_CANCELLATION, 0
+        UTEE_SYSCALL utee_mask_cancellation, TEE_SCN_MASK_CANCELLATION, 1
 
         UTEE_SYSCALL utee_wait, TEE_SCN_WAIT, 1
 
@@ -200,7 +200,7 @@
                 TEE_SCN_SE_SESSION_GET_ATR, 3
 
         UTEE_SYSCALL utee_se_session_open_channel, \
-                TEE_SCN_SE_SESSION_OPEN_CHANNEL, 4
+                TEE_SCN_SE_SESSION_OPEN_CHANNEL, 5
 
         UTEE_SYSCALL utee_se_session_close, \
                 TEE_SCN_SE_SESSION_CLOSE, 1
@@ -209,7 +209,7 @@
                 TEE_SCN_SE_CHANNEL_SELECT_NEXT, 1
 
         UTEE_SYSCALL utee_se_channel_get_select_resp, \
-                TEE_SCN_SE_CHANNEL_GET_SELECT_RESP, 2
+                TEE_SCN_SE_CHANNEL_GET_SELECT_RESP, 3
 
         UTEE_SYSCALL utee_se_channel_transmit, \
                 TEE_SCN_SE_CHANNEL_TRANSMIT, 5

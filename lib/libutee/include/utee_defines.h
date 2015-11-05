@@ -182,4 +182,8 @@ typedef enum {
 #define HW_UNIQUE_KEY_WORD3      (HW_UNIQUE_KEY_WORD1 + 2)
 #define HW_UNIQUE_KEY_WORD4      (HW_UNIQUE_KEY_WORD1 + 3)
 
+#define UTEE_SE_READER_PRESENT			(1 << 0)
+#define UTEE_SE_READER_TEE_ONLY			(1 << 1)
+#define UTEE_SE_READER_SELECT_RESPONE_ENABLE	(1 << 2)
+
 #endif /* UTEE_DEFINES_H */

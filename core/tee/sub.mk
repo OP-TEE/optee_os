@@ -33,6 +33,5 @@ srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
 srcs-y += tee_rpmb_fs.c
 srcs-y += tee_time_generic.c
-srcs-y += abi.c
 
 subdirs-${CFG_SE_API} += se

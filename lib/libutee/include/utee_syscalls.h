@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -35,201 +36,262 @@
 #include <tee_api_types.h>
 #include <trace.h>
 
-void utee_return(uint32_t ret) __noreturn;
+/*
+ * Arguments must use the native register width. To keep it simple, only
+ * use pointers, long, unsigned long and size_t. Pointers may only point
+ * structures or types based on fixed width integer types. Only exception
+ * are buffers with opaque data.
+ *
+ * Return values should not use a fixed width larger than 32 bits, unsigned
+ * long and pointers are OK though.
+ *
+ * Members in structs on the other hand should only use fixed width integer
+ * types; uint32_t, uint64_t etc. To keep it simple, use uint64_t for all
+ * length fields.
+ */
+
+void utee_return(unsigned long ret) __noreturn;
 
 void utee_log(const void *buf, size_t len);
 
-void utee_panic(uint32_t code) __noreturn;
+void utee_panic(unsigned long code) __noreturn;
 
 uint32_t utee_dummy(uint32_t *a);
 
-uint32_t utee_dummy_7args(uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
-			  uint32_t a5, uint32_t a6, uint32_t a7);
+uint32_t utee_dummy_7args(unsigned long a1, unsigned long a2, unsigned long a3,
+			unsigned long a4, unsigned long a5, unsigned long a6,
+			unsigned long a7);
 
 uint32_t utee_nocall(void);
 
-TEE_Result utee_get_property(enum utee_property prop, void *buf, uint32_t len);
+/* prop defined by enum utee_property */
+TEE_Result utee_get_property(unsigned long prop, void *buf, size_t len);
 
+/* sess has type TEE_TASessionHandle */
 TEE_Result utee_open_ta_session(const TEE_UUID *dest,
-				uint32_t cancel_req_to, uint32_t param_types,
-				TEE_Param params[4], TEE_TASessionHandle *sess,
-				uint32_t *ret_orig);
+			unsigned long cancel_req_to, struct utee_params *params,
+			uint32_t *sess, uint32_t *ret_orig);
 
-TEE_Result utee_close_ta_session(TEE_TASessionHandle sess);
+/* sess has type TEE_TASessionHandle */
+TEE_Result utee_close_ta_session(unsigned long sess);
 
-TEE_Result utee_invoke_ta_command(TEE_TASessionHandle sess,
-				  uint32_t cancel_req_to, uint32_t cmd_id,
-				  uint32_t param_types, TEE_Param params[4],
-				  uint32_t *ret_orig);
+/* sess has type TEE_TASessionHandle */
+TEE_Result utee_invoke_ta_command(unsigned long sess,
+			unsigned long cancel_req_to, unsigned long cmd_id,
+			struct utee_params *params, uint32_t *ret_orig);
 
 TEE_Result utee_check_access_rights(uint32_t flags, const void *buf,
 				    size_t len);
 
-TEE_Result utee_get_cancellation_flag(bool *cancel);
+/* cancel has type bool */
+TEE_Result utee_get_cancellation_flag(uint32_t *cancel);
 
-TEE_Result utee_unmask_cancellation(bool *old_mask);
+/* old_mask has type bool */
+TEE_Result utee_unmask_cancellation(uint32_t *old_mask);
 
-TEE_Result utee_mask_cancellation(bool *old_mask);
+/* old_mask has type bool */
+TEE_Result utee_mask_cancellation(uint32_t *old_mask);
 
-TEE_Result utee_wait(uint32_t timeout);
+TEE_Result utee_wait(unsigned long timeout);
 
-TEE_Result utee_get_time(enum utee_time_category cat, TEE_Time *time);
+/* cat has type enum utee_time_category */
+TEE_Result utee_get_time(unsigned long cat, TEE_Time *time);
 
 TEE_Result utee_set_ta_time(const TEE_Time *time);
 
-TEE_Result utee_cryp_state_alloc(uint32_t algo, uint32_t op_mode,
-				 uint32_t key1, uint32_t key2,
+TEE_Result utee_cryp_state_alloc(unsigned long algo, unsigned long op_mode,
+				 unsigned long key1, unsigned long key2,
 				 uint32_t *state);
-TEE_Result utee_cryp_state_copy(uint32_t dst, uint32_t src);
-TEE_Result utee_cryp_state_free(uint32_t state);
+TEE_Result utee_cryp_state_copy(unsigned long dst, unsigned long src);
+TEE_Result utee_cryp_state_free(unsigned long state);
 
 /* iv and iv_len are ignored for some algorithms */
-TEE_Result utee_hash_init(uint32_t state, const void *iv, size_t iv_len);
-TEE_Result utee_hash_update(uint32_t state, const void *chunk,
+TEE_Result utee_hash_init(unsigned long state, const void *iv, size_t iv_len);
+TEE_Result utee_hash_update(unsigned long state, const void *chunk,
 			    size_t chunk_size);
-TEE_Result utee_hash_final(uint32_t state, const void *chunk,
-			   size_t chunk_size, void *hash, uint32_t *hash_len);
+TEE_Result utee_hash_final(unsigned long state, const void *chunk,
+			   size_t chunk_size, void *hash, uint64_t *hash_len);
 
-TEE_Result utee_cipher_init(uint32_t state, const void *iv, size_t iv_len);
-TEE_Result utee_cipher_update(uint32_t state, const void *src, size_t src_len,
-			      void *dest, uint32_t *dest_len);
-TEE_Result utee_cipher_final(uint32_t state, const void *src, size_t src_len,
-			     void *dest, uint32_t *dest_len);
+TEE_Result utee_cipher_init(unsigned long state, const void *iv, size_t iv_len);
+TEE_Result utee_cipher_update(unsigned long state, const void *src,
+			size_t src_len, void *dest, uint64_t *dest_len);
+TEE_Result utee_cipher_final(unsigned long state, const void *src,
+			size_t src_len, void *dest, uint64_t *dest_len);
 
 /* Generic Object Functions */
-TEE_Result utee_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info);
-TEE_Result utee_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage);
-TEE_Result utee_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
-				  void *buffer, uint32_t *size);
+TEE_Result utee_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
+TEE_Result utee_cryp_obj_restrict_usage(unsigned long obj, unsigned long usage);
+TEE_Result utee_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
+			void *buffer, uint64_t *size);
 
 /* Transient Object Functions */
-TEE_Result utee_cryp_obj_alloc(TEE_ObjectType type, uint32_t max_size,
-			       uint32_t *obj);
-TEE_Result utee_cryp_obj_close(uint32_t obj);
-TEE_Result utee_cryp_obj_reset(uint32_t obj);
-TEE_Result utee_cryp_obj_populate(uint32_t obj, TEE_Attribute *attrs,
-				  uint32_t attr_count);
-TEE_Result utee_cryp_obj_copy(uint32_t dst_obj, uint32_t src_obj);
+/* type has type TEE_ObjectType */
+TEE_Result utee_cryp_obj_alloc(unsigned long type, unsigned long max_size,
+			uint32_t *obj);
+TEE_Result utee_cryp_obj_close(unsigned long obj);
+TEE_Result utee_cryp_obj_reset(unsigned long obj);
+TEE_Result utee_cryp_obj_populate(unsigned long obj,
+			struct utee_attribute *attrs, unsigned long attr_count);
+TEE_Result utee_cryp_obj_copy(unsigned long dst_obj, unsigned long src_obj);
 
-TEE_Result utee_cryp_obj_generate_key(uint32_t obj, uint32_t key_size,
-				      const TEE_Attribute *params,
-				      uint32_t param_count);
+TEE_Result utee_cryp_obj_generate_key(unsigned long obj, unsigned long key_size,
+			const struct utee_attribute *params,
+			unsigned long param_count);
 
-TEE_Result utee_cryp_derive_key(uint32_t state, const TEE_Attribute *params,
-				uint32_t param_count, uint32_t derived_key);
+TEE_Result utee_cryp_derive_key(unsigned long state,
+			const struct utee_attribute *params,
+			unsigned long param_count, unsigned long derived_key);
 
 TEE_Result utee_cryp_random_number_generate(void *buf, size_t blen);
 
-TEE_Result utee_authenc_init(uint32_t state, const void *nonce,
-			     size_t nonce_len, size_t tag_len, size_t aad_len,
-			     size_t payload_len);
-TEE_Result utee_authenc_update_aad(uint32_t state, const void *aad_data,
-				   size_t aad_data_len);
-TEE_Result utee_authenc_update_payload(uint32_t state, const void *src_data,
-				       size_t src_len, void *dest_data,
-				       uint32_t *dest_len);
-TEE_Result utee_authenc_enc_final(uint32_t state, const void *src_data,
-				  size_t src_len, void *dest_data,
-				  uint32_t *dest_len, void *tag,
-				  uint32_t *tag_len);
-TEE_Result utee_authenc_dec_final(uint32_t state, const void *src_data,
-				  size_t src_len, void *dest_data,
-				  uint32_t *dest_len, const void *tag,
-				  size_t tag_len);
+TEE_Result utee_authenc_init(unsigned long state, const void *nonce,
+			size_t nonce_len, size_t tag_len, size_t aad_len,
+			size_t payload_len);
+TEE_Result utee_authenc_update_aad(unsigned long state, const void *aad_data,
+			size_t aad_data_len);
+TEE_Result utee_authenc_update_payload(unsigned long state,
+			const void *src_data, size_t src_len, void *dest_data,
+			uint64_t *dest_len);
+TEE_Result utee_authenc_enc_final(unsigned long state, const void *src_data,
+			size_t src_len, void *dest_data, uint64_t *dest_len,
+			void *tag, uint64_t *tag_len);
+TEE_Result utee_authenc_dec_final(unsigned long state, const void *src_data,
+			size_t src_len, void *dest_data, uint64_t *dest_len,
+			const void *tag, size_t tag_len);
 
-TEE_Result utee_asymm_operate(uint32_t state, const TEE_Attribute *params,
-			      uint32_t num_params, const void *src_data,
-			      size_t src_len, void *dest_data,
-			      uint32_t *dest_len);
+TEE_Result utee_asymm_operate(unsigned long state,
+			const struct utee_attribute *params,
+			unsigned long num_params, const void *src_data,
+			size_t src_len, void *dest_data, uint64_t *dest_len);
 
-TEE_Result utee_asymm_verify(uint32_t state,
-			     const TEE_Attribute *params, uint32_t num_params,
-			     const void *data, size_t data_len, const void *sig,
-			     size_t sig_len);
+TEE_Result utee_asymm_verify(unsigned long state,
+			const struct utee_attribute *params,
+			unsigned long num_params, const void *data,
+			size_t data_len, const void *sig, size_t sig_len);
 
 /* Persistant Object Functions */
-TEE_Result utee_storage_obj_open(uint32_t storage_id, void *object_id,
-				 uint32_t object_id_len, uint32_t flags,
-				 TEE_ObjectHandle *obj);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_open(unsigned long storage_id, void *object_id,
+				 size_t object_id_len, unsigned long flags,
+				 uint32_t *obj);
 
-TEE_Result utee_storage_obj_create(uint32_t storage_id, void *object_id,
-				   uint32_t object_id_len, uint32_t flags,
-				   TEE_ObjectHandle attr, const void *data,
-				   uint32_t len, TEE_ObjectHandle *obj);
+/*
+ * attr is of type TEE_ObjectHandle
+ * obj is of type TEE_ObjectHandle
+ */
+TEE_Result utee_storage_obj_create(unsigned long storage_id, void *object_id,
+				size_t object_id_len, unsigned long flags,
+				unsigned long attr, const void *data,
+				size_t len, uint32_t *obj);
 
-TEE_Result utee_storage_obj_del(TEE_ObjectHandle obj);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_del(unsigned long obj);
 
-TEE_Result utee_storage_obj_rename(TEE_ObjectHandle obj, const void *new_obj_id,
-				   size_t new_obj_id_len);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_rename(unsigned long obj, const void *new_obj_id,
+				size_t new_obj_id_len);
 
 /* Persistent Object Enumeration Functions */
-TEE_Result utee_storage_alloc_enum(TEE_ObjectEnumHandle *obj_enum);
+/* obj_enum is of type TEE_ObjectEnumHandle */
+TEE_Result utee_storage_alloc_enum(uint32_t *obj_enum);
 
-TEE_Result utee_storage_free_enum(TEE_ObjectEnumHandle obj_enum);
 
-TEE_Result utee_storage_reset_enum(TEE_ObjectEnumHandle obj_enum);
+/* obj_enum is of type TEE_ObjectEnumHandle */
+TEE_Result utee_storage_free_enum(unsigned long obj_enum);
 
-TEE_Result utee_storage_start_enum(TEE_ObjectEnumHandle obj_enum,
-				   uint32_t storage_id);
+/* obj_enum is of type TEE_ObjectEnumHandle */
+TEE_Result utee_storage_reset_enum(unsigned long obj_enum);
 
-TEE_Result utee_storage_next_enum(TEE_ObjectEnumHandle obj_enum,
-				  TEE_ObjectInfo *info, void *obj_id,
-				  uint32_t *len);
+/* obj_enum is of type TEE_ObjectEnumHandle */
+TEE_Result utee_storage_start_enum(unsigned long obj_enum,
+			unsigned long storage_id);
+
+/* obj_enum is of type TEE_ObjectEnumHandle */
+TEE_Result utee_storage_next_enum(unsigned long obj_enum, TEE_ObjectInfo *info,
+			void *obj_id, uint64_t *len);
 
 /* Data Stream Access Functions */
-TEE_Result utee_storage_obj_read(TEE_ObjectHandle obj, void *data, size_t len,
-				 uint32_t *count);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_read(unsigned long obj, void *data, size_t len,
+			uint64_t *count);
 
-TEE_Result utee_storage_obj_write(TEE_ObjectHandle obj, const void *data,
-				  size_t len);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_write(unsigned long obj, const void *data,
+			size_t len);
 
-TEE_Result utee_storage_obj_trunc(TEE_ObjectHandle obj, size_t len);
+/* obj is of type TEE_ObjectHandle */
+TEE_Result utee_storage_obj_trunc(unsigned long obj, size_t len);
 
-TEE_Result utee_storage_obj_seek(TEE_ObjectHandle obj, int32_t offset,
-				 TEE_Whence whence);
+/* obj is of type TEE_ObjectHandle */
+/* whence is of type TEE_Whence */
+TEE_Result utee_storage_obj_seek(unsigned long obj, long offset,
+				 unsigned long whence);
 
-TEE_Result utee_se_service_open(
-		TEE_SEServiceHandle *seServiceHandle);
+/* seServiceHandle is of type TEE_SEServiceHandle */
+TEE_Result utee_se_service_open(uint32_t *seServiceHandle);
 
-TEE_Result utee_se_service_close(
-		TEE_SEServiceHandle seServiceHandle);
+/* seServiceHandle is of type TEE_SEServiceHandle */
+TEE_Result utee_se_service_close(unsigned long seServiceHandle);
 
-TEE_Result utee_se_service_get_readers(
-		TEE_SEServiceHandle seServiceHandle,
-		TEE_SEReaderHandle *r, size_t *len);
+/*
+ * seServiceHandle is of type TEE_SEServiceHandle
+ * r is of type TEE_SEReaderHandle
+ */
+TEE_Result utee_se_service_get_readers(unsigned long seServiceHandle,
+			uint32_t *r, uint64_t *len);
 
-TEE_Result utee_se_reader_get_prop(TEE_SEReaderHandle r,
-				TEE_SEReaderProperties *p);
+/*
+ * r is of type TEE_SEReaderHandle
+ * p is defined with defines UTEE_SE_READER_*
+ */
+TEE_Result utee_se_reader_get_prop(unsigned long r, uint32_t *p);
 
-TEE_Result utee_se_reader_get_name(TEE_SEReaderHandle r,
-		char *name, size_t *name_len);
+/* r is of type TEE_SEReaderHandle */
+TEE_Result utee_se_reader_get_name(unsigned long r,
+			char *name, uint64_t *name_len);
 
-TEE_Result utee_se_reader_open_session(TEE_SEReaderHandle r,
-		TEE_SESessionHandle *s);
+/*
+ * r is of type TEE_SEReaderHandle
+ * s if of type TEE_SESessionHandle
+ */
+TEE_Result utee_se_reader_open_session(unsigned long r, uint32_t *s);
 
-TEE_Result utee_se_reader_close_sessions(TEE_SEReaderHandle r);
+/* r is of type TEE_SEReaderHandle */
+TEE_Result utee_se_reader_close_sessions(unsigned long r);
 
-TEE_Result utee_se_session_is_closed(TEE_SESessionHandle s);
+/* s is of type TEE_SESessionHandle */
+TEE_Result utee_se_session_is_closed(unsigned long s);
 
-TEE_Result utee_se_session_get_atr(TEE_SESessionHandle s,
-		void *atr, size_t *atr_len);
+/* s is of type TEE_SESessionHandle */
+TEE_Result utee_se_session_get_atr(unsigned long s, void *atr,
+			uint64_t *atr_len);
 
-TEE_Result utee_se_session_open_channel(TEE_SESessionHandle s,
-		bool is_logical, TEE_SEAID *aid, TEE_SEChannelHandle *c);
+/*
+ * s is of type TEE_SESessionHandle
+ * c is of type TEE_SEChannelHandle
+ */
+TEE_Result utee_se_session_open_channel(unsigned long s,
+			unsigned long is_logical, const void *aid_buffer,
+			size_t aid_buffer_len, uint32_t *c);
 
-TEE_Result utee_se_session_close(TEE_SESessionHandle s);
+/* s is of type TEE_SESessionHandle */
+TEE_Result utee_se_session_close(unsigned long s);
 
-TEE_Result utee_se_channel_select_next(TEE_SEChannelHandle c);
+/* c is of type TEE_SEChannelHandle */
+TEE_Result utee_se_channel_select_next(unsigned long c);
 
-TEE_Result utee_se_channel_get_select_resp(TEE_SEChannelHandle c,
-	void *resp, size_t *resp_len);
+/* c is of type TEE_SEChannelHandle */
+TEE_Result utee_se_channel_get_select_resp(unsigned long c, void *resp,
+			uint64_t *resp_len);
 
-TEE_Result utee_se_channel_transmit(TEE_SEChannelHandle c,
-	void *cmd, size_t cmd_len, void *resp, size_t *resp_len);
+/* c is of type TEE_SEChannelHandle */
+TEE_Result utee_se_channel_transmit(unsigned long c, void *cmd,
+			size_t cmd_len, void *resp, uint64_t *resp_len);
 
-TEE_Result utee_se_channel_close(TEE_SEChannelHandle c);
+/* c is of type TEE_SEChannelHandle */
+TEE_Result utee_se_channel_close(unsigned long c);
 
-TEE_Result utee_cache_operation(void *va, size_t l,
-				enum utee_cache_operation op);
+/* op is of type enum utee_cache_operation */
+TEE_Result utee_cache_operation(void *va, size_t l, unsigned long op);
 
 #endif /* UTEE_SYSCALLS_H */

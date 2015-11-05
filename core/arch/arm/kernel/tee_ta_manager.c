@@ -37,7 +37,6 @@
 #include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
-#include <tee/abi.h>
 #include <mm/tee_mmu.h>
 #include <kernel/tee_misc.h>
 #include <kernel/panic.h>
@@ -68,6 +67,7 @@
 #include <kernel/trace_ta.h>
 #include <signed_hdr.h>
 #include <utee_defines.h>
+#include <utee_types.h>
 #include "elf_load.h"
 
 /*
@@ -699,9 +699,9 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 
 	ctx->flags = ta_head->flags;
 	ctx->uuid = ta_head->uuid;
-	ctx->open_session_func = ta_head->open_session;
-	ctx->close_session_func = ta_head->close_session;
-	ctx->invoke_command_func = ta_head->invoke_command;
+	ctx->open_session_func = ta_head->open_session.ptr64;
+	ctx->close_session_func = ta_head->close_session.ptr64;
+	ctx->invoke_command_func = ta_head->invoke_command.ptr64;
 
 	ctx->ref_count = 1;
 
@@ -794,6 +794,63 @@ out:
 	sess->cancel_time = cancel_time;
 }
 
+static void init_utee_param(struct utee_params *up,
+			const struct tee_ta_param *p)
+{
+	size_t n;
+
+	up->types = p->types;
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uintptr_t a;
+		uintptr_t b;
+
+		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			a = (uintptr_t)p->params[n].memref.buffer;
+			b = p->params[n].memref.size;
+			break;
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			a = p->params[n].value.a;
+			b = p->params[n].value.b;
+			break;
+		default:
+			a = 0;
+			b = 0;
+			break;
+		}
+		/* See comment for struct utee_params in utee_types.h */
+		up->vals[n * 2] = a;
+		up->vals[n * 2 + 1] = b;
+	}
+}
+
+static void update_from_utee_param(struct tee_ta_param *p,
+			const struct utee_params *up)
+{
+	size_t n;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			/* See comment for struct utee_params in utee_types.h */
+			p->params[n].memref.size = up->vals[n * 2 + 1];
+			break;
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			/* See comment for struct utee_params in utee_types.h */
+			p->params[n].value.a = up->vals[n * 2];
+			p->params[n].value.b = up->vals[n * 2 + 1];
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 				    struct tee_ta_session *session,
 				    enum tee_user_ta_func func,
@@ -801,7 +858,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 				    struct tee_ta_param *param)
 {
 	TEE_Result res;
-	struct abi_user32_param *usr_params;
+	struct utee_params *usr_params;
 	tee_paddr_t usr_stack;
 	tee_uaddr_t stack_uaddr;
 	struct tee_ta_ctx *ctx = session->ctx;
@@ -823,9 +880,9 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(ctx->mm_stack) + ctx->stack_size;
-	usr_stack -= sizeof(struct abi_user32_param);
-	usr_params = (struct abi_user32_param *)usr_stack;
-	abi_param_to_user32_param(usr_params, param->params, param->types);
+	usr_stack -= sizeof(struct utee_params);
+	usr_params = (struct utee_params *)usr_stack;
+	init_utee_param(usr_params, param);
 
 	res = tee_mmu_kernel_to_user(ctx, (tee_vaddr_t)usr_params,
 				     &params_uaddr);
@@ -838,11 +895,10 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	switch (func) {
 	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
-		res =
-		    thread_enter_user_mode(param->types, params_uaddr,
-					   (vaddr_t)session, 0, stack_uaddr,
-					   ctx->open_session_func,
-					   &ctx->panicked, &ctx->panic_code);
+		res = thread_enter_user_mode(params_uaddr, (vaddr_t)session,
+					     0, 0, stack_uaddr,
+					     ctx->open_session_func,
+					     &ctx->panicked, &ctx->panic_code);
 
 		/*
 		 * According to GP spec the origin should allways be set to the
@@ -861,8 +917,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 		break;
 
 	case USER_TA_FUNC_INVOKE_COMMAND:
-		res = thread_enter_user_mode(cmd, param->types, params_uaddr,
-					     (vaddr_t)session, stack_uaddr,
+		res = thread_enter_user_mode(cmd, params_uaddr,
+					     (vaddr_t)session, 0, stack_uaddr,
 					     ctx->invoke_command_func,
 					     &ctx->panicked, &ctx->panic_code);
 
@@ -882,7 +938,7 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	}
 
 	/* Copy out value results */
-	abi_user32_param_to_param(param->params, usr_params, param->types);
+	update_from_utee_param(param, usr_params);
 
 cleanup_return:
 	/* Restore original ROM mapping */
