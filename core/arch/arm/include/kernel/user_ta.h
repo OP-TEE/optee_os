@@ -78,7 +78,16 @@ static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 	return container_of(ctx, struct user_ta_ctx, ctx);
 }
 
+#ifdef CFG_WITH_USER_TA
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
+#else
+static inline TEE_Result tee_ta_init_user_ta_session(
+			const TEE_UUID *uuid __unused,
+			struct tee_ta_session *s __unused)
+{
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+#endif
 
 #endif /*KERNEL_USER_TA_H*/

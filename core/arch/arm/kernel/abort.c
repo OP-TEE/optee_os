@@ -347,6 +347,7 @@ static void handle_user_ta_vfp(void)
 }
 #endif /*CFG_WITH_VFP*/
 
+#ifdef CFG_WITH_USER_TA
 #ifdef ARM32
 /* Returns true if the exception originated from user mode */
 static bool is_user_exception(struct abort_info *ai)
@@ -369,6 +370,12 @@ static bool is_user_exception(struct abort_info *ai)
 	return false;
 }
 #endif /*ARM64*/
+#else /*CFG_WITH_USER_TA*/
+static bool is_user_exception(struct abort_info *ai __unused)
+{
+	return false;
+}
+#endif /*CFG_WITH_USER_TA*/
 
 #ifdef ARM32
 /* Returns true if the exception originated from abort mode */
@@ -386,6 +393,8 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 }
 #endif /*ARM64*/
 
+
+#if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 #ifdef ARM32
 
 #define T32_INSTR(w1, w0) \
@@ -467,6 +476,12 @@ static bool is_vfp_fault(struct abort_info *ai)
 	}
 }
 #endif /*ARM64*/
+#else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
+static bool is_vfp_fault(struct abort_info *ai __unused)
+{
+	return false;
+}
+#endif  /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
