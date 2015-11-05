@@ -120,8 +120,9 @@ static void main_fiq(void)
 	iar = gic_read_iar();
 
 	while (pl011_have_rx_data(CONSOLE_UART_BASE)) {
-		DMSG("cpu %zu: got 0x%x",
-		     get_core_pos(), pl011_getchar(CONSOLE_UART_BASE));
+		int ch __unused = pl011_getchar(CONSOLE_UART_BASE);
+
+		DMSG("cpu %zu: got 0x%x", get_core_pos(), ch);
 	}
 
 	gic_write_eoir(iar);
