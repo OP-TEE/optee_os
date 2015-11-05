@@ -35,7 +35,7 @@ void mutex_init(struct mutex *m)
 	*m = (struct mutex)MUTEX_INITIALIZER;
 }
 
-void mutex_lock(struct mutex *m)
+static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
 	while (true) {
 		uint32_t old_itr_status;
@@ -70,13 +70,13 @@ void mutex_lock(struct mutex *m)
 			 * Someone else is holding the lock, wait in normal
 			 * world for the lock to become available.
 			 */
-			wq_wait_final(&m->wq, &wqe, m);
+			wq_wait_final(&m->wq, &wqe, m, fname, lineno);
 		} else
 			return;
 	}
 }
 
-void mutex_unlock(struct mutex *m)
+static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 
@@ -90,10 +90,11 @@ void mutex_unlock(struct mutex *m)
 	cpu_spin_unlock(&m->spin_lock);
 	thread_unmask_exceptions(old_itr_status);
 
-	wq_wake_one(&m->wq, m);
+	wq_wake_one(&m->wq, m, fname, lineno);
 }
 
-bool mutex_trylock(struct mutex *m)
+static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
+			int lineno __unused)
 {
 	uint32_t old_itr_status;
 	enum mutex_value old_value;
@@ -112,6 +113,40 @@ bool mutex_trylock(struct mutex *m)
 
 	return old_value == MUTEX_VALUE_UNLOCKED;
 }
+
+#ifdef CFG_MUTEX_DEBUG
+void mutex_unlock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	__mutex_unlock(m, fname, lineno);
+}
+
+void mutex_lock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	__mutex_lock(m, fname, lineno);
+}
+
+bool mutex_trylock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	return __mutex_trylock(m, fname, lineno);
+}
+#else
+void mutex_unlock(struct mutex *m)
+{
+	__mutex_unlock(m, NULL, -1);
+}
+
+void mutex_lock(struct mutex *m)
+{
+	__mutex_lock(m, NULL, -1);
+}
+
+bool mutex_trylock(struct mutex *m)
+{
+	return __mutex_trylock(m, NULL, -1);
+}
+#endif
+
+
 
 void mutex_destroy(struct mutex *m)
 {
@@ -135,7 +170,8 @@ void condvar_destroy(struct condvar *cv)
 	condvar_init(cv);
 }
 
-static void cv_signal(struct condvar *cv, bool only_one)
+static void cv_signal(struct condvar *cv, bool only_one, const char *fname,
+			int lineno)
 {
 	uint32_t old_itr_status;
 	struct mutex *m;
@@ -147,21 +183,35 @@ static void cv_signal(struct condvar *cv, bool only_one)
 	thread_unmask_exceptions(old_itr_status);
 
 	if (m)
-		wq_promote_condvar(&m->wq, cv, only_one);
+		wq_promote_condvar(&m->wq, cv, only_one, m, fname, lineno);
 
 }
 
+#ifdef CFG_MUTEX_DEBUG
+void condvar_signal_debug(struct condvar *cv, const char *fname, int lineno)
+{
+	cv_signal(cv, true /* only one */, fname, lineno);
+}
+
+void condvar_broadcast_debug(struct condvar *cv, const char *fname, int lineno)
+{
+	cv_signal(cv, false /* all */, fname, lineno);
+}
+
+#else
 void condvar_signal(struct condvar *cv)
 {
-	cv_signal(cv, true /* only one */);
+	cv_signal(cv, true /* only one */, NULL, -1);
 }
 
 void condvar_broadcast(struct condvar *cv)
 {
-	cv_signal(cv, false /* all */);
+	cv_signal(cv, false /* all */, NULL, -1);
 }
+#endif /*CFG_MUTEX_DEBUG*/
 
-void condvar_wait(struct condvar *cv, struct mutex *m)
+static void __condvar_wait(struct condvar *cv, struct mutex *m,
+			const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem wqe;
@@ -189,9 +239,22 @@ void condvar_wait(struct condvar *cv, struct mutex *m)
 	thread_unmask_exceptions(old_itr_status);
 
 	/* Wake eventual waiters */
-	wq_wake_one(&m->wq, m);
+	wq_wake_one(&m->wq, m, fname, lineno);
 
-	wq_wait_final(&m->wq, &wqe, m);
+	wq_wait_final(&m->wq, &wqe, m, fname, lineno);
 
 	mutex_lock(m);
 }
+
+#ifdef CFG_MUTEX_DEBUG
+void condvar_wait_debug(struct condvar *cv, struct mutex *m,
+			const char *fname, int lineno)
+{
+	__condvar_wait(cv, m, fname, lineno);
+}
+#else
+void condvar_wait(struct condvar *cv, struct mutex *m)
+{
+	__condvar_wait(cv, m, NULL, -1);
+}
+#endif
