@@ -58,22 +58,24 @@ for a chip the where the Trusted OS runs. Note that there is also a
 composite form which makes it possible to append `PLATFORM_FLAVOR` directly,
 by adding a dash in-between the names. The composite form is shown below
 for the different boards. For more specific details about build flags etc,
-please read the file [build_system.md](documentation/build_system.md).
+please read the file [build_system.md](documentation/build_system.md). Some
+platforms have different sub-maintainers, please refer to the file
+[MAINTAINERS.md](MAINTAINERS.md) for contact details for various platforms.
 
 <!-- Please keep this list sorted in alphabetic order -->
-| Platform | Composite PLATFORM flag |
-|--------|--------|
-| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`|
-| [ARMs Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`|
-| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`|
-| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`|
-| [Foundation FVP](http://www.arm.com/fvp) |`PLATFORM=vexpress-fvp`|
-| [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey/)|`PLATFORM=hikey`|
-| [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173/)|`PLATFORM=mediatek-mt8173`|
-| [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`|
-| [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`|
-| [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`|
-| Texas Instruments DRA7xx|`PLATFORM=ti-dra7xx`|
+| Platform | Composite PLATFORM flag | Publicly available? |
+|----------|-------------------------|---------------------|
+| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`| Yes |
+| [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
+| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| ? |
+| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`| Yes |
+| [ARM Foundation FVP](http://www.arm.com/fvp) |`PLATFORM=vexpress-fvp`| Yes |
+| [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey)|`PLATFORM=hikey`| Yes |
+| [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173)|`PLATFORM=mediatek-mt8173`| No |
+| [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
+| [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
+| [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
+| [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
 
 ### 3.1 Development board for community user
 For community users, we suggest using [HiKey board](https://www.96boards.org/products/ce/hikey/)
