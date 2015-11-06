@@ -58,6 +58,7 @@ before_script:
   - (cd $HOME/optee_repo/qemu && git submodule update --init dtc)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
   - cd $MYHOME
+  - unset CC
 
 # Several compilation options are checked
 script:
