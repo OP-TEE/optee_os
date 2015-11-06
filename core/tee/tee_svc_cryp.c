@@ -36,6 +36,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <trace.h>
 #include <string_ext.h>
+#include <util.h>
 #if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF) || \
 	defined(CFG_CRYPTO_PBKDF2)
 #include <tee_api_defines_extensions.h>
@@ -641,7 +642,7 @@ static TEE_Result tee_svc_cryp_obj_copy_out(struct tee_ta_session *sess,
 					    raw_data_size);
 	case TEE_TYPE_CONV_FUNC_SECRET:
 
-		if (!TEE_ALIGNMENT_IS_OK(raw_data, struct tee_cryp_obj_secret))
+		if (!ALIGNMENT_IS_OK(raw_data, struct tee_cryp_obj_secret))
 			return TEE_ERROR_BAD_STATE;
 		obj = (struct tee_cryp_obj_secret *)(void *)raw_data;
 		key_size = obj->key_size;
@@ -1144,7 +1145,7 @@ static TEE_Result tee_svc_cryp_obj_store_attr_raw(uint16_t conv_func,
 		return TEE_SUCCESS;
 
 	case TEE_TYPE_CONV_FUNC_SECRET:
-		if (!TEE_ALIGNMENT_IS_OK(data, struct tee_cryp_obj_secret))
+		if (!ALIGNMENT_IS_OK(data, struct tee_cryp_obj_secret))
 			return TEE_ERROR_BAD_STATE;
 		obj = (struct tee_cryp_obj_secret *)(void *)data;
 

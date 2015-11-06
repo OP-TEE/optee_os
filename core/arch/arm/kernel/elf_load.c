@@ -265,7 +265,7 @@ static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			return TEE_ERROR_BAD_FORMAT;
 
 		sym_tab = (Elf32_Sym *)(vabase + shdr[sym_tab_idx].sh_addr);
-		if (!TEE_ALIGNMENT_IS_OK(sym_tab, Elf32_Sym))
+		if (!ALIGNMENT_IS_OK(sym_tab, Elf32_Sym))
 			return TEE_ERROR_BAD_FORMAT;
 
 		num_syms = shdr[sym_tab_idx].sh_size / sizeof(Elf32_Sym);
@@ -275,7 +275,7 @@ static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	if (shdr[rel_sidx].sh_addr >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
 	rel = (Elf32_Rel *)(vabase + shdr[rel_sidx].sh_addr);
-	if (!TEE_ALIGNMENT_IS_OK(rel, Elf32_Rel))
+	if (!ALIGNMENT_IS_OK(rel, Elf32_Rel))
 		return TEE_ERROR_BAD_FORMAT;
 
 	/* Check the address is inside TA memory */
@@ -291,7 +291,7 @@ static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			return TEE_ERROR_BAD_FORMAT;
 
 		where = (Elf32_Addr *)(vabase + rel->r_offset);
-		if (!TEE_ALIGNMENT_IS_OK(where, Elf32_Addr))
+		if (!ALIGNMENT_IS_OK(where, Elf32_Addr))
 			return TEE_ERROR_BAD_FORMAT;
 
 		switch (ELF32_R_TYPE(rel->r_info)) {

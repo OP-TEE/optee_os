@@ -57,7 +57,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	if (!phpayload)
 		goto exit;
 
-	if (!TEE_ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
+	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
 		goto exit;
 
 	if (core_pa2va(phpayload, &bf))

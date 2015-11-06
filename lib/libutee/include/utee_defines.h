@@ -142,27 +142,6 @@ typedef enum {
 #define TEE_U32_TO_BIG_ENDIAN(x)    TEE_U32_BSWAP(x)
 #define TEE_U16_TO_BIG_ENDIAN(x)    TEE_U16_BSWAP(x)
 
-#ifndef TEE_ALIGNMENT_IS_OK
-#ifdef CFG_TC_NO_ALIGNOF
-#define TEE_ALIGNMENT_1B_IS_OK(p, type)    (true)
-#define TEE_ALIGNMENT_2B_IS_OK(p, type)    (((((unsigned long)&(p)) & 1) == 0) ? true : false)
-#define TEE_ALIGNMENT_4B_IS_OK(p, type)    (((((unsigned long)&(p)) & 3) == 0) ? true : false)
-#define TEE_ALIGNMENT_8B_IS_OK(p, type)    (((((unsigned long)&(p)) & 7) == 0) ? true : false)
-#define TEE_ALIGNMENT_IS_OK(p, type)       TEE_ALIGNMENT_4B_IS_OK(p, type)
-#else
-#define TEE_ALIGNMENT_1B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_2B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_4B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_8B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_IS_OK(p, type)       TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-
-#define TEE_ALIGNMENT_WRAP_IS_OK(p, type)                        \
-        (((uintptr_t)p & (__tee_assert_alignof__(type) - 1)) == 0)
-
-#define __tee_assert_alignof__(type) __alignof__(type)
-#endif
-#endif
-
 #define TEE_TIME_MILLIS_BASE    1000
 
 #define TEE_TIME_LT(t1, t2)				\

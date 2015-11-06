@@ -34,6 +34,7 @@
 #include <sm/teesmc.h>
 #include <kernel/tee_rpc.h>
 #include <mm/core_mmu.h>
+#include <util.h>
 
 struct time_source _time_source;
 
@@ -90,7 +91,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 	if (!phpayload)
 		goto exit;
 
-	if (!TEE_ALIGNMENT_IS_OK(phpayload, TEE_Time))
+	if (!ALIGNMENT_IS_OK(phpayload, TEE_Time))
 		goto exit;
 
 	if (core_pa2va(phpayload, &payload))

@@ -934,7 +934,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 		goto out;
 	}
 
-	if (!TEE_ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
+	if (!ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
 		*ret_orig = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_GENERIC;
 		goto out;

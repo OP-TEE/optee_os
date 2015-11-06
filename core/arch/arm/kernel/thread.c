@@ -540,7 +540,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 
 		parg = thread_rpc_alloc_arg(
 				TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
-		if (!parg || !TEE_ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
+		if (!parg || !ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
 		     core_pa2va(parg, &arg)) {
 			thread_rpc_free_arg(parg);
 			args->a0 = TEESMC_RETURN_ENOMEM;
