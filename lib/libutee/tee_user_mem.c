@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <compiler.h>
 #include <utee_defines.h>
@@ -163,7 +163,7 @@ static void print_buf(int tl, const char *func, int line, const char *prefix,
 		      const struct user_mem_elem *e)
 {
 	trace_printf(NULL, 0, tl, true,
-		    "%s:%d: %slink:[%p], buf:[%p:%d]\n",
+		    "%s:%d: %slink:[%p], buf:[%p:%zu]\n",
 		    func, line, prefix, (void *)e, buf_addr(e), buf_size(e));
 }
 
@@ -315,7 +315,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		break;
 	default:
-		EMSG("Invalid alloc hint [%p]", (void *)hint);
+		EMSG("Invalid alloc hint [0x%" PRIx32 "]", hint);
 		OUTMSG("0x0");
 		return NULL;
 	}
@@ -483,7 +483,7 @@ size_t tee_user_mem_check_heap(void)
 	INMSG("%d", heap_level);
 
 	if (heap_level) {
-		EMSG("ta heap has changed of [%d]", heap_level);
+		EMSG("ta heap has changed of [%zu]", heap_level);
 		OUTMSG("%d", heap_level);
 		return heap_level;
 	}
