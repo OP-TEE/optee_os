@@ -104,6 +104,6 @@
 #define TEE_SCN_MAX				71
 
 /* Maximum number of allowed arguments for a syscall */
-#define TEE_SVC_MAX_ARGS			10
+#define TEE_SVC_MAX_ARGS			8
 
 #endif /* TEE_SYSCALL_NUMBERS_H */
