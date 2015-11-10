@@ -1,5 +1,5 @@
 ifeq ($(CFG_ARM64_core),y)
-core-platform-cppflags += -DARM64=1 -DLP64=1
+core-platform-cppflags += -DARM64=1 -D__LP64__=1
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64
 endif
