@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -25,35 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee_syscall_numbers.h>
-
-        .section .text
-        .balign 4
-        .code 32
-
-        .macro UTEE_SYSCALL name, scn, num_args
-        .global \name
-        .func \name
-        \name:
-
-        push    {r5-r7,lr}
-        mov     r7, #(\scn)
-	.if \num_args > TEE_SVC_MAX_ARGS
-	.error "Too many arguments for syscall"
-	.endif
-        .if \num_args <= 4
-        @ No arguments passed on stack
-        mov     r6, #0
-        .else
-        @ Tell number of arguments passed on the stack
-        mov     r6, #(\num_args - 4)
-        @ Point just before the push (4 registers) above on the first argument
-        add     r5, sp, #(4 * 4)
-        .endif
-        svc #0
-        pop     {r5-r7,pc}
-        .endfunc
-        .endm
 
         UTEE_SYSCALL utee_return, TEE_SCN_RETURN, 1
 
