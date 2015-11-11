@@ -60,6 +60,10 @@ CFG_TEE_PANIC_DEBUG ?= y
 # feature.
 CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
 
+# If y, enable memory leak detection feature in bget memory allocator.
+CFG_TEE_CORE_MALLOC_DEBUG ?= n
+CFG_TEE_TA_MALLOC_DEBUG ?= n
+
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.

@@ -18,6 +18,7 @@ aflags$(sm)	+= $(platform-aflags) $(user_ta-platform-aflags)
 # Config flags from mk/config.mk
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
+cppflags$(sm) += -DENABLE_MDBG=$(CFG_TEE_TA_MALLOC_DEBUG)
 
 
 base-prefix := $(sm)-

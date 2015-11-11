@@ -127,6 +127,10 @@ static void malloc_unlock(void)
 }
 #endif /*__KERNEL__*/
 
+#if defined(ENABLE_MDBG)
+#include <trace.h>
+#endif
+
 struct malloc_pool {
 	void *buf;
 	size_t len;
@@ -629,6 +633,9 @@ struct mdbg_hdr {
 	bool ignore;
 	uint32_t pl_size;
 	uint32_t magic;
+#if defined(ARM64)
+	uint64_t pad;
+#endif
 };
 
 #define MDBG_HEADER_MAGIC	0xadadadad
@@ -674,7 +681,14 @@ void *mdbg_malloc(const char *fname, int lineno, size_t size)
 {
 	struct mdbg_hdr *hdr;
 
-	COMPILE_TIME_ASSERT(sizeof(struct mdbg_hdr) == sizeof(uint32_t) * 4);
+	/*
+	 * Check struct mdbg_hdr doesn't get bad alignment.
+	 * This is required by C standard: the buffer returned from
+	 * malloc() should be aligned with a fundamental alignment.
+	 * For ARM32, the required alignment is 8. For ARM64, it is 16.
+	 */
+	COMPILE_TIME_ASSERT(
+		(sizeof(struct mdbg_hdr) % (__alignof(uintptr_t) * 2)) == 0);
 
 	hdr = raw_malloc(sizeof(struct mdbg_hdr),
 			  mdbg_get_ftr_size(size), size);
@@ -691,7 +705,7 @@ static void assert_header(struct mdbg_hdr *hdr)
 	assert(*mdbg_get_footer(hdr) == MDBG_FOOTER_MAGIC);
 }
 
-void mdbg_free(void *ptr)
+static void mdbg_free(void *ptr)
 {
 	struct mdbg_hdr *hdr = ptr;
 
@@ -702,6 +716,11 @@ void mdbg_free(void *ptr)
 		*mdbg_get_footer(hdr) = 0;
 		raw_free(hdr);
 	}
+}
+
+void free(void *ptr)
+{
+	mdbg_free(ptr);
 }
 
 void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
