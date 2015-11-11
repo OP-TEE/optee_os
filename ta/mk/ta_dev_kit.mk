@@ -1,5 +1,3 @@
-
-
 # Get the dir of the ta-dev-kit, requires make version 3.81 or later
 ta-dev-kit-dir := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))..))
 
@@ -7,8 +5,8 @@ ta-dev-kit-dir := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST))).
 .PHONY: all
 all:
 
-sm := user_ta
-sm-$(ta) := y
+include $(ta-dev-kit-dir)/mk/conf.mk
+
 binary := $(BINARY)
 
 CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
@@ -43,9 +41,9 @@ endif
 include $(ta-dev-kit-dir)/mk/arch.mk
 -include $(ta-dev-kit-dir)/mk/platform_flags.mk
 
-cppflags$(sm)  += $(platform-cppflags) $(user_ta-platform-cppflags)
-aflags$(sm)    += $(platform-aflags) $(user_ta-platform-aflags)
-cflags$(sm)    += $(platform-cflags) $(user_ta-platform-cflags)
+cppflags$(sm)  := $(platform-cppflags) $($(sm)-platform-cppflags)
+aflags$(sm)    := $(platform-aflags) $($(sm)-platform-aflags)
+cflags$(sm)    := $(platform-cflags) $($(sm)-platform-cflags)
 
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)

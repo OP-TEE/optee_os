@@ -55,7 +55,14 @@ endif
 
 include core/core.mk
 
+# Platform config is supposed to assign the targets
+ta-targets ?= user_ta
+
+define build-ta-target
+ta-target := $(1)
 include ta/ta.mk
+endef
+$(foreach t, $(ta-targets), $(eval $(call build-ta-target, $(t))))
 
 .PHONY: clean
 clean:

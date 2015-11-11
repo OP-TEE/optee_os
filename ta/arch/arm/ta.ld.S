@@ -1,5 +1,11 @@
+#ifdef ARM32
 OUTPUT_FORMAT("elf32-littlearm")
 OUTPUT_ARCH(arm)
+#endif
+#ifdef ARM64
+OUTPUT_FORMAT("elf64-littleaarch64")
+OUTPUT_ARCH(aarch64)
+#endif
 
 PHDRS {
 	rodata PT_LOAD;
