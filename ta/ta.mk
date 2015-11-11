@@ -39,6 +39,7 @@ base-prefix :=
 incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
 incfiles-extra-host := lib/libutils/ext/include/compiler.h
 incfiles-extra-host += lib/libutils/ext/include/util.h
+incfiles-extra-host += lib/libutils/ext/include/types_ext.h
 incfiles-extra-host += $(out-dir)/core/include/generated/conf.h
 incfiles-extra-host += $(out-dir)/core/conf.mk
 incfiles-extra-host += core/include/tee/tee_fs_key_manager.h
