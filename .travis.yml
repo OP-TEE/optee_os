@@ -79,17 +79,17 @@ script:
   -                                  PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  -                                  PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  -                                  PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
 
   # Juno
   -                                  PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
   - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  -                                  PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   make -j8 all -s
+  -                                  PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
 
   # QEMU
   -                                  PLATFORM=vexpress-qemu                                                                make -j8 all -s
