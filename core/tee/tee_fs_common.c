@@ -681,6 +681,8 @@ static struct tee_fs_file_meta *open_meta_file(
 	if (res < 0)
 		goto exit_free_meta;
 
+	meta->backup_version = version;
+
 	return meta;
 
 exit_free_meta:
@@ -1109,8 +1111,10 @@ static int unlink_tee_file(const char *file)
 
 		DMSG("unlink %s", path);
 		res = ree_fs_unlink(path);
-		if (res)
+		if (res) {
+			tee_fs_common_closedir(dir);
 			goto exit;
+		}
 
 		dirent = tee_fs_common_readdir(dir);
 	}
@@ -1657,6 +1661,7 @@ int tee_fs_common_rename(const char *old, const char *new)
 	int res = -1;
 	size_t old_len;
 	size_t new_len;
+	size_t meta_count = 0;
 	struct tee_fs_dir *old_dir;
 	struct tee_fs_dirent *dirent;
 	char *meta_filename = NULL;
@@ -1685,6 +1690,7 @@ int tee_fs_common_rename(const char *old, const char *new)
 	while (dirent) {
 		if (!strncmp(dirent->d_name, "meta.", 5)) {
 			meta_filename = strdup(dirent->d_name);
+			meta_count++;
 		} else {
 			res = create_hard_link(old, new, dirent->d_name);
 			if (res)
@@ -1696,6 +1702,25 @@ int tee_fs_common_rename(const char *old, const char *new)
 
 	/* finally, link the meta file, rename operation completed */
 	TEE_ASSERT(meta_filename);
+
+	/*
+	 * TODO: This will cause memory leakage at previous strdup()
+	 * if we accidently have two meta files in a TEE file.
+	 *
+	 * It's not easy to handle the case above (e.g. Which meta file
+	 * should be linked first? What to do if a power cut happened
+	 * during creating links for the two meta files?)
+	 *
+	 * We will solve this issue using another approach: merging
+	 * both meta and block files into a single REE file. This approach
+	 * can completely remove tee_fs_common_rename(). We can simply
+	 * rename TEE file using REE rename() system call, which is also
+	 * atomic.
+	 */
+	if (meta_count > 1)
+		EMSG("Warning: more than one meta file in your TEE file\n"
+		     "This will cause memory leakage.");
+
 	res = create_hard_link(old, new, meta_filename);
 	if (res)
 		goto exit_close_old_dir;
