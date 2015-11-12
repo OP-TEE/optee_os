@@ -45,7 +45,7 @@ struct ta_session {
 };
 
 static TAILQ_HEAD(ta_sessions, ta_session) ta_sessions =
-TAILQ_HEAD_INITIALIZER(ta_sessions);
+		TAILQ_HEAD_INITIALIZER(ta_sessions);
 
 static uint32_t ta_ref_count;
 static bool context_init;
@@ -61,7 +61,8 @@ static void ta_header_save_params(uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {
 	ta_param_types = param_types;
-	if (params != NULL)
+
+	if (params)
 		memcpy(ta_params, params, sizeof(ta_params));
 	else
 		memset(ta_params, 0, sizeof(ta_params));
@@ -70,6 +71,7 @@ static void ta_header_save_params(uint32_t param_types,
 static struct ta_session *ta_header_get_session(uint32_t session_id)
 {
 	struct ta_session *itr;
+
 	TAILQ_FOREACH(itr, &ta_sessions, link) {
 		if (itr->session_id == session_id)
 			return itr;
@@ -80,7 +82,8 @@ static struct ta_session *ta_header_get_session(uint32_t session_id)
 static TEE_Result ta_header_add_session(uint32_t session_id)
 {
 	struct ta_session *itr = ta_header_get_session(session_id);
-	if (itr != NULL)
+
+	if (itr)
 		return TEE_SUCCESS;
 
 	ta_ref_count++;
@@ -100,10 +103,9 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 			return res;
 	}
 
-	itr =
-	    TEE_Malloc(sizeof(struct ta_session),
-		       TEE_USER_MEM_HINT_NO_FILL_ZERO);
-	if (itr == NULL)
+	itr = TEE_Malloc(sizeof(struct ta_session),
+			TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!itr)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	itr->session_id = session_id;
 	itr->session_ctx = 0;
@@ -115,6 +117,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 static void ta_header_remove_session(uint32_t session_id)
 {
 	struct ta_session *itr;
+
 	TAILQ_FOREACH(itr, &ta_sessions, link) {
 		if (itr->session_id == session_id) {
 			TAILQ_REMOVE(&ta_sessions, itr, link);
@@ -129,7 +132,8 @@ static void ta_header_remove_session(uint32_t session_id)
 	}
 }
 
-void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
+static TEE_Result entry_open_session(unsigned long session_id,
+			struct utee_params *up)
 {
 	TEE_Result res;
 	struct ta_session *session;
@@ -138,11 +142,11 @@ void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
 
 	res = ta_header_add_session(session_id);
 	if (res != TEE_SUCCESS)
-		goto function_exit;
+		return res;
 
 	session = ta_header_get_session(session_id);
-	if (session == NULL)
-		goto function_exit;
+	if (!session)
+		return TEE_ERROR_BAD_STATE;
 
 	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
@@ -152,45 +156,34 @@ void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
 
 	__utee_from_param(up, param_types, params);
 
-	if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS)
 		ta_header_remove_session(session_id);
-		goto function_exit;
-	}
-
-function_exit:
-	ta_header_save_params(0, NULL);
-	utee_return(res);
+	return res;
 }
 
-void __utee_entry_close_session(unsigned long session_id)
+static TEE_Result entry_close_session(unsigned long session_id)
 {
-	TEE_Result res = TEE_ERROR_BAD_STATE;
-	struct ta_session *session;
+	struct ta_session *session = ta_header_get_session(session_id);
 
-	session = ta_header_get_session(session_id);
-	if (session == NULL)
-		goto function_exit;
+	if (!session)
+		return TEE_ERROR_BAD_STATE;
 
 	TA_CloseSessionEntryPoint(session->session_ctx);
 
 	ta_header_remove_session(session_id);
-
-	res = TEE_SUCCESS;
-function_exit:
-	utee_return(res);
+	return TEE_SUCCESS;
 }
 
-void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
-			unsigned long session_id)
+static TEE_Result entry_invoke_command(unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id)
 {
-	TEE_Result res = TEE_ERROR_BAD_STATE;
-	struct ta_session *session;
+	TEE_Result res;
 	uint32_t param_types;
 	TEE_Param params[TEE_NUM_PARAMS];
+	struct ta_session *session = ta_header_get_session(session_id);
 
-	session = ta_header_get_session(session_id);
-	if (session == NULL)
-		goto function_exit;
+	if (!session)
+		return TEE_ERROR_BAD_STATE;
 
 	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
@@ -199,8 +192,29 @@ void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
 					 param_types, params);
 
 	__utee_from_param(up, param_types, params);
+	return res;
+}
 
-function_exit:
+void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id)
+{
+	TEE_Result res;
+
+	switch (func) {
+	case UTEE_ENTRY_FUNC_OPEN_SESSION:
+		res = entry_open_session(session_id, up);
+		break;
+	case UTEE_ENTRY_FUNC_CLOSE_SESSION:
+		res = entry_close_session(session_id);
+		break;
+	case UTEE_ENTRY_FUNC_INVOKE_COMMAND:
+		res = entry_invoke_command(session_id, up, cmd_id);
+		break;
+	default:
+		res = 0xffffffff;
+		TEE_Panic(0);
+		break;
+	}
 	ta_header_save_params(0, NULL);
 	utee_return(res);
 }

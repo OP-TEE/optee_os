@@ -78,12 +78,6 @@
 
 #define TEE_TA_STACK_ALIGNMENT   8
 
-enum tee_user_ta_func {
-	USER_TA_FUNC_OPEN_CLIENT_SESSION = 0,
-	USER_TA_FUNC_CLOSE_CLIENT_SESSION,
-	USER_TA_FUNC_INVOKE_COMMAND
-};
-
 typedef enum {
 	COMMAND_INVOKE_COMMAND = 0,
 	COMMAND_OPEN_SESSION,
@@ -699,9 +693,7 @@ static TEE_Result tee_ta_load(const TEE_UUID *uuid,
 
 	ctx->flags = ta_head->flags;
 	ctx->uuid = ta_head->uuid;
-	ctx->open_session_func = ta_head->open_session.ptr64;
-	ctx->close_session_func = ta_head->close_session.ptr64;
-	ctx->invoke_command_func = ta_head->invoke_command.ptr64;
+	ctx->entry_func = ta_head->entry.ptr64;
 
 	ctx->ref_count = 1;
 
@@ -853,7 +845,7 @@ static void update_from_utee_param(struct tee_ta_param *p,
 
 static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 				    struct tee_ta_session *session,
-				    enum tee_user_ta_func func,
+				    enum utee_entry_func func,
 				    uint32_t cancel_req_to, uint32_t cmd,
 				    struct tee_ta_param *param)
 {
@@ -893,42 +885,15 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	switch (func) {
-	case USER_TA_FUNC_OPEN_CLIENT_SESSION:
-		res = thread_enter_user_mode(params_uaddr, (vaddr_t)session,
-					     0, 0, stack_uaddr,
-					     ctx->open_session_func,
-					     &ctx->panicked, &ctx->panic_code);
-
-		/*
-		 * According to GP spec the origin should allways be set to the
-		 * TA after TA execution
-		 */
-		serr = TEE_ORIGIN_TRUSTED_APP;
-		break;
-
-	case USER_TA_FUNC_CLOSE_CLIENT_SESSION:
-		res = thread_enter_user_mode((vaddr_t)session, 0, 0, 0,
-					     stack_uaddr,
-					     ctx->close_session_func,
-					     &ctx->panicked, &ctx->panic_code);
-
-		serr = TEE_ORIGIN_TRUSTED_APP;
-		break;
-
-	case USER_TA_FUNC_INVOKE_COMMAND:
-		res = thread_enter_user_mode(cmd, params_uaddr,
-					     (vaddr_t)session, 0, stack_uaddr,
-					     ctx->invoke_command_func,
-					     &ctx->panicked, &ctx->panic_code);
-
-		serr = TEE_ORIGIN_TRUSTED_APP;
-		break;
-
-	default:
-		serr = TEE_ORIGIN_TEE;
-		res = TEE_ERROR_BAD_STATE;
-	}
+	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
+				     params_uaddr, cmd, stack_uaddr,
+				     ctx->entry_func, &ctx->panicked,
+				     &ctx->panic_code);
+	/*
+	 * According to GP spec the origin should allways be set to the
+	 * TA after TA execution
+	 */
+	serr = TEE_ORIGIN_TRUSTED_APP;
 
 	if (ctx->panicked) {
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x\n",
@@ -1183,11 +1148,8 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 		TEE_ErrorOrigin err;
 		struct tee_ta_param param = { 0 };
 
-		tee_user_ta_enter(
-			&err, sess,
-			USER_TA_FUNC_CLOSE_CLIENT_SESSION,
-			TEE_TIMEOUT_INFINITE, 0,
-			&param);
+		tee_user_ta_enter(&err, sess, UTEE_ENTRY_FUNC_CLOSE_SESSION,
+				  TEE_TIMEOUT_INFINITE, 0, &param);
 	}
 
 	tee_ta_unlink_session(sess, open_sessions);
@@ -1466,7 +1428,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		} else {
 			if (tee_ta_try_set_busy(ctx)) {
 				res = tee_user_ta_enter(err, s,
-					USER_TA_FUNC_OPEN_CLIENT_SESSION,
+					UTEE_ENTRY_FUNC_OPEN_SESSION,
 					cancel_req_to, 0, param);
 				tee_ta_clear_busy(ctx);
 			} else {
@@ -1556,7 +1518,8 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		}
 
 	} else if ((sess->ctx->flags & TA_FLAG_USER_MODE) != 0) {
-		res = tee_user_ta_enter(err, sess, USER_TA_FUNC_INVOKE_COMMAND,
+		res = tee_user_ta_enter(err, sess,
+					UTEE_ENTRY_FUNC_INVOKE_COMMAND,
 					cancel_req_to, cmd, param);
 	} else {
 		EMSG("only user TA are supported");

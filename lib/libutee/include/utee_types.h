@@ -55,6 +55,12 @@ enum utee_time_category {
 	UTEE_TIME_CAT_REE
 };
 
+enum utee_entry_func {
+	UTEE_ENTRY_FUNC_OPEN_SESSION = 0,
+	UTEE_ENTRY_FUNC_CLOSE_SESSION,
+	UTEE_ENTRY_FUNC_INVOKE_COMMAND,
+};
+
 /*
  * Cache operation types.
  * Used when extensions TEE_CacheClean() / TEE_CacheFlush() /

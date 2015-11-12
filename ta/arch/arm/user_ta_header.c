@@ -50,13 +50,9 @@ const char trace_ext_prefix[]  = "USER-TA";
 /* exprted to user_ta_header.c, built within TA */
 struct utee_params;
 
-void __utee_entry_close_session(unsigned long session_id) __noreturn;
-
-void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
+void __utee_entry(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id)
 			__noreturn;
-
-void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
-			unsigned long session_id) __noreturn;
 
 const struct ta_head ta_head __section(".ta_head") = {
 	/* UUID, unique to each TA */
@@ -68,13 +64,9 @@ const struct ta_head ta_head __section(".ta_head") = {
 	 * This workaround is neded on 32-bit because it seems we can't
 	 * initialize a 64-bit integer from the address of a function.
 	 */
-	.open_session.ptr32 = { .lo = (uint32_t)__utee_entry_open_session },
-	.close_session.ptr32 = { .lo = (uint32_t)__utee_entry_close_session },
-	.invoke_command.ptr32 = { .lo = (uint32_t)__utee_entry_invoke_command },
+	.entry.ptr32 = { .lo = (uint32_t)__utee_entry },
 #else
-	.open_session.ptr64 = (uint64_t)__utee_entry_open_session,
-	.close_session.ptr64 = (uint64_t)__utee_entry_close_session,
-	.invoke_command.ptr64 = (uint64_t)__utee_entry_invoke_command,
+	.entry.ptr64 = (uint64_t)__utee_entry,
 #endif
 };
 

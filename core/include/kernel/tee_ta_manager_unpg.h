@@ -50,9 +50,7 @@ TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TEE_UUID uuid;
-	tee_uaddr_t open_session_func;
-	tee_uaddr_t close_session_func;
-	tee_uaddr_t invoke_command_func;
+	tee_uaddr_t entry_func;
 	size_t stack_size;	/* size of stack */
 	uint32_t flags;		/* TA_FLAGS from TA header */
 	TAILQ_ENTRY(tee_ta_ctx) link;

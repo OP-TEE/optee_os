@@ -40,13 +40,8 @@ void __utee_from_param(struct utee_params *up, uint32_t param_types,
 void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
 			uint32_t *param_types, const struct utee_params *up);
 
-void __utee_entry_close_session(unsigned long session_id) __noreturn;
-
-void __utee_entry_open_session(struct utee_params *up, unsigned long session_id)
-			__noreturn;
-
-void __utee_entry_invoke_command(unsigned long cmd_id, struct utee_params *up,
-			unsigned long session_id) __noreturn;
+void __utee_entry(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id);
 
 
 #endif /*TEE_API_PRIVATE*/
