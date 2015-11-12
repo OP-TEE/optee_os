@@ -43,7 +43,7 @@ static void do_fail_recovery(struct tee_fs_fd *fdp)
 {
 	/* Try to delete the file for new created file */
 	if (fdp->is_new_file) {
-		tee_fs_common_unlink(fdp->filename);
+		tee_file_ops.unlink(fdp->filename);
 		EMSG("New created file was deleted, file=%s",
 				fdp->filename);
 		return;
@@ -52,12 +52,12 @@ static void do_fail_recovery(struct tee_fs_fd *fdp)
 	/* Note: Roll back is automatic for RPMB */
 }
 
-struct tee_fs_fd *tee_fs_fd_lookup(int fd)
+static struct tee_fs_fd *tee_fs_fd_lookup(int fd)
 {
 	return handle_lookup(&fs_handle_db, fd);
 }
 
-int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...)
+static int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...)
 {
 	int res = -1;
 	size_t len;
@@ -127,9 +127,10 @@ exit:
 	return res;
 }
 
-int tee_fs_common_close(struct tee_fs_fd *fdp)
+static int tee_fs_common_close(int fd)
 {
 	int res = -1;
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
 	if (!fdp)
 		return -1;
@@ -168,11 +169,12 @@ static int filter_rc(int rc)
 }
 
 
-tee_fs_off_t tee_fs_common_lseek(TEE_Result *errno, struct tee_fs_fd *fdp,
+static tee_fs_off_t tee_fs_common_lseek(TEE_Result *errno, int fd,
 				tee_fs_off_t offset, int whence)
 {
 	int rc;
 	int res = -1;
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
 	assert(errno != NULL);
 	*errno = TEE_SUCCESS;
@@ -198,11 +200,12 @@ exit:
 	return res;
 }
 
-int tee_fs_common_ftruncate(TEE_Result *errno, struct tee_fs_fd *fdp,
+static int tee_fs_common_ftruncate(TEE_Result *errno, int fd,
 			    tee_fs_off_t length)
 {
 	int rc;
 	int res = -1;
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
 	assert(errno != NULL);
 	*errno = TEE_SUCCESS;
@@ -220,11 +223,12 @@ exit:
 	return res;
 }
 
-int tee_fs_common_read(TEE_Result *errno, struct tee_fs_fd *fdp,
+static int tee_fs_common_read(TEE_Result *errno, int fd,
 		       void *buf, size_t len)
 {
 	int rc;
 	int res = -1;
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
 	assert(errno != NULL);
 	*errno = TEE_SUCCESS;
@@ -243,11 +247,12 @@ exit:
 	return res;
 }
 
-int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
+static int tee_fs_common_write(TEE_Result *errno, int fd,
 			const void *buf, size_t len)
 {
 	int rc;
 	int res = -1;
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
 
 	assert(errno != NULL);
 	*errno = TEE_SUCCESS;
@@ -275,43 +280,61 @@ exit:
 	return res;
 }
 
-int tee_fs_common_rename(const char *old, const char *new)
+static int tee_fs_common_rename(const char *old, const char *new)
 {
 	return tee_rpmb_fs_rename(old, new);
 }
 
-int tee_fs_common_unlink(const char *file)
+static int tee_fs_common_unlink(const char *file)
 {
 	return tee_rpmb_fs_rm(file);
 }
 
-int tee_fs_common_mkdir(const char *path, tee_fs_mode_t mode)
+static int tee_fs_common_mkdir(const char *path, tee_fs_mode_t mode)
 {
 	return tee_rpmb_fs_mkdir(path, mode);
 }
 
-tee_fs_dir *tee_fs_common_opendir(const char *name)
+static tee_fs_dir *tee_fs_common_opendir(const char *name)
 {
 	return tee_rpmb_fs_opendir(name);
 }
 
-int tee_fs_common_closedir(tee_fs_dir *d)
+static int tee_fs_common_closedir(tee_fs_dir *d)
 {
 	return tee_rpmb_fs_closedir(d);
 }
 
-struct tee_fs_dirent *tee_fs_common_readdir(tee_fs_dir *d)
+static struct tee_fs_dirent *tee_fs_common_readdir(tee_fs_dir *d)
 {
 	return tee_rpmb_fs_readdir(d);
 }
 
-int tee_fs_common_rmdir(const char *name)
+static int tee_fs_common_rmdir(const char *name)
 {
 	return tee_rpmb_fs_rmdir(name);
 }
 
-int tee_fs_common_access(const char *name, int mode)
+static int tee_fs_common_access(const char *name, int mode)
 {
 	return tee_rpmb_fs_access(name, mode);
 }
+
+struct tee_file_operations tee_file_ops = {
+	.open = tee_fs_common_open,
+	.close = tee_fs_common_close,
+	.read = tee_fs_common_read,
+	.write = tee_fs_common_write,
+	.lseek = tee_fs_common_lseek,
+	.ftruncate = tee_fs_common_ftruncate,
+	.rename = tee_fs_common_rename,
+	.unlink = tee_fs_common_unlink,
+	.force_unlink = tee_fs_common_unlink,
+	.mkdir = tee_fs_common_mkdir,
+	.opendir = tee_fs_common_opendir,
+	.closedir = tee_fs_common_closedir,
+	.readdir = tee_fs_common_readdir,
+	.rmdir = tee_fs_common_rmdir,
+	.access = tee_fs_common_access
+};
 

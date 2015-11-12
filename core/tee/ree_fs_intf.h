@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,60 +25,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_FS_DEFS_H
-#define TEE_FS_DEFS_H
+#include <tee/tee_fs.h>
 
-/* TEE FS operation */
-#define TEE_FS_OPEN       1
-#define TEE_FS_CLOSE      2
-#define TEE_FS_READ       3
-#define TEE_FS_WRITE      4
-#define TEE_FS_SEEK       5
-#define TEE_FS_UNLINK     6
-#define TEE_FS_RENAME     7
-#define TEE_FS_TRUNC      8
-#define TEE_FS_MKDIR      9
-#define TEE_FS_OPENDIR   10
-#define TEE_FS_CLOSEDIR  11
-#define TEE_FS_READDIR   12
-#define TEE_FS_RMDIR     13
-#define TEE_FS_ACCESS    14
-#define TEE_FS_LINK      15
+#define REE_FS_NAME_MAX 380
 
-/*
- * tee_fs_open
- */
-#define TEE_FS_O_RDONLY 0x1
-#define TEE_FS_O_WRONLY 0x2
-#define TEE_FS_O_RDWR   0x4
-#define TEE_FS_O_CREATE 0x8
-#define TEE_FS_O_EXCL   0x10
-#define TEE_FS_O_APPEND 0x20
-#define TEE_FS_O_TRUNC  0x40
 
-/*
- * tee_fs_lseek
- */
-#define TEE_FS_SEEK_SET 0x1
-#define TEE_FS_SEEK_END 0x2
-#define TEE_FS_SEEK_CUR 0x4
+TEE_Result read_ree_file(const char *ree_path,
+		uint8_t **out, uint32_t *out_size);
 
-/*
- * file modes
- */
-#define TEE_FS_S_IWUSR 0x1
-#define TEE_FS_S_IRUSR 0x2
+TEE_Result write_ree_file(char *ree_path,
+		uint8_t *in, uint32_t in_size);
 
-/*
- * access modes
- * X_OK is not supported
- */
-#define TEE_FS_R_OK    0x1
-#define TEE_FS_W_OK    0x2
-#define TEE_FS_F_OK    0x4
+struct ree_file_operations {
+	int (*open)(const char *file, int flags, ...);
+	int (*read)(int fd, void *buf, size_t len);
+	int (*write)(int fd, const void *buf, size_t len);
+	int (*ftruncate)(int fd, tee_fs_off_t length);
+	int (*close)(int fd);
+	int (*rename)(const char *old, const char *new);
+	tee_fs_off_t (*lseek)(int fd, tee_fs_off_t offset, int whence);
+	int (*link)(const char *old, const char *new);
+	int (*unlink)(const char *file);
+	int (*mkdir)(const char *path, tee_fs_mode_t mode);
+	tee_fs_dir *(*opendir)(const char *name);
+	int (*closedir)(tee_fs_dir *d);
+	struct tee_fs_dirent *(*readdir)(tee_fs_dir *d);
+	int (*rmdir)(const char *pathname);
+	int (*access)(const char *name, int mode);
+	int (*get_file_length)(int fd, uint32_t *length);
+};
 
-#define TEE_FS_MODE_NONE 0
-#define TEE_FS_MODE_IN   1
-#define TEE_FS_MODE_OUT  2
-
-#endif
+extern struct ree_file_operations ree_file_ops;

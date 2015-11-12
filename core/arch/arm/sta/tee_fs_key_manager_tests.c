@@ -115,20 +115,26 @@ static void close_session(void *pSessionContext __unused)
 static TEE_Result test_file_decrypt_with_invalid_content(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t header_size;
+	uint32_t cipher_header_size;
 	size_t encrypt_data_out_size;
 	uint8_t *encrypt_data_out = NULL;
 	size_t decrypt_data_out_size;
 	uint8_t *decrypt_data_out = NULL;
 	uint8_t tmp_byte;
 	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
+	struct fh_aad aad;
+	struct fh_cipher_header *cipher_header;
 
 	DMSG("Start");
 
 	/* data encryption */
-	header_size = tee_fs_get_header_size(META_FILE);
+	cipher_header_size = key_manager_ops.
+			get_cipher_header_size(FILE_HEADER);
 
-	encrypt_data_out_size = header_size + sizeof(test_data);
+	memcpy(aad.encrypted_fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	memset(aad.filename, 0x0, sizeof(aad.filename));
+
+	encrypt_data_out_size = cipher_header_size + sizeof(test_data);
 	encrypt_data_out = malloc(encrypt_data_out_size);
 	if (!encrypt_data_out) {
 		EMSG("malloc for encrypt data buffer failed");
@@ -136,16 +142,16 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 		goto exit;
 	}
 
-	res = tee_fs_encrypt_file(META_FILE,
+	res = key_manager_ops.do_encryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			test_data, sizeof(test_data),
-			encrypt_data_out, &encrypt_data_out_size,
-			encrypted_fek);
+			encrypt_data_out, &encrypt_data_out_size);
 	if (res != TEE_SUCCESS) {
 		EMSG("file encryption failed");
 		goto exit;
 	}
 
-	/* data decryption */
 	decrypt_data_out_size = sizeof(test_data);
 	decrypt_data_out = malloc(decrypt_data_out_size);
 	if (!decrypt_data_out) {
@@ -154,16 +160,19 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 		goto exit;
 	}
 
+	cipher_header = (struct fh_cipher_header *)encrypt_data_out;
+
 	/* case1: data decryption with modified encrypted_key */
-	tmp_byte = *(encrypt_data_out + 4);
-	*(encrypt_data_out + 4) = ~tmp_byte;
+	tmp_byte = cipher_header->encrypted_fek[0];
+	cipher_header->encrypted_fek[0] = ~tmp_byte;
 
 	DMSG("case1: decryption with modified encrypted FEK");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res == TEE_ERROR_MAC_INVALID) {
 		DMSG("case1: passed, return code=%x", res);
 	} else {
@@ -172,18 +181,19 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 		goto exit;
 	}
 
-	*(encrypt_data_out + 4) = tmp_byte;
+	cipher_header->encrypted_fek[0] = tmp_byte;
 
 	/* case2: data decryption with modified iv */
-	tmp_byte = *(encrypt_data_out + 20);
-	*(encrypt_data_out + 20) = ~tmp_byte;
+	tmp_byte = cipher_header->iv[0];
+	cipher_header->iv[0] = ~tmp_byte;
 
 	DMSG("case2: decryption with modified IV");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res == TEE_ERROR_MAC_INVALID) {
 		DMSG("case2: passed, return code=%x", res);
 	} else {
@@ -192,18 +202,19 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 		goto exit;
 	}
 
-	*(encrypt_data_out + 20) = tmp_byte;
+	cipher_header->iv[0] = tmp_byte;
 
 	/* case3: data decryption with modified cipher text */
-	tmp_byte = *(encrypt_data_out + encrypt_data_out_size - 5);
-	*(encrypt_data_out + encrypt_data_out_size - 5) = ~tmp_byte;
+	tmp_byte = *(encrypt_data_out + sizeof(*cipher_header));
+	*(encrypt_data_out + sizeof(*cipher_header)) = ~tmp_byte;
 
 	DMSG("case3: decryption with modified cipher text");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res == TEE_ERROR_MAC_INVALID) {
 		DMSG("case3: passed, return code=%x", res);
 	} else {
@@ -212,15 +223,16 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 		goto exit;
 	}
 
-	*(encrypt_data_out + encrypt_data_out_size - 5) = tmp_byte;
+	*(encrypt_data_out + sizeof(*cipher_header)) = tmp_byte;
 
 	/* case4: data decryption with shorter cipher text length */
 	DMSG("case4: decryption with shorter cipher text length");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size - 1,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res == TEE_ERROR_MAC_INVALID) {
 		DMSG("case4: passed, return code=%x", res);
 	} else {
@@ -234,10 +246,11 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 
 	DMSG("case5: decryption with shorter plain text buffer");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res == TEE_ERROR_SHORT_BUFFER) {
 		DMSG("case5: passed, return code=%x", res);
 	} else {
@@ -248,13 +261,35 @@ static TEE_Result test_file_decrypt_with_invalid_content(void)
 
 	decrypt_data_out_size = encrypt_data_out_size;
 
+	/* case6: data decryption with modified AAD */
+	tmp_byte = aad.filename[0];
+	aad.filename[0] = ~tmp_byte;
+
+	DMSG("case6: decryption with modifed AAD");
+
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
+			encrypt_data_out, encrypt_data_out_size,
+			decrypt_data_out, &decrypt_data_out_size);
+	if (res == TEE_ERROR_MAC_INVALID) {
+		DMSG("case6: passed, return code=%x", res);
+	} else {
+		EMSG("case6: failed, return code=%x", res);
+		res = TEE_ERROR_GENERIC;
+		goto exit;
+	}
+
+	aad.filename[0] = tmp_byte;
+
 	/* data decryption with correct encrypted data */
 	DMSG("good path test - decryption with correct data");
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res != TEE_SUCCESS) {
 		EMSG("failed to decrypted data, return code=%x", res);
 		goto exit;
@@ -283,23 +318,28 @@ exit:
 static TEE_Result test_file_decrypt_success(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t header_size;
+	uint32_t cipher_header_size;
 	size_t encrypt_data_out_size;
 	uint8_t *encrypt_data_out = NULL;
 	size_t decrypt_data_out_size;
 	uint8_t *decrypt_data_out = NULL;
 	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
+	struct fh_aad aad;
 
 	DMSG("Start");
 
-	res = tee_fs_generate_fek(encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	res = key_manager_ops.generate_fek(encrypted_fek, TEE_FS_KM_FEK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	/* data encryption */
-	header_size = tee_fs_get_header_size(META_FILE);
+	memcpy(aad.encrypted_fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	memset(aad.filename, 0x0, sizeof(aad.filename));
 
-	encrypt_data_out_size = header_size + sizeof(test_data);
+	/* data encryption */
+	cipher_header_size = key_manager_ops.
+			get_cipher_header_size(FILE_HEADER);
+
+	encrypt_data_out_size = cipher_header_size + sizeof(test_data);
 	encrypt_data_out = malloc(encrypt_data_out_size);
 	if (!encrypt_data_out) {
 		EMSG("malloc for encrypt data buffer failed");
@@ -307,15 +347,15 @@ static TEE_Result test_file_decrypt_success(void)
 		goto exit;
 	}
 
-	res = tee_fs_encrypt_file(META_FILE,
+	res = key_manager_ops.do_encryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			test_data, sizeof(test_data),
-			encrypt_data_out, &encrypt_data_out_size,
-			encrypted_fek);
+			encrypt_data_out, &encrypt_data_out_size);
 	if (res != TEE_SUCCESS) {
 		EMSG("file encryption failed");
 		goto exit;
 	}
-
 
 	/* data decryption */
 	decrypt_data_out_size = sizeof(test_data);
@@ -326,10 +366,11 @@ static TEE_Result test_file_decrypt_success(void)
 		goto exit;
 	}
 
-	res = tee_fs_decrypt_file(META_FILE,
+	res = key_manager_ops.do_decryption(FILE_HEADER,
+			encrypted_fek,
+			(uint8_t *)&aad, sizeof(aad),
 			encrypt_data_out, encrypt_data_out_size,
-			decrypt_data_out, &decrypt_data_out_size,
-			encrypted_fek);
+			decrypt_data_out, &decrypt_data_out_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
