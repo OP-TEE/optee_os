@@ -65,7 +65,7 @@ platforms have different sub-maintainers, please refer to the file
 <!-- Please keep this list sorted in alphabetic order -->
 | Platform | Composite PLATFORM flag | Publicly available? |
 |----------|-------------------------|---------------------|
-| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`| Yes |
+| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`| No |
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| ? |
 | [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`| Yes |
@@ -306,10 +306,20 @@ Will be written soon.
 
 ---
 ### 4.5 Allwinner A80
-#### 4.5.1 Get the compiler and source
+
+#### 4.5.1 Locked versus unlocked A80 boards
+**Important!** All A80 boards sold to the general public are boards where secure
+side has been locked down, which means that you **cannot** use them for secure
+side development, i.e, it will not be possible to put OP-TEE on those devices.
+If you want to use A80 board for secure side development, then you will need to
+talk to
+[Allwinner](https://github.com/OP-TEE/optee_os/blob/master/MAINTAINERS.md)
+directly and ask if it is possible get a device from them.
+
+#### 4.5.2 Get the compiler and source
 Follow the instructions in the "4.2 Basic setup".
 
-#### 4.5.2 Build
+#### 4.5.3 Build
 ```
 $ cd optee_os
 $ export PLATFORM=sunxi
@@ -317,7 +327,7 @@ $ export CROSS_COMPILE=arm-linux-gnueabihf-
 $ make
 ```
 
-#### 4.5.3 Prepare the images to run on A80 Board
+#### 4.5.4 Prepare the images to run on A80 Board
 
 Download Allwinner A80 platform SDK, the SDK refers to Allwinner A80 platform
 SDK root directory. A80 SDK directory tree looks like this:
@@ -329,7 +339,7 @@ SDK/
 `Android` contains all source code related to Android and `lichee`
 contains the bootloader and Linux kernel.
 
-##### 4.5.3.1 Copy OP-TEE output to package directory
+##### 4.5.4.1 Copy OP-TEE output to package directory
 Copy the OP-TEE output binary to `SDK/lichee/tools/pack/sun9i/bin`
 
 ```
@@ -337,14 +347,14 @@ $ cd optee_os
 $ cp ./out/arm32-plat-sunxi/core/tee.bin SDK/lichee/tools/pack/sun9i/bin
 ```
 
-##### 4.5.3.2 Build Linux kernel
+##### 4.5.4.2 Build Linux kernel
 In the `lichee` directory, run the following commands:
 ```
 $ cd SDK/lichee
 $ ./build.sh
 ```
 
-##### 4.5.3.3 Build Android
+##### 4.5.4.3 Build Android
 In the Android directory, run the following commands:
 ```
 $ cd SDK/android
@@ -352,7 +362,7 @@ $ extract-bsp
 $ make -j
 ```
 
-##### 4.5.3.4 Create the Android image
+##### 4.5.4.4 Create the Android image
 In the Android directory, run the following commands:
 ```
 $ cd SDK/android
@@ -361,12 +371,12 @@ $ pack
 The output image will been signed internally when packed. The output image name
 is `a80_android_board.img`.
 
-##### 4.5.3.5 Download the Android image
+##### 4.5.4.5 Download the Android image
 Use `Allwinner PhoenixSuit` tool to download to A80 board.
 Choose the output image(`a80_android_board.img`), select download and wait
 for the download to complete.
 
-#### 4.5.4 Boot and run the software on A80 Board
+#### 4.5.5 Boot and run the software on A80 Board
 When the host platform is Windows, use a console application to connect A80
 board `uart0`. In the console window, You can install OP-TEE linux kernel
 driver `optee.ko`, load OP-TEE-Client daemon `tee-supplicant` and run
