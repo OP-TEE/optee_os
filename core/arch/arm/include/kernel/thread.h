@@ -393,6 +393,7 @@ void thread_kernel_disable_vfp(uint32_t state);
  * @a3:		Passed in r/x3 for user_func
  * @user_sp:	Assigned sp value in user mode
  * @user_func:	Function to execute in user mode
+ * @is_32bit:   True if TA should execute in Aarch32, false if Aarch64
  * @exit_status0: Pointer to opaque exit staus 0
  * @exit_status1: Pointer to opaque exit staus 1
  *
@@ -403,9 +404,9 @@ void thread_kernel_disable_vfp(uint32_t state);
  *
  * @Returns what's passed in "ret" to thread_unwind_user_mode()
  */
-
-uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
-		uint32_t a3, vaddr_t user_sp, vaddr_t user_func,
+uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long entry_func, bool is_32bit,
 		uint32_t *exit_status0, uint32_t *exit_status1);
 
 /*

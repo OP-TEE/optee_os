@@ -53,6 +53,7 @@ struct tee_ta_ctx {
 	tee_uaddr_t entry_func;
 	size_t stack_size;	/* size of stack */
 	uint32_t flags;		/* TA_FLAGS from TA header */
+	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
 	TAILQ_ENTRY(tee_ta_ctx) link;
 	/* list of sessions opened by this TA */
 	struct tee_ta_session_head open_sessions;

@@ -198,6 +198,11 @@ struct thread_core_local *thread_get_core_local(void);
  */
 void thread_resume(struct thread_ctx_regs *regs);
 
+uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long user_func, unsigned long spsr,
+		uint32_t *exit_status0, uint32_t *exit_status1);
+
 /*
  * Private functions made available for thread_asm.S
  */

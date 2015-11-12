@@ -1015,6 +1015,56 @@ void thread_kernel_disable_vfp(uint32_t state)
 }
 #endif /*CFG_WITH_VFP*/
 
+#ifdef ARM32
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
+{
+	uint32_t s;
+
+	if (!is_32bit)
+		return false;
+
+	s = read_spsr();
+	s &= ~(CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2);
+	s |= CPSR_MODE_USR;
+	if (entry_func & 1)
+		s |= CPSR_T;
+	*spsr = s;
+	return true;
+}
+#endif
+
+#ifdef ARM64
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
+{
+	uint32_t s;
+
+	if (!is_32bit)
+		return false;
+
+	s = read_daif() & (SPSR_32_AIF_MASK << SPSR_32_AIF_SHIFT);
+	s |= SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT;
+	s |= (entry_func & SPSR_32_T_MASK) << SPSR_32_T_SHIFT;
+	*spsr = s;
+	return true;
+}
+#endif
+
+uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long entry_func, bool is_32bit,
+		uint32_t *exit_status0, uint32_t *exit_status1)
+{
+	uint32_t spsr;
+
+	if (!get_spsr(is_32bit, entry_func, &spsr)) {
+		*exit_status0 = 1; /* panic */
+		*exit_status1 = 0xbadbadba;
+		return 0;
+	}
+	return __thread_enter_user_mode(a0, a1, a2, a3, user_sp, entry_func,
+					spsr, exit_status0, exit_status1);
+}
+
 void thread_add_mutex(struct mutex *m)
 {
 	struct thread_core_local *l = thread_get_core_local();

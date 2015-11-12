@@ -541,7 +541,8 @@ static TEE_Result tee_ta_load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = elf_load_head(elf_state, sizeof(struct ta_head), &p, &vasize);
+	res = elf_load_head(elf_state, sizeof(struct ta_head), &p, &vasize,
+			    &ctx->is_32bit);
 	if (res != TEE_SUCCESS)
 		goto out;
 	ta_head = p;
@@ -887,8 +888,8 @@ static TEE_Result tee_user_ta_enter(TEE_ErrorOrigin *err,
 
 	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
 				     params_uaddr, cmd, stack_uaddr,
-				     ctx->entry_func, &ctx->panicked,
-				     &ctx->panic_code);
+				     ctx->entry_func, ctx->is_32bit,
+				     &ctx->panicked, &ctx->panic_code);
 	/*
 	 * According to GP spec the origin should allways be set to the
 	 * TA after TA execution

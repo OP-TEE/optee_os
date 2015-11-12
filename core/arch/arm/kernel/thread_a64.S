@@ -260,26 +260,26 @@ FUNC thread_init_vbar , :
 END_FUNC thread_init_vbar
 
 /*
- * uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
- * 		uint32_t a3, vaddr_t user_sp, vaddr_t user_func,
- * 		uint32_t *exit_status0, uint32_t *exit_status1);
- * See description in thread.h
+ * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
+ *               unsigned long a2, unsigned long a3, unsigned long user_sp,
+ *               unsigned long user_func, unsigned long spsr,
+ *               uint32_t *exit_status0, uint32_t *exit_status1)
+ *
  */
-FUNC thread_enter_user_mode , :
+FUNC __thread_enter_user_mode , :
+	ldr	x8, [sp]
 	/*
 	 * Create the and fill in the struct thread_user_mode_rec
 	 */
 	sub	sp, sp, #THREAD_USER_MODE_REC_SIZE
-	store_xregs sp, THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET, 6, 7
+	store_xregs sp, THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET, 7, 8
 	store_xregs sp, THREAD_USER_MODE_REC_X_OFFSET(19), 19, 30
 
 	/*
 	 * Switch to SP_EL1
-	 * Save interrupt bits in x23
 	 * Disable exceptions
 	 * Save kern sp in x19
 	 */
-	mrs	x23, daif
 	msr	daifset, #DAIFBIT_ALL
 	mov	x19, sp
 	msr	spsel, #1
@@ -295,23 +295,16 @@ FUNC thread_enter_user_mode , :
 	/*
 	 * Initialize SPSR, ELR_EL1, and SP_EL0 to enter user mode
 	 */
-	/* Keep only the AIF bits */
-	and	x23, x23, #(SPSR_32_AIF_MASK << SPSR_32_AIF_SHIFT)
-	/* Set Aarch32 */
-	orr	x23, x23, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT)
-	/* Set thumb mode for thumb function */
-	and	x24, x5, #SPSR_32_T_MASK
-	orr	x23, x23, x24, lsl #SPSR_32_T_SHIFT
-	msr	spsr_el1, x23
+	msr	spsr_el1, x6
 	/* Set user sp */
-	mov	x13, x4
-	msr	sp_el0, x4 /* TODO remove, only here to invalidate sp_el0 */
+	mov	x13, x4		/* Used when running TA in Aarch32 */
+	msr	sp_el0, x4	/* Used when running TA in Aarch64 */
 	/* Set user function */
 	msr	elr_el1, x5
 
 	/* Jump into user mode */
 	eret
-END_FUNC thread_enter_user_mode
+END_FUNC __thread_enter_user_mode
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
@@ -478,7 +471,8 @@ LOCAL_FUNC el0_sync_a32_svc , :
 
 	/*
 	 * Unmask FIQ, Serror, and debug exceptions since we have nothing
-	 * left in sp_el1.
+	 * left in sp_el1. Note that the SVC handler is excepted to
+	 * re-enable IRQs by itself.
 	 */
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
 
