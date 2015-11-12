@@ -128,8 +128,14 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 		size_t *max_args)
 {
-	*scn = regs->x7;
-	*max_args = regs->x6;
+	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
+	     SPSR_MODE_RW_32) {
+		*scn = regs->x7;
+		*max_args = regs->x6;
+	} else {
+		*scn = regs->x8;
+		*max_args = 0;
+	}
 }
 #endif /*ARM64*/
 
@@ -208,6 +214,14 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	regs->elr = (uintptr_t)thread_unwind_user_mode;
 	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
 	regs->spsr |= read_daif();
+	/*
+	 * Regs is the value of stack pointer before calling the SVC
+	 * handler.  By the addition matches for the reserved space at the
+	 * beginning of el0_sync_svc(). This prepares the stack when
+	 * returning to thread_unwind_user_mode instead of a normal
+	 * exception return.
+	 */
+	regs->sp_el0 = (uint64_t)(regs + 1);
 	return ret;
 }
 #endif /*ARM64*/

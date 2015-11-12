@@ -1038,12 +1038,14 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
 {
 	uint32_t s;
 
-	if (!is_32bit)
-		return false;
+	if (is_32bit) {
+		s = read_daif() & (SPSR_32_AIF_MASK << SPSR_32_AIF_SHIFT);
+		s |= SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT;
+		s |= (entry_func & SPSR_32_T_MASK) << SPSR_32_T_SHIFT;
+	} else {
+		s = read_daif() & (SPSR_64_DAIF_MASK << SPSR_64_DAIF_SHIFT);
+	}
 
-	s = read_daif() & (SPSR_32_AIF_MASK << SPSR_32_AIF_SHIFT);
-	s |= SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT;
-	s |= (entry_func & SPSR_32_T_MASK) << SPSR_32_T_SHIFT;
 	*spsr = s;
 	return true;
 }

@@ -289,7 +289,10 @@ FUNC __thread_enter_user_mode , :
 	 */
 	/* get pointer to current thread context */
 	get_thread_ctx sp, 21, 20, 22
-	/* save kernel stack pointer */
+	/*
+	 * Save kernel stack pointer to ensure that el0_svc() uses
+	 * correct stack pointer
+	 */
 	str	x19, [x21, #THREAD_CTX_KERN_SP_OFFSET]
 
 	/*
@@ -395,18 +398,26 @@ SErrorSPx:
 	 */
 	.align	7
 el0_sync_a64:
-	b	el0_sync_a64
+	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	mrs	x2, esr_el1
+	mrs	x3, sp_el0
+	lsr	x2, x2, #ESR_EC_SHIFT
+	cmp	x2, #ESR_EC_AARCH64_SVC
+	b.eq	el0_svc
+	b	el0_sync_abort
 	check_vector_size el0_sync_a64
 
 	.align	7
-IrqA64:
-	b	IrqA64
-	check_vector_size IrqA64
+el0_irq_a64:
+	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	b	elx_irq
+	check_vector_size el0_irq_a64
 
 	.align	7
-FiqA64:
-	b	FiqA64
-	check_vector_size FiqA64
+el0_fiq_a64:
+	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	b	elx_irq
+	check_vector_size el0_fiq_a64
 
 	.align	7
 SErrorA64:
@@ -424,7 +435,7 @@ el0_sync_a32:
 	mrs	x3, sp_el0
 	lsr	x2, x2, #ESR_EC_SHIFT
 	cmp	x2, #ESR_EC_AARCH32_SVC
-	b.eq	el0_sync_a32_svc
+	b.eq	el0_svc
 	b	el0_sync_abort
 	check_vector_size el0_sync_a32
 
@@ -447,7 +458,7 @@ SErrorA32:
 
 END_FUNC thread_vect_table
 
-LOCAL_FUNC el0_sync_a32_svc , :
+LOCAL_FUNC el0_svc , :
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
 	/* load saved kernel sp */
@@ -456,13 +467,18 @@ LOCAL_FUNC el0_sync_a32_svc , :
 	mov	x1, sp
 	/* Switch to SP_EL0 and restore kernel sp */
 	msr	spsel, #0
+	mov	x2, sp	/* Save SP_EL0 */
 	mov	sp, x0
+
+	/* Make room for struct thread_svc_regs */
+	sub	sp, sp, #THREAD_SVC_REG_SIZE
+	stp	x30,x2, [sp, #THREAD_SVC_REG_X30_OFFS]
+
 	/* Restore x0-x3 */
 	ldp	x2, x3, [x1, #THREAD_CORE_LOCAL_X_OFFSET(2)]
 	ldp	x0, x1, [x1, #THREAD_CORE_LOCAL_X_OFFSET(0)]
 
 	/* Prepare the argument for the handler */
-	sub	sp, sp, #THREAD_SVC_REG_SIZE
 	store_xregs sp, THREAD_SVC_REG_X_OFFS(0), 0, 14
 	mrs	x0, elr_el1
 	mrs	x1, spsr_el1
@@ -484,7 +500,12 @@ LOCAL_FUNC el0_sync_a32_svc , :
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
 
-	/* Save kernel sp we'll have after the add below */
+	/*
+	 * Save kernel sp we'll had at the beginning of this function.
+	 * This is when this TA has called another TA because
+	 * __thread_enter_user_mode() also saves the stack pointer in this
+	 * field.
+	 */
 	msr	spsel, #1
 	get_thread_ctx sp, 0, 1, 2
 	msr	spsel, #0
@@ -496,10 +517,14 @@ LOCAL_FUNC el0_sync_a32_svc , :
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
 	load_xregs sp, THREAD_SVC_REG_X_OFFS(0), 0, 14
-	add	sp, sp, #THREAD_SVC_REG_SIZE
+	mov	x30, sp
+	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0_OFFS]
+	mov	sp, x0
+	ldr	x0, [x30, THREAD_SVC_REG_X_OFFS(0)]
+	ldr	x30, [x30, #THREAD_SVC_REG_X30_OFFS]
 
 	eret
-END_FUNC el0_sync_a32_svc
+END_FUNC el0_svc
 
 LOCAL_FUNC el1_sync_abort , :
 	mov	x0, sp

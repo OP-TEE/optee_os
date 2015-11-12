@@ -145,7 +145,6 @@ struct thread_svc_regs {
 struct thread_svc_regs {
 	uint64_t elr;
 	uint64_t spsr;
-	uint64_t pad;
 	uint64_t x0;	/* r0_usr */
 	uint64_t x1;	/* r1_usr */
 	uint64_t x2;	/* r2_usr */
@@ -161,6 +160,9 @@ struct thread_svc_regs {
 	uint64_t x12;	/* r12_usr */
 	uint64_t x13;	/* r13/sp_usr */
 	uint64_t x14;	/* r14/lr_usr */
+	uint64_t x30;
+	uint64_t sp_el0;
+	uint64_t pad;
 } __aligned(16);
 #endif /*ARM64*/
 #endif /*ASM*/
@@ -195,9 +197,10 @@ struct thread_svc_regs {
 
 #define THREAD_SVC_REG_ELR_OFFS		(8 * 0)
 #define THREAD_SVC_REG_SPSR_OFFS	(8 * 1)
-#define THREAD_SVC_REG_PAD_OFFS		(8 * 2)
-#define THREAD_SVC_REG_X_OFFS(x)	(8 * (3 + (x)))
-#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(15)
+#define THREAD_SVC_REG_X_OFFS(x)	(8 * (2 + (x)))
+#define THREAD_SVC_REG_X30_OFFS		THREAD_SVC_REG_X_OFFS(15)
+#define THREAD_SVC_REG_SP_EL0_OFFS	THREAD_SVC_REG_X_OFFS(16)
+#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(18)
 
 #endif /*ARM64*/
 

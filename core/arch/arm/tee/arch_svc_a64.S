@@ -28,6 +28,7 @@
 #include "trace_levels.h"
 #include <asm.S>
 #include <arm64_macros.S>
+#include <arm64.h>
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
 
@@ -47,9 +48,6 @@ struct sc_rec {
 #define SC_REC_X30_OFFS		(8 * 3)
 #define SC_REC_SIZE		(SC_REC_X30_OFFS + 8)
 
-FUNC ret_stuff , :
-END_FUNC ret_stuff
-
 /*
  * uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
  *
@@ -61,9 +59,13 @@ FUNC tee_svc_do_call , :
 	stp	x19, x30, [sp, #SC_REC_X19_OFFS]
 	mov	x19, sp
 
+	ldr	x2, [x0, #THREAD_SVC_REG_SPSR_OFFS]
+	tst	x2, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT)
+	b.eq	.Lcall_a64
+
 	ldp	x5, x6, [x0, #THREAD_SVC_REG_X_OFFS(5)]
 	cmp	x6, #0
-	b.eq	.Lno_args
+	b.eq	.Lno_args_a32
 
 	/*
 	 * Calculate required space on stack to copy Aarch32 arguments
@@ -129,7 +131,7 @@ FUNC tee_svc_do_call , :
 	 */
 	/* n64 = (nargs_on_stack - 4) * 8 */
 	subs	x2, x0, #0x4
-	b.le	.Lno_args
+	b.le	.Lno_args_a32
 	lsl	x2, x2, #3
 	mov	x0, x2
 
@@ -141,7 +143,7 @@ FUNC tee_svc_do_call , :
 	mov	sp, x0
 
 
-.Lno_args: /* Load the first 4 arguments to function */
+.Lno_args_a32: /* Load the first 4 arguments to function */
 	ldr	x9, [x19, #SC_REC_X0_OFFS]
 	load_xregs x9, THREAD_SVC_REG_X_OFFS(0), 0, 3
 	mov	w0, w0
@@ -152,6 +154,16 @@ FUNC tee_svc_do_call , :
 	/* Call the svc function */
 	ldr	x16, [x19, #SC_REC_X1_OFFS]
 	blr	x16
+	b	.Lret
+
+.Lcall_a64: /* Load the first 8 arguments to function */
+	ldr	x9, [x19, #SC_REC_X0_OFFS]
+	load_xregs x9, THREAD_SVC_REG_X_OFFS(0), 0, 8
+
+	/* Call the svc function */
+	ldr	x16, [x19, #SC_REC_X1_OFFS]
+	blr	x16
+
 .Lret:
 	mov	sp, x19
 	ldp	x19, x30, [sp, #SC_REC_X19_OFFS]
