@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,11 @@
 #include "elf_load.h"
 #include "elf_common.h"
 #include "elf32.h"
-
+#include "elf64.h"
 
 struct elf_load_state {
+	bool is_32bit;
+
 	uint8_t *nwdata;
 	size_t nwdata_len;
 
@@ -50,12 +52,81 @@ struct elf_load_state {
 	void *ta_head;
 	size_t ta_head_size;
 
-	Elf32_Ehdr *ehdr;
-	Elf32_Phdr *phdr;
+	void *ehdr;
+	void *phdr;
 
 	size_t vasize;
-	Elf32_Shdr *shdr;
+	void *shdr;
 };
+
+/* Replicates the fields we need from Elf{32,64}_Ehdr */
+struct elf_ehdr {
+	size_t e_phoff;
+	size_t e_shoff;
+	uint32_t e_phentsize;
+	uint32_t e_phnum;
+	uint32_t e_shentsize;
+	uint32_t e_shnum;
+};
+
+/* Replicates the fields we need from Elf{32,64}_Phdr */
+struct elf_phdr {
+	uint32_t p_type;
+	uintptr_t p_vaddr;
+	size_t p_filesz;
+	size_t p_memsz;
+	size_t p_offset;
+};
+
+#ifdef ARM64
+#define DO_ACTION(state, is_32bit_action, is_64bit_action) \
+	do { \
+		if ((state)->is_32bit) { \
+			is_32bit_action; \
+		} else { \
+			is_64bit_action; \
+		} \
+	} while (0)
+#else
+/* No need to assert state->is_32bit since that is caught before this is used */
+#define DO_ACTION(state, is_32bit_action, is_64bit_action) is_32bit_action
+#endif
+
+#define COPY_EHDR(dst, src) \
+	do { \
+		(dst)->e_phoff = (src)->e_phoff; \
+		(dst)->e_shoff = (src)->e_shoff; \
+		(dst)->e_phentsize = (src)->e_phentsize; \
+		(dst)->e_phnum = (src)->e_phnum; \
+		(dst)->e_shentsize = (src)->e_shentsize; \
+		(dst)->e_shnum = (src)->e_shnum; \
+	} while (0)
+static void copy_ehdr(struct elf_ehdr *ehdr, struct elf_load_state *state)
+{
+	DO_ACTION(state, COPY_EHDR(ehdr, ((Elf32_Ehdr *)state->ehdr)),
+			 COPY_EHDR(ehdr, ((Elf64_Ehdr *)state->ehdr)));
+}
+
+static uint32_t get_shdr_type(struct elf_load_state *state, size_t idx)
+{
+	DO_ACTION(state, return ((Elf32_Shdr *)state->shdr + idx)->sh_type,
+			 return ((Elf64_Shdr *)state->shdr + idx)->sh_type);
+}
+
+#define COPY_PHDR(dst, src) \
+	do { \
+		(dst)->p_type = (src)->p_type; \
+		(dst)->p_vaddr = (src)->p_vaddr; \
+		(dst)->p_filesz = (src)->p_filesz; \
+		(dst)->p_memsz = (src)->p_memsz; \
+		(dst)->p_offset = (src)->p_offset; \
+	} while (0)
+static void copy_phdr(struct elf_phdr *phdr, struct elf_load_state *state,
+			size_t idx)
+{
+	DO_ACTION(state, COPY_PHDR(phdr, ((Elf32_Phdr *)state->phdr + idx)),
+			 COPY_PHDR(phdr, ((Elf64_Phdr *)state->phdr + idx)));
+}
 
 static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 {
@@ -139,30 +210,9 @@ TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
 	return TEE_SUCCESS;
 }
 
-TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
-			void **head, size_t *vasize, bool *is_32bit)
+static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
 {
-	TEE_Result res;
-	size_t n;
-	void *p;
-	Elf32_Ehdr *ehdr;
-
-	/*
-	 * The ELF resides in shared memory, to avoid attacks based on
-	 * modifying the ELF while we're parsing it here we only read each
-	 * byte from the ELF once. We're also hashing the ELF while reading
-	 * so we're limited to only read the ELF sequentially from start to
-	 * end.
-	 */
-
-	res = alloc_and_copy_to(&p, state, 0, sizeof(Elf32_Ehdr));
-	if (res != TEE_SUCCESS)
-		return res;
-	ehdr = p;
-	state->ehdr = ehdr;
-
-	if (!IS_ELF(*ehdr) ||
-	    ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 	    ehdr->e_ident[EI_CLASS] != ELFCLASS32 ||
 	    ehdr->e_ident[EI_DATA] != ELFDATA2LSB ||
 	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
@@ -173,6 +223,63 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	    ehdr->e_shentsize != sizeof(Elf32_Shdr))
 		return TEE_ERROR_BAD_FORMAT;
 
+	state->ehdr = malloc(sizeof(*ehdr));
+	if (!state->ehdr)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	memcpy(state->ehdr, ehdr, sizeof(*ehdr));
+	state->is_32bit = true;
+	return TEE_SUCCESS;
+}
+
+#ifdef ARM64
+static TEE_Result e64_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *eh32)
+{
+	TEE_Result res;
+	Elf64_Ehdr *ehdr = NULL;
+
+	if (eh32->e_ident[EI_VERSION] != EV_CURRENT ||
+	    eh32->e_ident[EI_CLASS] != ELFCLASS64 ||
+	    eh32->e_ident[EI_DATA] != ELFDATA2LSB ||
+	    eh32->e_ident[EI_OSABI] != ELFOSABI_NONE ||
+	    eh32->e_type != ET_DYN || eh32->e_machine != EM_AARCH64)
+		return TEE_ERROR_BAD_FORMAT;
+
+	ehdr = malloc(sizeof(*ehdr));
+	if (!ehdr)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	state->ehdr = ehdr;
+	memcpy(ehdr, eh32, sizeof(*eh32));
+	res = copy_to(state, ehdr, sizeof(*ehdr), sizeof(*eh32),
+		      sizeof(*eh32), sizeof(*ehdr) - sizeof(*eh32));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (ehdr->e_flags || ehdr->e_phentsize != sizeof(Elf64_Phdr) ||
+	    ehdr->e_shentsize != sizeof(Elf64_Shdr))
+		return TEE_ERROR_BAD_FORMAT;
+
+	state->ehdr = ehdr;
+	state->is_32bit = false;
+	return TEE_SUCCESS;
+}
+#else /*ARM64*/
+static TEE_Result e64_load_ehdr(struct elf_load_state *state __unused,
+			Elf32_Ehdr *eh32 __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /*ARM64*/
+
+static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
+{
+	TEE_Result res;
+	size_t n;
+	void *p;
+	struct elf_ehdr ehdr;
+	struct elf_phdr phdr;
+	struct elf_phdr phdr0;
+
+	copy_ehdr(&ehdr, state);
 	/*
 	 * Program headers are supposed to be arranged as:
 	 * PT_LOAD [0] : .ta_head ...
@@ -186,10 +293,10 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	 * segment except PT_LOAD and PT_DYNAMIC will cause an error. All
 	 * sections not included by a PT_LOAD segment are ignored.
 	 */
-	if (ehdr->e_phnum < 1)
+	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
-	res = alloc_and_copy_to(&p, state, ehdr->e_phoff,
-				ehdr->e_phnum * sizeof(Elf32_Phdr));
+	res = alloc_and_copy_to(&p, state, ehdr.e_phoff,
+				ehdr.e_phnum * ehdr.e_phentsize);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->phdr = p;
@@ -199,7 +306,8 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	 * needed but our link script is supposed to arrange it that way)
 	 * and that it starts at virtual address 0.
 	 */
-	if (state->phdr[0].p_type != PT_LOAD || state->phdr[0].p_vaddr != 0)
+	copy_phdr(&phdr0, state, 0);
+	if (phdr0.p_type != PT_LOAD || phdr0.p_vaddr != 0)
 		return TEE_ERROR_BAD_FORMAT;
 
 	/*
@@ -211,10 +319,12 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	 * Note that this loop will terminate at n = 0 if not earlier
 	 * as we already know from above that state->phdr[0].p_type == PT_LOAD
 	 */
-	n = ehdr->e_phnum - 1;
-	while (state->phdr[n].p_type != PT_LOAD)
+	n = ehdr.e_phnum;
+	do {
 		n--;
-	state->vasize = state->phdr[n].p_vaddr + state->phdr[n].p_memsz;
+		copy_phdr(&phdr, state, n);
+	} while (phdr.p_type != PT_LOAD);
+	state->vasize = phdr.p_vaddr + phdr.p_memsz;
 
 	/*
 	 * Read .ta_head from first segment, make sure the segment is large
@@ -224,23 +334,55 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	 * function has returned and the hash has been verified the flags
 	 * field will be updated with eventual other flags.
 	 */
-	if (state->phdr[0].p_filesz < head_size)
+	if (phdr0.p_filesz < head_size)
 		return TEE_ERROR_BAD_FORMAT;
-	res = alloc_and_copy_to(&p, state, state->phdr[0].p_offset, head_size);
-	if (res != TEE_SUCCESS)
-		return res;
-	state->ta_head = p;
-	state->ta_head_size = head_size;
-
-	*is_32bit = true;
-	*head = state->ta_head;
-	*vasize = state->vasize;
-	return TEE_SUCCESS;
+	res = alloc_and_copy_to(&p, state, phdr0.p_offset, head_size);
+	if (res == TEE_SUCCESS) {
+		state->ta_head = p;
+		state->ta_head_size = head_size;
+	}
+	return res;
 }
 
-static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
+TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
+			void **head, size_t *vasize, bool *is_32bit)
+{
+	TEE_Result res;
+	Elf32_Ehdr ehdr;
+
+	/*
+	 * The ELF resides in shared memory, to avoid attacks based on
+	 * modifying the ELF while we're parsing it here we only read each
+	 * byte from the ELF once. We're also hashing the ELF while reading
+	 * so we're limited to only read the ELF sequentially from start to
+	 * end.
+	 */
+
+	res = copy_to(state, &ehdr, sizeof(ehdr), 0, 0, sizeof(Elf32_Ehdr));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (!IS_ELF(ehdr))
+		return TEE_ERROR_BAD_FORMAT;
+	res = e32_load_ehdr(state, &ehdr);
+	if (res == TEE_ERROR_BAD_FORMAT)
+		res = e64_load_ehdr(state, &ehdr);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = load_head(state, head_size);
+	if (res == TEE_SUCCESS) {
+		*head = state->ta_head;
+		*vasize = state->vasize;
+		*is_32bit = state->is_32bit;
+	}
+	return res;
+}
+
+static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			vaddr_t vabase)
 {
+	Elf32_Ehdr *ehdr = state->ehdr;
 	Elf32_Shdr *shdr = state->shdr;
 	Elf32_Rel *rel;
 	Elf32_Rel *rel_end;
@@ -248,12 +390,15 @@ static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	Elf32_Sym *sym_tab = NULL;
 	size_t num_syms = 0;
 
+	if (shdr[rel_sidx].sh_type != SHT_REL)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	if (shdr[rel_sidx].sh_entsize != sizeof(Elf32_Rel))
 		return TEE_ERROR_BAD_FORMAT;
 
 	sym_tab_idx = shdr[rel_sidx].sh_link;
 	if (sym_tab_idx) {
-		if (sym_tab_idx >= state->ehdr->e_shnum)
+		if (sym_tab_idx >= ehdr->e_shnum)
 			return TEE_ERROR_BAD_FORMAT;
 
 		if (shdr[sym_tab_idx].sh_entsize != sizeof(Elf32_Sym))
@@ -315,14 +460,72 @@ static TEE_Result elf_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	return TEE_SUCCESS;
 }
 
+#ifdef ARM64
+static TEE_Result e64_process_rel(struct elf_load_state *state,
+			size_t rel_sidx, vaddr_t vabase)
+{
+	Elf64_Shdr *shdr = state->shdr;
+	Elf64_Rela *rela;
+	Elf64_Rela *rela_end;
+
+	if (shdr[rel_sidx].sh_type != SHT_RELA)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	if (shdr[rel_sidx].sh_entsize != sizeof(Elf64_Rela))
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* Check the address is inside TA memory */
+	if (shdr[rel_sidx].sh_addr >= state->vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	rela = (Elf64_Rela *)(vabase + shdr[rel_sidx].sh_addr);
+	if (!ALIGNMENT_IS_OK(rela, Elf64_Rela))
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* Check the address is inside TA memory */
+	if ((shdr[rel_sidx].sh_addr + shdr[rel_sidx].sh_size) >= state->vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf64_Rela);
+	for (; rela < rela_end; rela++) {
+		Elf64_Addr *where;
+
+		/* Check the address is inside TA memory */
+		if (rela->r_offset >= state->vasize)
+			return TEE_ERROR_BAD_FORMAT;
+
+		where = (Elf64_Addr *)(vabase + rela->r_offset);
+		if (!ALIGNMENT_IS_OK(where, Elf64_Addr))
+			return TEE_ERROR_BAD_FORMAT;
+
+		switch (ELF64_R_TYPE(rela->r_info)) {
+		case R_AARCH64_RELATIVE:
+			*where = rela->r_addend + vabase;
+			break;
+		default:
+			EMSG("Unknown relocation type %zd",
+			     ELF64_R_TYPE(rela->r_info));
+			return TEE_ERROR_BAD_FORMAT;
+		}
+	}
+	return TEE_SUCCESS;
+}
+#else /*ARM64*/
+static TEE_Result e64_process_rel(struct elf_load_state *state __unused,
+			size_t rel_sidx __unused, vaddr_t vabase __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /*ARM64*/
+
 TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 {
 	TEE_Result res;
 	size_t n;
 	void *p;
 	uint8_t *dst = (uint8_t *)vabase;
-	Elf32_Ehdr *ehdr = state->ehdr;
-	Elf32_Phdr *phdr = state->phdr;
+	struct elf_ehdr ehdr;
+	size_t offs;
+
+	copy_ehdr(&ehdr, state);
 
 	/*
 	 * Zero initialize everything to make sure that all memory not
@@ -334,21 +537,21 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	 * Copy the segments
 	 */
 	memcpy(dst, state->ta_head, state->ta_head_size);
-	res = copy_to(state, dst, state->vasize,
-		      phdr[0].p_vaddr + state->ta_head_size,
-		      phdr[0].p_offset + state->ta_head_size,
-		      phdr[0].p_filesz - state->ta_head_size);
-	if (res != TEE_SUCCESS)
-		return res;
+	offs = state->ta_head_size;
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		struct elf_phdr phdr;
 
-	for (n = 1; n < ehdr->e_phnum; n++) {
-		if (phdr[n].p_type != PT_LOAD)
+		copy_phdr(&phdr, state, n);
+		if (phdr.p_type != PT_LOAD)
 			continue;
 
-		res = copy_to(state, dst, state->vasize, phdr[n].p_vaddr,
-			      phdr[n].p_offset, phdr[n].p_filesz);
+		res = copy_to(state, dst, state->vasize,
+			      phdr.p_vaddr + offs,
+			      phdr.p_offset + offs,
+			      phdr.p_filesz - offs);
 		if (res != TEE_SUCCESS)
 			return res;
+		offs = 0;
 	}
 
 	/*
@@ -358,10 +561,10 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	 * located somewhere between the last segment and the end of the
 	 * ELF.
 	 */
-	if (ehdr->e_shoff) {
+	if (ehdr.e_shoff) {
 		/* We have section headers */
-		res = alloc_and_copy_to(&p, state, ehdr->e_shoff,
-					ehdr->e_shnum * sizeof(Elf32_Shdr));
+		res = alloc_and_copy_to(&p, state, ehdr.e_shoff,
+					ehdr.e_shnum * ehdr.e_shentsize);
 		if (res != TEE_SUCCESS)
 			return res;
 		state->shdr = p;
@@ -373,12 +576,20 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 		return res;
 
 	if (state->shdr) {
+		TEE_Result (*process_rel)(struct elf_load_state *state,
+					size_t rel_sidx, vaddr_t vabase);
+
+		if (state->is_32bit)
+			process_rel = e32_process_rel;
+		else
+			process_rel = e64_process_rel;
+
 		/* Process relocation */
-		for (n = 0; n < ehdr->e_shnum; n++) {
-			if (state->shdr[n].sh_type == SHT_RELA)
-				return TEE_ERROR_NOT_IMPLEMENTED;
-			else if (state->shdr[n].sh_type == SHT_REL) {
-				res = elf_process_rel(state, n, vabase);
+		for (n = 0; n < ehdr.e_shnum; n++) {
+			uint32_t sh_type = get_shdr_type(state, n);
+
+			if (sh_type == SHT_REL || sh_type == SHT_RELA) {
+				res = process_rel(state, n, vabase);
 				if (res != TEE_SUCCESS)
 					return res;
 			}
