@@ -18,3 +18,4 @@ for these platforms.
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
 | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|
+| Xilinx Zynq UltraScale+ MPSOC		|`Sören Brinkmann <soren.brinkmann@xilinx.com`|
