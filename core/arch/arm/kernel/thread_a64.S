@@ -647,67 +647,26 @@ LOCAL_FUNC el0_sync_abort , :
 	eret
 END_FUNC el0_sync_abort
 
-/*
- * struct elx_itr_rec {
- * 	uint64_t x[19 - 4]; x4..x18
- * 	uint64_t init_rec;
- * 	uint64_t pad;
- * 	uint64_t lr;
- * 	uint64_t sp_el0;
- * };
- */
-#define ELX_ITR_REC_X_OFFSET(x)		(8 * ((x) - 4))
-#define ELX_ITR_REC_INIT_REC_OFFSET	(8 + ELX_ITR_REC_X_OFFSET(19))
-#define ELX_ITR_REC_PAD_OFFSET		(8 + ELX_ITR_REC_INIT_REC_OFFSET)
-#define ELX_ITR_REC_LR_OFFSET		(8 + ELX_ITR_REC_PAD_OFFSET)
-#define ELX_ITR_REC_SP_EL0_OFFSET	(8 + ELX_ITR_REC_LR_OFFSET)
-#define ELX_ITR_REC_SIZE		(8 + ELX_ITR_REC_SP_EL0_OFFSET)
-
 LOCAL_FUNC elx_irq , :
-	/* load tmp_stack_va_end */
-	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
-	/* Keep pointer to initial record in x0 */
-	mov	x0, sp
+	/* get pointer to current thread context in x0 */
+	get_thread_ctx sp, x0, x1, x2
 	/* Keep original SP_EL0 */
 	mrs	x2, sp_el0
-	/* Switch to SP_EL0 */
-	msr	spsel, #0
-	mov	sp, x1
 
-	/*
-	 * Save registers on stack that can be corrupted by a call to
-	 * thread_get_ctx_regs().
-	 */
-	/* Make room for struct elx_itr_rec */
-	sub	sp, sp, #ELX_ITR_REC_SIZE
-	/* Store x4..x18 */
-	store_xregs sp, ELX_ITR_REC_X_OFFSET(4), 4, 18
-	/* Store pointer to initial record */
-	str	x0, [sp, #ELX_ITR_REC_INIT_REC_OFFSET]
-	/* Store lr and original sp_el0 */
-	stp	x30, x2, [sp, #ELX_ITR_REC_LR_OFFSET]
-
-	/*
-	 * Get pointer to struct thread_ctx_regs and store context
-	 */
-	bl	thread_get_ctx_regs
-	/* Restore lr and original sp_el0 */
-	ldp	x30, x1, [sp, #ELX_ITR_REC_LR_OFFSET]
 	/* Store original sp_el0 */
-	str	x1, [x0, #THREAD_CTX_REGS_SP_OFFSET]
-	/* Restore x4..x18 */
-	load_xregs sp, ELX_ITR_REC_X_OFFSET(4), 4, 18
+	str	x2, [x0, #THREAD_CTX_REGS_SP_OFFSET]
 	/* store x4..x30 */
 	store_xregs x0, THREAD_CTX_REGS_X_OFFSET(4), 4, 30
-	/* get pointer to initial record */
-	ldr	x4, [sp, #ELX_ITR_REC_INIT_REC_OFFSET]
 	/* Load original x0..x3 into x10..x13 */
-	load_xregs x4, THREAD_CORE_LOCAL_X_OFFSET(0), 10, 13
+	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 10, 13
 	/* Save original x0..x3 */
 	store_xregs x0, THREAD_CTX_REGS_X_OFFSET(0), 10, 13
 
-	/* Remove struct elx_itr_rec from stack */
-	add	sp, sp, #ELX_ITR_REC_SIZE
+	/* load tmp_stack_va_end */
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
+	/* Switch to SP_EL0 */
+	msr	spsel, #0
+	mov	sp, x1
 
 	/*
 	 * Mark current thread as suspended
@@ -727,11 +686,21 @@ LOCAL_FUNC elx_irq , :
 	b	.	/* SMC should not return */
 END_FUNC elx_irq
 
+/*
+ * struct elx_fiq_rec {
+ * 	uint64_t x[19 - 4]; x4..x18
+ * 	uint64_t lr;
+ * 	uint64_t sp_el0;
+ * };
+ */
+#define ELX_FIQ_REC_X_OFFSET(x)		(8 * ((x) - 4))
+#define ELX_FIQ_REC_LR_OFFSET		(8 + ELX_FIQ_REC_X_OFFSET(19))
+#define ELX_FIQ_REC_SP_EL0_OFFSET	(8 + ELX_FIQ_REC_LR_OFFSET)
+#define ELX_FIQ_REC_SIZE		(8 + ELX_FIQ_REC_SP_EL0_OFFSET)
+
 LOCAL_FUNC elx_fiq , :
 	/* load tmp_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
-	/* Keep pointer to initial record in x0 */
-	mov	x0, sp
 	/* Keep original SP_EL0 */
 	mrs	x2, sp_el0
 	/* Switch to SP_EL0 */
@@ -742,12 +711,12 @@ LOCAL_FUNC elx_fiq , :
 	 * Save registers on stack that can be corrupted by a call to
 	 * a C function
 	 */
-	/* Make room for struct elx_itr_rec */
-	sub	sp, sp, #ELX_ITR_REC_SIZE
+	/* Make room for struct elx_fiq_rec */
+	sub	sp, sp, #ELX_FIQ_REC_SIZE
 	/* Store x4..x18 */
-	store_xregs sp, ELX_ITR_REC_X_OFFSET(4), 4, 18
+	store_xregs sp, ELX_FIQ_REC_X_OFFSET(4), 4, 18
 	/* Store lr and original sp_el0 */
-	stp	x30, x2, [sp, #ELX_ITR_REC_LR_OFFSET]
+	stp	x30, x2, [sp, #ELX_FIQ_REC_LR_OFFSET]
 
 	bl	thread_check_canaries
 	adr	x16, thread_fiq_handler_ptr
@@ -758,12 +727,12 @@ LOCAL_FUNC elx_fiq , :
 	 * Restore registers
 	 */
 	/* Restore x4..x18 */
-	load_xregs sp, ELX_ITR_REC_X_OFFSET(4), 4, 18
+	load_xregs sp, ELX_FIQ_REC_X_OFFSET(4), 4, 18
 	/* Load  lr and original sp_el0 */
-	ldp	x30, x2, [sp, #ELX_ITR_REC_LR_OFFSET]
-	/* Restore sp_el0 */
+	ldp	x30, x2, [sp, #ELX_FIQ_REC_LR_OFFSET]
+	/* Restore SP_El0 */
 	mov	sp, x2
-	/* Switch back to sp_el1 */
+	/* Switch back to SP_EL1 */
 	msr	spsel, #1
 	/* Restore x0..x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
