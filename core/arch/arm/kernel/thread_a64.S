@@ -529,23 +529,30 @@ END_FUNC el0_svc
 LOCAL_FUNC el1_sync_abort , :
 	mov	x0, sp
 	msr	spsel, #0
+	mov	x3, sp		/* Save original sp */
 
-	/* Update core local flags */
+	/*
+	 * Update core local flags.
+	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_ABORT;
+	 */
 	ldr	w1, [x0, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_ABORT
-	str	w1, [x0, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	tbnz	w1, #(THREAD_CLF_SAVED_SHIFT + THREAD_CLF_ABORT_SHIFT), \
+			.Lsel_tmp_sp
 
-	/*
-	 * Check if we should initialize SP_EL0 or use it as is (recursive
-	 * aborts).
-	 */
-	tst	w1, #(THREAD_CLF_ABORT << THREAD_CLF_SAVED_SHIFT)
-	mov	x3, sp		/* Save original sp unconditionally */
-	beq	.keep_sp
+	/* Select abort stack */
 	ldr	x2, [x0, #THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET]
+	b	.Lset_sp
+
+.Lsel_tmp_sp:
+	/* Select tmp stack */
+	ldr	x2, [x0, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
+	orr	w1, w1, #THREAD_CLF_TMP	/* flags |= THREAD_CLF_TMP; */
+
+.Lset_sp:
 	mov	sp, x2
-.keep_sp:
+	str	w1, [x0, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
 
 	/*
 	 * Save state on stack
@@ -603,6 +610,18 @@ END_FUNC el1_sync_abort
 
 	/* sp_el0 in x3 */
 LOCAL_FUNC el0_sync_abort , :
+	/*
+	 * Update core local flags
+	 */
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	orr	w1, w1, #THREAD_CLF_ABORT
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+
+	/*
+	 * Save state on stack
+	 */
+
 	/* load abt_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET]
 	/* Keep pointer to initial record in x0 */
@@ -623,10 +642,18 @@ LOCAL_FUNC el0_sync_abort , :
 	/* Store x30, elr_el1 */
 	mrs	x0, elr_el1
 	stp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
-	/* Call handler */
+
+	/*
+	 * Call handler
+	 */
 	mov	x0, #0
 	mov	x1, sp
 	bl	thread_handle_abort
+
+	/*
+	 * Restore state from stack
+	 */
+
 	/* Load x30, elr_el1 */
 	ldp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
 	msr	elr_el1, x0
@@ -641,15 +668,31 @@ LOCAL_FUNC el0_sync_abort , :
 	ldp	x0, x1, [x3, #THREAD_ABT_REG_SPSR_OFFS]
 	msr	spsr_el1, x0
 	msr	sp_el0, x1
+
+	/* Update core local flags */
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+
 	/* Restore x0 to x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+
 	/* Return from exception */
 	eret
 END_FUNC el0_sync_abort
 
 LOCAL_FUNC elx_irq , :
+	/*
+	 * Update core local flags
+	 */
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	orr	w1, w1, #THREAD_CLF_TMP
+	orr	w1, w1, #THREAD_CLF_IRQ
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+
 	/* get pointer to current thread context in x0 */
-	get_thread_ctx sp, x0, x1, x2
+	get_thread_ctx sp, 0, 1, 2
 	/* Keep original SP_EL0 */
 	mrs	x2, sp_el0
 
@@ -677,6 +720,20 @@ LOCAL_FUNC elx_irq , :
 	bl	thread_state_suspend
 	mov	w4, w0		/* Supply thread index */
 
+	/* Update core local flags */
+	/* Switch to SP_EL1 */
+	msr	spsel, #1
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	msr	spsel, #0
+
+	/*
+	 * Note that we're exiting with SP_EL0 selected since the entry
+	 * functions expects to have SP_EL0 selected with the tmp stack
+	 * set.
+	 */
+
 	ldr	w0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	ldr	w1, =TEESMC_RETURN_RPC_IRQ
 	mov	w2, #0
@@ -687,6 +744,9 @@ LOCAL_FUNC elx_irq , :
 END_FUNC elx_irq
 
 /*
+ * This struct is never used from C it's only here to visualize the
+ * layout.
+ *
  * struct elx_fiq_rec {
  * 	uint64_t x[19 - 4]; x4..x18
  * 	uint64_t lr;
@@ -699,6 +759,15 @@ END_FUNC elx_irq
 #define ELX_FIQ_REC_SIZE		(8 + ELX_FIQ_REC_SP_EL0_OFFSET)
 
 LOCAL_FUNC elx_fiq , :
+	/*
+	 * Update core local flags
+	 */
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	orr	w1, w1, #THREAD_CLF_FIQ
+	orr	w1, w1, #THREAD_CLF_TMP
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+
 	/* load tmp_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
 	/* Keep original SP_EL0 */
@@ -734,6 +803,12 @@ LOCAL_FUNC elx_fiq , :
 	mov	sp, x2
 	/* Switch back to SP_EL1 */
 	msr	spsel, #1
+
+	/* Update core local flags */
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+
 	/* Restore x0..x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
 

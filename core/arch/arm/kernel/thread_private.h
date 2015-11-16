@@ -161,12 +161,18 @@ struct thread_core_local {
 #define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(5)
 
 /* Describes the flags field of struct thread_core_local */
-#define THREAD_CLF_SAVED_SHIFT				4
-#define THREAD_CLF_CURR_SHIFT				0
-#define THREAD_CLF_MASK					0xf
-#define THREAD_CLF_TMP					(1 << 0)
-#define THREAD_CLF_ABORT				(1 << 1)
-#define THREAD_CLF_THREAD				(1 << 2)
+#define THREAD_CLF_SAVED_SHIFT			4
+#define THREAD_CLF_CURR_SHIFT			0
+#define THREAD_CLF_MASK				0xf
+#define THREAD_CLF_TMP_SHIFT			0
+#define THREAD_CLF_ABORT_SHIFT			1
+#define THREAD_CLF_IRQ_SHIFT			2
+#define THREAD_CLF_FIQ_SHIFT			3
+
+#define THREAD_CLF_TMP				(1 << THREAD_CLF_TMP_SHIFT)
+#define THREAD_CLF_ABORT			(1 << THREAD_CLF_ABORT_SHIFT)
+#define THREAD_CLF_IRQ				(1 << THREAD_CLF_IRQ_SHIFT)
+#define THREAD_CLF_FIQ				(1 << THREAD_CLF_FIQ_SHIFT)
 
 #define THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET	(0)
 #define THREAD_USER_MODE_REC_EXIT_STATUS1_PTR_OFFSET	(8 * 1)
