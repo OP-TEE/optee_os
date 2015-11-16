@@ -128,7 +128,7 @@ struct thread_core_local {
 #ifdef ARM64
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;
-	uint64_t x[8];
+	uint64_t x[4];
 #endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
@@ -158,7 +158,7 @@ struct thread_core_local {
 #define THREAD_CORE_LOCAL_FLAGS_OFFSET			(8 * 1 + 4)
 #define THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET	(8 * 2)
 #define THREAD_CORE_LOCAL_X_OFFSET(x)			(8 * (3 + (x)))
-#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(9)
+#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(5)
 
 /* Describes the flags field of struct thread_core_local */
 #define THREAD_CLF_SAVED_SHIFT				4
