@@ -42,6 +42,11 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 	return _time_source.get_sys_time(time);
 }
 
+uint32_t tee_time_get_sys_time_protection_level(void)
+{
+	return _time_source.protection_level;
+}
+
 void tee_time_wait(uint32_t milliseconds_delay)
 {
 	struct tee_ta_session *sess = NULL;

@@ -116,20 +116,6 @@ static const char api_vers[] = TO_STR(CFG_TEE_API_VERSION);
 static const char descr[] = TO_STR(CFG_TEE_IMPL_DESCR);
 
 /*
- * System time protection level
- * 100: System time based on REE-controlled timers (default).
- * Can be tampered by the REE
- * The implementation must still guarantee that the system time
- * is monotonous, i.e., successive calls to TEE_GetSystemTime must
- * return increasing values of the system time.
- * 1000: System time based on a TEE-controlled secure timer.
- * The REE cannot interfere with the system time. It may still
- * interfere with the scheduling of TEE tasks, but is not able to
- * hide delays from a TA calling TEE_GetSystemTime.
- */
-static const uint32_t sys_time_prot_lvl = 100;
-
-/*
  * TA persistent time protection level
  * 100: Persistent time based on an REE-controlled real-time clock
  * and on the TEE Trusted Storage for the storage of origins (default).
@@ -179,7 +165,7 @@ const struct tee_props tee_props_lut[] = {
 	{api_vers, sizeof(api_vers)},
 	{descr, sizeof(descr)},
 	{0, 0}, /* dev_id */
-	{&sys_time_prot_lvl, sizeof(sys_time_prot_lvl)},
+	{0, 0}, /* system time protection level */
 	{&ta_time_prot_lvl, sizeof(ta_time_prot_lvl)},
 	{&crypto_ecc_en, sizeof(crypto_ecc_en)},
 	{&ts_antiroll_prot_lvl, sizeof(ts_antiroll_prot_lvl)},
@@ -247,6 +233,17 @@ TEE_Result syscall_get_property(uint32_t prop, tee_uaddr_t buf, size_t blen)
 
 			return tee_svc_copy_to_user(sess, (void *)buf, &uuid,
 						    sizeof(TEE_UUID));
+		}
+
+	case UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL:
+		{
+			uint32_t prot;
+
+			if (blen < sizeof(prot))
+				return TEE_ERROR_SHORT_BUFFER;
+			prot = tee_time_get_sys_time_protection_level();
+			return tee_svc_copy_to_user(sess, (void *)buf,
+						    &prot, sizeof(prot));
 		}
 
 	case UTEE_PROP_CLIENT_ID:

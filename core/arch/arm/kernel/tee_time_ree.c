@@ -28,9 +28,30 @@
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
 
+static TEE_Time prev;
+
+static TEE_Result get_monotonic_ree_time(TEE_Time *time)
+{
+	TEE_Result res;
+
+	res = tee_time_get_ree_time(time);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (time->seconds < prev.seconds ||
+		(time->seconds == prev.seconds &&
+		 time->millis < prev.millis))
+		*time = prev; /* REE time was rolled back */
+	else
+		prev = *time;
+
+	return res;
+}
+
 static const struct time_source ree_time_source = {
 	.name = "ree",
-	.get_sys_time = tee_time_get_ree_time,
+	.protection_level = 100,
+	.get_sys_time = get_monotonic_ree_time,
 };
 
 REGISTER_TIME_SOURCE(ree_time_source)

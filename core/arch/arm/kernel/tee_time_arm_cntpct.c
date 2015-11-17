@@ -50,6 +50,7 @@ static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 
 static const struct time_source arm_cntpct_time_source = {
 	.name = "arm cntpct",
+	.protection_level = 1000,
 	.get_sys_time = arm_cntpct_get_sys_time,
 };
 
