@@ -152,6 +152,7 @@ LOCAL_FUNC reset , :
 	bic	r0, r0, #SCTLR_C
 	bic	r0, r0, #SCTLR_I
 	write_sctlr r0
+	isb
 
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
