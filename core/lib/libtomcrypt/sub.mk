@@ -47,6 +47,24 @@ endif
 endif
 endif
 
+# Cryptographic extensions can only be used safely when OP-TEE knows how to
+# preserve the VFP context
+ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_SHA256_ARM32_CE)
+endif
+ifeq ($(CFG_CRYPTO_SHA256_ARM64_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_SHA256_ARM64_CE)
+endif
+ifeq ($(CFG_CRYPTO_SHA1_ARM32_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_SHA1_ARM32_CE)
+endif
+ifeq ($(CFG_CRYPTO_SHA1_ARM64_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_SHA1_ARM64_CE)
+endif
+ifeq ($(CFG_CRYPTO_AES_ARM64_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM64_CE)
+endif
+
 cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
 $(eval $(call cryp-enable-all-depends,CFG_ENC_FS, AES ECB CTR HMAC SHA256 GCM))
 

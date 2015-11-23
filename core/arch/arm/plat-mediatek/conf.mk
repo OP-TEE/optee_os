@@ -18,13 +18,6 @@ $(call force,CFG_ARM32_core,y)
 $(call force,CFG_MMU_V7_TTB,y)
 endif
 
-ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-ifeq ($(CFG_CRYPTO_SHA1_ARM32_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-
 libtomcrypt_with_optimize_size ?= y
 CFG_WITH_STACK_CANARIES ?= y
 

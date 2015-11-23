@@ -38,22 +38,6 @@ CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
 CFG_CRYPTO_SHA256_ARM64_CE ?= $(CFG_ARM64_core)
 endif
 
-ifeq ($(CFG_CRYPTO_SHA256_ARM32_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-ifeq ($(CFG_CRYPTO_SHA256_ARM64_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-ifeq ($(CFG_CRYPTO_SHA1_ARM32_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-ifeq ($(CFG_CRYPTO_SHA1_ARM64_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-ifeq ($(CFG_CRYPTO_AES_ARM64_CE),y)
-$(call force,CFG_WITH_VFP,y)
-endif
-
 # SE API is only supported by QEMU Virt platform
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 CFG_SE_API ?= y
