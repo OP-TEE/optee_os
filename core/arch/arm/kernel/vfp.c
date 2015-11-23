@@ -98,6 +98,7 @@ void vfp_enable(void)
 
 	val |= (CPACR_EL1_FPEN_EL1 << CPACR_EL1_FPEN_SHIFT);
 	write_cpacr_el1(val);
+	isb();
 }
 
 void vfp_disable(void)
@@ -106,6 +107,7 @@ void vfp_disable(void)
 
 	val &= ~(CPACR_EL1_FPEN_MASK << CPACR_EL1_FPEN_SHIFT);
 	write_cpacr_el1(val);
+	isb();
 }
 
 void vfp_lazy_save_state_init(struct vfp_state *state)
@@ -142,5 +144,6 @@ void vfp_lazy_restore_state(struct vfp_state *state, bool full_state)
 		vfp_restore_extension_regs(state->reg);
 	}
 	write_cpacr_el1(state->cpacr_el1);
+	isb();
 }
 #endif /* ARM64 */
