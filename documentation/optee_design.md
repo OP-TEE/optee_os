@@ -13,7 +13,7 @@ OP-TEE design
 5.  MMU
     1. Translation tables
     2. Translation tables and switching to normal world
-6.  SVC
+6.  Stacks
 7.  Shared Memory
 8.  Pager
 9.  Cryptographic abstraction layer
@@ -315,9 +315,105 @@ TA. This is solved by always setting the TA context in the CPU when
 resuming execution. Here's room for improvements since it's more likely
 than not that it's the same CPU that resumes execution in secure world.
 
-# 6. SVC
-Will be written soon.
+# 6. Stacks
+Different stacks are used during different stages. The stacks are:
+- Secure monitor stack (128 bytes), bound to the CPU. Only available if
+  OP-TEE is compiled with a secure monitor always the case if the target is
+  ARMv7-A but never for ARMv8-A.
+- Temp stack (small ~1KB), bound to the CPU. Used when transitioning from
+  one state to another. Interrupts are always disabled when using this
+  stack, aborts are fatal when using the temp stack.
+- Abort stack (medium ~2KB), bound to the CPU. Used when trapping a data
+  or pre-fetch abort. Aborts from user space are never fatal the TA is only
+  killed. Aborts from kernel mode are used by the pager to do the demand
+  paging, if pager is disabled all kernel mode aborts are fatal.
+- Thread stack (large ~8KB), not bound to the CPU instead used by the current
+  thread/task. Interrupts are usually enabled when using this stack.
 
+*Notes for ARMv7/AArch32:*
+
+| Stack  | Comment |
+|--------|---------|
+| Temp   | Assigned to `SP_SVC` during entry/exit, always assigned to `SP_IRQ` and `SP_FIQ`
+| Abort  | Always assigned to `SP_ABT`
+| Thread | Assigned to `SP_SVC` while a thread is active
+
+*Notes for AArch64:*
+There's only two stack pointers, `SP_EL1` and `SP_EL0`, available for
+OP-TEE in AArch64. When an exception is received stack pointer is always
+`SP_EL1` which is used temporarily while assigning an appropriate stack
+pointer for `SP_EL0`. **`SP_EL1` is always assigned the value of
+`thread_core_local[cpu_id]`.** This structure have some spare space for
+temporary storage of registers and also keeps the relevant stack pointers.
+In general when we talk about assigning a stack pointer to the CPU below we
+mean `SP_EL0`
+
+## Boot
+During early boot the CPU is configured with the temp stack which is used
+until OP-TEE exits to normal world the first time.
+
+*Notes for AArch64:*
+`SPSEL` is always `0` on entry/exit to have `SP_EL0` acting as stack
+pointer.
+
+## Normal entry
+Each time OP-TEE is entered from normal world the temp stack is used
+as the initial stack. For fast calls this is the only stack used. For
+normal calls an empty thread slot is selected and the CPU switches to
+that stack.
+
+## Normal exit
+Normal exit occurs when a thread has finished its task and the thread is
+freed. When the main thread function, tee_entry_std(), returns interrupts
+are disabled and the CPU switches to the temp stack instead. The thread
+is freed and OP-TEE exits to normal world.
+
+## RPC exit
+RPC exit occurs when OP-TEE need some service from normal world. RPC can
+currently only be performed with a thread is in running state. RPC is
+initiated with a call to thread_rpc() which saves the state in a way that
+when the thread is restored it will continue at the next instruction as if
+this function did a normal return. CPU switches to use the temp stack
+before returning to normal world.
+
+## IRQ exit
+IRQ exit occurs when OP-TEE receives an IRQ, which is always handled in
+normal world. IRQ exit is similar to RPC exit but it's thread_irq_handler()
+that saves the thread state instead. The thread is resumed in the same way
+though.
+
+*Notes for ARMv7/AArch32:*
+SP_IRQ is initialized to temp stack instead of a separate stack.  Prior to
+exiting to normal world CPU state is changed to SVC and temp stack is
+selected.
+
+*Notes for AArch64:*
+`SP_EL0` is assigned temp stack and is selected during IRQ processing. The
+original `SP_EL0` is saved in the thread context to be restored when
+resuming.
+
+## Resume entry
+OP-TEE is entered using the temp stack in the same way as for normal entry.
+The thread to resume is looked up and the state is restored to resume
+execution. The procedure to resume from an RPC exit or an IRQ exit is
+exactly the same.
+
+## Syscall
+Syscalls are executed using the thread stack.
+
+*Notes for ARMv7/AArch32*:
+Nothing special `SP_SVC` is already set with thread stack.
+
+*Notes for syscall AArch64*:
+
+Early in the exception processing the original `SP_EL0` is saved in `struct
+thread_svc_regs` in case the TA is executed in AArch64.
+
+Current thread stack is assigned to `SP_EL0` which is then selected.
+
+When returning `SP_EL0` is assigned what's in `struct thread_svc_regs`.
+This allows `tee_svc_sys_return_helper()` having the syscall exception
+handler return directly to `thread_unwind_user_mode()`.
 
 # 7. Shared Memory
 
