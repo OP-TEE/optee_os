@@ -47,9 +47,24 @@ TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
+struct tee_ta_param {
+	uint32_t types;
+	TEE_Param params[4];
+	uint32_t param_attr[4];
+};
+
+struct tee_ta_ops {
+	TEE_Result (*enter_open_session)(struct tee_ta_session *s,
+			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
+	TEE_Result (*enter_invoke_cmd)(struct tee_ta_session *s, uint32_t cmd,
+			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
+	void (*enter_close_session)(struct tee_ta_session *s);
+};
+
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TEE_UUID uuid;
+	const struct tee_ta_ops *ops;
 	tee_uaddr_t entry_func;
 	size_t stack_size;	/* size of stack */
 	uint32_t flags;		/* TA_FLAGS from TA header */
@@ -96,12 +111,6 @@ struct tee_ta_session {
 	struct condvar lock_cv;	/* CV used to wait for lock */
 	int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
-};
-
-struct tee_ta_param {
-	uint32_t types;
-	TEE_Param params[4];
-	uint32_t param_attr[4];
 };
 
 /* Registered contexts */

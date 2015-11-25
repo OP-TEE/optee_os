@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERNEL_STATIC_TA_H
+#define KERNEL_STATIC_TA_H
 
-#ifndef _TEE_CORE_TA_STATIC_H
-#define _TEE_CORE_TA_STATIC_H
+#include <kernel/tee_ta_manager_unpg.h>
+#include <tee_api_types.h>
 
-#include "tee_api_types.h"
+TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
+			struct tee_ta_session *s);
 
-#define TA_CORE_STATIC_UUID  { 0xBC765EDE, 0x6724, 0x11DF, \
-	{0x8E, 0x12, 0xEC, 0xDB, 0xDF, 0xD7, 0x20, 0x85} }
+#endif /*KERNEL_STATIC_TA_H*/
 
-#define TA_CORE_GET_PRODUCT_ID                   9
-#define TA_CORE_GET_DIE_ID                      33
-#define TA_CORE_GET_GLOBALVALUE                 50
-#define TA_CORE_SET_GLOBALVALUE                 51
-#define TA_CORE_GET_PRODUCT_ID2                 0x1010
-#define TA_CORE_SET_GLOBAL_VALUE_ID             0x2020
-#define TA_CORE_GET_GLOBAL_VALUE_ID             0x2021
-#define TA_CORE_CLEAR_GLOBAL_VALUE_ID           0x2022
-
-#endif
