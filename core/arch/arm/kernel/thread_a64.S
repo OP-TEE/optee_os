@@ -36,11 +36,11 @@
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
-		ldr	\tmp0, [\core_local, \
+		ldr	w\tmp0, [\core_local, \
 				#THREAD_CORE_LOCAL_CURR_THREAD_OFFSET]
-		adr	\res, threads
-		mov	\tmp1, #THREAD_CTX_SIZE
-		madd	\res, \tmp0, \tmp1, \res
+		adr	x\res, threads
+		mov	x\tmp1, #THREAD_CTX_SIZE
+		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
 
 	.section .text.thread_asm
@@ -288,7 +288,7 @@ FUNC thread_enter_user_mode , :
 	 * Save the kernel stack pointer in the thread context
 	 */
 	/* get pointer to current thread context */
-	get_thread_ctx sp, x21, x20, x22
+	get_thread_ctx sp, 21, 20, 22
 	/* save kernel stack pointer */
 	str	x19, [x21, #THREAD_CTX_KERN_SP_OFFSET]
 
@@ -456,7 +456,7 @@ END_FUNC thread_vect_table
 
 LOCAL_FUNC el0_sync_a32_svc , :
 	/* get pointer to current thread context in x0 */
-	get_thread_ctx sp, x0, x1, x2
+	get_thread_ctx sp, 0, 1, 2
 	/* load saved kernel sp */
 	ldr	x0, [x0, #THREAD_CTX_KERN_SP_OFFSET]
 	/* Keep pointer to initial recod in x1 */
@@ -492,7 +492,7 @@ LOCAL_FUNC el0_sync_a32_svc , :
 
 	/* Save kernel sp we'll have after the add below */
 	msr	spsel, #1
-	get_thread_ctx sp, x0, x1, x2
+	get_thread_ctx sp, 0, 1, 2
 	msr	spsel, #0
 	add	x1, sp, #THREAD_SVC_REG_SIZE
 	str	x1, [x0, #THREAD_CTX_KERN_SP_OFFSET]
