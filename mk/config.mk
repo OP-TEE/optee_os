@@ -92,3 +92,7 @@ CFG_ENC_FS ?= y
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
+
+# Include lib/libutils/isoc in the build? Most platforms need this, but some
+# may not because they obtain the isoc functions from elsewhere
+CFG_LIBUTILS_WITH_ISOC ?= y
