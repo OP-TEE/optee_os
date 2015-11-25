@@ -572,6 +572,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 
 function_exit:
 	tee_ta_set_current_session(sess);
+	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 
 	if (mm_param != NULL) {
 		TEE_Result res2;
