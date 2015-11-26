@@ -41,7 +41,6 @@
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_obj.h>
@@ -248,8 +247,11 @@ int tee_ta_set_trace_level(int level)
 		return -1;
 
 	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
-		if (ctx->static_ta)
-			ctx->static_ta->prop_tracelevel = level;
+		if (is_static_ta_ctx(ctx)) {
+			struct static_ta_ctx *stc = to_static_ta_ctx(ctx);
+
+			stc->static_ta->prop_tracelevel = level;
+		}
 
 		/* non-static TA should be done too */
 	}
@@ -270,75 +272,6 @@ static struct tee_ta_ctx *tee_ta_context_find(const TEE_UUID *uuid)
 	}
 
 	return NULL;
-}
-
-static void tee_ta_destroy_context(struct tee_ta_ctx *ctx)
-{
-	/*
-	 * Clean all traces of the TA, both RO and RW data.
-	 * No L2 cache maintenance to avoid sync problems
-	 */
-	if ((ctx->flags & TA_FLAG_EXEC_DDR) != 0) {
-		paddr_t pa;
-		void *va;
-		uint32_t s;
-
-		tee_mmu_set_ctx(ctx);
-
-		if (ctx->mm != NULL) {
-			pa = tee_mm_get_smem(ctx->mm);
-			if (tee_mmu_user_pa2va(ctx, pa, &va) == TEE_SUCCESS) {
-				s = tee_mm_get_bytes(ctx->mm);
-				memset(va, 0, s);
-				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
-			}
-		}
-
-		if (ctx->mm_stack) {
-			pa = tee_mm_get_smem(ctx->mm_stack);
-			if (tee_mmu_user_pa2va(ctx, pa, &va) == TEE_SUCCESS) {
-				s = tee_mm_get_bytes(ctx->mm_stack);
-				memset(va, 0, s);
-				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
-			}
-		}
-		tee_mmu_set_ctx(NULL);
-	}
-
-	DMSG("   ... Destroy TA ctx");
-
-	TAILQ_REMOVE(&tee_ctxes, ctx, link);
-
-	/*
-	 * Close sessions opened by this TA
-	 * Note that tee_ta_close_session() removes the item
-	 * from the ctx->open_sessions list.
-	 */
-	while (!TAILQ_EMPTY(&ctx->open_sessions)) {
-		mutex_unlock(&tee_ta_mutex);
-		tee_ta_close_session(TAILQ_FIRST(&ctx->open_sessions),
-				     &ctx->open_sessions, KERN_IDENTITY);
-		mutex_lock(&tee_ta_mutex);
-	}
-
-	if ((ctx->flags & TA_FLAG_USER_MODE) != 0) {
-		tee_mmu_final(ctx);
-		tee_mm_free(ctx->mm_stack);
-	}
-	if (ctx->static_ta == NULL) {
-		tee_mm_free(ctx->mm);
-	}
-
-	/* Free cryp states created by this TA */
-	tee_svc_cryp_free_states(ctx);
-	/* Close cryp objects opened by this TA */
-	tee_obj_close_all(ctx);
-	/* Free emums created by this TA */
-	tee_svc_storage_close_all_enum(ctx);
-
-	condvar_destroy(&ctx->busy_cv);
-
-	free(ctx);
 }
 
 /* check if requester (client ID) matches session initial client */
@@ -437,11 +370,17 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	TEE_ASSERT(ctx->ref_count > 0);
 	ctx->ref_count--;
-	if (!ctx->ref_count &&
-	    !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE))
-		tee_ta_destroy_context(ctx);
+	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
+		DMSG("   ... Destroy TA ctx");
 
-	mutex_unlock(&tee_ta_mutex);
+		TAILQ_REMOVE(&tee_ctxes, ctx, link);
+		mutex_unlock(&tee_ta_mutex);
+
+		condvar_destroy(&ctx->busy_cv);
+
+		ctx->ops->destroy(ctx);
+	} else
+		mutex_unlock(&tee_ta_mutex);
 
 	return TEE_SUCCESS;
 }
@@ -720,7 +659,8 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	assert(((ctx ? ctx->mmu : NULL) == NULL) == \
+	assert(((ctx && (ctx->flags & TA_FLAG_USER_MODE) ?
+			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) == \
 		!core_mmu_user_mapping_is_active());
 }
 
@@ -810,13 +750,9 @@ static void dump_state(struct tee_ta_ctx *ctx)
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);
 
-	EMSG_RAW("Status of TA %pUl (%p)", (void *)&ctx->uuid, (void *)ctx);
-	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d     %s",
-		 ctx->load_addr, ctx->context, active ? "(active)" : "");
-	EMSG_RAW("- code area : 0x%" PRIxPTR " %zu",
-		 tee_mm_get_smem(ctx->mm), tee_mm_get_bytes(ctx->mm));
-	EMSG_RAW("- stack: 0x%" PRIxPTR " stack:%zu",
-		 tee_mm_get_smem(ctx->mm_stack), ctx->stack_size);
+	EMSG_RAW("Status of TA %pUl (%p) %s", (void *)&ctx->uuid, (void *)ctx,
+		active ? "(active)" : "");
+	ctx->ops->dump_state(ctx);
 }
 
 void tee_ta_dump_current(void)

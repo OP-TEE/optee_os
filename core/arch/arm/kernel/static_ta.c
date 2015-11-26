@@ -27,10 +27,10 @@
  */
 #include <types_ext.h>
 #include <stdlib.h>
-#include <sm/tee_mon.h>
-#include <kernel/static_ta.h>
-#include <kernel/tee_ta_manager.h>
 #include <mm/core_mmu.h>
+#include <sm/tee_mon.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/static_ta.h>
 #include <trace.h>
 
 typedef enum {
@@ -43,6 +43,7 @@ typedef enum {
 
 struct param_ta {
 	struct tee_ta_session *sess;
+	struct static_ta_ctx *stc;
 	uint32_t cmd;
 	struct tee_ta_param *param;
 	TEE_Result res;
@@ -56,7 +57,7 @@ static void jumper_invokecommand(void *voidargs)
 	struct param_ta *args = (struct param_ta *)voidargs;
 
 	INMSG("");
-	args->res = args->sess->ctx->static_ta->invoke_command_entry_point(
+	args->res = args->stc->static_ta->invoke_command_entry_point(
 			(void *)args->sess->user_ctx,
 			(uint32_t)args->cmd,
 			(uint32_t)args->param->types,
@@ -69,7 +70,7 @@ static void jumper_opensession(void *voidargs)
 	struct param_ta *args = (struct param_ta *)voidargs;
 
 	INMSG("");
-	args->res = args->sess->ctx->static_ta->open_session_entry_point(
+	args->res = args->stc->static_ta->open_session_entry_point(
 			(uint32_t)args->param->types,
 			(TEE_Param *)args->param->params,
 			(void **)&args->sess->user_ctx);
@@ -81,7 +82,7 @@ static void jumper_createentrypoint(void *voidargs)
 	struct param_ta *args = (struct param_ta *)voidargs;
 
 	INMSG("");
-	args->res = args->sess->ctx->static_ta->create_entry_point();
+	args->res = args->stc->static_ta->create_entry_point();
 	OUTMSG("%x", args->res);
 }
 
@@ -90,7 +91,7 @@ static void jumper_closesession(void *voidargs)
 	struct param_ta *args = (struct param_ta *)voidargs;
 
 	INMSG("");
-	args->sess->ctx->static_ta->close_session_entry_point(
+	args->stc->static_ta->close_session_entry_point(
 			(void *)args->sess->user_ctx);
 	args->res = TEE_SUCCESS;
 	OUTMSG("%x", args->res);
@@ -101,7 +102,7 @@ static void jumper_destroyentrypoint(void *voidargs)
 	struct param_ta *args = (struct param_ta *)voidargs;
 
 	INMSG("");
-	args->sess->ctx->static_ta->destroy_entry_point();
+	args->stc->static_ta->destroy_entry_point();
 	args->res = TEE_SUCCESS;
 	OUTMSG("%x", args->res);
 }
@@ -115,6 +116,7 @@ static TEE_Result invoke_ta(struct tee_ta_session *sess, uint32_t cmd,
 	struct param_ta ptas;
 
 	ptas.sess = sess;
+	ptas.stc = to_static_ta_ctx(sess->ctx);
 	ptas.cmd = cmd;
 	ptas.param = param;
 	ptas.res = TEE_ERROR_TARGET_DEAD;
@@ -232,10 +234,16 @@ static void static_ta_enter_close_session(struct tee_ta_session *s)
 	tee_ta_set_current_session(NULL);
 }
 
+static void static_ta_destroy(struct tee_ta_ctx *ctx __unused)
+{
+	/* Nothing to do */
+}
+
 static const struct tee_ta_ops static_ta_ops = {
 	.enter_open_session = static_ta_enter_open_session,
 	.enter_invoke_cmd = static_ta_enter_invoke_cmd,
 	.enter_close_session = static_ta_enter_close_session,
+	.destroy = static_ta_destroy,
 };
 
 
@@ -246,7 +254,8 @@ static const struct tee_ta_ops static_ta_ops = {
 TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s)
 {
-	struct tee_ta_ctx *ctx = NULL;
+	struct static_ta_ctx *stc = NULL;
+	struct tee_ta_ctx *ctx;
 	ta_static_head_t *ta = NULL;
 
 	DMSG("   Lookup for Static TA %pUl", (void *)uuid);
@@ -262,22 +271,20 @@ TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 
 	/* Load a new TA and create a session */
 	DMSG("      Open %s", ta->name);
-	ctx = calloc(1, sizeof(struct tee_ta_ctx));
-	if (ctx == NULL)
+	stc = calloc(1, sizeof(struct static_ta_ctx));
+	if (stc == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	ctx = &stc->ctx;
 
-	TAILQ_INIT(&ctx->open_sessions);
-	TAILQ_INIT(&ctx->cryp_states);
-	TAILQ_INIT(&ctx->objects);
 	ctx->ref_count = 1;
 	s->ctx = ctx;
 	ctx->flags = TA_FLAG_MULTI_SESSION;
-	ctx->static_ta = ta;
+	stc->static_ta = ta;
 	ctx->uuid = ta->uuid;
 	ctx->ops = &static_ta_ops;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %pUl", ctx->static_ta->name, (void *)&ctx->uuid);
+	DMSG("      %s : %pUl", stc->static_ta->name, (void *)&ctx->uuid);
 
 	return TEE_SUCCESS;
 }

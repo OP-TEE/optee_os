@@ -29,6 +29,24 @@
 
 #include <kernel/tee_ta_manager_unpg.h>
 #include <tee_api_types.h>
+#include <util.h>
+#include <assert.h>
+
+struct static_ta_ctx {
+	ta_static_head_t *static_ta; /* TA head struct for other cores */
+	struct tee_ta_ctx ctx;
+};
+
+static inline bool is_static_ta_ctx(struct tee_ta_ctx *ctx)
+{
+	return !(ctx->flags & TA_FLAG_USER_MODE);
+}
+
+static inline struct static_ta_ctx *to_static_ta_ctx(struct tee_ta_ctx *ctx)
+{
+	assert(is_static_ta_ctx(ctx));
+	return container_of(ctx, struct static_ta_ctx, ctx);
+}
 
 TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
