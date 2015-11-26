@@ -238,26 +238,6 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 	mutex_unlock(&tee_ta_mutex);
 }
 
-/* set trace level for all installed TAs (TA generic code) */
-int tee_ta_set_trace_level(int level)
-{
-	struct tee_ta_ctx *ctx;
-
-	if ((level > TRACE_MAX) && (level < TRACE_MIN))
-		return -1;
-
-	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
-		if (is_static_ta_ctx(ctx)) {
-			struct static_ta_ctx *stc = to_static_ta_ctx(ctx);
-
-			stc->static_ta->prop_tracelevel = level;
-		}
-
-		/* non-static TA should be done too */
-	}
-	return 0;
-}
-
 /*
  * tee_ta_context_find - Find TA in session list based on a UUID (input)
  * Returns a pointer to the session

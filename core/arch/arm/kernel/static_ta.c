@@ -33,121 +33,7 @@
 #include <kernel/static_ta.h>
 #include <trace.h>
 
-typedef enum {
-	COMMAND_INVOKE_COMMAND = 0,
-	COMMAND_OPEN_SESSION,
-	COMMAND_CREATE_ENTRY_POINT,
-	COMMAND_CLOSE_SESSION,
-	COMMAND_DESTROY_ENTRY_POINT,
-} command_t;
-
-struct param_ta {
-	struct tee_ta_session *sess;
-	struct static_ta_ctx *stc;
-	uint32_t cmd;
-	struct tee_ta_param *param;
-	TEE_Result res;
-};
-
-/*
- * Jumpers for the static TAs.
- */
-static void jumper_invokecommand(void *voidargs)
-{
-	struct param_ta *args = (struct param_ta *)voidargs;
-
-	INMSG("");
-	args->res = args->stc->static_ta->invoke_command_entry_point(
-			(void *)args->sess->user_ctx,
-			(uint32_t)args->cmd,
-			(uint32_t)args->param->types,
-			(TEE_Param *)args->param->params);
-	OUTMSG("%x", args->res);
-}
-
-static void jumper_opensession(void *voidargs)
-{
-	struct param_ta *args = (struct param_ta *)voidargs;
-
-	INMSG("");
-	args->res = args->stc->static_ta->open_session_entry_point(
-			(uint32_t)args->param->types,
-			(TEE_Param *)args->param->params,
-			(void **)&args->sess->user_ctx);
-	OUTMSG("%x", args->res);
-}
-
-static void jumper_createentrypoint(void *voidargs)
-{
-	struct param_ta *args = (struct param_ta *)voidargs;
-
-	INMSG("");
-	args->res = args->stc->static_ta->create_entry_point();
-	OUTMSG("%x", args->res);
-}
-
-static void jumper_closesession(void *voidargs)
-{
-	struct param_ta *args = (struct param_ta *)voidargs;
-
-	INMSG("");
-	args->stc->static_ta->close_session_entry_point(
-			(void *)args->sess->user_ctx);
-	args->res = TEE_SUCCESS;
-	OUTMSG("%x", args->res);
-}
-
-static void jumper_destroyentrypoint(void *voidargs)
-{
-	struct param_ta *args = (struct param_ta *)voidargs;
-
-	INMSG("");
-	args->stc->static_ta->destroy_entry_point();
-	args->res = TEE_SUCCESS;
-	OUTMSG("%x", args->res);
-}
-
-/* Stack size is updated to take into account */
-/* the size of the needs of the tee internal libs */
-
-static TEE_Result invoke_ta(struct tee_ta_session *sess, uint32_t cmd,
-			    struct tee_ta_param *param, command_t commandtype)
-{
-	struct param_ta ptas;
-
-	ptas.sess = sess;
-	ptas.stc = to_static_ta_ctx(sess->ctx);
-	ptas.cmd = cmd;
-	ptas.param = param;
-	ptas.res = TEE_ERROR_TARGET_DEAD;
-
-	switch (commandtype) {
-	case COMMAND_INVOKE_COMMAND:
-		jumper_invokecommand(&ptas);
-		break;
-	case COMMAND_OPEN_SESSION:
-		jumper_opensession(&ptas);
-		break;
-	case COMMAND_CREATE_ENTRY_POINT:
-		jumper_createentrypoint(&ptas);
-		break;
-	case COMMAND_CLOSE_SESSION:
-		jumper_closesession(&ptas);
-		break;
-	case COMMAND_DESTROY_ENTRY_POINT:
-		jumper_destroyentrypoint(&ptas);
-		break;
-	default:
-		EMSG("Do not know how to run the command %d", commandtype);
-		ptas.res = TEE_ERROR_GENERIC;
-		break;
-	}
-
-	OUTRMSG(ptas.res);
-	return ptas.res;
-}
-
-/* Maps kernal TA params */
+/* Maps static TA params */
 static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 				     struct tee_ta_param *param)
 {
@@ -155,7 +41,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 	void *va;
 
 	/*
-	 * If kernel TA is called from another TA the mapping
+	 * If a static TA is called from another TA the mapping
 	 * of that TA is borrowed and the addresses are already
 	 * virtual.
 	 */
@@ -181,12 +67,11 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 	return TEE_SUCCESS;
 }
 
-
-
 static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo)
 {
 	TEE_Result res;
+	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
 	tee_ta_set_current_session(s);
 	res = tee_ta_param_pa2va(s, param);
@@ -197,11 +82,14 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
 	if (s->ctx->ref_count == 1) {
-		res = invoke_ta(s, 0, 0, COMMAND_CREATE_ENTRY_POINT);
+		res = stc->static_ta->create_entry_point();
 		if (res != TEE_SUCCESS)
-			return res;
+			goto out;
 	}
-	res = invoke_ta(s, 0, param, COMMAND_OPEN_SESSION);
+	res = stc->static_ta->open_session_entry_point(param->types,
+					param->params, &s->user_ctx);
+
+out:
 	tee_ta_set_current_session(NULL);
 	return res;
 }
@@ -211,6 +99,7 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 			TEE_ErrorOrigin *eo)
 {
 	TEE_Result res;
+	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
 	tee_ta_set_current_session(s);
 	res = tee_ta_param_pa2va(s, param);
@@ -220,17 +109,20 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	}
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
-	res = invoke_ta(s, cmd, param, COMMAND_INVOKE_COMMAND);
+	res = stc->static_ta->invoke_command_entry_point(s->user_ctx, cmd,
+					param->types, param->params);
 	tee_ta_set_current_session(NULL);
 	return res;
 }
 
 static void static_ta_enter_close_session(struct tee_ta_session *s)
 {
+	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+
 	tee_ta_set_current_session(s);
-	invoke_ta(s, 0, 0, COMMAND_CLOSE_SESSION);
+	stc->static_ta->close_session_entry_point(s->user_ctx);
 	if (s->ctx->ref_count == 1)
-		invoke_ta(s, 0, 0, COMMAND_DESTROY_ENTRY_POINT);
+		stc->static_ta->destroy_entry_point();
 	tee_ta_set_current_session(NULL);
 }
 
@@ -247,6 +139,10 @@ static const struct tee_ta_ops static_ta_ops = {
 };
 
 
+/* Defined in link script */
+extern const struct static_ta_head __start_ta_head_section;
+extern const struct static_ta_head __stop_ta_head_section;
+
 /*-----------------------------------------------------------------------------
  * Initialises a session based on the UUID or ptr to the ta
  * Returns ptr to the session (ta_session) and a TEE_Result
@@ -256,7 +152,7 @@ TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 {
 	struct static_ta_ctx *stc = NULL;
 	struct tee_ta_ctx *ctx;
-	ta_static_head_t *ta = NULL;
+	const struct static_ta_head *ta;
 
 	DMSG("   Lookup for Static TA %pUl", (void *)uuid);
 

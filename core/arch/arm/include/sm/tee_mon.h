@@ -33,8 +33,6 @@
 #include "tee_api_types.h"
 #include "user_ta_header.h"
 
-extern ta_static_head_t __start_ta_head_section;
-extern ta_static_head_t __stop_ta_head_section;
 extern TEE_Result init_teecore(void);
 
 #endif /* TEE_MON_H */

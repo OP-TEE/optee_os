@@ -78,7 +78,6 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 
 void tee_ta_put_session(struct tee_ta_session *sess);
 
-int tee_ta_set_trace_level(int level);
 void tee_ta_dump_current(void);
 void tee_ta_dump_all(void);
 
