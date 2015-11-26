@@ -48,14 +48,14 @@ struct tee_obj {
 	uint32_t flags;		/* permission flags for persistent objects */
 };
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o);
+void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o);
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
+TEE_Result tee_obj_get(struct user_ta_ctx *utc, uint32_t obj_id,
 		       struct tee_obj **obj);
 
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o);
+void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o);
 
-void tee_obj_close_all(struct tee_ta_ctx *ctx);
+void tee_obj_close_all(struct user_ta_ctx *utc);
 
 TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o);
 

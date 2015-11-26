@@ -25,6 +25,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <compiler.h>
+#include <keep.h>
 #include <types_ext.h>
 #include <stdlib.h>
 #include <kernel/tee_rpc.h>
@@ -38,7 +41,10 @@
 #include <mm/tee_mmu.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/tee_obj.h>
+#include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc.h>
+#include <tee/tee_svc_storage.h>
 #include <signed_hdr.h>
 #include <ta_pub_key.h>
 #include <trace.h>
@@ -118,7 +124,7 @@ out:
 	return TEE_SUCCESS;
 }
 
-static TEE_Result load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
+static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 			const struct shdr *nmem_shdr)
 {
 	TEE_Result res;
@@ -162,13 +168,13 @@ static TEE_Result load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 		goto out;
 
 	res = elf_load_head(elf_state, sizeof(struct ta_head), &p, &vasize,
-			    &ctx->is_32bit);
+			    &utc->is_32bit);
 	if (res != TEE_SUCCESS)
 		goto out;
 	ta_head = p;
 
-	ctx->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
-	if (!ctx->mm) {
+	utc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
+	if (!utc->mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
@@ -179,16 +185,15 @@ static TEE_Result load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 		goto out;
 	}
 	/* Temporary assignment to setup memory mapping */
-	ctx->flags = TA_FLAG_EXEC_DDR;
+	utc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
 
 	/* Ensure proper aligment of stack */
-	ctx->stack_size = ROUNDUP(ta_head->stack_size,
-				  TEE_TA_STACK_ALIGNMENT);
+	utc->stack_size = ROUNDUP(ta_head->stack_size, TEE_TA_STACK_ALIGNMENT);
 
-	ctx->mm_stack = tee_mm_alloc(&tee_mm_sec_ddr, ctx->stack_size);
-	if (!ctx->mm_stack) {
+	utc->mm_stack = tee_mm_alloc(&tee_mm_sec_ddr, utc->stack_size);
+	if (!utc->mm_stack) {
 		EMSG("Failed to allocate %zu bytes for user stack",
-		     ctx->stack_size);
+		     utc->stack_size);
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
@@ -197,17 +202,17 @@ static TEE_Result load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 	 * Map physical memory into TA virtual memory
 	 */
 
-	res = tee_mmu_init(ctx);
+	res = tee_mmu_init(utc);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_mmu_map(ctx, &param);
+	res = tee_mmu_map(utc, &param);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	tee_mmu_set_ctx(ctx);
+	tee_mmu_set_ctx(&utc->ctx);
 
-	res = elf_load_body(elf_state, tee_mmu_get_load_addr(ctx));
+	res = elf_load_body(elf_state, tee_mmu_get_load_addr(&utc->ctx));
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -226,9 +231,9 @@ static TEE_Result load_elf(struct tee_ta_ctx *ctx, struct shdr *shdr,
 		res = TEE_ERROR_SECURITY;
 
 	cache_maintenance_l1(DCACHE_AREA_CLEAN,
-			     (void *)tee_mmu_get_load_addr(ctx), vasize);
+			     (void *)tee_mmu_get_load_addr(&utc->ctx), vasize);
 	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
-			     (void *)tee_mmu_get_load_addr(ctx), vasize);
+			     (void *)tee_mmu_get_load_addr(&utc->ctx), vasize);
 out:
 	elf_load_final(elf_state);
 	free(digest);
@@ -251,7 +256,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	uint32_t opt_flags = man_flags | TA_FLAG_SINGLE_INSTANCE |
 	    TA_FLAG_MULTI_SESSION | TA_FLAG_UNSAFE_NW_PARAMS |
 	    TA_FLAG_INSTANCE_KEEP_ALIVE;
-	struct tee_ta_ctx *ctx = NULL;
+	struct user_ta_ctx *utc = NULL;
 	struct shdr *sec_shdr = NULL;
 	struct ta_head *ta_head;
 
@@ -276,25 +281,25 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	 */
 
 	/* code below must be protected by mutex (multi-threaded) */
-	ctx = calloc(1, sizeof(struct tee_ta_ctx));
-	if (ctx == NULL) {
+	utc = calloc(1, sizeof(struct user_ta_ctx));
+	if (!utc) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto error_return;
 	}
-	TAILQ_INIT(&ctx->open_sessions);
-	TAILQ_INIT(&ctx->cryp_states);
-	TAILQ_INIT(&ctx->objects);
-	TAILQ_INIT(&ctx->storage_enums);
+	TAILQ_INIT(&utc->open_sessions);
+	TAILQ_INIT(&utc->cryp_states);
+	TAILQ_INIT(&utc->objects);
+	TAILQ_INIT(&utc->storage_enums);
 #if defined(CFG_SE_API)
-	ctx->se_service = NULL;
+	utc->se_service = NULL;
 #endif
 
-	res = load_elf(ctx, sec_shdr, signed_ta);
+	res = load_elf(utc, sec_shdr, signed_ta);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
-	ctx->load_addr = tee_mmu_get_load_addr(ctx);
-	ta_head = (struct ta_head *)(vaddr_t)ctx->load_addr;
+	utc->load_addr = tee_mmu_get_load_addr(&utc->ctx);
+	ta_head = (struct ta_head *)(vaddr_t)utc->load_addr;
 
 	if (memcmp(&ta_head->uuid, uuid, sizeof(TEE_UUID)) != 0) {
 		res = TEE_ERROR_SECURITY;
@@ -310,18 +315,18 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 		goto error_return;
 	}
 
-	ctx->flags = ta_head->flags;
-	ctx->uuid = ta_head->uuid;
-	ctx->entry_func = ta_head->entry.ptr64;
+	utc->ctx.flags = ta_head->flags;
+	utc->ctx.uuid = ta_head->uuid;
+	utc->entry_func = ta_head->entry.ptr64;
 
-	ctx->ref_count = 1;
+	utc->ctx.ref_count = 1;
 
-	condvar_init(&ctx->busy_cv);
-	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
-	*ta_ctx = ctx;
+	condvar_init(&utc->ctx.busy_cv);
+	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
+	*ta_ctx = &utc->ctx;
 
-	DMSG("Loaded TA at 0x%" PRIxPTR, tee_mm_get_smem(ctx->mm));
-	DMSG("ELF load address 0x%x", ctx->load_addr);
+	DMSG("Loaded TA at 0x%" PRIxPTR, tee_mm_get_smem(utc->mm));
+	DMSG("ELF load address 0x%x", utc->load_addr);
 
 	tee_mmu_set_ctx(NULL);
 	/* end thread protection (multi-threaded) */
@@ -332,11 +337,11 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 error_return:
 	free(sec_shdr);
 	tee_mmu_set_ctx(NULL);
-	if (ctx != NULL) {
-		tee_mmu_final(ctx);
-		tee_mm_free(ctx->mm_stack);
-		tee_mm_free(ctx->mm);
-		free(ctx);
+	if (utc) {
+		tee_mmu_final(utc);
+		tee_mm_free(utc->mm_stack);
+		tee_mm_free(utc->mm);
+		free(utc);
 	}
 	return res;
 }
@@ -407,14 +412,14 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	struct utee_params *usr_params;
 	tee_paddr_t usr_stack;
 	tee_uaddr_t stack_uaddr;
-	struct tee_ta_ctx *ctx = session->ctx;
+	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	tee_uaddr_t params_uaddr;
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 
-	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
+	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
 
 	/* Map user space memory */
-	res = tee_mmu_map(ctx, param);
+	res = tee_mmu_map(utc, param);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
@@ -422,33 +427,33 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_set_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = tee_mm_get_smem(ctx->mm_stack) + ctx->stack_size;
+	usr_stack = tee_mm_get_smem(utc->mm_stack) + utc->stack_size;
 	usr_stack -= sizeof(struct utee_params);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);
 
-	res = tee_mmu_kernel_to_user(ctx, (tee_vaddr_t)usr_params,
+	res = tee_mmu_kernel_to_user(utc, (tee_vaddr_t)usr_params,
 				     &params_uaddr);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	res = tee_mmu_kernel_to_user(ctx, usr_stack, &stack_uaddr);
+	res = tee_mmu_kernel_to_user(utc, usr_stack, &stack_uaddr);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
 	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
 				     params_uaddr, cmd, stack_uaddr,
-				     ctx->entry_func, ctx->is_32bit,
-				     &ctx->panicked, &ctx->panic_code);
+				     utc->entry_func, utc->is_32bit,
+				     &utc->ctx.panicked, &utc->ctx.panic_code);
 	/*
 	 * According to GP spec the origin should allways be set to the
 	 * TA after TA execution
 	 */
 	serr = TEE_ORIGIN_TRUSTED_APP;
 
-	if (ctx->panicked) {
+	if (utc->ctx.panicked) {
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x\n",
-		     ctx->panic_code);
+		     utc->ctx.panic_code);
 		serr = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_TARGET_DEAD;
 	}
@@ -591,10 +596,84 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 	user_ta_enter(&eo, s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0, &param);
 }
 
-static const struct tee_ta_ops user_ta_ops = {
+static void user_ta_dump_state(struct tee_ta_ctx *ctx)
+{
+	struct user_ta_ctx *utc __unused = to_user_ta_ctx(ctx);
+
+	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d",
+		 utc->load_addr, utc->context);
+	EMSG_RAW("- code area : 0x%" PRIxPTR " %zu",
+		 tee_mm_get_smem(utc->mm), tee_mm_get_bytes(utc->mm));
+	EMSG_RAW("- stack: 0x%" PRIxPTR " stack:%zu",
+		 tee_mm_get_smem(utc->mm_stack), utc->stack_size);
+}
+KEEP_PAGER(user_ta_dump_state);
+
+static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
+{
+	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+
+	/*
+	 * Clean all traces of the TA, both RO and RW data.
+	 * No L2 cache maintenance to avoid sync problems
+	 */
+	if (ctx->flags & TA_FLAG_EXEC_DDR) {
+		paddr_t pa;
+		void *va;
+		uint32_t s;
+
+		tee_mmu_set_ctx(ctx);
+
+		if (utc->mm != NULL) {
+			pa = tee_mm_get_smem(utc->mm);
+			if (tee_mmu_user_pa2va(utc, pa, &va) == TEE_SUCCESS) {
+				s = tee_mm_get_bytes(utc->mm);
+				memset(va, 0, s);
+				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
+			}
+		}
+
+		if (utc->mm_stack) {
+			pa = tee_mm_get_smem(utc->mm_stack);
+			if (tee_mmu_user_pa2va(utc, pa, &va) == TEE_SUCCESS) {
+				s = tee_mm_get_bytes(utc->mm_stack);
+				memset(va, 0, s);
+				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
+			}
+		}
+		tee_mmu_set_ctx(NULL);
+	}
+
+	/*
+	 * Close sessions opened by this TA
+	 * Note that tee_ta_close_session() removes the item
+	 * from the utc->open_sessions list.
+	 */
+	while (!TAILQ_EMPTY(&utc->open_sessions)) {
+		tee_ta_close_session(TAILQ_FIRST(&utc->open_sessions),
+				     &utc->open_sessions, KERN_IDENTITY);
+	}
+
+	tee_mmu_final(utc);
+	tee_mm_free(utc->mm_stack);
+	tee_mm_free(utc->mm);
+
+	/* Free cryp states created by this TA */
+	tee_svc_cryp_free_states(utc);
+	/* Close cryp objects opened by this TA */
+	tee_obj_close_all(utc);
+	/* Free emums created by this TA */
+	tee_svc_storage_close_all_enum(utc);
+
+	free(utc);
+}
+
+static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
+	.dump_state = user_ta_dump_state,
+	.destroy = user_ta_ctx_destroy,
 };
 
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,

@@ -56,4 +56,12 @@
 #define TO_STR(x) _TO_STR(x)
 #define _TO_STR(x) #x
 
+#define container_of(ptr, type, member) \
+	(__extension__({ \
+		const typeof(((type *)0)->member) *__ptr = (ptr); \
+		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
+	}))
+
+
+
 #endif /*UTIL_H*/

@@ -29,81 +29,82 @@
 
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager_unpg.h>
+#include <kernel/user_ta.h>
 
 /*-----------------------------------------------------------------------------
  * Allocate context resources like ASID and MMU table information
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx);
+TEE_Result tee_mmu_init(struct user_ta_ctx *utc);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_final - Release context resources like ASID
  *---------------------------------------------------------------------------*/
-void tee_mmu_final(struct tee_ta_ctx *ctx);
+void tee_mmu_final(struct user_ta_ctx *utc);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_map - Map parameters, heap, stack and code to user memory map to
  * context
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param);
+TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param);
 
 
-bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
+bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 				       const void *va, size_t size);
 
-bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
+bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 					  const void *va, size_t size);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_kernel_to_user - Translate kernel address to user space address
  * given the user context
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_kernel_to_user(const struct user_ta_ctx *utc,
 				  const vaddr_t kaddr, tee_uaddr_t *uaddr);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_user_va2pa - Translate virtual user address to physical address
  * given the user context
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
+TEE_Result tee_mmu_user_va2pa_helper(const struct user_ta_ctx *utc, void *ua,
 				     paddr_t *pa);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__
-#define tee_mmu_user_va2pa(ctx, va, pa) (__extension__ ({ \
+#define tee_mmu_user_va2pa(utc, va, pa) (__extension__ ({ \
 	paddr_t _p; \
-	TEE_Result _res = tee_mmu_user_va2pa_helper((ctx), (va), &_p); \
+	TEE_Result _res = tee_mmu_user_va2pa_helper((utc), (va), &_p); \
 	if (_res == TEE_SUCCESS) \
 		*(pa) = _p; \
 	_res; \
 	}))
 #else
-#define tee_mmu_user_va2pa(ctx, pa, va) \
-		tee_mmu_user_va2pa_helper((ctx), (pa), (va))
+#define tee_mmu_user_va2pa(utc, pa, va) \
+		tee_mmu_user_va2pa_helper((utc), (pa), (va))
 #endif
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_user_va2pa - Translate physical address to virtual user address
  * given the user context
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 				     paddr_t pa, void **va);
 /* Special macro to avoid breaking strict aliasing rules */
 #ifdef __GNUC__
-#define tee_mmu_user_pa2va(ctx, pa, va) (__extension__ ({ \
+#define tee_mmu_user_pa2va(utc, pa, va) (__extension__ ({ \
 	void *_p; \
-	TEE_Result _res = tee_mmu_user_pa2va_helper((ctx), (pa), &_p); \
+	TEE_Result _res = tee_mmu_user_pa2va_helper((utc), (pa), &_p); \
 	if (_res == TEE_SUCCESS) \
 		*(va) = _p; \
 	_res; \
 	}))
 #else
-#define tee_mmu_user_pa2va(ctx, pa, va) \
-	tee_mmu_user_pa2va_helper((ctx), (pa), (va))
+#define tee_mmu_user_pa2va(utc, pa, va) \
+	tee_mmu_user_pa2va_helper((utc), (pa), (va))
 #endif
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_check_access_rights -
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 				       uint32_t flags, tee_uaddr_t uaddr,
 				       size_t len);
 
@@ -172,7 +173,7 @@ TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa);
 #endif
 
 uint32_t tee_mmu_kmap_get_cache_attr(void *va);
-uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va);
+uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va);
 
 
 #endif

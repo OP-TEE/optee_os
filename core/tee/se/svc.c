@@ -26,6 +26,7 @@
  */
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_ta.h>
 #include <tee/tee_svc.h>
 #include <tee/se/svc.h>
 #include <trace.h>
@@ -186,7 +187,6 @@ TEE_Result syscall_se_reader_open_session(unsigned long reader_handle,
 	TEE_Result ret;
 	struct tee_se_reader_proxy *r = tee_svc_uref_to_kaddr(reader_handle);
 	struct tee_ta_session *sess;
-	struct tee_ta_ctx *ctx;
 	struct tee_se_service *service;
 	struct tee_se_session *ksession = NULL;
 
@@ -201,8 +201,7 @@ TEE_Result syscall_se_reader_open_session(unsigned long reader_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ctx = sess->ctx;
-	service = ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	ret = tee_se_service_add_session(service, ksession);
 
 	ret = tee_svc_copy_kaddr_to_uref(sess, session_handle, ksession);
@@ -226,7 +225,7 @@ TEE_Result syscall_se_reader_close_sessions(unsigned long reader_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	tee_se_service_close_sessions_by_reader(service, r);
 
 	return TEE_SUCCESS;
@@ -237,15 +236,13 @@ TEE_Result syscall_se_session_is_closed(unsigned long session_handle)
 	TEE_Result ret;
 	struct tee_se_session *s = tee_svc_uref_to_kaddr(session_handle);
 	struct tee_ta_session *sess;
-	struct tee_ta_ctx *ctx;
 	struct tee_se_service *service;
 
 	ret = tee_ta_get_current_session(&sess);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ctx = sess->ctx;
-	service = ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -268,7 +265,7 @@ TEE_Result syscall_se_session_get_atr(unsigned long session_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -313,7 +310,7 @@ TEE_Result syscall_se_session_open_channel(unsigned long session_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -354,7 +351,7 @@ TEE_Result syscall_se_session_close(unsigned long session_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_session_valid(service, s))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -374,7 +371,7 @@ TEE_Result syscall_se_channel_select_next(unsigned long channel_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -398,7 +395,7 @@ TEE_Result syscall_se_channel_get_select_resp(unsigned long channel_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -446,7 +443,7 @@ TEE_Result syscall_se_channel_transmit(unsigned long channel_handle,
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -516,7 +513,7 @@ TEE_Result syscall_se_channel_close(unsigned long channel_handle)
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	service = sess->ctx->se_service;
+	service = to_user_ta_ctx(sess->ctx)->se_service;
 	if (!tee_se_service_is_channel_valid(service, c))
 		return TEE_ERROR_BAD_PARAMETERS;
 
