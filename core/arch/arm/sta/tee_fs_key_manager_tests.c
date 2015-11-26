@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <user_ta_header.h>
+#include <kernel/static_ta.h>
 #include <trace.h>
 #include <kernel/tee_common_unpg.h>
 #include <tee/tee_fs_key_manager.h>
@@ -394,15 +394,9 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-__attribute__ ((section("ta_head_section")))
-	const ta_static_head_t enc_fs_key_manager_self_test_head = {
-
-	.uuid = ENC_FS_KEY_MANAGER_TEST_UUID,
-	.name = (char *)TA_NAME,
-	.create_entry_point = create_ta,
-	.destroy_entry_point = destroy_ta,
-	.open_session_entry_point = open_session,
-	.close_session_entry_point = close_session,
-	.invoke_command_entry_point = invoke_command,
-
-};
+static_ta_register(.uuid = ENC_FS_KEY_MANAGER_TEST_UUID, .name = TA_NAME,
+		   .create_entry_point = create_ta,
+		   .destroy_entry_point = destroy_ta,
+		   .open_session_entry_point = open_session,
+		   .close_session_entry_point = close_session,
+		   .invoke_command_entry_point = invoke_command);

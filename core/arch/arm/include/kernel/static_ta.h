@@ -27,13 +27,32 @@
 #ifndef KERNEL_STATIC_TA_H
 #define KERNEL_STATIC_TA_H
 
+#include <compiler.h>
 #include <kernel/tee_ta_manager_unpg.h>
 #include <tee_api_types.h>
 #include <util.h>
 #include <assert.h>
 
+struct static_ta_head {
+	TEE_UUID uuid;
+	const char *name;
+
+	TEE_Result (*create_entry_point)(void);
+	void (*destroy_entry_point)(void);
+	TEE_Result (*open_session_entry_point)(uint32_t nParamTypes,
+			TEE_Param pParams[4], void **ppSessionContext);
+	void (*close_session_entry_point)(void *pSessionContext);
+	TEE_Result (*invoke_command_entry_point)(void *pSessionContext,
+			uint32_t nCommandID, uint32_t nParamTypes,
+			TEE_Param pParams[4]);
+};
+
+#define static_ta_register(...) static const struct static_ta_head __head \
+			__used __section("ta_head_section") = { __VA_ARGS__ }
+
+
 struct static_ta_ctx {
-	ta_static_head_t *static_ta; /* TA head struct for other cores */
+	const struct static_ta_head *static_ta;
 	struct tee_ta_ctx ctx;
 };
 

@@ -104,33 +104,6 @@ typedef struct ta_func_head {
 	uint32_t start;		/* offset to start func */
 } ta_func_head_t;
 
-typedef struct {
-	/* Same Prefix as ta_head_t */
-	TEE_UUID uuid;
-	const char *name;
-	uint32_t flags;
-
-	/* properties */
-	uint32_t prop_datasize;
-	uint32_t prop_stacksize;
-	uint32_t prop_tracelevel;
-
-	const ta_func_head_t *funcs;
-	uint32_t nbr_func;
-	 TEE_Result(*create_entry_point) (void);
-	void (*destroy_entry_point) (void);
-	 TEE_Result(*open_session_entry_point) (uint32_t nParamTypes,
-					     TEE_Param pParams[4],
-					     void **ppSessionContext);
-	void (*close_session_entry_point) (void *pSessionContext);
-	 TEE_Result(*invoke_command_entry_point) (void *pSessionContext,
-					       uint32_t nCommandID,
-					       uint32_t nParamTypes,
-					       TEE_Param pParams[4]);
-	 TEE_Result(*core_entries) (uint32_t nServiceId, uint32_t nParamTypes,
-				   TEE_Param pParam[4]);
-} ta_static_head_t;
-
 int tahead_get_trace_level(void);
 
 #endif /* USER_TA_HEADER_H */
