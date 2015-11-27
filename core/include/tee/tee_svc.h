@@ -103,10 +103,4 @@ TEE_Result syscall_wait(unsigned long timeout);
 TEE_Result syscall_get_time(unsigned long cat, TEE_Time *time);
 TEE_Result syscall_set_ta_time(const TEE_Time *time);
 
-#ifdef CFG_CACHE_API
-TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op);
-#else
-#define  syscall_cache_operation syscall_not_supported
-#endif
-
 #endif /* TEE_SVC_H */

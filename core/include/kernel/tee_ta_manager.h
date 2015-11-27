@@ -80,10 +80,4 @@ void tee_ta_put_session(struct tee_ta_session *sess);
 
 void tee_ta_dump_current(void);
 
-#ifdef CFG_CACHE_API
-TEE_Result tee_uta_cache_operation(struct tee_ta_session *s,
-				   enum utee_cache_operation op,
-				   void *va, size_t len);
-#endif
-
 #endif

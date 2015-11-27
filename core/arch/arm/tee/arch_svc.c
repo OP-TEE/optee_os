@@ -39,6 +39,7 @@
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/trace_ta.h>
+#include "svc_cache.h"
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 #define TRACE_SYSCALLS
