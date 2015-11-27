@@ -31,16 +31,6 @@
 #include "tee_api_types.h"
 
 /*
- * Generate RPMB key and write to eMMC.
- *
- * @dev_id      Device ID of the eMMC device.
- * @commercial  Flag indicating if we should write
- *              commercial key which is bound to
- *              the hard unique key.
- */
-TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial);
-
-/*
  * Read RPMB data in bytes.
  *
  * @dev_id     Device ID of the eMMC device.
@@ -69,4 +59,13 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
  * @counter    Pointer to the counter.
  */
 TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter);
+
+/*
+ * Read the RPMB max block.
+ *
+ * @dev_id     Device ID of the eMMC device.
+ * @counter    Pointer to receive the max block.
+ */
+TEE_Result tee_rpmb_get_max_block(uint16_t dev_id, uint32_t *max_block);
+
 #endif

@@ -114,6 +114,8 @@ script:
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=y CFG_FS_BLOCK_CACHE=y
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=n CFG_FS_BLOCK_CACHE=y
   - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_WITH_STATS=y
+  - make -j8 -s CFG_RPMB_FS=y CFG_ENC_FS=n
+  - make -j8 -s CFG_RPMB_FS=y CFG_ENC_FS=n CFG_RPMB_TESTKEY=y
 
   # SUNXI(Allwinner A80)
   - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all -s
