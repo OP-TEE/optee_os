@@ -98,6 +98,7 @@ struct rpmb_data_frame {
 struct rpmb_req {
 	uint16_t cmd;
 	uint16_t dev_id;
+	uint16_t block_count;
 	/* variable length of data */
 	/* uint8_t data[]; REMOVED! */
 };
@@ -162,28 +163,31 @@ struct tee_rpmb_ctx {
 
 static struct tee_rpmb_ctx *rpmb_ctx;
 
-static TEE_Result mac_calc(uint8_t *mac, uint32_t macsize,
-			   uint8_t *data, uint32_t datasize,
-			   uint8_t *key __unused, uint32_t keylen __unused)
-{
-	return tee_hash_createdigest(
-		TEE_ALG_HMAC_SHA256, data, datasize, mac, macsize);
-}
+#ifdef CFG_RPMB_TESTKEY
 
-static TEE_Result mac_init(void *ctx, const uint8_t *key __unused,
-			uint32_t keysize __unused)
+static uint8_t rpmb_test_key[RPMB_KEY_MAC_SIZE] = {
+	0xD3, 0xEB, 0x3E, 0xC3, 0x6E, 0x33, 0x4C, 0x9F,
+	0x98, 0x8C, 0xE2, 0xC0, 0xB8, 0x59, 0x54, 0x61,
+	0x0D, 0x2B, 0xCF, 0x86, 0x64, 0x84, 0x4D, 0xF2,
+	0xAB, 0x56, 0xE6, 0xC6, 0x1B, 0xB7, 0x01, 0xE4
+};
+
+#endif
+
+static TEE_Result mac_init(void *ctx, const uint8_t *key,
+			uint32_t keysize)
 {
-	return crypto_ops.hash.init(ctx, TEE_ALG_HMAC_SHA256);
+	return crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
 }
 
 static TEE_Result mac_update(void *ctx, const uint8_t *data, uint32_t datasize)
 {
-	return crypto_ops.hash.update(ctx, TEE_ALG_HMAC_SHA256, data, datasize);
+	return crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256, data, datasize);
 }
 
 static TEE_Result mac_final(void *ctx, uint8_t *mac, uint32_t macsize)
 {
-	return crypto_ops.hash.final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
+	return crypto_ops.mac.final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
 }
 
 /*
@@ -202,6 +206,9 @@ static TEE_Result mac_final(void *ctx, uint8_t *mac, uint32_t macsize)
  * We should change the API tee_otp_get_hw_unique_key()
  * to return error code!
  */
+
+#ifndef CFG_RPMB_TESTKEY
+
 static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	if (NULL == hwkey)
@@ -212,31 +219,63 @@ static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	return TEE_SUCCESS;
 }
 
+#endif
+
 static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 				   uint8_t *key, uint32_t len, bool commercial)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result res = TEE_SUCCESS;
 	struct tee_hw_unique_key hwkey;
+	uint8_t *ctx = NULL;
 
-	if (key == NULL || RPMB_KEY_MAC_SIZE != len)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (key == NULL || RPMB_KEY_MAC_SIZE != len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
+#ifndef CFG_RPMB_TESTKEY
+
+	IMSG("RPMB: Using generated key\n");
 	if (commercial) {
 		res = tee_get_hw_unique_key(&hwkey);
 		if (res != TEE_SUCCESS)
-			return res;
+			goto out;
 	} else {
 		memset(&hwkey, 0x00, HW_UNIQUE_KEY_LENGTH);
 	}
 
-	res = mac_calc((uint8_t *)key, len,
-		       (uint8_t *)rpmb_ctx->cid,
-		       RPMB_EMMC_CID_SIZE,
-		       (uint8_t *)&hwkey, HW_UNIQUE_KEY_LENGTH);
-	if (res != TEE_SUCCESS)
-		return res;
+	ctx = malloc(rpmb_ctx->hash_ctx_size);
+	if (ctx == NULL) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
-	return TEE_SUCCESS;
+	res = mac_init(ctx, hwkey.data, HW_UNIQUE_KEY_LENGTH);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = mac_update(ctx, (uint8_t *)rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = mac_final(ctx, key, len);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+#else
+
+	(void)hwkey;
+	(void)res;
+	(void)commercial;
+
+	IMSG("RPMB: Using test key\n");
+	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
+
+#endif
+
+out:
+	free(ctx);
+	return res;
 }
 
 static void u32_to_bytes(uint32_t u32, uint8_t *bytes)
@@ -305,6 +344,8 @@ func_exit:
 }
 
 struct tee_rpmb_mem {
+	struct teesmc32_arg *arg;
+	paddr_t pharg;
 	paddr_t phpayload;
 	paddr_t phreq;
 	paddr_t phresp;
@@ -312,12 +353,32 @@ struct tee_rpmb_mem {
 	size_t resp_size;
 };
 
+static void tee_rpmb_set_session(struct tee_ta_session **session)
+{
+	TEE_Result res;
+	struct tee_ta_session *sess = NULL;
+
+	res = tee_ta_get_current_session(&sess);
+	if (res == TEE_SUCCESS) {
+		tee_ta_set_current_session(NULL);
+		*session = sess;
+	}
+}
+
+static void tee_rpmb_reset_session(struct tee_ta_session *session)
+{
+	if (session)
+		tee_ta_set_current_session(session);
+}
+
 static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 {
 	if (!mem)
 		return;
 
+	thread_rpc_free_arg(mem->pharg);
 	thread_rpc_free_payload(mem->phpayload);
+	mem->pharg = 0;
 	mem->phpayload = 0;
 }
 
@@ -332,10 +393,12 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	if (!mem)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	mem->pharg = 0;
 	mem->phpayload = 0;
 
+	mem->pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(2));
 	mem->phpayload = thread_rpc_alloc_payload(req_s + resp_s);
-	if (!mem->phpayload) {
+	if (!mem->pharg || !mem->phpayload) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
@@ -343,7 +406,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	mem->phreq = mem->phpayload;
 	mem->phresp = mem->phpayload + req_s;
 
-	if (core_pa2va(mem->phreq, req) || core_pa2va(mem->phresp, resp)) {
+	if (core_pa2va(mem->pharg, &mem->arg) || core_pa2va(mem->phreq, req) ||
+	    core_pa2va(mem->phresp, resp)) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -359,9 +423,16 @@ out:
 
 static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 {
-	struct teesmc32_param params[2];
+	struct teesmc32_param *params;
 
-	memset(params, 0, sizeof(params));
+	memset(mem->arg, 0, TEESMC32_GET_ARG_SIZE(2));
+
+	mem->arg->cmd = TEE_RPC_RPMB_CMD;
+	/* In case normal world doesn't update anything */
+	mem->arg->ret = TEE_ERROR_GENERIC;
+
+	mem->arg->num_params = 2;
+	params = TEESMC32_GET_PARAMS(mem->arg);
 	params[0].attr = TEESMC_ATTR_TYPE_MEMREF_INPUT |
 			 (TEESMC_ATTR_CACHE_I_WRITE_THR |
 				TEESMC_ATTR_CACHE_O_WRITE_THR) <<
@@ -376,7 +447,8 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	params[1].u.memref.buf_ptr = mem->phresp;
 	params[1].u.memref.size = mem->resp_size;
 
-	return thread_rpc_cmd(TEE_RPC_RPMB_CMD, 2, params);
+	mem->arg->ret = thread_rpc_cmd(TEE_RPC_RPMB_CMD, 2, params);
+	return mem->arg->ret;
 }
 
 
@@ -411,14 +483,14 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 	if (datafrm == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	for (i = 0; i < nbr_frms; i++) {
+	for (i = 0, j = 0; i < nbr_frms; i++, j += RPMB_DATA_SIZE) {
 		u16_to_bytes(rawdata->msg_type, datafrm[i].msg_type);
 
-		if (rawdata->block_count != NULL)
+		if (rawdata->block_count)
 			u16_to_bytes(*rawdata->block_count,
 				     datafrm[i].block_count);
 
-		if (rawdata->blk_idx != NULL) {
+		if (rawdata->blk_idx) {
 			/* Check the block index is within range. */
 			if ((*rawdata->blk_idx + nbr_frms) >
 			    rpmb_ctx->max_blk_idx) {
@@ -431,22 +503,21 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			u16_to_bytes(*rawdata->blk_idx, datafrm[i].address);
 		}
 
-		if (rawdata->write_counter != NULL)
+		if (rawdata->write_counter)
 			u32_to_bytes(*rawdata->write_counter,
 				     datafrm[i].write_counter);
 
-		if (rawdata->nonce != NULL)
+		if (rawdata->nonce)
 			memcpy(datafrm[i].nonce, rawdata->nonce,
 			       RPMB_NONCE_SIZE);
 
-		if (rawdata->data != NULL)
-			for (j = 0; j < nbr_frms; j++)
-				memcpy((datafrm + j)->data,
-				       rawdata->data + RPMB_DATA_SIZE * j,
-				       RPMB_DATA_SIZE);
+		if (rawdata->data)
+			memcpy(datafrm[i].data,
+			       rawdata->data + j,
+			       RPMB_DATA_SIZE);
 	}
 
-	if (rawdata->key_mac != NULL) {
+	if (rawdata->key_mac) {
 		if (rawdata->msg_type == RPMB_MSG_TYPE_REQ_AUTH_DATA_WRITE) {
 			res =
 			    tee_rpmb_mac_calc(rawdata->key_mac,
@@ -497,9 +568,10 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	data = rawdata->data;
 
 	if (nbr_frms == 1) {
-		res = mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
-			       lastfrm->data, RPMB_MAC_PROTECT_DATA_SIZE,
-			       rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
+		res = tee_rpmb_mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
+					rpmb_ctx->key, RPMB_KEY_MAC_SIZE,
+					lastfrm,
+					1);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -609,7 +681,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 
 	/* Handle operation result and translate to TEEC error code. */
 	bytes_to_u16(lastfrm.op_result, &op_result);
-	if (rawdata->op_result != NULL)
+	if (rawdata->op_result)
 		*rawdata->op_result = op_result;
 	if (op_result != RPMB_RESULT_OK) {
 		DMSG("%s: op_result != RPMB_RESULT_OK", __func__);
@@ -623,7 +695,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		return TEE_ERROR_GENERIC;
 	}
 
-	if (rawdata->blk_idx != NULL) {
+	if (rawdata->blk_idx) {
 		bytes_to_u16(lastfrm.address, &blk_idx);
 		if (blk_idx != *rawdata->blk_idx) {
 			DMSG("%s: Unexpected block index", __func__);
@@ -631,7 +703,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		}
 	}
 
-	if (rawdata->write_counter != NULL) {
+	if (rawdata->write_counter) {
 		wr_cnt = *rawdata->write_counter;
 		bytes_to_u32(lastfrm.write_counter, rawdata->write_counter);
 		if (msg_type == RPMB_MSG_TYPE_RESP_AUTH_DATA_WRITE) {
@@ -644,7 +716,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		}
 	}
 
-	if (rawdata->nonce != NULL) {
+	if (rawdata->nonce) {
 		if (buf_compare_ct(rawdata->nonce, lastfrm.nonce,
 				   RPMB_NONCE_SIZE) != 0) {
 			DMSG("%s: nonce mismatched", __func__);
@@ -652,13 +724,15 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		}
 	}
 
-	if (rawdata->key_mac != NULL) {
+	if (rawdata->key_mac) {
 		if (msg_type == RPMB_MSG_TYPE_RESP_AUTH_DATA_READ) {
 			if (rawdata->data == NULL)
 				return TEE_ERROR_GENERIC;
 
 			res = tee_rpmb_data_cpy_mac_calc(datafrm, rawdata,
 							 nbr_frms, &lastfrm);
+
+			FMSG("tee_rpmb_data_cpy_mac_calc res=0x%x\n", res);
 			if (res != TEE_SUCCESS)
 				return res;
 		} else {
@@ -669,9 +743,12 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 			if (nbr_frms != 1)
 				return TEE_ERROR_GENERIC;
 
-			res = mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
-				       lastfrm.data, RPMB_MAC_PROTECT_DATA_SIZE,
-				       rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
+			res = tee_rpmb_mac_calc(rawdata->key_mac,
+						RPMB_KEY_MAC_SIZE,
+						rpmb_ctx->key,
+						RPMB_KEY_MAC_SIZE,
+						&lastfrm, 1);
+
 			if (res != TEE_SUCCESS)
 				return res;
 		}
@@ -717,12 +794,18 @@ static TEE_Result tee_rpmb_get_dev_info(uint16_t dev_id,
 	    RPMB_CMD_GET_DEV_INFO_RET_ERROR;
 
 	res = tee_rpmb_invoke(&mem);
+	IMSG("RPMB GETDEVINFO: invoke returned (0x%x), %d %d %d\n",
+	     res,
+	     ((struct rpmb_dev_info *)resp)->rpmb_size_mult,
+	     ((struct rpmb_dev_info *)resp)->rel_wr_sec_c,
+	     ((struct rpmb_dev_info *)resp)->ret_code);
+
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	if (((struct rpmb_dev_info *)resp)->ret_code !=
 	    RPMB_CMD_GET_DEV_INFO_RET_OK) {
-		DMSG("RPMB_CMD_GET_DEV_INFO not OK");
+		DMSG("not OK");
 		res = TEE_ERROR_GENERIC;
 		goto func_exit;
 	}
@@ -804,14 +887,32 @@ func_exit:
 	return res;
 }
 
+static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
+{
+	uint16_t op_result = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = tee_rpmb_init_read_wr_cnt(dev_id, &rpmb_ctx->wr_cnt,
+					&op_result);
+
+	if (res == TEE_SUCCESS) {
+		rpmb_ctx->key_verified = true;
+		rpmb_ctx->wr_cnt_synced = true;
+	}
+
+	IMSG("Verify key returning 0x%x\n", res);
+	return res;
+}
+
 /*
  * This function must never return TEE_SUCCESS if rpmb_ctx == NULL.
  */
 static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info;
-	uint16_t op_result;
+
+	(void)writekey;
 
 	if (rpmb_ctx == NULL) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
@@ -824,8 +925,16 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 	rpmb_ctx->dev_id = dev_id;
 
 	if (!rpmb_ctx->dev_info_synced) {
+		IMSG("RPMB INIT: Syncing Dev Info\n");
+
 		dev_info.rpmb_size_mult = 0;
+		dev_info.rel_wr_sec_c = 0;
 		res = tee_rpmb_get_dev_info(dev_id, &dev_info);
+		IMSG("RPMB INIT: GetDevInfo returned (0x%x), %d %d\n",
+		     res,
+		     dev_info.rpmb_size_mult,
+		     dev_info.rel_wr_sec_c);
+
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
@@ -858,6 +967,8 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 	}
 
 	if (!rpmb_ctx->key_derived) {
+		IMSG("RPMB INIT: Deriving Key\n");
+
 		res = tee_rpmb_key_gen(dev_id, rpmb_ctx->key,
 				       RPMB_KEY_MAC_SIZE, commercial);
 		if (res != TEE_SUCCESS)
@@ -868,25 +979,16 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id, bool writekey, bool commercial)
 
 	/* Perform a write counter read to verify if the key is ok. */
 	if (!rpmb_ctx->wr_cnt_synced || !rpmb_ctx->key_verified) {
-		res =
-		    tee_rpmb_init_read_wr_cnt(dev_id, &rpmb_ctx->wr_cnt,
-					      &op_result);
+		IMSG("RPMB INIT: Verifying Key\n");
 
-		if (res == TEE_SUCCESS) {
-			rpmb_ctx->key_verified = true;
-			rpmb_ctx->wr_cnt_synced = true;
-
-			if (writekey) {
-				/*
-				 * Return security error here as we SHOULD NOT
-				 * allow writing key if the key is already
-				 * programmed. This is to prevent leaking the
-				 * key which is carried in write key request in
-				 * plain text and exposed to normal world during
-				 * write key request.
-				 */
-				res = TEE_ERROR_SECURITY;
-			}
+		res = tee_rpmb_verify_key_sync_counter(dev_id);
+		if (res != TEE_SUCCESS && !rpmb_ctx->key_verified) {
+			/*
+			 * Need to write the key here and verify it.
+			 */
+			res = tee_rpmb_write_key(dev_id, commercial);
+			if (res == TEE_SUCCESS)
+				res = tee_rpmb_verify_key_sync_counter(dev_id);
 		}
 	}
 
@@ -906,12 +1008,9 @@ TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 	uint32_t req_size;
 	uint32_t resp_size;
 
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
+	(void)commercial;
 
-	res = tee_rpmb_init(dev_id, true, commercial);
-	if (res != TEE_SUCCESS)
-		goto func_exit;
+	tee_rpmb_set_session(&sess);
 
 	req_size = sizeof(struct rpmb_req) + RPMB_DATA_FRAME_SIZE;
 	resp_size = RPMB_DATA_FRAME_SIZE;
@@ -947,14 +1046,14 @@ TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 
 func_exit:
 	tee_rpmb_free(&mem);
-	tee_ta_set_current_session(sess);
+	tee_rpmb_reset_session(sess);
 	return res;
 }
 
 TEE_Result tee_rpmb_read(uint16_t dev_id,
 			 uint32_t addr, uint8_t *data, uint32_t len)
 {
-	struct tee_ta_session *sess;
+	struct tee_ta_session *sess = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tee_rpmb_mem mem = { 0 };
 	uint16_t msg_type;
@@ -972,8 +1071,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 	if (data == NULL || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
+	tee_rpmb_set_session(&sess);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -983,12 +1081,13 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 
 	res = tee_rpmb_init(dev_id, false, true);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto func_exit;
 
 	req_size = sizeof(struct rpmb_req) + RPMB_DATA_FRAME_SIZE;
 	resp_size = RPMB_DATA_FRAME_SIZE * blkcnt;
 	res = tee_rpmb_alloc(req_size, resp_size, &mem,
 			     (void *)&req, (void *)&resp);
+	FMSG("tee_rpmb_alloc returned 0x%x\n", res);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -1004,6 +1103,8 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
+
+	req->block_count = blkcnt;
 
 	res = tee_rpmb_invoke(&mem);
 	if (res != TEE_SUCCESS)
@@ -1030,7 +1131,8 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 
 func_exit:
 	tee_rpmb_free(&mem);
-	tee_ta_set_current_session(sess);
+	FMSG("%p,%u\n", (void *)sess, res);
+	tee_rpmb_reset_session(sess);
 	return res;
 }
 
@@ -1154,14 +1256,13 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 			  uint32_t addr, uint8_t *data, uint32_t len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct tee_ta_session *sess;
+	struct tee_ta_session *sess = NULL;
 	uint8_t *data_tmp = NULL;
 	uint16_t blk_idx;
 	uint16_t blkcnt;
 	uint8_t byte_offset;
 
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
+	tee_rpmb_set_session(&sess);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -1169,18 +1270,26 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 	blkcnt =
 	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
 
+	DMSG("len %d, block address %d, block count %d, byte offset %d",
+	     len, blk_idx, blkcnt, byte_offset);
+
 	if (byte_offset == 0 && (len % RPMB_DATA_SIZE) == 0) {
+		FMSG("Branch 1");
 		res = tee_rpmb_write_blk(dev_id, blk_idx, data, blkcnt);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 	} else {
+		FMSG("Branch 2");
 		data_tmp = calloc(blkcnt, RPMB_DATA_SIZE);
-		if (data_tmp == NULL)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (data_tmp == NULL) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto func_exit;
+		}
 
 		/* Read the complete blocks */
 		res = tee_rpmb_read(dev_id, blk_idx * RPMB_DATA_SIZE,
 				    data_tmp, blkcnt * RPMB_DATA_SIZE);
+		DMSG("tee_rpmb_read returned 0x%x", res);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
@@ -1196,29 +1305,52 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 
 func_exit:
 	free(data_tmp);
-	tee_ta_set_current_session(sess);
+	tee_rpmb_reset_session(sess);
 	return res;
 }
 
 TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ta_session *sess = NULL;
 
 	if (counter == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
+	tee_rpmb_set_session(&sess);
 
 	if (rpmb_ctx == NULL || !rpmb_ctx->wr_cnt_synced) {
 		res = tee_rpmb_init(dev_id, false, true);
 		if (res != TEE_SUCCESS)
-			return res;
+			goto func_exit;
 	}
 
 	*counter = rpmb_ctx->wr_cnt;
 
-	tee_ta_set_current_session(sess);
-	return TEE_SUCCESS;
+func_exit:
+	tee_rpmb_reset_session(sess);
+	return res;
+}
+
+TEE_Result tee_rpmb_get_max_block(uint16_t dev_id, uint32_t *max_block)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ta_session *sess = NULL;
+
+	if (max_block == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	tee_rpmb_set_session(&sess);
+
+	if (rpmb_ctx == NULL || !rpmb_ctx->dev_info_synced) {
+		res = tee_rpmb_init(dev_id, false, true);
+		if (res != TEE_SUCCESS)
+			goto func_exit;
+	}
+
+	*max_block = rpmb_ctx->max_blk_idx;
+
+func_exit:
+	tee_rpmb_reset_session(sess);
+	return res;
 }
