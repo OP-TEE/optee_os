@@ -37,7 +37,6 @@
 #include <user_ta_header.h>
 #include <mm/tee_mm.h>
 #include "tee_api_types.h"
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_misc.h>
 #include <trace.h>
 #include <mm/core_memprot.h>

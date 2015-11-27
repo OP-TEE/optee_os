@@ -29,7 +29,6 @@
 
 #include <stdint.h>
 #include <kernel/tee_common_unpg.h>	/* tee_uaddr_t */
-#include <kernel/tee_ta_manager_unpg.h>
 #include <tee_api_types.h>
 #include <utee_types.h>
 #include <assert.h>
