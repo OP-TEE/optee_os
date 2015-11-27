@@ -28,8 +28,6 @@
 #define TEE_COMPAT_H
 
 #include <tee_api_types.h>
-#include <tee_api_types.h>
-#include <kernel/tee_ta_manager_unpg.h>
 
 typedef struct {
 	void *buffer;
@@ -43,6 +41,8 @@ typedef struct {
 	TEE_SharedMemory memRefs[4];
 	uint32_t flags;
 } TEE_Operation;
+
+struct tee_ta_param;
 
 TEE_Result tee_compat_param_old_to_new(TEE_Operation *op,
 				       struct tee_ta_param *param);

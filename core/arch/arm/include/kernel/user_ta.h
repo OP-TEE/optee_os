@@ -27,8 +27,10 @@
 #ifndef KERNEL_USER_TA_H
 #define KERNEL_USER_TA_H
 
-#include <kernel/tee_ta_manager_unpg.h>
+#include <types_ext.h>
 #include <tee_api_types.h>
+#include <kernel/tee_ta_manager.h>
+#include <mm/tee_mm.h>
 #include <util.h>
 #include <assert.h>
 

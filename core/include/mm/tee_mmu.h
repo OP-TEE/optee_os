@@ -28,7 +28,7 @@
 #define TEE_MMU_H
 
 #include <tee_api_types.h>
-#include <kernel/tee_ta_manager_unpg.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/user_ta.h>
 
 /*-----------------------------------------------------------------------------

@@ -28,7 +28,7 @@
 #define KERNEL_STATIC_TA_H
 
 #include <compiler.h>
-#include <kernel/tee_ta_manager_unpg.h>
+#include <kernel/tee_ta_manager.h>
 #include <tee_api_types.h>
 #include <util.h>
 #include <assert.h>

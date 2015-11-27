@@ -29,7 +29,6 @@
 #include <trace.h>
 
 #include <kernel/tee_ta_manager.h>
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/user_ta.h>
 #include <tee/se/service.h>

@@ -28,7 +28,9 @@
 #define TEE_SVC_CRYP_H
 
 #include <tee_api_types.h>
-#include <kernel/tee_ta_manager_unpg.h>
+#include <utee_types.h>
+
+struct user_ta_ctx;
 
 TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
 TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,

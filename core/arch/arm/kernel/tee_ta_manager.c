@@ -36,7 +36,6 @@
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_time.h>
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
@@ -56,6 +55,7 @@ static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
 static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
 static size_t tee_ta_single_instance_count;
+struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
 
 static void lock_single_instance(void)
 {

@@ -28,15 +28,76 @@
 #ifndef TEE_TA_MANAGER_H
 #define TEE_TA_MANAGER_H
 
+#include <types_ext.h>
+#include <sys/queue.h>
 #include <tee_api_types.h>
 #include <utee_types.h>
 #include <kernel/tee_common.h>
-#include <kernel/tee_ta_manager_unpg.h>
+#include <kernel/tee_common_unpg.h>
+#include <kernel/mutex.h>
+#include <tee_api_types.h>
+#include <user_ta_header.h>
 
 /* Magic TEE identity pointer: set when teecore requests a TA close */
 #define KERN_IDENTITY	((TEE_Identity *)-1)
 /* Operation is initiated by a client (non-secure) app */
 #define NSAPP_IDENTITY	(NULL)
+
+TAILQ_HEAD(tee_ta_session_head, tee_ta_session);
+TAILQ_HEAD(tee_ta_ctx_head, tee_ta_ctx);
+
+struct tee_ta_param {
+	uint32_t types;
+	TEE_Param params[4];
+	uint32_t param_attr[4];
+};
+
+struct tee_ta_ctx;
+struct user_ta_ctx;
+struct static_ta_ctx;
+
+struct tee_ta_ops {
+	TEE_Result (*enter_open_session)(struct tee_ta_session *s,
+			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
+	TEE_Result (*enter_invoke_cmd)(struct tee_ta_session *s, uint32_t cmd,
+			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
+	void (*enter_close_session)(struct tee_ta_session *s);
+	void (*dump_state)(struct tee_ta_ctx *ctx);
+	void (*destroy)(struct tee_ta_ctx *ctx);
+};
+
+/* Context of a loaded TA */
+struct tee_ta_ctx {
+	TEE_UUID uuid;
+	const struct tee_ta_ops *ops;
+	uint32_t flags;		/* TA_FLAGS from TA header */
+	TAILQ_ENTRY(tee_ta_ctx) link;
+	uint32_t panicked;	/* True if TA has panicked, written from asm */
+	uint32_t panic_code;	/* Code supplied for panic */
+	uint32_t ref_count;	/* Reference counter for multi session TA */
+	bool busy;		/* context is busy and cannot be entered */
+	struct condvar busy_cv;	/* CV used when context is busy */
+};
+
+struct tee_ta_session {
+	TAILQ_ENTRY(tee_ta_session) link;
+	struct tee_ta_ctx *ctx;	/* TA context */
+	/* session of calling TA if != NULL */
+	struct tee_ta_session *calling_sess;
+	TEE_Identity clnt_id;	/* Identify of client */
+	bool cancel;		/* True if TAF is cancelled */
+	bool cancel_mask;	/* True if cancel is masked */
+	TEE_Time cancel_time;	/* Time when to cancel the TAF */
+	void *user_ctx;		/* ??? */
+	uint32_t ref_count;	/* reference counter */
+	struct condvar refc_cv;	/* CV used to wait for ref_count to be 0 */
+	struct condvar lock_cv;	/* CV used to wait for lock */
+	int lock_thread;	/* Id of thread holding the lock */
+	bool unlink;		/* True if session is to be unlinked */
+};
+
+/* Registered contexts */
+extern struct tee_ta_ctx_head tee_ctxes;
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,

@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include <kernel/tee_compat.h>
+#include <kernel/tee_ta_manager.h>
 
 TEE_Result tee_compat_param_old_to_new(TEE_Operation *op,
 				       struct tee_ta_param *param)
