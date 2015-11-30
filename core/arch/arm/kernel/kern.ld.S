@@ -288,7 +288,11 @@ SECTIONS
 	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 	_end_of_ram = .;
 
-	/* Strip unnecessary stuff */
-	/DISCARD/ : { *(.comment .note .eh_frame) }
+	/DISCARD/ : {
+		/* Strip unnecessary stuff */
+		*(.comment .note .eh_frame)
+		/* Strip meta variables */
+		*(__keep_meta_vars*)
+	}
 
 }
