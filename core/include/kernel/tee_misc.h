@@ -83,6 +83,15 @@ bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al);
 
 /*  UUID string: "XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX". Size includes '\0' */
 #define TEE_UUID_STRING_LEN		36
-int uuid2str(char *dst, TEE_UUID *uuid);
+int uuid2str(char *dst, const TEE_UUID *uuid);
+
+static inline char *_uuid2str(const TEE_UUID *uuid)
+{
+	static char str[TEE_UUID_STRING_LEN];
+
+	uuid2str(str, uuid);
+	return str;
+}
+
 
 #endif /* TEE_MISC_H */
