@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015 Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,22 +25,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <printk.h>
+/*
+ * This file provides extensions to the standard snprintf() and vsnprintf()
+ * functions. These 'k' variants support additional formats.
+ */
 
-int snprintf(char *bf, size_t size, const char *fmt, ...)
-{
-	int retval;
-	va_list ap;
+#ifndef PRINTK_H
+#define PRINTK_H
 
-	va_start(ap, fmt);
-	retval = __vsnprintf(bf, size, fmt, ap, false);
-	va_end(ap);
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdbool.h>
 
-	return retval;
-}
+int snprintk(char *str, size_t size, const char *fmt, ...)
+		    __attribute__((__format__(__printf__, 3, 4)));
+int vsnprintk(char *str, size_t size, const char *fmt, va_list ap)
+		    __attribute__((__format__(__printf__, 3, 0)));
 
-int vsnprintf(char *bf, size_t size, const char *fmt, va_list ap)
-{
-	return __vsnprintf(bf, size, fmt, ap, false);
-}
+int __vsnprintf(char *str, size_t size, const char *fmt, va_list ap,
+		bool ext) __attribute__((__format__(__printf__, 3, 0)));
+
+#endif /* PRINTK_H */

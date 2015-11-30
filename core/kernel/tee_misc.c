@@ -137,24 +137,3 @@ bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 		return false;
 	return true;
 }
-
-int uuid2str(char *dst, TEE_UUID *uuid)
-{
-	if (dst == NULL)
-		return 0;
-
-	memset(dst, 0, TEE_UUID_STRING_LEN);
-	return snprintf(dst, TEE_UUID_STRING_LEN,
-			"%08x-%04x-%04x-%02x%02x%02x%02x%02x%02x%02x%02x",
-			(unsigned int)uuid->timeLow,
-			(unsigned int)uuid->timeMid,
-			(unsigned int)uuid->timeHiAndVersion,
-			(unsigned int)uuid->clockSeqAndNode[0],
-			(unsigned int)uuid->clockSeqAndNode[1],
-			(unsigned int)uuid->clockSeqAndNode[2],
-			(unsigned int)uuid->clockSeqAndNode[3],
-			(unsigned int)uuid->clockSeqAndNode[4],
-			(unsigned int)uuid->clockSeqAndNode[5],
-			(unsigned int)uuid->clockSeqAndNode[6],
-			(unsigned int)uuid->clockSeqAndNode[7]);
-}

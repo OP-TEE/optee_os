@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
+#include <printk.h>
 #include <stdarg.h>
 #include <string.h>
 #include <trace.h>
@@ -82,12 +82,12 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		int thread_id = trace_ext_get_thread_id();
 
 		if (thread_id >= 0)
-			res = snprintf(buf, sizeof(buf), "%s [0x%x] %s:%s:%d: ",
+			res = snprintk(buf, sizeof(buf), "%s [0x%x] %s:%s:%d: ",
 				       trace_level_to_string(level, level_ok),
 				       thread_id, trace_ext_prefix,
 				       function, line);
 		else
-			res = snprintf(buf, sizeof(buf), "%s %s:%s:%d: ",
+			res = snprintk(buf, sizeof(buf), "%s %s:%s:%d: ",
 				       trace_level_to_string(level, level_ok),
 				       trace_ext_prefix, function, line);
 		if (res < 0)
@@ -96,7 +96,7 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	}
 
 	va_start(ap, fmt);
-	res = vsnprintf(buf + boffs, sizeof(buf) - boffs, fmt, ap);
+	res = vsnprintk(buf + boffs, sizeof(buf) - boffs, fmt, ap);
 	va_end(ap);
 	if (res > 0)
 		boffs += res;
@@ -155,7 +155,7 @@ static int __printf(2, 3) append(struct strbuf *sbuf, const char *fmt, ...)
 		sbuf->ptr = sbuf->buf;
 	left = sizeof(sbuf->buf) - (sbuf->ptr - sbuf->buf);
 	va_start(ap, fmt);
-	len = vsnprintf(sbuf->ptr, left, fmt, ap);
+	len = vsnprintk(sbuf->ptr, left, fmt, ap);
 	va_end(ap);
 	if (len < 0) {
 		/* Format error */

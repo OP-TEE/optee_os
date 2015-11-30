@@ -1229,10 +1229,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 	      (ctx->ref_count == 0)))
 		return TEE_ERROR_BUSY;
 
-	DMSG("   ... Re-open TA %08x-%04x-%04x",
-	     ctx->uuid.timeLow,
-	     ctx->uuid.timeMid, ctx->uuid.timeHiAndVersion);
-
+	DMSG("   ... Re-open TA %pUl", (void *)&ctx->uuid);
 
 	ctx->ref_count++;
 	s->ctx = ctx;
@@ -1250,8 +1247,7 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	struct tee_ta_ctx *ctx = NULL;
 	ta_static_head_t *ta = NULL;
 
-	DMSG("   Lookup for Static TA %08x-%04x-%04x",
-	     uuid->timeLow, uuid->timeMid, uuid->timeHiAndVersion);
+	DMSG("   Lookup static TA %pUl", (void *)uuid);
 
 	ta = &__start_ta_head_section;
 	while (true) {
@@ -1279,11 +1275,7 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	ctx->uuid = ta->uuid;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %08x-%04x-%04x",
-	     ctx->static_ta->name,
-	     ctx->uuid.timeLow,
-	     ctx->uuid.timeMid,
-	     ctx->uuid.timeHiAndVersion);
+	DMSG("      %s: %pUl", ctx->static_ta->name, (void *)&ctx->uuid);
 
 	return TEE_SUCCESS;
 }
@@ -1300,9 +1292,7 @@ static TEE_Result tee_ta_init_session_with_signed_ta(const TEE_UUID *uuid,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	DMSG("      dyn TA : %08x-%04x-%04x",
-	     s->ctx->uuid.timeLow, s->ctx->uuid.timeMid,
-	     s->ctx->uuid.timeHiAndVersion);
+	DMSG("      dyn TA : %pUl", (void *)&s->ctx->uuid);
 
 	return res;
 }
@@ -1662,14 +1652,12 @@ TEE_Result tee_uta_cache_operation(struct tee_ta_session *sess,
 static void dump_state(struct tee_ta_ctx *ctx)
 {
 	struct tee_ta_session *s = NULL;
-	char uuid[TEE_UUID_STRING_LEN];
 	bool active __unused;
 
-	uuid2str(uuid, &ctx->uuid);
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);
 
-	EMSG_RAW("Status of TA %s (%p)", uuid, (void *)ctx);
+	EMSG_RAW("Status of TA %pUl (%p)", (void *)&ctx->uuid, (void *)ctx);
 	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d     %s",
 		 ctx->load_addr, ctx->context, active ? "(active)" : "");
 	EMSG_RAW("- code area : 0x%" PRIxPTR " %zu",
