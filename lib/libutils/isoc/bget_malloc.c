@@ -304,8 +304,10 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	raw_malloc_validate_pools();
 
 	/* Check wrapping */
-	if (s < pl_size)
-		return NULL;
+	if (s < pl_size) {
+		ptr = NULL;
+		goto out;
+	}
 
 	/* BGET doesn't like 0 sized allocations */
 	if (!s)
@@ -314,6 +316,7 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	ptr = bget(s);
 	raw_malloc_save_max_alloced_size();
 
+out:
 	malloc_unlock();
 	return ptr;
 }
@@ -341,8 +344,10 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 	raw_malloc_validate_pools();
 
 	/* Check wrapping */
-	if (s < pl_nmemb || s < pl_size)
-		return NULL;
+	if (s < pl_nmemb || s < pl_size) {
+		ptr = NULL;
+		goto out;
+	}
 
 	/* BGET doesn't like 0 sized allocations */
 	if (!s)
@@ -351,6 +356,7 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 	ptr = bgetz(s);
 	raw_malloc_save_max_alloced_size();
 
+out:
 	malloc_unlock();
 
 	return ptr;
@@ -538,26 +544,32 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 
 	raw_malloc_validate_pools();
 
-	if (!IS_POWER_OF_TWO(alignment))
-		return NULL;
+	if (!IS_POWER_OF_TWO(alignment)) {
+		b = 0;
+		goto out;
+	}
 
 	/*
 	 * Normal malloc with headers always returns something SizeQuant
 	 * aligned.
 	 */
-	if (alignment <= SizeQuant)
+	if (alignment <= SizeQuant) {
+		malloc_unlock();
 		return raw_malloc(hdr_size, ftr_size, size);
+	}
 
 	s = hdr_size + ftr_size + alignment + size +
 	    SizeQ + sizeof(struct bhead);
 
 	/* Check wapping */
-	if (s < alignment || s < size)
-		return NULL;
+	if (s < alignment || s < size) {
+		b = 0;
+		goto out;
+	}
 
 	b = (uintptr_t)bget(s);
 	if (!b)
-		return NULL;
+		goto out;
 
 	if ((b + hdr_size) & (alignment - 1)) {
 		/*
@@ -594,8 +606,8 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 
 	raw_malloc_save_max_alloced_size();
 
+out:
 	malloc_unlock();
-
 	return (void *)b;
 }
 
