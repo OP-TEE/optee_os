@@ -34,17 +34,30 @@ entries-unpaged += generic_boot_get_handlers
 entries-unpaged += tee_pager_release_zi
 entries-unpaged += tee_pager_request_zi
 
+ldargs-all_objs := -i $(objs) $(link-ldadd) $(libgcccore)
+cleanfiles += $(link-out-dir)/all_objs.o
+$(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
+	@$(cmd-echo-silent) '  LD      $@'
+	$(q)$(LDcore) $(ldargs-all_objs) -o $@
+
+cleanfiles += $(link-out-dir)/unpaged_entries.txt
+$(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)$(NMcore) $< | \
+		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
+
 objs-unpaged-rem += core/arch/arm/tee/entry_std.o
 objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
-ldargs-unpaged := -i --gc-sections \
-	$(addprefix -u, $(entries-unpaged)) \
-	$(objs-unpaged) $(link-ldadd) $(libgcccore)
+ldargs-unpaged = -i --gc-sections $(addprefix -u, $(entries-unpaged))
+ldargs-unpaged-objs := $(objs-unpaged) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
-$(link-out-dir)/unpaged.o: $(objs-unpaged) $(libdeps) $(MAKEFILE_LIST)
+$(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-unpaged) -o $@
+	$(q)$(LDcore) $(ldargs-unpaged) \
+		`cat $(link-out-dir)/unpaged_entries.txt` \
+		$(ldargs-unpaged-objs) -o $@
 
 cleanfiles += $(link-out-dir)/text_unpaged.ld.S:
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
@@ -57,6 +70,13 @@ $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	$(q)$(READELFcore) -a -W $< | \
 		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
 
+
+cleanfiles += $(link-out-dir)/init_entries.txt
+$(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)$(NMcore) $< | \
+		$(AWK) '/ ____keep_init/ { printf "-u%s", $$3 }' > $@
+
 objs-init-rem += core/arch/arm/tee/arch_svc.o
 objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
 objs-init-rem += core/arch/arm/tee/init.o
@@ -65,14 +85,16 @@ entries-init += _start
 objs-init := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
 		$(link-out-dir)/version.o)
-ldargs-init := -i --gc-sections \
-	$(addprefix -u, $(entries-init)) \
-	$(objs-init) $(link-ldadd) $(libgcccore)
+ldargs-init := -i --gc-sections $(addprefix -u, $(entries-init))
+
+ldargs-init-objs := $(objs-init) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
-$(link-out-dir)/init.o: $(objs-init) $(libdeps) $(MAKEFILE_LIST)
+$(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 	$(call gen-version-o)
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-init) -o $@
+	$(q)$(LDcore) $(ldargs-init) \
+		`cat $(link-out-dir)/init_entries.txt` \
+		$(ldargs-init-objs) -o $@
 
 cleanfiles += $(link-out-dir)/text_init.ld.S:
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
