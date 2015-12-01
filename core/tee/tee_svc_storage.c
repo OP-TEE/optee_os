@@ -586,8 +586,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	o->pobj = po;
 
 	if (attr != TEE_HANDLE_NULL) {
-		/* init attributes  if provided */
-		res = tee_obj_get(sess->ctx, attr, &attr_o);
+		res = tee_obj_get(sess->ctx, tee_svc_uref_to_vaddr(attr),
+				  &attr_o);
 		if (res != TEE_SUCCESS)
 			goto err;
 	}
