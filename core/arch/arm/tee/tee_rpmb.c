@@ -395,9 +395,6 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 	if (!mem)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	mem->pharg = 0;
-	mem->phpayload = 0;
-
 	mem->pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(2));
 	mem->phpayload = thread_rpc_alloc_payload(req_s + resp_s);
 	if (!mem->pharg || !mem->phpayload) {
