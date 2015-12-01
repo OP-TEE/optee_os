@@ -460,7 +460,6 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
-	int j;
 	struct rpmb_data_frame *datafrm;
 
 	if (req == NULL || rawdata == NULL || nbr_frms == 0)
@@ -485,7 +484,7 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 	if (datafrm == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	for (i = 0, j = 0; i < nbr_frms; i++, j += RPMB_DATA_SIZE) {
+	for (i = 0; i < nbr_frms; i++) {
 		u16_to_bytes(rawdata->msg_type, datafrm[i].msg_type);
 
 		if (rawdata->block_count)
@@ -515,7 +514,7 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 
 		if (rawdata->data)
 			memcpy(datafrm[i].data,
-			       rawdata->data + j,
+			       rawdata->data + (i * RPMB_DATA_SIZE),
 			       RPMB_DATA_SIZE);
 	}
 
