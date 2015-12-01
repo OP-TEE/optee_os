@@ -38,6 +38,13 @@ TEE_Result tee_get_l2cc_mutex(uint32_t *mutex);
 TEE_Result tee_set_l2cc_mutex(uint32_t *mutex);
 void tee_l2cc_mutex_lock(void);
 void tee_l2cc_mutex_unlock(void);
+
+/*
+ * Store the pa of a mutex used for l2cc
+ * It is allocated from the boot
+ */
+void tee_l2cc_store_mutex_boot_pa(uint32_t pa);
+
 #else
 static TEE_Result tee_enable_l2cc_mutex(void);
 static TEE_Result tee_disable_l2cc_mutex(void);

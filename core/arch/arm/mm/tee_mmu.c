@@ -47,6 +47,10 @@
 #include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
 
+#ifdef CFG_PL310
+#include <kernel/tee_l2cc_mutex.h>
+#endif
+
 #define TEE_MMU_UMAP_HEAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX		1
 #define TEE_MMU_UMAP_PARAM_IDX		2
@@ -757,8 +761,15 @@ void teecore_init_pub_ram(void)
 	tee_mm_final(&tee_mm_pub_ddr);
 	tee_mm_init(&tee_mm_pub_ddr, s, s + nsec_tee_size, SMALL_PAGE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
-
 	s += nsec_tee_size;
+
+#ifdef CFG_PL310
+	/* Allocate statically the l2cc mutex */
+	TEE_ASSERT((e - s) > 0);
+	tee_l2cc_store_mutex_boot_pa(s);
+	s += sizeof(uint32_t);		/* size of a pl310 mutex */
+#endif
+
 	default_nsec_shm_paddr = s;
 	default_nsec_shm_size = e - s;
 }

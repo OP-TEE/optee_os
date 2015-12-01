@@ -38,16 +38,19 @@
  *
  * l2cc_mutex_pa holds TZ L2CC mutex physical address. It is relevant only
  * if 'l2cc_mutex_va' hold a non-NULL address.
- *
- * l2cc_mutex_mm hold teecore mm structure used to allocate TZ L2CC mutex,
- * if allocated. Otherwise, it is NULL.
  */
 #define MUTEX_SZ sizeof(uint32_t)
 
 static uint32_t *l2cc_mutex_va;
 static uint32_t l2cc_mutex_pa;
-static tee_mm_entry_t *l2cc_mutex_mm;
+static uint32_t l2cc_mutex_boot_pa;
 static unsigned int *l2cc_mutex;
+
+void tee_l2cc_store_mutex_boot_pa(uint32_t pa)
+{
+	l2cc_mutex_boot_pa = pa;
+}
+
 /*
  * Allocate public RAM to get a L2CC mutex to shared with NSec.
  * Return 0 on success.
@@ -56,14 +59,10 @@ static int l2cc_mutex_alloc(void)
 {
 	void *va;
 
-	if ((l2cc_mutex_va != NULL) || (l2cc_mutex_mm != NULL))
+	if (l2cc_mutex_va != NULL)
 		return -1;
 
-	l2cc_mutex_mm = tee_mm_alloc(&tee_mm_pub_ddr, MUTEX_SZ);
-	if (l2cc_mutex_mm == NULL)
-		return -1;
-
-	l2cc_mutex_pa = tee_mm_get_smem(l2cc_mutex_mm);
+	l2cc_mutex_pa = l2cc_mutex_boot_pa;
 
 	if (core_pa2va(l2cc_mutex_pa, &va))
 		return -1;
@@ -111,10 +110,6 @@ TEE_Result tee_enable_l2cc_mutex(void)
 
 TEE_Result tee_disable_l2cc_mutex(void)
 {
-	if (l2cc_mutex_mm) {
-		tee_mm_free(l2cc_mutex_mm);
-		l2cc_mutex_mm = NULL;
-	}
 	l2cc_mutex_va = NULL;
 	l2cc_mutex_set(NULL);
 	return TEE_SUCCESS;
