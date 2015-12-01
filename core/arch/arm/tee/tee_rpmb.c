@@ -163,17 +163,6 @@ struct tee_rpmb_ctx {
 
 static struct tee_rpmb_ctx *rpmb_ctx;
 
-#ifdef CFG_RPMB_TESTKEY
-
-static uint8_t rpmb_test_key[RPMB_KEY_MAC_SIZE] = {
-	0xD3, 0xEB, 0x3E, 0xC3, 0x6E, 0x33, 0x4C, 0x9F,
-	0x98, 0x8C, 0xE2, 0xC0, 0xB8, 0x59, 0x54, 0x61,
-	0x0D, 0x2B, 0xCF, 0x86, 0x64, 0x84, 0x4D, 0xF2,
-	0xAB, 0x56, 0xE6, 0xC6, 0x1B, 0xB7, 0x01, 0xE4
-};
-
-#endif
-
 static TEE_Result mac_init(void *ctx, const uint8_t *key,
 			uint32_t keysize)
 {
@@ -189,6 +178,35 @@ static TEE_Result mac_final(void *ctx, uint8_t *mac, uint32_t macsize)
 {
 	return crypto_ops.mac.final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
 }
+
+#ifdef CFG_RPMB_TESTKEY
+
+static uint8_t rpmb_test_key[RPMB_KEY_MAC_SIZE] = {
+	0xD3, 0xEB, 0x3E, 0xC3, 0x6E, 0x33, 0x4C, 0x9F,
+	0x98, 0x8C, 0xE2, 0xC0, 0xB8, 0x59, 0x54, 0x61,
+	0x0D, 0x2B, 0xCF, 0x86, 0x64, 0x84, 0x4D, 0xF2,
+	0xAB, 0x56, 0xE6, 0xC6, 0x1B, 0xB7, 0x01, 0xE4
+};
+
+static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
+				   uint8_t *key, uint32_t len,
+				   bool commercial __unused)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	if (key == NULL || RPMB_KEY_MAC_SIZE != len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	IMSG("RPMB: Using test key\n");
+	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
+
+out:
+	return res;
+}
+
+#else /* !CFG_RPMB_TESTKEY */
 
 /*
  * NOTE: We need a common API to get hw unique key and it
@@ -206,9 +224,6 @@ static TEE_Result mac_final(void *ctx, uint8_t *mac, uint32_t macsize)
  * We should change the API tee_otp_get_hw_unique_key()
  * to return error code!
  */
-
-#ifndef CFG_RPMB_TESTKEY
-
 static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	if (NULL == hwkey)
@@ -218,8 +233,6 @@ static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	return TEE_SUCCESS;
 }
-
-#endif
 
 static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 				   uint8_t *key, uint32_t len, bool commercial)
@@ -232,8 +245,6 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-
-#ifndef CFG_RPMB_TESTKEY
 
 	IMSG("RPMB: Using generated key\n");
 	if (commercial) {
@@ -262,21 +273,12 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-#else
-
-	(void)hwkey;
-	(void)res;
-	(void)commercial;
-
-	IMSG("RPMB: Using test key\n");
-	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
-
-#endif
-
 out:
 	free(ctx);
 	return res;
 }
+
+#endif /* !CFG_RPMB_TESTKEY */
 
 static void u32_to_bytes(uint32_t u32, uint8_t *bytes)
 {
