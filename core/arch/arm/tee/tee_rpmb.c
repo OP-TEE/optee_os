@@ -355,7 +355,7 @@ struct tee_rpmb_mem {
 	size_t resp_size;
 };
 
-static void tee_rpmb_set_session(struct tee_ta_session **session)
+static void tee_rpmb_clear_session(struct tee_ta_session **session)
 {
 	TEE_Result res;
 	struct tee_ta_session *sess = NULL;
@@ -1012,7 +1012,7 @@ TEE_Result tee_rpmb_write_key(uint16_t dev_id, bool commercial)
 
 	(void)commercial;
 
-	tee_rpmb_set_session(&sess);
+	tee_rpmb_clear_session(&sess);
 
 	req_size = sizeof(struct rpmb_req) + RPMB_DATA_FRAME_SIZE;
 	resp_size = RPMB_DATA_FRAME_SIZE;
@@ -1073,7 +1073,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
 	if (data == NULL || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_rpmb_set_session(&sess);
+	tee_rpmb_clear_session(&sess);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -1264,7 +1264,7 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 	uint16_t blkcnt;
 	uint8_t byte_offset;
 
-	tee_rpmb_set_session(&sess);
+	tee_rpmb_clear_session(&sess);
 
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
@@ -1319,7 +1319,7 @@ TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter)
 	if (counter == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_rpmb_set_session(&sess);
+	tee_rpmb_clear_session(&sess);
 
 	if (rpmb_ctx == NULL || !rpmb_ctx->wr_cnt_synced) {
 		res = tee_rpmb_init(dev_id, false, true);
@@ -1342,7 +1342,7 @@ TEE_Result tee_rpmb_get_max_block(uint16_t dev_id, uint32_t *max_block)
 	if (max_block == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_rpmb_set_session(&sess);
+	tee_rpmb_clear_session(&sess);
 
 	if (rpmb_ctx == NULL || !rpmb_ctx->dev_info_synced) {
 		res = tee_rpmb_init(dev_id, false, true);
