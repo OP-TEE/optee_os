@@ -468,8 +468,8 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 	 */
 	if ((rawdata->msg_type == RPMB_MSG_TYPE_REQ_AUTH_DATA_WRITE) &&
 	    (nbr_frms > rpmb_ctx->rel_wr_blkcnt)) {
-		DMSG("%s: wr_blkcnt(%d) > rel_wr_blkcnt(%d)", __func__,
-		     nbr_frms, rpmb_ctx->rel_wr_blkcnt);
+		DMSG("wr_blkcnt(%d) > rel_wr_blkcnt(%d)", nbr_frms,
+		     rpmb_ctx->rel_wr_blkcnt);
 		return TEE_ERROR_GENERIC;
 	}
 
@@ -492,8 +492,8 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			/* Check the block index is within range. */
 			if ((*rawdata->blk_idx + nbr_frms) >
 			    rpmb_ctx->max_blk_idx) {
-				DMSG("%s: blk_idx (%d+%d) > max_blk_idx(%d)",
-				     __func__, *rawdata->blk_idx, nbr_frms,
+				DMSG("blk_idx (%d+%d) > max_blk_idx(%d)",
+				     *rawdata->blk_idx, nbr_frms,
 				     rpmb_ctx->max_blk_idx);
 				res = TEE_ERROR_GENERIC;
 				goto func_exit;
@@ -534,7 +534,7 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 
 #ifdef ENABLE_RPMB_DATA_DUMP
 	for (i = 0; i < nbr_frms; i++) {
-		DMSG("%s: Dumping datafrm[%d]:", __func__, i);
+		DMSG("Dumping datafrm[%d]:", i);
 		HEX_PRINT_BUF((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
 			      512 - RPMB_STUFF_DATA_SIZE);
 	}
@@ -668,7 +668,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 #ifdef ENABLE_RPMB_DATA_DUMP
 	uint32_t i = 0;
 	for (i = 0; i < nbr_frms; i++) {
-		DMSG("%s: Dumping datafrm[%d]:", __func__, i);
+		DMSG("Dumping datafrm[%d]:", i);
 		HEX_PRINT_BUF((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
 			      512 - RPMB_STUFF_DATA_SIZE);
 	}
@@ -682,21 +682,21 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	if (rawdata->op_result)
 		*rawdata->op_result = op_result;
 	if (op_result != RPMB_RESULT_OK) {
-		DMSG("%s: op_result != RPMB_RESULT_OK", __func__);
+		DMSG("op_result != RPMB_RESULT_OK");
 		return TEE_ERROR_GENERIC;
 	}
 
 	/* Check the response msg_type. */
 	bytes_to_u16(lastfrm.msg_type, &msg_type);
 	if (msg_type != rawdata->msg_type) {
-		DMSG("%s: Unexpected msg_type", __func__);
+		DMSG("Unexpected msg_type");
 		return TEE_ERROR_GENERIC;
 	}
 
 	if (rawdata->blk_idx) {
 		bytes_to_u16(lastfrm.address, &blk_idx);
 		if (blk_idx != *rawdata->blk_idx) {
-			DMSG("%s: Unexpected block index", __func__);
+			DMSG("Unexpected block index");
 			return TEE_ERROR_GENERIC;
 		}
 	}
@@ -707,7 +707,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		if (msg_type == RPMB_MSG_TYPE_RESP_AUTH_DATA_WRITE) {
 			/* Verify the write counter is incremented by 1 */
 			if (*rawdata->write_counter != wr_cnt + 1) {
-				DMSG("%s: write counter mismatched", __func__);
+				DMSG("Write counter mismatched");
 				return TEE_ERROR_SECURITY;
 			}
 			rpmb_ctx->wr_cnt++;
@@ -717,7 +717,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	if (rawdata->nonce) {
 		if (buf_compare_ct(rawdata->nonce, lastfrm.nonce,
 				   RPMB_NONCE_SIZE) != 0) {
-			DMSG("%s: nonce mismatched", __func__);
+			DMSG("Nonce mismatched");
 			return TEE_ERROR_SECURITY;
 		}
 	}
@@ -754,7 +754,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		if (buf_compare_ct(rawdata->key_mac,
 				   (datafrm + nbr_frms - 1)->key_mac,
 				   RPMB_KEY_MAC_SIZE) != 0) {
-			DMSG("%s: MAC mismatched:", __func__);
+			DMSG("MAC mismatched:");
 #ifdef ENABLE_RPMB_DATA_DUMP
 			HEX_PRINT_BUF((uint8_t *)rawdata->key_mac, 32);
 #endif
