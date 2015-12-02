@@ -138,7 +138,7 @@ bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 	return true;
 }
 
-int uuid2str(char *dst, TEE_UUID *uuid)
+int uuid2str(char *dst, const TEE_UUID *uuid)
 {
 	if (dst == NULL)
 		return 0;

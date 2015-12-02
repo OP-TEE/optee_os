@@ -1229,10 +1229,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 	      (ctx->ref_count == 0)))
 		return TEE_ERROR_BUSY;
 
-	DMSG("   ... Re-open TA %08x-%04x-%04x",
-	     ctx->uuid.timeLow,
-	     ctx->uuid.timeMid, ctx->uuid.timeHiAndVersion);
-
+	DMSG("   ... Re-open TA %s", _uuid2str(&ctx->uuid));
 
 	ctx->ref_count++;
 	s->ctx = ctx;
@@ -1250,8 +1247,7 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	struct tee_ta_ctx *ctx = NULL;
 	ta_static_head_t *ta = NULL;
 
-	DMSG("   Lookup for Static TA %08x-%04x-%04x",
-	     uuid->timeLow, uuid->timeMid, uuid->timeHiAndVersion);
+	DMSG("   Lookup static TA %s", _uuid2str(uuid));
 
 	ta = &__start_ta_head_section;
 	while (true) {
@@ -1279,11 +1275,7 @@ static TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	ctx->uuid = ta->uuid;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %08x-%04x-%04x",
-	     ctx->static_ta->name,
-	     ctx->uuid.timeLow,
-	     ctx->uuid.timeMid,
-	     ctx->uuid.timeHiAndVersion);
+	DMSG("      %s: %s", ctx->static_ta->name, _uuid2str(&ctx->uuid));
 
 	return TEE_SUCCESS;
 }
@@ -1300,9 +1292,7 @@ static TEE_Result tee_ta_init_session_with_signed_ta(const TEE_UUID *uuid,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	DMSG("      dyn TA : %08x-%04x-%04x",
-	     s->ctx->uuid.timeLow, s->ctx->uuid.timeMid,
-	     s->ctx->uuid.timeHiAndVersion);
+	DMSG("      dyn TA : %s", _uuid2str(&s->ctx->uuid));
 
 	return res;
 }
