@@ -11,7 +11,7 @@ link-ldflags  = $(LDFLAGS)
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
-link-ldflags += --print-gc-sections
+link-ldflags += --gc-sections
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
