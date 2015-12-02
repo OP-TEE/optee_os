@@ -296,8 +296,6 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	void *ptr;
 	size_t s = hdr_size + ftr_size + pl_size;
 
-	malloc_lock();
-
 	/*
 	 * Make sure that malloc has correct alignment of returned buffers.
 	 * The assumption is that uintptr_t will be as wide as the largest
@@ -318,20 +316,15 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size)
 	ptr = bget(s);
 	raw_malloc_save_max_alloced_size();
 
-	malloc_unlock();
 	return ptr;
 }
 
 static void raw_free(void *ptr)
 {
-	malloc_lock();
-
 	raw_malloc_validate_pools();
 
 	if (ptr)
 		brel(ptr);
-
-	malloc_unlock();
 }
 
 static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
@@ -339,8 +332,6 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 {
 	size_t s = hdr_size + ftr_size + pl_nmemb * pl_size;
 	void *ptr;
-
-	malloc_lock();
 
 	raw_malloc_validate_pools();
 
@@ -355,8 +346,6 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 	ptr = bgetz(s);
 	raw_malloc_save_max_alloced_size();
 
-	malloc_unlock();
-
 	return ptr;
 }
 
@@ -370,8 +359,6 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 	if (s < pl_size)
 		return NULL;
 
-	malloc_lock();
-
 	raw_malloc_validate_pools();
 
 	/* BGET doesn't like 0 sized allocations */
@@ -380,8 +367,6 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 
 	p = bgetr(ptr, s);
 	raw_malloc_save_max_alloced_size();
-
-	malloc_unlock();
 
 	return p;
 }
@@ -538,8 +523,6 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 	size_t s;
 	uintptr_t b;
 
-	malloc_lock();
-
 	raw_malloc_validate_pools();
 
 	if (!IS_POWER_OF_TWO(alignment))
@@ -597,8 +580,6 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 	brel_after((void *)b, hdr_size + ftr_size + size);
 
 	raw_malloc_save_max_alloced_size();
-
-	malloc_unlock();
 
 	return (void *)b;
 }
@@ -675,6 +656,8 @@ void *mdbg_malloc(const char *fname, int lineno, size_t size)
 {
 	struct mdbg_hdr *hdr;
 
+	malloc_lock();
+
 	/*
 	 * Check struct mdbg_hdr doesn't get bad alignment.
 	 * This is required by C standard: the buffer returned from
@@ -690,6 +673,8 @@ void *mdbg_malloc(const char *fname, int lineno, size_t size)
 		mdbg_update_hdr(hdr, fname, lineno, size);
 		hdr++;
 	}
+
+	malloc_unlock();
 	return hdr;
 }
 
@@ -714,23 +699,28 @@ static void mdbg_free(void *ptr)
 
 void free(void *ptr)
 {
+	malloc_lock();
 	mdbg_free(ptr);
+	malloc_unlock();
 }
 
 void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
 {
 	struct mdbg_hdr *hdr;
 
+	malloc_lock();
 	hdr = raw_calloc(sizeof(struct mdbg_hdr),
 			  mdbg_get_ftr_size(nmemb * size), nmemb, size);
 	if (hdr) {
 		mdbg_update_hdr(hdr, fname, lineno, nmemb * size);
 		hdr++;
 	}
+	malloc_unlock();
 	return hdr;
 }
 
-void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
+static void *mdbg_realloc_unlocked(const char *fname, int lineno,
+			    void *ptr, size_t size)
 {
 	struct mdbg_hdr *hdr = ptr;
 
@@ -747,17 +737,32 @@ void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
 	return hdr;
 }
 
+void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
+{
+	void *p;
+
+	malloc_lock();
+	p = mdbg_realloc_unlocked(fname, lineno, ptr, size);
+	malloc_unlock();
+	return p;
+}
+
+#define realloc_unlocked(ptr, size) \
+		mdbg_realloc_unlocked(__FILE__, __LINE__, (ptr), (size))
+
 void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 		size_t size)
 {
 	struct mdbg_hdr *hdr;
 
+	malloc_lock();
 	hdr = raw_memalign(sizeof(struct mdbg_hdr), mdbg_get_ftr_size(size),
 			   alignment, size);
 	if (hdr) {
 		mdbg_update_hdr(hdr, fname, lineno, size);
 		hdr++;
 	}
+	malloc_unlock();
 	return hdr;
 }
 
@@ -776,6 +781,7 @@ void mdbg_check(int bufdump)
 	struct bpool_iterator itr;
 	void *b;
 
+	malloc_lock();
 	raw_malloc_validate_pools();
 
 	BPOOL_FOREACH(&itr, &b) {
@@ -794,33 +800,61 @@ void mdbg_check(int bufdump)
 		}
 	}
 
+	malloc_unlock();
 }
 
 #else
 
 void *malloc(size_t size)
 {
-	return raw_malloc(0, 0, size);
+	void *p;
+
+	malloc_lock();
+	p = raw_malloc(0, 0, size);
+	malloc_unlock();
+	return p;
 }
 
 void free(void *ptr)
 {
+	malloc_lock();
 	raw_free(ptr);
+	malloc_unlock();
 }
 
 void *calloc(size_t nmemb, size_t size)
 {
-	return raw_calloc(0, 0, nmemb, size);
+	void *p;
+
+	malloc_lock();
+	p = raw_calloc(0, 0, nmemb, size);
+	malloc_unlock();
+	return p;
 }
 
-void *realloc(void *ptr, size_t size)
+static void *realloc_unlocked(void *ptr, size_t size)
 {
 	return raw_realloc(ptr, 0, 0, size);
 }
 
+void *realloc(void *ptr, size_t size)
+{
+	void *p;
+
+	malloc_lock();
+	p = realloc_unlocked(ptr, 0, 0, size);
+	malloc_unlock();
+	return p;
+}
+
 void *memalign(size_t alignment, size_t size)
 {
-	return raw_memalign(0, 0, alignment, size);
+	void *p;
+
+	malloc_lock();
+	p = raw_memalign(0, 0, alignment, size);
+	malloc_unlock();
+	return p;
 }
 
 static void *get_payload_start_size(void *ptr, size_t *size)
@@ -830,16 +864,6 @@ static void *get_payload_start_size(void *ptr, size_t *size)
 }
 
 #endif
-
-
-
-void malloc_init(void *buf, size_t len)
-{
-	/* Must not be called twice */
-	assert(!malloc_pool);
-
-	malloc_add_pool(buf, len);
-}
 
 void malloc_add_pool(void *buf, size_t len)
 {
@@ -852,15 +876,16 @@ void malloc_add_pool(void *buf, size_t len)
 	end = ROUNDDOWN(end, SizeQuant);
 	assert(start < end);
 
+	malloc_lock();
 	bpool((void *)start, end - start);
-
 	l = malloc_pool_len + 1;
-	p = realloc(malloc_pool, sizeof(struct malloc_pool) * l);
+	p = realloc_unlocked(malloc_pool, sizeof(struct malloc_pool) * l);
 	assert(p);
 	malloc_pool = p;
 	malloc_pool[malloc_pool_len].buf = (void *)start;
 	malloc_pool[malloc_pool_len].len = end - start;
 	malloc_pool_len = l;
+	malloc_unlock();
 }
 
 bool malloc_buffer_is_within_alloced(void *buf, size_t len)

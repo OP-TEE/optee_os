@@ -79,14 +79,7 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len);
 bool malloc_buffer_overlaps_heap(void *buf, size_t len);
 
 /*
- * Sets an initial pool of memory to allocate from, must only be called
- * once.
- */
-void malloc_init(void *buf, size_t len);
-
-/*
- * Adds a pool of memory to allocate from. If malloc_init hasn't been
- * called before this function it will do a malloc_init internally.
+ * Adds a pool of memory to allocate from.
  */
 void malloc_add_pool(void *buf, size_t len);
 

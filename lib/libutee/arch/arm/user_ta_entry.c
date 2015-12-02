@@ -93,7 +93,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 		if (!context_init) {
 			trace_set_level(tahead_get_trace_level());
-			malloc_init(ta_heap, ta_heap_size);
+			malloc_add_pool(ta_heap, ta_heap_size);
 			_TEE_MathAPI_Init();
 			context_init = true;
 		}

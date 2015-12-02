@@ -117,7 +117,7 @@ void main_init(uint32_t nsec_entry)
 		s = s & ~0x0FFFF;	/* 64kB aligned */
 		s = s - a;
 #endif
-		malloc_init((void *)a, s);
+		malloc_add_pool((void *)a, s);
 
 		teecore_init_ta_ram();
 
