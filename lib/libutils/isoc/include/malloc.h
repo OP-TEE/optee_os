@@ -30,11 +30,6 @@
 #include <stddef.h>
 #include <types_ext.h>
 
-enum mdbg_mode {
-	MDBG_MODE_STATIC,
-	MDBG_MODE_DYNAMIC
-};
-
 void free(void *ptr);
 
 #ifdef ENABLE_MDBG
@@ -45,7 +40,6 @@ void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
 void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 		size_t size);
 
-enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode);
 void mdbg_check(int bufdump);
 
 #define malloc(size)	mdbg_malloc(__FILE__, __LINE__, (size))
@@ -64,10 +58,6 @@ void *realloc(void *ptr, size_t size);
 void *memalign(size_t alignment, size_t size);
 
 #define mdbg_check(x)        do { } while (0)
-static inline enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode)
-{
-	return mode;
-}
 
 #endif
 

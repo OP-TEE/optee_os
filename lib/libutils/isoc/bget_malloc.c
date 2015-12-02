@@ -630,7 +630,6 @@ static bufsize bget_buf_size(void *buf)
 struct mdbg_hdr {
 	const char *fname;
 	uint16_t line;
-	bool ignore;
 	uint32_t pl_size;
 	uint32_t magic;
 #if defined(ARM64)
@@ -641,16 +640,12 @@ struct mdbg_hdr {
 #define MDBG_HEADER_MAGIC	0xadadadad
 #define MDBG_FOOTER_MAGIC	0xecececec
 
-/* TODO make this a per thread variable */
-static enum mdbg_mode mdbg_mode = MDBG_MODE_DYNAMIC;
-
 static size_t mdbg_get_ftr_size(size_t pl_size)
 {
 	size_t ftr_pad = ROUNDUP(pl_size, sizeof(uint32_t)) - pl_size;
 
 	return ftr_pad + sizeof(uint32_t);
 }
-
 
 static uint32_t *mdbg_get_footer(struct mdbg_hdr *hdr)
 {
@@ -671,7 +666,6 @@ static void mdbg_update_hdr(struct mdbg_hdr *hdr, const char *fname,
 	hdr->line = lineno;
 	hdr->pl_size = pl_size;
 	hdr->magic = MDBG_HEADER_MAGIC;
-	hdr->ignore = mdbg_mode == MDBG_MODE_STATIC;
 
 	footer = mdbg_get_footer(hdr);
 	*footer = MDBG_FOOTER_MAGIC;
@@ -789,26 +783,17 @@ void mdbg_check(int bufdump)
 
 		assert_header(hdr);
 
-		if (bufdump > 0 || !hdr->ignore) {
+		if (bufdump > 0) {
 			const char *fname = hdr->fname;
 
 			if (!fname)
 				fname = "unknown";
 
-			DMSG("%s buffer: %d bytes %s:%d\n",
-				hdr->ignore ? "Ignore" : "Orphaned",
+			DMSG("buffer: %d bytes %s:%d\n",
 				hdr->pl_size, fname, hdr->line);
 		}
 	}
 
-}
-
-enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode)
-{
-	enum mdbg_mode old_mode = mdbg_mode;
-
-	mdbg_mode = mode;
-	return old_mode;
 }
 
 #else
@@ -862,7 +847,6 @@ void malloc_add_pool(void *buf, size_t len)
 	size_t l;
 	uintptr_t start = (uintptr_t)buf;
 	uintptr_t end = start + len;
-	enum mdbg_mode old_mode = mdbg_set_mode(MDBG_MODE_STATIC);
 
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
@@ -877,7 +861,6 @@ void malloc_add_pool(void *buf, size_t len)
 	malloc_pool[malloc_pool_len].buf = (void *)start;
 	malloc_pool[malloc_pool_len].len = end - start;
 	malloc_pool_len = l;
-	mdbg_set_mode(old_mode);
 }
 
 bool malloc_buffer_is_within_alloced(void *buf, size_t len)
