@@ -599,7 +599,8 @@ function_exit:
 			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
 	}
 	tee_mm_free(mm_param);
-	tee_svc_copy_kaddr_to_uref(sess, ta_sess, s);
+	if (res == TEE_SUCCESS)
+		tee_svc_copy_kaddr_to_uref(sess, ta_sess, s);
 	tee_svc_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
