@@ -505,7 +505,7 @@ void tee_user_mem_status(struct tee_user_mem_stats *stats)
 
 	if (global_stats.nb_alloc > 0) {
 		IMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
-		IMSG("Size:\t[%d]", global_stats.size);
+		IMSG("Size:\t[%zu]", global_stats.size);
 	}
 
 	TAILQ_FOREACH(e, &user_mem_head, link) {
