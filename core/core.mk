@@ -29,7 +29,9 @@ cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
-cppflags$(sm) += -DENABLE_MDBG=$(CFG_TEE_CORE_MALLOC_DEBUG)
+ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)
+cppflags$(sm) += -DENABLE_MDBG=1
+endif
 
 cppflags$(sm)	+= -Ilib/libutee/include
 

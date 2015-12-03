@@ -56,7 +56,9 @@ cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
 endif
 
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
-cppflags$(sm) += -DENABLE_MDBG=$(CFG_TEE_TA_MALLOC_DEBUG)
+ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
+cppflags$(sm) += -DENABLE_MDBG=1
+endif
 
 include $(ta-dev-kit-dir)/mk/arch.mk
 

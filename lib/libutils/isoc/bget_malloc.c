@@ -842,7 +842,7 @@ void *realloc(void *ptr, size_t size)
 	void *p;
 
 	malloc_lock();
-	p = realloc_unlocked(ptr, 0, 0, size);
+	p = realloc_unlocked(ptr, size);
 	malloc_unlock();
 	return p;
 }
