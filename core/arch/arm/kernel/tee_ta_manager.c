@@ -952,8 +952,7 @@ static TEE_Result tee_ta_rpc_load(const TEE_UUID *uuid,
 				   &phpayload, &cookie);
 	if (!phpayload) {
 		*ret_orig = TEE_ORIGIN_TEE;
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	if (!ALIGNMENT_IS_OK(phpayload, struct tee_rpc_load_ta_cmd)) {
