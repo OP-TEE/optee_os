@@ -33,6 +33,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <kernel/unwind.h>
 
 .section .text.boot
 .align	5
@@ -48,6 +49,8 @@ FUNC _start , :
 END_FUNC _start
 
 LOCAL_FUNC reset , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
         read_sctlr  r0
 	orr	    r0, r0, #SCTLR_A
 	write_sctlr r0
@@ -96,5 +99,6 @@ LOCAL_FUNC reset , :
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should never return */
+UNWIND(	.fnend)
 END_FUNC reset
 

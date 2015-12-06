@@ -33,6 +33,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <kernel/unwind.h>
 
 .section .data
 .balign 4
@@ -63,16 +64,21 @@ END_FUNC _start
 /* Let platforms override this if needed */
 .weak plat_cpu_reset_early
 FUNC plat_cpu_reset_early , :
+UNWIND(	.fnstart)
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 
 .weak plat_cpu_reset_late
 FUNC plat_cpu_reset_late , :
+UNWIND(	.fnstart)
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_late
 
 #ifdef CFG_BOOT_SYNC_CPU
 LOCAL_FUNC cpu_is_ready , :
+UNWIND(	.fnstart)
 	lsl	r0, r0, #2
 	ldr	r1,=sem_cpu_sync
 	ldr	r2, =SEM_CPU_READY
@@ -80,9 +86,11 @@ LOCAL_FUNC cpu_is_ready , :
 	dsb
 	sev
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC cpu_is_ready
 
 LOCAL_FUNC wait_primary , :
+UNWIND(	.fnstart)
 	ldr	r0, =sem_cpu_sync
 	mov	r2, #SEM_CPU_READY
 	sev
@@ -92,9 +100,11 @@ _wait_cpu0:
 	wfene
 	bne	_wait_cpu0
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC wait_primary
 
 LOCAL_FUNC wait_secondary , :
+UNWIND(	.fnstart)
 	ldr	r0, =sem_cpu_sync
 	mov	r3, #CFG_TEE_CORE_NB_CORE
 	mov	r2, #SEM_CPU_READY
@@ -111,6 +121,7 @@ _wait_cpun:
 	b	_wait_next
 _synced_cpun:
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC wait_secondary
 
 #else
@@ -119,19 +130,27 @@ END_FUNC wait_secondary
  * So cpu synchronization functions are empty
  */
 LOCAL_FUNC cpu_is_ready , :
+UNWIND(	.fnstart)
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC cpu_is_ready
 
 LOCAL_FUNC wait_primary , :
+UNWIND(	.fnstart)
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC wait_primary
 
 LOCAL_FUNC wait_secondary , :
+UNWIND(	.fnstart)
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC wait_secondary
 #endif
 
 LOCAL_FUNC reset , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	mov	r4, r0		/* Save pageable part address */
 	mov	r5, lr		/* Save ns-entry address */
 
@@ -168,9 +187,12 @@ LOCAL_FUNC reset , :
 	beq	reset_primary
 	b	reset_secondary
 #endif
+UNWIND(	.fnend)
 END_FUNC reset
 
 LOCAL_FUNC reset_primary , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 #ifdef CFG_TEE_GDB_BOOT
 	/* save linux boot args from GDB */
 	ldr	r0, =gdb_bootargs
@@ -319,16 +341,21 @@ copy_init:
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
+UNWIND(	.fnend)
 END_FUNC reset_primary
 
 
 LOCAL_FUNC unhandled_cpu , :
+UNWIND(	.fnstart)
 	wfi
 	b	unhandled_cpu
+UNWIND(	.fnend)
 END_FUNC unhandled_cpu
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	mov	r4, r0
 	mov	r5, r1
 	mov	r6, lr
@@ -358,11 +385,14 @@ FUNC cpu_on_handler , :
 	bl	generic_boot_cpu_on_handler
 
 	bx	r6
+UNWIND(	.fnend)
 END_FUNC cpu_on_handler
 
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
 LOCAL_FUNC reset_secondary , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	bl	wait_primary
 
 	bl	get_core_pos
@@ -392,5 +422,6 @@ LOCAL_FUNC reset_secondary , :
 	mov	r3, #0
 	smc	#0
 	b	.	/* SMC should not return */
+UNWIND(	.fnend)
 END_FUNC reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */

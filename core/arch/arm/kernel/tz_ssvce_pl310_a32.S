@@ -28,9 +28,11 @@
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
 #include <asm.S>
+#include <kernel/unwind.h>
 
 /* lock all L2 caches ways for data and instruction */
 FUNC arm_cl2_lockallways , :
+UNWIND(	.fnstart)
 
 	mov r0, #PL310_NB_WAYS
 	movw r1, #PL310_DCACHE_LOCKDOWN_BASE
@@ -43,12 +45,14 @@ loop_data_lockdown:
 	bne loop_data_lockdown
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_lockallways
 
 /*
  * void arm_cl2_cleaninvbyway(void) - clean & invalidate the whole L2 cache.
  */
 FUNC arm_cl2_cleaninvbyway , :
+UNWIND(	.fnstart)
 
 	/* Clean and invalidate all cache ways */
 	movw r0, #PL310_FLUSH_BY_WAY
@@ -84,10 +88,12 @@ loop_cli_sync_done:
 	bne loop_cli_sync_done
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_cleaninvbyway
 
 /* void (arm_cl2_invbyway(void) */
 FUNC arm_cl2_invbyway , :
+UNWIND(	.fnstart)
 
 	/* Clean by Way */
 	movw r0, #PL310_INV_BY_WAY
@@ -124,10 +130,12 @@ loop_inv_way_sync_done:
 	bne loop_inv_way_sync_done
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_invbyway
 
 /* void arm_cl2_cleanbyway(u32 pa) */
 FUNC arm_cl2_cleanbyway , :
+UNWIND(	.fnstart)
 
 	/* Clean by Way */
 	movw r0, #PL310_CLEAN_BY_WAY
@@ -164,6 +172,7 @@ loop_cl_way_sync_done:
 	bne loop_cl_way_sync_done
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_cleanbyway
 
 /*
@@ -171,6 +180,7 @@ END_FUNC arm_cl2_cleanbyway
  * pl310value is one of PL310_CLEAN_BY_PA, PL310_INV_BY_PA or PL310_FLUSH_BY_PA
  */
 LOCAL_FUNC _arm_cl2_xxxbypa , :
+UNWIND(	.fnstart)
 	/* Align start address on PL310 line size */
 	and r0, #(~(PL310_LINE_SIZE - 1))
 
@@ -220,6 +230,7 @@ loop_xxx_pa_sync_done:
 	bne loop_xxx_pa_sync_done
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC _arm_cl2_xxxbypa
 
 /*
@@ -227,9 +238,11 @@ END_FUNC _arm_cl2_xxxbypa
  * clean L2 cache by physical address range.
  */
 FUNC arm_cl2_cleanbypa , :
+UNWIND(	.fnstart)
 	movw r2, #PL310_CLEAN_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+UNWIND(	.fnend)
 END_FUNC arm_cl2_cleanbypa
 
 /*
@@ -237,9 +250,11 @@ END_FUNC arm_cl2_cleanbypa
  * invalidate L2 cache by physical address range.
  */
 FUNC arm_cl2_invbypa , :
+UNWIND(	.fnstart)
 	movw r2, #PL310_INV_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+UNWIND(	.fnend)
 END_FUNC arm_cl2_invbypa
 
 /*
@@ -247,8 +262,10 @@ END_FUNC arm_cl2_invbypa
  * clean and invalidate L2 cache by physical address range.
  */
 FUNC arm_cl2_cleaninvbypa , :
+UNWIND(	.fnstart)
 	movw r2, #PL310_FLUSH_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+UNWIND(	.fnend)
 END_FUNC arm_cl2_cleaninvbypa
 

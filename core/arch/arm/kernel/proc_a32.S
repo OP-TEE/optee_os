@@ -31,6 +31,7 @@
 
 #include <kernel/tz_proc.h>
 #include <kernel/tz_proc_def.h>
+#include <kernel/unwind.h>
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
@@ -39,6 +40,7 @@
 
 /* void cpu_spin_lock(lock address) - lock mutex */
 FUNC cpu_spin_lock , :
+UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 _spinlock_loop:
 	ldrex r1, [r0]
@@ -51,10 +53,12 @@ _spinlock_loop:
 	bne _spinlock_loop
 	dmb
 	bx lr
+UNWIND(	.fnend)
 END_FUNC cpu_spin_lock
 
 /* int cpu_spin_trylock(lock address) - return 0 on success */
 FUNC cpu_spin_trylock , :
+UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 	mov r1, r0
 _trylock_loop:
@@ -70,16 +74,19 @@ _trylock_out:
 	clrex
 	dmb
 	bx lr
+UNWIND(	.fnend)
 END_FUNC cpu_spin_trylock
 
 /* void cpu_spin_unlock(lock address) - unlock mutex */
 FUNC cpu_spin_unlock , :
+UNWIND(	.fnstart)
 	dmb
 	mov r1, #SPINLOCK_UNLOCK
 	str r1, [r0]
 	dsb
 	sev
 	bx lr
+UNWIND(	.fnend)
 END_FUNC cpu_spin_unlock
 
 /*
@@ -89,6 +96,7 @@ END_FUNC cpu_spin_unlock
  * An DSB and ISB insures MMUs is enabled before routine returns
  */
 FUNC cpu_mmu_enable , :
+UNWIND(	.fnstart)
 	/* Invalidate TLB */
 	write_tlbiall
 
@@ -101,10 +109,12 @@ FUNC cpu_mmu_enable , :
 	isb
 
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC cpu_mmu_enable
 
 /* void cpu_mmu_enable_icache(void) - enable instruction cache */
 FUNC cpu_mmu_enable_icache , :
+UNWIND(	.fnstart)
 	/* Invalidate instruction cache and branch predictor */
 	write_iciallu
 	write_bpiall
@@ -118,10 +128,12 @@ FUNC cpu_mmu_enable_icache , :
 	isb
 
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC cpu_mmu_enable_icache
 
 /* void cpu_mmu_enable_dcache(void) - enable data cache */
 FUNC cpu_mmu_enable_dcache , :
+UNWIND(	.fnstart)
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_C
 	write_sctlr r0
@@ -130,4 +142,5 @@ FUNC cpu_mmu_enable_dcache , :
 	isb
 
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC cpu_mmu_enable_dcache

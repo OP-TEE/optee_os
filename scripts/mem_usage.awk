@@ -62,7 +62,8 @@ function add_section(_name, _addr, _offs, _size)
 		size = $(name_offs + 4);
 		flags = $(name_offs + 6);
 
-		if (flags == "AX" || flags == "WA" || flags == "A") {
+		if (flags == "AX" || flags == "WA" || flags == "A" ||
+		    flags == "AL") {
 			add_section(name, addr, offs, size);
 		}
 	}

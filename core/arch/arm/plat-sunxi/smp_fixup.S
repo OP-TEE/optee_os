@@ -24,6 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <asm.S>
+#include <kernel/unwind.h>
+
 #define SLAVE_SNOOPCTL_OFFSET	0
 #define SNOOPCTL_SNOOP_ENABLE	(1 << 0)
 #define SNOOPCTL_DVM_ENABLE	(1 << 1)
@@ -43,8 +46,8 @@
 #define SUNXI_CCU_C0_CFG_OFFSET (0x54)
 #define SUNXI_CCU_C1_CFG_OFFSET (0x58)
 
-.globl sunxi_secondary_fixup
-sunxi_secondary_fixup:
+FUNC sunxi_secondary_fixup , :
+UNWIND(	.fnstart)
 	mrc	p15, 0, r0, c0, c0, 5	/* MPIDR   */
 	ubfx	r0, r0, #8, #4		/* cluster */
 	
@@ -109,3 +112,5 @@ sunxi_secondary_fixup:
 2:
         /* a80 platform-specific operations porcess done. */
 	bx	lr
+UNWIND(	.fnend)
+END_FUNC sunxi_secondary_fixup

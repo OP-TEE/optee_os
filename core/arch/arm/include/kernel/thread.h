@@ -483,6 +483,8 @@ void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
 vaddr_t thread_get_saved_thread_sp(void);
 #endif /*ARM64*/
 
+bool thread_addr_is_in_stack(vaddr_t va);
+
 /*
  * Adds a mutex to the list of held mutexes for current thread
  * Requires IRQs to be disabled.

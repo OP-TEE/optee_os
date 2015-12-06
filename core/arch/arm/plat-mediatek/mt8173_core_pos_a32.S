@@ -28,8 +28,10 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
+#include <kernel/unwind.h>
 
 FUNC get_core_pos , :
+UNWIND(	.fnstart)
 	read_mpidr r0
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK
@@ -44,5 +46,6 @@ FUNC get_core_pos , :
 	 */
 	add	r0, r1, r0, LSR #7
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC get_core_pos
 

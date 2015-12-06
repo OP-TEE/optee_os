@@ -34,6 +34,7 @@
 #include <kernel/tz_ssvce_def.h>
 #include <arm32_macros.S>
 #include <asm.S>
+#include <kernel/unwind.h>
 
 #define CPUID_A9_R2P2_H 0x412f
 #define CPUID_A9_R2P2_L 0xc092
@@ -54,6 +55,7 @@
  * Trap CPU in case of error.
  */
 FUNC arm_secboot_identify_cpu , :
+UNWIND(	.fnstart)
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R2P2_L
@@ -72,6 +74,7 @@ _ident_a9_r2p2:
 
 _ident_a9_r3p0:
 	mov pc, lr /* back to tzinit */
+UNWIND(	.fnend)
 END_FUNC arm_secboot_identify_cpu
 
 /*
@@ -83,6 +86,7 @@ END_FUNC arm_secboot_identify_cpu
  * Trap CPU in case of error.
  */
 FUNC arm_cl2_config , :
+UNWIND(	.fnstart)
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R3P0_L
@@ -185,6 +189,7 @@ _config_l2cc_r3p0:
 	str  r1, [r0]
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_config
 /* End of arm_cl2_config */
 
@@ -201,6 +206,7 @@ END_FUNC arm_cl2_config
  * TODO: to be moved to PL310 code (tz_svce_pl310.S ?)
  */
 FUNC arm_cl2_enable , :
+UNWIND(	.fnstart)
 
 
 	/* Enable PL310 ctrl -> only set lsb bit */
@@ -219,6 +225,7 @@ FUNC arm_cl2_enable , :
 	mcr  p15, 0, r0, c1, c0, 1
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_cl2_enable
 
 /* 
@@ -230,6 +237,7 @@ END_FUNC arm_cl2_enable
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
+UNWIND(	.fnstart)
 
 	/* only r3p0 is supported */
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
@@ -296,6 +304,7 @@ _early_a9_r3p0:
 	str  r1, [r0]
 
 	mov pc, lr /* back to tzinit */
+UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 
 /*
@@ -307,6 +316,7 @@ END_FUNC plat_cpu_reset_early
  * Trap CPU in case of error.
  */
 FUNC arm_secboot_errata , :
+UNWIND(	.fnstart)
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R2P2_L
@@ -325,6 +335,7 @@ _errata_a9_r2p2:
 
 _errata_a9_r3p0:
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC arm_secboot_errata
 
 /*
@@ -338,6 +349,7 @@ END_FUNC arm_secboot_errata
  * TODO: size optim in code
  */
 FUNC plat_cpu_reset_late , :
+UNWIND(	.fnstart)
 
 	mrc p15, 0, r0, c0, c0, 5
 	ands r0, #3
@@ -456,4 +468,5 @@ loop_1:
 	mcr p15, 0, r0, c1, c1, 0    /* write updated value in Secure Configuration Register */
 
 	mov pc, lr
+UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_late

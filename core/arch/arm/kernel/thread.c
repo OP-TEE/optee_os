@@ -577,6 +577,14 @@ vaddr_t thread_get_saved_thread_sp(void)
 }
 #endif /*ARM64*/
 
+bool thread_addr_is_in_stack(vaddr_t va)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	return va < thr->stack_va_end &&
+	       va >= (thr->stack_va_end - STACK_THREAD_SIZE);
+}
+
 void thread_state_free(void)
 {
 	struct thread_core_local *l = thread_get_core_local();

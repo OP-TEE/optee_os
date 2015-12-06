@@ -30,6 +30,7 @@
 #include <arm.h>
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
+#include <kernel/unwind.h>
 
 	.section .text.arch_svc_asm
 
@@ -39,7 +40,9 @@
  * Called from tee_svc_handler()
  */
 FUNC tee_svc_do_call , :
+UNWIND(	.fnstart)
 	push	{r5-r9, lr}
+UNWIND(	.save	{r5-r9, lr})
 	mov	r7, sp
 	mov	r8, r0
 	mov	r9, r1
@@ -77,6 +80,7 @@ FUNC tee_svc_do_call , :
 .Lret:
 	mov	sp, r7
 	pop	{r5-r9, pc}
+UNWIND(	.fnend)
 END_FUNC tee_svc_do_call
 
 /*
@@ -90,10 +94,12 @@ END_FUNC tee_svc_do_call
  * thread_unwind_user_mode().
  */
 FUNC syscall_sys_return , :
+UNWIND(	.fnstart)
 	mov	r1, #0	/* panic = false */
 	mov	r2, #0	/* panic_code = 0 */
 	mov	r3, r8
 	b	tee_svc_sys_return_helper
+UNWIND(	.fnend)
 END_FUNC syscall_sys_return
 
 /*
@@ -105,9 +111,11 @@ END_FUNC syscall_sys_return
  * thread_svc_handler() in r8.
  */
 FUNC syscall_panic , :
+UNWIND(	.fnstart)
 	mov	r1, #1	/* panic = true */
 	mov	r2, r0	/* panic_code = 0 */
 	mov	r3, r8
 	ldr	r0, =TEE_ERROR_TARGET_DEAD
 	b	tee_svc_sys_return_helper
+UNWIND(	.fnend)
 END_FUNC syscall_panic

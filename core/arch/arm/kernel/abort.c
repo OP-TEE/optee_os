@@ -30,6 +30,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/panic.h>
 #include <kernel/user_ta.h>
+#include <kernel/unwind.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_pager.h>
 #include <tee/tee_svc.h>
@@ -42,6 +43,61 @@ enum fault_type {
 	FAULT_TYPE_PAGEABLE,
 	FAULT_TYPE_IGNORE,
 };
+
+#ifdef CFG_CORE_UNWIND
+#ifdef ARM32
+static void __print_stack_unwind(struct abort_info *ai)
+{
+	struct unwind_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.registers[0] = ai->regs->r0;
+	state.registers[1] = ai->regs->r1;
+	state.registers[2] = ai->regs->r2;
+	state.registers[3] = ai->regs->r3;
+	state.registers[4] = ai->regs->r4;
+	state.registers[5] = ai->regs->r5;
+	state.registers[6] = ai->regs->r6;
+	state.registers[7] = ai->regs->r7;
+	state.registers[8] = ai->regs->r8;
+	state.registers[9] = ai->regs->r9;
+	state.registers[10] = ai->regs->r10;
+	state.registers[11] = ai->regs->r11;
+	state.registers[13] = read_mode_sp(ai->regs->spsr & CPSR_MODE_MASK);
+	state.registers[14] = read_mode_lr(ai->regs->spsr & CPSR_MODE_MASK);
+	state.registers[15] = ai->pc;
+
+	do {
+		EMSG_RAW(" pc 0x%08x", state.registers[15]);
+	} while (unwind_stack(&state));
+}
+#endif /*ARM32*/
+
+#ifdef ARM64
+static void __print_stack_unwind(struct abort_info *ai)
+{
+	struct unwind_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.pc = ai->regs->elr;
+	state.fp = ai->regs->x29;
+
+	do {
+		EMSG_RAW("pc  0x%016" PRIx64, state.pc);
+	} while (unwind_stack(&state));
+}
+#endif /*ARM64*/
+
+static void print_stack_unwind(struct abort_info *ai)
+{
+	EMSG_RAW("Call stack:");
+	__print_stack_unwind(ai);
+}
+#else /*CFG_CORE_UNWIND*/
+static void print_stack_unwind(struct abort_info *ai __unused)
+{
+}
+#endif /*CFG_CORE_UNWIND*/
 
 static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 {
@@ -133,7 +189,7 @@ void abort_print(struct abort_info *ai __maybe_unused)
 #endif /*TRACE_LEVEL >= TRACE_DEBUG*/
 }
 
-void abort_print_error(struct abort_info *ai __maybe_unused)
+void abort_print_error(struct abort_info *ai)
 {
 #if (TRACE_LEVEL >= TRACE_INFO)
 	/* full verbose log at DEBUG level */
@@ -157,6 +213,7 @@ void abort_print_error(struct abort_info *ai __maybe_unused)
 	     read_mpidr_el1(), (uint32_t)ai->regs->spsr);
 #endif /*ARM64*/
 #endif /*TRACE_LEVEL >= TRACE_DEBUG*/
+	print_stack_unwind(ai);
 }
 
 #ifdef ARM32

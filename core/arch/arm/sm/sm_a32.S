@@ -29,10 +29,13 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <sm/teesmc.h>
+#include <kernel/unwind.h>
 
 	.section .text.sm_asm
 
 LOCAL_FUNC sm_save_modes_regs , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
 	stm	r0!, {sp, lr}
@@ -57,10 +60,13 @@ LOCAL_FUNC sm_save_modes_regs , :
 	ldm	r1, {r2-r3}		/* Load SPSR and LR from the stack */
 	stm	r0!, {r2-r3}		/* Store SPSR and LR in context */
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC sm_save_modes_regs
 
 /* Restores the mode specific registers */
 LOCAL_FUNC sm_restore_modes_regs , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
 	ldm	r0!, {sp, lr}
@@ -85,9 +91,12 @@ LOCAL_FUNC sm_restore_modes_regs , :
 	ldm	r0!, {r2-r3}		/* Load SPSR and LR from context */
 	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 	bx	lr
+UNWIND(	.fnend)
 END_FUNC sm_restore_modes_regs
 
 LOCAL_FUNC sm_smc_entry , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	srsdb	sp!, #CPSR_MODE_MON
 	push	{r0-r3}
 /* Positions relative to stack pointer */
@@ -152,6 +161,7 @@ LOCAL_FUNC sm_smc_entry , :
 .smc_exit:
 	pop	{r0-r3}
 	rfefd	sp!
+UNWIND(	.fnend)
 END_FUNC sm_smc_entry
 
 /*
@@ -162,6 +172,8 @@ END_FUNC sm_smc_entry
  * from FIQ.
  */
 LOCAL_FUNC sm_fiq_entry , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	/* FIQ has a +4 offset for lr compared to preferred return address */
 	sub	lr, lr, #4
 	srsdb	sp!, #CPSR_MODE_MON
@@ -194,10 +206,13 @@ LOCAL_FUNC sm_fiq_entry , :
 	bl	sm_restore_modes_regs
 
 	rfefd	sp!
+UNWIND(	.fnend)
 END_FUNC sm_fiq_entry
 
         .align	5
 LOCAL_FUNC sm_vect_table , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	b	.		/* Reset			*/
 	b	.		/* Undefined instruction	*/
 	b	sm_smc_entry	/* Secure monitor call		*/
@@ -206,11 +221,14 @@ LOCAL_FUNC sm_vect_table , :
 	b	.		/* Reserved			*/
 	b	.		/* IRQ				*/
 	b	sm_fiq_entry	/* FIQ				*/
+UNWIND(	.fnend)
 END_FUNC sm_vect_table
 
 /* void sm_init(vaddr_t stack_pointer); */
 FUNC sm_init , :
+UNWIND(	.fnstart)
 	push	{r0, lr}
+UNWIND(	.save	{r0, lr})
 
 	/* Set monitor stack */
 	mrs	r1, cpsr
@@ -223,4 +241,5 @@ FUNC sm_init , :
 	write_mvbar r0
 
 	pop	{r0, pc}
+UNWIND(	.fnend)
 END_FUNC sm_init
