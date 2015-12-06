@@ -116,3 +116,9 @@ CFG_LIBUTILS_WITH_ISOC ?= y
 #	 nothing with ` -mgeneral-regs-only`)
 # With CFG_TA_FLOAT_SUPPORT enabled TA code is free use floating point types
 CFG_TA_FLOAT_SUPPORT ?= y
+
+# Enable stack unwinding for aborts from kernel mode if CFG_TEE_CORE_DEBUG
+# is enabled
+ifeq ($(CFG_TEE_CORE_DEBUG),1)
+CFG_CORE_UNWIND ?= y
+endif

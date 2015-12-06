@@ -26,6 +26,7 @@
  */
 #include <platform_config.h>
 #include <asm.S>
+#include <kernel/unwind.h>
 
 #define ST_32BIT_REG(address) (address)
 
@@ -73,6 +74,7 @@ asc_state:
  * We rely on some other SW layer to enable ASC IP (power/clamps/clocks/...)
  */
 FUNC asc_init , :
+UNWIND(	.fnstart)
     ldr r1, =asc_state
     mov r0, #0
     str r0, [r1]
@@ -80,6 +82,7 @@ FUNC asc_init , :
     /* TODO: insure ASC is mapped (check against core_init_mmu()/core_mmu.c) */
     ldr r0, =0
     bx lr
+UNWIND(	.fnend)
 END_FUNC asc_init
 
 /*
@@ -89,6 +92,7 @@ END_FUNC asc_init
  *    Clobbers r0-r3
  */
 FUNC __asc_xmit , :
+UNWIND(	.fnstart)
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -127,6 +131,7 @@ notlf:
 _asc_exit:
     LDR r0, =0
     BX lr
+UNWIND(	.fnend)
 END_FUNC __asc_xmit
 
 /*
@@ -135,6 +140,7 @@ END_FUNC __asc_xmit
  *    Clobbers r0-r3
  */
 FUNC __asc_flush , :
+UNWIND(	.fnstart)
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -151,6 +157,7 @@ flush_wait:
 _flush_exit:
     LDR r0, =0
     BX lr
+UNWIND(	.fnend)
 END_FUNC __asc_flush
 
 /*
@@ -160,6 +167,7 @@ END_FUNC __asc_flush
  *    Clobbers r0-r3
  */
 FUNC __asc_xmit_char , :
+UNWIND(	.fnstart)
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -197,4 +205,5 @@ __asc_char_notlf:
 __asc_char_exit:
     LDR r0, =0
     BX lr
+UNWIND(	.fnend)
 END_FUNC __asc_xmit_char

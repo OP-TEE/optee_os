@@ -116,6 +116,12 @@ SECTIONS
 		__exidx_end = .;
 	}
 
+	.ARM.extab : {
+		__extab_start = .;
+		*(.ARM.extab*)
+		__extab_end = .;
+	}
+
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
 		*(.gnu.linkonce.r.*)

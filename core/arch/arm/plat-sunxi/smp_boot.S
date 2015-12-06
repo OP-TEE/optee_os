@@ -31,6 +31,8 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <kernel/unwind.h>
+
 
 FUNC smp_init_vector , :
 	b	.       /* Reset */
@@ -44,6 +46,8 @@ FUNC smp_init_vector , :
 END_FUNC smp_init_vector
 
 FUNC sunxi_secondary_entry , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	/* secondary CPUs internal initialization */
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_A
@@ -92,5 +96,5 @@ FUNC sunxi_secondary_entry , :
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-
+UNWIND(	.fnend)
 END_FUNC sunxi_secondary_entry

@@ -107,6 +107,12 @@ SECTIONS
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	__exidx_end = .;
 
+	.ARM.extab : {
+		__extab_start = .;
+		*(.ARM.extab*)
+		__extab_end = .;
+	}
+
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)

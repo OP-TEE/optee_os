@@ -75,6 +75,9 @@ CROSS_COMPILE_core ?= $(CROSS_COMPILE32)
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
+ifeq ($(CFG_CORE_UNWIND),y)
+core-platform-cflags += -funwind-tables
+endif
 core-platform-cflags += $(arm32-platform-cflags-generic)
 core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
