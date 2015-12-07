@@ -349,6 +349,7 @@ struct tee_rpmb_mem {
 	struct teesmc32_arg *arg;
 	paddr_t pharg;
 	paddr_t phpayload;
+	paddr_t phpayload_cookie;
 	paddr_t phreq;
 	paddr_t phresp;
 	size_t req_size;
@@ -379,9 +380,10 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 		return;
 
 	thread_rpc_free_arg(mem->pharg);
-	thread_rpc_free_payload(mem->phpayload);
+	thread_optee_rpc_free_payload(mem->phpayload_cookie);
 	mem->pharg = 0;
 	mem->phpayload = 0;
+	mem->phpayload_cookie = 0;
 }
 
 
@@ -396,7 +398,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	mem->pharg = thread_rpc_alloc_arg(TEESMC32_GET_ARG_SIZE(2));
-	mem->phpayload = thread_rpc_alloc_payload(req_s + resp_s);
+	thread_optee_rpc_alloc_payload(req_s + resp_s, &mem->phpayload,
+				       &mem->phpayload_cookie);
 	if (!mem->pharg || !mem->phpayload) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
