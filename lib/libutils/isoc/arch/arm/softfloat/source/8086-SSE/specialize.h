@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*----------------------------------------------------------------------------
 | Default value for `softfloat_detectTininess'.
 *----------------------------------------------------------------------------*/
-#define init_detectTininess softfloat_tininess_afterRounding;
+#define init_detectTininess softfloat_tininess_afterRounding
 
 /*----------------------------------------------------------------------------
 | "Common NaN" structure, used to transfer NaN representations from one format
