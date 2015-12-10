@@ -263,7 +263,7 @@ TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
 TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 {
 	TEE_Result res = TEE_SUCCESS;
-	paddr_t pa;
+	paddr_t pa = NULL;
 	uintptr_t smem;
 	size_t n;
 
