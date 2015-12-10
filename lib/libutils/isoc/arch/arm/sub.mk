@@ -5,3 +5,4 @@ srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_divmod_a32.S
 srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_divmod.c
 srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_ldivmod_a32.S
 srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_ldivmod.c
+srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_shift.c
