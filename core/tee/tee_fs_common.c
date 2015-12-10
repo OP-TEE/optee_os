@@ -1167,7 +1167,16 @@ exit:
 
 static bool is_tee_file_exist(const char *file)
 {
-	return !ree_fs_access(file, TEE_FS_F_OK);
+	char meta_path[REE_FS_NAME_MAX];
+
+	get_meta_filepath(file, 0, meta_path);
+	if (ree_fs_access(meta_path, TEE_FS_F_OK)) {
+		get_meta_filepath(file, 1, meta_path);
+		if (ree_fs_access(meta_path, TEE_FS_F_OK))
+			return false;
+	}
+
+	return true;
 }
 
 static struct tee_fs_file_meta *create_tee_file(const char *file)
@@ -1177,13 +1186,15 @@ static struct tee_fs_file_meta *create_tee_file(const char *file)
 
 	DMSG("Creating TEE file=%s", file);
 
-	/* create TEE file directory */
-	res = ree_fs_mkdir(file,
-			TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
-	if (res) {
-		EMSG("Failed to create TEE file directory, filename=%s",
-				file);
-		goto exit;
+	/* create TEE file directory if not exist */
+	if (ree_fs_access(file, TEE_FS_F_OK)) {
+		res = ree_fs_mkdir(file,
+				TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
+		if (res) {
+			EMSG("Failed to create TEE file directory, res=%d",
+				res);
+			goto exit;
+		}
 	}
 
 	/* create meta file in TEE file directory */
