@@ -218,7 +218,9 @@ static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
 	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
 	    ehdr->e_type != ET_DYN || ehdr->e_machine != EM_ARM ||
 	    (ehdr->e_flags & EF_ARM_ABIMASK) != EF_ARM_ABI_VERSION ||
+#ifndef CFG_WITH_VFP
 	    (ehdr->e_flags & EF_ARM_ABI_FLOAT_HARD) ||
+#endif
 	    ehdr->e_phentsize != sizeof(Elf32_Phdr) ||
 	    ehdr->e_shentsize != sizeof(Elf32_Shdr))
 		return TEE_ERROR_BAD_FORMAT;

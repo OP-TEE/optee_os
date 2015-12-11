@@ -193,6 +193,8 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
 
+	thread_user_save_vfp();
+
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 

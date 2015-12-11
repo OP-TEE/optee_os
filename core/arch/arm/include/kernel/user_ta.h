@@ -30,6 +30,7 @@
 #include <types_ext.h>
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
 #include <mm/tee_mm.h>
 #include <util.h>
 #include <assert.h>
@@ -59,7 +60,11 @@ struct user_ta_ctx {
 #if defined(CFG_SE_API)
 	struct tee_se_service *se_service;
 #endif
+#if defined(CFG_WITH_VFP)
+	struct thread_user_vfp_state vfp;
+#endif
 	struct tee_ta_ctx ctx;
+
 };
 
 static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx)

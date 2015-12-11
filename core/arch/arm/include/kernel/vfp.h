@@ -76,9 +76,29 @@ struct vfp_state {
 };
 #endif
 
+#ifdef CFG_WITH_VFP
+/* vfp_is_enabled() - Returns true if VFP is enabled */
 bool vfp_is_enabled(void);
+
+/* vfp_enable() - Enables vfp */
 void vfp_enable(void);
+
+/* vfp_disable() - Disables vfp */
 void vfp_disable(void);
+#else
+static inline bool vfp_is_enabled(void)
+{
+	return false;
+}
+
+static inline void vfp_enable(void)
+{
+}
+
+static inline void vfp_disable(void)
+{
+}
+#endif
 
 /*
  * vfp_lazy_save_state_init() - Saves VFP enable status and disables VFP

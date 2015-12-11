@@ -8,8 +8,8 @@ arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include mk/checkconf.mk
 include $(platform-dir)/conf.mk
-include core/arch/$(ARCH)/$(ARCH).mk
 include mk/config.mk
+include core/arch/$(ARCH)/$(ARCH).mk
 
 # Setup compiler for this sub module
 CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)

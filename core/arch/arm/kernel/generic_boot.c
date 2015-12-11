@@ -111,11 +111,18 @@ static void init_vfp_sec(void)
 {
 	uint32_t cpacr = read_cpacr();
 
-	/* Enable usage of CP10 and CP11 (SIMD/VFP) */
-	cpacr &= ~CPACR_CP(10, CPACR_CP_ACCESS_FULL);
-	cpacr |= CPACR_CP(10, CPACR_CP_ACCESS_PL1_ONLY);
-	cpacr &= ~CPACR_CP(11, CPACR_CP_ACCESS_FULL);
-	cpacr |= CPACR_CP(11, CPACR_CP_ACCESS_PL1_ONLY);
+	/*
+	 * Enable Advanced SIMD functionality.
+	 * Enable use of D16-D31 of the Floating-point Extension register
+	 * file.
+	 */
+	cpacr &= ~(CPACR_ASEDIS | CPACR_D32DIS);
+	/*
+	 * Enable usage of CP10 and CP11 (SIMD/VFP) (both kernel and user
+	 * mode.
+	 */
+	cpacr |= CPACR_CP(10, CPACR_CP_ACCESS_FULL);
+	cpacr |= CPACR_CP(11, CPACR_CP_ACCESS_FULL);
 	write_cpacr(cpacr);
 }
 #endif /* ARM32 */

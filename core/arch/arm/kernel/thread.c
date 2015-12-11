@@ -306,8 +306,15 @@ static void thread_lazy_restore_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
 	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	assert(!thr->vfp_state.sec_lazy_saved && !thr->vfp_state.sec_saved);
+
+	if (tuv && tuv->lazy_saved && !tuv->saved) {
+		vfp_lazy_save_state_final(&tuv->vfp);
+		tuv->saved = true;
+	}
+
 	vfp_lazy_restore_state(&thr->vfp_state.ns, thr->vfp_state.ns_saved);
 	thr->vfp_state.ns_saved = false;
 #endif /*CFG_WITH_VFP*/
@@ -556,26 +563,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
 {
-#ifdef CFG_WITH_VFP
-	struct thread_ctx *thr = threads + thread_get_id();
-
-	if (vfp_is_enabled()) {
-		vfp_lazy_save_state_init(&thr->vfp_state.sec);
-		thr->vfp_state.sec_lazy_saved = true;
-	}
-#endif
-
 	thread_abort_handler_ptr(abort_type, regs);
-
-#ifdef CFG_WITH_VFP
-	assert(!vfp_is_enabled());
-	if (thr->vfp_state.sec_lazy_saved) {
-		vfp_lazy_restore_state(&thr->vfp_state.sec,
-				       thr->vfp_state.sec_saved);
-		thr->vfp_state.sec_saved = false;
-		thr->vfp_state.sec_lazy_saved = false;
-	}
-#endif
 }
 
 void *thread_get_tmp_sp(void)
@@ -616,6 +604,25 @@ void thread_state_free(void)
 	unlock_global();
 }
 
+#ifdef ARM32
+static bool is_from_user(uint32_t cpsr)
+{
+	return (cpsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_USR;
+}
+#endif
+
+#ifdef ARM64
+static bool is_from_user(uint32_t cpsr)
+{
+	if (cpsr & (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT))
+		return true;
+	if (((cpsr >> SPSR_64_MODE_EL_SHIFT) & SPSR_64_MODE_EL_MASK) ==
+	     SPSR_64_MODE_EL0)
+		return true;
+	return false;
+}
+#endif
+
 int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -625,6 +632,8 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	thread_check_canaries();
 
+	if (is_from_user(cpsr))
+		thread_user_save_vfp();
 	thread_lazy_restore_ns_vfp();
 
 	lock_global();
@@ -980,6 +989,7 @@ uint32_t thread_kernel_enable_vfp(void)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	assert(!vfp_is_enabled());
 
@@ -994,6 +1004,13 @@ uint32_t thread_kernel_enable_vfp(void)
 		 */
 		vfp_lazy_save_state_final(&thr->vfp_state.sec);
 		thr->vfp_state.sec_saved = true;
+	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
+		/*
+		 * This can happen either during syscall or abort
+		 * processing (while processing a syscall).
+		 */
+		vfp_lazy_save_state_final(&tuv->vfp);
+		tuv->saved = true;
 	}
 
 	vfp_enable();
@@ -1012,6 +1029,82 @@ void thread_kernel_disable_vfp(uint32_t state)
 	exceptions &= ~THREAD_EXCP_IRQ;
 	exceptions |= state & THREAD_EXCP_IRQ;
 	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	if (vfp_is_enabled()) {
+		vfp_lazy_save_state_init(&thr->vfp_state.sec);
+		thr->vfp_state.sec_lazy_saved = true;
+	}
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(!vfp_is_enabled());
+	if (thr->vfp_state.sec_lazy_saved) {
+		vfp_lazy_restore_state(&thr->vfp_state.sec,
+				       thr->vfp_state.sec_saved);
+		thr->vfp_state.sec_saved = false;
+		thr->vfp_state.sec_lazy_saved = false;
+	}
+}
+
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(!vfp_is_enabled());
+
+	if (!thr->vfp_state.ns_saved) {
+		vfp_lazy_save_state_final(&thr->vfp_state.ns);
+		thr->vfp_state.ns_saved = true;
+	} else if (tuv && uvfp != tuv) {
+		if (tuv->lazy_saved && !tuv->saved) {
+			vfp_lazy_save_state_final(&tuv->vfp);
+			tuv->saved = true;
+		}
+	}
+
+	if (uvfp->lazy_saved)
+		vfp_lazy_restore_state(&uvfp->vfp, uvfp->saved);
+	uvfp->lazy_saved = false;
+	uvfp->saved = false;
+
+	thr->vfp_state.uvfp = uvfp;
+	vfp_enable();
+}
+
+void thread_user_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	if (!vfp_is_enabled())
+		return;
+
+	assert(tuv && !tuv->lazy_saved && !tuv->saved);
+	vfp_lazy_save_state_init(&tuv->vfp);
+	tuv->lazy_saved = true;
+}
+
+void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	if (uvfp == thr->vfp_state.uvfp)
+		thr->vfp_state.uvfp = NULL;
+	uvfp->lazy_saved = false;
+	uvfp->saved = false;
 }
 #endif /*CFG_WITH_VFP*/
 

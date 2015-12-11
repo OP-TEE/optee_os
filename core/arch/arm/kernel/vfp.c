@@ -96,7 +96,7 @@ void vfp_enable(void)
 {
 	uint32_t val = read_cpacr_el1();
 
-	val |= (CPACR_EL1_FPEN_EL1 << CPACR_EL1_FPEN_SHIFT);
+	val |= (CPACR_EL1_FPEN_EL0EL1 << CPACR_EL1_FPEN_SHIFT);
 	write_cpacr_el1(val);
 	isb();
 }

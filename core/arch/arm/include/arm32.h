@@ -98,10 +98,12 @@
 #define NSACR_NS_L2ERR	(1 << 17)
 #define NSACR_NS_SMP	(1 << 18)
 
+#define CPACR_ASEDIS	(1 << 31)
+#define CPACR_D32DIS	(1 << 30)
 #define CPACR_CP(co_proc, access)	((access) << ((co_proc) * 2))
 #define CPACR_CP_ACCESS_DENIED		0x0
 #define CPACR_CP_ACCESS_PL1_ONLY	0x1
-#define CPACR_CP_ACCESS_FULL		0x2
+#define CPACR_CP_ACCESS_FULL		0x3
 
 
 #define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))

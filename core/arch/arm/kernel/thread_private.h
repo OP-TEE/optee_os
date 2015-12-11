@@ -88,6 +88,7 @@ struct thread_vfp_state {
 	bool sec_lazy_saved;
 	struct vfp_state ns;
 	struct vfp_state sec;
+	struct thread_user_vfp_state *uvfp;
 };
 
 #endif /*CFG_WITH_VFP*/
@@ -137,7 +138,7 @@ struct thread_core_local {
 #ifdef ARM64
 #ifdef CFG_WITH_VFP
 #define THREAD_VFP_STATE_SIZE				\
-	(16 + (16 * 32 + 16) * 2)
+	(16 + (16 * 32 + 16) * 2 + 16)
 #else
 #define THREAD_VFP_STATE_SIZE				0
 #endif

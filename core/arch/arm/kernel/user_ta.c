@@ -53,7 +53,7 @@
 
 #include "elf_load.h"
 
-#define TEE_TA_STACK_ALIGNMENT   8
+#define STACK_ALIGNMENT   (sizeof(long) * 2)
 
 static TEE_Result load_header(const struct shdr *signed_ta,
 		struct shdr **sec_shdr)
@@ -188,7 +188,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	utc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
 
 	/* Ensure proper aligment of stack */
-	utc->stack_size = ROUNDUP(ta_head->stack_size, TEE_TA_STACK_ALIGNMENT);
+	utc->stack_size = ROUNDUP(ta_head->stack_size, STACK_ALIGNMENT);
 
 	utc->mm_stack = tee_mm_alloc(&tee_mm_sec_ddr, utc->stack_size);
 	if (!utc->mm_stack) {
@@ -403,6 +403,13 @@ static void update_from_utee_param(struct tee_ta_param *p,
 	}
 }
 
+static void clear_vfp_state(struct user_ta_ctx *utc __unused)
+{
+#ifdef CFG_WITH_VFP
+	thread_user_clear_vfp(&utc->vfp);
+#endif
+}
+
 static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 			struct tee_ta_session *session,
 			enum utee_entry_func func, uint32_t cmd,
@@ -428,7 +435,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = tee_mm_get_smem(utc->mm_stack) + utc->stack_size;
-	usr_stack -= sizeof(struct utee_params);
+	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);
 
@@ -445,6 +452,8 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 				     params_uaddr, cmd, stack_uaddr,
 				     utc->entry_func, utc->is_32bit,
 				     &utc->ctx.panicked, &utc->ctx.panic_code);
+
+	clear_vfp_state(utc);
 	/*
 	 * According to GP spec the origin should allways be set to the
 	 * TA after TA execution

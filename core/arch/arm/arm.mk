@@ -9,6 +9,19 @@ CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
 CFG_KERN_LINKER_ARCH ?= arm
 endif
 
+ifeq ($(CFG_TA_FLOAT_SUPPORT),y)
+# Use hard-float for floating point support in user TAs instead of
+# soft-float
+CFG_WITH_VFP ?= y
+ifeq ($(CFG_ARM64_core),y)
+# AArch64 has no fallback to soft-float
+$(call force,CFG_WITH_VFP,y)
+endif
+ifeq ($(CFG_WITH_VFP),y)
+platform-hard-float-enabled := y
+endif
+endif
+
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
@@ -25,11 +38,13 @@ platform-cflags-generic ?= -g -ffunction-sections -fdata-sections -pipe
 platform-aflags-generic ?= -g -pipe
 
 arm32-platform-cflags-no-hard-float ?= -mno-apcs-float -mfloat-abi=soft
+arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
 arm32-platform-cflags-generic ?= -mthumb -mthumb-interwork -mlong-calls \
 			-fno-short-enums -fno-common -mno-unaligned-access
 arm32-platform-aflags-no-hard-float ?=
 
 arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
+arm64-platform-cflags-hard-float ?=
 arm64-platform-cflags-generic ?= -mstrict-align
 
 ifeq ($(DEBUG),1)
@@ -72,7 +87,11 @@ ta_arm32-platform-cflags += $(platform-cflags-optimization)
 ta_arm32-platform-cflags += $(platform-cflags-debug-info)
 ta_arm32-platform-cflags += -fpie
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic)
+ifeq ($(platform-hard-float-enabled),y)
+ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
+else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
+endif
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
@@ -91,7 +110,11 @@ ta_arm64-platform-cflags += $(platform-cflags-optimization)
 ta_arm64-platform-cflags += $(platform-cflags-debug-info)
 ta_arm64-platform-cflags += -fpie
 ta_arm64-platform-cflags += $(arm64-platform-cflags-generic)
+ifeq ($(platform-hard-float-enabled),y)
+ta_arm64-platform-cflags += $(arm64-platform-cflags-hard-float)
+else
 ta_arm64-platform-cflags += $(arm64-platform-cflags-no-hard-float)
+endif
 ta_arm64-platform-aflags += $(platform-aflags-debug-info)
 ta_arm64-platform-aflags += $(arm64-platform-aflags)
 

@@ -104,5 +104,13 @@ TA_SIGN_KEY ?= keys/default_ta.pem
 # may not because they obtain the isoc functions from elsewhere
 CFG_LIBUTILS_WITH_ISOC ?= y
 
-# Floating point support for TAs default on only for arm32 core
-CFG_TA_FLOAT_SUPPORT ?= $(CFG_ARM32_core)
+# Enables floating point support for user TAs
+# ARM32: EABI defines both a soft-float ABI and a hard-float ABI,
+#	 hard-float is basically a super set of soft-float. Hard-float
+#	 requires all the support routines provided for soft-float, but the
+#	 compiler may choose to optimize to not use some of them and use
+#	 the floating-point registers instead.
+# ARM64: EABI doesn't define a soft-float ABI, everything is hard-float (or
+#	 nothing with ` -mgeneral-regs-only`)
+# With CFG_TA_FLOAT_SUPPORT enabled TA code is free use floating point types
+CFG_TA_FLOAT_SUPPORT ?= y

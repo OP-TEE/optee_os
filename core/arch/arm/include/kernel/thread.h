@@ -33,6 +33,7 @@
 #include <compiler.h>
 #include <sm/teesmc.h>
 #include <kernel/mutex.h>
+#include <kernel/vfp.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -40,6 +41,12 @@
 
 #ifndef ASM
 extern uint32_t thread_vector_table[];
+
+struct thread_user_vfp_state {
+	struct vfp_state vfp;
+	bool lazy_saved;
+	bool saved;
+};
 
 #ifdef ARM32
 struct thread_smc_args {
@@ -359,6 +366,7 @@ uint32_t thread_mask_exceptions(uint32_t exceptions);
  */
 void thread_unmask_exceptions(uint32_t state);
 
+#ifdef CFG_WITH_VFP
 /*
  * thread_kernel_enable_vfp() - Temporarily enables usage of VFP
  *
@@ -387,6 +395,56 @@ uint32_t thread_kernel_enable_vfp(void);
  * thread_kernel_enable_vfp().
  */
 void thread_kernel_disable_vfp(uint32_t state);
+
+/*
+ * thread_kernel_save_vfp() - Saves kernel vfp state if enabled
+ */
+void thread_kernel_save_vfp(void);
+
+/*
+ * thread_kernel_save_vfp() - Restores kernel vfp state
+ */
+void thread_kernel_restore_vfp(void);
+
+/*
+ * thread_user_enable_vfp() - Enables vfp for user mode usage
+ * @uvfp:	pointer to where to save the vfp state if needed
+ */
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
+#else /*CFG_WITH_VFP*/
+static inline void thread_kernel_save_vfp(void)
+{
+}
+
+static inline void thread_kernel_restore_vfp(void)
+{
+}
+#endif /*CFG_WITH_VFP*/
+
+/*
+ * thread_user_save_vfp() - Saves the user vfp state if enabled
+ */
+#ifdef CFG_WITH_VFP
+void thread_user_save_vfp(void);
+#else
+static inline void thread_user_save_vfp(void)
+{
+}
+#endif
+
+/*
+ * thread_user_clear_vfp() - Clears the vfp state
+ * @uvfp:	pointer to saved state to clear
+ */
+#ifdef CFG_WITH_VFP
+void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp);
+#else
+static inline void thread_user_clear_vfp(
+			struct thread_user_vfp_state *uvfp __unused)
+{
+}
+#endif
+
 
 /*
  * thread_enter_user_mode() - Enters user mode

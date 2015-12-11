@@ -482,8 +482,10 @@ thread_und_handler:
 	cps	#CPSR_MODE_ABT
 	push	{r0-r11, ip}
 	cps	#CPSR_MODE_UND
-	sub	r1, lr, #4
 	mrs	r0, spsr
+	tst	r0, #CPSR_T
+	subne	r1, lr, #2
+	subeq	r1, lr, #4
 	cps	#CPSR_MODE_ABT
 	push	{r0, r1}
 	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */

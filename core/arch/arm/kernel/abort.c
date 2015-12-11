@@ -29,13 +29,16 @@
 #include <kernel/misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/panic.h>
+#include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_pager.h>
+#include <tee/tee_svc.h>
 #include <trace.h>
 #include <arm.h>
 
 enum fault_type {
 	FAULT_TYPE_USER_TA_PANIC,
+	FAULT_TYPE_USER_TA_VFP,
 	FAULT_TYPE_PAGEABLE,
 	FAULT_TYPE_IGNORE,
 };
@@ -251,6 +254,20 @@ static void handle_user_ta_panic(struct abort_info *ai)
 }
 #endif /*ARM64*/
 
+#ifdef CFG_WITH_VFP
+static void handle_user_ta_vfp(void)
+{
+	TEE_Result res;
+	struct tee_ta_session *s;
+
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		panic();
+
+	thread_user_enable_vfp(&to_user_ta_ctx(s->ctx)->vfp);
+}
+#endif /*CFG_WITH_VFP*/
+
 #ifdef ARM32
 /* Returns true if the exception originated from user mode */
 static bool is_user_exception(struct abort_info *ai)
@@ -290,9 +307,93 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 }
 #endif /*ARM64*/
 
+#ifdef ARM32
+
+#define T32_INSTR(w1, w0) \
+	((((uint32_t)(w0) & 0xffff) << 16) | ((uint32_t)(w1) & 0xffff))
+
+#define T32_VTRANS32_MASK	T32_INSTR(0xff << 8, (7 << 9) | 1 << 4)
+#define T32_VTRANS32_VAL	T32_INSTR(0xee << 8, (5 << 9) | 1 << 4)
+
+#define T32_VTRANS64_MASK	T32_INSTR((0xff << 8) | (7 << 5), 7 << 9)
+#define T32_VTRANS64_VAL	T32_INSTR((0xec << 8) | (2 << 5), 5 << 9)
+
+#define T32_VLDST_MASK		T32_INSTR((0xff << 8) | (1 << 4), 0)
+#define T32_VLDST_VAL		T32_INSTR( 0xf9 << 8            , 0)
+
+#define T32_VXLDST_MASK		T32_INSTR(0xfc << 8, 7 << 9)
+#define T32_VXLDST_VAL		T32_INSTR(0xec << 8, 5 << 9)
+
+#define T32_VPROC_MASK		T32_INSTR(0xef << 8, 0)
+#define T32_VPROC_VAL		T32_VPROC_MASK
+
+#define A32_INSTR(x)		((uint32_t)(x))
+
+#define A32_VTRANS32_MASK	A32_INSTR((0xf << 24) | (7 << 9) | (1 << 4))
+#define A32_VTRANS32_VAL	A32_INSTR((0xe << 24) | (5 << 9) | (1 << 4))
+
+#define A32_VTRANS64_MASK	A32_INSTR((0x7f << 21) | (7 << 9))
+#define A32_VTRANS64_VAL	A32_INSTR((0x62 << 21) | (5 << 9))
+
+#define A32_VLDST_MASK		A32_INSTR((0xff  << 24) | (1 << 20))
+#define A32_VLDST_VAL		A32_INSTR((0xf4  << 24))
+
+#define A32_VXLDST_MASK		A32_INSTR((7 << 25) | (7 << 9))
+#define A32_VXLDST_VAL		A32_INSTR((6 << 25) | (5 << 9))
+
+#define A32_VPROC_MASK		A32_INSTR(0x7f << 25)
+#define A32_VPROC_VAL		A32_INSTR(0x79 << 25)
+
+static bool is_vfp_fault(struct abort_info *ai)
+{
+	TEE_Result res;
+	uint32_t instr;
+
+	if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
+		return false;
+
+	res = tee_svc_copy_from_user(NULL, &instr, (void *)ai->pc,
+				     sizeof(instr));
+	if (res != TEE_SUCCESS)
+		return false;
+
+	if (ai->regs->spsr & CPSR_T) {
+		/* Thumb mode */
+		return ((instr & T32_VTRANS32_MASK) == T32_VTRANS32_VAL) ||
+		       ((instr & T32_VTRANS64_MASK) == T32_VTRANS64_VAL) ||
+		       ((instr & T32_VLDST_MASK) == T32_VLDST_VAL) ||
+		       ((instr & T32_VXLDST_MASK) == T32_VXLDST_VAL) ||
+		       ((instr & T32_VPROC_MASK) == T32_VPROC_VAL);
+	} else {
+		/* ARM mode */
+		return ((instr & A32_VTRANS32_MASK) == A32_VTRANS32_VAL) ||
+		       ((instr & A32_VTRANS64_MASK) == A32_VTRANS64_VAL) ||
+		       ((instr & A32_VLDST_MASK) == A32_VLDST_VAL) ||
+		       ((instr & A32_VXLDST_MASK) == A32_VXLDST_VAL) ||
+		       ((instr & A32_VPROC_MASK) == A32_VPROC_VAL);
+	}
+}
+#endif /*ARM32*/
+
+#ifdef ARM64
+static bool is_vfp_fault(struct abort_info *ai)
+{
+	switch ((ai->fault_descr >> ESR_EC_SHIFT) & ESR_EC_MASK) {
+	case ESR_EC_FP_ASIMD:
+	case ESR_EC_AARCH32_FP:
+	case ESR_EC_AARCH64_FP:
+		return true;
+	default:
+		return false;
+	}
+}
+#endif /*ARM64*/
+
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
 	if (is_user_exception(ai)) {
+		if (is_vfp_fault(ai))
+			return FAULT_TYPE_USER_TA_VFP;
 		print_user_abort(ai);
 		DMSG("[abort] abort in User mode (TA will panic)");
 		return FAULT_TYPE_USER_TA_PANIC;
@@ -356,11 +457,19 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
+		vfp_disable();
 		handle_user_ta_panic(&ai);
 		break;
+#ifdef CFG_WITH_VFP
+	case FAULT_TYPE_USER_TA_VFP:
+		handle_user_ta_vfp();
+		break;
+#endif
 	case FAULT_TYPE_PAGEABLE:
 	default:
+		thread_kernel_save_vfp();
 		tee_pager_handle_fault(&ai);
+		thread_kernel_restore_vfp();
 		break;
 	}
 }
