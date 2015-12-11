@@ -30,7 +30,7 @@
 #include <trace.h>
 
 #include <mm/tee_mm.h>
-#include <mm/tee_mm_unpg.h>
+#include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 
 bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
@@ -268,4 +268,38 @@ bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, uint32_t addr)
 bool tee_mm_is_empty(tee_mm_pool_t *pool)
 {
 	return pool == NULL || pool->entry == NULL || pool->entry->next == NULL;
+}
+
+/* Physical Public DDR pool */
+tee_mm_pool_t tee_mm_pub_ddr __data; /* XXX __data is a workaround */
+
+/* Physical Secure DDR pool */
+tee_mm_pool_t tee_mm_sec_ddr __data; /* XXX __data is a workaround */
+
+/* Virtual eSRAM pool */
+tee_mm_pool_t tee_mm_vcore __data; /* XXX __data is a workaround */
+
+tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr)
+{
+	tee_mm_entry_t *entry = pool->entry;
+	uint16_t offset = (addr - pool->lo) >> pool->shift;
+
+	if (addr > pool->hi || addr < pool->lo)
+		return NULL;
+
+	while (entry->next != NULL) {
+		entry = entry->next;
+
+		if ((offset >= entry->offset) &&
+		    (offset < (entry->offset + entry->size))) {
+			return entry;
+		}
+	}
+
+	return NULL;
+}
+
+uintptr_t tee_mm_get_smem(const tee_mm_entry_t *mm)
+{
+	return (mm->offset << mm->pool->shift) + mm->pool->lo;
 }

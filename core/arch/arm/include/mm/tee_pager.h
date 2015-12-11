@@ -29,7 +29,7 @@
 #define MM_TEE_PAGER_H
 
 #include <kernel/thread.h>
-#include <mm/tee_mm_unpg.h>
+#include <mm/tee_mm.h>
 
 /* Read-only mapping */
 #define TEE_PAGER_AREA_RO	(1 << 0)

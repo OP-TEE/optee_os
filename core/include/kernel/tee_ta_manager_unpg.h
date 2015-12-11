@@ -32,7 +32,7 @@
 #include <kernel/tee_common_unpg.h>
 
 #include <mm/tee_mmu_types.h>
-#include <mm/tee_mm_unpg.h>
+#include <mm/tee_mm.h>
 #if defined(CFG_SE_API)
 #include <tee/se/manager.h>
 #endif
