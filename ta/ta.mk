@@ -9,8 +9,6 @@ CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
-include ta/arch/$(ARCH)/$(ARCH).mk
-
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
 cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
@@ -77,17 +75,6 @@ ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk \
 $(foreach f, $(ta-mkfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/mk)))
 
-# Special treatment for ta/arch/$(ARCH)/$(ARCH).mk
-arch-arch-mk := $(out-dir)/export-$(sm)/mk/arch.mk
-$(arch-arch-mk): ta/arch/$(ARCH)/$(ARCH).mk
-	@set -e; \
-	mkdir -p $(dir $@) ; \
-	$(cmd-echo-silent) '  INSTALL $@' ; \
-	cp $< $@
-
-cleanfiles += $(arch-arch-mk)
-all: $(arch-arch-mk)
-
 # Copy the .h files for TAs
 define copy-incdir
 sf := $(subst $1/, , $(shell find $1 -name "*.h"))
@@ -126,9 +113,9 @@ $(conf-mk-file-export): $(conf-mk-file)
 	@$(cmd-echo-silent) '  GEN    ' $@
 	$(q)echo sm := $(sm-$(@)) > $@
 	$(q)echo sm-$(sm-$(@)) := y >> $@
-	$(q)echo CFG_ARM32_$(sm-$(@)) := $(CFG_ARM32_$(sm-$(@))) >> $@
-	$(q)echo CFG_ARM64_$(sm-$(@)) := $(CFG_ARM64_$(sm-$(@))) >> $@
 	$(q)echo CFG_TA_FLOAT_SUPPORT := $(CFG_TA_FLOAT_SUPPORT) >> $@
+	$(q)($(foreach v, $(ta-mk-file-export-vars-$(sm-$(@))), \
+		echo $(v) := $($(v));)) >> $@
 
 cleanfiles := $(cleanfiles) $(conf-mk-file-export)
 all: $(conf-mk-file-export)

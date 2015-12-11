@@ -1,9 +1,9 @@
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
+PLATFORM_FLAVOR ?= ls1021atwr
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-core-platform-cppflags	 = -I$(arch-dir)/include
-core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
-core-platform-subdirs += $(arch-dir)/sm
+arm32-platform-cpuarch = cortex-a7
+arm32-platform-cflags = -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags = -mcpu=$(arm32-platform-cpuarch)
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_ARM32_core,y)
@@ -16,5 +16,3 @@ $(call force,CFG_BOOT_SYNC_CPU,y)
 ta-targets = ta_arm32
 
 CFG_WITH_STACK_CANARIES ?= y
-
-include mk/config.mk

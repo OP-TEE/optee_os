@@ -1,8 +1,28 @@
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
+PLATFORM_FLAVOR ?= fvp
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-core-platform-cppflags	+= -I$(arch-dir)/include
-core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
+# 32-bit flags
+arm32-platform-cpuarch		:= cortex-a15
+arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
+core_arm32-platform-aflags	+= -mfpu=neon
+
+ifeq ($(PLATFORM_FLAVOR),fvp)
+platform-flavor-armv8 := 1
+endif
+ifeq ($(PLATFORM_FLAVOR),juno)
+platform-flavor-armv8 := 1
+endif
+
+ifeq ($(platform-flavor-armv8),1)
+# ARM debugger needs this
+platform-cflags-debug-info = -gdwarf-2
+platform-aflags-debug-info = -gdwarf-2
+endif
+
+ifeq ($(platform-flavor-armv8),1)
+$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
+endif
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
@@ -19,12 +39,6 @@ ta-targets += ta_arm64
 else
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_MMU_V7_TTB,y)
-endif
-
-ifeq ($(platform-flavor-armv8),1)
-$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
-else
-core-platform-subdirs += $(arch-dir)/sm
 endif
 
 libtomcrypt_with_optimize_size ?= y
@@ -47,5 +61,3 @@ CFG_SE_API ?= y
 CFG_SE_API_SELF_TEST ?= y
 CFG_PCSC_PASSTHRU_READER_DRV ?= y
 endif
-
-include mk/config.mk

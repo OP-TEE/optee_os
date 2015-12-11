@@ -1,9 +1,10 @@
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
+PLATFORM_FLAVOR ?= dra7xx
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-core-platform-cppflags	+= -I$(arch-dir)/include
-core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee sta) $(platform-dir)
-core-platform-subdirs += $(arch-dir)/sm
+# 32-bit flags
+arm32-platform-cpuarch	:= cortex-a15
+arm32-platform-cflags	+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags	+= -mcpu=$(arm32-platform-cpuarch)
 
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_ARM32_core,y)
@@ -20,5 +21,3 @@ libtomcrypt_with_optimize_size ?= y
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
-
-include mk/config.mk

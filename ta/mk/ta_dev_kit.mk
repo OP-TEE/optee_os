@@ -37,13 +37,9 @@ cmd-echo-silent := true
 endif
 endif
 
-
-include $(ta-dev-kit-dir)/mk/arch.mk
--include $(ta-dev-kit-dir)/mk/platform_flags.mk
-
-cppflags$(sm)  := $(platform-cppflags) $($(sm)-platform-cppflags)
-aflags$(sm)    := $(platform-aflags) $($(sm)-platform-aflags)
-cflags$(sm)    := $(platform-cflags) $($(sm)-platform-cflags)
+cppflags$(sm)  := $($(sm)-platform-cppflags)
+aflags$(sm)    := $($(sm)-platform-aflags)
+cflags$(sm)    := $($(sm)-platform-cflags)
 
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
@@ -54,8 +50,6 @@ cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
 endif
 
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
-
-include $(ta-dev-kit-dir)/mk/arch.mk
 
 libdirs += $(ta-dev-kit-dir)/lib
 libnames += utils utee mpa utils utee

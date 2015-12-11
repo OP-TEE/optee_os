@@ -1,8 +1,11 @@
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
+PLATFORM_FLAVOR ?= mt8173
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-core-platform-cppflags	+= -I$(arch-dir)/include
-core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+# 32-bit flags
+arm32-platform-cpuarch	:= cortex-a15
+arm32-platform-cflags	+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags	+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_GENERIC_BOOT,y)
@@ -23,5 +26,3 @@ endif
 
 libtomcrypt_with_optimize_size ?= y
 CFG_WITH_STACK_CANARIES ?= y
-
-include mk/config.mk

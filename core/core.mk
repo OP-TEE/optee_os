@@ -9,6 +9,7 @@ platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
 include mk/checkconf.mk
 include $(platform-dir)/conf.mk
 include core/arch/$(ARCH)/$(ARCH).mk
+include mk/config.mk
 
 # Setup compiler for this sub module
 CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
@@ -24,9 +25,9 @@ cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)
-cppflags$(sm)	+= $(platform-cppflags) $(core-platform-cppflags)
-cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
-aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
+cppflags$(sm)	+= $(core-platform-cppflags)
+cflags$(sm)	+= $(core-platform-cflags)
+aflags$(sm)	+= $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)

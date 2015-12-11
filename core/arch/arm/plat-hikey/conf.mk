@@ -1,8 +1,8 @@
-include core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk
-
-core-platform-cppflags	+= -I$(arch-dir)/include
-core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+# 32-bit flags
+arm32-platform-cpuarch		:= cortex-a15
+arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
+core_arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
@@ -28,5 +28,3 @@ CFG_CRYPTO_SHA1_ARM64_CE ?= $(CFG_ARM64_core)
 CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
 CFG_CRYPTO_SHA256_ARM64_CE ?= $(CFG_ARM64_core)
 CFG_WITH_STACK_CANARIES ?= y
-
-include mk/config.mk

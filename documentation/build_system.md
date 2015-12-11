@@ -13,8 +13,8 @@ Name              | Description
 `mk/lib.mk`       | Create rules to make a libraries (.a)
 `mk/subdir.mk`    | Process `sub.mk` files recursively
 `mk/config.mk`    | Global configuration variable
-`core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk` | Arch and platform-specific compiler flags
-`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Arch and platform-specific compiler flags and configuration variables for the TEE Core only
+`core/arch/$(ARCH)/$(ARCH).mk` | Arch-specific compiler flags
+`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk` | Platform-specific compiler flags and configuration variables
 `core/arch/$(ARCH)/plat-$(PLATFORM)/link.mk` | Make recipes to link the TEE Core
 `ta/arch/arm/link.mk` | Make recipes to link Trusted Applications
 `ta/mk/ta_dev_kit.mk` | Main Makefile to be included when building Trusted Applications
@@ -110,23 +110,24 @@ compiled with different compilers due to a mix of 64bit and 32bit code.
 
 ## Platform-specific configuration and flags
 
-The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/platform_flags.mk`:
+The following variables are defined in `core/arch/$(ARCH)/$(ARCH).mk`:
 
-- **$(platform-aflags)**, **$(platform-cflags)** and **$(platform-cppflags)**
-  are added to the assembler / C compiler / preprocessor flags for all source
-  files
+- **$(core-platform-aflags)**, **$(core-platform-cflags)** and
+  **$(core-platform-cppflags)** are added to the assembler / C compiler
+  / preprocessor flags for all source files compiled for TEE Core including
+  the kernel versions of **libmpa.a** and **libutils.a**.
 - **$(ta_arm{32,64}-platform-aflags)**, **$(ta_arm{32,64}-platform-cflags)**
   and **$(ta_arm{32,64}-platform-cppflags)** are added to the assembler / C
   compiler / preprocessor flags when building the user-mode libraries
   (**libutee.a**, **libutils.a**, **libmpa.a**) or Trusted Applications.
 
-The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk`:
+The following variables are defined in
+`core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk`:
 
-- **$(core-platform-aflags)**, **$(core-platform-cflags)** and
-  **$(core-platform-cppflags)** are added to the assembler / C compiler /
-  preprocessor flags when building files that will run in kernel mode in the
-  TEE Core. This applies to core-only files, but also to the kernel versions of
-  **libmpa.a** and **libutils.a**.
+- If **$(arm{32,64}-platform-cflags)**, **$(arm{32,64}-platform-aflags)** and
+  **$(arm{32,64}-platform-cppflags)** are defined their content will be added
+  to **$(\*-platform-\*flags)** when they are are initialized in
+  `core/arch/$(ARCH)/$(ARCH).mk` as described above.
 - **$(core-platform-subdirs)** is the list of the subdirectories that are
   added to the TEE Core.
 
