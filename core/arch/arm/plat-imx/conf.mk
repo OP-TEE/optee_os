@@ -14,6 +14,8 @@ $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
+ta-targets = ta_arm32
+
 CFG_WITH_STACK_CANARIES ?= y
 
 include mk/config.mk

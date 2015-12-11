@@ -14,6 +14,8 @@ $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
+ta-targets = ta_arm32
+
 libtomcrypt_with_optimize_size ?= y
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STACK_CANARIES ?= y

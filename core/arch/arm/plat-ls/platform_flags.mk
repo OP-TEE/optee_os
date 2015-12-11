@@ -24,5 +24,5 @@ platform-aflags += -g
 platform-cflags += -g3
 platform-aflags += -g3
 
-CFG_ARM32_user_ta := y
-user_ta-platform-cflags = -fpie
+CFG_ARM32_ta_arm32 := y
+ta_arm32-platform-cflags = -fpie
