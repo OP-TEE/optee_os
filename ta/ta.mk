@@ -121,14 +121,13 @@ $(foreach f, $(ta-scripts), \
 # Create config file
 conf-file := $(out-dir)/export-$(sm)/mk/conf.mk
 sm-$(conf-file) := $(sm)
-# The file is only created if it doesn't exist, this is currently OK as the
-# content of the file is static for a given TA dev kit.
-$(conf-file):
+$(conf-file): $(conf-mk-file)
 	@$(cmd-echo-silent) '  GEN    ' $@
 	$(q)echo sm := $(sm-$(@)) > $@
 	$(q)echo sm-$(sm-$(@)) := y >> $@
 	$(q)echo CFG_ARM32_$(sm-$(@)) := $(CFG_ARM32_$(sm-$(@))) >> $@
 	$(q)echo CFG_ARM64_$(sm-$(@)) := $(CFG_ARM64_$(sm-$(@))) >> $@
+	$(q)echo CFG_TA_FLOAT_SUPPORT := $(CFG_TA_FLOAT_SUPPORT) >> $@
 
 cleanfiles := $(cleanfiles) $(conf-file)
 all: $(conf-file)

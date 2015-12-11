@@ -55,6 +55,10 @@ ifeq ($(CFG_TEE_PANIC_DEBUG),y)
 cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
 endif
 
+ifeq ($(CFG_TA_FLOAT_SUPPORT),y)
+cppflags$(sm) += -DCFG_TA_FLOAT_SUPPORT=1
+endif
+
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 cppflags$(sm) += -DENABLE_MDBG=1
