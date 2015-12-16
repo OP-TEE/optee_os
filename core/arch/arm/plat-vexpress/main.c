@@ -52,7 +52,7 @@ static const struct thread_handlers handlers = {
 	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
 	.svc = tee_svc_handler,
-	.abort = tee_pager_abort_handler,
+	.abort = abort_handler,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,

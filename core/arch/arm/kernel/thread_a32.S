@@ -487,7 +487,7 @@ thread_und_handler:
 	cps	#CPSR_MODE_ABT
 	push	{r0, r1}
 	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */
-	mov	r0, #THREAD_ABORT_UNDEF
+	mov	r0, #ABORT_TYPE_UNDEF
 	b	.thread_abort_generic
 
 thread_dabort_handler:
@@ -495,7 +495,7 @@ thread_dabort_handler:
 	sub	r1, lr, #8
 	mrs	r0, spsr
 	push	{r0, r1}
-	mov	r0, #THREAD_ABORT_DATA
+	mov	r0, #ABORT_TYPE_DATA
 	b	.thread_abort_generic
 
 thread_pabort_handler:
@@ -503,7 +503,7 @@ thread_pabort_handler:
 	sub	r1, lr, #4
 	mrs	r0, spsr
 	push	{r0, r1}
-	mov	r0, #THREAD_ABORT_PREFETCH
+	mov	r0, #ABORT_TYPE_PREFETCH
 	b	.thread_abort_generic
 
 .thread_abort_generic:

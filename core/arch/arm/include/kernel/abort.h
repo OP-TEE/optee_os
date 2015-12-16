@@ -28,16 +28,16 @@
 #ifndef KERNEL_ABORT_H
 #define KERNEL_ABORT_H
 
-#define THREAD_ABORT_UNDEF		0
-#define THREAD_ABORT_PREFETCH		1
-#define THREAD_ABORT_DATA		2
+#define ABORT_TYPE_UNDEF	0
+#define ABORT_TYPE_PREFETCH	1
+#define ABORT_TYPE_DATA		2
 
 #ifndef ASM
 
 #include <compiler.h>
 #include <types_ext.h>
 
-struct tee_pager_abort_info {
+struct abort_info {
 	uint32_t abort_type;
 	uint32_t fault_descr;
 	vaddr_t va;
@@ -45,11 +45,10 @@ struct tee_pager_abort_info {
 	struct thread_abort_regs *regs;
 };
 
-void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused);
-void tee_pager_print_error_abort(struct tee_pager_abort_info *ai __unused);
+void abort_print(struct abort_info *ai);
+void abort_print_error(struct abort_info *ai);
 
-void tee_pager_abort_handler(uint32_t abort_type,
-			struct thread_abort_regs *regs);
+void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
 
 #endif /*ASM*/
 #endif /*KERNEL_ABORT_H*/

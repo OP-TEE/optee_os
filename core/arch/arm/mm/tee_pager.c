@@ -445,7 +445,7 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 }
 
 /* Finds the oldest page and remaps it for the new virtual address */
-static bool tee_pager_get_page(struct tee_pager_abort_info *ai,
+static bool tee_pager_get_page(struct abort_info *ai,
 			struct tee_pager_area *area,
 			struct tee_pager_pmem **pmem_ret, paddr_t *pa_ret)
 {
@@ -505,7 +505,7 @@ static bool tee_pager_get_page(struct tee_pager_abort_info *ai,
 	return true;
 }
 
-static bool pager_check_access(struct tee_pager_abort_info *ai)
+static bool pager_check_access(struct abort_info *ai)
 {
 	unsigned pgidx = core_mmu_va2idx(&tbl_info, ai->va);
 	uint32_t attr;
@@ -518,17 +518,17 @@ static bool pager_check_access(struct tee_pager_abort_info *ai)
 
 	/* Not readable, should not happen */
 	if (!(attr & TEE_MATTR_PR)) {
-		tee_pager_print_error_abort(ai);
+		abort_print_error(ai);
 		panic();
 	}
 
 	switch (core_mmu_get_fault_type(ai->fault_descr)) {
 	case CORE_MMU_FAULT_TRANSLATION:
 	case CORE_MMU_FAULT_READ_PERMISSION:
-		if (ai->abort_type == THREAD_ABORT_PREFETCH &&
+		if (ai->abort_type == ABORT_TYPE_PREFETCH &&
 		    !(attr & TEE_MATTR_PX)) {
 			/* Attempting to execute from an NOX page */
-			tee_pager_print_error_abort(ai);
+			abort_print_error(ai);
 			panic();
 		}
 		/* Since the page is mapped now it's OK */
@@ -536,32 +536,32 @@ static bool pager_check_access(struct tee_pager_abort_info *ai)
 	case CORE_MMU_FAULT_WRITE_PERMISSION:
 		if (!(attr & TEE_MATTR_PW)) {
 			/* Attempting to write to an RO page */
-			tee_pager_print_error_abort(ai);
+			abort_print_error(ai);
 			panic();
 		}
 		return true;
 	default:
 		/* Some fault we can't deal with */
-		tee_pager_print_error_abort(ai);
+		abort_print_error(ai);
 		panic();
 	}
 
 }
 
-void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
+void tee_pager_handle_fault(struct abort_info *ai)
 {
 	struct tee_pager_area *area;
 	vaddr_t page_va = ai->va & ~SMALL_PAGE_MASK;
 	uint32_t exceptions;
 
 #ifdef TEE_PAGER_DEBUG_PRINT
-	tee_pager_print_abort(ai);
+	abort_print(ai);
 #endif
 
 	/* check if the access is valid */
 	area = tee_pager_find_area(ai->va);
 	if (!area) {
-		tee_pager_print_abort(ai);
+		abort_print(ai);
 		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
 		panic();
 	}
@@ -598,7 +598,7 @@ void tee_pager_handle_fault(struct tee_pager_abort_info *ai)
 		}
 
 		if (!tee_pager_get_page(ai, area, &pmem, &pa)) {
-			tee_pager_print_abort(ai);
+			abort_print(ai);
 			panic();
 		}
 
