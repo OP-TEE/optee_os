@@ -667,7 +667,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	free(utc);
 }
 
-static const struct tee_ta_ops user_ta_ops = {
+static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
