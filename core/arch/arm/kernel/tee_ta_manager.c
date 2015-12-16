@@ -1101,6 +1101,14 @@ static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
 	return TEE_SUCCESS;
 }
 
+static void inject_entropy_with_timestamp(void)
+{
+	TEE_Time current;
+
+	if (tee_time_get_sys_time(&current) == TEE_SUCCESS)
+		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
+}
+
 /*-----------------------------------------------------------------------------
  * Close a Trusted Application and free available resources
  *---------------------------------------------------------------------------*/
@@ -1354,6 +1362,13 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	 */
 	tee_ta_rpc_free(handle);
 
+	/*
+	 * The occurrence of open/close session command is usually
+	 * un-predictable, using this property to increase randomness
+	 * of prng
+	 */
+	inject_entropy_with_timestamp();
+
 out:
 	if (res == TEE_SUCCESS) {
 		*sess = s;
@@ -1364,9 +1379,6 @@ out:
 	mutex_unlock(&tee_ta_mutex);
 	return res;
 }
-
-
-
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,
