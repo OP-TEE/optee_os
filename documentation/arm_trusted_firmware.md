@@ -61,7 +61,7 @@ To build OP-TEE for FVP, follow these steps:
 
 To get debug prints from OP-TEE OS add for instance:
 
-        export CFG_TEE_CORE_LOG_LEVEL=5
+        export CFG_TEE_CORE_LOG_LEVEL=4
 
 5.  Building the Trusted Firmware
 ---------------------------------
