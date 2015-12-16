@@ -26,31 +26,24 @@
  */
 
 #include <sys/queue.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <kernel/tee_common_unpg.h>
-#include <kernel/tee_common.h>
-#include <kernel/thread_defs.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
-#include <mm/tee_mmu_defs.h>
-#include <kernel/tee_ta_manager.h>
-#include <kernel/tee_kta_trace.h>
-#include <kernel/misc.h>
 #include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
 #include <kernel/tz_proc.h>
-#include <mm/tee_pager.h>
-#include <mm/tee_mm.h>
 #include <mm/core_mmu.h>
-#include <tee/arch_svc.h>
-#include <arm.h>
-#include <tee/tee_cryp_provider.h>
+#include <mm/tee_mm.h>
+#include <mm/tee_mmu_defs.h>
+#include <mm/tee_pager.h>
+#include <types_ext.h>
+#include <stdlib.h>
 #include <tee_api_defines.h>
-#include <utee_defines.h>
+#include <tee/tee_cryp_provider.h>
 #include <trace.h>
+#include <utee_defines.h>
 #include <util.h>
 
-#ifdef CFG_WITH_PAGER
 struct tee_pager_area {
 	const uint8_t *hashes;
 	const uint8_t *store;
@@ -654,21 +647,6 @@ out:
 	thread_unmask_exceptions(exceptions);
 }
 
-#else /*CFG_WITH_PAGER*/
-
-void __noreturn tee_pager_handle_fault(struct tee_pager_abort_info *ai)
-{
-	/*
-	 * Until PAGER is supported, trap CPU here.
-	 */
-	tee_pager_print_error_abort(ai);
-	EMSG("Unexpected page fault! Trap CPU");
-	panic();
-}
-
-#endif /*CFG_WITH_PAGER*/
-
-#ifdef CFG_WITH_PAGER
 void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 {
 	size_t n;
@@ -762,12 +740,3 @@ void *tee_pager_request_zi(size_t size)
 
 	return (void *)tee_mm_get_smem(mm);
 }
-
-#else /*CFG_WITH_PAGER*/
-
-void tee_pager_get_stats(struct tee_pager_stats *stats)
-{
-	memset(stats, 0, sizeof(struct tee_pager_stats));
-}
-
-#endif /*CFG_WITH_PAGER*/

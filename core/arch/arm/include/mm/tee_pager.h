@@ -29,7 +29,9 @@
 #define MM_TEE_PAGER_H
 
 #include <kernel/abort.h>
+#include <kernel/panic.h>
 #include <mm/tee_mm.h>
+#include <trace.h>
 
 /* Read-only mapping */
 #define TEE_PAGER_AREA_RO	(1 << 0)
@@ -77,8 +79,6 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm);
 bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 		const void *hashes);
 
-void tee_pager_handle_fault(struct tee_pager_abort_info *ai);
-
 /*
  * Adds physical pages to the pager to use. The supplied virtual address range
  * is searched for mapped physical pages and unmapped pages are ignored.
@@ -114,5 +114,23 @@ struct tee_pager_stats {
 	size_t npages;		/* number of load pages */
 	size_t npages_all;	/* number of pages */
 };
+
+#ifdef CFG_WITH_PAGER
 void tee_pager_get_stats(struct tee_pager_stats *stats);
+void tee_pager_handle_fault(struct tee_pager_abort_info *ai);
+#else /*CFG_WITH_PAGER*/
+static inline void __noreturn tee_pager_handle_fault(
+			struct tee_pager_abort_info *ai)
+{
+	tee_pager_print_error_abort(ai);
+	EMSG("Unexpected page fault! Trap CPU");
+	panic();
+}
+
+static inline void tee_pager_get_stats(struct tee_pager_stats *stats)
+{
+	memset(stats, 0, sizeof(struct tee_pager_stats));
+}
+#endif /*CFG_WITH_PAGER*/
+
 #endif /*MM_TEE_PAGER_H*/
