@@ -28,7 +28,7 @@
 #ifndef MM_TEE_PAGER_H
 #define MM_TEE_PAGER_H
 
-#include <kernel/thread.h>
+#include <kernel/abort.h>
 #include <mm/tee_mm.h>
 
 /* Read-only mapping */
@@ -77,8 +77,7 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm);
 bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 		const void *hashes);
 
-void tee_pager_abort_handler(uint32_t abort_type,
-		struct thread_abort_regs *regs);
+void tee_pager_handle_fault(struct tee_pager_abort_info *ai);
 
 /*
  * Adds physical pages to the pager to use. The supplied virtual address range

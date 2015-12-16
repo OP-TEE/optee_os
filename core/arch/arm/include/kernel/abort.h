@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KERNEL_THREAD_DEFS_H
-#define KERNEL_THREAD_DEFS_H
+#ifndef KERNEL_ABORT_H
+#define KERNEL_ABORT_H
 
-#define THREAD_FLAGS_COPY_ARGS_ON_RETURN	(1 << 0)
-#define THREAD_FLAGS_IRQ_ENABLE			(1 << 1)
-#define THREAD_FLAGS_EXIT_ON_IRQ		(1 << 2)
+#define THREAD_ABORT_UNDEF		0
+#define THREAD_ABORT_PREFETCH		1
+#define THREAD_ABORT_DATA		2
 
-#endif /*KERNEL_THREAD_DEFS_H*/
+#ifndef ASM
+
+#include <compiler.h>
+#include <types_ext.h>
+
+struct tee_pager_abort_info {
+	uint32_t abort_type;
+	uint32_t fault_descr;
+	vaddr_t va;
+	uint32_t pc;
+	struct thread_abort_regs *regs;
+};
+
+void tee_pager_print_abort(struct tee_pager_abort_info *ai __unused);
+void tee_pager_print_error_abort(struct tee_pager_abort_info *ai __unused);
+
+void tee_pager_abort_handler(uint32_t abort_type,
+			struct thread_abort_regs *regs);
+
+#endif /*ASM*/
+#endif /*KERNEL_ABORT_H*/
+

@@ -31,6 +31,7 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <kernel/abort.h>
 #include <kernel/thread_defs.h>
 
 	.section .text.thread_asm
