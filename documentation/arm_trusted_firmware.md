@@ -31,11 +31,11 @@ See "Host machine requirements" in [ARM-TF User Guide].
 ---------
 See "Tools" in [ARM-TF User Guide].
 
-In addition to that is gcc-linaro-arm-linux-gnueabihf-4.8-2013.12_linux.tar.bz2
+In addition to that is gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
 used as to compile OP-TEE.
 
-	wget http://releases.linaro.org/13.12/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.8-2013.12_linux.tar.bz2
-	tar -xf gcc-linaro-arm-linux-gnueabihf-4.8-2013.12_linux.tar.bz2
+	wget http://releases.linaro.org/14.08/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
+	tar -xf gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
 
 
 4.  Building OP-TEE
