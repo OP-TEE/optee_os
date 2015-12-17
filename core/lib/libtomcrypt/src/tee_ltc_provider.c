@@ -42,8 +42,8 @@
 
 #if defined(CFG_WITH_VFP)
 #include <tomcrypt_arm_neon.h>
-#endif
 #include <kernel/thread.h>
+#endif
 
 #if !defined(CFG_WITH_SOFTWARE_PRNG)
 
@@ -546,6 +546,8 @@ static void pool_postactions(void)
 	release_unused_mpa_scratch_memory();
 }
 
+#if defined(CFG_LTC_OPTEE_THREAD)
+#include <kernel/thread.h>
 static struct mpa_scratch_mem_sync {
 	struct mutex mu;
 	struct condvar cv;
@@ -556,8 +558,16 @@ static struct mpa_scratch_mem_sync {
 	.cv = CONDVAR_INITIALIZER,
 	.owner = THREAD_ID_INVALID,
 };
+#elif defined(LTC_PTHREAD)
+#error NOT SUPPORTED
+#else
+static struct mpa_scratch_mem_sync {
+	size_t count;
+} pool_sync;
+#endif
 
 /* Get exclusive access to scratch memory pool */
+#if defined(CFG_LTC_OPTEE_THREAD)
 static void get_pool(struct mpa_scratch_mem_sync *sync)
 {
 	mutex_lock(&sync->mu);
@@ -593,6 +603,22 @@ static void put_pool(struct mpa_scratch_mem_sync *sync)
 
 	mutex_unlock(&sync->mu);
 }
+#elif defined(LTC_PTHREAD)
+#error NOT SUPPORTED
+#else
+static void get_pool(struct mpa_scratch_mem_sync *sync)
+{
+	sync->count++;
+}
+
+/* Put (release) exclusive access to scratch memory pool */
+static void put_pool(struct mpa_scratch_mem_sync *sync)
+{
+	sync->count--;
+	if (!sync->count)
+		pool_postactions();
+}
+#endif
 
 static void tee_ltc_alloc_mpa(void)
 {
