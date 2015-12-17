@@ -75,8 +75,7 @@ Build ARM Trusted Firmware with OP-TEE Dispatcher:
         export CROSS_COMPILE=<path-to-aarch64-gcc>/bin/aarch64-none-elf- \
         export BL33=<path-to>/<bl33_image>                               \
         export BL32=<path-to>/tee.bin                                    \
-        make FVP_TSP_RAM_LOCATION=tdram FVP_SHARED_DATA_LOCATION=tdram   \
-                SPD=opteed PLAT=fvp all fip
+        make ARM_TSP_RAM_LOCATION=tdram SPD=opteed PLAT=fvp all fip
 
 	
 6.  Obtaining the normal world software
