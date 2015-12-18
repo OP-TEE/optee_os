@@ -23,6 +23,9 @@ cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 cppflags$(sm) += -DENABLE_MDBG=1
 endif
+ifeq ($(CFG_TEE_PANIC_DEBUG),y)
+cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
+endif
 
 base-prefix := $(sm)-
 
