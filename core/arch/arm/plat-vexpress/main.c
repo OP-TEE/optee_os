@@ -39,10 +39,8 @@
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/tee_time.h>
-#include <mm/tee_pager.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
-#include <tee/arch_svc.h>
 #include <console.h>
 
 static void main_fiq(void);
@@ -51,8 +49,6 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
-	.svc = tee_svc_handler,
-	.abort = abort_handler,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,

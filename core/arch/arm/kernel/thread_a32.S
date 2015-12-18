@@ -515,7 +515,7 @@ thread_pabort_handler:
 	cps	#CPSR_MODE_ABT
 	push	{r1-r3}
 	mov	r1, sp
-	bl	thread_handle_abort
+	bl	abort_handler
 	pop	{r1-r3}
 	cps	#CPSR_MODE_SYS
 	mov	sp, r1
@@ -533,9 +533,7 @@ LOCAL_FUNC thread_svc_handler , :
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
-	ldr	lr, =thread_svc_handler_ptr;
-	ldr	lr, [lr]
-	blx	lr
+	bl	tee_svc_handler
 	pop	{r0}
 	msr	spsr_fsxc, r0
 	pop	{r0-r7, lr}

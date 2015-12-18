@@ -492,10 +492,8 @@ LOCAL_FUNC el0_svc , :
 	 */
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
 
-	/* Call the registered handler */
-	adr	x16, thread_svc_handler_ptr
-	ldr	x16, [x16]
-	blr	x16
+	/* Call the handler */
+	bl	tee_svc_handler
 
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
@@ -576,7 +574,7 @@ LOCAL_FUNC el1_sync_abort , :
 	 */
 	mov	x0, #0
 	mov	x1, sp
-	bl	thread_handle_abort
+	bl	abort_handler
 
 	/*
 	 * Restore state from stack
@@ -648,7 +646,7 @@ LOCAL_FUNC el0_sync_abort , :
 	 */
 	mov	x0, #0
 	mov	x1, sp
-	bl	thread_handle_abort
+	bl	abort_handler
 
 	/*
 	 * Restore state from stack

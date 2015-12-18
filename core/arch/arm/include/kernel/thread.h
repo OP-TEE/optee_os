@@ -212,9 +212,6 @@ struct thread_svc_regs {
 #endif /*ARM64*/
 
 #ifndef ASM
-typedef void (*thread_abort_handler_t)(uint32_t abort_type,
-			struct thread_abort_regs *regs);
-typedef void (*thread_svc_handler_t)(struct thread_svc_regs *regs);
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
 typedef uint32_t (*thread_pm_handler_t)(uint32_t a0, uint32_t a1);
@@ -260,24 +257,6 @@ struct thread_handlers {
 	thread_pm_handler_t cpu_resume;
 	thread_pm_handler_t system_off;
 	thread_pm_handler_t system_reset;
-
-
-	/*
-	 * The SVC handler is called as a normal function and should do
-	 * a normal return. Note that IRQ is masked when this function
-	 * is called, it's permitted for the function to unmask IRQ.
-	 */
-	thread_svc_handler_t svc;
-
-	/*
-	 * The abort handler is called as a normal function and should do
-	 * a normal return. The abort handler is called when an undefined,
-	 * prefetch abort, or data abort exception is received. In all
-	 * cases the abort handler is executing in abort mode. If IRQ is
-	 * unmasked in the abort handler it has to have separate abort
-	 * stacks for each thread.
-	 */
-	thread_abort_handler_t abort;
 };
 void thread_init_primary(const struct thread_handlers *handlers);
 void thread_init_per_cpu(void);

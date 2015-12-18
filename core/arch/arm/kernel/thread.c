@@ -141,8 +141,6 @@ const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
 thread_fiq_handler_t thread_fiq_handler_ptr;
-thread_svc_handler_t thread_svc_handler_ptr;
-static thread_abort_handler_t thread_abort_handler_ptr;
 thread_pm_handler_t thread_cpu_on_handler_ptr;
 thread_pm_handler_t thread_cpu_off_handler_ptr;
 thread_pm_handler_t thread_cpu_suspend_handler_ptr;
@@ -561,11 +559,6 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 	thread_std_smc_handler_ptr(args);
 }
 
-void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
-{
-	thread_abort_handler_ptr(abort_type, regs);
-}
-
 void *thread_get_tmp_sp(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -717,8 +710,6 @@ static void init_handlers(const struct thread_handlers *handlers)
 	thread_std_smc_handler_ptr = handlers->std_smc;
 	thread_fast_smc_handler_ptr = handlers->fast_smc;
 	thread_fiq_handler_ptr = handlers->fiq;
-	thread_svc_handler_ptr = handlers->svc;
-	thread_abort_handler_ptr = handlers->abort;
 	thread_cpu_on_handler_ptr = handlers->cpu_on;
 	thread_cpu_off_handler_ptr = handlers->cpu_off;
 	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;

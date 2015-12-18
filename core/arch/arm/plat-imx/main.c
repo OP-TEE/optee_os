@@ -30,10 +30,8 @@
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
-#include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <tee/arch_svc.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
@@ -43,8 +41,6 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
-	.svc = tee_svc_handler,
-	.abort = abort_handler,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,

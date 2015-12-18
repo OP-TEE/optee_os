@@ -40,11 +40,9 @@
 #include <kernel/misc.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_time.h>
-#include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
-#include <tee/arch_svc.h>
 #include <console.h>
 #include <sm/sm.h>
 
@@ -54,8 +52,6 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
-	.svc = tee_svc_handler,
-	.abort = abort_handler,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
