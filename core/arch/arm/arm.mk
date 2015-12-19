@@ -39,7 +39,7 @@ platform-aflags-generic ?= -g -pipe
 
 arm32-platform-cflags-no-hard-float ?= -mno-apcs-float -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
-arm32-platform-cflags-generic ?= -mthumb -mthumb-interwork -mlong-calls \
+arm32-platform-cflags-generic ?= -mthumb -mthumb-interwork \
 			-fno-short-enums -fno-common -mno-unaligned-access
 arm32-platform-aflags-no-hard-float ?=
 
