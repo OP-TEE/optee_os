@@ -139,7 +139,7 @@ define gen-version-o
 	$(call update-buildcount,$(link-out-dir)/.buildcount)
 	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/version.o'
 	$(q)echo -e "const char core_v_str[] =" \
-		"\"$(CFG_TEE_IMPL_VERSION) \"" \
+		"\"$(TEE_IMPL_VERSION) \"" \
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \

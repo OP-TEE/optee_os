@@ -126,7 +126,7 @@ static const bool crypto_ecc_en;
 static const uint32_t ts_antiroll_prot_lvl;
 
 /* Trusted OS implementation version */
-static const char trustedos_impl_version[] = TO_STR(CFG_TEE_IMPL_VERSION);
+static const char trustedos_impl_version[] = TO_STR(TEE_IMPL_VERSION);
 
 /* Trusted OS implementation version (binary value) */
 static const uint32_t trustedos_impl_bin_version; /* 0 by default */

@@ -80,7 +80,7 @@ CFG_TEE_API_VERSION ?= GPD-1.1-dev
 CFG_TEE_IMPL_DESCR ?= OPTEE
 
 # Trusted OS implementation version
-CFG_TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
+TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
