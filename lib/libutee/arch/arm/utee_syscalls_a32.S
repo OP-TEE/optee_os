@@ -27,15 +27,14 @@
  */
 
 #include <tee_syscall_numbers.h>
+#include <asm.S>
 
         .section .text
         .balign 4
         .code 32
 
         .macro UTEE_SYSCALL name, scn, num_args
-        .global \name
-        .func \name
-        \name:
+	FUNC \name , :
 
         push    {r5-r7,lr}
         mov     r7, #(\scn)
@@ -53,7 +52,7 @@
         .endif
         svc #0
         pop     {r5-r7,pc}
-        .endfunc
+	END_FUNC \name
         .endm
 
 #include "utee_syscalls_asm.S"

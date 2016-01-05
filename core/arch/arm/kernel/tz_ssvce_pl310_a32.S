@@ -27,18 +27,10 @@
 
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
-
- /* cache maintenance */
-.global arm_cl2_lockallways
-.global arm_cl2_cleaninvbyway
-.global arm_cl2_invbyway
-.global arm_cl2_cleanbyway
-.global arm_cl2_cleanbypa
-.global arm_cl2_invbypa
-.global arm_cl2_cleaninvbypa
+#include <asm.S>
 
 /* lock all L2 caches ways for data and instruction */
-arm_cl2_lockallways:
+FUNC arm_cl2_lockallways , :
 
 	mov r0, #PL310_NB_WAYS
 	movw r1, #PL310_DCACHE_LOCKDOWN_BASE
@@ -51,11 +43,12 @@ loop_data_lockdown:
 	bne loop_data_lockdown
 
 	mov pc, lr
+END_FUNC arm_cl2_lockallways
 
 /*
  * void arm_cl2_cleaninvbyway(void) - clean & invalidate the whole L2 cache.
  */
-arm_cl2_cleaninvbyway:
+FUNC arm_cl2_cleaninvbyway , :
 
 	/* Clean and invalidate all cache ways */
 	movw r0, #PL310_FLUSH_BY_WAY
@@ -91,9 +84,10 @@ loop_cli_sync_done:
 	bne loop_cli_sync_done
 
 	mov pc, lr
+END_FUNC arm_cl2_cleaninvbyway
 
 /* void (arm_cl2_invbyway(void) */
-arm_cl2_invbyway:
+FUNC arm_cl2_invbyway , :
 
 	/* Clean by Way */
 	movw r0, #PL310_INV_BY_WAY
@@ -130,9 +124,10 @@ loop_inv_way_sync_done:
 	bne loop_inv_way_sync_done
 
 	mov pc, lr
+END_FUNC arm_cl2_invbyway
 
 /* void arm_cl2_cleanbyway(u32 pa) */
-arm_cl2_cleanbyway:
+FUNC arm_cl2_cleanbyway , :
 
 	/* Clean by Way */
 	movw r0, #PL310_CLEAN_BY_WAY
@@ -169,12 +164,13 @@ loop_cl_way_sync_done:
 	bne loop_cl_way_sync_done
 
 	mov pc, lr
+END_FUNC arm_cl2_cleanbyway
 
 /*
  * void _arm_cl2_xxxbypa(paddr_t start, paddr_t end, int pl310value);
  * pl310value is one of PL310_CLEAN_BY_PA, PL310_INV_BY_PA or PL310_FLUSH_BY_PA
  */
-_arm_cl2_xxxbypa:
+LOCAL_FUNC _arm_cl2_xxxbypa , :
 	/* Align start address on PL310 line size */
 	and r0, #(~(PL310_LINE_SIZE - 1))
 
@@ -224,31 +220,35 @@ loop_xxx_pa_sync_done:
 	bne loop_xxx_pa_sync_done
 
 	mov pc, lr
+END_FUNC _arm_cl2_xxxbypa
 
 /*
  * void _arm_cl2_cleanbypa(paddr_t start, paddr_t end);
  * clean L2 cache by physical address range.
  */
-arm_cl2_cleanbypa:
+FUNC arm_cl2_cleanbypa , :
 	movw r2, #PL310_CLEAN_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+END_FUNC arm_cl2_cleanbypa
 
 /*
  * void arm_cl2_invbypa(paddr_t start, paddr_t end);
  * invalidate L2 cache by physical address range.
  */
-arm_cl2_invbypa:
+FUNC arm_cl2_invbypa , :
 	movw r2, #PL310_INV_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+END_FUNC arm_cl2_invbypa
 
 /*
  * void arm_cl2_cleaninvbypa(paddr_t start, paddr_t end);
  * clean and invalidate L2 cache by physical address range.
  */
-arm_cl2_cleaninvbypa:
+FUNC arm_cl2_cleaninvbypa , :
 	movw r2, #PL310_FLUSH_BY_PA
 	movt r2, #PL310_BASE_H
 	b _arm_cl2_xxxbypa
+END_FUNC arm_cl2_cleaninvbypa
 

@@ -39,25 +39,7 @@
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
 
-/* TLB maintenance */
-.global secure_mmu_unifiedtlbinvall
-.global secure_mmu_unifiedtlbinvbymva
-.global secure_mmu_unifiedtlbinv_curasid
-.global secure_mmu_unifiedtlbinv_byasid
-
-/* cache maintenance */
-.global arm_cl1_d_cleanbysetway
-.global arm_cl1_d_invbysetway
-.global arm_cl1_d_cleaninvbysetway
-.global arm_cl1_d_cleanbyva
-.global arm_cl1_d_invbyva
-.global arm_cl1_d_cleaninvbyva
-.global arm_cl1_i_inv_all
-.global arm_cl1_i_inv
-
-.code 32
-.section .text
-.balign 4
+	.section .text.ssvce
 
 
 
@@ -69,7 +51,7 @@
 /*
  * void secure_mmu_unifiedtlbinvall(void);
  */
-secure_mmu_unifiedtlbinvall:
+FUNC secure_mmu_unifiedtlbinvall , :
 
 	write_tlbiallis
 
@@ -77,13 +59,14 @@ secure_mmu_unifiedtlbinvall:
 	ISB
 
 	MOV     PC, LR
+END_FUNC secure_mmu_unifiedtlbinvall
 
 /*
  * void secure_mmu_unifiedtlbinvbymva(mva);
  *
  * Combine VA and current ASID, and invalidate matching TLB
  */
-secure_mmu_unifiedtlbinvbymva:
+FUNC secure_mmu_unifiedtlbinvbymva , :
 
 	b .	@ Wrong code to force fix/check the routine before using it
 
@@ -97,12 +80,14 @@ secure_mmu_unifiedtlbinvbymva:
 	ISB
 
 	MOV     PC, LR
+END_FUNC secure_mmu_unifiedtlbinvbymva
+
 /*
  * void secure_mmu_unifiedtlbinv_curasid(void)
  *
  * Invalidate TLB matching current ASID
  */
-secure_mmu_unifiedtlbinv_curasid:
+FUNC secure_mmu_unifiedtlbinv_curasid , :
 	read_contextidr r0
 	and     r0, r0, #0xff               /* Get current ASID */
 	/* Invalidate unified TLB by ASID Inner Sharable */
@@ -110,24 +95,26 @@ secure_mmu_unifiedtlbinv_curasid:
 	dsb
 	isb
 	mov	pc, lr
+END_FUNC secure_mmu_unifiedtlbinv_curasid
 
 /*
  * void secure_mmu_unifiedtlbinv_byasid(unsigned int asid)
  *
  * Invalidate TLB matching current ASID
  */
-secure_mmu_unifiedtlbinv_byasid:
+FUNC secure_mmu_unifiedtlbinv_byasid , :
 	and     r0, r0, #0xff               /* Get ASID */
 	/* Invalidate unified TLB by ASID Inner Sharable */
 	write_tlbiasidis r0
 	dsb
 	isb
 	mov	pc, lr
+END_FUNC secure_mmu_unifiedtlbinv_byasid
 
 /*
  * void arm_cl1_d_cleanbysetway(void)
  */
-arm_cl1_d_cleanbysetway:
+FUNC arm_cl1_d_cleanbysetway , :
 
 	MOV     R0, #0                  @ ; write the Cache Size selection register to be
 	MCR     p15, 2, R0, c0, c0, 0   @ ; sure we address the data cache
@@ -148,8 +135,9 @@ _cl_nextLine:
 
 	DSB                             @ ; synchronise
 	MOV PC, LR
+END_FUNC arm_cl1_d_cleanbysetway
 
-arm_cl1_d_invbysetway:
+FUNC arm_cl1_d_invbysetway , :
 
 	MOV     R0, #0                  @ ; write the Cache Size selection register to be
 	MCR     p15, 2, R0, c0, c0, 0   @ ; sure we address the data cache
@@ -171,8 +159,9 @@ _inv_nextLine:
 
 	DSB                             @ ; synchronise
 	MOV      PC, LR
+END_FUNC arm_cl1_d_invbysetway
 
-arm_cl1_d_cleaninvbysetway:
+FUNC arm_cl1_d_cleaninvbysetway , :
 
 	MOV     R0, #0                  @ ; write the Cache Size selection register to be
 	MCR     p15, 2, R0, c0, c0, 0   @ ; sure we address the data cache
@@ -193,11 +182,12 @@ _cli_nextLine:
 
 	DSB                             @ ; synchronise
 	MOV PC, LR
+END_FUNC arm_cl1_d_cleaninvbysetway
 
 /*
  * void arm_cl1_d_cleanbyva(void *s, void *e);
  */
-arm_cl1_d_cleanbyva:
+FUNC arm_cl1_d_cleanbyva , :
 
 	CMP     R0, R1                  @ ; check that end >= start. Otherwise return.
 	BHI     _cl_area_exit
@@ -217,11 +207,12 @@ _cl_area_exit:
 	
 	DSB                             @ ; synchronise
 	MOV PC, LR
+END_FUNC arm_cl1_d_cleanbyva
 
 /*
  * void arm_cl1_d_invbyva(void *s, void *e);
  */
-arm_cl1_d_invbyva:
+FUNC arm_cl1_d_invbyva , :
 
 	CMP     R0, R1                      @ ; check that end >= start. Otherwise return.
 	BHI     _inv_area_dcache_exit
@@ -241,11 +232,12 @@ _inv_area_dcache_nl:
 _inv_area_dcache_exit:
 	DSB
 	MOV PC, LR
+END_FUNC arm_cl1_d_invbyva
 
 /*
  * void arm_cl1_d_cleaninvbyva(void *s, void *e);
  */
-arm_cl1_d_cleaninvbyva:
+FUNC arm_cl1_d_cleaninvbyva , :
 
 	CMP     R0, R1                  @ ; check that end >= start. Otherwise return.
 	BHI     _cli_area_exit
@@ -264,6 +256,7 @@ _cli_area_nextLine:
 _cli_area_exit:
 	DSB                             @ ; synchronise
 	MOV PC, LR
+END_FUNC arm_cl1_d_cleaninvbyva
 
 /*
  * void arm_cl1_i_inv_all( void );
@@ -271,7 +264,7 @@ _cli_area_exit:
  * Invalidates the whole instruction cache.
  * It also invalidates the BTAC.
  */
-arm_cl1_i_inv_all:
+FUNC arm_cl1_i_inv_all , :
 
     /* Invalidate Entire Instruction Cache */
     MOV     R0, #0
@@ -286,6 +279,7 @@ arm_cl1_i_inv_all:
     ISB                             /* by the instructions rigth after the ISB */
 
     BX      LR
+END_FUNC arm_cl1_i_inv_all
 
 /*
  * void arm_cl1_i_inv(void *start, void *end);
@@ -293,7 +287,7 @@ arm_cl1_i_inv_all:
  * Invalidates instruction cache area whose limits are given in parameters.
  * It also invalidates the BTAC.
  */
-arm_cl1_i_inv:
+FUNC arm_cl1_i_inv , :
 
     CMP     R0, R1                              /* Check that end >= start. Otherwise return. */
     BHI     _inv_icache_exit
@@ -314,3 +308,4 @@ _inv_icache_nextLine:
 
 _inv_icache_exit:
     BX      LR
+END_FUNC arm_cl1_i_inv

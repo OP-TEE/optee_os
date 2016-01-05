@@ -25,27 +25,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-.global ret_idivmod_values
-.global ret_uidivmod_values
+#include <asm.S>
 
-.section .text
-.balign 4
-.code  32
+	.section .text
 
 /*
  * signed ret_idivmod_values(signed quot, signed rem);
  * return quotient and remaining the EABI way (regs r0,r1)
  */
-.func ret_idivmod_values
-ret_idivmod_values:
+FUNC ret_idivmod_values , :
         bx lr
-.endfunc
+END_FUNC ret_idivmod_values
 
 /*
  * unsigned ret_uidivmod_values(unsigned quot, unsigned rem);
  * return quotient and remaining the EABI way (regs r0,r1)
  */
-.func ret_uidivmod_values
-ret_uidivmod_values:
+FUNC ret_uidivmod_values , :
         bx      lr
-.endfunc
+END_FUNC ret_uidivmod_values

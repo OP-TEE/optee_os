@@ -35,58 +35,52 @@
 #include <arm.h>
 #include <arm32_macros.S>
 
-.global cpu_spin_lock
-.global cpu_spin_trylock
-.global cpu_spin_unlock
-.global cpu_mmu_enable
-.global cpu_mmu_enable_icache
-.global cpu_mmu_enable_dcache
-
-.section .text
-.balign 4
-.code 32
+	.section .text.proc
 
 /* void cpu_spin_lock(lock address) - lock mutex */
-cpu_spin_lock:
-    mov r2, #SPINLOCK_LOCK
+FUNC cpu_spin_lock , :
+	mov r2, #SPINLOCK_LOCK
 _spinlock_loop:
-    ldrex r1, [r0]
-    cmp r1, #SPINLOCK_UNLOCK
-    wfene
-    bne _spinlock_loop
-    strex r1, r2, [r0]
-    cmp r1, #0
-    wfene
-    bne _spinlock_loop
-    dmb
-    bx lr
+	ldrex r1, [r0]
+	cmp r1, #SPINLOCK_UNLOCK
+	wfene
+	bne _spinlock_loop
+	strex r1, r2, [r0]
+	cmp r1, #0
+	wfene
+	bne _spinlock_loop
+	dmb
+	bx lr
+END_FUNC cpu_spin_lock
 
 /* int cpu_spin_trylock(lock address) - return 0 on success */
-cpu_spin_trylock:
-    mov r2, #SPINLOCK_LOCK
-    mov r1, r0
+FUNC cpu_spin_trylock , :
+	mov r2, #SPINLOCK_LOCK
+	mov r1, r0
 _trylock_loop:
-    ldrex r0, [r1]
-    cmp r0, #0
-    bne _trylock_out
-    strex r0, r2, [r1]
-    cmp r0, #0
-    bne _trylock_loop
-    dmb
-    bx lr
+	ldrex r0, [r1]
+	cmp r0, #0
+	bne _trylock_out
+	strex r0, r2, [r1]
+	cmp r0, #0
+	bne _trylock_loop
+	dmb
+	bx lr
 _trylock_out:
-    clrex
-    dmb
-    bx lr
+	clrex
+	dmb
+	bx lr
+END_FUNC cpu_spin_trylock
 
 /* void cpu_spin_unlock(lock address) - unlock mutex */
-cpu_spin_unlock:
-    dmb
-    mov r1, #SPINLOCK_UNLOCK
-    str r1, [r0]
-    dsb
-    sev
-    bx lr
+FUNC cpu_spin_unlock , :
+	dmb
+	mov r1, #SPINLOCK_UNLOCK
+	str r1, [r0]
+	dsb
+	sev
+	bx lr
+END_FUNC cpu_spin_unlock
 
 /*
  * void cpu_mmu_enable(void) - enable MMU

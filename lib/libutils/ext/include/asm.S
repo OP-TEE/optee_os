@@ -27,6 +27,7 @@
 
 	.macro FUNC name colon
 	.global \name
+	.func \name
 	.type \name , %function
 	\name \colon
 	.endm
@@ -38,6 +39,7 @@
 	.endm
 
 	.macro LOCAL_FUNC name colon
+	.func \name
 	.type \name , %function
 	\name \colon
 	.endm
@@ -53,4 +55,5 @@
 
 	.macro END_FUNC name
 	.size \name , .-\name
+	.endfunc
 	.endm

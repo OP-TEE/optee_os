@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <platform_config.h>
+#include <asm.S>
 
 #define ST_32BIT_REG(address) (address)
 
@@ -71,10 +72,7 @@ asc_state:
  * At least only maps (MMU) the ASC register addresses.
  * We rely on some other SW layer to enable ASC IP (power/clamps/clocks/...)
  */
-.global    asc_init
-.type      asc_init, %function
-
-asc_init:
+FUNC asc_init , :
     ldr r1, =asc_state
     mov r0, #0
     str r0, [r1]
@@ -82,6 +80,7 @@ asc_init:
     /* TODO: insure ASC is mapped (check against core_init_mmu()/core_mmu.c) */
     ldr r0, =0
     bx lr
+END_FUNC asc_init
 
 /*
  * int __asc_xmit(char*) - Transmit a numm terminated string.
@@ -89,10 +88,7 @@ asc_init:
  *    R0 is pointer to null-terminated string
  *    Clobbers r0-r3
  */
-    .global    __asc_xmit
-    .type      __asc_xmit, %function
-
-__asc_xmit:
+FUNC __asc_xmit , :
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -131,16 +127,14 @@ notlf:
 _asc_exit:
     LDR r0, =0
     BX lr
+END_FUNC __asc_xmit
 
 /*
  * void __asc_flush(void) - flush ASC tx fifo.
  *
  *    Clobbers r0-r3
  */
-    .global     __asc_flush
-    .type       __asc_flush, %function
-
-__asc_flush:
+FUNC __asc_flush , :
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -157,6 +151,7 @@ flush_wait:
 _flush_exit:
     LDR r0, =0
     BX lr
+END_FUNC __asc_flush
 
 /*
  * int __asc_xmit_char(char) - Transmit a single character.
@@ -164,10 +159,7 @@ _flush_exit:
  *    R0 is the 1-byte character to be transmited
  *    Clobbers r0-r3
  */
-    .global     __asc_xmit_char
-    .type       __asc_xmit_char, %function
-
-__asc_xmit_char:
+FUNC __asc_xmit_char , :
 
     ldr r1, =asc_state
     ldr r1, [r1]
@@ -205,3 +197,4 @@ __asc_char_notlf:
 __asc_char_exit:
     LDR r0, =0
     BX lr
+END_FUNC __asc_xmit_char

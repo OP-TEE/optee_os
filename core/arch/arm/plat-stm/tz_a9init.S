@@ -33,13 +33,7 @@
  */
 #include <kernel/tz_ssvce_def.h>
 #include <arm32_macros.S>
-
-.global arm_secboot_identify_cpu
-.global plat_cpu_reset_early
-.global arm_secboot_errata
-.global arm_cl2_config
-.global arm_cl2_enable
-.global plat_cpu_reset_late
+#include <asm.S>
 
 #define CPUID_A9_R2P2_H 0x412f
 #define CPUID_A9_R2P2_L 0xc092
@@ -59,8 +53,7 @@
  * LR store return address.
  * Trap CPU in case of error.
  */
-.func arm_secboot_identify_cpu
-arm_secboot_identify_cpu:
+FUNC arm_secboot_identify_cpu , :
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R2P2_L
@@ -79,8 +72,7 @@ _ident_a9_r2p2:
 
 _ident_a9_r3p0:
 	mov pc, lr /* back to tzinit */
-
-.endfunc
+END_FUNC arm_secboot_identify_cpu
 
 /*
  * Memory Cache Level2 Configuration Function
@@ -90,8 +82,7 @@ _ident_a9_r3p0:
  * LR store return address.
  * Trap CPU in case of error.
  */
-.func arm_cl2_config
-arm_cl2_config:
+FUNC arm_cl2_config , :
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R3P0_L
@@ -194,8 +185,7 @@ _config_l2cc_r3p0:
 	str  r1, [r0]
 
 	mov pc, lr
-
-.endfunc
+END_FUNC arm_cl2_config
 /* End of arm_cl2_config */
 
 
@@ -210,8 +200,7 @@ _config_l2cc_r3p0:
  * Trap CPU in case of error.
  * TODO: to be moved to PL310 code (tz_svce_pl310.S ?)
  */
-.func arm_cl2_enable
-arm_cl2_enable:
+FUNC arm_cl2_enable , :
 
 
 	/* Enable PL310 ctrl -> only set lsb bit */
@@ -230,8 +219,7 @@ arm_cl2_enable:
 	mcr  p15, 0, r0, c1, c0, 1
 
 	mov pc, lr
-
-.endfunc
+END_FUNC arm_cl2_enable
 
 /* 
  * Cortex A9 configuration early configuration
@@ -241,8 +229,7 @@ arm_cl2_enable:
  * LR store return address.
  * Trap CPU in case of error.
  */
-.func plat_cpu_reset_early
-plat_cpu_reset_early:
+FUNC plat_cpu_reset_early , :
 
 	/* only r3p0 is supported */
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
@@ -309,8 +296,7 @@ _early_a9_r3p0:
 	str  r1, [r0]
 
 	mov pc, lr /* back to tzinit */
-
-.endfunc
+END_FUNC plat_cpu_reset_early
 
 /*
  * arm_secboot_errata - arm errata, specific per core revision
@@ -320,8 +306,7 @@ _early_a9_r3p0:
  * LR store return address.
  * Trap CPU in case of error.
  */
-.func arm_secboot_errata
-arm_secboot_errata:
+FUNC arm_secboot_errata , :
 
 	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
 	movw r1, #CPUID_A9_R2P2_L
@@ -340,8 +325,7 @@ _errata_a9_r2p2:
 
 _errata_a9_r3p0:
 	mov pc, lr
-
-.endfunc
+END_FUNC arm_secboot_errata
 
 /*
  * A9 secured config, needed only from a single core
@@ -353,8 +337,7 @@ _errata_a9_r3p0:
  *
  * TODO: size optim in code
  */
-.func plat_cpu_reset_late
-plat_cpu_reset_late:
+FUNC plat_cpu_reset_late , :
 
 	mrc p15, 0, r0, c0, c0, 5
 	ands r0, #3
@@ -473,6 +456,4 @@ loop_1:
 	mcr p15, 0, r0, c1, c1, 0    /* write updated value in Secure Configuration Register */
 
 	mov pc, lr
-
-.endfunc
-
+END_FUNC plat_cpu_reset_late

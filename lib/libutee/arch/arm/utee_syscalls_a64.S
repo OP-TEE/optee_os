@@ -26,13 +26,12 @@
  */
 
 #include <tee_syscall_numbers.h>
+#include <asm.S>
 
         .section .text
 
         .macro UTEE_SYSCALL name, scn, num_args
-        .global \name
-        .func \name
-        \name:
+	FUNC \name , :
 
 	.if \num_args > TEE_SVC_MAX_ARGS || \num_args > 8
 	.error "Too many arguments for syscall"
@@ -40,7 +39,7 @@
         mov     x8, #(\scn)
         svc #0
         ret
-        .endfunc
+        END_FUNC \name
         .endm
 
 #include "utee_syscalls_asm.S"
