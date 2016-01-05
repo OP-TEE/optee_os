@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -388,8 +389,12 @@ void thread_init_boot_thread(void)
 	struct thread_core_local *l = thread_get_core_local();
 	size_t n;
 
-	for (n = 0; n < CFG_NUM_THREADS; n++)
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		TAILQ_INIT(&threads[n].mutexes);
+#ifdef CFG_SMALL_PAGE_USER_TA
+		SLIST_INIT(&threads[n].tsd.pgt_cache);
+#endif
+	}
 
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
 		thread_core_local[n].curr_thread = -1;
@@ -805,6 +810,7 @@ void thread_init_primary(const struct thread_handlers *handlers)
 	init_canaries();
 
 	init_thread_stacks();
+	pgt_init();
 }
 
 static void init_sec_mon(size_t pos __maybe_unused)

@@ -63,10 +63,12 @@
 #include <assert.h>
 #include <trace.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/pgt_cache.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <kernel/misc.h>
 #include <arm.h>
+#include <util.h>
 #include "core_mmu_private.h"
 
 #ifndef DEBUG_XLAT_TABLE
@@ -86,6 +88,7 @@
 
 #define INVALID_DESC		0x0
 #define BLOCK_DESC		0x1
+#define L3_BLOCK_DESC		0x3
 #define TABLE_DESC		0x3
 
 #define HIDDEN_DESC		0x4
@@ -243,6 +246,9 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_PHYS_BLOCK)
 		return INVALID_DESC | PHYSPAGE_DESC;
 
+	if (a & TEE_MATTR_TABLE)
+		return TABLE_DESC;
+
 	if (!(a & TEE_MATTR_VALID_BLOCK))
 		return 0;
 
@@ -255,7 +261,10 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_UW)
 		a |= TEE_MATTR_PW;
 
-	desc = level == 3 ? TABLE_DESC : BLOCK_DESC;
+	if (level == 3)
+		desc = L3_BLOCK_DESC;
+	else
+		desc = BLOCK_DESC;
 
 	if (!(a & (TEE_MATTR_PX | TEE_MATTR_UX)))
 		desc |= UPPER_ATTRS(XN);
@@ -545,6 +554,9 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
 		struct core_mmu_user_map *map)
 {
+
+	COMPILE_TIME_ASSERT(PGT_SIZE == sizeof(uint64_t) * XLAT_TABLE_ENTRIES);
+
 	if (mmu) {
 		struct core_mmu_table_info dir_info;
 		vaddr_t va_range_base;
@@ -552,7 +564,7 @@ void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
 
 		core_mmu_get_user_va_range(&va_range_base, NULL);
 		core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
-		memset(tbl, 0, sizeof(uint64_t) * XLAT_TABLE_ENTRIES);
+		memset(tbl, 0, PGT_SIZE);
 		core_mmu_populate_user_map(&dir_info, mmu);
 		map->user_map = (paddr_t)dir_info.table | TABLE_DESC;
 		map->asid = asid & TTBR_ASID_MASK;

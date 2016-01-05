@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -31,6 +32,7 @@
 #ifndef ASM
 
 #include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
 #include <kernel/vfp.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>

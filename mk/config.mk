@@ -144,3 +144,6 @@ CFG_TA_FLOAT_SUPPORT ?= y
 ifeq ($(CFG_TEE_CORE_DEBUG),1)
 CFG_CORE_UNWIND ?= y
 endif
+
+# Use small pages to map user TAs
+CFG_SMALL_PAGE_USER_TA ?= y

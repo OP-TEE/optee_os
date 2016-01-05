@@ -32,6 +32,7 @@
 #include <arm.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/pgt_cache.h>
 #include <trace.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -398,6 +399,9 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
 		struct core_mmu_user_map *map)
 {
+	COMPILE_TIME_ASSERT(PGT_SIZE == sizeof(uint32_t) *
+					TEE_MMU_L2_NUM_ENTRIES);
+
 	if (mmu) {
 		struct core_mmu_table_info dir_info;
 		void *tbl = (void *)core_mmu_get_ul1_ttb_va();
