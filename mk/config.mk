@@ -148,3 +148,6 @@ endif
 
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
+
+# Use small pages to map user TAs
+CFG_SMALL_PAGE_USER_TA ?= y

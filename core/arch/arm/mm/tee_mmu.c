@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -34,6 +35,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/pgt_cache.h>
 #include <user_ta_header.h>
 #include <mm/tee_mm.h>
 #include "tee_api_types.h"
@@ -203,9 +205,31 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 		va += ROUNDUP(mmu->table[n].size, CORE_MMU_USER_CODE_SIZE);
 	}
 
+	/*
+	 * Assign parameters in secure memory.
+	 */
 	va = ROUNDUP(va, CORE_MMU_USER_PARAM_SIZE);
-	for (; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
-		if (!mmu->table[n].size)
+	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
+		if (!mmu->table[n].size ||
+		    !(mmu->table[n].attr & TEE_MATTR_SECURE))
+			continue;
+		mmu->table[n].va = va;
+		va += mmu->table[n].size;
+		/* Put some empty space between each area */
+		va += CORE_MMU_USER_PARAM_SIZE;
+		if ((va - va_range_base) >= va_range_size)
+			return TEE_ERROR_EXCESS_DATA;
+	}
+
+	/*
+	 * Assign parameters in nonsecure shared memory.
+	 * Note that we're making sure that they will reside in a new page
+	 * directory as they are to be mapped nonsecure.
+	 */
+	va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
+	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
+		if (!mmu->table[n].size ||
+		    (mmu->table[n].attr & TEE_MATTR_SECURE))
 			continue;
 		mmu->table[n].va = va;
 		va += mmu->table[n].size;
@@ -245,6 +269,26 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *ctx)
 
 	return TEE_SUCCESS;
 }
+
+#ifdef CFG_SMALL_PAGE_USER_TA
+static TEE_Result check_pgt_avail(vaddr_t base, vaddr_t end)
+{
+	vaddr_t b = ROUNDDOWN(base, CORE_MMU_PGDIR_SIZE);
+	vaddr_t e = ROUNDUP(end, CORE_MMU_PGDIR_SIZE);
+	size_t ntbl = (e - b) >> CORE_MMU_PGDIR_SHIFT;
+
+	if (!pgt_check_avail(ntbl)) {
+		EMSG("%zu page tables not available", ntbl);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+	return TEE_SUCCESS;
+}
+#else
+static TEE_Result check_pgt_avail(vaddr_t base __unused, vaddr_t end __unused)
+{
+	return TEE_SUCCESS;
+}
+#endif
 
 /*
  * tee_mmu_map - alloc and fill mmu mapping table for a user TA (uTA).
@@ -355,6 +399,8 @@ TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param)
 	utc->mmu->ta_private_vmem_end = utc->mmu->table[n].va +
 					utc->mmu->table[n].size;
 
+	res = check_pgt_avail(utc->mmu->ta_private_vmem_start,
+			      utc->mmu->ta_private_vmem_end);
 exit:
 	if (res != TEE_SUCCESS)
 		tee_mmu_umap_clear(utc->mmu);
@@ -504,6 +550,14 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
 	if (!ctx || !is_user_ta_ctx(ctx)) {
 		core_mmu_set_user_map(NULL);
+#ifdef CFG_SMALL_PAGE_USER_TA
+		/*
+		 * We're not needing the user page tables for the moment,
+		 * release them as some other thread may be waiting for
+		 * them.
+		 */
+		pgt_free(&thread_get_tsd()->pgt_cache);
+#endif
 	} else {
 		struct core_mmu_user_map map;
 		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
