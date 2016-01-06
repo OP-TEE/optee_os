@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -144,6 +145,63 @@ enum desc_type {
 	DESC_TYPE_SMALL_PAGE,
 	DESC_TYPE_INVALID,
 };
+
+/* Main MMU L1 table for teecore */
+static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.l1"),
+		       aligned(TEE_MMU_L1_ALIGNMENT)));
+static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.l2"),
+		       aligned(TEE_MMU_L2_ALIGNMENT)));
+
+/* MMU L1 table for TAs, one for each Core */
+static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
+	__attribute__((section(".nozi.mmu.ul1"),
+		      aligned(TEE_MMU_UL1_ALIGNMENT)));
+
+static vaddr_t core_mmu_get_main_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_l1_ttb;
+}
+
+static paddr_t core_mmu_get_main_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	return pa;
+}
+
+static vaddr_t core_mmu_get_ul1_ttb_va(void)
+{
+	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
+}
+
+static paddr_t core_mmu_get_ul1_ttb_pa(void)
+{
+	/* Note that this depends on flat mapping of TEE Core */
+	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+
+	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	return pa;
+}
+
+static void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
+{
+	/* Can't have this in .bss since it's not initialized yet */
+	static size_t l2_offs __attribute__((section(".data")));
+	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
+	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
+			     TEE_MMU_L2_SIZE) * l2_va_size;
+
+	if (l2_offs)
+		return NULL;
+	if (mm->size > l2_va_space)
+		return NULL;
+	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
+	return main_mmu_l2_ttb;
+}
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 {
@@ -729,75 +787,3 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 		return CORE_MMU_FAULT_OTHER;
 	}
 }
-
-#if defined(CFG_MMU_V7_TTB)
-
-/* Main MMU L1 table for teecore */
-static uint32_t main_mmu_l1_ttb[TEE_MMU_L1_NUM_ENTRIES]
-	__attribute__((section(".nozi.mmu.l1"),
-		       aligned(TEE_MMU_L1_ALIGNMENT)));
-static uint32_t main_mmu_l2_ttb[TEE_MMU_L2_NUM_ENTRIES]
-	__attribute__((section(".nozi.mmu.l2"),
-		       aligned(TEE_MMU_L2_ALIGNMENT)));
-
-/* MMU L1 table for TAs, one for each Core */
-static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][TEE_MMU_UL1_NUM_ENTRIES]
-	__attribute__((section(".nozi.mmu.ul1"),
-		      aligned(TEE_MMU_UL1_ALIGNMENT)));
-
-paddr_t core_mmu_get_main_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
-
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_main_ttb_va(void)
-{
-	return (vaddr_t)main_mmu_l1_ttb;
-}
-
-paddr_t core_mmu_get_ul1_ttb_pa(void)
-{
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
-
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
-	return pa;
-}
-
-vaddr_t core_mmu_get_ul1_ttb_va(void)
-{
-	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
-}
-
-void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
-{
-	/* Can't have this in .bss since it's not initialized yet */
-	static size_t l2_offs __attribute__((section(".data")));
-	const size_t l2_va_size = TEE_MMU_L2_NUM_ENTRIES * SMALL_PAGE_SIZE;
-	size_t l2_va_space = ((sizeof(main_mmu_l2_ttb) - l2_offs) /
-			     TEE_MMU_L2_SIZE) * l2_va_size;
-
-	if (l2_offs)
-		return NULL;
-	if (mm->size > l2_va_space)
-		return NULL;
-	l2_offs += ROUNDUP(mm->size, l2_va_size) / l2_va_size;
-	return main_mmu_l2_ttb;
-}
-
-#else /* defined(CFG_MMU_V7_TTB) */
-
-__weak void *core_mmu_alloc_l2(struct tee_mmap_region *mm __unused)
-{
-	/*
-	 * This function should be redefined in platform specific part if
-	 * needed.
-	 */
-	return NULL;
-}
-
-#endif /* !defined(CFG_MMU_V7_TTB) */

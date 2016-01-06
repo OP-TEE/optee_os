@@ -6,7 +6,6 @@ core_arm32-platform-aflags	+= -mfpu=neon
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SUNXI_UART,y)
-$(call force,CFG_MMU_V7_TTB,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_GIC,y)
 

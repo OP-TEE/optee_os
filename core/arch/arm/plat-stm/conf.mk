@@ -11,7 +11,6 @@ $(call force,CFG_PL310,y)
 $(call force,CFG_CACHE_API,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_GENERIC_BOOT,y)
-$(call force,CFG_MMU_V7_TTB,y)
 $(call force,CFG_BOOT_SYNC_CPU,y)
 
 ta-targets = ta_arm32

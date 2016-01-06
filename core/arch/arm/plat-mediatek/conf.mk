@@ -21,7 +21,6 @@ $(call force,CFG_WITH_LPAE,y)
 ta-targets += ta_arm64
 else
 $(call force,CFG_ARM32_core,y)
-$(call force,CFG_MMU_V7_TTB,y)
 endif
 
 libtomcrypt_with_optimize_size ?= y

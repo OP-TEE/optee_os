@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -297,23 +298,6 @@ bool core_mmu_user_mapping_is_active(void);
  * @returns true if the attributes can be used, false if not.
  */
 bool core_mmu_mattr_is_ok(uint32_t mattr);
-
-#ifndef CFG_WITH_LPAE
-paddr_t core_mmu_get_main_ttb_pa(void);
-vaddr_t core_mmu_get_main_ttb_va(void);
-paddr_t core_mmu_get_ul1_ttb_pa(void);
-vaddr_t core_mmu_get_ul1_ttb_va(void);
-
-/*
- * core_mmu_alloc_l2() - allocates a number of L2 tables
- * @map: description of the area to allocate for
- *
- * Allocates a number of L2 to cover the virtual address range
- * decribed by @map.
- * @returns NULL on failure or a pointer to the L2 table(s)
- */
-void *core_mmu_alloc_l2(struct tee_mmap_region *mm);
-#endif
 
 void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
 
