@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -29,11 +30,9 @@
 #include <string.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
-#include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
 #include "tee_api_defines.h"
 #include <util.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <optee_msg.h>
 
@@ -41,15 +40,11 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode)
 {
 	TEE_Result ret;
-	struct tee_ta_session *sess = NULL;
 	struct optee_msg_param params;
 	paddr_t phpayload = 0;
 	uint64_t cpayload = 0;
 	struct tee_fs_rpc *bf;
 	int res = -1;
-
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
 
 	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
 				 &phpayload, &cpayload);
@@ -72,9 +67,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	*bf = *bf_cmd;
 
 	if (mode & TEE_FS_MODE_IN) {
-		tee_ta_set_current_session(sess);
 		memcpy((void *)(bf + 1), data, len);
-		tee_ta_set_current_session(NULL);
 	}
 
 	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, 1, &params);
@@ -86,15 +79,12 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	if (mode & TEE_FS_MODE_OUT) {
 		uint32_t olen = MIN(len, bf->len);
 
-		tee_ta_set_current_session(sess);
 		memcpy(data, (void *)(bf + 1), olen);
-		tee_ta_set_current_session(NULL);
 	}
 
 	res = 0;
 
 exit:
 	thread_rpc_free(cpayload);
-	tee_ta_set_current_session(sess);
 	return res;
 }

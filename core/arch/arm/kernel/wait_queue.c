@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,11 @@
  */
 #include <compiler.h>
 #include <types_ext.h>
+#include <tee_api_defines.h>
+#include <string.h>
 #include <optee_msg.h>
 #include <kernel/tz_proc.h>
 #include <kernel/wait_queue.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <trace.h>
 
@@ -45,7 +46,6 @@ static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 			const char *fname, int lineno __maybe_unused)
 {
 	uint32_t ret;
-	struct tee_ta_session *sess = NULL;
 	struct optee_msg_param params;
 	const char *cmd_str __maybe_unused =
 	     func == OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ";
@@ -56,10 +56,6 @@ static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 	else
 		DMSG("%s thread %u %p", cmd_str, id, sync_obj);
 
-	tee_ta_get_current_session(&sess);
-	if (sess)
-		tee_ta_set_current_session(NULL);
-
 	memset(&params, 0, sizeof(params));
 	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	params.u.value.a = func;
@@ -68,9 +64,6 @@ static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_WAIT_QUEUE, 1, &params);
 	if (ret != TEE_SUCCESS)
 		DMSG("%s thread %u ret 0x%x", cmd_str, id, ret);
-
-	if (sess)
-		tee_ta_set_current_session(sess);
 }
 
 static void slist_add_tail(struct wait_queue *wq, struct wait_queue_elem *wqe)

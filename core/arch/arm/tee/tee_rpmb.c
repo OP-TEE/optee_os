@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -34,7 +35,6 @@
 #include <kernel/mutex.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
-#include <kernel/tee_ta_manager.h>
 #include <tee/tee_rpmb.h>
 #include <kernel/chip_services.h>
 #include <kernel/tee_misc.h>

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limied
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -30,7 +31,6 @@
 
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <optee_msg.h>
 #include <mm/core_mmu.h>
@@ -49,19 +49,12 @@ uint32_t tee_time_get_sys_time_protection_level(void)
 
 void tee_time_wait(uint32_t milliseconds_delay)
 {
-	struct tee_ta_session *sess = NULL;
 	struct optee_msg_param params;
-
-	tee_ta_get_current_session(&sess);
-	if (sess)
-		tee_ta_set_current_session(NULL);
 
 	memset(&params, 0, sizeof(params));
 	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	params.u.value.a = milliseconds_delay;
 	thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SUSPEND, 1, &params);
-	if (sess)
-		tee_ta_set_current_session(sess);
 }
 
 /*
@@ -72,15 +65,11 @@ void tee_time_wait(uint32_t milliseconds_delay)
  */
 TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
-	struct tee_ta_session *sess = NULL;
 	TEE_Result res;
 	struct optee_msg_param params;
 
 	if (!time)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	tee_ta_get_current_session(&sess);
-	tee_ta_set_current_session(NULL);
 
 	memset(&params, 0, sizeof(params));
 	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
@@ -90,6 +79,5 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 		time->millis = params.u.value.b / 1000000;
 	}
 
-	tee_ta_set_current_session(sess);
 	return res;
 }
