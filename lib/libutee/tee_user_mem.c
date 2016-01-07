@@ -192,22 +192,22 @@ static struct tee_user_mem_stats global_stats;
 
 static void heap_inc(size_t size)
 {
-	INMSG("%d", size);
+	INMSG("%zu", size);
 	heap_level += size;
 
 	global_stats.nb_alloc++;
 	global_stats.size += size;
-	OUTMSG("%d", global_stats.size);
+	OUTMSG("%zu", global_stats.size);
 }
 
 static void heap_dec(size_t size)
 {
-	INMSG("%d %d", heap_level, size);
+	INMSG("%zu %zu", heap_level, size);
 	heap_level -= size;
 
 	global_stats.nb_alloc--;
 	global_stats.size -= size;
-	OUTMSG("%d", global_stats.size);
+	OUTMSG("%zu", global_stats.size);
 }
 
 /*
@@ -297,7 +297,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	    len + sizeof(struct user_mem_elem) + CANARY_LINE_SIZE;
 
 
-	INMSG("%d %p", (int)len, (void *)hint);
+	INMSG("%zu 0x%" PRIx32, len, hint);
 
 	if ((int)len < 0) {
 		OUTMSG("0x0");
@@ -480,11 +480,11 @@ void tee_user_mem_mark_heap(void)
 size_t tee_user_mem_check_heap(void)
 {
 	int res = 0;
-	INMSG("%d", heap_level);
+	INMSG("%zu", heap_level);
 
 	if (heap_level) {
 		EMSG("ta heap has changed of [%zu]", heap_level);
-		OUTMSG("%d", heap_level);
+		OUTMSG("%zu", heap_level);
 		return heap_level;
 	}
 

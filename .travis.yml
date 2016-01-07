@@ -122,6 +122,7 @@ script:
   # HiKey board (HiSilicon Kirin 620)
   - make -j8 -s PLATFORM=hikey
   - make -j8 -s PLATFORM=hikey CFG_ARM64_core=y CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu-
+  - make -j8 -s PLATFORM=hikey CFG_ARM64_core=y CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- CFG_TEE_TA_LOG_LEVEL=4
 
   # Mediatek mt8173 EVB
   - PLATFORM=mediatek  PLATFORM_FLAVOR=mt8173  CFG_ARM64_core=y  CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
