@@ -48,16 +48,6 @@
 
 vaddr_t tee_svc_uref_base;
 
-#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
-void tee_svc_trace_syscall(int num)
-{
-	/* #0 is syscall return, not really interesting */
-	if (num == 0)
-		return;
-	FMSG("syscall #%d", num);
-}
-#endif
-
 void syscall_log(const void *buf __unused, size_t len __unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE

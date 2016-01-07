@@ -111,7 +111,4 @@ TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op);
 #define  syscall_cache_operation syscall_not_supported
 #endif
 
-void tee_svc_trace_syscall(int num);
-
-
 #endif /* TEE_SVC_H */
