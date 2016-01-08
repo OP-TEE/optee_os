@@ -17,14 +17,12 @@ cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
 cflags$(sm)	:= $(platform-cflags) $($(sm)-platform-cflags)
 aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 
+cppflags$(sm)	+= -include $(conf-file)
+
 # Config flags from mk/config.mk
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
-cppflags$(sm) += -DCFG_TEE_CORE_USER_MEM_DEBUG=$(CFG_TEE_CORE_USER_MEM_DEBUG)
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 cppflags$(sm) += -DENABLE_MDBG=1
-endif
-ifeq ($(CFG_TEE_PANIC_DEBUG),y)
-cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
 endif
 
 base-prefix := $(sm)-
@@ -46,8 +44,8 @@ base-prefix :=
 incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
 incfiles-extra-host := lib/libutils/ext/include/compiler.h
 incfiles-extra-host += lib/libutils/ext/include/util.h
-incfiles-extra-host += $(out-dir)/core/include/generated/conf.h
-incfiles-extra-host += $(out-dir)/core/conf.mk
+incfiles-extra-host += $(conf-file)
+incfiles-extra-host += $(conf-mk-file)
 incfiles-extra-host += core/include/tee/tee_fs_key_manager.h
 incfiles-extra-host += core/include/signed_hdr.h
 
@@ -122,9 +120,9 @@ $(foreach f, $(ta-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/scripts)))
 
 # Create config file
-conf-file := $(out-dir)/export-$(sm)/mk/conf.mk
-sm-$(conf-file) := $(sm)
-$(conf-file): $(conf-mk-file)
+conf-mk-file-export := $(out-dir)/export-$(sm)/mk/conf.mk
+sm-$(conf-mk-file-export) := $(sm)
+$(conf-mk-file-export): $(conf-mk-file)
 	@$(cmd-echo-silent) '  GEN    ' $@
 	$(q)echo sm := $(sm-$(@)) > $@
 	$(q)echo sm-$(sm-$(@)) := y >> $@
@@ -132,5 +130,5 @@ $(conf-file): $(conf-mk-file)
 	$(q)echo CFG_ARM64_$(sm-$(@)) := $(CFG_ARM64_$(sm-$(@))) >> $@
 	$(q)echo CFG_TA_FLOAT_SUPPORT := $(CFG_TA_FLOAT_SUPPORT) >> $@
 
-cleanfiles := $(cleanfiles) $(conf-file)
-all: $(conf-file)
+cleanfiles := $(cleanfiles) $(conf-mk-file-export)
+all: $(conf-mk-file-export)

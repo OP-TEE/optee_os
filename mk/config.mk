@@ -13,7 +13,7 @@
 #   5. This file
 #   6. Subsystem-specific makefiles (*/sub.mk)
 #
-# Actual values used during the build are output to $(out-dir)/core/conf.mk
+# Actual values used during the build are output to $(out-dir)/conf.mk
 # (CFG_* variables only).
 
 # Cross-compiler prefix and suffix

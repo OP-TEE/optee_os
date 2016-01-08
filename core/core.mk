@@ -23,7 +23,7 @@ platform_flavor_$(PLATFORM_FLAVOR) := y
 cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
 cppflags$(sm)	+= -Icore/include
-cppflags$(sm)	+= -include $(out-dir)/core/include/generated/conf.h
+cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= $(platform-cppflags) $(core-platform-cppflags)
 cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
@@ -38,8 +38,8 @@ cppflags$(sm)	+= -Ilib/libutee/include
 # Tell all libraries and sub-directories (included below) that we have a
 # configuration file
 
-conf-file := $(out-dir)/core/include/generated/conf.h
-conf-mk-file := $(out-dir)/core/conf.mk
+conf-file := $(out-dir)/include/generated/conf.h
+conf-mk-file := $(out-dir)/conf.mk
 $(conf-file): $(conf-mk-file)
 
 cleanfiles += $(conf-file)
@@ -82,6 +82,7 @@ include mk/subdir.mk
 gen-srcs += core/ta_pub_key.c
 $(out-dir)/core/ta_pub_key.c: $(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  GEN     $@'
+	@$(q)mkdir -p $(out-dir)/core
 	@$(q)scripts/pem_to_pub_c.py --prefix ta_pub_key --key $< --out $@
 
 include mk/compile.mk

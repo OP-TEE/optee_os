@@ -89,7 +89,7 @@ contains:
   `export-ta_arm{32,64}/host_include`.
 
 Finally, the build directory contains the auto-generated configuration file
-for the TEE Core: `$(O)/core/include/generated/conf.h` (see below).
+for the TEE Core: `$(O)/include/generated/conf.h` (see below).
 
 ### CROSS_COMPILE (cross-compiler selection)
 
@@ -221,9 +221,9 @@ may be defined in `sub.mk` when then pertain to a specific library for instance.
 
 Variables with the `CFG_` prefix are treated in a special
 way: their value is automatically reflected in the generated header
-file `$(out-dir)/core/include/generated/conf.h`, after all the included
+file `$(out-dir)/include/generated/conf.h`, after all the included
 makefiles have been processed. `conf.h` is automatically included by the
-preprocessor when a source file belonging to the TEE core is built.
+preprocessor when a source file is built.
 
 Depending on their value, variables may
 be considered either boolean or non-boolean, which affects how they are
@@ -286,7 +286,7 @@ unchanged into `<generated/conf.h>`. For instance:
 $ make CFG_TEE_CORE_LOG_LEVEL=4
 ```
 ```C
-/* out/arm-plat-vexpress/core/include/generated/conf.h */
+/* out/arm-plat-vexpress/include/generated/conf.h */
 
 #define CFG_TEE_CORE_LOG_LEVEL 4 /* '4' */
 ```

@@ -34,7 +34,7 @@ define check-conf-mk
 		$(strip $(var)=$($(var))_nl_)))"; \
 	mkdir -p $(dir $@);					\
 	echo "# auto-generated TEE configuration file" >$@.tmp; \
-	echo "# TEE version $${CFG_TEE_VERSION:-(undefined)}" >>$@.tmp; \
+	echo "# TEE version ${TEE_IMPL_VERSION}" >>$@.tmp; \
 	echo "ARCH=${ARCH}" >>$@.tmp;				\
 	echo "PLATFORM=${PLATFORM}" >>$@.tmp;			\
 	echo "PLATFORM_FLAVOR=${PLATFORM_FLAVOR}" >>$@.tmp; 	\
