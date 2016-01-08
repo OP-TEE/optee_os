@@ -36,17 +36,17 @@
 #include <trace.h>
 #include <tee/tee_svc_storage.h>
 
-void tee_obj_add(struct tee_ta_ctx *ctx, struct tee_obj *o)
+void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o)
 {
-	TAILQ_INSERT_TAIL(&ctx->objects, o, link);
+	TAILQ_INSERT_TAIL(&utc->objects, o, link);
 }
 
-TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
+TEE_Result tee_obj_get(struct user_ta_ctx *utc, uint32_t obj_id,
 		       struct tee_obj **obj)
 {
 	struct tee_obj *o;
 
-	TAILQ_FOREACH(o, &ctx->objects, link) {
+	TAILQ_FOREACH(o, &utc->objects, link) {
 		if (obj_id == (vaddr_t)o) {
 			*obj = o;
 			return TEE_SUCCESS;
@@ -55,9 +55,9 @@ TEE_Result tee_obj_get(struct tee_ta_ctx *ctx, uint32_t obj_id,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
+void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o)
 {
-	TAILQ_REMOVE(&ctx->objects, o, link);
+	TAILQ_REMOVE(&utc->objects, o, link);
 
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) && o->fd >= 0) {
 		tee_file_ops.close(o->fd);
@@ -70,12 +70,12 @@ void tee_obj_close(struct tee_ta_ctx *ctx, struct tee_obj *o)
 	free(o);
 }
 
-void tee_obj_close_all(struct tee_ta_ctx *ctx)
+void tee_obj_close_all(struct user_ta_ctx *utc)
 {
-	struct tee_obj_head *objects = &ctx->objects;
+	struct tee_obj_head *objects = &utc->objects;
 
 	while (!TAILQ_EMPTY(objects))
-		tee_obj_close(ctx, TAILQ_FIRST(objects));
+		tee_obj_close(utc, TAILQ_FIRST(objects));
 }
 
 TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
@@ -106,7 +106,7 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 	if (fd < 0) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
 			EMSG("Object corrupt\n");
-			tee_obj_close(sess->ctx, o);
+			tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 			tee_file_ops.unlink(file);
 			dir = tee_svc_storage_create_dirname(sess);
 			if (dir != NULL) {

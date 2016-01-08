@@ -29,8 +29,8 @@
 #include <trace.h>
 
 #include <kernel/tee_ta_manager.h>
-#include <kernel/tee_ta_manager_unpg.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/user_ta.h>
 #include <tee/se/service.h>
 #include <tee/se/session.h>
 #include <tee/se/reader.h>
@@ -45,16 +45,15 @@ TEE_Result tee_se_service_open(
 	TEE_Result ret;
 	struct tee_se_service *h;
 	struct tee_ta_session *sess;
-	struct tee_ta_ctx *ctx;
+	struct user_ta_ctx *utc;
 
 	ret = tee_ta_get_current_session(&sess);
 	if (ret != TEE_SUCCESS)
 		return ret;
-
-	ctx = sess->ctx;
+	utc = to_user_ta_ctx(sess->ctx);
 
 	TEE_ASSERT(service != NULL);
-	if (ctx->se_service != NULL)
+	if (utc->se_service != NULL)
 		return TEE_ERROR_ACCESS_CONFLICT;
 
 	h = malloc(sizeof(struct tee_se_service));
@@ -66,7 +65,7 @@ TEE_Result tee_se_service_open(
 	mutex_init(&h->mutex);
 	*service = h;
 
-	ctx->se_service = h;
+	utc->se_service = h;
 
 	return TEE_SUCCESS;
 }
@@ -137,17 +136,17 @@ TEE_Result tee_se_service_close(
 	struct tee_se_service *h;
 	struct tee_se_session *s;
 	struct tee_ta_session *sess;
-	struct tee_ta_ctx *ctx;
+	struct user_ta_ctx *utc;
 
 	ret = tee_ta_get_current_session(&sess);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ctx = sess->ctx;
+	utc = to_user_ta_ctx(sess->ctx);
 	TEE_ASSERT(service != NULL);
-	TEE_ASSERT(ctx->se_service != NULL);
+	TEE_ASSERT(utc->se_service != NULL);
 
-	h = ctx->se_service;
+	h = utc->se_service;
 
 	/* clean up all sessions */
 	mutex_lock(&h->mutex);
@@ -175,7 +174,7 @@ bool tee_se_service_is_valid(struct tee_se_service *service)
 	if (ret != TEE_SUCCESS)
 		return false;
 
-	if (sess->ctx->se_service == service)
+	if (to_user_ta_ctx(sess->ctx)->se_service == service)
 		return true;
 	else
 		return false;

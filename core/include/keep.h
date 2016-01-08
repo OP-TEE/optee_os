@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KEEP_H
+#define KEEP_H
 
-#ifndef _TEE_CORE_TA_STATIC_H
-#define _TEE_CORE_TA_STATIC_H
+#include <compiler.h>
 
-#include "tee_api_types.h"
+#define KEEP_PAGER(sym) \
+	const unsigned long ____keep_pager_##sym  \
+		__section("__keep_meta_vars_pager") = (unsigned long)&sym
 
-#define TA_CORE_STATIC_UUID  { 0xBC765EDE, 0x6724, 0x11DF, \
-	{0x8E, 0x12, 0xEC, 0xDB, 0xDF, 0xD7, 0x20, 0x85} }
+#define KEEP_INIT(sym) \
+	const unsigned long ____keep_init_##sym  \
+		__section("__keep_meta_vars_init") = (unsigned long)&sym
 
-#define TA_CORE_GET_PRODUCT_ID                   9
-#define TA_CORE_GET_DIE_ID                      33
-#define TA_CORE_GET_GLOBALVALUE                 50
-#define TA_CORE_SET_GLOBALVALUE                 51
-#define TA_CORE_GET_PRODUCT_ID2                 0x1010
-#define TA_CORE_SET_GLOBAL_VALUE_ID             0x2020
-#define TA_CORE_GET_GLOBAL_VALUE_ID             0x2021
-#define TA_CORE_CLEAR_GLOBAL_VALUE_ID           0x2022
-
-#endif
+#endif /*KEEP_H*/

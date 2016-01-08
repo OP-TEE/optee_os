@@ -28,7 +28,9 @@
 #define TEE_SVC_CRYP_H
 
 #include <tee_api_types.h>
-#include <kernel/tee_ta_manager_unpg.h>
+#include <utee_types.h>
+
+struct user_ta_ctx;
 
 TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
 TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
@@ -53,7 +55,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long op_mode,
 			uint32_t *state);
 TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src);
 TEE_Result syscall_cryp_state_free(unsigned long state);
-void tee_svc_cryp_free_states(struct tee_ta_ctx *ctx);
+void tee_svc_cryp_free_states(struct user_ta_ctx *utc);
 
 /* iv and iv_len are ignored for hash algorithms */
 TEE_Result syscall_hash_init(unsigned long state, const void *iv,

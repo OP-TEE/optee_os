@@ -39,6 +39,7 @@
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/trace_ta.h>
+#include "svc_cache.h"
 
 static const syscall_t tee_svc_syscall_table[] = {
 	(syscall_t)syscall_sys_return,
