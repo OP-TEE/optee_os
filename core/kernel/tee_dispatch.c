@@ -30,7 +30,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <kernel/tee_compat.h>
 #include <kernel/tee_time.h>
 #include <tee/tee_cryp_utl.h>
 

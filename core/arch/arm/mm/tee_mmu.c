@@ -42,7 +42,6 @@
 #include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu_io.h>
 #include <sm/teesmc.h>
 #include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
@@ -700,20 +699,6 @@ TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 	return tee_mmu_kmap_va2pa_attr(va, pa, NULL);
 }
 
-bool tee_mmu_kmap_is_mapped(void *va, size_t len)
-{
-	tee_vaddr_t a = (tee_vaddr_t)va;
-	tee_mm_entry_t *mm = tee_mm_find(&tee_mmu_virt_kmap, a);
-
-	if (mm == NULL)
-		return false;
-
-	if ((a + len) > (tee_mm_get_smem(mm) + tee_mm_get_bytes(mm)))
-		return false;
-
-	return true;
-}
-
 void teecore_init_ta_ram(void)
 {
 	vaddr_t s;
@@ -772,18 +757,6 @@ void teecore_init_pub_ram(void)
 
 	default_nsec_shm_paddr = s;
 	default_nsec_shm_size = e - s;
-}
-
-void *tee_mmu_ioremap(tee_paddr_t pa __unused, size_t len __unused)
-{
-	/* return (void *)ioremap((void *)pa, len); */
-	return (void *)NULL;
-}
-
-void tee_mmu_iounmap(void *va __unused)
-{
-	/* linux API */
-	/* iounmap(va); */
 }
 
 static uint32_t mattr_to_teesmc_cache_attr(uint32_t mattr)

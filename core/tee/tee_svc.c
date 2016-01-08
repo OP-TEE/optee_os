@@ -27,7 +27,6 @@
 #include <util.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_common.h>
-#include <kernel/tee_compat.h>
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <utee_types.h>
@@ -67,11 +66,6 @@ void syscall_log(const void *buf __unused, size_t len __unused)
 
 	free(kbuf);
 #endif
-}
-
-TEE_Result syscall_reserved(void)
-{
-	return TEE_ERROR_GENERIC;
 }
 
 TEE_Result syscall_not_supported(void)

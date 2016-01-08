@@ -34,7 +34,6 @@
 #include <tee_api_types.h>
 #include <user_ta_header.h>
 #include <util.h>
-#include <kernel/tee_compat.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
 #include <mm/tee_mmu.h>
@@ -394,23 +393,6 @@ static TEE_Result invoke_ta(struct tee_ta_session *sess, uint32_t cmd,
 
 	OUTRMSG(ptas.res);
 	return ptas.res;
-}
-
-/* set trace level for all installed TAs (TA generic code) */
-int tee_ta_set_trace_level(int level)
-{
-	struct tee_ta_ctx *ctx;
-
-	if ((level > TRACE_MAX) && (level < TRACE_MIN))
-		return -1;
-
-	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
-		if (ctx->static_ta)
-			ctx->static_ta->prop_tracelevel = level;
-
-		/* non-static TA should be done too */
-	}
-	return 0;
 }
 
 /*
@@ -1677,12 +1659,4 @@ void tee_ta_dump_current(void)
 	}
 
 	dump_state(s->ctx);
-}
-
-void tee_ta_dump_all(void)
-{
-	struct tee_ta_ctx *ctx;
-
-	TAILQ_FOREACH(ctx, &tee_ctxes, link)
-		dump_state(ctx);
 }

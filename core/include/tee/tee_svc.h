@@ -44,8 +44,6 @@ void syscall_log(const void *buf, size_t len);
 
 void syscall_panic(unsigned long code);
 
-TEE_Result syscall_reserved(void);
-
 TEE_Result syscall_not_supported(void);
 
 uint32_t syscall_dummy(uint32_t *a);
