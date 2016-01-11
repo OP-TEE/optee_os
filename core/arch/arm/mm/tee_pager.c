@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -58,7 +59,7 @@ static TAILQ_HEAD(tee_pager_area_head, tee_pager_area) tee_pager_area_head =
 /*
  * struct tee_pager_pmem - Represents a physical page used for paging.
  *
- * @pgidx	an index of the entry in tbl_info. The actual physical
+ * @pgidx	an index of the entry in tee_pager_tbl_info. The actual physical
  *		address is stored here so even if the page isn't mapped,
  *		there's always an MMU entry holding the physical address.
  *
@@ -147,11 +148,7 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 }
 #endif /* CFG_WITH_STATS */
 
-/*
- * Reference to translation table used to map the virtual memory range
- * covered by the pager.
- */
-static struct core_mmu_table_info tbl_info;
+struct core_mmu_table_info tee_pager_tbl_info;
 
 static unsigned pager_lock = SPINLOCK_UNLOCK;
 
@@ -247,23 +244,24 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	else
 		panic();
 
-	if (!tbl_info.num_entries) {
+	if (!tee_pager_tbl_info.num_entries) {
 		if (!core_mmu_find_table(tee_mm_get_smem(mm), UINT_MAX,
-					&tbl_info))
+					&tee_pager_tbl_info))
 			return false;
-		if ((1 << tbl_info.shift) != SMALL_PAGE_SIZE) {
+		if ((1 << tee_pager_tbl_info.shift) != SMALL_PAGE_SIZE) {
 			DMSG("Unsupported page size in translation table %u",
-			     1 << tbl_info.shift);
+			     1 << tee_pager_tbl_info.shift);
 			return false;
 		}
 	}
 
-	tbl_va_size = (1 << tbl_info.shift) * tbl_info.num_entries;
+	tbl_va_size = (1 << tee_pager_tbl_info.shift) *
+			tee_pager_tbl_info.num_entries;
 	if (!core_is_buffer_inside(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				   tbl_info.va_base, tbl_va_size)) {
+				   tee_pager_tbl_info.va_base, tbl_va_size)) {
 		DMSG("area 0x%" PRIxPTR " len 0x%zx doesn't fit it translation table 0x%" PRIxVA " len 0x%zx",
 			tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-			tbl_info.va_base, tbl_va_size);
+			tee_pager_tbl_info.va_base, tbl_va_size);
 		return false;
 	}
 
@@ -351,14 +349,16 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 		paddr_t pa;
 		uint32_t attr;
 
-		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
+		core_mmu_get_entry(&tee_pager_tbl_info, pmem->pgidx,
+				   &pa, &attr);
 
 		if (!(attr & TEE_MATTR_HIDDEN_BLOCK))
 			continue;
 
-		if (core_mmu_va2idx(&tbl_info, page_va) == pmem->pgidx) {
+		if (core_mmu_va2idx(&tee_pager_tbl_info, page_va) ==
+		    pmem->pgidx) {
 			/* page is hidden, show and move to back */
-			core_mmu_set_entry(&tbl_info, pmem->pgidx, pa,
+			core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
 					   get_area_mattr(pmem->area));
 
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
@@ -395,11 +395,12 @@ static void tee_pager_hide_pages(void)
 		if (!pmem->area)
 			continue;
 
-		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
+		core_mmu_get_entry(&tee_pager_tbl_info, pmem->pgidx,
+				   &pa, &attr);
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
-		core_mmu_set_entry(&tbl_info, pmem->pgidx, pa,
+		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
 				   TEE_MATTR_HIDDEN_BLOCK);
 
 	}
@@ -419,8 +420,8 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 	paddr_t pa;
 	uint32_t attr;
 
-	pgidx = core_mmu_va2idx(&tbl_info, page_va);
-	core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+	pgidx = core_mmu_va2idx(&tee_pager_tbl_info, page_va);
+	core_mmu_get_entry(&tee_pager_tbl_info, pgidx, &pa, &attr);
 
 #ifdef TEE_PAGER_DEBUG_PRINT
 	DMSG("%" PRIxVA " : %" PRIxPA "|%x", page_va, pa, attr);
@@ -430,7 +431,8 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 		if (pmem->pgidx != pgidx)
 			continue;
 
-		core_mmu_set_entry(&tbl_info, pgidx, pa, TEE_MATTR_PHYS_BLOCK);
+		core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
+				   TEE_MATTR_PHYS_BLOCK);
 		TAILQ_REMOVE(&tee_pager_rw_pmem_head, pmem, link);
 		tee_pager_npages++;
 		set_npages();
@@ -449,12 +451,12 @@ static bool tee_pager_get_page(struct abort_info *ai,
 			struct tee_pager_area *area,
 			struct tee_pager_pmem **pmem_ret, paddr_t *pa_ret)
 {
-	unsigned pgidx = core_mmu_va2idx(&tbl_info, ai->va);
+	unsigned pgidx = core_mmu_va2idx(&tee_pager_tbl_info, ai->va);
 	struct tee_pager_pmem *pmem;
 	paddr_t pa;
 	uint32_t attr;
 
-	core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+	core_mmu_get_entry(&tee_pager_tbl_info, pgidx, &pa, &attr);
 
 	assert(!(attr & (TEE_MATTR_VALID_BLOCK | TEE_MATTR_HIDDEN_BLOCK)));
 
@@ -477,13 +479,15 @@ static bool tee_pager_get_page(struct abort_info *ai,
 			DMSG("No pmem entries");
 			return false;
 		}
-		core_mmu_get_entry(&tbl_info, pmem->pgidx, &pa, &attr);
-		core_mmu_set_entry(&tbl_info, pmem->pgidx, 0, 0);
+		core_mmu_get_entry(&tee_pager_tbl_info, pmem->pgidx,
+				   &pa, &attr);
+		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, 0, 0);
 	}
 
 	pmem->pgidx = pgidx;
 	pmem->area = area;
-	core_mmu_set_entry(&tbl_info, pgidx, pa, TEE_MATTR_PHYS_BLOCK);
+	core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
+			   TEE_MATTR_PHYS_BLOCK);
 
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 	if (area->store) {
@@ -507,10 +511,10 @@ static bool tee_pager_get_page(struct abort_info *ai,
 
 static bool pager_check_access(struct abort_info *ai)
 {
-	unsigned pgidx = core_mmu_va2idx(&tbl_info, ai->va);
+	unsigned pgidx = core_mmu_va2idx(&tee_pager_tbl_info, ai->va);
 	uint32_t attr;
 
-	core_mmu_get_entry(&tbl_info, pgidx, NULL, &attr);
+	core_mmu_get_entry(&tee_pager_tbl_info, pgidx, NULL, &attr);
 
 	/* Not mapped */
 	if (!(attr & TEE_MATTR_VALID_BLOCK))
@@ -631,12 +635,12 @@ void tee_pager_handle_fault(struct abort_info *ai)
 			cache_maintenance_l1(ICACHE_INVALIDATE, NULL, 0);
 		}
 
-		core_mmu_set_entry(&tbl_info, pmem->pgidx, pa,
+		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
 				   get_area_mattr(area));
 
 #ifdef TEE_PAGER_DEBUG_PRINT
 		DMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA,
-		     core_mmu_idx2va(&tbl_info, pmem->pgidx), pa);
+		     core_mmu_idx2va(&tee_pager_tbl_info, pmem->pgidx), pa);
 #endif
 
 	}
@@ -658,11 +662,11 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 	for (n = 0; n < npages; n++) {
 		struct tee_pager_pmem *pmem;
 		tee_vaddr_t va = vaddr + n * SMALL_PAGE_SIZE;
-		unsigned pgidx = core_mmu_va2idx(&tbl_info, va);
+		unsigned pgidx = core_mmu_va2idx(&tee_pager_tbl_info, va);
 		paddr_t pa;
 		uint32_t attr;
 
-		core_mmu_get_entry(&tbl_info, pgidx, &pa, &attr);
+		core_mmu_get_entry(&tee_pager_tbl_info, pgidx, &pa, &attr);
 
 		/* Ignore unmapped pages/blocks */
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
@@ -685,7 +689,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			 * physical address of a page.
 			 */
 			pmem->area = NULL;
-			core_mmu_set_entry(&tbl_info, pgidx, pa,
+			core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
 					   TEE_MATTR_PHYS_BLOCK);
 		} else {
 			/*
@@ -693,7 +697,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			 * and update the protection bits accordingly.
 			 */
 			pmem->area = tee_pager_find_area(va);
-			core_mmu_set_entry(&tbl_info, pgidx, pa,
+			core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
 					   get_area_mattr(pmem->area));
 		}
 

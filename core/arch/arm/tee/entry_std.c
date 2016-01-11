@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2016, Linaro Limited
  * All rights reserved.
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
@@ -33,6 +33,7 @@
 #include <kernel/tee_dispatch.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <util.h>
 
 #include <assert.h>

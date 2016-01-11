@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -44,6 +45,7 @@ extern uint32_t thread_vector_table[];
 
 struct thread_specific_data {
 	struct tee_ta_session *sess;
+	struct tee_ta_ctx *ctx;
 };
 
 struct thread_user_vfp_state {

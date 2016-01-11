@@ -30,7 +30,6 @@
 
 #include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
-#include <mm/core_memprot.h>
 #include <mm/tee_mmu_types.h>
 
 #include <assert.h>
@@ -97,6 +96,8 @@ struct map_area {
  * MEM_AREA_KEYVAULT: Secure RAM storing some secrets
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
+ * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
+ * MEM_AREA_KMAP_VASPACE: kmap va space, only used with phys_to_virt()
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
@@ -108,6 +109,8 @@ enum teecore_memtypes {
 	MEM_AREA_KEYVAULT,
 	MEM_AREA_IO_SEC,
 	MEM_AREA_IO_NSEC,
+	MEM_AREA_TA_VASPACE,
+	MEM_AREA_KMAP_VASPACE,
 	MEM_AREA_MAXTYPE
 };
 

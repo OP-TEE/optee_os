@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -37,9 +38,14 @@
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_mmu.h>
+#include <mm/tee_mmu_defs.h>
+#include <mm/core_memprot.h>
+#include <mm/tee_pager.h>
 #include <trace.h>
 #include <kernel/tee_misc.h>
 #include <kernel/panic.h>
+#include <kernel/tee_ta_manager.h>
 #include <util.h>
 #include "core_mmu_private.h"
 #include <kernel/tz_ssvce_pl310.h>
@@ -74,6 +80,16 @@ static bool pbuf_inside_map_area(unsigned long p, size_t l,
 				 struct map_area *map)
 {
 	return core_is_buffer_inside(p, l, map->pa, map->size);
+}
+
+static struct map_area *find_map_by_type(enum teecore_memtypes type)
+{
+	struct map_area *map;
+
+	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++)
+		if (map->type == type)
+			return map;
+	return NULL;
 }
 
 static struct map_area *find_map_by_va(void *va)
@@ -322,6 +338,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 	return core_pbuf_is(attr, (tee_paddr_t)p, len);
 }
 
+
 /* core_va2pa - teecore exported service */
 int core_va2pa_helper(void *va, paddr_t *pa)
 {
@@ -336,6 +353,14 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 	return 0;
 }
 
+static void *map_pa2va(struct map_area *map, paddr_t pa)
+{
+	if (!map)
+		return NULL;
+	return (void *)((pa & (map->region_size - 1)) |
+		(((map->va + pa - map->pa)) & ~(map->region_size - 1)));
+}
+
 /* core_pa2va - teecore exported service */
 int core_pa2va_helper(paddr_t pa, void **va)
 {
@@ -345,8 +370,7 @@ int core_pa2va_helper(paddr_t pa, void **va)
 	if (map == NULL)
 		return -1;
 
-	*va = (void *)((pa & (map->region_size - 1)) |
-	    (((map->va + pa - map->pa)) & ~(map->region_size - 1)));
+	*va = map_pa2va(map, pa);
 	return 0;
 }
 
@@ -355,20 +379,15 @@ int core_pa2va_helper(paddr_t pa, void **va)
  */
 void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 {
-	struct map_area *map;
+	struct map_area *map = find_map_by_type(type);
 
-	/* first scan the bootcfg memory layout */
-	map = static_memory_map;
-	while (map->type != MEM_AREA_NOTYPE) {
-		if (map->type == type) {
-			*s = map->va;
-			*e = map->va + map->size;
-			return;
-		}
-		map++;
+	if (map) {
+		*s = map->va;
+		*e = map->va + map->size;
+	} else {
+		*s = 0;
+		*e = 0;
 	}
-	*s = 0;
-	*e = 0;
 }
 
 int core_tlb_maintenance(int op, unsigned int a)
@@ -480,3 +499,211 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 	return ret;
 }
 #endif /*CFG_PL310*/
+
+static bool arm_va2pa_helper(void *va, paddr_t *pa)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	paddr_t par;
+	paddr_t par_pa_mask;
+	bool ret = false;
+
+#ifdef ARM32
+	write_ats1cpw((vaddr_t)va);
+	isb();
+#ifdef CFG_WITH_LPAE
+	par = read_par64();
+	par_pa_mask = PAR64_PA_MASK;
+#else
+	par = read_par32();
+	par_pa_mask = PAR32_PA_MASK;
+#endif
+#endif /*ARM32*/
+
+#ifdef ARM64
+	write_at_s1e1r((vaddr_t)va);
+	isb();
+	par = read_par_el1();
+	par_pa_mask = PAR_PA_MASK;
+#endif
+	if (par & PAR_F)
+		goto out;
+	*pa = (par & (par_pa_mask << PAR_PA_SHIFT)) |
+		((vaddr_t)va & ((1 << PAR_PA_SHIFT) - 1));
+
+	ret = true;
+out:
+	thread_unmask_exceptions(exceptions);
+	return ret;
+}
+
+#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+static void check_pa_matches_va(void *va, paddr_t pa)
+{
+	TEE_Result res;
+	vaddr_t user_va_base;
+	size_t user_va_size;
+	vaddr_t v = (vaddr_t)va;
+	paddr_t p = 0;
+
+	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
+	if (v >= user_va_base && v < (user_va_base + user_va_size)) {
+		if (!core_mmu_user_mapping_is_active()) {
+			TEE_ASSERT(pa == 0);
+			return;
+		}
+
+		res = tee_mmu_user_va2pa_helper(
+			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
+		if (res == TEE_SUCCESS)
+			TEE_ASSERT(pa == p);
+		else
+			TEE_ASSERT(pa == 0);
+		return;
+	}
+#ifdef CFG_WITH_PAGER
+	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
+	    v <= (CFG_TEE_LOAD_ADDR | CORE_MMU_PGDIR_MASK)) {
+		struct core_mmu_table_info *ti = &tee_pager_tbl_info;
+		uint32_t a;
+
+		/*
+		 * Lookups in the page table managed by the pager is
+		 * dangerous for addresses in the paged area as those pages
+		 * changes all the time. But some ranges are safe, rw areas
+		 * when the page is populated for instance.
+		 */
+		core_mmu_get_entry(ti, core_mmu_va2idx(ti, v), &p, &a);
+		if (a & TEE_MATTR_VALID_BLOCK) {
+			paddr_t mask = ((1 << ti->shift) - 1);
+
+			p |= v & mask;
+			TEE_ASSERT(pa == p);
+		} else
+			TEE_ASSERT(pa == 0);
+		return;
+	}
+#endif
+	if (v >= TEE_MMU_KMAP_START_VA && v < TEE_MMU_KMAP_END_VA) {
+		void *void_pa;
+
+		res = tee_mmu_kmap_va2pa_helper(va, &void_pa);
+		if (res == TEE_SUCCESS)
+			TEE_ASSERT(pa == (paddr_t)(uintptr_t)void_pa);
+		else
+			TEE_ASSERT(pa == 0);
+		return;
+	}
+	if (!core_va2pa_helper(va, &p))
+		TEE_ASSERT(pa == p);
+	else
+		TEE_ASSERT(pa == 0);
+}
+#else
+static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
+{
+}
+#endif
+
+paddr_t virt_to_phys(void *va)
+{
+	paddr_t pa;
+
+	if (!arm_va2pa_helper(va, &pa))
+		pa = 0;
+	check_pa_matches_va(va, pa);
+	return pa;
+}
+
+#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+static void check_va_matches_pa(paddr_t pa, void *va)
+{
+	TEE_ASSERT(!va || virt_to_phys(va) == pa);
+}
+#else
+static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
+{
+}
+#endif
+
+static void *phys_to_virt_ta_vaspace(paddr_t pa)
+{
+	TEE_Result res;
+	void *va = NULL;
+
+	if (!core_mmu_user_mapping_is_active())
+		return NULL;
+
+	res = tee_mmu_user_pa2va_helper(to_user_ta_ctx(tee_mmu_get_ctx()),
+					pa, &va);
+	if (res != TEE_SUCCESS)
+		return NULL;
+	return va;
+}
+
+static void *phys_to_virt_kmap_vaspace(paddr_t pa)
+{
+	void *va = NULL;
+	TEE_Result res;
+
+	res = tee_mmu_kmap_pa2va_helper((void *)(uintptr_t)pa, &va);
+	if (res != TEE_SUCCESS)
+		return NULL;
+	return va;
+}
+
+#ifdef CFG_WITH_PAGER
+static void *phys_to_virt_tee_ram(paddr_t pa)
+{
+	struct core_mmu_table_info *ti = &tee_pager_tbl_info;
+	unsigned idx;
+	unsigned end_idx;
+	uint32_t a;
+	paddr_t p;
+
+	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
+				      CFG_TEE_RAM_VA_SIZE);
+	/* Most addresses are mapped lineary, try that first if possible. */
+	idx = core_mmu_va2idx(ti, pa);
+	if (idx >= core_mmu_va2idx(ti, CFG_TEE_RAM_START) &&
+	    idx < end_idx) {
+		core_mmu_get_entry(ti, idx, &p, &a);
+		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
+			return (void *)core_mmu_idx2va(ti, idx);
+	}
+
+	for (idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START);
+	     idx < end_idx; idx++) {
+		core_mmu_get_entry(ti, idx, &p, &a);
+		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
+			return (void *)core_mmu_idx2va(ti, idx);
+	}
+
+	return NULL;
+}
+#else
+static void *phys_to_virt_tee_ram(paddr_t pa)
+{
+	return map_pa2va(find_map_by_type(MEM_AREA_TEE_RAM), pa);
+}
+#endif
+
+void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
+{
+	void *va;
+
+	switch (m) {
+	case MEM_AREA_TA_VASPACE:
+		va = phys_to_virt_ta_vaspace(pa);
+		break;
+	case MEM_AREA_KMAP_VASPACE:
+		va = phys_to_virt_kmap_vaspace(pa);
+		break;
+	case MEM_AREA_TEE_RAM:
+		va = phys_to_virt_tee_ram(pa);
+		break;
+	default:
+		va = map_pa2va(find_map_by_type(m), pa);
+	}
+	check_va_matches_pa(pa, va);
+	return va;
+}

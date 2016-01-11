@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -43,6 +44,12 @@
 #define TEE_PAGER_AREA_RW	(1 << 1)
 /* Executable mapping */
 #define TEE_PAGER_AREA_X	(1 << 2)
+
+/*
+ * Reference to translation table used to map the virtual memory range
+ * covered by the pager.
+ */
+extern struct core_mmu_table_info tee_pager_tbl_info;
 
 /*
  * tee_pager_set_alias_area() - Set aliased area

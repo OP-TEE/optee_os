@@ -69,7 +69,6 @@ static uint32_t g_asid = 0xffffffff;
 
 static tee_mm_pool_t tee_mmu_virt_kmap;
 
-
 static void tee_mmu_umap_clear(struct tee_mmu_info *mmu)
 {
 	if (mmu->table && mmu->size != TEE_MMU_UMAP_MAX_ENTRIES) {
@@ -526,6 +525,12 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 		core_mmu_create_user_map(utc->mmu, utc->context, &map);
 		core_mmu_set_user_map(&map);
 	}
+	thread_get_tsd()->ctx = ctx;
+}
+
+struct tee_ta_ctx *tee_mmu_get_ctx(void)
+{
+	return thread_get_tsd()->ctx;
 }
 
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)

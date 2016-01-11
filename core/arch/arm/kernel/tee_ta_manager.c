@@ -40,6 +40,7 @@
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_obj.h>

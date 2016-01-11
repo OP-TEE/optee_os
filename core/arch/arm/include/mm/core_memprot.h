@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -27,8 +28,9 @@
 #ifndef CORE_MEMPROT_H
 #define CORE_MEMPROT_H
 
-#include <stdint.h>
+#include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
+#include <mm/core_mmu.h>
 
 /*
  * "pbuf_is" support.
@@ -87,5 +89,17 @@ bool core_pbuf_is(uint32_t flags, tee_paddr_t pbuf, size_t len);
  * tee_phys_buf_is() to check the compliance of the buffer.
  */
 bool core_vbuf_is(uint32_t flags, const void *vbuf, size_t len);
+
+/*
+ * Translate physical address to virtual address using specified mapping
+ * Returns NULL on failure or a valid virtual address on success.
+ */
+void *phys_to_virt(paddr_t pa, enum teecore_memtypes m);
+
+/*
+ * Translate virtual address to physical address
+ * Returns 0 on failure or a valid physical address on success.
+ */
+paddr_t virt_to_phys(void *va);
 
 #endif /* CORE_MEMPROT_H */

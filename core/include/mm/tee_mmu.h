@@ -109,9 +109,10 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 				       size_t len);
 
 /*-----------------------------------------------------------------------------
- * If ctx is NULL original ROM mapping is restored with ASID 0
+ * If ctx is NULL user mapping is removed and ASID set to 0
  *---------------------------------------------------------------------------*/
-void tee_mmu_set_ctx(struct tee_ta_ctx *const ctx);
+void tee_mmu_set_ctx(struct tee_ta_ctx *ctx);
+struct tee_ta_ctx *tee_mmu_get_ctx(void);
 
 /* Returns virtual address to which TA is loaded */
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx);
