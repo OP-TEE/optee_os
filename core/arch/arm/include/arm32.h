@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -110,6 +111,13 @@
 #define DACR_DOMAIN_PERM_NO_ACCESS	0x0
 #define DACR_DOMAIN_PERM_CLIENT		0x1
 #define DACR_DOMAIN_PERM_MANAGER	0x3
+
+#define PAR_F			(1 << 0)
+#define PAR_SS			(1 << 1)
+#define PAR_LPAE		(1 << 11)
+#define PAR_PA_SHIFT		12
+#define PAR32_PA_MASK		((1 << 20) - 1)
+#define PAR64_PA_MASK		((1ULL << 28) - 1)
 
 /*
  * TTBCR has different register layout if LPAE is enabled or not.
@@ -343,8 +351,6 @@ static inline uint32_t read_ifsr(void)
 	return ifsr;
 }
 
-
-
 static inline void isb(void)
 {
 	asm volatile ("isb");
@@ -355,22 +361,29 @@ static inline void dsb(void)
 	asm volatile ("dsb");
 }
 
+/* Address translate privileged write translation (current state secure PL1) */
 static inline void write_ats1cpw(uint32_t va)
 {
-	asm volatile ("mcr	p15, 0, %[va], c7, c8, 1"
-			: : [va] "r" (va)
-	);
+	asm volatile ("mcr	p15, 0, %0, c7, c8, 1" : : "r" (va));
 }
 
-static inline uint32_t read_par(void)
+static inline uint32_t read_par32(void)
 {
-	uint32_t par;
+	uint32_t val;
 
-	asm volatile ("mrc	p15, 0, %[par], c7, c4, 0"
-			: [par] "=r" (par)
-	);
-	return par;
+	asm volatile ("mrc	p15, 0, %0, c7, c4, 0" : "=r" (val));
+	return val;
 }
+
+#ifdef CFG_WITH_LPAE
+static inline uint64_t read_par64(void)
+{
+	uint64_t val;
+
+	asm volatile ("mrrc	p15, 0, %Q0, %R0, c7" : "=r" (val));
+	return val;
+}
+#endif
 
 static inline void write_mair0(uint32_t mair0)
 {
