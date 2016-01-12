@@ -116,8 +116,21 @@ $ sudo apt-get install android-tools-fastboot autoconf bison cscope curl \
 #### 4.2.1 Get the compiler
 We strive to use the latest available compiler from Linaro. Start by downloading
 and unpacking the compiler. Then export the `PATH` to the compilers `bin`
-folder.
+folder. Beware that we are using a couple of different toolchains depending on
+the target device. This includes both 64- and 32-bit toolchains. For the exact
+toolchain in use, please have a look at [toolchain.mk](https://github.com/OP-TEE/build/blob/master/toolchain.mk) 
+and then look at the targets makefile (see [build.git](https://github.com/OP-TEE/build))
+to find out where the respective toolchain will be used. For example in the 
+[QEMU makefile](https://github.com/OP-TEE/build/blob/master/qemu.mk#L12-L15) you
+will see:
+```
+CROSS_COMPILE_NS_USER		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_NS_KERNEL		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_S_USER		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_S_KERNEL		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+```
 
+However, if you only want to compile optee_os, then you can do like this:
 ```
 $ cd $HOME
 $ mkdir toolchains
