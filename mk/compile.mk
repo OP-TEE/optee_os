@@ -53,7 +53,9 @@ comp-cflags$(sm)	+= $(comp-cflags-warns-$(WARNS))
 CHECK ?= sparse
 
 .PHONY: FORCE
+.PHONY: FORCE-GENSRC
 FORCE:
+FORCE-GENSRC:
 
 
 define process_srcs
@@ -116,10 +118,10 @@ check-cmd-$2 ?= true
 -include $$(comp-dep-$2)
 
 
-$2: $1 FORCE
+$2: $1 FORCE-GENSRC
 # Check if any prerequisites are newer than the target and
 # check if command line has changed
-	$$(if $$(strip $$(filter-out FORCE, $$?) \
+	$$(if $$(strip $$(filter-out FORCE-GENSRC, $$?) \
 	    $$(filter-out $$(comp-cmd-$2), $$(old-cmd-$2)) \
 	    $$(filter-out $$(old-cmd-$2), $$(comp-cmd-$2))), \
 		@set -e ;\
@@ -146,3 +148,79 @@ $(foreach f, $(gen-srcs), $(eval $(call \
 	process_srcs,$(out-dir)/$(f),$(out-dir)/$(base-prefix)$$(basename $f).o)))
 
 $(objs): $(conf-file)
+
+define _gen-asm-defines-file
+# c-filename in $1
+# h-filename in $2
+# s-filename in $3
+
+FORCE-GENSRC: $(2)
+
+comp-dep-$3	:= $$(dir $3)$$(notdir $3).d
+comp-cmd-file-$3:= $$(dir $3)$$(notdir $3).cmd
+comp-sm-$3	:= $(sm)
+
+cleanfiles := $$(cleanfiles) $$(comp-dep-$3) $$(comp-cmd-file-$3) $3 $2
+
+comp-flags-$3 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
+			      $$(cflags-remove-$3), \
+		   $$(CFLAGS) $$(CFLAGS_WARNS) \
+		   $$(comp-cflags$$(comp-sm-$3)) $$(cflags$$(comp-sm-$3)) \
+		   $$(cflags-lib$$(comp-lib-$3)) $$(cflags-$3))
+
+comp-cppflags-$3 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
+			 $$(cppflags-remove-$3), \
+		      $$(nostdinc$$(comp-sm-$3)) $$(CPPFLAGS) \
+		      $$(addprefix -I,$$(incdirs$$(comp-sm-$3))) \
+		      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$3))) \
+		      $$(addprefix -I,$$(incdirs-$3)) \
+		      $$(cppflags$$(comp-sm-$3)) \
+		      $$(cppflags-lib$$(comp-lib-$3)) $$(cppflags-$3))
+
+comp-flags-$3 += -MD -MF $$(comp-dep-$3) -MT $$@
+comp-flags-$3 += $$(comp-cppflags-$3)
+
+comp-cmd-$3 = $$(CC$(sm)) $$(comp-flags-$3) -fverbose-asm -S $$< -o $$@
+
+
+-include $$(comp-cmd-file-$3)
+-include $$(comp-dep-$3)
+
+$3: $1 $(conf-file) FORCE
+# Check if any prerequisites are newer than the target and
+# check if command line has changed
+	$$(if $$(strip $$(filter-out FORCE, $$?) \
+	    $$(filter-out $$(comp-cmd-$3), $$(old-cmd-$3)) \
+	    $$(filter-out $$(old-cmd-$3), $$(comp-cmd-$3))), \
+		@set -e ;\
+		mkdir -p $$(dir $3) ;\
+		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$3)) ;\
+		$$(comp-cmd-$3) ;\
+		echo "old-cmd-$3 := $$(subst \",\\\",$$(comp-cmd-$3))" > \
+			$$(comp-cmd-file-$3) ;\
+	)
+
+guard-$2 := $$(subst -,_,$$(subst .,_,$$(subst /,_,$2)))
+
+$(2): $(3)
+	$(q)set -e;							\
+	$(cmd-echo-silent) '  CHK     $$@';			\
+	mkdir -p $$(dir $$@);					\
+	echo "#ifndef $$(guard-$2)" >$$@.tmp;			\
+	echo "#define $$(guard-$2)" >>$$@.tmp;			\
+	sed -ne 's|^==>\([^ ]*\) [\$$$$#]*\([-0-9]*\) \([^@/]*\).*|#define \1\t\2\t/* \3*/|p' \
+	< $$< >>$$@.tmp;					\
+	echo "#endif" >>$$@.tmp;				\
+	$$(call mv-if-changed,$$@.tmp,$$@)
+
+endef
+
+define gen-asm-defines-file
+$(call _gen-asm-defines-file,$1,$2,$(dir $2).$(notdir $(2:.h=.s)))
+endef
+
+ifneq ($(asm-defines-file),)
+h-file-$(asm-defines-file) := $(out-dir)/$(sm)/include/generated/$(basename $(notdir $(asm-defines-file))).h
+$(eval $(call gen-asm-defines-file,$(asm-defines-file),$(h-file-$(asm-defines-file))))
+asm-defines-file :=
+endif

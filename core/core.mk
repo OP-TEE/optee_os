@@ -24,6 +24,7 @@ cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)
+cppflags$(sm)	+= -I$(out-dir)/core/include/generated
 cppflags$(sm)	+= $(core-platform-cppflags)
 cflags$(sm)	+= $(core-platform-cflags)
 aflags$(sm)	+= $(core-platform-aflags)
@@ -85,7 +86,7 @@ $(out-dir)/core/ta_pub_key.c: $(TA_SIGN_KEY)
 	@$(q)mkdir -p $(out-dir)/core
 	@$(q)scripts/pem_to_pub_c.py --prefix ta_pub_key --key $< --out $@
 
+asm-defines-file := core/arch/$(ARCH)/kernel/asm-defines.c
 include mk/compile.mk
+
 include $(platform-dir)/link.mk
-
-
