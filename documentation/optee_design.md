@@ -241,8 +241,7 @@ When a mutex is locked it's owned by the thread calling `mutex_lock()` or
 `mutex_trylock()`, the mutex may only be unlocked by the thread owning the
 mutex.
 
-A thread should not exit to TA user space when holding a mutex, the only
-exception is the *big lock* mutex which is handled in a special way.
+A thread should not exit to TA user space when holding a mutex.
 
 ### Condvar
 A condvar is represented by `struct condvar`. A condvar is similar to a
@@ -266,21 +265,6 @@ in `condvar_wait()`)
 The caller of `condvar_signal()` or `condvar_broadcast()` should hold the
 mutex associated with the condition variable to guarantee that a waiter
 doesn't miss the signal.
-
-## Big lock
-OP-TEE is currently designed for one active thread at a time. As an
-intermediate step towards multiple concurrent threads a *big lock* mutex is
-used.
-
-The *big lock* mutex keeps secure world effectively single threaded. The
-*big lock* is taken just before the SMC handler is called and released when
-the function has returned. A thread may temporarily unlock the *big lock*
-lock when concurrency can be enabled. The *big lock* should be back in the
-locked state before the SMC handler returns.
-
-The *big lock* is released when a thread does RPC and reacquired when RPC
-returns. If the thread doing RPC holds other mutexes at that time or if the
-*big lock* isn't held the *big lock* is unchanged.
 
 # 5. MMU
 ## Translation tables
