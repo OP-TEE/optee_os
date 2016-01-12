@@ -31,6 +31,7 @@
 #include <arm64.h>
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
+#include <asm-defines.h>
 
 	.section .text.arch_svc_asm
 
@@ -42,11 +43,11 @@ struct sc_rec {
 	uint64_t x30;
 }
 #endif
-#define SC_REC_X0_OFFS		(8 * 0)
-#define SC_REC_X1_OFFS		(8 * 1)
-#define SC_REC_X19_OFFS		(8 * 2)
-#define SC_REC_X30_OFFS		(8 * 3)
-#define SC_REC_SIZE		(SC_REC_X30_OFFS + 8)
+#define SC_REC_X0		(8 * 0)
+#define SC_REC_X1		(8 * 1)
+#define SC_REC_X19		(8 * 2)
+#define SC_REC_X30		(8 * 3)
+#define SC_REC_SIZE		(SC_REC_X30 + 8)
 
 /*
  * uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
@@ -55,15 +56,15 @@ struct sc_rec {
  */
 FUNC tee_svc_do_call , :
 	sub	sp, sp, #SC_REC_SIZE
-	stp	x0, x1, [sp, #SC_REC_X0_OFFS]
-	stp	x19, x30, [sp, #SC_REC_X19_OFFS]
+	stp	x0, x1, [sp, #SC_REC_X0]
+	stp	x19, x30, [sp, #SC_REC_X19]
 	mov	x19, sp
 
-	ldr	x2, [x0, #THREAD_SVC_REG_SPSR_OFFS]
+	ldr	x2, [x0, #THREAD_SVC_REG_SPSR]
 	tst	x2, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT)
 	b.eq	.Lcall_a64
 
-	ldp	x5, x6, [x0, #THREAD_SVC_REG_X_OFFS(5)]
+	ldp	x5, x6, [x0, #THREAD_SVC_REG_X5]
 	cmp	x6, #0
 	b.eq	.Lno_args_a32
 
@@ -108,8 +109,8 @@ FUNC tee_svc_do_call , :
 	 * many registers to load into.
 	 */
 	/* x0 = nargs_on_stack */
-	ldr	x0, [x19, #SC_REC_X0_OFFS]
-	ldr	x0, [x0, #THREAD_SVC_REG_X_OFFS(6)]
+	ldr	x0, [x19, #SC_REC_X0]
+	ldr	x0, [x0, #THREAD_SVC_REG_X6]
 	load_wregs sp, 0, 4, 7
 
 	/*
@@ -144,29 +145,29 @@ FUNC tee_svc_do_call , :
 
 
 .Lno_args_a32: /* Load the first 4 arguments to function */
-	ldr	x9, [x19, #SC_REC_X0_OFFS]
-	load_xregs x9, THREAD_SVC_REG_X_OFFS(0), 0, 3
+	ldr	x9, [x19, #SC_REC_X0]
+	load_xregs x9, THREAD_SVC_REG_X0, 0, 3
 	mov	w0, w0
 	mov	w1, w1
 	mov	w2, w2
 	mov	w3, w3
 
 	/* Call the svc function */
-	ldr	x16, [x19, #SC_REC_X1_OFFS]
+	ldr	x16, [x19, #SC_REC_X1]
 	blr	x16
 	b	.Lret
 
 .Lcall_a64: /* Load the first 8 arguments to function */
-	ldr	x9, [x19, #SC_REC_X0_OFFS]
-	load_xregs x9, THREAD_SVC_REG_X_OFFS(0), 0, 8
+	ldr	x9, [x19, #SC_REC_X0]
+	load_xregs x9, THREAD_SVC_REG_X0, 0, 8
 
 	/* Call the svc function */
-	ldr	x16, [x19, #SC_REC_X1_OFFS]
+	ldr	x16, [x19, #SC_REC_X1]
 	blr	x16
 
 .Lret:
 	mov	sp, x19
-	ldp	x19, x30, [sp, #SC_REC_X19_OFFS]
+	ldp	x19, x30, [sp, #SC_REC_X19]
 	add	sp, sp, #SC_REC_SIZE
 	ret
 END_FUNC tee_svc_do_call
@@ -184,7 +185,7 @@ END_FUNC tee_svc_do_call
 FUNC syscall_sys_return , :
 	mov	x1, #0  /* panic = false */
 	mov	x2, #0  /* panic_code = 0 */
-	ldr	x3, [x19, #SC_REC_X0_OFFS]
+	ldr	x3, [x19, #SC_REC_X0]
 	b	tee_svc_sys_return_helper
 END_FUNC syscall_sys_return
 
@@ -200,6 +201,6 @@ FUNC syscall_panic , :
 	mov	x1, #1  /* panic = true */
 	mov	x2, x0  /* code */
 	ldr	w0, =TEE_ERROR_TARGET_DEAD
-	ldr	x3, [x19, #SC_REC_X0_OFFS]
+	ldr	x3, [x19, #SC_REC_X0]
 	b	tee_svc_sys_return_helper
 END_FUNC syscall_panic

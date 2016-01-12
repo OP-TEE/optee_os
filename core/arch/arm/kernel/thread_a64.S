@@ -31,13 +31,13 @@
 #include <sm/teesmc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <asm-defines.h>
 #include <kernel/thread_defs.h>
-#include <kernel/thread.h>
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
 		ldr	w\tmp0, [\core_local, \
-				#THREAD_CORE_LOCAL_CURR_THREAD_OFFSET]
+				#THREAD_CORE_LOCAL_CURR_THREAD]
 		adr	x\res, threads
 		mov	x\tmp1, #THREAD_CTX_SIZE
 		madd	x\res, x\tmp0, x\tmp1, x\res
@@ -46,7 +46,7 @@
 	.section .text.thread_asm
 LOCAL_FUNC vector_std_smc_entry , :
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 0, 7
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
 	mov	x0, sp
 	bl	thread_handle_std_smc
 	/*
@@ -55,7 +55,7 @@ LOCAL_FUNC vector_std_smc_entry , :
 	 * hasn't switched stack (error detected) it will do a normal "C"
 	 * return.
 	 */
-	load_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 1, 8
+	load_xregs sp, THREAD_SMC_ARGS_X0, 1, 8
 	add	sp, sp, #THREAD_SMC_ARGS_SIZE
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
@@ -64,10 +64,10 @@ END_FUNC vector_std_smc_entry
 
 LOCAL_FUNC vector_fast_smc_entry , :
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 0, 7
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
 	mov	x0, sp
 	bl	thread_handle_fast_smc
-	load_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 1, 8
+	load_xregs sp, THREAD_SMC_ARGS_X0, 1, 8
 	add	sp, sp, #THREAD_SMC_ARGS_SIZE
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
@@ -167,19 +167,19 @@ END_FUNC thread_vector_table
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
-	load_xregs x0, THREAD_CTX_REGS_SP_OFFSET, 1, 3
+	load_xregs x0, THREAD_CTX_REGS_SP, 1, 3
 	mov	sp, x1
 	msr	elr_el1, x2
 	msr	spsr_el1, x3
-	load_xregs x0, THREAD_CTX_REGS_X_OFFSET(1), 1, 30
-	ldr	x0, [x0, THREAD_CTX_REGS_X_OFFSET(0)]
+	load_xregs x0, THREAD_CTX_REGS_X1, 1, 30
+	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 	eret
 END_FUNC thread_resume
 
 FUNC thread_std_smc_entry , :
 	/* pass x0-x7 in a struct thread_smc_args */
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 0, 7
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
 	mov	x0, sp
 
 	/* Call the registered handler */
@@ -190,7 +190,7 @@ FUNC thread_std_smc_entry , :
 	 * "returned" x4-x7 since they will not be returned to normal
 	 * world.
 	 */
-	load_xregs sp, THREAD_SMC_ARGS_X_OFFS(0), 20, 23
+	load_xregs sp, THREAD_SMC_ARGS_X0, 20, 23
 	add	sp, sp, #THREAD_SMC_ARGS_SIZE
 
 	/* Disable interrupts before switching to temporary stack */
@@ -220,13 +220,13 @@ FUNC thread_rpc , :
 	push	x1, x30
 	bl	thread_get_ctx_regs
 	ldr	x30, [sp, #8]
-	store_xregs x0, THREAD_CTX_REGS_X_OFFSET(19), 19, 30
+	store_xregs x0, THREAD_CTX_REGS_X19, 19, 30
 	mov	x19, x0
 
 	bl	thread_get_tmp_sp
 	pop	x1, xzr		/* Match "push x1, x30" above */
 	mov	x2, sp
-	str	x2, [x19, #THREAD_CTX_REGS_SP_OFFSET]
+	str	x2, [x19, #THREAD_CTX_REGS_SP]
 	ldr	x20, [sp]	/* Get pointer to rv[] */
 	mov	sp, x0		/* Switch to tmp stack */
 
@@ -272,8 +272,8 @@ FUNC __thread_enter_user_mode , :
 	 * Create the and fill in the struct thread_user_mode_rec
 	 */
 	sub	sp, sp, #THREAD_USER_MODE_REC_SIZE
-	store_xregs sp, THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET, 7, 8
-	store_xregs sp, THREAD_USER_MODE_REC_X_OFFSET(19), 19, 30
+	store_xregs sp, THREAD_USER_MODE_REC_EXIT_STATUS0_PTR, 7, 8
+	store_xregs sp, THREAD_USER_MODE_REC_X19, 19, 30
 
 	/*
 	 * Switch to SP_EL1
@@ -293,7 +293,7 @@ FUNC __thread_enter_user_mode , :
 	 * Save kernel stack pointer to ensure that el0_svc() uses
 	 * correct stack pointer
 	 */
-	str	x19, [x21, #THREAD_CTX_KERN_SP_OFFSET]
+	str	x19, [x21, #THREAD_CTX_KERN_SP]
 
 	/*
 	 * Initialize SPSR, ELR_EL1, and SP_EL0 to enter user mode
@@ -316,11 +316,11 @@ END_FUNC __thread_enter_user_mode
  */
 FUNC thread_unwind_user_mode , :
 	/* Store the exit status */
-	ldp	x3, x4, [sp, #THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET]
+	ldp	x3, x4, [sp, #THREAD_USER_MODE_REC_EXIT_STATUS0_PTR]
 	str	w1, [x3]
 	str	w2, [x4]
 	/* Restore x19..x30 */
-	load_xregs sp, THREAD_USER_MODE_REC_X_OFFSET(19), 19, 30
+	load_xregs sp, THREAD_USER_MODE_REC_X19, 19, 30
 	add	sp, sp, #THREAD_USER_MODE_REC_SIZE
 	/* Return from the call of thread_enter_user_mode() */
 	ret
@@ -347,19 +347,19 @@ LOCAL_FUNC thread_vect_table , :
 	 */
 	.align	7
 sync_el1_sp0:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	el1_sync_abort
 	check_vector_size sync_el1_sp0
 
 	.align	7
 irq_el1_sp0:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
 	check_vector_size irq_el1_sp0
 
 	.align	7
 fiq_el1_sp0:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_fiq
 	check_vector_size fiq_el1_sp0
 
@@ -398,7 +398,7 @@ SErrorSPx:
 	 */
 	.align	7
 el0_sync_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	mrs	x2, esr_el1
 	mrs	x3, sp_el0
 	lsr	x2, x2, #ESR_EC_SHIFT
@@ -409,13 +409,13 @@ el0_sync_a64:
 
 	.align	7
 el0_irq_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
 	check_vector_size el0_irq_a64
 
 	.align	7
 el0_fiq_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
 	check_vector_size el0_fiq_a64
 
@@ -430,7 +430,7 @@ SErrorA64:
 	 */
 	.align	7
 el0_sync_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	mrs	x2, esr_el1
 	mrs	x3, sp_el0
 	lsr	x2, x2, #ESR_EC_SHIFT
@@ -441,13 +441,13 @@ el0_sync_a32:
 
 	.align	7
 el0_irq_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
 	check_vector_size el0_irq_a32
 
 	.align	7
 el0_fiq_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_fiq
 	check_vector_size el0_fiq_a32
 
@@ -462,7 +462,7 @@ LOCAL_FUNC el0_svc , :
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
 	/* load saved kernel sp */
-	ldr	x0, [x0, #THREAD_CTX_KERN_SP_OFFSET]
+	ldr	x0, [x0, #THREAD_CTX_KERN_SP]
 	/* Keep pointer to initial recod in x1 */
 	mov	x1, sp
 	/* Switch to SP_EL0 and restore kernel sp */
@@ -472,17 +472,17 @@ LOCAL_FUNC el0_svc , :
 
 	/* Make room for struct thread_svc_regs */
 	sub	sp, sp, #THREAD_SVC_REG_SIZE
-	stp	x30,x2, [sp, #THREAD_SVC_REG_X30_OFFS]
+	stp	x30,x2, [sp, #THREAD_SVC_REG_X30]
 
 	/* Restore x0-x3 */
-	ldp	x2, x3, [x1, #THREAD_CORE_LOCAL_X_OFFSET(2)]
-	ldp	x0, x1, [x1, #THREAD_CORE_LOCAL_X_OFFSET(0)]
+	ldp	x2, x3, [x1, #THREAD_CORE_LOCAL_X2]
+	ldp	x0, x1, [x1, #THREAD_CORE_LOCAL_X0]
 
 	/* Prepare the argument for the handler */
-	store_xregs sp, THREAD_SVC_REG_X_OFFS(0), 0, 14
+	store_xregs sp, THREAD_SVC_REG_X0, 0, 14
 	mrs	x0, elr_el1
 	mrs	x1, spsr_el1
-	store_xregs sp, THREAD_SVC_REG_ELR_OFFS, 0, 1
+	store_xregs sp, THREAD_SVC_REG_ELR, 0, 1
 	mov	x0, sp
 
 	/*
@@ -508,18 +508,18 @@ LOCAL_FUNC el0_svc , :
 	get_thread_ctx sp, 0, 1, 2
 	msr	spsel, #0
 	add	x1, sp, #THREAD_SVC_REG_SIZE
-	str	x1, [x0, #THREAD_CTX_KERN_SP_OFFSET]
+	str	x1, [x0, #THREAD_CTX_KERN_SP]
 
 	/* Restore registers to the required state and return*/
-	load_xregs sp, THREAD_SVC_REG_ELR_OFFS, 0, 1
+	load_xregs sp, THREAD_SVC_REG_ELR, 0, 1
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
-	load_xregs sp, THREAD_SVC_REG_X_OFFS(0), 0, 14
+	load_xregs sp, THREAD_SVC_REG_X0, 0, 14
 	mov	x30, sp
-	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0_OFFS]
+	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0]
 	mov	sp, x0
-	ldr	x0, [x30, THREAD_SVC_REG_X_OFFS(0)]
-	ldr	x30, [x30, #THREAD_SVC_REG_X30_OFFS]
+	ldr	x0, [x30, THREAD_SVC_REG_X0]
+	ldr	x30, [x30, #THREAD_SVC_REG_X30]
 
 	eret
 END_FUNC el0_svc
@@ -533,24 +533,24 @@ LOCAL_FUNC el1_sync_abort , :
 	 * Update core local flags.
 	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_ABORT;
 	 */
-	ldr	w1, [x0, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w1, [x0, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_ABORT
 	tbnz	w1, #(THREAD_CLF_SAVED_SHIFT + THREAD_CLF_ABORT_SHIFT), \
 			.Lsel_tmp_sp
 
 	/* Select abort stack */
-	ldr	x2, [x0, #THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET]
+	ldr	x2, [x0, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	b	.Lset_sp
 
 .Lsel_tmp_sp:
 	/* Select tmp stack */
-	ldr	x2, [x0, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
+	ldr	x2, [x0, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	orr	w1, w1, #THREAD_CLF_TMP	/* flags |= THREAD_CLF_TMP; */
 
 .Lset_sp:
 	mov	sp, x2
-	str	w1, [x0, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w1, [x0, #THREAD_CORE_LOCAL_FLAGS]
 
 	/*
 	 * Save state on stack
@@ -558,16 +558,16 @@ LOCAL_FUNC el1_sync_abort , :
 	sub	sp, sp, #THREAD_ABT_REGS_SIZE
 	mrs	x2, spsr_el1
 	/* Store spsr, sp_el0 */
-	stp	x2, x3, [sp, #THREAD_ABT_REG_SPSR_OFFS]
+	stp	x2, x3, [sp, #THREAD_ABT_REG_SPSR]
 	/* Store original x0, x1 */
-	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X_OFFSET(0)]
-	stp	x2, x3, [sp, #THREAD_ABT_REG_X_OFFS(0)]
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X0]
+	stp	x2, x3, [sp, #THREAD_ABT_REG_X0]
 	/* Store original x2, x3 and x4 to x29 */
-	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X_OFFSET(2)]
-	store_xregs sp, THREAD_ABT_REG_X_OFFS(2), 2, 29
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X2]
+	store_xregs sp, THREAD_ABT_REG_X2, 2, 29
 	/* Store x30, elr_el1 */
 	mrs	x0, elr_el1
-	stp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
+	stp	x30, x0, [sp, #THREAD_ABT_REG_X30]
 
 	/*
 	 * Call handler
@@ -580,27 +580,27 @@ LOCAL_FUNC el1_sync_abort , :
 	 * Restore state from stack
 	 */
 	/* Load x30, elr_el1 */
-	ldp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
+	ldp	x30, x0, [sp, #THREAD_ABT_REG_X30]
 	msr	elr_el1, x0
 	/* Load x0 to x29 */
-	load_xregs sp, THREAD_ABT_REG_X_OFFS(0), 0, 29
+	load_xregs sp, THREAD_ABT_REG_X0, 0, 29
 	/* Switch to SP_EL1 */
 	msr	spsel, #1
 	/* Save x0 to x3 in CORE_LOCAL */
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	/* Restore spsr_el1 and sp_el0 */
 	mrs	x3, sp_el0
-	ldp	x0, x1, [x3, #THREAD_ABT_REG_SPSR_OFFS]
+	ldp	x0, x1, [x3, #THREAD_ABT_REG_SPSR]
 	msr	spsr_el1, x0
 	msr	sp_el0, x1
 
 	/* Update core local flags */
-	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
-	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* Restore x0 to x3 */
-	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
 	/* Return from exception */
 	eret
@@ -611,17 +611,17 @@ LOCAL_FUNC el0_sync_abort , :
 	/*
 	 * Update core local flags
 	 */
-	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_ABORT
-	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/*
 	 * Save state on stack
 	 */
 
 	/* load abt_stack_va_end */
-	ldr	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET]
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	/* Keep pointer to initial record in x0 */
 	mov	x0, sp
 	/* Switch to SP_EL0 */
@@ -630,16 +630,16 @@ LOCAL_FUNC el0_sync_abort , :
 	sub	sp, sp, #THREAD_ABT_REGS_SIZE
 	mrs	x2, spsr_el1
 	/* Store spsr, sp_el0 */
-	stp	x2, x3, [sp, #THREAD_ABT_REG_SPSR_OFFS]
+	stp	x2, x3, [sp, #THREAD_ABT_REG_SPSR]
 	/* Store original x0, x1 */
-	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X_OFFSET(0)]
-	stp	x2, x3, [sp, #THREAD_ABT_REG_X_OFFS(0)]
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X0]
+	stp	x2, x3, [sp, #THREAD_ABT_REG_X0]
 	/* Store original x2, x3 and x4 to x29 */
-	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X_OFFSET(2)]
-	store_xregs sp, THREAD_ABT_REG_X_OFFS(2), 2, 29
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X2]
+	store_xregs sp, THREAD_ABT_REG_X2, 2, 29
 	/* Store x30, elr_el1 */
 	mrs	x0, elr_el1
-	stp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
+	stp	x30, x0, [sp, #THREAD_ABT_REG_X30]
 
 	/*
 	 * Call handler
@@ -653,27 +653,27 @@ LOCAL_FUNC el0_sync_abort , :
 	 */
 
 	/* Load x30, elr_el1 */
-	ldp	x30, x0, [sp, #THREAD_ABT_REG_X_OFFS(30)]
+	ldp	x30, x0, [sp, #THREAD_ABT_REG_X30]
 	msr	elr_el1, x0
 	/* Load x0 to x29 */
-	load_xregs sp, THREAD_ABT_REG_X_OFFS(0), 0, 29
+	load_xregs sp, THREAD_ABT_REG_X0, 0, 29
 	/* Switch to SP_EL1 */
 	msr	spsel, #1
 	/* Save x0 to x3 in EL1_REC */
-	store_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	/* Restore spsr_el1 and sp_el0 */
 	mrs	x3, sp_el0
-	ldp	x0, x1, [x3, #THREAD_ABT_REG_SPSR_OFFS]
+	ldp	x0, x1, [x3, #THREAD_ABT_REG_SPSR]
 	msr	spsr_el1, x0
 	msr	sp_el0, x1
 
 	/* Update core local flags */
-	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
-	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* Restore x0 to x3 */
-	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
 	/* Return from exception */
 	eret
@@ -683,11 +683,11 @@ LOCAL_FUNC elx_irq , :
 	/*
 	 * Update core local flags
 	 */
-	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_TMP
 	orr	w1, w1, #THREAD_CLF_IRQ
-	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
@@ -695,16 +695,16 @@ LOCAL_FUNC elx_irq , :
 	mrs	x2, sp_el0
 
 	/* Store original sp_el0 */
-	str	x2, [x0, #THREAD_CTX_REGS_SP_OFFSET]
+	str	x2, [x0, #THREAD_CTX_REGS_SP]
 	/* store x4..x30 */
-	store_xregs x0, THREAD_CTX_REGS_X_OFFSET(4), 4, 30
+	store_xregs x0, THREAD_CTX_REGS_X4, 4, 30
 	/* Load original x0..x3 into x10..x13 */
-	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 10, 13
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 10, 13
 	/* Save original x0..x3 */
-	store_xregs x0, THREAD_CTX_REGS_X_OFFSET(0), 10, 13
+	store_xregs x0, THREAD_CTX_REGS_X0, 10, 13
 
 	/* load tmp_stack_va_end */
-	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	/* Switch to SP_EL0 */
 	msr	spsel, #0
 	mov	sp, x1
@@ -721,9 +721,9 @@ LOCAL_FUNC elx_irq , :
 	/* Update core local flags */
 	/* Switch to SP_EL1 */
 	msr	spsel, #1
-	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
-	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	msr	spsel, #0
 
 	/*
@@ -751,23 +751,23 @@ END_FUNC elx_irq
  * 	uint64_t sp_el0;
  * };
  */
-#define ELX_FIQ_REC_X_OFFSET(x)		(8 * ((x) - 4))
-#define ELX_FIQ_REC_LR_OFFSET		(8 + ELX_FIQ_REC_X_OFFSET(19))
-#define ELX_FIQ_REC_SP_EL0_OFFSET	(8 + ELX_FIQ_REC_LR_OFFSET)
-#define ELX_FIQ_REC_SIZE		(8 + ELX_FIQ_REC_SP_EL0_OFFSET)
+#define ELX_FIQ_REC_X(x)		(8 * ((x) - 4))
+#define ELX_FIQ_REC_LR			(8 + ELX_FIQ_REC_X(19))
+#define ELX_FIQ_REC_SP_EL0		(8 + ELX_FIQ_REC_LR)
+#define ELX_FIQ_REC_SIZE		(8 + ELX_FIQ_REC_SP_EL0)
 
 LOCAL_FUNC elx_fiq , :
 	/*
 	 * Update core local flags
 	 */
-	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_FIQ
 	orr	w1, w1, #THREAD_CLF_TMP
-	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* load tmp_stack_va_end */
-	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET]
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	/* Keep original SP_EL0 */
 	mrs	x2, sp_el0
 	/* Switch to SP_EL0 */
@@ -781,9 +781,9 @@ LOCAL_FUNC elx_fiq , :
 	/* Make room for struct elx_fiq_rec */
 	sub	sp, sp, #ELX_FIQ_REC_SIZE
 	/* Store x4..x18 */
-	store_xregs sp, ELX_FIQ_REC_X_OFFSET(4), 4, 18
+	store_xregs sp, ELX_FIQ_REC_X(4), 4, 18
 	/* Store lr and original sp_el0 */
-	stp	x30, x2, [sp, #ELX_FIQ_REC_LR_OFFSET]
+	stp	x30, x2, [sp, #ELX_FIQ_REC_LR]
 
 	bl	thread_check_canaries
 	adr	x16, thread_fiq_handler_ptr
@@ -794,21 +794,21 @@ LOCAL_FUNC elx_fiq , :
 	 * Restore registers
 	 */
 	/* Restore x4..x18 */
-	load_xregs sp, ELX_FIQ_REC_X_OFFSET(4), 4, 18
+	load_xregs sp, ELX_FIQ_REC_X(4), 4, 18
 	/* Load  lr and original sp_el0 */
-	ldp	x30, x2, [sp, #ELX_FIQ_REC_LR_OFFSET]
+	ldp	x30, x2, [sp, #ELX_FIQ_REC_LR]
 	/* Restore SP_El0 */
 	mov	sp, x2
 	/* Switch back to SP_EL1 */
 	msr	spsel, #1
 
 	/* Update core local flags */
-	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
-	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS_OFFSET]
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* Restore x0..x3 */
-	load_xregs sp, THREAD_CORE_LOCAL_X_OFFSET(0), 0, 3
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
 	/* Return from exception */
 	eret

@@ -174,43 +174,6 @@ struct thread_svc_regs {
 #endif /*ARM64*/
 #endif /*ASM*/
 
-
-/*
- * Correctness of these defines are asserted with COMPILE_TIME_ASSERT in
- * thread_init_handlers().
- */
-#ifdef ARM32
-#define THREAD_SVC_REG_SPSR_OFFS	(0 * 4)
-#define THREAD_SVC_REG_R0_OFFS		(1 * 4)
-#define THREAD_SVC_REG_R1_OFFS		(2 * 4)
-#define THREAD_SVC_REG_R2_OFFS		(3 * 4)
-#define THREAD_SVC_REG_R3_OFFS		(4 * 4)
-#define THREAD_SVC_REG_R4_OFFS		(5 * 4)
-#define THREAD_SVC_REG_R5_OFFS		(6 * 4)
-#define THREAD_SVC_REG_R6_OFFS		(7 * 4)
-#define THREAD_SVC_REG_R7_OFFS		(8 * 4)
-#define THREAD_SVC_REG_LR_OFFS		(9 * 4)
-#endif /*ARM32*/
-
-#ifdef ARM64
-#define THREAD_ABT_REG_X_OFFS(x)	((x) * 8)
-#define THREAD_ABT_REG_ELR_OFFS		(THREAD_ABT_REG_X_OFFS(30) + 1 * 8)
-#define THREAD_ABT_REG_SPSR_OFFS	(THREAD_ABT_REG_X_OFFS(30) + 2 * 8)
-#define THREAD_ABT_REG_SP_EL0_OFFS	(THREAD_ABT_REG_X_OFFS(30) + 3 * 8)
-#define THREAD_ABT_REGS_SIZE		(THREAD_ABT_REG_X_OFFS(30) + 4 * 8)
-
-#define THREAD_SMC_ARGS_X_OFFS(x)	((x) * 8)
-#define THREAD_SMC_ARGS_SIZE		THREAD_SMC_ARGS_X_OFFS(8)
-
-#define THREAD_SVC_REG_ELR_OFFS		(8 * 0)
-#define THREAD_SVC_REG_SPSR_OFFS	(8 * 1)
-#define THREAD_SVC_REG_X_OFFS(x)	(8 * (2 + (x)))
-#define THREAD_SVC_REG_X30_OFFS		THREAD_SVC_REG_X_OFFS(15)
-#define THREAD_SVC_REG_SP_EL0_OFFS	THREAD_SVC_REG_X_OFFS(16)
-#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(18)
-
-#endif /*ARM64*/
-
 #ifndef ASM
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);

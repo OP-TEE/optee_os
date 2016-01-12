@@ -31,6 +31,7 @@
 #include <tee_api_defines.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
+#include <asm-defines.h>
 
 	.section .text.arch_svc_asm
 
@@ -46,8 +47,8 @@ UNWIND(	.save	{r5-r9, lr})
 	mov	r7, sp
 	mov	r8, r0
 	mov	r9, r1
-	ldr	r5, [r8, #THREAD_SVC_REG_R5_OFFS]
-	ldr	r6, [r8, #THREAD_SVC_REG_R6_OFFS]
+	ldr	r5, [r8, #THREAD_SVC_REG_R5]
+	ldr	r6, [r8, #THREAD_SVC_REG_R6]
 
 	/*
 	 * Copy eventual arguments passed on the user stack.
@@ -74,7 +75,7 @@ UNWIND(	.save	{r5-r9, lr})
 
 .Lno_args:
 	/* Load arguments to function */
-	add	lr, r8, #THREAD_SVC_REG_R0_OFFS
+	add	lr, r8, #THREAD_SVC_REG_R0
 	ldm	lr, {r0-r3}
 	blx	r9
 .Lret:

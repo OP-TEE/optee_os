@@ -32,6 +32,8 @@
 
 #include <mm/core_mmu.h>
 #include <kernel/vfp.h>
+#include <kernel/mutex.h>
+#include <kernel/thread.h>
 
 enum thread_state {
 	THREAD_STATE_FREE,
@@ -143,24 +145,6 @@ struct thread_core_local {
 #define THREAD_VFP_STATE_SIZE				0
 #endif
 
-#define THREAD_CTX_KERN_SP_OFFSET			\
-		(THREAD_CTX_REGS_SIZE + (4 + 2 + 1) * 8)
-#define THREAD_CTX_SIZE					\
-		(THREAD_CTX_KERN_SP_OFFSET + THREAD_VFP_STATE_SIZE + 5 * 8)
-
-#define THREAD_CTX_REGS_SP_OFFSET			(8 * 0)
-#define THREAD_CTX_REGS_PC_OFFSET			(8 * 1)
-#define THREAD_CTX_REGS_SPSR_OFFSET			(8 * 2)
-#define THREAD_CTX_REGS_X_OFFSET(x)			(8 * (3 + (x)))
-#define THREAD_CTX_REGS_SIZE			THREAD_CTX_REGS_X_OFFSET(31)
-
-#define THREAD_CORE_LOCAL_TMP_STACK_VA_END_OFFSET	(8 * 0)
-#define THREAD_CORE_LOCAL_CURR_THREAD_OFFSET		(8 * 1)
-#define THREAD_CORE_LOCAL_FLAGS_OFFSET			(8 * 1 + 4)
-#define THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET	(8 * 2)
-#define THREAD_CORE_LOCAL_X_OFFSET(x)			(8 * (3 + (x)))
-#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(5)
-
 /* Describes the flags field of struct thread_core_local */
 #define THREAD_CLF_SAVED_SHIFT			4
 #define THREAD_CLF_CURR_SHIFT			0
@@ -174,11 +158,6 @@ struct thread_core_local {
 #define THREAD_CLF_ABORT			(1 << THREAD_CLF_ABORT_SHIFT)
 #define THREAD_CLF_IRQ				(1 << THREAD_CLF_IRQ_SHIFT)
 #define THREAD_CLF_FIQ				(1 << THREAD_CLF_FIQ_SHIFT)
-
-#define THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET	(0)
-#define THREAD_USER_MODE_REC_EXIT_STATUS1_PTR_OFFSET	(8 * 1)
-#define THREAD_USER_MODE_REC_X_OFFSET(x)		(8 * (2 + (x) - 19))
-#define THREAD_USER_MODE_REC_SIZE   THREAD_USER_MODE_REC_X_OFFSET(31)
 
 #endif /*ARM64*/
 

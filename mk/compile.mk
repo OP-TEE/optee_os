@@ -193,7 +193,7 @@ $3: $1 $(conf-file) FORCE
 	    $$(filter-out $$(comp-cmd-$3), $$(old-cmd-$3)) \
 	    $$(filter-out $$(old-cmd-$3), $$(comp-cmd-$3))), \
 		@set -e ;\
-		mkdir -p $$(dir $3) ;\
+		mkdir -p $$(dir $2) $$(dir $3) ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$3)) ;\
 		$$(comp-cmd-$3) ;\
 		echo "old-cmd-$3 := $$(subst \",\\\",$$(comp-cmd-$3))" > \
