@@ -199,6 +199,11 @@
 #define CPACR_EL1_FPEN(x)	((x) >> CPACR_EL1_FPEN_SHIFT \
 				      & CPACR_EL1_FPEN_MASK)
 
+
+#define PAR_F			(1 << 0)
+#define PAR_PA_SHIFT		12
+#define PAR_PA_MASK		((1ULL << 36) - 1)
+
 #ifndef ASM
 static inline void isb(void)
 {
@@ -208,6 +213,11 @@ static inline void isb(void)
 static inline void dsb(void)
 {
 	asm volatile ("dsb sy");
+}
+
+static inline void write_at_s1e1r(uint64_t va)
+{
+	asm volatile ("at	S1E1R, %0" : : "r" (va));
 }
 
 /*
@@ -269,6 +279,7 @@ DEFINE_U64_REG_READWRITE_FUNCS(tcr_el1)
 DEFINE_U64_REG_READ_FUNC(esr_el1)
 DEFINE_U64_REG_READ_FUNC(far_el1)
 DEFINE_U64_REG_READ_FUNC(mpidr_el1)
+DEFINE_U64_REG_READ_FUNC(par_el1)
 
 DEFINE_U64_REG_WRITE_FUNC(mair_el1)
 
