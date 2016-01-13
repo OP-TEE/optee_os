@@ -71,19 +71,23 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 	return &handlers;
 }
 
-#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno)
+#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno) || \
+    PLATFORM_FLAVOR_IS(qemu_armv8a)
 void main_init_gic(void)
 {
 	/*
 	 * On ARMv8, GIC configuration is initialized in ARM-TF,
 	 */
+#ifdef GIC_BASE
 	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+#ifdef IT_CONSOLE_UART
 	gic_it_add(IT_CONSOLE_UART);
 	/* Route FIQ to primary CPU */
 	gic_it_set_cpu_mask(IT_CONSOLE_UART, gic_it_get_target(0));
 	gic_it_set_prio(IT_CONSOLE_UART, 0x1);
 	gic_it_enable(IT_CONSOLE_UART);
-
+#endif
+#endif
 }
 #elif PLATFORM_FLAVOR_IS(qemu_virt)
 void main_init_gic(void)
