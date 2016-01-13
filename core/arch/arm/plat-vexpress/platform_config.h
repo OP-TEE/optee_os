@@ -29,6 +29,7 @@
 #define PLATFORM_CONFIG_H
 
 #define PLATFORM_FLAVOR_ID_fvp		0
+#define PLATFORM_FLAVOR_ID_qemu_armv8a	1
 #define PLATFORM_FLAVOR_ID_qemu_virt	2
 #define PLATFORM_FLAVOR_ID_juno		3
 #define PLATFORM_FLAVOR_IS(flav) \
@@ -94,6 +95,13 @@
 
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
+
+#elif PLATFORM_FLAVOR_IS(qemu_armv8a)
+
+#define UART0_BASE		0x09000000
+#define UART1_BASE		0x09040000
+
+#define CONSOLE_UART_BASE	UART1_BASE
 
 #else
 #error "Unknown platform flavor"
@@ -212,6 +220,27 @@
 #define GICC_OFFSET		0x10000
 
 
+#elif PLATFORM_FLAVOR_IS(qemu_armv8a)
+
+#ifdef CFG_WITH_PAGER
+#error "Pager not supported for platform vexpress-qemu_armv8a"
+#endif
+
+#define DRAM0_BASE		0x40000000
+#define DRAM0_SIZE		(0x40000000 - DRAM0_TEERES_SIZE)
+
+#define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
+#define DRAM0_TEERES_SIZE	(33 * 1024 * 1024)
+
+#define TZDRAM_BASE		DRAM0_TEERES_BASE
+#define TZDRAM_SIZE		(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE)
+
+#define CFG_TEE_CORE_NB_CORE	2
+
+#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
+					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
+#define CFG_SHMEM_SIZE		(1024 * 1024)
+
 #else
 #error "Unknown platform flavor"
 #endif
@@ -260,14 +289,18 @@
 #define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE0_TYPE		MEM_AREA_IO_NSEC
 
+#ifdef GIC_BASE
 #define DEVICE1_BASE		ROUNDDOWN(GIC_BASE, CORE_MMU_DEVICE_SIZE)
 #define DEVICE1_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE1_TYPE		MEM_AREA_IO_SEC
+#endif
 
+#ifdef GICD_OFFSET
 #define DEVICE2_BASE		ROUNDDOWN(GIC_BASE + GICD_OFFSET, \
 					  CORE_MMU_DEVICE_SIZE)
 #define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE2_TYPE		MEM_AREA_IO_SEC
+#endif
 
 #ifdef CFG_PCSC_PASSTHRU_READER_DRV
 #define DEVICE3_BASE		ROUNDDOWN(PCSC_BASE, CORE_MMU_DEVICE_SIZE)

@@ -9,12 +9,18 @@ core_arm32-platform-aflags	+= -mfpu=neon
 
 ifeq ($(PLATFORM_FLAVOR),fvp)
 platform-flavor-armv8 := 1
+platform-debugger-arm := 1
 endif
 ifeq ($(PLATFORM_FLAVOR),juno)
 platform-flavor-armv8 := 1
+platform-debugger-arm := 1
+endif
+ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
+platform-flavor-armv8 := 1
 endif
 
-ifeq ($(platform-flavor-armv8),1)
+
+ifeq ($(platform-debugger-arm),1)
 # ARM debugger needs this
 platform-cflags-debug-info = -gdwarf-2
 platform-aflags-debug-info = -gdwarf-2
