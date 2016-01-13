@@ -67,7 +67,7 @@ platforms have different sub-maintainers, please refer to the file
 |----------|-------------------------|---------------------|
 | [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`| No |
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
-| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| ? |
+| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes |
 | [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`| Yes |
 | [ARM Foundation FVP](http://www.arm.com/fvp) |`PLATFORM=vexpress-fvp`| Yes |
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey)|`PLATFORM=hikey`| Yes |
@@ -118,9 +118,9 @@ We strive to use the latest available compiler from Linaro. Start by downloading
 and unpacking the compiler. Then export the `PATH` to the compilers `bin`
 folder. Beware that we are using a couple of different toolchains depending on
 the target device. This includes both 64- and 32-bit toolchains. For the exact
-toolchain in use, please have a look at [toolchain.mk](https://github.com/OP-TEE/build/blob/master/toolchain.mk) 
+toolchain in use, please have a look at [toolchain.mk](https://github.com/OP-TEE/build/blob/master/toolchain.mk)
 and then look at the targets makefile (see [build.git](https://github.com/OP-TEE/build))
-to find out where the respective toolchain will be used. For example in the 
+to find out where the respective toolchain will be used. For example in the
 [QEMU makefile](https://github.com/OP-TEE/build/blob/master/qemu.mk#L12-L15) you
 will see:
 ```
