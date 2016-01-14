@@ -42,6 +42,10 @@
 #ifndef ASM
 extern uint32_t thread_vector_table[];
 
+struct thread_specific_data {
+	struct tee_ta_session *sess;
+};
+
 struct thread_user_vfp_state {
 	struct vfp_state vfp;
 	bool lazy_saved;
@@ -248,13 +252,8 @@ void thread_clr_boot_thread(void);
  */
 int thread_get_id(void);
 
-/*
- * Set Thread Specific Data (TSD) pointer.
- */
-void thread_set_tsd(void *tsd);
-
 /* Returns Thread Specific Data (TSD) pointer. */
-void *thread_get_tsd(void);
+struct thread_specific_data *thread_get_tsd(void);
 
 /*
  * Sets IRQ status for current thread, must only be called from an

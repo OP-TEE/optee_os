@@ -612,16 +612,17 @@ TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
 
 TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess)
 {
-	struct tee_ta_session *tee_rs = thread_get_tsd();
+	struct thread_specific_data *tsd = thread_get_tsd();
 
-	if (tee_rs == NULL)
+	if (!tsd->sess)
 		return TEE_ERROR_BAD_STATE;
-	*sess = tee_rs;
+	*sess = tsd->sess;
 	return TEE_SUCCESS;
 }
 
 void tee_ta_set_current_session(struct tee_ta_session *sess)
 {
+	struct thread_specific_data *tsd = thread_get_tsd();
 	struct tee_ta_ctx *ctx = NULL;
 
 	if (sess) {
@@ -631,8 +632,8 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 			ctx = sess->ctx;
 	}
 
-	if (thread_get_tsd() != sess) {
-		thread_set_tsd(sess);
+	if (tsd->sess != sess) {
+		tsd->sess = sess;
 		tee_mmu_set_ctx(ctx);
 	}
 	/*

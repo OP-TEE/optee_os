@@ -99,7 +99,6 @@ struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
 	vaddr_t stack_va_end;
-	void *tsd;
 	uint32_t hyp_clnt_id;
 	uint32_t flags;
 	struct core_mmu_user_map user_map;
@@ -113,6 +112,7 @@ struct thread_ctx {
 	void *rpc_arg;
 	paddr_t rpc_parg;
 	struct mutex_head mutexes;
+	struct thread_specific_data tsd;
 };
 
 #ifdef ARM64

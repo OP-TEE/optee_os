@@ -811,41 +811,9 @@ void thread_init_per_cpu(void)
 	thread_init_vbar();
 }
 
-void thread_set_tsd(void *tsd)
+struct thread_specific_data *thread_get_tsd(void)
 {
-	/* thread_get_core_local() requires IRQs to be disabled */
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
-	struct thread_core_local *l;
-	int ct;
-
-	l = thread_get_core_local();
-	ct = l->curr_thread;
-
-	assert(ct != -1);
-	assert(threads[ct].state == THREAD_STATE_ACTIVE);
-	threads[ct].tsd = tsd;
-
-	thread_unmask_exceptions(exceptions);
-}
-
-void *thread_get_tsd(void)
-{
-	/* thread_get_core_local() requires IRQs to be disabled */
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
-	struct thread_core_local *l;
-	int ct;
-	void *tsd;
-
-	l = thread_get_core_local();
-	ct = l->curr_thread;
-
-	if (ct == -1 || threads[ct].state != THREAD_STATE_ACTIVE)
-		tsd = NULL;
-	else
-		tsd = threads[ct].tsd;
-
-	thread_unmask_exceptions(exceptions);
-	return tsd;
+	return &threads[thread_get_id()].tsd;
 }
 
 struct thread_ctx_regs *thread_get_ctx_regs(void)
