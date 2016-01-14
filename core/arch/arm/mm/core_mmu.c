@@ -326,16 +326,17 @@ bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 /* test attributes of target virtual buffer (in core mapping) */
 bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 {
-	uint32_t p;
+	paddr_t p;
 
 	/* Empty buffers complies with anything */
 	if (len == 0)
 		return true;
 
-	if (core_va2pa((void *)vbuf, &p))
+	p = virt_to_phys((void *)vbuf);
+	if (!p)
 		return false;
 
-	return core_pbuf_is(attr, (tee_paddr_t)p, len);
+	return core_pbuf_is(attr, p, len);
 }
 
 

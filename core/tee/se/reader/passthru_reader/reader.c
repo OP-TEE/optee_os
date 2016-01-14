@@ -28,7 +28,7 @@
 #include <io.h>
 #include <trace.h>
 #include <kernel/tee_common_unpg.h>
-#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 
 #include <tee/se/util.h>
 #include <tee/se/reader/interface.h>
@@ -101,7 +101,7 @@ static void pcsc_reader_get_atr(struct pcsc_reader *r)
 	uint32_t atr_paddr = 0;
 	uint32_t atr_len = pcsc_reader_read_reg(r, PCSC_REG_READER_ATR_LEN);
 
-	core_va2pa((void *)r->atr, &atr_paddr);
+	atr_paddr = virt_to_phys((void *)r->atr);
 	pcsc_reader_write_reg(r, PCSC_REG_READER_RX_ADDR,
 			atr_paddr);
 	pcsc_reader_write_reg(r, PCSC_REG_READER_RX_SIZE,
@@ -141,8 +141,8 @@ static TEE_Result pcsc_reader_transmit(struct pcsc_reader *r, uint8_t *tx_buf,
 
 	TEE_ASSERT(r->connected);
 
-	core_va2pa((void *)tx_buf, &tx_buf_paddr);
-	core_va2pa((void *)rx_buf, &rx_buf_paddr);
+	tx_buf_paddr = virt_to_phys((void *)tx_buf);
+	rx_buf_paddr = virt_to_phys((void *)rx_buf);
 
 	pcsc_reader_write_reg(r, PCSC_REG_READER_TX_ADDR,
 			tx_buf_paddr);

@@ -27,7 +27,7 @@
  */
 #include <types_ext.h>
 #include <stdlib.h>
-#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <sm/tee_mon.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/static_ta.h>
@@ -39,6 +39,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 {
 	size_t n;
 	void *va;
+	paddr_t pa;
 
 	/*
 	 * If a static TA is called from another TA the mapping
@@ -53,8 +54,9 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			if (core_pa2va((paddr_t)param->params[n].memref.buffer,
-				       &va))
+			pa = (paddr_t)param->params[n].memref.buffer;
+			va = phys_to_virt(pa, MEM_AREA_NSEC_SHM);
+			if (!va)
 				return TEE_ERROR_BAD_PARAMETERS;
 			param->params[n].memref.buffer = va;
 			break;

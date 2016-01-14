@@ -272,7 +272,8 @@ TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param)
 	 * Map stack
 	 */
 	smem = tee_mm_get_smem(utc->mm_stack);
-	if (core_va2pa((void *)smem, &pa)) {
+	pa = virt_to_phys((void *)smem);
+	if (!pa) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
@@ -285,7 +286,8 @@ TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param)
 	 * Map code
 	 */
 	smem = tee_mm_get_smem(utc->mm);
-	if (core_va2pa((void *)smem, &pa)) {
+	pa = virt_to_phys((void *)smem);
+	if (!pa) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
@@ -338,7 +340,7 @@ TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param)
 		if (p->memref.size == 0)
 			continue;
 
-		res = tee_mmu_user_pa2va(utc, (paddr_t)p->memref.buffer,
+		res = tee_mmu_user_pa2va_helper(utc, (paddr_t)p->memref.buffer,
 					 &p->memref.buffer);
 		if (res != TEE_SUCCESS)
 			goto exit;
@@ -397,22 +399,6 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 	return core_is_buffer_intersect(va, size,
 	  utc->mmu->ta_private_vmem_start,
 	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start + 1);
-}
-
-TEE_Result tee_mmu_kernel_to_user(const struct user_ta_ctx *utc,
-				  const vaddr_t kaddr, tee_uaddr_t *uaddr)
-{
-	TEE_Result res;
-	void *ua;
-	paddr_t pa;
-
-	if (core_va2pa((void *)kaddr, &pa))
-		return TEE_ERROR_ACCESS_DENIED;
-
-	res = tee_mmu_user_pa2va(utc, pa, &ua);
-	if (res == TEE_SUCCESS)
-		*uaddr = (tee_uaddr_t)ua;
-	return res;
 }
 
 static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,

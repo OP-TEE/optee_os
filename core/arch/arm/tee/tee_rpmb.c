@@ -41,7 +41,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_fs_key_manager.h>
-#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <optee_msg.h>
 
 #define RPMB_DATA_OFFSET            (RPMB_STUFF_DATA_SIZE + RPMB_KEY_MAC_SIZE)
@@ -374,7 +374,9 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		goto out;
 	}
 
-	if (core_pa2va(mem->phreq, req) || core_pa2va(mem->phresp, resp)) {
+	*req = phys_to_virt(mem->phreq, MEM_AREA_NSEC_SHM);
+	*resp = phys_to_virt(mem->phresp, MEM_AREA_NSEC_SHM);
+	if (!*req || !*resp) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}

@@ -415,7 +415,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 {
 	TEE_Result res;
 	struct utee_params *usr_params;
-	tee_paddr_t usr_stack;
+	tee_uaddr_t usr_stack;
 	tee_uaddr_t stack_uaddr;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	tee_uaddr_t params_uaddr;
@@ -437,14 +437,19 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);
 
-	res = tee_mmu_kernel_to_user(utc, (tee_vaddr_t)usr_params,
-				     &params_uaddr);
-	if (res != TEE_SUCCESS)
+	params_uaddr = (uintptr_t)phys_to_virt(virt_to_phys(usr_params),
+					       MEM_AREA_TA_VASPACE);
+	if (!params_uaddr) {
+		res = TEE_ERROR_ACCESS_DENIED;
 		goto cleanup_return;
+	}
 
-	res = tee_mmu_kernel_to_user(utc, usr_stack, &stack_uaddr);
-	if (res != TEE_SUCCESS)
+	stack_uaddr = (uintptr_t)phys_to_virt(virt_to_phys((void *)usr_stack),
+					      MEM_AREA_TA_VASPACE);
+	if (!stack_uaddr) {
+		res = TEE_ERROR_ACCESS_DENIED;
 		goto cleanup_return;
+	}
 
 	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
 				     params_uaddr, cmd, stack_uaddr,
@@ -522,7 +527,8 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	if (!phta)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if (core_pa2va(phta, ta)) {
+	*ta = phys_to_virt(phta, MEM_AREA_NSEC_SHM);
+	if (!*ta) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -610,7 +616,8 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 		if (utc->mm != NULL) {
 			pa = tee_mm_get_smem(utc->mm);
-			if (tee_mmu_user_pa2va(utc, pa, &va) == TEE_SUCCESS) {
+			va = phys_to_virt(pa, MEM_AREA_TA_VASPACE);
+			if (va) {
 				s = tee_mm_get_bytes(utc->mm);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
@@ -619,7 +626,8 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 		if (utc->mm_stack) {
 			pa = tee_mm_get_smem(utc->mm_stack);
-			if (tee_mmu_user_pa2va(utc, pa, &va) == TEE_SUCCESS) {
+			va = phys_to_virt(pa, MEM_AREA_TA_VASPACE);
+			if (va) {
 				s = tee_mm_get_bytes(utc->mm_stack);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);

@@ -34,6 +34,7 @@
 #include <tee/tee_cryp_utl.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mm.h>
+#include <mm/core_memprot.h>
 #include <kernel/tee_time.h>
 
 #include <user_ta_header.h>
@@ -732,9 +733,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				    param->params[n].memref.size))
 				return TEE_ERROR_BAD_PARAMETERS;
 
-			if (tee_mmu_user_va2pa(utc,
-					(void *)param->params[n].memref.buffer,
-					&src_pa) != TEE_SUCCESS)
+			src_pa = virt_to_phys(param->params[n].memref.buffer);
+			if (!src_pa)
 				return TEE_ERROR_BAD_PARAMETERS;
 
 			param->param_attr[n] = tee_mmu_user_get_cache_attr(
@@ -944,12 +944,10 @@ function_exit:
 	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 
 	if (mm_param != NULL) {
-		TEE_Result res2;
-		void *va = 0;
+		void *va = phys_to_virt(tee_mm_get_smem(mm_param),
+					MEM_AREA_KMAP_VASPACE);
 
-		res2 =
-		    tee_mmu_kmap_pa2va((void *)tee_mm_get_smem(mm_param), &va);
-		if (res2 == TEE_SUCCESS)
+		if (va)
 			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
 	}
 	tee_mm_free(mm_param);
@@ -1036,12 +1034,10 @@ function_exit:
 	tee_ta_put_session(called_sess);
 
 	if (mm_param != NULL) {
-		TEE_Result res2;
-		void *va = 0;
+		void *va = phys_to_virt(tee_mm_get_smem(mm_param),
+					MEM_AREA_KMAP_VASPACE);
 
-		res2 =
-		    tee_mmu_kmap_pa2va((void *)tee_mm_get_smem(mm_param), &va);
-		if (res2 == TEE_SUCCESS)
+		if (va)
 			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
 	}
 	tee_mm_free(mm_param);

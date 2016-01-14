@@ -304,38 +304,11 @@ bool core_mmu_mattr_is_ok(uint32_t mattr);
 
 void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
 
+/* Function is deprecated, use virt_to_phys() instead */
 int core_va2pa_helper(void *va, paddr_t *pa);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define core_va2pa(va, pa) (__extension__ ({ \
-	paddr_t _p; \
-	int _res = core_va2pa_helper((va), &_p); \
-	if (!_res) \
-		*(pa) = _p; \
-	_res; \
-	}))
-#else
-#define core_va2pa(pa, va) \
-		core_va2pa_helper((pa), (va))
-#endif
 
-
+/* Function is deprecated, use phys_to_virt() instead */
 int core_pa2va_helper(paddr_t pa, void **va);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define core_pa2va(pa, va) (__extension__ ({ \
-	void *_p; \
-	int _res = core_pa2va_helper((pa), &_p); \
-	if (!_res) \
-		*(va) = _p; \
-	_res; \
-	}))
-#else
-#define core_pa2va(pa, va) \
-	core_pa2va_helper((pa), (va))
-#endif
-
-
 
 /* routines to retreive shared mem configuration */
 bool core_mmu_is_shm_cached(void);

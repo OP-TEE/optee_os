@@ -30,7 +30,7 @@
 #include <string.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
-#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include "tee_api_defines.h"
 #include <util.h>
 #include <kernel/thread.h>
@@ -54,7 +54,8 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
 		goto exit;
 
-	if (core_pa2va(phpayload, &bf))
+	bf = phys_to_virt(phpayload, MEM_AREA_NSEC_SHM);
+	if (!bf)
 		goto exit;
 
 	memset(&params, 0, sizeof(params));

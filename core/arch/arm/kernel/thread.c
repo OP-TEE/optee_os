@@ -38,6 +38,7 @@
 #include <kernel/tz_proc.h>
 #include <kernel/misc.h>
 #include <mm/tee_mmu.h>
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
@@ -553,7 +554,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 			OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS),
 			&parg, &carg);
 		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-		     core_pa2va(parg, &arg)) {
+		    !(arg = phys_to_virt(parg, CORE_MEM_NSEC_SHM))) {
 			thread_rpc_free(carg);
 			args->a0 = OPTEE_SMC_RETURN_ENOMEM;
 			return;

@@ -29,7 +29,7 @@
 #include <utee_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
-#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 
 #include "svc_cache.h"
 
@@ -56,8 +56,8 @@ static TEE_Result cache_operation(struct tee_ta_session *sess,
 	if (ret != TEE_SUCCESS)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	ret = tee_mmu_user_va2pa(utc, va, &pa);
-	if (ret != TEE_SUCCESS)
+	pa = virt_to_phys(va);
+	if (!pa)
 		return TEE_ERROR_ACCESS_DENIED;
 
 	switch (op) {

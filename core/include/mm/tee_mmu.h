@@ -55,51 +55,20 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 					  const void *va, size_t size);
 
 /*-----------------------------------------------------------------------------
- * tee_mmu_kernel_to_user - Translate kernel address to user space address
- * given the user context
- *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_kernel_to_user(const struct user_ta_ctx *utc,
-				  const vaddr_t kaddr, tee_uaddr_t *uaddr);
-
-/*-----------------------------------------------------------------------------
  * tee_mmu_user_va2pa - Translate virtual user address to physical address
- * given the user context
+ * given the user context.
+ * Interface is deprecated, use virt_to_phys() instead.
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_user_va2pa_helper(const struct user_ta_ctx *utc, void *ua,
 				     paddr_t *pa);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define tee_mmu_user_va2pa(utc, va, pa) (__extension__ ({ \
-	paddr_t _p; \
-	TEE_Result _res = tee_mmu_user_va2pa_helper((utc), (va), &_p); \
-	if (_res == TEE_SUCCESS) \
-		*(pa) = _p; \
-	_res; \
-	}))
-#else
-#define tee_mmu_user_va2pa(utc, pa, va) \
-		tee_mmu_user_va2pa_helper((utc), (pa), (va))
-#endif
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_user_va2pa - Translate physical address to virtual user address
- * given the user context
+ * given the user context.
+ * Interface is deprecated, use phys_to_virt() instead.
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 				     paddr_t pa, void **va);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define tee_mmu_user_pa2va(utc, pa, va) (__extension__ ({ \
-	void *_p; \
-	TEE_Result _res = tee_mmu_user_pa2va_helper((utc), (pa), &_p); \
-	if (_res == TEE_SUCCESS) \
-		*(va) = _p; \
-	_res; \
-	}))
-#else
-#define tee_mmu_user_pa2va(utc, pa, va) \
-	tee_mmu_user_pa2va_helper((utc), (pa), (va))
-#endif
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_check_access_rights -
@@ -145,33 +114,11 @@ TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va);
  */
 void tee_mmu_kunmap(void *va, size_t len);
 
+/* Interface is deprecated, use phys_to_virt() instead. */
 TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define tee_mmu_kmap_pa2va(pa, va) (__extension__ ({ \
-	void *_p; \
-	TEE_Result _res = tee_mmu_kmap_pa2va_helper((pa), &_p); \
-	if (_res == TEE_SUCCESS) \
-		*(va) = _p; \
-	_res; \
-	}))
-#else
-#define tee_mmu_kmap_pa2va(va, pa) tee_mmu_kmap_pa2va_helper((va), (pa))
-#endif
 
+/* Interface is deprecated, use virt_to_phys() instead. */
 TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define tee_mmu_kmap_va2pa(va, pa) (__extension__ ({ \
-	void *_p; \
-	TEE_Result _res = tee_mmu_kmap_va2pa_helper((va), &_p); \
-	if (_res == TEE_SUCCESS) \
-		*(pa) = _p; \
-	_res; \
-	}))
-#else
-#define tee_mmu_kmap_va2pa(pa, va) tee_mmu_kmap_va2pa_helper((pa), (va))
-#endif
 
 uint32_t tee_mmu_kmap_get_cache_attr(void *va);
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va);
