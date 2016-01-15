@@ -84,7 +84,7 @@ int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
 
    /* generate random salt */
    if (saltlen > 0) {
-      if (prng_descriptor[prng_idx].read(salt, saltlen, prng) != saltlen) {
+      if (prng_descriptor[prng_idx]->read(salt, saltlen, prng) != saltlen) {
          err = CRYPT_ERROR_READPRNG;
          goto LBL_ERR;
       }

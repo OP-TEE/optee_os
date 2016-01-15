@@ -50,7 +50,7 @@ int rand_prime(void *N, long len, prng_state *prng, int wprng)
 
    do {
       /* generate value */
-      if (prng_descriptor[wprng].read(buf, len, prng) != (unsigned long)len) {
+      if (prng_descriptor[wprng]->read(buf, len, prng) != (unsigned long)len) {
          XFREE(buf);
          return CRYPT_ERROR_READPRNG;
       }

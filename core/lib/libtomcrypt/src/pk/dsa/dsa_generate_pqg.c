@@ -127,7 +127,7 @@ static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int mod
   for(found_p=0; !found_p;) {
     /* q */
     for(found_q=0; !found_q;) {
-      if (prng_descriptor[wprng].read(sbuf, seedbytes, prng) != seedbytes)       { err = CRYPT_ERROR_READPRNG; goto cleanup; }
+      if (prng_descriptor[wprng]->read(sbuf, seedbytes, prng) != seedbytes)       { err = CRYPT_ERROR_READPRNG; goto cleanup; }
       i = outbytes;
       if ((err = hash_memory(hash, sbuf, seedbytes, digest, &i)) != CRYPT_OK)    { goto cleanup; }
       if ((err = mp_read_unsigned_bin(U, digest, outbytes)) != CRYPT_OK)         { goto cleanup; }

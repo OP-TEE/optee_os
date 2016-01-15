@@ -42,14 +42,14 @@ int rng_make_prng(int bits, int wprng, prng_state *prng,
    }
 
    if (bits == -1) {
-      bytes = prng_descriptor[wprng].export_size;
+      bytes = prng_descriptor[wprng]->export_size;
    } else if (bits < 64 || bits > 1024) {
       return CRYPT_INVALID_PRNGSIZE;
    } else {
       bytes = (unsigned long)((bits+7)/8) * 2;
    }
 
-   if ((err = prng_descriptor[wprng].start(prng)) != CRYPT_OK) {
+   if ((err = prng_descriptor[wprng]->start(prng)) != CRYPT_OK) {
       return err;
    }
 
@@ -64,15 +64,15 @@ int rng_make_prng(int bits, int wprng, prng_state *prng,
    }
 
    if (bits == -1) {
-      if ((err = prng_descriptor[wprng].pimport(buf, bytes, prng)) != CRYPT_OK) {
+      if ((err = prng_descriptor[wprng]->pimport(buf, bytes, prng)) != CRYPT_OK) {
          goto LBL_ERR;
       }
    } else {
-      if ((err = prng_descriptor[wprng].add_entropy(buf, bytes, prng)) != CRYPT_OK) {
+      if ((err = prng_descriptor[wprng]->add_entropy(buf, bytes, prng)) != CRYPT_OK) {
          goto LBL_ERR;
       }
    }
-   if ((err = prng_descriptor[wprng].ready(prng)) != CRYPT_OK) {
+   if ((err = prng_descriptor[wprng]->ready(prng)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 

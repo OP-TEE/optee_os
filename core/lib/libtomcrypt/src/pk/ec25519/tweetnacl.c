@@ -333,7 +333,7 @@ int tweetnacl_crypto_sign_keypair(prng_state *prng, int wprng, u8 *pk, u8 *sk)
      return err;
   }
 
-  if (prng_descriptor[wprng].read(sk,32, prng) != 32) {
+  if (prng_descriptor[wprng]->read(sk,32, prng) != 32) {
      return CRYPT_ERROR_READPRNG;
   }
 

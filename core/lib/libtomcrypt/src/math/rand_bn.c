@@ -31,7 +31,7 @@ int rand_bn_bits(void *N, int bits, prng_state *prng, int wprng)
    if ((buf = XCALLOC(1, bytes)) == NULL) return CRYPT_MEM;
 
    /* generate random bytes */
-   if (prng_descriptor[wprng].read(buf, bytes, prng) != (unsigned long)bytes) {
+   if (prng_descriptor[wprng]->read(buf, bytes, prng) != (unsigned long)bytes) {
       res = CRYPT_ERROR_READPRNG;
       goto cleanup;
    }

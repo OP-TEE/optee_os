@@ -78,7 +78,7 @@ typedef struct {
 } prng_state;
 
 /** PRNG descriptor */
-extern struct ltc_prng_descriptor {
+extern const struct ltc_prng_descriptor {
     /** Name of the PRNG */
     const char *name;
     /** size in bytes of exported state */
@@ -130,7 +130,7 @@ extern struct ltc_prng_descriptor {
         @return CRYPT_OK if successful, CRYPT_NOP if self-testing has been disabled
     */
     int (*test)(void);
-} prng_descriptor[];
+} *prng_descriptor[];
 
 #ifdef LTC_YARROW
 int yarrow_start(prng_state *prng);

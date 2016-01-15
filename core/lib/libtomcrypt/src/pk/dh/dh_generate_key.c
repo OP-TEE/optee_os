@@ -70,7 +70,7 @@ int dh_generate_key(prng_state *prng, int wprng, dh_key *key)
    key->type = PK_PRIVATE;
    do {
       /* make up random buf */
-      if (prng_descriptor[wprng].read(buf, keysize, prng) != keysize) {
+      if (prng_descriptor[wprng]->read(buf, keysize, prng) != keysize) {
          err = CRYPT_ERROR_READPRNG;
          goto freebuf;
       }

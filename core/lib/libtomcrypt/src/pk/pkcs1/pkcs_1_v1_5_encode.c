@@ -72,7 +72,7 @@ int pkcs_1_v1_5_encode(const unsigned char *msg,
 
   if (block_type == LTC_PKCS_1_EME) {
     /* now choose a random ps */
-    if (prng_descriptor[prng_idx].read(ps, ps_len, prng) != ps_len) {
+    if (prng_descriptor[prng_idx]->read(ps, ps_len, prng) != ps_len) {
       result = CRYPT_ERROR_READPRNG;
       goto bail;
     }
@@ -80,7 +80,7 @@ int pkcs_1_v1_5_encode(const unsigned char *msg,
     /* transform zero bytes (if any) to non-zero random bytes */
     for (i = 0; i < ps_len; i++) {
       while (ps[i] == 0) {
-        if (prng_descriptor[prng_idx].read(&ps[i], 1, prng) != 1) {
+        if (prng_descriptor[prng_idx]->read(&ps[i], 1, prng) != 1) {
           result = CRYPT_ERROR_READPRNG;
           goto bail;
         }
