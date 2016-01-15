@@ -54,7 +54,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    } else {
       lparam_hash_used = mgf_hash;
    }
-   hLen        = hash_descriptor[lparam_hash_used].hashsize;
+   hLen        = hash_descriptor[lparam_hash_used]->hashsize;
    modulus_len = (modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0);
 
    /* test hash/message size */

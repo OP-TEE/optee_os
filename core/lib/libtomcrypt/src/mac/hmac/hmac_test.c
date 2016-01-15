@@ -599,7 +599,7 @@ int hmac_test(void)
             return err;
         }
 
-        if(compare_testvector(digest, outlen, cases[i].digest, (size_t)hash_descriptor[hash].hashsize, cases[i].num, i)) {
+        if(compare_testvector(digest, outlen, cases[i].digest, (size_t)hash_descriptor[hash]->hashsize, cases[i].num, i)) {
             failed++;
         }
     }

@@ -96,12 +96,12 @@ static int s_dsa_make_params(prng_state *prng, int wprng, int group_size, int mo
   if (hash == -1) {
     return CRYPT_INVALID_ARG; /* no appropriate hash function found */
   }
-  if (N > hash_descriptor[hash].hashsize * 8) {
+  if (N > hash_descriptor[hash]->hashsize * 8) {
     return CRYPT_INVALID_ARG; /* group_size too big */
   }
 
   if ((err = hash_is_valid(hash)) != CRYPT_OK)                                   { return err; }
-  outbytes = hash_descriptor[hash].hashsize;
+  outbytes = hash_descriptor[hash]->hashsize;
 
   n = ((L + outbytes*8 - 1) / (outbytes*8)) - 1;
 
