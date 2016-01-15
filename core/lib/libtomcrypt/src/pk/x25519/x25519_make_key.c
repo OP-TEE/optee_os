@@ -33,7 +33,7 @@ int x25519_make_key(prng_state *prng, int wprng, curve25519_key *key)
       return err;
    }
 
-   if (prng_descriptor[wprng].read(key->priv, sizeof(key->priv), prng) != sizeof(key->priv)) {
+   if (prng_descriptor[wprng]->read(key->priv, sizeof(key->priv), prng) != sizeof(key->priv)) {
       return CRYPT_ERROR_READPRNG;
    }
 

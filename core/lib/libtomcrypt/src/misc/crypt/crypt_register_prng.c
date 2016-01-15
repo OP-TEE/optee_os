@@ -27,7 +27,7 @@ int register_prng(const struct ltc_prng_descriptor *prng)
    /* is it already registered? */
    LTC_MUTEX_LOCK(&ltc_prng_mutex);
    for (x = 0; x < TAB_SIZE; x++) {
-       if (XMEMCMP(&prng_descriptor[x], prng, sizeof(struct ltc_prng_descriptor)) == 0) {
+       if (prng_descriptor[x] == prng) {
           LTC_MUTEX_UNLOCK(&ltc_prng_mutex);
           return x;
        }
@@ -35,8 +35,8 @@ int register_prng(const struct ltc_prng_descriptor *prng)
 
    /* find a blank spot */
    for (x = 0; x < TAB_SIZE; x++) {
-       if (prng_descriptor[x].name == NULL) {
-          XMEMCPY(&prng_descriptor[x], prng, sizeof(struct ltc_prng_descriptor));
+       if (prng_descriptor[x] == NULL) {
+	  prng_descriptor[x] = prng;
           LTC_MUTEX_UNLOCK(&ltc_prng_mutex);
           return x;
        }
