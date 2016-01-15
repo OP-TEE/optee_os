@@ -92,7 +92,7 @@ int dsa_make_key(prng_state *prng, int wprng, int group_size, int modulus_size, 
    if ((err = mp_add(key->q, key->q, tmp)) != CRYPT_OK)                                { goto error; }
 
    /* now make a random string and multply it against q */
-   if (prng_descriptor[wprng].read(buf+1, modulus_size - group_size, prng) != (unsigned long)(modulus_size - group_size)) {
+   if (prng_descriptor[wprng]->read(buf+1, modulus_size - group_size, prng) != (unsigned long)(modulus_size - group_size)) {
       err = CRYPT_ERROR_READPRNG;
       goto error;
    }
@@ -132,7 +132,7 @@ int dsa_make_key(prng_state *prng, int wprng, int group_size, int modulus_size, 
       Now we need a random exponent [mod q] and it's power g^x mod p 
     */
    do {
-      if (prng_descriptor[wprng].read(buf, group_size, prng) != (unsigned long)group_size) {
+      if (prng_descriptor[wprng]->read(buf, group_size, prng) != (unsigned long)group_size) {
          err = CRYPT_ERROR_READPRNG;
          goto error;
       }

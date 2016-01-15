@@ -103,7 +103,7 @@ int ecc_make_key_ex(prng_state *prng, int wprng, ecc_key *key, const ltc_ecc_set
    }
 
    /* make up random string */
-   if (prng_descriptor[wprng].read(buf, (unsigned long)keysize, prng) != (unsigned long)keysize) {
+   if (prng_descriptor[wprng]->read(buf, (unsigned long)keysize, prng) != (unsigned long)keysize) {
       err = CRYPT_ERROR_READPRNG;
       goto ERR_BUF;
    }

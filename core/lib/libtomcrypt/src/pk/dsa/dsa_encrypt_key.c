@@ -104,7 +104,7 @@ int dsa_encrypt_key(const unsigned char *in,   unsigned long inlen,
     
     /* make a random x, g^x pair */
     x = mp_unsigned_bin_size(key->q);
-    if (prng_descriptor[wprng].read(expt, x, prng) != x) {
+    if (prng_descriptor[wprng]->read(expt, x, prng) != x) {
        err = CRYPT_ERROR_READPRNG;
        goto LBL_ERR;
     }

@@ -111,7 +111,7 @@ int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 
 	for (i = 0; (i < limit) && (!found); i++) {
 		/* generate the private key in a raw-buffer */
-		if (prng_descriptor[wprng].read(buf, key_size, prng) !=
+		if (prng_descriptor[wprng]->read(buf, key_size, prng) !=
 		    (unsigned long)key_size) {
 			err = CRYPT_ERROR_READPRNG;
 			goto error;

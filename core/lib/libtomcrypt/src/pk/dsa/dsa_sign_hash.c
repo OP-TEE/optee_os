@@ -92,7 +92,7 @@ retry:
 
    do {
       /* gen random k */
-      if (prng_descriptor[wprng].read(buf, key->qord, prng) != (unsigned long)key->qord) {
+      if (prng_descriptor[wprng]->read(buf, key->qord, prng) != (unsigned long)key->qord) {
          err = CRYPT_ERROR_READPRNG;
          goto error;
       }

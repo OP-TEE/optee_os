@@ -156,11 +156,11 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 	if (prng_index == -1)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = prng_descriptor[prng_index].start(&prng->state);
+	res = prng_descriptor[prng_index]->start(&prng->state);
 	if (res != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
-	res = prng_descriptor[prng_index].ready(&prng->state);
+	res = prng_descriptor[prng_index]->ready(&prng->state);
 	if (res != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
@@ -2892,7 +2892,7 @@ static TEE_Result prng_read(void *buf, size_t blen)
 	if (err != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
-	if (prng_descriptor[prng->index].read(buf, blen, &prng->state) !=
+	if (prng_descriptor[prng->index]->read(buf, blen, &prng->state) !=
 			(unsigned long)blen)
 		return TEE_ERROR_BAD_STATE;
 
@@ -2909,7 +2909,7 @@ static TEE_Result prng_add_entropy(const uint8_t *inbuf, size_t len)
 	if (err != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
-	err = prng_descriptor[prng->index].add_entropy(
+	err = prng_descriptor[prng->index]->add_entropy(
 			inbuf, len, &prng->state);
 
 	if (err != CRYPT_OK)

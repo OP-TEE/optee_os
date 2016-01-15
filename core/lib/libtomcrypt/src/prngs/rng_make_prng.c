@@ -67,7 +67,7 @@ int rng_make_prng(int bits, int wprng, prng_state *prng,
       return CRYPT_INVALID_PRNGSIZE;
    }
 
-   if ((err = prng_descriptor[wprng].start(prng)) != CRYPT_OK) {
+   if ((err = prng_descriptor[wprng]->start(prng)) != CRYPT_OK) {
       return err;
    }
 
@@ -76,11 +76,11 @@ int rng_make_prng(int bits, int wprng, prng_state *prng,
       return CRYPT_ERROR_READPRNG;
    }
 
-   if ((err = prng_descriptor[wprng].add_entropy(buf, (unsigned long)bits, prng)) != CRYPT_OK) {
+   if ((err = prng_descriptor[wprng]->add_entropy(buf, (unsigned long)bits, prng)) != CRYPT_OK) {
       return err;
    }
 
-   if ((err = prng_descriptor[wprng].ready(prng)) != CRYPT_OK) {
+   if ((err = prng_descriptor[wprng]->ready(prng)) != CRYPT_OK) {
       return err;
    }
 
