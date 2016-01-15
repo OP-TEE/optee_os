@@ -51,7 +51,7 @@ int hkdf_expand(int hash_idx, const unsigned char *info, unsigned long infolen,
       return err;
    }
 
-   hashsize = hash_descriptor[hash_idx].hashsize;
+   hashsize = hash_descriptor[hash_idx]->hashsize;
 
    /* RFC5869 parameter restrictions */
    if (inlen < hashsize || outlen > hashsize * 255) {
@@ -119,7 +119,7 @@ int hkdf(int hash_idx, const unsigned char *salt, unsigned long saltlen,
       return err;
    }
 
-   hashsize = hash_descriptor[hash_idx].hashsize;
+   hashsize = hash_descriptor[hash_idx]->hashsize;
 
    extracted = XMALLOC(hashsize); /* replace with static buffer? */
    if (extracted == NULL) {

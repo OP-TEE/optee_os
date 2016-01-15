@@ -15,7 +15,7 @@
 
 #ifdef LTC_HMAC
 
-#define LTC_HMAC_BLOCKSIZE hash_descriptor[hash].blocksize
+#define LTC_HMAC_BLOCKSIZE hash_descriptor[hash]->blocksize
 
 /**
    Initialize an HMAC context.
@@ -40,7 +40,7 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
         return err;
     }
     hmac->hash = hash;
-    hashsize   = hash_descriptor[hash].hashsize;
+    hashsize   = hash_descriptor[hash]->hashsize;
 
     /* valid key length? */
     if (keylen == 0) {
@@ -80,11 +80,11 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
     }
 
     /* Pre-pend that to the hash data */
-    if ((err = hash_descriptor[hash].init(&hmac->md)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->init(&hmac->md)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 
-    if ((err = hash_descriptor[hash].process(&hmac->md, buf, LTC_HMAC_BLOCKSIZE)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->process(&hmac->md, buf, LTC_HMAC_BLOCKSIZE)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 

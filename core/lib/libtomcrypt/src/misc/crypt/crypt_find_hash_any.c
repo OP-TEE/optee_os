@@ -30,12 +30,12 @@
    y = MAXBLOCKSIZE+1;
    z = -1;
    for (x = 0; x < TAB_SIZE; x++) {
-       if (hash_descriptor[x].name == NULL) {
+       if (hash_descriptor[x] == NULL) {
           continue;
        }
-       if ((int)hash_descriptor[x].hashsize >= digestlen && (int)hash_descriptor[x].hashsize < y) {
+       if ((int)hash_descriptor[x]->hashsize >= digestlen && (int)hash_descriptor[x]->hashsize < y) {
           z = x;
-          y = hash_descriptor[x].hashsize;
+          y = hash_descriptor[x]->hashsize;
        }
    }
    LTC_MUTEX_UNLOCK(&ltc_hash_mutex);

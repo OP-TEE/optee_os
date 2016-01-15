@@ -17,8 +17,8 @@ int pkcs12_kdf(               int   hash_id,
                      unsigned int   iterations, unsigned char purpose,
                      unsigned char *out,        unsigned long outlen)
 {
-   unsigned long u = hash_descriptor[hash_id].hashsize;
-   unsigned long v = hash_descriptor[hash_id].blocksize;
+   unsigned long u = hash_descriptor[hash_id]->hashsize;
+   unsigned long v = hash_descriptor[hash_id]->blocksize;
    unsigned long c = (outlen + u - 1) / u;
    unsigned long Slen = ((saltlen + v - 1) / v) * v;
    unsigned long Plen = ((pwlen + v - 1) / v) * v;

@@ -74,25 +74,25 @@ static int _pkcs_5_alg1_common(const unsigned char *password,
       return CRYPT_MEM;
    }
 
-   while(block * hash_descriptor[hash_idx].hashsize < *outlen) {
+   while(block * hash_descriptor[hash_idx]->hashsize < *outlen) {
 
       /* hash initial (maybe previous hash) + password + salt */
-      if ((err = hash_descriptor[hash_idx].init(md)) != CRYPT_OK) {
+      if ((err = hash_descriptor[hash_idx]->init(md)) != CRYPT_OK) {
           goto LBL_ERR;
       }
       /* in OpenSSL mode, we first hash the previous result for blocks 2-n */
       if (openssl_compat && block) {
-          if ((err = hash_descriptor[hash_idx].process(md, buf, hash_descriptor[hash_idx].hashsize)) != CRYPT_OK) {
+          if ((err = hash_descriptor[hash_idx]->process(md, buf, hash_descriptor[hash_idx]->hashsize)) != CRYPT_OK) {
               goto LBL_ERR;
           }
       }
-      if ((err = hash_descriptor[hash_idx].process(md, password, password_len)) != CRYPT_OK) {
+      if ((err = hash_descriptor[hash_idx]->process(md, password, password_len)) != CRYPT_OK) {
           goto LBL_ERR;
       }
-      if ((err = hash_descriptor[hash_idx].process(md, salt, 8)) != CRYPT_OK) {
+      if ((err = hash_descriptor[hash_idx]->process(md, salt, 8)) != CRYPT_OK) {
           goto LBL_ERR;
       }
-      if ((err = hash_descriptor[hash_idx].done(md, buf)) != CRYPT_OK) {
+      if ((err = hash_descriptor[hash_idx]->done(md, buf)) != CRYPT_OK) {
           goto LBL_ERR;
       }
 
@@ -100,15 +100,15 @@ static int _pkcs_5_alg1_common(const unsigned char *password,
       while (--iter) {
          /* code goes here. */
          x = MAXBLOCKSIZE;
-         if ((err = hash_memory(hash_idx, buf, hash_descriptor[hash_idx].hashsize, buf, &x)) != CRYPT_OK) {
+         if ((err = hash_memory(hash_idx, buf, hash_descriptor[hash_idx]->hashsize, buf, &x)) != CRYPT_OK) {
             goto LBL_ERR;
          }
       }
 
       /* limit the size of the copy to however many bytes we have left in
          the output buffer (and how many bytes we have to copy) */
-      outidx = block*hash_descriptor[hash_idx].hashsize;
-      nb = hash_descriptor[hash_idx].hashsize;
+      outidx = block*hash_descriptor[hash_idx]->hashsize;
+      nb = hash_descriptor[hash_idx]->hashsize;
       if(outidx+nb > *outlen) {
           nb = *outlen - outidx;
       }
@@ -124,7 +124,7 @@ static int _pkcs_5_alg1_common(const unsigned char *password,
    /* In strict mode, we always return the hashsize, in compat we filled it
       as much as was requested, so we leave it alone. */
    if(!openssl_compat) {
-      *outlen = hash_descriptor[hash_idx].hashsize;
+      *outlen = hash_descriptor[hash_idx]->hashsize;
    }
 
    err = CRYPT_OK;

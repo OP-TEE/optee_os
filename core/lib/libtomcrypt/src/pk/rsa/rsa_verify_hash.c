@@ -123,7 +123,7 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
       ltc_asn1_list digestinfo[2], siginfo[2];
 
       /* not all hashes have OIDs... so sad */
-      if (hash_descriptor[hash_idx].OIDlen == 0) {
+      if (hash_descriptor[hash_idx]->OIDlen == 0) {
          err = CRYPT_INVALID_ARG;
          goto bail_2;
       }
@@ -158,8 +158,8 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
 
       /* test OID */
       if ((reallen == outlen) &&
-          (digestinfo[0].size == hash_descriptor[hash_idx].OIDlen) &&
-        (XMEMCMP(digestinfo[0].data, hash_descriptor[hash_idx].OID, sizeof(unsigned long) * hash_descriptor[hash_idx].OIDlen) == 0) &&
+          (digestinfo[0].size == hash_descriptor[hash_idx]->OIDlen) &&
+        (XMEMCMP(digestinfo[0].data, hash_descriptor[hash_idx]->OID, sizeof(unsigned long) * hash_descriptor[hash_idx]->OIDlen) == 0) &&
           (siginfo[1].size == hashlen) &&
         (XMEMCMP(siginfo[1].data, hash, hashlen) == 0)) {
          *stat = 1;

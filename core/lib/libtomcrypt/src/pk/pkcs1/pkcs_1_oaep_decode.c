@@ -50,7 +50,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
       return err;
    }
-   hLen        = hash_descriptor[hash_idx].hashsize;
+   hLen        = hash_descriptor[hash_idx]->hashsize;
    modulus_len = (modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0);
 
    /* test hash/message size */

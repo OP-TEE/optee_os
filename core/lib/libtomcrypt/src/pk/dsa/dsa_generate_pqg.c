@@ -107,7 +107,7 @@ static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int mod
   }
 
   if ((err = hash_is_valid(hash)) != CRYPT_OK)                                   { return err; }
-  outbytes = hash_descriptor[hash].hashsize;
+  outbytes = hash_descriptor[hash]->hashsize;
 
   n = ((L + outbytes*8 - 1) / (outbytes*8)) - 1;
 

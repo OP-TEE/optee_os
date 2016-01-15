@@ -15,7 +15,7 @@
 
 #ifdef LTC_HMAC
 
-#define LTC_HMAC_BLOCKSIZE hash_descriptor[hash].blocksize
+#define LTC_HMAC_BLOCKSIZE hash_descriptor[hash]->blocksize
 
 /**
    Terminate an HMAC session
@@ -40,7 +40,7 @@ int hmac_done(hmac_state *hmac, unsigned char *out, unsigned long *outlen)
     }
 
     /* get the hash message digest size */
-    hashsize = hash_descriptor[hash].hashsize;
+    hashsize = hash_descriptor[hash]->hashsize;
 
     /* allocate buffers */
     buf  = XMALLOC(LTC_HMAC_BLOCKSIZE);
@@ -56,7 +56,7 @@ int hmac_done(hmac_state *hmac, unsigned char *out, unsigned long *outlen)
     }
 
     /* Get the hash of the first HMAC vector plus the data */
-    if ((err = hash_descriptor[hash].done(&hmac->md, isha)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->done(&hmac->md, isha)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 
@@ -66,16 +66,16 @@ int hmac_done(hmac_state *hmac, unsigned char *out, unsigned long *outlen)
     }
 
     /* Now calculate the "outer" hash for step (5), (6), and (7) */
-    if ((err = hash_descriptor[hash].init(&hmac->md)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->init(&hmac->md)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].process(&hmac->md, buf, LTC_HMAC_BLOCKSIZE)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->process(&hmac->md, buf, LTC_HMAC_BLOCKSIZE)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].process(&hmac->md, isha, hashsize)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->process(&hmac->md, isha, hashsize)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].done(&hmac->md, buf)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->done(&hmac->md, buf)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 

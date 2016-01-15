@@ -45,8 +45,8 @@ int hmac_memory(int hash,
     }
 
     /* is there a descriptor? */
-    if (hash_descriptor[hash].hmac_block != NULL) {
-        return hash_descriptor[hash].hmac_block(key, keylen, in, inlen, out, outlen);
+    if (hash_descriptor[hash]->hmac_block != NULL) {
+        return hash_descriptor[hash]->hmac_block(key, keylen, in, inlen, out, outlen);
     }
 
     /* nope, so call the hmac functions */
