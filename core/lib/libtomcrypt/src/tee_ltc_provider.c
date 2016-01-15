@@ -401,7 +401,7 @@ static TEE_Result hash_init(void *ctx, uint32_t algo)
 	if (ltc_res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (hash_descriptor[ltc_hashindex].init(ctx) == CRYPT_OK)
+	if (hash_descriptor[ltc_hashindex]->init(ctx) == CRYPT_OK)
 		return TEE_SUCCESS;
 	else
 		return TEE_ERROR_BAD_STATE;
@@ -417,7 +417,7 @@ static TEE_Result hash_update(void *ctx, uint32_t algo,
 	if (ltc_res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (hash_descriptor[ltc_hashindex].process(ctx, data, len) == CRYPT_OK)
+	if (hash_descriptor[ltc_hashindex]->process(ctx, data, len) == CRYPT_OK)
 		return TEE_SUCCESS;
 	else
 		return TEE_ERROR_BAD_STATE;
@@ -439,7 +439,7 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 	if (len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	hash_size = hash_descriptor[ltc_hashindex].hashsize;
+	hash_size = hash_descriptor[ltc_hashindex]->hashsize;
 
 	if (hash_size > len) {
 		if (hash_size > sizeof(block_digest))
@@ -448,7 +448,7 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 	} else {
 		tmp_digest = digest;
 	}
-	if (hash_descriptor[ltc_hashindex].done(ctx, tmp_digest) == CRYPT_OK) {
+	if (hash_descriptor[ltc_hashindex]->done(ctx, tmp_digest) == CRYPT_OK) {
 		if (hash_size > len)
 			memcpy(digest, tmp_digest, len);
 	} else {

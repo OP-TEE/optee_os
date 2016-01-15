@@ -80,7 +80,7 @@ int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
       return err;
    }
 
-   hLen        = hash_descriptor[hash_idx].hashsize;
+   hLen        = hash_descriptor[hash_idx]->hashsize;
    modulus_len = (modulus_bitlen>>3) + (modulus_bitlen & 7 ? 1 : 0);
 
    /* check sizes */
@@ -119,20 +119,20 @@ int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    /* M = (eight) 0x00 || msghash || salt, hash = H(M) */
-   if ((err = hash_descriptor[hash_idx].init(&md)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->init(&md)) != CRYPT_OK) {
       goto LBL_ERR;
    }
    zeromem(DB, 8);
-   if ((err = hash_descriptor[hash_idx].process(&md, DB, 8)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(&md, DB, 8)) != CRYPT_OK) {
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx].process(&md, msghash, msghashlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(&md, msghash, msghashlen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx].process(&md, salt, saltlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(&md, salt, saltlen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx].done(&md, hash)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->done(&md, hash)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
