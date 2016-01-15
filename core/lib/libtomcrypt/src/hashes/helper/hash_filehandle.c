@@ -41,23 +41,23 @@ int hash_filehandle(int hash, FILE *in, unsigned char *out, unsigned long *outle
         goto LBL_ERR;
     }
 
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
+    if (*outlen < hash_descriptor[hash]->hashsize) {
+       *outlen = hash_descriptor[hash]->hashsize;
        err = CRYPT_BUFFER_OVERFLOW;
        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].init(&md)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->init(&md)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 
     do {
         x = fread(buf, 1, LTC_FILE_READ_BUFSIZE, in);
-        if ((err = hash_descriptor[hash].process(&md, buf, (unsigned long)x)) != CRYPT_OK) {
+        if ((err = hash_descriptor[hash]->process(&md, buf, (unsigned long)x)) != CRYPT_OK) {
            goto LBL_CLEANBUF;
         }
     } while (x == LTC_FILE_READ_BUFSIZE);
-    if ((err = hash_descriptor[hash].done(&md, out)) == CRYPT_OK) {
-       *outlen = hash_descriptor[hash].hashsize;
+    if ((err = hash_descriptor[hash]->done(&md, out)) == CRYPT_OK) {
+       *outlen = hash_descriptor[hash]->hashsize;
     }
 
 LBL_CLEANBUF:

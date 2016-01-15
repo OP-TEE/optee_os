@@ -42,8 +42,8 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
         return err;
     }
 
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
+    if (*outlen < hash_descriptor[hash]->hashsize) {
+       *outlen = hash_descriptor[hash]->hashsize;
        return CRYPT_BUFFER_OVERFLOW;
     }
 
@@ -52,7 +52,7 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
        return CRYPT_MEM;
     }
 
-    if ((err = hash_descriptor[hash].init(md)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->init(md)) != CRYPT_OK) {
        goto LBL_ERR;
     }
 
@@ -61,7 +61,7 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
     curlen = inlen;
     for (;;) {
        /* process buf */
-       if ((err = hash_descriptor[hash].process(md, curptr, curlen)) != CRYPT_OK) {
+       if ((err = hash_descriptor[hash]->process(md, curptr, curlen)) != CRYPT_OK) {
           goto LBL_ERR;
        }
        /* step to next */
@@ -71,8 +71,8 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
        }
        curlen = va_arg(args, unsigned long);
     }
-    err = hash_descriptor[hash].done(md, out);
-    *outlen = hash_descriptor[hash].hashsize;
+    err = hash_descriptor[hash]->done(md, out);
+    *outlen = hash_descriptor[hash]->hashsize;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
     zeromem(md, sizeof(hash_state));

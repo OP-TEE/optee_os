@@ -43,7 +43,7 @@ int pkcs_1_mgf1(int                  hash_idx,
    }
 
    /* get hash output size */
-   hLen = hash_descriptor[hash_idx].hashsize;
+   hLen = hash_descriptor[hash_idx]->hashsize;
 
    /* allocate memory */
    md  = XMALLOC(sizeof(hash_state));
@@ -67,16 +67,16 @@ int pkcs_1_mgf1(int                  hash_idx,
        ++counter;
 
        /* get hash of seed || counter */
-       if ((err = hash_descriptor[hash_idx].init(md)) != CRYPT_OK) {
+       if ((err = hash_descriptor[hash_idx]->init(md)) != CRYPT_OK) {
           goto LBL_ERR;
        }
-       if ((err = hash_descriptor[hash_idx].process(md, seed, seedlen)) != CRYPT_OK) {
+       if ((err = hash_descriptor[hash_idx]->process(md, seed, seedlen)) != CRYPT_OK) {
           goto LBL_ERR;
        }
-       if ((err = hash_descriptor[hash_idx].process(md, buf, 4)) != CRYPT_OK) {
+       if ((err = hash_descriptor[hash_idx]->process(md, buf, 4)) != CRYPT_OK) {
           goto LBL_ERR;
        }
-       if ((err = hash_descriptor[hash_idx].done(md, buf)) != CRYPT_OK) {
+       if ((err = hash_descriptor[hash_idx]->done(md, buf)) != CRYPT_OK) {
           goto LBL_ERR;
        }
 

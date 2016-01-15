@@ -30,7 +30,7 @@ int hmac_process(hmac_state *hmac, const unsigned char *in, unsigned long inlen)
     if ((err = hash_is_valid(hmac->hash)) != CRYPT_OK) {
         return err;
     }
-    return hash_descriptor[hmac->hash].process(&hmac->md, in, inlen);
+    return hash_descriptor[hmac->hash]->process(&hmac->md, in, inlen);
 }
 
 #endif

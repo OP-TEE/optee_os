@@ -47,7 +47,7 @@ int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
        return err;
     }
 
-    if (inlen > hash_descriptor[hash].hashsize) {
+    if (inlen > hash_descriptor[hash]->hashsize) {
        return CRYPT_INVALID_HASH;
     }
 
@@ -103,7 +103,7 @@ int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
     }
 
     err = der_encode_sequence_multi(out, outlen,
-                                    LTC_ASN1_OBJECT_IDENTIFIER,  hash_descriptor[hash].OIDlen,   hash_descriptor[hash].OID,
+                                    LTC_ASN1_OBJECT_IDENTIFIER,  hash_descriptor[hash]->OIDlen,   hash_descriptor[hash]->OID,
                                     LTC_ASN1_OCTET_STRING,       pubkeysize,                     pub_expt,
                                     LTC_ASN1_OCTET_STRING,       inlen,                          skey,
                                     LTC_ASN1_EOL,                0UL,                            NULL);

@@ -68,8 +68,8 @@ int chc_register(int cipher)
    }
 
    /* store into descriptor */
-   hash_descriptor[idx].hashsize  =
-   hash_descriptor[idx].blocksize = cipher_descriptor[cipher].block_length;
+   hash_descriptor[idx]->hashsize  =
+   hash_descriptor[idx]->blocksize = cipher_descriptor[cipher].block_length;
 
    /* store the idx and block size */
    cipher_idx       = cipher;

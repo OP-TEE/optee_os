@@ -202,7 +202,7 @@ typedef union Hash_state {
 } hash_state;
 
 /** hash descriptor */
-extern  struct ltc_hash_descriptor {
+extern  const struct ltc_hash_descriptor {
     /** name of hash */
     const char *name;
     /** internal ID */
@@ -244,7 +244,7 @@ extern  struct ltc_hash_descriptor {
                        const unsigned char *in,  unsigned long  inlen,
                              unsigned char *out, unsigned long *outlen);
 
-} hash_descriptor[];
+} *hash_descriptor[];
 
 #ifdef LTC_CHC_HASH
 int chc_register(int cipher);

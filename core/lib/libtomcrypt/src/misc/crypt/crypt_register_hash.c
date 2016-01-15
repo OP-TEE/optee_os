@@ -27,7 +27,7 @@ int register_hash(const struct ltc_hash_descriptor *hash)
    /* is it already registered? */
    LTC_MUTEX_LOCK(&ltc_hash_mutex);
    for (x = 0; x < TAB_SIZE; x++) {
-       if (XMEMCMP(&hash_descriptor[x], hash, sizeof(struct ltc_hash_descriptor)) == 0) {
+       if (hash_descriptor[x] == hash) {
           LTC_MUTEX_UNLOCK(&ltc_hash_mutex);
           return x;
        }
@@ -35,8 +35,8 @@ int register_hash(const struct ltc_hash_descriptor *hash)
 
    /* find a blank spot */
    for (x = 0; x < TAB_SIZE; x++) {
-       if (hash_descriptor[x].name == NULL) {
-          XMEMCPY(&hash_descriptor[x], hash, sizeof(struct ltc_hash_descriptor));
+       if (hash_descriptor[x] == NULL) {
+          hash_descriptor[x] = hash;
           LTC_MUTEX_UNLOCK(&ltc_hash_mutex);
           return x;
        }

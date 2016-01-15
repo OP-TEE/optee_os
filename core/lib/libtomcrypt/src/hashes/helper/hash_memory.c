@@ -36,8 +36,8 @@ int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned
         return err;
     }
 
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
+    if (*outlen < hash_descriptor[hash]->hashsize) {
+       *outlen = hash_descriptor[hash]->hashsize;
        return CRYPT_BUFFER_OVERFLOW;
     }
 
@@ -46,14 +46,14 @@ int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned
        return CRYPT_MEM;
     }
 
-    if ((err = hash_descriptor[hash].init(md)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->init(md)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].process(md, in, inlen)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash]->process(md, in, inlen)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    err = hash_descriptor[hash].done(md, out);
-    *outlen = hash_descriptor[hash].hashsize;
+    err = hash_descriptor[hash]->done(md, out);
+    *outlen = hash_descriptor[hash]->hashsize;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
     zeromem(md, sizeof(hash_state));

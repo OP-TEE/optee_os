@@ -147,23 +147,23 @@ int yarrow_add_entropy(const unsigned char *in, unsigned long inlen, prng_state 
    }
 
    /* start the hash */
-   if ((err = hash_descriptor[prng->u.yarrow.hash].init(&md)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->u.yarrow.hash]->init(&md)) != CRYPT_OK) {
       goto LBL_UNLOCK;
    }
 
    /* hash the current pool */
-   if ((err = hash_descriptor[prng->u.yarrow.hash].process(&md, prng->u.yarrow.pool,
-                                                        hash_descriptor[prng->u.yarrow.hash].hashsize)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->u.yarrow.hash]->process(&md, prng->u.yarrow.pool,
+                                                        hash_descriptor[prng->u.yarrow.hash]->hashsize)) != CRYPT_OK) {
       goto LBL_UNLOCK;
    }
 
    /* add the new entropy */
-   if ((err = hash_descriptor[prng->u.yarrow.hash].process(&md, in, inlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->u.yarrow.hash]->process(&md, in, inlen)) != CRYPT_OK) {
       goto LBL_UNLOCK;
    }
 
    /* store result */
-   err = hash_descriptor[prng->u.yarrow.hash].done(&md, prng->u.yarrow.pool);
+   err = hash_descriptor[prng->u.yarrow.hash]->done(&md, prng->u.yarrow.pool);
 
 LBL_UNLOCK:
    LTC_MUTEX_UNLOCK(&prng->lock);
@@ -192,7 +192,7 @@ int yarrow_ready(prng_state *prng)
    }
 
    /* setup CTR mode using the "pool" as the key */
-   ks = (int)hash_descriptor[prng->u.yarrow.hash].hashsize;
+   ks = (int)hash_descriptor[prng->u.yarrow.hash]->hashsize;
    if ((err = cipher_descriptor[prng->u.yarrow.cipher].keysize(&ks)) != CRYPT_OK) {
       goto LBL_UNLOCK;
    }
@@ -316,8 +316,8 @@ int yarrow_test(void)
        ((err = cipher_descriptor[prng.u.yarrow.cipher].test()) != CRYPT_OK)) {
       return err;
    }
-   if (hash_descriptor[prng.u.yarrow.hash].test &&
-       ((err = hash_descriptor[prng.u.yarrow.hash].test()) != CRYPT_OK)) {
+   if (hash_descriptor[prng.u.yarrow.hash]->test &&
+       ((err = hash_descriptor[prng.u.yarrow.hash]->test()) != CRYPT_OK)) {
       return err;
    }
 
