@@ -111,7 +111,7 @@ int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* now choose a random seed */
-   if (prng_descriptor[prng_idx].read(seed, hLen, prng) != hLen) {
+   if (prng_descriptor[prng_idx]->read(seed, hLen, prng) != hLen) {
       err = CRYPT_ERROR_READPRNG;
       goto LBL_ERR;
    }
