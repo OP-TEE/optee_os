@@ -29,10 +29,10 @@
 
 #include <tee/entry_std.h>
 #include <sm/teesmc.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/tee_dispatch.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
+#include <util.h>
 
 #include <assert.h>
 
@@ -272,7 +272,7 @@ void tee_entry_std(struct thread_smc_args *args)
 
 	arg_pa = args->a1;
 	if (!tee_pbuf_is_non_sec(arg_pa, sizeof(struct teesmc32_arg)) ||
-	    !TEE_ALIGNMENT_IS_OK(arg_pa, struct teesmc32_arg) ||
+	    !ALIGNMENT_IS_OK(arg_pa, struct teesmc32_arg) ||
 	    core_pa2va(arg_pa, &arg32)) {
 		EMSG("Bad arg address 0x%" PRIxPA, arg_pa);
 		args->a0 = TEESMC_RETURN_EBADADDR;

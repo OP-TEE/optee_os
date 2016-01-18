@@ -15,6 +15,8 @@ CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
+cppflags$(sm)	+= -D__KERNEL__
+
 PLATFORM_FLAVOR ?= default
 platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y
@@ -27,6 +29,9 @@ cflags$(sm)	+= $(platform-cflags) $(core-platform-cflags)
 aflags$(sm)	+= $(platform-aflags) $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
+ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)
+cppflags$(sm) += -DENABLE_MDBG=1
+endif
 
 cppflags$(sm)	+= -Ilib/libutee/include
 

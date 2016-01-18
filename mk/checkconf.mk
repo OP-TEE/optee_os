@@ -31,7 +31,7 @@ define check-conf-mk
 	$(cmd-echo-silent) '  CHK     $@';			\
 	cnf="$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,CFG_),		\
-		$(call cfg-make-variable,$(var))))";		\
+		$(strip $(var)=$($(var))_nl_)))"; \
 	mkdir -p $(dir $@);					\
 	echo "# auto-generated TEE configuration file" >$@.tmp; \
 	echo "# TEE version $${CFG_TEE_VERSION:-(undefined)}" >>$@.tmp; \
@@ -71,12 +71,6 @@ define cfg-make-define
 		     $(if $(filter xn x,x$($1)),
 			  /* $1 is not set ('$($1)') */_nl_,
 			  #define $1 $($1) /* '$($1)' */_nl_)))
-endef
-
-define cfg-make-variable
-	$(strip $(if $(filter xn x,x$($1)),
-			  # $1 is not set ('$($1)')_nl_,
-			  $1=$($1)_nl_))
 endef
 
 # Returns 'y' if at least one variable is 'y', empty otherwise

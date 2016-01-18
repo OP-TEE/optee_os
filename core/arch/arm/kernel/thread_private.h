@@ -128,7 +128,7 @@ struct thread_core_local {
 #ifdef ARM64
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;
-	uint64_t x[8];
+	uint64_t x[4];
 #endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
@@ -158,15 +158,21 @@ struct thread_core_local {
 #define THREAD_CORE_LOCAL_FLAGS_OFFSET			(8 * 1 + 4)
 #define THREAD_CORE_LOCAL_ABT_STACK_VA_END_OFFSET	(8 * 2)
 #define THREAD_CORE_LOCAL_X_OFFSET(x)			(8 * (3 + (x)))
-#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(9)
+#define THREAD_CORE_LOCAL_SIZE			THREAD_CORE_LOCAL_X_OFFSET(5)
 
 /* Describes the flags field of struct thread_core_local */
-#define THREAD_CLF_SAVED_SHIFT				4
-#define THREAD_CLF_CURR_SHIFT				0
-#define THREAD_CLF_MASK					0xf
-#define THREAD_CLF_TMP					(1 << 0)
-#define THREAD_CLF_ABORT				(1 << 1)
-#define THREAD_CLF_THREAD				(1 << 2)
+#define THREAD_CLF_SAVED_SHIFT			4
+#define THREAD_CLF_CURR_SHIFT			0
+#define THREAD_CLF_MASK				0xf
+#define THREAD_CLF_TMP_SHIFT			0
+#define THREAD_CLF_ABORT_SHIFT			1
+#define THREAD_CLF_IRQ_SHIFT			2
+#define THREAD_CLF_FIQ_SHIFT			3
+
+#define THREAD_CLF_TMP				(1 << THREAD_CLF_TMP_SHIFT)
+#define THREAD_CLF_ABORT			(1 << THREAD_CLF_ABORT_SHIFT)
+#define THREAD_CLF_IRQ				(1 << THREAD_CLF_IRQ_SHIFT)
+#define THREAD_CLF_FIQ				(1 << THREAD_CLF_FIQ_SHIFT)
 
 #define THREAD_USER_MODE_REC_EXIT_STATUS0_PTR_OFFSET	(0)
 #define THREAD_USER_MODE_REC_EXIT_STATUS1_PTR_OFFSET	(8 * 1)
@@ -197,6 +203,11 @@ struct thread_core_local *thread_get_core_local(void);
  * in the flags field in the thread context.
  */
 void thread_resume(struct thread_ctx_regs *regs);
+
+uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long user_func, unsigned long spsr,
+		uint32_t *exit_status0, uint32_t *exit_status1);
 
 /*
  * Private functions made available for thread_asm.S

@@ -18,5 +18,5 @@ endif
 platform-cflags += -g
 platform-aflags += -g
 
-CFG_ARM32_user_ta := y
-user_ta-platform-cflags = -fpie
+CFG_ARM32_ta_arm32 := y
+ta_arm32-platform-cflags = -fpie

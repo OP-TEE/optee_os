@@ -27,8 +27,11 @@
 
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
+#include <kernel/mutex.h>
 
 static TEE_Time prev;
+
+static struct mutex time_mu = MUTEX_INITIALIZER;
 
 static TEE_Result get_monotonic_ree_time(TEE_Time *time)
 {
@@ -38,12 +41,14 @@ static TEE_Result get_monotonic_ree_time(TEE_Time *time)
 	if (res != TEE_SUCCESS)
 		return res;
 
+	mutex_lock(&time_mu);
 	if (time->seconds < prev.seconds ||
 		(time->seconds == prev.seconds &&
 		 time->millis < prev.millis))
 		*time = prev; /* REE time was rolled back */
 	else
 		prev = *time;
+	mutex_unlock(&time_mu);
 
 	return res;
 }

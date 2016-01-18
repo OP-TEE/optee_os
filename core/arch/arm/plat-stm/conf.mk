@@ -14,6 +14,8 @@ $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_MMU_V7_TTB,y)
 $(call force,CFG_BOOT_SYNC_CPU,y)
 
+ta-targets = ta_arm32
+
 libtomcrypt_with_optimize_size ?= y
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STACK_CANARIES ?= y

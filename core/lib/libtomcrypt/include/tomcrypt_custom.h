@@ -457,8 +457,20 @@
    #error PK requires ASN.1 DER functionality, make sure LTC_DER is enabled
 #endif
 
+
 /* THREAD management */
-#ifdef LTC_PTHREAD
+#if defined(CFG_LTC_OPTEE_THREAD)
+
+#include <kernel/mutex.h>
+
+#define LTC_MUTEX_GLOBAL(x)   struct mutex x = MUTEX_INITIALIZER;
+#define LTC_MUTEX_PROTO(x)    extern struct mutex x;
+#define LTC_MUTEX_TYPE(x)     struct mutex x;
+#define LTC_MUTEX_INIT(x)     mutex_init(x);
+#define LTC_MUTEX_LOCK(x)     mutex_lock(x);
+#define LTC_MUTEX_UNLOCK(x)   mutex_unlock(x);
+
+#elif defined(LTC_PTHREAD)
 
 #include <pthread.h>
 

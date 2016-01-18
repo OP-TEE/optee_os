@@ -38,7 +38,14 @@
 #endif /* ARM64 */
 
 /* PL011 UART */
-#define CONSOLE_UART_BASE	0xF8015000
+#if defined(CFG_CONSOLE_UART) && (CFG_CONSOLE_UART == 0)
+#define CONSOLE_UART_BASE       0xF8015000
+#elif !defined(CFG_CONSOLE_UART) || (CFG_CONSOLE_UART == 3)
+#define CONSOLE_UART_BASE       0xF7113000
+#else
+#error Unknown console UART
+#endif
+
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	19200000
 

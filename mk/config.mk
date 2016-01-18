@@ -60,6 +60,10 @@ CFG_TEE_PANIC_DEBUG ?= y
 # feature.
 CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
 
+# If y, enable memory leak detection feature in bget memory allocator.
+CFG_TEE_CORE_MALLOC_DEBUG ?= n
+CFG_TEE_TA_MALLOC_DEBUG ?= n
+
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.
@@ -76,7 +80,7 @@ CFG_TEE_API_VERSION ?= GPD-1.1-dev
 CFG_TEE_IMPL_DESCR ?= OPTEE
 
 # Trusted OS implementation version
-CFG_TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
+TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
@@ -90,5 +94,15 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 # Encrypted File System Support
 CFG_ENC_FS ?= y
 
+# File System Block Cache Support
+CFG_FS_BLOCK_CACHE ?= n
+
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
+
+# Include lib/libutils/isoc in the build? Most platforms need this, but some
+# may not because they obtain the isoc functions from elsewhere
+CFG_LIBUTILS_WITH_ISOC ?= y
+
+# Floating point support for TAs default on only for arm32 core
+CFG_TA_FLOAT_SUPPORT ?= $(CFG_ARM32_core)

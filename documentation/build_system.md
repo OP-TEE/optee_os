@@ -67,12 +67,13 @@ The output directory has basically the same structure as the source tree.
 For instance, assuming **ARCH=arm PLATFORM=stm**,
 `core/kernel/panic.c` will compile into `out/arm-plat-stm/core/kernel/panic.o`.
 
-However, some libraries are compiled twice: once for user mode, and once for
-kernel mode. This is because they may be used by the TEE Core as well as by
-the Trusted Applications. As a result, the `lib` source directory gives two
-build directories: `user_ta-lib` and `core-lib`.
+However, some libraries are compiled several times: once or twice for user
+mode, and once for kernel mode. This is because they may be used by the TEE
+Core as well as by the Trusted Applications. As a result, the `lib` source
+directory gives two or three build directories: `ta_arm{32,64}-lib` and
+`core-lib`.
 
-The output directory also has an `export-user_ta` directory, which
+The output directory also has an `export-ta_arm{32,64}` directory, which
 contains:
 - All the files needed to build Trusted Applications.
   - In `lib/`: **libutee.a** (the GlobalPlatform Internal API), **libutils.a**
@@ -82,11 +83,10 @@ contains:
   - In `mk/`: **ta_dev_kit.mk**, which is a Make include file with suitable
   rules to build a TA, and its dependencies
   - `scripts/sign.py`: a Python script used by ta_dev_kit.mk to sign TAs.
-  - In `src`: **user_ta_header.c** and **user_ta_elf_arm.lds**: source file and
-  linker script to add a suitable header to the Trusted Application (as expected
-  by the loader code in the TEE Core)
+  - In `src`: **user_ta_header.c**: source file to add a suitable header to the
+  Trusted Application (as expected by the loader code in the TEE Core)
 - Some files needed to build host applications (using the Client API), under
-  `export-user_ta/host_include`.
+  `export-ta_arm{32,64}/host_include`.
 
 Finally, the build directory contains the auto-generated configuration file
 for the TEE Core: `$(O)/core/include/generated/conf.h` (see below).
@@ -102,7 +102,8 @@ $ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 ```
 
 The CROSS_COMPILE variable can be overridden with **CROSS_COMPILE_core** and
-**CROSS_COMPILE_user_ta** for TEE Core and Trusted Applications respectively.
+**CROSS_COMPILE_ta_arm{32,64}** for TEE Core and Trusted Applications
+respectively.
 This is needed if TEE Core and Trusted Application libraries need to be
 compiled with different compilers due to a mix of 64bit and 32bit code.
 
@@ -114,10 +115,10 @@ The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/platf
 - **$(platform-aflags)**, **$(platform-cflags)** and **$(platform-cppflags)**
   are added to the assembler / C compiler / preprocessor flags for all source
   files
-- **$(user_ta-platform-aflags)**, **$(user_ta-platform-cflags)** and
-  **$(user_ta-platform-cppflags)** are added to the assembler / C compiler /
-  preprocessor flags when building the user-mode libraries (**libutee.a**,
-  **libutils.a**, **libmpa.a**) or Trusted Applications.
+- **$(ta_arm{32,64}-platform-aflags)**, **$(ta_arm{32,64}-platform-cflags)**
+  and **$(ta_arm{32,64}-platform-cppflags)** are added to the assembler / C
+  compiler / preprocessor flags when building the user-mode libraries
+  (**libutee.a**, **libutils.a**, **libmpa.a**) or Trusted Applications.
 
 The following variables are defined in `core/arch/$(ARCH)/plat-$(PLATFORM)/conf.mk`:
 
@@ -198,7 +199,7 @@ and `cflags-lib-y`.
 
 Include directories may be added to `global-incdirs-y`, in which case they will
 be accessible from all the source files and will be copied to
-`export-user_ta/include` and `export-user_ta/host_include`.
+`export-ta_arm{32,64}/include` and `export-ta_arm{32,64}/host_include`.
 
 When `sub.mk` is used to build a library, `incdirs-lib-y` may receive additional
 directories that will be used for that library only.

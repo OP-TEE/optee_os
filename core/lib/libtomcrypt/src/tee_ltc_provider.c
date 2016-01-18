@@ -482,15 +482,17 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 static uint32_t *_ltc_mempool_u32;
 
 /* allocate pageable_zi vmem for mpa scratch memory pool */
-static uint32_t *get_mpa_scratch_memory_pool(size_t *size_pool)
+static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 {
+	void *pool;
+
 	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
 			     SMALL_PAGE_SIZE);
 	_ltc_mempool_u32 = tee_pager_request_zi(*size_pool);
 	if (!_ltc_mempool_u32)
 		panic();
-
-	return _ltc_mempool_u32;
+	pool = (void *)_ltc_mempool_u32;
+	return (mpa_scratch_mem)pool;
 }
 
 /* release unused pageable_zi vmem */
@@ -518,12 +520,15 @@ static void release_unused_mpa_scratch_memory(void)
 }
 #else /* CFG_WITH_PAGER */
 
-static uint32_t _ltc_mempool_u32[LTC_MEMPOOL_U32_SIZE];
+static uint32_t _ltc_mempool_u32[LTC_MEMPOOL_U32_SIZE]
+	__aligned(__alignof__(mpa_scratch_mem_base));
 
-static uint32_t *get_mpa_scratch_memory_pool(size_t *size_pool)
+static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 {
+	void *pool = (void *)_ltc_mempool_u32;
+
 	*size_pool = sizeof(_ltc_mempool_u32);
-	return _ltc_mempool_u32;
+	return (mpa_scratch_mem)pool;
 }
 
 static void release_unused_mpa_scratch_memory(void)
@@ -533,7 +538,7 @@ static void release_unused_mpa_scratch_memory(void)
 
 #endif
 
-static inline void tee_ltc_acipher_postactions(void)
+static void pool_postactions(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
@@ -541,14 +546,89 @@ static inline void tee_ltc_acipher_postactions(void)
 	release_unused_mpa_scratch_memory();
 }
 
+#if defined(CFG_LTC_OPTEE_THREAD)
+#include <kernel/thread.h>
+static struct mpa_scratch_mem_sync {
+	struct mutex mu;
+	struct condvar cv;
+	size_t count;
+	int owner;
+} pool_sync = {
+	.mu = MUTEX_INITIALIZER,
+	.cv = CONDVAR_INITIALIZER,
+	.owner = THREAD_ID_INVALID,
+};
+#elif defined(LTC_PTHREAD)
+#error NOT SUPPORTED
+#else
+static struct mpa_scratch_mem_sync {
+	size_t count;
+} pool_sync;
+#endif
+
+/* Get exclusive access to scratch memory pool */
+#if defined(CFG_LTC_OPTEE_THREAD)
+static void get_pool(struct mpa_scratch_mem_sync *sync)
+{
+	mutex_lock(&sync->mu);
+
+	if (sync->owner != thread_get_id()) {
+		/* Wait until the pool is available */
+		while (sync->owner != THREAD_ID_INVALID)
+			condvar_wait(&sync->cv, &sync->mu);
+
+		sync->owner = thread_get_id();
+		assert(sync->count == 0);
+	}
+
+	sync->count++;
+
+	mutex_unlock(&sync->mu);
+}
+
+/* Put (release) exclusive access to scratch memory pool */
+static void put_pool(struct mpa_scratch_mem_sync *sync)
+{
+	mutex_lock(&sync->mu);
+
+	assert(sync->owner == thread_get_id());
+	assert(sync->count > 0);
+
+	sync->count--;
+	if (!sync->count) {
+		sync->owner = THREAD_ID_INVALID;
+		condvar_signal(&sync->cv);
+		pool_postactions();
+	}
+
+	mutex_unlock(&sync->mu);
+}
+#elif defined(LTC_PTHREAD)
+#error NOT SUPPORTED
+#else
+static void get_pool(struct mpa_scratch_mem_sync *sync)
+{
+	sync->count++;
+}
+
+/* Put (release) exclusive access to scratch memory pool */
+static void put_pool(struct mpa_scratch_mem_sync *sync)
+{
+	sync->count--;
+	if (!sync->count)
+		pool_postactions();
+}
+#endif
+
 static void tee_ltc_alloc_mpa(void)
 {
 	mpa_scratch_mem pool;
 	size_t size_pool;
 
-	pool = (mpa_scratch_mem)get_mpa_scratch_memory_pool(&size_pool);
+	pool = get_mpa_scratch_memory_pool(&size_pool);
 	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem(pool, size_pool, LTC_MAX_BITS_PER_VARIABLE);
+	mpa_init_scratch_mem_sync(pool, size_pool, LTC_MAX_BITS_PER_VARIABLE,
+				  get_pool, put_pool, &pool_sync);
 
 	mpa_set_random_generator(crypto_ops.prng.read);
 }
@@ -625,7 +705,6 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e)) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 	if (!bn_alloc_max(&s->d))
@@ -643,7 +722,6 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 	if (!bn_alloc_max(&s->dq))
 		goto err;
 
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->e);
@@ -654,7 +732,6 @@ err:
 	bn_free(s->qp);
 	bn_free(s->dp);
 
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -663,16 +740,13 @@ static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e)) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 	if (!bn_alloc_max(&s->n))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->e);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -719,7 +793,6 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 		res = TEE_SUCCESS;
 	}
 
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -783,7 +856,6 @@ out:
 	if (buf)
 		free(buf);
 
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -799,7 +871,6 @@ static TEE_Result rsanopad_encrypt(struct rsa_public_key *key,
 	ltc_key.N = key->n;
 
 	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -823,7 +894,6 @@ static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 	}
 
 	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -920,7 +990,6 @@ out:
 	if (buf)
 		free(buf);
 
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -978,7 +1047,6 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 	res = TEE_SUCCESS;
 
 out:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1066,7 +1134,6 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	res = TEE_SUCCESS;
 
 err:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1136,7 +1203,6 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 	res = TEE_SUCCESS;
 
 err:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1149,7 +1215,6 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -1161,14 +1226,12 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->x))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->q);
 	bn_free(s->y);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1177,7 +1240,6 @@ static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -1187,13 +1249,11 @@ static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->q);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1234,7 +1294,6 @@ static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 		dsa_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1293,7 +1352,6 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	mp_clear_multi(r, s, NULL);
 
 err:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1336,7 +1394,6 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 		res = TEE_ERROR_GENERIC;
 
 err:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1349,7 +1406,6 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -1361,14 +1417,12 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->q))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->g);
 	bn_free(s->p);
 	bn_free(s->y);
 	bn_free(s->x);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1395,7 +1449,6 @@ static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
 		dh_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1413,7 +1466,6 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 	};
 
 	err = dh_shared_secret(&pk, public_key, secret);
-	tee_ltc_acipher_postactions();
 	return ((err == CRYPT_OK) ? TEE_SUCCESS : TEE_ERROR_BAD_PARAMETERS);
 }
 
@@ -1431,13 +1483,11 @@ static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->d);
 	bn_free(s->x);
 	bn_free(s->y);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1449,12 +1499,10 @@ static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
 		goto err;
 	if (!bn_alloc_max(&s->y))
 		goto err;
-	tee_ltc_acipher_postactions();
 	return TEE_SUCCESS;
 err:
 	bn_free(s->x);
 	bn_free(s->y);
-	tee_ltc_acipher_postactions();
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1548,7 +1596,6 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 
 	res = ecc_get_keysize(key->curve, 0, &key_size_bytes, &key_size_bits);
 	if (res != TEE_SUCCESS) {
-		tee_ltc_acipher_postactions();
 		return res;
 	}
 
@@ -1556,7 +1603,6 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 	ltc_res = ecc_make_key(&prng->state, prng->index,
 			       key_size_bytes, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -1583,7 +1629,6 @@ static TEE_Result gen_ecc_key(struct ecc_keypair *key)
 
 exit:
 	ecc_free(&ltc_tmp_key);		/* Free the temporary key */
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1713,7 +1758,6 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	mp_clear_multi(r, s, NULL);
 
 err:
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1731,13 +1775,11 @@ static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	ecc_key ltc_key;
 
 	if (algo == 0) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	ltc_res = mp_init_multi(&key_z, &r, &s, NULL);
 	if (ltc_res != CRYPT_OK) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -1763,7 +1805,6 @@ static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
 
 out:
 	mp_clear_multi(key_z, r, s, NULL);
-	tee_ltc_acipher_postactions();
 	return res;
 }
 
@@ -1780,13 +1821,11 @@ static TEE_Result do_ecc_shared_secret(struct ecc_keypair *private_key,
 
 	/* Check the curves are the same */
 	if (private_key->curve != public_key->curve) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	ltc_res = mp_init_multi(&key_z, NULL);
 	if (ltc_res != CRYPT_OK) {
-		tee_ltc_acipher_postactions();
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -1808,7 +1847,6 @@ static TEE_Result do_ecc_shared_secret(struct ecc_keypair *private_key,
 
 out:
 	mp_clear_multi(key_z, NULL);
-	tee_ltc_acipher_postactions();
 	return res;
 }
 #endif /* CFG_CRYPTO_ECC */

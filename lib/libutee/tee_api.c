@@ -31,10 +31,71 @@
 #include <utee_syscalls.h>
 #include <user_ta_header.h>
 #include "tee_user_mem.h"
+#include "tee_api_private.h"
 
 static void *tee_api_instance_data;
 
 /* System API - Internal Client API */
+
+void __utee_from_param(struct utee_params *up, uint32_t param_types,
+			const TEE_Param params[TEE_NUM_PARAMS])
+{
+	size_t n;
+
+	up->types = param_types;
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			up->vals[n * 2] = params[n].value.a;
+			up->vals[n * 2 + 1] = params[n].value.b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			up->vals[n * 2] = (uintptr_t)params[n].memref.buffer;
+			up->vals[n * 2 + 1] = params[n].memref.size;
+			break;
+		default:
+			up->vals[n * 2] = 0;
+			up->vals[n * 2 + 1] = 0;
+			break;
+		}
+	}
+}
+
+void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
+			uint32_t *param_types, const struct utee_params *up)
+{
+	size_t n;
+	uint32_t types = up->types;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uintptr_t a = up->vals[n * 2];
+		uintptr_t b = up->vals[n * 2 + 1];
+
+		switch (TEE_PARAM_TYPE_GET(types, n)) {
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			params[n].value.a = a;
+			params[n].value.b = b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			params[n].memref.buffer = (void *)a;
+			params[n].memref.size = b;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (param_types)
+		*param_types = types;
+}
 
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 			     uint32_t cancellationRequestTimeout,
@@ -43,24 +104,30 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 			     uint32_t *returnOrigin)
 {
 	TEE_Result res;
+	struct utee_params up;
+	uint32_t s;
 
+	__utee_from_param(&up, paramTypes, params);
 	res = utee_open_ta_session(destination, cancellationRequestTimeout,
-				   paramTypes, params, session, returnOrigin);
+				   &up, &s, returnOrigin);
+	__utee_to_param(params, NULL, &up);
 	/*
 	 * Specification says that *session must hold TEE_HANDLE_NULL is
 	 * TEE_SUCCESS isn't returned. Set it here explicitly in case
 	 * the syscall fails before out parameters has been updated.
 	 */
 	if (res != TEE_SUCCESS)
-		*session = TEE_HANDLE_NULL;
+		s = TEE_HANDLE_NULL;
 
+	*session = (TEE_TASessionHandle)(uintptr_t)s;
 	return res;
 }
 
 void TEE_CloseTASession(TEE_TASessionHandle session)
 {
 	if (session != TEE_HANDLE_NULL) {
-		TEE_Result res = utee_close_ta_session(session);
+		TEE_Result res = utee_close_ta_session((uintptr_t)session);
+
 		if (res != TEE_SUCCESS)
 			TEE_Panic(res);
 	}
@@ -73,10 +140,13 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 {
 	TEE_Result res;
 	uint32_t ret_origin;
+	struct utee_params up;
 
-	res = utee_invoke_ta_command(session, cancellationRequestTimeout,
-				      commandID, paramTypes, params,
-				      &ret_origin);
+	__utee_from_param(&up, paramTypes, params);
+	res = utee_invoke_ta_command((uintptr_t)session,
+				      cancellationRequestTimeout,
+				      commandID, &up, &ret_origin);
+	__utee_to_param(params, NULL, &up);
 
 	if (returnOrigin != NULL)
 		*returnOrigin = ret_origin;
@@ -96,31 +166,32 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 
 bool TEE_GetCancellationFlag(void)
 {
-	bool c;
+	uint32_t c;
 	TEE_Result res = utee_get_cancellation_flag(&c);
+
 	if (res != TEE_SUCCESS)
-		c = false;
-	return c;
+		c = 0;
+	return !!c;
 }
 
 bool TEE_UnmaskCancellation(void)
 {
-	bool old_mask;
+	uint32_t old_mask;
 	TEE_Result res = utee_unmask_cancellation(&old_mask);
 
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
-	return old_mask;
+	return !!old_mask;
 }
 
 bool TEE_MaskCancellation(void)
 {
-	bool old_mask;
+	uint32_t old_mask;
 	TEE_Result res = utee_mask_cancellation(&old_mask);
 
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
-	return old_mask;
+	return !!old_mask;
 }
 
 /* System API - Memory Management */

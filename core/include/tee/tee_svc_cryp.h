@@ -30,72 +30,74 @@
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager_unpg.h>
 
-TEE_Result syscall_cryp_obj_get_info(uint32_t obj, TEE_ObjectInfo *info);
-TEE_Result syscall_cryp_obj_restrict_usage(uint32_t obj, uint32_t usage);
-TEE_Result syscall_cryp_obj_get_attr(uint32_t obj, uint32_t attr_id,
-			     void *buffer, uint32_t *size);
+TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
+TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
+			unsigned long usage);
+TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
+			void *buffer, uint64_t *size);
 
-TEE_Result syscall_cryp_obj_alloc(TEE_ObjectType obj_type,
-			  uint32_t max_key_size, uint32_t *obj);
-TEE_Result syscall_cryp_obj_close(uint32_t obj);
-TEE_Result syscall_cryp_obj_reset(uint32_t obj);
-TEE_Result syscall_cryp_obj_populate(uint32_t obj,
-		struct abi_user32_attribute *usr_attrs, uint32_t attr_count);
-TEE_Result syscall_cryp_obj_copy(uint32_t dst_obj, uint32_t src_obj);
-TEE_Result syscall_obj_generate_key(uint32_t obj, uint32_t key_size,
-			    const struct abi_user32_attribute *usr_params,
-			    uint32_t param_count);
+TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
+			unsigned long max_key_size, uint32_t *obj);
+TEE_Result syscall_cryp_obj_close(unsigned long obj);
+TEE_Result syscall_cryp_obj_reset(unsigned long obj);
+TEE_Result syscall_cryp_obj_populate(unsigned long obj,
+			struct utee_attribute *attrs, unsigned long attr_count);
+TEE_Result syscall_cryp_obj_copy(unsigned long dst_obj,
+			unsigned long src_obj);
+TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
+			const struct utee_attribute *params,
+			unsigned long param_count);
 
-TEE_Result syscall_cryp_state_alloc(uint32_t algo, uint32_t op_mode,
-			    uint32_t key1, uint32_t key2,
-			    uint32_t *state);
-TEE_Result syscall_cryp_state_copy(uint32_t dst, uint32_t src);
-TEE_Result syscall_cryp_state_free(uint32_t state);
-void tee_svc_cryp_free_states(struct tee_ta_ctx *ctx);
+TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long op_mode,
+			unsigned long key1, unsigned long key2,
+			uint32_t *state);
+TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src);
+TEE_Result syscall_cryp_state_free(unsigned long state);
+void tee_svc_cryp_free_states(struct user_ta_ctx *utc);
 
 /* iv and iv_len are ignored for hash algorithms */
-TEE_Result syscall_hash_init(uint32_t state, const void *iv, size_t iv_len);
-TEE_Result syscall_hash_update(uint32_t state, const void *chunk,
-		       size_t chunk_size);
-TEE_Result syscall_hash_final(uint32_t state, const void *chunk,
-		      size_t chunk_size, void *hash, uint32_t *hash_len);
+TEE_Result syscall_hash_init(unsigned long state, const void *iv,
+			size_t iv_len);
+TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
+			size_t chunk_size);
+TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
+			size_t chunk_size, void *hash, uint64_t *hash_len);
 
-TEE_Result syscall_cipher_init(uint32_t state, const void *iv, size_t iv_len);
-TEE_Result syscall_cipher_update(uint32_t state, const void *src,
-			 size_t src_len, void *dest, uint32_t *dest_len);
-TEE_Result syscall_cipher_final(uint32_t state, const void *src,
-			size_t src_len, void *dest, uint32_t *dest_len);
+TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
+			size_t iv_len);
+TEE_Result syscall_cipher_update(unsigned long state, const void *src,
+			size_t src_len, void *dest, uint64_t *dest_len);
+TEE_Result syscall_cipher_final(unsigned long state, const void *src,
+			size_t src_len, void *dest, uint64_t *dest_len);
 
-TEE_Result syscall_cryp_derive_key(uint32_t state,
-			const struct abi_user32_attribute *usr_params,
-			uint32_t param_count, uint32_t derived_key);
+TEE_Result syscall_cryp_derive_key(unsigned long state,
+			const struct utee_attribute *params,
+			unsigned long param_count, unsigned long derived_key);
 
 TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen);
 
-TEE_Result syscall_authenc_init(uint32_t state, const void *nonce,
+TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 			size_t nonce_len, size_t tag_len,
 			size_t aad_len, size_t payload_len);
-TEE_Result syscall_authenc_update_aad(uint32_t state, const void *aad_data,
-			      size_t aad_data_len);
-TEE_Result syscall_authenc_update_payload(uint32_t state, const void *src_data,
-				  size_t src_len, void *dest_data,
-				  uint32_t *dest_len);
-TEE_Result syscall_authenc_enc_final(uint32_t state, const void *src_data,
-			     size_t src_len, void *dest_data,
-			     uint32_t *dest_len, void *tag,
-			     uint32_t *tag_len);
-TEE_Result syscall_authenc_dec_final(uint32_t state, const void *src_data,
-			     size_t src_len, void *dest_data,
-			     uint32_t *dest_len, const void *tag,
-			     size_t tag_len);
+TEE_Result syscall_authenc_update_aad(unsigned long state,
+			const void *aad_data, size_t aad_data_len);
+TEE_Result syscall_authenc_update_payload(unsigned long state,
+			const void *src_data, size_t src_len, void *dest_data,
+			uint64_t *dest_len);
+TEE_Result syscall_authenc_enc_final(unsigned long state,
+			const void *src_data, size_t src_len, void *dest_data,
+			uint64_t *dest_len, void *tag, uint64_t *tag_len);
+TEE_Result syscall_authenc_dec_final(unsigned long state,
+			const void *src_data, size_t src_len, void *dest_data,
+			uint64_t *dest_len, const void *tag, size_t tag_len);
 
-TEE_Result syscall_asymm_operate(uint32_t state,
-			const struct abi_user32_attribute *usr_params,
-			uint32_t num_params, const void *src_data,
-			size_t src_len, void *dest_data, uint32_t *dest_len);
-TEE_Result syscall_asymm_verify(uint32_t state,
-			const struct abi_user32_attribute *usr_params,
-			uint32_t num_params, const void *data,
-			size_t data_len, const void *sig, size_t sig_len);
+TEE_Result syscall_asymm_operate(unsigned long state,
+			const struct utee_attribute *usr_params,
+			size_t num_params, const void *src_data,
+			size_t src_len, void *dest_data, uint64_t *dest_len);
+TEE_Result syscall_asymm_verify(unsigned long state,
+			const struct utee_attribute *usr_params,
+			size_t num_params, const void *data, size_t data_len,
+			const void *sig, size_t sig_len);
 
 #endif /* TEE_SVC_CRYP_H */

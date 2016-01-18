@@ -1,3 +1,65 @@
+# OP-TEE - version 1.1.0
+
+
+## New features
+
+* Softfloat library: floating point support is now available in 32bits TA.
+
+* Support running 64-bits TA: on ARMv8-A platform, TA can be compiled in
+  AArch32 and/or in AArch64 in case the core is compiled in AArch64.
+  An example can be found in HiKey configuration file. Using the following
+  excerpt code, the user TA libraries are compiled in both AArch32 and
+  AArch64, and can be found in `out/arm-plat-hikey/export-ta_arm32` and
+  `out/arm-plat-hikey/export-ta_arm64`
+
+```
+    ta-targets = ta_arm32
+    ta-targets += ta_arm64
+```
+
+* Concurrent TA support: multiple TA can run in parallel on
+  several cores.
+
+* New tests added in xtest test suite: concurrent TA (xtest 1013),
+  floating point tests (xtest 1006 and os_test TA) and corruption
+  file storage (xtest 20000)
+
+* [Link][github_commits_1_1_0] to a list of all commits between this and
+  previous release.
+
+
+## Tested on
+Definitions:
+
+| Type | Meaning |
+| ---- | ------- |
+| Standard tests | The [optee_test][optee_test] project. |
+| Extended tests | optee_test with tests from the GlobalPlatform™ TEE Initial Configuration Test Suite v1.1.0.4. |
+| Hello world test | Plain hello world Trusted Application such as [this][hello_world]. |
+
+*	Foundation Models (vexpress-fvp), standard tests + extended tests,
+	using FVP ARM V8 Foundation Platformr0p0 (platform build 9.5.40)
+*	HiKey (hikey), standard + extended tests.
+*	MT8173 (mediatek), standard tests.
+*	QEMU (vexpress-qemu), standard + extended tests.
+*	STM Cannes (stm-cannes), standard + extended tests.
+
+## Known issues
+* Secure Storage is implemented, but note that anti-rollback protection
+  is not implemented yet.
+
+* Issue(s) open on GitHub
+  * [#40][prld40] BUG_ON() when re-using RPC buffer to tee-supplicant
+  * [#296][pr296]: Connecting RPMB to the storage APIs.
+  * [#493][pr493]: setup_juno_optee: unable to find pre-built binaries
+  * [#506][pr506]: tee-supplicant panic & ta panic
+
+[prld40]: https://github.com/OP-TEE/optee_linuxdriver/issues/40
+[pr506]: https://github.com/OP-TEE/optee_os/issues/506
+[github_commits_1_1_0]: https://github.com/OP-TEE/optee_os/compare/1.0.1...1.1.0
+
+
+
 # OP-TEE - version 1.0.0
 
 OP-TEE is now maintained by Linaro. Contributors do not need to

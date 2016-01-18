@@ -28,10 +28,6 @@
 /*
  * This file provides what C99 standard requires in
  * 7.18 interger types <stdint.h>
- * with the exception of:
- * o Minimum-width integer types
- * o Fastest minimum-width integer types
- * o Geatest-width integer types
  */
 
 #ifndef STDINT_H
@@ -88,6 +84,26 @@ typedef unsigned long long int  uint64_t;
 typedef unsigned long int	uint64_t;
 #endif /*__LP64__*/
 
+/* 7.18.1.2 Minimum-width integer types */
+typedef int8_t int_least8_t;
+typedef int16_t int_least16_t;
+typedef int32_t int_least32_t;
+typedef int64_t int_least64_t;
+typedef uint8_t uint_least8_t;
+typedef uint16_t uint_least16_t;
+typedef uint32_t uint_least32_t;
+typedef uint64_t uint_least64_t;
+
+/* 7.18.1.3 Fastest minimum-width integer types */
+typedef int8_t int_fast8_t;
+typedef int16_t int_fast16_t;
+typedef int32_t int_fast32_t;
+typedef int64_t int_fast64_t;
+typedef uint8_t uint_fast8_t;
+typedef uint16_t uint_fast16_t;
+typedef uint32_t uint_fast32_t;
+typedef uint64_t uint_fast64_t;
+
 /* 7.18.1.4 Integer types capable of holding object pointers */
 typedef long intptr_t;
 typedef unsigned long uintptr_t;
@@ -116,6 +132,40 @@ typedef uint64_t uintmax_t;
 #define UINT32_MAX   0xffffffffU
 #define UINT64_MAX   0xffffffffffffffffUL
 
+/* 7.18.2.2 Limits of minimum-width integer types */
+
+#define INT_LEAST8_MIN		INT8_MIN
+#define INT_LEAST16_MIN		INT16_MIN
+#define INT_LEAST32_MIN		INT32_MIN
+#define INT_LEAST64_MIN		INT64_MIN
+
+#define INT_LEAST8_MAX		INT8_MAX
+#define INT_LEAST16_MAX		INT16_MAX
+#define INT_LEAST32_MAX		INT32_MAX
+#define INT_LEAST64_MAX		INT64_MAX
+
+#define UINT_LEAST8_MAX		UINT8_MAX
+#define UINT_LEAST16_MAX	UINT16_MAX
+#define UINT_LEAST32_MAX	UINT32_MAX
+#define UINT_LEAST64_MAX	UINT64_MAX
+
+/* 7.18.2.3 Limits of fastest minimum-width integer types */
+
+#define INT_FAST8_MIN		INT8_MIN
+#define INT_FAST16_MIN		INT16_MIN
+#define INT_FAST32_MIN		INT32_MIN
+#define INT_FAST64_MIN		INT64_MIN
+
+#define INT_FAST8_MAX		INT8_MAX
+#define INT_FAST16_MAX		INT16_MAX
+#define INT_FAST32_MAX		INT32_MAX
+#define INT_FAST64_MAX		INT64_MAX
+
+#define UINT_FAST8_MAX		UINT8_MAX
+#define UINT_FAST16_MAX		UINT16_MAX
+#define UINT_FAST32_MAX		UINT32_MAX
+#define UINT_FAST64_MAX		UINT64_MAX
+
 /* 7.18.2.4 Limits of integer types capable of holding object pointers */
 
 #define INTPTR_MIN  LONG_MIN
@@ -125,5 +175,32 @@ typedef uint64_t uintmax_t;
 #define INTMAX_MAX  INT64_MAX
 #define INTMAX_MIN  INT64_MIN
 #define UINTMAX_MAX UINT64_MAX
+
+/*
+ * 7.18.4 Macros for integer constants
+ */
+
+/* 7.18.4.1 Macros for minimum-width integer constants */
+
+#define INT8_C(v)	v
+#define UINT8_C(v)	v
+#define INT16_C(v)	v
+#define UINT16_C(v)	v
+#define INT32_C(v)	v
+#define UINT32_C(v)	v ## U
+#ifdef __ILP32__
+#define INT64_C(v)	v ## LL
+#define UINT64_C(v)	v ## ULL
+#endif
+#ifdef __LP64__
+#define INT64_C(v)	v ## L
+#define UINT64_C(v)	v ## UL
+#endif
+
+/* 7.18.4.2 Macros for greatest-width integer constants */
+
+#define INTMAX_C(v)	INT64_C(v)
+#define UINTMAX_C(v)	UINT64_C(v)
+
 
 #endif /* STDINT_H */

@@ -145,7 +145,6 @@ struct thread_svc_regs {
 struct thread_svc_regs {
 	uint64_t elr;
 	uint64_t spsr;
-	uint64_t pad;
 	uint64_t x0;	/* r0_usr */
 	uint64_t x1;	/* r1_usr */
 	uint64_t x2;	/* r2_usr */
@@ -161,6 +160,9 @@ struct thread_svc_regs {
 	uint64_t x12;	/* r12_usr */
 	uint64_t x13;	/* r13/sp_usr */
 	uint64_t x14;	/* r14/lr_usr */
+	uint64_t x30;
+	uint64_t sp_el0;
+	uint64_t pad;
 } __aligned(16);
 #endif /*ARM64*/
 #endif /*ASM*/
@@ -195,9 +197,10 @@ struct thread_svc_regs {
 
 #define THREAD_SVC_REG_ELR_OFFS		(8 * 0)
 #define THREAD_SVC_REG_SPSR_OFFS	(8 * 1)
-#define THREAD_SVC_REG_PAD_OFFS		(8 * 2)
-#define THREAD_SVC_REG_X_OFFS(x)	(8 * (3 + (x)))
-#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(15)
+#define THREAD_SVC_REG_X_OFFS(x)	(8 * (2 + (x)))
+#define THREAD_SVC_REG_X30_OFFS		THREAD_SVC_REG_X_OFFS(15)
+#define THREAD_SVC_REG_SP_EL0_OFFS	THREAD_SVC_REG_X_OFFS(16)
+#define THREAD_SVC_REG_SIZE		THREAD_SVC_REG_X_OFFS(18)
 
 #endif /*ARM64*/
 
@@ -393,6 +396,7 @@ void thread_kernel_disable_vfp(uint32_t state);
  * @a3:		Passed in r/x3 for user_func
  * @user_sp:	Assigned sp value in user mode
  * @user_func:	Function to execute in user mode
+ * @is_32bit:   True if TA should execute in Aarch32, false if Aarch64
  * @exit_status0: Pointer to opaque exit staus 0
  * @exit_status1: Pointer to opaque exit staus 1
  *
@@ -403,9 +407,9 @@ void thread_kernel_disable_vfp(uint32_t state);
  *
  * @Returns what's passed in "ret" to thread_unwind_user_mode()
  */
-
-uint32_t thread_enter_user_mode(uint32_t a0, uint32_t a1, uint32_t a2,
-		uint32_t a3, vaddr_t user_sp, vaddr_t user_func,
+uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long entry_func, bool is_32bit,
 		uint32_t *exit_status0, uint32_t *exit_status1);
 
 /*
@@ -453,50 +457,6 @@ void thread_add_mutex(struct mutex *m);
  * Requires IRQs to be disabled.
  */
 void thread_rem_mutex(struct mutex *m);
-
-/*
- * Takes big lock. Since OP-TEE currently is single threaded all standard
- * calls (non-fast calls) must call this function before starting to do any
- * real work.
- */
-void thread_take_big_lock(void);
-
-/*
- * Releases big lock. Since OP-TEE currently is single threaded all standard
- * calls (non-fast calls) must call this function before doing a normal
- * return (non-RPC) return to nonsecure world.
- */
-void thread_release_big_lock(void);
-
-/*
- * Almost the same thing as thread_release_big_lock() except that the
- * function is a null operation if CFG_DISABLE_CONCURRENT_EXEC is set.
- *
- * This function should be used instead of thread_release_big_lock() when
- * the behaviour need to be controlled by CFG_DISABLE_CONCURRENT_EXEC, for
- * instance prior to entering a TA.
- */
-static inline void thread_enable_concurrency(void)
-{
-#ifndef CFG_DISABLE_CONCURRENT_EXEC
-	thread_release_big_lock();
-#endif
-}
-
-/*
- * Almost the same thing as thread_take_big_lock() except that the function
- * is a null operation if CFG_DISABLE_CONCURRENT_EXEC is set.
- *
- * This function should be used instead of thread_take_big_lock() when the
- * behaviour need to be controlled by CFG_DISABLE_CONCURRENT_EXEC, for
- * instance on reentry of TEE Core from a TA.
- */
-static inline void thread_disable_concurrency(void)
-{
-#ifndef CFG_DISABLE_CONCURRENT_EXEC
-	thread_take_big_lock();
-#endif
-}
 
 /**
  * Allocates data for struct teesmc32_arg.

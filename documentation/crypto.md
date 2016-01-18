@@ -31,7 +31,7 @@ Cryptographic Operations API.
 
 The Internal API is implemented in
 [tee_api_operations.c](../lib/libutee/tee_api_operations.c), which is
-compiled into a static library: `${O}/user_ta-lib/lib/libutee.a`.
+compiled into a static library: `${O}/ta_arm{32,64}-lib/libutee/libutee.a`.
 
 Most API functions perform some parameter checking and manipulations, then
 invoke some **utee_\*** function to switch to kernel mode and perform the

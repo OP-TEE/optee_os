@@ -13,6 +13,8 @@ $(call force,CFG_16550_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_BOOT_SYNC_CPU,y)
 
+ta-targets = ta_arm32
+
 CFG_WITH_STACK_CANARIES ?= y
 
 include mk/config.mk

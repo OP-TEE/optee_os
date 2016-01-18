@@ -407,13 +407,13 @@ END_FUNC thread_init_vbar
  */
 
 /*
- * TEE_Result thread_enter_user_mode(
- *              uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
- *              tee_uaddr_t sp, tee_uaddr_t user_func,
- *              uint32_t *panicked, uint32_t *panic_code);
- * See description in thread.h
+ * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
+ *               unsigned long a2, unsigned long a3, unsigned long user_sp,
+ *               unsigned long user_func, unsigned long spsr,
+ *               uint32_t *exit_status0, uint32_t *exit_status1)
+ *
  */
-FUNC thread_enter_user_mode , :
+FUNC __thread_enter_user_mode , :
 	/*
 	 * Save all registers to allow syscall_return() to resume execution
 	 * as if this function would have returned. This is also used in
@@ -426,7 +426,14 @@ FUNC thread_enter_user_mode , :
 
 	ldr     r4, [sp, #(10 * 0x4)]   /* user stack pointer */
 	ldr     r5, [sp, #(11 * 0x4)]   /* user function */
+	ldr     r6, [sp, #(12 * 0x4)]   /* spsr */
 
+	/*
+	 * Set the saved Processors Status Register to user mode to allow
+	 * entry of user mode through movs below.
+	 */
+	msr     spsr_cxsf, r6
+	
 	/*
 	 * Save old user sp and set new user sp.
 	 */
@@ -437,28 +444,13 @@ FUNC thread_enter_user_mode , :
 	push	{r6}
 
 	/*
-	 * Set the saved Processors Status Register to user mode to allow
-	 * entry of user mode through movs below. Also update thumbstate
-	 * since movs doesn't do that automatically.
-	 */
-	mrs     r6, cpsr
-	bic     r6, #CPSR_MODE_MASK
-	orr	r6, #CPSR_MODE_USR
-	tst     r5, #1	/* If it's odd we should switch to thumb mode */
-	orrne   r6, #CPSR_T		/* Enable thumb mode */
-	biceq   r6, #CPSR_T		/* Disable thumb mode */
-	bicne   r6, #CPSR_IT_MASK1	/* Clear IT state for thumb mode */
-	bicne   r6, #CPSR_IT_MASK2	/* Clear IT state for thumb mode */
-	msr     spsr_cxsf, r6
-
-	/*
 	* Don't allow return from this function, return is done through
 	* thread_unwind_user_mode() below.
 	*/
 	mov     lr, #0
 	/* Call the user function with its arguments */
 	movs    pc, r5
-END_FUNC thread_enter_user_mode
+END_FUNC __thread_enter_user_mode
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
@@ -466,9 +458,9 @@ END_FUNC thread_enter_user_mode
  * See description in thread.h
  */
 FUNC thread_unwind_user_mode , :
-	ldr     ip, [sp, #(13 * 0x4)]   /* &ctx->panicked */
+	ldr     ip, [sp, #(14 * 0x4)]   /* &ctx->panicked */
 	str	r1, [ip]
-	ldr     ip, [sp, #(14 * 0x4)]   /* &ctx->panic_code */
+	ldr     ip, [sp, #(15 * 0x4)]   /* &ctx->panic_code */
 	str	r2, [ip]
 
 	/* Restore old user sp */

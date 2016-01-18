@@ -22,8 +22,8 @@ endif
 platform-cflags += -g3
 platform-aflags += -g3
 
-CFG_ARM32_user_ta := y
-user_ta-platform-cflags += $(arm32-platform-cflags)
-user_ta-platform-cflags += -fpie
-user_ta-platform-cppflags += $(arm32-platform-cppflags)
-user_ta-platform-aflags += $(arm32-platform-aflags)
+CFG_ARM32_ta_arm32 := y
+ta_arm32-platform-cflags += $(arm32-platform-cflags)
+ta_arm32-platform-cflags += -fpie
+ta_arm32-platform-cppflags += $(arm32-platform-cppflags)
+ta_arm32-platform-aflags += $(arm32-platform-aflags)

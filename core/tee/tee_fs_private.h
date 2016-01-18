@@ -29,6 +29,7 @@
 #define TEE_FS_PRIV_H
 
 #include <utee_defines.h>
+#include <sys/queue.h>
 #include <tee/tee_fs_key_manager.h>
 
 /* TEE FS operation */
@@ -48,17 +49,15 @@
 #define TEE_FS_ACCESS    14
 #define TEE_FS_LINK      15
 
-#define FILE_BLOCK_SHIFT	12
+#define BLOCK_FILE_SHIFT	12
 
-#define FILE_BLOCK_SIZE		(1 << FILE_BLOCK_SHIFT)
+#define BLOCK_FILE_SIZE		(1 << BLOCK_FILE_SHIFT)
+
+#define MAX_NUM_CACHED_BLOCKS	1
 
 #define NUM_BLOCKS_PER_FILE	1024
 
-#define MAX_FILE_SIZE	(FILE_BLOCK_SIZE * NUM_BLOCKS_PER_FILE)
-
-#define READ_ALL 0
-
-#define COPY_BUF_SIZE	1024
+#define MAX_FILE_SIZE	(BLOCK_FILE_SIZE * NUM_BLOCKS_PER_FILE)
 
 struct tee_fs_file_info {
 	size_t length;
@@ -71,6 +70,20 @@ struct tee_fs_file_meta {
 	uint8_t backup_version;
 };
 
+TAILQ_HEAD(block_head, block);
+
+struct block {
+	TAILQ_ENTRY(block) list;
+	int block_num;
+	uint8_t *data;
+	size_t data_size;
+};
+
+struct block_cache {
+	struct block_head block_lru;
+	uint8_t cached_block_num;
+};
+
 struct tee_fs_fd {
 	struct tee_fs_file_meta *meta;
 	int pos;
@@ -78,9 +91,8 @@ struct tee_fs_fd {
 	int fd;
 	bool is_new_file;
 	char *filename;
-	void *private;
+	struct block_cache block_cache;
 };
-#define tee_fs_fd_priv(fdp) ((fdp)->private)
 
 struct tee_fs_dir {
 	int nw_dir;
@@ -89,7 +101,7 @@ struct tee_fs_dir {
 
 static inline int pos_to_block_num(int position)
 {
-	return position >> FILE_BLOCK_SHIFT;
+	return position >> BLOCK_FILE_SHIFT;
 }
 
 static inline int get_last_block_num(size_t size)
@@ -116,6 +128,21 @@ static inline void toggle_backup_version_of_block(
 
 	meta->info.backup_version_table[index] ^= block_mask;
 }
+
+struct block_operations {
+
+	/*
+	 * Read a block from REE File System which is corresponding
+	 * to the given block_num.
+	 */
+	struct block *(*read)(struct tee_fs_fd *fdp, int block_num);
+
+	/*
+	 * Write the given block to REE File System
+	 */
+	int (*write)(struct tee_fs_fd *fdp, struct block *b,
+			struct tee_fs_file_meta *new_meta);
+};
 
 struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 

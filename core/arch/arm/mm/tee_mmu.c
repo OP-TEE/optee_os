@@ -42,10 +42,13 @@
 #include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu_io.h>
 #include <sm/teesmc.h>
 #include <kernel/tz_ssvce.h>
 #include <kernel/panic.h>
+
+#ifdef CFG_PL310
+#include <kernel/tee_l2cc_mutex.h>
+#endif
 
 #define TEE_MMU_UMAP_HEAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX		1
@@ -218,7 +221,7 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 }
 
 
-TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
+TEE_Result tee_mmu_init(struct user_ta_ctx *ctx)
 {
 	uint32_t asid = 1;
 
@@ -256,43 +259,41 @@ TEE_Result tee_mmu_init(struct tee_ta_ctx *ctx)
  * Load mapping for the TA stack_heap area, code area and params area (params
  * are the 4 GP TEE TA invoke parameters buffer).
  */
-TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
+TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param)
 {
 	TEE_Result res = TEE_SUCCESS;
-	paddr_t pa;
+	paddr_t pa = 0;
 	uintptr_t smem;
 	size_t n;
 
-	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
-
-	res = tee_mmu_umap_init(ctx->mmu);
+	res = tee_mmu_umap_init(utc->mmu);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	/*
 	 * Map stack
 	 */
-	smem = tee_mm_get_smem(ctx->mm_stack);
+	smem = tee_mm_get_smem(utc->mm_stack);
 	if (core_va2pa((void *)smem, &pa)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
-	tee_mmu_umap_set_pa(ctx->mmu->table + TEE_MMU_UMAP_HEAP_STACK_IDX,
+	tee_mmu_umap_set_pa(utc->mmu->table + TEE_MMU_UMAP_HEAP_STACK_IDX,
 			    CORE_MMU_USER_CODE_SIZE,
-			    pa, tee_mm_get_bytes(ctx->mm_stack),
+			    pa, tee_mm_get_bytes(utc->mm_stack),
 			    TEE_MMU_UDATA_ATTR | TEE_MMU_UCACHE_DEFAULT_ATTR);
 
 	/*
 	 * Map code
 	 */
-	smem = tee_mm_get_smem(ctx->mm);
+	smem = tee_mm_get_smem(utc->mm);
 	if (core_va2pa((void *)smem, &pa)) {
 		res = TEE_ERROR_SECURITY;
 		goto exit;
 	}
-	tee_mmu_umap_set_pa(ctx->mmu->table + TEE_MMU_UMAP_CODE_IDX,
+	tee_mmu_umap_set_pa(utc->mmu->table + TEE_MMU_UMAP_CODE_IDX,
 			    CORE_MMU_USER_CODE_SIZE,
-			    pa, tee_mm_get_bytes(ctx->mm),
+			    pa, tee_mm_get_bytes(utc->mm),
 			    TEE_MMU_UCODE_ATTR | TEE_MMU_UCACHE_DEFAULT_ATTR);
 
 
@@ -321,14 +322,14 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 			attr |= TEE_MATTR_O_WRITE_BACK;
 
 
-		res = tee_mmu_umap_add_param(ctx->mmu,
+		res = tee_mmu_umap_add_param(utc->mmu,
 				(paddr_t)p->memref.buffer, p->memref.size,
 				attr);
 		if (res != TEE_SUCCESS)
 			goto exit;
 	}
 
-	res = tee_mmu_umap_set_vas(ctx->mmu);
+	res = tee_mmu_umap_set_vas(utc->mmu);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -343,24 +344,24 @@ TEE_Result tee_mmu_map(struct tee_ta_ctx *ctx, struct tee_ta_param *param)
 		if (p->memref.size == 0)
 			continue;
 
-		res = tee_mmu_user_pa2va(ctx, (paddr_t)p->memref.buffer,
+		res = tee_mmu_user_pa2va(utc, (paddr_t)p->memref.buffer,
 					 &p->memref.buffer);
 		if (res != TEE_SUCCESS)
 			goto exit;
 	}
 
-	ctx->mmu->ta_private_vmem_start = ctx->mmu->table[0].va;
+	utc->mmu->ta_private_vmem_start = utc->mmu->table[0].va;
 
 	n = TEE_MMU_UMAP_MAX_ENTRIES;
 	do {
 		n--;
-	} while (n && !ctx->mmu->table[n].size);
-	ctx->mmu->ta_private_vmem_end = ctx->mmu->table[n].va +
-					ctx->mmu->table[n].size;
+	} while (n && !utc->mmu->table[n].size);
+	utc->mmu->ta_private_vmem_end = utc->mmu->table[n].va +
+					utc->mmu->table[n].size;
 
 exit:
 	if (res != TEE_SUCCESS)
-		tee_mmu_umap_clear(ctx->mmu);
+		tee_mmu_umap_clear(utc->mmu);
 
 	return res;
 }
@@ -368,43 +369,43 @@ exit:
 /*
  * tee_mmu_final - finalise and free ctx mmu
  */
-void tee_mmu_final(struct tee_ta_ctx *ctx)
+void tee_mmu_final(struct user_ta_ctx *utc)
 {
-	uint32_t asid = 1 << ((ctx->context - 1) & 0xff);
+	uint32_t asid = 1 << ((utc->context - 1) & 0xff);
 
 	/* return ASID */
 	g_asid |= asid;
 
 	/* clear MMU entries to avoid clash when asid is reused */
-	secure_mmu_unifiedtlbinv_byasid(ctx->context & 0xff);
-	ctx->context = 0;
+	secure_mmu_unifiedtlbinv_byasid(utc->context & 0xff);
+	utc->context = 0;
 
-	if (ctx->mmu != NULL) {
-		free(ctx->mmu->table);
-		free(ctx->mmu);
+	if (utc->mmu) {
+		free(utc->mmu->table);
+		free(utc->mmu);
 	}
-	ctx->mmu = NULL;
+	utc->mmu = NULL;
 }
 
 /* return true only if buffer fits inside TA private memory */
-bool tee_mmu_is_vbuf_inside_ta_private(const struct tee_ta_ctx *ctx,
+bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 				  const void *va, size_t size)
 {
 	return core_is_buffer_inside(va, size,
-	  ctx->mmu->ta_private_vmem_start,
-	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
+	  utc->mmu->ta_private_vmem_start,
+	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start + 1);
 }
 
 /* return true only if buffer intersects TA private memory */
-bool tee_mmu_is_vbuf_intersect_ta_private(const struct tee_ta_ctx *ctx,
+bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 					  const void *va, size_t size)
 {
 	return core_is_buffer_intersect(va, size,
-	  ctx->mmu->ta_private_vmem_start,
-	  ctx->mmu->ta_private_vmem_end - ctx->mmu->ta_private_vmem_start + 1);
+	  utc->mmu->ta_private_vmem_start,
+	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start + 1);
 }
 
-TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_kernel_to_user(const struct user_ta_ctx *utc,
 				  const vaddr_t kaddr, tee_uaddr_t *uaddr)
 {
 	TEE_Result res;
@@ -414,60 +415,60 @@ TEE_Result tee_mmu_kernel_to_user(const struct tee_ta_ctx *ctx,
 	if (core_va2pa((void *)kaddr, &pa))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = tee_mmu_user_pa2va(ctx, pa, &ua);
+	res = tee_mmu_user_pa2va(utc, pa, &ua);
 	if (res == TEE_SUCCESS)
 		*uaddr = (tee_uaddr_t)ua;
 	return res;
 }
 
-static TEE_Result tee_mmu_user_va2pa_attr(const struct tee_ta_ctx *ctx,
+static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,
 			void *ua, paddr_t *pa, uint32_t *attr)
 {
 	size_t n;
 
-	if (!ctx->mmu->table)
+	if (!utc->mmu->table)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	for (n = 0; n < ctx->mmu->size; n++) {
-		if (core_is_buffer_inside(ua, 1, ctx->mmu->table[n].va,
-					  ctx->mmu->table[n].size)) {
-			*pa = (paddr_t)ua - ctx->mmu->table[n].va +
-				ctx->mmu->table[n].pa;
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (core_is_buffer_inside(ua, 1, utc->mmu->table[n].va,
+					  utc->mmu->table[n].size)) {
+			*pa = (paddr_t)ua - utc->mmu->table[n].va +
+				utc->mmu->table[n].pa;
 			if (attr)
-				*attr = ctx->mmu->table[n].attr;
+				*attr = utc->mmu->table[n].attr;
 			return TEE_SUCCESS;
 		}
 	}
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_user_va2pa_helper(const struct tee_ta_ctx *ctx, void *ua,
+TEE_Result tee_mmu_user_va2pa_helper(const struct user_ta_ctx *utc, void *ua,
 				     paddr_t *pa)
 {
-	return tee_mmu_user_va2pa_attr(ctx, ua, pa, NULL);
+	return tee_mmu_user_va2pa_attr(utc, ua, pa, NULL);
 }
 
 /* */
-TEE_Result tee_mmu_user_pa2va_helper(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 				      paddr_t pa, void **va)
 {
 	size_t n;
 
-	if (!ctx->mmu->table)
+	if (!utc->mmu->table)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	for (n = 0; n < ctx->mmu->size; n++) {
-		if (core_is_buffer_inside(pa, 1, ctx->mmu->table[n].pa,
-					  ctx->mmu->table[n].size)) {
-			*va = (void *)((paddr_t)pa - ctx->mmu->table[n].pa +
-					ctx->mmu->table[n].va);
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (core_is_buffer_inside(pa, 1, utc->mmu->table[n].pa,
+					  utc->mmu->table[n].size)) {
+			*va = (void *)((paddr_t)pa - utc->mmu->table[n].pa +
+					utc->mmu->table[n].va);
 			return TEE_SUCCESS;
 		}
 	}
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
+TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 				       uint32_t flags, tee_uaddr_t uaddr,
 				       size_t len)
 {
@@ -484,7 +485,7 @@ TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
 		uint32_t attr;
 		TEE_Result res;
 
-		res = tee_mmu_user_va2pa_attr(ctx, (void *)a, &pa, &attr);
+		res = tee_mmu_user_va2pa_attr(utc, (void *)a, &pa, &attr);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -521,23 +522,25 @@ TEE_Result tee_mmu_check_access_rights(const struct tee_ta_ctx *ctx,
 
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
-	if (!ctx) {
+	if (!ctx || !is_user_ta_ctx(ctx)) {
 		core_mmu_set_user_map(NULL);
 	} else {
 		struct core_mmu_user_map map;
+		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
-		core_mmu_create_user_map(ctx->mmu, ctx->context, &map);
+		core_mmu_create_user_map(utc->mmu, utc->context, &map);
 		core_mmu_set_user_map(&map);
 	}
 }
 
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
-	TEE_ASSERT((ctx->flags & TA_FLAG_EXEC_DDR) != 0);
-	TEE_ASSERT(ctx->mmu && ctx->mmu->table &&
-		   ctx->mmu->size >= TEE_MMU_UMAP_CODE_IDX);
+	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
-	return ctx->mmu->table[TEE_MMU_UMAP_CODE_IDX].va;
+	TEE_ASSERT(utc->mmu && utc->mmu->table &&
+		   utc->mmu->size >= TEE_MMU_UMAP_CODE_IDX);
+
+	return utc->mmu->table[TEE_MMU_UMAP_CODE_IDX].va;
 }
 
 /*
@@ -696,20 +699,6 @@ TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
 	return tee_mmu_kmap_va2pa_attr(va, pa, NULL);
 }
 
-bool tee_mmu_kmap_is_mapped(void *va, size_t len)
-{
-	tee_vaddr_t a = (tee_vaddr_t)va;
-	tee_mm_entry_t *mm = tee_mm_find(&tee_mmu_virt_kmap, a);
-
-	if (mm == NULL)
-		return false;
-
-	if ((a + len) > (tee_mm_get_smem(mm) + tee_mm_get_bytes(mm)))
-		return false;
-
-	return true;
-}
-
 void teecore_init_ta_ram(void)
 {
 	vaddr_t s;
@@ -757,22 +746,17 @@ void teecore_init_pub_ram(void)
 	tee_mm_final(&tee_mm_pub_ddr);
 	tee_mm_init(&tee_mm_pub_ddr, s, s + nsec_tee_size, SMALL_PAGE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
-
 	s += nsec_tee_size;
+
+#ifdef CFG_PL310
+	/* Allocate statically the l2cc mutex */
+	TEE_ASSERT((e - s) > 0);
+	tee_l2cc_store_mutex_boot_pa(s);
+	s += sizeof(uint32_t);		/* size of a pl310 mutex */
+#endif
+
 	default_nsec_shm_paddr = s;
 	default_nsec_shm_size = e - s;
-}
-
-void *tee_mmu_ioremap(tee_paddr_t pa __unused, size_t len __unused)
-{
-	/* return (void *)ioremap((void *)pa, len); */
-	return (void *)NULL;
-}
-
-void tee_mmu_iounmap(void *va __unused)
-{
-	/* linux API */
-	/* iounmap(va); */
 }
 
 static uint32_t mattr_to_teesmc_cache_attr(uint32_t mattr)
@@ -804,13 +788,13 @@ uint32_t tee_mmu_kmap_get_cache_attr(void *va)
 }
 
 
-uint32_t tee_mmu_user_get_cache_attr(struct tee_ta_ctx *ctx, void *va)
+uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
 	TEE_Result res;
 	paddr_t pa;
 	uint32_t attr;
 
-	res = tee_mmu_user_va2pa_attr(ctx, va, &pa, &attr);
+	res = tee_mmu_user_va2pa_attr(utc, va, &pa, &attr);
 	assert(res == TEE_SUCCESS);
 
 	return mattr_to_teesmc_cache_attr(attr);

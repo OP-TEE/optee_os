@@ -71,13 +71,6 @@
 
 #define RPC_MAX_PARAMS		2
 
-/*
- * The big lock for threads. Since OP-TEE currently is single threaded
- * all standard calls (non-fast calls) must take this mutex before starting
- * to do any real work.
- */
-static struct mutex thread_big_lock = MUTEX_INITIALIZER;
-
 struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
@@ -547,7 +540,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 
 		parg = thread_rpc_alloc_arg(
 				TEESMC32_GET_ARG_SIZE(RPC_MAX_PARAMS));
-		if (!parg || !TEE_ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
+		if (!parg || !ALIGNMENT_IS_OK(parg, struct teesmc32_arg) ||
 		     core_pa2va(parg, &arg)) {
 			thread_rpc_free_arg(parg);
 			args->a0 = TEESMC_RETURN_ENOMEM;
@@ -558,14 +551,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		thr->rpc_parg = parg;
 	}
 
-	/*
-	 * Take big lock before entering the callback registered in
-	 * thread_std_smc_handler_ptr as the callback can reside in the
-	 * paged area and the pager can only serve one core at a time.
-	 */
-	thread_take_big_lock();
 	thread_std_smc_handler_ptr(args);
-	thread_release_big_lock();
 }
 
 void thread_handle_abort(uint32_t abort_type, struct thread_abort_regs *regs)
@@ -1029,6 +1015,58 @@ void thread_kernel_disable_vfp(uint32_t state)
 }
 #endif /*CFG_WITH_VFP*/
 
+#ifdef ARM32
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
+{
+	uint32_t s;
+
+	if (!is_32bit)
+		return false;
+
+	s = read_spsr();
+	s &= ~(CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2);
+	s |= CPSR_MODE_USR;
+	if (entry_func & 1)
+		s |= CPSR_T;
+	*spsr = s;
+	return true;
+}
+#endif
+
+#ifdef ARM64
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
+{
+	uint32_t s;
+
+	if (is_32bit) {
+		s = read_daif() & (SPSR_32_AIF_MASK << SPSR_32_AIF_SHIFT);
+		s |= SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT;
+		s |= (entry_func & SPSR_32_T_MASK) << SPSR_32_T_SHIFT;
+	} else {
+		s = read_daif() & (SPSR_64_DAIF_MASK << SPSR_64_DAIF_SHIFT);
+	}
+
+	*spsr = s;
+	return true;
+}
+#endif
+
+uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long user_sp,
+		unsigned long entry_func, bool is_32bit,
+		uint32_t *exit_status0, uint32_t *exit_status1)
+{
+	uint32_t spsr;
+
+	if (!get_spsr(is_32bit, entry_func, &spsr)) {
+		*exit_status0 = 1; /* panic */
+		*exit_status1 = 0xbadbadba;
+		return 0;
+	}
+	return __thread_enter_user_mode(a0, a1, a2, a3, user_sp, entry_func,
+					spsr, exit_status0, exit_status1);
+}
+
 void thread_add_mutex(struct mutex *m)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -1049,37 +1087,6 @@ void thread_rem_mutex(struct mutex *m)
 	assert(m->owner_id == ct);
 	m->owner_id = -1;
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
-}
-
-static bool may_unlock_big_lock(void)
-{
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-	struct mutex *m;
-	bool have_bl = false;
-	bool have_other = false;
-
-	TAILQ_FOREACH(m, &threads[ct].mutexes, link) {
-		if (m == &thread_big_lock)
-			have_bl = true;
-		else
-			have_other = true;
-	}
-
-	thread_unmask_exceptions(exceptions);
-	return have_bl && !have_other;
-}
-
-void thread_take_big_lock(void)
-{
-	mutex_lock(&thread_big_lock);
-}
-
-void thread_release_big_lock(void)
-{
-	assert(may_unlock_big_lock());
-	mutex_unlock(&thread_big_lock);
 }
 
 paddr_t thread_rpc_alloc_arg(size_t size)
@@ -1161,21 +1168,9 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct teesmc32_param *params)
 {
-	bool unlock_big_lock = may_unlock_big_lock();
 	uint32_t ret;
 
-	/*
-	 * If current thread doesn't hold any other mutexes:
-	 * Let other threads get the big lock to do some work while this
-	 * thread is doing some potentially slow RPC in normal world.
-	 */
-	if (unlock_big_lock)
-		mutex_unlock(&thread_big_lock);
-
 	ret = rpc_cmd_nolock(cmd, num_params, params);
-
-	if (unlock_big_lock)
-		mutex_lock(&thread_big_lock);
 
 	return ret;
 }

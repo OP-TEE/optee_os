@@ -50,10 +50,23 @@ struct mutex {
 TAILQ_HEAD(mutex_head, mutex);
 
 void mutex_init(struct mutex *m);
-void mutex_lock(struct mutex *m);
-void mutex_unlock(struct mutex *m);
-bool mutex_trylock(struct mutex *m);
 void mutex_destroy(struct mutex *m);
+
+#ifdef CFG_MUTEX_DEBUG
+void mutex_unlock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_unlock(m) mutex_unlock_debug((m), __FILE__, __LINE__)
+
+void mutex_lock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_lock(m) mutex_lock_debug((m), __FILE__, __LINE__)
+
+bool mutex_trylock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_trylock(m) mutex_trylock_debug((m), __FILE__, __LINE__)
+
+#else
+void mutex_unlock(struct mutex *m);
+void mutex_lock(struct mutex *m);
+bool mutex_trylock(struct mutex *m);
+#endif
 
 
 struct condvar {
@@ -64,9 +77,22 @@ struct condvar {
 
 void condvar_init(struct condvar *cv);
 void condvar_destroy(struct condvar *cv);
+
+#ifdef CFG_MUTEX_DEBUG
+void condvar_signal_debug(struct condvar *cv, const char *fname, int lineno);
+#define condvar_signal(cv) condvar_signal_debug((cv), __FILE__, __LINE__)
+
+void condvar_broadcast_debug(struct condvar *cv, const char *fname, int lineno);
+#define condvar_broadcast(cv) condvar_broadcast_debug((cv), __FILE__, __LINE__)
+
+void condvar_wait_debug(struct condvar *cv, struct mutex *m,
+			const char *fname, int lineno);
+#define condvar_wait(cv, m) condvar_wait_debug((cv), (m), __FILE__, __LINE__)
+#else
 void condvar_signal(struct condvar *cv);
 void condvar_broadcast(struct condvar *cv);
 void condvar_wait(struct condvar *cv, struct mutex *m);
+#endif
 
 #endif /*KERNEL_MUTEX_H*/
 

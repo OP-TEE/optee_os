@@ -18,6 +18,7 @@ CFG_CRYPTO_PBKDF2 ?= y
 endif
 
 srcs-y += tee_svc.c
+cppflags-tee_svc.c-y += -DTEE_IMPL_VERSION=$(TEE_IMPL_VERSION)
 srcs-y += tee_svc_cryp.c
 srcs-y += tee_svc_storage.c
 srcs-y += tee_cryp_utl.c
@@ -33,6 +34,5 @@ srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
 srcs-y += tee_rpmb_fs.c
 srcs-y += tee_time_generic.c
-srcs-y += abi.c
 
 subdirs-${CFG_SE_API} += se

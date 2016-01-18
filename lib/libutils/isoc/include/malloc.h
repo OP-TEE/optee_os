@@ -30,25 +30,19 @@
 #include <stddef.h>
 #include <types_ext.h>
 
-enum mdbg_mode {
-	MDBG_MODE_STATIC,
-	MDBG_MODE_DYNAMIC
-};
+void free(void *ptr);
 
 #ifdef ENABLE_MDBG
 
 void *mdbg_malloc(const char *fname, int lineno, size_t size);
-void mdbg_free(void *ptr);
 void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
 void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
 void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 		size_t size);
 
-enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode);
 void mdbg_check(int bufdump);
 
 #define malloc(size)	mdbg_malloc(__FILE__, __LINE__, (size))
-#define free(ptr)	mdbg_free((ptr))
 #define calloc(nmemb, size) \
 		mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
 #define realloc(ptr, size) \
@@ -59,16 +53,11 @@ void mdbg_check(int bufdump);
 #else
 
 void *malloc(size_t size);
-void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
 void *memalign(size_t alignment, size_t size);
 
 #define mdbg_check(x)        do { } while (0)
-static inline enum mdbg_mode mdbg_set_mode(enum mdbg_mode mode)
-{
-	return mode;
-}
 
 #endif
 
@@ -90,14 +79,7 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len);
 bool malloc_buffer_overlaps_heap(void *buf, size_t len);
 
 /*
- * Sets an initial pool of memory to allocate from, must only be called
- * once.
- */
-void malloc_init(void *buf, size_t len);
-
-/*
- * Adds a pool of memory to allocate from. If malloc_init hasn't been
- * called before this function it will do a malloc_init internally.
+ * Adds a pool of memory to allocate from.
  */
 void malloc_add_pool(void *buf, size_t len);
 

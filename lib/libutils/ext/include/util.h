@@ -50,7 +50,18 @@
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
 
+#define ALIGNMENT_IS_OK(p, type) \
+	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
+
 #define TO_STR(x) _TO_STR(x)
 #define _TO_STR(x) #x
+
+#define container_of(ptr, type, member) \
+	(__extension__({ \
+		const typeof(((type *)0)->member) *__ptr = (ptr); \
+		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
+	}))
+
+
 
 #endif /*UTIL_H*/

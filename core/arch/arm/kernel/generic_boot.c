@@ -175,7 +175,7 @@ static void init_runtime(uint32_t pageable_part)
 
 	thread_init_boot_thread();
 
-	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
@@ -296,7 +296,7 @@ static void init_runtime(uint32_t pageable_part __unused)
 
 	thread_init_boot_thread();
 
-	malloc_init(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 
 	/*
 	 * Initialized at this stage in the pager version of this function

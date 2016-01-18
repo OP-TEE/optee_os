@@ -12,6 +12,8 @@ $(call force,CFG_MMU_V7_TTB,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_GIC,y)
 
+ta-targets = ta_arm32
+
 CFG_NUM_THREADS ?= 4
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STACK_CANARIES ?= y

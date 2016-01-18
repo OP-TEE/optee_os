@@ -50,5 +50,6 @@
 #define __data		__section(".data")
 #define __bss		__section(".bss")
 #define __rodata	__section(".rodata")
+#define __rodata_unpaged __section(".rodata.__unpaged")
 
 #endif /*COMPILER_H*/

@@ -7,4 +7,3 @@ else
 srcs-y += core_mmu_v7.c
 endif
 srcs-y += tee_mm.c
-srcs-y += tee_mm_unpg.c

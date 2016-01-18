@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <compiler.h>
 #include <utee_defines.h>
@@ -163,7 +163,7 @@ static void print_buf(int tl, const char *func, int line, const char *prefix,
 		      const struct user_mem_elem *e)
 {
 	trace_printf(NULL, 0, tl, true,
-		    "%s:%d: %slink:[%p], buf:[%p:%d]\n",
+		    "%s:%d: %slink:[%p], buf:[%p:%zu]\n",
 		    func, line, prefix, (void *)e, buf_addr(e), buf_size(e));
 }
 
@@ -192,22 +192,22 @@ static struct tee_user_mem_stats global_stats;
 
 static void heap_inc(size_t size)
 {
-	INMSG("%d", size);
+	INMSG("%zu", size);
 	heap_level += size;
 
 	global_stats.nb_alloc++;
 	global_stats.size += size;
-	OUTMSG("%d", global_stats.size);
+	OUTMSG("%zu", global_stats.size);
 }
 
 static void heap_dec(size_t size)
 {
-	INMSG("%d %d", heap_level, size);
+	INMSG("%zu %zu", heap_level, size);
 	heap_level -= size;
 
 	global_stats.nb_alloc--;
 	global_stats.size -= size;
-	OUTMSG("%d", global_stats.size);
+	OUTMSG("%zu", global_stats.size);
 }
 
 /*
@@ -297,7 +297,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	    len + sizeof(struct user_mem_elem) + CANARY_LINE_SIZE;
 
 
-	INMSG("%d %p", (int)len, (void *)hint);
+	INMSG("%zu 0x%" PRIx32, len, hint);
 
 	if ((int)len < 0) {
 		OUTMSG("0x0");
@@ -315,7 +315,7 @@ void *tee_user_mem_alloc(size_t len, uint32_t hint)
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		break;
 	default:
-		EMSG("Invalid alloc hint [%p]", (void *)hint);
+		EMSG("Invalid alloc hint [0x%" PRIx32 "]", hint);
 		OUTMSG("0x0");
 		return NULL;
 	}
@@ -480,11 +480,11 @@ void tee_user_mem_mark_heap(void)
 size_t tee_user_mem_check_heap(void)
 {
 	int res = 0;
-	INMSG("%d", heap_level);
+	INMSG("%zu", heap_level);
 
 	if (heap_level) {
-		EMSG("ta heap has changed of [%d]", heap_level);
-		OUTMSG("%d", heap_level);
+		EMSG("ta heap has changed of [%zu]", heap_level);
+		OUTMSG("%zu", heap_level);
 		return heap_level;
 	}
 
@@ -505,7 +505,7 @@ void tee_user_mem_status(struct tee_user_mem_stats *stats)
 
 	if (global_stats.nb_alloc > 0) {
 		IMSG("Nb alloc:\t[%d]", global_stats.nb_alloc);
-		IMSG("Size:\t[%d]", global_stats.size);
+		IMSG("Size:\t[%zu]", global_stats.size);
 	}
 
 	TAILQ_FOREACH(e, &user_mem_head, link) {

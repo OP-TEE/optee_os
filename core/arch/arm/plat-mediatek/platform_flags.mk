@@ -31,8 +31,16 @@ ifeq ($(PLATFORM_FLAVOR),mt8173)
 platform-flavor-armv8 := 1
 endif
 
-CFG_ARM32_user_ta := y
-user_ta-platform-cflags += $(arm32-platform-cflags)
-user_ta-platform-cflags += -fpie
-user_ta-platform-cppflags += $(arm32-platform-cppflags)
-user_ta-platform-aflags += $(arm32-platform-aflags)
+# Variables for ta-target/sm "ta_arm32"
+CFG_ARM32_ta_arm32 := y
+ta_arm32-platform-cflags += $(arm32-platform-cflags)
+ta_arm32-platform-cflags += -fpie
+ta_arm32-platform-cppflags += $(arm32-platform-cppflags)
+ta_arm32-platform-aflags += $(arm32-platform-aflags)
+
+# Variables for ta-target/sm "ta_arm64"
+CFG_ARM64_ta_arm64 := y
+ta_arm64-platform-cflags += $(arm64-platform-cflags)
+ta_arm64-platform-cflags += -fpie
+ta_arm64-platform-cppflags += $(arm64-platform-cppflags)
+ta_arm64-platform-aflags += $(arm64-platform-aflags)

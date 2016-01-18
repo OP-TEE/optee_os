@@ -1,7 +1,8 @@
 link-out-dir = $(out-dir)
 
-link-script = $(TA_DEV_KIT_DIR)/src/user_ta_elf_arm.lds
+link-script = $(TA_DEV_KIT_DIR)/src/ta.ld.S
 link-script-pp = $(link-out-dir)/ta.lds
+link-script-dep = $(link-out-dir)/.ta.ld.d
 
 SIGN = $(TA_DEV_KIT_DIR)/scripts/sign.py
 TA_SIGN_KEY ?= $(TA_DEV_KIT_DIR)/keys/default_ta.pem
@@ -27,10 +28,20 @@ link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(call reverse,$(libnames)))
 ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd)
 
+
+link-script-cppflags-$(sm) := -DASM=1 \
+	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
+		$(nostdinc$(sm)) $(CPPFLAGS) \
+		$(addprefix -I,$(incdirs$(sm)) $(link-out-dir)) \
+		$(cppflags$(sm)))
+
+-include $(link-script-dep)
+
 $(link-script-pp): $(link-script) $(MAKEFILE_LIST)
-	@$(cmd-echo-silent) '  CP      $@'
+	@$(cmd-echo-silent) '  CPP     $@'
 	$(q)mkdir -p $(dir $@)
-	$(q)cp $< $@
+	$(q)$(CPP$(sm)) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
+		$(link-script-cppflags-$(sm)) $< > $@
 
 $(link-out-dir)/$(binary).elf: $(objs) $(libdeps) $(link-script-pp)
 	@$(cmd-echo-silent) '  LD      $@'

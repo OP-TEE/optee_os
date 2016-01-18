@@ -36,6 +36,8 @@
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_cryp_provider.h>
+#include <tee/tee_svc.h>
+#include <platform_config.h>
 
 
 #define TEE_MON_MAX_NUM_ARGS    8
@@ -63,6 +65,8 @@ TEE_Result init_teecore(void)
 	if (!is_first)
 		return TEE_SUCCESS;
 	is_first = 0;
+
+	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
 
 	/* init support for futur mapping of TAs */
 	tee_mmu_kmap_init();

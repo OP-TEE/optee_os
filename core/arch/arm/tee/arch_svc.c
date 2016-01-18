@@ -40,80 +40,110 @@
 #include <kernel/misc.h>
 #include <kernel/trace_ta.h>
 
-static const syscall_t tee_svc_syscall_table[] = {
-	(syscall_t)syscall_sys_return,
-	(syscall_t)syscall_log,
-	(syscall_t)syscall_panic,
-	(syscall_t)syscall_dummy,
-	(syscall_t)syscall_dummy_7args,
-	(syscall_t)syscall_get_property,
-	(syscall_t)syscall_open_ta_session,
-	(syscall_t)syscall_close_ta_session,
-	(syscall_t)syscall_invoke_ta_command,
-	(syscall_t)syscall_check_access_rights,
-	(syscall_t)syscall_get_cancellation_flag,
-	(syscall_t)syscall_unmask_cancellation,
-	(syscall_t)syscall_mask_cancellation,
-	(syscall_t)syscall_wait,
-	(syscall_t)syscall_get_time,
-	(syscall_t)syscall_set_ta_time,
-	(syscall_t)syscall_cryp_state_alloc,
-	(syscall_t)syscall_cryp_state_copy,
-	(syscall_t)syscall_cryp_state_free,
-	(syscall_t)syscall_hash_init,
-	(syscall_t)syscall_hash_update,
-	(syscall_t)syscall_hash_final,
-	(syscall_t)syscall_cipher_init,
-	(syscall_t)syscall_cipher_update,
-	(syscall_t)syscall_cipher_final,
-	(syscall_t)syscall_cryp_obj_get_info,
-	(syscall_t)syscall_cryp_obj_restrict_usage,
-	(syscall_t)syscall_cryp_obj_get_attr,
-	(syscall_t)syscall_cryp_obj_alloc,
-	(syscall_t)syscall_cryp_obj_close,
-	(syscall_t)syscall_cryp_obj_reset,
-	(syscall_t)syscall_cryp_obj_populate,
-	(syscall_t)syscall_cryp_obj_copy,
-	(syscall_t)syscall_cryp_derive_key,
-	(syscall_t)syscall_cryp_random_number_generate,
-	(syscall_t)syscall_authenc_init,
-	(syscall_t)syscall_authenc_update_aad,
-	(syscall_t)syscall_authenc_update_payload,
-	(syscall_t)syscall_authenc_enc_final,
-	(syscall_t)syscall_authenc_dec_final,
-	(syscall_t)syscall_asymm_operate,
-	(syscall_t)syscall_asymm_verify,
-	(syscall_t)syscall_storage_obj_open,
-	(syscall_t)syscall_storage_obj_create,
-	(syscall_t)syscall_storage_obj_del,
-	(syscall_t)syscall_storage_obj_rename,
-	(syscall_t)syscall_storage_alloc_enum,
-	(syscall_t)syscall_storage_free_enum,
-	(syscall_t)syscall_storage_reset_enum,
-	(syscall_t)syscall_storage_start_enum,
-	(syscall_t)syscall_storage_next_enum,
-	(syscall_t)syscall_storage_obj_read,
-	(syscall_t)syscall_storage_obj_write,
-	(syscall_t)syscall_storage_obj_trunc,
-	(syscall_t)syscall_storage_obj_seek,
-	(syscall_t)syscall_obj_generate_key,
-	(syscall_t)syscall_se_service_open,
-	(syscall_t)syscall_se_service_close,
-	(syscall_t)syscall_se_service_get_readers,
-	(syscall_t)syscall_se_reader_get_prop,
-	(syscall_t)syscall_se_reader_get_name,
-	(syscall_t)syscall_se_reader_open_session,
-	(syscall_t)syscall_se_reader_close_sessions,
-	(syscall_t)syscall_se_session_is_closed,
-	(syscall_t)syscall_se_session_get_atr,
-	(syscall_t)syscall_se_session_open_channel,
-	(syscall_t)syscall_se_session_close,
-	(syscall_t)syscall_se_channel_select_next,
-	(syscall_t)syscall_se_channel_get_select_resp,
-	(syscall_t)syscall_se_channel_transmit,
-	(syscall_t)syscall_se_channel_close,
-	(syscall_t)syscall_cache_operation,
+#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
+#define TRACE_SYSCALLS
+#endif
+
+struct syscall_entry {
+	syscall_t fn;
+#ifdef TRACE_SYSCALLS
+	const char *name;
+#endif
 };
+
+#ifdef TRACE_SYSCALLS
+#define SYSCALL_ENTRY(_fn) { .fn = (syscall_t)_fn, .name = #_fn }
+#else
+#define SYSCALL_ENTRY(_fn) { .fn = (syscall_t)_fn }
+#endif
+
+static const struct syscall_entry tee_svc_syscall_table[] = {
+	SYSCALL_ENTRY(syscall_sys_return),
+	SYSCALL_ENTRY(syscall_log),
+	SYSCALL_ENTRY(syscall_panic),
+	SYSCALL_ENTRY(syscall_dummy),
+	SYSCALL_ENTRY(syscall_dummy_7args),
+	SYSCALL_ENTRY(syscall_get_property),
+	SYSCALL_ENTRY(syscall_open_ta_session),
+	SYSCALL_ENTRY(syscall_close_ta_session),
+	SYSCALL_ENTRY(syscall_invoke_ta_command),
+	SYSCALL_ENTRY(syscall_check_access_rights),
+	SYSCALL_ENTRY(syscall_get_cancellation_flag),
+	SYSCALL_ENTRY(syscall_unmask_cancellation),
+	SYSCALL_ENTRY(syscall_mask_cancellation),
+	SYSCALL_ENTRY(syscall_wait),
+	SYSCALL_ENTRY(syscall_get_time),
+	SYSCALL_ENTRY(syscall_set_ta_time),
+	SYSCALL_ENTRY(syscall_cryp_state_alloc),
+	SYSCALL_ENTRY(syscall_cryp_state_copy),
+	SYSCALL_ENTRY(syscall_cryp_state_free),
+	SYSCALL_ENTRY(syscall_hash_init),
+	SYSCALL_ENTRY(syscall_hash_update),
+	SYSCALL_ENTRY(syscall_hash_final),
+	SYSCALL_ENTRY(syscall_cipher_init),
+	SYSCALL_ENTRY(syscall_cipher_update),
+	SYSCALL_ENTRY(syscall_cipher_final),
+	SYSCALL_ENTRY(syscall_cryp_obj_get_info),
+	SYSCALL_ENTRY(syscall_cryp_obj_restrict_usage),
+	SYSCALL_ENTRY(syscall_cryp_obj_get_attr),
+	SYSCALL_ENTRY(syscall_cryp_obj_alloc),
+	SYSCALL_ENTRY(syscall_cryp_obj_close),
+	SYSCALL_ENTRY(syscall_cryp_obj_reset),
+	SYSCALL_ENTRY(syscall_cryp_obj_populate),
+	SYSCALL_ENTRY(syscall_cryp_obj_copy),
+	SYSCALL_ENTRY(syscall_cryp_derive_key),
+	SYSCALL_ENTRY(syscall_cryp_random_number_generate),
+	SYSCALL_ENTRY(syscall_authenc_init),
+	SYSCALL_ENTRY(syscall_authenc_update_aad),
+	SYSCALL_ENTRY(syscall_authenc_update_payload),
+	SYSCALL_ENTRY(syscall_authenc_enc_final),
+	SYSCALL_ENTRY(syscall_authenc_dec_final),
+	SYSCALL_ENTRY(syscall_asymm_operate),
+	SYSCALL_ENTRY(syscall_asymm_verify),
+	SYSCALL_ENTRY(syscall_storage_obj_open),
+	SYSCALL_ENTRY(syscall_storage_obj_create),
+	SYSCALL_ENTRY(syscall_storage_obj_del),
+	SYSCALL_ENTRY(syscall_storage_obj_rename),
+	SYSCALL_ENTRY(syscall_storage_alloc_enum),
+	SYSCALL_ENTRY(syscall_storage_free_enum),
+	SYSCALL_ENTRY(syscall_storage_reset_enum),
+	SYSCALL_ENTRY(syscall_storage_start_enum),
+	SYSCALL_ENTRY(syscall_storage_next_enum),
+	SYSCALL_ENTRY(syscall_storage_obj_read),
+	SYSCALL_ENTRY(syscall_storage_obj_write),
+	SYSCALL_ENTRY(syscall_storage_obj_trunc),
+	SYSCALL_ENTRY(syscall_storage_obj_seek),
+	SYSCALL_ENTRY(syscall_obj_generate_key),
+	SYSCALL_ENTRY(syscall_se_service_open),
+	SYSCALL_ENTRY(syscall_se_service_close),
+	SYSCALL_ENTRY(syscall_se_service_get_readers),
+	SYSCALL_ENTRY(syscall_se_reader_get_prop),
+	SYSCALL_ENTRY(syscall_se_reader_get_name),
+	SYSCALL_ENTRY(syscall_se_reader_open_session),
+	SYSCALL_ENTRY(syscall_se_reader_close_sessions),
+	SYSCALL_ENTRY(syscall_se_session_is_closed),
+	SYSCALL_ENTRY(syscall_se_session_get_atr),
+	SYSCALL_ENTRY(syscall_se_session_open_channel),
+	SYSCALL_ENTRY(syscall_se_session_close),
+	SYSCALL_ENTRY(syscall_se_channel_select_next),
+	SYSCALL_ENTRY(syscall_se_channel_get_select_resp),
+	SYSCALL_ENTRY(syscall_se_channel_transmit),
+	SYSCALL_ENTRY(syscall_se_channel_close),
+	SYSCALL_ENTRY(syscall_cache_operation),
+};
+
+#ifdef TRACE_SYSCALLS
+static void trace_syscall(size_t num)
+{
+	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
+		return;
+	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+}
+#else
+static void trace_syscall(size_t num __unused)
+{
+}
+#endif
 
 #ifdef ARM32
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
@@ -128,8 +158,14 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 		size_t *max_args)
 {
-	*scn = regs->x7;
-	*max_args = regs->x6;
+	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
+	     SPSR_MODE_RW_32) {
+		*scn = regs->x7;
+		*max_args = regs->x6;
+	} else {
+		*scn = regs->x8;
+		*max_args = 0;
+	}
 }
 #endif /*ARM64*/
 
@@ -159,13 +195,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 
-	thread_disable_concurrency();
-
 	get_scn_max_args(regs, &scn, &max_args);
 
-#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
-	tee_svc_trace_syscall(scn);
-#endif
+	trace_syscall(scn);
 
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
@@ -176,11 +208,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	if (scn > TEE_SCN_MAX)
 		scf = syscall_nocall;
 	else
-		scf = tee_svc_syscall_table[scn];
+		scf = tee_svc_syscall_table[scn].fn;
 
 	set_svc_retval(regs, tee_svc_do_call(regs, scf));
-
-	thread_enable_concurrency();
 }
 
 #ifdef ARM32
@@ -212,6 +242,14 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	regs->elr = (uintptr_t)thread_unwind_user_mode;
 	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
 	regs->spsr |= read_daif();
+	/*
+	 * Regs is the value of stack pointer before calling the SVC
+	 * handler.  By the addition matches for the reserved space at the
+	 * beginning of el0_sync_svc(). This prepares the stack when
+	 * returning to thread_unwind_user_mode instead of a normal
+	 * exception return.
+	 */
+	regs->sp_el0 = (uint64_t)(regs + 1);
 	return ret;
 }
 #endif /*ARM64*/

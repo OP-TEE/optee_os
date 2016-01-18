@@ -71,30 +71,6 @@ typedef uintptr_t tee_uaddr_t;
 
 #endif
 
-#define TEE_ASSERT_ALIGNMENT(p, type)                       \
-		TEE_ASSERT(TEE_ALIGNMENT_IS_OK(p, type))
-
-#ifndef TEE_ALIGNMENT_IS_OK
-#ifdef CFG_TC_NO_ALIGNOF
-#define TEE_ALIGNMENT_1B_IS_OK(p, type)    (true)
-#define TEE_ALIGNMENT_2B_IS_OK(p, type)    ((&(p) & 1 == 0) ? true : false)
-#define TEE_ALIGNMENT_4B_IS_OK(p, type)    ((&(p) & 3 == 0) ? true : false)
-#define TEE_ALIGNMENT_8B_IS_OK(p, type)    ((&(p) & 7 == 0) ? true : false)
-#define TEE_ALIGNMENT_IS_OK(p, type)       TEE_ALIGNMENT_4B_IS_OK(p, type)
-#else
-#define TEE_ALIGNMENT_1B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_2B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_4B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_8B_IS_OK(p, type)    TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-#define TEE_ALIGNMENT_IS_OK(p, type)       TEE_ALIGNMENT_WRAP_IS_OK(p, type)
-
-#define TEE_ALIGNMENT_WRAP_IS_OK(p, type)                        \
-		(((uintptr_t)p & (__tee_assert_alignof__(type) - 1)) == 0)
-
-#define __tee_assert_alignof__(type) __alignof__(type)
-#endif
-#endif
-
 /*-----------------------------------------------------------------------------
  * tee_ta_load_page - Loads a page at address va_addr
  * Parameters:

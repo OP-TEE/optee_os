@@ -39,7 +39,7 @@
  * Called from tee_svc_handler()
  */
 FUNC tee_svc_do_call , :
-	push	{r7-r9, lr}
+	push	{r5-r9, lr}
 	mov	r7, sp
 	mov	r8, r0
 	mov	r9, r1
@@ -76,7 +76,7 @@ FUNC tee_svc_do_call , :
 	blx	r9
 .Lret:
 	mov	sp, r7
-	pop	{r7-r9, pc}
+	pop	{r5-r9, pc}
 END_FUNC tee_svc_do_call
 
 /*

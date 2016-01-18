@@ -67,16 +67,18 @@ static inline void wq_wait_init(struct wait_queue *wq,
 
 /* Waits for the wait queue element to the awakened. */
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
-			const void *sync_obj);
+			const void *sync_obj, const char *fname, int lineno);
 
 /* Wakes up the first wait queue element in the wait queue, if there is one */
-void wq_wake_one(struct wait_queue *wq, const void *sync_obj);
+void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
+		const char *fname, int lineno);
 
 /* Returns true if the wait queue doesn't contain any elements */
 bool wq_is_empty(struct wait_queue *wq);
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
-			bool only_one);
+			bool only_one, const void *sync_obj, const char *fname,
+			int lineno);
 bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv);
 
 #endif /*KERNEL_WAIT_QUEUE_H*/
