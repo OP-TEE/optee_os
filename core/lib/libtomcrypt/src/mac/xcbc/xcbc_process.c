@@ -30,7 +30,7 @@ int xcbc_process(xcbc_state *xcbc, const unsigned char *in, unsigned long inlen)
       return err;
    }
 
-   if ((xcbc->blocksize > cipher_descriptor[xcbc->cipher].block_length) || (xcbc->blocksize < 0) ||
+   if ((xcbc->blocksize > cipher_descriptor[xcbc->cipher]->block_length) || (xcbc->blocksize < 0) ||
        (xcbc->buflen > xcbc->blocksize) || (xcbc->buflen < 0)) {
       return CRYPT_INVALID_ARG;
    }
@@ -41,7 +41,7 @@ int xcbc_process(xcbc_state *xcbc, const unsigned char *in, unsigned long inlen)
            for (x = 0; x < xcbc->blocksize; x += sizeof(LTC_FAST_TYPE)) {
               *(LTC_FAST_TYPE_PTR_CAST(&(xcbc->IV[x]))) ^= *(LTC_FAST_TYPE_PTR_CAST(&(in[x])));
            }
-           cipher_descriptor[xcbc->cipher].ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
+           cipher_descriptor[xcbc->cipher]->ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
            in    += xcbc->blocksize;
            inlen -= xcbc->blocksize;
        }
@@ -50,7 +50,7 @@ int xcbc_process(xcbc_state *xcbc, const unsigned char *in, unsigned long inlen)
 
    while (inlen) {
       if (xcbc->buflen == xcbc->blocksize) {
-         cipher_descriptor[xcbc->cipher].ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
+         cipher_descriptor[xcbc->cipher]->ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
          xcbc->buflen = 0;
       }
       xcbc->IV[xcbc->buflen++] ^= *in++;

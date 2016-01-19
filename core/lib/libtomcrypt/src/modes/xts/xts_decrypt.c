@@ -24,7 +24,7 @@ static int s_tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned ch
    }
 #endif
 
-   err = cipher_descriptor[xts->cipher].ecb_decrypt(P, P, &xts->key1);
+   err = cipher_descriptor[xts->cipher]->ecb_decrypt(P, P, &xts->key1);
 
 #ifdef LTC_FAST
    for (x = 0; x < 16; x += sizeof(LTC_FAST_TYPE)) {
@@ -83,10 +83,10 @@ int xts_decrypt(const unsigned char *ct, unsigned long ptlen, unsigned char *pt,
       lim = m - 1;
    }
 
-   if (cipher_descriptor[xts->cipher].accel_xts_decrypt && lim > 0) {
+   if (cipher_descriptor[xts->cipher]->accel_xts_decrypt && lim > 0) {
 
       /* use accelerated decryption for whole blocks */
-      if ((err = cipher_descriptor[xts->cipher].accel_xts_decrypt(ct, pt, lim, tweak, &xts->key1, &xts->key2)) !=
+      if ((err = cipher_descriptor[xts->cipher]->accel_xts_decrypt(ct, pt, lim, tweak, &xts->key1, &xts->key2)) !=
                  CRYPT_OK) {
          return err;
       }
@@ -97,7 +97,7 @@ int xts_decrypt(const unsigned char *ct, unsigned long ptlen, unsigned char *pt,
       XMEMCPY(T, tweak, sizeof(T));
    } else {
       /* encrypt the tweak */
-      if ((err = cipher_descriptor[xts->cipher].ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[xts->cipher]->ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
          return err;
       }
 
@@ -136,7 +136,7 @@ int xts_decrypt(const unsigned char *ct, unsigned long ptlen, unsigned char *pt,
    }
 
    /* Decrypt the tweak back */
-   if ((err = cipher_descriptor[xts->cipher].ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[xts->cipher]->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
       return err;
    }
 
