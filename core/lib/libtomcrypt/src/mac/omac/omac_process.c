@@ -69,7 +69,7 @@ int omac_process(omac_state *omac, const unsigned char *in, unsigned long inlen)
    }
 
 #ifdef LTC_FAST
-   unsigned long blklen = cipher_descriptor[omac->cipher_idx].block_length;
+   unsigned long blklen = cipher_descriptor[omac->cipher_idx]->block_length;
    if (omac->buflen == 0 && inlen > blklen) {
       unsigned long y;
       for (x = 0; x < (inlen - blklen); x += blklen) {
@@ -77,7 +77,7 @@ int omac_process(omac_state *omac, const unsigned char *in, unsigned long inlen)
               *((LTC_FAST_TYPE*)(&omac->prev[y])) ^= *((LTC_FAST_TYPE*)(&in[y]));
           }
           in += blklen;
-          if ((err = cipher_descriptor[omac->cipher_idx].ecb_encrypt(omac->prev, omac->prev, &omac->key)) != CRYPT_OK) {
+          if ((err = cipher_descriptor[omac->cipher_idx]->ecb_encrypt(omac->prev, omac->prev, &omac->key)) != CRYPT_OK) {
              return err;
           }
       }
@@ -91,7 +91,7 @@ int omac_process(omac_state *omac, const unsigned char *in, unsigned long inlen)
           for (x = 0; x < (unsigned long)omac->blklen; x++) {
               omac->block[x] ^= omac->prev[x];
           }
-          if ((err = cipher_descriptor[omac->cipher_idx].ecb_encrypt(omac->block, omac->prev, &omac->key)) != CRYPT_OK) {
+          if ((err = cipher_descriptor[omac->cipher_idx]->ecb_encrypt(omac->block, omac->prev, &omac->key)) != CRYPT_OK) {
              return err;
           }
           omac->buflen = 0;

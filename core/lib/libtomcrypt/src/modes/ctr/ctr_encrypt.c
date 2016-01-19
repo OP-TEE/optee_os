@@ -78,8 +78,8 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
 #endif
    
    /* handle acceleration only if pad is empty, accelerator is present and length is >= a block size */
-   if ((ctr->padlen == ctr->blocklen) && cipher_descriptor[ctr->cipher].accel_ctr_encrypt != NULL && (len >= (unsigned long)ctr->blocklen)) {
-      if ((err = cipher_descriptor[ctr->cipher].accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
+   if ((ctr->padlen == ctr->blocklen) && cipher_descriptor[ctr->cipher]->accel_ctr_encrypt != NULL && (len >= (unsigned long)ctr->blocklen)) {
+      if ((err = cipher_descriptor[ctr->cipher]->accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
          return err;
       }
       len %= ctr->blocklen;
@@ -108,7 +108,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
          }
 
          /* encrypt it */
-         if ((err = cipher_descriptor[ctr->cipher].ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[ctr->cipher]->ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key)) != CRYPT_OK) {
             return err;
          }
          ctr->padlen = 0;

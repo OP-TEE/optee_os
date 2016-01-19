@@ -192,7 +192,7 @@ typedef struct {
 
 
 /** cipher descriptor table, last entry has "name == NULL" to mark the end of table */
-extern struct ltc_cipher_descriptor {
+extern const struct ltc_cipher_descriptor {
    /** name of cipher */
    const char *name;
    /** internal ID */
@@ -437,7 +437,7 @@ extern struct ltc_cipher_descriptor {
      int (*accel_xts_decrypt)(const unsigned char *ct, unsigned char *pt,
          unsigned long blocks, unsigned char *tweak, symmetric_key *skey1,
          symmetric_key *skey2);
-} cipher_descriptor[];
+} *cipher_descriptor[];
 
 
 /* make aes an alias */

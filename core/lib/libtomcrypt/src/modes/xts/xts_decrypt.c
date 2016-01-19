@@ -59,7 +59,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
    }
 #endif
      
-   err = cipher_descriptor[xts->cipher].ecb_decrypt(P, P, &xts->key1);  
+   err = cipher_descriptor[xts->cipher]->ecb_decrypt(P, P, &xts->key1);  
 
 #ifdef LTC_FAST
    for (x = 0; x < 16; x += sizeof(LTC_FAST_TYPE)) {
@@ -94,7 +94,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 #endif
          symmetric_xts *xts)
 {
-   struct ltc_cipher_descriptor *desc;
+   const struct ltc_cipher_descriptor *desc;
    unsigned char PP[16], CC[16], T[16];
    unsigned long i, m, mo, lim;
    int           err;
@@ -125,7 +125,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
       lim = m - 1;
    }
 
-   desc = &cipher_descriptor[xts->cipher];
+   desc = cipher_descriptor[xts->cipher];
 
    if (desc->accel_xts_encrypt && lim > 0) {
 

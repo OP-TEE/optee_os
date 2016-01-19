@@ -59,7 +59,7 @@ static int tweak_crypt(const unsigned char *P, unsigned char *C, unsigned char *
    }
 #endif
      
-   if ((err = cipher_descriptor[xts->cipher].ecb_encrypt(C, C, &xts->key1)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[xts->cipher]->ecb_encrypt(C, C, &xts->key1)) != CRYPT_OK) {
       return err;
    }
 
@@ -97,7 +97,7 @@ int xts_encrypt(
 #endif
          symmetric_xts *xts)
 {
-   struct ltc_cipher_descriptor *desc;
+   const struct ltc_cipher_descriptor *desc;
    unsigned char PP[16], CC[16], T[16];
    unsigned long i, m, mo, lim;
    int           err;
@@ -128,7 +128,7 @@ int xts_encrypt(
       lim = m - 1;
    }
 
-   desc = &cipher_descriptor[xts->cipher];
+   desc = cipher_descriptor[xts->cipher];
 
    if (desc->accel_xts_encrypt && lim > 0) {
 

@@ -1899,7 +1899,7 @@ static TEE_Result cipher_get_block_size(uint32_t algo, size_t *size)
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	*size = cipher_descriptor[ltc_cipherindex].block_length;
+	*size = cipher_descriptor[ltc_cipherindex]->block_length;
 	return TEE_SUCCESS;
 }
 
@@ -2025,7 +2025,7 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo,
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 		if (iv_len !=
-		    (size_t)cipher_descriptor[ltc_cipherindex].block_length)
+		    (size_t)cipher_descriptor[ltc_cipherindex]->block_length)
 			return TEE_ERROR_BAD_PARAMETERS;
 		ltc_res = cbc_start(
 			ltc_cipherindex, iv, key1, key1_len,
@@ -2037,7 +2037,7 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo,
 		get_des2_key(key1, key1_len, key_array,
 			     &real_key, &real_key_len);
 		if (iv_len !=
-		    (size_t)cipher_descriptor[ltc_cipherindex].block_length)
+		    (size_t)cipher_descriptor[ltc_cipherindex]->block_length)
 			return TEE_ERROR_BAD_PARAMETERS;
 		ltc_res = cbc_start(
 			ltc_cipherindex, iv, real_key, real_key_len,
@@ -2047,7 +2047,7 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo,
 #if defined(CFG_CRYPTO_CTR)
 	case TEE_ALG_AES_CTR:
 		if (iv_len !=
-		    (size_t)cipher_descriptor[ltc_cipherindex].block_length)
+		    (size_t)cipher_descriptor[ltc_cipherindex]->block_length)
 			return TEE_ERROR_BAD_PARAMETERS;
 		ltc_res = ctr_start(
 			ltc_cipherindex, iv, key1, key1_len,
@@ -2314,7 +2314,7 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			return res;
 
 		cbc->block_len =
-			cipher_descriptor[ltc_cipherindex].block_length;
+			cipher_descriptor[ltc_cipherindex]->block_length;
 		if (CBCMAC_MAX_BLOCK_LEN < cbc->block_len)
 			return TEE_ERROR_BAD_PARAMETERS;
 		memset(iv, 0, cbc->block_len);
