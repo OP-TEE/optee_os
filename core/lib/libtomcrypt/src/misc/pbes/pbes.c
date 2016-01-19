@@ -63,7 +63,7 @@ int pbes_decrypt(const pbes_arg  *arg, unsigned char *dec_data, unsigned long *d
    dlen = arg->enc_data->size;
    if ((err = padding_depad(dec_data, &dlen, LTC_PAD_PKCS7)) != CRYPT_OK) goto LBL_ERROR;
    diff = (long)arg->enc_data->size - (long)dlen;
-   if ((diff <= 0) || (diff > cipher_descriptor[cid].block_length)) {
+   if ((diff <= 0) || (diff > cipher_descriptor[cid]->block_length)) {
       err = CRYPT_PK_INVALID_PADDING;
       goto LBL_ERROR;
    }

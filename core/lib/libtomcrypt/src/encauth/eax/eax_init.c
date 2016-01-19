@@ -48,7 +48,7 @@ int eax_init(eax_state *eax, int cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   blklen = cipher_descriptor[cipher].block_length;
+   blklen = cipher_descriptor[cipher]->block_length;
 
    /* allocate ram */
    buf  = XMALLOC(MAXBLOCKSIZE);

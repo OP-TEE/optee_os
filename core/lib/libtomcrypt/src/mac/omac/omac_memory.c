@@ -45,8 +45,8 @@ int omac_memory(int cipher,
    }
 
    /* Use accelerator if found */
-   if (cipher_descriptor[cipher].omac_memory != NULL) {
-      return cipher_descriptor[cipher].omac_memory(key, keylen, in, inlen, out, outlen);
+   if (cipher_descriptor[cipher]->omac_memory != NULL) {
+      return cipher_descriptor[cipher]->omac_memory(key, keylen, in, inlen, out, outlen);
    }
 
    /* allocate ram for omac state */

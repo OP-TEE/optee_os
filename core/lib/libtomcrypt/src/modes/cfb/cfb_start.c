@@ -42,19 +42,19 @@ int cfb_start(int cipher, const unsigned char *IV, const unsigned char *key,
 
    /* copy data */
    cfb->cipher = cipher;
-   cfb->blocklen = cipher_descriptor[cipher].block_length;
+   cfb->blocklen = cipher_descriptor[cipher]->block_length;
    for (x = 0; x < cfb->blocklen; x++) {
        cfb->IV[x] = IV[x];
    }
 
    /* init the cipher */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, num_rounds, &cfb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &cfb->key)) != CRYPT_OK) {
       return err;
    }
 
    /* encrypt the IV */
    cfb->padlen = 0;
-   return cipher_descriptor[cfb->cipher].ecb_encrypt(cfb->IV, cfb->IV, &cfb->key);
+   return cipher_descriptor[cfb->cipher]->ecb_encrypt(cfb->IV, cfb->IV, &cfb->key);
 }
 
 #endif

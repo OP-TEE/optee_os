@@ -31,7 +31,7 @@ static int _ocb3_int_aad_add_block(ocb3_state *ocb, const unsigned char *aad_blo
 
    /* Sum_i = Sum_{i-1} xor ENCIPHER(K, A_i xor Offset_i) */
    ocb3_int_xor_blocks(tmp, aad_block, ocb->aOffset_current, ocb->block_len);
-   if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(tmp, tmp, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(tmp, tmp, &ocb->key)) != CRYPT_OK) {
      return err;
    }
    ocb3_int_xor_blocks(ocb->aSum_current, ocb->aSum_current, tmp, ocb->block_len);

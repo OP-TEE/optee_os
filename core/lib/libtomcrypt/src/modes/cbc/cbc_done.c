@@ -27,7 +27,7 @@ int cbc_done(symmetric_CBC *cbc)
    if ((err = cipher_is_valid(cbc->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[cbc->cipher].done(&cbc->key);
+   cipher_descriptor[cbc->cipher]->done(&cbc->key);
    return CRYPT_OK;
 }
 

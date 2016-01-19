@@ -34,7 +34,7 @@ int ccm_done(ccm_state *ccm,
    LTC_ARGCHK(taglen != NULL);
 
    if (ccm->x != 0) {
-      if ((err = cipher_descriptor[ccm->cipher].ecb_encrypt(ccm->PAD, ccm->PAD, &ccm->K)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[ccm->cipher]->ecb_encrypt(ccm->PAD, ccm->PAD, &ccm->K)) != CRYPT_OK) {
          return err;
       }
    }
@@ -43,11 +43,11 @@ int ccm_done(ccm_state *ccm,
    for (y = 15; y > 15 - ccm->L; y--) {
       ccm->ctr[y] = 0x00;
    }
-   if ((err = cipher_descriptor[ccm->cipher].ecb_encrypt(ccm->ctr, ccm->CTRPAD, &ccm->K)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[ccm->cipher]->ecb_encrypt(ccm->ctr, ccm->CTRPAD, &ccm->K)) != CRYPT_OK) {
       return err;
    }
 
-   cipher_descriptor[ccm->cipher].done(&ccm->K);
+   cipher_descriptor[ccm->cipher]->done(&ccm->K);
 
    /* store the TAG */
    for (x = 0; x < 16 && x < *taglen; x++) {

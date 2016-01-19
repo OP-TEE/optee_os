@@ -32,14 +32,14 @@ int f9_done(f9_state *f9, unsigned char *out, unsigned long *outlen)
       return err;
    }
 
-   if ((f9->blocksize > cipher_descriptor[f9->cipher].block_length) || (f9->blocksize < 0) ||
+   if ((f9->blocksize > cipher_descriptor[f9->cipher]->block_length) || (f9->blocksize < 0) ||
        (f9->buflen > f9->blocksize) || (f9->buflen < 0)) {
       return CRYPT_INVALID_ARG;
    }
 
    if (f9->buflen != 0) {
       /* encrypt */
-      cipher_descriptor[f9->cipher].ecb_encrypt(f9->IV, f9->IV, &f9->key);
+      cipher_descriptor[f9->cipher]->ecb_encrypt(f9->IV, f9->IV, &f9->key);
       f9->buflen = 0;
       for (x = 0; x < f9->blocksize; x++) {
          f9->ACC[x] ^= f9->IV[x];
@@ -47,13 +47,13 @@ int f9_done(f9_state *f9, unsigned char *out, unsigned long *outlen)
    }
 
    /* schedule modified key */
-   if ((err = cipher_descriptor[f9->cipher].setup(f9->akey, f9->keylen, 0, &f9->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[f9->cipher]->setup(f9->akey, f9->keylen, 0, &f9->key)) != CRYPT_OK) {
       return err;
    }
 
    /* encrypt the ACC */
-   cipher_descriptor[f9->cipher].ecb_encrypt(f9->ACC, f9->ACC, &f9->key);
-   cipher_descriptor[f9->cipher].done(&f9->key);
+   cipher_descriptor[f9->cipher]->ecb_encrypt(f9->ACC, f9->ACC, &f9->key);
+   cipher_descriptor[f9->cipher]->done(&f9->key);
 
    /* extract tag */
    for (x = 0; x < f9->blocksize && (unsigned long)x < *outlen; x++) {

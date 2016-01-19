@@ -32,21 +32,21 @@ int ecb_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, s
    if ((err = cipher_is_valid(ecb->cipher)) != CRYPT_OK) {
        return err;
    }
-   if (len % cipher_descriptor[ecb->cipher].block_length) {
+   if (len % cipher_descriptor[ecb->cipher]->block_length) {
       return CRYPT_INVALID_ARG;
    }
 
    /* check for accel */
-   if (cipher_descriptor[ecb->cipher].accel_ecb_decrypt != NULL) {
-      return cipher_descriptor[ecb->cipher].accel_ecb_decrypt(ct, pt, len / cipher_descriptor[ecb->cipher].block_length, &ecb->key);
+   if (cipher_descriptor[ecb->cipher]->accel_ecb_decrypt != NULL) {
+      return cipher_descriptor[ecb->cipher]->accel_ecb_decrypt(ct, pt, len / cipher_descriptor[ecb->cipher]->block_length, &ecb->key);
    }
    while (len) {
-      if ((err = cipher_descriptor[ecb->cipher].ecb_decrypt(ct, pt, &ecb->key)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[ecb->cipher]->ecb_decrypt(ct, pt, &ecb->key)) != CRYPT_OK) {
          return err;
       }
-      pt  += cipher_descriptor[ecb->cipher].block_length;
-      ct  += cipher_descriptor[ecb->cipher].block_length;
-      len -= cipher_descriptor[ecb->cipher].block_length;
+      pt  += cipher_descriptor[ecb->cipher]->block_length;
+      ct  += cipher_descriptor[ecb->cipher]->block_length;
+      len -= cipher_descriptor[ecb->cipher]->block_length;
    }
    return CRYPT_OK;
 }

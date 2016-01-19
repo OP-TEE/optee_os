@@ -70,7 +70,7 @@ int gcm_process(gcm_state *gcm,
           if (++gcm->Y[y] & 255) { break; }
       }
       /* encrypt the counter */
-      if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[gcm->cipher]->ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
          return err;
       }
 
@@ -99,7 +99,7 @@ int gcm_process(gcm_state *gcm,
              for (y = 15; y >= 12; y--) {
                  if (++gcm->Y[y] & 255) { break; }
              }
-             if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[gcm->cipher]->ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
                 return err;
              }
          }
@@ -117,7 +117,7 @@ int gcm_process(gcm_state *gcm,
              for (y = 15; y >= 12; y--) {
                  if (++gcm->Y[y] & 255) { break; }
              }
-             if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[gcm->cipher]->ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
                 return err;
              }
          }
@@ -135,7 +135,7 @@ int gcm_process(gcm_state *gcm,
           for (y = 15; y >= 12; y--) {
               if (++gcm->Y[y] & 255) { break; }
           }
-          if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
+          if ((err = cipher_descriptor[gcm->cipher]->ecb_encrypt(gcm->Y, gcm->buf, &gcm->K)) != CRYPT_OK) {
              return err;
           }
           gcm->buflen = 0;

@@ -36,7 +36,7 @@ static void _ocb3_int_calc_offset_zero(ocb3_state *ocb, const unsigned char *non
 
    /* Ktop = ENCIPHER(K, Nonce[1..122] || zeros(6))   */
    iNonce[ocb->block_len-1] = iNonce[ocb->block_len-1] & 0xC0;
-   if ((cipher_descriptor[ocb->cipher].ecb_encrypt(iNonce, iKtop, &ocb->key)) != CRYPT_OK) {
+   if ((cipher_descriptor[ocb->cipher]->ecb_encrypt(iNonce, iKtop, &ocb->key)) != CRYPT_OK) {
       zeromem(ocb->Offset_current, ocb->block_len);
       return;
    }
@@ -110,7 +110,7 @@ int ocb3_init(ocb3_state *ocb, int cipher,
    }
 
    /* The blockcipher must have a 128-bit blocksize */
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_ARG;
    }
 
@@ -121,7 +121,7 @@ int ocb3_init(ocb3_state *ocb, int cipher,
    ocb->tag_len = taglen;
 
    /* determine which polys to use */
-   ocb->block_len = cipher_descriptor[cipher].block_length;
+   ocb->block_len = cipher_descriptor[cipher]->block_length;
    x = (int)(sizeof(polys)/sizeof(polys[0]));
    for (poly = 0; poly < x; poly++) {
        if (polys[poly].len == ocb->block_len) {
@@ -136,13 +136,13 @@ int ocb3_init(ocb3_state *ocb, int cipher,
    }
 
    /* schedule the key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &ocb->key)) != CRYPT_OK) {
       return err;
    }
 
    /* L_* = ENCIPHER(K, zeros(128)) */
    zeromem(ocb->L_star, ocb->block_len);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(ocb->L_star, ocb->L_star, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(ocb->L_star, ocb->L_star, &ocb->key)) != CRYPT_OK) {
       return err;
    }
 

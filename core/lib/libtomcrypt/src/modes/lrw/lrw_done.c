@@ -29,7 +29,7 @@ int lrw_done(symmetric_LRW *lrw)
    if ((err = cipher_is_valid(lrw->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[lrw->cipher].done(&lrw->key);
+   cipher_descriptor[lrw->cipher]->done(&lrw->key);
 
    return CRYPT_OK;
 }

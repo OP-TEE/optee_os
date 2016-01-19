@@ -39,7 +39,7 @@ int f8_setiv(const unsigned char *IV, unsigned long len, symmetric_F8 *f8)
 
    /* force next block */
    f8->padlen = 0;
-   return cipher_descriptor[f8->cipher].ecb_encrypt(IV, f8->IV, &f8->key);
+   return cipher_descriptor[f8->cipher]->ecb_encrypt(IV, f8->IV, &f8->key);
 }
 
 #endif

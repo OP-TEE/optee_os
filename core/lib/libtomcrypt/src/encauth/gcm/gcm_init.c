@@ -45,18 +45,18 @@ int gcm_init(gcm_state *gcm, int cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
    /* schedule key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &gcm->K)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &gcm->K)) != CRYPT_OK) {
       return err;
    }
 
    /* H = E(0) */
    zeromem(B, 16);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(B, gcm->H, &gcm->K)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(B, gcm->H, &gcm->K)) != CRYPT_OK) {
       return err;
    }
 

@@ -54,12 +54,12 @@ int lrw_start(               int   cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
    /* schedule key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, num_rounds, &lrw->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &lrw->key)) != CRYPT_OK) {
       return err;
    }
    lrw->cipher = cipher;

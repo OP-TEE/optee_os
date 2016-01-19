@@ -35,8 +35,8 @@ int ecb_start(int cipher, const unsigned char *key, int keylen, int num_rounds, 
       return err;
    }
    ecb->cipher = cipher;
-   ecb->blocklen = cipher_descriptor[cipher].block_length;
-   return cipher_descriptor[cipher].setup(key, keylen, num_rounds, &ecb->key);
+   ecb->blocklen = cipher_descriptor[cipher]->block_length;
+   return cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &ecb->key);
 }
 
 #endif

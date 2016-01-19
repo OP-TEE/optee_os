@@ -46,7 +46,7 @@ int chc_register(int cipher)
    }
 
    /* will it be valid? */
-   kl = cipher_descriptor[cipher].block_length;
+   kl = cipher_descriptor[cipher]->block_length;
 
    /* must be >64 bit block */
    if (kl <= 8) {
@@ -54,11 +54,11 @@ int chc_register(int cipher)
    }
 
    /* can we use the ideal keysize? */
-   if ((err = cipher_descriptor[cipher].keysize(&kl)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->keysize(&kl)) != CRYPT_OK) {
       return err;
    }
    /* we require that key size == block size be a valid choice */
-   if (kl != cipher_descriptor[cipher].block_length) {
+   if (kl != cipher_descriptor[cipher]->block_length) {
       return CRYPT_INVALID_CIPHER;
    }
 
@@ -69,11 +69,11 @@ int chc_register(int cipher)
 
    /* store into descriptor */
    hash_descriptor[idx]->hashsize  =
-   hash_descriptor[idx]->blocksize = cipher_descriptor[cipher].block_length;
+   hash_descriptor[idx]->blocksize = cipher_descriptor[cipher]->block_length;
 
    /* store the idx and block size */
    cipher_idx       = cipher;
-   cipher_blocksize = cipher_descriptor[cipher].block_length;
+   cipher_blocksize = cipher_descriptor[cipher]->block_length;
    return CRYPT_OK;
 }
 
@@ -95,7 +95,7 @@ int chc_init(hash_state *md)
       return err;
    }
 
-   if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
+   if (cipher_blocksize != cipher_descriptor[cipher_idx]->block_length) {
       return CRYPT_INVALID_CIPHER;
    }
 
@@ -105,13 +105,13 @@ int chc_init(hash_state *md)
 
    /* zero key and what not */
    zeromem(buf, cipher_blocksize);
-   if ((err = cipher_descriptor[cipher_idx].setup(buf, cipher_blocksize, 0, key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher_idx]->setup(buf, cipher_blocksize, 0, key)) != CRYPT_OK) {
       XFREE(key);
       return err;
    }
 
    /* encrypt zero block */
-   cipher_descriptor[cipher_idx].ecb_encrypt(buf, md->chc.state, key);
+   cipher_descriptor[cipher_idx]->ecb_encrypt(buf, md->chc.state, key);
 
    /* zero other members */
    md->chc.length = 0;
@@ -136,12 +136,12 @@ static int chc_compress(hash_state *md, const unsigned char *buf)
    if ((key = XMALLOC(sizeof(*key))) == NULL) {
       return CRYPT_MEM;
    }
-   if ((err = cipher_descriptor[cipher_idx].setup(md->chc.state, cipher_blocksize, 0, key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher_idx]->setup(md->chc.state, cipher_blocksize, 0, key)) != CRYPT_OK) {
       XFREE(key);
       return err;
    }
    XMEMCPY(T[1], buf, cipher_blocksize);
-   cipher_descriptor[cipher_idx].ecb_encrypt(buf, T[0], key);
+   cipher_descriptor[cipher_idx]->ecb_encrypt(buf, T[0], key);
    for (x = 0; x < cipher_blocksize; x++) {
        md->chc.state[x] ^= T[0][x] ^ T[1][x];
    }
@@ -181,7 +181,7 @@ int chc_process(hash_state * md, const unsigned char *in, unsigned long inlen)
    if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
+   if (cipher_blocksize != cipher_descriptor[cipher_idx]->block_length) {
       return CRYPT_INVALID_CIPHER;
    }
 
@@ -205,7 +205,7 @@ int chc_done(hash_state *md, unsigned char *out)
     if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK) {
        return err;
     }
-    if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
+    if (cipher_blocksize != cipher_descriptor[cipher_idx]->block_length) {
        return CRYPT_INVALID_CIPHER;
     }
 

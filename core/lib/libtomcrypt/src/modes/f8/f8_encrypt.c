@@ -50,7 +50,7 @@ int f8_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, sy
       for (x = 0; x < f8->blocklen; x++) {
           f8->IV[x] ^= f8->MIV[x] ^ buf[x];
       }
-      if ((err = cipher_descriptor[f8->cipher].ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[f8->cipher]->ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
          return err;
       }
       f8->padlen = 0;
@@ -65,7 +65,7 @@ int f8_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, sy
              *(LTC_FAST_TYPE_PTR_CAST(&ct[x])) = *(LTC_FAST_TYPE_PTR_CAST(&pt[x])) ^ *(LTC_FAST_TYPE_PTR_CAST(&f8->IV[x]));
              *(LTC_FAST_TYPE_PTR_CAST(&f8->IV[x])) ^= *(LTC_FAST_TYPE_PTR_CAST(&f8->MIV[x])) ^ *(LTC_FAST_TYPE_PTR_CAST(&buf[x]));
          }
-         if ((err = cipher_descriptor[f8->cipher].ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[f8->cipher]->ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
             return err;
          }
          len -= x;
@@ -83,7 +83,7 @@ int f8_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, sy
           for (x = 0; x < f8->blocklen; x++) {
               f8->IV[x] ^= f8->MIV[x] ^ buf[x];
           }
-          if ((err = cipher_descriptor[f8->cipher].ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
+          if ((err = cipher_descriptor[f8->cipher]->ecb_encrypt(f8->IV, f8->IV, &f8->key)) != CRYPT_OK) {
              return err;
           }
           f8->padlen = 0;

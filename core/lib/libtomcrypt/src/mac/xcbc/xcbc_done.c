@@ -32,7 +32,7 @@ int xcbc_done(xcbc_state *xcbc, unsigned char *out, unsigned long *outlen)
       return err;
    }
 
-   if ((xcbc->blocksize > cipher_descriptor[xcbc->cipher].block_length) || (xcbc->blocksize < 0) ||
+   if ((xcbc->blocksize > cipher_descriptor[xcbc->cipher]->block_length) || (xcbc->blocksize < 0) ||
        (xcbc->buflen > xcbc->blocksize) || (xcbc->buflen < 0)) {
       return CRYPT_INVALID_ARG;
    }
@@ -52,8 +52,8 @@ int xcbc_done(xcbc_state *xcbc, unsigned char *out, unsigned long *outlen)
    }
 
    /* encrypt */
-   cipher_descriptor[xcbc->cipher].ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
-   cipher_descriptor[xcbc->cipher].done(&xcbc->key);
+   cipher_descriptor[xcbc->cipher]->ecb_encrypt(xcbc->IV, xcbc->IV, &xcbc->key);
+   cipher_descriptor[xcbc->cipher]->done(&xcbc->key);
 
    /* extract tag */
    for (x = 0; x < xcbc->blocksize && (unsigned long)x < *outlen; x++) {

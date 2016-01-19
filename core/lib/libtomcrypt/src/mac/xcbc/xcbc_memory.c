@@ -39,8 +39,8 @@ int xcbc_memory(int cipher,
    }
 
    /* Use accelerator if found */
-   if (cipher_descriptor[cipher].xcbc_memory != NULL) {
-      return cipher_descriptor[cipher].xcbc_memory(key, keylen, in, inlen, out, outlen);
+   if (cipher_descriptor[cipher]->xcbc_memory != NULL) {
+      return cipher_descriptor[cipher]->xcbc_memory(key, keylen, in, inlen, out, outlen);
    }
 
    xcbc = XCALLOC(1, sizeof(*xcbc));

@@ -27,7 +27,7 @@ int ctr_done(symmetric_CTR *ctr)
    if ((err = cipher_is_valid(ctr->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[ctr->cipher].done(&ctr->key);
+   cipher_descriptor[ctr->cipher]->done(&ctr->key);
    return CRYPT_OK;
 }
 

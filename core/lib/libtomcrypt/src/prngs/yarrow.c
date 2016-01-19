@@ -193,7 +193,7 @@ int yarrow_ready(prng_state *prng)
 
    /* setup CTR mode using the "pool" as the key */
    ks = (int)hash_descriptor[prng->u.yarrow.hash]->hashsize;
-   if ((err = cipher_descriptor[prng->u.yarrow.cipher].keysize(&ks)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[prng->u.yarrow.cipher]->keysize(&ks)) != CRYPT_OK) {
       goto LBL_UNLOCK;
    }
 
@@ -312,8 +312,8 @@ int yarrow_test(void)
    }
 
    /* now let's test the hash/cipher that was chosen */
-   if (cipher_descriptor[prng.u.yarrow.cipher].test &&
-       ((err = cipher_descriptor[prng.u.yarrow.cipher].test()) != CRYPT_OK)) {
+   if (cipher_descriptor[prng.u.yarrow.cipher]->test &&
+       ((err = cipher_descriptor[prng.u.yarrow.cipher]->test()) != CRYPT_OK)) {
       return err;
    }
    if (hash_descriptor[prng.u.yarrow.hash]->test &&

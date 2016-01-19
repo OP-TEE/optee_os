@@ -36,7 +36,7 @@ int ccm_init(ccm_state *ccm, int cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
@@ -47,7 +47,7 @@ int ccm_init(ccm_state *ccm, int cipher,
    ccm->taglen = taglen;
 
    /* schedule key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &ccm->K)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &ccm->K)) != CRYPT_OK) {
       return err;
    }
    ccm->cipher = cipher;
