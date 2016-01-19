@@ -151,7 +151,7 @@ static TEE_Result generate_ssk(uint8_t *ssk, uint32_t ssk_size,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_ops.hash.final(ctx, TEE_FS_KM_HMAC_ALG, ssk, ssk_size);
+	res = crypto_ops.mac.final(ctx, TEE_FS_KM_HMAC_ALG, ssk, ssk_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
