@@ -20,14 +20,14 @@ static int s_xts_test_accel_xts_encrypt(const unsigned char *pt, unsigned char *
          return CRYPT_NOP;
       }
    }
-   orig = cipher_descriptor[xts.cipher].accel_xts_encrypt;
-   cipher_descriptor[xts.cipher].accel_xts_encrypt = NULL;
+   orig = cipher_descriptor[xts.cipher]->accel_xts_encrypt;
+   cipher_descriptor[xts.cipher]->accel_xts_encrypt = NULL;
 
    XMEMCPY(&xts.key1, skey1, sizeof(symmetric_key));
    XMEMCPY(&xts.key2, skey2, sizeof(symmetric_key));
 
    ret = xts_encrypt(pt, blocks << 4, ct, tweak, &xts);
-   cipher_descriptor[xts.cipher].accel_xts_encrypt = orig;
+   cipher_descriptor[xts.cipher]->accel_xts_encrypt = orig;
 
    return ret;
 }
@@ -47,14 +47,14 @@ static int s_xts_test_accel_xts_decrypt(const unsigned char *ct, unsigned char *
          return CRYPT_NOP;
       }
    }
-   orig = cipher_descriptor[xts.cipher].accel_xts_decrypt;
-   cipher_descriptor[xts.cipher].accel_xts_decrypt = NULL;
+   orig = cipher_descriptor[xts.cipher]->accel_xts_decrypt;
+   cipher_descriptor[xts.cipher]->accel_xts_decrypt = NULL;
 
    XMEMCPY(&xts.key1, skey1, sizeof(symmetric_key));
    XMEMCPY(&xts.key2, skey2, sizeof(symmetric_key));
 
    ret = xts_decrypt(ct, blocks << 4, pt, tweak, &xts);
-   cipher_descriptor[xts.cipher].accel_xts_decrypt = orig;
+   cipher_descriptor[xts.cipher]->accel_xts_decrypt = orig;
 
    return ret;
 }
@@ -205,13 +205,13 @@ int xts_test(void)
       }
    }
    for (k = 0; k < 4; ++k) {
-      cipher_descriptor[idx].accel_xts_encrypt = NULL;
-      cipher_descriptor[idx].accel_xts_decrypt = NULL;
+      cipher_descriptor[idx]->accel_xts_encrypt = NULL;
+      cipher_descriptor[idx]->accel_xts_decrypt = NULL;
       if (k & 0x1) {
-         cipher_descriptor[idx].accel_xts_encrypt = s_xts_test_accel_xts_encrypt;
+         cipher_descriptor[idx]->accel_xts_encrypt = s_xts_test_accel_xts_encrypt;
       }
       if (k & 0x2) {
-         cipher_descriptor[idx].accel_xts_decrypt = s_xts_test_accel_xts_decrypt;
+         cipher_descriptor[idx]->accel_xts_decrypt = s_xts_test_accel_xts_decrypt;
       }
       for (j = 0; j < 2; j++) {
          for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {

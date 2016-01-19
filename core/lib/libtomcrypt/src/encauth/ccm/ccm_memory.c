@@ -70,7 +70,7 @@ int ccm_memory(int cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
@@ -80,8 +80,8 @@ int ccm_memory(int cipher,
    }
 
    /* is there an accelerator? */
-   if (cipher_descriptor[cipher].accel_ccm_memory != NULL) {
-       return cipher_descriptor[cipher].accel_ccm_memory(
+   if (cipher_descriptor[cipher]->accel_ccm_memory != NULL) {
+       return cipher_descriptor[cipher]->accel_ccm_memory(
            key,    keylen,
            uskey,
            nonce,  noncelen,
@@ -120,7 +120,7 @@ int ccm_memory(int cipher,
       }
 
       /* initialize the cipher */
-      if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, skey)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, skey)) != CRYPT_OK) {
          XFREE(skey);
          return err;
       }
@@ -166,7 +166,7 @@ int ccm_memory(int cipher,
    }
 
    /* encrypt PAD */
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
        goto error;
    }
 
@@ -191,7 +191,7 @@ int ccm_memory(int cipher,
       for (y = 0; y < headerlen; y++) {
           if (x == 16) {
              /* full block so let's encrypt it */
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              x = 0;
@@ -200,7 +200,7 @@ int ccm_memory(int cipher,
       }
 
       /* remainder */
-      if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
          goto error;
       }
    }
@@ -235,7 +235,7 @@ int ccm_memory(int cipher,
                     ctr[z] = (ctr[z] + 1) & 255;
                     if (ctr[z]) break;
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
 
@@ -244,7 +244,7 @@ int ccm_memory(int cipher,
                     *(LTC_FAST_TYPE_PTR_CAST(&PAD[z]))  ^= *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z]));
                     *(LTC_FAST_TYPE_PTR_CAST(&ct[y+z])) = *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z])) ^ *(LTC_FAST_TYPE_PTR_CAST(&CTRPAD[z]));
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
              }
@@ -255,7 +255,7 @@ int ccm_memory(int cipher,
                     ctr[z] = (ctr[z] + 1) & 255;
                     if (ctr[z]) break;
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
 
@@ -264,7 +264,7 @@ int ccm_memory(int cipher,
                     *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z])) = *(LTC_FAST_TYPE_PTR_CAST(&ct[y+z])) ^ *(LTC_FAST_TYPE_PTR_CAST(&CTRPAD[z]));
                     *(LTC_FAST_TYPE_PTR_CAST(&PAD[z]))  ^= *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z]));
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
              }
@@ -279,7 +279,7 @@ int ccm_memory(int cipher,
                  ctr[z] = (ctr[z] + 1) & 255;
                  if (ctr[z]) break;
              }
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              CTRlen = 0;
@@ -295,7 +295,7 @@ int ccm_memory(int cipher,
           }
 
           if (x == 16) {
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              x = 0;
@@ -304,7 +304,7 @@ int ccm_memory(int cipher,
       }
 
       if (x != 0) {
-         if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
             goto error;
          }
       }
@@ -314,12 +314,12 @@ int ccm_memory(int cipher,
    for (y = 15; y > 15 - L; y--) {
       ctr[y] = 0x00;
    }
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
       goto error;
    }
 
    if (skey != uskey) {
-      cipher_descriptor[cipher].done(skey);
+      cipher_descriptor[cipher]->done(skey);
 #ifdef LTC_CLEAN_STACK
       zeromem(skey,   sizeof(*skey));
 #endif
