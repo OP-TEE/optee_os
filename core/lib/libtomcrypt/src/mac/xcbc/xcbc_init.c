@@ -37,7 +37,7 @@ int xcbc_init(xcbc_state *xcbc, int cipher, const unsigned char *key, unsigned l
    }
 
 #ifdef LTC_FAST
-   if (cipher_descriptor[cipher].block_length % sizeof(LTC_FAST_TYPE)) {
+   if (cipher_descriptor[cipher]->block_length % sizeof(LTC_FAST_TYPE)) {
        return CRYPT_INVALID_ARG;
    }
 #endif
@@ -48,17 +48,17 @@ int xcbc_init(xcbc_state *xcbc, int cipher, const unsigned char *key, unsigned l
    if (keylen & LTC_XCBC_PURE) {
       keylen &= ~LTC_XCBC_PURE;
 
-      if (keylen < 2UL*cipher_descriptor[cipher].block_length) {
+      if (keylen < 2UL*cipher_descriptor[cipher]->block_length) {
          return CRYPT_INVALID_ARG;
       }
 
-      k1      = keylen - 2*cipher_descriptor[cipher].block_length;
+      k1      = keylen - 2*cipher_descriptor[cipher]->block_length;
       XMEMCPY(xcbc->K[0], key, k1);
-      XMEMCPY(xcbc->K[1], key+k1, cipher_descriptor[cipher].block_length);
-      XMEMCPY(xcbc->K[2], key+k1 + cipher_descriptor[cipher].block_length, cipher_descriptor[cipher].block_length);
+      XMEMCPY(xcbc->K[1], key+k1, cipher_descriptor[cipher]->block_length);
+      XMEMCPY(xcbc->K[2], key+k1 + cipher_descriptor[cipher]->block_length, cipher_descriptor[cipher]->block_length);
    } else {
       /* use the key expansion */
-      k1      = cipher_descriptor[cipher].block_length;
+      k1      = cipher_descriptor[cipher]->block_length;
 
       /* schedule the user key */
       skey = XCALLOC(1, sizeof(*skey));
@@ -66,29 +66,29 @@ int xcbc_init(xcbc_state *xcbc, int cipher, const unsigned char *key, unsigned l
          return CRYPT_MEM;
       }
 
-      if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, skey)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, skey)) != CRYPT_OK) {
          goto done;
       }
 
       /* make the three keys */
       for (y = 0; y < 3; y++) {
-        for (x = 0; x < cipher_descriptor[cipher].block_length; x++) {
+        for (x = 0; x < cipher_descriptor[cipher]->block_length; x++) {
            xcbc->K[y][x] = y + 1;
         }
-        cipher_descriptor[cipher].ecb_encrypt(xcbc->K[y], xcbc->K[y], skey);
+        cipher_descriptor[cipher]->ecb_encrypt(xcbc->K[y], xcbc->K[y], skey);
       }
    }
 
    /* setup K1 */
-   err = cipher_descriptor[cipher].setup(xcbc->K[0], k1, 0, &xcbc->key);
+   err = cipher_descriptor[cipher]->setup(xcbc->K[0], k1, 0, &xcbc->key);
 
    /* setup struct */
-   zeromem(xcbc->IV, cipher_descriptor[cipher].block_length);
-   xcbc->blocksize = cipher_descriptor[cipher].block_length;
+   zeromem(xcbc->IV, cipher_descriptor[cipher]->block_length);
+   xcbc->blocksize = cipher_descriptor[cipher]->block_length;
    xcbc->cipher    = cipher;
    xcbc->buflen    = 0;
 done:
-   cipher_descriptor[cipher].done(skey);
+   cipher_descriptor[cipher]->done(skey);
    if (skey != NULL) {
 #ifdef LTC_CLEAN_STACK
       zeromem(skey, sizeof(*skey));

@@ -41,14 +41,14 @@ int ofb_start(int cipher, const unsigned char *IV, const unsigned char *key,
 
    /* copy details */
    ofb->cipher = cipher;
-   ofb->blocklen = cipher_descriptor[cipher].block_length;
+   ofb->blocklen = cipher_descriptor[cipher]->block_length;
    for (x = 0; x < ofb->blocklen; x++) {
        ofb->IV[x] = IV[x];
    }
 
    /* init the cipher */
    ofb->padlen = ofb->blocklen;
-   return cipher_descriptor[cipher].setup(key, keylen, num_rounds, &ofb->key);
+   return cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &ofb->key);
 }
 
 #endif

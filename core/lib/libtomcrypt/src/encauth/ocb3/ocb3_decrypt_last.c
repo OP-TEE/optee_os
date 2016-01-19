@@ -56,7 +56,7 @@ int ocb3_decrypt_last(ocb3_state *ocb, const unsigned char *ct, unsigned long ct
      ocb3_int_xor_blocks(iOffset_star, ocb->Offset_current, ocb->L_star, ocb->block_len);
 
      /* Pad = ENCIPHER(K, Offset_*) */
-     if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(iOffset_star, iPad, &ocb->key)) != CRYPT_OK) {
+     if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(iOffset_star, iPad, &ocb->key)) != CRYPT_OK) {
        goto LBL_ERR;
      }
 
@@ -78,7 +78,7 @@ int ocb3_decrypt_last(ocb3_state *ocb, const unsigned char *ct, unsigned long ct
      for(x=0; x<ocb->block_len; x++) {
        ocb->tag_part[x] = (ocb->checksum[x] ^ iOffset_star[x]) ^ ocb->L_dollar[x];
      }
-     if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(ocb->tag_part, ocb->tag_part, &ocb->key)) != CRYPT_OK) {
+     if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(ocb->tag_part, ocb->tag_part, &ocb->key)) != CRYPT_OK) {
        goto LBL_ERR;
      }
    }
@@ -88,7 +88,7 @@ int ocb3_decrypt_last(ocb3_state *ocb, const unsigned char *ct, unsigned long ct
      for(x=0; x<ocb->block_len; x++) {
        ocb->tag_part[x] = (ocb->checksum[x] ^ ocb->Offset_current[x]) ^ ocb->L_dollar[x];
      }
-     if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(ocb->tag_part, ocb->tag_part, &ocb->key)) != CRYPT_OK) {
+     if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(ocb->tag_part, ocb->tag_part, &ocb->key)) != CRYPT_OK) {
        goto LBL_ERR;
      }
    }

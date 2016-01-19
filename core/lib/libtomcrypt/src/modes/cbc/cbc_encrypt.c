@@ -50,8 +50,8 @@ int cbc_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
    }
 #endif
 
-   if (cipher_descriptor[cbc->cipher].accel_cbc_encrypt != NULL) {
-      return cipher_descriptor[cbc->cipher].accel_cbc_encrypt(pt, ct, len / cbc->blocklen, cbc->IV, &cbc->key);
+   if (cipher_descriptor[cbc->cipher]->accel_cbc_encrypt != NULL) {
+      return cipher_descriptor[cbc->cipher]->accel_cbc_encrypt(pt, ct, len / cbc->blocklen, cbc->IV, &cbc->key);
    }
    while (len) {
       /* xor IV against plaintext */
@@ -66,7 +66,7 @@ int cbc_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
 #endif
 
       /* encrypt */
-      if ((err = cipher_descriptor[cbc->cipher].ecb_encrypt(cbc->IV, ct, &cbc->key)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cbc->cipher]->ecb_encrypt(cbc->IV, ct, &cbc->key)) != CRYPT_OK) {
          return err;
       }
 

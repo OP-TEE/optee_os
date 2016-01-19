@@ -37,13 +37,13 @@ int omac_init(omac_state *omac, int cipher, const unsigned char *key, unsigned l
    }
 
 #ifdef LTC_FAST
-   if (cipher_descriptor[cipher].block_length % sizeof(LTC_FAST_TYPE)) {
+   if (cipher_descriptor[cipher]->block_length % sizeof(LTC_FAST_TYPE)) {
        return CRYPT_INVALID_ARG;
    }
 #endif
 
    /* now setup the system */
-   switch (cipher_descriptor[cipher].block_length) {
+   switch (cipher_descriptor[cipher]->block_length) {
        case 8:  mask = 0x1B;
                 len  = 8;
                 break;
@@ -53,15 +53,15 @@ int omac_init(omac_state *omac, int cipher, const unsigned char *key, unsigned l
        default: return CRYPT_INVALID_ARG;
    }
 
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &omac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &omac->key)) != CRYPT_OK) {
       return err;
    }
 
    /* ok now we need Lu and Lu^2 [calc one from the other] */
 
    /* first calc L which is Ek(0) */
-   zeromem(omac->Lu[0], cipher_descriptor[cipher].block_length);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(omac->Lu[0], omac->Lu[0], &omac->key)) != CRYPT_OK) {
+   zeromem(omac->Lu[0], cipher_descriptor[cipher]->block_length);
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(omac->Lu[0], omac->Lu[0], &omac->key)) != CRYPT_OK) {
       return err;
    }
 

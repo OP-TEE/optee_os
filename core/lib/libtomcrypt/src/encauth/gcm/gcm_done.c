@@ -69,7 +69,7 @@ int gcm_done(gcm_state *gcm,
    gcm_mult_h(gcm, gcm->X);
 
    /* encrypt original counter */
-   if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y_0, gcm->buf, &gcm->K)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[gcm->cipher]->ecb_encrypt(gcm->Y_0, gcm->buf, &gcm->K)) != CRYPT_OK) {
       return err;
    }
    for (x = 0; x < 16 && x < *taglen; x++) {
@@ -77,7 +77,7 @@ int gcm_done(gcm_state *gcm,
    }
    *taglen = x;
 
-   cipher_descriptor[gcm->cipher].done(&gcm->K);
+   cipher_descriptor[gcm->cipher]->done(&gcm->K);
 
    return CRYPT_OK;
 }

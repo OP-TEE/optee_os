@@ -45,22 +45,22 @@ int ctr_start(               int   cipher,
    }
 
    /* ctrlen == counter width */
-   ctr->ctrlen   = (ctr_mode & 255) ? (ctr_mode & 255) : cipher_descriptor[cipher].block_length;
-   if (ctr->ctrlen > cipher_descriptor[cipher].block_length) {
+   ctr->ctrlen   = (ctr_mode & 255) ? (ctr_mode & 255) : cipher_descriptor[cipher]->block_length;
+   if (ctr->ctrlen > cipher_descriptor[cipher]->block_length) {
       return CRYPT_INVALID_ARG;
    }
 
    if ((ctr_mode & 0x1000) == CTR_COUNTER_BIG_ENDIAN) {
-      ctr->ctrlen = cipher_descriptor[cipher].block_length - ctr->ctrlen;
+      ctr->ctrlen = cipher_descriptor[cipher]->block_length - ctr->ctrlen;
    }
 
    /* setup cipher */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, num_rounds, &ctr->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &ctr->key)) != CRYPT_OK) {
       return err;
    }
 
    /* copy ctr */
-   ctr->blocklen = cipher_descriptor[cipher].block_length;
+   ctr->blocklen = cipher_descriptor[cipher]->block_length;
    ctr->cipher   = cipher;
    ctr->padlen   = 0;
    ctr->mode     = ctr_mode & 0x1000;
@@ -89,7 +89,7 @@ int ctr_start(               int   cipher,
       }
    }
 
-   return cipher_descriptor[ctr->cipher].ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key);
+   return cipher_descriptor[ctr->cipher]->ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key);
 }
 
 #endif

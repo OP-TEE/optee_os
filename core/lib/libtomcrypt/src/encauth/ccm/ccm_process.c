@@ -53,7 +53,7 @@ int ccm_process(ccm_state *ccm,
                ccm->ctr[z] = (ccm->ctr[z] + 1) & 255;
                if (ccm->ctr[z]) break;
             }
-            if ((err = cipher_descriptor[ccm->cipher].ecb_encrypt(ccm->ctr, ccm->CTRPAD, &ccm->K)) != CRYPT_OK) {
+            if ((err = cipher_descriptor[ccm->cipher]->ecb_encrypt(ccm->ctr, ccm->CTRPAD, &ccm->K)) != CRYPT_OK) {
                return err;
             }
             ccm->CTRlen = 0;
@@ -69,7 +69,7 @@ int ccm_process(ccm_state *ccm,
          }
 
          if (ccm->x == 16) {
-            if ((err = cipher_descriptor[ccm->cipher].ecb_encrypt(ccm->PAD, ccm->PAD, &ccm->K)) != CRYPT_OK) {
+            if ((err = cipher_descriptor[ccm->cipher]->ecb_encrypt(ccm->PAD, ccm->PAD, &ccm->K)) != CRYPT_OK) {
                return err;
             }
             ccm->x = 0;

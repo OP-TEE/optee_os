@@ -131,7 +131,7 @@ int ccm_test(void)
       for (y = 0; y < 2; y++) {
          taglen = tests[x].taglen;
          if (y == 0) {
-            if ((err = cipher_descriptor[idx].setup(tests[x].key, 16, 0, &skey)) != CRYPT_OK) {
+            if ((err = cipher_descriptor[idx]->setup(tests[x].key, 16, 0, &skey)) != CRYPT_OK) {
                return err;
             }
 
@@ -241,7 +241,7 @@ int ccm_test(void)
          }
 
          if (y == 0) {
-            cipher_descriptor[idx].done(&skey);
+            cipher_descriptor[idx]->done(&skey);
          }
       }
    }

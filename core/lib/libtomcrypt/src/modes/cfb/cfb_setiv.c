@@ -39,7 +39,7 @@ int cfb_setiv(const unsigned char *IV, unsigned long len, symmetric_CFB *cfb)
 
    /* force next block */
    cfb->padlen = 0;
-   return cipher_descriptor[cfb->cipher].ecb_encrypt(IV, cfb->IV, &cfb->key);
+   return cipher_descriptor[cfb->cipher]->ecb_encrypt(IV, cfb->IV, &cfb->key);
 }
 
 #endif

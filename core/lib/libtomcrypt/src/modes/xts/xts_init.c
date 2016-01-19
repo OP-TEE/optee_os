@@ -38,15 +38,15 @@ int xts_start(int cipher, const unsigned char *key1, const unsigned char *key2, 
       return err;
    }
 
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_ARG;
    }
 
    /* schedule the two ciphers */
-   if ((err = cipher_descriptor[cipher].setup(key1, keylen, num_rounds, &xts->key1)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key1, keylen, num_rounds, &xts->key1)) != CRYPT_OK) {
       return err;
    }
-   if ((err = cipher_descriptor[cipher].setup(key2, keylen, num_rounds, &xts->key2)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key2, keylen, num_rounds, &xts->key2)) != CRYPT_OK) {
       return err;
    }
    xts->cipher = cipher;

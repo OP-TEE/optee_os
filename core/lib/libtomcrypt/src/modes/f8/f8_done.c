@@ -27,7 +27,7 @@ int f8_done(symmetric_F8 *f8)
    if ((err = cipher_is_valid(f8->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[f8->cipher].done(&f8->key);
+   cipher_descriptor[f8->cipher]->done(&f8->key);
    return CRYPT_OK;
 }
 

@@ -49,8 +49,8 @@ int gcm_memory(      int           cipher,
        return err;
     }
 
-    if (cipher_descriptor[cipher].accel_gcm_memory != NULL) {
-       return cipher_descriptor[cipher].accel_gcm_memory
+    if (cipher_descriptor[cipher]->accel_gcm_memory != NULL) {
+       return cipher_descriptor[cipher]->accel_gcm_memory
                                           (key,   keylen,
                                            IV,    IVlen,
                                            adata, adatalen,

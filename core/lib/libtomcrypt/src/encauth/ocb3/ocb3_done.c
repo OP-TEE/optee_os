@@ -58,7 +58,7 @@ int ocb3_done(ocb3_state *ocb, unsigned char *tag, unsigned long *taglen)
      }
 
      /* Sum = Sum_m xor ENCIPHER(K, CipherInput) */
-     if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(tmp, tmp, &ocb->key)) != CRYPT_OK) {
+     if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(tmp, tmp, &ocb->key)) != CRYPT_OK) {
        goto LBL_ERR;
      }
      ocb3_int_xor_blocks(ocb->aSum_current, ocb->aSum_current, tmp, ocb->block_len);

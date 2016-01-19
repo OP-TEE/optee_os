@@ -30,7 +30,7 @@ static int _tweak_crypt(const unsigned char *P, unsigned char *C, unsigned char 
    }
 #endif
 
-   if ((err = cipher_descriptor[xts->cipher].ecb_encrypt(C, C, &xts->key1)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[xts->cipher]->ecb_encrypt(C, C, &xts->key1)) != CRYPT_OK) {
       return err;
    }
 
@@ -91,10 +91,10 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
       lim = m - 1;
    }
 
-   if (cipher_descriptor[xts->cipher].accel_xts_encrypt && lim > 0) {
+   if (cipher_descriptor[xts->cipher]->accel_xts_encrypt && lim > 0) {
 
       /* use accelerated encryption for whole blocks */
-      if ((err = cipher_descriptor[xts->cipher].accel_xts_encrypt(pt, ct, lim, tweak, &xts->key1, &xts->key2)) !=
+      if ((err = cipher_descriptor[xts->cipher]->accel_xts_encrypt(pt, ct, lim, tweak, &xts->key1, &xts->key2)) !=
                  CRYPT_OK) {
          return err;
       }
@@ -106,7 +106,7 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
    } else {
 
       /* encrypt the tweak */
-      if ((err = cipher_descriptor[xts->cipher].ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[xts->cipher]->ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
          return err;
       }
 
@@ -143,7 +143,7 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
    }
 
    /* Decrypt the tweak back */
-   if ((err = cipher_descriptor[xts->cipher].ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[xts->cipher]->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
       return err;
    }
 

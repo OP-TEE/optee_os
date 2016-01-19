@@ -56,12 +56,12 @@ int cbc_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, s
    }
 #endif
 
-   if (cipher_descriptor[cbc->cipher].accel_cbc_decrypt != NULL) {
-      return cipher_descriptor[cbc->cipher].accel_cbc_decrypt(ct, pt, len / cbc->blocklen, cbc->IV, &cbc->key);
+   if (cipher_descriptor[cbc->cipher]->accel_cbc_decrypt != NULL) {
+      return cipher_descriptor[cbc->cipher]->accel_cbc_decrypt(ct, pt, len / cbc->blocklen, cbc->IV, &cbc->key);
    }
    while (len) {
       /* decrypt */
-      if ((err = cipher_descriptor[cbc->cipher].ecb_decrypt(ct, tmp, &cbc->key)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cbc->cipher]->ecb_decrypt(ct, tmp, &cbc->key)) != CRYPT_OK) {
          return err;
       }
 

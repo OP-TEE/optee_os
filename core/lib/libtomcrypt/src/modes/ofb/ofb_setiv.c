@@ -39,7 +39,7 @@ int ofb_setiv(const unsigned char *IV, unsigned long len, symmetric_OFB *ofb)
 
    /* force next block */
    ofb->padlen = 0;
-   return cipher_descriptor[ofb->cipher].ecb_encrypt(IV, ofb->IV, &ofb->key);
+   return cipher_descriptor[ofb->cipher]->ecb_encrypt(IV, ofb->IV, &ofb->key);
 }
 
 #endif

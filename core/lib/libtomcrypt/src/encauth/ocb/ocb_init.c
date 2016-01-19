@@ -57,7 +57,7 @@ int ocb_init(ocb_state *ocb, int cipher,
    }
 
    /* determine which polys to use */
-   ocb->block_len = cipher_descriptor[cipher].block_length;
+   ocb->block_len = cipher_descriptor[cipher]->block_length;
    x = (int)(sizeof(polys)/sizeof(polys[0]));
    for (poly = 0; poly < x; poly++) {
        if (polys[poly].len == ocb->block_len) {
@@ -72,13 +72,13 @@ int ocb_init(ocb_state *ocb, int cipher,
    }
 
    /* schedule the key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &ocb->key)) != CRYPT_OK) {
       return err;
    }
 
    /* find L = E[0] */
    zeromem(ocb->L, ocb->block_len);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(ocb->L, ocb->L, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(ocb->L, ocb->L, &ocb->key)) != CRYPT_OK) {
       return err;
    }
 
@@ -86,7 +86,7 @@ int ocb_init(ocb_state *ocb, int cipher,
    for (x = 0; x < ocb->block_len; x++) {
        ocb->R[x] = ocb->L[x] ^ nonce[x];
    }
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(ocb->R, ocb->R, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(ocb->R, ocb->R, &ocb->key)) != CRYPT_OK) {
       return err;
    }
 

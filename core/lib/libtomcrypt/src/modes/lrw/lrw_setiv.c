@@ -44,7 +44,7 @@ int lrw_setiv(const unsigned char *IV, unsigned long len, symmetric_LRW *lrw)
    XMEMCPY(lrw->IV, IV, 16);
 
    /* check if we have to actually do work */
-   if (cipher_descriptor[lrw->cipher].accel_lrw_encrypt != NULL && cipher_descriptor[lrw->cipher].accel_lrw_decrypt != NULL) {
+   if (cipher_descriptor[lrw->cipher]->accel_lrw_encrypt != NULL && cipher_descriptor[lrw->cipher]->accel_lrw_decrypt != NULL) {
        /* we have accelerators, let's bail since they don't use lrw->pad anyways */
        return CRYPT_OK;
    }

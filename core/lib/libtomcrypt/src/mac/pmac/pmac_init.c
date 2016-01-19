@@ -55,7 +55,7 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
    }
 
    /* determine which polys to use */
-   pmac->block_len = cipher_descriptor[cipher].block_length;
+   pmac->block_len = cipher_descriptor[cipher]->block_length;
    for (poly = 0; poly < (int)(sizeof(polys)/sizeof(polys[0])); poly++) {
        if (polys[poly].len == pmac->block_len) {
           break;
@@ -76,7 +76,7 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
 
 
    /* schedule the key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &pmac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &pmac->key)) != CRYPT_OK) {
       return err;
    }
 
@@ -88,7 +88,7 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
 
    /* find L = E[0] */
    zeromem(L, pmac->block_len);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(L, L, &pmac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(L, L, &pmac->key)) != CRYPT_OK) {
       goto error;
    }
 

@@ -83,11 +83,11 @@ int lrw_process(const unsigned char *pt, unsigned char *ct, unsigned long len, i
 
       /* send through cipher */
       if (mode == LRW_ENCRYPT) {
-         if ((err = cipher_descriptor[lrw->cipher].ecb_encrypt(ct, ct, &lrw->key)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[lrw->cipher]->ecb_encrypt(ct, ct, &lrw->key)) != CRYPT_OK) {
             return err;
          }
       } else {
-         if ((err = cipher_descriptor[lrw->cipher].ecb_decrypt(ct, ct, &lrw->key)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[lrw->cipher]->ecb_decrypt(ct, ct, &lrw->key)) != CRYPT_OK) {
             return err;
          }
       }

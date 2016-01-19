@@ -27,7 +27,7 @@ int cfb_done(symmetric_CFB *cfb)
    if ((err = cipher_is_valid(cfb->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[cfb->cipher].done(&cfb->key);
+   cipher_descriptor[cfb->cipher]->done(&cfb->key);
    return CRYPT_OK;
 }
 

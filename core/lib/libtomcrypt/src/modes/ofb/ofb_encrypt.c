@@ -41,7 +41,7 @@ int ofb_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
 
    while (len-- > 0) {
        if (ofb->padlen == ofb->blocklen) {
-          if ((err = cipher_descriptor[ofb->cipher].ecb_encrypt(ofb->IV, ofb->IV, &ofb->key)) != CRYPT_OK) {
+          if ((err = cipher_descriptor[ofb->cipher]->ecb_encrypt(ofb->IV, ofb->IV, &ofb->key)) != CRYPT_OK) {
              return err;
           }
           ofb->padlen = 0;

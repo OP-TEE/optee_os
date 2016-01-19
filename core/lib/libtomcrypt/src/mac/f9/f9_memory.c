@@ -39,8 +39,8 @@ int f9_memory(int cipher,
    }
 
    /* Use accelerator if found */
-   if (cipher_descriptor[cipher].f9_memory != NULL) {
-      return cipher_descriptor[cipher].f9_memory(key, keylen, in, inlen, out, outlen);
+   if (cipher_descriptor[cipher]->f9_memory != NULL) {
+      return cipher_descriptor[cipher]->f9_memory(key, keylen, in, inlen, out, outlen);
    }
 
    f9 = XCALLOC(1, sizeof(*f9));

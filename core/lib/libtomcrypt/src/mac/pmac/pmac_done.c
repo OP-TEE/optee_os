@@ -47,10 +47,10 @@ int pmac_done(pmac_state *pmac, unsigned char *out, unsigned long *outlen)
    }
 
    /* encrypt it */
-   if ((err = cipher_descriptor[pmac->cipher_idx].ecb_encrypt(pmac->checksum, pmac->checksum, &pmac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[pmac->cipher_idx]->ecb_encrypt(pmac->checksum, pmac->checksum, &pmac->key)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[pmac->cipher_idx].done(&pmac->key);
+   cipher_descriptor[pmac->cipher_idx]->done(&pmac->key);
 
    /* store it */
    for (x = 0; x < pmac->block_len && x < (int)*outlen; x++) {

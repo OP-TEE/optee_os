@@ -27,7 +27,7 @@ int ecb_done(symmetric_ECB *ecb)
    if ((err = cipher_is_valid(ecb->cipher)) != CRYPT_OK) {
       return err;
    }
-   cipher_descriptor[ecb->cipher].done(&ecb->key);
+   cipher_descriptor[ecb->cipher]->done(&ecb->key);
    return CRYPT_OK;
 }
 

@@ -34,8 +34,8 @@ int lrw_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
       return err;
    }
 
-   if (cipher_descriptor[lrw->cipher].accel_lrw_encrypt != NULL) {
-      return cipher_descriptor[lrw->cipher].accel_lrw_encrypt(pt, ct, len, lrw->IV, lrw->tweak, &lrw->key);
+   if (cipher_descriptor[lrw->cipher]->accel_lrw_encrypt != NULL) {
+      return cipher_descriptor[lrw->cipher]->accel_lrw_encrypt(pt, ct, len, lrw->IV, lrw->tweak, &lrw->key);
    }
 
    return lrw_process(pt, ct, len, LRW_ENCRYPT, lrw);
