@@ -37,9 +37,11 @@
  * @addr       Byte address of data.
  * @data       Pointer to the data.
  * @len        Size of data in bytes.
+ * @fek        SSK-encrypted File Encryption Key or NULL.
  */
 TEE_Result tee_rpmb_read(uint16_t dev_id,
-			 uint32_t addr, uint8_t *data, uint32_t len);
+			 uint32_t addr, uint8_t *data, uint32_t len,
+			 uint8_t *fek);
 
 /*
  * Write RPMB data in bytes.
@@ -48,9 +50,11 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
  * @addr       Byte address of data.
  * @data       Pointer to the data.
  * @len        Size of data in bytes.
+ * @fek        SSK-encrypted File Encryption Key or NULL.
  */
 TEE_Result tee_rpmb_write(uint16_t dev_id,
-			  uint32_t addr, uint8_t *data, uint32_t len);
+			  uint32_t addr, uint8_t *data, uint32_t len,
+			  uint8_t *fek);
 
 /*
  * Read the RPMB write counter.

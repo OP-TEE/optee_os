@@ -68,4 +68,7 @@ TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
 		const uint8_t *data_in, size_t data_in_size,
 		uint8_t *plaintext, size_t *plaintext_size,
 		uint8_t *encrypted_fek);
+TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
+			      uint16_t blk_idx, const uint8_t *encrypted_fek,
+			      TEE_OperationMode mode);
 #endif
