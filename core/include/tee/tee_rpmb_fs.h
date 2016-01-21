@@ -33,7 +33,7 @@
 #include <tee_api_types.h>
 #include <tee/tee_fs.h>
 
-#define TEE_RPMB_FS_FILENAME_LENGTH 112
+#define TEE_RPMB_FS_FILENAME_LENGTH 210
 
 struct tee_rpmb_fs_stat {
 	size_t size;

@@ -41,6 +41,7 @@
 #include <kernel/tee_misc.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/tee_fs_key_manager.h>
 #include <sm/teesmc.h>
 #include <mm/core_mmu.h>
 
@@ -190,7 +191,7 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 		goto out;
 	}
 
-	IMSG("RPMB: Using test key");
+	DMSG("RPMB: Using test key");
 	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
 
 out:
@@ -413,9 +414,63 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	return thread_rpc_cmd(TEE_RPC_RPMB_CMD, 2, params);
 }
 
+#ifdef CFG_ENC_FS
+static bool is_null_or_zero(uint8_t *fek)
+{
+	int i;
+
+	if (!fek)
+		return true;
+	for (i = 0; i < TEE_FS_KM_FEK_SIZE; i++)
+		if (fek[i])
+			return false;
+	return true;
+}
+
+static TEE_Result crypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
+			      uint8_t *fek, uint8_t *nonce, bool crypt)
+{
+	if (is_null_or_zero(fek)) {
+		/*
+		 * Unencrypted block, either because it does not belong to the
+		 * data area of a file (!fek), or because the file was created
+		 * with no encryption (e.g., by OP-TEE with CFG_ENC_FS=n).
+		 */
+		memcpy(out, in, RPMB_DATA_SIZE);
+		return TEE_SUCCESS;
+	}
+
+	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
+				  nonce, crypt);
+}
+
+#else
+static TEE_Result crypt_block(uint8_t *out, uint8_t *in,
+			      uint16_t blk_idx __unused,
+			      uint8_t *fek __unused,
+			      uint8_t *nonce __unused, bool crypt __unused)
+{
+	memcpy(out, in, RPMB_DATA_SIZE);
+	return TEE_SUCCESS;
+}
+#endif
+
+static TEE_Result encrypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
+			    uint8_t *fek, uint8_t *nonce)
+{
+	return crypt_block(out, in, blk_idx, fek, nonce, true);
+}
+
+static TEE_Result decrypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
+			    uint8_t *fek, uint8_t *nonce)
+{
+	return crypt_block(out, in, blk_idx, fek, nonce, false);
+}
+
 static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 				    struct rpmb_raw_data *rawdata,
-				    uint16_t nbr_frms, uint16_t dev_id)
+				    uint16_t nbr_frms, uint16_t dev_id,
+				    uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
@@ -469,9 +524,10 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			       RPMB_NONCE_SIZE);
 
 		if (rawdata->data)
-			memcpy(datafrm[i].data,
-			       rawdata->data + (i * RPMB_DATA_SIZE),
-			       RPMB_DATA_SIZE);
+			encrypt_block(datafrm[i].data,
+					rawdata->data + (i * RPMB_DATA_SIZE),
+					*rawdata->blk_idx + i, fek,
+					fenonce);
 	}
 
 	if (rawdata->key_mac) {
@@ -505,96 +561,154 @@ func_exit:
 	return res;
 }
 
+static TEE_Result data_cpy_mac_calc_1b(struct rpmb_data_frame *datafrm,
+				       struct rpmb_raw_data *rawdata,
+				       struct rpmb_data_frame *lastfrm,
+				       uint8_t *fek, uint8_t *fenonce)
+{
+	TEE_Result res;
+	uint8_t *data;
+	uint16_t idx;
+	uint8_t *ct = NULL;
+
+	if (rawdata->len + rawdata->byte_offset > RPMB_DATA_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	data = rawdata->data;
+	bytes_to_u16(datafrm->address, &idx);
+
+	res = tee_rpmb_mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
+				rpmb_ctx->key, RPMB_KEY_MAC_SIZE, lastfrm, 1);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (rawdata->len == RPMB_DATA_SIZE) {
+		/* Reading whole block */
+		decrypt_block(data, lastfrm->data, idx, fek, fenonce);
+	} else {
+		/* Reading partial block */
+		if (is_null_or_zero(fek)) {
+			/* Block is not encrypted */
+			memcpy(data, lastfrm->data + rawdata->byte_offset,
+			       rawdata->len);
+		} else {
+			/*
+			 * Block is encrypted. Since output buffer is not
+			 * large enough to hold one block we must allocate a
+			 * temporary buffer.
+			 */
+			ct = malloc(RPMB_DATA_SIZE);
+			if (!ct)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			decrypt_block(ct, lastfrm->data, idx, fek, fenonce);
+			memcpy(data, ct + rawdata->byte_offset, rawdata->len);
+		}
+	}
+
+	free(ct);
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 					     struct rpmb_raw_data *rawdata,
 					     uint16_t nbr_frms,
-					     struct rpmb_data_frame *lastfrm)
+					     struct rpmb_data_frame *lastfrm,
+					     uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
 	uint8_t *ctx = NULL;
 	uint16_t offset;
-	uint32_t size1;
-	uint32_t size2;
+	uint32_t size;
 	uint8_t *data;
+	uint16_t start_idx;
+	uint8_t *ct = NULL;
 
 	if (!datafrm || !rawdata || !nbr_frms || !lastfrm)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (nbr_frms == 1)
+		return data_cpy_mac_calc_1b(datafrm, rawdata, lastfrm, fek,
+					    fenonce);
+
+	/* nbr_frms > 1 */
+
 	data = rawdata->data;
-
-	if (nbr_frms == 1) {
-		res = tee_rpmb_mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
-					rpmb_ctx->key, RPMB_KEY_MAC_SIZE,
-					lastfrm,
-					1);
-		if (res != TEE_SUCCESS)
-			return res;
-
-		memcpy(data, lastfrm->data + rawdata->byte_offset,
-		       rawdata->len);
-		return TEE_SUCCESS;
-	}
+	bytes_to_u16(datafrm->address, &start_idx);
 
 	ctx = malloc(rpmb_ctx->hash_ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!ctx) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto func_exit;
+	}
 
 	res = crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
 				  RPMB_KEY_MAC_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
+	offset = rawdata->byte_offset;
 	for (i = 0; i < (nbr_frms - 1); i++) {
-		offset = RPMB_DATA_OFFSET;
-		size1 = 0;
-		size2 = 0;
+
+		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
+					    datafrm[i].data,
+					    RPMB_MAC_PROTECT_DATA_SIZE);
+		if (res != TEE_SUCCESS)
+			goto func_exit;
 
 		if (i == 0) {
-			/* Handling the first block */
-			if (rawdata->byte_offset != 0) {
-				size1 = rawdata->byte_offset;
-
-				res = crypto_ops.mac.update(ctx,
-						TEE_ALG_HMAC_SHA256,
-						(uint8_t *)datafrm + offset,
-						size1);
-				if (res != TEE_SUCCESS)
-					goto func_exit;
-
-				offset += size1;
+			size = RPMB_DATA_SIZE - offset;
+			if (rawdata->byte_offset) {
+				if (is_null_or_zero(fek)) {
+					memcpy(data, datafrm[0].data + offset,
+					       size);
+				} else {
+					ct = malloc(RPMB_DATA_SIZE);
+					if (!ct) {
+						res = TEE_ERROR_OUT_OF_MEMORY;
+						goto func_exit;
+					}
+					decrypt_block(ct, datafrm[0].data,
+						      start_idx, fek, fenonce);
+					memcpy(data, ct + offset, size);
+				}
+			} else {
+				decrypt_block(data, datafrm[0].data, start_idx,
+					      fek, fenonce);
 			}
-			size2 = RPMB_DATA_SIZE - rawdata->byte_offset;
 		} else {
 			/* Handling the middle blocks */
-			size2 = RPMB_DATA_SIZE;
+			size = RPMB_DATA_SIZE;
+			decrypt_block(data, datafrm[i].data, start_idx + i,
+				      fek, fenonce);
 		}
 
-		/* Copy the data part for each block. */
-		memcpy(data, (uint8_t *)&datafrm[i] + offset, size2);
-
-		/* Calculate HMAC against the data copied. */
-		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-					    (uint8_t *)data, size2);
-		if (res != TEE_SUCCESS)
-			goto func_exit;
-
-		data += size2;
-		offset += size2;
-
-		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-				(uint8_t *)&datafrm[i] + offset,
-				RPMB_MAC_PROTECT_DATA_SIZE - (size1 + size2));
-		if (res != TEE_SUCCESS)
-			goto func_exit;
+		data += size;
 	}
 
 	/* Copy the data part for the last block. */
-	size2 = (rawdata->len + rawdata->byte_offset) % RPMB_DATA_SIZE;
-	if (size2 == 0)
-		size2 = RPMB_DATA_SIZE;
-
-	memcpy(data, lastfrm->data, size2);
+	size = (rawdata->len + rawdata->byte_offset) % RPMB_DATA_SIZE;
+	if (size == 0)
+		size = RPMB_DATA_SIZE;
+	if (size < RPMB_DATA_SIZE) {
+		if (is_null_or_zero(fek)) {
+			memcpy(data, lastfrm->data, size);
+		} else {
+			if (!ct) {
+				ct = malloc(RPMB_DATA_SIZE);
+				if (!ct) {
+					res = TEE_ERROR_OUT_OF_MEMORY;
+					goto func_exit;
+				}
+			}
+			decrypt_block(ct, lastfrm->data, start_idx + i, fek,
+				      fenonce);
+			memcpy(data, ct, size);
+		}
+	} else {
+		decrypt_block(data, lastfrm->data, start_idx + i, fek,
+			      fenonce);
+	}
 
 	/* Update MAC against the last block */
 	res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256, lastfrm->data,
@@ -611,12 +725,14 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 
 func_exit:
 	free(ctx);
+	free(ct);
 	return res;
 }
 
 static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 					      struct rpmb_raw_data *rawdata,
-					      uint16_t nbr_frms)
+					      uint16_t nbr_frms, uint8_t *fek,
+					      uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint16_t msg_type;
@@ -637,6 +753,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 #endif
 
 	/* Make a secure copy of the last data packet for verification. */
+	/* FIXME: is a physical copy really needed? */
 	memcpy(&lastfrm, &datafrm[nbr_frms - 1], RPMB_DATA_FRAME_SIZE);
 
 	/* Handle operation result and translate to TEEC error code. */
@@ -690,7 +807,8 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 				return TEE_ERROR_GENERIC;
 
 			res = tee_rpmb_data_cpy_mac_calc(datafrm, rawdata,
-							 nbr_frms, &lastfrm);
+							 nbr_frms, &lastfrm,
+							 fek, fenonce);
 
 			if (res != TEE_SUCCESS)
 				return res;
@@ -813,7 +931,7 @@ static TEE_Result tee_rpmb_init_read_wr_cnt(uint16_t dev_id,
 	rawdata.msg_type = msg_type;
 	rawdata.nonce = nonce;
 
-	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id);
+	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -830,7 +948,7 @@ static TEE_Result tee_rpmb_init_read_wr_cnt(uint16_t dev_id,
 	rawdata.nonce = nonce;
 	rawdata.key_mac = hmac;
 
-	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1);
+	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -854,7 +972,7 @@ static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
 		rpmb_ctx->wr_cnt_synced = true;
 	}
 
-	IMSG("Verify key returning 0x%x\n", res);
+	DMSG("Verify key returning 0x%x\n", res);
 	return res;
 }
 
@@ -882,7 +1000,7 @@ static TEE_Result tee_rpmb_write_key(uint16_t dev_id)
 	rawdata.msg_type = msg_type;
 	rawdata.key_mac = rpmb_ctx->key;
 
-	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id);
+	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -895,7 +1013,7 @@ static TEE_Result tee_rpmb_write_key(uint16_t dev_id)
 	memset(&rawdata, 0x00, sizeof(struct rpmb_raw_data));
 	rawdata.msg_type = msg_type;
 
-	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1);
+	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -933,7 +1051,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	rpmb_ctx->dev_id = dev_id;
 
 	if (!rpmb_ctx->dev_info_synced) {
-		IMSG("RPMB: Syncing device information");
+		DMSG("RPMB: Syncing device information");
 
 		dev_info.rpmb_size_mult = 0;
 		dev_info.rel_wr_sec_c = 0;
@@ -941,8 +1059,8 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
-		IMSG("RPMB: RPMB size is %d*128 KB", dev_info.rpmb_size_mult);
-		IMSG("RPMB: Reliable Write Sector Count is %d",
+		DMSG("RPMB: RPMB size is %d*128 KB", dev_info.rpmb_size_mult);
+		DMSG("RPMB: Reliable Write Sector Count is %d",
 		     dev_info.rel_wr_sec_c);
 
 		if (dev_info.rpmb_size_mult == 0) {
@@ -974,7 +1092,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	}
 
 	if (!rpmb_ctx->key_derived) {
-		IMSG("RPMB INIT: Deriving key");
+		DMSG("RPMB INIT: Deriving key");
 
 		res = tee_rpmb_key_gen(dev_id, rpmb_ctx->key,
 				       RPMB_KEY_MAC_SIZE);
@@ -986,17 +1104,17 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 
 	/* Perform a write counter read to verify if the key is ok. */
 	if (!rpmb_ctx->wr_cnt_synced || !rpmb_ctx->key_verified) {
-		IMSG("RPMB INIT: Verifying Key");
+		DMSG("RPMB INIT: Verifying Key");
 
 		res = tee_rpmb_verify_key_sync_counter(dev_id);
 		if (res != TEE_SUCCESS && !rpmb_ctx->key_verified) {
 			/*
 			 * Need to write the key here and verify it.
 			 */
-			IMSG("RPMB INIT: Writing Key");
+			DMSG("RPMB INIT: Writing Key");
 			res = tee_rpmb_write_key(dev_id);
 			if (res == TEE_SUCCESS) {
-				IMSG("RPMB INIT: Verifying Key");
+				DMSG("RPMB INIT: Verifying Key");
 				res = tee_rpmb_verify_key_sync_counter(dev_id);
 			}
 		}
@@ -1007,7 +1125,8 @@ func_exit:
 }
 
 static TEE_Result tee_rpmb_read_unlocked(uint16_t dev_id, uint32_t addr,
-					 uint8_t *data, uint32_t len)
+					 uint8_t *data, uint32_t len,
+					 uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tee_rpmb_mem mem = { 0 };
@@ -1051,14 +1170,14 @@ static TEE_Result tee_rpmb_read_unlocked(uint16_t dev_id, uint32_t addr,
 	rawdata.msg_type = msg_type;
 	rawdata.nonce = nonce;
 	rawdata.blk_idx = &blk_idx;
-	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id);
+	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	req->block_count = blkcnt;
 
-	DMSG("BLOCK READ %u block%s at index %u", blkcnt,
-	     ((blkcnt > 1) ? "s" : ""), blk_idx);
+	DMSG("Read %u block%s at index %u", blkcnt, ((blkcnt > 1) ? "s" : ""),
+	     blk_idx);
 
 	res = tee_rpmb_invoke(&mem);
 	if (res != TEE_SUCCESS)
@@ -1077,7 +1196,7 @@ static TEE_Result tee_rpmb_read_unlocked(uint16_t dev_id, uint32_t addr,
 	rawdata.len = len;
 	rawdata.byte_offset = byte_offset;
 
-	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, blkcnt);
+	res = tee_rpmb_resp_unpack_verify(resp, &rawdata, blkcnt, fek, fenonce);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -1088,21 +1207,9 @@ func_exit:
 	return res;
 }
 
-TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
-			 uint32_t len)
-{
-	TEE_Result res;
-
-	mutex_lock(&rpmb_mutex);
-	res = tee_rpmb_read_unlocked(dev_id, addr, data, len);
-	mutex_unlock(&rpmb_mutex);
-
-	return res;
-}
-
-static TEE_Result tee_rpmb_write_blk(uint16_t dev_id,
-				     uint16_t blk_idx,
-				     uint8_t *data_blks, uint16_t blkcnt)
+static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
+				     uint8_t *data_blks, uint16_t blkcnt,
+				     uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tee_rpmb_mem mem;
@@ -1119,8 +1226,8 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id,
 	uint16_t tmp_blk_idx;
 	uint16_t i;
 
-	DMSG("BLOCK WRITE %u block%s at index %u", blkcnt,
-	     ((tmp_blkcnt > 1) ? "s" : ""), blk_idx);
+	DMSG("Write %u block%s at index %u", blkcnt, ((blkcnt > 1) ? "s" : ""),
+	     blk_idx);
 
 	if (!data_blks || !blkcnt)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1184,7 +1291,8 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id,
 		rawdata.data = data_blks + i * rpmb_ctx->rel_wr_blkcnt *
 		    RPMB_DATA_SIZE;
 
-		res = tee_rpmb_req_pack(req, &rawdata, tmp_blkcnt, dev_id);
+		res = tee_rpmb_req_pack(req, &rawdata, tmp_blkcnt, dev_id,
+					fek, fenonce);
 		if (res != TEE_SUCCESS)
 			goto free_and_exit;
 
@@ -1207,7 +1315,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id,
 		rawdata.write_counter = &wr_cnt;
 		rawdata.key_mac = hmac;
 
-		res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1);
+		res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1, NULL, NULL);
 		if (res != TEE_SUCCESS) {
 			/*
 			 * To force wr_cnt sync next time, as it might get
@@ -1230,8 +1338,20 @@ func_exit:
 	return res;
 }
 
-TEE_Result tee_rpmb_write(uint16_t dev_id,
-			  uint32_t addr, uint8_t *data, uint32_t len)
+TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
+			 uint32_t len, uint8_t *fek, uint8_t *fenonce)
+{
+	TEE_Result res;
+
+	mutex_lock(&rpmb_mutex);
+	res = tee_rpmb_read_unlocked(dev_id, addr, data, len, fek, fenonce);
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
+}
+
+TEE_Result tee_rpmb_write(uint16_t dev_id, uint32_t addr, uint8_t *data,
+			  uint32_t len, uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *data_tmp = NULL;
@@ -1248,7 +1368,8 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
 
 	if (byte_offset == 0 && (len % RPMB_DATA_SIZE) == 0) {
-		res = tee_rpmb_write_blk(dev_id, blk_idx, data, blkcnt);
+		res = tee_rpmb_write_blk(dev_id, blk_idx, data, blkcnt, fek,
+					 fenonce);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 	} else {
@@ -1261,14 +1382,16 @@ TEE_Result tee_rpmb_write(uint16_t dev_id,
 		/* Read the complete blocks */
 		res = tee_rpmb_read_unlocked(dev_id, blk_idx * RPMB_DATA_SIZE,
 					     data_tmp,
-					     blkcnt * RPMB_DATA_SIZE);
+					     blkcnt * RPMB_DATA_SIZE, fek,
+					     fenonce);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
 		/* Partial update of the data blocks */
 		memcpy(data_tmp + byte_offset, data, len);
 
-		res = tee_rpmb_write_blk(dev_id, blk_idx, data_tmp, blkcnt);
+		res = tee_rpmb_write_blk(dev_id, blk_idx, data_tmp, blkcnt,
+					 fek, fenonce);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 	}

@@ -403,5 +403,67 @@ TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
 			cipher, cipher_size, plaintext, plaintext_size);
 }
 
+static void u16_to_big_endian(uint16_t u16, uint8_t *bytes)
+{
+	*bytes = (uint8_t) (u16 >> 8);
+	*(bytes + 1) = (uint8_t) u16;
+}
+
+/*
+ * AES CTR mode encryption/decryption used for block encryption of RPMB FS
+ * files.
+ */
+TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
+			      uint16_t blk_idx, uint8_t *encrypted_fek,
+			      uint8_t *nonce, bool crypt)
+{
+	TEE_Result res;
+	uint8_t fek[TEE_FS_KM_FEK_SIZE];
+	uint8_t iv[TEE_AES_BLOCK_SIZE];
+	uint8_t *ctx;
+	size_t ctx_size;
+	uint32_t mode = crypt ? TEE_MODE_ENCRYPT : TEE_MODE_DECRYPT;
+
+	DMSG("%scrypt block #%u", crypt ? "En" : "De", blk_idx);
+
+	if (crypt) {
+		DMSG("Cleartext buffer:");
+		DHEXDUMP(in, 256);
+	}
+
+	memcpy(fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = crypto_ops.cipher.get_ctx_size(TEE_ALG_AES_CTR, &ctx_size);
+	if (res != TEE_SUCCESS)
+		return res;
+	ctx = malloc(ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(iv, nonce, 14);
+	u16_to_big_endian(blk_idx, iv + 14);
+
+	res = crypto_ops.cipher.init(ctx, TEE_ALG_AES_CTR, mode, fek,
+				     sizeof(fek), NULL, 0, iv,
+				     TEE_AES_BLOCK_SIZE);
+	if (res != TEE_SUCCESS)
+		goto exit;
+	res = crypto_ops.cipher.update(ctx, TEE_ALG_AES_CTR, mode, true,
+				       in, size, out);
+	crypto_ops.cipher.final(ctx, TEE_ALG_AES_CTR);
+
+	if (crypt) {
+		DMSG("Encrypted buffer:");
+		DHEXDUMP(out, 256);
+	}
+
+exit:
+	free(ctx);
+	return res;
+}
+
 service_init(tee_fs_init_key_manager);
 
