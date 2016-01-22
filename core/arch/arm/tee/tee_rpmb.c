@@ -428,7 +428,8 @@ static bool is_null_or_zero(uint8_t *fek)
 }
 
 static TEE_Result crypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
-			      uint8_t *fek, uint8_t *nonce, bool crypt)
+			      uint8_t *fek, uint8_t *nonce,
+			      TEE_OperationMode mode)
 {
 	if (is_null_or_zero(fek)) {
 		/*
@@ -441,14 +442,15 @@ static TEE_Result crypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
 	}
 
 	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
-				  nonce, crypt);
+				  nonce, mode);
 }
 
 #else
 static TEE_Result crypt_block(uint8_t *out, uint8_t *in,
 			      uint16_t blk_idx __unused,
 			      uint8_t *fek __unused,
-			      uint8_t *nonce __unused, bool crypt __unused)
+			      uint8_t *nonce __unused,
+			      TEE_OperationMode mode __unused)
 {
 	memcpy(out, in, RPMB_DATA_SIZE);
 	return TEE_SUCCESS;
@@ -458,13 +460,13 @@ static TEE_Result crypt_block(uint8_t *out, uint8_t *in,
 static TEE_Result encrypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
 			    uint8_t *fek, uint8_t *nonce)
 {
-	return crypt_block(out, in, blk_idx, fek, nonce, true);
+	return crypt_block(out, in, blk_idx, fek, nonce, TEE_MODE_ENCRYPT);
 }
 
 static TEE_Result decrypt_block(uint8_t *out, uint8_t *in, uint16_t blk_idx,
 			    uint8_t *fek, uint8_t *nonce)
 {
-	return crypt_block(out, in, blk_idx, fek, nonce, false);
+	return crypt_block(out, in, blk_idx, fek, nonce, TEE_MODE_DECRYPT);
 }
 
 static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,

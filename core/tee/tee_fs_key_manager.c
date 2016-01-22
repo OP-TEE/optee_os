@@ -415,21 +415,16 @@ static void u16_to_big_endian(uint16_t u16, uint8_t *bytes)
  */
 TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 			      uint16_t blk_idx, uint8_t *encrypted_fek,
-			      uint8_t *nonce, bool crypt)
+			      uint8_t *nonce, TEE_OperationMode mode)
 {
 	TEE_Result res;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	uint8_t iv[TEE_AES_BLOCK_SIZE];
 	uint8_t *ctx;
 	size_t ctx_size;
-	uint32_t mode = crypt ? TEE_MODE_ENCRYPT : TEE_MODE_DECRYPT;
 
-	DMSG("%scrypt block #%u", crypt ? "En" : "De", blk_idx);
-
-	if (crypt) {
-		DMSG("Cleartext buffer:");
-		DHEXDUMP(in, 256);
-	}
+	DMSG("%scrypt block #%u", (mode == TEE_MODE_ENCRYPT) ? "En" : "De",
+	     blk_idx);
 
 	memcpy(fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
 	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
@@ -455,10 +450,6 @@ TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 				       in, size, out);
 	crypto_ops.cipher.final(ctx, TEE_ALG_AES_CTR);
 
-	if (crypt) {
-		DMSG("Encrypted buffer:");
-		DHEXDUMP(out, 256);
-	}
 
 exit:
 	free(ctx);
