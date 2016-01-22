@@ -33,76 +33,59 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 #include "tomcrypt.h"
 
 /**
-  @file der_length_integer.c
-  ASN.1 DER, get length of encoding, Tom St Denis
+  @file der_encode_sequence_multi.c
+  ASN.1 DER, encode a Subject Public Key structure --nmav
 */
-
 
 #ifdef LTC_DER
+
+/* AlgorithmIdentifier := SEQUENCE {
+ *    algorithm OBJECT IDENTIFIER,
+ *    parameters ANY DEFINED BY algorithm
+ * }
+ *
+ * SubjectPublicKeyInfo := SEQUENCE {
+ *    algorithm AlgorithmIdentifier,
+ *    subjectPublicKey BIT STRING
+ * }
+ */
 /**
-  Gets length of DER encoding of num
-  @param num    The int to get the size of
-  @param outlen [out] The length of the DER encoding for the given integer
-  @return CRYPT_OK if successful
+  Encode a SEQUENCE type using a VA list
+  @param out    [out] Destination for data
+  @param outlen [in/out] Length of buffer and resulting length of output
+  @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
+  @return CRYPT_OK on success
 */
-int der_length_integer(void *num, unsigned long *outlen)
+int der_encode_subject_public_key_info(unsigned char *out, unsigned long *outlen,
+        unsigned int algorithm, void* public_key, unsigned long public_key_len,
+        unsigned long parameters_type, void* parameters, unsigned long parameters_len)
 {
-   unsigned long z, len;
-   int           leading_zero;
+   int           err;
+   ltc_asn1_list alg_id[2];
+   oid_st oid;
 
-   LTC_ARGCHK(num     != NULL);
-   LTC_ARGCHK(outlen  != NULL);
+   LTC_ARGCHK(out    != NULL);
+   LTC_ARGCHK(outlen != NULL);
 
-   if (mp_cmp_d(num, 0) != LTC_MP_LT) {
-      /* positive */
-
-      /* we only need a leading zero if the msb of the first byte is one */
-      if ((mp_count_bits(num) & 7) == 0 || mp_iszero(num) == LTC_MP_YES) {
-         leading_zero = 1;
-      } else {
-         leading_zero = 0;
-      }
-
-      /* size for bignum */
-      z = len = leading_zero + mp_unsigned_bin_size(num);
-   } else {
-      /* it's negative */
-      /* find power of 2 that is a multiple of eight and greater than count bits */
-      z = mp_count_bits(num);
-      z = z + (8 - (z & 7));
-      if (((mp_cnt_lsb(num)+1)==mp_count_bits(num)) && ((mp_count_bits(num)&7)==0)) --z;
-      len = z = z >> 3;
+   err = pk_get_oid(algorithm, &oid);
+   if (err != CRYPT_OK) {
+        return err;
    }
 
-   /* now we need a length */
-   if (z < 128) {
-      /* short form */
-      ++len;
-   } else {
-      /* long form (relies on z != 0), assumes length bytes < 128 */
-      ++len;
+   LTC_SET_ASN1(alg_id, 0, LTC_ASN1_OBJECT_IDENTIFIER, oid.OID,    oid.OIDlen);
+   LTC_SET_ASN1(alg_id, 1, parameters_type,            parameters, parameters_len);
 
-      while (z) {
-         ++len;
-         z >>= 8;
-      }
-   }
+   return der_encode_sequence_multi(out, outlen,
+        LTC_ASN1_SEQUENCE, (unsigned long)sizeof(alg_id)/sizeof(alg_id[0]), alg_id,
+        LTC_ASN1_RAW_BIT_STRING, (unsigned long)(public_key_len*8), public_key,
+        LTC_ASN1_EOL,     0UL, NULL);
 
-   /* we need a 0x02 to indicate it's INTEGER */
-   ++len;
-
-   /* return length */
-   *outlen = len;
-   return CRYPT_OK;
 }
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+

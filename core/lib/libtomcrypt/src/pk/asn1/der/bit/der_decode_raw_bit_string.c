@@ -38,66 +38,91 @@
 #include "tomcrypt.h"
 
 /**
-  @file der_length_integer.c
-  ASN.1 DER, get length of encoding, Tom St Denis
+  @file der_decode_bit_string.c
+  ASN.1 DER, encode a BIT STRING, Tom St Denis
 */
 
 
 #ifdef LTC_DER
+
+#define SETBIT(v, n)    (v=((unsigned char)(v) | (1U << (unsigned char)(n))))
+
 /**
-  Gets length of DER encoding of num
-  @param num    The int to get the size of
-  @param outlen [out] The length of the DER encoding for the given integer
+  Store a BIT STRING
+  @param in      The DER encoded BIT STRING
+  @param inlen   The size of the DER BIT STRING
+  @param out     [out] The array of bits stored (8 per char)
+  @param outlen  [in/out] The number of bits stored
   @return CRYPT_OK if successful
 */
-int der_length_integer(void *num, unsigned long *outlen)
+int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
+                                unsigned char *out, unsigned long *outlen)
 {
-   unsigned long z, len;
-   int           leading_zero;
+   unsigned long dlen, blen, x, y;
 
-   LTC_ARGCHK(num     != NULL);
-   LTC_ARGCHK(outlen  != NULL);
+   LTC_ARGCHK(in     != NULL);
+   LTC_ARGCHK(out    != NULL);
+   LTC_ARGCHK(outlen != NULL);
 
-   if (mp_cmp_d(num, 0) != LTC_MP_LT) {
-      /* positive */
-
-      /* we only need a leading zero if the msb of the first byte is one */
-      if ((mp_count_bits(num) & 7) == 0 || mp_iszero(num) == LTC_MP_YES) {
-         leading_zero = 1;
-      } else {
-         leading_zero = 0;
-      }
-
-      /* size for bignum */
-      z = len = leading_zero + mp_unsigned_bin_size(num);
-   } else {
-      /* it's negative */
-      /* find power of 2 that is a multiple of eight and greater than count bits */
-      z = mp_count_bits(num);
-      z = z + (8 - (z & 7));
-      if (((mp_cnt_lsb(num)+1)==mp_count_bits(num)) && ((mp_count_bits(num)&7)==0)) --z;
-      len = z = z >> 3;
+   /* packet must be at least 4 bytes */
+   if (inlen < 4) {
+       return CRYPT_INVALID_ARG;
    }
 
-   /* now we need a length */
-   if (z < 128) {
-      /* short form */
-      ++len;
-   } else {
-      /* long form (relies on z != 0), assumes length bytes < 128 */
-      ++len;
-
-      while (z) {
-         ++len;
-         z >>= 8;
-      }
+   /* check for 0x03 */
+   if ((in[0]&0x1F) != 0x03) {
+      return CRYPT_INVALID_PACKET;
    }
 
-   /* we need a 0x02 to indicate it's INTEGER */
-   ++len;
+    /* offset in the data */
+    x = 1;
 
-   /* return length */
-   *outlen = len;
+   /* get the length of the data */
+   if (in[x] & 0x80) {
+      /* long format get number of length bytes */
+      y = in[x++] & 0x7F;
+
+      /* invalid if 0 or > 2 */
+      if (y == 0 || y > 2) {
+         return CRYPT_INVALID_PACKET;
+      }
+
+      /* read the data len */
+      dlen = 0;
+      while (y--) {
+         dlen = (dlen << 8) | (unsigned long)in[x++];
+      }
+   } else {
+      /* short format */
+      dlen = in[x++] & 0x7F;
+   }
+
+   /* is the data len too long or too short? */
+   if ((dlen == 0) || (dlen + x > inlen)) {
+       return CRYPT_INVALID_PACKET;
+   }
+
+   /* get padding count */
+   blen = ((dlen - 1) << 3) - (in[x++] & 7);
+
+   /* too many bits? */
+   if (blen > *outlen) {
+      *outlen = blen;
+      return CRYPT_BUFFER_OVERFLOW;
+   }
+
+   /* decode/store the bits */
+   for (y = 0; y < blen; y++) {
+       if (in[x] & (1 << (7 - (y & 7)))) {
+          SETBIT(out[y/8], 7-(y%8));
+       }
+       if ((y & 7) == 7) {
+          ++x;
+       }
+   }
+
+   /* we done */
+   *outlen = blen;
    return CRYPT_OK;
 }
 

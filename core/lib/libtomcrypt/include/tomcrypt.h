@@ -34,6 +34,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stddef.h>  // for ptrdiff_t
 
 /* use configuration data */
 #include <tomcrypt_custom.h>

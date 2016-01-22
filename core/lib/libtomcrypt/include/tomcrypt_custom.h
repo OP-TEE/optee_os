@@ -426,6 +426,16 @@
 
 #endif /* LTC_NO_PK */
 
+/* in cases where you want ASN.1/DER functionality, but no
+ * RSA, you can define this externally if 1024 is not enough
+ */
+#if defined(LTC_MRSA)
+#define LTC_DER_MAX_PUBKEY_SIZE MAX_RSA_SIZE
+#elif !defined(LTC_DER_MAX_PUBKEY_SIZE)
+/* this includes DSA */
+#define LTC_DER_MAX_PUBKEY_SIZE 1024
+#endif
+
 /* LTC_PKCS #1 (RSA) and #5 (Password Handling) stuff */
 #ifndef LTC_NO_PKCS
 

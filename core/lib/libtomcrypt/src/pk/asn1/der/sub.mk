@@ -11,3 +11,4 @@ subdirs-y += set
 subdirs-y += short_integer
 subdirs-y += utctime
 subdirs-y += utf8
+subdirs-y += teletex_string

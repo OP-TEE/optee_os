@@ -89,6 +89,7 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
       y            = y >> 3;
       if (((mp_cnt_lsb(num)+1)==mp_count_bits(num)) && ((mp_count_bits(num)&7)==0)) --y;
    }
+
    /* now store initial data */
    *out++ = 0x02;
    if (y < 128) {
@@ -117,9 +118,8 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
 
    /* if it's not zero store it as big endian */
    if (mp_cmp_d(num, 0) == LTC_MP_GT) {
-      err = mp_to_unsigned_bin(num, out);
       /* now store the mpint */
-      if (err != CRYPT_OK) {
+      if ((err = mp_to_unsigned_bin(num, out)) != CRYPT_OK) {
           return err;
       }
    } else if (mp_iszero(num) != LTC_MP_YES) {
@@ -152,6 +152,6 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/integer/der_encode_integer.c,v $ */
-/* $Revision: 1.9 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* $Source$ */
+/* $Revision$ */
+/* $Date$ */

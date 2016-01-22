@@ -52,10 +52,11 @@
   @param inlen Length of input in octets
   @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
   @return CRYPT_OK on success
-*/  
+*/
 int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
 {
-   int           err, type;
+   int           err;
+   ltc_asn1_type type;
    unsigned long size, x;
    void          *data;
    va_list       args;
@@ -67,11 +68,13 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = va_arg(args, int);
+       type = va_arg(args, ltc_asn1_type);
        size = va_arg(args, unsigned long);
        data = va_arg(args, void*);
+       LTC_UNUSED_PARAM(size);
+       LTC_UNUSED_PARAM(data);
 
-       if (type == LTC_ASN1_EOL) { 
+       if (type == LTC_ASN1_EOL) {
           break;
        }
 
@@ -91,9 +94,16 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_SETOF:
            case LTC_ASN1_SEQUENCE:
            case LTC_ASN1_CHOICE:
-                ++x; 
+           case LTC_ASN1_RAW_BIT_STRING:
+           case LTC_ASN1_TELETEX_STRING:
+                ++x;
                 break;
-          
+
+           case LTC_ASN1_EOL:
+           case LTC_ASN1_CONSTRUCTED:
+           case LTC_ASN1_CONTEXT_SPECIFIC:
+               va_end(args);
+               return CRYPT_INVALID_ARG;
            default:
                va_end(args);
                return CRYPT_INVALID_ARG;
@@ -115,11 +125,11 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = va_arg(args, int);
+       type = va_arg(args, ltc_asn1_type);
        size = va_arg(args, unsigned long);
        data = va_arg(args, void*);
 
-       if (type == LTC_ASN1_EOL) { 
+       if (type == LTC_ASN1_EOL) {
           break;
        }
 
@@ -137,13 +147,17 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_UTCTIME:
            case LTC_ASN1_SEQUENCE:
            case LTC_ASN1_SET:
-           case LTC_ASN1_SETOF:          
+           case LTC_ASN1_SETOF:
            case LTC_ASN1_CHOICE:
-                list[x].type   = type;
-                list[x].size   = size;
-                list[x++].data = data;
+           case LTC_ASN1_RAW_BIT_STRING:
+           case LTC_ASN1_TELETEX_STRING:
+                LTC_SET_ASN1(list, x++, type, data, size);
                 break;
-         
+           /* coverity[dead_error_line] */
+           case LTC_ASN1_EOL:
+           case LTC_ASN1_CONSTRUCTED:
+           case LTC_ASN1_CONTEXT_SPECIFIC:
+                break;
            default:
                va_end(args);
                err = CRYPT_INVALID_ARG;
@@ -161,6 +175,6 @@ LBL_ERR:
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/sequence/der_decode_sequence_multi.c,v $ */
-/* $Revision: 1.13 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* $Source$ */
+/* $Revision$ */
+/* $Date$ */

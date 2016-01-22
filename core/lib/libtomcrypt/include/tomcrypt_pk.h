@@ -34,6 +34,14 @@ enum {
 
 int rand_prime(void *N, long len, prng_state *prng, int wprng);
 
+typedef struct Oid {
+    unsigned long OID[16];
+    /** Length of DER encoding */
+    unsigned long OIDlen;
+} oid_st;
+
+int pk_get_oid(int pk, oid_st *st);
+
 /* ---- RSA ---- */
 #ifdef LTC_MRSA
 
@@ -429,29 +437,37 @@ int dsa_shared_secret(void          *private_key, void *base,
 #ifdef LTC_DER
 /* DER handling */
 
-enum {
+typedef enum ltc_asn1_type_ {
+ /*  0 */
  LTC_ASN1_EOL,
  LTC_ASN1_BOOLEAN,
  LTC_ASN1_INTEGER,
  LTC_ASN1_SHORT_INTEGER,
  LTC_ASN1_BIT_STRING,
+ /*  5 */
  LTC_ASN1_OCTET_STRING,
  LTC_ASN1_NULL,
  LTC_ASN1_OBJECT_IDENTIFIER,
  LTC_ASN1_IA5_STRING,
  LTC_ASN1_PRINTABLE_STRING,
+ /* 10 */
  LTC_ASN1_UTF8_STRING,
  LTC_ASN1_UTCTIME,
  LTC_ASN1_CHOICE,
  LTC_ASN1_SEQUENCE,
  LTC_ASN1_SET,
- LTC_ASN1_SETOF
-};
+ /* 15 */
+ LTC_ASN1_SETOF,
+ LTC_ASN1_RAW_BIT_STRING,
+ LTC_ASN1_TELETEX_STRING,
+ LTC_ASN1_CONSTRUCTED,
+ LTC_ASN1_CONTEXT_SPECIFIC,
+} ltc_asn1_type;
 
 /** A LTC ASN.1 list type */
 typedef struct ltc_asn1_list_ {
    /** The LTC ASN.1 enumerated type identifier */
-   int           type;
+   ltc_asn1_type type;
    /** The data to encode or place for decoding */
    void         *data;
    /** The size of the input or resulting output */
@@ -470,13 +486,13 @@ typedef struct ltc_asn1_list_ {
       LTC_MACRO_list[LTC_MACRO_temp].data = (void*)(Data);  \
       LTC_MACRO_list[LTC_MACRO_temp].size = (Size);  \
       LTC_MACRO_list[LTC_MACRO_temp].used = 0;       \
-   } while (0);
+   } while (0)
 
 /* SEQUENCE */
 int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                            unsigned char *out,  unsigned long *outlen, int type_of);
                           
-#define der_encode_sequence(list, inlen, out, outlen) der_encode_sequence_ex(list, inlen, out, outlen, LTC_ASN1_SEQUENCE)                        
+#define der_encode_sequence(list, inlen, out, outlen) der_encode_sequence_ex(list, inlen, out, outlen, LTC_ASN1_SEQUENCE)
 
 int der_decode_sequence_ex(const unsigned char *in, unsigned long  inlen,
                            ltc_asn1_list *list,     unsigned long  outlen, int ordered);
@@ -485,6 +501,15 @@ int der_decode_sequence_ex(const unsigned char *in, unsigned long  inlen,
 
 int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                         unsigned long *outlen);
+
+/* SUBJECT PUBLIC KEY INFO */
+int der_encode_subject_public_key_info(unsigned char *out, unsigned long *outlen,
+        unsigned int algorithm, void* public_key, unsigned long public_key_len,
+        unsigned long parameters_type, void* parameters, unsigned long parameters_len);
+
+int der_decode_subject_public_key_info(const unsigned char *in, unsigned long inlen,
+        unsigned int algorithm, void* public_key, unsigned long* public_key_len,
+        unsigned long parameters_type, ltc_asn1_list* parameters, unsigned long parameters_len);
 
 /* SET */
 #define der_decode_set(in, inlen, list, outlen) der_decode_sequence_ex(in, inlen, list, outlen, 0)
@@ -501,7 +526,7 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
 
 /* FLEXI DECODER handle unknown list decoder */
 int  der_decode_sequence_flexi(const unsigned char *in, unsigned long *inlen, ltc_asn1_list **out);
-void der_free_sequence_flexi(ltc_asn1_list *list);
+#define der_free_sequence_flexi         der_sequence_free
 void der_sequence_free(ltc_asn1_list *in);
 
 /* BOOLEAN */
@@ -524,6 +549,10 @@ int der_length_short_integer(unsigned long num, unsigned long *outlen);
 int der_encode_bit_string(const unsigned char *in, unsigned long inlen,
                                 unsigned char *out, unsigned long *outlen);
 int der_decode_bit_string(const unsigned char *in, unsigned long inlen,
+                                unsigned char *out, unsigned long *outlen);
+int der_encode_raw_bit_string(const unsigned char *in, unsigned long inlen,
+                                unsigned char *out, unsigned long *outlen);
+int der_decode_raw_bit_string(const unsigned char *in, unsigned long inlen,
                                 unsigned char *out, unsigned long *outlen);
 int der_length_bit_string(unsigned long nbits, unsigned long *outlen);
 
@@ -552,7 +581,15 @@ int der_length_ia5_string(const unsigned char *octets, unsigned long noctets, un
 int der_ia5_char_encode(int c);
 int der_ia5_value_decode(int v);
 
-/* Printable STRING */
+/* TELETEX STRING */
+int der_decode_teletex_string(const unsigned char *in, unsigned long inlen,
+                                unsigned char *out, unsigned long *outlen);
+int der_length_teletex_string(const unsigned char *octets, unsigned long noctets, unsigned long *outlen);
+
+int der_teletex_char_encode(int c);
+int der_teletex_value_decode(int v);
+
+/* PRINTABLE STRING */
 int der_encode_printable_string(const unsigned char *in, unsigned long inlen,
                                 unsigned char *out, unsigned long *outlen);
 int der_decode_printable_string(const unsigned char *in, unsigned long inlen,

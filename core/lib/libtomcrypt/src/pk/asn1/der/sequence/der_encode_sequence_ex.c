@@ -50,15 +50,16 @@
    Encode a SEQUENCE
    @param list      The list of items to encode
    @param inlen     The number of items in the list
-   @param out       [out] The destination 
+   @param out       [out] The destination
    @param outlen    [in/out] The size of the output
    @param type_of   LTC_ASN1_SEQUENCE or LTC_ASN1_SET/LTC_ASN1_SETOF
    @return CRYPT_OK on success
 */
 int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
-                           unsigned char *out,  unsigned long *outlen, int type_of) 
+                           unsigned char *out,  unsigned long *outlen, int type_of)
 {
-   int           err, type;
+   int           err;
+   ltc_asn1_type type;
    unsigned long size, x, y, z, i;
    void          *data;
 
@@ -73,7 +74,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
        size = list[i].size;
        data = list[i].data;
 
-       if (type == LTC_ASN1_EOL) { 
+       if (type == LTC_ASN1_EOL) {
           break;
        }
 
@@ -100,6 +101,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                break;
 
            case LTC_ASN1_BIT_STRING:
+           case LTC_ASN1_RAW_BIT_STRING:
                if ((err = der_length_bit_string(size, &x)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
@@ -160,7 +162,14 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                }
                y += x;
                break;
-          
+
+           case LTC_ASN1_CHOICE:
+           case LTC_ASN1_CONSTRUCTED:
+           case LTC_ASN1_CONTEXT_SPECIFIC:
+           case LTC_ASN1_EOL:
+           case LTC_ASN1_TELETEX_STRING:
+               err = CRYPT_INVALID_ARG;
+               goto LBL_ERR;
            default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
@@ -195,7 +204,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
    /* store header */
    x = 0;
    out[x++] = (type_of == LTC_ASN1_SEQUENCE) ? 0x30 : 0x31;
-      
+
    if (z < 128) {
       out[x++] = (unsigned char)z;
    } else if (z < 256) {
@@ -219,7 +228,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
        size = list[i].size;
        data = list[i].data;
 
-       if (type == LTC_ASN1_EOL) { 
+       if (type == LTC_ASN1_EOL) {
           break;
        }
 
@@ -232,7 +241,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                x       += z;
                *outlen -= z;
                break;
-          
+
            case LTC_ASN1_INTEGER:
                z = *outlen;
                if ((err = der_encode_integer(data, out + x, &z)) != CRYPT_OK) {
@@ -254,6 +263,15 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
            case LTC_ASN1_BIT_STRING:
                z = *outlen;
                if ((err = der_encode_bit_string(data, size, out + x, &z)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               x       += z;
+               *outlen -= z;
+               break;
+
+           case LTC_ASN1_RAW_BIT_STRING:
+               z = *outlen;
+               if ((err = der_encode_raw_bit_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
                x       += z;
@@ -292,7 +310,7 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                x       += z;
                *outlen -= z;
                break;
-          
+
            case LTC_ASN1_PRINTABLE_STRING:
                z = *outlen;
                if ((err = der_encode_printable_string(data, size, out + x, &z)) != CRYPT_OK) {
@@ -346,14 +364,21 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                x       += z;
                *outlen -= z;
                break;
-           
+
+           case LTC_ASN1_CHOICE:
+           case LTC_ASN1_CONSTRUCTED:
+           case LTC_ASN1_CONTEXT_SPECIFIC:
+           case LTC_ASN1_EOL:
+           case LTC_ASN1_TELETEX_STRING:
+               err = CRYPT_INVALID_ARG;
+               goto LBL_ERR;
            default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
        }
    }
    *outlen = x;
-   err = CRYPT_OK;   
+   err = CRYPT_OK;
 
 LBL_ERR:
    return err;
