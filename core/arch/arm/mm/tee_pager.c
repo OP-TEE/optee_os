@@ -561,7 +561,7 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	/* check if the access is valid */
 	area = tee_pager_find_area(ai->va);
 	if (!area) {
-		abort_print(ai);
+		abort_print_error(ai);
 		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
 		panic();
 	}
