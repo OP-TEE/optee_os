@@ -29,25 +29,25 @@
 
 #include <stdint.h>
 
-#define TEE_MATTR_VALID_BLOCK	(1 << 0)
-#define TEE_MATTR_HIDDEN_BLOCK	(1 << 1)
-#define TEE_MATTR_PHYS_BLOCK	(1 << 2)
-#define	TEE_MATTR_TABLE		(1 << 3)
-#define	TEE_MATTR_PR		(1 << 4)
-#define	TEE_MATTR_PW		(1 << 5)
-#define	TEE_MATTR_PX		(1 << 6)
-#define	TEE_MATTR_PRW		(TEE_MATTR_PR | TEE_MATTR_PW)
-#define	TEE_MATTR_PRX		(TEE_MATTR_PR | TEE_MATTR_PX)
-#define	TEE_MATTR_PRWX		(TEE_MATTR_PRW | TEE_MATTR_PX)
-#define	TEE_MATTR_UR		(1 << 7)
-#define	TEE_MATTR_UW		(1 << 8)
-#define	TEE_MATTR_UX		(1 << 9)
-#define	TEE_MATTR_URW		(TEE_MATTR_UR | TEE_MATTR_UW)
-#define	TEE_MATTR_URX		(TEE_MATTR_UR | TEE_MATTR_UX)
-#define	TEE_MATTR_URWX		(TEE_MATTR_URW | TEE_MATTR_UX)
+#define TEE_MATTR_VALID_BLOCK		(1 << 0)
+#define TEE_MATTR_HIDDEN_BLOCK		(1 << 1)
+#define TEE_MATTR_HIDDEN_DIRTY_BLOCK	(1 << 2)
+#define	TEE_MATTR_TABLE			(1 << 3)
+#define	TEE_MATTR_PR			(1 << 4)
+#define	TEE_MATTR_PW			(1 << 5)
+#define	TEE_MATTR_PX			(1 << 6)
+#define	TEE_MATTR_PRW			(TEE_MATTR_PR | TEE_MATTR_PW)
+#define	TEE_MATTR_PRX			(TEE_MATTR_PR | TEE_MATTR_PX)
+#define	TEE_MATTR_PRWX			(TEE_MATTR_PRW | TEE_MATTR_PX)
+#define	TEE_MATTR_UR			(1 << 7)
+#define	TEE_MATTR_UW			(1 << 8)
+#define	TEE_MATTR_UX			(1 << 9)
+#define	TEE_MATTR_URW			(TEE_MATTR_UR | TEE_MATTR_UW)
+#define	TEE_MATTR_URX			(TEE_MATTR_UR | TEE_MATTR_UX)
+#define	TEE_MATTR_URWX			(TEE_MATTR_URW | TEE_MATTR_UX)
 
-#define TEE_MATTR_GLOBAL	(1 << 10)
-#define	TEE_MATTR_SECURE	(1 << 11)
+#define TEE_MATTR_GLOBAL		(1 << 10)
+#define	TEE_MATTR_SECURE		(1 << 11)
 
 #define TEE_MATTR_CACHE_MASK	0x7
 #define TEE_MATTR_CACHE_SHIFT	12

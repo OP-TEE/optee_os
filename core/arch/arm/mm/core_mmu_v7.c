@@ -75,8 +75,7 @@
 
 #define INVALID_DESC		0x0
 #define HIDDEN_DESC		0x4
-#define PHYSPAGE_DESC		0x8
-
+#define HIDDEN_DIRTY_DESC	0x8
 
 #define SECTION_SHIFT		20
 #define SECTION_MASK		0x000fffff
@@ -285,8 +284,8 @@ static uint32_t desc_to_mattr(unsigned level, uint32_t desc)
 	case DESC_TYPE_INVALID:
 		if (desc & HIDDEN_DESC)
 			return TEE_MATTR_HIDDEN_BLOCK;
-		if (desc & PHYSPAGE_DESC)
-			return TEE_MATTR_PHYS_BLOCK;
+		if (desc & HIDDEN_DIRTY_DESC)
+			return TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 		return 0;
 	default:
 		return 0;
@@ -304,8 +303,8 @@ static uint32_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_HIDDEN_BLOCK)
 		return INVALID_DESC | HIDDEN_DESC;
 
-	if (a & TEE_MATTR_PHYS_BLOCK)
-		return INVALID_DESC | PHYSPAGE_DESC;
+	if (a & TEE_MATTR_HIDDEN_DIRTY_BLOCK)
+		return INVALID_DESC | HIDDEN_DIRTY_DESC;
 
 	if (level == 1 && (a & TEE_MATTR_TABLE)) {
 		desc = SECTION_PT_PT;
@@ -467,7 +466,7 @@ static paddr_t desc_to_pa(unsigned level, uint32_t desc)
 		shift_mask = 12;
 		break;
 	default:
-		/* Invalid section, HIDDEN_DESC, PHYSPAGE_DESC */
+		/* Invalid section, HIDDEN_DESC, HIDDEN_DIRTY_DESC */
 		shift_mask = 4;
 	}
 

@@ -92,8 +92,7 @@
 #define TABLE_DESC		0x3
 
 #define HIDDEN_DESC		0x4
-#define PHYSPAGE_DESC		0x8
-
+#define HIDDEN_DIRTY_DESC	0x8
 
 #define XN			(1ull << 2)
 #define PXN			(1ull << 1)
@@ -197,8 +196,8 @@ static uint32_t desc_to_mattr(uint64_t desc)
 	if (!(desc & 1)) {
 		if (desc & HIDDEN_DESC)
 			return TEE_MATTR_HIDDEN_BLOCK;
-		if (desc & PHYSPAGE_DESC)
-			return TEE_MATTR_PHYS_BLOCK;
+		if (desc & HIDDEN_DIRTY_DESC)
+			return TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 		return 0;
 	}
 
@@ -243,8 +242,8 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_HIDDEN_BLOCK)
 		return INVALID_DESC | HIDDEN_DESC;
 
-	if (a & TEE_MATTR_PHYS_BLOCK)
-		return INVALID_DESC | PHYSPAGE_DESC;
+	if (a & TEE_MATTR_HIDDEN_DIRTY_BLOCK)
+		return INVALID_DESC | HIDDEN_DIRTY_DESC;
 
 	if (a & TEE_MATTR_TABLE)
 		return TABLE_DESC;
