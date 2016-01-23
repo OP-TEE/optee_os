@@ -56,17 +56,15 @@ struct tee_pager_area {
 static TAILQ_HEAD(tee_pager_area_head, tee_pager_area) tee_pager_area_head =
 	TAILQ_HEAD_INITIALIZER(tee_pager_area_head);
 
+#define INVALID_PGIDX	UINT_MAX
+
 /*
  * struct tee_pager_pmem - Represents a physical page used for paging.
  *
- * @pgidx	an index of the entry in tee_pager_tbl_info. The actual physical
- *		address is stored here so even if the page isn't mapped,
- *		there's always an MMU entry holding the physical address.
- *
+ * @pgidx	an index of the entry in tee_pager_tbl_info.
  * @va_alias	Virtual address where the physical page always is aliased.
  *		Used during remapping of the page when the content need to
  *		be updated before it's available at the new location.
- *
  * @area	a pointer to the pager area
  */
 struct tee_pager_pmem {
@@ -203,6 +201,9 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	last_idx = core_mmu_va2idx(ti, smem + nbytes);
 	for (; idx < last_idx; idx++)
 		core_mmu_set_entry(ti, idx, 0, 0);
+
+	/* TODO only invalidate entries touched above */
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 }
 
 static void *pager_add_alias_page(paddr_t pa)
@@ -312,6 +313,17 @@ static uint32_t get_area_mattr(struct tee_pager_area *area)
 	return attr;
 }
 
+static paddr_t get_pmem_pa(struct tee_pager_pmem *pmem)
+{
+	paddr_t pa;
+	unsigned idx;
+
+	idx = core_mmu_va2idx(&pager_alias_tbl_info, (vaddr_t)pmem->va_alias);
+	core_mmu_get_entry(&pager_alias_tbl_info, idx, &pa, NULL);
+	return pa;
+}
+
+
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 			void *va_alias)
 {
@@ -356,6 +368,9 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 		paddr_t pa;
 		uint32_t attr;
 
+		if (pmem->pgidx == INVALID_PGIDX)
+			continue;
+
 		core_mmu_get_entry(&tee_pager_tbl_info, pmem->pgidx,
 				   &pa, &attr);
 
@@ -365,6 +380,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 		if (core_mmu_va2idx(&tee_pager_tbl_info, page_va) ==
 		    pmem->pgidx) {
 			/* page is hidden, show and move to back */
+			assert(pa == get_pmem_pa(pmem));
 			core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
 					   get_area_mattr(pmem->area));
 
@@ -407,6 +423,7 @@ static void tee_pager_hide_pages(void)
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
+		assert(pa == get_pmem_pa(pmem));
 		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
 				   TEE_MATTR_HIDDEN_BLOCK);
 
@@ -438,9 +455,11 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 		if (pmem->pgidx != pgidx)
 			continue;
 
-		core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
-				   TEE_MATTR_PHYS_BLOCK);
+		assert(pa == get_pmem_pa(pmem));
+		core_mmu_set_entry(&tee_pager_tbl_info, pgidx, 0, 0);
 		TAILQ_REMOVE(&tee_pager_rw_pmem_head, pmem, link);
+		pmem->area = NULL;
+		pmem->pgidx = INVALID_PGIDX;
 		tee_pager_npages++;
 		set_npages();
 		TAILQ_INSERT_HEAD(&tee_pager_pmem_head, pmem, link);
@@ -454,49 +473,24 @@ static bool tee_pager_release_one_zi(vaddr_t page_va)
 }
 
 /* Finds the oldest page and remaps it for the new virtual address */
-static bool tee_pager_get_page(struct abort_info *ai,
-			struct tee_pager_area *area,
-			struct tee_pager_pmem **pmem_ret, paddr_t *pa_ret)
+static struct tee_pager_pmem *tee_pager_get_page(struct tee_pager_area *area)
 {
-	unsigned pgidx = core_mmu_va2idx(&tee_pager_tbl_info, ai->va);
 	struct tee_pager_pmem *pmem;
-	paddr_t pa;
-	uint32_t attr;
 
-	core_mmu_get_entry(&tee_pager_tbl_info, pgidx, &pa, &attr);
-
-	assert(!(attr & (TEE_MATTR_VALID_BLOCK | TEE_MATTR_HIDDEN_BLOCK)));
-
-	if (attr & TEE_MATTR_PHYS_BLOCK) {
-		/*
-		 * There's an pmem entry using this mmu entry, let's use
-		 * that entry in the new mapping.
-		 */
-		TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
-			if (pmem->pgidx == pgidx)
-				break;
-		}
-		if (!pmem) {
-			DMSG("Couldn't find pmem for pgidx %u", pgidx);
-			return false;
-		}
-	} else {
-		pmem = TAILQ_FIRST(&tee_pager_pmem_head);
-		if (!pmem) {
-			DMSG("No pmem entries");
-			return false;
-		}
-		core_mmu_get_entry(&tee_pager_tbl_info, pmem->pgidx,
-				   &pa, &attr);
+	pmem = TAILQ_FIRST(&tee_pager_pmem_head);
+	if (!pmem) {
+		DMSG("No pmem entries");
+		return NULL;
+	}
+	if (pmem->pgidx != INVALID_PGIDX) {
 		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, 0, 0);
+		/* TODO only invalidate entries touched above */
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 	}
 
-	pmem->pgidx = pgidx;
-	pmem->area = area;
-	core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
-			   TEE_MATTR_PHYS_BLOCK);
-
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
+	pmem->pgidx = INVALID_PGIDX;
+	pmem->area = NULL;
 	if (area->store) {
 		/* move page to back */
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
@@ -508,12 +502,7 @@ static bool tee_pager_get_page(struct abort_info *ai,
 		TAILQ_INSERT_TAIL(&tee_pager_rw_pmem_head, pmem, link);
 	}
 
-	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
-
-	*pmem_ret = pmem;
-	*pa_ret = pa;
-	return true;
+	return pmem;
 }
 
 static bool pager_check_access(struct abort_info *ai)
@@ -593,7 +582,6 @@ void tee_pager_handle_fault(struct abort_info *ai)
 
 	if (!tee_pager_unhide_page(page_va)) {
 		struct tee_pager_pmem *pmem = NULL;
-		paddr_t pa = 0;
 
 		/*
 		 * The page wasn't hidden, but some other core may have
@@ -608,7 +596,8 @@ void tee_pager_handle_fault(struct abort_info *ai)
 			goto out;
 		}
 
-		if (!tee_pager_get_page(ai, area, &pmem, &pa)) {
+		pmem = tee_pager_get_page(area);
+		if (!pmem) {
 			abort_print(ai);
 			panic();
 		}
@@ -642,12 +631,15 @@ void tee_pager_handle_fault(struct abort_info *ai)
 			cache_maintenance_l1(ICACHE_INVALIDATE, NULL, 0);
 		}
 
-		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx, pa,
-				   get_area_mattr(area));
+		pmem->area = area;
+		pmem->pgidx = core_mmu_va2idx(&tee_pager_tbl_info, ai->va);
+		core_mmu_set_entry(&tee_pager_tbl_info, pmem->pgidx,
+				   get_pmem_pa(pmem), get_area_mattr(area));
 
 #ifdef TEE_PAGER_DEBUG_PRINT
 		DMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA,
-		     core_mmu_idx2va(&tee_pager_tbl_info, pmem->pgidx), pa);
+		     core_mmu_idx2va(&tee_pager_tbl_info, pmem->pgidx),
+				     get_pmem_pa(pmem));
 #endif
 
 	}
@@ -685,25 +677,20 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			panic();
 		}
 
-		pmem->pgidx = pgidx;
 		pmem->va_alias = pager_add_alias_page(pa);
 
 		if (unmap) {
-			/*
-			 * Note that we're making the page inaccessible
-			 * with the TEE_MATTR_PHYS_BLOCK attribute to
-			 * indicate that the descriptor still holds a valid
-			 * physical address of a page.
-			 */
 			pmem->area = NULL;
-			core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
-					   TEE_MATTR_PHYS_BLOCK);
+			pmem->pgidx = INVALID_PGIDX;
+			core_mmu_set_entry(&tee_pager_tbl_info, pgidx, 0, 0);
 		} else {
 			/*
 			 * The page is still mapped, let's assign the area
 			 * and update the protection bits accordingly.
 			 */
 			pmem->area = tee_pager_find_area(va);
+			pmem->pgidx = pgidx;
+			assert(pa == get_pmem_pa(pmem));
 			core_mmu_set_entry(&tee_pager_tbl_info, pgidx, pa,
 					   get_area_mattr(pmem->area));
 		}
