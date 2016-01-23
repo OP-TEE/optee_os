@@ -149,6 +149,7 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 #endif /* CFG_WITH_STATS */
 
 struct core_mmu_table_info tee_pager_tbl_info;
+static struct core_mmu_table_info pager_alias_tbl_info;
 
 static unsigned pager_lock = SPINLOCK_UNLOCK;
 
@@ -163,7 +164,7 @@ static uintptr_t pager_alias_next_free;
 
 void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 {
-	struct core_mmu_table_info ti;
+	struct core_mmu_table_info *ti = &pager_alias_tbl_info;
 	size_t tbl_va_size;
 	unsigned idx;
 	unsigned last_idx;
@@ -173,21 +174,21 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	DMSG("0x%" PRIxVA " - 0x%" PRIxVA, smem, smem + nbytes);
 
 	TEE_ASSERT(!pager_alias_area);
-	if (!core_mmu_find_table(smem, UINT_MAX, &ti)) {
+	if (!ti->num_entries && !core_mmu_find_table(smem, UINT_MAX, ti)) {
 		DMSG("Can't find translation table");
 		panic();
 	}
-	if ((1 << ti.shift) != SMALL_PAGE_SIZE) {
+	if ((1 << ti->shift) != SMALL_PAGE_SIZE) {
 		DMSG("Unsupported page size in translation table %u",
-		     1 << ti.shift);
+		     1 << ti->shift);
 		panic();
 	}
 
-	tbl_va_size = (1 << ti.shift) * ti.num_entries;
+	tbl_va_size = (1 << ti->shift) * ti->num_entries;
 	if (!core_is_buffer_inside(smem, nbytes,
-				   ti.va_base, tbl_va_size)) {
+				   ti->va_base, tbl_va_size)) {
 		DMSG("area 0x%" PRIxVA " len 0x%zx doesn't fit it translation table 0x%" PRIxVA " len 0x%zx",
-			smem, nbytes, ti.va_base, tbl_va_size);
+			smem, nbytes, ti->va_base, tbl_va_size);
 		panic();
 	}
 
@@ -198,32 +199,30 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	pager_alias_next_free = smem;
 
 	/* Clear all mapping in the alias area */
-	idx = core_mmu_va2idx(&ti, smem);
-	last_idx = core_mmu_va2idx(&ti, smem + nbytes);
+	idx = core_mmu_va2idx(ti, smem);
+	last_idx = core_mmu_va2idx(ti, smem + nbytes);
 	for (; idx < last_idx; idx++)
-		core_mmu_set_entry(&ti, idx, 0, 0);
+		core_mmu_set_entry(ti, idx, 0, 0);
 }
 
 static void *pager_add_alias_page(paddr_t pa)
 {
 	unsigned idx;
-	struct core_mmu_table_info ti;
+	struct core_mmu_table_info *ti = &pager_alias_tbl_info;
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
 			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
 			TEE_MATTR_SECURE | TEE_MATTR_PRW;
 
 	DMSG("0x%" PRIxPA, pa);
 
-	TEE_ASSERT(pager_alias_next_free);
-	if (!core_mmu_find_table(pager_alias_next_free, UINT_MAX, &ti))
-		panic();
-	idx = core_mmu_va2idx(&ti, pager_alias_next_free);
-	core_mmu_set_entry(&ti, idx, pa, attr);
+	TEE_ASSERT(pager_alias_next_free && ti->num_entries);
+	idx = core_mmu_va2idx(ti, pager_alias_next_free);
+	core_mmu_set_entry(ti, idx, pa, attr);
 	pager_alias_next_free += SMALL_PAGE_SIZE;
 	if (pager_alias_next_free >= (tee_mm_get_smem(pager_alias_area) +
 				      tee_mm_get_bytes(pager_alias_area)))
 		pager_alias_next_free = 0;
-	return (void *)core_mmu_idx2va(&ti, idx);
+	return (void *)core_mmu_idx2va(ti, idx);
 }
 
 bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
