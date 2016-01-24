@@ -541,6 +541,30 @@ static bool pager_check_access(struct abort_info *ai)
 
 }
 
+#ifdef CFG_TEE_CORE_DEBUG
+static void stat_handle_fault(void)
+{
+	static size_t num_faults;
+	static size_t min_npages = SIZE_MAX;
+	static size_t total_min_npages = SIZE_MAX;
+
+	num_faults++;
+	if ((num_faults % 1024) == 0 || tee_pager_npages < total_min_npages) {
+		DMSG("nfaults %zu npages %zu (min %zu)",
+		     num_faults, tee_pager_npages, min_npages);
+		min_npages = tee_pager_npages; /* reset */
+	}
+	if (tee_pager_npages < min_npages)
+		min_npages = tee_pager_npages;
+	if (tee_pager_npages < total_min_npages)
+		total_min_npages = tee_pager_npages;
+}
+#else
+static void stat_handle_fault(void)
+{
+}
+#endif
+
 void tee_pager_handle_fault(struct abort_info *ai)
 {
 	struct tee_pager_area *area;
@@ -564,6 +588,8 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	cpu_spin_lock(&pager_lock);
+
+	stat_handle_fault();
 
 	/* check if the access is valid */
 	area = tee_pager_find_area(ai->va);
