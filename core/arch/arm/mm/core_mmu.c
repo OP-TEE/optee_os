@@ -45,6 +45,7 @@
 #include <kernel/tz_ssvce_pl310.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/thread.h>
+#include <arm.h>
 
 #define MAX_MMAP_REGIONS	10
 
@@ -371,6 +372,12 @@ void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 
 int core_tlb_maintenance(int op, unsigned int a)
 {
+	/*
+	 * We're doing TLB invalidation because we've changed mapping.
+	 * The dsb() makes sure that written data is visible.
+	 */
+	dsb();
+
 	switch (op) {
 	case TLBINV_UNIFIEDTLB:
 		secure_mmu_unifiedtlbinvall();
