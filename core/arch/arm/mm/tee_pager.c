@@ -231,6 +231,7 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 {
 	struct tee_pager_area *area;
 	size_t tbl_va_size;
+	uint32_t exceptions;
 
 	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : flags 0x%x, store %p, hashes %p",
 		tee_mm_get_smem(mm),
@@ -273,7 +274,14 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	area->flags = flags;
 	area->store = store;
 	area->hashes = hashes;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	cpu_spin_lock(&pager_lock);
+
 	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
+
+	cpu_spin_unlock(&pager_lock);
+	thread_set_exceptions(exceptions);
 	return true;
 }
 
@@ -562,14 +570,6 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	abort_print(ai);
 #endif
 
-	/* check if the access is valid */
-	area = tee_pager_find_area(ai->va);
-	if (!area) {
-		abort_print_error(ai);
-		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
-		panic();
-	}
-
 	/*
 	 * We're updating pages that can affect several active CPUs at a
 	 * time below. We end up here because a thread tries to access some
@@ -583,6 +583,14 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
 	cpu_spin_lock(&pager_lock);
+
+	/* check if the access is valid */
+	area = tee_pager_find_area(ai->va);
+	if (!area) {
+		abort_print_error(ai);
+		DMSG("Invalid addr 0x%" PRIxVA, ai->va);
+		panic();
+	}
 
 	if (!tee_pager_unhide_page(page_va)) {
 		struct tee_pager_pmem *pmem = NULL;
@@ -716,6 +724,8 @@ void tee_pager_release_zi(vaddr_t vaddr, size_t size)
 	bool unmaped = false;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
+	cpu_spin_lock(&pager_lock);
+
 	if ((vaddr & SMALL_PAGE_MASK) || (size & SMALL_PAGE_MASK))
 		panic();
 
@@ -726,6 +736,7 @@ void tee_pager_release_zi(vaddr_t vaddr, size_t size)
 	if (unmaped)
 		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 
+	cpu_spin_unlock(&pager_lock);
 	thread_set_exceptions(exceptions);
 }
 
