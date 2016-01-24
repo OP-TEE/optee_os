@@ -49,7 +49,8 @@ struct tee_pager_area {
 	const uint8_t *hashes;
 	const uint8_t *store;
 	uint32_t flags;
-	tee_mm_entry_t *mm;
+	vaddr_t base;
+	size_t size;
 	TAILQ_ENTRY(tee_pager_area) link;
 };
 
@@ -270,7 +271,8 @@ bool tee_pager_add_area(tee_mm_entry_t *mm, uint32_t flags, const void *store,
 	if (!area)
 		return false;
 
-	area->mm = mm;
+	area->base = tee_mm_get_smem(mm);
+	area->size = tee_mm_get_bytes(mm);
 	area->flags = flags;
 	area->store = store;
 	area->hashes = hashes;
@@ -290,10 +292,7 @@ static struct tee_pager_area *tee_pager_find_area(vaddr_t va)
 	struct tee_pager_area *area;
 
 	TAILQ_FOREACH(area, &tee_pager_area_head, link) {
-		tee_mm_entry_t *mm = area->mm;
-		size_t offset = (va - mm->pool->lo) >> mm->pool->shift;
-
-		if (offset >= mm->offset && offset < (mm->offset + mm->size))
+		if (core_is_buffer_inside(va, 1, area->base, area->size))
 			return area;
 	}
 	return NULL;
@@ -327,12 +326,9 @@ static paddr_t get_pmem_pa(struct tee_pager_pmem *pmem)
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 			void *va_alias)
 {
-	size_t pg_idx = (page_va - area->mm->pool->lo) >> SMALL_PAGE_SHIFT;
-
 	if (area->store) {
-		size_t rel_pg_idx = pg_idx - area->mm->offset;
-		const void *stored_page = area->store +
-					  rel_pg_idx * SMALL_PAGE_SIZE;
+		size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
+		const void *stored_page = area->store + idx * SMALL_PAGE_SIZE;
 
 		memcpy(va_alias, stored_page, SMALL_PAGE_SIZE);
 		incr_ro_hits();
@@ -345,12 +341,9 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 static void tee_pager_verify_page(struct tee_pager_area *area, vaddr_t page_va,
 			void *va_alias)
 {
-	size_t pg_idx = (page_va - area->mm->pool->lo) >> SMALL_PAGE_SHIFT;
-
 	if (area->store) {
-		size_t rel_pg_idx = pg_idx - area->mm->offset;
-		const void *hash = area->hashes +
-				   rel_pg_idx * TEE_SHA256_HASH_SIZE;
+		size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
+		const void *hash = area->hashes + idx * TEE_SHA256_HASH_SIZE;
 
 		if (hash_sha256_check(hash, va_alias, SMALL_PAGE_SIZE) !=
 				TEE_SUCCESS) {
