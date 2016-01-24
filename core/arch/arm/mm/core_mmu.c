@@ -951,8 +951,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		/*
 		 * Lookups in the page table managed by the pager is
 		 * dangerous for addresses in the paged area as those pages
-		 * changes all the time. But some ranges are safe, rw areas
-		 * when the page is populated for instance.
+		 * changes all the time. But some ranges are safe,
+		 * rw-locked areas when the page is populated for instance.
 		 */
 		core_mmu_get_entry(ti, core_mmu_va2idx(ti, v), &p, &a);
 		if (a & TEE_MATTR_VALID_BLOCK) {

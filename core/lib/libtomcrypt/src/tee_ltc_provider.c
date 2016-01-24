@@ -492,7 +492,7 @@ static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 
 	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
 			     SMALL_PAGE_SIZE);
-	_ltc_mempool_u32 = tee_pager_request_zi(*size_pool);
+	_ltc_mempool_u32 = tee_pager_alloc(*size_pool, TEE_PAGER_AREA_LOCK);
 	if (!_ltc_mempool_u32)
 		panic();
 	pool = (void *)_ltc_mempool_u32;
@@ -520,7 +520,7 @@ static void release_unused_mpa_scratch_memory(void)
 	end = ROUNDDOWN(end, SMALL_PAGE_SIZE);
 
 	if (start < end)
-		tee_pager_release_zi(start, end - start);
+		tee_pager_release_phys((void *)start, end - start);
 }
 #else /* CFG_WITH_PAGER */
 

@@ -772,22 +772,16 @@ static void init_thread_stacks(void)
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
 				    true);
 
-		/* Realloc both protection vmem and stack vmem separately */
-		sp = tee_mm_get_smem(mm);
-		tee_mm_free(mm);
-		mm = tee_mm_alloc2(&tee_mm_vcore, sp, SMALL_PAGE_SIZE);
-		TEE_ASSERT(mm);
-		mm = tee_mm_alloc2(&tee_mm_vcore, sp + SMALL_PAGE_SIZE,
-						  STACK_THREAD_SIZE);
-		TEE_ASSERT(mm);
+		/* Add the area to the pager */
+		tee_pager_add_core_area(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
+					tee_mm_get_bytes(mm) - SMALL_PAGE_SIZE,
+					TEE_PAGER_AREA_RW | TEE_PAGER_AREA_LOCK,
+					NULL, NULL);
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
 		if (!thread_init_stack(n, sp))
 			panic();
-
-		/* Add the area to the pager */
-		tee_pager_add_area(mm, TEE_PAGER_AREA_RW, NULL, NULL);
 	}
 }
 #else

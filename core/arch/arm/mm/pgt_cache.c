@@ -80,7 +80,7 @@ void pgt_init(void)
 	for (n = 0; n < PGT_CACHE_SIZE; n++) {
 		struct pgt *p = pgt_entries + n;
 
-		p->tbl = tee_pager_request_zi(PGT_SIZE);
+		p->tbl = tee_pager_alloc(PGT_SIZE, TEE_PAGER_AREA_LOCK);
 		SLIST_INSERT_HEAD(&pgt_free_list, p, link);
 	}
 }
@@ -94,7 +94,8 @@ void pgt_init(void)
 	COMPILE_TIME_ASSERT(PGT_SIZE * PGT_NUM_PGT_PER_PAGE == SMALL_PAGE_SIZE);
 
 	for (n = 0; n < ARRAY_SIZE(pgt_parents); n++) {
-		uint8_t *tbl = tee_pager_request_zi(SMALL_PAGE_SIZE);
+		uint8_t *tbl = tee_pager_alloc(SMALL_PAGE_SIZE,
+					       TEE_PAGER_AREA_LOCK);
 
 		SLIST_INIT(&pgt_parents[n].pgt_cache);
 		for (m = 0; m < PGT_NUM_PGT_PER_PAGE; m++) {
@@ -142,7 +143,7 @@ static void push_to_free_list(struct pgt *p)
 {
 	SLIST_INSERT_HEAD(&pgt_free_list, p, link);
 #if defined(CFG_WITH_PAGER)
-	tee_pager_release_zi((vaddr_t)p->tbl, PGT_SIZE);
+	tee_pager_release_phys(p->tbl, PGT_SIZE);
 #endif
 }
 #else
@@ -170,7 +171,7 @@ static void push_to_free_list(struct pgt *p)
 	if (!p->parent->num_used) {
 		vaddr_t va = (vaddr_t)p->tbl & ~SMALL_PAGE_MASK;
 
-		tee_pager_release_zi(va, SMALL_PAGE_SIZE);
+		tee_pager_release_phys((void *)va, SMALL_PAGE_SIZE);
 	}
 }
 #endif
