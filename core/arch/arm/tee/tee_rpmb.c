@@ -597,9 +597,8 @@ func_exit:
 	return res;
 }
 
-static TEE_Result data_cpy_mac_calc_1b(struct rpmb_data_frame *datafrm,
-				       struct rpmb_raw_data *rawdata,
-				       struct rpmb_data_frame *lastfrm,
+static TEE_Result data_cpy_mac_calc_1b(struct rpmb_raw_data *rawdata,
+				       struct rpmb_data_frame *frm,
 				       uint8_t *fek, uint8_t *fenonce)
 {
 	TEE_Result res;
@@ -609,16 +608,16 @@ static TEE_Result data_cpy_mac_calc_1b(struct rpmb_data_frame *datafrm,
 	if (rawdata->len + rawdata->byte_offset > RPMB_DATA_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	data = rawdata->data;
-	bytes_to_u16(datafrm->address, &idx);
-
 	res = tee_rpmb_mac_calc(rawdata->key_mac, RPMB_KEY_MAC_SIZE,
-				rpmb_ctx->key, RPMB_KEY_MAC_SIZE, lastfrm, 1);
+				rpmb_ctx->key, RPMB_KEY_MAC_SIZE, frm, 1);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = decrypt(data, lastfrm, rawdata->len, rawdata->byte_offset, idx,
-		      fek, fenonce);
+	data = rawdata->data;
+	bytes_to_u16(frm->address, &idx);
+
+	res = decrypt(data, frm, rawdata->len, rawdata->byte_offset, idx, fek,
+		      fenonce);
 	return res;
 }
 
@@ -635,18 +634,17 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	uint32_t size;
 	uint8_t *data;
 	uint16_t start_idx;
+	struct rpmb_data_frame localfrm;
 
 	if (!datafrm || !rawdata || !nbr_frms || !lastfrm)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (nbr_frms == 1)
-		return data_cpy_mac_calc_1b(datafrm, rawdata, lastfrm, fek,
-					    fenonce);
+		return data_cpy_mac_calc_1b(rawdata, lastfrm, fek, fenonce);
 
 	/* nbr_frms > 1 */
 
 	data = rawdata->data;
-	bytes_to_u16(datafrm->address, &start_idx);
 
 	ctx = malloc(rpmb_ctx->hash_ctx_size);
 	if (!ctx) {
@@ -659,32 +657,47 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
-	offset = rawdata->byte_offset;
+	/*
+	 * Note: JEDEC JESD84-B51: "In every packet the address is the start
+	 * address of the full access (not address of the individual half a
+	 * sector)"
+	 */
+	bytes_to_u16(lastfrm->address, &start_idx);
+
 	for (i = 0; i < (nbr_frms - 1); i++) {
 
+		/*
+		 * By working on a local copy of the RPMB frame, we ensure that
+		 * the data can not be modified after the MAC is computed but
+		 * before the payload is decrypted/copied to the output buffer.
+		 */
+		memcpy(&localfrm, &datafrm[i], RPMB_DATA_FRAME_SIZE);
+
 		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-					    datafrm[i].data,
+					    localfrm.data,
 					    RPMB_MAC_PROTECT_DATA_SIZE);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
 		if (i == 0) {
+			/* First block */
+			offset = rawdata->byte_offset;
 			size = RPMB_DATA_SIZE - offset;
-			res = decrypt(data, datafrm, size, offset, start_idx,
-				      fek, fenonce);
-			if (res != TEE_SUCCESS)
-				goto func_exit;
 		} else {
-			/* Handling the middle blocks */
+			/* Middle blocks */
 			size = RPMB_DATA_SIZE;
-			decrypt_block(data, datafrm[i].data, start_idx + i,
-				      fek, fenonce);
+			offset = 0;
 		}
+
+		res = decrypt(data, &localfrm, size, offset, start_idx + i,
+			      fek, fenonce);
+		if (res != TEE_SUCCESS)
+			goto func_exit;
 
 		data += size;
 	}
 
-	/* Copy the data part for the last block. */
+	/* Last block */
 	size = (rawdata->len + rawdata->byte_offset) % RPMB_DATA_SIZE;
 	if (size == 0)
 		size = RPMB_DATA_SIZE;
@@ -733,8 +746,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	}
 #endif
 
-	/* Make a secure copy of the last data packet for verification. */
-	/* FIXME: is a physical copy really needed? */
+	/* Make sure the last data packet can't be modified once verified */
 	memcpy(&lastfrm, &datafrm[nbr_frms - 1], RPMB_DATA_FRAME_SIZE);
 
 	/* Handle operation result and translate to TEEC error code. */
