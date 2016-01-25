@@ -471,6 +471,38 @@ static TEE_Result decrypt_block(uint8_t *out, const uint8_t *in,
 	return crypt_block(out, in, blk_idx, fek, nonce, TEE_MODE_DECRYPT);
 }
 
+/* Decrypt/copy at most one block of data */
+static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
+			  size_t size, size_t offset, uint16_t blk_idx,
+			  const uint8_t *fek, const uint8_t *nonce)
+{
+	uint8_t *tmp = NULL;
+
+	if (size < RPMB_DATA_SIZE) {
+		if (is_null_or_zero(fek)) {
+			/* Block is not encrypted */
+			memcpy(out, frm->data + offset, size);
+		} else {
+			/*
+			 * Block is encrypted. Since output buffer is not
+			 * large enough to hold one block we must allocate a
+			 * temporary buffer.
+			 */
+			tmp = malloc(RPMB_DATA_SIZE);
+			if (!tmp)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			decrypt_block(tmp, frm->data, blk_idx, fek, nonce);
+			memcpy(out, tmp + offset, size);
+		}
+	} else {
+		TEE_ASSERT(!offset);
+		decrypt_block(out, frm->data, blk_idx, fek, nonce);
+	}
+	free(tmp);
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 				    struct rpmb_raw_data *rawdata,
 				    uint16_t nbr_frms, uint16_t dev_id,
@@ -573,7 +605,6 @@ static TEE_Result data_cpy_mac_calc_1b(struct rpmb_data_frame *datafrm,
 	TEE_Result res;
 	uint8_t *data;
 	uint16_t idx;
-	uint8_t *ct = NULL;
 
 	if (rawdata->len + rawdata->byte_offset > RPMB_DATA_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -586,31 +617,9 @@ static TEE_Result data_cpy_mac_calc_1b(struct rpmb_data_frame *datafrm,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (rawdata->len == RPMB_DATA_SIZE) {
-		/* Reading whole block */
-		decrypt_block(data, lastfrm->data, idx, fek, fenonce);
-	} else {
-		/* Reading partial block */
-		if (is_null_or_zero(fek)) {
-			/* Block is not encrypted */
-			memcpy(data, lastfrm->data + rawdata->byte_offset,
-			       rawdata->len);
-		} else {
-			/*
-			 * Block is encrypted. Since output buffer is not
-			 * large enough to hold one block we must allocate a
-			 * temporary buffer.
-			 */
-			ct = malloc(RPMB_DATA_SIZE);
-			if (!ct)
-				return TEE_ERROR_OUT_OF_MEMORY;
-			decrypt_block(ct, lastfrm->data, idx, fek, fenonce);
-			memcpy(data, ct + rawdata->byte_offset, rawdata->len);
-		}
-	}
-
-	free(ct);
-	return TEE_SUCCESS;
+	res = decrypt(data, lastfrm, rawdata->len, rawdata->byte_offset, idx,
+		      fek, fenonce);
+	return res;
 }
 
 static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
@@ -626,7 +635,6 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	uint32_t size;
 	uint8_t *data;
 	uint16_t start_idx;
-	uint8_t *ct = NULL;
 
 	if (!datafrm || !rawdata || !nbr_frms || !lastfrm)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -662,24 +670,10 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 
 		if (i == 0) {
 			size = RPMB_DATA_SIZE - offset;
-			if (rawdata->byte_offset) {
-				if (is_null_or_zero(fek)) {
-					memcpy(data, datafrm[0].data + offset,
-					       size);
-				} else {
-					ct = malloc(RPMB_DATA_SIZE);
-					if (!ct) {
-						res = TEE_ERROR_OUT_OF_MEMORY;
-						goto func_exit;
-					}
-					decrypt_block(ct, datafrm[0].data,
-						      start_idx, fek, fenonce);
-					memcpy(data, ct + offset, size);
-				}
-			} else {
-				decrypt_block(data, datafrm[0].data, start_idx,
-					      fek, fenonce);
-			}
+			res = decrypt(data, datafrm, size, offset, start_idx,
+				      fek, fenonce);
+			if (res != TEE_SUCCESS)
+				goto func_exit;
 		} else {
 			/* Handling the middle blocks */
 			size = RPMB_DATA_SIZE;
@@ -694,25 +688,9 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	size = (rawdata->len + rawdata->byte_offset) % RPMB_DATA_SIZE;
 	if (size == 0)
 		size = RPMB_DATA_SIZE;
-	if (size < RPMB_DATA_SIZE) {
-		if (is_null_or_zero(fek)) {
-			memcpy(data, lastfrm->data, size);
-		} else {
-			if (!ct) {
-				ct = malloc(RPMB_DATA_SIZE);
-				if (!ct) {
-					res = TEE_ERROR_OUT_OF_MEMORY;
-					goto func_exit;
-				}
-			}
-			decrypt_block(ct, lastfrm->data, start_idx + i, fek,
-				      fenonce);
-			memcpy(data, ct, size);
-		}
-	} else {
-		decrypt_block(data, lastfrm->data, start_idx + i, fek,
-			      fenonce);
-	}
+	res = decrypt(data, lastfrm, size, 0, start_idx + 1, fek, fenonce);
+	if (res != TEE_SUCCESS)
+		goto func_exit;
 
 	/* Update MAC against the last block */
 	res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256, lastfrm->data,
@@ -729,7 +707,6 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 
 func_exit:
 	free(ctx);
-	free(ct);
 	return res;
 }
 
