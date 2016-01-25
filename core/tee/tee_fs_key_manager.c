@@ -414,8 +414,8 @@ static void u16_to_big_endian(uint16_t u16, uint8_t *bytes)
  * files.
  */
 TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
-			      uint16_t blk_idx, uint8_t *encrypted_fek,
-			      uint8_t *nonce, TEE_OperationMode mode)
+			      uint16_t blk_idx, const uint8_t *encrypted_fek,
+			      const uint8_t *nonce, TEE_OperationMode mode)
 {
 	TEE_Result res;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
