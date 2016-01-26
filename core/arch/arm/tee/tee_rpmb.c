@@ -446,6 +446,11 @@ static TEE_Result crypt_block(uint8_t *out, const uint8_t *in,
 }
 
 #else
+static bool is_null_or_zero(const uint8_t *fek __unused)
+{
+	return true;
+}
+
 static TEE_Result crypt_block(uint8_t *out, const uint8_t *in,
 			      uint16_t blk_idx __unused,
 			      const uint8_t *fek __unused,
@@ -455,7 +460,7 @@ static TEE_Result crypt_block(uint8_t *out, const uint8_t *in,
 	memcpy(out, in, RPMB_DATA_SIZE);
 	return TEE_SUCCESS;
 }
-#endif
+#endif /* !CFG_ENC_FS */
 
 static TEE_Result encrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek,
