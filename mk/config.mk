@@ -94,10 +94,21 @@ CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
 CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 
 # Encrypted File System Support
+# Applies to both the default and the RPMB filesystems
 CFG_ENC_FS ?= y
 
 # File System Block Cache Support
+# Does not apply to the RPMB FS
 CFG_FS_BLOCK_CACHE ?= n
+
+# RPMB file system support
+# When enabled, replaces the default (REE-based) FS
+CFG_RPMB_FS ?= n
+
+# Device identifier used when CFG_RPMB_FS = y.
+# The exact meaning of this value is platform-dependent. On Linux, the
+# tee-supplicant process will open /dev/mmcblk<id>rpmb
+CFG_RPMB_FS_DEV_ID ?= 0
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
