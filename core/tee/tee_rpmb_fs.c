@@ -48,7 +48,6 @@
 #define RPMB_FS_FAT_START_ADDRESS       512
 #define RPMB_BLOCK_SIZE_SHIFT           8
 
-#define DEV_ID                          0
 #define RPMB_FS_MAGIC                   0x52504D42
 #define FS_VERSION                      2
 #define N_ENTRIES                       8
@@ -154,7 +153,7 @@ static void dump_fat(void)
 	}
 
 	while (!last_entry_found) {
-		res = tee_rpmb_read(DEV_ID, fat_address,
+		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, fat_address,
 				    (uint8_t *)fat_entries, size, NULL, NULL);
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -230,13 +229,13 @@ static TEE_Result write_fat_entry(struct rpmb_file_handle *fh,
 	}
 
 	if (update_write_counter) {
-		res = tee_rpmb_get_write_counter(DEV_ID,
+		res = tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
 						 &fh->fat_entry.write_counter);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
 
-	res = tee_rpmb_write(DEV_ID, fh->rpmb_fat_address,
+	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, fh->rpmb_fat_address,
 			     (uint8_t *)&fh->fat_entry,
 			     sizeof(struct rpmb_fat_entry), NULL, NULL);
 
@@ -263,7 +262,7 @@ static TEE_Result rpmb_fs_setup(void)
 		goto out;
 	}
 
-	res = tee_rpmb_get_max_block(DEV_ID, &max_rpmb_block);
+	res = tee_rpmb_get_max_block(CFG_RPMB_FS_DEV_ID, &max_rpmb_block);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -273,7 +272,7 @@ static TEE_Result rpmb_fs_setup(void)
 		goto out;
 	}
 
-	res = tee_rpmb_read(DEV_ID, RPMB_STORAGE_START_ADDRESS,
+	res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
 			    (uint8_t *)partition_data,
 			    sizeof(struct rpmb_fs_partition), NULL, NULL);
 	if (res != TEE_SUCCESS)
@@ -314,10 +313,10 @@ static TEE_Result rpmb_fs_setup(void)
 		goto out;
 
 	res =
-	    tee_rpmb_get_write_counter(DEV_ID, &partition_data->write_counter);
+	    tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID, &partition_data->write_counter);
 	if (res != TEE_SUCCESS)
 		goto out;
-	res = tee_rpmb_write(DEV_ID, RPMB_STORAGE_START_ADDRESS,
+	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
 
@@ -400,7 +399,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 	 * the pool.
 	 */
 	while (!last_entry_found && (!entry_found || p)) {
-		res = tee_rpmb_read(DEV_ID, fat_address,
+		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, fat_address,
 				    (uint8_t *)fat_entries, size, NULL, NULL);
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -683,7 +682,7 @@ int tee_rpmb_fs_read(int fd, uint8_t *buf, size_t size)
 
 	size = MIN(size, fh->fat_entry.data_size - fh->pos);
 	if (size > 0) {
-		res = tee_rpmb_read(DEV_ID,
+		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 				    fh->fat_entry.start_address + fh->pos, buf,
 				    size, fh->fat_entry.fek,
 				    fh->fat_entry.nonce);
@@ -753,7 +752,7 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 	if (newsize <= fh->fat_entry.data_size) {
 		/* Modifying file content */
 
-		res = tee_rpmb_write(DEV_ID,
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID,
 				     fh->fat_entry.start_address + fh->pos,
 				     buf, size, fh->fat_entry.fek,
 				     fh->fat_entry.nonce);
@@ -770,7 +769,7 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 		}
 
 		if (fh->fat_entry.data_size) {
-			res = tee_rpmb_read(DEV_ID,
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 					    fh->fat_entry.start_address,
 					    newbuf, fh->fat_entry.data_size,
 					    fh->fat_entry.fek,
@@ -782,7 +781,7 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 		memcpy(newbuf + fh->pos, buf, size);
 
 		newaddr = tee_mm_get_smem(mm);
-		res = tee_rpmb_write(DEV_ID, newaddr, newbuf, newsize,
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf, newsize,
 				     fh->fat_entry.fek, fh->fat_entry.nonce);
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -999,7 +998,7 @@ int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
 		}
 
 		if (fh->fat_entry.data_size) {
-			res = tee_rpmb_read(DEV_ID,
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 					    fh->fat_entry.start_address,
 					    newbuf, fh->fat_entry.data_size,
 					    fh->fat_entry.fek,
@@ -1009,7 +1008,7 @@ int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
 		}
 
 		newaddr = tee_mm_get_smem(mm);
-		res = tee_rpmb_write(DEV_ID, newaddr, newbuf, newsize,
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf, newsize,
 				     fh->fat_entry.fek, fh->fat_entry.nonce);
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -1084,7 +1083,7 @@ static TEE_Result tee_rpmb_fs_dir_populate(const char *path, tee_fs_dir *dir)
 
 	pathlen = strlen(path);
 	while (!last_entry_found) {
-		res = tee_rpmb_read(DEV_ID, fat_address,
+		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, fat_address,
 				    (uint8_t *)fat_entries, size, NULL, NULL);
 		if (res != TEE_SUCCESS)
 			goto out;
