@@ -104,8 +104,8 @@ CFG_FS_BLOCK_CACHE ?= n
 CFG_RPMB_FS ?= n
 
 # Device identifier used when CFG_RPMB_FS = y.
-# The exact meaning of this value is platform-dependant. On Linux, the
-# tee-supplicant process will open /dev/mmcblk<id>rpmb
+# The exact meaning of this value is platform-dependent. On Linux, the
+# tee-supplicant process will open /dev/mmcblk<id>
 CFG_RPMB_FS_DEV_ID ?= 0
 
 # Embed public part of this key in OP-TEE OS

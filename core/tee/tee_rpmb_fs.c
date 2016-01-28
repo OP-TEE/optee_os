@@ -313,7 +313,8 @@ static TEE_Result rpmb_fs_setup(void)
 		goto out;
 
 	res =
-	    tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID, &partition_data->write_counter);
+	    tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
+				       &partition_data->write_counter);
 	if (res != TEE_SUCCESS)
 		goto out;
 	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
@@ -781,8 +782,9 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 		memcpy(newbuf + fh->pos, buf, size);
 
 		newaddr = tee_mm_get_smem(mm);
-		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf, newsize,
-				     fh->fat_entry.fek, fh->fat_entry.nonce);
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf,
+				     newsize, fh->fat_entry.fek,
+				     fh->fat_entry.nonce);
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -1008,8 +1010,9 @@ int tee_rpmb_fs_ftruncate(int fd, tee_fs_off_t length)
 		}
 
 		newaddr = tee_mm_get_smem(mm);
-		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf, newsize,
-				     fh->fat_entry.fek, fh->fat_entry.nonce);
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf,
+				     newsize, fh->fat_entry.fek,
+				     fh->fat_entry.nonce);
 		if (res != TEE_SUCCESS)
 			goto out;
 
