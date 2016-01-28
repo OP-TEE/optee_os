@@ -846,7 +846,6 @@ TEE_Result tee_rpmb_fs_rm(const char *filename)
 
 out:
 	free(fh);
-	IMSG("Deleting file %s returned 0x%x\n", filename, res);
 	return res;
 }
 
