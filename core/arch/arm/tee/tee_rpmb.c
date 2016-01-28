@@ -191,7 +191,7 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 		goto out;
 	}
 
-	IMSG("RPMB: Using test key");
+	DMSG("RPMB: Using test key");
 	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
 
 out:
@@ -970,7 +970,7 @@ static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
 		rpmb_ctx->wr_cnt_synced = true;
 	}
 
-	IMSG("Verify key returning 0x%x\n", res);
+	DMSG("Verify key returning 0x%x\n", res);
 	return res;
 }
 
@@ -1049,7 +1049,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	rpmb_ctx->dev_id = dev_id;
 
 	if (!rpmb_ctx->dev_info_synced) {
-		IMSG("RPMB: Syncing device information");
+		DMSG("RPMB: Syncing device information");
 
 		dev_info.rpmb_size_mult = 0;
 		dev_info.rel_wr_sec_c = 0;
@@ -1057,8 +1057,8 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
-		IMSG("RPMB: RPMB size is %d*128 KB", dev_info.rpmb_size_mult);
-		IMSG("RPMB: Reliable Write Sector Count is %d",
+		DMSG("RPMB: RPMB size is %d*128 KB", dev_info.rpmb_size_mult);
+		DMSG("RPMB: Reliable Write Sector Count is %d",
 		     dev_info.rel_wr_sec_c);
 
 		if (dev_info.rpmb_size_mult == 0) {
@@ -1090,7 +1090,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	}
 
 	if (!rpmb_ctx->key_derived) {
-		IMSG("RPMB INIT: Deriving key");
+		DMSG("RPMB INIT: Deriving key");
 
 		res = tee_rpmb_key_gen(dev_id, rpmb_ctx->key,
 				       RPMB_KEY_MAC_SIZE);
@@ -1102,17 +1102,17 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 
 	/* Perform a write counter read to verify if the key is ok. */
 	if (!rpmb_ctx->wr_cnt_synced || !rpmb_ctx->key_verified) {
-		IMSG("RPMB INIT: Verifying Key");
+		DMSG("RPMB INIT: Verifying Key");
 
 		res = tee_rpmb_verify_key_sync_counter(dev_id);
 		if (res != TEE_SUCCESS && !rpmb_ctx->key_verified) {
 			/*
 			 * Need to write the key here and verify it.
 			 */
-			IMSG("RPMB INIT: Writing Key");
+			DMSG("RPMB INIT: Writing Key");
 			res = tee_rpmb_write_key(dev_id);
 			if (res == TEE_SUCCESS) {
-				IMSG("RPMB INIT: Verifying Key");
+				DMSG("RPMB INIT: Verifying Key");
 				res = tee_rpmb_verify_key_sync_counter(dev_id);
 			}
 		}
@@ -1174,8 +1174,8 @@ static TEE_Result tee_rpmb_read_unlocked(uint16_t dev_id, uint32_t addr,
 
 	req->block_count = blkcnt;
 
-	DMSG("BLOCK READ %u block%s at index %u", blkcnt,
-	     ((blkcnt > 1) ? "s" : ""), blk_idx);
+	DMSG("Read %u block%s at index %u", blkcnt, ((blkcnt > 1) ? "s" : ""),
+	     blk_idx);
 
 	res = tee_rpmb_invoke(&mem);
 	if (res != TEE_SUCCESS)
@@ -1224,8 +1224,8 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 	uint16_t tmp_blk_idx;
 	uint16_t i;
 
-	DMSG("BLOCK WRITE %u block%s at index %u", blkcnt,
-	     ((tmp_blkcnt > 1) ? "s" : ""), blk_idx);
+	DMSG("Write %u block%s at index %u", blkcnt, ((blkcnt > 1) ? "s" : ""),
+	     blk_idx);
 
 	if (!data_blks || !blkcnt)
 		return TEE_ERROR_BAD_PARAMETERS;
