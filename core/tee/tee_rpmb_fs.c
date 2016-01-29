@@ -670,9 +670,11 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 	tee_mm_pool_t p;
 	bool pool_result = false;
 	tee_mm_entry_t *mm;
+	size_t end;
 	size_t newsize;
 	uint8_t *newbuf = NULL;
 	uintptr_t newaddr;
+	uint32_t start_addr;
 
 	if (!size)
 		return 0;
@@ -711,18 +713,24 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 
 	TEE_ASSERT(!(fh->fat_entry.flags & FILE_IS_LAST_ENTRY));
 
-	newsize = fh->pos + size;
-	if (newsize <= fh->fat_entry.data_size) {
-		/* Modifying file content */
+	end = fh->pos + size;
+	start_addr = fh->fat_entry.start_address + fh->pos;
 
-		res = tee_rpmb_write(DEV_ID,
-				     fh->fat_entry.start_address + fh->pos,
-				     buf, size);
+	if (end <= fh->fat_entry.data_size &&
+	    tee_rpmb_write_is_atomic(DEV_ID, start_addr, size)) {
+
+		DMSG("Updating data in-place");
+		res = tee_rpmb_write(DEV_ID, start_addr, buf, size);
 		if (res != TEE_SUCCESS)
 			goto out;
 	} else {
-		/* Extend file: allocate, read, update, write */
+		/*
+		 * File must be extended, or update cannot be atomic: allocate,
+		 * read, update, write.
+		 */
 
+		DMSG("Need to re-allocate");
+		newsize = MAX(end, fh->fat_entry.data_size);
 		mm = tee_mm_alloc(&p, newsize);
 		newbuf = calloc(newsize, 1);
 		if (!mm || !newbuf) {
@@ -752,7 +760,7 @@ int tee_rpmb_fs_write(int fd, uint8_t *buf, size_t size)
 			goto out;
 	}
 
-	fh->pos = newsize;
+	fh->pos += size;
 out:
 	if (pool_result)
 		tee_mm_final(&p);

@@ -1230,6 +1230,16 @@ func_exit:
 	return res;
 }
 
+bool tee_rpmb_write_is_atomic(uint16_t dev_id __unused, uint32_t addr,
+			      uint32_t len)
+{
+	uint8_t byte_offset = addr % RPMB_DATA_SIZE;
+	uint16_t blkcnt = ROUNDUP(len + byte_offset,
+				  RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+
+	return (blkcnt <= rpmb_ctx->rel_wr_blkcnt);
+}
+
 TEE_Result tee_rpmb_write(uint16_t dev_id,
 			  uint32_t addr, uint8_t *data, uint32_t len)
 {
