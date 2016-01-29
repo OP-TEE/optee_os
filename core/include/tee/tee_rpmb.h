@@ -68,4 +68,13 @@ TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id, uint32_t *counter);
  */
 TEE_Result tee_rpmb_get_max_block(uint16_t dev_id, uint32_t *max_block);
 
+/*
+ * Return true if data can be written atomically, false otherwise
+ *
+ * @dev_id	Device ID of the eMMC device.
+ * @addr	Byte address of data.
+ * @len		Size of data in bytes.
+ */
+bool tee_rpmb_write_is_atomic(uint16_t dev_id, uint32_t addr, uint32_t len);
+
 #endif
