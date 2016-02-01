@@ -525,8 +525,10 @@ static TEE_Result generate_fek_and_nonce(struct rpmb_fat_entry *fe)
 	return res;
 }
 #else
-static TEE_Result generate_fek_and_nonce(struct rpmb_fat_entry *fe __unused)
+static TEE_Result generate_fek_and_nonce(struct rpmb_fat_entry *fe)
 {
+	memset(fe->fek, 0, sizeof(fe->fek));
+	memset(fe->nonce, 0, sizeof(fe->nonce));
 	return TEE_SUCCESS;
 }
 #endif

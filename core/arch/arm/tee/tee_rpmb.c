@@ -481,7 +481,9 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 			  size_t size, size_t offset, uint16_t blk_idx,
 			  const uint8_t *fek, const uint8_t *nonce)
 {
-	uint8_t *tmp = NULL;
+	uint8_t *tmp;
+
+	TEE_ASSERT(size + offset <= RPMB_DATA_SIZE);
 
 	if (size < RPMB_DATA_SIZE) {
 		if (is_null_or_zero(fek)) {
@@ -498,12 +500,12 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 				return TEE_ERROR_OUT_OF_MEMORY;
 			decrypt_block(tmp, frm->data, blk_idx, fek, nonce);
 			memcpy(out, tmp + offset, size);
+			free(tmp);
 		}
 	} else {
 		TEE_ASSERT(!offset);
 		decrypt_block(out, frm->data, blk_idx, fek, nonce);
 	}
-	free(tmp);
 
 	return TEE_SUCCESS;
 }
