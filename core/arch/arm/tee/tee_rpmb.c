@@ -414,86 +414,66 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	return thread_rpc_cmd(TEE_RPC_RPMB_CMD, 2, params);
 }
 
-#ifdef CFG_ENC_FS
-static bool is_null_or_zero(const uint8_t *fek)
+static bool is_zero(const uint8_t *fek)
 {
 	int i;
 
-	if (!fek)
-		return true;
 	for (i = 0; i < TEE_FS_KM_FEK_SIZE; i++)
 		if (fek[i])
 			return false;
 	return true;
 }
 
-static TEE_Result crypt_block(uint8_t *out, const uint8_t *in,
-			      uint16_t blk_idx, const uint8_t *fek,
-			      const uint8_t *nonce, TEE_OperationMode mode)
-{
-	if (is_null_or_zero(fek)) {
-		/*
-		 * Unencrypted block, either because it does not belong to the
-		 * data area of a file (!fek), or because the file was created
-		 * with no encryption (e.g., by OP-TEE with CFG_ENC_FS=n).
-		 */
-		memcpy(out, in, RPMB_DATA_SIZE);
-		return TEE_SUCCESS;
-	}
-
-	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
-				  nonce, mode);
-}
-
-#else
-static bool is_null_or_zero(const uint8_t *fek __unused)
-{
-	return true;
-}
-
-static TEE_Result crypt_block(uint8_t *out, const uint8_t *in,
-			      uint16_t blk_idx __unused,
-			      const uint8_t *fek __unused,
-			      const uint8_t *nonce __unused,
-			      TEE_OperationMode mode __unused)
-{
-	memcpy(out, in, RPMB_DATA_SIZE);
-	return TEE_SUCCESS;
-}
-#endif /* !CFG_ENC_FS */
-
+#ifdef CFG_ENC_FS
 static TEE_Result encrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek,
 				const uint8_t *nonce)
 {
-	return crypt_block(out, in, blk_idx, fek, nonce, TEE_MODE_ENCRYPT);
+	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
+				  nonce, TEE_MODE_ENCRYPT);
 }
 
 static TEE_Result decrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek,
 				const uint8_t *nonce)
 {
-	return crypt_block(out, in, blk_idx, fek, nonce, TEE_MODE_DECRYPT);
+	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
+				  nonce, TEE_MODE_DECRYPT);
 }
+#endif /* CFG_ENC_FS */
 
 /* Decrypt/copy at most one block of data */
 static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
-			  size_t size, size_t offset, uint16_t blk_idx,
-			  const uint8_t *fek, const uint8_t *nonce)
+			  size_t size, size_t offset,
+			  uint16_t blk_idx __unused, const uint8_t *fek,
+			  const uint8_t *nonce __unused)
 {
+#ifdef CFG_ENC_FS
 	uint8_t *tmp;
+#endif
 
 	TEE_ASSERT(size + offset <= RPMB_DATA_SIZE);
 
-	if (size < RPMB_DATA_SIZE) {
-		if (is_null_or_zero(fek)) {
-			/* Block is not encrypted */
-			memcpy(out, frm->data + offset, size);
-		} else {
+	if (!fek) {
+		/* Block is not encrypted (not a file data block) */
+		memcpy(out, frm->data + offset, size);
+	} else if (is_zero(fek)) {
+		/*
+		 * The file was created with encryption disabled
+		 * (CFG_ENC_FS=n)
+		 */
+#ifdef CFG_ENC_FS
+		return TEE_ERROR_SECURITY;
+#else
+		memcpy(out, frm->data + offset, size);
+#endif
+	} else {
+		/* Block is encrypted */
+#ifdef CFG_ENC_FS
+		if (size < RPMB_DATA_SIZE) {
 			/*
-			 * Block is encrypted. Since output buffer is not
-			 * large enough to hold one block we must allocate a
-			 * temporary buffer.
+			 * Since output buffer is not large enough to hold one
+			 * block we must allocate a temporary buffer.
 			 */
 			tmp = malloc(RPMB_DATA_SIZE);
 			if (!tmp)
@@ -501,10 +481,13 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 			decrypt_block(tmp, frm->data, blk_idx, fek, nonce);
 			memcpy(out, tmp + offset, size);
 			free(tmp);
+		} else {
+			TEE_ASSERT(!offset);
+			decrypt_block(out, frm->data, blk_idx, fek, nonce);
 		}
-	} else {
-		TEE_ASSERT(!offset);
-		decrypt_block(out, frm->data, blk_idx, fek, nonce);
+#else
+		return TEE_ERROR_SECURITY;
+#endif
 	}
 
 	return TEE_SUCCESS;
@@ -513,7 +496,8 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 				    struct rpmb_raw_data *rawdata,
 				    uint16_t nbr_frms, uint16_t dev_id,
-				    uint8_t *fek, uint8_t *fenonce)
+				    uint8_t *fek __unused,
+				    uint8_t *fenonce __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
@@ -566,11 +550,19 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			memcpy(datafrm[i].nonce, rawdata->nonce,
 			       RPMB_NONCE_SIZE);
 
-		if (rawdata->data)
-			encrypt_block(datafrm[i].data,
+		if (rawdata->data) {
+#ifdef CFG_ENC_FS
+			if (fek)
+				encrypt_block(datafrm[i].data,
 					rawdata->data + (i * RPMB_DATA_SIZE),
 					*rawdata->blk_idx + i, fek,
 					fenonce);
+			else
+#endif
+				memcpy(datafrm[i].data,
+				       rawdata->data + (i * RPMB_DATA_SIZE),
+				       RPMB_DATA_SIZE);
+		}
 	}
 
 	if (rawdata->key_mac) {
