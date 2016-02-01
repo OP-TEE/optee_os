@@ -513,13 +513,27 @@ out:
 }
 
 #ifdef CFG_ENC_FS
+static bool is_zero(const uint8_t *buf, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		if (buf[i])
+			return false;
+	return true;
+}
+
 static TEE_Result generate_fek_and_nonce(struct rpmb_fat_entry *fe)
 {
 	TEE_Result res;
 
+again:
 	res = crypto_ops.prng.read(fe->fek, sizeof(fe->fek));
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (is_zero(fe->fek, sizeof(fe->fek)))
+		goto again;
 
 	res = crypto_ops.prng.read(fe->nonce, sizeof(fe->nonce));
 	return res;
