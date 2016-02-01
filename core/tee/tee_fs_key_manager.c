@@ -47,6 +47,7 @@
 #include <tee/tee_fs_key_manager.h>
 #include <compiler.h>
 #include <trace.h>
+#include <util.h>
 
 struct tee_fs_ssk {
 	bool is_init;
@@ -403,53 +404,135 @@ TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
 			cipher, cipher_size, plaintext, plaintext_size);
 }
 
-static void u16_to_big_endian(uint16_t u16, uint8_t *bytes)
+static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
+			 size_t in_size)
 {
-	*bytes = (uint8_t) (u16 >> 8);
-	*(bytes + 1) = (uint8_t) u16;
+	TEE_Result res;
+	uint8_t *ctx = NULL;
+	size_t ctx_size;
+	uint32_t algo = TEE_ALG_SHA256;
+
+	res = crypto_ops.hash.get_ctx_size(algo, &ctx_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ctx = malloc(ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = crypto_ops.hash.init(ctx, algo);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = crypto_ops.hash.update(ctx, algo, in, in_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = crypto_ops.hash.final(ctx, algo, out, out_size);
+
+out:
+	free(ctx);
+	return res;
+}
+
+static TEE_Result aes_ecb(uint8_t *out, size_t out_size, const uint8_t *in,
+			  size_t in_size, const uint8_t *key, size_t key_size)
+{
+	TEE_Result res;
+	uint8_t *ctx = NULL;
+	size_t ctx_size;
+	uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
+
+	TEE_ASSERT(out_size == in_size);
+
+	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ctx = malloc(ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = crypto_ops.cipher.init(ctx, algo, TEE_MODE_ENCRYPT, key,
+				     key_size, NULL, 0, NULL, 0);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = crypto_ops.cipher.update(ctx, algo, TEE_MODE_ENCRYPT, true, in,
+				       in_size, out);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	crypto_ops.cipher.final(ctx, algo);
+	res = TEE_SUCCESS;
+
+out:
+	free(ctx);
+	return res;
+}
+
+static TEE_Result essiv(uint8_t *iv, size_t iv_size, const uint8_t *fek,
+			size_t fek_size, uint16_t blk_idx)
+{
+	TEE_Result res;
+	uint8_t sha[32];
+	uint8_t pad_blkid[TEE_AES_BLOCK_SIZE] = { 0, };
+
+	TEE_ASSERT(iv_size == TEE_AES_BLOCK_SIZE);
+
+	res = sha256(sha, sizeof(sha), fek, fek_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	pad_blkid[0] = (blk_idx & 0xFF);
+	pad_blkid[1] = (blk_idx & 0xFF00) >> 8;
+
+	return aes_ecb(iv, iv_size, pad_blkid, sizeof(pad_blkid), sha, 16);
 }
 
 /*
- * AES CTR mode encryption/decryption used for block encryption of RPMB FS
- * files.
+ * Encryption/decryption of RPMB FS file data. This is AES CBC with ESSIV.
  */
 TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 			      uint16_t blk_idx, const uint8_t *encrypted_fek,
-			      const uint8_t *nonce, TEE_OperationMode mode)
+			      TEE_OperationMode mode)
 {
 	TEE_Result res;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	uint8_t iv[TEE_AES_BLOCK_SIZE];
 	uint8_t *ctx;
 	size_t ctx_size;
+	uint32_t algo = TEE_ALG_AES_CBC_NOPAD;
 
 	DMSG("%scrypt block #%u", (mode == TEE_MODE_ENCRYPT) ? "En" : "De",
 	     blk_idx);
 
+	/* Decrypt FEK */
 	memcpy(fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
 	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_ops.cipher.get_ctx_size(TEE_ALG_AES_CTR, &ctx_size);
+	/* Compute initialization vector for this block */
+	res = essiv(iv, sizeof(iv), fek, sizeof(fek), blk_idx);
+
+	/* Run AES CBC */
+	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 	ctx = malloc(ctx_size);
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(iv, nonce, 14);
-	u16_to_big_endian(blk_idx, iv + 14);
-
-	res = crypto_ops.cipher.init(ctx, TEE_ALG_AES_CTR, mode, fek,
-				     sizeof(fek), NULL, 0, iv,
-				     TEE_AES_BLOCK_SIZE);
+	res = crypto_ops.cipher.init(ctx, algo, mode, fek, sizeof(fek), NULL,
+				     0, iv, TEE_AES_BLOCK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto exit;
-	res = crypto_ops.cipher.update(ctx, TEE_ALG_AES_CTR, mode, true,
-				       in, size, out);
-	crypto_ops.cipher.final(ctx, TEE_ALG_AES_CTR);
+	res = crypto_ops.cipher.update(ctx, algo, mode, true, in, size, out);
+	if (res != TEE_SUCCESS)
+		goto exit;
 
+	crypto_ops.cipher.final(ctx, algo);
 
 exit:
 	free(ctx);

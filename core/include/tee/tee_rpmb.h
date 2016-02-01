@@ -41,7 +41,7 @@
  */
 TEE_Result tee_rpmb_read(uint16_t dev_id,
 			 uint32_t addr, uint8_t *data, uint32_t len,
-			 uint8_t *fek, uint8_t *fenonce);
+			 uint8_t *fek);
 
 /*
  * Write RPMB data in bytes.
@@ -54,7 +54,7 @@ TEE_Result tee_rpmb_read(uint16_t dev_id,
  */
 TEE_Result tee_rpmb_write(uint16_t dev_id,
 			  uint32_t addr, uint8_t *data, uint32_t len,
-			  uint8_t *fek, uint8_t *fenonce);
+			  uint8_t *fek);
 
 /*
  * Read the RPMB write counter.
