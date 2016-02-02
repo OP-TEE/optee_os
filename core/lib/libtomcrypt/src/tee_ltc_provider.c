@@ -492,7 +492,7 @@ static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 
 	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
 			     SMALL_PAGE_SIZE);
-	_ltc_mempool_u32 = tee_pager_alloc(*size_pool, TEE_PAGER_AREA_LOCK);
+	_ltc_mempool_u32 = tee_pager_alloc(*size_pool, 0);
 	if (!_ltc_mempool_u32)
 		panic();
 	pool = (void *)_ltc_mempool_u32;
