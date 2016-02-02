@@ -128,7 +128,14 @@ void *tee_pager_alloc(size_t size, uint32_t flags);
  * function has returned, it's just the content that may or may not have
  * changed.
  */
+#ifdef CFG_WITH_PAGER
 void tee_pager_release_phys(void *addr, size_t size);
+#else
+static inline void tee_pager_release_phys(void *addr __unused,
+			size_t size __unused)
+{
+}
+#endif
 
 /*
  * Statistics on the pager

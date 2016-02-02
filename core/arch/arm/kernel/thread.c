@@ -614,6 +614,9 @@ void thread_state_free(void)
 	assert(TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
+	tee_pager_release_phys(
+		(void *)(threads[ct].stack_va_end - STACK_THREAD_SIZE),
+		STACK_THREAD_SIZE);
 
 	lock_global();
 
@@ -644,6 +647,21 @@ static bool is_from_user(uint32_t cpsr)
 }
 #endif
 
+#ifdef CFG_WITH_PAGER
+static void release_unused_kernel_stack(struct thread_ctx *thr)
+{
+	vaddr_t sp = thr->regs.svc_sp;
+	vaddr_t base = thr->stack_va_end - STACK_THREAD_SIZE;
+	size_t len = sp - base;
+
+	tee_pager_release_phys((void *)base, len);
+}
+#else
+static void release_unused_kernel_stack(struct thread_ctx *thr __unused)
+{
+}
+#endif
+
 int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -652,6 +670,8 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	assert(ct != -1);
 
 	thread_check_canaries();
+
+	release_unused_kernel_stack(threads + ct);
 
 	if (is_from_user(cpsr))
 		thread_user_save_vfp();
@@ -670,7 +690,6 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 		core_mmu_get_user_map(&threads[ct].user_map);
 		core_mmu_set_user_map(NULL);
 	}
-
 
 	l->curr_thread = -1;
 
