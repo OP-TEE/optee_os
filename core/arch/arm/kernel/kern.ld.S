@@ -277,7 +277,7 @@ SECTIONS
 		"Load address before start of physical memory")
 	ASSERT(CFG_TEE_LOAD_ADDR < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
-	ASSERT(__init_end < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
+	ASSERT(__tmp_hashes_end < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
 		"OP-TEE can't fit init part into available physical memory")
 	ASSERT((CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE - __init_end) >
 		1 * 4096, "Too few free pages to initialize paging")

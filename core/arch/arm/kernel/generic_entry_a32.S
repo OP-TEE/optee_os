@@ -213,11 +213,16 @@ UNWIND(	.cantunwind)
 	ldr	r0, =__text_init_start	/* dst */
 	ldr	r1, =__data_end 	/* src */
 	ldr	r2, =__tmp_hashes_end	/* dst limit */
+	/* Copy backwards (as memmove) in case we're overlapping */
+	sub	r2, r2, r0		/* len */
+	add	r0, r0, r2
+	add	r1, r1, r2
+	ldr	r2, =__text_init_start
 copy_init:
-	ldm	r1!, {r6-r12}
-	stm	r0!, {r6-r12}
+	ldmdb	r1!, {r6-r12}
+	stmdb	r0!, {r6-r12}
 	cmp	r0, r2
-	blt	copy_init
+	bgt	copy_init
 #endif
 
 	bl	get_core_pos
