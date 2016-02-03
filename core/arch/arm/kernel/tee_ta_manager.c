@@ -666,7 +666,7 @@ TEE_Result tee_ta_get_client_id(TEE_Identity *id)
 static void dump_state(struct tee_ta_ctx *ctx)
 {
 	struct tee_ta_session *s = NULL;
-	bool active __unused;
+	bool active __maybe_unused;
 
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);

@@ -1980,10 +1980,13 @@ static void get_des2_key(const uint8_t *key, size_t key_len,
 	}
 }
 
-static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
+static TEE_Result cipher_init(void *ctx, uint32_t algo,
+			      TEE_OperationMode mode __maybe_unused,
 			      const uint8_t *key1, size_t key1_len,
-			      const uint8_t *key2, size_t key2_len,
-			      const uint8_t *iv, size_t iv_len)
+			      const uint8_t *key2 __maybe_unused,
+			      size_t key2_len __maybe_unused,
+			      const uint8_t *iv __maybe_unused,
+			      size_t iv_len __maybe_unused)
 {
 	TEE_Result res;
 	int ltc_res, ltc_cipherindex;
@@ -1996,19 +1999,6 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 	struct tee_symmetric_xts *xts;
 #endif
 
-	/* Unused parameters */
-#if !defined(CFG_CRYPTO_CTS) && !defined(CFG_CRYPTO_XTS)
-	(void)key2;
-	(void)key2_len;
-#endif
-#if !defined(CFG_CRYPTO_CBC) && !defined(CFG_CRYPTO_CTR) && \
-	!defined(CFG_CRYPTO_CTS) && !defined(CFG_CRYPTO_XTS)
-	(void)iv;
-	(void)iv_len;
-#endif
-#if !defined(CFG_CRYPTO_CTS)
-	(void)mode;
-#endif
 	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -2111,8 +2101,8 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 
 static TEE_Result cipher_update(void *ctx, uint32_t algo,
 				TEE_OperationMode mode,
-				bool last_block, const uint8_t *data,
-				size_t len, uint8_t *dst)
+				bool last_block __maybe_unused,
+				const uint8_t *data, size_t len, uint8_t *dst)
 {
 	int ltc_res = CRYPT_OK;
 #if defined(CFG_CRYPTO_CTS)
@@ -2120,11 +2110,6 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 #endif
 #if defined(CFG_CRYPTO_XTS)
 	struct tee_symmetric_xts *xts;
-#endif
-
-#if !defined(CFG_CRYPTO_AES) || !defined(CFG_CRYPTO_CTS)
-	/* Unused parameters */
-	(void)last_block;
 #endif
 
 	switch (algo) {
@@ -2566,8 +2551,8 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 			       TEE_OperationMode mode __unused,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len, size_t aad_len,
-			       size_t payload_len)
+			       size_t tag_len, size_t aad_len __maybe_unused,
+			       size_t payload_len __maybe_unused)
 {
 	TEE_Result res;
 	int ltc_res;
@@ -2577,11 +2562,6 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 #endif
 #if defined(CFG_CRYPTO_GCM)
 	struct tee_gcm_state *gcm;
-#endif
-
-#if !defined(CFG_CRYPTO_CCM)
-	(void)aad_len;
-	(void)payload_len;
 #endif
 
 	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);

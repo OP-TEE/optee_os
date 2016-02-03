@@ -598,7 +598,7 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 {
-	struct user_ta_ctx *utc __unused = to_user_ta_ctx(ctx);
+	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
 
 	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d",
 		 utc->load_addr, utc->context);

@@ -872,7 +872,7 @@ void thread_init_primary(const struct thread_handlers *handlers)
 	init_thread_stacks();
 }
 
-static void init_sec_mon(size_t __unused pos)
+static void init_sec_mon(size_t pos __maybe_unused)
 {
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */

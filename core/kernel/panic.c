@@ -28,8 +28,8 @@
 #include <kernel/panic.h>
 #include <trace.h>
 
-void __panic(const char *file __unused, int line __unused,
-		const char *func __unused)
+void __panic(const char *file __maybe_unused, int line __maybe_unused,
+		const char *func __maybe_unused)
 {
 	EMSG_RAW("PANIC: %s %s:%d\n", func, file, line);
 	while (1)

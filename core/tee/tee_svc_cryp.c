@@ -2105,9 +2105,9 @@ TEE_Result syscall_cryp_state_free(unsigned long state)
 	return TEE_SUCCESS;
 }
 
-/* iv and iv_len are ignored for some algorithms */
-TEE_Result syscall_hash_init(unsigned long state, const void *iv __unused,
-			size_t iv_len __unused)
+TEE_Result syscall_hash_init(unsigned long state,
+			     const void *iv __maybe_unused,
+			     size_t iv_len __maybe_unused)
 {
 	TEE_Result res;
 	struct tee_cryp_state *cs;

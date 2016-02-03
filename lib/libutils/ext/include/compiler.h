@@ -43,6 +43,7 @@
 #define __noinline	__attribute__((noinline))
 #define __attr_const	__attribute__((__const__))
 #define __unused	__attribute__((unused))
+#define __maybe_unused	__attribute__((unused))
 #define __used		__attribute__((__used__))
 #define __must_check	__attribute__((warn_unused_result))
 #define __cold		__attribute__((__cold__))

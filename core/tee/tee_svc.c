@@ -48,7 +48,7 @@
 
 vaddr_t tee_svc_uref_base;
 
-void syscall_log(const void *buf __unused, size_t len __unused)
+void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE
 	char *kbuf;
@@ -74,16 +74,19 @@ TEE_Result syscall_not_supported(void)
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-uint32_t syscall_dummy(uint32_t *a __unused)
+uint32_t syscall_dummy(uint32_t *a __maybe_unused)
 {
 	DMSG("tee_svc_sys_dummy: a 0x%" PRIxVA, (vaddr_t)a);
 	return 0;
 }
 
-uint32_t syscall_dummy_7args(unsigned long a1 __unused,
-			unsigned long a2 __unused, unsigned long a3 __unused,
-			unsigned long a4 __unused, unsigned long a5 __unused,
-			unsigned long a6 __unused, unsigned long a7 __unused)
+uint32_t syscall_dummy_7args(unsigned long a1 __maybe_unused,
+			     unsigned long a2 __maybe_unused,
+			     unsigned long a3 __maybe_unused,
+			     unsigned long a4 __maybe_unused,
+			     unsigned long a5 __maybe_unused,
+			     unsigned long a6 __maybe_unused,
+			     unsigned long a7 __maybe_unused)
 {
 	DMSG("tee_svc_sys_dummy_7args: 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, %lx, %lx\n",
 	     a1, a2, a3, a4, a5, a6, a7);

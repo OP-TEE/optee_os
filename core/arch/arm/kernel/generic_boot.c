@@ -71,7 +71,7 @@ __weak void main_init_gic(void)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-void init_sec_mon(uint32_t nsec_entry __unused)
+void init_sec_mon(uint32_t nsec_entry __maybe_unused)
 {
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
@@ -359,7 +359,8 @@ uint32_t *generic_boot_init_primary(uint32_t pageable_part)
 	return thread_vector_table;
 }
 
-uint32_t generic_boot_cpu_on_handler(uint32_t a0 __unused, uint32_t a1 __unused)
+uint32_t generic_boot_cpu_on_handler(uint32_t a0 __maybe_unused,
+				     uint32_t a1 __unused)
 {
 	DMSG("cpu %zu: a0 0x%x", get_core_pos(), a0);
 	init_secondary_helper(PADDR_INVALID);

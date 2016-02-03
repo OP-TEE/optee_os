@@ -40,7 +40,7 @@ enum fault_type {
 	FAULT_TYPE_IGNORE,
 };
 
-static __unused const char *abort_type_to_str(uint32_t abort_type)
+static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 {
 	if (abort_type == ABORT_TYPE_DATA)
 		return "data";
@@ -49,8 +49,9 @@ static __unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
-static __unused void print_detailed_abort(struct abort_info *ai __unused,
-				const char *ctx __unused)
+static __maybe_unused void print_detailed_abort(
+				struct abort_info *ai __maybe_unused,
+				const char *ctx __maybe_unused)
 {
 	EMSG_RAW("\n");
 	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "\n",
@@ -114,7 +115,7 @@ static __unused void print_detailed_abort(struct abort_info *ai __unused,
 #endif /*ARM64*/
 }
 
-static void print_user_abort(struct abort_info *ai __unused)
+static void print_user_abort(struct abort_info *ai __maybe_unused)
 {
 #ifdef CFG_TEE_CORE_TA_TRACE
 	print_detailed_abort(ai, "user TA");
@@ -122,14 +123,14 @@ static void print_user_abort(struct abort_info *ai __unused)
 #endif
 }
 
-void abort_print(struct abort_info *ai __unused)
+void abort_print(struct abort_info *ai __maybe_unused)
 {
 #if (TRACE_LEVEL >= TRACE_INFO)
 	print_detailed_abort(ai, "core");
 #endif /*TRACE_LEVEL >= TRACE_DEBUG*/
 }
 
-void abort_print_error(struct abort_info *ai __unused)
+void abort_print_error(struct abort_info *ai __maybe_unused)
 {
 #if (TRACE_LEVEL >= TRACE_INFO)
 	/* full verbose log at DEBUG level */

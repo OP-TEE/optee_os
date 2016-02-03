@@ -41,13 +41,13 @@ void wq_init(struct wait_queue *wq)
 	*wq = (struct wait_queue)WAIT_QUEUE_INITIALIZER;
 }
 
-static void wq_rpc(uint32_t cmd, int id, const void *sync_obj __unused,
-			const char *fname, int lineno __unused)
+static void wq_rpc(uint32_t cmd, int id, const void *sync_obj __maybe_unused,
+			const char *fname, int lineno __maybe_unused)
 {
 	uint32_t ret;
 	struct tee_ta_session *sess = NULL;
 	struct teesmc32_param params[2];
-	const char *cmd_str __unused =
+	const char *cmd_str __maybe_unused =
 		cmd == TEE_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake";
 
 	if (fname)
@@ -157,7 +157,7 @@ void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 			bool only_one, const void *sync_obj __unused,
-			const char *fname, int lineno __unused)
+			const char *fname, int lineno __maybe_unused)
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem *wqe;
