@@ -118,6 +118,7 @@ struct tee_ltc_prng {
 	int index;
 	const char *name;
 	prng_state state;
+	bool inited;
 };
 
 static struct tee_ltc_prng _tee_ltc_prng =
@@ -156,13 +157,16 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 	if (prng_index == -1)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = prng_descriptor[prng_index]->start(&prng->state);
-	if (res != CRYPT_OK)
-		return TEE_ERROR_BAD_STATE;
+	if (!prng->inited) {
+		res = prng_descriptor[prng_index]->start(&prng->state);
+		if (res != CRYPT_OK)
+			return TEE_ERROR_BAD_STATE;
 
-	res = prng_descriptor[prng_index]->ready(&prng->state);
-	if (res != CRYPT_OK)
-		return TEE_ERROR_BAD_STATE;
+		res = prng_descriptor[prng_index]->ready(&prng->state);
+		if (res != CRYPT_OK)
+			return TEE_ERROR_BAD_STATE;
+		prng->inited = true;
+	}
 
 	prng->index = prng_index;
 	return  TEE_SUCCESS;
@@ -3067,3 +3071,35 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 	return TEE_SUCCESS;
 }
 #endif
+
+TEE_Result rng_generate(void *buffer, size_t len)
+{
+#if defined(CFG_WITH_SOFTWARE_PRNG)
+#ifdef _CFG_CRYPTO_WITH_FORTUNA_PRNG
+	int (*start)(prng_state *) = fortuna_start;
+	int (*ready)(prng_state *) = fortuna_ready;
+	unsigned long (*read)(unsigned char *, unsigned long, prng_state *) =
+		fortuna_read;
+#else
+	int (*start)(prng_state *) = rc4_start;
+	int (*ready)(prng_state *) = rc4_ready;
+	unsigned long (*read)(unsigned char *, unsigned long, prng_state *) =
+		rc4_read;
+#endif
+
+	if (!_tee_ltc_prng.inited) {
+		if (start(&_tee_ltc_prng.state) != CRYPT_OK)
+			return TEE_ERROR_BAD_STATE;
+		if (ready(&_tee_ltc_prng.state) != CRYPT_OK)
+			return TEE_ERROR_BAD_STATE;
+		_tee_ltc_prng.inited = true;
+	}
+	if (read(buffer, len, &_tee_ltc_prng.state) != len)
+		return TEE_ERROR_BAD_STATE;
+	return TEE_SUCCESS;
+
+
+#else
+	return get_rng_array(buffer, len);
+#endif
+}

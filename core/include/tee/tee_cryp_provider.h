@@ -314,4 +314,6 @@ extern const struct crypto_ops crypto_ops;
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size);
 
+TEE_Result rng_generate(void *buffer, size_t len);
+
 #endif /* TEE_CRYP_PROVIDER_H */
