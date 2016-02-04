@@ -32,8 +32,6 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 
-#define TEE_FS_NAME_MAX 350
-
 /*
  * We split a TEE file into multiple blocks and store them
  * on REE filesystem. A TEE file is represented by a REE file
@@ -57,7 +55,6 @@
  * meta file itself also has backup_version, the update is
  * successful after new version of meta has been written.
  */
-#define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
 
 typedef int64_t tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;
@@ -67,6 +64,12 @@ struct tee_fs_dirent {
 	char *d_name;
 };
 
+#ifndef CFG_RPMB_FS
+struct tee_fs_dir {
+	int nw_dir;
+	struct tee_fs_dirent d;
+};
+#endif
 
 /*
  * tee_fs implemets a POSIX like secure file system with GP extension
@@ -80,6 +83,7 @@ struct tee_file_operations {
 			      int fd, tee_fs_off_t offset, int whence);
 	int (*rename)(const char *old, const char *new);
 	int (*unlink)(const char *file);
+	int (*force_unlink)(const char *file);
 	int (*ftruncate)(TEE_Result *errno, int fd, tee_fs_off_t length);
 	int (*mkdir)(const char *path, tee_fs_mode_t mode);
 	tee_fs_dir *(*opendir)(const char *name);
@@ -102,5 +106,4 @@ extern struct tee_file_operations tee_file_ops;
 
 int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 		    uint32_t mode);
-
 #endif

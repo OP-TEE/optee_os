@@ -32,9 +32,9 @@ srcs-y += tee_rpmb_fs_common.c
 srcs-y += tee_rpmb_fs.c
 else
 srcs-y += tee_fs_common.c
+srcs-y += ree_fs_intf.c
 endif
 srcs-y += tee_fs_key_manager.c
-srcs-y += tee_fs.c
 
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c

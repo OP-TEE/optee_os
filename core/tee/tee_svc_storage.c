@@ -160,7 +160,7 @@ static TEE_Result tee_svc_storage_remove_corrupt_obj(
 	}
 
 	tee_obj_close(to_user_ta_ctx(sess->ctx), o);
-	tee_file_ops.unlink(file);
+	tee_file_ops.force_unlink(file);
 	free(file);
 	dir = tee_svc_storage_create_dirname(sess);
 	if (dir != NULL) {
@@ -512,7 +512,7 @@ err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
 	if (res == TEE_ERROR_CORRUPT_OBJECT)
-		tee_file_ops.unlink(file);
+		tee_file_ops.force_unlink(file);
 	if (fd >= 0)
 		tee_file_ops.close(fd);
 	if (po)
@@ -668,7 +668,7 @@ err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
 	if (res == TEE_ERROR_CORRUPT_OBJECT)
-		tee_file_ops.unlink(file);
+		tee_file_ops.force_unlink(file);
 	if (fd >= 0)
 		tee_file_ops.close(fd);
 	if (po)
