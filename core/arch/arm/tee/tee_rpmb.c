@@ -694,7 +694,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	size = (rawdata->len + rawdata->byte_offset) % RPMB_DATA_SIZE;
 	if (size == 0)
 		size = RPMB_DATA_SIZE;
-	res = decrypt(data, lastfrm, size, 0, start_idx + 1, fek);
+	res = decrypt(data, lastfrm, size, 0, start_idx + nbr_frms - 1, fek);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
