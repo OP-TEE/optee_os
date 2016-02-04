@@ -698,18 +698,22 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
-int thread_get_id(void)
+int thread_get_id_may_fail(void)
 {
 	/* thread_get_core_local() requires IRQs to be disabled */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
-	struct thread_core_local *l;
-	int ct;
-
-	l = thread_get_core_local();
-	ct = l->curr_thread;
-	assert((ct >= 0) && (ct < CFG_NUM_THREADS));
+	struct thread_core_local *l = thread_get_core_local();
+	int ct = l->curr_thread;
 
 	thread_unmask_exceptions(exceptions);
+	return ct;
+}
+
+int thread_get_id(void)
+{
+	int ct = thread_get_id_may_fail();
+
+	assert((ct >= 0) && (ct < CFG_NUM_THREADS));
 	return ct;
 }
 

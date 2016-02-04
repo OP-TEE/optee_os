@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <trace.h>
 #include <console.h>
+#include <kernel/thread.h>
 
 const char trace_ext_prefix[] = "TEE-CORE";
 int trace_level = TRACE_LEVEL;
@@ -45,5 +46,5 @@ void trace_ext_puts(const char *str)
 
 int trace_ext_get_thread_id(void)
 {
-	return -1;
+	return thread_get_id_may_fail();
 }
