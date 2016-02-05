@@ -12,7 +12,6 @@ include mk/config.mk
 include core/arch/$(ARCH)/$(ARCH).mk
 
 # Setup compiler for this sub module
-CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 

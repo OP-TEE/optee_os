@@ -9,8 +9,6 @@ include $(ta-dev-kit-dir)/mk/conf.mk
 
 binary := $(BINARY)
 
-CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
-
 ifneq ($O,)
 out-dir := $O
 else

@@ -91,9 +91,10 @@ contains:
 Finally, the build directory contains the auto-generated configuration file
 for the TEE Core: `$(O)/include/generated/conf.h` (see below).
 
-### CROSS_COMPILE (cross-compiler selection)
+### CROSS_COMPILE* (cross-compiler selection)
 
-**$(CROSS_COMPILE)** is the prefix used to invoke the cross-compiler toolchain.
+**$(CROSS_COMPILE)** is the prefix used to invoke the (32-bit) cross-compiler
+toolchain.
 The default value is **arm-linux-gnueabihf-**. This is the variable you want to
 change in case you want to use
 [ccache](https://ccache.samba.org/) to speed you recompilations:
@@ -101,12 +102,37 @@ change in case you want to use
 $ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 ```
 
-The CROSS_COMPILE variable can be overridden with **CROSS_COMPILE_core** and
-**CROSS_COMPILE_ta_arm{32,64}** for TEE Core and Trusted Applications
-respectively.
-This is needed if TEE Core and Trusted Application libraries need to be
-compiled with different compilers due to a mix of 64bit and 32bit code.
+If the build includes a mix of 32-bit and 64-bit code, for instance if you
+set `CFG_ARM64_core=y` to build a 64-bit secure kernel, then two different
+toolchains are used, that are controlled by **$(CROSS_COMPILE32)** and
+**$(CROSS_COMPILE64)**.
+The default value of **$(CROSS_COMPILE32)** is the value of CROSS_COMPILE,
+which defaults to **arm-linux-gnueabihf-** as mentioned above.
+The default value of **$(CROSS_COMPILE64)** is **aarch64-linux-gnu-**.
 
+Examples:
+```shell
+# FOr this example, select HiKey which supports both 32- and 64-bit builds
+$ export PLATFORM=hikey
+
+# 1. Build everything 32-bit
+$ make
+
+# 2. Same as (1.) but override the toolchain
+$ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
+
+# 3. Same as (2.)
+$ make CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
+
+# 4. Select 64-bit secure OS (and therefore both 32- and 64-bit
+# Trusted Application libraries)
+$ make CFG_ARM64_core=y
+
+# 5. Same as (4.) but override the toolchains
+$ make CFG_ARM64_core=y \
+       CROSS_COMPILE32="ccache arm-linux-gnueabihf-" \
+       CROSS_COMPILE64="ccache aarch64-linux-gnu-"
+```
 
 ## Platform-specific configuration and flags
 

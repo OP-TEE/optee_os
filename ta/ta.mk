@@ -5,7 +5,6 @@ sm := $(ta-target)
 sm-$(sm) := y
 
 # Setup compiler for this sub module
-CROSS_COMPILE_$(sm)	?= $(CROSS_COMPILE)
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
@@ -116,6 +115,7 @@ $(conf-mk-file-export): $(conf-mk-file)
 	$(q)echo CFG_TA_FLOAT_SUPPORT := $(CFG_TA_FLOAT_SUPPORT) >> $@
 	$(q)($(foreach v, $(ta-mk-file-export-vars-$(sm-$(@))), \
 		echo $(v) := $($(v));)) >> $@
+	$(q)echo '$(ta-mk-file-export-add-$(sm-$(@)))' | sed 's/_nl_ */\n/g' >> $@
 
 cleanfiles := $(cleanfiles) $(conf-mk-file-export)
 all: $(conf-mk-file-export)
