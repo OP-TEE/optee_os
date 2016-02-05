@@ -37,6 +37,11 @@ before_script:
   - function _download() { url="$1"; f="${2:-$(basename $url)}"; if [ ! -e $DL_DIR/$f ] ; then mkdir -p $DL_DIR ; wget $url -O $DL_DIR/$f ; fi }
   - function download() { _download "$1" "" ; }
 
+  # Travis assigns 2 CPU cores to the container-based environment, so -j3 is
+  # a good concurrency level
+  # https://docs.travis-ci.com/user/ci-environment/
+  - export make="make -j3 -s"
+
   # Tools required for QEMU tests
   # 'apt-get install' cannot be used in the new container-based infrastructure
   # (which is the only allowing caching), so we just build from sources
@@ -44,15 +49,15 @@ before_script:
   - cd $HOME
   - download http://ftp.gnu.org/gnu/bc/bc-1.06.tar.gz
   - tar xf $DL_DIR/bc-1.06.tar.gz
-  - (cd bc-1.06 && CC="ccache gcc" ./configure --quiet && make -j4)
+  - (cd bc-1.06 && CC="ccache gcc" ./configure --quiet && $make)
   - export PATH=${HOME}/bc-1.06/bc:$PATH
   # Tcl/Expect
   - download http://prdownloads.sourceforge.net/tcl/tcl8.6.4-src.tar.gz
   - tar xf $DL_DIR/tcl8.6.4-src.tar.gz
-  - (cd tcl8.6.4/unix && ./configure --quiet --prefix=${HOME}/inst CC="ccache gcc" && make -j4 install)
+  - (cd tcl8.6.4/unix && ./configure --quiet --prefix=${HOME}/inst CC="ccache gcc" && $make install)
   - _download http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download expect5.45.tar.gz
   - tar xf $DL_DIR/expect5.45.tar.gz
-  - (cd expect5.45 && ./configure --quiet --with-tcl=${HOME}/inst/lib --prefix=${HOME}/inst CC="ccache gcc" && make -j4 expect && make -j4 install)
+  - (cd expect5.45 && ./configure --quiet --with-tcl=${HOME}/inst/lib --prefix=${HOME}/inst CC="ccache gcc" && $make expect && $make install)
   - export PATH=$HOME/inst/bin:$PATH
   # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
   - pip install --upgrade --user pycrypto
@@ -73,79 +78,78 @@ script:
   - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
 
   # Orly2
-  -                                  PLATFORM=stm-orly2                                  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=orly2   CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - $make PLATFORM=stm PLATFORM_FLAVOR=orly2
+  - $make PLATFORM=stm-orly2 CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=stm-orly2 CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0
 
   # Cannes
-  -                                  PLATFORM=stm-cannes                                 CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=stm                PLATFORM_FLAVOR=cannes  CROSS_COMPILE=arm-linux-gnueabihf-  make -j8 all -s
+  - $make PLATFORM=stm-cannes
+  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=0
 
   # FVP
-  -                                  PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  -                                  PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-fvp       CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - $make PLATFORM=vexpress-fvp CFG_ARM32_core=y
+  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y
+  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0
 
   # Juno
-  -                                  PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM32_core=y   CROSS_COMPILE_core=arm-linux-gnueabihf- make -j8 all -s
-  -                                  PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress-juno      CFG_ARM64_core=y   CROSS_COMPILE_core=aarch64-linux-gnu-   CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - $make PLATFORM=vexpress-juno
+  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y
+  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0
 
   # QEMU
-  -                                  PLATFORM=vexpress-qemu                                                                make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu                                      make -j8 all -s
-  - CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_TA_MALLOC_DEBUG=y PLATFORM=vexpress PLATFORM_FLAVOR=qemu                           make -j8 all -s
+  - $make PLATFORM=vexpress-qemu
+  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_TA_MALLOC_DEBUG=y
 
-  # QEMU-virt
-  -                                  PLATFORM=vexpress-qemu_virt                                                           make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt CFG_TEE_CORE_DEBUG=1            make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=vexpress           PLATFORM_FLAVOR=qemu_virt                                 make -j8 all -s
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{AES,DES}=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH}=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{DSA,RSA,DH,ECC}=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{H,C,CBC_}MAC=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{G,C}CM=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_WITH_PAGER=y
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=n
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=y CFG_FS_BLOCK_CACHE=y
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_ENC_FS=n CFG_FS_BLOCK_CACHE=y
-  - make -j8 all -s PLATFORM=vexpress-qemu_virt CFG_WITH_STATS=y
-  - make -j8 -s CFG_RPMB_FS=y
-  - make -j8 -s CFG_RPMB_FS=y CFG_ENC_FS=n
-  - make -j8 -s CFG_RPMB_FS=y CFG_ENC_FS=n CFG_RPMB_TESTKEY=y
+  # QEMU-virt (PLATFORM=vexpress-qemu_virt)
+  - $make
+  - $make CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make CFG_TEE_CORE_LOG_LEVEL=0
+  - $make CFG_CRYPTO=n
+  - $make CFG_CRYPTO_{AES,DES}=n
+  - $make CFG_CRYPTO_{DSA,RSA,DH}=n
+  - $make CFG_CRYPTO_{DSA,RSA,DH,ECC}=n
+  - $make CFG_CRYPTO_{H,C,CBC_}MAC=n
+  - $make CFG_CRYPTO_{G,C}CM=n
+  - $make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
+  - $make CFG_WITH_PAGER=y
+  - $make CFG_ENC_FS=n
+  - $make CFG_ENC_FS=y CFG_FS_BLOCK_CACHE=y
+  - $make CFG_ENC_FS=n CFG_FS_BLOCK_CACHE=y
+  - $make CFG_WITH_STATS=y
+  - $make CFG_RPMB_FS=y
+  - $make CFG_RPMB_FS=y CFG_ENC_FS=n
+  - $make CFG_RPMB_FS=y CFG_ENC_FS=n CFG_RPMB_TESTKEY=y
 
   # SUNXI(Allwinner A80)
-  - CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 PLATFORM=sunxi make -j8 all -s
-  - CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0 PLATFORM=sunxi make -j8 all -s
+  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=0
 
   # HiKey board (HiSilicon Kirin 620)
-  - make -j8 -s PLATFORM=hikey
-  - make -j8 -s PLATFORM=hikey CFG_ARM64_core=y CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu-
-  - make -j8 -s PLATFORM=hikey CFG_ARM64_core=y CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- CFG_TEE_TA_LOG_LEVEL=4
+  - $make PLATFORM=hikey
+  - $make PLATFORM=hikey CFG_ARM64_core=y
+  - $make PLATFORM=hikey CFG_ARM64_core=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
 
   # Mediatek mt8173 EVB
-  - PLATFORM=mediatek  PLATFORM_FLAVOR=mt8173  CFG_ARM64_core=y  CROSS_COMPILE_core=aarch64-linux-gnu- CROSS_COMPILE_ta_arm64=aarch64-linux-gnu- make -j8 all -s
+  - $make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
 
   # i.MX6UL 14X14 EVK
-  - PLATFORM=imx PLATFORM_FLAVOR=mx6ulevk make -j8 all -s
+  - $make PLATFORM=imx-mx6ulevk
 
   # Texas Instruments dra7xx
-  - PLATFORM=ti  PLATFORM_FLAVOR=dra7xx  make -j8 all -s
+  - $make PLATFORM=ti-dra7xx
 
   # FSL ls1021a
-  - PLATFORM=ls  PLATFORM_FLAVOR=ls1021atwr  make -j8 all -s
-  - PLATFORM=ls  PLATFORM_FLAVOR=ls1021aqds  make -j8 all -s
+  - $make PLATFORM=ls-ls1021atwr
+  - $make PLATFORM=ls-ls1021aqds
 
   # Run regression tests (xtest in QEMU)
-  - (cd ${HOME}/optee_repo/build && make -s -j8 check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
