@@ -64,8 +64,15 @@ uint32_t utee_dummy_7args(unsigned long a1, unsigned long a2, unsigned long a3,
 
 uint32_t utee_nocall(void);
 
-/* prop defined by enum utee_property */
-TEE_Result utee_get_property(unsigned long prop, void *buf, size_t len);
+/* prop_set is TEE_PROPSET_xxx*/
+TEE_Result utee_get_property(unsigned long prop_set, unsigned long index,
+			     void *name, uint32_t *name_len,
+			     void *buf, uint32_t *blen,
+				uint32_t *prop_type);
+TEE_Result utee_get_property_name_to_index(unsigned long prop_set, void *name,
+					   unsigned long name_len,
+					   uint32_t *index);
+
 
 /* sess has type TEE_TASessionHandle */
 TEE_Result utee_open_ta_session(const TEE_UUID *dest,

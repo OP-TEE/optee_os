@@ -58,13 +58,16 @@ struct syscall_entry {
 #define SYSCALL_ENTRY(_fn) { .fn = (syscall_t)_fn }
 #endif
 
+/*
+ * This array is ordered according to the SYSCALL ids TEE_SCN_xxx
+ */
 static const struct syscall_entry tee_svc_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_sys_return),
 	SYSCALL_ENTRY(syscall_log),
 	SYSCALL_ENTRY(syscall_panic),
 	SYSCALL_ENTRY(syscall_dummy),
 	SYSCALL_ENTRY(syscall_dummy_7args),
-	SYSCALL_ENTRY(syscall_get_property),
+	SYSCALL_ENTRY(syscall_get_property_obsolete),
 	SYSCALL_ENTRY(syscall_open_ta_session),
 	SYSCALL_ENTRY(syscall_close_ta_session),
 	SYSCALL_ENTRY(syscall_invoke_ta_command),
@@ -131,6 +134,8 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_se_channel_transmit),
 	SYSCALL_ENTRY(syscall_se_channel_close),
 	SYSCALL_ENTRY(syscall_cache_operation),
+	SYSCALL_ENTRY(syscall_get_property),
+	SYSCALL_ENTRY(syscall_get_property_name_to_index),
 };
 
 #ifdef TRACE_SYSCALLS

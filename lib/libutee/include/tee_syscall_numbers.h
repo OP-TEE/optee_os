@@ -33,7 +33,7 @@
 #define TEE_SCN_PANIC				2
 #define TEE_SCN_DUMMY				3
 #define TEE_SCN_DUMMY_7ARGS			4
-#define TEE_SCN_GET_PROPERTY			5
+/* #define TEE_SCN_GET_PROPERTY_OBSOLETE	5 */
 #define TEE_SCN_OPEN_TA_SESSION			6
 #define TEE_SCN_CLOSE_TA_SESSION		7
 #define TEE_SCN_INVOKE_TA_COMMAND		8
@@ -100,8 +100,10 @@
 #define TEE_SCN_SE_CHANNEL_TRANSMIT		69
 #define TEE_SCN_SE_CHANNEL_CLOSE		70
 #define TEE_SCN_CACHE_OPERATION			71
+#define TEE_SCN_GET_PROPERTY			72
+#define TEE_SCN_GET_PROPERTY_NAME_TO_INDEX	73
 
-#define TEE_SCN_MAX				71
+#define TEE_SCN_MAX				73
 
 /* Maximum number of allowed arguments for a syscall */
 #define TEE_SVC_MAX_ARGS			8

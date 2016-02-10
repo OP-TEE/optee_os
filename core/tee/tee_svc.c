@@ -117,8 +117,14 @@ static const char descr[] = TO_STR(CFG_TEE_IMPL_DESCR);
  */
 static const uint32_t ta_time_prot_lvl = 100;
 
-/* Elliptic Curve Cryptographic support (false by default) */
-static const bool crypto_ecc_en;
+/* Elliptic Curve Cryptographic support */
+#ifdef CFG_CRYPTO_ECC
+static const uint32_t crypto_ecc_en = 1;
+#else
+static const uint32_t crypto_ecc_en;
+#endif
+
+static const bool crypto_ecc_en_obsolete;
 
 /*
  * Trusted storage anti rollback protection level
@@ -146,19 +152,19 @@ static const uint32_t fw_impl_bin_version; /* 0 by default */
 /* Trusted firmware manufacturer name */
 static const char fw_manufacturer[] = TO_STR(CFG_TEE_FW_MANUFACTURER);
 
-struct tee_props {
+struct tee_props_obsolete {
 	const void *data;
 	const size_t len;
 };
 
 /* Consistent with enum utee_property */
-const struct tee_props tee_props_lut[] = {
+const struct tee_props_obsolete tee_props_lut[] = {
 	{api_vers, sizeof(api_vers)},
 	{descr, sizeof(descr)},
 	{0, 0}, /* dev_id */
 	{0, 0}, /* system time protection level */
 	{&ta_time_prot_lvl, sizeof(ta_time_prot_lvl)},
-	{&crypto_ecc_en, sizeof(crypto_ecc_en)},
+	{&crypto_ecc_en_obsolete, sizeof(crypto_ecc_en_obsolete)},
 	{&ts_antiroll_prot_lvl, sizeof(ts_antiroll_prot_lvl)},
 	{trustedos_impl_version, sizeof(trustedos_impl_version)},
 	{&trustedos_impl_bin_version,
@@ -171,7 +177,94 @@ const struct tee_props tee_props_lut[] = {
 	{0, 0}, /* ta_app_id */
 };
 
-TEE_Result syscall_get_property(unsigned long prop, void *buf, size_t blen)
+enum utee_property_obsolete {
+	UTEE_PROP_TEE_API_VERSION = 0,
+	UTEE_PROP_TEE_DESCR,
+	UTEE_PROP_TEE_DEV_ID,
+	UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
+	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
+	UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
+	UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
+	UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
+	UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
+	UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
+	UTEE_PROP_TEE_FW_IMPL_VERSION,
+	UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
+	UTEE_PROP_TEE_FW_MANUFACTURER,
+	UTEE_PROP_CLIENT_ID,
+	UTEE_PROP_TA_APP_ID,
+};
+
+static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
+				      void *buf, size_t blen)
+{
+	TEE_Result res;
+	TEE_UUID uuid;
+	const size_t nslen = 5;
+	uint8_t data[5 + FVR_DIE_ID_NUM_REGS * sizeof(uint32_t)] = {
+	    'O', 'P', 'T', 'E', 'E' };
+
+	if (blen < sizeof(uuid))
+		return TEE_ERROR_SHORT_BUFFER;
+
+	if (tee_otp_get_die_id(data + nslen, sizeof(data) - nslen))
+		return TEE_ERROR_BAD_STATE;
+
+	res = tee_hash_createdigest(TEE_ALG_SHA256, data, sizeof(data),
+				    (uint8_t *)&uuid, sizeof(uuid));
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_BAD_STATE;
+
+	/*
+	 * Changes the random value into and UUID as specifiec
+	 * in RFC 4122. The magic values are from the example
+	 * code in the RFC.
+	 *
+	 * TEE_UUID is defined slightly different from the RFC,
+	 * but close enough for our purpose.
+	 */
+
+	uuid.timeHiAndVersion &= 0x0fff;
+	uuid.timeHiAndVersion |= 5 << 12;
+
+	/* uuid.clock_seq_hi_and_reserved in the RFC */
+	uuid.clockSeqAndNode[0] &= 0x3f;
+	uuid.clockSeqAndNode[0] |= 0x80;
+
+	return tee_svc_copy_to_user(sess, buf, &uuid, sizeof(TEE_UUID));
+}
+
+static TEE_Result get_prop_tee_sys_time_prot_level(struct tee_ta_session *sess,
+						   void *buf, size_t blen)
+{
+	uint32_t prot;
+
+	if (blen < sizeof(prot))
+		return TEE_ERROR_SHORT_BUFFER;
+	prot = tee_time_get_sys_time_protection_level();
+	return tee_svc_copy_to_user(sess, (void *)buf, &prot, sizeof(prot));
+}
+
+static TEE_Result get_prop_client_id(struct tee_ta_session *sess,
+				     void *buf, size_t blen)
+{
+	if (blen < sizeof(TEE_Identity))
+		return TEE_ERROR_SHORT_BUFFER;
+	return tee_svc_copy_to_user(sess, buf, &sess->clnt_id,
+				    sizeof(TEE_Identity));
+}
+
+static TEE_Result get_prop_ta_app_id(struct tee_ta_session *sess,
+				     void *buf, size_t blen)
+{
+	if (blen < sizeof(TEE_UUID))
+		return TEE_ERROR_SHORT_BUFFER;
+	return tee_svc_copy_to_user(sess, buf, &sess->ctx->uuid,
+				    sizeof(TEE_UUID));
+}
+
+TEE_Result syscall_get_property_obsolete(unsigned long prop,
+					 void *buf, size_t blen)
 {
 	struct tee_ta_session *sess;
 	TEE_Result res;
@@ -185,75 +278,320 @@ TEE_Result syscall_get_property(unsigned long prop, void *buf, size_t blen)
 
 	switch (prop) {
 	case UTEE_PROP_TEE_DEV_ID:
-		{
-			TEE_UUID uuid;
-			const size_t nslen = 5;
-			uint8_t data[5 +
-				     FVR_DIE_ID_NUM_REGS * sizeof(uint32_t)] = {
-			    'O', 'P', 'T', 'E', 'E' };
-
-			if (blen < sizeof(uuid))
-				return TEE_ERROR_SHORT_BUFFER;
-
-			if (tee_otp_get_die_id
-					(data + nslen, sizeof(data) - nslen))
-				return TEE_ERROR_BAD_STATE;
-
-			res = tee_hash_createdigest(TEE_ALG_SHA256, data,
-						    sizeof(data),
-						    (uint8_t *)&uuid,
-						    sizeof(uuid));
-			if (res != TEE_SUCCESS)
-				return TEE_ERROR_BAD_STATE;
-
-			/*
-			 * Changes the random value into and UUID as specifiec
-			 * in RFC 4122. The magic values are from the example
-			 * code in the RFC.
-			 *
-			 * TEE_UUID is defined slightly different from the RFC,
-			 * but close enough for our purpose.
-			 */
-
-			uuid.timeHiAndVersion &= 0x0fff;
-			uuid.timeHiAndVersion |= 5 << 12;
-
-			/* uuid.clock_seq_hi_and_reserved in the RFC */
-			uuid.clockSeqAndNode[0] &= 0x3f;
-			uuid.clockSeqAndNode[0] |= 0x80;
-
-			return tee_svc_copy_to_user(sess, buf, &uuid,
-						    sizeof(TEE_UUID));
-		}
+		return get_prop_tee_dev_id(sess, buf, blen);
 
 	case UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL:
-		{
-			uint32_t prot;
-
-			if (blen < sizeof(prot))
-				return TEE_ERROR_SHORT_BUFFER;
-			prot = tee_time_get_sys_time_protection_level();
-			return tee_svc_copy_to_user(sess, (void *)buf,
-						    &prot, sizeof(prot));
-		}
+		return get_prop_tee_sys_time_prot_level(sess, buf, blen);
 
 	case UTEE_PROP_CLIENT_ID:
-		if (blen < sizeof(TEE_Identity))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, buf, &sess->clnt_id,
-					    sizeof(TEE_Identity));
+		return get_prop_client_id(sess, buf, blen);
 
 	case UTEE_PROP_TA_APP_ID:
-		if (blen < sizeof(TEE_UUID))
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, buf, &sess->ctx->uuid,
-					    sizeof(TEE_UUID));
+		return get_prop_ta_app_id(sess, buf, blen);
+
 	default:
 		if (blen < tee_props_lut[prop].len)
 			return TEE_ERROR_SHORT_BUFFER;
 		return tee_svc_copy_to_user(sess, buf, tee_props_lut[prop].data,
 					    tee_props_lut[prop].len);
 	}
+}
+
+struct tee_props {
+	const char *name;
+
+	/* prop_type is of type enum user_ta_prop_type*/
+	const uint32_t prop_type;
+
+	/* either get_prop_func or both data and len */
+	TEE_Result (*get_prop_func)(struct tee_ta_session *sess,
+				    void *buf, size_t blen);
+	const void *data;
+	const uint32_t len;
+};
+
+/* Properties of the set TEE_PROPSET_CURRENT_CLIENT */
+const struct tee_props tee_propset_client[] = {
+	{
+		.name = "gpd.client.identity",
+		.prop_type = USER_TA_PROP_TYPE_IDENTITY,
+		.get_prop_func = get_prop_client_id
+	},
+};
+
+/* Properties of the set TEE_PROPSET_CURRENT_TA */
+const struct tee_props tee_propset_ta[] = {
+	{
+		.name = "gpd.ta.appID",
+		.prop_type = USER_TA_PROP_TYPE_UUID,
+		.get_prop_func = get_prop_ta_app_id
+	},
+
+	/*
+	 * Following properties are processed directly in libutee:
+	 *	TA_PROP_STR_SINGLE_INSTANCE
+	 *	TA_PROP_STR_MULTI_SESSION
+	 *	TA_PROP_STR_KEEP_ALIVE
+	 *	TA_PROP_STR_DATA_SIZE
+	 *	TA_PROP_STR_STACK_SIZE
+	 *	TA_PROP_STR_VERSION
+	 *	TA_PROP_STR_DESCRIPTION
+	 *	USER_TA_PROP_TYPE_STRING,
+	 *	TA_DESCRIPTION
+	 */
+};
+
+/* Properties of the set TEE_PROPSET_TEE_IMPLEMENTATION */
+const struct tee_props tee_propset_tee[] = {
+	{
+		.name = "gpd.tee.apiversion",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = api_vers,
+		.len = sizeof(api_vers),
+	},
+	{
+		.name = "gpd.tee.description",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = descr, .len = sizeof(descr)
+	},
+	{
+		.name = "gpd.tee.deviceID",
+		.prop_type = USER_TA_PROP_TYPE_UUID,
+		.get_prop_func = get_prop_tee_dev_id
+	},
+	{
+		.name = "gpd.tee.systemTime.protectionLevel",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.get_prop_func = get_prop_tee_sys_time_prot_level
+	},
+	{
+		.name = "gpd.tee.TAPersistentTime.protectionLevel",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.data = &ta_time_prot_lvl,
+		.len = sizeof(ta_time_prot_lvl)
+	},
+	{
+		.name = "gpd.tee.cryptography.ecc",
+		.prop_type = USER_TA_PROP_TYPE_BOOL,
+		.data = &crypto_ecc_en,
+		.len = sizeof(crypto_ecc_en)
+	},
+	{
+		.name = "gpd.tee.trustedStorage.antiRollback.protectionLevel",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.data = &ts_antiroll_prot_lvl,
+		.len = sizeof(ts_antiroll_prot_lvl)
+	},
+	{
+		.name = "gpd.tee.trustedos.implementation.version",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = trustedos_impl_version,
+		.len = sizeof(trustedos_impl_version)
+	},
+	{
+		.name = "gpd.tee.trustedos.implementation.binaryversion",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.data = &trustedos_impl_bin_version,
+		.len = sizeof(trustedos_impl_bin_version)
+	},
+	{
+		.name = "gpd.tee.trustedos.manufacturer",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = trustedos_manufacturer,
+		.len = sizeof(trustedos_manufacturer)
+	},
+	{
+		.name = "gpd.tee.firmware.implementation.version",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = fw_impl_version,
+		.len = sizeof(fw_impl_version)
+	},
+	{
+		.name = "gpd.tee.firmware.implementation.binaryversion",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.data = &fw_impl_bin_version,
+		.len = sizeof(fw_impl_bin_version)
+	},
+	{
+		.name = "gpd.tee.firmware.manufacturer",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.data = fw_manufacturer,
+		.len = sizeof(fw_manufacturer)
+	},
+
+	/*
+	 * Following properties are processed directly in libutee:
+	 *	gpd.tee.arith.maxBigIntSize
+	 */
+};
+
+static void get_prop_set(unsigned long prop_set,
+			 const struct tee_props **props,
+			 unsigned long *size)
+{
+	if ((TEE_PropSetHandle)prop_set == TEE_PROPSET_CURRENT_CLIENT) {
+		*props = tee_propset_client;
+		*size = ARRAY_SIZE(tee_propset_client);
+	} else if ((TEE_PropSetHandle)prop_set == TEE_PROPSET_CURRENT_TA) {
+		*props = tee_propset_ta;
+		*size = ARRAY_SIZE(tee_propset_ta);
+	} else if ((TEE_PropSetHandle)prop_set ==
+		   TEE_PROPSET_TEE_IMPLEMENTATION) {
+		*props = tee_propset_tee;
+		*size = ARRAY_SIZE(tee_propset_tee);
+	} else {
+		*props = 0;
+		*size = 0;
+	}
+}
+
+static const struct tee_props *get_prop_struct(unsigned long prop_set,
+					       unsigned long index)
+{
+	const struct tee_props *props;
+	unsigned long size;
+
+	get_prop_set(prop_set, &props, &size);
+
+	if (props && index < size)
+		return &(props[index]);
+	else
+		return NULL;
+}
+
+/*
+ * prop_set is part of TEE_PROPSET_xxx
+ * index is the index in the Property Set to retrieve
+ * if name is not NULL, the name of "index" property is returned
+ * if buf is not NULL, the property is returned
+ */
+TEE_Result syscall_get_property(unsigned long prop_set,
+				unsigned long index,
+				void *name, uint32_t *name_len,
+				void *buf, uint32_t *blen,
+				uint32_t *prop_type)
+{
+	struct tee_ta_session *sess;
+	TEE_Result res;
+	TEE_Result res2;
+	const struct tee_props *prop;
+	uint32_t klen;
+	uint32_t elen;
+
+	prop = get_prop_struct(prop_set, index);
+	if (!prop)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = tee_ta_get_current_session(&sess);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Get the property */
+	if (buf && blen) {
+		res = tee_svc_copy_from_user(sess, &klen, blen, sizeof(klen));
+		if (res != TEE_SUCCESS)
+			return res;
+
+		if (prop->get_prop_func) {
+			res = prop->get_prop_func(sess, buf, klen);
+		} else {
+			if (klen < prop->len)
+				res = TEE_ERROR_SHORT_BUFFER;
+			else
+				res = tee_svc_copy_to_user(sess, buf,
+							   prop->data,
+							   prop->len);
+			res2 = tee_svc_copy_to_user(sess, blen,
+						    &prop->len,
+						    sizeof(*blen));
+			if (res2 != TEE_SUCCESS)
+				return res2;
+		}
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	/* Get the property name */
+	if (name && name_len) {
+		res = tee_svc_copy_from_user(sess, &klen,
+					     name_len, sizeof(klen));
+		if (res != TEE_SUCCESS)
+			return res;
+
+		elen = strlen(prop->name) + 1;
+
+		if (klen < elen)
+			res = TEE_ERROR_SHORT_BUFFER;
+		else
+			res = tee_svc_copy_to_user(sess, name,
+						   prop->name, elen);
+		res2 = tee_svc_copy_to_user(sess, name_len,
+					    &elen, sizeof(*name_len));
+		if (res2 != TEE_SUCCESS)
+			return res2;
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	/* Get the property type */
+	if (prop_type) {
+		res = tee_svc_copy_to_user(sess, prop_type, &prop->prop_type,
+					   sizeof(*prop_type));
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	return res;
+}
+
+/*
+ * prop_set is part of TEE_PROPSET_xxx
+ */
+TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
+					      void *name,
+					      unsigned long name_len,
+					      uint32_t *index)
+{
+	TEE_Result res;
+	struct tee_ta_session *sess;
+	const struct tee_props *props;
+	unsigned long size;
+	char *kname = 0;
+	uint32_t i;
+
+	get_prop_set(prop_set, &props, &size);
+	if (!props)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = tee_ta_get_current_session(&sess);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	if (!name || !name_len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	kname = malloc(name_len);
+	if (!kname)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = tee_svc_copy_from_user(sess, kname, name, name_len);
+	if (res != TEE_SUCCESS)
+		goto out;
+	kname[name_len - 1] = 0;
+
+	res = TEE_ERROR_ITEM_NOT_FOUND;
+	for (i = 0; i < size; i++) {
+		if (!strcmp(kname, props[i].name)) {
+			res = tee_svc_copy_to_user(sess, index, &i,
+						   sizeof(*index));
+			break;
+		}
+	}
+
+out:
+	free(kname);
+	return res;
 }
 
 static void utee_param_to_param(struct tee_ta_param *p, struct utee_params *up)

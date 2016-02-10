@@ -34,7 +34,7 @@
 #include <user_ta_header.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_arith_internal.h>
-
+#include <util.h>
 #include <utee_syscalls.h>
 
 #include "string_ext.h"
@@ -45,14 +45,14 @@
 #define PROP_ENUMERATOR_NOT_STARTED 0xffffffff
 
 struct prop_enumerator {
-	uint32_t idx;
-	TEE_PropSetHandle prop_set;
+	uint32_t idx;			/* current index */
+	TEE_PropSetHandle prop_set;	/* part of TEE_PROPSET_xxx */
 };
 
 struct prop_value {
 	enum user_ta_prop_type type;
 	union {
-		bool bool_val;
+		uint32_t bool_val;
 		uint32_t int_val;
 		TEE_UUID uuid_val;
 		TEE_Identity identity_val;
@@ -60,193 +60,27 @@ struct prop_value {
 	} u;
 };
 
-typedef TEE_Result(*ta_propget_func_t) (struct prop_value *pv);
-
-struct prop_set {
-	const char *str;
-	ta_propget_func_t get;
+const struct user_ta_property tee_props[] = {
+	{
+		"gpd.tee.arith.maxBigIntSize",
+		USER_TA_PROP_TYPE_U32,
+		&(const uint32_t){TEE_MAX_NUMBER_OF_SUPPORTED_BITS}
+	},
 };
 
-static TEE_Result propget_gpd_ta_app_id(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_UUID;
-	return utee_get_property(UTEE_PROP_TA_APP_ID, &pv->u.uuid_val,
-				 sizeof(pv->u.uuid_val));
-}
-
-static TEE_Result propget_gpd_client_identity(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_IDENTITY;
-	return utee_get_property(UTEE_PROP_CLIENT_ID, &pv->u.identity_val,
-				 sizeof(pv->u.identity_val));
-}
-
-static TEE_Result propget_gpd_tee_api_version(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_API_VERSION, &pv->u.str_val,
-				 sizeof(pv->u.str_val));
-}
-
-static TEE_Result propget_gpd_tee_description(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_DESCR, &pv->u.str_val,
-				 sizeof(pv->u.str_val));
-}
-
-static TEE_Result propget_gpd_tee_device_id(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_UUID;
-	return utee_get_property(UTEE_PROP_TEE_DEV_ID, &pv->u.uuid_val,
-				 sizeof(pv->u.uuid_val));
-}
-
-static TEE_Result propget_gpd_tee_sys_time_protection_level(struct prop_value
-							    *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
-}
-
-static TEE_Result propget_gpd_tee_ta_time_protection_level(struct prop_value
-							   *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
-}
-
-static TEE_Result propget_gpd_tee_arith_max_big_int_size(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	pv->u.int_val = TEE_MAX_NUMBER_OF_SUPPORTED_BITS;
-	return TEE_SUCCESS;
-}
-
-static TEE_Result propget_gpd_tee_cryptography_ecc(struct prop_value
-							   *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_BOOL;
-	return utee_get_property(UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
-				 &pv->u.bool_val, sizeof(pv->u.bool_val));
-}
-
-static TEE_Result propget_gpd_tee_ts_antiroll_protection_level(
-						struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
-}
-
-static TEE_Result propget_gpd_tee_trustedos_impl_version(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
-				 &pv->u.str_val, sizeof(pv->u.str_val));
-}
-
-static TEE_Result propget_gpd_tee_trustedos_impl_bin_version(
-						struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
-}
-
-static TEE_Result propget_gpd_tee_trustedos_manufacturer(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
-				 &pv->u.str_val, sizeof(pv->u.str_val));
-}
-
-static TEE_Result propget_gpd_tee_fw_impl_version(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_FW_IMPL_VERSION, &pv->u.str_val,
-				 sizeof(pv->u.str_val));
-}
-
-static TEE_Result propget_gpd_tee_fw_impl_bin_version(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_U32;
-	return utee_get_property(UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
-				 &pv->u.int_val, sizeof(pv->u.int_val));
-}
-
-static TEE_Result propget_gpd_tee_fw_manufacturer(struct prop_value *pv)
-{
-	pv->type = USER_TA_PROP_TYPE_STRING;
-	return utee_get_property(UTEE_PROP_TEE_FW_MANUFACTURER, &pv->u.str_val,
-				 sizeof(pv->u.str_val));
-}
-
-static const struct prop_set propset_current_ta[] = {
-	{"gpd.ta.appID", propget_gpd_ta_app_id},
-};
-
-static const size_t propset_current_ta_len =
-	sizeof(propset_current_ta) / sizeof(propset_current_ta[0]);
-
-static const struct prop_set propset_current_client[] = {
-	{"gpd.client.identity", propget_gpd_client_identity},
-};
-
-static const size_t propset_current_client_len =
-	sizeof(propset_current_client) / sizeof(propset_current_client[0]);
-
-static const struct prop_set propset_implementation[] = {
-	{"gpd.tee.apiversion", propget_gpd_tee_api_version},
-	{"gpd.tee.description", propget_gpd_tee_description},
-	{"gpd.tee.deviceID", propget_gpd_tee_device_id},
-	{"gpd.tee.systemTime.protectionLevel",
-	 propget_gpd_tee_sys_time_protection_level},
-	{"gpd.tee.TAPersistentTime.protectionLevel",
-	 propget_gpd_tee_ta_time_protection_level},
-	{"gpd.tee.arith.maxBigIntSize", propget_gpd_tee_arith_max_big_int_size},
-	{"gpd.tee.cryptography.ecc", propget_gpd_tee_cryptography_ecc},
-	{"gpd.tee.trustedStorage.antiRollback.protectionLevel",
-	 propget_gpd_tee_ts_antiroll_protection_level},
-	{"gpd.tee.trustedos.implementation.version",
-	 propget_gpd_tee_trustedos_impl_version},
-	{"gpd.tee.trustedos.implementation.binaryversion",
-	 propget_gpd_tee_trustedos_impl_bin_version},
-	{"gpd.tee.trustedos.manufacturer",
-	 propget_gpd_tee_trustedos_manufacturer},
-	{"gpd.tee.firmware.implementation.version",
-	 propget_gpd_tee_fw_impl_version},
-	{"gpd.tee.firmware.implementation.binaryversion",
-	 propget_gpd_tee_fw_impl_bin_version},
-	{"gpd.tee.firmware.manufacturer",
-	 propget_gpd_tee_fw_manufacturer},
-};
-
-static const size_t propset_implementation_len =
-	sizeof(propset_implementation) / sizeof(propset_implementation[0]);
-
-static TEE_Result propset_get(TEE_PropSetHandle h, const struct prop_set **ps,
-			      size_t *ps_len,
+static TEE_Result propset_get(TEE_PropSetHandle h,
 			      const struct user_ta_property **eps,
 			      size_t *eps_len)
 {
 	if (h == TEE_PROPSET_CURRENT_TA) {
-		*ps = propset_current_ta;
-		*ps_len = propset_current_ta_len;
 		*eps = ta_props;
 		*eps_len = ta_num_props;
 	} else if (h == TEE_PROPSET_CURRENT_CLIENT) {
-		*ps = propset_current_client;
-		*ps_len = propset_current_client_len;
 		*eps = NULL;
 		*eps_len = 0;
 	} else if (h == TEE_PROPSET_TEE_IMPLEMENTATION) {
-		*ps = propset_implementation;
-		*ps_len = propset_implementation_len;
-		*eps = NULL;
-		*eps_len = 0;
+		*eps = tee_props;
+		*eps_len = ARRAY_SIZE(tee_props);
 	} else {
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
@@ -262,7 +96,7 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 	pv->type = ep->type;
 	switch (ep->type) {
 	case USER_TA_PROP_TYPE_BOOL:
-		l = sizeof(bool);
+		l = sizeof(uint32_t);
 		break;
 	case USER_TA_PROP_TYPE_U32:
 		l = sizeof(uint32_t);
@@ -289,28 +123,33 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
 				       struct prop_value *pv)
 {
 	TEE_Result res;
-	const struct prop_set *ps;
-	size_t ps_len;
 	const struct user_ta_property *eps;
 	size_t eps_len;
+	uint32_t prop_type;
+	uint32_t index;
+	uint32_t size;
 
 	if (h == TEE_PROPSET_CURRENT_TA || h == TEE_PROPSET_CURRENT_CLIENT ||
 	    h == TEE_PROPSET_TEE_IMPLEMENTATION) {
 		size_t n;
 
-		res = propset_get(h, &ps, &ps_len, &eps, &eps_len);
+		res = propset_get(h, &eps, &eps_len);
 		if (res != TEE_SUCCESS)
 			return res;
 
-		for (n = 0; n < ps_len; n++) {
-			if (strcmp(name, ps[n].str) == 0)
-				return ps[n].get(pv);
-		}
 		for (n = 0; n < eps_len; n++) {
-			if (strcmp(name, eps[n].name) == 0)
+			if (!strcmp(name, eps[n].name))
 				return propget_get_ext_prop(eps + n, pv);
 		}
-		return TEE_ERROR_ITEM_NOT_FOUND;
+
+		/* get the index from the name */
+		res = utee_get_property_name_to_index((unsigned long)h, name,
+						strlen(name) + 1, &index);
+		if (res != TEE_SUCCESS)
+			return res;
+		size = sizeof(pv->u);
+		res = utee_get_property((unsigned long)h, index, 0, 0,
+					&pv->u, &size, &prop_type);
 	} else {
 		struct prop_enumerator *pe = (struct prop_enumerator *)h;
 		uint32_t idx = pe->idx;
@@ -318,19 +157,24 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
 		if (idx == PROP_ENUMERATOR_NOT_STARTED)
 			return TEE_ERROR_ITEM_NOT_FOUND;
 
-		res = propset_get(pe->prop_set, &ps, &ps_len, &eps, &eps_len);
+		res = propset_get(pe->prop_set, &eps, &eps_len);
 		if (res != TEE_SUCCESS)
 			return res;
 
-		if (idx < ps_len)
-			return ps[idx].get(pv);
-
-		idx -= ps_len;
 		if (idx < eps_len)
 			return propget_get_ext_prop(eps + idx, pv);
+		idx -= eps_len;
 
-		return TEE_ERROR_BAD_PARAMETERS;
+		size = sizeof(pv->u);
+		res = utee_get_property((unsigned long)pe->prop_set, idx,
+					0, 0, &pv->u, &size, &prop_type);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			res = TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (res == TEE_SUCCESS)
+		pv->type = prop_type;
+	return res;
 }
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
@@ -446,7 +290,7 @@ TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 		goto err;
 	}
 
-	*value = pv.u.bool_val;
+	*value = !!pv.u.bool_val;
 
 	goto out;
 
@@ -665,11 +509,8 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 {
 	TEE_Result res;
 	struct prop_enumerator *pe = (struct prop_enumerator *)enumerator;
-	const struct prop_set *ps;
-	size_t ps_len;
 	const struct user_ta_property *eps;
 	size_t eps_len;
-	size_t l;
 	const char *str;
 	size_t bufferlen;
 
@@ -679,38 +520,31 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 	}
 
 	bufferlen = *nameBufferLen;
-	res = propset_get(pe->prop_set, &ps, &ps_len, &eps, &eps_len);
+	res = propset_get(pe->prop_set, &eps, &eps_len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
-	if (pe->idx < ps_len)
-		str = ps[pe->idx].str;
-	else if ((pe->idx - ps_len) < eps_len)
-		str = ta_props[pe->idx - ps_len].name;
-	else {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
+	if (pe->idx < eps_len) {
+		str = eps[pe->idx].name;
+		bufferlen = strlcpy(nameBuffer, str, *nameBufferLen);
+		if (bufferlen >= *nameBufferLen)
+			res = TEE_ERROR_SHORT_BUFFER;
+		*nameBufferLen = bufferlen;
+	} else {
+		res = utee_get_property((unsigned long)pe->prop_set,
+					pe->idx - eps_len,
+					nameBuffer, nameBufferLen,
+					0, 0, 0);
+		if (res != TEE_SUCCESS)
+			goto err;
 	}
-
-	l = strlcpy(nameBuffer, str, bufferlen);
-
-	/* The size "must account for the zero terminator" */
-	*nameBufferLen = l + 1;
-
-	if (l >= bufferlen) {
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto err;
-	}
-
-	goto out;
 
 err:
-	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
-	    res == TEE_ERROR_SHORT_BUFFER)
-		return res;
-	TEE_Panic(0);
-out:
-	return TEE_SUCCESS;
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(0);
+	return res;
 }
 
 TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator)
@@ -718,38 +552,34 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator)
 	TEE_Result res;
 	struct prop_enumerator *pe = (struct prop_enumerator *)enumerator;
 	uint32_t next_idx;
-	const struct prop_set *ps;
-	size_t ps_len;
 	const struct user_ta_property *eps;
 	size_t eps_len;
 
 	if (pe == NULL) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
+		goto out;
 	}
 
 	if (pe->idx == PROP_ENUMERATOR_NOT_STARTED) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
+		goto out;
 	}
 
-	res = propset_get(pe->prop_set, &ps, &ps_len, &eps, &eps_len);
+	res = propset_get(pe->prop_set, &eps, &eps_len);
 	if (res != TEE_SUCCESS)
-		goto err;
+		goto out;
 
 	next_idx = pe->idx + 1;
 	pe->idx = next_idx;
-	if (next_idx >= (ps_len + eps_len)) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
-	}
+	if (next_idx < eps_len)
+		res = TEE_SUCCESS;
+	else
+		res = utee_get_property((unsigned long)pe->prop_set,
+					next_idx - eps_len, 0, 0, 0, 0, 0);
 
-	goto out;
-
-err:
-	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		return res;
-	TEE_Panic(0);
 out:
-	return TEE_SUCCESS;
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND)
+		TEE_Panic(0);
+	return res;
 }

@@ -39,8 +39,6 @@
 
         UTEE_SYSCALL utee_nocall, TEE_SCN_MAX + 1, 0
 
-        UTEE_SYSCALL utee_get_property, TEE_SCN_GET_PROPERTY, 3
-
         UTEE_SYSCALL utee_open_ta_session, TEE_SCN_OPEN_TA_SESSION, 5
 
         UTEE_SYSCALL utee_close_ta_session, TEE_SCN_CLOSE_TA_SESSION, 1
@@ -190,3 +188,8 @@
                 TEE_SCN_SE_CHANNEL_CLOSE, 1
 
         UTEE_SYSCALL utee_cache_operation, TEE_SCN_CACHE_OPERATION, 3
+
+        UTEE_SYSCALL utee_get_property, TEE_SCN_GET_PROPERTY, 7
+
+        UTEE_SYSCALL utee_get_property_name_to_index, \
+                TEE_SCN_GET_PROPERTY_NAME_TO_INDEX, 4

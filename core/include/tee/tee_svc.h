@@ -52,7 +52,19 @@ uint32_t syscall_dummy_7args(unsigned long a1, unsigned long a2,
 
 uint32_t syscall_nocall(void);
 
-TEE_Result syscall_get_property(unsigned long prop, void *buf, size_t blen);
+TEE_Result syscall_get_property_obsolete(unsigned long prop, void *buf,
+					 size_t blen);
+
+/* prop_set defined by enum utee_property */
+TEE_Result syscall_get_property(unsigned long prop_set,
+				unsigned long index,
+				void *name, uint32_t *name_len,
+				void *buf, uint32_t *blen,
+				uint32_t *prop_type);
+TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
+					      void *name,
+					      unsigned long name_len,
+					      uint32_t *index);
 
 TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 			unsigned long cancel_req_to, struct utee_params *params,
