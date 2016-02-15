@@ -191,8 +191,8 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
 }
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
-				   char *name, char *valueBuffer,
-				   uint32_t *valueBufferLen)
+				   char *name, char *value,
+				   uint32_t *value_len)
 {
 	TEE_Result res;
 	size_t l;
@@ -202,12 +202,12 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 	uint32_t uint32_val;
 	TEE_Identity *p_identity_val;
 
-	if (valueBuffer == NULL || valueBufferLen == NULL) {
+	if (!value || !value_len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	tmp_len = *valueBufferLen;
+	tmp_len = *value_len;
 	if (tmp_len < sizeof(TEE_Identity))
 		tmp_len = sizeof(TEE_Identity);
 	tmp_buf = TEE_Malloc(tmp_len, TEE_USER_MEM_HINT_NO_FILL_ZERO);
@@ -220,41 +220,41 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   tmp_buf, &tmp_len);
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_SHORT_BUFFER)
-			*valueBufferLen = tmp_len;
+			*value_len = tmp_len;
 		goto out;
 	}
 
 	switch (type) {
 	case USER_TA_PROP_TYPE_BOOL:
 		uint32_val = *((uint32_t *)tmp_buf);
-		l = strlcpy(valueBuffer, (uint32_val ? "true" : "false"),
-			    *valueBufferLen);
+		l = strlcpy(value, (uint32_val ? "true" : "false"),
+			    *value_len);
 		break;
 
 	case USER_TA_PROP_TYPE_U32:
 		uint32_val = *((uint32_t *)tmp_buf);
-		l = snprintf(valueBuffer, *valueBufferLen, "%u", uint32_val);
+		l = snprintf(value, *value_len, "%u", uint32_val);
 		break;
 
 	case USER_TA_PROP_TYPE_UUID:
-		l = snprintk(valueBuffer, *valueBufferLen, "%pUl", tmp_buf);
+		l = snprintk(value, *value_len, "%pUl", tmp_buf);
 		break;
 
 	case USER_TA_PROP_TYPE_IDENTITY:
 		p_identity_val = ((TEE_Identity *)tmp_buf);
-		l = snprintk(valueBuffer, *valueBufferLen, "%u:%pUl",
+		l = snprintk(value, *value_len, "%u:%pUl",
 			     p_identity_val->login,
 			     (void *)(&(p_identity_val->uuid)));
 		break;
 
 	case USER_TA_PROP_TYPE_STRING:
-		l = strlcpy(valueBuffer, tmp_buf, *valueBufferLen);
+		l = strlcpy(value, tmp_buf, *value_len);
 		break;
 
 	case USER_TA_PROP_TYPE_BINARY_BLOCK:
-		l = *valueBufferLen;	/* l includes the zero-termination */
-		if (!base64_enc(tmp_buf, tmp_len, valueBuffer, &l) &&
-		    (l <= *valueBufferLen)) {
+		l = *value_len;	/* l includes the zero-termination */
+		if (!base64_enc(tmp_buf, tmp_len, value, &l) &&
+		    (l <= *value_len)) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -268,9 +268,9 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 	l++;	/* include zero termination */
 
-	if (l > *valueBufferLen)
+	if (l > *value_len)
 		res = TEE_ERROR_SHORT_BUFFER;
-	*valueBufferLen = l;
+	*value_len = l;
 
 out:
 	if (tmp_buf)
@@ -321,7 +321,7 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t uint32_len = sizeof(uint32_t);
 
-	if (value == NULL) {
+	if (!value) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -342,20 +342,20 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
-					char *name, void *valueBuffer,
-					uint32_t *valueBufferLen)
+					char *name, void *value,
+					uint32_t *value_len)
 {
 	TEE_Result res;
 	enum user_ta_prop_type type;
 
-	if (valueBuffer == NULL || valueBufferLen == NULL) {
+	if (!value || !value_len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
 	type = USER_TA_PROP_TYPE_BINARY_BLOCK;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
-				   valueBuffer, valueBufferLen);
+				   value, value_len);
 	if (type != USER_TA_PROP_TYPE_BINARY_BLOCK)
 		res = TEE_ERROR_BAD_FORMAT;
 
@@ -376,7 +376,7 @@ TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t uuid_len = sizeof(TEE_UUID);
 
-	if (value == NULL) {
+	if (!value) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -403,7 +403,7 @@ TEE_Result TEE_GetPropertyAsIdentity(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t identity_len = sizeof(TEE_Identity);
 
-	if (value == NULL) {
+	if (!value) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -428,7 +428,7 @@ TEE_Result TEE_AllocatePropertyEnumerator(TEE_PropSetHandle *enumerator)
 	TEE_Result res;
 	struct prop_enumerator *pe;
 
-	if (enumerator == NULL) {
+	if (!enumerator) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
@@ -472,7 +472,7 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 {
 	struct prop_enumerator *pe = (struct prop_enumerator *)enumerator;
 
-	if (pe == NULL)
+	if (!pe)
 		return;
 
 	pe->idx = 0;
@@ -480,7 +480,7 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 }
 
 TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
-			       void *nameBuffer, uint32_t *nameBufferLen)
+			       void *name, uint32_t *name_len)
 {
 	TEE_Result res;
 	struct prop_enumerator *pe = (struct prop_enumerator *)enumerator;
@@ -489,27 +489,26 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 	const char *str;
 	size_t bufferlen;
 
-	if (pe == NULL || nameBuffer == NULL || nameBufferLen == NULL) {
+	if (!pe || !name || !name_len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
 
-	bufferlen = *nameBufferLen;
+	bufferlen = *name_len;
 	res = propset_get(pe->prop_set, &eps, &eps_len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
 	if (pe->idx < eps_len) {
 		str = eps[pe->idx].name;
-		bufferlen = strlcpy(nameBuffer, str, *nameBufferLen) + 1;
-		if (bufferlen > *nameBufferLen)
+		bufferlen = strlcpy(name, str, *name_len) + 1;
+		if (bufferlen > *name_len)
 			res = TEE_ERROR_SHORT_BUFFER;
-		*nameBufferLen = bufferlen;
+		*name_len = bufferlen;
 	} else {
 		res = utee_get_property((unsigned long)pe->prop_set,
 					pe->idx - eps_len,
-					nameBuffer, nameBufferLen,
-					NULL, NULL, NULL);
+					name, name_len, NULL, NULL, NULL);
 		if (res != TEE_SUCCESS)
 			goto err;
 	}
@@ -530,7 +529,7 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator)
 	const struct user_ta_property *eps;
 	size_t eps_len;
 
-	if (pe == NULL) {
+	if (!pe) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
