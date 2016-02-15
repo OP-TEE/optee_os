@@ -35,7 +35,7 @@ bool base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
 	size_t boffs = 0;
 	const char *d = data;
 
-	n = 4 * ((dlen + 2) / 3) + sizeof('\0');
+	n = 4 * ((dlen + 2) / 3) + 1;
 	if (*blen < n) {
 		*blen = n;
 		return false;

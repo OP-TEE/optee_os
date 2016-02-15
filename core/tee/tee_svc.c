@@ -196,7 +196,7 @@ enum utee_property_obsolete {
 };
 
 static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
-				      void *buf, size_t blen)
+				      void *buf, size_t *blen)
 {
 	TEE_Result res;
 	TEE_UUID uuid;
@@ -204,8 +204,11 @@ static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
 	uint8_t data[5 + FVR_DIE_ID_NUM_REGS * sizeof(uint32_t)] = {
 	    'O', 'P', 'T', 'E', 'E' };
 
-	if (blen < sizeof(uuid))
+	if (*blen < sizeof(uuid)) {
+		*blen = sizeof(uuid);
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(uuid);
 
 	if (tee_otp_get_die_id(data + nslen, sizeof(data) - nslen))
 		return TEE_ERROR_BAD_STATE;
@@ -235,30 +238,39 @@ static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
 }
 
 static TEE_Result get_prop_tee_sys_time_prot_level(struct tee_ta_session *sess,
-						   void *buf, size_t blen)
+						   void *buf, size_t *blen)
 {
 	uint32_t prot;
 
-	if (blen < sizeof(prot))
+	if (*blen < sizeof(prot)) {
+		*blen = sizeof(prot);
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(prot);
 	prot = tee_time_get_sys_time_protection_level();
 	return tee_svc_copy_to_user(sess, (void *)buf, &prot, sizeof(prot));
 }
 
 static TEE_Result get_prop_client_id(struct tee_ta_session *sess,
-				     void *buf, size_t blen)
+				     void *buf, size_t *blen)
 {
-	if (blen < sizeof(TEE_Identity))
+	if (*blen < sizeof(TEE_Identity)) {
+		*blen = sizeof(TEE_Identity);
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(TEE_Identity);
 	return tee_svc_copy_to_user(sess, buf, &sess->clnt_id,
 				    sizeof(TEE_Identity));
 }
 
 static TEE_Result get_prop_ta_app_id(struct tee_ta_session *sess,
-				     void *buf, size_t blen)
+				     void *buf, size_t *blen)
 {
-	if (blen < sizeof(TEE_UUID))
+	if (*blen < sizeof(TEE_UUID)) {
+		*blen = sizeof(TEE_UUID);
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(TEE_UUID);
 	return tee_svc_copy_to_user(sess, buf, &sess->ctx->uuid,
 				    sizeof(TEE_UUID));
 }
@@ -278,16 +290,16 @@ TEE_Result syscall_get_property_obsolete(unsigned long prop,
 
 	switch (prop) {
 	case UTEE_PROP_TEE_DEV_ID:
-		return get_prop_tee_dev_id(sess, buf, blen);
+		return get_prop_tee_dev_id(sess, buf, &blen);
 
 	case UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL:
-		return get_prop_tee_sys_time_prot_level(sess, buf, blen);
+		return get_prop_tee_sys_time_prot_level(sess, buf, &blen);
 
 	case UTEE_PROP_CLIENT_ID:
-		return get_prop_client_id(sess, buf, blen);
+		return get_prop_client_id(sess, buf, &blen);
 
 	case UTEE_PROP_TA_APP_ID:
-		return get_prop_ta_app_id(sess, buf, blen);
+		return get_prop_ta_app_id(sess, buf, &blen);
 
 	default:
 		if (blen < tee_props_lut[prop].len)
@@ -305,7 +317,7 @@ struct tee_props {
 
 	/* either get_prop_func or both data and len */
 	TEE_Result (*get_prop_func)(struct tee_ta_session *sess,
-				    void *buf, size_t blen);
+				    void *buf, size_t *blen);
 	const void *data;
 	const uint32_t len;
 };
@@ -476,6 +488,7 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 	TEE_Result res2;
 	const struct tee_props *prop;
 	uint32_t klen;
+	size_t klen_size;
 	uint32_t elen;
 
 	prop = get_prop_struct(prop_set, index);
@@ -486,6 +499,14 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	/* Get the property type */
+	if (prop_type) {
+		res = tee_svc_copy_to_user(sess, prop_type, &prop->prop_type,
+					   sizeof(*prop_type));
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
 	/* Get the property */
 	if (buf && blen) {
 		res = tee_svc_copy_from_user(sess, &klen, blen, sizeof(klen));
@@ -493,7 +514,11 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 			return res;
 
 		if (prop->get_prop_func) {
-			res = prop->get_prop_func(sess, buf, klen);
+			klen_size = klen;
+			res = prop->get_prop_func(sess, buf, &klen_size);
+			klen = klen_size;
+			res2 = tee_svc_copy_to_user(sess, blen,
+						    &klen, sizeof(*blen));
 		} else {
 			if (klen < prop->len)
 				res = TEE_ERROR_SHORT_BUFFER;
@@ -502,11 +527,10 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 							   prop->data,
 							   prop->len);
 			res2 = tee_svc_copy_to_user(sess, blen,
-						    &prop->len,
-						    sizeof(*blen));
-			if (res2 != TEE_SUCCESS)
-				return res2;
+						    &prop->len, sizeof(*blen));
 		}
+		if (res2 != TEE_SUCCESS)
+			return res2;
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -529,14 +553,6 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 					    &elen, sizeof(*name_len));
 		if (res2 != TEE_SUCCESS)
 			return res2;
-		if (res != TEE_SUCCESS)
-			return res;
-	}
-
-	/* Get the property type */
-	if (prop_type) {
-		res = tee_svc_copy_to_user(sess, prop_type, &prop->prop_type,
-					   sizeof(*prop_type));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
