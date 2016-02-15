@@ -86,6 +86,6 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	res = 0;
 
 exit:
-	thread_rpc_free(cpayload);
+	thread_rpc_free_payload(cpayload);
 	return res;
 }

@@ -483,22 +483,21 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
 bool thread_enable_prealloc_rpc_cache(void);
 
 /**
- * Free physical memory previously allocated with one of the
- * thread_rpc_alloc*() functions
+ * Allocates data for struct optee_msg_arg.
  *
- * @cookie: cookie received when allocating the buffer
- */
-void thread_rpc_free(uint64_t cookie);
-
-/**
- * Allocates data for struct teesmc_arg.
- *
- * @size:	size in bytes of struct teesmc_arg
- * @arg:	returned physcial pointer to a struct teesmc_arg buffer, 0 if
- *		allocation failed.
+ * @size:	size in bytes of struct optee_msg_arg
+ * @arg:	returned physcial pointer to a struct optee_msg_arg buffer,
+ *		0 if allocation failed.
  * @cookie:	returned cookie used when freeing the buffer
  */
 void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie);
+
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc_arg()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ */
+void thread_rpc_free_arg(uint64_t cookie);
 
 /**
  * Allocates data for payload buffers.
@@ -509,6 +508,13 @@ void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie);
  * @cookie:	returned cookie used when freeing the buffer
  */
 void thread_rpc_alloc_payload(size_t size, paddr_t *payload, uint64_t *cookie);
+
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc_payload()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ */
+void thread_rpc_free_payload(uint64_t cookie);
 
 /**
  * Does an RPC using a preallocated argument buffer

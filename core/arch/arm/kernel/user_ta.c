@@ -544,7 +544,7 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
 out:
 	if (res != TEE_SUCCESS)
-		thread_rpc_free(cta);
+		thread_rpc_free_payload(cta);
 	return res;
 }
 
@@ -686,7 +686,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 * Free normal world shared memory now that the TA either has been
 	 * copied into secure memory or the TA failed to be initialized.
 	 */
-	thread_rpc_free(cookie_ta);
+	thread_rpc_free_payload(cookie_ta);
 
 	if (res == TEE_SUCCESS)
 		s->ctx->ops = &user_ta_ops;

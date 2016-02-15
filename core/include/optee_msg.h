@@ -418,4 +418,16 @@ struct optee_msg_arg {
 /* Memory only shared with non-secure kernel */
 #define OPTEE_MSG_RPC_SHM_TYPE_KERNEL	1
 
+/*
+ * Free shared memory previously allocated with OPTEE_MSG_RPC_CMD_SHM_ALLOC
+ *
+ * [in]  param[0].u.value.a		type of memory one of
+ *					OPTEE_MSG_RPC_SHM_TYPE_* above
+ * [in]  param[0].u.value.b		value of shared memory reference
+ *					returned in param[0].u.tmem.shm_ref
+ *					above
+ */
+#define OPTEE_MSG_RPC_CMD_SHM_FREE	7
+
+
 #endif /* _OPTEE_MSG_H */

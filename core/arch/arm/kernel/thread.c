@@ -555,7 +555,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 			&parg, &carg);
 		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 		    !(arg = phys_to_virt(parg, CORE_MEM_NSEC_SHM))) {
-			thread_rpc_free(carg);
+			thread_rpc_free_arg(carg);
 			args->a0 = OPTEE_SMC_RETURN_ENOMEM;
 			return;
 		}
@@ -567,7 +567,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 	thread_std_smc_handler_ptr(args);
 
 	if (!thread_prealloc_rpc_cache) {
-		thread_rpc_free(thr->rpc_carg);
+		thread_rpc_free_arg(thr->rpc_carg);
 		thr->rpc_carg = 0;
 		thr->rpc_arg = 0;
 	}
@@ -1238,7 +1238,36 @@ fail:
 	*cookie = 0;
 }
 
-void thread_rpc_free(uint64_t cookie)
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ * @bt:		 must be the same as supplied when allocating
+ */
+static void thread_rpc_free(unsigned bt, uint64_t cookie)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct optee_msg_arg *arg = thr->rpc_arg;
+	uint64_t carg = thr->rpc_carg;
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
+	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_FREE;
+	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
+	arg->num_params = 1;
+
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[0].u.value.a = bt;
+	params[0].u.value.b = cookie;
+	params[0].u.value.c = 0;
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	thread_rpc(rpc_args);
+}
+
+
+void thread_rpc_free_arg(uint64_t cookie)
 {
 	if (cookie) {
 		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
@@ -1252,4 +1281,9 @@ void thread_rpc_free(uint64_t cookie)
 void thread_rpc_alloc_payload(size_t size, paddr_t *payload, uint64_t *cookie)
 {
 	thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL, payload, cookie);
+}
+
+void thread_rpc_free_payload(uint64_t cookie)
+{
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie);
 }

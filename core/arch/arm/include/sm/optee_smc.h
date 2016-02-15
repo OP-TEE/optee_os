@@ -421,7 +421,7 @@
  * Free memory previously allocated by OPTEE_SMC_RETURN_RPC_ALLOC
  *
  * "Call" register usage:
- * a0	This value, OPTEE_SMC_RETURN_RPC_FREE_ARG
+ * a0	This value, OPTEE_SMC_RETURN_RPC_FREE
  * a1	Upper 32 bits of 64-bit shared memory cookie belonging to this
  *	argument memory
  * a2	Lower 32 bits of 64-bit shared memory cookie belonging to this
