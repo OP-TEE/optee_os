@@ -47,6 +47,9 @@ enum utee_property {
 	UTEE_PROP_TEE_FW_MANUFACTURER,
 	UTEE_PROP_CLIENT_ID,
 	UTEE_PROP_TA_APP_ID,
+#ifdef CFG_MICROSOFT_PROPERTIES
+	UTEE_PROP_TA_ENDORSEMENT_SEED,
+#endif
 };
 
 enum utee_time_category {
