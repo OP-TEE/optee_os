@@ -309,19 +309,6 @@ TEE_Result syscall_get_property_obsolete(unsigned long prop,
 	}
 }
 
-struct tee_props {
-	const char *name;
-
-	/* prop_type is of type enum user_ta_prop_type*/
-	const uint32_t prop_type;
-
-	/* either get_prop_func or both data and len */
-	TEE_Result (*get_prop_func)(struct tee_ta_session *sess,
-				    void *buf, size_t *blen);
-	const void *data;
-	const uint32_t len;
-};
-
 /* Properties of the set TEE_PROPSET_CURRENT_CLIENT */
 const struct tee_props tee_propset_client[] = {
 	{
@@ -437,23 +424,37 @@ const struct tee_props tee_propset_tee[] = {
 	 */
 };
 
+__weak const struct tee_vendor_props vendor_props_client;
+__weak const struct tee_vendor_props vendor_props_ta;
+__weak const struct tee_vendor_props vendor_props_tee;
+
 static void get_prop_set(unsigned long prop_set,
 			 const struct tee_props **props,
-			 unsigned long *size)
+			 size_t *size,
+			 const struct tee_props **vendor_props,
+			 size_t *vendor_size)
 {
 	if ((TEE_PropSetHandle)prop_set == TEE_PROPSET_CURRENT_CLIENT) {
 		*props = tee_propset_client;
 		*size = ARRAY_SIZE(tee_propset_client);
+		*vendor_props = vendor_props_client.props;
+		*vendor_size = vendor_props_client.len;
 	} else if ((TEE_PropSetHandle)prop_set == TEE_PROPSET_CURRENT_TA) {
 		*props = tee_propset_ta;
 		*size = ARRAY_SIZE(tee_propset_ta);
+		*vendor_props = vendor_props_ta.props;
+		*vendor_size = vendor_props_ta.len;
 	} else if ((TEE_PropSetHandle)prop_set ==
 		   TEE_PROPSET_TEE_IMPLEMENTATION) {
 		*props = tee_propset_tee;
 		*size = ARRAY_SIZE(tee_propset_tee);
+		*vendor_props = vendor_props_tee.props;
+		*vendor_size = vendor_props_tee.len;
 	} else {
-		*props = 0;
+		*props = NULL;
 		*size = 0;
+		*vendor_props = NULL;
+		*vendor_size = 0;
 	}
 }
 
@@ -461,14 +462,20 @@ static const struct tee_props *get_prop_struct(unsigned long prop_set,
 					       unsigned long index)
 {
 	const struct tee_props *props;
-	unsigned long size;
+	const struct tee_props *vendor_props;
+	size_t size;
+	size_t vendor_size;
 
-	get_prop_set(prop_set, &props, &size);
+	get_prop_set(prop_set, &props, &size, &vendor_props, &vendor_size);
 
-	if (props && index < size)
+	if (index < size)
 		return &(props[index]);
-	else
-		return NULL;
+	index -= size;
+
+	if (index < vendor_size)
+		return &(vendor_props[index]);
+
+	return NULL;
 }
 
 /*
@@ -571,11 +578,13 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	const struct tee_props *props;
-	unsigned long size;
+	size_t size;
+	const struct tee_props *vendor_props;
+	size_t vendor_size;
 	char *kname = 0;
 	uint32_t i;
 
-	get_prop_set(prop_set, &props, &size);
+	get_prop_set(prop_set, &props, &size, &vendor_props, &vendor_size);
 	if (!props)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
@@ -601,7 +610,14 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 		if (!strcmp(kname, props[i].name)) {
 			res = tee_svc_copy_to_user(sess, index, &i,
 						   sizeof(*index));
-			break;
+			goto out;
+		}
+	}
+	for (i = size; i < size + vendor_size; i++) {
+		if (!strcmp(kname, vendor_props[i - size].name)) {
+			res = tee_svc_copy_to_user(sess, index, &i,
+						   sizeof(*index));
+			goto out;
 		}
 	}
 

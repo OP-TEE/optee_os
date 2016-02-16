@@ -37,6 +37,24 @@ extern vaddr_t tee_svc_uref_base;
 
 struct tee_ta_session;
 
+/* TA Properties */
+struct tee_props {
+	const char *name;
+
+	/* prop_type is of type enum user_ta_prop_type*/
+	const uint32_t prop_type;
+
+	/* either get_prop_func or both data and len */
+	TEE_Result (*get_prop_func)(struct tee_ta_session *sess,
+				    void *buf, size_t *blen);
+	const void *data;
+	const size_t len;
+};
+
+struct tee_vendor_props {
+	const struct tee_props *props;
+	size_t len;
+};
 void syscall_sys_return(unsigned long ret);
 
 void syscall_log(const void *buf, size_t len);
