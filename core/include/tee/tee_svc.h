@@ -32,6 +32,7 @@
 #include <tee_api_types.h>
 #include <utee_types.h>
 #include <assert.h>
+#include <types_ext.h>
 
 extern vaddr_t tee_svc_uref_base;
 
