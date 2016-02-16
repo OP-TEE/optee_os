@@ -29,7 +29,6 @@
 #define PLATFORM_CONFIG_H
 
 #define PLATFORM_FLAVOR_ID_fvp		0
-#define PLATFORM_FLAVOR_ID_qemu		1
 #define PLATFORM_FLAVOR_ID_qemu_virt	2
 #define PLATFORM_FLAVOR_ID_juno		3
 #define PLATFORM_FLAVOR_IS(flav) \
@@ -44,7 +43,7 @@
 #endif
 #endif /*ARM64*/
 
-#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(qemu)
+#if PLATFORM_FLAVOR_IS(fvp)
 
 #define GIC_BASE		0x2c000000
 #define UART0_BASE		0x1c090000
@@ -174,33 +173,6 @@
 
 #define GICC_OFFSET		0x1f000
 #define GICD_OFFSET		0
-
-#elif PLATFORM_FLAVOR_IS(qemu)
-/*
- * QEMU specifics.
- */
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for platform vepress-qemu"
-#endif
-
-#define DRAM0_BASE		0x80000000
-#define DRAM0_SIZE		0x40000000
-
-/* Location of "trusted dram" */
-#define TZDRAM_BASE		0xC0000000
-#define TZDRAM_SIZE		0x02000000
-
-#define DDR_PHYS_START		DRAM0_BASE
-#define DDR_SIZE		DRAM0_SIZE
-
-#define CFG_TEE_CORE_NB_CORE	2
-
-
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x100000
-
-#define GICC_OFFSET		0x2000
-#define GICD_OFFSET		0x1000
 
 #elif PLATFORM_FLAVOR_IS(qemu_virt)
 /*

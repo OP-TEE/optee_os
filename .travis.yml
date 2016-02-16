@@ -103,12 +103,6 @@ script:
   - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
   - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0
 
-  # QEMU
-  - $make PLATFORM=vexpress-qemu
-  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_LOG_LEVEL=0
-  - $make PLATFORM=vexpress-qemu CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_TA_MALLOC_DEBUG=y
-
   # QEMU-virt (PLATFORM=vexpress-qemu_virt)
   - $make
   - $make CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
