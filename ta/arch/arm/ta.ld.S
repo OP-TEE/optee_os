@@ -8,14 +8,20 @@ OUTPUT_ARCH(aarch64)
 #endif
 
 PHDRS {
-	rodata PT_LOAD;
+	/*
+	 * Exec and rodata headers are hard coded to RX and RO
+	 * respectively.  This is needed becuase the binary is relocatable
+	 * and the linker would automatically make any header writeable
+	 * that need to be updated during relocation.
+	 */
+	exec PT_LOAD FLAGS (5);		/* RX */
+	rodata PT_LOAD FLAGS (4);	/* RO */
 	rwdata PT_LOAD;
-	rodata2 PT_LOAD;
 	dyn PT_DYNAMIC;
 }
 
 SECTIONS {
-	.ta_head : {*(.ta_head)} :rodata
+	.ta_head : {*(.ta_head)} :exec
 
 	.text : {
 		*(.text .text.*)
@@ -26,7 +32,7 @@ SECTIONS {
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
 	}
-	.eh_frame : { *(.eh_frame) }
+	.eh_frame : { *(.eh_frame) } :rodata
 	.rodata : {
 		*(.gnu.linkonce.r.*)
 		*(.rodata .rodata.*)
@@ -61,6 +67,11 @@ SECTIONS {
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
 
+	.dynamic : { *(.dynamic) } :dyn :rodata
+	.dynsym : { *(.dynsym) } :rodata
+	.dynstr : { *(.dynstr) }
+	.hash : { *(.hash) }
+
 	/* Page align to allow dropping execute bit for RW data */
 	. = ALIGN(4096);
 
@@ -68,19 +79,6 @@ SECTIONS {
 
 	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
 
-	/* Page align to separate from RW data */
-	. = ALIGN(4096);
-
-	.dynamic : { *(.dynamic) } :dyn :rodata2
-	.dynsym : { *(.dynsym) } :rodata2
-	.dynstr : { *(.dynstr) }
-	.hash : { *(.hash) }
-
 	/DISCARD/ : { *(.interp) }
-
-	linker_RO_sections_size = 12;
-	linker_RW_sections_size = 12;
-	linker_res_funcs_ZI_sections_size = 12;
-	linker_rel_dyn_GOT = 12;
 }
 
