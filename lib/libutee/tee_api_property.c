@@ -219,8 +219,17 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 	res = propget_get_property(propsetOrEnumerator, name, &type,
 				   tmp_buf, &tmp_len);
 	if (res != TEE_SUCCESS) {
-		if (res == TEE_ERROR_SHORT_BUFFER)
+		if (res == TEE_ERROR_SHORT_BUFFER) {
+			if (type == USER_TA_PROP_TYPE_BINARY_BLOCK) {
+				/*
+				 * in this case, we must enlarge the buffer
+				 * with the size of the of the base64 encoded
+				 * see base64_enc() function
+				 */
+				tmp_len = base64_enc_len(tmp_len);
+			}
 			*value_len = tmp_len;
+		}
 		goto out;
 	}
 
