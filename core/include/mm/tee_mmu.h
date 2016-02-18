@@ -41,11 +41,21 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc);
  *---------------------------------------------------------------------------*/
 void tee_mmu_final(struct user_ta_ctx *utc);
 
-/*-----------------------------------------------------------------------------
- * tee_mmu_map - Map parameters, heap, stack and code to user memory map to
- * context
- *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_map(struct user_ta_ctx *utc, struct tee_ta_param *param);
+/* Map stack of a user TA.  */
+void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
+			uint32_t prot);
+/*
+ * Map a code segment of a user TA, this function may be called multiple
+ * times if there's several segments.
+ */
+TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
+			size_t offs, size_t size, uint32_t prot);
+
+void tee_mmu_map_clear(struct user_ta_ctx *utc);
+
+/* Map parameters for a user TA */
+TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
+			struct tee_ta_param *param);
 
 
 bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
