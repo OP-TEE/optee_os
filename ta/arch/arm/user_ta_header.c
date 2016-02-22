@@ -54,10 +54,27 @@ void __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
 			__noreturn;
 
+/*
+ * According to GP Internal API, TA_STACK_SIZE corresponds to the stack
+ * size used by the TA code itself and does not include stack space
+ * possibly used by the Trusted Core Framework.
+ * Hence, stack_size which is the size of the stack to use,
+ * must be enlarged
+ * It has been set to 2048 to include trace framework and invoke commands
+ */
+#define TA_FRAMEWORK_STACK_SIZE 2048
+
 const struct ta_head ta_head __section(".ta_head") = {
 	/* UUID, unique to each TA */
 	.uuid = TA_UUID,
-	.stack_size = TA_STACK_SIZE,
+	/*
+	 * According to GP Internal API, TA_FRAMEWORK_STACK_SIZE corresponds to
+	 * the stack size used by the TA code itself and does not include stack
+	 * space possibly used by the Trusted Core Framework.
+	 * Hence, stack_size which is the size of the stack to use,
+	 * must be enlarged
+	 */
+	.stack_size = TA_STACK_SIZE + TA_FRAMEWORK_STACK_SIZE,
 	.flags = TA_FLAG_USER_MODE | TA_FLAGS,
 #ifdef __ILP32__
 	/*
