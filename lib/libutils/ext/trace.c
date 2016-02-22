@@ -101,15 +101,11 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	if (res > 0)
 		boffs += res;
 
-	if (boffs >= sizeof(buf)) {
+	if (boffs >= (sizeof(buf) - 1))
 		boffs = sizeof(buf) - 2;
-		/* Make there's a newline at the end */
-		buf[boffs] = '\n';
-	} else if (buf[boffs - 1] != '\n') {
-		/* Append a newline */
-		buf[boffs] = '\n';
-		buf[boffs + 1] = '\0';
-	}
+
+	buf[boffs] = '\n';
+	buf[boffs + 1] = '\0';
 
 	trace_ext_puts(buf);
 }
