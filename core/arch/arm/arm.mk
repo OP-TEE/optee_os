@@ -64,14 +64,14 @@ core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
 
 ifeq ($(CFG_ARM64_core),y)
-CROSS_COMPILE_core ?= $(CROSS_COMPILE64)
+arch-bits-core := 64
 core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-cflags += $(arm64-platform-cflags-generic)
 core-platform-cflags += $(arm64-platform-cflags-no-hard-float)
 core-platform-aflags += $(arm64-platform-aflags)
 else
-CROSS_COMPILE_core ?= $(CROSS_COMPILE32)
+arch-bits-core := 32
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
@@ -86,7 +86,7 @@ endif
 ifneq ($(filter ta_arm32,$(ta-targets)),)
 # Variables for ta-target/sm "ta_arm32"
 CFG_ARM32_ta_arm32 := y
-CROSS_COMPILE_ta_arm32 ?= $(CROSS_COMPILE32)
+arch-bits-ta_arm32 := 32
 ta_arm32-platform-cppflags += $(arm32-platform-cppflags)
 ta_arm32-platform-cflags += $(arm32-platform-cflags)
 ta_arm32-platform-cflags += $(platform-cflags-optimization)
@@ -113,7 +113,7 @@ endif
 ifneq ($(filter ta_arm64,$(ta-targets)),)
 # Variables for ta-target/sm "ta_arm64"
 CFG_ARM64_ta_arm64 := y
-CROSS_COMPILE_ta_arm64 ?= $(CROSS_COMPILE64)
+arch-bits-ta_arm64 := 64
 ta_arm64-platform-cppflags += $(arm64-platform-cppflags)
 ta_arm64-platform-cflags += $(arm64-platform-cflags)
 ta_arm64-platform-cflags += $(platform-cflags-optimization)
@@ -136,3 +136,6 @@ ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-aflags
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_nl_
 endif
+
+# Set cross compiler prefix for each submodule
+$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))

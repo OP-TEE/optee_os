@@ -71,7 +71,7 @@ ifeq ($$(filter %.c,$1),$1)
 comp-q-$2 := CC
 comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 			      $$(cflags-remove-$2), \
-		   $$(CFLAGS) $$(CFLAGS_WARNS) \
+		   $$(CFLAGS$$(arch-bits-$$(comp-sm-$2))) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$2)) $$(cflags$$(comp-sm-$2)) \
 		   $$(cflags-lib$$(comp-lib-$2)) $$(cflags-$2))
 ifeq ($C,1)

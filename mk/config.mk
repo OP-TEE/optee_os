@@ -22,6 +22,12 @@ CROSS_COMPILE32 ?= $(CROSS_COMPILE)
 CROSS_COMPILE64 ?= aarch64-linux-gnu-
 COMPILER ?= gcc
 
+# For convenience
+ifdef CFLAGS
+CFLAGS32 ?= $(CFLAGS)
+CFLAGS64 ?= $(CFLAGS)
+endif
+
 # Compiler warning level.
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
