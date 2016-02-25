@@ -163,6 +163,13 @@ UNWIND(	.cantunwind)
 	mov	r6, r0
 	mov	r7, r1
 	mov	r8, r2
+#ifdef CFG_WITH_PAGER
+	/*
+	 * r0 is used for different purposes when pager or GDB boot are enabled
+	 * so they are incompatible
+	 */
+#error CFG_WITH_PAGER and CFG_TEE_GDB_BOOT cannot be enabled simultaneously
+#endif
 #endif
 
 	/* Enable alignment checks and disable data and instruction cache. */
