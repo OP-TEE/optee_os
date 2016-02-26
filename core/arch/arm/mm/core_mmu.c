@@ -362,19 +362,6 @@ static void *map_pa2va(struct map_area *map, paddr_t pa)
 		(((map->va + pa - map->pa)) & ~(map->region_size - 1)));
 }
 
-/* core_pa2va - teecore exported service */
-int core_pa2va_helper(paddr_t pa, void **va)
-{
-	struct map_area *map;
-
-	map = find_map_by_pa((unsigned long)pa);
-	if (map == NULL)
-		return -1;
-
-	*va = map_pa2va(map, pa);
-	return 0;
-}
-
 /*
  * teecore gets some memory area definitions
  */

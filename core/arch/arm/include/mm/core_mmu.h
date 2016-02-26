@@ -307,9 +307,6 @@ void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
 /* Function is deprecated, use virt_to_phys() instead */
 int core_va2pa_helper(void *va, paddr_t *pa);
 
-/* Function is deprecated, use phys_to_virt() instead */
-int core_pa2va_helper(paddr_t pa, void **va);
-
 /* routines to retreive shared mem configuration */
 bool core_mmu_is_shm_cached(void);
 
