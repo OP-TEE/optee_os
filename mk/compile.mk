@@ -70,6 +70,7 @@ cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 ifeq ($$(filter %.c,$1),$1)
 comp-q-$2 := CC
 comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
+			      $$(cflags-remove-$$(comp-sm-$2)) \
 			      $$(cflags-remove-$2), \
 		   $$(CFLAGS$$(arch-bits-$$(comp-sm-$2))) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$2)) $$(cflags$$(comp-sm-$2)) \
@@ -83,6 +84,7 @@ endif
 else ifeq ($$(filter %.S,$1),$1)
 comp-q-$2 := AS
 comp-flags-$2 = -DASM=1 $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
+				      $$(aflags-remove-$$(comp-sm-$2)) \
 				      $$(aflags-remove-$2), \
 			   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
 			   $$(aflags$$(comp-sm-$2)) $$(aflags-$2))
@@ -92,7 +94,8 @@ $$(error "Don't know what to do with $1")
 endif
 
 comp-cppflags-$2 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
-			 $$(cppflags-remove-$2), \
+				 $$(cppflags-remove-$$(comp-sm-$2)) \
+				 $$(cppflags-remove-$2), \
 		      $$(nostdinc$$(comp-sm-$2)) $$(CPPFLAGS) \
 		      $$(addprefix -I,$$(incdirs$$(comp-sm-$2))) \
 		      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
@@ -163,13 +166,15 @@ comp-sm-$3	:= $(sm)
 cleanfiles := $$(cleanfiles) $$(comp-dep-$3) $$(comp-cmd-file-$3) $3 $2
 
 comp-flags-$3 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
+			      $$(cflags-remove-$$(comp-sm-$3)) \
 			      $$(cflags-remove-$3), \
 		   $$(CFLAGS) $$(CFLAGS_WARNS) \
 		   $$(comp-cflags$$(comp-sm-$3)) $$(cflags$$(comp-sm-$3)) \
 		   $$(cflags-lib$$(comp-lib-$3)) $$(cflags-$3))
 
 comp-cppflags-$3 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
-			 $$(cppflags-remove-$3), \
+				 $$(cppflags-remove-$$(comp-sm-$3)) \
+				 $$(cppflags-remove-$3), \
 		      $$(nostdinc$$(comp-sm-$3)) $$(CPPFLAGS) \
 		      $$(addprefix -I,$$(incdirs$$(comp-sm-$3))) \
 		      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$3))) \
