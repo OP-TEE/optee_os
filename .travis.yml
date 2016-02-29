@@ -12,6 +12,9 @@ cache:
   directories:
     - $HOME/downloads
 
+git:
+  depth: 1000000
+
 before_install:
   # Install the cross compilers
   - wget http://releases.linaro.org/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
@@ -70,6 +73,7 @@ before_script:
   - (cd $HOME/optee_repo/qemu && git submodule update --init dtc)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
   - cd $MYHOME
+  - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
 
 # Several compilation options are checked
