@@ -885,6 +885,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 			struct utee_params *usr_param, uint32_t *ret_orig)
 {
 	TEE_Result res;
+	TEE_Result res2;
 	uint32_t ret_o = TEE_ORIGIN_TEE;
 	struct tee_ta_param param = { 0 };
 	TEE_Identity clnt_id;
@@ -916,13 +917,23 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
 				    cancel_req_to, cmd_id, &param);
 
-	if (res != TEE_SUCCESS)
-		goto function_exit;
-
-	res = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_pa,
-				       usr_param);
-	if (res != TEE_SUCCESS)
-		goto function_exit;
+	res2 = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_pa,
+					usr_param);
+	if (res2 != TEE_SUCCESS) {
+		/*
+		 * Spec for TEE_InvokeTACommand() says:
+		 * "If the return origin is different from
+		 * TEE_ORIGIN_TRUSTED_APP, then the function has failed
+		 * before it could reach the destination Trusted
+		 * Application."
+		 *
+		 * But if we can't update params to the caller we have no
+		 * choice we need to return some error to indicate that
+		 * parameters aren't updated as expected.
+		 */
+		ret_o = TEE_ORIGIN_TEE;
+		res = res2;
+	}
 
 function_exit:
 	tee_ta_set_current_session(sess);
