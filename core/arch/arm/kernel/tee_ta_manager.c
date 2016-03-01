@@ -382,7 +382,14 @@ static TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 
-			p = (tee_paddr_t)param->params[n].memref.buffer;
+			if (param->param_attr[n] & TEE_MATTR_VIRTUAL) {
+				p = virt_to_phys(
+					param->params[n].memref.buffer);
+				if (!p)
+					return TEE_ERROR_SECURITY;
+			} else {
+				p = (tee_paddr_t)param->params[n].memref.buffer;
+			}
 			l = param->params[n].memref.size;
 
 			if (core_pbuf_is(CORE_MEM_NSEC_SHM, p, l))

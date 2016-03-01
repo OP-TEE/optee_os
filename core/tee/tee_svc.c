@@ -537,6 +537,7 @@ static void utee_param_to_param(struct tee_ta_param *p, struct utee_params *up)
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			p->params[n].memref.buffer = (void *)a;
 			p->params[n].memref.size = b;
+			p->param_attr[n] = TEE_MATTR_VIRTUAL;
 			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:

@@ -55,6 +55,8 @@
 #define TEE_MATTR_CACHE_NONCACHE 0
 #define TEE_MATTR_CACHE_CACHED	1
 
+#define TEE_MATTR_VIRTUAL		(1 << 15)
+
 
 struct tee_mmap_region {
 	paddr_t pa;
