@@ -813,6 +813,8 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 	case ESR_EC_SP_ALIGN:
 	case ESR_EC_PC_ALIGN:
 		return CORE_MMU_FAULT_ALIGNMENT;
+	case ESR_EC_IABT_EL0:
+	case ESR_EC_DABT_EL0:
 	case ESR_EC_IABT_EL1:
 	case ESR_EC_DABT_EL1:
 		switch (fault_descr & ESR_FSC_MASK) {

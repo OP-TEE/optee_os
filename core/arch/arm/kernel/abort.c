@@ -108,13 +108,31 @@ static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
+static __maybe_unused const char *fault_to_str(uint32_t fault_descr)
+{
+
+	switch (core_mmu_get_fault_type(fault_descr)) {
+	case CORE_MMU_FAULT_ALIGNMENT:
+		return " (alignment fault)";
+	case CORE_MMU_FAULT_TRANSLATION:
+		return " (translation fault)";
+	case CORE_MMU_FAULT_READ_PERMISSION:
+		return " (read permission fault)";
+	case CORE_MMU_FAULT_WRITE_PERMISSION:
+		return " (write permission fault)";
+	default:
+		return "";
+	}
+}
+
 static __maybe_unused void print_detailed_abort(
 				struct abort_info *ai __maybe_unused,
 				const char *ctx __maybe_unused)
 {
 	EMSG_RAW("\n");
-	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "\n",
-		ctx, abort_type_to_str(ai->abort_type), ai->va);
+	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s\n",
+		ctx, abort_type_to_str(ai->abort_type), ai->va,
+		fault_to_str(ai->fault_descr));
 #ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X\n",
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
