@@ -59,21 +59,21 @@ static void main_fiq(void)
 	panic();
 }
 
-void console_init(void)
+void earlycon_init(void)
 {
 	serial8250_uart_init(CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ,
 			     CONSOLE_BAUDRATE);
 }
 
-void console_putc(int ch)
+void earlycon_putc(int ch)
 {
 	serial8250_uart_putc(ch, CONSOLE_UART_BASE);
 	if (ch == '\n')
 		serial8250_uart_putc('\r', CONSOLE_UART_BASE);
 }
 
-void console_flush(void)
+void earlycon_flush(void)
 {
 	serial8250_uart_flush_tx_fifo(CONSOLE_UART_BASE);
 }

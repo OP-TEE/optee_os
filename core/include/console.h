@@ -28,9 +28,41 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
+#include <stdint.h>
+#include <types_ext.h>
+
+/* Early console: platform code, initialized early during the boot */
+void earlycon_init(void);
+void earlycon_putc(int ch);
+void earlycon_flush(void);
+
+#ifdef CFG_DT
+/*
+ * Initialize console from Device Tree. Called after runtime initialization
+ * completes. Prior to this point the early console is used. This function is
+ * an opportunity to switch the console to another channel.
+ */
 void console_init(void);
 void console_putc(int ch);
 void console_flush(void);
+
+#else
+
+static inline void console_init(void)
+{
+	/* earlycon_init() has already been called */
+}
+
+static inline void console_putc(int ch)
+{
+	earlycon_putc(ch);
+}
+
+static inline void console_flush(void)
+{
+	earlycon_flush();
+}
+#endif
 
 #endif /* CONSOLE_H */
 

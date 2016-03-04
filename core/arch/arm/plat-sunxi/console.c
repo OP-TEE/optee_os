@@ -29,17 +29,17 @@
 #include <drivers/sunxi_uart.h>
 #include <console.h>
 
-void console_init(void)
+void earlycon_init(void)
 {
 	sunxi_uart_init(CONSOLE_UART_BASE);
 }
 
-void console_putc(int ch)
+void earlycon_putc(int ch)
 {
 	sunxi_uart_putc(ch, CONSOLE_UART_BASE);
 }
 
-void console_flush(void)
+void earlycon_flush(void)
 {
 	sunxi_uart_flush(CONSOLE_UART_BASE);
 }

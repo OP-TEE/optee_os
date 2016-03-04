@@ -248,8 +248,8 @@ copy_init:
 	/* complete ARM secure MP common configuration */
 	bl	plat_cpu_reset_late
 
-	/* Enable Console */
-	bl	console_init
+	/* Enable early console */
+	bl	earlycon_init
 
 #ifdef CFG_PL310
 	bl	arm_cl2_config

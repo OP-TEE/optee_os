@@ -103,8 +103,8 @@ copy_init:
 	sub	x1, x1, x0
 	bl	inv_dcache_range
 
-	/* Enable Console */
-	bl	console_init
+	/* Enable early console */
+	bl	earlycon_init
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs

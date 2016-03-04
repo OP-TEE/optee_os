@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <inttypes.h>
+#include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
@@ -43,6 +44,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <console.h>
 
 #include <platform_config.h>
 
@@ -326,6 +328,10 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
 	init_vfp_sec();
 
 	init_runtime(pageable_part);
+
+	if (dt_validate((void *)(uintptr_t)fdt) < 0)
+		panic();
+	console_init();
 
 	IMSG("Initializing (%s)\n", core_v_str);
 
