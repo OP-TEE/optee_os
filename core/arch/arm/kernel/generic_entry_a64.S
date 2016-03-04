@@ -36,6 +36,7 @@
 .section .text.boot
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
+	mov	x20, x2		/* Save DT address */
 
 	adr	x0, reset_vect_table
 	msr	vbar_el1, x0
@@ -113,6 +114,7 @@ copy_init:
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
+	mov	x2, x20		/* DT address */
 	bl	generic_boot_init_primary
 
 	/*
