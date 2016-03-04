@@ -20,21 +20,25 @@ cppflags$(sm)	+= -D__KERNEL__
 PLATFORM_FLAVOR ?= default
 platform_$(PLATFORM) := y
 platform_flavor_$(PLATFORM_FLAVOR) := y
-cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
 
+cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
+cppflags$(sm)	+= -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
+ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)
+cppflags$(sm)	+= -DENABLE_MDBG=1
+endif
 cppflags$(sm)	+= -Icore/include
+cppflags$(sm)	+= -Ilib/libutee/include
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include/generated
 cppflags$(sm)	+= $(core-platform-cppflags)
-cflags$(sm)	+= $(core-platform-cflags)
-aflags$(sm)	+= $(core-platform-aflags)
 
-cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
-ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)
-cppflags$(sm) += -DENABLE_MDBG=1
+cflags$(sm)	+= $(core-platform-cflags)
+
+ifdef CFG_DT
+cflags-remove-$(sm) += -pedantic
 endif
 
-cppflags$(sm)	+= -Ilib/libutee/include
+aflags$(sm)	+= $(core-platform-aflags)
 
 # Tell all libraries and sub-directories (included below) that we have a
 # configuration file
@@ -71,6 +75,12 @@ base-prefix :=
 libname = tomcrypt
 libdir = core/lib/libtomcrypt
 include mk/lib.mk
+
+ifeq ($(CFG_DT),y)
+libname = fdt
+libdir = core/lib/libfdt
+include mk/lib.mk
+endif
 
 #
 # Do main source
