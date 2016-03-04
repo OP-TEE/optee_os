@@ -488,6 +488,41 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 }
 #endif /*CFG_PL310*/
 
+static void set_region(struct core_mmu_table_info *tbl_info,
+		struct tee_mmap_region *region)
+{
+	unsigned end;
+	unsigned idx;
+	paddr_t pa;
+
+	/* va, len and pa should be block aligned */
+	assert(!core_mmu_get_block_offset(tbl_info, region->va));
+	assert(!core_mmu_get_block_offset(tbl_info, region->size));
+	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
+
+	idx = core_mmu_va2idx(tbl_info, region->va);
+	end = core_mmu_va2idx(tbl_info, region->va + region->size);
+	pa = region->pa;
+
+	while (idx < end) {
+		core_mmu_set_entry(tbl_info, idx, pa, region->attr);
+		idx++;
+		pa += 1 << tbl_info->shift;
+	}
+}
+
+void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
+			struct tee_mmu_info *mmu)
+{
+	unsigned n;
+
+	for (n = 0; n < mmu->size; n++) {
+		if (!mmu->table[n].size)
+			continue;
+		set_region(dir_info, mmu->table + n);
+	}
+}
+
 static bool arm_va2pa_helper(void *va, paddr_t *pa)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
