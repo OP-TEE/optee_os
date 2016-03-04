@@ -153,6 +153,7 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov	r4, r0		/* Save pageable part address */
 	mov	r5, lr		/* Save ns-entry address */
+	mov	r6, r2		/* Save DT address */
 
 #ifdef CFG_TEE_GDB_BOOT
 	/*
@@ -163,12 +164,12 @@ UNWIND(	.cantunwind)
 	mov	r6, r0
 	mov	r7, r1
 	mov	r8, r2
-#ifdef CFG_WITH_PAGER
+#if defined(CFG_WITH_PAGER) || defined (CFG_DT)
 	/*
-	 * r0 is used for different purposes when pager or GDB boot are enabled
-	 * so they are incompatible
+	 * r0/r2 are used for different purposes by GDB boot and pager/DT
+	 * so these configurations are incompatible
 	 */
-#error CFG_WITH_PAGER and CFG_TEE_GDB_BOOT cannot be enabled simultaneously
+#error CFG_TEE_GDB_BOOT and (CFG_WITH_PAGER || CFG_DT) are incompatible
 #endif
 #endif
 
@@ -226,8 +227,8 @@ UNWIND(	.cantunwind)
 	add	r1, r1, r2
 	ldr	r2, =__text_init_start
 copy_init:
-	ldmdb	r1!, {r6-r12}
-	stmdb	r0!, {r6-r12}
+	ldmdb	r1!, {r3, r7-r13}
+	stmdb	r0!, {r3, r7-r13}
 	cmp	r0, r2
 	bgt	copy_init
 #endif
@@ -291,6 +292,7 @@ copy_init:
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
+	mov	r2, r6		/* DT address */
 	bl	generic_boot_init_primary
 	mov	r4, r0		/* save entry test vector */
 
