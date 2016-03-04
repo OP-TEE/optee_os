@@ -32,6 +32,95 @@
 #include <utee_defines.h>
 
 /*
+ * DT manipulation helpers
+ */
+
+static const void *__fdt;
+
+const void *dt_fdt(void)
+{
+	return __fdt;
+}
+
+int dt_validate(const void *fdt)
+{
+	if (!fdt || fdt_check_header(fdt) < 0) {
+		EMSG("Invalid or missing Device Tree");
+		return -1;
+	}
+	__fdt = fdt;
+	DMSG("Using Device Tree at %p", __fdt);
+
+	return 0;
+}
+
+static int read_be32(const char *v)
+{
+	return (v[0] << 24) | (v[1] << 16) | (v[2] << 8) | v[3];
+}
+
+int dt_n_addr_cells(int nodeoffset)
+{
+	const struct fdt_property *prop;
+	int len;
+
+	do {
+		prop = fdt_get_property(__fdt, nodeoffset, "#address-cells",
+					&len);
+		if (prop) {
+			if (len != 4)
+				goto bad;
+			return read_be32(prop->data);
+		}
+		nodeoffset = fdt_parent_offset(__fdt, nodeoffset);
+	} while (nodeoffset >= 0);
+
+bad:
+	return 0;
+}
+
+paddr_t dt_read_paddr(const uint32_t *cell, int n)
+{
+	paddr_t addr;
+
+	if (n < 0 || n > 2)
+		goto bad;
+
+	if (sizeof(paddr_t) == 2 && n == 2 && *cell)
+		goto bad;
+
+	addr = TEE_U32_FROM_BIG_ENDIAN(*cell);
+	cell++;
+	if (n == 2) {
+#ifdef ARM32
+		if (*cell)
+			goto bad;
+#else
+		addr = (addr << 32) | TEE_U32_FROM_BIG_ENDIAN(*cell);
+#endif
+	}
+
+	return addr;
+bad:
+	return (paddr_t)-1;
+}
+
+paddr_t dt_reg_base_address(int node_offset)
+{
+	const void *reg;
+	int len;
+	int ncells;
+
+	reg = fdt_getprop(__fdt, node_offset, "reg", &len);
+	if (!reg)
+		return (paddr_t)-1;
+	ncells = dt_n_addr_cells(node_offset);
+	if (!ncells)
+		return (paddr_t)-1;
+	return dt_read_paddr(reg, ncells);
+}
+
+/*
  * DT-aware drivers
  */
 

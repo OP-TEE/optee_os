@@ -35,6 +35,23 @@
 #if defined(CFG_DT)
 
 /*
+ * DT manipulation helpers. Lower-level functions are in <libfdt.h>.
+ */
+
+const void *dt_fdt(void);
+
+int dt_validate(const void *fdt);
+
+/* Return value of #address-cells for a node, <0 in case of error */
+int dt_n_addr_cells(int nodeoffset);
+
+/* Read address value (n=1 or 2 cells) */
+paddr_t dt_read_paddr(const uint32_t *cell, int n);
+
+/* Return the base address for the reg property in the specified node */
+paddr_t dt_reg_base_address(int node_offset);
+
+/*
  * DT-aware drivers
  */
 
@@ -56,6 +73,16 @@ const struct dt_driver *__dt_driver_end(void);
 	for (drv = __dt_driver_start(); drv < __dt_driver_end(); drv++)
 
 #else
+
+static inline const void *dt_fdt(void)
+{
+	return NULL;
+}
+
+static inline int dt_validate(const void *fdt __unused)
+{
+	return 0;
+}
 
 static inline const struct dt_driver *dt_find_driver(const char *compatible
 						     __unused)
