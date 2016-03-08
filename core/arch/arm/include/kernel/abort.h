@@ -39,7 +39,7 @@
 
 struct abort_info {
 	uint32_t abort_type;
-	uint32_t fault_descr;
+	uint32_t fault_descr;	/* only valid for data of prefetch abort */
 	vaddr_t va;
 	uint32_t pc;
 	struct thread_abort_regs *regs;
