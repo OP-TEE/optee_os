@@ -35,8 +35,6 @@
 
 #define TEE_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
-#define TEE_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
 typedef uintptr_t tee_paddr_t;
 /* Compat */
 #define tee_phys_addr_t tee_paddr_t

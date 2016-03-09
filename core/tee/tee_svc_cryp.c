@@ -416,7 +416,7 @@ struct tee_cryp_obj_type_props {
 
 #define PROP(obj_type, quanta, min_size, max_size, alloc_size, type_attrs) \
 		{ (obj_type), (min_size), (max_size), (alloc_size), (quanta), \
-		  TEE_ARRAY_SIZE(type_attrs), (type_attrs) }
+		  ARRAY_SIZE(type_attrs), (type_attrs) }
 
 static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_AES, 64, 128, 256,	/* valid sizes 128, 192, 256 */
@@ -605,7 +605,7 @@ static const struct tee_cryp_obj_type_props *tee_svc_find_type_props(
 {
 	size_t n;
 
-	for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_props); n++) {
+	for (n = 0; n < ARRAY_SIZE(tee_cryp_obj_props); n++) {
 		if (tee_cryp_obj_props[n].obj_type == obj_type)
 			return tee_cryp_obj_props + n;
 	}
@@ -1501,7 +1501,7 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 
 		extract_rsa_public_key(dst_o->data, src_o->data);
 		dst_o->have_attrs = 0;
-		for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_rsa_pub_key_attrs);
+		for (n = 0; n < ARRAY_SIZE(tee_cryp_obj_rsa_pub_key_attrs);
 		     n++)
 			dst_o->have_attrs |= 1 << n;
 
@@ -1512,7 +1512,7 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 
 		extract_dsa_public_key(dst_o->data, src_o->data);
 		dst_o->have_attrs = 0;
-		for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_dsa_pub_key_attrs);
+		for (n = 0; n < ARRAY_SIZE(tee_cryp_obj_dsa_pub_key_attrs);
 		     n++)
 			dst_o->have_attrs |= 1 << n;
 
@@ -1525,7 +1525,7 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 
 		extract_ecc_public_key(dst_o->data, src_o->data);
 		dst_o->have_attrs = 0;
-		for (n = 0; n < TEE_ARRAY_SIZE(tee_cryp_obj_ecc_pub_key_attrs);
+		for (n = 0; n < ARRAY_SIZE(tee_cryp_obj_ecc_pub_key_attrs);
 		     n++)
 			dst_o->have_attrs |= 1 << n;
 
