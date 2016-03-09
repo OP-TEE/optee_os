@@ -64,16 +64,6 @@ void syscall_panic(unsigned long code);
 
 TEE_Result syscall_not_supported(void);
 
-uint32_t syscall_dummy(uint32_t *a);
-uint32_t syscall_dummy_7args(unsigned long a1, unsigned long a2,
-			unsigned long a3, unsigned long a4, unsigned long a5,
-			unsigned long a6, unsigned long a7);
-
-uint32_t syscall_nocall(void);
-
-TEE_Result syscall_get_property_obsolete(unsigned long prop, void *buf,
-					 size_t blen);
-
 /* prop_set defined by enum utee_property */
 TEE_Result syscall_get_property(unsigned long prop_set,
 				unsigned long index,

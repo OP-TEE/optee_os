@@ -73,31 +73,6 @@ TEE_Result syscall_not_supported(void)
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-uint32_t syscall_dummy(uint32_t *a __maybe_unused)
-{
-	DMSG("tee_svc_sys_dummy: a 0x%" PRIxVA, (vaddr_t)a);
-	return 0;
-}
-
-uint32_t syscall_dummy_7args(unsigned long a1 __maybe_unused,
-			     unsigned long a2 __maybe_unused,
-			     unsigned long a3 __maybe_unused,
-			     unsigned long a4 __maybe_unused,
-			     unsigned long a5 __maybe_unused,
-			     unsigned long a6 __maybe_unused,
-			     unsigned long a7 __maybe_unused)
-{
-	DMSG("tee_svc_sys_dummy_7args: 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, %lx, %lx\n",
-	     a1, a2, a3, a4, a5, a6, a7);
-	return 0;
-}
-
-uint32_t syscall_nocall(void)
-{
-	DMSG("No syscall");
-	return 0x1;
-}
-
 /* Configuration properties */
 /* API implementation version */
 static const char api_vers[] = TO_STR(CFG_TEE_API_VERSION);
@@ -122,8 +97,6 @@ static const uint32_t crypto_ecc_en = 1;
 #else
 static const uint32_t crypto_ecc_en;
 #endif
-
-static const bool crypto_ecc_en_obsolete;
 
 /*
  * Trusted storage anti rollback protection level
@@ -150,49 +123,6 @@ static const uint32_t fw_impl_bin_version; /* 0 by default */
 
 /* Trusted firmware manufacturer name */
 static const char fw_manufacturer[] = TO_STR(CFG_TEE_FW_MANUFACTURER);
-
-struct tee_props_obsolete {
-	const void *data;
-	const size_t len;
-};
-
-/* Consistent with enum utee_property */
-const struct tee_props_obsolete tee_props_lut[] = {
-	{api_vers, sizeof(api_vers)},
-	{descr, sizeof(descr)},
-	{0, 0}, /* dev_id */
-	{0, 0}, /* system time protection level */
-	{&ta_time_prot_lvl, sizeof(ta_time_prot_lvl)},
-	{&crypto_ecc_en_obsolete, sizeof(crypto_ecc_en_obsolete)},
-	{&ts_antiroll_prot_lvl, sizeof(ts_antiroll_prot_lvl)},
-	{trustedos_impl_version, sizeof(trustedos_impl_version)},
-	{&trustedos_impl_bin_version,
-		sizeof(trustedos_impl_bin_version)},
-	{trustedos_manufacturer, sizeof(trustedos_manufacturer)},
-	{fw_impl_version, sizeof(fw_impl_version)},
-	{&fw_impl_bin_version, sizeof(fw_impl_bin_version)},
-	{fw_manufacturer, sizeof(fw_manufacturer)},
-	{0, 0}, /* client_id */
-	{0, 0}, /* ta_app_id */
-};
-
-enum utee_property_obsolete {
-	UTEE_PROP_TEE_API_VERSION = 0,
-	UTEE_PROP_TEE_DESCR,
-	UTEE_PROP_TEE_DEV_ID,
-	UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_TA_TIME_PROT_LEVEL,
-	UTEE_PROP_TEE_CRYPTOGRAPHY_ECC,
-	UTEE_PROP_TEE_TS_ANTIROLL_PROT_LEVEL,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_TRUSTEDOS_MANUFACTURER,
-	UTEE_PROP_TEE_FW_IMPL_VERSION,
-	UTEE_PROP_TEE_FW_IMPL_BIN_VERSION,
-	UTEE_PROP_TEE_FW_MANUFACTURER,
-	UTEE_PROP_CLIENT_ID,
-	UTEE_PROP_TA_APP_ID,
-};
 
 static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
 				      void *buf, size_t *blen)
@@ -272,40 +202,6 @@ static TEE_Result get_prop_ta_app_id(struct tee_ta_session *sess,
 	*blen = sizeof(TEE_UUID);
 	return tee_svc_copy_to_user(sess, buf, &sess->ctx->uuid,
 				    sizeof(TEE_UUID));
-}
-
-TEE_Result syscall_get_property_obsolete(unsigned long prop,
-					 void *buf, size_t blen)
-{
-	struct tee_ta_session *sess;
-	TEE_Result res;
-
-	if (prop > ARRAY_SIZE(tee_props_lut)-1)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	switch (prop) {
-	case UTEE_PROP_TEE_DEV_ID:
-		return get_prop_tee_dev_id(sess, buf, &blen);
-
-	case UTEE_PROP_TEE_SYS_TIME_PROT_LEVEL:
-		return get_prop_tee_sys_time_prot_level(sess, buf, &blen);
-
-	case UTEE_PROP_CLIENT_ID:
-		return get_prop_client_id(sess, buf, &blen);
-
-	case UTEE_PROP_TA_APP_ID:
-		return get_prop_ta_app_id(sess, buf, &blen);
-
-	default:
-		if (blen < tee_props_lut[prop].len)
-			return TEE_ERROR_SHORT_BUFFER;
-		return tee_svc_copy_to_user(sess, buf, tee_props_lut[prop].data,
-					    tee_props_lut[prop].len);
-	}
 }
 
 /* Properties of the set TEE_PROPSET_CURRENT_CLIENT */

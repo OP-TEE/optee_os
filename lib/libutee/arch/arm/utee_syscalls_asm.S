@@ -33,11 +33,10 @@
 
         UTEE_SYSCALL utee_panic, TEE_SCN_PANIC, 1
 
-        UTEE_SYSCALL utee_dummy, TEE_SCN_DUMMY, 1
+        UTEE_SYSCALL utee_get_property, TEE_SCN_GET_PROPERTY, 7
 
-        UTEE_SYSCALL utee_dummy_7args, TEE_SCN_DUMMY_7ARGS, 7
-
-        UTEE_SYSCALL utee_nocall, TEE_SCN_MAX + 1, 0
+        UTEE_SYSCALL utee_get_property_name_to_index, \
+                TEE_SCN_GET_PROPERTY_NAME_TO_INDEX, 4
 
         UTEE_SYSCALL utee_open_ta_session, TEE_SCN_OPEN_TA_SESSION, 5
 
@@ -188,8 +187,3 @@
                 TEE_SCN_SE_CHANNEL_CLOSE, 1
 
         UTEE_SYSCALL utee_cache_operation, TEE_SCN_CACHE_OPERATION, 3
-
-        UTEE_SYSCALL utee_get_property, TEE_SCN_GET_PROPERTY, 7
-
-        UTEE_SYSCALL utee_get_property_name_to_index, \
-                TEE_SCN_GET_PROPERTY_NAME_TO_INDEX, 4
