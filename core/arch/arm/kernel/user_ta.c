@@ -175,11 +175,6 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		if (init_attrs)
-			mattr = TEE_MATTR_PRW;
-		else {
-		}
-
 		mattr = elf_flags_to_mattr(flags, init_attrs);
 		res = tee_mmu_map_add_segment(utc, pa, offs, size, mattr);
 		if (res != TEE_SUCCESS)
