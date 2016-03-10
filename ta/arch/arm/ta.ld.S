@@ -10,7 +10,7 @@ OUTPUT_ARCH(aarch64)
 PHDRS {
 	/*
 	 * Exec and rodata headers are hard coded to RX and RO
-	 * respectively.  This is needed becuase the binary is relocatable
+	 * respectively. This is needed because the binary is relocatable
 	 * and the linker would automatically make any header writeable
 	 * that need to be updated during relocation.
 	 */
