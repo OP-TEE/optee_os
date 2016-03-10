@@ -384,12 +384,18 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* FIQ has a +4 offset for lr compared to preferred return address */
 	sub     lr, lr, #4
-	push	{r0-r12, lr}
+	/*
+	 * We're saving {r0-r3} and the banked fiq registers {r8-r12}. The
+	 * banked fiq registers need to be saved because the secure monitor
+	 * doesn't save those. The treatment of the banked fiq registers is
+	 * somewhat analogous to the lazy save of VFP registers.
+	 */
+	push	{r0-r3, r8-r12, lr}
 	bl	thread_check_canaries
 	ldr	lr, =thread_fiq_handler_ptr
 	ldr	lr, [lr]
 	blx	lr
-	pop	{r0-r12, lr}
+	pop	{r0-r3, r8-r12, lr}
 	movs	pc, lr
 UNWIND(	.fnend)
 END_FUNC thread_fiq_handler

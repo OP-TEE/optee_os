@@ -36,6 +36,9 @@ struct sm_nsec_ctx {
 	uint32_t irq_spsr;
 	uint32_t irq_sp;
 	uint32_t irq_lr;
+	uint32_t fiq_spsr;
+	uint32_t fiq_sp;
+	uint32_t fiq_lr;
 	uint32_t svc_spsr;
 	uint32_t svc_sp;
 	uint32_t svc_lr;
@@ -69,6 +72,9 @@ struct sm_sec_ctx {
 	uint32_t irq_spsr;
 	uint32_t irq_sp;
 	uint32_t irq_lr;
+	uint32_t fiq_spsr;
+	uint32_t fiq_sp;
+	uint32_t fiq_lr;
 	uint32_t svc_spsr;
 	uint32_t svc_sp;
 	uint32_t svc_lr;

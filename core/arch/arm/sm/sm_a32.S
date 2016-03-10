@@ -43,6 +43,10 @@ UNWIND(	.cantunwind)
 	mrs	r2, spsr
 	stm	r0!, {r2, sp, lr}
 
+	cps	#CPSR_MODE_FIQ
+	mrs	r2, spsr
+	stm	r0!, {r2, sp, lr}
+
 	cps	#CPSR_MODE_SVC
 	mrs	r2, spsr
 	stm	r0!, {r2, sp, lr}
@@ -71,6 +75,10 @@ UNWIND(	.cantunwind)
 	ldm	r0!, {sp, lr}
 
 	cps	#CPSR_MODE_IRQ
+	ldm	r0!, {r2, sp, lr}
+	msr	spsr_fsxc, r2
+
+	cps	#CPSR_MODE_FIQ
 	ldm	r0!, {r2, sp, lr}
 	msr	spsr_fsxc, r2
 
@@ -183,7 +191,7 @@ UNWIND(	.cantunwind)
 
 	/* Update SCR */
 	read_scr r1
-	bic	r1, r1, #(SCR_NS | SCR_FIQ) /* Set NS and FIQ bit in SCR */
+	bic	r1, r1, #(SCR_NS | SCR_FIQ) /* Clear NS and FIQ bit in SCR */
 	write_scr r1
 
 	/* Save non-secure context */
