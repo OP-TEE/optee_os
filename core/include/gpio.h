@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,44 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef UTIL_H
-#define UTIL_H
 
-#ifndef MAX
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
+#ifndef __GPIO_H__
+#define __GPIO_H__
 
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
-#endif
+enum gpio_dir {
+	GPIO_DIR_OUT,
+	GPIO_DIR_IN
+};
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+enum gpio_level {
+	GPIO_LEVEL_LOW,
+	GPIO_LEVEL_HIGH
+};
 
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
+struct gpio_ops {
+	enum gpio_dir (*get_direction)(unsigned int gpio_pin);
+	void (*set_direction)(unsigned int gpio_pin, enum gpio_dir direction);
+	enum gpio_level (*get_value)(unsigned int gpio_pin);
+	void (*set_value)(unsigned int gpio_pin, enum gpio_level value);
+};
 
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
+enum gpio_dir gpio_get_direction(unsigned int gpio_pin);
+void gpio_set_direction(unsigned int gpio_pin, enum gpio_dir direction);
+enum gpio_level gpio_get_value(unsigned int gpio_pin);
+void gpio_set_value(unsigned int gpio_pin, enum gpio_level value);
+void gpio_init(const struct gpio_ops *ops);
 
-/* x has to be of an unsigned type */
-#define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
-
-#define ALIGNMENT_IS_OK(p, type) \
-	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
-
-#define TO_STR(x) _TO_STR(x)
-#define _TO_STR(x) #x
-
-#define container_of(ptr, type, member) \
-	(__extension__({ \
-		const typeof(((type *)0)->member) *__ptr = (ptr); \
-		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
-	}))
-
-#define BIT(nr)			(1UL << (nr))
-
-#endif /*UTIL_H*/
+#endif	/* __GPIO_H__ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,44 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef UTIL_H
-#define UTIL_H
 
-#ifndef MAX
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
+#ifndef __PL061_GPIO_H__
+#define __PL061_GPIO_H__
 
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
-#endif
+#include <gpio.h>
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+void pl061_gpio_register(vaddr_t base_addr, unsigned int gpio_dev);
+void pl061_gpio_init(void);
 
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
-
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
-
-/* x has to be of an unsigned type */
-#define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
-
-#define ALIGNMENT_IS_OK(p, type) \
-	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
-
-#define TO_STR(x) _TO_STR(x)
-#define _TO_STR(x) #x
-
-#define container_of(ptr, type, member) \
-	(__extension__({ \
-		const typeof(((type *)0)->member) *__ptr = (ptr); \
-		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
-	}))
-
-#define BIT(nr)			(1UL << (nr))
-
-#endif /*UTIL_H*/
+#endif	/* __PL061_GPIO_H__ */
