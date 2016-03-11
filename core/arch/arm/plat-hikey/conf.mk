@@ -21,9 +21,5 @@ $(call force,CFG_ARM32_core,y)
 endif
 
 libtomcrypt_with_optimize_size ?= y
-CFG_CRYPTO_AES_ARM64_CE ?= $(CFG_ARM64_core)
-CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_ARM32_core)
-CFG_CRYPTO_SHA1_ARM64_CE ?= $(CFG_ARM64_core)
-CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_ARM32_core)
-CFG_CRYPTO_SHA256_ARM64_CE ?= $(CFG_ARM64_core)
+CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
