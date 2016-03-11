@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,45 +23,71 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * GPIO -- General Purpose Input/Output
+ *
+ * Defines a simple and generic interface to access GPIO device.
+ *
  */
-#ifndef UTIL_H
-#define UTIL_H
 
-#ifndef MAX
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
+#include <assert.h>
+#include <trace.h>
+#include <gpio.h>
 
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
-#endif
+/*
+ * The gpio implementation
+ */
+static const struct gpio_ops *ops;
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+int gpio_get_direction(int gpio)
+{
+	assert(ops);
+	assert(ops->get_direction != 0);
+	assert(gpio >= 0);
 
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
+	return ops->get_direction(gpio);
+}
 
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
+void gpio_set_direction(int gpio, int direction)
+{
+	assert(ops);
+	assert(ops->set_direction != 0);
+	assert((direction == GPIO_DIR_OUT) || (direction == GPIO_DIR_IN));
+	assert(gpio >= 0);
 
-/* x has to be of an unsigned type */
-#define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
+	ops->set_direction(gpio, direction);
+}
 
-#define ALIGNMENT_IS_OK(p, type) \
-	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
+int gpio_get_value(int gpio)
+{
+	assert(ops);
+	assert(ops->get_value != 0);
+	assert(gpio >= 0);
 
-#define TO_STR(x) _TO_STR(x)
-#define _TO_STR(x) #x
+	return ops->get_value(gpio);
+}
 
-#define container_of(ptr, type, member) \
-	(__extension__({ \
-		const typeof(((type *)0)->member) *__ptr = (ptr); \
-		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
-	}))
+void gpio_set_value(int gpio, int value)
+{
+	assert(ops);
+	assert(ops->set_value != 0);
+	assert((value == GPIO_LEVEL_LOW) || (value == GPIO_LEVEL_HIGH));
+	assert(gpio >= 0);
 
-#define BIT(nr)			(1UL << (nr))
+	ops->set_value(gpio, value);
+}
 
-#endif /*UTIL_H*/
+/*
+ * Initialize the gpio. The fields in the provided gpio
+ * ops pointer must be valid.
+ */
+void gpio_init(const struct gpio_ops *ops_ptr)
+{
+	assert(ops_ptr != 0  &&
+		(ops_ptr->get_direction != 0) &&
+		(ops_ptr->set_direction != 0) &&
+		(ops_ptr->get_value != 0) &&
+		(ops_ptr->set_value != 0));
+
+	ops = ops_ptr;
+}

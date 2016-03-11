@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,44 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef UTIL_H
-#define UTIL_H
 
-#ifndef MAX
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
+#ifndef __GPIO_H__
+#define __GPIO_H__
 
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
-#endif
+enum {
+	GPIO_DIR_OUT,
+	GPIO_DIR_IN
+};
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+enum {
+	GPIO_LEVEL_LOW,
+	GPIO_LEVEL_HIGH
+};
 
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
+struct gpio_ops {
+	int (*get_direction)(int gpio);
+	void (*set_direction)(int gpio, int direction);
+	int (*get_value)(int gpio);
+	void (*set_value)(int gpio, int value);
+};
 
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
+int gpio_get_direction(int gpio);
+void gpio_set_direction(int gpio, int direction);
+int gpio_get_value(int gpio);
+void gpio_set_value(int gpio, int value);
+void gpio_init(const struct gpio_ops *ops);
 
-/* x has to be of an unsigned type */
-#define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
-
-#define ALIGNMENT_IS_OK(p, type) \
-	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
-
-#define TO_STR(x) _TO_STR(x)
-#define _TO_STR(x) #x
-
-#define container_of(ptr, type, member) \
-	(__extension__({ \
-		const typeof(((type *)0)->member) *__ptr = (ptr); \
-		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
-	}))
-
-#define BIT(nr)			(1UL << (nr))
-
-#endif /*UTIL_H*/
+#endif	/* __GPIO_H__ */
