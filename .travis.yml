@@ -126,6 +126,7 @@ script:
   - $make CFG_RPMB_FS=y
   - $make CFG_RPMB_FS=y CFG_ENC_FS=n
   - $make CFG_RPMB_FS=y CFG_ENC_FS=n CFG_RPMB_TESTKEY=y
+  - $make CFG_DT=y
 
   # QEMU-ARMv8A
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y

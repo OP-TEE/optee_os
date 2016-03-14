@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <inttypes.h>
+#include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
@@ -43,6 +44,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <console.h>
 
 #include <platform_config.h>
 
@@ -313,7 +315,8 @@ static void init_runtime(uint32_t pageable_part __unused)
 }
 #endif
 
-static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
+static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
+				uint32_t fdt __unused)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -325,6 +328,10 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry)
 	init_vfp_sec();
 
 	init_runtime(pageable_part);
+
+	if (dt_validate((void *)(uintptr_t)fdt) < 0)
+		panic();
+	console_init();
 
 	IMSG("Initializing (%s)\n", core_v_str);
 
@@ -360,9 +367,11 @@ static void init_secondary_helper(uint32_t nsec_entry)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-uint32_t *generic_boot_init_primary(uint32_t pageable_part)
+uint32_t *generic_boot_init_primary(uint32_t pageable_part,
+				    uint32_t u __unused,
+				    uint32_t fdt)
 {
-	init_primary_helper(pageable_part, PADDR_INVALID);
+	init_primary_helper(pageable_part, PADDR_INVALID, fdt);
 	return thread_vector_table;
 }
 
@@ -374,9 +383,10 @@ uint32_t generic_boot_cpu_on_handler(uint32_t a0 __maybe_unused,
 	return 0;
 }
 #else
-void generic_boot_init_primary(uint32_t pageable_part, uint32_t nsec_entry)
+void generic_boot_init_primary(uint32_t pageable_part, uint32_t nsec_entry,
+			       uint32_t fdt)
 {
-	init_primary_helper(pageable_part, nsec_entry);
+	init_primary_helper(pageable_part, nsec_entry, fdt);
 }
 
 void generic_boot_init_secondary(uint32_t nsec_entry)

@@ -60,7 +60,7 @@ static void main_fiq(void)
 	panic();
 }
 
-void console_init(void)
+void earlycon_init(void)
 {
 	/*
 	 * Do nothing, uart driver shared with normal world,
@@ -68,14 +68,14 @@ void console_init(void)
 	 */
 }
 
-void console_putc(int ch)
+void earlycon_putc(int ch)
 {
 	ns16550_putc(ch, CONSOLE_UART_BASE);
 	if (ch == '\n')
 		ns16550_putc('\r', CONSOLE_UART_BASE);
 }
 
-void console_flush(void)
+void earlycon_flush(void)
 {
 	ns16550_flush(CONSOLE_UART_BASE);
 }

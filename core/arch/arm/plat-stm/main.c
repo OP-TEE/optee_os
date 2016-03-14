@@ -60,17 +60,17 @@ static void main_fiq(void)
 	panic();
 }
 
-void console_init(void)
+void earlycon_init(void)
 {
 	asc_init();
 }
 
-void console_putc(int ch)
+void earlycon_putc(int ch)
 {
 	__asc_xmit_char((char)ch);
 }
 
-void console_flush(void)
+void earlycon_flush(void)
 {
 	__asc_flush();
 }

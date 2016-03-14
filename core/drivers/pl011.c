@@ -24,7 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <kernel/dt.h>
 #include <drivers/pl011.h>
+#include <drivers/serial.h>
 #include <io.h>
 
 #define UART_DR		0x00 /* data register */
@@ -145,3 +147,20 @@ int pl011_getchar(vaddr_t base)
 	return read32(base + UART_DR) & 0xff;
 }
 
+#if defined(CFG_DT)
+
+static const struct serial_driver pl011_driver = {
+	.init = pl011_init,
+	.putc = pl011_putc,
+	.flush = pl011_flush,
+	.have_rx_data = pl011_have_rx_data,
+	.getchar = pl011_getchar
+};
+
+static const struct dt_driver __dt_driver __used pl011_dt_driver = {
+	.name = "pl011",
+	.compatible = "arm,pl011",
+	.driver = &pl011_driver
+};
+
+#endif

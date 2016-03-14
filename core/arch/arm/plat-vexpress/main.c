@@ -120,21 +120,21 @@ static void main_fiq(void)
 	DMSG("return");
 }
 
-void console_init(void)
+void earlycon_init(void)
 {
 	pl011_init(CONSOLE_UART_BASE,
 		   CONSOLE_UART_CLK_IN_HZ,
 		   CONSOLE_BAUDRATE);
 }
 
-void console_putc(int ch)
+void earlycon_putc(int ch)
 {
 	pl011_putc(ch, CONSOLE_UART_BASE);
 	if (ch == '\n')
 		pl011_putc('\r', CONSOLE_UART_BASE);
 }
 
-void console_flush(void)
+void earlycon_flush(void)
 {
 	pl011_flush(CONSOLE_UART_BASE);
 }

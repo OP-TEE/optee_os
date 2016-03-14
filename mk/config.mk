@@ -144,3 +144,8 @@ CFG_TA_FLOAT_SUPPORT ?= y
 ifeq ($(CFG_TEE_CORE_DEBUG),1)
 CFG_CORE_UNWIND ?= y
 endif
+
+# Device Tree support
+# When enabled, the TEE _start function expects to find the address of a
+# Device Tree Blob (DTB) in register r2. The DT parsing code relies on libfdt.
+CFG_DT ?= n

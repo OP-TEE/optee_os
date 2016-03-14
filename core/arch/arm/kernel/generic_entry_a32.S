@@ -49,6 +49,9 @@ gdb_bootargs:
 	.word 0
 #endif
 
+fdt_addr:
+	.word 0
+
 .section .text.boot
 FUNC _start , :
 	b	reset
@@ -153,6 +156,8 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov	r4, r0		/* Save pageable part address */
 	mov	r5, lr		/* Save ns-entry address */
+	ldr	r0, =fdt_addr	/* Save DT address */
+	stm	r0, {r2}
 
 #ifdef CFG_TEE_GDB_BOOT
 	/*
@@ -163,12 +168,12 @@ UNWIND(	.cantunwind)
 	mov	r6, r0
 	mov	r7, r1
 	mov	r8, r2
-#ifdef CFG_WITH_PAGER
+#if defined(CFG_WITH_PAGER) || defined (CFG_DT)
 	/*
-	 * r0 is used for different purposes when pager or GDB boot are enabled
-	 * so they are incompatible
+	 * r0/r2 are used for different purposes by GDB boot and pager/DT
+	 * so these configurations are incompatible
 	 */
-#error CFG_WITH_PAGER and CFG_TEE_GDB_BOOT cannot be enabled simultaneously
+#error CFG_TEE_GDB_BOOT and (CFG_WITH_PAGER || CFG_DT) are incompatible
 #endif
 #endif
 
@@ -243,8 +248,8 @@ copy_init:
 	/* complete ARM secure MP common configuration */
 	bl	plat_cpu_reset_late
 
-	/* Enable Console */
-	bl	console_init
+	/* Enable early console */
+	bl	earlycon_init
 
 #ifdef CFG_PL310
 	bl	arm_cl2_config
@@ -288,6 +293,8 @@ copy_init:
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
+	ldr	r3, =fdt_addr	/* DT address */
+	ldm	r3, {r2}
 	bl	generic_boot_init_primary
 	mov	r4, r0		/* save entry test vector */
 

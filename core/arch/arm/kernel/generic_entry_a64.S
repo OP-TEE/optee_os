@@ -36,6 +36,7 @@
 .section .text.boot
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
+	mov	x20, x2		/* Save DT address */
 
 	adr	x0, reset_vect_table
 	msr	vbar_el1, x0
@@ -102,8 +103,8 @@ copy_init:
 	sub	x1, x1, x0
 	bl	inv_dcache_range
 
-	/* Enable Console */
-	bl	console_init
+	/* Enable early console */
+	bl	earlycon_init
 
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
@@ -113,6 +114,7 @@ copy_init:
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
+	mov	x2, x20		/* DT address */
 	bl	generic_boot_init_primary
 
 	/*

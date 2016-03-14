@@ -129,9 +129,39 @@
 
 #endif /* CFG_WITH_PAGER */
 
+#ifdef CFG_DT
+/*
+ * Statically reserve ranges for all UARTs (except BT) in case they are needed
+ * for the console (DT /chosen/[secure-]stdout-path).
+ *
+ * FIXME: this should be done dynamically when the MMU code supports it.
+ */
+/* UART0: onboard */
+#define DEVICE0_BASE		ROUNDDOWN(0xf8015000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE0_TYPE		MEM_AREA_IO_NSEC
+
+/* UART1 is Bluetooth */
+
+/* UART2: LS expansion UART0 */
+#define DEVICE1_BASE		ROUNDDOWN(0xf7112000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE1_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE1_TYPE		MEM_AREA_IO_NSEC
+
+/* UART3: LS expansion UART1 */
+#define DEVICE2_BASE		ROUNDDOWN(0xf7113000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
+#define DEVICE2_TYPE		MEM_AREA_IO_NSEC
+
+/* UART4 is ?? */
+
+#else
+
 #define DEVICE0_BASE		ROUNDDOWN(CONSOLE_UART_BASE, \
 					  CORE_MMU_DEVICE_SIZE)
 #define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE0_TYPE		MEM_AREA_IO_NSEC
+
+#endif /* !CFG_DT */
 
 #endif /* PLATFORM_CONFIG_H */

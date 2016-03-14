@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,56 +24,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef DRIVERS_SERIAL_H
+#define DRIVERS_SERIAL_H
 
-#include <console.h>
-#include <drivers/pl011.h>
-#include <kernel/generic_boot.h>
-#include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
-#include <mm/tee_pager.h>
-#include <platform_config.h>
-#include <stdint.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
+#include <types_ext.h>
 
-static void main_fiq(void);
-
-static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
-	.fast_smc = tee_entry_fast,
-	.fiq = main_fiq,
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
+struct serial_driver {
+	/*
+	 * init - Initialize or re-initialize UART
+	 * @base: UART base address
+	 * @uart_clk: clock frequency in Hz (not used when baudrate == 0)
+	 * @baudrate: baud rate or 0 for implementation-specific default
+	 */
+	void (*init)(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
+	void (*putc)(int ch, vaddr_t base);
+	void (*flush)(vaddr_t base);
+	bool (*have_rx_data)(vaddr_t base);
+	int  (*getchar)(vaddr_t base);
 };
 
-const struct thread_handlers *generic_boot_get_handlers(void)
-{
-	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
-}
-
-void earlycon_init(void)
-{
-	pl011_init(CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
-		   CONSOLE_BAUDRATE);
-}
-
-void earlycon_putc(int ch)
-{
-	pl011_putc(ch, CONSOLE_UART_BASE);
-	if (ch == '\n')
-		pl011_putc('\r', CONSOLE_UART_BASE);
-}
-
-void earlycon_flush(void)
-{
-	pl011_flush(CONSOLE_UART_BASE);
-}
+#endif /* DRIVERS_SERIAL_H */
