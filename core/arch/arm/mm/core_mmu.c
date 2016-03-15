@@ -27,8 +27,8 @@
  */
 
 /*
- * This core mmu supports static section mapping (1MByte).
- *       It should should finer mapping (4kByte coarse pages).
+ * This core mmu supports static section mapping (1MByte) and finer mapping
+ * with 4k pages.
  *       It should also allow core to map/unmap (and va/pa) at run-time.
  */
 #include <platform_config.h>
@@ -41,6 +41,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/core_memprot.h>
+#include <mm/pgt_cache.h>
 #include <mm/tee_pager.h>
 #include <trace.h>
 #include <kernel/tee_misc.h>
@@ -487,6 +488,118 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 	return ret;
 }
 #endif /*CFG_PL310*/
+
+static void set_region(struct core_mmu_table_info *tbl_info,
+		struct tee_mmap_region *region)
+{
+	unsigned end;
+	unsigned idx;
+	paddr_t pa;
+
+	/* va, len and pa should be block aligned */
+	assert(!core_mmu_get_block_offset(tbl_info, region->va));
+	assert(!core_mmu_get_block_offset(tbl_info, region->size));
+	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
+
+	idx = core_mmu_va2idx(tbl_info, region->va);
+	end = core_mmu_va2idx(tbl_info, region->va + region->size);
+	pa = region->pa;
+
+	while (idx < end) {
+		core_mmu_set_entry(tbl_info, idx, pa, region->attr);
+		idx++;
+		pa += 1 << tbl_info->shift;
+	}
+}
+
+#ifdef CFG_SMALL_PAGE_USER_TA
+static void set_pg_region(struct core_mmu_table_info *dir_info,
+			struct tee_mmap_region *region, struct pgt **pgt,
+			struct core_mmu_table_info *pg_info)
+{
+	struct tee_mmap_region r = *region;
+	vaddr_t end = r.va + r.size;
+	uint32_t pgt_attr = (r.attr & TEE_MATTR_SECURE) | TEE_MATTR_TABLE;
+
+	while (r.va < end) {
+		if (!pg_info->table ||
+		     r.va >= (pg_info->va_base + CORE_MMU_PGDIR_SIZE)) {
+			/*
+			 * We're assigning a new translation table.
+			 */
+			unsigned idx;
+
+			assert(*pgt); /* We should have alloced enough */
+
+			/* Virtual addresses must grow */
+			assert(r.va > pg_info->va_base);
+
+			idx = core_mmu_va2idx(dir_info, r.va);
+			pg_info->table = (*pgt)->tbl;
+			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
+			*pgt = SLIST_NEXT(*pgt, link);
+
+			memset(pg_info->table, 0, PGT_SIZE);
+			core_mmu_set_entry(dir_info, idx,
+					   virt_to_phys(pg_info->table),
+					    pgt_attr);
+		}
+
+		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
+			     end - r.va);
+		set_region(pg_info, &r);
+		r.va += r.size;
+		r.pa += r.size;
+	}
+}
+
+void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
+			struct tee_mmu_info *mmu)
+{
+	struct core_mmu_table_info pg_info;
+	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
+	struct pgt *pgt;
+	size_t n;
+	vaddr_t base;
+	vaddr_t end;
+
+	/* Find the last valid entry */
+	n = mmu->size;
+	do {
+		n--;
+	} while (n && !mmu->table[n].size);
+
+	/*
+	 * Allocate all page tables in advance.
+	 */
+	base = ROUNDDOWN(mmu->table[0].va, CORE_MMU_PGDIR_SIZE);
+	end = ROUNDUP(mmu->table[n].va + mmu->table[n].size,
+		      CORE_MMU_PGDIR_SIZE);
+	pgt_alloc(pgt_cache, (end - base) >> CORE_MMU_PGDIR_SHIFT);
+	pgt = SLIST_FIRST(pgt_cache);
+
+	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
+
+	for (n = 0; n < mmu->size; n++) {
+		if (!mmu->table[n].size)
+			continue;
+		set_pg_region(dir_info, mmu->table + n, &pgt, &pg_info);
+	}
+}
+
+#else
+void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
+			struct tee_mmu_info *mmu)
+{
+	unsigned n;
+
+	for (n = 0; n < mmu->size; n++) {
+		if (!mmu->table[n].size)
+			continue;
+		set_region(dir_info, mmu->table + n);
+	}
+}
+#endif
 
 static bool arm_va2pa_helper(void *va, paddr_t *pa)
 {

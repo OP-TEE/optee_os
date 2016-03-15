@@ -50,6 +50,7 @@
 #include <util.h>
 
 #include "elf_load.h"
+#include "elf_common.h"
 
 #define STACK_ALIGNMENT   (sizeof(long) * 2)
 
@@ -122,11 +123,69 @@ out:
 	return TEE_SUCCESS;
 }
 
+static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
+{
+	uint32_t mattr = TEE_MATTR_PRW;
+
+	if (!init_attrs) {
+		if (flags & PF_X)
+			mattr |= TEE_MATTR_UX;
+		if (flags & PF_W)
+			mattr |= TEE_MATTR_UW;
+		if (flags & PF_R)
+			mattr |= TEE_MATTR_UR;
+	}
+
+	return mattr;
+}
+
+static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
+			struct elf_load_state *elf_state, bool init_attrs)
+{
+	TEE_Result res;
+	paddr_t pa;
+	uint32_t mattr;
+	size_t idx = 0;
+
+	tee_mmu_map_clear(utc);
+	/*
+	 * Add stack segment
+	 */
+	pa = virt_to_phys((void *)tee_mm_get_smem(utc->mm_stack));
+	if (!pa)
+		return TEE_ERROR_SECURITY;
+	mattr = elf_flags_to_mattr(PF_W | PF_R, init_attrs);
+	tee_mmu_map_stack(utc, pa, tee_mm_get_bytes(utc->mm_stack), mattr);
+
+	/*
+	 * Add code segment
+	 */
+	pa = virt_to_phys((void *)tee_mm_get_smem(utc->mm));
+	if (!pa)
+		return TEE_ERROR_SECURITY;
+	while (true) {
+		vaddr_t offs;
+		size_t size;
+		uint32_t flags;
+
+		res = elf_load_get_next_segment(elf_state, &idx, &offs, &size,
+						&flags);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			return TEE_SUCCESS;
+		if (res != TEE_SUCCESS)
+			return res;
+
+		mattr = elf_flags_to_mattr(flags, init_attrs);
+		res = tee_mmu_map_add_segment(utc, pa, offs, size, mattr);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+}
+
 static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 			const struct shdr *nmem_shdr)
 {
 	TEE_Result res;
-	struct tee_ta_param param = { 0 };
 	size_t hash_ctx_size;
 	void *hash_ctx = NULL;
 	uint32_t hash_algo;
@@ -204,7 +263,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_mmu_map(utc, &param);
+	res = load_elf_segments(utc, elf_state, true /* init attrs */);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -225,8 +284,18 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size) != 0)
+	if (memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size) != 0) {
 		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
+
+	/*
+	 * Replace the init attributes with attributes used when the TA is
+	 * running.
+	 */
+	res = load_elf_segments(utc, elf_state, false /* final attrs */);
+	if (res != TEE_SUCCESS)
+		goto out;
 
 	cache_maintenance_l1(DCACHE_AREA_CLEAN,
 			     (void *)tee_mmu_get_load_addr(&utc->ctx), vasize);
@@ -424,7 +493,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
 
 	/* Map user space memory */
-	res = tee_mmu_map(utc, param);
+	res = tee_mmu_map_param(utc, param);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 

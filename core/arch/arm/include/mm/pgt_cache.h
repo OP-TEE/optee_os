@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,57 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ELF_LOAD_H
-#define ELF_LOAD_H
+#ifndef MM_PGT_CACHE_H
+#define MM_PGT_CACHE_H
 
+#include <sys/queue.h>
 #include <types_ext.h>
-#include <tee_api_types.h>
+#include <util.h>
 
-struct elf_load_state;
+#ifdef CFG_WITH_LPAE
+#define PGT_SIZE	(4 * 1024)
+#else
+#define PGT_SIZE	(1 * 1024)
+#define PGT_NUM_PGT_PER_PAGE	4
+#endif
 
-TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
-			size_t nwdata_len, struct elf_load_state **state);
-TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
-			void **head, size_t *vasize, bool *is_32bit);
-TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase);
-TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
-			vaddr_t *vaddr, size_t *size, uint32_t *flags);
-void elf_load_final(struct elf_load_state *state);
+/*
+ * Reserve 2 page tables per thread, but at least 4 page tables in total
+ */
+#if CFG_NUM_THREADS < 2
+# define PGT_CACHE_SIZE		4
+#else
+# if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
+#  define PGT_CACHE_SIZE	ROUNDUP(CFG_NUM_THREADS * 2, PGT_NUM_PGT_PER_PAGE)
+# else
+#  define PGT_CACHE_SIZE	CFG_NUM_THREADS * 2
+# endif
+#endif
 
-#endif /*ELF_LOAD_H*/
+struct pgt {
+	void *tbl;
+#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
+	struct pgt_parent *parent;
+#endif
+	SLIST_ENTRY(pgt) link;
+};
+
+SLIST_HEAD(pgt_cache, pgt);
+
+static inline bool pgt_check_avail(size_t num_tbls)
+{
+	return PGT_CACHE_SIZE >= num_tbls;
+}
+
+void pgt_alloc(struct pgt_cache *pgt_cache, size_t num_tbls);
+void pgt_free(struct pgt_cache *pgt_cache);
+
+#ifdef CFG_SMALL_PAGE_USER_TA
+void pgt_init(void);
+#else
+static inline void pgt_init(void)
+{
+}
+#endif
+
+#endif /*MM_PGT_CACHE_H*/

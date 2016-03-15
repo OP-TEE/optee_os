@@ -72,6 +72,7 @@ struct elf_ehdr {
 /* Replicates the fields we need from Elf{32,64}_Phdr */
 struct elf_phdr {
 	uint32_t p_type;
+	uint32_t p_flags;
 	uintptr_t p_vaddr;
 	size_t p_filesz;
 	size_t p_memsz;
@@ -120,6 +121,7 @@ static uint32_t get_shdr_type(struct elf_load_state *state, size_t idx)
 		(dst)->p_filesz = (src)->p_filesz; \
 		(dst)->p_memsz = (src)->p_memsz; \
 		(dst)->p_offset = (src)->p_offset; \
+		(dst)->p_flags = (src)->p_flags; \
 	} while (0)
 static void copy_phdr(struct elf_phdr *phdr, struct elf_load_state *state,
 			size_t idx)
@@ -379,6 +381,30 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 		*is_32bit = state->is_32bit;
 	}
 	return res;
+}
+
+TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
+			vaddr_t *vaddr, size_t *size, uint32_t *flags)
+{
+	struct elf_ehdr ehdr;
+
+	copy_ehdr(&ehdr, state);
+	while (*idx < ehdr.e_phnum) {
+		struct elf_phdr phdr;
+
+		copy_phdr(&phdr, state, *idx);
+		(*idx)++;
+		if (phdr.p_type == PT_LOAD) {
+			if (vaddr)
+				*vaddr = phdr.p_vaddr;
+			if (size)
+				*size = phdr.p_memsz;
+			if (flags)
+				*flags = phdr.p_flags;
+			return TEE_SUCCESS;
+		}
+	}
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
 static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,

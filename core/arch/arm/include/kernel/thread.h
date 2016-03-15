@@ -35,6 +35,7 @@
 #include <optee_msg.h>
 #include <kernel/mutex.h>
 #include <kernel/vfp.h>
+#include <mm/pgt_cache.h>
 #endif
 
 #define THREAD_ID_0		0
@@ -46,6 +47,9 @@ extern uint32_t thread_vector_table[];
 struct thread_specific_data {
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
+#ifdef CFG_SMALL_PAGE_USER_TA
+	struct pgt_cache pgt_cache;
+#endif
 };
 
 struct thread_user_vfp_state {

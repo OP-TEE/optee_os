@@ -48,6 +48,8 @@
 #else
 #define CORE_MMU_PGDIR_SHIFT	20
 #endif
+#define CORE_MMU_PGDIR_SIZE	(1 << CORE_MMU_PGDIR_SHIFT)
+#define CORE_MMU_PGDIR_MASK	(CORE_MMU_PGDIR_SIZE - 1)
 
 /* Devices are mapped using this granularity */
 #define CORE_MMU_DEVICE_SHIFT		CORE_MMU_PGDIR_SHIFT
@@ -55,12 +57,20 @@
 #define CORE_MMU_DEVICE_MASK		(CORE_MMU_DEVICE_SIZE - 1)
 
 /* TA user space code, data, stack and heap are mapped using this granularity */
+#ifdef CFG_SMALL_PAGE_USER_TA
+#define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
+#else
 #define CORE_MMU_USER_CODE_SHIFT	CORE_MMU_PGDIR_SHIFT
+#endif
 #define CORE_MMU_USER_CODE_SIZE		(1 << CORE_MMU_USER_CODE_SHIFT)
 #define CORE_MMU_USER_CODE_MASK		(CORE_MMU_USER_CODE_SIZE - 1)
 
 /* TA user space parameters are mapped using this granularity */
+#ifdef CFG_SMALL_PAGE_USER_TA
+#define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
+#else
 #define CORE_MMU_USER_PARAM_SHIFT	CORE_MMU_PGDIR_SHIFT
+#endif
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
@@ -354,5 +364,13 @@ typedef enum {
 	L2CACHE_CLEAN_INV = 0xE,
 	L2CACHE_AREA_CLEAN_INV = 0xF
 } t_cache_operation_id;
+
+#if defined(CFG_SMALL_PAGE_USER_TA) && !defined(CFG_WITH_PAGER)
+void core_mmu_init_pgt_list(void);
+#else
+static inline void core_mmu_init_pgt_list(void)
+{
+}
+#endif
 
 #endif /* CORE_MMU_H */

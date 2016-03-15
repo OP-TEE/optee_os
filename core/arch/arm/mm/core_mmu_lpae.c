@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,10 +63,12 @@
 #include <assert.h>
 #include <trace.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/pgt_cache.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <kernel/misc.h>
 #include <arm.h>
+#include <util.h>
 #include "core_mmu_private.h"
 
 #ifndef DEBUG_XLAT_TABLE
@@ -86,6 +88,7 @@
 
 #define INVALID_DESC		0x0
 #define BLOCK_DESC		0x1
+#define L3_BLOCK_DESC		0x3
 #define TABLE_DESC		0x3
 
 #define HIDDEN_DESC		0x4
@@ -243,6 +246,9 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_PHYS_BLOCK)
 		return INVALID_DESC | PHYSPAGE_DESC;
 
+	if (a & TEE_MATTR_TABLE)
+		return TABLE_DESC;
+
 	if (!(a & TEE_MATTR_VALID_BLOCK))
 		return 0;
 
@@ -255,7 +261,10 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_UW)
 		a |= TEE_MATTR_PW;
 
-	desc = level == 3 ? TABLE_DESC : BLOCK_DESC;
+	if (level == 3)
+		desc = L3_BLOCK_DESC;
+	else
+		desc = BLOCK_DESC;
 
 	if (!(a & (TEE_MATTR_PX | TEE_MATTR_UX)))
 		desc |= UPPER_ATTRS(XN);
@@ -527,78 +536,37 @@ void core_init_mmu_regs(void)
 }
 #endif /*ARM64*/
 
-static void set_region(struct core_mmu_table_info *tbl_info,
-		struct tee_mmap_region *region)
+void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
+		unsigned level, vaddr_t va_base, void *table)
 {
-	unsigned end;
-	unsigned idx;
-	paddr_t pa;
-
-	/* va, len and pa should be block aligned */
-	assert(!core_mmu_get_block_offset(tbl_info, region->va));
-	assert(!core_mmu_get_block_offset(tbl_info, region->size));
-	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
-
-	idx = core_mmu_va2idx(tbl_info, region->va);
-	end = core_mmu_va2idx(tbl_info, region->va + region->size);
-	pa = region->pa;
-
-	debug_print("set_region va %016" PRIxVA " pa %016" PRIxPA " size %016zu",
-		region->va, region->pa, region->size);
-
-	while (idx < end) {
-		core_mmu_set_entry(tbl_info, idx, pa, region->attr);
-		idx++;
-		pa += 1 << tbl_info->shift;
-	}
-}
-
-static uint64_t populate_user_map(struct tee_mmu_info *mmu)
-{
-	struct core_mmu_table_info tbl_info;
-	unsigned n;
-	struct tee_mmap_region region;
-	vaddr_t va_range_base;
-	size_t va_range_size;
-
-	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-
-	tbl_info.table = xlat_tables_ul1[thread_get_id()];
-	tbl_info.va_base = va_range_base;
-	tbl_info.level = 2;
-	tbl_info.shift = L2_XLAT_ADDRESS_SHIFT;
-	tbl_info.num_entries = XLAT_TABLE_ENTRIES;
-
-	/* Clear the table before use */
-	memset(tbl_info.table, 0, XLAT_TABLE_SIZE);
-
-	region.pa = 0;
-	region.va = va_range_base;
-	region.attr = 0;
-
-	for (n = 0; n < mmu->size; n++) {
-		if (!mmu->table[n].size)
-			continue;
-
-		/* Empty mapping for gaps */
-		region.size = mmu->table[n].va - region.va;
-		set_region(&tbl_info, &region);
-
-		set_region(&tbl_info, mmu->table + n);
-		region.va = mmu->table[n].va + mmu->table[n].size;
-		assert((region.va - va_range_base) <= va_range_size);
-	}
-	region.size = va_range_size - (region.va - va_range_base);
-	set_region(&tbl_info, &region);
-
-	return (uintptr_t)tbl_info.table | TABLE_DESC;
+	tbl_info->level = level;
+	tbl_info->table = table;
+	tbl_info->va_base = va_base;
+	tbl_info->shift = L1_XLAT_ADDRESS_SHIFT -
+			  (level - 1) * XLAT_TABLE_ENTRIES_SHIFT;
+	assert(level <= 3);
+	if (level == 1)
+		tbl_info->num_entries = NUM_L1_ENTRIES;
+	else
+		tbl_info->num_entries = XLAT_TABLE_ENTRIES;
 }
 
 void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
 		struct core_mmu_user_map *map)
 {
+
+	COMPILE_TIME_ASSERT(PGT_SIZE == sizeof(uint64_t) * XLAT_TABLE_ENTRIES);
+
 	if (mmu) {
-		map->user_map = populate_user_map(mmu);
+		struct core_mmu_table_info dir_info;
+		vaddr_t va_range_base;
+		void *tbl = xlat_tables_ul1[thread_get_id()];
+
+		core_mmu_get_user_va_range(&va_range_base, NULL);
+		core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
+		memset(tbl, 0, PGT_SIZE);
+		core_mmu_populate_user_map(&dir_info, mmu);
+		map->user_map = (paddr_t)dir_info.table | TABLE_DESC;
 		map->asid = asid & TTBR_ASID_MASK;
 	} else {
 		map->user_map = 0;
