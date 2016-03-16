@@ -131,6 +131,9 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		boffs = sizeof(buf) - 2;
 
 	buf[boffs] = '\n';
+	while (boffs && buf[boffs] == '\n')
+		boffs--;
+	boffs++;
 	buf[boffs + 1] = '\0';
 
 	trace_ext_puts(buf);
