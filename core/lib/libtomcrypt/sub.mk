@@ -113,7 +113,7 @@ _CFG_CRYPTO_WITH_CBC := $(call cryp-one-enabled, CBC CBC_MAC)
 _CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA ECC)
 _CFG_CRYPTO_WITH_FORTUNA_PRNG := $(call cryp-all-enabled, AES SHA256)
 
-cppflags-lib-$(CFG_CRYPTO_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE -DLTC_NO_FAST
+cppflags-lib-$(CFG_CRYPTO_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 
 global-incdirs-y += include
 
