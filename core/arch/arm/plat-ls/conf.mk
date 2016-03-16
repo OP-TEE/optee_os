@@ -15,4 +15,5 @@ $(call force,CFG_BOOT_SYNC_CPU,y)
 
 ta-targets = ta_arm32
 
+CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y

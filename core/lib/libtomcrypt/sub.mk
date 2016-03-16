@@ -1,4 +1,5 @@
 CFG_CRYPTO ?= y
+CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 
 ifeq (y,$(CFG_CRYPTO))
 

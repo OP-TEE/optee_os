@@ -20,6 +20,5 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y

@@ -13,4 +13,5 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 ta-targets = ta_arm32
 
+CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
