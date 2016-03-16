@@ -23,5 +23,5 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-libtomcrypt_with_optimize_size ?= y
+CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 CFG_WITH_STACK_CANARIES ?= y
