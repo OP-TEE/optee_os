@@ -172,9 +172,13 @@ typedef uint64_t uintmax_t;
 #define INTPTR_MAX  LONG_MAX
 #define UINTPTR_MAX ULONG_MAX
 
+/* 7.18.2.5  Limits of greatest-width integer types */
 #define INTMAX_MAX  INT64_MAX
 #define INTMAX_MIN  INT64_MIN
 #define UINTMAX_MAX UINT64_MAX
+
+/* 7.18.3  Limits of other integer types */
+#define SIZE_MAX	ULONG_MAX
 
 /*
  * 7.18.4 Macros for integer constants
