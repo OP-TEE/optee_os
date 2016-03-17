@@ -89,11 +89,12 @@ CFG_TEE_IMPL_DESCR ?= OPTEE
 
 # Trusted OS implementation version
 TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
-CFG_OPTEE_REVISION_MAJOR ?= $(shell echo $(TEE_IMPL_VERSION) | sed -n -E 's/^([0-9]+)\..*/\1/p')
-CFG_OPTEE_REVISION_MINOR ?= $(shell echo $(TEE_IMPL_VERSION) | sed -n -E 's/^[0-9]+\.([0-9]+).*/\1/p')
-ifneq (,$(findstring xx,x$(CFG_OPTEE_REVISION_MAJOR)x$(CFG_OPTEE_REVISION_MINOR)x))
-$(error Could not parse TEE_IMPL_VERSION ($(TEE_IMPL_VERSION)), expected format: <major>.<minor>[anything else])
-endif
+# The following values are not extracted from the "git describe" output because
+# we might be outside of a Git environment, or the tree may have been cloned
+# with limited depth not including any tag, so there is really no guarantee
+# that TEE_IMPL_VERSION contains the major and minor revision numbers.
+CFG_OPTEE_REVISION_MAJOR ?= 1
+CFG_OPTEE_REVISION_MINOR ?= 1
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
