@@ -138,6 +138,9 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	void *p;
 	size_t vasize;
 
+	if (!tee_vbuf_is_non_sec(nwdata, nwdata_len))
+		return TEE_ERROR_SECURITY;
+
 	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
 	    !crypto_ops.hash.update || !crypto_ops.hash.final) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
