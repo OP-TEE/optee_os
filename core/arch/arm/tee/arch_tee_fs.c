@@ -49,7 +49,7 @@ int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
 				 &phpayload, &cpayload);
 	if (!phpayload)
-		goto exit;
+		return -1;
 
 	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
 		goto exit;
