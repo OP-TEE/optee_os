@@ -489,7 +489,9 @@ static int montgomery_reduce(void *a, void *b, void *c)
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
 	mpanum tmp;
-	init((void **)&tmp);
+	if (init((void **)&tmp) != CRYPT_OK) {
+		return CRYPT_MEM;
+	}
 	// WARNING
 	//  Workaround for a bug when a > b (a greater than the modulus)
 	if (compare(a, b) == LTC_MP_GT) {
@@ -519,7 +521,9 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	LTC_ARGCHK(c != NULL);
 	LTC_ARGCHK(d != NULL);
 	void *c_mont;
-	montgomery_setup(c, &c_mont);
+	if (montgomery_setup(c, &c_mont) != CRYPT_OK) {
+		return CRYPT_MEM;
+	}
 
 	void *d_tmp;
 	int memguard;
@@ -527,7 +531,9 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	memguard = (a == d || b == d);
 
 	if (memguard) {
-		init(&d_tmp);
+		if (init(&d_tmp) != CRYPT_OK) {
+			return CRYPT_MEM;
+		}
 	} else {
 		d_tmp = d;
 	}
