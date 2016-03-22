@@ -115,6 +115,7 @@
 #error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
 #endif
 
+# Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB
 #define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
 #define CFG_TEE_RAM_PH_SIZE		(1 * 1024 * 1024)
 #define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
