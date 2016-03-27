@@ -33,10 +33,13 @@
 #ifndef STDLIB_H
 #define STDLIB_H
 
+#include <compiler.h>
 #include <stddef.h>
 #include <malloc.h>
 
 void
 qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *));
+
+void abort(void) __noreturn;
 
 #endif /* STDLIB_H */
