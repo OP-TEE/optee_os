@@ -28,6 +28,10 @@ libname = utils
 libdir = lib/libutils
 include mk/lib.mk
 
+libname = zlib
+libdir = lib/libzlib
+include mk/lib.mk
+
 libname = mpa
 libdir = lib/libmpa
 include mk/lib.mk
