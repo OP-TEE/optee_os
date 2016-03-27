@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 1994-2009  Red Hat, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,6 +11,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,22 +30,46 @@
  */
 
 /*
- * This file provides what C99 standard requires for <stdlib.h> in
- * 7.20.3 Memory management functions
- */
+FUNCTION
+<<abs>>---integer absolute value (magnitude)
 
-#ifndef STDLIB_H
-#define STDLIB_H
+INDEX
+	abs
 
-#include <compiler.h>
-#include <stddef.h>
-#include <malloc.h>
+ANSI_SYNOPSIS
+	#include <stdlib.h>
+	int abs(int <[i]>);
 
-void
-qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *));
+TRAD_SYNOPSIS
+	#include <stdlib.h>
+	int abs(<[i]>)
+	int <[i]>;
 
-void abort(void) __noreturn;
+DESCRIPTION
+<<abs>> returns
+@tex
+$|x|$,
+@end tex
+the absolute value of <[i]> (also called the magnitude
+of <[i]>).  That is, if <[i]> is negative, the result is the opposite
+of <[i]>, but if <[i]> is nonnegative the result is <[i]>.
 
-int abs(int i);
+The similar function <<labs>> uses and returns <<long>> rather than <<int>> values.
 
-#endif /* STDLIB_H */
+RETURNS
+The result is a nonnegative integer.
+
+PORTABILITY
+<<abs>> is ANSI.
+
+No supporting OS subroutines are required.
+*/
+
+#include "_ansi.h"
+#include <stdlib.h>
+
+int
+_DEFUN (abs, (i), int i)
+{
+  return (i < 0) ? -i : i;
+}
