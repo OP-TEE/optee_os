@@ -50,11 +50,12 @@ endif
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 libdirs += $(ta-dev-kit-dir)/lib
-libnames += utils utee mpa utils zlib utee
+libnames += utils utee mpa utils zlib png utee
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 libdeps += $(ta-dev-kit-dir)/lib/libzlib.a
+libdeps += $(ta-dev-kit-dir)/lib/libpng.a
 
 .PHONY: clean
 clean:
