@@ -123,6 +123,8 @@
 #define TCR_SH1_SHIFT		28
 #define TCR_EL1_IPS_SHIFT	32
 #define TCR_TG1_4KB		(2ull << 30)
+#define TCR_RES1		(1 << 31)
+
 
 /* Normal memory, Inner/Outer Non-cacheable */
 #define TCR_XRGNX_NC		0x0

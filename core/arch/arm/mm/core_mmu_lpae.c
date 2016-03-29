@@ -507,7 +507,8 @@ void core_init_mmu_regs(void)
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
 	write_mair_el1(mair);
 
-	tcr  = TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT;
+	tcr = TCR_RES1;
+	tcr |= TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT;
 	tcr |= TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT;
 	tcr |= TCR_SHX_ISH << TCR_SH0_SHIFT;
 	tcr |= tcr_ps_bits << TCR_EL1_IPS_SHIFT;
