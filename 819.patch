@@ -1,0 +1,580 @@
+From 9d08b811be8667e86a0ea29f452670fa82e3fe88 Mon Sep 17 00:00:00 2001
+From: Soren Brinkmann <soren.brinkmann@xilinx.com>
+Date: Tue, 29 Mar 2016 16:47:33 -0700
+Subject: [PATCH 1/3] Add Cadence UART driver
+
+Signed-off-by: Soren Brinkmann <soren.brinkmann@xilinx.com>
+---
+ core/drivers/cdns_uart.c         | 101 +++++++++++++++++++++++++++++++++++++++
+ core/drivers/sub.mk              |   1 +
+ core/include/drivers/cdns_uart.h |  43 +++++++++++++++++
+ 3 files changed, 145 insertions(+)
+ create mode 100644 core/drivers/cdns_uart.c
+ create mode 100644 core/include/drivers/cdns_uart.h
+
+diff --git a/core/drivers/cdns_uart.c b/core/drivers/cdns_uart.c
+new file mode 100644
+index 0000000..61f0c8f
+--- /dev/null
++++ b/core/drivers/cdns_uart.c
+@@ -0,0 +1,101 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ * this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ * this list of conditions and the following disclaimer in the documentation
++ * and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++#include <compiler.h>
++#include <drivers/cdns_uart.h>
++#include <io.h>
++#include <util.h>
++
++#define CDNS_UART_CONTROL		0
++#define CDNS_UART_MODE			4
++#define CDNS_UART_IEN			8
++#define CDNS_UART_IRQ_STATUS		0x14
++#define CDNS_UART_CHANNEL_STATUS	0x2c
++#define CDNS_UART_FIFO			0x30
++
++#define CDNS_UART_CONTROL_RXRES		BIT(0)
++#define CDNS_UART_CONTROL_TXRES		BIT(1)
++#define CDNS_UART_CONTROL_RXEN		BIT(2)
++#define CDNS_UART_CONTROL_TXEN		BIT(4)
++
++#define CDNS_UART_MODE_8BIT		(0 << 1)
++#define CDNS_UART_MODE_PARITY_NONE	(0x4 << 3)
++#define CDNS_UART_MODE_1STP		(0 << 6)
++
++#define CDNS_UART_CHANNEL_STATUS_TFUL	BIT(4)
++#define CDNS_UART_CHANNEL_STATUS_TEMPTY	BIT(3)
++#define CDNS_UART_CHANNEL_STATUS_REMPTY	BIT(1)
++
++#define CDNS_UART_IRQ_RXTRIG		BIT(0)
++#define CDNS_UART_IRQ_RXTOUT		BIT(8)
++
++void cdns_uart_flush(vaddr_t base)
++{
++	while (!(read32(base + CDNS_UART_CHANNEL_STATUS) &
++				CDNS_UART_CHANNEL_STATUS_TEMPTY))
++		;
++}
++
++/*
++ * we rely on the bootloader having set up the HW correctly, we just enable
++ * transmitter/receiver here, just in case.
++ */
++void cdns_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
++{
++	if (!base || !uart_clk || !baud_rate)
++		return;
++
++	/* Enable UART and RX/TX */
++	write32(CDNS_UART_CONTROL_RXEN | CDNS_UART_CONTROL_TXEN,
++		base + CDNS_UART_CONTROL);
++
++	cdns_uart_flush(base);
++}
++
++void cdns_uart_putc(int ch, vaddr_t base)
++{
++	/* Wait until there is space in the FIFO */
++	while (read32(base + CDNS_UART_CHANNEL_STATUS) &
++			CDNS_UART_CHANNEL_STATUS_TFUL)
++		;
++
++	/* Send the character */
++	write32(ch, base + CDNS_UART_FIFO);
++}
++
++bool cdns_uart_have_rx_data(vaddr_t base)
++{
++	return !(read32(base + CDNS_UART_CHANNEL_STATUS) &
++			CDNS_UART_CHANNEL_STATUS_REMPTY);
++}
++
++int cdns_uart_getchar(vaddr_t base)
++{
++	while (!cdns_uart_have_rx_data(base))
++		;
++	return read32(base + CDNS_UART_FIFO) & 0xff;
++}
++
+diff --git a/core/drivers/sub.mk b/core/drivers/sub.mk
+index 28265db..a73aa9b 100644
+--- a/core/drivers/sub.mk
++++ b/core/drivers/sub.mk
+@@ -2,6 +2,7 @@ ifeq ($(CFG_PL061),y)
+ $(call force,CFG_GPIO,y,required by CFG_PL061)
+ endif
+ 
++srcs-$(CFG_CDNS_UART) += cdns_uart.c
+ srcs-$(CFG_PL011) += pl011.c
+ srcs-$(CFG_GIC) += gic.c
+ srcs-$(CFG_GPIO) += gpio.c
+diff --git a/core/include/drivers/cdns_uart.h b/core/include/drivers/cdns_uart.h
+new file mode 100644
+index 0000000..67f5cf9
+--- /dev/null
++++ b/core/include/drivers/cdns_uart.h
+@@ -0,0 +1,43 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ * this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ * this list of conditions and the following disclaimer in the documentation
++ * and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++#ifndef CDNS_UART_H
++#define CDNS_UART_H
++
++#include <types_ext.h>
++
++void cdns_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
++
++void cdns_uart_putc(int ch, vaddr_t base);
++
++void cdns_uart_flush(vaddr_t base);
++
++bool cdns_uart_have_rx_data(vaddr_t base);
++
++int cdns_uart_getchar(vaddr_t base);
++
++#endif /* CDNS_UART_H */
++
+
+From 9a08d21b87559e29c8d6631c1d93383e0bd91d3e Mon Sep 17 00:00:00 2001
+From: Soren Brinkmann <soren.brinkmann@xilinx.com>
+Date: Sun, 15 Nov 2015 11:05:18 -0800
+Subject: [PATCH 2/3] Add support for ZynqMP
+
+Add support for Xilinx UltraScale+ Zynq MPSoC.
+
+Signed-off-by: Soren Brinkmann <soren.brinkmann@xilinx.com>
+---
+ MAINTAINERS.md                              |   1 +
+ README.md                                   |   1 +
+ core/arch/arm/plat-zynqmp/conf.mk           |  31 +++++++
+ core/arch/arm/plat-zynqmp/kern.ld.S         |   1 +
+ core/arch/arm/plat-zynqmp/link.mk           |   1 +
+ core/arch/arm/plat-zynqmp/main.c            | 122 +++++++++++++++++++++++++
+ core/arch/arm/plat-zynqmp/platform_config.h | 133 ++++++++++++++++++++++++++++
+ core/arch/arm/plat-zynqmp/sub.mk            |   2 +
+ 8 files changed, 292 insertions(+)
+ create mode 100644 core/arch/arm/plat-zynqmp/conf.mk
+ create mode 100644 core/arch/arm/plat-zynqmp/kern.ld.S
+ create mode 100644 core/arch/arm/plat-zynqmp/link.mk
+ create mode 100644 core/arch/arm/plat-zynqmp/main.c
+ create mode 100644 core/arch/arm/plat-zynqmp/platform_config.h
+ create mode 100644 core/arch/arm/plat-zynqmp/sub.mk
+
+diff --git a/MAINTAINERS.md b/MAINTAINERS.md
+index eef8117..f3b0882 100644
+--- a/MAINTAINERS.md
++++ b/MAINTAINERS.md
+@@ -18,3 +18,4 @@ for these platforms.
+ | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
+ | STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
+ | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|
++| Xilinx Zynq UltraScale+ MPSOC		|`Sören Brinkmann <soren.brinkmann@xilinx.com`|
+diff --git a/README.md b/README.md
+index 9b7fe34..b17f090 100644
+--- a/README.md
++++ b/README.md
+@@ -77,6 +77,7 @@ platforms have different sub-maintainers, please refer to the file
+ | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
+ | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
+ | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
++| [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |
+ 
+ ### 3.1 Development board for community user
+ For community users, we suggest using [HiKey board](https://www.96boards.org/products/ce/hikey/)
+diff --git a/core/arch/arm/plat-zynqmp/conf.mk b/core/arch/arm/plat-zynqmp/conf.mk
+new file mode 100644
+index 0000000..aff3668
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/conf.mk
+@@ -0,0 +1,31 @@
++PLATFORM_FLAVOR ?= zcu102
++PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
++
++# 32-bit flags
++arm32-platform-cpuarch		:= cortex-a53
++arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
++arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
++arm32-platform-aflags		+= -mfpu=neon
++
++$(call force,CFG_CDNS_UART,y)
++$(call force,CFG_GENERIC_BOOT,y)
++$(call force,CFG_GIC,y)
++$(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
++$(call force,CFG_PM_STUBS,y)
++$(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
++$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
++
++ta-targets = ta_arm32
++
++ifeq ($(CFG_ARM64_core),y)
++$(call force,CFG_WITH_LPAE,y)
++ta-targets += ta_arm64
++else
++$(call force,CFG_ARM32_core,y)
++endif
++
++CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
++CFG_TEE_FS_KEY_MANAGER_TEST ?= y
++CFG_WITH_STACK_CANARIES ?= y
++CFG_WITH_STATS ?= y
++CFG_CRYPTO_WITH_CE ?= y
+diff --git a/core/arch/arm/plat-zynqmp/kern.ld.S b/core/arch/arm/plat-zynqmp/kern.ld.S
+new file mode 100644
+index 0000000..8d794ee
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/kern.ld.S
+@@ -0,0 +1 @@
++#include "../kernel/kern.ld.S"
+diff --git a/core/arch/arm/plat-zynqmp/link.mk b/core/arch/arm/plat-zynqmp/link.mk
+new file mode 100644
+index 0000000..448ab89
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/link.mk
+@@ -0,0 +1 @@
++include core/arch/arm/kernel/link.mk
+diff --git a/core/arch/arm/plat-zynqmp/main.c b/core/arch/arm/plat-zynqmp/main.c
+new file mode 100644
+index 0000000..7fee878
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/main.c
+@@ -0,0 +1,122 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ * this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ * this list of conditions and the following disclaimer in the documentation
++ * and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include <platform_config.h>
++
++#include <stdint.h>
++#include <string.h>
++
++#include <drivers/gic.h>
++#include <drivers/cdns_uart.h>
++
++#include <arm.h>
++#include <console.h>
++#include <kernel/generic_boot.h>
++#include <kernel/pm_stubs.h>
++#include <kernel/misc.h>
++#include <kernel/tee_time.h>
++#include <mm/core_memprot.h>
++#include <tee/entry_fast.h>
++#include <tee/entry_std.h>
++#include <trace.h>
++
++static void main_fiq(void);
++static struct gic_data gic_data;
++
++static const struct thread_handlers handlers = {
++	.std_smc = tee_entry_std,
++	.fast_smc = tee_entry_fast,
++	.fiq = main_fiq,
++#if defined(CFG_WITH_ARM_TRUSTED_FW)
++	.cpu_on = cpu_on_handler,
++	.cpu_off = pm_do_nothing,
++	.cpu_suspend = pm_do_nothing,
++	.cpu_resume = pm_do_nothing,
++	.system_off = pm_do_nothing,
++	.system_reset = pm_do_nothing,
++#else
++	.cpu_on = pm_panic,
++	.cpu_off = pm_panic,
++	.cpu_suspend = pm_panic,
++	.cpu_resume = pm_panic,
++	.system_off = pm_panic,
++	.system_reset = pm_panic,
++#endif
++};
++
++const struct thread_handlers *generic_boot_get_handlers(void)
++{
++	return &handlers;
++}
++
++void main_init_gic(void)
++{
++	vaddr_t gicc_base, gicd_base;
++
++	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
++					  MEM_AREA_IO_SEC);
++	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
++					  MEM_AREA_IO_SEC);
++	/* On ARMv8, GIC configuration is initialized in ARM-TF */
++	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
++}
++
++static void main_fiq(void)
++{
++	gic_it_handle(&gic_data);
++}
++
++static vaddr_t console_base(void)
++{
++	static void *va;
++
++	if (cpu_mmu_enabled()) {
++		if (!va)
++			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
++		return (vaddr_t)va;
++	}
++
++	return CONSOLE_UART_BASE;
++}
++
++void console_init(void)
++{
++	cdns_uart_init(console_base(), CONSOLE_UART_CLK_IN_HZ,
++		       CONSOLE_BAUDRATE);
++}
++
++void console_putc(int ch)
++{
++	cdns_uart_putc(ch, console_base());
++	if (ch == '\n')
++		cdns_uart_putc('\r', console_base());
++}
++
++void console_flush(void)
++{
++	cdns_uart_flush(console_base());
++}
+diff --git a/core/arch/arm/plat-zynqmp/platform_config.h b/core/arch/arm/plat-zynqmp/platform_config.h
+new file mode 100644
+index 0000000..711c406
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/platform_config.h
+@@ -0,0 +1,133 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ * this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ * this list of conditions and the following disclaimer in the documentation
++ * and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifndef PLATFORM_CONFIG_H
++#define PLATFORM_CONFIG_H
++
++#define PLATFORM_FLAVOR_ID_zc1751_dc1	0
++#define PLATFORM_FLAVOR_ID_zc1751_dc2	1
++#define PLATFORM_FLAVOR_ID_zcu102	2
++#define PLATFORM_FLAVOR_IS(flav) \
++	(PLATFORM_FLAVOR_ID_ ## flav == PLATFORM_FLAVOR)
++
++/* Make stacks aligned to data cache line length */
++#define STACK_ALIGNMENT		64
++#define HEAP_SIZE		(24 * 1024)
++
++#ifdef CFG_WITH_PAGER
++#error "Pager not supported for zynqmp"
++#endif
++
++#if PLATFORM_FLAVOR_IS(zc1751_dc1) || PLATFORM_FLAVOR_IS(zc1751_dc2) || \
++	PLATFORM_FLAVOR_IS(zcu102)
++
++#define GIC_BASE		0xF9010000
++#define UART0_BASE		0xFF000000
++#define UART1_BASE		0xFF001000
++
++#define IT_UART0		53
++#define IT_UART1		54
++
++#define UART0_CLK_IN_HZ		100000000
++#define UART1_CLK_IN_HZ		100000000
++#define CONSOLE_UART_BASE	UART0_BASE
++#define IT_CONSOLE_UART		IT_UART0
++#define CONSOLE_UART_CLK_IN_HZ	UART0_CLK_IN_HZ
++
++#define DRAM0_BASE		0
++#define DRAM0_SIZE		0x80000000
++
++/* Location of trusted dram */
++#define TZDRAM_BASE		0x60000000
++#define TZDRAM_SIZE		0x10000000
++
++#define CFG_SHMEM_START		0x70000000
++#define CFG_SHMEM_SIZE		0x10000000
++
++#define GICD_OFFSET		0
++#define GICC_OFFSET		0x20000
++
++#else
++#error "Unknown platform flavor"
++#endif
++
++#define CFG_TEE_CORE_NB_CORE	4
++
++#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
++
++#ifndef CFG_TEE_LOAD_ADDR
++#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
++#endif
++
++/*
++ * Assumes that either TZSRAM isn't large enough or TZSRAM doesn't exist,
++ * everything is in TZDRAM.
++ * +------------------+
++ * |        | TEE_RAM |
++ * + TZDRAM +---------+
++ * |        | TA_RAM  |
++ * +--------+---------+
++ */
++#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
++#define CFG_TEE_RAM_START	TZDRAM_BASE
++#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
++					CORE_MMU_DEVICE_SIZE)
++#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
++					  CORE_MMU_DEVICE_SIZE)
++
++
++#define DEVICE0_PA_BASE		ROUNDDOWN(CONSOLE_UART_BASE, \
++					  CORE_MMU_DEVICE_SIZE)
++#define DEVICE0_VA_BASE		DEVICE0_PA_BASE
++
++#define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
++#define DEVICE0_TYPE		MEM_AREA_IO_NSEC
++
++#define DEVICE1_PA_BASE		ROUNDDOWN(GIC_BASE, CORE_MMU_DEVICE_SIZE)
++#define DEVICE1_VA_BASE		DEVICE1_PA_BASE
++#define DEVICE1_SIZE		CORE_MMU_DEVICE_SIZE
++#define DEVICE1_TYPE		MEM_AREA_IO_SEC
++
++#define DEVICE2_PA_BASE		ROUNDDOWN(GIC_BASE + GICD_OFFSET, \
++					  CORE_MMU_DEVICE_SIZE)
++#define DEVICE2_VA_BASE		DEVICE2_PA_BASE
++#define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
++#define DEVICE2_TYPE		MEM_AREA_IO_SEC
++
++#ifndef UART_BAUDRATE
++#define UART_BAUDRATE		115200
++#endif
++#ifndef CONSOLE_BAUDRATE
++#define CONSOLE_BAUDRATE	UART_BAUDRATE
++#endif
++
++/* For virtual platforms where there isn't a clock */
++#ifndef CONSOLE_UART_CLK_IN_HZ
++#define CONSOLE_UART_CLK_IN_HZ	1
++#endif
++
++#endif /*PLATFORM_CONFIG_H*/
+diff --git a/core/arch/arm/plat-zynqmp/sub.mk b/core/arch/arm/plat-zynqmp/sub.mk
+new file mode 100644
+index 0000000..8ddc2fd
+--- /dev/null
++++ b/core/arch/arm/plat-zynqmp/sub.mk
+@@ -0,0 +1,2 @@
++global-incdirs-y += .
++srcs-y += main.c
+
+From 5b484083eebd44bf223a730322affee3d043841f Mon Sep 17 00:00:00 2001
+From: Soren Brinkmann <soren.brinkmann@xilinx.com>
+Date: Sat, 28 May 2016 11:17:42 -0700
+Subject: [PATCH 3/3] travis: Build zynqmp port
+
+Signed-off-by: Soren Brinkmann <soren.brinkmann@xilinx.com>
+---
+ .travis.yml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/.travis.yml b/.travis.yml
+index 16d91bd..d984b49 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -159,5 +159,9 @@ script:
+   - $make PLATFORM=ls-ls1021atwr
+   - $make PLATFORM=ls-ls1021aqds
+ 
++  # Xilinx ZynqMP
++  - $make PLATFORM=zynqmp-zcu102
++  - $make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
++
+   # Run regression tests (xtest in QEMU)
+   - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
