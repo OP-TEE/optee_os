@@ -7,7 +7,6 @@
 4. [Get and build OP-TEE software](#4-get-and-build-op-tee-software)
     4. [Prerequisites](#41-prerequisites)
     4. [Basic setup](#42-basic-setup)
-    4. [ARM Juno board](#43-arm-juno-board)
     4. [STMicroelectronics boards](#44-stmicroelectronics-boards)
     4. [Allwinner A80](#45-allwinner-a80)
     4. [Freescale MX6UL EVK](#46-freescale-mx6ul-evk)
@@ -21,6 +20,8 @@
 	5. [FVP](#54-fvp)
 	5. [HiKey](#55-hikey)
 	5. [MT8173-EVB](#56-mt8173-evb)
+	5. [Juno](#57-juno)
+		5. [Update flash and its layout](#571-update-flash-and-its-layout)
 	5. [Tips and tricks](#57-tips-and-tricks)
 		5. [Reference existing project to speed up repo sync](#571-reference-existing-project-to-speed-up-repo-sync)
 		5. [Use ccache](#572-use-ccache)
@@ -172,121 +173,6 @@ four is the most verbose. To set the level you use the following flag:
 ```
 $ make CFG_TEE_CORE_LOG_LEVEL=4
 ```
-
----
-### 4.3 ARM Juno board
-**Warning!** This setup is currently broken, `bl30.bin` and `bl33.bin` doesn't
-exist on the URLs stated any longer. We are working with a fix and once ready,
-we will replace this section and instead put Juno board within the repo
-section below. Until resolved, we will keep the information below for reference.
-
-+ The script `setup_juno_optee.sh` script provides a coherent set of components
-(OP-TEE client, driver, OS, Linux kernel version 3-16.0-rc5)
-
-+ Futures releases will align the Juno setup with other OP-TEE supported
-  platforms:
-
-	+ Linux kernel version alignment (3.18-rc1) with QEMU/FVP (DMA_BUF API change).
-	+ Will need arch/arm/Kconfig patch(es) (i.e DMA_SHARED_BUFFER etc...).
-
-+ Temporary patch files required for linux kernel and Juno DTB definition (found
-  in the `./scripts` folder)
-
-	+ `config.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch`
-	+ `juno.dts.linux-linaro-tracking.a226b22057c22b433caafc58eeae6e9b13ac6c8d.patch`
-
-#### 4.3.1 Prerequisites for Juno board
-+ Download pre-built binaries (please see "Known issues" below)
-
-	+ Juno boards pre-built binary `bl30.bin` (SCP runtime)
-	+ Juno boards pre-built binary `bl33.bin` (UEFI)
-	+ Download at &rarr; https://releases.linaro.org/members/arm/platforms/latest
-
-
-#### 4.3.2 Download the source code for Juno board
-```
-$ wget https://raw.githubusercontent.com/OP-TEE/optee_os/master/scripts/setup_juno_optee.sh
-$ chmod 711 setup_juno_optee.sh
-$ ./setup_juno_optee.sh
-```
-
-#### 4.3.3 Build
-List of helper scripts generated during installation:
-
-| Script | Explanation |
-|--------|--------|
-| `build_atf_opteed.sh` | This is used to build ARM-Trusted-Firmware and must be called when you have updated any component that are included in the FIP (like for example OP-TEE os). |
-| `build_linux.sh` | This is used to build the Linux Kernel. |
-| `build_normal.sh` | This is a pure helper script that build all the normal world components (in correct order). |
-| `build_optee_client.sh` | This will build OP-TEEs client library. |
-| `build_optee_linuxdriver.sh` | This will build OP-TEEs Linux Kernel driver (as a module). |
-| `build_optee_os.sh` | Builds the Trusted OS itself |
-| `build_optee_tests.sh` | This will build the test suite (pay attention to the access needed). |
-| `build_secure.sh` | This is the helper script for the secure side that will build all secure side components in the correct order. |
-| `clean_gits.sh` | This will clean all gits. Beware that it will not reset the commit to the one used when first cloning. Also note that it will only clean git's. |
-
-Run the scripts in the following order:
-
-```
-$ ./build_secure.sh
-$ ./build_normal.sh
-```
-
-#### 4.3.4 Booting up the Juno board
-
-+ Update the embedded flash memory (path: `JUNO/SOFTWARE`):
-
-	+ `bl1.bin`
-	+ `fip.bin`
-	+ `Image`
-	+ `juno.dtb`
-
-+ Copy OP-TEE binaries on the filesystem(*) located on the external USB key:
-
-	+ user client libraries: `libteec.so*`
-	+ supplicant: `tee-supplicant`
-	+ driver modules: `optee.ko optee_armtz.ko`
-	+ CA: `xtest`
-	+ TAs: `*.ta`
-
-+ Connect the USB flash drive (containing the filesystem) on any connector of
-  the rear panel
-
-+ Connect a serial terminal (`115200, 8, n, 1`) to the upper 9-pin (`UART0`)
-  connector.
-
-+ Connect the 12V power, then press the red button on the rear panel.
-
-Note:
-The default configuration is to automatically boot a Linux kernel, which expects
-to find a root filesystem on `/dev/sda1` (any one of the rear panel USB ports).
-
-Download a minimal filesytem at &rarr;
-http://releases.linaro.org/14.02/openembedded/aarch64/linaro-image-minimal-genericarmv8-20140223-649.rootfs.tar.gz
-
-UEFI offers a 10 second window to interrupt the boot sequence by pressing a key
-on the serial terminal, after which the kernel is launched.
-
-Once booted you will get the prompt:
-```
-root@genericarmv8:~#
-```
-
-#### 4.3.5 Run OP-TEE on the Juno board
-Write in the console:
-```
-root@genericarmv8:~# modprobe optee_armtz
-root@genericarmv8:~# tee-supplicant &
-```
-Now everything has been set up and OP-TEE is ready to be used.
-
-#### 4.3.6 Known issues and limitations
-* `bl30.bin` (SCP) and `bl33.bin` (UEFI) are not available on previous download
-  location and therefore this setup is currently not working. We are working
-  with sorting out this issue and once done, we will start using repo manifests
-  for Juno also.
-* Not all USB flash drives seems to work, so we recommend using USB memory 3.0
-  formatted with an ext3/ext4 filesystem
 
 ---
 ### 4.4 STMicroelectronics boards
@@ -449,6 +335,7 @@ $ repo sync
 | FVP | `fvp.xml` | `fvp_stable.xml` |
 | HiKey | `hikey.xml` | `hikey_stable.xml` |
 | MediaTek MT8173 EVB Board | `mt8173-evb.xml` | `mt8173-evb_stable.xml` |
+| ARM Juno board| `juno.xml` | `juno_stable.xml` |
 
 #### 5.2.2 Branches
 Currently we are only using one branch, i.e, the `master` branch.
@@ -513,8 +400,58 @@ When `< waiting for device >` prompt appears, press reset button and the
 flashing procedure should begin.
 
 ---
-### 5.7 Tips and tricks
-#### 5.7.1 Reference existing project to speed up repo sync
+### 5.7 Juno
+After getting the source and toolchain, just run (from the `build` folder)
+```
+$ make all
+```
+
+Enter the firmware console on the juno board and press enter to stop
+the auto boot flow
+```
+ARM V2M_Juno Firmware v1.3.9
+Build Date: Nov 11 2015
+
+Time :  12:50:45
+Date :  29:03:2016
+
+Press Enter to stop auto boot...
+
+```
+Enable ftp at the firmware prompt
+```
+Cmd> ftp_on
+Enabling ftp server...
+ MAC address: xxxxxxxxxxxx
+
+ IP address: 192.168.1.158
+
+ Local host name = V2M-JUNO-A2
+```
+
+Flash the binary by running (note the IP address from above):
+```
+make JUNO_IP=192.168.1.158 flash
+```
+
+Once the binaries are transferred, reboot the board:
+```
+Cmd> reboot
+
+```
+
+#### 5.7.1 Update flash and its layout
+The flash in the board may need to be updated for the flashing above to
+work.  If the flashing fails or if ARM-TF refuses to boot due to wrong
+version of the SCP binary the flash needs to be updated. To update the
+flash please follow the instructions at [Using Linaro's deliverable on
+Juno](https://community.arm.com/docs/DOC-10804) selecting one of the zips
+under "4.1 Prebuilt configurations" flashing it as described under "5.
+Running the software".
+
+---
+### 5.8 Tips and tricks
+#### 5.8.1 Reference existing project to speed up repo sync
 Doing a `repo init`, `repo sync` from scratch can take a fair amount of time.
 The main reason for that is simply because of the size of some of the gits we
 are using, like for the Linux kernel and EDK2. With repo you can reference an
@@ -540,7 +477,7 @@ Normally step 1 and 2 above is something you will only do once. Also if you
 ignore step 2, then you will still get the latest from official git trees, since
 repo will also check for updates that aren't at the local reference.
 
-#### 5.7.2. Use ccache
+#### 5.8.2. Use ccache
 ccache is a tool that caches build object-files etc locally on the disc and can
 speed up build time significantly in subsequent builds. On Debian-based systems
 (Ubuntu, Mint etc) you simply install it by running:
