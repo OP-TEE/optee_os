@@ -1,3 +1,51 @@
+# OP-TEE - version 2.0.0
+
+
+## New features
+
+* Generic driver: A new generic TEE driver is in the process of being
+  [upstreamed][gendrv_v9].
+  In this release, [OP-TEE/optee_linuxdriver][optee_linuxdriver] is no more used.
+  Instead, linux v4.5 is being patched using the proposed Generic TEE Driver,
+  as it can be found in [https://github.com/linaro-swg/linux/tree/optee][linux_optee]
+
+* RPMB support: Secure Storage can now use Replay Protected Memory Block (RPMB) partition
+  of an eMMC device. Check the [full documentation][rpmb_doc]
+
+* Hard-float ABI is now available.
+
+* [Link][github_commits_2_0_0] to a list of all commits between this and
+  previous release.
+
+
+## Tested on
+Definitions:
+
+| Type | Meaning |
+| ---- | ------- |
+| Standard tests | The [optee_test][optee_test] project. |
+| Extended tests | optee_test with tests from the GlobalPlatform™ TEE Initial Configuration Test Suite v1.1.0.4. |
+
+*	ARM Juno Board (vexpress-juno), standard.
+*	Foundation Models (vexpress-fvp), standard tests + extended tests,
+	using FVP ARM V8 Foundation Platformr0p0 (platform build 9.5.40)
+*	HiKey (hikey), standard.
+*	MTK8173-EVB (mediatek-mt8173), standard.
+*	QEMU (vexpress-qemu), standard + extended tests.
+*	STM Cannes (stm-cannes), standard + extended tests.
+
+## Known issues
+* Issue(s) open on GitHub
+  * [#40][prld40] BUG_ON() when re-using RPC buffer to tee-supplicant
+  * [#506][pr506]: tee-supplicant panic & ta panic
+
+[github_commits_2_0_0]: https://github.com/OP-TEE/optee_os/compare/1.1.0...2.0.0
+[rpmb_doc]: https://github.com/OP-TEE/optee_os/blob/master/documentation/secure_storage_rpmb.md
+[optee_linuxdriver]: https://github.com/OP-TEE/optee_linuxdriver
+[gendrv_v9]: https://lkml.org/lkml/2016/4/1/205
+[linux_optee]: https://github.com/linaro-swg/linux/tree/optee
+
+
 # OP-TEE - version 1.1.0
 
 
