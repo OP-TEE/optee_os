@@ -449,6 +449,39 @@ Juno](https://community.arm.com/docs/DOC-10804) selecting one of the zips
 under "4.1 Prebuilt configurations" flashing it as described under "5.
 Running the software".
 
+#### 5.7.2 GlobalPlatform testsuite support
+##### Warning :
+Depending on the Juno pre-built configuration, the built ramdisk.img
+size with GlobalPlatform testsuite may exceed its pre-defined Juno flash
+memory reserved location (image.txt file).
+In that case, you will need to extend the Juno flash block size reserved
+location for the ramdisk.img in the image.txt file accordingly and
+follow the instructions under "5.7.1 Update flash and its layout".
+
+##### Example with juno-latest-busybox-uboot.zip:
+The current ramdisk.img size with GlobalPlatform testsuite
+is 8.6 MBytes.
+
+###### Updated file is /JUNO/SITE1/HBI0262B/images.txt (limited to 8.3 MB)
+```
+NOR4UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR4ADDRESS: 0x01800000          ;Image Flash Address
+NOR4FILE: \SOFTWARE\ramdisk.img  ;Image File Name
+NOR4NAME: ramdisk.img
+NOR4LOAD: 00000000               ;Image Load Address
+NOR4ENTRY: 00000000              ;Image Entry Point
+```
+
+###### Extended to 16MB
+```
+NOR4UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR4ADDRESS: 0x01000000          ;Image Flash Address
+NOR4FILE: \SOFTWARE\ramdisk.img  ;Image File Name
+NOR4NAME: ramdisk.img
+NOR4LOAD: 00000000               ;Image Load Address
+NOR4ENTRY: 00000000              ;Image Entry Point
+```
+
 ---
 ### 5.8 Tips and tricks
 #### 5.8.1 Reference existing project to speed up repo sync
