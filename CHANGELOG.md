@@ -29,6 +29,7 @@ Definitions:
 *	ARM Juno Board (vexpress-juno), standard.
 *	Foundation Models (vexpress-fvp), standard tests + extended tests,
 	using FVP ARM V8 Foundation Platformr0p0 (platform build 9.5.40)
+*	FSL ls1021a (ls-ls1021atwr), standard.
 *	HiKey (hikey), standard.
 *	MTK8173-EVB (mediatek-mt8173), standard.
 *	QEMU (vexpress-qemu), standard + extended tests.
