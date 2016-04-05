@@ -524,15 +524,16 @@ have to think about anything.
 
 ---
 ## 6. Load driver, tee-supplicant and run xtest
-To actually run something on a device you need to probe the kernel driver for
-OP-TEE, run tee-supplicant. This is the same for almost all platforms, so when a
-device has booted, then run
+Since release v2.0.0 you don't have to load the kernel driver explicitly. In the
+standard configuration it will be built into the kernel directly. To actually
+run something on a device you however need to run tee-supplicant. This is the
+same for all platforms, so when a device has booted, then run
 ```
-$ modprobe optee_armtz
 $ tee-supplicant &
 ```
+and OP-TEE is ready to be used.
 
-In case you want to try run something triggering both normal and secure side
+In case you want to try run something that triggers both normal and secure side
 code you could run xtest (the main test suite for OP-TEE), run
 ```
 $ xtest
