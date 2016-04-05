@@ -5,3 +5,5 @@ srcs-y += strlcat.c
 srcs-y += strlcpy.c
 srcs-y += buf_compare_ct.c
 srcs-y += trace.c
+
+subdirs-$(arch_arm) += arch/$(ARCH)
