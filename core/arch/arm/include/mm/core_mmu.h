@@ -48,6 +48,8 @@
 #else
 #define CORE_MMU_PGDIR_SHIFT	20
 #endif
+#define CORE_MMU_PGDIR_SIZE		(1 << CORE_MMU_PGDIR_SHIFT)
+#define CORE_MMU_PGDIR_MASK		(CORE_MMU_PGDIR_SIZE - 1)
 
 /* Devices are mapped using this granularity */
 #define CORE_MMU_DEVICE_SHIFT		CORE_MMU_PGDIR_SHIFT
