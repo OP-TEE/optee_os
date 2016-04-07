@@ -119,6 +119,7 @@ script:
   - $make CFG_CRYPTO_{G,C}CM=n
   - $make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
   - $make CFG_WITH_PAGER=y
+  - $make CFG_WITH_PAGER=y CFG_TEE_CORE_DEBUG=y
   - $make CFG_ENC_FS=n
   - $make CFG_ENC_FS=y CFG_FS_BLOCK_CACHE=y
   - $make CFG_ENC_FS=n CFG_FS_BLOCK_CACHE=y
