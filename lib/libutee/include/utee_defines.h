@@ -27,6 +27,9 @@
 #ifndef UTEE_DEFINES_H
 #define UTEE_DEFINES_H
 
+#include <compiler.h>
+#include <types_ext.h>
+
 /*
  * Copied from TEE Internal API specificaion v1.0 table 6-9 "Structure of
  * Algorithm Identifier".
@@ -126,19 +129,45 @@ typedef enum {
  * See TEE Internal API specificaion v1.0 table 6-12 "Partial Structure of
  * Attribute Identifier"
  */
-#define TEE_U32_BSWAP(x) ( \
-        (((x) & 0xff000000) >> 24) | \
-        (((x) & 0x00ff0000) >>  8) | \
-        (((x) & 0x0000ff00) <<  8) | \
-        (((x) & 0x000000ff) << 24))
 
-#define TEE_U16_BSWAP(x) ( \
-        (((x) & 0xff00) >> 8) | \
-        (((x) & 0x00ff) << 8))
+
+#ifdef __compiler_bswap64
+#define TEE_U64_BSWAP(x) __compiler_bswap64((x))
+#else
+#define TEE_U64_BSWAP(x) ((uint64_t)( \
+        (((uint64_t)(x) & UINT64_C(0xff00000000000000ULL)) >> 56) | \
+        (((uint64_t)(x) & UINT64_C(0x00ff000000000000ULL)) >> 40) | \
+        (((uint64_t)(x) & UINT64_C(0x0000ff0000000000ULL)) >> 24) | \
+        (((uint64_t)(x) & UINT64_C(0x000000ff00000000ULL)) >>  8) | \
+        (((uint64_t)(x) & UINT64_C(0x00000000ff000000ULL)) <<  8) | \
+        (((uint64_t)(x) & UINT64_C(0x0000000000ff0000ULL)) << 24) | \
+        (((uint64_t)(x) & UINT64_C(0x000000000000ff00ULL)) << 40) | \
+        (((uint64_t)(x) & UINT64_C(0x00000000000000ffULL)) << 56)))
+#endif
+
+#ifdef __compiler_bswap32
+#define TEE_U32_BSWAP(x) __compiler_bswap32((x))
+#else
+#define TEE_U32_BSWAP(x) ((uint32_t)( \
+        (((uint32_t)(x) & UINT32_C(0xff000000)) >> 24) | \
+        (((uint32_t)(x) & UINT32_C(0x00ff0000)) >>  8) | \
+        (((uint32_t)(x) & UINT32_C(0x0000ff00)) <<  8) | \
+        (((uint32_t)(x) & UINT32_C(0x000000ff)) << 24)))
+#endif
+
+#ifdef __compiler_bswap16
+#define TEE_U16_BSWAP(x) __compiler_bswap16((x))
+#else
+#define TEE_U16_BSWAP(x) ((uint16_t)( \
+        (((uint16_t)(x) & UINT16_C(0xff00)) >> 8) | \
+        (((uint16_t)(x) & UINT16_C(0x00ff)) << 8)))
+#endif
 
 /* If we we're on a big endian platform we'll have to update these */
+#define TEE_U64_FROM_BIG_ENDIAN(x)  TEE_U64_BSWAP(x)
 #define TEE_U32_FROM_BIG_ENDIAN(x)  TEE_U32_BSWAP(x)
 #define TEE_U16_FROM_BIG_ENDIAN(x)  TEE_U16_BSWAP(x)
+#define TEE_U64_TO_BIG_ENDIAN(x)    TEE_U64_BSWAP(x)
 #define TEE_U32_TO_BIG_ENDIAN(x)    TEE_U32_BSWAP(x)
 #define TEE_U16_TO_BIG_ENDIAN(x)    TEE_U16_BSWAP(x)
 
