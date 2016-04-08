@@ -53,4 +53,8 @@
 #define __rodata	__section(".rodata")
 #define __rodata_unpaged __section(".rodata.__unpaged")
 
+#define __compiler_bswap64(x)	__builtin_bswap64((x))
+#define __compiler_bswap32(x)	__builtin_bswap32((x))
+#define __compiler_bswap16(x)	__builtin_bswap16((x))
+
 #endif /*COMPILER_H*/
