@@ -37,9 +37,10 @@
 #include <asc.h>
 
 static void main_fiq(void);
+static void stm_tee_entry_std(struct thread_smc_args *smc_args);
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
+	.std_smc = stm_tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.fiq = main_fiq,
 	.cpu_on = pm_panic,
@@ -55,6 +56,13 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 	return &handlers;
 }
 
+static int boot_is_completed;
+static void stm_tee_entry_std(struct thread_smc_args *smc_args)
+{
+	boot_is_completed = 1;
+	tee_entry_std(smc_args);
+}
+
 static void main_fiq(void)
 {
 	panic();
@@ -62,15 +70,18 @@ static void main_fiq(void)
 
 void console_init(void)
 {
-	asc_init();
 }
 
 void console_putc(int ch)
 {
+	if (!boot_is_completed)
+		return;
 	__asc_xmit_char((char)ch);
 }
 
 void console_flush(void)
 {
+	if (!boot_is_completed)
+		return;
 	__asc_flush();
 }

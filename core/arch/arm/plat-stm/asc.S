@@ -53,86 +53,8 @@
 #define BOARD_ASC_TXRESET_REG       ST_ASC_TXRESET(ASC_NUM)
 #define BOARD_ASC_RXRESET_REG       ST_ASC_RXRESET(ASC_NUM)
 
-.section .data
-.balign 4
+.section .text.asc
 
-/*
- * ASC IP HW state: 1 not initialized, 0 HW is ready
- * Note that we rely on NonSecure host to setup the HW.
- */
-asc_state:
-	.word 1
-
-
-.section .text
-.align 5
-
-/*
- * int asc_init(void) - init ASC driver.
- *
- * At least only maps (MMU) the ASC register addresses.
- * We rely on some other SW layer to enable ASC IP (power/clamps/clocks/...)
- */
-FUNC asc_init , :
-UNWIND(	.fnstart)
-    ldr r1, =asc_state
-    mov r0, #0
-    str r0, [r1]
-
-    /* TODO: insure ASC is mapped (check against core_init_mmu()/core_mmu.c) */
-    ldr r0, =0
-    bx lr
-UNWIND(	.fnend)
-END_FUNC asc_init
-
-/*
- * int __asc_xmit(char*) - Transmit a numm terminated string.
- *
- *    R0 is pointer to null-terminated string
- *    Clobbers r0-r3
- */
-FUNC __asc_xmit , :
-UNWIND(	.fnstart)
-
-    ldr r1, =asc_state
-    ldr r1, [r1]
-    cmp r1, #0
-    bne _asc_exit
-
-    LDR r2, =BOARD_ASC_TXBUFFER_REG
-    LDR r3, =BOARD_ASC_STATUS_REG
-
-    /* Output byte */
-nextchr:
-    /* Spin until TX FIFO ready */
-crwait:
-    LDR r1, [r3]
-    ANDS r1, r1, #0x04    /* AND TX FIFO HALF EMPTY flag */
-    BEQ crwait            /* ANDS should have set Z bit if zero */
-
-    LDRB r1, [r0], #1
-    ANDS r1, r1, r1
-    BEQ  _asc_exit
-    CMP r1, #0xa          /* r1 == \n (line feed) ? */
-    BNE notlf
-
-    /* Transmit character extra carriage return for each line feed */
-    LDR r1, =0x0d
-    STR r1, [r2]
-
-    LDR r1, =0x0a         /* replace line feed */
-
-notlf:
-    /* Transmit character */
-    STR r1, [r2]
-
-    /* Keep going */
-    B nextchr
-_asc_exit:
-    LDR r0, =0
-    BX lr
-UNWIND(	.fnend)
-END_FUNC __asc_xmit
 
 /*
  * void __asc_flush(void) - flush ASC tx fifo.
@@ -142,11 +64,6 @@ END_FUNC __asc_xmit
 FUNC __asc_flush , :
 UNWIND(	.fnstart)
 
-    ldr r1, =asc_state
-    ldr r1, [r1]
-    cmp r1, #0
-    bne _flush_exit
-
     LDR r3, =BOARD_ASC_STATUS_REG
 
 flush_wait:
@@ -154,7 +71,6 @@ flush_wait:
     ANDS r1, r1, #0x02   /* AND TX FIFO EMPTY flag */
     BEQ flush_wait          /* ANDS should have set Z bit if zero */
 
-_flush_exit:
     LDR r0, =0
     BX lr
 UNWIND(	.fnend)
@@ -168,11 +84,6 @@ END_FUNC __asc_flush
  */
 FUNC __asc_xmit_char , :
 UNWIND(	.fnstart)
-
-    ldr r1, =asc_state
-    ldr r1, [r1]
-    cmp r1, #0
-    bne __asc_char_exit
 
     LDR r2, =BOARD_ASC_TXBUFFER_REG
     LDR r3, =BOARD_ASC_STATUS_REG
