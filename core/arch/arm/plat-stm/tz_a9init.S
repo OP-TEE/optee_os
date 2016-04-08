@@ -36,46 +36,12 @@
 #include <asm.S>
 #include <kernel/unwind.h>
 
-#define CPUID_A9_R2P2_H 0x412f
-#define CPUID_A9_R2P2_L 0xc092
-
 #define CPUID_A9_R3P0_H 0x413f
 #define CPUID_A9_R3P0_L 0xc090
 
 .section .text
 .balign 4
 .code 32
-
-/*
- * arm_secboot_identify_cpu - identify and save CPU version
- *
- * Use scratables registers R0-R3.
- * No stack usage.
- * LR store return address.
- * Trap CPU in case of error.
- */
-FUNC arm_secboot_identify_cpu , :
-UNWIND(	.fnstart)
-
-	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
-	movw r1, #CPUID_A9_R2P2_L
-	movt r1, #CPUID_A9_R2P2_H
-	cmp  r0, r1
-	beq  _ident_a9_r2p2
-	movw r1, #CPUID_A9_R3P0_L
-	movt r1, #CPUID_A9_R3P0_H
-	cmp  r0, r1
-	beq  _ident_a9_r3p0
-	b . /* TODO: unknown id: reset? log? */
-
-_ident_a9_r2p2:
-	/* unsupported version. TODO: needs to be supported */
-	b . /* TODO: unknown id: reset? log? */
-
-_ident_a9_r3p0:
-	mov pc, lr /* back to tzinit */
-UNWIND(	.fnend)
-END_FUNC arm_secboot_identify_cpu
 
 /*
  * Memory Cache Level2 Configuration Function
@@ -306,37 +272,6 @@ _early_a9_r3p0:
 	mov pc, lr /* back to tzinit */
 UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
-
-/*
- * arm_secboot_errata - arm errata, specific per core revision
- *
- * Use scratables registers R0-R3.
- * No stack usage.
- * LR store return address.
- * Trap CPU in case of error.
- */
-FUNC arm_secboot_errata , :
-UNWIND(	.fnstart)
-
-	mrc  p15, 0, r0, c0, c0, 0  /* read A9 ID */
-	movw r1, #CPUID_A9_R2P2_L
-	movt r1, #CPUID_A9_R2P2_H
-	cmp  r0, r1
-	beq  _errata_a9_r2p2
-	movw r1, #CPUID_A9_R3P0_L
-	movt r1, #CPUID_A9_R3P0_H
-	cmp  r0, r1
-	beq  _errata_a9_r3p0
-	b . /* TODO: unknown id: reset? log? */
-
-_errata_a9_r2p2:
-	/* unsupported version. TODO: needs to be supported */
-	b . /* TODO: unknown id: reset? log? */
-
-_errata_a9_r3p0:
-	mov pc, lr
-UNWIND(	.fnend)
-END_FUNC arm_secboot_errata
 
 /*
  * A9 secured config, needed only from a single core
