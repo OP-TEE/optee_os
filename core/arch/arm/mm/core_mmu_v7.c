@@ -632,7 +632,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		pa = mm->pa;
 	}
 
-	m = (mm->pa >> SECTION_SHIFT);
+	m = (mm->va >> SECTION_SHIFT);
 	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
 	while (n--) {
 		ttb[m] = pa | attr;
