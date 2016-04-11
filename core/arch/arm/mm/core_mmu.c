@@ -236,10 +236,24 @@ void core_init_mmu_map(void)
 	/* map what needs to be mapped (non-null size and non INTRAM/EXTRAM) */
 	map = in;
 	while (map->type != MEM_AREA_NOTYPE) {
-		if (map->va)
-			panic();
+		if (map->va) {
+#ifdef CFG_WITH_PAGER
+			if ((map->type == MEM_AREA_TEE_RAM) &&
+			    (map->va & SMALL_PAGE_MASK)) {
+				panic();
+			} else {
+				if (map->va & CORE_MMU_PGDIR_MASK)
+					panic();
+			}
+#else
+			if (map->va & CORE_MMU_PGDIR_MASK)
+				panic();
+#endif
 
-		map->va = map->pa;	/* 1-to-1 pa = va mapping */
+		} else {
+			map->va = map->pa;	/* 1-to-1 pa = va mapping */
+		}
+
 		if (map->type == MEM_AREA_TEE_RAM)
 			map_tee_ram = map;
 		else if (map->type == MEM_AREA_TA_RAM)

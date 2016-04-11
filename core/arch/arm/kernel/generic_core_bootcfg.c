@@ -142,27 +142,31 @@ static struct map_area bootcfg_memory_map[] = {
 
 	{
 	 .type = DEVICE0_TYPE,
-	 .pa = DEVICE0_BASE, .size = DEVICE0_SIZE,
+	 .pa = DEVICE0_PA_BASE, .size = DEVICE0_SIZE,
+	 .va = DEVICE0_VA_BASE,
 	 .device = true, .secure = true, .rw = true,
 	 },
-#ifdef DEVICE1_BASE
+#ifdef DEVICE1_PA_BASE
 	{
 	 .type = DEVICE1_TYPE,
-	 .pa = DEVICE1_BASE, .size = DEVICE1_SIZE,
+	 .pa = DEVICE1_PA_BASE, .size = DEVICE1_SIZE,
+	 .va = DEVICE1_VA_BASE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 #endif
-#ifdef DEVICE2_BASE
+#ifdef DEVICE2_PA_BASE
 	{
 	 .type = DEVICE2_TYPE,
-	 .pa = DEVICE2_BASE, .size = DEVICE2_SIZE,
+	 .pa = DEVICE2_PA_BASE, .size = DEVICE2_SIZE,
+	 .va = DEVICE2_VA_BASE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 #endif
-#ifdef DEVICE3_BASE
+#ifdef DEVICE3_PA_BASE
 	{
 	 .type = DEVICE3_TYPE,
-	 .pa = DEVICE3_BASE, .size = DEVICE3_SIZE,
+	 .pa = DEVICE3_PA_BASE, .size = DEVICE3_SIZE,
+	 .va = DEVICE3_VA_BASE,
 	 .device = true, .secure = true, .rw = true,
 	 },
 #endif
