@@ -1187,7 +1187,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 				     uint8_t *data_blks, uint16_t blkcnt,
 				     uint8_t *fek)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result res;
 	struct tee_rpmb_mem mem;
 	uint16_t msg_type;
 	uint32_t wr_cnt;
@@ -1224,6 +1224,10 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 		    RPMB_DATA_FRAME_SIZE * rpmb_ctx->rel_wr_blkcnt;
 
 	resp_size = RPMB_DATA_FRAME_SIZE;
+	res = tee_rpmb_alloc(req_size, resp_size, &mem,
+			     (void *)&req, (void *)&resp);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	nbr_writes = blkcnt / rpmb_ctx->rel_wr_blkcnt;
 	if (blkcnt % rpmb_ctx->rel_wr_blkcnt > 0)
@@ -1232,18 +1236,6 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 	tmp_blkcnt = rpmb_ctx->rel_wr_blkcnt;
 	tmp_blk_idx = blk_idx;
 	for (i = 0; i < nbr_writes; i++) {
-		/*
-		 * FIXME:
-		 * Re-using mem for several requests causes a kernel crash
-		 *
-		 *  misc opteearmtz00: Can't find shm for 000000003ef0a000
-		 *  kernel BUG at ../optee_linuxdriver/core/tee_supp_com.c:221!
-		 */
-		res = tee_rpmb_alloc(req_size, resp_size, &mem,
-				     (void *)&req, (void *)&resp);
-		if (res != TEE_SUCCESS)
-			goto func_exit;
-
 		/*
 		 * To handle the last write of block count which is
 		 * equal or smaller than reliable write block count.
@@ -1270,7 +1262,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 		res = tee_rpmb_req_pack(req, &rawdata, tmp_blkcnt, dev_id,
 					fek);
 		if (res != TEE_SUCCESS)
-			goto free_and_exit;
+			goto out;
 
 		res = tee_rpmb_invoke(&mem);
 		if (res != TEE_SUCCESS) {
@@ -1279,7 +1271,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 			 * out of sync due to inconsistent operation result!
 			 */
 			rpmb_ctx->wr_cnt_synced = false;
-			goto free_and_exit;
+			goto out;
 		}
 
 		msg_type = RPMB_MSG_TYPE_RESP_AUTH_DATA_WRITE;
@@ -1298,19 +1290,14 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 			 * out of sync due to inconsistent operation result!
 			 */
 			rpmb_ctx->wr_cnt_synced = false;
-			goto free_and_exit;
+			goto out;
 		}
 
 		tmp_blk_idx += tmp_blkcnt;
-		tee_rpmb_free(&mem);
 	}
 
-	res = TEE_SUCCESS;
-	goto func_exit;
-
-free_and_exit:
+out:
 	tee_rpmb_free(&mem);
-func_exit:
 	return res;
 }
 
