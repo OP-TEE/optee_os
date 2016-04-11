@@ -254,6 +254,13 @@ void core_init_mmu_map(void)
 			map->va = map->pa;	/* 1-to-1 pa = va mapping */
 		}
 
+		map->region_size = CORE_MMU_PGDIR_SIZE;
+
+#ifdef CFG_WITH_PAGER
+		if (map->type == MEM_AREA_TEE_RAM)
+			map->region_size = SMALL_PAGE_SIZE;
+#endif
+
 		if (map->type == MEM_AREA_TEE_RAM)
 			map_tee_ram = map;
 		else if (map->type == MEM_AREA_TA_RAM)
