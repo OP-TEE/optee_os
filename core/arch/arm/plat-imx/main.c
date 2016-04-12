@@ -30,6 +30,7 @@
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <tee/entry_std.h>
@@ -61,19 +62,31 @@ static void main_fiq(void)
 
 void console_init(void)
 {
-	imx_uart_init(CONSOLE_UART_BASE);
+	vaddr_t base;
+
+	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+
+	imx_uart_init(base);
 }
 
 void console_putc(int ch)
 {
-	imx_uart_putc(ch, CONSOLE_UART_BASE);
+	vaddr_t base;
+
+	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+
+	imx_uart_putc(ch, base);
 
 	/* If \n, also do \r */
 	if (ch == '\n')
-		imx_uart_putc('\r', CONSOLE_UART_BASE);
+		imx_uart_putc('\r', base);
 }
 
 void console_flush(void)
 {
-	imx_uart_flush_tx_fifo(CONSOLE_UART_BASE);
+	vaddr_t base;
+
+	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+
+	imx_uart_flush_tx_fifo(base);
 }

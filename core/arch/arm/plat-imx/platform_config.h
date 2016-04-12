@@ -82,9 +82,6 @@
 
 #define HEAP_SIZE			(24 * 1024)
 
-/* console uart define */
-#define CONSOLE_UART_BASE		UART0_BASE
-
 /* Location of trusted dram on imx */
 #define TZDRAM_BASE			(0x9c100000)
 #define TZDRAM_SIZE			(0x03000000)
@@ -110,10 +107,18 @@
 #define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
 					  CORE_MMU_DEVICE_SIZE)
 
-#define DEVICE0_PA_BASE		ROUNDDOWN(CONSOLE_UART_BASE, \
+#define DEVICE0_PA_BASE		ROUNDDOWN(UART0_BASE, \
 					  CORE_MMU_DEVICE_SIZE)
 #define DEVICE0_VA_BASE		(64 * 1024 * 1024)
 #define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE0_TYPE		MEM_AREA_IO_NSEC
+
+/*
+ * console uart virtual address
+ * The physical address is 0x2020000, we mapped it to 0x4020000,
+ * see DEVICE0_VA_BASE and DEVICE0_PA_BASE
+ */
+#define CONSOLE_UART_BASE	(0x4020000)
+#define CONSOLE_UART_PA_BASE	(UART0_BASE)
 
 #endif /*PLATFORM_CONFIG_H*/
