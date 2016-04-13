@@ -365,4 +365,7 @@ typedef enum {
 	L2CACHE_AREA_CLEAN_INV = 0xF
 } t_cache_operation_id;
 
+/* Check cpu mmu enabled or not */
+bool cpu_mmu_enabled(void);
+
 #endif /* CORE_MMU_H */

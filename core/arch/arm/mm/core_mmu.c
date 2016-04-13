@@ -836,3 +836,16 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	check_va_matches_pa(pa, va);
 	return va;
 }
+
+bool cpu_mmu_enabled(void)
+{
+	uint32_t sctlr;
+
+#ifdef ARM32
+	sctlr =  read_sctlr();
+#else
+	sctlr =  read_sctlr_el1();
+#endif
+
+	return sctlr & SCTLR_M ? true : false;
+}
