@@ -1027,33 +1027,6 @@ TEE_Result tee_svc_copy_kaddr_to_uref(struct tee_ta_session *sess,
 	return tee_svc_copy_to_user(sess, uref, &ref, sizeof(ref));
 }
 
-static bool session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)
-{
-	TEE_Time current_time;
-
-	if (s->cancel_mask)
-		return false;
-
-	if (s->cancel)
-		return true;
-
-	if (s->cancel_time.seconds == UINT32_MAX)
-		return false;
-
-	if (curr_time != NULL)
-		current_time = *curr_time;
-	else if (tee_time_get_sys_time(&current_time) != TEE_SUCCESS)
-		return false;
-
-	if (current_time.seconds > s->cancel_time.seconds ||
-	    (current_time.seconds == s->cancel_time.seconds &&
-	     current_time.millis >= s->cancel_time.millis)) {
-		return true;
-	}
-
-	return false;
-}
-
 TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)
 {
 	TEE_Result res;
@@ -1064,7 +1037,7 @@ TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	c = session_is_cancelled(s, NULL);
+	c = tee_ta_session_is_cancelled(s, NULL);
 
 	return tee_svc_copy_to_user(s, cancel, &c, sizeof(c));
 }
@@ -1120,7 +1093,7 @@ TEE_Result syscall_wait(unsigned long timeout)
 		if (res != TEE_SUCCESS)
 			return res;
 
-		if (session_is_cancelled(s, &current_time))
+		if (tee_ta_session_is_cancelled(s, &current_time))
 			return TEE_ERROR_CANCEL;
 
 		mytime = (current_time.seconds - base_time.seconds) * 1000 +

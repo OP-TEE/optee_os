@@ -575,6 +575,33 @@ TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
 	return TEE_SUCCESS;
 }
 
+bool tee_ta_session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)
+{
+	TEE_Time current_time;
+
+	if (s->cancel_mask)
+		return false;
+
+	if (s->cancel)
+		return true;
+
+	if (s->cancel_time.seconds == UINT32_MAX)
+		return false;
+
+	if (curr_time != NULL)
+		current_time = *curr_time;
+	else if (tee_time_get_sys_time(&current_time) != TEE_SUCCESS)
+		return false;
+
+	if (current_time.seconds > s->cancel_time.seconds ||
+	    (current_time.seconds == s->cancel_time.seconds &&
+	     current_time.millis >= s->cancel_time.millis)) {
+		return true;
+	}
+
+	return false;
+}
+
 TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
