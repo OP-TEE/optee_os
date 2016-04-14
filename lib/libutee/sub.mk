@@ -13,5 +13,7 @@ srcs-y += tee_api_operations.c
 srcs-y += tee_api_se.c
 srcs-y += tee_api_panic.c
 srcs-y += utf8.c
+srcs-y += image.c
+srcs-y += image_png.c
 
 subdirs-y += arch/$(ARCH)
