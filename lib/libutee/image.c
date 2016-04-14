@@ -95,6 +95,7 @@ bool image_set_border(struct image *image, size_t size, uint32_t color)
 	size_t x;
 	size_t y;
 
+	/* Size * 2 since the border appears on both sides etc */
 	if (size * 2 > image->width || size * 2 > image->height)
 		return false;
 

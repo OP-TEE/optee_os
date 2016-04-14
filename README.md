@@ -110,8 +110,8 @@ target you will use in the end.
 $ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
 		       cscope curl flex gdisk libc6:i386 libfdt-dev \
 		       libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
-		       libz1:i386 netcat python-crypto python-serial uuid-dev \
-		       xdg-utils xz-utils zlib1g-dev
+		       libz1:i386 netcat python-crypto python-serial \
+                       python-wand uuid-dev xdg-utils xz-utils zlib1g-dev
 ```
 
 ---
