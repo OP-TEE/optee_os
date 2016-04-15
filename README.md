@@ -106,10 +106,11 @@ able to build and run OP-TEE there are a few packages that needs to be installed
 to start with. Therefore install the following packages regardless of what
 target you will use in the end.
 ```
-$ sudo apt-get install android-tools-fastboot autoconf bison cscope curl \
-		       flex gdisk libc6:i386 libfdt-dev libglib2.0-dev \
-		       libpixman-1-dev libstdc++6:i386 libz1:i386 netcat \
-		       python-crypto python-serial uuid-dev xz-utils zlib1g-dev
+$ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
+		       cscope curl flex gdisk libc6:i386 libfdt-dev \
+		       libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
+		       libz1:i386 netcat python-crypto python-serial uuid-dev \
+		       xdg-utils xz-utils zlib1g-dev
 ```
 
 ---
@@ -327,6 +328,11 @@ $ cd $HOME/devel/optee
 $ repo init -u https://github.com/OP-TEE/manifest.git -m ${TARGET}.xml [-b ${BRANCH}]
 $ repo sync
 ```
+**Notes**<br>
+* The folder could be at any location, we are just giving a suggestion by
+  saying `$HOME/devel/optee`.
+* `repo sync` can take an additional parameter -j to sync multiple remotes. For
+   example `repo sync -j3` will sync three remotes in parallel.
 
 #### 5.2.1 Targets
 | Target | Latest | Stable |
@@ -334,6 +340,7 @@ $ repo sync
 | QEMU | `default.xml` | `default_stable.xml` |
 | FVP | `fvp.xml` | `fvp_stable.xml` |
 | HiKey | `hikey.xml` | `hikey_stable.xml` |
+| HiKey Debian (experimental) | `hikey_debian.xml` | Not available |
 | MediaTek MT8173 EVB Board | `mt8173-evb.xml` | `mt8173-evb_stable.xml` |
 | ARM Juno board| `juno.xml` | `juno_stable.xml` |
 
@@ -341,16 +348,12 @@ $ repo sync
 Currently we are only using one branch, i.e, the `master` branch.
 
 #### 5.2.3 Get the toolchains
+This is a one time thing you run only once after getting all the source code
+using repo.
 ```
 $ cd build
 $ make toolchains
 ```
-
-**Notes**<br>
-* The folder could be at any location, we are just giving a suggestion by
-  saying `$HOME/devel/optee`.
-* `repo sync` can take an additional parameter -j to sync multiple remotes. For
-   example `repo sync -j3` will sync three remotes in parallel.
 
 ---
 ### 5.3. QEMU
@@ -373,6 +376,7 @@ and everything should compile and at the end FVP should start.
 
 ---
 ### 5.5. HiKey
+#### 5.5.1 Initramfs based
 After getting the source and toolchain, just run (from the `build` folder)
 ```
 $ make all
@@ -387,6 +391,75 @@ $ make flash
 [here](https://github.com/96boards/documentation/wiki/HiKeyUEFI#flash-binaries-to-emmc-))
 
 The board is ready to be booted.
+#### 5.5.2 Debian based / 96boards RPB (experimental)
+Start by getting the source and toolchain (see above), then continue by
+downloading the system image (root fs). Note that this step is something you
+only should do once.
+
+```
+$ make system-img
+```
+
+Which should be followed by
+```
+$ make all
+```
+
+When everything has been built, flash the files to the device:
+```
+$ make flash
+```
+
+Now you can boot up the device, note that OP-TEE normal world binaries still
+hasn't been put on the device at this stage. So by now you're basically booting
+up an RPB build. When you have a prompt, the next step is to connect the device
+to the network. WiFi is preferable, since HiKey has no Ethernet jack. Easiest is
+to edit `/etc/network/interfaces`. To find out what to add, run:
+```
+$ make help
+```
+
+When that's been added, reboot and when you have a prompt again, you're ready to
+push the OP-TEE client binaries and the kernel with OP-TEE support. First find
+out the IP for your device (`ifconfig`). Then send the files to HiKey by
+running:
+```
+$ IP=111.222.333.444 make send
+
+Credentials for the image are:
+username: linaro
+password: linaro
+```
+
+When the files has been transfered, please follow the commands from the `make
+send` command which will install the debian packages on the device. Typically it
+tells you to run something like this on the device itself:
+```
+$ dpkg --force-all -i /tmp/out/optee_2.0-1.deb
+$ dpkg --force-all -i /tmp/linux-image-*.deb
+```
+
+Now you are ready to use OP-TEE on HiKey using Debian, please goto step 6 below
+to continue.
+
+##### Good to know
+Just want to update secure side? Put the device in fastboot mode and
+```
+$ make arm-tf
+$ make flash-fip
+
+```
+
+Just want to update OP-TEE client software? Put the device in fastboot mode and
+```
+$ make optee-client
+$ make xtest
+```
+
+Boot up the device and follow the instructions from make send
+```
+$ IP=111.222.333.444 make send
+```
 
 ---
 ### 5.6. MT8173-EVB
