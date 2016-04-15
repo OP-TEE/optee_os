@@ -30,13 +30,11 @@ srcs-y += tee_svc_cryp.c
 srcs-y += tee_svc_storage.c
 
 ifeq (y,$(CFG_RPMB_FS))
-srcs-y += tee_rpmb_fs_common.c
 srcs-y += tee_rpmb_fs.c
 else
-srcs-y += tee_fs_common.c
+srcs-y += tee_ree_fs.c
 endif
 srcs-y += tee_fs_key_manager.c
-srcs-y += tee_fs.c
 
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
