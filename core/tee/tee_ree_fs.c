@@ -2074,7 +2074,7 @@ static int ree_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
 	return ree_fs_ftruncate_internal(errno, fdp, length);
 }
 
-struct tee_file_operations tee_file_ops = {
+const struct tee_file_operations ree_fs_ops = {
 	.open = ree_fs_open,
 	.close = ree_fs_close,
 	.read = ree_fs_read,

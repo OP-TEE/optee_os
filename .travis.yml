@@ -129,6 +129,7 @@ script:
   - $make CFG_RPMB_FS=y
   - $make CFG_RPMB_FS=y CFG_ENC_FS=n
   - $make CFG_RPMB_FS=y CFG_ENC_FS=n CFG_RPMB_TESTKEY=y
+  - $make CFG_REE_FS=n CFG_RPMB_FS=y
   - $make CFG_WITH_USER_TA=n CFG_CRYPTO=n CFG_ENC_FS=n CFG_SE_API=n CFG_PCSC_PASSTHRU_READER_DRV=n
   - $make CFG_SMALL_PAGE_USER_TA=n
 

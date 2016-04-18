@@ -62,6 +62,11 @@ struct tee_file_operations {
 	int (*access)(const char *name, int mode);
 };
 
-extern struct tee_file_operations tee_file_ops;
+#ifdef CFG_REE_FS
+extern const struct tee_file_operations ree_fs_ops;
+#endif
+#ifdef CFG_RPMB_FS
+extern const struct tee_file_operations rpmb_fs_ops;
+#endif
 
 #endif

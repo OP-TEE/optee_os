@@ -112,22 +112,30 @@ CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
 # Trusted OS implementation manufacturer name
 CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 
-# Encrypted File System Support
-# Applies to both the default and the RPMB filesystems
-CFG_ENC_FS ?= y
+# Rich Execution Environment (REE) file system support: normal world OS
+# provides the actual storage.
+# This is the default FS when enabled (i.e., the one used when
+# TEE_STORAGE_PRIVATE is passed to the trusted storage API)
+CFG_REE_FS ?= y
 
-# File System Block Cache Support
-# Does not apply to the RPMB FS
-CFG_FS_BLOCK_CACHE ?= n
+# REE filesystem block cache support
+CFG_REE_FS_BLOCK_CACHE ?= n
 
 # RPMB file system support
-# When enabled, replaces the default (REE-based) FS
 CFG_RPMB_FS ?= n
 
 # Device identifier used when CFG_RPMB_FS = y.
 # The exact meaning of this value is platform-dependent. On Linux, the
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
+
+# File encryption support
+# Applies to both the REE and the RPMB filesystems
+CFG_ENC_FS ?= y
+
+ifeq (,$(filter y,$(CFG_REE_FS) $(CFG_RPMB_FS)))
+$(error At least one filesystem must be enabled)
+endif
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem

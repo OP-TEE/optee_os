@@ -2,15 +2,10 @@
 
 ## Introduction
 
-There are currently two secure storage implementations in OP-TEE:
-
-- The first one relies on the normal world (REE) file system. It is described in
-[secure_storage.md](secure_storage.md) and is the default implementation.
-- The second one makes use of the Replay Protected Memory Block (RPMB) partition
-of an eMMC device, and is enabled by setting `CFG_RPMB_FS=y`.
-
-It is not currently possible to use the normal world filesystem and the RPMB
-implementations simultaneously. This document describes the RPMB implementation.
+This document describes the RPMB secure storage implementation in OP-TEE,
+which is enabled by setting CFG_RPMB_FS=y. Trusted Applications may use
+this implementation by passing a storage ID equal to
+TEE_STORAGE_PRIVATE_RPMB, or TEE_STORAGE_PRIVATE if CFG_REE_FS is disabled.
 For details about RPMB, please refer to the JEDEC eMMC specification
 [[1]](#JEDECeMMC).
 

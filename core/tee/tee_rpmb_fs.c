@@ -2796,7 +2796,7 @@ exit:
 	return fd;
 }
 
-struct tee_file_operations tee_file_ops = {
+const struct tee_file_operations rpmb_fs_ops = {
 	.open = rpmb_fs_open,
 	.close = rpmb_fs_close,
 	.read = rpmb_fs_read,

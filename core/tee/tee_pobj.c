@@ -79,7 +79,8 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 }
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
-			uint32_t flags, struct tee_pobj **obj)
+			uint32_t flags, const struct tee_file_operations *fops,
+			struct tee_pobj **obj)
 {
 	struct tee_pobj *o;
 	TEE_Result res;
@@ -90,7 +91,8 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	TAILQ_FOREACH(o, &tee_pobjs, link) {
 		if ((obj_id_len == o->obj_id_len) &&
 		    (memcmp(obj_id, o->obj_id, obj_id_len) == 0) &&
-		    (memcmp(uuid, &o->uuid, sizeof(TEE_UUID)) == 0)) {
+		    (memcmp(uuid, &o->uuid, sizeof(TEE_UUID)) == 0) &&
+		    (fops == o->fops)) {
 			*obj = o;
 		}
 	}
@@ -115,6 +117,7 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	o->refcnt = 1;
 	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
 	o->flags = flags;
+	o->fops = fops;
 
 	o->obj_id = malloc(obj_id_len);
 	if (o->obj_id == NULL) {

@@ -28,14 +28,9 @@ srcs-y += tee_svc.c
 cppflags-tee_svc.c-y += -DTEE_IMPL_VERSION=$(TEE_IMPL_VERSION)
 srcs-y += tee_svc_cryp.c
 srcs-y += tee_svc_storage.c
-
-ifeq (y,$(CFG_RPMB_FS))
-srcs-y += tee_rpmb_fs.c
-else
-srcs-y += tee_ree_fs.c
-endif
+srcs-$(CFG_RPMB_FS) += tee_rpmb_fs.c
+srcs-$(CFG_REE_FS) += tee_ree_fs.c
 srcs-y += tee_fs_key_manager.c
-
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
 srcs-y += tee_time_generic.c

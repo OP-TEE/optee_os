@@ -78,4 +78,13 @@
 #define TEE_ATTR_PBKDF2_ITERATION_COUNT     0xF00003C2
 #define TEE_ATTR_PBKDF2_DKM_LENGTH          0xF00004C2
 
+/*
+ * Implementation-specific object storage constants
+ */
+
+/* Storage is provided by the Rich Execution Environment (REE) */
+#define TEE_STORAGE_PRIVATE_REE	 0x80000000
+/* Storage is the Replay Protected Memory Block partition of an eMMC device */
+#define TEE_STORAGE_PRIVATE_RPMB 0x80000100
+
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */
