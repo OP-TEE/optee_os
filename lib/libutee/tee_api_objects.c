@@ -471,19 +471,20 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 		goto err;
 	}
 
-	if (!object) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
-
 	res = utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				      (unsigned long)attributes, initialData,
 				      initialDataLen, &obj);
 	if (res == TEE_SUCCESS) {
-		*object = (TEE_ObjectHandle)(uintptr_t)obj;
-		goto out;
+		if (object)
+			*object = (TEE_ObjectHandle)(uintptr_t)obj;
+		else
+			res = utee_cryp_obj_close(obj);
+		if (res == TEE_SUCCESS)
+			goto out;
 	}
 err:
+	if (object)
+		*object = TEE_HANDLE_NULL;
 	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
 	    res == TEE_ERROR_ACCESS_CONFLICT ||
 	    res == TEE_ERROR_OUT_OF_MEMORY ||
