@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +27,7 @@
  */
 
 #include <assert.h>
+#include <mm/core_memprot.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,9 +38,65 @@
 #include <kernel/tee_common_unpg.h>
 #include <kernel/handle.h>
 #include <kernel/mutex.h>
+#include <kernel/thread.h>
 #include <trace.h>
+#include <optee_msg.h>
 
 #include "tee_fs_private.h"
+
+static int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
+			   uint32_t mode)
+{
+	TEE_Result ret;
+	struct optee_msg_param params;
+	paddr_t phpayload = 0;
+	uint64_t cpayload = 0;
+	struct tee_fs_rpc *bf;
+	int res = -1;
+
+	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
+				 &phpayload, &cpayload);
+	if (!phpayload)
+		return -1;
+
+	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
+		goto exit;
+
+	bf = phys_to_virt(phpayload, MEM_AREA_NSEC_SHM);
+	if (!bf)
+		goto exit;
+
+	memset(&params, 0, sizeof(params));
+	params.attr = OPTEE_MSG_ATTR_TYPE_TMEM_INOUT;
+	params.u.tmem.buf_ptr = phpayload;
+	params.u.tmem.size = sizeof(struct tee_fs_rpc) + len;
+	params.u.tmem.shm_ref = cpayload;
+
+	/* fill in parameters */
+	*bf = *bf_cmd;
+
+	if (mode & TEE_FS_MODE_IN) {
+		memcpy((void *)(bf + 1), data, len);
+	}
+
+	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, 1, &params);
+	/* update result */
+	*bf_cmd = *bf;
+	if (ret != TEE_SUCCESS)
+		goto exit;
+
+	if (mode & TEE_FS_MODE_OUT) {
+		uint32_t olen = MIN(len, bf->len);
+
+		memcpy(data, (void *)(bf + 1), olen);
+	}
+
+	res = 0;
+
+exit:
+	thread_rpc_free_payload(cpayload);
+	return res;
+}
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 

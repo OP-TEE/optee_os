@@ -100,7 +100,4 @@ struct tee_fs_rpc {
 
 extern struct tee_file_operations tee_file_ops;
 
-int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
-		    uint32_t mode);
-
 #endif
