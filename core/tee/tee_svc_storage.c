@@ -541,6 +541,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	struct tee_pobj *po = NULL;
 	char *tmpfile = NULL;
 	int err = -1;
+	int filedoesnotexist;
 	struct user_ta_ctx *utc;
 
 	if (storage_id != TEE_STORAGE_PRIVATE)
@@ -608,8 +609,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
-	err = tee_file_ops.access(file, TEE_FS_F_OK);
-	if (!err) {
+	filedoesnotexist = tee_file_ops.access(file, TEE_FS_F_OK);
+	if (!filedoesnotexist) {
 		/* file exists */
 		if (!(flags & TEE_DATA_FLAG_OVERWRITE)) {
 			res = TEE_ERROR_ACCESS_CONFLICT;
@@ -626,6 +627,15 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
+	/*
+	 * remove the file if it exists, because rename does not perform
+	 * this operation. Note that it delete and rename should be atomic,
+	 * which is not the case currently.
+	 * Fixme: unlink must be removed once rename() support prior deletion
+	 * of the new file name when it already exists.
+	 */
+	if (!filedoesnotexist)
+		tee_file_ops.unlink(file);
 	/* rename temporary persistent object filename */
 	err = tee_file_ops.rename(tmpfile, file);
 	if (err) {
