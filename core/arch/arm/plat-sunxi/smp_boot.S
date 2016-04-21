@@ -80,6 +80,7 @@ UNWIND(	.cantunwind)
 	bl	sunxi_secondary_fixup
 	
 	/* initialize gic cpu interface */
+	ldr	r0, =gic_data
     	bl      gic_cpu_init
 	
 	/* secure env initialization */

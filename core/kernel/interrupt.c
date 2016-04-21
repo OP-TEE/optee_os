@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016, Linaro Limited
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,31 +25,63 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DRIVERS_GIC_H
-#define __DRIVERS_GIC_H
-#include <types_ext.h>
 #include <kernel/interrupt.h>
-
-struct gic_data {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-	size_t max_it;
-	struct itr_chip chip;
-};
+#include <trace.h>
 
 /*
- * The two gic_init_* functions initializes the struct gic_data which is
- * then used by the other functions.
+ * NOTE!
+ *
+ * We're assuming that there's no concurrent use of this interface, except
+ * delivery of interrupts in parallel. Synchronization will be needed when
+ * we begin to modify settings after boot initialization.
  */
 
-void gic_init(struct gic_data *gd, paddr_t gicc_base, paddr_t gicd_base);
-/* initial base address only */
-void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base,
-			vaddr_t gicd_base);
-/* initial cpu if only, mainly use for secondary cpu setup cpu interface */
-void gic_cpu_init(struct gic_data *gd);
+static struct itr_chip *itr_chip;
+static SLIST_HEAD(, itr_handler) handlers = SLIST_HEAD_INITIALIZER(handlers);
 
-void gic_it_handle(struct gic_data *gd);
+void itr_init(struct itr_chip *chip)
+{
+	itr_chip = chip;
+}
 
-void gic_dump_state(struct gic_data *gd);
-#endif /*__DRIVERS_GIC_H*/
+static struct itr_handler *find_handler(size_t it)
+{
+	struct itr_handler *h;
+
+	SLIST_FOREACH(h, &handlers, link)
+		if (h->it == it)
+			return h;
+	return NULL;
+}
+
+void itr_handle(size_t it)
+{
+	struct itr_handler *h = find_handler(it);
+
+	if (!h) {
+		EMSG("Disabling unhandled interrupt %zu", it);
+		itr_chip->ops->disable(itr_chip, it);
+		return;
+	}
+
+	if (h->handler(h) != ITRR_HANDLED) {
+		EMSG("Disabling interrupt %zu not handled by handler", it);
+		itr_chip->ops->disable(itr_chip, it);
+	}
+}
+
+void itr_add(struct itr_handler *h)
+{
+	itr_chip->ops->add(itr_chip, h->it, h->flags);
+	SLIST_INSERT_HEAD(&handlers, h, link);
+}
+
+void itr_enable(struct itr_handler *h)
+{
+	itr_chip->ops->enable(itr_chip, h->it);
+}
+
+void itr_disable(struct itr_handler *h)
+{
+	itr_chip->ops->disable(itr_chip, h->it);
+}

@@ -53,6 +53,8 @@ void sunxi_secondary_entry(void);
 
 uint32_t sunxi_secondary_ns_entry;
 
+struct gic_data gic_data;
+
 static int platform_smp_init(void)
 {
 	write32((uint32_t)sunxi_secondary_entry, (PRCM_BASE + PRCM_CPU_SOFT_ENTRY_REG));
@@ -66,7 +68,9 @@ void platform_init(void)
 	 * GIC configuration is initialized in Secure bootloader,
 	 * Initialize GIC base address here for debugging.
 	 */
-	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
+			   GIC_BASE + GICD_OFFSET);
+	itr_init(&gic_data.chip);
 
 	/* platform smp initialize */
 	platform_smp_init();

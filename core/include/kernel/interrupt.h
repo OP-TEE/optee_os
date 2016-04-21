@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016, Linaro Limited
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,32 +24,42 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef __KERNEL_INTERRUPT_H
+#define __KERNEL_INTERRUPT_H
 
-#ifndef __DRIVERS_GIC_H
-#define __DRIVERS_GIC_H
 #include <types_ext.h>
-#include <kernel/interrupt.h>
+#include <sys/queue.h>
 
-struct gic_data {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-	size_t max_it;
-	struct itr_chip chip;
+#define ITRF_TRIGGER_LEVEL	(1 << 0)
+
+struct itr_chip {
+	const struct itr_ops *ops;
 };
 
-/*
- * The two gic_init_* functions initializes the struct gic_data which is
- * then used by the other functions.
- */
+struct itr_ops {
+	void (*add)(struct itr_chip *chip, size_t it, uint32_t flags);
+	void (*enable)(struct itr_chip *chip, size_t it);
+	void (*disable)(struct itr_chip *chip, size_t it);
+};
 
-void gic_init(struct gic_data *gd, paddr_t gicc_base, paddr_t gicd_base);
-/* initial base address only */
-void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base,
-			vaddr_t gicd_base);
-/* initial cpu if only, mainly use for secondary cpu setup cpu interface */
-void gic_cpu_init(struct gic_data *gd);
+enum itr_return {
+	ITRR_NONE,
+	ITRR_HANDLED,
+};
 
-void gic_it_handle(struct gic_data *gd);
+struct itr_handler {
+	size_t it;
+	uint32_t flags;
+	enum itr_return (*handler)(struct itr_handler *h);
+	void *data;
+	SLIST_ENTRY(itr_handler) link;
+};
 
-void gic_dump_state(struct gic_data *gd);
-#endif /*__DRIVERS_GIC_H*/
+void itr_init(struct itr_chip *data);
+void itr_handle(size_t it);
+
+void itr_add(struct itr_handler *handler);
+void itr_enable(struct itr_handler *handler);
+void itr_disable(struct itr_handler *handler);
+
+#endif /*__KERNEL_INTERRUPT_H*/
