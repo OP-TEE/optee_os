@@ -44,6 +44,8 @@
 #include <tee/tee_cryp_provider.h>
 #endif
 
+#include "tee_fs_private.h"
+
 #define RPMB_STORAGE_START_ADDRESS      0
 #define RPMB_FS_FAT_START_ADDRESS       512
 #define RPMB_BLOCK_SIZE_SHIFT           8
@@ -1334,3 +1336,60 @@ int tee_rpmb_fs_access(const char *filename, int mode)
 	return -1;
 }
 
+static struct tee_fs_fd *tee_fs_fd_lookup(int fd)
+{
+	return handle_lookup(&fs_handle_db, fd);
+}
+
+static int tee_fs_close(int fd)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_close(fdp);
+}
+
+static int tee_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_read(errno, fdp, buf, len);
+}
+
+static int tee_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_write(errno, fdp, buf, len);
+}
+
+static tee_fs_off_t tee_fs_lseek(TEE_Result *errno,
+				 int fd, tee_fs_off_t offset, int whence)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_lseek(errno, fdp, offset, whence);
+}
+
+static int tee_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_ftruncate(errno, fdp, length);
+}
+
+struct tee_file_operations tee_file_ops = {
+	.open = tee_fs_common_open,
+	.close = tee_fs_close,
+	.read = tee_fs_read,
+	.write = tee_fs_write,
+	.lseek = tee_fs_lseek,
+	.ftruncate = tee_fs_ftruncate,
+	.rename = tee_fs_common_rename,
+	.unlink = tee_fs_common_unlink,
+	.mkdir = tee_fs_common_mkdir,
+	.opendir = tee_fs_common_opendir,
+	.closedir = tee_fs_common_closedir,
+	.readdir = tee_fs_common_readdir,
+	.rmdir = tee_fs_common_rmdir,
+	.access = tee_fs_common_access
+};

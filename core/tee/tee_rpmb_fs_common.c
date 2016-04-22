@@ -52,11 +52,6 @@ static void do_fail_recovery(struct tee_fs_fd *fdp)
 	/* Note: Roll back is automatic for RPMB */
 }
 
-struct tee_fs_fd *tee_fs_fd_lookup(int fd)
-{
-	return handle_lookup(&fs_handle_db, fd);
-}
-
 int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...)
 {
 	int res = -1;

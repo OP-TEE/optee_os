@@ -44,6 +44,12 @@
 
 #include "tee_fs_private.h"
 
+struct tee_fs_dir {
+	int nw_dir;
+	struct tee_fs_dirent d;
+};
+
+
 static int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
 			   uint32_t mode)
 {
@@ -97,6 +103,30 @@ exit:
 	thread_rpc_free_payload(cpayload);
 	return res;
 }
+
+/*
+ * We split a TEE file into multiple blocks and store them
+ * on REE filesystem. A TEE file is represented by a REE file
+ * called meta and a number of REE files called blocks. Meta
+ * file is used for storing file information, e.g. file size
+ * and backup version of each block.
+ *
+ * REE files naming rule is as follows:
+ *
+ *   <tee_file_name>/meta.<backup_version>
+ *   <tee_file_name>/block0.<backup_version>
+ *   ...
+ *   <tee_file_name>/block15.<backup_version>
+ *
+ * Backup_version is used to support atomic update operation.
+ * Original file will not be updated, instead we create a new
+ * version of the same file and update the new file instead.
+ *
+ * The backup_version of each block file is stored in meta
+ * file, the meta file itself also has backup_version, the update is
+ * successful after new version of meta has been written.
+ */
+#define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
@@ -1286,7 +1316,7 @@ static struct tee_fs_file_meta *open_tee_file(const char *file)
 	return meta;
 }
 
-struct tee_fs_fd *tee_fs_fd_lookup(int fd)
+static struct tee_fs_fd *tee_fs_fd_lookup(int fd)
 {
 	return handle_lookup(&fs_handle_db, fd);
 }
@@ -1950,3 +1980,56 @@ int tee_fs_common_access(const char *name, int mode)
 {
 	return ree_fs_access(name, mode);
 }
+
+static int tee_fs_close(int fd)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_close(fdp);
+}
+
+static int tee_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_read(errno, fdp, buf, len);
+}
+
+static int tee_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_write(errno, fdp, buf, len);
+}
+
+static tee_fs_off_t tee_fs_lseek(TEE_Result *errno,
+				 int fd, tee_fs_off_t offset, int whence)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_lseek(errno, fdp, offset, whence);
+}
+
+static int tee_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
+{
+	struct tee_fs_fd *fdp = tee_fs_fd_lookup(fd);
+
+	return tee_fs_common_ftruncate(errno, fdp, length);
+}
+
+struct tee_file_operations tee_file_ops = {
+	.open = tee_fs_common_open,
+	.close = tee_fs_close,
+	.read = tee_fs_read,
+	.write = tee_fs_write,
+	.lseek = tee_fs_lseek,
+	.ftruncate = tee_fs_ftruncate,
+	.rename = tee_fs_common_rename,
+	.unlink = tee_fs_common_unlink,
+	.mkdir = tee_fs_common_mkdir,
+	.opendir = tee_fs_common_opendir,
+	.closedir = tee_fs_common_closedir,
+	.readdir = tee_fs_common_readdir,
+	.rmdir = tee_fs_common_rmdir,
+	.access = tee_fs_common_access
+};

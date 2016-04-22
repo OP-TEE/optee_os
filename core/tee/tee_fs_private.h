@@ -99,11 +99,6 @@ struct tee_fs_fd {
 	struct block_cache block_cache;
 };
 
-struct tee_fs_dir {
-	int nw_dir;
-	struct tee_fs_dirent d;
-};
-
 static inline int pos_to_block_num(int position)
 {
 	return position >> BLOCK_FILE_SHIFT;
@@ -148,8 +143,6 @@ struct block_operations {
 	int (*write)(struct tee_fs_fd *fdp, struct block *b,
 			struct tee_fs_file_meta *new_meta);
 };
-
-struct tee_fs_fd *tee_fs_fd_lookup(int fd);
 
 int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...);
 

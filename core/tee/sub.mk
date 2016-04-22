@@ -36,7 +36,6 @@ else
 srcs-y += tee_fs_common.c
 endif
 srcs-y += tee_fs_key_manager.c
-srcs-y += tee_fs.c
 
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
