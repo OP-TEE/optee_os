@@ -37,6 +37,15 @@
 
 #include "tee_fs_private.h"
 
+struct tee_fs_fd {
+	int pos;
+	uint32_t flags;
+	int fd;
+	int nw_fd; /* Normal world */
+	bool is_new_file;
+	char *filename;
+};
+
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
 static void do_fail_recovery(struct tee_fs_fd *fdp)
