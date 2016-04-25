@@ -35,8 +35,6 @@
 #include <trace.h>
 #include <assert.h>
 
-#include "tee_fs_private.h"
-
 struct tee_fs_fd {
 	int pos;
 	uint32_t flags;
@@ -45,6 +43,25 @@ struct tee_fs_fd {
 	bool is_new_file;
 	char *filename;
 };
+
+int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...);
+int tee_fs_common_close(struct tee_fs_fd *fdp);
+tee_fs_off_t tee_fs_common_lseek(TEE_Result *errno, struct tee_fs_fd *fdp,
+				 tee_fs_off_t offset, int whence);
+int tee_fs_common_ftruncate(TEE_Result *errno, struct tee_fs_fd *fdp,
+			    tee_fs_off_t length);
+int tee_fs_common_read(TEE_Result *errno, struct tee_fs_fd *fdp,
+		       void *buf, size_t len);
+int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
+			const void *buf, size_t len);
+int tee_fs_common_rename(const char *old, const char *new);
+int tee_fs_common_unlink(const char *file);
+int tee_fs_common_mkdir(const char *path, tee_fs_mode_t mode);
+tee_fs_dir *tee_fs_common_opendir(const char *name);
+int tee_fs_common_closedir(tee_fs_dir *d);
+struct tee_fs_dirent *tee_fs_common_readdir(tee_fs_dir *d);
+int tee_fs_common_rmdir(const char *name);
+int tee_fs_common_access(const char *name, int mode);
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 

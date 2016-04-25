@@ -34,6 +34,7 @@
 #include <string_ext.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
+#include <tee/tee_fs_key_manager.h>
 #include <tee/tee_cryp_provider.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/handle.h>
@@ -41,8 +42,6 @@
 #include <kernel/thread.h>
 #include <trace.h>
 #include <optee_msg.h>
-
-#include "tee_fs_private.h"
 
 struct tee_fs_dir {
 	int nw_dir;
@@ -110,6 +109,25 @@ struct tee_fs_fd {
 	char *filename;
 	struct block_cache block_cache;
 };
+
+int tee_fs_common_open(TEE_Result *errno, const char *file, int flags, ...);
+int tee_fs_common_close(struct tee_fs_fd *fdp);
+tee_fs_off_t tee_fs_common_lseek(TEE_Result *errno, struct tee_fs_fd *fdp,
+				 tee_fs_off_t offset, int whence);
+int tee_fs_common_ftruncate(TEE_Result *errno, struct tee_fs_fd *fdp,
+			    tee_fs_off_t length);
+int tee_fs_common_read(TEE_Result *errno, struct tee_fs_fd *fdp,
+		       void *buf, size_t len);
+int tee_fs_common_write(TEE_Result *errno, struct tee_fs_fd *fdp,
+			const void *buf, size_t len);
+int tee_fs_common_rename(const char *old, const char *new);
+int tee_fs_common_unlink(const char *file);
+int tee_fs_common_mkdir(const char *path, tee_fs_mode_t mode);
+tee_fs_dir *tee_fs_common_opendir(const char *name);
+int tee_fs_common_closedir(tee_fs_dir *d);
+struct tee_fs_dirent *tee_fs_common_readdir(tee_fs_dir *d);
+int tee_fs_common_rmdir(const char *name);
+int tee_fs_common_access(const char *name, int mode);
 
 static inline int pos_to_block_num(int position)
 {
