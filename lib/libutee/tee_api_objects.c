@@ -642,6 +642,8 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 {
 	TEE_Result res;
 	uint64_t len;
+	TEE_ObjectInfo local_info;
+	TEE_ObjectInfo *pt_info;
 
 	if (!objectID) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -653,9 +655,13 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 		goto out;
 	}
 
+	if (objectInfo)
+		pt_info = objectInfo;
+	else
+		pt_info = &local_info;
 	len = *objectIDLen;
 	res = utee_storage_next_enum((unsigned long)objectEnumerator,
-				     objectInfo, objectID, &len);
+				     pt_info, objectID, &len);
 	*objectIDLen = len;
 
 out:
