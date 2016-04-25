@@ -51,7 +51,7 @@ struct tee_svc_storage_head {
 
 struct tee_storage_enum {
 	TAILQ_ENTRY(tee_storage_enum) link;
-	tee_fs_dir *dir;
+	struct tee_fs_dir *dir;
 };
 
 static TEE_Result tee_svc_storage_get_enum(struct user_ta_ctx *utc,
