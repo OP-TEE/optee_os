@@ -36,12 +36,10 @@
 
 typedef int64_t tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;
-typedef struct tee_fs_dir tee_fs_dir;
 
 struct tee_fs_dirent {
 	char *d_name;
 };
-
 
 /*
  * tee_fs implemets a POSIX like secure file system with GP extension
@@ -57,9 +55,9 @@ struct tee_file_operations {
 	int (*unlink)(const char *file);
 	int (*ftruncate)(TEE_Result *errno, int fd, tee_fs_off_t length);
 	int (*mkdir)(const char *path, tee_fs_mode_t mode);
-	tee_fs_dir *(*opendir)(const char *name);
-	int (*closedir)(tee_fs_dir *d);
-	struct tee_fs_dirent *(*readdir)(tee_fs_dir *d);
+	struct tee_fs_dir *(*opendir)(const char *name);
+	int (*closedir)(struct tee_fs_dir *d);
+	struct tee_fs_dirent *(*readdir)(struct tee_fs_dir *d);
 	int (*rmdir)(const char *pathname);
 	int (*access)(const char *name, int mode);
 };
