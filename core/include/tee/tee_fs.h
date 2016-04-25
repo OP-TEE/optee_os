@@ -64,15 +64,6 @@ struct tee_file_operations {
 	int (*access)(const char *name, int mode);
 };
 
-struct tee_fs_rpc {
-	int op;
-	int flags;
-	int arg;
-	int fd;
-	uint32_t len;
-	int res;
-};
-
 extern struct tee_file_operations tee_file_ops;
 
 #endif
