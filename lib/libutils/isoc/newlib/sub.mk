@@ -27,3 +27,5 @@ cflags-remove-strlen.c-y += -Wcast-align
 srcs-y += strnlen.c
 
 srcs-y += abs.c
+
+cflags-y += -ffreestanding
