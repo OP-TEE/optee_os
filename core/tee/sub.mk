@@ -33,7 +33,7 @@ ifeq (y,$(CFG_RPMB_FS))
 srcs-y += tee_rpmb_fs_common.c
 srcs-y += tee_rpmb_fs.c
 else
-srcs-y += tee_fs_common.c
+srcs-y += tee_ree_fs.c
 endif
 srcs-y += tee_fs_key_manager.c
 
