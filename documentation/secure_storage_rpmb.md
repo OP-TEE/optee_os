@@ -27,8 +27,8 @@ The architecture is depicted below.
  K         |          |            :               OP-TEE
  E         v          v            :         (tee_svc_storage.c)
  R  MMC/SD subsys.  OP-TEE driver  : (tee_rpmb_fs.c, tee_fs_key_manager.c)
- N         ^                 ^     :            (tee_rpmb.c)
- E         |                 |     :                  ^
+ N         ^                 ^     :                  ^
+ E         |                 |     :                  |
  L         v                 |     :                  |
      Controller driver       |     :                  |
  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~
@@ -48,7 +48,8 @@ the RPMB filesystem is the **tee_file_operations** structure `tee_file_ops`.
 
 ## The RPMB filesystem
 
-The FS implementation is mainly in [core/tee/tee_rpmb_fs.c](../core/tee/tee_rpmb_fs.c).
+The FS implementation is entirely in
+[core/tee/tee_rpmb_fs.c](../core/tee/tee_rpmb_fs.c).
 
 The RPMB partition is divided in three parts:
 
@@ -75,8 +76,6 @@ than the "reliable write block count" blocks. Otherwise, or if the file needs
 to be extended, a new file is created.
 
 ## Device access
-
-The device access layer is in [core/arch/arm/tee/tee_rpmb.c](../core/arch/arm/tee/tee_rpmb.c).
 
 There is no eMMC controller driver in OP-TEE. The device operations all have to
 go through the normal world. They are handled by the `tee-supplicant` process

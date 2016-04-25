@@ -17,10 +17,12 @@ successfully or no write is done).
 
 ### Source Files In OP-TEE OS
 
-- **[core/tee/tee_svc_storage.c](../core/tee/tee_svc_storage.c):** TEE trusted storage service calls
-- **[core/tee/tee_fs.c](../core/tee/tee_fs.c):** TEE file operation interface
-- **[core/tee/tee_fs_common.c](../core/tee/tee_fs_common.c):** TEE file system & REE file operation interface
-- **[core/tee/tee_fs_key_manager.c](../core/tee/tee_fs_key_manager.c):** Key manager
+- **[core/tee/tee_svc_storage.c](../core/tee/tee_svc_storage.c):** TEE trusted
+storage service calls
+- **[core/tee/tee_ree_fs.c](../core/tee/tee_ree_fs):** TEE file system & REE
+file operation interface
+- **[core/tee/tee_fs_key_manager.c](../core/tee/tee_fs_key_manager.c):** Key
+manager
 - **[lib/libutee/](../lib/libutee/):** GlobalPlatform Internal API library
 
 ### Basic File Operation Flow
@@ -79,7 +81,8 @@ change CFG_ENC_FS to 'n' only for TA debugging.
 The reason why we store the TEE file content in many small blocks is to
 accelerate the file update speed when handling a large file. The block size
 (FILE_BLOCK_SIZE) and the maximum number of blocks of a TEE file
-(NUM_BLOCKS_PER_FILE) are defined in [core/tee/tee_fs_private.h](../core/tee/tee_fs_private.h).
+(NUM_BLOCKS_PER_FILE) are defined in
+[core/tee/tee_ree_fs.c](../core/tee/tee_ree_fs.c).
 
 For now, the default block size is 4KB and the maximum number of blocks of a
 TEE file is 1024.
