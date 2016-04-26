@@ -33,6 +33,7 @@
 
 #include <drivers/gic.h>
 #include <drivers/pl011.h>
+#include <drivers/tzc400.h>
 
 #include <arm.h>
 #include <kernel/generic_boot.h>
@@ -174,3 +175,27 @@ static TEE_Result init_console_itr(void)
 }
 driver_init(init_console_itr);
 #endif
+
+#ifdef CFG_TZC400
+register_phys_mem(MEM_AREA_IO_SEC, TZC400_BASE, TZC400_REG_SIZE);
+
+static TEE_Result init_tzc400(void)
+{
+	void *va;
+
+	DMSG("Initializing TZC400");
+
+	va = phys_to_virt(TZC400_BASE, MEM_AREA_IO_SEC);
+	if (!va) {
+		EMSG("TZC400 not mapped");
+		panic();
+	}
+
+	tzc_init((vaddr_t)va);
+	tzc_dump_state();
+
+	return TEE_SUCCESS;
+}
+
+service_init(init_tzc400);
+#endif /*CFG_TZC400*/

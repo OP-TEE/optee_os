@@ -44,6 +44,7 @@
 #define UART1_BASE		0x1c0a0000
 #define UART2_BASE		0x1c0b0000
 #define UART3_BASE		0x1c0c0000
+#define TZC400_BASE		0x2a4a0000
 
 #define IT_UART1		38
 
