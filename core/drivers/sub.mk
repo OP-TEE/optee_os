@@ -1,6 +1,7 @@
 srcs-$(CFG_CDNS_UART) += cdns_uart.c
 srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_PL050) += pl050.c
+srcs-$(CFG_TZC400) += tzc400.c
 srcs-$(CFG_PS2MOUSE) += ps2mouse.c
 srcs-$(CFG_PL111) += pl111.c
 srcs-$(CFG_FRAME_BUFFER) += frame_buffer.c
