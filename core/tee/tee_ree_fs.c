@@ -62,6 +62,11 @@
 #define TEE_FS_ACCESS    14
 #define TEE_FS_LINK      15
 
+/* tee_fs_send_cmd 'mode' */
+#define TEE_FS_MODE_NONE 0
+#define TEE_FS_MODE_IN   1
+#define TEE_FS_MODE_OUT  2
+
 #define BLOCK_FILE_SHIFT	12
 
 #define BLOCK_FILE_SIZE		(1 << BLOCK_FILE_SHIFT)
