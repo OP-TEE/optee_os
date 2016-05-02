@@ -649,6 +649,11 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		map_memarea(mm + n, ttb1);
 }
 
+bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
+{
+	return paddr > 0x80000000;
+}
+
 void core_init_mmu_regs(void)
 {
 	uint32_t prrr;

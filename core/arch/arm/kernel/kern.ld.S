@@ -140,6 +140,10 @@ SECTIONS
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
+		. = ALIGN(8);
+		__start_phys_mem_map_section = . ;
+		KEEP(*(phys_mem_map_section))
+		__end_phys_mem_map_section = . ;
 #endif
 		. = ALIGN(4);
 		__rodata_end = .;
@@ -232,6 +236,10 @@ SECTIONS
 	.rodata_init : ALIGN(4) {
 		__rodata_init_start = .;
 #include <rodata_init.ld.S>
+		. = ALIGN(8);
+		__start_phys_mem_map_section = . ;
+		KEEP(*(phys_mem_map_section))
+		__end_phys_mem_map_section = . ;
 		. = ALIGN(4);
 		__rodata_init_end = .;
 	}
@@ -249,7 +257,12 @@ SECTIONS
 	.rodata_pageable : ALIGN(4) {
 		__rodata_pageable_start = .;
 		*(.rodata*)
-		. = ALIGN(4);
+		/*
+		 * 8 to avoid unwanted padding between __start_ta_head_section
+		 * and the first structure in ta_head_section, in 64-bit
+		 * builds
+		 */
+		. = ALIGN(8);
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;

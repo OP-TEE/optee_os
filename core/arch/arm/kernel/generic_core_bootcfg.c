@@ -29,6 +29,7 @@
 #include <mm/core_memprot.h>
 #include <util.h>
 #include <kernel/tee_misc.h>
+#include <kernel/panic.h>
 #include <trace.h>
 
 /* Define the platform's memory layout. */
@@ -114,88 +115,220 @@ static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
 	}
 }
 
-/* Platform-specific memory layout provided to TEE core. */
-static struct map_area bootcfg_memory_map[] = {
-	/* TEE core execution RAM. */
-	{
-	 .type = MEM_AREA_TEE_RAM,
-	 .pa = CFG_TEE_RAM_START, .size = CFG_TEE_RAM_PH_SIZE,
-#ifdef CFG_WITH_PAGER
-	 .region_size = SMALL_PAGE_SIZE,
+register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
+register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
+register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
+#ifdef DEVICE0_PA_BASE
+register_phys_mem(DEVICE0_TYPE, DEVICE0_PA_BASE, DEVICE0_SIZE);
 #endif
-	 .cached = true, .secure = true, .rw = true, .exec = true,
-	 },
-
-	/* TEE core TA load/exec RAM: secure, user exec only. */
-	{
-	 .type = MEM_AREA_TA_RAM,
-	 .pa = CFG_TA_RAM_START, .size = CFG_TA_RAM_SIZE,
-	 .cached = true, .secure = true, .rw = true, .exec = false,
-	 },
-
-	/* TEE core public RAM: non-secure, non-exec. */
-	{
-	 .type = MEM_AREA_NSEC_SHM,
-	 .pa = CFG_SHMEM_START, .size = CFG_SHMEM_SIZE,
-	 .cached = true, .secure = false, .rw = true, .exec = false,
-	 },
-
-	{
-	 .type = DEVICE0_TYPE,
-	 .pa = DEVICE0_PA_BASE, .size = DEVICE0_SIZE,
-	 .va = DEVICE0_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
 #ifdef DEVICE1_PA_BASE
-	{
-	 .type = DEVICE1_TYPE,
-	 .pa = DEVICE1_PA_BASE, .size = DEVICE1_SIZE,
-	 .va = DEVICE1_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE1_TYPE, DEVICE1_PA_BASE, DEVICE1_SIZE);
 #endif
 #ifdef DEVICE2_PA_BASE
-	{
-	 .type = DEVICE2_TYPE,
-	 .pa = DEVICE2_PA_BASE, .size = DEVICE2_SIZE,
-	 .va = DEVICE2_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE2_TYPE, DEVICE2_PA_BASE, DEVICE2_SIZE);
 #endif
 #ifdef DEVICE3_PA_BASE
-	{
-	 .type = DEVICE3_TYPE,
-	 .pa = DEVICE3_PA_BASE, .size = DEVICE3_SIZE,
-	 .va = DEVICE3_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE3_TYPE, DEVICE3_PA_BASE, DEVICE3_SIZE);
 #endif
 #ifdef DEVICE4_PA_BASE
-	{
-	 .type = DEVICE4_TYPE,
-	 .pa = DEVICE4_PA_BASE, .size = DEVICE4_SIZE,
-	 .va = DEVICE4_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE4_TYPE, DEVICE4_PA_BASE, DEVICE4_SIZE);
 #endif
 #ifdef DEVICE5_PA_BASE
-	{
-	 .type = DEVICE5_TYPE,
-	 .pa = DEVICE5_PA_BASE, .size = DEVICE5_SIZE,
-	 .va = DEVICE5_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
 #endif
 #ifdef DEVICE6_PA_BASE
-	{
-	 .type = DEVICE6_TYPE,
-	 .pa = DEVICE6_PA_BASE, .size = DEVICE6_SIZE,
-	 .va = DEVICE6_VA_BASE,
-	 .device = true, .secure = true, .rw = true,
-	 },
+register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
 #endif
-	{.type = MEM_AREA_NOTYPE}
-};
+
+extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
+extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
+
+/* Initialized before .bss is cleared */
+static struct map_area bootcfg_memory_map[20] __data;
+static bool mem_map_inited __data;
+
+static void add_phys_mem(const struct core_mmu_phys_mem *mem, size_t *last)
+{
+	size_t n = 0;
+	paddr_t pa;
+	size_t size;
+
+	DMSG("%s %d 0x%08" PRIxPA " size 0x%08zx",
+	     mem->name, mem->type, mem->addr, mem->size);
+	while (true) {
+		if (n >= (ARRAY_SIZE(bootcfg_memory_map) - 1)) {
+			EMSG("Out of entries (%zu) in bootcfg_memory_map",
+			     ARRAY_SIZE(bootcfg_memory_map));
+			panic();
+		}
+		if (n == *last)
+			break;
+		pa = bootcfg_memory_map[n].pa;
+		size = bootcfg_memory_map[n].size;
+		if (mem->addr >= pa &&
+		    mem->addr <= (pa + (size - 1)) &&
+		    mem->type == bootcfg_memory_map[n].type) {
+			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem->addr);
+			bootcfg_memory_map[n].pa = MIN(pa, mem->addr);
+			bootcfg_memory_map[n].size =
+				MAX(size, mem->size) +
+				(pa - bootcfg_memory_map[n].pa);
+			return;
+		}
+		if (mem->type < bootcfg_memory_map[n].type ||
+		    (mem->type == bootcfg_memory_map[n].type && mem->addr < pa))
+			break;
+		n++;
+	}
+
+	memmove(bootcfg_memory_map + n + 1, bootcfg_memory_map + n,
+		sizeof(struct map_area) * (*last - n));
+	(*last)++;
+	bootcfg_memory_map[n].type = mem->type;
+	bootcfg_memory_map[n].pa = mem->addr;
+	bootcfg_memory_map[n].size = mem->size;
+}
+
+static void check_mem_map(void)
+{
+	struct map_area *map = bootcfg_memory_map;
+	size_t num_tee_ram = 0;
+	size_t num_ta_ram = 0;
+	size_t num_nsec_shm = 0;
+
+	while (map->type != MEM_AREA_NOTYPE) {
+		switch (map->type) {
+		case MEM_AREA_TEE_RAM:
+			num_tee_ram++;
+			break;
+		case MEM_AREA_TA_RAM:
+			num_ta_ram++;
+			break;
+		case MEM_AREA_NSEC_SHM:
+			num_nsec_shm++;
+			break;
+		case MEM_AREA_IO_SEC:
+		case MEM_AREA_IO_NSEC:
+			break;
+		default:
+			EMSG("Uhandled memtype %d", map->type);
+			panic();
+		}
+		map++;
+	}
+
+	assert(num_tee_ram == 1 && num_ta_ram == 1 && num_nsec_shm == 1);
+}
+
+static void init_mem_map(void)
+{
+	const struct core_mmu_phys_mem *mem;
+	struct map_area *map;
+	size_t last = 0;
+	vaddr_t va;
+
+	for (mem = &__start_phys_mem_map_section;
+	     mem < &__end_phys_mem_map_section; mem++) {
+		struct core_mmu_phys_mem m = *mem;
+
+		if (m.type == MEM_AREA_IO_NSEC || m.type == MEM_AREA_IO_SEC) {
+			m.addr = ROUNDDOWN(m.addr, CORE_MMU_PGDIR_SIZE);
+			m.size = ROUNDUP(m.size + (mem->addr - m.addr),
+					 CORE_MMU_PGDIR_SIZE);
+		}
+		add_phys_mem(&m, &last);
+	}
+	bootcfg_memory_map[last].type = MEM_AREA_NOTYPE;
+	check_mem_map();
+	/*
+	 * bootcfg_memory_map is sorted in order first by type and last by
+	 * address. This puts TEE_RAM first and TA_RAM second
+	 *
+	 */
+
+	map = bootcfg_memory_map;
+	assert(map->type == MEM_AREA_TEE_RAM);
+	map->va = map->pa;
+#ifdef CFG_WITH_PAGER
+	map->region_size = SMALL_PAGE_SIZE,
+#endif
+	map->secure = true;
+	map->cached = true;
+	map->rw = true;
+	map->exec = true;
+
+	if (core_mmu_place_tee_ram_at_top(map->pa)) {
+		va = map->va;
+		map++;
+		while (map->type != MEM_AREA_NOTYPE) {
+			switch (map->type) {
+			case MEM_AREA_TA_RAM:
+				map->secure = true;
+				map->cached = true;
+				break;
+			case MEM_AREA_NSEC_SHM:
+				map->cached = true;
+				break;
+			case MEM_AREA_IO_NSEC:
+				map->device = true;
+				break;
+			case MEM_AREA_IO_SEC:
+				map->device = true;
+				map->secure = true;
+				break;
+			default:
+				panic();
+			}
+			va = ROUNDDOWN(va - map->size, CORE_MMU_PGDIR_SIZE);
+			map->rw = true;
+			map->va = va;
+			map++;
+		}
+	} else {
+		va = ROUNDUP(map->va + map->size, CORE_MMU_PGDIR_SIZE);
+		map++;
+		while (map->type != MEM_AREA_NOTYPE) {
+			if (map[-1].secure != map->secure)
+				va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
+			switch (map->type) {
+			case MEM_AREA_TA_RAM:
+				map->secure = true;
+				map->cached = true;
+				break;
+			case MEM_AREA_NSEC_SHM:
+				map->cached = true;
+				break;
+			case MEM_AREA_IO_NSEC:
+				map->device = true;
+				break;
+			case MEM_AREA_IO_SEC:
+				map->device = true;
+				map->secure = true;
+				break;
+			default:
+				panic();
+			}
+			map->rw = true;
+			map->va = va;
+			va += map->size;
+			map++;
+		}
+	}
+
+	for (map = bootcfg_memory_map; map->type != MEM_AREA_NOTYPE; map++)
+		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
+		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx",
+		     map->type, (vaddr_t)map->va,
+		     (vaddr_t)map->va + map->size - 1, (paddr_t)map->pa,
+		     (paddr_t)map->pa + map->size - 1, map->size);
+}
+
+static struct map_area *get_mem_map(void)
+{
+	if (!mem_map_inited)
+		init_mem_map();
+	return bootcfg_memory_map;
+}
 
 /* Return the platform specific pbuf_is(). */
 unsigned long bootcfg_get_pbuf_is_handler(void)
@@ -221,7 +354,7 @@ struct map_area *bootcfg_get_memory(void)
 	}
 
 	/* Overlapping will be tested later */
-	map = bootcfg_memory_map;
+	map = get_mem_map();
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:

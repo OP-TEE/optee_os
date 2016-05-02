@@ -76,6 +76,20 @@ static struct map_area *map_tee_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_ta_ram = (void *)1;	/* not in BSS */
 static struct map_area *map_nsec_shm = (void *)1;	/* not in BSS */
 
+static bool pa_is_in_map(struct map_area *map, paddr_t pa)
+{
+	if (!map)
+		return false;
+	return (pa >= map->pa && pa <= (map->pa + map->size - 1));
+}
+
+static bool va_is_in_map(struct map_area *map, vaddr_t va)
+{
+	if (!map)
+		return false;
+	return (va >= map->va && va <= (map->va + map->size - 1));
+}
+
 /* check if target buffer fits in a core default map area */
 static bool pbuf_inside_map_area(unsigned long p, size_t l,
 				 struct map_area *map)
@@ -90,6 +104,20 @@ static struct map_area *find_map_by_type(enum teecore_memtypes type)
 	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++)
 		if (map->type == type)
 			return map;
+	return NULL;
+}
+
+static struct map_area *find_map_by_type_and_pa(enum teecore_memtypes type,
+						paddr_t pa)
+{
+	struct map_area *map;
+
+	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		if (map->type != type)
+			continue;
+		if (pa_is_in_map(map, pa))
+			return map;
+	}
 	return NULL;
 }
 
@@ -236,30 +264,11 @@ void core_init_mmu_map(void)
 	/* map what needs to be mapped (non-null size and non INTRAM/EXTRAM) */
 	map = in;
 	while (map->type != MEM_AREA_NOTYPE) {
-		if (map->va) {
-#ifdef CFG_WITH_PAGER
-			if ((map->type == MEM_AREA_TEE_RAM) &&
-			    (map->va & SMALL_PAGE_MASK)) {
-				panic();
-			} else {
-				if (map->va & CORE_MMU_PGDIR_MASK)
-					panic();
-			}
-#else
-			if (map->va & CORE_MMU_PGDIR_MASK)
-				panic();
-#endif
-
-		} else {
+		if (!map->va)
 			map->va = map->pa;	/* 1-to-1 pa = va mapping */
-		}
 
-		map->region_size = CORE_MMU_PGDIR_SIZE;
-
-#ifdef CFG_WITH_PAGER
-		if (map->type == MEM_AREA_TEE_RAM)
-			map->region_size = SMALL_PAGE_SIZE;
-#endif
+		if (!map->region_size)
+			map->region_size = CORE_MMU_PGDIR_SIZE;
 
 		if (map->type == MEM_AREA_TEE_RAM)
 			map_tee_ram = map;
@@ -368,7 +377,7 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 	struct map_area *map;
 
 	map = find_map_by_va(va);
-	if (map == NULL)
+	if (!va_is_in_map(map, (vaddr_t)va))
 		return -1;
 
 	*pa = ((uintptr_t)va & (map->region_size - 1)) |
@@ -378,7 +387,7 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 
 static void *map_pa2va(struct map_area *map, paddr_t pa)
 {
-	if (!map)
+	if (!pa_is_in_map(map, pa))
 		return NULL;
 	return (void *)((pa & (map->region_size - 1)) |
 		(((map->va + pa - map->pa)) & ~(map->region_size - 1)));
@@ -684,7 +693,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	paddr_t p = 0;
 
 	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
-	if (v >= user_va_base && v < (user_va_base + user_va_size)) {
+	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
 		if (!core_mmu_user_mapping_is_active()) {
 			TEE_ASSERT(pa == 0);
 			return;
@@ -800,7 +809,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 #else
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
-	return map_pa2va(find_map_by_type(MEM_AREA_TEE_RAM), pa);
+	return map_pa2va(find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa), pa);
 }
 #endif
 
@@ -816,7 +825,7 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 		va = phys_to_virt_tee_ram(pa);
 		break;
 	default:
-		va = map_pa2va(find_map_by_type(m), pa);
+		va = map_pa2va(find_map_by_type_and_pa(m, pa), pa);
 	}
 	check_va_matches_pa(pa, va);
 	return va;

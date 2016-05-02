@@ -74,6 +74,7 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
+
 /*
  * @type:  enumerate: specifiy the purpose of the memory area.
  * @pa:    memory area physical start address
@@ -116,11 +117,24 @@ enum teecore_memtypes {
 	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
 	MEM_AREA_KEYVAULT,
-	MEM_AREA_IO_SEC,
 	MEM_AREA_IO_NSEC,
+	MEM_AREA_IO_SEC,
 	MEM_AREA_TA_VASPACE,
 	MEM_AREA_MAXTYPE
 };
+
+struct core_mmu_phys_mem {
+	const char *name;
+	enum teecore_memtypes type;
+	paddr_t addr;
+	size_t size;
+};
+
+#define register_phys_mem(type, addr, size) \
+	static const struct core_mmu_phys_mem __phys_mem_ ## addr \
+		__used __section("phys_mem_map_section") = \
+		{ #addr, (type), (addr), (size) }
+
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
@@ -129,6 +143,7 @@ extern unsigned long default_nsec_shm_size;
 void core_init_mmu_map(void);
 void core_init_mmu_regs(void);
 
+bool core_mmu_place_tee_ram_at_top(paddr_t paddr);
 
 #ifdef CFG_WITH_LPAE
 /*

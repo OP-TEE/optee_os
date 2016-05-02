@@ -480,6 +480,13 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	assert(max_va < ADDR_SPACE_SIZE);
 }
 
+bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
+{
+	size_t l1size = (1 << L1_XLAT_ADDRESS_SHIFT);
+	paddr_t l1mask = l1size - 1;
+
+	return (paddr & l1mask) > (l1size / 2);
+}
 
 #ifdef ARM32
 void core_init_mmu_regs(void)
