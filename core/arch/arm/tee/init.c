@@ -70,8 +70,7 @@ TEE_Result init_teecore(void)
 	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
 #endif
 
-	/* init support for futur mapping of TAs */
-	tee_mmu_kmap_init();
+	/* init support for future mapping of TAs */
 	teecore_init_pub_ram();
 
 	/* time initialization */

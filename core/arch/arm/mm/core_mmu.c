@@ -712,16 +712,6 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		return;
 	}
 #endif
-	if (v >= TEE_MMU_KMAP_START_VA && v < TEE_MMU_KMAP_END_VA) {
-		void *void_pa;
-
-		res = tee_mmu_kmap_va2pa_helper(va, &void_pa);
-		if (res == TEE_SUCCESS)
-			TEE_ASSERT(pa == (paddr_t)(uintptr_t)void_pa);
-		else
-			TEE_ASSERT(pa == 0);
-		return;
-	}
 	if (!core_va2pa_helper(va, &p))
 		TEE_ASSERT(pa == p);
 	else
@@ -764,17 +754,6 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 
 	res = tee_mmu_user_pa2va_helper(to_user_ta_ctx(tee_mmu_get_ctx()),
 					pa, &va);
-	if (res != TEE_SUCCESS)
-		return NULL;
-	return va;
-}
-
-static void *phys_to_virt_kmap_vaspace(paddr_t pa)
-{
-	void *va = NULL;
-	TEE_Result res;
-
-	res = tee_mmu_kmap_pa2va_helper((void *)(uintptr_t)pa, &va);
 	if (res != TEE_SUCCESS)
 		return NULL;
 	return va;
@@ -823,9 +802,6 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	switch (m) {
 	case MEM_AREA_TA_VASPACE:
 		va = phys_to_virt_ta_vaspace(pa);
-		break;
-	case MEM_AREA_KMAP_VASPACE:
-		va = phys_to_virt_kmap_vaspace(pa);
 		break;
 	case MEM_AREA_TEE_RAM:
 		va = phys_to_virt_tee_ram(pa);

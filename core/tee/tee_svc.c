@@ -565,7 +565,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				     struct tee_ta_session *called_sess,
 				     struct utee_params *callee_params,
 				     struct tee_ta_param *param,
-				     tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
+				     void *tmp_buf_va[TEE_NUM_PARAMS],
 				     tee_mm_entry_t **mm)
 {
 	size_t n;
@@ -576,6 +576,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	tee_paddr_t dst_pa, src_pa = 0;
 	bool ta_private_memref[TEE_NUM_PARAMS];
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
+	const uint32_t sec_ddr_attr = TEE_MATTR_CACHE_CACHED;
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
@@ -654,12 +655,10 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		DMSG("tee_mm_alloc TEE_ERROR_GENERIC");
 		return TEE_ERROR_GENERIC;
 	}
+	dst_pa = tee_mm_get_smem(*mm);
 
 	/* Get the virtual address for the section in secure DDR */
-	res = tee_mmu_kmap(tee_mm_get_smem(*mm), req_mem, &dst);
-	if (res != TEE_SUCCESS)
-		return res;
-	dst_pa = tee_mm_get_smem(*mm);
+	dst = phys_to_virt(dst_pa, MEM_AREA_TEE_RAM);
 
 	for (n = 0; n < 4; n++) {
 
@@ -677,10 +676,9 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 						param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
 					return res;
-				param->param_attr[n] =
-					tee_mmu_kmap_get_cache_attr(dst);
+				param->param_attr[n] = sec_ddr_attr;
 				param->params[n].memref.buffer = (void *)dst_pa;
-				tmp_buf_pa[n] = dst_pa;
+				tmp_buf_va[n] = dst;
 				dst += s;
 				dst_pa += s;
 			}
@@ -688,10 +686,9 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 			if (param->params[n].memref.buffer != NULL) {
-				param->param_attr[n] =
-					tee_mmu_kmap_get_cache_attr(dst);
+				param->param_attr[n] = sec_ddr_attr;
 				param->params[n].memref.buffer = (void *)dst_pa;
-				tmp_buf_pa[n] = dst_pa;
+				tmp_buf_va[n] = dst;
 				dst += s;
 				dst_pa += s;
 			}
@@ -701,8 +698,6 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			continue;
 		}
 	}
-
-	tee_mmu_kunmap(dst, req_mem);
 
 	return TEE_SUCCESS;
 }
@@ -717,7 +712,7 @@ static TEE_Result tee_svc_update_out_param(
 		struct tee_ta_session *sess,
 		struct tee_ta_session *called_sess,
 		struct tee_ta_param *param,
-		tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS],
+		void *tmp_buf_va[TEE_NUM_PARAMS],
 		struct utee_params *usr_param)
 {
 	size_t n;
@@ -748,21 +743,13 @@ static TEE_Result tee_svc_update_out_param(
 			if (have_private_mem_map &&
 			    param->params[n].memref.size <=
 			    usr_param->vals[n * 2 + 1]) {
-				uint8_t *src = 0;
+				uint8_t *src = tmp_buf_va[n];
 				TEE_Result res;
-
-				/* FIXME: TA_RAM is already mapped ! */
-				res = tee_mmu_kmap(tmp_buf_pa[n],
-					param->params[n].memref.size, &src);
-				if (res != TEE_SUCCESS)
-					return TEE_ERROR_GENERIC;
 
 				res = tee_svc_copy_to_user(sess, p, src,
 						 param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
 					return res;
-				tee_mmu_kunmap(src,
-					       param->params[n].memref.size);
 
 			}
 			usr_param->vals[n * 2 + 1] =
@@ -797,7 +784,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	TEE_UUID *uuid = malloc(sizeof(TEE_UUID));
 	struct tee_ta_param *param = malloc(sizeof(struct tee_ta_param));
 	TEE_Identity *clnt_id = malloc(sizeof(TEE_Identity));
-	tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS];
+	void *tmp_buf_va[TEE_NUM_PARAMS];
 	struct user_ta_ctx *utc;
 
 	if (uuid == NULL || param == NULL || clnt_id == NULL) {
@@ -819,7 +806,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	clnt_id->login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id->uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
-	res = tee_svc_copy_param(sess, NULL, usr_param, param, tmp_buf_pa,
+	res = tee_svc_copy_param(sess, NULL, usr_param, param, tmp_buf_va,
 				 &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
@@ -834,19 +821,11 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = tee_svc_update_out_param(sess, s, param, tmp_buf_pa, usr_param);
+	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
 
 function_exit:
 	tee_ta_set_current_session(sess);
 	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
-
-	if (mm_param != NULL) {
-		void *va = phys_to_virt(tee_mm_get_smem(mm_param),
-					MEM_AREA_KMAP_VASPACE);
-
-		if (va)
-			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
-	}
 	tee_mm_free(mm_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_kaddr_to_uref(sess, ta_sess, s);
@@ -893,7 +872,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	struct tee_ta_session *sess;
 	struct tee_ta_session *called_sess;
 	tee_mm_entry_t *mm_param = NULL;
-	tee_paddr_t tmp_buf_pa[TEE_NUM_PARAMS];
+	void *tmp_buf_va[TEE_NUM_PARAMS];
 	struct user_ta_ctx *utc;
 
 	res = tee_ta_get_current_session(&sess);
@@ -911,14 +890,14 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	res = tee_svc_copy_param(sess, called_sess, usr_param, &param,
-				 tmp_buf_pa, &mm_param);
+				 tmp_buf_va, &mm_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
 	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
 				    cancel_req_to, cmd_id, &param);
 
-	res2 = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_pa,
+	res2 = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_va,
 					usr_param);
 	if (res2 != TEE_SUCCESS) {
 		/*
@@ -940,14 +919,6 @@ function_exit:
 	tee_ta_set_current_session(sess);
 	called_sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_ta_put_session(called_sess);
-
-	if (mm_param != NULL) {
-		void *va = phys_to_virt(tee_mm_get_smem(mm_param),
-					MEM_AREA_KMAP_VASPACE);
-
-		if (va)
-			tee_mmu_kunmap(va, tee_mm_get_bytes(mm_param));
-	}
 	tee_mm_free(mm_param);
 	if (ret_orig)
 		tee_svc_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));

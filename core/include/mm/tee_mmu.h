@@ -97,40 +97,9 @@ struct tee_ta_ctx *tee_mmu_get_ctx(void);
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx);
 
 /* init some allocation pools */
-void tee_mmu_kmap_init(void);
 void teecore_init_ta_ram(void);
 void teecore_init_pub_ram(void);
 
-/* Maps physical address into kernel space */
-TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va);
-/* Special macro to avoid breaking strict aliasing rules */
-#ifdef __GNUC__
-#define tee_mmu_kmap(pa, len, va) (__extension__ ({ \
-	void *_p; \
-	TEE_Result _res = tee_mmu_kmap_helper((pa), (len), &_p); \
-	if (_res == TEE_SUCCESS) \
-		*(va) = _p; \
-	_res; \
-	}))
-#else
-#define tee_mmu_kmap(va, len, pa) tee_mmu_kmap_helper((va), (len), (pa))
-#endif
-
-/*
- * Unmaps a memory mapping previously established with tee_mmu_kmap().
- *
- * Va and len has to be identical to what was supplied/returned from
- * tee_mmu_kmap().
- */
-void tee_mmu_kunmap(void *va, size_t len);
-
-/* Interface is deprecated, use phys_to_virt() instead. */
-TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va);
-
-/* Interface is deprecated, use virt_to_phys() instead. */
-TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa);
-
-uint32_t tee_mmu_kmap_get_cache_attr(void *va);
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va);
 
 TEE_Result tee_mmu_register_shm(paddr_t pa, size_t len, uint32_t attr);

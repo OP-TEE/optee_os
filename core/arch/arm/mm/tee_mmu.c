@@ -72,8 +72,6 @@
 /* Support for 31 concurrent sessions */
 static uint32_t g_asid = 0xffffffff;
 
-static tee_mm_pool_t tee_mmu_virt_kmap;
-
 static void tee_mmu_umap_set_pa(struct tee_mmap_region *tbl,
 			size_t granule, paddr_t pa, size_t size, uint32_t attr)
 {
@@ -627,165 +625,6 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 	return utc->mmu->table[1].va;
 }
 
-/*
- * tee_mmu_kmap_init - init TA mapping support
- *
- * TAs are mapped in virtual space [0 32MB].
- * The TA MMU L1 table is always located at TEE_MMU_UL1_BASE.
- * The MMU table for a target TA instance will be copied to this address
- * when tee core sets up TA context.
- */
-void tee_mmu_kmap_init(void)
-{
-	vaddr_t s = TEE_MMU_KMAP_START_VA;
-	vaddr_t e = TEE_MMU_KMAP_END_VA;
-	struct core_mmu_table_info tbl_info;
-
-	if (!core_mmu_find_table(s, UINT_MAX, &tbl_info))
-		panic();
-
-	if (!tee_mm_init(&tee_mmu_virt_kmap, s, e, tbl_info.shift,
-			 TEE_MM_POOL_NO_FLAGS)) {
-		DMSG("Failed to init kmap. Trap CPU!");
-		panic();
-	}
-}
-
-TEE_Result tee_mmu_kmap_helper(tee_paddr_t pa, size_t len, void **va)
-{
-	tee_mm_entry_t *mm;
-	uint32_t attr;
-	struct core_mmu_table_info tbl_info;
-	uint32_t pa_s;
-	uint32_t pa_e;
-	size_t n;
-	size_t offs;
-
-	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
-		panic();
-
-	pa_s = ROUNDDOWN(pa, 1 << tbl_info.shift);
-	pa_e = ROUNDUP(pa + len, 1 << tbl_info.shift);
-
-	mm = tee_mm_alloc(&tee_mmu_virt_kmap, pa_e - pa_s);
-	if (!mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW | TEE_MATTR_GLOBAL;
-	if (tee_pbuf_is_sec(pa, len)) {
-		attr |= TEE_MATTR_SECURE;
-		attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
-	} else if (tee_pbuf_is_non_sec(pa, len)) {
-		if (core_mmu_is_shm_cached())
-			attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
-		else
-			attr |= TEE_MATTR_CACHE_NONCACHE <<
-				TEE_MATTR_CACHE_SHIFT;
-	} else
-		return TEE_ERROR_GENERIC;
-
-
-	offs = (tee_mm_get_smem(mm) - tbl_info.va_base) >> tbl_info.shift;
-	for (n = 0; n < tee_mm_get_size(mm); n++)
-		core_mmu_set_entry(&tbl_info, n + offs,
-				   pa_s + (n << tbl_info.shift), attr);
-
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
-
-	*va = (void *)(tee_mm_get_smem(mm) +
-		       core_mmu_get_block_offset(&tbl_info, pa));
-	return TEE_SUCCESS;
-}
-
-void tee_mmu_kunmap(void *va, size_t len)
-{
-	size_t n;
-	tee_mm_entry_t *mm;
-	struct core_mmu_table_info tbl_info;
-	size_t offs;
-
-	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
-		panic();
-
-	mm = tee_mm_find(&tee_mmu_virt_kmap, (vaddr_t)va);
-	if (mm == NULL || len > tee_mm_get_bytes(mm))
-		return;		/* Invalid range, not much to do */
-
-	/* Clear the mmu entries */
-	offs = (tee_mm_get_smem(mm) - tbl_info.va_base) >> tbl_info.shift;
-	for (n = 0; n < tee_mm_get_size(mm); n++)
-		core_mmu_set_entry(&tbl_info, n + offs, 0, 0);
-
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
-	tee_mm_free(mm);
-}
-
-TEE_Result tee_mmu_kmap_pa2va_helper(void *pa, void **va)
-{
-	size_t n;
-	struct core_mmu_table_info tbl_info;
-	size_t shift;
-	paddr_t match_pa;
-
-	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
-		panic();
-
-	shift = tbl_info.shift;
-	match_pa = ROUNDDOWN((paddr_t)pa, 1 << shift);
-
-	for (n = core_mmu_va2idx(&tbl_info, TEE_MMU_KMAP_START_VA);
-	     n < core_mmu_va2idx(&tbl_info, TEE_MMU_KMAP_END_VA); n++) {
-		uint32_t attr;
-		paddr_t npa;
-
-		core_mmu_get_entry(&tbl_info, n, &npa, &attr);
-		if (!(attr & TEE_MATTR_VALID_BLOCK))
-			continue;
-		assert(!(attr & TEE_MATTR_TABLE));
-
-		if (npa == match_pa) {
-			*va = (void *)(core_mmu_idx2va(&tbl_info, n) +
-				       ((paddr_t)pa - match_pa));
-			return TEE_SUCCESS;
-		}
-	}
-
-	return TEE_ERROR_ACCESS_DENIED;
-}
-
-static TEE_Result tee_mmu_kmap_va2pa_attr(void *va, void **pa, uint32_t *attr)
-{
-	struct core_mmu_table_info tbl_info;
-	size_t block_offset;
-	size_t n;
-	paddr_t npa;
-	uint32_t nattr;
-
-	if (!core_mmu_find_table(TEE_MMU_KMAP_START_VA, UINT_MAX, &tbl_info))
-		panic();
-
-	if (!tee_mm_addr_is_within_range(&tee_mmu_virt_kmap, (vaddr_t)va))
-		return TEE_ERROR_ACCESS_DENIED;
-
-	n = core_mmu_va2idx(&tbl_info, (vaddr_t)va);
-	core_mmu_get_entry(&tbl_info, n, &npa, &nattr);
-	if (!(nattr & TEE_MATTR_VALID_BLOCK))
-		return TEE_ERROR_ACCESS_DENIED;
-
-	block_offset = core_mmu_get_block_offset(&tbl_info, (vaddr_t)va);
-	*pa = (void *)(npa + block_offset);
-
-	if (attr)
-		*attr = nattr;
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result tee_mmu_kmap_va2pa_helper(void *va, void **pa)
-{
-	return tee_mmu_kmap_va2pa_attr(va, pa, NULL);
-}
-
 void teecore_init_ta_ram(void)
 {
 	vaddr_t s;
@@ -845,20 +684,6 @@ void teecore_init_pub_ram(void)
 	default_nsec_shm_paddr = s;
 	default_nsec_shm_size = e - s;
 }
-
-
-uint32_t tee_mmu_kmap_get_cache_attr(void *va)
-{
-	TEE_Result res;
-	void *pa;
-	uint32_t attr;
-
-	res = tee_mmu_kmap_va2pa_attr(va, &pa, &attr);
-	assert(res == TEE_SUCCESS);
-
-	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
-}
-
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {

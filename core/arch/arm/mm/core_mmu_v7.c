@@ -603,13 +603,6 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		panic();
 	}
 
-	if ((mm->va >= TEE_MMU_KMAP_START_VA) &&
-	    (mm->va < TEE_MMU_KMAP_END_VA)) {
-		EMSG("va 0x%" PRIxVA " conflicts with kmap address!",
-		     mm->va);
-		panic();
-	}
-
 	if ((mm->va | mm->pa | mm->size) & SECTION_MASK) {
 		region_size = SMALL_PAGE_SIZE;
 
