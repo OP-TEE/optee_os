@@ -29,6 +29,7 @@
 #include <io.h>
 #include <initcall.h>
 #include <tee/se/reader/interface.h>
+#include <mm/core_memprot.h>
 
 #include <trace.h>
 
@@ -92,9 +93,11 @@ err_rollback:
 
 static void context_init(struct pcsc_context *ctx)
 {
-	ctx->mmio_base = PCSC_BASE;
-	ctx->num_readers = pcsc_read_reg(ctx, PCSC_REG_NUM_READERS);
-	DMSG("%d reader detected", ctx->num_readers);
+	ctx->mmio_base = (vaddr_t)phys_to_virt(PCSC_BASE, MEM_AREA_IO_SEC);
+	if (ctx->mmio_base) {
+		ctx->num_readers = pcsc_read_reg(ctx, PCSC_REG_NUM_READERS);
+		DMSG("%d reader detected", ctx->num_readers);
+	}
 }
 
 static TEE_Result pcsc_passthru_reader_init(void)
