@@ -466,7 +466,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		memcpy(l1_xlation_table[n], l1_xlation_table[0],
 			XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
 
-	for (n = 0; n < NUM_L1_ENTRIES; n++) {
+	for (n = 1; n < NUM_L1_ENTRIES; n++) {
 		if (!l1_xlation_table[0][n]) {
 			user_va_idx = n;
 			break;
