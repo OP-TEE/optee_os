@@ -104,8 +104,14 @@ typedef uint32_t TEE_ObjectType;
 
 typedef struct {
 	uint32_t objectType;
-	uint32_t keySize;
-	uint32_t maxKeySize;
+	__extension__ union {
+		uint32_t keySize;	/* used in 1.1 spec */
+		uint32_t objectSize;	/* used in 1.1.1 spec */
+	};
+	__extension__ union {
+		uint32_t maxKeySize;	/* used in 1.1 spec */
+		uint32_t maxObjectSize;	/* used in 1.1.1 spec */
+	};
 	uint32_t objectUsage;
 	uint32_t dataSize;
 	uint32_t dataPosition;
