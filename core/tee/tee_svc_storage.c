@@ -768,7 +768,7 @@ rmfile:
 err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
-	if (res == TEE_ERROR_CORRUPT_OBJECT)
+	if (res == TEE_ERROR_CORRUPT_OBJECT && file)
 		fops->unlink(file);
 	if (fd >= 0)
 		fops->close(fd);
