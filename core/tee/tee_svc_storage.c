@@ -271,7 +271,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 	err = fops->access(dir, TEE_FS_F_OK);
 	if (err) {
 		/* directory does not exists */
-		tmp = fops->mkdir(dir, TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
+		tmp = fops->mkdir(dir, TEE_FS_S_IRUSR | TEE_FS_S_IWUSR |
+				  TEE_FS_S_IXUSR);
 
 		if (tmp < 0) {
 			/* error codes needs better granularity */

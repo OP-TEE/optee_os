@@ -1397,7 +1397,7 @@ static struct tee_fs_file_meta *create_tee_file(const char *file)
 	/* create TEE file directory if not exist */
 	if (ree_fs_access_ree(file, TEE_FS_F_OK)) {
 		res = ree_fs_mkdir_ree(file,
-				TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
+				TEE_FS_S_IRUSR | TEE_FS_S_IWUSR | TEE_FS_S_IXUSR);
 		if (res) {
 			EMSG("Failed to create TEE file directory, res=%d",
 				res);

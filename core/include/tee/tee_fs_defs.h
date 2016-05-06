@@ -51,6 +51,7 @@
  */
 #define TEE_FS_S_IWUSR 0x1
 #define TEE_FS_S_IRUSR 0x2
+#define TEE_FS_S_IXUSR 0x4
 
 /*
  * access modes
