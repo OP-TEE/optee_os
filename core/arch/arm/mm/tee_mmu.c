@@ -629,21 +629,27 @@ void teecore_init_ta_ram(void)
 {
 	vaddr_t s;
 	vaddr_t e;
+	paddr_t ps;
+	paddr_t pe;
 
 	/* get virtual addr/size of RAM where TA are loaded/executedNSec
 	 * shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
+	ps = virt_to_phys((void *)s);
+	TEE_ASSERT(ps);
+	pe = virt_to_phys((void *)(e - 1)) + 1;
+	TEE_ASSERT(pe);
 
-	TEE_ASSERT((s & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
-	TEE_ASSERT((e & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	TEE_ASSERT((ps & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	TEE_ASSERT((pe & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	TEE_ASSERT(tee_vbuf_is_sec(s, e - s) == true);
+	TEE_ASSERT(tee_pbuf_is_sec(ps, pe - ps) == true);
 
 	TEE_ASSERT(tee_mm_is_empty(&tee_mm_sec_ddr));
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
-	tee_mm_init(&tee_mm_sec_ddr, s, e, CORE_MMU_USER_CODE_SHIFT,
+	tee_mm_init(&tee_mm_sec_ddr, ps, pe, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
 }
 
@@ -681,7 +687,7 @@ void teecore_init_pub_ram(void)
 	s += sizeof(uint32_t);		/* size of a pl310 mutex */
 #endif
 
-	default_nsec_shm_paddr = s;
+	default_nsec_shm_paddr = virt_to_phys((void *)s);
 	default_nsec_shm_size = e - s;
 }
 
