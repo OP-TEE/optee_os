@@ -59,6 +59,8 @@
 
 
 struct tee_mmap_region {
+	unsigned int type;
+	unsigned int region_size;
 	paddr_t pa;
 	vaddr_t va;
 	size_t size;

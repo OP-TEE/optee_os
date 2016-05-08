@@ -56,25 +56,22 @@
 
 #define MAX_MMAP_REGIONS	10
 
-/* Default NSec shared memory allocated from NSec world */
-unsigned long default_nsec_shm_size __data; /* XXX __data is a workaround */
-unsigned long default_nsec_shm_paddr __data; /* XXX __data is a workaround */
-
-/* platform handler for core_pbuf_is()  */
-static unsigned long bootcfg_pbuf_is = 1;	/* NOT is BSS */
-typedef bool(*platform_pbuf_is_t) (unsigned long attr, unsigned long paddr,
-				   size_t size);
-
 /*
- * WARNING: resources accessed during the initialization
- * (sequence core_init_mmu()) are accessed *before* BSS is zero-initialised.
- * Be careful NOT to load data that can be 'reset' to zero after
- * core_init_mmu(), due to BSS init loop.
+ * These variables are initialized before .bss is cleared. To avoid
+ * resetting them when .bss is cleared we're storing them in .data instead,
+ * even if they initially are zero.
  */
-static struct map_area *static_memory_map = (void *)1;	/* not in BSS */
-static struct map_area *map_tee_ram = (void *)1;	/* not in BSS */
-static struct map_area *map_ta_ram = (void *)1;	/* not in BSS */
-static struct map_area *map_nsec_shm = (void *)1;	/* not in BSS */
+
+/* Default NSec shared memory allocated from NSec world */
+unsigned long default_nsec_shm_size __data;
+unsigned long default_nsec_shm_paddr __data;
+
+static struct tee_mmap_region static_memory_map[MAX_MMAP_REGIONS + 1] __data;
+static bool mem_map_inited __data;
+
+static struct tee_mmap_region *map_tee_ram __data;
+static struct tee_mmap_region *map_ta_ram __data;
+static struct tee_mmap_region *map_nsec_shm __data;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -100,6 +97,31 @@ static struct memaccess_area secure_only[] = {
 static struct memaccess_area nsec_shared[] = {
 	MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE),
 };
+
+register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
+register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
+register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
+#ifdef DEVICE0_PA_BASE
+register_phys_mem(DEVICE0_TYPE, DEVICE0_PA_BASE, DEVICE0_SIZE);
+#endif
+#ifdef DEVICE1_PA_BASE
+register_phys_mem(DEVICE1_TYPE, DEVICE1_PA_BASE, DEVICE1_SIZE);
+#endif
+#ifdef DEVICE2_PA_BASE
+register_phys_mem(DEVICE2_TYPE, DEVICE2_PA_BASE, DEVICE2_SIZE);
+#endif
+#ifdef DEVICE3_PA_BASE
+register_phys_mem(DEVICE3_TYPE, DEVICE3_PA_BASE, DEVICE3_SIZE);
+#endif
+#ifdef DEVICE4_PA_BASE
+register_phys_mem(DEVICE4_TYPE, DEVICE4_PA_BASE, DEVICE4_SIZE);
+#endif
+#ifdef DEVICE5_PA_BASE
+register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
+#endif
+#ifdef DEVICE6_PA_BASE
+register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
+#endif
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)
@@ -137,119 +159,280 @@ static bool pbuf_is_multipurpose(paddr_t paddr, size_t size)
 	return pbuf_is_inside(ddr, paddr, size);
 }
 
-/* Wrapper for the platform specific pbuf_is() service. */
-static bool pbuf_is(enum buf_is_attr attr, paddr_t paddr, size_t size)
+static bool pa_is_in_map(struct tee_mmap_region *map, paddr_t pa)
 {
-	switch (attr) {
-	case CORE_MEM_SEC:
-		return pbuf_is_inside(secure_only, paddr, size);
-
-	case CORE_MEM_NON_SEC:
-		return pbuf_is_inside(nsec_shared, paddr, size);
-
-	case CORE_MEM_MULTPURPOSE:
-		return pbuf_is_multipurpose(paddr, size);
-
-	case CORE_MEM_EXTRAM:
-		return pbuf_is_inside(ddr, paddr, size);
-
-	default:
-		EMSG("Unexpected request: attr=%X", attr);
+	if (!map)
 		return false;
-	}
+	return (pa >= map->pa && pa <= (map->pa + map->size - 1));
 }
 
-register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
-register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
-register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
-#ifdef DEVICE0_PA_BASE
-register_phys_mem(DEVICE0_TYPE, DEVICE0_PA_BASE, DEVICE0_SIZE);
-#endif
-#ifdef DEVICE1_PA_BASE
-register_phys_mem(DEVICE1_TYPE, DEVICE1_PA_BASE, DEVICE1_SIZE);
-#endif
-#ifdef DEVICE2_PA_BASE
-register_phys_mem(DEVICE2_TYPE, DEVICE2_PA_BASE, DEVICE2_SIZE);
-#endif
-#ifdef DEVICE3_PA_BASE
-register_phys_mem(DEVICE3_TYPE, DEVICE3_PA_BASE, DEVICE3_SIZE);
-#endif
-#ifdef DEVICE4_PA_BASE
-register_phys_mem(DEVICE4_TYPE, DEVICE4_PA_BASE, DEVICE4_SIZE);
-#endif
-#ifdef DEVICE5_PA_BASE
-register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
-#endif
-#ifdef DEVICE6_PA_BASE
-register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
-#endif
+static bool va_is_in_map(struct tee_mmap_region *map, vaddr_t va)
+{
+	if (!map)
+		return false;
+	return (va >= map->va && va <= (map->va + map->size - 1));
+}
+
+/* check if target buffer fits in a core default map area */
+static bool pbuf_inside_map_area(unsigned long p, size_t l,
+				 struct tee_mmap_region *map)
+{
+	return core_is_buffer_inside(p, l, map->pa, map->size);
+}
+
+static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
+{
+	struct tee_mmap_region *map;
+
+	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++)
+		if (map->type == type)
+			return map;
+	return NULL;
+}
+
+static struct tee_mmap_region *find_map_by_type_and_pa(
+			enum teecore_memtypes type, paddr_t pa)
+{
+	struct tee_mmap_region *map;
+
+	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		if (map->type != type)
+			continue;
+		if (pa_is_in_map(map, pa))
+			return map;
+	}
+	return NULL;
+}
+
+static struct tee_mmap_region *find_map_by_va(void *va)
+{
+	struct tee_mmap_region *map = static_memory_map;
+	unsigned long a = (unsigned long)va;
+
+	while (map->type != MEM_AREA_NOTYPE) {
+		if ((a >= map->va) && (a <= (map->va - 1 + map->size)))
+			return map;
+		map++;
+	}
+	return NULL;
+}
+
+static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
+{
+	struct tee_mmap_region *map = static_memory_map;
+
+	while (map->type != MEM_AREA_NOTYPE) {
+		if ((pa >= map->pa) && (pa < (map->pa + map->size)))
+			return map;
+		map++;
+	}
+	return NULL;
+}
 
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
 extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
 
-/* Initialized before .bss is cleared */
-static struct map_area bootcfg_memory_map[20] __data;
-static bool mem_map_inited __data;
-
-static void add_phys_mem(const struct core_mmu_phys_mem *mem, size_t *last)
+static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
+			 const struct core_mmu_phys_mem *mem, size_t *last)
 {
 	size_t n = 0;
 	paddr_t pa;
 	size_t size;
 
+	/*
+	 * When all entries are added we'd like to have it in a sorted
+	 * array first based on memory type and secondly on physical
+	 * address. If some ranges of memory of the same type overlaps of
+	 * are next to each others they are coalesced into one entry. This
+	 * makes it easier later when building the translation tables.
+	 *
+	 * Note that it's valid to have the same physical memory as several
+	 * different memory types, for instance the same device memory
+	 * mapped as both secure and non-secure. This will probably not
+	 * happen often in practice.
+	 */
 	DMSG("%s %d 0x%08" PRIxPA " size 0x%08zx",
 	     mem->name, mem->type, mem->addr, mem->size);
 	while (true) {
-		if (n >= (ARRAY_SIZE(bootcfg_memory_map) - 1)) {
-			EMSG("Out of entries (%zu) in bootcfg_memory_map",
-			     ARRAY_SIZE(bootcfg_memory_map));
+		if (n >= (num_elems - 1)) {
+			EMSG("Out of entries (%zu) in memory_map", num_elems);
 			panic();
 		}
 		if (n == *last)
 			break;
-		pa = bootcfg_memory_map[n].pa;
-		size = bootcfg_memory_map[n].size;
-		if (mem->addr >= pa &&
-		    mem->addr <= (pa + (size - 1)) &&
-		    mem->type == bootcfg_memory_map[n].type) {
+		pa = memory_map[n].pa;
+		size = memory_map[n].size;
+		if (mem->addr >= pa && mem->addr <= (pa + (size - 1)) &&
+		    mem->type == memory_map[n].type) {
 			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem->addr);
-			bootcfg_memory_map[n].pa = MIN(pa, mem->addr);
-			bootcfg_memory_map[n].size =
-				MAX(size, mem->size) +
-				(pa - bootcfg_memory_map[n].pa);
+			memory_map[n].pa = MIN(pa, mem->addr);
+			memory_map[n].size = MAX(size, mem->size) +
+					     (pa - memory_map[n].pa);
 			return;
 		}
-		if (mem->type < bootcfg_memory_map[n].type ||
-		    (mem->type == bootcfg_memory_map[n].type && mem->addr < pa))
-			break;
+		if (mem->type < memory_map[n].type ||
+		    (mem->type == memory_map[n].type && mem->addr < pa))
+			break; /* found the spot where to inseart this memory */
 		n++;
 	}
 
-	memmove(bootcfg_memory_map + n + 1, bootcfg_memory_map + n,
-		sizeof(struct map_area) * (*last - n));
+	memmove(memory_map + n + 1, memory_map + n,
+		sizeof(struct tee_mmap_region) * (*last - n));
 	(*last)++;
-	bootcfg_memory_map[n].type = mem->type;
-	bootcfg_memory_map[n].pa = mem->addr;
-	bootcfg_memory_map[n].size = mem->size;
+	memory_map[n].type = mem->type;
+	memory_map[n].pa = mem->addr;
+	memory_map[n].size = mem->size;
 }
 
-static void check_mem_map(void)
+static uint32_t type_to_attr(enum teecore_memtypes t)
 {
-	struct map_area *map = bootcfg_memory_map;
-	size_t num_tee_ram = 0;
-	size_t num_ta_ram = 0;
-	size_t num_nsec_shm = 0;
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW |
+			      TEE_MATTR_GLOBAL;
+	const uint32_t cached = TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
+	const uint32_t noncache = TEE_MATTR_CACHE_NONCACHE <<
+				  TEE_MATTR_CACHE_SHIFT;
 
+	switch (t) {
+	case MEM_AREA_TEE_RAM:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PX | cached;
+	case MEM_AREA_TA_RAM:
+		return attr | TEE_MATTR_SECURE | cached;
+	case MEM_AREA_NSEC_SHM:
+		return attr | cached;
+	case MEM_AREA_IO_NSEC:
+		return attr | noncache;
+	case MEM_AREA_IO_SEC:
+		return attr | TEE_MATTR_SECURE | noncache;
+	default:
+		panic();
+	}
+}
+
+static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
+{
+	const struct core_mmu_phys_mem *mem;
+	struct tee_mmap_region *map;
+	size_t last = 0;
+	vaddr_t va;
+	size_t n;
+
+	for (mem = &__start_phys_mem_map_section;
+	     mem < &__end_phys_mem_map_section; mem++) {
+		struct core_mmu_phys_mem m = *mem;
+
+		if (m.type == MEM_AREA_IO_NSEC || m.type == MEM_AREA_IO_SEC) {
+			m.addr = ROUNDDOWN(m.addr, CORE_MMU_PGDIR_SIZE);
+			m.size = ROUNDUP(m.size + (mem->addr - m.addr),
+					 CORE_MMU_PGDIR_SIZE);
+		}
+		add_phys_mem(memory_map, num_elems, &m, &last);
+	}
+	memory_map[last].type = MEM_AREA_NOTYPE;
+
+	/*
+	 * bootcfg_memory_map is sorted in order first by type and last by
+	 * address. This puts TEE_RAM first and TA_RAM second
+	 *
+	 */
+
+	map = memory_map;
+	assert(map->type == MEM_AREA_TEE_RAM);
+	map->va = map->pa;
+#ifdef CFG_WITH_PAGER
+	map->region_size = SMALL_PAGE_SIZE,
+#else
+	map->region_size = CORE_MMU_PGDIR_SIZE,
+#endif
+	map->attr = type_to_attr(map->type);
+
+	if (core_mmu_place_tee_ram_at_top(map->pa)) {
+		va = map->va;
+		map++;
+		while (map->type != MEM_AREA_NOTYPE) {
+			map->attr = type_to_attr(map->type);
+			map->region_size = CORE_MMU_PGDIR_SIZE,
+			va = ROUNDDOWN(va - map->size, CORE_MMU_PGDIR_SIZE);
+			map->va = va;
+			map++;
+		}
+		/*
+		 * The memory map should be sorted by virtual address
+		 * when this function returns. As we're assigning va in
+		 * the oposite direction we need to reverse the list.
+		 */
+		for (n = 0; n < last / 2; n++) {
+			struct tee_mmap_region r;
+
+			r = memory_map[last - n - 1];
+			memory_map[last - n - 1] = memory_map[n];
+			memory_map[n] = r;
+		}
+	} else {
+		va = ROUNDUP(map->va + map->size, CORE_MMU_PGDIR_SIZE);
+		map++;
+		while (map->type != MEM_AREA_NOTYPE) {
+			map->attr = type_to_attr(map->type);
+			map->region_size = CORE_MMU_PGDIR_SIZE,
+			map->va = va;
+			va = ROUNDUP(va + map->size, CORE_MMU_PGDIR_SIZE);
+			map++;
+		}
+	}
+
+	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++)
+		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
+		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx",
+		     map->type, (vaddr_t)map->va,
+		     (vaddr_t)map->va + map->size - 1, (paddr_t)map->pa,
+		     (paddr_t)map->pa + map->size - 1, map->size);
+}
+
+/*
+ * core_init_mmu_map - init tee core default memory mapping
+ *
+ * this routine sets the static default tee core mapping.
+ *
+ * If an error happend: core_init_mmu_map is expected to reset.
+ */
+void core_init_mmu_map(void)
+{
+	struct tee_mmap_region *map;
+	size_t n;
+
+	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
+		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
+				    secure_only[n].size)) {
+			EMSG("Invalid memory access configuration: sec/nsec");
+			panic();
+		}
+	}
+
+	if (!mem_map_inited)
+		init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
+
+	map = static_memory_map;
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
-			num_tee_ram++;
+			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
+				EMSG("TEE_RAM does not fit in secure_only");
+				panic();
+			}
+			map_tee_ram = map;
 			break;
 		case MEM_AREA_TA_RAM:
-			num_ta_ram++;
+			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
+				EMSG("TA_RAM does not fit in secure_only");
+				panic();
+			}
+			map_ta_ram = map;
 			break;
 		case MEM_AREA_NSEC_SHM:
-			num_nsec_shm++;
+			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
+				EMSG("NSEC_SHM does not fit in nsec_shared");
+				panic();
+			}
+			map_nsec_shm = map;
 			break;
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
@@ -261,395 +444,22 @@ static void check_mem_map(void)
 		map++;
 	}
 
-	assert(num_tee_ram == 1 && num_ta_ram == 1 && num_nsec_shm == 1);
-}
-
-static void init_mem_map(void)
-{
-	const struct core_mmu_phys_mem *mem;
-	struct map_area *map;
-	size_t last = 0;
-	vaddr_t va;
-
-	for (mem = &__start_phys_mem_map_section;
-	     mem < &__end_phys_mem_map_section; mem++) {
-		struct core_mmu_phys_mem m = *mem;
-
-		if (m.type == MEM_AREA_IO_NSEC || m.type == MEM_AREA_IO_SEC) {
-			m.addr = ROUNDDOWN(m.addr, CORE_MMU_PGDIR_SIZE);
-			m.size = ROUNDUP(m.size + (mem->addr - m.addr),
-					 CORE_MMU_PGDIR_SIZE);
-		}
-		add_phys_mem(&m, &last);
-	}
-	bootcfg_memory_map[last].type = MEM_AREA_NOTYPE;
-	check_mem_map();
-	/*
-	 * bootcfg_memory_map is sorted in order first by type and last by
-	 * address. This puts TEE_RAM first and TA_RAM second
-	 *
-	 */
-
-	map = bootcfg_memory_map;
-	assert(map->type == MEM_AREA_TEE_RAM);
-	map->va = map->pa;
-#ifdef CFG_WITH_PAGER
-	map->region_size = SMALL_PAGE_SIZE,
-#endif
-	map->secure = true;
-	map->cached = true;
-	map->rw = true;
-	map->exec = true;
-
-	if (core_mmu_place_tee_ram_at_top(map->pa)) {
-		va = map->va;
-		map++;
-		while (map->type != MEM_AREA_NOTYPE) {
-			switch (map->type) {
-			case MEM_AREA_TA_RAM:
-				map->secure = true;
-				map->cached = true;
-				break;
-			case MEM_AREA_NSEC_SHM:
-				map->cached = true;
-				break;
-			case MEM_AREA_IO_NSEC:
-				map->device = true;
-				break;
-			case MEM_AREA_IO_SEC:
-				map->device = true;
-				map->secure = true;
-				break;
-			default:
-				panic();
-			}
-			va = ROUNDDOWN(va - map->size, CORE_MMU_PGDIR_SIZE);
-			map->rw = true;
-			map->va = va;
-			map++;
-		}
-	} else {
-		va = ROUNDUP(map->va + map->size, CORE_MMU_PGDIR_SIZE);
-		map++;
-		while (map->type != MEM_AREA_NOTYPE) {
-			if (map[-1].secure != map->secure)
-				va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
-			switch (map->type) {
-			case MEM_AREA_TA_RAM:
-				map->secure = true;
-				map->cached = true;
-				break;
-			case MEM_AREA_NSEC_SHM:
-				map->cached = true;
-				break;
-			case MEM_AREA_IO_NSEC:
-				map->device = true;
-				break;
-			case MEM_AREA_IO_SEC:
-				map->device = true;
-				map->secure = true;
-				break;
-			default:
-				panic();
-			}
-			map->rw = true;
-			map->va = va;
-			va += map->size;
-			map++;
-		}
-	}
-
-	for (map = bootcfg_memory_map; map->type != MEM_AREA_NOTYPE; map++)
-		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
-		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx",
-		     map->type, (vaddr_t)map->va,
-		     (vaddr_t)map->va + map->size - 1, (paddr_t)map->pa,
-		     (paddr_t)map->pa + map->size - 1, map->size);
-}
-
-static struct map_area *get_mem_map(void)
-{
-	if (!mem_map_inited)
-		init_mem_map();
-	return bootcfg_memory_map;
-}
-
-/* Return the platform specific pbuf_is(). */
-unsigned long bootcfg_get_pbuf_is_handler(void)
-{
-	return (unsigned long)pbuf_is;
-}
-
-/*
- * This routine is called when MMU and core memory management are not
- * initialized.
- */
-struct map_area *bootcfg_get_memory(void)
-{
-	struct map_area *map;
-	size_t n;
-
-	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
-		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
-				    secure_only[n].size)) {
-			EMSG("Invalid memory access configuration: sec/nsec");
-			return NULL;
-		}
-	}
-
-	/* Overlapping will be tested later */
-	map = get_mem_map();
-	while (map->type != MEM_AREA_NOTYPE) {
-		switch (map->type) {
-		case MEM_AREA_TEE_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TEE_RAM does not fit in secure_only");
-				return NULL;
-			}
-			break;
-		case MEM_AREA_TA_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TA_RAM does not fit in secure_only");
-				return NULL;
-			}
-			break;
-		case MEM_AREA_NSEC_SHM:
-			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
-				EMSG("NSEC_SHM does not fit in nsec_shared");
-				return NULL;
-			}
-			break;
-		default:
-			/* Other mapped areas are not checked. */
-			break;
-		}
-		map++;
-	}
-
-	return bootcfg_memory_map;
-}
-
-static bool pa_is_in_map(struct map_area *map, paddr_t pa)
-{
-	if (!map)
-		return false;
-	return (pa >= map->pa && pa <= (map->pa + map->size - 1));
-}
-
-static bool va_is_in_map(struct map_area *map, vaddr_t va)
-{
-	if (!map)
-		return false;
-	return (va >= map->va && va <= (map->va + map->size - 1));
-}
-
-/* check if target buffer fits in a core default map area */
-static bool pbuf_inside_map_area(unsigned long p, size_t l,
-				 struct map_area *map)
-{
-	return core_is_buffer_inside(p, l, map->pa, map->size);
-}
-
-static struct map_area *find_map_by_type(enum teecore_memtypes type)
-{
-	struct map_area *map;
-
-	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++)
-		if (map->type == type)
-			return map;
-	return NULL;
-}
-
-static struct map_area *find_map_by_type_and_pa(enum teecore_memtypes type,
-						paddr_t pa)
-{
-	struct map_area *map;
-
-	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++) {
-		if (map->type != type)
-			continue;
-		if (pa_is_in_map(map, pa))
-			return map;
-	}
-	return NULL;
-}
-
-static struct map_area *find_map_by_va(void *va)
-{
-	struct map_area *map = static_memory_map;
-	unsigned long a = (unsigned long)va;
-
-	while (map->type != MEM_AREA_NOTYPE) {
-		if ((a >= map->va) && (a <= (map->va - 1 + map->size)))
-			return map;
-		map++;
-	}
-	return NULL;
-}
-
-static struct map_area *find_map_by_pa(unsigned long pa)
-{
-	struct map_area *map = static_memory_map;
-
-	while (map->type != MEM_AREA_NOTYPE) {
-		if ((pa >= map->pa) && (pa < (map->pa + map->size)))
-			return map;
-		map++;
-	}
-	return NULL;
-}
-
-static void insert_mmap(struct tee_mmap_region *mm, size_t max_elem,
-		struct tee_mmap_region *mme)
-{
-	size_t n;
-
-	for (n = 0; n < (max_elem - 1); n++) {
-		if (!mm[n].size) {
-			mm[n] = *mme;
-			return;
-		}
-
-		if (core_is_buffer_intersect(mme->va, mme->size, mm[n].va,
-					     mm[n].size)) {
-			vaddr_t end_va;
-
-			/* Check that the overlapping maps are compatible */
-			if (mme->attr != mm[n].attr ||
-			    (mme->pa - mme->va) != (mm[n].pa - mm[n].va)) {
-				EMSG("Incompatible mmap regions");
-				panic();
-			}
-
-			/* Grow the current map */
-			end_va = MAX(mme->va + mme->size,
-				     mm[n].va + mm[n].size);
-			mm[n].va = MIN(mme->va, mm[n].va);
-			mm[n].pa = MIN(mme->pa, mm[n].pa);
-			mm[n].size = end_va - mm[n].va;
-			return;
-		}
-
-		if (mme->va < mm[n].va) {
-			memmove(mm + n + 1, mm + n,
-				(max_elem - n - 1) * sizeof(*mm));
-			mm[n] = *mme;
-			/*
-			 * Panics if the terminating element was
-			 * overwritten.
-			 */
-			if (mm[max_elem - 1].size)
-				break;
-			return;
-		}
-	}
-	EMSG("Too many mmap regions");
-	panic();
-}
-
-static void core_mmu_mmap_init(struct tee_mmap_region *mm, size_t max_elem,
-		struct map_area *map)
-{
-	struct tee_mmap_region mme;
-	size_t n;
-
-	memset(mm, 0, max_elem * sizeof(struct tee_mmap_region));
-
-	for (n = 0; map[n].type != MEM_AREA_NOTYPE; n++) {
-		mme.pa = map[n].pa;
-		mme.va = map[n].va;
-		mme.size = map[n].size;
-
-		mme.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PR |
-			   TEE_MATTR_GLOBAL;
-
-		if (map[n].device || !map[n].cached)
-			mme.attr |= TEE_MATTR_CACHE_NONCACHE <<
-				    TEE_MATTR_CACHE_SHIFT;
-		else
-			mme.attr |= TEE_MATTR_CACHE_CACHED <<
-				    TEE_MATTR_CACHE_SHIFT;
-
-		if (map[n].rw)
-			mme.attr |= TEE_MATTR_PW;
-
-		if (map[n].exec)
-			mme.attr |= TEE_MATTR_PX;
-
-		if (map[n].secure)
-			mme.attr |= TEE_MATTR_SECURE;
-
-		insert_mmap(mm, max_elem, &mme);
-	}
-}
-
-
-
-/*
- * core_init_mmu_map - init tee core default memory mapping
- *
- * this routine sets the static default tee core mapping.
- *
- * If an error happend: core_init_mmu_map is expected to reset.
- */
-void core_init_mmu_map(void)
-{
-	struct tee_mmap_region mm[MAX_MMAP_REGIONS + 1];
-	struct map_area *map, *in;
-
-	/* get memory bootcfg from system */
-	in = bootcfg_get_memory();
-	if (!in) {
-		EMSG("Invalid memory map");
-		TEE_ASSERT(0);
-	}
-	bootcfg_pbuf_is = (unsigned long)bootcfg_get_pbuf_is_handler();
-	if (bootcfg_pbuf_is == 0) {
-		EMSG("invalid platform handler for pbuf_is");
-		TEE_ASSERT(0);
-	}
-
-	/* we must find at least a PUB_RAM area and a TEE_RAM area */
-	map_tee_ram = NULL;
-	map_ta_ram = NULL;
-	map_nsec_shm = NULL;
-
-	/* map what needs to be mapped (non-null size and non INTRAM/EXTRAM) */
-	map = in;
-	while (map->type != MEM_AREA_NOTYPE) {
-		if (!map->va)
-			map->va = map->pa;	/* 1-to-1 pa = va mapping */
-
-		if (!map->region_size)
-			map->region_size = CORE_MMU_PGDIR_SIZE;
-
-		if (map->type == MEM_AREA_TEE_RAM)
-			map_tee_ram = map;
-		else if (map->type == MEM_AREA_TA_RAM)
-			map_ta_ram = map;
-		else if (map->type == MEM_AREA_NSEC_SHM)
-			map_nsec_shm = map;
-
-		map++;
-	}
-
-	if ((map_tee_ram == NULL) || (map_ta_ram == NULL) ||
-	    (map_nsec_shm == NULL)) {
+	/* Check that we have the mandatory memory areas defined */
+	if (!map_tee_ram || !map_ta_ram || !map_nsec_shm) {
 		EMSG("mapping area missing");
-		TEE_ASSERT(0);
+		panic();
 	}
 
-	static_memory_map = in;
-
-	core_mmu_mmap_init(mm, ARRAY_SIZE(mm), in);
-
-	core_init_mmu_tables(mm);
+	core_init_mmu_tables(static_memory_map);
 }
 
 /* routines to retrieve shared mem configuration */
 bool core_mmu_is_shm_cached(void)
 {
-	return map_nsec_shm ? map_nsec_shm->cached : false;
+	if (!map_nsec_shm)
+		return false;
+	return map_nsec_shm->attr >> TEE_MATTR_CACHE_SHIFT ==
+	       TEE_MATTR_CACHE_CACHED;
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
@@ -676,7 +486,7 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
  */
 bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 {
-	struct map_area *map;
+	struct tee_mmap_region *map;
 
 	/* Empty buffers complies with anything */
 	if (len == 0)
@@ -684,9 +494,9 @@ bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 
 	switch (attr) {
 	case CORE_MEM_SEC:
-		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
+		return pbuf_is_inside(secure_only, pbuf, len);
 	case CORE_MEM_NON_SEC:
-		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
+		return pbuf_is_inside(nsec_shared, pbuf, len);
 	case CORE_MEM_TEE_RAM:
 		return pbuf_inside_map_area(pbuf, len, map_tee_ram);
 	case CORE_MEM_TA_RAM:
@@ -694,14 +504,15 @@ bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
 	case CORE_MEM_MULTPURPOSE:
-		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
+		return pbuf_is_multipurpose(pbuf, len);
 	case CORE_MEM_EXTRAM:
-		return ((platform_pbuf_is_t)bootcfg_pbuf_is)(attr, pbuf, len);
+		return pbuf_is_inside(ddr, pbuf, len);
 	case CORE_MEM_CACHED:
 		map = find_map_by_pa(pbuf);
 		if (map == NULL || !pbuf_inside_map_area(pbuf, len, map))
 			return false;
-		return map->cached;
+		return map->attr >> TEE_MATTR_CACHE_SHIFT ==
+		       TEE_MATTR_CACHE_CACHED;
 	default:
 		return false;
 	}
@@ -727,7 +538,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 /* core_va2pa - teecore exported service */
 int core_va2pa_helper(void *va, paddr_t *pa)
 {
-	struct map_area *map;
+	struct tee_mmap_region *map;
 
 	map = find_map_by_va(va);
 	if (!va_is_in_map(map, (vaddr_t)va))
@@ -738,7 +549,7 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 	return 0;
 }
 
-static void *map_pa2va(struct map_area *map, paddr_t pa)
+static void *map_pa2va(struct tee_mmap_region *map, paddr_t pa)
 {
 	if (!pa_is_in_map(map, pa))
 		return NULL;
@@ -751,7 +562,7 @@ static void *map_pa2va(struct map_area *map, paddr_t pa)
  */
 void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 {
-	struct map_area *map = find_map_by_type(type);
+	struct tee_mmap_region *map = find_map_by_type(type);
 
 	if (map) {
 		*s = map->va;
@@ -764,7 +575,7 @@ void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 
 enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 {
-	struct map_area *map = find_map_by_pa(pa);
+	struct tee_mmap_region *map = find_map_by_pa(pa);
 
 	if (!map)
 		return MEM_AREA_NOTYPE;

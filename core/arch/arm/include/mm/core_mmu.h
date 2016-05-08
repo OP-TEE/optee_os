@@ -74,29 +74,6 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
-
-/*
- * @type:  enumerate: specifiy the purpose of the memory area.
- * @pa:    memory area physical start address
- * @size:  memory area size in bytes
- * @va:    virtual start address (0 if memory is not mapped)
- * @region_size: size of the mapping region used (4k, 64K, 1MB)
- * @secure: true if memory area in inside a A9 secure area
- */
-struct map_area {
-	unsigned int type;
-	unsigned int pa;
-	size_t size;
-	/* below here are core_mmu.c internal data */
-	unsigned int va;
-	unsigned int region_size;
-	bool secure;
-	bool cached;
-	bool device;
-	bool rw;
-	bool exec;
-};
-
 /*
  * Memory area type:
  * MEM_AREA_NOTYPE:   Undefined type. Used as end of table.
@@ -358,9 +335,7 @@ enum teecore_tlb_op {
 	TLBINV_BY_MVA,		/* invalidate unified tlb by MVA */
 };
 
-struct map_area *bootcfg_get_memory(void);
 int core_tlb_maintenance(int op, unsigned int a);
-unsigned long bootcfg_get_pbuf_is_handler(void);
 
 /* Cache maintenance operation type */
 typedef enum {
