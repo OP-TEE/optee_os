@@ -78,10 +78,75 @@
 #define TEE_RAM_START		(TZDRAM_BASE)
 #define TEE_RAM_SIZE		(1 * 1024 * 1024)
 
+/*
+ * TEE/TZ RAM layout:
+ *
+ *  +-----------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
+ *  | TEETZ private RAM  |  TEE_RAM           |   ^
+ *  |                    +--------------------+   |
+ *  |                    |  TA_RAM            |   |
+ *  +-----------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  |                    |      teecore alloc |   |
+ *  |  TEE/TZ and NSec   |  PUB_RAM   --------|   |
+ *  |   shared memory    |         NSec alloc |   |
+ *  +-----------------------------------------+   v
+ *
+ *  TEE_RAM : 1MByte
+ *  PUB_RAM : 1MByte
+ *  TA_RAM  : all what is left (at least 2MByte !)
+ */
+
+/* define the several memory area sizes */
+#if (CFG_DDR_TEETZ_RESERVED_SIZE < (4 * 1024 * 1024))
+#error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
+#endif
+
+#define CFG_TEE_RAM_PH_SIZE		(1 * 1024 * 1024)
+#define CFG_TEE_RAM_SIZE		CFG_TEE_RAM_PH_SIZE
+#define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
+					CFG_TEE_RAM_SIZE - CFG_SHMEM_SIZE)
+
+/* define the secure/unsecure memory areas */
+#define CFG_DDR_ARMTZ_ONLY_START	(CFG_DDR_TEETZ_RESERVED_START)
+#define CFG_DDR_ARMTZ_ONLY_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+
+#define CFG_DDR_ARM_ARMTZ_START		\
+			(CFG_DDR_ARMTZ_ONLY_START + CFG_DDR_ARMTZ_ONLY_SIZE)
+#define CFG_DDR_ARM_ARMTZ_SIZE		(CFG_PUB_RAM_SIZE)
+
+/* define the memory areas (TEE_RAM must start at reserved DDR start addr */
+#define CFG_TEE_RAM_START		(CFG_DDR_ARMTZ_ONLY_START)
+#define CFG_TA_RAM_START		(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
+#define CFG_PUB_RAM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
+
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
 #define CFG_SHMEM_START		(DDR_PHYS_START + 0x1000000)
 #define CFG_SHMEM_SIZE		0x100000
 
 #define CFG_TEE_LOAD_ADDR	TEE_RAM_START
+
+/* AHB0 devices */
+#define DEVICE0_PA_BASE		ROUNDDOWN(0x01400000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE0_VA_BASE		DEVICE0_PA_BASE
+#define DEVICE0_SIZE		ROUNDUP(0x00900000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE0_TYPE		MEM_AREA_IO_SEC
+
+/* AHB1 devices */
+#define DEVICE1_PA_BASE		ROUNDDOWN(0x00800000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE1_VA_BASE		DEVICE1_PA_BASE
+#define DEVICE1_SIZE		ROUNDUP(0x00300000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE1_TYPE		MEM_AREA_IO_SEC
+
+/* AHB2 devices */
+#define DEVICE2_PA_BASE		ROUNDDOWN(0x03000000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE2_VA_BASE		DEVICE2_PA_BASE
+#define DEVICE2_SIZE		ROUNDUP(0x01000000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE2_TYPE		MEM_AREA_IO_SEC
+
+/* AHBS devices */
+#define DEVICE3_PA_BASE		ROUNDDOWN(0x06000000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE3_VA_BASE		DEVICE3_PA_BASE
+#define DEVICE3_SIZE		ROUNDUP(0x02200000, CORE_MMU_DEVICE_SIZE)
+#define DEVICE3_TYPE		MEM_AREA_IO_SEC
 
 #endif /*PLATFORM_CONFIG_H*/
