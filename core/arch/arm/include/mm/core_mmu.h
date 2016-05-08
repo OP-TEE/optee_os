@@ -310,7 +310,10 @@ bool core_mmu_user_mapping_is_active(void);
  */
 bool core_mmu_mattr_is_ok(uint32_t mattr);
 
-void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e);
+void core_mmu_get_mem_by_type(enum teecore_memtypes type, vaddr_t *s,
+			      vaddr_t *e);
+
+enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa);
 
 /* Function is deprecated, use virt_to_phys() instead */
 int core_va2pa_helper(void *va, paddr_t *pa);

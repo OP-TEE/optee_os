@@ -400,6 +400,15 @@ void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
 	}
 }
 
+enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
+{
+	struct map_area *map = find_map_by_pa(pa);
+
+	if (!map)
+		return MEM_AREA_NOTYPE;
+	return map->type;
+}
+
 int core_tlb_maintenance(int op, unsigned int a)
 {
 	/*
