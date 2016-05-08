@@ -151,18 +151,14 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 	/*
 	 * Add stack segment
 	 */
-	pa = virt_to_phys((void *)tee_mm_get_smem(utc->mm_stack));
-	if (!pa)
-		return TEE_ERROR_SECURITY;
+	pa = tee_mm_get_smem(utc->mm_stack);
 	mattr = elf_flags_to_mattr(PF_W | PF_R, init_attrs);
 	tee_mmu_map_stack(utc, pa, tee_mm_get_bytes(utc->mm_stack), mattr);
 
 	/*
 	 * Add code segment
 	 */
-	pa = virt_to_phys((void *)tee_mm_get_smem(utc->mm));
-	if (!pa)
-		return TEE_ERROR_SECURITY;
+	pa = tee_mm_get_smem(utc->mm);
 	while (true) {
 		vaddr_t offs;
 		size_t size;
@@ -488,9 +484,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	TEE_Result res;
 	struct utee_params *usr_params;
 	tee_uaddr_t usr_stack;
-	tee_uaddr_t stack_uaddr;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
-	tee_uaddr_t params_uaddr;
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 
 	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
@@ -504,27 +498,14 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_set_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = tee_mm_get_smem(utc->mm_stack) + utc->stack_size;
+	usr_stack = (tee_uaddr_t)phys_to_virt(tee_mm_get_smem(utc->mm_stack) +
+				 utc->stack_size - 1, MEM_AREA_TA_VASPACE) + 1;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);
 
-	params_uaddr = (uintptr_t)phys_to_virt(virt_to_phys(usr_params),
-					       MEM_AREA_TA_VASPACE);
-	if (!params_uaddr) {
-		res = TEE_ERROR_ACCESS_DENIED;
-		goto cleanup_return;
-	}
-
-	stack_uaddr = (uintptr_t)phys_to_virt(virt_to_phys((void *)usr_stack),
-					      MEM_AREA_TA_VASPACE);
-	if (!stack_uaddr) {
-		res = TEE_ERROR_ACCESS_DENIED;
-		goto cleanup_return;
-	}
-
 	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
-				     params_uaddr, cmd, stack_uaddr,
+				     (vaddr_t)usr_params, cmd, usr_stack,
 				     utc->entry_func, utc->is_32bit,
 				     &utc->ctx.panicked, &utc->ctx.panic_code);
 
