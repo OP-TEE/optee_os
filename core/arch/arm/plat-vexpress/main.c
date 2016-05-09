@@ -43,6 +43,7 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <console.h>
 #include <keep.h>
 #include <initcall.h>
@@ -72,12 +73,18 @@ static const struct thread_handlers handlers = {
 
 static struct gic_data gic_data;
 
+register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
+
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
 }
 
 #ifdef GIC_BASE
+
+register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
+
 void main_init_gic(void)
 {
 	vaddr_t gicc_base;
