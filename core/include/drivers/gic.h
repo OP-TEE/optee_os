@@ -31,6 +31,9 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
+#define GIC_DIST_REG_SIZE	0x10000
+#define GIC_CPU_REG_SIZE	0x10000
+
 struct gic_data {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
