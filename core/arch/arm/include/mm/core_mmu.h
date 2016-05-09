@@ -84,6 +84,7 @@
  * MEM_AREA_KEYVAULT: Secure RAM storing some secrets
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
+ * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
@@ -96,6 +97,7 @@ enum teecore_memtypes {
 	MEM_AREA_KEYVAULT,
 	MEM_AREA_IO_NSEC,
 	MEM_AREA_IO_SEC,
+	MEM_AREA_RES_VASPACE,
 	MEM_AREA_TA_VASPACE,
 	MEM_AREA_MAXTYPE
 };
@@ -312,6 +314,8 @@ int core_va2pa_helper(void *va, paddr_t *pa);
 
 /* routines to retreive shared mem configuration */
 bool core_mmu_is_shm_cached(void);
+
+bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
 /* L1/L2 cache maintenance (op: refer to ???) */
 unsigned int cache_maintenance_l1(int op, void *va, size_t len);

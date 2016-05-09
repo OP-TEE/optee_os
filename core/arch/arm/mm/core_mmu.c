@@ -55,6 +55,7 @@
 #include <arm.h>
 
 #define MAX_MMAP_REGIONS	10
+#define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
 
 /*
  * These variables are initialized before .bss is cleared. To avoid
@@ -122,6 +123,8 @@ register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
 #ifdef DEVICE6_PA_BASE
 register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
 #endif
+
+register_phys_mem(MEM_AREA_RES_VASPACE, 0, RES_VASPACE_SIZE);
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)
@@ -303,6 +306,8 @@ static uint32_t type_to_attr(enum teecore_memtypes t)
 		return attr | noncache;
 	case MEM_AREA_IO_SEC:
 		return attr | TEE_MATTR_SECURE | noncache;
+	case MEM_AREA_RES_VASPACE:
+		return 0;
 	default:
 		panic();
 	}
@@ -436,6 +441,7 @@ void core_init_mmu_map(void)
 			break;
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
+		case MEM_AREA_RES_VASPACE:
 			break;
 		default:
 			EMSG("Uhandled memtype %d", map->type);
@@ -810,6 +816,71 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	}
 }
 #endif
+
+bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
+{
+	struct core_mmu_table_info tbl_info;
+	struct tee_mmap_region *map;
+	size_t n;
+	size_t granule;
+	paddr_t p;
+	size_t l;
+
+	if (!len)
+		return true;
+
+	/* Check if the memory is already mapped */
+	map = find_map_by_type_and_pa(type, addr);
+	if (map && pbuf_inside_map_area(addr, len, map))
+		return true;
+
+	/* Find the reserved va space used for late mappings */
+	map = find_map_by_type(MEM_AREA_RES_VASPACE);
+	if (!map)
+		return false;
+
+	if (!core_mmu_find_table(map->va, UINT_MAX, &tbl_info))
+		return false;
+
+	granule = 1 << tbl_info.shift;
+	p = ROUNDDOWN(addr, granule);
+	l = ROUNDUP(len + addr - p, granule);
+	/*
+	 * Something is wrong, we can't fit the va range into the selected
+	 * table. The reserved va range is possibly missaligned with
+	 * granule.
+	 */
+	if (core_mmu_va2idx(&tbl_info, map->va + len) >= tbl_info.num_entries)
+		return false;
+
+	/* Find end of the memory map */
+	n = 0;
+	while (static_memory_map[n].type != MEM_AREA_NOTYPE)
+		n++;
+
+	if (n < (ARRAY_SIZE(static_memory_map) - 1)) {
+		/* There's room for another entry */
+		static_memory_map[n].va = map->va;
+		static_memory_map[n].size = l;
+		static_memory_map[n + 1].type = MEM_AREA_NOTYPE;
+		map->va += l;
+		map->size -= l;
+		map = static_memory_map + n;
+	} else {
+		/*
+		 * There isn't room for another entry, steal the reserved
+		 * entry as it's not useful for anything else any longer.
+		 */
+		map->size = l;
+	}
+	map->type = type;
+	map->region_size = granule;
+	map->attr = type_to_attr(type);
+	map->pa = p;
+
+	set_region(&tbl_info, map);
+	return true;
+}
 
 static bool arm_va2pa_helper(void *va, paddr_t *pa)
 {
