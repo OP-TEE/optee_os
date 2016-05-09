@@ -29,6 +29,8 @@
 
 #include <types_ext.h>
 
+#define PL011_REG_SIZE	0x1000
+
 void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
 
 void pl011_putc(int ch, vaddr_t base);
