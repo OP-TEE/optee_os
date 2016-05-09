@@ -31,6 +31,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <tee/entry_std.h>
@@ -60,20 +61,29 @@ static void main_fiq(void)
 	panic();
 }
 
+static vaddr_t console_base(void)
+{
+	static void *va;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(CONSOLE_UART_PA_BASE,
+					  MEM_AREA_IO_NSEC);
+		return (vaddr_t)va;
+	}
+	return CONSOLE_UART_BASE;
+}
+
 void console_init(void)
 {
-	vaddr_t base;
-
-	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+	vaddr_t base = console_base();
 
 	imx_uart_init(base);
 }
 
 void console_putc(int ch)
 {
-	vaddr_t base;
-
-	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+	vaddr_t base = console_base();
 
 	imx_uart_putc(ch, base);
 
@@ -84,9 +94,7 @@ void console_putc(int ch)
 
 void console_flush(void)
 {
-	vaddr_t base;
-
-	base = cpu_mmu_enabled() ? CONSOLE_UART_BASE : CONSOLE_UART_PA_BASE;
+	vaddr_t base = console_base();
 
 	imx_uart_flush_tx_fifo(base);
 }
