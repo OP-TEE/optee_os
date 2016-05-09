@@ -41,6 +41,7 @@
 #include <kernel/mutex.h>
 #include <kernel/tee_time.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 #include <console.h>
@@ -70,24 +71,39 @@ static void main_fiq(void)
 	panic();
 }
 
+static vaddr_t console_base(void)
+{
+	static void *va;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
+		return (vaddr_t)va;
+	}
+	return CONSOLE_UART_BASE;
+}
+
 void console_init(void)
 {
-	serial8250_uart_init(CONSOLE_UART_BASE,
-			     CONSOLE_UART_CLK_IN_HZ,
+	serial8250_uart_init(console_base(), CONSOLE_UART_CLK_IN_HZ,
 			     CONSOLE_BAUDRATE);
 }
 
 void console_putc(int ch)
 {
-	serial8250_uart_putc(ch, CONSOLE_UART_BASE);
+	vaddr_t base = console_base();
+
+	serial8250_uart_putc(ch, base);
 	if (ch == '\n')
-		serial8250_uart_putc('\r', CONSOLE_UART_BASE);
+		serial8250_uart_putc('\r', base);
 }
 
 void console_flush(void)
 {
-	serial8250_uart_flush_tx_fifo(CONSOLE_UART_BASE);
+	serial8250_uart_flush_tx_fifo(console_base());
 }
+
+
 
 struct plat_nsec_ctx {
 	uint32_t usr_sp;
