@@ -39,6 +39,7 @@
 #include <kernel/misc.h>
 #include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 
 #include <drivers/gic.h>
 #include <drivers/sunxi_uart.h>
@@ -48,6 +49,7 @@
 #include <assert.h>
 #include <util.h>
 #include <platform.h>
+#include <console.h>
 
 void sunxi_secondary_entry(void);
 
@@ -57,29 +59,43 @@ struct gic_data gic_data;
 
 static int platform_smp_init(void)
 {
-	write32((uint32_t)sunxi_secondary_entry, (PRCM_BASE + PRCM_CPU_SOFT_ENTRY_REG));
-	
+	vaddr_t base = (vaddr_t)phys_to_virt(PRCM_BASE, MEM_AREA_IO_SEC);
+
+	TEE_ASSERT(base);
+	write32((uint32_t)sunxi_secondary_entry,
+		base + PRCM_CPU_SOFT_ENTRY_REG);
+
 	return 0;
 }
 
 void platform_init(void)
 {
+	vaddr_t gicc_base;
+	vaddr_t gicd_base;
+	vaddr_t cci400_base;
+
+	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
+					  MEM_AREA_IO_SEC);
+	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
+					  MEM_AREA_IO_SEC);
+	cci400_base = (vaddr_t)phys_to_virt(CCI400_BASE, MEM_AREA_IO_SEC);
+	TEE_ASSERT(gicc_base && gicd_base && cci400_base);
+
 	/*
 	 * GIC configuration is initialized in Secure bootloader,
 	 * Initialize GIC base address here for debugging.
 	 */
-	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
-			   GIC_BASE + GICD_OFFSET);
+	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);
 
 	/* platform smp initialize */
 	platform_smp_init();
 	
 	/* enable non-secure access cci-400 registers */
-	write32(0x1, CCI400_BASE + CCI400_SECURE_ACCESS_REG);
+	write32(0x1, cci400_base + CCI400_SECURE_ACCESS_REG);
 
-	/* Initialize uart with physical address */
-	sunxi_uart_init(UART0_BASE);
+	/* Initialize uart */
+	console_init();
 
 	return ;
 }

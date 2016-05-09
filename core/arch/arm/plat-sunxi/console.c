@@ -27,19 +27,33 @@
 
 #include <platform_config.h>
 #include <drivers/sunxi_uart.h>
+#include <mm/core_memprot.h>
 #include <console.h>
+
+static vaddr_t console_base(void)
+{
+	static void *va;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
+		return (vaddr_t)va;
+	}
+	return CONSOLE_UART_BASE;
+}
+
 
 void console_init(void)
 {
-	sunxi_uart_init(CONSOLE_UART_BASE);
+	sunxi_uart_init(console_base());
 }
 
 void console_putc(int ch)
 {
-	sunxi_uart_putc(ch, CONSOLE_UART_BASE);
+	sunxi_uart_putc(ch, console_base());
 }
 
 void console_flush(void)
 {
-	sunxi_uart_flush(CONSOLE_UART_BASE);
+	sunxi_uart_flush(console_base());
 }
