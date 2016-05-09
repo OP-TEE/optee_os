@@ -31,6 +31,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
+#include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <tee/entry_std.h>
@@ -60,21 +61,33 @@ static void main_fiq(void)
 	panic();
 }
 
+static vaddr_t console_base(void)
+{
+	static void *va;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_NSEC);
+		return (vaddr_t)va;
+	}
+	return CONSOLE_UART_BASE;
+}
+
 void console_init(void)
 {
-	pl011_init(CONSOLE_UART_BASE,
-		   CONSOLE_UART_CLK_IN_HZ,
-		   CONSOLE_BAUDRATE);
+	pl011_init(console_base(), CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 }
 
 void console_putc(int ch)
 {
-	pl011_putc(ch, CONSOLE_UART_BASE);
+	vaddr_t base = console_base();
+
+	pl011_putc(ch, base);
 	if (ch == '\n')
-		pl011_putc('\r', CONSOLE_UART_BASE);
+		pl011_putc('\r', base);
 }
 
 void console_flush(void)
 {
-	pl011_flush(CONSOLE_UART_BASE);
+	pl011_flush(console_base());
 }
