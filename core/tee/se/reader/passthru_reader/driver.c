@@ -45,6 +45,8 @@ struct pcsc_context {
 };
 static struct pcsc_context pcsc_context;
 
+register_phys_mem(MEM_AREA_IO_SEC, PCSC_BASE, 0x1000);
+
 static uint32_t pcsc_read_reg(struct pcsc_context *ctx, uint8_t offset)
 {
 	return read32(ctx->mmio_base + offset);
