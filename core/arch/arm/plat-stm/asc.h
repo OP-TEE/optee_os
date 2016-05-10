@@ -27,9 +27,9 @@
 #ifndef ASC_H
 #define ASC_H
 
-extern int asc_init(void);
-extern int __asc_xmit_char(const char p);
-extern int __asc_xmit(const char *s);
-extern void __asc_flush(void);
+#include <types_ext.h>
+
+extern int __asc_xmit_char(const char p, vaddr_t base);
+extern void __asc_flush(vaddr_t base);
 
 #endif

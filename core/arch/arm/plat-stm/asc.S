@@ -28,43 +28,30 @@
 #include <asm.S>
 #include <kernel/unwind.h>
 
-#define ST_32BIT_REG(address) (address)
-
-/* Asynchronous Serial Controller control registers */
-#ifndef ST_ASC_REGS_BASE
-#define ST_ASC_REGS_BASE(n)     ST_ASC##n##_REGS_BASE
-#endif /* !ST_ASC_REGS_BASE */
-#define ST_ASC_BAUDRATE(n)      ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x00)
-#define ST_ASC_TXBUFFER(n)      ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x04)
-#define ST_ASC_RXBUFFER(n)      ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x08)
-#define ST_ASC_CONTROL(n)       ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x0c)
-#define ST_ASC_INTENABLE(n)     ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x10)
-#define ST_ASC_STATUS(n)        ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x14)
-#define ST_ASC_GUARDTIME(n)     ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x18)
-#define ST_ASC_TIMEOUT(n)       ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x1c)
-#define ST_ASC_TXRESET(n)       ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x20)
-#define ST_ASC_RXRESET(n)       ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x24)
-#define ST_ASC_RETRIES(n)       ST_32BIT_REG(ST_ASC_REGS_BASE(n) + 0x28)
-
-#define BOARD_ASC_BAUDRATE_REG      ST_ASC_BAUDRATE(ASC_NUM)
-#define BOARD_ASC_CONTROL_REG       ST_ASC_CONTROL(ASC_NUM)
-#define BOARD_ASC_TXBUFFER_REG      ST_ASC_TXBUFFER(ASC_NUM)
-#define BOARD_ASC_STATUS_REG        ST_ASC_STATUS(ASC_NUM)
-#define BOARD_ASC_TXRESET_REG       ST_ASC_TXRESET(ASC_NUM)
-#define BOARD_ASC_RXRESET_REG       ST_ASC_RXRESET(ASC_NUM)
+#define ASC_BAUDRATE	0x00
+#define ASC_TXBUFFER	0x04
+#define ASC_RXBUFFER	0x08
+#define ASC_CONTROL	0x0c
+#define ASC_INTENABLE	0x10
+#define ASC_STATUS	0x14
+#define ASC_GUARDTIME	0x18
+#define ASC_TIMEOUT	0x1c
+#define ASC_TXRESET	0x20
+#define ASC_RXRESET	0x24
+#define ASC_RETRIES	0x28
 
 .section .text.asc
 
 
 /*
- * void __asc_flush(void) - flush ASC tx fifo.
+ * void __asc_flush(vaddr_t base)
  *
  *    Clobbers r0-r3
  */
 FUNC __asc_flush , :
 UNWIND(	.fnstart)
 
-    LDR r3, =BOARD_ASC_STATUS_REG
+    ADD r3, r0, #ASC_STATUS
 
 flush_wait:
     LDR r1, [r3]
@@ -77,16 +64,17 @@ UNWIND(	.fnend)
 END_FUNC __asc_flush
 
 /*
- * int __asc_xmit_char(char) - Transmit a single character.
+ * int __asc_xmit_char(char p, vaddr_t base) - Transmit a single character.
  *
  *    R0 is the 1-byte character to be transmited
+ *    R1 is the base address of the uart
  *    Clobbers r0-r3
  */
 FUNC __asc_xmit_char , :
 UNWIND(	.fnstart)
 
-    LDR r2, =BOARD_ASC_TXBUFFER_REG
-    LDR r3, =BOARD_ASC_STATUS_REG
+    ADD r2, r1, #ASC_TXBUFFER
+    ADD r3, r1, #ASC_STATUS
 
     /* Output byte */
 
