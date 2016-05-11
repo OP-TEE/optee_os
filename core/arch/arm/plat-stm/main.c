@@ -30,6 +30,7 @@
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
+#include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -99,4 +100,16 @@ void console_flush(void)
 	if (!boot_is_completed)
 		return;
 	__asc_flush(console_base());
+}
+
+vaddr_t pl310_base(void)
+{
+	static void *va __data; /* in case it's used before .bss is cleared */
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_NSEC);
+		return (vaddr_t)va;
+	}
+	return PL310_BASE;
 }

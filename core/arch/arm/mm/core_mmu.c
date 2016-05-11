@@ -480,25 +480,25 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 	tee_l2cc_mutex_lock();
 	switch (op) {
 	case L2CACHE_INVALIDATE:
-		arm_cl2_invbyway();
+		arm_cl2_invbyway(pl310_base());
 		break;
 	case L2CACHE_AREA_INVALIDATE:
 		if (len)
-			arm_cl2_invbypa(pa, pa + len - 1);
+			arm_cl2_invbypa(pl310_base(), pa, pa + len - 1);
 		break;
 	case L2CACHE_CLEAN:
-		arm_cl2_cleanbyway();
+		arm_cl2_cleanbyway(pl310_base());
 		break;
 	case L2CACHE_AREA_CLEAN:
 		if (len)
-			arm_cl2_cleanbypa(pa, pa + len - 1);
+			arm_cl2_cleanbypa(pl310_base(), pa, pa + len - 1);
 		break;
 	case L2CACHE_CLEAN_INV:
-		arm_cl2_cleaninvbyway();
+		arm_cl2_cleaninvbyway(pl310_base());
 		break;
 	case L2CACHE_AREA_CLEAN_INV:
 		if (len)
-			arm_cl2_cleaninvbypa(pa, pa + len - 1);
+			arm_cl2_cleaninvbypa(pl310_base(), pa, pa + len - 1);
 		break;
 	default:
 		ret = TEE_ERROR_NOT_IMPLEMENTED;

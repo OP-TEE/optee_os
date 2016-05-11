@@ -247,6 +247,7 @@ copy_init:
 	bl	console_init
 
 #ifdef CFG_PL310
+	ldr	r0, =PL310_BASE
 	bl	arm_cl2_config
 #endif
 
@@ -268,15 +269,17 @@ copy_init:
 	bl	arm_cl1_d_invbyva
 
 #ifdef CFG_PL310
-	ldr	r0, =__text_start
+	ldr	r0, =PL310_BASE
+	ldr	r1, =__text_start
 #ifdef CFG_WITH_PAGER
-	ldr	r1, =__init_end
+	ldr	r2, =__init_end
 #else
-	ldr	r1, =_end
+	ldr	r2, =_end
 #endif
-	sub	r1, r1, #1
+	sub	r2, r2, #1
 	bl	arm_cl2_invbypa
 
+	ldr	r0, =PL310_BASE
 	bl	arm_cl2_enable
 #endif
 
@@ -309,19 +312,22 @@ copy_init:
 	bl	arm_cl1_d_cleaninvbyva
 
 #ifdef CFG_PL310
-	ldr	r0, =__text_start
+	bl	pl310_base
+	ldr	r1, =__text_start
 #ifdef CFG_WITH_PAGER
-	ldr	r1, =__init_end
+	ldr	r2, =__init_end
 #else
-	ldr	r1, =_end
+	ldr	r2, =_end
 #endif
-	sub	r1, r1, #1
+	sub	r2, r2, #1
 	bl	arm_cl2_cleaninvbypa
 
 #endif
 
 #ifdef CFG_PL310_LOCKED
+	bl	pl310_base
 	bl	arm_cl2_lockallways
+	bl	pl310_base
 	bl	arm_cl2_invbyway
 #endif
 
