@@ -429,5 +429,9 @@ struct optee_msg_arg {
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
 
+/*
+ * Send a log to tee-supplicant
+ */
+#define OPTEE_MSG_RPC_CMD_LOG		8
 
 #endif /* _OPTEE_MSG_H */

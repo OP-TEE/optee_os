@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,33 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef KERNEL_SYSLOG_H
+#define KERNEL_SYSLOG_H
+
 #include <stdbool.h>
-#include <trace.h>
-#include <console.h>
-#include <kernel/thread.h>
-#include <kernel/syslog.h>
-
-const char trace_ext_prefix[] = "TEE-CORE";
-int trace_level = TRACE_LEVEL;
-
-void trace_ext_puts(const char *str)
-{
-	const char *p;
 
 #ifdef CFG_LOG_SYSLOG
-	if (syslog(str))
-		return;
+
+void enable_syslog(void);
+
+/* Send message to normal world for logging. Return true on success. */
+bool syslog(const char *str);
+
+#else
+
+#include <compiler.h>
+
+static inline void enable_syslog(void)
+{
+}
+
+static inline bool syslog(const char *str __unused)
+{
+	return false;
+}
 #endif
 
-	console_flush();
-
-	for (p = str; *p; p++)
-		console_putc(*p);
-
-	console_flush();
-}
-
-int trace_ext_get_thread_id(void)
-{
-	return thread_get_id_may_fail();
-}
+#endif /* KERNEL_SYSLOG_H */
