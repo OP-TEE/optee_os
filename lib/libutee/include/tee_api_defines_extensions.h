@@ -86,5 +86,7 @@
 #define TEE_STORAGE_PRIVATE_REE	 0x80000000
 /* Storage is the Replay Protected Memory Block partition of an eMMC device */
 #define TEE_STORAGE_PRIVATE_RPMB 0x80000100
+/* Storage is provided by a SQLite database in the normal world filesystem */
+#define TEE_STORAGE_PRIVATE_SQL  0x80000200
 
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */

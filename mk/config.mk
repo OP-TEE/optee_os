@@ -129,13 +129,12 @@ CFG_RPMB_FS ?= n
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
 
-# File encryption support
-# Applies to both the REE and the RPMB filesystems
-CFG_ENC_FS ?= y
+# SQL FS stores its data in a SQLite database, accessed by normal world
+CFG_SQL_FS ?= n
 
-ifeq (,$(filter y,$(CFG_REE_FS) $(CFG_RPMB_FS)))
-$(error At least one filesystem must be enabled)
-endif
+# File encryption support
+# Applies to all filesystems
+CFG_ENC_FS ?= y
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem

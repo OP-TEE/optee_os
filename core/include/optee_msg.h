@@ -429,5 +429,10 @@ struct optee_msg_arg {
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
 
+/*
+ * SQLite file system access, defined in tee-supplicant
+ */
+#define OPTEE_MSG_RPC_CMD_SQL_FS	8
+
 
 #endif /* _OPTEE_MSG_H */
