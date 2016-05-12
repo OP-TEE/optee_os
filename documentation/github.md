@@ -14,9 +14,9 @@ GitHub Setup
 
 ### GitHub Account Setup
 
-In order to clone a repository, there is no need to own a GitHub 
-account. But as soon as one wants to contribute, a GitHub account 
-is required. In such a case, you must create a GitHub account 
+In order to clone a repository, there is no need to own a GitHub
+account. But as soon as one wants to contribute, a GitHub account
+is required. In such a case, you must create a GitHub account
 by connecting to
 <a href="https://github.com/">https://github.com/</a>.
 Click on *Sign up for GitHub* and follow the steps.
@@ -53,7 +53,7 @@ In the following:
 ### SSH Configuration
 .ssh/config file may contain something like:
 
-	Host github.com 
+	Host github.com
 	  user myaccount
 	  IdentityFile ~/.ssh/id_rsa_github
 	  Hostname 192.30.252.128
@@ -141,7 +141,7 @@ Note that the pull-request is automatically updated with the new commit.
 
 ### Finalizing the contribution
 Once reviewers and the contributor has agreed that the patch-set is OK, then the
-contributor needs to squash the commits into a single commit (a 
+contributor needs to squash the commits into a single commit (a
 *"squashed-commit-on-top-of-master"*), meaning
 
 * A single-point contribution for most of the cases
@@ -155,7 +155,7 @@ contributor needs to squash the commits into a single commit (a
 Following commands are guidelines to achieve the
 *squashed-commit-on-top-of-master*. Note that this ends with a
 *"push -f"*
- 
+
 	git fetch --all
 	git checkout -b feature/my_new_feature_tbs
 	git checkout feature/my_new_feature
