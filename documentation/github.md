@@ -82,6 +82,12 @@ are read-only, for developers and owners. Have a look at
 <a href="https://gist.github.com/piscisaureus/3342247">https://gist.github.com/piscisaureus/3342247</a>
 for a complete description of this syntax.
 
+Another way to pull a pull-request, without modifying .git/config file,
+is to use the patch file that is available for each pull-request. As an
+example, here is the command to pull the pull-request id #784:
+
+    curl -L 'https://github.com/OP-TEE/optee_os/pull/784.patch' | git am
+
 ### Synchronization
 
 First of all, the forked repository must be in sync with the OP-TEE
