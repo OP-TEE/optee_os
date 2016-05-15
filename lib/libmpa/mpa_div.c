@@ -141,7 +141,7 @@ static void __mpa_div_q_r_internal(mpanum q,
 	 */
 	normshift = 0;
 	w1 = __mpanum_msw(y);
-	while (w1 < (1 << (WORD_SIZE - 1))) {
+	while (w1 < ((mpa_word_t)1 << (WORD_SIZE - 1))) {
 		normshift++;
 		w1 <<= 1;
 	}

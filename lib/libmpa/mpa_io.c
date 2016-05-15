@@ -194,7 +194,7 @@ static mpa_word_t __mpa_count_leading_zero_bits(mpa_word_t w)
 
 	if (w == 0)
 		return MPA_WORD_SIZE;
-	mask = (1 << (MPA_WORD_SIZE - 1));
+	mask = ((mpa_word_t)1 << (MPA_WORD_SIZE - 1));
 	zeros = 0;
 	while (!(w & mask)) {
 		zeros++;
@@ -344,9 +344,8 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 	dest->size = 1;
 	bufidx--;		/* dec to get inside buf range */
 	while (bufidx > 1) {
-		*w ^=
-		    (((buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
-		     ((BYTES_PER_WORD - i) << 3));
+		*w ^= ((((mpa_word_t)buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
+			((mpa_word_t)(BYTES_PER_WORD - i) << 3));
 		i--;
 		bufidx -= 2;
 		if (i == 0) {
@@ -357,11 +356,11 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 		}
 	}
 	if (bufidx == 1)
-		*w ^=
-		    (((buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
-		     ((BYTES_PER_WORD - i) << 3));
+		*w ^= ((((mpa_word_t)buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
+			((mpa_word_t)(BYTES_PER_WORD - i) << 3));
 	if (bufidx == 0)
-		*w ^= (buf[bufidx] << ((BYTES_PER_WORD - i) << 3));
+		*w ^= ((mpa_word_t)buf[bufidx] <<
+			((mpa_word_t)(BYTES_PER_WORD - i) << 3));
 
 	if (negative)
 		__mpanum_neg(dest);
@@ -417,7 +416,7 @@ static mpa_word_t set_word(const uint8_t *in, size_t in_len)
 
 	out = 0;
 	for (i = in_len - 1; i >= 0; i--)
-		out |= in[i] << ((in_len - i - 1) * 8);
+		out |= (mpa_word_t)in[i] << ((in_len - i - 1) * 8);
 	return out;
 }
 

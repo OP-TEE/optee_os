@@ -128,8 +128,6 @@ void mpa_shift_left(mpanum dest, mpanum src, mpa_word_t steps)
 	 *  if b is larger than the number of bit of a, but no no...
 	 */
 	need_extra_word = 0;
-	if (__mpanum_msw(dest) & (((1 << r) - 1) << (WORD_SIZE - r)))
-		need_extra_word = 1;
 
 	if (r == 0) {		/* and q > 0 */
 		/*
@@ -138,6 +136,9 @@ void mpa_shift_left(mpanum dest, mpanum src, mpa_word_t steps)
 		for (i = __mpanum_size(dest) + q - 1; i > q - 1; i--)
 			dest->d[i] = dest->d[i - q];
 	} else {
+		if (__mpanum_msw(dest) &
+		    (((((mpa_word_t)1 << r) - 1u)) << (WORD_SIZE - r)))
+			need_extra_word = 1;
 		/*
 		 * We have a combination of word and bit shifting.
 		 *

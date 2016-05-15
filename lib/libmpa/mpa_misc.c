@@ -152,7 +152,7 @@ uint32_t mpa_get_bit(const mpanum src, uint32_t idx)
 
 	if (w > __mpanum_size(src))
 		return 0;
-	b = (1 << b);
+	b = (1ul << b);
 	return ((src->d[w] & b) != 0);
 }
 
