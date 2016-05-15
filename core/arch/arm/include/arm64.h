@@ -27,15 +27,14 @@
 #ifndef ARM64_H
 #define ARM64_H
 
-#ifndef ASM
 #include <stdint.h>
-#endif
+#include <util.h>
 
-#define SCTLR_M		(1 << 0)
-#define SCTLR_A		(1 << 1)
-#define SCTLR_C		(1 << 2)
-#define SCTLR_SA	(1 << 3)
-#define SCTLR_I		(1 << 12)
+#define SCTLR_M		BIT32(0)
+#define SCTLR_A		BIT32(1)
+#define SCTLR_C		BIT32(2)
+#define SCTLR_SA	BIT32(3)
+#define SCTLR_I		BIT32(12)
 
 #define TTBR_ASID_MASK		0xff
 #define TTBR_ASID_SHIFT		48
@@ -46,18 +45,18 @@
 
 #define CSSELR_LEVEL_SHIFT	1
 
-#define DAIFBIT_FIQ			(1 << 0)
-#define DAIFBIT_IRQ			(1 << 1)
-#define DAIFBIT_ABT			(1 << 2)
-#define DAIFBIT_DBG			(1 << 3)
+#define DAIFBIT_FIQ			BIT32(0)
+#define DAIFBIT_IRQ			BIT32(1)
+#define DAIFBIT_ABT			BIT32(2)
+#define DAIFBIT_DBG			BIT32(3)
 #define DAIFBIT_ALL			(DAIFBIT_FIQ | DAIFBIT_IRQ | \
 					 DAIFBIT_ABT | DAIFBIT_DBG)
 
 #define DAIF_F_SHIFT		6
-#define DAIF_F			(1 << 6)
-#define DAIF_I			(1 << 7)
-#define DAIF_A			(1 << 8)
-#define DAIF_D			(1 << 9)
+#define DAIF_F			BIT32(6)
+#define DAIF_I			BIT32(7)
+#define DAIF_A			BIT32(8)
+#define DAIF_D			BIT32(9)
 #define DAIF_AIF		(DAIF_A | DAIF_I | DAIF_F)
 
 #define SPSR_MODE_RW_SHIFT	4
@@ -111,19 +110,19 @@
 
 
 #define TCR_T0SZ_SHIFT		0
-#define TCR_EPD0		(1 << 7)
+#define TCR_EPD0		BIT32(7)
 #define TCR_IRGN0_SHIFT		8
 #define TCR_ORGN0_SHIFT		10
 #define TCR_SH0_SHIFT		12
 #define TCR_T1SZ_SHIFT		16
-#define TCR_A1			(1 << 22)
-#define TCR_EPD1		(1 << 23)
+#define TCR_A1			BIT32(22)
+#define TCR_EPD1		BIT32(23)
 #define TCR_IRGN1_SHIFT		24
 #define TCR_ORGN1_SHIFT		26
 #define TCR_SH1_SHIFT		28
 #define TCR_EL1_IPS_SHIFT	32
-#define TCR_TG1_4KB		(2ull << 30)
-#define TCR_RES1		(1 << 31)
+#define TCR_TG1_4KB		SHIFT_U32(2, 30)
+#define TCR_RES1		BIT32(31)
 
 
 /* Normal memory, Inner/Outer Non-cacheable */
@@ -191,7 +190,7 @@
 #define ESR_FSC_ALIGN		0x21
 
 /* WnR for DABT and RES0 for IABT */
-#define ESR_ABT_WNR		(1 << 6)
+#define ESR_ABT_WNR		BIT32(6)
 
 #define CPACR_EL1_FPEN_SHIFT	20
 #define CPACR_EL1_FPEN_MASK	0x3
@@ -202,9 +201,9 @@
 				      & CPACR_EL1_FPEN_MASK)
 
 
-#define PAR_F			(1 << 0)
+#define PAR_F			BIT32(0)
 #define PAR_PA_SHIFT		12
-#define PAR_PA_MASK		((1ULL << 36) - 1)
+#define PAR_PA_MASK		(BIT64(36) - 1)
 
 #ifndef ASM
 static inline void isb(void)

@@ -417,20 +417,21 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 
 #define A32_INSTR(x)		((uint32_t)(x))
 
-#define A32_VTRANS32_MASK	A32_INSTR((0xf << 24) | (7 << 9) | (1 << 4))
-#define A32_VTRANS32_VAL	A32_INSTR((0xe << 24) | (5 << 9) | (1 << 4))
+#define A32_VTRANS32_MASK	A32_INSTR(SHIFT_U32(0xf, 24) | \
+					  SHIFT_U32(7, 9) | BIT32(4))
+#define A32_VTRANS32_VAL	A32_INSTR(SHIFT_U32(0xe, 24) | \
+					  SHIFT_U32(5, 9) | BIT32(4))
 
-#define A32_VTRANS64_MASK	A32_INSTR((0x7f << 21) | (7 << 9))
-#define A32_VTRANS64_VAL	A32_INSTR((0x62 << 21) | (5 << 9))
+#define A32_VTRANS64_MASK	A32_INSTR(SHIFT_U32(0x7f, 21) | SHIFT_U32(7, 9))
+#define A32_VTRANS64_VAL	A32_INSTR(SHIFT_U32(0x62, 21) | SHIFT_U32(5, 9))
 
-#define A32_VLDST_MASK		A32_INSTR((0xff  << 24) | (1 << 20))
-#define A32_VLDST_VAL		A32_INSTR((0xf4  << 24))
+#define A32_VLDST_MASK		A32_INSTR(SHIFT_U32(0xff, 24) | BIT32(20))
+#define A32_VLDST_VAL		A32_INSTR(SHIFT_U32(0xf4, 24))
+#define A32_VXLDST_MASK		A32_INSTR(SHIFT_U32(7, 25) | SHIFT_U32(7, 9))
+#define A32_VXLDST_VAL		A32_INSTR(SHIFT_U32(6, 25) | SHIFT_U32(5, 9))
 
-#define A32_VXLDST_MASK		A32_INSTR((7 << 25) | (7 << 9))
-#define A32_VXLDST_VAL		A32_INSTR((6 << 25) | (5 << 9))
-
-#define A32_VPROC_MASK		A32_INSTR(0x7f << 25)
-#define A32_VPROC_VAL		A32_INSTR(0x79 << 25)
+#define A32_VPROC_MASK		A32_INSTR(SHIFT_U32(0x7f, 25))
+#define A32_VPROC_VAL		A32_INSTR(SHIFT_U32(0x79, 25))
 
 static bool is_vfp_fault(struct abort_info *ai)
 {

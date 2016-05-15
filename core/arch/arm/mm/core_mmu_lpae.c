@@ -338,10 +338,11 @@ static int mmap_region_attr(struct tee_mmap_region *mm, uint64_t base_va,
 static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 			uint64_t base_va, uint64_t *table, unsigned level)
 {
-	unsigned level_size_shift = L1_XLAT_ADDRESS_SHIFT - (level - 1) *
+	unsigned int level_size_shift = L1_XLAT_ADDRESS_SHIFT - (level - 1) *
 						XLAT_TABLE_ENTRIES_SHIFT;
-	unsigned level_size = 1 << level_size_shift;
-	uint64_t level_index_mask = XLAT_TABLE_ENTRIES_MASK << level_size_shift;
+	unsigned int level_size = BIT32(level_size_shift);
+	uint64_t level_index_mask = SHIFT_U64(XLAT_TABLE_ENTRIES_MASK,
+					      level_size_shift);
 
 	assert(level <= 3);
 

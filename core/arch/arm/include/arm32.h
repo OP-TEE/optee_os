@@ -29,9 +29,8 @@
 #ifndef ARM32_H
 #define ARM32_H
 
-#ifndef ASM
 #include <stdint.h>
-#endif
+#include <util.h>
 
 #define CPSR_MODE_MASK	ARM32_CPSR_MODE_MASK
 #define CPSR_MODE_USR	ARM32_CPSR_MODE_USR
@@ -53,92 +52,92 @@
 #define CPSR_IT_MASK1	ARM32_CPSR_IT_MASK1
 #define CPSR_IT_MASK2	ARM32_CPSR_IT_MASK2
 
-#define SCR_NS		(1 << 0)
-#define SCR_IRQ		(1 << 1)
-#define SCR_FIQ		(1 << 2)
-#define SCR_EA		(1 << 3)
-#define SCR_FW		(1 << 4)
-#define SCR_AW		(1 << 5)
-#define SCR_NET		(1 << 6)
-#define SCR_SCD		(1 << 7)
-#define SCR_HCE		(1 << 8)
-#define SCR_SIF		(1 << 9)
+#define SCR_NS		BIT32(0)
+#define SCR_IRQ		BIT32(1)
+#define SCR_FIQ		BIT32(2)
+#define SCR_EA		BIT32(3)
+#define SCR_FW		BIT32(4)
+#define SCR_AW		BIT32(5)
+#define SCR_NET		BIT32(6)
+#define SCR_SCD		BIT32(7)
+#define SCR_HCE		BIT32(8)
+#define SCR_SIF		BIT32(9)
 
-#define SCTLR_M		(1 << 0)
-#define SCTLR_A		(1 << 1)
-#define SCTLR_C		(1 << 2)
-#define SCTLR_CP15BEN	(1 << 5)
-#define SCTLR_SW	(1 << 10)
-#define SCTLR_Z		(1 << 11)
-#define SCTLR_I		(1 << 12)
-#define SCTLR_V		(1 << 13)
-#define SCTLR_RR	(1 << 14)
-#define SCTLR_HA	(1 << 17)
-#define SCTLR_WXN	(1 << 19)
-#define SCTLR_UWXN	(1 << 20)
-#define SCTLR_FI	(1 << 21)
-#define SCTLR_VE	(1 << 24)
-#define SCTLR_EE	(1 << 25)
-#define SCTLR_NMFI	(1 << 26)
-#define SCTLR_TRE	(1 << 28)
-#define SCTLR_AFE	(1 << 29)
-#define SCTLR_TE	(1 << 30)
+#define SCTLR_M		BIT32(0)
+#define SCTLR_A		BIT32(1)
+#define SCTLR_C		BIT32(2)
+#define SCTLR_CP15BEN	BIT32(5)
+#define SCTLR_SW	BIT32(10)
+#define SCTLR_Z		BIT32(11)
+#define SCTLR_I		BIT32(12)
+#define SCTLR_V		BIT32(13)
+#define SCTLR_RR	BIT32(14)
+#define SCTLR_HA	BIT32(17)
+#define SCTLR_WXN	BIT32(19)
+#define SCTLR_UWXN	BIT32(20)
+#define SCTLR_FI	BIT32(21)
+#define SCTLR_VE	BIT32(24)
+#define SCTLR_EE	BIT32(25)
+#define SCTLR_NMFI	BIT32(26)
+#define SCTLR_TRE	BIT32(28)
+#define SCTLR_AFE	BIT32(29)
+#define SCTLR_TE	BIT32(30)
 
-#define ACTLR_SMP	(1 << 6)
-#define ACTLR_DODMBS	(1 << 10)
-#define ACTLR_L2RADIS	(1 << 11)
-#define ACTLR_L1RADIS	(1 << 12)
-#define ACTLR_L1PCTL	(1 << 13)
-#define ACTLR_DDVM	(1 << 15)
-#define ACTLR_DDI	(1 << 28)
+#define ACTLR_SMP	BIT32(6)
+#define ACTLR_DODMBS	BIT32(10)
+#define ACTLR_L2RADIS	BIT32(11)
+#define ACTLR_L1RADIS	BIT32(12)
+#define ACTLR_L1PCTL	BIT32(13)
+#define ACTLR_DDVM	BIT32(15)
+#define ACTLR_DDI	BIT32(28)
 
-#define NSACR_CP10	(1 << 10)
-#define NSACR_CP11	(1 << 11)
-#define NSACR_NSD32DIS	(1 << 14)
-#define NSACR_NSASEDIS	(1 << 15)
-#define NSACR_NS_L2ERR	(1 << 17)
-#define NSACR_NS_SMP	(1 << 18)
+#define NSACR_CP10	BIT32(10)
+#define NSACR_CP11	BIT32(11)
+#define NSACR_NSD32DIS	BIT32(14)
+#define NSACR_NSASEDIS	BIT32(15)
+#define NSACR_NS_L2ERR	BIT32(17)
+#define NSACR_NS_SMP	BIT32(18)
 
-#define CPACR_ASEDIS	(1 << 31)
-#define CPACR_D32DIS	(1 << 30)
-#define CPACR_CP(co_proc, access)	((access) << ((co_proc) * 2))
+#define CPACR_ASEDIS	BIT32(31)
+#define CPACR_D32DIS	BIT32(30)
+#define CPACR_CP(co_proc, access)	SHIFT_U32((access), ((co_proc) * 2))
 #define CPACR_CP_ACCESS_DENIED		0x0
 #define CPACR_CP_ACCESS_PL1_ONLY	0x1
 #define CPACR_CP_ACCESS_FULL		0x3
 
 
-#define DACR_DOMAIN(num, perm)		((perm) << ((num) * 2))
+#define DACR_DOMAIN(num, perm)		SHIFT_U32((perm), ((num) * 2))
 #define DACR_DOMAIN_PERM_NO_ACCESS	0x0
 #define DACR_DOMAIN_PERM_CLIENT		0x1
 #define DACR_DOMAIN_PERM_MANAGER	0x3
 
-#define PAR_F			(1 << 0)
-#define PAR_SS			(1 << 1)
-#define PAR_LPAE		(1 << 11)
+#define PAR_F			BIT32(0)
+#define PAR_SS			BIT32(1)
+#define PAR_LPAE		BIT32(11)
 #define PAR_PA_SHIFT		12
-#define PAR32_PA_MASK		((1 << 20) - 1)
-#define PAR64_PA_MASK		((1ULL << 28) - 1)
+#define PAR32_PA_MASK		(BIT32(20) - 1)
+#define PAR64_PA_MASK		(BIT64(28) - 1)
 
 /*
  * TTBCR has different register layout if LPAE is enabled or not.
  * TTBCR.EAE == 0 => LPAE is not enabled
  * TTBCR.EAE == 1 => LPAE is enabled
  */
-#define TTBCR_EAE	(1 << 31)
+#define TTBCR_EAE	BIT32(31)
 
 /* When TTBCR.EAE == 0 */
-#define TTBCR_PD0	(1 << 4)
-#define TTBCR_PD1	(1 << 5)
+#define TTBCR_PD0	BIT32(4)
+#define TTBCR_PD1	BIT32(5)
 
 /* When TTBCR.EAE == 1 */
 #define TTBCR_T0SZ_SHIFT	0
-#define TTBCR_EPD0		(1 << 7)
+#define TTBCR_EPD0		BIT32(7)
 #define TTBCR_IRGN0_SHIFT	8
 #define TTBCR_ORGN0_SHIFT	10
 #define TTBCR_SH0_SHIFT		12
 #define TTBCR_T1SZ_SHIFT	16
-#define TTBCR_A1		(1 << 22)
-#define TTBCR_EPD1		(1 << 23)
+#define TTBCR_A1		BIT32(22)
+#define TTBCR_EPD1		BIT32(23)
 #define TTBCR_IRGN1_SHIFT	24
 #define TTBCR_ORGN1_SHIFT	26
 #define TTBCR_SH1_SHIFT		28
@@ -163,14 +162,14 @@
 #define TTBR_ASID_SHIFT		48
 
 
-#define FSR_LPAE		(1 << 9)
-#define FSR_WNR			(1 << 11)
+#define FSR_LPAE		BIT32(9)
+#define FSR_WNR			BIT32(11)
 
 /* Valid if FSR.LPAE is 1 */
-#define FSR_STATUS_MASK		((1 << 6) - 1)
+#define FSR_STATUS_MASK		(BIT32(6) - 1)
 
 /* Valid if FSR.LPAE is 0 */
-#define FSR_FS_MASK		((1 << 10) | ((1 << 4) - 1))
+#define FSR_FS_MASK		(BIT32(10) | (BIT32(4) - 1))
 
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
