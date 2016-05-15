@@ -166,3 +166,7 @@ CFG_WITH_USER_TA ?= y
 
 # Use small pages to map user TAs
 CFG_SMALL_PAGE_USER_TA ?= y
+
+# Enable support for detected undefined behavior in C
+# Uses a log of memory, can't be enabled by default
+CFG_CORE_SANITIZE_UNDEFINED ?= n

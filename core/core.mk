@@ -27,6 +27,9 @@ cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include/generated
 cppflags$(sm)	+= $(core-platform-cppflags)
 cflags$(sm)	+= $(core-platform-cflags)
+ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
+cflags$(sm)	+= -fsanitize=undefined
+endif
 aflags$(sm)	+= $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
