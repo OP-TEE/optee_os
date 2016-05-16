@@ -215,8 +215,8 @@ static void tee_ltc_reg_algs(void)
 }
 
 
-#if defined(_CFG_CRYPTO_WITH_HASH) || defined(_CFG_CRYPTO_WITH_ACIPHER) || \
-	defined(_CFG_CRYPTO_WITH_MAC)
+#if defined(_CFG_CRYPTO_WITH_HASH) || defined(CFG_CRYPTO_RSA) || \
+	defined(CFG_CRYPTO_HMAC)
 
 /*
  * Compute the LibTomCrypt "hashindex" given a TEE Algorithm "algo"
