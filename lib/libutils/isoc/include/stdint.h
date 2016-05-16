@@ -54,6 +54,8 @@
 #error Neither __ILP32__ nor __LP64__ is defined
 #endif
 
+#ifndef ASM
+
 /* 7.18.1.1 Exact-width interger types */
 #ifndef __int8_t_defined
 # define __int8_t_defined
@@ -110,6 +112,8 @@ typedef unsigned long uintptr_t;
 
 typedef int64_t intmax_t;
 typedef uint64_t uintmax_t;
+
+#endif /*ASM*/
 
 /*
  * 7.18.2 Limits of specified-width integer types

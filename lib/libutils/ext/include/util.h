@@ -27,6 +27,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdint.h>
+
 #ifndef MAX
 #define MAX(a, b) \
 	(__extension__({ __typeof__(a) _a = (a); \
@@ -62,6 +64,17 @@
 		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
 	}))
 
-#define BIT(nr)			(1UL << (nr))
+#ifdef ASM
+#define BIT32(nr)		(1 << (nr))
+#define BIT64(nr)		(1 << (nr))
+#define SHIFT_U32(v, shift)	((v) << (shift))
+#define SHIFT_U64(v, shift)	((v) << (shift))
+#else
+#define BIT32(nr)		(UINT32_C(1) << (nr))
+#define BIT64(nr)		(UINT64_C(1) << (nr))
+#define SHIFT_U32(v, shift)	((uint32_t)(v) << (shift))
+#define SHIFT_U64(v, shift)	((uint64_t)(v) << (shift))
+#endif
+#define BIT(nr)			BIT32(nr)
 
 #endif /*UTIL_H*/
