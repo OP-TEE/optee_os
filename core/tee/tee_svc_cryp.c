@@ -1126,7 +1126,8 @@ TEE_Result syscall_cryp_obj_reset(unsigned long obj)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_svc_cryp_obj_store_attr_raw(uint16_t conv_func,
+static TEE_Result tee_svc_cryp_obj_store_attr_raw(struct tee_obj *o,
+						  uint16_t conv_func,
 						  const TEE_Attribute *attr,
 						  void *data, size_t data_size)
 {
@@ -1155,8 +1156,8 @@ static TEE_Result tee_svc_cryp_obj_store_attr_raw(uint16_t conv_func,
 
 		/* Data size has to fit in allocated buffer */
 		if (attr->content.ref.length >
-		    (data_size - sizeof(struct tee_cryp_obj_secret)))
-			return TEE_ERROR_BAD_PARAMETERS;
+		    (o->data_size - sizeof(struct tee_cryp_obj_secret)))
+			return TEE_ERROR_SECURITY;
 
 		memcpy(obj + 1, attr->content.ref.buffer,
 		       attr->content.ref.length);
@@ -1324,6 +1325,13 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	void *raw_data;
 	int idx;
 	uint16_t conv_func;
+	size_t max_key_size_bytes;
+
+	if (o->info.objectType == TEE_TYPE_DES ||
+	    o->info.objectType == TEE_TYPE_DES3)
+		max_key_size_bytes = o->info.maxKeySize / 7; /* add parity */
+	else
+		max_key_size_bytes = ((o->info.maxKeySize - 1) / 8) + 1;
 
 	for (n = 0; n < attr_count; n++) {
 		idx = tee_svc_cryp_obj_find_type_attr_idx(
@@ -1337,8 +1345,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 
 		/* attribute bigger than maximum object size */
 		if (conv_func != TEE_TYPE_CONV_FUNC_VALUE &&
-		    o->info.maxKeySize < attrs[n].content.ref.length)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		    max_key_size_bytes < attrs[n].content.ref.length)
+			return TEE_ERROR_SECURITY;
 
 		have_attrs |= 1 << idx;
 
@@ -1347,7 +1355,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_svc_cryp_obj_store_attr_raw(conv_func, attrs + n,
+		res = tee_svc_cryp_obj_store_attr_raw(o, conv_func, attrs + n,
 						      raw_data, raw_size);
 		if (res != TEE_SUCCESS)
 			return res;
