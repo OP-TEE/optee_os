@@ -416,7 +416,7 @@ el0_irq_a64:
 	.align	7
 el0_fiq_a64:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
-	b	elx_irq
+	b	elx_fiq
 	check_vector_size el0_fiq_a64
 
 	.align	7
