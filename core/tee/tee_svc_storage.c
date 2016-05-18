@@ -77,6 +77,11 @@ struct tee_svc_storage_head {
 	uint32_t head_size;
 	uint32_t meta_size;
 	uint32_t ds_size;
+	uint32_t keySize;
+	uint32_t maxKeySize;
+	uint32_t objectUsage;
+	uint32_t objectType;
+	uint32_t have_attrs;
 };
 
 struct tee_storage_enum {
@@ -330,6 +335,11 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 
 	o->data_size = head.meta_size;
 	o->info.dataSize = head.ds_size;
+	o->info.keySize = head.keySize;
+	o->info.maxKeySize = head.maxKeySize;
+	o->info.objectUsage = head.objectUsage;
+	o->info.objectType = head.objectType;
+	o->have_attrs = head.have_attrs;
 
 	o->data = malloc(o->data_size);
 	if (o->data == NULL) {
@@ -404,12 +414,24 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 		o->info.objectUsage = TEE_USAGE_DEFAULT;
 		o->info.objectType = TEE_TYPE_DATA;
 	}
+	if (attr_o) {
+		o->info.keySize = attr_o->info.keySize;
+		o->info.maxKeySize = attr_o->info.maxKeySize;
+	} else {
+		o->info.keySize = 0;
+		o->info.maxKeySize = 0;
+	}
 
 	/* write head */
 	head.magic = TEE_SVC_STORAGE_MAGIC;
 	head.head_size = sizeof(struct tee_svc_storage_head);
 	head.meta_size = o->data_size;
 	head.ds_size = len;
+	head.keySize = o->info.keySize;
+	head.maxKeySize = o->info.maxKeySize;
+	head.objectUsage = o->info.objectUsage;
+	head.objectType = o->info.objectType;
+	head.have_attrs = o->have_attrs;
 
 	/* write head */
 	err = fops->write(&res, fd, &head,
