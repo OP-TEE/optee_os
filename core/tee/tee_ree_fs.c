@@ -40,32 +40,11 @@
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
+#include <tee/tee_fs_rpc.h>
 #include <tee/tee_fs_key_manager.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-
-/* TEE FS operation */
-#define TEE_FS_OPEN       1
-#define TEE_FS_CLOSE      2
-#define TEE_FS_READ       3
-#define TEE_FS_WRITE      4
-#define TEE_FS_SEEK       5
-#define TEE_FS_UNLINK     6
-#define TEE_FS_RENAME     7
-#define TEE_FS_TRUNC      8
-#define TEE_FS_MKDIR      9
-#define TEE_FS_OPENDIR   10
-#define TEE_FS_CLOSEDIR  11
-#define TEE_FS_READDIR   12
-#define TEE_FS_RMDIR     13
-#define TEE_FS_ACCESS    14
-#define TEE_FS_LINK      15
-
-/* tee_fs_send_cmd 'mode' */
-#define TEE_FS_MODE_NONE 0
-#define TEE_FS_MODE_IN   1
-#define TEE_FS_MODE_OUT  2
 
 #define BLOCK_FILE_SHIFT	12
 
@@ -110,11 +89,6 @@ struct tee_fs_fd {
 	bool is_new_file;
 	char *filename;
 	struct block_cache block_cache;
-};
-
-struct tee_fs_dir {
-	int nw_dir;
-	struct tee_fs_dirent d;
 };
 
 static inline int pos_to_block_num(int position)
@@ -164,68 +138,6 @@ struct block_operations {
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
-struct tee_fs_rpc {
-	int op;
-	int flags;
-	int arg;
-	int fd;
-	uint32_t len;
-	int res;
-};
-
-static int tee_fs_send_cmd(struct tee_fs_rpc *bf_cmd, void *data, uint32_t len,
-			   uint32_t mode)
-{
-	TEE_Result ret;
-	struct optee_msg_param params;
-	paddr_t phpayload = 0;
-	uint64_t cpayload = 0;
-	struct tee_fs_rpc *bf;
-	int res = -1;
-
-	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
-				 &phpayload, &cpayload);
-	if (!phpayload)
-		return -1;
-
-	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
-		goto exit;
-
-	bf = phys_to_virt(phpayload, MEM_AREA_NSEC_SHM);
-	if (!bf)
-		goto exit;
-
-	memset(&params, 0, sizeof(params));
-	params.attr = OPTEE_MSG_ATTR_TYPE_TMEM_INOUT;
-	params.u.tmem.buf_ptr = phpayload;
-	params.u.tmem.size = sizeof(struct tee_fs_rpc) + len;
-	params.u.tmem.shm_ref = cpayload;
-
-	/* fill in parameters */
-	*bf = *bf_cmd;
-
-	if (mode & TEE_FS_MODE_IN)
-		memcpy((void *)(bf + 1), data, len);
-
-	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, 1, &params);
-	/* update result */
-	*bf_cmd = *bf;
-	if (ret != TEE_SUCCESS)
-		goto exit;
-
-	if (mode & TEE_FS_MODE_OUT) {
-		uint32_t olen = MIN(len, bf->len);
-
-		memcpy(data, (void *)(bf + 1), olen);
-	}
-
-	res = 0;
-
-exit:
-	thread_rpc_free_payload(cpayload);
-	return res;
-}
-
 /*
  * We split a TEE file into multiple blocks and store them
  * on REE filesystem. A TEE file is represented by a REE file
@@ -250,339 +162,35 @@ exit:
  */
 #define REE_FS_NAME_MAX (TEE_FS_NAME_MAX + 20)
 
-static int ree_fs_open_ree(const char *file, int flags, ...)
+
+static int ree_fs_mkdir_rpc(const char *path, tee_fs_mode_t mode)
 {
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-	size_t len;
-
-	len = strlen(file) + 1;
-	if (len > REE_FS_NAME_MAX)
-		goto exit;
-
-	/* fill in parameters */
-	head.op = TEE_FS_OPEN;
-	head.flags = flags;
-	head.fd = 0;
-
-	res = tee_fs_send_cmd(&head, (void *)file, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	return res;
+	return tee_fs_rpc_mkdir(OPTEE_MSG_RPC_CMD_FS, path, mode);
 }
 
-static int ree_fs_read_ree(int fd, void *buf, size_t len)
+static struct tee_fs_dir *ree_fs_opendir_rpc(const char *name)
 {
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	if (!len) {
-		res = 0;
-		goto exit;
-	}
-
-	if (!buf)
-		goto exit;
-
-	/* fill in parameters */
-	head.op = TEE_FS_READ;
-	head.fd = fd;
-	head.len = (uint32_t) len;
-
-	res = tee_fs_send_cmd(&head, (void *)buf, len, TEE_FS_MODE_OUT);
-	if (!res)
-		res = head.res;
-exit:
-	return res;
+	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name);
 }
 
-static int ree_fs_write_ree(int fd,
-			const void *buf, size_t len)
+static int ree_fs_closedir_rpc(struct tee_fs_dir *d)
 {
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	if (!len) {
-		res = 0;
-		goto exit;
-	}
-
-	if (!buf)
-		goto exit;
-
-	/* fill in parameters */
-	head.op = TEE_FS_WRITE;
-	head.fd = fd;
-	head.len = (uint32_t) len;
-
-	res = tee_fs_send_cmd(&head, (void *)buf, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-exit:
-	return res;
+	return tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_FS, d);
 }
 
-static int ree_fs_ftruncate_ree(int fd, tee_fs_off_t length)
+static struct tee_fs_dirent *ree_fs_readdir_rpc(struct tee_fs_dir *d)
 {
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	head.op = TEE_FS_TRUNC;
-	head.fd = fd;
-	head.arg = length;
-
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (!res)
-		res = head.res;
-
-	return res;
+	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_FS, d);
 }
 
-static int ree_fs_close_ree(int fd)
+static int ree_fs_rmdir_rpc(const char *name)
 {
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	/* fill in parameters */
-	head.op = TEE_FS_CLOSE;
-	head.fd = fd;
-
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (!res)
-		res = head.res;
-
-	return res;
+	return tee_fs_rpc_rmdir(OPTEE_MSG_RPC_CMD_FS, name);
 }
 
-static tee_fs_off_t ree_fs_lseek_ree(int fd, tee_fs_off_t offset, int whence)
+static int ree_fs_access_rpc(const char *name, int mode)
 {
-	tee_fs_off_t res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	/* fill in parameters */
-	head.op = TEE_FS_SEEK;
-	head.fd = fd;
-	head.arg = offset;
-	head.flags = whence;
-
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (!res)
-		res = head.res;
-
-	return res;
-}
-
-static int ree_fs_mkdir_ree(const char *path, tee_fs_mode_t mode)
-{
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-	uint32_t len;
-
-	if (!path)
-		return -1;
-
-	len = strlen(path) + 1;
-	if (len > REE_FS_NAME_MAX)
-		goto exit;
-
-	head.op = TEE_FS_MKDIR;
-	head.flags = mode;
-
-	res = tee_fs_send_cmd(&head, (void *)path, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	return res;
-}
-
-static struct tee_fs_dir *ree_fs_opendir_ree(const char *name)
-{
-	struct tee_fs_rpc head = { 0 };
-	uint32_t len;
-	struct tee_fs_dir *dir = NULL;
-
-	if (!name)
-		goto exit;
-
-	len = strlen(name) + 1;
-	if (len > TEE_FS_NAME_MAX)
-		goto exit;
-
-	head.op = TEE_FS_OPENDIR;
-
-	if (tee_fs_send_cmd(&head, (void *)name, len, TEE_FS_MODE_IN))
-		goto exit;
-
-	if (head.res < 0)
-		goto exit;
-
-	dir = malloc(sizeof(struct tee_fs_dir));
-	if (!dir) {
-		int nw_dir = head.res;
-
-		memset(&head, 0, sizeof(head));
-		head.op = TEE_FS_CLOSEDIR;
-		head.arg = nw_dir;
-		tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-		goto exit;
-	}
-
-	dir->nw_dir = head.res;
-	dir->d.d_name = NULL;
-
-exit:
-	return dir;
-}
-
-static int ree_fs_closedir_ree(struct tee_fs_dir *d)
-{
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-
-	if (!d) {
-		res = 0;
-		goto exit;
-	}
-
-	head.op = TEE_FS_CLOSEDIR;
-	head.arg = (int)d->nw_dir;
-
-	res = tee_fs_send_cmd(&head, NULL, 0, TEE_FS_MODE_NONE);
-	if (!res)
-		res = head.res;
-
-exit:
-	if (d)
-		free(d->d.d_name);
-	free(d);
-
-	return res;
-}
-
-static struct tee_fs_dirent *ree_fs_readdir_ree(struct tee_fs_dir *d)
-{
-	struct tee_fs_dirent *res = NULL;
-	struct tee_fs_rpc head = { 0 };
-	char fname[TEE_FS_NAME_MAX + 1];
-
-	if (!d)
-		goto exit;
-
-	head.op = TEE_FS_READDIR;
-	head.arg = (int)d->nw_dir;
-
-	if (tee_fs_send_cmd(&head, fname, sizeof(fname), TEE_FS_MODE_OUT))
-		goto exit;
-
-	if (head.res < 0)
-		goto exit;
-
-	if (!head.len || head.len > sizeof(fname))
-		goto exit;
-
-	fname[head.len - 1] = '\0'; /* make sure it's zero terminated */
-	free(d->d.d_name);
-	d->d.d_name = strdup(fname);
-	if (!d->d.d_name)
-		goto exit;
-
-	res = &d->d;
-exit:
-	return res;
-}
-
-static int ree_fs_rmdir_ree(const char *name)
-{
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-	uint32_t len;
-
-	len = strlen(name) + 1;
-	if (len > REE_FS_NAME_MAX)
-		goto exit;
-
-	head.op = TEE_FS_RMDIR;
-
-	res = tee_fs_send_cmd(&head, (void *)name, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	return res;
-}
-
-static int ree_fs_link_ree(const char *old, const char *new)
-{
-	int res = -1;
-	char *tmp = NULL;
-	struct tee_fs_rpc head = { 0 };
-	size_t len_old = strlen(old) + 1;
-	size_t len_new = strlen(new) + 1;
-	size_t len = len_old + len_new;
-
-	if (len_old > REE_FS_NAME_MAX || len_new > REE_FS_NAME_MAX)
-		goto exit;
-
-	tmp = malloc(len);
-	if (!tmp)
-		goto exit;
-	memcpy(tmp, old, len_old);
-	memcpy(tmp + len_old, new, len_new);
-
-	head.op = TEE_FS_LINK;
-
-	res = tee_fs_send_cmd(&head, tmp, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	free(tmp);
-	return res;
-}
-
-static int ree_fs_unlink_ree(const char *file)
-{
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-	size_t len = strlen(file) + 1;
-
-	if (len > REE_FS_NAME_MAX)
-		goto exit;
-
-	head.op = TEE_FS_UNLINK;
-
-	res = tee_fs_send_cmd(&head, (void *)file, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-exit:
-	return res;
-}
-
-static int ree_fs_access_ree(const char *name, int mode)
-{
-	int res = -1;
-	struct tee_fs_rpc head = { 0 };
-	uint32_t len;
-
-	if (!name)
-		goto exit;
-
-	len = strlen(name) + 1;
-	if (len > TEE_FS_NAME_MAX)
-		goto exit;
-
-	head.op = TEE_FS_ACCESS;
-	head.flags = mode;
-
-	res = tee_fs_send_cmd(&head, (void *)name, len, TEE_FS_MODE_IN);
-	if (!res)
-		res = head.res;
-
-exit:
-	return res;
+	return tee_fs_rpc_access(OPTEE_MSG_RPC_CMD_FS, name, mode);
 }
 
 static int get_file_length(int fd, size_t *length)
@@ -593,13 +201,13 @@ static int get_file_length(int fd, size_t *length)
 	assert(length);
 	*length = 0;
 
-	res = ree_fs_lseek_ree(fd, 0, TEE_FS_SEEK_END);
+	res = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_FS, fd, 0, TEE_FS_SEEK_END);
 	if (res < 0)
 		return res;
 
 	file_len = res;
 
-	res = ree_fs_lseek_ree(fd, 0, TEE_FS_SEEK_SET);
+	res = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_FS, fd, 0, TEE_FS_SEEK_SET);
 	if (res < 0)
 		return res;
 
@@ -633,11 +241,12 @@ static int create_block_file(struct tee_fs_fd *fdp,
 	get_block_filepath(fdp->filename, block_num, new_version,
 			block_path);
 
-	fd = ree_fs_open_ree(block_path, TEE_FS_O_CREATE | TEE_FS_O_RDWR);
+	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
+			     TEE_FS_O_CREATE | TEE_FS_O_RDWR);
 	if (fd < 0)
 		goto exit;
 
-	res = ree_fs_ftruncate_ree(fd, 0);
+	res = tee_fs_rpc_ftruncate(OPTEE_MSG_RPC_CMD_FS, fd, 0);
 	if (res < 0)
 		goto exit;
 
@@ -666,10 +275,10 @@ static int __remove_block_file(struct tee_fs_fd *fdp, size_t block_num,
 	DMSG("%s", block_path);
 
 	/* ignore it if file not found */
-	if (ree_fs_access_ree(block_path, TEE_FS_F_OK))
+	if (ree_fs_access_rpc(block_path, TEE_FS_F_OK))
 		return 0;
 
-	return ree_fs_unlink_ree(block_path);
+	return tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, block_path);
 }
 
 static int remove_block_file(struct tee_fs_fd *fdp, size_t block_num)
@@ -715,7 +324,8 @@ static int encrypt_and_write_file(int fd,
 		goto fail;
 	}
 
-	bytes = ree_fs_write_ree(fd, ciphertext, ciphertext_size);
+	bytes = tee_fs_rpc_write(OPTEE_MSG_RPC_CMD_FS, fd, ciphertext,
+				 ciphertext_size);
 	if (bytes != (int)ciphertext_size) {
 		EMSG("bytes(%d) != ciphertext size(%zu)",
 				bytes, ciphertext_size);
@@ -759,7 +369,8 @@ static int read_and_decrypt_file(int fd,
 		return -1;
 	}
 
-	bytes = ree_fs_read_ree(fd, ciphertext, file_size);
+	bytes = tee_fs_rpc_read(OPTEE_MSG_RPC_CMD_FS, fd, ciphertext,
+				file_size);
 	if (bytes != (int)file_size) {
 		EMSG("return bytes(%d) != file_size(%zd)",
 				bytes, file_size);
@@ -807,7 +418,7 @@ static int write_meta_file(const char *filename,
 
 	get_meta_filepath(filename, meta->backup_version, meta_path);
 
-	fd = ree_fs_open_ree(meta_path, TEE_FS_O_CREATE |
+	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, meta_path, TEE_FS_O_CREATE |
 			     TEE_FS_O_TRUNC | TEE_FS_O_WRONLY);
 	if (fd < 0)
 		return -1;
@@ -816,7 +427,7 @@ static int write_meta_file(const char *filename,
 			(void *)&meta->info, sizeof(meta->info),
 			meta->encrypted_fek);
 
-	ree_fs_close_ree(fd);
+	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 	return res;
 }
 
@@ -883,7 +494,7 @@ static int commit_meta_file(struct tee_fs_fd *fdp,
 	 * of the file is still consistent.
 	 */
 	get_meta_filepath(fdp->filename, old_version, meta_path);
-	ree_fs_unlink_ree(meta_path);
+	tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, meta_path);
 
 	return res;
 }
@@ -894,7 +505,7 @@ static int read_meta_file(const char *meta_path,
 	int res, fd;
 	size_t meta_info_size = sizeof(struct tee_fs_file_info);
 
-	res = ree_fs_open_ree(meta_path, TEE_FS_O_RDWR);
+	res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, meta_path, TEE_FS_O_RDWR);
 	if (res < 0)
 		return res;
 
@@ -904,7 +515,7 @@ static int read_meta_file(const char *meta_path,
 			(void *)&meta->info, &meta_info_size,
 			meta->encrypted_fek);
 
-	ree_fs_close_ree(fd);
+	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 
 	return res;
 }
@@ -961,7 +572,8 @@ static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
 	get_block_filepath(fdp->filename, b->block_num, version,
 			block_path);
 
-	fd = ree_fs_open_ree(block_path, TEE_FS_O_RDONLY);
+	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
+			     TEE_FS_O_RDONLY);
 	if (fd < 0)
 		return fd;
 
@@ -976,7 +588,7 @@ static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
 	DMSG("Successfully read and decrypt block%d from storage, size=%zd",
 		b->block_num, b->data_size);
 fail:
-	ree_fs_close_ree(fd);
+	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 exit:
 	return res;
 }
@@ -1008,7 +620,7 @@ static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
 
 fail:
 	if (fd > 0)
-		ree_fs_close_ree(fd);
+		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 
 	return res;
 }
@@ -1027,12 +639,14 @@ static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
 	get_block_filepath(fdp->filename, b->block_num, version,
 			block_path);
 
-	fd = ree_fs_open_ree(block_path, TEE_FS_O_RDONLY);
+	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
+			     TEE_FS_O_RDONLY);
 	if (fd < 0)
 		return fd;
 
 
-	res = ree_fs_read_ree(fd, b->data, block_file_size);
+	res = tee_fs_rpc_read(OPTEE_MSG_RPC_CMD_FS, fd, b->data,
+			      block_file_size);
 	if (res < 0) {
 		EMSG("Failed to read block%d (%d)",
 			b->block_num, res);
@@ -1044,7 +658,7 @@ static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
 		b->block_num, b->data_size);
 	res = 0;
 fail:
-	ree_fs_close_ree(fd);
+	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 exit:
 	return res;
 }
@@ -1064,7 +678,8 @@ static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
 		goto fail;
 	}
 
-	res = ree_fs_write_ree(fd, b->data, b->data_size);
+	res = tee_fs_rpc_write(OPTEE_MSG_RPC_CMD_FS, fd, b->data,
+			       b->data_size);
 	if (res < 0) {
 		EMSG("Failed to write block%d (%d)",
 			b->block_num, res);
@@ -1075,7 +690,7 @@ static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
 	res = 0;
 fail:
 	if (fd > 0)
-		ree_fs_close_ree(fd);
+		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 
 	return res;
 }
@@ -1328,7 +943,7 @@ static inline int create_hard_link(const char *old_dir,
 			new_dir, filename);
 
 	DMSG("%s -> %s", old_path, new_path);
-	return ree_fs_link_ree(old_path, new_path);
+	return tee_fs_rpc_link(OPTEE_MSG_RPC_CMD_FS, old_path, new_path);
 }
 
 static int unlink_tee_file(const char *file)
@@ -1343,11 +958,11 @@ static int unlink_tee_file(const char *file)
 	if (len > TEE_FS_NAME_MAX)
 		goto exit;
 
-	dir = ree_fs_opendir_ree(file);
+	dir = ree_fs_opendir_rpc(file);
 	if (!dir)
 		goto exit;
 
-	dirent = ree_fs_readdir_ree(dir);
+	dirent = ree_fs_readdir_rpc(dir);
 	while (dirent) {
 		char path[REE_FS_NAME_MAX];
 
@@ -1355,20 +970,20 @@ static int unlink_tee_file(const char *file)
 			file, dirent->d_name);
 
 		DMSG("unlink %s", path);
-		res = ree_fs_unlink_ree(path);
+		res = tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, path);
 		if (res) {
-			ree_fs_closedir_ree(dir);
+			ree_fs_closedir_rpc(dir);
 			goto exit;
 		}
 
-		dirent = ree_fs_readdir_ree(dir);
+		dirent = ree_fs_readdir_rpc(dir);
 	}
 
-	res = ree_fs_closedir_ree(dir);
+	res = ree_fs_closedir_rpc(dir);
 	if (res)
 		goto exit;
 
-	res = ree_fs_rmdir_ree(file);
+	res = ree_fs_rmdir_rpc(file);
 exit:
 	return res;
 }
@@ -1378,9 +993,9 @@ static bool tee_file_exists(const char *file)
 	char meta_path[REE_FS_NAME_MAX];
 
 	get_meta_filepath(file, 0, meta_path);
-	if (ree_fs_access_ree(meta_path, TEE_FS_F_OK)) {
+	if (ree_fs_access_rpc(meta_path, TEE_FS_F_OK)) {
 		get_meta_filepath(file, 1, meta_path);
-		if (ree_fs_access_ree(meta_path, TEE_FS_F_OK))
+		if (ree_fs_access_rpc(meta_path, TEE_FS_F_OK))
 			return false;
 	}
 
@@ -1395,8 +1010,8 @@ static struct tee_fs_file_meta *create_tee_file(const char *file)
 	DMSG("Creating TEE file=%s", file);
 
 	/* create TEE file directory if not exist */
-	if (ree_fs_access_ree(file, TEE_FS_F_OK)) {
-		res = ree_fs_mkdir_ree(file,
+	if (ree_fs_access_rpc(file, TEE_FS_F_OK)) {
+		res = ree_fs_mkdir_rpc(file,
 				TEE_FS_S_IRUSR | TEE_FS_S_IWUSR | TEE_FS_S_IXUSR);
 		if (res) {
 			EMSG("Failed to create TEE file directory, res=%d",
@@ -1977,16 +1592,16 @@ static int ree_fs_rename(const char *old, const char *new)
 	if (old_len > TEE_FS_NAME_MAX || new_len > TEE_FS_NAME_MAX)
 		goto exit;
 
-	res = ree_fs_mkdir_ree(new,
+	res = ree_fs_mkdir_rpc(new,
 			TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
 	if (res)
 		goto exit;
 
-	old_dir = ree_fs_opendir_ree(old);
+	old_dir = ree_fs_opendir_rpc(old);
 	if (!old_dir)
 		goto exit;
 
-	dirent = ree_fs_readdir_ree(old_dir);
+	dirent = ree_fs_readdir_rpc(old_dir);
 	while (dirent) {
 		if (!strncmp(dirent->d_name, "meta.", 5)) {
 			meta_filename = strdup(dirent->d_name);
@@ -1997,7 +1612,7 @@ static int ree_fs_rename(const char *old, const char *new)
 				goto exit_close_old_dir;
 		}
 
-		dirent = ree_fs_readdir_ree(old_dir);
+		dirent = ree_fs_readdir_rpc(old_dir);
 	}
 
 	/* finally, link the meta file, rename operation completed */
@@ -2030,7 +1645,7 @@ static int ree_fs_rename(const char *old, const char *new)
 	unlink_tee_file(old);
 
 exit_close_old_dir:
-	ree_fs_closedir_ree(old_dir);
+	ree_fs_closedir_rpc(old_dir);
 exit:
 	free(meta_filename);
 	return res;
@@ -2089,10 +1704,10 @@ const struct tee_file_operations ree_fs_ops = {
 	.ftruncate = ree_fs_ftruncate,
 	.rename = ree_fs_rename,
 	.unlink = ree_fs_unlink,
-	.mkdir = ree_fs_mkdir_ree,
-	.opendir = ree_fs_opendir_ree,
-	.closedir = ree_fs_closedir_ree,
-	.readdir = ree_fs_readdir_ree,
-	.rmdir = ree_fs_rmdir_ree,
-	.access = ree_fs_access_ree
+	.mkdir = ree_fs_mkdir_rpc,
+	.opendir = ree_fs_opendir_rpc,
+	.closedir = ree_fs_closedir_rpc,
+	.readdir = ree_fs_readdir_rpc,
+	.rmdir = ree_fs_rmdir_rpc,
+	.access = ree_fs_access_rpc
 };
