@@ -3196,18 +3196,25 @@ out:
 	return res;
 }
 
-static void tee_svc_asymm_pkcs1_get_salt_len(const TEE_Attribute *params,
-					     uint32_t num_params, int *salt_len)
+static int pkcs1_get_salt_len(const TEE_Attribute *params, uint32_t num_params,
+			      size_t default_len)
 {
 	size_t n;
 
+	assert(default_len < INT_MAX);
+
 	for (n = 0; n < num_params; n++) {
 		if (params[n].attributeID == TEE_ATTR_RSA_PSS_SALT_LENGTH) {
-			*salt_len = params[n].content.value.a;
-			return;
+			if (params[n].content.value.a < INT_MAX)
+				return params[n].content.value.a;
+			break;
 		}
 	}
-	*salt_len = -1;
+	/*
+	 * If salt length isn't provided use the default value which is
+	 * the length of the digest.
+	 */
+	return default_len;
 }
 
 TEE_Result syscall_asymm_operate(unsigned long state,
@@ -3346,8 +3353,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			res = TEE_ERROR_BAD_PARAMETERS;
 			break;
 		}
-		tee_svc_asymm_pkcs1_get_salt_len(params, num_params, &salt_len);
-
+		salt_len = pkcs1_get_salt_len(params, num_params, src_len);
 		if (!crypto_ops.acipher.rsassa_sign) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			break;
@@ -3486,7 +3492,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {
 	case TEE_MAIN_ALGO_RSA:
-		tee_svc_asymm_pkcs1_get_salt_len(params, num_params, &salt_len);
+		salt_len = pkcs1_get_salt_len(params, num_params, hash_size);
 		if (!crypto_ops.acipher.rsassa_verify) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			break;
