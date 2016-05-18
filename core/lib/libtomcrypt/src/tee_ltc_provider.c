@@ -1302,6 +1302,7 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 			   size_t *sig_len)
 {
 	TEE_Result res;
+	size_t hash_size;
 	int ltc_res;
 	void *r, *s;
 	dsa_key ltc_key = {
@@ -1319,6 +1320,17 @@ static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	    algo != TEE_ALG_DSA_SHA224 &&
 	    algo != TEE_ALG_DSA_SHA256) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto err;
+	}
+
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				       &hash_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+	if (mp_unsigned_bin_size(ltc_key.q) < hash_size)
+		hash_size = mp_unsigned_bin_size(ltc_key.q);
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_SECURITY;
 		goto err;
 	}
 
