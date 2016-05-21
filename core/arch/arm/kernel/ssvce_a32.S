@@ -289,13 +289,11 @@ FUNC arm_cl1_i_inv_all , :
 UNWIND(	.fnstart)
 
     /* Invalidate Entire Instruction Cache */
-    MOV     R0, #0
-    MCR     p15, 0, R0, c7, c5, 0
+    write_icialluis
     DSB
 
     /* Flush entire branch target cache */
-    MOV     R1, #0
-    MCR     p15, 0, R1, c7, c5, 6   /* write to Cache operations register */
+    write_bpiallis
 
     DSB                             /* ensure that maintenance operations are seen */
     ISB                             /* by the instructions rigth after the ISB */

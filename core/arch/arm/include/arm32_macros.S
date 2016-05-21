@@ -71,9 +71,25 @@
 	mcr	p15, 0, r0, c7, c5, 0
 	.endm
 
+	.macro write_icialluis
+	/*
+	 * Invalidate all instruction caches to PoU, Inner Shareable
+	 * (register ignored)
+	 */
+	mcr	p15, 0, r0, c7, c1, 0
+	.endm
+
 	.macro write_bpiall
 	/* Invalidate entire branch predictor array (register ignored) */
 	mcr	p15, 0, r0, c7, c5, 0
+	.endm
+
+	.macro write_bpiallis
+	/*
+	 * Invalidate entire branch predictor array, Inner Shareable
+	 * (register ignored)
+	 */
+	mcr	p15, 0, r0, c7, c1, 6
 	.endm
 
 	.macro write_tlbiall
