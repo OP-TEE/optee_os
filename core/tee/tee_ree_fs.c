@@ -1459,7 +1459,7 @@ static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 	file_exist = tee_file_exists(file);
 	if (flags & TEE_FS_O_CREATE) {
 		if ((flags & TEE_FS_O_EXCL) && file_exist) {
-			EMSG("tee file already exists");
+			DMSG("tee file already exists");
 			*errno = TEE_ERROR_ACCESS_CONFLICT;
 			goto exit;
 		}
@@ -1471,7 +1471,7 @@ static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 
 	} else {
 		if (!file_exist) {
-			EMSG("tee file not exists");
+			DMSG("tee file not exists");
 			*errno = TEE_ERROR_ITEM_NOT_FOUND;
 			goto exit;
 		}
