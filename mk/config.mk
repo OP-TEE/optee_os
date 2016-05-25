@@ -170,3 +170,10 @@ CFG_SMALL_PAGE_USER_TA ?= y
 # Enable support for detected undefined behavior in C
 # Uses a log of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
+
+# Device Tree support
+# When enabled, the TEE _start function expects to find the address of a
+# Device Tree Blob (DTB) in register r2. The DT parsing code relies on
+# libfdt.  Currently only used to add the optee node and a reserved-memory
+# node for shared memory.
+CFG_DT ?= n

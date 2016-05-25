@@ -75,6 +75,12 @@ libname = tomcrypt
 libdir = core/lib/libtomcrypt
 include mk/lib.mk
 
+ifeq ($(CFG_DT),y)
+libname = fdt
+libdir = core/lib/libfdt
+include mk/lib.mk
+endif
+
 #
 # Do main source
 #
