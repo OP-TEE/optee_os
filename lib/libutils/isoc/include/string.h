@@ -47,6 +47,7 @@ size_t strlen(const char *s);
 size_t strnlen(const char *s, size_t n);
 char *strdup(const char *s);
 char *strndup(const char *s, size_t n);
+char *strchr(const char *s, int c);
 
 void *memchr(const void *buf, int c, size_t length);
 

@@ -29,3 +29,6 @@ srcs-y += strnlen.c
 srcs-y += abs.c
 
 cflags-y += -ffreestanding
+
+srcs-y += strchr.c
+cflags-remove-strchr.c-y += -Wcast-align
