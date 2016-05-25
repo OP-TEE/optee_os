@@ -44,6 +44,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <stdio.h>
 
 #include <platform_config.h>
 
@@ -53,6 +54,10 @@
 
 #if defined(CFG_WITH_VFP)
 #include <kernel/vfp.h>
+#endif
+
+#if defined(CFG_DT)
+#include <libfdt.h>
 #endif
 
 #define PADDR_INVALID		0xffffffff
@@ -316,8 +321,179 @@ static void init_runtime(uint32_t pageable_part __unused)
 }
 #endif
 
+#ifdef CFG_DT
+static int add_optee_dt_node(void *fdt)
+{
+	int offs;
+	int ret;
+
+	if (fdt_path_offset(fdt, "/firmware/optee") >= 0) {
+		IMSG("OP-TEE Device Tree node already exists!\n");
+		return 0;
+	}
+
+	offs = fdt_path_offset(fdt, "/firmware");
+	if (offs < 0) {
+		offs = fdt_path_offset(fdt, "/");
+		if (offs < 0)
+			return -1;
+		offs = fdt_add_subnode(fdt, offs, "firmware");
+		if (offs < 0)
+			return -1;
+	}
+
+	offs = fdt_add_subnode(fdt, offs, "optee");
+	if (offs < 0)
+		return -1;
+
+	ret = fdt_setprop_string(fdt, offs, "compatible", "linaro,optee-tz");
+	if (ret < 0)
+		return -1;
+	ret = fdt_setprop_string(fdt, offs, "method", "smc");
+	if (ret < 0)
+		return -1;
+	return 0;
+}
+
+static int get_dt_cell_size(void *fdt, int offs, const char *cell_name,
+			    uint32_t *cell_size)
+{
+	int len;
+	const uint32_t *cell = fdt_getprop(fdt, offs, cell_name, &len);
+
+	if (len != sizeof(*cell))
+		return -1;
+	*cell_size = fdt32_to_cpu(*cell);
+	if (*cell_size != 1 && *cell_size != 2)
+		return -1;
+	return 0;
+}
+
+static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
+{
+	if (cell_size == 1) {
+		uint32_t v = cpu_to_fdt32((uint32_t)val);
+
+		memcpy(data, &v, sizeof(v));
+	} else {
+		uint64_t v = cpu_to_fdt64(val);
+
+		memcpy(data, &v, sizeof(v));
+	}
+}
+
+static int add_optee_res_mem_dt_node(void *fdt)
+{
+	int offs;
+	int ret;
+	uint32_t addr_size = 2;
+	uint32_t len_size = 2;
+	vaddr_t shm_va_start;
+	vaddr_t shm_va_end;
+	paddr_t shm_pa;
+	char subnode_name[80];
+
+	offs = fdt_path_offset(fdt, "/reserved-memory");
+	if (offs >= 0) {
+		ret = get_dt_cell_size(fdt, offs, "#address-cells", &addr_size);
+		if (ret < 0)
+			return -1;
+		ret = get_dt_cell_size(fdt, offs, "#size-cells", &len_size);
+		if (ret < 0)
+			return -1;
+	} else {
+		offs = fdt_path_offset(fdt, "/");
+		if (offs < 0)
+			return -1;
+		offs = fdt_add_subnode(fdt, offs, "reserved-memory");
+		if (offs < 0)
+			return -1;
+		ret = fdt_setprop_cell(fdt, offs, "#address-cells", addr_size);
+		if (ret < 0)
+			return -1;
+		ret = fdt_setprop_cell(fdt, offs, "#size-cells", len_size);
+		if (ret < 0)
+			return -1;
+		ret = fdt_setprop(fdt, offs, "ranges", NULL, 0);
+		if (ret < 0)
+			return -1;
+	}
+
+	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_va_start, &shm_va_end);
+	shm_pa = virt_to_phys((void *)shm_va_start);
+	snprintf(subnode_name, sizeof(subnode_name),
+		 "optee@0x%" PRIxPA, shm_pa);
+	offs = fdt_add_subnode(fdt, offs, subnode_name);
+	if (offs >= 0) {
+		uint32_t data[addr_size + len_size] ;
+
+		set_dt_val(data, addr_size, shm_pa);
+		set_dt_val(data + addr_size, len_size,
+			   shm_va_end - shm_va_start);
+		ret = fdt_setprop(fdt, offs, "reg", data, sizeof(data));
+		if (ret < 0)
+			return -1;
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
+static void init_fdt(paddr_t phys_fdt)
+{
+	void *fdt;
+	int ret;
+
+	if (!phys_fdt) {
+		EMSG("Device Tree missing");
+		/*
+		 * No need to panic as we're not using the DT in OP-TEE
+		 * yet, we're only adding some nodes for normal world use.
+		 * This makes the switch to using DT easier as we can boot
+		 * a newer OP-TEE with older boot loaders. Once we start to
+		 * initialize devices based on DT we'll likely panic
+		 * instead of returning here.
+		 */
+		return;
+	}
+
+	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_fdt, CFG_DTB_MAX_SIZE))
+		panic();
+	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
+	if (!fdt)
+		panic();
+
+	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at 0x%" PRIxPA ": error %d",
+		     phys_fdt, ret);
+		panic();
+	}
+
+	if (add_optee_dt_node(fdt)) {
+		EMSG("Failed to add OP-TEE Device Tree node");
+		panic();
+	}
+	if (add_optee_res_mem_dt_node(fdt)) {
+		EMSG("Failed to add OP-TEE reserved memory Device Tree node");
+		panic();
+	}
+
+	ret = fdt_pack(fdt);
+	if (ret < 0) {
+		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
+		     phys_fdt, ret);
+		panic();
+	}
+}
+#else
+static void init_fdt(paddr_t phys_fdt __unused)
+{
+}
+#endif /*!CFG_DT*/
+
 static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
-				uint32_t fdt __unused)
+				uint32_t fdt)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -335,8 +511,7 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-
-
+	init_fdt(fdt);
 	main_init_gic();
 	init_vfp_nsec();
 
