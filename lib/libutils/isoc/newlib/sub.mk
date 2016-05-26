@@ -1,34 +1,15 @@
-srcs-y += memchr.c
-cflags-remove-memchr.c-y += -Wcast-align
-cflags-memchr.c-y += -Wno-sign-compare
-
-srcs-y += memcmp.c
-cflags-remove-memcmp.c-y += -Wcast-align
-
-srcs-y += memcpy.c
-cflags-remove-memcpy.c-y += -Wcast-align
-
-srcs-y += memmove.c
-cflags-remove-memmove.c-y += -Wcast-align
-
-srcs-y += memset.c
-cflags-remove-memset.c-y += -Wcast-align
-cflags-memset.c-y += -Wno-sign-compare
-
-srcs-y += strcmp.c
-cflags-remove-strcmp.c-y += -Wcast-align
-
-srcs-y += strncmp.c
-cflags-remove-strncmp.c-y += -Wcast-align
-
-srcs-y += strlen.c
-cflags-remove-strlen.c-y += -Wcast-align
-
-srcs-y += strnlen.c
-
-srcs-y += abs.c
-
 cflags-y += -ffreestanding
+cflags-y += -Wno-sign-compare
+cflags-remove-y += -Wcast-align
 
+srcs-y += memchr.c
+srcs-y += memcmp.c
+srcs-y += memcpy.c
+srcs-y += memmove.c
+srcs-y += memset.c
+srcs-y += strcmp.c
+srcs-y += strncmp.c
+srcs-y += strlen.c
+srcs-y += strnlen.c
+srcs-y += abs.c
 srcs-y += strchr.c
-cflags-remove-strchr.c-y += -Wcast-align
