@@ -17,6 +17,7 @@ platform-debugger-arm := 1
 endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 platform-flavor-armv8 := 1
+$(call force,CFG_DT,y)
 endif
 
 
@@ -57,6 +58,7 @@ endif
 
 # SE API is only supported by QEMU Virt platform
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+$(call force,CFG_DT,y)
 CFG_SE_API ?= y
 CFG_SE_API_SELF_TEST ?= y
 CFG_PCSC_PASSTHRU_READER_DRV ?= y
