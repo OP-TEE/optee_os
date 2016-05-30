@@ -85,10 +85,10 @@ static void pl061_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
 	offset = gpio_pin % GPIOS_PER_PL061;
 	if (direction == GPIO_DIR_OUT) {
 		data = read8(base_addr + PL061_GPIO_DIR) | BIT(offset);
-		write8(base_addr + PL061_GPIO_DIR, data);
+		write8(data, base_addr + PL061_GPIO_DIR);
 	} else {
 		data = read8(base_addr + PL061_GPIO_DIR) & ~BIT(offset);
-		write8(base_addr + PL061_GPIO_DIR, data);
+		write8(data, base_addr + PL061_GPIO_DIR);
 	}
 }
 
@@ -129,9 +129,9 @@ static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
 	base_addr = pl061_reg_base[gpio_pin / GPIOS_PER_PL061];
 	offset = gpio_pin % GPIOS_PER_PL061;
 	if (value == GPIO_LEVEL_HIGH)
-		write8(base_addr + BIT(offset + 2), BIT(offset));
+		write8(BIT(offset), base_addr + BIT(offset + 2));
 	else
-		write8(base_addr + BIT(offset + 2), 0);
+		write8(0, base_addr + BIT(offset + 2));
 }
 
 
