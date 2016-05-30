@@ -62,7 +62,7 @@ define process-subdir-gensrcs-helper
 # $3 full path and name of object file compiled from source file
 # $4 full path to out directory
 
-gen-srcs2			+= $2
+gen-srcs			+= $2
 oname				:= $3
 
 FORCE-GENSRC: $2
