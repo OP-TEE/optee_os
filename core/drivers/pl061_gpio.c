@@ -47,14 +47,19 @@ static enum gpio_dir pl061_get_direction(unsigned int gpio_pin);
 static void pl061_set_direction(unsigned int gpio_pin, enum gpio_dir direction);
 static enum gpio_level pl061_get_value(unsigned int gpio_pin);
 static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value);
+static enum gpio_pull pl061_get_pull(unsigned int gpio_pin);
+static void pl061_set_pull(unsigned int gpio_pin, enum gpio_pull pull);
 
 static vaddr_t pl061_reg_base[MAX_GPIO_DEVICES];
+static vaddr_t pinctrl_base;
 
 static const struct gpio_ops pl061_gpio_ops = {
 	.get_direction	= pl061_get_direction,
 	.set_direction	= pl061_set_direction,
 	.get_value	= pl061_get_value,
 	.set_value	= pl061_set_value,
+	.get_pull	= pl061_get_pull,
+	.set_pull	= pl061_set_pull,
 };
 
 static enum gpio_dir pl061_get_direction(unsigned int gpio_pin)
@@ -134,6 +139,17 @@ static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
 		write8(0, base_addr + BIT(offset + 2));
 }
 
+static enum gpio_pull pl061_get_pull(unsigned int gpio_pin)
+{
+	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	return read8(pinctrl_base + 0xE0 + gpio_pin*4);
+}
+
+static void pl061_set_pull(unsigned int gpio_pin, enum gpio_pull pull)
+{
+	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	write8(pull, pinctrl_base + 0xE0 + gpio_pin*4);
+}
 
 /*
  * Register the PL061 GPIO controller with a base address and the offset
@@ -145,6 +161,11 @@ void pl061_gpio_register(vaddr_t base_addr, unsigned int gpio_dev)
 	assert(gpio_dev < MAX_GPIO_DEVICES);
 
 	pl061_reg_base[gpio_dev] = base_addr;
+}
+
+void pl061_pinctrl_register(vaddr_t base_addr)
+{
+	pinctrl_base = base_addr;
 }
 
 /*

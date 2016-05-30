@@ -73,9 +73,28 @@ void gpio_set_value(unsigned int gpio_pin, enum gpio_level value)
 	ops->set_value(gpio_pin, value);
 }
 
+enum gpio_pull gpio_get_pull(unsigned int gpio_pin)
+{
+	assert(ops);
+	assert(ops->get_pull != 0);
+
+	return ops->get_pull(gpio_pin);
+}
+
+void gpio_set_pull(unsigned int gpio_pin, enum gpio_pull pull)
+{
+	assert(ops);
+	assert(ops->set_pull != 0);
+	assert((pull == GPIO_PULL_NONE) || (pull == GPIO_PULL_UP) ||
+	       (pull == GPIO_PULL_DOWN));
+
+	ops->set_pull(gpio_pin, pull);
+}
+
 /*
  * Initialize the gpio. The fields in the provided gpio
  * ops pointer must be valid.
+ * get/set pull is optional so not asserted.
  */
 void gpio_init(const struct gpio_ops *ops_ptr)
 {
