@@ -82,13 +82,6 @@ include mk/lib.mk
 subdirs = $(core-platform-subdirs) core
 include mk/subdir.mk
 
-# Generate C file to embed public key for TA verification
-gen-srcs += core/ta_pub_key.c
-$(out-dir)/core/ta_pub_key.c: $(TA_SIGN_KEY)
-	@$(cmd-echo-silent) '  GEN     $@'
-	@$(q)mkdir -p $(out-dir)/core
-	@$(q)scripts/pem_to_pub_c.py --prefix ta_pub_key --key $< --out $@
-
 asm-defines-file := core/arch/$(ARCH)/kernel/asm-defines.c
 include mk/compile.mk
 
