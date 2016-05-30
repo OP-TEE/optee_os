@@ -72,12 +72,9 @@ static TEE_Result tee_time_ta_set_offs(const TEE_UUID *uuid,
 	}
 
 	n = tee_time_num_offs + 1;
-	o = malloc(n * sizeof(struct tee_ta_time_offs));
-	if (o == NULL)
+	o = realloc(tee_time_offs, n * sizeof(struct tee_ta_time_offs));
+	if (!o)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	memcpy(o, tee_time_offs,
-	       tee_time_num_offs * sizeof(struct tee_ta_time_offs));
-	free(tee_time_offs);
 	tee_time_offs = o;
 	tee_time_offs[tee_time_num_offs].uuid = *uuid;
 	tee_time_offs[tee_time_num_offs].offs = *offs;
