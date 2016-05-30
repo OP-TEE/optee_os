@@ -62,6 +62,7 @@ UNWIND(	.save	{r5-r9, lr})
 	cmp     r6, #0
 	beq     .Lno_args
 	sub     sp, sp, r6, lsl #2
+	bic	sp, sp, #7	/* make sure it's a multiple of 8 */
 	mov     r0, #0	/* Let tee_svc_copy_from_user() lookup the session */
 	mov     r1, sp
 	mov     r2, r5
