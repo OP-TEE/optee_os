@@ -64,6 +64,7 @@ before_script:
   - export PATH=$HOME/inst/bin:$PATH
   # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
   - pip install --upgrade --user pycrypto
+  - pip install --upgrade --user wand
   # Clone repositories for the QEMU test environment
   - mkdir $HOME/bin
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
