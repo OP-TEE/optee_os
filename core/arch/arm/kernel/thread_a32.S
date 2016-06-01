@@ -285,6 +285,7 @@ UNWIND(	.cantunwind)
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
 
+	orr	r6, r6, #ARM32_CPSR_FIA	/* Disable Async abort, IRQ and FIQ */
 	msr	cpsr, r6		/* Restore mode */
 
 	mov	r0, r5			/* Return original CPSR */
@@ -308,7 +309,7 @@ UNWIND(	.cantunwind)
 	add	sp, #(4 * 4)
 
 	/* Disable interrupts before switching to temporary stack */
-	cpsid	if
+	cpsid	aif
 	bl	thread_get_tmp_sp
 	mov	sp, r0
 
