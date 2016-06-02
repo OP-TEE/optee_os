@@ -56,12 +56,68 @@ fname				:=
 oname				:=
 endef #process-subdir-srcs-y
 
+define process-subdir-gensrcs-helper
+# $1 gensrc-y element
+# $2 full path and name of generated source file
+# $3 full path and name of object file compiled from source file
+# $4 full path to out directory
+
+gen-srcs2			+= $2
+oname				:= $3
+
+FORCE-GENSRC: $2
+
+$$(addprefix $4,$$(produce-additional-$1)): $2
+
+subdir-$2 := $$(sub-dir)
+recipe-$2 := $$(recipe-$1)
+$2: $$(depends-$1)
+	@$(cmd-echo-silent) '  GEN     $2'
+	$(q)mkdir -p $4
+	$(q)$$(recipe-$2)
+
+cflags-$$(oname) 		:= $$(cflags-y) $$(cflags-$(1)-y)
+cflags-remove-$$(oname) 	:= $$(cflags-remove-y) \
+					$$(cflags-remove-$(1)-y)
+cppflags-$$(oname) 		:= $$(cppflags-y) $$(cppflags-$(1)-y)
+cppflags-remove-$$(oname) 	:= $$(cppflags-remove-y) \
+					$$(cppflags-remove-$(1)-y)
+aflags-$$(oname) 		:= $$(aflags-y) $$(aflags-$(1)-y)
+aflags-remove-$$(oname) 	:= $$(aflags-remove-y) \
+					$$(aflags-remove-$(1)-y)
+incdirs-$$(oname)		:= $$(thissubdir-incdirs) $$(addprefix $(sub-dir)/,$$(incdirs-$(1)-y))
+# Clear local filename specific variables to avoid accidental reuse
+# in another subdirectory
+cflags-$(1)-y 			:=
+cflags-remove-$(1)-y		:=
+cflags-lib-y			:=
+cppflags-$(1)-y			:=
+cppflags-remove-$(1)-y		:=
+cppflags-lib-y			:=
+aflags-$(1)-y 			:=
+aflags-remove-$(1)-y		:=
+incdirs-$(1)-y			:=
+fname				:=
+oname				:=
+
+endef #process-subdir-gensrcs-helper
+
+define process-subdir-gensrcs-y
+$$(eval $$(call process-subdir-gensrcs-helper,$1,$(sub-dir-out)/$$(produce-$1),$(sub-dir-out)/$(basename $(produce-$1)).o,$(sub-dir-out)))
+endef #process-subdir-gensrcs-y
+
 define process-subdir
 sub-dir := $1
+ifeq ($1,.)
+sub-dir-out := $(out-dir)/$(base-prefix)
+else
+sub-dir-out := $(out-dir)/$(base-prefix)$1
+endif
+
 include $1/sub.mk
 sub-subdirs := $$(addprefix $1/,$$(subdirs-y))
 incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y))
-thissubdir-incdirs := $$(addprefix $1/,$$(incdirs-y))
+thissubdir-incdirs := $(out-dir)/$(base-prefix)$1 $$(addprefix $1/,$$(incdirs-y))
 ifneq ($$(libname),)
 incdirs-lib$$(libname) := $$(incdirs-lib$$(libname)) $$(addprefix $1/,$$(incdirs-lib-y))
 cflags-lib$$(libname) := $$(cflags-lib$$(libname)) $$(cflags-lib-y)
@@ -69,6 +125,7 @@ cppflags-lib$$(libname) := $$(cppflags-lib$$(libname)) $$(cppflags-lib-y)
 endif
 
 # Process files in current directory
+$$(foreach g, $$(gensrcs-y), $$(eval $$(call process-subdir-gensrcs-y,$$(g))))
 $$(foreach s, $$(srcs-y), $$(eval $$(call process-subdir-srcs-y,$$(s))))
 # Clear flags used when processing current directory
 srcs-y :=
@@ -82,6 +139,8 @@ subdirs-y :=
 global-incdirs-y :=
 incdirs-lib-y :=
 incdirs-y :=
+gensrcs-y :=
+this-out-dir :=
 
 # Process subdirectories in current directory
 $$(foreach sd, $$(sub-subdirs), $$(eval $$(call process-subdir,$$(sd))))
