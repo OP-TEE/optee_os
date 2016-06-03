@@ -156,6 +156,10 @@ script:
   # Texas Instruments dra7xx
   - $make PLATFORM=ti-dra7xx
 
+  # Spreadtrum sc9860
+  - $make PLATFORM=sprd-sc9860
+  - $make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
+
   # FSL ls1021a
   - $make PLATFORM=ls-ls1021atwr
   - $make PLATFORM=ls-ls1021aqds
