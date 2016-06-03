@@ -657,7 +657,6 @@ void teecore_init_pub_ram(void)
 {
 	vaddr_t s;
 	vaddr_t e;
-	unsigned int nsec_tee_size = 32 * 1024;
 
 	/* get virtual addr/size of NSec shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
@@ -667,18 +666,6 @@ void teecore_init_pub_ram(void)
 	TEE_ASSERT((e & SMALL_PAGE_MASK) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
 	TEE_ASSERT(tee_vbuf_is_non_sec(s, e - s) == true);
-
-	/*
-	 * 32kByte first bytes are allocated from teecore.
-	 * Remaining is under control of the NSec allocator.
-	 */
-	TEE_ASSERT((e - s) > nsec_tee_size);
-
-	TEE_ASSERT(tee_mm_is_empty(&tee_mm_pub_ddr));
-	tee_mm_final(&tee_mm_pub_ddr);
-	tee_mm_init(&tee_mm_pub_ddr, s, s + nsec_tee_size, SMALL_PAGE_SHIFT,
-		    TEE_MM_POOL_NO_FLAGS);
-	s += nsec_tee_size;
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */

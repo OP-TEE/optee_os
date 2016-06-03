@@ -57,9 +57,6 @@ struct _tee_mm_pool_t {
 };
 typedef struct _tee_mm_pool_t tee_mm_pool_t;
 
-/* Physical Public DDR pool */
-extern tee_mm_pool_t tee_mm_pub_ddr;
-
 /* Physical Secure DDR pool */
 extern tee_mm_pool_t tee_mm_sec_ddr;
 

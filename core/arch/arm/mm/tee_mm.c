@@ -316,9 +316,6 @@ bool tee_mm_is_empty(tee_mm_pool_t *pool)
 	return pool == NULL || pool->entry == NULL || pool->entry->next == NULL;
 }
 
-/* Physical Public DDR pool */
-tee_mm_pool_t tee_mm_pub_ddr __data; /* XXX __data is a workaround */
-
 /* Physical Secure DDR pool */
 tee_mm_pool_t tee_mm_sec_ddr __data; /* XXX __data is a workaround */
 

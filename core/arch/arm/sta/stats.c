@@ -96,9 +96,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 			break;
 
 		case 2:
-			strlcpy(stats->desc, "Public DDR", sizeof(stats->desc));
-			tee_mm_get_pool_stats(&tee_mm_pub_ddr, stats,
-					      !!p[0].value.b);
+			EMSG("public DDR not managed by secure side anymore");
 			break;
 
 		case 3:
