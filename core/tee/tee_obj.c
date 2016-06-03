@@ -35,6 +35,7 @@
 #include <tee/tee_pobj.h>
 #include <trace.h>
 #include <tee/tee_svc_storage.h>
+#include <tee/tee_svc_cryp.h>
 
 void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o)
 {
@@ -64,10 +65,7 @@ void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o)
 		tee_pobj_release(o->pobj);
 	}
 
-	if (o->cleanup)
-		o->cleanup(o->data, true);
-	free(o->data);
-	free(o);
+	tee_obj_free(o);
 }
 
 void tee_obj_close_all(struct user_ta_ctx *utc)
@@ -129,4 +127,18 @@ err:
 		fops->close(fd);
 exit:
 	return res;
+}
+
+struct tee_obj *tee_obj_alloc(void)
+{
+	return calloc(1, sizeof(struct tee_obj));
+}
+
+void tee_obj_free(struct tee_obj *o)
+{
+	if (o) {
+		tee_obj_attr_free(o);
+		free(o->attr);
+		free(o);
+	}
 }

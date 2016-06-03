@@ -29,6 +29,7 @@
 
 #include <tee_api_types.h>
 #include <utee_types.h>
+#include <tee/tee_obj.h>
 
 struct user_ta_ctx;
 
@@ -101,5 +102,16 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 			const struct utee_attribute *usr_params,
 			size_t num_params, const void *data, size_t data_len,
 			const void *sig, size_t sig_len);
+
+TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
+			    size_t max_key_size);
+
+void tee_obj_attr_free(struct tee_obj *o);
+void tee_obj_attr_clear(struct tee_obj *o);
+TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
+				  size_t *data_len);
+TEE_Result tee_obj_attr_from_binary(struct tee_obj *o, const void *data,
+				    size_t data_len);
+TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src);
 
 #endif /* TEE_SVC_CRYP_H */
