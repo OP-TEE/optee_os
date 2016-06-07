@@ -43,6 +43,8 @@ def get_args():
 			help='Name of font in program')
 	parser.add_argument('--out_dir', required=True, \
 			help='Out directory')
+	parser.add_argument('--verbose', default=False, \
+			help='Print informational messages')
 	return parser.parse_args()
 
 def c_hex_print(f, str):
@@ -79,7 +81,8 @@ def main():
 
 	img_ref = Image(width=1000, height=1000)
 
-	print "Writing " + out_dir + "/" + font_name + ".c"
+	if args.verbose:
+		print "Writing " + out_dir + "/" + font_name + ".c"
 	f = open(out_dir + "/" + font_name + ".c", 'wb+')
 	write_comment(f)
 	f.write("#include \"font.h\"\n\n")
@@ -132,7 +135,8 @@ def main():
 	f.write("};\n")
 	f.close()
 
-	print "Writing " + out_dir + "/" + font_name + ".h"
+	if args.verbose:
+		print "Writing " + out_dir + "/" + font_name + ".h"
 	f = open(out_dir + "/" + font_name + ".h", 'wb+')
 	write_comment(f)
 	f.write("#ifndef __" + font_name.upper() + "_H\n");
