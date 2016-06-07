@@ -20,5 +20,6 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
+CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
