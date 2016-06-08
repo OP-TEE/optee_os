@@ -2109,8 +2109,13 @@ static int rpmb_fs_read(TEE_Result *errno, int fd, void *buf, size_t size)
 		goto out;
 	}
 
+	if (fh->pos >= fh->fat_entry.data_size) {
+		read_size = 0;
+		goto out;
+	}
+
 	size = MIN(size, fh->fat_entry.data_size - fh->pos);
-	if (size > 0) {
+	if (size) {
 		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 				    fh->fat_entry.start_address + fh->pos, buf,
 				    size, fh->fat_entry.fek);
