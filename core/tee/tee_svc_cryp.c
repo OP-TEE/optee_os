@@ -998,10 +998,10 @@ void tee_obj_attr_clear(struct tee_obj *o)
 TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
 				  size_t *data_len)
 {
-	TEE_Result res;
 	const struct tee_cryp_obj_type_props *tp;
 	size_t n;
 	size_t offs = 0;
+	size_t len = data ? *data_len : 0;
 
 	if (o->info.objectType == TEE_TYPE_DATA) {
 		*data_len = 0;
@@ -1017,15 +1017,13 @@ TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
 		const struct tee_cryp_obj_type_attrs *ta = tp->type_attrs + n;
 		void *attr = (uint8_t *)o->attr + ta->raw_offs;
 
-		attr_ops[ta->ops_index].to_binary(attr, data, *data_len, &offs);
+		attr_ops[ta->ops_index].to_binary(attr, data, len, &offs);
 	}
 
-	if (offs > *data_len)
-		res = TEE_ERROR_SHORT_BUFFER;
-	else
-		res = TEE_SUCCESS;
 	*data_len = offs;
-	return res;
+	if (data && offs > *data_len)
+		return TEE_ERROR_SHORT_BUFFER;
+	return TEE_SUCCESS;
 }
 
 TEE_Result tee_obj_attr_from_binary(struct tee_obj *o, const void *data,

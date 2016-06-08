@@ -418,7 +418,7 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 		o->info.objectUsage = attr_o->info.objectUsage;
 		o->info.keySize = attr_o->info.keySize;
 		res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-		if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+		if (res != TEE_SUCCESS)
 			goto exit;
 		if (attr_size) {
 			attr = malloc(attr_size);
@@ -579,7 +579,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto oclose;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS && res)
 		goto oclose;
 
 	e_off = sizeof(struct tee_svc_storage_head) + attr_size;
@@ -747,7 +747,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto oclose;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS)
 		goto oclose;
 
 	e_off = sizeof(struct tee_svc_storage_head) + attr_size;
@@ -1363,7 +1363,7 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		goto exit;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS)
 		goto exit;
 
 	off = sizeof(struct tee_svc_storage_head) + attr_size;
@@ -1414,7 +1414,7 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, long offset,
 		goto exit;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+	if (res != TEE_SUCCESS)
 		goto exit;
 
 	fw = tee_svc_storage_conv_whence(whence);
