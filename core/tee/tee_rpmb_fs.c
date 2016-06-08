@@ -2120,6 +2120,7 @@ static int rpmb_fs_read(TEE_Result *errno, int fd, void *buf, size_t size)
 		}
 	}
 	read_size = size;
+	fh->pos += size;
 
 out:
 	return read_size;
