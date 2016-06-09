@@ -11,23 +11,25 @@
     4. [Allwinner A80](#45-allwinner-a80)
     4. [Freescale MX6UL EVK](#46-freescale-mx6ul-evk)
 5. [repo manifests](#5-repo-manifests)
-	5. [Install repo](#51-install-repo)
-	5. [Get the source code](#52-get-the-source-code)
-		5. [Targets](#521-targets)
-		5. [Branches](#522-branches)
-		5. [Get the toolchains](#523-get-the-toolchains)
-	5. [QEMU](#53-qemu)
-	5. [FVP](#54-fvp)
-	5. [HiKey](#55-hikey)
-	5. [MT8173-EVB](#56-mt8173-evb)
-	5. [Juno](#57-juno)
-		5. [Update flash and its layout](#571-update-flash-and-its-layout)
-	5. [Tips and tricks](#57-tips-and-tricks)
-		5. [Reference existing project to speed up repo sync](#571-reference-existing-project-to-speed-up-repo-sync)
-		5. [Use ccache](#572-use-ccache)
+    5. [Install repo](#51-install-repo)
+    5. [Get the source code](#52-get-the-source-code)
+        5. [Targets](#521-targets)
+        5. [Branches](#522-branches)
+        5. [Get the toolchains](#523-get-the-toolchains)
+    5. [QEMU](#53-qemu)
+    5. [FVP](#54-fvp)
+    5. [HiKey](#55-hikey)
+    5. [MT8173-EVB](#56-mt8173-evb)
+    5. [Juno](#57-juno)
+        5. [Update flash and its layout](#571-update-flash-and-its-layout)
+        5. [GlobalPlatform testsuite support](#572-globalplatform-testsuite-support)
+        5. [GCC5 support](#573-gcc5-support)
+    5. [Tips and tricks](#58-tips-and-tricks)
+        5. [Reference existing project to speed up repo sync](#581-reference-existing-project-to-speed-up-repo-sync)
+        5. [Use ccache](#582-use-ccache)
 6. [Load driver, tee-supplicant and run xtest](#6-load-driver-tee-supplicant-and-run-xtest)
 7. [Coding standards](#7-coding-standards)
-	7. [checkpatch](#71-checkpatch)
+    7. [checkpatch](#71-checkpatch)
 
 # 1. Introduction
 The `optee_os git`, contains the source code for the TEE in Linux using the
@@ -108,9 +110,9 @@ to start with. Therefore install the following packages regardless of what
 target you will use in the end.
 ```
 $ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
-		       cscope curl flex gdisk libc6:i386 libfdt-dev \
-		       libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
-		       libz1:i386 netcat python-crypto python-serial \
+               cscope curl flex gdisk libc6:i386 libfdt-dev \
+               libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
+               libz1:i386 netcat python-crypto python-serial \
                        python-wand uuid-dev xdg-utils xz-utils zlib1g-dev
 ```
 
@@ -127,10 +129,10 @@ to find out where the respective toolchain will be used. For example in the
 [QEMU makefile](https://github.com/OP-TEE/build/blob/master/qemu.mk#L12-L15) you
 will see:
 ```
-CROSS_COMPILE_NS_USER		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_NS_KERNEL		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_S_USER		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_S_KERNEL		?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_NS_USER       ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_NS_KERNEL     ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_S_USER        ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+CROSS_COMPILE_S_KERNEL      ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
 ```
 
 However, if you only want to compile optee_os, then you can do like this:
@@ -556,6 +558,53 @@ NOR4LOAD: 00000000               ;Image Load Address
 NOR4ENTRY: 00000000              ;Image Entry Point
 ```
 
+#### 5.7.3 GCC5 support
+##### Note :
+In case you are using the **Latest version** of the ARM Juno board (this is
+`juno.xml` manifest), the built `ramdisk.img` size with GCC5 compiler, at
+the moment, exceeds its pre-defined Juno flash memory reserved location
+(`image.txt` file).
+
+To solve this problem you will need to extend the Juno flash block size 
+reserved location for the `ramdisk.img` and decrease the size for other 
+images in the `image.txt` file accordingly and then follow the instructions
+under "5.7.1 Update flash and its layout".
+
+##### Example with juno-latest-busybox-uboot.zip:
+The current `ramdisk.img` size with GCC5 compiler is 29.15 MBytes we will
+extend it to  32 MBytes. The only changes that you need to do are those in
+**bold**
+
+###### File to update is /JUNO/SITE1/HBI0262B/images.txt
+<pre>
+NOR2UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR2ADDRESS: <b>0x00100000</b>          ;Image Flash Address
+NOR2FILE: \SOFTWARE\Image        ;Image File Name
+NOR2NAME: norkern                ;Rename kernel to norkern
+NOR2LOAD: 00000000               ;Image Load Address
+NOR2ENTRY: 00000000              ;Image Entry Point
+
+NOR3UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR3ADDRESS: <b>0x02C00000</b>          ;Image Flash Address
+NOR3FILE: \SOFTWARE\juno.dtb     ;Image File Name
+NOR3NAME: board.dtb              ;Specify target filename to preserve file extension
+NOR3LOAD: 00000000               ;Image Load Address
+NOR3ENTRY: 00000000              ;Image Entry Point
+
+NOR4UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR4ADDRESS: <b>0x00D00000</b>          ;Image Flash Address
+NOR4FILE: \SOFTWARE\ramdisk.img  ;Image File Name
+NOR4NAME: ramdisk.img
+NOR4LOAD: 00000000               ;Image Load Address
+NOR4ENTRY: 00000000              ;Image Entry Point
+
+NOR5UPDATE: AUTO                 ;Image Update:NONE/AUTO/FORCE
+NOR5ADDRESS: <b>0x02D00000</b>          ;Image Flash Address
+NOR5FILE: \SOFTWARE\hdlcdclk.dat ;Image File Name
+NOR5LOAD: 00000000               ;Image Load Address
+NOR5ENTRY: 00000000              ;Image Entry Point
+</pre>
+
 ---
 ### 5.8 Tips and tricks
 #### 5.8.1 Reference existing project to speed up repo sync
@@ -638,9 +687,8 @@ written the Makefile so you need to explicitly point to the script by exporting
 an environment variable, namely CHECKPATCH. So, suppose that the source code for
 the Linux kernel is at `$HOME/devel/linux`, then you have to export like follows:
 
-	$ export CHECKPATCH=$HOME/devel/linux/scripts/checkpatch.pl
+    $ export CHECKPATCH=$HOME/devel/linux/scripts/checkpatch.pl
 thereafter it should be possible to use one of the different checkpatch targets
 in the [Makefile](Makefile). There are targets for checking all files, checking
 against latest commit, against a certain base-commit etc. For the details, read
 the [Makefile](Makefile).
-
