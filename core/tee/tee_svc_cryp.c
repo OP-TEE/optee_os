@@ -1021,7 +1021,7 @@ TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
 	}
 
 	*data_len = offs;
-	if (data && offs > *data_len)
+	if (data && offs > len)
 		return TEE_ERROR_SHORT_BUFFER;
 	return TEE_SUCCESS;
 }
