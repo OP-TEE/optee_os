@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <compiler.h>
 #include <stdlib.h>
 #include <png.h>
 #include <tee_api.h>
@@ -39,7 +40,7 @@ struct image_work {
 	const uint8_t *end_data;
 };
 
-static void error_cb(png_structp png_ptr, png_const_charp msg)
+static void error_cb(png_structp png_ptr, png_const_charp msg __maybe_unused)
 {
 	struct image_work *w;
 
