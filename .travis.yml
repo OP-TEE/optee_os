@@ -85,33 +85,33 @@ script:
   # Orly2
   - $make PLATFORM=stm PLATFORM_FLAVOR=orly2
   - $make PLATFORM=stm-orly2 CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=stm-orly2 CFG_TEE_CORE_LOG_LEVEL=0 DEBUG=0
+  - $make PLATFORM=stm-orly2 CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # Cannes
   - $make PLATFORM=stm-cannes
   - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # FVP
   - $make PLATFORM=vexpress-fvp CFG_ARM32_core=y
   - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
   - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y
   - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # Juno
   - $make PLATFORM=vexpress-juno
   - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
   - $make PLATFORM=vexpress-juno CFG_ARM64_core=y
   - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # QEMU-virt (PLATFORM=vexpress-qemu_virt)
   - $make
   - $make CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make CFG_TEE_CORE_LOG_LEVEL=0
+  - $make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
   - $make CFG_CRYPTO=n
   - $make CFG_CRYPTO_{AES,DES}=n CFG_ENC_FS=n
   - $make CFG_CRYPTO_{DSA,RSA,DH}=n CFG_ENC_FS=n
@@ -140,7 +140,7 @@ script:
 
   # SUNXI(Allwinner A80)
   - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=0
+  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # HiKey board (HiSilicon Kirin 620)
   - $make PLATFORM=hikey
