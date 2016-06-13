@@ -366,6 +366,21 @@ static inline void write_ats1cpw(uint32_t va)
 	asm volatile ("mcr	p15, 0, %0, c7, c8, 1" : : "r" (va));
 }
 
+static inline void write_ats1cpr(uint32_t va)
+{
+	asm volatile ("mcr	p15, 0, %0, c7, c8, 0" : : "r" (va));
+}
+
+static inline void write_ats1cpuw(uint32_t va)
+{
+	asm volatile ("mcr	p15, 0, %0, c7, c8, 3" : : "r" (va));
+}
+
+static inline void write_ats1cpur(uint32_t va)
+{
+	asm volatile ("mcr	p15, 0, %0, c7, c8, 2" : : "r" (va));
+}
+
 static inline uint32_t read_par32(void)
 {
 	uint32_t val;
