@@ -178,10 +178,10 @@ static TEE_Result get_prop_tee_sys_time_prot_level(
 	}
 	*blen = sizeof(prot);
 	prot = tee_time_get_sys_time_protection_level();
-	return tee_svc_copy_to_user((void *)buf, &prot, sizeof(prot));
+	return tee_svc_copy_to_user(buf, &prot, sizeof(prot));
 }
 
-static TEE_Result get_prop_client_id(struct tee_ta_session *sess,
+static TEE_Result get_prop_client_id(struct tee_ta_session *sess __unused,
 				     void *buf, size_t *blen)
 {
 	if (*blen < sizeof(TEE_Identity)) {
@@ -712,8 +712,6 @@ static TEE_Result tee_svc_update_out_param(
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	bool have_private_mem_map = is_user_ta_ctx(called_sess->ctx);
 
-	tee_ta_set_current_session(sess);
-
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
@@ -816,7 +814,6 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
 
 function_exit:
-	tee_ta_set_current_session(sess);
 	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_mm_free(mm_param);
 	if (res == TEE_SUCCESS)
@@ -846,10 +843,7 @@ TEE_Result syscall_close_ta_session(unsigned long ta_sess)
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
-	tee_ta_set_current_session(NULL);
-	res = tee_ta_close_session(s, &utc->open_sessions, &clnt_id);
-	tee_ta_set_current_session(sess);
-	return res;
+	return tee_ta_close_session(s, &utc->open_sessions, &clnt_id);
 }
 
 TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
@@ -908,7 +902,6 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	}
 
 function_exit:
-	tee_ta_set_current_session(sess);
 	called_sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_ta_put_session(called_sess);
 	tee_mm_free(mm_param);

@@ -602,17 +602,7 @@ bool tee_ta_session_is_cancelled(struct tee_ta_session *s, TEE_Time *curr_time)
 	return false;
 }
 
-TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess)
-{
-	struct thread_specific_data *tsd = thread_get_tsd();
-
-	if (!tsd->sess)
-		return TEE_ERROR_BAD_STATE;
-	*sess = tsd->sess;
-	return TEE_SUCCESS;
-}
-
-void tee_ta_set_current_session(struct tee_ta_session *sess)
+static void update_current_ctx(struct tee_ta_session *sess)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct tee_ta_ctx *ctx = NULL;
@@ -624,10 +614,8 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 			ctx = sess->ctx;
 	}
 
-	if (tsd->sess != sess) {
-		tsd->sess = sess;
+	if (tsd->ctx != ctx)
 		tee_mmu_set_ctx(ctx);
-	}
 	/*
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
@@ -635,6 +623,34 @@ void tee_ta_set_current_session(struct tee_ta_session *sess)
 	assert(((ctx && (ctx->flags & TA_FLAG_USER_MODE) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
 		!core_mmu_user_mapping_is_active());
+}
+
+void tee_ta_push_current_session(struct tee_ta_session *sess)
+{
+	TAILQ_INSERT_HEAD(&thread_get_tsd()->sess_stack, sess, link_tsd);
+	update_current_ctx(sess);
+}
+
+struct tee_ta_session *tee_ta_pop_current_session(void)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct tee_ta_session *s = TAILQ_FIRST(&tsd->sess_stack);
+
+	if (s) {
+		TAILQ_REMOVE(&tsd->sess_stack, s, link_tsd);
+		update_current_ctx(TAILQ_FIRST(&tsd->sess_stack));
+	}
+	return s;
+}
+
+TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess)
+{
+	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+
+	if (!s)
+		return TEE_ERROR_BAD_STATE;
+	*sess = s;
+	return TEE_SUCCESS;
 }
 
 TEE_Result tee_ta_get_client_id(TEE_Identity *id)

@@ -45,7 +45,7 @@
 extern uint32_t thread_vector_table[];
 
 struct thread_specific_data {
-	struct tee_ta_session *sess;
+	TAILQ_HEAD(, tee_ta_session) sess_stack;
 	struct tee_ta_ctx *ctx;
 #ifdef CFG_SMALL_PAGE_USER_TA
 	struct pgt_cache pgt_cache;

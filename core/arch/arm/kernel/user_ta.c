@@ -486,6 +486,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_uaddr_t usr_stack;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
+	struct tee_ta_session *s __maybe_unused;
 
 	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
 
@@ -495,7 +496,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 		goto cleanup_return;
 
 	/* Switch to user ctx */
-	tee_ta_set_current_session(session);
+	tee_ta_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
 	usr_stack = (tee_uaddr_t)phys_to_virt(tee_mm_get_smem(utc->mm_stack) +
@@ -526,9 +527,9 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	/* Copy out value results */
 	update_from_utee_param(param, usr_params);
 
+	s = tee_ta_pop_current_session();
+	assert(s == session);
 cleanup_return:
-	/* Restore original ROM mapping */
-	tee_ta_set_current_session(NULL);
 
 	/*
 	 * Clear the cancel state now that the user TA has returned. The next
@@ -665,11 +666,9 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 		void *va;
 		uint32_t s;
 
-		tee_mmu_set_ctx(ctx);
-
-		if (utc->mm != NULL) {
+		if (utc->mm) {
 			pa = tee_mm_get_smem(utc->mm);
-			va = phys_to_virt(pa, MEM_AREA_TA_VASPACE);
+			va = phys_to_virt(pa, MEM_AREA_TA_RAM);
 			if (va) {
 				s = tee_mm_get_bytes(utc->mm);
 				memset(va, 0, s);
@@ -679,14 +678,13 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 		if (utc->mm_stack) {
 			pa = tee_mm_get_smem(utc->mm_stack);
-			va = phys_to_virt(pa, MEM_AREA_TA_VASPACE);
+			va = phys_to_virt(pa, MEM_AREA_TA_RAM);
 			if (va) {
 				s = tee_mm_get_bytes(utc->mm_stack);
 				memset(va, 0, s);
 				cache_maintenance_l1(DCACHE_AREA_CLEAN, va, s);
 			}
 		}
-		tee_mmu_set_ctx(NULL);
 	}
 
 	/*
