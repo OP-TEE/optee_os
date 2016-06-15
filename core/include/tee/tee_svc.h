@@ -88,13 +88,10 @@ TEE_Result syscall_invoke_ta_command(unsigned long sess,
 TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 				       size_t len);
 
-TEE_Result tee_svc_copy_from_user(struct tee_ta_session *sess, void *kaddr,
-				  const void *uaddr, size_t len);
-TEE_Result tee_svc_copy_to_user(struct tee_ta_session *sess, void *uaddr,
-				const void *kaddr, size_t len);
+TEE_Result tee_svc_copy_from_user(void *kaddr, const void *uaddr, size_t len);
+TEE_Result tee_svc_copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
-TEE_Result tee_svc_copy_kaddr_to_uref(struct tee_ta_session *sess,
-			uint32_t *uref, void *kaddr);
+TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 static inline uint32_t tee_svc_kaddr_to_uref(void *kaddr)
 {

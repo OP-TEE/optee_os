@@ -560,27 +560,27 @@ static TEE_Result op_attr_secret_value_from_user(void *attr, const void *buffer,
 }
 
 static TEE_Result op_attr_secret_value_to_user(void *attr,
-					       struct tee_ta_session *sess,
-					       void *buffer, uint64_t *size)
+			struct tee_ta_session *sess __unused,
+			void *buffer, uint64_t *size)
 {
 	TEE_Result res;
 	struct tee_cryp_obj_secret *key = attr;
 	uint64_t s;
 	uint64_t key_size;
 
-	res = tee_svc_copy_from_user(sess, &s, size, sizeof(s));
+	res = tee_svc_copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	key_size = key->key_size;
-	res = tee_svc_copy_to_user(sess, size, &key_size, sizeof(key_size));
+	res = tee_svc_copy_to_user(size, &key_size, sizeof(key_size));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (s < key->key_size)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	return tee_svc_copy_to_user(sess, buffer, key + 1, key->key_size);
+	return tee_svc_copy_to_user(buffer, key + 1, key->key_size);
 }
 
 static void op_attr_secret_value_to_binary(void *attr, void *data,
@@ -655,12 +655,12 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	uint64_t req_size;
 	uint64_t s;
 
-	res = tee_svc_copy_from_user(sess, &s, size, sizeof(s));
+	res = tee_svc_copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	req_size = crypto_ops.bignum.num_bytes(*bn);
-	res = tee_svc_copy_to_user(sess, size, &req_size, sizeof(req_size));
+	res = tee_svc_copy_to_user(size, &req_size, sizeof(req_size));
 	if (res != TEE_SUCCESS)
 		return res;
 	if (!req_size)
@@ -752,7 +752,8 @@ static TEE_Result op_attr_value_from_user(void *attr, const void *buffer,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result op_attr_value_to_user(void *attr, struct tee_ta_session *sess,
+static TEE_Result op_attr_value_to_user(void *attr,
+					struct tee_ta_session *sess __unused,
 					void *buffer, uint64_t *size)
 {
 	TEE_Result res;
@@ -761,14 +762,14 @@ static TEE_Result op_attr_value_to_user(void *attr, struct tee_ta_session *sess,
 	uint32_t value[2] = { *v };
 	uint64_t req_size = sizeof(value);
 
-	res = tee_svc_copy_from_user(sess, &s, size, sizeof(s));
+	res = tee_svc_copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (s < req_size)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	return tee_svc_copy_to_user(sess, buffer, value, req_size);
+	return tee_svc_copy_to_user(buffer, value, req_size);
 }
 
 static void op_attr_value_to_binary(void *attr, void *data, size_t data_len,
@@ -854,7 +855,7 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 			goto exit;
 	}
 
-	res = tee_svc_copy_to_user(sess, info, &o->info, sizeof(o->info));
+	res = tee_svc_copy_to_user(info, &o->info, sizeof(o->info));
 
 exit:
 	return res;
@@ -1257,7 +1258,7 @@ TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
 
 	tee_obj_add(to_user_ta_ctx(sess->ctx), o);
 
-	res = tee_svc_copy_kaddr_to_uref(sess, obj, o);
+	res = tee_svc_copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 	return res;
@@ -2072,7 +2073,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_svc_copy_kaddr_to_uref(sess, state, cs);
+	res = tee_svc_copy_kaddr_to_uref(state, cs);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -2277,7 +2278,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_copy_from_user(sess, &hlen, hash_len, sizeof(hlen));
+	res = tee_svc_copy_from_user(&hlen, hash_len, sizeof(hlen));
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2346,7 +2347,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	}
 out:
 	hlen = hash_size;
-	res2 = tee_svc_copy_to_user(sess, hash_len, &hlen, sizeof(*hash_len));
+	res2 = tee_svc_copy_to_user(hash_len, &hlen, sizeof(*hash_len));
 	if (res2 != TEE_SUCCESS)
 		return res2;
 	return res;
@@ -2443,8 +2444,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	if (!dst_len) {
 		dlen = 0;
 	} else {
-		res =
-		    tee_svc_copy_from_user(sess, &dlen, dst_len, sizeof(dlen));
+		res = tee_svc_copy_from_user(&dlen, dst_len, sizeof(dlen));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -2479,8 +2479,7 @@ out:
 		TEE_Result res2;
 
 		dlen = src_len;
-		res2 = tee_svc_copy_to_user(sess, dst_len, &dlen,
-					    sizeof(*dst_len));
+		res2 = tee_svc_copy_to_user(dst_len, &dlen, sizeof(*dst_len));
 		if (res2 != TEE_SUCCESS)
 			res = res2;
 	}
@@ -3014,7 +3013,7 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_copy_from_user(sess, &dlen, dst_len, sizeof(dlen));
+	res = tee_svc_copy_from_user(&dlen, dst_len, sizeof(dlen));
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3041,7 +3040,7 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 
 out:
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
-		TEE_Result res2 = tee_svc_copy_to_user(sess, dst_len, &dlen,
+		TEE_Result res2 = tee_svc_copy_to_user(dst_len, &dlen,
 						       sizeof(*dst_len));
 		if (res2 != TEE_SUCCESS)
 			res = res2;
@@ -3083,8 +3082,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	if (!dst_len) {
 		dlen = 0;
 	} else {
-		res = tee_svc_copy_from_user(sess, &dlen, dst_len,
-					     sizeof(dlen));
+		res = tee_svc_copy_from_user(&dlen, dst_len, sizeof(dlen));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -3102,7 +3100,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 		goto out;
 	}
 
-	res = tee_svc_copy_from_user(sess, &tlen, tag_len, sizeof(tlen));
+	res = tee_svc_copy_from_user(&tlen, tag_len, sizeof(tlen));
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3129,14 +3127,13 @@ out:
 		TEE_Result res2;
 
 		if (dst_len != NULL) {
-			res2 = tee_svc_copy_to_user(sess, dst_len, &dlen,
+			res2 = tee_svc_copy_to_user(dst_len, &dlen,
 						    sizeof(*dst_len));
 			if (res2 != TEE_SUCCESS)
 				return res2;
 		}
 
-		res2 = tee_svc_copy_to_user(sess, tag_len, &tlen,
-					    sizeof(*tag_len));
+		res2 = tee_svc_copy_to_user(tag_len, &tlen, sizeof(*tag_len));
 		if (res2 != TEE_SUCCESS)
 			return res2;
 	}
@@ -3175,8 +3172,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	if (!dst_len) {
 		dlen = 0;
 	} else {
-		res = tee_svc_copy_from_user(sess, &dlen, dst_len,
-					     sizeof(dlen));
+		res = tee_svc_copy_from_user(&dlen, dst_len, sizeof(dlen));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -3214,8 +3210,7 @@ out:
 	    dst_len != NULL) {
 		TEE_Result res2;
 
-		res2 = tee_svc_copy_to_user(sess, dst_len, &dlen,
-					    sizeof(*dst_len));
+		res2 = tee_svc_copy_to_user(dst_len, &dlen, sizeof(*dst_len));
 		if (res2 != TEE_SUCCESS)
 			return res2;
 	}
@@ -3278,7 +3273,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_copy_from_user(sess, &dlen64, dst_len, sizeof(dlen64));
+	res = tee_svc_copy_from_user(&dlen64, dst_len, sizeof(dlen64));
 	if (res != TEE_SUCCESS)
 		return res;
 	dlen = dlen64;
@@ -3425,8 +3420,7 @@ out:
 		TEE_Result res2;
 
 		dlen64 = dlen;
-		res2 = tee_svc_copy_to_user(sess, dst_len, &dlen64,
-					    sizeof(*dst_len));
+		res2 = tee_svc_copy_to_user(dst_len, &dlen64, sizeof(*dst_len));
 		if (res2 != TEE_SUCCESS)
 			return res2;
 	}

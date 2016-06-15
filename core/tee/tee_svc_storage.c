@@ -574,7 +574,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 
 	tee_obj_add(utc, o);
 
-	res = tee_svc_copy_kaddr_to_uref(sess, obj, o);
+	res = tee_svc_copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -742,7 +742,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 
 	tee_obj_add(utc, o);
 
-	res = tee_svc_copy_kaddr_to_uref(sess, obj, o);
+	res = tee_svc_copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -966,7 +966,7 @@ TEE_Result syscall_storage_alloc_enum(uint32_t *obj_enum)
 	e->fops = NULL;
 	TAILQ_INSERT_TAIL(&utc->storage_enums, e, link);
 
-	return tee_svc_copy_kaddr_to_uref(sess, obj_enum, e);
+	return tee_svc_copy_kaddr_to_uref(obj_enum, e);
 }
 
 TEE_Result syscall_storage_free_enum(unsigned long obj_enum)
@@ -1212,7 +1212,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
 
 	l = o->pobj->obj_id_len;
-	res = tee_svc_copy_to_user(sess, len, &l, sizeof(*len));
+	res = tee_svc_copy_to_user(len, &l, sizeof(*len));
 
 exit:
 	if (o) {
@@ -1273,7 +1273,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	}
 	u_count = (uint64_t)((n_count < 0) ? 0 : n_count);
 
-	res = tee_svc_copy_to_user(sess, count, &u_count, sizeof(*count));
+	res = tee_svc_copy_to_user(count, &u_count, sizeof(*count));
 
 	o->info.dataPosition += u_count;
 

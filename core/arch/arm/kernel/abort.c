@@ -441,8 +441,7 @@ static bool is_vfp_fault(struct abort_info *ai)
 	if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
 		return false;
 
-	res = tee_svc_copy_from_user(NULL, &instr, (void *)ai->pc,
-				     sizeof(instr));
+	res = tee_svc_copy_from_user(&instr, (void *)ai->pc, sizeof(instr));
 	if (res != TEE_SUCCESS)
 		return false;
 

@@ -61,7 +61,7 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 	*kbuf = '\0';
 
 	/* log as Info/Raw traces */
-	if (tee_svc_copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
+	if (tee_svc_copy_from_user(kbuf, buf, len) == TEE_SUCCESS)
 		TAMSG_RAW("%.*s", (int)len, kbuf);
 
 	free(kbuf);
@@ -124,7 +124,7 @@ static const uint32_t fw_impl_bin_version; /* 0 by default */
 /* Trusted firmware manufacturer name */
 static const char fw_manufacturer[] = TO_STR(CFG_TEE_FW_MANUFACTURER);
 
-static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
+static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess __unused,
 				      void *buf, size_t *blen)
 {
 	TEE_Result res;
@@ -163,11 +163,12 @@ static TEE_Result get_prop_tee_dev_id(struct tee_ta_session *sess,
 	uuid.clockSeqAndNode[0] &= 0x3f;
 	uuid.clockSeqAndNode[0] |= 0x80;
 
-	return tee_svc_copy_to_user(sess, buf, &uuid, sizeof(TEE_UUID));
+	return tee_svc_copy_to_user(buf, &uuid, sizeof(TEE_UUID));
 }
 
-static TEE_Result get_prop_tee_sys_time_prot_level(struct tee_ta_session *sess,
-						   void *buf, size_t *blen)
+static TEE_Result get_prop_tee_sys_time_prot_level(
+			struct tee_ta_session *sess __unused,
+			void *buf, size_t *blen)
 {
 	uint32_t prot;
 
@@ -177,7 +178,7 @@ static TEE_Result get_prop_tee_sys_time_prot_level(struct tee_ta_session *sess,
 	}
 	*blen = sizeof(prot);
 	prot = tee_time_get_sys_time_protection_level();
-	return tee_svc_copy_to_user(sess, (void *)buf, &prot, sizeof(prot));
+	return tee_svc_copy_to_user((void *)buf, &prot, sizeof(prot));
 }
 
 static TEE_Result get_prop_client_id(struct tee_ta_session *sess,
@@ -188,8 +189,7 @@ static TEE_Result get_prop_client_id(struct tee_ta_session *sess,
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 	*blen = sizeof(TEE_Identity);
-	return tee_svc_copy_to_user(sess, buf, &sess->clnt_id,
-				    sizeof(TEE_Identity));
+	return tee_svc_copy_to_user(buf, &sess->clnt_id, sizeof(TEE_Identity));
 }
 
 static TEE_Result get_prop_ta_app_id(struct tee_ta_session *sess,
@@ -200,8 +200,7 @@ static TEE_Result get_prop_ta_app_id(struct tee_ta_session *sess,
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 	*blen = sizeof(TEE_UUID);
-	return tee_svc_copy_to_user(sess, buf, &sess->ctx->uuid,
-				    sizeof(TEE_UUID));
+	return tee_svc_copy_to_user(buf, &sess->ctx->uuid, sizeof(TEE_UUID));
 }
 
 /* Properties of the set TEE_PROPSET_CURRENT_CLIENT */
@@ -403,7 +402,7 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 
 	/* Get the property type */
 	if (prop_type) {
-		res = tee_svc_copy_to_user(sess, prop_type, &prop->prop_type,
+		res = tee_svc_copy_to_user(prop_type, &prop->prop_type,
 					   sizeof(*prop_type));
 		if (res != TEE_SUCCESS)
 			return res;
@@ -411,7 +410,7 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 
 	/* Get the property */
 	if (buf && blen) {
-		res = tee_svc_copy_from_user(sess, &klen, blen, sizeof(klen));
+		res = tee_svc_copy_from_user(&klen, blen, sizeof(klen));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -419,17 +418,15 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 			klen_size = klen;
 			res = prop->get_prop_func(sess, buf, &klen_size);
 			klen = klen_size;
-			res2 = tee_svc_copy_to_user(sess, blen,
-						    &klen, sizeof(*blen));
+			res2 = tee_svc_copy_to_user(blen, &klen, sizeof(*blen));
 		} else {
 			if (klen < prop->len)
 				res = TEE_ERROR_SHORT_BUFFER;
 			else
-				res = tee_svc_copy_to_user(sess, buf,
-							   prop->data,
+				res = tee_svc_copy_to_user(buf, prop->data,
 							   prop->len);
-			res2 = tee_svc_copy_to_user(sess, blen,
-						    &prop->len, sizeof(*blen));
+			res2 = tee_svc_copy_to_user(blen, &prop->len,
+						    sizeof(*blen));
 		}
 		if (res2 != TEE_SUCCESS)
 			return res2;
@@ -439,8 +436,7 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 
 	/* Get the property name */
 	if (name && name_len) {
-		res = tee_svc_copy_from_user(sess, &klen,
-					     name_len, sizeof(klen));
+		res = tee_svc_copy_from_user(&klen, name_len, sizeof(klen));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -449,10 +445,8 @@ TEE_Result syscall_get_property(unsigned long prop_set,
 		if (klen < elen)
 			res = TEE_ERROR_SHORT_BUFFER;
 		else
-			res = tee_svc_copy_to_user(sess, name,
-						   prop->name, elen);
-		res2 = tee_svc_copy_to_user(sess, name_len,
-					    &elen, sizeof(*name_len));
+			res = tee_svc_copy_to_user(name, prop->name, elen);
+		res2 = tee_svc_copy_to_user(name_len, &elen, sizeof(*name_len));
 		if (res2 != TEE_SUCCESS)
 			return res2;
 		if (res != TEE_SUCCESS)
@@ -495,7 +489,7 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 	kname = malloc(name_len);
 	if (!kname)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = tee_svc_copy_from_user(sess, kname, name, name_len);
+	res = tee_svc_copy_from_user(kname, name, name_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 	kname[name_len - 1] = 0;
@@ -503,15 +497,13 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 	res = TEE_ERROR_ITEM_NOT_FOUND;
 	for (i = 0; i < size; i++) {
 		if (!strcmp(kname, props[i].name)) {
-			res = tee_svc_copy_to_user(sess, index, &i,
-						   sizeof(*index));
+			res = tee_svc_copy_to_user(index, &i, sizeof(*index));
 			goto out;
 		}
 	}
 	for (i = size; i < size + vendor_size; i++) {
 		if (!strcmp(kname, vendor_props[i - size].name)) {
-			res = tee_svc_copy_to_user(sess, index, &i,
-						   sizeof(*index));
+			res = tee_svc_copy_to_user(index, &i, sizeof(*index));
 			goto out;
 		}
 	}
@@ -671,7 +663,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (param->params[n].memref.buffer != NULL) {
-				res = tee_svc_copy_from_user(sess, dst,
+				res = tee_svc_copy_from_user(dst,
 						param->params[n].memref.buffer,
 						param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
@@ -746,7 +738,7 @@ static TEE_Result tee_svc_update_out_param(
 				uint8_t *src = tmp_buf_va[n];
 				TEE_Result res;
 
-				res = tee_svc_copy_to_user(sess, p, src,
+				res = tee_svc_copy_to_user(p, src,
 						 param->params[n].memref.size);
 				if (res != TEE_SUCCESS)
 					return res;
@@ -799,7 +791,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 		goto out_free_only;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_copy_from_user(sess, uuid, dest, sizeof(TEE_UUID));
+	res = tee_svc_copy_from_user(uuid, dest, sizeof(TEE_UUID));
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -828,8 +820,8 @@ function_exit:
 	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_mm_free(mm_param);
 	if (res == TEE_SUCCESS)
-		tee_svc_copy_kaddr_to_uref(sess, ta_sess, s);
-	tee_svc_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
+		tee_svc_copy_kaddr_to_uref(ta_sess, s);
+	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
 	free(param);
@@ -921,7 +913,7 @@ function_exit:
 	tee_ta_put_session(called_sess);
 	tee_mm_free(mm_param);
 	if (ret_orig)
-		tee_svc_copy_to_user(sess, ret_orig, &ret_o, sizeof(ret_o));
+		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;
 }
 
@@ -939,20 +931,15 @@ TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 					   (tee_uaddr_t)buf, len);
 }
 
-TEE_Result tee_svc_copy_from_user(struct tee_ta_session *sess, void *kaddr,
-				  const void *uaddr, size_t len)
+TEE_Result tee_svc_copy_from_user(void *kaddr, const void *uaddr, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *s;
 
-	if (sess == NULL) {
-		res = tee_ta_get_current_session(&s);
-		if (res != TEE_SUCCESS)
-			return res;
-	} else {
-		s = sess;
-		tee_ta_set_current_session(s);
-	}
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -964,20 +951,14 @@ TEE_Result tee_svc_copy_from_user(struct tee_ta_session *sess, void *kaddr,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_copy_to_user(struct tee_ta_session *sess, void *uaddr,
-				const void *kaddr, size_t len)
+TEE_Result tee_svc_copy_to_user(void *uaddr, const void *kaddr, size_t len)
 {
 	TEE_Result res;
 	struct tee_ta_session *s;
 
-	if (sess == NULL) {
-		res = tee_ta_get_current_session(&s);
-		if (res != TEE_SUCCESS)
-			return res;
-	} else {
-		s = sess;
-		tee_ta_set_current_session(s);
-	}
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
 					TEE_MEMORY_ACCESS_WRITE |
@@ -990,12 +971,11 @@ TEE_Result tee_svc_copy_to_user(struct tee_ta_session *sess, void *uaddr,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_svc_copy_kaddr_to_uref(struct tee_ta_session *sess,
-			uint32_t *uref, void *kaddr)
+TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
 	uint32_t ref = tee_svc_kaddr_to_uref(kaddr);
 
-	return tee_svc_copy_to_user(sess, uref, &ref, sizeof(ref));
+	return tee_svc_copy_to_user(uref, &ref, sizeof(ref));
 }
 
 TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)
@@ -1010,7 +990,7 @@ TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)
 
 	c = tee_ta_session_is_cancelled(s, NULL);
 
-	return tee_svc_copy_to_user(s, cancel, &c, sizeof(c));
+	return tee_svc_copy_to_user(cancel, &c, sizeof(c));
 }
 
 TEE_Result syscall_unmask_cancellation(uint32_t *old_mask)
@@ -1025,7 +1005,7 @@ TEE_Result syscall_unmask_cancellation(uint32_t *old_mask)
 
 	m = s->cancel_mask;
 	s->cancel_mask = false;
-	return tee_svc_copy_to_user(s, old_mask, &m, sizeof(m));
+	return tee_svc_copy_to_user(old_mask, &m, sizeof(m));
 }
 
 TEE_Result syscall_mask_cancellation(uint32_t *old_mask)
@@ -1040,7 +1020,7 @@ TEE_Result syscall_mask_cancellation(uint32_t *old_mask)
 
 	m = s->cancel_mask;
 	s->cancel_mask = true;
-	return tee_svc_copy_to_user(s, old_mask, &m, sizeof(m));
+	return tee_svc_copy_to_user(old_mask, &m, sizeof(m));
 }
 
 TEE_Result syscall_wait(unsigned long timeout)
@@ -1104,7 +1084,7 @@ TEE_Result syscall_get_time(unsigned long cat, TEE_Time *mytime)
 	}
 
 	if (res == TEE_SUCCESS || res == TEE_ERROR_OVERFLOW) {
-		res2 = tee_svc_copy_to_user(s, mytime, &t, sizeof(t));
+		res2 = tee_svc_copy_to_user(mytime, &t, sizeof(t));
 		if (res2 != TEE_SUCCESS)
 			res = res2;
 	}
@@ -1122,7 +1102,7 @@ TEE_Result syscall_set_ta_time(const TEE_Time *mytime)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_copy_from_user(s, &t, mytime, sizeof(t));
+	res = tee_svc_copy_from_user(&t, mytime, sizeof(t));
 	if (res != TEE_SUCCESS)
 		return res;
 
