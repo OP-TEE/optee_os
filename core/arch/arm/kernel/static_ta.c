@@ -34,8 +34,7 @@
 #include <trace.h>
 
 /* Maps static TA params */
-static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
-				     struct tee_ta_param *param)
+static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
 {
 	size_t n;
 	void *va;
@@ -46,7 +45,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 	 * of that TA is borrowed and the addresses are already
 	 * virtual.
 	 */
-	if (sess != NULL && sess->calling_sess != NULL)
+	if (tee_ta_get_calling_session())
 		return TEE_SUCCESS;
 
 	for (n = 0; n < 4; n++) {
@@ -76,7 +75,7 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
 	tee_ta_push_current_session(s);
-	res = tee_ta_param_pa2va(s, param);
+	res = tee_ta_param_pa2va(param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
 		goto out;
@@ -104,7 +103,7 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
 	tee_ta_push_current_session(s);
-	res = tee_ta_param_pa2va(s, param);
+	res = tee_ta_param_pa2va(param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
 		goto out;

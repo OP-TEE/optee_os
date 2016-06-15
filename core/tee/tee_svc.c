@@ -587,7 +587,6 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		 * static TA, borrow the mapping of the calling
 		 * during this call.
 		 */
-		called_sess->calling_sess = sess;
 		return TEE_SUCCESS;
 	}
 
@@ -814,7 +813,6 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
 
 function_exit:
-	sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_mm_free(mm_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_kaddr_to_uref(ta_sess, s);
@@ -902,7 +900,6 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	}
 
 function_exit:
-	called_sess->calling_sess = NULL; /* clear eventual borrowed mapping */
 	tee_ta_put_session(called_sess);
 	tee_mm_free(mm_param);
 	if (ret_orig)
