@@ -60,7 +60,16 @@
 #include <libfdt.h>
 #endif
 
-#define PADDR_INVALID		0xffffffff
+/*
+ * In this file we're using unsigned long to represent physical pointers as
+ * they are received in a single register when OP-TEE is initially entered.
+ * This limits 32-bit systems to only use make use of the lower 32 bits
+ * of a physical address for initial parameters.
+ *
+ * 64-bit systems on the other hand can use full 64-bit physical pointers.
+ */
+
+#define PADDR_INVALID		ULONG_MAX
 
 #ifdef CFG_BOOT_SYNC_CPU
 /*
@@ -77,14 +86,14 @@ __weak void main_init_gic(void)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-void init_sec_mon(uint32_t nsec_entry __maybe_unused)
+void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
 	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #else
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void init_sec_mon(uint32_t nsec_entry)
+__weak void init_sec_mon(unsigned long nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
@@ -164,7 +173,7 @@ static size_t get_block_size(void)
 	return 1 << tbl_info.shift;
 }
 
-static void init_runtime(uint32_t pageable_part)
+static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)__init_size;
@@ -300,7 +309,7 @@ static void init_runtime(uint32_t pageable_part)
 
 }
 #else
-static void init_runtime(uint32_t pageable_part __unused)
+static void init_runtime(unsigned long pageable_part __unused)
 {
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -439,7 +448,7 @@ static int add_optee_res_mem_dt_node(void *fdt)
 	return 0;
 }
 
-static void init_fdt(paddr_t phys_fdt)
+static void init_fdt(unsigned long phys_fdt)
 {
 	void *fdt;
 	int ret;
@@ -487,13 +496,13 @@ static void init_fdt(paddr_t phys_fdt)
 	}
 }
 #else
-static void init_fdt(paddr_t phys_fdt __unused)
+static void init_fdt(unsigned long phys_fdt __unused)
 {
 }
 #endif /*!CFG_DT*/
 
-static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
-				uint32_t fdt)
+static void init_primary_helper(unsigned long pageable_part,
+				unsigned long nsec_entry, unsigned long fdt)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -520,7 +529,7 @@ static void init_primary_helper(uint32_t pageable_part, uint32_t nsec_entry,
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 
-static void init_secondary_helper(uint32_t nsec_entry)
+static void init_secondary_helper(unsigned long nsec_entry)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -539,29 +548,29 @@ static void init_secondary_helper(uint32_t nsec_entry)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-uint32_t *generic_boot_init_primary(uint32_t pageable_part,
-				    uint32_t u __unused,
-				    uint32_t fdt)
+uint32_t *generic_boot_init_primary(unsigned long pageable_part,
+				    unsigned long u __unused,
+				    unsigned long fdt)
 {
 	init_primary_helper(pageable_part, PADDR_INVALID, fdt);
 	return thread_vector_table;
 }
 
-uint32_t generic_boot_cpu_on_handler(uint32_t a0 __maybe_unused,
-				     uint32_t a1 __unused)
+unsigned long generic_boot_cpu_on_handler(unsigned long a0 __maybe_unused,
+				     unsigned long a1 __unused)
 {
-	DMSG("cpu %zu: a0 0x%x", get_core_pos(), a0);
+	DMSG("cpu %zu: a0 0x%lx", get_core_pos(), a0);
 	init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
 #else
-void generic_boot_init_primary(uint32_t pageable_part, uint32_t nsec_entry,
-			       uint32_t fdt)
+void generic_boot_init_primary(unsigned long pageable_part,
+			       unsigned long nsec_entry, unsigned long fdt)
 {
 	init_primary_helper(pageable_part, nsec_entry, fdt);
 }
 
-void generic_boot_init_secondary(uint32_t nsec_entry)
+void generic_boot_init_secondary(unsigned long nsec_entry)
 {
 	init_secondary_helper(nsec_entry);
 }

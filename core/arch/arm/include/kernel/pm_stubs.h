@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <compiler.h>
 
-uint32_t pm_panic(uint32_t a0, uint32_t a1) __noreturn;
-uint32_t pm_do_nothing(uint32_t a0, uint32_t a1);
+unsigned long pm_panic(unsigned long a0, unsigned long a1) __noreturn;
+unsigned long pm_do_nothing(unsigned long a0, unsigned long a1);
 
 #endif /* PM_STUBS_H */

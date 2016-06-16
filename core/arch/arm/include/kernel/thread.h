@@ -187,7 +187,8 @@ struct thread_svc_regs {
 #ifndef ASM
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
-typedef uint32_t (*thread_pm_handler_t)(uint32_t a0, uint32_t a1);
+typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
+					     unsigned long a1);
 struct thread_handlers {
 	/*
 	 * stdcall and fastcall are called as regular functions and

@@ -29,12 +29,13 @@
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 
-uint32_t pm_panic(uint32_t a0 __unused, uint32_t a1 __unused)
+unsigned long pm_panic(unsigned long a0 __unused, unsigned long a1 __unused)
 {
 	panic();
 }
 
-uint32_t pm_do_nothing(uint32_t a0 __unused, uint32_t a1 __unused)
+unsigned long pm_do_nothing(unsigned long a0 __unused,
+			    unsigned long a1 __unused)
 {
 	return 0;
 }

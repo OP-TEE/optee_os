@@ -128,7 +128,7 @@ struct plat_nsec_ctx {
 	uint32_t mon_spsr;
 };
 
-void init_sec_mon(uint32_t nsec_entry)
+void init_sec_mon(unsigned long nsec_entry)
 {
 	struct plat_nsec_ctx *plat_ctx = (struct plat_nsec_ctx *)nsec_entry;
 	struct sm_nsec_ctx *nsec_ctx;
