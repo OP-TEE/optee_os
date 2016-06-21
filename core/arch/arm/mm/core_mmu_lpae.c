@@ -166,7 +166,9 @@
 
 
 #define ADDR_SPACE_SIZE		(1ull << 32)
+#ifndef MAX_MMAP_REGIONS
 #define MAX_MMAP_REGIONS	16
+#endif
 #define NUM_L1_ENTRIES		(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
 
 #ifndef MAX_XLAT_TABLES

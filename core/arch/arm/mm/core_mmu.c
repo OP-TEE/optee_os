@@ -54,6 +54,7 @@
 #include <kernel/thread.h>
 #include <arm.h>
 
+#ifndef MAX_MMAP_REGIONS
 #define MAX_MMAP_REGIONS	10
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
 
@@ -62,6 +63,8 @@
  * resetting them when .bss is cleared we're storing them in .data instead,
  * even if they initially are zero.
  */
+
+#endif
 
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_size __data;

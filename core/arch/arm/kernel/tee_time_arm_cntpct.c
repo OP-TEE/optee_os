@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, 2015 Linaro Limited
+ * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +38,7 @@
 #include <mpa.h>
 #include <arm.h>
 
-static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
+TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 {
 	uint64_t cntpct = read_cntpct();
 	uint32_t cntfrq = read_cntfrq();

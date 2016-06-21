@@ -42,8 +42,12 @@
  * kmap works in common mapping starting at virtual address just above the
  * per CPU user mapping. kmap has 32 MiB of virtual address space.
  */
+#ifndef PLATFORM_DEFINE_TEE_MMU_KMAP
 #define TEE_MMU_KMAP_START_VA		(32 * 1024 * 1024)
 #define TEE_MMU_KMAP_END_VA		(64 * 1024 * 1024)
+#else
+#include <platform_config.h>
+#endif
 
 
 #define TEE_MMU_L1_NUM_ENTRIES		(TEE_MMU_L1_SIZE / 4)

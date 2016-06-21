@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2014-2015, Linaro Limited
+ * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,11 +143,15 @@ static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 	if (offs > state->nwdata_len)
 		return TEE_ERROR_SECURITY;
 
+#ifndef RCAR_DYNAMIC_TA_AUTH_BY_HWENGINE
 	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
 			state->nwdata + state->next_offs,
 			offs - state->next_offs);
 	if (res != TEE_SUCCESS)
 		return res;
+#else
+	res = TEE_SUCCESS;
+#endif
 	state->next_offs = offs;
 	return res;
 }
@@ -169,10 +174,12 @@ static TEE_Result copy_to(struct elf_load_state *state,
 		return TEE_ERROR_SECURITY;
 
 	memcpy((uint8_t *)dst + dst_offs, state->nwdata + offs, len);
+#ifndef RCAR_DYNAMIC_TA_AUTH_BY_HWENGINE
 	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
 				      (uint8_t *)dst + dst_offs, len);
 	if (res != TEE_SUCCESS)
 		return res;
+#endif
 	state->next_offs = offs + len;
 	return res;
 }
