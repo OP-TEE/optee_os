@@ -359,6 +359,9 @@ $ cd build
 $ make toolchains
 ```
 
+##### Note :
+If you have been using GCC4.9 and are upgrading to GCC5 via [this commit] (https://github.com/OP-TEE/build/commit/69a8a37bc417d28d62ae57e7ca2a8df4bdec93c8), please make sure that you delete the `toolchains` directory before running `make toolchains` again, or else the toolchain binaries can get mixed up or corrupted, and generate errors during builds.
+
 ---
 ### 5.3. QEMU
 After getting the source and toolchain, just run (from the `build` folder)
@@ -566,8 +569,8 @@ In case you are using the **Latest version** of the ARM Juno board (this is
 the moment, exceeds its pre-defined Juno flash memory reserved location
 (`image.txt` file).
 
-To solve this problem you will need to extend the Juno flash block size 
-reserved location for the `ramdisk.img` and decrease the size for other 
+To solve this problem you will need to extend the Juno flash block size
+reserved location for the `ramdisk.img` and decrease the size for other
 images in the `image.txt` file accordingly and then follow the instructions
 under "5.7.1 Update flash and its layout".
 
