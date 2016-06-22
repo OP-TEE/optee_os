@@ -132,9 +132,8 @@ static void static_ta_destroy(struct tee_ta_ctx *ctx __unused)
 {
 	if (ctx) {
 		struct static_ta_ctx *stc = to_static_ta_ctx(ctx);
-		if (stc) {
+		if (stc)
 			free(stc);
-		}
 	}
 }
 
