@@ -625,29 +625,25 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	}
 }
 
-void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
-		paddr_t pa, uint32_t attr)
+void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
+				  paddr_t pa, uint32_t attr)
 {
-	uint64_t *table = tbl_info->table;
-	uint64_t desc = mattr_to_desc(tbl_info->level, attr);
+	uint64_t *tbl = table;
+	uint64_t desc = mattr_to_desc(level, attr);
 
-	assert(idx < tbl_info->num_entries);
-
-	table[idx] = desc | pa;
+	tbl[idx] = desc | pa;
 }
 
-void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
-		paddr_t *pa, uint32_t *attr)
+void core_mmu_get_entry_primitive(const void *table, size_t level __unused,
+				  size_t idx, paddr_t *pa, uint32_t *attr)
 {
-	uint64_t *table = tbl_info->table;
-
-	assert(idx < tbl_info->num_entries);
+	const uint64_t *tbl = table;
 
 	if (pa)
-		*pa = (table[idx] & ((1ull << 40) - 1)) & ~((1 << 12) - 1);
+		*pa = (tbl[idx] & ((1ull << 40) - 1)) & ~((1 << 12) - 1);
 
 	if (attr)
-		*attr = desc_to_mattr(table[idx]);
+		*attr = desc_to_mattr(tbl[idx]);
 }
 
 void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)

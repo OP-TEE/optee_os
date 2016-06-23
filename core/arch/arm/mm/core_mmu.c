@@ -698,6 +698,22 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 }
 #endif /*CFG_PL310*/
 
+void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
+			paddr_t pa, uint32_t attr)
+{
+	assert(idx < tbl_info->num_entries);
+	core_mmu_set_entry_primitive(tbl_info->table, tbl_info->level,
+				     idx, pa, attr);
+}
+
+void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
+			paddr_t *pa, uint32_t *attr)
+{
+	assert(idx < tbl_info->num_entries);
+	core_mmu_get_entry_primitive(tbl_info->table, tbl_info->level,
+				     idx, pa, attr);
+}
+
 static void set_region(struct core_mmu_table_info *tbl_info,
 		struct tee_mmap_region *region)
 {

@@ -235,6 +235,9 @@ struct core_mmu_table_info {
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info);
 
+void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
+				  paddr_t pa, uint32_t attr);
+
 /*
  * core_mmu_set_entry() - Set entry in translation table
  * @tbl_info:	Translation table properties
@@ -243,7 +246,10 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
  * @attr:	Attributes to assign entry
  */
 void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
-		paddr_t pa, uint32_t attr);
+			paddr_t pa, uint32_t attr);
+
+void core_mmu_get_entry_primitive(const void *table, size_t level, size_t idx,
+				  paddr_t *pa, uint32_t *attr);
 
 /*
  * core_mmu_get_entry() - Get entry from translation table
@@ -253,7 +259,7 @@ void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
  * @attr:	Attributues are returned here if attr is not NULL
  */
 void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
-		paddr_t *pa, uint32_t *attr);
+			paddr_t *pa, uint32_t *attr);
 
 /*
  * core_mmu_va2idx() - Translate from virtual address to table index
