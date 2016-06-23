@@ -327,15 +327,6 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	else
 		panic();
 
-	if (!ti->num_entries) {
-		if (!core_mmu_find_table(base, UINT_MAX, ti))
-			return false;
-		if ((1 << ti->shift) != SMALL_PAGE_SIZE) {
-			DMSG("Unsupported page size in translation table %u",
-			     1 << ti->shift);
-			return false;
-		}
-	}
 
 	tbl_va_size = (1 << ti->shift) * ti->num_entries;
 	if (!core_is_buffer_inside(base, size, ti->va_base, tbl_va_size)) {

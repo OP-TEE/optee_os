@@ -196,6 +196,18 @@ static void init_runtime(unsigned long pageable_part)
 	memset(__bss_start, 0, __bss_end - __bss_start);
 
 	core_mmu_linear_map_end = (vaddr_t)__heap2_end;
+	/*
+	 * This needs to be initialized early to support address lookup
+	 * in MEM_AREA_TEE_RAM
+	 */
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
+				 &tee_pager_tbl_info))
+		panic();
+	if (tee_pager_tbl_info.shift != SMALL_PAGE_SHIFT) {
+		EMSG("Unsupported page size in translation table %u",
+		     BIT(tee_pager_tbl_info.shift));
+		panic();
+	}
 
 	thread_init_boot_thread();
 
