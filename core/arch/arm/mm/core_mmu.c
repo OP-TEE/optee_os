@@ -959,6 +959,10 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		return;
 	}
 #ifdef CFG_WITH_PAGER
+	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
+		TEE_ASSERT(v == pa);
+		return;
+	}
 	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
 	    v <= (CFG_TEE_LOAD_ADDR | CORE_MMU_PGDIR_MASK)) {
 		struct core_mmu_table_info *ti = &tee_pager_tbl_info;
@@ -1029,6 +1033,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 }
 
 #ifdef CFG_WITH_PAGER
+vaddr_t core_mmu_linear_map_end;
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
 	struct core_mmu_table_info *ti = &tee_pager_tbl_info;
@@ -1036,6 +1041,9 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 	unsigned end_idx;
 	uint32_t a;
 	paddr_t p;
+
+	if (pa >= CFG_TEE_LOAD_ADDR && pa < core_mmu_linear_map_end)
+		return (void *)(vaddr_t)pa;
 
 	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
 				      CFG_TEE_RAM_VA_SIZE);

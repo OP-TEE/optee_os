@@ -195,6 +195,8 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	memset(__bss_start, 0, __bss_end - __bss_start);
 
+	core_mmu_linear_map_end = (vaddr_t)__heap2_end;
+
 	thread_init_boot_thread();
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);

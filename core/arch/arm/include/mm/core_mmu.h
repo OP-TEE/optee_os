@@ -75,6 +75,10 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
+#ifdef CFG_WITH_PAGER
+extern vaddr_t core_mmu_linear_map_end;
+#endif
+
 /*
  * Memory area type:
  * MEM_AREA_NOTYPE:   Undefined type. Used as end of table.
