@@ -26,11 +26,14 @@
  */
 
 #include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <trace.h>
 
 void __panic(const char *file __maybe_unused, int line __maybe_unused,
 		const char *func __maybe_unused)
 {
+	uint32_t __unused exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
 	EMSG_RAW("PANIC: %s %s:%d\n", func, file, line);
 	while (1)
 		;

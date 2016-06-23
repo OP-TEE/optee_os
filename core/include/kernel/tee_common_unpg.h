@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <tee_api_types.h>
+#include <kernel/panic.h>
 
 #define TEE_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
@@ -50,8 +51,7 @@ typedef uintptr_t tee_uaddr_t;
 	do { \
 		if (!(expr)) { \
 			DMSG("assertion failed"); \
-			while (1) \
-				; \
+			panic(); \
 		} \
 	} while (0)
 
@@ -62,8 +62,7 @@ typedef uintptr_t tee_uaddr_t;
 		if (!(expr)) { \
 			EMSG("assertion '%s' failed at %s:%d (func '%s')", \
 				#expr, __FILE__, __LINE__, __func__); \
-			while (1) \
-				; \
+			panic(); \
 		} \
 	} while (0)
 

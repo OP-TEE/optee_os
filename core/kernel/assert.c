@@ -27,19 +27,17 @@
 #include <assert.h>
 #include <trace.h>
 #include <compiler.h>
+#include <kernel/panic.h>
 
 /* indirected assert (see TEE_ASSERT()) */
 
-void _assert_log(const char *expr, const char *file, int line)
+void _assert_log(const char *expr __maybe_unused,
+		 const char *file __maybe_unused, int line __maybe_unused)
 {
-	(void)expr;
-	(void)file;
-	(void)line;
 	EMSG("Assertion '%s' failed at %s:%d", expr, file, line);
 }
 
 void __noreturn _assert_break(void)
 {
-	while (1)
-		;
+	panic();
 }
