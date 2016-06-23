@@ -50,6 +50,8 @@ void abort_print_error(struct abort_info *ai);
 
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
 
+bool abort_is_user_exception(struct abort_info *ai);
+
 #endif /*ASM*/
 #endif /*KERNEL_ABORT_H*/
 

@@ -151,13 +151,11 @@ struct tee_pager_stats {
 
 #ifdef CFG_WITH_PAGER
 void tee_pager_get_stats(struct tee_pager_stats *stats);
-void tee_pager_handle_fault(struct abort_info *ai);
+bool tee_pager_handle_fault(struct abort_info *ai);
 #else /*CFG_WITH_PAGER*/
-static inline void __noreturn tee_pager_handle_fault(struct abort_info *ai)
+static inline bool tee_pager_handle_fault(struct abort_info *ai __unused)
 {
-	abort_print_error(ai);
-	EMSG("Unexpected page fault! Trap CPU");
-	panic();
+	return false;
 }
 
 static inline void tee_pager_get_stats(struct tee_pager_stats *stats)

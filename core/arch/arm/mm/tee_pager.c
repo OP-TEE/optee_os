@@ -718,11 +718,12 @@ static void stat_handle_fault(void)
 }
 #endif
 
-void tee_pager_handle_fault(struct abort_info *ai)
+bool tee_pager_handle_fault(struct abort_info *ai)
 {
 	struct tee_pager_area *area;
 	vaddr_t page_va = ai->va & ~SMALL_PAGE_MASK;
 	uint32_t exceptions;
+	bool ret;
 
 #ifdef TEE_PAGER_DEBUG_PRINT
 	abort_print(ai);
@@ -747,9 +748,9 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	/* check if the access is valid */
 	area = tee_pager_find_area(ai->va);
 	if (!area) {
-		abort_print_error(ai);
 		EMSG("Invalid addr 0x%" PRIxVA, ai->va);
-		panic();
+		ret = false;
+		goto out;
 	}
 
 	if (!tee_pager_unhide_page(page_va)) {
@@ -767,6 +768,7 @@ void tee_pager_handle_fault(struct abort_info *ai)
 			 * done here because the fault has already been
 			 * dealt with by another core.
 			 */
+			ret = true;
 			goto out;
 		}
 
@@ -817,9 +819,11 @@ void tee_pager_handle_fault(struct abort_info *ai)
 	}
 
 	tee_pager_hide_pages();
+	ret = true;
 out:
 	cpu_spin_unlock(&pager_lock);
 	thread_unmask_exceptions(exceptions);
+	return ret;
 }
 
 void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)

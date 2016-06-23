@@ -350,7 +350,7 @@ static void handle_user_ta_vfp(void)
 #ifdef CFG_WITH_USER_TA
 #ifdef ARM32
 /* Returns true if the exception originated from user mode */
-static bool is_user_exception(struct abort_info *ai)
+bool abort_is_user_exception(struct abort_info *ai)
 {
 	return (ai->regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_USR;
 }
@@ -358,7 +358,7 @@ static bool is_user_exception(struct abort_info *ai)
 
 #ifdef ARM64
 /* Returns true if the exception originated from user mode */
-static bool is_user_exception(struct abort_info *ai)
+bool abort_is_user_exception(struct abort_info *ai)
 {
 	uint32_t spsr = ai->regs->spsr;
 
@@ -371,7 +371,7 @@ static bool is_user_exception(struct abort_info *ai)
 }
 #endif /*ARM64*/
 #else /*CFG_WITH_USER_TA*/
-static bool is_user_exception(struct abort_info *ai __unused)
+bool abort_is_user_exception(struct abort_info *ai __unused)
 {
 	return false;
 }
@@ -485,12 +485,12 @@ static bool is_vfp_fault(struct abort_info *ai __unused)
 
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
-	if (is_user_exception(ai)) {
+	if (abort_is_user_exception(ai)) {
 		if (is_vfp_fault(ai))
 			return FAULT_TYPE_USER_TA_VFP;
-		print_user_abort(ai);
-		DMSG("[abort] abort in User mode (TA will panic)");
+#ifndef CFG_WITH_PAGER
 		return FAULT_TYPE_USER_TA_PANIC;
+#endif
 	}
 
 	if (is_abort_in_abort_handler(ai)) {
@@ -500,6 +500,8 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 	}
 
 	if (ai->abort_type == ABORT_TYPE_UNDEF) {
+		if (abort_is_user_exception(ai))
+			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
 		EMSG("[abort] undefined abort (trap CPU)");
 		panic();
@@ -507,12 +509,16 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 
 	switch (core_mmu_get_fault_type(ai->fault_descr)) {
 	case CORE_MMU_FAULT_ALIGNMENT:
+		if (abort_is_user_exception(ai))
+			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
 		EMSG("[abort] alignement fault!  (trap CPU)");
 		panic();
 		break;
 
 	case CORE_MMU_FAULT_ACCESS_BIT:
+		if (abort_is_user_exception(ai))
+			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
 		EMSG("[abort] access bit fault!  (trap CPU)");
 		panic();
@@ -544,6 +550,7 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 {
 	struct abort_info ai;
+	bool handled;
 
 	set_abort_info(abort_type, regs, &ai);
 
@@ -551,6 +558,8 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
+		DMSG("[abort] abort in User mode (TA will panic)");
+		print_user_abort(&ai);
 		vfp_disable();
 		handle_user_ta_panic(&ai);
 		break;
@@ -562,8 +571,18 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_PAGEABLE:
 	default:
 		thread_kernel_save_vfp();
-		tee_pager_handle_fault(&ai);
+		handled = tee_pager_handle_fault(&ai);
 		thread_kernel_restore_vfp();
+		if (!handled) {
+			if (!abort_is_user_exception(&ai)) {
+				abort_print_error(&ai);
+				panic();
+			}
+			print_user_abort(&ai);
+			DMSG("[abort] abort in User mode (TA will panic)");
+			vfp_disable();
+			handle_user_ta_panic(&ai);
+		}
 		break;
 	}
 }
