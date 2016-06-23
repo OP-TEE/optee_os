@@ -779,7 +779,7 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 }
 
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
-			struct tee_mmu_info *mmu)
+				struct user_ta_ctx *utc)
 {
 	struct core_mmu_table_info pg_info;
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
@@ -788,14 +788,14 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	vaddr_t base;
 	vaddr_t end;
 
-	if (!mmu->size)
+	if (!utc->mmu->size)
 		return;	/* Nothing to map */
 
 	/* Find the last valid entry */
-	n = mmu->size;
+	n = utc->mmu->size;
 	while (true) {
 		n--;
-		if (mmu->table[n].size)
+		if (utc->mmu->table[n].size)
 			break;
 		if (!n)
 			return;	/* Nothing to map */
@@ -804,31 +804,31 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	base = ROUNDDOWN(mmu->table[0].va, CORE_MMU_PGDIR_SIZE);
-	end = ROUNDUP(mmu->table[n].va + mmu->table[n].size,
+	base = ROUNDDOWN(utc->mmu->table[0].va, CORE_MMU_PGDIR_SIZE);
+	end = ROUNDUP(utc->mmu->table[n].va + utc->mmu->table[n].size,
 		      CORE_MMU_PGDIR_SIZE);
 	pgt_alloc(pgt_cache, (end - base) >> CORE_MMU_PGDIR_SHIFT);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
-	for (n = 0; n < mmu->size; n++) {
-		if (!mmu->table[n].size)
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
 			continue;
-		set_pg_region(dir_info, mmu->table + n, &pgt, &pg_info);
+		set_pg_region(dir_info, utc->mmu->table + n, &pgt, &pg_info);
 	}
 }
 
 #else
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
-			struct tee_mmu_info *mmu)
+				struct user_ta_ctx *utc)
 {
 	unsigned n;
 
-	for (n = 0; n < mmu->size; n++) {
-		if (!mmu->table[n].size)
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
 			continue;
-		set_region(dir_info, mmu->table + n);
+		set_region(dir_info, utc->mmu->table + n);
 	}
 }
 #endif

@@ -559,27 +559,21 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		tbl_info->num_entries = XLAT_TABLE_ENTRIES;
 }
 
-void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
-		struct core_mmu_user_map *map)
+void core_mmu_create_user_map(struct user_ta_ctx *utc,
+			      struct core_mmu_user_map *map)
 {
+	struct core_mmu_table_info dir_info;
+	vaddr_t va_range_base;
+	void *tbl = xlat_tables_ul1[thread_get_id()];
 
 	COMPILE_TIME_ASSERT(sizeof(uint64_t) * XLAT_TABLE_ENTRIES == PGT_SIZE);
 
-	if (mmu) {
-		struct core_mmu_table_info dir_info;
-		vaddr_t va_range_base;
-		void *tbl = xlat_tables_ul1[thread_get_id()];
-
-		core_mmu_get_user_va_range(&va_range_base, NULL);
-		core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
-		memset(tbl, 0, PGT_SIZE);
-		core_mmu_populate_user_map(&dir_info, mmu);
-		map->user_map = (paddr_t)dir_info.table | TABLE_DESC;
-		map->asid = asid & TTBR_ASID_MASK;
-	} else {
-		map->user_map = 0;
-		map->asid = 0;
-	}
+	core_mmu_get_user_va_range(&va_range_base, NULL);
+	core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
+	memset(tbl, 0, PGT_SIZE);
+	core_mmu_populate_user_map(&dir_info, utc);
+	map->user_map = (paddr_t)dir_info.table | TABLE_DESC;
+	map->asid = utc->context & TTBR_ASID_MASK;
 }
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,

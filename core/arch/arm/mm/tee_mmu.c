@@ -604,7 +604,7 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 		struct core_mmu_user_map map;
 		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
-		core_mmu_create_user_map(utc->mmu, utc->context, &map);
+		core_mmu_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
 	}
 	thread_get_tsd()->ctx = ctx;

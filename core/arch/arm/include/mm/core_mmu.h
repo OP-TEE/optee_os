@@ -28,9 +28,10 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
-#include <types_ext.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
+#include <types_ext.h>
 
 #include <assert.h>
 
@@ -190,12 +191,11 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 
 /*
  * core_mmu_create_user_map() - Create user space mapping
- * @mmu:	Generic representation of user space mapping
- * @asid:	Address space identifier for this mapping
+ * @utc:	Pointer to user TA context
  * @map:	MMU configuration to use when activating this VA space
  */
-void core_mmu_create_user_map(struct tee_mmu_info *mmu, uint32_t asid,
-		struct core_mmu_user_map *map);
+void core_mmu_create_user_map(struct user_ta_ctx *utc,
+			      struct core_mmu_user_map *map);
 /*
  * core_mmu_get_user_map() - Reads current MMU configuration for user VA space
  * @map:	MMU configuration for current user VA space.
