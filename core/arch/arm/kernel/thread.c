@@ -794,7 +794,7 @@ static void init_thread_stacks(void)
 		/* Add the area to the pager */
 		tee_pager_add_core_area(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
 					tee_mm_get_bytes(mm) - SMALL_PAGE_SIZE,
-					TEE_PAGER_AREA_RW | TEE_PAGER_AREA_LOCK,
+					TEE_MATTR_PRW | TEE_MATTR_LOCKED,
 					NULL, NULL);
 
 		/* init effective stack */

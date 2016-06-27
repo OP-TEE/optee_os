@@ -34,22 +34,6 @@
 #include <mm/tee_mm.h>
 #include <trace.h>
 
-/* Read-only mapping */
-#define TEE_PAGER_AREA_RO	(1 << 0)
-/*
- * Read/write mapping, pages will only be reused after explicit release of
- * the pages. A partial area can be release for instance when shrinking a
- * stack.
- */
-#define TEE_PAGER_AREA_RW	(1 << 1)
-/* Executable mapping */
-#define TEE_PAGER_AREA_X	(1 << 2)
-/*
- * Once a page is mapped it will not change physical page until explicitly
- * released.
- */
-#define TEE_PAGER_AREA_LOCK	(1 << 3)
-
 /*
  * Reference to translation table used to map the virtual memory range
  * covered by the pager.
@@ -73,16 +57,14 @@ void tee_pager_init(tee_mm_entry_t *mm_alias);
  * @store:	backing store for the memory area
  * @hashes:	hashes of the pages in the backing store
  *
- * Exacly one of TEE_PAGER_AREA_RO and TEE_PAGER_AREA_RW has to be supplied
- * in flags.
+ * TEE_MATTR_PW		- read-write mapping else read-only mapping
+ * TEE_MATTR_PX		- executable mapping
+ * TEE_MATTR_LOCKED	- on demand locked mapping, requires TEE_MATTR_PW,
+ *			  will only be unmapped by a call to
+ *			  tee_pager_release_phys()
  *
- * If TEE_PAGER_AREA_X is supplied the area will be mapped as executable,
- * currently only supported together with TEE_PAGER_AREA_RO.
- *
- * TEE_PAGER_AREA_RO requires store and hashes to be !NULL while
- * TEE_PAGER_AREA_RW requires store and hashes to be NULL, pages will only
- * be reused after explicit release of the pages. A partial area can be
- * release for instance when releasing unused parts of a stack.
+ * !TEE_MATTR_PW requires store and hashes to be !NULL while
+ * TEE_MATTR_PW requires store and hashes to be NULL.
  *
  * Invalid use of flags or non-page aligned base or size or size == 0 will
  * cause a panic.
@@ -107,8 +89,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
  * @flags:	flags for allocation
  *
  * Allocates read-write memory from pager, all flags but the optional
- * TEE_PAGER_AREA_LOCK is ignored. See description of TEE_PAGER_AREA_LOCK
- * above.
+ * TEE_MATTR_LOCKED is ignored.
  *
  * @return NULL on failure or a pointer to the virtual memory on success.
  */

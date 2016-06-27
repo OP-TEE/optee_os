@@ -264,8 +264,8 @@ static struct tee_pager_area *alloc_area(vaddr_t base, size_t size,
 	if (!area)
 		return NULL;
 
-	if (flags & TEE_PAGER_AREA_RW) {
-		if (flags & TEE_PAGER_AREA_LOCK)
+	if (flags & TEE_MATTR_PW) {
+		if (flags & TEE_MATTR_LOCKED)
 			goto out;
 		mm_store = tee_mm_alloc(&tee_mm_sec_ddr, size);
 		if (!mm_store)
@@ -320,9 +320,9 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	TEE_ASSERT(!(base & SMALL_PAGE_MASK) &&
 			size && !(size & SMALL_PAGE_MASK));
 
-	if (flags & TEE_PAGER_AREA_RO)
+	if (!(flags & TEE_MATTR_PW))
 		TEE_ASSERT(store && hashes);
-	else if (flags & TEE_PAGER_AREA_RW)
+	else if (flags & TEE_MATTR_PW)
 		TEE_ASSERT(!store && !hashes);
 	else
 		panic();
@@ -367,18 +367,10 @@ static struct tee_pager_area *tee_pager_find_area(vaddr_t va)
 
 static uint32_t get_area_mattr(struct tee_pager_area *area)
 {
-	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
-			TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
-			TEE_MATTR_SECURE | TEE_MATTR_PR;
-
-	if (!(area->flags & TEE_PAGER_AREA_RO))
-		attr |= TEE_MATTR_PW;
-	if (area->flags & TEE_PAGER_AREA_X)
-		attr |= TEE_MATTR_PX;
-	if (area->flags & TEE_PAGER_AREA_RW)
-		attr |= TEE_MATTR_PW;
-
-	return attr;
+	return TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
+	       TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
+	       TEE_MATTR_SECURE | TEE_MATTR_PR |
+	       (area->flags & TEE_MATTR_PRWX);
 }
 
 static paddr_t get_pmem_pa(struct tee_pager_pmem *pmem)
@@ -429,7 +421,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 	size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
 	const void *stored_page = area->store + idx * SMALL_PAGE_SIZE;
 
-	if (area->flags & TEE_PAGER_AREA_RO) {
+	if (!(area->flags & TEE_MATTR_PW)) {
 		const void *hash = area->u.hashes + idx * TEE_SHA256_HASH_SIZE;
 
 		memcpy(va_alias, stored_page, SMALL_PAGE_SIZE);
@@ -440,7 +432,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 			EMSG("PH 0x%" PRIxVA " failed", page_va);
 			panic();
 		}
-	} else if (area->flags & TEE_PAGER_AREA_LOCK) {
+	} else if (area->flags & TEE_MATTR_LOCKED) {
 		FMSG("Zero init %p %#" PRIxVA, va_alias, page_va);
 		memset(va_alias, 0, SMALL_PAGE_SIZE);
 	} else {
@@ -462,14 +454,14 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 	const uint32_t dirty_bits = TEE_MATTR_PW | TEE_MATTR_UW |
 				    TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 
-	assert(!(pmem->area->flags & TEE_PAGER_AREA_LOCK));
+	assert(!(pmem->area->flags & TEE_MATTR_LOCKED));
 
 	if (attr & dirty_bits) {
 		size_t idx = pmem->pgidx - core_mmu_va2idx(&tee_pager_tbl_info,
 							   pmem->area->base);
 		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
-		assert(pmem->area->flags & TEE_PAGER_AREA_RW);
+		assert(pmem->area->flags & TEE_MATTR_PW);
 		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
 			     stored_page);
 		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
@@ -627,7 +619,7 @@ static struct tee_pager_pmem *tee_pager_get_page(uint32_t next_area_flags)
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 	pmem->pgidx = INVALID_PGIDX;
 	pmem->area = NULL;
-	if (next_area_flags & TEE_PAGER_AREA_LOCK) {
+	if (next_area_flags & TEE_MATTR_LOCKED) {
 		/* Move page to lock list */
 		TEE_ASSERT(tee_pager_npages > 0);
 		tee_pager_npages--;
@@ -672,7 +664,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 		/* Since the page is mapped now it's OK */
 		return true;
 	case CORE_MMU_FAULT_WRITE_PERMISSION:
-		if (!(area->flags & TEE_PAGER_AREA_RW)) {
+		if (!(area->flags & TEE_MATTR_PW)) {
 			/* Attempting to write to an RO page */
 			abort_print_error(ai);
 			panic();
@@ -795,7 +787,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		 * As a future optimization we may invalidate only the
 		 * aliased area if it a PIPT cache else the entire cache.
 		 */
-		if (area->flags & TEE_PAGER_AREA_X) {
+		if (area->flags & TEE_MATTR_PX) {
 			/*
 			 * Doing these operations to LoUIS (Level of
 			 * unification, Inner Shareable) would be enough
@@ -906,7 +898,7 @@ KEEP_PAGER(tee_pager_release_phys);
 void *tee_pager_alloc(size_t size, uint32_t flags)
 {
 	tee_mm_entry_t *mm;
-	uint32_t f = TEE_PAGER_AREA_RW | (flags & TEE_PAGER_AREA_LOCK);
+	uint32_t f = TEE_MATTR_PRW | (flags & TEE_MATTR_LOCKED);
 
 	if (!size)
 		return NULL;

@@ -298,8 +298,7 @@ static void init_runtime(unsigned long pageable_part)
 			   pageable_size);
 	TEE_ASSERT(mm);
 	if (!tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				     TEE_PAGER_AREA_RO | TEE_PAGER_AREA_X,
-				     paged_store, hashes))
+				     TEE_MATTR_PRX, paged_store, hashes))
 		panic();
 	tee_pager_add_pages((vaddr_t)__pageable_start,
 		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
