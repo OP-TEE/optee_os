@@ -641,7 +641,9 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		return TEE_SUCCESS;
 
 	/* Allocate section in secure DDR */
+	mutex_lock(&tee_ta_mutex);
 	*mm = tee_mm_alloc(&tee_mm_sec_ddr, req_mem);
+	mutex_unlock(&tee_ta_mutex);
 	if (*mm == NULL) {
 		DMSG("tee_mm_alloc TEE_ERROR_GENERIC");
 		return TEE_ERROR_GENERIC;
@@ -813,7 +815,11 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
 
 function_exit:
-	tee_mm_free(mm_param);
+	if (mm_param) {
+		mutex_lock(&tee_ta_mutex);
+		tee_mm_free(mm_param);
+		mutex_unlock(&tee_ta_mutex);
+	}
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_kaddr_to_uref(ta_sess, s);
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
@@ -901,7 +907,11 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 function_exit:
 	tee_ta_put_session(called_sess);
-	tee_mm_free(mm_param);
+	if (mm_param) {
+		mutex_lock(&tee_ta_mutex);
+		tee_mm_free(mm_param);
+		mutex_unlock(&tee_ta_mutex);
+	}
 	if (ret_orig)
 		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;

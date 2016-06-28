@@ -52,7 +52,7 @@
 #include <assert.h>
 
 /* This mutex protects the critical section in tee_ta_init_session */
-static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
+struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
 static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
 static size_t tee_ta_single_instance_count;
