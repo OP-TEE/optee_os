@@ -42,6 +42,7 @@
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 #include <kernel/static_ta.h>
+#include <kernel/syslog.h>
 
 #include <assert.h>
 
@@ -61,9 +62,18 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 	*kbuf = '\0';
 
 	/* log as Info/Raw traces */
-	if (tee_svc_copy_from_user(NULL, kbuf, buf, len) == TEE_SUCCESS)
-		TAMSG_RAW("%.*s", (int)len, kbuf);
+	if (tee_svc_copy_from_user(NULL, kbuf, buf, len) != TEE_SUCCESS)
+		goto exit;
 
+#ifdef CFG_LOG_SYSLOG
+	kbuf[len-1] = '\0';
+
+	if (syslog(kbuf))
+		return;
+#endif
+	TAMSG_RAW("%.*s", (int)len, kbuf);
+
+exit:
 	free(kbuf);
 #endif
 }

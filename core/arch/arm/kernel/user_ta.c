@@ -30,6 +30,7 @@
 #include <keep.h>
 #include <types_ext.h>
 #include <stdlib.h>
+#include <kernel/syslog.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
@@ -560,6 +561,13 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	paddr_t phta = 0;
 	uint64_t cta = 0;
 
+	/*
+	 * HACK - FIXME
+	 * Here we expect tee-supplicant to be available, so tell the syslog
+	 * code that it can start forwarding logs to tee-supplicant.
+	 * Where is the best place to do this?
+	 */
+	enable_syslog();
 
 	if (!uuid || !ta || !cookie_ta)
 		return TEE_ERROR_BAD_PARAMETERS;

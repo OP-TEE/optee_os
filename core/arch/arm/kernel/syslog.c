@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,33 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdbool.h>
-#include <trace.h>
-#include <console.h>
-#include <kernel/thread.h>
 #include <kernel/syslog.h>
+#include <kernel/thread.h>
+#include <mm/core_memprot.h>
+#include <stdbool.h>
+#include <string.h>
+#include <tee_api_types.h>
+#include <trace.h>
 
-const char trace_ext_prefix[] = "TEE-CORE";
-int trace_level = TRACE_LEVEL;
+static bool enabled;
 
-void trace_ext_puts(const char *str)
+void enable_syslog(void)
 {
-	const char *p;
-
-#ifdef CFG_LOG_SYSLOG
-	if (syslog(str))
+	if (enabled)
 		return;
-#endif
-
-	console_flush();
-
-	for (p = str; *p; p++)
-		console_putc(*p);
-
-	console_flush();
+	IMSG("Redirecting traces and logs to normal world");
+	enabled = true;
 }
 
-int trace_ext_get_thread_id(void)
+bool syslog(const char *str)
 {
-	return thread_get_id_may_fail();
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	size_t len = strlen(str) + 1;
+	struct optee_msg_param params;
+	paddr_t phpayload = 0;
+	uint64_t cpayload = 0;
+	void *bf;
+
+	if (!enabled)
+		return false;
+
+	thread_rpc_alloc_payload(len, &phpayload, &cpayload);
+	if (!phpayload)
+		return false;
+
+	bf = phys_to_virt(phpayload, MEM_AREA_NSEC_SHM);
+	if (!bf)
+		goto exit;
+
+	memset(&params, 0, sizeof(params));
+	params.attr = OPTEE_MSG_ATTR_TYPE_TMEM_INOUT;
+	params.u.tmem.buf_ptr = phpayload;
+	params.u.tmem.size = len;
+	params.u.tmem.shm_ref = cpayload;
+
+	memcpy(bf, str, len);
+
+	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOG, 1, &params);
+
+exit:
+	thread_rpc_free_payload(cpayload);
+	return (ret == TEE_SUCCESS);
 }

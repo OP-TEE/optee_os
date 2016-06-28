@@ -42,3 +42,5 @@ ifeq ($(CFG_CORE_UNWIND),y)
 srcs-$(CFG_ARM32_core) += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
+
+srcs-$(CFG_LOG_SYSLOG) += syslog.c
