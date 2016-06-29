@@ -105,6 +105,7 @@
 #include <malloc.h>
 #include "bget.c"		/* this is ugly, but this is bget */
 #include <util.h>
+#include <trace.h>
 
 #ifdef __KERNEL__
 /* Compiling for TEE Core */
@@ -877,10 +878,19 @@ void malloc_add_pool(void *buf, size_t len)
 	size_t l;
 	uintptr_t start = (uintptr_t)buf;
 	uintptr_t end = start + len;
+	const size_t min_len = ((sizeof(struct malloc_pool) + (SizeQuant - 1)) &
+					(~(SizeQuant - 1))) +
+				sizeof(struct bhead) * 2;
+
 
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
 	assert(start < end);
+
+	if ((end - start) < min_len) {
+		DMSG("Skipping too small pool");
+		return;
+	}
 
 	malloc_lock();
 	bpool((void *)start, end - start);
