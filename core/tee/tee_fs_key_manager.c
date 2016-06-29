@@ -286,7 +286,7 @@ TEE_Result tee_fs_generate_fek(uint8_t *buf, int buf_size)
 	TEE_Result res;
 
 	if (buf_size != TEE_FS_KM_FEK_SIZE)
-		return TEE_ERROR_SHORT_BUFFER;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = generate_fek(buf, TEE_FS_KM_FEK_SIZE);
 	if (res != TEE_SUCCESS)
