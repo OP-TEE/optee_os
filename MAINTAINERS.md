@@ -10,7 +10,7 @@ for these platforms.
 | Allwinner A80 Board			|`Sun Yangbang <sunny@allwinnertech.com>`|
 | ARM Juno Board			|`Linaro <op-tee@linaro.org>`|
 | FSL ls1021a				|`Sumit Garg <sumit.garg@freescale.com>`|
-| FSL i.MX6 UltraLite EVK Board		|`Peng Fan <b51431@freescale.com>`|
+| FSL i.MX6 UltraLite EVK Board		|`Peng Fan <peng.fan@nxp.com>`|
 | ARM Foundation FVP			|`Linaro <op-tee@linaro.org>`|
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
