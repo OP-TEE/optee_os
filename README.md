@@ -294,12 +294,60 @@ $ /system/bin/tee-helloworld
 
 ---
 ### 4.6 Freescale MX6UL EVK
-Build:
+
+Get U-Boot source:
+https://github.com/MrVan/uboot/commit/4f016adae573aaadd7bf6a37f8c58a882b391ae6
+
+Build U-Boot:
+```
+    make ARCH=arm mx6ul_14x14_evk_optee_defconfig
+    make ARCH=arm
+    Burn u-boot.imx to offset 0x400 of SD card
+```
+
+Get Kernel source: https://github.com/linaro-swg/linux/tree/optee
+
+Patch kernel:
+```c
+    diff --git a/arch/arm/boot/dts/imx6ul-14x14-evk.dts b/arch/arm/boot/dts/imx6ul-14x14-evk.dts
+    index 6aaa5ec..2ac9c80 100644
+    --- a/arch/arm/boot/dts/imx6ul-14x14-evk.dts
+    +++ b/arch/arm/boot/dts/imx6ul-14x14-evk.dts
+    @@ -23,6 +23,13 @@
+		reg = <0x80000000 0x20000000>;
+	 };
+
+    +	firmware {
+    +		optee {
+    +			compatible = "linaro,optee-tz";
+    +			method = "smc";
+    +		};
+    +	};
+    +
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+```
+
+Compile the Kernel:
+
+```
+make ARCH=arm imx_v6_v7_defconfig
+make menuconfig
+select the two entries
+	CONFIG_TEE=y
+	CONFIG_OPTEE
+make ARCH=arm
+```
+Copy zImage and imx6ul_14x14_evk.dtb to SD card.
+
+OPTEE OS Build:
 ```
     PLATFORM_FLAVOR=mx6ulevk make PLATFORM=imx
     ${CROSS_COMPILE}-objcopy -O binary out/arm-plat-imx/core/tee.elf optee.bin
     copy optee.bin to the first partition of SD card which is used for boot.
 ```
+
 Run using U-Boot:
 ```
     run loadfdt;
@@ -311,6 +359,8 @@ Run using U-Boot:
 
 Note:
     CAAM is not implemented now, this will be added later.
+
+More steps: http://mrvan.github.io/optee-imx6ul
 
 ---
 ## 5. repo manifests
