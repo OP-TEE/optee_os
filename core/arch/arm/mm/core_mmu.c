@@ -257,7 +257,7 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 	DMSG("%s %d 0x%08" PRIxPA " size 0x%08zx",
 	     mem->name, mem->type, mem->addr, mem->size);
 	while (true) {
-		if (n >= (num_elems - 1)) {
+		if (n >= num_elems) {
 			EMSG("Out of entries (%zu) in memory_map", num_elems);
 			panic();
 		}
