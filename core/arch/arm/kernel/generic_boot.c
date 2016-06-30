@@ -201,7 +201,7 @@ static void init_runtime(unsigned long pageable_part)
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
-	EMSG("hash_size %zu", hash_size);
+	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	TEE_ASSERT(hashes);
 	memcpy(hashes, __tmp_hashes_start, hash_size);
 
