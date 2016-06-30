@@ -79,6 +79,6 @@ TEE_Result init_teecore(void)
 	/* call pre-define initcall routines */
 	call_initcalls();
 
-	IMSG("teecore inits done");
+	IMSG("Initialized");
 	return TEE_SUCCESS;
 }

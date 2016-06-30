@@ -74,7 +74,7 @@ static TEE_Result get_prop_endorsement(struct tee_ta_session *sess,
 
 	*bin_len = ta_endorsement_seed_size;
 
-	return tee_svc_copy_to_user(sess, (void *)buf, bin, sizeof(bin));
+	return tee_svc_copy_to_user((void *)buf, bin, sizeof(bin));
 }
 
 static const struct tee_props vendor_propset_array_tee[] = {

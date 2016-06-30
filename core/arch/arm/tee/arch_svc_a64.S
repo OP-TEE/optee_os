@@ -92,12 +92,11 @@ FUNC tee_svc_do_call , :
 	/*
 	 * Find location on stack where to copy the Aarch32 arguments
 	 * and do the copy.
-	 * tee_svc_copy_from_user(NULL, sp, x5, nargs_on_stack * 4)
+	 * tee_svc_copy_from_user(sp, x5, nargs_on_stack * 4)
 	 */
-	mov	x0, #0	/* Let tee_svc_copy_from_user() lookup the session */
-	mov	x1, sp
-	mov	x2, x5
-	add	x3, xzr, x6, lsl #2
+	mov	x0, sp
+	mov	x1, x5
+	add	x2, xzr, x6, lsl #2
 	bl	tee_svc_copy_from_user
 	/* If copy failed return the error */
 	cmp	x0, #0

@@ -34,8 +34,7 @@
 #include <trace.h>
 
 /* Maps static TA params */
-static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
-				     struct tee_ta_param *param)
+static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
 {
 	size_t n;
 	void *va;
@@ -46,7 +45,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_session *sess,
 	 * of that TA is borrowed and the addresses are already
 	 * virtual.
 	 */
-	if (sess != NULL && sess->calling_sess != NULL)
+	if (tee_ta_get_calling_session())
 		return TEE_SUCCESS;
 
 	for (n = 0; n < 4; n++) {
@@ -75,11 +74,11 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 	TEE_Result res;
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
-	tee_ta_set_current_session(s);
-	res = tee_ta_param_pa2va(s, param);
+	tee_ta_push_current_session(s);
+	res = tee_ta_param_pa2va(param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
-		return res;
+		goto out;
 	}
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
@@ -92,7 +91,7 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 					param->params, &s->user_ctx);
 
 out:
-	tee_ta_set_current_session(NULL);
+	tee_ta_pop_current_session();
 	return res;
 }
 
@@ -103,17 +102,18 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	TEE_Result res;
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
-	tee_ta_set_current_session(s);
-	res = tee_ta_param_pa2va(s, param);
+	tee_ta_push_current_session(s);
+	res = tee_ta_param_pa2va(param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
-		return res;
+		goto out;
 	}
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
 	res = stc->static_ta->invoke_command_entry_point(s->user_ctx, cmd,
 					param->types, param->params);
-	tee_ta_set_current_session(NULL);
+out:
+	tee_ta_pop_current_session();
 	return res;
 }
 
@@ -121,11 +121,11 @@ static void static_ta_enter_close_session(struct tee_ta_session *s)
 {
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
 
-	tee_ta_set_current_session(s);
+	tee_ta_push_current_session(s);
 	stc->static_ta->close_session_entry_point(s->user_ctx);
 	if (s->ctx->ref_count == 1)
 		stc->static_ta->destroy_entry_point();
-	tee_ta_set_current_session(NULL);
+	tee_ta_pop_current_session();
 }
 
 static void static_ta_destroy(struct tee_ta_ctx *ctx __unused)
