@@ -47,6 +47,7 @@
 #include <util.h>
 #include <trace.h>
 #include <assert.h>
+#include <keep.h>
 
 #ifdef ARM32
 #define STACK_TMP_SIZE		1024
@@ -93,52 +94,31 @@ static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 #define STACK_CANARY_SIZE	0
 #endif
 
-#define DECLARE_STACK(name, num_stacks, stack_size) \
-	static uint32_t name[num_stacks][ \
-		ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
+#define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
+linkage uint32_t name[num_stacks] \
+		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
 		sizeof(uint32_t)] \
 		__attribute__((section(".nozi.stack"), \
 			       aligned(STACK_ALIGNMENT)))
 
-#define GET_STACK(stack) \
-	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
+#define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)
 
-DECLARE_STACK(stack_tmp,	CFG_TEE_CORE_NB_CORE,	STACK_TMP_SIZE);
-DECLARE_STACK(stack_abt,	CFG_TEE_CORE_NB_CORE,	STACK_ABT_SIZE);
+#define GET_STACK(stack) \
+	((vaddr_t)(stack) + STACK_SIZE(stack))
+
+DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, /* global */);
+DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
-DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
+DECLARE_STACK(stack_sm, CFG_TEE_CORE_NB_CORE, SM_STACK_SIZE, static);
 #endif
 #ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread,	CFG_NUM_THREADS,	STACK_THREAD_SIZE);
+DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
-const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
-	GET_STACK(stack_tmp[0]),
-#if CFG_TEE_CORE_NB_CORE > 1
-	GET_STACK(stack_tmp[1]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 2
-	GET_STACK(stack_tmp[2]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 3
-	GET_STACK(stack_tmp[3]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 4
-	GET_STACK(stack_tmp[4]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 5
-	GET_STACK(stack_tmp[5]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 6
-	GET_STACK(stack_tmp[6]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 7
-	GET_STACK(stack_tmp[7]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 8
-#error "Top of tmp stacks aren't defined for more than 8 CPUS"
-#endif
-};
+const uint32_t stack_tmp_stride = STACK_SIZE(stack_tmp[0]);
+
+KEEP_PAGER(stack_tmp);
+KEEP_PAGER(stack_tmp_stride);
 
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
@@ -768,7 +748,6 @@ static void init_handlers(const struct thread_handlers *handlers)
 	thread_system_off_handler_ptr = handlers->system_off;
 	thread_system_reset_handler_ptr = handlers->system_reset;
 }
-
 
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)
