@@ -60,9 +60,12 @@ UNWIND(	.cantunwind)
 	
 	mov	r4, r1
 	bl	get_core_pos
-	lsl	r0, #2
-	ldr	r1, =stack_tmp_top
-	ldr	sp, [r1, r0]
+	add	r0, r0, #1
+	ldr	r2, =stack_tmp_stride
+	ldr	r1, [r2]
+	mul	r2, r0, r1
+	ldr	r1, =stack_tmp
+	ldr	sp, [r1, r2]
 
     	/* NSACR configuration */
     	read_nsacr  r1

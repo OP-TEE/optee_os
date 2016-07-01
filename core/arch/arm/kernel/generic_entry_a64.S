@@ -33,6 +33,30 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 
+	/*
+	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
+	 * SP_EL0 is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride
+	 * SP_EL1 is assigned thread_core_local[cpu_id]
+	 */
+	.macro set_sp
+		bl	get_core_pos
+		cmp	x0, #CFG_TEE_CORE_NB_CORE
+		/* Unsupported CPU, park it before it breaks something */
+		bge	unhandled_cpu
+		add	x0, x0, #1
+		adr	x2, stack_tmp_stride
+		ldr	w1, [x2]
+		mul	x2, x0, x1
+		adr	x1, stack_tmp
+		add	x1, x1, x2
+		msr	spsel, #0
+		mov	sp, x1
+		bl	thread_get_core_local
+		msr	spsel, #1
+		mov	sp, x0
+		msr	spsel, #0
+	.endm
+
 .section .text.boot
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
@@ -72,24 +96,8 @@ copy_init:
 	b.lt	copy_init
 #endif
 
-	/*
-	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp_top[cpu_id]
-	 * SP_EL1 is assigned thread_core_local[cpu_id]
-	 */
-	bl	get_core_pos
-	cmp	x0, #CFG_TEE_CORE_NB_CORE
-	/* Unsupported CPU, park it before it breaks something */
-	bge	unhandled_cpu
-	lsl	x2, x0, #3
-	adr	x1, stack_tmp_top
-	ldr	x1, [x1, x2]
-	msr	spsel, #0
-	mov	sp, x1
-	bl	thread_get_core_local
-	msr	spsel, #1
-	mov	sp, x0
-	msr	spsel, #0
+	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
+	set_sp
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
@@ -164,24 +172,8 @@ FUNC cpu_on_handler , :
 	msr	sctlr_el1, x0
 	isb
 
-	/*
-	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp_top[cpu_id]
-	 * SP_EL1 is assigned thread_core_local[cpu_id]
-	 */
-	bl	get_core_pos
-	cmp	x0, #CFG_TEE_CORE_NB_CORE
-	/* Unsupported CPU, park it before it breaks something */
-	bge	unhandled_cpu
-	lsl	x2, x0, #3
-	adr	x1, stack_tmp_top
-	ldr	x1, [x1, x2]
-	msr	spsel, #0
-	mov	sp, x1
-	bl	thread_get_core_local
-	msr	spsel, #1
-	mov	sp, x0
-	msr	spsel, #0
+	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
+	set_sp
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT

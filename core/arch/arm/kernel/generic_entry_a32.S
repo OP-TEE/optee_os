@@ -198,6 +198,23 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC reset
 
+	/*
+	 * Setup sp to point to the top of the tmp stack for the current CPU:
+	 * sp is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride
+	 */
+	.macro set_sp
+		bl	get_core_pos
+		cmp	r0, #CFG_TEE_CORE_NB_CORE
+		/* Unsupported CPU, park it before it breaks something */
+		bge	unhandled_cpu
+		add	r0, r0, #1
+		ldr	r2, =stack_tmp_stride
+		ldr	r1, [r2]
+		mul	r2, r0, r1
+		ldr	r1, =stack_tmp
+		add	sp, r1, r2
+	.endm
+
 LOCAL_FUNC reset_primary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
@@ -233,13 +250,7 @@ copy_init:
 	bgt	copy_init
 #endif
 
-	bl	get_core_pos
-	cmp	r0, #CFG_TEE_CORE_NB_CORE
-	/* Unsupported CPU, park it before it breaks something */
-	bge	unhandled_cpu
-	lsl	r0, #2
-	ldr	r1, =stack_tmp_top
-	ldr	sp, [r1, r0]
+	set_sp
 
 	/* complete ARM secure MP common configuration */
 	bl	plat_cpu_reset_late
@@ -387,13 +398,7 @@ UNWIND(	.cantunwind)
 	write_vbar r0
 
 	mov	r4, lr
-	bl	get_core_pos
-	cmp	r0, #CFG_TEE_CORE_NB_CORE
-	/* Unsupported CPU, park it before it breaks something */
-	bge	unhandled_cpu
-	lsl	r0, #2
-	ldr	r1, =stack_tmp_top
-	ldr	sp, [r1, r0]
+	set_sp
 
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
@@ -415,13 +420,7 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	bl	wait_primary
 
-	bl	get_core_pos
-	cmp	r0, #CFG_TEE_CORE_NB_CORE
-	/* Unsupported CPU, park it before it breaks something */
-	bge	unhandled_cpu
-	lsl	r0, #2
-	ldr	r1, =stack_tmp_top
-	ldr	sp, [r1, r0]
+	set_sp
 
 	bl	plat_cpu_reset_late
 

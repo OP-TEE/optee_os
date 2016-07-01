@@ -28,7 +28,6 @@ link-script-cppflags := -DASM=1 \
 entries-unpaged += thread_init_vbar
 entries-unpaged += sm_init
 entries-unpaged += core_init_mmu_regs
-entries-unpaged += stack_tmp_top
 entries-unpaged += sem_cpu_sync
 entries-unpaged += generic_boot_get_handlers
 
