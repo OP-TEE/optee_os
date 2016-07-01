@@ -112,32 +112,12 @@ DECLARE_STACK(stack_sm,		CFG_TEE_CORE_NB_CORE,	SM_STACK_SIZE);
 DECLARE_STACK(stack_thread,	CFG_NUM_THREADS,	STACK_THREAD_SIZE);
 #endif
 
-const vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
-	GET_STACK(stack_tmp[0]),
-#if CFG_TEE_CORE_NB_CORE > 1
-	GET_STACK(stack_tmp[1]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 2
-	GET_STACK(stack_tmp[2]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 3
-	GET_STACK(stack_tmp[3]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 4
-	GET_STACK(stack_tmp[4]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 5
-	GET_STACK(stack_tmp[5]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 6
-	GET_STACK(stack_tmp[6]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 7
-	GET_STACK(stack_tmp[7]),
-#endif
-#if CFG_TEE_CORE_NB_CORE > 8
-#error "Top of tmp stacks aren't defined for more than 8 CPUS"
-#endif
+vaddr_t stack_tmp_top[CFG_TEE_CORE_NB_CORE] = {
+	GET_STACK(stack_tmp[0])
+	/*
+	 * Other entries are set in init_stack_tmp_top() using stack_tmp_top[0]
+	 * as a temporary stack
+	 */
 };
 
 thread_smc_handler_t thread_std_smc_handler_ptr;
@@ -153,6 +133,15 @@ thread_pm_handler_t thread_system_reset_handler_ptr;
 
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 static bool thread_prealloc_rpc_cache;
+
+/* Called from assembly with SP == stack_tmp_top[0] */
+void init_stack_tmp_top(void)
+{
+	int i;
+
+	for (i = 1; i < CFG_TEE_CORE_NB_CORE; i++)
+		stack_tmp_top[i] = GET_STACK(stack_tmp[i]);
+}
 
 static void init_canaries(void)
 {
@@ -749,7 +738,6 @@ static void init_handlers(const struct thread_handlers *handlers)
 	thread_system_off_handler_ptr = handlers->system_off;
 	thread_system_reset_handler_ptr = handlers->system_reset;
 }
-
 
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)

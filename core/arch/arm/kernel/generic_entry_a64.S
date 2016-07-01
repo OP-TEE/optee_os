@@ -72,6 +72,13 @@ copy_init:
 	b.lt	copy_init
 #endif
 
+	/* Initialize stack_tmp_top[i] for i > 0 */
+	msr	spsel, #0
+	adr	x0, stack_tmp_top
+	ldr	x0, [x0]
+	mov	sp, x0
+	bl	init_stack_tmp_top
+
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
 	 * SP_EL0 is assigned stack_tmp_top[cpu_id]
