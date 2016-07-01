@@ -57,6 +57,11 @@ UNWIND(	.cantunwind)
 
 	ldr	   r0, =_start
 	write_vbar r0
+
+	/* Initialize stack_tmp_top[i] for i > 0 */
+	ldr	r0, =stack_tmp_top
+	ldr	sp, [r0]
+	bl	init_stack_tmp_top
 	
 	mov	r4, r1
 	bl	get_core_pos

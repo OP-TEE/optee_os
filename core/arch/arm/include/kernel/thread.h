@@ -185,6 +185,11 @@ struct thread_svc_regs {
 #endif /*ASM*/
 
 #ifndef ASM
+/* Called from assembly with SP == stack_tmp_top[0] */
+void init_stack_tmp_top(void);
+#endif
+
+#ifndef ASM
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,

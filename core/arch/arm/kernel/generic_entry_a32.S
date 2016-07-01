@@ -233,6 +233,11 @@ copy_init:
 	bgt	copy_init
 #endif
 
+	/* Initialize stack_tmp_top[i] for i > 0 */
+	ldr	r0, =stack_tmp_top
+	ldr	sp, [r0]
+	bl	init_stack_tmp_top
+
 	bl	get_core_pos
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
 	/* Unsupported CPU, park it before it breaks something */
