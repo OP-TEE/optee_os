@@ -2,6 +2,7 @@ ifeq ($(CFG_PL061),y)
 $(call force,CFG_GPIO,y,required by CFG_PL061)
 endif
 
+srcs-y += common.c
 srcs-$(CFG_CDNS_UART) += cdns_uart.c
 srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_GIC) += gic.c
