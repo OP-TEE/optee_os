@@ -33,5 +33,5 @@
 void set_register(vaddr_t reg, uint32_t shifted_val, uint32_t mask)
 {
 	write32((read32(reg) & ~mask) | shifted_val, reg);
-} 
+}
 
