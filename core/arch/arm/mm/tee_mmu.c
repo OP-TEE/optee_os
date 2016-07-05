@@ -680,7 +680,7 @@ void teecore_init_pub_ram(void)
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
-	TEE_Result res;
+	TEE_Result res __maybe_unused;
 	paddr_t pa;
 	uint32_t attr;
 
