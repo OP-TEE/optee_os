@@ -33,7 +33,7 @@ void _assert_break(void) __noreturn;
 void _assert_log(const char *expr, const char *file, int line);
 
 #ifdef NDEBUG
-#define assert(expr)
+#define assert(expr) do { } while (0)
 #else
 #define assert(expr) \
 	do { \
