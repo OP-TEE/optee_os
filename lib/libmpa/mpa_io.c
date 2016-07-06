@@ -101,8 +101,8 @@ static int __mpa_digit_value(int c)
  *  Returns the maximum number of words needed to binary represent a number
  *  consisting of "digits" digits and each digits is in base "base".
  */
-static
-mpa_word_t __maybe_unused __mpa_digitstr_to_binary_wsize_base_16(int digits)
+static mpa_word_t __maybe_unused
+__mpa_digitstr_to_binary_wsize_base_16(int digits)
 {
 		return (digits + 7) >> 3;
 }
