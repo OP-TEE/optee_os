@@ -76,6 +76,7 @@ platforms have different sub-maintainers, please refer to the file
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey)|`PLATFORM=hikey`| Yes |
 | [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173)|`PLATFORM=mediatek-mt8173`| No |
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
+| [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
@@ -393,6 +394,7 @@ $ repo sync
 | Target | Latest | Stable |
 |--------|--------|--------|
 | QEMU | `default.xml` | `default_stable.xml` |
+| QEMUv8 | `qemu_v8.xml` | `Not available` |
 | FVP | `fvp.xml` | `fvp_stable.xml` |
 | HiKey | `hikey.xml` | `hikey_stable.xml` |
 | HiKey Debian (experimental) | `hikey_debian.xml` | Not available |
