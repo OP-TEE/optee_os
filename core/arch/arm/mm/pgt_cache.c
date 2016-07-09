@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <mm/pgt_cache.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
@@ -33,7 +34,6 @@
 #include <stdlib.h>
 #include <util.h>
 #include <trace.h>
-#include <assert.h>
 
 /*
  * With pager enabled we allocate page table from the pager.
@@ -166,7 +166,7 @@ static struct pgt *pop_from_free_list(void)
 static void push_to_free_list(struct pgt *p)
 {
 	SLIST_INSERT_HEAD(&p->parent->pgt_cache, p, link);
-	assert(p->parent->num_used > 0);
+	panic_unless(p->parent->num_used > 0);
 	p->parent->num_used--;
 	if (!p->parent->num_used) {
 		vaddr_t va = (vaddr_t)p->tbl & ~SMALL_PAGE_MASK;

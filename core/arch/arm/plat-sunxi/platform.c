@@ -46,7 +46,6 @@
 
 #include <trace.h>
 #include <io.h>
-#include <assert.h>
 #include <util.h>
 #include <platform.h>
 #include <console.h>
@@ -61,7 +60,7 @@ static int platform_smp_init(void)
 {
 	vaddr_t base = (vaddr_t)phys_to_virt(PRCM_BASE, MEM_AREA_IO_SEC);
 
-	TEE_ASSERT(base);
+	panic_unless(base);
 	write32((uint32_t)sunxi_secondary_entry,
 		base + PRCM_CPU_SOFT_ENTRY_REG);
 
@@ -79,7 +78,7 @@ void platform_init(void)
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
 	cci400_base = (vaddr_t)phys_to_virt(CCI400_BASE, MEM_AREA_IO_SEC);
-	TEE_ASSERT(gicc_base && gicd_base && cci400_base);
+	panic_unless(gicc_base && gicd_base && cci400_base);
 
 	/*
 	 * GIC configuration is initialized in Secure bootloader,

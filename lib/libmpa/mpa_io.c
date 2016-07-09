@@ -24,8 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "mpa.h"
-#include "assert.h"
+
+#include <assert.h>
+#include <mpa.h>
 
 /*
  * Big #ifdef to get rid of string conversion routines
@@ -318,7 +319,12 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 
 	/* + 1 since we have one character in 'c' */
 	dlen = (int)(endp - digitstr) + 1;
-	assert(dlen <= MPA_STR_MAX_SIZE);
+	if (dlen > MPA_STR_MAX_SIZE) {
+		EMSG("data len (%d) > max size (%d)", dlen, MPA_STR_MAX_SIZE);
+		retval = -1;
+		goto cleanup;
+	}
+
 	/* convert to a buffer of bytes */
 	bufidx = 0;
 	while (__mpa_is_char_in_base(16, c)) {
@@ -331,9 +337,14 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 		retval = -1;
 		goto cleanup;
 	}
-
-	assert((__mpa_digitstr_to_binary_wsize_base_16(bufidx) <=
-		__mpanum_alloced(dest)));
+	if (__mpa_digitstr_to_binary_wsize_base_16(bufidx) >
+						__mpanum_alloced(dest)) {
+		EMSG("binary buffer (%d) > alloced buffer (%d)",
+				__mpa_digitstr_to_binary_wsize_base_16(bufidx),
+				__mpanum_alloced(dest));
+		retval = -1;
+		goto cleanup;
+	}
 
 	retval = bufidx;
 	w = dest->d;
@@ -342,7 +353,7 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 	*w = 0;
 	i = BYTES_PER_WORD;
 	dest->size = 1;
-	bufidx--;		/* dec to get inside buf range */
+	bufidx--;		/* dec to get insid);e buf range */
 	while (bufidx > 1) {
 		*w ^= ((((mpa_word_t)buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
 			((mpa_word_t)(BYTES_PER_WORD - i) << 3));
@@ -386,7 +397,7 @@ char *mpa_get_str(char *str, int mode, const mpanum n)
 {
 	char *s = str;
 
-	assert(str != 0);
+	assert(str);
 
 	/* insert a minus sign */
 	if (__mpanum_sign(n) == MPA_NEG_SIGN) {

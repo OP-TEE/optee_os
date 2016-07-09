@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <types_ext.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -49,7 +50,6 @@
 #include <trace.h>
 #include <utee_types.h>
 #include <util.h>
-#include <assert.h>
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
@@ -67,7 +67,7 @@ static void lock_single_instance(void)
 			condvar_wait(&tee_ta_cv, &tee_ta_mutex);
 
 		tee_ta_single_instance_thread = thread_get_id();
-		assert(tee_ta_single_instance_count == 0);
+		panic_unless(!tee_ta_single_instance_count);
 	}
 
 	tee_ta_single_instance_count++;
@@ -76,8 +76,8 @@ static void lock_single_instance(void)
 static void unlock_single_instance(void)
 {
 	/* Requires tee_ta_mutex to be held */
-	assert(tee_ta_single_instance_thread == thread_get_id());
-	assert(tee_ta_single_instance_count > 0);
+	panic_unless(tee_ta_single_instance_thread == thread_get_id());
+	panic_unless(tee_ta_single_instance_count > 0);
 
 	tee_ta_single_instance_count--;
 	if (tee_ta_single_instance_count == 0) {
@@ -138,7 +138,7 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 {
 	mutex_lock(&tee_ta_mutex);
 
-	assert(ctx->busy);
+	panic_unless(ctx->busy);
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
 
@@ -150,7 +150,7 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 
 static void dec_session_ref_count(struct tee_ta_session *s)
 {
-	assert(s->ref_count > 0);
+	panic_unless(s->ref_count > 0);
 	s->ref_count--;
 	if (s->ref_count == 1)
 		condvar_signal(&s->refc_cv);
@@ -200,7 +200,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 		if (!exclusive)
 			break;
 
-		assert(s->lock_thread != thread_get_id());
+		panic_unless(s->lock_thread != thread_get_id());
 
 		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
 			condvar_wait(&s->lock_cv, &tee_ta_mutex);
@@ -224,9 +224,9 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 {
 	mutex_lock(&tee_ta_mutex);
 
-	assert(s->ref_count >= 1);
-	assert(s->lock_thread == thread_get_id());
-	assert(!s->unlink);
+	panic_unless(s->ref_count >= 1);
+	panic_unless(s->lock_thread == thread_get_id());
+	panic_unless(!s->unlink);
 
 	s->unlink = true;
 	condvar_broadcast(&s->lock_cv);
@@ -349,7 +349,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	mutex_lock(&tee_ta_mutex);
 
-	TEE_ASSERT(ctx->ref_count > 0);
+	panic_unless(ctx->ref_count > 0);
 	ctx->ref_count--;
 	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
 		DMSG("   ... Destroy TA ctx");
@@ -621,7 +621,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	assert(((ctx && is_user_ta_ctx(ctx) ?
+	panic_unless(((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
 		!core_mmu_user_mapping_is_active());
 }

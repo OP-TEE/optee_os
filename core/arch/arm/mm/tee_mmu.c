@@ -25,27 +25,26 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <assert.h>
-#include <stdlib.h>
-#include <types_ext.h>
 
 #include <arm.h>
-#include <util.h>
+#include <kernel/panic.h>
 #include <kernel/tee_common.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
-#include <user_ta_header.h>
 #include <mm/tee_mm.h>
-#include "tee_api_types.h"
-#include <kernel/tee_misc.h>
-#include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
-#include <kernel/tz_ssvce.h>
-#include <kernel/panic.h>
+#include <stdlib.h>
+#include <trace.h>
+#include <types_ext.h>
+#include <user_ta_header.h>
+#include <util.h>
+#include "tee_api_types.h"
 
 #ifdef CFG_PL310
 #include <kernel/tee_l2cc_mutex.h>
@@ -171,10 +170,10 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	while (n && !mmu->table[n].size)
 		n--;
 	va = mmu->table[n].va + mmu->table[n].size;
-	assert(va);
+	panic_unless(va);
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-	assert(va_range_base == mmu->ta_private_vmem_start);
+	panic_unless(va_range_base == mmu->ta_private_vmem_start);
 
 	/*
 	 * Assign parameters in secure memory.
@@ -293,10 +292,10 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 
 	if (!tbl[n].size) {
 		/* We're continuing the va space from previous entry. */
-		assert(tbl[n - 1].size);
+		panic_unless(tbl[n - 1].size);
 
 		/* This is the first segment */
-		assert(offs < granule);
+		panic_unless(offs < granule);
 		va = tbl[n - 1].va + tbl[n - 1].size;
 		end_va = ROUNDUP(offs + size, granule) + va;
 		pa = base_pa;
@@ -619,7 +618,7 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
 	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
-	TEE_ASSERT(utc->mmu && utc->mmu->table &&
+	panic_unless(utc->mmu && utc->mmu->table &&
 		   utc->mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
 
 	return utc->mmu->table[1].va;
@@ -636,16 +635,16 @@ void teecore_init_ta_ram(void)
 	 * shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
 	ps = virt_to_phys((void *)s);
-	TEE_ASSERT(ps);
+	panic_unless(ps);
 	pe = virt_to_phys((void *)(e - 1)) + 1;
-	TEE_ASSERT(pe);
+	panic_unless(pe);
 
-	TEE_ASSERT((ps & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
-	TEE_ASSERT((pe & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	panic_unless((ps & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	panic_unless((pe & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	TEE_ASSERT(tee_pbuf_is_sec(ps, pe - ps) == true);
+	panic_unless(tee_pbuf_is_sec(ps, pe - ps));
 
-	TEE_ASSERT(tee_mm_is_empty(&tee_mm_sec_ddr));
+	panic_unless(tee_mm_is_empty(&tee_mm_sec_ddr));
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
@@ -661,15 +660,14 @@ void teecore_init_pub_ram(void)
 	/* get virtual addr/size of NSec shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
 
-	TEE_ASSERT(s < e);
-	TEE_ASSERT((s & SMALL_PAGE_MASK) == 0);
-	TEE_ASSERT((e & SMALL_PAGE_MASK) == 0);
+	panic_unless(s < e);
+	panic_unless((s & SMALL_PAGE_MASK) == 0);
+	panic_unless((e & SMALL_PAGE_MASK) == 0);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	TEE_ASSERT(tee_vbuf_is_non_sec(s, e - s) == true);
+	panic_unless(tee_vbuf_is_non_sec(s, e - s));
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */
-	TEE_ASSERT((e - s) > 0);
 	tee_l2cc_store_mutex_boot_pa(s);
 	s += sizeof(uint32_t);		/* size of a pl310 mutex */
 #endif
@@ -680,12 +678,9 @@ void teecore_init_pub_ram(void)
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
-	TEE_Result res;
 	paddr_t pa;
 	uint32_t attr;
 
-	res = tee_mmu_user_va2pa_attr(utc, va, &pa, &attr);
-	assert(res == TEE_SUCCESS);
-
+	panic_unless(tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) == TEE_SUCCESS);
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }

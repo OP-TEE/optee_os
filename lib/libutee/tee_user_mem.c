@@ -24,12 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <assert.h>
 #include <inttypes.h>
 #include <string.h>
 #include <compiler.h>
 #include <utee_defines.h>
 #include <sys/queue.h>
-#include <assert.h>
 #include <tee_api.h>
 #include <util.h>
 #include "tee_user_mem.h"
@@ -236,10 +237,13 @@ static int check_elem(struct user_mem_elem *ap)
 	struct user_mem_elem *e;
 
 	/* Validate queue links */
-	if (ap == NULL)
+	if (!ap)
 		return 0;
 
-	assert(((uintptr_t) ap & 0x3) == 0);
+	if ((uintptr_t)ap & 0x3) {
+		EMSG("corrupted allocations");
+		TEE_Panic(0);
+	}
 
 	e = TAILQ_NEXT(ap, link);
 	if (e != NULL && TAILQ_PREV(e, user_mem_head, link) != ap) {
@@ -256,7 +260,7 @@ static int check_elem(struct user_mem_elem *ap)
 	return check_elem_end(ap);
 }
 
-/* Trap PC element are corrupted. */
+/* In debug mode, trap PC element are corrupted. */
 static int is_mem_coherent(void)
 {
 	struct user_mem_elem *e;
@@ -438,7 +442,10 @@ void tee_user_mem_free(void *buffer)
 	PB(TRACE_DEBUG, "Free: ", (void *)e);
 
 #if (CFG_TEE_CORE_USER_MEM_DEBUG == 1)
-	assert(check_elem(e));
+	if (!check_elem(e)) {
+		EMSG("corrupted allocation");
+		TEE_Panic(0);
+	}
 #endif
 
 	TAILQ_REMOVE(&user_mem_head, e, link);

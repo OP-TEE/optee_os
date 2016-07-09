@@ -25,9 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <kernel/panic.h>
+#include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tee_api_types.h>
-#include <trace.h>
-#include <kernel/tee_common_unpg.h>
 #include <tee/se/reader.h>
 #include <tee/se/session.h>
 #include <tee/se/iso7816.h>
@@ -36,10 +39,7 @@
 #include <tee/se/channel.h>
 #include <tee/se/util.h>
 #include <tee/se/reader/interface.h>
-
-#include <malloc.h>
-#include <stdlib.h>
-#include <string.h>
+#include <trace.h>
 
 #include "session_priv.h"
 #include "aid_priv.h"
@@ -50,7 +50,7 @@ TEE_Result iso7816_exchange_apdu(struct tee_se_reader_proxy *proxy,
 {
 	TEE_Result ret;
 
-	TEE_ASSERT(cmd != NULL && resp != NULL);
+	assert(cmd && resp);
 	ret = tee_se_reader_transmit(proxy,
 			cmd->base.data_buf, cmd->base.length,
 			resp->base.data_buf, &resp->base.length);
@@ -89,16 +89,16 @@ static TEE_Result internal_select(struct tee_se_channel *c,
 	int channel_id;
 	uint8_t cla_channel;
 
-	TEE_ASSERT(c != NULL);
+	assert(c);
 
 	s = tee_se_channel_get_session(c);
 	channel_id = tee_se_channel_get_id(c);
 
-	TEE_ASSERT(channel_id < MAX_LOGICAL_CHANNEL);
+	panic_unless(channel_id < MAX_LOGICAL_CHANNEL);
 
 	cla_channel = iso7816_get_cla_channel(channel_id);
 	if (select_ops == FIRST_OR_ONLY_OCCURRENCE) {
-		TEE_ASSERT(aid != NULL);
+		assert(aid);
 		cmd = alloc_cmd_apdu(ISO7816_CLA | cla_channel,
 				SELECT_CMD, SELECT_BY_AID,
 				select_ops, aid->length,
@@ -152,7 +152,7 @@ static TEE_Result internal_manage_channel(struct tee_se_session *s,
 	uint8_t channel_flag =
 		(open_flag == OPEN_CHANNEL) ? OPEN_NEXT_AVAILABLE : *channel_id;
 
-	TEE_ASSERT(s != NULL);
+	assert(s);
 
 	cmd = alloc_cmd_apdu(ISO7816_CLA, MANAGE_CHANNEL_CMD, open_flag,
 			channel_flag, tx_buf_len, rx_buf_len, NULL);

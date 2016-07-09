@@ -39,6 +39,7 @@
 #include <kernel/pm_stubs.h>
 #include <trace.h>
 #include <kernel/misc.h>
+#include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
@@ -94,7 +95,7 @@ void main_init_gic(void)
 					  MEM_AREA_IO_SEC);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
-	TEE_ASSERT(gicc_base && gicd_base);
+	panic_unless(gicc_base && gicd_base);
 
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno) || \
     PLATFORM_FLAVOR_IS(qemu_armv8a)

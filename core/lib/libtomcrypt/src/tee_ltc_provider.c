@@ -25,9 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
-#include <kernel/tee_common_unpg.h>
 
 #include <tomcrypt.h>
 #include <mpalib.h>
@@ -38,6 +39,7 @@
 #include <tee_api_types.h>
 #include <string_ext.h>
 #include <util.h>
+#include <kernel/panic.h>
 #include "tomcrypt_mpa.h"
 
 #if defined(CFG_WITH_VFP)
@@ -151,7 +153,7 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 	int res;
 	int prng_index;
 
-	TEE_ASSERT(prng != NULL);
+	assert(prng);
 
 	prng_index = find_prng(prng->name);
 	if (prng_index == -1)
@@ -480,7 +482,6 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #if defined(CFG_WITH_PAGER)
 #include <mm/tee_pager.h>
 #include <util.h>
-#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 
 static uint32_t *_ltc_mempool_u32;
@@ -546,7 +547,7 @@ static void pool_postactions(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
-	TEE_ASSERT(pool->last_offset == 0);
+	panic_unless(!pool->last_offset);
 	release_unused_mpa_scratch_memory();
 }
 
@@ -582,7 +583,7 @@ static void get_pool(struct mpa_scratch_mem_sync *sync)
 			condvar_wait(&sync->cv, &sync->mu);
 
 		sync->owner = thread_get_id();
-		assert(sync->count == 0);
+		panic_unless(!sync->count);
 	}
 
 	sync->count++;
@@ -595,8 +596,8 @@ static void put_pool(struct mpa_scratch_mem_sync *sync)
 {
 	mutex_lock(&sync->mu);
 
-	assert(sync->owner == thread_get_id());
-	assert(sync->count > 0);
+	panic_unless(sync->owner == thread_get_id());
+	panic_unless(sync->count > 0);
 
 	sync->count--;
 	if (!sync->count) {

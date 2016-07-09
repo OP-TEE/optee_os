@@ -29,11 +29,11 @@
 
 #include <types_ext.h>
 #include <tee_api_types.h>
+#include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <mm/tee_mm.h>
 #include <util.h>
-#include <assert.h>
 
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
@@ -74,7 +74,7 @@ static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 
 static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	assert(is_user_ta_ctx(ctx));
+	panic_unless(is_user_ta_ctx(ctx));
 	return container_of(ctx, struct user_ta_ctx, ctx);
 }
 

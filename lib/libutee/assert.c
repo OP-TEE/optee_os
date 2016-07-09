@@ -24,16 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <assert.h>
 #include <compiler.h>
+#include <trace.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 #include <utee_syscalls.h>
 
 void _assert_log(const char *expr __maybe_unused,
-		 const char *file __maybe_unused, int line __maybe_unused)
+		 const char *file __maybe_unused,
+		 const int line __maybe_unused,
+		 const char *func __maybe_unused)
 {
-	EMSG("Assertion '%s' failed at %s:%d", expr, file, line);
+	EMSG_RAW("assertion '%s' failed at %s:%d in %s()",
+				expr, file, line, func);
 }
 
 void __noreturn _assert_break(void)

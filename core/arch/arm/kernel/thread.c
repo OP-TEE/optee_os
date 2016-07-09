@@ -25,6 +25,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <platform_config.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -46,7 +47,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <util.h>
 #include <trace.h>
-#include <assert.h>
 #include <keep.h>
 
 #ifdef ARM32
@@ -85,8 +85,8 @@ static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 #ifdef ARM64
 #define STACK_CANARY_SIZE	(8 * sizeof(uint32_t))
 #endif
-#define START_CANARY_VALUE	0xdededede
-#define END_CANARY_VALUE	0xabababab
+#define START_CANARY		0xdededede
+#define END_CANARY		0xabababab
 #define GET_START_CANARY(name, stack_num) name[stack_num][0]
 #define GET_END_CANARY(name, stack_num) \
 	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
@@ -143,8 +143,8 @@ static void init_canaries(void)
 		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
 		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
 									\
-		*start_canary = START_CANARY_VALUE;			\
-		*end_canary = END_CANARY_VALUE;				\
+		*start_canary = START_CANARY;				\
+		*end_canary = END_CANARY;				\
 		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
 			#name, n, (void *)(end_canary - 1));		\
 		DMSG("watch *%p\n", (void *)end_canary);		\
@@ -167,24 +167,24 @@ void thread_check_canaries(void)
 	size_t n;
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		assert(GET_START_CANARY(stack_tmp, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_tmp, n) == END_CANARY_VALUE);
+		panic_unless(GET_START_CANARY(stack_tmp, n) == START_CANARY);
+		panic_unless(GET_END_CANARY(stack_tmp, n) == END_CANARY);
 	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		assert(GET_START_CANARY(stack_abt, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_abt, n) == END_CANARY_VALUE);
+		panic_unless(GET_START_CANARY(stack_abt, n) == START_CANARY);
+		panic_unless(GET_END_CANARY(stack_abt, n) == END_CANARY);
 	}
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
-		assert(GET_START_CANARY(stack_sm, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_sm, n) == END_CANARY_VALUE);
+		panic_unless(GET_START_CANARY(stack_sm, n) == START_CANARY);
+		panic_unless(GET_END_CANARY(stack_sm, n) == END_CANARY);
 	}
 #endif
 #ifndef CFG_WITH_PAGER
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		assert(GET_START_CANARY(stack_thread, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_thread, n) == END_CANARY_VALUE);
+		panic_unless(GET_START_CANARY(stack_thread, n) == START_CANARY);
+		panic_unless(GET_END_CANARY(stack_thread, n) == END_CANARY);
 	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -259,9 +259,9 @@ struct thread_core_local *thread_get_core_local(void)
 	 * we otherwise may be rescheduled to a different core in the
 	 * middle of this function.
 	 */
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
 
-	assert(cpu_id < CFG_TEE_CORE_NB_CORE);
+	panic_unless(cpu_id < CFG_TEE_CORE_NB_CORE);
 	return &thread_core_local[cpu_id];
 }
 
@@ -289,7 +289,7 @@ static void thread_lazy_restore_ns_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(!thr->vfp_state.sec_lazy_saved && !thr->vfp_state.sec_saved);
+	panic_unless(!thr->vfp_state.sec_lazy_saved && !thr->vfp_state.sec_saved);
 
 	if (tuv && tuv->lazy_saved && !tuv->saved) {
 		vfp_lazy_save_state_final(&tuv->vfp);
@@ -388,9 +388,9 @@ void thread_clr_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	assert(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
-	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	assert(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
+	panic_unless(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
+	panic_unless(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
+	panic_unless(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
 	l->curr_thread = -1;
 }
@@ -401,7 +401,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
-	assert(l->curr_thread == -1);
+	panic_unless(l->curr_thread == -1);
 
 	lock_global();
 
@@ -472,7 +472,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	struct thread_core_local *l = thread_get_core_local();
 	uint32_t rv = 0;
 
-	assert(l->curr_thread == -1);
+	panic_unless(l->curr_thread == -1);
 
 	lock_global();
 
@@ -513,7 +513,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 	thread_fast_smc_handler_ptr(args);
 	/* Fast handlers must not unmask any exceptions */
-	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
+	panic_unless(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)
@@ -572,7 +572,7 @@ vaddr_t thread_get_saved_thread_sp(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
+	panic_unless(ct != -1);
 	return threads[ct].kern_sp;
 }
 #endif /*ARM64*/
@@ -590,8 +590,8 @@ void thread_state_free(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
-	assert(TAILQ_EMPTY(&threads[ct].mutexes));
+	panic_unless(ct != -1);
+	panic_unless(TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
@@ -600,7 +600,7 @@ void thread_state_free(void)
 
 	lock_global();
 
-	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_unless(threads[ct].state == THREAD_STATE_ACTIVE);
 	threads[ct].state = THREAD_STATE_FREE;
 	threads[ct].flags = 0;
 	l->curr_thread = -1;
@@ -647,7 +647,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
+	panic_unless(ct != -1);
 
 	thread_check_canaries();
 
@@ -659,7 +659,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	lock_global();
 
-	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_unless(threads[ct].state == THREAD_STATE_ACTIVE);
 	threads[ct].flags |= flags;
 	threads[ct].regs.cpsr = cpsr;
 	threads[ct].regs.pc = pc;
@@ -732,7 +732,7 @@ int thread_get_id(void)
 {
 	int ct = thread_get_id_may_fail();
 
-	assert((ct >= 0) && (ct < CFG_NUM_THREADS));
+	panic_unless((ct >= 0) && (ct < CFG_NUM_THREADS));
 	return ct;
 }
 
@@ -764,7 +764,7 @@ static void init_thread_stacks(void)
 		/* Find vmem for thread stack and its protection gap */
 		mm = tee_mm_alloc(&tee_mm_vcore,
 				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
-		TEE_ASSERT(mm);
+		panic_unless(mm);
 
 		/* Claim eventual physical page */
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
@@ -837,7 +837,7 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	panic_unless(l->curr_thread != -1);
 	return &threads[l->curr_thread].regs;
 }
 
@@ -849,7 +849,7 @@ void thread_set_irq(bool enable)
 
 	l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	panic_unless(l->curr_thread != -1);
 
 	if (enable) {
 		threads[l->curr_thread].flags |= THREAD_FLAGS_IRQ_ENABLE;
@@ -871,7 +871,7 @@ void thread_restore_irq(void)
 
 	l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	panic_unless(l->curr_thread != -1);
 
 	if (threads[l->curr_thread].flags & THREAD_FLAGS_IRQ_ENABLE)
 		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
@@ -884,7 +884,7 @@ uint32_t thread_kernel_enable_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(!vfp_is_enabled());
+	panic_unless(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns);
@@ -914,11 +914,11 @@ void thread_kernel_disable_vfp(uint32_t state)
 {
 	uint32_t exceptions;
 
-	assert(vfp_is_enabled());
+	panic_unless(vfp_is_enabled());
 
 	vfp_disable();
 	exceptions = thread_get_exceptions();
-	assert(exceptions & THREAD_EXCP_IRQ);
+	panic_unless(exceptions & THREAD_EXCP_IRQ);
 	exceptions &= ~THREAD_EXCP_IRQ;
 	exceptions |= state & THREAD_EXCP_IRQ;
 	thread_set_exceptions(exceptions);
@@ -928,7 +928,7 @@ void thread_kernel_save_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
 	if (vfp_is_enabled()) {
 		vfp_lazy_save_state_init(&thr->vfp_state.sec);
 		thr->vfp_state.sec_lazy_saved = true;
@@ -939,8 +939,8 @@ void thread_kernel_restore_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
-	assert(!vfp_is_enabled());
+	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_unless(!vfp_is_enabled());
 	if (thr->vfp_state.sec_lazy_saved) {
 		vfp_lazy_restore_state(&thr->vfp_state.sec,
 				       thr->vfp_state.sec_saved);
@@ -954,8 +954,8 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
-	assert(!vfp_is_enabled());
+	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_unless(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns);
@@ -981,11 +981,11 @@ void thread_user_save_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
 	if (!vfp_is_enabled())
 		return;
 
-	assert(tuv && !tuv->lazy_saved && !tuv->saved);
+	panic_unless(tuv && !tuv->lazy_saved && !tuv->saved);
 	vfp_lazy_save_state_init(&tuv->vfp);
 	tuv->lazy_saved = true;
 }
@@ -1058,8 +1058,8 @@ void thread_add_mutex(struct mutex *m)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == -1);
+	panic_unless(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_unless(m->owner_id == -1);
 	m->owner_id = ct;
 	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
 }
@@ -1069,8 +1069,8 @@ void thread_rem_mutex(struct mutex *m)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == ct);
+	panic_unless(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_unless(m->owner_id == ct);
 	m->owner_id = -1;
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
@@ -1141,7 +1141,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
 	size_t n;
 
-	TEE_ASSERT(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
+	panic_unless(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;

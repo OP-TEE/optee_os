@@ -27,8 +27,6 @@
 #ifndef TEE_ARCH_SVC_H
 #define TEE_ARCH_SVC_H
 
-#include <kernel/tee_common_unpg.h>
-
 struct thread_svc_regs;
 
 void tee_svc_handler(struct thread_svc_regs *regs);

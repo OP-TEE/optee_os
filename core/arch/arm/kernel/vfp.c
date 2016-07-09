@@ -26,9 +26,9 @@
  */
 
 #include <arm.h>
+#include <kernel/panic.h>
 #include <kernel/vfp.h>
 #include "vfp_private.h"
-#include <assert.h>
 
 #ifdef ARM32
 bool vfp_is_enabled(void)
@@ -59,7 +59,7 @@ void vfp_lazy_save_state_final(struct vfp_state *state)
 	if (state->fpexc & FPEXC_EN) {
 		uint32_t fpexc = vfp_read_fpexc();
 
-		assert(!(fpexc & FPEXC_EN));
+		panic_unless(!(fpexc & FPEXC_EN));
 		vfp_write_fpexc(fpexc | FPEXC_EN);
 		state->fpscr = vfp_read_fpscr();
 		vfp_save_extension_regs(state->reg);
@@ -120,7 +120,7 @@ void vfp_lazy_save_state_final(struct vfp_state *state)
 {
 	if ((CPACR_EL1_FPEN(state->cpacr_el1) & CPACR_EL1_FPEN_EL0EL1) ||
 	    state->force_save) {
-		assert(!vfp_is_enabled());
+		panic_unless(!vfp_is_enabled());
 		vfp_enable();
 		state->fpcr = read_fpcr();
 		state->fpsr = read_fpsr();

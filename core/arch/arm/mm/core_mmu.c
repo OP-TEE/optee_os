@@ -34,7 +34,6 @@
 #include <platform_config.h>
 
 #include <stdlib.h>
-#include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
 #include <mm/core_mmu.h>
@@ -341,7 +340,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 */
 
 	map = memory_map;
-	assert(map->type == MEM_AREA_TEE_RAM);
+	panic_unless(map->type == MEM_AREA_TEE_RAM);
 	map->va = map->pa;
 #ifdef CFG_WITH_PAGER
 	map->region_size = SMALL_PAGE_SIZE,
@@ -701,7 +700,7 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t pa, uint32_t attr)
 {
-	assert(idx < tbl_info->num_entries);
+	panic_unless(idx < tbl_info->num_entries);
 	core_mmu_set_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -709,7 +708,7 @@ void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t *pa, uint32_t *attr)
 {
-	assert(idx < tbl_info->num_entries);
+	panic_unless(idx < tbl_info->num_entries);
 	core_mmu_get_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -722,9 +721,9 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	paddr_t pa;
 
 	/* va, len and pa should be block aligned */
-	assert(!core_mmu_get_block_offset(tbl_info, region->va));
-	assert(!core_mmu_get_block_offset(tbl_info, region->size));
-	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
+	panic_unless(!core_mmu_get_block_offset(tbl_info, region->va));
+	panic_unless(!core_mmu_get_block_offset(tbl_info, region->size));
+	panic_unless(!core_mmu_get_block_offset(tbl_info, region->pa));
 
 	idx = core_mmu_va2idx(tbl_info, region->va);
 	end = core_mmu_va2idx(tbl_info, region->va + region->size);
@@ -754,10 +753,10 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			assert(*pgt); /* We should have alloced enough */
+			panic_unless(*pgt); /* We should have alloced enough */
 
 			/* Virtual addresses must grow */
-			assert(r.va > pg_info->va_base);
+			panic_unless(r.va > pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->table = (*pgt)->tbl;
@@ -946,21 +945,21 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
 	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
 		if (!core_mmu_user_mapping_is_active()) {
-			TEE_ASSERT(pa == 0);
+			panic_unless(!pa);
 			return;
 		}
 
 		res = tee_mmu_user_va2pa_helper(
 			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
 		if (res == TEE_SUCCESS)
-			TEE_ASSERT(pa == p);
+			panic_unless(pa == p);
 		else
-			TEE_ASSERT(pa == 0);
+			panic_unless(!pa);
 		return;
 	}
 #ifdef CFG_WITH_PAGER
 	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
-		TEE_ASSERT(v == pa);
+		panic_unless(v == pa);
 		return;
 	}
 	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
@@ -979,16 +978,16 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			paddr_t mask = ((1 << ti->shift) - 1);
 
 			p |= v & mask;
-			TEE_ASSERT(pa == p);
+			panic_unless(pa == p);
 		} else
-			TEE_ASSERT(pa == 0);
+			panic_unless(!pa);
 		return;
 	}
 #endif
 	if (!core_va2pa_helper(va, &p))
-		TEE_ASSERT(pa == p);
+		panic_unless(pa == p);
 	else
-		TEE_ASSERT(pa == 0);
+		panic_unless(!pa);
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
@@ -1009,7 +1008,7 @@ paddr_t virt_to_phys(void *va)
 #if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	TEE_ASSERT(!va || virt_to_phys(va) == pa);
+	panic_unless(!va || virt_to_phys(va) == pa);
 }
 #else
 static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
