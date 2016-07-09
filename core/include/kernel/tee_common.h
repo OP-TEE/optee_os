@@ -27,7 +27,6 @@
 #ifndef TEE_COMMON_H
 #define TEE_COMMON_H
 
-#include <kernel/tee_common_unpg.h>
 #include <stdlib.h>
 
 #ifdef MEASURE_TIME

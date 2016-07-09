@@ -37,6 +37,7 @@
 #include <arm.h>
 #include <kernel/generic_boot.h>
 #include <kernel/pm_stubs.h>
+#include <assert.h>
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/tee_time.h>

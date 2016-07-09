@@ -29,7 +29,6 @@
 #include <drivers/serial8250_uart.h>
 #include <console.h>
 #include <io.h>
-#include <assert.h>
 #include <compiler.h>
 
 /* uart register defines */

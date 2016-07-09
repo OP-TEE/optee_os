@@ -39,7 +39,7 @@ void crypt_argchk(const char *v, const char *s, int d);
 #elif ARGTYPE == 1
 
 /* fatal type of error */
-#define LTC_ARGCHK(x) assert((x))
+#define LTC_ARGCHK(x) assert((x))		// FIXME: TEE_ASSERT() or assert() ?
 #define LTC_ARGCHKVD(x) LTC_ARGCHK(x)
 
 #elif ARGTYPE == 2

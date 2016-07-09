@@ -24,10 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/tz_proc.h>
 #include <kernel/thread.h>
-#include <kernel/tee_common_unpg.h>
 #include <trace.h>
 
 void mutex_init(struct mutex *m)

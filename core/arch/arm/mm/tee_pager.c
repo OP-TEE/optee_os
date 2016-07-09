@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
@@ -223,10 +224,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 
 static void generate_ae_key(void)
 {
-	TEE_Result res;
-
-	res = rng_generate(pager_ae_key, sizeof(pager_ae_key));
-	TEE_ASSERT(res == TEE_SUCCESS);
+	TEE_ASSERT(TEE_SUCCESS == rng_generate(pager_ae_key, sizeof(pager_ae_key)));
 }
 
 void tee_pager_init(tee_mm_entry_t *mm_alias)
@@ -387,7 +385,7 @@ static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 {
 	struct pager_aes_gcm_iv iv;
 
-	assert((rwp->iv + 1) > rwp->iv);
+	TEE_ASSERT((rwp->iv + 1) > rwp->iv);
 	rwp->iv++;
 	/*
 	 * IV is constructed as recommended in section "8.2.1 Deterministic
@@ -444,14 +442,14 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 	const uint32_t dirty_bits = TEE_MATTR_PW | TEE_MATTR_UW |
 				    TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 
-	assert(!(pmem->area->flags & TEE_MATTR_LOCKED));
+	TEE_ASSERT(!(pmem->area->flags & TEE_MATTR_LOCKED));
 
 	if (attr & dirty_bits) {
 		size_t idx = pmem->pgidx - core_mmu_va2idx(ti,
 							   pmem->area->base);
 		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
-		assert(pmem->area->flags & TEE_MATTR_PW);
+		TEE_ASSERT(pmem->area->flags & TEE_MATTR_PW);
 		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
 			     stored_page);
 		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
@@ -483,7 +481,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			uint32_t a = get_area_mattr(pmem->area);
 
 			/* page is hidden, show and move to back */
-			assert(pa == get_pmem_pa(pmem));
+			TEE_ASSERT(pa == get_pmem_pa(pmem));
 			/*
 			 * If it's not a dirty block, then it should be
 			 * read only.
@@ -534,7 +532,7 @@ static void tee_pager_hide_pages(void)
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
-		assert(pa == get_pmem_pa(pmem));
+		TEE_ASSERT(pa == get_pmem_pa(pmem));
 		if (attr & (TEE_MATTR_PW | TEE_MATTR_UW)){
 			a = TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 			FMSG("Hide %#" PRIxVA,
@@ -570,7 +568,7 @@ static bool tee_pager_release_one_phys(vaddr_t page_va)
 		if (pmem->pgidx != pgidx)
 			continue;
 
-		assert(pa == get_pmem_pa(pmem));
+		TEE_ASSERT(pa == get_pmem_pa(pmem));
 		core_mmu_set_entry(ti, pgidx, 0, 0);
 		TAILQ_REMOVE(&tee_pager_lock_pmem_head, pmem, link);
 		pmem->area = NULL;
@@ -848,7 +846,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			 */
 			pmem->area = tee_pager_find_area(va);
 			pmem->pgidx = pgidx;
-			assert(pa == get_pmem_pa(pmem));
+			TEE_ASSERT(pa == get_pmem_pa(pmem));
 			core_mmu_set_entry(ti, pgidx, pa,
 					   get_area_mattr(pmem->area));
 		}

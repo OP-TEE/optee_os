@@ -41,35 +41,27 @@ static const struct gpio_ops *ops;
 
 enum gpio_dir gpio_get_direction(unsigned int gpio_pin)
 {
-	assert(ops);
-	assert(ops->get_direction != 0);
-
+	assert(ops && ops->get_direction);
 	return ops->get_direction(gpio_pin);
 }
 
 void gpio_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
 {
-	assert(ops);
-	assert(ops->set_direction != 0);
-	assert((direction == GPIO_DIR_OUT) || (direction == GPIO_DIR_IN));
-
+	assert(ops && ops->set_direction);
+	TEE_ASSERT((direction == GPIO_DIR_OUT) || (direction == GPIO_DIR_IN));
 	ops->set_direction(gpio_pin, direction);
 }
 
 enum gpio_level gpio_get_value(unsigned int gpio_pin)
 {
-	assert(ops);
-	assert(ops->get_value != 0);
-
+	assert(ops && ops->get_value);
 	return ops->get_value(gpio_pin);
 }
 
 void gpio_set_value(unsigned int gpio_pin, enum gpio_level value)
 {
-	assert(ops);
-	assert(ops->set_value != 0);
-	assert((value == GPIO_LEVEL_LOW) || (value == GPIO_LEVEL_HIGH));
-
+	assert(ops && ops->set_value);
+	TEE_ASSERT((value == GPIO_LEVEL_LOW) || (value == GPIO_LEVEL_HIGH));
 	ops->set_value(gpio_pin, value);
 }
 
@@ -79,11 +71,12 @@ void gpio_set_value(unsigned int gpio_pin, enum gpio_level value)
  */
 void gpio_init(const struct gpio_ops *ops_ptr)
 {
-	assert(ops_ptr != 0  &&
-		(ops_ptr->get_direction != 0) &&
-		(ops_ptr->set_direction != 0) &&
-		(ops_ptr->get_value != 0) &&
-		(ops_ptr->set_value != 0));
+	assert(!ops &&
+		ops_ptr &&
+		ops_ptr->get_direction &&
+		ops_ptr->set_direction &&
+		ops_ptr->get_value &&
+		ops_ptr->set_value);
 
 	ops = ops_ptr;
 }

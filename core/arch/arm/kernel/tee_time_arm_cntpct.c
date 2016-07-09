@@ -32,7 +32,6 @@
 #include <mm/core_mmu.h>
 #include <utee_defines.h>
 
-#include <assert.h>
 #include <stdint.h>
 #include <mpa.h>
 #include <arm.h>

@@ -88,7 +88,7 @@ __weak void main_init_gic(void)
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
-	assert(nsec_entry == PADDR_INVALID);
+	TEE_ASSERT(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #else
@@ -97,7 +97,7 @@ __weak void init_sec_mon(unsigned long nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
-	assert(nsec_entry != PADDR_INVALID);
+	TEE_ASSERT(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
@@ -216,7 +216,7 @@ static void init_runtime(unsigned long pageable_part)
 
 	hashes = malloc(hash_size);
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
-	TEE_ASSERT(hashes);
+	assert(hashes);
 	memcpy(hashes, __tmp_hashes_start, hash_size);
 
 	/*
@@ -226,7 +226,7 @@ static void init_runtime(unsigned long pageable_part)
 	teecore_init_ta_ram();
 
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
-	TEE_ASSERT(mm);
+	assert(mm);
 	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
 	/* Copy init part into pageable area */
 	memcpy(paged_store, __init_start, init_size);
@@ -292,7 +292,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore,
 		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
-	TEE_ASSERT(mm);
+	assert(mm);
 	tee_pager_init(mm);
 
 	/*
@@ -310,7 +310,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
-	TEE_ASSERT(mm);
+	assert(mm);
 	if (!tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
 				     TEE_MATTR_PRX, paged_store, hashes))
 		panic();

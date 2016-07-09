@@ -33,8 +33,8 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
 #include <mm/core_mmu.h>
@@ -341,7 +341,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 */
 
 	map = memory_map;
-	assert(map->type == MEM_AREA_TEE_RAM);
+	TEE_ASSERT(map->type == MEM_AREA_TEE_RAM);
 	map->va = map->pa;
 #ifdef CFG_WITH_PAGER
 	map->region_size = SMALL_PAGE_SIZE,
@@ -701,7 +701,7 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t pa, uint32_t attr)
 {
-	assert(idx < tbl_info->num_entries);
+	TEE_ASSERT(idx < tbl_info->num_entries);
 	core_mmu_set_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -709,7 +709,7 @@ void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t *pa, uint32_t *attr)
 {
-	assert(idx < tbl_info->num_entries);
+	TEE_ASSERT(idx < tbl_info->num_entries);
 	core_mmu_get_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -722,9 +722,9 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	paddr_t pa;
 
 	/* va, len and pa should be block aligned */
-	assert(!core_mmu_get_block_offset(tbl_info, region->va));
-	assert(!core_mmu_get_block_offset(tbl_info, region->size));
-	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
+	TEE_ASSERT(!core_mmu_get_block_offset(tbl_info, region->va));
+	TEE_ASSERT(!core_mmu_get_block_offset(tbl_info, region->size));
+	TEE_ASSERT(!core_mmu_get_block_offset(tbl_info, region->pa));
 
 	idx = core_mmu_va2idx(tbl_info, region->va);
 	end = core_mmu_va2idx(tbl_info, region->va + region->size);
@@ -754,10 +754,10 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			assert(*pgt); /* We should have alloced enough */
+			TEE_ASSERT(*pgt); /* We should have alloced enough */
 
 			/* Virtual addresses must grow */
-			assert(r.va > pg_info->va_base);
+			TEE_ASSERT(r.va > pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->table = (*pgt)->tbl;

@@ -25,10 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <tee_api_types.h>
 #include <trace.h>
 
-#include <kernel/tee_common_unpg.h>
 #include <tee/se/session.h>
 #include <tee/se/channel.h>
 #include <tee/se/iso7816.h>
@@ -58,7 +58,7 @@ struct tee_se_channel *tee_se_channel_alloc(struct tee_se_session *s,
 
 void tee_se_channel_free(struct tee_se_channel *c)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	if (c->aid)
 		tee_se_aid_release(c->aid);
 	if (c->select_resp)
@@ -67,20 +67,21 @@ void tee_se_channel_free(struct tee_se_channel *c)
 
 struct tee_se_session *tee_se_channel_get_session(struct tee_se_channel *c)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	return c->session;
 }
 
 int tee_se_channel_get_id(struct tee_se_channel *c)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	return c->channel_id;
 }
 
 void tee_se_channel_set_select_response(struct tee_se_channel *c,
 		struct resp_apdu *resp)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
+
 	if (c->select_resp)
 		apdu_release(to_apdu_base(c->select_resp));
 	apdu_acquire(to_apdu_base(resp));
@@ -90,7 +91,7 @@ void tee_se_channel_set_select_response(struct tee_se_channel *c,
 TEE_Result tee_se_channel_get_select_response(struct tee_se_channel *c,
 		struct resp_apdu **resp)
 {
-	TEE_ASSERT(c != NULL && resp != NULL);
+	assert(c && resp);
 
 	if (c->select_resp) {
 		*resp = c->select_resp;
@@ -103,7 +104,7 @@ TEE_Result tee_se_channel_get_select_response(struct tee_se_channel *c,
 void tee_se_channel_set_aid(struct tee_se_channel *c,
 		struct tee_se_aid *aid)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	if (c->aid)
 		tee_se_aid_release(c->aid);
 	tee_se_aid_acquire(aid);
@@ -114,13 +115,13 @@ void tee_se_channel_set_aid(struct tee_se_channel *c,
 TEE_Result tee_se_channel_select(struct tee_se_channel *c,
 		struct tee_se_aid *aid)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	return iso7816_select(c, aid);
 }
 
 TEE_Result tee_se_channel_select_next(struct tee_se_channel *c)
 {
-	TEE_ASSERT(c != NULL);
+	assert(c);
 	return iso7816_select_next(c);
 }
 
@@ -131,7 +132,7 @@ TEE_Result tee_se_channel_transmit(struct tee_se_channel *c,
 	uint8_t *cmd_buf;
 	int cla_channel;
 
-	TEE_ASSERT(c != NULL && cmd_apdu != NULL && resp_apdu != NULL);
+	assert(c && cmd_apdu && resp_apdu);
 
 	s = c->session;
 	cla_channel = iso7816_get_cla_channel(c->channel_id);

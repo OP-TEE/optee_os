@@ -25,15 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tee_api_types.h>
 #include <trace.h>
 
-#include <kernel/tee_common_unpg.h>
 #include <tee/se/aid.h>
 #include <tee/se/util.h>
-
-#include <stdlib.h>
-#include <string.h>
 
 #include "aid_priv.h"
 
@@ -42,7 +41,7 @@ TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid)
 	size_t str_length = strlen(name);
 	size_t aid_length = str_length / 2;
 
-	TEE_ASSERT(aid != NULL && *aid == NULL);
+	assert(aid && !*aid);
 	if (str_length < MIN_AID_LENGTH || str_length > MAX_AID_LENGTH)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -71,19 +70,19 @@ TEE_Result tee_se_aid_create_from_buffer(uint8_t *id, size_t length,
 
 void tee_se_aid_acquire(struct tee_se_aid *aid)
 {
-	TEE_ASSERT(aid != NULL);
+	assert(aid);
 	aid->refcnt++;
 }
 
 int tee_se_aid_get_refcnt(struct tee_se_aid *aid)
 {
-	TEE_ASSERT(aid != NULL);
+	assert(aid);
 	return aid->refcnt;
 }
 
 void tee_se_aid_release(struct tee_se_aid *aid)
 {
-	TEE_ASSERT(aid != NULL && aid->refcnt > 0);
+	assert(aid && aid->refcnt > 0);
 	aid->refcnt--;
 	if (aid->refcnt == 0)
 		free(aid);
