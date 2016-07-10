@@ -25,11 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <tee_api_types.h>
 #include <trace.h>
 
 #include <kernel/tee_ta_manager.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/user_ta.h>
 #include <tee/se/service.h>
 #include <tee/se/session.h>
@@ -52,7 +52,7 @@ TEE_Result tee_se_service_open(
 		return ret;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	TEE_ASSERT(service != NULL);
+	assert(service);
 	if (utc->se_service != NULL)
 		return TEE_ERROR_ACCESS_CONFLICT;
 
@@ -74,7 +74,7 @@ TEE_Result tee_se_service_add_session(
 		struct tee_se_service *service,
 		struct tee_se_session *session)
 {
-	TEE_ASSERT(service != NULL && session != NULL);
+	assert(service && session);
 
 	mutex_lock(&service->mutex);
 	TAILQ_INSERT_TAIL(&service->opened_sessions, session, link);
@@ -101,7 +101,7 @@ void tee_se_service_close_session(
 		struct tee_se_service *service,
 		struct tee_se_session *session)
 {
-	TEE_ASSERT(service != NULL && session != NULL);
+	assert(service && session);
 
 	tee_se_session_close(session);
 
@@ -121,7 +121,7 @@ void tee_se_service_close_sessions_by_reader(
 {
 	struct tee_se_session *s;
 
-	TEE_ASSERT(service != NULL && proxy != NULL);
+	assert(service && proxy);
 
 	TAILQ_FOREACH(s, &service->opened_sessions, link) {
 		if (s->reader_proxy == proxy)
@@ -130,7 +130,7 @@ void tee_se_service_close_sessions_by_reader(
 }
 
 TEE_Result tee_se_service_close(
-		struct tee_se_service *service)
+		struct tee_se_service *service __unused)
 {
 	TEE_Result ret;
 	struct tee_se_service *h;
@@ -143,9 +143,7 @@ TEE_Result tee_se_service_close(
 		return ret;
 
 	utc = to_user_ta_ctx(sess->ctx);
-	TEE_ASSERT(service != NULL);
-	TEE_ASSERT(utc->se_service != NULL);
-
+	assert(utc->se_service);
 	h = utc->se_service;
 
 	/* clean up all sessions */

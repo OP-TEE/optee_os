@@ -24,12 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <types_ext.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arm.h>
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/static_ta.h>
@@ -49,7 +51,6 @@
 #include <trace.h>
 #include <utee_types.h>
 #include <util.h>
-#include <assert.h>
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
@@ -67,7 +68,7 @@ static void lock_single_instance(void)
 			condvar_wait(&tee_ta_cv, &tee_ta_mutex);
 
 		tee_ta_single_instance_thread = thread_get_id();
-		assert(tee_ta_single_instance_count == 0);
+		assert(!tee_ta_single_instance_count);
 	}
 
 	tee_ta_single_instance_count++;
@@ -130,8 +131,7 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 
 static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
 {
-	if (!tee_ta_try_set_busy(ctx))
-		panic();
+	assert(tee_ta_try_set_busy(ctx));
 }
 
 static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
@@ -349,7 +349,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	mutex_lock(&tee_ta_mutex);
 
-	TEE_ASSERT(ctx->ref_count > 0);
+	panic_if(ctx->ref_count <= 0);
 	ctx->ref_count--;
 	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
 		DMSG("   ... Destroy TA ctx");
@@ -621,9 +621,9 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	assert(((ctx && is_user_ta_ctx(ctx) ?
+	panic_if(((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
-		!core_mmu_user_mapping_is_active());
+					core_mmu_user_mapping_is_active());
 }
 
 void tee_ta_push_current_session(struct tee_ta_session *sess)

@@ -29,6 +29,7 @@
 #include <trace.h>
 #include <gpio.h>
 #include <io.h>
+#include <kernel/panic.h>
 #include <util.h>
 #include <drivers/pl061_gpio.h>
 
@@ -63,7 +64,7 @@ static enum gpio_dir pl061_get_direction(unsigned int gpio_pin)
 	uint8_t data;
 	unsigned int offset;
 
-	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	panic_if(gpio_pin >= PLAT_PL061_MAX_GPIOS);
 
 	base_addr = pl061_reg_base[gpio_pin / GPIOS_PER_PL061];
 	offset = gpio_pin % GPIOS_PER_PL061;
@@ -79,7 +80,7 @@ static void pl061_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
 	uint8_t data;
 	unsigned int offset;
 
-	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	panic_if(gpio_pin >= PLAT_PL061_MAX_GPIOS);
 
 	base_addr = pl061_reg_base[gpio_pin / GPIOS_PER_PL061];
 	offset = gpio_pin % GPIOS_PER_PL061;
@@ -105,7 +106,7 @@ static enum gpio_level pl061_get_value(unsigned int gpio_pin)
 	vaddr_t base_addr;
 	unsigned int offset;
 
-	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	panic_if(gpio_pin >= PLAT_PL061_MAX_GPIOS);
 
 	base_addr = pl061_reg_base[gpio_pin / GPIOS_PER_PL061];
 	offset = gpio_pin % GPIOS_PER_PL061;
@@ -124,7 +125,7 @@ static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
 	vaddr_t base_addr;
 	unsigned int offset;
 
-	assert(gpio_pin < PLAT_PL061_MAX_GPIOS);
+	panic_if(gpio_pin >= PLAT_PL061_MAX_GPIOS);
 
 	base_addr = pl061_reg_base[gpio_pin / GPIOS_PER_PL061];
 	offset = gpio_pin % GPIOS_PER_PL061;
@@ -142,7 +143,7 @@ static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
  */
 void pl061_gpio_register(vaddr_t base_addr, unsigned int gpio_dev)
 {
-	assert(gpio_dev < MAX_GPIO_DEVICES);
+	panic_if(gpio_dev >= MAX_GPIO_DEVICES);
 
 	pl061_reg_base[gpio_dev] = base_addr;
 }

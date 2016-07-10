@@ -165,11 +165,9 @@ static size_t get_block_size(void)
 	struct core_mmu_table_info tbl_info;
 	unsigned l;
 
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info))
-		panic();
+	panic_if(!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info));
 	l = tbl_info.level - 1;
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info))
-		panic();
+	panic_if(!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info));
 	return 1 << tbl_info.shift;
 }
 
@@ -185,8 +183,8 @@ static void init_runtime(unsigned long pageable_part)
 	uint8_t *hashes;
 	size_t block_size;
 
-	TEE_ASSERT(pageable_size % SMALL_PAGE_SIZE == 0);
-	TEE_ASSERT(hash_size == (size_t)__tmp_hashes_size);
+	assert(pageable_size % SMALL_PAGE_SIZE == 0);
+	assert(hash_size == (size_t)__tmp_hashes_size);
 
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -200,9 +198,8 @@ static void init_runtime(unsigned long pageable_part)
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
 	 */
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
-				 &tee_pager_tbl_info))
-		panic();
+	panic_if(!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
+				 &tee_pager_tbl_info));
 	if (tee_pager_tbl_info.shift != SMALL_PAGE_SHIFT) {
 		EMSG("Unsupported page size in translation table %u",
 		     BIT(tee_pager_tbl_info.shift));
@@ -216,7 +213,7 @@ static void init_runtime(unsigned long pageable_part)
 
 	hashes = malloc(hash_size);
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
-	TEE_ASSERT(hashes);
+	assert(hashes);
 	memcpy(hashes, __tmp_hashes_start, hash_size);
 
 	/*
@@ -226,7 +223,7 @@ static void init_runtime(unsigned long pageable_part)
 	teecore_init_ta_ram();
 
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
-	TEE_ASSERT(mm);
+	assert(mm);
 	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
 	/* Copy init part into pageable area */
 	memcpy(paged_store, __init_start, init_size);
@@ -292,7 +289,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore,
 		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
-	TEE_ASSERT(mm);
+	assert(mm);
 	tee_pager_init(mm);
 
 	/*
@@ -302,7 +299,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
 			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
-	TEE_ASSERT(mm);
+	assert(mm);
 
 	/*
 	 * Allocate virtual memory for the pageable area and let the pager
@@ -310,10 +307,11 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
-	TEE_ASSERT(mm);
-	if (!tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				     TEE_MATTR_PRX, paged_store, hashes))
-		panic();
+	assert(mm);
+	panic_if(!tee_pager_add_core_area(tee_mm_get_smem(mm),
+					  tee_mm_get_bytes(mm),
+					  TEE_MATTR_PRX, paged_store, hashes));
+
 	tee_pager_add_pages((vaddr_t)__pageable_start,
 		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
 	tee_pager_add_pages((vaddr_t)__pageable_start +
@@ -483,8 +481,7 @@ static void init_fdt(unsigned long phys_fdt)
 	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_fdt, CFG_DTB_MAX_SIZE))
 		panic();
 	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
-	if (!fdt)
-		panic();
+	panic_if(!fdt);
 
 	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
@@ -538,8 +535,7 @@ static void init_primary_helper(unsigned long pageable_part,
 	main_init_gic();
 	init_vfp_nsec();
 
-	if (init_teecore() != TEE_SUCCESS)
-		panic();
+	panic_if(init_teecore() != TEE_SUCCESS);
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 

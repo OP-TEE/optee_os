@@ -26,6 +26,7 @@
  */
 
 #include <arm.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
@@ -35,7 +36,6 @@
 #include <tee_syscall_numbers.h>
 #include <util.h>
 #include "arch_svc_private.h"
-#include <assert.h>
 #include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/trace_ta.h>

@@ -33,7 +33,8 @@
 #include "default_regular.h"
 #include "default_bold.h"
 #include <trace.h>
-#include <assert.h>
+
+#include <tee_api.h>
 
 #define UCP_CARRIAGE_RETURN	0x000D
 #define UCP_TUI_BOLD		0xE000
@@ -149,7 +150,9 @@ static bool letter_get_bit(const struct font_letter *letter, size_t x, size_t y)
 	size_t byte_pos = pos / 8;
 	uint8_t bit_mask = 1 << (7 - (pos & 0x7));
 
-	assert(byte_pos < letter->blob_size);
+	if (byte_pos >= letter->blob_size)
+		TEE_Panic(0);
+
 	return !!(bstr[byte_pos] & bit_mask);
 }
 

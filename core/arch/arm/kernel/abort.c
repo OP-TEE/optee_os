@@ -336,13 +336,9 @@ static void handle_user_ta_panic(struct abort_info *ai)
 #ifdef CFG_WITH_VFP
 static void handle_user_ta_vfp(void)
 {
-	TEE_Result res;
 	struct tee_ta_session *s;
 
-	res = tee_ta_get_current_session(&s);
-	if (res != TEE_SUCCESS)
-		panic();
-
+	panic_if(tee_ta_get_current_session(&s) != TEE_SUCCESS);
 	thread_user_enable_vfp(&to_user_ta_ctx(s->ctx)->vfp);
 }
 #endif /*CFG_WITH_VFP*/
@@ -495,16 +491,14 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 
 	if (is_abort_in_abort_handler(ai)) {
 		abort_print_error(ai);
-		EMSG("[abort] abort in abort handler (trap CPU)");
-		panic();
+		panic_msg("[abort] abort in abort handler (trap CPU)");
 	}
 
 	if (ai->abort_type == ABORT_TYPE_UNDEF) {
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] undefined abort (trap CPU)");
-		panic();
+		panic_msg("[abort] undefined abort (trap CPU)");
 	}
 
 	switch (core_mmu_get_fault_type(ai->fault_descr)) {
@@ -512,16 +506,14 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] alignement fault!  (trap CPU)");
-		panic();
+		panic_msg("[abort] alignement fault!  (trap CPU)");
 		break;
 
 	case CORE_MMU_FAULT_ACCESS_BIT:
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] access bit fault!  (trap CPU)");
-		panic();
+		panic_msg("[abort] access bit fault!  (trap CPU)");
 		break;
 
 	case CORE_MMU_FAULT_DEBUG_EVENT:

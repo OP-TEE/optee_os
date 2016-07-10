@@ -27,15 +27,15 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
-#include <assert.h>
 #include <arm.h>
+#include <assert.h>
+#include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/panic.h>
-#include <kernel/thread.h>
 #include <util.h>
 #include "core_mmu_private.h"
 
@@ -166,7 +166,7 @@ static paddr_t core_mmu_get_main_ttb_pa(void)
 	/* Note that this depends on flat mapping of TEE Core */
 	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
 
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	panic_if(pa & ~TEE_MMU_TTB_L1_MASK);
 	return pa;
 }
 
@@ -180,7 +180,7 @@ static paddr_t core_mmu_get_ul1_ttb_pa(void)
 	/* Note that this depends on flat mapping of TEE Core */
 	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
 
-	TEE_ASSERT(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	panic_if(pa & ~TEE_MMU_TTB_UL1_MASK);
 	return pa;
 }
 
@@ -202,7 +202,7 @@ static void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 {
-	assert(level >= 1 && level <= 2);
+	assert(level == 1 || level == 2);
 
 	if (level == 1) {
 		if ((desc & 0x3) == 0x1)
@@ -534,7 +534,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 	size_t pg_idx;
 	uint32_t attr;
 
-	TEE_ASSERT(l2);
+	panic_if(!l2);
 
 	attr = mattr_to_desc(2, mm->attr);
 
@@ -573,7 +573,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	paddr_t pa;
 	uint32_t region_size;
 
-	TEE_ASSERT(mm && ttb);
+	assert(mm && ttb);
 
 	/*
 	 * If mm->va is smaller than 32M, then mm->va will conflict with
@@ -683,7 +683,8 @@ void core_init_mmu_regs(void)
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {
-	assert(!(fsr & FSR_LPAE));
+	panic_if(fsr & FSR_LPAE);
+
 	switch (fsr & FSR_FS_MASK) {
 	case 0x1: /* DFSR[10,3:0] 0b00001 Alignment fault (DFSR only) */
 		return CORE_MMU_FAULT_ALIGNMENT;

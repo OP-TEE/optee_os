@@ -56,11 +56,11 @@
  */
 #include <platform_config.h>
 
+#include <assert.h>
 #include <types_ext.h>
 #include <inttypes.h>
 #include <string.h>
 #include <compiler.h>
-#include <assert.h>
 #include <trace.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
@@ -393,7 +393,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 			/* Clear table before use */
 			memset(new_table, 0, XLAT_TABLE_SIZE);
 
-			assert(next_xlat <= MAX_XLAT_TABLES);
+			panic_if(next_xlat > MAX_XLAT_TABLES);
 			desc = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
 
 			/* Recurse to fill in new table */
@@ -411,7 +411,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 {
 	/* Physical address can't exceed 48 bits */
-	assert((max_addr & ADDR_MASK_48_TO_63) == 0);
+	assert(!(max_addr & ADDR_MASK_48_TO_63));
 
 	/* 48 bits address */
 	if (max_addr & ADDR_MASK_44_TO_47)
@@ -449,8 +449,8 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		debug_print(" %010" PRIxVA " %010" PRIxPA " %10zx %x",
 			    mm[n].va, mm[n].pa, mm[n].size, mm[n].attr);
 
-		assert(IS_PAGE_ALIGNED(mm[n].pa));
-		assert(IS_PAGE_ALIGNED(mm[n].size));
+		panic_if(!IS_PAGE_ALIGNED(mm[n].pa) ||
+			 !IS_PAGE_ALIGNED(mm[n].size));
 
 		pa_end = mm[n].pa + mm[n].size - 1;
 		va_end = mm[n].va + mm[n].size - 1;
@@ -702,7 +702,8 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 {
-	assert(fault_descr & FSR_LPAE);
+	panic_if((fault_descr & FSR_LPAE) == 0);
+
 	switch (fault_descr & FSR_STATUS_MASK) {
 	case 0x21: /* b100001 Alignment fault */
 		return CORE_MMU_FAULT_ALIGNMENT;

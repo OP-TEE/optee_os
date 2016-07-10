@@ -28,9 +28,7 @@
 #define TEE_DISPATCH_H
 
 #include <stdarg.h>
-#include <kernel/tee_common_unpg.h>
 #include <tee_api_types.h>
-
 #include <trace.h>
 
 /*

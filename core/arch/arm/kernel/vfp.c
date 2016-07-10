@@ -26,9 +26,9 @@
  */
 
 #include <arm.h>
+#include <assert.h>
 #include <kernel/vfp.h>
 #include "vfp_private.h"
-#include <assert.h>
 
 #ifdef ARM32
 bool vfp_is_enabled(void)

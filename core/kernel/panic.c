@@ -29,12 +29,22 @@
 #include <kernel/thread.h>
 #include <trace.h>
 
-void __panic(const char *file __maybe_unused, int line __maybe_unused,
-		const char *func __maybe_unused)
+void __panic(const char *file __maybe_unused,
+		const int line __maybe_unused,
+		const char *func __maybe_unused,
+		const char *msg __maybe_unused)
 {
 	uint32_t __unused exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
-	EMSG_RAW("PANIC: %s %s:%d\n", func, file, line);
+#if defined(CFG_TEE_CORE_DEBUG)
+	if (msg)
+		EMSG_RAW("PANIC '%s' at %s:%d <%s>", msg, file, line, func);
+	else
+		EMSG_RAW("PANIC at %s:%d <%s>", file, line, func);
+#else
+	EMSG_RAW("PANIC");
+#endif
+
 	while (1)
 		;
 }

@@ -27,11 +27,11 @@
 #ifndef KERNEL_STATIC_TA_H
 #define KERNEL_STATIC_TA_H
 
+#include <assert.h>
 #include <compiler.h>
 #include <kernel/tee_ta_manager.h>
 #include <tee_api_types.h>
 #include <util.h>
-#include <assert.h>
 
 struct static_ta_head {
 	TEE_UUID uuid;

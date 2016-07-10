@@ -33,26 +33,27 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
+#include <arm.h>
 #include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
+#include <kernel/panic.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <kernel/tz_ssvce_pl310.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
-#include <mm/core_memprot.h>
-#include <mm/pgt_cache.h>
 #include <mm/tee_pager.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/tee_misc.h>
-#include <kernel/panic.h>
-#include <kernel/tee_ta_manager.h>
 #include <util.h>
-#include "core_mmu_private.h"
-#include <kernel/tz_ssvce_pl310.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/thread.h>
-#include <arm.h>
+
+#include "core_mmu_private.h"
 
 #define MAX_MMAP_REGIONS	10
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
@@ -309,7 +310,7 @@ static uint32_t type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RES_VASPACE:
 		return 0;
 	default:
-		panic();
+		panic_msg("invalid memory type");
 	}
 }
 
@@ -406,10 +407,8 @@ void core_init_mmu_map(void)
 
 	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
 		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
-				    secure_only[n].size)) {
-			EMSG("Invalid memory access configuration: sec/nsec");
-			panic();
-		}
+				    secure_only[n].size))
+			panic_msg("Invalid memory access config: sec/nsec");
 	}
 
 	if (!mem_map_inited)
@@ -419,24 +418,19 @@ void core_init_mmu_map(void)
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TEE_RAM does not fit in secure_only");
-				panic();
-			}
+			if (!pbuf_is_inside(secure_only, map->pa, map->size))
+				panic_msg("TEE_RAM can't fit in secure_only");
+
 			map_tee_ram = map;
 			break;
 		case MEM_AREA_TA_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TA_RAM does not fit in secure_only");
-				panic();
-			}
+			if (!pbuf_is_inside(secure_only, map->pa, map->size))
+				panic_msg("TA_RAM can't fit in secure_only");
 			map_ta_ram = map;
 			break;
 		case MEM_AREA_NSEC_SHM:
-			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
-				EMSG("NSEC_SHM does not fit in nsec_shared");
-				panic();
-			}
+			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
+				panic_msg("NSEC_SHM can't fit in nsec_shared");
 			map_nsec_shm = map;
 			break;
 		case MEM_AREA_IO_SEC:
@@ -451,10 +445,7 @@ void core_init_mmu_map(void)
 	}
 
 	/* Check that we have the mandatory memory areas defined */
-	if (!map_tee_ram || !map_ta_ram || !map_nsec_shm) {
-		EMSG("mapping area missing");
-		panic();
-	}
+	panic_if(!map_tee_ram || !map_ta_ram || !map_nsec_shm);
 
 	core_init_mmu_tables(static_memory_map);
 }
@@ -934,7 +925,7 @@ out:
 	return ret;
 }
 
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 static void check_pa_matches_va(void *va, paddr_t pa)
 {
 	TEE_Result res;
@@ -946,21 +937,21 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
 	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
 		if (!core_mmu_user_mapping_is_active()) {
-			TEE_ASSERT(pa == 0);
+			panic_if(pa);
 			return;
 		}
 
 		res = tee_mmu_user_va2pa_helper(
 			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
 		if (res == TEE_SUCCESS)
-			TEE_ASSERT(pa == p);
+			panic_if(pa != p);
 		else
-			TEE_ASSERT(pa == 0);
+			panic_if(pa);
 		return;
 	}
 #ifdef CFG_WITH_PAGER
 	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
-		TEE_ASSERT(v == pa);
+		panic_if(v != pa);
 		return;
 	}
 	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
@@ -979,16 +970,16 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			paddr_t mask = ((1 << ti->shift) - 1);
 
 			p |= v & mask;
-			TEE_ASSERT(pa == p);
+			panic_if(pa != p);
 		} else
-			TEE_ASSERT(pa == 0);
+			panic_if(pa);
 		return;
 	}
 #endif
 	if (!core_va2pa_helper(va, &p))
-		TEE_ASSERT(pa == p);
+		panic_if(pa != p);
 	else
-		TEE_ASSERT(pa == 0);
+		panic_if(pa);
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
@@ -1006,10 +997,10 @@ paddr_t virt_to_phys(void *va)
 	return pa;
 }
 
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	TEE_ASSERT(!va || virt_to_phys(va) == pa);
+	panic_if(va && virt_to_phys(va) != pa);
 }
 #else
 static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)

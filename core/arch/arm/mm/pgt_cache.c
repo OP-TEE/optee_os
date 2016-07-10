@@ -25,15 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <mm/pgt_cache.h>
 #include <kernel/mutex.h>
-#include <kernel/panic.h>
 #include <mm/tee_pager.h>
 #include <mm/core_mmu.h>
 #include <stdlib.h>
 #include <util.h>
 #include <trace.h>
-#include <assert.h>
 
 /*
  * With pager enabled we allocate page table from the pager.

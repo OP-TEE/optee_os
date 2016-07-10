@@ -25,6 +25,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <platform_config.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -46,7 +47,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <util.h>
 #include <trace.h>
-#include <assert.h>
 #include <keep.h>
 
 #ifdef ARM32
@@ -85,8 +85,8 @@ static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 #ifdef ARM64
 #define STACK_CANARY_SIZE	(8 * sizeof(uint32_t))
 #endif
-#define START_CANARY_VALUE	0xdededede
-#define END_CANARY_VALUE	0xabababab
+#define START_CANARY		0xdededede
+#define END_CANARY		0xabababab
 #define GET_START_CANARY(name, stack_num) name[stack_num][0]
 #define GET_END_CANARY(name, stack_num) \
 	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
@@ -143,8 +143,8 @@ static void init_canaries(void)
 		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
 		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
 									\
-		*start_canary = START_CANARY_VALUE;			\
-		*end_canary = END_CANARY_VALUE;				\
+		*start_canary = START_CANARY;				\
+		*end_canary = END_CANARY;				\
 		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
 			#name, n, (void *)(end_canary - 1));		\
 		DMSG("watch *%p\n", (void *)end_canary);		\
@@ -167,24 +167,24 @@ void thread_check_canaries(void)
 	size_t n;
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		assert(GET_START_CANARY(stack_tmp, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_tmp, n) == END_CANARY_VALUE);
+		panic_if(GET_START_CANARY(stack_tmp, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_tmp, n) != END_CANARY);
 	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		assert(GET_START_CANARY(stack_abt, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_abt, n) == END_CANARY_VALUE);
+		panic_if(GET_START_CANARY(stack_abt, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_abt, n) != END_CANARY);
 	}
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
-		assert(GET_START_CANARY(stack_sm, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_sm, n) == END_CANARY_VALUE);
+		panic_if(GET_START_CANARY(stack_sm, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_sm, n) != END_CANARY);
 	}
 #endif
 #ifndef CFG_WITH_PAGER
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		assert(GET_START_CANARY(stack_thread, n) == START_CANARY_VALUE);
-		assert(GET_END_CANARY(stack_thread, n) == END_CANARY_VALUE);
+		panic_if(GET_START_CANARY(stack_thread, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_thread, n) != END_CANARY);
 	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -732,7 +732,7 @@ int thread_get_id(void)
 {
 	int ct = thread_get_id_may_fail();
 
-	assert((ct >= 0) && (ct < CFG_NUM_THREADS));
+	assert(ct >= 0 && ct < CFG_NUM_THREADS);
 	return ct;
 }
 
@@ -764,7 +764,7 @@ static void init_thread_stacks(void)
 		/* Find vmem for thread stack and its protection gap */
 		mm = tee_mm_alloc(&tee_mm_vcore,
 				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
-		TEE_ASSERT(mm);
+		assert(mm);
 
 		/* Claim eventual physical page */
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
@@ -778,8 +778,7 @@ static void init_thread_stacks(void)
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
-		if (!thread_init_stack(n, sp))
-			panic();
+		panic_if(!thread_init_stack(n, sp));
 	}
 }
 #else
@@ -788,10 +787,8 @@ static void init_thread_stacks(void)
 	size_t n;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-			panic();
-	}
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		panic_if(!thread_init_stack(n, GET_STACK(stack_thread[n])));
 }
 #endif /*CFG_WITH_PAGER*/
 
@@ -1141,7 +1138,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
 	size_t n;
 
-	TEE_ASSERT(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
+	panic_if(!arg || !carg || num_params > RPC_MAX_NUM_PARAMS);
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;

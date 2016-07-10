@@ -30,7 +30,6 @@
 #include <drivers/imx_uart.h>
 #include <console.h>
 #include <io.h>
-#include <assert.h>
 #include <compiler.h>
 
 /* Register definitions */

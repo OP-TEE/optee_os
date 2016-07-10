@@ -29,6 +29,7 @@
 #include <kernel/tee_common.h>
 #include <kernel/handle.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
 #include <optee_msg.h>
@@ -538,7 +539,9 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 {
 	uint8_t *tmp __maybe_unused;
 
-	TEE_ASSERT(size + offset <= RPMB_DATA_SIZE);
+
+	panic_if((size + offset < size) ||
+		   (size + offset > RPMB_DATA_SIZE));
 
 	if (!fek) {
 		/* Block is not encrypted (not a file data block) */
@@ -568,7 +571,6 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 			memcpy(out, tmp + offset, size);
 			free(tmp);
 		} else {
-			TEE_ASSERT(!offset);
 			decrypt_block(out, frm->data, blk_idx, fek);
 		}
 #else
@@ -2180,7 +2182,7 @@ static int rpmb_fs_write(TEE_Result *errno, int fd, const void *buf,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	TEE_ASSERT(!(fh->fat_entry.flags & FILE_IS_LAST_ENTRY));
+	panic_if(fh->fat_entry.flags & FILE_IS_LAST_ENTRY);
 
 	end = fh->pos + size;
 	start_addr = fh->fat_entry.start_address + fh->pos;

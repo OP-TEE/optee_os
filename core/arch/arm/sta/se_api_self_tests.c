@@ -30,7 +30,7 @@
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include <trace.h>
-#include <kernel/tee_common_unpg.h>
+
 #include <tee/se/manager.h>
 #include <tee/se/reader.h>
 #include <tee/se/session.h>

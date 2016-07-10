@@ -31,11 +31,8 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/panic.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
-
-#include <assert.h>
 
 static void tee_entry_get_shm_config(struct thread_smc_args *args)
 {
