@@ -67,7 +67,7 @@ static void lock_single_instance(void)
 			condvar_wait(&tee_ta_cv, &tee_ta_mutex);
 
 		tee_ta_single_instance_thread = thread_get_id();
-		panic_unless(!tee_ta_single_instance_count);
+		panic_if(tee_ta_single_instance_count);
 	}
 
 	tee_ta_single_instance_count++;
@@ -76,8 +76,8 @@ static void lock_single_instance(void)
 static void unlock_single_instance(void)
 {
 	/* Requires tee_ta_mutex to be held */
-	panic_unless(tee_ta_single_instance_thread == thread_get_id());
-	panic_unless(tee_ta_single_instance_count > 0);
+	panic_if(tee_ta_single_instance_thread != thread_get_id());
+	panic_if(tee_ta_single_instance_count <= 0);
 
 	tee_ta_single_instance_count--;
 	if (tee_ta_single_instance_count == 0) {
@@ -130,15 +130,14 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 
 static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
 {
-	if (!tee_ta_try_set_busy(ctx))
-		panic();
+	panic_if(!tee_ta_try_set_busy(ctx));
 }
 
 static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 {
 	mutex_lock(&tee_ta_mutex);
 
-	panic_unless(ctx->busy);
+	panic_if(!ctx->busy);
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
 
@@ -150,7 +149,7 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 
 static void dec_session_ref_count(struct tee_ta_session *s)
 {
-	panic_unless(s->ref_count > 0);
+	panic_if(s->ref_count <= 0);
 	s->ref_count--;
 	if (s->ref_count == 1)
 		condvar_signal(&s->refc_cv);
@@ -200,7 +199,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 		if (!exclusive)
 			break;
 
-		panic_unless(s->lock_thread != thread_get_id());
+		panic_if(s->lock_thread == thread_get_id());
 
 		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
 			condvar_wait(&s->lock_cv, &tee_ta_mutex);
@@ -224,9 +223,9 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 {
 	mutex_lock(&tee_ta_mutex);
 
-	panic_unless(s->ref_count >= 1);
-	panic_unless(s->lock_thread == thread_get_id());
-	panic_unless(!s->unlink);
+	panic_if(s->ref_count < 1);
+	panic_if(s->lock_thread != thread_get_id());
+	panic_if(s->unlink);
 
 	s->unlink = true;
 	condvar_broadcast(&s->lock_cv);
@@ -349,7 +348,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	mutex_lock(&tee_ta_mutex);
 
-	panic_unless(ctx->ref_count > 0);
+	panic_if(ctx->ref_count <= 0);
 	ctx->ref_count--;
 	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
 		DMSG("   ... Destroy TA ctx");
@@ -621,9 +620,9 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	panic_unless(((ctx && is_user_ta_ctx(ctx) ?
+	panic_if(((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
-		!core_mmu_user_mapping_is_active());
+					core_mmu_user_mapping_is_active());
 }
 
 void tee_ta_push_current_session(struct tee_ta_session *sess)

@@ -344,7 +344,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 	uint64_t level_index_mask = SHIFT_U64(XLAT_TABLE_ENTRIES_MASK,
 					      level_size_shift);
 
-	panic_unless(level <= 3);
+	panic_if(level > 3);
 
 	debug_print("New xlat table (level %u):", level);
 
@@ -393,7 +393,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 			/* Clear table before use */
 			memset(new_table, 0, XLAT_TABLE_SIZE);
 
-			panic_unless(next_xlat <= MAX_XLAT_TABLES);
+			panic_if(next_xlat > MAX_XLAT_TABLES);
 			desc = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
 
 			/* Recurse to fill in new table */
@@ -411,7 +411,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 {
 	/* Physical address can't exceed 48 bits */
-	panic_unless((max_addr & ADDR_MASK_48_TO_63) == 0);
+	panic_if(max_addr & ADDR_MASK_48_TO_63);
 
 	/* 48 bits address */
 	if (max_addr & ADDR_MASK_44_TO_47)
@@ -449,8 +449,8 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		debug_print(" %010" PRIxVA " %010" PRIxPA " %10zx %x",
 			    mm[n].va, mm[n].pa, mm[n].size, mm[n].attr);
 
-		panic_unless(IS_PAGE_ALIGNED(mm[n].pa));
-		panic_unless(IS_PAGE_ALIGNED(mm[n].size));
+		panic_if(!IS_PAGE_ALIGNED(mm[n].pa));
+		panic_if(!IS_PAGE_ALIGNED(mm[n].size));
 
 		pa_end = mm[n].pa + mm[n].size - 1;
 		va_end = mm[n].va + mm[n].size - 1;
@@ -473,11 +473,11 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 			break;
 		}
 	}
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 
 	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
 	COMPILE_TIME_ASSERT(ADDR_SPACE_SIZE > 0);
-	panic_unless(max_va < ADDR_SPACE_SIZE);
+	panic_if(max_va >= ADDR_SPACE_SIZE);
 }
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
@@ -552,7 +552,7 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->va_base = va_base;
 	tbl_info->shift = L1_XLAT_ADDRESS_SHIFT -
 			  (level - 1) * XLAT_TABLE_ENTRIES_SHIFT;
-	panic_unless(level <= 3);
+	panic_if(level > 3);
 	if (level == 1)
 		tbl_info->num_entries = NUM_L1_ENTRIES;
 	else
@@ -642,7 +642,7 @@ void core_mmu_get_entry_primitive(const void *table, size_t level __unused,
 
 void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 {
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 
 	if (base)
 		*base = (vaddr_t)user_va_idx << L1_XLAT_ADDRESS_SHIFT;
@@ -652,14 +652,14 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 
 bool core_mmu_user_mapping_is_active(void)
 {
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 	return !!l1_xlation_table[get_core_pos()][user_va_idx];
 }
 
 #ifdef ARM32
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 
 	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
 	if (map->user_map) {
@@ -675,7 +675,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	uint64_t ttbr;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 
 	ttbr = read_ttbr0_64bit();
 	/* Clear ASID */
@@ -702,7 +702,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 {
-	panic_unless(fault_descr & FSR_LPAE);
+	panic_if(!(fault_descr & FSR_LPAE));
 
 	switch (fault_descr & FSR_STATUS_MASK) {
 	case 0x21: /* b100001 Alignment fault */
@@ -733,7 +733,7 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 #ifdef ARM64
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
-	panic_unless(user_va_idx != -1);
+	panic_if(user_va_idx == -1);
 
 	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
 	if (map->user_map) {

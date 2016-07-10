@@ -30,12 +30,20 @@
 
 #include <compiler.h>
 
-#define panic()		__panic(__FILE__, __LINE__, __func__)
-#define panic_unless(e)	__panic_unless(!!(e), #e, __FILE__, __LINE__, __func__)
+#define panic()	\
+		__panic(__FILE__, __LINE__, __func__, (void*)0)
 
-void __panic(const char *file, const int line, const char *func) __noreturn;
+#define panic_msg(str)	\
+		__panic(__FILE__, __LINE__, __func__, str)
 
-void __panic_unless(int expr, const char *expr_string,
-			const char *file, const int line, const char *func);
+#define panic_if(expr) \
+	do { \
+		if (expr) \
+			__panic(__FILE__, __LINE__, __func__, \
+				"on \"" #expr "\""); \
+	} while (0)
+
+void __panic(const char *file, const int line, const char *func, const char *m)
+	__noreturn;
 
 #endif /*KERNEL_PANIC_H*/

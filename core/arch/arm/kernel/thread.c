@@ -167,24 +167,24 @@ void thread_check_canaries(void)
 	size_t n;
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		panic_unless(GET_START_CANARY(stack_tmp, n) == START_CANARY);
-		panic_unless(GET_END_CANARY(stack_tmp, n) == END_CANARY);
+		panic_if(GET_START_CANARY(stack_tmp, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_tmp, n) != END_CANARY);
 	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		panic_unless(GET_START_CANARY(stack_abt, n) == START_CANARY);
-		panic_unless(GET_END_CANARY(stack_abt, n) == END_CANARY);
+		panic_if(GET_START_CANARY(stack_abt, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_abt, n) != END_CANARY);
 	}
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
-		panic_unless(GET_START_CANARY(stack_sm, n) == START_CANARY);
-		panic_unless(GET_END_CANARY(stack_sm, n) == END_CANARY);
+		panic_if(GET_START_CANARY(stack_sm, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_sm, n) != END_CANARY);
 	}
 #endif
 #ifndef CFG_WITH_PAGER
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		panic_unless(GET_START_CANARY(stack_thread, n) == START_CANARY);
-		panic_unless(GET_END_CANARY(stack_thread, n) == END_CANARY);
+		panic_if(GET_START_CANARY(stack_thread, n) != START_CANARY);
+		panic_if(GET_END_CANARY(stack_thread, n) != END_CANARY);
 	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -259,9 +259,9 @@ struct thread_core_local *thread_get_core_local(void)
 	 * we otherwise may be rescheduled to a different core in the
 	 * middle of this function.
 	 */
-	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_if(!(thread_get_exceptions() & THREAD_EXCP_IRQ));
 
-	panic_unless(cpu_id < CFG_TEE_CORE_NB_CORE);
+	panic_if(cpu_id >= CFG_TEE_CORE_NB_CORE);
 	return &thread_core_local[cpu_id];
 }
 
@@ -289,7 +289,7 @@ static void thread_lazy_restore_ns_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	panic_unless(!thr->vfp_state.sec_lazy_saved && !thr->vfp_state.sec_saved);
+	panic_if(thr->vfp_state.sec_lazy_saved || thr->vfp_state.sec_saved);
 
 	if (tuv && tuv->lazy_saved && !tuv->saved) {
 		vfp_lazy_save_state_final(&tuv->vfp);
@@ -388,9 +388,9 @@ void thread_clr_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	panic_unless(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
-	panic_unless(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	panic_unless(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
+	panic_if(l->curr_thread < 0 || l->curr_thread >= CFG_NUM_THREADS);
+	panic_if(threads[l->curr_thread].state != THREAD_STATE_ACTIVE);
+	panic_if(!TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
 	l->curr_thread = -1;
 }
@@ -401,7 +401,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
-	panic_unless(l->curr_thread == -1);
+	panic_if(l->curr_thread != -1);
 
 	lock_global();
 
@@ -472,7 +472,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	struct thread_core_local *l = thread_get_core_local();
 	uint32_t rv = 0;
 
-	panic_unless(l->curr_thread == -1);
+	panic_if(l->curr_thread != -1);
 
 	lock_global();
 
@@ -513,7 +513,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 	thread_fast_smc_handler_ptr(args);
 	/* Fast handlers must not unmask any exceptions */
-	panic_unless(thread_get_exceptions() == THREAD_EXCP_ALL);
+	panic_if(thread_get_exceptions() != THREAD_EXCP_ALL);
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)
@@ -572,7 +572,7 @@ vaddr_t thread_get_saved_thread_sp(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	panic_unless(ct != -1);
+	panic_if(ct == -1);
 	return threads[ct].kern_sp;
 }
 #endif /*ARM64*/
@@ -590,8 +590,8 @@ void thread_state_free(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	panic_unless(ct != -1);
-	panic_unless(TAILQ_EMPTY(&threads[ct].mutexes));
+	panic_if(ct == -1);
+	panic_if(!TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
@@ -600,7 +600,7 @@ void thread_state_free(void)
 
 	lock_global();
 
-	panic_unless(threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_if(threads[ct].state != THREAD_STATE_ACTIVE);
 	threads[ct].state = THREAD_STATE_FREE;
 	threads[ct].flags = 0;
 	l->curr_thread = -1;
@@ -647,7 +647,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	panic_unless(ct != -1);
+	panic_if(ct == -1);
 
 	thread_check_canaries();
 
@@ -659,7 +659,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	lock_global();
 
-	panic_unless(threads[ct].state == THREAD_STATE_ACTIVE);
+	panic_if(threads[ct].state != THREAD_STATE_ACTIVE);
 	threads[ct].flags |= flags;
 	threads[ct].regs.cpsr = cpsr;
 	threads[ct].regs.pc = pc;
@@ -732,7 +732,7 @@ int thread_get_id(void)
 {
 	int ct = thread_get_id_may_fail();
 
-	panic_unless((ct >= 0) && (ct < CFG_NUM_THREADS));
+	panic_if(ct < 0 || ct >= CFG_NUM_THREADS);
 	return ct;
 }
 
@@ -764,7 +764,7 @@ static void init_thread_stacks(void)
 		/* Find vmem for thread stack and its protection gap */
 		mm = tee_mm_alloc(&tee_mm_vcore,
 				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
-		panic_unless(mm);
+		panic_if(!mm);
 
 		/* Claim eventual physical page */
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
@@ -778,8 +778,7 @@ static void init_thread_stacks(void)
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
-		if (!thread_init_stack(n, sp))
-			panic();
+		panic_if(!thread_init_stack(n, sp));
 	}
 }
 #else
@@ -788,10 +787,8 @@ static void init_thread_stacks(void)
 	size_t n;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-			panic();
-	}
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		panic_if(!thread_init_stack(n, GET_STACK(stack_thread[n])));
 }
 #endif /*CFG_WITH_PAGER*/
 
@@ -837,7 +834,7 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	panic_unless(l->curr_thread != -1);
+	panic_if(l->curr_thread == -1);
 	return &threads[l->curr_thread].regs;
 }
 
@@ -849,7 +846,7 @@ void thread_set_irq(bool enable)
 
 	l = thread_get_core_local();
 
-	panic_unless(l->curr_thread != -1);
+	panic_if(l->curr_thread == -1);
 
 	if (enable) {
 		threads[l->curr_thread].flags |= THREAD_FLAGS_IRQ_ENABLE;
@@ -871,7 +868,7 @@ void thread_restore_irq(void)
 
 	l = thread_get_core_local();
 
-	panic_unless(l->curr_thread != -1);
+	panic_if(l->curr_thread == -1);
 
 	if (threads[l->curr_thread].flags & THREAD_FLAGS_IRQ_ENABLE)
 		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
@@ -884,7 +881,7 @@ uint32_t thread_kernel_enable_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	panic_unless(!vfp_is_enabled());
+	panic_if(vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns);
@@ -914,11 +911,11 @@ void thread_kernel_disable_vfp(uint32_t state)
 {
 	uint32_t exceptions;
 
-	panic_unless(vfp_is_enabled());
+	panic_if(!vfp_is_enabled());
 
 	vfp_disable();
 	exceptions = thread_get_exceptions();
-	panic_unless(exceptions & THREAD_EXCP_IRQ);
+	panic_if(!(exceptions & THREAD_EXCP_IRQ));
 	exceptions &= ~THREAD_EXCP_IRQ;
 	exceptions |= state & THREAD_EXCP_IRQ;
 	thread_set_exceptions(exceptions);
@@ -928,7 +925,7 @@ void thread_kernel_save_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_if(!(thread_get_exceptions() & THREAD_EXCP_IRQ));
 	if (vfp_is_enabled()) {
 		vfp_lazy_save_state_init(&thr->vfp_state.sec);
 		thr->vfp_state.sec_lazy_saved = true;
@@ -939,8 +936,8 @@ void thread_kernel_restore_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
-	panic_unless(!vfp_is_enabled());
+	panic_if(!(thread_get_exceptions() & THREAD_EXCP_IRQ));
+	panic_if(vfp_is_enabled());
 	if (thr->vfp_state.sec_lazy_saved) {
 		vfp_lazy_restore_state(&thr->vfp_state.sec,
 				       thr->vfp_state.sec_saved);
@@ -954,8 +951,8 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
-	panic_unless(!vfp_is_enabled());
+	panic_if(!(thread_get_exceptions() & THREAD_EXCP_IRQ));
+	panic_if(vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns);
@@ -981,11 +978,11 @@ void thread_user_save_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	panic_unless(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	panic_if(!(thread_get_exceptions() & THREAD_EXCP_IRQ));
 	if (!vfp_is_enabled())
 		return;
 
-	panic_unless(tuv && !tuv->lazy_saved && !tuv->saved);
+	panic_if(!tuv || tuv->lazy_saved || tuv->saved);
 	vfp_lazy_save_state_init(&tuv->vfp);
 	tuv->lazy_saved = true;
 }
@@ -1058,8 +1055,8 @@ void thread_add_mutex(struct mutex *m)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	panic_unless(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	panic_unless(m->owner_id == -1);
+	panic_if(ct == -1 || threads[ct].state != THREAD_STATE_ACTIVE);
+	panic_if(m->owner_id != -1);
 	m->owner_id = ct;
 	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
 }
@@ -1069,8 +1066,8 @@ void thread_rem_mutex(struct mutex *m)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	panic_unless(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	panic_unless(m->owner_id == ct);
+	panic_if(ct == -1 || threads[ct].state != THREAD_STATE_ACTIVE);
+	panic_if(m->owner_id != ct);
 	m->owner_id = -1;
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
@@ -1141,7 +1138,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
 	size_t n;
 
-	panic_unless(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
+	panic_if(!arg || !carg || num_params > RPC_MAX_NUM_PARAMS);
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;

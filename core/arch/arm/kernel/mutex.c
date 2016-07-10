@@ -84,7 +84,7 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&m->spin_lock);
 
-	panic_unless(m->value == MUTEX_VALUE_LOCKED);
+	panic_if(m->value != MUTEX_VALUE_LOCKED);
 	thread_rem_mutex(m);
 	m->value = MUTEX_VALUE_UNLOCKED;
 
@@ -155,8 +155,8 @@ void mutex_destroy(struct mutex *m)
 	 * Caller guarantees that no one will try to take the mutex so
 	 * there's no need to take the spinlock before accessing it.
 	 */
-	panic_unless(m->value == MUTEX_VALUE_UNLOCKED);
-	panic_unless(wq_is_empty(&m->wq));
+	panic_if(m->value != MUTEX_VALUE_UNLOCKED);
+	panic_if(!wq_is_empty(&m->wq));
 }
 
 void condvar_init(struct condvar *cv)
@@ -167,7 +167,7 @@ void condvar_init(struct condvar *cv)
 void condvar_destroy(struct condvar *cv)
 {
 	if (cv->m)
-		panic_unless(!wq_have_condvar(&cv->m->wq, cv));
+		panic_if(wq_have_condvar(&cv->m->wq, cv));
 	condvar_init(cv);
 }
 
@@ -221,7 +221,7 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 
 	/* Link this condvar to this mutex until reinitialized */
 	cpu_spin_lock(&cv->spin_lock);
-	panic_unless(!cv->m || cv->m == m);
+	panic_if(cv->m && cv->m != m);
 	cv->m = m;
 	cpu_spin_unlock(&cv->spin_lock);
 
@@ -231,7 +231,7 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 	wq_wait_init_condvar(&m->wq, &wqe, cv);
 
 	/* Unlock the mutex */
-	panic_unless(m->value == MUTEX_VALUE_LOCKED);
+	panic_if(m->value != MUTEX_VALUE_LOCKED);
 	thread_rem_mutex(m);
 	m->value = MUTEX_VALUE_UNLOCKED;
 

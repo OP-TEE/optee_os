@@ -3225,7 +3225,7 @@ static int pkcs1_get_salt_len(const TEE_Attribute *params, uint32_t num_params,
 {
 	size_t n;
 
-	panic_unless(default_len < INT_MAX);
+	panic_if(default_len >= INT_MAX);
 
 	for (n = 0; n < num_params; n++) {
 		if (params[n].attributeID == TEE_ATTR_RSA_PSS_SALT_LENGTH) {

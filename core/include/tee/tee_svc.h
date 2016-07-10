@@ -94,7 +94,7 @@ TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 static inline uint32_t tee_svc_kaddr_to_uref(void *kaddr)
 {
-	panic_unless(((vaddr_t)kaddr - tee_svc_uref_base) < UINT32_MAX);
+	panic_if(((vaddr_t)kaddr - tee_svc_uref_base) >= UINT32_MAX);
 	return (vaddr_t)kaddr - tee_svc_uref_base;
 }
 

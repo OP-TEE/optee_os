@@ -112,7 +112,7 @@ static void pcsc_reader_get_atr(struct pcsc_reader *r)
 
 static void pcsc_reader_connect(struct pcsc_reader *r)
 {
-	panic_unless(!r->connected);
+	panic_if(r->connected);
 
 	pcsc_reader_write_reg(r, PCSC_REG_READER_CONTROL,
 			PCSC_READER_CTL_CONNECT |
@@ -124,7 +124,7 @@ static void pcsc_reader_connect(struct pcsc_reader *r)
 
 static void pcsc_reader_disconnect(struct pcsc_reader *r)
 {
-	panic_unless(r->connected);
+	panic_if(!r->connected);
 
 	pcsc_reader_write_reg(r, PCSC_REG_READER_CONTROL,
 			PCSC_READER_CTL_DISCONNECT |
@@ -138,7 +138,7 @@ static TEE_Result pcsc_reader_transmit(struct pcsc_reader *r, uint8_t *tx_buf,
 {
 	uint32_t tx_buf_paddr = 0, rx_buf_paddr = 0;
 
-	panic_unless(r->connected);
+	panic_if(!r->connected);
 
 	tx_buf_paddr = virt_to_phys((void *)tx_buf);
 	rx_buf_paddr = virt_to_phys((void *)rx_buf);

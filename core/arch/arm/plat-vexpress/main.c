@@ -95,7 +95,7 @@ void main_init_gic(void)
 					  MEM_AREA_IO_SEC);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
-	panic_unless(gicc_base && gicd_base);
+	panic_if(!gicc_base || !gicd_base);
 
 #if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno) || \
     PLATFORM_FLAVOR_IS(qemu_armv8a)

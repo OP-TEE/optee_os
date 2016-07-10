@@ -540,8 +540,8 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 	uint8_t *tmp __maybe_unused;
 
 
-	panic_unless((size + offset >= size) &&
-		   (size + offset <= RPMB_DATA_SIZE));
+	panic_if((size + offset < size) ||
+		   (size + offset > RPMB_DATA_SIZE));
 
 	if (!fek) {
 		/* Block is not encrypted (not a file data block) */
@@ -2182,7 +2182,7 @@ static int rpmb_fs_write(TEE_Result *errno, int fd, const void *buf,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	panic_unless(!(fh->fat_entry.flags & FILE_IS_LAST_ENTRY));
+	panic_if(fh->fat_entry.flags & FILE_IS_LAST_ENTRY);
 
 	end = fh->pos + size;
 	start_addr = fh->fat_entry.start_address + fh->pos;

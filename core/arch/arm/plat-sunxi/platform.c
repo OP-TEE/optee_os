@@ -60,7 +60,7 @@ static int platform_smp_init(void)
 {
 	vaddr_t base = (vaddr_t)phys_to_virt(PRCM_BASE, MEM_AREA_IO_SEC);
 
-	panic_unless(base);
+	panic_if(!base);
 	write32((uint32_t)sunxi_secondary_entry,
 		base + PRCM_CPU_SOFT_ENTRY_REG);
 
@@ -78,7 +78,7 @@ void platform_init(void)
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
 	cci400_base = (vaddr_t)phys_to_virt(CCI400_BASE, MEM_AREA_IO_SEC);
-	panic_unless(gicc_base && gicd_base && cci400_base);
+	panic_if(!gicc_base || !gicd_base || !cci400_base);
 
 	/*
 	 * GIC configuration is initialized in Secure bootloader,

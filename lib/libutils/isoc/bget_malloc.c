@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-		/* FIXME: BGET relies on assert(). Change to panic_unless() ? */
+		/* FIXME: BGET relies on assert(). Change to panic_if() ? */
 
 #define PROTOTYPES
 

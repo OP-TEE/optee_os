@@ -49,7 +49,7 @@ enum gpio_dir gpio_get_direction(unsigned int gpio_pin)
 void gpio_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
 {
 	assert(ops && ops->set_direction);
-	panic_unless((direction == GPIO_DIR_OUT) || (direction == GPIO_DIR_IN));
+	panic_if((direction != GPIO_DIR_OUT) && (direction != GPIO_DIR_IN));
 
 	ops->set_direction(gpio_pin, direction);
 }
@@ -64,7 +64,7 @@ enum gpio_level gpio_get_value(unsigned int gpio_pin)
 void gpio_set_value(unsigned int gpio_pin, enum gpio_level value)
 {
 	assert(ops && ops->set_value);
-	panic_unless((value == GPIO_LEVEL_LOW) || (value == GPIO_LEVEL_HIGH));
+	panic_if((value != GPIO_LEVEL_LOW) && (value != GPIO_LEVEL_HIGH));
 
 	ops->set_value(gpio_pin, value);
 }

@@ -64,7 +64,7 @@ void main_init_gic(void)
 					  MEM_AREA_IO_SEC);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
-	panic_unless(gicc_base && gicd_base);
+	panic_if(!gicc_base || !gicd_base);
 
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 

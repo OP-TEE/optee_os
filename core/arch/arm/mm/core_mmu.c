@@ -340,7 +340,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 */
 
 	map = memory_map;
-	panic_unless(map->type == MEM_AREA_TEE_RAM);
+	panic_if(map->type != MEM_AREA_TEE_RAM);
 	map->va = map->pa;
 #ifdef CFG_WITH_PAGER
 	map->region_size = SMALL_PAGE_SIZE,
@@ -405,10 +405,8 @@ void core_init_mmu_map(void)
 
 	for (n = 0; n < ARRAY_SIZE(secure_only); n++) {
 		if (pbuf_intersects(nsec_shared, secure_only[n].paddr,
-				    secure_only[n].size)) {
-			EMSG("Invalid memory access configuration: sec/nsec");
-			panic();
-		}
+				    secure_only[n].size))
+			panic_msg("Invalid memory access config: sec/nsec");
 	}
 
 	if (!mem_map_inited)
@@ -418,24 +416,19 @@ void core_init_mmu_map(void)
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TEE_RAM does not fit in secure_only");
-				panic();
-			}
+			if (!pbuf_is_inside(secure_only, map->pa, map->size))
+				panic_msg("TEE_RAM can't fit in secure_only");
+
 			map_tee_ram = map;
 			break;
 		case MEM_AREA_TA_RAM:
-			if (!pbuf_is_inside(secure_only, map->pa, map->size)) {
-				EMSG("TA_RAM does not fit in secure_only");
-				panic();
-			}
+			if (!pbuf_is_inside(secure_only, map->pa, map->size))
+				panic_msg("TA_RAM can't fit in secure_only");
 			map_ta_ram = map;
 			break;
 		case MEM_AREA_NSEC_SHM:
-			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
-				EMSG("NSEC_SHM does not fit in nsec_shared");
-				panic();
-			}
+			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
+				panic_msg("NSEC_SHM can't fit in nsec_shared");
 			map_nsec_shm = map;
 			break;
 		case MEM_AREA_IO_SEC:
@@ -450,10 +443,7 @@ void core_init_mmu_map(void)
 	}
 
 	/* Check that we have the mandatory memory areas defined */
-	if (!map_tee_ram || !map_ta_ram || !map_nsec_shm) {
-		EMSG("mapping area missing");
-		panic();
-	}
+	panic_if(!map_tee_ram || !map_ta_ram || !map_nsec_shm);
 
 	core_init_mmu_tables(static_memory_map);
 }
@@ -700,7 +690,7 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t pa, uint32_t attr)
 {
-	panic_unless(idx < tbl_info->num_entries);
+	panic_if(idx >= tbl_info->num_entries);
 	core_mmu_set_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -708,7 +698,7 @@ void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t *pa, uint32_t *attr)
 {
-	panic_unless(idx < tbl_info->num_entries);
+	panic_if(idx >= tbl_info->num_entries);
 	core_mmu_get_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -721,9 +711,9 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	paddr_t pa;
 
 	/* va, len and pa should be block aligned */
-	panic_unless(!core_mmu_get_block_offset(tbl_info, region->va));
-	panic_unless(!core_mmu_get_block_offset(tbl_info, region->size));
-	panic_unless(!core_mmu_get_block_offset(tbl_info, region->pa));
+	panic_if(core_mmu_get_block_offset(tbl_info, region->va));
+	panic_if(core_mmu_get_block_offset(tbl_info, region->size));
+	panic_if(core_mmu_get_block_offset(tbl_info, region->pa));
 
 	idx = core_mmu_va2idx(tbl_info, region->va);
 	end = core_mmu_va2idx(tbl_info, region->va + region->size);
@@ -753,10 +743,10 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			panic_unless(*pgt); /* We should have alloced enough */
+			panic_if(!*pgt); /* We should have alloced enough */
 
 			/* Virtual addresses must grow */
-			panic_unless(r.va > pg_info->va_base);
+			panic_if(r.va <= pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->table = (*pgt)->tbl;
@@ -945,21 +935,21 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
 	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
 		if (!core_mmu_user_mapping_is_active()) {
-			panic_unless(!pa);
+			panic_if(pa);
 			return;
 		}
 
 		res = tee_mmu_user_va2pa_helper(
 			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
 		if (res == TEE_SUCCESS)
-			panic_unless(pa == p);
+			panic_if(pa != p);
 		else
-			panic_unless(!pa);
+			panic_if(pa);
 		return;
 	}
 #ifdef CFG_WITH_PAGER
 	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
-		panic_unless(v == pa);
+		panic_if(v != pa);
 		return;
 	}
 	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
@@ -978,16 +968,16 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			paddr_t mask = ((1 << ti->shift) - 1);
 
 			p |= v & mask;
-			panic_unless(pa == p);
+			panic_if(pa != p);
 		} else
-			panic_unless(!pa);
+			panic_if(pa);
 		return;
 	}
 #endif
 	if (!core_va2pa_helper(va, &p))
-		panic_unless(pa == p);
+		panic_if(pa != p);
 	else
-		panic_unless(!pa);
+		panic_if(pa);
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
@@ -1008,7 +998,7 @@ paddr_t virt_to_phys(void *va)
 #if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	panic_unless(!va || virt_to_phys(va) == pa);
+	panic_if(va && virt_to_phys(va) != pa);
 }
 #else
 static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)

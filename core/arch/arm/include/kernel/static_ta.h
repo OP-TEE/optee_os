@@ -63,7 +63,7 @@ static inline bool is_static_ta_ctx(struct tee_ta_ctx *ctx)
 
 static inline struct static_ta_ctx *to_static_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	panic_unless(is_static_ta_ctx(ctx));
+	panic_if(!is_static_ta_ctx(ctx));
 	return container_of(ctx, struct static_ta_ctx, ctx);
 }
 

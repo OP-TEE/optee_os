@@ -31,7 +31,6 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/panic.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
 

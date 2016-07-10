@@ -186,7 +186,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 
 	DMSG("0x%" PRIxVA " - 0x%" PRIxVA, smem, smem + nbytes);
 
-	panic_unless(!pager_alias_area);
+	panic_if(pager_alias_area);
 	if (!ti->num_entries && !core_mmu_find_table(smem, UINT_MAX, ti)) {
 		DMSG("Can't find translation table");
 		panic();
@@ -205,8 +205,8 @@ static void set_alias_area(tee_mm_entry_t *mm)
 		panic();
 	}
 
-	panic_unless(!(smem & SMALL_PAGE_MASK));
-	panic_unless(!(nbytes & SMALL_PAGE_MASK));
+	panic_if(smem & SMALL_PAGE_MASK);
+	panic_if(nbytes & SMALL_PAGE_MASK);
 
 	pager_alias_area = mm;
 	pager_alias_next_free = smem;
@@ -223,8 +223,8 @@ static void set_alias_area(tee_mm_entry_t *mm)
 
 static void generate_ae_key(void)
 {
-	panic_unless(rng_generate(pager_ae_key,
-				  sizeof(pager_ae_key)) == TEE_SUCCESS);
+	panic_if(rng_generate(pager_ae_key,
+				  sizeof(pager_ae_key)) != TEE_SUCCESS);
 }
 
 void tee_pager_init(tee_mm_entry_t *mm_alias)
@@ -243,7 +243,7 @@ static void *pager_add_alias_page(paddr_t pa)
 
 	DMSG("0x%" PRIxPA, pa);
 
-	panic_unless(pager_alias_next_free && ti->num_entries);
+	panic_if(!pager_alias_next_free || !ti->num_entries);
 	idx = core_mmu_va2idx(ti, pager_alias_next_free);
 	core_mmu_set_entry(ti, idx, pa, attr);
 	pager_alias_next_free += SMALL_PAGE_SIZE;
@@ -315,15 +315,16 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : flags 0x%x, store %p, hashes %p",
 		base, base + size, flags, store, hashes);
 
-	panic_unless(!(base & SMALL_PAGE_MASK) &&
-			size && !(size & SMALL_PAGE_MASK));
+	panic_if(base & SMALL_PAGE_MASK ||
+		 size & SMALL_PAGE_MASK ||
+		 !size);
 
 	if (!(flags & TEE_MATTR_PW))
-		panic_unless(store && hashes);
+		panic_if(!store || !hashes);
 	else if (flags & TEE_MATTR_PW)
-		panic_unless(!store && !hashes);
+		panic_if(store || hashes);
 	else
-		panic();
+		panic_msg("invalid flags");
 
 
 	tbl_va_size = (1 << ti->shift) * ti->num_entries;
@@ -385,7 +386,7 @@ static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 {
 	struct pager_aes_gcm_iv iv;
 
-	panic_unless((rwp->iv + 1) > rwp->iv);
+	panic_if((rwp->iv + 1) <= rwp->iv);
 	rwp->iv++;
 	/*
 	 * IV is constructed as recommended in section "8.2.1 Deterministic
@@ -397,9 +398,9 @@ static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 	iv.iv[1] = rwp->iv >> 32;
 	iv.iv[2] = rwp->iv;
 
-	if (!pager_aes_gcm_encrypt(pager_ae_key, sizeof(pager_ae_key),
-				   &iv, rwp->tag, src, dst, SMALL_PAGE_SIZE))
-		panic();
+	panic_if(!pager_aes_gcm_encrypt(pager_ae_key, sizeof(pager_ae_key),
+					&iv, rwp->tag,
+					src, dst, SMALL_PAGE_SIZE));
 }
 
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
@@ -442,14 +443,14 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 	const uint32_t dirty_bits = TEE_MATTR_PW | TEE_MATTR_UW |
 				    TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 
-	panic_unless(!(pmem->area->flags & TEE_MATTR_LOCKED));
+	panic_if(pmem->area->flags & TEE_MATTR_LOCKED);
 
 	if (attr & dirty_bits) {
 		size_t idx = pmem->pgidx - core_mmu_va2idx(ti,
 							   pmem->area->base);
 		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
-		panic_unless(pmem->area->flags & TEE_MATTR_PW);
+		panic_if(!(pmem->area->flags & TEE_MATTR_PW));
 		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
 			     stored_page);
 		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
@@ -481,7 +482,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			uint32_t a = get_area_mattr(pmem->area);
 
 			/* page is hidden, show and move to back */
-			panic_unless(pa == get_pmem_pa(pmem));
+			panic_if(pa != get_pmem_pa(pmem));
 			/*
 			 * If it's not a dirty block, then it should be
 			 * read only.
@@ -532,7 +533,7 @@ static void tee_pager_hide_pages(void)
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
-		panic_unless(pa == get_pmem_pa(pmem));
+		panic_if(pa != get_pmem_pa(pmem));
 		if (attr & (TEE_MATTR_PW | TEE_MATTR_UW)){
 			a = TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 			FMSG("Hide %#" PRIxVA,
@@ -568,7 +569,7 @@ static bool tee_pager_release_one_phys(vaddr_t page_va)
 		if (pmem->pgidx != pgidx)
 			continue;
 
-		panic_unless(pa == get_pmem_pa(pmem));
+		panic_if(pa != get_pmem_pa(pmem));
 		core_mmu_set_entry(ti, pgidx, 0, 0);
 		TAILQ_REMOVE(&tee_pager_lock_pmem_head, pmem, link);
 		pmem->area = NULL;
@@ -609,7 +610,7 @@ static struct tee_pager_pmem *tee_pager_get_page(uint32_t next_area_flags)
 	pmem->area = NULL;
 	if (next_area_flags & TEE_MATTR_LOCKED) {
 		/* Move page to lock list */
-		panic_unless(tee_pager_npages > 0);
+		panic_if(tee_pager_npages <= 0);
 		tee_pager_npages--;
 		set_npages();
 		TAILQ_INSERT_TAIL(&tee_pager_lock_pmem_head, pmem, link);
@@ -828,10 +829,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			continue;
 
 		pmem = malloc(sizeof(struct tee_pager_pmem));
-		if (pmem == NULL) {
-			EMSG("Can't allocate memory");
-			panic();
-		}
+		panic_if(!pmem);
 
 		pmem->va_alias = pager_add_alias_page(pa);
 
@@ -846,7 +844,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			 */
 			pmem->area = tee_pager_find_area(va);
 			pmem->pgidx = pgidx;
-			panic_unless(pa == get_pmem_pa(pmem));
+			panic_if(pa != get_pmem_pa(pmem));
 			core_mmu_set_entry(ti, pgidx, pa,
 					   get_area_mattr(pmem->area));
 		}

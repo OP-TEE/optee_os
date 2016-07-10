@@ -494,8 +494,7 @@ static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
 			     SMALL_PAGE_SIZE);
 	_ltc_mempool_u32 = tee_pager_alloc(*size_pool, 0);
-	if (!_ltc_mempool_u32)
-		panic();
+	panic_if(!_ltc_mempool_u32);
 	pool = (void *)_ltc_mempool_u32;
 	return (mpa_scratch_mem)pool;
 }
@@ -547,7 +546,7 @@ static void pool_postactions(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
-	panic_unless(!pool->last_offset);
+	panic_if(pool->last_offset);
 	release_unused_mpa_scratch_memory();
 }
 
@@ -583,7 +582,7 @@ static void get_pool(struct mpa_scratch_mem_sync *sync)
 			condvar_wait(&sync->cv, &sync->mu);
 
 		sync->owner = thread_get_id();
-		panic_unless(!sync->count);
+		panic_if(sync->count);
 	}
 
 	sync->count++;
@@ -596,8 +595,8 @@ static void put_pool(struct mpa_scratch_mem_sync *sync)
 {
 	mutex_lock(&sync->mu);
 
-	panic_unless(sync->owner == thread_get_id());
-	panic_unless(sync->count > 0);
+	panic_if(sync->owner != thread_get_id());
+	panic_if(sync->count <= 0);
 
 	sync->count--;
 	if (!sync->count) {

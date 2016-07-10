@@ -59,7 +59,7 @@ void vfp_lazy_save_state_final(struct vfp_state *state)
 	if (state->fpexc & FPEXC_EN) {
 		uint32_t fpexc = vfp_read_fpexc();
 
-		panic_unless(!(fpexc & FPEXC_EN));
+		panic_if(fpexc & FPEXC_EN);
 		vfp_write_fpexc(fpexc | FPEXC_EN);
 		state->fpscr = vfp_read_fpscr();
 		vfp_save_extension_regs(state->reg);
@@ -120,7 +120,7 @@ void vfp_lazy_save_state_final(struct vfp_state *state)
 {
 	if ((CPACR_EL1_FPEN(state->cpacr_el1) & CPACR_EL1_FPEN_EL0EL1) ||
 	    state->force_save) {
-		panic_unless(!vfp_is_enabled());
+		panic_if(vfp_is_enabled());
 		vfp_enable();
 		state->fpcr = read_fpcr();
 		state->fpsr = read_fpsr();

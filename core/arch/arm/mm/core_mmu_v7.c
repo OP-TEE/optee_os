@@ -166,7 +166,7 @@ static paddr_t core_mmu_get_main_ttb_pa(void)
 	/* Note that this depends on flat mapping of TEE Core */
 	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
 
-	panic_unless(!(pa & ~TEE_MMU_TTB_L1_MASK));
+	panic_if(pa & ~TEE_MMU_TTB_L1_MASK);
 	return pa;
 }
 
@@ -180,7 +180,7 @@ static paddr_t core_mmu_get_ul1_ttb_pa(void)
 	/* Note that this depends on flat mapping of TEE Core */
 	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
 
-	panic_unless(!(pa & ~TEE_MMU_TTB_UL1_MASK));
+	panic_if(pa & ~TEE_MMU_TTB_UL1_MASK);
 	return pa;
 }
 
@@ -202,7 +202,7 @@ static void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 {
-	panic_unless(level >= 1 && level <= 2);
+	panic_if(level != 1 && level != 2);
 
 	if (level == 1) {
 		if ((desc & 0x3) == 0x1)
@@ -385,13 +385,18 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->level = level;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
-	panic_unless(level <= 2);
-	if (level == 1) {
+
+	switch(level) {
+	case 1:
 		tbl_info->shift = SECTION_SHIFT;
 		tbl_info->num_entries = TEE_MMU_L1_NUM_ENTRIES;
-	} else {
+		return;
+	case 2:
 		tbl_info->shift = SMALL_PAGE_SHIFT;
 		tbl_info->num_entries = TEE_MMU_L2_NUM_ENTRIES;
+		return;
+	default:
+		panic_msg("invalid level");
 	}
 }
 
@@ -534,7 +539,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 	size_t pg_idx;
 	uint32_t attr;
 
-	panic_unless(l2);
+	panic_if(!l2);
 
 	attr = mattr_to_desc(2, mm->attr);
 
@@ -683,7 +688,7 @@ void core_init_mmu_regs(void)
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {
-	panic_unless(!(fsr & FSR_LPAE));
+	panic_if(fsr & FSR_LPAE);
 
 	switch (fsr & FSR_FS_MASK) {
 	case 0x1: /* DFSR[10,3:0] 0b00001 Alignment fault (DFSR only) */

@@ -27,6 +27,7 @@
  */
 
 #include <arm.h>
+#include <assert.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
@@ -170,10 +171,10 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	while (n && !mmu->table[n].size)
 		n--;
 	va = mmu->table[n].va + mmu->table[n].size;
-	panic_unless(va);
+	panic_if(!va);
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-	panic_unless(va_range_base == mmu->ta_private_vmem_start);
+	panic_if(va_range_base != mmu->ta_private_vmem_start);
 
 	/*
 	 * Assign parameters in secure memory.
@@ -292,10 +293,10 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 
 	if (!tbl[n].size) {
 		/* We're continuing the va space from previous entry. */
-		panic_unless(tbl[n - 1].size);
+		panic_if(!tbl[n - 1].size);
 
 		/* This is the first segment */
-		panic_unless(offs < granule);
+		panic_if(offs >= granule);
 		va = tbl[n - 1].va + tbl[n - 1].size;
 		end_va = ROUNDUP(offs + size, granule) + va;
 		pa = base_pa;
@@ -618,8 +619,8 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
 	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
-	panic_unless(utc->mmu && utc->mmu->table &&
-		   utc->mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
+	assert(utc->mmu && utc->mmu->table);
+	panic_if(utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES);
 
 	return utc->mmu->table[1].va;
 }
@@ -635,16 +636,16 @@ void teecore_init_ta_ram(void)
 	 * shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
 	ps = virt_to_phys((void *)s);
-	panic_unless(ps);
+	panic_if(!ps);
 	pe = virt_to_phys((void *)(e - 1)) + 1;
-	panic_unless(pe);
+	panic_if(!pe);
 
-	panic_unless((ps & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
-	panic_unless((pe & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	panic_if(ps & (CORE_MMU_USER_CODE_SIZE - 1));
+	panic_if(pe & (CORE_MMU_USER_CODE_SIZE - 1));
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	panic_unless(tee_pbuf_is_sec(ps, pe - ps));
+	panic_if(!tee_pbuf_is_sec(ps, pe - ps));
 
-	panic_unless(tee_mm_is_empty(&tee_mm_sec_ddr));
+	panic_if(!tee_mm_is_empty(&tee_mm_sec_ddr));
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
@@ -660,11 +661,11 @@ void teecore_init_pub_ram(void)
 	/* get virtual addr/size of NSec shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
 
-	panic_unless(s < e);
-	panic_unless((s & SMALL_PAGE_MASK) == 0);
-	panic_unless((e & SMALL_PAGE_MASK) == 0);
+	panic_if(s >= e);
+	panic_if(s & SMALL_PAGE_MASK);
+	panic_if(e & SMALL_PAGE_MASK);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	panic_unless(tee_vbuf_is_non_sec(s, e - s));
+	panic_if(!tee_vbuf_is_non_sec(s, e - s));
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */
@@ -681,6 +682,6 @@ uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 	paddr_t pa;
 	uint32_t attr;
 
-	panic_unless(tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) == TEE_SUCCESS);
+	panic_if(tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) != TEE_SUCCESS);
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }

@@ -31,7 +31,6 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <kernel/tee_dispatch.h>
-#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <util.h>
