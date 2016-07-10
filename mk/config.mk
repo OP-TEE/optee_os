@@ -38,8 +38,10 @@ WARNS ?= 3
 # Define DEBUG=1 to compile with -g option
 # DEBUG=1
 
-# If 1, debug mode of the tee firmware (CPU restart, Core Status)
-CFG_TEE_CORE_DEBUG ?= 0
+# Core debug mode enablement
+# When defined to "y", tee firmware is in debug mode. Core and pager status,
+# panics verbosity, physical/virtual address paranoid verifications.
+CFG_TEE_CORE_DEBUG ?= n
 
 # Max level of the tee core traces. 0 means disable, 4 is max.
 # Supported values: 0 (no traces) to 4 (all traces)

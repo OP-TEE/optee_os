@@ -36,13 +36,13 @@ void __panic(const char *file __maybe_unused,
 {
 	uint32_t __unused exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
-#if (CFG_TEE_CORE_DEBUG == 0)
-	EMSG_RAW("PANIC");
-#else
+#if defined(CFG_TEE_CORE_DEBUG)
 	if (msg)
 		EMSG_RAW("PANIC '%s' at %s:%d <%s>", msg, file, line, func);
 	else
 		EMSG_RAW("PANIC at %s:%d <%s>", file, line, func);
+#else
+	EMSG_RAW("PANIC");
 #endif
 
 	while (1)

@@ -677,7 +677,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 
 }
 
-#ifdef CFG_TEE_CORE_DEBUG
+#if defined(CFG_TEE_CORE_DEBUG)
 static void stat_handle_fault(void)
 {
 	static size_t num_faults;
