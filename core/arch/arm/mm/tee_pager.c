@@ -26,6 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <keep.h>
 #include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
@@ -44,7 +46,7 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <keep.h>
+
 #include "pager_private.h"
 
 #define PAGER_AE_KEY_BITS	256
@@ -386,7 +388,7 @@ static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 {
 	struct pager_aes_gcm_iv iv;
 
-	panic_if((rwp->iv + 1) <= rwp->iv);
+	assert((rwp->iv + 1) > rwp->iv);
 	rwp->iv++;
 	/*
 	 * IV is constructed as recommended in section "8.2.1 Deterministic
@@ -443,14 +445,14 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 	const uint32_t dirty_bits = TEE_MATTR_PW | TEE_MATTR_UW |
 				    TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 
-	panic_if(pmem->area->flags & TEE_MATTR_LOCKED);
+	assert(!(pmem->area->flags & TEE_MATTR_LOCKED));
 
 	if (attr & dirty_bits) {
 		size_t idx = pmem->pgidx - core_mmu_va2idx(ti,
 							   pmem->area->base);
 		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
-		panic_if(!(pmem->area->flags & TEE_MATTR_PW));
+		assert(pmem->area->flags & TEE_MATTR_PW);
 		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
 			     stored_page);
 		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
@@ -533,7 +535,7 @@ static void tee_pager_hide_pages(void)
 		if (!(attr & TEE_MATTR_VALID_BLOCK))
 			continue;
 
-		panic_if(pa != get_pmem_pa(pmem));
+		assert(pa == get_pmem_pa(pmem));
 		if (attr & (TEE_MATTR_PW | TEE_MATTR_UW)){
 			a = TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 			FMSG("Hide %#" PRIxVA,
@@ -569,7 +571,7 @@ static bool tee_pager_release_one_phys(vaddr_t page_va)
 		if (pmem->pgidx != pgidx)
 			continue;
 
-		panic_if(pa != get_pmem_pa(pmem));
+		assert(pa == get_pmem_pa(pmem));
 		core_mmu_set_entry(ti, pgidx, 0, 0);
 		TAILQ_REMOVE(&tee_pager_lock_pmem_head, pmem, link);
 		pmem->area = NULL;
@@ -844,7 +846,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 			 */
 			pmem->area = tee_pager_find_area(va);
 			pmem->pgidx = pgidx;
-			panic_if(pa != get_pmem_pa(pmem));
+			assert(pa == get_pmem_pa(pmem));
 			core_mmu_set_entry(ti, pgidx, pa,
 					   get_area_mattr(pmem->area));
 		}

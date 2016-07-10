@@ -26,6 +26,7 @@
  */
 
 #include <assert.h>
+#include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
@@ -41,7 +42,8 @@ TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid)
 	size_t str_length = strlen(name);
 	size_t aid_length = str_length / 2;
 
-	assert(aid && !*aid);
+	assert(aid);
+	panic_if(*aid);
 	if (str_length < MIN_AID_LENGTH || str_length > MAX_AID_LENGTH)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -82,7 +84,8 @@ int tee_se_aid_get_refcnt(struct tee_se_aid *aid)
 
 void tee_se_aid_release(struct tee_se_aid *aid)
 {
-	assert(aid && aid->refcnt > 0);
+	assert(aid);
+	panic_if(aid->refcnt <= 0);
 	aid->refcnt--;
 	if (aid->refcnt == 0)
 		free(aid);

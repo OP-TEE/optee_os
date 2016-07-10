@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <drivers/gic.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
@@ -213,7 +214,7 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 
 	panic_if(it > gd->max_it); /* Not too large */
 	/* Assigned to group0 */
-	panic_if(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
+	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Route it to selected CPUs */
 	target = read32(gd->gicd_base +
@@ -236,7 +237,7 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 
 	panic_if(it > gd->max_it); /* Not too large */
 	/* Assigned to group0 */
-	panic_if(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
+	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Set prio it to selected CPUs */
 	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
@@ -251,9 +252,9 @@ static void gic_it_enable(struct gic_data *gd, size_t it)
 
 	panic_if(it > gd->max_it); /* Not too large */
 	/* Assigned to group0 */
-	panic_if(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
+	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 	/* Not enabled yet */
-	panic_if(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask);
+	assert(!(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask));
 
 	/* Enable the interrupt */
 	write32(mask, gd->gicd_base + GICD_ISENABLER(idx));
@@ -266,7 +267,7 @@ static void gic_it_disable(struct gic_data *gd, size_t it)
 
 	panic_if(it > gd->max_it); /* Not too large */
 	/* Assigned to group0 */
-	panic_if(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
+	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Disable the interrupt */
 	write32(mask, gd->gicd_base + GICD_ICENABLER(idx));

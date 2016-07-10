@@ -353,7 +353,7 @@ int mpa_set_str(mpanum dest, const char *digitstr)
 	*w = 0;
 	i = BYTES_PER_WORD;
 	dest->size = 1;
-	bufidx--;		/* dec to get insid);e buf range */
+	bufidx--;		/* dec to get inside buf range */
 	while (bufidx > 1) {
 		*w ^= ((((mpa_word_t)buf[bufidx - 1] << 4) ^ (buf[bufidx])) <<
 			((mpa_word_t)(BYTES_PER_WORD - i) << 3));

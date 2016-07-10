@@ -582,7 +582,7 @@ static void get_pool(struct mpa_scratch_mem_sync *sync)
 			condvar_wait(&sync->cv, &sync->mu);
 
 		sync->owner = thread_get_id();
-		panic_if(sync->count);
+		assert(!sync->count);
 	}
 
 	sync->count++;
@@ -595,8 +595,8 @@ static void put_pool(struct mpa_scratch_mem_sync *sync)
 {
 	mutex_lock(&sync->mu);
 
-	panic_if(sync->owner != thread_get_id());
-	panic_if(sync->count <= 0);
+	assert(sync->owner == thread_get_id());
+	assert(sync->count > 0);
 
 	sync->count--;
 	if (!sync->count) {

@@ -88,7 +88,7 @@ __weak void main_init_gic(void)
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
-	panic_if(nsec_entry != PADDR_INVALID);
+	assert(nsec_entry == PADDR_INVALID);
 	/* Do nothing as we don't have a secure monitor */
 }
 #else
@@ -97,7 +97,7 @@ __weak void init_sec_mon(unsigned long nsec_entry)
 {
 	struct sm_nsec_ctx *nsec_ctx;
 
-	panic_if(nsec_entry == PADDR_INVALID);
+	assert(nsec_entry != PADDR_INVALID);
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
@@ -183,8 +183,8 @@ static void init_runtime(unsigned long pageable_part)
 	uint8_t *hashes;
 	size_t block_size;
 
-	panic_if(pageable_size % SMALL_PAGE_SIZE);
-	panic_if(hash_size != (size_t)__tmp_hashes_size);
+	assert(pageable_size % SMALL_PAGE_SIZE == 0);
+	assert(hash_size == (size_t)__tmp_hashes_size);
 
 	/*
 	 * Zero BSS area. Note that globals that would normally would go
@@ -289,7 +289,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore,
 		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
-	panic_if(!mm);
+	assert(mm);
 	tee_pager_init(mm);
 
 	/*
@@ -299,7 +299,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
 			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
-	panic_if(!mm);
+	assert(mm);
 
 	/*
 	 * Allocate virtual memory for the pageable area and let the pager
@@ -307,7 +307,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
-	panic_if(!mm);
+	assert(mm);
 	panic_if(!tee_pager_add_core_area(tee_mm_get_smem(mm),
 					  tee_mm_get_bytes(mm),
 					  TEE_MATTR_PRX, paged_store, hashes));

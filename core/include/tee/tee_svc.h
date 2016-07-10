@@ -27,7 +27,7 @@
 #ifndef TEE_SVC_H
 #define TEE_SVC_H
 
-#include <kernel/panic.h>
+#include <assert.h>
 #include <stdint.h>
 #include <types_ext.h>
 #include <tee_api_types.h>
@@ -94,7 +94,7 @@ TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 static inline uint32_t tee_svc_kaddr_to_uref(void *kaddr)
 {
-	panic_if(((vaddr_t)kaddr - tee_svc_uref_base) >= UINT32_MAX);
+	assert(((vaddr_t)kaddr - tee_svc_uref_base) < UINT32_MAX);
 	return (vaddr_t)kaddr - tee_svc_uref_base;
 }
 

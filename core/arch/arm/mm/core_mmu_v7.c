@@ -202,7 +202,7 @@ static void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 {
-	panic_if(level != 1 && level != 2);
+	assert(level == 1 || level == 2);
 
 	if (level == 1) {
 		if ((desc & 0x3) == 0x1)
@@ -385,18 +385,13 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->level = level;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
-
-	switch(level) {
-	case 1:
+	assert(level <= 2);
+	if (level == 1) {
 		tbl_info->shift = SECTION_SHIFT;
 		tbl_info->num_entries = TEE_MMU_L1_NUM_ENTRIES;
-		return;
-	case 2:
+	} else {
 		tbl_info->shift = SMALL_PAGE_SHIFT;
 		tbl_info->num_entries = TEE_MMU_L2_NUM_ENTRIES;
-		return;
-	default:
-		panic_msg("invalid level");
 	}
 }
 

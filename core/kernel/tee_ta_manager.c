@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arm.h>
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/static_ta.h>
@@ -67,7 +68,7 @@ static void lock_single_instance(void)
 			condvar_wait(&tee_ta_cv, &tee_ta_mutex);
 
 		tee_ta_single_instance_thread = thread_get_id();
-		panic_if(tee_ta_single_instance_count);
+		assert(!tee_ta_single_instance_count);
 	}
 
 	tee_ta_single_instance_count++;
@@ -76,8 +77,8 @@ static void lock_single_instance(void)
 static void unlock_single_instance(void)
 {
 	/* Requires tee_ta_mutex to be held */
-	panic_if(tee_ta_single_instance_thread != thread_get_id());
-	panic_if(tee_ta_single_instance_count <= 0);
+	assert(tee_ta_single_instance_thread == thread_get_id());
+	assert(tee_ta_single_instance_count > 0);
 
 	tee_ta_single_instance_count--;
 	if (tee_ta_single_instance_count == 0) {
@@ -130,14 +131,14 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 
 static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
 {
-	panic_if(!tee_ta_try_set_busy(ctx));
+	assert(tee_ta_try_set_busy(ctx));
 }
 
 static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 {
 	mutex_lock(&tee_ta_mutex);
 
-	panic_if(!ctx->busy);
+	assert(ctx->busy);
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
 
@@ -149,7 +150,7 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 
 static void dec_session_ref_count(struct tee_ta_session *s)
 {
-	panic_if(s->ref_count <= 0);
+	assert(s->ref_count > 0);
 	s->ref_count--;
 	if (s->ref_count == 1)
 		condvar_signal(&s->refc_cv);
@@ -199,7 +200,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 		if (!exclusive)
 			break;
 
-		panic_if(s->lock_thread == thread_get_id());
+		assert(s->lock_thread != thread_get_id());
 
 		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
 			condvar_wait(&s->lock_cv, &tee_ta_mutex);
@@ -223,9 +224,9 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 {
 	mutex_lock(&tee_ta_mutex);
 
-	panic_if(s->ref_count < 1);
-	panic_if(s->lock_thread != thread_get_id());
-	panic_if(s->unlink);
+	assert(s->ref_count >= 1);
+	assert(s->lock_thread == thread_get_id());
+	assert(!s->unlink);
 
 	s->unlink = true;
 	condvar_broadcast(&s->lock_cv);

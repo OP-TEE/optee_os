@@ -27,8 +27,8 @@
 #ifndef KERNEL_STATIC_TA_H
 #define KERNEL_STATIC_TA_H
 
+#include <assert.h>
 #include <compiler.h>
-#include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <tee_api_types.h>
 #include <util.h>
@@ -63,7 +63,7 @@ static inline bool is_static_ta_ctx(struct tee_ta_ctx *ctx)
 
 static inline struct static_ta_ctx *to_static_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	panic_if(!is_static_ta_ctx(ctx));
+	assert(is_static_ta_ctx(ctx));
 	return container_of(ctx, struct static_ta_ctx, ctx);
 }
 

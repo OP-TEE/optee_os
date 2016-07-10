@@ -27,12 +27,12 @@
 #ifndef KERNEL_USER_TA_H
 #define KERNEL_USER_TA_H
 
-#include <types_ext.h>
-#include <tee_api_types.h>
-#include <kernel/panic.h>
+#include <assert.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <mm/tee_mm.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 #include <util.h>
 
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
@@ -74,7 +74,7 @@ static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 
 static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	panic_if(!is_user_ta_ctx(ctx));
+	assert(is_user_ta_ctx(ctx));
 	return container_of(ctx, struct user_ta_ctx, ctx);
 }
 

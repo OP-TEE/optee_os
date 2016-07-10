@@ -33,25 +33,27 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
+#include <arm.h>
+#include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
+#include <kernel/panic.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <kernel/tz_ssvce_pl310.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
-#include <mm/core_memprot.h>
-#include <mm/pgt_cache.h>
 #include <mm/tee_pager.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/tee_misc.h>
-#include <kernel/panic.h>
-#include <kernel/tee_ta_manager.h>
 #include <util.h>
-#include "core_mmu_private.h"
-#include <kernel/tz_ssvce_pl310.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/thread.h>
-#include <arm.h>
+
+#include "core_mmu_private.h"
 
 #define MAX_MMAP_REGIONS	10
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
@@ -308,7 +310,7 @@ static uint32_t type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RES_VASPACE:
 		return 0;
 	default:
-		panic();
+		panic_msg("invalid memory type");
 	}
 }
 
@@ -340,7 +342,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 */
 
 	map = memory_map;
-	panic_if(map->type != MEM_AREA_TEE_RAM);
+	assert(map->type == MEM_AREA_TEE_RAM);
 	map->va = map->pa;
 #ifdef CFG_WITH_PAGER
 	map->region_size = SMALL_PAGE_SIZE,
@@ -690,7 +692,7 @@ unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t pa, uint32_t attr)
 {
-	panic_if(idx >= tbl_info->num_entries);
+	assert(idx < tbl_info->num_entries);
 	core_mmu_set_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -698,7 +700,7 @@ void core_mmu_set_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 			paddr_t *pa, uint32_t *attr)
 {
-	panic_if(idx >= tbl_info->num_entries);
+	assert(idx < tbl_info->num_entries);
 	core_mmu_get_entry_primitive(tbl_info->table, tbl_info->level,
 				     idx, pa, attr);
 }
@@ -711,9 +713,9 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	paddr_t pa;
 
 	/* va, len and pa should be block aligned */
-	panic_if(core_mmu_get_block_offset(tbl_info, region->va));
-	panic_if(core_mmu_get_block_offset(tbl_info, region->size));
-	panic_if(core_mmu_get_block_offset(tbl_info, region->pa));
+	assert(!core_mmu_get_block_offset(tbl_info, region->va));
+	assert(!core_mmu_get_block_offset(tbl_info, region->size));
+	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
 
 	idx = core_mmu_va2idx(tbl_info, region->va);
 	end = core_mmu_va2idx(tbl_info, region->va + region->size);
@@ -743,10 +745,10 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			panic_if(!*pgt); /* We should have alloced enough */
+			assert(*pgt); /* We should have alloced enough */
 
 			/* Virtual addresses must grow */
-			panic_if(r.va <= pg_info->va_base);
+			assert(r.va > pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->table = (*pgt)->tbl;

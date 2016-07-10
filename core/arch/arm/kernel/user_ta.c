@@ -487,7 +487,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_uaddr_t usr_stack;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s __maybe_unused;
 
 	panic_if(!(utc->ctx.flags & TA_FLAG_EXEC_DDR));
 
@@ -529,7 +529,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	update_from_utee_param(param, usr_params);
 
 	s = tee_ta_pop_current_session();
-	panic_if(s != session);
+	assert(s == session);
 cleanup_return:
 
 	/*

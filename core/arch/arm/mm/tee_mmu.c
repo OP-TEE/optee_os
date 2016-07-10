@@ -171,10 +171,10 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	while (n && !mmu->table[n].size)
 		n--;
 	va = mmu->table[n].va + mmu->table[n].size;
-	panic_if(!va);
+	assert(va);
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-	panic_if(va_range_base != mmu->ta_private_vmem_start);
+	assert(va_range_base == mmu->ta_private_vmem_start);
 
 	/*
 	 * Assign parameters in secure memory.
@@ -293,10 +293,10 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 
 	if (!tbl[n].size) {
 		/* We're continuing the va space from previous entry. */
-		panic_if(!tbl[n - 1].size);
+		assert(tbl[n - 1].size);
 
 		/* This is the first segment */
-		panic_if(offs >= granule);
+		assert(offs < granule);
 		va = tbl[n - 1].va + tbl[n - 1].size;
 		end_va = ROUNDUP(offs + size, granule) + va;
 		pa = base_pa;
@@ -661,9 +661,7 @@ void teecore_init_pub_ram(void)
 	/* get virtual addr/size of NSec shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
 
-	panic_if(s >= e);
-	panic_if(s & SMALL_PAGE_MASK);
-	panic_if(e & SMALL_PAGE_MASK);
+	panic_if(s >= e || s & SMALL_PAGE_MASK || e & SMALL_PAGE_MASK);
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
 	panic_if(!tee_vbuf_is_non_sec(s, e - s));
 
