@@ -40,8 +40,8 @@ void _assert_log(const char *expr __maybe_unused,
 #if (CFG_TEE_CORE_DEBUG == 0)
 	EMSG_RAW("assertion failed");
 #else
-	EMSG_RAW("assertion '%s' failed at %s:%d in %s()",
-				expr, file, line, func);
+	EMSG_RAW("assertion '%s' failed at %s:%d <%s>",
+				expr, file , line, func);
 #endif
 }
 

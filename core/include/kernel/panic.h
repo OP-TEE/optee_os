@@ -39,8 +39,7 @@
 #define panic_if(expr) \
 	do { \
 		if (expr) \
-			__panic(__FILE__, __LINE__, __func__, \
-				"on \"" #expr "\""); \
+			__panic(__FILE__, __LINE__, __func__, #expr); \
 	} while (0)
 
 void __panic(const char *file, const int line, const char *func, const char *m)
