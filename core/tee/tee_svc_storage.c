@@ -70,7 +70,7 @@ static const struct tee_file_operations *file_ops(uint32_t storage_id)
 }
 
 /* SSF (Secure Storage File version 00 */
-#define TEE_SVC_STORAGE_MAGIC 0x53534600;
+#define TEE_SVC_STORAGE_MAGIC 0x53534600
 
 /* Header of GP formated secure storage files */
 struct tee_svc_storage_head {
@@ -307,6 +307,11 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 
 	fops = o->pobj->fops;
 
+	if (!(o->pobj->head = malloc(sizeof(head)))) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
 	file = tee_svc_storage_create_filename(sess,
 					       o->pobj->obj_id,
 					       o->pobj->obj_id_len,
@@ -334,6 +339,9 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 		res = TEE_ERROR_BAD_FORMAT;
 		goto exit;
 	}
+
+	/* Save a copy of the header */
+	memcpy(o->pobj->head, &head, sizeof(head));
 
 	res = tee_obj_set_type(o, head.objectType, head.maxKeySize);
 	if (res != TEE_SUCCESS)
@@ -453,6 +461,14 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 	/* error codes needs better granularity */
 	if (err != sizeof(struct tee_svc_storage_head))
 		goto exit;
+
+	/* Save a copy of the header */
+	if (!(o->pobj->head = malloc(sizeof(head)))) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	} else {
+		memcpy(o->pobj->head, &head, sizeof(head));
+	}
 
 	/* write meta */
 	err = fops->write(&res, fd, attr, attr_size);
@@ -1322,8 +1338,33 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 		goto exit;
 
 	o->info.dataPosition += len;
-	if (o->info.dataPosition > o->info.dataSize)
+	if (o->info.dataPosition > o->info.dataSize) {
+		struct tee_svc_storage_head *head = NULL;
+		tee_fs_off_t off;
+
 		o->info.dataSize = o->info.dataPosition;
+
+		/* Get current offset */
+		off = o->pobj->fops->lseek(&res, o->fd, 0, TEE_FS_SEEK_CUR);
+
+		head = o->pobj->head;
+
+		if (head && head->magic == TEE_SVC_STORAGE_MAGIC) {
+			/* Update size */
+			head->ds_size = o->info.dataSize;
+			/* Update head into storage */
+			o->pobj->fops->lseek(&res, o->fd, 0, TEE_FS_SEEK_SET);
+
+			if (o->pobj->fops->write(&res, o->fd, head,
+					sizeof(*head)) != sizeof(*head)) {
+				EMSG("Failed to update head\n");
+				goto exit;
+			}
+		}
+
+		/* Go back to original */
+		o->pobj->fops->lseek(&res, o->fd, off, TEE_FS_SEEK_SET);
+	}
 
 	res = TEE_SUCCESS;
 exit:

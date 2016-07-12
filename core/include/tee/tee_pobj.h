@@ -40,6 +40,7 @@ struct tee_pobj {
 	void *obj_id;
 	uint32_t obj_id_len;
 	uint32_t flags;
+	void *head;
 	/* Filesystem handling this object */
 	const struct tee_file_operations *fops;
 };

@@ -117,6 +117,7 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	o->refcnt = 1;
 	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
 	o->flags = flags;
+	o->head = NULL;
 	o->fops = fops;
 
 	o->obj_id = malloc(obj_id_len);
@@ -141,6 +142,7 @@ TEE_Result tee_pobj_release(struct tee_pobj *obj)
 	obj->refcnt--;
 	if (obj->refcnt == 0) {
 		TAILQ_REMOVE(&tee_pobjs, obj, link);
+		free(obj->head);
 		free(obj->obj_id);
 		free(obj);
 	}
