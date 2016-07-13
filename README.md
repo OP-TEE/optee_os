@@ -24,7 +24,8 @@
         5. [Update flash and its layout](#571-update-flash-and-its-layout)
         5. [GlobalPlatform testsuite support](#572-globalplatform-testsuite-support)
         5. [GCC5 support](#573-gcc5-support)
-    5. [Tips and tricks](#58-tips-and-tricks)
+    5. [Raspberry Pi 3](#58-raspberry-pi-3)
+    5. [Tips and tricks](#59-tips-and-tricks)
         5. [Reference existing project to speed up repo sync](#581-reference-existing-project-to-speed-up-repo-sync)
         5. [Use ccache](#582-use-ccache)
 6. [Load driver, tee-supplicant and run xtest](#6-load-driver-tee-supplicant-and-run-xtest)
@@ -77,6 +78,7 @@ platforms have different sub-maintainers, please refer to the file
 | [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173)|`PLATFORM=mediatek-mt8173`| No |
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
 | [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
+| [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
@@ -116,7 +118,7 @@ $ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
                libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
                libz1:i386 netcat python-crypto python-serial \
                python-wand uuid-dev xdg-utils xz-utils zlib1g-dev \
-               mtools
+               mtools libtool libftdi-dev libhidapi-dev
 ```
 
 ---
@@ -400,6 +402,7 @@ $ repo sync
 | HiKey Debian (experimental) | `hikey_debian.xml` | Not available |
 | MediaTek MT8173 EVB Board | `mt8173-evb.xml` | `mt8173-evb_stable.xml` |
 | ARM Juno board| `juno.xml` | `juno_stable.xml` |
+| Raspberry Pi 3 | `rpi3_experimental.xml` | Not available |
 
 #### 5.2.2 Branches
 Currently we are only using one branch, i.e, the `master` branch.
@@ -663,8 +666,14 @@ NOR5ENTRY: 00000000              ;Image Entry Point
 </pre>
 
 ---
-### 5.8 Tips and tricks
-#### 5.8.1 Reference existing project to speed up repo sync
+### 5.8 Raspberry Pi 3
+There is a separate document for Raspberry Pi 3 [here](documentation/rpi3.md).
+That document will tell you how to flash, how to debug, known problems and
+things still to be done.
+
+---
+### 5.9 Tips and tricks
+#### 5.9.1 Reference existing project to speed up repo sync
 Doing a `repo init`, `repo sync` from scratch can take a fair amount of time.
 The main reason for that is simply because of the size of some of the gits we
 are using, like for the Linux kernel and EDK2. With repo you can reference an
@@ -690,7 +699,7 @@ Normally step 1 and 2 above is something you will only do once. Also if you
 ignore step 2, then you will still get the latest from official git trees, since
 repo will also check for updates that aren't at the local reference.
 
-#### 5.8.2. Use ccache
+#### 5.9.2. Use ccache
 ccache is a tool that caches build object-files etc locally on the disc and can
 speed up build time significantly in subsequent builds. On Debian-based systems
 (Ubuntu, Mint etc) you simply install it by running:
