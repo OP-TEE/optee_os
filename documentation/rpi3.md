@@ -12,7 +12,8 @@ from June 8 2016.
 2. [Upstream?](#2-upstream)
 3. [Build instructions](#3-build-instructions)
 4. [Known problems](#4-known-problems)
-5. [OpenOCD](#5-openocd)
+5. [NFS boot](#5-nfs-boot)
+6. [OpenOCD](#6-openocd)
 
 # 1. Disclaimer
 ```
@@ -111,7 +112,7 @@ solve than others.
 ## 4.1 Root file system
 Currently we are using a cpio archive with busybox as a base, that works fine
 and has a rather small footprint it terms of size. However in some cases it's
-conventient to use something that reminds of what is used in distros. For
+convenient to use something that reminds of what is used in distros. For
 example having the ability to use a package manager like apt-get, pacman or rpm,
 to make it easy to add new applications and developer tools.
 
@@ -124,8 +125,203 @@ Suggestions to look into regarding creating a better rootfs
   (i.e., pull 64bit RPi3 patches and OP-TEE patches into the official Raspbian
   Linux kernel build).
 
-# 5. OpenOCD
+# 5. NFS Boot
+Booting via NFS and TFTP is quite useful for several reasons, but the obvious
+reason when working with Raspberry Pi is that you don't have to move the
+SD-card back and forth between the host machine and the RPi itself. Below we
+will describe how to setup both the TFTP part and the NFS part so we have both
+ways covered. We will get kernel, optee.bin and the device tree blob from the
+tftpd server and we will get the root fs from the NFS server. Note that this
+guide doesn't focus on any desktop security, so eventually you would need to
+harden your setup. Another thing is that this seems like a lot of steps, and it
+is, but most of them is something you do once and never more and it will save
+tons of time in the long run.
+
+Note also, that this particular guide is written for the ARMv8-A setup using
+OP-TEE. But, it should work on plain RPi also if you change U-boot and
+filesystem accordingly.
+
+In the description below we will use the following terminology:
+```
+HOST_IP=192.168.1.100   <--- This is your desktop computer
+RPI_IP=192.168.1.200    <--- This is the Raspberry Pi
+```
+
+## 5.1 Configure TFTPD
+There are several different servers to use, but in the description we're going
+to use `atftpd`, so start by apt-get that package.
+```
+$ sudo apt-get install atftpd
+```
+
+Next edit the configuration file for atftpd
+```
+$ sudo vim /etc/default/atftpd
+```
+
+And change the file so it looks exactly like this, nothing less, nothing more!
+```
+USE_INETD=false
+OPTIONS="--tftpd-timeout 300 --retry-timeout 5 --mcast-port 1758 --mcast-addr 239.239.239.0-255 --mcast-ttl 1 --maxthread 100 --verbose=5 /tftpboot"
+```
+
+Create the tftpboot folder and change the permissions
+```
+$ sudo mkdir /tftpboot
+$ sudo chmod -R 777 /tftpboot
+$ sudo chown -R nobody /tftpboot
+```
+
+And finally restart the daemon
+```
+$ sudo /etc/init.d/atftpd restart
+```
+
+## 5.2 Configure NFS
+Start by installing the NFS server
+```
+$ sudo apt-get install nfs-kernel-server
+```
+
+Then edit the exports file,
+```
+$ sudo vim /etc/exports
+```
+
+In this file you shall tell where your files/folder are and the IP's allowed
+to access the files. The way it's written below will make it available to every
+machine on the same subnet (again, be careful about security here). Let's add
+this line to the file (it's the only line necessary in the file, but if you have
+several different filesystems available, then you should of course add them too).
+```
+/srv/nfs/rpi 192.168.1.0/24(rw,sync,no_root_squash,no_subtree_check)
+```
+
+Next create the folder
+```
+$ sudo mkdir /srv/nfs/rpi
+```
+
+After this, restart the nfs kernel server
+```
+$ service nfs-kernel-server restart
+```
+
+## 5.3 Prepare files to be shared.
+We need to prepare and put the files on the tftpd and the NFS-server. There are
+several ways to do it, copy files, symlink etc.
+
+### 5.3.1 Image, optee.bin and *.dtb
+We're just going to create symlinks. By doing so you don't have to think about
+copy files, just rebuild and you have the latest version available for the next
+boot. On my computer I've symlinked like this (in my `/tftpboot` folder):
+```
+$ ll
+lrwxrwxrwx  1 jbech  jbech         65 jul 14 09:03 Image -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/Image
+lrwxrwxrwx  1 jbech  jbech         85 jul 14 09:03 optee.bin -> /home/jbech/devel/optee_projects/rpi3/arm-trusted-firmware/build/rpi3/debug/optee.bin
+lrwxrwxrwx  1 jbech  jbech         90 Sep 13 11:19 bcm2710-rpi-3-b.dtb -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b.dtb
+```
+
+### 5.3.2 The root FS
+We are now going to put the root fs on the location we prepared in the previous
+section (5.2). The path to the `filesystem.cpio.gz` will differ on your machine,
+so update accordingly.
+
+```
+$ cd /srv/nfs/rpi
+$ sudo gunzip -cd /home/jbech/devel/optee_projects/rpi3/build/../gen_rootfs/filesystem.cpio.gz | sudo cpio -idmv
+$ sudo rm -rf /srv/nfs/rpi/boot/*
+```
+
+### 5.4 Update uboot.env
+We need to make a couple of changes to that file to ensure that it will try to
+boot using everything we have prepared. So, start by inserting the UART cable
+and open up `/dev/ttyUSB0`
+```
+# sudo apt-get install picocom
+$ picocom -b 115200 /dev/ttyUSB0
+```
+
+Power up the Raspberry Pi and almost immediately hit any key and you should see
+the `U-Boot>` prompt. First add a new variable which will gather all files and
+boot up the device. For simplicity I call that variable `optee`. So in the
+prompt write (pay attention to the IP's used as described in the beginning of
+this section):
+```
+U-Boot> setenv optee 'usb start; dhcp ${kernel_addr_r} 192.168.1.100:Image; dhcp ${fdt_addr_r} 192.168.1.100:${fdtfile}; dhcp ${atf_load_addr} 192.168.1.100:${atf_file}; run boot_it'
+```
+
+Also ensure that you have the variables stored that are used in the `optee`
+U-Boot environment variable above. If you don't, then do:
+
+```
+U-Boot> setenv fdtfile 'bcm2710-rpi-3-b.dtb'
+U-Boot> setenv atf_file 'optee.bin'
+```
+
+Next, we should update the kernel commandline to use NFS, to easier understand
+what changes needs to be done I list both the unmodified command line and the
+changed and correct one for NFS boot.
+
+Original
+```
+setenv bootargs 'console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootfs=ext4 ignore_loglevel dma.dmachans=0x7f35 rootwait 8250.nr_uarts=1 elevator=deadline fsck.repair=yes smsc95xx.macaddr=b8:27:eb:74:93:b0 bcm2708_fb.fbwidth=1920 bcm2708_fb.fbheight=1080 vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000'
+```
+
+Updated for NFS boot
+```
+setenv bootargs 'console=ttyS0,115200 root=/dev/nfs rw rootfstype=nfs nfsroot=192.168.1.100:/srv/nfs/rpi,udp,vers=3 ip=dhcp ignore_loglevel dma.dmachans=0x7f35 rootwait 8250.nr_uarts=1 elevator=deadline fsck.repair=yes smsc95xx.macaddr=b8:27:eb:74:93:b0 bcm2708_fb.fbwidth=1920 bcm2708_fb.fbheight=1080 vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000'
+```
+
+If you want those environment variables to persist between boots, then type.
+```
+U-Boot> saveenv
+```
+
+And don't worry about the `FAT: Misaligned buffer address ...` message, it will
+still work.
+
+## 5.5 Network boot the RPi
+With all preparations done correctly above, you should now be able to boot up
+the device and kernel, secure side OP-TEE and the entire root fs should be
+loaded from the network shares. Power up the Raspberry, halt in U-Boot and then
+type.
+```
+U-Boot> run optee
+```
+
+Profit!
+
+## 5.6 Tricks
+If everything works, you can simply copy paste files like xtest, the trusted
+applications etc, directly from your build folder to the `/srv/nfs/rpi` folders
+after rebuilding them. By doing so you don't have to reboot the device when
+doing development and testing. Note that you cannot make symlinks to those like
+we did with `Image`, `bcm2710-rpi-3-b.dtb` and `optee.bin`.
+
+## 5.7 Other root filesystems than initramfs based?
+The default root filesystem used for OP-TEE development is a simple CPIO archive
+used as initramfs. That is small and is good enough for testing and debugging.
+But sometimes you want to use a more traditional Linux filesystem, such as those
+that are in distros. With such filesystem you can apt-get (if Debian based)
+other useful tools, such as gdb on the device, valgrind etc to mention a few. An
+example of such a rootfs is the [linaro-vivid-developer-20151215-114.tar.gz](http://releases.linaro.org/ubuntu/images/developer-arm64/15.12/linaro-vivid-developer-20151215-114.tar.gz),
+which is an Ubuntu 15.04 based filesystem. The procedure to use that filesystem
+with NFS is the same as for the CPIO based, you need to extract the files to a
+folder which is known by the NFS server (use regular `tar -xvf ...` command).
+
+Then you need to copy `xtest` and `tee-supplicant` to `<NFS>/bin/`, copy
+`libtee.so*` to `<NFS>/lib/` and copy all `*.ta` files to
+`<NFS>/lib/optee_armtz/`. Easiest here is to write a small shell script or add a
+target to the makefile which will do this so the files always are up-to-date
+after a rebuild.
+
+When that has been done, you can run OP-TEE tests, TA's etc and if you're only
+updating files in normal world (the ones just mentioned), then you don't even
+need to reboot the RPi after a rebuild.
+
+# 6. OpenOCD
 TDB (instructions how to debug OP-TEE using OpenOCD and JTAG debuggers).
 
-## 5.1 Debug cable / UART cable
+## 6.1 Debug cable / UART cable
 TBD
