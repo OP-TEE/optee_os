@@ -26,13 +26,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <drivers/gic.h>
-#include <kernel/interrupt.h>
-#include <util.h>
-#include <io.h>
-#include <trace.h>
-
 #include <assert.h>
+#include <compiler.h>
+#include <drivers/gic.h>
+#include <io.h>
+#include <kernel/interrupt.h>
+#include <trace.h>
+#include <util.h>
+
 
 /* Offsets from gic.gicc_base */
 #define GICC_CTLR		(0x000)
@@ -208,8 +209,8 @@ static void gic_it_add(struct gic_data *gd, size_t it)
 static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 				uint8_t cpu_mask)
 {
-	size_t idx = it / NUM_INTS_PER_REG;
-	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
+	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
 	uint32_t target, target_shift;
 
 	assert(it <= gd->max_it); /* Not too large */
@@ -232,8 +233,8 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 
 static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 {
-	size_t idx = it / NUM_INTS_PER_REG;
-	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
+	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
 
 	assert(it <= gd->max_it); /* Not too large */
 	/* Assigned to group0 */
