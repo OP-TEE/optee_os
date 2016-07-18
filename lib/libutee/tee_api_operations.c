@@ -227,6 +227,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_CONCAT_KDF_SHA384_DERIVE_KEY:
 	case TEE_ALG_CONCAT_KDF_SHA512_DERIVE_KEY:
 	case TEE_ALG_PBKDF2_HMAC_SHA1_DERIVE_KEY:
+	case TEE_ALG_SCRYPT_DERIVE_KEY:
 		if (mode != TEE_MODE_DERIVE)
 			return TEE_ERROR_NOT_SUPPORTED;
 		with_private_key = true;

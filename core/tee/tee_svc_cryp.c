@@ -52,6 +52,9 @@
 #if defined(CFG_CRYPTO_PBKDF2)
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
+#if defined(CFG_CRYPTO_SCRYPT)
+#include <tee/cryp_scrypt.h>
+#endif
 
 /* Set an attribute on an object */
 #define SET_ATTRIBUTE(_object, _props, _attr)	\
@@ -80,6 +83,15 @@ struct tee_cryp_obj_secret {
 	size_t alloc_size;
 	void *key;
 };
+
+#if defined(CFG_CRYPTO_SCRYPT)
+struct scrypt_key_param {
+	size_t n;
+	size_t r;
+	size_t p;
+	struct tee_cryp_obj_secret passwd;
+};
+#endif
 
 #define TEE_TYPE_ATTR_OPTIONAL       0x0
 #define TEE_TYPE_ATTR_REQUIRED       0x1
@@ -343,6 +355,36 @@ static const struct tee_cryp_obj_type_attrs
 };
 #endif
 
+#if defined(CFG_CRYPTO_SCRYPT)
+static const struct tee_cryp_obj_type_attrs
+	tee_cryp_obj_scrypt_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_SCRYPT_PASSWORD,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
+	.ops_index = ATTR_OPS_INDEX_SECRET,
+	RAW_DATA(struct scrypt_key_param, passwd)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_N,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, n)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_R,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, r)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_P,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, p)
+	},
+};
+#endif
+
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
@@ -457,6 +499,11 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_PBKDF2_PASSWORD, 8, 0, 4096,
 		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_pbkdf2_passwd_attrs),
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	PROP(TEE_TYPE_SCRYPT, 8, 0, 4096,
+		sizeof(struct scrypt_key_param),
+		tee_cryp_obj_scrypt_attrs),
 #endif
 	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, 2048,
 		sizeof(struct rsa_public_key),
@@ -1210,6 +1257,18 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		break;
 	case TEE_TYPE_DATA:
 		break;
+#if defined(CFG_CRYPTO_SCRYPT)
+	case TEE_TYPE_SCRYPT:
+		{
+			struct scrypt_key_param *key = o->attr;
+
+			key->passwd.alloc_size = max_key_size / 8;
+			key->passwd.key = calloc(1, key->passwd.alloc_size);
+			if (!key->passwd.key)
+				return TEE_ERROR_OUT_OF_MEMORY;
+		}
+		break;
+#endif
 	default:
 		{
 			struct tee_cryp_obj_secret *key = o->attr;
@@ -1497,6 +1556,19 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	if (o->info.objectType == TEE_TYPE_DES ||
 	    o->info.objectType == TEE_TYPE_DES3)
 		obj_size -= obj_size / 8; /* Exclude parity in size of key */
+#if defined(CFG_CRYPTO_SCRYPT)
+	else if (o->info.objectType == TEE_TYPE_SCRYPT) {
+		struct scrypt_key_param *key = o->attr;
+
+		res = tee_scrypt_validate_param(key->n, key->r, key->p);
+		/*
+		 * Can't return TEE_ERROR_OUT_OF_MEMORY as that would panic
+		 * the TA, instead we return bad parameters.
+		 */
+		if (res != TEE_SUCCESS)
+			return TEE_ERROR_BAD_PARAMETERS;
+	}
+#endif
 
 	o->have_attrs = have_attrs;
 	o->info.keySize = obj_size;
@@ -1944,6 +2016,11 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 #if defined(CFG_CRYPTO_PBKDF2)
 	case TEE_MAIN_ALGO_PBKDF2:
 		req_key_type = TEE_TYPE_PBKDF2_PASSWORD;
+		break;
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	case TEE_MAIN_ALGO_SCRYPT:
+		req_key_type = TEE_TYPE_SCRYPT;
 		break;
 #endif
 	default:
@@ -2643,6 +2720,47 @@ static TEE_Result get_pbkdf2_params(const TEE_Attribute *params,
 }
 #endif
 
+#if defined(CFG_CRYPTO_SCRYPT)
+static TEE_Result get_scrypt_params(const TEE_Attribute *params,
+				   uint32_t param_count, void **salt,
+				   size_t *salt_len, size_t *derived_key_len)
+{
+	size_t n;
+	bool have_dk_len = false;
+	bool have_salt = false;
+
+	for (n = 0; n < param_count; n++) {
+		switch (params[n].attributeID) {
+		case TEE_ATTR_SCRYPT_SALT:
+			if (!have_salt) {
+				*salt = params[n].content.ref.buffer;
+				*salt_len = params[n].content.ref.length;
+				have_salt = true;
+			}
+			break;
+		case TEE_ATTR_SCRYPT_DK_LENGTH:
+			if (!have_dk_len) {
+				*derived_key_len = params[n].content.value.a;
+				have_dk_len = true;
+			}
+			break;
+		default:
+			/* Unexpected attribute */
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+
+	if (!have_dk_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (!have_salt) {
+		*salt = NULL;
+		*salt_len = 0;
+	}
+
+	return TEE_SUCCESS;
+}
+#endif
+
 TEE_Result syscall_cryp_derive_key(unsigned long state,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count, unsigned long derived_key)
@@ -2875,6 +2993,34 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 
 		res = tee_cryp_pbkdf2(hash_id, ss->key, ss->key_size, salt,
 				      salt_len, iteration_count,
+				      sk->key, derived_key_len);
+		if (res == TEE_SUCCESS) {
+			sk->key_size = derived_key_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+	}
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_SCRYPT) {
+		void *salt;
+		size_t salt_len;
+		size_t derived_key_len;
+		struct scrypt_key_param *key = ko->attr;
+
+		res = get_scrypt_params(params, param_count, &salt, &salt_len,
+					&derived_key_len);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		/* Requested size must fit into the output object's buffer */
+		if (derived_key_len > sk->alloc_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		res = tee_cryp_scrypt(key->passwd.key, key->passwd.key_size,
+				      salt, salt_len, key->n, key->r, key->p,
 				      sk->key, derived_key_len);
 		if (res == TEE_SUCCESS) {
 			sk->key_size = derived_key_len;

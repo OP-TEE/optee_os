@@ -52,6 +52,7 @@
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */
+#define TEE_MAIN_ALGO_SCRYPT     0xC3 /* OP-TEE extension */
 
 
 #define TEE_CHAIN_MODE_ECB_NOPAD        0x0

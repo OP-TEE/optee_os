@@ -79,6 +79,21 @@
 #define TEE_ATTR_PBKDF2_DKM_LENGTH          0xF00004C2
 
 /*
+ * The scrypt Password-Based Key Derivation Function
+ * https://tools.ietf.org/html/draft-josefsson-scrypt-kdf-05
+ */
+#define TEE_ALG_SCRYPT_DERIVE_KEY	0x800000C3
+
+#define TEE_TYPE_SCRYPT			0xA10000C3
+
+#define TEE_ATTR_SCRYPT_PASSWORD	0xC00001C3
+#define TEE_ATTR_SCRYPT_SALT		0xD00002C3
+#define TEE_ATTR_SCRYPT_N		0xF00003C3
+#define TEE_ATTR_SCRYPT_R		0xF00004C3
+#define TEE_ATTR_SCRYPT_P		0xF00005C3
+#define TEE_ATTR_SCRYPT_DK_LENGTH	0xF00006C3
+
+/*
  * Implementation-specific object storage constants
  */
 
