@@ -25,17 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <trace.h>
-#include <kernel/tee_common_unpg.h>
+#include <assert.h>
 #include <kernel/mutex.h>
+#include <stdlib.h>
+#include <sys/queue.h>
+#include <trace.h>
 
 #include <tee/se/reader.h>
 #include <tee/se/session.h>
 #include <tee/se/channel.h>
 #include <tee/se/iso7816.h>
-
-#include <stdlib.h>
-#include <sys/queue.h>
 
 #include "session_priv.h"
 #include "channel_priv.h"
@@ -44,8 +43,8 @@ struct tee_se_session *tee_se_session_alloc(
 		struct tee_se_reader_proxy *proxy)
 {
 	struct tee_se_session *s;
-	TEE_ASSERT(proxy != NULL);
 
+	assert(proxy);
 	s = malloc(sizeof(struct tee_se_session));
 	if (s) {
 		TAILQ_INIT(&s->channels);
@@ -74,7 +73,7 @@ bool tee_se_session_is_channel_exist(struct tee_se_session *s,
 TEE_Result tee_se_session_get_atr(struct tee_se_session *s,
 		uint8_t **atr, size_t *atr_len)
 {
-	TEE_ASSERT(s != NULL && atr != NULL && atr_len != NULL);
+	assert(s && atr && atr_len);
 
 	return tee_se_reader_get_atr(s->reader_proxy, atr, atr_len);
 }
@@ -85,7 +84,7 @@ TEE_Result tee_se_session_open_basic_channel(struct tee_se_session *s,
 	struct tee_se_channel *c;
 	TEE_Result ret;
 
-	TEE_ASSERT(s != NULL && channel != NULL && *channel == NULL);
+	assert(s && channel && !*channel);
 
 	if (tee_se_reader_is_basic_channel_locked(s->reader_proxy)) {
 		*channel = NULL;
@@ -120,7 +119,7 @@ TEE_Result tee_se_session_open_logical_channel(struct tee_se_session *s,
 	struct tee_se_channel *c;
 	TEE_Result ret;
 
-	TEE_ASSERT(s != NULL && channel != NULL && *channel == NULL);
+	assert(s && channel && !*channel);
 
 	ret = iso7816_open_available_logical_channel(s, &channel_id);
 	if (ret != TEE_SUCCESS)
@@ -154,7 +153,7 @@ void tee_se_session_close_channel(struct tee_se_session *s,
 {
 	int channel_id;
 
-	TEE_ASSERT(s != NULL && c != NULL);
+	assert(s && c);
 	channel_id = tee_se_channel_get_id(c);
 	if (channel_id > 0) {
 		iso7816_close_logical_channel(s, channel_id);
@@ -184,7 +183,7 @@ void tee_se_session_close(struct tee_se_session *s)
 {
 	struct tee_se_channel *c;
 
-	TEE_ASSERT(s != NULL);
+	assert(s);
 
 	TAILQ_FOREACH(c, &s->channels, link)
 		tee_se_session_close_channel(s, c);

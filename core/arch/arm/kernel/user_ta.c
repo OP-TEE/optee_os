@@ -486,9 +486,9 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_uaddr_t usr_stack;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
-	struct tee_ta_session *s __maybe_unused;
+	struct tee_ta_session *s;
 
-	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
+	TEE_ASSERT(utc->ctx.flags & TA_FLAG_EXEC_DDR);
 
 	/* Map user space memory */
 	res = tee_mmu_map_param(utc, param);
@@ -528,7 +528,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	update_from_utee_param(param, usr_params);
 
 	s = tee_ta_pop_current_session();
-	assert(s == session);
+	TEE_ASSERT(s == session);
 cleanup_return:
 
 	/*

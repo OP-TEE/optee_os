@@ -43,8 +43,6 @@
 #include <kernel/chip_services.h>
 #include <kernel/static_ta.h>
 
-#include <assert.h>
-
 vaddr_t tee_svc_uref_base;
 
 void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)

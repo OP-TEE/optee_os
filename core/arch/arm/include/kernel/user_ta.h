@@ -74,7 +74,7 @@ static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 
 static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	assert(is_user_ta_ctx(ctx));
+	TEE_ASSERT(is_user_ta_ctx(ctx));
 	return container_of(ctx, struct user_ta_ctx, ctx);
 }
 

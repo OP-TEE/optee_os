@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <kernel/tee_common.h>
 #include <util.h>
 #include <trace.h>
@@ -289,7 +290,7 @@ void tee_mm_free(tee_mm_entry_t *p)
 
 	if (entry->next == NULL) {
 		DMSG("invalid mm_entry %p", (void *)p);
-		TEE_ASSERT(0);
+		panic();
 	}
 	entry->next = entry->next->next;
 

@@ -27,12 +27,11 @@
 #ifndef TEE_SVC_H
 #define TEE_SVC_H
 
+#include <assert.h>
 #include <stdint.h>
-#include <kernel/tee_common_unpg.h>	/* tee_uaddr_t */
+#include <types_ext.h>
 #include <tee_api_types.h>
 #include <utee_types.h>
-#include <assert.h>
-#include <types_ext.h>
 
 extern vaddr_t tee_svc_uref_base;
 
@@ -95,7 +94,7 @@ TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 static inline uint32_t tee_svc_kaddr_to_uref(void *kaddr)
 {
-	assert(((vaddr_t)kaddr - tee_svc_uref_base) < UINT32_MAX);
+	TEE_ASSERT(((vaddr_t)kaddr - tee_svc_uref_base) < UINT32_MAX);
 	return (vaddr_t)kaddr - tee_svc_uref_base;
 }
 

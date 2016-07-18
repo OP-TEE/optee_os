@@ -28,18 +28,33 @@
 #define ASSERT_H
 
 #include <compiler.h>
+#include <trace.h>
 
 void _assert_break(void) __noreturn;
-void _assert_log(const char *expr, const char *file, int line);
+void _assert_log(const char *expr, const char *file, const int line,
+			const char *func);
 
+/* assert() generates a log but does not panic if NDEBUG is defined */
+#ifdef NDEBUG
+#define assert(expr)	do { } while (0)
+#else
 #define assert(expr) \
 	do { \
 		if (!(expr)) { \
-			_assert_log(#expr, __FILE__, __LINE__); \
+			_assert_log(#expr, __FILE__, __LINE__, __func__); \
 			_assert_break(); \
 		} \
 	} while (0)
+#endif
 
+/* TEE_ASSERT() always panics if expr is false, whatever debug configuration */
+#define TEE_ASSERT(expr) \
+	do { \
+		if (!(expr)) { \
+			_assert_log(#expr, __FILE__, __LINE__, __func__); \
+			_assert_break(); \
+		} \
+	} while (0)
 
 #define COMPILE_TIME_ASSERT(x) \
 	do { \

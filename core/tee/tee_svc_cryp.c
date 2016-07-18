@@ -24,6 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <assert.h>
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <utee_defines.h>
@@ -3223,7 +3225,7 @@ static int pkcs1_get_salt_len(const TEE_Attribute *params, uint32_t num_params,
 {
 	size_t n;
 
-	assert(default_len < INT_MAX);
+	TEE_ASSERT(default_len < INT_MAX);
 
 	for (n = 0; n < num_params; n++) {
 		if (params[n].attributeID == TEE_ATTR_RSA_PSS_SALT_LENGTH) {

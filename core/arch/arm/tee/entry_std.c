@@ -36,8 +36,6 @@
 #include <mm/core_memprot.h>
 #include <util.h>
 
-#include <assert.h>
-
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 

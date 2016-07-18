@@ -27,7 +27,6 @@
 
 #ifndef TOMCRYPT_H_
 #define TOMCRYPT_H_
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

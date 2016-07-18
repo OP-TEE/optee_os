@@ -26,7 +26,6 @@
  */
 
 #include <assert.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/thread.h>
 #include <kernel/handle.h>
 #include <kernel/mutex.h>
@@ -585,8 +584,7 @@ static int get_file_length(int fd, size_t *length)
 	size_t file_len;
 	int res;
 
-	TEE_ASSERT(length);
-
+	assert(length);
 	*length = 0;
 
 	res = ree_fs_lseek_ree(fd, 0, TEE_FS_SEEK_END);
@@ -1442,7 +1440,7 @@ static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 	struct tee_fs_fd *fdp = NULL;
 	bool file_exist;
 
-	assert(errno != NULL);
+	assert(errno);
 	*errno = TEE_SUCCESS;
 
 	if (!file) {
@@ -1563,7 +1561,7 @@ static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
 	size_t filelen;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 
-	assert(errno != NULL);
+	assert(errno);
 	*errno = TEE_SUCCESS;
 
 	if (!fdp) {
@@ -1631,7 +1629,7 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 	struct tee_fs_file_meta *new_meta = NULL;
 	uint8_t *buf = NULL;
 
-	assert(errno != NULL);
+	assert(errno);
 	*errno = TEE_SUCCESS;
 
 	if (!fdp) {
@@ -1756,7 +1754,7 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 	uint8_t *data_ptr = buf;
 	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
 
-	assert(errno != NULL);
+	assert(errno);
 	*errno = TEE_SUCCESS;
 
 	if (!fdp) {
@@ -1854,7 +1852,7 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 	size_t file_size;
 	int orig_pos;
 
-	assert(errno != NULL);
+	assert(errno);
 	*errno = TEE_SUCCESS;
 
 	if (!fdp) {

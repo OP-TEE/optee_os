@@ -25,15 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <io.h>
-#include <trace.h>
-#include <kernel/tee_common_unpg.h>
 #include <mm/core_memprot.h>
+#include <stdio.h>
+#include <trace.h>
 
 #include <tee/se/util.h>
 #include <tee/se/reader/interface.h>
-
-#include <stdio.h>
 
 #include "pcsc.h"
 #include "reader.h"

@@ -25,27 +25,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <assert.h>
-#include <stdlib.h>
-#include <types_ext.h>
 
 #include <arm.h>
-#include <util.h>
+#include <assert.h>
+#include <kernel/panic.h>
 #include <kernel/tee_common.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
-#include <user_ta_header.h>
 #include <mm/tee_mm.h>
-#include "tee_api_types.h"
-#include <kernel/tee_misc.h>
-#include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
-#include <kernel/tz_ssvce.h>
-#include <kernel/panic.h>
+#include <stdlib.h>
+#include <trace.h>
+#include <types_ext.h>
+#include <user_ta_header.h>
+#include <util.h>
+#include "tee_api_types.h"
 
 #ifdef CFG_PL310
 #include <kernel/tee_l2cc_mutex.h>
@@ -171,10 +171,10 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	while (n && !mmu->table[n].size)
 		n--;
 	va = mmu->table[n].va + mmu->table[n].size;
-	assert(va);
+	TEE_ASSERT(va);
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-	assert(va_range_base == mmu->ta_private_vmem_start);
+	TEE_ASSERT(va_range_base == mmu->ta_private_vmem_start);
 
 	/*
 	 * Assign parameters in secure memory.
@@ -293,10 +293,10 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 
 	if (!tbl[n].size) {
 		/* We're continuing the va space from previous entry. */
-		assert(tbl[n - 1].size);
+		TEE_ASSERT(tbl[n - 1].size);
 
 		/* This is the first segment */
-		assert(offs < granule);
+		TEE_ASSERT(offs < granule);
 		va = tbl[n - 1].va + tbl[n - 1].size;
 		end_va = ROUNDUP(offs + size, granule) + va;
 		pa = base_pa;
@@ -669,7 +669,6 @@ void teecore_init_pub_ram(void)
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */
-	TEE_ASSERT((e - s) > 0);
 	tee_l2cc_store_mutex_boot_pa(s);
 	s += sizeof(uint32_t);		/* size of a pl310 mutex */
 #endif
@@ -680,12 +679,9 @@ void teecore_init_pub_ram(void)
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
-	TEE_Result res;
 	paddr_t pa;
 	uint32_t attr;
 
-	res = tee_mmu_user_va2pa_attr(utc, va, &pa, &attr);
-	assert(res == TEE_SUCCESS);
-
+	TEE_ASSERT(TEE_SUCCESS == tee_mmu_user_va2pa_attr(utc, va, &pa, &attr));
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }

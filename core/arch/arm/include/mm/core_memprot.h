@@ -28,9 +28,8 @@
 #ifndef CORE_MEMPROT_H
 #define CORE_MEMPROT_H
 
-#include <types_ext.h>
-#include <kernel/tee_common_unpg.h>
 #include <mm/core_mmu.h>
+#include <types_ext.h>
 
 /*
  * "pbuf_is" support.

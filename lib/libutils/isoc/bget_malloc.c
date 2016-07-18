@@ -262,6 +262,7 @@ static bool bpool_foreach_pool(struct bpool_iterator *iterator, void **buf,
 		*isfree = true;
 
 		/* Assert that the free list links are intact */
+		/* FIXME: assert() or TEE_ASSERT() ? */
 		assert(b->ql.blink->ql.flink == b);
 		assert(b->ql.flink->ql.blink == b);
 	}
@@ -380,6 +381,7 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 
 static void create_free_block(struct bfhead *bf, bufsize size, struct bhead *bn)
 {
+	// TODO: assert() or TEE_ASSERT() ?
 	assert(BH((char *)bf + size) == bn);
 	assert(bn->bsize < 0); /* Next block should be allocated */
 	/* Next block shouldn't already have free block in front */

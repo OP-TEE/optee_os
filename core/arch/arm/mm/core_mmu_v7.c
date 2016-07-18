@@ -27,15 +27,15 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
-#include <assert.h>
 #include <arm.h>
+#include <assert.h>
+#include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/panic.h>
-#include <kernel/thread.h>
 #include <util.h>
 #include "core_mmu_private.h"
 
@@ -202,7 +202,7 @@ static void *core_mmu_alloc_l2(struct tee_mmap_region *mm)
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 {
-	assert(level >= 1 && level <= 2);
+	TEE_ASSERT(level >= 1 && level <= 2);
 
 	if (level == 1) {
 		if ((desc & 0x3) == 0x1)
@@ -385,7 +385,7 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->level = level;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
-	assert(level <= 2);
+	TEE_ASSERT(level <= 2);
 	if (level == 1) {
 		tbl_info->shift = SECTION_SHIFT;
 		tbl_info->num_entries = TEE_MMU_L1_NUM_ENTRIES;
@@ -573,7 +573,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	paddr_t pa;
 	uint32_t region_size;
 
-	TEE_ASSERT(mm && ttb);
+	assert(mm && ttb);
 
 	/*
 	 * If mm->va is smaller than 32M, then mm->va will conflict with
@@ -683,7 +683,8 @@ void core_init_mmu_regs(void)
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {
-	assert(!(fsr & FSR_LPAE));
+	TEE_ASSERT(!(fsr & FSR_LPAE));
+
 	switch (fsr & FSR_FS_MASK) {
 	case 0x1: /* DFSR[10,3:0] 0b00001 Alignment fault (DFSR only) */
 		return CORE_MMU_FAULT_ALIGNMENT;

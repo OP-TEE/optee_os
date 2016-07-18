@@ -42,6 +42,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include "pager_private.h"
 #include <tomcrypt.h>
