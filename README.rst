@@ -815,6 +815,8 @@ There is a separate document for `Raspberry Pi 3`_. That document will
 tell you how to flash, how to debug, known problems and things still
 to be done.
 
+.. _Raspberry Pi 3: documentation/rpi3.md
+
 5.9 Tips and tricks
 ------------------------------------------------------------
 
