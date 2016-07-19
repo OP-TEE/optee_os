@@ -811,11 +811,11 @@ File to update is /JUNO/SITE1/HBI0262B/images.txt
 5.8 Raspberry Pi 3
 ------------------------------------------------------------
 
-There is a separate `Raspberry Pi 3 document`_ that will
+There is a separate `Raspberry Pi 3 document`__ that will
 tell you how to flash, how to debug, known problems and things still
 to be done.
 
-.. _Raspberry Pi 3 document: documentation/rpi3.md
+.. __: documentation/rpi3.md
 
 5.9 Tips and tricks
 ------------------------------------------------------------
