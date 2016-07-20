@@ -1179,14 +1179,73 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return ret;
 }
 
+static bool check_alloced_shm(paddr_t pa, size_t len, size_t align)
+{
+	if (pa & (align - 1))
+		return false;
+	return core_pbuf_is(CORE_MEM_NSEC_SHM, pa, len);
+}
+
+void thread_rpc_free_arg(uint64_t cookie)
+{
+	if (cookie) {
+		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+			OPTEE_SMC_RETURN_RPC_FREE
+		};
+
+		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
+		thread_rpc(rpc_args);
+	}
+}
+
 void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie)
 {
+	paddr_t pa;
+	uint64_t co;
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-		OPTEE_SMC_RETURN_RPC_ALLOC, size};
+		OPTEE_SMC_RETURN_RPC_ALLOC, size
+	};
 
 	thread_rpc(rpc_args);
-	*arg = reg_pair_to_64(rpc_args[1], rpc_args[2]);
-	*cookie = reg_pair_to_64(rpc_args[4], rpc_args[5]);
+
+	pa = reg_pair_to_64(rpc_args[1], rpc_args[2]);
+	co = reg_pair_to_64(rpc_args[4], rpc_args[5]);
+	if (!check_alloced_shm(pa, size, sizeof(uint64_t))) {
+		thread_rpc_free_arg(co);
+		pa = 0;
+		co = 0;
+	}
+
+	*arg = pa;
+	*cookie = co;
+}
+
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ * @bt:		 must be the same as supplied when allocating
+ */
+static void thread_rpc_free(unsigned int bt, uint64_t cookie)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct optee_msg_arg *arg = thr->rpc_arg;
+	uint64_t carg = thr->rpc_carg;
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
+	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_FREE;
+	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
+	arg->num_params = 1;
+
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[0].u.value.a = bt;
+	params[0].u.value.b = cookie;
+	params[0].u.value.c = 0;
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	thread_rpc(rpc_args);
 }
 
 /**
@@ -1199,7 +1258,7 @@ void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie)
  *		failed.
  * @cookie:	returned cookie used when freeing the buffer
  */
-static void thread_rpc_alloc(size_t size, size_t align, unsigned bt,
+static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 			paddr_t *payload, uint64_t *cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
@@ -1229,52 +1288,17 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned bt,
 	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
 		goto fail;
 
+	if (!check_alloced_shm(params[0].u.tmem.buf_ptr, size, align)) {
+		thread_rpc_free(bt, params[0].u.tmem.shm_ref);
+		goto fail;
+	}
+
 	*payload = params[0].u.tmem.buf_ptr;
 	*cookie = params[0].u.tmem.shm_ref;
 	return;
 fail:
 	*payload = 0;
 	*cookie = 0;
-}
-
-/**
- * Free physical memory previously allocated with thread_rpc_alloc()
- *
- * @cookie:	cookie received when allocating the buffer
- * @bt:		 must be the same as supplied when allocating
- */
-static void thread_rpc_free(unsigned bt, uint64_t cookie)
-{
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct thread_ctx *thr = threads + thread_get_id();
-	struct optee_msg_arg *arg = thr->rpc_arg;
-	uint64_t carg = thr->rpc_carg;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
-
-	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
-	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_FREE;
-	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
-	arg->num_params = 1;
-
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params[0].u.value.a = bt;
-	params[0].u.value.b = cookie;
-	params[0].u.value.c = 0;
-
-	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	thread_rpc(rpc_args);
-}
-
-
-void thread_rpc_free_arg(uint64_t cookie)
-{
-	if (cookie) {
-		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-			OPTEE_SMC_RETURN_RPC_FREE};
-
-		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
-		thread_rpc(rpc_args);
-	}
 }
 
 void thread_rpc_alloc_payload(size_t size, paddr_t *payload, uint64_t *cookie)
