@@ -29,8 +29,15 @@
 #define __PL061_GPIO_H__
 
 #include <gpio.h>
+#include <types_ext.h>
 
-void pl061_gpio_register(vaddr_t base_addr, unsigned int gpio_dev);
-void pl061_gpio_init(void);
+#define PL061_REG_SIZE	0x1000
+
+struct pl061_data {
+	struct gpio_chip chip;
+};
+
+void pl061_register(vaddr_t base_addr, unsigned int gpio_dev);
+void pl061_init(struct pl061_data *pd);
 
 #endif	/* __PL061_GPIO_H__ */

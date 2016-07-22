@@ -35,7 +35,8 @@
 #define PL022_REG_SIZE	0x1000
 
 struct pl022_data {
-	struct spi_chip	chip;
+	struct spi_chip		chip;
+	struct gpio_chip	*gpio;
 	vaddr_t		base;
 	vaddr_t		cs_gpio_base; /* chip select */
 	unsigned int	clk_hz;

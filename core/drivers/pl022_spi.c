@@ -188,7 +188,7 @@ static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	while (i < num_txpkts) {
 		if (read8(pd->base + SSPSR) & SSPSR_TNF)
@@ -205,7 +205,7 @@ static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 
 	*num_rxpkts = j;
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
@@ -215,7 +215,7 @@ static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	while (i < num_txpkts) {
 		if (read8(pd->base + SSPSR) & SSPSR_TNF)
@@ -232,7 +232,7 @@ static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 
 	*num_rxpkts = j;
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_tx8(struct spi_chip *chip, uint8_t *wdat,
@@ -241,7 +241,7 @@ static void pl022_tx8(struct spi_chip *chip, uint8_t *wdat,
 	size_t i = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	while (i < num_txpkts) {
 		if (read8(pd->base + SSPSR) & SSPSR_TNF)
@@ -249,7 +249,7 @@ static void pl022_tx8(struct spi_chip *chip, uint8_t *wdat,
 			write8(wdat[i++], pd->base + SSPDR);
 	}
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_tx16(struct spi_chip *chip, uint16_t *wdat,
@@ -258,7 +258,7 @@ static void pl022_tx16(struct spi_chip *chip, uint16_t *wdat,
 	size_t i = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	while (i < num_txpkts) {
 		if (read8(pd->base + SSPSR) & SSPSR_TNF)
@@ -266,7 +266,7 @@ static void pl022_tx16(struct spi_chip *chip, uint16_t *wdat,
 			write16(wdat[i++], pd->base + SSPDR);
 	}
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
@@ -275,7 +275,7 @@ static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	do {
 		while ((read8(pd->base + SSPSR) & SSPSR_RNE) &&
@@ -286,7 +286,7 @@ static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
 
 	*num_rxpkts = j;
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_rx16(struct spi_chip *chip, uint16_t *rdat,
@@ -295,7 +295,7 @@ static void pl022_rx16(struct spi_chip *chip, uint16_t *rdat,
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	do {
 		while ((read8(pd->base + SSPSR) & SSPSR_RNE) &&
@@ -306,7 +306,7 @@ static void pl022_rx16(struct spi_chip *chip, uint16_t *rdat,
 
 	*num_rxpkts = j;
 
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_print_peri_id(struct pl022_data *pd __maybe_unused)
@@ -333,6 +333,8 @@ static void pl022_sanity_check(struct pl022_data *pd)
 {
 	assert(pd);
 	assert(pd->chip.ops);
+	assert(pd->gpio);
+	assert(pd->gpio->ops);
 	assert(pd->base);
 	assert(pd->cs_gpio_base);
 	assert(pd->clk_hz);
@@ -496,10 +498,10 @@ void pl022_configure(struct pl022_data *pd)
 	io_mask8(pd->base + SSPIMSC, 0, MASK_4);
 
 	DMSG("set CS GPIO dir to out");
-	gpio_set_direction(pd->cs_gpio_pin, GPIO_DIR_OUT);
+	pd->gpio->ops->set_direction(pd->cs_gpio_pin, GPIO_DIR_OUT);
 
 	DMSG("pull CS high");
-	gpio_set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 void pl022_start(struct pl022_data *pd)
