@@ -745,7 +745,7 @@ static int read_and_decrypt_file(int fd,
 		return res;
 
 	if (file_size < header_size)
-		panic();
+		panic("file too short");
 
 	ciphertext = malloc(file_size);
 	if (!ciphertext) {
@@ -1997,7 +1997,7 @@ static int ree_fs_rename(const char *old, const char *new)
 
 	/* finally, link the meta file, rename operation completed */
 	if (!meta_filename)
-		panic();
+		panic("no meta file");
 
 	/*
 	 * TODO: This will cause memory leakage at previous strdup()

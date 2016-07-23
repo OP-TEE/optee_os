@@ -627,7 +627,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	if (((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
 					core_mmu_user_mapping_is_active())
-		panic();
+		panic("unexpected active mapping");
 }
 
 void tee_ta_push_current_session(struct tee_ta_session *sess)

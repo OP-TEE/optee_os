@@ -44,7 +44,8 @@ TEE_Result tee_se_aid_create(const char *name, struct tee_se_aid **aid)
 
 	assert(aid);
 	if (*aid)
-		panic();
+		panic("aid already allocated");
+
 	if (str_length < MIN_AID_LENGTH || str_length > MAX_AID_LENGTH)
 		return TEE_ERROR_BAD_PARAMETERS;
 

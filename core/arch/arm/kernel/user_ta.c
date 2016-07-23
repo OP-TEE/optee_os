@@ -491,7 +491,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	struct tee_ta_session *s __maybe_unused;
 
 	if (!(utc->ctx.flags & TA_FLAG_EXEC_DDR))
-		panic();
+		panic("TA does not exec in DDR");
 
 	/* Map user space memory */
 	res = tee_mmu_map_param(utc, param);

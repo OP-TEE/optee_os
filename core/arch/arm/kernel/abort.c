@@ -493,16 +493,14 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 
 	if (is_abort_in_abort_handler(ai)) {
 		abort_print_error(ai);
-		EMSG("[abort] abort in abort handler (trap CPU)");
-		panic();
+		panic("[abort] abort in abort handler (trap CPU)");
 	}
 
 	if (ai->abort_type == ABORT_TYPE_UNDEF) {
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] undefined abort (trap CPU)");
-		panic();
+		panic("[abort] undefined abort (trap CPU)");
 	}
 
 	switch (core_mmu_get_fault_type(ai->fault_descr)) {
@@ -510,16 +508,14 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] alignement fault!  (trap CPU)");
-		panic();
+		panic("[abort] alignement fault!  (trap CPU)");
 		break;
 
 	case CORE_MMU_FAULT_ACCESS_BIT:
 		if (abort_is_user_exception(ai))
 			return FAULT_TYPE_USER_TA_PANIC;
 		abort_print_error(ai);
-		EMSG("[abort] access bit fault!  (trap CPU)");
-		panic();
+		panic("[abort] access bit fault!  (trap CPU)");
 		break;
 
 	case CORE_MMU_FAULT_DEBUG_EVENT:
@@ -574,7 +570,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		if (!handled) {
 			if (!abort_is_user_exception(&ai)) {
 				abort_print_error(&ai);
-				panic();
+				panic("unhandled pageable abort");
 			}
 			print_user_abort(&ai);
 			DMSG("[abort] abort in User mode (TA will panic)");

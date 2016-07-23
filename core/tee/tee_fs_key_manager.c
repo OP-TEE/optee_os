@@ -286,7 +286,7 @@ size_t tee_fs_get_header_size(enum tee_fs_file_type type)
 		header_size = sizeof(struct block_header);
 		break;
 	default:
-		panic();
+		panic("Unknown file type");
 	}
 
 	return header_size;

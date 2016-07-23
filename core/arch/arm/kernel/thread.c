@@ -797,7 +797,7 @@ static void init_thread_stacks(void)
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
 		if (!thread_init_stack(n, sp))
-			panic();
+			panic("init stack failed");
 	}
 }
 #else
@@ -808,7 +808,7 @@ static void init_thread_stacks(void)
 	/* Assign the thread stacks */
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
-			panic();
+			panic("thread_init_stack failed");
 	}
 }
 #endif /*CFG_WITH_PAGER*/

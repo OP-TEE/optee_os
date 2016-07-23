@@ -110,7 +110,7 @@ TEE_Result tee_se_reader_attach(struct tee_se_reader_proxy *proxy)
 void tee_se_reader_detach(struct tee_se_reader_proxy *proxy)
 {
 	if (proxy->refcnt <= 0)
-		panic();
+		panic("invalid refcnf");
 
 	mutex_lock(&proxy->mutex);
 	proxy->refcnt--;

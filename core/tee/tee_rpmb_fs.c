@@ -541,7 +541,7 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 
 
 	if ((size + offset < size) || (size + offset > RPMB_DATA_SIZE))
-		panic();
+		panic("invalid size or offset");
 
 	if (!fek) {
 		/* Block is not encrypted (not a file data block) */
@@ -2183,7 +2183,7 @@ static int rpmb_fs_write(TEE_Result *errno, int fd, const void *buf,
 		goto out;
 
 	if (fh->fat_entry.flags & FILE_IS_LAST_ENTRY)
-		panic();
+		panic("invalid last entry flag");
 
 	end = fh->pos + size;
 	start_addr = fh->fat_entry.start_address + fh->pos;

@@ -167,7 +167,7 @@ static paddr_t core_mmu_get_main_ttb_pa(void)
 	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
 
 	if (pa & ~TEE_MMU_TTB_L1_MASK)
-		panic();
+		panic("invalid core l1 table");
 	return pa;
 }
 
@@ -182,7 +182,7 @@ static paddr_t core_mmu_get_ul1_ttb_pa(void)
 	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
 
 	if (pa & ~TEE_MMU_TTB_UL1_MASK)
-		panic();
+		panic("invalid user l1 table");
 	return pa;
 }
 
@@ -537,7 +537,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 	uint32_t attr;
 
 	if (!l2)
-		panic();
+		panic("no l2 table");
 
 	attr = mattr_to_desc(2, mm->attr);
 
@@ -592,7 +592,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	 * the same as the physical address.
 	 */
 	if (mm->va < (TEE_MMU_UL1_NUM_ENTRIES * SECTION_SIZE))
-		panic();
+		panic("va conflicts with user ta address");
 
 	if ((mm->va | mm->pa | mm->size) & SECTION_MASK) {
 		region_size = SMALL_PAGE_SIZE;
@@ -602,7 +602,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		 * good enough, panic.
 		 */
 		if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK)
-			panic();
+			panic("memarea can't be mapped");
 
 		attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
 		pa = map_page_memarea(mm);
