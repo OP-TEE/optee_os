@@ -61,7 +61,7 @@ static int platform_smp_init(void)
 {
 	vaddr_t base = (vaddr_t)phys_to_virt(PRCM_BASE, MEM_AREA_IO_SEC);
 
-	TEE_ASSERT(base);
+	assert(base);
 	write32((uint32_t)sunxi_secondary_entry,
 		base + PRCM_CPU_SOFT_ENTRY_REG);
 

@@ -25,15 +25,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <util.h>
+
 #include "font.h"
-#include "utf8.h"
-#include "default_regular.h"
 #include "default_bold.h"
-#include <trace.h>
-#include <assert.h>
+#include "default_regular.h"
+#include "utf8.h"
 
 #define UCP_CARRIAGE_RETURN	0x000D
 #define UCP_TUI_BOLD		0xE000

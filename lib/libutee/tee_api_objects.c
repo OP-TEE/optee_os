@@ -31,8 +31,6 @@
 #include <utee_syscalls.h>
 #include "tee_api_private.h"
 
-#include <assert.h>
-
 #define TEE_USAGE_DEFAULT   0xffffffff
 
 #define TEE_ATTR_BIT_VALUE                  (1 << 29)

@@ -25,27 +25,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <assert.h>
-#include <stdlib.h>
-#include <types_ext.h>
 
 #include <arm.h>
-#include <util.h>
+#include <assert.h>
+#include <kernel/panic.h>
 #include <kernel/tee_common.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
-#include <user_ta_header.h>
 #include <mm/tee_mm.h>
-#include "tee_api_types.h"
-#include <kernel/tee_misc.h>
-#include <trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
-#include <kernel/tz_ssvce.h>
-#include <kernel/panic.h>
+#include <stdlib.h>
+#include <trace.h>
+#include <types_ext.h>
+#include <user_ta_header.h>
+#include <util.h>
+#include "tee_api_types.h"
 
 #ifdef CFG_PL310
 #include <kernel/tee_l2cc_mutex.h>
@@ -619,8 +619,8 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
 	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
-	TEE_ASSERT(utc->mmu && utc->mmu->table &&
-		   utc->mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
+	assert(utc->mmu && utc->mmu->table);
+	TEE_ASSERT(utc->mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
 
 	return utc->mmu->table[1].va;
 }
@@ -680,12 +680,10 @@ void teecore_init_pub_ram(void)
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
-	TEE_Result res;
 	paddr_t pa;
 	uint32_t attr;
 
-	res = tee_mmu_user_va2pa_attr(utc, va, &pa, &attr);
-	assert(res == TEE_SUCCESS);
+	TEE_ASSERT(tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) == TEE_SUCCESS);
 
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }

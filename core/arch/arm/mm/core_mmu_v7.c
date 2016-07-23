@@ -27,15 +27,15 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
-#include <assert.h>
 #include <arm.h>
+#include <assert.h>
+#include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/panic.h>
-#include <kernel/thread.h>
 #include <util.h>
 #include "core_mmu_private.h"
 
@@ -573,7 +573,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	paddr_t pa;
 	uint32_t region_size;
 
-	TEE_ASSERT(mm && ttb);
+	assert(mm && ttb);
 
 	/*
 	 * If mm->va is smaller than 32M, then mm->va will conflict with
@@ -684,6 +684,7 @@ void core_init_mmu_regs(void)
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {
 	assert(!(fsr & FSR_LPAE));
+
 	switch (fsr & FSR_FS_MASK) {
 	case 0x1: /* DFSR[10,3:0] 0b00001 Alignment fault (DFSR only) */
 		return CORE_MMU_FAULT_ALIGNMENT;

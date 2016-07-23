@@ -25,11 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <kernel/mutex.h>
+#include <kernel/panic.h>
+#include <kernel/tee_common_unpg.h>
+#include <string.h>
 #include <tee_api_types.h>
 #include <trace.h>
 
-#include <kernel/tee_common_unpg.h>
-#include <kernel/mutex.h>
 #include <tee/se/reader.h>
 #include <tee/se/reader/interface.h>
 
@@ -63,8 +66,7 @@ TEE_Result tee_se_reader_get_name(struct tee_se_reader_proxy *proxy,
 {
 	size_t name_len;
 
-	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
-
+	assert(proxy && proxy->reader);
 	name_len = strlen(proxy->reader->name);
 	*reader_name = proxy->reader->name;
 	*reader_name_len = name_len;
@@ -75,13 +77,13 @@ TEE_Result tee_se_reader_get_name(struct tee_se_reader_proxy *proxy,
 void tee_se_reader_get_properties(struct tee_se_reader_proxy *proxy,
 		TEE_SEReaderProperties *prop)
 {
-	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	assert(proxy && proxy->reader);
 	*prop = proxy->reader->prop;
 }
 
 int tee_se_reader_get_refcnt(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	assert(proxy && proxy->reader);
 	return proxy->refcnt;
 }
 
@@ -129,7 +131,7 @@ TEE_Result tee_se_reader_transmit(struct tee_se_reader_proxy *proxy,
 	struct tee_se_reader *r;
 	TEE_Result ret;
 
-	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	assert(proxy && proxy->reader);
 	ret = tee_se_reader_check_state(proxy);
 	if (ret != TEE_SUCCESS)
 		return ret;
@@ -137,7 +139,7 @@ TEE_Result tee_se_reader_transmit(struct tee_se_reader_proxy *proxy,
 	mutex_lock(&proxy->mutex);
 	r = proxy->reader;
 
-	TEE_ASSERT(r->ops->transmit);
+	assert(r->ops->transmit);
 	ret = r->ops->transmit(r, tx_buf, tx_buf_len, rx_buf, rx_buf_len);
 
 	mutex_unlock(&proxy->mutex);
@@ -147,7 +149,7 @@ TEE_Result tee_se_reader_transmit(struct tee_se_reader_proxy *proxy,
 
 void tee_se_reader_lock_basic_channel(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(proxy != NULL);
+	assert(proxy);
 
 	mutex_lock(&proxy->mutex);
 	proxy->basic_channel_locked = true;
@@ -156,7 +158,7 @@ void tee_se_reader_lock_basic_channel(struct tee_se_reader_proxy *proxy)
 
 void tee_se_reader_unlock_basic_channel(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(proxy != NULL);
+	assert(proxy);
 
 	mutex_lock(&proxy->mutex);
 	proxy->basic_channel_locked = false;
@@ -165,7 +167,7 @@ void tee_se_reader_unlock_basic_channel(struct tee_se_reader_proxy *proxy)
 
 bool tee_se_reader_is_basic_channel_locked(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(proxy != NULL);
+	assert(proxy);
 	return proxy->basic_channel_locked;
 }
 
@@ -175,7 +177,7 @@ TEE_Result tee_se_reader_get_atr(struct tee_se_reader_proxy *proxy,
 	TEE_Result ret;
 	struct tee_se_reader *r;
 
-	TEE_ASSERT(proxy != NULL && atr != NULL && atr_len != NULL);
+	assert(proxy && atr && atr_len);
 	ret = tee_se_reader_check_state(proxy);
 	if (ret != TEE_SUCCESS)
 		return ret;
@@ -183,7 +185,7 @@ TEE_Result tee_se_reader_get_atr(struct tee_se_reader_proxy *proxy,
 	mutex_lock(&proxy->mutex);
 	r = proxy->reader;
 
-	TEE_ASSERT(r->ops->get_atr);
+	assert(r->ops->get_atr);
 	ret = r->ops->get_atr(r, atr, atr_len);
 
 	mutex_unlock(&proxy->mutex);
@@ -196,8 +198,8 @@ TEE_Result tee_se_reader_open_session(struct tee_se_reader_proxy *proxy,
 	TEE_Result ret;
 	struct tee_se_session *s;
 
-	TEE_ASSERT(session != NULL && *session == NULL);
-	TEE_ASSERT(proxy != NULL && proxy->reader != NULL);
+	assert(session && !*session);
+	assert(proxy && proxy->reader);
 
 	s = tee_se_session_alloc(proxy);
 	if (!s)

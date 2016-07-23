@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 #include <kernel/tee_common_unpg.h>
@@ -151,7 +152,7 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 	int res;
 	int prng_index;
 
-	TEE_ASSERT(prng != NULL);
+	assert(prng);
 
 	prng_index = find_prng(prng->name);
 	if (prng_index == -1)

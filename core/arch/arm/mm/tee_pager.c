@@ -26,6 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <keep.h>
 #include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
@@ -44,7 +46,7 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <keep.h>
+
 #include "pager_private.h"
 
 #define PAGER_AE_KEY_BITS	256
@@ -483,7 +485,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			uint32_t a = get_area_mattr(pmem->area);
 
 			/* page is hidden, show and move to back */
-			assert(pa == get_pmem_pa(pmem));
+			TEE_ASSERT(pa == get_pmem_pa(pmem));
 			/*
 			 * If it's not a dirty block, then it should be
 			 * read only.

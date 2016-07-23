@@ -28,7 +28,6 @@
 
 #include <drivers/sunxi_uart.h>
 #include <io.h>
-#include <assert.h>
 #include <compiler.h>
 
 /* uart register defines */

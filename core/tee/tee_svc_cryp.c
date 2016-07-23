@@ -24,6 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <assert.h>
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <utee_defines.h>

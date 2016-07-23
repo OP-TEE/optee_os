@@ -26,19 +26,20 @@
  */
 
 #include <arm.h>
+#include <assert.h>
+#include <kernel/misc.h>
 #include <kernel/thread.h>
+#include <kernel/trace_ta.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
 #include <tee/se/svc.h>
 #include <tee_syscall_numbers.h>
-#include <util.h>
-#include "arch_svc_private.h"
-#include <assert.h>
 #include <trace.h>
-#include <kernel/misc.h>
-#include <kernel/trace_ta.h>
+#include <util.h>
+
+#include "arch_svc_private.h"
 #include "svc_cache.h"
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
