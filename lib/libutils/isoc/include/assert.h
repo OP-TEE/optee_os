@@ -32,6 +32,10 @@
 void _assert_break(void) __noreturn;
 void _assert_log(const char *expr, const char *file, int line);
 
+/* assert() specs: generates a log but does not panic if NDEBUG is defined */
+#ifdef NDEBUG
+#define assert(expr)	do { } while (0)
+#else
 #define assert(expr) \
 	do { \
 		if (!(expr)) { \
@@ -39,7 +43,7 @@ void _assert_log(const char *expr, const char *file, int line);
 			_assert_break(); \
 		} \
 	} while (0)
-
+#endif
 
 #define COMPILE_TIME_ASSERT(x) \
 	do { \
