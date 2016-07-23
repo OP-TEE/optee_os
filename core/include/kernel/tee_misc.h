@@ -27,7 +27,6 @@
 #ifndef TEE_MISC_H
 #define TEE_MISC_H
 
-#include <kernel/tee_common_unpg.h>
 #include <types_ext.h>
 
 /*

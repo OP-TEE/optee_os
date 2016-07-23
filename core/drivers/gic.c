@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <drivers/gic.h>
 #include <kernel/interrupt.h>
-#include <kernel/tee_common_unpg.h>
+#include <kernel/panic.h>
 #include <util.h>
 #include <io.h>
 #include <trace.h>
@@ -340,7 +340,9 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	TEE_ASSERT(it < gd->max_it);
+	if (it >= gd->max_it)
+		panic();
+
 	gic_it_add(gd, it);
 	/* Set the CPU mask to deliver interrupts to any online core */
 	gic_it_set_cpu_mask(gd, it, 0xff);
@@ -351,7 +353,9 @@ static void gic_op_enable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	TEE_ASSERT(it < gd->max_it);
+	if (it >= gd->max_it)
+		panic();
+
 	gic_it_enable(gd, it);
 }
 
@@ -359,6 +363,8 @@ static void gic_op_disable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	TEE_ASSERT(it < gd->max_it);
+	if (it >= gd->max_it)
+		panic();
+
 	gic_it_disable(gd, it);
 }

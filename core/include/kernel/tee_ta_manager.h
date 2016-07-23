@@ -33,7 +33,6 @@
 #include <tee_api_types.h>
 #include <utee_types.h>
 #include <kernel/tee_common.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/mutex.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>

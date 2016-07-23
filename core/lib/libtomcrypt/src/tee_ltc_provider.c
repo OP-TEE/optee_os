@@ -28,7 +28,6 @@
 #include <assert.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
-#include <kernel/tee_common_unpg.h>
 
 #include <tomcrypt.h>
 #include <mpalib.h>
@@ -39,6 +38,7 @@
 #include <tee_api_types.h>
 #include <string_ext.h>
 #include <util.h>
+#include <kernel/panic.h>
 #include "tomcrypt_mpa.h"
 
 #if defined(CFG_WITH_VFP)
@@ -481,7 +481,6 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #if defined(CFG_WITH_PAGER)
 #include <mm/tee_pager.h>
 #include <util.h>
-#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 
 static uint32_t *_ltc_mempool_u32;
@@ -547,7 +546,8 @@ static void pool_postactions(void)
 {
 	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 
-	TEE_ASSERT(pool->last_offset == 0);
+	if (pool->last_offset)
+		panic();
 	release_unused_mpa_scratch_memory();
 }
 

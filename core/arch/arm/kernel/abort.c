@@ -336,11 +336,9 @@ static void handle_user_ta_panic(struct abort_info *ai)
 #ifdef CFG_WITH_VFP
 static void handle_user_ta_vfp(void)
 {
-	TEE_Result res;
 	struct tee_ta_session *s;
 
-	res = tee_ta_get_current_session(&s);
-	if (res != TEE_SUCCESS)
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
 		panic();
 
 	thread_user_enable_vfp(&to_user_ta_ctx(s->ctx)->vfp);

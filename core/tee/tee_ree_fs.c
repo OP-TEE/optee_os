@@ -26,10 +26,10 @@
  */
 
 #include <assert.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/thread.h>
 #include <kernel/handle.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <optee_msg.h>
 #include <stdio.h>
@@ -744,7 +744,8 @@ static int read_and_decrypt_file(int fd,
 	if (res < 0)
 		return res;
 
-	TEE_ASSERT(file_size >= header_size);
+	if (file_size < header_size)
+		panic();
 
 	ciphertext = malloc(file_size);
 	if (!ciphertext) {
@@ -1995,7 +1996,8 @@ static int ree_fs_rename(const char *old, const char *new)
 	}
 
 	/* finally, link the meta file, rename operation completed */
-	TEE_ASSERT(meta_filename);
+	if (!meta_filename)
+		panic();
 
 	/*
 	 * TODO: This will cause memory leakage at previous strdup()

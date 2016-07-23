@@ -26,10 +26,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include <keep.h>
 #include <types_ext.h>
 #include <stdlib.h>
+#include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
@@ -488,7 +490,8 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s __maybe_unused;
 
-	TEE_ASSERT((utc->ctx.flags & TA_FLAG_EXEC_DDR) != 0);
+	if (!(utc->ctx.flags & TA_FLAG_EXEC_DDR))
+		panic();
 
 	/* Map user space memory */
 	res = tee_mmu_map_param(utc, param);

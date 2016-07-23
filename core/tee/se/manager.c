@@ -27,7 +27,6 @@
 
 #include <initcall.h>
 #include <trace.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/mutex.h>
 #include <tee/se/manager.h>
 #include <tee/se/session.h>

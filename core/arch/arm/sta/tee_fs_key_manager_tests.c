@@ -25,13 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <kernel/static_ta.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <kernel/static_ta.h>
-#include <trace.h>
-#include <kernel/tee_common_unpg.h>
+#include <string.h>
 #include <tee/tee_fs_key_manager.h>
-
+#include <trace.h>
 
 #define TA_NAME		"tee_fs_key_manager_tests.ta"
 

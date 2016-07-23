@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include <kernel/panic.h>
-#include <kernel/tee_common_unpg.h>
 #include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,7 +94,8 @@ static TEE_Result internal_select(struct tee_se_channel *c,
 	s = tee_se_channel_get_session(c);
 	channel_id = tee_se_channel_get_id(c);
 
-	TEE_ASSERT(channel_id < MAX_LOGICAL_CHANNEL);
+	if (channel_id >= MAX_LOGICAL_CHANNEL)
+		panic();
 
 	cla_channel = iso7816_get_cla_channel(channel_id);
 	if (select_ops == FIRST_OR_ONLY_OCCURRENCE) {

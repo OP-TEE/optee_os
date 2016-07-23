@@ -29,6 +29,9 @@
 #define TZ_SSVCE_H
 
 #ifndef ASM
+
+#include <types_ext.h>
+
 unsigned int secure_get_cpu_id(void);
 
 void arm_cl1_d_cleanbysetway(void);

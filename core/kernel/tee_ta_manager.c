@@ -350,7 +350,9 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	mutex_lock(&tee_ta_mutex);
 
-	TEE_ASSERT(ctx->ref_count > 0);
+	if (ctx->ref_count <= 0)
+		panic();
+
 	ctx->ref_count--;
 	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
 		DMSG("   ... Destroy TA ctx");
@@ -622,9 +624,10 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	TEE_ASSERT(((ctx && is_user_ta_ctx(ctx) ?
+	if (((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
-		!core_mmu_user_mapping_is_active());
+					core_mmu_user_mapping_is_active())
+		panic();
 }
 
 void tee_ta_push_current_session(struct tee_ta_session *sess)

@@ -33,26 +33,27 @@
  */
 #include <platform_config.h>
 
-#include <stdlib.h>
+#include <arm.h>
 #include <assert.h>
 #include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
+#include <kernel/panic.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <kernel/tz_ssvce_pl310.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
-#include <mm/core_memprot.h>
-#include <mm/pgt_cache.h>
 #include <mm/tee_pager.h>
+#include <stdlib.h>
 #include <trace.h>
-#include <kernel/tee_misc.h>
-#include <kernel/panic.h>
-#include <kernel/tee_ta_manager.h>
 #include <util.h>
-#include "core_mmu_private.h"
-#include <kernel/tz_ssvce_pl310.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/thread.h>
-#include <arm.h>
+
+#include "core_mmu_private.h"
 
 #define MAX_MMAP_REGIONS	10
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
@@ -946,21 +947,23 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
 	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
 		if (!core_mmu_user_mapping_is_active()) {
-			TEE_ASSERT(pa == 0);
+			if (pa)
+				panic();
 			return;
 		}
 
 		res = tee_mmu_user_va2pa_helper(
 			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
-		if (res == TEE_SUCCESS)
-			TEE_ASSERT(pa == p);
-		else
-			TEE_ASSERT(pa == 0);
+		if (res == TEE_SUCCESS && pa != p)
+			panic();
+		if (res != TEE_SUCCESS && pa)
+			panic();
 		return;
 	}
 #ifdef CFG_WITH_PAGER
 	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
-		TEE_ASSERT(v == pa);
+		if (v != pa)
+			panic();
 		return;
 	}
 	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
@@ -979,16 +982,21 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			paddr_t mask = ((1 << ti->shift) - 1);
 
 			p |= v & mask;
-			TEE_ASSERT(pa == p);
+			if (pa != p)
+				panic();
 		} else
-			TEE_ASSERT(pa == 0);
+			if (pa)
+				panic();
 		return;
 	}
 #endif
-	if (!core_va2pa_helper(va, &p))
-		TEE_ASSERT(pa == p);
-	else
-		TEE_ASSERT(pa == 0);
+	if (!core_va2pa_helper(va, &p)) {
+		if (pa != p)
+			panic();
+	} else {
+		if (pa)
+			panic();
+	}
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
@@ -1009,7 +1017,8 @@ paddr_t virt_to_phys(void *va)
 #if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	TEE_ASSERT(!va || virt_to_phys(va) == pa);
+	if (va && virt_to_phys(va) != pa)
+		panic();
 }
 #else
 static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)

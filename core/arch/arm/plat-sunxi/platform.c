@@ -79,7 +79,8 @@ void platform_init(void)
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
 	cci400_base = (vaddr_t)phys_to_virt(CCI400_BASE, MEM_AREA_IO_SEC);
-	TEE_ASSERT(gicc_base && gicd_base && cci400_base);
+	if (!gicc_base || !gicd_base || !cci400_base)
+		panic();
 
 	/*
 	 * GIC configuration is initialized in Secure bootloader,
@@ -90,7 +91,7 @@ void platform_init(void)
 
 	/* platform smp initialize */
 	platform_smp_init();
-	
+
 	/* enable non-secure access cci-400 registers */
 	write32(0x1, cci400_base + CCI400_SECURE_ACCESS_REG);
 

@@ -247,7 +247,7 @@ static void init_runtime(unsigned long pageable_part)
 		res = hash_sha256_check(hash, page, SMALL_PAGE_SIZE);
 		if (res != TEE_SUCCESS) {
 			EMSG("Hash failed for page %zu at %p: res 0x%x",
-				n, page, res);
+			     n, page, res);
 			panic();
 		}
 	}

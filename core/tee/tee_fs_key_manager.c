@@ -40,8 +40,8 @@
 #include <initcall.h>
 #include <stdlib.h>
 #include <string.h>
+#include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/tee_ta_manager.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_cryp_provider.h>
@@ -286,8 +286,7 @@ size_t tee_fs_get_header_size(enum tee_fs_file_type type)
 		header_size = sizeof(struct block_header);
 		break;
 	default:
-		EMSG("Unknown file type, type=%d", type);
-		TEE_ASSERT(0);
+		panic();
 	}
 
 	return header_size;

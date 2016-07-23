@@ -27,6 +27,7 @@
 
 #include <drivers/gic.h>
 #include <kernel/generic_boot.h>
+#include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -64,7 +65,8 @@ void main_init_gic(void)
 					  MEM_AREA_IO_SEC);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
-	TEE_ASSERT(gicc_base && gicd_base);
+	if (!gicc_base || !gicd_base)
+		panic();
 
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 

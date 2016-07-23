@@ -620,7 +620,8 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
 	assert(utc->mmu && utc->mmu->table);
-	TEE_ASSERT(utc->mmu->size == TEE_MMU_UMAP_MAX_ENTRIES);
+	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
+		panic();
 
 	return utc->mmu->table[1].va;
 }
@@ -636,16 +637,17 @@ void teecore_init_ta_ram(void)
 	 * shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
 	ps = virt_to_phys((void *)s);
-	TEE_ASSERT(ps);
 	pe = virt_to_phys((void *)(e - 1)) + 1;
-	TEE_ASSERT(pe);
 
-	TEE_ASSERT((ps & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
-	TEE_ASSERT((pe & (CORE_MMU_USER_CODE_SIZE - 1)) == 0);
+	if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
+	    !pe || (pe & CORE_MMU_USER_CODE_MASK))
+		panic();
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	TEE_ASSERT(tee_pbuf_is_sec(ps, pe - ps) == true);
+	if (!tee_pbuf_is_sec(ps, pe - ps))
+		panic();
 
-	TEE_ASSERT(tee_mm_is_empty(&tee_mm_sec_ddr));
+	if (!tee_mm_is_empty(&tee_mm_sec_ddr))
+		panic();
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
@@ -661,15 +663,15 @@ void teecore_init_pub_ram(void)
 	/* get virtual addr/size of NSec shared mem allcated from teecore */
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
 
-	TEE_ASSERT(s < e);
-	TEE_ASSERT((s & SMALL_PAGE_MASK) == 0);
-	TEE_ASSERT((e & SMALL_PAGE_MASK) == 0);
+	if (s >= e || s & SMALL_PAGE_MASK || e & SMALL_PAGE_MASK)
+		panic();
+
 	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	TEE_ASSERT(tee_vbuf_is_non_sec(s, e - s) == true);
+	if (!tee_vbuf_is_non_sec(s, e - s))
+		panic();
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */
-	TEE_ASSERT((e - s) > 0);
 	tee_l2cc_store_mutex_boot_pa(s);
 	s += sizeof(uint32_t);		/* size of a pl310 mutex */
 #endif
@@ -683,7 +685,8 @@ uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 	paddr_t pa;
 	uint32_t attr;
 
-	TEE_ASSERT(tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) == TEE_SUCCESS);
+	if (tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) != TEE_SUCCESS)
+		panic();
 
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
 }

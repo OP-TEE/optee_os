@@ -28,7 +28,6 @@
 #include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/tee_common_unpg.h>
 #include <string.h>
 #include <tee_api_types.h>
 #include <trace.h>
@@ -110,7 +109,8 @@ TEE_Result tee_se_reader_attach(struct tee_se_reader_proxy *proxy)
 
 void tee_se_reader_detach(struct tee_se_reader_proxy *proxy)
 {
-	TEE_ASSERT(proxy->refcnt > 0);
+	if (proxy->refcnt <= 0)
+		panic();
 
 	mutex_lock(&proxy->mutex);
 	proxy->refcnt--;
