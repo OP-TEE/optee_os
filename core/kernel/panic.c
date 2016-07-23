@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -29,12 +30,26 @@
 #include <kernel/thread.h>
 #include <trace.h>
 
-void __panic(const char *file __maybe_unused, int line __maybe_unused,
-		const char *func __maybe_unused)
+void __do_panic(const char *file __maybe_unused,
+		const int line __maybe_unused,
+		const char *func __maybe_unused,
+		const char *msg __maybe_unused)
 {
-	uint32_t __unused exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	/* disable prehemption */
+	(void)thread_mask_exceptions(THREAD_EXCP_ALL);
 
-	EMSG_RAW("PANIC: %s %s:%d\n", func, file, line);
+	/* TODO: notify other cores */
+
+	/* trace: Panic ['panic-string-message' ]at FILE:LINE [<FUNCTION>]" */
+	if (!file && !func && !msg)
+		EMSG_RAW("Panic");
+	else
+		EMSG_RAW("Panic %s%s%sat %s:%d %s%s%s",
+			 msg ? "'" : "", msg ? msg : "", msg ? "' " : "",
+			 file ? file : "?", file ? line : 0,
+			 func ? "<" : "", func ? func : "", func ? ">" : "");
+
+	/* abort current execution */
 	while (1)
 		;
 }
