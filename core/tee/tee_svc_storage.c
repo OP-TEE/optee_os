@@ -498,7 +498,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	size_t attr_size;
 
 	if (!fops) {
-		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto exit;
 	}
 
@@ -633,7 +633,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	size_t attr_size;
 
 	if (!fops)
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1063,7 +1063,7 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 		return res;
 
 	if (!fops)
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	dir = tee_svc_storage_create_dirname(sess);
 	if (dir == NULL)
