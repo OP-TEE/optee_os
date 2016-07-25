@@ -409,11 +409,6 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
 	TEE_Result res;
 	uint32_t obj;
 
-	if (storageID != TEE_STORAGE_PRIVATE) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto out;
-	}
-
 	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto out;
@@ -455,11 +450,6 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
 {
 	TEE_Result res;
 	uint32_t obj;
-
-	if (storageID != TEE_STORAGE_PRIVATE) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
-	}
 
 	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -620,9 +610,6 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 					       uint32_t storageID)
 {
 	TEE_Result res;
-
-	if (storageID != TEE_STORAGE_PRIVATE)
-		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	res = utee_storage_start_enum((unsigned long)objectEnumerator,
 				      storageID);
