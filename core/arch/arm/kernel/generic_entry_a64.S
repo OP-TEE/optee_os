@@ -47,7 +47,8 @@
 		adr	x2, stack_tmp_stride
 		ldr	w1, [x2]
 		mul	x2, x0, x1
-		adr	x1, stack_tmp
+		adrp	x1, stack_tmp
+		add	x1, x1, :lo12:stack_tmp
 		add	x1, x1, x2
 		msr	spsel, #0
 		mov	sp, x1
@@ -104,9 +105,11 @@ copy_init:
 
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adr	x1, __init_end
+	adrp	x1, __init_end
+	add	x1, x1, :lo12:__init_end
 #else
-	adr	x1, _end
+	adrp	x1, _end
+	add	x1, x1, :lo12:_end
 #endif
 	sub	x1, x1, x0
 	bl	inv_dcache_range
@@ -133,9 +136,11 @@ copy_init:
 	mov	x19, x0
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adr	x1, __init_end
+	adrp	x1, __init_end
+	add	x1, x1, :lo12:__init_end
 #else
-	adr	x1, _end
+	adrp	x1, _end
+	add	x1, x1, :lo12:_end
 #endif
 	sub	x1, x1, x0
 	bl	flush_dcache_range
