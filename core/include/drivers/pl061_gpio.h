@@ -31,6 +31,7 @@
 #include <gpio.h>
 
 void pl061_gpio_register(vaddr_t base_addr, unsigned int gpio_dev);
+void pl061_pinctrl_register(vaddr_t base_addr);
 void pl061_gpio_init(void);
 
 #endif	/* __PL061_GPIO_H__ */
