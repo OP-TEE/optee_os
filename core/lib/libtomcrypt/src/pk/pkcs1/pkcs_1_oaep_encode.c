@@ -39,13 +39,13 @@
 
 /**
   @file pkcs_1_oaep_encode.c
-  OAEP Padding for LTC_PKCS #1, Tom St Denis 
+  OAEP Padding for PKCS #1, Tom St Denis
 */
 
 #ifdef LTC_PKCS_1
 
 /**
-  LTC_PKCS #1 v2.00 OAEP encode
+  PKCS #1 v2.00 OAEP encode
   @param msg             The data to encode
   @param msglen          The length of the data to encode (octets)
   @param lparam          A session or system parameter (can be NULL)

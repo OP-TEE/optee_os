@@ -94,15 +94,13 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
         if ((err = hash_memory(hash, key, keylen, hmac->key, &z)) != CRYPT_OK) {
            goto LBL_ERR;
         }
-        if(hashsize < LTC_HMAC_BLOCKSIZE) {
-            zeromem((hmac->key) + hashsize, (size_t)(LTC_HMAC_BLOCKSIZE - hashsize));
-        }
         keylen = hashsize;
     } else {
         XMEMCPY(hmac->key, key, (size_t)keylen);
-        if(keylen < LTC_HMAC_BLOCKSIZE) {
-            zeromem((hmac->key) + keylen, (size_t)(LTC_HMAC_BLOCKSIZE - keylen));
-        }
+    }
+
+    if(keylen < LTC_HMAC_BLOCKSIZE) {
+       zeromem((hmac->key) + keylen, (size_t)(LTC_HMAC_BLOCKSIZE - keylen));
     }
 
     /* Create the initial vector for step (3) */

@@ -39,13 +39,13 @@
 
 /** 
   @file pkcs_1_oaep_decode.c
-  OAEP Padding for LTC_PKCS #1, Tom St Denis 
+  OAEP Padding for PKCS #1, Tom St Denis
 */
 
 #ifdef LTC_PKCS_1
 
 /**
-   LTC_PKCS #1 v2.00 OAEP decode
+   PKCS #1 v2.00 OAEP decode
    @param msg              The encoded data to decode
    @param msglen           The length of the encoded data (octets)
    @param lparam           The session or system data (can be NULL)
@@ -55,7 +55,7 @@
    @param out              [out] Destination of decoding
    @param outlen           [in/out] The max size and resulting size of the decoding
    @param res              [out] Result of decoding, 1==valid, 0==invalid
-   @return CRYPT_OK if successful (even if invalid)
+   @return CRYPT_OK if successful
 */
 int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
                        const unsigned char *lparam, unsigned long lparamlen,
@@ -112,7 +112,6 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    
     */
 
-   err = CRYPT_OK;
    ret = CRYPT_OK;
 
    /* must have leading 0x00 byte */

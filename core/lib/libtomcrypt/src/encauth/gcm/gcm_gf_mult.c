@@ -42,7 +42,7 @@
 */
 #include "tomcrypt.h"
 
-#if defined(LTC_GCM_TABLES) || defined(LRW_TABLES) || ((defined(LTC_GCM_MODE) || defined(LTC_GCM_MODE)) && defined(LTC_FAST))
+#if defined(LTC_GCM_TABLES) || defined(LTC_LRW_TABLES) || ((defined(LTC_GCM_MODE) || defined(LTC_GCM_MODE)) && defined(LTC_FAST))
 
 /* this is x*2^128 mod p(x) ... the results are 16 bytes each stored in a packed format.  Since only the 
  * lower 16 bits are not zero'ed I removed the upper 14 bytes */
@@ -110,7 +110,7 @@ static const unsigned char poly[] = { 0x00, 0xE1 };
 void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *c)
 {
    unsigned char Z[16], V[16];
-   unsigned x, y, z;
+   unsigned char x, y, z;
 
    zeromem(Z, 16);
    XMEMCPY(V, a, 16);

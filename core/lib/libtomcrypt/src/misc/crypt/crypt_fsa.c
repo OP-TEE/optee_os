@@ -46,7 +46,6 @@
 /* format is ltc_mp, cipher_desc, [cipher_desc], NULL, hash_desc, [hash_desc], NULL, prng_desc, [prng_desc], NULL */
 int crypt_fsa(void *mp, ...)
 {
-   int      err;
    va_list  args;
    void     *p;
 
@@ -56,23 +55,23 @@ int crypt_fsa(void *mp, ...)
    }
    
    while ((p = va_arg(args, void*)) != NULL) {
-      if ((err = register_cipher(p)) != CRYPT_OK) {
+      if (register_cipher(p) == -1) {
          va_end(args);
-         return err;
+         return CRYPT_INVALID_CIPHER;
       }
    }
 
    while ((p = va_arg(args, void*)) != NULL) {
-      if ((err = register_hash(p)) != CRYPT_OK) {
+      if (register_hash(p) == -1) {
          va_end(args);
-         return err;
+         return CRYPT_INVALID_HASH;
       }
    }
 
    while ((p = va_arg(args, void*)) != NULL) {
-      if ((err = register_prng(p)) != CRYPT_OK) {
+      if (register_prng(p) == -1) {
          va_end(args);
-         return err;
+         return CRYPT_INVALID_PRNG;
       }
    }
 

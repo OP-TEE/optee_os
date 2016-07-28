@@ -87,14 +87,7 @@ static int tweak_crypt(const unsigned char *P, unsigned char *C, unsigned char *
   @param xts    The XTS structure
   Returns CRYPT_OK upon success
 */
-int xts_encrypt(
-   const unsigned char *pt, unsigned long ptlen,
-         unsigned char *ct,
-#ifdef LTC_LINARO_FIX_XTS
-         unsigned char *tweak,
-#else
-   const unsigned char *tweak,
-#endif
+int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct, unsigned char *tweak,
          symmetric_xts *xts)
 {
    const struct ltc_cipher_descriptor *desc;
@@ -141,7 +134,7 @@ int xts_encrypt(
       pt += lim * 16;
 
       /* tweak is encrypted on output */
-      memcpy(T, tweak, sizeof(T));
+      XMEMCPY(T, tweak, sizeof(T));
    } else {
 
       /* encrypt the tweak */
@@ -150,9 +143,11 @@ int xts_encrypt(
       }
 
       for (i = 0; i < lim; i++) {
-	 err = tweak_crypt(pt, ct, T, xts);
-	 ct += 16;
-	 pt += 16;
+         if ((err = tweak_crypt(pt, ct, T, xts)) != CRYPT_OK) {
+            return err;
+         }
+         ct += 16;
+         pt += 16;
       }
    }
 
@@ -179,12 +174,10 @@ int xts_encrypt(
       }
    }
 
-#ifdef LTC_LINARO_FIX_XTS
    /* Decrypt the tweak back */
-   if ((err = desc->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[xts->cipher]->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
       return err;
    }
-#endif
 
    return err;
 }

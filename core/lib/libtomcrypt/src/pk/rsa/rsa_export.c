@@ -39,13 +39,13 @@
 
 /**
   @file rsa_export.c
-  Export RSA LTC_PKCS keys, Tom St Denis
-*/  
+  Export RSA PKCS keys, Tom St Denis
+*/
 
 #ifdef LTC_MRSA
 
 /**
-    This will export either an RSAPublicKey or RSAPrivateKey [defined in LTC_PKCS #1 v2.1] 
+    This will export either an RSAPublicKey or RSAPrivateKey [defined in PKCS #1 v2.1]
     @param out       [out] Destination of the packet
     @param outlen    [in/out] The max size and resulting size of the packet
     @param type      The type of exported key (PK_PRIVATE or PK_PUBLIC)
@@ -55,6 +55,7 @@
 int rsa_export(unsigned char *out, unsigned long *outlen, int type, rsa_key *key)
 {
    unsigned long zero=0;
+   int err;
    LTC_ARGCHK(out    != NULL);
    LTC_ARGCHK(outlen != NULL);
    LTC_ARGCHK(key    != NULL);
@@ -82,10 +83,39 @@ int rsa_export(unsigned char *out, unsigned long *outlen, int type, rsa_key *key
                           LTC_ASN1_EOL,     0UL, NULL);
    } else {
       /* public key */
-      return der_encode_sequence_multi(out, outlen, 
-                                 LTC_ASN1_INTEGER, 1UL,  key->N, 
-                                 LTC_ASN1_INTEGER, 1UL,  key->e, 
+      unsigned long tmplen, *ptmplen;
+      unsigned char* tmp = NULL;
+
+      if (type & PK_STD) {
+          tmplen = (mp_count_bits(key->N)/8)*2+8;
+          tmp = XMALLOC(tmplen);
+          ptmplen = &tmplen;
+          if (tmp == NULL) {
+              return CRYPT_MEM;
+          }
+      }
+      else {
+          tmp = out;
+          ptmplen = outlen;
+      }
+
+      err = der_encode_sequence_multi(tmp, ptmplen,
+                                 LTC_ASN1_INTEGER, 1UL,  key->N,
+                                 LTC_ASN1_INTEGER, 1UL,  key->e,
                                  LTC_ASN1_EOL,     0UL, NULL);
+
+      if ((err != CRYPT_OK) || !(type & PK_STD)) {
+          goto finish;
+      }
+
+      err = der_encode_subject_public_key_info(out, outlen,
+        PKA_RSA, tmp, tmplen, LTC_ASN1_NULL, NULL, 0);
+
+finish:
+      if (tmp != out)
+        XFREE(tmp);
+      return err;
+
    }
 }
 

@@ -76,7 +76,7 @@ const struct ltc_cipher_descriptor rijndael_desc =
     6,
     16, 32, 16, 10,
     SETUP, ECB_ENC, ECB_DEC, ECB_TEST, ECB_DONE, ECB_KS,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 const struct ltc_cipher_descriptor aes_desc =
@@ -85,7 +85,7 @@ const struct ltc_cipher_descriptor aes_desc =
     6,
     16, 32, 16, 10,
     SETUP, ECB_ENC, ECB_DEC, ECB_TEST, ECB_DONE, ECB_KS,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 #else
@@ -101,7 +101,7 @@ const struct ltc_cipher_descriptor rijndael_enc_desc =
     6,
     16, 32, 16, 10,
     SETUP, ECB_ENC, NULL, NULL, ECB_DONE, ECB_KS,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 const struct ltc_cipher_descriptor aes_enc_desc =
@@ -110,7 +110,7 @@ const struct ltc_cipher_descriptor aes_enc_desc =
     6,
     16, 32, 16, 10,
     SETUP, ECB_ENC, NULL, NULL, ECB_DONE, ECB_KS,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 #endif
@@ -147,7 +147,7 @@ static ulong32 setup_mix2(ulong32 temp)
  */
 int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 {
-    int i, j;
+    int i;
     ulong32 temp, *rk;
 #ifndef ENCRYPT_ONLY
     ulong32 *rrk;
@@ -173,7 +173,6 @@ int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *s
     LOAD32H(rk[2], key +  8);
     LOAD32H(rk[3], key + 12);
     if (keylen == 16) {
-        j = 44;
         for (;;) {
             temp  = rk[3];
             rk[4] = rk[0] ^ setup_mix(temp) ^ rcon[i];
@@ -186,7 +185,6 @@ int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *s
             rk += 4;
         }
     } else if (keylen == 24) {
-        j = 52;   
         LOAD32H(rk[4], key + 16);
         LOAD32H(rk[5], key + 20);
         for (;;) {
@@ -207,7 +205,6 @@ int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *s
             rk += 6;
         }
     } else if (keylen == 32) {
-        j = 60;
         LOAD32H(rk[4], key + 16);
         LOAD32H(rk[5], key + 20);
         LOAD32H(rk[6], key + 24);
@@ -240,8 +237,8 @@ int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *s
 #ifndef ENCRYPT_ONLY    
     /* setup the inverse key now */
     rk   = skey->rijndael.dK;
-    rrk  = skey->rijndael.eK + j - 4; 
-    
+    rrk  = skey->rijndael.eK + (28 + keylen) - 4;
+
     /* apply the inverse MixColumn transform to all round keys but the first and the last: */
     /* copy first */
     *rk++ = *rrk++;
@@ -753,6 +750,7 @@ int ECB_TEST(void)
 */
 void ECB_DONE(symmetric_key *skey)
 {
+  LTC_UNUSED_PARAM(skey);
 }
 
 

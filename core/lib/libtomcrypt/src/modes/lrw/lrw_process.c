@@ -57,7 +57,7 @@ int lrw_process(const unsigned char *pt, unsigned char *ct, unsigned long len, i
 {
    unsigned char prod[16];
    int           x, err;
-#ifdef LRW_TABLES
+#ifdef LTC_LRW_TABLES
    int           y;
 #endif
 
@@ -82,7 +82,7 @@ int lrw_process(const unsigned char *pt, unsigned char *ct, unsigned long len, i
       }
 
       /* update pad */
-#ifdef LRW_TABLES
+#ifdef LTC_LRW_TABLES
       /* for each byte changed we undo it's affect on the pad then add the new product */
       for (; x < 16; x++) {
 #ifdef LTC_FAST

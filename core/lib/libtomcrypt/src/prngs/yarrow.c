@@ -370,11 +370,13 @@ int yarrow_test(void)
    }
    
    /* now let's test the hash/cipher that was chosen */
-   if ((err = cipher_descriptor[prng.yarrow.cipher].test()) != CRYPT_OK) {
-      return err; 
+   if (cipher_descriptor[prng.yarrow.cipher].test &&
+       ((err = cipher_descriptor[prng.yarrow.cipher].test()) != CRYPT_OK)) {
+      return err;
    }
-   if ((err = hash_descriptor[prng.yarrow.hash].test()) != CRYPT_OK) {
-      return err; 
+   if (hash_descriptor[prng.yarrow.hash].test &&
+       ((err = hash_descriptor[prng.yarrow.hash].test()) != CRYPT_OK)) {
+      return err;
    }
 
    return CRYPT_OK;

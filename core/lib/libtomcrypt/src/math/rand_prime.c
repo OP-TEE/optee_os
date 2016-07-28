@@ -37,6 +37,8 @@
  */
 #include "tomcrypt.h"
 
+#if !defined LTC_NO_MATH && !defined LTC_NO_PRNGS
+
 /**
   @file rand_prime.c
   Generate a random prime, Tom St Denis
@@ -107,6 +109,7 @@ int rand_prime(void *N, long len, prng_state *prng, int wprng)
    return CRYPT_OK;
 }
       
+#endif /* LTC_NO_MATH */
 
 
 /* $Source: /cvs/libtom/libtomcrypt/src/math/rand_prime.c,v $ */

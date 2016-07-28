@@ -37,7 +37,7 @@
  */
 #include "tomcrypt.h"
 
-#ifdef MPI
+#ifdef LTC_MPI
 #include <stdarg.h>
 
 int ltc_init_multi(void **a, ...)

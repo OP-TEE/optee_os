@@ -124,7 +124,8 @@
    #define LTC_SHA384
    #define LTC_SHA256
    #define LTC_SHA224
-   
+
+
    #define LTC_NO_MACS
    #define LTC_HMAC
    #define LTC_OMAC
@@ -133,7 +134,7 @@
    #define LTC_NO_PRNGS
    #define LTC_SPRNG
    #define LTC_DEVRANDOM
-   #define TRY_URANDOM_FIRST
+   #define LTC_TRY_URANDOM_FIRST
       
    #define LTC_NO_PK
    #define LTC_MRSA
@@ -310,7 +311,7 @@
    /* like GCM mode this will enable 16 8x128 tables [64KB] that make
     * seeking very fast.  
     */
-   #define LRW_TABLES
+   #define LTC_LRW_TABLES
 #endif
 
 /* XTS mode */
@@ -327,6 +328,8 @@
 #define LTC_SHA224
 #define LTC_SHA1
 #define LTC_MD5
+
+
 
 #endif /* LTC_NO_HASHES */
 
@@ -384,7 +387,7 @@
 /* the *nix style /dev/random device */
 #define LTC_DEVRANDOM
 /* try /dev/urandom before trying /dev/random */
-#define TRY_URANDOM_FIRST
+#define LTC_TRY_URANDOM_FIRST
 
 #endif /* LTC_NO_PRNGS */
 
@@ -403,7 +406,7 @@
 #define LTC_MDH
 
 /* Include Katja (a Rabin variant like RSA) */
-/* #define MKAT */ 
+/* #define LTC_MKAT */
 
 /* Digital Signature Algorithm */
 #define LTC_MDSA
@@ -452,14 +455,14 @@
 #if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || \
 	defined(MKATJA) || defined(LTC_MDH)
    /* Include the MPI functionality?  (required by the PK algorithms) */
-   #define MPI
+   #define LTC_MPI
 #endif
 
 #ifdef LTC_MRSA
    #define LTC_PKCS_1
 #endif   
 
-#if defined(LTC_DER) && !defined(MPI) 
+#if defined(LTC_DER) && !defined(LTC_MPI)
    #error ASN.1 DER requires MPI functionality
 #endif
 

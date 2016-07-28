@@ -63,7 +63,7 @@ int lrw_start(               int   cipher,
                    symmetric_LRW *lrw)
 {
    int           err;
-#ifdef LRW_TABLES
+#ifdef LTC_LRW_TABLES
    unsigned char B[16];
    int           x, y, z, t;
 #endif
@@ -96,7 +96,7 @@ int lrw_start(               int   cipher,
    /* copy the IV and tweak */
    XMEMCPY(lrw->tweak, tweak, 16);
 
-#ifdef LRW_TABLES
+#ifdef LTC_LRW_TABLES
    /* setup tables */
    /* generate the first table as it has no shifting (from which we make the other tables) */
    zeromem(B, 16);

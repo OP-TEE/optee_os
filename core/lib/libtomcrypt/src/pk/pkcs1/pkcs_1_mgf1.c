@@ -39,13 +39,13 @@
 
 /** 
   @file pkcs_1_mgf1.c
-  The Mask Generation Function (MGF1) for LTC_PKCS #1, Tom St Denis 
+  The Mask Generation Function (MGF1) for PKCS #1, Tom St Denis
 */
 
 #ifdef LTC_PKCS_1
 
 /**
-   Perform LTC_PKCS #1 MGF1 (internal)
+   Perform PKCS #1 MGF1 (internal)
    @param seed        The seed for MGF1
    @param seedlen     The length of the seed
    @param hash_idx    The index of the hash desired

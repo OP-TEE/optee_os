@@ -37,6 +37,7 @@
  */
 #include "tomcrypt.h"
 
+#ifndef LTC_NO_FILE
 /** 
   @file hash_file.c
   Hash a file, Tom St Denis
@@ -51,9 +52,6 @@
 */
 int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *outlen)
 {
-#ifdef LTC_NO_FILE
-    return CRYPT_NOP;
-#else
     FILE *in;
     int err;
     LTC_ARGCHK(fname  != NULL);
@@ -75,8 +73,8 @@ int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *ou
     }
 
     return err;
-#endif
 }
+#endif /* #ifndef LTC_NO_FILE */
 
 
 /* $Source: /cvs/libtom/libtomcrypt/src/hashes/helper/hash_file.c,v $ */

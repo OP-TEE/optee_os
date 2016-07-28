@@ -39,12 +39,12 @@
 
 /** @file pkcs_1_v1_5_decode.c
  *
- *  LTC_PKCS #1 v1.5 Padding. (Andreas Lange)
+ *  PKCS #1 v1.5 Padding. (Andreas Lange)
  */
 
 #ifdef LTC_PKCS_1
 
-/** @brief LTC_PKCS #1 v1.5 decode.
+/** @brief PKCS #1 v1.5 decode.
  *
  *  @param msg              The encoded data to decode
  *  @param msglen           The length of the encoded data (octets)
@@ -54,7 +54,7 @@
  *  @param outlen           [in/out] The max size and resulting size of the decoding
  *  @param is_valid         [out] Boolean whether the padding was valid
  *
- *  @return CRYPT_OK if successful (even if invalid)
+ *  @return CRYPT_OK if successful
  */
 int pkcs_1_v1_5_decode(const unsigned char *msg, 
                              unsigned long  msglen,
@@ -86,7 +86,7 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
     result = CRYPT_INVALID_PACKET;
   }
 
-  if (block_type == LTC_LTC_PKCS_1_EME) {
+  if (block_type == LTC_PKCS_1_EME) {
     for (i = 2; i < modulus_len; i++) {
       /* separator */
       if (msg[i] == 0x00) { break; }

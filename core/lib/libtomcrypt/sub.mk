@@ -102,6 +102,10 @@ $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 # If no DES cipher mode is left, disable DES
 $(eval $(call cryp-dep-one, DES, ECB CBC))
 
+# dsa_make_params() needs all three SHA-2 algorithms.
+# Disable DSA if any is missing.
+$(eval $(call cryp-dep-all, DSA, SHA256 SHA384 SHA512))
+
 cryp-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
 cryp-all-enabled = $(call cfg-all-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
 

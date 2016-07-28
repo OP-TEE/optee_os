@@ -114,7 +114,7 @@ typedef struct {
      @param n  The number of the digit to fetch
      @return  The bits_per_digit  sized n'th digit of a
    */
-   unsigned long (*get_digit)(void *a, int n);
+   ltc_mp_digit (*get_digit)(void *a, int n);
 
    /** Get the number of digits that represent the number
      @param a   The number to count
@@ -369,10 +369,11 @@ typedef struct {
 
    /** Primality testing
        @param a     The integer to test
-       @param b     The destination of the result (FP_YES if prime)
+       @param b     The number of tests that shall be executed
+       @param c     The destination of the result (FP_YES if prime)
        @return CRYPT_OK on success
    */
-   int (*isprime)(void *a, int *b);
+   int (*isprime)(void *a, int b, int *c);
 
 /* ----  (optional) ecc point math ---- */
 
@@ -531,7 +532,7 @@ extern const ltc_math_descriptor gmp_desc;
 #define mp_montgomery_free(a)        ltc_mp.montgomery_deinit(a)
 
 #define mp_exptmod(a,b,c,d)          ltc_mp.exptmod(a,b,c,d)
-#define mp_prime_is_prime(a, b, c)   ltc_mp.isprime(a, c)
+#define mp_prime_is_prime(a, b, c)   ltc_mp.isprime(a,b,c)
 
 #define mp_iszero(a)                 (mp_cmp_d(a, 0) == LTC_MP_EQ ? LTC_MP_YES : LTC_MP_NO)
 #define mp_isodd(a)                  (mp_get_digit_count(a) > 0 ? (mp_get_digit(a, 0) & 1 ? LTC_MP_YES : LTC_MP_NO) : LTC_MP_NO)

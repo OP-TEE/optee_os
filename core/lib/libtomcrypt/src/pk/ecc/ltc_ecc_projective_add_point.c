@@ -48,7 +48,7 @@
   ECC Crypto, Tom St Denis
 */
 
-#if defined(LTC_MECC) && (!defined(LTC_MECC_ACCEL) || defined(LTM_LTC_DESC))
+#if defined(LTC_MECC) && (!defined(LTC_MECC_ACCEL) || defined(LTM_DESC))
 
 /**
    Add two ECC points

@@ -39,18 +39,18 @@
 
 /**
   @file rsa_sign_hash.c
-  RSA LTC_PKCS #1 v1.5 and v2 PSS sign hash, Tom St Denis and Andreas Lange
+  RSA PKCS #1 v1.5 and v2 PSS sign hash, Tom St Denis and Andreas Lange
 */
 
 #ifdef LTC_MRSA
 
 /**
-  LTC_PKCS #1 pad then sign
+  PKCS #1 pad then sign
   @param in        The hash to sign
   @param inlen     The length of the hash to sign (octets)
   @param out       [out] The signature
   @param outlen    [in/out] The max size and resulting size of the signature
-  @param padding   Type of padding (LTC_LTC_PKCS_1_PSS or LTC_LTC_PKCS_1_V1_5)
+  @param padding   Type of padding (LTC_PKCS_1_PSS or LTC_PKCS_1_V1_5)
   @param prng      An active PRNG state
   @param prng_idx  The index of the PRNG desired
   @param hash_idx  The index of the hash desired
@@ -74,11 +74,11 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
    LTC_ARGCHK(key      != NULL);
 
    /* valid padding? */
-   if ((padding != LTC_LTC_PKCS_1_V1_5) && (padding != LTC_LTC_PKCS_1_PSS)) {
+   if ((padding != LTC_PKCS_1_V1_5) && (padding != LTC_PKCS_1_PSS)) {
      return CRYPT_PK_INVALID_PADDING;
    }
 
-   if (padding == LTC_LTC_PKCS_1_PSS) {
+   if (padding == LTC_PKCS_1_PSS) {
      /* valid prng and hash ? */
      if ((err = prng_is_valid(prng_idx)) != CRYPT_OK) {
         return err;
@@ -98,7 +98,7 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
      return CRYPT_BUFFER_OVERFLOW;
   }
 
-  if (padding == LTC_LTC_PKCS_1_PSS) {
+  if (padding == LTC_PKCS_1_PSS) {
     /* PSS pad the key */
     x = *outlen;
     if ((err = pkcs_1_pss_encode(in, inlen, saltlen, prng, prng_idx,
@@ -106,7 +106,7 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
        return err;
     }
   } else {
-    /* LTC_PKCS #1 v1.5 pad the hash */
+    /* PKCS #1 v1.5 pad the hash */
     unsigned char *tmpin;
     ltc_asn1_list digestinfo[2], siginfo[2];
 
@@ -141,7 +141,7 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
     }
 
     x = *outlen;
-    if ((err = pkcs_1_v1_5_encode(tmpin, y, LTC_LTC_PKCS_1_EMSA,
+    if ((err = pkcs_1_v1_5_encode(tmpin, y, LTC_PKCS_1_EMSA,
                                   modulus_bitlen, NULL, 0,
                                   out, &x)) != CRYPT_OK) {
       XFREE(tmpin);

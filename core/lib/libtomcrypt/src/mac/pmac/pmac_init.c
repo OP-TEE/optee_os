@@ -90,6 +90,9 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
           break;
        }
    }
+   if (poly >= (int)(sizeof(polys)/sizeof(polys[0]))) {
+      return CRYPT_INVALID_ARG;
+    }
    if (polys[poly].len != pmac->block_len) {
       return CRYPT_INVALID_ARG;
    }

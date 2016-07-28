@@ -103,7 +103,7 @@ static unsigned long get_int(void *a)
 	return mpa_get_word((mpanum)a);
 }
 
-static unsigned long get_digit(void *a, int n)
+static ltc_mp_digit get_digit(void *a, int n)
 {
 	LTC_ARGCHK(a != NULL);
 	return __mpanum_get_word(n, (mpanum) a);
@@ -559,11 +559,12 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	return CRYPT_OK;
 }
 
-static int isprime(void *a, int *b)
+static int isprime(void *a, int b, int *c)
 {
 	LTC_ARGCHK(a != NULL);
-	LTC_ARGCHK(b != NULL);
-	*b = mpa_is_prob_prime((mpanum) a, 100, external_mem_pool) != 0 ? LTC_MP_YES : LTC_MP_NO;
+	LTC_ARGCHK(c != NULL);
+	LTC_UNUSED_PARAM(b);
+	*c = mpa_is_prob_prime((mpanum) a, 100, external_mem_pool) != 0 ? LTC_MP_YES : LTC_MP_NO;
 	return CRYPT_OK;
 }
 

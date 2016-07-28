@@ -941,11 +941,11 @@ static TEE_Result rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
 		mod_size = ltc_mp.unsigned_size((void *)(ltc_key.N));
 		blen = mod_size - 11;
-		ltc_rsa_algo = LTC_LTC_PKCS_1_V1_5;
+		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 	} else {
 		/* Decoded message is always shorter than encrypted message */
 		blen = src_len;
-		ltc_rsa_algo = LTC_LTC_PKCS_1_OAEP;
+		ltc_rsa_algo = LTC_PKCS_1_OAEP;
 	}
 
 	buf = malloc(blen);
@@ -1027,9 +1027,9 @@ static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
 		goto out;
 
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
-		ltc_rsa_algo = LTC_LTC_PKCS_1_V1_5;
+		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 	else
-		ltc_rsa_algo = LTC_LTC_PKCS_1_OAEP;
+		ltc_rsa_algo = LTC_PKCS_1_OAEP;
 
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
@@ -1086,14 +1086,14 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		ltc_rsa_algo = LTC_LTC_PKCS_1_V1_5;
+		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		ltc_rsa_algo = LTC_LTC_PKCS_1_PSS;
+		ltc_rsa_algo = LTC_PKCS_1_PSS;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1185,14 +1185,14 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		ltc_rsa_algo = LTC_LTC_PKCS_1_V1_5;
+		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		ltc_rsa_algo = LTC_LTC_PKCS_1_PSS;
+		ltc_rsa_algo = LTC_PKCS_1_PSS;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;

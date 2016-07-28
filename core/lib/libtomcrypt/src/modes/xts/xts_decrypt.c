@@ -84,14 +84,8 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
   @param tweak  [in] The 128--bit encryption tweak (e.g. sector number)
   @param xts    The XTS structure
   Returns CRYPT_OK upon success
-*/int xts_decrypt(
-   const unsigned char *ct, unsigned long ptlen,
-         unsigned char *pt,
-#ifdef LTC_LINARO_FIX_XTS
-         unsigned char *tweak,
-#else
-   const unsigned char *tweak,
-#endif
+*/
+int xts_decrypt(const unsigned char *ct, unsigned long ptlen, unsigned char *pt, unsigned char *tweak,
          symmetric_xts *xts)
 {
    const struct ltc_cipher_descriptor *desc;
@@ -127,7 +121,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 
    desc = cipher_descriptor[xts->cipher];
 
-   if (desc->accel_xts_encrypt && lim > 0) {
+   if (desc->accel_xts_decrypt && lim > 0) {
 
 	   /* use accelerated decryption for whole blocks */
 	   if ((err = desc->accel_xts_decrypt(ct, pt, lim, tweak, &xts->key1,
@@ -138,7 +132,7 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
 	   pt += lim * 16;
 
 	   /* tweak is encrypted on output */
-	   memcpy(T, tweak, sizeof(T));
+	   XMEMCPY(T, tweak, sizeof(T));
    } else {
       /* encrypt the tweak */
       if ((err = desc->ecb_encrypt(tweak, T, &xts->key2)) != CRYPT_OK) {
@@ -146,9 +140,11 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
       }
 
       for (i = 0; i < lim; i++) {
-	 err = tweak_uncrypt(ct, pt, T, xts);
-	 ct += 16;
-	 pt += 16;
+         if ((err = tweak_uncrypt(ct, pt, T, xts)) != CRYPT_OK) {
+            return err;
+         }
+         ct += 16;
+         pt += 16;
       }
    }
 
@@ -176,13 +172,10 @@ static int tweak_uncrypt(const unsigned char *C, unsigned char *P, unsigned char
          return err;
       }
    }
-
-#ifdef LTC_LINARO_FIX_XTS
    /* Decrypt the tweak back */
    if ((err = desc->ecb_decrypt(T, tweak, &xts->key2)) != CRYPT_OK) {
       return err;
    }
-#endif
 
    return CRYPT_OK;
 }

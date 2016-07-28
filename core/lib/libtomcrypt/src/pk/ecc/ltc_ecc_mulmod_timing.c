@@ -66,7 +66,7 @@ int ltc_ecc_mulmod(void *k, ecc_point *G, ecc_point *R, void *modulus, int map)
    ecc_point *tG, *M[3];
    int        i, j, err;
    void       *mu, *mp;
-   unsigned long buf;
+   ltc_mp_digit buf;
    int        bitcnt, mode, digidx;
 
    LTC_ARGCHK(k       != NULL);

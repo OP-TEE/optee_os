@@ -87,10 +87,14 @@ int ocb_init(ocb_state *ocb, int cipher,
 
    /* determine which polys to use */
    ocb->block_len = cipher_descriptor[cipher].block_length;
-   for (poly = 0; poly < (int)(sizeof(polys)/sizeof(polys[0])); poly++) {
+   x = (int)(sizeof(polys)/sizeof(polys[0]));
+   for (poly = 0; poly < x; poly++) {
        if (polys[poly].len == ocb->block_len) { 
           break;
        }
+   }
+   if (poly == x) {
+      return CRYPT_INVALID_ARG; /* block_len not found in polys */
    }
    if (polys[poly].len != ocb->block_len) {
       return CRYPT_INVALID_ARG;
