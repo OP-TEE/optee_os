@@ -49,17 +49,26 @@ def get_args():
 
 def c_hex_print(f, str):
 	n = 0
+	s = ""
 	for x in str:
 		if n % 8 == 0:
-			f.write("\t")
+			s += "\t"
 		else:
-			f.write(" ")
-		f.write("0x" + ("0" + (hex(ord(x)))[2:])[-2:] + ",")
+			s += " "
+		# Hack to satisfy both Python 2.x and 3.x. In 2.x the variable x
+		# is string, while it in Python 3.x it's considered as a class
+		# int.
+		if sys.version_info > (3, 0):
+		    s += "0x%02x," % x
+		else:
+		    s += "0x%02x," % ord(x)
 		n = n + 1
 		if n % 8 == 0:
-			f.write("\n")
+			f.write(s + "\n")
+			s = ""
 	if n % 8 != 0:
-		f.write("\n")
+		f.write(s + "\n")
+		s = ""
 
 def write_comment(f):
 	f.write("/*\n * This file is auto generated with\n")
@@ -82,8 +91,8 @@ def main():
 	img_ref = Image(width=1000, height=1000)
 
 	if args.verbose:
-		print "Writing " + out_dir + "/" + font_name + ".c"
-	f = open(out_dir + "/" + font_name + ".c", 'wb+')
+		print("Writing " + out_dir + "/" + font_name + ".c")
+	f = open(out_dir + "/" + font_name + ".c", 'w+')
 	write_comment(f)
 	f.write("#include \"font.h\"\n\n")
 
@@ -136,8 +145,8 @@ def main():
 	f.close()
 
 	if args.verbose:
-		print "Writing " + out_dir + "/" + font_name + ".h"
-	f = open(out_dir + "/" + font_name + ".h", 'wb+')
+		print("Writing " + out_dir + "/" + font_name + ".h")
+	f = open(out_dir + "/" + font_name + ".h", 'w+')
 	write_comment(f)
 	f.write("#ifndef __" + font_name.upper() + "_H\n");
 	f.write("#define __" + font_name.upper() + "_H\n");
