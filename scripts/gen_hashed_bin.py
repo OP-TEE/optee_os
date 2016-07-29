@@ -47,7 +47,7 @@ def write_header(outf, init_size, args, paged_size):
 def append_to(outf, start_offs, in_fname, max_bytes=0xffffffff):
 	#print "Appending %s@0x%x 0x%x bytes at position 0x%x" % \
 		#( in_fname, start_offs, max_bytes, int(outf.tell()) )
-	inf = open(in_fname, 'r');
+	inf = open(in_fname, 'rb');
 	inf.seek(start_offs)
 	while True :
 		nbytes = min(16 * 1024, max_bytes)
@@ -74,7 +74,7 @@ def append_hashes(outf, in_fname):
 		elif len(page) == 0 :
 			break
 		else :
-			print "Error: short read, got " + repr(len(page))
+			print("Error: short read, got " + repr(len(page)))
 			sys.exit(1)
 
 	inf.close()
@@ -117,7 +117,7 @@ def get_args():
 		help='The input tee_pageable.bin')
 
 	parser.add_argument('--out', \
-		required=True, type=argparse.FileType('w'), \
+		required=True, type=argparse.FileType('wb'), \
 		help='The output tee.bin')
 
 	return parser.parse_args();
