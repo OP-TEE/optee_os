@@ -86,7 +86,8 @@ extern vaddr_t core_mmu_linear_map_end;
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEEtz)
  * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NS_SHM:   NonSecure shared RAM between NSec and TEEtz.
- * MEM_AREA_KEYVAULT: Secure RAM storing some secrets
+ * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
+ * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
@@ -99,7 +100,8 @@ enum teecore_memtypes {
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
-	MEM_AREA_KEYVAULT,
+	MEM_AREA_RAM_NSEC,
+	MEM_AREA_RAM_SEC,
 	MEM_AREA_IO_NSEC,
 	MEM_AREA_IO_SEC,
 	MEM_AREA_RES_VASPACE,
