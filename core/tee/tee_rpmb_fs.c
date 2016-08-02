@@ -1941,7 +1941,7 @@ static TEE_Result generate_fek(struct rpmb_fat_entry *fe)
 	TEE_Result res;
 
 again:
-	res = crypto_ops.prng.read(fe->fek, sizeof(fe->fek));
+	res = tee_fs_generate_fek(fe->fek, sizeof(fe->fek));
 	if (res != TEE_SUCCESS)
 		return res;
 
