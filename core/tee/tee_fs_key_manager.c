@@ -26,22 +26,23 @@
  */
 
 
-/* Acronyms:
+/*
+ * Acronyms:
  *
  * FEK - File Encryption Key
- * SST - Secure Storage
  * SSK - Secure Storage Key
+ * TSK - Trusted app Storage Key
  * IV  - Initial vector
  * HUK - Hardware Unique Key
  * RNG - Random Number Generator
- *
- * */
+ */
 
 #include <initcall.h>
 #include <stdlib.h>
 #include <string.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/tee_ta_manager.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs_key_manager.h>
@@ -68,13 +69,55 @@ static struct tee_fs_ssk tee_fs_ssk;
 static uint8_t string_for_ssk_gen[] = "ONLY_FOR_tee_fs_ssk";
 
 
+static TEE_Result do_hmac(uint8_t *out_key, uint32_t out_key_size,
+			  const uint8_t *in_key, uint32_t in_key_size,
+			  const uint8_t *message, uint32_t message_size)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *ctx = NULL;
+	size_t hash_ctx_size = 0;
+
+	if (!out_key || !in_key || !message)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = crypto_ops.mac.get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ctx = malloc(hash_ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = crypto_ops.mac.init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
+	if (res != TEE_SUCCESS)
+		goto exit;
+
+	res = crypto_ops.mac.update(ctx, TEE_FS_KM_HMAC_ALG,
+			message, message_size);
+	if (res != TEE_SUCCESS)
+		goto exit;
+
+	res = crypto_ops.mac.final(ctx, TEE_FS_KM_HMAC_ALG, out_key,
+				   out_key_size);
+	if (res != TEE_SUCCESS)
+		goto exit;
+
+	res = TEE_SUCCESS;
+
+exit:
+	free(ctx);
+	return res;
+}
+
 static TEE_Result fek_crypt(TEE_OperationMode mode,
 		uint8_t *key, int size)
 {
 	TEE_Result res;
 	uint8_t *ctx = NULL;
 	size_t ctx_size;
+	uint8_t tsk[TEE_FS_KM_TSK_SIZE];
 	uint8_t dst_key[TEE_FS_KM_FEK_SIZE];
+	struct tee_ta_session *sess;
 
 	if (!key)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -85,6 +128,15 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 	if (tee_fs_ssk.is_init == 0)
 		return TEE_ERROR_GENERIC;
 
+	res = tee_ta_get_current_session(&sess);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = do_hmac(tsk, sizeof(tsk), tee_fs_ssk.key, TEE_FS_KM_SSK_SIZE,
+		      (uint8_t *)&sess->ctx->uuid, sizeof(TEE_UUID));
+	if (res != TEE_SUCCESS)
+		return res;
+
 	res = crypto_ops.cipher.get_ctx_size(TEE_FS_KM_ENC_FEK_ALG, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -93,9 +145,8 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.cipher.init(ctx, TEE_FS_KM_ENC_FEK_ALG,
-			mode, tee_fs_ssk.key, TEE_FS_KM_SSK_SIZE,
-			NULL, 0, NULL, 0);
+	res = crypto_ops.cipher.init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
+				     sizeof(tsk), NULL, 0, NULL, 0);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -124,45 +175,6 @@ static TEE_Result generate_iv(uint8_t *iv, uint8_t len)
 	return crypto_ops.prng.read(iv, len);
 }
 
-static TEE_Result generate_ssk(uint8_t *ssk, uint32_t ssk_size,
-			uint8_t *huk, uint32_t huk_size,
-			uint8_t *message, uint32_t message_size)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint8_t *ctx = NULL;
-	size_t hash_ctx_size = 0;
-
-	if (!ssk || !huk || !message)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = crypto_ops.mac.get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	ctx = malloc(hash_ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = crypto_ops.mac.init(ctx, TEE_FS_KM_HMAC_ALG, huk, huk_size);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.mac.update(ctx, TEE_FS_KM_HMAC_ALG,
-			message, message_size);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.mac.final(ctx, TEE_FS_KM_HMAC_ALG, ssk, ssk_size);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = TEE_SUCCESS;
-
-exit:
-	free(ctx);
-	return res;
-}
-
 static TEE_Result tee_fs_init_key_manager(void)
 {
 	int res = TEE_SUCCESS;
@@ -182,7 +194,7 @@ static TEE_Result tee_fs_init_key_manager(void)
 	memcpy(message + sizeof(chip_id), string_for_ssk_gen,
 			sizeof(string_for_ssk_gen));
 
-	res = generate_ssk(tee_fs_ssk.key, sizeof(tee_fs_ssk.key),
+	res = do_hmac(tee_fs_ssk.key, sizeof(tee_fs_ssk.key),
 			huk.data, sizeof(huk.data),
 			message, sizeof(message));
 
@@ -318,7 +330,8 @@ TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
 	 * Block File Format: |Header|Ciphertext|
 	 * Header Format:     |IV|Tag|
 	 *
-	 * FEK = AES_DECRYPT(SSK, Encrypted_FEK)
+	 * TSK = HMAC(SSK, TA_UUID)
+	 * FEK = AES_DECRYPT(TSK, Encrypted_FEK)
 	 * Chipertext = AES_GCM_ENCRYPT(FEK, IV, Meta_Info, AAD)
 	 */
 

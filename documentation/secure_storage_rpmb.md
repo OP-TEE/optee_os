@@ -110,16 +110,17 @@ off with `CFG_ENC_FS=n`. The algorithm is 128-bit AES in Cipher Block Chaining
 
 - During OP-TEE initialization, a 128-bit AES Secure Storage Key (SSK) is
 derived from a Hardware Unique Key (HUK). It is kept in secure memory and never
-written to disk.
+written to disk. A Trusted Application Storage Key is derived from the SSK and
+the TA UUID.
 - For each file, a 128-bit encrypted File Encryption Key (FEK) is randomly
-generated when the file is created and stored in the FAT entry for the file.
-Before use, this key is decrypted using the SSK.
+generated when the file is created, encrypted with the TSK and stored in the FAT
+entry for the file.
 - Each 256-byte block of data is then encrypted in CBC mode. The initialization
 vector is obtained by the ESSIV algorithm, that is, by encrypting the block
 number with a hash of the FEK. This allows direct access to any block in the
 file, as follows:
 ```
-    FEK = AES-Decrypt(encrypted FEK);
+    FEK = AES-Decrypt(TSK, encrypted FEK);
     k = SHA256(FEK);
     IV = AES-Encrypt(128 bits of k, block index padded to 16 bytes)
 	Encrypted block = AES-CBC-Encrypt(FEK, IV, block data);

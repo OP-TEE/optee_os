@@ -29,12 +29,14 @@
 #define TEE_FS_KEY_MANAGER_H
 
 #include <tee_api_types.h>
+#include <utee_defines.h>
 
 #define TEE_FS_KM_CHIP_ID_LENGTH    32
 #define TEE_FS_KM_HMAC_ALG          TEE_ALG_HMAC_SHA256
 #define TEE_FS_KM_AUTH_ENC_ALG      TEE_ALG_AES_GCM
 #define TEE_FS_KM_ENC_FEK_ALG       TEE_ALG_AES_ECB_NOPAD
 #define TEE_FS_KM_SSK_SIZE          TEE_SHA256_HASH_SIZE
+#define TEE_FS_KM_TSK_SIZE          TEE_SHA256_HASH_SIZE
 #define TEE_FS_KM_FEK_SIZE          16  /* bytes */
 #define TEE_FS_KM_IV_LEN            12  /* bytes */
 #define TEE_FS_KM_MAX_TAG_LEN       16  /* bytes */

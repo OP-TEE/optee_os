@@ -108,14 +108,13 @@ TEE file is 1024.
 
 Key manager is an component in TEE file system, and is responsible for handling
 data encryption and decryption and also management of the sensitive key
-materials. There are two types of keys used by key manager. One is Secure
-Storage Key (SSK) and another one is File Encryption Key (FEK).
+materials. There are three types of keys used by the key manager: the Secure
+Storage Key (SSK), the TA Storage KEY (TSK) and the File Encryption Key (FEK).
 
 ### Secure Storage Key (SSK)
 
 SSK is a per-device key and is generated and stored in secure memory when OP-TEE
-is booting. SSK is used for protecting FEK, in other words, is used for
-encrypting/decrypting FEK.
+is booting. SSK is used to derive the TA Storage Key (TSK).
 
 SSK is derived by:
 > SSK = HMAC<sub>SHA256</sub> (HUK, Chip ID || "static string")
@@ -128,6 +127,15 @@ secure storage subsystem, but, for the future we might need to create different
 per-device keys for different subsystems using the same algorithm as we
 generate the SSK; An easy way to generate different per-device keys for
 different subsystems is using different static strings to generate the keys.
+
+### Trusted Application Storage Key (TKS)
+
+The TSK is a per-Trusted Application key, which is generated from the SSK and
+the TA's identifier (UUID). It is used to protect the FEK, in other words,
+to encrypt/decrypt the FEK.
+
+TSK is derived by:
+> TSK = HMAC<sub>SHA256</sub> (SSK, TA_UUID)
 
 ### File Encryption Key (FEK)
 

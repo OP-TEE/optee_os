@@ -1406,7 +1406,7 @@ out:
  * @addr       Byte address of data.
  * @data       Pointer to the data.
  * @len        Size of data in bytes.
- * @fek        SSK-encrypted File Encryption Key or NULL.
+ * @fek        Encrypted File Encryption Key or NULL.
  */
 static TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
 				uint32_t len, uint8_t *fek)
@@ -1437,7 +1437,7 @@ static bool tee_rpmb_write_is_atomic(uint16_t dev_id __unused, uint32_t addr,
  * @addr       Byte address of data.
  * @data       Pointer to the data.
  * @len        Size of data in bytes.
- * @fek        SSK-encrypted File Encryption Key or NULL.
+ * @fek        Encrypted File Encryption Key or NULL.
  */
 static TEE_Result tee_rpmb_write(uint16_t dev_id, uint32_t addr,
 				 const uint8_t *data, uint32_t len,
