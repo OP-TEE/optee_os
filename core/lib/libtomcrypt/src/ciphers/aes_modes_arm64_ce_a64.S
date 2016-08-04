@@ -247,6 +247,29 @@ ENDPROC(aes_decrypt_block4x)
 
 #endif
 
+
+	/*
+	 * uint32_t ce_aes_sub(uint32_t in) - use the aese instruction to
+	 * perform the AES sbox substitution on each byte in 'input'
+	 */
+ENTRY(ce_aes_sub)
+	dup		v1.4s, w0
+	movi		v0.16b, #0
+	aese		v0.16b, v1.16b
+	umov		w0, v0.4s[0]
+	ret
+ENDPROC(ce_aes_sub)
+
+	/*
+	 * void ce_aes_invert(void *dst, void *src)
+	 */
+ENTRY(ce_aes_invert)
+	ld1		{v0.16b}, [x1]
+	aesimc		v1.16b, v0.16b
+	st1		{v1.16b}, [x0]
+	ret
+ENDPROC(ce_aes_invert)
+
 	/*
 	 * ce_aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[],
 	 *                    int rounds, int blocks, int first)
