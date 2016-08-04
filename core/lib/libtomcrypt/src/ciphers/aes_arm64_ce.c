@@ -51,6 +51,8 @@ typedef unsigned int u32;
 typedef unsigned char u8;
 
 /* Prototypes for assembly functions */
+uint32_t ce_aes_sub(uint32_t in);
+void ce_aes_invert(void *dst, void *src);
 void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, int first);
 void ce_aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
@@ -70,25 +72,6 @@ void ce_aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
 struct aes_block {
 	u8 b[16];
 };
-
-/*
- * aes_sub() - use the aese instruction to perform the AES sbox substitution
- *	     on each byte in 'input'
- */
-static u32 aes_sub(u32 input)
-{
-	u32 ret;
-
-	__asm__("dup    v1.4s, %w[in]		;"
-		"movi   v0.16b, #0		;"
-		"aese   v0.16b, v1.16b		;"
-		"umov   %w[out], v0.4s[0]	;"
-
-	:       [out]   "=r"(ret)
-	:       [in]    "r"(input)
-	:	       "v0", "v1");
-	return ret;
-}
 
 static inline u32 ror32(u32 val, u32 shift)
 {
@@ -132,7 +115,8 @@ int rijndael_setup(const unsigned char *key, int keylen, int num_rounds,
 		rki = (u32 *)p + (i * kwords);
 		rko = rki + kwords;
 
-		rko[0] = ror32(aes_sub(rki[kwords - 1]), 8) ^ rcon[i] ^ rki[0];
+		rko[0] = ror32(ce_aes_sub(rki[kwords - 1]), 8)
+				^ rcon[i] ^ rki[0];
 		rko[1] = rko[0] ^ rki[1];
 		rko[2] = rko[1] ^ rki[2];
 		rko[3] = rko[2] ^ rki[3];
@@ -145,7 +129,7 @@ int rijndael_setup(const unsigned char *key, int keylen, int num_rounds,
 		} else if (keylen == 32) {
 			if (i >= 6)
 				break;
-			rko[4] = aes_sub(rko[3]) ^ rki[4];
+			rko[4] = ce_aes_sub(rko[3]) ^ rki[4];
 			rko[5] = rko[4] ^ rki[5];
 			rko[6] = rko[5] ^ rki[6];
 			rko[7] = rko[6] ^ rki[7];
@@ -166,115 +150,9 @@ int rijndael_setup(const unsigned char *key, int keylen, int num_rounds,
 
 	key_dec[0] = key_enc[j];
 	for (i = 1, j--; j > 0; i++, j--)
-		__asm__("ld1    {v0.16b}, %[in]		;"
-			"aesimc v1.16b, v0.16b		;"
-			"st1    {v1.16b}, %[out]	;"
-
-		:       [out]   "=Q"(key_dec[i])
-		:       [in]    "Q"(key_enc[j])
-		:	       "v0", "v1");
+		ce_aes_invert(key_dec + i, key_enc + j);
 	key_dec[i] = key_enc[0];
 
-	tomcrypt_arm_neon_disable(&state);
-
-	return CRYPT_OK;
-}
-
-int rijndael_ecb_encrypt(const unsigned char *pt, unsigned char *ct,
-		    symmetric_key *skey)
-{
-	struct tomcrypt_arm_neon_state state;
-	struct aes_block *out = (struct aes_block *)ct;
-	struct aes_block const *in = (struct aes_block *)pt;
-	void *dummy0;
-	int dummy1;
-
-	LTC_ARGCHK(pt);
-	LTC_ARGCHK(ct);
-	LTC_ARGCHK(skey);
-
-	tomcrypt_arm_neon_enable(&state);
-	__asm__("	ld1     {v0.16b}, %[in]			;"
-		"       ld1     {v1.2d}, [%[key]], #16		;"
-		"       cmp     %w[rounds], #10			;"
-		"       bmi     0f				;"
-		"       bne     3f				;"
-		"       mov     v3.16b, v1.16b			;"
-		"       b       2f				;"
-		"0:     mov     v2.16b, v1.16b			;"
-		"       ld1     {v3.2d}, [%[key]], #16		;"
-		"1:     aese    v0.16b, v2.16b			;"
-		"       aesmc   v0.16b, v0.16b			;"
-		"2:     ld1     {v1.2d}, [%[key]], #16		;"
-		"       aese    v0.16b, v3.16b			;"
-		"       aesmc   v0.16b, v0.16b			;"
-		"3:     ld1     {v2.2d}, [%[key]], #16		;"
-		"       subs    %w[rounds], %w[rounds], #3	;"
-		"       aese    v0.16b, v1.16b			;"
-		"       aesmc   v0.16b, v0.16b			;"
-		"       ld1     {v3.2d}, [%[key]], #16		;"
-		"       bpl     1b				;"
-		"       aese    v0.16b, v2.16b			;"
-		"       eor     v0.16b, v0.16b, v3.16b		;"
-		"       st1     {v0.16b}, %[out]		;"
-
-	:	[out]		"=Q"(*out),
-		[key]		"=r"(dummy0),
-		[rounds]	"=r"(dummy1)
-	:	[in]		"Q"(*in),
-				"1"(skey->rijndael.eK),
-				"2"(skey->rijndael.Nr - 2)
-	:       "cc");
-	tomcrypt_arm_neon_disable(&state);
-
-	return CRYPT_OK;
-}
-
-int rijndael_ecb_decrypt(const unsigned char *ct, unsigned char *pt,
-		    symmetric_key *skey)
-{
-	struct tomcrypt_arm_neon_state state;
-	struct aes_block *out = (struct aes_block *)pt;
-	struct aes_block const *in = (struct aes_block *)ct;
-	void *dummy0;
-	int dummy1;
-
-	LTC_ARGCHK(pt);
-	LTC_ARGCHK(ct);
-	LTC_ARGCHK(skey);
-
-	tomcrypt_arm_neon_enable(&state);
-	__asm__("       ld1     {v0.16b}, %[in]			;"
-		"       ld1     {v1.2d}, [%[key]], #16		;"
-		"       cmp     %w[rounds], #10			;"
-		"       bmi     0f				;"
-		"       bne     3f				;"
-		"       mov     v3.16b, v1.16b			;"
-		"       b       2f				;"
-		"0:     mov     v2.16b, v1.16b			;"
-		"       ld1     {v3.2d}, [%[key]], #16		;"
-		"1:     aesd    v0.16b, v2.16b			;"
-		"       aesimc  v0.16b, v0.16b			;"
-		"2:     ld1     {v1.2d}, [%[key]], #16		;"
-		"       aesd    v0.16b, v3.16b			;"
-		"       aesimc  v0.16b, v0.16b			;"
-		"3:     ld1     {v2.2d}, [%[key]], #16		;"
-		"       subs    %w[rounds], %w[rounds], #3	;"
-		"       aesd    v0.16b, v1.16b			;"
-		"       aesimc  v0.16b, v0.16b			;"
-		"       ld1     {v3.2d}, [%[key]], #16		;"
-		"       bpl     1b				;"
-		"       aesd    v0.16b, v2.16b			;"
-		"       eor     v0.16b, v0.16b, v3.16b		;"
-		"       st1     {v0.16b}, %[out]		;"
-
-	:	[out]		"=Q"(*out),
-		[key]		"=r"(dummy0),
-		[rounds]	"=r"(dummy1)
-	:	[in]		"Q"(*in),
-				"1"(skey->rijndael.dK),
-				"2"(skey->rijndael.Nr - 2)
-	:       "cc");
 	tomcrypt_arm_neon_disable(&state);
 
 	return CRYPT_OK;
@@ -340,6 +218,18 @@ static int aes_ecb_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 	tomcrypt_arm_neon_disable(&state);
 
 	return CRYPT_OK;
+}
+
+int rijndael_ecb_encrypt(const unsigned char *pt, unsigned char *ct,
+		    symmetric_key *skey)
+{
+	return aes_ecb_encrypt_nblocks(pt, ct, 1, skey);
+}
+
+int rijndael_ecb_decrypt(const unsigned char *ct, unsigned char *pt,
+		    symmetric_key *skey)
+{
+	return aes_ecb_decrypt_nblocks(ct, pt, 1, skey);
 }
 
 static int aes_cbc_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
