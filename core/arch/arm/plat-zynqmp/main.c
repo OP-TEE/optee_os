@@ -111,9 +111,9 @@ void console_init(void)
 
 void console_putc(int ch)
 {
-	cdns_uart_putc(ch, console_base());
 	if (ch == '\n')
 		cdns_uart_putc('\r', console_base());
+	cdns_uart_putc(ch, console_base());
 }
 
 void console_flush(void)

@@ -85,9 +85,9 @@ void console_putc(int ch)
 {
 	vaddr_t base = console_base();
 
-	ns16550_putc(ch, base);
 	if (ch == '\n')
 		ns16550_putc('\r', base);
+	ns16550_putc(ch, base);
 }
 
 void console_flush(void)

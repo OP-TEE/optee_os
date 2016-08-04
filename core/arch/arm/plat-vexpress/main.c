@@ -134,9 +134,9 @@ void console_putc(int ch)
 {
 	vaddr_t base = console_base();
 
-	pl011_putc(ch, base);
 	if (ch == '\n')
 		pl011_putc('\r', base);
+	pl011_putc(ch, base);
 }
 
 void console_flush(void)

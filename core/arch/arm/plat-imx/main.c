@@ -85,11 +85,10 @@ void console_putc(int ch)
 {
 	vaddr_t base = console_base();
 
-	imx_uart_putc(ch, base);
-
 	/* If \n, also do \r */
 	if (ch == '\n')
 		imx_uart_putc('\r', base);
+	imx_uart_putc(ch, base);
 }
 
 void console_flush(void)

@@ -82,9 +82,9 @@ void console_putc(int ch)
 {
 	vaddr_t base = console_base();
 
-	serial8250_uart_putc(ch, base);
 	if (ch == '\n')
 		serial8250_uart_putc('\r', base);
+	serial8250_uart_putc(ch, base);
 }
 
 void console_flush(void)
