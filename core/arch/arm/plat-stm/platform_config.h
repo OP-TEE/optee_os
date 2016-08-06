@@ -28,11 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_orly2	0
-#define PLATFORM_FLAVOR_ID_cannes	1
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		32
 
@@ -84,7 +79,7 @@
 #define CFG_TA_RAM_START	(CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE)
 #define CFG_SHMEM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
 
-#if PLATFORM_FLAVOR_IS(cannes)
+#if defined(PLATFORM_FLAVOR_cannes)
 
 #define DRAM0_BASE		0x40000000
 #define DRAM0_SIZE		0x80000000
@@ -97,7 +92,7 @@
 #define UART_CONSOLE_BASE	ST_ASC20_REGS_BASE
 #define RNG_BASE		0x08A89000
 
-#elif PLATFORM_FLAVOR_IS(orly2)
+#elif defined(PLATFORM_FLAVOR_orly2)
 
 #define DRAM0_BASE		0x40000000
 #define DRAM0_SIZE		0x40000000

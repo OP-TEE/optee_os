@@ -28,10 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_mx6ulevk	0
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR_ID_ ## flav == PLATFORM_FLAVOR)
-
 #define STACK_ALIGNMENT			64
 
 #ifdef CFG_WITH_PAGER
@@ -42,7 +38,7 @@
 #endif
 
 /* For i.MX 6UltraLite EVK board */
-#if  PLATFORM_FLAVOR_IS(mx6ulevk)
+#if defined(PLATFORM_FLAVOR_mx6ulevk)
 #define GIC_BASE			0xA00000
 #define GIC_SIZE			0x8000
 #define GICC_OFFSET			0x2000

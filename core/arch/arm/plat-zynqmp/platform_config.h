@@ -28,12 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_zc1751_dc1	0
-#define PLATFORM_FLAVOR_ID_zc1751_dc2	1
-#define PLATFORM_FLAVOR_ID_zcu102	2
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR_ID_ ## flav == PLATFORM_FLAVOR)
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 #define HEAP_SIZE		(24 * 1024)
@@ -42,8 +36,9 @@
 #error "Pager not supported for zynqmp"
 #endif
 
-#if PLATFORM_FLAVOR_IS(zc1751_dc1) || PLATFORM_FLAVOR_IS(zc1751_dc2) || \
-	PLATFORM_FLAVOR_IS(zcu102)
+#if defined(PLATFORM_FLAVOR_zc1751_dc1) || \
+	defined(PLATFORM_FLAVOR_zc1751_dc2) || \
+	defined(PLATFORM_FLAVOR_zcu102)
 
 #define GIC_BASE		0xF9010000
 #define UART0_BASE		0xFF000000

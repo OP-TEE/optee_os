@@ -17,11 +17,6 @@ include mk/$(COMPILER_$(sm)).mk
 
 cppflags$(sm)	+= -D__KERNEL__
 
-PLATFORM_FLAVOR ?= default
-platform_$(PLATFORM) := y
-platform_flavor_$(PLATFORM_FLAVOR) := y
-cppflags$(sm)	+= -DPLATFORM_FLAVOR=PLATFORM_FLAVOR_ID_$(PLATFORM_FLAVOR)
-
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include/generated

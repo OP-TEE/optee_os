@@ -96,8 +96,8 @@ void main_init_gic(void)
 					  MEM_AREA_IO_SEC);
 	TEE_ASSERT(gicc_base && gicd_base);
 
-#if PLATFORM_FLAVOR_IS(fvp) || PLATFORM_FLAVOR_IS(juno) || \
-    PLATFORM_FLAVOR_IS(qemu_armv8a)
+#if defined(PLATFORM_FLAVOR_fvp) || defined(PLATFORM_FLAVOR_juno) || \
+	defined(PLATFORM_FLAVOR_qemu_armv8a)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 #else

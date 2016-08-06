@@ -28,10 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_sc9860	0
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
@@ -41,7 +37,7 @@
 #endif
 #endif /*ARM64*/
 
-#if PLATFORM_FLAVOR_IS(sc9860)
+#if defined(PLATFORM_FLAVOR_sc9860)
 
 #define GIC_BASE		0x12000000
 #define UART0_BASE		0x70000000

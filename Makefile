@@ -26,6 +26,8 @@ PLATFORM        ?= vexpress
 PLATFORM_FLAVOR ?= qemu_virt
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 
+PLATFORM_$(PLATFORM) := y
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 arch_$(ARCH)	:= y
 
 ifneq ($O,)

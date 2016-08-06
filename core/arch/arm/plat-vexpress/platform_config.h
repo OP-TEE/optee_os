@@ -28,13 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_fvp		0
-#define PLATFORM_FLAVOR_ID_qemu_armv8a	1
-#define PLATFORM_FLAVOR_ID_qemu_virt	2
-#define PLATFORM_FLAVOR_ID_juno		3
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
@@ -44,7 +37,7 @@
 #endif
 #endif /*ARM64*/
 
-#if PLATFORM_FLAVOR_IS(fvp)
+#if defined(PLATFORM_FLAVOR_fvp)
 
 #define GIC_BASE		0x2c000000
 #define UART0_BASE		0x1c090000
@@ -57,7 +50,7 @@
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
 
-#elif PLATFORM_FLAVOR_IS(juno)
+#elif defined(PLATFORM_FLAVOR_juno)
 
 #define GIC_BASE		0x2c010000
 
@@ -83,7 +76,7 @@
 #define IT_CONSOLE_UART		IT_UART3
 #define CONSOLE_UART_CLK_IN_HZ	UART3_CLK_IN_HZ
 
-#elif PLATFORM_FLAVOR_IS(qemu_virt)
+#elif defined(PLATFORM_FLAVOR_qemu_virt)
 
 #define GIC_BASE		0x08000000
 #define UART0_BASE		0x09000000
@@ -96,7 +89,7 @@
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
 
-#elif PLATFORM_FLAVOR_IS(qemu_armv8a)
+#elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
 #define UART0_BASE		0x09000000
 #define UART1_BASE		0x09040000
@@ -109,7 +102,7 @@
 
 #define HEAP_SIZE		(24 * 1024)
 
-#if PLATFORM_FLAVOR_IS(fvp)
+#if defined(PLATFORM_FLAVOR_fvp)
 /*
  * FVP specifics.
  */
@@ -142,7 +135,7 @@
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
 
-#elif PLATFORM_FLAVOR_IS(juno)
+#elif defined(PLATFORM_FLAVOR_juno)
 /*
  * Juno specifics.
  */
@@ -182,7 +175,7 @@
 #define GICC_OFFSET		0x1f000
 #define GICD_OFFSET		0
 
-#elif PLATFORM_FLAVOR_IS(qemu_virt)
+#elif defined(PLATFORM_FLAVOR_qemu_virt)
 /*
  * QEMU virt specifics.
  */
@@ -220,7 +213,7 @@
 #define GICC_OFFSET		0x10000
 
 
-#elif PLATFORM_FLAVOR_IS(qemu_armv8a)
+#elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform vexpress-qemu_armv8a"

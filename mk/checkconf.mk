@@ -2,7 +2,7 @@
 # variables
 #
 # Example usage (by default, check-conf-h will consider all CFG_*
-# and _CFG_* variables):
+# and _CFG_* variables plus PLATFORM_*):
 #
 # path/to/conf.h: FORCE
 #	$(call check-conf-h)
@@ -54,7 +54,7 @@ endef
 
 define cfg-vars-by-prefix
 	$(strip $(if $(1),$(call _cfg-vars-by-prefix,$(1)),
-			  $(call _cfg-vars-by-prefix,CFG_ _CFG_)))
+			  $(call _cfg-vars-by-prefix,CFG_ _CFG_ PLATFORM_)))
 endef
 
 define _cfg-vars-by-prefix

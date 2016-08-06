@@ -28,10 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_FLAVOR_ID_mt8173	0
-#define PLATFORM_FLAVOR_IS(flav) \
-	(PLATFORM_FLAVOR == PLATFORM_FLAVOR_ID_ ## flav)
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
@@ -41,7 +37,7 @@
 #endif
 #endif /*ARM64*/
 
-#if PLATFORM_FLAVOR_IS(mt8173)
+#if defined(PLATFORM_FLAVOR_mt8173)
 
 #define GIC_BASE		0x10220000
 #define GICC_OFFSET		0x2000

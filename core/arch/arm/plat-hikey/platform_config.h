@@ -28,8 +28,6 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define PLATFORM_hikey 1
-
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
