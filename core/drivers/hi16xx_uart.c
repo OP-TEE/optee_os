@@ -86,9 +86,8 @@ void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 {
 	uint16_t freq_div = uart_clk / (16 * baud_rate);
 
-	/* Clear and enable FIFO */
-	write32(UART_FCR_FIFO_EN | UART_FCR_RX_FIFO_RST | UART_FCR_TX_FIFO_RST,
-		base + UART_FCR);
+	/* Enable (and clear) FIFOs */
+	write32(UART_FCR_FIFO_EN, base + UART_FCR);
 
 	/* Enable access to _DLL and _DLH */
 	write32(UART_LCR_DLAB, base + UART_LCR);
@@ -110,15 +109,6 @@ void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 
 void hi16xx_uart_putc(int ch, vaddr_t base)
 {
-	/*
-	 * FIXME: Output is garbled if we "wait for not full", it is OK if we
-	 * "wait for empty"
-	 */
-#if 0
-	/* Wait until TX FIFO is not full */
-	while (!(read32(base + UART_USR) & UART_USR_TFNF_BIT))
-		;
-#endif
 	/* Wait until TX FIFO is empty */
 	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
 		;
