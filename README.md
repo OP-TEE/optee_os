@@ -24,6 +24,7 @@
         5. [Update flash and its layout](#571-update-flash-and-its-layout)
         5. [GlobalPlatform testsuite support](#572-globalplatform-testsuite-support)
         5. [GCC5 support](#573-gcc5-support)
+        5. [Dropbear support](#574-dropbear-support)
     5. [Raspberry Pi 3](#58-raspberry-pi-3)
     5. [Tips and tricks](#59-tips-and-tricks)
         5. [Reference existing project to speed up repo sync](#581-reference-existing-project-to-speed-up-repo-sync)
@@ -665,6 +666,17 @@ NOR5FILE: \SOFTWARE\hdlcdclk.dat ;Image File Name
 NOR5LOAD: 00000000               ;Image Load Address
 NOR5ENTRY: 00000000              ;Image Entry Point
 </pre>
+
+
+#### 5.7.4 Dropbear support
+When developing CA and TA applications it could be easier to send the files
+by `scp` to the board instead of compiling again the file-system just to
+include them. And sometimes, to work at 'distance', the possibility of using an
+`ssh` connection could be very useful.
+
+We can use `dropbear` to achieve those goals there are simple steps to follow
+which can be consulted
+[here](https://github.com/Miraje/dropbear/blob/master/README.md)
 
 ---
 ### 5.8 Raspberry Pi 3
