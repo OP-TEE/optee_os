@@ -27,8 +27,6 @@
 #include <drivers/hi16xx_uart.h>
 #include <io.h>
 
-#include <arm.h>
-
 /* Register offsets */
 
 #define UART_RBR	0x00	/* RX data buffer register */
@@ -91,29 +89,21 @@ void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 	/* Clear and enable FIFO */
 	write32(UART_FCR_FIFO_EN | UART_FCR_RX_FIFO_RST | UART_FCR_TX_FIFO_RST,
 		base + UART_FCR);
-	dsb();
 
 	/* Enable access to _DLL and _DLH */
 	write32(UART_LCR_DLAB, base + UART_LCR);
-	dsb();
 
 	/* Calculate and set UART_DLL */
 	write32(freq_div & 0xFF, base + UART_DLL);
-	dsb();
 
 	/* Calculate and set UART_DLH */
 	write32((freq_div >> 8) & 0xFF, base + UART_DLH);
-	dsb();
 
-	/*
-	 * Clear _DLL and _DLH access bit, set data size (8 bits), parity etc.
-	 */
+	/* Clear _DLL/_DLH access bit, set data size (8 bits), parity etc. */
 	write32(UART_LCR_DLS8, base + UART_LCR);
-	dsb();
 
 	/* Disable interrupt mode */
 	write32(0, base + UART_IEL);
-	dsb();
 
 	hi16xx_uart_flush(base);
 }
