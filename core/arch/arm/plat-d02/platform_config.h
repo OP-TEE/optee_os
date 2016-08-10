@@ -43,6 +43,14 @@
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	200000000
 
+/* ALG sub-controller */
+#define ALG_SC_BASE		0xD0000000
+#define ALG_SC_REG_SIZE		0xF010
+
+/* RNG */
+#define RNG_BASE		0xD1010000
+#define RNG_REG_SIZE		0x18
+
 /* TEE core heap */
 #define HEAP_SIZE		(96 * 1024)
 
