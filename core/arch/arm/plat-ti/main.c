@@ -77,7 +77,7 @@ static vaddr_t console_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_NSEC);
 		return (vaddr_t)va;
 	}
 	return CONSOLE_UART_BASE;
@@ -130,12 +130,16 @@ struct plat_nsec_ctx {
 
 void init_sec_mon(unsigned long nsec_entry)
 {
-	struct plat_nsec_ctx *plat_ctx = (struct plat_nsec_ctx *)nsec_entry;
+	struct plat_nsec_ctx *plat_ctx;
 	struct sm_nsec_ctx *nsec_ctx;
 
+	plat_ctx = phys_to_virt(nsec_entry, MEM_AREA_IO_SEC);
+	if (!plat_ctx)
+		panic();
+
 	/* Invalidate cache to fetch data from external memory */
-	cache_maintenance_l1(DCACHE_AREA_INVALIDATE, (void *)nsec_entry,
-		sizeof(struct plat_nsec_ctx));
+	cache_maintenance_l1(DCACHE_AREA_INVALIDATE,
+			     plat_ctx, sizeof(*plat_ctx));
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
