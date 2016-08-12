@@ -898,7 +898,7 @@ static bool arm_va2pa_helper(void *va, paddr_t *pa)
 	bool ret = false;
 
 #ifdef ARM32
-	write_ats1cpw((vaddr_t)va);
+	write_ats1cpr((vaddr_t)va);
 	isb();
 #ifdef CFG_WITH_LPAE
 	par = read_par64();
