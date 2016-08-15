@@ -119,7 +119,8 @@ $ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
                libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
                libz1:i386 netcat python-crypto python-serial \
                python-wand uuid-dev xdg-utils xz-utils zlib1g-dev \
-               mtools libtool libftdi-dev libhidapi-dev
+               mtools libtool libftdi-dev libhidapi-dev \
+               unzip bc libncurses5-dev
 ```
 
 ---
