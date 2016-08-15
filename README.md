@@ -114,13 +114,11 @@ able to build and run OP-TEE there are a few packages that needs to be installed
 to start with. Therefore install the following packages regardless of what
 target you will use in the end.
 ```
-$ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bison \
-               cscope curl flex gdisk libc6:i386 libfdt-dev \
-               libglib2.0-dev libpixman-1-dev libstdc++6:i386 \
-               libz1:i386 netcat python-crypto python-serial \
-               python-wand uuid-dev xdg-utils xz-utils zlib1g-dev \
-               mtools libtool libftdi-dev libhidapi-dev \
-               unzip bc libncurses5-dev
+$ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bc \
+	bison cscope curl flex gdisk libc6:i386 libfdt-dev libftdi-dev \
+	libglib2.0-dev libhidapi-dev libncurses5-dev libpixman-1-dev \
+	libstdc++6:i386 libtool libz1:i386 mtools netcat python-crypto \
+	python-serial python-wand unzip uuid-dev xdg-utils xz-utils zlib1g-dev
 ```
 
 ---
