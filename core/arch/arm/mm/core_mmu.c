@@ -926,7 +926,7 @@ out:
 	return ret;
 }
 
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 static void check_pa_matches_va(void *va, paddr_t pa)
 {
 	TEE_Result res;
@@ -1005,7 +1005,7 @@ paddr_t virt_to_phys(void *va)
 	return pa;
 }
 
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
 	if (va && virt_to_phys(va) != pa)

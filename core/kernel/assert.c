@@ -37,7 +37,7 @@ void _assert_log(const char *expr __maybe_unused,
 		 const int line __maybe_unused,
 		 const char *func __maybe_unused)
 {
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 	EMSG_RAW("assertion '%s' failed at %s:%d <%s>",
 		 expr, file, line, func);
 #else

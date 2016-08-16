@@ -31,7 +31,7 @@
 #include <compiler.h>
 
 /* debug disabled => __FILE__, ... and panic message are not built. */
-#if defined(CFG_TEE_CORE_DEBUG) && CFG_TEE_CORE_DEBUG != 0
+#if defined(CFG_TEE_CORE_DEBUG)
 #define __panic(str)	__do_panic(__FILE__, __LINE__, __func__, str)
 #else
 #define __panic(str)	__do_panic((void *)0, 0, (void *)0, (void *)0)

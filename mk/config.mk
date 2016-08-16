@@ -35,11 +35,12 @@ WARNS ?= 3
 # Define NOWERROR=1 so that warnings are not treated as errors
 # NOWERROR=1
 
-# Define DEBUG=1 to compile with -g option
+# Define DEBUG=1 to compile without optimization (forces -O0)
 # DEBUG=1
 
-# If 1, debug mode of the tee firmware (CPU restart, Core Status)
-CFG_TEE_CORE_DEBUG ?= 0
+# If y, enable debug mode of the tee firmware (CPU restart, Core Status
+# verbose, panic & assert verbose). When disable, NDEBUG directive is defined.
+CFG_TEE_CORE_DEBUG ?= n
 
 # Max level of the tee core traces. 0 means disable, 4 is max.
 # Supported values: 0 (no traces) to 4 (all traces)
@@ -156,7 +157,7 @@ CFG_TA_FLOAT_SUPPORT ?= y
 
 # Enable stack unwinding for aborts from kernel mode if CFG_TEE_CORE_DEBUG
 # is enabled
-ifeq ($(CFG_TEE_CORE_DEBUG),1)
+ifeq ($(CFG_TEE_CORE_DEBUG),y)
 CFG_CORE_UNWIND ?= y
 endif
 
