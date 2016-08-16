@@ -180,3 +180,6 @@ CFG_DT ?= n
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
+
+# Enable static TA and core self tests
+CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
