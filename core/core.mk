@@ -31,6 +31,9 @@ cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 ifeq ($(CFG_TEE_CORE_MALLOC_DEBUG),y)
 cppflags$(sm) += -DENABLE_MDBG=1
 endif
+ifneq ($(CFG_TEE_CORE_DEBUG),y)
+cppflags$(sm)  += -DNDEBUG
+endif
 
 cppflags$(sm)	+= -Ilib/libutee/include
 
