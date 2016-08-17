@@ -77,10 +77,14 @@ before_script:
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
 
+  # checkpatch.pl will ignore the following paths
+  - CHECKPATCH_IGNORE=$(echo core/lib/lib{fdt,tomcrypt} lib/lib{png,utils,zlib})
+  - _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo "':\!$p'" ; done)
+
 # Several compilation options are checked
 script:
   # Run checkpatch.pl
-  - git format-patch -1 --stdout | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
+  - git format-patch -1 --stdout -- . $_CP_EXCL | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
 
   # Orly2
   - $make PLATFORM=stm PLATFORM_FLAVOR=orly2
