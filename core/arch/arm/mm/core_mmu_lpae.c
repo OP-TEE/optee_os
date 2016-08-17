@@ -65,6 +65,7 @@
 #include <kernel/misc.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
+#include <mm/core_memprot.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -396,7 +397,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 				panic("running out of xlat tables");
 			memset(new_table, 0, XLAT_TABLE_SIZE);
 
-			desc = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
+			desc = TABLE_DESC | virt_to_phys(new_table);
 
 			/* Recurse to fill in new table */
 			mm = init_xlation_table(mm, base_va, new_table,
@@ -495,6 +496,9 @@ void core_init_mmu_regs(void)
 {
 	uint32_t ttbcr = TTBCR_EAE;
 	uint32_t mair;
+	paddr_t ttbr0;
+
+	ttbr0 = virt_to_phys(l1_xlation_table[get_core_pos()]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -510,7 +514,7 @@ void core_init_mmu_regs(void)
 	/* TTBCR.A1 = 0 => ASID is stored in TTBR0 */
 
 	write_ttbcr(ttbcr);
-	write_ttbr0_64bit((paddr_t)l1_xlation_table[get_core_pos()]);
+	write_ttbr0_64bit(ttbr0);
 	write_ttbr1_64bit(0);
 }
 #endif /*ARM32*/
@@ -520,6 +524,9 @@ void core_init_mmu_regs(void)
 {
 	uint64_t mair;
 	uint64_t tcr;
+	paddr_t ttbr0;
+
+	ttbr0 = virt_to_phys(l1_xlation_table[get_core_pos()]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -541,7 +548,7 @@ void core_init_mmu_regs(void)
 	 */
 
 	write_tcr_el1(tcr);
-	write_ttbr0_el1((paddr_t)l1_xlation_table[get_core_pos()]);
+	write_ttbr0_el1(ttbr0);
 	write_ttbr1_el1(0);
 }
 #endif /*ARM64*/
@@ -574,7 +581,7 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
 	memset(tbl, 0, PGT_SIZE);
 	core_mmu_populate_user_map(&dir_info, utc);
-	map->user_map = (paddr_t)dir_info.table | TABLE_DESC;
+	map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
 	map->asid = utc->context & TTBR_ASID_MASK;
 }
 
@@ -613,7 +620,9 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		/* Copy bits 39:12 from tbl[n] to ntbl */
 		ntbl = (tbl[n] & ((1ULL << 40) - 1)) & ~((1 << 12) - 1);
 
-		tbl = (uint64_t *)ntbl;
+		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
+
+		assert(tbl);
 
 		va_base += n << level_size_shift;
 		level++;

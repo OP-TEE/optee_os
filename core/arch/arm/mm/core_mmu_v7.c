@@ -32,6 +32,7 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
 #include <stdlib.h>
@@ -163,8 +164,7 @@ static vaddr_t core_mmu_get_main_ttb_va(void)
 
 static paddr_t core_mmu_get_main_ttb_pa(void)
 {
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_main_ttb_va();
+	paddr_t pa = virt_to_phys((void *)core_mmu_get_main_ttb_va());
 
 	if (pa & ~TEE_MMU_TTB_L1_MASK)
 		panic("invalid core l1 table");
@@ -178,8 +178,7 @@ static vaddr_t core_mmu_get_ul1_ttb_va(void)
 
 static paddr_t core_mmu_get_ul1_ttb_pa(void)
 {
-	/* Note that this depends on flat mapping of TEE Core */
-	paddr_t pa = (paddr_t)core_mmu_get_ul1_ttb_va();
+	paddr_t pa = virt_to_phys((void *)core_mmu_get_ul1_ttb_va());
 
 	if (pa & ~TEE_MMU_TTB_UL1_MASK)
 		panic("invalid user l1 table");
@@ -423,10 +422,15 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	if (max_level == 1 || (tbl[n] & 0x3) != 0x1) {
 		core_mmu_set_info_table(tbl_info, 1, 0, tbl);
 	} else {
-		uintptr_t ntbl = tbl[n] & ~((1 << 10) - 1);
+		paddr_t ntbl_pa = tbl[n] & ~((1 << 10) - 1);
+		void *ntbl_va;
+
+		ntbl_va = phys_to_virt(ntbl_pa, MEM_AREA_TEE_RAM);
+
+		assert(ntbl_va);
 
 		core_mmu_set_info_table(tbl_info, 2, n << SECTION_SHIFT,
-					(void *)ntbl);
+					ntbl_va);
 	}
 	return true;
 }
@@ -543,14 +547,14 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 
 	/* Zero fill initial entries */
 	pg_idx = 0;
-	while ((pg_idx * SMALL_PAGE_SIZE) < (mm->pa & SECTION_MASK)) {
+	while ((pg_idx * SMALL_PAGE_SIZE) < (mm->va & SECTION_MASK)) {
 		l2[pg_idx] = 0;
 		pg_idx++;
 	}
 
 	/* Fill in the entries */
 	while ((pg_idx * SMALL_PAGE_SIZE) <
-		(mm->size + (mm->pa & SECTION_MASK))) {
+		(mm->size + (mm->va & SECTION_MASK))) {
 		l2[pg_idx] = ((mm->pa & ~SECTION_MASK) +
 				pg_idx * SMALL_PAGE_SIZE) | attr;
 		pg_idx++;
@@ -562,7 +566,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 		pg_idx++;
 	}
 
-	return (paddr_t)l2;
+	return virt_to_phys(l2);
 }
 
 /*
