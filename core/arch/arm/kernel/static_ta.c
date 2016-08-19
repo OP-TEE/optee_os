@@ -130,7 +130,11 @@ static void static_ta_enter_close_session(struct tee_ta_session *s)
 
 static void static_ta_destroy(struct tee_ta_ctx *ctx __unused)
 {
-	/* Nothing to do */
+	if (ctx) {
+		struct static_ta_ctx *stc = to_static_ta_ctx(ctx);
+		if (stc)
+			free(stc);
+	}
 }
 
 static const struct tee_ta_ops static_ta_ops = {
