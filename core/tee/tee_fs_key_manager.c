@@ -549,5 +549,5 @@ exit:
 	return res;
 }
 
-service_init(tee_fs_init_key_manager);
+service_init_late(tee_fs_init_key_manager);
 
