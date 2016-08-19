@@ -69,6 +69,8 @@ SECTIONS
 		__initcall_start = .;
 		KEEP(*(.initcall1))
 		KEEP(*(.initcall2))
+		KEEP(*(.initcall3))
+		KEEP(*(.initcall4))
 		__initcall_end = .;
 
 #ifdef CFG_WITH_PAGER
