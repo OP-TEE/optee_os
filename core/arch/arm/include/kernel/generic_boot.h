@@ -47,6 +47,10 @@ void init_sec_mon(unsigned long nsec_entry);
 
 const struct thread_handlers *generic_boot_get_handlers(void);
 
+#ifdef CFG_BOOT_SECONDARY_REQUEST
+extern uint32_t ns_entry_addrs[];
+#endif
+
 extern uint8_t __text_init_start[];
 extern uint8_t __text_start[];
 extern initcall_t __initcall_start;

@@ -72,6 +72,10 @@
 
 #define PADDR_INVALID		ULONG_MAX
 
+#ifdef CFG_BOOT_SECONDARY_REQUEST
+uint32_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __data;
+#endif
+
 #ifdef CFG_BOOT_SYNC_CPU
 /*
  * Array used when booting, to synchronize cpu.

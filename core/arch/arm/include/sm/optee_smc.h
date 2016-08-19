@@ -326,7 +326,6 @@
 #define OPTEE_SMC_DISABLE_SHM_CACHE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_DISABLE_SHM_CACHE)
 
-
 /*
  * Enable cache of shared memory objects
  *
@@ -351,6 +350,39 @@
 #define OPTEE_SMC_FUNCID_ENABLE_SHM_CACHE	11
 #define OPTEE_SMC_ENABLE_SHM_CACHE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_ENABLE_SHM_CACHE)
+
+/*
+ * Release of secondary cores
+ *
+ * OP-TEE in secure world is in charge of the release process of secondary
+ * cores. The Rich OS issue the this request to ask OP-TEE to boot up the
+ * secondary cores, go through the OP-TEE per-core initialization, and then
+ * switch to the Non-seCure world with the Rich OS provided entry address.
+ * The secondary cores enter Non-Secure world in SVC mode, with Thumb, FIQ,
+ * IRQ and Abort bits disabled.
+ *
+ * Call register usage:
+ * a0	SMC Function ID, OPTEE_SMC_BOOT_SECONDARY
+ * a1	Index of secondary core to boot
+ * a2	Upper 32 bits of a 64-bit Non-Secure world entry physical address
+ * a3	Lower 32 bits of a 64-bit Non-Secure world entry physical address
+ * a4-7	Not used
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Error return:
+ * a0	OPTEE_SMC_RETURN_EBADCMD		Core index out of range
+ * a1-7	Preserved
+ *
+ * Not idle return register usage:
+ * a0	OPTEE_SMC_RETURN_EBUSY
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_BOOT_SECONDARY  12
+#define OPTEE_SMC_BOOT_SECONDARY \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_BOOT_SECONDARY)
 
 /*
  * Resume from RPC (for example after processing an IRQ)

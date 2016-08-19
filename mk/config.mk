@@ -189,3 +189,18 @@ CFG_DTB_MAX_SIZE ?= 0x10000
 
 # Enable static TA and core self tests
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
+
+# This option enables OP-TEE to respond to SMP boot request: the Rich OS
+# issues this to request OP-TEE to release secondaries cores out of reset,
+# with specific core number and non-secure entry address.
+CFG_BOOT_SECONDARY_REQUEST ?= n
+
+# For firmwares that do not pass arguments to OP-TEE, this option enables the
+# built-in arguments which are specified as CFG items in the build time:
+# CFG_PAGEABLE_ADDR: pageable data address, normally passed in R0;
+# CFG_NS_ENTRY_ADDR: NS World entry address, normally passed in LR;
+# CFG_DT_ADDR: Device Tree data address, normally passed in R2;
+CFG_BUILT_IN_ARGS ?= n
+CFG_PAGEABLE_ADDR ?= 0x0
+CFG_NS_ENTRY_ADDR ?=0x0
+CFG_DT_ADDR ?= 0x0

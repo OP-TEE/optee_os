@@ -1,5 +1,14 @@
 CFG_LTC_OPTEE_THREAD ?= y
 
+# When used together with ARM Trusted FW, arguments shall
+# come from the Firwmware. Do not allow built-in arguments
+
+ifeq ($(CFG_BUILT_IN_ARGS),y)
+ifeq ($(CFG_WITH_ARM_TRUSTED_FW),y)
+$(error error: CFG_BUILD_IN_ARGS is incompatible with CFG_WITH_ARM_TRUSTED_FW)
+endif
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64

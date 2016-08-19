@@ -165,10 +165,12 @@ UNWIND(	.cantunwind)
 	mov	r6, r0
 	mov	r7, r1
 	mov	r8, r2
-#if defined(CFG_WITH_PAGER) || defined (CFG_DT)
+
+#if !defined(CFG_BUILT_IN_ARGS) && (defined(CFG_WITH_PAGER) || defined (CFG_DT))
 	/*
 	 * r0/r2 are used for different purposes by GDB boot and pager/DT
-	 * so these configurations are incompatible
+	 * so these configurations are incompatible. however, if built-in
+	 * argumements are used, r0/r2 are free for GDB boot use.
 	 */
 #error CFG_TEE_GDB_BOOT and (CFG_WITH_PAGER || CFG_DT) are incompatible
 #endif
@@ -328,9 +330,15 @@ shadow_stack_access_ok:
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
+#if defined (CFG_BUILT_IN_ARGS)
+    ldr r0, =CFG_PAGEABLE_ADDR
+    ldr r1, =CFG_NS_ENTRY_ADDR
+    ldr r2, =CFG_DT_ADDR
+#else
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	mov	r2, r6		/* DT address */
+#endif
 	bl	generic_boot_init_primary
 	mov	r4, r0		/* save entry test vector */
 
@@ -451,6 +459,11 @@ UNWIND(	.cantunwind)
 
 	bl	plat_cpu_reset_late
 
+#if defined (CFG_BOOT_SECONDARY_REQUEST)
+	/* if L1 is not invalidated before, do it here */
+	bl	arm_cl1_d_invbysetway
+#endif
+
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
@@ -459,7 +472,15 @@ UNWIND(	.cantunwind)
 	bl	get_core_pos
 	bl	cpu_is_ready
 
+#if defined (CFG_BOOT_SECONDARY_REQUEST)
+	/* get ns entry from ns_entry_addrs array */
+	bl  get_core_pos
+	ldr r1, =ns_entry_addrs
+	add r1, r1, r0, lsl #2	/* size of uint32_t */
+	ldr r0, [r1]
+#else
 	mov	r0, r5		/* ns-entry address */
+#endif
 	bl	generic_boot_init_secondary
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
