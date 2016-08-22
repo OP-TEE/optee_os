@@ -6,6 +6,7 @@
 ##    OPTEE_TA_TARGETS                                  ##
 ##    OPTEE_CFG_ARM64_CORE                              ##
 ##    OPTEE_PLATFORM                                    ##
+##    OPTEE_PLATFORM_FLAVOR                             ##
 ## And BUILD_OPTEE_MK needs to be defined in device.mk  ##
 ## to point to this file                                ##
 ##                                                      ##
@@ -48,6 +49,7 @@ BUILD_OPTEE_OS:
 		ta-targets=$(OPTEE_TA_TARGETS) \
 		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
 		PLATFORM=$(OPTEE_PLATFORM) \
+		PLATFORM_FLAVOR=$(OPTEE_PLATFORM_FLAVOR) \
 		$(CROSS_COMPILE_LINE)
 	@echo "Finished building optee_os..."
 
