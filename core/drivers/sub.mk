@@ -15,3 +15,4 @@ srcs-$(CFG_IMX_UART) += imx_uart.c
 srcs-$(CFG_SPRD_UART) += sprd_uart.c
 srcs-$(CFG_HI16XX_UART) += hi16xx_uart.c
 srcs-$(CFG_HI16XX_RNG) += hi16xx_rng.c
+srcs-$(CFG_SCIF) += scif.c
