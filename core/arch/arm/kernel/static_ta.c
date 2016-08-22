@@ -128,9 +128,9 @@ static void static_ta_enter_close_session(struct tee_ta_session *s)
 	tee_ta_pop_current_session();
 }
 
-static void static_ta_destroy(struct tee_ta_ctx *ctx __unused)
+static void static_ta_destroy(struct tee_ta_ctx *ctx)
 {
-	/* Nothing to do */
+	free(to_static_ta_ctx(ctx));
 }
 
 static const struct tee_ta_ops static_ta_ops = {
