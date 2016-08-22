@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +52,8 @@
 #include <trace.h>
 #include <utee_types.h>
 #include <util.h>
+
+
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
@@ -622,7 +625,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 		tee_mmu_set_ctx(ctx);
 	/*
 	 * If ctx->mmu == NULL we must not have user mapping active,
-	 * if ctx->mmu != NULL we must have user mapping active.
+	 * if ctx->mmu != NULL && dynamic_ta we must have have user mapping active,
 	 */
 	if (((ctx && is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==

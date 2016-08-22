@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
@@ -26,19 +25,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_TIME_H
-#define TEE_TIME_H
+#include "rcar_common.h"
 
-#include "tee_api_types.h"
+void cpu_spin_lock_irqsave(uint32_t *lock, uint32_t *flags)
+{
+	*flags = disable_interrupts();
+	cpu_spin_lock(lock);
+}
 
-#define TEE_TIME_BOOT_TICKS_HZ  10UL
+void cpu_spin_unlock_irqrestore(uint32_t *lock, uint32_t flags)
+{
+	cpu_spin_unlock(lock);
+	enable_interrupts(flags);
+}
 
-TEE_Result tee_time_get_sys_time(TEE_Time *time);
-uint32_t tee_time_get_sys_time_protection_level(void);
-TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time);
-TEE_Result tee_time_get_ree_time(TEE_Time *time);
-TEE_Result tee_time_set_ta_time(const TEE_UUID *uuid, const TEE_Time *time);
-void tee_time_wait(uint32_t milliseconds_delay);
-TEE_Result arm_cntpct_get_sys_time(TEE_Time *time);
-
-#endif
+void enable_interrupts(uint32_t flags)
+{
+	if ((flags & ARM32_CPSR_A) == 0U) {
+		enable_abort();
+	}
+	if ((flags & ARM32_CPSR_F) == 0U) {
+		enable_fiq();
+	}
+	if ((flags & ARM32_CPSR_I) == 0U) {
+		enable_irq();
+	}
+}

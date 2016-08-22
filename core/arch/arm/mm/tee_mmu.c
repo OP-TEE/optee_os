@@ -288,7 +288,7 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 	struct tee_mmap_region *tbl = utc->mmu->table;
 	vaddr_t va;
 	vaddr_t end_va;
-	paddr_t pa;
+	paddr_t pa = 0;
 	size_t n = TEE_MMU_UMAP_CODE_IDX;
 
 	if (!tbl[n].size) {

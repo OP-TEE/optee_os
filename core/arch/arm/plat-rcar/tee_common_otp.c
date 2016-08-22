@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +25,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_TIME_H
-#define TEE_TIME_H
+#include <stddef.h>
+#include <string.h>
+#include <trace.h>
+#include <kernel/tee_common_otp.h>
 
-#include "tee_api_types.h"
+#define SHA256_HASH_SIZE 32
+uint8_t hw_key_digest[SHA256_HASH_SIZE];
 
-#define TEE_TIME_BOOT_TICKS_HZ  10UL
+/*---------------------------------------------------------------------------*/
+/*                             tee_otp_get_hw_unique_key                    */
+/*---------------------------------------------------------------------------*/
+/*
+    This function reads out a hw unique key.
 
-TEE_Result tee_time_get_sys_time(TEE_Time *time);
-uint32_t tee_time_get_sys_time_protection_level(void);
-TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time);
-TEE_Result tee_time_get_ree_time(TEE_Time *time);
-TEE_Result tee_time_set_ta_time(const TEE_UUID *uuid, const TEE_Time *time);
-void tee_time_wait(uint32_t milliseconds_delay);
-TEE_Result arm_cntpct_get_sys_time(TEE_Time *time);
+    \param[in]  hwkey data place holder for the key data read
+    \param[out] None.
+    \return None.
 
-#endif
+ */
+/*---------------------------------------------------------------------------*/
+void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	/* Copy the first part of the new hw key */
+	memcpy(&hwkey->data[0], &hw_key_digest[0],
+	       sizeof(struct tee_hw_unique_key));
+}
+
+int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+{
+	size_t i;
+
+	char pattern[4] = { 'B', 'E', 'E', 'F' };
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
+
+	return 0;
+}

@@ -25,7 +25,8 @@ ifeq ($(CFG_WITH_VFP),y)
 srcs-$(CFG_ARM32_core) += vfp_a32.S
 srcs-$(CFG_ARM64_core) += vfp_a64.S
 endif
-srcs-y += trace_ext.c
+WITH_TRACE_EXT ?= y
+srcs-$(WITH_TRACE_EXT) += trace_ext.c
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c

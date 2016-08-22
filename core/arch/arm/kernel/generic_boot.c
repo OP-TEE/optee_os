@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +59,12 @@
 
 #if defined(CFG_DT)
 #include <libfdt.h>
+#endif
+
+#ifdef PLATFORM_RCAR
+#include "rcar_common.h"
+#include "rcar_log_func.h"
+#include "rcar_ddr_training.h"
 #endif
 
 /*
@@ -527,7 +534,10 @@ static void init_primary_helper(unsigned long pageable_part,
 	init_vfp_sec();
 
 	init_runtime(pageable_part);
-
+#ifdef PLATFORM_RCAR
+	/* Log buffer clear */
+	log_buf_init();
+#endif
 	IMSG("Initializing (%s)\n", core_v_str);
 
 	thread_init_primary(generic_boot_get_handlers());

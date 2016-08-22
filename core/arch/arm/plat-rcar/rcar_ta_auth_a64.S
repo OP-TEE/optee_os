@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
@@ -26,19 +25,45 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_TIME_H
-#define TEE_TIME_H
+#include <asm.S>
+#include <arm64_macros.S>
+#include <arm64.h>
 
-#include "tee_api_types.h"
+.global asm_switch_stack_pointer
 
-#define TEE_TIME_BOOT_TICKS_HZ  10UL
+/* X0 : Jump address */
+/* X1 : Stack address */
+FUNC asm_switch_stack_pointer , :
 
-TEE_Result tee_time_get_sys_time(TEE_Time *time);
-uint32_t tee_time_get_sys_time_protection_level(void);
-TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time);
-TEE_Result tee_time_get_ree_time(TEE_Time *time);
-TEE_Result tee_time_set_ta_time(const TEE_UUID *uuid, const TEE_Time *time);
-void tee_time_wait(uint32_t milliseconds_delay);
-TEE_Result arm_cntpct_get_sys_time(TEE_Time *time);
+	/* lr to stack */
+	mov	x2, x30
+	sub	sp, sp, #16
+	store_xregs sp, 0, 1, 2	/* x1 is dummy (sp is 16byte alignment) */
 
-#endif
+	/* change stack pointer */
+	mov	x2, sp
+	mov	sp, x1
+
+	/* save stack pointer */
+	sub	sp, sp, #16
+	store_xregs sp, 0, 1, 2	/* x1 is dummy (sp is 16byte alignment) */
+
+	/* data synchronization barrier */
+	dsb	sy
+
+	/* jump to code */
+	blr	x0
+
+	/* load stack pointer */
+	load_xregs sp, 0, 1, 2	/* x1 is dummy (sp is 16byte alignment) */
+
+	/* change stack pointer */
+	add	sp, sp, #16
+	mov	sp, x2
+
+	/* return */
+	load_xregs sp, 0, 1, 2	/* x1 is dummy (sp is 16byte alignment) */
+	add	sp, sp, #16
+	mov	x30, x2
+	ret
+END_FUNC asm_switch_stack_pointer

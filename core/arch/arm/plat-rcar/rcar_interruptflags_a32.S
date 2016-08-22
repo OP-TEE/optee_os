@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2016, Renesas Electronics Corporation
  * All rights reserved.
  *
@@ -26,19 +25,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TEE_TIME_H
-#define TEE_TIME_H
+#include <asm.S>
 
-#include "tee_api_types.h"
+FUNC disable_interrupts , :
+	mrs	r0,	cpsr
+	cpsid	aif
+	bx	lr
+END_FUNC disable_interrupts
 
-#define TEE_TIME_BOOT_TICKS_HZ  10UL
+FUNC enable_abort , :
+	cpsie	a
+	bx	lr
+END_FUNC enable_abort
 
-TEE_Result tee_time_get_sys_time(TEE_Time *time);
-uint32_t tee_time_get_sys_time_protection_level(void);
-TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time);
-TEE_Result tee_time_get_ree_time(TEE_Time *time);
-TEE_Result tee_time_set_ta_time(const TEE_UUID *uuid, const TEE_Time *time);
-void tee_time_wait(uint32_t milliseconds_delay);
-TEE_Result arm_cntpct_get_sys_time(TEE_Time *time);
+FUNC enable_fiq , :
+	cpsie	f
+	bx	lr
+END_FUNC enable_fiq
 
-#endif
+FUNC enable_irq , :
+	cpsie	i
+	bx	lr
+END_FUNC enable_irq
