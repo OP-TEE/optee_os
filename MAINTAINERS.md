@@ -15,6 +15,7 @@ for these platforms.
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
+| Renesas RCAR			|`Volodymyr Babchuk <vlad.babchuk@gmail.com>`|
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
 | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|
