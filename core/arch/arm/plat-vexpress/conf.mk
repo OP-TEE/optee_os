@@ -1,5 +1,4 @@
-PLATFORM_FLAVOR ?= fvp
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
+PLATFORM_FLAVOR ?= qemu_virt
 
 # 32-bit flags
 arm32-platform-cpuarch		:= cortex-a15

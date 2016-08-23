@@ -1,5 +1,4 @@
 PLATFORM_FLAVOR ?= zcu102
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
 # 32-bit flags
 arm32-platform-cpuarch		:= cortex-a53

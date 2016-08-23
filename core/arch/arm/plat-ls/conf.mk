@@ -1,5 +1,4 @@
 PLATFORM_FLAVOR ?= ls1021atwr
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
 arm32-platform-cpuarch		:= cortex-a7
 arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)

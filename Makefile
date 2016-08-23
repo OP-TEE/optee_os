@@ -23,11 +23,9 @@ endif
 # Make these default for now
 ARCH            ?= arm
 PLATFORM        ?= vexpress
-PLATFORM_FLAVOR ?= qemu_virt
+# Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
 O		?= out/$(ARCH)-plat-$(PLATFORM)
 
-PLATFORM_$(PLATFORM) := y
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 arch_$(ARCH)	:= y
 
 ifneq ($O,)

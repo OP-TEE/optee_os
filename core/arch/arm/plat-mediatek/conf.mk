@@ -1,5 +1,4 @@
 PLATFORM_FLAVOR ?= mt8173
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
 # 32-bit flags
 arm32-platform-cpuarch	:= cortex-a15

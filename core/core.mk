@@ -11,6 +11,9 @@ include $(platform-dir)/conf.mk
 include mk/config.mk
 include core/arch/$(ARCH)/$(ARCH).mk
 
+PLATFORM_$(PLATFORM) := y
+PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
+
 # Setup compiler for this sub module
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
