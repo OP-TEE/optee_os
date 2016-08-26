@@ -89,11 +89,14 @@ before_script:
   # checkpatch.pl will ignore the following paths
   - CHECKPATCH_IGNORE=$(echo core/lib/lib{fdt,tomcrypt} lib/lib{png,utils,zlib})
   - _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
+  - function checkpatch() { echo "Checking commit $1"; $HOME/git-2.9.3/git format-patch -1 $1 --stdout -- . $_CP_EXCL | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -; }
 
 # Several compilation options are checked
 script:
-  # Run checkpatch.pl
-  - $HOME/git-2.9.3/git format-patch -1 --stdout -- . $_CP_EXCL | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -
+  # Run checkpatch.pl on:
+  # - the tip of the branch if we're not in a pull request
+  # - each commit in the development branch that's not in the target branch otherwise
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then checkpatch HEAD; else for c in $(git rev-list HEAD^1..HEAD^2); do checkpatch $c || failed=1; done; [ -z "$failed" ]; fi
 
   # Orly2
   - $make PLATFORM=stm
