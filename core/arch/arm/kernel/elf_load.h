@@ -32,8 +32,8 @@
 
 struct elf_load_state;
 
-TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
-			size_t nwdata_len, struct elf_load_state **state);
+TEE_Result elf_load_init(uint8_t *nwdata, size_t nwdata_len,
+			struct elf_load_state **state);
 TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 			void **head, size_t *vasize, bool *is_32bit);
 TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase);

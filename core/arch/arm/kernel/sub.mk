@@ -1,4 +1,5 @@
 srcs-$(CFG_WITH_USER_TA) += user_ta.c
+srcs-$(CFG_WITH_USER_TA) += ree_fs_ta.c
 srcs-y += pseudo_ta.c
 srcs-y += elf_load.c
 srcs-y += tee_time.c

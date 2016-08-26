@@ -44,9 +44,6 @@ struct elf_load_state {
 	uint8_t *nwdata;
 	size_t nwdata_len;
 
-	void *hash_ctx;
-	uint32_t hash_algo;
-
 	size_t next_offs;
 
 	void *ta_head;
@@ -132,8 +129,6 @@ static void copy_phdr(struct elf_phdr *phdr, struct elf_load_state *state,
 
 static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 {
-	TEE_Result res;
-
 	if (offs < state->next_offs)
 		return TEE_ERROR_BAD_STATE;
 	if (offs == state->next_offs)
@@ -142,13 +137,8 @@ static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 	if (offs > state->nwdata_len)
 		return TEE_ERROR_SECURITY;
 
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-			state->nwdata + state->next_offs,
-			offs - state->next_offs);
-	if (res != TEE_SUCCESS)
-		return res;
 	state->next_offs = offs;
-	return res;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result copy_to(struct elf_load_state *state,
@@ -169,10 +159,7 @@ static TEE_Result copy_to(struct elf_load_state *state,
 		return TEE_ERROR_SECURITY;
 
 	memcpy((uint8_t *)dst + dst_offs, state->nwdata + offs, len);
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-				      (uint8_t *)dst + dst_offs, len);
-	if (res != TEE_SUCCESS)
-		return res;
+
 	state->next_offs = offs + len;
 	return res;
 }
@@ -194,16 +181,14 @@ static TEE_Result alloc_and_copy_to(void **p, struct elf_load_state *state,
 	return res;
 }
 
-TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
-			size_t nwdata_len, struct elf_load_state **ret_state)
+TEE_Result elf_load_init(uint8_t *nwdata, size_t nwdata_len,
+		struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
 
 	state = calloc(1, sizeof(*state));
 	if (!state)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	state->hash_ctx = hash_ctx;
-	state->hash_algo = hash_algo;
 	state->nwdata = nwdata;
 	state->nwdata_len = nwdata_len;
 	*ret_state = state;
