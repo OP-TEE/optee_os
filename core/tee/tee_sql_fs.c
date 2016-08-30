@@ -470,7 +470,11 @@ exit:
 	return rc;
 }
 
-/* Partial write (< BLOCK_SIZE) into a block: read/update/write */
+/*
+ * Partial write (< BLOCK_SIZE) into a block: read/update/write
+ * To save memory, passing data == NULL is equivalent to passing a buffer
+ * filled with zeroes.
+ */
 static int write_block_partial(TEE_Result *errno, struct sql_fs_fd *fdp,
 			       size_t bnum, const uint8_t *data, size_t len,
 			       size_t offset)
@@ -494,7 +498,10 @@ static int write_block_partial(TEE_Result *errno, struct sql_fs_fd *fdp,
 	if (rc < 0)
 		goto exit;
 
-	memcpy(buf + offset, data, len);
+	if (data)
+		memcpy(buf + offset, data, len);
+	else
+		memset(buf + offset, 0, len);
 
 	rc = write_block(errno, fdp, bnum, buf);
 
@@ -507,7 +514,6 @@ static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
 {
 	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
 	tee_fs_off_t old_length;
-	uint8_t *buf = NULL;
 	int rc = -1;
 
 	DMSG("(fd: %d, new_length: %" PRId64 ")...", fd, new_length);
@@ -547,16 +553,10 @@ static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
 		size_t bnum = block_num(old_length);
 		size_t end_bnum = block_num(new_length);
 
-		buf = calloc(1, BLOCK_SIZE);
-		if (!buf) {
-			*errno = TEE_ERROR_OUT_OF_MEMORY;
-			goto exit;
-		}
-
 		while (bnum <= end_bnum) {
 			size_t len = (size_t)BLOCK_SIZE - (size_t)off;
 
-			rc = write_block_partial(errno, fdp, bnum, buf, len,
+			rc = write_block_partial(errno, fdp, bnum, NULL, len,
 						 off);
 			if (rc < 0)
 				goto exit;
@@ -570,7 +570,6 @@ static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
 
 exit:
 	sql_fs_end_transaction_rpc(rc < 0);
-	free(buf);
 exit_ret:
 	DMSG("...%d", rc);
 	return rc;
