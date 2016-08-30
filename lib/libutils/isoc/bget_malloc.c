@@ -803,7 +803,7 @@ void mdbg_check(int bufdump)
 			if (!fname)
 				fname = "unknown";
 
-			DMSG("buffer: %d bytes %s:%d\n",
+			IMSG("buffer: %d bytes %s:%d\n",
 				hdr->pl_size, fname, hdr->line);
 		}
 	}
