@@ -53,11 +53,19 @@
 #include "thread_private.h"
 
 #ifdef ARM32
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+#define STACK_TMP_SIZE		3072
+#else
 #define STACK_TMP_SIZE		1024
+#endif
 #define STACK_THREAD_SIZE	8192
 
 #if TRACE_LEVEL > 0
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+#define STACK_ABT_SIZE		3072
+#else
 #define STACK_ABT_SIZE		2048
+#endif
 #else
 #define STACK_ABT_SIZE		1024
 #endif
@@ -101,7 +109,7 @@ static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 linkage uint32_t name[num_stacks] \
 		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
 		sizeof(uint32_t)] \
-		__attribute__((section(".nozi.stack"), \
+		__attribute__((section(".nozi_stack"), \
 			       aligned(STACK_ALIGNMENT)))
 
 #define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)

@@ -28,6 +28,16 @@ cflags$(sm)	+= $(core-platform-cflags)
 ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
 cflags$(sm)	+= -fsanitize=undefined
 endif
+ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
+ifeq ($(CFG_ASAN_SHADOW_OFFSET),)
+$(error error: CFG_CORE_SANITIZE_KADDRESS not supported by platform (flavor))
+endif
+cflags_kasan	+= -fsanitize=kernel-address \
+		   -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET)\
+		   --param asan-stack=1 --param asan-globals=1 \
+		   --param asan-instrumentation-with-call-threshold=0
+cflags$(sm)	+= $(cflags_kasan)
+endif
 aflags$(sm)	+= $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)

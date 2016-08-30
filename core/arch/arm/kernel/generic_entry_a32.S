@@ -34,6 +34,7 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 #include <kernel/unwind.h>
+#include <kernel/asan.h>
 
 .section .data
 .balign 4
@@ -248,6 +249,32 @@ copy_init:
 	stmdb	r0!, {r3, r7-r13}
 	cmp	r0, r2
 	bgt	copy_init
+#endif
+
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	/* First initialize the entire shadow area with no access */
+	ldr	r0, =__asan_shadow_start	/* start */
+	ldr	r1, =__asan_shadow_end	/* limit */
+	mov	r2, #ASAN_DATA_RED_ZONE
+shadow_no_access:
+	str	r2, [r0], #4
+	cmp	r0, r1
+	bls	shadow_no_access
+
+	/* Mark the entire stack area as OK */
+	ldr	r2, =CFG_ASAN_SHADOW_OFFSET
+	ldr	r0, =__nozi_stack_start	/* start */
+	lsr	r0, r0, #ASAN_BLOCK_SHIFT
+	add	r0, r0, r2
+	ldr	r1, =__nozi_stack_end	/* limit */
+	lsr	r1, r1, #ASAN_BLOCK_SHIFT
+	add	r1, r1, r2
+	mov	r2, #0
+shadow_stack_access_ok:
+	strb	r2, [r0], #1
+	cmp	r0, r1
+	bls	shadow_stack_access_ok
 #endif
 
 	set_sp

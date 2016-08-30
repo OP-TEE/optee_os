@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,61 +24,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <initcall.h>
-#include <malloc.h>		/* required for inits */
-
-#include <sm/tee_mon.h>
-#include <kernel/tee_misc.h>
-#include <mm/core_memprot.h>
-#include <trace.h>
-#include <kernel/time_source.h>
-#include <kernel/generic_boot.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_svc.h>
-#include <platform_config.h>
+#ifndef __KERNEL_ASAN_H
+#define __KERNEL_ASAN_H
 
 
-#define TEE_MON_MAX_NUM_ARGS    8
+#define ASAN_DATA_RED_ZONE	-1
+#define ASAN_HEAP_RED_ZONE	-2
 
-static void call_initcalls(void)
+#define ASAN_BLOCK_SIZE		8
+#define ASAN_BLOCK_SHIFT	3
+#define ASAN_BLOCK_MASK		(ASAN_BLOCK_SIZE - 1)
+
+#ifndef ASM
+#include <types_ext.h>
+
+void asan_set_shadowed(void *va_begin, void *va_end);
+void asan_start(void);
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+void asan_tag_no_access(void *begin, void *end);
+void asan_tag_access(void *begin, void *end);
+void asan_tag_heap_free(void *begin, void *end);
+#else
+static inline void asan_tag_no_access(void *begin __unused, void *end __unused)
 {
-	initcall_t *call;
-
-	for (call = &__initcall_start; call < &__initcall_end; call++) {
-		TEE_Result ret;
-		ret = (*call)();
-		if (ret != TEE_SUCCESS) {
-			EMSG("Initial call 0x%08" PRIxVA " failed",
-			     (vaddr_t)call);
-		}
-	}
 }
-
-TEE_Result init_teecore(void)
+static inline void asan_tag_access(void *begin __unused, void *end __unused)
 {
-	static int is_first = 1;
-
-	/* (DEBUG) for inits at 1st TEE service: when UART is setup */
-	if (!is_first)
-		return TEE_SUCCESS;
-	is_first = 0;
-
-#ifdef CFG_WITH_USER_TA
-	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
+}
+static inline void asan_tag_heap_free(void *begin __unused, void *end __unused)
+{
+}
 #endif
 
-	/* init support for future mapping of TAs */
-	teecore_init_pub_ram();
-
-	/* time initialization */
-	time_source_init();
-
-	/* call pre-define initcall routines */
-	call_initcalls();
-
-	IMSG("Initialized");
-	return TEE_SUCCESS;
-}
+#endif /*ASM*/
+#endif /*__KERNEL_ASAN_H*/

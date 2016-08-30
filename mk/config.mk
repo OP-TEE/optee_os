@@ -168,8 +168,13 @@ CFG_WITH_USER_TA ?= y
 CFG_SMALL_PAGE_USER_TA ?= y
 
 # Enable support for detected undefined behavior in C
-# Uses a log of memory, can't be enabled by default
+# Uses a lot of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
+
+# Enable Kernel Address sanitizer, has a huge performance impact, uses a
+# lot of memory and need platform specific adaptations, can't be enabled by
+# default
+CFG_CORE_SANITIZE_KADDRESS ?= n
 
 # Device Tree support
 # When enabled, the TEE _start function expects to find the address of a

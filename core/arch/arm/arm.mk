@@ -22,6 +22,11 @@ platform-hard-float-enabled := y
 endif
 endif
 
+ifeq ($(CFG_WITH_PAGER),y)
+ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
+$(error Error: CFG_CORE_SANITIZE_KADDRESS not compatible with CFG_WITH_PAGER)
+endif
+endif
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \

@@ -30,6 +30,8 @@
 #include <stddef.h>
 #include <types_ext.h>
 
+extern struct mutex __malloc_mu;
+
 void free(void *ptr);
 
 #ifdef ENABLE_MDBG

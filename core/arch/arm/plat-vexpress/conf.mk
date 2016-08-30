@@ -54,9 +54,17 @@ ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_WITH_CE ?= y
 endif
 
-# SE API is only supported by QEMU Virt platform
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
+# CFG_ASAN_SHADOW_OFFSET is calculated as:
+# (&__asan_shadow_start - (CFG_TEE_RAM_START / 8)
+# This is unfortunately currently not possible to do in make so we have to
+# calculate it offline, there's some asserts in
+# core/arch/arm/kernel/generic_boot.c to check that we got it right
+CFG_ASAN_SHADOW_OFFSET=0x6e4038e0
+endif
 $(call force,CFG_DT,y)
+# SE API is only supported by QEMU Virt platform
 CFG_SE_API ?= y
 CFG_SE_API_SELF_TEST ?= y
 CFG_PCSC_PASSTHRU_READER_DRV ?= y

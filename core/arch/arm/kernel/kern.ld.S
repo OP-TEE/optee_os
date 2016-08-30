@@ -166,14 +166,14 @@ SECTIONS
 		. = ALIGN(4);
 	}
 
-	.ctors : ALIGN(4) {
+	.ctors : ALIGN(8) {
 		__ctor_list = .;
-		*(.ctors)
+		KEEP(*(.ctors .ctors.* .init_array .init_array.*))
 		__ctor_end = .;
 	}
-	.dtors : ALIGN(4) {
+	.dtors : ALIGN(8) {
 		__dtor_list = .;
-		*(.dtors)
+		KEEP(*(.dtors .dtors.* .fini_array .fini_array.*))
 		__dtor_end = .;
 	}
 	.got : { *(.got.plt) *(.got) }
@@ -211,7 +211,14 @@ SECTIONS
 	 * L1 mmu table requires 16 KiB alignment
 	 */
 	.nozi (NOLOAD) : ALIGN(16 * 1024) {
+		__nozi_start = .;
 		KEEP(*(.nozi .nozi.*))
+		. = ALIGN(16);
+		__nozi_end = .;
+		__nozi_stack_start = .;
+		KEEP(*(.nozi_stack))
+		. = ALIGN(8);
+		__nozi_stack_end = .;
 	}
 
 #ifdef CFG_WITH_PAGER
@@ -303,6 +310,16 @@ SECTIONS
 
 
 #endif /*CFG_WITH_PAGER*/
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	. = CFG_TEE_RAM_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8;
+	. = ALIGN(8);
+	.asan_shadow : {
+		__asan_shadow_start = .;
+		. += CFG_TEE_RAM_VA_SIZE / 9;
+		__asan_shadow_end = .;
+	}
+#endif /*CFG_CORE_SANITIZE_KADDRESS*/
 
 	__end = .;
 

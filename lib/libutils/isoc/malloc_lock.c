@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,60 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <initcall.h>
-#include <malloc.h>		/* required for inits */
+#include <malloc.h>
 
-#include <sm/tee_mon.h>
-#include <kernel/tee_misc.h>
-#include <mm/core_memprot.h>
-#include <trace.h>
-#include <kernel/time_source.h>
-#include <kernel/generic_boot.h>
-#include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_svc.h>
-#include <platform_config.h>
+#ifdef __KERNEL__
+/* Compiling for TEE Core */
+#include <kernel/mutex.h>
 
+struct mutex __malloc_mu = MUTEX_INITIALIZER;
 
-#define TEE_MON_MAX_NUM_ARGS    8
-
-static void call_initcalls(void)
-{
-	initcall_t *call;
-
-	for (call = &__initcall_start; call < &__initcall_end; call++) {
-		TEE_Result ret;
-		ret = (*call)();
-		if (ret != TEE_SUCCESS) {
-			EMSG("Initial call 0x%08" PRIxVA " failed",
-			     (vaddr_t)call);
-		}
-	}
-}
-
-TEE_Result init_teecore(void)
-{
-	static int is_first = 1;
-
-	/* (DEBUG) for inits at 1st TEE service: when UART is setup */
-	if (!is_first)
-		return TEE_SUCCESS;
-	is_first = 0;
-
-#ifdef CFG_WITH_USER_TA
-	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
-#endif
-
-	/* init support for future mapping of TAs */
-	teecore_init_pub_ram();
-
-	/* time initialization */
-	time_source_init();
-
-	/* call pre-define initcall routines */
-	call_initcalls();
-
-	IMSG("Initialized");
-	return TEE_SUCCESS;
-}
+#endif /*__KERNEL__*/
