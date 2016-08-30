@@ -300,11 +300,11 @@ SECTIONS
 
 #endif /*CFG_WITH_PAGER*/
 
-	_end = .;
+	__end = .;
 
 #ifndef CFG_WITH_PAGER
 	__init_size = __data_end - CFG_TEE_LOAD_ADDR;
-	__init_mem_usage = _end - CFG_TEE_LOAD_ADDR;
+	__init_mem_usage = __end - CFG_TEE_LOAD_ADDR;
 #endif
 	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 	_end_of_ram = .;

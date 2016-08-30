@@ -275,7 +275,7 @@ copy_init:
 #ifdef CFG_WITH_PAGER
 	ldr	r1, =__tmp_hashes_end
 #else
-	ldr	r1, =_end
+	ldr	r1, =__end
 #endif
 	sub	r1, r1, #1
 	bl	arm_cl1_d_invbyva
@@ -286,7 +286,7 @@ copy_init:
 #ifdef CFG_WITH_PAGER
 	ldr	r2, =__init_end
 #else
-	ldr	r2, =_end
+	ldr	r2, =__end
 #endif
 	sub	r2, r2, #1
 	bl	arm_cl2_invbypa
@@ -319,7 +319,7 @@ copy_init:
 #ifdef CFG_WITH_PAGER
 	ldr	r1, =__init_end
 #else
-	ldr	r1, =_end
+	ldr	r1, =__end
 #endif
 	sub	r1, r1, #1
 	bl	arm_cl1_d_cleaninvbyva
@@ -330,7 +330,7 @@ copy_init:
 #ifdef CFG_WITH_PAGER
 	ldr	r2, =__init_end
 #else
-	ldr	r2, =_end
+	ldr	r2, =__end
 #endif
 	sub	r2, r2, #1
 	bl	arm_cl2_cleaninvbypa

@@ -108,8 +108,8 @@ copy_init:
 	adrp	x1, __init_end
 	add	x1, x1, :lo12:__init_end
 #else
-	adrp	x1, _end
-	add	x1, x1, :lo12:_end
+	adrp	x1, __end
+	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
 	bl	inv_dcache_range
@@ -139,8 +139,8 @@ copy_init:
 	adrp	x1, __init_end
 	add	x1, x1, :lo12:__init_end
 #else
-	adrp	x1, _end
-	add	x1, x1, :lo12:_end
+	adrp	x1, __end
+	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
 	bl	flush_dcache_range
