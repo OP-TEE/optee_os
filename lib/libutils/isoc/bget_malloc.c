@@ -99,6 +99,7 @@
 #define BufStats    1
 #endif
 
+#include <compiler.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -592,7 +593,7 @@ static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 }
 
 /* Most of the stuff in this function is copied from bgetr() in bget.c */
-static bufsize bget_buf_size(void *buf)
+static __maybe_unused bufsize bget_buf_size(void *buf)
 {
 	bufsize osize;          /* Old size of buffer */
 	struct bhead *b;
@@ -685,7 +686,7 @@ void *mdbg_malloc(const char *fname, int lineno, size_t size)
 	return hdr;
 }
 
-static void assert_header(struct mdbg_hdr *hdr)
+static void assert_header(struct mdbg_hdr *hdr __maybe_unused)
 {
 	assert(hdr->magic == MDBG_HEADER_MAGIC);
 	assert(*mdbg_get_footer(hdr) == MDBG_FOOTER_MAGIC);
