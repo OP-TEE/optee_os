@@ -186,8 +186,8 @@ static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 
-static unsigned next_xlat __data;
-static uint64_t tcr_ps_bits __data;
+static unsigned next_xlat __early_bss;
+static uint64_t tcr_ps_bits __early_bss;
 static int user_va_idx = -1;
 
 static uint32_t desc_to_mattr(uint64_t desc)

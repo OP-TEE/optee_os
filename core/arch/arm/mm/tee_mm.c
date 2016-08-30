@@ -319,10 +319,10 @@ bool tee_mm_is_empty(tee_mm_pool_t *pool)
 }
 
 /* Physical Secure DDR pool */
-tee_mm_pool_t tee_mm_sec_ddr __data; /* XXX __data is a workaround */
+tee_mm_pool_t tee_mm_sec_ddr __early_bss;
 
 /* Virtual eSRAM pool */
-tee_mm_pool_t tee_mm_vcore __data; /* XXX __data is a workaround */
+tee_mm_pool_t tee_mm_vcore __early_bss;
 
 tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr)
 {

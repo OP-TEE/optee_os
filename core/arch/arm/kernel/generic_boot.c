@@ -77,7 +77,7 @@
  * When 0, the cpu has not started.
  * When 1, it has started
  */
-uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __data;
+uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __early_bss;
 #endif
 
 /* May be overridden in plat-$(PLATFORM)/main.c */

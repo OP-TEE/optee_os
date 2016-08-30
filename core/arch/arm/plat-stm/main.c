@@ -74,7 +74,8 @@ static void main_fiq(void)
 
 static vaddr_t console_base(void)
 {
-	static void *va __data; /* in case it's used before .bss is cleared */
+	/* in case it's used before .bss is cleared */
+	static void *va __early_bss;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
@@ -104,7 +105,8 @@ void console_flush(void)
 
 vaddr_t pl310_base(void)
 {
-	static void *va __data; /* in case it's used before .bss is cleared */
+	/* in case it's used before .bss is cleared */
+	static void *va __early_bss;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)

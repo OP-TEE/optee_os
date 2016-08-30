@@ -157,6 +157,10 @@ SECTIONS
 		__data_start_rom = .;
 		/* in one segment binaries, the rom data address is on top
 		   of the ram data address */
+		__early_bss_start = .;
+		*(.early_bss .early_bss.*)
+		. = ALIGN(4);
+		__early_bss_end = .;
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);

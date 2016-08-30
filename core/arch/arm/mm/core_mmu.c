@@ -65,15 +65,16 @@
  */
 
 /* Default NSec shared memory allocated from NSec world */
-unsigned long default_nsec_shm_size __data;
-unsigned long default_nsec_shm_paddr __data;
+unsigned long default_nsec_shm_size __early_bss;
+unsigned long default_nsec_shm_paddr __early_bss;
 
-static struct tee_mmap_region static_memory_map[MAX_MMAP_REGIONS + 1] __data;
-static bool mem_map_inited __data;
+static struct tee_mmap_region
+	static_memory_map[MAX_MMAP_REGIONS + 1] __early_bss;
+static bool mem_map_inited __early_bss;
 
-static struct tee_mmap_region *map_tee_ram __data;
-static struct tee_mmap_region *map_ta_ram __data;
-static struct tee_mmap_region *map_nsec_shm __data;
+static struct tee_mmap_region *map_tee_ram __early_bss;
+static struct tee_mmap_region *map_ta_ram __early_bss;
+static struct tee_mmap_region *map_nsec_shm __early_bss;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
