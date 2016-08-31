@@ -49,7 +49,7 @@
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	19200000
 
-#define HEAP_SIZE		(24 * 1024)
+#define HEAP_SIZE		(32 * 1024)
 
 /*
  * HiKey memory map
