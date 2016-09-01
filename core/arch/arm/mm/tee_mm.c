@@ -106,9 +106,11 @@ static size_t tee_mm_stats_allocated(tee_mm_pool_t *pool)
 	return sz << pool->shift;
 }
 
-void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct tee_mm_pool_stats *stats,
+void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct malloc_stats *stats,
 			   bool reset)
 {
+	memset(stats, 0, sizeof(*stats));
+
 	stats->size = pool->hi - pool->lo;
 	stats->max_allocated = pool->max_allocated;
 	stats->allocated = tee_mm_stats_allocated(pool);

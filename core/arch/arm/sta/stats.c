@@ -47,7 +47,7 @@
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 {
-	struct tee_mm_pool_stats *stats;
+	struct malloc_stats *stats;
 	uint32_t size_to_retrieve;
 	uint32_t pool_id;
 	uint32_t i;
@@ -57,7 +57,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 	 *   - 0 means all the pools to be retrieved
 	 *   - 1..n means pool id
 	 * p[0].value.b = 0 if no reset of the stats
-	 * p[1].memref.buffer = output buffer to struct tee_mm_pool_stats
+	 * p[1].memref.buffer = output buffer to struct malloc_stats
 	 */
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 			    TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -70,7 +70,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 	if (pool_id > STATS_NB_POOLS)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	size_to_retrieve = sizeof(struct tee_mm_pool_stats);
+	size_to_retrieve = sizeof(struct malloc_stats);
 	if (!pool_id)
 		size_to_retrieve *= STATS_NB_POOLS;
 
@@ -79,7 +79,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 	p[1].memref.size = size_to_retrieve;
-	stats = (struct tee_mm_pool_stats *)p[1].memref.buffer;
+	stats = p[1].memref.buffer;
 
 	for (i = 1; i <= STATS_NB_POOLS; i++) {
 		if ((pool_id) && (i != pool_id))
@@ -87,12 +87,10 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 
 		switch (i) {
 		case 1:
+			malloc_get_stats(stats);
 			strlcpy(stats->desc, "Heap", sizeof(stats->desc));
-			stats->allocated = malloc_get_allocated();
-			stats->max_allocated = malloc_get_max_allocated();
-			stats->size = malloc_get_heap_size();
 			if (p[0].value.b)
-				malloc_reset_max_allocated();
+				malloc_reset_stats();
 			break;
 
 		case 2:
@@ -100,9 +98,9 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 			break;
 
 		case 3:
-			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			tee_mm_get_pool_stats(&tee_mm_sec_ddr, stats,
 					      !!p[0].value.b);
+			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			break;
 
 		default:

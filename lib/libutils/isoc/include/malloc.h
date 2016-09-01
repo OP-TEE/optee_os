@@ -85,10 +85,24 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len);
  */
 void malloc_add_pool(void *buf, size_t len);
 
-/* get malloc stats: curr allocated heap and max allocated heap since boot */
-void malloc_reset_max_allocated(void);
-size_t malloc_get_max_allocated(void);
-size_t malloc_get_allocated(void);
-size_t malloc_get_heap_size(void);
+#ifdef CFG_WITH_STATS
+/*
+ * Get/reset allocation statistics
+ */
+
+#define TEE_ALLOCATOR_DESC_LENGTH 32
+struct malloc_stats {
+	char desc[TEE_ALLOCATOR_DESC_LENGTH];
+	uint32_t allocated;               /* Bytes currently allocated */
+	uint32_t max_allocated;           /* Tracks max value of allocated */
+	uint32_t size;                    /* Total size for this allocator */
+	uint32_t num_alloc_fail;          /* Number of failed alloc requests */
+	uint32_t biggest_alloc_fail;      /* Size of biggest failed alloc */
+	uint32_t biggest_alloc_fail_used; /* Alloc bytes when above occurred */
+};
+
+void malloc_get_stats(struct malloc_stats *stats);
+void malloc_reset_stats(void);
+#endif /* CFG_WITH_STATS */
 
 #endif /* MALLOC_H */
