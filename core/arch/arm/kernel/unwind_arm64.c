@@ -28,8 +28,11 @@
  * SUCH DAMAGE.
  */
 
+#include <arm.h>
 #include <kernel/unwind.h>
 #include <kernel/thread.h>
+#include <string.h>
+#include <trace.h>
 
 bool unwind_stack(struct unwind_state *frame)
 {
@@ -47,3 +50,35 @@ bool unwind_stack(struct unwind_state *frame)
 
 	return true;
 }
+
+#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
+
+void print_stack(int level)
+{
+	struct unwind_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.pc = read_pc();
+	state.fp = read_fp();
+
+	do {
+		switch (level) {
+		case TRACE_FLOW:
+			FMSG_RAW("pc  0x%016" PRIx64, state.pc);
+			break;
+		case TRACE_DEBUG:
+			DMSG_RAW("pc  0x%016" PRIx64, state.pc);
+			break;
+		case TRACE_INFO:
+			IMSG_RAW("pc  0x%016" PRIx64, state.pc);
+			break;
+		case TRACE_ERROR:
+			EMSG_RAW("pc  0x%016" PRIx64, state.pc);
+			break;
+		default:
+			break;
+		}
+	} while (unwind_stack(&state));
+}
+
+#endif /* defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0) */

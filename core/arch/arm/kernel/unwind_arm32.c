@@ -29,7 +29,10 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm.h>
+#include <kernel/misc.h>
 #include <kernel/unwind.h>
+#include <string.h>
 #include <trace.h>
 
 /* The register names */
@@ -357,6 +360,39 @@ bool unwind_stack(struct unwind_state *state)
 
 	return !finished;
 }
+
+#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
+
+void print_stack(int level)
+{
+	struct unwind_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.registers[SP] = read_sp();
+	state.registers[LR] = read_lr();
+	state.registers[PC] = read_pc();
+
+	do {
+		switch (level) {
+		case TRACE_FLOW:
+			FMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
+			break;
+		case TRACE_DEBUG:
+			DMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
+			break;
+		case TRACE_INFO:
+			IMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
+			break;
+		case TRACE_ERROR:
+			EMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
+			break;
+		default:
+			break;
+		}
+	} while (unwind_stack(&state));
+}
+
+#endif /* defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0) */
 
 /*
  * These functions are referenced but never used

@@ -41,4 +41,6 @@
 #endif
 #endif
 
+#define __always_inline	__attribute__((always_inline)) inline
+
 #endif /*SYS_CDEFS_H*/

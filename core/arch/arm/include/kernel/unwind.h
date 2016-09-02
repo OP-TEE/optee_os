@@ -57,6 +57,15 @@ struct unwind_state {
 #endif /*ARM64*/
 
 bool unwind_stack(struct unwind_state *state);
+
+#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
+void print_stack(int level);
+#else
+static inline void print_stack(int level __unused)
+{
+}
+#endif
+
 #endif /*ASM*/
 
 #ifdef CFG_CORE_UNWIND

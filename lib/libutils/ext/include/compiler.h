@@ -29,7 +29,7 @@
 #define COMPILER_H
 
 /*
- * Macros that should be used instead of using __attributue__ directly to
+ * Macros that should be used instead of using __attribute__ directly to
  * ease portability and make the code easier to read.
  */
 

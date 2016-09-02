@@ -27,6 +27,7 @@
 #ifndef ARM64_H
 #define ARM64_H
 
+#include <sys/cdefs.h>
 #include <stdint.h>
 #include <util.h>
 
@@ -219,6 +220,22 @@ static inline void dsb(void)
 static inline void write_at_s1e1r(uint64_t va)
 {
 	asm volatile ("at	S1E1R, %0" : : "r" (va));
+}
+
+static __always_inline uint64_t read_pc(void)
+{
+	uint64_t val;
+
+	asm volatile ("adr %0, ." : "=r" (val));
+	return val;
+}
+
+static __always_inline uint64_t read_fp(void)
+{
+	uint64_t val;
+
+	asm volatile ("mov %0, x29" : "=r" (val));
+	return val;
 }
 
 /*

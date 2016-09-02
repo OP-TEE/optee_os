@@ -29,6 +29,7 @@
 #ifndef ARM32_H
 #define ARM32_H
 
+#include <sys/cdefs.h>
 #include <stdint.h>
 #include <util.h>
 
@@ -532,6 +533,30 @@ static inline uint32_t read_cntfrq(void)
 
 	asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (frq));
 	return frq;
+}
+
+static __always_inline uint32_t read_pc(void)
+{
+	uint32_t val;
+
+	asm volatile ("adr %0, ." : "=r" (val));
+	return val;
+}
+
+static __always_inline uint32_t read_sp(void)
+{
+	uint32_t val;
+
+	asm volatile ("mov %0, sp" : "=r" (val));
+	return val;
+}
+
+static __always_inline uint32_t read_lr(void)
+{
+	uint32_t val;
+
+	asm volatile ("mov %0, lr" : "=r" (val));
+	return val;
 }
 #endif /*ASM*/
 
