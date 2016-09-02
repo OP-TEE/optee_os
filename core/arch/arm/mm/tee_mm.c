@@ -116,7 +116,7 @@ void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct malloc_stats *stats,
 	stats->allocated = tee_mm_stats_allocated(pool);
 
 	if (reset)
-		stats->max_allocated = 0;
+		pool->max_allocated = 0;
 }
 
 static void update_max_allocated(tee_mm_pool_t *pool)
