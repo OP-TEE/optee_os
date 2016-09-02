@@ -379,6 +379,9 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.x[5] = args->a5;
 	thread->regs.x[6] = args->a6;
 	thread->regs.x[7] = args->a7;
+
+	/* Set up frame pointer as per the Aarch64 AAPCS */
+	thread->regs.x[29] = 0;
 }
 #endif /*ARM64*/
 
