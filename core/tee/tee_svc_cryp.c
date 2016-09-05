@@ -1229,8 +1229,6 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	o->info.maxKeySize = max_key_size;
 	o->info.objectUsage = TEE_USAGE_DEFAULT;
 
-	o->fd = -1;
-
 	return TEE_SUCCESS;
 }
 

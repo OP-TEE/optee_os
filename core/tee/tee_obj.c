@@ -132,7 +132,11 @@ exit:
 
 struct tee_obj *tee_obj_alloc(void)
 {
-	return calloc(1, sizeof(struct tee_obj));
+	struct tee_obj *o = calloc(1, sizeof(struct tee_obj));
+
+	if (o)
+		o->fd = -1;
+	return o;
 }
 
 void tee_obj_free(struct tee_obj *o)
