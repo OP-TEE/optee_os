@@ -101,7 +101,7 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 	err = fops->access(file, TEE_FS_F_OK);
 	if (err) {
 		/* file not found */
-		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto err;
 	}
 
