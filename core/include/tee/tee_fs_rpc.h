@@ -37,39 +37,6 @@
 #include <tee_api_types.h>
 #include <tee/tee_fs.h>
 
-/* TEE FS operation */
-#define TEE_FS_OPEN       1
-#define TEE_FS_CLOSE      2
-#define TEE_FS_READ       3
-#define TEE_FS_WRITE      4
-#define TEE_FS_SEEK       5
-#define TEE_FS_UNLINK     6
-#define TEE_FS_RENAME     7
-#define TEE_FS_TRUNC      8
-#define TEE_FS_MKDIR      9
-#define TEE_FS_OPENDIR   10
-#define TEE_FS_CLOSEDIR  11
-#define TEE_FS_READDIR   12
-#define TEE_FS_RMDIR     13
-#define TEE_FS_ACCESS    14
-#define TEE_FS_LINK      15
-#define TEE_FS_BEGIN     16 /* SQL FS: begin transaction */
-#define TEE_FS_END       17 /* SQL FS: end transaction */
-
-/* sql_fs_send_cmd 'mode' */
-#define TEE_FS_MODE_NONE 0
-#define TEE_FS_MODE_IN   1
-#define TEE_FS_MODE_OUT  2
-
-struct tee_fs_rpc {
-	int op;
-	int flags;
-	int arg;
-	int fd;
-	uint32_t len;
-	int res;
-};
-
 /*
  * Return values:
  *   < 0: error. The actual value is meaningless (see below).
