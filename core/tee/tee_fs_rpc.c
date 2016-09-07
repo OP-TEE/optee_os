@@ -55,15 +55,8 @@ static TEE_Result tee_fs_rpc_send_cmd(int cmd_id, struct tee_fs_rpc *bf_cmd,
 	assert(cmd_id == OPTEE_MSG_RPC_CMD_FS ||
 	       cmd_id == OPTEE_MSG_RPC_CMD_SQL_FS);
 
-	thread_rpc_alloc_payload(sizeof(struct tee_fs_rpc) + len,
-				 &phpayload, &cpayload);
-	if (!phpayload)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	if (!ALIGNMENT_IS_OK(phpayload, struct tee_fs_rpc))
-		goto exit;
-
-	bf = phys_to_virt(phpayload, MEM_AREA_NSEC_SHM);
+	bf = tee_fs_rpc_cache_alloc(sizeof(struct tee_fs_rpc) + len,
+				    &phpayload, &cpayload);
 	if (!bf)
 		goto exit;
 
@@ -94,7 +87,6 @@ static TEE_Result tee_fs_rpc_send_cmd(int cmd_id, struct tee_fs_rpc *bf_cmd,
 	res = TEE_SUCCESS;
 
 exit:
-	thread_rpc_free_payload(cpayload);
 	return res;
 }
 

@@ -35,6 +35,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <tee_api_types.h>
+#include <tee/tee_fs.h>
 
 /* TEE FS operation */
 #define TEE_FS_OPEN       1
@@ -98,5 +99,24 @@ int tee_fs_rpc_write(int id, int fd, const void *buf, size_t len);
 int tee_fs_rpc_closedir(int id, struct tee_fs_dir *d);
 int tee_fs_rpc_rmdir(int id, const char *name);
 int tee_fs_rpc_unlink(int id, const char *file);
+
+struct thread_specific_data;
+#if defined(CFG_WITH_USER_TA) && \
+	(defined(CFG_REE_FS) || defined(CFG_SQL_FS) || defined(CFG_RPMB_FS))
+/* Frees the cache of allocated FS RPC memory */
+void tee_fs_rpc_cache_clear(struct thread_specific_data *tsd);
+#else
+static inline void tee_fs_rpc_cache_clear(
+			struct thread_specific_data *tsd __unused)
+{
+}
+#endif
+
+/*
+ * Returns a pointer to the cached FS RPC memory. Each thread has a unique
+ * cache. The pointer is guaranteed to point to a large enough area or to
+ * be NULL.
+ */
+void *tee_fs_rpc_cache_alloc(size_t size, paddr_t *pa, uint64_t *cookie);
 
 #endif /* TEE_FS_RPC_H */

@@ -50,6 +50,10 @@ struct thread_specific_data {
 #ifdef CFG_SMALL_PAGE_USER_TA
 	struct pgt_cache pgt_cache;
 #endif
+	void *rpc_fs_payload;
+	paddr_t rpc_fs_payload_pa;
+	uint64_t rpc_fs_payload_cookie;
+	size_t rpc_fs_payload_size;
 };
 
 struct thread_user_vfp_state {

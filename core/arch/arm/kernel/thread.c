@@ -34,19 +34,20 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/thread.h>
 #include <kernel/thread_defs.h>
-#include <kernel/tz_proc.h>
+#include <kernel/thread.h>
 #include <kernel/tz_proc_def.h>
+#include <kernel/tz_proc.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <sm/sm_defs.h>
 #include <sm/sm.h>
+#include <tee/tee_fs_rpc.h>
 #include <trace.h>
 #include <util.h>
 
@@ -581,6 +582,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 
 	thread_std_smc_handler_ptr(args);
 
+	tee_fs_rpc_cache_clear(&thr->tsd);
 	if (!thread_prealloc_rpc_cache) {
 		thread_rpc_free_arg(thr->rpc_carg);
 		thr->rpc_carg = 0;
