@@ -518,6 +518,9 @@ static int add_optee_res_mem_dt_node(void *fdt)
 		ret = fdt_setprop(fdt, offs, "reg", data, sizeof(data));
 		if (ret < 0)
 			return -1;
+		ret = fdt_setprop(fdt, offs, "no-map", NULL, 0);
+		if (ret < 0)
+			return -1;
 	} else {
 		return -1;
 	}
