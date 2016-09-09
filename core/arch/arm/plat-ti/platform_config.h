@@ -28,7 +28,7 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#if defined(PLATFORM_FLAVOR_dra7xx)
+#if defined(PLATFORM_FLAVOR_dra7xx) || defined(PLATFORM_FLAVOR_am57xx)
 
 #define DRAM0_BASE		0xbe000000
 #define DRAM0_SIZE		0x02000000
@@ -43,10 +43,14 @@
 
 #define CFG_TEE_CORE_NB_CORE	2
 
+#define UART1_BASE      0x4806A000
+#define UART2_BASE      0x4806C000
+#define UART3_BASE      0x48020000
+
 /* UART1 */
-#define CONSOLE_UART_BASE		0x4806A000
+#define CONSOLE_UART_BASE       UART1_BASE
+#define CONSOLE_BAUDRATE        115200
 #define CONSOLE_UART_CLK_IN_HZ	48000000
-#define UART_BAUDRATE			115200
 
 #define GIC_BASE        0x48210000
 #define GICC_OFFSET     0x2000
@@ -63,6 +67,14 @@
 
 #else
 #error "Unknown platform flavor"
+#endif
+
+#if defined(PLATFORM_FLAVOR_am57xx)
+
+/* UART3 */
+#undef CONSOLE_UART_BASE
+#define CONSOLE_UART_BASE       UART3_BASE
+
 #endif
 
 /* Make stacks aligned to data cache line length */
@@ -98,12 +110,5 @@
 #define DEVICE2_VA_BASE		DEVICE2_PA_BASE
 #define DEVICE2_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE2_TYPE		MEM_AREA_IO_SEC
-
-#ifndef UART_BAUDRATE
-#define UART_BAUDRATE		115200
-#endif
-#ifndef CONSOLE_BAUDRATE
-#define CONSOLE_BAUDRATE	UART_BAUDRATE
-#endif
 
 #endif /*PLATFORM_CONFIG_H*/
