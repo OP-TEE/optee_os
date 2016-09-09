@@ -30,16 +30,16 @@
 
 #if defined(PLATFORM_FLAVOR_dra7xx)
 
-#define DRAM0_BASE		0x94C00000
-#define DRAM0_SIZE		0x00800000
+#define DRAM0_BASE		0xbe000000
+#define DRAM0_SIZE		0x02000000
 
 #ifdef CFG_WITH_PAGER
 #error Pager not supported on this platform
 #endif /*CFG_WITH_PAGER*/
 
 /* Location of protected DDR on the DRA7xx platform */
-#define TZDRAM_BASE		0x94D00000
-#define TZDRAM_SIZE		0x00700000
+#define TZDRAM_BASE		0xbe000000
+#define TZDRAM_SIZE		0x01c00000
 
 #define CFG_TEE_CORE_NB_CORE	2
 
@@ -59,8 +59,8 @@
 #define STACK_ALIGNMENT		64
 
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START		(DRAM0_BASE)
-#define CFG_SHMEM_SIZE		0x100000
+#define CFG_SHMEM_START		(DRAM0_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_SIZE		0x400000
 
 #define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
 
