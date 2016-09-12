@@ -57,6 +57,7 @@
 
 #define TEE_MATTR_VIRTUAL		(1 << 15)
 #define TEE_MATTR_LOCKED		(1 << 16)
+#define TEE_MATTR_PAGED			(1 << 17)
 
 
 struct tee_mmap_region {

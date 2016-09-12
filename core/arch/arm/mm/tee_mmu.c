@@ -39,6 +39,7 @@
 #include <mm/tee_mm.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/tee_pager.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
 #include <trace.h>
@@ -266,7 +267,7 @@ static TEE_Result check_pgt_avail(vaddr_t base __unused, vaddr_t end __unused)
 #endif
 
 void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
-			uint32_t prot)
+		       uint32_t prot)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
@@ -590,24 +591,30 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
-	if (!ctx || !is_user_ta_ctx(ctx)) {
-		core_mmu_set_user_map(NULL);
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	core_mmu_set_user_map(NULL);
 #ifdef CFG_SMALL_PAGE_USER_TA
-		/*
-		 * We're not needing the user page tables for the moment,
-		 * release them as some other thread may be waiting for
-		 * them.
-		 */
-		pgt_free(&thread_get_tsd()->pgt_cache);
+	/*
+	 * No matter what happens below, the current user TA will not be
+	 * current any longer. Make sure pager is in sync with that.
+	 * This function has to be called before there's a chance that
+	 * pgt_free_unlocked() is called.
+	 *
+	 * Save translation tables in a cache if it's a user TA.
+	 */
+	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
 #endif
-	} else {
+
+	if (ctx && is_user_ta_ctx(ctx)) {
 		struct core_mmu_user_map map;
 		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
 		core_mmu_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
+		tee_pager_assign_uta_tables(utc);
 	}
-	thread_get_tsd()->ctx = ctx;
+	tsd->ctx = ctx;
 }
 
 struct tee_ta_ctx *tee_mmu_get_ctx(void)

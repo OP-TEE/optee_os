@@ -31,6 +31,7 @@
 
 #include <kernel/abort.h>
 #include <kernel/panic.h>
+#include <kernel/user_ta.h>
 #include <mm/tee_mm.h>
 #include <trace.h>
 
@@ -39,6 +40,8 @@
  * covered by the pager.
  */
 extern struct core_mmu_table_info tee_pager_tbl_info;
+
+struct tee_pager_area_head;
 
 /*
  * tee_pager_init() - Initialized the pager
@@ -75,6 +78,61 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 			const void *store, const void *hashes);
 
 /*
+ * tee_pager_add_uta_area() - Adds a pageable user ta area
+ * @utc:	user ta context of the area
+ * @base:	base of covered memory area
+ * @size:	size of covered memory area
+ *
+ * The mapping is created suitable to initialize the memory content while
+ * loading the TA. Once the TA is properly loaded the areas should be
+ * finalized with tee_pager_set_uta_area() to get more strict settings.
+ *
+ * Return true on success of false if the area can't be added
+ */
+bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
+
+/*
+ * tee_pager_set_uta_area() - Set attributes of a initialized memory area
+ * @utc:	user ta context of the area
+ * @base:	base of covered memory area
+ * @size:	size of covered memory area
+ * @flags:	TEE_MATTR_U* flags describing permissions of the area
+ *
+ * Return true on success of false if the area can't be updated
+ */
+bool tee_pager_set_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size,
+			    uint32_t flags);
+
+/*
+ * tee_pager_rem_uta_areas() - Remove all user ta areas
+ * @utc:	user ta context
+ *
+ * This function is called when a user ta context is teared down.
+ */
+#ifdef CFG_PAGED_USER_TA
+void tee_pager_rem_uta_areas(struct user_ta_ctx *utc);
+#else
+static inline void tee_pager_rem_uta_areas(struct user_ta_ctx *utc __unused)
+{
+}
+#endif
+
+/*
+ * tee_pager_assign_uta_tables() - Assigns translation table to a user ta
+ * @utc:	user ta context
+ *
+ * This function is called to assign translation tables for the pageable
+ * areas of a user TA.
+ */
+#ifdef CFG_PAGED_USER_TA
+void tee_pager_assign_uta_tables(struct user_ta_ctx *utc);
+#else
+static inline void tee_pager_assign_uta_tables(struct user_ta_ctx *utc __unused)
+{
+}
+#endif
+
+/*
  * Adds physical pages to the pager to use. The supplied virtual address range
  * is searched for mapped physical pages and unmapped pages are ignored.
  *
@@ -94,6 +152,17 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
  * @return NULL on failure or a pointer to the virtual memory on success.
  */
 void *tee_pager_alloc(size_t size, uint32_t flags);
+
+#ifdef CFG_PAGED_USER_TA
+/*
+ * tee_pager_pgt_save_and_release_entries() - Save dirty pages to backing store
+ * and remove physical page from translation table
+ * @pgt: page table descriptor
+ *
+ * This function is called when a translation table needs to be recycled
+ */
+void tee_pager_pgt_save_and_release_entries(struct pgt *pgt);
+#endif
 
 /*
  * tee_pager_release_phys() - Release physical pages used for mapping

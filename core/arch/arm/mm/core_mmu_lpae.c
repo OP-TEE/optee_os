@@ -63,6 +63,7 @@
 #include <kernel/thread.h>
 #include <kernel/panic.h>
 #include <kernel/misc.h>
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
 #include <string.h>
@@ -613,7 +614,9 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		/* Copy bits 39:12 from tbl[n] to ntbl */
 		ntbl = (tbl[n] & ((1ULL << 40) - 1)) & ~((1 << 12) - 1);
 
-		tbl = (uint64_t *)ntbl;
+		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
+		if (!tbl)
+			return false;
 
 		va_base += n << level_size_shift;
 		level++;

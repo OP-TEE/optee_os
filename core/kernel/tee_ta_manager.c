@@ -362,6 +362,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 		condvar_destroy(&ctx->busy_cv);
 
+		pgt_flush_ctx(ctx);
 		ctx->ops->destroy(ctx);
 	} else
 		mutex_unlock(&tee_ta_mutex);

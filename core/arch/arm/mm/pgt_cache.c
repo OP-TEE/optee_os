@@ -66,6 +66,11 @@ static struct pgt_parent pgt_parents[PGT_CACHE_SIZE / PGT_NUM_PGT_PER_PAGE];
 
 static struct pgt_cache pgt_free_list = SLIST_HEAD_INITIALIZER(pgt_free_list);
 #endif
+
+#ifdef CFG_PAGED_USER_TA
+static struct pgt_cache pgt_cache_list = SLIST_HEAD_INITIALIZER(pgt_cache_list);
+#endif
+
 static struct pgt pgt_entries[PGT_CACHE_SIZE];
 
 static struct mutex pgt_mu = MUTEX_INITIALIZER;
@@ -133,8 +138,10 @@ static struct pgt *pop_from_free_list(void)
 {
 	struct pgt *p = SLIST_FIRST(&pgt_free_list);
 
-	if (p)
+	if (p) {
 		SLIST_REMOVE_HEAD(&pgt_free_list, link);
+		memset(p->tbl, 0, PGT_SIZE);
+	}
 	return p;
 }
 
@@ -156,6 +163,7 @@ static struct pgt *pop_from_free_list(void)
 		if (p) {
 			SLIST_REMOVE_HEAD(&pgt_parents[n].pgt_cache, link);
 			pgt_parents[n].num_used++;
+			memset(p->tbl, 0, PGT_SIZE);
 			return p;
 		}
 	}
@@ -175,7 +183,161 @@ static void push_to_free_list(struct pgt *p)
 }
 #endif
 
-static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
+#ifdef CFG_PAGED_USER_TA
+static void push_to_cache_list(struct pgt *pgt)
+{
+	SLIST_INSERT_HEAD(&pgt_cache_list, pgt, link);
+}
+
+static bool match_pgt(struct pgt *pgt, vaddr_t vabase, void *ctx)
+{
+	return pgt->ctx == ctx && pgt->vabase == vabase;
+}
+
+static struct pgt *pop_from_cache_list(vaddr_t vabase, void *ctx)
+{
+	struct pgt *pgt;
+	struct pgt *p;
+
+	pgt = SLIST_FIRST(&pgt_cache_list);
+	if (!pgt)
+		return NULL;
+	if (match_pgt(pgt, vabase, ctx)) {
+		SLIST_REMOVE_HEAD(&pgt_cache_list, link);
+		return pgt;
+	}
+
+	while (true) {
+		p = SLIST_NEXT(pgt, link);
+		if (!p)
+			break;
+		if (match_pgt(p, vabase, ctx)) {
+			SLIST_REMOVE_AFTER(pgt, link);
+			break;
+		}
+		pgt = p;
+	}
+	return p;
+}
+
+static struct pgt *pop_least_used_from_cache_list(void)
+{
+	struct pgt *pgt;
+	struct pgt *p_prev = NULL;
+	size_t least_used;
+
+	pgt = SLIST_FIRST(&pgt_cache_list);
+	if (!pgt)
+		return NULL;
+	if (!pgt->num_used_entries)
+		goto out;
+	least_used = pgt->num_used_entries;
+
+	while (true) {
+		if (!SLIST_NEXT(pgt, link))
+			break;
+		if (SLIST_NEXT(pgt, link)->num_used_entries <= least_used) {
+			p_prev = pgt;
+			least_used = SLIST_NEXT(pgt, link)->num_used_entries;
+		}
+		pgt = SLIST_NEXT(pgt, link);
+	}
+
+out:
+	if (p_prev) {
+		pgt = SLIST_NEXT(p_prev, link);
+		SLIST_REMOVE_AFTER(p_prev, link);
+	} else {
+		pgt = SLIST_FIRST(&pgt_cache_list);
+		SLIST_REMOVE_HEAD(&pgt_cache_list, link);
+	}
+	return pgt;
+}
+
+static void pgt_free_unlocked(struct pgt_cache *pgt_cache, bool save_ctx)
+{
+	while (!SLIST_EMPTY(pgt_cache)) {
+		struct pgt *p = SLIST_FIRST(pgt_cache);
+
+		SLIST_REMOVE_HEAD(pgt_cache, link);
+		if (save_ctx && p->num_used_entries) {
+			push_to_cache_list(p);
+		} else {
+			tee_pager_pgt_save_and_release_entries(p);
+			assert(!p->num_used_entries);
+			p->ctx = NULL;
+			p->vabase = 0;
+
+			push_to_free_list(p);
+		}
+	}
+}
+
+static struct pgt *pop_from_some_list(vaddr_t vabase, void *ctx)
+{
+	struct pgt *p = pop_from_cache_list(vabase, ctx);
+
+	if (p)
+		return p;
+	p = pop_from_free_list();
+	if (!p) {
+		p = pop_least_used_from_cache_list();
+		if (!p)
+			return NULL;
+		tee_pager_pgt_save_and_release_entries(p);
+	}
+	assert(!p->num_used_entries);
+	p->ctx = ctx;
+	p->vabase = vabase;
+	return p;
+}
+
+void pgt_flush_ctx(struct tee_ta_ctx *ctx)
+{
+	struct pgt *p;
+	struct pgt *pp = NULL;
+
+	mutex_lock(&pgt_mu);
+
+	while (true) {
+		p = SLIST_FIRST(&pgt_cache_list);
+		if (!p)
+			goto out;
+		if (p->ctx != ctx)
+			break;
+		SLIST_REMOVE_HEAD(&pgt_cache_list, link);
+		tee_pager_pgt_save_and_release_entries(p);
+		assert(!p->num_used_entries);
+		p->ctx = NULL;
+		p->vabase = 0;
+		push_to_free_list(p);
+	}
+
+	pp = p;
+	while (true) {
+		p = SLIST_NEXT(pp, link);
+		if (!p)
+			break;
+		if (p->ctx == ctx) {
+			SLIST_REMOVE_AFTER(pp, link);
+			tee_pager_pgt_save_and_release_entries(p);
+			assert(!p->num_used_entries);
+			p->ctx = NULL;
+			p->vabase = 0;
+			push_to_free_list(p);
+		} else {
+			pp = p;
+		}
+	}
+
+out:
+	mutex_unlock(&pgt_mu);
+}
+
+#else /*!CFG_PAGED_USER_TA*/
+
+static void pgt_free_unlocked(struct pgt_cache *pgt_cache,
+			      bool save_ctx __unused)
 {
 	while (!SLIST_EMPTY(pgt_cache)) {
 		struct pgt *p = SLIST_FIRST(pgt_cache);
@@ -185,31 +347,50 @@ static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
 	}
 }
 
-static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, size_t num_tbls)
+static struct pgt *pop_from_some_list(vaddr_t vabase __unused,
+				      void *ctx __unused)
 {
+	return pop_from_free_list();
+}
+#endif /*!CFG_PAGED_USER_TA*/
+
+static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, void *ctx,
+			       vaddr_t begin, vaddr_t last)
+{
+	const vaddr_t base = ROUNDDOWN(begin, CORE_MMU_PGDIR_SIZE);
+	const size_t num_tbls = ((last - base) >> CORE_MMU_PGDIR_SHIFT) + 1;
 	size_t n = 0;
+	struct pgt *p;
+	struct pgt *pp = NULL;
 
 	while (n < num_tbls) {
-		struct pgt *p = pop_from_free_list();
-
+		p = pop_from_some_list(base + n * CORE_MMU_PGDIR_SIZE, ctx);
 		if (!p) {
-			pgt_free_unlocked(pgt_cache);
+			pgt_free_unlocked(pgt_cache, ctx);
 			return false;
 		}
 
-		SLIST_INSERT_HEAD(pgt_cache, p, link);
+		if (pp)
+			SLIST_INSERT_AFTER(pp, p, link);
+		else
+			SLIST_INSERT_HEAD(pgt_cache, p, link);
+		pp = p;
 		n++;
 	}
 
 	return true;
 }
 
-void pgt_alloc(struct pgt_cache *pgt_cache, size_t num_tbls)
+void pgt_alloc(struct pgt_cache *pgt_cache, void *ctx,
+	       vaddr_t begin, vaddr_t last)
 {
+	if (last <= begin)
+		return;
+
 	mutex_lock(&pgt_mu);
 
-	pgt_free_unlocked(pgt_cache);
-	while (!pgt_alloc_unlocked(pgt_cache, num_tbls)) {
+	pgt_free_unlocked(pgt_cache, ctx);
+	while (!pgt_alloc_unlocked(pgt_cache, ctx, begin, last)) {
 		DMSG("Waiting for page tables");
 		condvar_broadcast(&pgt_cv);
 		condvar_wait(&pgt_cv, &pgt_mu);
@@ -218,15 +399,17 @@ void pgt_alloc(struct pgt_cache *pgt_cache, size_t num_tbls)
 	mutex_unlock(&pgt_mu);
 }
 
-void pgt_free(struct pgt_cache *pgt_cache)
+void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx)
 {
 	if (SLIST_EMPTY(pgt_cache))
 		return;
 
 	mutex_lock(&pgt_mu);
 
-	pgt_free_unlocked(pgt_cache);
+	pgt_free_unlocked(pgt_cache, save_ctx);
 
 	condvar_broadcast(&pgt_cv);
 	mutex_unlock(&pgt_mu);
 }
+
+

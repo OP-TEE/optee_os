@@ -35,11 +35,29 @@
 #define PGT_NUM_PGT_PER_PAGE	4
 #endif
 
-#ifdef CFG_SMALL_PAGE_USER_TA
+#include <kernel/tee_ta_manager.h>
 #include <sys/queue.h>
 #include <types_ext.h>
 #include <util.h>
 
+struct pgt {
+	void *tbl;
+#if defined(CFG_PAGED_USER_TA)
+	vaddr_t vabase;
+	struct tee_ta_ctx *ctx;
+	size_t num_used_entries;
+#endif
+#if defined(CFG_WITH_PAGER)
+#if !defined(CFG_WITH_LPAE)
+	struct pgt_parent *parent;
+#endif
+#endif
+#ifdef CFG_SMALL_PAGE_USER_TA
+	SLIST_ENTRY(pgt) link;
+#endif
+};
+
+#ifdef CFG_SMALL_PAGE_USER_TA
 /*
  * Reserve 2 page tables per thread, but at least 4 page tables in total
  */
@@ -49,14 +67,6 @@
 #define PGT_CACHE_SIZE	ROUNDUP(CFG_NUM_THREADS * 2, PGT_NUM_PGT_PER_PAGE)
 #endif
 
-struct pgt {
-	void *tbl;
-#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
-	struct pgt_parent *parent;
-#endif
-	SLIST_ENTRY(pgt) link;
-};
-
 SLIST_HEAD(pgt_cache, pgt);
 
 static inline bool pgt_check_avail(size_t num_tbls)
@@ -64,14 +74,53 @@ static inline bool pgt_check_avail(size_t num_tbls)
 	return num_tbls <= PGT_CACHE_SIZE;
 }
 
-void pgt_alloc(struct pgt_cache *pgt_cache, size_t num_tbls);
-void pgt_free(struct pgt_cache *pgt_cache);
+void pgt_alloc(struct pgt_cache *pgt_cache, void *owning_ctx,
+	       vaddr_t begin, vaddr_t last);
+void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx);
 
 void pgt_init(void);
 
 #else
 
 static inline void pgt_init(void)
+{
+}
+
+#endif
+
+#if defined(CFG_PAGED_USER_TA)
+void pgt_flush_ctx(struct tee_ta_ctx *ctx);
+
+static inline void pgt_inc_used_entries(struct pgt *pgt)
+{
+	pgt->num_used_entries++;
+}
+
+static inline void pgt_dec_used_entries(struct pgt *pgt)
+{
+	pgt->num_used_entries--;
+}
+
+static inline void pgt_set_used_entries(struct pgt *pgt, size_t val)
+{
+	pgt->num_used_entries = val;
+}
+
+#else
+static inline void pgt_flush_ctx(struct tee_ta_ctx *ctx __unused)
+{
+}
+
+static inline void pgt_inc_used_entries(struct pgt *pgt __unused)
+{
+}
+
+static inline void pgt_dec_used_entries(struct pgt *pgt __unused)
+{
+}
+
+static inline void pgt_set_used_entries(struct pgt *pgt __unused,
+					size_t val __unused)
 {
 }
 

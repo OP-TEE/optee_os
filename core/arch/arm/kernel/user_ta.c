@@ -39,6 +39,8 @@
 #include <mm/core_mmu.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
+#include <mm/tee_pager.h>
+#include <mm/pgt_cache.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
@@ -141,6 +143,71 @@ static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 	return mattr;
 }
 
+#ifdef CFG_PAGED_USER_TA
+static TEE_Result config_initial_paging(struct user_ta_ctx *utc)
+{
+	size_t n;
+
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
+			continue;
+		utc->mmu->table[n].attr |= TEE_MATTR_PAGED;
+		if (!tee_pager_add_uta_area(utc, utc->mmu->table[n].va,
+					    utc->mmu->table[n].size))
+			return TEE_ERROR_GENERIC;
+	}
+	return TEE_SUCCESS;
+}
+
+static TEE_Result config_final_paging(struct user_ta_ctx *utc)
+{
+	size_t n;
+	uint32_t flags;
+
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
+			continue;
+		utc->mmu->table[n].attr |= TEE_MATTR_PAGED;
+		flags = utc->mmu->table[n].attr &
+			(TEE_MATTR_PRW | TEE_MATTR_URWX);
+		if (!tee_pager_set_uta_area(utc, utc->mmu->table[n].va,
+					    utc->mmu->table[n].size, flags))
+			return TEE_ERROR_GENERIC;
+	}
+	return TEE_SUCCESS;
+}
+
+static paddr_t get_stack_pa(struct user_ta_ctx *utc __unused)
+{
+	return 0;
+}
+
+static paddr_t get_code_pa(struct user_ta_ctx *utc __unused)
+{
+	return 0;
+}
+#else /*!CFG_PAGED_USER_TA*/
+static TEE_Result config_initial_paging(struct user_ta_ctx *utc __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static TEE_Result config_final_paging(struct user_ta_ctx *utc __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static paddr_t get_stack_pa(struct user_ta_ctx *utc)
+{
+	return tee_mm_get_smem(utc->mm_stack);
+}
+
+static paddr_t get_code_pa(struct user_ta_ctx *utc)
+{
+	return tee_mm_get_smem(utc->mm);
+}
+#endif /*!CFG_PAGED_USER_TA*/
+
 static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			struct elf_load_state *elf_state, bool init_attrs)
 {
@@ -153,14 +220,14 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 	/*
 	 * Add stack segment
 	 */
-	pa = tee_mm_get_smem(utc->mm_stack);
+	pa = get_stack_pa(utc);
 	mattr = elf_flags_to_mattr(PF_W | PF_R, init_attrs);
-	tee_mmu_map_stack(utc, pa, tee_mm_get_bytes(utc->mm_stack), mattr);
+	tee_mmu_map_stack(utc, pa, utc->stack_size, mattr);
 
 	/*
 	 * Add code segment
 	 */
-	pa = tee_mm_get_smem(utc->mm);
+	pa = get_code_pa(utc);
 	while (true) {
 		vaddr_t offs;
 		size_t size;
@@ -169,7 +236,7 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 		res = elf_load_get_next_segment(elf_state, &idx, &offs, &size,
 						&flags);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
-			return TEE_SUCCESS;
+			break;
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -178,7 +245,46 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 		if (res != TEE_SUCCESS)
 			return res;
 	}
+
+	if (init_attrs)
+		return config_initial_paging(utc);
+	else
+		return config_final_paging(utc);
 }
+
+#ifdef CFG_PAGED_USER_TA
+static TEE_Result alloc_stack(struct user_ta_ctx *utc __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static TEE_Result alloc_code(struct user_ta_ctx *utc __unused,
+			     size_t vasize __unused)
+{
+	return TEE_SUCCESS;
+}
+#else /*!CFG_PAGED_USER_TA*/
+static TEE_Result alloc_stack(struct user_ta_ctx *utc)
+{
+	utc->mm_stack = tee_mm_alloc(&tee_mm_sec_ddr, utc->stack_size);
+	if (!utc->mm_stack) {
+		EMSG("Failed to allocate %zu bytes for user stack",
+		     utc->stack_size);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result alloc_code(struct user_ta_ctx *utc, size_t vasize)
+{
+	utc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
+	if (!utc->mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	return TEE_SUCCESS;
+}
+#endif /*!CFG_PAGED_USER_TA*/
 
 static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 			const struct shdr *nmem_shdr)
@@ -231,11 +337,9 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 		goto out;
 	ta_head = p;
 
-	utc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
-	if (!utc->mm) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = alloc_code(utc, vasize);
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	/* Currently all TA must execute from DDR */
 	if (!(ta_head->flags & TA_FLAG_EXEC_DDR)) {
@@ -248,13 +352,9 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	/* Ensure proper aligment of stack */
 	utc->stack_size = ROUNDUP(ta_head->stack_size, STACK_ALIGNMENT);
 
-	utc->mm_stack = tee_mm_alloc(&tee_mm_sec_ddr, utc->stack_size);
-	if (!utc->mm_stack) {
-		EMSG("Failed to allocate %zu bytes for user stack",
-		     utc->stack_size);
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = alloc_stack(utc);
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	/*
 	 * Map physical memory into TA virtual memory
@@ -393,7 +493,8 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
 	*ta_ctx = &utc->ctx;
 
-	DMSG("Loaded TA at 0x%" PRIxPTR, tee_mm_get_smem(utc->mm));
+	if (utc->mm)
+		DMSG("Loaded TA at 0x%" PRIxPTR, tee_mm_get_smem(utc->mm));
 	DMSG("ELF load address 0x%x", utc->load_addr);
 
 	tee_mmu_set_ctx(NULL);
@@ -406,6 +507,8 @@ error_return:
 	free(sec_shdr);
 	tee_mmu_set_ctx(NULL);
 	if (utc) {
+		pgt_flush_ctx(&utc->ctx);
+		tee_pager_rem_uta_areas(utc);
 		tee_mmu_final(utc);
 		tee_mm_free(utc->mm_stack);
 		tee_mm_free(utc->mm);
@@ -502,8 +605,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = (tee_uaddr_t)phys_to_virt(tee_mm_get_smem(utc->mm_stack) +
-				 utc->stack_size - 1, MEM_AREA_TA_VASPACE) + 1;
+	usr_stack = (tee_uaddr_t)utc->mmu->table[0].va + utc->stack_size;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);
@@ -646,19 +748,23 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
+	size_t n;
 
 	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d",
 		 utc->load_addr, utc->context);
-	EMSG_RAW("- code area : 0x%" PRIxPTR " %zu",
-		 tee_mm_get_smem(utc->mm), tee_mm_get_bytes(utc->mm));
-	EMSG_RAW("- stack: 0x%" PRIxPTR " stack:%zu",
-		 tee_mm_get_smem(utc->mm_stack), utc->stack_size);
+	EMSG_RAW("- stack: 0x%" PRIxVA " %zu",
+		 utc->mmu->table[0].va, utc->stack_size);
+	for (n = 0; n < utc->mmu->size; n++)
+		EMSG_RAW("sect %zu : %#" PRIxVA " %zu",
+			 n, utc->mmu->table[n].va, utc->mmu->table[n].size);
 }
 KEEP_PAGER(user_ta_dump_state);
 
 static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+
+	tee_pager_rem_uta_areas(utc);
 
 	/*
 	 * Clean all traces of the TA, both RO and RW data.

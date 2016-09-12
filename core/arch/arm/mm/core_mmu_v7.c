@@ -32,6 +32,7 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
 #include <stdlib.h>
@@ -423,10 +424,13 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	if (max_level == 1 || (tbl[n] & 0x3) != 0x1) {
 		core_mmu_set_info_table(tbl_info, 1, 0, tbl);
 	} else {
-		uintptr_t ntbl = tbl[n] & ~((1 << 10) - 1);
+		paddr_t ntbl = tbl[n] & ~((1 << 10) - 1);
+		void *l2tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
 
-		core_mmu_set_info_table(tbl_info, 2, n << SECTION_SHIFT,
-					(void *)ntbl);
+		if (!l2tbl)
+			return false;
+
+		core_mmu_set_info_table(tbl_info, 2, n << SECTION_SHIFT, l2tbl);
 	}
 	return true;
 }
@@ -490,8 +494,6 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 	if (size)
 		*size = (TEE_MMU_UL1_NUM_ENTRIES - 1) << SECTION_SHIFT;
 }
-
-
 
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
@@ -687,6 +689,7 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 		return CORE_MMU_FAULT_ALIGNMENT;
 	case 0x2: /* DFSR[10,3:0] 0b00010 Debug event */
 		return CORE_MMU_FAULT_DEBUG_EVENT;
+	case 0x4: /* DFSR[10,3:0] b00100 Fault on instr cache maintenance */
 	case 0x5: /* DFSR[10,3:0] b00101 Translation fault first level */
 	case 0x7: /* DFSR[10,3:0] b00111 Translation fault second level */
 		return CORE_MMU_FAULT_TRANSLATION;

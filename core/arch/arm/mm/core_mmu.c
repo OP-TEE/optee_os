@@ -761,17 +761,20 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->table = (*pgt)->tbl;
 			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
+#ifdef CFG_PAGED_USER_TA
+			assert((*pgt)->vabase == pg_info->va_base);
+#endif
 			*pgt = SLIST_NEXT(*pgt, link);
 
-			memset(pg_info->table, 0, PGT_SIZE);
 			core_mmu_set_entry(dir_info, idx,
 					   virt_to_phys(pg_info->table),
-					    pgt_attr);
+					   pgt_attr);
 		}
 
 		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
 			     end - r.va);
-		set_region(pg_info, &r);
+		if (!(r.attr & TEE_MATTR_PAGED))
+			set_region(pg_info, &r);
 		r.va += r.size;
 		r.pa += r.size;
 	}
@@ -784,8 +787,6 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
 	struct pgt *pgt;
 	size_t n;
-	vaddr_t base;
-	vaddr_t end;
 
 	if (!utc->mmu->size)
 		return;	/* Nothing to map */
@@ -803,10 +804,8 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	base = ROUNDDOWN(utc->mmu->table[0].va, CORE_MMU_PGDIR_SIZE);
-	end = ROUNDUP(utc->mmu->table[n].va + utc->mmu->table[n].size,
-		      CORE_MMU_PGDIR_SIZE);
-	pgt_alloc(pgt_cache, (end - base) >> CORE_MMU_PGDIR_SHIFT);
+	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[0].va,
+		  utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);

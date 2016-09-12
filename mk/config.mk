@@ -167,6 +167,12 @@ CFG_WITH_USER_TA ?= y
 # Use small pages to map user TAs
 CFG_SMALL_PAGE_USER_TA ?= y
 
+# Enable paging, requires SRAM, can't be enabled by default
+CFG_WITH_PAGER ?= n
+
+# Use the pager for user TAs
+CFG_PAGED_USER_TA ?= $(CFG_WITH_PAGER)
+
 # Enable support for detected undefined behavior in C
 # Uses a lot of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
