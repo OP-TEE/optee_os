@@ -81,6 +81,7 @@ SECTIONS
 		*(.text .text.*)
 #endif
 		*(.sram.text.glue_7* .gnu.linkonce.t.*)
+		. = ALIGN(8);
 		__text_end = .;
 	}
 
@@ -124,7 +125,7 @@ SECTIONS
 		__extab_end = .;
 	}
 
-	.rodata : ALIGN(4) {
+	.rodata : ALIGN(8) {
 		__rodata_start = .;
 		*(.gnu.linkonce.r.*)
 #ifdef CFG_WITH_PAGER
@@ -147,23 +148,23 @@ SECTIONS
 		KEEP(*(phys_mem_map_section))
 		__end_phys_mem_map_section = . ;
 #endif
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__rodata_end = .;
 	}
 
 
-	.data : ALIGN(4) {
+	.data : ALIGN(8) {
 		/* writable data  */
 		__data_start_rom = .;
 		/* in one segment binaries, the rom data address is on top
 		   of the ram data address */
 		__early_bss_start = .;
 		*(.early_bss .early_bss.*)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__early_bss_end = .;
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
-		. = ALIGN(4);
+		. = ALIGN(8);
 	}
 
 	.ctors : ALIGN(8) {
@@ -181,12 +182,12 @@ SECTIONS
 
 	__data_end = .;
 	/* unintialized data */
-	.bss : ALIGN(4) {
+	.bss : ALIGN(8) {
 		__bss_start = .;
 		*(.bss .bss.*)
 		*(.gnu.linkonce.b.*)
 		*(COMMON)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__bss_end = .;
 	}
 
@@ -242,32 +243,32 @@ SECTIONS
  * sections will go into the unpaged area.
  */
 #include <text_init.ld.S>
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__text_init_end = .;
 	}
 
-	.rodata_init : ALIGN(4) {
+	.rodata_init : ALIGN(8) {
 		__rodata_init_start = .;
 #include <rodata_init.ld.S>
 		. = ALIGN(8);
 		__start_phys_mem_map_section = . ;
 		KEEP(*(phys_mem_map_section))
 		__end_phys_mem_map_section = . ;
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__rodata_init_end = .;
 	}
 	__init_start = __text_init_start;
 	__init_end = .;
 	__init_size = __init_end - __text_init_start;
 
-	.text_pageable : ALIGN(4) {
+	.text_pageable : ALIGN(8) {
 		__text_pageable_start = .;
 		*(.text*)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__text_pageable_end = .;
 	}
 
-	.rodata_pageable : ALIGN(4) {
+	.rodata_pageable : ALIGN(8) {
 		__rodata_pageable_start = .;
 		*(.rodata*)
 		/*
