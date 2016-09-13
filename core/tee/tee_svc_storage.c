@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <kernel/mutex.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/tee_misc.h>
 #include <mm/tee_mmu.h>
@@ -96,6 +97,12 @@ struct tee_storage_enum {
 	struct tee_fs_dir *dir;
 	const struct tee_file_operations *fops;
 };
+
+/*
+ * Protect TA storage directory: avoid race conditions between (create
+ * directory + create file) and (remove directory)
+ */
+static struct mutex ta_dir_mutex = MUTEX_INITIALIZER;
 
 static TEE_Result tee_svc_storage_get_enum(struct user_ta_ctx *utc,
 					   uint32_t enum_id,
@@ -210,7 +217,9 @@ static TEE_Result tee_svc_storage_remove_corrupt_obj(
 	free(file);
 	dir = tee_svc_storage_create_dirname(sess);
 	if (dir != NULL) {
+		mutex_lock(&ta_dir_mutex);
 		fops->rmdir(dir);
+		mutex_unlock(&ta_dir_mutex);
 		free(dir);
 	}
 
@@ -274,6 +283,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 		goto exit;
 	}
 
+	mutex_lock(&ta_dir_mutex);
+
 	/* try and make directory */
 	err = fops->access(dir, TEE_FS_F_OK);
 	if (err) {
@@ -284,7 +295,7 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 		if (tmp < 0) {
 			/* error codes needs better granularity */
 			res = TEE_ERROR_GENERIC;
-			goto exit;
+			goto unlock;
 		}
 	}
 
@@ -293,6 +304,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 	if (*fd < 0)
 		res = errno;
 
+unlock:
+	mutex_unlock(&ta_dir_mutex);
 exit:
 	free(dir);
 
@@ -862,8 +875,10 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	dir = tee_svc_storage_create_dirname(sess);
 	if (dir == NULL)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	mutex_lock(&ta_dir_mutex);
 	/* ignore result */
 	fops->rmdir(dir);
+	mutex_unlock(&ta_dir_mutex);
 	free(dir);
 
 	return TEE_SUCCESS;
