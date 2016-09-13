@@ -43,6 +43,7 @@
 #include <assert.h>
 #include <kernel/tee_common_unpg.h>
 #include <kernel/handle.h>
+#include <kernel/mutex.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,6 +83,8 @@ struct tee_fs_dir {
 
 /* Container for file descriptors (struct sql_fs_fd) */
 static struct handle_db fs_db = HANDLE_DB_INITIALIZER;
+
+static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
 
 /*
  * Interface with tee-supplicant
@@ -510,9 +513,10 @@ exit:
 	return rc;
 }
 
-static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
+static int sql_fs_ftruncate_internal(TEE_Result *errno, int fd,
+				     tee_fs_off_t new_length)
 {
-	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
+	struct sql_fs_fd *fdp;
 	tee_fs_off_t old_length;
 	int rc = -1;
 
@@ -520,6 +524,7 @@ static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
 
 	*errno = TEE_ERROR_GENERIC;
 
+	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit_ret;
@@ -578,7 +583,7 @@ exit_ret:
 static tee_fs_off_t sql_fs_lseek(TEE_Result *errno, int fd,
 				 tee_fs_off_t offset, int whence)
 {
-	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
+	struct sql_fs_fd *fdp;
 	tee_fs_off_t ret = -1;
 	tee_fs_off_t raw_pos;
 	tee_fs_off_t pos;
@@ -586,8 +591,11 @@ static tee_fs_off_t sql_fs_lseek(TEE_Result *errno, int fd,
 	DMSG("(fd: %d, offset: %" PRId64 ", whence: %d)...", fd, offset,
 	     whence);
 
+	mutex_lock(&sql_fs_mutex);
+
 	*errno = TEE_ERROR_GENERIC;
 
+	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp)
 		goto exit_ret;
 
@@ -626,17 +634,21 @@ exit:
 	sql_fs_end_transaction_rpc(ret < 0);
 	fdp->pos = ret;
 exit_ret:
+	mutex_unlock(&sql_fs_mutex);
 	DMSG("...%" PRId64, ret);
 	return ret;
 }
 
 static int sql_fs_close(int fd)
 {
-	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
+	struct sql_fs_fd *fdp;
 	int ret = -1;
 
 	DMSG("(fd: %d)...", fd);
 
+	mutex_lock(&sql_fs_mutex);
+
+	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp)
 		goto exit;
 
@@ -645,6 +657,7 @@ static int sql_fs_close(int fd)
 
 	ret = 0;
 exit:
+	mutex_unlock(&sql_fs_mutex);
 	DMSG("...%d", ret);
 	return ret;
 }
@@ -657,6 +670,8 @@ static int sql_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 	int fd = -1;
 
 	DMSG("(file: %s, flags: %d)...", file, flags);
+
+	mutex_lock(&sql_fs_mutex);
 
 	*errno = TEE_ERROR_GENERIC;
 
@@ -692,6 +707,7 @@ static int sql_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 	fd = handle_get(&fs_db, fdp);
 
 exit:
+	mutex_unlock(&sql_fs_mutex);
 	if (fd < 0)
 		free(fdp);
 	DMSG("...%d", fd);
@@ -700,7 +716,7 @@ exit:
 
 static int sql_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 {
-	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
+	struct sql_fs_fd *fdp;
 	size_t remain_bytes = len;
 	uint8_t *data_ptr = buf;
 	uint8_t *block = NULL;
@@ -711,8 +727,11 @@ static int sql_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 
 	DMSG("(fd: %d, buf: %p, len: %zu)...", fd, (void *)buf, len);
 
+	mutex_lock(&sql_fs_mutex);
+
 	*errno = TEE_ERROR_GENERIC;
 
+	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit_ret;
@@ -775,6 +794,7 @@ exit:
 	sql_fs_end_transaction_rpc(res < 0);
 	free(block);
 exit_ret:
+	mutex_unlock(&sql_fs_mutex);
 	ret = (res < 0) ? res : (int)len;
 	DMSG("...%d", ret);
 	return ret;
@@ -782,7 +802,7 @@ exit_ret:
 
 static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 {
-	struct sql_fs_fd *fdp = handle_lookup(&fs_db, fd);
+	struct sql_fs_fd *fdp;
 	size_t remain_bytes = len;
 	const uint8_t *data_ptr = buf;
 	int start_block_num;
@@ -792,8 +812,11 @@ static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 
 	DMSG("(fd: %d, buf: %p, len: %zu)...", fd, (void *)buf, len);
 
+	mutex_lock(&sql_fs_mutex);
+
 	*errno = TEE_ERROR_GENERIC;
 
+	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit_ret;
@@ -818,7 +841,7 @@ static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 
 	if (fdp->meta.length < (size_t)fdp->pos) {
 		/* Fill hole */
-		res = sql_fs_ftruncate(errno, fd, fdp->pos);
+		res = sql_fs_ftruncate_internal(errno, fd, fdp->pos);
 		if (res < 0)
 			goto exit;
 	}
@@ -850,9 +873,21 @@ static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 exit:
 	sql_fs_end_transaction_rpc(res < 0);
 exit_ret:
+	mutex_unlock(&sql_fs_mutex);
 	ret = (res < 0) ? res : (int)len;
 	DMSG("...%d", ret);
 	return ret;
+}
+
+static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
+{
+	int res;
+
+	mutex_lock(&sql_fs_mutex);
+	res = sql_fs_ftruncate_internal(errno, fd, new_length);
+	mutex_unlock(&sql_fs_mutex);
+
+	return res;
 }
 
 const struct tee_file_operations sql_fs_ops = {
