@@ -138,6 +138,8 @@ struct block_operations {
 
 static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
+static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
+
 /*
  * We split a TEE file into multiple blocks and store them
  * on REE filesystem. A TEE file is represented by a REE file
@@ -853,13 +855,11 @@ static struct block *read_block_with_cache(struct tee_fs_fd *fdp, int block_num)
 }
 #else
 
-static struct mutex block_mutex = MUTEX_INITIALIZER;
 static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
 {
 	static struct block *b;
 	int res;
 
-	mutex_lock(&block_mutex);
 	if (!b)
 		b = alloc_block();
 	b->block_num = block_num;
@@ -868,7 +868,6 @@ static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
 	if (res)
 		EMSG("Unable to read block%d from storage",
 				block_num);
-	mutex_unlock(&block_mutex);
 
 	return res ? NULL : b;
 }
@@ -1062,6 +1061,8 @@ static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 	struct tee_fs_fd *fdp = NULL;
 	bool file_exist;
 
+	mutex_lock(&ree_fs_mutex);
+
 	assert(errno);
 	*errno = TEE_SUCCESS;
 
@@ -1154,16 +1155,20 @@ exit_free_fd:
 exit_free_meta:
 	free(meta);
 exit:
+	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
 static int ree_fs_close(int fd)
 {
 	int res = -1;
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp;
 
+	mutex_lock(&ree_fs_mutex);
+
+	fdp = handle_lookup(&fs_handle_db, fd);
 	if (!fdp)
-		return -1;
+		goto exit;
 
 	handle_put(&fs_handle_db, fdp->fd);
 
@@ -1172,6 +1177,8 @@ static int ree_fs_close(int fd)
 	free(fdp->filename);
 	free(fdp);
 
+exit:
+	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
@@ -1181,11 +1188,14 @@ static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
 	tee_fs_off_t res = -1;
 	tee_fs_off_t new_pos;
 	size_t filelen;
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp;
+
+	mutex_lock(&ree_fs_mutex);
 
 	assert(errno);
 	*errno = TEE_SUCCESS;
 
+	fdp = handle_lookup(&fs_handle_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
@@ -1224,6 +1234,7 @@ static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
 
 	res = fdp->pos = new_pos;
 exit:
+	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
@@ -1374,11 +1385,14 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 	int end_block_num;
 	size_t remain_bytes = len;
 	uint8_t *data_ptr = buf;
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp;
+
+	mutex_lock(&ree_fs_mutex);
 
 	assert(errno);
 	*errno = TEE_SUCCESS;
 
+	fdp = handle_lookup(&fs_handle_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
@@ -1438,6 +1452,7 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 	}
 	res = 0;
 exit:
+	mutex_unlock(&ree_fs_mutex);
 	return (res < 0) ? res : (int)len;
 }
 
@@ -1470,13 +1485,16 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 {
 	int res = -1;
 	struct tee_fs_file_meta *new_meta = NULL;
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp;
 	size_t file_size;
 	int orig_pos;
+
+	mutex_lock(&ree_fs_mutex);
 
 	assert(errno);
 	*errno = TEE_SUCCESS;
 
+	fdp = handle_lookup(&fs_handle_db, fd);
 	if (!fdp) {
 		*errno = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
@@ -1545,6 +1563,7 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 		}
 	}
 exit:
+	mutex_unlock(&ree_fs_mutex);
 	free(new_meta);
 	return (res < 0) ? res : (int)len;
 }
@@ -1571,7 +1590,7 @@ exit:
  * (Any failure in above steps is considered as a successfully
  *  update)
  */
-static int ree_fs_rename(const char *old, const char *new)
+static int ree_fs_rename_internal(const char *old, const char *new)
 {
 	int res = -1;
 	size_t old_len;
@@ -1651,6 +1670,17 @@ exit:
 	return res;
 }
 
+static int ree_fs_rename(const char *old, const char *new)
+{
+	int res;
+
+	mutex_lock(&ree_fs_mutex);
+	res = ree_fs_rename_internal(old, new);
+	mutex_unlock(&ree_fs_mutex);
+
+	return res;
+}
+
 /*
  * To ensure atomic unlink operation, we can simply
  * split the unlink operation into:
@@ -1679,20 +1709,30 @@ static int ree_fs_unlink(const char *file)
 	snprintf(trash_file, TEE_FS_NAME_MAX + 6, "%s.trash",
 		file);
 
-	res = ree_fs_rename(file, trash_file);
+	mutex_lock(&ree_fs_mutex);
+
+	res = ree_fs_rename_internal(file, trash_file);
 	if (res < 0)
-		return res;
+		goto exit;
 
 	unlink_tee_file(trash_file);
 
+exit:
+	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
 static int ree_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
 {
-	struct tee_fs_fd *fdp = handle_lookup(&fs_handle_db, fd);
+	struct tee_fs_fd *fdp;
+	int res;
 
-	return ree_fs_ftruncate_internal(errno, fdp, length);
+	mutex_lock(&ree_fs_mutex);
+	fdp = handle_lookup(&fs_handle_db, fd);
+	res = ree_fs_ftruncate_internal(errno, fdp, length);
+	mutex_unlock(&ree_fs_mutex);
+
+	return res;
 }
 
 const struct tee_file_operations ree_fs_ops = {
