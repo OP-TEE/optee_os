@@ -1053,8 +1053,6 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	char *dir;
 	TEE_Result res;
 	struct tee_ta_session *sess;
-	struct tee_fs_dirent *d = NULL;
-	struct tee_obj *o = NULL;
 	const struct tee_file_operations *fops = file_ops(storage_id);
 
 	res = tee_ta_get_current_session(&sess);
@@ -1069,56 +1067,7 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	dir = tee_svc_storage_create_dirname(sess);
-	if (dir == NULL)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
 	e->fops = fops;
-	e->dir = fops->opendir(dir);
-	free(dir);
-	if (e->dir == NULL)
-		/* error codes needs better granularity */
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	/* verify object */
-	o = tee_obj_alloc();
-	if (o == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	o->pobj = calloc(1, sizeof(struct tee_pobj));
-	if (!o->pobj) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	/* object enumeration loop */
-	do {
-		d = fops->readdir(e->dir);
-		if (d) {
-			/* allocate obj_id and set object */
-			res = tee_svc_storage_set_enum(d->d_name, fops, o);
-			if (res != TEE_SUCCESS)
-				goto exit;
-			res = tee_obj_verify(sess, o);
-			if (res != TEE_SUCCESS)
-				goto exit;
-			/* free obj_id for each iteration */
-			free(o->pobj->obj_id);
-			/* force obj_id to skip freeing at exit statement */
-			o->pobj->obj_id = NULL;
-		}
-	} while (d);
-
-	/* re-start */
-	res = fops->closedir(e->dir);
-	e->dir = NULL;
-	if (res != 0) {
-		res = TEE_ERROR_GENERIC;
-		goto exit;
-	}
-
 	dir = tee_svc_storage_create_dirname(sess);
 	if (dir == NULL) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -1127,15 +1076,10 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 
 	e->dir = fops->opendir(dir);
 	free(dir);
+	if (!e->dir)
+		res = TEE_ERROR_ITEM_NOT_FOUND;
 
 exit:
-	if (o) {
-		if (o->pobj)
-			free(o->pobj->obj_id);
-		free(o->pobj);
-		tee_obj_free(o);
-	}
-
 	return res;
 }
 
