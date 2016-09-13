@@ -851,12 +851,6 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
-		res = tee_obj_verify(sess, o);
-		if (res != TEE_SUCCESS)
-			goto exit;
-	}
-
 	res = tee_svc_copy_to_user(info, &o->info, sizeof(o->info));
 
 exit:
@@ -878,12 +872,6 @@ TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
 			  tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
-
-	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
-		res = tee_obj_verify(sess, o);
-		if (res != TEE_SUCCESS)
-			goto exit;
-	}
 
 	o->info.objectUsage &= usage;
 

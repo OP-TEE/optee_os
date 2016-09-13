@@ -898,10 +898,6 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_verify(sess, o);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
 	/* get new ds name */
 	new_file = tee_svc_storage_create_filename(sess, object_id,
 						   object_id_len, false);
@@ -1370,10 +1366,6 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		goto exit;
 	}
 
-	res = tee_obj_verify(sess, o);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -1422,10 +1414,6 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 		res = TEE_ERROR_BAD_STATE;
 		goto exit;
 	}
-
-	res = tee_obj_verify(sess, o);
-	if (res != TEE_SUCCESS)
-		goto exit;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 	if (res != TEE_SUCCESS)
