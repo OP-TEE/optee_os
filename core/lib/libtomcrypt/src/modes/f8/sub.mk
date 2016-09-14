@@ -4,4 +4,3 @@ srcs-y += f8_encrypt.c
 srcs-y += f8_getiv.c
 srcs-y += f8_setiv.c
 srcs-y += f8_start.c
-srcs-y += f8_test_mode.c
