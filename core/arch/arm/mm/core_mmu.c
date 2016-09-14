@@ -791,21 +791,24 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 		return;	/* Nothing to map */
 
 	/* Find the last valid entry */
-	n = utc->mmu->size;
-	while (true) {
-		n--;
-		if (utc->mmu->table[n].size)
+	for (base = ~0, end = 0, n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
 			break;
-		if (!n)
-			return;	/* Nothing to map */
+		if (base > (vaddr_t)utc->mmu->table[n].va)
+			base = (vaddr_t)utc->mmu->table[n].va;
+		if (end < (vaddr_t)utc->mmu->table[n].va +
+				utc->mmu->table[n].size)
+			end = (vaddr_t)utc->mmu->table[n].va +
+				utc->mmu->table[n].size;
 	}
+	if (n == utc->mmu->size)
+		return; /* Nothing to map */
 
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	base = ROUNDDOWN(utc->mmu->table[0].va, CORE_MMU_PGDIR_SIZE);
-	end = ROUNDUP(utc->mmu->table[n].va + utc->mmu->table[n].size,
-		      CORE_MMU_PGDIR_SIZE);
+	base = ROUNDDOWN(base, CORE_MMU_PGDIR_SIZE);
+	end = ROUNDUP(end, CORE_MMU_PGDIR_SIZE);
 	pgt_alloc(pgt_cache, (end - base) >> CORE_MMU_PGDIR_SHIFT);
 	pgt = SLIST_FIRST(pgt_cache);
 
