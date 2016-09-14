@@ -89,7 +89,9 @@ before_script:
   # checkpatch.pl will ignore the following paths
   - CHECKPATCH_IGNORE=$(echo core/lib/lib{fdt,tomcrypt} lib/lib{png,utils,zlib})
   - _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
-  - function checkpatch() { echo "Checking commit $1"; $HOME/git-2.9.3/git format-patch -1 $1 --stdout -- . $_CP_EXCL | $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -; }
+  - function _checkpatch() { $DST_KERNEL/scripts/checkpatch.pl --ignore FILE_PATH_CHANGES --ignore GERRIT_CHANGE_ID --no-tree -; }
+  - function checkpatch() { echo "Checking commit $1"; $HOME/git-2.9.3/git format-patch -1 $1 --stdout -- . $_CP_EXCL | _checkpatch; }
+  - function checkdiff() { echo "Checking squashed commits (diff $1...$2)"; $HOME/git-2.9.3/git diff $1...$2 -- . $_CP_EXCL | _checkpatch; }
 
 # Several compilation options are checked
 script:
@@ -97,6 +99,9 @@ script:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
   - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then checkpatch HEAD; else for c in $(git rev-list HEAD^1..HEAD^2); do checkpatch $c || failed=1; done; [ -z "$failed" ]; fi
+  # If we have a pull request with more than 1 commit, also check the squashed commits
+  # Useful to check if fix-up commits do indeed solve previous checkpatch errors
+  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
   # Orly2
   - $make PLATFORM=stm
