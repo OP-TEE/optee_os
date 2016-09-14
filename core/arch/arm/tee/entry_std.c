@@ -92,6 +92,19 @@ static bool copy_in_params(const struct optee_msg_param *params,
 				(void *)(uintptr_t)params[n].u.tmem.buf_ptr;
 			tee_params[n].memref.size = params[n].u.tmem.size;
 			break;
+		case OPTEE_MSG_ATTR_TYPE_SECURE:
+			pt[n] = TEE_PARAM_TYPE_MEMREF_SECURE;
+			cache_attr =
+				(params[n].attr >> OPTEE_MSG_ATTR_CACHE_SHIFT) &
+				OPTEE_MSG_ATTR_CACHE_MASK;
+			if (cache_attr == OPTEE_MSG_ATTR_CACHE_PREDEFINED)
+				param_attr[n] = SHM_CACHE_ATTRS;
+			else
+				return false;
+			tee_params[n].memref.buffer =
+				(void *)(uintptr_t)params[n].u.tmem.buf_ptr;
+			tee_params[n].memref.size = params[n].u.tmem.size;
+			break;
 		default:
 			return false;
 		}
@@ -118,6 +131,7 @@ static void copy_out_param(const TEE_Param tee_params[TEE_NUM_PARAMS],
 		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			params[n].u.tmem.size = tee_params[n].memref.size;
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:

@@ -39,12 +39,13 @@ TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 	size_t l;
 	int n;
 
+	// TODO: change all TEE_ERROR_SECURITY into TEE_ERROR_BAD_PARAMETERS
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			if (param->param_attr[n] & TEE_MATTR_VIRTUAL) {
 				p = virt_to_phys(
 					param->params[n].memref.buffer);
@@ -55,10 +56,16 @@ TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 			}
 			l = param->params[n].memref.size;
 
+			if (TEE_PARAM_TYPE_GET(param->types, n) ==
+			    TEE_PARAM_TYPE_MEMREF_SECURE) {
+				if ((sess->ctx->flags &
+				    TA_FLAG_UNSAFE_NW_PARAMS) &&
+				    core_pbuf_is(CORE_MEM_MULTPURPOSE, p, l))
+					break;
+				return TEE_ERROR_SECURITY;
+			}
+
 			if (core_pbuf_is(CORE_MEM_NSEC_SHM, p, l))
-				break;
-			if ((sess->ctx->flags & TA_FLAG_UNSAFE_NW_PARAMS) &&
-				core_pbuf_is(CORE_MEM_MULTPURPOSE, p, l))
 				break;
 			if ((sess->clnt_id.login == TEE_LOGIN_TRUSTED_APP) &&
 				core_pbuf_is(CORE_MEM_TA_RAM, p, l))

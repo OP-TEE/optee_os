@@ -395,7 +395,8 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 
 		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
-		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_SECURE)
 			continue;
 		if (p->memref.size == 0)
 			continue;
@@ -426,7 +427,8 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 
 		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
-		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_SECURE)
 			continue;
 		if (p->memref.size == 0)
 			continue;

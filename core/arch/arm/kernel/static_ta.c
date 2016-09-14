@@ -44,6 +44,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
 	 * If a static TA is called from another TA the mapping
 	 * of that TA is borrowed and the addresses are already
 	 * virtual.
+	 * Static TA do not handle MEMREF_SECURE parameters.
 	 */
 	if (tee_ta_get_calling_session())
 		return TEE_SUCCESS;
@@ -59,6 +60,10 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
 				return TEE_ERROR_BAD_PARAMETERS;
 			param->params[n].memref.buffer = va;
 			break;
+
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
+			/* TODO: phys_to_virt(pa, MEM_AREA_???); */
+			return TEE_ERROR_NOT_SUPPORTED;
 
 		default:
 			continue;
