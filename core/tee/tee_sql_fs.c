@@ -737,7 +737,9 @@ static int sql_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 		goto exit_ret;
 	}
 
-	if (fdp->pos + len > fdp->meta.length)
+	if ((fdp->pos + len) < len || fdp->pos > fdp->meta.length)
+		len = 0;
+	else if (fdp->pos + len > fdp->meta.length)
 		len = fdp->meta.length - fdp->pos;
 
 	if (!len) {

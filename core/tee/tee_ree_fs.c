@@ -83,7 +83,7 @@ struct block_cache {
 
 struct tee_fs_fd {
 	struct tee_fs_file_meta *meta;
-	int pos;
+	tee_fs_off_t pos;
 	uint32_t flags;
 	int fd;
 	bool is_new_file;
@@ -827,15 +827,10 @@ static void write_data_to_block(struct block *b, int offset,
 static void read_data_from_block(struct block *b, int offset,
 				void *buf, size_t len)
 {
-	size_t bytes_to_read = len;
-
 	DMSG("Read %zd bytes from block%d", len, b->block_num);
-	if (offset + len > b->data_size) {
-		bytes_to_read = b->data_size - offset;
-		DMSG("Exceed block size, update len to %zd bytes",
-			bytes_to_read);
-	}
-	memcpy(buf, b->data + offset, bytes_to_read);
+	if (offset + len > b->data_size)
+		panic("Exceeding block size");
+	memcpy(buf, b->data + offset, len);
 }
 
 #ifdef CFG_FS_BLOCK_CACHE
@@ -1398,10 +1393,11 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 		goto exit;
 	}
 
-	if (fdp->pos + len > fdp->meta->info.length) {
+	if ((fdp->pos + len) < len ||
+	    fdp->pos > (tee_fs_off_t)fdp->meta->info.length)
+		len = 0;
+	else if (fdp->pos + len > fdp->meta->info.length)
 		len = fdp->meta->info.length - fdp->pos;
-		DMSG("reached EOF, update read length to %zu", len);
-	}
 
 	if (!len) {
 		res = 0;
