@@ -171,6 +171,7 @@ script:
 
   # QEMU-ARMv8A
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
+  - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_RPMB_FS=y CFG_SQL_FS=y
 
   # SUNXI(Allwinner A80)
   - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
