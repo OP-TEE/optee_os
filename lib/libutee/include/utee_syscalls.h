@@ -37,10 +37,11 @@
 #include <trace.h>
 
 /*
- * Arguments must use the native register width. To keep it simple, only
- * use pointers, long, unsigned long and size_t. Pointers may only point
- * structures or types based on fixed width integer types. Only exception
- * are buffers with opaque data.
+ * Arguments must use the native register width, unless it's a signed
+ * argument then it must be a 32-bit value instead to avoid problems with
+ * sign extension. To keep it simple, only use pointers, int32_t, unsigned
+ * long and size_t. Pointers may only point structures or types based on
+ * fixed width integer types. Only exception are buffers with opaque data.
  *
  * Return values should not use a fixed width larger than 32 bits, unsigned
  * long and pointers are OK though.
@@ -223,7 +224,7 @@ TEE_Result utee_storage_obj_trunc(unsigned long obj, size_t len);
 
 /* obj is of type TEE_ObjectHandle */
 /* whence is of type TEE_Whence */
-TEE_Result utee_storage_obj_seek(unsigned long obj, long offset,
+TEE_Result utee_storage_obj_seek(unsigned long obj, int32_t offset,
 				 unsigned long whence);
 
 /* seServiceHandle is of type TEE_SEServiceHandle */

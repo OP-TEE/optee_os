@@ -1430,7 +1430,7 @@ exit:
 	return res;
 }
 
-TEE_Result syscall_storage_obj_seek(unsigned long obj, long offset,
+TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 				    unsigned long whence)
 {
 	TEE_Result res;

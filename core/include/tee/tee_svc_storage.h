@@ -75,7 +75,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data,
 
 TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len);
 
-TEE_Result syscall_storage_obj_seek(unsigned long obj, long offset,
+TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 				    unsigned long whence);
 
 void tee_svc_storage_close_all_enum(struct user_ta_ctx *utc);
