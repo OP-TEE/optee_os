@@ -211,5 +211,9 @@ script:
   - $make PLATFORM=rcar
   - $make PLATFORM=rcar CFG_ARM64_core=y
 
+  # Raspberry Pi 3
+  - $make PLATFORM=rpi3
+  - $make PLATFORM=rpi3 CFG_ARM64_core=y
+
   # Run regression tests (xtest in QEMU)
   - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
