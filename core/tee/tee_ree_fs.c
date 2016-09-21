@@ -558,7 +558,6 @@ static bool is_block_file_exist(struct tee_fs_file_meta *meta,
 	return (block_num <= (size_t)get_last_block_num(file_size));
 }
 
-#ifdef CFG_ENC_FS
 static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
 {
 	int fd, res = 0;
@@ -626,77 +625,6 @@ fail:
 
 	return res;
 }
-#else
-static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
-{
-	int fd, res = 0;
-	char block_path[REE_FS_NAME_MAX];
-	size_t block_file_size = BLOCK_FILE_SIZE;
-	uint8_t version = get_backup_version_of_block(fdp->meta,
-			b->block_num);
-
-	if (!is_block_file_exist(fdp->meta, b->block_num))
-		goto exit;
-
-	get_block_filepath(fdp->filename, b->block_num, version,
-			block_path);
-
-	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
-			     TEE_FS_O_RDONLY);
-	if (fd < 0)
-		return fd;
-
-
-	res = tee_fs_rpc_read(OPTEE_MSG_RPC_CMD_FS, fd, b->data,
-			      block_file_size);
-	if (res < 0) {
-		EMSG("Failed to read block%d (%d)",
-			b->block_num, res);
-		goto fail;
-	}
-
-	b->data_size = res;
-	DMSG("Successfully read block%d from storage, size=%d",
-		b->block_num, b->data_size);
-	res = 0;
-fail:
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
-exit:
-	return res;
-}
-
-static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
-		struct tee_fs_file_meta *new_meta)
-{
-	int fd = -1;
-	int res;
-	size_t block_num = b->block_num;
-
-	fd = create_block_file(
-			fdp, new_meta, block_num);
-	if (fd < 0) {
-		EMSG("Failed to create new version of block");
-		res = -1;
-		goto fail;
-	}
-
-	res = tee_fs_rpc_write(OPTEE_MSG_RPC_CMD_FS, fd, b->data,
-			       b->data_size);
-	if (res < 0) {
-		EMSG("Failed to write block%d (%d)",
-			b->block_num, res);
-		goto fail;
-	}
-	DMSG("Successfully writen block%d to storage, size=%d",
-		b->block_num, b->data_size);
-	res = 0;
-fail:
-	if (fd > 0)
-		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
-
-	return res;
-}
-#endif
 
 static struct block *alloc_block(void)
 {

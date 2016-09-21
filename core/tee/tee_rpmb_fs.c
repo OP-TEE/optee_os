@@ -516,7 +516,6 @@ static bool is_zero(const uint8_t *buf, size_t size)
 	return true;
 }
 
-#ifdef CFG_ENC_FS
 static TEE_Result encrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek)
 {
@@ -530,7 +529,6 @@ static TEE_Result decrypt_block(uint8_t *out, const uint8_t *in,
 	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
 				  TEE_MODE_DECRYPT);
 }
-#endif /* CFG_ENC_FS */
 
 /* Decrypt/copy at most one block of data */
 static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
@@ -547,18 +545,10 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 		/* Block is not encrypted (not a file data block) */
 		memcpy(out, frm->data + offset, size);
 	} else if (is_zero(fek, TEE_FS_KM_FEK_SIZE)) {
-		/*
-		 * The file was created with encryption disabled
-		 * (CFG_ENC_FS=n)
-		 */
-#ifdef CFG_ENC_FS
+		/* The file was created with encryption disabled */
 		return TEE_ERROR_SECURITY;
-#else
-		memcpy(out, frm->data + offset, size);
-#endif
 	} else {
 		/* Block is encrypted */
-#ifdef CFG_ENC_FS
 		if (size < RPMB_DATA_SIZE) {
 			/*
 			 * Since output buffer is not large enough to hold one
@@ -573,9 +563,6 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 		} else {
 			decrypt_block(out, frm->data, blk_idx, fek);
 		}
-#else
-		return TEE_ERROR_SECURITY;
-#endif
 	}
 
 	return TEE_SUCCESS;
@@ -584,7 +571,7 @@ static TEE_Result decrypt(uint8_t *out, const struct rpmb_data_frame *frm,
 static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 				    struct rpmb_raw_data *rawdata,
 				    uint16_t nbr_frms, uint16_t dev_id,
-				    const uint8_t *fek __unused)
+				    const uint8_t *fek)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
@@ -638,13 +625,11 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			       RPMB_NONCE_SIZE);
 
 		if (rawdata->data) {
-#ifdef CFG_ENC_FS
 			if (fek)
 				encrypt_block(datafrm[i].data,
 					rawdata->data + (i * RPMB_DATA_SIZE),
 					*rawdata->blk_idx + i, fek);
 			else
-#endif
 				memcpy(datafrm[i].data,
 				       rawdata->data + (i * RPMB_DATA_SIZE),
 				       RPMB_DATA_SIZE);
@@ -1914,7 +1899,6 @@ out:
 	return res;
 }
 
-#ifdef CFG_ENC_FS
 static TEE_Result generate_fek(struct rpmb_fat_entry *fe)
 {
 	TEE_Result res;
@@ -1929,13 +1913,6 @@ again:
 
 	return res;
 }
-#else
-static TEE_Result generate_fek(struct rpmb_fat_entry *fe)
-{
-	memset(fe->fek, 0, sizeof(fe->fek));
-	return TEE_SUCCESS;
-}
-#endif
 
 static int rpmb_fs_open_internal(const char *file, int flags, ...)
 {

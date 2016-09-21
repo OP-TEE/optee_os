@@ -227,19 +227,6 @@ static void put_fdp(struct sql_fs_fd *fdp)
 	free(fdp);
 }
 
-#ifndef CFG_ENC_FS
-static void copy_data(enum tee_fs_file_type type, uint8_t *raw_block,
-		      const uint8_t *data, size_t len)
-{
-	size_t header_size = tee_fs_get_header_size(type);
-
-	assert(type == META_FILE || type == BLOCK_FILE);
-
-	memset(raw_block, 0xFF, header_size);
-	memcpy(raw_block + header_size, data, len);
-}
-#endif
-
 static int write_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 {
 	int fd = fdp->fd;
@@ -260,7 +247,6 @@ static int write_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 	if (rc < 0)
 		goto exit;
 
-#ifdef CFG_ENC_FS
 	{
 		TEE_Result res;
 
@@ -274,10 +260,6 @@ static int write_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 			goto exit;
 		}
 	}
-#else
-	copy_data(META_FILE, ct, (const uint8_t *)&fdp->meta,
-		  sizeof(fdp->meta));
-#endif
 
 	rc = sql_fs_write_rpc(fdp->fd, ct, ct_size);
 	if (rc != (int)ct_size)
@@ -337,7 +319,6 @@ static int read_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 			goto exit;
 		rc = create_meta(errno, fdp);
 	} else if (rc == (int)msize) {
-#ifdef CFG_ENC_FS
 		TEE_Result res;
 
 		res = tee_fs_decrypt_file(META_FILE, meta, msize,
@@ -348,11 +329,6 @@ static int read_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 			rc = -1;
 			goto exit;
 		}
-#else
-		memcpy((uint8_t *)&fdp->meta,
-		       meta + tee_fs_get_header_size(META_FILE),
-		       out_size);
-#endif
 		rc = 0;
 	} else {
 		/* Unexpected data length */
@@ -403,7 +379,6 @@ static int read_block(TEE_Result *errno, struct sql_fs_fd *fdp, size_t bnum,
 		goto exit;
 	}
 
-#ifdef CFG_ENC_FS
 	{
 		TEE_Result res;
 
@@ -415,9 +390,6 @@ static int read_block(TEE_Result *errno, struct sql_fs_fd *fdp, size_t bnum,
 			goto exit;
 		}
 	}
-#else
-	memcpy(data, ct + tee_fs_get_header_size(BLOCK_FILE), out_size);
-#endif
 
 exit:
 	free(ct);
@@ -446,7 +418,6 @@ static int write_block(TEE_Result *errno, struct sql_fs_fd *fdp,
 		goto exit;
 	}
 
-#ifdef CFG_ENC_FS
 	{
 		TEE_Result res;
 
@@ -458,9 +429,6 @@ static int write_block(TEE_Result *errno, struct sql_fs_fd *fdp,
 			goto exit;
 		}
 	}
-#else
-	copy_data(BLOCK_FILE, ct, data, BLOCK_SIZE);
-#endif
 
 	rc = sql_fs_write_rpc(fdp->fd, ct, ct_size);
 	if (rc < 0) {

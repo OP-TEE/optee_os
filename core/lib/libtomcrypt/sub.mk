@@ -78,7 +78,9 @@ $(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM64_CE)
 endif
 
 cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
-$(eval $(call cryp-enable-all-depends,CFG_ENC_FS, AES ECB CTR HMAC SHA256 GCM))
+$(eval $(call cryp-enable-all-depends,CFG_REE_FS, AES ECB CTR HMAC SHA256 GCM))
+$(eval $(call cryp-enable-all-depends,CFG_SQL_FS, AES ECB CTR HMAC SHA256 GCM))
+$(eval $(call cryp-enable-all-depends,CFG_RPMB_FS, AES ECB CTR HMAC SHA256 GCM))
 
 # Dependency checks: warn and disable some features if dependencies are not met
 

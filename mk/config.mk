@@ -133,10 +133,6 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # SQL FS stores its data in a SQLite database, accessed by normal world
 CFG_SQL_FS ?= n
 
-# File encryption support
-# Applies to all filesystems
-CFG_ENC_FS ?= y
-
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
 
