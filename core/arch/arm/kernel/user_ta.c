@@ -428,6 +428,7 @@ static void init_utee_param(struct utee_params *up,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			a = (uintptr_t)p->params[n].memref.buffer;
 			b = p->params[n].memref.size;
 			break;
@@ -456,6 +457,7 @@ static void update_from_utee_param(struct tee_ta_param *p,
 		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			/* See comment for struct utee_params in utee_types.h */
 			p->params[n].memref.size = up->vals[n * 2 + 1];
 			break;

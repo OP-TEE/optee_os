@@ -54,6 +54,7 @@ void __utee_from_param(struct utee_params *up, uint32_t param_types,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			up->vals[n * 2] = (uintptr_t)params[n].memref.buffer;
 			up->vals[n * 2 + 1] = params[n].memref.size;
 			break;
@@ -85,6 +86,7 @@ void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			params[n].memref.buffer = (void *)a;
 			params[n].memref.size = b;
 			break;

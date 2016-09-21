@@ -525,6 +525,7 @@ static void utee_param_to_param(struct tee_ta_param *p, struct utee_params *up)
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			p->params[n].memref.buffer = (void *)a;
 			p->params[n].memref.size = b;
 			p->param_attr[n] = TEE_MATTR_VIRTUAL;
@@ -596,6 +597,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			if (param->params[n].memref.buffer == NULL) {
 				if (param->params[n].memref.size != 0)
 					return TEE_ERROR_BAD_PARAMETERS;
@@ -605,6 +607,10 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			if (tee_mmu_is_vbuf_inside_ta_private(utc,
 				    param->params[n].memref.buffer,
 				    param->params[n].memref.size)) {
+
+				if (TEE_PARAM_TYPE_GET(param->types, n) ==
+				    TEE_PARAM_TYPE_MEMREF_SECURE)
+					return TEE_ERROR_BAD_PARAMETERS;
 
 				s = ROUNDUP(param->params[n].memref.size,
 						sizeof(uint32_t));
@@ -715,6 +721,7 @@ static TEE_Result tee_svc_update_out_param(
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			p = (void *)(uintptr_t)usr_param->vals[n * 2];
 
 			/* outside TA private => memref is valid, update size */

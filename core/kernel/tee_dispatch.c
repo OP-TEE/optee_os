@@ -45,6 +45,7 @@ static void update_out_param(const struct tee_ta_param *in, TEE_Param *out)
 		switch (TEE_PARAM_TYPE_GET(in->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_SECURE:
 			out[n].memref.size = in->params[n].memref.size;
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
