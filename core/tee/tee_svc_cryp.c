@@ -2471,7 +2471,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	}
 
 	if (last_block && cs->ctx_finalize != NULL) {
-		cs->ctx_finalize(cs->ctx, cs->mode);
+		cs->ctx_finalize(cs->ctx, cs->algo);
 		cs->ctx_finalize = NULL;
 	}
 

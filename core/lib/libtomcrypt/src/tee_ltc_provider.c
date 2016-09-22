@@ -2219,7 +2219,7 @@ static void cipher_final(void *ctx, uint32_t algo)
 		break;
 #endif
 	default:
-		/* TEE_ERROR_NOT_SUPPORTED; */
+		assert(TEE_ALG_GET_CLASS(algo) == TEE_OPERATION_CIPHER);
 		break;
 	}
 }
