@@ -1,4 +1,7 @@
 CFG_LTC_OPTEE_THREAD ?= y
+# Size of emulated TrustZone protected SRAM, 300 kB.
+# Only applicable when paging is enabled.
+CFG_CORE_TZSRAM_EMUL_SIZE ?= 307200
 
 # When used together with ARM Trusted FW, arguments shall
 # come from the Firwmware. Do not allow built-in arguments

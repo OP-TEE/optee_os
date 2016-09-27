@@ -2,6 +2,8 @@ CFG_NUM_THREADS ?= 16
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
+# Override default size of emulated TrustZone protected SRAM, 384 kB
+CFG_CORE_TZSRAM_EMUL_SIZE ?= 393216
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)

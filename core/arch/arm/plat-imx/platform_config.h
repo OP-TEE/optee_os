@@ -185,10 +185,10 @@
  *  TA_RAM  : all what is left (at least 2MByte !)
  */
 
-/* emulated SRAM, 256K at start of secure DDR */
+/* emulated SRAM, at start of secure DDR */
 
 #define TZSRAM_BASE				0x4E000000
-#define TZSRAM_SIZE				0x00040000
+#define TZSRAM_SIZE				CFG_CORE_TZSRAM_EMUL_SIZE
 
 /* Location of trusted dram */
 
