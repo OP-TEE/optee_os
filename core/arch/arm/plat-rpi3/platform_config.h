@@ -42,8 +42,6 @@
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	19200000
 
-#define HEAP_SIZE		(64 * 1024)
-
 /*
  * RPi memory map
  *

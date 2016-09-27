@@ -198,7 +198,7 @@ SECTIONS
 		 */
 		__heap1_start = .;
 #ifndef CFG_WITH_PAGER
-		. += HEAP_SIZE;
+		. += CFG_CORE_HEAP_SIZE;
 #endif
 		. = ALIGN(16 * 1024);
 		__heap1_end = .;
@@ -225,11 +225,11 @@ SECTIONS
 	.heap2 (NOLOAD) : {
 		__heap2_start = .;
 		/*
-		 * Reserve additional memory for heap, the total should
-		 * be at least HEAP_SIZE, but count what has already been
-		 * reserved in .heap1
+		 * Reserve additional memory for heap, the total should be
+		 * at least CFG_CORE_HEAP_SIZE, but count what has already
+		 * been reserved in .heap1
 		 */
-		. += HEAP_SIZE - (__heap1_end - __heap1_start);
+		. += CFG_CORE_HEAP_SIZE - (__heap1_end - __heap1_start);
 		. = ALIGN(4 * 1024);
 		__heap2_end = .;
 	}

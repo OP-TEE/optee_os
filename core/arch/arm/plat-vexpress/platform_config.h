@@ -101,8 +101,6 @@
 #error "Unknown platform flavor"
 #endif
 
-#define HEAP_SIZE		(24 * 1024)
-
 #if defined(PLATFORM_FLAVOR_fvp)
 /*
  * FVP specifics.

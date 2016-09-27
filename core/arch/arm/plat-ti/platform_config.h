@@ -58,8 +58,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#define HEAP_SIZE		(24 * 1024)
-
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
 #define CFG_SHMEM_START		(DRAM0_BASE)
 #define CFG_SHMEM_SIZE		0x100000

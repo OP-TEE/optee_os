@@ -76,8 +76,6 @@
 #define CFG_SHMEM_START		(TZDRAM_BASE - 0x100000)
 #define CFG_SHMEM_SIZE		0x100000
 
-#define HEAP_SIZE			(24 * 1024)
-
 /* Location of trusted dram on imx */
 #define TZDRAM_BASE			(0x9c100000)
 #define TZDRAM_SIZE			(0x03000000)

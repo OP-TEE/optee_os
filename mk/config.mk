@@ -204,3 +204,6 @@ CFG_BUILT_IN_ARGS ?= n
 CFG_PAGEABLE_ADDR ?= 0x0
 CFG_NS_ENTRY_ADDR ?=0x0
 CFG_DT_ADDR ?= 0x0
+
+# Default heap size for Core, 64 kB
+CFG_CORE_HEAP_SIZE ?= 65536

@@ -68,8 +68,6 @@
 
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x03F00000
 
-#define HEAP_SIZE			(24 * 1024)
-
 #define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE		2

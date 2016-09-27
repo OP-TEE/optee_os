@@ -65,9 +65,6 @@
 #error "Unknown platform flavor"
 #endif
 
-#define HEAP_SIZE		(128 * 1024)
-
-
 #define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
 
 #ifndef CFG_TEE_LOAD_ADDR

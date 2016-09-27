@@ -51,9 +51,6 @@
 #define RNG_BASE		0xD1010000
 #define RNG_REG_SIZE		0x18
 
-/* TEE core heap */
-#define HEAP_SIZE		(96 * 1024)
-
 /*
  * HiSilicon D02 memory map
  *

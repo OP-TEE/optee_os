@@ -30,7 +30,6 @@
 
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
-#define HEAP_SIZE		(24 * 1024)
 
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for zynqmp"
