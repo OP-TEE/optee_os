@@ -163,11 +163,13 @@ $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 pageable_sections := .*_pageable
 init_sections := .*_init
 cleanfiles += $(link-out-dir)/tee-pager.bin
-$(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf
+$(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
+		$(link-out-dir)/tee-data_end.txt
 	@$(cmd-echo-silent) '  OBJCOPY $@'
 	$(q)$(OBJCOPYcore) -O binary \
 		--remove-section="$(pageable_sections)" \
 		--remove-section="$(init_sections)" \
+		--pad-to `cat $(link-out-dir)/tee-data_end.txt` \
 		$< $@
 
 cleanfiles += $(link-out-dir)/tee-pageable.bin
@@ -177,6 +179,12 @@ $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 		--only-section="$(init_sections)" \
 		--only-section="$(pageable_sections)" \
 		$< $@
+
+cleanfiles += $(link-out-dir)/tee-data_end.txt
+$(link-out-dir)/tee-data_end.txt: $(link-out-dir)/tee.elf
+	@$(cmd-echo-silent) '  GEN     $@'
+	@echo -n 0x > $@
+	$(q)$(NMcore) $< | grep __data_end | sed 's/ .*$$//' >> $@
 
 cleanfiles += $(link-out-dir)/tee-init_size.txt
 $(link-out-dir)/tee-init_size.txt: $(link-out-dir)/tee.elf
