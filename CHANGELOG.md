@@ -1,3 +1,116 @@
+# OP-TEE - version 2.2.0
+
+[Link][github_commits_2_2_0] to a list of all commits between this release and
+the previous one (2.1.0).
+
+Please note: this release is API-compatible with the previous one, but the
+Secure Storage internal format is not compatible due to commit
+[fde4a75][commit_fde4a75] ("storage: encrypt the FEK with a TA-specific key").
+
+[commit_fde4a75]: https://github.com/OP-TEE/optee_os/commit/fde4a75
+
+## New features
+
+* New supported platforms:
+	* Freescale i.MX6 Quad SABRE Lite & SD
+	* HiSilicon D02
+	* Raspberry Pi3
+	* Renesas RCAR H3
+	* STMicroelectronics b2260 - h410
+
+* Pager: Support paging of read/write pages by encrypting them with AES-GCM.
+  Support paging of user TAs. Add global setting for TZSRAM size
+  (CFG_CORE_TZSRAM_EMUL_SIZE), defaults to 300K.
+
+* Support for more than 8 CPU cores
+
+* Added SPI framework and PL022 driver
+
+* GPIO: framework supports multiple instances, PL061 driver now has get/set
+  interrupt and mode control functions
+
+* Secure storage: Encrypt the File Encryption Key with a TA-specific key for
+  better TA isolation. Add build-time and run-time support for multiple storage
+  backends. Add SQLite backend.
+
+* Trusted User Interface: some code is introduced to support the implementation
+  of TUI. This includes: a generic framebuffer driver, display and serial
+  abstractions, and drivers for PL111 (LCD) / PL050 (KMI) / TZC400 and PS2
+  mouse.
+
+* AES acceleration using ARMv8-A Cryptographic Extensions instructions is
+  now supported in AArch32 mode
+
+* Add support for GCC flags: -fsanitize=undefined and -fsanitize=kernel-address
+
+* Use a global setting for core heap size (CFG_CORE_HEAP_SIZE), 64K by default.
+
+* Add macros to unwind and print the call stack of TEE core
+
+* Libtomcrypt: sync with the latest `develop` branch.
+
+* The Trusted Application SDK (ta_dev_kit.mk) can produce libraries (.a)
+
+* Rework assertions and TEE core panics and properly honor NDEBUG
+
+## Bug fixes
+
+* Fix incorrect algorithm passed to cipher.final()
+
+* scripts: support Python 2.x and 3.x
+
+* Secure storage: Add proper locking to support concurrent access. Fix sign
+  extension bug with offset parameter of syscall storage_obj_seek which could
+  cause errors in Aarch32 mode. Fix reading beyond end of file.
+
+* Aarch64: mask all maskable exceptions before doing a normal return from call.
+
+* Device Tree: add no-map property to OP-TEE node in reserved-memory.
+
+* LibTomcrypt: fix CVE-2016-6129
+
+## Known issues
+
+* New issues open on GitHub
+  * [#1093][issue1093] rcar-h3: xtest 6010 hangs
+  * [#1092][issue1092] rcar-h3: xtest 4010 fails
+  * [#1081][issue1081] Bad mapping of TA secure memref parameters
+  * [#1071][issue1071] __data_end may not correctly represent text start position when using CFG_WITH_PAGER
+  * [#1069][issue1069] armv7/Aarch32: crash in stack unwind (DPRINT_STACK())
+
+## Tested on
+
+In the list below, _standard_ means that the `xtest` program passed with
+its default configuration, while _extended_ means it was run successfully
+with the additional GlobalPlatform™ TEE Initial Configuration Test Suite
+v1.1.0.4.
+
+If a platform is not listed, it means the release was not tested on this
+platform.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02: extended
+* hikey: extended
+* imx-mx6qsabrelite: standard
+* imx-mx6qsabresd: standard
+* rcar-h3: standard, pass except issues [#1092][issue1092] and [#1093][issue1093]
+* rpi3: standard
+* stm-b2260: standard
+* stm-cannes: standard
+* ti-dra7xx: standard
+* vexpress-fvp: standard
+* vexpress-juno: standard
+* vexpress-qemu_armv8a: standard
+* vexpress-qemu_virt: extended
+* zynqmp-zcu102: standard
+
+[github_commits_2_2_0]: https://github.com/OP-TEE/optee_os/compare/2.1.0...2.2.0
+[issue1081]: https://github.com/OP-TEE/optee_os/issues/1081
+[issue1071]: https://github.com/OP-TEE/optee_os/issues/1071
+[issue1069]: https://github.com/OP-TEE/optee_os/issues/1069
+[issue1092]: https://github.com/OP-TEE/optee_os/issues/1092
+[issue1093]: https://github.com/OP-TEE/optee_os/issues/1093
+
 # OP-TEE - version 2.1.0
 
 ## New features
