@@ -15,8 +15,10 @@ for these platforms.
 | FSL i.MX6 UltraLite EVK Board		|`Peng Fan <peng.fan@nxp.com>`|
 | ARM Foundation FVP			|`Linaro <op-tee@linaro.org>`|
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
+| HiSilicon D02				|`Linaro <op-tee@linaro.org>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
+| Raspberry Pi3				|`Linaro <op-tee@linaro.org>`|
 | Renesas RCAR			|`Volodymyr Babchuk <vlad.babchuk@gmail.com>`|
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
