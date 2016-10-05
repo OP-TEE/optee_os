@@ -405,7 +405,7 @@ $ repo sync
 | HiKey Debian (experimental) | `hikey_debian.xml` | Not available |
 | MediaTek MT8173 EVB Board | `mt8173-evb.xml` | `mt8173-evb_stable.xml` |
 | ARM Juno board| `juno.xml` | `juno_stable.xml` |
-| Raspberry Pi 3 | `rpi3_experimental.xml` | Not available |
+| Raspberry Pi 3 | `rpi3.xml` | `rpi3_stable.xml` |
 
 #### 5.2.2 Branches
 Currently we are only using one branch, i.e, the `master` branch.
