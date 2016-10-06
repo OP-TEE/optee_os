@@ -85,19 +85,37 @@ Below is an excerpt from the specification listing the most vital requirements:
 OP-TEE by default use "/data/tee/" as the secure storage space in Linux
 file system. For each TA, OP-TEE use the TA's UUID to create a standalone folder
 for it under the secure storage space folder. For a persistent object belonging
-to a specific TA, OP-TEE creates a TEE file folder which's name is object-id
-under the TA folder.
+to a specific TA, OP-TEE creates a TEE file is object-id under the TA folder.
 
-In a TEE file folder, there is a meta file and several block files. Meta file is
-for storing the information of the TEE file which is used by TEE file system to
-manage the TEE file; block file is for storing the data of the persistent
-object.
+All fields in the REE file are duplicated with two versions 0 and 1. The
+active meta-data block is selected by the lowest bit in the
+meta-counter.  The active file block is selected by corresponding bit
+number instruct tee_fs_file_info.backup_version_table.
 
-If the compile time flag CFG_ENC_FS is set to 'y', the  data stored in block
-files will be encrypted, otherwise, the data will not be encrypted. The
-information stored in meta file are always encrypted. By default, CFG_ENC_FS is
-set to 'y' to keep the confidentiality of TEE files; It is recommended to
-change CFG_ENC_FS to 'n' only for TA debugging.
+The atomicity of each operation is ensured by updating meta-counter when
+everything in the secondary blocks (both meta-data and file-data blocks)
+are successfully written.  The main purpose of the code is to perform block
+encryption and authentication of the file data, and properly handle seeking
+through the file. One file (in the sense of struct tee_file_operations)
+maps to one file in the REE filesystem, and has the following structure:
+```
+[ 4 bytes meta-counter]
+[ meta-data version 0][ meta-data version 1 ]
+[ Block 0 version 0 ][ Block 0 version 1 ]
+[ Block 1 version 0 ][ Block 1 version 1 ]
+...
+[ Block n version 0 ][ Block n version 1 ]
+```
+
+One meta-data block is built up as:
+```
+[ struct meta_header | struct tee_fs_get_header_size ]
+```
+
+One data block is built up as:
+```
+[ struct block_header | BLOCK_FILE_SIZE bytes ]
+```
 
 The reason why we store the TEE file content in many small blocks is to
 accelerate the file update speed when handling a large file. The block size
@@ -184,41 +202,6 @@ following operations should support atomic update:
 
 The strategy used in OP-TEE secure storage to guarantee the atomicity is
 out-of-place update.
-
-### Out-Of-Place Update
-
-When modifying a meta file or a block file, TEE file system should create a
-backup version of the file and then modify it.  For the block file, the backup
-version is kept in its filename and in meta data, and for the meta file, the
-backup version is only kept in filename.
-
-Naming rule as follows:
-```
-meta.<backup_version>
-block<block_num>.<backup_version>
-```
-
-### 3-Stage Update
-
-An atomic operation can be split into three stages as described below:
-
-- **Out-Of-Place update stage**
-
-In this stage, TEE file system will do out-of-place update on the meta file
-or the block files to be modified. Any failure occurring at this stage will
-cause the operation to fail and no changes will be made.
-
-- **Commit stage**
-
-In this stage, TEE file system will commit the new meta file into Linux file
-system and delete the old meta file. Any failure occurring at this stage will
-cause the operation to fail and no changes will be made.
-
-- **Clean up stage**
-
-In this stage, TEE file system will clean up unnecessary or old block files.
-If an error occurs, the operation still be treated as a success but some
-garbage files may be left over in Linux file system.
 
 ## Future Work
 

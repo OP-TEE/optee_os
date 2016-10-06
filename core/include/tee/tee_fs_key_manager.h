@@ -41,9 +41,27 @@
 #define TEE_FS_KM_IV_LEN            12  /* bytes */
 #define TEE_FS_KM_MAX_TAG_LEN       16  /* bytes */
 
+
+#define BLOCK_FILE_SHIFT	12
+
+#define BLOCK_FILE_SIZE		(1 << BLOCK_FILE_SHIFT)
+
+#define NUM_BLOCKS_PER_FILE	1024
+
 enum tee_fs_file_type {
 	META_FILE,
 	BLOCK_FILE
+};
+
+struct tee_fs_file_info {
+	size_t length;
+	uint32_t backup_version_table[NUM_BLOCKS_PER_FILE / 32];
+};
+
+struct tee_fs_file_meta {
+	struct tee_fs_file_info info;
+	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
+	uint32_t counter;
 };
 
 struct common_header {
