@@ -80,13 +80,11 @@
  *
  */
 
+#define BLOCK_SHIFT	12
 
-#define MAX_FILE_SIZE	(BLOCK_FILE_SIZE * NUM_BLOCKS_PER_FILE)
+#define BLOCK_SIZE	(1 << BLOCK_SHIFT)
 
-struct block {
-	int block_num;
-	uint8_t *data;
-};
+#define MAX_FILE_SIZE	(BLOCK_SIZE * NUM_BLOCKS_PER_FILE)
 
 struct tee_fs_fd {
 	uint32_t meta_counter;
@@ -99,7 +97,7 @@ struct tee_fs_fd {
 
 static inline int pos_to_block_num(int position)
 {
-	return position >> BLOCK_FILE_SHIFT;
+	return position >> BLOCK_SHIFT;
 }
 
 static inline int get_last_block_num(size_t size)
@@ -178,7 +176,7 @@ static size_t meta_pos_raw(struct tee_fs_fd *fdp, bool active)
 
 static size_t block_size_raw(void)
 {
-	return tee_fs_get_header_size(BLOCK_FILE) + BLOCK_FILE_SIZE;
+	return tee_fs_get_header_size(BLOCK_FILE) + BLOCK_SIZE;
 }
 
 static size_t block_pos_raw(struct tee_fs_file_meta *meta, size_t block_num,
@@ -378,157 +376,84 @@ static TEE_Result read_meta(struct tee_fs_fd *fdp, const char *fname)
 	return read_meta_file(fdp, &fdp->meta);
 }
 
-static bool is_block_file_exist(struct tee_fs_file_meta *meta,
-					size_t block_num)
+static TEE_Result read_block(struct tee_fs_fd *fdp, int bnum, uint8_t *data)
 {
-	size_t file_size = meta->info.length;
+	TEE_Result res;
+	size_t ct_size = block_size_raw();
+	size_t out_size = BLOCK_SIZE;
+	ssize_t pos = block_pos_raw(&fdp->meta, bnum, true);
+	size_t bytes;
+	void *ct;
+	struct tee_fs_rpc_operation op;
 
-	if (file_size == 0)
-		return false;
+	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_FS,
+				       fdp->fd, pos, ct_size, &ct);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	if (res != TEE_SUCCESS)
+		return res;
+	if (!bytes) {
+		memset(data, 0, BLOCK_SIZE);
+		return TEE_SUCCESS; /* Block does not exist */
+	}
 
-	return (block_num <= (size_t)get_last_block_num(file_size));
+	return tee_fs_decrypt_file(BLOCK_FILE, ct, bytes, data,
+				   &out_size, fdp->meta.encrypted_fek);
 }
 
-static TEE_Result read_block_from_storage(struct tee_fs_fd *fdp,
-					  struct block *b)
+static TEE_Result write_block(struct tee_fs_fd *fdp, size_t bnum, uint8_t *data,
+			      struct tee_fs_file_meta *new_meta)
 {
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *plaintext = b->data;
-	size_t block_file_size = BLOCK_FILE_SIZE;
-	size_t offs = block_pos_raw(&fdp->meta, b->block_num, true);
+	TEE_Result res;
+	size_t offs = block_pos_raw(new_meta, bnum, false);
 
-	if (!is_block_file_exist(&fdp->meta, b->block_num))
-		goto exit;
-
-	res = read_and_decrypt_file(fdp, BLOCK_FILE, offs, plaintext,
-				    &block_file_size, fdp->meta.encrypted_fek);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to read and decrypt file");
-		goto exit;
-	}
-	if (block_file_size != BLOCK_FILE_SIZE)
-		return TEE_ERROR_GENERIC;
-	DMSG("Successfully read and decrypt block%d from storage",
-	     b->block_num);
-exit:
+	res = encrypt_and_write_file(fdp, BLOCK_FILE, offs, data,
+				     BLOCK_SIZE, new_meta->encrypted_fek);
+	if (res == TEE_SUCCESS)
+		toggle_backup_version_of_block(new_meta, bnum);
 	return res;
 }
-
-static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
-					 struct tee_fs_file_meta *new_meta)
-{
-	TEE_Result res;
-	size_t block_num = b->block_num;
-	size_t offs = block_pos_raw(&fdp->meta, b->block_num, false);
-
-	res = encrypt_and_write_file(fdp, BLOCK_FILE, offs, b->data,
-				     BLOCK_FILE_SIZE, new_meta->encrypted_fek);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to encrypt and write block file");
-		goto fail;
-	}
-
-	DMSG("Successfully encrypt and write block%d to storage",
-	     b->block_num);
-	toggle_backup_version_of_block(new_meta, block_num);
-
-	return 0;
-fail:
-	return -1;
-}
-
-static struct block *alloc_block(void)
-{
-	struct block *c;
-
-	c = malloc(sizeof(struct block));
-	if (!c)
-		return NULL;
-
-	c->data = malloc(BLOCK_FILE_SIZE);
-	if (!c->data) {
-		EMSG("unable to alloc memory for block data");
-		goto exit;
-	}
-
-	c->block_num = -1;
-
-	return c;
-
-exit:
-	free(c);
-	return NULL;
-}
-
-static void write_data_to_block(struct block *b, int offset,
-				void *buf, size_t len)
-{
-	DMSG("Write %zd bytes to block%d", len, b->block_num);
-	memcpy(b->data + offset, buf, len);
-}
-
-static void read_data_from_block(struct block *b, int offset,
-				void *buf, size_t len)
-{
-	DMSG("Read %zd bytes from block%d", len, b->block_num);
-	memcpy(buf, b->data + offset, len);
-}
-
-static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
-{
-	static struct block *b;
-	TEE_Result res;
-
-	if (!b)
-		b = alloc_block();
-	b->block_num = block_num;
-
-	res = read_block_from_storage(fdp, b);
-	if (res != TEE_SUCCESS)
-		EMSG("Unable to read block%d from storage",
-				block_num);
-
-	return res != TEE_SUCCESS ? NULL : b;
-}
-
-static struct block_operations block_ops = {
-	.read = read_block_no_cache,
-	.write = flush_block_to_storage,
-};
 
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 		size_t len, struct tee_fs_file_meta *new_meta)
 {
+	TEE_Result res;
 	int start_block_num = pos_to_block_num(fdp->pos);
 	int end_block_num = pos_to_block_num(fdp->pos + len - 1);
 	size_t remain_bytes = len;
 	uint8_t *data_ptr = (uint8_t *)buf;
+	uint8_t *block;
 	int orig_pos = fdp->pos;
 
+	block = malloc(BLOCK_SIZE);
+	if (!block)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
 	while (start_block_num <= end_block_num) {
-		int offset = fdp->pos % BLOCK_FILE_SIZE;
-		struct block *b;
-		size_t size_to_write = (remain_bytes > BLOCK_FILE_SIZE) ?
-			BLOCK_FILE_SIZE : remain_bytes;
+		int offset = fdp->pos % BLOCK_SIZE;
+		size_t size_to_write = MIN(remain_bytes, (size_t)BLOCK_SIZE);
 
-		if (size_to_write + offset > BLOCK_FILE_SIZE)
-			size_to_write = BLOCK_FILE_SIZE - offset;
+		if (size_to_write + offset > BLOCK_SIZE)
+			size_to_write = BLOCK_SIZE - offset;
 
-		b = block_ops.read(fdp, start_block_num);
-		if (!b)
-			goto failed;
+		res = read_block(fdp, start_block_num, block);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			memset(block, 0, BLOCK_SIZE);
+		else if (res != TEE_SUCCESS)
+			goto exit;
 
-		DMSG("Write data, offset: %d, size_to_write: %zd",
-			offset, size_to_write);
-		write_data_to_block(b, offset, data_ptr, size_to_write);
+		if (data_ptr)
+			memcpy(block + offset, data_ptr, size_to_write);
+		else
+			memset(block + offset, 0, size_to_write);
 
-		if (block_ops.write(fdp, b, new_meta)) {
-			EMSG("Unable to wrtie block%d to storage",
-					b->block_num);
-			goto failed;
-		}
+		res = write_block(fdp, start_block_num, block, new_meta);
+		if (res != TEE_SUCCESS)
+			goto exit;
 
-		data_ptr += size_to_write;
+		if (data_ptr)
+			data_ptr += size_to_write;
 		remain_bytes -= size_to_write;
 		start_block_num++;
 		fdp->pos += size_to_write;
@@ -537,10 +462,11 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 	if (fdp->pos > (tee_fs_off_t)new_meta->info.length)
 		new_meta->info.length = fdp->pos;
 
-	return TEE_SUCCESS;
-failed:
-	fdp->pos = orig_pos;
-	return TEE_ERROR_GENERIC;
+exit:
+	free(block);
+	if (res != TEE_SUCCESS)
+		fdp->pos = orig_pos;
+	return res;
 }
 
 static TEE_Result open_internal(const char *file, bool create, bool overwrite,
@@ -689,67 +615,24 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 	size_t old_file_len = fdp->meta.info.length;
 	struct tee_fs_file_meta new_meta;
 
-	if ((size_t)new_file_len == old_file_len) {
-		DMSG("Ignore due to file length does not changed");
-		return TEE_SUCCESS;
-	}
-
-	if (new_file_len > MAX_FILE_SIZE) {
-		EMSG("Over maximum file size(%d)", MAX_FILE_SIZE);
+	if (new_file_len > MAX_FILE_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
 	new_meta = fdp->meta;
 	new_meta.info.length = new_file_len;
 
-	if ((size_t)new_file_len < old_file_len) {
-		DMSG("Truncate file length to %zu", (size_t)new_file_len);
-
-		res = commit_meta_file(fdp, &new_meta);
-		if (res != TEE_SUCCESS)
-			return res;
-	} else {
+	if ((size_t)new_file_len > old_file_len) {
 		size_t ext_len = new_file_len - old_file_len;
 		int orig_pos = fdp->pos;
-		uint8_t *buf;
-
-		buf = calloc(1, BLOCK_FILE_SIZE);
-		if (!buf) {
-			EMSG("Failed to allocate buffer, size=%d",
-					BLOCK_FILE_SIZE);
-			return TEE_ERROR_OUT_OF_MEMORY;
-		}
-
-		DMSG("Extend file length to %zu", (size_t)new_file_len);
 
 		fdp->pos = old_file_len;
-
-		res = TEE_SUCCESS;
-		while (ext_len > 0) {
-			size_t data_len = (ext_len > BLOCK_FILE_SIZE) ?
-					BLOCK_FILE_SIZE : ext_len;
-
-			DMSG("fill len=%zu", data_len);
-			res = out_of_place_write(fdp, buf, data_len, &new_meta);
-			if (res != TEE_SUCCESS) {
-				EMSG("Failed to fill data");
-				break;
-			}
-
-			ext_len -= data_len;
-		}
-
-		free(buf);
+		res = out_of_place_write(fdp, NULL, ext_len, &new_meta);
 		fdp->pos = orig_pos;
-
-		if (res == TEE_SUCCESS) {
-			res = commit_meta_file(fdp, &new_meta);
-			if (res != TEE_SUCCESS)
-				EMSG("Failed to commit meta file");
-		}
+		if (res != TEE_SUCCESS)
+			return res;
 	}
 
-	return res;
+	return commit_meta_file(fdp, &new_meta);
 }
 
 static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
@@ -760,6 +643,7 @@ static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
 	int end_block_num;
 	size_t remain_bytes;
 	uint8_t *data_ptr = buf;
+	uint8_t *block = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
@@ -781,22 +665,28 @@ static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
 	start_block_num = pos_to_block_num(fdp->pos);
 	end_block_num = pos_to_block_num(fdp->pos + remain_bytes - 1);
 
+	block = malloc(BLOCK_SIZE);
+	if (!block) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
 	while (start_block_num <= end_block_num) {
-		struct block *b;
-		int offset = fdp->pos % BLOCK_FILE_SIZE;
-		size_t size_to_read = remain_bytes > BLOCK_FILE_SIZE ?
-			BLOCK_FILE_SIZE : remain_bytes;
+		tee_fs_off_t offset = fdp->pos % BLOCK_SIZE;
+		size_t size_to_read = MIN(remain_bytes, (size_t)BLOCK_SIZE);
 
-		if (size_to_read + offset > BLOCK_FILE_SIZE)
-			size_to_read = BLOCK_FILE_SIZE - offset;
+		if (size_to_read + offset > BLOCK_SIZE)
+			size_to_read = BLOCK_SIZE - offset;
 
-		b = block_ops.read(fdp, start_block_num);
-		if (!b) {
-			res = TEE_ERROR_CORRUPT_OBJECT;
+		res = read_block(fdp, start_block_num, block);
+		if (res != TEE_SUCCESS) {
+			if (res == TEE_ERROR_MAC_INVALID)
+				res = TEE_ERROR_CORRUPT_OBJECT;
 			goto exit;
 		}
 
-		read_data_from_block(b, offset, data_ptr, size_to_read);
+		memcpy(data_ptr, block + offset, size_to_read);
+
 		data_ptr += size_to_read;
 		remain_bytes -= size_to_read;
 		fdp->pos += size_to_read;
@@ -806,6 +696,7 @@ static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
 	res = TEE_SUCCESS;
 exit:
 	mutex_unlock(&ree_fs_mutex);
+	free(block);
 	return res;
 }
 
@@ -832,7 +723,6 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, const void *buf,
 	struct tee_fs_file_meta new_meta;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 	size_t file_size;
-
 
 	if (!len)
 		return TEE_SUCCESS;
@@ -863,30 +753,13 @@ exit:
 	return res;
 }
 
-static TEE_Result ree_fs_rename_internal(const char *old, const char *new,
-					 bool overwrite)
-{
-	size_t old_len;
-	size_t new_len;
-
-	DMSG("old=%s, new=%s", old, new);
-
-	old_len = strlen(old) + 1;
-	new_len = strlen(new) + 1;
-
-	if (old_len > TEE_FS_NAME_MAX || new_len > TEE_FS_NAME_MAX)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	return tee_fs_rpc_new_rename(OPTEE_MSG_RPC_CMD_FS, old, new, overwrite);
-}
-
 static TEE_Result ree_fs_rename(const char *old, const char *new,
 				bool overwrite)
 {
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = ree_fs_rename_internal(old, new, overwrite);
+	res = tee_fs_rpc_new_rename(OPTEE_MSG_RPC_CMD_FS, old, new, overwrite);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
