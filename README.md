@@ -83,6 +83,7 @@ platforms have different sub-maintainers, please refer to the file
 | [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
 | [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes |
 | [Renesas RCAR](https://www.renesas.com/en-sg/solutions/automotive/products/rcar-h3.html)|`PLATFORM=rcar`| No |
+| [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
 | [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
@@ -188,24 +189,27 @@ $ make CFG_TEE_CORE_LOG_LEVEL=4
 
 ---
 ### 4.4 STMicroelectronics boards
-Currently OP-TEE is supported on Orly-2 (`b2020-h416`) and Cannes family
-(`b2120` both `h310` and `h410` chip).
+Currently OP-TEE is supported on Orly-2 (`b2020-h416`), Cannes family
+(`b2120` both `h310` and `h410` chip) and 96boards/cannes board (`b2260-h410`).
 
-#### 4.4.1 Get the compiler for Orly-2
-Will be written soon.
+#### 4.4.1 Get the compiler
+Follow the instructions in the "4.2 Basic setup".
 
 #### 4.4.2 Download the source code
 See section "4.2.2 Download the source code".
 
-#### 4.4.3 Build for Orly-2
-For Orly-2 do as follows
+#### 4.4.3 Build the images and files
+For the 96boards/cannes:
 ```
-$ PLATFORM=stm-orly2 CROSS_COMPILE=arm-linux-gnueabihf- make
+$ make PLATFORM=stm-b2260
 ```
-
-For Cannes family do as follows
+For the legacy cannes family:
 ```
-$ PLATFORM=stm-cannes CROSS_COMPILE=arm-linux-gnueabihf- make
+$ make PLATFORM=stm-cannes
+```
+For the orly2 family
+```
+$ make PLATFORM=stm-orly2
 ```
 
 #### 4.4.4 Prepare and install the images

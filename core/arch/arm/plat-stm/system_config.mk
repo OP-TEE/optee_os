@@ -1,6 +1,11 @@
 # this script defines platform specific settings for TEE armv7 build
 
-ifeq ($(PLATFORM_FLAVOR),cannes)
+ifeq ($(PLATFORM_FLAVOR),b2260)
+
+CFG_DDR_TEETZ_RESERVED_START ?= 0x7E000000
+CFG_DDR_TEETZ_RESERVED_SIZE ?= 0x01E00000
+
+else ifeq ($(PLATFORM_FLAVOR),cannes)
 
 # Static configuration of DDR reserved to TEE/TZ
 # Provide here only start address and size. TEEcore will adapt.

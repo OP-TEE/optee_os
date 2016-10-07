@@ -20,6 +20,7 @@ for these platforms.
 | QEMU					|`Linaro <op-tee@linaro.org>`|
 | Raspberry Pi3				|`Linaro <op-tee@linaro.org>`|
 | Renesas RCAR			|`Volodymyr Babchuk <vlad.babchuk@gmail.com>`|
+| STMicroelectronics b2260 - h410	|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
 | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|

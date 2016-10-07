@@ -18,6 +18,13 @@ ta-targets = ta_arm32
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
+
+ifeq ($(PLATFORM_FLAVOR),b2260)
+CFG_PL310_LOCKED ?= y
+CFG_TEE_GDB_BOOT ?= n
+else
+CFG_PL310_LOCKED ?= n
 CFG_TEE_GDB_BOOT ?= y
+endif
 
 include $(platform-dir)/system_config.mk
