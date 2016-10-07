@@ -24,10 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdlib.h>
-#include <rng_support.h>
-#include <trace.h>
+
+#include <io.h>
+#include <kernel/panic.h>
+#include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <platform_config.h>
+#include <trace.h>
+
+#include "rng_support.h"
 
 #define USE_SW_DELAY         0
 
@@ -40,11 +45,20 @@
 #define USE_USER_TIMEOUT     1
 
 /* Address of the register to read in the RNG IP */
-#define RNG_VAL             (RNG_BASE + 0x24)
-#define RNG_STATUS          (RNG_BASE + 0x20)
+#define RNG_VAL_OFFSET             0x24
+#define RNG_STATUS_OFFSET          0x20
 
-static volatile uint32_t *_p_addr_val    = (uint32_t *)RNG_VAL;
-static volatile uint32_t *_p_addr_status = (uint32_t *)RNG_STATUS;
+static vaddr_t rng_base(void)
+{
+	static void *va __early_bss;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC);
+		return (vaddr_t)va;
+	}
+	return RNG_BASE;
+}
 
 static inline int hwrng_waithost_fifo_full(void)
 {
@@ -53,7 +67,7 @@ static inline int hwrng_waithost_fifo_full(void)
 
 	/* Wait HOST FIFO FULL (see rng_fspec_revG_120720.pdf) */
 	do {
-		status = *_p_addr_status;
+		status = read32(rng_base() + RNG_STATUS_OFFSET);
 	} while ((status & 0x20) != 0x20);
 
 	/* Check STATUS (see rng_fspec_revG_120720.pdf) */
@@ -137,7 +151,7 @@ uint8_t hw_get_random_byte(void)
 
 	/* Read the FIFO according the number of expected element */
 	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++) {
-		tmpval[i] = *_p_addr_val & 0xFFFF;
+		tmpval[i] = read32(rng_base() + RNG_VAL_OFFSET) & 0xFFFF;
 #if (USE_SW_DELAY == 1)
 		/* Wait 0.667 us (fcpu = 600Mhz -> 400 cycles) @see doc */
 		volatile int ll = 200;

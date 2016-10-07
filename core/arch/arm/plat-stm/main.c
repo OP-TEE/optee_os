@@ -110,7 +110,7 @@ vaddr_t pl310_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_NSEC);
+			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC);
 		return (vaddr_t)va;
 	}
 	return PL310_BASE;
