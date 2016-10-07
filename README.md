@@ -399,10 +399,10 @@ $ repo sync
 | Target | Latest | Stable |
 |--------|--------|--------|
 | QEMU | `default.xml` | `default_stable.xml` |
-| QEMUv8 | `qemu_v8.xml` | `Not available` |
+| QEMUv8 | `qemu_v8.xml` | `qemu_v8_stable.xml` |
 | FVP | `fvp.xml` | `fvp_stable.xml` |
 | HiKey | `hikey.xml` | `hikey_stable.xml` |
-| HiKey Debian (experimental) | `hikey_debian.xml` | Not available |
+| HiKey Debian | `hikey_debian.xml` | `hikey_debian_stable.xml` |
 | MediaTek MT8173 EVB Board | `mt8173-evb.xml` | `mt8173-evb_stable.xml` |
 | ARM Juno board| `juno.xml` | `juno_stable.xml` |
 | Raspberry Pi 3 | `rpi3.xml` | `rpi3_stable.xml` |
@@ -457,7 +457,7 @@ $ make flash
 [here](https://github.com/96boards/documentation/wiki/HiKeyUEFI#flash-binaries-to-emmc-))
 
 The board is ready to be booted.
-#### 5.5.2 Debian based / 96boards RPB (experimental)
+#### 5.5.2 Debian based / 96boards RPB
 Start by getting the source and toolchain (see above), then continue by
 downloading the system image (root fs). Note that this step is something you
 only should do once.
