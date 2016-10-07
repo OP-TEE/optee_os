@@ -80,22 +80,12 @@
  *
  */
 
-#define MAX_NUM_CACHED_BLOCKS	1
-
 
 #define MAX_FILE_SIZE	(BLOCK_FILE_SIZE * NUM_BLOCKS_PER_FILE)
 
-TAILQ_HEAD(block_head, block);
-
 struct block {
-	TAILQ_ENTRY(block) list;
 	int block_num;
 	uint8_t *data;
-};
-
-struct block_cache {
-	struct block_head block_lru;
-	uint8_t cached_block_num;
 };
 
 struct tee_fs_fd {
@@ -105,7 +95,6 @@ struct tee_fs_fd {
 	uint32_t flags;
 	bool is_new_file;
 	int fd;
-	struct block_cache block_cache;
 };
 
 static inline int pos_to_block_num(int position)
@@ -471,96 +460,6 @@ exit:
 	return NULL;
 }
 
-#ifdef CFG_FS_BLOCK_CACHE
-static void free_block(struct block *b)
-{
-	if (b) {
-		free(b->data);
-		free(b);
-	}
-}
-
-static inline bool is_block_data_invalid(struct block *b)
-{
-	return (b->data_size == 0);
-}
-
-static void get_block_from_cache(struct block_cache *cache,
-			int block_num, struct block **out_block)
-{
-	struct block *b, *found = NULL;
-
-	DMSG("Try to find block%d in cache", block_num);
-	TAILQ_FOREACH(b, &cache->block_lru, list) {
-		if (b->block_num == block_num) {
-			DMSG("Found in cache");
-			found = b;
-			break;
-		}
-	}
-
-	if (found) {
-		TAILQ_REMOVE(&cache->block_lru, found, list);
-		TAILQ_INSERT_HEAD(&cache->block_lru, found, list);
-		*out_block = found;
-		return;
-	}
-
-	DMSG("Not found, reuse oldest block on LRU list");
-	b = TAILQ_LAST(&cache->block_lru, block_head);
-	TAILQ_REMOVE(&cache->block_lru, b, list);
-	TAILQ_INSERT_HEAD(&cache->block_lru, b, list);
-	b->block_num = block_num;
-	b->data_size = 0;
-	*out_block = b;
-}
-
-static int init_block_cache(struct block_cache *cache)
-{
-	struct block *b;
-
-	TAILQ_INIT(&cache->block_lru);
-	cache->cached_block_num = 0;
-
-	while (cache->cached_block_num < MAX_NUM_CACHED_BLOCKS) {
-
-		b = alloc_block();
-		if (!b) {
-			EMSG("Failed to alloc block");
-			goto fail;
-		} else {
-			TAILQ_INSERT_HEAD(&cache->block_lru, b, list);
-			cache->cached_block_num++;
-		}
-	}
-	return 0;
-
-fail:
-	TAILQ_FOREACH(b, &cache->block_lru, list)
-		free_block(b);
-	return -1;
-}
-
-static void destroy_block_cache(struct block_cache *cache)
-{
-	struct block *b, *next;
-
-	TAILQ_FOREACH_SAFE(b, &cache->block_lru, list, next) {
-		TAILQ_REMOVE(&cache->block_lru, b, list);
-		free_block(b);
-	}
-}
-#else
-static int init_block_cache(struct block_cache *cache __unused)
-{
-	return 0;
-}
-
-static void destroy_block_cache(struct block_cache *cache __unused)
-{
-}
-#endif
-
 static void write_data_to_block(struct block *b, int offset,
 				void *buf, size_t len)
 {
@@ -574,23 +473,6 @@ static void read_data_from_block(struct block *b, int offset,
 	DMSG("Read %zd bytes from block%d", len, b->block_num);
 	memcpy(buf, b->data + offset, len);
 }
-
-#ifdef CFG_FS_BLOCK_CACHE
-static struct block *read_block_with_cache(struct tee_fs_fd *fdp, int block_num)
-{
-	struct block *b;
-
-	get_block_from_cache(&fdp->block_cache, block_num, &b);
-	if (is_block_data_invalid(b))
-		if (read_block_from_storage(fdp, b)) {
-			EMSG("Unable to read block%d from storage",
-					block_num);
-			return NULL;
-		}
-
-	return b;
-}
-#else
 
 static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
 {
@@ -608,14 +490,9 @@ static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
 
 	return res != TEE_SUCCESS ? NULL : b;
 }
-#endif
 
 static struct block_operations block_ops = {
-#ifdef CFG_FS_BLOCK_CACHE
-	.read = read_block_with_cache,
-#else
 	.read = read_block_no_cache,
-#endif
 	.write = flush_block_to_storage,
 };
 
@@ -687,12 +564,6 @@ static TEE_Result open_internal(const char *file, bool create, bool overwrite,
 
 	mutex_lock(&ree_fs_mutex);
 
-	/* init internal status */
-	if (init_block_cache(&fdp->block_cache)) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit_free_fd;
-	}
-
 	res = read_meta(fdp, file);
 	if (res == TEE_SUCCESS) {
 		if (overwrite) {
@@ -701,12 +572,12 @@ static TEE_Result open_internal(const char *file, bool create, bool overwrite,
 		}
 	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		if (!create)
-			goto exit_destroy_block_cache;
+			goto exit_free_fd;
 		res = create_meta(fdp, file);
 		if (res != TEE_SUCCESS)
 			goto exit_close_file;
 	} else {
-		goto exit_destroy_block_cache;
+		goto exit_free_fd;
 	}
 
 	*fh = (struct tee_file_handle *)fdp;
@@ -717,8 +588,6 @@ exit_close_file:
 		tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
 	if (create)
 		tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, file);
-exit_destroy_block_cache:
-	destroy_block_cache(&fdp->block_cache);
 exit_free_fd:
 	free(fdp);
 exit:
@@ -742,7 +611,6 @@ static void ree_fs_close(struct tee_file_handle **fh)
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)*fh;
 
 	if (fdp) {
-		destroy_block_cache(&fdp->block_cache);
 		tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
 		free(fdp);
 		*fh = NULL;
