@@ -248,7 +248,7 @@ static bool unwind_exec_insn(struct unwind_state *state)
 
 		mask = unwind_exec_read_byte(state);
 		if (mask == 0 || (mask & 0xf0) != 0)
-			return 1;
+			return false;
 
 		/* Update SP */
 		update_vsp = 1;
