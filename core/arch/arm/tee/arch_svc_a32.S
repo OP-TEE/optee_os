@@ -42,8 +42,8 @@
  */
 FUNC tee_svc_do_call , :
 UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
 	push	{r5-r9, lr}
-UNWIND(	.save	{r5-r9, lr})
 	mov	r7, sp
 	mov	r8, r0
 	mov	r9, r1
