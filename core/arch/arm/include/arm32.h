@@ -558,6 +558,22 @@ static __always_inline uint32_t read_lr(void)
 	asm volatile ("mov %0, lr" : "=r" (val));
 	return val;
 }
+
+static __always_inline uint32_t read_fp(void)
+{
+	uint32_t val;
+
+	asm volatile ("mov %0, fp" : "=r" (val));
+	return val;
+}
+
+static __always_inline uint32_t read_r7(void)
+{
+	uint32_t val;
+
+	asm volatile ("mov %0, r7" : "=r" (val));
+	return val;
+}
 #endif /*ASM*/
 
 #endif /*ARM32_H*/

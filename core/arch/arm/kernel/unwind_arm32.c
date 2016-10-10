@@ -367,10 +367,14 @@ void print_stack(int level)
 {
 	struct unwind_state state;
 
-	memset(&state, 0, sizeof(state));
+	memset(state.registers, 0, sizeof(state.registers));
+	/* r7: Thumb-style frame pointer */
+	state.registers[7] = read_r7();
+	/* r11: ARM-style frame pointer */
+	state.registers[FP] = read_fp();
 	state.registers[SP] = read_sp();
 	state.registers[LR] = read_lr();
-	state.registers[PC] = read_pc();
+	state.registers[PC] = (uint32_t)print_stack;
 
 	do {
 		switch (level) {
