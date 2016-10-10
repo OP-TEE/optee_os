@@ -28,11 +28,29 @@
 #define TEE_MMU_DEFS_H
 
 #ifndef CFG_WITH_LPAE
+/*
+ *        The selecting between ttbr0 and ttbr1
+ * TTBCR.N  |  First Address with TTBR1 |  TTBR0 table size | Index Range
+ * 0b000    |    TTBR1 not used         |       16KB        | VA[31:20]
+ * 0b001    |    0x80000000             |       8KB         | VA[30:20]
+ * 0b010    |    0x40000000             |       4KB         | VA[29:20]
+ * 0b011    |    0x20000000             |       2KB         | VA[28:20]
+ * 0b100    |    0x10000000             |       1KB         | VA[27:20]
+ * 0b101    |     0x8000000             |       512B        | VA[26:20]
+ * 0b110    |     0x4000000             |       256B        | VA[25:20]
+ * 0b111    |     0x2000000             |       128B        | VA[24:20]
+ *
+ * we use TTBR0 as the user space ttbr and TTBR1 as the kernel space in op-tee
+ * so the TTBCR.N value determines the address space partition as above.
+ * By default TTBCR.N is set to 7, which means 0~32MB(user) and 32MB~4G(kernel)
+ * Note: TTBCR.N can't be set to 0
+ */
+
 /* Defined to the smallest possible secondary L1 MMU table */
 #define TEE_MMU_TTBCR_N_VALUE		7
 
 /* Number of sections in ttbr0 when user mapping activated */
-#define TEE_MMU_UL1_NUM_ENTRIES         ((1 << TEE_MMU_TTBCR_N_VALUE) / 4)
+#define TEE_MMU_UL1_NUM_ENTRIES         (1 << (12 - TEE_MMU_TTBCR_N_VALUE))
 
 #define TEE_MMU_UL1_SIZE	(TEE_MMU_UL1_NUM_ENTRIES * sizeof(uint32_t))
 #define TEE_MMU_UL1_ALIGNMENT	TEE_MMU_UL1_SIZE
