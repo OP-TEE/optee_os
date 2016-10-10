@@ -283,7 +283,7 @@ static bool unwind_exec_insn(struct unwind_state *state)
 }
 
 /* Performs the unwind of a function */
-static int unwind_tab(struct unwind_state *state)
+static bool unwind_tab(struct unwind_state *state)
 {
 	uint32_t entry;
 
