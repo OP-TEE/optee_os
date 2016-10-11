@@ -31,11 +31,12 @@
  * It is assume each routine is called with return address in LR
  * and with ARM registers R0, R1, R2, R3 being scratchable.
  */
-#include <kernel/tz_ssvce_def.h>
+#include <arm32.h>
 #include <arm32_macros.S>
 #include <asm.S>
-#include <platform_config.h>
+#include <kernel/tz_ssvce_def.h>
 #include <kernel/unwind.h>
+#include <platform_config.h>
 
 #define CPUID_A9_R3P0_H 0x413f
 #define CPUID_A9_R3P0_L 0xc090
@@ -269,6 +270,12 @@ END_FUNC plat_cpu_reset_early
 FUNC plat_cpu_reset_late , :
 UNWIND(	.fnstart)
 
+	/* Allow NSec to manage FIQ/Imprecise abort (SCR[FW]=1, SCR[AW]=1) */
+	read_scr r0
+	orr r0, r0, #SCR_AW
+	orr r0, r0, #SCR_FW
+	write_scr r0
+
 	mrc p15, 0, r0, c0, c0, 5
 	ands r0, #3
 	beq _boot_late_primary_cpu
@@ -367,11 +374,6 @@ loop_1:
 	movw r1, #((CPU_PORT_FILT_START & 0xFFFF) | 1)
 	movt r1, #(CPU_PORT_FILT_START >> 16)
 	str  r1, [r0, #PL310_ADDR_FILT_START]
-
-	/* Allow NSec to manage FIQ/Imprecise abort */
-	mrc p15, 0, r0, c1, c1, 0    /* read Secure Configuration Register */
-	orr r0, r0, #0x30            /* SCR[FW]=1, SCR[AW]=1 */
-	mcr p15, 0, r0, c1, c1, 0    /* write updated value in Secure Configuration Register */
 
 	mov pc, lr
 UNWIND(	.fnend)

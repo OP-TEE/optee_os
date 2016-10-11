@@ -264,6 +264,17 @@ END_FUNC plat_cpu_reset_early
 FUNC plat_cpu_reset_late , :
 UNWIND(	.fnstart)
 
+	/*
+	 * Disallow NSec to mask FIQ [bit4: FW=0]
+	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
+	 * Imprecise Abort trapped to Abort Mode [bit3: EA=0]
+	 * In Sec world, FIQ trapped to FIQ Mode [bit2: FIQ=0]
+	 * IRQ always trapped to IRQ Mode [bit1: IRQ=0]
+	 * Secure World [bit0: NS=0]
+	 */
+	mov r0, #SCR_AW
+	write_scr r0		/* write Secure Configuration Register */
+
 	read_mpidr r0
 	ands r0, #3
 	beq _boot_late_primary_cpu
@@ -318,17 +329,6 @@ _boot_late_primary_cpu:
 	ldr  r1, [r0, #SCU_CTRL]
 	orr  r1, r1, r2
 	str  r1, [r0, #SCU_CTRL]
-
-	/*
-	 * Disallow NSec to mask FIQ [bit4: FW=0]
-	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
-	 * Imprecise Abort trapped to Abort Mode [bit3: EA=0]
-	 * In Sec world, FIQ trapped to FIQ Mode [bit2: FIQ=0]
-	 * IRQ always trapped to IRQ Mode [bit1: IRQ=0]
-	 * Secure World [bit0: NS=0]
-	 */
-	mov r0, #SCR_AW
-	write_scr r0		/* write Secure Configuration Register */
 
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
 	defined(PLATFORM_FLAVOR_mx6qsabresd)
