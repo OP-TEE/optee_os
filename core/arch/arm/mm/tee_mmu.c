@@ -389,6 +389,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		(TEE_MMU_UMAP_MAX_ENTRIES - TEE_MMU_UMAP_PARAM_IDX) *
 		sizeof(struct tee_mmap_region));
 
+	/* Map secure memory params first then nonsecure memory params */
 	for (n = 0; n < 4; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
 		TEE_Param *p = &param->params[n];
@@ -402,7 +403,33 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 			continue;
 
 		if (tee_pbuf_is_non_sec(p->memref.buffer, p->memref.size))
-			attr &= ~TEE_MATTR_SECURE;
+			continue;
+
+		if (param->param_attr[n] == OPTEE_SMC_SHM_CACHED)
+			attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
+		else
+			attr |= TEE_MATTR_CACHE_NONCACHE <<
+				TEE_MATTR_CACHE_SHIFT;
+
+		res = tee_mmu_umap_add_param(utc->mmu,
+				(paddr_t)p->memref.buffer, p->memref.size,
+				attr);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+	for (n = 0; n < 4; n++) {
+		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
+		TEE_Param *p = &param->params[n];
+		uint32_t attr = TEE_MMU_UDATA_ATTR & ~TEE_MATTR_SECURE;
+
+		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+			continue;
+		if (p->memref.size == 0)
+			continue;
+		if (!tee_pbuf_is_non_sec(p->memref.buffer, p->memref.size))
+			continue;
 
 		if (param->param_attr[n] == OPTEE_SMC_SHM_CACHED)
 			attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
