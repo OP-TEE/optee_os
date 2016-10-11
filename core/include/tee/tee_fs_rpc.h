@@ -26,7 +26,7 @@
  */
 
 /*
- * Interface with tee-supplicant for POSIX-like file operations
+ * Interface with tee-supplicant for file operations
  */
 
 #ifndef TEE_FS_RPC_H
@@ -37,28 +37,6 @@
 #include <tee_api_types.h>
 #include <tee/tee_fs.h>
 #include <kernel/thread.h>
-
-/*
- * Return values:
- *   < 0: error. The actual value is meaningless (see below).
- *  >= 0: success. The value may be a file descriptor, a number of bytes, or
- *        simply 0 depending on the function.
- *
- * The return value is the status set by the normal world (tee-supplicant) or
- * -1 in case of communication error. To facilitate debugging, tee-supplicant
- * uses -(errno) when an error code from libc is available. Therefore the
- * values are non-portable and specific values must not be tested in the code.
- */
-int tee_fs_rpc_access(int id, const char *name, int mode);
-int tee_fs_rpc_begin_transaction(int id);
-int tee_fs_rpc_end_transaction(int id, bool rollback);
-int tee_fs_rpc_link(int id, const char *old, const char *nw);
-int tee_fs_rpc_mkdir(int id, const char *path, tee_fs_mode_t mode);
-struct tee_fs_dir *tee_fs_rpc_opendir(int id, const char *name);
-struct tee_fs_dirent *tee_fs_rpc_readdir(int id, struct tee_fs_dir *d);
-int tee_fs_rpc_rename(int id, const char *old, const char *nw);
-int tee_fs_rpc_closedir(int id, struct tee_fs_dir *d);
-int tee_fs_rpc_rmdir(int id, const char *name);
 
 struct tee_fs_rpc_operation {
 	uint32_t id;
