@@ -217,32 +217,6 @@ exit:
 	return res;
 }
 
-static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
-			char *file,
-			const struct tee_file_operations *fops,
-			struct tee_file_handle **fh)
-{
-	TEE_Result res = TEE_SUCCESS;
-	char *dir = NULL;
-
-	assert(!*fh);
-	dir = tee_svc_storage_create_dirname(sess);
-	if (dir == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	mutex_lock(&ta_dir_mutex);
-
-	res = fops->create(file, true /* currently always overwrite */, fh);
-
-	mutex_unlock(&ta_dir_mutex);
-exit:
-	free(dir);
-
-	return res;
-}
-
 static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 				     struct tee_obj *o)
 {
@@ -352,7 +326,9 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 		goto exit;
 	}
 
-	res = tee_svc_storage_create_file(sess, tmpfile, fops, &o->fh);
+	mutex_lock(&ta_dir_mutex);
+	res = fops->create(tmpfile, &o->fh);
+	mutex_unlock(&ta_dir_mutex);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

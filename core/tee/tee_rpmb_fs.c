@@ -2577,24 +2577,9 @@ static TEE_Result rpmb_fs_open(const char *file, struct tee_file_handle **fh)
 	return rpmb_fs_open_internal(file, false, fh);
 }
 
-static TEE_Result rpmb_fs_create(const char *file, bool overwrite,
-				 struct tee_file_handle **fh)
+static TEE_Result rpmb_fs_create(const char *file, struct tee_file_handle **fh)
 {
-	TEE_Result res;
-
-	/*
-	 * try to open file without create flag, if failed try again with
-	 * create flag (to distinguish whether it's a new file or not)
-	 */
-	res = rpmb_fs_open_internal(file, false, fh);
-	if (res == TEE_SUCCESS) {
-		if (overwrite)
-			return TEE_SUCCESS;
-		rpmb_fs_close(fh);
-		return TEE_ERROR_ACCESS_CONFLICT;
-	} else {
-		return rpmb_fs_open_internal(file, true, fh);
-	}
+	return rpmb_fs_open_internal(file, true, fh);
 }
 
 const struct tee_file_operations rpmb_fs_ops = {

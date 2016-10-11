@@ -429,43 +429,28 @@ static void sql_fs_close(struct tee_file_handle **fh)
 	}
 }
 
-static TEE_Result open_internal(const char *file, bool create, bool overwrite,
+static TEE_Result open_internal(const char *file, bool create,
 				struct tee_file_handle **fh)
 {
 	TEE_Result res;
 	struct sql_fs_fd *fdp;
 	bool created = false;
 
-	mutex_lock(&sql_fs_mutex);
-
-	fdp = (struct sql_fs_fd *)calloc(1, sizeof(*fdp));
-	if (!fdp) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
+	fdp = calloc(1, sizeof(*fdp));
+	if (!fdp)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	fdp->fd = -1;
 
-	res = read_meta(fdp, file);
-	if (res == TEE_SUCCESS) {
-		if (overwrite) {
-			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto exit;
-		}
-	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (!create)
-			goto exit;
+	mutex_lock(&sql_fs_mutex);
+
+	if (create)
 		res = create_meta(fdp, file);
-		if (res != TEE_SUCCESS)
-			goto exit;
-		created = true;
+	else
+		res = read_meta(fdp, file);
+
+	if (res == TEE_SUCCESS) {
+		*fh = (struct tee_file_handle *)fdp;
 	} else {
-		goto exit;
-	}
-
-
-	*fh = (struct tee_file_handle *)fdp;
-exit:
-	if (res != TEE_SUCCESS) {
 		if (fdp && fdp->fd != -1)
 			tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
 		if (created)
@@ -478,13 +463,12 @@ exit:
 
 static TEE_Result sql_fs_open(const char *file, struct tee_file_handle **fh)
 {
-	return open_internal(file, false, false, fh);
+	return open_internal(file, false, fh);
 }
 
-static TEE_Result sql_fs_create(const char *file, bool overwrite,
-				struct tee_file_handle **fh)
+static TEE_Result sql_fs_create(const char *file, struct tee_file_handle **fh)
 {
-	return open_internal(file, true, overwrite, fh);
+	return open_internal(file, true, fh);
 }
 
 

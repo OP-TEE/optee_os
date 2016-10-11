@@ -469,7 +469,7 @@ exit:
 	return res;
 }
 
-static TEE_Result open_internal(const char *file, bool create, bool overwrite,
+static TEE_Result open_internal(const char *file, bool create,
 				struct tee_file_handle **fh)
 {
 	TEE_Result res;
@@ -490,46 +490,33 @@ static TEE_Result open_internal(const char *file, bool create, bool overwrite,
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = read_meta(fdp, file);
-	if (res == TEE_SUCCESS) {
-		if (overwrite) {
-			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto exit_close_file;
-		}
-	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (!create)
-			goto exit_free_fd;
+	if (create)
 		res = create_meta(fdp, file);
-		if (res != TEE_SUCCESS)
-			goto exit_close_file;
+	else
+		res = read_meta(fdp, file);
+
+	if (res == TEE_SUCCESS) {
+		*fh = (struct tee_file_handle *)fdp;
 	} else {
-		goto exit_free_fd;
+		if (fdp->fd != -1)
+			tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
+		if (create)
+			tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, file);
+		free(fdp);
 	}
 
-	*fh = (struct tee_file_handle *)fdp;
-	goto exit;
-
-exit_close_file:
-	if (fdp->fd != -1)
-		tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
-	if (create)
-		tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, file);
-exit_free_fd:
-	free(fdp);
-exit:
 	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
 static TEE_Result ree_fs_open(const char *file, struct tee_file_handle **fh)
 {
-	return open_internal(file, false, false, fh);
+	return open_internal(file, false, fh);
 }
 
-static TEE_Result ree_fs_create(const char *file, bool overwrite,
-				struct tee_file_handle **fh)
+static TEE_Result ree_fs_create(const char *file, struct tee_file_handle **fh)
 {
-	return open_internal(file, true, overwrite, fh);
+	return open_internal(file, true, fh);
 }
 
 static void ree_fs_close(struct tee_file_handle **fh)

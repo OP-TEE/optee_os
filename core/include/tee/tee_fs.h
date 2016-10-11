@@ -49,8 +49,7 @@ struct tee_file_handle;
  */
 struct tee_file_operations {
 	TEE_Result (*open)(const char *name, struct tee_file_handle **fh);
-	TEE_Result (*create)(const char *name, bool overwrite,
-			     struct tee_file_handle **fh);
+	TEE_Result (*create)(const char *name, struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle **fh);
 	TEE_Result (*read)(struct tee_file_handle *fh, void *buf, size_t *len);
 	TEE_Result (*write)(struct tee_file_handle *fh, const void *buf,
