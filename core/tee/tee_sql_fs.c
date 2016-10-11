@@ -85,11 +85,6 @@ static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
  * Interface with tee-supplicant
  */
 
-static int sql_fs_access_rpc(const char *name, int mode)
-{
-	return tee_fs_rpc_access(OPTEE_MSG_RPC_CMD_SQL_FS, name, mode);
-}
-
 static int sql_fs_begin_transaction_rpc(void)
 {
 	return tee_fs_rpc_begin_transaction(OPTEE_MSG_RPC_CMD_SQL_FS);
@@ -119,15 +114,8 @@ static TEE_Result sql_fs_remove_rpc(const char *file)
 static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw,
 				    bool overwrite)
 {
-	if (!sql_fs_access_rpc(nw, TEE_FS_F_OK)) {
-		if (!overwrite)
-			return TEE_ERROR_ACCESS_CONFLICT;
-		sql_fs_remove_rpc(nw);
-	}
-
-	if (tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw))
-		return TEE_ERROR_GENERIC;
-	return TEE_SUCCESS;
+	return tee_fs_rpc_new_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw,
+				    overwrite);
 }
 
 static void sql_fs_closedir_rpc(struct tee_fs_dir *d)
