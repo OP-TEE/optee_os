@@ -85,14 +85,15 @@ static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
  * Interface with tee-supplicant
  */
 
-static int sql_fs_begin_transaction_rpc(void)
+static TEE_Result sql_fs_begin_transaction_rpc(void)
 {
-	return tee_fs_rpc_begin_transaction(OPTEE_MSG_RPC_CMD_SQL_FS);
+	return tee_fs_rpc_new_begin_transaction(OPTEE_MSG_RPC_CMD_SQL_FS);
 }
 
-static int sql_fs_end_transaction_rpc(bool rollback)
+static TEE_Result sql_fs_end_transaction_rpc(bool rollback)
 {
-	return tee_fs_rpc_end_transaction(OPTEE_MSG_RPC_CMD_SQL_FS, rollback);
+	return tee_fs_rpc_new_end_transaction(OPTEE_MSG_RPC_CMD_SQL_FS,
+					     rollback);
 }
 
 static TEE_Result sql_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
