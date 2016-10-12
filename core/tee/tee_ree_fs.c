@@ -144,19 +144,19 @@ static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 static TEE_Result ree_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
 
 {
-	return tee_fs_rpc_new_opendir(OPTEE_MSG_RPC_CMD_FS, name, d);
+	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name, d);
 }
 
 static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 {
 	if (d)
-		tee_fs_rpc_new_closedir(OPTEE_MSG_RPC_CMD_FS, d);
+		tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_FS, d);
 }
 
 static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 				     struct tee_fs_dirent **ent)
 {
-	return tee_fs_rpc_new_readdir(OPTEE_MSG_RPC_CMD_FS, d, ent);
+	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_FS, d, ent);
 }
 
 static size_t meta_size(void)
@@ -205,8 +205,8 @@ static TEE_Result encrypt_and_write_file(struct tee_fs_fd *fdp,
 	size_t ciphertext_size = header_size + data_in_size;
 
 
-	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd,
-					offs, ciphertext_size, &ciphertext);
+	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd,
+				    offs, ciphertext_size, &ciphertext);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -215,7 +215,7 @@ static TEE_Result encrypt_and_write_file(struct tee_fs_fd *fdp,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_fs_rpc_new_write_final(&op);
+	return tee_fs_rpc_write_final(&op);
 }
 
 /*
@@ -233,12 +233,12 @@ static TEE_Result read_and_decrypt_file(struct tee_fs_fd *fdp,
 	void *ciphertext;
 
 	bytes = *data_out_size + tee_fs_get_header_size(file_type);
-	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd, offs,
-				       bytes, &ciphertext);
+	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd, offs,
+				   bytes, &ciphertext);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	res = tee_fs_rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -271,14 +271,14 @@ static TEE_Result write_meta_counter(struct tee_fs_fd *fdp)
 	size_t bytes = sizeof(uint32_t);
 	void *data;
 
-	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_FS,
-					fdp->fd, 0, bytes, &data);
+	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd, 0,
+				    bytes, &data);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	memcpy(data, &fdp->meta_counter, bytes);
 
-	return tee_fs_rpc_new_write_final(&op);
+	return tee_fs_rpc_write_final(&op);
 }
 
 static TEE_Result create_meta(struct tee_fs_fd *fdp, const char *fname)
@@ -293,7 +293,7 @@ static TEE_Result create_meta(struct tee_fs_fd *fdp, const char *fname)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_create(OPTEE_MSG_RPC_CMD_FS, fname, &fdp->fd);
+	res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_FS, fname, &fdp->fd);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -344,12 +344,12 @@ static TEE_Result read_meta_counter(struct tee_fs_fd *fdp)
 	void *data;
 	size_t bytes = sizeof(uint32_t);
 
-	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_FS,
-				       fdp->fd, 0, bytes, &data);
+	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd, 0,
+				   bytes, &data);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	res = tee_fs_rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -365,7 +365,7 @@ static TEE_Result read_meta(struct tee_fs_fd *fdp, const char *fname)
 {
 	TEE_Result res;
 
-	res = tee_fs_rpc_new_open(OPTEE_MSG_RPC_CMD_FS, fname, &fdp->fd);
+	res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, fname, &fdp->fd);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -386,11 +386,11 @@ static TEE_Result read_block(struct tee_fs_fd *fdp, int bnum, uint8_t *data)
 	void *ct;
 	struct tee_fs_rpc_operation op;
 
-	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_FS,
-				       fdp->fd, pos, ct_size, &ct);
+	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_FS, fdp->fd, pos,
+				   ct_size, &ct);
 	if (res != TEE_SUCCESS)
 		return res;
-	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	res = tee_fs_rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 	if (!bytes) {
@@ -499,9 +499,9 @@ static TEE_Result open_internal(const char *file, bool create,
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
 		if (fdp->fd != -1)
-			tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
+			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
 		if (create)
-			tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, file);
+			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, file);
 		free(fdp);
 	}
 
@@ -524,7 +524,7 @@ static void ree_fs_close(struct tee_file_handle **fh)
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)*fh;
 
 	if (fdp) {
-		tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
+		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
 		free(fdp);
 		*fh = NULL;
 	}
@@ -746,7 +746,7 @@ static TEE_Result ree_fs_rename(const char *old, const char *new,
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = tee_fs_rpc_new_rename(OPTEE_MSG_RPC_CMD_FS, old, new, overwrite);
+	res = tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_FS, old, new, overwrite);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -757,7 +757,7 @@ static TEE_Result ree_fs_remove(const char *file)
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, file);
+	res = tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, file);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;

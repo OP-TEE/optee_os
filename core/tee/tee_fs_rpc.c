@@ -79,17 +79,17 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 	return res;
 }
 
-TEE_Result tee_fs_rpc_new_open(uint32_t id, const char *fname, int *fd)
+TEE_Result tee_fs_rpc_open(uint32_t id, const char *fname, int *fd)
 {
 	return operation_open(id, OPTEE_MRF_OPEN, fname, fd);
 }
 
-TEE_Result tee_fs_rpc_new_create(uint32_t id, const char *fname, int *fd)
+TEE_Result tee_fs_rpc_create(uint32_t id, const char *fname, int *fd)
 {
 	return operation_open(id, OPTEE_MRF_CREATE, fname, fd);
 }
 
-TEE_Result tee_fs_rpc_new_close(uint32_t id, int fd)
+TEE_Result tee_fs_rpc_close(uint32_t id, int fd)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
 
@@ -100,9 +100,9 @@ TEE_Result tee_fs_rpc_new_close(uint32_t id, int fd)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_read_init(struct tee_fs_rpc_operation *op,
-				    uint32_t id, int fd, tee_fs_off_t offset,
-				    size_t data_len, void **out_data)
+TEE_Result tee_fs_rpc_read_init(struct tee_fs_rpc_operation *op,
+				uint32_t id, int fd, tee_fs_off_t offset,
+				size_t data_len, void **out_data)
 {
 	uint8_t *va;
 	paddr_t pa;
@@ -134,8 +134,8 @@ TEE_Result tee_fs_rpc_new_read_init(struct tee_fs_rpc_operation *op,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_fs_rpc_new_read_final(struct tee_fs_rpc_operation *op,
-				     size_t *data_len)
+TEE_Result tee_fs_rpc_read_final(struct tee_fs_rpc_operation *op,
+				 size_t *data_len)
 {
 	TEE_Result res = operation_commit(op);
 
@@ -144,9 +144,9 @@ TEE_Result tee_fs_rpc_new_read_final(struct tee_fs_rpc_operation *op,
 	return res;
 }
 
-TEE_Result tee_fs_rpc_new_write_init(struct tee_fs_rpc_operation *op,
-				     uint32_t id, int fd, tee_fs_off_t offset,
-				     size_t data_len, void **data)
+TEE_Result tee_fs_rpc_write_init(struct tee_fs_rpc_operation *op,
+				 uint32_t id, int fd, tee_fs_off_t offset,
+				 size_t data_len, void **data)
 {
 	uint8_t *va;
 	paddr_t pa;
@@ -179,12 +179,12 @@ TEE_Result tee_fs_rpc_new_write_init(struct tee_fs_rpc_operation *op,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_fs_rpc_new_write_final(struct tee_fs_rpc_operation *op)
+TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op)
 {
 	return operation_commit(op);
 }
 
-TEE_Result tee_fs_rpc_new_truncate(uint32_t id, int fd, size_t len)
+TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
 
@@ -196,7 +196,7 @@ TEE_Result tee_fs_rpc_new_truncate(uint32_t id, int fd, size_t len)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_remove(uint32_t id, const char *fname)
+TEE_Result tee_fs_rpc_remove(uint32_t id, const char *fname)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
 	void *va;
@@ -220,8 +220,8 @@ TEE_Result tee_fs_rpc_new_remove(uint32_t id, const char *fname)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_rename(uint32_t id, const char *old_fname,
-				 const char *new_fname, bool overwrite)
+TEE_Result tee_fs_rpc_rename(uint32_t id, const char *old_fname,
+			     const char *new_fname, bool overwrite)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	char *va;
@@ -254,8 +254,8 @@ TEE_Result tee_fs_rpc_new_rename(uint32_t id, const char *old_fname,
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_opendir(uint32_t id, const char *name,
-				  struct tee_fs_dir **d)
+TEE_Result tee_fs_rpc_opendir(uint32_t id, const char *name,
+			      struct tee_fs_dir **d)
 {
 	TEE_Result res;
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
@@ -300,7 +300,7 @@ err_exit:
 	return res;
 }
 
-TEE_Result tee_fs_rpc_new_closedir(uint32_t id, struct tee_fs_dir *d)
+TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
 
@@ -314,8 +314,8 @@ TEE_Result tee_fs_rpc_new_closedir(uint32_t id, struct tee_fs_dir *d)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_readdir(uint32_t id, struct tee_fs_dir *d,
-				  struct tee_fs_dirent **ent)
+TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
+			      struct tee_fs_dirent **ent)
 {
 	TEE_Result res;
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
@@ -353,7 +353,7 @@ TEE_Result tee_fs_rpc_new_readdir(uint32_t id, struct tee_fs_dir *d,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_fs_rpc_new_begin_transaction(uint32_t id)
+TEE_Result tee_fs_rpc_begin_transaction(uint32_t id)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
 
@@ -363,7 +363,7 @@ TEE_Result tee_fs_rpc_new_begin_transaction(uint32_t id)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_new_end_transaction(uint32_t id, bool rollback)
+TEE_Result tee_fs_rpc_end_transaction(uint32_t id, bool rollback)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
 

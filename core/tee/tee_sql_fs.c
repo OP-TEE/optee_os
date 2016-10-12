@@ -87,42 +87,41 @@ static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
 
 static TEE_Result sql_fs_begin_transaction_rpc(void)
 {
-	return tee_fs_rpc_new_begin_transaction(OPTEE_MSG_RPC_CMD_SQL_FS);
+	return tee_fs_rpc_begin_transaction(OPTEE_MSG_RPC_CMD_SQL_FS);
 }
 
 static TEE_Result sql_fs_end_transaction_rpc(bool rollback)
 {
-	return tee_fs_rpc_new_end_transaction(OPTEE_MSG_RPC_CMD_SQL_FS,
+	return tee_fs_rpc_end_transaction(OPTEE_MSG_RPC_CMD_SQL_FS,
 					     rollback);
 }
 
 static TEE_Result sql_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
 {
-	return tee_fs_rpc_new_opendir(OPTEE_MSG_RPC_CMD_SQL_FS, name, d);
+	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_SQL_FS, name, d);
 }
 
 static TEE_Result sql_fs_readdir_rpc(struct tee_fs_dir *d,
 				     struct tee_fs_dirent **ent)
 {
-	return tee_fs_rpc_new_readdir(OPTEE_MSG_RPC_CMD_SQL_FS, d, ent);
+	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_SQL_FS, d, ent);
 }
 
 static TEE_Result sql_fs_remove_rpc(const char *file)
 {
-	return tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+	return tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
 }
 
 static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw,
 				    bool overwrite)
 {
-	return tee_fs_rpc_new_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw,
-				    overwrite);
+	return tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw, overwrite);
 }
 
 static void sql_fs_closedir_rpc(struct tee_fs_dir *d)
 {
 	if (d)
-		tee_fs_rpc_new_closedir(OPTEE_MSG_RPC_CMD_SQL_FS, d);
+		tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_SQL_FS, d);
 }
 
 /*
@@ -164,8 +163,8 @@ static TEE_Result write_meta(struct sql_fs_fd *fdp)
 	void *ct;
 	struct tee_fs_rpc_operation op;
 
-	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
-					fdp->fd, 0, ct_size, &ct);
+	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, 0,
+				    ct_size, &ct);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -177,7 +176,7 @@ static TEE_Result write_meta(struct sql_fs_fd *fdp)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_fs_rpc_new_write_final(&op);
+	return tee_fs_rpc_write_final(&op);
 }
 
 static TEE_Result create_meta(struct sql_fs_fd *fdp, const char *fname)
@@ -190,7 +189,7 @@ static TEE_Result create_meta(struct sql_fs_fd *fdp, const char *fname)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_create(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
+	res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -206,16 +205,16 @@ static TEE_Result read_meta(struct sql_fs_fd *fdp, const char *fname)
 	size_t bytes;
 	struct tee_fs_rpc_operation op;
 
-	res = tee_fs_rpc_new_open(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
+	res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
-				       fdp->fd, 0, msize, &meta);
+	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, 0,
+				   msize, &meta);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	res = tee_fs_rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -241,11 +240,11 @@ static TEE_Result read_block(struct sql_fs_fd *fdp, size_t bnum, uint8_t *data)
 	void *ct;
 	struct tee_fs_rpc_operation op;
 
-	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
-				       fdp->fd, pos, ct_size, &ct);
+	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
+				   ct_size, &ct);
 	if (res != TEE_SUCCESS)
 		return res;
-	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	res = tee_fs_rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 	if (!bytes)
@@ -264,8 +263,8 @@ static TEE_Result write_block(struct sql_fs_fd *fdp, size_t bnum, uint8_t *data)
 	void *ct;
 	struct tee_fs_rpc_operation op;
 
-	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
-					fdp->fd, pos, ct_size, &ct);
+	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
+				    ct_size, &ct);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -274,7 +273,7 @@ static TEE_Result write_block(struct sql_fs_fd *fdp, size_t bnum, uint8_t *data)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_fs_rpc_new_write_final(&op);
+	return tee_fs_rpc_write_final(&op);
 }
 
 /*
@@ -333,8 +332,8 @@ static TEE_Result sql_fs_ftruncate_internal(struct sql_fs_fd *fdp,
 
 		if (last_block < old_last_block) {
 			off = block_pos_raw(last_block);
-			res = tee_fs_rpc_new_truncate(OPTEE_MSG_RPC_CMD_SQL_FS,
-						      fdp->fd, off);
+			res = tee_fs_rpc_truncate(OPTEE_MSG_RPC_CMD_SQL_FS,
+						  fdp->fd, off);
 			if (res != TEE_SUCCESS)
 				goto exit;
 		}
@@ -412,7 +411,7 @@ static void sql_fs_close(struct tee_file_handle **fh)
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)*fh;
 
 	if (fdp) {
-	tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
 		free(fdp);
 		*fh = NULL;
 	}
@@ -441,9 +440,9 @@ static TEE_Result open_internal(const char *file, bool create,
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
 		if (fdp && fdp->fd != -1)
-			tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
 		if (created)
-			tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
 		free(fdp);
 	}
 	mutex_unlock(&sql_fs_mutex);
