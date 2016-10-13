@@ -344,6 +344,9 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	}
 
 	tee_ta_unlink_session(sess, open_sessions);
+#if defined(CFG_TA_GPROF_SUPPORT)
+	free(sess->sbuf);
+#endif
 	free(sess);
 
 	tee_ta_clear_busy(ctx);
@@ -399,7 +402,6 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 	s->ctx = ctx;
 	return TEE_SUCCESS;
 }
-
 
 
 static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
@@ -703,3 +705,62 @@ void tee_ta_dump_current(void)
 
 	dump_state(s->ctx);
 }
+
+#if defined(CFG_TA_GPROF_SUPPORT)
+void tee_ta_gprof_sample_pc(vaddr_t pc)
+{
+	struct tee_ta_session *s;
+	struct sample_buf *sbuf;
+	size_t idx;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		return;
+	sbuf = s->sbuf;
+	if (!sbuf || !sbuf->enabled)
+		return; /* PC sampling is not enabled */
+
+	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
+	if (idx < sbuf->nsamples)
+		sbuf->samples[idx]++;
+	sbuf->count++;
+}
+
+/*
+ * Update user-mode CPU time for the current session
+ * @suspend: true if session is being suspended (leaving user mode), false if
+ * it is resumed (entering user mode)
+ */
+static void tee_ta_update_session_utime(bool suspend)
+{
+	struct tee_ta_session *s;
+	struct sample_buf *sbuf;
+	uint64_t now;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		return;
+	sbuf = s->sbuf;
+	if (!sbuf)
+		return;
+	now = read_cntpct();
+	if (suspend) {
+		assert(sbuf->usr_entered);
+		sbuf->usr += now - sbuf->usr_entered;
+		sbuf->usr_entered = 0;
+	} else {
+		assert(!sbuf->usr_entered);
+		if (!now)
+			now++; /* 0 is reserved */
+		sbuf->usr_entered = now;
+	}
+}
+
+void tee_ta_update_session_utime_suspend(void)
+{
+	tee_ta_update_session_utime(true);
+}
+
+void tee_ta_update_session_utime_resume(void)
+{
+	tee_ta_update_session_utime(false);
+}
+#endif

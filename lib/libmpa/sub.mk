@@ -1,7 +1,7 @@
 global-incdirs-y += include
 
 ifneq ($(sm),core) # User-mode
-cflags-lib-$(CFG_U_LIBMPA_GPROF) += -pg
+cflags-lib-$(CFG_ULIBS_GPROF) += -pg
 endif
 
 srcs-y += mpa_misc.c

@@ -210,16 +210,19 @@ CFG_BOOT_SECONDARY_REQUEST ?= n
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
 
-ifeq ($(CFG_TA_GPROF),y)
-# Build various user-mode libraries with profiling enabled (-pg)
-CFG_LIBUTEE_GPROF ?= y
-CFG_U_LIBUTILS_GPROF ?= y
-CFG_U_LIBMPA_GPROF ?= y
-endif
+# TA profiling.
+# When this option is enabled, OP-TEE can execute Trusted Applications
+# instrumented with GCC's -pg flag and will output profiling information
+# in gmon.out format to /tmp/gmon-<ta_uuid>.out (path is defined in
+# tee-supplicant)
+CFG_TA_GPROF_SUPPORT ?= n
 
-ifeq ($(filter y,$(CFG_LIBUTEE_GPROF) $(CFG_U_LIBUTILS_GPROF) \
-		 $(CFG_U_LIBMPA_GPROF)),y)
+# Enable to compile user TA libraries with profiling (-pg).
+# Depends on CFG_TA_GPROF_SUPPORT.
+CFG_ULIBS_GPROF ?= n
+
+ifeq ($(CFG_ULIBS_GPROF),y)
 ifneq ($(CFG_TA_GPROF_SUPPORT),y)
-$(error Cannot instrument user library if user mode profiling is disabled)
+$(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif

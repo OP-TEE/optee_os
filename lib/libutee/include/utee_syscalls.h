@@ -294,4 +294,6 @@ TEE_Result utee_se_channel_close(unsigned long c);
 /* op is of type enum utee_cache_operation */
 TEE_Result utee_cache_operation(void *va, size_t l, unsigned long op);
 
+TEE_Result utee_gprof_send(void *buf, size_t size, uint32_t *id);
+
 #endif /* UTEE_SYSCALLS_H */

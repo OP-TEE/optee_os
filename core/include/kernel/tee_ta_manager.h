@@ -80,6 +80,20 @@ struct tee_ta_ops {
 	void (*destroy)(struct tee_ta_ctx *ctx);
 };
 
+#if defined(CFG_TA_GPROF_SUPPORT)
+struct sample_buf {
+	uint32_t nsamples;	/* Size of @samples array in uint16_t */
+	uint32_t offset;	/* Passed from user mode */
+	uint32_t scale;		/* Passed from user mode */
+	uint32_t count;		/* Number of samples taken */
+	bool enabled;		/* Sampling enabled? */
+	uint16_t *samples;
+	uint64_t usr;		/* Total user CPU time for this session */
+	uint64_t usr_entered;	/* When this session last entered user mode */
+	uint32_t freq;		/* @usr divided by @freq is in seconds */
+};
+#endif
+
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TEE_UUID uuid;
@@ -107,6 +121,9 @@ struct tee_ta_session {
 	struct condvar lock_cv;	/* CV used to wait for lock */
 	int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
+#if defined(CFG_TA_GPROF_SUPPORT)
+	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
+#endif
 };
 
 /* Registered contexts */
@@ -160,5 +177,15 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 void tee_ta_put_session(struct tee_ta_session *sess);
 
 void tee_ta_dump_current(void);
+
+#if defined(CFG_TA_GPROF_SUPPORT)
+void tee_ta_gprof_sample_pc(vaddr_t pc);
+void tee_ta_update_session_utime_suspend(void);
+void tee_ta_update_session_utime_resume(void);
+#else
+static inline void tee_ta_gprof_sample_pc(vaddr_t pc __unused) {}
+static inline void tee_ta_update_session_utime_suspend(void) {}
+static inline void tee_ta_update_session_utime_resume(void) {}
+#endif
 
 #endif

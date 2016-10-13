@@ -38,6 +38,19 @@
 #include <malloc.h>
 #include "tee_api_private.h"
 
+/*
+ * Pull in symbol __utee_mcount.
+ * This symbol is implemented in assembly in its own compilation unit, and is
+ * never referenced except by the linker script (in a PROVIDE() command).
+ * Because the compilation units are packed into an archive (libutee.a), the
+ * linker will discard the compilation units that are not explicitly
+ * referenced. AFAICT this occurs *before* the linker processes the PROVIDE()
+ * command, resulting in an "undefined symbol" error. We avoid this by
+ * adding an explicit reference here.
+ */
+extern uint8_t __utee_mcount[];
+void *_ref__utee_mcount __unused = &__utee_mcount;
+
 struct ta_session {
 	uint32_t session_id;
 	void *session_ctx;
@@ -93,6 +106,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 		if (!context_init) {
 			trace_set_level(tahead_get_trace_level());
+			__utee_gprof_init();
 			malloc_add_pool(ta_heap, ta_heap_size);
 			_TEE_MathAPI_Init();
 			context_init = true;
@@ -124,8 +138,10 @@ static void ta_header_remove_session(uint32_t session_id)
 			TEE_Free(itr);
 
 			ta_ref_count--;
-			if (ta_ref_count == 0)
+			if (ta_ref_count == 0) {
+				__utee_gprof_fini();
 				TA_DestroyEntryPoint();
+			}
 
 			return;
 		}

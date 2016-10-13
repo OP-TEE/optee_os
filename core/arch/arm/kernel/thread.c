@@ -498,6 +498,30 @@ static void copy_a0_to_a5(struct thread_ctx_regs *regs,
 }
 #endif /*ARM64*/
 
+#ifdef ARM32
+static bool is_from_user(uint32_t cpsr)
+{
+	return (cpsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_USR;
+}
+#endif
+
+#ifdef ARM64
+static bool is_from_user(uint32_t cpsr)
+{
+	if (cpsr & (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT))
+		return true;
+	if (((cpsr >> SPSR_64_MODE_EL_SHIFT) & SPSR_64_MODE_EL_MASK) ==
+	     SPSR_64_MODE_EL0)
+		return true;
+	return false;
+}
+#endif
+
+static bool is_user_mode(struct thread_ctx_regs *regs)
+{
+	return is_from_user((uint32_t)regs->cpsr);
+}
+
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
 	size_t n = args->a3; /* thread id */
@@ -523,6 +547,9 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	}
 
 	l->curr_thread = n;
+
+	if (is_user_mode(&threads[n].regs))
+		tee_ta_update_session_utime_resume();
 
 	if (threads[n].have_user_map)
 		core_mmu_set_user_map(&threads[n].user_map);
@@ -646,25 +673,6 @@ void thread_state_free(void)
 	unlock_global();
 }
 
-#ifdef ARM32
-static bool is_from_user(uint32_t cpsr)
-{
-	return (cpsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_USR;
-}
-#endif
-
-#ifdef ARM64
-static bool is_from_user(uint32_t cpsr)
-{
-	if (cpsr & (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT))
-		return true;
-	if (((cpsr >> SPSR_64_MODE_EL_SHIFT) & SPSR_64_MODE_EL_MASK) ==
-	     SPSR_64_MODE_EL0)
-		return true;
-	return false;
-}
-#endif
-
 #ifdef CFG_WITH_PAGER
 static void release_unused_kernel_stack(struct thread_ctx *thr)
 {
@@ -691,8 +699,11 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	release_unused_kernel_stack(threads + ct);
 
-	if (is_from_user(cpsr))
+	if (is_from_user(cpsr)) {
 		thread_user_save_vfp();
+		tee_ta_update_session_utime_suspend();
+		tee_ta_gprof_sample_pc(pc);
+	}
 	thread_lazy_restore_ns_vfp();
 
 	lock_global();
@@ -1080,6 +1091,8 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 		uint32_t *exit_status0, uint32_t *exit_status1)
 {
 	uint32_t spsr;
+
+	tee_ta_update_session_utime_resume();
 
 	if (!get_spsr(is_32bit, entry_func, &spsr)) {
 		*exit_status0 = 1; /* panic */

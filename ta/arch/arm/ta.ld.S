@@ -1,10 +1,18 @@
 #ifdef ARM32
 OUTPUT_FORMAT("elf32-littlearm")
 OUTPUT_ARCH(arm)
+#define MCOUNT_SYM __gnu_mcount_nc
+/*
+ * This magic value corresponds to the size requested by
+ * libutee/arch/arm/gprof/gprof.c
+ */
+#define GPROF_BUF_MULT(x) ((x) * 136) / 100
 #endif
 #ifdef ARM64
 OUTPUT_FORMAT("elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
+#define MCOUNT_SYM _mcount
+#define GPROF_BUF_MULT(x) ((x) * 177) / 100
 #endif
 
 PHDRS {
@@ -24,6 +32,7 @@ SECTIONS {
 	.ta_head : {*(.ta_head)} :exec
 
 	.text : {
+		__text_start = .;
 		*(.text .text.*)
 		*(.stub)
 		*(.glue_7)
@@ -31,6 +40,8 @@ SECTIONS {
 		*(.gnu.linkonce.t.*)
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
+		PROVIDE(MCOUNT_SYM = __utee_mcount);
+		__text_end = .;
 	}
 	.eh_frame : { *(.eh_frame) } :rodata
 	.rodata : {
@@ -77,7 +88,24 @@ SECTIONS {
 
 	.data : { *(.data .data.* .gnu.linkonce.d.*) } :rwdata
 
-	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
+	.bss : {
+		*(.bss .bss.* .gnu.linkonce.b.* COMMON)
+
+		/*
+		 * TA profiling with gprof
+		 * Reserve some space for the profiling buffer, only if the
+		 * TA is instrumented (i.e., some files were built with -pg).
+		 * Note that PROVIDE() above defines a symbol only if it is
+		 * referenced in the object files.
+		 * This also provides a way to detect at runtime if the TA is
+		 * instrumented or not.
+		 */
+		. = ALIGN(8);
+		__gprof_buf_start = .;
+		. += DEFINED(MCOUNT_SYM) ?
+			GPROF_BUF_MULT(__text_end - __text_start) : 0;
+		__gprof_buf_end = .;
+	}
 
 	/DISCARD/ : { *(.interp) }
 }
