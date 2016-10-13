@@ -209,3 +209,17 @@ CFG_BOOT_SECONDARY_REQUEST ?= n
 
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
+
+ifeq ($(CFG_TA_GPROF),y)
+# Build various user-mode libraries with profiling enabled (-pg)
+CFG_LIBUTEE_GPROF ?= y
+CFG_U_LIBUTILS_GPROF ?= y
+CFG_U_LIBMPA_GPROF ?= y
+endif
+
+ifeq ($(filter y,$(CFG_LIBUTEE_GPROF) $(CFG_U_LIBUTILS_GPROF) \
+		 $(CFG_U_LIBMPA_GPROF)),y)
+ifneq ($(CFG_TA_GPROF_SUPPORT),y)
+$(error Cannot instrument user library if user mode profiling is disabled)
+endif
+endif
