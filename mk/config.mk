@@ -215,3 +215,12 @@ CFG_CORE_HEAP_SIZE ?= 65536
 # used by any code instrumented with GCC's -pg option.
 # You need to enable this if you want to profile a Trusted Application
 CFG_TA_GPROF_SUPPORT ?= n
+
+# Build various user-mode libraries with profiling
+CFG_LIBUTEE_GPROF ?= n
+
+ifeq ($(filter y,$(CFG_LIBUTEE_GPROF)),y)
+ifneq ($(CFG_TA_GPROF_SUPPORT),y)
+$(error Cannot instrument user library if user mode profiling is disabled)
+endif
+endif
