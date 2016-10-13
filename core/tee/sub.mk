@@ -38,6 +38,7 @@ srcs-y += tee_fs_key_manager.c
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
 srcs-y += tee_time_generic.c
+srcs-$(CFG_TA_GPROF_SUPPORT) += tee_profiling.c
 
 endif #CFG_WITH_USER_TA,y
 

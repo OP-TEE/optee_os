@@ -178,4 +178,22 @@
  * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS
  */
 
+/*
+ * Send TA profiling information to normal world
+ *
+ * [in/out] param[0].u.value.a		File identifier. Must be set to 0 on
+ *					first call. A value >= 1 will be
+ *					returned on success. Re-use this value
+ *					to append data to the same file.
+ *
+ * [in] param[1].u.tmem.buf_ptr		Physical address of TA UUID
+ * [in] param[1].u.tmem.size		Size of UUID
+ * [in] param[1].u.tmem.shm_ref		Shared memory reference
+ *
+ * [in] param[2].u.tmem.buf_ptr		Physical address of profile data buffer
+ * [in] param[2].u.tmem.size		Buffer size
+ * [in] param[2].u.tmem.shm_ref		Shared memory reference
+ */
+#define OPTEE_MSG_RPC_CMD_GPROF		9
+
 #endif /*__OPTEE_MSG_SUPPLICANT_H*/
