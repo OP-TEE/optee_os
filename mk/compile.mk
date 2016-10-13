@@ -63,7 +63,7 @@ objs		+= $2
 comp-dep-$2	:= $$(dir $2).$$(notdir $2).d
 comp-cmd-file-$2:= $$(dir $2).$$(notdir $2).cmd
 comp-sm-$2	:= $(sm)
-comp-lib-$2	:= $(libname)
+comp-lib-$2	:= $(libname)-$(sm)
 
 cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 
