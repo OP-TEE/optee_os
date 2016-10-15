@@ -85,6 +85,33 @@ SECTIONS
 		__text_end = .;
 	}
 
+	.rodata : ALIGN(8) {
+		__rodata_start = .;
+		*(.gnu.linkonce.r.*)
+#ifdef CFG_WITH_PAGER
+		*(.rodata .rodata.__unpaged)
+#include <rodata_unpaged.ld.S>
+#else
+		*(.rodata .rodata.*)
+
+		/*
+		 * 8 to avoid unwanted padding between __start_ta_head_section
+		 * and the first structure in ta_head_section, in 64-bit
+		 * builds
+		 */
+		. = ALIGN(8);
+		__start_ta_head_section = . ;
+		KEEP(*(ta_head_section))
+		__stop_ta_head_section = . ;
+		. = ALIGN(8);
+		__start_phys_mem_map_section = . ;
+		KEEP(*(phys_mem_map_section))
+		__end_phys_mem_map_section = . ;
+#endif
+		. = ALIGN(8);
+		__rodata_end = .;
+	}
+
 	.interp : { *(.interp) }
 	.hash : { *(.hash) }
 	.dynsym : { *(.dynsym) }
@@ -124,34 +151,6 @@ SECTIONS
 		*(.ARM.extab*)
 		__extab_end = .;
 	}
-
-	.rodata : ALIGN(8) {
-		__rodata_start = .;
-		*(.gnu.linkonce.r.*)
-#ifdef CFG_WITH_PAGER
-		*(.rodata .rodata.__unpaged)
-#include <rodata_unpaged.ld.S>
-#else
-		*(.rodata .rodata.*)
-
-		/*
-		 * 8 to avoid unwanted padding between __start_ta_head_section
-		 * and the first structure in ta_head_section, in 64-bit
-		 * builds
-		 */
-		. = ALIGN(8);
-		__start_ta_head_section = . ;
-		KEEP(*(ta_head_section))
-		__stop_ta_head_section = . ;
-		. = ALIGN(8);
-		__start_phys_mem_map_section = . ;
-		KEEP(*(phys_mem_map_section))
-		__end_phys_mem_map_section = . ;
-#endif
-		. = ALIGN(8);
-		__rodata_end = .;
-	}
-
 
 	.data : ALIGN(8) {
 		/* writable data  */
