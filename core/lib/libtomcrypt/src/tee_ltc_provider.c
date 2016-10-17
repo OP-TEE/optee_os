@@ -2199,6 +2199,12 @@ static void cipher_final(void *ctx, uint32_t algo)
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
 		cbc_done(ctx);
 		break;
 #endif
@@ -2219,7 +2225,7 @@ static void cipher_final(void *ctx, uint32_t algo)
 		break;
 #endif
 	default:
-		assert(TEE_ALG_GET_CLASS(algo) == TEE_OPERATION_CIPHER);
+		assert(!"Unhandled algo");
 		break;
 	}
 }
