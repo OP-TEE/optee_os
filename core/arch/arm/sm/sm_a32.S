@@ -103,9 +103,11 @@ UNWIND(	.fnend)
 END_FUNC sm_restore_modes_regs
 
 /*
- * Stack is utilized as:
- * generic stack;
- * struct sm_ctx;
+ * stack_tmp is used as stack, the top of the stack is reserved to hold
+ * struct sm_ctx, everything below is for normal stack usage. As several
+ * different CPU modes are using the same stack it's important that switch
+ * of CPU mode isn't done until one mode is done. This means FIQ, IRQ and
+ * Async abort has to be masked while using stack_tmp.
  */
 LOCAL_FUNC sm_smc_entry , :
 UNWIND(	.fnstart)

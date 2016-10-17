@@ -35,7 +35,8 @@
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride
+	 * SP_EL0 is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride -
+	 *		      stack_tmp_offset
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
@@ -50,6 +51,9 @@
 		adrp	x1, stack_tmp
 		add	x1, x1, :lo12:stack_tmp
 		add	x1, x1, x2
+		adr	x2, stack_tmp_offset
+		ldr	w2, [x2]
+		sub	x1, x1, x2
 		msr	spsel, #0
 		mov	sp, x1
 		bl	thread_get_core_local

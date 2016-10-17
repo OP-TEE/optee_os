@@ -52,11 +52,18 @@
 
 #include "thread_private.h"
 
+#ifdef CFG_WITH_ARM_TRUSTED_FW
+#define STACK_TMP_OFFS		0
+#else
+#define STACK_TMP_OFFS		SM_STACK_TMP_RESERVE_SIZE
+#endif
+
+
 #ifdef ARM32
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-#define STACK_TMP_SIZE		3072
+#define STACK_TMP_SIZE		(3072 + STACK_TMP_OFFS)
 #else
-#define STACK_TMP_SIZE		1024
+#define STACK_TMP_SIZE		(1024 + STACK_TMP_OFFS)
 #endif
 #define STACK_THREAD_SIZE	8192
 
@@ -73,7 +80,7 @@
 #endif /*ARM32*/
 
 #ifdef ARM64
-#define STACK_TMP_SIZE		2048
+#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
 #define STACK_THREAD_SIZE	8192
 
 #if TRACE_LEVEL > 0
@@ -117,14 +124,12 @@ linkage uint32_t name[num_stacks] \
 
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, /* global */);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-DECLARE_STACK(stack_sm, CFG_TEE_CORE_NB_CORE, SM_STACK_SIZE, static);
-#endif
 #ifndef CFG_WITH_PAGER
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
-const uint32_t stack_tmp_stride = STACK_SIZE(stack_tmp[0]);
+const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
+const uint32_t stack_tmp_offset = STACK_TMP_OFFS + STACK_CANARY_SIZE / 2;
 
 KEEP_PAGER(stack_tmp);
 KEEP_PAGER(stack_tmp_stride);
@@ -161,9 +166,6 @@ static void init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-	INIT_CANARY(stack_sm);
-#endif
 #ifndef CFG_WITH_PAGER
 	INIT_CANARY(stack_thread);
 #endif
@@ -195,14 +197,6 @@ void thread_check_canaries(void)
 			CANARY_DIED(stack_abt, end, n);
 
 	}
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-	for (n = 0; n < ARRAY_SIZE(stack_sm); n++) {
-		if (GET_START_CANARY(stack_sm, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_sm, start, n);
-		if (GET_END_CANARY(stack_sm, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_sm, end, n);
-	}
-#endif
 #ifndef CFG_WITH_PAGER
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
 		if (GET_START_CANARY(stack_thread, n) != START_CANARY_VALUE)
@@ -843,7 +837,7 @@ static void init_sec_mon(size_t pos __maybe_unused)
 {
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
-	sm_init(GET_STACK(stack_sm[pos]));
+	sm_init(GET_STACK(stack_tmp[pos]));
 #endif
 }
 
@@ -854,7 +848,7 @@ void thread_init_per_cpu(void)
 
 	init_sec_mon(pos);
 
-	set_tmp_stack(l, GET_STACK(stack_tmp[pos]));
+	set_tmp_stack(l, GET_STACK(stack_tmp[pos]) - STACK_TMP_OFFS);
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 
 	thread_init_vbar();

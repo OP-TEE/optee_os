@@ -102,13 +102,10 @@ struct sm_ctx {
 };
 
 /*
- * sm_from_nsec() uses 2 * 4 bytes
- *
- * Add some spare space since a C function is called using this stack.
- * These functions can sometimes use more stack depending on compiler
- * options.
+ * The secure monitor reserves space at top of stack_tmp to hold struct
+ * sm_ctx.
  */
-#define SM_STACK_SIZE	(sizeof(struct sm_ctx) + 32 * 4)
+#define SM_STACK_TMP_RESERVE_SIZE	sizeof(struct sm_ctx)
 
 
 
