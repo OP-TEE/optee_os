@@ -227,4 +227,4 @@ script:
   - $make PLATFORM=rpi3 CFG_ARM64_core=y
 
   # Run regression tests (xtest in QEMU)
-  - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
