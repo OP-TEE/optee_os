@@ -25,8 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <types_ext.h>
 #include <kernel/thread.h>
+#include <sm/sm.h>
+#include <types_ext.h>
 #include "thread_private.h"
 
 #define DEFINES void __defines(void); void __defines(void)
@@ -37,6 +38,17 @@
 DEFINES
 {
 #ifdef ARM32
+	DEFINE(SM_NSEC_CTX_R0, offsetof(struct sm_nsec_ctx, r0));
+	DEFINE(SM_NSEC_CTX_R8, offsetof(struct sm_nsec_ctx, r8));
+	DEFINE(SM_SEC_CTX_R0, offsetof(struct sm_sec_ctx, r0));
+	DEFINE(SM_SEC_CTX_MON_LR, offsetof(struct sm_sec_ctx, mon_lr));
+	DEFINE(SM_CTX_SIZE, sizeof(struct sm_ctx));
+	DEFINE(SM_CTX_NSEC, offsetof(struct sm_ctx, nsec));
+	DEFINE(SM_CTX_SEC, offsetof(struct sm_ctx, sec));
+
+	DEFINE(THREAD_VECTOR_TABLE_FIQ_ENTRY,
+	       offsetof(struct thread_vector_table, fiq_entry));
+
 	DEFINE(THREAD_SVC_REG_R0, offsetof(struct thread_svc_regs, r0));
 	DEFINE(THREAD_SVC_REG_R5, offsetof(struct thread_svc_regs, r5));
 	DEFINE(THREAD_SVC_REG_R6, offsetof(struct thread_svc_regs, r6));

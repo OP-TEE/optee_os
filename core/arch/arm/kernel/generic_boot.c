@@ -647,12 +647,12 @@ static void init_secondary_helper(unsigned long nsec_entry)
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-uint32_t *generic_boot_init_primary(unsigned long pageable_part,
-				    unsigned long u __unused,
-				    unsigned long fdt)
+struct thread_vector_table *
+generic_boot_init_primary(unsigned long pageable_part, unsigned long u __unused,
+			  unsigned long fdt)
 {
 	init_primary_helper(pageable_part, PADDR_INVALID, fdt);
-	return thread_vector_table;
+	return &thread_vector_table;
 }
 
 unsigned long generic_boot_cpu_on_handler(unsigned long a0 __maybe_unused,

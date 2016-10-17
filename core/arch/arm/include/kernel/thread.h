@@ -44,7 +44,18 @@
 #define THREAD_RPC_MAX_NUM_PARAMS	3
 
 #ifndef ASM
-extern uint32_t thread_vector_table[];
+struct thread_vector_table {
+	uint32_t std_smc_entry;
+	uint32_t fast_smc_entry;
+	uint32_t cpu_on_entry;
+	uint32_t cpu_off_entry;
+	uint32_t cpu_resume_entry;
+	uint32_t cpu_suspend_entry;
+	uint32_t fiq_entry;
+	uint32_t system_off_entry;
+	uint32_t system_reset_entry;
+};
+extern struct thread_vector_table thread_vector_table;
 
 struct thread_specific_data {
 	TAILQ_HEAD(, tee_ta_session) sess_stack;

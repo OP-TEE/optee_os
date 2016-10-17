@@ -27,7 +27,6 @@
 #include <platform_config.h>
 
 #include <sm/sm.h>
-#include <sm/sm_defs.h>
 #include <sm/tee_mon.h>
 #include <sm/optee_smc.h>
 #include <optee_msg.h>

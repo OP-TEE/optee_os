@@ -140,20 +140,20 @@ void init_sec_mon(unsigned long nsec_entry)
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
 
-	nsec_ctx->usr_sp = plat_ctx->usr_sp;
-	nsec_ctx->usr_lr = plat_ctx->usr_lr;
-	nsec_ctx->irq_spsr = plat_ctx->irq_spsr;
-	nsec_ctx->irq_sp = plat_ctx->irq_sp;
-	nsec_ctx->irq_lr = plat_ctx->irq_lr;
-	nsec_ctx->svc_spsr = plat_ctx->svc_spsr;
-	nsec_ctx->svc_sp = plat_ctx->svc_sp;
-	nsec_ctx->svc_lr = plat_ctx->svc_lr;
-	nsec_ctx->abt_spsr = plat_ctx->abt_spsr;
-	nsec_ctx->abt_sp = plat_ctx->abt_sp;
-	nsec_ctx->abt_lr = plat_ctx->abt_lr;
-	nsec_ctx->und_spsr = plat_ctx->und_spsr;
-	nsec_ctx->und_sp = plat_ctx->und_sp;
-	nsec_ctx->und_lr = plat_ctx->und_lr;
+	nsec_ctx->mode_regs.usr_sp = plat_ctx->usr_sp;
+	nsec_ctx->mode_regs.usr_lr = plat_ctx->usr_lr;
+	nsec_ctx->mode_regs.irq_spsr = plat_ctx->irq_spsr;
+	nsec_ctx->mode_regs.irq_sp = plat_ctx->irq_sp;
+	nsec_ctx->mode_regs.irq_lr = plat_ctx->irq_lr;
+	nsec_ctx->mode_regs.svc_spsr = plat_ctx->svc_spsr;
+	nsec_ctx->mode_regs.svc_sp = plat_ctx->svc_sp;
+	nsec_ctx->mode_regs.svc_lr = plat_ctx->svc_lr;
+	nsec_ctx->mode_regs.abt_spsr = plat_ctx->abt_spsr;
+	nsec_ctx->mode_regs.abt_sp = plat_ctx->abt_sp;
+	nsec_ctx->mode_regs.abt_lr = plat_ctx->abt_lr;
+	nsec_ctx->mode_regs.und_spsr = plat_ctx->und_spsr;
+	nsec_ctx->mode_regs.und_sp = plat_ctx->und_sp;
+	nsec_ctx->mode_regs.und_lr = plat_ctx->und_lr;
 	nsec_ctx->mon_lr = plat_ctx->mon_lr;
 	nsec_ctx->mon_spsr = plat_ctx->mon_spsr;
 }

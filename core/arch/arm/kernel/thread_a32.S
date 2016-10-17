@@ -169,8 +169,7 @@ END_FUNC vector_system_reset_entry
  * the cpu_*_entry and system_*_entry are not used then.
  *
  * Note that ARM-TF depends on the layout of this vector table, any change
- * in layout has to be synced with ARM-TF. This layout must also be kept in
- * sync with sm_entry_vector in sm.c
+ * in layout has to be synced with ARM-TF.
  */
 FUNC thread_vector_table , :
 UNWIND(	.fnstart)

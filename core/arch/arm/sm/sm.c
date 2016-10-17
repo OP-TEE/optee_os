@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -24,90 +25,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <compiler.h>
-#include <platform_config.h>
-
-#include <sm/sm.h>
-#include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
-#include <sm/teesmc_opteed.h>
-
 #include <arm.h>
-
+#include <compiler.h>
 #include <kernel/misc.h>
-
+#include <platform_config.h>
+#include <sm/optee_smc.h>
+#include <sm/sm.h>
+#include <string.h>
 #include "sm_private.h"
 
-static struct sm_nsec_ctx sm_nsec_ctx[CFG_TEE_CORE_NB_CORE];
-static struct sm_sec_ctx sm_sec_ctx[CFG_TEE_CORE_NB_CORE];
-
-/*
- * Has to match layout of thread_vector_table. Some of the entries are
- * never used.
- *
- * We're using this layout to be able to used the same vector when this
- * secure monitor is used and when the secure monitor in ARM Trusted
- * Firmware is used.
- */
-static struct {
-	uint32_t std_smc_entry;
-	uint32_t fast_smc_entry;
-	uint32_t cpu_on_entry;
-	uint32_t cpu_off_entry;
-	uint32_t cpu_resume_entry;
-	uint32_t cpu_suspend_entry;
-	uint32_t fiq_entry;
-	uint32_t system_off_entry;
-	uint32_t system_reset_entry;
-} *sm_entry_vector;
-
-struct sm_nsec_ctx *sm_get_nsec_ctx(void)
+bool sm_from_nsec(struct sm_ctx *ctx)
 {
-	return &sm_nsec_ctx[get_core_pos()];
-}
+	sm_save_modes_regs(&ctx->nsec.mode_regs);
+	sm_restore_modes_regs(&ctx->sec.mode_regs);
 
-struct sm_sec_ctx *sm_get_sec_ctx(void)
-{
-	return &sm_sec_ctx[get_core_pos()];
-}
-
-void sm_set_sec_smc_entry(const struct sm_reg_r0_to_r3 *regs)
-{
-	struct sm_sec_ctx *sec_ctx = sm_get_sec_ctx();
-
-	if (OPTEE_SMC_IS_FAST_CALL(regs->r0))
-		sec_ctx->mon_lr = (uint32_t)&sm_entry_vector->fast_smc_entry;
+	memcpy(&ctx->sec.r0, &ctx->nsec.r0, sizeof(uint32_t) * 8);
+	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
+		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.fast_smc_entry;
 	else
-		sec_ctx->mon_lr = (uint32_t)&sm_entry_vector->std_smc_entry;
-}
-
-void sm_set_nsec_ret_vals(struct sm_reg_r0_to_r3 *regs, uint32_t r4)
-{
-	if (regs->r0 == TEESMC_OPTEED_RETURN_FIQ_DONE) {
-		/* On FIQ exit we're restoring r0-r3 from nsec context */
-		struct sm_nsec_ctx *nsec_ctx = sm_get_nsec_ctx();
-
-		regs->r0 = nsec_ctx->r0;
-		regs->r1 = nsec_ctx->r1;
-		regs->r2 = nsec_ctx->r2;
-		regs->r3 = nsec_ctx->r3;
-	} else {
-		/* On all other exits we're shifting r1-r4 into r0-r3 */
-		regs->r0 = regs->r1;
-		regs->r1 = regs->r2;
-		regs->r2 = regs->r3;
-		regs->r3 = r4;
-	}
-}
-
-void sm_set_sec_fiq_entry(void)
-{
-	struct sm_sec_ctx *sec_ctx = sm_get_sec_ctx();
-
-	sec_ctx->mon_lr = (uint32_t)&sm_entry_vector->fiq_entry;
-}
-
-void sm_set_entry_vector(void *entry_vector)
-{
-	sm_entry_vector = entry_vector;
+		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.std_smc_entry;
+	return true;	/* return into secure state */
 }

@@ -45,7 +45,6 @@
 #include <mm/tee_pager.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
-#include <sm/sm_defs.h>
 #include <sm/sm.h>
 #include <tee/tee_fs_rpc.h>
 #include <trace.h>
@@ -845,7 +844,6 @@ static void init_sec_mon(size_t pos __maybe_unused)
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
 	sm_init(GET_STACK(stack_sm[pos]));
-	sm_set_entry_vector(thread_vector_table);
 #endif
 }
 

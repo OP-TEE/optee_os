@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -29,10 +30,14 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <kernel/unwind.h>
+#include <sm/optee_smc.h>
+#include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
+#include <asm-defines.h>
 
 	.section .text.sm_asm
 
-LOCAL_FUNC sm_save_modes_regs , :
+FUNC sm_save_modes_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -60,14 +65,12 @@ UNWIND(	.cantunwind)
 	stm	r0!, {r2, sp, lr}
 
 	cps	#CPSR_MODE_MON
-	ldm	r1, {r2-r3}		/* Load SPSR and LR from the stack */
-	stm	r0!, {r2-r3}		/* Store SPSR and LR in context */
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC sm_save_modes_regs
 
 /* Restores the mode specific registers */
-LOCAL_FUNC sm_restore_modes_regs , :
+FUNC sm_restore_modes_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -95,78 +98,96 @@ UNWIND(	.cantunwind)
 	msr	spsr_fsxc, r2
 
 	cps	#CPSR_MODE_MON
-	ldm	r0!, {r2-r3}		/* Load SPSR and LR from context */
-	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC sm_restore_modes_regs
 
+/*
+ * Stack is utilized as:
+ * generic stack;
+ * struct sm_ctx;
+ */
 LOCAL_FUNC sm_smc_entry , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	srsdb	sp!, #CPSR_MODE_MON
-	push	{r0-r3}
-/* Positions relative to stack pointer */
-#define SMC_ENTRY_R0R3_OFFS	0
-#define SMC_ENTRY_SRS_OFFS	(4 * 4 + SMC_ENTRY_R0R3_OFFS)
+	push	{r0-r7}
 
-	/* Clear the exclusive monitor */
-	clrex
+	clrex		/* Clear the exclusive monitor */
 
 	/* Find out if we're doing an secure or non-secure entry */
 	read_scr r1
 	tst	r1, #SCR_NS
-	bne	.smc_ret_to_sec
+	bne	.smc_from_nsec
 
-.smc_ret_to_nsec:
+	/*
+	 * As we're coming from secure world (NS bit cleared) the stack
+	 * pointer points to sm_ctx.sec.r0 at this stage. After the
+	 * instruction below the stack pointer points to sm_ctx.
+	 */
+	sub	sp, sp, #(SM_CTX_SEC + SM_SEC_CTX_R0)
+
 	/* Save secure context */
-	bl	sm_get_sec_ctx
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
+	add	r0, sp, #SM_CTX_SEC
 	bl	sm_save_modes_regs
 
-	mov	r0, sp
-	mov	r1, r4
-	bl	sm_set_nsec_ret_vals
+	/*
+	 * On FIQ exit we're restoring the non-secure context unchanged, on
+	 * all other exits we're shifting r1-r4 from secure context into
+	 * r0-r3 in non-secure context.
+	 */
+	add	r8, sp, #(SM_CTX_SEC + SM_SEC_CTX_R0)
+	ldm	r8, {r0-r4}
+	mov_imm	r9, TEESMC_OPTEED_RETURN_FIQ_DONE
+	cmp	r0, r9
+	addne	r8, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R0)
+	stmne	r8, {r1-r4}
 
 	/* Restore non-secure context */
-	bl	sm_get_nsec_ctx
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
+	add	r0, sp, #SM_CTX_NSEC
 	bl	sm_restore_modes_regs
-	ldm	r0!, {r4-r12}
+
+.sm_ret_to_nsec:
+	/*
+	 * Return to non-secure world
+	 */
+	add     r0, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R8)
+	ldm	r0, {r8-r12}
 
 	/* Update SCR */
 	read_scr r0
 	orr	r0, r0, #(SCR_NS | SCR_FIQ) /* Set NS and FIQ bit in SCR */
 	write_scr r0
 
-	b	.smc_exit
+	add	sp, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R0)
+	b	.sm_exit
 
-.smc_ret_to_sec:
-	bic	r1, r1, #(SCR_NS | SCR_FIQ)/* Clear NS and FIQ bit in SCR */
+.smc_from_nsec:
+	/*
+	 * As we're coming from non-secure world (NS bit set) the stack
+	 * pointer points to sm_ctx.nsec.r0 at this stage. After the
+	 * instruction below the stack pointer points to sm_ctx.
+	 */
+	sub	sp, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R0)
+
+	bic	r1, r1, #(SCR_NS | SCR_FIQ) /* Clear NS and FIQ bit in SCR */
 	write_scr r1
 
-	/* Save non-secure context */
-	push	{r12, lr}
-	bl	sm_get_nsec_ctx
-	pop	{r12, lr}
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
-	bl	sm_save_modes_regs
-	stm	r0!, {r4-r12}
+	add	r0, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R8)
+	stm	r0, {r8-r12}
+
+	mov	r0, sp
+	bl	sm_from_nsec
+	cmp	r0, #0
+	beq	.sm_ret_to_nsec
 
 	/*
-	 * Update secure context with vector depending on SMC function,
-	 * also updates entry reason
+	 * Continue into secure world
 	 */
-	mov	r0, sp
-	bl	sm_set_sec_smc_entry
+	add	sp, sp, #(SM_CTX_SEC + SM_SEC_CTX_R0)
 
-	/* Restore secure context */
-	bl	sm_get_sec_ctx
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
-	bl	sm_restore_modes_regs
-
-.smc_exit:
-	pop	{r0-r3}
+.sm_exit:
+	pop	{r0-r7}
 	rfefd	sp!
 UNWIND(	.fnend)
 END_FUNC sm_smc_entry
@@ -174,8 +195,8 @@ END_FUNC sm_smc_entry
 /*
  * FIQ handling
  *
- * Saves CPU context in per core structure sm_pre_fiq_ctx which
- * later will be restored in the smc handler when handling a return
+ * Saves CPU context in the same way as sm_smc_entry() above. The CPU
+ * context will later be restored by sm_smc_entry() when handling a return
  * from FIQ.
  */
 LOCAL_FUNC sm_fiq_entry , :
@@ -183,11 +204,18 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* FIQ has a +4 offset for lr compared to preferred return address */
 	sub	lr, lr, #4
+	/* sp points just past struct sm_sec_ctx */
 	srsdb	sp!, #CPSR_MODE_MON
-	push	{r0-r3}
-/* Positions relative to stack pointer */
-#define FIQ_ENTRY_R0R3_OFFS	0
-#define FIQ_ENTRY_SRS_OFFS	(4 * 4 + SMC_ENTRY_R0R3_OFFS)
+	push	{r0-r7}
+
+	clrex		/* Clear the exclusive monitor */
+
+	/*
+	 * As we're coming from non-secure world the stack pointer points
+	 * to sm_ctx.nsec.r0 at this stage. After the instruction below the
+	 * stack pointer points to sm_ctx.
+	 */
+	sub	sp, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R0)
 
 	/* Update SCR */
 	read_scr r1
@@ -195,22 +223,19 @@ UNWIND(	.cantunwind)
 	write_scr r1
 
 	/* Save non-secure context */
-	push	{r12, lr}
-	bl	sm_get_nsec_ctx
-	pop	{r12, lr}
-	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
+	add	r0, sp, #SM_CTX_NSEC
 	bl	sm_save_modes_regs
-	stm	r0!, {r4-r12}
-	pop	{r1-r4}	/* R0-R3 pushed at entry */
-	stm	r0!, {r1-r4}
+	stm	r0!, {r8-r12}
 
-	/* Update secure context with vector for FIQ handling */
-	bl	sm_set_sec_fiq_entry
+	/* Set FIQ entry */
+	ldr	r0, =(thread_vector_table + THREAD_VECTOR_TABLE_FIQ_ENTRY)
+	str	r0, [sp, #(SM_CTX_SEC + SM_SEC_CTX_MON_LR)]
 
 	/* Restore secure context */
-	bl	sm_get_sec_ctx
-	mov	r1, sp	/* No offset from sp now that {R0-R3} are poped */
+	add	r0, sp, #SM_CTX_SEC
 	bl	sm_restore_modes_regs
+
+	add	sp, sp, #(SM_CTX_SEC + SM_SEC_CTX_MON_LR)
 
 	rfefd	sp!
 UNWIND(	.fnend)
@@ -234,19 +259,31 @@ END_FUNC sm_vect_table
 /* void sm_init(vaddr_t stack_pointer); */
 FUNC sm_init , :
 UNWIND(	.fnstart)
-	push	{r0, lr}
-UNWIND(	.save	{r0, lr})
-
 	/* Set monitor stack */
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_MON
-	mov	sp, r0
+	/* Point just beyond sm_ctx.sec */
+	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_NSEC)
 	msr	cpsr, r1
 
 	/* Set monitor vector (MVBAR) */
 	ldr	r0, =sm_vect_table
 	write_mvbar r0
 
-	pop	{r0, pc}
-UNWIND(	.fnend)
+	bx	lr
 END_FUNC sm_init
+
+
+/* struct sm_nsec_ctx *sm_get_nsec_ctx(void); */
+FUNC sm_get_nsec_ctx , :
+	mrs	r1, cpsr
+	cps	#CPSR_MODE_MON
+	mov	r0, sp
+	msr	cpsr, r1
+
+	/*
+	 * As we're in secure mode mon_sp points just beyond sm_ctx.sec
+	 * which is sm_ctx.nsec
+	 */
+	bx	lr
+END_FUNC sm_get_nsec_ctx

@@ -32,8 +32,9 @@
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);
-uint32_t *generic_boot_init_primary(unsigned long pageable_part,
-				    unsigned long unused, unsigned long fdt);
+struct thread_vector_table *
+generic_boot_init_primary(unsigned long pageable_part, unsigned long unused,
+			  unsigned long fdt);
 unsigned long generic_boot_cpu_on_handler(unsigned long a0, unsigned long a1);
 #else
 void generic_boot_init_primary(unsigned long pageable_part,

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -30,7 +31,7 @@
 
 #include <types_ext.h>
 
-struct sm_nsec_ctx {
+struct sm_mode_regs {
 	uint32_t usr_sp;
 	uint32_t usr_lr;
 	uint32_t irq_spsr;
@@ -39,6 +40,10 @@ struct sm_nsec_ctx {
 	uint32_t fiq_spsr;
 	uint32_t fiq_sp;
 	uint32_t fiq_lr;
+	/*
+	 * Note that fiq_r{8-12} are not saved here. Instead thread_fiq_handler
+	 * preserves r{8-12}.
+	 */
 	uint32_t svc_spsr;
 	uint32_t svc_sp;
 	uint32_t svc_lr;
@@ -48,62 +53,74 @@ struct sm_nsec_ctx {
 	uint32_t und_spsr;
 	uint32_t und_sp;
 	uint32_t und_lr;
-	uint32_t mon_lr;
-	uint32_t mon_spsr;
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
+};
+
+struct sm_nsec_ctx {
+	struct sm_mode_regs mode_regs;
+
 	uint32_t r8;
 	uint32_t r9;
 	uint32_t r10;
 	uint32_t r11;
 	uint32_t r12;
-	/* Only stored on FIQ entry */
+
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
 	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+
+	/* return state */
+	uint32_t mon_lr;
+	uint32_t mon_spsr;
 };
 
 struct sm_sec_ctx {
-	uint32_t usr_sp;
-	uint32_t usr_lr;
-	uint32_t irq_spsr;
-	uint32_t irq_sp;
-	uint32_t irq_lr;
-	uint32_t fiq_spsr;
-	uint32_t fiq_sp;
-	uint32_t fiq_lr;
-	uint32_t svc_spsr;
-	uint32_t svc_sp;
-	uint32_t svc_lr;
-	uint32_t abt_spsr;
-	uint32_t abt_sp;
-	uint32_t abt_lr;
-	uint32_t und_spsr;
-	uint32_t und_sp;
-	uint32_t und_lr;
+	struct sm_mode_regs mode_regs;
+
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+
+	/* return state */
 	uint32_t mon_lr;
 	uint32_t mon_spsr;
-	uint32_t entry_reason;
 };
+
+struct sm_ctx {
+	uint32_t pad;
+	struct sm_sec_ctx sec;
+	struct sm_nsec_ctx nsec;
+};
+
+/*
+ * sm_from_nsec() uses 2 * 4 bytes
+ *
+ * Add some spare space since a C function is called using this stack.
+ * These functions can sometimes use more stack depending on compiler
+ * options.
+ */
+#define SM_STACK_SIZE	(sizeof(struct sm_ctx) + 32 * 4)
+
+
 
 /* Returns storage location of non-secure context for current CPU */
 struct sm_nsec_ctx *sm_get_nsec_ctx(void);
 
-/* Returns storage location of secure context for current CPU */
-struct sm_sec_ctx *sm_get_sec_ctx(void);
-
 /* Returns stack pointer to use in monitor mode for current CPU */
 void *sm_get_sp(void);
-
 
 /*
  * Initializes secure monitor, must be called by each CPU
  */
 void sm_init(vaddr_t stack_pointer);
-
-void sm_set_entry_vector(void *entry_vector);
 
 #endif /*SM_SM_H*/
