@@ -115,11 +115,6 @@ static struct tee_fs_dir *sql_fs_opendir_rpc(const char *name)
 	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_SQL_FS, name);
 }
 
-static int sql_fs_read_rpc(int fd, void *buf, size_t len)
-{
-	return tee_fs_rpc_read(OPTEE_MSG_RPC_CMD_SQL_FS, fd, buf, len);
-}
-
 static struct tee_fs_dirent *sql_fs_readdir_rpc(struct tee_fs_dir *d)
 {
 	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_SQL_FS, d);
@@ -128,11 +123,6 @@ static struct tee_fs_dirent *sql_fs_readdir_rpc(struct tee_fs_dir *d)
 static int sql_fs_rename_rpc(const char *old, const char *nw)
 {
 	return tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw);
-}
-
-static int sql_fs_write_rpc(int fd, const void *buf, size_t len)
-{
-	return tee_fs_rpc_write(OPTEE_MSG_RPC_CMD_SQL_FS, fd, buf, len);
 }
 
 static int sql_fs_closedir_rpc(struct tee_fs_dir *d)
@@ -147,7 +137,11 @@ static int sql_fs_rmdir_rpc(const char *name)
 
 static int sql_fs_unlink_rpc(const char *file)
 {
-	return tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+	TEE_Result res = tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return 0;
 }
 
 /*
@@ -176,103 +170,36 @@ static ssize_t block_num(tee_fs_off_t pos)
 	return pos / BLOCK_SIZE;
 }
 
-/* Return the block number from a position in the DB file */
-static ssize_t block_num_raw(tee_fs_off_t raw_pos)
-{
-	return (raw_pos - meta_size()) / block_size_raw();
-}
-
 /* Return the position of a block in the DB file */
 static ssize_t block_pos_raw(size_t block_num)
 {
 	return meta_size() + block_num * block_size_raw();
 }
 
-/* Given a position in the user data, return the offset in the DB file */
-static tee_fs_off_t pos_to_raw(tee_fs_off_t pos)
+static TEE_Result write_meta(struct sql_fs_fd *fdp)
 {
-	tee_fs_off_t res;
-
-	if (pos < 0)
-		return -1;
-	res = meta_size() + block_num(pos) * block_size_raw();
-	if (pos % BLOCK_SIZE) {
-		res += block_header_size();
-		res += pos % BLOCK_SIZE;
-	}
-
-	return res;
-}
-
-/* Given a position in the DB file, return the offset in the user data */
-static tee_fs_off_t raw_to_pos(tee_fs_off_t raw_pos)
-{
-	tee_fs_off_t pos = raw_pos;
-	ssize_t n = block_num_raw(raw_pos);
-
-	if (n < 0)
-		return -1;
-
-	pos -= meta_size();
-	pos -= block_header_size();
-	if (pos < 0)
-		return -1;
-
-	return (n * BLOCK_SIZE) + (pos % BLOCK_SIZE);
-}
-
-static void put_fdp(struct sql_fs_fd *fdp)
-{
-	handle_put(&fs_db, fdp->fd);
-	free(fdp);
-}
-
-static int write_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
-{
-	int fd = fdp->fd;
+	TEE_Result res;
 	size_t ct_size = meta_size();
-	uint8_t *ct;
-	int rc = -1;
+	void *ct;
+	struct tee_fs_rpc_operation op;
 
-	*errno = TEE_ERROR_GENERIC;
+	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
+					fdp->fd, 0, ct_size, &ct);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	ct = malloc(ct_size);
-	if (!ct) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
 
-	rc = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_SQL_FS, fd, 0,
-			      TEE_FS_SEEK_SET);
-	if (rc < 0)
-		goto exit;
+	res = tee_fs_encrypt_file(META_FILE,
+				  (const uint8_t *)&fdp->meta,
+				  sizeof(fdp->meta), ct, &ct_size,
+				  fdp->encrypted_fek);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	{
-		TEE_Result res;
-
-		res = tee_fs_encrypt_file(META_FILE,
-					  (const uint8_t *)&fdp->meta,
-					  sizeof(fdp->meta), ct, &ct_size,
-					  fdp->encrypted_fek);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
-			rc = -1;
-			goto exit;
-		}
-	}
-
-	rc = sql_fs_write_rpc(fdp->fd, ct, ct_size);
-	if (rc != (int)ct_size)
-		rc = -1;
-	else
-		rc = 0;
-
-exit:
-	free(ct);
-	return rc;
+	return tee_fs_rpc_new_write_final(&op);
 }
 
-static int create_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
+static TEE_Result create_meta(struct sql_fs_fd *fdp, const char *fname)
 {
 	TEE_Result res;
 
@@ -280,65 +207,41 @@ static int create_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
 
 	res = tee_fs_generate_fek(fdp->encrypted_fek, TEE_FS_KM_FEK_SIZE);
 	if (res != TEE_SUCCESS)
-		return -1;
+		return res;
 
-	return write_meta(errno, fdp);
+	res = tee_fs_rpc_new_create(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return write_meta(fdp);
 }
 
-/*
- * Read metadata block from disk, possibly create it if it does not exist and
- * and open flags allow
- */
-static int read_meta(TEE_Result *errno, struct sql_fs_fd *fdp)
+static TEE_Result read_meta(struct sql_fs_fd *fdp, const char *fname)
 {
+	TEE_Result res;
 	size_t msize = meta_size();
 	size_t out_size = sizeof(fdp->meta);
-	uint8_t *meta = NULL;
-	int rc = -1;
+	void *meta;
+	size_t bytes;
+	struct tee_fs_rpc_operation op;
 
-	*errno = TEE_ERROR_GENERIC;
+	res = tee_fs_rpc_new_open(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	meta = malloc(msize);
-	if (!meta) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
+	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
+				       fdp->fd, 0, msize, &meta);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	rc = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, 0,
-			      TEE_FS_SEEK_SET);
-	if (rc < 0)
-		goto exit;
+	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	rc = sql_fs_read_rpc(fdp->fd, meta, msize);
-	if (rc < 0) {
-		/* Read error */
-		goto exit;
-	} else if (rc == 0) {
-		/* No meta data on disk yet */
-		if (!(fdp->flags & TEE_FS_O_CREATE))
-			goto exit;
-		rc = create_meta(errno, fdp);
-	} else if (rc == (int)msize) {
-		TEE_Result res;
-
-		res = tee_fs_decrypt_file(META_FILE, meta, msize,
-					  (uint8_t *)&fdp->meta, &out_size,
-					  fdp->encrypted_fek);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
-			rc = -1;
-			goto exit;
-		}
-		rc = 0;
-	} else {
-		/* Unexpected data length */
-		rc = -1;
-	}
-exit:
-	free(meta);
-	return rc;
+	return tee_fs_decrypt_file(META_FILE, meta, msize,
+				   (uint8_t *)&fdp->meta, &out_size,
+				   fdp->encrypted_fek);
 }
-
 
 /*
  * Read one block of user data.
@@ -350,95 +253,69 @@ exit:
 static int read_block(TEE_Result *errno, struct sql_fs_fd *fdp, size_t bnum,
 		      uint8_t *data)
 {
+	TEE_Result res;
 	size_t ct_size = block_size_raw();
 	size_t out_size = BLOCK_SIZE;
 	ssize_t pos = block_pos_raw(bnum);
-	uint8_t *ct = NULL;
-	int rc = -1;
+	size_t bytes;
+	void *ct;
+	struct tee_fs_rpc_operation op;
 
-	ct = malloc(ct_size);
-	if (!ct) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
+	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
+				       fdp->fd, pos, ct_size, &ct);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
+	}
+	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
+	}
+	if (!bytes)
+		return 0; /* Block does not exist */
+
+	res = tee_fs_decrypt_file(BLOCK_FILE, ct, bytes, data,
+				  &out_size, fdp->encrypted_fek);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
 	}
 
-	rc = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
-			      TEE_FS_SEEK_SET);
-	if (rc < 0) {
-		*errno = TEE_ERROR_GENERIC;
-		goto exit;
-	}
-
-	rc = sql_fs_read_rpc(fdp->fd, ct, ct_size);
-	if (rc < 0) {
-		*errno = TEE_ERROR_GENERIC;
-		goto exit;
-	}
-	if (rc == 0) {
-		/* Block does not exist */
-		goto exit;
-	}
-
-	{
-		TEE_Result res;
-
-		res = tee_fs_decrypt_file(BLOCK_FILE, ct, ct_size, data,
-					  &out_size, fdp->encrypted_fek);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
-			rc = -1;
-			goto exit;
-		}
-	}
-
-exit:
-	free(ct);
-	return rc;
+	return 1;
 }
 
 /* Write one block of user data */
 static int write_block(TEE_Result *errno, struct sql_fs_fd *fdp,
 		       size_t bnum, uint8_t *data)
 {
+	TEE_Result res;
 	size_t ct_size = block_size_raw();
 	ssize_t pos = block_pos_raw(bnum);
-	uint8_t *ct = NULL;
-	int rc = -1;
+	void *ct;
+	struct tee_fs_rpc_operation op;
 
-	ct = malloc(ct_size);
-	if (!ct) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
+	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS,
+					fdp->fd, pos, ct_size, &ct);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
 	}
 
-	rc = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
-			      TEE_FS_SEEK_SET);
-	if (rc < 0) {
-		*errno = TEE_ERROR_GENERIC;
-		goto exit;
+	res = tee_fs_encrypt_file(BLOCK_FILE, data, BLOCK_SIZE, ct,
+				  &ct_size, fdp->encrypted_fek);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
 	}
 
-	{
-		TEE_Result res;
-
-		res = tee_fs_encrypt_file(BLOCK_FILE, data, BLOCK_SIZE, ct,
-					  &ct_size, fdp->encrypted_fek);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
-			rc = -1;
-			goto exit;
-		}
+	res = tee_fs_rpc_new_write_final(&op);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		return -1;
 	}
 
-	rc = sql_fs_write_rpc(fdp->fd, ct, ct_size);
-	if (rc < 0) {
-		*errno = TEE_ERROR_GENERIC;
-		goto exit;
-	}
-
-exit:
-	free(ct);
-	return rc;
+	return 1;
 }
 
 /*
@@ -481,22 +358,14 @@ exit:
 	return rc;
 }
 
-static int sql_fs_ftruncate_internal(TEE_Result *errno, int fd,
+static int sql_fs_ftruncate_internal(TEE_Result *errno, struct sql_fs_fd *fdp,
 				     tee_fs_off_t new_length)
 {
-	struct sql_fs_fd *fdp;
+	TEE_Result res;
 	tee_fs_off_t old_length;
 	int rc = -1;
 
-	DMSG("(fd: %d, new_length: %" PRId64 ")...", fd, new_length);
-
 	*errno = TEE_ERROR_GENERIC;
-
-	fdp = handle_lookup(&fs_db, fd);
-	if (!fdp) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit_ret;
-	}
 
 	old_length = (tee_fs_off_t)fdp->meta.length;
 
@@ -515,10 +384,13 @@ static int sql_fs_ftruncate_internal(TEE_Result *errno, int fd,
 
 		if (last_block < old_last_block) {
 			off = block_pos_raw(last_block);
-			rc = tee_fs_rpc_ftruncate(OPTEE_MSG_RPC_CMD_SQL_FS,
-						  fd, off);
-			if (rc < 0)
+			res = tee_fs_rpc_new_truncate(OPTEE_MSG_RPC_CMD_SQL_FS,
+						      fdp->fd, off);
+			if (res != TEE_SUCCESS) {
+				*errno = res;
+				rc = -1;
 				goto exit;
+			}
 		}
 	} else {
 		/* Extend file with zeroes */
@@ -539,12 +411,15 @@ static int sql_fs_ftruncate_internal(TEE_Result *errno, int fd,
 	}
 
 	fdp->meta.length = new_length;
-	rc = write_meta(errno, fdp);
-
+	res = write_meta(fdp);
+	if (res != TEE_SUCCESS) {
+		*errno = res;
+		rc = -1;
+	}
+	rc = 0;
 exit:
 	sql_fs_end_transaction_rpc(rc < 0);
 exit_ret:
-	DMSG("...%d", rc);
 	return rc;
 }
 
@@ -553,7 +428,6 @@ static tee_fs_off_t sql_fs_lseek(TEE_Result *errno, int fd,
 {
 	struct sql_fs_fd *fdp;
 	tee_fs_off_t ret = -1;
-	tee_fs_off_t raw_pos;
 	tee_fs_off_t pos;
 
 	DMSG("(fd: %d, offset: %" PRId64 ", whence: %d)...", fd, offset,
@@ -566,8 +440,6 @@ static tee_fs_off_t sql_fs_lseek(TEE_Result *errno, int fd,
 	fdp = handle_lookup(&fs_db, fd);
 	if (!fdp)
 		goto exit_ret;
-
-	sql_fs_begin_transaction_rpc();
 
 	switch (whence) {
 	case TEE_FS_SEEK_SET:
@@ -584,22 +456,20 @@ static tee_fs_off_t sql_fs_lseek(TEE_Result *errno, int fd,
 
 	default:
 		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
+		goto exit_ret;
 	}
 
-	raw_pos = pos_to_raw(pos);
-	if (raw_pos < 0)
-		goto exit;
-	raw_pos = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_SQL_FS, fd, raw_pos,
-				   TEE_FS_SEEK_SET);
-	if (raw_pos < 0)
-		goto exit;
-	ret = raw_to_pos(raw_pos);
-	if (ret < 0)
-		goto exit;
+	if (pos > TEE_DATA_MAX_POSITION) {
+		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		goto exit_ret;
+	}
 
-exit:
-	sql_fs_end_transaction_rpc(ret < 0);
+	if (pos < 0)
+		ret = 0;
+	else
+		ret = pos;
+
 	fdp->pos = ret;
 exit_ret:
 	mutex_unlock(&sql_fs_mutex);
@@ -616,13 +486,12 @@ static int sql_fs_close(int fd)
 
 	mutex_lock(&sql_fs_mutex);
 
-	fdp = handle_lookup(&fs_db, fd);
+	fdp = handle_put(&fs_db, fd);
 	if (!fdp)
 		goto exit;
 
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fd);
-	put_fdp(fdp);
-
+	tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+	free(fdp);
 	ret = 0;
 exit:
 	mutex_unlock(&sql_fs_mutex);
@@ -632,53 +501,57 @@ exit:
 
 static int sql_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 {
+	TEE_Result res;
 	struct sql_fs_fd *fdp = NULL;
-	int rflags = flags | TEE_FS_O_RDWR; /* Need to read/write meta */
-	int exists;
+	bool created = false;
 	int fd = -1;
-
-	DMSG("(file: %s, flags: %d)...", file, flags);
 
 	mutex_lock(&sql_fs_mutex);
 
 	*errno = TEE_ERROR_GENERIC;
-
-	exists = !sql_fs_access_rpc(file, TEE_FS_F_OK);
-	if (flags & TEE_FS_O_CREATE) {
-		if ((flags & TEE_FS_O_EXCL) && exists) {
-			*errno = TEE_ERROR_ACCESS_CONFLICT;
-			goto exit;
-		}
-	} else {
-		if (!exists) {
-			*errno = TEE_ERROR_ITEM_NOT_FOUND;
-			goto exit;
-		}
-	}
 
 	fdp = (struct sql_fs_fd *)calloc(1, sizeof(*fdp));
 	if (!fdp) {
 		*errno = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
-
-	fdp->fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, file, rflags);
-	if (fdp->fd < 0)
-		goto exit;
+	fdp->fd = -1;
 
 	fdp->flags = flags;
 
-	fd = read_meta(errno, fdp);
-	if (fd < 0)
+	res = read_meta(fdp, file);
+	if (res == TEE_SUCCESS) {
+		if (flags & TEE_FS_O_EXCL) {
+			*errno = TEE_ERROR_ACCESS_CONFLICT;
+			goto exit;
+		}
+	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		if (!(flags & TEE_FS_O_CREATE)) {
+			*errno = res;
+			goto exit;
+		}
+		res = create_meta(fdp, file);
+		if (res != TEE_SUCCESS) {
+			*errno = res;
+			goto exit;
+		}
+		created = true;
+	} else {
+		*errno = res;
 		goto exit;
+	}
 
 	fd = handle_get(&fs_db, fdp);
 
 exit:
-	mutex_unlock(&sql_fs_mutex);
-	if (fd < 0)
+	if (fd < 0) {
+		if (fdp && fdp->fd != -1)
+			tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+		if (created)
+			tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
 		free(fdp);
-	DMSG("...%d", fd);
+	}
+	mutex_unlock(&sql_fs_mutex);
 	return fd;
 }
 
@@ -772,6 +645,7 @@ exit_ret:
 
 static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 {
+	TEE_Result tee_res;
 	struct sql_fs_fd *fdp;
 	size_t remain_bytes = len;
 	const uint8_t *data_ptr = buf;
@@ -811,7 +685,7 @@ static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 
 	if (fdp->meta.length < (size_t)fdp->pos) {
 		/* Fill hole */
-		res = sql_fs_ftruncate_internal(errno, fd, fdp->pos);
+		res = sql_fs_ftruncate_internal(errno, fdp, fdp->pos);
 		if (res < 0)
 			goto exit;
 	}
@@ -839,7 +713,11 @@ static int sql_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 	}
 
 	fdp->meta.length = fdp->pos;
-	res = write_meta(errno, fdp);
+	tee_res = write_meta(fdp);
+	if (tee_res != TEE_SUCCESS) {
+		*errno = tee_res;
+		res = -1;
+	}
 exit:
 	sql_fs_end_transaction_rpc(res < 0);
 exit_ret:
@@ -852,9 +730,16 @@ exit_ret:
 static int sql_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t new_length)
 {
 	int res;
+	struct sql_fs_fd *fdp;
 
 	mutex_lock(&sql_fs_mutex);
-	res = sql_fs_ftruncate_internal(errno, fd, new_length);
+	fdp = handle_lookup(&fs_db, fd);
+	if (fdp) {
+		res = sql_fs_ftruncate_internal(errno, fdp, new_length);
+	} else {
+		*errno = TEE_ERROR_GENERIC;
+		res = -1;
+	}
 	mutex_unlock(&sql_fs_mutex);
 
 	return res;
