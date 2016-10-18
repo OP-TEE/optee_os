@@ -82,7 +82,7 @@ struct block_cache {
 };
 
 struct tee_fs_fd {
-	struct tee_fs_file_meta *meta;
+	struct tee_fs_file_meta meta;
 	tee_fs_off_t pos;
 	uint32_t flags;
 	int fd;
@@ -195,28 +195,6 @@ static int ree_fs_access_rpc(const char *name, int mode)
 	return tee_fs_rpc_access(OPTEE_MSG_RPC_CMD_FS, name, mode);
 }
 
-static int get_file_length(int fd, size_t *length)
-{
-	size_t file_len;
-	int res;
-
-	assert(length);
-	*length = 0;
-
-	res = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_FS, fd, 0, TEE_FS_SEEK_END);
-	if (res < 0)
-		return res;
-
-	file_len = res;
-
-	res = tee_fs_rpc_lseek(OPTEE_MSG_RPC_CMD_FS, fd, 0, TEE_FS_SEEK_SET);
-	if (res < 0)
-		return res;
-
-	*length = file_len;
-	return 0;
-}
-
 static void get_meta_filepath(const char *file, int version,
 				char *meta_path)
 {
@@ -231,44 +209,12 @@ static void get_block_filepath(const char *file, size_t block_num,
 			file, block_num, version);
 }
 
-static int create_block_file(struct tee_fs_fd *fdp,
-		struct tee_fs_file_meta *new_meta, int block_num)
-{
-	int fd;
-	int res = -1;
-	char block_path[REE_FS_NAME_MAX];
-	uint8_t new_version =
-		!get_backup_version_of_block(fdp->meta, block_num);
-
-	get_block_filepath(fdp->filename, block_num, new_version,
-			block_path);
-
-	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
-			     TEE_FS_O_CREATE | TEE_FS_O_RDWR);
-	if (fd < 0)
-		goto exit;
-
-	res = tee_fs_rpc_ftruncate(OPTEE_MSG_RPC_CMD_FS, fd, 0);
-	if (res < 0)
-		goto exit;
-
-	/*
-	 * toggle block version in new meta to indicate
-	 * we are currently working on new block file
-	 */
-	toggle_backup_version_of_block(new_meta, block_num);
-	res = fd;
-
-exit:
-	return res;
-}
-
 static int __remove_block_file(struct tee_fs_fd *fdp, size_t block_num,
 				bool toggle)
 {
+	TEE_Result res;
 	char block_path[REE_FS_NAME_MAX];
-	uint8_t version =
-		get_backup_version_of_block(fdp->meta, block_num);
+	uint8_t version = get_backup_version_of_block(&fdp->meta, block_num);
 
 	if (toggle)
 		version = !version;
@@ -276,11 +222,10 @@ static int __remove_block_file(struct tee_fs_fd *fdp, size_t block_num,
 	get_block_filepath(fdp->filename, block_num, version, block_path);
 	DMSG("%s", block_path);
 
-	/* ignore it if file not found */
-	if (ree_fs_access_rpc(block_path, TEE_FS_F_OK))
-		return 0;
-
-	return tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, block_path);
+	res = tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, block_path);
+	if (res == TEE_SUCCESS || res == TEE_ERROR_ITEM_NOT_FOUND)
+		return 0; /* ignore it if file not found */
+	return -1;
 }
 
 static int remove_block_file(struct tee_fs_fd *fdp, size_t block_num)
@@ -298,46 +243,44 @@ static int remove_outdated_block(struct tee_fs_fd *fdp, size_t block_num)
 /*
  * encrypted_fek: as input for META_FILE and BLOCK_FILE
  */
-static int encrypt_and_write_file(int fd,
+static TEE_Result encrypt_and_write_file(const char *file_name,
 		enum tee_fs_file_type file_type,
 		void *data_in, size_t data_in_size,
 		uint8_t *encrypted_fek)
 {
-	TEE_Result tee_res;
-	int res = 0;
-	int bytes;
-	uint8_t *ciphertext;
+	TEE_Result res;
+	TEE_Result res2;
+	struct tee_fs_rpc_operation op;
+	void *ciphertext;
 	size_t header_size = tee_fs_get_header_size(file_type);
 	size_t ciphertext_size = header_size + data_in_size;
+	int fd;
 
-	ciphertext = malloc(ciphertext_size);
-	if (!ciphertext) {
-		EMSG("Failed to allocate ciphertext buffer, size=%zd",
-				ciphertext_size);
-		return -1;
+	res = tee_fs_rpc_new_open(OPTEE_MSG_RPC_CMD_FS, file_name, &fd);
+	if (res != TEE_SUCCESS) {
+		if (res != TEE_ERROR_ITEM_NOT_FOUND)
+			return res;
+		res = tee_fs_rpc_new_create(OPTEE_MSG_RPC_CMD_FS, file_name,
+					    &fd);
+		if (res != TEE_SUCCESS)
+			return res;
 	}
 
-	tee_res = tee_fs_encrypt_file(file_type,
-			data_in, data_in_size,
-			ciphertext, &ciphertext_size, encrypted_fek);
-	if (tee_res != TEE_SUCCESS) {
-		EMSG("error code=%x", tee_res);
-		res = -1;
-		goto fail;
-	}
+	res = tee_fs_rpc_new_write_init(&op, OPTEE_MSG_RPC_CMD_FS, fd, 0,
+					ciphertext_size, &ciphertext);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	bytes = tee_fs_rpc_write(OPTEE_MSG_RPC_CMD_FS, fd, ciphertext,
-				 ciphertext_size);
-	if (bytes != (int)ciphertext_size) {
-		EMSG("bytes(%d) != ciphertext size(%zu)",
-				bytes, ciphertext_size);
-		res = -1;
-		goto fail;
-	}
+	res = tee_fs_encrypt_file(file_type, data_in, data_in_size,
+				  ciphertext, &ciphertext_size, encrypted_fek);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-fail:
-	free(ciphertext);
-
+	res = tee_fs_rpc_new_write_final(&op);
+out:
+	res2 = tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fd);
+	if (res == TEE_SUCCESS)
+		return res2;
 	return res;
 }
 
@@ -345,127 +288,71 @@ fail:
  * encrypted_fek: as output for META_FILE
  *                as input for BLOCK_FILE
  */
-static int read_and_decrypt_file(int fd,
+static TEE_Result read_and_decrypt_file(const char *file_name,
 		enum tee_fs_file_type file_type,
 		void *data_out, size_t *data_out_size,
 		uint8_t *encrypted_fek)
 {
-	TEE_Result tee_res;
-	int res;
-	int bytes;
-	void *ciphertext = NULL;
-	size_t file_size;
-	size_t header_size = tee_fs_get_header_size(file_type);
+	TEE_Result res;
+	TEE_Result res2;
+	struct tee_fs_rpc_operation op;
+	size_t bytes;
+	void *ciphertext;
+	int fd;
 
-	res = get_file_length(fd, &file_size);
-	if (res < 0)
+	res = tee_fs_rpc_new_open(OPTEE_MSG_RPC_CMD_FS, file_name, &fd);
+	if (res != TEE_SUCCESS)
 		return res;
 
-	if (file_size < header_size)
-		panic("file too short");
+	bytes = *data_out_size + tee_fs_get_header_size(file_type);
+	res = tee_fs_rpc_new_read_init(&op, OPTEE_MSG_RPC_CMD_FS, fd, 0,
+				       bytes, &ciphertext);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	ciphertext = malloc(file_size);
-	if (!ciphertext) {
-		EMSG("Failed to allocate file data buffer, size=%zd",
-				file_size);
-		return -1;
-	}
+	res = tee_fs_rpc_new_read_final(&op, &bytes);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	bytes = tee_fs_rpc_read(OPTEE_MSG_RPC_CMD_FS, fd, ciphertext,
-				file_size);
-	if (bytes != (int)file_size) {
-		EMSG("return bytes(%d) != file_size(%zd)",
-				bytes, file_size);
-		res = -1;
-		goto fail;
-	}
-
-	tee_res = tee_fs_decrypt_file(file_type,
-			ciphertext, file_size,
-			data_out, data_out_size,
-			encrypted_fek);
-	if (tee_res != TEE_SUCCESS) {
-		EMSG("Failed to decrypt file, res=0x%x", tee_res);
-		res = -1;
-	}
-
-fail:
-	free(ciphertext);
-
-	return (res < 0) ? res : 0;
+	res = tee_fs_decrypt_file(file_type, ciphertext, bytes, data_out,
+				  data_out_size, encrypted_fek);
+	if (res != TEE_SUCCESS)
+		res = TEE_ERROR_CORRUPT_OBJECT;
+out:
+	res2 = tee_fs_rpc_new_close(OPTEE_MSG_RPC_CMD_FS, fd);
+	if (res == TEE_SUCCESS)
+		return res2;
+	return res;
 }
 
-static struct tee_fs_file_meta *duplicate_meta(
-		struct tee_fs_fd *fdp)
-{
-	struct tee_fs_file_meta *new_meta = NULL;
-
-	new_meta = malloc(sizeof(*new_meta));
-	if (!new_meta) {
-		EMSG("Failed to allocate memory for new meta");
-		goto exit;
-	}
-
-	memcpy(new_meta, fdp->meta, sizeof(*new_meta));
-
-exit:
-	return new_meta;
-}
-
-static int write_meta_file(const char *filename,
+static TEE_Result write_meta_file(const char *filename,
 		struct tee_fs_file_meta *meta)
 {
-	int res, fd = -1;
 	char meta_path[REE_FS_NAME_MAX];
 
 	get_meta_filepath(filename, meta->backup_version, meta_path);
 
-	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, meta_path, TEE_FS_O_CREATE |
-			     TEE_FS_O_TRUNC | TEE_FS_O_WRONLY);
-	if (fd < 0)
-		return -1;
-
-	res = encrypt_and_write_file(fd, META_FILE,
+	return encrypt_and_write_file(meta_path, META_FILE,
 			(void *)&meta->info, sizeof(meta->info),
 			meta->encrypted_fek);
 
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
-	return res;
 }
 
-static struct tee_fs_file_meta *create_meta_file(const char *file)
+static TEE_Result create_meta(struct tee_fs_fd *fdp)
 {
-	TEE_Result tee_res;
-	struct tee_fs_file_meta *meta = NULL;
-	int res;
-	const uint8_t default_backup_version = 0;
+	TEE_Result res;
 
-	meta = malloc(sizeof(struct tee_fs_file_meta));
-	if (!meta) {
-		EMSG("Failed to allocate memory");
-		goto exit;
-	}
+	memset(fdp->meta.info.backup_version_table, 0xff,
+		sizeof(fdp->meta.info.backup_version_table));
+	fdp->meta.info.length = 0;
 
-	memset(&meta->info.backup_version_table, 0xff,
-		sizeof(meta->info.backup_version_table));
-	meta->info.length = 0;
+	res = tee_fs_generate_fek(fdp->meta.encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	tee_res = tee_fs_generate_fek(meta->encrypted_fek, TEE_FS_KM_FEK_SIZE);
-	if (tee_res != TEE_SUCCESS)
-		goto exit;
+	fdp->meta.backup_version = 0;
 
-	meta->backup_version = default_backup_version;
-
-	res = write_meta_file(file, meta);
-	if (res < 0)
-		goto exit;
-
-	return meta;
-
-exit:
-	free(meta);
-
-	return NULL;
+	return write_meta_file(fdp->filename, &fdp->meta);
 }
 
 static int commit_meta_file(struct tee_fs_fd *fdp,
@@ -487,7 +374,7 @@ static int commit_meta_file(struct tee_fs_fd *fdp,
 	 * From now on the new meta is successfully committed,
 	 * change tee_fs_fd accordingly
 	 */
-	memcpy(fdp->meta, new_meta, sizeof(*new_meta));
+	fdp->meta = *new_meta;
 
 	/*
 	 * Remove outdated meta file, there is nothing we can
@@ -496,55 +383,40 @@ static int commit_meta_file(struct tee_fs_fd *fdp,
 	 * of the file is still consistent.
 	 */
 	get_meta_filepath(fdp->filename, old_version, meta_path);
-	tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, meta_path);
+	tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, meta_path);
 
 	return res;
 }
 
-static int read_meta_file(const char *meta_path,
+static TEE_Result read_meta_file(const char *meta_path,
 		struct tee_fs_file_meta *meta)
 {
-	int res, fd;
 	size_t meta_info_size = sizeof(struct tee_fs_file_info);
 
-	res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, meta_path, TEE_FS_O_RDWR);
-	if (res < 0)
-		return res;
-
-	fd = res;
-
-	res = read_and_decrypt_file(fd, META_FILE,
-			(void *)&meta->info, &meta_info_size,
-			meta->encrypted_fek);
-
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
-
-	return res;
+	return read_and_decrypt_file(meta_path, META_FILE,
+				     &meta->info, &meta_info_size,
+				     meta->encrypted_fek);
 }
 
-static struct tee_fs_file_meta *open_meta_file(
-		const char *file, int version)
+static TEE_Result read_meta(struct tee_fs_fd *fdp)
 {
-	int res;
+	TEE_Result res;
 	char meta_path[REE_FS_NAME_MAX];
-	struct tee_fs_file_meta *meta = NULL;
 
-	meta = malloc(sizeof(struct tee_fs_file_meta));
-	if (!meta)
-		return NULL;
+	get_meta_filepath(fdp->filename, fdp->meta.backup_version, meta_path);
+	res = read_meta_file(meta_path, &fdp->meta);
+	if (res != TEE_SUCCESS) {
+		TEE_Result res2;
 
-	get_meta_filepath(file, version, meta_path);
-	res = read_meta_file(meta_path, meta);
-	if (res < 0)
-		goto exit_free_meta;
+		fdp->meta.backup_version = !fdp->meta.backup_version;
+		get_meta_filepath(fdp->filename, fdp->meta.backup_version,
+				  meta_path);
+		res2 = read_meta_file(meta_path, &fdp->meta);
+		if (res2 != TEE_ERROR_ITEM_NOT_FOUND)
+			return res2;
+	}
 
-	meta->backup_version = version;
-
-	return meta;
-
-exit_free_meta:
-	free(meta);
-	return NULL;
+	return res;
 }
 
 static bool is_block_file_exist(struct tee_fs_file_meta *meta,
@@ -558,72 +430,60 @@ static bool is_block_file_exist(struct tee_fs_file_meta *meta,
 	return (block_num <= (size_t)get_last_block_num(file_size));
 }
 
-static int read_block_from_storage(struct tee_fs_fd *fdp, struct block *b)
+static TEE_Result read_block_from_storage(struct tee_fs_fd *fdp,
+					  struct block *b)
 {
-	int fd, res = 0;
+	TEE_Result res = TEE_SUCCESS;
 	uint8_t *plaintext = b->data;
 	char block_path[REE_FS_NAME_MAX];
 	size_t block_file_size = BLOCK_FILE_SIZE;
-	uint8_t version = get_backup_version_of_block(fdp->meta,
-			b->block_num);
+	uint8_t version = get_backup_version_of_block(&fdp->meta, b->block_num);
 
-	if (!is_block_file_exist(fdp->meta, b->block_num))
+	if (!is_block_file_exist(&fdp->meta, b->block_num))
 		goto exit;
 
 	get_block_filepath(fdp->filename, b->block_num, version,
 			block_path);
 
-	fd = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, block_path,
-			     TEE_FS_O_RDONLY);
-	if (fd < 0)
-		return fd;
-
-	res = read_and_decrypt_file(fd, BLOCK_FILE,
+	res = read_and_decrypt_file(block_path, BLOCK_FILE,
 			plaintext, &block_file_size,
-			fdp->meta->encrypted_fek);
-	if (res < 0) {
+			fdp->meta.encrypted_fek);
+	if (res != TEE_SUCCESS) {
 		EMSG("Failed to read and decrypt file");
-		goto fail;
+		goto exit;
 	}
 	b->data_size = block_file_size;
 	DMSG("Successfully read and decrypt block%d from storage, size=%zd",
 		b->block_num, b->data_size);
-fail:
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
 exit:
 	return res;
 }
 
 static int flush_block_to_storage(struct tee_fs_fd *fdp, struct block *b,
-		struct tee_fs_file_meta *new_meta)
+					 struct tee_fs_file_meta *new_meta)
 {
-	int fd = -1;
-	int res;
+	TEE_Result res;
 	size_t block_num = b->block_num;
+	char block_path[REE_FS_NAME_MAX];
+	uint8_t new_version =
+		!get_backup_version_of_block(&fdp->meta, block_num);
 
-	fd = create_block_file(
-			fdp, new_meta, block_num);
-	if (fd < 0) {
-		EMSG("Failed to create new version of block");
-		res = -1;
-		goto fail;
-	}
+	get_block_filepath(fdp->filename, block_num, new_version, block_path);
 
-	res = encrypt_and_write_file(fd, BLOCK_FILE,
-			b->data, b->data_size,
-			new_meta->encrypted_fek);
-	if (res < 0) {
+	res = encrypt_and_write_file(block_path, BLOCK_FILE, b->data,
+				     b->data_size, new_meta->encrypted_fek);
+	if (res != TEE_SUCCESS) {
 		EMSG("Failed to encrypt and write block file");
 		goto fail;
 	}
+
 	DMSG("Successfully encrypt and write block%d to storage, size=%zd",
 		b->block_num, b->data_size);
+	toggle_backup_version_of_block(new_meta, block_num);
 
+	return 0;
 fail:
-	if (fd > 0)
-		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fd);
-
-	return res;
+	return -1;
 }
 
 static struct block *alloc_block(void)
@@ -781,18 +641,18 @@ static struct block *read_block_with_cache(struct tee_fs_fd *fdp, int block_num)
 static struct block *read_block_no_cache(struct tee_fs_fd *fdp, int block_num)
 {
 	static struct block *b;
-	int res;
+	TEE_Result res;
 
 	if (!b)
 		b = alloc_block();
 	b->block_num = block_num;
 
 	res = read_block_from_storage(fdp, b);
-	if (res)
+	if (res != TEE_SUCCESS)
 		EMSG("Unable to read block%d from storage",
 				block_num);
 
-	return res ? NULL : b;
+	return res != TEE_SUCCESS ? NULL : b;
 }
 #endif
 
@@ -892,12 +752,12 @@ static int unlink_tee_file(const char *file)
 			file, dirent->d_name);
 
 		DMSG("unlink %s", path);
-		res = tee_fs_rpc_unlink(OPTEE_MSG_RPC_CMD_FS, path);
-		if (res) {
+		if (tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, path) !=
+			TEE_SUCCESS) {
 			ree_fs_closedir_rpc(dir);
+			res = -1;
 			goto exit;
 		}
-
 		dirent = ree_fs_readdir_rpc(dir);
 	}
 
@@ -910,79 +770,15 @@ exit:
 	return res;
 }
 
-static bool tee_file_exists(const char *file)
-{
-	char meta_path[REE_FS_NAME_MAX];
-
-	get_meta_filepath(file, 0, meta_path);
-	if (ree_fs_access_rpc(meta_path, TEE_FS_F_OK)) {
-		get_meta_filepath(file, 1, meta_path);
-		if (ree_fs_access_rpc(meta_path, TEE_FS_F_OK))
-			return false;
-	}
-
-	return true;
-}
-
-static struct tee_fs_file_meta *create_tee_file(const char *file)
-{
-	struct tee_fs_file_meta *meta = NULL;
-	int res;
-
-	DMSG("Creating TEE file=%s", file);
-
-	/* create TEE file directory if not exist */
-	if (ree_fs_access_rpc(file, TEE_FS_F_OK)) {
-		res = ree_fs_mkdir_rpc(file,
-				TEE_FS_S_IRUSR | TEE_FS_S_IWUSR | TEE_FS_S_IXUSR);
-		if (res) {
-			EMSG("Failed to create TEE file directory, res=%d",
-				res);
-			goto exit;
-		}
-	}
-
-	/* create meta file in TEE file directory */
-	meta = create_meta_file(file);
-	if (!meta)
-		EMSG("Failed to create new meta file");
-
-exit:
-	return meta;
-}
-
-static struct tee_fs_file_meta *open_tee_file(const char *file)
-{
-	struct tee_fs_file_meta *meta = NULL;
-	int backup_version = 0;
-
-	DMSG("Opening TEE file=%s", file);
-
-	meta = open_meta_file(file, backup_version);
-	if (!meta) {
-		meta = open_meta_file(file, !backup_version);
-		if (!meta) {
-			/*
-			 * cannot open meta file, assumed the TEE file
-			 * is corrupted
-			 */
-			EMSG("Can not open meta file");
-		}
-	}
-
-	return meta;
-}
-
 static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 				   tee_fs_off_t new_file_len);
 
 static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 {
-	int res = -1;
+	TEE_Result res;
+	int rc = -1;
 	size_t len;
-	struct tee_fs_file_meta *meta = NULL;
 	struct tee_fs_fd *fdp = NULL;
-	bool file_exist;
 
 	mutex_lock(&ree_fs_mutex);
 
@@ -1000,73 +796,53 @@ static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
 		goto exit;
 	}
 
-	file_exist = tee_file_exists(file);
-	if (flags & TEE_FS_O_CREATE) {
-		if ((flags & TEE_FS_O_EXCL) && file_exist) {
-			DMSG("tee file already exists");
-			*errno = TEE_ERROR_ACCESS_CONFLICT;
-			goto exit;
-		}
-
-		if (!file_exist)
-			meta = create_tee_file(file);
-		else
-			meta = open_tee_file(file);
-
-	} else {
-		if (!file_exist) {
-			DMSG("tee file not exists");
-			*errno = TEE_ERROR_ITEM_NOT_FOUND;
-			goto exit;
-		}
-
-		meta = open_tee_file(file);
-	}
-
-	if (!meta) {
-		EMSG("Failed to open TEE file");
-		*errno = TEE_ERROR_CORRUPT_OBJECT;
-		goto exit;
-	}
-
-	DMSG("file=%s, length=%zd", file, meta->info.length);
-	fdp = (struct tee_fs_fd *)malloc(sizeof(struct tee_fs_fd));
+	fdp = calloc(1, sizeof(struct tee_fs_fd));
 	if (!fdp) {
 		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit_free_meta;
+		goto exit;
 	}
 
 	/* init internal status */
 	fdp->flags = flags;
-	fdp->meta = meta;
-	fdp->pos = 0;
 	if (init_block_cache(&fdp->block_cache)) {
-		res = -1;
+		*errno = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit_free_fd;
 	}
 
 	fdp->filename = malloc(len);
 	if (!fdp->filename) {
-		res = -1;
+		rc = -1;
 		*errno = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit_destroy_block_cache;
 	}
 	memcpy(fdp->filename, file, len);
 
-	if ((flags & TEE_FS_O_TRUNC) &&
-		(flags & TEE_FS_O_WRONLY || flags & TEE_FS_O_RDWR)) {
-		res = ree_fs_ftruncate_internal(errno, fdp, 0);
-		if (res < 0) {
-			EMSG("Unable to truncate file");
+	res = read_meta(fdp);
+	if (res == TEE_SUCCESS) {
+		if (flags & TEE_FS_O_EXCL) {
+			*errno = TEE_ERROR_ACCESS_CONFLICT;
 			goto exit_free_filename;
 		}
+	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		if (!(flags & TEE_FS_O_CREATE)) {
+			*errno = res;
+			goto exit_free_filename;
+		}
+		res = create_meta(fdp);
+		if (res != TEE_SUCCESS) {
+			*errno = res;
+			goto exit_free_filename;
+		}
+	} else {
+		*errno = res;
+		goto exit_free_filename;
 	}
 
 	/* return fd */
-	res = handle_get(&fs_handle_db, fdp);
-	if (res < 0)
+	rc = handle_get(&fs_handle_db, fdp);
+	if (rc < 0)
 		goto exit_free_filename;
-	fdp->fd = res;
+	fdp->fd = rc;
 	goto exit;
 
 exit_free_filename:
@@ -1075,11 +851,9 @@ exit_destroy_block_cache:
 	destroy_block_cache(&fdp->block_cache);
 exit_free_fd:
 	free(fdp);
-exit_free_meta:
-	free(meta);
 exit:
 	mutex_unlock(&ree_fs_mutex);
-	return res;
+	return rc;
 }
 
 static int ree_fs_close(int fd)
@@ -1096,7 +870,6 @@ static int ree_fs_close(int fd)
 	handle_put(&fs_handle_db, fdp->fd);
 
 	destroy_block_cache(&fdp->block_cache);
-	free(fdp->meta);
 	free(fdp->filename);
 	free(fdp);
 
@@ -1126,7 +899,7 @@ static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
 
 	DMSG("offset=%d, whence=%d", (int)offset, whence);
 
-	filelen = fdp->meta->info.length;
+	filelen = fdp->meta.info.length;
 
 	switch (whence) {
 	case TEE_FS_SEEK_SET:
@@ -1181,8 +954,8 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 				   tee_fs_off_t new_file_len)
 {
 	int res = -1;
-	size_t old_file_len = fdp->meta->info.length;
-	struct tee_fs_file_meta *new_meta = NULL;
+	size_t old_file_len = fdp->meta.info.length;
+	struct tee_fs_file_meta new_meta;
 	uint8_t *buf = NULL;
 
 	assert(errno);
@@ -1214,14 +987,8 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 		goto exit;
 	}
 
-	new_meta = duplicate_meta(fdp);
-	if (!new_meta) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		res = -1;
-		goto free;
-	}
-
-	new_meta->info.length = new_file_len;
+	new_meta = fdp->meta;
+	new_meta.info.length = new_file_len;
 
 	if ((size_t)new_file_len < old_file_len) {
 		int old_block_num = get_last_block_num(old_file_len);
@@ -1229,7 +996,7 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 
 		DMSG("Truncate file length to %zu", (size_t)new_file_len);
 
-		res = commit_meta_file(fdp, new_meta);
+		res = commit_meta_file(fdp, &new_meta);
 		if (res < 0) {
 			*errno = TEE_ERROR_CORRUPT_OBJECT;
 			EMSG("Failed to commit meta file");
@@ -1272,7 +1039,7 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 
 			DMSG("fill len=%zu", data_len);
 			res = out_of_place_write(fdp, (void *)buf,
-					data_len, new_meta);
+					data_len, &new_meta);
 			if (res < 0) {
 				*errno = TEE_ERROR_CORRUPT_OBJECT;
 				EMSG("Failed to fill data");
@@ -1285,7 +1052,7 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 		fdp->pos = orig_pos;
 
 		if (res == 0) {
-			res = commit_meta_file(fdp, new_meta);
+			res = commit_meta_file(fdp, &new_meta);
 			if (res < 0) {
 				*errno = TEE_ERROR_CORRUPT_OBJECT;
 				EMSG("Failed to commit meta file");
@@ -1294,7 +1061,6 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 	}
 
 free:
-	free(new_meta);
 	free(buf);
 
 exit:
@@ -1322,10 +1088,10 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 	}
 
 	if ((fdp->pos + len) < len ||
-	    fdp->pos > (tee_fs_off_t)fdp->meta->info.length)
+	    fdp->pos > (tee_fs_off_t)fdp->meta.info.length)
 		len = 0;
-	else if (fdp->pos + len > fdp->meta->info.length)
-		len = fdp->meta->info.length - fdp->pos;
+	else if (fdp->pos + len > fdp->meta.info.length)
+		len = fdp->meta.info.length - fdp->pos;
 
 	if (!len) {
 		res = 0;
@@ -1408,7 +1174,7 @@ exit:
 static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 {
 	int res = -1;
-	struct tee_fs_file_meta *new_meta = NULL;
+	struct tee_fs_file_meta new_meta;
 	struct tee_fs_fd *fdp;
 	size_t file_size;
 	int orig_pos;
@@ -1432,7 +1198,7 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 		goto exit;
 	}
 
-	file_size = fdp->meta->info.length;
+	file_size = fdp->meta.info.length;
 	orig_pos = fdp->pos;
 
 	if (fdp->flags & TEE_FS_O_RDONLY) {
@@ -1455,13 +1221,8 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 			goto exit;
 	}
 
-	new_meta = duplicate_meta(fdp);
-	if (!new_meta) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	res = out_of_place_write(fdp, buf, len, new_meta);
+	new_meta = fdp->meta;
+	res = out_of_place_write(fdp, buf, len, &new_meta);
 	if (res < 0) {
 		*errno = TEE_ERROR_CORRUPT_OBJECT;
 	} else {
@@ -1469,7 +1230,7 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 		int start_block_num;
 		int end_block_num;
 
-		r = commit_meta_file(fdp, new_meta);
+		r = commit_meta_file(fdp, &new_meta);
 		if (r < 0) {
 			*errno = TEE_ERROR_CORRUPT_OBJECT;
 			res = -1;
@@ -1488,7 +1249,6 @@ static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
 	}
 exit:
 	mutex_unlock(&ree_fs_mutex);
-	free(new_meta);
 	return (res < 0) ? res : (int)len;
 }
 
