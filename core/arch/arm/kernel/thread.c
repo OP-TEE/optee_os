@@ -84,8 +84,6 @@
 #endif
 #endif /*ARM64*/
 
-#define RPC_MAX_NUM_PARAMS	2
-
 struct thread_ctx threads[CFG_NUM_THREADS];
 
 static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
@@ -567,7 +565,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		void *arg;
 
 		thread_rpc_alloc_arg(
-			OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS),
+			OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS),
 			&parg, &carg);
 		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 		    !(arg = phys_to_virt(parg, CORE_MEM_NSEC_SHM))) {
@@ -1177,9 +1175,9 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
 	size_t n;
 
-	assert(arg && carg && num_params <= RPC_MAX_NUM_PARAMS);
+	assert(arg && carg && num_params <= THREAD_RPC_MAX_NUM_PARAMS);
 
-	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(RPC_MAX_NUM_PARAMS));
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 	arg->num_params = num_params;

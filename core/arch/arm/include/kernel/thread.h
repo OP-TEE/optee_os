@@ -41,6 +41,8 @@
 #define THREAD_ID_0		0
 #define THREAD_ID_INVALID	-1
 
+#define THREAD_RPC_MAX_NUM_PARAMS	3
+
 #ifndef ASM
 extern uint32_t thread_vector_table[];
 

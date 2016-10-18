@@ -36,6 +36,7 @@
 #include <stddef.h>
 #include <tee_api_types.h>
 #include <tee/tee_fs.h>
+#include <kernel/thread.h>
 
 /*
  * Return values:
@@ -66,6 +67,42 @@ int tee_fs_rpc_write(int id, int fd, const void *buf, size_t len);
 int tee_fs_rpc_closedir(int id, struct tee_fs_dir *d);
 int tee_fs_rpc_rmdir(int id, const char *name);
 int tee_fs_rpc_unlink(int id, const char *file);
+
+struct tee_fs_rpc_operation {
+	uint32_t id;
+	struct optee_msg_param params[THREAD_RPC_MAX_NUM_PARAMS];
+	size_t num_params;
+};
+
+TEE_Result tee_fs_rpc_new_open(uint32_t id, const char *fname, int *fd);
+TEE_Result tee_fs_rpc_new_create(uint32_t id, const char *fname, int *fd);
+TEE_Result tee_fs_rpc_new_close(uint32_t id, int fd);
+
+TEE_Result tee_fs_rpc_new_read_init(struct tee_fs_rpc_operation *op,
+				    uint32_t id, int fd, tee_fs_off_t offset,
+				    size_t data_len, void **out_data);
+TEE_Result tee_fs_rpc_new_read_final(struct tee_fs_rpc_operation *op,
+				     size_t *data_len);
+
+TEE_Result tee_fs_rpc_new_write_init(struct tee_fs_rpc_operation *op,
+				     uint32_t id, int fd, tee_fs_off_t offset,
+				     size_t data_len, void **data);
+TEE_Result tee_fs_rpc_new_write_final(struct tee_fs_rpc_operation *op);
+
+
+TEE_Result tee_fs_rpc_new_truncate(uint32_t id, int fd, size_t len);
+TEE_Result tee_fs_rpc_new_remove(uint32_t id, const char *fname);
+TEE_Result tee_fs_rpc_new_rename(uint32_t id, const char *old_fname,
+				 const char *new_fname, bool overwrite);
+
+TEE_Result tee_fs_rpc_new_opendir(uint32_t id, const char *name,
+				  struct tee_fs_dir **d);
+TEE_Result tee_fs_rpc_new_closedir(uint32_t id, struct tee_fs_dir *d);
+TEE_Result tee_fs_rpc_new_readdir(uint32_t id, struct tee_fs_dir *d,
+				  struct tee_fs_dirent **ent);
+
+TEE_Result tee_fs_rpc_new_begin_transaction(uint32_t id);
+TEE_Result tee_fs_rpc_new_end_transaction(uint32_t id, bool rollback);
 
 struct thread_specific_data;
 #if defined(CFG_WITH_USER_TA) && \
