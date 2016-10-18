@@ -178,27 +178,6 @@ exit:
 	return rc;
 }
 
-int tee_fs_rpc_close(int id, int fd)
-{
-	struct tee_fs_rpc head = { 0 };
-	TEE_Result res;
-	int rc = RPC_FAILED;
-
-	DMSG("(id: %d, fd: %d)...", id, fd);
-
-	head.op = TEE_FS_CLOSE;
-	head.fd = fd;
-
-	res = tee_fs_rpc_send_cmd(id, &head, NULL, 0, TEE_FS_MODE_NONE);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
-}
-
 int tee_fs_rpc_end_transaction(int id, bool rollback)
 {
 	struct tee_fs_rpc head = { 0 };
@@ -212,28 +191,6 @@ int tee_fs_rpc_end_transaction(int id, bool rollback)
 	head.op = TEE_FS_END;
 	head.arg = rollback;
 	head.fd = -1;
-
-	res = tee_fs_rpc_send_cmd(id, &head, NULL, 0, TEE_FS_MODE_NONE);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
-}
-
-int tee_fs_rpc_ftruncate(int id, int fd, tee_fs_off_t length)
-{
-	struct tee_fs_rpc head = { 0 };
-	TEE_Result res;
-	int rc = RPC_FAILED;
-
-	DMSG("(id: %d, fd: %d, length: %" PRId64 ")...", id, fd, length);
-
-	head.op = TEE_FS_TRUNC;
-	head.fd = fd;
-	head.arg = length;
 
 	res = tee_fs_rpc_send_cmd(id, &head, NULL, 0, TEE_FS_MODE_NONE);
 	if (res != TEE_SUCCESS)
@@ -283,31 +240,6 @@ exit:
 	return rc;
 }
 
-tee_fs_off_t tee_fs_rpc_lseek(int id, int fd, tee_fs_off_t offset,
-				  int whence)
-{
-	struct tee_fs_rpc head = { 0 };
-	tee_fs_off_t rc = RPC_FAILED;
-	TEE_Result res;
-
-	DMSG("(id: %d, fd: %d, offset: %" PRId64 ", whence: %d)...", id, fd,
-	     offset, whence);
-
-	head.op = TEE_FS_SEEK;
-	head.fd = fd;
-	head.arg = offset;
-	head.flags = whence;
-
-	res = tee_fs_rpc_send_cmd(id, &head, NULL, 0, TEE_FS_MODE_NONE);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%" PRId64, rc);
-	return rc;
-}
-
 int tee_fs_rpc_mkdir(int id, const char *path, tee_fs_mode_t mode)
 {
 	struct tee_fs_rpc head = { 0 };
@@ -328,36 +260,6 @@ int tee_fs_rpc_mkdir(int id, const char *path, tee_fs_mode_t mode)
 	head.flags = mode;
 
 	res = tee_fs_rpc_send_cmd(id, &head, (void *)path, len,
-				  TEE_FS_MODE_IN);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
-}
-
-int tee_fs_rpc_open(int id, const char *file, int flags)
-{
-	struct tee_fs_rpc head = { 0 };
-	TEE_Result res;
-	int rc = RPC_FAILED;
-	size_t len;
-
-	DMSG("(id: %d, file: %s, flags: %d)...", id, file, flags);
-
-	if (!file)
-		goto exit;
-
-	len = strlen(file) + 1;
-	if (len <= 1)
-		goto exit;
-
-	head.op = TEE_FS_OPEN;
-	head.flags = flags;
-
-	res = tee_fs_rpc_send_cmd(id, &head, (void *)file, len,
 				  TEE_FS_MODE_IN);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -408,38 +310,6 @@ free_and_exit:
 exit:
 	DMSG("...%p", (void *)dir);
 	return dir;
-}
-
-int tee_fs_rpc_read(int id, int fd, void *buf, size_t len)
-{
-	struct tee_fs_rpc head = { 0 };
-	TEE_Result res;
-	int rc = RPC_FAILED;
-
-	DMSG("(id: %d, fd: %d, buf: %p, len: %zu)...", id, fd, (void *)buf,
-	     len);
-
-	if (!len) {
-		res = 0;
-		goto exit;
-	}
-
-	if (!buf)
-		goto exit;
-
-	head.op = TEE_FS_READ;
-	head.fd = fd;
-	head.len = (uint32_t)len;
-
-	res = tee_fs_rpc_send_cmd(id, &head, (void *)buf, len,
-				  TEE_FS_MODE_OUT);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
 }
 
 struct tee_fs_dirent *tee_fs_rpc_readdir(int id, struct tee_fs_dir *d)
@@ -520,36 +390,6 @@ exit:
 	return rc;
 }
 
-int tee_fs_rpc_write(int id, int fd, const void *buf, size_t len)
-{
-	struct tee_fs_rpc head = { 0 };
-	TEE_Result res;
-	int rc = RPC_FAILED;
-
-	DMSG("(id: %d, fd: %d, buf: %p, len: %zu)...", id, fd, buf, len);
-
-	if (!len) {
-		res = 0;
-		goto exit;
-	}
-
-	if (!buf)
-		goto exit;
-
-	head.op = TEE_FS_WRITE;
-	head.fd = fd;
-	head.len = (uint32_t)len;
-
-	res = tee_fs_rpc_send_cmd(id, &head, (void *)buf, len, TEE_FS_MODE_IN);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
-}
-
 int tee_fs_rpc_closedir(int id, struct tee_fs_dir *d)
 {
 	struct tee_fs_rpc head = { 0 };
@@ -599,35 +439,6 @@ int tee_fs_rpc_rmdir(int id, const char *name)
 	head.op = TEE_FS_RMDIR;
 
 	res = tee_fs_rpc_send_cmd(id, &head, (void *)name, len,
-				  TEE_FS_MODE_IN);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	rc = head.res;
-exit:
-	DMSG("...%d", rc);
-	return rc;
-}
-
-int tee_fs_rpc_unlink(int id, const char *file)
-{
-	struct tee_fs_rpc head = { 0 };
-	size_t len;
-	TEE_Result res;
-	int rc = RPC_FAILED;
-
-	DMSG("(id: %d, file: %s)...", id, file);
-
-	if (!file)
-		goto exit;
-
-	len = strlen(file) + 1;
-	if (len <= 1)
-		goto exit;
-
-	head.op = TEE_FS_UNLINK;
-
-	res = tee_fs_rpc_send_cmd(id, &head, (void *)file, len,
 				  TEE_FS_MODE_IN);
 	if (res != TEE_SUCCESS)
 		goto exit;

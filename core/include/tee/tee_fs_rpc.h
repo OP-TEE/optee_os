@@ -51,22 +51,14 @@
  */
 int tee_fs_rpc_access(int id, const char *name, int mode);
 int tee_fs_rpc_begin_transaction(int id);
-int tee_fs_rpc_close(int id, int fd);
 int tee_fs_rpc_end_transaction(int id, bool rollback);
-int tee_fs_rpc_ftruncate(int id, int fd, tee_fs_off_t length);
 int tee_fs_rpc_link(int id, const char *old, const char *nw);
-tee_fs_off_t tee_fs_rpc_lseek(int id, int fd, tee_fs_off_t offset,
-				  int whence);
 int tee_fs_rpc_mkdir(int id, const char *path, tee_fs_mode_t mode);
-int tee_fs_rpc_open(int id, const char *file, int flags);
 struct tee_fs_dir *tee_fs_rpc_opendir(int id, const char *name);
-int tee_fs_rpc_read(int id, int fd, void *buf, size_t len);
 struct tee_fs_dirent *tee_fs_rpc_readdir(int id, struct tee_fs_dir *d);
 int tee_fs_rpc_rename(int id, const char *old, const char *nw);
-int tee_fs_rpc_write(int id, int fd, const void *buf, size_t len);
 int tee_fs_rpc_closedir(int id, struct tee_fs_dir *d);
 int tee_fs_rpc_rmdir(int id, const char *name);
-int tee_fs_rpc_unlink(int id, const char *file);
 
 struct tee_fs_rpc_operation {
 	uint32_t id;
