@@ -135,3 +135,12 @@
 	mrc	p15, 0, \reg, c1, c1, 2
 	.endm
 
+	.macro mov_imm reg, val
+		.if ((\val) & 0xffff0000) == 0
+			mov	\reg, #(\val)
+		.else
+			movw	\reg, #((\val) & 0xffff)
+			movt	\reg, #((\val) >> 16)
+		.endif
+	.endm
+
