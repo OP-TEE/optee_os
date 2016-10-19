@@ -34,7 +34,7 @@ before_script:
   - export DST_KERNEL=$PWD/linux && mkdir -p $DST_KERNEL/scripts && cd $DST_KERNEL/scripts
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x checkpatch.pl
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt
-  - touch const_structs.checkpatch
+  - echo "invalid.struct.name" >const_structs.checkpatch
   - cd $MYHOME
 
   - export DL_DIR=$HOME/downloads
