@@ -65,7 +65,7 @@ making proper upstream patches sooner or later.
 ```
 $ mkdir rpi3
 $ cd rpi3
-$ repo init -u https://github.com/OP-TEE/manifest.git -m rpi3_experimental.xml
+$ repo init -u https://github.com/OP-TEE/manifest.git -m rpi3.xml
 $ repo sync -j3
 ```
   Now it's probably a good idea to read the [Tips and tricks](https://github.com/OP-TEE/optee_os#58-tips-and-tricks)
