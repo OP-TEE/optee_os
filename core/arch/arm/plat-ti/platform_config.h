@@ -51,6 +51,9 @@
 #define GIC_BASE            0x48211000
 #define SECRAM_BASE         0x40200000
 
+/* RNG */
+#define RNG_BASE        0x48090000
+
 #else
 #error "Unknown platform flavor"
 #endif
