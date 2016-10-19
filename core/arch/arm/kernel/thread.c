@@ -610,8 +610,13 @@ vaddr_t thread_get_saved_thread_sp(void)
 
 bool thread_addr_is_in_stack(vaddr_t va)
 {
-	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_ctx *thr;
+	int ct = thread_get_id_may_fail();
 
+	if (ct == -1)
+		return false;
+
+	thr = threads + ct;
 	return va < thr->stack_va_end &&
 	       va >= (thr->stack_va_end - STACK_THREAD_SIZE);
 }
