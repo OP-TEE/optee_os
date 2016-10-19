@@ -936,26 +936,30 @@ out:
 static void check_pa_matches_va(void *va, paddr_t pa)
 {
 	TEE_Result res;
-	vaddr_t user_va_base;
-	size_t user_va_size;
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
 
-	core_mmu_get_user_va_range(&user_va_base, &user_va_size);
-	if (v >= user_va_base && v <= (user_va_base - 1 + user_va_size)) {
-		if (!core_mmu_user_mapping_is_active()) {
-			if (pa)
-				panic("issue in linear address space");
+	if (core_mmu_user_va_range_is_defined()) {
+		vaddr_t user_va_base;
+		size_t user_va_size;
+
+		core_mmu_get_user_va_range(&user_va_base, &user_va_size);
+		if (v >= user_va_base &&
+		    v <= (user_va_base - 1 + user_va_size)) {
+			if (!core_mmu_user_mapping_is_active()) {
+				if (pa)
+					panic("issue in linear address space");
+				return;
+			}
+
+			res = tee_mmu_user_va2pa_helper(
+				to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
+			if (res == TEE_SUCCESS && pa != p)
+				panic("bad pa");
+			if (res != TEE_SUCCESS && pa)
+				panic("false pa");
 			return;
 		}
-
-		res = tee_mmu_user_va2pa_helper(
-			to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
-		if (res == TEE_SUCCESS && pa != p)
-			panic("bad pa");
-		if (res != TEE_SUCCESS && pa)
-			panic("false pa");
-		return;
 	}
 #ifdef CFG_WITH_PAGER
 	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {

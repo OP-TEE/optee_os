@@ -156,6 +156,15 @@ struct core_mmu_user_map {
 };
 #endif
 
+#ifdef CFG_WITH_LPAE
+bool core_mmu_user_va_range_is_defined(void);
+#else
+static inline bool core_mmu_user_va_range_is_defined(void)
+{
+	return true;
+}
+#endif
+
 /*
  * core_mmu_get_user_va_range() - Return range of user va space
  * @base:	Lowest user virtual address

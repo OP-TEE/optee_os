@@ -652,6 +652,11 @@ void core_mmu_get_entry_primitive(const void *table, size_t level __unused,
 		*attr = desc_to_mattr(tbl[idx]);
 }
 
+bool core_mmu_user_va_range_is_defined(void)
+{
+	return user_va_idx != -1;
+}
+
 void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 {
 	assert(user_va_idx != -1);
