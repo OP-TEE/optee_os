@@ -56,11 +56,11 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 	kbuf = malloc(len);
 	if (kbuf == NULL)
 		return;
-	*kbuf = '\0';
 
-	/* log as Info/Raw traces */
-	if (tee_svc_copy_from_user(kbuf, buf, len) == TEE_SUCCESS)
-		TAMSG_RAW("%.*s", (int)len, kbuf);
+	if (tee_svc_copy_from_user(kbuf, buf, len) == TEE_SUCCESS) {
+		kbuf[len] = '\0';
+		trace_ext_puts(kbuf);
+	}
 
 	free(kbuf);
 #endif
