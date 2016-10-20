@@ -46,9 +46,9 @@ cmd-echo-silent := true
 endif
 endif
 
-cppflags$(sm)  := $($(sm)-platform-cppflags)
+cppflags$(sm)  := $($(sm)-platform-cppflags) $(CPPFLAGS_$(sm))
 aflags$(sm)    := $($(sm)-platform-aflags)
-cflags$(sm)    := $($(sm)-platform-cflags)
+cflags$(sm)    := $($(sm)-platform-cflags) $(CFLAGS_$(sm))
 
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
