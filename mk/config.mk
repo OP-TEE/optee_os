@@ -218,8 +218,9 @@ CFG_TA_GPROF_SUPPORT ?= n
 
 # Build various user-mode libraries with profiling
 CFG_LIBUTEE_GPROF ?= n
+CFG_U_LIBUTILS_GPROF ?= n
 
-ifeq ($(filter y,$(CFG_LIBUTEE_GPROF)),y)
+ifeq ($(filter y,$(CFG_LIBUTEE_GPROF) $(CFG_U_LIBUTILS_GPROF)),y)
 ifneq ($(CFG_TA_GPROF_SUPPORT),y)
 $(error Cannot instrument user library if user mode profiling is disabled)
 endif
