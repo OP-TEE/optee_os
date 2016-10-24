@@ -50,7 +50,7 @@ enum itr_return {
 struct itr_handler {
 	size_t it;
 	uint32_t flags;
-	enum itr_return (*handler)(struct itr_handler *h);
+	enum itr_return (*handler)(void *data);
 	void *data;
 	SLIST_ENTRY(itr_handler) link;
 };

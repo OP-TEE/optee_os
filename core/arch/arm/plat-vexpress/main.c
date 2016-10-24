@@ -148,7 +148,7 @@ void console_flush(void)
 }
 
 #ifdef IT_CONSOLE_UART
-static enum itr_return console_itr_cb(struct itr_handler *h __unused)
+static enum itr_return console_itr_cb(void *data __unused)
 {
 	paddr_t uart_base = console_base();
 
