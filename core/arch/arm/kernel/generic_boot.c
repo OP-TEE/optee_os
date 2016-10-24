@@ -90,6 +90,11 @@ __weak void main_init_gic(void)
 {
 }
 
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void main_secondary_init_gic(void)
+{
+}
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
@@ -622,6 +627,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
+	main_secondary_init_gic();
 	init_vfp_sec();
 	init_vfp_nsec();
 

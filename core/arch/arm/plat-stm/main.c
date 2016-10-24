@@ -28,6 +28,7 @@
 #include <arm32.h>
 #include <asc.h>
 #include <console.h>
+#include <drivers/gic.h>
 #include <drivers/pl011.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
@@ -47,6 +48,9 @@
 register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, CORE_MMU_DEVICE_SIZE);
+
+static struct gic_data gic_data;
+static void main_fiq(void);
 
 #if defined(PLATFORM_FLAVOR_b2260)
 #define stm_tee_entry_std	tee_entry_std
@@ -68,15 +72,10 @@ static void stm_tee_entry_std(struct thread_smc_args *smc_args)
 }
 #endif
 
-static void stm_fiq(void)
-{
-	panic();
-}
-
 static const struct thread_handlers handlers = {
 	.std_smc = stm_tee_entry_std,
 	.fast_smc = tee_entry_fast,
-	.fiq = stm_fiq,
+	.fiq = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
@@ -155,8 +154,8 @@ void plat_cpu_reset_late(void)
 
 	assert(!cpu_mmu_enabled());
 
-	/* Allow NSec to manage FIQ/Imprecise abort (SCR[FW]=1, SCR[AW]=1) */
-	write_scr(SCR_AW | SCR_FW);
+	/* Allow NSec to Imprecise abort */
+	write_scr(SCR_AW);
 
 	if (get_core_pos())
 		return;
@@ -171,7 +170,32 @@ void plat_cpu_reset_late(void)
 	write32(CPU_PORT_FILT_START | PL310_CTRL_ENABLE_BIT,
 				   pl310_base() + PL310_ADDR_FILT_START);
 
-	/* default: all SPIs are nonsecure */
+	/* TODO: gic_init scan fails, pre-init all SPIs are nonsecure */
 	for (i = 0; i < (31 * 4); i += 4)
 		write32(0xFFFFFFFF, GIC_DIST_BASE + GIC_DIST_ISR1 + i);
+}
+
+void main_init_gic(void)
+{
+	vaddr_t gicc_base;
+	vaddr_t gicd_base;
+
+	gicc_base = (vaddr_t)phys_to_virt(GIC_CPU_BASE, MEM_AREA_IO_SEC);
+	gicd_base = (vaddr_t)phys_to_virt(GIC_DIST_BASE, MEM_AREA_IO_SEC);
+
+	if (!gicc_base || !gicd_base)
+		panic();
+
+	gic_init(&gic_data, gicc_base, gicd_base);
+	itr_init(&gic_data.chip);
+}
+
+void main_secondary_init_gic(void)
+{
+	gic_cpu_init(&gic_data);
+}
+
+static void main_fiq(void)
+{
+	gic_it_handle(&gic_data);
 }

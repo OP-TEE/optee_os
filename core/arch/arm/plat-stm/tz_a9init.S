@@ -93,23 +93,6 @@ UNWIND(	.fnstart)
 	movt r0, #((CPU_PCR_INIT >> 16) & 0xFFFF)
 	write_pcr r0
 
-	/*
-	 * GIC configuration
-	 *
-	 * Register ICDISR0 = 0xFFFFFFFF
-	 * - All local interrupts are NonSecure.
-	 *
-	 * Register ICCPMR = 0xFFFFFFFF
-	 */
-
-	ldr  r0, =GIC_DIST_BASE
-	mov  r1, #0xFFFFFFFF
-	str  r1, [r0, #GIC_DIST_ISR0]
-
-	ldr  r0, =GIC_CPU_BASE
-	mov  r1, #0xFFFFFFFF
-	str  r1, [r0, #CORE_ICC_ICCPMR]
-
 	mov pc, lr
 
 UNWIND(	.fnend)

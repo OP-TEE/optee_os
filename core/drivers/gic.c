@@ -125,6 +125,8 @@ out:
 
 void gic_cpu_init(struct gic_data *gd)
 {
+	assert(gd->gicd_base && gd->gicc_base);
+
 	/* per-CPU interrupts config:
 	 * ID0-ID7(SGI)   for Non-secure interrupts
 	 * ID8-ID15(SGI)  for Secure interrupts.

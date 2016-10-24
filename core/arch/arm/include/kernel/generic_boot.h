@@ -42,6 +42,7 @@ void generic_boot_init_secondary(unsigned long nsec_entry);
 #endif
 
 void main_init_gic(void);
+void main_secondary_init_gic(void);
 
 void init_sec_mon(unsigned long nsec_entry);
 
