@@ -77,40 +77,20 @@ END_FUNC arm_cl2_enable
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
-	/*
-	 * Mandated HW config loaded
-	 *
-	 * SCTLR = 0x00004000
-	 * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
-	 *
-	 * ACTRL = 0x00000041
-	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
-	 * - L2 write full line of zero disabled (bit3=0)
-	 *   (keep WFLZ low. Will be set once outer L2 is ready)
-	 *
-	 * NSACR = 0x00020C00
-	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
-	 * - Nsec can lockdown TLB (TL bit17=1)
-	 * - NSec cannot access PLE (PLE bit16=0)
-	 * - NSec can use SIMD/VFP (CP10/CP11) (bit15:14=2b00, bit11:10=2b11)
-	 *
-	 * PCR = 0x00000001
-	 * - no change latency, enable clk gating
-	 */
-	movw r0, #0x4000
-	movt r0, #0x0000
+	movw r0, #(CPU_SCTLR_INIT & 0xFFFF)
+	movt r0, #((CPU_SCTLR_INIT >> 16) & 0xFFFF)
 	write_sctlr r0
 
-	movw r0, #0x0041
-	movt r0, #0x0000
+	movw r0, #(CPU_ACTLR_INIT & 0xFFFF)
+	movt r0, #((CPU_ACTLR_INIT >> 16) & 0xFFFF)
 	write_actlr r0
 
-	movw r0, #0x0C00
-	movt r0, #0x0002
+	movw r0, #(CPU_NSACR_INIT & 0xFFFF)
+	movt r0, #((CPU_NSACR_INIT >> 16) & 0xFFFF)
 	write_nsacr r0
 
-	movw r0, #0x0000
-	movt r0, #0x0001
+	movw r0, #(CPU_PCR_INIT & 0xFFFF)
+	movt r0, #((CPU_PCR_INIT >> 16) & 0xFFFF)
 	write_pcr r0
 
 	/*

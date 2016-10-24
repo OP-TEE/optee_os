@@ -42,6 +42,7 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 #include <trace.h>
+#include <util.h>
 
 register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, CORE_MMU_DEVICE_SIZE);
@@ -134,71 +135,15 @@ vaddr_t pl310_base(void)
 
 void arm_cl2_config(vaddr_t pl310)
 {
-	uint32_t v;
 	/* pl310 off */
 	write32(0, pl310 + PL310_CTRL);
 
-	/*
-	 * TAG RAM Control Register
-	 *
-	 * bit[10:8]:1 - 2 cycle of write accesses latency
-	 * bit[6:4]:1 - 2 cycle of read accesses latency
-	 * bit[2:0]:1 - 2 cycle of setup latency
-	 */
-	v = read32(pl310 + PL310_TAG_RAM_CTRL);
-	v &= 0xFFFFF888;
-	v |= 0xFFFFF999;
-	write32(v, pl310 + PL310_TAG_RAM_CTRL);
-
-	/*
-	 * DATA RAM Control Register
-	 *
-	 * bit[10:8]:2 - 3 cycle of write accesses latency
-	 * bit[6:4]:2 - 3 cycle of read accesses latency
-	 * bit[2:0]:2 - 3 cycle of setup latency
-	 */
-	v = read32(pl310 + PL310_DATA_RAM_CTRL);
-	v &= 0xFFFFF888;
-	v |= 0xFFFFFAAA;
-	write32(v, pl310 + PL310_DATA_RAM_CTRL);
-
-	/*
-	 * Auxiliary Control Register
-	 *
-	 * I/Dcache prefetch enabled (bit29:28=2b11)
-	 * NS can access interrupts (bit27=1)
-	 * NS can lockown cache lines (bit26=1)
-	 * Pseudo-random replacement policy (bit25=0)
-	 * Force write allocated (default)
-	 * Shared attribute internally ignored (bit22=1, bit13=0)
-	 * Parity disabled (bit21=0)
-	 * Event monitor disabled (bit20=0)
-	 * Set or preserved way config: size (bit19:17), ass (bit16)
-	 * Store buffer device limitation enabled (bit11=1)
-	 * Cacheable accesses have high prio (bit10=0)
-	 * Full Line Zero (FLZ) disabled (bit0=0)
-	 */
-	v = PL310_AUX_CTRL_INIT;
-	write32(v, pl310 + PL310_AUX_CTRL);
-
-	/*
-	 * Prefetch Control Register
-	 *
-	 * Double linefill disabled (bit30=0)
-	 * I/D prefetch enabled (bit29:28=2b11)
-	 * Prefetch drop enabled (bit24=1)
-	 * Incr double linefill disable (bit23=0)
-	 * Prefetch offset = 7 (bit4:0)
-	 */
-	write32(0x31000007, pl310 + PL310_PREFETCH_CTRL);
-
-	/*
-	 * Power Register
-	 *
-	 * Dynamic clock gating enabled
-	 * Standby mode enabled
-	 */
-	write32(0x00000003, pl310 + PL310_POWER_CTRL);
+	/* config PL310 */
+	write32(PL310_TAG_RAM_CTRL_INIT, pl310 + PL310_TAG_RAM_CTRL);
+	write32(PL310_DATA_RAM_CTRL_INIT, pl310 + PL310_DATA_RAM_CTRL);
+	write32(PL310_AUX_CTRL_INIT, pl310 + PL310_AUX_CTRL);
+	write32(PL310_PREFETCH_CTRL_INIT, pl310 + PL310_PREFETCH_CTRL);
+	write32(PL310_POWER_CTRL_INIT, pl310 + PL310_POWER_CTRL);
 
 	/* invalidate all pl310 cache ways */
 	arm_cl2_invbyway(pl310);
@@ -216,31 +161,17 @@ void plat_cpu_reset_late(void)
 	if (get_core_pos())
 		return;
 
-	/* both secure CPU access SCU */
-	write32(3, SCU_BASE + SCU_SAC);
-
-	/* both nonsec cpu access SCU, private and global timer */
-	write32(0x333, SCU_BASE + SCU_NSAC);
-
-	/* SCU Filtering End Address register */
+	write32(SCU_SAC_INIT, SCU_BASE + SCU_SAC);
+	write32(SCU_NSAC_INIT, SCU_BASE + SCU_NSAC);
 	write32(CPU_PORT_FILT_END, SCU_BASE + SCU_FILT_EA);
 	write32(CPU_PORT_FILT_START, SCU_BASE + SCU_FILT_SA);
+	write32(SCU_CTRL_INIT, SCU_BASE + SCU_CTRL);
 
-	/*
-	 * SCU Control Register : CTRL = 0x00000065
-	 * - ic stanby enable=1
-	 * - scu standby enable=1
-	 * - scu enable=1
-	 */
-	write32(0x0065, SCU_BASE + SCU_CTRL);
+	write32(CPU_PORT_FILT_END, pl310_base() + PL310_ADDR_FILT_END);
+	write32(CPU_PORT_FILT_START | PL310_CTRL_ENABLE_BIT,
+				   pl310_base() + PL310_ADDR_FILT_START);
 
-	/*
-	 * - All external interrupts are NonSecure.
-	 */
+	/* default: all SPIs are nonsecure */
 	for (i = 0; i < (31 * 4); i += 4)
 		write32(0xFFFFFFFF, GIC_DIST_BASE + GIC_DIST_ISR1 + i);
-
-	/* PL310 Memory Controller port filtering */
-	write32(CPU_PORT_FILT_END, pl310_base() + PL310_ADDR_FILT_END);
-	write32(CPU_PORT_FILT_START | 1, pl310_base() + PL310_ADDR_FILT_START);
 }
