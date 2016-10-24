@@ -22,7 +22,6 @@ for these platforms.
 | Renesas RCAR			|`Volodymyr Babchuk <vlad.babchuk@gmail.com>`|
 | STMicroelectronics b2260 - h410	|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
-| STMicroelectronics b2020-h416		|`Linaro <op-tee@linaro.org>`|
 | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|
 | Xilinx Zynq UltraScale+ MPSOC		|`Sören Brinkmann <soren.brinkmann@xilinx.com`|
 | Spreadtrum SC9860			|`Aijun Sun <aijun.sun@spreadtrum.com>`|

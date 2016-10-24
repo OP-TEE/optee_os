@@ -85,7 +85,6 @@ platforms have different sub-maintainers, please refer to the file
 | [Renesas RCAR](https://www.renesas.com/en-sg/solutions/automotive/products/rcar-h3.html)|`PLATFORM=rcar`| No |
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
-| [STMicroelectronics b2020-h416](http://www.st.com/web/catalog/mmc/FM131/SC999/SS1633/PF253155?sc=internet/imag_video/product/253155.jsp)|`PLATFORM=stm-orly2`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
 | [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |
 | [Spreadtrum SC9860](http://www.spreadtrum.com/en/SC9860GV.html)|`PLATFORM=sprd-sc9860`| No |
@@ -189,8 +188,8 @@ $ make CFG_TEE_CORE_LOG_LEVEL=4
 
 ---
 ### 4.4 STMicroelectronics boards
-Currently OP-TEE is supported on Orly-2 (`b2020-h416`), Cannes family
-(`b2120` both `h310` and `h410` chip) and 96boards/cannes board (`b2260-h410`).
+Currently OP-TEE is supported Cannes family (`b2120` both `h310` and `h410`
+chips) and the 96boards/cannes board (`b2260-h410`).
 
 #### 4.4.1 Get the compiler
 Follow the instructions in the "4.2 Basic setup".
@@ -207,17 +206,13 @@ For the legacy cannes family:
 ```
 $ make PLATFORM=stm-cannes
 ```
-For the orly2 family
-```
-$ make PLATFORM=stm-orly2
-```
 
-#### 4.4.4 Prepare and install the images
-Will be written soon.
+#### 4.4.4 Prepare, install and run the software
+For 96board/cannes:
+Copy the generated 'optee.bin' on target SD or USB stick and insure the boot
+media boot scripts defines optee and non-secure worlds boot.
 
-#### 4.4.5 Boot and run the software
-<!-- All magic with STM and so on must be stated here. -->
-Will be written soon.
+More info to come...
 
 ---
 ### 4.5 Allwinner A80

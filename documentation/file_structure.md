@@ -33,7 +33,7 @@ Directory | Description
 /mm	  | Memory management
 /tee	  | TEE files
 /sm	  | Secure Monitor
-/plat-orly| Specific files for the Orly platform
+/plat-foo | Specific files for the 'foo' platform
 
 ## Structure of /core/arch/arm/include
 Directory | Description
