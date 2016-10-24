@@ -351,6 +351,13 @@ static inline uint32_t read_ifsr(void)
 	return ifsr;
 }
 
+static inline void write_scr(uint32_t scr)
+{
+	asm volatile ("mcr	p15, 0, %[scr], c1, c1, 0"
+			: : [scr] "r" (scr)
+	);
+}
+
 static inline void isb(void)
 {
 	asm volatile ("isb");

@@ -90,6 +90,8 @@
 #define UART_CONSOLE_BASE	ST_ASC21_REGS_BASE
 #define RNG_BASE		0x08A89000
 
+#define PL310_AUX_CTRL_INIT	0x3C480800
+
 #elif defined(PLATFORM_FLAVOR_cannes)
 
 #define DRAM0_BASE		0x40000000
@@ -102,6 +104,8 @@
 #define ASC_NUM			20
 #define UART_CONSOLE_BASE	ST_ASC20_REGS_BASE
 #define RNG_BASE		0x08A89000
+
+#define PL310_AUX_CTRL_INIT	0x3C480800
 
 #elif defined(PLATFORM_FLAVOR_orly2)
 
@@ -118,6 +122,8 @@
 #define UART_CONSOLE_BASE	ST_ASC21_REGS_BASE
 #define RNG_BASE		0xFEE80000
 
+#define PL310_AUX_CTRL_INIT	0x3C480800
+
 #else
 
 #error "Unknown platform flavor"
@@ -129,7 +135,6 @@
 #ifndef CFG_TEE_LOAD_ADDR
 #define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
 #endif
-
 
 #define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
 #define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)

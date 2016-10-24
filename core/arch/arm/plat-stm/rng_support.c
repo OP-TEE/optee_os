@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014-2016, STMicroelectronics International N.V.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,19 +34,13 @@
 
 #include "rng_support.h"
 
-#define USE_SW_DELAY         0
-
-/*
- * if a HW issue is detected, infinite loop is started until valid data are
- * available.
- * - User-side timeout is expected to detect the issue.
- * else error is logged and 0x00 is returned
- */
-#define USE_USER_TIMEOUT     1
-
 /* Address of the register to read in the RNG IP */
 #define RNG_VAL_OFFSET             0x24
 #define RNG_STATUS_OFFSET          0x20
+
+#define RNG_STATUS_ERR0		BIT32(0)
+#define RNG_STATUS_ERR1		BIT32(1)
+#define RNG_STATUS_FULL		BIT32(5)
 
 static vaddr_t rng_base(void)
 {
@@ -62,27 +56,16 @@ static vaddr_t rng_base(void)
 
 static inline int hwrng_waithost_fifo_full(void)
 {
-	int res = 0;
-	volatile uint32_t status;
+	uint32_t status;
 
-	/* Wait HOST FIFO FULL (see rng_fspec_revG_120720.pdf) */
 	do {
 		status = read32(rng_base() + RNG_STATUS_OFFSET);
-	} while ((status & 0x20) != 0x20);
+	} while (!(status & RNG_STATUS_FULL));
 
-	/* Check STATUS (see rng_fspec_revG_120720.pdf) */
-	if ((status & 0x3) != 0) {
-		EMSG("generated HW random data are not valid");
-		res = -1;
-	}
+	if (status & (RNG_STATUS_ERR0 | RNG_STATUS_ERR1))
+		return 1;
 
-#if (USE_USER_TIMEOUT == 1)
-	if (res != 0)
-		while (1)
-			;
-#endif
-
-	return res;
+	return 0;
 }
 
 uint8_t hw_get_random_byte(void)
@@ -131,7 +114,6 @@ uint8_t hw_get_random_byte(void)
 	volatile uint32_t tmpval[_LOCAL_FIFO_SIZE/2];
 	uint8_t value;
 	int i;
-	int res;
 
 	nbcall++;
 
@@ -144,21 +126,13 @@ uint8_t hw_get_random_byte(void)
 		return value;
 	}
 
-	/* Wait HOST FIFO full */
-	res = hwrng_waithost_fifo_full();
-	if (res < 0)
-		return 0x00;
+	if (hwrng_waithost_fifo_full())
+		return 0;
 
 	/* Read the FIFO according the number of expected element */
-	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++) {
+	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++)
 		tmpval[i] = read32(rng_base() + RNG_VAL_OFFSET) & 0xFFFF;
-#if (USE_SW_DELAY == 1)
-		/* Wait 0.667 us (fcpu = 600Mhz -> 400 cycles) @see doc */
-		volatile int ll = 200;
-		while (ll--)
-			;
-#endif
-	}
+
 	/* Update the local SW fifo for next request */
 	pos = 0;
 	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++) {

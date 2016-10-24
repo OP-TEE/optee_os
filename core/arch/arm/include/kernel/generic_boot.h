@@ -47,6 +47,12 @@ void init_sec_mon(unsigned long nsec_entry);
 
 const struct thread_handlers *generic_boot_get_handlers(void);
 
+/* weak routines eventually overridden by platform */
+void plat_cpu_reset_early(void);
+void plat_cpu_reset_late(void);
+void arm_cl2_config(vaddr_t pl310);
+void arm_cl2_enable(vaddr_t pl310);
+
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 extern uint32_t ns_entry_addrs[];
 #endif
