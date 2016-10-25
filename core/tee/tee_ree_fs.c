@@ -26,22 +26,22 @@
  */
 
 #include <assert.h>
-#include <kernel/thread.h>
 #include <kernel/handle.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <string_ext.h>
+#include <string.h>
 #include <sys/queue.h>
 #include <tee/tee_cryp_provider.h>
-#include <tee/tee_fs.h>
 #include <tee/tee_fs_defs.h>
-#include <tee/tee_fs_rpc.h>
+#include <tee/tee_fs.h>
 #include <tee/tee_fs_key_manager.h>
+#include <tee/tee_fs_rpc.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -55,6 +55,8 @@
 #define NUM_BLOCKS_PER_FILE	1024
 
 #define MAX_FILE_SIZE	(BLOCK_FILE_SIZE * NUM_BLOCKS_PER_FILE)
+
+struct tee_file_handle;
 
 struct tee_fs_file_info {
 	size_t length;
@@ -85,7 +87,6 @@ struct tee_fs_fd {
 	struct tee_fs_file_meta meta;
 	tee_fs_off_t pos;
 	uint32_t flags;
-	int fd;
 	bool is_new_file;
 	char *filename;
 	struct block_cache block_cache;
@@ -170,19 +171,33 @@ static int ree_fs_mkdir_rpc(const char *path, tee_fs_mode_t mode)
 	return tee_fs_rpc_mkdir(OPTEE_MSG_RPC_CMD_FS, path, mode);
 }
 
-static struct tee_fs_dir *ree_fs_opendir_rpc(const char *name)
+static TEE_Result ree_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
+
 {
-	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name);
+	struct tee_fs_dir *d2 = tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name);
+
+	if (!d2)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*d = d2;
+	return TEE_SUCCESS;
 }
 
-static int ree_fs_closedir_rpc(struct tee_fs_dir *d)
+static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 {
-	return tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_FS, d);
+	tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_FS, d);
 }
 
-static struct tee_fs_dirent *ree_fs_readdir_rpc(struct tee_fs_dir *d)
+static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
+				     struct tee_fs_dirent **ent)
 {
-	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_FS, d);
+	struct tee_fs_dirent *e = tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_FS, d);
+
+	if (!e)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*ent = e;
+	return TEE_SUCCESS;
 }
 
 static int ree_fs_rmdir_rpc(const char *name)
@@ -335,7 +350,6 @@ static TEE_Result write_meta_file(const char *filename,
 	return encrypt_and_write_file(meta_path, META_FILE,
 			(void *)&meta->info, sizeof(meta->info),
 			meta->encrypted_fek);
-
 }
 
 static TEE_Result create_meta(struct tee_fs_fd *fdp)
@@ -355,10 +369,10 @@ static TEE_Result create_meta(struct tee_fs_fd *fdp)
 	return write_meta_file(fdp->filename, &fdp->meta);
 }
 
-static int commit_meta_file(struct tee_fs_fd *fdp,
-		struct tee_fs_file_meta *new_meta)
+static TEE_Result commit_meta_file(struct tee_fs_fd *fdp,
+				   struct tee_fs_file_meta *new_meta)
 {
-	int res;
+	TEE_Result res;
 	uint8_t old_version;
 	char meta_path[REE_FS_NAME_MAX];
 
@@ -366,8 +380,7 @@ static int commit_meta_file(struct tee_fs_fd *fdp,
 	new_meta->backup_version = !new_meta->backup_version;
 
 	res = write_meta_file(fdp->filename, new_meta);
-
-	if (res < 0)
+	if (res != TEE_SUCCESS)
 		return res;
 
 	/*
@@ -665,7 +678,7 @@ static struct block_operations block_ops = {
 	.write = flush_block_to_storage,
 };
 
-static int out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
+static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 		size_t len, struct tee_fs_file_meta *new_meta)
 {
 	int start_block_num = pos_to_block_num(fdp->pos);
@@ -706,15 +719,14 @@ static int out_of_place_write(struct tee_fs_fd *fdp, const void *buf,
 	if (fdp->pos > (tee_fs_off_t)new_meta->info.length)
 		new_meta->info.length = fdp->pos;
 
-	return 0;
+	return TEE_SUCCESS;
 failed:
 	fdp->pos = orig_pos;
-	return -1;
+	return TEE_ERROR_GENERIC;
 }
 
-static inline int create_hard_link(const char *old_dir,
-			const char *new_dir,
-			const char *filename)
+static TEE_Result create_hard_link(const char *old_dir, const char *new_dir,
+				   const char *filename)
 {
 	char old_path[REE_FS_NAME_MAX];
 	char new_path[REE_FS_NAME_MAX];
@@ -725,12 +737,15 @@ static inline int create_hard_link(const char *old_dir,
 			new_dir, filename);
 
 	DMSG("%s -> %s", old_path, new_path);
-	return tee_fs_rpc_link(OPTEE_MSG_RPC_CMD_FS, old_path, new_path);
+	if (tee_fs_rpc_link(OPTEE_MSG_RPC_CMD_FS, old_path, new_path))
+		return TEE_ERROR_GENERIC;
+
+	return TEE_SUCCESS;
 }
 
-static int unlink_tee_file(const char *file)
+static TEE_Result unlink_tee_file(const char *file)
 {
-	int res = -1;
+	TEE_Result res;
 	size_t len = strlen(file) + 1;
 	struct tee_fs_dirent *dirent;
 	struct tee_fs_dir *dir;
@@ -738,111 +753,82 @@ static int unlink_tee_file(const char *file)
 	DMSG("file=%s", file);
 
 	if (len > TEE_FS_NAME_MAX)
-		goto exit;
+		return TEE_ERROR_GENERIC;
 
-	dir = ree_fs_opendir_rpc(file);
-	if (!dir)
-		goto exit;
+	res = ree_fs_opendir_rpc(file, &dir);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	dirent = ree_fs_readdir_rpc(dir);
-	while (dirent) {
+	res = ree_fs_readdir_rpc(dir, &dirent);
+	while (res == TEE_SUCCESS) {
 		char path[REE_FS_NAME_MAX];
 
 		snprintf(path, REE_FS_NAME_MAX, "%s/%s",
 			file, dirent->d_name);
 
 		DMSG("unlink %s", path);
-		if (tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, path) !=
-			TEE_SUCCESS) {
+		res = tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_FS, path);
+		if (res != TEE_SUCCESS) {
 			ree_fs_closedir_rpc(dir);
-			res = -1;
-			goto exit;
+			return res;
 		}
-		dirent = ree_fs_readdir_rpc(dir);
+		res = ree_fs_readdir_rpc(dir, &dirent);
 	}
 
-	res = ree_fs_closedir_rpc(dir);
-	if (res)
-		goto exit;
+	ree_fs_closedir_rpc(dir);
 
-	res = ree_fs_rmdir_rpc(file);
-exit:
-	return res;
+	return ree_fs_rmdir_rpc(file);
 }
 
-static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
-				   tee_fs_off_t new_file_len);
-
-static int ree_fs_open(TEE_Result *errno, const char *file, int flags, ...)
+static TEE_Result open_internal(const char *file, bool create, bool overwrite,
+				struct tee_file_handle **fh)
 {
 	TEE_Result res;
-	int rc = -1;
 	size_t len;
 	struct tee_fs_fd *fdp = NULL;
 
-	mutex_lock(&ree_fs_mutex);
-
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	if (!file) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+	if (!file)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	len = strlen(file) + 1;
-	if (len > TEE_FS_NAME_MAX) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+	if (len > TEE_FS_NAME_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	fdp = calloc(1, sizeof(struct tee_fs_fd));
-	if (!fdp) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
+	if (!fdp)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	mutex_lock(&ree_fs_mutex);
 
 	/* init internal status */
-	fdp->flags = flags;
 	if (init_block_cache(&fdp->block_cache)) {
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit_free_fd;
 	}
 
-	fdp->filename = malloc(len);
+	fdp->filename = strdup(file);
 	if (!fdp->filename) {
-		rc = -1;
-		*errno = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit_destroy_block_cache;
 	}
-	memcpy(fdp->filename, file, len);
 
 	res = read_meta(fdp);
 	if (res == TEE_SUCCESS) {
-		if (flags & TEE_FS_O_EXCL) {
-			*errno = TEE_ERROR_ACCESS_CONFLICT;
+		if (overwrite) {
+			res = TEE_ERROR_ACCESS_CONFLICT;
 			goto exit_free_filename;
 		}
 	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (!(flags & TEE_FS_O_CREATE)) {
-			*errno = res;
+		if (!create)
 			goto exit_free_filename;
-		}
 		res = create_meta(fdp);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
+		if (res != TEE_SUCCESS)
 			goto exit_free_filename;
-		}
 	} else {
-		*errno = res;
 		goto exit_free_filename;
 	}
 
-	/* return fd */
-	rc = handle_get(&fs_handle_db, fdp);
-	if (rc < 0)
-		goto exit_free_filename;
-	fdp->fd = rc;
+	*fh = (struct tee_file_handle *)fdp;
 	goto exit;
 
 exit_free_filename:
@@ -853,69 +839,61 @@ exit_free_fd:
 	free(fdp);
 exit:
 	mutex_unlock(&ree_fs_mutex);
-	return rc;
-}
-
-static int ree_fs_close(int fd)
-{
-	int res = -1;
-	struct tee_fs_fd *fdp;
-
-	mutex_lock(&ree_fs_mutex);
-
-	fdp = handle_lookup(&fs_handle_db, fd);
-	if (!fdp)
-		goto exit;
-
-	handle_put(&fs_handle_db, fdp->fd);
-
-	destroy_block_cache(&fdp->block_cache);
-	free(fdp->filename);
-	free(fdp);
-
-exit:
-	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
-static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
-				 tee_fs_off_t offset, int whence)
+static TEE_Result ree_fs_open(const char *file, struct tee_file_handle **fh)
 {
-	tee_fs_off_t res = -1;
+	return open_internal(file, false, false, fh);
+}
+
+static TEE_Result ree_fs_create(const char *file, bool overwrite,
+				struct tee_file_handle **fh)
+{
+	return open_internal(file, true, overwrite, fh);
+}
+
+static void ree_fs_close(struct tee_file_handle **fh)
+{
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)*fh;
+
+	if (fdp) {
+		destroy_block_cache(&fdp->block_cache);
+		free(fdp->filename);
+		free(fdp);
+		*fh = NULL;
+	}
+}
+
+static TEE_Result ree_fs_seek(struct tee_file_handle *fh, int32_t offset,
+			      TEE_Whence whence, int32_t *new_offs)
+{
+	TEE_Result res;
 	tee_fs_off_t new_pos;
 	size_t filelen;
-	struct tee_fs_fd *fdp;
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
-
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	fdp = handle_lookup(&fs_handle_db, fd);
-	if (!fdp) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
 
 	DMSG("offset=%d, whence=%d", (int)offset, whence);
 
 	filelen = fdp->meta.info.length;
 
 	switch (whence) {
-	case TEE_FS_SEEK_SET:
+	case TEE_DATA_SEEK_SET:
 		new_pos = offset;
 		break;
 
-	case TEE_FS_SEEK_CUR:
+	case TEE_DATA_SEEK_CUR:
 		new_pos = fdp->pos + offset;
 		break;
 
-	case TEE_FS_SEEK_END:
+	case TEE_DATA_SEEK_END:
 		new_pos = filelen + offset;
 		break;
 
 	default:
-		*errno = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
 
@@ -924,11 +902,14 @@ static tee_fs_off_t ree_fs_lseek(TEE_Result *errno, int fd,
 
 	if (new_pos > TEE_DATA_MAX_POSITION) {
 		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
-		*errno = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
 
-	res = fdp->pos = new_pos;
+	fdp->pos = new_pos;
+	if (new_offs)
+		*new_offs = new_pos;
+	res = TEE_SUCCESS;
 exit:
 	mutex_unlock(&ree_fs_mutex);
 	return res;
@@ -950,41 +931,21 @@ exit:
  * Any failure before committing new meta is considered as
  * update failed, and the file content will not be updated
  */
-static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
-				   tee_fs_off_t new_file_len)
+static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
+					    tee_fs_off_t new_file_len)
 {
-	int res = -1;
+	TEE_Result res;
 	size_t old_file_len = fdp->meta.info.length;
 	struct tee_fs_file_meta new_meta;
-	uint8_t *buf = NULL;
-
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	if (!fdp) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		res = -1;
-		goto exit;
-	}
-
-	if (fdp->flags & TEE_FS_O_RDONLY) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		EMSG("Read only");
-		res = -1;
-		goto exit;
-	}
 
 	if ((size_t)new_file_len == old_file_len) {
 		DMSG("Ignore due to file length does not changed");
-		res = 0;
-		goto exit;
+		return TEE_SUCCESS;
 	}
 
 	if (new_file_len > MAX_FILE_SIZE) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
 		EMSG("Over maximum file size(%d)", MAX_FILE_SIZE);
-		res = -1;
-		goto exit;
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	new_meta = fdp->meta;
@@ -997,11 +958,8 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 		DMSG("Truncate file length to %zu", (size_t)new_file_len);
 
 		res = commit_meta_file(fdp, &new_meta);
-		if (res < 0) {
-			*errno = TEE_ERROR_CORRUPT_OBJECT;
-			EMSG("Failed to commit meta file");
-			goto free;
-		}
+		if (res != TEE_SUCCESS)
+			return res;
 
 		/* now we are safe to free unused blocks */
 		while (old_block_num > new_block_num) {
@@ -1016,32 +974,27 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 	} else {
 		size_t ext_len = new_file_len - old_file_len;
 		int orig_pos = fdp->pos;
+		uint8_t *buf;
 
-		buf = malloc(BLOCK_FILE_SIZE);
+		buf = calloc(1, BLOCK_FILE_SIZE);
 		if (!buf) {
-			*errno = TEE_ERROR_OUT_OF_MEMORY;
 			EMSG("Failed to allocate buffer, size=%d",
 					BLOCK_FILE_SIZE);
-			res = -1;
-			goto free;
+			return TEE_ERROR_OUT_OF_MEMORY;
 		}
-
-		memset(buf, 0x0, BLOCK_FILE_SIZE);
 
 		DMSG("Extend file length to %zu", (size_t)new_file_len);
 
 		fdp->pos = old_file_len;
 
-		res = 0;
+		res = TEE_SUCCESS;
 		while (ext_len > 0) {
 			size_t data_len = (ext_len > BLOCK_FILE_SIZE) ?
 					BLOCK_FILE_SIZE : ext_len;
 
 			DMSG("fill len=%zu", data_len);
-			res = out_of_place_write(fdp, (void *)buf,
-					data_len, &new_meta);
-			if (res < 0) {
-				*errno = TEE_ERROR_CORRUPT_OBJECT;
+			res = out_of_place_write(fdp, buf, data_len, &new_meta);
+			if (res != TEE_SUCCESS) {
 				EMSG("Failed to fill data");
 				break;
 			}
@@ -1049,69 +1002,49 @@ static int ree_fs_ftruncate_internal(TEE_Result *errno, struct tee_fs_fd *fdp,
 			ext_len -= data_len;
 		}
 
+		free(buf);
 		fdp->pos = orig_pos;
 
-		if (res == 0) {
+		if (res == TEE_SUCCESS) {
 			res = commit_meta_file(fdp, &new_meta);
-			if (res < 0) {
-				*errno = TEE_ERROR_CORRUPT_OBJECT;
+			if (res != TEE_SUCCESS)
 				EMSG("Failed to commit meta file");
-			}
 		}
 	}
 
-free:
-	free(buf);
-
-exit:
 	return res;
 }
 
-static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
+static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
+			      size_t *len)
 {
-	int res = -1;
+	TEE_Result res;
 	int start_block_num;
 	int end_block_num;
-	size_t remain_bytes = len;
+	size_t remain_bytes;
 	uint8_t *data_ptr = buf;
-	struct tee_fs_fd *fdp;
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
 
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	fdp = handle_lookup(&fs_handle_db, fd);
-	if (!fdp) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
-
-	if ((fdp->pos + len) < len ||
+	remain_bytes = *len;
+	if ((fdp->pos + remain_bytes) < remain_bytes ||
 	    fdp->pos > (tee_fs_off_t)fdp->meta.info.length)
-		len = 0;
-	else if (fdp->pos + len > fdp->meta.info.length)
-		len = fdp->meta.info.length - fdp->pos;
+		remain_bytes = 0;
+	else if (fdp->pos + remain_bytes > fdp->meta.info.length)
+		remain_bytes = fdp->meta.info.length - fdp->pos;
 
-	if (!len) {
-		res = 0;
+	*len = remain_bytes;
+
+	if (!remain_bytes) {
+		res = TEE_SUCCESS;
 		goto exit;
 	}
 
-	if (!buf) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
-
-	if (fdp->flags & TEE_FS_O_WRONLY) {
-		*errno = TEE_ERROR_ACCESS_CONFLICT;
-		goto exit;
-	}
-
-	DMSG("%s, data len=%zu", fdp->filename, len);
+	DMSG("%s, data len=%zu", fdp->filename, remain_bytes);
 
 	start_block_num = pos_to_block_num(fdp->pos);
-	end_block_num = pos_to_block_num(fdp->pos + len - 1);
+	end_block_num = pos_to_block_num(fdp->pos + remain_bytes - 1);
 	DMSG("start_block_num:%d, end_block_num:%d",
 		start_block_num, end_block_num);
 
@@ -1129,7 +1062,7 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 
 		b = block_ops.read(fdp, start_block_num);
 		if (!b) {
-			*errno = TEE_ERROR_CORRUPT_OBJECT;
+			res = TEE_ERROR_CORRUPT_OBJECT;
 			goto exit;
 		}
 
@@ -1140,10 +1073,10 @@ static int ree_fs_read(TEE_Result *errno, int fd, void *buf, size_t len)
 
 		start_block_num++;
 	}
-	res = 0;
+	res = TEE_SUCCESS;
 exit:
 	mutex_unlock(&ree_fs_mutex);
-	return (res < 0) ? res : (int)len;
+	return res;
 }
 
 /*
@@ -1171,85 +1104,62 @@ exit:
  * (Any failure in above steps is considered as a successfully
  *  update)
  */
-static int ree_fs_write(TEE_Result *errno, int fd, const void *buf, size_t len)
+static TEE_Result ree_fs_write(struct tee_file_handle *fh, const void *buf,
+			       size_t len)
 {
-	int res = -1;
+	TEE_Result res;
 	struct tee_fs_file_meta new_meta;
-	struct tee_fs_fd *fdp;
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 	size_t file_size;
-	int orig_pos;
+	tee_fs_off_t orig_pos;
+	int start_block_num;
+	int end_block_num;
+
+
+	if (!len)
+		return TEE_SUCCESS;
 
 	mutex_lock(&ree_fs_mutex);
-
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	fdp = handle_lookup(&fs_handle_db, fd);
-	if (!fdp) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
-	if (!len) {
-		res = 0;
-		goto exit;
-	}
-	if (!buf) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
 
 	file_size = fdp->meta.info.length;
 	orig_pos = fdp->pos;
 
-	if (fdp->flags & TEE_FS_O_RDONLY) {
-		EMSG("Write to a read-only file, denied");
-		*errno = TEE_ERROR_ACCESS_CONFLICT;
-		goto exit;
-	}
-
-	if ((fdp->pos + len) > MAX_FILE_SIZE) {
+	if ((fdp->pos + len) > MAX_FILE_SIZE || (fdp->pos + len) < len) {
 		EMSG("Over maximum file size(%d)", MAX_FILE_SIZE);
-		*errno = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
 
 	DMSG("%s, data len=%zu", fdp->filename, len);
 	if (file_size < (size_t)fdp->pos) {
 		DMSG("File hole detected, try to extend file size");
-		res = ree_fs_ftruncate_internal(errno, fdp, fdp->pos);
-		if (res < 0)
+		res = ree_fs_ftruncate_internal(fdp, fdp->pos);
+		if (res != TEE_SUCCESS)
 			goto exit;
 	}
 
 	new_meta = fdp->meta;
 	res = out_of_place_write(fdp, buf, len, &new_meta);
-	if (res < 0) {
-		*errno = TEE_ERROR_CORRUPT_OBJECT;
-	} else {
-		int r;
-		int start_block_num;
-		int end_block_num;
+	if (res != TEE_SUCCESS)
+		goto exit;
 
-		r = commit_meta_file(fdp, &new_meta);
-		if (r < 0) {
-			*errno = TEE_ERROR_CORRUPT_OBJECT;
-			res = -1;
-		}
+	res = commit_meta_file(fdp, &new_meta);
+	if (res != TEE_SUCCESS)
+		goto exit;
 
-		/* we are safe to free old blocks */
-		start_block_num = pos_to_block_num(orig_pos);
-		end_block_num = pos_to_block_num(fdp->pos - 1);
-		while (start_block_num <= end_block_num) {
-			if (remove_outdated_block(fdp, start_block_num))
-				IMSG("Warning: Failed to free old block: %d",
-					start_block_num);
+	/* we are safe to free old blocks */
+	start_block_num = pos_to_block_num(orig_pos);
+	end_block_num = pos_to_block_num(fdp->pos - 1);
+	while (start_block_num <= end_block_num) {
+		if (remove_outdated_block(fdp, start_block_num))
+			IMSG("Warning: Failed to free old block: %d",
+				start_block_num);
 
-			start_block_num++;
-		}
+		start_block_num++;
 	}
 exit:
 	mutex_unlock(&ree_fs_mutex);
-	return (res < 0) ? res : (int)len;
+	return res;
 }
 
 /*
@@ -1274,9 +1184,9 @@ exit:
  * (Any failure in above steps is considered as a successfully
  *  update)
  */
-static int ree_fs_rename_internal(const char *old, const char *new)
+static TEE_Result ree_fs_rename_internal(const char *old, const char *new)
 {
-	int res = -1;
+	TEE_Result res;
 	size_t old_len;
 	size_t new_len;
 	size_t meta_count = 0;
@@ -1284,38 +1194,33 @@ static int ree_fs_rename_internal(const char *old, const char *new)
 	struct tee_fs_dirent *dirent;
 	char *meta_filename = NULL;
 
-	if (!old || !new)
-		return -1;
-
 	DMSG("old=%s, new=%s", old, new);
 
 	old_len = strlen(old) + 1;
 	new_len = strlen(new) + 1;
 
 	if (old_len > TEE_FS_NAME_MAX || new_len > TEE_FS_NAME_MAX)
-		goto exit;
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = ree_fs_mkdir_rpc(new,
-			TEE_FS_S_IRUSR | TEE_FS_S_IWUSR);
-	if (res)
-		goto exit;
+	if (ree_fs_mkdir_rpc(new, TEE_FS_S_IRUSR | TEE_FS_S_IWUSR))
+		return TEE_ERROR_GENERIC;
 
-	old_dir = ree_fs_opendir_rpc(old);
-	if (!old_dir)
-		goto exit;
+	res = ree_fs_opendir_rpc(old, &old_dir);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	dirent = ree_fs_readdir_rpc(old_dir);
-	while (dirent) {
+	res = ree_fs_readdir_rpc(old_dir, &dirent);
+	while (res == TEE_SUCCESS) {
 		if (!strncmp(dirent->d_name, "meta.", 5)) {
 			meta_filename = strdup(dirent->d_name);
 			meta_count++;
 		} else {
 			res = create_hard_link(old, new, dirent->d_name);
-			if (res)
+			if (res != TEE_SUCCESS)
 				goto exit_close_old_dir;
 		}
 
-		dirent = ree_fs_readdir_rpc(old_dir);
+		res = ree_fs_readdir_rpc(old_dir, &dirent);
 	}
 
 	/* finally, link the meta file, rename operation completed */
@@ -1341,7 +1246,7 @@ static int ree_fs_rename_internal(const char *old, const char *new)
 		     "This will cause memory leakage.");
 
 	res = create_hard_link(old, new, meta_filename);
-	if (res)
+	if (res != TEE_SUCCESS)
 		goto exit_close_old_dir;
 
 	/* we are safe now, remove old TEE file */
@@ -1349,14 +1254,13 @@ static int ree_fs_rename_internal(const char *old, const char *new)
 
 exit_close_old_dir:
 	ree_fs_closedir_rpc(old_dir);
-exit:
 	free(meta_filename);
 	return res;
 }
 
-static int ree_fs_rename(const char *old, const char *new)
+static TEE_Result ree_fs_rename(const char *old, const char *new)
 {
-	int res;
+	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
 	res = ree_fs_rename_internal(old, new);
@@ -1382,56 +1286,232 @@ static int ree_fs_rename(const char *old, const char *new)
  * (Any failure in above steps is considered as a successfully
  *  update)
  */
-static int ree_fs_unlink(const char *file)
+static TEE_Result ree_fs_remove(const char *file)
 {
-	int res = -1;
+	TEE_Result res;
 	char trash_file[TEE_FS_NAME_MAX + 6];
 
-	if (!file)
-		return -1;
-
-	snprintf(trash_file, TEE_FS_NAME_MAX + 6, "%s.trash",
-		file);
+	snprintf(trash_file, TEE_FS_NAME_MAX + 6, "%s.trash", file);
 
 	mutex_lock(&ree_fs_mutex);
 
 	res = ree_fs_rename_internal(file, trash_file);
-	if (res < 0)
-		goto exit;
+	if (res == TEE_SUCCESS)
+		unlink_tee_file(trash_file);
 
-	unlink_tee_file(trash_file);
-
-exit:
 	mutex_unlock(&ree_fs_mutex);
 	return res;
 }
 
-static int ree_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
+static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 {
-	struct tee_fs_fd *fdp;
-	int res;
+	TEE_Result res;
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
-	fdp = handle_lookup(&fs_handle_db, fd);
-	res = ree_fs_ftruncate_internal(errno, fdp, length);
+	res = ree_fs_ftruncate_internal(fdp, len);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
+}
+
+static int ree_open_wrapper(TEE_Result *errno, const char *file, int flags, ...)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh = NULL;
+	int fd;
+
+	if (flags & TEE_FS_O_CREATE)
+		res = ree_fs_create(file, !!(flags & TEE_FS_O_EXCL), &tfh);
+	else
+		res = ree_fs_open(file, &tfh);
+
+	*errno = res;
+	if (res != TEE_SUCCESS)
+		return -1;
+
+	mutex_lock(&ree_fs_mutex);
+	fd = handle_get(&fs_handle_db, tfh);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (fd == -1)
+		panic(); /* Temporary solution */
+
+	return fd;
+}
+
+static int ree_close_wrapper(int fd)
+{
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&ree_fs_mutex);
+	tfh = handle_put(&fs_handle_db, fd);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (tfh) {
+		ree_fs_close(&tfh);
+		return 0;
+	}
+	return -1;
+}
+
+static int ree_read_wrapper(TEE_Result *errno, int fd, void *buf, size_t len)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+	size_t l;
+
+	mutex_lock(&ree_fs_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	l = len;
+	res = ree_fs_read(tfh, buf, &l);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return l;
+}
+
+static int ree_write_wrapper(TEE_Result *errno, int fd, const void *buf,
+			     size_t len)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&ree_fs_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	res = ree_fs_write(tfh, buf, len);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return len;
+}
+
+static tee_fs_off_t ree_lseek_wrapper(TEE_Result *errno, int fd,
+				      tee_fs_off_t offset, int whence)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+	int32_t new_offs;
+
+	mutex_lock(&ree_fs_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	switch (whence) {
+	case TEE_FS_SEEK_SET:
+		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_SET, &new_offs);
+		break;
+	case TEE_FS_SEEK_CUR:
+		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_CUR, &new_offs);
+		break;
+	case TEE_FS_SEEK_END:
+		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_END, &new_offs);
+		break;
+	default:
+		res = TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	*errno = res;
+	if (res != TEE_SUCCESS)
+		return -1;
+	return new_offs;
+}
+
+static int ree_rename_wrapper(const char *old, const char *new)
+{
+	if (ree_fs_rename(old, new) != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static int ree_unlink_wrapper(const char *file)
+{
+	if (ree_fs_remove(file) != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static int ree_ftruncate_wrapper(TEE_Result *errno, int fd,
+				  tee_fs_off_t length)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&ree_fs_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&ree_fs_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	res = ree_fs_truncate(tfh, length);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static struct tee_fs_dir *ree_opendir_wrapper(const char *name)
+{
+	struct tee_fs_dir *d;
+
+	if (ree_fs_opendir_rpc(name, &d) != TEE_SUCCESS)
+		return NULL;
+	return d;
+}
+
+static int ree_closedir_wrapper(struct tee_fs_dir *d)
+{
+	ree_fs_closedir_rpc(d);
+	return 0;
+}
+
+static struct tee_fs_dirent *ree_readdir_wrapper(struct tee_fs_dir *d)
+{
+	struct tee_fs_dirent *e;
+
+	if (ree_fs_readdir_rpc(d, &e) != TEE_SUCCESS)
+		return NULL;
+	return e;
 }
 
 const struct tee_file_operations ree_fs_ops = {
-	.open = ree_fs_open,
-	.close = ree_fs_close,
-	.read = ree_fs_read,
-	.write = ree_fs_write,
-	.lseek = ree_fs_lseek,
-	.ftruncate = ree_fs_ftruncate,
-	.rename = ree_fs_rename,
-	.unlink = ree_fs_unlink,
+	.open = ree_open_wrapper,
+	.close = ree_close_wrapper,
+	.read = ree_read_wrapper,
+	.write = ree_write_wrapper,
+	.lseek = ree_lseek_wrapper,
+	.ftruncate = ree_ftruncate_wrapper,
+	.rename = ree_rename_wrapper,
+	.unlink = ree_unlink_wrapper,
 	.mkdir = ree_fs_mkdir_rpc,
-	.opendir = ree_fs_opendir_rpc,
-	.closedir = ree_fs_closedir_rpc,
-	.readdir = ree_fs_readdir_rpc,
+	.opendir = ree_opendir_wrapper,
+	.closedir = ree_closedir_wrapper,
+	.readdir = ree_readdir_wrapper,
 	.rmdir = ree_fs_rmdir_rpc,
 	.access = ree_fs_access_rpc
 };
