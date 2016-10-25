@@ -59,6 +59,8 @@
 
 #define TEE_RPMB_FS_FILENAME_LENGTH 224
 
+struct tee_file_handle;
+
 struct tee_rpmb_fs_stat {
 	size_t size;
 	uint32_t reserved;
@@ -97,7 +99,6 @@ struct rpmb_file_handle {
 	uint32_t rpmb_fat_address;
 	/* Current position */
 	uint32_t pos;
-	uint32_t flags;
 };
 
 /**
@@ -1914,9 +1915,9 @@ again:
 	return res;
 }
 
-static int rpmb_fs_open_internal(const char *file, int flags, ...)
+static TEE_Result rpmb_fs_open_internal(const char *file, bool create,
+					struct tee_file_handle **ret_fh)
 {
-	int fd = -1;
 	struct rpmb_file_handle *fh = NULL;
 	size_t filelen;
 	tee_mm_pool_t p;
@@ -1924,11 +1925,6 @@ static int rpmb_fs_open_internal(const char *file, int flags, ...)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	mutex_lock(&rpmb_mutex);
-
-	if (!file) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
 
 	filelen = strlen(file);
 	if (filelen >= TEE_RPMB_FS_FILENAME_LENGTH - 1 || filelen == 0) {
@@ -1952,7 +1948,7 @@ static int rpmb_fs_open_internal(const char *file, int flags, ...)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (flags & TEE_FS_O_CREATE) {
+	if (create) {
 		/* Upper memory allocation must be used for RPMB_FS. */
 		pool_result = tee_mm_init(&p,
 					  RPMB_STORAGE_START_ADDRESS,
@@ -1975,18 +1971,11 @@ static int rpmb_fs_open_internal(const char *file, int flags, ...)
 			goto out;
 	}
 
-	/* Add the handle to the db */
-	fd = handle_get(&fs_handle_db, fh);
-	if (fd == -1) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
 	/*
 	 * If this is opened with create and the entry found was not active
 	 * then this is a new file and the FAT entry must be written
 	 */
-	if (flags & TEE_FS_O_CREATE) {
+	if (create) {
 		if ((fh->fat_entry.flags & FILE_IS_ACTIVE) == 0) {
 			memset(&fh->fat_entry, 0,
 				sizeof(struct rpmb_fat_entry));
@@ -1995,86 +1984,58 @@ static int rpmb_fs_open_internal(const char *file, int flags, ...)
 			fh->fat_entry.flags = FILE_IS_ACTIVE;
 
 			res = generate_fek(&fh->fat_entry);
-			if (res != TEE_SUCCESS) {
-				handle_put(&fs_handle_db, fd);
-				fd = -1;
+			if (res != TEE_SUCCESS)
 				goto out;
-			}
 			DMSG("GENERATE FEK key: %p",
 			     (void *)fh->fat_entry.fek);
 			DHEXDUMP(fh->fat_entry.fek, sizeof(fh->fat_entry.fek));
 
 			res = write_fat_entry(fh, true);
-			if (res != TEE_SUCCESS) {
-				handle_put(&fs_handle_db, fd);
-				fd = -1;
+			if (res != TEE_SUCCESS)
 				goto out;
-			}
 		}
 	}
 
 	res = TEE_SUCCESS;
-	fh->flags = flags;
 
 out:
-	if (res != TEE_SUCCESS) {
-		if (fh)
-			free(fh);
-
-		fd = -1;
-	}
-
-	mutex_unlock(&rpmb_mutex);
-	return fd;
-}
-
-static int rpmb_fs_close(int fd)
-{
-	struct rpmb_file_handle *fh;
-
-	mutex_lock(&rpmb_mutex);
-	fh = handle_put(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (fh) {
+	if (res == TEE_SUCCESS)
+		*ret_fh = (struct tee_file_handle *)fh;
+	else
 		free(fh);
-		return 0;
-	}
 
-	return -1;
+	mutex_unlock(&rpmb_mutex);
+	return res;
 }
 
-static int rpmb_fs_read(TEE_Result *errno, int fd, void *buf, size_t size)
+static void rpmb_fs_close(struct tee_file_handle **tfh)
+{
+	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)*tfh;
+
+	free(fh);
+	*tfh = NULL;
+}
+
+static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, void *buf,
+			       size_t *len)
 {
 	TEE_Result res;
-	struct rpmb_file_handle *fh;
-	int read_size = -1;
+	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
+	size_t size = *len;
 
 	if (!size)
-		return 0;
+		return TEE_SUCCESS;
 
 	mutex_lock(&rpmb_mutex);
 
-	if (!buf) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	fh = handle_lookup(&fs_handle_db, fd);
-	if (!fh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
 	dump_fh(fh);
 
 	res = read_fat(fh, NULL);
-	if (res != TEE_SUCCESS) {
-		*errno = res;
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	if (fh->pos >= fh->fat_entry.data_size) {
-		read_size = 0;
+		*len = 0;
 		goto out;
 	}
 
@@ -2083,24 +2044,22 @@ static int rpmb_fs_read(TEE_Result *errno, int fd, void *buf, size_t size)
 		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 				    fh->fat_entry.start_address + fh->pos, buf,
 				    size, fh->fat_entry.fek);
-		if (res != TEE_SUCCESS) {
-			*errno = res;
+		if (res != TEE_SUCCESS)
 			goto out;
-		}
 	}
-	read_size = size;
+	*len = size;
 	fh->pos += size;
 
 out:
 	mutex_unlock(&rpmb_mutex);
-	return read_size;
+	return res;
 }
 
-static int rpmb_fs_write(TEE_Result *errno, int fd, const void *buf,
-			size_t size)
+static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, const void *buf,
+				size_t size)
 {
 	TEE_Result res;
-	struct rpmb_file_handle *fh;
+	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
 	tee_mm_pool_t p;
 	bool pool_result = false;
 	tee_mm_entry_t *mm;
@@ -2111,25 +2070,15 @@ static int rpmb_fs_write(TEE_Result *errno, int fd, const void *buf,
 	uint32_t start_addr;
 
 	if (!size)
-		return 0;
+		return TEE_SUCCESS;
 
 	mutex_lock(&rpmb_mutex);
-
-	if (!buf) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
 
 	if (!fs_par) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
-	fh = handle_lookup(&fs_handle_db, fd);
-	if (!fh) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
 	dump_fh(fh);
 
 	/* Upper memory allocation must be used for RPMB_FS. */
@@ -2208,51 +2157,38 @@ out:
 	if (newbuf)
 		free(newbuf);
 
-	if (res == TEE_SUCCESS)
-		return size;
-
-	*errno = res;
-	return -1;
+	return res;
 }
 
-static tee_fs_off_t rpmb_fs_lseek(TEE_Result *errno, int fd,
-				  tee_fs_off_t offset, int whence)
+static TEE_Result rpmb_fs_seek(struct tee_file_handle *tfh, int32_t offset,
+			       TEE_Whence whence, int32_t *new_offs)
+
 {
-	struct rpmb_file_handle *fh;
+	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
 	TEE_Result res;
-	tee_fs_off_t ret = -1;
 	tee_fs_off_t new_pos;
 
 	mutex_lock(&rpmb_mutex);
 
-	fh = handle_lookup(&fs_handle_db, fd);
-	if (!fh) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-
 	res = read_fat(fh, NULL);
-	if (res != TEE_SUCCESS) {
-		*errno = res;
+	if (res != TEE_SUCCESS)
 		goto out;
-	}
 
 	switch (whence) {
-	case TEE_FS_SEEK_SET:
+	case TEE_DATA_SEEK_SET:
 		new_pos = offset;
 		break;
 
-	case TEE_FS_SEEK_CUR:
+	case TEE_DATA_SEEK_CUR:
 		new_pos = fh->pos + offset;
 		break;
 
-	case TEE_FS_SEEK_END:
+	case TEE_DATA_SEEK_END:
 		new_pos = fh->fat_entry.data_size + offset;
 		break;
 
 	default:
-		*errno = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
@@ -2261,17 +2197,19 @@ static tee_fs_off_t rpmb_fs_lseek(TEE_Result *errno, int fd,
 
 	if (new_pos > TEE_DATA_MAX_POSITION) {
 		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
-		*errno = TEE_ERROR_BAD_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	ret = fh->pos = new_pos;
+	fh->pos = new_pos;
+	if (new_offs)
+		*new_offs = new_pos;
 out:
 	mutex_unlock(&rpmb_mutex);
-	return ret;
+	return res;
 }
 
-static int rpmb_fs_unlink(const char *filename)
+static TEE_Result rpmb_fs_remove(const char *filename)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rpmb_file_handle *fh = NULL;
@@ -2300,10 +2238,10 @@ static int rpmb_fs_unlink(const char *filename)
 out:
 	mutex_unlock(&rpmb_mutex);
 	free(fh);
-	return (res == TEE_SUCCESS ? 0 : -1);
+	return res;
 }
 
-static  int rpmb_fs_rename(const char *old_name, const char *new_name)
+static  TEE_Result rpmb_fs_rename(const char *old_name, const char *new_name)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rpmb_file_handle *fh_old = NULL;
@@ -2360,7 +2298,7 @@ out:
 	free(fh_old);
 	free(fh_new);
 
-	return (res == TEE_SUCCESS ? 0 : -1);
+	return res;
 }
 
 static int rpmb_fs_mkdir(const char *path __unused,
@@ -2374,9 +2312,9 @@ static int rpmb_fs_mkdir(const char *path __unused,
 	return 0;
 }
 
-static int rpmb_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
+static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 {
-	struct rpmb_file_handle *fh;
+	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
 	tee_mm_pool_t p;
 	bool pool_result = false;
 	tee_mm_entry_t *mm;
@@ -2387,17 +2325,11 @@ static int rpmb_fs_ftruncate(TEE_Result *errno, int fd, tee_fs_off_t length)
 
 	mutex_lock(&rpmb_mutex);
 
-	if (length < 0 || length > INT32_MAX) {
+	if (length > INT32_MAX) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 	newsize = length;
-
-	fh = handle_lookup(&fs_handle_db, fd);
-	if (!fh) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
 
 	res = read_fat(fh, NULL);
 	if (res != TEE_SUCCESS)
@@ -2458,11 +2390,7 @@ out:
 	if (newbuf)
 		free(newbuf);
 
-	if (res == TEE_SUCCESS)
-		return 0;
-
-	*errno = res;
-	return -1;
+	return res;
 }
 
 static void rpmb_fs_dir_free(struct tee_fs_dir *dir)
@@ -2564,13 +2492,10 @@ static TEE_Result rpmb_fs_dir_populate(const char *path,
 		}
 	}
 
-	/* No directories were found. */
-	if (!current) {
-		res = TEE_ERROR_NO_DATA;
-		goto out;
-	}
-
-	res = TEE_SUCCESS;
+	if (current)
+		res = TEE_SUCCESS;
+	else
+		res = TEE_ERROR_ITEM_NOT_FOUND; /* No directories were found. */
 
 out:
 	mutex_unlock(&rpmb_mutex);
@@ -2582,8 +2507,7 @@ out:
 	return res;
 }
 
-static TEE_Result rpmb_fs_opendir_internal(const char *path,
-					   struct tee_fs_dir **dir)
+static TEE_Result rpmb_fs_opendir(const char *path, struct tee_fs_dir **dir)
 {
 	uint32_t len;
 	uint32_t max_size;
@@ -2634,52 +2558,30 @@ out:
 	return res;
 }
 
-static struct tee_fs_dir *rpmb_fs_opendir(const char *path)
-{
-	struct tee_fs_dir *dir = NULL;
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	res = rpmb_fs_opendir_internal(path, &dir);
-	if (res != TEE_SUCCESS)
-		dir = NULL;
-
-	return dir;
-}
-
-
-static struct tee_fs_dirent *rpmb_fs_readdir(struct tee_fs_dir *dir)
+static TEE_Result rpmb_fs_readdir(struct tee_fs_dir *dir,
+				  struct tee_fs_dirent **ent)
 {
 	if (!dir)
-		return NULL;
+		return TEE_ERROR_GENERIC;
 
 	free(dir->current);
 
 	dir->current = SIMPLEQ_FIRST(&dir->next);
 	if (!dir->current)
-		return NULL;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	SIMPLEQ_REMOVE_HEAD(&dir->next, link);
 
-	return &dir->current->entry;
+	*ent = &dir->current->entry;
+	return TEE_SUCCESS;
 }
 
-static int rpmb_fs_closedir(struct tee_fs_dir *dir)
+static void rpmb_fs_closedir(struct tee_fs_dir *dir)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	if (!dir) {
-		res = TEE_SUCCESS;
-		goto out;
+	if (dir) {
+		rpmb_fs_dir_free(dir);
+		free(dir);
 	}
-
-	rpmb_fs_dir_free(dir);
-	free(dir);
-	res = TEE_SUCCESS;
-out:
-	if (res == TEE_SUCCESS)
-		return 0;
-
-	return -1;
 }
 
 static int rpmb_fs_rmdir(const char *path)
@@ -2689,7 +2591,7 @@ static int rpmb_fs_rmdir(const char *path)
 	int ret = -1;
 
 	/* Open the directory anyting other than NO_DATA is a failure */
-	res = rpmb_fs_opendir_internal(path, &dir);
+	res = rpmb_fs_opendir(path, &dir);
 	if (res == TEE_SUCCESS) {
 		rpmb_fs_closedir(dir);
 		ret = -1;
@@ -2753,58 +2655,229 @@ static int rpmb_fs_access(const char *filename, int mode)
 	return -1;
 }
 
-static int rpmb_fs_open(TEE_Result *errno, const char *file, int flags, ...)
+static TEE_Result rpmb_fs_open(const char *file, struct tee_file_handle **fh)
 {
-	int fd = -1;
-	size_t len;
+	return rpmb_fs_open_internal(file, false, fh);
+}
 
-	assert(errno);
-	*errno = TEE_SUCCESS;
-
-	len = strlen(file) + 1;
-	if (len > TEE_FS_NAME_MAX) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+static TEE_Result rpmb_fs_create(const char *file, bool overwrite,
+				 struct tee_file_handle **fh)
+{
+	TEE_Result res;
 
 	/*
-	 * try to open file without O_CREATE flag, if failed try again with
-	 * O_CREATE flag (to distinguish whether it's a new file or not)
+	 * try to open file without create flag, if failed try again with
+	 * create flag (to distinguish whether it's a new file or not)
 	 */
-	fd = rpmb_fs_open_internal(file, flags & (~TEE_FS_O_CREATE));
-	if (fd < 0) {
-		if (!(flags & TEE_FS_O_CREATE)) {
-			*errno = TEE_ERROR_ITEM_NOT_FOUND;
-			goto exit;
-		}
-
-		fd = rpmb_fs_open_internal(file, flags);
-		/* File has been created */
+	res = rpmb_fs_open_internal(file, false, fh);
+	if (res == TEE_SUCCESS) {
+		if (overwrite)
+			return TEE_SUCCESS;
+		rpmb_fs_close(fh);
+		return TEE_ERROR_ACCESS_CONFLICT;
 	} else {
-		/* File already exists */
-		if ((flags & TEE_FS_O_CREATE) && (flags & TEE_FS_O_EXCL)) {
-			*errno = TEE_ERROR_ACCESS_CONFLICT;
-			rpmb_fs_close(fd);
-		}
+		return rpmb_fs_open_internal(file, true, fh);
 	}
+}
 
-exit:
+static int rpmb_open_wrapper(TEE_Result *errno, const char *file,
+			     int flags, ...)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh = NULL;
+	int fd;
+
+	if (flags & TEE_FS_O_CREATE)
+		res = rpmb_fs_create(file, !!(flags & TEE_FS_O_EXCL), &tfh);
+	else
+		res = rpmb_fs_open(file, &tfh);
+
+	*errno = res;
+	if (res != TEE_SUCCESS)
+		return -1;
+
+	mutex_lock(&rpmb_mutex);
+	fd = handle_get(&fs_handle_db, tfh);
+	mutex_unlock(&rpmb_mutex);
+
+	if (fd == -1)
+		panic(); /* Temporary solution */
+
 	return fd;
 }
 
+static int rpmb_close_wrapper(int fd)
+{
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&rpmb_mutex);
+	tfh = handle_put(&fs_handle_db, fd);
+	mutex_unlock(&rpmb_mutex);
+
+	if (tfh) {
+		rpmb_fs_close(&tfh);
+		return 0;
+	}
+	return -1;
+}
+
+static int rpmb_read_wrapper(TEE_Result *errno, int fd, void *buf, size_t len)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+	size_t l;
+
+	mutex_lock(&rpmb_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&rpmb_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	l = len;
+	res = rpmb_fs_read(tfh, buf, &l);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return l;
+}
+
+static int rpmb_write_wrapper(TEE_Result *errno, int fd, const void *buf,
+			      size_t len)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&rpmb_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&rpmb_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	res = rpmb_fs_write(tfh, buf, len);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return len;
+}
+
+static tee_fs_off_t rpmb_lseek_wrapper(TEE_Result *errno, int fd,
+				       tee_fs_off_t offset, int whence)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+	int32_t new_offs;
+
+	mutex_lock(&rpmb_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&rpmb_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	switch (whence) {
+	case TEE_FS_SEEK_SET:
+		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_SET, &new_offs);
+		break;
+	case TEE_FS_SEEK_CUR:
+		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_CUR, &new_offs);
+		break;
+	case TEE_FS_SEEK_END:
+		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_END, &new_offs);
+		break;
+	default:
+		res = TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	*errno = res;
+	if (res != TEE_SUCCESS)
+		return -1;
+	return new_offs;
+}
+
+static int rpmb_rename_wrapper(const char *old, const char *new)
+{
+	if (rpmb_fs_rename(old, new) != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static int rpmb_unlink_wrapper(const char *file)
+{
+	if (rpmb_fs_remove(file) != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static int rpmb_ftruncate_wrapper(TEE_Result *errno, int fd,
+				  tee_fs_off_t length)
+{
+	TEE_Result res;
+	struct tee_file_handle *tfh;
+
+	mutex_lock(&rpmb_mutex);
+	tfh = handle_lookup(&fs_handle_db, fd);
+	mutex_unlock(&rpmb_mutex);
+
+	if (!tfh) {
+		*errno = TEE_ERROR_BAD_PARAMETERS;
+		return -1;
+	}
+
+	res = rpmb_fs_truncate(tfh, length);
+	*errno = res;
+
+	if (res != TEE_SUCCESS)
+		return -1;
+	return 0;
+}
+
+static struct tee_fs_dir *rpmb_opendir_wrapper(const char *name)
+{
+	struct tee_fs_dir *d;
+
+	if (rpmb_fs_opendir(name, &d) != TEE_SUCCESS)
+		return NULL;
+	return d;
+}
+
+static int rpmb_closedir_wrapper(struct tee_fs_dir *d)
+{
+	rpmb_fs_closedir(d);
+	return 0;
+}
+
+static struct tee_fs_dirent *rpmb_readdir_wrapper(struct tee_fs_dir *d)
+{
+	struct tee_fs_dirent *e;
+
+	if (rpmb_fs_readdir(d, &e) != TEE_SUCCESS)
+		return NULL;
+	return e;
+}
+
 const struct tee_file_operations rpmb_fs_ops = {
-	.open = rpmb_fs_open,
-	.close = rpmb_fs_close,
-	.read = rpmb_fs_read,
-	.write = rpmb_fs_write,
-	.lseek = rpmb_fs_lseek,
-	.ftruncate = rpmb_fs_ftruncate,
-	.rename = rpmb_fs_rename,
-	.unlink = rpmb_fs_unlink,
+	.open = rpmb_open_wrapper,
+	.close = rpmb_close_wrapper,
+	.read = rpmb_read_wrapper,
+	.write = rpmb_write_wrapper,
+	.lseek = rpmb_lseek_wrapper,
+	.ftruncate = rpmb_ftruncate_wrapper,
+	.rename = rpmb_rename_wrapper,
+	.unlink = rpmb_unlink_wrapper,
 	.mkdir = rpmb_fs_mkdir,
-	.opendir = rpmb_fs_opendir,
-	.closedir = rpmb_fs_closedir,
-	.readdir = rpmb_fs_readdir,
+	.opendir = rpmb_opendir_wrapper,
+	.closedir = rpmb_closedir_wrapper,
+	.readdir = rpmb_readdir_wrapper,
 	.rmdir = rpmb_fs_rmdir,
 	.access = rpmb_fs_access
 };
