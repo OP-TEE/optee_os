@@ -41,23 +41,32 @@ struct tee_fs_dirent {
 	char *d_name;
 };
 
+struct tee_fs_dir;
+struct tee_file_handle;
+
 /*
- * tee_fs implemets a POSIX like secure file system with GP extension
+ * tee_fs implements a POSIX like secure file system with GP extension
  */
 struct tee_file_operations {
-	int (*open)(TEE_Result *errno, const char *file, int flags, ...);
-	int (*close)(int fd);
-	int (*read)(TEE_Result *errno, int fd, void *buf, size_t len);
-	int (*write)(TEE_Result *errno, int fd, const void *buf, size_t len);
-	tee_fs_off_t (*lseek)(TEE_Result *errno,
-			      int fd, tee_fs_off_t offset, int whence);
-	int (*rename)(const char *old, const char *new);
-	int (*unlink)(const char *file);
-	int (*ftruncate)(TEE_Result *errno, int fd, tee_fs_off_t length);
+	TEE_Result (*open)(const char *name, struct tee_file_handle **fh);
+	TEE_Result (*create)(const char *name, bool overwrite,
+			     struct tee_file_handle **fh);
+	void (*close)(struct tee_file_handle **fh);
+	TEE_Result (*read)(struct tee_file_handle *fh, void *buf, size_t *len);
+	TEE_Result (*write)(struct tee_file_handle *fh, const void *buf,
+			    size_t len);
+	TEE_Result (*seek)(struct tee_file_handle *fh, int32_t offs,
+			   TEE_Whence whence, int32_t *new_offs);
+	TEE_Result (*rename)(const char *old_name, const char *new_name);
+	TEE_Result (*remove)(const char *name);
+	TEE_Result (*truncate)(struct tee_file_handle *fh, size_t size);
+
+	TEE_Result (*opendir)(const char *name, struct tee_fs_dir **d);
+	TEE_Result (*readdir)(struct tee_fs_dir *d, struct tee_fs_dirent **ent);
+	void (*closedir)(struct tee_fs_dir *d);
+
+	/* To be removed */
 	int (*mkdir)(const char *path, tee_fs_mode_t mode);
-	struct tee_fs_dir *(*opendir)(const char *name);
-	int (*closedir)(struct tee_fs_dir *d);
-	struct tee_fs_dirent *(*readdir)(struct tee_fs_dir *d);
 	int (*rmdir)(const char *pathname);
 	int (*access)(const char *name, int mode);
 };

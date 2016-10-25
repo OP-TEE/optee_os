@@ -41,19 +41,17 @@
  */
 
 #include <assert.h>
-#include <kernel/handle.h>
-#include <kernel/mutex.h>
-#include <kernel/panic.h>
 #include <kernel/tee_common_unpg.h>
+#include <kernel/mutex.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string_ext.h>
 #include <string.h>
+#include <string_ext.h>
 #include <sys/queue.h>
 #include <tee/tee_cryp_provider.h>
-#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs.h>
+#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs_key_manager.h>
 #include <tee/tee_fs_rpc.h>
 #include <trace.h>
@@ -63,8 +61,6 @@
 /* Block size for encryption */
 #define BLOCK_SHIFT 12
 #define BLOCK_SIZE (1 << BLOCK_SHIFT)
-
-struct tee_file_handle;
 
 struct sql_fs_file_meta {
 	size_t length;
@@ -83,9 +79,6 @@ struct tee_fs_dir {
 	int nw_dir;
 	struct tee_fs_dirent d;
 };
-
-/* Container for file descriptors (struct sql_fs_fd) */
-static struct handle_db fs_db = HANDLE_DB_INITIALIZER;
 
 static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
 
@@ -644,204 +637,21 @@ static TEE_Result sql_fs_truncate(struct tee_file_handle *fh, size_t len)
 	return res;
 }
 
-static int sql_open_wrapper(TEE_Result *errno, const char *file, int flags, ...)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh = NULL;
-	int fd;
-
-	if (flags & TEE_FS_O_CREATE)
-		res = sql_fs_create(file, !!(flags & TEE_FS_O_EXCL), &tfh);
-	else
-		res = sql_fs_open(file, &tfh);
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-
-	mutex_lock(&sql_fs_mutex);
-	fd = handle_get(&fs_db, tfh);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (fd == -1)
-		panic(); /* Temporary solution */
-
-	return fd;
-}
-
-static int sql_close_wrapper(int fd)
-{
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&sql_fs_mutex);
-	tfh = handle_put(&fs_db, fd);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (tfh) {
-		sql_fs_close(&tfh);
-		return 0;
-	}
-	return -1;
-}
-
-static int sql_read_wrapper(TEE_Result *errno, int fd, void *buf, size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	size_t l;
-
-	mutex_lock(&sql_fs_mutex);
-	tfh = handle_lookup(&fs_db, fd);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	l = len;
-	res = sql_fs_read(tfh, buf, &l);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return l;
-}
-
-static int sql_write_wrapper(TEE_Result *errno, int fd, const void *buf,
-			     size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&sql_fs_mutex);
-	tfh = handle_lookup(&fs_db, fd);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = sql_fs_write(tfh, buf, len);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return len;
-}
-
-static tee_fs_off_t sql_lseek_wrapper(TEE_Result *errno, int fd,
-				      tee_fs_off_t offset, int whence)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	int32_t new_offs;
-
-	mutex_lock(&sql_fs_mutex);
-	tfh = handle_lookup(&fs_db, fd);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	switch (whence) {
-	case TEE_FS_SEEK_SET:
-		res = sql_fs_seek(tfh, offset, TEE_DATA_SEEK_SET, &new_offs);
-		break;
-	case TEE_FS_SEEK_CUR:
-		res = sql_fs_seek(tfh, offset, TEE_DATA_SEEK_CUR, &new_offs);
-		break;
-	case TEE_FS_SEEK_END:
-		res = sql_fs_seek(tfh, offset, TEE_DATA_SEEK_END, &new_offs);
-		break;
-	default:
-		res = TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-	return new_offs;
-}
-
-static int sql_rename_wrapper(const char *old, const char *new)
-{
-	if (sql_fs_rename_rpc(old, new) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int sql_unlink_wrapper(const char *file)
-{
-	if (sql_fs_remove_rpc(file) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int sql_ftruncate_wrapper(TEE_Result *errno, int fd,
-				  tee_fs_off_t length)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&sql_fs_mutex);
-	tfh = handle_lookup(&fs_db, fd);
-	mutex_unlock(&sql_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = sql_fs_truncate(tfh, length);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static struct tee_fs_dir *sql_opendir_wrapper(const char *name)
-{
-	struct tee_fs_dir *d;
-
-	if (sql_fs_opendir_rpc(name, &d) != TEE_SUCCESS)
-		return NULL;
-	return d;
-}
-
-static int sql_closedir_wrapper(struct tee_fs_dir *d)
-{
-	sql_fs_closedir_rpc(d);
-	return 0;
-}
-
-static struct tee_fs_dirent *sql_readdir_wrapper(struct tee_fs_dir *d)
-{
-	struct tee_fs_dirent *e;
-
-	if (sql_fs_readdir_rpc(d, &e) != TEE_SUCCESS)
-		return NULL;
-	return e;
-}
-
 const struct tee_file_operations sql_fs_ops = {
-	.open = sql_open_wrapper,
-	.close = sql_close_wrapper,
-	.read = sql_read_wrapper,
-	.write = sql_write_wrapper,
-	.lseek = sql_lseek_wrapper,
-	.ftruncate = sql_ftruncate_wrapper,
+	.open = sql_fs_open,
+	.create = sql_fs_create,
+	.close = sql_fs_close,
+	.read = sql_fs_read,
+	.write = sql_fs_write,
+	.seek = sql_fs_seek,
+	.truncate = sql_fs_truncate,
 
 	.access = sql_fs_access_rpc,
-	.opendir = sql_opendir_wrapper,
-	.closedir = sql_closedir_wrapper,
-	.readdir = sql_readdir_wrapper,
+	.opendir = sql_fs_opendir_rpc,
+	.closedir = sql_fs_closedir_rpc,
+	.readdir = sql_fs_readdir_rpc,
 	.mkdir = sql_fs_mkdir_rpc,
 	.rmdir = sql_fs_rmdir_rpc,
-	.rename = sql_rename_wrapper,
-	.unlink = sql_unlink_wrapper,
+	.rename = sql_fs_rename_rpc,
+	.remove = sql_fs_remove_rpc,
 };

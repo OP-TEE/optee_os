@@ -61,8 +61,7 @@ void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o)
 	TAILQ_REMOVE(&utc->objects, o, link);
 
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT)) {
-		if (o->fd >= 0)
-			o->pobj->fops->close(o->fd);
+		o->pobj->fops->close(&o->fh);
 		tee_pobj_release(o->pobj);
 	}
 
@@ -82,9 +81,9 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 	TEE_Result res;
 	char *file = NULL;
 	char *dir = NULL;
-	int fd = -1;
 	int err = -1;
 	const struct tee_file_operations *fops = o->pobj->fops;
+	struct tee_file_handle *fh = NULL;
 
 	if (!fops)
 		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
@@ -105,38 +104,28 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 		goto err;
 	}
 
-	fd = fops->open(&res, file, TEE_FS_O_RDONLY);
-	if (fd < 0) {
-		if (res == TEE_ERROR_CORRUPT_OBJECT) {
-			EMSG("Object corrupt\n");
-			tee_obj_close(to_user_ta_ctx(sess->ctx), o);
-			fops->unlink(file);
-			dir = tee_svc_storage_create_dirname(sess);
-			if (dir != NULL) {
-				fops->rmdir(dir);
-				free(dir);
-			}
+	res = fops->open(file, &fh);
+	if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		EMSG("Object corrupt\n");
+		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
+		fops->remove(file);
+		dir = tee_svc_storage_create_dirname(sess);
+		if (dir != NULL) {
+			fops->rmdir(dir);
+			free(dir);
 		}
-		goto err;
 	}
-
-	res = TEE_SUCCESS;
 
 err:
 	free(file);
-	if (fd >= 0)
-		fops->close(fd);
+	fops->close(&fh);
 exit:
 	return res;
 }
 
 struct tee_obj *tee_obj_alloc(void)
 {
-	struct tee_obj *o = calloc(1, sizeof(struct tee_obj));
-
-	if (o)
-		o->fd = -1;
-	return o;
+	return calloc(1, sizeof(struct tee_obj));
 }
 
 void tee_obj_free(struct tee_obj *o)

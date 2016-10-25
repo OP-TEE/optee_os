@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include <kernel/tee_common.h>
-#include <kernel/handle.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
@@ -58,8 +57,6 @@
 #define FILE_IS_LAST_ENTRY              (1u << 1)
 
 #define TEE_RPMB_FS_FILENAME_LENGTH 224
-
-struct tee_file_handle;
 
 struct tee_rpmb_fs_stat {
 	size_t size;
@@ -137,8 +134,6 @@ struct tee_fs_dir {
 };
 
 static struct rpmb_fs_parameters *fs_par;
-
-static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
 /*
  * Lower interface to RPMB device
@@ -2680,204 +2675,20 @@ static TEE_Result rpmb_fs_create(const char *file, bool overwrite,
 	}
 }
 
-static int rpmb_open_wrapper(TEE_Result *errno, const char *file,
-			     int flags, ...)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh = NULL;
-	int fd;
-
-	if (flags & TEE_FS_O_CREATE)
-		res = rpmb_fs_create(file, !!(flags & TEE_FS_O_EXCL), &tfh);
-	else
-		res = rpmb_fs_open(file, &tfh);
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-
-	mutex_lock(&rpmb_mutex);
-	fd = handle_get(&fs_handle_db, tfh);
-	mutex_unlock(&rpmb_mutex);
-
-	if (fd == -1)
-		panic(); /* Temporary solution */
-
-	return fd;
-}
-
-static int rpmb_close_wrapper(int fd)
-{
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&rpmb_mutex);
-	tfh = handle_put(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (tfh) {
-		rpmb_fs_close(&tfh);
-		return 0;
-	}
-	return -1;
-}
-
-static int rpmb_read_wrapper(TEE_Result *errno, int fd, void *buf, size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	size_t l;
-
-	mutex_lock(&rpmb_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	l = len;
-	res = rpmb_fs_read(tfh, buf, &l);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return l;
-}
-
-static int rpmb_write_wrapper(TEE_Result *errno, int fd, const void *buf,
-			      size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&rpmb_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = rpmb_fs_write(tfh, buf, len);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return len;
-}
-
-static tee_fs_off_t rpmb_lseek_wrapper(TEE_Result *errno, int fd,
-				       tee_fs_off_t offset, int whence)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	int32_t new_offs;
-
-	mutex_lock(&rpmb_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	switch (whence) {
-	case TEE_FS_SEEK_SET:
-		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_SET, &new_offs);
-		break;
-	case TEE_FS_SEEK_CUR:
-		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_CUR, &new_offs);
-		break;
-	case TEE_FS_SEEK_END:
-		res = rpmb_fs_seek(tfh, offset, TEE_DATA_SEEK_END, &new_offs);
-		break;
-	default:
-		res = TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-	return new_offs;
-}
-
-static int rpmb_rename_wrapper(const char *old, const char *new)
-{
-	if (rpmb_fs_rename(old, new) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int rpmb_unlink_wrapper(const char *file)
-{
-	if (rpmb_fs_remove(file) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int rpmb_ftruncate_wrapper(TEE_Result *errno, int fd,
-				  tee_fs_off_t length)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&rpmb_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&rpmb_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = rpmb_fs_truncate(tfh, length);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static struct tee_fs_dir *rpmb_opendir_wrapper(const char *name)
-{
-	struct tee_fs_dir *d;
-
-	if (rpmb_fs_opendir(name, &d) != TEE_SUCCESS)
-		return NULL;
-	return d;
-}
-
-static int rpmb_closedir_wrapper(struct tee_fs_dir *d)
-{
-	rpmb_fs_closedir(d);
-	return 0;
-}
-
-static struct tee_fs_dirent *rpmb_readdir_wrapper(struct tee_fs_dir *d)
-{
-	struct tee_fs_dirent *e;
-
-	if (rpmb_fs_readdir(d, &e) != TEE_SUCCESS)
-		return NULL;
-	return e;
-}
-
 const struct tee_file_operations rpmb_fs_ops = {
-	.open = rpmb_open_wrapper,
-	.close = rpmb_close_wrapper,
-	.read = rpmb_read_wrapper,
-	.write = rpmb_write_wrapper,
-	.lseek = rpmb_lseek_wrapper,
-	.ftruncate = rpmb_ftruncate_wrapper,
-	.rename = rpmb_rename_wrapper,
-	.unlink = rpmb_unlink_wrapper,
+	.open = rpmb_fs_open,
+	.create = rpmb_fs_create,
+	.close = rpmb_fs_close,
+	.read = rpmb_fs_read,
+	.write = rpmb_fs_write,
+	.seek = rpmb_fs_seek,
+	.truncate = rpmb_fs_truncate,
+	.rename = rpmb_fs_rename,
+	.remove = rpmb_fs_remove,
 	.mkdir = rpmb_fs_mkdir,
-	.opendir = rpmb_opendir_wrapper,
-	.closedir = rpmb_closedir_wrapper,
-	.readdir = rpmb_readdir_wrapper,
+	.opendir = rpmb_fs_opendir,
+	.closedir = rpmb_fs_closedir,
+	.readdir = rpmb_fs_readdir,
 	.rmdir = rpmb_fs_rmdir,
 	.access = rpmb_fs_access
 };

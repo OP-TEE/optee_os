@@ -26,22 +26,21 @@
  */
 
 #include <assert.h>
-#include <kernel/handle.h>
+#include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string_ext.h>
 #include <string.h>
+#include <string_ext.h>
 #include <sys/queue.h>
 #include <tee/tee_cryp_provider.h>
-#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs.h>
-#include <tee/tee_fs_key_manager.h>
+#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs_rpc.h>
+#include <tee/tee_fs_key_manager.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -55,8 +54,6 @@
 #define NUM_BLOCKS_PER_FILE	1024
 
 #define MAX_FILE_SIZE	(BLOCK_FILE_SIZE * NUM_BLOCKS_PER_FILE)
-
-struct tee_file_handle;
 
 struct tee_fs_file_info {
 	size_t length;
@@ -136,8 +133,6 @@ struct block_operations {
 	int (*write)(struct tee_fs_fd *fdp, struct block *b,
 			struct tee_fs_file_meta *new_meta);
 };
-
-static struct handle_db fs_handle_db = HANDLE_DB_INITIALIZER;
 
 static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 
@@ -1315,203 +1310,20 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	return res;
 }
 
-static int ree_open_wrapper(TEE_Result *errno, const char *file, int flags, ...)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh = NULL;
-	int fd;
-
-	if (flags & TEE_FS_O_CREATE)
-		res = ree_fs_create(file, !!(flags & TEE_FS_O_EXCL), &tfh);
-	else
-		res = ree_fs_open(file, &tfh);
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-
-	mutex_lock(&ree_fs_mutex);
-	fd = handle_get(&fs_handle_db, tfh);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (fd == -1)
-		panic(); /* Temporary solution */
-
-	return fd;
-}
-
-static int ree_close_wrapper(int fd)
-{
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&ree_fs_mutex);
-	tfh = handle_put(&fs_handle_db, fd);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (tfh) {
-		ree_fs_close(&tfh);
-		return 0;
-	}
-	return -1;
-}
-
-static int ree_read_wrapper(TEE_Result *errno, int fd, void *buf, size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	size_t l;
-
-	mutex_lock(&ree_fs_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	l = len;
-	res = ree_fs_read(tfh, buf, &l);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return l;
-}
-
-static int ree_write_wrapper(TEE_Result *errno, int fd, const void *buf,
-			     size_t len)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&ree_fs_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = ree_fs_write(tfh, buf, len);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return len;
-}
-
-static tee_fs_off_t ree_lseek_wrapper(TEE_Result *errno, int fd,
-				      tee_fs_off_t offset, int whence)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-	int32_t new_offs;
-
-	mutex_lock(&ree_fs_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	switch (whence) {
-	case TEE_FS_SEEK_SET:
-		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_SET, &new_offs);
-		break;
-	case TEE_FS_SEEK_CUR:
-		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_CUR, &new_offs);
-		break;
-	case TEE_FS_SEEK_END:
-		res = ree_fs_seek(tfh, offset, TEE_DATA_SEEK_END, &new_offs);
-		break;
-	default:
-		res = TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	*errno = res;
-	if (res != TEE_SUCCESS)
-		return -1;
-	return new_offs;
-}
-
-static int ree_rename_wrapper(const char *old, const char *new)
-{
-	if (ree_fs_rename(old, new) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int ree_unlink_wrapper(const char *file)
-{
-	if (ree_fs_remove(file) != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static int ree_ftruncate_wrapper(TEE_Result *errno, int fd,
-				  tee_fs_off_t length)
-{
-	TEE_Result res;
-	struct tee_file_handle *tfh;
-
-	mutex_lock(&ree_fs_mutex);
-	tfh = handle_lookup(&fs_handle_db, fd);
-	mutex_unlock(&ree_fs_mutex);
-
-	if (!tfh) {
-		*errno = TEE_ERROR_BAD_PARAMETERS;
-		return -1;
-	}
-
-	res = ree_fs_truncate(tfh, length);
-	*errno = res;
-
-	if (res != TEE_SUCCESS)
-		return -1;
-	return 0;
-}
-
-static struct tee_fs_dir *ree_opendir_wrapper(const char *name)
-{
-	struct tee_fs_dir *d;
-
-	if (ree_fs_opendir_rpc(name, &d) != TEE_SUCCESS)
-		return NULL;
-	return d;
-}
-
-static int ree_closedir_wrapper(struct tee_fs_dir *d)
-{
-	ree_fs_closedir_rpc(d);
-	return 0;
-}
-
-static struct tee_fs_dirent *ree_readdir_wrapper(struct tee_fs_dir *d)
-{
-	struct tee_fs_dirent *e;
-
-	if (ree_fs_readdir_rpc(d, &e) != TEE_SUCCESS)
-		return NULL;
-	return e;
-}
-
 const struct tee_file_operations ree_fs_ops = {
-	.open = ree_open_wrapper,
-	.close = ree_close_wrapper,
-	.read = ree_read_wrapper,
-	.write = ree_write_wrapper,
-	.lseek = ree_lseek_wrapper,
-	.ftruncate = ree_ftruncate_wrapper,
-	.rename = ree_rename_wrapper,
-	.unlink = ree_unlink_wrapper,
+	.open = ree_fs_open,
+	.create = ree_fs_create,
+	.close = ree_fs_close,
+	.read = ree_fs_read,
+	.write = ree_fs_write,
+	.seek = ree_fs_seek,
+	.truncate = ree_fs_truncate,
+	.rename = ree_fs_rename,
+	.remove = ree_fs_remove,
 	.mkdir = ree_fs_mkdir_rpc,
-	.opendir = ree_opendir_wrapper,
-	.closedir = ree_closedir_wrapper,
-	.readdir = ree_readdir_wrapper,
+	.opendir = ree_fs_opendir_rpc,
+	.closedir = ree_fs_closedir_rpc,
+	.readdir = ree_fs_readdir_rpc,
 	.rmdir = ree_fs_rmdir_rpc,
 	.access = ree_fs_access_rpc
 };

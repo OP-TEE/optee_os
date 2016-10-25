@@ -41,7 +41,7 @@ struct tee_obj {
 	uint32_t have_attrs;	/* bitfield identifying set properties */
 	void *attr;
 	struct tee_pobj *pobj;	/* ptr to persistant object */
-	int fd;
+	struct tee_file_handle *fh;
 	uint32_t ds_size;	/* data stream size */
 	uint32_t flags;		/* permission flags for persistent objects */
 };
