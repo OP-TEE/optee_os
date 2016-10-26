@@ -534,7 +534,6 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	char *file = NULL;
 	struct tee_pobj *po = NULL;
 	char *tmpfile = NULL;
-	int filedoesnotexist;
 	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops = file_ops(storage_id);
 	size_t attr_size;
@@ -604,15 +603,6 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
-	filedoesnotexist = fops->access(file, TEE_FS_F_OK);
-	if (!filedoesnotexist) {
-		/* file exists */
-		if (!(flags & TEE_DATA_FLAG_OVERWRITE)) {
-			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto err;
-		}
-	}
-
 	/* create temporary persistent object filename */
 	tmpfile = tee_svc_storage_create_filename(sess, object_id,
 						  object_id_len,
@@ -622,17 +612,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
-	/*
-	 * remove the file if it exists, because rename does not perform
-	 * this operation. Note that it delete and rename should be atomic,
-	 * which is not the case currently.
-	 * Fixme: unlink must be removed once rename() support prior deletion
-	 * of the new file name when it already exists.
-	 */
-	if (!filedoesnotexist)
-		fops->remove(file);
 	/* rename temporary persistent object filename */
-	res = fops->rename(tmpfile, file);
+	res = fops->rename(tmpfile, file, !!(flags & TEE_DATA_FLAG_OVERWRITE));
 	if (res != TEE_SUCCESS)
 		goto rmfile;
 
@@ -737,7 +718,6 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	struct tee_pobj *po = NULL;
 	char *new_file = NULL;
 	char *old_file = NULL;
-	int err = -1;
 	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops;
 
@@ -798,20 +778,10 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	err = fops->access(new_file, TEE_FS_F_OK);
-	if (err == 0) {
-		/* file exists */
-		res = TEE_ERROR_ACCESS_CONFLICT;
-		goto exit;
-	}
-
 	/* move */
-	err = fops->rename(old_file, new_file);
-	if (err) {
-		/* error codes needs better granularity */
-		res = TEE_ERROR_GENERIC;
+	res = fops->rename(old_file, new_file, false /* no overwrite */);
+	if (res == TEE_ERROR_GENERIC)
 		goto exit;
-	}
 
 	res = tee_pobj_rename(o->pobj, object_id, object_id_len);
 

@@ -57,7 +57,8 @@ struct tee_file_operations {
 			    size_t len);
 	TEE_Result (*seek)(struct tee_file_handle *fh, int32_t offs,
 			   TEE_Whence whence, int32_t *new_offs);
-	TEE_Result (*rename)(const char *old_name, const char *new_name);
+	TEE_Result (*rename)(const char *old_name, const char *new_name,
+			     bool overwrite);
 	TEE_Result (*remove)(const char *name);
 	TEE_Result (*truncate)(struct tee_file_handle *fh, size_t size);
 

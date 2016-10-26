@@ -2236,7 +2236,8 @@ out:
 	return res;
 }
 
-static  TEE_Result rpmb_fs_rename(const char *old_name, const char *new_name)
+static  TEE_Result rpmb_fs_rename(const char *old_name, const char *new_name,
+				  bool overwrite)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rpmb_file_handle *fh_old = NULL;
@@ -2279,8 +2280,16 @@ static  TEE_Result rpmb_fs_rename(const char *old_name, const char *new_name)
 
 	res = read_fat(fh_new, NULL);
 	if (res == TEE_SUCCESS) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		if (!overwrite) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		/* Clear this file entry. */
+		memset(&fh_new->fat_entry, 0, sizeof(struct rpmb_fat_entry));
+		res = write_fat_entry(fh_new, false);
+		if (res != TEE_SUCCESS)
+			goto out;
 	}
 
 	memset(fh_old->fat_entry.filename, 0, TEE_RPMB_FS_FILENAME_LENGTH);

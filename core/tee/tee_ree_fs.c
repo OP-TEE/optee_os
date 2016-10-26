@@ -1174,7 +1174,8 @@ exit:
  * (Any failure in above steps is considered as a successfully
  *  update)
  */
-static TEE_Result ree_fs_rename_internal(const char *old, const char *new)
+static TEE_Result ree_fs_rename_internal(const char *old, const char *new,
+					 bool overwrite)
 {
 	TEE_Result res;
 	size_t old_len;
@@ -1191,6 +1192,12 @@ static TEE_Result ree_fs_rename_internal(const char *old, const char *new)
 
 	if (old_len > TEE_FS_NAME_MAX || new_len > TEE_FS_NAME_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!ree_fs_access_rpc(new, TEE_FS_F_OK)) {
+		if (!overwrite)
+			return TEE_ERROR_ACCESS_CONFLICT;
+		unlink_tee_file(new);
+	}
 
 	if (ree_fs_mkdir_rpc(new, TEE_FS_S_IRUSR | TEE_FS_S_IWUSR))
 		return TEE_ERROR_GENERIC;
@@ -1248,12 +1255,13 @@ exit_close_old_dir:
 	return res;
 }
 
-static TEE_Result ree_fs_rename(const char *old, const char *new)
+static TEE_Result ree_fs_rename(const char *old, const char *new,
+				bool overwrite)
 {
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = ree_fs_rename_internal(old, new);
+	res = ree_fs_rename_internal(old, new, overwrite);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -1285,7 +1293,7 @@ static TEE_Result ree_fs_remove(const char *file)
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = ree_fs_rename_internal(file, trash_file);
+	res = ree_fs_rename_internal(file, trash_file, true);
 	if (res == TEE_SUCCESS)
 		unlink_tee_file(trash_file);
 

@@ -125,8 +125,20 @@ static TEE_Result sql_fs_readdir_rpc(struct tee_fs_dir *d,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw)
+static TEE_Result sql_fs_remove_rpc(const char *file)
 {
+	return tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+}
+
+static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw,
+				    bool overwrite)
+{
+	if (!sql_fs_access_rpc(nw, TEE_FS_F_OK)) {
+		if (!overwrite)
+			return TEE_ERROR_ACCESS_CONFLICT;
+		sql_fs_remove_rpc(nw);
+	}
+
 	if (tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw))
 		return TEE_ERROR_GENERIC;
 	return TEE_SUCCESS;
@@ -135,11 +147,6 @@ static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw)
 static void sql_fs_closedir_rpc(struct tee_fs_dir *d)
 {
 	tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_SQL_FS, d);
-}
-
-static TEE_Result sql_fs_remove_rpc(const char *file)
-{
-	return tee_fs_rpc_new_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
 }
 
 /*
