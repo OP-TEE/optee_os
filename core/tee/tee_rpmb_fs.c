@@ -31,17 +31,17 @@
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
-#include <optee_msg.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_fs_defs.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_fs_key_manager.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
+#include <optee_msg_supplicant.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
 #include <sys/queue.h>
+#include <tee/tee_cryp_provider.h>
+#include <tee/tee_fs_defs.h>
+#include <tee/tee_fs.h>
+#include <tee/tee_fs_key_manager.h>
 #include <trace.h>
 #include <util.h>
 

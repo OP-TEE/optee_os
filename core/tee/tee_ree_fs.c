@@ -30,7 +30,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
-#include <optee_msg.h>
+#include <optee_msg_supplicant.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
