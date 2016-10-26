@@ -1888,7 +1888,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 	}
 
 	if (fh->filename && !fh->rpmb_fat_address)
-		res = TEE_ERROR_FILE_NOT_FOUND;
+		res = TEE_ERROR_ITEM_NOT_FOUND;
 
 out:
 	free(fat_entries);
@@ -2591,7 +2591,7 @@ static int rpmb_fs_rmdir(const char *path)
 		rpmb_fs_closedir(dir);
 		ret = -1;
 
-	} else if (res == TEE_ERROR_NO_DATA) {
+	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		ret = 0;
 
 	} else {
