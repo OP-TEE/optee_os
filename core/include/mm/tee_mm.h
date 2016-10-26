@@ -29,9 +29,7 @@
 #define TEE_MM_H
 
 #include <malloc.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <kernel/tee_common_unpg.h>
+#include <types_ext.h>
 
 /* Define to indicate default pool initiation */
 #define TEE_MM_POOL_NO_FLAGS            0
@@ -102,7 +100,7 @@ void tee_mm_final(tee_mm_pool_t *pool);
 tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size);
 
 /* Allocate supplied memory range if it's free */
-tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, tee_vaddr_t base,
+tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, vaddr_t base,
 			      size_t size);
 
 /*

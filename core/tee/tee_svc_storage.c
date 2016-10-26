@@ -26,18 +26,19 @@
  */
 
 #include <kernel/mutex.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_fs_defs.h>
-#include <tee/tee_obj.h>
-#include <tee/tee_svc.h>
-#include <tee/tee_pobj.h>
-#include <tee/tee_svc_storage.h>
-#include <tee/tee_svc_cryp.h>
-#include <tee_api_defines.h>
+#include <string.h>
 #include <tee_api_defines_extensions.h>
+#include <tee_api_defines.h>
+#include <tee/tee_fs_defs.h>
+#include <tee/tee_fs.h>
+#include <tee/tee_obj.h>
+#include <tee/tee_pobj.h>
+#include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc.h>
+#include <tee/tee_svc_storage.h>
 #include <trace.h>
 
 /*
@@ -484,7 +485,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t) object_id,
+					  (uaddr_t) object_id,
 					  object_id_len);
 	if (res != TEE_SUCCESS)
 		goto err;
@@ -578,7 +579,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t) object_id,
+					  (uaddr_t) object_id,
 					  object_id_len);
 	if (res != TEE_SUCCESS)
 		goto err;
@@ -593,7 +594,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		res = tee_mmu_check_access_rights(utc,
 						  TEE_MEMORY_ACCESS_READ |
 						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (tee_uaddr_t) data, len);
+						  (uaddr_t) data, len);
 
 		if (res != TEE_SUCCESS)
 			goto err;
@@ -807,7 +808,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	res = tee_mmu_check_access_rights(utc,
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(tee_uaddr_t) object_id, object_id_len);
+					(uaddr_t) object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1017,7 +1018,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	res = tee_mmu_check_access_rights(utc,
 					TEE_MEMORY_ACCESS_WRITE |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(tee_uaddr_t) info,
+					(uaddr_t) info,
 					sizeof(TEE_ObjectInfo));
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -1025,7 +1026,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	res = tee_mmu_check_access_rights(utc,
 					TEE_MEMORY_ACCESS_WRITE |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(tee_uaddr_t) obj_id,
+					(uaddr_t) obj_id,
 					TEE_OBJECT_ID_MAX_LEN);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -1112,7 +1113,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	res = tee_mmu_check_access_rights(utc,
 					TEE_MEMORY_ACCESS_WRITE |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(tee_uaddr_t) data, len);
+					(uaddr_t) data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1165,7 +1166,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	res = tee_mmu_check_access_rights(utc,
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(tee_uaddr_t) data, len);
+					(uaddr_t) data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

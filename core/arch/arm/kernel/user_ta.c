@@ -588,7 +588,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 {
 	TEE_Result res;
 	struct utee_params *usr_params;
-	tee_uaddr_t usr_stack;
+	uaddr_t usr_stack;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
 	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s __maybe_unused;
@@ -605,7 +605,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = (tee_uaddr_t)utc->mmu->table[0].va + utc->stack_size;
+	usr_stack = (uaddr_t)utc->mmu->table[0].va + utc->stack_size;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param);

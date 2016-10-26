@@ -41,7 +41,6 @@
  */
 
 #include <assert.h>
-#include <kernel/tee_common_unpg.h>
 #include <kernel/mutex.h>
 #include <optee_msg.h>
 #include <stdio.h>

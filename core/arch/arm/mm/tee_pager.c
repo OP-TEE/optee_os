@@ -1076,7 +1076,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 	/* setup memory */
 	for (n = 0; n < npages; n++) {
 		struct tee_pager_pmem *pmem;
-		tee_vaddr_t va = vaddr + n * SMALL_PAGE_SIZE;
+		vaddr_t va = vaddr + n * SMALL_PAGE_SIZE;
 		unsigned pgidx = core_mmu_va2idx(ti, va);
 		paddr_t pa;
 		uint32_t attr;

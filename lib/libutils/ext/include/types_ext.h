@@ -33,6 +33,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+typedef uintptr_t uaddr_t;
+#define PRIxUA	PRIxPTR
+
 typedef uintptr_t vaddr_t;
 #define PRIxVA	PRIxPTR
 

@@ -62,10 +62,10 @@ enum buf_is_attr {
 
 /* Convenience macros */
 #define tee_pbuf_is_non_sec(buf, len) \
-		core_pbuf_is(CORE_MEM_NON_SEC, (tee_paddr_t)(buf), (len))
+		core_pbuf_is(CORE_MEM_NON_SEC, (paddr_t)(buf), (len))
 
 #define tee_pbuf_is_sec(buf, len) \
-		core_pbuf_is(CORE_MEM_SEC, (tee_paddr_t)(buf), (len))
+		core_pbuf_is(CORE_MEM_SEC, (paddr_t)(buf), (len))
 
 #define tee_vbuf_is_non_sec(buf, len) \
 		core_vbuf_is(CORE_MEM_NON_SEC, (void *)(buf), (len))
@@ -81,7 +81,7 @@ enum buf_is_attr {
  * Note that returning false doesn't guarantee that buf complies with
  * the complement of the supplied flags.
  */
-bool core_pbuf_is(uint32_t flags, tee_paddr_t pbuf, size_t len);
+bool core_pbuf_is(uint32_t flags, paddr_t pbuf, size_t len);
 
 /*
  * Translates the supplied virtual address to a physical address and uses

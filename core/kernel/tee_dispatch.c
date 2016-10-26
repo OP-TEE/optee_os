@@ -26,11 +26,11 @@
  */
 
 #include <kernel/tee_dispatch.h>
-
 #include <kernel/tee_ta_manager.h>
+#include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <kernel/tee_time.h>
+#include <string.h>
 #include <tee/tee_cryp_utl.h>
 
 /* Sessions opened from normal world */

@@ -25,17 +25,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <platform_config.h>
 
 #include <arm.h>
 #include <assert.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu_defs.h>
+#include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
+#include <mm/tee_mmu_defs.h>
+#include <platform_config.h>
 #include <stdlib.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 #include "core_mmu_private.h"

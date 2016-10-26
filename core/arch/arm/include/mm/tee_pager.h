@@ -33,6 +33,7 @@
 #include <kernel/panic.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mm.h>
+#include <string.h>
 #include <trace.h>
 
 /*

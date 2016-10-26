@@ -38,6 +38,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <trace.h>
 #include <string_ext.h>
+#include <string.h>
 #include <util.h>
 #if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF) || \
 	defined(CFG_CRYPTO_PBKDF2)
@@ -110,7 +111,7 @@ struct tee_cryp_obj_type_attrs {
 };
 
 #define RAW_DATA(_x, _y)	\
-	.raw_offs = offsetof(_x, _y), .raw_size = TEE_MEMBER_SIZE(_x, _y)
+	.raw_offs = offsetof(_x, _y), .raw_size = MEMBER_SIZE(_x, _y)
 
 static const struct tee_cryp_obj_type_attrs
 	tee_cryp_obj_secret_value_attrs[] = {
@@ -675,7 +676,7 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)buffer, req_size);
+					  (uaddr_t)buffer, req_size);
 	if (res != TEE_SUCCESS)
 		return res;
 	/*
@@ -1316,7 +1317,7 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 
 	res = tee_mmu_check_access_rights(utc,
 			TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER,
-			(tee_uaddr_t)usr_attrs,
+			(uaddr_t)usr_attrs,
 			attr_count * sizeof(struct utee_attribute));
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2210,7 +2211,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)chunk, chunk_size);
+					  (uaddr_t)chunk, chunk_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2262,7 +2263,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)chunk, chunk_size);
+					  (uaddr_t)chunk, chunk_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2274,7 +2275,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)hash, hlen);
+					  (uaddr_t)hash, hlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2363,7 +2364,7 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t) iv, iv_len);
+					  (uaddr_t) iv, iv_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2425,7 +2426,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)src, src_len);
+					  (uaddr_t)src, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2440,7 +2441,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 						  TEE_MEMORY_ACCESS_READ |
 						  TEE_MEMORY_ACCESS_WRITE |
 						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (tee_uaddr_t)dst, dlen);
+						  (uaddr_t)dst, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -2893,7 +2894,7 @@ TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)buf, blen);
+					  (uaddr_t)buf, blen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2957,7 +2958,7 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t) aad_data,
+					  (uaddr_t) aad_data,
 					  aad_data_len);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2997,7 +2998,7 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t) src_data, src_len);
+					  (uaddr_t) src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3009,7 +3010,7 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)dst_data, dlen);
+					  (uaddr_t)dst_data, dlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3063,7 +3064,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)src_data, src_len);
+					  (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3078,7 +3079,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 						  TEE_MEMORY_ACCESS_READ |
 						  TEE_MEMORY_ACCESS_WRITE |
 						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (tee_uaddr_t)dst_data, dlen);
+						  (uaddr_t)dst_data, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -3096,7 +3097,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)tag, tlen);
+					  (uaddr_t)tag, tlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3153,7 +3154,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)src_data, src_len);
+					  (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3168,7 +3169,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 						  TEE_MEMORY_ACCESS_READ |
 						  TEE_MEMORY_ACCESS_WRITE |
 						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (tee_uaddr_t)dst_data, dlen);
+						  (uaddr_t)dst_data, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -3181,7 +3182,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)tag, tag_len);
+					  (uaddr_t)tag, tag_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3257,7 +3258,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	res = tee_mmu_check_access_rights(
 		utc,
 		TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER,
-		(tee_uaddr_t) src_data, src_len);
+		(uaddr_t) src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3270,7 +3271,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		utc,
 		TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_WRITE |
 			TEE_MEMORY_ACCESS_ANY_OWNER,
-		(tee_uaddr_t) dst_data, dlen);
+		(uaddr_t) dst_data, dlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3446,14 +3447,14 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)data, data_len);
+					  (uaddr_t)data, data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)sig, sig_len);
+					  (uaddr_t)sig, sig_len);
 	if (res != TEE_SUCCESS)
 		return res;
 

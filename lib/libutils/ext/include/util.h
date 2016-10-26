@@ -64,6 +64,8 @@
 		(type *)((unsigned long)(__ptr) - offsetof(type, member)); \
 	}))
 
+#define MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
+
 #ifdef ASM
 #define BIT32(nr)		(1 << (nr))
 #define BIT64(nr)		(1 << (nr))

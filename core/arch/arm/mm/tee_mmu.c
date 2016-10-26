@@ -565,10 +565,10 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 }
 
 TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
-				       uint32_t flags, tee_uaddr_t uaddr,
+				       uint32_t flags, uaddr_t uaddr,
 				       size_t len)
 {
-	tee_uaddr_t a;
+	uaddr_t a;
 	size_t addr_incr = MIN(CORE_MMU_USER_CODE_SIZE,
 			       CORE_MMU_USER_PARAM_SIZE);
 

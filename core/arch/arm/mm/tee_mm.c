@@ -230,8 +230,7 @@ static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
 	return true;
 }
 
-tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, tee_vaddr_t base,
-			      size_t size)
+tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, vaddr_t base, size_t size)
 {
 	tee_mm_entry_t *entry;
 	uint32_t offslo;

@@ -84,7 +84,7 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
  * tee_mmu_check_access_rights -
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
-				       uint32_t flags, tee_uaddr_t uaddr,
+				       uint32_t flags, uaddr_t uaddr,
 				       size_t len);
 
 /*-----------------------------------------------------------------------------

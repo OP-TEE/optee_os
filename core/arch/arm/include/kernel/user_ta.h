@@ -40,7 +40,7 @@ TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
 struct user_ta_ctx {
-	tee_uaddr_t entry_func;
+	uaddr_t entry_func;
 	size_t stack_size;	/* size of stack */
 	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
 	/* list of sessions opened by this TA */

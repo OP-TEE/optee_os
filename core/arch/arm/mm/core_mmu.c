@@ -489,7 +489,7 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
  * Flags: pbuf_is(SECURE, NOT_SECURE, RAM, IOMEM, KEYVAULT).
  *
  */
-bool core_pbuf_is(uint32_t attr, tee_paddr_t pbuf, size_t len)
+bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 {
 	struct tee_mmap_region *map;
 

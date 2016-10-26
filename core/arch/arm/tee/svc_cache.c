@@ -52,7 +52,7 @@ static TEE_Result cache_operation(struct tee_ta_session *sess,
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	ret = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_WRITE,
-					  (tee_uaddr_t)va, len);
+					  (uaddr_t)va, len);
 	if (ret != TEE_SUCCESS)
 		return TEE_ERROR_ACCESS_DENIED;
 

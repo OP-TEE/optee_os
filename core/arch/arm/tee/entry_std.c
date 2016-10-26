@@ -27,12 +27,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <compiler.h>
-#include <tee/entry_std.h>
+#include <kernel/tee_dispatch.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
-#include <kernel/tee_dispatch.h>
-#include <mm/core_mmu.h>
-#include <mm/core_memprot.h>
+#include <string.h>
+#include <tee/entry_std.h>
 #include <util.h>
 
 #define SHM_CACHE_ATTRS	\

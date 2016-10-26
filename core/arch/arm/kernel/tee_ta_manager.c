@@ -35,7 +35,7 @@
 TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 			       struct tee_ta_param *param)
 {
-	tee_paddr_t p;
+	paddr_t p;
 	size_t l;
 	int n;
 
@@ -51,7 +51,7 @@ TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 				if (!p)
 					return TEE_ERROR_SECURITY;
 			} else {
-				p = (tee_paddr_t)param->params[n].memref.buffer;
+				p = (paddr_t)param->params[n].memref.buffer;
 			}
 			l = param->params[n].memref.size;
 

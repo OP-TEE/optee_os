@@ -25,13 +25,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <types_ext.h>
-#include <stdlib.h>
+#include <kernel/static_ta.h>
+#include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
 #include <sm/tee_mon.h>
-#include <kernel/tee_ta_manager.h>
-#include <kernel/static_ta.h>
+#include <stdlib.h>
+#include <string.h>
 #include <trace.h>
+#include <types_ext.h>
 
 /* Maps static TA params */
 static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
