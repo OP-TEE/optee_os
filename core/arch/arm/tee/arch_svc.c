@@ -32,7 +32,6 @@
 #include <kernel/trace_ta.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
-#include <tee/tee_profiling.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
 #include <tee/se/svc.h>
@@ -135,7 +134,6 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_se_channel_transmit),
 	SYSCALL_ENTRY(syscall_se_channel_close),
 	SYSCALL_ENTRY(syscall_cache_operation),
-	SYSCALL_ENTRY(syscall_gprof_send),
 };
 
 #ifdef TRACE_SYSCALLS

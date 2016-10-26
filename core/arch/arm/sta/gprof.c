@@ -25,46 +25,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <inttypes.h>
-#include <kernel/tee_common_unpg.h>
+#include <pta_gprof.h>
+#include <kernel/static_ta.h>
 #include <kernel/thread.h>
-#include <kernel/user_ta.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu.h>
 #include <optee_msg_supplicant.h>
-#include <tee/tee_profiling.h>
-#include <trace.h>
-#include <utee_types.h>
 
-/*
- * Send profile data to Normal World.
- * id [in/out]: (*id) should be set to 0 initially and passed unchanged to
- * subsequent calls
- */
-TEE_Result syscall_gprof_send(void *buf, size_t len, uint32_t *id)
+static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
+				 uint32_t *id)
 {
 	struct optee_msg_param params[3];
-	struct tee_ta_session *sess;
-	struct user_ta_ctx *utc;
 	TEE_Result res;
 	uint64_t c = 0;
 	paddr_t pa;
 	char *va;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	utc = to_user_ta_ctx(sess->ctx);
-
-	res = tee_mmu_check_access_rights(utc,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (tee_uaddr_t)buf, len);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	thread_rpc_alloc_payload(sizeof(utc->ctx.uuid) + len, &pa, &c);
+	thread_rpc_alloc_payload(sizeof(*uuid) + len, &pa, &c);
 	if (!pa)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -72,8 +48,8 @@ TEE_Result syscall_gprof_send(void *buf, size_t len, uint32_t *id)
 	if (!va)
 		goto exit;
 
-	memcpy(va, &utc->ctx.uuid, sizeof(utc->ctx.uuid));
-	memcpy(va + sizeof(utc->ctx.uuid), buf, len);
+	memcpy(va, uuid, sizeof(*uuid));
+	memcpy(va + sizeof(*uuid), buf, len);
 
 	memset(params, 0, sizeof(params));
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
@@ -81,11 +57,11 @@ TEE_Result syscall_gprof_send(void *buf, size_t len, uint32_t *id)
 
 	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	params[1].u.tmem.buf_ptr = pa;
-	params[1].u.tmem.size = sizeof(utc->ctx.uuid);
+	params[1].u.tmem.size = sizeof(*uuid);
 	params[1].u.tmem.shm_ref = c;
 
 	params[2].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	params[2].u.tmem.buf_ptr = pa + sizeof(utc->ctx.uuid);
+	params[2].u.tmem.buf_ptr = pa + sizeof(*uuid);
 	params[2].u.tmem.size = len;
 	params[2].u.tmem.shm_ref = c;
 
@@ -98,3 +74,78 @@ exit:
 	thread_rpc_free_payload(c);
 	return res;
 }
+
+static TEE_Result gprof_send(uint32_t param_types,
+			     TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
+					  TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s;
+	TEE_Result res;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+	s = tee_ta_get_calling_session();
+	return gprof_send_rpc(&s->ctx->uuid, params[1].memref.buffer,
+			      params[1].memref.size, &params[0].value.a);
+}
+
+/*
+ * Trusted Application Entry Points
+ */
+
+static TEE_Result create_ta(void)
+{
+	return TEE_SUCCESS;
+}
+
+static void destroy_ta(void)
+{
+}
+
+static TEE_Result open_session(uint32_t param_types __unused,
+			       TEE_Param params[TEE_NUM_PARAMS] __unused,
+			       void **sess_ctx __unused)
+{
+	TEE_Result res;
+	struct tee_ta_session *s;
+
+	/* Check that we're called from a TA */
+	res = tee_ta_get_current_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+	if (s->clnt_id.login != TEE_LOGIN_TRUSTED_APP)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return TEE_SUCCESS;
+}
+
+static void close_session(void *sess_ctx __unused)
+{
+}
+
+static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
+				 uint32_t param_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
+{
+	switch (cmd_id) {
+	case PTA_GPROF_SEND:
+		return gprof_send(param_types, params);
+	default:
+		break;
+	}
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static_ta_register(.uuid = PTA_GPROF_UUID, .name = "gprof",
+		   .create_entry_point = create_ta,
+		   .destroy_entry_point = destroy_ta,
+		   .open_session_entry_point = open_session,
+		   .close_session_entry_point = close_session,
+		   .invoke_command_entry_point = invoke_command);

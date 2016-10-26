@@ -187,5 +187,3 @@
                 TEE_SCN_SE_CHANNEL_CLOSE, 1
 
         UTEE_SYSCALL utee_cache_operation, TEE_SCN_CACHE_OPERATION, 3
-
-	UTEE_SYSCALL utee_gprof_send, TEE_SCN_GPROF_SEND, 3

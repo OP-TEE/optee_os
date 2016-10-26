@@ -68,10 +68,10 @@
 #include <tee_api_private.h>
 #include <trace.h>
 #include <user_ta_header.h>
-#include <utee_syscalls.h>
 #include <utee_types.h>
 #include "gmon.h"
 #include "gmon_out.h"
+#include "gprof_pta.h"
 
 static struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
@@ -166,7 +166,7 @@ static void _gprof_write_buf(void *buf, size_t size)
 {
 	TEE_Result res;
 
-	res = utee_gprof_send(buf, size, &_gprof_file_id);
+	res = __pta_gprof_send(buf, size, &_gprof_file_id);
 	if (res != TEE_SUCCESS)
 		EMSG("Failed to send gprof data (0x%08x)", res);
 }
