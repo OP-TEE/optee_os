@@ -65,9 +65,6 @@ struct tee_file_operations {
 	TEE_Result (*opendir)(const char *name, struct tee_fs_dir **d);
 	TEE_Result (*readdir)(struct tee_fs_dir *d, struct tee_fs_dirent **ent);
 	void (*closedir)(struct tee_fs_dir *d);
-
-	/* To be removed */
-	int (*access)(const char *name, int mode);
 };
 
 #ifdef CFG_REE_FS

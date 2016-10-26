@@ -1326,5 +1326,4 @@ const struct tee_file_operations ree_fs_ops = {
 	.opendir = ree_fs_opendir_rpc,
 	.closedir = ree_fs_closedir_rpc,
 	.readdir = ree_fs_readdir_rpc,
-	.access = ree_fs_access_rpc
 };

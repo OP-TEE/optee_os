@@ -642,7 +642,6 @@ const struct tee_file_operations sql_fs_ops = {
 	.seek = sql_fs_seek,
 	.truncate = sql_fs_truncate,
 
-	.access = sql_fs_access_rpc,
 	.opendir = sql_fs_opendir_rpc,
 	.closedir = sql_fs_closedir_rpc,
 	.readdir = sql_fs_readdir_rpc,

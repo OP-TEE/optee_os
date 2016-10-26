@@ -267,12 +267,6 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 		goto exit;
 	}
 
-	if (fops->access(file, TEE_FS_F_OK)) {
-		/* file not found */
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto exit;
-	}
-
 	assert(!o->fh);
 	res = fops->open(file, &o->fh);
 	if (res != TEE_SUCCESS)
@@ -668,7 +662,6 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
-	int err;
 	char *file;
 	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops;
@@ -696,17 +689,9 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	fops = o->pobj->fops;
 	tee_obj_close(utc, o);
 
-	err = fops->access(file, TEE_FS_F_OK);
-	if (err)
-		/* file not found */
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
-
 	res = fops->remove(file);
 	free(file);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return TEE_SUCCESS;
+	return res;
 }
 
 TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,

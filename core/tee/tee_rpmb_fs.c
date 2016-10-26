@@ -58,11 +58,6 @@
 
 #define TEE_RPMB_FS_FILENAME_LENGTH 224
 
-struct tee_rpmb_fs_stat {
-	size_t size;
-	uint32_t reserved;
-};
-
 /**
  * FS parameters: Information often used by internal functions.
  * fat_start_address will be set by rpmb_fs_setup().
@@ -2577,53 +2572,6 @@ static void rpmb_fs_closedir(struct tee_fs_dir *dir)
 	}
 }
 
-static int rpmb_fs_stat(const char *filename, struct tee_rpmb_fs_stat *stat)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct rpmb_file_handle *fh = NULL;
-
-	mutex_lock(&rpmb_mutex);
-
-	if (!stat || !filename) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	fh = alloc_file_handle(filename);
-	if (!fh) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	res = read_fat(fh, NULL);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	stat->size = (size_t)fh->fat_entry.data_size;
-	stat->reserved = 0;
-
-out:
-	mutex_unlock(&rpmb_mutex);
-	free(fh);
-	return (res == TEE_SUCCESS ? 0 : -1);
-}
-
-static int rpmb_fs_access(const char *filename, int mode)
-{
-	struct tee_rpmb_fs_stat stat;
-	TEE_Result res;
-
-	/* Mode is currently ignored, this only checks for existence */
-	(void)mode;
-
-	res = rpmb_fs_stat(filename, &stat);
-
-	if (res == TEE_SUCCESS)
-		return 0;
-
-	return -1;
-}
-
 static TEE_Result rpmb_fs_open(const char *file, struct tee_file_handle **fh)
 {
 	return rpmb_fs_open_internal(file, false, fh);
@@ -2662,5 +2610,4 @@ const struct tee_file_operations rpmb_fs_ops = {
 	.opendir = rpmb_fs_opendir,
 	.closedir = rpmb_fs_closedir,
 	.readdir = rpmb_fs_readdir,
-	.access = rpmb_fs_access
 };

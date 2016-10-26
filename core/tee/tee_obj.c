@@ -80,7 +80,6 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 {
 	TEE_Result res;
 	char *file = NULL;
-	int err = -1;
 	const struct tee_file_operations *fops = o->pobj->fops;
 	struct tee_file_handle *fh = NULL;
 
@@ -96,13 +95,6 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 		goto exit;
 	}
 
-	err = fops->access(file, TEE_FS_F_OK);
-	if (err) {
-		/* file not found */
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
-	}
-
 	res = fops->open(file, &fh);
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
 		EMSG("Object corrupt\n");
@@ -110,7 +102,6 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 		fops->remove(file);
 	}
 
-err:
 	free(file);
 	fops->close(&fh);
 exit:
