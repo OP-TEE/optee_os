@@ -195,11 +195,6 @@ static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 	return TEE_SUCCESS;
 }
 
-static int ree_fs_rmdir_rpc(const char *name)
-{
-	return tee_fs_rpc_rmdir(OPTEE_MSG_RPC_CMD_FS, name);
-}
-
 static int ree_fs_access_rpc(const char *name, int mode)
 {
 	return tee_fs_rpc_access(OPTEE_MSG_RPC_CMD_FS, name, mode);
@@ -772,7 +767,7 @@ static TEE_Result unlink_tee_file(const char *file)
 
 	ree_fs_closedir_rpc(dir);
 
-	return ree_fs_rmdir_rpc(file);
+	return TEE_SUCCESS;
 }
 
 static TEE_Result open_internal(const char *file, bool create, bool overwrite,
@@ -1320,10 +1315,8 @@ const struct tee_file_operations ree_fs_ops = {
 	.truncate = ree_fs_truncate,
 	.rename = ree_fs_rename,
 	.remove = ree_fs_remove,
-	.mkdir = ree_fs_mkdir_rpc,
 	.opendir = ree_fs_opendir_rpc,
 	.closedir = ree_fs_closedir_rpc,
 	.readdir = ree_fs_readdir_rpc,
-	.rmdir = ree_fs_rmdir_rpc,
 	.access = ree_fs_access_rpc
 };

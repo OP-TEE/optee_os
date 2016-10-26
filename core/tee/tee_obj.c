@@ -80,7 +80,6 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 {
 	TEE_Result res;
 	char *file = NULL;
-	char *dir = NULL;
 	int err = -1;
 	const struct tee_file_operations *fops = o->pobj->fops;
 	struct tee_file_handle *fh = NULL;
@@ -109,11 +108,6 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 		EMSG("Object corrupt\n");
 		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 		fops->remove(file);
-		dir = tee_svc_storage_create_dirname(sess);
-		if (dir != NULL) {
-			fops->rmdir(dir);
-			free(dir);
-		}
 	}
 
 err:

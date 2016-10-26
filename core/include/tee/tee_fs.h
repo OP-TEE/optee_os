@@ -66,8 +66,6 @@ struct tee_file_operations {
 	void (*closedir)(struct tee_fs_dir *d);
 
 	/* To be removed */
-	int (*mkdir)(const char *path, tee_fs_mode_t mode);
-	int (*rmdir)(const char *pathname);
 	int (*access)(const char *name, int mode);
 };
 

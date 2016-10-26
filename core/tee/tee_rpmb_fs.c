@@ -2296,17 +2296,6 @@ out:
 	return res;
 }
 
-static int rpmb_fs_mkdir(const char *path __unused,
-			 tee_fs_mode_t mode __unused)
-{
-	/*
-	 * FIXME: mkdir() should really create some entry in the FAT so that
-	 * access() would return success when the directory exists but is
-	 * empty. This does not matter for the current use cases.
-	 */
-	return 0;
-}
-
 static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 {
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
@@ -2579,30 +2568,6 @@ static void rpmb_fs_closedir(struct tee_fs_dir *dir)
 	}
 }
 
-static int rpmb_fs_rmdir(const char *path)
-{
-	struct tee_fs_dir *dir = NULL;
-	TEE_Result res = TEE_ERROR_GENERIC;
-	int ret = -1;
-
-	/* Open the directory anyting other than NO_DATA is a failure */
-	res = rpmb_fs_opendir(path, &dir);
-	if (res == TEE_SUCCESS) {
-		rpmb_fs_closedir(dir);
-		ret = -1;
-
-	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		ret = 0;
-
-	} else {
-		/* The case any other failure is returned */
-		ret = -1;
-	}
-
-
-	return ret;
-}
-
 static int rpmb_fs_stat(const char *filename, struct tee_rpmb_fs_stat *stat)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -2685,10 +2650,8 @@ const struct tee_file_operations rpmb_fs_ops = {
 	.truncate = rpmb_fs_truncate,
 	.rename = rpmb_fs_rename,
 	.remove = rpmb_fs_remove,
-	.mkdir = rpmb_fs_mkdir,
 	.opendir = rpmb_fs_opendir,
 	.closedir = rpmb_fs_closedir,
 	.readdir = rpmb_fs_readdir,
-	.rmdir = rpmb_fs_rmdir,
 	.access = rpmb_fs_access
 };

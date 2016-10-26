@@ -196,7 +196,6 @@ static TEE_Result tee_svc_storage_remove_corrupt_obj(
 {
 	TEE_Result res;
 	char *file = NULL;
-	char *dir = NULL;
 	const struct tee_file_operations *fops = o->pobj->fops;
 
 	file = tee_svc_storage_create_filename(sess,
@@ -211,13 +210,6 @@ static TEE_Result tee_svc_storage_remove_corrupt_obj(
 	tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 	fops->remove(file);
 	free(file);
-	dir = tee_svc_storage_create_dirname(sess);
-	if (dir != NULL) {
-		mutex_lock(&ta_dir_mutex);
-		fops->rmdir(dir);
-		mutex_unlock(&ta_dir_mutex);
-		free(dir);
-	}
 
 	res = TEE_SUCCESS;
 
@@ -232,8 +224,6 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 {
 	TEE_Result res = TEE_SUCCESS;
 	char *dir = NULL;
-	int tmp;
-	int err;
 
 	assert(!*fh);
 	dir = tee_svc_storage_create_dirname(sess);
@@ -244,24 +234,8 @@ static TEE_Result tee_svc_storage_create_file(struct tee_ta_session *sess,
 
 	mutex_lock(&ta_dir_mutex);
 
-	/* try and make directory */
-	err = fops->access(dir, TEE_FS_F_OK);
-	if (err) {
-		/* directory does not exists */
-		tmp = fops->mkdir(dir, TEE_FS_S_IRUSR | TEE_FS_S_IWUSR |
-				  TEE_FS_S_IXUSR);
-
-		if (tmp < 0) {
-			/* error codes needs better granularity */
-			res = TEE_ERROR_GENERIC;
-			goto unlock;
-		}
-	}
-
-	/* try and open again */
 	res = fops->create(file, true /* currently always overwrite */, fh);
 
-unlock:
 	mutex_unlock(&ta_dir_mutex);
 exit:
 	free(dir);
@@ -715,7 +689,6 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	struct tee_obj *o;
 	int err;
 	char *file;
-	char *dir;
 	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops;
 
@@ -751,16 +724,6 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	free(file);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	/* try and remove dir */
-	dir = tee_svc_storage_create_dirname(sess);
-	if (dir == NULL)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	mutex_lock(&ta_dir_mutex);
-	/* ignore result */
-	fops->rmdir(dir);
-	mutex_unlock(&ta_dir_mutex);
-	free(dir);
 
 	return TEE_SUCCESS;
 }
