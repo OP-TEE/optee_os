@@ -25,12 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __OPTEE_MSG_FS_H
-#define __OPTEE_MSG_FS_H
+#ifndef __OPTEE_MSG_SUPPLICANT_H
+#define __OPTEE_MSG_SUPPLICANT_H
 
 /*
- * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS
- * and first parameter has the attribute OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
+ * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS and first parameter has the attribute
+ * OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
  */
 
 /*
@@ -148,4 +149,4 @@
  */
 #define OPTEE_MRF_END_TRANSACTION	12
 
-#endif /*__OPTEE_MSG_FS_H*/
+#endif /*__OPTEE_MSG_SUPPLICANT_H*/
