@@ -337,27 +337,14 @@ struct optee_msg_arg {
 
 /*
  * All RPC is done with a struct optee_msg_arg as bearer of information,
- * struct optee_msg_arg::arg holds values defined by OPTEE_MSG_RPC_CMD_* below
+ * struct optee_msg_arg::arg holds values defined by OPTEE_MSG_RPC_CMD_* below.
+ * Only the commands handled by the kernel driver are defined here.
  *
  * RPC communication with tee-supplicant is reversed compared to normal
- * client communication desribed above. The supplicant receives requests
- * and sends responses.
+ * client communication described above. The supplicant receives requests
+ * and sends responses. The command codes and exact protocol are defined in an
+ * external header file.
  */
-
-/*
- * Load a TA into memory, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_LOAD_TA	0
-
-/*
- * Replay Protected Memory Block access, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_RPMB		1
-
-/*
- * File system access, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_FS		2
 
 /*
  * Get time
@@ -431,11 +418,5 @@ struct optee_msg_arg {
  *					above
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
-
-/*
- * SQLite file system access, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_SQL_FS	8
-
 
 #endif /* _OPTEE_MSG_H */

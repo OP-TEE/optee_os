@@ -29,6 +29,30 @@
 #define __OPTEE_MSG_SUPPLICANT_H
 
 /*
+ * Load a TA into memory
+ */
+#define OPTEE_MSG_RPC_CMD_LOAD_TA	0
+
+/*
+ * Replay Protected Memory Block access
+ */
+#define OPTEE_MSG_RPC_CMD_RPMB		1
+
+/*
+ * File system access
+ */
+#define OPTEE_MSG_RPC_CMD_FS		2
+
+/*
+ * Values 3-7 are reserved in optee_msg.h for use by the kernel driver
+ */
+
+/*
+ * SQLite file system access
+ */
+#define OPTEE_MSG_RPC_CMD_SQL_FS	8
+
+/*
  * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
  * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS and first parameter has the attribute
  * OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
@@ -148,5 +172,10 @@
  * [in]  param[0].u.value.b	true if rolling back to previous state
  */
 #define OPTEE_MRF_END_TRANSACTION	12
+
+/*
+ * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
+ * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS
+ */
 
 #endif /*__OPTEE_MSG_SUPPLICANT_H*/

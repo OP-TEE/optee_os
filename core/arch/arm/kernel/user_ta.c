@@ -40,6 +40,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <optee_msg_supplicant.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <ta_pub_key.h>
