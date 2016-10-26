@@ -53,7 +53,7 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 	if (len == 0)
 		return;
 
-	kbuf = malloc(len);
+	kbuf = malloc(len + 1);
 	if (kbuf == NULL)
 		return;
 
