@@ -34,7 +34,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 
-bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
+bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		 uint32_t flags)
 {
 	if (pool == NULL)
@@ -42,6 +42,9 @@ bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
 
 	lo = ROUNDUP(lo, 1 << shift);
 	hi = ROUNDDOWN(hi, 1 << shift);
+
+	assert(((uint64_t)(hi - lo) >> shift) < (uint64_t)UINT32_MAX);
+
 	pool->lo = lo;
 	pool->hi = hi;
 	pool->shift = shift;
@@ -132,12 +135,12 @@ static inline void update_max_allocated(tee_mm_pool_t *pool __unused)
 }
 #endif /* CFG_WITH_STATS */
 
-tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
+tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 {
-	uint32_t psize;
+	size_t psize;
 	tee_mm_entry_t *entry;
 	tee_mm_entry_t *nn;
-	uint32_t remaining;
+	size_t remaining;
 
 	/* Check that pool is initialized */
 	if (!pool || !pool->entry)
@@ -210,7 +213,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, uint32_t size)
 }
 
 static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
-			      uint32_t offslo, uint32_t offshi)
+			      paddr_t offslo, paddr_t offshi)
 {
 	if (pool->flags & TEE_MM_POOL_HI_ALLOC) {
 		if (offshi > e->offset ||
@@ -230,11 +233,11 @@ static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
 	return true;
 }
 
-tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, vaddr_t base, size_t size)
+tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
 {
 	tee_mm_entry_t *entry;
-	uint32_t offslo;
-	uint32_t offshi;
+	paddr_t offslo;
+	paddr_t offshi;
 	tee_mm_entry_t *mm;
 
 	/* Check that pool is initialized */
@@ -309,7 +312,7 @@ size_t tee_mm_get_bytes(const tee_mm_entry_t *mm)
 		return mm->size << mm->pool->shift;
 }
 
-bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, uint32_t addr)
+bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, paddr_t addr)
 {
 	return (pool && ((addr >= pool->lo) && (addr <= pool->hi)));
 }
@@ -325,7 +328,7 @@ tee_mm_pool_t tee_mm_sec_ddr __early_bss;
 /* Virtual eSRAM pool */
 tee_mm_pool_t tee_mm_vcore __early_bss;
 
-tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr)
+tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, paddr_t addr)
 {
 	tee_mm_entry_t *entry = pool->entry;
 	uint16_t offset = (addr - pool->lo) >> pool->shift;
