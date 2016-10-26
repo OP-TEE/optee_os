@@ -28,7 +28,7 @@
 #include <assert.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
-#include <optee_msg_fs.h>
+#include <optee_msg_supplicant.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
