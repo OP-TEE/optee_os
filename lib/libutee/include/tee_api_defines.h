@@ -68,12 +68,6 @@
 #define TEE_ERROR_TIME_NOT_SET            0xFFFF5000
 #define TEE_ERROR_TIME_NEEDS_RESET        0xFFFF5001
 
-/*
- * Proprietary error codes.
- * All proprietary error codes should use the 0xF57E prefix.
- */
-#define TEE_ERROR_FILE_NOT_FOUND        0xF57E0010
-
 /* Parameter Type Constants */
 #define TEE_PARAM_TYPE_NONE             0
 #define TEE_PARAM_TYPE_VALUE_INPUT      1
