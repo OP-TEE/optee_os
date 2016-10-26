@@ -169,30 +169,19 @@ static int ree_fs_mkdir_rpc(const char *path, tee_fs_mode_t mode)
 static TEE_Result ree_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
 
 {
-	struct tee_fs_dir *d2 = tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name);
-
-	if (!d2)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*d = d2;
-	return TEE_SUCCESS;
+	return tee_fs_rpc_new_opendir(OPTEE_MSG_RPC_CMD_FS, name, d);
 }
 
 static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 {
-	tee_fs_rpc_closedir(OPTEE_MSG_RPC_CMD_FS, d);
+	if (d)
+		tee_fs_rpc_new_closedir(OPTEE_MSG_RPC_CMD_FS, d);
 }
 
 static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 				     struct tee_fs_dirent **ent)
 {
-	struct tee_fs_dirent *e = tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_FS, d);
-
-	if (!e)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*ent = e;
-	return TEE_SUCCESS;
+	return tee_fs_rpc_new_readdir(OPTEE_MSG_RPC_CMD_FS, d, ent);
 }
 
 static int ree_fs_access_rpc(const char *name, int mode)
