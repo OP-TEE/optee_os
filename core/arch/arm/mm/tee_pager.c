@@ -615,6 +615,11 @@ static size_t area_va2idx(struct tee_pager_area *area, vaddr_t va)
 	return (va - (area->base & ~CORE_MMU_PGDIR_MASK)) >> SMALL_PAGE_SHIFT;
 }
 
+static vaddr_t __unused area_idx2va(struct tee_pager_area *area, size_t idx)
+{
+	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
+}
+
 #ifdef CFG_PAGED_USER_TA
 bool tee_pager_set_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size,
 			    uint32_t flags)
@@ -732,6 +737,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 
 static void tee_pager_hide_pages(void)
 {
+	struct core_mmu_table_info __unused *ti = &pager_alias_tbl_info;
 	struct tee_pager_pmem *pmem;
 	size_t n = 0;
 
@@ -756,7 +762,7 @@ static void tee_pager_hide_pages(void)
 		if (attr & (TEE_MATTR_PW | TEE_MATTR_UW)){
 			a = TEE_MATTR_HIDDEN_DIRTY_BLOCK;
 			FMSG("Hide %#" PRIxVA,
-			     pmem->area->ti->va_base +
+			     ti->va_base +
 			     pmem->pgidx * SMALL_PAGE_SIZE);
 		} else
 			a = TEE_MATTR_HIDDEN_BLOCK;
