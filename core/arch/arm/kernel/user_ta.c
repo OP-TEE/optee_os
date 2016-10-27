@@ -755,8 +755,9 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	EMSG_RAW("- stack: 0x%" PRIxVA " %zu",
 		 utc->mmu->table[0].va, utc->stack_size);
 	for (n = 0; n < utc->mmu->size; n++)
-		EMSG_RAW("sect %zu : %#" PRIxVA " %zu",
-			 n, utc->mmu->table[n].va, utc->mmu->table[n].size);
+		EMSG_RAW("sect %zu : va %#" PRIxVA " pa %#" PRIxPA " %#zx",
+			 n, utc->mmu->table[n].va, utc->mmu->table[n].pa,
+			 utc->mmu->table[n].size);
 }
 KEEP_PAGER(user_ta_dump_state);
 
