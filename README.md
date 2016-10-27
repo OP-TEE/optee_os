@@ -713,6 +713,17 @@ The helper makefiles are configured to automatically find and use ccache if
 ccache is installed on your system, so other than having it installed you don't
 have to think about anything.
 
+#### 5.9.3 Host-Guest folder sharing in QEMU/QEMUv8 configurations
+To avoid changing rootfs CPIO archive each time you need to add additional
+files to it, you can also use VirtFS QEMU feature to share a folder between
+the guest and host operating systems. To use this feature enable VirtFS
+QEMU build in `build/common.mk` (set `QEMU_VIRTFS_ENABLE ?= y`), adjust
+`QEMU_VIRTFS_HOST_DIR` and rebuild QEMU.
+
+To mount host folder in QEMU, simply run:
+```
+$ mount_shared <mount_point>
+```
 ---
 ## 6. Load driver, tee-supplicant and run xtest
 Since release v2.0.0 you don't have to load the kernel driver explicitly. In the
