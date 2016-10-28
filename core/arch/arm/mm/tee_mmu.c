@@ -471,11 +471,10 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 	do {
 		n--;
 	} while (n && !utc->mmu->table[n].size);
-	utc->mmu->ta_private_vmem_end = utc->mmu->table[n].va +
-					utc->mmu->table[n].size;
 
 	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->ta_private_vmem_end);
+			       utc->mmu->table[n].va +
+			       utc->mmu->table[n].size);
 }
 
 /*
@@ -576,6 +575,14 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 	if ((uaddr + len) < uaddr)
 		return TEE_ERROR_ACCESS_DENIED;
 
+	/*
+	 * Rely on TA private memory test to check if address range is private
+	 * to TA or not.
+	 */
+	if (!(flags & TEE_MEMORY_ACCESS_ANY_OWNER) &&
+	   !tee_mmu_is_vbuf_inside_ta_private(utc, (void *)uaddr, len))
+		return TEE_ERROR_ACCESS_DENIED;
+
 	for (a = uaddr; a < (uaddr + len); a += addr_incr) {
 		paddr_t pa;
 		uint32_t attr;
@@ -584,28 +591,6 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 		res = tee_mmu_user_va2pa_attr(utc, (void *)a, &pa, &attr);
 		if (res != TEE_SUCCESS)
 			return res;
-
-		if (!(flags & TEE_MEMORY_ACCESS_ANY_OWNER)) {
-			/*
-			 * Strict check that no one else (wich equal or
-			 * less trust) may can access this memory.
-			 *
-			 * Parameters are shared with normal world if they
-			 * aren't in secure DDR.
-			 *
-			 * If the parameters are in secure DDR it's because one
-			 * TA is invoking another TA and in that case there's
-			 * new memory allocated privately for the paramters to
-			 * this TA.
-			 *
-			 * If we do this check for an address on TA
-			 * internal memory it's harmless as it will always
-			 * be in secure DDR.
-			 */
-			if (!tee_mm_addr_is_within_range(&tee_mm_sec_ddr, pa))
-				return TEE_ERROR_ACCESS_DENIED;
-
-		}
 
 		if ((flags & TEE_MEMORY_ACCESS_WRITE) && !(attr & TEE_MATTR_UW))
 			return TEE_ERROR_ACCESS_DENIED;

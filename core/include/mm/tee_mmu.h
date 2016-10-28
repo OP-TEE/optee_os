@@ -57,7 +57,12 @@ void tee_mmu_map_clear(struct user_ta_ctx *utc);
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 			struct tee_ta_param *param);
 
-
+/*
+ * TA private memory is defined as TA image static segment (code, ro/rw static
+ * data, heap, stack). The sole other virtual memory mapped to TA are memref
+ * parameters. These later are considered outside TA private memory as it
+ * might be accessed by the TA and its client(s).
+ */
 bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 				       const void *va, size_t size);
 
