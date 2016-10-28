@@ -25,17 +25,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <pta_gprof.h>
 #include <kernel/static_ta.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <optee_msg_supplicant.h>
+#include <pta_gprof.h>
 
 static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
 {
 	struct optee_msg_param params[3];
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	uint64_t c = 0;
 	paddr_t pa;
 	char *va;
