@@ -687,8 +687,10 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	release_unused_kernel_stack(threads + ct);
 
-	if (is_from_user(cpsr))
+	if (is_from_user(cpsr)) {
 		thread_user_save_vfp();
+		tee_ta_gprof_sample_pc(pc);
+	}
 	thread_lazy_restore_ns_vfp();
 
 	lock_global();

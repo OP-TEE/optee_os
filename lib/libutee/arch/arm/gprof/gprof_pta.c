@@ -64,3 +64,45 @@ TEE_Result __pta_gprof_send(void *buf, size_t len, uint32_t *id)
 		*id = params[0].value.a;
 	return res;
 }
+
+TEE_Result __pta_gprof_pc_sampling_start(size_t buflen, size_t offset,
+					 size_t scale)
+{
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_types;
+
+	param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+				      TEE_PARAM_TYPE_VALUE_INPUT,
+				      TEE_PARAM_TYPE_NONE,
+				      TEE_PARAM_TYPE_NONE);
+	memset(params, 0, sizeof(params));
+	params[0].value.a = buflen;
+	params[0].value.b = offset;
+	params[1].value.a = scale;
+
+	return invoke_gprof_pta(PTA_GPROF_START_PC_SAMPLING, param_types,
+				params);
+}
+
+TEE_Result __pta_gprof_pc_sampling_stop(void *buf, size_t len, uint32_t *rate)
+{
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_types;
+	TEE_Result res;
+
+	param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+				      TEE_PARAM_TYPE_VALUE_OUTPUT,
+				      TEE_PARAM_TYPE_NONE,
+				      TEE_PARAM_TYPE_NONE);
+	memset(params, 0, sizeof(params));
+	params[0].memref.buffer = buf;
+	params[0].memref.size = len;
+
+	res = invoke_gprof_pta(PTA_GPROF_STOP_PC_SAMPLING, param_types,
+				params);
+	if (res != TEE_SUCCESS)
+		return res;
+	if (rate)
+		*rate = params[1].value.a;
+	return res;
+}

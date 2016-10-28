@@ -65,6 +65,15 @@ struct tee_ta_ops {
 	void (*destroy)(struct tee_ta_ctx *ctx);
 };
 
+#if defined(CFG_TA_GPROF_SUPPORT)
+struct sample_buf {
+	uint32_t nsamples;
+	uint32_t offset;
+	uint32_t scale;
+	uint16_t *samples;
+};
+#endif
+
 /* Context of a loaded TA */
 struct tee_ta_ctx {
 	TEE_UUID uuid;
@@ -92,6 +101,9 @@ struct tee_ta_session {
 	struct condvar lock_cv;	/* CV used to wait for lock */
 	int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
+#if defined(CFG_TA_GPROF_SUPPORT)
+	struct sample_buf *sbuf; /* PC sampling data */
+#endif
 };
 
 /* Registered contexts */
@@ -151,5 +163,11 @@ void tee_ta_dump_current(void);
  */
 TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 			       struct tee_ta_param *param);
+
+#if defined(CFG_TA_GPROF_SUPPORT)
+void tee_ta_gprof_sample_pc(vaddr_t pc);
+#else
+static inline void tee_ta_gprof_sample_pc(vaddr_t pc __unused) {}
+#endif
 
 #endif

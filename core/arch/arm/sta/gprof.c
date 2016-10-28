@@ -75,6 +75,18 @@ exit:
 	return res;
 }
 
+/* Return the TA session that invoked us through the TA-TA API */
+static TEE_Result get_calling_session(struct tee_ta_session **s)
+{
+	TEE_Result res;
+
+	res = tee_ta_get_current_session(s);
+	if (res != TEE_SUCCESS)
+		return res;
+	*s = tee_ta_get_calling_session();
+	return TEE_SUCCESS;
+}
+
 static TEE_Result gprof_send(uint32_t param_types,
 			     TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -88,12 +100,113 @@ static TEE_Result gprof_send(uint32_t param_types,
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_ta_get_current_session(&s);
+	res = get_calling_session(&s);
 	if (res != TEE_SUCCESS)
 		return res;
-	s = tee_ta_get_calling_session();
+
 	return gprof_send_rpc(&s->ctx->uuid, params[1].memref.buffer,
 			      params[1].memref.size, &params[0].value.a);
+}
+
+static TEE_Result gprof_start_pc_sampling(uint32_t param_types,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s;
+	struct sample_buf *sbuf;
+	TEE_Result res;
+	uint32_t len;
+	uint32_t offset;
+	uint32_t scale;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = get_calling_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	len = params[0].value.a;
+	offset = params[0].value.b;
+	scale = params[1].value.a;
+
+	sbuf = malloc(sizeof(*sbuf));
+	if (!sbuf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	sbuf->samples = calloc(1, len);
+	if (!sbuf->samples) {
+		free(sbuf);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	sbuf->nsamples = len/sizeof(*sbuf->samples);
+	sbuf->offset = offset;
+	sbuf->scale = scale;
+	s->sbuf = sbuf;
+
+	IMSG("Session s=%p", (void*)s);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result gprof_stop_pc_sampling(uint32_t param_types,
+					 TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s;
+	struct sample_buf *sbuf;
+	uint32_t outsize;
+	TEE_Result res;
+	uint32_t size;
+	void *outbuf;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = get_calling_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	sbuf = s->sbuf;
+	if (!sbuf)
+		return TEE_ERROR_BAD_STATE; /* Not sampling */
+	assert(sbuf->samples);
+
+	size = sbuf->nsamples * sizeof(*sbuf->samples);
+	outsize = params[0].memref.size;
+	if (outsize < size) {
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto exit;
+	}
+
+	outbuf = params[0].memref.buffer;
+	if (outbuf)
+		memcpy(outbuf, sbuf->samples, size);
+
+	/*
+	 * Report profiling rate (samples per second).
+	 * FIXME: figure out a way of detecting this dynamically. Setting a
+	 * wrong value here will not affect the relative values given by gprof,
+	 * i.e., the "time spent %" column. This will be correct, assuming the
+	 * sampling occurs evenly. However, it will affect the absolute time
+	 * spent values (in seconds).
+	 */
+	params[1].value.a = 200;
+	res = TEE_SUCCESS;
+exit:
+	free(sbuf->samples);
+	free(sbuf);
+	s->sbuf = NULL;
+
+	return res;
 }
 
 /*
@@ -137,6 +250,10 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_GPROF_SEND:
 		return gprof_send(param_types, params);
+	case PTA_GPROF_START_PC_SAMPLING:
+		return gprof_start_pc_sampling(param_types, params);
+	case PTA_GPROF_STOP_PC_SAMPLING:
+		return gprof_stop_pc_sampling(param_types, params);
 	default:
 		break;
 	}

@@ -185,6 +185,8 @@ struct gmonparam {
 	unsigned long	textsize;
 	unsigned long	hashfraction;
 	long		log_hashfraction;
+	/* */
+	uint32_t	prof_rate; /* PC sampling frequency */
 };
 
 /*

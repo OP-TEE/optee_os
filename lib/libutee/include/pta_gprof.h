@@ -44,6 +44,23 @@
  * [in/out] value[0].a: id
  * [in]     memref[1]: profiling data
  */
-#define PTA_GPROF_SEND	0
+#define PTA_GPROF_SEND			0
+
+/*
+ * Start PC sampling of a user TA session
+ *
+ * [in] value[0].a: size of the sampling buffer that the TEE should allocate
+ * [in] value[0].b: offset: the lowest PC value in the TA
+ * [in] value[1].a: scale: histogram scaling factor
+ */
+#define PTA_GPROF_START_PC_SAMPLING	1
+
+/*
+ * Stop PC sampling of a user TA session
+ *
+ * [out] memref[0]: output buffer
+ * [out] value[1].a: sampling frequency
+ */
+#define PTA_GPROF_STOP_PC_SAMPLING	2
 
 #endif /* __PTA_GPROF_H */

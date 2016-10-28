@@ -81,9 +81,12 @@ static struct gmonparam _gmonparam = { GMON_PROF_OFF };
  * ta_heap_size, we'd better not interfere. Until we design another way,
  * let's use a static buffer in .bss.
  */
-static uint64_t _gprof_buf[256 * 1024 / sizeof(uint64_t)];
+static uint64_t _gprof_buf[384 * 1024 / sizeof(uint64_t)];
 
 static uint32_t _gprof_file_id; /* File id returned by tee-supplicant */
+
+static int _gprof_s_scale;
+#define SCALE_1_TO_1 0x10000L
 
 static void *_gprof_calloc(size_t size, size_t num)
 {
@@ -104,6 +107,7 @@ void __utee_gprof_init(void)
 	unsigned long highpc;
 	struct gmonparam *p = &_gmonparam;
 	size_t bufsize;
+	TEE_Result res;
 	char *cp;
 
 	lowpc = adjust_pc((unsigned long)__text_start);
@@ -141,8 +145,9 @@ void __utee_gprof_init(void)
 
 	bufsize = p->kcountsize + p->fromssize + p->tossize;
 
-	IMSG("gprof: initializing (buffer size: %zu, text size: %zu)",
-	     bufsize, __text_end - __text_start);
+	IMSG("gprof: initializing");
+	DMSG("TA text size: %zu, total buffer size: %zu (histogram: %lu)",
+	     __text_end - __text_start, bufsize, p->kcountsize);
 
 	cp = _gprof_calloc(bufsize, 1);
 	if (!cp) {
@@ -158,6 +163,19 @@ void __utee_gprof_init(void)
 	p->froms = (ARCINDEX *)cp;
 
 	p->tos[0].link = 0;
+
+	if (p->kcountsize < p->textsize)
+		_gprof_s_scale = ((float)p->kcountsize / p->textsize ) *
+				  SCALE_1_TO_1;
+	else
+		_gprof_s_scale = SCALE_1_TO_1;
+
+	res = __pta_gprof_pc_sampling_start(p->kcountsize, p->lowpc +
+					    ((unsigned long)__text_start -
+						sizeof(struct ta_head)),
+					    _gprof_s_scale);
+	if (res != TEE_SUCCESS)
+		EMSG("Failed to start PC sampling (0x%08x)", res);
 
 	p->state = GMON_PROF_ON;
 }
@@ -185,6 +203,23 @@ static void _gprof_write_header(void)
 
 static void _gprof_write_hist(void)
 {
+	struct out_record {
+		uint8_t tag;
+		struct gmon_hist_hdr hist_hdr;
+	} __packed out = {
+		.tag = GMON_TAG_TIME_HIST,
+		.hist_hdr = {
+			.low_pc = _gmonparam.lowpc,
+			.high_pc = _gmonparam.highpc,
+			.hist_size = _gmonparam.kcountsize/sizeof(HISTCOUNTER),
+			.prof_rate = _gmonparam.prof_rate,
+			.dimen = "seconds",
+			.dimen_abbrev = 's',
+		}
+	};
+
+	_gprof_write_buf(&out, sizeof(out));
+	_gprof_write_buf(_gmonparam.kcount, _gmonparam.kcountsize);
 }
 
 static void _gprof_write_call_graph(void)
@@ -234,12 +269,20 @@ static void _gprof_write_call_graph(void)
 /* Send profile data in gmon.out format to Normal World */
 void __noprof __utee_gprof_fini(void)
 {
+	TEE_Result res;
+
 	if (_gmonparam.state != GMON_PROF_ON)
 		return;
 	_gmonparam.state = GMON_PROF_OFF;
 
+	/* Stop TA sampling and retrieve PC sampling data */
+	res = __pta_gprof_pc_sampling_stop(_gmonparam.kcount,
+					   _gmonparam.kcountsize,
+					   &_gmonparam.prof_rate);
+
 	_gprof_write_header();
-	_gprof_write_hist();
+	if (res == TEE_SUCCESS)
+		_gprof_write_hist();
 	_gprof_write_call_graph();
 }
 
