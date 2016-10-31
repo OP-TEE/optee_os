@@ -720,24 +720,18 @@ void tee_ta_dump_current(void)
 }
 
 #if defined(CFG_TA_GPROF_SUPPORT)
-uint64_t tot;
-uint64_t ta;
-uint64_t samp_err;
-
 void tee_ta_gprof_sample_pc(vaddr_t pc)
 {
 	struct tee_ta_session *s = NULL;
 	struct sample_buf *sbuf;
 	size_t idx;
 
-	tot++;
 	tee_ta_get_current_session(&s);
 	assert(s);
 	sbuf = s->sbuf;
 	if (!sbuf)
 		return; /* PC sampling is not enabled */
 
-	ta++;
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
 	if (idx < sbuf->nsamples)
 		sbuf->samples[idx]++;

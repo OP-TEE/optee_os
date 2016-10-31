@@ -30,6 +30,7 @@
 #include <mm/core_memprot.h>
 #include <optee_msg_supplicant.h>
 #include <pta_gprof.h>
+#include <string.h>
 
 static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
