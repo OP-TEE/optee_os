@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <inttypes.h>
+#include <keep.h>
 #include <kernel/generic_boot.h>
 #include <kernel/thread.h>
 #include <kernel/panic.h>
@@ -69,7 +70,6 @@
  *
  * 64-bit systems on the other hand can use full 64-bit physical pointers.
  */
-
 #define PADDR_INVALID		ULONG_MAX
 
 #ifdef CFG_BOOT_SECONDARY_REQUEST
@@ -84,6 +84,18 @@ uint32_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __data;
  */
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __early_bss;
 #endif
+
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void plat_cpu_reset_late(void)
+{
+}
+KEEP_PAGER(plat_cpu_reset_late);
+
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void plat_cpu_reset_early(void)
+{
+}
+KEEP_INIT(plat_cpu_reset_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)

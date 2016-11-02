@@ -62,21 +62,6 @@ FUNC _start , :
 	b	.	/* FIQ */
 END_FUNC _start
 
-/* Let platforms override this if needed */
-.weak plat_cpu_reset_early
-FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC plat_cpu_reset_early
-
-.weak plat_cpu_reset_late
-FUNC plat_cpu_reset_late , :
-UNWIND(	.fnstart)
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC plat_cpu_reset_late
-
 #ifdef CFG_BOOT_SYNC_CPU
 LOCAL_FUNC cpu_is_ready , :
 UNWIND(	.fnstart)
@@ -376,7 +361,7 @@ shadow_stack_access_ok:
 	bl	pl310_base
 	bl	arm_cl2_lockallways
 	bl	pl310_base
-	bl	arm_cl2_invbyway
+	bl	arm_cl2_cleaninvbyway
 #endif
 
 	bl	wait_secondary
