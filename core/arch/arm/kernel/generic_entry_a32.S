@@ -289,6 +289,14 @@ END_FUNC reset
 #define flush_cache_vrange(vbase, vend) \
 		__flush_cache_vrange (vbase), ((vend) - 1), __LINE__
 
+#ifdef CFG_BOOT_SYNC_CPU
+#define flush_cpu_semaphores \
+		flush_cache_vrange(sem_cpu_sync, \
+				   (sem_cpu_sync + (CFG_TEE_CORE_NB_CORE << 2)))
+#else
+#define flush_cpu_semaphores
+#endif
+
 LOCAL_FUNC reset_primary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
@@ -399,9 +407,6 @@ shadow_stack_access_ok:
 	bl	generic_boot_init_primary
 	mov	r4, r0		/* save entry test vector */
 
-	bl	get_core_pos
-	bl	cpu_is_ready
-
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
 	 * they have turned on their D-cache, clean and invalidate the
@@ -413,8 +418,13 @@ shadow_stack_access_ok:
 	flush_cache_vrange(__text_start, __end)
 #endif
 
+	/* release secondary boot cores */
+	bl	get_core_pos
+	bl	cpu_is_ready
+	flush_cpu_semaphores
 
-#endif
+	/* synchronize with secondary boot cores */
+	bl	wait_secondary
 
 #ifdef CFG_PL310_LOCKED
 	/* lock/invalidate all lines: pl310 behaves as if disable */
@@ -423,8 +433,6 @@ shadow_stack_access_ok:
 	bl	pl310_base
 	bl	arm_cl2_cleaninvbyway
 #endif
-
-	bl	wait_secondary
 
 	/*
 	 * Clear current thread id now to allow the thread to be reused on
