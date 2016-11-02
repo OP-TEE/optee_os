@@ -106,77 +106,50 @@ FUNC _start , :
 	b	.	/* FIQ */
 END_FUNC _start
 
+	.macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
-LOCAL_FUNC cpu_is_ready , :
-UNWIND(	.fnstart)
+	bl	get_core_pos
 	lsl	r0, r0, #2
 	ldr	r1,=sem_cpu_sync
 	ldr	r2, =SEM_CPU_READY
 	str	r2, [r1, r0]
 	dsb
 	sev
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC cpu_is_ready
+#endif
+	.endm
 
-LOCAL_FUNC wait_primary , :
-UNWIND(	.fnstart)
+	.macro wait_primary
+#ifdef CFG_BOOT_SYNC_CPU
 	ldr	r0, =sem_cpu_sync
 	mov	r2, #SEM_CPU_READY
 	sev
-_wait_cpu0:
+1:
 	ldr	r1, [r0]
 	cmp	r1, r2
 	wfene
-	bne	_wait_cpu0
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC wait_primary
+	bne	1b
+#endif
+	.endm
 
-LOCAL_FUNC wait_secondary , :
-UNWIND(	.fnstart)
+	.macro wait_secondary
+#ifdef CFG_BOOT_SYNC_CPU
 	ldr	r0, =sem_cpu_sync
 	mov	r3, #CFG_TEE_CORE_NB_CORE
 	mov	r2, #SEM_CPU_READY
 	sev
-_wait_next:
+1:
 	subs	r3, r3, #1
-	beq	_synced_cpun
+	beq	3f
 	add	r0, r0, #4
-_wait_cpun:
+2:
 	ldr	r1, [r0]
 	cmp	r1, r2
 	wfene
-	bne	_wait_cpun
-	b	_wait_next
-_synced_cpun:
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC wait_secondary
-
-#else
-/*
- * CFG_BOOT_SYNC_CPU is not defined
- * So cpu synchronization functions are empty
- */
-LOCAL_FUNC cpu_is_ready , :
-UNWIND(	.fnstart)
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC cpu_is_ready
-
-LOCAL_FUNC wait_primary , :
-UNWIND(	.fnstart)
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC wait_primary
-
-LOCAL_FUNC wait_secondary , :
-UNWIND(	.fnstart)
-	bx	lr
-UNWIND(	.fnend)
-END_FUNC wait_secondary
+	bne	2b
+	b	1b
+3:
 #endif
+	.endm
 
 LOCAL_FUNC reset , :
 UNWIND(	.fnstart)
@@ -418,13 +391,10 @@ shadow_stack_access_ok:
 	flush_cache_vrange(__text_start, __end)
 #endif
 
-	/* release secondary boot cores */
-	bl	get_core_pos
-	bl	cpu_is_ready
+	/* release secondary boot cores and sync with them */
+	cpu_is_ready
 	flush_cpu_semaphores
-
-	/* synchronize with secondary boot cores */
-	bl	wait_secondary
+	wait_secondary
 
 #ifdef CFG_PL310_LOCKED
 	/* lock/invalidate all lines: pl310 behaves as if disable */
@@ -506,7 +476,8 @@ END_FUNC cpu_on_handler
 LOCAL_FUNC reset_secondary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	bl	wait_primary
+
+	wait_primary
 
 	set_sp
 
@@ -522,8 +493,7 @@ UNWIND(	.cantunwind)
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
-	bl	get_core_pos
-	bl	cpu_is_ready
+	cpu_is_ready
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* get ns entry from ns_entry_addrs array */
