@@ -50,6 +50,50 @@ gdb_bootargs:
 	.word 0
 #endif
 
+#ifdef CFG_PL310
+.section .rodata.init
+panic_boot_file:
+	.asciz __FILE__
+
+/*
+ * void assert_flat_mapped_range(uint32_t vaddr, uint32_t line)
+ */
+.section .text.init
+LOCAL_FUNC __assert_flat_mapped_range , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	push	{ r4-r6, lr }
+	mov	r4, r0
+	mov	r5, r1
+	bl	cpu_mmu_enabled
+	cmp	r0, #0
+	beq	1f
+	mov	r0, r4
+	bl	virt_to_phys
+	cmp	r0, r4
+	beq	1f
+	/*
+	 * this must be compliant with the panic generic routine:
+	 * __do_panic(__FILE__, __LINE__, __func__, str)
+	 */
+	ldr	r0, =panic_boot_file
+	mov	r1, r5
+	mov	r2, #0
+	mov	r3, #0
+	bl	__do_panic
+	b	.		/* should NOT return */
+1:	pop	{ r4-r6, pc }
+UNWIND(	.fnend)
+END_FUNC __assert_flat_mapped_range
+
+	/* panic if mmu is enable and vaddr != paddr (scratch lr) */
+	.macro assert_flat_mapped_range va, line
+		ldr	r0, =(\va)
+		ldr	r1, =\line
+		bl	__assert_flat_mapped_range
+	.endm
+#endif /* CFG_PL310 */
+
 .section .text.boot
 FUNC _start , :
 	b	reset
@@ -203,6 +247,48 @@ END_FUNC reset
 		add	sp, r1, r2
 	.endm
 
+	/*
+	 * Cache maintenance during entry: handle outer cache.
+	 * End address is exclusive: first byte not to be changed.
+	 * Note however arm_clX_inv/cleanbyva operate on full cache lines.
+	 *
+	 * Use ANSI #define to trap source file line number for PL310 assertion
+	 */
+	.macro __inval_cache_vrange vbase, vend, line
+#ifdef CFG_PL310
+		assert_flat_mapped_range (\vbase), (\line)
+		bl	pl310_base
+		ldr	r1, =(\vbase)
+		ldr	r2, =(\vend)
+		bl	arm_cl2_invbypa
+#endif
+		ldr	r0, =(\vbase)
+		ldr	r1, =(\vend)
+		bl	arm_cl1_d_invbyva
+	.endm
+
+	.macro __flush_cache_vrange vbase, vend, line
+#ifdef CFG_PL310
+		assert_flat_mapped_range (\vbase), (\line)
+		ldr	r0, =(\vbase)
+		ldr	r1, =(\vend)
+		bl	arm_cl1_d_cleanbyva
+		bl	pl310_base
+		ldr	r1, =(\vbase)
+		ldr	r2, =(\vend)
+		bl	arm_cl2_cleaninvbypa
+#endif
+		ldr	r0, =(\vbase)
+		ldr	r1, =(\vend)
+		bl	arm_cl1_d_cleaninvbyva
+	.endm
+
+#define inval_cache_vrange(vbase, vend) \
+		__inval_cache_vrange (vbase), ((vend) - 1), __LINE__
+
+#define flush_cache_vrange(vbase, vend) \
+		__flush_cache_vrange (vbase), ((vend) - 1), __LINE__
+
 LOCAL_FUNC reset_primary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
@@ -273,7 +359,7 @@ shadow_stack_access_ok:
 	bl	console_init
 
 #ifdef CFG_PL310
-	ldr	r0, =PL310_BASE
+	bl	pl310_base
 	bl	arm_cl2_config
 #endif
 
@@ -282,30 +368,16 @@ shadow_stack_access_ok:
 	 * avoid nasty surprices when the cache is turned on. We must not
 	 * invalidate memory not used by OP-TEE since we may invalidate
 	 * entries used by for instance ARM Trusted Firmware.
-	 *
-	 * Before MMU is turned on is VA == PA for cache operations.
 	 */
-	ldr	r0, =__text_start
 #ifdef CFG_WITH_PAGER
-	ldr	r1, =__tmp_hashes_end
+	inval_cache_vrange(__text_start, __tmp_hashes_end)
 #else
-	ldr	r1, =__end
+	inval_cache_vrange(__text_start, __end)
 #endif
-	sub	r1, r1, #1
-	bl	arm_cl1_d_invbyva
 
 #ifdef CFG_PL310
-	ldr	r0, =PL310_BASE
-	ldr	r1, =__text_start
-#ifdef CFG_WITH_PAGER
-	ldr	r2, =__init_end
-#else
-	ldr	r2, =__end
-#endif
-	sub	r2, r2, #1
-	bl	arm_cl2_invbypa
-
-	ldr	r0, =PL310_BASE
+	/* Enable PL310 if not yet enabled */
+	bl	pl310_base
 	bl	arm_cl2_enable
 #endif
 
@@ -335,29 +407,17 @@ shadow_stack_access_ok:
 	 * they have turned on their D-cache, clean and invalidate the
 	 * D-cache before exiting to normal world.
 	 */
-	ldr	r0, =__text_start
 #ifdef CFG_WITH_PAGER
-	ldr	r1, =__init_end
+	flush_cache_vrange(__text_start, __init_end)
 #else
-	ldr	r1, =__end
+	flush_cache_vrange(__text_start, __end)
 #endif
-	sub	r1, r1, #1
-	bl	arm_cl1_d_cleaninvbyva
 
-#ifdef CFG_PL310
-	bl	pl310_base
-	ldr	r1, =__text_start
-#ifdef CFG_WITH_PAGER
-	ldr	r2, =__init_end
-#else
-	ldr	r2, =__end
-#endif
-	sub	r2, r2, #1
-	bl	arm_cl2_cleaninvbypa
 
 #endif
 
 #ifdef CFG_PL310_LOCKED
+	/* lock/invalidate all lines: pl310 behaves as if disable */
 	bl	pl310_base
 	bl	arm_cl2_lockallways
 	bl	pl310_base
