@@ -43,7 +43,7 @@
 #define CMD_SELF_TESTS	2
 
 static TEE_Result test_trace(uint32_t param_types __unused,
-			TEE_Param params[4] __unused)
+			TEE_Param params[TEE_NUM_PARAMS] __unused)
 {
 	IMSG("static TA \"%s\" says \"Hello world !\"", TA_NAME);
 
@@ -61,7 +61,7 @@ static TEE_Result test_trace(uint32_t param_types __unused,
  * Case 3: command parameters type are: 1 in/out memref, 3 empty.
  *         => process = outI[0] = sum(inI[0..len-1])
  */
-static TEE_Result test_entry_params(uint32_t type, TEE_Param p[4])
+static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
 	size_t i;
 	uint8_t d8, *in;
@@ -211,7 +211,8 @@ static void destroy_ta(void)
 }
 
 static TEE_Result open_session(uint32_t nParamTypes __unused,
-		TEE_Param pParams[4] __unused, void **ppSessionContext __unused)
+		TEE_Param pParams[TEE_NUM_PARAMS] __unused,
+		void **ppSessionContext __unused)
 {
 	DMSG("open entry point for static ta \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
@@ -223,7 +224,8 @@ static void close_session(void *pSessionContext __unused)
 }
 
 static TEE_Result invoke_command(void *pSessionContext __unused,
-		uint32_t nCommandID, uint32_t nParamTypes, TEE_Param pParams[4])
+		uint32_t nCommandID, uint32_t nParamTypes,
+		TEE_Param pParams[TEE_NUM_PARAMS])
 {
 	DMSG("command entry point for static ta \"%s\"", TA_NAME);
 

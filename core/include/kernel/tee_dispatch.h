@@ -45,16 +45,16 @@ struct tee_dispatch_out {
 struct tee_dispatch_open_session_in {
 	TEE_UUID uuid;
 	uint32_t param_types;
-	TEE_Param params[4];
+	TEE_Param params[TEE_NUM_PARAMS];
 	TEE_Identity clnt_id;
-	uint32_t param_attr[4];
+	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
 /* Output arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_out {
 	struct tee_dispatch_out msg;
 	TEE_Session *sess;
-	TEE_Param params[4];
+	TEE_Param params[TEE_NUM_PARAMS];
 };
 
 /* Input arg structure specific to TEE service 'invoke command'. */
@@ -62,14 +62,14 @@ struct tee_dispatch_invoke_command_in {
 	TEE_Session *sess;
 	uint32_t cmd;
 	uint32_t param_types;
-	TEE_Param params[4];
-	uint32_t param_attr[4];
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
 /* Output arg structure specific to TEE service 'invoke command'. */
 struct tee_dispatch_invoke_command_out {
 	struct tee_dispatch_out msg;
-	TEE_Param params[4];
+	TEE_Param params[TEE_NUM_PARAMS];
 };
 
 /* Input arg structure specific to TEE service 'cancel command'. */

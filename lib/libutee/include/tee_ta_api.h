@@ -140,8 +140,8 @@ void TA_EXPORT TA_DestroyEntryPoint(void);
  *     error code defined by the Trusted Application implementation itself.
  */
 TEE_Result TA_EXPORT TA_OpenSessionEntryPoint(uint32_t paramTypes,
-					      TEE_Param params[4],
-					      void **sessionContext);
+				TEE_Param params[TEE_NUM_PARAMS],
+				void **sessionContext);
 
 /*
  * The Framework calls this function to close a client session. During the
@@ -192,9 +192,9 @@ void TA_EXPORT TA_CloseSessionEntryPoint(void *sessionContext);
  */
 
 TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
-						uint32_t commandID,
-						uint32_t paramTypes,
-						TEE_Param params[4]);
+			uint32_t commandID,
+			uint32_t paramTypes,
+			TEE_Param params[TEE_NUM_PARAMS]);
 
 /*
  * Correspondance Client Functions <--> TA Functions

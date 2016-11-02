@@ -40,11 +40,12 @@ struct static_ta_head {
 	TEE_Result (*create_entry_point)(void);
 	void (*destroy_entry_point)(void);
 	TEE_Result (*open_session_entry_point)(uint32_t nParamTypes,
-			TEE_Param pParams[4], void **ppSessionContext);
+			TEE_Param pParams[TEE_NUM_PARAMS],
+			void **ppSessionContext);
 	void (*close_session_entry_point)(void *pSessionContext);
 	TEE_Result (*invoke_command_entry_point)(void *pSessionContext,
 			uint32_t nCommandID, uint32_t nParamTypes,
-			TEE_Param pParams[4]);
+			TEE_Param pParams[TEE_NUM_PARAMS]);
 };
 
 #define static_ta_register(...) static const struct static_ta_head __head \

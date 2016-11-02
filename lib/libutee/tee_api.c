@@ -98,10 +98,11 @@ void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
 }
 
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
-			     uint32_t cancellationRequestTimeout,
-			     uint32_t paramTypes, TEE_Param params[4],
-			     TEE_TASessionHandle *session,
-			     uint32_t *returnOrigin)
+				uint32_t cancellationRequestTimeout,
+				uint32_t paramTypes,
+				TEE_Param params[TEE_NUM_PARAMS],
+				TEE_TASessionHandle *session,
+				uint32_t *returnOrigin)
 {
 	TEE_Result res;
 	struct utee_params up;
@@ -134,9 +135,10 @@ void TEE_CloseTASession(TEE_TASessionHandle session)
 }
 
 TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
-			       uint32_t cancellationRequestTimeout,
-			       uint32_t commandID, uint32_t paramTypes,
-			       TEE_Param params[4], uint32_t *returnOrigin)
+				uint32_t cancellationRequestTimeout,
+				uint32_t commandID, uint32_t paramTypes,
+				TEE_Param params[TEE_NUM_PARAMS],
+				uint32_t *returnOrigin)
 {
 	TEE_Result res;
 	uint32_t ret_origin;

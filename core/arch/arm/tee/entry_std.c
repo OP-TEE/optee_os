@@ -45,7 +45,7 @@ static bool copy_in_params(const struct optee_msg_param *params,
 		TEE_Param tee_params[TEE_NUM_PARAMS])
 {
 	size_t n;
-	uint8_t pt[4];
+	uint8_t pt[TEE_NUM_PARAMS];
 	uint32_t cache_attr;
 	uint32_t attr;
 

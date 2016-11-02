@@ -49,7 +49,7 @@ static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
 	if (tee_ta_get_calling_session())
 		return TEE_SUCCESS;
 
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:

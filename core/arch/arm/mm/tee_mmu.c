@@ -58,7 +58,8 @@
 
 #define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
 					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
-#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + 4)
+#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + \
+				TEE_NUM_PARAMS)
 
 #define TEE_MMU_UDATA_ATTR		(TEE_MATTR_VALID_BLOCK | \
 					 TEE_MATTR_PRW | TEE_MATTR_URW | \
@@ -390,7 +391,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		sizeof(struct tee_mmap_region));
 
 	/* Map secure memory params first then nonsecure memory params */
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
 		TEE_Param *p = &param->params[n];
 		uint32_t attr = TEE_MMU_UDATA_ATTR;
@@ -417,7 +418,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		if (res != TEE_SUCCESS)
 			return res;
 	}
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
 		TEE_Param *p = &param->params[n];
 		uint32_t attr = TEE_MMU_UDATA_ATTR & ~TEE_MATTR_SECURE;
@@ -448,7 +449,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
 		TEE_Param *p = &param->params[n];
 

@@ -99,7 +99,8 @@ static void destroy_ta(void)
 }
 
 static TEE_Result open_session(uint32_t nParamTypes __unused,
-		TEE_Param pParams[4] __unused, void **ppSessionContext __unused)
+		TEE_Param pParams[TEE_NUM_PARAMS] __unused,
+		void **ppSessionContext __unused)
 {
 	DMSG("open entry point for static ta \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
@@ -380,7 +381,8 @@ static TEE_Result self_tests(
 }
 
 static TEE_Result invoke_command(void *pSessionContext __unused,
-		uint32_t nCommandID, uint32_t nParamTypes, TEE_Param pParams[4])
+		uint32_t nCommandID, uint32_t nParamTypes,
+		TEE_Param pParams[TEE_NUM_PARAMS])
 {
 	DMSG("command entry point for static ta \"%s\"", TA_NAME);
 

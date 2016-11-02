@@ -45,7 +45,7 @@
 
 #define STATS_NB_POOLS			3
 
-static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
+static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
 	struct malloc_stats *stats;
 	uint32_t size_to_retrieve;
@@ -114,7 +114,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[4])
 	return TEE_SUCCESS;
 }
 
-static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[4])
+static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
 	struct tee_pager_stats stats;
 
@@ -151,7 +151,7 @@ static void destroy_ta(void)
 }
 
 static TEE_Result open_session(uint32_t ptype __unused,
-			       TEE_Param params[4] __unused,
+			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **ppsess __unused)
 {
 	return TEE_SUCCESS;
@@ -163,7 +163,7 @@ static void close_session(void *psess __unused)
 
 static TEE_Result invoke_command(void *psess __unused,
 				 uint32_t cmd, uint32_t ptypes,
-				 TEE_Param params[4])
+				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	switch (cmd) {
 	case STATS_CMD_PAGER_STATS:

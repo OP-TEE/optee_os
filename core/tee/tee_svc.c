@@ -652,7 +652,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	/* Get the virtual address for the section in secure DDR */
 	dst = phys_to_virt(dst_pa, MEM_AREA_TA_RAM);
 
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 
 		if (ta_private_memref[n] == false)
 			continue;

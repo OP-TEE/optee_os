@@ -47,8 +47,8 @@ TAILQ_HEAD(tee_ta_ctx_head, tee_ta_ctx);
 
 struct tee_ta_param {
 	uint32_t types;
-	TEE_Param params[4];
-	uint32_t param_attr[4];
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
 struct tee_ta_ctx;

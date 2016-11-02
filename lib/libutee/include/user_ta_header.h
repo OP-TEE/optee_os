@@ -96,7 +96,7 @@ extern const size_t ta_num_props;
 
 /* Needed by TEE_CheckMemoryAccessRights() */
 extern uint32_t ta_param_types;
-extern TEE_Param ta_params[4];
+extern TEE_Param ta_params[TEE_NUM_PARAMS];
 
 /* Trusted Application Function header */
 typedef struct ta_func_head {
