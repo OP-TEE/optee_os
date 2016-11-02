@@ -207,7 +207,6 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	memset(__bss_start, 0, __bss_end - __bss_start);
 
-	core_mmu_linear_map_end = (vaddr_t)__heap2_end;
 	/*
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM

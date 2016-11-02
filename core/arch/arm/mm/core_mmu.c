@@ -31,27 +31,28 @@
  * with 4k pages.
  *       It should also allow core to map/unmap (and va/pa) at run-time.
  */
-#include <platform_config.h>
 
 #include <arm.h>
 #include <assert.h>
-#include <kernel/tz_proc.h>
-#include <kernel/tz_ssvce.h>
+#include <kernel/generic_boot.h>
 #include <kernel/panic.h>
+#include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/tz_proc.h>
+#include <kernel/tz_ssvce.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_defs.h>
+#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <platform_config.h>
 #include <stdlib.h>
 #include <trace.h>
 #include <util.h>
-#include <kernel/tee_l2cc_mutex.h>
 
 #include "core_mmu_private.h"
 
@@ -932,6 +933,14 @@ out:
 	return ret;
 }
 
+
+#ifdef CFG_WITH_PAGER
+static inline vaddr_t get_linear_map_end(void)
+{
+   return (vaddr_t)__heap2_end;
+}
+#endif
+
 #if defined(CFG_TEE_CORE_DEBUG)
 static void check_pa_matches_va(void *va, paddr_t pa)
 {
@@ -962,7 +971,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		}
 	}
 #ifdef CFG_WITH_PAGER
-	if (v >= CFG_TEE_LOAD_ADDR && v < core_mmu_linear_map_end) {
+	if (v >= CFG_TEE_LOAD_ADDR && v < get_linear_map_end()) {
 		if (v != pa)
 			panic("issue in linear address space");
 		return;
@@ -1043,7 +1052,6 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 }
 
 #ifdef CFG_WITH_PAGER
-vaddr_t core_mmu_linear_map_end;
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
 	struct core_mmu_table_info *ti = &tee_pager_tbl_info;
@@ -1052,7 +1060,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 	uint32_t a;
 	paddr_t p;
 
-	if (pa >= CFG_TEE_LOAD_ADDR && pa < core_mmu_linear_map_end)
+	if (pa >= CFG_TEE_LOAD_ADDR && pa < get_linear_map_end())
 		return (void *)(vaddr_t)pa;
 
 	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
