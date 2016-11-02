@@ -396,9 +396,9 @@ shadow_stack_access_ok:
 	bl	cpu_mmu_enable_dcache
 
 #if defined (CFG_BUILT_IN_ARGS)
-    ldr r0, =CFG_PAGEABLE_ADDR
-    ldr r1, =CFG_NS_ENTRY_ADDR
-    ldr r2, =CFG_DT_ADDR
+	ldr	r0, =CFG_PAGEABLE_ADDR
+	ldr	r1, =CFG_NS_ENTRY_ADDR
+	ldr	r2, =CFG_DT_ADDR
 #else
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
