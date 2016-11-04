@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm.h>
 #include <kernel/static_ta.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
@@ -135,7 +136,7 @@ static TEE_Result gprof_start_pc_sampling(uint32_t param_types,
 	offset = params[0].value.b;
 	scale = params[1].value.a;
 
-	sbuf = malloc(sizeof(*sbuf));
+	sbuf = calloc(1, sizeof(*sbuf));
 	if (!sbuf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -148,9 +149,8 @@ static TEE_Result gprof_start_pc_sampling(uint32_t param_types,
 	sbuf->nsamples = len/sizeof(*sbuf->samples);
 	sbuf->offset = offset;
 	sbuf->scale = scale;
+	sbuf->freq = read_cntfrq();
 	s->sbuf = sbuf;
-
-	IMSG("Session s=%p", (void*)s);
 
 	return TEE_SUCCESS;
 }
@@ -166,6 +166,7 @@ static TEE_Result gprof_stop_pc_sampling(uint32_t param_types,
 	struct sample_buf *sbuf;
 	uint32_t outsize;
 	TEE_Result res;
+	uint32_t rate;
 	uint32_t size;
 	void *outbuf;
 
@@ -192,15 +193,11 @@ static TEE_Result gprof_stop_pc_sampling(uint32_t param_types,
 	if (outbuf)
 		memcpy(outbuf, sbuf->samples, size);
 
-	/*
-	 * Report profiling rate (samples per second).
-	 * FIXME: figure out a way of detecting this dynamically. Setting a
-	 * wrong value here will not affect the relative values given by gprof,
-	 * i.e., the "time spent %" column. This will be correct, assuming the
-	 * sampling occurs evenly. However, it will affect the absolute time
-	 * spent values (in seconds).
-	 */
-	params[1].value.a = 200;
+	rate = ((uint64_t)sbuf->count * sbuf->freq) / sbuf->usr;
+	params[1].value.a = rate;
+	DMSG("TA sampling stats: sample count=%" PRIu32 " user time=%" PRIu64
+	     " cntfrq=%" PRIu32 " rate=%" PRIu32, sbuf->count, sbuf->usr,
+	     sbuf->freq, rate);
 	res = TEE_SUCCESS;
 exit:
 	free(sbuf->samples);

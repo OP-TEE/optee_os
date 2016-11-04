@@ -38,5 +38,5 @@ TEE_Result __pta_gprof_pc_sampling_start(size_t buflen, size_t offset,
 					 size_t scale);
 TEE_Result __pta_gprof_pc_sampling_stop(void *buf, size_t len,
 					uint32_t *rate);
-
+void __pta_gprof_fini(void);
 #endif /* __GPROF_PTA_H */

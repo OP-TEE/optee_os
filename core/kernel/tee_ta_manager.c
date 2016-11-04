@@ -406,7 +406,6 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 }
 
 
-
 static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_UUID *uuid,
@@ -735,5 +734,36 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
 	if (idx < sbuf->nsamples)
 		sbuf->samples[idx]++;
+	sbuf->count++;
+}
+
+/*
+ * Update user-mode CPU time for the current session
+ * @suspend: true if session is being suspended (leaving user mode), false if
+ * it is resumed (entering user mode)
+ */
+void tee_ta_update_session_utime(bool suspend)
+{
+	struct tee_ta_session *s = NULL;
+	struct sample_buf *sbuf;
+	uint64_t now;
+
+	tee_ta_get_current_session(&s);
+	if (!s)
+		return;
+	sbuf = s->sbuf;
+	if (!sbuf)
+		return;
+	now = read_cntpct();
+	if (suspend) {
+		assert(sbuf->usr_entered);
+		sbuf->usr += now - sbuf->usr_entered;
+		sbuf->usr_entered = 0;
+	} else {
+		assert(!sbuf->usr_entered);
+		if (!now)
+			now++; /* 0 is reserved */
+		sbuf->usr_entered = now;
+	}
 }
 #endif

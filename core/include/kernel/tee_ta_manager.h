@@ -67,11 +67,16 @@ struct tee_ta_ops {
 
 #if defined(CFG_TA_GPROF_SUPPORT)
 struct sample_buf {
-	uint32_t nsamples;
-	uint32_t offset;
-	uint32_t scale;
+	uint32_t nsamples;	/* Size of @samples array in uint16_t */
+	uint32_t offset;	/* Passed from user mode */
+	uint32_t scale;		/* Passed from user mode */
+	uint32_t count;		/* Number of samples taken */
 	uint16_t *samples;
+	uint64_t usr;		/* Total user CPU time for this session */
+	uint64_t usr_entered;	/* When this session last entered user mode */
+	uint32_t freq;		/* @usr divided by @freq is in seconds */
 };
+
 #endif
 
 /* Context of a loaded TA */
@@ -102,7 +107,7 @@ struct tee_ta_session {
 	int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
 #if defined(CFG_TA_GPROF_SUPPORT)
-	struct sample_buf *sbuf; /* PC sampling data */
+	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
 #endif
 };
 
@@ -166,8 +171,10 @@ TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 
 #if defined(CFG_TA_GPROF_SUPPORT)
 void tee_ta_gprof_sample_pc(vaddr_t pc);
+void tee_ta_update_session_utime(bool suspend);
 #else
 static inline void tee_ta_gprof_sample_pc(vaddr_t pc __unused) {}
+static inline void tee_ta_update_session_utime(bool suspend __unused) {}
 #endif
 
 #endif

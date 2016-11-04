@@ -30,18 +30,20 @@
 #include <tee_api.h>
 #include "gprof_pta.h"
 
+static TEE_TASessionHandle sess = TEE_HANDLE_NULL;
+
 static TEE_Result invoke_gprof_pta(uint32_t cmd_id, uint32_t param_types,
 				   TEE_Param params[TEE_NUM_PARAMS])
 {
 	static const TEE_UUID core_uuid = PTA_GPROF_UUID;
-	static TEE_TASessionHandle sess;
 	TEE_Result res;
 
-	res = TEE_OpenTASession(&core_uuid, 0, 0, NULL, &sess, NULL);
-	if (res != TEE_SUCCESS)
-		return res;
+	if (!sess) {
+		res = TEE_OpenTASession(&core_uuid, 0, 0, NULL, &sess, NULL);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
 	res = TEE_InvokeTACommand(sess, 0, cmd_id, param_types, params, NULL);
-	TEE_CloseTASession(sess);
 	return res;
 }
 
@@ -105,4 +107,10 @@ TEE_Result __pta_gprof_pc_sampling_stop(void *buf, size_t len, uint32_t *rate)
 	if (rate)
 		*rate = params[1].value.a;
 	return res;
+}
+
+void __pta_gprof_fini(void)
+{
+	if (sess)
+		TEE_CloseTASession(sess);
 }

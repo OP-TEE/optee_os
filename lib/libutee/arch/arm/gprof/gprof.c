@@ -284,6 +284,8 @@ void __noprof __utee_gprof_fini(void)
 	if (res == TEE_SUCCESS)
 		_gprof_write_hist();
 	_gprof_write_call_graph();
+
+	__pta_gprof_fini();
 }
 
 /* Non-atomic implementation because TAs are single-threaded */

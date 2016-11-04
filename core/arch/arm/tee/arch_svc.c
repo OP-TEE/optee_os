@@ -198,6 +198,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 
 	thread_user_save_vfp();
 
+	/* TA has just entered kernel mode */
+	tee_ta_update_session_utime(true);
+
 	/* Restore IRQ which are disabled on exception entry */
 	thread_restore_irq();
 
@@ -217,6 +220,11 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 		scf = tee_svc_syscall_table[scn].fn;
 
 	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+
+	if (scn != TEE_SCN_RETURN) {
+		/* We're about to switch back to user mode */
+		tee_ta_update_session_utime(false);
+	}
 }
 
 #ifdef ARM32
