@@ -290,9 +290,8 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 			const struct shdr *nmem_shdr)
 {
 	TEE_Result res;
-	size_t hash_ctx_size;
 	void *hash_ctx = NULL;
-	uint32_t hash_algo;
+	uint32_t hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
 	uint8_t *nwdata = (uint8_t *)nmem_shdr + SHDR_GET_SIZE(shdr);
 	size_t nwdata_len = shdr->img_size;
 	void *digest = NULL;
@@ -304,20 +303,15 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	if (!tee_vbuf_is_non_sec(nwdata, nwdata_len))
 		return TEE_ERROR_SECURITY;
 
-	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
-	    !crypto_ops.hash.update || !crypto_ops.hash.final) {
+	if (!crypto_ops.hash.create || !crypto_ops.hash.destroy ||
+	    !crypto_ops.hash.init || !crypto_ops.hash.update ||
+	    !crypto_ops.hash.final) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_ops.hash.get_ctx_size(hash_algo, &hash_ctx_size);
+	res = crypto_ops.hash.create(&hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
-		goto out;
-	hash_ctx = malloc(hash_ctx_size);
-	if (!hash_ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
+		return res;
 	res = crypto_ops.hash.init(hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -405,7 +399,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 out:
 	elf_load_final(elf_state);
 	free(digest);
-	free(hash_ctx);
+	crypto_ops.hash.destroy(hash_ctx, hash_algo);
 	return res;
 }
 

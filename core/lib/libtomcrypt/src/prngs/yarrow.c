@@ -161,7 +161,7 @@ int yarrow_start(prng_state *prng)
 */  
 int yarrow_add_entropy(const unsigned char *in, unsigned long inlen, prng_state *prng)
 {
-   hash_state md;
+   void *md;
    int err;
 
    LTC_ARGCHK(in  != NULL);
@@ -174,31 +174,42 @@ int yarrow_add_entropy(const unsigned char *in, unsigned long inlen, prng_state 
       return err;
    }
 
+   /* create the hash */
+   if ((err = hash_descriptor[prng->yarrow.hash].create(&md)) != CRYPT_OK) {
+      LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
+      return err; 
+   }
+
    /* start the hash */
-   if ((err = hash_descriptor[prng->yarrow.hash].init(&md)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->yarrow.hash].init(md)) != CRYPT_OK) {
+      hash_descriptor[prng->yarrow.hash].destroy(md);
       LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
       return err; 
    }
 
    /* hash the current pool */
-   if ((err = hash_descriptor[prng->yarrow.hash].process(&md, prng->yarrow.pool, 
+   if ((err = hash_descriptor[prng->yarrow.hash].process(md, prng->yarrow.pool, 
                                                         hash_descriptor[prng->yarrow.hash].hashsize)) != CRYPT_OK) {
+      hash_descriptor[prng->yarrow.hash].destroy(md);
       LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
       return err;
    }
 
    /* add the new entropy */
-   if ((err = hash_descriptor[prng->yarrow.hash].process(&md, in, inlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->yarrow.hash].process(md, in, inlen)) != CRYPT_OK) {
+      hash_descriptor[prng->yarrow.hash].destroy(md);
       LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
       return err;
    }
 
    /* store result */
-   if ((err = hash_descriptor[prng->yarrow.hash].done(&md, prng->yarrow.pool)) != CRYPT_OK) {
+   if ((err = hash_descriptor[prng->yarrow.hash].done(md, prng->yarrow.pool)) != CRYPT_OK) {
+      hash_descriptor[prng->yarrow.hash].destroy(md);
       LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
       return err;
    }
 
+   hash_descriptor[prng->yarrow.hash].destroy(md);
    LTC_MUTEX_UNLOCK(&prng->yarrow.prng_lock);
    return CRYPT_OK;
 }

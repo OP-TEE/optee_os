@@ -94,24 +94,16 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	void *ctx = NULL;
-	size_t ctxsize;
 
-	if (crypto_ops.hash.get_ctx_size == NULL ||
+	if (crypto_ops.hash.create == NULL ||
+	    crypto_ops.hash.destroy == NULL ||
 	    crypto_ops.hash.init == NULL ||
 	    crypto_ops.hash.update == NULL ||
 	    crypto_ops.hash.final == NULL)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
-	if (crypto_ops.hash.get_ctx_size(algo, &ctxsize) != TEE_SUCCESS) {
-		res = TEE_ERROR_NOT_SUPPORTED;
+	if (crypto_ops.hash.create(&ctx, algo) != TEE_SUCCESS)
 		goto out;
-	}
-
-	ctx = malloc(ctxsize);
-	if (ctx == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
 
 	if (crypto_ops.hash.init(ctx, algo) != TEE_SUCCESS)
 		goto out;
@@ -129,7 +121,7 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 
 out:
 	if (ctx)
-		free(ctx);
+		crypto_ops.hash.destroy(ctx, algo);
 
 	return res;
 }

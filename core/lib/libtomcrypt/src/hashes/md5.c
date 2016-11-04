@@ -56,6 +56,9 @@ const struct ltc_hash_descriptor md5_desc =
    { 1, 2, 840, 113549, 2, 5,  },
    6,
 
+    &md5_create,
+    &md5_destroy,
+    &md5_copy,
     &md5_init,
     &md5_process,
     &md5_done,
@@ -257,8 +260,9 @@ static int md5_compress(hash_state *md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int md5_init(hash_state * md)
+int md5_init(void * hash)
 {
+   hash_state *md = hash;
    LTC_ARGCHK(md != NULL);
    md->md5.state[0] = 0x67452301UL;
    md->md5.state[1] = 0xefcdab89UL;
@@ -284,8 +288,9 @@ HASH_PROCESS(md5_process, md5_compress, md5, 64)
    @param out [out] The destination of the hash (16 bytes)
    @return CRYPT_OK if successful
 */
-int md5_done(hash_state * md, unsigned char *out)
+int md5_done(void * hash, unsigned char *out)
 {
+    hash_state *md = hash;
     int i;
 
     LTC_ARGCHK(md  != NULL);
@@ -327,9 +332,6 @@ int md5_done(hash_state * md, unsigned char *out)
     for (i = 0; i < 4; i++) {
         STORE32L(md->md5.state[i], out+(4*i));
     }
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
     return CRYPT_OK;
 }
 
@@ -372,16 +374,19 @@ int  md5_test(void)
 
   int i;
   unsigned char tmp[16];
-  hash_state md;
+  void *md;
 
+  md5_create(&md);
   for (i = 0; tests[i].msg != NULL; i++) {
-      md5_init(&md);
-      md5_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      md5_done(&md, tmp);
+      md5_init(md);
+      md5_process(md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      md5_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 16) != 0) {
+         md5_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  md5_destroy(md);
   return CRYPT_OK;
  #endif
 }

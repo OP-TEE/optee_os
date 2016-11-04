@@ -55,6 +55,9 @@ const struct ltc_hash_descriptor sha256_desc =
    { 2, 16, 840, 1, 101, 3, 4, 2, 1,  },
    9,
     
+    &sha256_create,
+    &sha256_destroy,
+    &sha256_copy,
     &sha256_init,
     &sha256_process,
     &sha256_done,
@@ -230,8 +233,9 @@ static int sha256_compress(hash_state * md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int sha256_init(hash_state * md)
+int sha256_init(void * hash)
 {
+    hash_state *md = hash;
     LTC_ARGCHK(md != NULL);
 
     md->sha256.curlen = 0;
@@ -262,8 +266,9 @@ HASH_PROCESS(sha256_process, sha256_compress, sha256, 64)
    @param out [out] The destination of the hash (32 bytes)
    @return CRYPT_OK if successful
 */
-int sha256_done(hash_state * md, unsigned char *out)
+int sha256_done(void * hash, unsigned char *out)
 {
+    hash_state *md = hash;
     int i;
 
     LTC_ARGCHK(md  != NULL);
@@ -305,9 +310,6 @@ int sha256_done(hash_state * md, unsigned char *out)
     for (i = 0; i < 8; i++) {
         STORE32H(md->sha256.state[i], out+(4*i));
     }
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
     return CRYPT_OK;
 }
 
@@ -340,16 +342,19 @@ int  sha256_test(void)
 
   int i;
   unsigned char tmp[32];
-  hash_state md;
+  void *md;
 
+  sha256_create(&md);
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      sha256_init(&md);
-      sha256_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      sha256_done(&md, tmp);
+      sha256_init(md);
+      sha256_process(md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha256_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 32) != 0) {
+         sha256_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  sha256_destroy(md);
   return CRYPT_OK;
  #endif
 }

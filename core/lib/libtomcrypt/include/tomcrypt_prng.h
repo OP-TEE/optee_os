@@ -44,7 +44,7 @@ struct rc4_prng {
 
 #ifdef LTC_FORTUNA
 struct fortuna_prng {
-    hash_state pool[LTC_FORTUNA_POOLS];     /* the  pools */
+    void *pool[LTC_FORTUNA_POOLS];     /* the  pools */
 
     symmetric_key skey;
 

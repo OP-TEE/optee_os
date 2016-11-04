@@ -55,6 +55,9 @@ const struct ltc_hash_descriptor sha384_desc =
    { 2, 16, 840, 1, 101, 3, 4, 2, 2,  },
    9,
 
+    &sha384_create,
+    &sha384_destroy,
+    &sha384_copy,
     &sha384_init,
     &sha512_process,
     &sha384_done,
@@ -67,8 +70,9 @@ const struct ltc_hash_descriptor sha384_desc =
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int sha384_init(hash_state * md)
+int sha384_init(void * hash)
 {
+    hash_state *md = hash;
     LTC_ARGCHK(md != NULL);
 
     md->sha512.curlen = 0;
@@ -90,8 +94,9 @@ int sha384_init(hash_state * md)
    @param out [out] The destination of the hash (48 bytes)
    @return CRYPT_OK if successful
 */
-int sha384_done(hash_state * md, unsigned char *out)
+int sha384_done(void * hash, unsigned char *out)
 {
+   hash_state *md = hash;
    unsigned char buf[64];
 
    LTC_ARGCHK(md  != NULL);
@@ -142,16 +147,19 @@ int  sha384_test(void)
 
   int i;
   unsigned char tmp[48];
-  hash_state md;
+  void *md;
 
+  sha384_create(&md);
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      sha384_init(&md);
-      sha384_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      sha384_done(&md, tmp);
+      sha384_init(md);
+      sha384_process(md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha384_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 48) != 0) {
+         sha384_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  sha384_destroy(md);
   return CRYPT_OK;
  #endif
 }

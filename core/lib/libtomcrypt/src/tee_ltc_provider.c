@@ -367,34 +367,47 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
 
 #if defined(_CFG_CRYPTO_WITH_HASH)
 
-static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
+static TEE_Result hash_create(void **ctx, uint32_t algo)
 {
-	switch (algo) {
-#if defined(CFG_CRYPTO_MD5)
-	case TEE_ALG_MD5:
-#endif
-#if defined(CFG_CRYPTO_SHA1)
-	case TEE_ALG_SHA1:
-#endif
-#if defined(CFG_CRYPTO_SHA224)
-	case TEE_ALG_SHA224:
-#endif
-#if defined(CFG_CRYPTO_SHA256)
-	case TEE_ALG_SHA256:
-#endif
-#if defined(CFG_CRYPTO_SHA384)
-	case TEE_ALG_SHA384:
-#endif
-#if defined(CFG_CRYPTO_SHA512)
-	case TEE_ALG_SHA512:
-#endif
-		*size = sizeof(hash_state);
-		break;
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	int ltc_res;
+	int ltc_hashindex;
 
-	return TEE_SUCCESS;
+	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+	if (ltc_res != TEE_SUCCESS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (hash_descriptor[ltc_hashindex]->create(ctx) == CRYPT_OK)
+		return TEE_SUCCESS;
+	else
+		return TEE_ERROR_BAD_STATE;
+}
+
+static void hash_destroy(void *ctx, uint32_t algo)
+{
+	int ltc_res;
+	int ltc_hashindex;
+
+	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+	if (ltc_res != TEE_SUCCESS)
+		return;
+
+	hash_descriptor[ltc_hashindex]->destroy(ctx);
+}
+
+static TEE_Result hash_copy(void *dst_ctx, void *src_ctx,
+			    uint32_t algo)
+{
+	int ltc_res;
+	int ltc_hashindex;
+
+	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+	if (ltc_res != TEE_SUCCESS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (hash_descriptor[ltc_hashindex]->copy(dst_ctx, src_ctx) == CRYPT_OK)
+		return TEE_SUCCESS;
+	else
+		return TEE_ERROR_BAD_STATE;
 }
 
 static TEE_Result hash_init(void *ctx, uint32_t algo)
@@ -1975,6 +1988,43 @@ static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result cipher_create(void **ctx, uint32_t algo)
+{
+	TEE_Result res;
+	size_t size;
+	void *cipher_ctx;
+
+	res = cipher_get_ctx_size(algo, &size);
+	if (res != TEE_SUCCESS)
+		return res;
+	cipher_ctx = calloc(1, size);
+	if (!cipher_ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	*ctx = cipher_ctx;
+
+	return TEE_SUCCESS;
+}
+
+static void cipher_destroy(void *ctx, uint32_t algo __maybe_unused)
+{
+	if (ctx)
+		free(ctx);
+}
+
+static TEE_Result cipher_copy(void *dst_ctx, void *src_ctx,
+			      uint32_t algo)
+{
+	TEE_Result res;
+	size_t size;
+
+	res = cipher_get_ctx_size(algo, &size);
+	if (res != TEE_SUCCESS)
+		return res;
+	memcpy(dst_ctx, src_ctx, size);
+
+	return TEE_SUCCESS;
+}
+
 static void get_des2_key(const uint8_t *key, size_t key_len,
 			 uint8_t *key_intermediate,
 			 uint8_t **real_key, size_t *real_key_len)
@@ -2254,8 +2304,20 @@ struct cbc_state {
 };
 #endif
 
-static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
+static TEE_Result mac_create(void **ctx, uint32_t algo)
 {
+	TEE_Result res;
+#if defined(CFG_CRYPTO_HMAC)
+	hmac_state *hmac;
+	int ltc_hashindex;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	struct cbc_state *cbc;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	omac_state *omac;
+#endif
+
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
 	case TEE_ALG_HMAC_MD5:
@@ -2264,7 +2326,20 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
-		*size = sizeof(hmac_state);
+		hmac = calloc(1, sizeof(hmac_state));
+		if (hmac == NULL)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+		if (res != TEE_SUCCESS) {
+			free(hmac);
+			return res;
+		}
+		if (hash_descriptor[ltc_hashindex]->create(&hmac->md) !=
+		    CRYPT_OK) {
+			free(hmac);
+			return TEE_ERROR_BAD_STATE;
+		}
+		*ctx = hmac;
 		break;
 #endif
 #if defined(CFG_CRYPTO_CBC_MAC)
@@ -2274,12 +2349,137 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		*size = sizeof(struct cbc_state);
+		cbc = calloc(1, sizeof(struct cbc_state));
+		if (cbc == NULL)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		*ctx = cbc;
 		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		*size = sizeof(omac_state);
+		omac = calloc(1, sizeof(omac_state));
+		if (omac == NULL)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		*ctx = omac;
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void mac_destroy(void *ctx, uint32_t algo)
+{
+#if defined(CFG_CRYPTO_HMAC)
+	hmac_state *hmac;
+	int ltc_hashindex;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	struct cbc_state *cbc;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	omac_state *omac;
+#endif
+
+	if (ctx == NULL)
+		return;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		hmac = ctx;
+		if (tee_algo_to_ltc_hashindex(algo, &ltc_hashindex) !=
+			TEE_SUCCESS)
+			return;
+		hash_descriptor[ltc_hashindex]->destroy(hmac->md);
+		free(hmac);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		cbc = ctx;
+		free(cbc);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		omac = ctx;
+		free(omac);
+		break;
+#endif
+	default:
+		assert(!"Unhandled mac");
+		break;
+	}
+}
+
+static TEE_Result mac_copy(void *dst_ctx, void *src_ctx,
+			   uint32_t algo)
+{
+	TEE_Result res;
+#if defined(CFG_CRYPTO_HMAC)
+	hmac_state *src_hmac, *dst_hmac;
+	int ltc_hashindex;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	struct cbc_state *src_cbc, *dst_cbc;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	omac_state *src_omac, *dst_omac;
+#endif
+
+	if (dst_ctx == NULL || src_ctx == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		src_hmac = src_ctx;
+		dst_hmac = dst_ctx;
+		res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+		if (res != TEE_SUCCESS)
+			return res;
+		if (hash_descriptor[ltc_hashindex]->copy(dst_hmac->md,
+		    src_hmac->md) != CRYPT_OK)
+			return TEE_ERROR_BAD_STATE;
+		memcpy(dst_hmac->key, src_hmac->key, sizeof(src_hmac->key));
+		dst_hmac->hash = src_hmac->hash;
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		dst_cbc = dst_ctx;
+		src_cbc = src_ctx;
+		memcpy(dst_cbc, src_cbc, sizeof(struct cbc_state));
+		break;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		dst_omac = dst_ctx;
+		src_omac = src_ctx;
+		memcpy(dst_omac, src_omac, sizeof(omac_state));
 		break;
 #endif
 	default:
@@ -2567,6 +2767,43 @@ static TEE_Result authenc_get_ctx_size(uint32_t algo, size_t *size)
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
+	return TEE_SUCCESS;
+}
+
+static TEE_Result authenc_create(void **ctx, uint32_t algo)
+{
+	TEE_Result res;
+	size_t size;
+	void *authenc_ctx;
+
+	res = authenc_get_ctx_size(algo, &size);
+	if (res != TEE_SUCCESS)
+		return res;
+	authenc_ctx = calloc(1, size);
+	if (!authenc_ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	*ctx = authenc_ctx;
+
+	return TEE_SUCCESS;
+}
+
+static void authenc_destroy(void *ctx, uint32_t algo __maybe_unused)
+{
+	if (ctx)
+		free(ctx);
+}
+
+static TEE_Result authenc_copy(void *dst_ctx, void *src_ctx,
+				uint32_t algo)
+{
+	TEE_Result res;
+	size_t size;
+
+	res = authenc_get_ctx_size(algo, &size);
+	if (res != TEE_SUCCESS)
+		return res;
+	memcpy(dst_ctx, src_ctx, size);
+
 	return TEE_SUCCESS;
 }
 
@@ -2956,7 +3193,9 @@ const struct crypto_ops crypto_ops = {
 	.init = tee_ltc_init,
 #if defined(_CFG_CRYPTO_WITH_HASH)
 	.hash = {
-		.get_ctx_size = hash_get_ctx_size,
+		.create = hash_create,
+		.destroy = hash_destroy,
+		.copy = hash_copy,
 		.init = hash_init,
 		.update = hash_update,
 		.final = hash_final,
@@ -2964,16 +3203,20 @@ const struct crypto_ops crypto_ops = {
 #endif
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
 	.cipher = {
+		.create = cipher_create,
+		.destroy = cipher_destroy,
+		.copy = cipher_copy,
 		.final = cipher_final,
 		.get_block_size = cipher_get_block_size,
-		.get_ctx_size = cipher_get_ctx_size,
 		.init = cipher_init,
 		.update = cipher_update,
 	},
 #endif
 #if defined(_CFG_CRYPTO_WITH_MAC)
 	.mac = {
-		.get_ctx_size = mac_get_ctx_size,
+		.create = mac_create,
+		.destroy = mac_destroy,
+		.copy = mac_copy,
 		.init = mac_init,
 		.update = mac_update,
 		.final = mac_final,
@@ -2984,7 +3227,9 @@ const struct crypto_ops crypto_ops = {
 		.dec_final = authenc_dec_final,
 		.enc_final = authenc_enc_final,
 		.final = authenc_final,
-		.get_ctx_size = authenc_get_ctx_size,
+		.create = authenc_create,
+		.destroy = authenc_destroy,
+		.copy = authenc_copy,
 		.init = authenc_init,
 		.update_aad = authenc_update_aad,
 		.update_payload = authenc_update_payload,
@@ -3064,15 +3309,24 @@ void tomcrypt_arm_neon_disable(struct tomcrypt_arm_neon_state *state)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size)
 {
-	hash_state hs;
+	void *hs;
 	uint8_t digest[TEE_SHA256_HASH_SIZE];
 
-	if (sha256_init(&hs) != CRYPT_OK)
+	if (sha256_create(&hs) != CRYPT_OK)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (sha256_init(hs) != CRYPT_OK) {
+		sha256_destroy(hs);
 		return TEE_ERROR_GENERIC;
-	if (sha256_process(&hs, data, data_size) != CRYPT_OK)
+	}
+	if (sha256_process(hs, data, data_size) != CRYPT_OK) {
+		sha256_destroy(hs);
 		return TEE_ERROR_GENERIC;
-	if (sha256_done(&hs, digest) != CRYPT_OK)
+	}
+	if (sha256_done(hs, digest) != CRYPT_OK) {
+		sha256_destroy(hs);
 		return TEE_ERROR_GENERIC;
+	}
+	sha256_destroy(hs);
 	if (buf_compare_ct(digest, hash, sizeof(digest)) != 0)
 		return TEE_ERROR_SECURITY;
 	return TEE_SUCCESS;

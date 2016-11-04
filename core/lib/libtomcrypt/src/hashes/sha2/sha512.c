@@ -55,6 +55,9 @@ const struct ltc_hash_descriptor sha512_desc =
    { 2, 16, 840, 1, 101, 3, 4, 2, 3,  },
    9,
 
+    &sha512_create,
+    &sha512_destroy,
+    &sha512_copy,
     &sha512_init,
     &sha512_process,
     &sha512_done,
@@ -199,8 +202,9 @@ static int sha512_compress(hash_state * md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int sha512_init(hash_state * md)
+int sha512_init(void * hash)
 {
+    hash_state *md = hash;
     LTC_ARGCHK(md != NULL);
     md->sha512.curlen = 0;
     md->sha512.length = 0;
@@ -230,8 +234,9 @@ HASH_PROCESS(sha512_process, sha512_compress, sha512, 128)
    @param out [out] The destination of the hash (64 bytes)
    @return CRYPT_OK if successful
 */
-int sha512_done(hash_state * md, unsigned char *out)
+int sha512_done(void * hash, unsigned char *out)
 {
+    hash_state *md = hash;
     int i;
 
     LTC_ARGCHK(md  != NULL);
@@ -275,9 +280,6 @@ int sha512_done(hash_state * md, unsigned char *out)
     for (i = 0; i < 8; i++) {
         STORE64H(md->sha512.state[i], out+(8*i));
     }
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
     return CRYPT_OK;
 }
 
@@ -318,16 +320,19 @@ int  sha512_test(void)
 
   int i;
   unsigned char tmp[64];
-  hash_state md;
+  void *md;
 
+  sha512_create(&md);
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      sha512_init(&md);
-      sha512_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      sha512_done(&md, tmp);
+      sha512_init(md);
+      sha512_process(md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha512_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 64) != 0) {
+         sha512_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  sha512_destroy(md);
   return CRYPT_OK;
   #endif
 }

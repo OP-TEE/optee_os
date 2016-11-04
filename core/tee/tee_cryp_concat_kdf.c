@@ -39,7 +39,7 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 			       size_t derived_key_len)
 {
 	TEE_Result res;
-	size_t ctx_size, hash_len, i, n, sz;
+	size_t hash_len, i, n, sz;
 	void *ctx = NULL;
 	uint8_t tmp[TEE_MAX_HASH_SIZE];
 	uint32_t be_count;
@@ -47,21 +47,15 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	const struct hash_ops *hash = &crypto_ops.hash;
 
-	if (!hash->get_ctx_size || !hash->init || !hash->update ||
-	    !hash->final) {
+	if (!hash->create || !hash->destroy || !hash->init ||
+	    !hash->update || !hash->final) {
 		res = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
 
-	res = hash->get_ctx_size(hash_algo, &ctx_size);
+	res = hash->create(&ctx, hash_algo);
 	if (res != TEE_SUCCESS)
-		goto out;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
+		return res;
 
 	res = tee_hash_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
@@ -100,6 +94,6 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	}
 	res = TEE_SUCCESS;
 out:
-	free(ctx);
+	hash->destroy(ctx, hash_algo);
 	return res;
 }

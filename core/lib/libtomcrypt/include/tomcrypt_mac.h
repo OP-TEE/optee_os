@@ -27,9 +27,9 @@
 
 #ifdef LTC_HMAC
 typedef struct Hmac_state {
-     hash_state     md;
+     void           *md;
      int            hash;
-     hash_state     hashstate;
+     void           *hashstate;
      unsigned char  key[MAXBLOCKSIZE];
 } hmac_state;
 
