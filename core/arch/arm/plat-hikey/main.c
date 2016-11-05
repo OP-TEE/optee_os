@@ -27,6 +27,13 @@
 
 #include <console.h>
 #include <drivers/pl011.h>
+#ifdef CFG_SPI
+#include <drivers/pl022_spi.h>
+#include <drivers/pl061_gpio.h>
+#endif
+#include <hikey_peripherals.h>
+#include <initcall.h>
+#include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -52,6 +59,14 @@ static const struct thread_handlers handlers = {
 };
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, PMUSSI_BASE, PMUSSI_REG_SIZE);
+#ifdef CFG_SPI
+register_phys_mem(MEM_AREA_IO_NSEC, PERI_BASE, PERI_BASE_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, PMX0_BASE, PMX0_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, PMX1_BASE, PMX1_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, GPIO6_BASE, PL061_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, SPI_BASE, PL022_REG_SIZE);
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
@@ -93,3 +108,101 @@ void console_flush(void)
 {
 	pl011_flush(console_base());
 }
+
+vaddr_t nsec_periph_base(paddr_t pa)
+{
+	if (cpu_mmu_enabled())
+		return (vaddr_t)phys_to_virt(pa, MEM_AREA_IO_NSEC);
+	return (vaddr_t)pa;
+}
+
+#ifdef CFG_SPI
+void spi_init(void)
+{
+	uint32_t shifted_val, read_val;
+	vaddr_t peri_base = nsec_periph_base(PERI_BASE);
+	vaddr_t pmx0_base = nsec_periph_base(PMX0_BASE);
+	vaddr_t pmx1_base = nsec_periph_base(PMX1_BASE);
+
+	DMSG("take SPI0 out of reset\n");
+	shifted_val = PERI_RST3_SSP;
+	/*
+	 * no need to read PERI_SC_PERIPH_RSTDIS3 first
+	 * as all the bits are processed and cleared after writing
+	 */
+	write32(shifted_val, peri_base + PERI_SC_PERIPH_RSTDIS3);
+	DMSG("PERI_SC_PERIPH_RSTDIS3: 0x%x\n",
+		read32(peri_base + PERI_SC_PERIPH_RSTDIS3));
+
+	/*
+	 * wait until the requested device is out of reset
+	 * and ready to be used
+	 */
+	do {
+		read_val = read32(peri_base + PERI_SC_PERIPH_RSTSTAT3);
+	} while (read_val & shifted_val);
+	DMSG("PERI_SC_PERIPH_RSTSTAT3: 0x%x\n", read_val);
+
+	DMSG("enable SPI clock\n");
+	/*
+	 * no need to read PERI_SC_PERIPH_CLKEN3 first
+	 * as all the bits are processed and cleared after writing
+	 */
+	shifted_val = PERI_CLK3_SSP;
+	write32(shifted_val, peri_base + PERI_SC_PERIPH_CLKEN3);
+	DMSG("PERI_SC_PERIPH_CLKEN3: 0x%x\n",
+		read32(peri_base + PERI_SC_PERIPH_CLKEN3));
+
+	DMSG("PERI_SC_PERIPH_CLKSTAT3: 0x%x\n",
+		read32(peri_base + PERI_SC_PERIPH_CLKSTAT3));
+
+	/*
+	 * gpio6_2 can be configured as pinmux_spi, in which case the hw
+	 * will control the chip select pin and we don't have to manually
+	 * do it, but hw will pulse it between each data word transfer,
+	 * which will not work with all clients. There seems to be no
+	 * option to configure it to stay enabled for the total duration
+	 * of the transfer.
+	 * ref: http://infocenter.arm.com/help/topic/com.arm.doc.ddi0194h/CJACFAFG.html
+	 */
+	DMSG("configure gpio6_{0,1,3} as SPI\n");
+	DMSG("configure gpio6_2 as GPIO\n");
+	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG104);
+	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG105);
+	write32(PINMUX_GPIO, pmx0_base + PMX0_IOMG106);
+	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG107);
+
+	DMSG("configure gpio6_{0:3} as nopull\n");
+	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG104);
+	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG105);
+	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG106);
+	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG107);
+
+#ifdef CFG_SPI_TEST
+	spi_test();
+#endif
+}
+#endif
+
+static TEE_Result peripherals_init(void)
+{
+	vaddr_t pmussi_base = nsec_periph_base(PMUSSI_BASE);
+
+	DMSG("enable LD021_1V8 source (pin 35) on LS connector\n");
+	/*
+	 * Mezzanine cards usually use this to source level shifters for
+	 * UART, GPIO, SPI, I2C, etc so if not enabled, connected
+	 * peripherals will not work either (during bootloader stage)
+	 * until linux is booted.
+	 */
+	io_mask8(pmussi_base + PMUSSI_LDO21_REG_ADJ, PMUSSI_LDO21_REG_VL_1V8,
+		PMUSSI_LDO21_REG_VL_MASK);
+	write8(PMUSSI_ENA_LDO21, pmussi_base + PMUSSI_ENA_LDO17_22);
+
+#ifdef CFG_SPI
+	spi_init();
+#endif
+	return TEE_SUCCESS;
+}
+
+driver_init(peripherals_init);

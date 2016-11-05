@@ -515,7 +515,7 @@ void pl022_start(struct pl022_data *pd)
 
 void pl022_end(struct pl022_data *pd)
 {
-	/* disable ssp */
+	DMSG("disable SSP");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SSE_DISABLE, SSPCR1_SSE);
 }
 
