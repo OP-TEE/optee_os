@@ -34,7 +34,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 
-bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
+bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		 uint32_t flags)
 {
 	if (pool == NULL)
@@ -309,7 +309,7 @@ size_t tee_mm_get_bytes(const tee_mm_entry_t *mm)
 		return mm->size << mm->pool->shift;
 }
 
-bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, uint32_t addr)
+bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, paddr_t addr)
 {
 	return (pool && ((addr >= pool->lo) && (addr <= pool->hi)));
 }
@@ -325,7 +325,7 @@ tee_mm_pool_t tee_mm_sec_ddr __early_bss;
 /* Virtual eSRAM pool */
 tee_mm_pool_t tee_mm_vcore __early_bss;
 
-tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr)
+tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, paddr_t addr)
 {
 	tee_mm_entry_t *entry = pool->entry;
 	uint16_t offset = (addr - pool->lo) >> pool->shift;

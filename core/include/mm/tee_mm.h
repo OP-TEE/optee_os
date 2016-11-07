@@ -46,8 +46,8 @@ typedef struct _tee_mm_entry_t tee_mm_entry_t;
 
 struct _tee_mm_pool_t {
 	tee_mm_entry_t *entry;
-	uint32_t lo;		/* low boundery pf the pool */
-	uint32_t hi;		/* high boundery pf the pool */
+	paddr_t lo;		/* low boundery pf the pool */
+	paddr_t hi;		/* high boundery pf the pool */
 	uint32_t flags;		/* Config flags for the pool */
 	uint8_t shift;		/* size shift */
 #ifdef CFG_WITH_STATS
@@ -66,7 +66,7 @@ extern tee_mm_pool_t tee_mm_vcore;
  * Returns a pointer to the mm covering the supplied address,
  * if no mm is found NULL is returned.
  */
-tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr);
+tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, paddr_t addr);
 
 /*
  * Validates that an address (addr) is part of the secure virtual memory
@@ -74,7 +74,7 @@ tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, uint32_t addr);
  * NOTE: This function is executed in abort mode.
  *       Please take care of stack usage
  */
-static inline bool tee_mm_validate(const tee_mm_pool_t *pool, uint32_t addr)
+static inline bool tee_mm_validate(const tee_mm_pool_t *pool, paddr_t addr)
 {
 	return tee_mm_find(pool, addr) != 0;
 }
@@ -86,7 +86,7 @@ static inline bool tee_mm_validate(const tee_mm_pool_t *pool, uint32_t addr)
 uintptr_t tee_mm_get_smem(const tee_mm_entry_t *mm);
 
 /* Init managed memory area */
-bool tee_mm_init(tee_mm_pool_t *pool, uint32_t lo, uint32_t hi, uint8_t shift,
+bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		 uint32_t flags);
 
 /* Kill managed memory area*/
@@ -124,7 +124,7 @@ static inline uint32_t tee_mm_get_offset(tee_mm_entry_t *p)
 /* Return size of the mm entry in bytes */
 size_t tee_mm_get_bytes(const tee_mm_entry_t *mm);
 
-bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, uint32_t addr);
+bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, paddr_t addr);
 
 bool tee_mm_is_empty(tee_mm_pool_t *pool);
 
