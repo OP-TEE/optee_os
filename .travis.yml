@@ -150,7 +150,6 @@ script:
   - $make CFG_WITH_PAGER=y CFG_TEE_CORE_DEBUG=y
   - $make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
   - $make CFG_WITH_LPAE=y
-  - $make CFG_FS_BLOCK_CACHE=y
   - $make CFG_WITH_STATS=y
   - $make CFG_RPMB_FS=y
   - $make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
