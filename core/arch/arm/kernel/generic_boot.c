@@ -219,7 +219,6 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	memset(__bss_start, 0, __bss_end - __bss_start);
 
-	core_mmu_linear_map_end = (vaddr_t)__heap2_end;
 	/*
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
@@ -321,9 +320,10 @@ static void init_runtime(unsigned long pageable_part)
 	 * Claim virtual memory which isn't paged, note that there migth be
 	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
 	 * claimed to avoid later allocations to get that memory.
+	 * Linear memory (flat map core memory) ends there.
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
-			(vaddr_t)(__text_init_start - tee_mm_vcore.lo));
+			(vaddr_t)(__pageable_start - tee_mm_vcore.lo));
 	assert(mm);
 
 	/*
