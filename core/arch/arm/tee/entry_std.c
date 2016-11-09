@@ -28,6 +28,7 @@
  */
 
 #include <assert.h>
+#include <bench.h>
 #include <compiler.h>
 #include <initcall.h>
 #include <kernel/panic.h>
@@ -286,6 +287,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	struct tee_ta_session *s;
 	struct tee_ta_param param;
 
+	bm_timestamp();
+
 	res = copy_in_params(arg->params, num_params, &param);
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -298,6 +301,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 
 	res = tee_ta_invoke_command(&err_orig, s, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, arg->func, &param);
+
+	bm_timestamp();
 
 	tee_ta_put_session(s);
 

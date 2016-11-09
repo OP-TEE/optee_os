@@ -239,6 +239,14 @@ static __always_inline uint64_t read_fp(void)
 	return val;
 }
 
+static inline uint64_t read_pmu_ccnt(void)
+{
+	uint64_t val;
+
+	asm volatile("mrs %0, PMCCNTR_EL0" : "=r"(val));
+	return val;
+}
+
 /*
  * Templates for register read/write functions based on mrs/msr
  */

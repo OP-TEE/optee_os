@@ -633,6 +633,14 @@ static inline void write_icc_eoir0(uint32_t v)
 {
 	asm volatile ("mcr p15,0,%0,c12,c8,1" : : "r" (v));
 }
+
+static inline uint64_t read_pmu_ccnt(void)
+{
+	uint32_t val;
+
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(val));
+	return val;
+}
 #endif /*ASM*/
 
 #endif /*ARM32_H*/
