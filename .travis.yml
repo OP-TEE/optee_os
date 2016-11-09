@@ -200,6 +200,9 @@ script:
   - $make PLATFORM=ls-ls1021atwr
   - $make PLATFORM=ls-ls1021aqds
 
+  # Xilinx Zynq7000 ZC702
+  - $make PLATFORM=zynq7k-zc702
+
   # Xilinx ZynqMP
   - $make PLATFORM=zynqmp-zcu102
   - $make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
