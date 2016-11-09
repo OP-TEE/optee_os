@@ -691,7 +691,8 @@ static void bn_clear(struct bignum *s)
 {
 	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
 
-	memset(bn, 0, bn->alloc);
+	/* despite mpa_numbase_struct description, 'alloc' field a byte size */
+	memset(bn->d, 0, bn->alloc);
 }
 
 static bool bn_alloc_max(struct bignum **s)
