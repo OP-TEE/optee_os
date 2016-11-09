@@ -159,7 +159,8 @@ static int platform_smp_boot(size_t core_idx, uint32_t entry)
 	/* release secondary core */
 
 	val = read32(va + SRC_SCR);
-	val = val | BIT32(SRC_SCR_ENABLE_OFFSET + (core_idx - 1));
+	val |=  BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + (core_idx - 1));
+	val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + (core_idx - 1));
 	write32(val, va + SRC_SCR);
 	return OPTEE_SMC_RETURN_OK;
 }
