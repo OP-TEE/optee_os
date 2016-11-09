@@ -142,7 +142,7 @@ UNWIND(	.fnstart)
 	 * Secure World [bit0: NS=0]
 	 */
 	mov r0, #SCR_AW
-	write_scr r0		/* write Secure Configuration Register */
+	write_scr r0
 
 	read_mpidr r0
 	ands r0, #3
@@ -152,6 +152,21 @@ _boot_late_secondary_cpu:
 	mov pc, lr
 
 _boot_late_primary_cpu:
+#ifdef CFG_BOOT_SECONDARY_REQUEST
+	/* boot secondary cores from OP-TEE load address */
+
+	ldr r1,	=CFG_TEE_LOAD_ADDR
+	ldr r0, =SRC_BASE + SRC_GPR1 + 0x8
+	str r1, [r0], #0x8
+	str r1, [r0], #0x8
+	str r1, [r0]
+
+	ldr r0, =SRC_BASE + SRC_SCR
+	ldr r2, =SRC_SCR_CPU_ENABLE_ALL
+	ldr r1, [r0]
+	orr r1, r2, r1
+	str r1, [r0]
+#endif /* CFG_BOOT_SECONDARY_REQUEST */
 
 	/*
 	 * Snoop Control Unit configuration

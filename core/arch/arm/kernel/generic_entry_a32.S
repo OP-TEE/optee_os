@@ -484,11 +484,8 @@ UNWIND(	.cantunwind)
 	cpu_is_ready
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
-	/* get ns entry from ns_entry_addrs array */
-	bl  get_core_pos
-	ldr r1, =ns_entry_addrs
-	add r1, r1, r0, lsl #2	/* size of uint32_t */
-	ldr r0, [r1]
+	/* generic_boot_core_hpen return value (r0) is ns entry point */
+	bl	generic_boot_core_hpen
 #else
 	mov	r0, r5		/* ns-entry address */
 #endif

@@ -55,8 +55,9 @@ void plat_cpu_reset_late(void);
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 
-#ifdef CFG_BOOT_SECONDARY_REQUEST
-extern uint32_t ns_entry_addrs[];
+#if defined(CFG_BOOT_SECONDARY_REQUEST)
+int generic_boot_core_release(size_t core_idx, paddr_t entry);
+paddr_t generic_boot_core_hpen(void);
 #endif
 
 extern uint8_t __text_init_start[];
