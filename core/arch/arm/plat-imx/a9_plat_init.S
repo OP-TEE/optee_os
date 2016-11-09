@@ -47,15 +47,26 @@
 .code 32
 
 /*
- * Cortex A9 configuration early configuration
+ * Cortex A9 early configuration
  *
- * Use scratables registers R0-R3.
+ * Use registers R0-R3.
  * No stack usage.
  * LR store return address.
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
+
+	/*
+	 * Disallow NSec to mask FIQ [bit4: FW=0]
+	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
+	 * Imprecise Abort trapped to Abort Mode [bit3: EA=0]
+	 * In Sec world, FIQ trapped to FIQ Mode [bit2: FIQ=0]
+	 * IRQ always trapped to IRQ Mode [bit1: IRQ=0]
+	 * Secure World [bit0: NS=0]
+	 */
+	mov r0, #SCR_AW
+	write_scr r0
 
 	/*
 	 * Mandated HW config loaded
@@ -77,7 +88,6 @@ UNWIND(	.fnstart)
 	 * PCR = 0x00000001
 	 * - no change latency, enable clk gating
 	 */
-
 	movw r0, #0x4000
 	movt r0, #0x0000
 	write_sctlr r0
@@ -94,152 +104,6 @@ UNWIND(	.fnstart)
 	movt r0, #0x0001
 	write_pcr r0
 
-	/*
-	 * GIC configuration
-	 *
-	 * per-CPU interrupts config are in accordance with GIC driver:
-	 *
-	 * ID0-ID7(SGI)   for Non-secure interrupts
-	 * ID8-ID15(SGI)  for Secure interrupts.
-	 * All PPI config as Non-secure interrupts.
-	 *
-	 * Register ICDISR0 = 0xFFFF00FF
-	 *
-	 * Register ICCPMR = 0x80
-	 */
-
-	ldr  r0, =GIC_DIST_BASE
-	mov  r1, #0xFFFF00FF
-	str  r1, [r0, #GIC_DIST_ISR0]
-
-	ldr  r0, =GIC_CPU_BASE
-	mov  r1, #0x80
-	str  r1, [r0, #CORE_ICC_ICCPMR]
-
 	mov pc, lr
 UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
-
-/*
- * A9 secured config, needed only from a single core
- *
- * Use scratables registers R0-R3.
- * No stack usage.
- * LR store return address.
- * Trap CPU in case of error.
- *
- * TODO: size optim in code
- */
-FUNC plat_cpu_reset_late , :
-UNWIND(	.fnstart)
-
-	/*
-	 * Disallow NSec to mask FIQ [bit4: FW=0]
-	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
-	 * Imprecise Abort trapped to Abort Mode [bit3: EA=0]
-	 * In Sec world, FIQ trapped to FIQ Mode [bit2: FIQ=0]
-	 * IRQ always trapped to IRQ Mode [bit1: IRQ=0]
-	 * Secure World [bit0: NS=0]
-	 */
-	mov r0, #SCR_AW
-	write_scr r0
-
-	read_mpidr r0
-	ands r0, #3
-	beq _boot_late_primary_cpu
-
-_boot_late_secondary_cpu:
-	mov pc, lr
-
-_boot_late_primary_cpu:
-#ifdef CFG_BOOT_SECONDARY_REQUEST
-	/* boot secondary cores from OP-TEE load address */
-
-	ldr r1,	=CFG_TEE_LOAD_ADDR
-	ldr r0, =SRC_BASE + SRC_GPR1 + 0x8
-	str r1, [r0], #0x8
-	str r1, [r0], #0x8
-	str r1, [r0]
-
-	ldr r0, =SRC_BASE + SRC_SCR
-	ldr r2, =SRC_SCR_CPU_ENABLE_ALL
-	ldr r1, [r0]
-	orr r1, r2, r1
-	str r1, [r0]
-#endif /* CFG_BOOT_SECONDARY_REQUEST */
-
-	/*
-	 * Snoop Control Unit configuration
-	 *
-	 * SCU is enabled with filtering off.
-	 * Both Secure/Unsecure can access SCU and timers
-	 *
-	 * 0x00 SCUControl
-	 * 0x04 SCUConfiguration
-	 * 0x0C SCUInvalidateAll (Secure cfg)
-	 * 0x40 FilteringStartAddress = 0x40000000
-	 * 0x44 FilteeringEndAddress - 0x80000000
-	 * 0x50 SCUAccessControl
-	 * 0x54 SCUSecureAccessControl
-	 */
-
-	/* Invalidate all register */
-	ldr  r0, =SCU_BASE
-	movw r1, #0xFFFF
-	movt r1, #0xFFFF
-	str  r1, [r0, #SCU_INV_SEC]
-
-	/*
-	 * SCU Access Register : SAC = 0x0000000F
-	 * - both secure CPU access SCU
-	 */
-	ldr  r0, =SCU_BASE
-	movw r1, #0x000F
-	movt r1, #0x0000
-	str  r1, [r0, #SCU_SAC]
-
-	/*
-	 * SCU NonSecure Access Register : SNSAC : 0x00000FFF
-	 * - both nonsec cpu access SCU, private and global timer
-	 */
-	movw r1, #0x0FFF
-	movt r1, #0x0000
-	str  r1, [r0, #SCU_NSAC]
-
-	/* Enable SCU */
-	ldr  r0, =SCU_BASE
-	movw r2, #0x0001
-	movt r2, #0x0000
-	ldr  r1, [r0, #SCU_CTRL]
-	orr  r1, r1, r2
-	str  r1, [r0, #SCU_CTRL]
-
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
-	defined(PLATFORM_FLAVOR_mx6qsabresd)
-
-	/* configure imx6 CSU */
-
-	/* first grant access of all peripherals to NS... */
-	ldr r0, =CSU_CSL_START
-	ldr r1, =CSU_CSL_END
-	ldr r2, =0x00FF00FF
-
-loop_csu:
-	str r2, [r0]
-	add r0, r0, #4
-	cmp r0, r1
-	bne loop_csu
-
-	/* then restrict key peripherals */
-
-	ldr r0, =CSU_CSL_16 /* TZASC1,TZASC2 */
-	ldr r2, =0x00330033
-	str r2, [r0]
-
-	/* TODO: TZASC init */
-
-#endif
-	mov pc, lr
-UNWIND(	.fnend)
-END_FUNC plat_cpu_reset_late
-

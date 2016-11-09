@@ -27,10 +27,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm32.h>
 #include <console.h>
 #include <drivers/imx_uart.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_mmu.h>
@@ -80,6 +82,49 @@ static void main_fiq(void)
 	panic();
 }
 
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)
+void plat_cpu_reset_late(void)
+{
+	uintptr_t addr;
+
+	if (!get_core_pos()) {
+		/* primary core */
+#if defined(CFG_BOOT_SECONDARY_REQUEST)
+		/* set secondary entry address and release core */
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 8);
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 16);
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 24);
+
+		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
+#endif
+
+		/* SCU config */
+		write32(SCU_INV_CTRL_INIT, SCU_BASE + SCU_INV_SEC);
+		write32(SCU_SAC_CTRL_INIT, SCU_BASE + SCU_SAC);
+		write32(SCU_NSAC_CTRL_INIT, SCU_BASE + SCU_NSAC);
+
+		/* SCU enable */
+		write32(read32(SCU_BASE + SCU_CTRL) | 0x1,
+			SCU_BASE + SCU_CTRL);
+
+		/* configure imx6 CSU */
+
+		/* first grant all peripherals */
+		for (addr = CSU_BASE + CSU_CSL_START;
+			 addr != CSU_BASE + CSU_CSL_END;
+			 addr += 4)
+			write32(CSU_ACCESS_ALL, addr);
+
+		/* lock the settings */
+		for (addr = CSU_BASE + CSU_CSL_START;
+			 addr != CSU_BASE + CSU_CSL_END;
+			 addr += 4)
+			write32(read32(addr) | CSU_SETTING_LOCK, addr);
+	}
+}
+#endif
+
 static vaddr_t console_base(void)
 {
 	static void *va;
@@ -121,7 +166,7 @@ void console_flush(void)
 	defined(PLATFORM_FLAVOR_mx6qsabresd)
 vaddr_t pl310_base(void)
 {
-	static void *va __data; /* in case it's used before .bss is cleared */
+	static void *va __early_bss;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
@@ -146,7 +191,11 @@ void main_init_gic(void)
 
 	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
-
 	itr_init(&gic_data.chip);
+}
+
+void main_secondary_init_gic(void)
+{
+	gic_cpu_init(&gic_data);
 }
 #endif
