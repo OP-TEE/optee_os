@@ -557,6 +557,11 @@ static inline uint32_t read_cntfrq(void)
 	return frq;
 }
 
+static inline void write_cntfrq(uint32_t frq)
+{
+	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (frq));
+}
+
 static __always_inline uint32_t read_pc(void)
 {
 	uint32_t val;
