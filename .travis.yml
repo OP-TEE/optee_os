@@ -91,6 +91,11 @@ before_script:
   - source ${HOME}/optee_repo/optee_os/scripts/checkpatch_inc.sh
 # Several compilation options are checked
 script:
+  - if [ "${COVERITY_SCAN_BRANCH}" == 1 ]; then
+      echo "Skip script for Coverity";
+      travis_terminate 0;
+    fi
+
   # Run checkpatch.pl on:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
@@ -213,3 +218,17 @@ script:
 
   # Run regression tests (xtest in QEMU)
   - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
+
+env:
+  global:
+    secure: "k30FG3hL6dQywtvMeEjSM0FQ7A0r+AQriUkGSFv7bmwD3EX2H17tJsfZt/h3dj+Pj6lQPdhVg3YO6O6pksJLqBLyz86bN15JEik0e1zftZplzK00oT89eoQr+qgqyrbs6CZBRvS98EAneCNbvgJto9sIPJs0SGu0u31Pr06bTAg="
+
+addons:
+  coverity_scan:
+    project:
+      name: "OP-TEE/optee_os"
+      description: "Build submitted via Travis CI"
+    notification_email: op-tee@linaro.org
+    build_command_prepend: "cov-configure --comptype gcc --compiler arm-linux-gnueabihf-gcc --template"
+    build_command: "make"
+    branch_pattern: coverity_scan
