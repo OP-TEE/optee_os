@@ -95,7 +95,7 @@ KEEP_PAGER(plat_cpu_reset_late);
 __weak void plat_cpu_reset_early(void)
 {
 }
-KEEP_INIT(plat_cpu_reset_early);
+KEEP_PAGER(plat_cpu_reset_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)
