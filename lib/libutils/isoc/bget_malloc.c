@@ -110,16 +110,22 @@
 #if defined(__KERNEL__)
 /* Compiling for TEE Core */
 #include <kernel/asan.h>
-#include <kernel/mutex.h>
+#include <kernel/thread.h>
+#include <kernel/spinlock.h>
 
-static void malloc_lock(void)
+static uint32_t malloc_lock(void)
 {
-	mutex_lock(&__malloc_mu);
+	uint32_t exceptions;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ | THREAD_EXCP_FIQ);
+	cpu_spin_lock(&__malloc_spinlock);
+	return exceptions;
 }
 
-static void malloc_unlock(void)
+static void malloc_unlock(uint32_t exceptions)
 {
-	mutex_unlock(&__malloc_mu);
+	cpu_spin_unlock(&__malloc_spinlock);
+	thread_unmask_exceptions(exceptions);
 }
 
 static void tag_asan_free(void *buf, size_t len)
@@ -134,11 +140,12 @@ static void tag_asan_alloced(void *buf, size_t len)
 
 #else /*__KERNEL__*/
 /* Compiling for TA */
-static void malloc_lock(void)
+static uint32_t malloc_lock(void)
 {
+	return 0;
 }
 
-static void malloc_unlock(void)
+static void malloc_unlock(uint32_t exceptions __unused)
 {
 }
 
@@ -181,20 +188,22 @@ static void raw_malloc_return_hook(void *p, size_t requested_size)
 
 void malloc_reset_stats(void)
 {
-	malloc_lock();
+	unsigned int exceptions = malloc_lock();
+
 	mstats.max_allocated = 0;
 	mstats.num_alloc_fail = 0;
 	mstats.biggest_alloc_fail = 0;
 	mstats.biggest_alloc_fail_used = 0;
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 void malloc_get_stats(struct malloc_stats *stats)
 {
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
+
 	memcpy(stats, &mstats, sizeof(*stats));
 	stats->allocated = totalloc;
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 #else /* BufStats */
@@ -652,8 +661,7 @@ static void mdbg_update_hdr(struct mdbg_hdr *hdr, const char *fname,
 void *mdbg_malloc(const char *fname, int lineno, size_t size)
 {
 	struct mdbg_hdr *hdr;
-
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
 
 	/*
 	 * Check struct mdbg_hdr doesn't get bad alignment.
@@ -671,7 +679,7 @@ void *mdbg_malloc(const char *fname, int lineno, size_t size)
 		hdr++;
 	}
 
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return hdr;
 }
 
@@ -696,23 +704,24 @@ static void mdbg_free(void *ptr)
 
 void free(void *ptr)
 {
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
+
 	mdbg_free(ptr);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
 {
 	struct mdbg_hdr *hdr;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	hdr = raw_calloc(sizeof(struct mdbg_hdr),
 			  mdbg_get_ftr_size(nmemb * size), nmemb, size);
 	if (hdr) {
 		mdbg_update_hdr(hdr, fname, lineno, nmemb * size);
 		hdr++;
 	}
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return hdr;
 }
 
@@ -737,10 +746,10 @@ static void *mdbg_realloc_unlocked(const char *fname, int lineno,
 void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
 {
 	void *p;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	p = mdbg_realloc_unlocked(fname, lineno, ptr, size);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return p;
 }
 
@@ -751,15 +760,15 @@ void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 		size_t size)
 {
 	struct mdbg_hdr *hdr;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	hdr = raw_memalign(sizeof(struct mdbg_hdr), mdbg_get_ftr_size(size),
 			   alignment, size);
 	if (hdr) {
 		mdbg_update_hdr(hdr, fname, lineno, size);
 		hdr++;
 	}
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return hdr;
 }
 
@@ -777,8 +786,8 @@ void mdbg_check(int bufdump)
 {
 	struct bpool_iterator itr;
 	void *b;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	raw_malloc_validate_pools();
 
 	BPOOL_FOREACH(&itr, &b) {
@@ -797,7 +806,7 @@ void mdbg_check(int bufdump)
 		}
 	}
 
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 #else
@@ -805,27 +814,28 @@ void mdbg_check(int bufdump)
 void *malloc(size_t size)
 {
 	void *p;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	p = raw_malloc(0, 0, size);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return p;
 }
 
 void free(void *ptr)
 {
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
+
 	raw_free(ptr);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 void *calloc(size_t nmemb, size_t size)
 {
 	void *p;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	p = raw_calloc(0, 0, nmemb, size);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return p;
 }
 
@@ -837,20 +847,20 @@ static void *realloc_unlocked(void *ptr, size_t size)
 void *realloc(void *ptr, size_t size)
 {
 	void *p;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	p = realloc_unlocked(ptr, size);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return p;
 }
 
 void *memalign(size_t alignment, size_t size)
 {
 	void *p;
+	uint32_t exceptions = malloc_lock();
 
-	malloc_lock();
 	p = raw_memalign(0, 0, alignment, size);
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return p;
 }
 
@@ -866,6 +876,7 @@ void malloc_add_pool(void *buf, size_t len)
 {
 	void *p;
 	size_t l;
+	uint32_t exceptions;
 	uintptr_t start = (uintptr_t)buf;
 	uintptr_t end = start + len;
 	const size_t min_len = ((sizeof(struct malloc_pool) + (SizeQuant - 1)) &
@@ -882,7 +893,7 @@ void malloc_add_pool(void *buf, size_t len)
 		return;
 	}
 
-	malloc_lock();
+	exceptions = malloc_lock();
 	tag_asan_free((void *)start, end - start);
 	bpool((void *)start, end - start);
 	l = malloc_pool_len + 1;
@@ -895,7 +906,7 @@ void malloc_add_pool(void *buf, size_t len)
 	mstats.size += malloc_pool[malloc_pool_len].len;
 #endif
 	malloc_pool_len = l;
-	malloc_unlock();
+	malloc_unlock(exceptions);
 }
 
 bool malloc_buffer_is_within_alloced(void *buf, size_t len)
@@ -905,8 +916,7 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len)
 	uint8_t *start_buf = buf;
 	uint8_t *end_buf = start_buf + len;
 	bool ret = false;
-
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
 
 	raw_malloc_validate_pools();
 
@@ -929,7 +939,7 @@ bool malloc_buffer_is_within_alloced(void *buf, size_t len)
 	}
 
 out:
-	malloc_unlock();
+	malloc_unlock(exceptions);
 
 	return ret;
 }
@@ -940,8 +950,7 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 	uintptr_t buf_end = buf_start + len;
 	size_t n;
 	bool ret = false;
-
-	malloc_lock();
+	uint32_t exceptions = malloc_lock();
 
 	raw_malloc_validate_pools();
 
@@ -961,6 +970,6 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 	}
 
 out:
-	malloc_unlock();
+	malloc_unlock(exceptions);
 	return ret;
 }

@@ -29,8 +29,8 @@
 
 #ifdef __KERNEL__
 /* Compiling for TEE Core */
-#include <kernel/mutex.h>
+#include <kernel/spinlock.h>
 
-struct mutex __malloc_mu = MUTEX_INITIALIZER;
+unsigned int __malloc_spinlock = SPINLOCK_UNLOCK;
 
 #endif /*__KERNEL__*/

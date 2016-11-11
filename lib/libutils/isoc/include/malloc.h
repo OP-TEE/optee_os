@@ -30,7 +30,7 @@
 #include <stddef.h>
 #include <types_ext.h>
 
-extern struct mutex __malloc_mu;
+extern unsigned int __malloc_spinlock;
 
 void free(void *ptr);
 
