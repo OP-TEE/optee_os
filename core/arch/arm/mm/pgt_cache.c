@@ -68,6 +68,12 @@ static struct pgt_cache pgt_free_list = SLIST_HEAD_INITIALIZER(pgt_free_list);
 #endif
 
 #ifdef CFG_PAGED_USER_TA
+/*
+ * When a user TA context is temporarily unmapped the used struct pgt's of
+ * the context (page tables holding valid physical pages) are saved in this
+ * cache in the hope that some of the valid physical pages may still be
+ * valid when the context is mapped again.
+ */
 static struct pgt_cache pgt_cache_list = SLIST_HEAD_INITIALIZER(pgt_cache_list);
 #endif
 
@@ -411,5 +417,3 @@ void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx)
 	condvar_broadcast(&pgt_cv);
 	mutex_unlock(&pgt_mu);
 }
-
-
