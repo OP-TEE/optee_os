@@ -59,7 +59,7 @@ static inline __attribute__((always_inline)) uintptr_t read_pc(void)
 }
 
 /* Cycle counter */
-static inline __attribute__((always_inline)) uint64_t read_ccounter(void)
+static inline uint64_t read_ccounter(void)
 {
 	uint64_t ccounter = 0;
 #if defined(__ARM_ARCH_7A__)
@@ -86,7 +86,7 @@ static inline __attribute__((always_inline)) void tee_add_timestamp
 	ringb->stamps[ts_i].src = source;
 }
 #else /* CFG_TEE_BENCHMARK */
-static inline __attribute__((always_inline)) void tee_add_timestamp
+static inline void tee_add_timestamp
 				(void *ringbuf_raw, uint32_t source)
 {
 	UNUSED(ringbuf_raw);
