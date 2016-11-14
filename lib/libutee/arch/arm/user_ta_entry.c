@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <tee_api.h>
+#include <tee_bench.h>
 #include <tee_ta_api.h>
 #include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
@@ -188,8 +189,14 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
 
+	tee_add_timestamp(params[TEE_BENCH_DEF_PARAM].memref.buffer,
+						TEE_BENCH_UTEE_P1);
+
 	res = TA_InvokeCommandEntryPoint(session->session_ctx, cmd_id,
 					 param_types, params);
+
+	tee_add_timestamp(params[TEE_BENCH_DEF_PARAM].memref.buffer,
+						TEE_BENCH_UTEE_P2);
 
 	__utee_from_param(up, param_types, params);
 	return res;
