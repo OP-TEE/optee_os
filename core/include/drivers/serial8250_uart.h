@@ -29,6 +29,8 @@
 
 #include <types_ext.h>
 
+#define SERIAL8250_UART_REG_SIZE 0x20
+
 void serial8250_uart_init(vaddr_t base,
 		uint32_t uart_clk, uint32_t baud_rate);
 
