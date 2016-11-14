@@ -132,10 +132,11 @@ R:	Linaro <op-tee@linaro.org>
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
-Texas Instruments AM43xx, AM57xx, DRA7xx
+Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x
 R:	Andrew F. Davis <afd@ti.com>
 S:	Maintained
 F:	core/arch/arm/plat-ti/
+F:	core/arch/arm/plat-k3/
 
 Xilinx Zynq 7000 ZC702 Board
 R:	Yan Yan <yan.yan@windriver.com>
