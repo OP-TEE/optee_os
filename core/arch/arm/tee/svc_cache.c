@@ -51,7 +51,15 @@ static TEE_Result cache_operation(struct tee_ta_session *sess,
 	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	ret = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_WRITE,
+	/*
+	 * TAs are allowed to operate cache maintenance on TA memref parameters
+	 * only, not on the TA private memory.
+	 */
+	if (tee_mmu_is_vbuf_intersect_ta_private(utc, va, len))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	ret = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
 					  (uaddr_t)va, len);
 	if (ret != TEE_SUCCESS)
 		return TEE_ERROR_ACCESS_DENIED;
