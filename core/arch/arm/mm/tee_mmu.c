@@ -42,11 +42,12 @@
 #include <mm/tee_pager.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
+#include <tee_api_defines_extensions.h>
+#include <tee_api_types.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
 #include <util.h>
-#include "tee_api_types.h"
 
 #ifdef CFG_PL310
 #include <kernel/tee_l2cc_mutex.h>
@@ -576,6 +577,10 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 	if ((uaddr + len) < uaddr)
 		return TEE_ERROR_ACCESS_DENIED;
 
+	if ((flags & TEE_MEMORY_ACCESS_NONSECURE) &&
+	    (flags & TEE_MEMORY_ACCESS_SECURE))
+		return TEE_ERROR_ACCESS_DENIED;
+
 	/*
 	 * Rely on TA private memory test to check if address range is private
 	 * to TA or not.
@@ -592,6 +597,14 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 		res = tee_mmu_user_va2pa_attr(utc, (void *)a, &pa, &attr);
 		if (res != TEE_SUCCESS)
 			return res;
+
+		if ((flags & TEE_MEMORY_ACCESS_NONSECURE) &&
+		    (attr & TEE_MATTR_SECURE))
+			return TEE_ERROR_ACCESS_DENIED;
+
+		if ((flags & TEE_MEMORY_ACCESS_SECURE) &&
+		    !(attr & TEE_MATTR_SECURE))
+			return TEE_ERROR_ACCESS_DENIED;
 
 		if ((flags & TEE_MEMORY_ACCESS_WRITE) && !(attr & TEE_MATTR_UW))
 			return TEE_ERROR_ACCESS_DENIED;

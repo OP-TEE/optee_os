@@ -89,4 +89,20 @@
 /* Storage is provided by a SQLite database in the normal world filesystem */
 #define TEE_STORAGE_PRIVATE_SQL  0x80000200
 
+/*
+ * Extension of "Memory Access Rights Constants"
+ * #define TEE_MEMORY_ACCESS_READ             0x00000001
+ * #define TEE_MEMORY_ACCESS_WRITE            0x00000002
+ * #define TEE_MEMORY_ACCESS_ANY_OWNER        0x00000004
+ *
+ * TEE_MEMORY_ACCESS_NONSECURE : if set TEE_CheckMemoryAccessRights()
+ * successfully returns only if target vmem range is mapped non-secure.
+ *
+ * TEE_MEMORY_ACCESS_SECURE : if set TEE_CheckMemoryAccessRights()
+ * successfully returns only if target vmem range is mapped secure.
+
+ */
+#define TEE_MEMORY_ACCESS_NONSECURE          0x10000000
+#define TEE_MEMORY_ACCESS_SECURE             0x20000000
+
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */
