@@ -514,6 +514,7 @@ UNWIND(	.cantunwind)
 	mov	r1, #0
 	mov	r2, #0
 	mov	r3, #0
+	mov	r4, #0
 	smc	#0
 	b	.	/* SMC should not return */
 UNWIND(	.fnend)
