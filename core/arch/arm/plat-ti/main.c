@@ -46,9 +46,34 @@
 #include <console.h>
 #include <sm/sm.h>
 
+static struct gic_data gic_data;
+
+register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
+
+void main_init_gic(void)
+{
+	vaddr_t gicc_base;
+	vaddr_t gicd_base;
+
+	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC);
+	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC);
+
+	if (!gicc_base || !gicd_base)
+		panic();
+
+	gic_init(&gic_data, gicc_base, gicd_base);
+	itr_init(&gic_data.chip);
+}
+
+void main_secondary_init_gic(void)
+{
+	gic_cpu_init(&gic_data);
+}
+
 static void main_fiq(void)
 {
-	panic();
+	gic_it_handle(&gic_data);
 }
 
 static const struct thread_handlers handlers = {
