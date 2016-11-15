@@ -506,7 +506,7 @@ bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 {
 	return core_is_buffer_inside(va, size,
 	  utc->mmu->ta_private_vmem_start,
-	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start + 1);
+	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start);
 }
 
 /* return true only if buffer intersects TA private memory */
@@ -515,7 +515,7 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 {
 	return core_is_buffer_intersect(va, size,
 	  utc->mmu->ta_private_vmem_start,
-	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start + 1);
+	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start);
 }
 
 static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,
