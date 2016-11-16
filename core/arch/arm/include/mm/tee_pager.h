@@ -86,14 +86,14 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
  *
  * The mapping is created suitable to initialize the memory content while
  * loading the TA. Once the TA is properly loaded the areas should be
- * finalized with tee_pager_set_uta_area() to get more strict settings.
+ * finalized with tee_pager_set_uta_area_attr() to get more strict settings.
  *
  * Return true on success of false if the area can't be added
  */
 bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
 
 /*
- * tee_pager_set_uta_area() - Set attributes of a initialized memory area
+ * tee_pager_set_uta_area_attr() - Set attributes of a initialized memory area
  * @utc:	user ta context of the area
  * @base:	base of covered memory area
  * @size:	size of covered memory area
@@ -101,8 +101,8 @@ bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
  *
  * Return true on success of false if the area can't be updated
  */
-bool tee_pager_set_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size,
-			    uint32_t flags);
+bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
+				 size_t size, uint32_t flags);
 
 /*
  * tee_pager_rem_uta_areas() - Remove all user ta areas

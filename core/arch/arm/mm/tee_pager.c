@@ -622,8 +622,8 @@ static vaddr_t __maybe_unused area_idx2va(struct tee_pager_area *area,
 }
 
 #ifdef CFG_PAGED_USER_TA
-bool tee_pager_set_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size,
-			    uint32_t flags)
+bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
+				 size_t size, uint32_t flags)
 {
 	bool ret;
 	vaddr_t b = base;
@@ -681,7 +681,7 @@ out:
 	thread_set_exceptions(exceptions);
 	return ret;
 }
-KEEP_PAGER(tee_pager_set_uta_area);
+KEEP_PAGER(tee_pager_set_uta_area_attr);
 #endif /*CFG_PAGED_USER_TA*/
 
 static bool tee_pager_unhide_page(vaddr_t page_va)

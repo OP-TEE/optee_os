@@ -170,8 +170,9 @@ static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 		utc->mmu->table[n].attr |= TEE_MATTR_PAGED;
 		flags = utc->mmu->table[n].attr &
 			(TEE_MATTR_PRW | TEE_MATTR_URWX);
-		if (!tee_pager_set_uta_area(utc, utc->mmu->table[n].va,
-					    utc->mmu->table[n].size, flags))
+		if (!tee_pager_set_uta_area_attr(utc, utc->mmu->table[n].va,
+						 utc->mmu->table[n].size,
+						 flags))
 			return TEE_ERROR_GENERIC;
 	}
 	return TEE_SUCCESS;
