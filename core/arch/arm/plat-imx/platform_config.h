@@ -265,4 +265,62 @@
 #error "Unknown platform flavor"
 #endif /* defined(PLATFORM_FLAVOR_mx6ulevk) */
 
+#ifdef CFG_PL310
+/*
+ * PL310 TAG RAM Control Register
+ *
+ * bit[10:8]:1 - 2 cycle of write accesses latency
+ * bit[6:4]:1 - 2 cycle of read accesses latency
+ * bit[2:0]:1 - 2 cycle of setup latency
+ */
+#define PL310_TAG_RAM_CTRL_INIT		0x00000111
+
+/*
+ * DATA RAM Control Register
+ *
+ * bit[10:8]:2 - 3 cycle of write accesses latency
+ * bit[6:4]:2 - 3 cycle of read accesses latency
+ * bit[2:0]:2 - 3 cycle of setup latency
+ */
+#define PL310_DATA_RAM_CTRL_INIT	0x00000222
+
+/*
+ * Auxiliary Control Register
+ *
+ * I/Dcache prefetch enabled (bit29:28=2b11)
+ * NS can access interrupts (bit27=1)
+ * NS can lockown cache lines (bit26=1)
+ * Pseudo-random replacement policy (bit25=0)
+ * Force write allocated (default)
+ * Shared attribute internally ignored (bit22=1, bit13=0)
+ * Parity disabled (bit21=0)
+ * Event monitor disabled (bit20=0)
+ * 64kB ways, 16-way associativity (bit19:17=3b011 bit16=1)
+ * Store buffer device limitation enabled (bit11=1)
+ * Cacheable accesses have high prio (bit10=0)
+ * Full Line Zero (FLZ) disabled (bit0=0)
+ */
+#define PL310_AUX_CTRL_INIT		0x3C470800
+
+/*
+ * Prefetch Control Register
+ *
+ * Double linefill disabled (bit30=0)
+ * I/D prefetch enabled (bit29:28=2b11)
+ * Prefetch drop enabled (bit24=1)
+ * Incr double linefill disable (bit23=0)
+ * Prefetch offset = 7 (bit4:0)
+ */
+#define PL310_PREFETCH_CTRL_INIT	0x31000007
+
+/*
+ * Power Register = 0x00000003
+ *
+ * Dynamic clock gating enabled
+ * Standby mode enabled
+ */
+#define PL310_POWER_CTRL_INIT		0x00000003
+
+#endif
+
 #endif /*PLATFORM_CONFIG_H*/
