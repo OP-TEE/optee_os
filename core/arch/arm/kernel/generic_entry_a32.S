@@ -43,13 +43,6 @@
 .equ SEM_CPU_READY, 1
 #endif
 
-#ifdef CFG_TEE_GDB_BOOT
-gdb_bootargs:
-	.word 0
-	.word 0
-	.word 0
-#endif
-
 #ifdef CFG_PL310
 .section .rodata.init
 panic_boot_file:
@@ -151,32 +144,37 @@ END_FUNC _start
 #endif
 	.endm
 
+	/*
+	 * Save boot arguments
+	 * entry r0, saved r4: pagestore
+	 * entry r1, saved r7: (ARMv7 standard bootarg #1)
+	 * entry r2, saved r6: device tree address, (ARMv7 standard bootarg #2)
+	 * entry lr, saved r5: non-secure entry address (ARMv7 bootarg #0)
+	 */
+	.macro bootargs_entry
+#if defined(CFG_NS_ENTRY_ADDR)
+	ldr	r5, =CFG_NS_ENTRY_ADDR
+#else
+	mov	r5, lr
+#endif
+#if defined(CFG_PAGEABLE_ADDR)
+	ldr	r4, =CFG_PAGEABLE_ADDR
+#else
+	mov	r4, r0
+#endif
+#if defined(CFG_DT_ADDR)
+	ldr	r6, =CFG_DT_ADDR
+#else
+	mov	r6, r2
+#endif
+	mov	r7, r1
+	.endm
+
 LOCAL_FUNC reset , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	mov	r4, r0		/* Save pageable part address */
-	mov	r5, lr		/* Save ns-entry address */
-	mov	r6, r2		/* Save DT address */
 
-#ifdef CFG_TEE_GDB_BOOT
-	/*
-	 * boot preloaded linux: save linux boot args from GDB
-	 * all following routines, until reset_primary is called,
-	 * preserve r6/r7/r8
-	 */
-	mov	r6, r0
-	mov	r7, r1
-	mov	r8, r2
-
-#if !defined(CFG_BUILT_IN_ARGS) && (defined(CFG_WITH_PAGER) || defined (CFG_DT))
-	/*
-	 * r0/r2 are used for different purposes by GDB boot and pager/DT
-	 * so these configurations are incompatible. however, if built-in
-	 * argumements are used, r0/r2 are free for GDB boot use.
-	 */
-#error CFG_TEE_GDB_BOOT and (CFG_WITH_PAGER || CFG_DT) are incompatible
-#endif
-#endif
+	bootargs_entry
 
 	/* Enable alignment checks and disable data and instruction cache. */
 	read_sctlr r0
@@ -277,11 +275,8 @@ END_FUNC reset
 LOCAL_FUNC reset_primary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-#ifdef CFG_TEE_GDB_BOOT
-	/* save linux boot args from GDB */
-	ldr	r0, =gdb_bootargs
-	stm	r0, {r6-r8}
-#endif
+
+	/* preserve r4-r7: bootargs */
 
 #ifdef CFG_WITH_PAGER
 	/*
@@ -303,8 +298,8 @@ UNWIND(	.cantunwind)
 	add	r1, r1, r2
 	ldr	r2, =__text_init_start
 copy_init:
-	ldmdb	r1!, {r3, r7-r13}
-	stmdb	r0!, {r3, r7-r13}
+	ldmdb	r1!, {r3, r8-r13, sp}
+	stmdb	r0!, {r3, r8-r13, sp}
 	cmp	r0, r2
 	bgt	copy_init
 #endif
@@ -372,15 +367,9 @@ shadow_stack_access_ok:
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
-#if defined (CFG_BUILT_IN_ARGS)
-	ldr	r0, =CFG_PAGEABLE_ADDR
-	ldr	r1, =CFG_NS_ENTRY_ADDR
-	ldr	r2, =CFG_DT_ADDR
-#else
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	mov	r2, r6		/* DT address */
-#endif
 	bl	generic_boot_init_primary
 	mov	r4, r0		/* save entry test vector */
 
@@ -415,21 +404,16 @@ shadow_stack_access_ok:
 	 */
 	bl 	thread_clr_boot_thread
 
-#ifdef CFG_TEE_GDB_BOOT
-	/* restore linux boot arguments */
-	ldr	r4, =gdb_bootargs
-	ldm	r4, {r1-r3}
-#else
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
-	mov	r0, r4
-	mov	r1, r0
+	mov	r1, r4
 #else
+	/* realy standard bootarg #1 and #2 to non secure entry */
+	mov	r4, #0
+	mov	r3, r6		/* std bootarg #2 for register R2 */
+	mov	r2, r7		/* std bootarg #1 for register R1 */
 	mov	r1, #0
-	mov	r2, #0
-	mov	r3, #0
-#endif /*CFG_WITH_ARM_TRUSTED_FW*/
-#endif /*CFG_TEE_GDB_BOOT*/
+#endif /* CFG_WITH_ARM_TRUSTED_FW */
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
