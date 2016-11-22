@@ -56,11 +56,22 @@
 #define PTA_GPROF_START_PC_SAMPLING	1
 
 /*
- * Stop PC sampling of a user TA session
+ * Stop PC sampling of a user TA session and retrieve data
  *
- * [out] memref[0]: output buffer
+ * [out] memref[0]: output buffer (optional)
  * [out] value[1].a: sampling frequency
  */
 #define PTA_GPROF_STOP_PC_SAMPLING	2
+
+/*
+ * Allocate the call graph buffer. We don't use plain malloc() because the TA
+ * heap is defined by the application itself via ta_heap and ta_heap_size in
+ * user_ta_header.c, and we don't want to interfere.
+ *
+ * [in]  value[0].a: buffer size in bytes
+ * [out] value[1].a: low order bits of the buffer address
+ *       value[1].b: high order bits (always 0 for 32-bit TAs)
+ */
+#define PTA_GPROF_ALLOC			3
 
 #endif /* __PTA_GPROF_H */

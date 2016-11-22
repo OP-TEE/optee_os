@@ -728,7 +728,7 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 	tee_ta_get_current_session(&s);
 	assert(s);
 	sbuf = s->sbuf;
-	if (!sbuf)
+	if (!sbuf || !sbuf->enabled)
 		return; /* PC sampling is not enabled */
 
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;

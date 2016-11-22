@@ -53,6 +53,9 @@ struct user_ta_ctx {
 	struct tee_storage_enum_head storage_enums;
 	tee_mm_entry_t *mm;	/* secure world memory */
 	tee_mm_entry_t *mm_stack;/* stack */
+#ifdef CFG_TA_GPROF_SUPPORT
+	tee_mm_entry_t *mm_gprof_heap;
+#endif
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	uint32_t context;	/* Context ID of the process */
 	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */

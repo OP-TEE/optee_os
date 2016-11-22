@@ -808,6 +808,9 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	}
 
 	tee_mmu_final(utc);
+#ifdef CFG_TA_GPROF_SUPPORT
+	tee_mm_free(utc->mm_gprof_heap);
+#endif
 	tee_mm_free(utc->mm_stack);
 	tee_mm_free(utc->mm);
 
@@ -817,7 +820,6 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	tee_obj_close_all(utc);
 	/* Free emums created by this TA */
 	tee_svc_storage_close_all_enum(utc);
-
 	free(utc);
 }
 

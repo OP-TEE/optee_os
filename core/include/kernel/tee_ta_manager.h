@@ -71,6 +71,7 @@ struct sample_buf {
 	uint32_t offset;	/* Passed from user mode */
 	uint32_t scale;		/* Passed from user mode */
 	uint32_t count;		/* Number of samples taken */
+	bool enabled;		/* Sampling enabled? */
 	uint16_t *samples;
 	uint64_t usr;		/* Total user CPU time for this session */
 	uint64_t usr_entered;	/* When this session last entered user mode */

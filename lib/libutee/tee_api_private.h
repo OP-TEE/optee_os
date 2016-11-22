@@ -45,10 +45,8 @@ void __utee_entry(unsigned long func, unsigned long session_id,
 
 
 #if defined(CFG_TA_GPROF_SUPPORT)
-void __utee_gprof_init(void);
 void __utee_gprof_fini(void);
 #else
-static inline void __utee_gprof_init(void) {}
 static inline void __utee_gprof_fini(void) {}
 #endif
 

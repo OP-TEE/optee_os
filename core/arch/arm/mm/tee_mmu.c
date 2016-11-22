@@ -52,13 +52,16 @@
 #include <kernel/tee_l2cc_mutex.h>
 #endif
 
-#define TEE_MMU_UMAP_STACK_IDX	0
-#define TEE_MMU_UMAP_CODE_IDX	1
 #define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
 
-#define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
-					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
-#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + 4)
+enum {
+	TEE_MMU_UMAP_STACK_IDX = 0,
+	TEE_MMU_UMAP_CODE_IDX,
+	TEE_MMU_UMAP_GPROF_HEAP_IDX = TEE_MMU_UMAP_CODE_IDX +
+				      TEE_MMU_UMAP_NUM_CODE_SEGMENTS,
+	TEE_MMU_UMAP_PARAM_IDX,
+	TEE_MMU_UMAP_MAX_ENTRIES = TEE_MMU_UMAP_PARAM_IDX + 4
+};
 
 #define TEE_MMU_UDATA_ATTR		(TEE_MATTR_VALID_BLOCK | \
 					 TEE_MATTR_PRW | TEE_MATTR_URW | \
@@ -371,6 +374,33 @@ set_entry:
 			       utc->mmu->ta_private_vmem_end);
 }
 
+#ifdef CFG_TA_GPROF_SUPPORT
+vaddr_t tee_mmu_map_gprof_heap(struct user_ta_ctx *utc, paddr_t pa,
+			       size_t size)
+{
+	const uint32_t attr = TEE_MATTR_PRW | TEE_MATTR_UR | TEE_MATTR_UW |
+			      TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+	const size_t granule = CORE_MMU_USER_CODE_SIZE;
+	struct tee_mmap_region *tbl = utc->mmu->table;
+	vaddr_t va;
+	size_t n = TEE_MMU_UMAP_GPROF_HEAP_IDX - 1;
+	size_t rsize = ROUNDUP(size, granule);
+
+	while (n && !tbl[n].size)
+		n--;
+	va = tbl[n].va + tbl[n].size;
+	assert(va);
+
+	tbl[TEE_MMU_UMAP_GPROF_HEAP_IDX].pa = pa;
+	tbl[TEE_MMU_UMAP_GPROF_HEAP_IDX].va = va;
+	tbl[TEE_MMU_UMAP_GPROF_HEAP_IDX].size = rsize;
+	tbl[TEE_MMU_UMAP_GPROF_HEAP_IDX].attr = attr;
+
+	return va;
+}
+#endif
+
 void tee_mmu_map_clear(struct user_ta_ctx *utc)
 {
 	utc->mmu->ta_private_vmem_end = 0;
@@ -657,7 +687,7 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
 		panic("invalid size");
 
-	return utc->mmu->table[1].va;
+	return utc->mmu->table[TEE_MMU_UMAP_CODE_IDX].va;
 }
 
 void teecore_init_ta_ram(void)

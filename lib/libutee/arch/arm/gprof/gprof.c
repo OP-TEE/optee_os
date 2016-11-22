@@ -75,33 +75,18 @@
 
 static struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
-/*
- * Buffer for the pofile data. Should be allocated dynamically by malloc(),
- * but since the TA heap size is defined by the TA itself via ta_heap and
- * ta_heap_size, we'd better not interfere. Until we design another way,
- * let's use a static buffer in .bss.
- */
-static uint64_t _gprof_buf[384 * 1024 / sizeof(uint64_t)];
-
 static uint32_t _gprof_file_id; /* File id returned by tee-supplicant */
 
 static int _gprof_s_scale;
 #define SCALE_1_TO_1 0x10000L
 
-static void *_gprof_calloc(size_t size, size_t num)
-{
-	if ((num * size) > sizeof(_gprof_buf))
-		return NULL;
-	return _gprof_buf;
-}
-
 /* Adjust PC so that gprof can locate it in the TA ELF file */
-static unsigned long adjust_pc(unsigned long pc)
+static unsigned long __noprof adjust_pc(unsigned long pc)
 {
 	return pc - (unsigned long)__text_start + sizeof(struct ta_head);
 }
 
-void __utee_gprof_init(void)
+static void _gprof_init(void)
 {
 	unsigned long lowpc;
 	unsigned long highpc;
@@ -143,23 +128,30 @@ void __utee_gprof_init(void)
 		p->tolimit = MAXARCS;
 	p->tossize = p->tolimit * sizeof(struct tostruct);
 
-	bufsize = p->kcountsize + p->fromssize + p->tossize;
+	/*
+	 * Buffer is first used by the user mode code to record the call graph,
+	 * then it receives the PC sampling info recorded by the kernel. So it
+	 * has to be large enough for each use case.
+	 */
+	bufsize = p->fromssize + p->tossize;
+	if (p->kcountsize > bufsize)
+		bufsize = p->kcountsize;
 
 	IMSG("gprof: initializing");
-	DMSG("TA text size: %zu, total buffer size: %zu (histogram: %lu)",
+	DMSG("TA text size: %zu, buffer sizes: user %zu kernel %lu",
 	     __text_end - __text_start, bufsize, p->kcountsize);
 
-	cp = _gprof_calloc(bufsize, 1);
+	cp = __pta_gprof_alloc(bufsize);
 	if (!cp) {
-		EMSG("gprof: out of memory");
+		EMSG("gprof: could not allocate call graph buffer");
 		p->tos = NULL;
 		p->state = GMON_PROF_ERROR;
 		return;
 	}
+
 	p->tos = (struct tostruct *)cp;
-	cp += p->tossize;
 	p->kcount = (HISTCOUNTER *)cp;
-	cp += p->kcountsize;
+	cp += p->tossize;
 	p->froms = (ARCINDEX *)cp;
 
 	p->tos[0].link = 0;
@@ -175,7 +167,7 @@ void __utee_gprof_init(void)
 						sizeof(struct ta_head)),
 					    _gprof_s_scale);
 	if (res != TEE_SUCCESS)
-		EMSG("Failed to start PC sampling (0x%08x)", res);
+		EMSG("gprof: could not start PC sampling (0x%08x)", res);
 
 	p->state = GMON_PROF_ON;
 }
@@ -186,7 +178,7 @@ static void _gprof_write_buf(void *buf, size_t size)
 
 	res = __pta_gprof_send(buf, size, &_gprof_file_id);
 	if (res != TEE_SUCCESS)
-		EMSG("Failed to send gprof data (0x%08x)", res);
+		EMSG("gprof: could not send gprof data (0x%08x)", res);
 }
 
 static void _gprof_write_header(void)
@@ -266,37 +258,32 @@ static void _gprof_write_call_graph(void)
 		_gprof_write_buf(out, nfilled * sizeof(out[0]));
 }
 
-/* Send profile data in gmon.out format to Normal World */
-void __noprof __utee_gprof_fini(void)
+/* Stop profiling and send profile data in gmon.out format to Normal World */
+void __utee_gprof_fini(void)
 {
 	TEE_Result res;
 
 	if (_gmonparam.state != GMON_PROF_ON)
 		return;
-	_gmonparam.state = GMON_PROF_OFF;
 
-	/* Stop TA sampling and retrieve PC sampling data */
+	/* Stop call graph tracing */
+	_gmonparam.state = GMON_PROF_OFF_EXITING;
+
+	/* Stop TA sampling */
+	__pta_gprof_pc_sampling_stop(_gmonparam.kcount, /* FIXME: NULL */
+				     0, NULL);
+
+	_gprof_write_header();
+	_gprof_write_call_graph();
+
+	/* Retrieve PC sampling data */
 	res = __pta_gprof_pc_sampling_stop(_gmonparam.kcount,
 					   _gmonparam.kcountsize,
 					   &_gmonparam.prof_rate);
-
-	_gprof_write_header();
 	if (res == TEE_SUCCESS)
 		_gprof_write_hist();
-	_gprof_write_call_graph();
 
 	__pta_gprof_fini();
-}
-
-/* Non-atomic implementation because TAs are single-threaded */
-static long __noprof _gprof_atomic_cmpxchg_bool_acq(long *p, long newval,
-						     long oldval)
-{
-	long ret = *p;
-
-	if (ret == oldval)
-		*p = newval;
-	return ret;
 }
 
 /*
@@ -315,12 +302,18 @@ void __noprof __mcount_internal(unsigned long frompc, unsigned long selfpc)
 	int i;
 
 	p = &_gmonparam;
+
+	if (p->state == GMON_PROF_OFF) {
+		/* Switch on profiling automatically on first call */
+		p->state = GMON_PROF_BUSY;
+		_gprof_init();
+	}
 	/*
 	 * Check that we are profiling and that we aren't recursively invoked.
 	 */
-	if (_gprof_atomic_cmpxchg_bool_acq(&p->state, GMON_PROF_BUSY,
-					   GMON_PROF_ON))
+	if (p->state != GMON_PROF_ON)
 		return;
+	p->state = GMON_PROF_BUSY;
 
 	frompc = adjust_pc(frompc);
 	selfpc = adjust_pc(selfpc);

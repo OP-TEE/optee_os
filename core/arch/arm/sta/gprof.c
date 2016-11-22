@@ -27,8 +27,10 @@
 
 #include <arm.h>
 #include <kernel/static_ta.h>
+#include <kernel/user_ta.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
+#include <mm/tee_mmu.h>
 #include <optee_msg_supplicant.h>
 #include <pta_gprof.h>
 #include <string.h>
@@ -150,6 +152,7 @@ static TEE_Result gprof_start_pc_sampling(uint32_t param_types,
 	sbuf->offset = offset;
 	sbuf->scale = scale;
 	sbuf->freq = read_cntfrq();
+	sbuf->enabled = true;
 	s->sbuf = sbuf;
 
 	return TEE_SUCCESS;
@@ -179,32 +182,85 @@ static TEE_Result gprof_stop_pc_sampling(uint32_t param_types,
 
 	sbuf = s->sbuf;
 	if (!sbuf)
-		return TEE_ERROR_BAD_STATE; /* Not sampling */
+		return TEE_ERROR_BAD_STATE;
 	assert(sbuf->samples);
 
-	size = sbuf->nsamples * sizeof(*sbuf->samples);
-	outsize = params[0].memref.size;
-	if (outsize < size) {
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto exit;
-	}
-
-	outbuf = params[0].memref.buffer;
-	if (outbuf)
-		memcpy(outbuf, sbuf->samples, size);
+	/* Stop sampling */
+	if (sbuf->enabled)
+		sbuf->enabled = false;
 
 	rate = ((uint64_t)sbuf->count * sbuf->freq) / sbuf->usr;
 	params[1].value.a = rate;
+
+	size = sbuf->nsamples * sizeof(*sbuf->samples);
+	outbuf = params[0].memref.buffer;
+	outsize = params[0].memref.size;
+	if (!outbuf || !outsize) {
+		params[0].memref.size = size;
+		return TEE_SUCCESS;
+	}
+
+	if (outsize < size)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	memcpy(outbuf, sbuf->samples, size);
+
 	DMSG("TA sampling stats: sample count=%" PRIu32 " user time=%" PRIu64
 	     " cntfrq=%" PRIu32 " rate=%" PRIu32, sbuf->count, sbuf->usr,
 	     sbuf->freq, rate);
-	res = TEE_SUCCESS;
-exit:
+
 	free(sbuf->samples);
 	free(sbuf);
 	s->sbuf = NULL;
 
-	return res;
+	return TEE_SUCCESS;
+}
+
+static TEE_Result gprof_alloc(uint32_t param_types,
+			      TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s;
+	struct user_ta_ctx *utc;
+	tee_mm_entry_t *mm;
+	TEE_Result res;
+	size_t size;
+	paddr_t pa;
+	vaddr_t va;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = get_calling_session(&s);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	size = params[0].value.a;
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	if (!mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	utc = to_user_ta_ctx(s->ctx);
+	utc->mm_gprof_heap = mm;
+
+	pa = tee_mm_get_smem(mm);
+	va = tee_mmu_map_gprof_heap(utc, pa, size);
+
+	tee_mmu_set_ctx(&utc->ctx);
+	cache_maintenance_l1(DCACHE_AREA_CLEAN, (void *)va, size);
+	cache_maintenance_l1(ICACHE_AREA_INVALIDATE, (void *)va, size);
+
+	params[1].value.a = va & 0xFFFFFFFF;
+#ifdef ARM64
+	params[1].value.b = va >> 32;
+#else
+	params[1].value.b = 0;
+#endif
+
+	return TEE_SUCCESS;
 }
 
 /*
@@ -252,6 +308,8 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 		return gprof_start_pc_sampling(param_types, params);
 	case PTA_GPROF_STOP_PC_SAMPLING:
 		return gprof_stop_pc_sampling(param_types, params);
+	case PTA_GPROF_ALLOC:
+		return gprof_alloc(param_types, params);
 	default:
 		break;
 	}

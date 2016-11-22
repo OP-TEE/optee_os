@@ -109,6 +109,31 @@ TEE_Result __pta_gprof_pc_sampling_stop(void *buf, size_t len, uint32_t *rate)
 	return res;
 }
 
+void *__pta_gprof_alloc(size_t len)
+{
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_types;
+	TEE_Result res;
+	uintptr_t addr;
+
+	param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+				      TEE_PARAM_TYPE_VALUE_OUTPUT,
+				      TEE_PARAM_TYPE_NONE,
+				      TEE_PARAM_TYPE_NONE);
+	memset(params, 0, sizeof(params));
+	params[0].value.a = len;
+	res = invoke_gprof_pta(PTA_GPROF_ALLOC, param_types, params);
+	if (res == TEE_SUCCESS) {
+		addr = params[1].value.a;
+#ifdef ARM64
+		addr |= (uintptr_t)params[1].value.b << 32;
+#endif
+		memset((void *)addr, 0, len);
+		return (void *)addr;
+	}
+	return NULL;
+}
+
 void __pta_gprof_fini(void)
 {
 	if (sess)

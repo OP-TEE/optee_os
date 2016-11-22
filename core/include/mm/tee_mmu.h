@@ -51,6 +51,17 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 			size_t offs, size_t size, uint32_t prot);
 
+#ifdef CFG_TA_GPROF_SUPPORT
+vaddr_t tee_mmu_map_gprof_heap(struct user_ta_ctx *utc, paddr_t pa,
+			       size_t size);
+#else
+static inline vaddr_t tee_mmu_map_gprof_heap(struct user_ta_ctx *utc __unused,
+					     paddr_t pa __unused,
+					     size_t size __unused)
+{
+	return 0;
+}
+#endif
 void tee_mmu_map_clear(struct user_ta_ctx *utc);
 
 /* Map parameters for a user TA */
