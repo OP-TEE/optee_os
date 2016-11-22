@@ -243,10 +243,16 @@ static uint32_t mattr_to_texcb(uint32_t attr)
 
 static uint32_t desc_to_mattr(unsigned level, uint32_t desc)
 {
-	uint32_t a = TEE_MATTR_VALID_BLOCK;
+	uint32_t a;
 
 	switch (get_desc_type(level, desc)) {
+	case DESC_TYPE_PAGE_TABLE:
+		a = TEE_MATTR_TABLE;
+		if (!(desc & SECTION_PT_NOTSECURE))
+			a |= TEE_MATTR_SECURE;
+		break;
 	case DESC_TYPE_SECTION:
+		a = TEE_MATTR_VALID_BLOCK;
 		if (desc & SECTION_ACCESS_FLAG)
 			a |= TEE_MATTR_PRX | TEE_MATTR_URX;
 
@@ -269,6 +275,7 @@ static uint32_t desc_to_mattr(unsigned level, uint32_t desc)
 
 		break;
 	case DESC_TYPE_SMALL_PAGE:
+		a = TEE_MATTR_VALID_BLOCK;
 		if (desc & SMALL_PAGE_ACCESS_FLAG)
 			a |= TEE_MATTR_PRX | TEE_MATTR_URX;
 
