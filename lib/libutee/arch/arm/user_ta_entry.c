@@ -188,16 +188,10 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 
 	__utee_to_param(params, &param_types, up);
 	ta_header_save_params(param_types, params);
-#ifdef CFG_TEE_BENCHMARK
-	tee_add_timestamp(params[TEE_BENCH_DEF_PARAM].memref.buffer,
-						TEE_BENCH_UTEE_P1);
-#endif
+	bm_timestamp(params, TEE_BENCH_UTEE);
 	res = TA_InvokeCommandEntryPoint(session->session_ctx, cmd_id,
 					 param_types, params);
-#ifdef CFG_TEE_BENCHMARK
-	tee_add_timestamp(params[TEE_BENCH_DEF_PARAM].memref.buffer,
-						TEE_BENCH_UTEE_P2);
-#endif
+	bm_timestamp(params, TEE_BENCH_UTEE);
 	__utee_from_param(up, param_types, params);
 	return res;
 }

@@ -16,7 +16,9 @@
 #define TEE_BENCH_H
 
 #include <inttypes.h>
-#include <tee_api_types.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <optee_msg.h>
 
 /* max amount of timestamps */
 #define TEE_BENCH_MAX_STAMPS	10
@@ -85,17 +87,18 @@ static inline __attribute__((always_inline)) void bm_timestamp_raw
 }
 
 static inline __attribute__((always_inline)) void bm_timestamp
-				(TEE_Param params[TEE_NUM_PARAMS],
-				 uint32_t source)
+			(struct optee_msg_param *params, uint32_t source)
 {
-	if (params && params[TEE_BENCH_DEF_PARAM].memref.buffer)
-		bm_timestamp_raw(params[TEE_BENCH_DEF_PARAM].memref.buffer,
-						source);
+	if (params && params[TEE_BENCH_DEF_PARAM].u.tmem.buf_ptr)
+		bm_timestamp_raw(phys_to_virt(
+			params[TEE_BENCH_DEF_PARAM].u.tmem.buf_ptr,
+			MEM_AREA_NSEC_SHM), source);
 }
 #else /* CFG_TEE_BENCHMARK */
-static inline void bm_timestamp(TEE_Param params[TEE_NUM_PARAMS]
+static inline void bm_timestamp(struct optee_msg_param *params
 				__maybe_unused, uint32_t source __maybe_unused)
 {
 }
+
 #endif /* CFG_TEE_BENCHMARK */
 #endif /* TEE_BENCH_H */

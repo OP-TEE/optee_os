@@ -33,7 +33,7 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <string.h>
-#include <tee_bench.h>
+#include <tee_bench_core.h>
 #include <tee/entry_std.h>
 #include <util.h>
 
@@ -222,12 +222,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	struct tee_dispatch_invoke_command_out out;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 
-#ifdef CFG_TEE_BENCHMARK
-	if (params[TEE_BENCH_DEF_PARAM].u.tmem.buf_ptr)
-		tee_add_timestamp((void *)(uintptr_t)
-			params[TEE_BENCH_DEF_PARAM].u.tmem.buf_ptr,
-			TEE_BENCH_CORE);
-#endif
+	bm_timestamp(params, TEE_BENCH_CORE);
+
 	if (!copy_in_params(params, num_params,
 			 &in.param_types, in.param_attr, in.params)) {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;

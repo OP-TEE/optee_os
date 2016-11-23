@@ -476,8 +476,8 @@
 #else
 #define TEE_NUM_PARAMS  4
 #endif
-/* TEE Arithmetical APIs */
 
+/* TEE Arithmetical APIs */
 #define TEE_BigIntSizeInU32(n) ((((n)+31)/32)+2)
 
 #endif /* TEE_API_DEFINES_H */
