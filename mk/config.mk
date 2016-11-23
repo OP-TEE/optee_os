@@ -216,10 +216,12 @@ CFG_CORE_HEAP_SIZE ?= 65536
 # You need to enable this if you want to profile a Trusted Application
 CFG_TA_GPROF_SUPPORT ?= n
 
-# Build various user-mode libraries with profiling
-CFG_LIBUTEE_GPROF ?= n
-CFG_U_LIBUTILS_GPROF ?= n
-CFG_U_LIBMPA_GPROF ?= n
+ifeq ($(CFG_TA_GPROF),y)
+# Build various user-mode libraries with profiling enabled (-pg)
+CFG_LIBUTEE_GPROF ?= y
+CFG_U_LIBUTILS_GPROF ?= y
+CFG_U_LIBMPA_GPROF ?= y
+endif
 
 ifeq ($(filter y,$(CFG_LIBUTEE_GPROF) $(CFG_U_LIBUTILS_GPROF) \
 		 $(CFG_U_LIBMPA_GPROF)),y)
