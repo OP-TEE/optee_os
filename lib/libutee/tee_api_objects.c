@@ -195,8 +195,10 @@ exit:
 		TEE_Panic(0);
 
 	if (res == TEE_SUCCESS) {
-		*a = buf[0];
-		*b = buf[1];
+		if (a)
+			*a = buf[0];
+		if (b)
+			*b = buf[1];
 	}
 
 	return res;
