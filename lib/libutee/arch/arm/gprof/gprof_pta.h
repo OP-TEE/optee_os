@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,33 +24,19 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_API_PRIVATE
-#define TEE_API_PRIVATE
 
+#ifndef __GPROF_PTA_H
+#define __GPROF_PTA_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <tee_api_types.h>
-#include <utee_types.h>
 
+TEE_Result __pta_gprof_send(void *buf, size_t len, uint32_t *id);
+TEE_Result __pta_gprof_pc_sampling_start(size_t buflen, size_t offset,
+					 size_t scale);
+TEE_Result __pta_gprof_pc_sampling_stop(void *buf, size_t len,
+					uint32_t *rate);
 
-void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
-			uint32_t attr_count);
-
-void __utee_from_param(struct utee_params *up, uint32_t param_types,
-			const TEE_Param params[TEE_NUM_PARAMS]);
-
-void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
-			uint32_t *param_types, const struct utee_params *up);
-
-void __utee_entry(unsigned long func, unsigned long session_id,
-			struct utee_params *up, unsigned long cmd_id);
-
-
-#if defined(CFG_TA_GPROF_SUPPORT)
-void __utee_gprof_init(void);
-void __utee_gprof_fini(void);
-#else
-static inline void __utee_gprof_init(void) {}
-static inline void __utee_gprof_fini(void) {}
-#endif
-
-#endif /*TEE_API_PRIVATE*/
-
+#endif /* __GPROF_PTA_H */

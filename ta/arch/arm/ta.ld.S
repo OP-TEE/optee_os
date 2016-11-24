@@ -24,6 +24,7 @@ SECTIONS {
 	.ta_head : {*(.ta_head)} :exec
 
 	.text : {
+		__text_start = .;
 		*(.text .text.*)
 		*(.stub)
 		*(.glue_7)
@@ -31,6 +32,7 @@ SECTIONS {
 		*(.gnu.linkonce.t.*)
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
+		__text_end = .;
 	}
 	.eh_frame : { *(.eh_frame) } :rodata
 	.rodata : {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,33 +24,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_API_PRIVATE
-#define TEE_API_PRIVATE
 
-#include <tee_api_types.h>
-#include <utee_types.h>
+#ifndef __PTA_GPROF_H
+#define __PTA_GPROF_H
 
+/*
+ * Interface to the gprof pseudo-TA, which is used by libutee to foward TA
+ * profiling data to tee-supplicant.
+ */
 
-void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
-			uint32_t attr_count);
+#define PTA_GPROF_UUID { 0x2f6e0d48, 0xc574, 0x426d, { \
+			 0x82, 0x4e, 0x40, 0x19, 0x8c, 0xde, 0x5c, 0xac } }
 
-void __utee_from_param(struct utee_params *up, uint32_t param_types,
-			const TEE_Param params[TEE_NUM_PARAMS]);
+/*
+ * Send TA profiling data (gmon.out format) to tee-supplicant
+ * Data may be sent in several chunks: first set id to 0, then re-use the
+ * allocated value in subsequent calls.
+ *
+ * [in/out] value[0].a: id
+ * [in]     memref[1]: profiling data
+ */
+#define PTA_GPROF_SEND			0
 
-void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
-			uint32_t *param_types, const struct utee_params *up);
+/*
+ * Start PC sampling of a user TA session
+ *
+ * [in] value[0].a: size of the sampling buffer that the TEE should allocate
+ * [in] value[0].b: offset: the lowest PC value in the TA
+ * [in] value[1].a: scale: histogram scaling factor
+ */
+#define PTA_GPROF_START_PC_SAMPLING	1
 
-void __utee_entry(unsigned long func, unsigned long session_id,
-			struct utee_params *up, unsigned long cmd_id);
+/*
+ * Stop PC sampling of a user TA session
+ *
+ * [out] memref[0]: output buffer
+ * [out] value[1].a: sampling frequency
+ */
+#define PTA_GPROF_STOP_PC_SAMPLING	2
 
-
-#if defined(CFG_TA_GPROF_SUPPORT)
-void __utee_gprof_init(void);
-void __utee_gprof_fini(void);
-#else
-static inline void __utee_gprof_init(void) {}
-static inline void __utee_gprof_fini(void) {}
-#endif
-
-#endif /*TEE_API_PRIVATE*/
-
+#endif /* __PTA_GPROF_H */

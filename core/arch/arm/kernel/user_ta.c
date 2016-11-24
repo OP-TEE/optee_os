@@ -41,6 +41,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <mm/pgt_cache.h>
+#include <optee_msg_supplicant.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>

@@ -95,6 +95,7 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 			trace_set_level(tahead_get_trace_level());
 			malloc_add_pool(ta_heap, ta_heap_size);
 			_TEE_MathAPI_Init();
+			__utee_gprof_init();
 			context_init = true;
 		}
 
@@ -124,8 +125,10 @@ static void ta_header_remove_session(uint32_t session_id)
 			TEE_Free(itr);
 
 			ta_ref_count--;
-			if (ta_ref_count == 0)
+			if (ta_ref_count == 0) {
 				TA_DestroyEntryPoint();
+				__utee_gprof_fini();
+			}
 
 			return;
 		}

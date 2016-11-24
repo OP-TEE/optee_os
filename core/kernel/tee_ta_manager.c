@@ -344,6 +344,11 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	}
 
 	tee_ta_unlink_session(sess, open_sessions);
+#if defined(CFG_TA_GPROF_SUPPORT)
+       if (sess->sbuf)
+               free(sess->sbuf->samples);
+       free(sess->sbuf);
+#endif
 	free(sess);
 
 	tee_ta_clear_busy(ctx);
@@ -713,3 +718,28 @@ void tee_ta_dump_current(void)
 
 	dump_state(s->ctx);
 }
+
+#if defined(CFG_TA_GPROF_SUPPORT)
+uint64_t tot;
+uint64_t ta;
+uint64_t samp_err;
+
+void tee_ta_gprof_sample_pc(vaddr_t pc)
+{
+	struct tee_ta_session *s = NULL;
+	struct sample_buf *sbuf;
+	size_t idx;
+
+	tot++;
+	tee_ta_get_current_session(&s);
+	assert(s);
+	sbuf = s->sbuf;
+	if (!sbuf)
+		return; /* PC sampling is not enabled */
+
+	ta++;
+	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
+	if (idx < sbuf->nsamples)
+		sbuf->samples[idx]++;
+}
+#endif

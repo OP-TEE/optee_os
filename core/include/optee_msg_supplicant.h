@@ -25,12 +25,37 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __OPTEE_MSG_FS_H
-#define __OPTEE_MSG_FS_H
+#ifndef __OPTEE_MSG_SUPPLICANT_H
+#define __OPTEE_MSG_SUPPLICANT_H
 
 /*
- * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS
- * and first parameter has the attribute OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
+ * Load a TA into memory
+ */
+#define OPTEE_MSG_RPC_CMD_LOAD_TA	0
+
+/*
+ * Replay Protected Memory Block access
+ */
+#define OPTEE_MSG_RPC_CMD_RPMB		1
+
+/*
+ * File system access
+ */
+#define OPTEE_MSG_RPC_CMD_FS		2
+
+/*
+ * Values 3-7 are reserved in optee_msg.h for use by the kernel driver
+ */
+
+/*
+ * SQLite file system access
+ */
+#define OPTEE_MSG_RPC_CMD_SQL_FS	8
+
+/*
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
+ * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS and first parameter has the attribute
+ * OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
  */
 
 /*
@@ -148,4 +173,27 @@
  */
 #define OPTEE_MRF_END_TRANSACTION	12
 
-#endif /*__OPTEE_MSG_FS_H*/
+/*
+ * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
+ * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS
+ */
+
+/*
+ * Send TA profiling information to normal world
+ *
+ * [in/out] param[0].u.value.a		File identifier. Must be set to 0 on
+ *					first call. A value >= 1 will be
+ *					returned on success. Re-use this value
+ *					to append data to the same file.
+ *
+ * [in] param[1].u.tmem.buf_ptr		Physical address of TA UUID
+ * [in] param[1].u.tmem.size		Size of UUID
+ * [in] param[1].u.tmem.shm_ref		Shared memory reference
+ *
+ * [in] param[2].u.tmem.buf_ptr		Physical address of profile data buffer
+ * [in] param[2].u.tmem.size		Buffer size
+ * [in] param[2].u.tmem.shm_ref		Shared memory reference
+ */
+#define OPTEE_MSG_RPC_CMD_GPROF		9
+
+#endif /*__OPTEE_MSG_SUPPLICANT_H*/

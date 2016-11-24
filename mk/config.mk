@@ -209,3 +209,19 @@ CFG_DT_ADDR ?= 0x0
 
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
+
+# Enable user-mode (TA & libraries) profiling support in libutee.
+# When this option is enabled, libutee contains the necessary callback that is
+# used by any code instrumented with GCC's -pg option.
+# You need to enable this if you want to profile a Trusted Application
+CFG_TA_GPROF_SUPPORT ?= n
+
+# Build various user-mode libraries with profiling
+CFG_LIBUTEE_GPROF ?= n
+CFG_U_LIBUTILS_GPROF ?= n
+
+ifeq ($(filter y,$(CFG_LIBUTEE_GPROF) $(CFG_U_LIBUTILS_GPROF)),y)
+ifneq ($(CFG_TA_GPROF_SUPPORT),y)
+$(error Cannot instrument user library if user mode profiling is disabled)
+endif
+endif
