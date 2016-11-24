@@ -194,8 +194,10 @@ exit:
 	if (size != sizeof(buf))
 		TEE_Panic(0);
 
-	*a = buf[0];
-	*b = buf[1];
+	if (res == TEE_SUCCESS) {
+		*a = buf[0];
+		*b = buf[1];
+	}
 
 	return res;
 }
