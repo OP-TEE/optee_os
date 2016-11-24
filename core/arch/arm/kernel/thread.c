@@ -131,8 +131,13 @@ DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
 const uint32_t stack_tmp_offset = STACK_TMP_OFFS + STACK_CANARY_SIZE / 2;
 
+/*
+ * These stack setup info are required by secondary boot cores before they
+ * each locally enable the pager (the mmu). Hence kept in pager sections.
+ */
 KEEP_PAGER(stack_tmp);
 KEEP_PAGER(stack_tmp_stride);
+KEEP_PAGER(stack_tmp_offset);
 
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
