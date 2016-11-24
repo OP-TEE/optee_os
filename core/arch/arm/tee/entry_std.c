@@ -238,6 +238,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 
 	copy_out_param(out.params, in.param_types, num_params, params);
 
+	bm_timestamp(params, TEE_BENCH_CORE);
+
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
