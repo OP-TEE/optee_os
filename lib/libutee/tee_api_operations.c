@@ -975,6 +975,11 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, void *srcData,
 		goto out;
 	}
 
+	if (!srcData && !srcLen) {
+		res = TEE_SUCCESS;
+		goto out;
+	}
+
 	/* Calculate required dlen */
 	req_dlen = ((operation->buffer_offs + srcLen) / operation->block_size) *
 	    operation->block_size;
