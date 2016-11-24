@@ -1063,6 +1063,11 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 		}
 	}
 
+	if (!srcData && !srcLen) {
+		res = TEE_SUCCESS;
+		goto out;
+	}
+
 	/*
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
