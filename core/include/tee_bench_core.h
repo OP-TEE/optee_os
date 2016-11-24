@@ -22,8 +22,8 @@
 
 /* max amount of timestamps */
 #define TEE_BENCH_MAX_STAMPS	10
-#define TEE_BENCH_RB_SIZE (sizeof(struct tee_time_buf) \
-		+ sizeof(struct tee_time_st) * TEE_BENCH_MAX_STAMPS)
+#define TEE_BENCH_RB_SIZE (sizeof(struct tee_time_buf) + \
+			sizeof(struct tee_time_st) * TEE_BENCH_MAX_STAMPS)
 #define TEE_BENCH_DEF_PARAM		4
 
 /* OP-TEE susbsystems ids */
@@ -42,7 +42,7 @@ struct tee_time_st {
 
 /* memory layout for shared memory, where timestamps will be stored */
 struct tee_time_buf {
-	uint64_t tm_ind;	/* index of the last timestamp in stamps[] */
+	uint64_t tm_ind; /* index of the next unfilled timestamp in stamps[] */
 	struct tee_time_st stamps[];
 };
 
@@ -52,7 +52,7 @@ static inline __attribute__((always_inline)) uintptr_t read_pc(void)
 {
 	uintptr_t pc = 0;
 #ifdef __aarch64__
-	asm volatile ("adr %0, ." : "=r" (pc));
+	asm volatile("adr %0, ." : "=r"(pc));
 #else
 	asm volatile("mov %0, r15" : "=r"(pc));
 #endif

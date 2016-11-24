@@ -110,14 +110,12 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 	uint32_t s;
 
 #ifdef CFG_TEE_BENCHMARK
-	uint32_t allocated = 0;
 	void *timebuf = NULL;
 
 	if (params) {
 		timebuf = TEE_Malloc(TEE_BENCH_RB_SIZE, TEE_MALLOC_FILL_ZERO);
 		if (!timebuf)
 			return TEE_ERROR_OUT_OF_MEMORY;
-		allocated = 1;
 		params[TEE_BENCH_DEF_PARAM].memref.buffer = timebuf;
 		params[TEE_BENCH_DEF_PARAM].memref.size = TEE_BENCH_RB_SIZE;
 	}
@@ -126,10 +124,8 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 	res = utee_open_ta_session(destination, cancellationRequestTimeout,
 				   &up, &s, returnOrigin);
 	__utee_to_param(params, NULL, &up);
-
 #ifdef CFG_TEE_BENCHMARK
-	if (allocated)
-		TEE_Free(timebuf);
+	TEE_Free(timebuf);
 #endif
 	/*
 	 * Specification says that *session must hold TEE_HANDLE_NULL is
@@ -163,14 +159,12 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 	uint32_t ret_origin;
 	struct utee_params up;
 #ifdef CFG_TEE_BENCHMARK
-	uint32_t allocated = 0;
 	void *timebuf = NULL;
 
 	if (params) {
 		timebuf = TEE_Malloc(TEE_BENCH_RB_SIZE, TEE_MALLOC_FILL_ZERO);
 		if (!timebuf)
 			return TEE_ERROR_OUT_OF_MEMORY;
-		allocated = 1;
 		params[TEE_BENCH_DEF_PARAM].memref.buffer = timebuf;
 		params[TEE_BENCH_DEF_PARAM].memref.size = TEE_BENCH_RB_SIZE;
 	}
@@ -181,8 +175,7 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 				      commandID, &up, &ret_origin);
 	__utee_to_param(params, NULL, &up);
 #ifdef CFG_TEE_BENCHMARK
-	if (allocated)
-		TEE_Free(timebuf);
+	TEE_Free(timebuf);
 #endif
 	if (returnOrigin != NULL)
 		*returnOrigin = ret_origin;
