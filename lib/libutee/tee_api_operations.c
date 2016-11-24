@@ -131,7 +131,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_AES_CTS:
 	case TEE_ALG_AES_XTS:
 		buffer_two_blocks = true;
-	 /*FALLTHROUGH*/ case TEE_ALG_AES_ECB_NOPAD:
+		/* FALLTHROUGH */
+	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_AES_CTR:
 	case TEE_ALG_AES_CCM:
