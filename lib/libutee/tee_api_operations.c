@@ -1354,6 +1354,11 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, void *srcData,
 		goto out;
 	}
 
+	if (!srcData && !srcLen) {
+		res = TEE_SUCCESS;
+		goto out;
+	}
+
 	/*
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
