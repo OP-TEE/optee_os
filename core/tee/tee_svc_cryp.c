@@ -54,16 +54,6 @@
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
 
-/* Set an attribute on an object */
-#define SET_ATTRIBUTE(_object, _props, _attr)	\
-	((_object)->have_attrs |= \
-		(1 << (tee_svc_cryp_obj_find_type_attr_idx((_attr), (_props)))))
-
-/* Get an attribute on an object */
-#define GET_ATTRIBUTE(_object, _props, _attr)	\
-	((_object)->have_attrs & \
-		(1 << (tee_svc_cryp_obj_find_type_attr_idx((_attr), (_props)))))
-
 typedef void (*tee_cryp_ctx_finalize_func_t) (void *ctx, uint32_t algo);
 struct tee_cryp_state {
 	TAILQ_ENTRY(tee_cryp_state) link;
@@ -906,6 +896,30 @@ static const struct tee_cryp_obj_type_props *tee_svc_find_type_props(
 	return NULL;
 }
 
+/* Set an attribute on an object */
+static void set_attribute(struct tee_obj *o,
+			  const struct tee_cryp_obj_type_props *props,
+			  uint32_t attr)
+{
+	int idx = tee_svc_cryp_obj_find_type_attr_idx(attr, props);
+
+	if (idx < 0)
+		return;
+	o->have_attrs |= BIT(idx);
+}
+
+/* Get an attribute on an object */
+static uint32_t get_attribute(const struct tee_obj *o,
+			      const struct tee_cryp_obj_type_props *props,
+			      uint32_t attr)
+{
+	int idx = tee_svc_cryp_obj_find_type_attr_idx(attr, props);
+
+	if (idx < 0)
+		return 0;
+	return o->have_attrs & BIT(idx);
+}
+
 TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 			void *buffer, uint64_t *size)
 {
@@ -1592,7 +1606,7 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 					     param_count);
 	if (res != TEE_SUCCESS)
 		return res;
-	if (!GET_ATTRIBUTE(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
+	if (!get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
 		crypto_ops.bignum.bin2bn((const uint8_t *)&e, sizeof(e),
 					 key->e);
 	res = crypto_ops.acipher.gen_rsa_key(key, key_size);
@@ -1641,9 +1655,9 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 
 	tee_dh_key = (struct dh_keypair *)o->attr;
 
-	if (GET_ATTRIBUTE(o, type_props, TEE_ATTR_DH_SUBPRIME))
+	if (get_attribute(o, type_props, TEE_ATTR_DH_SUBPRIME))
 		dh_q = tee_dh_key->q;
-	if (GET_ATTRIBUTE(o, type_props, TEE_ATTR_DH_X_BITS))
+	if (get_attribute(o, type_props, TEE_ATTR_DH_X_BITS))
 		dh_xbits = tee_dh_key->xbits;
 	if (!crypto_ops.acipher.gen_dh_key)
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -1652,9 +1666,9 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 		return res;
 
 	/* Set bits for the generated public and private key */
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_DH_PUBLIC_VALUE);
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_DH_PRIVATE_VALUE);
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_DH_X_BITS);
+	set_attribute(o, type_props, TEE_ATTR_DH_PUBLIC_VALUE);
+	set_attribute(o, type_props, TEE_ATTR_DH_PRIVATE_VALUE);
+	set_attribute(o, type_props, TEE_ATTR_DH_X_BITS);
 	return TEE_SUCCESS;
 }
 
@@ -1681,10 +1695,10 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 		return res;
 
 	/* Set bits for the generated public and private key */
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_ECC_PRIVATE_VALUE);
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_ECC_PUBLIC_VALUE_X);
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_ECC_PUBLIC_VALUE_Y);
-	SET_ATTRIBUTE(o, type_props, TEE_ATTR_ECC_CURVE);
+	set_attribute(o, type_props, TEE_ATTR_ECC_PRIVATE_VALUE);
+	set_attribute(o, type_props, TEE_ATTR_ECC_PUBLIC_VALUE_X);
+	set_attribute(o, type_props, TEE_ATTR_ECC_PUBLIC_VALUE_Y);
+	set_attribute(o, type_props, TEE_ATTR_ECC_CURVE);
 	return TEE_SUCCESS;
 }
 
@@ -2711,7 +2725,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 							 (uint8_t *)(sk + 1));
 				so->info.handleFlags |=
 						TEE_HANDLE_FLAG_INITIALIZED;
-				SET_ATTRIBUTE(so, type_props,
+				set_attribute(so, type_props,
 					      TEE_ATTR_SECRET_VALUE);
 			}
 		} else {
@@ -2781,7 +2795,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (res == TEE_SUCCESS) {
 			sk->key_size = pt_secret_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 
 		/* free the public key */
@@ -2812,7 +2826,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (res == TEE_SUCCESS) {
 			sk->key_size = okm_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 	}
 #endif
@@ -2841,7 +2855,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (res == TEE_SUCCESS) {
 			sk->key_size = derived_key_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 	}
 #endif
@@ -2870,7 +2884,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (res == TEE_SUCCESS) {
 			sk->key_size = derived_key_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 	}
 #endif
