@@ -42,6 +42,10 @@
 	mcr	p15, 0, \reg, c1, c0, 1
 	.endm
 
+	.macro read_actlr reg
+	mrc	p15, 0, \reg, c1, c0, 1
+	.endm
+
 	.macro write_cpacr reg
 	mcr	p15, 0, \reg, c1, c0, 2
 	.endm
@@ -60,6 +64,10 @@
 
 	.macro write_nsacr reg
 	mcr	p15, 0, \reg, c1, c1, 2
+	.endm
+
+	.macro read_nsacr reg
+	mrc	p15, 0, \reg, c1, c1, 2
 	.endm
 
 	.macro write_ttbr0 reg
@@ -194,14 +202,6 @@
 
 	.macro read_tpidruro reg
 	mrc	p15, 0, \reg, c13, c0, 3
-	.endm
-
-	.macro read_actlr reg
-	mrc	p15, 0, \reg, c1, c0, 1
-	.endm
-
-	.macro read_nsacr reg
-	mrc	p15, 0, \reg, c1, c1, 2
 	.endm
 
 	.macro mov_imm reg, val
