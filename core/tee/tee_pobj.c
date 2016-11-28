@@ -25,14 +25,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <kernel/mutex.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tee/tee_pobj.h>
 #include <trace.h>
 
-#include <string.h>
-#include <stdlib.h>
-
 static TAILQ_HEAD(tee_pobjs, tee_pobj) tee_pobjs =
 		TAILQ_HEAD_INITIALIZER(tee_pobjs);
+static struct mutex pobjs_mutex = MUTEX_INITIALIZER;
 
 static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 {
@@ -87,6 +88,7 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 
 	*obj = NULL;
 
+	mutex_lock(&pobjs_mutex);
 	/* Check if file is open */
 	TAILQ_FOREACH(o, &tee_pobjs, link) {
 		if ((obj_id_len == o->obj_id_len) &&
@@ -99,20 +101,19 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 
 	if (*obj) {
 		res = tee_pobj_check_access((*obj)->flags, flags);
-		if (res != TEE_SUCCESS) {
+		if (res != TEE_SUCCESS)
 			*obj = NULL;
-			return res;
-		}
-
-		(*obj)->refcnt++;
-		return TEE_SUCCESS;
+		else
+			(*obj)->refcnt++;
+		goto out;
 	}
 
 	/* new file */
 	o = calloc(sizeof(struct tee_pobj), 1);
-
-	if (!o)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!o) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
 	o->refcnt = 1;
 	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
@@ -122,7 +123,8 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	o->obj_id = malloc(obj_id_len);
 	if (o->obj_id == NULL) {
 		free(o);
-		return TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
 	}
 	memcpy(o->obj_id, obj_id, obj_id_len);
 	o->obj_id_len = obj_id_len;
@@ -130,7 +132,10 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	TAILQ_INSERT_TAIL(&tee_pobjs, o, link);
 	*obj = o;
 
-	return TEE_SUCCESS;
+	res = TEE_SUCCESS;
+out:
+	mutex_unlock(&pobjs_mutex);
+	return res;
 }
 
 TEE_Result tee_pobj_release(struct tee_pobj *obj)
@@ -138,12 +143,14 @@ TEE_Result tee_pobj_release(struct tee_pobj *obj)
 	if (obj == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	mutex_lock(&pobjs_mutex);
 	obj->refcnt--;
 	if (obj->refcnt == 0) {
 		TAILQ_REMOVE(&tee_pobjs, obj, link);
 		free(obj->obj_id);
 		free(obj);
 	}
+	mutex_unlock(&pobjs_mutex);
 
 	return TEE_SUCCESS;
 }
@@ -157,8 +164,11 @@ TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 	if (obj == NULL || obj_id == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (obj->refcnt != 1)
-		return TEE_ERROR_BAD_STATE;
+	mutex_lock(&pobjs_mutex);
+	if (obj->refcnt != 1) {
+		res = TEE_ERROR_BAD_STATE;
+		goto exit;
+	}
 
 	new_obj_id = malloc(obj_id_len);
 	if (new_obj_id == NULL) {
@@ -174,6 +184,7 @@ TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 	new_obj_id = NULL;
 
 exit:
+	mutex_unlock(&pobjs_mutex);
 	free(new_obj_id);
 	return res;
 }
