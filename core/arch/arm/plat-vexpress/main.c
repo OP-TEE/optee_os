@@ -170,7 +170,7 @@ KEEP_PAGER(console_itr);
 static TEE_Result init_console_itr(void)
 {
 	itr_add(&console_itr);
-	itr_enable(&console_itr);
+	itr_enable(IT_CONSOLE_UART);
 	return TEE_SUCCESS;
 }
 driver_init(init_console_itr);
