@@ -76,12 +76,27 @@ void itr_add(struct itr_handler *h)
 	SLIST_INSERT_HEAD(&handlers, h, link);
 }
 
-void itr_enable(struct itr_handler *h)
+void itr_enable(size_t it)
 {
-	itr_chip->ops->enable(itr_chip, h->it);
+	itr_chip->ops->enable(itr_chip, it);
 }
 
-void itr_disable(struct itr_handler *h)
+void itr_disable(size_t it)
 {
-	itr_chip->ops->disable(itr_chip, h->it);
+	itr_chip->ops->disable(itr_chip, it);
+}
+
+void itr_raise_pi(size_t it)
+{
+	itr_chip->ops->raise_pi(itr_chip, it);
+}
+
+void itr_raise_sgi(size_t it, uint8_t cpu_mask)
+{
+	itr_chip->ops->raise_sgi(itr_chip, it, cpu_mask);
+}
+
+void itr_set_affinity(size_t it, uint8_t cpu_mask)
+{
+	itr_chip->ops->set_affinity(itr_chip, it, cpu_mask);
 }

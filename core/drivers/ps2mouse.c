@@ -155,6 +155,6 @@ void ps2mouse_init(struct ps2mouse_data *d, struct serial_chip *serial,
 	d->callback_data = cb_data;
 
 	itr_add(&d->itr_handler);
-	itr_enable(&d->itr_handler);
+	itr_enable(serial_it);
 	d->serial->ops->putc(d->serial, PS2_CMD_RESET);
 }

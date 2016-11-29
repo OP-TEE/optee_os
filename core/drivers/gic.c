@@ -50,15 +50,23 @@
 #define GICD_IGROUPR(n)		(0x080 + (n) * 4)
 #define GICD_ISENABLER(n)	(0x100 + (n) * 4)
 #define GICD_ICENABLER(n)	(0x180 + (n) * 4)
+#define GICD_ISPENDR(n)		(0x200 + (n) * 4)
 #define GICD_ICPENDR(n)		(0x280 + (n) * 4)
 #define GICD_IPRIORITYR(n)	(0x400 + (n) * 4)
 #define GICD_ITARGETSR(n)	(0x800 + (n) * 4)
+#define GICD_SGIR		(0xF00)
 
 #define GICD_CTLR_ENABLEGRP0	(1 << 0)
 #define GICD_CTLR_ENABLEGRP1	(1 << 1)
 
 /* Number of Private Peripheral Interrupt */
 #define NUM_PPI	32
+
+/* Number of Software Generated Interrupt */
+#define NUM_SGI			16
+
+/* Number of Non-secure Software Generated Interrupt */
+#define NUM_NS_SGI		8
 
 /* Number of interrupts in one register */
 #define NUM_INTS_PER_REG	32
@@ -82,11 +90,19 @@
 static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t flags);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
 static void gic_op_disable(struct itr_chip *chip, size_t it);
+static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
+static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
+			uint8_t cpu_mask);
+static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
+			uint8_t cpu_mask);
 
 static const struct itr_ops gic_ops = {
 	.add = gic_op_add,
 	.enable = gic_op_enable,
 	.disable = gic_op_disable,
+	.raise_pi = gic_op_raise_pi,
+	.raise_sgi = gic_op_raise_sgi,
+	.set_affinity = gic_op_set_affinity,
 };
 
 static size_t probe_max_it(vaddr_t gicc_base, vaddr_t gicd_base)
@@ -250,8 +266,13 @@ static void gic_it_enable(struct gic_data *gd, size_t it)
 
 	/* Assigned to group0 */
 	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
-	/* Not enabled yet */
-	assert(!(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask));
+	if (it >= NUM_SGI) {
+		/*
+		 * Not enabled yet, except Software Generated Interrupt
+		 * which is implementation defined
+		 */
+		assert(!(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask));
+	}
 
 	/* Enable the interrupt */
 	write32(mask, gd->gicd_base + GICD_ISENABLER(idx));
@@ -267,6 +288,36 @@ static void gic_it_disable(struct gic_data *gd, size_t it)
 
 	/* Disable the interrupt */
 	write32(mask, gd->gicd_base + GICD_ICENABLER(idx));
+}
+
+static void gic_it_set_pending(struct gic_data *gd, size_t it)
+{
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = BIT32(it % NUM_INTS_PER_REG);
+
+	/* Should be Peripheral Interrupt */
+	assert(it >= NUM_SGI);
+	/* Assigned to group0 */
+	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+
+	/* Raise the interrupt */
+	write32(mask, gd->gicd_base + GICD_ISPENDR(idx));
+}
+
+static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
+		uint8_t cpu_mask, uint8_t group)
+{
+	uint32_t mask_id = it & 0xf;
+	uint32_t mask_group = group & 0x1;
+	uint32_t mask_cpu = cpu_mask & 0xff;
+	uint32_t mask = (mask_id | SHIFT_U32(mask_group, 15) |
+		SHIFT_U32(mask_cpu, 16));
+
+	/* Should be Software Generated Interrupt */
+	assert(it < NUM_SGI);
+
+	/* Raise the interrupt */
+	write32(mask, gd->gicd_base + GICD_SGIR);
 }
 
 static uint32_t gic_read_iar(struct gic_data *gd)
@@ -369,4 +420,38 @@ static void gic_op_disable(struct itr_chip *chip, size_t it)
 		panic();
 
 	gic_it_disable(gd, it);
+}
+
+static void gic_op_raise_pi(struct itr_chip *chip, size_t it)
+{
+	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	if (it >= gd->max_it)
+		panic();
+
+	gic_it_set_pending(gd, it);
+}
+
+static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
+			uint8_t cpu_mask)
+{
+	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	if (it >= gd->max_it)
+		panic();
+
+	if (it < NUM_NS_SGI)
+		gic_it_raise_sgi(gd, it, cpu_mask, 1);
+	else
+		gic_it_raise_sgi(gd, it, cpu_mask, 0);
+}
+static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
+			uint8_t cpu_mask)
+{
+	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	if (it >= gd->max_it)
+		panic();
+
+	gic_it_set_cpu_mask(gd, it, cpu_mask);
 }
