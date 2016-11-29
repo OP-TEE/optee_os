@@ -61,8 +61,11 @@ static inline __attribute__((always_inline)) uintptr_t read_pc(void)
 static inline uint64_t read_ccounter(void)
 {
 	uint64_t ccounter = 0;
-
+#ifdef __aarch64__
+	asm volatile("mrs %0, PMCCNTR_EL0" : "=r"(ccounter));
+#else
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(ccounter));
+#endif
 	return ccounter;
 }
 
