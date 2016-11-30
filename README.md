@@ -134,13 +134,20 @@ the target device. This includes both 64- and 32-bit toolchains. For the exact
 toolchain in use, please have a look at [toolchain.mk](https://github.com/OP-TEE/build/blob/master/toolchain.mk)
 and then look at the targets makefile (see [build.git](https://github.com/OP-TEE/build))
 to find out where the respective toolchain will be used. For example in the
-[QEMU makefile](https://github.com/OP-TEE/build/blob/master/qemu.mk#L12-L15) you
-will see:
+[QEMU makefile](https://github.com/OP-TEE/build/blob/master/qemu.mk#L6-L9) and
+[common makefile](https://github.com/OP-TEE/build/blob/master/common.mk#L90-L93)
+you will see, respectively:
 ```
-CROSS_COMPILE_NS_USER       ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_NS_KERNEL     ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_S_USER        ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
-CROSS_COMPILE_S_KERNEL      ?= "$(CCACHE)$(AARCH32_CROSS_COMPILE)"
+override COMPILE_NS_USER   := 32
+override COMPILE_NS_KERNEL := 32
+override COMPILE_S_USER    := 32
+override COMPILE_S_KERNEL  := 32
+```
+```
+CROSS_COMPILE_NS_USER   ?= "$(CCACHE)$(AARCH$(COMPILE_NS_USER)_CROSS_COMPILE)"
+CROSS_COMPILE_NS_KERNEL ?= "$(CCACHE)$(AARCH$(COMPILE_NS_KERNEL)_CROSS_COMPILE)"
+CROSS_COMPILE_S_USER    ?= "$(CCACHE)$(AARCH$(COMPILE_S_USER)_CROSS_COMPILE)"
+CROSS_COMPILE_S_KERNEL  ?= "$(CCACHE)$(AARCH$(COMPILE_S_KERNEL)_CROSS_COMPILE)"
 ```
 
 However, if you only want to compile optee_os, then you can do like this:
