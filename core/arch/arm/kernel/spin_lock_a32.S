@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2016, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
@@ -30,67 +31,55 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <kernel/tz_proc.h>
-#include <kernel/tz_proc_def.h>
-#include <kernel/unwind.h>
 #include <asm.S>
-#include <arm.h>
-#include <arm32_macros.S>
+#include <kernel/tz_proc.h>
+#include <kernel/unwind.h>
 
-	.section .text.proc
-
-/*
- * void cpu_mmu_enable(void) - enable MMU
- *
- * TLBs are invalidated before MMU is enabled.
- * An DSB and ISB insures MMUs is enabled before routine returns
- */
-FUNC cpu_mmu_enable , :
+/* void cpu_spin_lock(lock address) - lock mutex */
+FUNC cpu_spin_lock , :
 UNWIND(	.fnstart)
-	/* Invalidate TLB */
-	write_tlbiall
-
-	/* Enable the MMU */
-	read_sctlr r0
-	orr	r0, r0, #SCTLR_M
-	write_sctlr r0
-
-	dsb
-	isb
-
-	bx	lr
+	mov r2, #SPINLOCK_LOCK
+_spinlock_loop:
+	ldrex r1, [r0]
+	cmp r1, #SPINLOCK_UNLOCK
+	wfene
+	strexeq r1, r2, [r0]
+	cmpeq r1, #0
+	bne _spinlock_loop
+	dmb
+	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_mmu_enable
+END_FUNC cpu_spin_lock
 
-/* void cpu_mmu_enable_icache(void) - enable instruction cache */
-FUNC cpu_mmu_enable_icache , :
+/* int cpu_spin_trylock(lock address) - return 0 on success */
+FUNC cpu_spin_trylock , :
 UNWIND(	.fnstart)
-	/* Invalidate instruction cache and branch predictor */
-	write_iciallu
-	write_bpiall
-
-	/* Enable the instruction cache */
-	read_sctlr r1
-	orr	r1, r1, #SCTLR_I
-	write_sctlr r1
-
-	dsb
-	isb
-
-	bx	lr
+	mov r2, #SPINLOCK_LOCK
+	mov r1, r0
+_trylock_loop:
+	ldrex r0, [r1]
+	cmp r0, #0
+	bne _trylock_out
+	strex r0, r2, [r1]
+	cmp r0, #0
+	bne _trylock_loop
+	dmb
+	bx lr
+_trylock_out:
+	clrex
+	dmb
+	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_mmu_enable_icache
+END_FUNC cpu_spin_trylock
 
-/* void cpu_mmu_enable_dcache(void) - enable data cache */
-FUNC cpu_mmu_enable_dcache , :
+/* void cpu_spin_unlock(lock address) - unlock mutex */
+FUNC cpu_spin_unlock , :
 UNWIND(	.fnstart)
-	read_sctlr r0
-	orr	r0, r0, #SCTLR_C
-	write_sctlr r0
-
+	dmb
+	mov r1, #SPINLOCK_UNLOCK
+	str r1, [r0]
 	dsb
-	isb
-
-	bx	lr
+	sev
+	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_mmu_enable_dcache
+END_FUNC cpu_spin_unlock
