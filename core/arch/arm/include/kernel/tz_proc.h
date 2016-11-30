@@ -32,9 +32,30 @@
 #define SPINLOCK_UNLOCK     0
 
 #ifndef ASM
-void cpu_spin_lock(unsigned int *lock);
-unsigned int cpu_spin_trylock(unsigned int *lock);
-void cpu_spin_unlock(unsigned int *lock);
+#include <assert.h>
+#include <kernel/thread.h>
+
+void __cpu_spin_lock(unsigned int *lock);
+unsigned int __cpu_spin_trylock(unsigned int *lock);
+void __cpu_spin_unlock(unsigned int *lock);
+
+static inline void cpu_spin_lock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+	__cpu_spin_lock(lock);
+}
+
+static inline unsigned int cpu_spin_trylock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+        return __cpu_spin_trylock(lock);
+}
+
+static inline void cpu_spin_unlock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+        __cpu_spin_unlock(lock);
+}
 
 void cpu_mmu_enable(void);
 void cpu_mmu_enable_icache(void);

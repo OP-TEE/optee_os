@@ -57,8 +57,8 @@
 #include <kernel/tz_proc.h>
 #include <asm.S>
 
-/* void cpu_spin_lock(unsigned int *lock); */
-FUNC cpu_spin_lock , :
+/* void __cpu_spin_lock(unsigned int *lock); */
+FUNC __cpu_spin_lock , :
 	mov	w2, #SPINLOCK_LOCK
 	sevl
 1:	wfe
@@ -67,10 +67,10 @@ FUNC cpu_spin_lock , :
 	stxr	w1, w2, [x0]
 	cbnz	w1, 2b
 	ret
-END_FUNC cpu_spin_lock
+END_FUNC __cpu_spin_lock
 
-/* int cpu_spin_trylock(unsigned int *lock); */
-FUNC cpu_spin_trylock , :
+/* int __cpu_spin_trylock(unsigned int *lock); */
+FUNC __cpu_spin_trylock , :
 	mov	w2, #SPINLOCK_LOCK
 1:	ldaxr	w1, [x0]
 	cbnz	w1, 1f
@@ -78,11 +78,11 @@ FUNC cpu_spin_trylock , :
 	cbnz	w1, 1b
 1:
 	ret
-END_FUNC cpu_spin_trylock
+END_FUNC __cpu_spin_trylock
 
 
-/* void cpu_spin_unlock(unsigned int *lock); */
-FUNC cpu_spin_unlock , :
+/* void __cpu_spin_unlock(unsigned int *lock); */
+FUNC __cpu_spin_unlock , :
 	stlr	wzr, [x0]
 	ret
-END_FUNC cpu_spin_unlock
+END_FUNC __cpu_spin_unlock
