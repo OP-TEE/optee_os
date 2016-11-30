@@ -55,29 +55,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <kernel/tz_proc.h>
-
 #include <asm.S>
 
 /* void cpu_spin_lock(unsigned int *lock); */
 FUNC cpu_spin_lock , :
 	mov	w2, #SPINLOCK_LOCK
 	sevl
-l1:	wfe
-l2:	ldaxr	w1, [x0]
-	cbnz	w1, l1
+1:	wfe
+2:	ldaxr	w1, [x0]
+	cbnz	w1, 1b
 	stxr	w1, w2, [x0]
-	cbnz	w1, l2
+	cbnz	w1, 2b
 	ret
 END_FUNC cpu_spin_lock
 
 /* int cpu_spin_trylock(unsigned int *lock); */
 FUNC cpu_spin_trylock , :
 	mov	w2, #SPINLOCK_LOCK
-.loop:	ldaxr	w1, [x0]
-	cbnz	w1, .cpu_spin_trylock_out
+1:	ldaxr	w1, [x0]
+	cbnz	w1, 1f
 	stxr	w1, w2, [x0]
-	cbnz	w1, .loop
-.cpu_spin_trylock_out:
+	cbnz	w1, 1b
+1:
 	ret
 END_FUNC cpu_spin_trylock
 
