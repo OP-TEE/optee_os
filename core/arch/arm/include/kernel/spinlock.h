@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,9 +33,30 @@
 #define SPINLOCK_UNLOCK     0
 
 #ifndef ASM
-void cpu_spin_lock(unsigned int *lock);
-unsigned int cpu_spin_trylock(unsigned int *lock);
-void cpu_spin_unlock(unsigned int *lock);
+#include <assert.h>
+#include <kernel/thread.h>
+
+void __cpu_spin_lock(unsigned int *lock);
+unsigned int __cpu_spin_trylock(unsigned int *lock);
+void __cpu_spin_unlock(unsigned int *lock);
+
+static inline void cpu_spin_lock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+	__cpu_spin_lock(lock);
+}
+
+static inline unsigned int cpu_spin_trylock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+	return __cpu_spin_trylock(lock);
+}
+
+static inline void cpu_spin_unlock(unsigned int *lock)
+{
+	assert(thread_irq_disabled());
+	__cpu_spin_unlock(lock);
+}
 #endif /*ASM*/
 
 #endif /* KERNEL_SPINLOCK_H */

@@ -35,8 +35,8 @@
 #include <kernel/spinlock.h>
 #include <kernel/unwind.h>
 
-/* void cpu_spin_lock(unsigned int *lock) */
-FUNC cpu_spin_lock , :
+/* void __cpu_spin_lock(unsigned int *lock) */
+FUNC __cpu_spin_lock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 1:
@@ -49,10 +49,10 @@ UNWIND(	.fnstart)
 	dmb
 	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_spin_lock
+END_FUNC __cpu_spin_lock
 
-/* int cpu_spin_trylock(unsigned int *lock) - return 0 on success */
-FUNC cpu_spin_trylock , :
+/* int __cpu_spin_trylock(unsigned int *lock) - return 0 on success */
+FUNC __cpu_spin_trylock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 	mov r1, r0
@@ -70,10 +70,10 @@ UNWIND(	.fnstart)
 	dmb
 	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_spin_trylock
+END_FUNC __cpu_spin_trylock
 
-/* void cpu_spin_unlock(unsigned int *lock) */
-FUNC cpu_spin_unlock , :
+/* void __cpu_spin_unlock(unsigned int *lock) */
+FUNC __cpu_spin_unlock , :
 UNWIND(	.fnstart)
 	dmb
 	mov r1, #SPINLOCK_UNLOCK
@@ -82,4 +82,4 @@ UNWIND(	.fnstart)
 	sev
 	bx lr
 UNWIND(	.fnend)
-END_FUNC cpu_spin_unlock
+END_FUNC __cpu_spin_unlock

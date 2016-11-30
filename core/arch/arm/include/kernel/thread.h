@@ -336,6 +336,12 @@ uint32_t thread_mask_exceptions(uint32_t exceptions);
  */
 void thread_unmask_exceptions(uint32_t state);
 
+
+static inline bool thread_irq_disabled(void)
+{
+	return !!(thread_get_exceptions() & THREAD_EXCP_IRQ);
+}
+
 #ifdef CFG_WITH_VFP
 /*
  * thread_kernel_enable_vfp() - Temporarily enables usage of VFP
