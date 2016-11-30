@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
@@ -26,60 +25,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KERNEL_SPINLOCK_H
-#define KERNEL_SPINLOCK_H
-
-#define SPINLOCK_LOCK       1
-#define SPINLOCK_UNLOCK     0
-
-#ifndef ASM
 #include <assert.h>
-#include <compiler.h>
-#include <stdbool.h>
-#include <kernel/thread.h>
+#include <kernel/spinlock.h>
+#include "thread_private.h"
 
-#ifdef CFG_TEE_CORE_DEBUG
-void spinlock_count_incr(void);
-void spinlock_count_decr(void);
-bool have_spinlock(void);
-static inline void assert_have_no_spinlock(void)
+void spinlock_count_incr(void)
 {
-	assert(!have_spinlock());
-}
-#else
-static inline void spinlock_count_incr(void) { }
-static inline void spinlock_count_decr(void) { }
-static inline void assert_have_no_spinlock(void) { }
-#endif
+	struct thread_core_local *l = thread_get_core_local();
 
-void __cpu_spin_lock(unsigned int *lock);
-unsigned int __cpu_spin_trylock(unsigned int *lock);
-void __cpu_spin_unlock(unsigned int *lock);
-
-static inline void cpu_spin_lock(unsigned int *lock)
-{
-	assert(thread_irq_disabled());
-	__cpu_spin_lock(lock);
-	spinlock_count_incr();
+	l->locked_count++;
+	assert(l->locked_count);
 }
 
-static inline unsigned int cpu_spin_trylock(unsigned int *lock)
+void spinlock_count_decr(void)
 {
-	unsigned int locked;
+	struct thread_core_local *l = thread_get_core_local();
 
-	assert(thread_irq_disabled());
-	locked = __cpu_spin_trylock(lock);
-	if (locked)
-		spinlock_count_incr();
-	return locked;
+	assert(l->locked_count);
+	l->locked_count--;
 }
 
-static inline void cpu_spin_unlock(unsigned int *lock)
+bool have_spinlock(void)
 {
-	assert(thread_irq_disabled());
-	__cpu_spin_unlock(lock);
-	spinlock_count_decr();
-}
-#endif /* ASM */
+	struct thread_core_local *l;
 
-#endif /* KERNEL_SPINLOCK_H */
+	if (!thread_irq_disabled()) {
+		/*
+		 * Normally we can't be holding a spinlock since doing so would
+		 * imply IRQ are disabled (or the spinlock logic is flawed).
+		 */
+		return false;
+	}
+
+	l = thread_get_core_local();
+
+	return !!l->locked_count;
+}
