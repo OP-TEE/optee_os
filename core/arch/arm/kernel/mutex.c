@@ -38,6 +38,8 @@ void mutex_init(struct mutex *m)
 
 static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
+	assert_have_no_spinlock();
+
 	while (true) {
 		uint32_t old_itr_status;
 		enum mutex_value old_value;
@@ -80,6 +82,8 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
+
+	assert_have_no_spinlock();
 
 	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cpu_spin_lock(&m->spin_lock);
