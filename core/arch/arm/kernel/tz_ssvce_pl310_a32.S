@@ -25,11 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <asm.S>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
-#include <asm.S>
 #include <kernel/unwind.h>
 #include <platform_config.h>
+
+#define PL310_LOCKDOWN_NBREGS	8
 
 /*
  * void arm_cl2_lockallways(vaddr_t base)
@@ -38,9 +40,12 @@
  */
 FUNC arm_cl2_lockallways , :
 UNWIND(	.fnstart)
-	add  r1, r0, #PL310_DCACHE_LOCKDOWN_BASE
-	mov r0, #PL310_NB_WAYS
-	movw r2, #0xFFFF	/* LD ways constant */
+	add r1, r0, #PL310_DCACHE_LOCKDOWN_BASE
+	ldr r2, [r0, #PL310_AUX_CTRL]
+	tst r2, #PL310_AUX_16WAY_BIT
+	mov r0, #PL310_LOCKDOWN_NBREGS
+	mov r2, #0xFF           /* 8 ways mask */
+	orrne r2, #0xFF00	/* 16 ways mask */
 loop_data_lockdown:
 	str r2, [r1], #0x04	/* lock way for Dcache */
 	str r2, [r1], #0x04	/* lock way for Icache  */
@@ -52,6 +57,17 @@ UNWIND(	.fnend)
 END_FUNC arm_cl2_lockallways
 
 /*
+ * Set sync operation mask according to ways associativity.
+ * Preserve r0 = pl310 iomem base address
+ */
+.macro syncbyway_set_mask reg
+	ldr	\reg, [r0, #PL310_AUX_CTRL]
+	tst	\reg, #PL310_AUX_16WAY_BIT
+	mov	\reg, #PL310_8WAYS_MASK
+	orrne	\reg, \reg, #PL310_16WAYS_UPPERMASK
+.endm
+
+/*
  * void arm_cl2_cleaninvbyway(vaddr_t base)
  * clean & invalidate the whole L2 cache.
  */
@@ -59,8 +75,7 @@ FUNC arm_cl2_cleaninvbyway , :
 UNWIND(	.fnstart)
 
 	/* Clean and invalidate all cache ways */
-	movw r1, #0x00FF
-	movt r1, #0x0000
+	syncbyway_set_mask r1
 	str r1, [r0, #PL310_FLUSH_BY_WAY]
 
 	/* Wait for all cache ways to be cleaned and invalidated */
@@ -96,8 +111,7 @@ FUNC arm_cl2_invbyway , :
 UNWIND(	.fnstart)
 
 	/* Clean by Way */
-	movw r1, #0x00FF	/* assumes here 8-way L2 cache (orly) */
-	movt r1, #0x0000
+	syncbyway_set_mask r1
 	str r1, [r0, #PL310_INV_BY_WAY]
 
 	/* Wait end of Invalidate by Way */
@@ -134,8 +148,7 @@ FUNC arm_cl2_cleanbyway , :
 UNWIND(	.fnstart)
 
 	/* Clean by Way */
-	movw r1, #0x00FF
-	movt r1, #0x0000
+	syncbyway_set_mask r1
 	str r1, [r0, #PL310_CLEAN_BY_WAY]
 
 	/* Wait end of Clean by Way */
