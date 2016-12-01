@@ -26,10 +26,11 @@
  */
 #include <kernel/tee_common.h>
 #include <kernel/tee_l2cc_mutex.h>
+#include <kernel/spinlock.h>
 #include <mm/tee_mm.h>
-#include <tee_api_defines.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <tee_api_defines.h>
 #include <trace.h>
 
 /*

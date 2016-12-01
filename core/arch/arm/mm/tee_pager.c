@@ -32,6 +32,7 @@
 #include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
