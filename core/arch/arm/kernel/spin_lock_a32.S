@@ -39,13 +39,13 @@
 FUNC __cpu_spin_lock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
-_spinlock_loop:
+1:
 	ldrex r1, [r0]
 	cmp r1, #SPINLOCK_UNLOCK
 	wfene
 	strexeq r1, r2, [r0]
 	cmpeq r1, #0
-	bne _spinlock_loop
+	bne 1b
 	dmb
 	bx lr
 UNWIND(	.fnend)
@@ -56,16 +56,16 @@ FUNC __cpu_spin_trylock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 	mov r1, r0
-_trylock_loop:
+1:
 	ldrex r0, [r1]
 	cmp r0, #0
-	bne _trylock_out
+	bne 1f
 	strex r0, r2, [r1]
 	cmp r0, #0
-	bne _trylock_loop
+	bne 1b
 	dmb
 	bx lr
-_trylock_out:
+1:
 	clrex
 	dmb
 	bx lr
