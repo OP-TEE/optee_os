@@ -30,8 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <kernel/tz_proc.h>
-#include <kernel/tz_proc_def.h>
 #include <kernel/unwind.h>
 #include <asm.S>
 #include <arm.h>

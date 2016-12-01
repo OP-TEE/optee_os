@@ -30,7 +30,6 @@
 #include <tee_api_defines.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <kernel/tz_proc.h>
 #include <trace.h>
 
 /*

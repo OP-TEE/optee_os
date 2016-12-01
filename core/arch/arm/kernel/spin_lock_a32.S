@@ -32,7 +32,7 @@
  */
 
 #include <asm.S>
-#include <kernel/tz_proc.h>
+#include <kernel/spinlock.h>
 #include <kernel/unwind.h>
 
 /* void __cpu_spin_lock(unsigned int *lock) */

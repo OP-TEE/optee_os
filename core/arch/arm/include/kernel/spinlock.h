@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2014, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef TZ_PROC_H
-#define TZ_PROC_H
+#ifndef KERNEL_SPINLOCK_H
+#define KERNEL_SPINLOCK_H
 
 #define SPINLOCK_LOCK       1
 #define SPINLOCK_UNLOCK     0
@@ -76,10 +75,6 @@ static inline void cpu_spin_unlock(unsigned int *lock)
 	__cpu_spin_unlock(lock);
 	spinlock_count_add(-1);
 }
+#endif /* ASM */
 
-void cpu_mmu_enable(void);
-void cpu_mmu_enable_icache(void);
-void cpu_mmu_enable_dcache(void);
-#endif /*ASM*/
-
-#endif
+#endif /* KERNEL_SPINLOCK_H */

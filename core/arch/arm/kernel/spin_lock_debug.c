@@ -25,23 +25,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <kernel/tz_proc.h>
-#include <kernel/misc.h>
-#include <platform_config.h>
-
-/* Number of spinlocks held by each CPU core */
-static uint32_t locked_count[CFG_TEE_CORE_NB_CORE];
+#include <kernel/spinlock.h>
+#include "thread_private.h"
 
 void spinlock_count_add(int c)
 {
-	uint32_t cpu_id = get_core_pos();
+	struct thread_core_local *l = thread_get_core_local();
 
-	locked_count[cpu_id] += c;
+	l->locked_count += c;
 }
 
 bool have_spinlock(void)
 {
-	uint32_t cpu_id = get_core_pos();
+	struct thread_core_local *l;
 
-	return !!locked_count[cpu_id];
+	if (!thread_irq_disabled()) {
+		/*
+		 * Normally we can't be holding a spinlock since doing so would
+		 * imply IRQ are disabled (or the spinlock logic is flawed).
+		 */
+		return false;
+	}
+
+	l = thread_get_core_local();
+
+	return !!l->locked_count;
 }

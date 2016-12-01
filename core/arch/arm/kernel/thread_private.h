@@ -135,6 +135,9 @@ struct thread_core_local {
 	vaddr_t abt_stack_va_end;
 	uint64_t x[4];
 #endif
+#ifdef CFG_TEE_CORE_DEBUG
+	uint32_t locked_count; /* Number of spinlocks held */
+#endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
 #endif /*ASM*/

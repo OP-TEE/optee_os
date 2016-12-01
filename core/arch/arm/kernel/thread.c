@@ -33,11 +33,10 @@
 #include <keep.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
-#include <kernel/tz_proc_def.h>
-#include <kernel/tz_proc.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu_defs.h>

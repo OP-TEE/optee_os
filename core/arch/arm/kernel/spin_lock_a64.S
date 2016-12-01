@@ -54,7 +54,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <kernel/tz_proc.h>
+#include <kernel/spinlock.h>
 
 #include <asm.S>
 

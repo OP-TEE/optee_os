@@ -40,7 +40,6 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
-#include <kernel/tz_proc.h>
 #include <kernel/tz_ssvce.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>

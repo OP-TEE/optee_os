@@ -29,7 +29,7 @@
 #include <tee_api_defines.h>
 #include <string.h>
 #include <optee_msg.h>
-#include <kernel/tz_proc.h>
+#include <kernel/spinlock.h>
 #include <kernel/wait_queue.h>
 #include <kernel/thread.h>
 #include <trace.h>
