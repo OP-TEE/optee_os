@@ -35,7 +35,7 @@
 #include <kernel/tz_proc.h>
 #include <kernel/unwind.h>
 
-/* void __cpu_spin_lock(lock address) - lock mutex */
+/* void __cpu_spin_lock(unsigned int *lock) */
 FUNC __cpu_spin_lock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
@@ -51,7 +51,7 @@ _spinlock_loop:
 UNWIND(	.fnend)
 END_FUNC __cpu_spin_lock
 
-/* int __cpu_spin_trylock(lock address) - return 0 on success */
+/* int __cpu_spin_trylock(unsigned int *lock) - return 0 on success */
 FUNC __cpu_spin_trylock , :
 UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
@@ -72,7 +72,7 @@ _trylock_out:
 UNWIND(	.fnend)
 END_FUNC __cpu_spin_trylock
 
-/* void __cpu_spin_unlock(lock address) - unlock mutex */
+/* void __cpu_spin_unlock(unsigned int *lock) */
 FUNC __cpu_spin_unlock , :
 UNWIND(	.fnstart)
 	dmb
