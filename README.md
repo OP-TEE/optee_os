@@ -155,7 +155,7 @@ However, if you only want to compile optee_os, then you can do like this:
 $ cd $HOME
 $ mkdir toolchains
 $ cd toolchains
-$ wget http://releases.linaro.org/14.08/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
+$ wget http://releases.linaro.org/archive/14.08/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
 $ tar xvf gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux.tar.xz
 $ export PATH=$HOME/toolchains/gcc-linaro-arm-linux-gnueabihf-4.9-2014.08_linux/bin:$PATH
 ```

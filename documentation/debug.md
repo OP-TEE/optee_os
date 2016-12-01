@@ -39,7 +39,7 @@ start by downloading this toolchain
 
 
 ```
-wget https://releases.linaro.org/14.09/components/toolchain/binaries/gcc-linaro-arm-none-eabi-4.9-2014.09_linux.tar.xz
+wget https://releases.linaro.org/archive/14.09/components/toolchain/binaries/gcc-linaro-arm-none-eabi-4.9-2014.09_linux.tar.xz
 ```
 
 and put it in the toolchain folder
