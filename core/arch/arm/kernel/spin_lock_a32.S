@@ -35,6 +35,12 @@
 #include <kernel/spinlock.h>
 #include <kernel/unwind.h>
 
+	/*
+	 * WARNING: FIXME: this .section is needed for plat-stm to boot
+	 * when CFG_WITH_PAGER==y. No idea why at the moment.
+	 */
+	.section .text.proc
+
 /* void __cpu_spin_lock(unsigned int *lock) */
 FUNC __cpu_spin_lock , :
 UNWIND(	.fnstart)
