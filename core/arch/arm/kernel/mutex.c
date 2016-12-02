@@ -108,6 +108,7 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 	uint32_t old_itr_status;
 	enum mutex_value old_value;
 
+	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 
 	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
