@@ -32,6 +32,7 @@
 
 #ifndef ASM
 #include <assert.h>
+#include <compiler.h>
 #include <stdbool.h>
 #include <kernel/thread.h>
 
