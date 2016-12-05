@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <tee_api_types.h>
 #include <trace.h>
+#include <kernel/tee_ta_manager.h>
 
 /*
  * output argument data structure is always TEE service specific but always
@@ -44,32 +45,28 @@ struct tee_dispatch_out {
 /* Input arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_in {
 	TEE_UUID uuid;
-	uint32_t param_types;
-	TEE_Param params[TEE_NUM_PARAMS];
+	struct tee_ta_param param;
 	TEE_Identity clnt_id;
-	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
 /* Output arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_out {
 	struct tee_dispatch_out msg;
 	TEE_Session *sess;
-	TEE_Param params[TEE_NUM_PARAMS];
+	struct tee_ta_param param;
 };
 
 /* Input arg structure specific to TEE service 'invoke command'. */
 struct tee_dispatch_invoke_command_in {
 	TEE_Session *sess;
 	uint32_t cmd;
-	uint32_t param_types;
-	TEE_Param params[TEE_NUM_PARAMS];
-	uint32_t param_attr[TEE_NUM_PARAMS];
+	struct tee_ta_param param;
 };
 
 /* Output arg structure specific to TEE service 'invoke command'. */
 struct tee_dispatch_invoke_command_out {
 	struct tee_dispatch_out msg;
-	TEE_Param params[TEE_NUM_PARAMS];
+	struct tee_ta_param param;
 };
 
 /* Input arg structure specific to TEE service 'cancel command'. */

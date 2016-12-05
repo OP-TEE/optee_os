@@ -28,6 +28,7 @@
 #include <kernel/static_ta.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <sm/tee_mon.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,38 +36,59 @@
 #include <types_ext.h>
 
 /* Maps static TA params */
-static TEE_Result tee_ta_param_pa2va(struct tee_ta_param *param)
+static TEE_Result copy_in_param(struct tee_ta_param *param,
+				     TEE_Param tee_param[TEE_NUM_PARAMS])
 {
 	size_t n;
 	void *va;
-	paddr_t pa;
-
-	/*
-	 * If a static TA is called from another TA the mapping
-	 * of that TA is borrowed and the addresses are already
-	 * virtual.
-	 */
-	if (tee_ta_get_calling_session())
-		return TEE_SUCCESS;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			tee_param[n].value.a = param->u[n].val.a;
+			tee_param[n].value.b = param->u[n].val.b;
+			break;
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			pa = (paddr_t)param->params[n].memref.buffer;
-			va = phys_to_virt(pa, MEM_AREA_NSEC_SHM);
+			va = mobj_get_va(param->u[n].mem.mobj,
+					 param->u[n].mem.offs);
 			if (!va)
 				return TEE_ERROR_BAD_PARAMETERS;
-			param->params[n].memref.buffer = va;
+			tee_param[n].memref.buffer = va;
+			tee_param[n].memref.size = param->u[n].mem.mobj->size;
 			break;
-
 		default:
-			continue;
+			memset(tee_param + n, 0, sizeof(TEE_Param));
+			break;
 		}
 	}
 
 	return TEE_SUCCESS;
+}
+
+static void update_out_param(TEE_Param tee_param[TEE_NUM_PARAMS],
+			     struct tee_ta_param *param)
+{
+	size_t n;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			param->u[n].val.a = tee_param[n].value.a;
+			param->u[n].val.b = tee_param[n].value.b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			param->u[n].mem.size = tee_param[n].memref.size;
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
@@ -74,9 +96,10 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 {
 	TEE_Result res;
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
-	res = tee_ta_param_pa2va(param);
+	res = copy_in_param(param, tee_param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
 		goto out;
@@ -88,8 +111,9 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
-	res = stc->static_ta->open_session_entry_point(param->types,
-					param->params, &s->user_ctx);
+	res = stc->static_ta->open_session_entry_point(param->types, tee_param,
+						       &s->user_ctx);
+	update_out_param(tee_param, param);
 
 out:
 	tee_ta_pop_current_session();
@@ -102,9 +126,10 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 {
 	TEE_Result res;
 	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
-	res = tee_ta_param_pa2va(param);
+	res = copy_in_param(param, tee_param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
 		goto out;
@@ -112,7 +137,9 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
 	res = stc->static_ta->invoke_command_entry_point(s->user_ctx, cmd,
-					param->types, param->params);
+							 param->types,
+							 tee_param);
+	update_out_param(tee_param, param);
 out:
 	tee_ta_pop_current_session();
 	return res;
