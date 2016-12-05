@@ -286,3 +286,37 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 
 	return &m->mobj;
 }
+
+#ifdef CFG_PAGED_USER_TA
+/*
+ * mobj_paged implementation
+ */
+
+static void mobj_paged_free(struct mobj *mobj);
+
+static const struct mobj_ops mobj_paged_ops = {
+	.free = mobj_paged_free,
+};
+
+static void mobj_paged_free(struct mobj *mobj)
+{
+	assert(mobj->ops == &mobj_paged_ops);
+	free(mobj);
+}
+
+struct mobj *mobj_paged_alloc(size_t size)
+{
+	struct mobj *mobj = malloc(sizeof(*mobj));
+
+	if (mobj) {
+		mobj->size = size;
+		mobj->ops = &mobj_paged_ops;
+	}
+	return mobj;
+}
+
+bool mobj_is_paged(struct mobj *mobj)
+{
+	return mobj->ops == &mobj_paged_ops;
+}
+#endif /*CFG_PAGED_USER_TA*/

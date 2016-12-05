@@ -782,7 +782,7 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 
 		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
 			     end - r.va);
-		if (!(r.attr & TEE_MATTR_PAGED)) {
+		if (!mobj_is_paged(region->mobj)) {
 			size_t granule = BIT(pg_info->shift);
 			size_t offset = r.va - region->va + region->offset;
 

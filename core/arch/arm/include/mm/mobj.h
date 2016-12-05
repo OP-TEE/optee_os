@@ -48,6 +48,8 @@ struct mobj_ops {
 	TEE_Result (*get_cattr)(struct mobj *mobj, uint32_t *cattr);
 	bool (*matches)(struct mobj *mobj, enum buf_is_attr attr);
 	void (*free)(struct mobj *mobj);
+	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
+			       vaddr_t va);
 };
 
 extern struct mobj mobj_virt;
@@ -88,6 +90,14 @@ static inline void mobj_free(struct mobj *mobj)
 		mobj->ops->free(mobj);
 }
 
+
+static inline void mobj_update_mapping(struct mobj *mobj,
+				       struct user_ta_ctx *utc, vaddr_t va)
+{
+	if (mobj && mobj->ops && mobj->ops->update_mapping)
+		mobj->ops->update_mapping(mobj, utc, va);
+}
+
 static inline bool mobj_is_nonsec(struct mobj *mobj)
 {
 	return mobj_matches(mobj, CORE_MEM_NON_SEC);
@@ -108,4 +118,15 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
+
+struct mobj *mobj_paged_alloc(size_t size);
+
+#ifdef CFG_PAGED_USER_TA
+bool mobj_is_paged(struct mobj *mobj);
+#else
+static inline bool mobj_is_paged(struct mobj *mobj __unused)
+{
+	return false;
+}
+#endif
 #endif /*__MM_MOBJ_H*/
