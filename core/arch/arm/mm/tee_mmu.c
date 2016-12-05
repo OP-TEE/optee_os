@@ -73,17 +73,19 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
 	TEE_Result res;
 	struct tee_ta_region *last_entry = NULL;
 	size_t n;
-	uint32_t cattr;
-	uint32_t attr;
+	uint32_t attr = TEE_MMU_UDATA_ATTR;
 	size_t nsz;
 	size_t noffs;
 
-	res = mobj_get_cattr(mem->mobj, &cattr);
-	if (res != TEE_SUCCESS)
-		return res;
+	if (!mobj_is_paged(mem->mobj)) {
+		uint32_t cattr;
 
-	attr = cattr << TEE_MATTR_CACHE_SHIFT;
-	attr |= TEE_MMU_UDATA_ATTR;
+		res = mobj_get_cattr(mem->mobj, &cattr);
+		if (res != TEE_SUCCESS)
+			return res;
+		attr |= cattr << TEE_MATTR_CACHE_SHIFT;
+	}
+
 	if (!mobj_is_secure(mem->mobj))
 		attr &= ~TEE_MATTR_SECURE;
 
@@ -238,8 +240,10 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 }
 
 #ifdef CFG_SMALL_PAGE_USER_TA
-static TEE_Result check_pgt_avail(vaddr_t base, vaddr_t end)
+static TEE_Result alloc_pgt(struct user_ta_ctx *utc __maybe_unused,
+			    vaddr_t base, vaddr_t end)
 {
+	struct thread_specific_data *tsd __maybe_unused;
 	vaddr_t b = ROUNDDOWN(base, CORE_MMU_PGDIR_SIZE);
 	vaddr_t e = ROUNDUP(end, CORE_MMU_PGDIR_SIZE);
 	size_t ntbl = (e - b) >> CORE_MMU_PGDIR_SHIFT;
@@ -248,12 +252,43 @@ static TEE_Result check_pgt_avail(vaddr_t base, vaddr_t end)
 		EMSG("%zu page tables not available", ntbl);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
+
+#ifdef CFG_PAGED_USER_TA
+	tsd = thread_get_tsd();
+	if (&utc->ctx == tsd->ctx) {
+
+		/*
+		 * The supplied utc is the current active utc, allocate the
+		 * page tables too as the pager needs to use them soon.
+		 */
+		pgt_alloc(&tsd->pgt_cache, &utc->ctx, b, e - 1);
+	}
+#endif
+
 	return TEE_SUCCESS;
 }
+
+static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct pgt_cache *pgt_cache = NULL;
+
+	if (&utc->ctx == tsd->ctx)
+		pgt_cache = &tsd->pgt_cache;
+
+	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
+}
+
 #else
-static TEE_Result check_pgt_avail(vaddr_t base __unused, vaddr_t end __unused)
+static TEE_Result alloc_pgt(struct user_ta_ctx *utc __unused,
+			    vaddr_t base __unused, vaddr_t end __unused)
 {
 	return TEE_SUCCESS;
+}
+
+static void free_pgt(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
+		     size_t size __unused)
+{
 }
 #endif
 
@@ -360,8 +395,8 @@ set_entry:
 	 * Check that we have enough translation tables available to map
 	 * this TA.
 	 */
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->ta_private_vmem_end);
+	return alloc_pgt(utc, utc->mmu->ta_private_vmem_start,
+			 utc->mmu->ta_private_vmem_end);
 }
 
 void tee_mmu_map_clear(struct user_ta_ctx *utc)
@@ -473,9 +508,120 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		n--;
 	} while (n && !utc->mmu->regions[n].size);
 
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->regions[n].va +
-			       utc->mmu->regions[n].size);
+	return alloc_pgt(utc, utc->mmu->ta_private_vmem_start,
+			 utc->mmu->regions[n].va + utc->mmu->regions[n].size);
+}
+
+TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
+			     int pgdir_offset, vaddr_t *va)
+{
+	struct tee_ta_region *reg = NULL;
+	struct tee_ta_region *last_reg;
+	vaddr_t v;
+	vaddr_t end_v;
+	size_t n;
+
+	assert(pgdir_offset < CORE_MMU_PGDIR_SIZE);
+
+	/*
+	 * Avoid the corner case when no regions are assigned, currently
+	 * stack and code areas are always assigned before we end up here.
+	 */
+	if (!utc->mmu->regions[0].size)
+		return TEE_ERROR_GENERIC;
+
+	for (n = 1; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!reg && utc->mmu->regions[n].size)
+			continue;
+		last_reg = utc->mmu->regions + n;
+
+		if (!reg) {
+			reg = last_reg;
+			v = ROUNDUP((reg - 1)->va + (reg - 1)->size,
+				    SMALL_PAGE_SIZE);
+#ifndef CFG_WITH_LPAE
+			/*
+			 * Non-LPAE mappings can't mix secure and
+			 * non-secure in a single pgdir.
+			 */
+			if (mobj_is_secure((reg - 1)->mobj) !=
+			    mobj_is_secure(mobj))
+				v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
+#endif
+
+			/*
+			 * If mobj needs to span several page directories
+			 * the offset into the first pgdir need to match
+			 * the supplied offset or some area used by the
+			 * pager may not fit into a single pgdir.
+			 */
+			if (pgdir_offset >= 0 &&
+			    mobj->size > CORE_MMU_PGDIR_SIZE) {
+				if ((v & CORE_MMU_PGDIR_MASK) <
+				    (size_t)pgdir_offset)
+					v = ROUNDDOWN(v, CORE_MMU_PGDIR_SIZE);
+				else
+					v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
+				v += pgdir_offset;
+			}
+			end_v = ROUNDUP(v + mobj->size, SMALL_PAGE_SIZE);
+			continue;
+		}
+
+		if (!last_reg->size)
+			continue;
+		/*
+		 * There's one registered region after our selected spot,
+		 * check if we can still fit or if we need a later spot.
+		 */
+		if (end_v > last_reg->va) {
+			reg = NULL;
+			continue;
+		}
+#ifndef CFG_WITH_LPAE
+		if (mobj_is_secure(mobj) != mobj_is_secure(last_reg->mobj) &&
+		    end_v > ROUNDDOWN(last_reg->va, CORE_MMU_PGDIR_SIZE))
+			reg = NULL;
+#endif
+	}
+
+	if (reg) {
+		TEE_Result res;
+
+		end_v = MAX(end_v, last_reg->va + last_reg->size);
+		res = alloc_pgt(utc, utc->mmu->ta_private_vmem_start, end_v);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		*va = v;
+		reg->va = v;
+		reg->mobj = mobj;
+		reg->offset = 0;
+		reg->size = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
+		if (mobj_is_secure(mobj))
+			reg->attr = TEE_MATTR_SECURE;
+		else
+			reg->attr = 0;
+		return TEE_SUCCESS;
+	}
+
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
+{
+	size_t n;
+
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		struct tee_ta_region *reg = utc->mmu->regions + n;
+
+		if (reg->mobj == mobj && reg->va == va &&
+		    reg->size == mobj->size) {
+			free_pgt(utc, reg->va, reg->size);
+			memset(reg, 0, sizeof(*reg));
+			return;
+		}
+	}
 }
 
 /*

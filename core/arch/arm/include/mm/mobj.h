@@ -129,4 +129,7 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 	return false;
 }
 #endif
+
+struct mobj *mobj_sec_shm_alloc(size_t size);
+
 #endif /*__MM_MOBJ_H*/

@@ -26,13 +26,14 @@
  */
 
 #include <assert.h>
-#include <mm/pgt_cache.h>
 #include <kernel/mutex.h>
-#include <mm/tee_pager.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
+#include <mm/tee_pager.h>
 #include <stdlib.h>
-#include <util.h>
 #include <trace.h>
+#include <util.h>
 
 /*
  * With pager enabled we allocate page table from the pager.
@@ -337,6 +338,128 @@ void pgt_flush_ctx(struct tee_ta_ctx *ctx)
 	}
 
 out:
+	mutex_unlock(&pgt_mu);
+}
+
+static void flush_pgt_entry(struct pgt *p)
+{
+	tee_pager_pgt_save_and_release_entries(p);
+	assert(!p->num_used_entries);
+	p->ctx = NULL;
+	p->vabase = 0;
+}
+
+static bool pgt_entry_matches(struct pgt *p, void *ctx, vaddr_t begin,
+			      vaddr_t last)
+{
+	if (!p)
+		return false;
+	if (p->ctx != ctx)
+		return false;
+	if (!core_is_buffer_inside(p->vabase, SMALL_PAGE_SIZE, begin,
+				   last - begin))
+		return false;
+
+	return true;
+}
+
+static void flush_ctx_range_from_list(struct pgt_cache *pgt_cache, void *ctx,
+				      vaddr_t begin, vaddr_t last)
+{
+	struct pgt *p;
+	struct pgt *next_p;
+
+	p = SLIST_FIRST(pgt_cache);
+	while (pgt_entry_matches(p, ctx, begin, last)) {
+		flush_pgt_entry(p);
+		SLIST_REMOVE_HEAD(pgt_cache, link);
+		push_to_free_list(p);
+		p = SLIST_FIRST(pgt_cache);
+	}
+
+	p = SLIST_FIRST(pgt_cache);
+	while (true) {
+		next_p = SLIST_NEXT(p, link);
+		if (!next_p)
+			break;
+		if (pgt_entry_matches(next_p, ctx, begin, last)) {
+			flush_pgt_entry(next_p);
+			SLIST_REMOVE_AFTER(p, link);
+			push_to_free_list(next_p);
+			continue;
+		}
+
+		p = SLIST_NEXT(p, link);
+	}
+}
+
+void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, void *ctx,
+			 vaddr_t begin, vaddr_t last)
+{
+	mutex_lock(&pgt_mu);
+
+	flush_ctx_range_from_list(pgt_cache, ctx, begin, last);
+	flush_ctx_range_from_list(&pgt_cache_list, ctx, begin, last);
+
+	condvar_broadcast(&pgt_cv);
+	mutex_unlock(&pgt_mu);
+}
+
+void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
+		  void *new_ctx, vaddr_t new_va, size_t size)
+{
+	const size_t pgtsize = CORE_MMU_PGDIR_SIZE;
+	const vaddr_t new_base = ROUNDDOWN(new_va, pgtsize);
+	const vaddr_t old_base = ROUNDDOWN(old_va, pgtsize);
+	const size_t num_new_pgt = (size - 1 + new_va - new_base) / pgtsize + 1;
+	const size_t num_old_pgt = (size - 1 + old_va - old_base) / pgtsize + 1;
+	struct pgt *new_pgt[num_new_pgt];
+	struct pgt *old_pgt[num_old_pgt];
+	struct pgt *pgt;
+	size_t n;
+
+	/*
+	 * Fill in new_pgt based on pgt_cache. Note that the pages should
+	 * already have been allocated.
+	 */
+	SLIST_FOREACH(pgt, pgt_cache, link) {
+		if (pgt->vabase < new_base)
+			continue;
+		n = (pgt->vabase - new_base) / pgtsize;
+		if (n < num_new_pgt)
+			new_pgt[n] = pgt;
+	}
+	for (n = 0; n < num_new_pgt; n++) {
+		assert(new_pgt[n]);
+		assert(new_pgt[n]->ctx == new_ctx);
+	}
+
+	mutex_lock(&pgt_mu);
+
+	/* Extract the array of pgts that need their content transferred */
+	for (n = 0; n < num_old_pgt; n++) {
+		/*
+		 * If the pgt isn't in the cache list there's nothing to
+		 * transfer, so NULL here is OK.
+		 */
+		old_pgt[n] = pop_from_cache_list(old_base + n * pgtsize,
+						 old_ctx);
+	}
+
+	tee_pager_transfer_uta_region(to_user_ta_ctx(old_ctx), old_va,
+				      to_user_ta_ctx(new_ctx), new_va, new_pgt,
+				      size);
+
+	for (n = 0; n < num_old_pgt; n++) {
+		if (!old_pgt[n])
+			continue;
+
+		if (old_pgt[n]->num_used_entries)
+			push_to_cache_list(old_pgt[n]);
+		else
+			push_to_free_list(old_pgt[n]);
+	}
+
 	mutex_unlock(&pgt_mu);
 }
 
