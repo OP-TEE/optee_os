@@ -639,7 +639,8 @@ static TEE_Result ree_fs_read(struct tee_file_handle *fh, void *buf,
 	if ((fdp->pos + remain_bytes) < remain_bytes ||
 	    fdp->pos > (tee_fs_off_t)fdp->meta.info.length)
 		remain_bytes = 0;
-	else if (fdp->pos + remain_bytes > fdp->meta.info.length)
+	else if (fdp->pos + (tee_fs_off_t)remain_bytes >
+		(tee_fs_off_t)fdp->meta.info.length)
 		remain_bytes = fdp->meta.info.length - fdp->pos;
 
 	*len = remain_bytes;

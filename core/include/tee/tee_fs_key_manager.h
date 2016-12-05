@@ -54,7 +54,7 @@ enum tee_fs_file_type {
 };
 
 struct tee_fs_file_info {
-	size_t length;
+	uint64_t length;
 	uint32_t backup_version_table[NUM_BLOCKS_PER_FILE / 32];
 };
 
