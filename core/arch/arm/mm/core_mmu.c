@@ -126,8 +126,6 @@ register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
 register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
 #endif
 
-register_phys_mem(MEM_AREA_RES_VASPACE, 0, RES_VASPACE_SIZE);
-
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)
 {
@@ -284,9 +282,35 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 	memmove(memory_map + n + 1, memory_map + n,
 		sizeof(struct tee_mmap_region) * (*last - n));
 	(*last)++;
+	memset(memory_map + n, 0, sizeof(memory_map[0]));
 	memory_map[n].type = mem->type;
 	memory_map[n].pa = mem->addr;
 	memory_map[n].size = mem->size;
+}
+
+static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
+			 unsigned int type, size_t size, size_t *last) {
+	size_t n = 0;
+
+	DMSG("type %d size 0x%08zx", type, size);
+	while (true) {
+		if (n >= (num_elems - 1)) {
+			EMSG("Out of entries (%zu) in memory_map", num_elems);
+			panic();
+		}
+		if (n == *last)
+			break;
+		if (type < memory_map[n].type)
+			break;
+		n++;
+	}
+
+	memmove(memory_map + n + 1, memory_map + n,
+		sizeof(struct tee_mmap_region) * (*last - n));
+	(*last)++;
+	memset(memory_map + n, 0, sizeof(memory_map[0]));
+	memory_map[n].type = type;
+	memory_map[n].size = size;
 }
 
 static uint32_t type_to_attr(enum teecore_memtypes t)
@@ -338,6 +362,10 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		}
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
+
+	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
+		     RES_VASPACE_SIZE, &last);
+
 	memory_map[last].type = MEM_AREA_NOTYPE;
 
 	/*
