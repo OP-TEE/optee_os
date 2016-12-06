@@ -205,6 +205,12 @@ typedef uint64_t uintmax_t;
 #define UINT64_C(v)	v ## UL
 #endif
 
+#ifdef ASM
+#define UINTPTR_C(v) v
+#else
+#define UINTPTR_C(v) v ## LU
+#endif
+
 /* 7.18.4.2 Macros for greatest-width integer constants */
 
 #define INTMAX_C(v)	INT64_C(v)
