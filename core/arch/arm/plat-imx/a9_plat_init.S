@@ -36,6 +36,7 @@
 
 #include <arm32.h>
 #include <arm32_macros.S>
+#include <arm32_macros_cortex_a9.S>
 #include <asm.S>
 #include <kernel/tz_ssvce_def.h>
 #include <kernel/unwind.h>

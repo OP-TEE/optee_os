@@ -42,6 +42,14 @@
 	mcr	p15, 0, \reg, c1, c0, 1
 	.endm
 
+	.macro write_cpacr reg
+	mcr	p15, 0, \reg, c1, c0, 2
+	.endm
+
+	.macro read_cpacr reg
+	mrc	p15, 0, \reg, c1, c0, 2
+	.endm
+
 	.macro read_scr reg
 	mrc	p15, 0, \reg, c1, c1, 0
 	.endm
@@ -58,8 +66,33 @@
 	mcr	p15, 0, \reg, c2, c0, 0
 	.endm
 
+	.macro read_ttbr0 reg
+	mrc	p15, 0, \reg, c2, c0, 0
+	.endm
+
+	.macro write_ttbr1 reg
+	mcr	p15, 0, \reg, c2, c0, 1
+	.endm
+
+	.macro read_ttbr1 reg
+	mrc	p15, 0, \reg, c2, c0, 1
+	.endm
+
+	.macro write_ttbcr reg
+	mcr	p15, 0, \reg, c2, c0, 2
+	.endm
+
+	.macro read_ttbcr reg
+	mrc	p15, 0, \reg, c2, c0, 2
+	.endm
+
+
 	.macro write_dacr reg
 	mcr	p15, 0, \reg, c3, c0, 0
+	.endm
+
+	.macro read_dacr reg
+	mrc	p15, 0, \reg, c3, c0, 0
 	.endm
 
 	.macro read_dfsr reg
@@ -107,12 +140,44 @@
 	mcr	p15, 0, \reg, c8, c3, 2
 	.endm
 
+	.macro write_prrr reg
+	mcr	p15, 0, \reg, c10, c2, 0
+	.endm
+
+	.macro read_prrr reg
+	mrc	p15, 0, \reg, c10, c2, 0
+	.endm
+
+	.macro write_nmrr reg
+	mcr	p15, 0, \reg, c10, c2, 1
+	.endm
+
+	.macro read_nmrr reg
+	mrc	p15, 0, \reg, c10, c2, 1
+	.endm
+
+	.macro read_vbar reg
+	mrc	p15, 0, \reg, c12, c0, 0
+	.endm
+
 	.macro write_vbar reg
 	mcr	p15, 0, \reg, c12, c0, 0
 	.endm
 
 	.macro write_mvbar reg
 	mcr	p15, 0, \reg, c12, c0, 1
+	.endm
+
+	.macro read_mvbar reg
+	mrc	p15, 0, \reg, c12, c0, 1
+	.endm
+
+	.macro write_fcseidr reg
+	mcr	p15, 0, \reg, c13, c0, 0
+	.endm
+
+	.macro read_fcseidr reg
+	mrc	p15, 0, \reg, c13, c0, 0
 	.endm
 
 	.macro write_contextidr reg
@@ -123,8 +188,12 @@
 	mrc	p15, 0, \reg, c13, c0, 1
 	.endm
 
-	.macro write_pcr reg
-	mcr  p15, 0, \reg, c15, c0, 0
+	.macro write_tpidruro reg
+	mcr	p15, 0, \reg, c13, c0, 3
+	.endm
+
+	.macro read_tpidruro reg
+	mrc	p15, 0, \reg, c13, c0, 3
 	.endm
 
 	.macro read_actlr reg
