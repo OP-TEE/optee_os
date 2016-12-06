@@ -313,7 +313,7 @@ static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
 	memory_map[n].size = size;
 }
 
-static uint32_t type_to_attr(enum teecore_memtypes t)
+uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW |
 			      TEE_MATTR_GLOBAL;
@@ -382,13 +382,13 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 #else
 	map->region_size = CORE_MMU_PGDIR_SIZE,
 #endif
-	map->attr = type_to_attr(map->type);
+	map->attr = core_mmu_type_to_attr(map->type);
 
 	if (core_mmu_place_tee_ram_at_top(map->pa)) {
 		va = map->va;
 		map++;
 		while (map->type != MEM_AREA_NOTYPE) {
-			map->attr = type_to_attr(map->type);
+			map->attr = core_mmu_type_to_attr(map->type);
 			map->region_size = CORE_MMU_PGDIR_SIZE,
 			va = ROUNDDOWN(va - map->size, CORE_MMU_PGDIR_SIZE);
 			map->va = va;
@@ -410,7 +410,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		va = ROUNDUP(map->va + map->size, CORE_MMU_PGDIR_SIZE);
 		map++;
 		while (map->type != MEM_AREA_NOTYPE) {
-			map->attr = type_to_attr(map->type);
+			map->attr = core_mmu_type_to_attr(map->type);
 			map->region_size = CORE_MMU_PGDIR_SIZE,
 			map->va = va;
 			va = ROUNDUP(va + map->size, CORE_MMU_PGDIR_SIZE);
@@ -921,7 +921,7 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	}
 	map->type = type;
 	map->region_size = granule;
-	map->attr = type_to_attr(type);
+	map->attr = core_mmu_type_to_attr(type);
 	map->pa = p;
 
 	set_region(&tbl_info, map);

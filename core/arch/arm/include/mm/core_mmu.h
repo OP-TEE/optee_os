@@ -198,6 +198,13 @@ enum core_mmu_fault {
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 
 /*
+ * core_mm_type_to_attr() - convert memory type to attribute
+ * @t: memory type
+ * @returns an attribute that can be passed to core_mm_set_entry() and friends
+ */
+uint32_t core_mmu_type_to_attr(enum teecore_memtypes t);
+
+/*
  * core_mmu_create_user_map() - Create user space mapping
  * @utc:	Pointer to user TA context
  * @map:	MMU configuration to use when activating this VA space
