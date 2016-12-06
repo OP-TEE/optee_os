@@ -78,7 +78,7 @@ static const struct tee_file_operations *file_ops(uint32_t storage_id)
 }
 
 /* SSF (Secure Storage File version 00 */
-#define TEE_SVC_STORAGE_MAGIC 0x53534600;
+#define TEE_SVC_STORAGE_MAGIC 0x53534600
 
 /* Header of GP formated secure storage files */
 struct tee_svc_storage_head {
@@ -297,6 +297,34 @@ exit:
 	return res;
 }
 
+static TEE_Result tee_svc_storage_update_head(struct tee_obj *o,
+					uint32_t ds_size)
+{
+	TEE_Result res;
+	const struct tee_file_operations *fops;
+	int32_t old_off;
+
+	fops = o->pobj->fops;
+
+	/* save original offset */
+	res = fops->seek(o->fh, 0, TEE_DATA_SEEK_CUR, &old_off);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* update head.ds_size */
+	res = fops->seek(o->fh, offsetof(struct tee_svc_storage_head,
+			ds_size), TEE_DATA_SEEK_SET, NULL);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = fops->write(o->fh, &ds_size, sizeof(uint32_t));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* restore original offset */
+	res = fops->seek(o->fh, old_off, TEE_DATA_SEEK_SET, NULL);
+	return res;
+}
 
 static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 					    struct tee_obj *o,
@@ -1069,8 +1097,12 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 		goto exit;
 
 	o->info.dataPosition += len;
-	if (o->info.dataPosition > o->info.dataSize)
+	if (o->info.dataPosition > o->info.dataSize) {
+		res = tee_svc_storage_update_head(o, o->info.dataPosition);
+		if (res != TEE_SUCCESS)
+			goto exit;
 		o->info.dataSize = o->info.dataPosition;
+	}
 
 exit:
 	return res;
