@@ -36,8 +36,6 @@
 #include <keep.h>
 #include <kernel/unwind.h>
 
-	.section .text.proc
-
 /*
  * void cpu_mmu_enable(void) - enable MMU
  *
