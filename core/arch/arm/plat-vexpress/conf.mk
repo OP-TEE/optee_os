@@ -61,7 +61,7 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # This is unfortunately currently not possible to do in make so we have to
 # calculate it offline, there's some asserts in
 # core/arch/arm/kernel/generic_boot.c to check that we got it right
-CFG_ASAN_SHADOW_OFFSET=0x6e4038e0
+CFG_ASAN_SHADOW_OFFSET=0xc4e38e0
 endif
 $(call force,CFG_DT,y)
 # SE API is only supported by QEMU Virt platform
