@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TZ_PROC_H
-#define TZ_PROC_H
+#include <kernel/spinlock.h>
+#include "thread_private.h"
 
-#define SPINLOCK_LOCK       1
-#define SPINLOCK_UNLOCK     0
+void spinlock_count_add(int c)
+{
+	struct thread_core_local *l = thread_get_core_local();
 
-#ifndef ASM
-void cpu_spin_lock(unsigned int *lock);
-unsigned int cpu_spin_trylock(unsigned int *lock);
-void cpu_spin_unlock(unsigned int *lock);
+	l->locked_count += c;
+}
 
-void cpu_mmu_enable(void);
-void cpu_mmu_enable_icache(void);
-void cpu_mmu_enable_dcache(void);
-#endif /*ASM*/
+bool have_spinlock(void)
+{
+	struct thread_core_local *l;
 
-#endif
+	if (!thread_irq_disabled()) {
+		/*
+		 * Normally we can't be holding a spinlock since doing so would
+		 * imply IRQ are disabled (or the spinlock logic is flawed).
+		 */
+		return false;
+	}
+
+	l = thread_get_core_local();
+
+	return !!l->locked_count;
+}

@@ -33,11 +33,10 @@
 #include <keep.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
-#include <kernel/tz_proc_def.h>
-#include <kernel/tz_proc.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu_defs.h>
@@ -235,6 +234,10 @@ void thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t cpsr = read_cpsr();
 
+	/* IRQ must not be unmasked while holding a spinlock */
+	if (!(exceptions & THREAD_EXCP_IRQ))
+		assert_have_no_spinlock();
+
 	cpsr &= ~(THREAD_EXCP_ALL << CPSR_F_SHIFT);
 	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
 	write_cpsr(cpsr);
@@ -252,6 +255,10 @@ uint32_t thread_get_exceptions(void)
 void thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t daif = read_daif();
+
+	/* IRQ must not be unmasked while holding a spinlock */
+	if (!(exceptions & THREAD_EXCP_IRQ))
+		assert_have_no_spinlock();
 
 	daif &= ~(THREAD_EXCP_ALL << DAIF_F_SHIFT);
 	daif |= ((exceptions & THREAD_EXCP_ALL) << DAIF_F_SHIFT);

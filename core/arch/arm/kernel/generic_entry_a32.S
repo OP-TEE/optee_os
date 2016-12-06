@@ -33,6 +33,7 @@
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <kernel/spinlock.h>
 #include <kernel/unwind.h>
 #include <kernel/asan.h>
 
