@@ -470,6 +470,49 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	return true;
 }
 
+bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
+			   unsigned int idx)
+{
+	uint32_t *new_table;
+	uint32_t *entry;
+	uint32_t new_table_desc;
+	paddr_t paddr;
+	uint32_t attr;
+	int i;
+
+	if (tbl_info->level != 1)
+		return false;
+
+	if (idx >= NUM_L1_ENTRIES)
+		return false;
+
+	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	if (!new_table)
+		return false;
+
+	entry = (uint32_t *)tbl_info->table + idx;
+	assert(get_desc_type(1, *entry) == DESC_TYPE_SECTION);
+
+	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
+	if (*entry & SECTION_NOTSECURE)
+		new_table_desc |= SECTION_PT_NOTSECURE;
+
+	/* store attributes of original block */
+	attr = desc_to_mattr(1, *entry);
+	paddr = *entry & ~SECTION_MASK;
+
+	/* Fill new xlat table with entries pointing to the same memory */
+	for (i = 0; i < NUM_L2_ENTRIES; i++) {
+		*new_table = paddr | mattr_to_desc(tbl_info->level + 1, attr);
+		paddr += SMALL_PAGE_SIZE;
+		new_table++;
+	}
+
+	/* Update descriptor at current level */
+	*entry = new_table_desc;
+	return true;
+}
+
 void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 				  paddr_t pa, uint32_t attr)
 {
