@@ -26,8 +26,9 @@
         5. [GCC5 support](#573-gcc5-support)
     5. [Raspberry Pi 3](#58-raspberry-pi-3)
     5. [Tips and tricks](#59-tips-and-tricks)
-        5. [Reference existing project to speed up repo sync](#581-reference-existing-project-to-speed-up-repo-sync)
-        5. [Use ccache](#582-use-ccache)
+        5. [Reference existing project to speed up repo sync](#591-reference-existing-project-to-speed-up-repo-sync)
+        5. [Use ccache](#592-use-ccache)
+        5. [Host-Guest folder sharing in QEMU/QEMUv8 configurations](#593-host-guest-folder-sharing-in-qemuqemuv8-configurations)
 6. [Load driver, tee-supplicant and run xtest](#6-load-driver-tee-supplicant-and-run-xtest)
 7. [Coding standards](#7-coding-standards)
     7. [checkpatch](#71-checkpatch)
@@ -119,10 +120,10 @@ to start with. Therefore install the following packages regardless of what
 target you will use in the end.
 ```
 $ sudo apt-get install android-tools-adb android-tools-fastboot autoconf bc \
-	bison cscope curl flex gdisk libc6:i386 libfdt-dev libftdi-dev \
-	libglib2.0-dev libhidapi-dev libncurses5-dev libpixman-1-dev \
-	libstdc++6:i386 libtool libz1:i386 mtools netcat python-crypto \
-	python-serial python-wand unzip uuid-dev xdg-utils xz-utils zlib1g-dev
+	bison cscope curl flex gdisk libattr1-dev libc6:i386 libcap-dev libfdt-dev \
+	libftdi-dev libglib2.0-dev libhidapi-dev libncurses5-dev libpixman-1-dev \
+	libstdc++6:i386 libtool libz1:i386 make mtools netcat python-crypto \
+	python-serial python-wand unzip uuid-dev xdg-utils xterm xz-utils zlib1g-dev
 ```
 
 ---
@@ -709,7 +710,7 @@ Normally step 1 and 2 above is something you will only do once. Also if you
 ignore step 2, then you will still get the latest from official git trees, since
 repo will also check for updates that aren't at the local reference.
 
-#### 5.9.2. Use ccache
+#### 5.9.2 Use ccache
 ccache is a tool that caches build object-files etc locally on the disc and can
 speed up build time significantly in subsequent builds. On Debian-based systems
 (Ubuntu, Mint etc) you simply install it by running:
