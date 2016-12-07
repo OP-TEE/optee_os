@@ -25,8 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TZ_PROC_H
-#define TZ_PROC_H
+#ifndef KERNEL_SPINLOCK_H
+#define KERNEL_SPINLOCK_H
 
 #define SPINLOCK_LOCK       1
 #define SPINLOCK_UNLOCK     0
@@ -35,10 +35,6 @@
 void cpu_spin_lock(unsigned int *lock);
 unsigned int cpu_spin_trylock(unsigned int *lock);
 void cpu_spin_unlock(unsigned int *lock);
-
-void cpu_mmu_enable(void);
-void cpu_mmu_enable_icache(void);
-void cpu_mmu_enable_dcache(void);
 #endif /*ASM*/
 
-#endif
+#endif /* KERNEL_SPINLOCK_H */

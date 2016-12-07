@@ -27,7 +27,7 @@
 
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/tz_proc.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <trace.h>
 

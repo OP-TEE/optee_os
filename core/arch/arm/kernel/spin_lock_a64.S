@@ -54,9 +54,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <kernel/tz_proc.h>
 
 #include <asm.S>
+#include <kernel/spinlock.h>
 
 /* void cpu_spin_lock(unsigned int *lock); */
 FUNC cpu_spin_lock , :
