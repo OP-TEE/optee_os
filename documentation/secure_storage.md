@@ -150,7 +150,7 @@ per-device keys for different subsystems using the same algorithm as we
 generate the SSK; An easy way to generate different per-device keys for
 different subsystems is using different static strings to generate the keys.
 
-### Trusted Application Storage Key (TKS)
+### Trusted Application Storage Key (TSK)
 
 The TSK is a per-Trusted Application key, which is generated from the SSK and
 the TA's identifier (UUID). It is used to protect the FEK, in other words,
