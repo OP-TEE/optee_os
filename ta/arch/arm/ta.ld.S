@@ -32,6 +32,9 @@ SECTIONS {
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
 	}
+
+	/* Page align to allow dropping execute bit for non-text sections */
+	. = ALIGN(4096);
 	.eh_frame : { *(.eh_frame) } :rodata
 	.rodata : {
 		*(.gnu.linkonce.r.*)
@@ -72,7 +75,7 @@ SECTIONS {
 	.dynstr : { *(.dynstr) }
 	.hash : { *(.hash) }
 
-	/* Page align to allow dropping execute bit for RW data */
+	/* Page align to allow dropping write bit for RO data */
 	. = ALIGN(4096);
 
 	.data : { *(.data .data.* .gnu.linkonce.d.*) } :rwdata
