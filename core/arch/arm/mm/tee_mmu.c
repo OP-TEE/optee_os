@@ -706,7 +706,7 @@ void teecore_init_pub_ram(void)
 
 #ifdef CFG_PL310
 	/* Allocate statically the l2cc mutex */
-	tee_l2cc_store_mutex_boot_pa(s);
+	tee_l2cc_store_mutex_boot_pa(virt_to_phys((void *)s));
 	s += sizeof(uint32_t);		/* size of a pl310 mutex */
 #endif
 
