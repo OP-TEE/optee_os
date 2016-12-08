@@ -568,8 +568,7 @@ static size_t area_va2idx(struct tee_pager_area *area, vaddr_t va)
 	return (va - (area->base & ~CORE_MMU_PGDIR_MASK)) >> SMALL_PAGE_SHIFT;
 }
 
-static vaddr_t __maybe_unused area_idx2va(struct tee_pager_area *area,
-					  size_t idx)
+static vaddr_t area_idx2va(struct tee_pager_area *area, size_t idx)
 {
 	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
 }
@@ -863,7 +862,18 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 			if (!(flags & TEE_MATTR_UW))
 				tee_pager_save_page(pmem, a);
+
 			area_set_entry(pmem->area, pmem->pgidx, pa, f);
+
+			if (flags & TEE_MATTR_UX) {
+				void *va = (void *)area_idx2va(pmem->area,
+							       pmem->pgidx);
+
+				cache_maintenance_l1(DCACHE_AREA_CLEAN, va,
+						     SMALL_PAGE_SIZE);
+				cache_maintenance_l1(ICACHE_AREA_INVALIDATE, va,
+						     SMALL_PAGE_SIZE);
+			}
 		}
 
 		area->flags = f;

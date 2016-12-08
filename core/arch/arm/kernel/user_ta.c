@@ -187,8 +187,14 @@ static TEE_Result config_initial_paging(struct user_ta_ctx *utc __unused)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result config_final_paging(struct user_ta_ctx *utc __unused)
+static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 {
+	void *va = (void *)utc->mmu->ta_private_vmem_start;
+	size_t vasize = utc->mmu->ta_private_vmem_end -
+			utc->mmu->ta_private_vmem_start;
+
+	cache_maintenance_l1(DCACHE_AREA_CLEAN, va, vasize);
+	cache_maintenance_l1(ICACHE_AREA_INVALIDATE, va, vasize);
 	return TEE_SUCCESS;
 }
 #endif /*!CFG_PAGED_USER_TA*/
@@ -359,10 +365,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	cache_maintenance_l1(DCACHE_AREA_CLEAN,
-			     (void *)tee_mmu_get_load_addr(&utc->ctx), vasize);
-	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
-			     (void *)tee_mmu_get_load_addr(&utc->ctx), vasize);
 out:
 	elf_load_final(elf_state);
 	free(digest);
