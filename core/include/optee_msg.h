@@ -27,6 +27,9 @@
 #ifndef _OPTEE_MSG_H
 #define _OPTEE_MSG_H
 
+#include <compiler.h>
+#include <types_ext.h>
+
 /*
  * This file defines the OP-TEE message protocol used to communicate
  * with an instance of OP-TEE running in secure world.
