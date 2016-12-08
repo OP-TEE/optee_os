@@ -129,9 +129,11 @@ out:
 
 static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 {
-	uint32_t mattr = TEE_MATTR_PRW;
+	uint32_t mattr = 0;
 
-	if (!init_attrs) {
+	if (init_attrs)
+		mattr = TEE_MATTR_PRW;
+	else {
 		if (flags & PF_X)
 			mattr |= TEE_MATTR_UX;
 		if (flags & PF_W)
