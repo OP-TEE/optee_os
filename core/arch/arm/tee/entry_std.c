@@ -26,30 +26,35 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <assert.h>
 #include <compiler.h>
 #include <initcall.h>
 #include <kernel/panic.h>
-#include <kernel/tee_dispatch.h>
 #include <kernel/tee_misc.h>
+#include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <string.h>
-#include <string.h>
 #include <tee/entry_std.h>
+#include <tee/tee_cryp_utl.h>
 #include <tee/uuid.h>
 #include <util.h>
 
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 
+/* Sessions opened from normal world */
+static struct tee_ta_session_head tee_open_sessions =
+TAILQ_HEAD_INITIALIZER(tee_open_sessions);
+
 static struct mobj *shm_mobj;
 
-static bool set_mem_param(const struct optee_msg_param *param,
-			  struct param_mem *mem)
+static TEE_Result set_mem_param(const struct optee_msg_param *param,
+				struct param_mem *mem)
 {
 	paddr_t b;
 	size_t sz;
@@ -63,22 +68,23 @@ static bool set_mem_param(const struct optee_msg_param *param,
 	if (param->u.tmem.buf_ptr && !tsz)
 		tsz++;
 	if (!core_is_buffer_inside(param->u.tmem.buf_ptr, tsz, b, sz))
-		return false;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	mem->mobj = shm_mobj;
 	mem->offs = param->u.tmem.buf_ptr - b;
 	mem->size = param->u.tmem.size;
-	return true;
+	return TEE_SUCCESS;
 }
 
-static bool copy_in_params(const struct optee_msg_param *params,
+static TEE_Result copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, struct tee_ta_param *ta_param)
 {
+	TEE_Result res;
 	size_t n;
 	uint8_t pt[TEE_NUM_PARAMS];
 
 	if (num_params > TEE_NUM_PARAMS)
-		return false;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	memset(ta_param, 0, sizeof(*ta_param));
 
@@ -86,9 +92,9 @@ static bool copy_in_params(const struct optee_msg_param *params,
 		uint32_t attr;
 
 		if (params[n].attr & OPTEE_MSG_ATTR_META)
-			return false;
+			return TEE_ERROR_BAD_PARAMETERS;
 		if (params[n].attr & OPTEE_MSG_ATTR_FRAGMENT)
-			return false;
+			return TEE_ERROR_BAD_PARAMETERS;
 
 		attr = params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK;
 
@@ -110,17 +116,18 @@ static bool copy_in_params(const struct optee_msg_param *params,
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-			if (!set_mem_param(params + n, &ta_param->u[n].mem))
-				return false;
+			res = set_mem_param(params + n, &ta_param->u[n].mem);
+			if (res != TEE_SUCCESS)
+				return res;
 			break;
 		default:
-			return false;
+			return TEE_ERROR_BAD_PARAMETERS;
 		}
 	}
 
 	ta_param->types = TEE_PARAM_TYPES(pt[0], pt[1], pt[2], pt[3]);
 
-	return true;
+	return TEE_SUCCESS;
 }
 
 static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
@@ -152,122 +159,171 @@ static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
  * false : mandatory parameter wasn't found or malformatted
  * true  : paramater found and OK
  */
-static bool get_open_session_meta(struct optee_msg_arg *arg,
-		uint32_t num_params, size_t *num_meta,
-		TEE_UUID *uuid, TEE_Identity *clnt_id)
+static TEE_Result get_open_session_meta(size_t num_params,
+					struct optee_msg_param *params,
+					size_t *num_meta, TEE_UUID *uuid,
+					TEE_Identity *clnt_id)
 {
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
 				  OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 
-	if (num_params < (*num_meta + 2))
-		return false;
+	if (num_params < 2)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (params[*num_meta].attr != req_attr ||
-	    params[*num_meta + 1].attr != req_attr)
-		return false;
+	if (params[0].attr != req_attr || params[1].attr != req_attr)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);
-	tee_uuid_from_octets(&clnt_id->uuid,
-			     (void *)&params[*num_meta + 1].u.value);
-	clnt_id->login = params[*num_meta + 1].u.value.c;
+	tee_uuid_from_octets(uuid, (void *)&params[0].u.value);
+	clnt_id->login = params[1].u.value.c;
+	switch (clnt_id->login) {
+	case TEE_LOGIN_PUBLIC:
+		memset(&clnt_id->uuid, 0, sizeof(clnt_id->uuid));
+		break;
+	case TEE_LOGIN_USER:
+	case TEE_LOGIN_GROUP:
+	case TEE_LOGIN_APPLICATION:
+	case TEE_LOGIN_APPLICATION_USER:
+	case TEE_LOGIN_APPLICATION_GROUP:
+		tee_uuid_from_octets(&clnt_id->uuid,
+				     (void *)&params[1].u.value);
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
-	(*num_meta) += 2;
-	return true;
+	*num_meta = 2;
+	return TEE_SUCCESS;
+}
+
+static void inject_entropy_with_timestamp(void)
+{
+	TEE_Time current;
+
+	if (tee_time_get_sys_time(&current) == TEE_SUCCESS)
+		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
 }
 
 static void entry_open_session(struct thread_smc_args *smc_args,
-			struct optee_msg_arg *arg, uint32_t num_params)
+			       struct optee_msg_arg *arg, uint32_t num_params)
 {
-	struct tee_dispatch_open_session_in in;
-	struct tee_dispatch_open_session_out out;
+	TEE_Result res;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
-	size_t num_meta = 0;
+	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
+	struct tee_ta_session *s = NULL;
+	TEE_Identity clnt_id;
+	TEE_UUID uuid;
+	struct tee_ta_param param;
+	size_t num_meta;
 
-	if (!get_open_session_meta(arg, num_params, &num_meta, &in.uuid,
-				   &in.clnt_id))
-		goto bad_params;
+	res = get_open_session_meta(num_params, params, &num_meta, &uuid,
+				    &clnt_id);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	if (!copy_in_params(params + num_meta, num_params - num_meta,
-			    &in.param))
-		goto bad_params;
+	res = copy_in_params(params + num_meta, num_params - num_meta, &param);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	(void)tee_dispatch_open_session(&in, &out);
+	res = tee_ta_open_session(&err_orig, &s, &tee_open_sessions, &uuid,
+				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
+	if (res != TEE_SUCCESS)
+		s = NULL;
+	copy_out_param(&param, num_params - num_meta, params + num_meta);
 
-	copy_out_param(&out.param, num_params - num_meta, params + num_meta);
+	/*
+	 * The occurrence of open/close session command is usually
+	 * un-predictable, using this property to increase randomness
+	 * of prng
+	 */
+	inject_entropy_with_timestamp();
 
-	arg->session = (vaddr_t)out.sess;
-	arg->ret = out.msg.res;
-	arg->ret_origin = out.msg.err;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
-	return;
-
-bad_params:
-	DMSG("Bad params");
-	arg->ret = TEE_ERROR_BAD_PARAMETERS;
-	arg->ret_origin = TEE_ORIGIN_TEE;
+out:
+	if (s)
+		arg->session = (vaddr_t)s;
+	else
+		arg->session = 0;
+	arg->ret = res;
+	arg->ret_origin = err_orig;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
 static void entry_close_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
+	TEE_Result res;
+	struct tee_ta_session *s;
 
-	if (num_params == 0) {
-		struct tee_close_session_in in;
-
-		in.sess = (TEE_Session *)(uintptr_t)arg->session;
-		arg->ret = tee_dispatch_close_session(&in);
-	} else {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	if (num_params) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
 
+	inject_entropy_with_timestamp();
+
+	s = (struct tee_ta_session *)(vaddr_t)arg->session;
+	res = tee_ta_close_session(s, &tee_open_sessions, NSAPP_IDENTITY);
+out:
+	arg->ret = res;
 	arg->ret_origin = TEE_ORIGIN_TEE;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
 static void entry_invoke_command(struct thread_smc_args *smc_args,
-			struct optee_msg_arg *arg, uint32_t num_params)
+				 struct optee_msg_arg *arg, uint32_t num_params)
 {
-	struct tee_dispatch_invoke_command_in in;
-	struct tee_dispatch_invoke_command_out out;
+	TEE_Result res;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
+	struct tee_ta_session *s;
+	struct tee_ta_param param;
 
-	if (!copy_in_params(params, num_params, &in.param)) {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
-		arg->ret_origin = TEE_ORIGIN_TEE;
-		smc_args->a0 = OPTEE_SMC_RETURN_OK;
-		return;
+	res = copy_in_params(params, num_params, &param);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	s = tee_ta_get_session(arg->session, true, &tee_open_sessions);
+	if (!s) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
 
-	in.sess = (TEE_Session *)(vaddr_t)arg->session;
-	in.cmd = arg->func;
-	(void)tee_dispatch_invoke_command(&in, &out);
+	res = tee_ta_invoke_command(&err_orig, s, NSAPP_IDENTITY,
+				    TEE_TIMEOUT_INFINITE, arg->func, &param);
 
-	copy_out_param(&out.param, num_params, params);
+	tee_ta_put_session(s);
 
-	arg->ret = out.msg.res;
-	arg->ret_origin = out.msg.err;
+	copy_out_param(&param, num_params, params);
+
+out:
+	arg->ret = res;
+	arg->ret_origin = err_orig;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
 static void entry_cancel(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
+	TEE_Result res;
+	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
+	struct tee_ta_session *s;
 
-	if (num_params == 0) {
-		struct tee_dispatch_cancel_command_in in;
-		struct tee_dispatch_cancel_command_out out;
-
-		in.sess = (TEE_Session *)(vaddr_t)arg->session;
-		(void)tee_dispatch_cancel_command(&in, &out);
-		arg->ret = out.msg.res;
-		arg->ret_origin = out.msg.err;
-	} else {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
-		arg->ret_origin = TEE_ORIGIN_TEE;
+	if (num_params) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
 
+	s = tee_ta_get_session(arg->session, false, &tee_open_sessions);
+	if (!s) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = tee_ta_cancel_command(&err_orig, s, NSAPP_IDENTITY);
+	tee_ta_put_session(s);
+
+out:
+	arg->ret = res;
+	arg->ret_origin = err_orig;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
