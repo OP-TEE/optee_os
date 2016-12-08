@@ -34,6 +34,7 @@
 #include <sm/optee_smc.h>
 #include <string.h>
 #include <tee/entry_std.h>
+#include <tee/uuid.h>
 #include <util.h>
 
 #define SHM_CACHE_ATTRS	\
@@ -154,9 +155,9 @@ static bool get_open_session_meta(struct optee_msg_arg *arg,
 	    params[*num_meta + 1].attr != req_attr)
 		return false;
 
-	memcpy(uuid, &params[*num_meta].u.value, sizeof(TEE_UUID));
-	memcpy(&clnt_id->uuid, &params[*num_meta + 1].u.value,
-	       sizeof(TEE_UUID));
+	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);
+	tee_uuid_from_octets(&clnt_id->uuid,
+			     (void *)&params[*num_meta + 1].u.value);
 	clnt_id->login = params[*num_meta + 1].u.value.c;
 
 	(*num_meta) += 2;

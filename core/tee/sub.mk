@@ -41,4 +41,7 @@ srcs-y += tee_time_generic.c
 
 endif #CFG_WITH_USER_TA,y
 
+srcs-y += uuid.c
+
 subdirs-$(CFG_SE_API) += se
+
