@@ -32,30 +32,11 @@
 #include <mm/core_mmu.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
+#include <string.h>
 
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
 TAILQ_HEAD_INITIALIZER(tee_open_sessions);
-
-static void update_out_param(const struct tee_ta_param *in, TEE_Param *out)
-{
-	size_t n;
-
-	for (n = 0; n < TEE_NUM_PARAMS; n++) {
-		switch (TEE_PARAM_TYPE_GET(in->types, n)) {
-		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
-		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			out[n].memref.size = in->params[n].memref.size;
-			break;
-		case TEE_PARAM_TYPE_VALUE_OUTPUT:
-		case TEE_PARAM_TYPE_VALUE_INOUT:
-			out[n].value = in->params[n].value;
-			break;
-		default:
-			break;
-		}
-	}
-}
 
 static TEE_Result update_clnt_id(const TEE_Identity *in, TEE_Identity *out)
 {
@@ -94,7 +75,6 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct tee_ta_session *s = NULL;
 	uint32_t res_orig = TEE_ORIGIN_TEE;
-	struct tee_ta_param param;
 	TEE_Identity clnt_id;
 
 	/* copy client info in a safe place */
@@ -102,18 +82,13 @@ TEE_Result tee_dispatch_open_session(struct tee_dispatch_open_session_in *in,
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	param.types = in->param_types;
-	memcpy(param.params, in->params, sizeof(in->params));
-	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
-
+	out->param = in->param;
 	res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions, &in->uuid,
-				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
+				  &clnt_id, TEE_TIMEOUT_INFINITE, &out->param);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
 	out->sess = (TEE_Session *)s;
-	memcpy(out->params, in->params, sizeof(in->params));
-	update_out_param(&param, out->params);
 
 	/*
 	 * The occurrence of open/close session command is usually
@@ -144,7 +119,6 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 				       struct tee_dispatch_invoke_command_out *
 				       out)
 {
-	struct tee_ta_param param;
 	struct tee_ta_session *sess;
 	TEE_Result res;
 	TEE_ErrorOrigin err = TEE_ORIGIN_TEE;
@@ -155,17 +129,12 @@ TEE_Result tee_dispatch_invoke_command(struct tee_dispatch_invoke_command_in *
 		goto cleanup_return;
 	}
 
-	param.types = in->param_types;
-	memcpy(param.params, in->params, sizeof(in->params));
-	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
-
+	out->param = in->param;
 	res = tee_ta_invoke_command(&err, sess, NSAPP_IDENTITY,
-				    TEE_TIMEOUT_INFINITE, in->cmd, &param);
+				    TEE_TIMEOUT_INFINITE, in->cmd, &out->param);
 
 	tee_ta_put_session(sess);
 
-	memcpy(out->params, in->params, sizeof(in->params));
-	update_out_param(&param, out->params);
 
 cleanup_return:
 	out->msg.res = res;

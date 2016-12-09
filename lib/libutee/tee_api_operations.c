@@ -977,6 +977,7 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, void *srcData,
 	}
 
 	if (!srcData && !srcLen) {
+		*destLen = 0;
 		res = TEE_SUCCESS;
 		goto out;
 	}
@@ -1355,6 +1356,7 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, void *srcData,
 	}
 
 	if (!srcData && !srcLen) {
+		*destLen = 0;
 		res = TEE_SUCCESS;
 		goto out;
 	}
@@ -1415,11 +1417,6 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 
 	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (!srcData && !srcLen) {
-		res = TEE_SUCCESS;
 		goto out;
 	}
 
@@ -1505,11 +1502,6 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 
 	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (!srcData && !srcLen) {
-		res = TEE_SUCCESS;
 		goto out;
 	}
 

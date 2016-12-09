@@ -55,13 +55,19 @@
 #define TEE_MATTR_CACHE_NONCACHE 0
 #define TEE_MATTR_CACHE_CACHED	1
 
-#define TEE_MATTR_VIRTUAL		(1 << 15)
-#define TEE_MATTR_LOCKED		(1 << 16)
-#define TEE_MATTR_PAGED			(1 << 17)
+#define TEE_MATTR_LOCKED		(1 << 15)
 
+#define TEE_MMU_UMAP_STACK_IDX	0
+#define TEE_MMU_UMAP_CODE_IDX	1
+#define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
+
+#define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
+					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
+#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + \
+					 TEE_NUM_PARAMS)
 
 struct tee_mmap_region {
-	unsigned int type;
+	unsigned int type; /* enum teecore_memtypes */
 	unsigned int region_size;
 	paddr_t pa;
 	vaddr_t va;
@@ -69,9 +75,16 @@ struct tee_mmap_region {
 	uint32_t attr; /* TEE_MATTR_* above */
 };
 
-struct tee_mmu_info {
-	struct tee_mmap_region *table;
+struct tee_ta_region {
+	struct mobj *mobj;
+	size_t offset;
+	vaddr_t va;
 	size_t size;
+	uint32_t attr; /* TEE_MATTR_* above */
+};
+
+struct tee_mmu_info {
+	struct tee_ta_region regions[TEE_MMU_UMAP_MAX_ENTRIES];
 	vaddr_t ta_private_vmem_start;
 	vaddr_t ta_private_vmem_end;
 };

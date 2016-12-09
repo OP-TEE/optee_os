@@ -28,6 +28,7 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
+#include <compiler.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <types_ext.h>

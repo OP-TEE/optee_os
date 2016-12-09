@@ -39,6 +39,7 @@
 #include <mm/tee_mm.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/mobj.h>
 #include <mm/tee_pager.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
@@ -53,15 +54,6 @@
 #include <kernel/tee_l2cc_mutex.h>
 #endif
 
-#define TEE_MMU_UMAP_STACK_IDX	0
-#define TEE_MMU_UMAP_CODE_IDX	1
-#define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
-
-#define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
-					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
-#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + \
-				TEE_NUM_PARAMS)
-
 #define TEE_MMU_UDATA_ATTR		(TEE_MATTR_VALID_BLOCK | \
 					 TEE_MATTR_PRW | TEE_MATTR_URW | \
 					 TEE_MATTR_SECURE)
@@ -75,24 +67,27 @@
 /* Support for 31 concurrent sessions */
 static uint32_t g_asid = 0xffffffff;
 
-static void tee_mmu_umap_set_pa(struct tee_mmap_region *tbl,
-			size_t granule, paddr_t pa, size_t size, uint32_t attr)
+static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
+					 struct param_mem *mem)
 {
-	paddr_t upa = ROUNDDOWN(pa, granule);
-	size_t usz = ROUNDUP(pa - upa + size, granule);
-
-	tbl->pa = upa;
-	tbl->size = usz;
-	tbl->attr = attr;
-}
-
-static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu, paddr_t pa,
-			size_t size, uint32_t attr)
-{
-	struct tee_mmap_region *last_entry = NULL;
+	TEE_Result res;
+	struct tee_ta_region *last_entry = NULL;
 	size_t n;
-	paddr_t npa;
+	uint32_t attr = TEE_MMU_UDATA_ATTR;
 	size_t nsz;
+	size_t noffs;
+
+	if (!mobj_is_paged(mem->mobj)) {
+		uint32_t cattr;
+
+		res = mobj_get_cattr(mem->mobj, &cattr);
+		if (res != TEE_SUCCESS)
+			return res;
+		attr |= cattr << TEE_MATTR_CACHE_SHIFT;
+	}
+
+	if (!mobj_is_secure(mem->mobj))
+		attr &= ~TEE_MATTR_SECURE;
 
 	/* Check that we can map memory using this attribute */
 	if (!core_mmu_mattr_is_ok(attr))
@@ -100,7 +95,7 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu, paddr_t pa,
 
 	/* Find empty entry */
 	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++)
-		if (!mmu->table[n].size)
+		if (!mmu->regions[n].size)
 			break;
 
 	if (n == TEE_MMU_UMAP_MAX_ENTRIES) {
@@ -108,15 +103,19 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu, paddr_t pa,
 		return TEE_ERROR_EXCESS_DATA;
 	}
 
-	tee_mmu_umap_set_pa(mmu->table + n, CORE_MMU_USER_PARAM_SIZE,
-			    pa, size, attr);
+	mmu->regions[n].mobj = mem->mobj;
+	mmu->regions[n].offset = ROUNDDOWN(mem->offs, CORE_MMU_USER_PARAM_SIZE);
+	mmu->regions[n].size = ROUNDUP(mem->offs - mmu->regions[n].offset +
+				       mem->size,
+				       CORE_MMU_USER_PARAM_SIZE);
+	mmu->regions[n].attr = attr;
 
 	/* Try to coalesce some entries */
 	while (true) {
 		/* Find last param */
 		n = TEE_MMU_UMAP_MAX_ENTRIES - 1;
 
-		while (!mmu->table[n].size) {
+		while (!mmu->regions[n].size) {
 			n--;
 			if (n < TEE_MMU_UMAP_PARAM_IDX) {
 				/* No param entries found, "can't happen" */
@@ -124,35 +123,32 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu, paddr_t pa,
 			}
 		}
 
-		if (last_entry == mmu->table + n)
+		if (last_entry == mmu->regions + n)
 			return TEE_SUCCESS; /* Can't coalesc more */
-		last_entry = mmu->table + n;
+		last_entry = mmu->regions + n;
 
 		n--;
 		while (n >= TEE_MMU_UMAP_PARAM_IDX) {
-			struct tee_mmap_region *entry = mmu->table + n;
+			struct tee_ta_region *entry = mmu->regions + n;
 
 			n--;
-			if (last_entry->attr != entry->attr) {
-				if (core_is_buffer_intersect(last_entry->pa,
-							     last_entry->size,
-							     entry->pa,
-							     entry->size))
-					return TEE_ERROR_ACCESS_CONFLICT;
+			if (last_entry->mobj != entry->mobj)
 				continue;
-			}
 
-			if ((last_entry->pa + last_entry->size) == entry->pa ||
-			    (entry->pa + entry->size) == last_entry->pa ||
-			    core_is_buffer_intersect(last_entry->pa,
+			if ((last_entry->offset + last_entry->size) ==
+			    entry->offset ||
+			    (entry->offset + entry->size) ==
+			    last_entry->offset ||
+			    core_is_buffer_intersect(last_entry->offset,
 						     last_entry->size,
-						     entry->pa, entry->size)) {
-				npa = MIN(last_entry->pa, entry->pa);
-				nsz = MAX(last_entry->pa + last_entry->size,
-					  entry->pa + entry->size) - npa;
-				entry->pa = npa;
+						     entry->offset,
+						     entry->size)) {
+				noffs = MIN(last_entry->offset, entry->offset);
+				nsz = MAX(last_entry->offset + last_entry->size,
+					  entry->offset + entry->size) - noffs;
+				entry->offset = noffs;
 				entry->size = nsz;
-				last_entry->pa = 0;
+				last_entry->mobj = NULL;
 				last_entry->size = 0;
 				last_entry->attr = 0;
 				break;
@@ -171,9 +167,9 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 
 	/* Find last table entry used to map code and data */
 	n = TEE_MMU_UMAP_PARAM_IDX - 1;
-	while (n && !mmu->table[n].size)
+	while (n && !mmu->regions[n].size)
 		n--;
-	va = mmu->table[n].va + mmu->table[n].size;
+	va = mmu->regions[n].va + mmu->regions[n].size;
 	assert(va);
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
@@ -184,11 +180,11 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	 */
 	va = ROUNDUP(va, granule);
 	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
-		if (!mmu->table[n].size ||
-		    !(mmu->table[n].attr & TEE_MATTR_SECURE))
+		if (!mmu->regions[n].size ||
+		    !(mmu->regions[n].attr & TEE_MATTR_SECURE))
 			continue;
-		mmu->table[n].va = va;
-		va += mmu->table[n].size;
+		mmu->regions[n].va = va;
+		va += mmu->regions[n].size;
 		/* Put some empty space between each area */
 		va += granule;
 		if ((va - va_range_base) >= va_range_size)
@@ -202,11 +198,11 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	 */
 	va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
 	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
-		if (!mmu->table[n].size ||
-		    (mmu->table[n].attr & TEE_MATTR_SECURE))
+		if (!mmu->regions[n].size ||
+		    (mmu->regions[n].attr & TEE_MATTR_SECURE))
 			continue;
-		mmu->table[n].va = va;
-		va += mmu->table[n].size;
+		mmu->regions[n].va = va;
+		va += mmu->regions[n].size;
 		/* Put some empty space between each area */
 		va += granule;
 		if ((va - va_range_base) >= va_range_size)
@@ -239,18 +235,15 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 	utc->mmu = calloc(1, sizeof(struct tee_mmu_info));
 	if (!utc->mmu)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	utc->mmu->table = calloc(TEE_MMU_UMAP_MAX_ENTRIES,
-				 sizeof(struct tee_mmap_region));
-	if (!utc->mmu->table)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	utc->mmu->size = TEE_MMU_UMAP_MAX_ENTRIES;
 	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }
 
 #ifdef CFG_SMALL_PAGE_USER_TA
-static TEE_Result check_pgt_avail(vaddr_t base, vaddr_t end)
+static TEE_Result alloc_pgt(struct user_ta_ctx *utc __maybe_unused,
+			    vaddr_t base, vaddr_t end)
 {
+	struct thread_specific_data *tsd __maybe_unused;
 	vaddr_t b = ROUNDDOWN(base, CORE_MMU_PGDIR_SIZE);
 	vaddr_t e = ROUNDUP(end, CORE_MMU_PGDIR_SIZE);
 	size_t ntbl = (e - b) >> CORE_MMU_PGDIR_SHIFT;
@@ -259,67 +252,99 @@ static TEE_Result check_pgt_avail(vaddr_t base, vaddr_t end)
 		EMSG("%zu page tables not available", ntbl);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
+
+#ifdef CFG_PAGED_USER_TA
+	tsd = thread_get_tsd();
+	if (&utc->ctx == tsd->ctx) {
+
+		/*
+		 * The supplied utc is the current active utc, allocate the
+		 * page tables too as the pager needs to use them soon.
+		 */
+		pgt_alloc(&tsd->pgt_cache, &utc->ctx, b, e - 1);
+	}
+#endif
+
 	return TEE_SUCCESS;
 }
+
+static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct pgt_cache *pgt_cache = NULL;
+
+	if (&utc->ctx == tsd->ctx)
+		pgt_cache = &tsd->pgt_cache;
+
+	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
+}
+
 #else
-static TEE_Result check_pgt_avail(vaddr_t base __unused, vaddr_t end __unused)
+static TEE_Result alloc_pgt(struct user_ta_ctx *utc __unused,
+			    vaddr_t base __unused, vaddr_t end __unused)
 {
 	return TEE_SUCCESS;
+}
+
+static void free_pgt(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
+		     size_t size __unused)
+{
 }
 #endif
 
-void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
-		       uint32_t prot)
+void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 {
-	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
-			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
-	struct tee_mmap_region *tbl = utc->mmu->table;
+	struct tee_ta_region *region = utc->mmu->regions +
+				       TEE_MMU_UMAP_STACK_IDX;
 
-	tbl[TEE_MMU_UMAP_STACK_IDX].pa = pa;
-	tbl[TEE_MMU_UMAP_STACK_IDX].va = utc->mmu->ta_private_vmem_start;
-	tbl[TEE_MMU_UMAP_STACK_IDX].size = ROUNDUP(size, granule);
-	tbl[TEE_MMU_UMAP_STACK_IDX].attr = prot | attr;
+	region->mobj = mobj;
+	region->offset = 0;
+	region->va = utc->mmu->ta_private_vmem_start;
+	region->size = ROUNDUP(utc->mobj_stack->size, granule);
+	region->attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+		       TEE_MATTR_URW | TEE_MATTR_PRW |
+		       (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 }
 
-TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
-			size_t offs, size_t size, uint32_t prot)
+TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, struct mobj *mobj,
+				   size_t offs, size_t size, uint32_t prot)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
-	struct tee_mmap_region *tbl = utc->mmu->table;
+	struct tee_ta_region *tbl = utc->mmu->regions;
 	vaddr_t va;
 	vaddr_t end_va;
-	paddr_t pa;
 	size_t n = TEE_MMU_UMAP_CODE_IDX;
+	size_t o;
 
 	if (!tbl[n].size) {
 		/* We're continuing the va space from previous entry. */
 		assert(tbl[n - 1].size);
 
 		/* This is the first segment */
-		assert(offs < granule);
 		va = tbl[n - 1].va + tbl[n - 1].size;
-		end_va = ROUNDUP(offs + size, granule) + va;
-		pa = base_pa;
+		end_va = ROUNDUP((offs & (granule - 1)) + size, granule) + va;
+		o = ROUNDDOWN(offs, granule);
 		goto set_entry;
 	}
 
 	/*
-	 * base_pa of code segments must not change once the first is
+	 * mobj of code segments must not change once the first is
 	 * assigned.
 	 */
-	if (base_pa != tbl[n].pa)
+	if (mobj != tbl[n].mobj)
 		return TEE_ERROR_SECURITY;
 
 	/*
 	 * Let's find an entry we overlap with or if we need to add a new
 	 * entry.
 	 */
-	va = ROUNDDOWN(offs, granule) + tbl[n].va;
-	end_va = ROUNDUP(offs + size, granule) + tbl[n].va;
-	pa = ROUNDDOWN(offs, granule) + base_pa;
+	o = offs - tbl[n].offset;
+	va = ROUNDDOWN(o, granule) + tbl[n].va;
+	end_va = ROUNDUP(o + size, granule) + tbl[n].va;
+	o = ROUNDDOWN(offs, granule);
 	while (true) {
 		if (va >= (tbl[n].va + tbl[n].size)) {
 			n++;
@@ -339,8 +364,8 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 		if (((n + 1) >= TEE_MMU_UMAP_PARAM_IDX) || tbl[n + 1].size)
 			return TEE_ERROR_SECURITY;
 
-		/* pa must match or the segments aren't added in order */
-		if (pa != (va - tbl[n].va + tbl[n].pa))
+		/* offset must match or the segments aren't added in order */
+		if (o != (va - tbl[n].va + tbl[n].offset))
 			return TEE_ERROR_SECURITY;
 		/* We should only overlap in the last granule of the entry. */
 		if ((va + granule) < (tbl[n].va + tbl[n].size))
@@ -353,14 +378,15 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 		/* If the segment was completely overlapped, we're done. */
 		if (va == end_va)
 			return TEE_SUCCESS;
-		pa += granule;
+		o += granule;
 		n++;
 		goto set_entry;
 	}
 
 set_entry:
-	tbl[n].pa = pa;
+	tbl[n].mobj = mobj;
 	tbl[n].va = va;
+	tbl[n].offset = o;
 	tbl[n].size = end_va - va;
 	tbl[n].attr = prot | attr;
 
@@ -369,79 +395,88 @@ set_entry:
 	 * Check that we have enough translation tables available to map
 	 * this TA.
 	 */
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->ta_private_vmem_end);
+	return alloc_pgt(utc, utc->mmu->ta_private_vmem_start,
+			 utc->mmu->ta_private_vmem_end);
 }
 
 void tee_mmu_map_clear(struct user_ta_ctx *utc)
 {
 	utc->mmu->ta_private_vmem_end = 0;
-	memset(utc->mmu->table, 0,
-	       TEE_MMU_UMAP_MAX_ENTRIES * sizeof(struct tee_mmap_region));
+	memset(utc->mmu->regions, 0, sizeof(utc->mmu->regions));
+}
+
+static void clear_param_map(struct user_ta_ctx *utc)
+{
+	const size_t n = TEE_MMU_UMAP_PARAM_IDX;
+	const size_t array_size = ARRAY_SIZE(utc->mmu->regions);
+
+	memset(utc->mmu->regions + n, 0,
+	       (array_size - n) * sizeof(utc->mmu->regions[0]));
+}
+
+static TEE_Result param_mem_to_user_va(struct user_ta_ctx *utc,
+				       struct param_mem *mem, void **user_va)
+{
+	size_t n;
+
+	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
+		struct tee_ta_region *region = utc->mmu->regions + n;
+		vaddr_t va;
+
+		if (mem->mobj != region->mobj)
+			continue;
+		if (mem->offs < region->offset)
+			continue;
+		if (mem->offs >= (region->offset + region->size))
+			continue;
+		va = region->va + mem->offs - region->offset;
+		*user_va = (void *)va;
+		return TEE_SUCCESS;
+	}
+	return TEE_ERROR_GENERIC;
 }
 
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
-		struct tee_ta_param *param)
+		struct tee_ta_param *param, void *param_va[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_SUCCESS;
 	size_t n;
 
 	/* Clear all the param entries as they can hold old information */
-	memset(utc->mmu->table + TEE_MMU_UMAP_PARAM_IDX, 0,
-		(TEE_MMU_UMAP_MAX_ENTRIES - TEE_MMU_UMAP_PARAM_IDX) *
-		sizeof(struct tee_mmap_region));
+	clear_param_map(utc);
 
 	/* Map secure memory params first then nonsecure memory params */
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
-		TEE_Param *p = &param->params[n];
-		uint32_t attr = TEE_MMU_UDATA_ATTR;
+		struct param_mem *mem = &param->u[n].mem;
 
 		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
 			continue;
-		if (p->memref.size == 0)
+		if (!mem->size)
+			continue;
+		if (mobj_is_nonsec(mem->mobj))
 			continue;
 
-		if (tee_pbuf_is_non_sec(p->memref.buffer, p->memref.size))
-			continue;
-
-		if (param->param_attr[n] == OPTEE_SMC_SHM_CACHED)
-			attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
-		else
-			attr |= TEE_MATTR_CACHE_NONCACHE <<
-				TEE_MATTR_CACHE_SHIFT;
-
-		res = tee_mmu_umap_add_param(utc->mmu,
-				(paddr_t)p->memref.buffer, p->memref.size,
-				attr);
+		res = tee_mmu_umap_add_param(utc->mmu, mem);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
-		TEE_Param *p = &param->params[n];
-		uint32_t attr = TEE_MMU_UDATA_ATTR & ~TEE_MATTR_SECURE;
+		struct param_mem *mem = &param->u[n].mem;
 
 		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
 			continue;
-		if (p->memref.size == 0)
+		if (!mem->size)
 			continue;
-		if (!tee_pbuf_is_non_sec(p->memref.buffer, p->memref.size))
+		if (!mobj_is_nonsec(mem->mobj))
 			continue;
 
-		if (param->param_attr[n] == OPTEE_SMC_SHM_CACHED)
-			attr |= TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
-		else
-			attr |= TEE_MATTR_CACHE_NONCACHE <<
-				TEE_MATTR_CACHE_SHIFT;
-
-		res = tee_mmu_umap_add_param(utc->mmu,
-				(paddr_t)p->memref.buffer, p->memref.size,
-				attr);
+		res = tee_mmu_umap_add_param(utc->mmu, mem);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -452,31 +487,141 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
-		TEE_Param *p = &param->params[n];
+		struct param_mem *mem = &param->u[n].mem;
 
 		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
 			continue;
-		if (p->memref.size == 0)
+		if (mem->size == 0)
 			continue;
 
-		res = tee_mmu_user_pa2va_helper(utc, (paddr_t)p->memref.buffer,
-					 &p->memref.buffer);
+		res = param_mem_to_user_va(utc, mem, param_va + n);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
-	utc->mmu->ta_private_vmem_start = utc->mmu->table[0].va;
+	utc->mmu->ta_private_vmem_start = utc->mmu->regions[0].va;
 
-	n = TEE_MMU_UMAP_MAX_ENTRIES;
+	n = ARRAY_SIZE(utc->mmu->regions);
 	do {
 		n--;
-	} while (n && !utc->mmu->table[n].size);
+	} while (n && !utc->mmu->regions[n].size);
 
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->table[n].va +
-			       utc->mmu->table[n].size);
+	return alloc_pgt(utc, utc->mmu->ta_private_vmem_start,
+			 utc->mmu->regions[n].va + utc->mmu->regions[n].size);
+}
+
+TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
+			     int pgdir_offset, vaddr_t *va)
+{
+	struct tee_ta_region *reg = NULL;
+	struct tee_ta_region *last_reg;
+	vaddr_t v;
+	vaddr_t end_v;
+	size_t n;
+
+	assert(pgdir_offset < CORE_MMU_PGDIR_SIZE);
+
+	/*
+	 * Avoid the corner case when no regions are assigned, currently
+	 * stack and code areas are always assigned before we end up here.
+	 */
+	if (!utc->mmu->regions[0].size)
+		return TEE_ERROR_GENERIC;
+
+	for (n = 1; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!reg && utc->mmu->regions[n].size)
+			continue;
+		last_reg = utc->mmu->regions + n;
+
+		if (!reg) {
+			reg = last_reg;
+			v = ROUNDUP((reg - 1)->va + (reg - 1)->size,
+				    SMALL_PAGE_SIZE);
+#ifndef CFG_WITH_LPAE
+			/*
+			 * Non-LPAE mappings can't mix secure and
+			 * non-secure in a single pgdir.
+			 */
+			if (mobj_is_secure((reg - 1)->mobj) !=
+			    mobj_is_secure(mobj))
+				v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
+#endif
+
+			/*
+			 * If mobj needs to span several page directories
+			 * the offset into the first pgdir need to match
+			 * the supplied offset or some area used by the
+			 * pager may not fit into a single pgdir.
+			 */
+			if (pgdir_offset >= 0 &&
+			    mobj->size > CORE_MMU_PGDIR_SIZE) {
+				if ((v & CORE_MMU_PGDIR_MASK) <
+				    (size_t)pgdir_offset)
+					v = ROUNDDOWN(v, CORE_MMU_PGDIR_SIZE);
+				else
+					v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
+				v += pgdir_offset;
+			}
+			end_v = ROUNDUP(v + mobj->size, SMALL_PAGE_SIZE);
+			continue;
+		}
+
+		if (!last_reg->size)
+			continue;
+		/*
+		 * There's one registered region after our selected spot,
+		 * check if we can still fit or if we need a later spot.
+		 */
+		if (end_v > last_reg->va) {
+			reg = NULL;
+			continue;
+		}
+#ifndef CFG_WITH_LPAE
+		if (mobj_is_secure(mobj) != mobj_is_secure(last_reg->mobj) &&
+		    end_v > ROUNDDOWN(last_reg->va, CORE_MMU_PGDIR_SIZE))
+			reg = NULL;
+#endif
+	}
+
+	if (reg) {
+		TEE_Result res;
+
+		end_v = MAX(end_v, last_reg->va + last_reg->size);
+		res = alloc_pgt(utc, utc->mmu->ta_private_vmem_start, end_v);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		*va = v;
+		reg->va = v;
+		reg->mobj = mobj;
+		reg->offset = 0;
+		reg->size = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
+		if (mobj_is_secure(mobj))
+			reg->attr = TEE_MATTR_SECURE;
+		else
+			reg->attr = 0;
+		return TEE_SUCCESS;
+	}
+
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
+{
+	size_t n;
+
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		struct tee_ta_region *reg = utc->mmu->regions + n;
+
+		if (reg->mobj == mobj && reg->va == va &&
+		    reg->size == mobj->size) {
+			free_pgt(utc, reg->va, reg->size);
+			memset(reg, 0, sizeof(*reg));
+			return;
+		}
+	}
 }
 
 /*
@@ -493,10 +638,7 @@ void tee_mmu_final(struct user_ta_ctx *utc)
 	secure_mmu_unifiedtlbinv_byasid(utc->context & 0xff);
 	utc->context = 0;
 
-	if (utc->mmu) {
-		free(utc->mmu->table);
-		free(utc->mmu);
-	}
+	free(utc->mmu);
 	utc->mmu = NULL;
 }
 
@@ -518,21 +660,49 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 	  utc->mmu->ta_private_vmem_end - utc->mmu->ta_private_vmem_start);
 }
 
+TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_ta_ctx *utc,
+				     const void *va, size_t size,
+				     struct mobj **mobj, size_t *offs)
+{
+	size_t n;
+
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!utc->mmu->regions[n].mobj)
+			continue;
+		if (core_is_buffer_inside(va, size, utc->mmu->regions[n].va,
+					  utc->mmu->regions[n].size)) {
+			*mobj = utc->mmu->regions[n].mobj;
+			*offs = (vaddr_t)va - utc->mmu->regions[n].va +
+				utc->mmu->regions[n].offset;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
 static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,
 			void *ua, paddr_t *pa, uint32_t *attr)
 {
 	size_t n;
 
-	if (!utc->mmu->table)
-		return TEE_ERROR_ACCESS_DENIED;
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (core_is_buffer_inside(ua, 1, utc->mmu->regions[n].va,
+					  utc->mmu->regions[n].size)) {
+			if (pa) {
+				TEE_Result res;
+				paddr_t p;
 
-	for (n = 0; n < utc->mmu->size; n++) {
-		if (core_is_buffer_inside(ua, 1, utc->mmu->table[n].va,
-					  utc->mmu->table[n].size)) {
-			*pa = (paddr_t)ua - utc->mmu->table[n].va +
-				utc->mmu->table[n].pa;
+				res = mobj_get_pa(utc->mmu->regions[n].mobj,
+						  utc->mmu->regions[n].offset,
+						  0, &p);
+				if (res != TEE_SUCCESS)
+					return res;
+
+				*pa = (paddr_t)ua - utc->mmu->regions[n].va + p;
+			}
 			if (attr)
-				*attr = utc->mmu->table[n].attr;
+				*attr = utc->mmu->regions[n].attr;
 			return TEE_SUCCESS;
 		}
 	}
@@ -549,19 +719,26 @@ TEE_Result tee_mmu_user_va2pa_helper(const struct user_ta_ctx *utc, void *ua,
 TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 				      paddr_t pa, void **va)
 {
+	TEE_Result res;
+	paddr_t p;
 	size_t n;
 
-	if (!utc->mmu->table)
-		return TEE_ERROR_ACCESS_DENIED;
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!utc->mmu->regions[n].mobj)
+			continue;
 
-	for (n = 0; n < utc->mmu->size; n++) {
-		if (core_is_buffer_inside(pa, 1, utc->mmu->table[n].pa,
-					  utc->mmu->table[n].size)) {
-			*va = (void *)((paddr_t)pa - utc->mmu->table[n].pa +
-					utc->mmu->table[n].va);
+		res = mobj_get_pa(utc->mmu->regions[n].mobj,
+				  utc->mmu->regions[n].offset, 0, &p);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		if (core_is_buffer_inside(pa, 1, p,
+					  utc->mmu->regions[n].size)) {
+			*va = (void *)(pa - p + utc->mmu->regions[n].va);
 			return TEE_SUCCESS;
 		}
 	}
+
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
@@ -590,11 +767,10 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 		return TEE_ERROR_ACCESS_DENIED;
 
 	for (a = uaddr; a < (uaddr + len); a += addr_incr) {
-		paddr_t pa;
 		uint32_t attr;
 		TEE_Result res;
 
-		res = tee_mmu_user_va2pa_attr(utc, (void *)a, &pa, &attr);
+		res = tee_mmu_user_va2pa_attr(utc, (void *)a, NULL, &attr);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -652,11 +828,8 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)
 {
 	const struct user_ta_ctx *utc = to_user_ta_ctx((void *)ctx);
 
-	assert(utc->mmu && utc->mmu->table);
-	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
-		panic("invalid size");
-
-	return utc->mmu->table[1].va;
+	assert(utc->mmu);
+	return utc->mmu->regions[TEE_MMU_UMAP_CODE_IDX].va;
 }
 
 void teecore_init_ta_ram(void)
@@ -716,10 +889,9 @@ void teecore_init_pub_ram(void)
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va)
 {
-	paddr_t pa;
 	uint32_t attr;
 
-	if (tee_mmu_user_va2pa_attr(utc, va, &pa, &attr) != TEE_SUCCESS)
+	if (tee_mmu_user_va2pa_attr(utc, va, NULL, &attr) != TEE_SUCCESS)
 		panic("cannot get attr");
 
 	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
