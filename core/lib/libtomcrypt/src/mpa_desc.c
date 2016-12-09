@@ -35,14 +35,23 @@ void init_mpa_tomcrypt(const mpa_scratch_mem pool)
 	external_mem_pool = pool;
 }
 
-
-static int init(void **a)
+static int init_mpanum(mpanum *a)
 {
 	LTC_ARGCHK(a != NULL);
-	if (!mpa_alloc_static_temp_var((mpanum *)a, external_mem_pool))
+	if (!mpa_alloc_static_temp_var(a, external_mem_pool))
 		return CRYPT_MEM;
 	mpa_set_S32(*a, 0);
 	return CRYPT_OK;
+}
+
+static int init(void **a)
+{
+	mpanum n;
+	int ret;
+
+	ret = init_mpanum(&n);
+	*a = n;
+	return ret;
 }
 
 static int init_size(int size_bits, void **a)
@@ -55,11 +64,16 @@ static int init_size(int size_bits, void **a)
 	return CRYPT_OK;
 }
 
-static void deinit(void *a)
+static void deinit_mpanum(mpanum a)
 {
 	LTC_ARGCHKVD(a != NULL);
 
-	mpa_free_static_temp_var((mpanum *) &a, external_mem_pool);
+	mpa_free_static_temp_var(&a, external_mem_pool);
+}
+
+static void deinit(void *a)
+{
+	deinit_mpanum(a);
 }
 
 static int neg(void *a, void *b)
@@ -489,7 +503,8 @@ static int montgomery_reduce(void *a, void *b, void *c)
 	LTC_ARGCHK(b != NULL);
 	LTC_ARGCHK(c != NULL);
 	mpanum tmp;
-	if (init((void **)&tmp) != CRYPT_OK) {
+
+	if (init_mpanum(&tmp) != CRYPT_OK) {
 		return CRYPT_MEM;
 	}
 	// WARNING
