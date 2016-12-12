@@ -59,7 +59,7 @@ unsigned int __cpu_spin_trylock(unsigned int *lock);
 
 static inline void cpu_spin_lock(unsigned int *lock)
 {
-	assert(thread_irq_disabled());
+	assert(thread_foreign_intr_disabled());
 	__cpu_spin_lock(lock);
 	spinlock_count_incr();
 }
@@ -68,7 +68,7 @@ static inline bool cpu_spin_trylock(unsigned int *lock)
 {
 	unsigned int rc;
 
-	assert(thread_irq_disabled());
+	assert(thread_foreign_intr_disabled());
 	rc = __cpu_spin_trylock(lock);
 	if (!rc)
 		spinlock_count_incr();
@@ -77,7 +77,7 @@ static inline bool cpu_spin_trylock(unsigned int *lock)
 
 static inline void cpu_spin_unlock(unsigned int *lock)
 {
-	assert(thread_irq_disabled());
+	assert(thread_foreign_intr_disabled());
 	__cpu_spin_unlock(lock);
 	spinlock_count_decr();
 }

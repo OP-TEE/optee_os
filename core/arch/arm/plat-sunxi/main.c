@@ -62,7 +62,7 @@ static void main_tee_entry_fast(struct thread_smc_args *args);
 static const struct thread_handlers handlers = {
 	.std_smc = main_tee_entry_std,
 	.fast_smc = main_tee_entry_fast,
-	.fiq = main_fiq,
+	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
@@ -78,12 +78,13 @@ void main_init(uint32_t nsec_entry)
 	size_t pos = get_core_pos();
 
 	/*
-	 * Mask IRQ and FIQ before switch to the thread vector as the
-	 * thread handler requires IRQ and FIQ to be masked while executing
+	 * Mask the interrupts before switch to the thread vector as the
+	 * thread handler requires the interrupts to be masked while executing
 	 * with the temporary stack. The thread subsystem also asserts that
-	 * IRQ is blocked when using most if its functions.
+	 * foreign interrupts are blocked when using most if its functions.
 	 */
-	thread_mask_exceptions(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ);
+	thread_mask_exceptions(
+			THREAD_EXCP_NATIVE_INTR | THREAD_EXCP_FOREIGN_INTR);
 
 	if (pos == 0) {
 		thread_init_primary(&handlers);

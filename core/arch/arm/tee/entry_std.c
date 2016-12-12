@@ -346,7 +346,8 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 
-	thread_set_irq(true);	/* Enable IRQ for STD calls */
+	/* Enable foreign interrupts for STD calls */
+	thread_set_foreign_intr(true);
 	switch (arg->cmd) {
 	case OPTEE_MSG_CMD_OPEN_SESSION:
 		entry_open_session(smc_args, arg, num_params);

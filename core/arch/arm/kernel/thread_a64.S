@@ -77,7 +77,7 @@ END_FUNC vector_fast_smc_entry
 LOCAL_FUNC vector_fiq_entry , :
 	/* Secure Monitor received a FIQ and passed control to us. */
 	bl	thread_check_canaries
-	adr	x16, thread_fiq_handler_ptr
+	adr	x16, thread_nintr_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
 	ldr	x0, =TEESMC_OPTEED_RETURN_FIQ_DONE
@@ -487,9 +487,9 @@ LOCAL_FUNC el0_svc , :
 	mov	x0, sp
 
 	/*
-	 * Unmask FIQ, Serror, and debug exceptions since we have nothing
-	 * left in sp_el1. Note that the SVC handler is excepted to
-	 * re-enable IRQs by itself.
+	 * Unmask native interrupts, Serror, and debug exceptions since we have
+	 * nothing left in sp_el1. Note that the SVC handler is excepted to
+	 * re-enable foreign interrupts by itself.
 	 */
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
 
@@ -713,7 +713,7 @@ LOCAL_FUNC elx_irq , :
 	/*
 	 * Mark current thread as suspended
 	 */
-	mov	w0, #THREAD_FLAGS_EXIT_ON_IRQ
+	mov	w0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
 	mrs	x1, spsr_el1
 	mrs	x2, elr_el1
 	bl	thread_state_suspend
@@ -734,7 +734,7 @@ LOCAL_FUNC elx_irq , :
 	 */
 
 	ldr	w0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	ldr	w1, =OPTEE_SMC_RETURN_RPC_IRQ
+	ldr	w1, =OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
 	mov	w2, #0
 	mov	w3, #0
 	/* w4 is already filled in above */
@@ -787,7 +787,7 @@ LOCAL_FUNC elx_fiq , :
 	stp	x30, x2, [sp, #ELX_FIQ_REC_LR]
 
 	bl	thread_check_canaries
-	adr	x16, thread_fiq_handler_ptr
+	adr	x16, thread_nintr_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
 

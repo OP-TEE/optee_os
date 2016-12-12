@@ -49,10 +49,11 @@ bool have_spinlock(void)
 {
 	struct thread_core_local *l;
 
-	if (!thread_irq_disabled()) {
+	if (!thread_foreign_intr_disabled()) {
 		/*
 		 * Normally we can't be holding a spinlock since doing so would
-		 * imply IRQ are disabled (or the spinlock logic is flawed).
+		 * imply foreign interrupts are disabled (or the spinlock
+		 * logic is flawed).
 		 */
 		return false;
 	}

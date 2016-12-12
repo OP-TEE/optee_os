@@ -117,7 +117,8 @@ static uint32_t malloc_lock(void)
 {
 	uint32_t exceptions;
 
-	exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ | THREAD_EXCP_FIQ);
+	exceptions = thread_mask_exceptions(
+			THREAD_EXCP_NATIVE_INTR | THREAD_EXCP_FOREIGN_INTR);
 	cpu_spin_lock(&__malloc_spinlock);
 	return exceptions;
 }

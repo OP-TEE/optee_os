@@ -607,7 +607,8 @@ static void init_primary_helper(unsigned long pageable_part,
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
 	 * executing with the temporary stack. The thread subsystem also
-	 * asserts that IRQ is blocked when using most if its functions.
+	 * asserts that the foreign interrupts are blocked when using most of
+	 * its functions.
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	init_vfp_sec();
@@ -634,7 +635,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
 	 * executing with the temporary stack. The thread subsystem also
-	 * asserts that IRQ is blocked when using most if its functions.
+	 * asserts that the foreign interrupts are blocked when using most of
+	 * its functions.
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
 

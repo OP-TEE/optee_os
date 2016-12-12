@@ -174,7 +174,7 @@ static TEE_Result test_ppi(void)
 	itr_add(&ppi_handler);
 	itr_enable(TEST_PPI_ID);
 
-	exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	expect_ppi_value[get_core_pos()]++;
 	itr_raise_pi(TEST_PPI_ID);
 	thread_unmask_exceptions(exceptions);

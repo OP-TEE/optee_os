@@ -140,7 +140,7 @@ KEEP_PAGER(stack_tmp_offset);
 
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;
-thread_fiq_handler_t thread_fiq_handler_ptr;
+thread_nintr_handler_t thread_nintr_handler_ptr;
 thread_pm_handler_t thread_cpu_on_handler_ptr;
 thread_pm_handler_t thread_cpu_off_handler_ptr;
 thread_pm_handler_t thread_cpu_suspend_handler_ptr;
@@ -234,8 +234,8 @@ void thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t cpsr = read_cpsr();
 
-	/* IRQ must not be unmasked while holding a spinlock */
-	if (!(exceptions & THREAD_EXCP_IRQ))
+	/* Foreign interrupts must not be unmasked while holding a spinlock */
+	if (!(exceptions & THREAD_EXCP_FOREIGN_INTR))
 		assert_have_no_spinlock();
 
 	cpsr &= ~(THREAD_EXCP_ALL << CPSR_F_SHIFT);
@@ -256,8 +256,8 @@ void thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t daif = read_daif();
 
-	/* IRQ must not be unmasked while holding a spinlock */
-	if (!(exceptions & THREAD_EXCP_IRQ))
+	/* Foreign interrupts must not be unmasked while holding a spinlock */
+	if (!(exceptions & THREAD_EXCP_FOREIGN_INTR))
 		assert_have_no_spinlock();
 
 	daif &= ~(THREAD_EXCP_ALL << DAIF_F_SHIFT);
@@ -285,11 +285,11 @@ struct thread_core_local *thread_get_core_local(void)
 	uint32_t cpu_id = get_core_pos();
 
 	/*
-	 * IRQs must be disabled before playing with core_local since
-	 * we otherwise may be rescheduled to a different core in the
+	 * Foreign interrupts must be disabled before playing with core_local
+	 * since we otherwise may be rescheduled to a different core in the
 	 * middle of this function.
 	 */
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 
 	assert(cpu_id < CFG_TEE_CORE_NB_CORE);
 	return &thread_core_local[cpu_id];
@@ -338,11 +338,12 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.pc = (uint32_t)thread_std_smc_entry;
 
 	/*
-	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
-	 * abort and unmasked FIQ.
-	  */
+	 * Stdcalls starts in SVC mode with masked foreign interrupts, masked
+	 * Asynchronous abort and unmasked native interrupts.
+	 */
 	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
+	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_A |
+			(THREAD_EXCP_FOREIGN_INTR << ARM32_CPSR_F_SHIFT);
 	/* Enable thumb mode if it's a thumb instruction */
 	if (thread->regs.pc & 1)
 		thread->regs.cpsr |= CPSR_T;
@@ -371,11 +372,11 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.pc = (uint64_t)thread_std_smc_entry;
 
 	/*
-	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
-	 * abort and unmasked FIQ.
-	  */
+	 * Stdcalls starts in SVC mode with masked foreign interrupts, masked
+	 * Asynchronous abort and unmasked native interrupts.
+	 */
 	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
-				    DAIFBIT_IRQ | DAIFBIT_ABT);
+				THREAD_EXCP_FOREIGN_INTR | DAIFBIT_ABT);
 	/* Reinitialize stack pointer */
 	thread->regs.sp = thread->stack_va_end;
 
@@ -556,7 +557,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 		core_mmu_set_user_map(&threads[n].user_map);
 
 	/*
-	 * Return from RPC to request service of an IRQ must not
+	 * Return from RPC to request service of a foreign interrupt must not
 	 * get parameters from non-secure world.
 	 */
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
@@ -769,8 +770,10 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 
 int thread_get_id_may_fail(void)
 {
-	/* thread_get_core_local() requires IRQs to be disabled */
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	/*
+	 * thread_get_core_local() requires foreign interrupts to be disabled
+	 */
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
@@ -790,7 +793,7 @@ static void init_handlers(const struct thread_handlers *handlers)
 {
 	thread_std_smc_handler_ptr = handlers->std_smc;
 	thread_fast_smc_handler_ptr = handlers->fast_smc;
-	thread_fiq_handler_ptr = handlers->fiq;
+	thread_nintr_handler_ptr = handlers->nintr;
 	thread_cpu_on_handler_ptr = handlers->cpu_on;
 	thread_cpu_off_handler_ptr = handlers->cpu_off;
 	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
@@ -890,10 +893,10 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 	return &threads[l->curr_thread].regs;
 }
 
-void thread_set_irq(bool enable)
+void thread_set_foreign_intr(bool enable)
 {
-	/* thread_get_core_local() requires IRQs to be disabled */
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	/* thread_get_core_local() requires foreign interrupts to be disabled */
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l;
 
 	l = thread_get_core_local();
@@ -901,35 +904,37 @@ void thread_set_irq(bool enable)
 	assert(l->curr_thread != -1);
 
 	if (enable) {
-		threads[l->curr_thread].flags |= THREAD_FLAGS_IRQ_ENABLE;
-		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
+		threads[l->curr_thread].flags |=
+					THREAD_FLAGS_FOREIGN_INTR_ENABLE;
+		thread_set_exceptions(exceptions & ~THREAD_EXCP_FOREIGN_INTR);
 	} else {
 		/*
-		 * No need to disable IRQ here since it's already disabled
-		 * above.
+		 * No need to disable foreign interrupts here since they're
+		 * already disabled above.
 		 */
-		threads[l->curr_thread].flags &= ~THREAD_FLAGS_IRQ_ENABLE;
+		threads[l->curr_thread].flags &=
+					~THREAD_FLAGS_FOREIGN_INTR_ENABLE;
 	}
 }
 
-void thread_restore_irq(void)
+void thread_restore_foreign_intr(void)
 {
-	/* thread_get_core_local() requires IRQs to be disabled */
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	/* thread_get_core_local() requires foreign interrupts to be disabled */
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l;
 
 	l = thread_get_core_local();
 
 	assert(l->curr_thread != -1);
 
-	if (threads[l->curr_thread].flags & THREAD_FLAGS_IRQ_ENABLE)
-		thread_set_exceptions(exceptions & ~THREAD_EXCP_IRQ);
+	if (threads[l->curr_thread].flags & THREAD_FLAGS_FOREIGN_INTR_ENABLE)
+		thread_set_exceptions(exceptions & ~THREAD_EXCP_FOREIGN_INTR);
 }
 
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
@@ -967,9 +972,9 @@ void thread_kernel_disable_vfp(uint32_t state)
 
 	vfp_disable();
 	exceptions = thread_get_exceptions();
-	assert(exceptions & THREAD_EXCP_IRQ);
-	exceptions &= ~THREAD_EXCP_IRQ;
-	exceptions |= state & THREAD_EXCP_IRQ;
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
 	thread_set_exceptions(exceptions);
 }
 
@@ -977,7 +982,7 @@ void thread_kernel_save_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 	if (vfp_is_enabled()) {
 		vfp_lazy_save_state_init(&thr->vfp_state.sec);
 		thr->vfp_state.sec_lazy_saved = true;
@@ -988,7 +993,7 @@ void thread_kernel_restore_vfp(void)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 	assert(!vfp_is_enabled());
 	if (thr->vfp_state.sec_lazy_saved) {
 		vfp_lazy_restore_state(&thr->vfp_state.sec,
@@ -1003,7 +1008,7 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 	assert(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
@@ -1030,7 +1035,7 @@ void thread_user_save_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 	if (!vfp_is_enabled())
 		return;
 
@@ -1130,7 +1135,7 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 {
 	bool rv;
 	size_t n;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 
 	lock_global();
 
@@ -1163,7 +1168,7 @@ bool thread_enable_prealloc_rpc_cache(void)
 {
 	bool rv;
 	size_t n;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 
 	lock_global();
 

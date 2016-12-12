@@ -49,7 +49,7 @@ static void main_fiq(void);
 static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
-	.fiq = main_fiq,
+	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,

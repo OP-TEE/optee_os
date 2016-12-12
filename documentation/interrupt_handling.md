@@ -19,8 +19,18 @@ The processor is configured to use:
 * Monitor vector for SMC exceptions
 * State vector for IRQ exceptions
 
-Interrupts handled by secure world are sent as FIQs and interrupts handled
-by normal world are sent as IRQs.
+Two types of interrupt are defined in optee_os:
+* Native interrupt - The interrupt handled by optee_os
+  (for example: secure interrupt)
+* Foreign interrupt - The interrupt not handled by optee_os
+  (for example: non-secure interrupt which is handled by normal world)
+
+For ARM GICv2 mode, native interrupt is sent as FIQ and foreign interrupt is
+sent as IRQ.
+
+For ARM GICv3 mode, foreign interrupt is sent as FIQ which could be handled
+by either secure world (EL3 in AArch64) or normal world. This mode is not
+supported yet.
 
 Since IRQs are received using the state vector the actual vector used
 depends on the current state of the CPU. If the NS (non-secure) bit in SCR

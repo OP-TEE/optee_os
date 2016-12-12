@@ -30,6 +30,7 @@
 #define KERNEL_THREAD_H
 
 #ifndef ASM
+#include <arm.h>
 #include <types_ext.h>
 #include <compiler.h>
 #include <optee_msg.h>
@@ -203,7 +204,7 @@ struct thread_svc_regs {
 
 #ifndef ASM
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
-typedef void (*thread_fiq_handler_t)(void);
+typedef void (*thread_nintr_handler_t)(void);
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
 					     unsigned long a1);
 struct thread_handlers {
@@ -218,11 +219,12 @@ struct thread_handlers {
 	 *
 	 * fastcall handles fast calls which can't be preemted. This
 	 * handler is executed with a limited stack. This handler must not
-	 * cause any aborts or reenenable FIQs which are temporarily masked
-	 * while executing this handler.
+	 * cause any aborts or reenenable native interrupts which are
+	 * temporarily masked while executing this handler.
 	 *
-	 * TODO investigate if we should execute fastcalls and FIQs on
-	 * different stacks allowing FIQs to be enabled during a fastcall.
+	 * TODO investigate if we should execute fastcalls and native interrupts
+	 * on different stacks allowing native interrupts to be enabled during
+	 * a fastcall.
 	 */
 	thread_smc_handler_t std_smc;
 	thread_smc_handler_t fast_smc;
@@ -231,12 +233,12 @@ struct thread_handlers {
 	 * fiq is called as a regular function and normal ARM Calling
 	 * Convention applies.
 	 *
-	 * This handler handles FIQs which can't be preemted. This handler
-	 * is executed with a limited stack. This handler must not cause
-	 * any aborts or reenenable FIQs which are temporarily masked while
-	 * executing this handler.
+	 * This handler handles native interrupts which can't be preemted. This
+	 * handler is executed with a limited stack. This handler must not cause
+	 * any aborts or reenenable native interrupts which are temporarily
+	 * masked while executing this handler.
 	 */
-	thread_fiq_handler_t fiq;
+	thread_nintr_handler_t nintr;
 
 	/*
 	 * Power management handlers triggered from ARM Trusted Firmware.
@@ -285,28 +287,30 @@ int thread_get_id_may_fail(void);
 struct thread_specific_data *thread_get_tsd(void);
 
 /*
- * Sets IRQ status for current thread, must only be called from an
- * active thread context.
+ * Sets foreign interrupts status for current thread, must only be called
+ * from an active thread context.
  *
- * enable == true  -> enable IRQ
- * enable == false -> disable IRQ
+ * enable == true  -> enable foreign interrupts
+ * enable == false -> disable foreign interrupts
  */
-void thread_set_irq(bool enable);
+void thread_set_foreign_intr(bool enable);
 
 /*
- * Restores the IRQ status (in CPSR) for current thread, must only be called
- * from an active thread context.
+ * Restores the foreign interrupts status (in CPSR) for current thread, must
+ * only be called from an active thread context.
  */
-void thread_restore_irq(void);
+void thread_restore_foreign_intr(void);
 
 /*
  * Defines the bits for the exception mask used the the
  * thread_*_exceptions() functions below.
+ * These definitions are compatible with both ARM32 and ARM64.
  */
-#define THREAD_EXCP_FIQ	(1 << 0)
-#define THREAD_EXCP_IRQ	(1 << 1)
-#define THREAD_EXCP_ABT	(1 << 2)
-#define THREAD_EXCP_ALL	(THREAD_EXCP_FIQ | THREAD_EXCP_IRQ | THREAD_EXCP_ABT)
+#define THREAD_EXCP_FOREIGN_INTR	(ARM32_CPSR_I >> ARM32_CPSR_F_SHIFT)
+#define THREAD_EXCP_NATIVE_INTR		(ARM32_CPSR_F >> ARM32_CPSR_F_SHIFT)
+#define THREAD_EXCP_ALL			(THREAD_EXCP_FOREIGN_INTR	\
+					| THREAD_EXCP_NATIVE_INTR	\
+					| (ARM32_CPSR_A >> ARM32_CPSR_F_SHIFT))
 
 /*
  * thread_get_exceptions() - return current exception mask
@@ -337,18 +341,18 @@ uint32_t thread_mask_exceptions(uint32_t exceptions);
 void thread_unmask_exceptions(uint32_t state);
 
 
-static inline bool thread_irq_disabled(void)
+static inline bool thread_foreign_intr_disabled(void)
 {
-	return !!(thread_get_exceptions() & THREAD_EXCP_IRQ);
+	return !!(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 }
 
 #ifdef CFG_WITH_VFP
 /*
  * thread_kernel_enable_vfp() - Temporarily enables usage of VFP
  *
- * IRQ is masked while VFP is enabled. User space must not be entered before
- * thread_kernel_disable_vfp() has been called to disable VFP and restore the
- * IRQ status.
+ * Foreign interrupts are masked while VFP is enabled. User space must not be
+ * entered before thread_kernel_disable_vfp() has been called to disable VFP
+ * and restore the foreign interrupt status.
  *
  * This function may only be called from an active thread context and may
  * not be called again before thread_kernel_disable_vfp() has been called.
@@ -364,7 +368,7 @@ uint32_t thread_kernel_enable_vfp(void);
  * thread_kernel_disable_vfp() - Disables usage of VFP
  * @state:	state variable returned by thread_kernel_enable_vfp()
  *
- * Disables usage of VFP and restores IRQ status after a call to
+ * Disables usage of VFP and restores foreign interrupt status after a call to
  * thread_kernel_enable_vfp().
  *
  * This function may only be called after a call to
@@ -484,13 +488,13 @@ bool thread_addr_is_in_stack(vaddr_t va);
 
 /*
  * Adds a mutex to the list of held mutexes for current thread
- * Requires IRQs to be disabled.
+ * Requires foreign interrupts to be disabled.
  */
 void thread_add_mutex(struct mutex *m);
 
 /*
  * Removes a mutex from the list of held mutexes for current thread
- * Requires IRQs to be disabled.
+ * Requires foreign interrupts to be disabled.
  */
 void thread_rem_mutex(struct mutex *m);
 

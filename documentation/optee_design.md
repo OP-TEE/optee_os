@@ -151,12 +151,13 @@ table when the TA context is activated.
 ![Select xlation table](images/xlat_table.png "Select xlation table")
 
 ## Translation tables and switching to normal world
-When switching to normal world either via an IRQ or RPC there is a chance
-that secure world will resume execution on a different CPU. This means that
-the new CPU need to be configured with the context of the currently active
-TA. This is solved by always setting the TA context in the CPU when
-resuming execution. Here is room for improvements since it is more likely
-than not that it is the same CPU that resumes execution in secure world.
+When switching to normal world either via a foreign interrupt or RPC there
+is a chance that secure world will resume execution on a different CPU.
+This means that the new CPU need to be configured with the context of the
+currently active TA. This is solved by always setting the TA context in
+the CPU when resuming execution. Here is room for improvements since it is
+more likely than not that it is the same CPU that resumes execution in
+secure world.
 
 # 6. Stacks
 Different stacks are used during different stages. The stacks are:
@@ -216,11 +217,16 @@ is restored it will continue at the next instruction as if this function did a
 normal return. CPU switches to use the temp stack before returning to normal
 world.
 
-## IRQ exit
-IRQ exit occurs when OP-TEE receives an IRQ, which is always handled in normal
-world. IRQ exit is similar to RPC exit but it is `thread_irq_handler()` and
-`elx_irq()` (respectively for ARMv7-A/Aarch32 and for Aarch64) that saves the
-thread state instead. The thread is resumed in the same way though.
+## Foreign interrupt exit
+Foreign interrupt exit occurs when OP-TEE receives a foreign interrupt. For ARM
+GICv2 mode, foreign interrupt is sent as IRQ which is always handled in normal
+world. Foreign interrupt exit is similar to RPC exit but it is
+`thread_irq_handler()` and `elx_irq()` (respectively for ARMv7-A/Aarch32 and
+for Aarch64) that saves the thread state instead. The thread is resumed in the
+same way though.
+For ARM GICv3 mode, foreign interrupt is sent as FIQ which could be handled by
+either secure world (EL3 in AArch64) or normal world. This mode is not supported
+yet.
 
 *Notes for ARMv7/AArch32:*
 SP_IRQ is initialized to temp stack instead of a separate stack.  Prior to
@@ -233,7 +239,8 @@ original `SP_EL0` is saved in the thread context to be restored when resuming.
 ## Resume entry
 OP-TEE is entered using the temp stack in the same way as for normal entry. The
 thread to resume is looked up and the state is restored to resume execution. The
-procedure to resume from an RPC exit or an IRQ exit is exactly the same.
+procedure to resume from an RPC exit or an foreign interrupt exit is exactly
+the same.
 
 ## Syscall
 Syscalls are executed using the thread stack.

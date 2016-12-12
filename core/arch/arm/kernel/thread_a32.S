@@ -75,7 +75,7 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
  	/* Secure Monitor received a FIQ and passed control to us. */
 	bl	thread_check_canaries
- 	ldr	lr, =thread_fiq_handler_ptr
+	ldr	lr, =thread_nintr_handler_ptr
  	ldr	lr, [lr]
  	blx	lr
 	mov	r1, r0
@@ -392,7 +392,7 @@ UNWIND(	.cantunwind)
 	 */
 	push	{r0-r3, r8-r12, lr}
 	bl	thread_check_canaries
-	ldr	lr, =thread_fiq_handler_ptr
+	ldr	lr, =thread_nintr_handler_ptr
 	ldr	lr, [lr]
 	blx	lr
 	pop	{r0-r3, r8-r12, lr}
@@ -416,7 +416,7 @@ UNWIND(	.cantunwind)
 
 	bl	thread_save_state
 
-	mov	r0, #THREAD_FLAGS_EXIT_ON_IRQ
+	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
 	mrs	r1, spsr
 	pop	{r12}
 	pop	{r2}
@@ -432,7 +432,7 @@ UNWIND(	.cantunwind)
 	mov	sp, r0
 
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	ldr	r1, =OPTEE_SMC_RETURN_RPC_IRQ
+	ldr	r1, =OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
 	mov	r2, #0
 	mov	r3, #0
 	/* r4 is already filled in above */

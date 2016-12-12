@@ -201,8 +201,8 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	/* TA has just entered kernel mode */
 	tee_ta_update_session_utime_suspend();
 
-	/* Restore IRQ which are disabled on exception entry */
-	thread_restore_irq();
+	/* Restore foreign interrupts which are disabled on exception entry */
+	thread_restore_foreign_intr();
 
 	get_scn_max_args(regs, &scn, &max_args);
 

@@ -693,7 +693,7 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
 {
 	unsigned int ret = TEE_SUCCESS;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 
 	tee_l2cc_mutex_lock();
 	switch (op) {
