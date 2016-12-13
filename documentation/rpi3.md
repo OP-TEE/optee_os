@@ -1,11 +1,9 @@
 # Raspberry Pi 3 on OP-TEE
-[Sequitur Labs](http://www.sequiturlabs.com) did the initial port which besides
-the actual OP-TEE port also patched U-boot, ARM Trusted Firmware and Linux
-kernel. Sequitur Labs also pulled together patches for OpenOCD to be able to
-debug the solution using cheap JTAG debuggers. For more information about the
-work, please see the [press
-release](http://www.sequiturlabs.com/media_portfolio/sequitur-labs-collaborates-with-linaro-to-lower-barriers-to-iot-security-education-for-raspberry-pi-maker-community)
-from June 8 2016.
+[Sequitur Labs] did the initial port which besides the actual OP-TEE port also
+patched U-boot, ARM Trusted Firmware and Linux kernel. Sequitur Labs also pulled
+together patches for OpenOCD to be able to debug the solution using cheap JTAG
+debuggers. For more information about the work, please see the [press
+release] from June 8 2016.
 
 # Contents
 1. [Disclaimer](#1-disclaimer)
@@ -31,46 +29,40 @@ This package is provided solely for educational purposes.
 ```
 
 # 2. Upstream?
-This is an initial drop with a working setup. But, there are quite a few
-patches that are put on top of forks and some of the patches has been put
-together by just pulling files instead of (correctly) cherry-pick patches from
-various projects. For OP-TEE related gits, we will rather soon put together
-proper patches and merge it upstream. But for the other projects it could take
-some time to get the work accepted upstream. Due to this, everything will
-initially not be on official Linaro git's and everything will be kept on a
-separate branch. But as time goes by we will gradually move it over to the
-official gits. We are fully aware that this is not the optimal way to do this,
-but we also know that there is a strong interest among developers, students,
-researches to start work and learn more about TEE's using a Raspberry Pi. So
-instead of delaying this, we have decided to make what we have available
-right away. Hopefully there will be some enthusiast that will help out
-making proper upstream patches sooner or later.
+This is a working setup, but there are quite a few patches that are put on top
+of forks and some of the patches has been put together by just pulling files
+instead of (correctly) cherry-pick patches from various projects. For some of
+the projects it could take some time to get the work accepted upstream. Due to
+this, things might not initially be on official git's and in some cases things
+will be kept on a separate branch. But as time goes by we will gradually
+move it over to the official gits. We are fully aware that this is not the
+optimal way to do this, but we also know that there is a strong interest among
+developers, students, researches to start work and learn more about TEE's using
+a Raspberry Pi. So instead of delaying this, we have decided to make what we
+have available right away. Hopefully there will be some enthusiast that will
+help out making proper upstream patches sooner or later.
 
 | Project | Base fork | What to do |
-|--------|--------|--------|
-| build | the official build master branch | Rebase and do a pull request |
-| optee_os | the official optee_os master branch | Rebase and do a pull request |
-| linux | https://github.com/Electron752/linux.git commit: 51d1fa5c3208f15e80d25d85ce03330909916cc8 | Two things here. 1. The base is a fork itself and should be upstreamed. 2. The current OP-TEE patches should be replaced with cherry-picked patches from the official OP-TEE Linux kernel branch |
+|---------|-----------|------------|
+| linux | https://github.com/Electron752/linux.git commit: b48d47a32b2f27f55904e7248dbe5f8ff434db0a | Two things here. 1. The base is a fork itself and should be upstreamed. 2. We have cherry picked the patches from [LSK OP-TEE 4.4] |
 | arm-trusted-firmware | https://github.com/96boards-hikey/arm-trusted-firmware commit: bdec62eeb8f3153a4647770e08aafd56a0bcd42b | This should instead be based on the official OP-TEE fork or even better the official ARM repository. The patch itself should also be upstreamed. |
 | U-boot | https://github.com:linaro-swg/u-boot.git | This is just a mirror of the official U-boot git. The patches should be upstreamed. |
-| OpenOCD | TBD | TBD |
+| OpenOCD | https://github.com/seqlabs/openocd | The patches should be upstreamed. |
 
 # 3. Build instructions
-- First thing to pay attention to are the prerequisites stated
-  [here](https://github.com/OP-TEE/optee_os#41-prerequisites) in the README.md
-  file. If you forget that, then you can get all sorts of strange errors.
+- First thing to pay attention to the [OP-TEE prerequisites]. If you forget
+  that, then you can get all sorts of strange errors.
 
-- From the [README.md](https://github.com/OP-TEE/optee_os#5-repo-manifests),
-  you should follow section 5.1, 5.2. In short if you have repo installed, what
-  you need to do is something like this:
-```
+- From the [README.md] you should follow section 5.1, 5.2. In short if you have
+  repo installed, what you need to do is something like this:
+```bash
 $ mkdir rpi3
 $ cd rpi3
 $ repo init -u https://github.com/OP-TEE/manifest.git -m rpi3.xml
 $ repo sync -j3
 ```
-  Now it's probably a good idea to read the [Tips and tricks](https://github.com/OP-TEE/optee_os#58-tips-and-tricks)
-  section also, since that will save a lot of time in the long run.
+  Now it's probably a good idea to read the [Tips and tricks] section also,
+  since that will save a lot of time in the long run.
 
 - Next step is to get the toolchains
 ```
@@ -97,12 +89,10 @@ $ make img-help
 ```
 
 - Boot up the Pi. With all files on the memory card, put the memory card into
-the Raspberry Pi 3 and boot up the system. On the UART (we will add some wiring
-diagram soon, but until then, please use Google and search for UART on Raspberry
-Pi and you will get lots of guides) you will see the system booting up. When you
-have a shell, then it's simply just to follow the instructions on
-[here](https://github.com/OP-TEE/optee_os#6-load-driver-tee-supplicant-and-run-xtest)
-in the README.md to load tee-supplicant and run xtest.
+  the Raspberry Pi 3 and boot up the system. On the UART (for wiring, see
+  section 6) you will see the system booting up. When you have a shell, then
+  it's simply just to follow the [xtest instructions] to load tee-supplicant and
+  run xtest.
 
 # 4. Known problems
 We encourage anyone interested in getting this into a better shape to help out.
@@ -117,13 +107,15 @@ example having the ability to use a package manager like apt-get, pacman or rpm,
 to make it easy to add new applications and developer tools.
 
 Suggestions to look into regarding creating a better rootfs
-- Create a setup where one use [buildroot](https://buildroot.org) instead of
-  manually creating the cpio archive.
-- Create a 64bit [Raspbian](https://www.raspbian.org) image. This would be the
-  ultimate goal. Besides just the big work with building a 64bit Raspian image,
-  one would also need to ensure that Linux kernel gets updated accordingly
-  (i.e., pull 64bit RPi3 patches and OP-TEE patches into the official Raspbian
-  Linux kernel build).
+- Create a setup where one use [buildroot] instead of manually creating the cpio
+  archive.
+- Create a 64bit [Raspbian] image. This would be the ultimate goal. Besides just
+  the big work with building a 64bit Raspian image, one would also need to
+  ensure that Linux kernel gets updated accordingly (i.e., pull 64bit RPi3
+  patches and OP-TEE patches into the official Raspbian Linux kernel build).
+
+Having that said, in the section below about NFS boot, we've been successfully
+using an Ubuntu based root-fs (linaro-vivid).
 
 # 5. NFS Boot
 Booting via NFS and TFTP is quite useful for several reasons, but the obvious
@@ -216,6 +208,8 @@ We're just going to create symlinks. By doing so you don't have to think about
 copy files, just rebuild and you have the latest version available for the next
 boot. On my computer I've symlinked like this (in my `/tftpboot` folder):
 ```
+$ ll
+lrwxrwxrwx  1 jbech  jbech         65 jul 14 09:03 Image -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/Image
 lrwxrwxrwx  1 jbech  jbech         85 jul 14 09:03 optee.bin -> /home/jbech/devel/optee_projects/rpi3/arm-trusted-firmware/build/rpi3/debug/optee.bin
 lrwxrwxrwx  1 jbech  jbech         90 Sep 13 11:19 bcm2710-rpi-3-b.dtb -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b.dtb
 ```
@@ -303,7 +297,7 @@ used as initramfs. That is small and is good enough for testing and debugging.
 But sometimes you want to use a more traditional Linux filesystem, such as those
 that are in distros. With such filesystem you can apt-get (if Debian based)
 other useful tools, such as gdb on the device, valgrind etc to mention a few. An
-example of such a rootfs is the [linaro-vivid-developer-20151215-114.tar.gz](http://releases.linaro.org/ubuntu/images/developer-arm64/15.12/linaro-vivid-developer-20151215-114.tar.gz),
+example of such a rootfs is the [linaro-vivid-developer-20151215-114.tar.gz],
 which is an Ubuntu 15.04 based filesystem. The procedure to use that filesystem
 with NFS is the same as for the CPIO based, you need to extract the files to a
 folder which is known by the NFS server (use regular `tar -xvf ...` command).
@@ -478,11 +472,20 @@ will be a bit upset when continue running after triggering a breakpoint in
 secure world (rcu starving messages etc). If you have suggestion and or
 improvements, as usual, feel free to contribute.
 
-
+[buildroot]: https://buildroot.org
 [Bus Blaster]: http://dangerousprototypes.com/docs/Bus_Blaster
 [J-Link debuggers]: https://www.segger.com/jlink_base.html
+[linaro-vivid-developer-20151215-114.tar.gz]: http://releases.linaro.org/ubuntu/images/developer-arm64/15.12/linaro-vivid-developer-20151215-114.tar.gz
+[LSK OP-TEE 4.4]: https://git.linaro.org/kernel/linux-linaro-stable.git/log/?h=v4.4/topic/optee
 [OpenOCD]: http://openocd.org
+[OP-TEE prerequisites]: https://github.com/OP-TEE/optee_os#41-prerequisites
+[press release]: http://www.sequiturlabs.com/media_portfolio/sequitur-labs-collaborates-with-linaro-to-lower-barriers-to-iot-security-education-for-raspberry-pi-maker-community
+[Raspbian]: https://www.raspbian.org
+[README.md]: https://github.com/OP-TEE/optee_os#5-repo-manifests
 [RPi3 GPIO pins]: https://pinout.xyz/pinout/jtag
 [RPi3 OpenOCD config]: https://github.com/seqlabs/openocd/blob/armv8/pi3.cfg
+[Sequitur Labs]: http://www.sequiturlabs.com
 [Sequitur Labs OpenOCD]: https://github.com/seqlabs/openocd
 [SMP]: https://en.wikipedia.org/wiki/Symmetric_multiprocessing
+[Tips and tricks]: https://github.com/OP-TEE/optee_os#58-tips-and-tricks
+[xtest instructions]: https://github.com/OP-TEE/optee_os#6-load-driver-tee-supplicant-and-run-xtest
