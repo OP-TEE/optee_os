@@ -226,3 +226,7 @@ ifneq ($(CFG_TA_GPROF_SUPPORT),y)
 $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif
+
+# CFG_GP_SOCKETS
+# Enable Global Platform Sockets support
+CFG_GP_SOCKETS ?= y

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -177,7 +177,6 @@
  * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
  * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS
  */
-
 /*
  * Send TA profiling information to normal world
  *
@@ -195,5 +194,86 @@
  * [in] param[2].u.tmem.shm_ref		Shared memory reference
  */
 #define OPTEE_MSG_RPC_CMD_GPROF		9
+
+/*
+ * Socket commands
+ */
+#define OPTEE_MSG_RPC_CMD_SOCKET	10
+
+
+/*
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_SOCKET
+ */
+
+#define OPTEE_MRC_SOCKET_TIMEOUT_NONBLOCKING	0
+#define OPTEE_MRC_SOCKET_TIMEOUT_BLOCKING	0xffffffff
+
+/*
+ * Open socket
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_OPEN
+ * [in]     param[0].u.value.b	TA instance id
+ * [in]     param[1].u.value.a	server port number
+ * [in]     param[1].u.value.b	protocol, TEE_ISOCKET_PROTOCOLID_*
+ * [in]     param[1].u.value.c	ip version TEE_IP_VERSION_* from tee_ipsocket.h
+ * [in]     param[2].u.tmem	server address
+ * [out]    param[3].u.value.a	socket handle (32-bit)
+ */
+#define OPTEE_MRC_SOCKET_OPEN	0
+
+/*
+ * Close socket
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_CLOSE
+ * [in]     param[0].u.value.b	TA instance id
+ * [in]     param[0].u.value.c	socket handle
+ */
+#define OPTEE_MRC_SOCKET_CLOSE	1
+
+/*
+ * Close all sockets
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_CLOSE_ALL
+ * [in]     param[0].u.value.b	TA instance id
+ */
+#define OPTEE_MRC_SOCKET_CLOSE_ALL 2
+
+/*
+ * Send data on socket
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_SEND
+ * [in]     param[0].u.value.b	TA instance id
+ * [in]     param[0].u.value.c	socket handle
+ * [in]     param[1].u.tmem	buffer to transmit
+ * [in]     param[2].u.value.a	timeout ms or OPTEE_MRC_SOCKET_TIMEOUT_*
+ * [out]    param[2].u.value.b	number of transmitted bytes
+ */
+#define OPTEE_MRC_SOCKET_SEND	3
+
+/*
+ * Receive data on socket
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_RECV
+ * [in]     param[0].u.value.b	TA instance id
+ * [in]     param[0].u.value.c	socket handle
+ * [out]    param[1].u.tmem	buffer to receive
+ * [in]     param[2].u.value.a	timeout ms or OPTEE_MRC_SOCKET_TIMEOUT_*
+ */
+#define OPTEE_MRC_SOCKET_RECV	4
+
+/*
+ * Perform IOCTL on socket
+ *
+ * [in]     param[0].u.value.a	OPTEE_MRC_SOCKET_IOCTL
+ * [in]     param[0].u.value.b	TA instance id
+ * [in]     param[0].u.value.c	socket handle
+ * [in/out] param[1].u.tmem	buffer
+ * [in]     param[2].u.value.a	ioctl command
+ */
+#define OPTEE_MRC_SOCKET_IOCTL	5
+
+/*
+ * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_SOCKET
+ */
 
 #endif /*__OPTEE_MSG_SUPPLICANT_H*/

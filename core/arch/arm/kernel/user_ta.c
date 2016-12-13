@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2017 Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -786,12 +786,18 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	free(utc);
 }
 
+static uint32_t user_ta_get_instance_id(struct tee_ta_ctx *ctx)
+{
+	return to_user_ta_ctx(ctx)->context;
+}
+
 static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
 	.dump_state = user_ta_dump_state,
 	.destroy = user_ta_ctx_destroy,
+	.get_instance_id = user_ta_get_instance_id,
 };
 
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,

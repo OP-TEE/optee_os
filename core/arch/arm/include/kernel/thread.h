@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2016-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 #define THREAD_ID_0		0
 #define THREAD_ID_INVALID	-1
 
-#define THREAD_RPC_MAX_NUM_PARAMS	3
+#define THREAD_RPC_MAX_NUM_PARAMS	4
 
 #ifndef ASM
 struct thread_vector_table {

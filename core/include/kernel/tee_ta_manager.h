@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +79,7 @@ struct tee_ta_ops {
 	void (*enter_close_session)(struct tee_ta_session *s);
 	void (*dump_state)(struct tee_ta_ctx *ctx);
 	void (*destroy)(struct tee_ta_ctx *ctx);
+	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
 };
 
 #if defined(CFG_TA_GPROF_SUPPORT)
