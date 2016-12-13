@@ -13,7 +13,7 @@ from June 8 2016.
 3. [Build instructions](#3-build-instructions)
 4. [Known problems](#4-known-problems)
 5. [NFS boot](#5-nfs-boot)
-6. [OpenOCD](#6-openocd)
+6. [OpenOCD and JTAG](#6-openocd-and-jtag)
 
 # 1. Disclaimer
 ```
@@ -216,8 +216,6 @@ We're just going to create symlinks. By doing so you don't have to think about
 copy files, just rebuild and you have the latest version available for the next
 boot. On my computer I've symlinked like this (in my `/tftpboot` folder):
 ```
-$ ll
-lrwxrwxrwx  1 jbech  jbech         65 jul 14 09:03 Image -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/Image
 lrwxrwxrwx  1 jbech  jbech         85 jul 14 09:03 optee.bin -> /home/jbech/devel/optee_projects/rpi3/arm-trusted-firmware/build/rpi3/debug/optee.bin
 lrwxrwxrwx  1 jbech  jbech         90 Sep 13 11:19 bcm2710-rpi-3-b.dtb -> /home/jbech/devel/optee_projects/rpi3/linux/arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b.dtb
 ```
@@ -320,8 +318,171 @@ When that has been done, you can run OP-TEE tests, TA's etc and if you're only
 updating files in normal world (the ones just mentioned), then you don't even
 need to reboot the RPi after a rebuild.
 
-# 6. OpenOCD
-TDB (instructions how to debug OP-TEE using OpenOCD and JTAG debuggers).
+# 6. OpenOCD and JTAG
+First a word of warning here, even though this seems to be working quite good as
+of now, it should be well understood that this is based on incomplete and out of
+tree patches. So what are the major changes that enables this? First [OpenOCD]
+currently doesn't contain ARMv8-A / AArch64 support in the upstream tree. A
+couple of different people have put something together that gets the job done.
+But to get in a shape for upstream, there is still quite a lot left to do. The
+other change needed is in U-Boot, that is where we configure the [RPi3 GPIO
+pins] so that they will talk JTAG. The pin configuration and the wiring for the
+cable looks like this:
+
+|JTAG pin|Signal|GPIO   |Mode |Header pin|
+|--------|------|-------|-----|----------|
+| 1      |3v3   |N/A    |N/A  | 1        |
+| 3      |nTRST |GPIO22 |ALT4 | 15       |
+| 5      |TDI   |GPIO4  |ALT5 | 7        |
+| 7      |TMS   |GPIO27 |ALT4 | 13       |
+| 9      |TCK   |GPIO25 |ALT4 | 22       |
+| 11     |RTCK  |GPIO23 |ALT4 | 16       |
+| 13     |TDO   |GPIO24 |ALT4 | 18       |
+| 18     |GND   |N/A    |N/A  | 14       |
+| 20     |GND   |N/A    |N/A  | 20       |
+
+Note that this configuration seems to remain in the Raspberry Pi3 setup we're
+using. But someone with root access could change the GPIO configuration at any
+point in time and thereby disable JTAG functionality.
 
 ## 6.1 Debug cable / UART cable
-TBD
+We have created our own cables, get a standard 20-pin JTAG connector and 22-pin
+connector for the RPi3 itself, then using a ribbon cable, connect the cables
+according to the table in section 6 (JTAG pin <-> Header pin). In addition to
+that we have also connected a USB FTDI to UART cable to a few more pins.
+
+|UART pin    |Signal|GPIO   |Mode |Header pin|
+|------------|------|-------|-----|----------|
+|Black (GND) |GND   |N/A    |N/A  | 6        |
+|White (RXD) |TXD   |GPIO14 |ALT0 | 8        |
+|Green (TXD) |RXD   |GPIO15 |ALT0 | 10       |
+
+## 6.2 OpenOCD
+### 6.2.1 Build the software
+We are using the [Sequitur Labs OpenOCD] fork, simply clone that to your
+computer and then building is like a lot of other software, i.e.,
+```bash
+$ ./configure
+$ make
+```
+We leave it up to the reader of this guide to decide if he wants to install it
+properly (`make install`) or if he will just run it from the tree directly. The
+rest of this guide will just run it from the tree.
+
+### 6.2.2 OpenOCD RPi3 configuration file
+In the OpenOCD fork you will find the necessary [RPi3 OpenOCD config]. As you
+can read there, it's prepared for four targets, but only one is enabled. The
+reason for that is simply because it's a lot simpler to get started with JTAG
+when running on a single core. When you have a stable setup using a single core,
+then you can start playing with enabling additional cores.
+```
+...
+target create $_TARGETNAME_0 aarch64 -chain-position $_CHIPNAME.dap -dbgbase 0x80010000 -ctibase 0x80018000
+#target create $_TARGETNAME_1 aarch64 -chain-position $_CHIPNAME.dap -dbgbase 0x80012000 -ctibase 0x80019000
+#target create $_TARGETNAME_2 aarch64 -chain-position $_CHIPNAME.dap -dbgbase 0x80014000 -ctibase 0x8001a000
+#target create $_TARGETNAME_3 aarch64 -chain-position $_CHIPNAME.dap -dbgbase 0x80016000 -ctibase 0x8001b000
+...
+```
+## 6.3 Running OpenOCD
+Depending on the JTAG debugger you are using you'll need to find and use the
+interface file for that particular debugger. We've been using [J-Link debuggers]
+and [Bus Blaster] successfully. To start an OpenOCD session using a J-Link
+device you type:
+```bash
+$ cd <openocd>
+$ ./src/openocd -f ./tcl/interface/jlink.cfg -f ./pi3.cfg
+```
+
+To be able to write commands to OpenOCD, you simply open up another shell and
+type:
+```bash
+$ nc localhost 4444
+```
+
+From there you can set breakpoints, examine memory etc ("`> help`" will give you
+a list of available commands).
+
+## 6.4 Use GDB
+The pi3.cfg file is configured to listen to GDB connections on port 3333. So all
+you have to do in GDB after starting OpenOCD is to connect to the target on that
+port, i.e.,
+```
+# Ensure that you have gdb in your $PATH
+$ aarch64-linux-gnu-gdb -q
+(gdb) target remote localhost:3333
+```
+
+To load symbols you just use the `symbol-file <path/to/my.elf` as usual. For
+convenience you can create an alias in the `~/.gdbinit` file. For TEE core
+debugging this works:
+```
+define jlink_rpi3
+  target remote localhost:3333
+  symbol-file /home/jbech/devel/optee_projects/rpi3/optee_os/out/arm/core/tee.elf
+end
+```
+
+So, when running GDB, you simply type: `(gdb) jlink_rpi3` and it will both
+connect and load the symbols for TEE core. For Linux kernel and other binaries
+you would do the same.
+
+## 6.5 Wrap it all up in a debug session
+If you have everything prepared, i.e. a working setup for Raspberry Pi3 and
+OP-TEE. You've setup both OpenOCD and GDB according to the instructions, then
+you should be good to go. Start by booting up to U-Boot, but stop there. In
+there start by disable [SMP] and then continue the boot sequence.
+```
+U-Boot> setenv smp off
+U-Boot> boot
+```
+
+When Linux is up and running, start a new shell where you run OpenOCD:
+```bash
+$ cd <openocd>
+$ ./src/openocd -f ./tcl/interface/jlink.cfg -f ./pi3.cfg
+```
+
+Start a third shell, where you run GDB
+```
+$ aarch64-linux-gnu-gdb -q
+(gdb) target remote localhost:3333
+(gdb) symbol-file /home/jbech/devel/optee_projects/rpi3/optee_os/out/arm/core/tee.elf
+```
+
+Next, try to set a breakpoint, here use **hardware** breakpoints!
+```
+(gdb) hb tee_ta_invoke_command
+Hardware assisted breakpoint 1 at 0x842bf98: file core/kernel/tee_ta_manager.c, line 534.
+(gdb) c
+Continuing.
+```
+
+And if you run tee-supplicant and xtest for example, the breakpoint should
+trigger and you will see something like this in the GDB window:
+```
+Breakpoint 1, tee_ta_invoke_command (err=0x84940d4 <stack_thread+7764>,
+    err@entry=0x8494104 <stack_thread+7812>, sess=sess@entry=0x847bf20, clnt_id=clnt_id@entry=0x0,
+    cancel_req_to=cancel_req_to@entry=0xffffffff, cmd=0x2,
+    param=param@entry=0x84940d8 <stack_thread+7768>) at core/kernel/tee_ta_manager.c:534
+534     {
+```
+
+From here you can debug using normal GDB commands.
+
+## 6.6 Know issues when running the JTAG setup
+As mentioned in the beginning, this is based on forks and etc, so it's a moving
+targets. Sometime you will see that you loose the connection between GDB and
+OpenOCD. If that happens, simply reconnect to the target. Another thing that you
+will notice is that if you're running all on a single core, then Linux kernel
+will be a bit upset when continue running after triggering a breakpoint in
+secure world (rcu starving messages etc). If you have suggestion and or
+improvements, as usual, feel free to contribute.
+
+
+[Bus Blaster]: http://dangerousprototypes.com/docs/Bus_Blaster
+[J-Link debuggers]: https://www.segger.com/jlink_base.html
+[OpenOCD]: http://openocd.org
+[RPi3 GPIO pins]: https://pinout.xyz/pinout/jtag
+[RPi3 OpenOCD config]: https://github.com/seqlabs/openocd/blob/armv8/pi3.cfg
+[Sequitur Labs OpenOCD]: https://github.com/seqlabs/openocd
+[SMP]: https://en.wikipedia.org/wiki/Symmetric_multiprocessing
