@@ -34,7 +34,6 @@
 #include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
-#include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mm.h>
 #include <mm/core_memprot.h>

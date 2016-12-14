@@ -38,7 +38,6 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu_defs.h>
 #include <mm/tee_pager.h>
 #include <types_ext.h>
 #include <stdlib.h>

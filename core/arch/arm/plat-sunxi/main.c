@@ -44,7 +44,6 @@
 #include <kernel/misc.h>
 #include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu_defs.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 #include <platform.h>

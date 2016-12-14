@@ -64,7 +64,6 @@
 #include <kernel/panic.h>
 #include <kernel/misc.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu_defs.h>
 #include <mm/pgt_cache.h>
 #include <mm/core_memprot.h>
 #include <string.h>
