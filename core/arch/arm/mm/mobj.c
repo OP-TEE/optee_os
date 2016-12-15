@@ -36,7 +36,6 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
-#include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
@@ -48,15 +47,12 @@ struct mobj *mobj_sec_ddr;
  */
 
 struct mobj_phys {
-	TAILQ_ENTRY(mobj_phys) link;
 	struct mobj mobj;
 	enum buf_is_attr battr;
 	uint32_t cattr; /* Defined by TEE_MATTR_CACHE_* in tee_mmu_types.h */
 	vaddr_t va;
 	paddr_t pa;
 };
-
-static TAILQ_HEAD(, mobj_phys) moph_head = TAILQ_HEAD_INITIALIZER(moph_head);
 
 static struct mobj_phys *to_mobj_phys(struct mobj *mobj);
 
@@ -296,7 +292,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 
 static void mobj_paged_free(struct mobj *mobj);
 
-static const struct mobj_ops mobj_paged_ops = {
+static const struct mobj_ops mobj_paged_ops __rodata_unpaged = {
 	.free = mobj_paged_free,
 };
 
