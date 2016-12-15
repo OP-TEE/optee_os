@@ -296,7 +296,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 
 static void mobj_paged_free(struct mobj *mobj);
 
-static const struct mobj_ops mobj_paged_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_paged_ops = {
 	.free = mobj_paged_free,
 };
 
