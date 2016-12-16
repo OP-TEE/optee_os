@@ -665,16 +665,38 @@ instead. When the page is mapped new data is copied from backing store and
 the hash of the page is verified. If it's OK the pager returns from the
 exception to resume the execution.
 
-# 9. Cryptographic abstraction layer
+# 9. Memory objects
+
+A memory object, MOBJ, describes a piece of memory. The interface provided
+is mostly abstract when it comes to using the MOBJ to populate translation
+tables etc.
+
+There's different kinds of MOBJs describing:
+- physically contiguous memory
+  - created with mobj_phys_alloc()
+- virtual memory
+  - one instance with the name mobj_virt available
+  - spans the entire virtual address space
+- physically contiguous memory allocated from a tee_mm_pool_t *
+  - created with mobj_mm_alloc()
+- paged memory
+  - created with mobj_paged_alloc()
+  - only contains the supplied size and makes mobj_is_paged() return true if
+    supplied as argument
+- secure paged memory
+  - created with mobj_sec_shm_alloc()
+  - makes mobj_is_paged() return true if supplied as argument
+
+# 10. Cryptographic abstraction layer
 Cryptographic operations are implemented inside the TEE core by the
 [LibTomCrypt](https://github.com/libtom/libtomcrypt) library. An abstraction
 layer allows for replacing the default implementation, as explained in
 [crypto.md](crypto.md).
 
-# 10. libutee
+# 11. libutee
 Will be written soon.
 
-# 11. Trusted Applications
+# 12. Trusted Applications
 ## Format
 Trusted Applications consists of a signed ELF file.
 
