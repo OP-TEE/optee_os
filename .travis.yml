@@ -84,7 +84,7 @@ before_script:
   - (cd $HOME/optee_repo/qemu && git submodule update --init dtc)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
   - cd $MYHOME
-  - git fetch https://github.com/OP-TEE/optee_os --tags
+  - git fetch https://github.com/lackan/optee_os --tags
   - unset CC
 
   - export PATH=$HOME/git-2.9.3/:$DST_KERNEL/scripts/:$PATH
@@ -224,14 +224,14 @@ script:
 
 env:
   global:
-    secure: "k30FG3hL6dQywtvMeEjSM0FQ7A0r+AQriUkGSFv7bmwD3EX2H17tJsfZt/h3dj+Pj6lQPdhVg3YO6O6pksJLqBLyz86bN15JEik0e1zftZplzK00oT89eoQr+qgqyrbs6CZBRvS98EAneCNbvgJto9sIPJs0SGu0u31Pr06bTAg="
+    secure: "ac5hmyeyqIKxXAzXGK83cDMmj7WGuvFNyNh3BHoRkWpvLkAYHrKdnfbOPSyuvFo6uwLaCUqm4NM6rW+wfaibaEE3hvLfA0H8rD9FG5QAMjnyeBCXx1FO5rRN5PDnPFpPbEDd9mShPkiP5WnOaYSeuwRtg9usCsltg9vqNeGqi/cWz4QbQxYNvFwHFVzgKzHwu01s101xFNlpY2vlTm86gk2A5pO1m8Ya3Yr0DvJxJppIz3A2cpOXsgHKU+JlbBTR+1hjLXSDnHytVVaYCZx/AhG6Q/aq3o/RTAr1pjC0N/fIrIa7W/glC83Y9x6spbbIa3MagH0OQrZzRrKIWAM2hCvsllDaTkGOhbdI6lEt7hVAVapU/b/OQ1+5eaxq+Zy2g5RZ7aGm9bUy0p+MWnnP2UHZimarEzVkWliERx8S8aTzuLqe1G7fDjcD7w/pNnxHViPPf0Fx8+IZCD67mBBu+QmyBPMQnZ7/TMADDYDXf5apGPrj1U3yGaMBQZN2kFtw4kPojxzfU9v7IWihO7V5039eWutjm+EbGPi51VvqsJ+BNEdaJzOTjmlYmu0lbAP6l+tp+pK1LEwcEb93HVTcRPwv70tjJZQkh/g3JODECOIx8DCNSZHJARhpydj+hT8btH95ugR5a2o4A1BmQ1nOhVQslKT5SeHfUwNsNQJkTyQ="
 
 addons:
   coverity_scan:
     project:
-      name: "OP-TEE/optee_os"
+      name: "lackan/optee_os"
       description: "Build submitted via Travis CI"
-    notification_email: op-tee@linaro.org
+    notification_email: liang.guanchao@linaro.org
     build_command_prepend: "cov-configure --comptype gcc --compiler arm-linux-gnueabihf-gcc --template"
     build_command: "make"
     branch_pattern: coverity_scan
