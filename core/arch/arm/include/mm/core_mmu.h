@@ -382,6 +382,24 @@ static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
 }
 
 /*
+ * core_mmu_map_pages() - map list of pages at given virtual address
+ * @vstart:	Virtual address where mapping begins
+ * @pages:	Array of page addresses
+ * @num_pages:	Number of pages
+ * @memtype:	Type of memmory to be mapped
+ * @returns:	TEE_SUCCESS on success, TEE_ERROR_XXX on error
+ */
+TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
+			      enum teecore_memtypes memtype);
+
+/*
+ * core_mmu_unmap_pages() - remove mapping at given virtual address
+ * @vstart:	Virtual address where mapping begins
+ * @num_pages:	Number of pages to unmap
+ */
+void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages);
+
+/*
  * core_mmu_user_mapping_is_active() - Report if user mapping is active
  * @returns true if a user VA space is active, false if user VA space is
  *          inactive.

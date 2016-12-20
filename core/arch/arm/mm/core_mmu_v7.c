@@ -510,6 +510,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	paddr_t paddr;
 	uint32_t attr;
 	int i;
+	bool flush_tlb;
 
 	if (tbl_info->level != 1)
 		return false;
@@ -522,7 +523,10 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 		return false;
 
 	entry = (uint32_t *)tbl_info->table + idx;
-	assert(get_desc_type(1, *entry) == DESC_TYPE_SECTION);
+	assert(!*entry || get_desc_type(1, *entry) == DESC_TYPE_SECTION);
+
+	/* We need to flush TLBs only if there already was some mapping */
+	flush_tlb = *entry;
 
 	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
 	if (*entry & SECTION_NOTSECURE)
@@ -541,6 +545,9 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 
 	/* Update descriptor at current level */
 	*entry = new_table_desc;
+
+	if (flush_tlb)
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 	return true;
 }
 
