@@ -1003,6 +1003,92 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 	}
 }
 
+TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
+			      enum teecore_memtypes memtype)
+{
+	TEE_Result ret;
+	struct core_mmu_table_info tbl_info;
+	struct tee_mmap_region *mm;
+	unsigned int idx;
+	uint32_t old_attr;
+	vaddr_t vaddr = vstart;
+	size_t i;
+
+	assert(!(core_mmu_type_to_attr(memtype) & TEE_MATTR_PX));
+
+	if (vaddr & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mm = find_map_by_va((void *)vaddr);
+	if (!mm || !va_is_in_map(mm, vaddr + num_pages * SMALL_PAGE_SIZE - 1))
+		panic("VA does not belong to any known mm region");
+
+	if (!core_mmu_is_dynamic_vaspace(mm))
+		panic("Trying to map into static region");
+
+	for (i = 0; i < num_pages; i++) {
+		if (pages[i] & SMALL_PAGE_MASK) {
+			ret = TEE_ERROR_BAD_PARAMETERS;
+			goto err;
+		}
+
+		while (true) {
+			if (!core_mmu_find_table(vaddr, UINT_MAX, &tbl_info))
+				panic("Can't find pagetable for vaddr ");
+
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
+			if (tbl_info.shift == SMALL_PAGE_SHIFT)
+				break;
+
+			/* This is supertable. Need to divide it. */
+			if (!core_mmu_divide_block(&tbl_info, idx))
+				panic("Could not divide block into smaller tables");
+		}
+
+		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
+		if (old_attr)
+			panic("Page is already mapped");
+
+		core_mmu_set_entry(&tbl_info, idx, pages[i],
+				   core_mmu_type_to_attr(memtype));
+		vaddr += SMALL_PAGE_SIZE;
+	}
+
+	return TEE_SUCCESS;
+err:
+	if (i)
+		core_mmu_unmap_pages(vstart, i);
+
+	return ret;
+}
+
+void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
+{
+	struct core_mmu_table_info tbl_info;
+	struct tee_mmap_region *mm;
+	size_t i;
+	unsigned int idx;
+
+	mm = find_map_by_va((void *)vstart);
+	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
+		panic("VA does not belong to any known mm region");
+
+	if (!core_mmu_is_dynamic_vaspace(mm))
+		panic("Trying to unmap static region");
+
+	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
+		if (!core_mmu_find_table(vstart, UINT_MAX, &tbl_info))
+			panic("Can't find pagetable");
+
+		if (tbl_info.shift != SMALL_PAGE_SHIFT)
+			panic("Invalid pagetable level");
+
+		idx = core_mmu_va2idx(&tbl_info, vstart);
+		core_mmu_set_entry(&tbl_info, idx, 0, 0);
+	}
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+}
+
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_ta_ctx *utc)
 {
