@@ -32,7 +32,7 @@
 #include <trace.h>
 
 /*
- * spi_init() must be run before calling this function.
+ * spi_init() MUST be run before calling this function!
  *
  * This runs a loopback test by default, so the SPI module will just
  * receive what is transmitted, i.e. 0x01, 0x80, 0x00.
@@ -54,7 +54,7 @@ void spi_test(void)
 	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
-	size_t i, j, num_rxpkts, len = 3;
+	size_t i, j, num_rxpkts = 3, len = 3;
 
 	DMSG("gpio6_base: 0x%" PRIxVA "\n", gpio6_base);
 	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
@@ -75,7 +75,7 @@ void spi_test(void)
 	platform_pl022_data.base = spi_base;
 	platform_pl022_data.cs_gpio_base = gpio6_base;
 	platform_pl022_data.clk_hz = SPI_CLK_HZ;
-	platform_pl022_data.speed_hz = SPI_500_KHZ;
+	platform_pl022_data.speed_hz = SPI_10_KHZ;
 	platform_pl022_data.cs_gpio_pin = GPIO6_2;
 	platform_pl022_data.mode = SPI_MODE0;
 	platform_pl022_data.data_size_bits = 8;

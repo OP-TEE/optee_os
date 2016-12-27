@@ -83,6 +83,7 @@
 #define GPIO6_2		50
 #define SPI_CLK_HZ	150000000 /* 150mhz */
 #define SPI_500_KHZ	500000
+#define SPI_10_KHZ	10000
 
 vaddr_t nsec_periph_base(paddr_t pa);
 
