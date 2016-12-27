@@ -157,22 +157,21 @@ void spi_init(void)
 		read32(peri_base + PERI_SC_PERIPH_CLKSTAT3));
 
 	/*
-	 * gpio6_2 can be configured as pinmux_spi, in which case the hw
-	 * will control the chip select pin and we don't have to manually
-	 * do it, but hw will pulse it between each data word transfer,
-	 * which will not work with all clients. There seems to be no
-	 * option to configure it to stay enabled for the total duration
-	 * of the transfer.
+	 * GPIO6_2 can be configured as PINMUX_GPIO, but as PINMUX_SPI, HW IP
+	 * will control the chip select pin so we don't have to manually do it.
+	 * The only concern is that the IP will pulse it between each packet,
+	 * which might not work with certain clients. There seems to be no
+	 * option to configure it to stay enabled for the total duration of the
+	 * transfer.
 	 * ref: http://infocenter.arm.com/help/topic/com.arm.doc.ddi0194h/CJACFAFG.html
 	 */
-	DMSG("configure gpio6_{0,1,3} as SPI\n");
-	DMSG("configure gpio6_2 as GPIO\n");
+	DMSG("configure gpio6 pins 0-3 as SPI\n");
 	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG104);
 	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG105);
-	write32(PINMUX_GPIO, pmx0_base + PMX0_IOMG106);
+	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG106);
 	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG107);
 
-	DMSG("configure gpio6_{0:3} as nopull\n");
+	DMSG("configure gpio6 pins 0-3 as nopull\n");
 	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG104);
 	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG105);
 	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG106);
