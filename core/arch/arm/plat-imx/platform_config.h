@@ -107,12 +107,7 @@
 #define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
 #define DEVICE0_TYPE		MEM_AREA_IO_NSEC
 
-/*
- * console uart virtual address
- * The physical address is 0x2020000, we mapped it to 0x4020000,
- * see DEVICE0_VA_BASE and DEVICE0_PA_BASE
- */
-#define CONSOLE_UART_BASE		(0x4020000)
+#define CONSOLE_UART_BASE		(UART0_BASE)
 #define CONSOLE_UART_PA_BASE		(UART0_BASE)
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
