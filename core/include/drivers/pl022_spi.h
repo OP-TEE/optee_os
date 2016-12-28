@@ -38,10 +38,10 @@ struct pl022_data {
 	struct spi_chip		chip;
 	struct gpio_chip	*gpio;
 	vaddr_t		base;
-	vaddr_t		cs_gpio_base; /* chip select */
+	vaddr_t		cs_gpio_base;
 	unsigned int	clk_hz;
 	unsigned int	speed_hz;
-	unsigned int	cs_gpio_pin; /* chip select */
+	unsigned int	cs_gpio_pin;
 	enum spi_mode	mode;
 	unsigned int	data_size_bits;
 	bool		loopback;
