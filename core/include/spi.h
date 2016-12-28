@@ -42,18 +42,10 @@ struct spi_chip {
 };
 
 struct spi_ops {
-	void (*txrx8)(struct spi_chip *chip, uint8_t *wdat,
-		uint8_t *rdat, size_t num_txpkts, size_t *num_rxpkts);
-	void (*txrx16)(struct spi_chip *chip, uint16_t *wdat,
-		uint16_t *rdat, size_t num_txpkts, size_t *num_rxpkts);
-	void (*tx8)(struct spi_chip *chip, uint8_t *wdat,
-		size_t num_txpkts);
-	void (*tx16)(struct spi_chip *chip, uint16_t *wdat,
-		size_t num_txpkts);
-	void (*rx8)(struct spi_chip *chip, uint8_t *rdat,
-		size_t *num_rxpkts);
-	void (*rx16)(struct spi_chip *chip, uint16_t *rdat,
-		size_t *num_rxpkts);
+	void (*txrx8)(struct spi_chip *chip, uint8_t *wdat, uint8_t *rdat,
+		size_t num_pkts);
+	void (*txrx16)(struct spi_chip *chip, uint16_t *wdat, uint16_t *rdat,
+		size_t num_pkts);
 };
 
 #endif	/* __SPI_H__ */

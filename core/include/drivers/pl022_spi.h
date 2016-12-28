@@ -29,8 +29,8 @@
 #ifndef __PL022_SPI_H__
 #define __PL022_SPI_H__
 
+#include <gpio.h>
 #include <spi.h>
-#include <types_ext.h>
 
 #define PL022_REG_SIZE	0x1000
 
@@ -42,7 +42,7 @@ struct pl022_data {
 	unsigned int	clk_hz;
 	unsigned int	speed_hz;
 	unsigned int	cs_gpio_pin; /* chip select */
-	unsigned int	mode;
+	enum spi_mode	mode;
 	unsigned int	data_size_bits;
 	bool		loopback;
 };

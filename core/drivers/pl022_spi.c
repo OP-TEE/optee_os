@@ -28,7 +28,6 @@
 
 #include <assert.h>
 #include <drivers/pl022_spi.h>
-#include <gpio.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/panic.h>
@@ -158,31 +157,8 @@
 #define SSP_SCR_MIN		0
 #define SSP_DATASIZE_MAX	16
 
-enum pl022_data_size {
-	PL022_DATA_SIZE4 = 0x3,
-	PL022_DATA_SIZE5,
-	PL022_DATA_SIZE6,
-	PL022_DATA_SIZE7,
-	PL022_DATA_SIZE8 = SSPCR0_DSS_8BIT,
-	PL022_DATA_SIZE9,
-	PL022_DATA_SIZE10,
-	PL022_DATA_SIZE11,
-	PL022_DATA_SIZE12,
-	PL022_DATA_SIZE13,
-	PL022_DATA_SIZE14,
-	PL022_DATA_SIZE15,
-	PL022_DATA_SIZE16 = SSPCR0_DSS_16BIT
-};
-
-enum pl022_spi_mode {
-	PL022_SPI_MODE0 = SSPCR0_SPO0 | SSPCR0_SPH0, /* 0x00 */
-	PL022_SPI_MODE1 = SSPCR0_SPO0 | SSPCR0_SPH1, /* 0x80 */
-	PL022_SPI_MODE2 = SSPCR0_SPO1 | SSPCR0_SPH0, /* 0x40 */
-	PL022_SPI_MODE3 = SSPCR0_SPO1 | SSPCR0_SPH1  /* 0xC0 */
-};
-
-static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
-	uint8_t *rdat, size_t num_txpkts, size_t *num_rxpkts)
+static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat, uint8_t *rdat,
+	size_t num_pkts)
 {
 	size_t i = 0;
 	size_t j = 0;
@@ -190,26 +166,25 @@ static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
-	while (i < num_txpkts) {
-		if (read8(pd->base + SSPSR) & SSPSR_TNF)
-			/* tx 1 packet */
-			write8(wdat[i++], pd->base + SSPDR);
-	}
+	if (wdat)
+		while (i < num_pkts)
+			if (read8(pd->base + SSPSR) & SSPSR_TNF) {
+				/* tx 1 packet */
+				write8(wdat[i++], pd->base + SSPDR);
+			}
 
-	do {
-		while ((read8(pd->base + SSPSR) & SSPSR_RNE) &&
-			(j < *num_rxpkts))
-			/* rx 1 packet */
-			rdat[j++] = read8(pd->base + SSPDR);
-	} while ((read8(pd->base + SSPSR) & SSPSR_BSY) && (j < *num_rxpkts));
-
-	*num_rxpkts = j;
+	if (rdat)
+		while (j < num_pkts)
+			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+				/* rx 1 packet */
+				rdat[j++] = read8(pd->base + SSPDR);
+			}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
-static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
-	uint16_t *rdat, size_t num_txpkts, size_t *num_rxpkts)
+static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat, uint16_t *rdat,
+	size_t num_pkts)
 {
 	size_t i = 0;
 	size_t j = 0;
@@ -217,94 +192,19 @@ static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
-	while (i < num_txpkts) {
-		if (read8(pd->base + SSPSR) & SSPSR_TNF)
-			/* tx 1 packet */
-			write16(wdat[i++], pd->base + SSPDR);
-	}
+	if (wdat)
+		while (i < num_pkts)
+			if (read8(pd->base + SSPSR) & SSPSR_TNF) {
+				/* tx 1 packet */
+				write16(wdat[i++], pd->base + SSPDR);
+			}
 
-	do {
-		while ((read8(pd->base + SSPSR) & SSPSR_RNE)
-			&& (j < *num_rxpkts))
-			/* rx 1 packet */
-			rdat[j++] = read16(pd->base + SSPDR);
-	} while ((read8(pd->base + SSPSR) & SSPSR_BSY) && (j < *num_rxpkts));
-
-	*num_rxpkts = j;
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
-}
-
-static void pl022_tx8(struct spi_chip *chip, uint8_t *wdat,
-	size_t num_txpkts)
-{
-	size_t i = 0;
-	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
-
-	while (i < num_txpkts) {
-		if (read8(pd->base + SSPSR) & SSPSR_TNF)
-			/* tx 1 packet */
-			write8(wdat[i++], pd->base + SSPDR);
-	}
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
-}
-
-static void pl022_tx16(struct spi_chip *chip, uint16_t *wdat,
-	size_t num_txpkts)
-{
-	size_t i = 0;
-	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
-
-	while (i < num_txpkts) {
-		if (read8(pd->base + SSPSR) & SSPSR_TNF)
-			/* tx 1 packet */
-			write16(wdat[i++], pd->base + SSPDR);
-	}
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
-}
-
-static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
-	size_t *num_rxpkts)
-{
-	size_t j = 0;
-	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
-
-	do {
-		while ((read8(pd->base + SSPSR) & SSPSR_RNE) &&
-			(j < *num_rxpkts))
-			/* rx 1 packet */
-			rdat[j++] = read8(pd->base + SSPDR);
-	} while ((read8(pd->base + SSPSR) & SSPSR_BSY) && (j < *num_rxpkts));
-
-	*num_rxpkts = j;
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
-}
-
-static void pl022_rx16(struct spi_chip *chip, uint16_t *rdat,
-	size_t *num_rxpkts)
-{
-	size_t j = 0;
-	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
-
-	do {
-		while ((read8(pd->base + SSPSR) & SSPSR_RNE) &&
-			(j < *num_rxpkts))
-			/* rx 1 packet */
-			rdat[j++] = read16(pd->base + SSPDR);
-	} while ((read8(pd->base + SSPSR) & SSPSR_BSY) && (j < *num_rxpkts));
-
-	*num_rxpkts = j;
+	if (rdat)
+		while (j < num_pkts)
+			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+				/* rx 1 packet */
+				rdat[j++] = read16(pd->base + SSPDR);
+			}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
@@ -419,10 +319,6 @@ static void pl022_flush_fifo(struct pl022_data *pd)
 static const struct spi_ops pl022_ops = {
 	.txrx8 = pl022_txrx8,
 	.txrx16 = pl022_txrx16,
-	.tx8 = pl022_tx8,
-	.tx16 = pl022_tx16,
-	.rx8 = pl022_rx8,
-	.rx16 = pl022_rx16,
 };
 
 void pl022_configure(struct pl022_data *pd)
@@ -440,20 +336,20 @@ void pl022_configure(struct pl022_data *pd)
 	/* configure ssp based on platform settings */
 	switch (pd->mode) {
 	case SPI_MODE0:
-		DMSG("SPI_MODE0");
-		mode = PL022_SPI_MODE0;
+		DMSG("SPI mode 0");
+		mode = SSPCR0_SPO0 | SSPCR0_SPH0;
 		break;
 	case SPI_MODE1:
-		DMSG("SPI_MODE1");
-		mode = PL022_SPI_MODE1;
+		DMSG("SPI mode 1");
+		mode = SSPCR0_SPO0 | SSPCR0_SPH1;
 		break;
 	case SPI_MODE2:
-		DMSG("SPI_MODE2");
-		mode = PL022_SPI_MODE2;
+		DMSG("SPI mode 2");
+		mode = SSPCR0_SPO1 | SSPCR0_SPH0;
 		break;
 	case SPI_MODE3:
-		DMSG("SPI_MODE3");
-		mode = PL022_SPI_MODE3;
+		DMSG("SPI mode 3");
+		mode = SSPCR0_SPO1 | SSPCR0_SPH1;
 		break;
 	default:
 		EMSG("Invalid SPI mode: %u", pd->mode);
@@ -463,11 +359,11 @@ void pl022_configure(struct pl022_data *pd)
 	switch (pd->data_size_bits) {
 	case 8:
 		DMSG("Data size: 8");
-		data_size = PL022_DATA_SIZE8;
+		data_size = SSPCR0_DSS_8BIT;
 		break;
 	case 16:
 		DMSG("Data size: 16");
-		data_size = PL022_DATA_SIZE16;
+		data_size = SSPCR0_DSS_16BIT;
 		break;
 	default:
 		EMSG("Unsupported data size: %u bits", pd->data_size_bits);
