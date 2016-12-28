@@ -171,8 +171,6 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 		return SPI_ERR_CFG;
 	}
 
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
-
 	if (wdat)
 		while (i < num_pkts)
 			if (read8(pd->base + SSPSR) & SSPSR_TNF) {
@@ -195,8 +193,6 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 		}
 	}
 
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
-
 	return SPI_OK;
 }
 
@@ -212,8 +208,6 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 			pd->data_size_bits);
 		return SPI_ERR_CFG;
 	}
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
 	if (wdat)
 		while (i < num_pkts)
@@ -236,8 +230,6 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 			return SPI_ERR_PKTCNT;
 		}
 	}
-
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 
 	return SPI_OK;
 }
@@ -266,10 +258,18 @@ static void pl022_sanity_check(struct pl022_data *pd)
 {
 	assert(pd);
 	assert(pd->chip.ops);
-	assert(pd->gpio);
-	assert(pd->gpio->ops);
-	assert(pd->base);
-	assert(pd->cs_gpio_base);
+	assert(pd->cs_control <= PL022_CS_CTRL_MANUAL);
+	switch (pd->cs_control) {
+	case PL022_CS_CTRL_AUTO_GPIO:
+		assert(pd->cs_data.gpio_data.chip);
+		assert(pd->cs_data.gpio_data.chip->ops);
+		break;
+	case PL022_CS_CTRL_CB:
+		assert(pd->cs_data.cs_cb);
+		break;
+	default:
+		break;
+	}
 	assert(pd->clk_hz);
 	assert(pd->speed_hz && pd->speed_hz <= pd->clk_hz/2);
 	assert(pd->mode <= SPI_MODE3);
@@ -287,6 +287,29 @@ static inline uint32_t pl022_calc_freq(struct pl022_data *pd,
 	uint8_t cpsdvr, uint8_t scr)
 {
 	return pd->clk_hz / (cpsdvr * (1 + scr));
+}
+
+static void pl022_control_cs(struct spi_chip *chip, enum gpio_level value)
+{
+	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	switch (pd->cs_control) {
+	case PL022_CS_CTRL_AUTO_GPIO:
+		if (read8(pd->base + SSPSR) & SSPSR_BSY)
+			DMSG("pl022 busy - do NOT set CS!");
+		while (read8(pd->base + SSPSR) & SSPSR_BSY)
+			;
+		DMSG("pl022 done - set CS!");
+
+		pd->cs_data.gpio_data.chip->ops->set_value(
+			pd->cs_data.gpio_data.pin_num, value);
+		break;
+	case PL022_CS_CTRL_CB:
+		pd->cs_data.cs_cb(value);
+		break;
+	default:
+		break;
+	}
 }
 
 static void pl022_calc_clk_divisors(struct pl022_data *pd,
@@ -359,6 +382,33 @@ static void pl022_configure(struct spi_chip *chip)
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
 	pl022_sanity_check(pd);
+
+	switch (pd->cs_control) {
+	case PL022_CS_CTRL_AUTO_GPIO:
+		DMSG("Use auto GPIO CS control");
+		DMSG("Mask/disable interrupt for CS GPIO");
+		pd->cs_data.gpio_data.chip->ops->set_interrupt(
+			pd->cs_data.gpio_data.pin_num,
+			GPIO_INTERRUPT_DISABLE);
+		DMSG("Set CS GPIO dir to out");
+		pd->cs_data.gpio_data.chip->ops->set_direction(
+			pd->cs_data.gpio_data.pin_num,
+			GPIO_DIR_OUT);
+		break;
+	case PL022_CS_CTRL_CB:
+		DMSG("Use registered CS callback");
+		break;
+	case PL022_CS_CTRL_MANUAL:
+		DMSG("Use manual CS control");
+		break;
+	default:
+		EMSG("Invalid CS control type: %d", pd->cs_control);
+		panic();
+	}
+
+	DMSG("Pull CS high");
+	pl022_control_cs(chip, GPIO_LEVEL_HIGH);
+
 	pl022_calc_clk_divisors(pd, &cpsdvr, &scr);
 
 	/* configure ssp based on platform settings */
@@ -406,48 +456,46 @@ static void pl022_configure(struct spi_chip *chip)
 		lbm = SSPCR1_LBM_NO;
 	}
 
-	DMSG("set Serial Clock Rate (SCR), SPI mode (phase and clock)");
-	DMSG("set frame format (SPI) and data size (8- or 16-bit)");
+	DMSG("Set Serial Clock Rate (SCR), SPI mode (phase and clock)");
+	DMSG("Set frame format (SPI) and data size (8- or 16-bit)");
 	io_mask16(pd->base + SSPCR0, SHIFT_U32(scr, 8) | mode | SSPCR0_FRF_SPI |
 		data_size, MASK_16);
 
-	DMSG("set master mode, disable SSP, set loopback mode");
+	DMSG("Set master mode, disable SSP, set loopback mode");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SOD_DISABLE | SSPCR1_MS_MASTER |
 		SSPCR1_SSE_DISABLE | lbm, MASK_4);
 
-	DMSG("set clock prescale");
+	DMSG("Set clock prescale");
 	io_mask8(pd->base + SSPCPSR, cpsdvr, SSPCPSR_CPSDVR);
 
-	DMSG("disable interrupts");
+	DMSG("Disable interrupts");
 	io_mask8(pd->base + SSPIMSC, 0, MASK_4);
 
-	DMSG("clear interrupts");
+	DMSG("Clear interrupts");
 	io_mask8(pd->base + SSPICR, SSPICR_RORIC | SSPICR_RTIC,
 		SSPICR_RORIC | SSPICR_RTIC);
 
-	DMSG("empty FIFO before starting");
+	DMSG("Empty FIFO before starting");
 	pl022_flush_fifo(pd);
-
-	DMSG("set CS GPIO dir to out");
-	pd->gpio->ops->set_direction(pd->cs_gpio_pin, GPIO_DIR_OUT);
-
-	DMSG("pull CS high");
-	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
 static void pl022_start(struct spi_chip *chip)
 {
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	DMSG("enable SSP");
+	DMSG("Enable SSP");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SSE_ENABLE, SSPCR1_SSE);
+
+	pl022_control_cs(chip, GPIO_LEVEL_LOW);
 }
 
 static void pl022_end(struct spi_chip *chip)
 {
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	DMSG("disable SSP");
+	pl022_control_cs(chip, GPIO_LEVEL_HIGH);
+
+	DMSG("Disable SSP");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SSE_DISABLE, SSPCR1_SSE);
 }
 
