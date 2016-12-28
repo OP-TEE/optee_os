@@ -54,23 +54,23 @@ void spi_test(void)
 	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
-	size_t i, j, num_rxpkts = 3, len = 3;
+	size_t i, j, len = 3;
 
 	DMSG("gpio6_base: 0x%" PRIxVA "\n", gpio6_base);
 	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
 
-	DMSG("configure GPIO\n");
+	DMSG("configure GPIO");
 	pl061_init(&platform_pl061_data);
 	pl061_register(gpio6_base, 6);
 
-	DMSG("enable software mode control for chip select\n");
+	DMSG("enable software mode control for chip select");
 	pl061_set_mode_control(GPIO6_2, PL061_MC_SW);
 
-	DMSG("mask/disable interrupt for chip select\n");
+	DMSG("mask/disable interrupt for chip select");
 	platform_pl061_data.chip.ops->set_interrupt(GPIO6_2,
 						GPIO_INTERRUPT_DISABLE);
 
-	DMSG("configure SPI\n");
+	DMSG("configure SPI");
 	platform_pl022_data.gpio = &platform_pl061_data.chip;
 	platform_pl022_data.base = spi_base;
 	platform_pl022_data.cs_gpio_base = gpio6_base;
@@ -85,11 +85,11 @@ void spi_test(void)
 	pl022_start(&platform_pl022_data);
 
 	for (j = 0; j < 20; j++) {
-		DMSG("SPI test loop: %zu\n", j);
+		DMSG("SPI test loop: %zu", j);
 		platform_pl022_data.chip.ops->txrx8(&platform_pl022_data.chip,
-						tx, rx, len, &num_rxpkts);
-		for (i = 0; i < num_rxpkts; i++)
-			DMSG("rx[%zu] = 0x%x\n", i, rx[i]);
+						tx, rx, len);
+		for (i = 0; i < len; i++)
+			DMSG("rx[%zu] = 0x%x", i, rx[i]);
 
 		/* wait a bit */
 		for (i = 0; i < 100000000; i++)
