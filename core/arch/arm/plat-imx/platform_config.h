@@ -101,13 +101,14 @@
 #define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
 						CORE_MMU_DEVICE_SIZE)
 
-#define DEVICE0_PA_BASE		ROUNDDOWN(UART0_BASE, \
-						CORE_MMU_DEVICE_SIZE)
-#define DEVICE0_VA_BASE		(64 * 1024 * 1024)
-#define DEVICE0_SIZE		CORE_MMU_DEVICE_SIZE
-#define DEVICE0_TYPE		MEM_AREA_IO_NSEC
-
 #define CONSOLE_UART_BASE		(UART0_BASE)
+
+/* Central Security Unit register values */
+#define CSU_BASE			0x021C0000
+#define CSU_CSL_START			0x0
+#define CSU_CSL_END			0xA0
+#define CSU_ACCESS_ALL			0x00FF00FF
+#define CSU_SETTING_LOCK		0x01000100
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
