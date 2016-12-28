@@ -123,8 +123,8 @@
 #define SSPMIS_RTMIS	SHIFT_U32(1, 1)
 #define SSPMIS_RORMIS	SHIFT_U32(1, 0)
 
-#define SSPICR_RTIC	SHIFT_U32(1, 1)
-#define SSPICR_RORIC	SHIFT_U32(1, 0)
+#define SSPICR_RTIC		SHIFT_U32(1, 1)
+#define SSPICR_RORIC		SHIFT_U32(1, 0)
 
 #define SSPDMACR_TXDMAE	SHIFT_U32(1, 1)
 #define SSPDMACR_RXDMAE	SHIFT_U32(1, 0)
@@ -157,12 +157,19 @@
 #define SSP_SCR_MIN		0
 #define SSP_DATASIZE_MAX	16
 
-static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat, uint8_t *rdat,
-	size_t num_pkts)
+static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
+	uint8_t *rdat, size_t num_pkts)
 {
 	size_t i = 0;
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+
+	if (pd->data_size_bits != 8) {
+		EMSG("data_size_bits should be 8, not %u",
+			pd->data_size_bits);
+		return SPI_ERR_CFG;
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
@@ -173,22 +180,38 @@ static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat, uint8_t *rdat,
 				write8(wdat[i++], pd->base + SSPDR);
 			}
 
-	if (rdat)
-		while (j < num_pkts)
+	if (rdat) {
+		while ((j < num_pkts) &&
+			(read8(pd->base + SSPSR) & SSPSR_BSY))
 			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
 				/* rx 1 packet */
 				rdat[j++] = read8(pd->base + SSPDR);
 			}
 
+		if (j < num_pkts) {
+			EMSG("Packets requested %zu, received %zu",
+				num_pkts, j);
+			return SPI_ERR_PKTCNT;
+		}
+	}
+
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+
+	return SPI_OK;
 }
 
-static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat, uint16_t *rdat,
-	size_t num_pkts)
+static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
+	uint16_t *rdat, size_t num_pkts)
 {
 	size_t i = 0;
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	if (pd->data_size_bits != 16) {
+		EMSG("data_size_bits should be 16, not %u",
+			pd->data_size_bits);
+		return SPI_ERR_CFG;
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
@@ -199,14 +222,24 @@ static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat, uint16_t *rdat,
 				write16(wdat[i++], pd->base + SSPDR);
 			}
 
-	if (rdat)
-		while (j < num_pkts)
+	if (rdat) {
+		while ((j < num_pkts) &&
+			(read8(pd->base + SSPSR) & SSPSR_BSY))
 			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
 				/* rx 1 packet */
 				rdat[j++] = read16(pd->base + SSPDR);
 			}
 
+		if (j < num_pkts) {
+			EMSG("Packets requested %zu, received %zu",
+				num_pkts, j);
+			return SPI_ERR_PKTCNT;
+		}
+	}
+
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
+
+	return SPI_OK;
 }
 
 static void pl022_print_peri_id(struct pl022_data *pd __maybe_unused)
@@ -392,6 +425,10 @@ void pl022_configure(struct pl022_data *pd)
 
 	DMSG("disable interrupts");
 	io_mask8(pd->base + SSPIMSC, 0, MASK_4);
+
+	DMSG("clear interrupts");
+	io_mask8(pd->base + SSPICR, SSPICR_RORIC | SSPICR_RTIC,
+		SSPICR_RORIC | SSPICR_RTIC);
 
 	DMSG("set CS GPIO dir to out");
 	pd->gpio->ops->set_direction(pd->cs_gpio_pin, GPIO_DIR_OUT);
