@@ -81,8 +81,9 @@ void spi_test(void)
 	platform_pl022_data.data_size_bits = 8;
 	platform_pl022_data.loopback = true;
 
-	pl022_configure(&platform_pl022_data);
-	pl022_start(&platform_pl022_data);
+	pl022_init(&platform_pl022_data);
+	platform_pl022_data.chip.ops->configure(&platform_pl022_data.chip);
+	platform_pl022_data.chip.ops->start(&platform_pl022_data.chip);
 
 	for (j = 0; j < 20; j++) {
 		DMSG("SPI test loop: %zu", j);
@@ -96,5 +97,5 @@ void spi_test(void)
 			;
 	}
 
-	pl022_end(&platform_pl022_data);
+	platform_pl022_data.chip.ops->end(&platform_pl022_data.chip);
 }
