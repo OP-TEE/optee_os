@@ -73,7 +73,7 @@
 #define PADDR_INVALID		ULONG_MAX
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-static paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __early_bss;
+paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __early_bss;
 static uint32_t spin_table[CFG_TEE_CORE_NB_CORE] __early_bss;
 #endif
 
@@ -697,10 +697,14 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry)
  */
 paddr_t generic_boot_core_hpen(void)
 {
+#ifdef CFG_PSCI_ARM32
+	return ns_entry_addrs[get_core_pos()];
+#else
 	do {
 		wfe();
 	} while (!spin_table[get_core_pos()]);
 	dmb();
 	return ns_entry_addrs[get_core_pos()];
+#endif
 }
 #endif

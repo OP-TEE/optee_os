@@ -70,6 +70,7 @@ register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
 	defined(PLATFORM_FLAVOR_mx6qsabresd)
 register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
 #endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
@@ -90,7 +91,7 @@ void plat_cpu_reset_late(void)
 
 	if (!get_core_pos()) {
 		/* primary core */
-#if defined(CFG_BOOT_SECONDARY_REQUEST)
+#if defined(CFG_BOOT_SYNC_CPU)
 		/* set secondary entry address and release core */
 		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 8);
 		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 16);
