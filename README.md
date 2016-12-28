@@ -310,8 +310,7 @@ $ /system/bin/tee-helloworld
 ---
 ### 4.6 Freescale MX6UL EVK
 
-Get U-Boot source:
-https://github.com/MrVan/uboot/commit/4f016adae573aaadd7bf6a37f8c58a882b391ae6
+Get [U-Boot](https://github.com/MrVan/u-boot/commits/imx_v2016.03_4.1.15_2.0.0_ga)
 
 Build U-Boot:
 ```
@@ -320,57 +319,25 @@ Build U-Boot:
     Burn u-boot.imx to offset 0x400 of SD card
 ```
 
-Get Kernel source: https://github.com/linaro-swg/linux/tree/optee
+Get [Kernel](https://github.com/MrVan/linux/tree/imx_4.1.15_2.0.0_ga)
 
-Patch kernel:
-```c
-    diff --git a/arch/arm/boot/dts/imx6ul-14x14-evk.dts b/arch/arm/boot/dts/imx6ul-14x14-evk.dts
-    index 6aaa5ec..2ac9c80 100644
-    --- a/arch/arm/boot/dts/imx6ul-14x14-evk.dts
-    +++ b/arch/arm/boot/dts/imx6ul-14x14-evk.dts
-    @@ -23,6 +23,13 @@
-		reg = <0x80000000 0x20000000>;
-	 };
-
-    +	firmware {
-    +		optee {
-    +			compatible = "linaro,optee-tz";
-    +			method = "smc";
-    +		};
-    +	};
-    +
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-```
-
-Compile the Kernel:
+Build Kernel:
 
 ```
-make ARCH=arm imx_v6_v7_defconfig
-make menuconfig
-select the two entries
-	CONFIG_TEE=y
-	CONFIG_OPTEE
+make ARCH=arm imx_v7_defconfig
 make ARCH=arm
 ```
 Copy zImage and imx6ul_14x14_evk.dtb to SD card.
 
 OPTEE OS Build:
 ```
-    PLATFORM_FLAVOR=mx6ulevk make PLATFORM=imx
-    ${CROSS_COMPILE}-objcopy -O binary out/arm-plat-imx/core/tee.elf optee.bin
-    copy optee.bin to the first partition of SD card which is used for boot.
-```
+make PLATFORM=imx-mx6ulevk ARCH=arm CFG_PAGEABLE_ADDR=0
+CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT_ADDR=0x83000000
+CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
 
-Run using U-Boot:
+mkimage -A arm -O linux -C none -a 0x9c0fffe4 -e 0x9c100000 -d ./out/arm-plat-imx/core/tee.bin uTee
 ```
-    run loadfdt;
-    run loadimage;
-    fatload mmc 1:1 0x9c100000 optee.bin;
-    run mmcargs;
-    bootz ${loadaddr} - ${fdt_addr};
-```
+Copy uTee to sd card FAT partition.
 
 Note:
     CAAM is not implemented now, this will be added later.
