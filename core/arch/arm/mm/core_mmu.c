@@ -368,28 +368,40 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	memory_map[last].type = MEM_AREA_NOTYPE;
 
 	/*
+	 * Assign region sizes, note that MEM_AREA_TEE_RAM always uses
+	 * SMALL_PAGE_SIZE if paging is enabled.
+	 */
+	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		paddr_t mask = map->pa | map->size;
+
+		if (!(mask & CORE_MMU_PGDIR_MASK))
+			map->region_size = CORE_MMU_PGDIR_SIZE;
+		else if (!(mask & SMALL_PAGE_MASK))
+			map->region_size = SMALL_PAGE_SIZE;
+		else
+			panic("Impossible memory alignment");
+	}
+
+	/*
 	 * bootcfg_memory_map is sorted in order first by type and last by
 	 * address. This puts TEE_RAM first and TA_RAM second
 	 *
 	 */
-
 	map = memory_map;
 	assert(map->type == MEM_AREA_TEE_RAM);
 	map->va = map->pa;
 #ifdef CFG_WITH_PAGER
 	map->region_size = SMALL_PAGE_SIZE,
-#else
-	map->region_size = CORE_MMU_PGDIR_SIZE,
 #endif
 	map->attr = core_mmu_type_to_attr(map->type);
+
 
 	if (core_mmu_place_tee_ram_at_top(map->pa)) {
 		va = map->va;
 		map++;
 		while (map->type != MEM_AREA_NOTYPE) {
 			map->attr = core_mmu_type_to_attr(map->type);
-			map->region_size = CORE_MMU_PGDIR_SIZE,
-			va = ROUNDDOWN(va - map->size, CORE_MMU_PGDIR_SIZE);
+			va -= map->size;
 			map->va = va;
 			map++;
 		}
@@ -410,9 +422,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		map++;
 		while (map->type != MEM_AREA_NOTYPE) {
 			map->attr = core_mmu_type_to_attr(map->type);
-			map->region_size = CORE_MMU_PGDIR_SIZE,
 			map->va = va;
-			va = ROUNDUP(va + map->size, CORE_MMU_PGDIR_SIZE);
+			va += map->size;
 			map++;
 		}
 	}

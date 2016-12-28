@@ -376,8 +376,9 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 			desc = INVALID_DESC;
 			debug_print("%*s%010" PRIx64 " %8x",
 					level * 2, "", base_va, level_size);
-		} else if (mm->va <= base_va && mm->va + mm->size >=
-				base_va + level_size) {
+		} else if (mm->va <= base_va &&
+			   mm->va + mm->size >= base_va + level_size &&
+			   !(mm->pa & (level_size - 1))) {
 			/* Next region covers all of area */
 			int attr = mmap_region_attr(mm, base_va, level_size);
 
