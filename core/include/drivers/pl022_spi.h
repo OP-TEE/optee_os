@@ -47,9 +47,7 @@ struct pl022_data {
 	bool		loopback;
 };
 
-void pl022_configure(struct pl022_data *pd);
-void pl022_start(struct pl022_data *pd);
-void pl022_end(struct pl022_data *pd);
+void pl022_init(struct pl022_data *pd);
 
 #endif	/* __PL022_SPI_H__ */
 

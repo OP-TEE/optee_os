@@ -349,20 +349,15 @@ static void pl022_flush_fifo(struct pl022_data *pd)
 	} while (read32(pd->base + SSPSR) & SSPSR_BSY);
 }
 
-static const struct spi_ops pl022_ops = {
-	.txrx8 = pl022_txrx8,
-	.txrx16 = pl022_txrx16,
-};
-
-void pl022_configure(struct pl022_data *pd)
+static void pl022_configure(struct spi_chip *chip)
 {
 	uint16_t mode;
 	uint16_t data_size;
 	uint8_t cpsdvr;
 	uint8_t scr;
 	uint8_t lbm;
+	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
-	pd->chip.ops = &pl022_ops;
 	pl022_sanity_check(pd);
 	pl022_calc_clk_divisors(pd, &cpsdvr, &scr);
 
@@ -430,6 +425,9 @@ void pl022_configure(struct pl022_data *pd)
 	io_mask8(pd->base + SSPICR, SSPICR_RORIC | SSPICR_RTIC,
 		SSPICR_RORIC | SSPICR_RTIC);
 
+	DMSG("empty FIFO before starting");
+	pl022_flush_fifo(pd);
+
 	DMSG("set CS GPIO dir to out");
 	pd->gpio->ops->set_direction(pd->cs_gpio_pin, GPIO_DIR_OUT);
 
@@ -437,18 +435,32 @@ void pl022_configure(struct pl022_data *pd)
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
-void pl022_start(struct pl022_data *pd)
+static void pl022_start(struct spi_chip *chip)
 {
-	DMSG("empty FIFO before starting");
-	pl022_flush_fifo(pd);
+	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 
 	DMSG("enable SSP");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SSE_ENABLE, SSPCR1_SSE);
 }
 
-void pl022_end(struct pl022_data *pd)
+static void pl022_end(struct spi_chip *chip)
 {
+	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
 	DMSG("disable SSP");
 	io_mask8(pd->base + SSPCR1, SSPCR1_SSE_DISABLE, SSPCR1_SSE);
 }
 
+static const struct spi_ops pl022_ops = {
+	.configure = pl022_configure,
+	.start = pl022_start,
+	.txrx8 = pl022_txrx8,
+	.txrx16 = pl022_txrx16,
+	.end = pl022_end,
+};
+
+void pl022_init(struct pl022_data *pd)
+{
+	assert(pd);
+	pd->chip.ops = &pl022_ops;
+}
