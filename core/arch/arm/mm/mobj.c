@@ -304,7 +304,7 @@ static void mobj_paged_free(struct mobj *mobj)
 
 struct mobj *mobj_paged_alloc(size_t size)
 {
-	struct mobj *mobj = malloc(sizeof(*mobj));
+	struct mobj *mobj = calloc(1, sizeof(*mobj));
 
 	if (mobj) {
 		mobj->size = size;
