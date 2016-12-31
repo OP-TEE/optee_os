@@ -395,7 +395,7 @@ struct mobj *mobj_sec_shm_alloc(size_t size)
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct mobj_sec_shm *m;
 	struct user_ta_ctx *utc;
-	vaddr_t va;
+	vaddr_t va = 0;
 
 	if (!is_user_ta_ctx(tsd->ctx))
 		return NULL;

@@ -356,6 +356,8 @@ static bool pgt_entry_matches(struct pgt *p, void *ctx, vaddr_t begin,
 		return false;
 	if (p->ctx != ctx)
 		return false;
+	if (last > begin)
+		return false;
 	if (!core_is_buffer_inside(p->vabase, SMALL_PAGE_SIZE, begin,
 				   last - begin))
 		return false;
@@ -405,8 +407,9 @@ void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, void *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
-void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
-		  void *new_ctx, vaddr_t new_va, size_t size)
+static void transfer_tables(struct pgt_cache *pgt_cache, void *old_ctx,
+			    vaddr_t old_va, void *new_ctx, vaddr_t new_va,
+			    size_t size)
 {
 	const size_t pgtsize = CORE_MMU_PGDIR_SIZE;
 	const vaddr_t new_base = ROUNDDOWN(new_va, pgtsize);
@@ -461,6 +464,14 @@ void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
 	}
 
 	mutex_unlock(&pgt_mu);
+}
+
+void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
+		  void *new_ctx, vaddr_t new_va, size_t size)
+{
+	if (size)
+		transfer_tables(pgt_cache, old_ctx, old_va, new_ctx,
+				new_va, size);
 }
 
 #else /*!CFG_PAGED_USER_TA*/
