@@ -203,6 +203,34 @@ following operations should support atomic update:
 The strategy used in OP-TEE secure storage to guarantee the atomicity is
 out-of-place update.
 
+## Important caveats
+
+Currently **no OP-TEE platform is able to support retrieval of the Hardware
+Unique Key or Chip ID required for secure operation**.
+
+For all platforms, a constant key is used, resulting in no protection against
+decryption, or Secure Storage duplication to other devices.
+
+This is because information about how to retrieve key data from the SoC is
+considered sensitive by the vendors and it is not freely available.
+
+In OP-TEE, there are apis for reading the keys generically from "One-Time
+Programmable" memory, or OTP.  But there are no existing platform implementations.
+
+To allow Secure Storage to operate securely on your platform, you must:
+
+ - enable CFG_OTP_SUPPORT on your platform
+
+ - In your platform code, define implementations for:
+
+```
+ void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
+ int tee_otp_get_die_id(uint8_t *buffer, size_t len);
+```
+
+These implementations should fetch the key data from your SoC-specific e-fuses,
+or crypto unit according to the method defined by your SoC vendor.
+
 ## Future Work
 
 - **TA storage space isolation**
