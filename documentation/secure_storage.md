@@ -52,7 +52,7 @@ When a TA is calling the write function provided by GP Trusted Storage API to
 write data to a persistent object, a corresponding syscall implemented in TEE
 Trusted Storage Service will be called, which in turn will invoke a series of
 TEE file operations to store the data. TEE file system will then encrypt the
-data (when CFG_ENC_FS=y) and send REE file operation commands and the encrypted
+data and send REE file operation commands and the encrypted
 data to TEE supplicant by a series of RPC messages. TEE supplicant will receive
 the messages and store the encrypted data accordingly to the Linux file
 system. Reading files are handled in a similar manner.

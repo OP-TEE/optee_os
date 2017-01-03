@@ -103,8 +103,7 @@ HMAC authentication is implemented here also.
 
 The FS encryption routines are in [core/tee/tee_fs_key_manager.c](../core/tee/tee_fs_key_manager.c).
 
-Block encryption is enabled by default to protect file data. It may be turned
-off with `CFG_ENC_FS=n`. The algorithm is 128-bit AES in Cipher Block Chaining
+Block encryption protects file data. The algorithm is 128-bit AES in Cipher Block Chaining
 (CBC) mode with Encrypted Salt-Sector Initialization Vector (ESSIV)
 [[4]](#CBC-ESSIV).
 
