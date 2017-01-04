@@ -226,44 +226,42 @@ $ sudo rm -rf /srv/nfs/rpi/boot/*
 ```
 
 ### 5.4 Update uboot.env
-We need to make a couple of changes to that file to ensure that it will try to
-boot using everything we have prepared. So, start by inserting the UART cable
-and open up `/dev/ttyUSB0`
+Actually, there are two ways to update uboot.env. First, you can edit
+`build/rpi3/firmware/uboot.env.txt` file, which is used as simple text source for
+generation of uboot.env during build. And you can just edit u-boot env via UART
+and save new values to uboot.env. By using the second way you can avoid rebuilding
+and copying uboot.env to SD card, but on the other hand, it's easier to break
+something while performing "hot" edit.
+
+#### 5.4.1 Edit uboot.env.txt
+All you need to do is to edit network configuration in `build/rpi3/firmware/uboot.env.txt`.
+You have to change value of `serverip` to the IP address of your NFS/TFTP server,
+`gatewayip` to your router IP address and `nfspath` to the exported path, where root FS
+is stored (`/srv/nfs/rpi`). Then you need to generate new `uboot.env`:
+```
+$ cd /home/jbech/devel/optee_projects/rpi3/boot/
+# clean previous uboot.env
+$ make u-boot-env-clean
+# generate new
+$ make u-boot-jtag-bin
+```
+Then you need to copy your newly generated `uboot.env`(it's stored in `../out/uboot.env`)
+to the BOOT partition of your SD card.
+
+#### 5.4.2 Edit u-boot.env via UART
+Start by inserting the UART cable and open up `/dev/ttyUSB0`
 ```
 # sudo apt-get install picocom
 $ picocom -b 115200 /dev/ttyUSB0
 ```
 
 Power up the Raspberry Pi and almost immediately hit any key and you should see
-the `U-Boot>` prompt. First add a new variable which will gather all files and
-boot up the device. For simplicity I call that variable `optee`. So in the
-prompt write (pay attention to the IP's used as described in the beginning of
-this section):
+the `U-Boot>` prompt. First edit your NFS/TFTP server IP address:
 ```
-U-Boot> setenv optee 'usb start; dhcp ${kernel_addr_r} 192.168.1.100:Image; dhcp ${fdt_addr_r} 192.168.1.100:${fdtfile}; dhcp ${atf_load_addr} 192.168.1.100:${atf_file}; run boot_it'
+U-Boot> setenv serverip '192.168.1.100'
 ```
-
-Also ensure that you have the variables stored that are used in the `optee`
-U-Boot environment variable above. If you don't, then do:
-
-```
-U-Boot> setenv fdtfile 'bcm2710-rpi-3-b.dtb'
-U-Boot> setenv atf_file 'optee.bin'
-```
-
-Next, we should update the kernel commandline to use NFS, to easier understand
-what changes needs to be done I list both the unmodified command line and the
-changed and correct one for NFS boot.
-
-Original
-```
-setenv bootargs 'console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootfs=ext4 ignore_loglevel dma.dmachans=0x7f35 rootwait 8250.nr_uarts=1 elevator=deadline fsck.repair=yes smsc95xx.macaddr=b8:27:eb:74:93:b0 bcm2708_fb.fbwidth=1920 bcm2708_fb.fbheight=1080 vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000'
-```
-
-Updated for NFS boot
-```
-setenv bootargs 'console=ttyS0,115200 root=/dev/nfs rw rootfstype=nfs nfsroot=192.168.1.100:/srv/nfs/rpi,udp,vers=3 ip=dhcp ignore_loglevel dma.dmachans=0x7f35 rootwait 8250.nr_uarts=1 elevator=deadline fsck.repair=yes smsc95xx.macaddr=b8:27:eb:74:93:b0 bcm2708_fb.fbwidth=1920 bcm2708_fb.fbheight=1080 vc_mem.mem_base=0x3dc00000 vc_mem.mem_size=0x3f000000'
-```
+Perform the same steps for `gateway`(your router IP address) and
+`nfspath` (the exported path, where root FS is stored, for example `/srv/nfs/rpi`)
 
 If you want those environment variables to persist between boots, then type.
 ```
@@ -279,7 +277,7 @@ the device and kernel, secure side OP-TEE and the entire root fs should be
 loaded from the network shares. Power up the Raspberry, halt in U-Boot and then
 type.
 ```
-U-Boot> run optee
+U-Boot> run nfsboot
 ```
 
 Profit!
