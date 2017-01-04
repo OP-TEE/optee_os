@@ -1,3 +1,131 @@
+# OP-TEE - version 2.3.0
+
+[Link][github_commits_2_3_0] to a list of all commits between this release and
+the previous one (2.2.0).
+
+Please note: this release is API-compatible with the previous one, but the
+Secure Storage internal format for the REE FS is not compatible due to commit
+[361fb3e][commit_361fb3e] ("core: REE FS: use a single file per object").
+
+[commit_361fb3e]: https://github.com/OP-TEE/optee_os/commit/361fb3e
+
+## New features
+
+* New supported platform: Xilinx Zynq 7000 ZC702 (`PLATFORM=zynq7k-zc702`)
+
+* Add debug assertions to spinlocks and mutexes
+
+* Add more CP15 register access macros for Cortex-A9
+
+* ARMv7-A: redesign secure monitor to make it easier to register services
+
+* ARMv7-A: cleanup boot arguments
+
+* libutee: extend `TEE_CheckMemoryAccessRights()` with
+  `TEE_MEMORY_ACCESS_SECURE` and `TEE_MEMORY_ACCESS_NONSECURE`
+
+* plat-hikey: enable SPI by default and add sample test code
+
+* Consider `CFLAGS_ta_arm64` and `CFLAGS_ta_arm32` when building TAs
+
+* Secure storage refactoring
+  - Simplify interface with tee-supplicant. Minimize round trips with normal
+    world, especially by adding a cache for FS RPC payload data.
+  - REE FS: use a single file per object, remove block cache.
+
+* Print call stack in panic()
+
+## Bug fixes
+
+* Fix UUID encoding when communicating with normal world (use big endian
+  mode instead of native endianness). Related to this, the string format
+  for UUIDs has changed in tee-supplicant, so that TA file names now follow
+  the format defined in RFC4122 (a missing hyphen was added). The old format
+  is still supported, but deprecated, and will likely be removed with the
+  next major release.
+
+* Drop write permission to non-writable ELF segments after TA loading is
+  complete.
+
+* mm: fix confusing memory mapping debug traces
+
+* plat-ti: fix issues with MMU mapping
+
+* crypto: fix clearing of big numbers
+
+* build: allow spaces and double quotes in CFG_ variables
+
+* mm: use paddr_t to support both 32- and 64-bit architectures properly.
+  Resolves 32-bit truncation error when pool is at top of 32 bit address
+  space on 64-bit architecture.
+
+* plat-stm: support pager. Fix pager on ARMv7-A SMP boards.
+
+* Fix debug output of Trusted Applications (remove "ERROR: TEE-CORE:" prefix)
+
+* Do not consider TA memref parameters as TA private memory
+
+* crypto: fix `cipher_final()` which would not call `cbc_done()` for CBC_MAC
+  algorithms
+
+* fix for 16-way PL310
+
+* arm32: fix call stack unwinding (`print_stack()`)
+
+* arm32: fix spinlock assembly code
+
+* plat-stm, plat-imx: fix SCR initalization
+
+* Fix user L1 MMU entries calculation (non-LPAE), allowing TTBCR.N values
+  other than 7.
+
+* mtk-mt8173: fix panic caused by incorrect size of SHMEM
+
+* plat-stm: fix RNG driver (non-flat mapping)
+
+## Known issues
+
+* New issues open on GitHub
+  * [#1203][issue1203] AES-CTS mode will fail when inlen=0x100, in_incr=0x80
+  * [#1199][issue1199] Both tee and teepriv reported GlobalPlatform compliant
+  * [#1188][issue1188] Secure storage (SQL FS and REE FS): blocks not tied to
+    current meta header
+  * [#1172][issue1172] paddr_t should be larger than 32 bits when
+    CFG_WITH_LPAE is enabled
+
+## Tested on
+
+In the list below, _standard_ means that the `xtest` program passed with
+its default configuration, while _extended_ means it was run successfully
+with the additional GlobalPlatform™ TEE Initial Configuration Test Suite
+v1.1.0.4.
+
+If a platform is not listed, it means the release was not tested on this
+platform.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02: extended
+* hikey: extended
+* imx-mx6ulevk: standard
+* ls-ls1021atwr: standard
+* mediatek-mt8173: standard
+* rcar-h3: standard
+* rpi3: standard
+* stm-b2260: extended
+* stm-cannes: extended
+* ti-dra7xx: standard
+* vexpress-fvp: standard
+* vexpress-juno: standard
+* vexpress-qemu_armv8a: standard
+* vexpress-qemu_virt: extended
+* zynqmp-zcu102: standard
+
+[github_commits_2_3_0]: https://github.com/OP-TEE/optee_os/compare/2.2.0...2.3.0
+[issue1172]: https://github.com/OP-TEE/optee_os/issues/1172
+[issue1188]: https://github.com/OP-TEE/optee_os/issues/1188
+[issue1199]: https://github.com/OP-TEE/optee_os/issues/1199
+[issue1203]: https://github.com/OP-TEE/optee_os/issues/1203
+
 # OP-TEE - version 2.2.0
 
 [Link][github_commits_2_2_0] to a list of all commits between this release and
@@ -448,7 +576,7 @@ Definitions:
 *   STM Cannes (stm-cannes), standard + extended tests.
 
 
-## Issues resolved since last release
+## Issues resolved since last release
 *	Fix user TA trace issue, in order each TA is able to select its own trace level
 
 
@@ -529,7 +657,7 @@ Definitions:
 *   STM Cannes (plat-stm-cannes), standard + extended tests.
 
 
-## Issues resolved since last release
+## Issues resolved since last release
 N/A since this is the first release tag on OP-TEE.
 
 
