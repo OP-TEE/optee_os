@@ -108,7 +108,6 @@
 #define DEVICE0_TYPE		MEM_AREA_IO_NSEC
 
 #define CONSOLE_UART_BASE		(UART0_BASE)
-#define CONSOLE_UART_PA_BASE		(UART0_BASE)
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
@@ -140,11 +139,9 @@
 
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite)
 #define CONSOLE_UART_BASE		UART2_BASE
-#define CONSOLE_UART_PA_BASE		UART2_BASE
 #endif
 #if defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define CONSOLE_UART_BASE		UART1_BASE
-#define CONSOLE_UART_PA_BASE		UART1_BASE
 #endif
 #define DRAM0_BASE			0x10000000
 #define DRAM0_SIZE			0x40000000

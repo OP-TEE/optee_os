@@ -131,7 +131,7 @@ static vaddr_t console_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(CONSOLE_UART_PA_BASE,
+			va = phys_to_virt(CONSOLE_UART_BASE,
 					  MEM_AREA_IO_NSEC);
 		return (vaddr_t)va;
 	}
