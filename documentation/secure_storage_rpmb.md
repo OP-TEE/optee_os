@@ -127,7 +127,7 @@ file, as follows:
 ```
 
 
-SSK and FEK handling is common with the REE-based secure storage, while the AES
+SSK, TSK and FEK handling is common with the REE-based secure storage, while the AES
 CBC block encryption is used only for RPMB (the REE implementation uses GCM).
 
 The FAT is not encrypted.
