@@ -159,6 +159,17 @@ to encrypt/decrypt the FEK.
 TSK is derived by:
 > TSK = HMAC<sub>SHA256</sub> (SSK, TA_UUID)
 
+#### TA storage space isolation
+
+OP-TEE provides different folders for different TAs in Linux file system for
+storing their own TEE files, but OP-TEE cannot prevent an attacker from
+directly copying a TEE file from one TA's folder to another TA's folder in
+Linux file system.
+
+The TSK offers an effective protection against this kind of attack. If an
+attacker copies an TEE file from one TA's folder to another TA's folder,
+this TA would not be able to obtain the plaintext of the TEE file.
+
 ### File Encryption Key (FEK)
 
 When a new TEE file is created, key manager will generate a new FEK by
@@ -232,18 +243,6 @@ These implementations should fetch the key data from your SoC-specific e-fuses,
 or crypto unit according to the method defined by your SoC vendor.
 
 ## Future Work
-
-- **TA storage space isolation**
-
-OP-TEE provides different folders for different TAs in Linux file system for
-storing their own TEE files, but OP-TEE cannot prevent an attacker from
-directly copying a TEE file from one TA's folder to another TA's folder in
-Linux file system. TEE OS should have the ability to detect those kind of
-attack, but for now OP-TEE secure storage doesn't meet the requirement.
-
-A simple solution to detect the attack is using TA's UUID as AAD
-when calculating the tag of meta file, so that OP-TEE will know if a TEE file
-belongs to a specific TA when the TA tries to open the TEE file.
 
 - **TEE file renaming attack detection**
 
