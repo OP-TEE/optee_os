@@ -90,7 +90,6 @@ include  $(ta-dev-kit-dir)/mk/link.mk
 else
 ifneq ($(libname),)
 all: $(libname).a
-cleanfiles += $(libname).a
 
 $(libname).a: $(objs)
 	@echo '  AR      $@'

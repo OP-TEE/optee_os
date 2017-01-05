@@ -8,10 +8,6 @@ AWK	 = awk
 
 all: $(link-out-dir)/tee.elf $(link-out-dir)/tee.dmp $(link-out-dir)/tee.bin
 all: $(link-out-dir)/tee.symb_sizes
-cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.dmp $(link-out-dir)/tee.map
-cleanfiles += $(link-out-dir)/tee.bin
-cleanfiles += $(link-out-dir)/tee.symb_sizes
-cleanfiles += $(link-script-pp) $(link-script-dep)
 
 link-ldflags  = $(LDFLAGS)
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map

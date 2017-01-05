@@ -9,11 +9,6 @@ TA_SIGN_KEY ?= $(TA_DEV_KIT_DIR)/keys/default_ta.pem
 
 all: $(link-out-dir)/$(binary).elf $(link-out-dir)/$(binary).dmp \
 	$(link-out-dir)/$(binary).stripped.elf $(link-out-dir)/$(binary).ta
-cleanfiles += $(link-out-dir)/$(binary).elf $(link-out-dir)/$(binary).dmp
-cleanfiles += $(link-out-dir)/$(binary).map
-cleanfiles += $(link-out-dir)/$(binary).stripped.elf
-cleanfiles += $(link-out-dir)/$(binary).ta
-cleanfiles += $(link-script-pp) $(link-script-dep)
 
 link-ldflags  = $(LDFLAGS)
 link-ldflags += -pie
