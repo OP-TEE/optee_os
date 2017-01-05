@@ -38,13 +38,15 @@ endif
 ARCH            ?= arm
 PLATFORM        ?= vexpress
 # Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
-O		?= out/$(ARCH)-plat-$(PLATFORM)
+O		?= out
+out-dir:=
 
 arch_$(ARCH)	:= y
 
 ifneq ($O,)
-out-dir := $O
+out-dir :=$O
 endif
+out-dir:=$(out-dir)/optee_os_out/$(ARCH)-plat-$(PLATFORM)
 
 ifneq ($V,1)
 q := @
@@ -66,7 +68,6 @@ cmd-echo-silent := true
 endif
 endif
 
-
 include core/core.mk
 
 # Platform config is supposed to assign the targets
@@ -83,7 +84,7 @@ endif
 .PHONY: clean
 clean:
 	@$(cmd-echo-silent) '  CLEAN   .'
-	${q}rm -f $(cleanfiles)
+	${q}rm -f $(out-dir)/..
 
 .PHONY: cscope
 cscope:
