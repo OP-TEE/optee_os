@@ -535,7 +535,6 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 	int start_block_num;
 	int end_block_num;
 
-
 	if (!len)
 		return TEE_SUCCESS;
 
@@ -572,8 +571,10 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 		start_block_num++;
 	}
 
-	fdp->meta.length = fdp->pos;
-	res = write_meta(fdp);
+	if (fdp->meta.length < (size_t)fdp->pos) {
+		fdp->meta.length = fdp->pos;
+		res = write_meta(fdp);
+	}
 exit:
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	mutex_unlock(&sql_fs_mutex);
