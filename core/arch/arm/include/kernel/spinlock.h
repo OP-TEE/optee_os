@@ -64,15 +64,15 @@ static inline void cpu_spin_lock(unsigned int *lock)
 	spinlock_count_incr();
 }
 
-static inline unsigned int cpu_spin_trylock(unsigned int *lock)
+static inline bool cpu_spin_trylock(unsigned int *lock)
 {
-	unsigned int locked;
+	unsigned int rc;
 
 	assert(thread_irq_disabled());
-	locked = __cpu_spin_trylock(lock);
-	if (locked)
+	rc = __cpu_spin_trylock(lock);
+	if (!rc)
 		spinlock_count_incr();
-	return locked;
+	return !rc;
 }
 
 static inline void cpu_spin_unlock(unsigned int *lock)
