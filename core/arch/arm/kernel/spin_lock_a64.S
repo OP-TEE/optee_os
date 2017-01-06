@@ -70,17 +70,17 @@ l2:	ldaxr	w1, [x0]
 	ret
 END_FUNC __cpu_spin_lock
 
-/* int __cpu_spin_trylock(unsigned int *lock); */
+/* unsigned int __cpu_spin_trylock(unsigned int *lock); */
 FUNC __cpu_spin_trylock , :
-	mov	w2, #SPINLOCK_LOCK
-.loop:	ldaxr	w1, [x0]
-	cbnz	w1, .cpu_spin_trylock_out
-	stxr	w1, w2, [x0]
-	cbnz	w1, .loop
+	mov     x1, x0
+	mov     w2, #SPINLOCK_LOCK
+.loop:	ldaxr   w0, [x1]
+	cbnz    w0, .cpu_spin_trylock_out
+	stxr    w0, w2, [x1]
+	cbnz    w0, .loop
 .cpu_spin_trylock_out:
 	ret
 END_FUNC __cpu_spin_trylock
-
 
 /* void __cpu_spin_unlock(unsigned int *lock); */
 FUNC __cpu_spin_unlock , :
