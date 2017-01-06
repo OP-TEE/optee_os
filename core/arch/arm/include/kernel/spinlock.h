@@ -53,8 +53,9 @@ static inline void assert_have_no_spinlock(void) { }
 #endif
 
 void __cpu_spin_lock(unsigned int *lock);
-unsigned int __cpu_spin_trylock(unsigned int *lock);
 void __cpu_spin_unlock(unsigned int *lock);
+/* returns 0 on locking success, non zero on failure */
+unsigned int __cpu_spin_trylock(unsigned int *lock);
 
 static inline void cpu_spin_lock(unsigned int *lock)
 {
