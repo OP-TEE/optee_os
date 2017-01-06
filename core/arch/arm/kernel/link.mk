@@ -56,12 +56,12 @@ $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
 		`cat $(link-out-dir)/unpaged_entries.txt` \
 		$(ldargs-unpaged-objs) -o $@
 
-cleanfiles += $(link-out-dir)/text_unpaged.ld.S:
+cleanfiles += $(link-out-dir)/text_unpaged.ld.S
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
 
-cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S:
+cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S
 $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -a -W $< | \
@@ -93,12 +93,12 @@ $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 		`cat $(link-out-dir)/init_entries.txt` \
 		$(ldargs-init-objs) -o $@
 
-cleanfiles += $(link-out-dir)/text_init.ld.S:
+cleanfiles += $(link-out-dir)/text_init.ld.S
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
 
-cleanfiles += $(link-out-dir)/rodata_init.ld.S:
+cleanfiles += $(link-out-dir)/rodata_init.ld.S
 $(link-out-dir)/rodata_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -a -W $< | \

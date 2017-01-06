@@ -68,11 +68,15 @@ libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 libdeps += $(ta-dev-kit-dir)/lib/libzlib.a
 libdeps += $(ta-dev-kit-dir)/lib/libpng.a
 
+include $(ta-dev-kit-dir)/mk/cleandirs.mk
+
 .PHONY: clean
 clean:
-	@$(cmd-echo-silent) '  CLEAN   .'
+	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
 	${q}rm -f $(cleanfiles)
-
+	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then rmdir $$dirs; fi
+	@$(cmd-echo-silent) '  CLEAN   $(O)'
+	${q}if [ -d "$(O)" ]; then rmdir --ignore-fail-on-non-empty $(O); fi
 
 subdirs = .
 include  $(ta-dev-kit-dir)/mk/subdir.mk

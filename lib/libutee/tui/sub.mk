@@ -15,6 +15,7 @@ recipe-default_bold := scripts/render_font.py \
 		--font_file $(sub-dir)/fonts/amble/Amble-Bold.ttf \
 		--font_size 20 --font_name default_bold \
 		--out_dir $(sub-dir-out)
+cleanfiles += $(sub-dir-out)/default_bold.c $(sub-dir-out)/default_bold.h
 
 gensrcs-y += default_regular
 produce-additional-default_regular = default_regular.h
@@ -25,5 +26,5 @@ recipe-default_regular := scripts/render_font.py \
 		--font_file $(sub-dir)/fonts/amble/Amble-Regular.ttf \
 		--font_size 20 --font_name default_regular \
 		--out_dir $(sub-dir-out)
-
+cleanfiles += $(sub-dir-out)/default_regular.c $(sub-dir-out)/default_regular.h
 

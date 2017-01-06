@@ -38,13 +38,14 @@ endif
 ARCH            ?= arm
 PLATFORM        ?= vexpress
 # Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
-O		?= out/$(ARCH)-plat-$(PLATFORM)
+ifeq ($O,)
+O               := out
+out-dir         := $(O)/$(ARCH)-plat-$(PLATFORM)
+else
+out-dir         := $(O)
+endif
 
 arch_$(ARCH)	:= y
-
-ifneq ($O,)
-out-dir := $O
-endif
 
 ifneq ($V,1)
 q := @
@@ -80,10 +81,15 @@ endef
 $(foreach t, $(ta-targets), $(eval $(call build-ta-target, $(t))))
 endif
 
+include mk/cleandirs.mk
+
 .PHONY: clean
 clean:
-	@$(cmd-echo-silent) '  CLEAN   .'
+	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
 	${q}rm -f $(cleanfiles)
+	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then rmdir $$dirs; fi
+	@if [ "$(out-dir)" != "$(O)" ]; then $(cmd-echo-silent) '  CLEAN   $(O)'; fi
+	${q}if [ -d "$(O)" ]; then rmdir --ignore-fail-on-non-empty $(O); fi
 
 .PHONY: cscope
 cscope:
