@@ -25,10 +25,11 @@
         5. [GlobalPlatform testsuite support](#572-globalplatform-testsuite-support)
         5. [GCC5 support](#573-gcc5-support)
     5. [Raspberry Pi 3](#58-raspberry-pi-3)
-    5. [Tips and tricks](#59-tips-and-tricks)
-        5. [Reference existing project to speed up repo sync](#591-reference-existing-project-to-speed-up-repo-sync)
-        5. [Use ccache](#592-use-ccache)
-        5. [Host-Guest folder sharing in QEMU/QEMUv8 configurations](#593-host-guest-folder-sharing-in-qemuqemuv8-configurations)
+    5. [DRA7xx](#59-texas-instruments-dra7xx-evm)
+    5. [Tips and tricks](#510-tips-and-tricks)
+        5. [Reference existing project to speed up repo sync](#5101-reference-existing-project-to-speed-up-repo-sync)
+        5. [Use ccache](#5102-use-ccache)
+        5. [Host-Guest folder sharing in QEMU/QEMUv8 configurations](#5103-host-guest-folder-sharing-in-qemuqemuv8-configurations)
 6. [Load driver, tee-supplicant and run xtest](#6-load-driver-tee-supplicant-and-run-xtest)
 7. [Coding standards](#7-coding-standards)
     7. [checkpatch](#71-checkpatch)
@@ -651,8 +652,33 @@ That document will tell you how to flash, how to debug, known problems and
 things still to be done.
 
 ---
-### 5.9 Tips and tricks
-#### 5.9.1 Reference existing project to speed up repo sync
+### 5.9 Texas Instruments DRA7xx-EVM
+After getting the source and toolchain, just run (from the `build` folder)
+```
+$ make all
+```
+
+Create two partitions on an SD card, 'boot' of type FAT16 and 'rootfs' of type
+EXT4. To prevent accidental data loss we do not attempt this automatically, the
+RPI3 instructions above use a similar SD card layout.
+
+Extract the generated rootfs to the 'rootfs' partition
+```
+# cd <SD card rootfs partition>
+# gunzip -cd <repo directory>/gen_rootfs/filesystem.cpio.gz | sudo cpio -idm
+```
+
+Add the bootloader to the 'boot' partition
+```
+# cd <SD card boot partition>
+# cp <repo directory>/u-boot/u-boot-spl_HS_MLO MLO
+# cp <repo directory>/u-boot/u-boot_HS.img u-boot.img
+# cp <repo directory>/build/dra7xx/uEnv.txt uEnv.txt
+```
+
+---
+### 5.10 Tips and tricks
+#### 5.10.1 Reference existing project to speed up repo sync
 Doing a `repo init`, `repo sync` from scratch can take a fair amount of time.
 The main reason for that is simply because of the size of some of the gits we
 are using, like for the Linux kernel and EDK2. With repo you can reference an
@@ -678,7 +704,7 @@ Normally step 1 and 2 above is something you will only do once. Also if you
 ignore step 2, then you will still get the latest from official git trees, since
 repo will also check for updates that aren't at the local reference.
 
-#### 5.9.2 Use ccache
+#### 5.10.2 Use ccache
 ccache is a tool that caches build object-files etc locally on the disc and can
 speed up build time significantly in subsequent builds. On Debian-based systems
 (Ubuntu, Mint etc) you simply install it by running:
@@ -690,7 +716,7 @@ The helper makefiles are configured to automatically find and use ccache if
 ccache is installed on your system, so other than having it installed you don't
 have to think about anything.
 
-#### 5.9.3 Host-Guest folder sharing in QEMU/QEMUv8 configurations
+#### 5.10.3 Host-Guest folder sharing in QEMU/QEMUv8 configurations
 To avoid changing rootfs CPIO archive each time you need to add additional
 files to it, you can also use VirtFS QEMU feature to share a folder between
 the guest and host operating systems. To use this feature enable VirtFS
