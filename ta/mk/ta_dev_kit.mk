@@ -23,8 +23,11 @@ endif
 ifneq ($O,)
 out-dir := $O
 else
-out-dir := .
+out-dir := out
 endif
+
+out-dir := $out-dir/optee_os_out/$(ARCH)-plat-$(PLATFORM)
+
 
 ifneq ($V,1)
 q := @
@@ -71,7 +74,7 @@ libdeps += $(ta-dev-kit-dir)/lib/libpng.a
 .PHONY: clean
 clean:
 	@$(cmd-echo-silent) '  CLEAN   .'
-	${q}rm -f $(cleanfiles)
+	${q}rm -f $(out-dir)/..
 
 
 subdirs = .
@@ -90,7 +93,6 @@ include  $(ta-dev-kit-dir)/mk/link.mk
 else
 ifneq ($(libname),)
 all: $(libname).a
-cleanfiles += $(libname).a
 
 $(libname).a: $(objs)
 	@echo '  AR      $@'

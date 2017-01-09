@@ -7,7 +7,6 @@
 #
 # Output
 #
-# updated cleanfiles and
 # updated libfiles, libdirs, libnames and libdeps
 
 
@@ -16,7 +15,6 @@ include mk/subdir.mk
 include mk/compile.mk
 
 lib-libfile	 = $(out-dir)/$(base-prefix)$(libdir)/lib$(libname).a
-cleanfiles	:= $(cleanfiles) $(lib-libfile)
 libfiles	:= $(lib-libfile) $(libfiles)
 libdirs 	:= $(out-dir)/$(base-prefix)$(libdir) $(libdirs)
 libnames	:= $(libname) $(libnames)

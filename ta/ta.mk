@@ -66,7 +66,6 @@ $2/$$(notdir $1): $1
 	$(cmd-echo-silent) '  INSTALL $$@' ; \
 	cp $$< $$@
 
-cleanfiles += $2/$$(notdir $1)
 all: $2/$$(notdir $1)
 endef
 
@@ -125,5 +124,4 @@ $(conf-mk-file-export): $(conf-mk-file)
 		echo $(v) := $($(v));)) >> $@
 	$(q)echo '$(ta-mk-file-export-add-$(sm-$(@)))' | sed 's/_nl_ */\n/g' >> $@
 
-cleanfiles := $(cleanfiles) $(conf-mk-file-export)
 all: $(conf-mk-file-export)

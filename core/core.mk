@@ -60,9 +60,6 @@ conf-file := $(out-dir)/include/generated/conf.h
 conf-mk-file := $(out-dir)/conf.mk
 $(conf-file): $(conf-mk-file)
 
-cleanfiles += $(conf-file)
-cleanfiles += $(conf-mk-file)
-
 $(conf-file): FORCE
 	$(call check-conf-h)
 

@@ -7,7 +7,6 @@
 # Output
 #
 # set	  objs
-# update  cleanfiles
 #
 # Generates explicit rules for all objs
 
@@ -64,8 +63,6 @@ comp-dep-$2	:= $$(dir $2).$$(notdir $2).d
 comp-cmd-file-$2:= $$(dir $2).$$(notdir $2).cmd
 comp-sm-$2	:= $(sm)
 comp-lib-$2	:= $(libname)-$(sm)
-
-cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 
 ifeq ($$(filter %.c,$1),$1)
 comp-q-$2 := CC
@@ -161,8 +158,6 @@ FORCE-GENSRC: $(2)
 comp-dep-$3	:= $$(dir $3)$$(notdir $3).d
 comp-cmd-file-$3:= $$(dir $3)$$(notdir $3).cmd
 comp-sm-$3	:= $(sm)
-
-cleanfiles := $$(cleanfiles) $$(comp-dep-$3) $$(comp-cmd-file-$3) $3 $2
 
 comp-flags-$3 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 			      $$(cflags-remove-$$(comp-sm-$3)) \
