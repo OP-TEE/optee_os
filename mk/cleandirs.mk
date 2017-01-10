@@ -20,7 +20,7 @@ endef
 # Example: if cleanfiles is "foo/a/file1 foo/b/c/d/file2" and O=foo, this will
 # return "foo/b/c/d foo/b/c foo/b foo/a" (assuming all exist).
 define cleandirs-for-rmdir
-$(wildcard $(addprefix $(O)/,$(call _reverse,$(sort
-			$(foreach d,$(patsubst $(O)/%,%,$(dir $(cleanfiles))),
-				    $(call enum-parent-dirs,$(d)))))))
+$(eval _O:=$(if $(O),$(O),.))$(wildcard $(addprefix $(_O)/,$(call _reverse,
+	$(sort $(foreach d,$(patsubst $(_O)/%,%,$(dir $(cleanfiles))),
+			   $(call enum-parent-dirs,$(d)))))))
 endef
