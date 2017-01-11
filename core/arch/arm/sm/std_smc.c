@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2016, Linaro Limited
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * All rights reserved.
+ *
+ * Peng Fan <peng.fan@nxp.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,34 +26,52 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <arm.h>
-#include <compiler.h>
-#include <kernel/misc.h>
-#include <platform_config.h>
+
+#include <stdint.h>
 #include <sm/optee_smc.h>
+#include <sm/psci.h>
 #include <sm/sm.h>
 #include <sm/std_smc.h>
-#include <string.h>
-#include "sm_private.h"
+#include <tee/uuid.h>
+#include <trace.h>
 
-bool sm_from_nsec(struct sm_ctx *ctx)
+static const TEE_UUID uuid = {
+	0x5f8b97df, 0x2d0d, 0x4ad2,
+	{0x98, 0xd2, 0x74, 0xf4, 0x38, 0x27, 0x98, 0xbb},
+};
+
+void smc_std_handler(struct thread_smc_args *args)
 {
-	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
+	uint32_t smc_fid = args->a0;
 
-#ifdef CFG_PSCI_ARM32
-	if (OPTEE_SMC_OWNER_NUM(*nsec_r0) == OPTEE_SMC_OWNER_STANDARD) {
-		smc_std_handler((struct thread_smc_args *)nsec_r0);
-		return false;	/* Return to non secure state */
+	if (is_psci_fid(smc_fid)) {
+		tee_psci_handler(args);
+		return;
 	}
-#endif
 
-	sm_save_modes_regs(&ctx->nsec.mode_regs);
-	sm_restore_modes_regs(&ctx->sec.mode_regs);
-
-	memcpy(&ctx->sec.r0, nsec_r0, sizeof(uint32_t) * 8);
-	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.fast_smc_entry;
-	else
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.std_smc_entry;
-	return true;	/* return into secure state */
+	switch (smc_fid) {
+	case ARM_STD_SVC_CALL_COUNT:
+		/* PSCI is the only STD service implemented */
+		args->a0 = PSCI_NUM_CALLS;
+		break;
+	case ARM_STD_SVC_UID:
+		args->a0 = uuid.timeLow;
+		args->a1 = (uuid.timeHiAndVersion << 16) | uuid.timeMid;
+		args->a2 = (uuid.clockSeqAndNode[3] << 24) |
+			(uuid.clockSeqAndNode[2] << 16) |
+			(uuid.clockSeqAndNode[1] << 8) |
+			uuid.clockSeqAndNode[0];
+		args->a3 = (uuid.clockSeqAndNode[7] << 24) |
+			(uuid.clockSeqAndNode[6] << 16) |
+			(uuid.clockSeqAndNode[5] << 8) |
+			uuid.clockSeqAndNode[4];
+		break;
+	case ARM_STD_SVC_VERSION:
+		args->a0 = STD_SVC_VERSION_MAJOR;
+		args->a1 = STD_SVC_VERSION_MINOR;
+		break;
+	default:
+		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+	}
 }
