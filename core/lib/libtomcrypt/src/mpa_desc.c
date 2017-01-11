@@ -435,8 +435,10 @@ static int mulmod(void *a, void *b, void *c, void *d)
 	LTC_ARGCHK(c != NULL);
 	LTC_ARGCHK(d != NULL);
 	void *tmpa, *tmpb;
+	int err;
 
-	mp_init_multi(&tmpa, &tmpb, NULL);
+	if ((err = mp_init_multi(&tmpa, &tmpb, NULL)) != CRYPT_OK)
+		return err;
 
 	mod(a, c, tmpa);
 	mod(b, c, tmpb);
