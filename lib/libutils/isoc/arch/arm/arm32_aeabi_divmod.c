@@ -174,7 +174,7 @@ signed __aeabi_imod(signed numerator, signed denominator)
 	struct qr qr = { .q_n = 0, .r_n = 0 };
 
 	/* in case modulo of a power of 2 */
-	for (i = 0, j = 0, h = 0, s = denominator; (s != 0) || (h > 1); i++) {
+	for (i = 0, j = 0, h = 0, s = denominator; s != 0; i++) {
 		if (s & 1) {
 			j = i;
 			h++;
