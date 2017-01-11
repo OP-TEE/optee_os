@@ -59,6 +59,7 @@ int ltc_init_multi(void **a, ...)
               cur = va_arg(clean_list, void**);
           }
           va_end(clean_list);
+          va_end(args);
           return CRYPT_MEM;
        }
        ++np;
