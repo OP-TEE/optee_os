@@ -756,25 +756,18 @@ TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 
 	switch (whence) {
 	case TEE_DATA_SEEK_SET:
-		if (offset > 0 && (uint32_t)offset > TEE_DATA_MAX_POSITION) {
-			res = TEE_ERROR_OVERFLOW;
-			goto out;
-		}
 		break;
 	case TEE_DATA_SEEK_CUR:
 		if (offset > 0 &&
-		    ((uint32_t)offset + info.dataPosition >
-		     TEE_DATA_MAX_POSITION ||
 		     (uint32_t)offset + info.dataPosition <
-		     info.dataPosition)) {
+		     info.dataPosition) {
 			res = TEE_ERROR_OVERFLOW;
 			goto out;
 		}
 		break;
 	case TEE_DATA_SEEK_END:
 		if (offset > 0 &&
-		    ((uint32_t)offset + info.dataSize > TEE_DATA_MAX_POSITION ||
-		     (uint32_t)offset + info.dataSize < info.dataSize)) {
+		     (uint32_t)offset + info.dataSize < info.dataSize) {
 			res = TEE_ERROR_OVERFLOW;
 			goto out;
 		}
