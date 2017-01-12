@@ -77,7 +77,7 @@ int der_length_utf8_string(const wchar_t *in, unsigned long noctets, unsigned lo
 
    len = 0;
    for (x = 0; x < noctets; x++) {
-      if (in[x] > 0x10FFFF) {
+      if (in[x] < 0 || in[x] > 0x10FFFF) {
          return CRYPT_INVALID_ARG;
       }
       len += der_utf8_charsize(in[x]);
