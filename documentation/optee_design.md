@@ -523,8 +523,117 @@ implementation, as explained in [crypto.md].
 TBD
 
 # 12. Trusted Applications
-## Format
-Trusted Applications consists of a signed ELF file.
+
+## Static and Dynamic TAs
+
+There are two ways to implement Trusted Applications, static and dynamic.
+For most cases, dynamically-loaded TAs are preferred.
+
+### Static / Pseudo Trusted Applications
+
+These are added directly to the optee_os tree in, eg, `core/arch/arm/sta`, and
+are built along with and statically built into the OP-TEE OS blob.
+
+The static / pseudo Trusted Applications included in OP-TEE already are OP-TEE
+OS secure privilege layer services hidden behind a "GP TA Client" API; it's
+in these "Pseudo Trusted Applications" that the core functionality for
+communication with the REE (like "Open Session"), and API handlers from dynamic
+Trusted Applications are implemented.
+
+Static TAs do not benefit from the 'GP Core Internal API' support
+specified by the GP TEE specs; Static TAs can only use the OP-TEE OS internal
+APIs and routines.
+
+Pseudo-TAs have the same privileged view of Secure World as the OP-TEE OS code
+itself.  For complex TAs, that may not be desirable.
+
+In most cases a real, dynamically loaded TA is the best choice instead of adding
+your code directly to the OP-TEE OS.  However if you decide your application
+is best handled directly in OP-TEE OS like this, you can look at
+`core/arch/arm/sta/stats.c` as a template and just add your static TA based on
+that to the `sub.mk` in the same directory.
+
+### Trusted Applications
+
+Trusted Applications (TAs) are applications dynamically loaded by OP-TEE
+OS in the Secure World when something in the REE wants to talk to that
+particular application UUID.  It's similar to the way the Linux
+kernel can dynamically load kernel modules, although unlike with Linux, in
+OP-TEE TAs actually run at a lower CPU privilege level than OP-TEE OS code.
+
+Because the TAs are signed by the same key that built the OP-TEE OS, they are
+able to be stored in the untrusted REE filesystem, and tee-supplicant will
+take care of passing them to be checked and loaded by the Secure World OP-TEE
+OS.  Again this is simular to Linux kernel module signature checking.
+
+Trusted Application benefit from the `GP Core Internal API` as specified by
+the 'GP Specs'.
+
+Trusted Application consist of a cleartext signed ELF file, named from the UUID
+of the TA and the suffix ".ta".
+
+They are built separately from the OP-TEE OS boot-time blob, although when
+they are built they use the same build system, and are signed with the key
+from the build of the original OP-TEE OS blob.
+
+## Special treatment of Trusted Applications
+
+### Syscalls
+
+Dynamically loaded TAs are not directly bound to function exports in the OP-TEE
+OS blob, both because the TA code is kept at arm's length by executing at a
+different privilege level, and because TAs direct binding to addresses in the
+OS would require upgrades of all TAs synchronusly with upgrades of the OP-TEE
+OS blob.  Instead, the resolution of OP-TEE OS exports in the TA is done at
+runtime.
+
+OP-TEE does this by using syscalls, the same kind of way as the Linux kernel
+provides a stable API for its userland programs.  TAs are written to use
+syscall wrappers to access functions exported from OP-TEE OS, so this all
+happens automatically when a TA wants to use an api exported from
+OP-TEE OS.
+
+Static / pseudo TAs and anything else directly built into OP-TEE OS do not
+require going through a syscall interface, since they can just link directly
+as they are directly part of the OS.
+
+Syscalls are provided already for all public exports from OP-TEE OS that a
+Dynamic TA is expected to use, so you only need to take care about this if
+you will add new exported from OP-TEE OS that TAs will want to use.
+
+### Malloc mapping
+
+The OP-TEE OS code has its own private memory allocation heap that is mapped
+into its MMU view only and cannot be seen by Trusted Applications.  The
+OS code uses `malloc()` and `free()` style apis.
+
+Trusted Applications also have their own private memory allocation heaps
+that are visible to the owning TA, and to OP-TEE OS.  TAs manage their
+heaps using `TEE_Malloc()` and `TEE_Free()` style apis.
+
+Heap|Visible to |Inaccessible to
+----|-----------|---------------
+OS  |OS         |any TA
+TA  |OS, same TA|any other TA
+
+This enforces "Chinese Walls" between the TA views of Secure World.
+
+Since OP-TEE OS cannot perform allocations in the TA's private heap,
+and the TA is not going to be able to access allocations from the OP-TEE OS
+heap, it means only allocations from the TA heap are visible to both the
+TA and OP-TEE OS.  When performing syscalls between a TA and OP-TEE OS
+then, the TA side must provide all the memory allocations for buffers, etc
+used by both sides.
+
+### Malloc pool
+
+The OP-TEE OS malloc heap is defined by `CFG_CORE_HEAP_SIZE` in `mk/config.mk`.
+
+However for TAs, the individual TA TEE_Malloc() heap size is defined by
+`TA_DATA_SIZE` in `user_ta_header_defines.h`.  Likewise the TA stack size is
+set in the same file, in `TA_STACK_SIZE`.
+
+## File format of a Dynamic Trusted Application
 
 The format a TA is:
 ```
