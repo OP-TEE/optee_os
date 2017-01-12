@@ -68,8 +68,6 @@
 #define DRAM0_BASE			0x00100000
 #define DRAM0_SIZE			0x3FF00000
 
-#define HEAP_SIZE			(24 * 1024)
-
 #define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE		2
