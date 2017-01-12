@@ -114,7 +114,7 @@
 #define TEE_DATA_FLAG_SHARE_READ           0x00000010
 #define TEE_DATA_FLAG_SHARE_WRITE          0x00000020
 #define TEE_DATA_FLAG_OVERWRITE            0x00000400
-#define TEE_DATA_MAX_POSITION              0xFFFFFFFE
+#define TEE_DATA_MAX_POSITION              0xFFFFFFFF
 #define TEE_OBJECT_ID_MAX_LEN              64
 #define TEE_USAGE_EXTRACTABLE              0x00000001
 #define TEE_USAGE_ENCRYPT                  0x00000002
