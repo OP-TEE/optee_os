@@ -449,9 +449,14 @@
  *      return TEE_ERROR_BAD_PARAMETERS;
  *  }
  */
-#define TEE_PARAM_TYPES(t0,t1,t2,t3) \
-   ((t0) | ((t1) << 4) | ((t2) << 8) | ((t3) << 12))
-
+#ifdef CFG_TEE_BENCHMARK
+#define TEE_PARAM_TYPES(t0, t1, t2, t3) \
+		((t0) | ((t1) << 4) | ((t2) << 8) | ((t3) << 12) \
+		 | ((TEE_PARAM_TYPE_MEMREF_INOUT) << 16))
+#else
+#define TEE_PARAM_TYPES(t0, t1, t2, t3) \
+		((t0) | ((t1) << 4) | ((t2) << 8) | ((t3) << 12))
+#endif
 /*
  * The macro TEE_PARAM_TYPE_GET can be used to extract the type of a given
  * parameter from paramTypes if you need more fine-grained type checking.
@@ -465,10 +470,14 @@
 #define TEE_PARAM_TYPE_SET(t, i) (((uint32_t)(t) & 0xF) << ((i)*4))
 
 /* Not specified in the standard */
+/* Fifth param is used to by-pass transparently timestamp ringbuffer */
+#ifdef CFG_TEE_BENCHMARK
+#define TEE_NUM_PARAMS	5
+#else
 #define TEE_NUM_PARAMS  4
+#endif
 
 /* TEE Arithmetical APIs */
-
 #define TEE_BigIntSizeInU32(n) ((((n)+31)/32)+2)
 
 #endif /* TEE_API_DEFINES_H */

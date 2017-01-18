@@ -32,6 +32,7 @@
 #include <user_ta_header.h>
 #include "tee_user_mem.h"
 #include "tee_api_private.h"
+#include "tee_bench.h"
 
 static void *tee_api_instance_data;
 
@@ -108,10 +109,24 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 	struct utee_params up;
 	uint32_t s;
 
+#ifdef CFG_TEE_BENCHMARK
+	void *timebuf = NULL;
+
+	if (params) {
+		timebuf = TEE_Malloc(TEE_BENCH_RB_SIZE, TEE_MALLOC_FILL_ZERO);
+		if (!timebuf)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		params[TEE_BENCH_DEF_PARAM].memref.buffer = timebuf;
+		params[TEE_BENCH_DEF_PARAM].memref.size = TEE_BENCH_RB_SIZE;
+	}
+#endif
 	__utee_from_param(&up, paramTypes, params);
 	res = utee_open_ta_session(destination, cancellationRequestTimeout,
 				   &up, &s, returnOrigin);
 	__utee_to_param(params, NULL, &up);
+#ifdef CFG_TEE_BENCHMARK
+	TEE_Free(timebuf);
+#endif
 	/*
 	 * Specification says that *session must hold TEE_HANDLE_NULL is
 	 * TEE_SUCCESS isn't returned. Set it here explicitly in case
@@ -143,13 +158,25 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 	TEE_Result res;
 	uint32_t ret_origin;
 	struct utee_params up;
+#ifdef CFG_TEE_BENCHMARK
+	void *timebuf = NULL;
 
+	if (params) {
+		timebuf = TEE_Malloc(TEE_BENCH_RB_SIZE, TEE_MALLOC_FILL_ZERO);
+		if (!timebuf)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		params[TEE_BENCH_DEF_PARAM].memref.buffer = timebuf;
+		params[TEE_BENCH_DEF_PARAM].memref.size = TEE_BENCH_RB_SIZE;
+	}
+#endif
 	__utee_from_param(&up, paramTypes, params);
 	res = utee_invoke_ta_command((uintptr_t)session,
 				      cancellationRequestTimeout,
 				      commandID, &up, &ret_origin);
 	__utee_to_param(params, NULL, &up);
-
+#ifdef CFG_TEE_BENCHMARK
+	TEE_Free(timebuf);
+#endif
 	if (returnOrigin != NULL)
 		*returnOrigin = ret_origin;
 

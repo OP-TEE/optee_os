@@ -33,6 +33,7 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <string.h>
+#include <tee_bench_core.h>
 #include <tee/entry_std.h>
 #include <tee/uuid.h>
 #include <util.h>
@@ -222,6 +223,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	struct tee_dispatch_invoke_command_out out;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 
+	bm_timestamp(params, TEE_BENCH_CORE);
+
 	if (!copy_in_params(params, num_params,
 			 &in.param_types, in.param_attr, in.params)) {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
@@ -235,6 +238,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	(void)tee_dispatch_invoke_command(&in, &out);
 
 	copy_out_param(out.params, in.param_types, num_params, params);
+
+	bm_timestamp(params, TEE_BENCH_CORE);
 
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;
