@@ -26,12 +26,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <assert.h>
 #include <compiler.h>
+#include <initcall.h>
+#include <kernel/panic.h>
 #include <kernel/tee_dispatch.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/mobj.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
+#include <string.h>
 #include <string.h>
 #include <tee/entry_std.h>
 #include <tee/uuid.h>
@@ -40,22 +46,45 @@
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 
+static struct mobj *shm_mobj;
+
+static bool set_mem_param(const struct optee_msg_param *param,
+			  struct param_mem *mem)
+{
+	paddr_t b;
+	size_t sz;
+	size_t tsz;
+
+	if (mobj_get_pa(shm_mobj, 0, 0, &b) != TEE_SUCCESS)
+		panic("Failed to be PA of shared memory MOBJ");
+
+	sz = shm_mobj->size;
+	tsz = param->u.tmem.size;
+	if (param->u.tmem.buf_ptr && !tsz)
+		tsz++;
+	if (!core_is_buffer_inside(param->u.tmem.buf_ptr, tsz, b, sz))
+		return false;
+
+	mem->mobj = shm_mobj;
+	mem->offs = param->u.tmem.buf_ptr - b;
+	mem->size = param->u.tmem.size;
+	return true;
+}
+
 static bool copy_in_params(const struct optee_msg_param *params,
-		uint32_t num_params, uint32_t *param_types,
-		uint32_t param_attr[TEE_NUM_PARAMS],
-		TEE_Param tee_params[TEE_NUM_PARAMS])
+		uint32_t num_params, struct tee_ta_param *ta_param)
 {
 	size_t n;
 	uint8_t pt[TEE_NUM_PARAMS];
-	uint32_t cache_attr;
-	uint32_t attr;
-
-	*param_types = 0;
 
 	if (num_params > TEE_NUM_PARAMS)
 		return false;
 
+	memset(ta_param, 0, sizeof(*ta_param));
+
 	for (n = 0; n < num_params; n++) {
+		uint32_t attr;
+
 		if (params[n].attr & OPTEE_MSG_ATTR_META)
 			return false;
 		if (params[n].attr & OPTEE_MSG_ATTR_FRAGMENT)
@@ -66,66 +95,49 @@ static bool copy_in_params(const struct optee_msg_param *params,
 		switch (attr) {
 		case OPTEE_MSG_ATTR_TYPE_NONE:
 			pt[n] = TEE_PARAM_TYPE_NONE;
-			param_attr[n] = 0;
-			memset(tee_params + n, 0, sizeof(TEE_Param));
+			memset(&ta_param->u[n], 0, sizeof(ta_param->u[n]));
 			break;
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
 			pt[n] = TEE_PARAM_TYPE_VALUE_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-			param_attr[n] = 0;
-			tee_params[n].value.a = params[n].u.value.a;
-			tee_params[n].value.b = params[n].u.value.b;
+			ta_param->u[n].val.a = params[n].u.value.a;
+			ta_param->u[n].val.b = params[n].u.value.b;
 			break;
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-			cache_attr =
-				(params[n].attr >> OPTEE_MSG_ATTR_CACHE_SHIFT) &
-				OPTEE_MSG_ATTR_CACHE_MASK;
-			if (cache_attr == OPTEE_MSG_ATTR_CACHE_PREDEFINED)
-				param_attr[n] = SHM_CACHE_ATTRS;
-			else
+			if (!set_mem_param(params + n, &ta_param->u[n].mem))
 				return false;
-			tee_params[n].memref.buffer =
-				(void *)(uintptr_t)params[n].u.tmem.buf_ptr;
-			tee_params[n].memref.size = params[n].u.tmem.size;
 			break;
 		default:
 			return false;
 		}
 	}
-	for (; n < TEE_NUM_PARAMS; n++) {
-		pt[n] = TEE_PARAM_TYPE_NONE;
-		param_attr[n] = 0;
-		tee_params[n].value.a = 0;
-		tee_params[n].value.b = 0;
-	}
 
-	*param_types = TEE_PARAM_TYPES(pt[0], pt[1], pt[2], pt[3]);
+	ta_param->types = TEE_PARAM_TYPES(pt[0], pt[1], pt[2], pt[3]);
 
 	return true;
 }
 
-static void copy_out_param(const TEE_Param tee_params[TEE_NUM_PARAMS],
-		uint32_t param_types, uint32_t num_params,
-		struct optee_msg_param *params)
+static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
+			   struct optee_msg_param *params)
 {
 	size_t n;
 
 	for (n = 0; n < num_params; n++) {
-		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
+		switch (TEE_PARAM_TYPE_GET(ta_param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			params[n].u.tmem.size = tee_params[n].memref.size;
+			params[n].u.tmem.size = ta_param->u[n].mem.size;
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			params[n].u.value.a = tee_params[n].value.a;
-			params[n].u.value.b = tee_params[n].value.b;
+			params[n].u.value.a = ta_param->u[n].val.a;
+			params[n].u.value.b = ta_param->u[n].val.b;
 			break;
 		default:
 			break;
@@ -177,13 +189,12 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 		goto bad_params;
 
 	if (!copy_in_params(params + num_meta, num_params - num_meta,
-			    &in.param_types, in.param_attr, in.params))
+			    &in.param))
 		goto bad_params;
 
 	(void)tee_dispatch_open_session(&in, &out);
 
-	copy_out_param(out.params, in.param_types, num_params - num_meta,
-		       params + num_meta);
+	copy_out_param(&out.param, num_params - num_meta, params + num_meta);
 
 	arg->session = (vaddr_t)out.sess;
 	arg->ret = out.msg.res;
@@ -222,8 +233,7 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	struct tee_dispatch_invoke_command_out out;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 
-	if (!copy_in_params(params, num_params,
-			 &in.param_types, in.param_attr, in.params)) {
+	if (!copy_in_params(params, num_params, &in.param)) {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		arg->ret_origin = TEE_ORIGIN_TEE;
 		smc_args->a0 = OPTEE_SMC_RETURN_OK;
@@ -234,7 +244,7 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	in.cmd = arg->func;
 	(void)tee_dispatch_invoke_command(&in, &out);
 
-	copy_out_param(out.params, in.param_types, num_params, params);
+	copy_out_param(&out.param, num_params, params);
 
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;
@@ -308,3 +318,22 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
 }
+
+static TEE_Result default_mobj_init(void)
+{
+	shm_mobj = mobj_phys_alloc(default_nsec_shm_paddr,
+				   default_nsec_shm_size, SHM_CACHE_ATTRS,
+				   CORE_MEM_NSEC_SHM);
+	if (!shm_mobj)
+		panic("Failed to register shared memory");
+
+	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
+				       tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo,
+				       SHM_CACHE_ATTRS, CORE_MEM_TA_RAM);
+	if (!mobj_sec_ddr)
+		panic("Failed to register secure ta ram");
+
+	return TEE_SUCCESS;
+}
+
+driver_init_late(default_mobj_init);

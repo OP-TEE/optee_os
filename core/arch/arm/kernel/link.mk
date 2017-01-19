@@ -30,6 +30,10 @@ entries-unpaged += sm_init
 entries-unpaged += core_init_mmu_regs
 entries-unpaged += sem_cpu_sync
 entries-unpaged += generic_boot_get_handlers
+# Can't use KEEP_PAGER in mobj.c since it for some reason causes an assert
+# in the AArch64 linker
+entries-unpaged += mobj_phys_get_pa
+entries-unpaged += mobj_mm_get_pa
 
 ldargs-all_objs := -i $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o

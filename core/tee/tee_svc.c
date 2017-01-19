@@ -42,6 +42,7 @@
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 #include <kernel/static_ta.h>
+#include <mm/mobj.h>
 
 vaddr_t tee_svc_uref_base;
 
@@ -525,21 +526,50 @@ static void utee_param_to_param(struct tee_ta_param *p, struct utee_params *up)
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			p->params[n].memref.buffer = (void *)a;
-			p->params[n].memref.size = b;
-			p->param_attr[n] = TEE_MATTR_VIRTUAL;
+			p->u[n].mem.mobj = &mobj_virt;
+			p->u[n].mem.offs = a;
+			p->u[n].mem.size = b;
 			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			p->params[n].value.a = a;
-			p->params[n].value.b = b;
+			p->u[n].val.a = a;
+			p->u[n].val.b = b;
 			break;
 		default:
-			p->params[n].value.a = 0;
-			p->params[n].value.b = 0;
+			memset(&p->u[n], 0, sizeof(p->u[n]));
 			break;
 		}
 	}
+}
+
+static TEE_Result alloc_temp_sec_mem(size_t size, struct mobj **mobj,
+				     size_t *offs, uint8_t **va,
+				     tee_mm_entry_t **mm)
+{
+	TEE_Result res;
+	paddr_t pa;
+	paddr_t moph_pa;
+
+	/* Allocate section in secure DDR */
+	mutex_lock(&tee_ta_mutex);
+	*mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	mutex_unlock(&tee_ta_mutex);
+	if (*mm == NULL) {
+		DMSG("tee_mm_alloc TEE_ERROR_GENERIC");
+		return TEE_ERROR_GENERIC;
+	}
+
+	pa = tee_mm_get_smem(*mm);
+
+	res = mobj_get_pa(mobj_sec_ddr, 0, 0, &moph_pa);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+
+	*mobj = mobj_sec_ddr;
+	/* Get the virtual address for the section in secure DDR */
+	*va = phys_to_virt(pa, MEM_AREA_TA_RAM);
+	*offs = pa - moph_pa;
+	return TEE_SUCCESS;
 }
 
 /*
@@ -563,11 +593,11 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	size_t req_mem = 0;
 	size_t s;
 	uint8_t *dst = 0;
-	paddr_t dst_pa;
-	paddr_t src_pa = 0;
 	bool ta_private_memref[TEE_NUM_PARAMS];
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
-	const uint32_t sec_ddr_attr = TEE_MATTR_CACHE_CACHED;
+	void *va;
+	struct mobj *mobj = NULL;
+	size_t dst_offs;
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
@@ -589,6 +619,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		return TEE_SUCCESS;
 	}
 
+	/* All mobj in param are of type MOJB_TYPE_VIRT */
+
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 
 		ta_private_memref[n] = false;
@@ -597,18 +629,17 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			if (param->params[n].memref.buffer == NULL) {
-				if (param->params[n].memref.size != 0)
+			va = (void *)param->u[n].mem.offs;
+			s = param->u[n].mem.size;
+			if (!va) {
+				if (!s)
 					return TEE_ERROR_BAD_PARAMETERS;
 				break;
 			}
 			/* uTA cannot expose its private memory */
-			if (tee_mmu_is_vbuf_inside_ta_private(utc,
-				    param->params[n].memref.buffer,
-				    param->params[n].memref.size)) {
+			if (tee_mmu_is_vbuf_inside_ta_private(utc, va, s)) {
 
-				s = ROUNDUP(param->params[n].memref.size,
-						sizeof(uint32_t));
+				s = ROUNDUP(s, sizeof(uint32_t));
 				/* Check overflow */
 				if (req_mem + s < req_mem)
 					return TEE_ERROR_BAD_PARAMETERS;
@@ -616,21 +647,13 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				ta_private_memref[n] = true;
 				break;
 			}
-			if (tee_mmu_is_vbuf_intersect_ta_private(utc,
-				    param->params[n].memref.buffer,
-				    param->params[n].memref.size))
-				return TEE_ERROR_BAD_PARAMETERS;
 
-			src_pa = virt_to_phys(param->params[n].memref.buffer);
-			if (!src_pa)
-				return TEE_ERROR_BAD_PARAMETERS;
-
-			param->param_attr[n] = tee_mmu_user_get_cache_attr(
-				utc, (void *)param->params[n].memref.buffer);
-
-			param->params[n].memref.buffer = (void *)src_pa;
+			res = tee_mmu_vbuf_to_mobj_offs(utc, va, s,
+							&param->u[n].mem.mobj,
+							&param->u[n].mem.offs);
+			if (res != TEE_SUCCESS)
+				return res;
 			break;
-
 		default:
 			break;
 		}
@@ -639,50 +662,42 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	if (req_mem == 0)
 		return TEE_SUCCESS;
 
-	/* Allocate section in secure DDR */
-	mutex_lock(&tee_ta_mutex);
-	*mm = tee_mm_alloc(&tee_mm_sec_ddr, req_mem);
-	mutex_unlock(&tee_ta_mutex);
-	if (*mm == NULL) {
-		DMSG("tee_mm_alloc TEE_ERROR_GENERIC");
-		return TEE_ERROR_GENERIC;
-	}
-	dst_pa = tee_mm_get_smem(*mm);
-
-	/* Get the virtual address for the section in secure DDR */
-	dst = phys_to_virt(dst_pa, MEM_AREA_TA_RAM);
+	res = alloc_temp_sec_mem(req_mem, &mobj, &dst_offs, &dst, mm);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 
-		if (ta_private_memref[n] == false)
+		if (!ta_private_memref[n])
 			continue;
 
-		s = ROUNDUP(param->params[n].memref.size, sizeof(uint32_t));
+		s = ROUNDUP(param->u[n].mem.size, sizeof(uint32_t));
 
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			if (param->params[n].memref.buffer != NULL) {
-				res = tee_svc_copy_from_user(dst,
-						param->params[n].memref.buffer,
-						param->params[n].memref.size);
+			va = (void *)param->u[n].mem.offs;
+			if (va) {
+				res = tee_svc_copy_from_user(dst, va,
+						param->u[n].mem.size);
 				if (res != TEE_SUCCESS)
 					return res;
-				param->param_attr[n] = sec_ddr_attr;
-				param->params[n].memref.buffer = (void *)dst_pa;
+				param->u[n].mem.offs = dst_offs;
+				param->u[n].mem.mobj = mobj;
 				tmp_buf_va[n] = dst;
 				dst += s;
-				dst_pa += s;
+				dst_offs += s;
 			}
 			break;
 
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
-			if (param->params[n].memref.buffer != NULL) {
-				param->param_attr[n] = sec_ddr_attr;
-				param->params[n].memref.buffer = (void *)dst_pa;
+			va = (void *)param->u[n].mem.offs;
+			if (va) {
+				param->u[n].mem.offs = dst_offs;
+				param->u[n].mem.mobj = mobj;
 				tmp_buf_va[n] = dst;
 				dst += s;
-				dst_pa += s;
+				dst_offs += s;
 			}
 			break;
 
@@ -720,9 +735,9 @@ static TEE_Result tee_svc_update_out_param(
 
 			/* outside TA private => memref is valid, update size */
 			if (!tee_mmu_is_vbuf_inside_ta_private(utc, p,
-					param->params[n].memref.size)) {
+					param->u[n].mem.size)) {
 				usr_param->vals[n * 2 + 1] =
-					param->params[n].memref.size;
+					param->u[n].mem.size;
 				break;
 			}
 
@@ -731,25 +746,24 @@ static TEE_Result tee_svc_update_out_param(
 			 * memory and no copy is needed.
 			 */
 			if (have_private_mem_map &&
-			    param->params[n].memref.size <=
+			    param->u[n].mem.size <=
 			    usr_param->vals[n * 2 + 1]) {
 				uint8_t *src = tmp_buf_va[n];
 				TEE_Result res;
 
 				res = tee_svc_copy_to_user(p, src,
-						 param->params[n].memref.size);
+						 param->u[n].mem.size);
 				if (res != TEE_SUCCESS)
 					return res;
 
 			}
-			usr_param->vals[n * 2 + 1] =
-				param->params[n].memref.size;
+			usr_param->vals[n * 2 + 1] = param->u[n].mem.size;
 			break;
 
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			usr_param->vals[n * 2] = param->params[n].value.a;
-			usr_param->vals[n * 2 + 1] = param->params[n].value.b;
+			usr_param->vals[n * 2] = param->u[n].val.a;
+			usr_param->vals[n * 2 + 1] = param->u[n].val.b;
 			break;
 
 		default:

@@ -44,6 +44,7 @@
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/mobj.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
@@ -150,16 +151,6 @@ static bool _pbuf_is_inside(struct memaccess_area *a, size_t alen,
 }
 #define pbuf_is_inside(a, pa, size) \
 	_pbuf_is_inside((a), ARRAY_SIZE(a), (pa), (size))
-
-static bool pbuf_is_multipurpose(paddr_t paddr, size_t size)
-{
-	if (pbuf_intersects(secure_only, paddr, size))
-		return false;
-	if (pbuf_intersects(nsec_shared, paddr, size))
-		return false;
-
-	return pbuf_is_inside(ddr, paddr, size);
-}
 
 static bool pa_is_in_map(struct tee_mmap_region *map, paddr_t pa)
 {
@@ -550,8 +541,6 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return pbuf_inside_map_area(pbuf, len, map_ta_ram);
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
-	case CORE_MEM_MULTPURPOSE:
-		return pbuf_is_multipurpose(pbuf, len);
 	case CORE_MEM_EXTRAM:
 		return pbuf_is_inside(ddr, pbuf, len);
 	case CORE_MEM_CACHED:
@@ -780,10 +769,14 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 
 #ifdef CFG_SMALL_PAGE_USER_TA
 static void set_pg_region(struct core_mmu_table_info *dir_info,
-			struct tee_mmap_region *region, struct pgt **pgt,
+			struct tee_ta_region *region, struct pgt **pgt,
 			struct core_mmu_table_info *pg_info)
 {
-	struct tee_mmap_region r = *region;
+	struct tee_mmap_region r = {
+		.va = region->va,
+		.size = region->size,
+		.attr = region->attr,
+	};
 	vaddr_t end = r.va + r.size;
 	uint32_t pgt_attr = (r.attr & TEE_MATTR_SECURE) | TEE_MATTR_TABLE;
 
@@ -815,10 +808,16 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 
 		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
 			     end - r.va);
-		if (!(r.attr & TEE_MATTR_PAGED))
+		if (!(r.attr & TEE_MATTR_PAGED)) {
+			size_t granule = BIT(pg_info->shift);
+			size_t offset = r.va - region->va + region->offset;
+
+			if (mobj_get_pa(region->mobj, offset, granule,
+					&r.pa) != TEE_SUCCESS)
+				panic("Failed to get PA of unpaged mobj");
 			set_region(pg_info, &r);
+		}
 		r.va += r.size;
-		r.pa += r.size;
 	}
 }
 
@@ -830,14 +829,11 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	struct pgt *pgt;
 	size_t n;
 
-	if (!utc->mmu->size)
-		return;	/* Nothing to map */
-
 	/* Find the last valid entry */
-	n = utc->mmu->size;
+	n = ARRAY_SIZE(utc->mmu->regions);
 	while (true) {
 		n--;
-		if (utc->mmu->table[n].size)
+		if (utc->mmu->regions[n].size)
 			break;
 		if (!n)
 			return;	/* Nothing to map */
@@ -846,16 +842,16 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[0].va,
-		  utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->regions[0].va,
+		  utc->mmu->regions[n].va + utc->mmu->regions[n].size - 1);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
-	for (n = 0; n < utc->mmu->size; n++) {
-		if (!utc->mmu->table[n].size)
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!utc->mmu->regions[n].size)
 			continue;
-		set_pg_region(dir_info, utc->mmu->table + n, &pgt, &pg_info);
+		set_pg_region(dir_info, utc->mmu->regions + n, &pgt, &pg_info);
 	}
 }
 
@@ -864,11 +860,25 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_ta_ctx *utc)
 {
 	unsigned n;
+	struct tee_mmap_region r;
+	size_t offset;
+	size_t granule = BIT(dir_info->shift);
 
-	for (n = 0; n < utc->mmu->size; n++) {
-		if (!utc->mmu->table[n].size)
+	memset(&r, 0, sizeof(r));
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		if (!utc->mmu->regions[n].size)
 			continue;
-		set_region(dir_info, utc->mmu->table + n);
+
+		offset = utc->mmu->regions[n].offset;
+		r.va = utc->mmu->regions[n].va;
+		r.size = utc->mmu->regions[n].size;
+		r.attr = utc->mmu->regions[n].attr;
+
+		if (mobj_get_pa(utc->mmu->regions[n].mobj, offset, granule,
+				&r.pa) != TEE_SUCCESS)
+			panic("Failed to get PA of unpaged mobj");
+
+		set_region(dir_info, &r);
 	}
 }
 #endif

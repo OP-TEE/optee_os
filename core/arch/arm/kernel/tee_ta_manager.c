@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -24,10 +25,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <tee_api_types.h>
+
 #include <kernel/tee_ta_manager.h>
-#include <mm/tee_mmu_types.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
+#include <mm/tee_mmu_types.h>
+#include <tee_api_types.h>
 
 /**
  * tee_ta_verify_param() - check that the 4 "params" match security
@@ -35,8 +38,6 @@
 TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 			       struct tee_ta_param *param)
 {
-	paddr_t p;
-	size_t l;
 	int n;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -44,27 +45,10 @@ TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-
-			if (param->param_attr[n] & TEE_MATTR_VIRTUAL) {
-				p = virt_to_phys(
-					param->params[n].memref.buffer);
-				if (!p)
-					return TEE_ERROR_SECURITY;
-			} else {
-				p = (paddr_t)param->params[n].memref.buffer;
-			}
-			l = param->params[n].memref.size;
-
-			if (core_pbuf_is(CORE_MEM_NSEC_SHM, p, l))
-				break;
-			if ((sess->ctx->flags & TA_FLAG_UNSAFE_NW_PARAMS) &&
-				core_pbuf_is(CORE_MEM_MULTPURPOSE, p, l))
-				break;
-			if ((sess->clnt_id.login == TEE_LOGIN_TRUSTED_APP) &&
-				core_pbuf_is(CORE_MEM_TA_RAM, p, l))
-				break;
-
-			return TEE_ERROR_SECURITY;
+			if (mobj_is_unsafe(param->u[n].mem.mobj) &&
+			    !(sess->ctx->flags & TA_FLAG_UNSAFE_NW_PARAMS))
+				return TEE_ERROR_SECURITY;
+			break;
 		default:
 			break;
 		}
