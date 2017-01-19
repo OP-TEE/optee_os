@@ -478,6 +478,19 @@ is mapped new data is copied from backing store and the hash of the page is
 verified. If it's OK the pager returns from the exception to resume the
 execution.
 
+## Paging of user TA
+
+Paging of user TAs can optionally be enabled with CFG_PAGED_USER_TA=y.
+Paging of user TAs is analogous to paging of OP-TEE kernel parts but with a
+few differences:
+- Read/write pages are paged in addition to read-only pages
+- Page tables are managed dynamically
+
+tee_pager_add_uta_area() is used to setup initial read/write mapping needed
+when populating the TA. When the TA is fully populated and relocated
+tee_pager_set_uta_area_attr() changes the mapping of the area to strict
+permissions used when the TA is running.
+
 # 9. Memory objects
 
 A memory object, MOBJ, describes a piece of memory. The interface provided
