@@ -492,17 +492,14 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	/* Save identity of the owner of the session */
 	s->clnt_id = *clnt_id;
 
-	res = tee_ta_verify_param(s, param);
-	if (res == TEE_SUCCESS) {
-		if (tee_ta_try_set_busy(ctx)) {
-			set_invoke_timeout(s, cancel_req_to);
-			res = ctx->ops->enter_open_session(s, param, err);
-			tee_ta_clear_busy(ctx);
-		} else {
-			/* Deadlock avoided */
-			res = TEE_ERROR_BUSY;
-			was_busy = true;
-		}
+	if (tee_ta_try_set_busy(ctx)) {
+		set_invoke_timeout(s, cancel_req_to);
+		res = ctx->ops->enter_open_session(s, param, err);
+		tee_ta_clear_busy(ctx);
+	} else {
+		/* Deadlock avoided */
+		res = TEE_ERROR_BUSY;
+		was_busy = true;
 	}
 
 	panicked = ctx->panicked;
@@ -545,12 +542,6 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	tee_ta_set_busy(sess->ctx);
 
-	res = tee_ta_verify_param(sess, param);
-	if (res != TEE_SUCCESS) {
-		*err = TEE_ORIGIN_TEE;
-		goto function_exit;
-	}
-
 	set_invoke_timeout(sess, cancel_req_to);
 	res = sess->ctx->ops->enter_invoke_cmd(sess, cmd, param, err);
 
@@ -559,7 +550,6 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 
-function_exit:
 	tee_ta_clear_busy(sess->ctx);
 	if (res != TEE_SUCCESS)
 		DMSG("  => Error: %x of %d\n", res, *err);

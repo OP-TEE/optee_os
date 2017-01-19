@@ -108,11 +108,6 @@ static inline bool mobj_is_secure(struct mobj *mobj)
 	return mobj_matches(mobj, CORE_MEM_SEC);
 }
 
-static inline bool mobj_is_unsafe(struct mobj *mobj __unused)
-{
-	return false;
-}
-
 struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 			   tee_mm_pool_t *pool);
 

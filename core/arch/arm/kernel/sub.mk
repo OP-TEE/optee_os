@@ -1,4 +1,3 @@
-srcs-y += tee_ta_manager.c
 srcs-$(CFG_WITH_USER_TA) += user_ta.c
 srcs-y += static_ta.c
 srcs-y += elf_load.c

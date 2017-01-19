@@ -161,10 +161,4 @@ void tee_ta_put_session(struct tee_ta_session *sess);
 
 void tee_ta_dump_current(void);
 
-/*
- * Implemented under core/arch for architecure specific checks
- */
-TEE_Result tee_ta_verify_param(struct tee_ta_session *sess,
-			       struct tee_ta_param *param);
-
 #endif
