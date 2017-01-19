@@ -256,17 +256,16 @@ static TEE_Result check_pgt_avail(vaddr_t base __unused, vaddr_t end __unused)
 }
 #endif
 
-void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj, size_t offs,
-		       size_t size)
+void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 {
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
 	struct tee_ta_region *region = utc->mmu->regions +
 				       TEE_MMU_UMAP_STACK_IDX;
 
 	region->mobj = mobj;
-	region->offset = offs;
+	region->offset = 0;
 	region->va = utc->mmu->ta_private_vmem_start;
-	region->size = ROUNDUP(size, granule);
+	region->size = ROUNDUP(utc->mobj_stack->size, granule);
 	region->attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 		       TEE_MATTR_URW | TEE_MATTR_PRW |
 		       (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);

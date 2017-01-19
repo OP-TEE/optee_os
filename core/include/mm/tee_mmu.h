@@ -42,8 +42,7 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc);
 void tee_mmu_final(struct user_ta_ctx *utc);
 
 /* Map stack of a user TA.  */
-void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj, size_t offs,
-		       size_t size);
+void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj);
 /*
  * Map a code segment of a user TA, this function may be called multiple
  * times if there's several segments.
