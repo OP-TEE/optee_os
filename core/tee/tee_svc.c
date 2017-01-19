@@ -547,7 +547,11 @@ static TEE_Result alloc_temp_sec_mem(size_t size, struct mobj **mobj,
 {
 	/* Allocate section in secure DDR */
 	mutex_lock(&tee_ta_mutex);
+#ifdef CFG_PAGED_USER_TA
+	*mobj = mobj_seccpy_shm_alloc(size);
+#else
 	*mobj = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
+#endif
 	mutex_unlock(&tee_ta_mutex);
 	if (!*mobj)
 		return TEE_ERROR_GENERIC;

@@ -848,6 +848,10 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
+	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++)
+		mobj_update_mapping(utc->mmu->regions[n].mobj, utc,
+				    utc->mmu->regions[n].va);
+
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
 		if (!utc->mmu->regions[n].size)
 			continue;

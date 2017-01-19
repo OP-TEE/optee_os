@@ -590,7 +590,7 @@ static bool pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	struct tee_pager_area *area;
 	uint32_t flags;
 	vaddr_t b = base;
-	size_t s = size;
+	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
 
 	if (!utc->areas) {
 		utc->areas = malloc(sizeof(*utc->areas));
@@ -623,7 +623,181 @@ static bool pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 
 bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 {
-	return pager_add_uta_area(utc, base, size);
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct tee_pager_area *area;
+	struct core_mmu_table_info dir_info = { NULL };
+
+	if (&utc->ctx != tsd->ctx) {
+		/*
+		 * Changes are to an utc that isn't active. Just add the
+		 * areas page tables will be dealt with later.
+		 */
+		return pager_add_uta_area(utc, base, size);
+	}
+
+	/*
+	 * Assign page tables before adding areas to be able to tell which
+	 * are newly added and should be removed in case of failure.
+	 */
+	tee_pager_assign_uta_tables(utc);
+	if (!pager_add_uta_area(utc, base, size)) {
+		struct tee_pager_area *next_a;
+
+		/* Remove all added areas */
+		TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+			if (!area->pgt) {
+				TAILQ_REMOVE(utc->areas, area, link);
+				free_area(area);
+			}
+		}
+		return false;
+	}
+
+	/*
+	 * Assign page tables to the new areas and make sure that the page
+	 * tables are registered in the upper table.
+	 */
+	tee_pager_assign_uta_tables(utc);
+	core_mmu_get_user_pgdir(&dir_info);
+	TAILQ_FOREACH(area, utc->areas, link) {
+		paddr_t pa;
+		size_t idx;
+		uint32_t attr;
+
+		idx = core_mmu_va2idx(&dir_info, area->pgt->vabase);
+		core_mmu_get_entry(&dir_info, idx, &pa, &attr);
+
+		/*
+		 * Check if the page table already is used, if it is, it's
+		 * already registered.
+		 */
+		if (area->pgt->num_used_entries) {
+			assert(attr & TEE_MATTR_TABLE);
+			assert(pa == virt_to_phys(area->pgt->tbl));
+			continue;
+		}
+
+		attr = TEE_MATTR_SECURE | TEE_MATTR_TABLE;
+		pa = virt_to_phys(area->pgt->tbl);
+		assert(pa);
+		/*
+		 * Note that the update of the table entry is guaranteed to
+		 * be atomic.
+		 */
+		core_mmu_set_entry(&dir_info, idx, pa, attr);
+	}
+
+	return true;
+}
+
+static void init_tbl_info_from_pgt(struct core_mmu_table_info *ti,
+				   struct pgt *pgt)
+{
+	assert(pgt);
+	ti->table = pgt->tbl;
+	ti->va_base = pgt->vabase;
+	ti->level = tee_pager_tbl_info.level;
+	ti->shift = tee_pager_tbl_info.shift;
+	ti->num_entries = tee_pager_tbl_info.num_entries;
+}
+
+static void transpose_area(struct tee_pager_area *area, struct pgt *new_pgt,
+			   vaddr_t new_base)
+{
+	uint32_t exceptions = pager_lock();
+
+	/*
+	 * If there's no pgt assigned to the old area there's no pages to
+	 * deal with either, just update with a new pgt and base.
+	 */
+	if (area->pgt) {
+		struct core_mmu_table_info old_ti;
+		struct core_mmu_table_info new_ti;
+		struct tee_pager_pmem *pmem;
+
+		init_tbl_info_from_pgt(&old_ti, area->pgt);
+		init_tbl_info_from_pgt(&new_ti, new_pgt);
+
+
+		TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
+			vaddr_t va;
+			paddr_t pa;
+			uint32_t attr;
+
+			if (pmem->area != area)
+				continue;
+			core_mmu_get_entry(&old_ti, pmem->pgidx, &pa, &attr);
+			core_mmu_set_entry(&old_ti, pmem->pgidx, 0, 0);
+
+			assert(pa == get_pmem_pa(pmem));
+			assert(attr);
+			assert(area->pgt->num_used_entries);
+			area->pgt->num_used_entries--;
+
+			va = core_mmu_idx2va(&old_ti, pmem->pgidx);
+			va = va - area->base + new_base;
+			pmem->pgidx = core_mmu_va2idx(&new_ti, va);
+			core_mmu_set_entry(&new_ti, pmem->pgidx, pa, attr);
+			new_pgt->num_used_entries++;
+		}
+	}
+
+	area->pgt = new_pgt;
+	area->base = new_base;
+	pager_unlock(exceptions);
+}
+KEEP_PAGER(transpose_area);
+
+void tee_pager_transfer_uta_region(struct user_ta_ctx *src_utc,
+				   vaddr_t src_base,
+				   struct user_ta_ctx *dst_utc,
+				   vaddr_t dst_base, struct pgt **dst_pgt,
+				   size_t size)
+{
+	struct tee_pager_area *area;
+	struct tee_pager_area *next_a;
+
+	TAILQ_FOREACH_SAFE(area, src_utc->areas, link, next_a) {
+		vaddr_t new_area_base;
+		size_t new_idx;
+
+		if (!core_is_buffer_inside(area->base, area->size,
+					  src_base, size))
+			continue;
+
+		TAILQ_REMOVE(src_utc->areas, area, link);
+
+		new_area_base = dst_base + (src_base - area->base);
+		new_idx = (new_area_base - dst_pgt[0]->vabase) /
+			  CORE_MMU_PGDIR_SIZE;
+		assert((new_area_base & ~CORE_MMU_PGDIR_MASK) ==
+		       dst_pgt[new_idx]->vabase);
+		transpose_area(area, dst_pgt[new_idx], new_area_base);
+
+		/*
+		 * Assert that this will not cause any conflicts in the new
+		 * utc.  This should already be guaranteed, but a bug here
+		 * could be tricky to find.
+		 */
+		assert(!find_area(dst_utc->areas, area->base));
+		TAILQ_INSERT_TAIL(dst_utc->areas, area, link);
+	}
+}
+
+void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
+			      size_t size)
+{
+	struct tee_pager_area *area;
+	struct tee_pager_area *next_a;
+	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
+
+	TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+		if (core_is_buffer_inside(area->base, area->size, base, s)) {
+			TAILQ_REMOVE(utc->areas, area, link);
+			free_area(area);
+		}
+	}
+
 }
 
 void tee_pager_rem_uta_areas(struct user_ta_ctx *utc)
@@ -1012,7 +1186,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		if (!area)
 			area = find_uta_area(ai->va);
 	}
-	if (!area) {
+	if (!area || !area->pgt) {
 		ret = false;
 		goto out;
 	}

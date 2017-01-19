@@ -31,6 +31,8 @@
 #include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
+#include <mm/tee_mmu.h>
+#include <mm/tee_pager.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
@@ -308,8 +310,121 @@ struct mobj *mobj_paged_alloc(size_t size)
 	return mobj;
 }
 
+/*
+ * mobj_seccpy_shm implementation
+ */
+
+struct mobj_seccpy_shm {
+	struct user_ta_ctx *utc;
+	vaddr_t va;
+	size_t pgdir_offset;
+	struct mobj mobj;
+};
+
+static bool __maybe_unused mobj_is_seccpy_shm(struct mobj *mobj);
+
+static struct mobj_seccpy_shm *to_mobj_seccpy_shm(struct mobj *mobj)
+{
+	assert(mobj_is_seccpy_shm(mobj));
+	return container_of(mobj, struct mobj_seccpy_shm, mobj);
+}
+
+static void *mobj_seccpy_shm_get_va(struct mobj *mobj, size_t offs)
+{
+	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
+
+	if (&m->utc->ctx != thread_get_tsd()->ctx)
+		return NULL;
+
+	if (offs >= mobj->size)
+		return NULL;
+	return (void *)(m->va + offs);
+}
+
+static bool mobj_seccpy_shm_matches(struct mobj *mobj __maybe_unused,
+				 enum buf_is_attr attr)
+{
+	assert(mobj_is_seccpy_shm(mobj));
+
+	return attr == CORE_MEM_SEC || attr == CORE_MEM_TEE_RAM;
+}
+
+static void mobj_seccpy_shm_free(struct mobj *mobj)
+{
+	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
+
+	tee_pager_rem_uta_region(m->utc, m->va, mobj->size);
+	tee_mmu_rem_rwmem(m->utc, mobj, m->va);
+	free(m);
+}
+
+static void mobj_seccpy_shm_update_mapping(struct mobj *mobj,
+					struct user_ta_ctx *utc, vaddr_t va)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
+	size_t s;
+
+	if (utc == m->utc && va == m->va)
+		return;
+
+	s = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
+	pgt_transfer(&tsd->pgt_cache, &m->utc->ctx, m->va, &utc->ctx, va, s);
+
+	m->va = va;
+	m->utc = utc;
+}
+
+static const struct mobj_ops mobj_seccpy_shm_ops __rodata_unpaged = {
+	.get_va = mobj_seccpy_shm_get_va,
+	.matches = mobj_seccpy_shm_matches,
+	.free = mobj_seccpy_shm_free,
+	.update_mapping = mobj_seccpy_shm_update_mapping,
+};
+
+static bool mobj_is_seccpy_shm(struct mobj *mobj)
+{
+	return mobj && mobj->ops == &mobj_seccpy_shm_ops;
+}
+
+struct mobj *mobj_seccpy_shm_alloc(size_t size)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct mobj_seccpy_shm *m;
+	struct user_ta_ctx *utc;
+	vaddr_t va = 0;
+
+	if (!is_user_ta_ctx(tsd->ctx))
+		return NULL;
+	utc = to_user_ta_ctx(tsd->ctx);
+
+	m = calloc(1, sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->mobj.size = size;
+	m->mobj.ops = &mobj_seccpy_shm_ops;
+
+	if (tee_mmu_add_rwmem(utc, &m->mobj, -1, &va) != TEE_SUCCESS)
+		goto bad;
+
+	if (!tee_pager_add_uta_area(utc, va, size))
+		goto bad;
+
+	m->va = va;
+	m->pgdir_offset = va & CORE_MMU_PGDIR_MASK;
+	m->utc = to_user_ta_ctx(tsd->ctx);
+	return &m->mobj;
+bad:
+	if (va)
+		tee_mmu_rem_rwmem(utc, &m->mobj, va);
+	free(m);
+	return NULL;
+}
+
 bool mobj_is_paged(struct mobj *mobj)
 {
-	return mobj->ops == &mobj_paged_ops;
+	return mobj->ops == &mobj_paged_ops ||
+	       mobj->ops == &mobj_seccpy_shm_ops;
 }
 #endif /*CFG_PAGED_USER_TA*/

@@ -57,6 +57,14 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		struct tee_ta_param *param, void *param_va[TEE_NUM_PARAMS]);
 
 /*
+ * If the rwmem area covers more than one page directory @pgdir_offset has
+ * to be honoured unless it's -1.
+ */
+TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
+			     int pgdir_offset, vaddr_t *va);
+void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va);
+
+/*
  * TA private memory is defined as TA image static segment (code, ro/rw static
  * data, heap, stack). The sole other virtual memory mapped to TA are memref
  * parameters. These later are considered outside TA private memory as it

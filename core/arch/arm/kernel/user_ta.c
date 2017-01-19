@@ -167,6 +167,8 @@ static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 	size_t n;
 	uint32_t flags;
 
+	tee_pager_assign_uta_tables(utc);
+
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
 		if (!utc->mmu->regions[n].size)
 			continue;
