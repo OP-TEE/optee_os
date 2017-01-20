@@ -194,7 +194,7 @@ static void mobj_virt_assert_type(struct mobj *mobj __maybe_unused)
 	assert(mobj->ops == &mobj_virt_ops);
 }
 
-struct mobj mobj_virt = { .ops = &mobj_phys_ops, .size = SIZE_MAX };
+struct mobj mobj_virt = { .ops = &mobj_virt_ops, .size = SIZE_MAX };
 
 /*
  * mobj_mm implementation
