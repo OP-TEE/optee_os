@@ -58,7 +58,7 @@ static TEE_Result copy_in_param(struct tee_ta_param *param,
 			if (!va)
 				return TEE_ERROR_BAD_PARAMETERS;
 			tee_param[n].memref.buffer = va;
-			tee_param[n].memref.size = param->u[n].mem.mobj->size;
+			tee_param[n].memref.size = param->u[n].mem.size;
 			break;
 		default:
 			memset(tee_param + n, 0, sizeof(TEE_Param));
