@@ -930,7 +930,7 @@ static TEE_Result tee_buffer_update(
 
 	if (slen >= (buffer_size + buffer_left)) {
 		/* Buffer is empty, feed as much as possible from src */
-		l = ROUNDUP(slen - buffer_size + 1, op->block_size);
+		l = ROUNDUP(slen - buffer_size, op->block_size);
 
 		tmp_dlen = dlen;
 		res = update_func(op->state, src, l, dst, &tmp_dlen);
