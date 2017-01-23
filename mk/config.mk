@@ -130,6 +130,16 @@ CFG_RPMB_FS ?= n
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
 
+# Enables RPMB key programming by the TEE, in case the RPMB partition has not
+# been configured yet.
+# !!! Security warning !!!
+# Do *NOT* enable this in product builds, as doing so would allow the TEE to
+# leak the RPMB key.
+# This option is useful in the following situations:
+# - Testing
+# - RPMB key provisioning in a controlled environment (factory setup)
+CFG_RPMB_WRITE_KEY ?= n
+
 # SQL FS stores its data in a SQLite database, accessed by normal world
 CFG_SQL_FS ?= n
 

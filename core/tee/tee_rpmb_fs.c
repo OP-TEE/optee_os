@@ -1028,6 +1028,7 @@ static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
 	return res;
 }
 
+#ifdef CFG_RPMB_WRITE_KEY
 static TEE_Result tee_rpmb_write_key(uint16_t dev_id)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -1075,6 +1076,25 @@ func_exit:
 	tee_rpmb_free(&mem);
 	return res;
 }
+
+static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id)
+{
+	TEE_Result res;
+
+	DMSG("RPMB INIT: Writing Key");
+	res = tee_rpmb_write_key(dev_id);
+	if (res == TEE_SUCCESS) {
+		DMSG("RPMB INIT: Verifying Key");
+		res = tee_rpmb_verify_key_sync_counter(dev_id);
+	}
+	return res;
+}
+#else
+static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
+{
+	return TEE_ERROR_BAD_STATE;
+}
+#endif
 
 /* True when all the required crypto functions are available */
 static bool have_crypto_ops(void)
@@ -1163,12 +1183,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 			/*
 			 * Need to write the key here and verify it.
 			 */
-			DMSG("RPMB INIT: Writing Key");
-			res = tee_rpmb_write_key(dev_id);
-			if (res == TEE_SUCCESS) {
-				DMSG("RPMB INIT: Verifying Key");
-				res = tee_rpmb_verify_key_sync_counter(dev_id);
-			}
+			res = tee_rpmb_write_and_verify_key(dev_id);
 		}
 	}
 
