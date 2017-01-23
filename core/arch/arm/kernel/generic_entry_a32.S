@@ -298,8 +298,8 @@ UNWIND(	.cantunwind)
 	add	r1, r1, r2
 	ldr	r2, =__text_init_start
 copy_init:
-	ldmdb	r1!, {r3, r8-r13, sp}
-	stmdb	r0!, {r3, r8-r13, sp}
+	ldmdb	r1!, {r3, r8-r12, sp}
+	stmdb	r0!, {r3, r8-r12, sp}
 	cmp	r0, r2
 	bgt	copy_init
 #endif
