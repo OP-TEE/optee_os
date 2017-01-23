@@ -568,7 +568,8 @@ static size_t area_va2idx(struct tee_pager_area *area, vaddr_t va)
 	return (va - (area->base & ~CORE_MMU_PGDIR_MASK)) >> SMALL_PAGE_SHIFT;
 }
 
-static vaddr_t area_idx2va(struct tee_pager_area *area, size_t idx)
+static vaddr_t __maybe_unused area_idx2va(struct tee_pager_area *area,
+					 size_t idx)
 {
 	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
 }
