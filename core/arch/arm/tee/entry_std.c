@@ -32,7 +32,6 @@
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
-#include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -195,14 +194,6 @@ static TEE_Result get_open_session_meta(size_t num_params,
 	return TEE_SUCCESS;
 }
 
-static void inject_entropy_with_timestamp(void)
-{
-	TEE_Time current;
-
-	if (tee_time_get_sys_time(&current) == TEE_SUCCESS)
-		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
-}
-
 static void entry_open_session(struct thread_smc_args *smc_args,
 			       struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -235,7 +226,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	 * un-predictable, using this property to increase randomness
 	 * of prng
 	 */
-	inject_entropy_with_timestamp();
+	plat_prng_add_jitter_entropy();
 
 out:
 	if (s)
@@ -258,7 +249,7 @@ static void entry_close_session(struct thread_smc_args *smc_args,
 		goto out;
 	}
 
-	inject_entropy_with_timestamp();
+	plat_prng_add_jitter_entropy();
 
 	s = (struct tee_ta_session *)(vaddr_t)arg->session;
 	res = tee_ta_close_session(s, &tee_open_sessions, NSAPP_IDENTITY);
