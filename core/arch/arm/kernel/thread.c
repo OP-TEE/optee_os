@@ -45,6 +45,7 @@
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <tee/tee_fs_rpc.h>
+#include <tee/tee_cryp_utl.h>
 #include <trace.h>
 #include <util.h>
 
@@ -1192,6 +1193,8 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	size_t n;
 
 	assert(arg && carg && num_params <= THREAD_RPC_MAX_NUM_PARAMS);
+
+	plat_prng_add_jitter_entropy();
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;
