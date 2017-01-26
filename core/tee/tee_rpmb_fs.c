@@ -437,12 +437,16 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 	if (!mem)
 		return;
 
-	thread_rpc_free_payload(mem->phreq_cookie);
-	thread_rpc_free_payload(mem->phresp_cookie);
-	mem->phreq = 0;
-	mem->phreq_cookie = 0;
-	mem->phresp = 0;
-	mem->phresp_cookie = 0;
+	if (mem->phreq) {
+		thread_rpc_free_payload(mem->phreq_cookie);
+		mem->phreq_cookie = 0;
+		mem->phreq = 0;
+	}
+	if (mem->phresp) {
+		thread_rpc_free_payload(mem->phresp_cookie);
+		mem->phresp_cookie = 0;
+		mem->phresp = 0;
+	}
 }
 
 
