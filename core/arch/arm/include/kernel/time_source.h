@@ -40,3 +40,5 @@ void time_source_init(void);
 	}
 
 extern struct time_source _time_source;
+
+void arm_prng_add_jitter_entropy(void);

@@ -378,6 +378,14 @@ TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len)
 	return TEE_SUCCESS;
 }
 
+/*
+ * override this in your platform code to feed the PRNG
+ * platform-specific jitter entropy.
+ */
+__weak void plat_prng_add_jitter_entropy(void)
+{
+}
+
 static TEE_Result tee_cryp_init(void)
 {
 	if (crypto_ops.init)

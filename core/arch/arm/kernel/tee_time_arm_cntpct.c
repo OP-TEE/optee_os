@@ -32,6 +32,8 @@
 #include <mm/core_mmu.h>
 #include <utee_defines.h>
 
+#include <tee/tee_cryp_utl.h>
+
 #include <stdint.h>
 #include <mpa.h>
 #include <arm.h>
@@ -54,3 +56,45 @@ static const struct time_source arm_cntpct_time_source = {
 };
 
 REGISTER_TIME_SOURCE(arm_cntpct_time_source)
+
+/*
+ * We collect jitter using cntpct in 32- or 64-bit mode that is typically
+ * clocked at around 1MHz.
+ *
+ * The first time we are called, we add low 16 bits of the counter as entropy.
+ *
+ * Subsequently, accumulate 2 low bits each time by:
+ *
+ *  - rotating the accumumlator by 2 bits
+ *  - XORing it in 2-bit chunks with the whole CNTPCT contents
+ *
+ * and adding one byte of entropy when we reach 8 rotated bits.
+ */
+
+void plat_prng_add_jitter_entropy(void)
+{
+	uint64_t tsc = read_cntpct();
+	int bytes = 0, n;
+	static uint8_t first, bits;
+	static uint16_t acc;
+
+	if (!first) {
+		acc = tsc;
+		bytes = 2;
+		first = 1;
+	} else {
+		acc = (acc << 2) | ((acc >> 6) & 3);
+		for (n = 0; n < 64; n += 2)
+			acc ^= (tsc >> n) & 3;
+		bits += 2;
+		if (bits >= 8) {
+			bits = 0;
+			bytes = 1;
+		}
+	}
+	if (bytes) {
+		DMSG("%s: 0x%02X\n", __func__,
+		     (int)acc & ((1 << (bytes * 8)) - 1));
+		tee_prng_add_entropy((uint8_t *)&acc, bytes);
+	}
+}
