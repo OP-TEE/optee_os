@@ -231,6 +231,7 @@ static void init_runtime(unsigned long pageable_part)
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
+	IMSG_RAW("\n");
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	assert(hashes);
 	memcpy(hashes, __tmp_hashes_start, hash_size);
@@ -418,6 +419,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 	 * above
 	 */
 	teecore_init_ta_ram();
+	IMSG_RAW("\n");
 }
 #endif
 
