@@ -346,7 +346,7 @@ out:
 	if (res != TEE_SUCCESS) {
 		if (res != TEE_ERROR_OUT_OF_MEMORY &&
 		    res != TEE_ERROR_NOT_SUPPORTED)
-			TEE_Panic(0);
+			TEE_Panic(res);
 		if (op) {
 			if (op->state) {
 				TEE_FreeOperation(op);
@@ -376,7 +376,7 @@ void TEE_FreeOperation(TEE_OperationHandle operation)
 	 */
 	res = utee_cryp_state_free(operation->state);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	TEE_Free(operation->buffer);
 	TEE_Free(operation);
@@ -485,7 +485,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
 out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -583,7 +583,7 @@ out:
 	if (res != TEE_SUCCESS  &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -708,7 +708,7 @@ out:
 	    res != TEE_ERROR_CORRUPT_OBJECT_2 &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE_2)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -823,7 +823,7 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, void *chunk,
 out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -1019,7 +1019,7 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, void *srcData,
 out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -1111,7 +1111,7 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -1729,7 +1729,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 
 	res = utee_cryp_obj_get_info((unsigned long)derivedKey, &key_info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	if (key_info.objectType != TEE_TYPE_GENERIC_SECRET)
 		TEE_Panic(0);

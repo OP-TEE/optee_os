@@ -111,7 +111,7 @@ void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage)
 	res = TEE_RestrictObjectUsage1(object, objectUsage);
 
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsage)
@@ -157,7 +157,7 @@ exit:
 	    res != TEE_ERROR_SHORT_BUFFER &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -189,7 +189,7 @@ exit:
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	if (size != sizeof(buf))
 		TEE_Panic(0);
@@ -213,7 +213,7 @@ void TEE_CloseObject(TEE_ObjectHandle object)
 
 	res = utee_cryp_obj_close((unsigned long)object);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 /* Data and Key Storage API  - Transient Object Functions */
@@ -230,7 +230,7 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_OUT_OF_MEMORY &&
 	    res != TEE_ERROR_NOT_SUPPORTED)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle)(uintptr_t)obj;
@@ -248,14 +248,14 @@ void TEE_FreeTransientObject(TEE_ObjectHandle object)
 
 	res = utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
 		TEE_Panic(0);
 
 	res = utee_cryp_obj_close((unsigned long)object);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 void TEE_ResetTransientObject(TEE_ObjectHandle object)
@@ -268,14 +268,14 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object)
 
 	res = utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
 		TEE_Panic(0);
 
 	res = utee_cryp_obj_reset((unsigned long)object);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
@@ -288,7 +288,7 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 
 	res = utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	/* Must be a transient object */
 	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
@@ -347,7 +347,7 @@ void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 
 	res = TEE_CopyObjectAttributes1(destObject, srcObject);
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
@@ -397,7 +397,7 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 					 ua, paramCount);
 
 	if (res != TEE_SUCCESS && res != TEE_ERROR_BAD_PARAMETERS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -438,7 +438,7 @@ out:
 	    res != TEE_ERROR_OUT_OF_MEMORY &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -484,7 +484,7 @@ err:
 	    res == TEE_ERROR_CORRUPT_OBJECT ||
 	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		return res;
-	TEE_Panic(0);
+	TEE_Panic(res);
 out:
 	return TEE_SUCCESS;
 }
@@ -518,7 +518,7 @@ TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object)
 	res = utee_storage_obj_del((unsigned long)object);
 
 	if (res != TEE_SUCCESS && res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -553,7 +553,7 @@ out:
 	    res != TEE_ERROR_ACCESS_CONFLICT &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -576,7 +576,7 @@ TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ACCESS_CONFLICT)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -591,7 +591,7 @@ void TEE_FreePersistentObjectEnumerator(TEE_ObjectEnumHandle objectEnumerator)
 	res = utee_storage_free_enum((unsigned long)objectEnumerator);
 
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 void TEE_ResetPersistentObjectEnumerator(TEE_ObjectEnumHandle objectEnumerator)
@@ -604,7 +604,7 @@ void TEE_ResetPersistentObjectEnumerator(TEE_ObjectEnumHandle objectEnumerator)
 	res = utee_storage_reset_enum((unsigned long)objectEnumerator);
 
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
@@ -620,7 +620,7 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -658,7 +658,7 @@ out:
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -685,7 +685,7 @@ out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -713,7 +713,7 @@ out:
 	    res != TEE_ERROR_OVERFLOW &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -734,7 +734,7 @@ out:
 	    res != TEE_ERROR_STORAGE_NO_SPACE &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }
@@ -791,7 +791,7 @@ out:
 	    res != TEE_ERROR_OVERFLOW &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		TEE_Panic(0);
+		TEE_Panic(res);
 
 	return res;
 }

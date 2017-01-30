@@ -253,7 +253,7 @@ void TEE_GetSystemTime(TEE_Time *time)
 	TEE_Result res = utee_get_time(UTEE_TIME_CAT_SYSTEM, time);
 
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 TEE_Result TEE_Wait(uint32_t timeout)
@@ -306,7 +306,7 @@ void TEE_GetREETime(TEE_Time *time)
 	TEE_Result res = utee_get_time(UTEE_TIME_CAT_REE, time);
 
 	if (res != TEE_SUCCESS)
-		TEE_Panic(0);
+		TEE_Panic(res);
 }
 
 void *TEE_Malloc(uint32_t len, uint32_t hint)
