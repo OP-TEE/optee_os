@@ -2,6 +2,7 @@ srcs-$(CFG_WITH_USER_TA) += user_ta.c
 srcs-y += pseudo_ta.c
 srcs-y += elf_load.c
 srcs-y += tee_time.c
+srcs-y += otp_stubs.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c

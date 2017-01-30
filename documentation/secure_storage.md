@@ -225,11 +225,8 @@ considered sensitive by the vendors and it is not freely available.
 In OP-TEE, there are apis for reading the keys generically from "One-Time
 Programmable" memory, or OTP.  But there are no existing platform implementations.
 
-To allow Secure Storage to operate securely on your platform, you must:
-
- - enable CFG_OTP_SUPPORT on your platform
-
- - In your platform code, define implementations for:
+To allow Secure Storage to operate securely on your platform, you must define
+implementations in your platform code for:
 
 ```
  void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
