@@ -279,7 +279,7 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object)
 }
 
 TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
-				       TEE_Attribute *attrs,
+				       const TEE_Attribute *attrs,
 				       uint32_t attrCount)
 {
 	TEE_Result res;
@@ -306,14 +306,14 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 }
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  void *buffer, uint32_t length)
+			  const void *buffer, uint32_t length)
 {
 	if (attr == NULL)
 		TEE_Panic(0);
 	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
 		TEE_Panic(0);
 	attr->attributeID = attributeID;
-	attr->content.ref.buffer = buffer;
+	attr->content.ref.buffer = (void *)buffer;
 	attr->content.ref.length = length;
 }
 
@@ -387,7 +387,7 @@ exit:
 }
 
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
-			   TEE_Attribute *params, uint32_t paramCount)
+			   const TEE_Attribute *params, uint32_t paramCount)
 {
 	TEE_Result res;
 	struct utee_attribute ua[paramCount];
@@ -404,7 +404,7 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 
 /* Data and Key Storage API  - Persistent Object Functions */
 
-TEE_Result TEE_OpenPersistentObject(uint32_t storageID, void *objectID,
+TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 				    uint32_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object)
 {
@@ -443,7 +443,7 @@ out:
 	return res;
 }
 
-TEE_Result TEE_CreatePersistentObject(uint32_t storageID, void *objectID,
+TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 				      uint32_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
@@ -690,7 +690,7 @@ out:
 	return res;
 }
 
-TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, void *buffer,
+TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
 			       uint32_t size)
 {
 	TEE_Result res;

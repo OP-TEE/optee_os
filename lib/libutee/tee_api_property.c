@@ -134,7 +134,7 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
+static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 				       enum user_ta_prop_type *type,
 				       void *buf, uint32_t *len)
 {
@@ -191,7 +191,7 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, char *name,
 }
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
-				   char *name, char *value,
+				   const char *name, char *value,
 				   uint32_t *value_len)
 {
 	TEE_Result res;
@@ -293,7 +293,7 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
-				 char *name, bool *value)
+				 const char *name, bool *value)
 {
 	TEE_Result res;
 	enum user_ta_prop_type type;
@@ -324,7 +324,7 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
-				char *name, uint32_t *value)
+				const char *name, uint32_t *value)
 {
 	TEE_Result res;
 	enum user_ta_prop_type type;
@@ -351,7 +351,7 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
-					char *name, void *value,
+					const char *name, void *value,
 					uint32_t *value_len)
 {
 	TEE_Result res;
@@ -379,7 +379,7 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
-				 char *name, TEE_UUID *value)
+				 const char *name, TEE_UUID *value)
 {
 	TEE_Result res;
 	enum user_ta_prop_type type;
@@ -406,7 +406,7 @@ out:
 }
 
 TEE_Result TEE_GetPropertyAsIdentity(TEE_PropSetHandle propsetOrEnumerator,
-				     char *name, TEE_Identity *value)
+				     const char *name, TEE_Identity *value)
 {
 	TEE_Result res;
 	enum user_ta_prop_type type;

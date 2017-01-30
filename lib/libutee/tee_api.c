@@ -33,7 +33,7 @@
 #include "tee_user_mem.h"
 #include "tee_api_private.h"
 
-static void *tee_api_instance_data;
+static const void *tee_api_instance_data;
 
 /* System API - Internal Client API */
 
@@ -221,12 +221,12 @@ out:
 	return res;
 }
 
-void TEE_SetInstanceData(void *instanceData)
+void TEE_SetInstanceData(const void *instanceData)
 {
 	tee_api_instance_data = instanceData;
 }
 
-void *TEE_GetInstanceData(void)
+const void *TEE_GetInstanceData(void)
 {
 	return tee_api_instance_data;
 }
@@ -314,13 +314,13 @@ void *TEE_Malloc(uint32_t len, uint32_t hint)
 	return tee_user_mem_alloc(len, hint);
 }
 
-void *TEE_Realloc(void *buffer, uint32_t newSize)
+void *TEE_Realloc(const void *buffer, uint32_t newSize)
 {
 	/*
 	 * GP TEE Internal API specifies newSize as 'uint32_t'.
 	 * use unsigned 'size_t' type. it is at least 32bit!
 	 */
-	return tee_user_mem_realloc(buffer, (size_t) newSize);
+	return tee_user_mem_realloc((void *)buffer, (size_t) newSize);
 }
 
 void TEE_Free(void *buffer)
