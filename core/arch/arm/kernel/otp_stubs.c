@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,19 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TEE_COMMON_OTP_H
-#define TEE_COMMON_OTP_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-#include <utee_defines.h>
+#include <inttypes.h>
+#include <kernel/tee_common_otp.h>
 
-struct tee_hw_unique_key {
-	uint8_t data[HW_UNIQUE_KEY_LENGTH];
-};
+/*
+ * Override these in your platform code to really fetch device-unique
+ * bits from e-fuses or whatever.
+ *
+ * The default implementation just sets it to a constant.
+ */
 
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
-int tee_otp_get_die_id(uint8_t *buffer, size_t len);
+__weak void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
+}
 
-#endif /* TEE_COMMON_OTP_H */
+__weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+{
+	static const char pattern[4] = { 'B', 'E', 'E', 'F' };
+	size_t i;
+
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
+
+	return 0;
+}
