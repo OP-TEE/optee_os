@@ -24,6 +24,15 @@ CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
 
+# If your arm-trusted-firmware supports it, you can enable DT
+# here, and a-t-f will pass OP-TEE a DTB containing a
+# /firmware/optee/secure-device-id property initialized with
+# the eMMC CID serial number,  This 32-bit token is different
+# for each hikey and serves as a stand-in for a real SoC
+# unique ID.
+#
+CFG_DT ?= n
+
 CFG_PL061 ?= y
 CFG_PL022 ?= y
 CFG_SPI ?= y
