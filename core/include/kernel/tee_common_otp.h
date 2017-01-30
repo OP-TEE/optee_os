@@ -36,7 +36,12 @@ struct tee_hw_unique_key {
 	uint8_t data[HW_UNIQUE_KEY_LENGTH];
 };
 
+#define MAX_SECURE_DEVICE_ID_LEN 160
+
 void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
 int tee_otp_get_die_id(uint8_t *buffer, size_t len);
+
+extern uint8_t secure_device_id[MAX_SECURE_DEVICE_ID_LEN];
+extern size_t secure_device_id_len;
 
 #endif /* TEE_COMMON_OTP_H */
