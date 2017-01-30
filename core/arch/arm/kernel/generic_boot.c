@@ -437,7 +437,7 @@ static int add_optee_dt_node(void *fdt)
 	int ret;
 
 	if (fdt_path_offset(fdt, "/firmware/optee") >= 0) {
-		IMSG("OP-TEE Device Tree node already exists!\n");
+		DMSG("OP-TEE Device Tree node already exists!\n");
 		return 0;
 	}
 
