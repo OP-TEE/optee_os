@@ -72,6 +72,9 @@
  */
 #define PADDR_INVALID		ULONG_MAX
 
+static uint8_t secure_device_id[160] __early_bss __aligned(8);
+static size_t secure_device_id_len __early_bss;
+
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
 paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __early_bss;
 static uint32_t spin_table[CFG_TEE_CORE_NB_CORE] __early_bss;
@@ -551,6 +554,44 @@ static int add_optee_res_mem_dt_node(void *fdt)
 	return 0;
 }
 
+static void read_optee_secure_device_node(void *fdt)
+{
+	const uint32_t *p;
+	int offs;
+	int len;
+#if (TRACE_LEVEL >= TRACE_INFO)
+	char s[33];
+	int n = 0;
+	int m;
+#endif
+
+	offs = fdt_path_offset(fdt, "/firmware/optee");
+	if (offs < 0)
+		return;
+
+	p = fdt_getprop(fdt, offs, "secure-device-id", &len);
+	if (!p || !len)
+		return;
+
+	if (len > (int)sizeof(secure_device_id))
+		len = sizeof(secure_device_id);
+
+	memcpy(secure_device_id, p, len);
+	secure_device_id_len = len;
+
+#if (TRACE_LEVEL >= TRACE_INFO)
+	if (len > 16)
+		len = 16;
+
+	for (m = 0; m < len; m++)
+		n += snprintf(&s[n], sizeof(s) - n - 1, "%02X",
+			      secure_device_id[m]);
+
+	IMSG("secure-device-id: len %d: %s\n",
+	     (int)secure_device_id_len, s);
+#endif
+}
+
 static void init_fdt(unsigned long phys_fdt)
 {
 	void *fdt;
@@ -588,6 +629,8 @@ static void init_fdt(unsigned long phys_fdt)
 
 	if (add_optee_res_mem_dt_node(fdt))
 		panic("Failed to add OP-TEE reserved memory DT node");
+
+	read_optee_secure_device_node(fdt);
 
 	ret = fdt_pack(fdt);
 	if (ret < 0) {
