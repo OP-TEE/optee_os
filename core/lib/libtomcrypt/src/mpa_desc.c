@@ -214,7 +214,7 @@ static int twoexpt(void *a, int n)
 	for (i = 0; i < ((mpanum)a)->size; ++i) {
 		((mpanum)a)->d[i] = 0;
 	}
-	((mpanum)a)->d[q] = 1 << r;
+	((mpanum)a)->d[q] = 1UL << r;
 	return CRYPT_OK;
 }
 
