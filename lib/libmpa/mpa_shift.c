@@ -213,7 +213,7 @@ void mpa_shift_right(mpanum dest, mpanum src, mpa_word_t steps)
 		/* combination of word and bit shifting */
 		for (i = 0; i < __mpanum_size(dest) - q - 1; i++) {
 			dest->d[i] = dest->d[i + q];
-			rbits = dest->d[i + q + 1] & ((1 << r) - 1);
+			rbits = dest->d[i + q + 1] & ((1UL << r) - 1);
 			dest->d[i] =
 			    (dest->d[i] >> r) ^ (rbits << (WORD_SIZE - r));
 		}
