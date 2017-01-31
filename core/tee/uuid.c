@@ -25,8 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/uuid.h>
 #include <string.h>
+#include <tee/uuid.h>
+#include <util.h>
 
 void tee_uuid_to_octets(uint8_t *d, const TEE_UUID *s)
 {
@@ -43,8 +44,9 @@ void tee_uuid_to_octets(uint8_t *d, const TEE_UUID *s)
 
 void tee_uuid_from_octets(TEE_UUID *d, const uint8_t *s)
 {
-	d->timeLow = (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
-	d->timeMid = (s[4] << 8) | s[5];
-	d->timeHiAndVersion = (s[6] << 8) | s[7];
+	d->timeLow = SHIFT_U32(s[0], 24) | SHIFT_U32(s[1], 16) |
+		     SHIFT_U32(s[2], 8) | s[3];
+	d->timeMid = SHIFT_U32(s[4], 8) | s[5];
+	d->timeHiAndVersion = SHIFT_U32(s[6], 8) | s[7];
 	memcpy(d->clockSeqAndNode, s + 8, sizeof(d->clockSeqAndNode));
 }
