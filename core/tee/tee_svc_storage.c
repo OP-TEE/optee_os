@@ -128,10 +128,9 @@ static TEE_Result tee_svc_close_enum(struct user_ta_ctx *utc,
 
 	TAILQ_REMOVE(&utc->storage_enums, e, link);
 
-	if (!e->fops)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (e->fops)
+		e->fops->closedir(e->dir);
 
-	e->fops->closedir(e->dir);
 	e->dir = NULL;
 	e->fops = NULL;
 
@@ -845,6 +844,7 @@ TEE_Result syscall_storage_reset_enum(unsigned long obj_enum)
 		return res;
 
 	e->fops->closedir(e->dir);
+	e->fops = NULL;
 	e->dir = NULL;
 
 	return TEE_SUCCESS;
