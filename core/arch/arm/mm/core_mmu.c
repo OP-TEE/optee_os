@@ -328,6 +328,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | cached;
 	case MEM_AREA_RES_VASPACE:
 		return 0;
+	case MEM_AREA_TEE_RAM_UNCACHED:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PX | noncache;
 	default:
 		panic("invalid type");
 	}
@@ -471,6 +473,7 @@ void core_init_mmu_map(void)
 				panic("NS_SHM can't fit in nsec_shared");
 			map_nsec_shm = map;
 			break;
+		case MEM_AREA_TEE_RAM_UNCACHED:
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_RAM_SEC:
