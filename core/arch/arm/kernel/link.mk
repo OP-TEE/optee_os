@@ -220,8 +220,12 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
 	$(q)./scripts/gen_hashed_bin.py \
 		--arch $(if $(filter y,$(CFG_ARM64_core)),arm64,arm32) \
 		--init_size `cat $(link-out-dir)/tee-init_size.txt` \
+		--init_load_addr_hi \
+			`cat $(link-out-dir)/tee-init_load_addr.txt | \
+			${AWK} '{printf("0x%x\n",rshift(strtonum($$0),32))}'` \
 		--init_load_addr_lo \
-			`cat $(link-out-dir)/tee-init_load_addr.txt` \
+			`cat $(link-out-dir)/tee-init_load_addr.txt | \
+			${AWK} '{printf("0x%x\n",and(strtonum($$0),0xffffffff))}'` \
 		--init_mem_usage `cat $(link-out-dir)/tee-init_mem_usage.txt` \
 		--tee_pager_bin $(link-out-dir)/tee-pager.bin \
 		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin \
