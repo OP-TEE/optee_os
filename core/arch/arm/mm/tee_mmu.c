@@ -613,8 +613,7 @@ void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
 		struct tee_ta_region *reg = utc->mmu->regions + n;
 
-		if (reg->mobj == mobj && reg->va == va &&
-		    reg->size == mobj->size) {
+		if (reg->mobj == mobj && reg->va == va) {
 			free_pgt(utc, reg->va, reg->size);
 			memset(reg, 0, sizeof(*reg));
 			return;
