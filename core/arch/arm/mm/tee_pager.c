@@ -784,6 +784,30 @@ void tee_pager_transfer_uta_region(struct user_ta_ctx *src_utc,
 	}
 }
 
+static void rem_area(struct tee_pager_area_head *area_head,
+		     struct tee_pager_area *area)
+{
+	struct tee_pager_pmem *pmem;
+	uint32_t exceptions;
+
+	exceptions = pager_lock();
+
+	TAILQ_REMOVE(area_head, area, link);
+
+	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
+		if (pmem->area == area) {
+			area_set_entry(area, pmem->pgidx, 0, 0);
+			pgt_dec_used_entries(area->pgt);
+			pmem->area = NULL;
+			pmem->pgidx = INVALID_PGIDX;
+		}
+	}
+
+	pager_unlock(exceptions);
+	free_area(area);
+}
+KEEP_PAGER(rem_area);
+
 void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
 			      size_t size)
 {
@@ -792,12 +816,9 @@ void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
 	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
 
 	TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
-		if (core_is_buffer_inside(area->base, area->size, base, s)) {
-			TAILQ_REMOVE(utc->areas, area, link);
-			free_area(area);
-		}
+		if (core_is_buffer_inside(area->base, area->size, base, s))
+			rem_area(utc->areas, area);
 	}
-
 }
 
 void tee_pager_rem_uta_areas(struct user_ta_ctx *utc)
