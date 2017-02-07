@@ -24,3 +24,5 @@ $(eval _O:=$(if $(O),$(O),.))$(wildcard $(addprefix $(_O)/,$(call _reverse,
 	$(sort $(foreach d,$(patsubst $(_O)/%,%,$(dir $(cleanfiles))),
 			   $(call enum-parent-dirs,$(d)))))))
 endef
+
+RMDIR := rmdir --ignore-fail-on-non-empty

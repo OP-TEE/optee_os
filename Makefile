@@ -87,9 +87,9 @@ include mk/cleandirs.mk
 clean:
 	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
 	${q}rm -f $(cleanfiles)
-	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then rmdir $$dirs; fi
+	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then $(RMDIR) $$dirs; fi
 	@if [ "$(out-dir)" != "$(O)" ]; then $(cmd-echo-silent) '  CLEAN   $(O)'; fi
-	${q}if [ -d "$(O)" ]; then rmdir --ignore-fail-on-non-empty $(O); fi
+	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
 
 .PHONY: cscope
 cscope:

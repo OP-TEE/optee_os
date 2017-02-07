@@ -74,9 +74,9 @@ include $(ta-dev-kit-dir)/mk/cleandirs.mk
 clean:
 	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
 	${q}rm -f $(cleanfiles)
-	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then rmdir $$dirs; fi
+	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then $(RMDIR) $$dirs; fi
 	@$(cmd-echo-silent) '  CLEAN   $(O)'
-	${q}if [ -d "$(O)" ]; then rmdir --ignore-fail-on-non-empty $(O); fi
+	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
 
 subdirs = .
 include  $(ta-dev-kit-dir)/mk/subdir.mk
