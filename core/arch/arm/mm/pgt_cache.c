@@ -371,6 +371,10 @@ static void flush_ctx_range_from_list(struct pgt_cache *pgt_cache, void *ctx,
 	struct pgt *p;
 	struct pgt *next_p;
 
+	/*
+	 * Do the special case where the first element in the list is
+	 * removed first.
+	 */
 	p = SLIST_FIRST(pgt_cache);
 	while (pgt_entry_matches(p, ctx, begin, last)) {
 		flush_pgt_entry(p);
@@ -379,7 +383,17 @@ static void flush_ctx_range_from_list(struct pgt_cache *pgt_cache, void *ctx,
 		p = SLIST_FIRST(pgt_cache);
 	}
 
-	p = SLIST_FIRST(pgt_cache);
+	/*
+	 * p either points to the first element in the list or it's NULL,
+	 * if NULL the list is empty and we're done.
+	 */
+	if (!p)
+		return;
+
+	/*
+	 * Do the common case where the next element in the list is
+	 * removed.
+	 */
 	while (true) {
 		next_p = SLIST_NEXT(p, link);
 		if (!next_p)
