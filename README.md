@@ -7,7 +7,7 @@
 5. [Coding standards](#5-coding-standards)
     5. [checkpatch](#51-checkpatch)
 
-# 1. Introduction
+## 1. Introduction
 The `optee_os git`, contains the source code for the TEE in Linux using the
 ARM&reg; TrustZone&reg; technology. This component meets the GlobalPlatform
 TEE System Architecture specification. It also provides the TEE Internal core API
@@ -44,16 +44,16 @@ platforms have different sub-maintainers, please refer to the file
 <!-- Please keep this list sorted in alphabetic order -->
 | Platform | Composite PLATFORM flag | Publicly available? |
 |----------|-------------------------|---------------------|
-| [Allwinner A80 Board](http://www.allwinnertech.com/en/clq/processora/A80.html)|`PLATFORM=sunxi`| No |
+| [Allwinner A80 Board](http://linux-sunxi.org/A80)|`PLATFORM=sunxi`| No |
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes |
 | [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx`| Yes |
 | [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx`| Yes |
 | [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`| Yes |
-| [ARM Foundation FVP](http://www.arm.com/fvp) |`PLATFORM=vexpress-fvp`| Yes |
+| [ARM Foundation FVP](https://developer.arm.com/products/system-design/fixed-virtual-platforms) |`PLATFORM=vexpress-fvp`| Yes |
 | [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No |
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey)|`PLATFORM=hikey`| Yes |
-| [MediaTek MT8173 EVB Board](http://www.mediatek.com/en/products/mobile-communications/tablet/mt8173)|`PLATFORM=mediatek-mt8173`| No |
+| [MediaTek MT8173 EVB Board](https://www.mediatek.com/products/tablets/mt8173)|`PLATFORM=mediatek-mt8173`| No |
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
 | [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
 | [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes |
@@ -73,7 +73,7 @@ Please see [build] for instructions how to run OP-TEE on various devices.
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
 the Linux kernel (see
-[CodingStyle](https://www.kernel.org/doc/Documentation/CodingStyle)). We achieve this by running
+[CodingStyle](https://www.kernel.org/doc/Documentation/process/coding-style.rst)). We achieve this by running
 [checkpatch](http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/scripts/checkpatch.pl)
 from Linux kernel. However there are a few exceptions that we had to make since
 the code also follows GlobalPlatform standards. The exceptions are as follows:
