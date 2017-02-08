@@ -26,6 +26,7 @@
  */
 
 #include <assert.h>
+#include <keep.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -87,6 +88,10 @@ static TEE_Result mobj_phys_get_pa(struct mobj *mobj, size_t offs,
 	*pa = p;
 	return TEE_SUCCESS;
 }
+/* ifndef due to an asserting AArch64 linker */
+#ifndef ARM64
+KEEP_PAGER(mobj_phys_get_pa);
+#endif
 
 static TEE_Result mobj_phys_get_cattr(struct mobj *mobj, uint32_t *cattr)
 {
@@ -228,6 +233,10 @@ static TEE_Result mobj_mm_get_pa(struct mobj *mobj, size_t offs,
 	return mobj_get_pa(to_mobj_mm(mobj)->parent_mobj,
 			   mobj_mm_offs(mobj, offs), granule, pa);
 }
+/* ifndef due to an asserting AArch64 linker */
+#ifndef ARM64
+KEEP_PAGER(mobj_mm_get_pa);
+#endif
 
 static TEE_Result mobj_mm_get_cattr(struct mobj *mobj, uint32_t *cattr)
 {
