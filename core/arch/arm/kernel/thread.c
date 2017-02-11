@@ -599,7 +599,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 			OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS),
 			&parg, &carg);
 		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-		    !(arg = phys_to_virt(parg, CORE_MEM_NSEC_SHM))) {
+		    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
 			thread_rpc_free_arg(carg);
 			args->a0 = OPTEE_SMC_RETURN_ENOMEM;
 			return;
