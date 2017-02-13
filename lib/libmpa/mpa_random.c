@@ -79,3 +79,18 @@ void mpa_get_random(mpanum dest, mpanum limit)
 		}
 	}
 }
+
+int mpa_get_random_digits(mpanum dest, mpa_usize_t size)
+{
+	mpa_wipe(dest);
+
+	if (size > __mpanum_alloced(dest))
+		return 0;
+
+	dest->size = size;
+
+	if (get_rng_array(&dest->d, WORDS_TO_BYTES(__mpanum_size(dest))))
+		return 0;
+
+	return __mpanum_size(dest);
+}

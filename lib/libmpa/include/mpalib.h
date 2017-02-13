@@ -403,6 +403,19 @@ MPALIB_EXPORT void mpa_set_random_generator(random_generator_cb callback);
 MPALIB_EXPORT void mpa_get_random(mpanum dest, mpanum limit);
 
 /*
+ * Clear and stores "size" random digits in dest. If the requested size is
+ * greater than what mpanum dest can hold, then this will return with size zero.
+ * If the caller needs more random data, then he needs to reallocate the mpanum
+ * used.
+ *
+ * @dest	mpanum to store the random data
+ * @size	the number of random digits to get
+ *
+ * @return	the number of successfully generated random digits
+ */
+MPALIB_EXPORT int mpa_get_random_digits(mpanum dest, mpa_usize_t size);
+
+/*
  * From mpa_montgomery.c
  */
 MPALIB_EXPORT int mpa_compute_fmm_context(const mpanum modulus, mpanum r_modn,

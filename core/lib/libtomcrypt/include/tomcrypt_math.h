@@ -455,6 +455,15 @@ typedef struct {
    int (*rsa_me)(const unsigned char *in,   unsigned long inlen,
                        unsigned char *out,  unsigned long *outlen, int which,
                        rsa_key *key);
+
+/* ---- misc stuff ---- */
+   /** Make a pseudo-random mpanum
+      @param  a     The mpanum to make random
+      @param  size  The amount of random mpanum digits requested
+      @return CRYPT_OK on success
+   */
+   int (*rand)(void *a, int size);
+
 } ltc_math_descriptor;
 
 extern ltc_math_descriptor ltc_mp;
@@ -539,6 +548,8 @@ extern const ltc_math_descriptor gmp_desc;
 #define mp_exch(a, b)                do { void *ABC__tmp = a; a = b; b = ABC__tmp; } while(0);
 
 #define mp_tohex(a, b)               mp_toradix(a, b, 16)
+
+#define mp_rand(a, b)                ltc_mp.rand(a, b)
 
 #endif
 
