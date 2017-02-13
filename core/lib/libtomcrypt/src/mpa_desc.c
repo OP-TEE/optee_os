@@ -602,6 +602,12 @@ static int isprime(void *a, int b, int *c)
 	return CRYPT_OK;
 }
 
+static int rand(void *a, int size)
+{
+	return mpa_get_random_digits(a, size) != size ?
+					CRYPT_ERROR_READPRNG : CRYPT_OK;
+}
+
 ltc_math_descriptor ltc_mp = {
 	.name = "MPA",
 	.bits_per_digit = MPA_WORD_SIZE,
@@ -678,5 +684,6 @@ ltc_math_descriptor ltc_mp = {
 	.rsa_keygen = &rsa_make_key,
 	.rsa_me = &rsa_exptmod,
 #endif
+	.rand = &rand,
 
 };
