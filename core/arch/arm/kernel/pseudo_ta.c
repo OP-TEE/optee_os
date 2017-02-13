@@ -25,7 +25,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
@@ -91,11 +91,11 @@ static void update_out_param(TEE_Param tee_param[TEE_NUM_PARAMS],
 	}
 }
 
-static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
+static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo)
 {
 	TEE_Result res;
-	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
@@ -107,11 +107,11 @@ static TEE_Result static_ta_enter_open_session(struct tee_ta_session *s,
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
 	if (s->ctx->ref_count == 1) {
-		res = stc->static_ta->create_entry_point();
+		res = stc->pseudo_ta->create_entry_point();
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
-	res = stc->static_ta->open_session_entry_point(param->types, tee_param,
+	res = stc->pseudo_ta->open_session_entry_point(param->types, tee_param,
 						       &s->user_ctx);
 	update_out_param(tee_param, param);
 
@@ -120,12 +120,12 @@ out:
 	return res;
 }
 
-static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
+static TEE_Result pseudo_ta_enter_invoke_cmd(struct tee_ta_session *s,
 			uint32_t cmd, struct tee_ta_param *param,
 			TEE_ErrorOrigin *eo)
 {
 	TEE_Result res;
-	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
@@ -136,7 +136,7 @@ static TEE_Result static_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	}
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
-	res = stc->static_ta->invoke_command_entry_point(s->user_ctx, cmd,
+	res = stc->pseudo_ta->invoke_command_entry_point(s->user_ctx, cmd,
 							 param->types,
 							 tee_param);
 	update_out_param(tee_param, param);
@@ -145,44 +145,44 @@ out:
 	return res;
 }
 
-static void static_ta_enter_close_session(struct tee_ta_session *s)
+static void pseudo_ta_enter_close_session(struct tee_ta_session *s)
 {
-	struct static_ta_ctx *stc = to_static_ta_ctx(s->ctx);
+	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 
 	tee_ta_push_current_session(s);
-	stc->static_ta->close_session_entry_point(s->user_ctx);
+	stc->pseudo_ta->close_session_entry_point(s->user_ctx);
 	if (s->ctx->ref_count == 1)
-		stc->static_ta->destroy_entry_point();
+		stc->pseudo_ta->destroy_entry_point();
 	tee_ta_pop_current_session();
 }
 
-static void static_ta_destroy(struct tee_ta_ctx *ctx)
+static void pseudo_ta_destroy(struct tee_ta_ctx *ctx)
 {
-	free(to_static_ta_ctx(ctx));
+	free(to_pseudo_ta_ctx(ctx));
 }
 
-static const struct tee_ta_ops static_ta_ops = {
-	.enter_open_session = static_ta_enter_open_session,
-	.enter_invoke_cmd = static_ta_enter_invoke_cmd,
-	.enter_close_session = static_ta_enter_close_session,
-	.destroy = static_ta_destroy,
+static const struct tee_ta_ops pseudo_ta_ops = {
+	.enter_open_session = pseudo_ta_enter_open_session,
+	.enter_invoke_cmd = pseudo_ta_enter_invoke_cmd,
+	.enter_close_session = pseudo_ta_enter_close_session,
+	.destroy = pseudo_ta_destroy,
 };
 
 
 /* Defined in link script */
-extern const struct static_ta_head __start_ta_head_section;
-extern const struct static_ta_head __stop_ta_head_section;
+extern const struct pseudo_ta_head __start_ta_head_section;
+extern const struct pseudo_ta_head __stop_ta_head_section;
 
 /*-----------------------------------------------------------------------------
  * Initialises a session based on the UUID or ptr to the ta
  * Returns ptr to the session (ta_session) and a TEE_Result
  *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
+TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s)
 {
-	struct static_ta_ctx *stc = NULL;
+	struct pseudo_ta_ctx *stc = NULL;
 	struct tee_ta_ctx *ctx;
-	const struct static_ta_head *ta;
+	const struct pseudo_ta_head *ta;
 
 	DMSG("   Lookup for Static TA %pUl", (void *)uuid);
 
@@ -197,7 +197,7 @@ TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 
 	/* Load a new TA and create a session */
 	DMSG("      Open %s", ta->name);
-	stc = calloc(1, sizeof(struct static_ta_ctx));
+	stc = calloc(1, sizeof(struct pseudo_ta_ctx));
 	if (!stc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	ctx = &stc->ctx;
@@ -205,12 +205,12 @@ TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
 	ctx->ref_count = 1;
 	s->ctx = ctx;
 	ctx->flags = TA_FLAG_MULTI_SESSION;
-	stc->static_ta = ta;
+	stc->pseudo_ta = ta;
 	ctx->uuid = ta->uuid;
-	ctx->ops = &static_ta_ops;
+	ctx->ops = &pseudo_ta_ops;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %pUl", stc->static_ta->name, (void *)&ctx->uuid);
+	DMSG("      %s : %pUl", stc->pseudo_ta->name, (void *)&ctx->uuid);
 
 	return TEE_SUCCESS;
 }

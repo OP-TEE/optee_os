@@ -524,24 +524,27 @@ TBD
 
 # 12. Trusted Applications
 
-## Static and Dynamic TAs
+## Pseudo TAs and Dynamically Loaded TAs
 
-There are two ways to implement Trusted Applications, static and dynamic.
-For most cases, dynamically-loaded TAs are preferred.
+There are two ways to implement Trusted Applications (TAs), pseudo TAs and
+dynamically loaded TAs. As dynamically loaded TAs are full featured Trusted
+Applications as specified by the GlobalPlatform TEE specifications, these are
+simply referred to as 'Trusted Applications'. For most cases, dynamically
+loaded TAs are preferred.
 
-### Static / Pseudo Trusted Applications
+### Pseudo Trusted Applications
 
-These are added directly to the optee_os tree in, eg, `core/arch/arm/sta`, and
+These are added directly to the optee_os tree in, eg, `core/arch/arm/pta`, and
 are built along with and statically built into the OP-TEE OS blob.
 
-The static / pseudo Trusted Applications included in OP-TEE already are OP-TEE
+The pseudo Trusted Applications included in OP-TEE already are OP-TEE
 OS secure privilege layer services hidden behind a "GP TA Client" API; it's
 in these "Pseudo Trusted Applications" that the core functionality for
 communication with the REE (like "Open Session"), and API handlers from dynamic
 Trusted Applications are implemented.
 
-Static TAs do not benefit from the 'GP Core Internal API' support
-specified by the GP TEE specs; Static TAs can only use the OP-TEE OS internal
+Pseudo TAs do not benefit from the 'GP Core Internal API' support
+specified by the GP TEE specs; Pseudo TAs can only use the OP-TEE OS internal
 APIs and routines.
 
 Pseudo-TAs have the same privileged view of Secure World as the OP-TEE OS code
@@ -550,7 +553,7 @@ itself.  For complex TAs, that may not be desirable.
 In most cases a real, dynamically loaded TA is the best choice instead of adding
 your code directly to the OP-TEE OS.  However if you decide your application
 is best handled directly in OP-TEE OS like this, you can look at
-`core/arch/arm/sta/stats.c` as a template and just add your static TA based on
+`core/arch/arm/pta/stats.c` as a template and just add your pseudo TA based on
 that to the `sub.mk` in the same directory.
 
 ### Trusted Applications
@@ -593,7 +596,7 @@ syscall wrappers to access functions exported from OP-TEE OS, so this all
 happens automatically when a TA wants to use an api exported from
 OP-TEE OS.
 
-Static / pseudo TAs and anything else directly built into OP-TEE OS do not
+Pseudo TAs and anything else directly built into OP-TEE OS do not
 require going through a syscall interface, since they can just link directly
 as they are directly part of the OS.
 

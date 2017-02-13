@@ -41,7 +41,7 @@
 #include <trace.h>
 #include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <mm/mobj.h>
 
 vaddr_t tee_svc_uref_base;
@@ -598,7 +598,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		utee_param_to_param(param, callee_params);
 	}
 
-	if (called_sess && is_static_ta_ctx(called_sess->ctx)) {
+	if (called_sess && is_pseudo_ta_ctx(called_sess->ctx)) {
 		/*
 		 * static TA, borrow the mapping of the calling
 		 * during this call.

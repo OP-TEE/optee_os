@@ -68,7 +68,7 @@ struct tee_ta_param {
 
 struct tee_ta_ctx;
 struct user_ta_ctx;
-struct static_ta_ctx;
+struct pseudo_ta_ctx;
 
 struct tee_ta_ops {
 	TEE_Result (*enter_open_session)(struct tee_ta_session *s,

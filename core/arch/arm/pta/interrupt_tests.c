@@ -27,7 +27,7 @@
 #include <keep.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <kernel/tee_time.h>
 #include <kernel/thread.h>
 #include <platform_config.h>
@@ -254,7 +254,7 @@ static TEE_Result invoke_command(void *psess __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-static_ta_register(.uuid = INTERRUPT_TESTS_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = INTERRUPT_TESTS_UUID, .name = TA_NAME,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,

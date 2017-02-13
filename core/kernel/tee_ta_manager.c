@@ -34,7 +34,7 @@
 #include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -443,7 +443,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	}
 
 	/* Look for static TA */
-	res = tee_ta_init_static_ta_session(uuid, s);
+	res = tee_ta_init_pseudo_ta_session(uuid, s);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
@@ -604,7 +604,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	struct tee_ta_session *s = TAILQ_FIRST(&tsd->sess_stack);
 
 	if (s) {
-		if (is_static_ta_ctx(s->ctx))
+		if (is_pseudo_ta_ctx(s->ctx))
 			s = TAILQ_NEXT(s, link_tsd);
 
 		if (s)

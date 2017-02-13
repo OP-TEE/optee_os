@@ -24,8 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef KERNEL_STATIC_TA_H
-#define KERNEL_STATIC_TA_H
+#ifndef KERNEL_PSEUDO_TA_H
+#define KERNEL_PSEUDO_TA_H
 
 #include <assert.h>
 #include <compiler.h>
@@ -33,7 +33,7 @@
 #include <tee_api_types.h>
 #include <util.h>
 
-struct static_ta_head {
+struct pseudo_ta_head {
 	TEE_UUID uuid;
 	const char *name;
 
@@ -48,28 +48,28 @@ struct static_ta_head {
 			TEE_Param pParams[TEE_NUM_PARAMS]);
 };
 
-#define static_ta_register(...) static const struct static_ta_head __head \
+#define pseudo_ta_register(...) static const struct pseudo_ta_head __head \
 			__used __section("ta_head_section") = { __VA_ARGS__ }
 
 
-struct static_ta_ctx {
-	const struct static_ta_head *static_ta;
+struct pseudo_ta_ctx {
+	const struct pseudo_ta_head *pseudo_ta;
 	struct tee_ta_ctx ctx;
 };
 
-static inline bool is_static_ta_ctx(struct tee_ta_ctx *ctx)
+static inline bool is_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
 {
 	return !(ctx->flags & TA_FLAG_USER_MODE);
 }
 
-static inline struct static_ta_ctx *to_static_ta_ctx(struct tee_ta_ctx *ctx)
+static inline struct pseudo_ta_ctx *to_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	assert(is_static_ta_ctx(ctx));
-	return container_of(ctx, struct static_ta_ctx, ctx);
+	assert(is_pseudo_ta_ctx(ctx));
+	return container_of(ctx, struct pseudo_ta_ctx, ctx);
 }
 
-TEE_Result tee_ta_init_static_ta_session(const TEE_UUID *uuid,
+TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
 
-#endif /*KERNEL_STATIC_TA_H*/
+#endif /* KERNEL_PSEUDO_TA_H */
 

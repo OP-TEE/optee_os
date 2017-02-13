@@ -27,7 +27,7 @@
 
 #include <arm.h>
 #include <kernel/misc.h>
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
@@ -199,7 +199,7 @@ static TEE_Result open_session(uint32_t param_types __unused,
 	s = tee_ta_get_calling_session();
 	if (!s)
 		return TEE_ERROR_ACCESS_DENIED;
-	if (is_static_ta_ctx(s->ctx))
+	if (is_pseudo_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	return TEE_SUCCESS;
@@ -228,7 +228,7 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-static_ta_register(.uuid = PTA_GPROF_UUID, .name = "gprof",
+pseudo_ta_register(.uuid = PTA_GPROF_UUID, .name = "gprof",
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,

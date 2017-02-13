@@ -26,7 +26,7 @@
  */
 #include <compiler.h>
 #include <types_ext.h>
-#include <kernel/static_ta.h>
+#include <kernel/pseudo_ta.h>
 #include <trace.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
@@ -242,7 +242,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-static_ta_register(.uuid = STA_SELF_TEST_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = STA_SELF_TEST_UUID, .name = TA_NAME,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,
