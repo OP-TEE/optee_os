@@ -397,5 +397,6 @@ typedef enum {
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
+void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb);
 
 #endif /* CORE_MMU_H */
