@@ -1166,6 +1166,14 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	return va;
 }
 
+vaddr_t get_base(paddr_t base, enum teecore_memtypes type)
+{
+	if (cpu_mmu_enabled())
+		return (vaddr_t)phys_to_virt(base, type);
+
+	return (vaddr_t)base;
+}
+
 bool cpu_mmu_enabled(void)
 {
 	uint32_t sctlr;
