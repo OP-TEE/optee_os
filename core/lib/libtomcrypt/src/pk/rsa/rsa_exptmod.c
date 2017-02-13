@@ -98,21 +98,6 @@ int rsa_exptmod(const unsigned char *in,   unsigned long inlen,
       goto error;
    }
 
-   /* are we using the private exponent and is the key optimized? */
-#ifdef LTC_LINARO_FIX_RSAWITHOUTCRT
-   if ((which == PK_PRIVATE) && (key->dP == NULL)) {
-      /*
-       * Fix when CRT optimization parameters are not there
-       * In such a case, we directly use the private key
-       */
-      LTC_ARGCHK(key->dQ == NULL);
-      LTC_ARGCHK(key->qP == NULL);
-      LTC_ARGCHK(key->p  == NULL);
-      LTC_ARGCHK(key->q  == NULL);
-      /* exptmod it */
-      if ((err = mp_exptmod(tmp, key->d, key->N, tmp)) != CRYPT_OK)                                { goto error; }
-   } else
-#endif
    if (which == PK_PRIVATE) {
 #ifdef LTC_RSA_BLINDING
       /* do blinding */

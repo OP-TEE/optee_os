@@ -510,8 +510,6 @@
  * Here are a list of fixes required in libtomcrypt
  */
 
-#define LTC_LINARO_FIX_RSAWITHOUTCRT
-
 /*
  * From libtomcrypt.org:
  *     DH vanished because nobody used it and it was a pain to support
