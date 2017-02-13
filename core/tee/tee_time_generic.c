@@ -25,11 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <kernel/panic.h>
+#include <kernel/tee_time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <trace.h>
 #include <utee_defines.h>
-#include <kernel/tee_time.h>
 
 struct tee_ta_time_offs {
 	TEE_UUID uuid;
@@ -138,4 +139,21 @@ TEE_Result tee_time_set_ta_time(const TEE_UUID *uuid, const TEE_Time *time)
 		TEE_TIME_SUB(t, *time, offs);
 		return tee_time_ta_set_offs(uuid, &offs, false);
 	}
+}
+
+void tee_time_busy_wait(uint32_t milliseconds_delay)
+{
+	TEE_Time curr;
+	TEE_Time delta;
+	TEE_Time end;
+
+	if (tee_time_get_sys_time(&curr) != TEE_SUCCESS)
+		panic();
+	delta.seconds = milliseconds_delay / 1000;
+	delta.millis = milliseconds_delay % 1000;
+	TEE_TIME_ADD(curr, delta, end);
+
+	while (TEE_TIME_LT(curr, end))
+		if (tee_time_get_sys_time(&curr) != TEE_SUCCESS)
+			panic();
 }
