@@ -168,11 +168,9 @@
 #define L1_XLAT_ADDRESS_SHIFT	(L2_XLAT_ADDRESS_SHIFT + \
 				 XLAT_TABLE_ENTRIES_SHIFT)
 
-
-
-#define ADDR_SPACE_SIZE		(1ull << 32)
 #define MAX_MMAP_REGIONS	16
-#define NUM_L1_ENTRIES		(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
+#define NUM_L1_ENTRIES		\
+		(CFG_LPAE_ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
 
 #ifndef MAX_XLAT_TABLES
 #define MAX_XLAT_TABLES		5
@@ -491,8 +489,8 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	assert(user_va_idx != -1);
 
 	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
-	COMPILE_TIME_ASSERT(ADDR_SPACE_SIZE > 0);
-	assert(max_va < ADDR_SPACE_SIZE);
+	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_SIZE > 0);
+	assert(max_va < CFG_LPAE_ADDR_SPACE_SIZE);
 }
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
@@ -549,7 +547,7 @@ void core_init_mmu_regs(void)
 	tcr |= TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT;
 	tcr |= TCR_SHX_ISH << TCR_SH0_SHIFT;
 	tcr |= tcr_ps_bits << TCR_EL1_IPS_SHIFT;
-	tcr |= 64 - __builtin_ctzl(ADDR_SPACE_SIZE);
+	tcr |= 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
 
 	/* Disable the use of TTBR1 */
 	tcr |= TCR_EPD1;
