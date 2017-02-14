@@ -215,7 +215,7 @@ END_FUNC unhandled_cpu
 	  .endif
 	.endm
 
-	.align	7
+	.align	11
 LOCAL_FUNC reset_vect_table , :
 	/* -----------------------------------------------------
 	 * Current EL with SP0 : 0x0 - 0x180
