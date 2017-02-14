@@ -590,7 +590,7 @@ static void *map_pa2va(struct tee_mmap_region *map, paddr_t pa)
 	if (!pa_is_in_map(map, pa))
 		return NULL;
 	return (void *)((pa & (map->region_size - 1)) |
-		(((map->va + pa - map->pa)) & ~(map->region_size - 1)));
+		((map->va + pa - map->pa) & ~((vaddr_t)map->region_size - 1)));
 }
 
 /*
