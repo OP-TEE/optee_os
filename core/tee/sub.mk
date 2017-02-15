@@ -30,8 +30,8 @@ srcs-y += tee_svc_cryp.c
 srcs-y += tee_svc_storage.c
 srcs-$(CFG_RPMB_FS) += tee_rpmb_fs.c
 srcs-$(CFG_REE_FS) += tee_ree_fs.c
-srcs-$(CFG_REE_FS) += fs_htree.c
 srcs-$(CFG_SQL_FS) += tee_sql_fs.c
+srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS) += fs_htree.c
 srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS) += tee_fs_rpc.c
 srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS CFG_RPMB_FS) += \
 	tee_fs_rpc_cache.c

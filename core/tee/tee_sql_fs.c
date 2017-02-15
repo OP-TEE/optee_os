@@ -29,15 +29,6 @@
  * This file implements the tee_file_operations structure for a secure
  * filesystem based on an SQLite database in normal world.
  * The atomicity of each operation is ensured by using SQL transactions.
- * The main purpose of the code below is to perform block encryption and
- * authentication of the file data, and properly handle seeking through the
- * file. One file (in the sense of struct tee_file_operations) maps to one
- * file in the SQL filesystem, and has the following structure:
- *
- * [       File meta-data       ][      Block #0        ][Block #1]...
- * [meta_header|sql_fs_file_meta][block_header|user data][        ]...
- *
- * meta_header and block_header are defined in tee_fs_key_manager.h.
  */
 
 #include <assert.h>
@@ -45,12 +36,12 @@
 #include <optee_msg_supplicant.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <string_ext.h>
+#include <string.h>
 #include <sys/queue.h>
+#include <tee/fs_htree.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
-#include <tee/tee_fs_key_manager.h>
 #include <tee/tee_fs_rpc.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -60,22 +51,11 @@
 #define BLOCK_SHIFT 12
 #define BLOCK_SIZE (1 << BLOCK_SHIFT)
 
-struct sql_fs_file_meta {
-	size_t length;
-};
-
 /* File descriptor */
 struct sql_fs_fd {
-	struct sql_fs_file_meta meta;
-	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
+	struct tee_fs_htree *ht;
 	tee_fs_off_t pos;
 	int fd; /* returned by normal world */
-	int flags; /* open flags */
-};
-
-struct tee_fs_dir {
-	int nw_dir;
-	struct tee_fs_dirent d;
 };
 
 static struct mutex sql_fs_mutex = MUTEX_INITIALIZER;
@@ -127,21 +107,6 @@ static void sql_fs_closedir_rpc(struct tee_fs_dir *d)
  * End of interface with tee-supplicant
  */
 
-static size_t meta_size(void)
-{
-	return tee_fs_get_header_size(META_FILE) +
-	       sizeof(struct sql_fs_file_meta);
-}
-
-static size_t block_header_size(void)
-{
-	return tee_fs_get_header_size(BLOCK_FILE);
-}
-
-static size_t block_size_raw(void)
-{
-	return block_header_size() + BLOCK_SIZE;
-}
 
 /* Return the block number from a position in the user data */
 static ssize_t block_num(tee_fs_off_t pos)
@@ -149,131 +114,106 @@ static ssize_t block_num(tee_fs_off_t pos)
 	return pos / BLOCK_SIZE;
 }
 
-/* Return the position of a block in the DB file */
-static ssize_t block_pos_raw(size_t block_num)
+static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
+				size_t *offs, size_t *size)
 {
-	return meta_size() + block_num * block_size_raw();
+	const size_t node_size = sizeof(struct tee_fs_htree_node_image);
+	const size_t block_nodes = BLOCK_SIZE / node_size;
+	size_t pbn;
+	size_t bidx;
+
+
+	/*
+	 * File layout
+	 *
+	 * phys block 0:
+	 * tee_fs_htree_image @ offs = 0
+	 *
+	 * phys block 1:
+	 * tee_fs_htree_node_image 0  @ offs = 0
+	 * tee_fs_htree_node_image 1  @ offs = node_size * 2
+	 * ...
+	 * tee_fs_htree_node_image 61 @ offs = node_size * 122
+	 *
+	 * phys block 2:
+	 * data block 0
+	 *
+	 * ...
+	 *
+	 * phys block 64:
+	 * data block 61
+	 *
+	 * phys block 65:
+	 * tee_fs_htree_node_image 62  @ offs = 0
+	 * tee_fs_htree_node_image 63  @ offs = node_size * 2
+	 * ...
+	 * tee_fs_htree_node_image 121 @ offs = node_size * 123
+	 *
+	 * ...
+	 */
+
+	switch (type) {
+	case TEE_FS_HTREE_TYPE_HEAD:
+		*offs = 0;
+		*size = sizeof(struct tee_fs_htree_image);
+		return TEE_SUCCESS;
+	case TEE_FS_HTREE_TYPE_NODE:
+		pbn = 1 + ((idx / block_nodes) * block_nodes);
+		*offs = pbn * BLOCK_SIZE + node_size * (idx % block_nodes);
+		*size = node_size;
+		return TEE_SUCCESS;
+	case TEE_FS_HTREE_TYPE_BLOCK:
+		bidx = idx;
+		pbn = 2 + bidx + bidx / (block_nodes - 1);
+		*offs = pbn * BLOCK_SIZE;
+		*size = BLOCK_SIZE;
+		return TEE_SUCCESS;
+	default:
+		return TEE_ERROR_GENERIC;
+	}
 }
 
-static TEE_Result write_meta(struct sql_fs_fd *fdp)
+static TEE_Result sql_fs_rpc_read_init(void *aux,
+				       struct tee_fs_rpc_operation *op,
+				       enum tee_fs_htree_type type, size_t idx,
+				       uint8_t vers __unused, void **data)
 {
+	struct sql_fs_fd *fdp = aux;
 	TEE_Result res;
-	size_t ct_size = meta_size();
-	void *ct;
-	struct tee_fs_rpc_operation op;
+	size_t offs;
+	size_t size;
 
-	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, 0,
-				    ct_size, &ct);
+	res = get_offs_size(type, idx, &offs, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 
-
-	res = tee_fs_encrypt_file(META_FILE,
-				  (const uint8_t *)&fdp->meta,
-				  sizeof(fdp->meta), ct, &ct_size,
-				  fdp->encrypted_fek);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return tee_fs_rpc_write_final(&op);
+	return tee_fs_rpc_read_init(op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd,
+				    offs, size, data);
 }
 
-static TEE_Result create_meta(struct sql_fs_fd *fdp, const char *fname)
+static TEE_Result sql_fs_rpc_write_init(void *aux,
+					struct tee_fs_rpc_operation *op,
+					enum tee_fs_htree_type type, size_t idx,
+					uint8_t vers __unused, void **data)
 {
+	struct sql_fs_fd *fdp = aux;
 	TEE_Result res;
+	size_t offs;
+	size_t size;
 
-	memset(&fdp->meta, 0, sizeof(fdp->meta));
-
-	res = tee_fs_generate_fek(fdp->encrypted_fek, TEE_FS_KM_FEK_SIZE);
+	res = get_offs_size(type, idx, &offs, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return write_meta(fdp);
+	return tee_fs_rpc_write_init(op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd,
+				     offs, size, data);
 }
 
-static TEE_Result read_meta(struct sql_fs_fd *fdp, const char *fname)
-{
-	TEE_Result res;
-	size_t msize = meta_size();
-	size_t out_size = sizeof(fdp->meta);
-	void *meta;
-	size_t bytes;
-	struct tee_fs_rpc_operation op;
-
-	res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, fname, &fdp->fd);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, 0,
-				   msize, &meta);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = tee_fs_rpc_read_final(&op, &bytes);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return tee_fs_decrypt_file(META_FILE, meta, msize,
-				   (uint8_t *)&fdp->meta, &out_size,
-				   fdp->encrypted_fek);
-}
-
-/*
- * Read one block of user data.
- * Returns:
- *  < 0: read error
- *    0: block does not exist (reading past last block)
- *  > 0: success
- */
-static TEE_Result read_block(struct sql_fs_fd *fdp, size_t bnum, uint8_t *data)
-{
-	TEE_Result res;
-	size_t ct_size = block_size_raw();
-	size_t out_size = BLOCK_SIZE;
-	ssize_t pos = block_pos_raw(bnum);
-	size_t bytes;
-	void *ct;
-	struct tee_fs_rpc_operation op;
-
-	res = tee_fs_rpc_read_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
-				   ct_size, &ct);
-	if (res != TEE_SUCCESS)
-		return res;
-	res = tee_fs_rpc_read_final(&op, &bytes);
-	if (res != TEE_SUCCESS)
-		return res;
-	if (!bytes)
-		return TEE_SUCCESS; /* Block does not exist */
-
-	return tee_fs_decrypt_file(BLOCK_FILE, ct, bytes, data,
-				   &out_size, fdp->encrypted_fek);
-}
-
-/* Write one block of user data */
-static TEE_Result write_block(struct sql_fs_fd *fdp, size_t bnum, uint8_t *data)
-{
-	TEE_Result res;
-	size_t ct_size = block_size_raw();
-	ssize_t pos = block_pos_raw(bnum);
-	void *ct;
-	struct tee_fs_rpc_operation op;
-
-	res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd, pos,
-				    ct_size, &ct);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = tee_fs_encrypt_file(BLOCK_FILE, data, BLOCK_SIZE, ct,
-				  &ct_size, fdp->encrypted_fek);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	return tee_fs_rpc_write_final(&op);
-}
+static const struct tee_fs_htree_storage sql_fs_storage_ops = {
+	.block_size = BLOCK_SIZE,
+	.rpc_read_init = sql_fs_rpc_read_init,
+	.rpc_write_init = sql_fs_rpc_write_init,
+};
 
 /*
  * Partial write (< BLOCK_SIZE) into a block: read/update/write
@@ -295,16 +235,21 @@ static TEE_Result write_block_partial(struct sql_fs_fd *fdp, size_t bnum,
 	if (!buf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = read_block(fdp, bnum, buf);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	if (bnum * BLOCK_SIZE <
+	    ROUNDUP(tee_fs_htree_get_meta(fdp->ht)->length, BLOCK_SIZE)) {
+		res = tee_fs_htree_read_block(&fdp->ht, bnum, buf);
+		if (res != TEE_SUCCESS)
+			goto exit;
+	} else {
+		memset(buf, 0, BLOCK_SIZE);
+	}
 
 	if (data)
 		memcpy(buf + offset, data, len);
 	else
 		memset(buf + offset, 0, len);
 
-	res = write_block(fdp, bnum, buf);
+	res = tee_fs_htree_write_block(&fdp->ht, bnum, buf);
 exit:
 	free(buf);
 	return res;
@@ -314,32 +259,42 @@ static TEE_Result sql_fs_ftruncate_internal(struct sql_fs_fd *fdp,
 					    tee_fs_off_t new_length)
 {
 	TEE_Result res;
-	tee_fs_off_t old_length;
+	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
-	old_length = (tee_fs_off_t)fdp->meta.length;
-
-	if (new_length == old_length)
+	if ((size_t)new_length == meta->length)
 		return TEE_SUCCESS;
 
 	sql_fs_begin_transaction_rpc();
 
-	if (new_length < old_length) {
+	if ((size_t)new_length < meta->length) {
 		/* Trim unused blocks */
-		int old_last_block = block_num(old_length);
+		int old_last_block = block_num(meta->length);
 		int last_block = block_num(new_length);
-		tee_fs_off_t off;
 
 		if (last_block < old_last_block) {
-			off = block_pos_raw(last_block);
+			size_t offs;
+			size_t sz;
+
+			res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
+					    ROUNDUP(new_length, BLOCK_SIZE) /
+						BLOCK_SIZE, &offs, &sz);
+			if (res != TEE_SUCCESS)
+				goto exit;
+
+			res = tee_fs_htree_truncate(&fdp->ht,
+						    new_length / BLOCK_SIZE);
+			if (res != TEE_SUCCESS)
+				goto exit;
+
 			res = tee_fs_rpc_truncate(OPTEE_MSG_RPC_CMD_SQL_FS,
-						  fdp->fd, off);
+						  fdp->fd, offs + sz);
 			if (res != TEE_SUCCESS)
 				goto exit;
 		}
 	} else {
 		/* Extend file with zeroes */
-		tee_fs_off_t off = old_length % BLOCK_SIZE;
-		size_t bnum = block_num(old_length);
+		tee_fs_off_t off = meta->length % BLOCK_SIZE;
+		size_t bnum = block_num(meta->length);
 		size_t end_bnum = block_num(new_length);
 
 		while (bnum <= end_bnum) {
@@ -353,9 +308,10 @@ static TEE_Result sql_fs_ftruncate_internal(struct sql_fs_fd *fdp,
 		}
 	}
 
-	fdp->meta.length = new_length;
-	res = write_meta(fdp);
+	meta->length = new_length;
 exit:
+	if (res == TEE_SUCCESS)
+		res = tee_fs_htree_sync_to_storage(&fdp->ht);
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	return res;
 }
@@ -366,8 +322,11 @@ static TEE_Result sql_fs_seek(struct tee_file_handle *fh, int32_t offset,
 	TEE_Result res;
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
 	tee_fs_off_t pos;
+	size_t filelen;
 
 	mutex_lock(&sql_fs_mutex);
+
+	filelen = tee_fs_htree_get_meta(fdp->ht)->length;
 
 	switch (whence) {
 	case TEE_DATA_SEEK_SET:
@@ -379,7 +338,7 @@ static TEE_Result sql_fs_seek(struct tee_file_handle *fh, int32_t offset,
 		break;
 
 	case TEE_DATA_SEEK_END:
-		pos = fdp->meta.length + offset;
+		pos = filelen + offset;
 		break;
 
 	default:
@@ -410,7 +369,8 @@ static void sql_fs_close(struct tee_file_handle **fh)
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)*fh;
 
 	if (fdp) {
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+		tee_fs_htree_close(&fdp->ht);
+		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
 		free(fdp);
 		*fh = NULL;
 	}
@@ -431,10 +391,15 @@ static TEE_Result open_internal(const char *file, bool create,
 	mutex_lock(&sql_fs_mutex);
 
 	if (create)
-		res = create_meta(fdp, file);
+		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, file,
+					&fdp->fd);
 	else
-		res = read_meta(fdp, file);
+		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, file, &fdp->fd);
+	if (res != TEE_SUCCESS)
+		goto out;
 
+	res = tee_fs_htree_open(create, &sql_fs_storage_ops, fdp, &fdp->ht);
+out:
 	if (res == TEE_SUCCESS) {
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
@@ -469,14 +434,16 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 	uint8_t *block = NULL;
 	int start_block_num;
 	int end_block_num;
+	size_t file_size;
 
 	mutex_lock(&sql_fs_mutex);
 
+	file_size = tee_fs_htree_get_meta(fdp->ht)->length;
 	if ((fdp->pos + remain_bytes) < remain_bytes ||
-	    fdp->pos > (tee_fs_off_t)fdp->meta.length)
+	    fdp->pos > (tee_fs_off_t)file_size)
 		remain_bytes = 0;
-	else if (fdp->pos + remain_bytes > fdp->meta.length)
-		remain_bytes = fdp->meta.length - fdp->pos;
+	else if (fdp->pos + remain_bytes > file_size)
+		remain_bytes = file_size - fdp->pos;
 
 	*len = remain_bytes;
 
@@ -501,11 +468,7 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 		if (size_to_read + offset > BLOCK_SIZE)
 			size_to_read = BLOCK_SIZE - offset;
 
-		/*
-		 * REVISIT: implement read_block_partial() since we have
-		 * write_block_partial()?
-		 */
-		res = read_block(fdp, start_block_num, block);
+		res = tee_fs_htree_read_block(&fdp->ht, start_block_num, block);
 		if (res != TEE_SUCCESS)
 			goto exit;
 
@@ -529,6 +492,7 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 {
 	TEE_Result res;
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
+	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 	size_t remain_bytes = len;
 	const uint8_t *data_ptr = buf;
 	int start_block_num;
@@ -541,7 +505,7 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 
 	sql_fs_begin_transaction_rpc();
 
-	if (fdp->meta.length < (size_t)fdp->pos) {
+	if (meta->length < (size_t)fdp->pos) {
 		/* Fill hole */
 		res = sql_fs_ftruncate_internal(fdp, fdp->pos);
 		if (res != TEE_SUCCESS)
@@ -570,11 +534,12 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 		start_block_num++;
 	}
 
-	if (fdp->meta.length < (size_t)fdp->pos) {
-		fdp->meta.length = fdp->pos;
-		res = write_meta(fdp);
-	}
+	if (fdp->pos > (tee_fs_off_t)meta->length)
+		meta->length = fdp->pos;
+
 exit:
+	if (res == TEE_SUCCESS)
+		res = tee_fs_htree_sync_to_storage(&fdp->ht);
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	mutex_unlock(&sql_fs_mutex);
 	return res;
