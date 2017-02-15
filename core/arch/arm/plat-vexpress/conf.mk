@@ -46,7 +46,6 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-CFG_TEE_FS_KEY_MANAGER_TEST ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
 
