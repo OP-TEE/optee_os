@@ -74,6 +74,7 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
+static struct pl011_data console_data __early_bss;
 
 register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 
@@ -116,44 +117,35 @@ static void main_fiq(void)
 	gic_it_handle(&gic_data);
 }
 
-static vaddr_t console_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	pl011_init(console_base(), CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
+		   CONSOLE_BAUDRATE);
 }
 
 void console_putc(int ch)
 {
-	vaddr_t base = console_base();
+	struct serial_chip *cons = &console_data.chip;
 
 	if (ch == '\n')
-		pl011_putc('\r', base);
-	pl011_putc(ch, base);
+		cons->ops->putc(cons, '\r');
+	cons->ops->putc(cons, ch);
 }
 
 void console_flush(void)
 {
-	pl011_flush(console_base());
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->flush(cons);
 }
 
 #ifdef IT_CONSOLE_UART
 static enum itr_return console_itr_cb(struct itr_handler *h __unused)
 {
-	paddr_t uart_base = console_base();
+	struct serial_chip *cons = &console_data.chip;
 
-	while (pl011_have_rx_data(uart_base)) {
-		int ch __maybe_unused = pl011_getchar(uart_base);
+	while (cons->ops->have_rx_data(cons)) {
+		int ch __maybe_unused = cons->ops->getchar(cons);
 
 		DMSG("cpu %zu: got 0x%x", get_core_pos(), ch);
 	}

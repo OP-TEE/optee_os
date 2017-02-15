@@ -24,8 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <assert.h>
 #include <drivers/pl011.h>
 #include <io.h>
+#include <util.h>
 
 #define UART_DR		0x00 /* data register */
 #define UART_RSR_ECR	0x04 /* receive status or error clear */
@@ -89,14 +91,63 @@
 #define UART_IMSC_RTIM		(1 << 6)
 #define UART_IMSC_RXIM		(1 << 4)
 
-void pl011_flush(vaddr_t base)
+static vaddr_t chip_to_base(struct serial_chip *chip)
 {
+	struct pl011_data *pd =
+		container_of(chip, struct pl011_data, chip);
+
+	return io_pa_or_va(&pd->base);
+}
+
+static void pl011_flush(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read32(base + UART_FR) & UART_FR_TXFE))
 		;
 }
 
-void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
+static bool pl011_have_rx_data(struct serial_chip *chip)
 {
+	vaddr_t base = chip_to_base(chip);
+
+	return !(read32(base + UART_FR) & UART_FR_RXFE);
+}
+
+static int pl011_getchar(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	while (!pl011_have_rx_data(chip))
+		;
+	return read32(base + UART_DR) & 0xff;
+}
+
+static void pl011_putc(struct serial_chip *chip, int ch)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	/* Wait until there is space in the FIFO */
+	while (read32(base + UART_FR) & UART_FR_TXFF)
+		;
+
+	/* Send the character */
+	write32(ch, base + UART_DR);
+}
+
+static const struct serial_ops pl011_ops = {
+	.flush = pl011_flush,
+	.getchar = pl011_getchar,
+	.have_rx_data = pl011_have_rx_data,
+	.putc = pl011_putc,
+};
+
+void pl011_init(struct pl011_data *pd, paddr_t base, uint32_t uart_clk,
+		uint32_t baud_rate)
+{
+	pd->base.pa = base;
+	pd->chip.ops = &pl011_ops;
+
 	/* Clear all errors */
 	write32(0, base + UART_RSR_ECR);
 	/* Disable everything */
@@ -118,30 +169,6 @@ void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 	/* Enable UART and RX/TX */
 	write32(UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE, base + UART_CR);
 
-	pl011_flush(base);
-}
-
-void pl011_putc(int ch, vaddr_t base)
-{
-	/*
-	 * Wait until there is space in the FIFO
-	 */
-	while (read32(base + UART_FR) & UART_FR_TXFF)
-		;
-
-	/* Send the character */
-	write32(ch, base + UART_DR);
-}
-
-bool pl011_have_rx_data(vaddr_t base)
-{
-	return !(read32(base + UART_FR) & UART_FR_RXFE);
-}
-
-int pl011_getchar(vaddr_t base)
-{
-	while (!pl011_have_rx_data(base))
-		;
-	return read32(base + UART_DR) & 0xff;
+	pl011_flush(&pd->chip);
 }
 
