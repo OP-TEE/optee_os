@@ -50,6 +50,7 @@ struct _tee_mm_pool_t {
 	paddr_t hi;		/* high boundary of the pool */
 	uint32_t flags;		/* Config flags for the pool */
 	uint8_t shift;		/* size shift */
+	unsigned int lock;
 #ifdef CFG_WITH_STATS
 	size_t max_allocated;
 #endif
