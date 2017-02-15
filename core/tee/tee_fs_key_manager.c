@@ -55,16 +55,6 @@ struct tee_fs_ssk {
 	uint8_t key[TEE_FS_KM_SSK_SIZE];
 };
 
-struct aad {
-	const uint8_t *encrypted_key;
-	const uint8_t *iv;
-};
-
-struct km_header {
-	struct aad aad;
-	uint8_t *tag;
-};
-
 static struct tee_fs_ssk tee_fs_ssk;
 static uint8_t string_for_ssk_gen[] = "ONLY_FOR_tee_fs_ssk";
 
@@ -170,11 +160,6 @@ static TEE_Result generate_fek(uint8_t *key, uint8_t len)
 	return crypto_ops.prng.read(key, len);
 }
 
-static TEE_Result generate_iv(uint8_t *iv, uint8_t len)
-{
-	return crypto_ops.prng.read(iv, len);
-}
-
 static TEE_Result tee_fs_init_key_manager(void)
 {
 	int res = TEE_SUCCESS;
@@ -204,94 +189,6 @@ static TEE_Result tee_fs_init_key_manager(void)
 	return res;
 }
 
-static TEE_Result do_auth_enc(TEE_OperationMode mode,
-		struct km_header *hdr,
-		uint8_t *fek, int fek_len,
-		const uint8_t *data_in, size_t in_size,
-		uint8_t *data_out, size_t *out_size)
-{
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
-	size_t tag_len = TEE_FS_KM_MAX_TAG_LEN;
-
-	if ((mode != TEE_MODE_ENCRYPT) && (mode != TEE_MODE_DECRYPT))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (*out_size < in_size) {
-		EMSG("output buffer(%zd) < input buffer(%zd)",
-				*out_size, in_size);
-		return TEE_ERROR_SHORT_BUFFER;
-	}
-
-	res = crypto_ops.authenc.get_ctx_size(TEE_FS_KM_AUTH_ENC_ALG,
-			&ctx_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		EMSG("request memory size %zu failed", ctx_size);
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-	res = crypto_ops.authenc.init(ctx, TEE_FS_KM_AUTH_ENC_ALG,
-			mode, fek, fek_len, hdr->aad.iv,
-			TEE_FS_KM_IV_LEN, TEE_FS_KM_MAX_TAG_LEN,
-			sizeof(struct aad), in_size);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.authenc.update_aad(ctx, TEE_FS_KM_AUTH_ENC_ALG,
-			mode, (uint8_t *)hdr->aad.encrypted_key,
-			TEE_FS_KM_FEK_SIZE);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	res = crypto_ops.authenc.update_aad(ctx, TEE_FS_KM_AUTH_ENC_ALG,
-			mode, (uint8_t *)hdr->aad.iv,
-			TEE_FS_KM_IV_LEN);
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	if (mode == TEE_MODE_ENCRYPT) {
-		res = crypto_ops.authenc.enc_final(ctx, TEE_FS_KM_AUTH_ENC_ALG,
-				data_in, in_size, data_out, out_size,
-				hdr->tag, &tag_len);
-	} else {
-		res = crypto_ops.authenc.dec_final(ctx, TEE_FS_KM_AUTH_ENC_ALG,
-				data_in, in_size, data_out, out_size,
-				hdr->tag, tag_len);
-	}
-
-	if (res != TEE_SUCCESS)
-		goto exit;
-
-	crypto_ops.authenc.final(ctx, TEE_FS_KM_AUTH_ENC_ALG);
-
-exit:
-	free(ctx);
-	return res;
-}
-
-size_t tee_fs_get_header_size(enum tee_fs_file_type type)
-{
-	size_t header_size = 0;
-
-	switch (type) {
-	case META_FILE:
-		header_size = sizeof(struct meta_header);
-		break;
-	case BLOCK_FILE:
-		header_size = sizeof(struct block_header);
-		break;
-	default:
-		panic("Unknown file type");
-	}
-
-	return header_size;
-}
-
 TEE_Result tee_fs_generate_fek(uint8_t *buf, int buf_size)
 {
 	TEE_Result res;
@@ -304,115 +201,6 @@ TEE_Result tee_fs_generate_fek(uint8_t *buf, int buf_size)
 		return res;
 
 	return tee_fs_fek_crypt(TEE_MODE_ENCRYPT, buf, TEE_FS_KM_FEK_SIZE, buf);
-}
-
-TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
-		const uint8_t *data_in, size_t data_in_size,
-		uint8_t *data_out, size_t *data_out_size,
-		const uint8_t *encrypted_fek)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct km_header hdr;
-	uint8_t iv[TEE_FS_KM_IV_LEN];
-	uint8_t tag[TEE_FS_KM_MAX_TAG_LEN];
-	uint8_t fek[TEE_FS_KM_FEK_SIZE];
-	uint8_t *ciphertext;
-	size_t cipher_size;
-	size_t header_size = tee_fs_get_header_size(file_type);
-
-	/*
-	 * Meta File Format: |Header|Chipertext|
-	 * Header Format:    |AAD|Tag|
-	 * AAD Format:       |Encrypted_FEK|IV|
-	 *
-	 * Block File Format: |Header|Ciphertext|
-	 * Header Format:     |IV|Tag|
-	 *
-	 * TSK = HMAC(SSK, TA_UUID)
-	 * FEK = AES_DECRYPT(TSK, Encrypted_FEK)
-	 * Chipertext = AES_GCM_ENCRYPT(FEK, IV, Meta_Info, AAD)
-	 */
-
-	if (*data_out_size != (header_size + data_in_size))
-		return TEE_ERROR_SHORT_BUFFER;
-
-	res = generate_iv(iv, TEE_FS_KM_IV_LEN);
-	if (res != TEE_SUCCESS)
-		goto fail;
-
-	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, encrypted_fek,
-			       TEE_FS_KM_FEK_SIZE, fek);
-	if (res != TEE_SUCCESS)
-		goto fail;
-
-	ciphertext = data_out + header_size;
-	cipher_size = data_in_size;
-
-	hdr.aad.iv = iv;
-	hdr.aad.encrypted_key = encrypted_fek;
-	hdr.tag = tag;
-
-	res = do_auth_enc(TEE_MODE_ENCRYPT, &hdr,
-			fek, TEE_FS_KM_FEK_SIZE,
-			data_in, data_in_size,
-			ciphertext, &cipher_size);
-
-	if (res == TEE_SUCCESS) {
-		if (file_type == META_FILE) {
-			memcpy(data_out, encrypted_fek, TEE_FS_KM_FEK_SIZE);
-			data_out += TEE_FS_KM_FEK_SIZE;
-		}
-
-		memcpy(data_out, iv, TEE_FS_KM_IV_LEN);
-		data_out += TEE_FS_KM_IV_LEN;
-		memcpy(data_out, tag, TEE_FS_KM_MAX_TAG_LEN);
-
-		*data_out_size = header_size + cipher_size;
-	}
-
-fail:
-	return res;
-}
-
-TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
-		const uint8_t *data_in, size_t data_in_size,
-		uint8_t *plaintext, size_t *plaintext_size,
-		uint8_t *encrypted_fek)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct km_header km_hdr;
-	size_t file_hdr_size = tee_fs_get_header_size(file_type);
-	const uint8_t *cipher = data_in + file_hdr_size;
-	int cipher_size = data_in_size - file_hdr_size;
-	uint8_t fek[TEE_FS_KM_FEK_SIZE];
-
-	if (file_type == META_FILE) {
-		struct meta_header *hdr = (struct meta_header *)data_in;
-
-		km_hdr.aad.encrypted_key = hdr->encrypted_key;
-		km_hdr.aad.iv = hdr->common.iv;
-		km_hdr.tag = hdr->common.tag;
-
-		/* return encrypted FEK to tee_fs which is used for block
-		 * encryption/decryption */
-		memcpy(encrypted_fek, hdr->encrypted_key, TEE_FS_KM_FEK_SIZE);
-	} else {
-		struct block_header *hdr = (struct block_header *)data_in;
-
-		km_hdr.aad.encrypted_key = encrypted_fek;
-		km_hdr.aad.iv = hdr->common.iv;
-		km_hdr.tag = hdr->common.tag;
-	}
-
-	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, km_hdr.aad.encrypted_key,
-			       TEE_FS_KM_FEK_SIZE, fek);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to decrypt FEK, res=0x%x", res);
-		return res;
-	}
-
-	return do_auth_enc(TEE_MODE_DECRYPT, &km_hdr, fek, TEE_FS_KM_FEK_SIZE,
-			cipher, cipher_size, plaintext, plaintext_size);
 }
 
 static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
@@ -549,4 +337,3 @@ exit:
 }
 
 service_init_late(tee_fs_init_key_manager);
-

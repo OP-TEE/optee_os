@@ -33,66 +33,15 @@
 
 #define TEE_FS_KM_CHIP_ID_LENGTH    32
 #define TEE_FS_KM_HMAC_ALG          TEE_ALG_HMAC_SHA256
-#define TEE_FS_KM_AUTH_ENC_ALG      TEE_ALG_AES_GCM
 #define TEE_FS_KM_ENC_FEK_ALG       TEE_ALG_AES_ECB_NOPAD
 #define TEE_FS_KM_SSK_SIZE          TEE_SHA256_HASH_SIZE
 #define TEE_FS_KM_TSK_SIZE          TEE_SHA256_HASH_SIZE
 #define TEE_FS_KM_FEK_SIZE          16  /* bytes */
-#define TEE_FS_KM_IV_LEN            12  /* bytes */
-#define TEE_FS_KM_MAX_TAG_LEN       16  /* bytes */
 
-
-#define BLOCK_FILE_SHIFT	12
-
-#define BLOCK_FILE_SIZE		(1 << BLOCK_FILE_SHIFT)
-
-#define NUM_BLOCKS_PER_FILE	1024
-
-enum tee_fs_file_type {
-	META_FILE,
-	BLOCK_FILE
-};
-
-struct tee_fs_file_info {
-	uint64_t length;
-	uint32_t backup_version_table[NUM_BLOCKS_PER_FILE / 32];
-};
-
-struct tee_fs_file_meta {
-	struct tee_fs_file_info info;
-	uint8_t encrypted_fek[TEE_FS_KM_FEK_SIZE];
-	uint32_t counter;
-};
-
-struct common_header {
-	uint8_t iv[TEE_FS_KM_IV_LEN];
-	uint8_t tag[TEE_FS_KM_MAX_TAG_LEN];
-};
-
-struct meta_header {
-	uint8_t encrypted_key[TEE_FS_KM_FEK_SIZE];
-	struct common_header common;
-};
-
-struct block_header {
-	struct common_header common;
-};
-
-size_t tee_fs_get_header_size(enum tee_fs_file_type type);
 TEE_Result tee_fs_generate_fek(uint8_t *encrypted_fek, int fek_size);
-TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
-		const uint8_t *plaintext, size_t plaintext_size,
-		uint8_t *ciphertext, size_t *ciphertext_size,
-		const uint8_t *encrypted_fek);
-TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
-		const uint8_t *data_in, size_t data_in_size,
-		uint8_t *plaintext, size_t *plaintext_size,
-		uint8_t *encrypted_fek);
 TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 			      uint16_t blk_idx, const uint8_t *encrypted_fek,
 			      TEE_OperationMode mode);
-
-
 
 TEE_Result tee_fs_fek_crypt(TEE_OperationMode mode, const uint8_t *in_key,
 			    size_t size, uint8_t *out_key);
