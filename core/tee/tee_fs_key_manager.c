@@ -109,17 +109,17 @@ exit:
 	return res;
 }
 
-static TEE_Result fek_crypt(TEE_OperationMode mode,
-		uint8_t *key, int size)
+TEE_Result tee_fs_fek_crypt(TEE_OperationMode mode, const uint8_t *in_key,
+			    size_t size, uint8_t *out_key)
 {
 	TEE_Result res;
 	uint8_t *ctx = NULL;
 	size_t ctx_size;
 	uint8_t tsk[TEE_FS_KM_TSK_SIZE];
-	uint8_t dst_key[TEE_FS_KM_FEK_SIZE];
+	uint8_t dst_key[size];
 	struct tee_ta_session *sess;
 
-	if (!key)
+	if (!in_key || !out_key)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (size != TEE_FS_KM_FEK_SIZE)
@@ -151,13 +151,13 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 		goto exit;
 
 	res = crypto_ops.cipher.update(ctx, TEE_FS_KM_ENC_FEK_ALG,
-			mode, true, key, size, dst_key);
+			mode, true, in_key, size, dst_key);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	crypto_ops.cipher.final(ctx, TEE_FS_KM_ENC_FEK_ALG);
 
-	memcpy(key, dst_key, sizeof(dst_key));
+	memcpy(out_key, dst_key, sizeof(dst_key));
 
 exit:
 	free(ctx);
@@ -303,8 +303,7 @@ TEE_Result tee_fs_generate_fek(uint8_t *buf, int buf_size)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return fek_crypt(TEE_MODE_ENCRYPT, buf,
-			TEE_FS_KM_FEK_SIZE);
+	return tee_fs_fek_crypt(TEE_MODE_ENCRYPT, buf, TEE_FS_KM_FEK_SIZE, buf);
 }
 
 TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
@@ -341,8 +340,8 @@ TEE_Result tee_fs_encrypt_file(enum tee_fs_file_type file_type,
 	if (res != TEE_SUCCESS)
 		goto fail;
 
-	memcpy(fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
-	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
+	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, encrypted_fek,
+			       TEE_FS_KM_FEK_SIZE, fek);
 	if (res != TEE_SUCCESS)
 		goto fail;
 
@@ -405,8 +404,8 @@ TEE_Result tee_fs_decrypt_file(enum tee_fs_file_type file_type,
 		km_hdr.tag = hdr->common.tag;
 	}
 
-	memcpy(fek, km_hdr.aad.encrypted_key, TEE_FS_KM_FEK_SIZE);
-	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
+	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, km_hdr.aad.encrypted_key,
+			       TEE_FS_KM_FEK_SIZE, fek);
 	if (res != TEE_SUCCESS) {
 		EMSG("Failed to decrypt FEK, res=0x%x", res);
 		return res;
@@ -518,8 +517,8 @@ TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 	     blk_idx);
 
 	/* Decrypt FEK */
-	memcpy(fek, encrypted_fek, TEE_FS_KM_FEK_SIZE);
-	res = fek_crypt(TEE_MODE_DECRYPT, fek, TEE_FS_KM_FEK_SIZE);
+	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, encrypted_fek,
+			       TEE_FS_KM_FEK_SIZE, fek);
 	if (res != TEE_SUCCESS)
 		return res;
 
