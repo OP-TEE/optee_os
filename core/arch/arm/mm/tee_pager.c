@@ -190,16 +190,12 @@ static uintptr_t pager_alias_next_free;
 
 static uint32_t pager_lock(void)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-
-	cpu_spin_lock(&pager_spinlock);
-	return exceptions;
+	return cpu_spin_lock_xsave(&pager_spinlock);
 }
 
 static void pager_unlock(uint32_t exceptions)
 {
-	cpu_spin_unlock(&pager_spinlock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&pager_spinlock, exceptions);
 }
 
 static void set_alias_area(tee_mm_entry_t *mm)

@@ -81,6 +81,21 @@ static inline void cpu_spin_unlock(unsigned int *lock)
 	__cpu_spin_unlock(lock);
 	spinlock_count_decr();
 }
+
+static inline uint32_t cpu_spin_lock_xsave(unsigned int *lock)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	cpu_spin_lock(lock);
+	return exceptions;
+}
+
+static inline void cpu_spin_unlock_xrestore(unsigned int *lock,
+					    uint32_t exceptions)
+{
+	cpu_spin_unlock(lock);
+	thread_unmask_exceptions(exceptions);
+}
 #endif /* ASM */
 
 #endif /* KERNEL_SPINLOCK_H */

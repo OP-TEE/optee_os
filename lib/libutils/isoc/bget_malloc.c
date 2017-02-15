@@ -115,18 +115,12 @@
 
 static uint32_t malloc_lock(void)
 {
-	uint32_t exceptions;
-
-	exceptions = thread_mask_exceptions(
-			THREAD_EXCP_NATIVE_INTR | THREAD_EXCP_FOREIGN_INTR);
-	cpu_spin_lock(&__malloc_spinlock);
-	return exceptions;
+	return cpu_spin_lock_xsave(&__malloc_spinlock);
 }
 
 static void malloc_unlock(uint32_t exceptions)
 {
-	cpu_spin_unlock(&__malloc_spinlock);
-	thread_unmask_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&__malloc_spinlock, exceptions);
 }
 
 static void tag_asan_free(void *buf, size_t len)

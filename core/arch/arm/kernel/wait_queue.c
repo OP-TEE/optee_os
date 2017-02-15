@@ -90,13 +90,11 @@ void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
 	wqe->done = false;
 	wqe->cv = cv;
 
-	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&wq_spin_lock);
+	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 	slist_add_tail(wq, wqe);
 
-	cpu_spin_unlock(&wq_spin_lock);
-	thread_unmask_exceptions(old_itr_status);
+	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 }
 
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
@@ -110,15 +108,13 @@ void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
 		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP, wqe->handle,
 		       sync_obj, owner, fname, lineno);
 
-		old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-		cpu_spin_lock(&wq_spin_lock);
+		old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 		done = wqe->done;
 		if (done)
 			SLIST_REMOVE(wq, wqe, wait_queue_elem, link);
 
-		cpu_spin_unlock(&wq_spin_lock);
-		thread_unmask_exceptions(old_itr_status);
+		cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 	} while (!done);
 }
 
@@ -130,8 +126,7 @@ void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
 	int handle = -1;
 	bool do_wakeup = false;
 
-	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&wq_spin_lock);
+	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 	SLIST_FOREACH(wqe, wq, link) {
 		if (!wqe->cv) {
@@ -142,8 +137,7 @@ void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
 		}
 	}
 
-	cpu_spin_unlock(&wq_spin_lock);
-	thread_unmask_exceptions(old_itr_status);
+	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 
 	if (do_wakeup)
 		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
@@ -160,8 +154,7 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 	if (!cv)
 		return;
 
-	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&wq_spin_lock);
+	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 	/*
 	 * Find condvar waiter(s) and promote each to an active waiter.
@@ -184,8 +177,7 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 		}
 	}
 
-	cpu_spin_unlock(&wq_spin_lock);
-	thread_unmask_exceptions(old_itr_status);
+	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 }
 
 bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv)
@@ -194,8 +186,7 @@ bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv)
 	struct wait_queue_elem *wqe;
 	bool rc = false;
 
-	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&wq_spin_lock);
+	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 	SLIST_FOREACH(wqe, wq, link) {
 		if (wqe->cv == cv) {
@@ -204,8 +195,7 @@ bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv)
 		}
 	}
 
-	cpu_spin_unlock(&wq_spin_lock);
-	thread_unmask_exceptions(old_itr_status);
+	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 
 	return rc;
 }
@@ -215,13 +205,11 @@ bool wq_is_empty(struct wait_queue *wq)
 	uint32_t old_itr_status;
 	bool ret;
 
-	old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&wq_spin_lock);
+	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
 	ret = SLIST_EMPTY(wq);
 
-	cpu_spin_unlock(&wq_spin_lock);
-	thread_unmask_exceptions(old_itr_status);
+	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 
 	return ret;
 }
