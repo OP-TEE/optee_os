@@ -31,7 +31,6 @@
 #include <tee_api_defines.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
-#include <tee/tee_fs_defs.h>
 #include <tee/tee_pobj.h>
 #include <trace.h>
 #include <tee/tee_svc_storage.h>

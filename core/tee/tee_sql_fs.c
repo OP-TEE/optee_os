@@ -50,7 +50,6 @@
 #include <sys/queue.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
-#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs_key_manager.h>
 #include <tee/tee_fs_rpc.h>
 #include <trace.h>

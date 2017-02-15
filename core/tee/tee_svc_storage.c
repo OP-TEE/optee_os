@@ -32,7 +32,6 @@
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
-#include <tee/tee_fs_defs.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_pobj.h>
