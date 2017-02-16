@@ -113,7 +113,8 @@
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
 #elif defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
-	defined(PLATFORM_FLAVOR_mx6qsabresd)
+	defined(PLATFORM_FLAVOR_mx6qsabresd) || \
+	defined(PLATFORM_FLAVOR_mx6dlsabresd)
 
 #define SCU_BASE			0x00A00000
 #define PL310_BASE			0x00A02000
@@ -128,8 +129,16 @@
 #define GICD_OFFSET			0x1000
 #define GIC_CPU_BASE			(GIC_BASE + GICC_OFFSET)
 #define GIC_DIST_BASE			(GIC_BASE + GICD_OFFSET)
+
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define UART1_BASE			0x02020000
 #define UART2_BASE			0x021E8000
+#else
+#define UART1_BASE			0x02020000
+#define UART3_BASE			0x021EC000
+#define UART5_BASE			0x021F4000
+#endif
 
 /* Central Security Unit register values */
 #define CSU_BASE			0x021C0000
@@ -146,12 +155,20 @@
 #if defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define CONSOLE_UART_BASE		UART1_BASE
 #endif
+#if defined(PLATFORM_FLAVOR_mx6dlsabresd)
+#define CONSOLE_UART_BASE		UART1_BASE
+#endif
 #define DRAM0_BASE			0x10000000
 #define DRAM0_SIZE			0x40000000
 
 #define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
 
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define CFG_TEE_CORE_NB_CORE		4
+#else
+#define CFG_TEE_CORE_NB_CORE		2
+#endif
 
 #define DDR_PHYS_START			DRAM0_BASE
 #define DDR_SIZE			DRAM0_SIZE
@@ -200,7 +217,12 @@
  * Full Line Zero (FLZ) disabled (bit0=0)
  */
 #ifndef PL310_AUX_CTRL_INIT
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define PL310_AUX_CTRL_INIT		0x3C470800
+#else
+#define PL310_AUX_CTRL_INIT		0x3C440800
+#endif
 #endif
 
 /*
@@ -384,7 +406,12 @@
  * Cacheable accesses have high prio (bit10=0)
  * Full Line Zero (FLZ) disabled (bit0=0)
  */
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)
 #define PL310_AUX_CTRL_INIT		0x3C470800
+#else
+#define PL310_AUX_CTRL_INIT		0x3C440800
+#endif
 
 /*
  * Prefetch Control Register
