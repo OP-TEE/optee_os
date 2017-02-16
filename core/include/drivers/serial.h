@@ -27,6 +27,8 @@
 #ifndef __DRIVERS_SERIAL_H
 #define __DRIVERS_SERIAL_H
 
+#include <stdbool.h>
+
 struct serial_chip {
 	const struct serial_ops *ops;
 };
