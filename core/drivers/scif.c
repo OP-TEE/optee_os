@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, GlobalLogic
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +25,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <compiler.h>
+#include <drivers/scif.h>
 #include <io.h>
 #include <util.h>
-#include <drivers/scif.h>
 
 #define SCIF_SCFSR		(0x10)
 #define SCIF_SCFTDR		(0x0C)
@@ -41,20 +41,26 @@
 
 #define SCIF_TX_FIFO_SIZE	16
 
-void scif_uart_flush(vaddr_t base)
+static vaddr_t chip_to_base(struct serial_chip *chip)
 {
+	struct scif_uart_data *pd =
+		container_of(chip, struct scif_uart_data, chip);
+
+	return io_pa_or_va(&pd->base);
+}
+
+static void scif_uart_flush(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read16(base + SCIF_SCFSR) & SCFSR_TEND))
 		;
 }
 
-void scif_uart_init(vaddr_t base)
+static void scif_uart_putc(struct serial_chip *chip, int ch)
 {
-	/* Bootloader should initialize device for us */
-	scif_uart_flush(base);
-}
+	vaddr_t base = chip_to_base(chip);
 
-void scif_uart_putc(int ch, vaddr_t base)
-{
 	/* Wait until there is space in the FIFO */
 	while ((read16(base + SCIF_SCFDR) >> SCFDR_T_SHIFT) >=
 		SCIF_TX_FIFO_SIZE)
@@ -62,4 +68,18 @@ void scif_uart_putc(int ch, vaddr_t base)
 	write8(ch, base + SCIF_SCFTDR);
 	write16(read16(base + SCIF_SCFSR) & ~(SCFSR_TEND | SCFSR_TDFE),
 		base + SCIF_SCFSR);
+}
+
+static const struct serial_ops scif_uart_ops = {
+	.flush = scif_uart_flush,
+	.putc = scif_uart_putc,
+};
+
+void scif_uart_init(struct scif_uart_data *pd, vaddr_t base)
+{
+	pd->base.pa = base;
+	pd->chip.ops = &scif_uart_ops;
+
+	/* Bootloader should initialize device for us */
+	scif_uart_flush(&pd->chip);
 }
