@@ -69,7 +69,7 @@ that an IRQ is about to be delivered. Normal world issues a new SMC
 indicating that it should continue last SMC.
 
 The monitor restores secure world context which locates the previously
-saved context and checks that it's a return from IRQ that is requested
+saved context and checks that it is a return from IRQ that is requested
 before restoring the context and lets the secure world IRQ handler return
 from exception where the execution would be resumed.
 

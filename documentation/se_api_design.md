@@ -44,7 +44,7 @@ To understand SE API, you need to understand the following terms
   specific Reader.
 
 - `Session`: It maintains the connection between TA and a specific Reader.
-  Different TAs can have a session opened on the same reader. It's SE manager's
+  Different TAs can have a session opened on the same reader. It is SE manager's
   responsibility to demux the request from different TAs. Upon a session is
   opened by a TA, the card is power-up and ready to accept commands.
 
@@ -53,11 +53,11 @@ To understand SE API, you need to understand the following terms
   with assd. A ril daemon can be another read to talk with UICC cards. Even
   embedded SE should have a (virtual) Reader attached to it.
 
-- `Logical Channel`: It's used by host application (in our case, a TA) to
+- `Logical Channel`: It is used by host application (in our case, a TA) to
   communicate with applets on the smartcard. [GlobalPlatform Card Specification]
   defines maximum 20 logical channels, numbered from 0~19.  Channel number 0 is
   so-called `Basic logical channel`, or in short, `Basic channel`. A channel can
-  be opened or closed by a host application. It's the smartcard OS's
+  be opened or closed by a host application. It is the smartcard OS's
   responsibility to manage the state of each logical channel. Basic channel is
   always open and cannot be closed. A channel must select an applet, which means
   the command passed through the channel will be processed by the selected
@@ -72,7 +72,7 @@ To understand SE API, you need to understand the following terms
   or Non-MultiSelectable. For a Non-MultiSelectable applet, it can only be
   selected by one channel, further `SELECT command` on another channel that is
   targeting to the applet will fail. MultiSelectable applet can be selected by
-  multiple channels, the applet can decide maximum number of channels it's
+  multiple channels, the applet can decide maximum number of channels it is
   willing to accept.
 
 ### DESIGN
@@ -117,7 +117,7 @@ The following figure shows initial architecture of SE API.
     - `get_properties()`: Get properties of the Reader. Something like the
       Reader is exclusive to TEE or not. SE is present...etc.
     - `get_atr()`: Get ATR message from the Reader. ATR is defined in ISO7816-3,
-      and it’s the message report by SE to describe the ability of SE.
+      and it is the message report by SE to describe the ability of SE.
     - `transmit()`: Transmit an APDU through the Reader which SE attached to.
 
 ### Reference Documents

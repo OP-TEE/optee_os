@@ -180,7 +180,7 @@ branch.
 Here are the main things to consider when adding a new crypto provider:
 
 - Put all the new code in its own directory under `core/lib`.
-- Avoid modifying [tee_svc_cryp.c](../core/tee/tee_svc_cryp.c). It shouldn't be
+- Avoid modifying [tee_svc_cryp.c](../core/tee/tee_svc_cryp.c). It should not be
   needed.
 - Your own **struct crypto_ops crypto_ops = ...** should be defined in a file at
   the top level of your new directory.

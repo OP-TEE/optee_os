@@ -91,18 +91,18 @@ initialized with `SPINLOCK_UNLOCK`.
 ### Mutex
 A mutex is represented by `struct mutex`. A mutex can be locked and
 unlocked with interrupts enabled or disabled, but only from a normal
-thread. A mutex can't be used in an interrupt handler, abort handler or
+thread. A mutex cannot be used in an interrupt handler, abort handler or
 before a thread has been selected for the CPU. A mutex is initialized with
 either `MUTEX_INITIALIZER` or `mutex_init()`.
 
 | Function | Purpose |
 |----------|---------|
 |`mutex_lock()` | Locks a mutex. If the mutex is unlocked this is a fast operation, else the function issues an RPC to wait in normal world. |
-| `mutex_unlock()` | Unlocks a mutex. If there's no waiters this is a fast operation, else the function issues an RPC to wake up a waiter in normal world. |
+| `mutex_unlock()` | Unlocks a mutex. If there is no waiters this is a fast operation, else the function issues an RPC to wake up a waiter in normal world. |
 | `mutex_trylock()` | Locks a mutex if unlocked and returns `true` else the mutex is unchanged and the function returns `false`. |
-| `mutex_destroy()` | Asserts that the mutex is unlocked and there's no waiters, after this the memory used by the mutex can be freed. |
+| `mutex_destroy()` | Asserts that the mutex is unlocked and there is no waiters, after this the memory used by the mutex can be freed. |
 
-When a mutex is locked it's owned by the thread calling `mutex_lock()` or
+When a mutex is locked it is owned by the thread calling `mutex_lock()` or
 `mutex_trylock()`, the mutex may only be unlocked by the thread owning the
 mutex. A thread should not exit to TA user space when holding a mutex.
 
@@ -123,7 +123,7 @@ destroyed. A condvar is initialized with `CONDVAR_INITIALIZER` or
 
 The caller of `condvar_signal()` or `condvar_broadcast()` should hold the
 mutex associated with the condition variable to guarantee that a waiter
-doesn't miss the signal.
+does not miss the signal.
 
 # 5. MMU
 ## Translation tables
@@ -151,12 +151,12 @@ table when the TA context is activated.
 ![Select xlation table](images/xlat_table.png "Select xlation table")
 
 ## Translation tables and switching to normal world
-When switching to normal world either via an IRQ or RPC there's a chance
+When switching to normal world either via an IRQ or RPC there is a chance
 that secure world will resume execution on a different CPU. This means that
 the new CPU need to be configured with the context of the currently active
 TA. This is solved by always setting the TA context in the CPU when
-resuming execution. Here's room for improvements since it's more likely
-than not that it's the same CPU that resumes execution in secure world.
+resuming execution. Here is room for improvements since it is more likely
+than not that it is the same CPU that resumes execution in secure world.
 
 # 6. Stacks
 Different stacks are used during different stages. The stacks are:
@@ -218,7 +218,7 @@ world.
 
 ## IRQ exit
 IRQ exit occurs when OP-TEE receives an IRQ, which is always handled in normal
-world. IRQ exit is similar to RPC exit but it's `thread_irq_handler()` and
+world. IRQ exit is similar to RPC exit but it is `thread_irq_handler()` and
 `elx_irq()` (respectively for ARMv7-A/Aarch32 and for Aarch64) that saves the
 thread state instead. The thread is resumed in the same way though.
 
@@ -248,7 +248,7 @@ thread_svc_regs` in case the TA is executed in AArch64.
 
 Current thread stack is assigned to `SP_EL0` which is then selected.
 
-When returning `SP_EL0` is assigned what's in `struct thread_svc_regs`. This
+When returning `SP_EL0` is assigned what is in `struct thread_svc_regs`. This
 allows `tee_svc_sys_return_helper()` having the syscall exception handler return
 directly to `thread_unwind_user_mode()`.
 
@@ -339,20 +339,20 @@ OP-TEE currently requires ~256 KiB RAM for OP-TEE kernel memory. This is not a
 problem if OP-TEE uses TrustZone protected DDR, but for security reasons OP-TEE
 may need to use TrustZone protected SRAM instead. The amount of available SRAM
 varies between platforms, from just a few KiB up to over 512 KiB. Platforms with
-just a few KiB of SRAM can’t be expected to be able to run a complete TEE
+just a few KiB of SRAM cannot be expected to be able to run a complete TEE
 solution in SRAM. But those with 128 to 256 KiB of SRAM can be expected to have
 a capable TEE solution in SRAM. The pager provides a solution to this by demand
 paging parts of OP-TEE using virtual memory.
 
 ## Secure memory
 TrustZone protected SRAM is generally considered more secure than TrustZone
-protected DRAM as there's usually more attack vectors on DRAM. The attack
+protected DRAM as there is usually more attack vectors on DRAM. The attack
 vectors are hardware dependent and can be different for different platforms.
 
 ## Backing store
 TrustZone protected DRAM or in some cases non-secure DRAM is used as backing
 store. The data in the backing store is integrity protected with one hash
-(SHA-256) per page (4KiB). Readonly pages aren't encrypted since the OP-TEE
+(SHA-256) per page (4KiB). Readonly pages are not encrypted since the OP-TEE
 binary itself is not encrypted.
 
 ## Partitioning of memory
@@ -381,7 +381,7 @@ otherwise lead to deadlock. The virtual memory is partitioned as:
 +--------------+-----------------+
 ```
 Where "`nozi`" stands for "not zero initialized", this section contains entry
-stacks (thread stack when TEE pager isn't enabled) and translation tables (TEE
+stacks (thread stack when TEE pager is not enabled) and translation tables (TEE
 pager cached translation table when the pager is enabled and LPAE MMU is used).
 
 The "`init`" area is available when OP-TEE is initializing and contains
@@ -389,9 +389,9 @@ everything that is needed to initialize the pager. After the pager has been
 initialized this area will be used for demand paged instead.
 
 The "`demand alloc`" area is a special area where the pages are allocated and
-removed from the pager on demand. Those pages are returned when OP-TEE doesn't
+removed from the pager on demand. Those pages are returned when OP-TEE does not
 need them any longer. The thread stacks currently belongs this area. This means
-that when a stack isn't used the physical pages can be used by the pager for
+that when a stack is not used the physical pages can be used by the pager for
 better performance.
 
 The technique to gather code in the different area is based on compiling all
@@ -399,7 +399,7 @@ functions and data into separate sections. The unpaged text and rodata is then
 gathered by linking all object files with `--gc-sections` to eliminate sections
 that are outside the dependency graph of the entry functions for unpaged
 functions. A script analyzes this ELF file and generates the bits of the final
-link script. The process is repeated for init text and rodata.  What isn't
+link script. The process is repeated for init text and rodata.  What is not
 "unpaged" or "init" becomes "paged".
 
 ## Partitioning of the binary
@@ -439,9 +439,9 @@ The header is only used by the loader of OP-TEE, not OP-TEE itself. To
 initialize OP-TEE the loader loads the complete binary into memory and copies
 what follows the header and the following `init_size` bytes to
 `(init_load_addr_hi << 32 | init_load_addr_lo)`. `init_mem_usage` is used by the
-loader to be able to check that there's enough physical memory available for
+loader to be able to check that there is enough physical memory available for
 OP-TEE to be able to initialize at all. The loader supplies in `r0/x0` the
-address of the first byte following what wasn't copied and jumps to the load
+address of the first byte following what was not copied and jumps to the load
 address to start OP-TEE.
 
 ## Initializing the pager
@@ -473,7 +473,7 @@ void tee_pager_add_pages(tee_vaddr_t vaddr, size_t npages, bool unmap);
 `tee_pager_add_pages()` takes the physical address stored in the entry mapping
 the virtual address "vaddr" and "npages" entries after that and uses it to map
 new pages when needed. The unmap parameter tells whether the pages should be
-unmapped immediately since they doesn't contain initialized data or be kept
+unmapped immediately since they does not contain initialized data or be kept
 mapped until they need to be recycled. The pages in the "init" area are supplied
 with `unmap == false` since those page have valid content and are in use.
 
@@ -481,9 +481,9 @@ with `unmap == false` since those page have valid content and are in use.
 The pager is invoked as part of the abort handler. A pool of physical pages are
 used to map different virtual addresses. When a new virtual address needs to be
 mapped a free physical page is mapped at the new address, if a free physical
-page can't be found the oldest physical page is selected instead. When the page
+page cannot be found the oldest physical page is selected instead. When the page
 is mapped new data is copied from backing store and the hash of the page is
-verified. If it's OK the pager returns from the exception to resume the
+verified. If it is OK the pager returns from the exception to resume the
 execution.
 
 ## Paging of user TA
@@ -505,7 +505,7 @@ A memory object, MOBJ, describes a piece of memory. The interface provided
 is mostly abstract when it comes to using the MOBJ to populate translation
 tables etc.
 
-There's different kinds of MOBJs describing:
+There is different kinds of MOBJs describing:
 - physically contiguous memory
   - created with mobj_phys_alloc()
 - virtual memory
