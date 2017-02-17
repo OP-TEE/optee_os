@@ -11,9 +11,10 @@ OP-TEE design
 6.  [Stacks](#6-stacks)
 7.  [Shared Memory](#7-shared-memory)
 8.  [Pager](#8-pager)
-9.  [Cryptographic abstraction layer](#9-cryptographic-abstraction-layer)
-10. [libutee](#10-libutee)
-11. [Trusted Applications](#11-trusted-applications)
+9.  [Memory Objects](#9-memory-objects)
+10. [Cryptographic abstraction layer](#10-cryptographic-abstraction-layer)
+11. [libutee](#11-libutee)
+12. [Trusted Applications](#12-trusted-applications)
 
 # 1. Introduction
 OP-TEE is a so called Trusted Execution Environment, in short a TEE, for ARM
