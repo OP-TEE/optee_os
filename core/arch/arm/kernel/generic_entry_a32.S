@@ -335,7 +335,7 @@ shadow_stack_access_ok:
 	/* complete ARM secure MP common configuration */
 	bl	plat_cpu_reset_late
 
-	/* Enable Console */
+	/* Enable the console using physical addresses */
 	bl	console_init
 
 #ifdef CFG_PL310
@@ -345,7 +345,7 @@ shadow_stack_access_ok:
 
 	/*
 	 * Invalidate dcache for all memory used during initialization to
-	 * avoid nasty surprices when the cache is turned on. We must not
+	 * avoid nasty surprises when the cache is turned on. We must not
 	 * invalidate memory not used by OP-TEE since we may invalidate
 	 * entries used by for instance ARM Trusted Firmware.
 	 */
@@ -361,11 +361,23 @@ shadow_stack_access_ok:
 	bl	arm_cl2_enable
 #endif
 
+	/* Configure the MMU */
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
+
+	/* Avoid losing any output due to the console_init call below */
+	bl	console_flush
+
+	/* Enable the MMU */
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
+
+	/*
+	 * MMU is turned on: re-initialize the console so that the driver
+	 * uses the proper virtual addresses from now on
+	 */
+	bl	console_init
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
