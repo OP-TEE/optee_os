@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, Xilinx Inc
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,15 +29,15 @@
 #define CDNS_UART_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
-void cdns_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
+struct cdns_uart_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void cdns_uart_putc(int ch, vaddr_t base);
-
-void cdns_uart_flush(vaddr_t base);
-
-bool cdns_uart_have_rx_data(vaddr_t base);
-
-int cdns_uart_getchar(vaddr_t base);
+void cdns_uart_init(struct cdns_uart_data *pd, vaddr_t base, uint32_t uart_clk,
+		uint32_t baud_rate);
 
 #endif /* CDNS_UART_H */
