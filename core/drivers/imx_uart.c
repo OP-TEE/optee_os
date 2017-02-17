@@ -25,12 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
-
 #include <drivers/imx_uart.h>
-#include <console.h>
 #include <io.h>
-#include <compiler.h>
+#include <mm/core_mmu.h>
+#include <util.h>
 
 /* Register definitions */
 #define URXD  0x0  /* Receiver Register */
@@ -80,33 +78,62 @@
 #define  UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
-void imx_uart_init(vaddr_t __unused vbase)
+static vaddr_t base_addr(struct imx_uart_data *pd)
 {
-	/*
-	 * Do nothing, debug uart(uart0) share with normal world,
-	 * everything for uart0 intialization is done in bootloader.
-	 */
+	return cpu_mmu_enabled() ? pd->vbase : pd->pbase;
 }
 
-void imx_uart_flush_tx_fifo(vaddr_t base)
+static void imx_uart_flush(struct serial_chip *chip)
 {
+	struct imx_uart_data *pd = container_of(chip, struct imx_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
+
 	while (!(read32(base + UTS) & UTS_TXEMPTY))
 		;
 }
 
-int imx_uart_getchar(vaddr_t base)
+static int imx_uart_getchar(struct serial_chip *chip)
 {
+	struct imx_uart_data *pd = container_of(chip, struct imx_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
+
 	while (read32(base + UTS) & UTS_RXEMPTY)
 		;
 
 	return (read32(base + URXD) & URXD_RX_DATA);
 }
 
-void imx_uart_putc(const char c, vaddr_t base)
+static void imx_uart_putc(struct serial_chip *chip, int ch)
 {
-	write32(c, base + UTXD);
+	struct imx_uart_data *pd = container_of(chip, struct imx_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
 
-	/* wait until sent */
+	write32(ch, base + UTXD);
+
+	/* Wait until sent */
 	while (!(read32(base + UTS) & UTS_TXEMPTY))
 		;
+}
+
+static const struct serial_ops imx_uart_ops = {
+	.flush = imx_uart_flush,
+	.getchar = imx_uart_getchar,
+	.putc = imx_uart_putc,
+};
+
+void imx_uart_init(struct imx_uart_data *pd, vaddr_t base)
+{
+	if (cpu_mmu_enabled())
+		pd->vbase = base;
+	else
+		pd->pbase = base;
+	pd->chip.ops = &imx_uart_ops;
+
+	/*
+	 * Do nothing, debug uart(uart0) share with normal world,
+	 * everything for uart0 intialization is done in bootloader.
+	 */
 }
