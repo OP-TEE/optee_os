@@ -64,6 +64,8 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
+static struct imx_uart_data console_data __early_bss;
+
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
 
@@ -126,41 +128,25 @@ void plat_cpu_reset_late(void)
 }
 #endif
 
-static vaddr_t console_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE,
-					  MEM_AREA_IO_NSEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	vaddr_t base = console_base();
-
-	imx_uart_init(base);
+	imx_uart_init(&console_data, CONSOLE_UART_BASE);
 }
 
 void console_putc(int ch)
 {
-	vaddr_t base = console_base();
+	struct serial_chip *cons = &console_data.chip;
 
-	/* If \n, also do \r */
 	if (ch == '\n')
-		imx_uart_putc('\r', base);
-	imx_uart_putc(ch, base);
+		cons->ops->putc(cons, '\r');
+	cons->ops->putc(cons, ch);
 }
 
 void console_flush(void)
 {
-	vaddr_t base = console_base();
+	struct serial_chip *cons = &console_data.chip;
 
-	imx_uart_flush_tx_fifo(base);
+	cons->ops->flush(cons);
 }
 
 void main_init_gic(void)

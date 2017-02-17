@@ -25,12 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
-
+#include <assert.h>
 #include <drivers/imx_uart.h>
-#include <console.h>
 #include <io.h>
-#include <compiler.h>
+#include <util.h>
 
 /* Register definitions */
 #define URXD  0x0  /* Receiver Register */
@@ -80,33 +78,56 @@
 #define  UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
-void imx_uart_init(vaddr_t __unused vbase)
+static vaddr_t chip_to_base(struct serial_chip *chip)
 {
-	/*
-	 * Do nothing, debug uart(uart0) share with normal world,
-	 * everything for uart0 intialization is done in bootloader.
-	 */
+	struct imx_uart_data *pd =
+		container_of(chip, struct imx_uart_data, chip);
+
+	return io_pa_or_va(&pd->base);
 }
 
-void imx_uart_flush_tx_fifo(vaddr_t base)
+static void imx_uart_flush(struct serial_chip *chip)
 {
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read32(base + UTS) & UTS_TXEMPTY))
 		;
 }
 
-int imx_uart_getchar(vaddr_t base)
+static int imx_uart_getchar(struct serial_chip *chip)
 {
+	vaddr_t base = chip_to_base(chip);
+
 	while (read32(base + UTS) & UTS_RXEMPTY)
 		;
 
 	return (read32(base + URXD) & URXD_RX_DATA);
 }
 
-void imx_uart_putc(const char c, vaddr_t base)
+static void imx_uart_putc(struct serial_chip *chip, int ch)
 {
-	write32(c, base + UTXD);
+	vaddr_t base = chip_to_base(chip);
 
-	/* wait until sent */
+	write32(ch, base + UTXD);
+
+	/* Wait until sent */
 	while (!(read32(base + UTS) & UTS_TXEMPTY))
 		;
+}
+
+static const struct serial_ops imx_uart_ops = {
+	.flush = imx_uart_flush,
+	.getchar = imx_uart_getchar,
+	.putc = imx_uart_putc,
+};
+
+void imx_uart_init(struct imx_uart_data *pd, paddr_t base)
+{
+	pd->base.pa = base;
+	pd->chip.ops = &imx_uart_ops;
+
+	/*
+	 * Do nothing, debug uart(uart0) share with normal world,
+	 * everything for uart0 initialization is done in bootloader.
+	 */
 }
