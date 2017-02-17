@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, Spreadtrum Communications Inc.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +29,15 @@
 #define SPRD_UART_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
-void sprd_uart_flush(vaddr_t base);
+struct sprd_uart_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void sprd_uart_putc(vaddr_t base, unsigned char ch);
-
-unsigned char sprd_uart_getc(vaddr_t base);
+void sprd_uart_init(struct sprd_uart_data *pd, vaddr_t base);
 
 #endif /* SPRD_UART_H */
 
