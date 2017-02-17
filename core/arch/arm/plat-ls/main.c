@@ -129,22 +129,7 @@ void console_init(void)
 		return;
 	}
 	ns16550_init(&console_data, CONSOLE_UART_BASE);
-}
-
-void console_putc(int ch)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	if (ch == '\n')
-		cons->ops->putc(cons, '\r');
-	cons->ops->putc(cons, ch);
-}
-
-void console_flush(void)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	cons->ops->flush(cons);
+	serial_console = &console_data.chip;
 }
 
 void main_init_gic(void)
