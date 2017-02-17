@@ -124,7 +124,7 @@ $ make CROSS_COMPILE="ccache arm-linux-gnueabihf-"
 # 3. Same as (2.)
 $ make CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
 
-# 4. Select 64-bit secure OS (and therefore both 32- and 64-bit
+# 4. Select 64-bit secure 'core' (and therefore both 32- and 64-bit
 # Trusted Application libraries)
 $ make CFG_ARM64_core=y
 

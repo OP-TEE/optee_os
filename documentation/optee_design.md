@@ -29,6 +29,13 @@ OP-TEE was designed with scalability and portability in mind and as of now it
 has been ported to quite a few different platforms, both ARMv7-A and ARMv8-A
 from different vendors. For a full list, please see [Platforms Supported].
 
+OP-TEE OS is made of 2 main components: the OP-TEE core and a collection of
+libraries designed for being used by Trusted Applications. While OP-TEE core
+executes in the ARM CPU privileged level (also referred to as 'kernel land'),
+the Trusted Applications execute in the non-privileged level (also referred to as
+the 'userland'). The static libraries provided by the OP-TEE OS enable Trusted
+Applications to call secure services executing at a more privileged level.
+
 # 2. Platform initialization
 TBD
 
@@ -56,10 +63,10 @@ registers 1 to 7, register 0 holds the SMC id which among other things tells
 whether it is a standard or a fast call.
 
 # 4. Thread handling
-The Trusted OS uses a couple of threads to be able to support running jobs in
+The OP-TEE core uses a couple of threads to be able to support running jobs in
 parallel (not fully enabled!). There are handlers for different purposes. In
 [thread.c] you will find a function called `thread_init_primary` which assigns
-`init_handlers` (functions) that should be called when Trusted OS receives
+`init_handlers` (functions) that should be called when OP-TEE core receives
 standard or fast calls, FIQ and PSCI calls. There are default handlers for these
 services, but the platform can decide if they want to implement their own
 platform specific handlers instead.
@@ -263,7 +270,7 @@ Note that:
 
 ### Shared Memory Configuration
 It is the Linux kernel driver for OP-TEE that is responsible for initializing
-the shared memory pool, given information provided by the Trusted OS. The Linux
+the shared memory pool, given information provided by the OP-TEE core. The Linux
 driver issues a SMC call `OPTEE_SMC_GET_SHM_CONFIG` to retrieve the information
 * Physical address of the start of the pool
 * Size of the pool
@@ -291,7 +298,7 @@ The client application can ask for shared memory allocation using the
 GlobalPlatform Client API function `TEEC_AllocateSharedMemory()`. The client
 application can also provide shared memory through the GlobalPlatform Client API
 function `TEEC_RegisterSharedMemory()`. In such a case, the provided memory must
-be physically contiguous so that the Trusted OS, that does not handle
+be physically contiguous so that the OP-TEE core, that does not handle
 scatter-gather memory, is able to use the provided range of memory addresses.
 Note that the reference count of a shared memory chunk is incremented when
 shared memory is registered, and initialized to 1 on allocation.
@@ -301,10 +308,10 @@ Occasionally the Linux kernel driver needs to allocate shared memory for the
 communication with secure world, for example when using buffers of type
 TEEC_TempMemoryReference.
 
-### From the Trusted OS
-In case the Trusted OS needs information from the TEE supplicant (dynamic TA
+### From the OP-TEE core
+In case the OP-TEE core needs information from the TEE supplicant (dynamic TA
 loading, REE time request,...), shared memory must be allocated. Allocation
-depends on the use case. The Trusted OS asks for the following shared memory
+depends on the use case. The OP-TEE core asks for the following shared memory
 allocation:
 - `optee_msg_arg` structure, used to pass the arguments to the non-secure world,
    where the allocation will be done by sending a `OPTEE_SMC_RPC_FUNC_ALLOC`
@@ -321,7 +328,7 @@ allocation:
 ### From the TEE Supplicant
 The TEE supplicant is also working with shared memory, used to exchange data
 between normal and secure worlds. The TEE supplicant receives a memory address
-from the Trusted OS, used to store the data. This is for example the case when a
+from the OP-TEE core, used to store the data. This is for example the case when a
 Trusted Application is loaded. In this case, the TEE supplicant must register
 the provided shared memory in the same way a client application would do,
 involving the Linux driver.
@@ -520,7 +527,18 @@ Cryptographic operations are implemented inside the TEE core by the
 implementation, as explained in [crypto.md].
 
 # 11. libutee
-TBD
+
+The GlobalPlatform Core Internal API describes services that are provided to
+Trusted Applications. libutee is a library that implements this API.
+
+libutee is a static library the Trusted Applications shall statically link
+against. Trusted Applications do execute in non-privileged secure userspace and
+libutee also aims at being executed in the non-privileged secure userspace.
+
+Some services for this API are fully statically implemented inside the
+libutee library while some services for the API are implemented inside the
+OP-TEE core (privileged level) and libutee calls such services through
+system calls.
 
 # 12. Trusted Applications
 
@@ -534,102 +552,110 @@ loaded TAs are preferred.
 
 ### Pseudo Trusted Applications
 
-These are added directly to the optee_os tree in, eg, `core/arch/arm/pta`, and
-are built along with and statically built into the OP-TEE OS blob.
+These are added directly to the OP-TEE core tree in, eg, `core/arch/arm/pta`,
+and are built along with and statically built into the OP-TEE core blob.
 
 The pseudo Trusted Applications included in OP-TEE already are OP-TEE
-secure privilege layer services hidden behind a "GP TA Client" API.
+secure privileged level services hidden behind a "GlobalPlatform TA Client" API.
 These pseudo-TAs are used for various purpose as specific secure services or
 embedded tests services.
 
-Pseudo TAs do not benefit from the 'GP Core Internal API' support
-specified by the GP TEE specs; Pseudo TAs can only use the OP-TEE OS internal
-APIs and routines.
+Pseudo TAs do not benefit from the GlobalPlatform Core Internal API support
+specified by the GlobalPlatform TEE specs. These APIs are provided to TAs as a
+static library each TA shall link against (the "libutee") and that calls OP-TEE
+core service through system calls. As OP-TEE core does link with the
+libutee, Pseudo TAs can only use the OP-TEE core internal APIs and
+routines.
 
-Pseudo-TAs have the same privileged view of Secure World as the OP-TEE OS code
-itself.  For complex TAs, that may not be desirable.
+As pseudo TAs have the same privileged execution level as the OP-TEE core code
+itself, such situation may not be desirable for complex TAs.
 
 In most cases a real, dynamically loaded TA is the best choice instead of adding
-your code directly to the OP-TEE OS.  However if you decide your application
-is best handled directly in OP-TEE OS like this, you can look at
+your code directly to the OP-TEE core.  However if you decide your application
+is best handled directly in OP-TEE core like this, you can look at
 `core/arch/arm/pta/stats.c` as a template and just add your pseudo TA based on
 that to the `sub.mk` in the same directory.
 
 ### Trusted Applications
 
 Trusted Applications (TAs) are applications dynamically loaded by OP-TEE
-OS in the Secure World when something in the REE wants to talk to that
-particular application UUID.  It's similar to the way the Linux
+core in the Secure World when something in the REE wants to talk to that
+particular application UUID.  It is similar to the way the Linux
 kernel can dynamically load kernel modules, although unlike with Linux, in
-OP-TEE TAs actually run at a lower CPU privilege level than OP-TEE OS code.
+OP-TEE TAs actually run at a lower CPU privileged level than OP-TEE core code.
 
-Because the TAs are signed by the same key that built the OP-TEE OS, they are
-able to be stored in the untrusted REE filesystem, and tee-supplicant will
+Because the TAs are signed by the same key that built the OP-TEE core, they
+are able to be stored in the untrusted REE filesystem, and tee-supplicant will
 take care of passing them to be checked and loaded by the Secure World OP-TEE
-OS.  Again this is simular to Linux kernel module signature checking.
+core.  Again this is simular to Linux kernel module signature checking.
 
-Trusted Application benefit from the `GP Core Internal API` as specified by
-the 'GP Specs'.
+Trusted Application benefit from the GlobalPlatform Core Internal API as
+specified by the GlobalPlatform TEE specifications.
 
 Trusted Application consist of a cleartext signed ELF file, named from the UUID
 of the TA and the suffix ".ta".
 
-They are built separately from the OP-TEE OS boot-time blob, although when
+They are built separately from the OP-TEE core boot-time blob, although when
 they are built they use the same build system, and are signed with the key
-from the build of the original OP-TEE OS blob.
+from the build of the original OP-TEE core blob.
 
 ## Special treatment of Trusted Applications
 
 ### Syscalls
 
 Dynamically loaded TAs are not directly bound to function exports in the OP-TEE
-OS blob, both because the TA code is kept at arm's length by executing at a
-different privilege level, and because TAs direct binding to addresses in the
-OS would require upgrades of all TAs synchronusly with upgrades of the OP-TEE
-OS blob.  Instead, the resolution of OP-TEE OS exports in the TA is done at
-runtime.
+core blob, both because the TA code is kept at arm's length by executing at a
+different privileged level, and because TAs direct binding to addresses in the
+core would require upgrades of all TAs synchronusly with upgrades of the
+OP-TEE core blob. Instead, the resolution of OP-TEE core exports in the TA
+is done at runtime.
 
 OP-TEE does this by using syscalls, the same kind of way as the Linux kernel
 provides a stable API for its userland programs.  TAs are written to use
-syscall wrappers to access functions exported from OP-TEE OS, so this all
-happens automatically when a TA wants to use an api exported from
-OP-TEE OS.
+syscall wrappers to access functions exported from OP-TEE core, so this all
+happens automatically when a TA wants to use an API exported from OP-TEE
+core.
 
-Pseudo TAs and anything else directly built into OP-TEE OS do not
+Pseudo TAs and anything else directly built into OP-TEE core do not
 require going through a syscall interface, since they can just link directly
-as they are directly part of the OS.
+as they are directly part of the core.
 
-Syscalls are provided already for all public exports from OP-TEE OS that a
+Most of the services defined by the GlobalPlatform Core Internal API are
+implemented through syscall from the TA to the OP-TEE core privileged level:
+cryptographic services, communications with other TAs, ... Some services were
+added through OP-TEE development such as ASCII message tracing.
+
+Syscalls are provided already for all public exports from OP-TEE core that a
 Dynamic TA is expected to use, so you only need to take care about this if
-you will add new exported from OP-TEE OS that TAs will want to use.
+you will add new exported from OP-TEE core that TAs will want to use.
 
 ### Malloc mapping
 
-The OP-TEE OS code has its own private memory allocation heap that is mapped
+The OP-TEE core code has its own private memory allocation heap that is mapped
 into its MMU view only and cannot be seen by Trusted Applications.  The
-OS code uses `malloc()` and `free()` style apis.
+core code uses `malloc()` and `free()` style APIs.
 
 Trusted Applications also have their own private memory allocation heaps
-that are visible to the owning TA, and to OP-TEE OS.  TAs manage their
+that are visible to the owning TA, and to OP-TEE core. TAs manage their
 heaps using `TEE_Malloc()` and `TEE_Free()` style apis.
 
-Heap|Visible to |Inaccessible to
-----|-----------|---------------
-OS  |OS         |any TA
-TA  |OS, same TA|any other TA
+Heap |Visible to   |Inaccessible to
+-----|-------------|---------------
+core |core         |any TA
+TA   |core, same TA|any other TA
 
 This enforces "Chinese Walls" between the TA views of Secure World.
 
-Since OP-TEE OS cannot perform allocations in the TA's private heap,
-and the TA is not going to be able to access allocations from the OP-TEE OS
-heap, it means only allocations from the TA heap are visible to both the
-TA and OP-TEE OS.  When performing syscalls between a TA and OP-TEE OS
+Since OP-TEE core cannot perform allocations in the TA's private heap,
+and the TA is not going to be able to access allocations from the OP-TEE
+core heap, it means only allocations from the TA heap are visible to both the
+TA and OP-TEE core.  When performing syscalls between a TA and OP-TEE core
 then, the TA side must provide all the memory allocations for buffers, etc
 used by both sides.
 
 ### Malloc pool
 
-The OP-TEE OS malloc heap is defined by `CFG_CORE_HEAP_SIZE` in `mk/config.mk`.
+The OP-TEE core malloc heap is defined by `CFG_CORE_HEAP_SIZE` in `mk/config.mk`.
 
 However for TAs, the individual TA TEE_Malloc() heap size is defined by
 `TA_DATA_SIZE` in `user_ta_header_defines.h`.  Likewise the TA stack size is
