@@ -24,8 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <assert.h>
 #include <drivers/hi16xx_uart.h>
 #include <io.h>
+#include <mm/core_mmu.h>
+#include <util.h>
 
 /* Register offsets */
 
@@ -76,15 +79,64 @@
 #define UART_USR_RFNE_BIT	3	/* Receive FIFO not empty bit */
 #define UART_USR_RFF_BIT	4	/* Receive FIFO full bit */
 
-void hi16xx_uart_flush(vaddr_t base)
+static vaddr_t chip_to_base(struct serial_chip *chip)
 {
+	struct hi16xx_uart_data *pd =
+		container_of(chip, struct hi16xx_uart_data, chip);
+
+	return io_pa_or_va(&pd->base);
+}
+
+static void hi16xx_uart_flush(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
 		;
 }
 
-void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
+static void hi16xx_uart_putc(struct serial_chip *chip, int ch)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	/* Wait until TX FIFO is empty */
+	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
+		;
+
+	/* Put character into TX FIFO */
+	write32(ch & 0xFF, base + UART_THR);
+}
+
+static bool hi16xx_uart_have_rx_data(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	return (read32(base + UART_USR) & UART_USR_RFNE_BIT);
+}
+
+static int hi16xx_uart_getchar(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	while (!hi16xx_uart_have_rx_data(chip))
+		;
+	return read32(base + UART_RBR) & 0xFF;
+}
+
+static const struct serial_ops hi16xx_uart_ops = {
+	.flush = hi16xx_uart_flush,
+	.getchar = hi16xx_uart_getchar,
+	.have_rx_data = hi16xx_uart_have_rx_data,
+	.putc = hi16xx_uart_putc,
+};
+
+void hi16xx_uart_init(struct hi16xx_uart_data *pd, paddr_t base,
+		      uint32_t uart_clk, uint32_t baud_rate)
 {
 	uint16_t freq_div = uart_clk / (16 * baud_rate);
+
+	pd->base.pa = base;
+	pd->chip.ops = &hi16xx_uart_ops;
 
 	/* Enable (and clear) FIFOs */
 	write32(UART_FCR_FIFO_EN, base + UART_FCR);
@@ -104,28 +156,6 @@ void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
 	/* Disable interrupt mode */
 	write32(0, base + UART_IEL);
 
-	hi16xx_uart_flush(base);
-}
-
-void hi16xx_uart_putc(int ch, vaddr_t base)
-{
-	/* Wait until TX FIFO is empty */
-	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
-		;
-
-	/* Put character into TX FIFO */
-	write32(ch & 0xFF, base + UART_THR);
-}
-
-bool hi16xx_uart_have_rx_data(vaddr_t base)
-{
-	return (read32(base + UART_USR) & UART_USR_RFNE_BIT);
-}
-
-int hi16xx_uart_getchar(vaddr_t base)
-{
-	while (!hi16xx_uart_have_rx_data(base))
-		;
-	return read32(base + UART_RBR) & 0xFF;
+	hi16xx_uart_flush(&pd->chip);
 }
 
