@@ -30,30 +30,28 @@
 #include <mm/core_memprot.h>
 #include <console.h>
 
-static vaddr_t console_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
+static struct sunxi_uart_data console_data __early_bss;
 
 void console_init(void)
 {
-	sunxi_uart_init(console_base());
+	if (cpu_mmu_enabled()) {
+		console_data.vbase = (vaddr_t)phys_to_virt(console_data.pbase,
+							   MEM_AREA_IO_SEC);
+		return;
+	}
+	sunxi_uart_init(&console_data, CONSOLE_UART_BASE);
 }
 
 void console_putc(int ch)
 {
-	sunxi_uart_putc(ch, console_base());
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->putc(cons, ch);
 }
 
 void console_flush(void)
 {
-	sunxi_uart_flush(console_base());
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->flush(cons);
 }

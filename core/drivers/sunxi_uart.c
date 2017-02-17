@@ -24,11 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <platform_config.h>
-
 #include <drivers/sunxi_uart.h>
 #include <io.h>
-#include <compiler.h>
+#include <mm/core_mmu.h>
+#include <util.h>
 
 /* uart register defines */
 #define UART_REG_RBR 	(0x00)
@@ -55,28 +54,51 @@
 #define UART_REG_USR_RFNE (0x1 << 0x3)
 #define UART_REG_USR_RFF  (0x1 << 0x4)
 
-void sunxi_uart_init(vaddr_t __unused base)
+static vaddr_t base_addr(struct sunxi_uart_data *pd)
 {
-	/* do nothing, debug uart(uart0) share with normal world,
-	 * everything for uart0 is ready now.
-	 */
+	return cpu_mmu_enabled() ? pd->vbase : pd->pbase;
 }
 
-void sunxi_uart_flush(vaddr_t base)
+static void sunxi_uart_flush(struct serial_chip *chip)
 {
+	struct sunxi_uart_data *pd = container_of(chip, struct sunxi_uart_data,
+						  chip);
+	vaddr_t base = base_addr(pd);
+
 	while (read32(base + UART_REG_TFL)) {
 		/* waiting transmit fifo empty */
 		;
 	}
 }
 
-bool sunxi_uart_have_rx_data(vaddr_t base)
+static bool sunxi_uart_have_rx_data(struct serial_chip *chip)
 {
+	struct sunxi_uart_data *pd = container_of(chip, struct sunxi_uart_data,
+						  chip);
+	vaddr_t base = base_addr(pd);
+
 	return read32(base + UART_REG_RFL);
 }
 
-void sunxi_uart_putc(int ch, vaddr_t base)
+static int sunxi_uart_getchar(struct serial_chip *chip)
 {
+	struct sunxi_uart_data *pd = container_of(chip, struct sunxi_uart_data,
+						  chip);
+	vaddr_t base = base_addr(pd);
+
+	while (!sunxi_uart_have_rx_data(chip)) {
+		/* transmit fifo is empty, waiting again. */
+		;
+	}
+	return read32(base + UART_REG_RBR) & 0xff;
+}
+
+static void sunxi_uart_putc(struct serial_chip *chip, int ch)
+{
+	struct sunxi_uart_data *pd = container_of(chip, struct sunxi_uart_data,
+						  chip);
+	vaddr_t base = base_addr(pd);
+
 	while (!(read32(base + UART_REG_USR) & UART_REG_USR_TFNF)) {
 		/* transmit fifo is full, waiting again. */
 		;
@@ -86,12 +108,22 @@ void sunxi_uart_putc(int ch, vaddr_t base)
 	write8(ch, base + UART_REG_THR);
 }
 
-int sunxi_uart_getchar(vaddr_t base)
-{
-	while (!sunxi_uart_have_rx_data(base)) {
-		/* transmit fifo is empty, waiting again. */
-		;
-	}
-	return read32(base + UART_REG_RBR) & 0xff;
-}
+static const struct serial_ops sunxi_uart_ops = {
+	.flush = sunxi_uart_flush,
+	.getchar = sunxi_uart_getchar,
+	.have_rx_data = sunxi_uart_have_rx_data,
+	.putc = sunxi_uart_putc,
+};
 
+void sunxi_uart_init(struct sunxi_uart_data *pd, vaddr_t base)
+{
+	if (cpu_mmu_enabled())
+		pd->vbase = base;
+	else
+		pd->pbase = base;
+	pd->chip.ops = &sunxi_uart_ops;
+
+	/* do nothing, debug uart(uart0) share with normal world,
+	 * everything for uart0 is ready now.
+	 */
+}
