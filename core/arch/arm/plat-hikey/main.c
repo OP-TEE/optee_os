@@ -84,22 +84,7 @@ void console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
 		   CONSOLE_BAUDRATE);
-}
-
-void console_putc(int ch)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	if (ch == '\n')
-		cons->ops->putc(cons, '\r');
-	cons->ops->putc(cons, ch);
-}
-
-void console_flush(void)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	cons->ops->flush(cons);
+	register_serial_console(&console_data.chip);
 }
 
 vaddr_t nsec_periph_base(paddr_t pa)

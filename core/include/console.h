@@ -32,5 +32,8 @@ void console_init(void);
 void console_putc(int ch);
 void console_flush(void);
 
+struct serial_chip;
+void register_serial_console(struct serial_chip *chip);
+
 #endif /* CONSOLE_H */
 

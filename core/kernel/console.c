@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,48 +26,31 @@
  */
 
 #include <console.h>
-#include <drivers/hi16xx_uart.h>
-#include <kernel/generic_boot.h>
-#include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
-#include <mm/tee_pager.h>
-#include <mm/core_memprot.h>
-#include <platform_config.h>
-#include <stdint.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
+#include <compiler.h>
+#include <drivers/serial.h>
+#include <stdlib.h>
 
-static void main_fiq(void);
+static struct serial_chip *serial_console __early_bss;
 
-static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
-	.fast_smc = tee_entry_fast,
-	.nintr = main_fiq,
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-};
-
-static struct hi16xx_uart_data console_data __early_bss;
-
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, HI16XX_UART_REG_SIZE);
-
-const struct thread_handlers *generic_boot_get_handlers(void)
+void __weak console_putc(int ch)
 {
-	return &handlers;
+	if (!serial_console)
+		return;
+
+	if (ch == '\n')
+		serial_console->ops->putc(serial_console, '\r');
+	serial_console->ops->putc(serial_console, ch);
 }
 
-static void main_fiq(void)
+void __weak console_flush(void)
 {
-	panic();
+	if (!serial_console)
+		return;
+
+	serial_console->ops->flush(serial_console);
 }
 
-void console_init(void)
+void register_serial_console(struct serial_chip *chip)
 {
-	hi16xx_uart_init(&console_data, CONSOLE_UART_BASE,
-			 CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
-	register_serial_console(&console_data.chip);
+	serial_console = chip;
 }

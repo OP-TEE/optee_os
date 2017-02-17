@@ -121,22 +121,7 @@ void plat_cpu_reset_late(void)
 void console_init(void)
 {
 	cdns_uart_init(&console_data, CONSOLE_UART_BASE, 0, 0);
-}
-
-void console_putc(int ch)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	if (ch == '\n')
-		cons->ops->putc(cons, '\r');
-	cons->ops->putc(cons, ch);
-}
-
-void console_flush(void)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	cons->ops->flush(cons);
+	register_serial_console(&console_data.chip);
 }
 
 vaddr_t pl310_base(void)

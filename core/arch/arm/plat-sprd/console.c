@@ -34,6 +34,7 @@ static struct sprd_uart_data console_data __early_bss;
 void console_init(void)
 {
 	sprd_uart_init(&console_data, CONSOLE_UART_BASE);
+	register_serial_console(&console_data.chip);
 }
 
 void console_putc(int ch)
@@ -43,9 +44,3 @@ void console_putc(int ch)
 	cons->ops->putc(cons, ch & 0xff);
 }
 
-void console_flush(void)
-{
-	struct serial_chip *cons = &console_data.chip;
-
-	cons->ops->flush(cons);
-}
