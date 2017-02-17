@@ -46,6 +46,7 @@
 
 static void main_fiq(void);
 static struct gic_data gic_data;
+static struct cdns_uart_data console_data __early_bss;
 
 static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
@@ -90,33 +91,24 @@ static void main_fiq(void)
 	gic_it_handle(&gic_data);
 }
 
-static vaddr_t console_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	cdns_uart_init(console_base(), CONSOLE_UART_CLK_IN_HZ,
-		       CONSOLE_BAUDRATE);
+	cdns_uart_init(&console_data, CONSOLE_UART_BASE,
+		       CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 }
 
 void console_putc(int ch)
 {
+	struct serial_chip *cons = &console_data.chip;
+
 	if (ch == '\n')
-		cdns_uart_putc('\r', console_base());
-	cdns_uart_putc(ch, console_base());
+		cons->ops->putc(cons, '\r');
+	cons->ops->putc(cons, ch);
 }
 
 void console_flush(void)
 {
-	cdns_uart_flush(console_base());
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->flush(cons);
 }
