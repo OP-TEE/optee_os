@@ -30,38 +30,30 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
+static struct serial8250_uart_data console_data __early_bss;
+
 register_phys_mem(MEM_AREA_IO_NSEC,
 		  CONSOLE_UART_BASE,
 		  SERIAL8250_UART_REG_SIZE);
 
-static vaddr_t console_base(void)
-{
-	static void *va __early_bss;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_NSEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	serial8250_uart_init(console_base(), CONSOLE_UART_CLK_IN_HZ,
-			     CONSOLE_BAUDRATE);
+	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
+			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 }
 
 void console_putc(int ch)
 {
-	vaddr_t base = console_base();
+	struct serial_chip *cons = &console_data.chip;
 
 	if (ch == '\n')
-		serial8250_uart_putc('\r', base);
-	serial8250_uart_putc(ch, base);
+		cons->ops->putc(cons, '\r');
+	cons->ops->putc(cons, ch);
 }
 
 void console_flush(void)
 {
-	serial8250_uart_flush_tx_fifo(console_base());
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->flush(cons);
 }

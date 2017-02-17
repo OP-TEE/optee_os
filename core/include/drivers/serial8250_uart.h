@@ -28,19 +28,17 @@
 #define SERIAL8250_UART_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
 #define SERIAL8250_UART_REG_SIZE 0x20
 
-void serial8250_uart_init(vaddr_t base,
-		uint32_t uart_clk, uint32_t baud_rate);
+struct serial8250_uart_data {
+	struct io_pa_va base;
+	struct serial_chip chip;
+};
 
-void serial8250_uart_putc(int ch, vaddr_t base);
-
-void serial8250_uart_flush_tx_fifo(vaddr_t base);
-
-bool serial8250_uart_have_rx_data(vaddr_t base);
-
-int serial8250_uart_getchar(vaddr_t base);
+void serial8250_uart_init(struct serial8250_uart_data *pd, paddr_t base,
+			  uint32_t uart_clk, uint32_t baud_rate);
 
 #endif /* SERIAL8250_UART_H */
 
