@@ -45,7 +45,7 @@
 static TEE_Result test_trace(uint32_t param_types __unused,
 			TEE_Param params[TEE_NUM_PARAMS] __unused)
 {
-	IMSG("static TA \"%s\" says \"Hello world !\"", TA_NAME);
+	IMSG("pseudo TA \"%s\" says \"Hello world !\"", TA_NAME);
 
 	return TEE_SUCCESS;
 }
@@ -201,33 +201,33 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 static TEE_Result create_ta(void)
 {
-	DMSG("create entry point for static ta \"%s\"", TA_NAME);
+	DMSG("create entry point for pseudo TA \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
 }
 
 static void destroy_ta(void)
 {
-	DMSG("destroy entry point for static ta \"%s\"", TA_NAME);
+	DMSG("destroy entry point for pseudo ta \"%s\"", TA_NAME);
 }
 
 static TEE_Result open_session(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused,
 		void **ppSessionContext __unused)
 {
-	DMSG("open entry point for static ta \"%s\"", TA_NAME);
+	DMSG("open entry point for pseudo ta \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
 }
 
 static void close_session(void *pSessionContext __unused)
 {
-	DMSG("close entry point for static ta \"%s\"", TA_NAME);
+	DMSG("close entry point for pseudo ta \"%s\"", TA_NAME);
 }
 
 static TEE_Result invoke_command(void *pSessionContext __unused,
 		uint32_t nCommandID, uint32_t nParamTypes,
 		TEE_Param pParams[TEE_NUM_PARAMS])
 {
-	DMSG("command entry point for static ta \"%s\"", TA_NAME);
+	DMSG("command entry point for pseudo ta \"%s\"", TA_NAME);
 
 	switch (nCommandID) {
 	case CMD_TRACE:
