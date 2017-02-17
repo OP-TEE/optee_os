@@ -25,6 +25,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <initcall.h>
+#include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
@@ -173,6 +175,39 @@ static const struct tee_ta_ops pseudo_ta_ops = {
 extern const struct pseudo_ta_head __start_ta_head_section;
 extern const struct pseudo_ta_head __stop_ta_head_section;
 
+/* Insures declared pseudo TAs conforms with core expectations */
+static TEE_Result verify_pseudo_tas_conformance(void)
+{
+	const struct pseudo_ta_head *start = &__start_ta_head_section;
+	const struct pseudo_ta_head *end = &__stop_ta_head_section;
+	const struct pseudo_ta_head *pta;
+
+	for (pta = start; pta < end; pta++) {
+		const struct pseudo_ta_head *pta2;
+
+		/* PTAs must all have a specific UUID */
+		for (pta2 = pta + 1; pta2 < end; pta2++)
+			if (!memcmp(&pta->uuid, &pta2->uuid, sizeof(TEE_UUID)))
+				goto err;
+
+		if (!pta->name ||
+		    (pta->flags & PTA_MANDATORY_FLAGS) != PTA_MANDATORY_FLAGS ||
+		    pta->flags & ~PTA_ALLOWED_FLAGS ||
+		    !pta->create_entry_point ||
+		    !pta->open_session_entry_point ||
+		    !pta->invoke_command_entry_point ||
+		    !pta->close_session_entry_point ||
+		    !pta->destroy_entry_point)
+			goto err;
+	}
+	return TEE_SUCCESS;
+err:
+	DMSG("pseudo TA error at %p", (void *)pta);
+	panic("pta");
+}
+
+service_init(verify_pseudo_tas_conformance);
+
 /*-----------------------------------------------------------------------------
  * Initialises a session based on the UUID or ptr to the ta
  * Returns ptr to the session (ta_session) and a TEE_Result
@@ -204,7 +239,7 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 
 	ctx->ref_count = 1;
 	s->ctx = ctx;
-	ctx->flags = TA_FLAG_MULTI_SESSION;
+	ctx->flags = ta->flags;
 	stc->pseudo_ta = ta;
 	ctx->uuid = ta->uuid;
 	ctx->ops = &pseudo_ta_ops;

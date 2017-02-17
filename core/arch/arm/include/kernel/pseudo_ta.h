@@ -31,11 +31,20 @@
 #include <compiler.h>
 #include <kernel/tee_ta_manager.h>
 #include <tee_api_types.h>
+#include <user_ta_header.h>
 #include <util.h>
+
+#define PTA_MANDATORY_FLAGS	(TA_FLAG_SINGLE_INSTANCE | \
+				TA_FLAG_MULTI_SESSION | \
+				TA_FLAG_INSTANCE_KEEP_ALIVE)
+
+#define PTA_ALLOWED_FLAGS	PTA_MANDATORY_FLAGS
+#define PTA_DEFAULT_FLAGS	PTA_MANDATORY_FLAGS
 
 struct pseudo_ta_head {
 	TEE_UUID uuid;
 	const char *name;
+	uint32_t flags;
 
 	TEE_Result (*create_entry_point)(void);
 	void (*destroy_entry_point)(void);

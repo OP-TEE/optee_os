@@ -229,6 +229,7 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 }
 
 pseudo_ta_register(.uuid = PTA_GPROF_UUID, .name = "gprof",
+		   .flags = PTA_DEFAULT_FLAGS,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,

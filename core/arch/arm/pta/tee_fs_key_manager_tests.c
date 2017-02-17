@@ -396,6 +396,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 }
 
 pseudo_ta_register(.uuid = ENC_FS_KEY_MANAGER_TEST_UUID, .name = TA_NAME,
+		   .flags = PTA_DEFAULT_FLAGS,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,
