@@ -96,26 +96,31 @@ static void update_out_param(TEE_Param tee_param[TEE_NUM_PARAMS],
 static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
-	res = copy_in_param(param, tee_param);
-	if (res != TEE_SUCCESS) {
-		*eo = TEE_ORIGIN_TEE;
-		goto out;
-	}
-
 	*eo = TEE_ORIGIN_TRUSTED_APP;
-	if (s->ctx->ref_count == 1) {
+
+	if ((s->ctx->ref_count == 1) && stc->pseudo_ta->create_entry_point) {
 		res = stc->pseudo_ta->create_entry_point();
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
-	res = stc->pseudo_ta->open_session_entry_point(param->types, tee_param,
-						       &s->user_ctx);
-	update_out_param(tee_param, param);
+
+	if (stc->pseudo_ta->open_session_entry_point) {
+		res = copy_in_param(param, tee_param);
+		if (res != TEE_SUCCESS) {
+			*eo = TEE_ORIGIN_TEE;
+			goto out;
+		}
+
+		res = stc->pseudo_ta->open_session_entry_point(param->types,
+								tee_param,
+								&s->user_ctx);
+		update_out_param(tee_param, param);
+	}
 
 out:
 	tee_ta_pop_current_session();
@@ -152,9 +157,13 @@ static void pseudo_ta_enter_close_session(struct tee_ta_session *s)
 	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 
 	tee_ta_push_current_session(s);
-	stc->pseudo_ta->close_session_entry_point(s->user_ctx);
-	if (s->ctx->ref_count == 1)
+
+	if (stc->pseudo_ta->close_session_entry_point)
+		stc->pseudo_ta->close_session_entry_point(s->user_ctx);
+
+	if ((s->ctx->ref_count == 1) && stc->pseudo_ta->destroy_entry_point)
 		stc->pseudo_ta->destroy_entry_point();
+
 	tee_ta_pop_current_session();
 }
 
@@ -193,11 +202,7 @@ static TEE_Result verify_pseudo_tas_conformance(void)
 		if (!pta->name ||
 		    (pta->flags & PTA_MANDATORY_FLAGS) != PTA_MANDATORY_FLAGS ||
 		    pta->flags & ~PTA_ALLOWED_FLAGS ||
-		    !pta->create_entry_point ||
-		    !pta->open_session_entry_point ||
-		    !pta->invoke_command_entry_point ||
-		    !pta->close_session_entry_point ||
-		    !pta->destroy_entry_point)
+		    !pta->invoke_command_entry_point)
 			goto err;
 	}
 	return TEE_SUCCESS;

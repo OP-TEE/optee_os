@@ -87,31 +87,6 @@ static void print_hex(uint8_t *input_buf, size_t input_size)
  * Trusted Application Entry Points
  */
 
-static TEE_Result create_ta(void)
-{
-	DMSG("create entry point for static ta \"%s\"", TA_NAME);
-	return TEE_SUCCESS;
-}
-
-static void destroy_ta(void)
-{
-	DMSG("destroy entry point for static ta \"%s\"", TA_NAME);
-}
-
-static TEE_Result open_session(uint32_t nParamTypes __unused,
-		TEE_Param pParams[TEE_NUM_PARAMS] __unused,
-		void **ppSessionContext __unused)
-{
-	DMSG("open entry point for static ta \"%s\"", TA_NAME);
-	return TEE_SUCCESS;
-}
-
-static void close_session(void *pSessionContext __unused)
-{
-	DMSG("close entry point for static ta \"%s\"", TA_NAME);
-}
-
-
 static TEE_Result test_file_decrypt_with_invalid_content(void)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -397,8 +372,4 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 
 pseudo_ta_register(.uuid = ENC_FS_KEY_MANAGER_TEST_UUID, .name = TA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS,
-		   .create_entry_point = create_ta,
-		   .destroy_entry_point = destroy_ta,
-		   .open_session_entry_point = open_session,
-		   .close_session_entry_point = close_session,
 		   .invoke_command_entry_point = invoke_command);

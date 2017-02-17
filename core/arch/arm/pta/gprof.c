@@ -180,15 +180,6 @@ static TEE_Result gprof_stop_pc_sampling(struct tee_ta_session *s,
  * Trusted Application Entry Points
  */
 
-static TEE_Result create_ta(void)
-{
-	return TEE_SUCCESS;
-}
-
-static void destroy_ta(void)
-{
-}
-
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx __unused)
@@ -203,10 +194,6 @@ static TEE_Result open_session(uint32_t param_types __unused,
 		return TEE_ERROR_ACCESS_DENIED;
 
 	return TEE_SUCCESS;
-}
-
-static void close_session(void *sess_ctx __unused)
-{
 }
 
 static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
@@ -230,8 +217,5 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 
 pseudo_ta_register(.uuid = PTA_GPROF_UUID, .name = "gprof",
 		   .flags = PTA_DEFAULT_FLAGS,
-		   .create_entry_point = create_ta,
-		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,
-		   .close_session_entry_point = close_session,
 		   .invoke_command_entry_point = invoke_command);
