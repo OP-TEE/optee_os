@@ -538,10 +538,9 @@ These are added directly to the optee_os tree in, eg, `core/arch/arm/pta`, and
 are built along with and statically built into the OP-TEE OS blob.
 
 The pseudo Trusted Applications included in OP-TEE already are OP-TEE
-OS secure privilege layer services hidden behind a "GP TA Client" API; it's
-in these "Pseudo Trusted Applications" that the core functionality for
-communication with the REE (like "Open Session"), and API handlers from dynamic
-Trusted Applications are implemented.
+secure privilege layer services hidden behind a "GP TA Client" API.
+These pseudo-TAs are used for various purpose as specific secure services or
+embedded tests services.
 
 Pseudo TAs do not benefit from the 'GP Core Internal API' support
 specified by the GP TEE specs; Pseudo TAs can only use the OP-TEE OS internal
