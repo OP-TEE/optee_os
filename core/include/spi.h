@@ -41,6 +41,9 @@ struct spi_chip {
 	const struct spi_ops *ops;
 };
 
+/*
+ * @param[inout]	*num_rxpkts	number of max packets to receive
+ */
 struct spi_ops {
 	void (*txrx8)(struct spi_chip *chip, uint8_t *wdat,
 		uint8_t *rdat, size_t num_txpkts, size_t *num_rxpkts);

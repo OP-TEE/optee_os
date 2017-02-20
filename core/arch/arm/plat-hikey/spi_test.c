@@ -54,7 +54,7 @@ void spi_test(void)
 	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
-	size_t i, j, num_rxpkts, len = 3;
+	size_t i, j, num_rxpkts = 3, len = 3;
 
 	DMSG("gpio6_base: 0x%" PRIxVA "\n", gpio6_base);
 	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
@@ -84,7 +84,7 @@ void spi_test(void)
 	pl022_configure(&platform_pl022_data);
 	pl022_start(&platform_pl022_data);
 
-	for (j = 0; j < 20; j++) {
+	for (j = 0; j < 10; j++) {
 		DMSG("SPI test loop: %zu\n", j);
 		platform_pl022_data.chip.ops->txrx8(&platform_pl022_data.chip,
 						tx, rx, len, &num_rxpkts);

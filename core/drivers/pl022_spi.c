@@ -181,12 +181,20 @@ enum pl022_spi_mode {
 	PL022_SPI_MODE3 = SSPCR0_SPO1 | SSPCR0_SPH1  /* 0xC0 */
 };
 
+/*
+ * @param[inout]	*num_rxpkts	number of max packets to receive
+ */
 static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 	uint8_t *rdat, size_t num_txpkts, size_t *num_rxpkts)
 {
 	size_t i = 0;
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	if (*num_rxpkts != num_txpkts) {
+		MSG("WARNING: *num_rxpkts != num_txpkts!\n");
+		MSG("WARNING: Is this what you really want?\n");
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
@@ -208,12 +216,20 @@ static void pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
+/*
+ * @param[inout]	*num_rxpkts	number of max packets to receive
+ */
 static void pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 	uint16_t *rdat, size_t num_txpkts, size_t *num_rxpkts)
 {
 	size_t i = 0;
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	if (*num_rxpkts != num_txpkts) {
+		MSG("WARNING: *num_rxpkts != num_txpkts!\n");
+		MSG("WARNING: Is this what you really want?\n");
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
@@ -269,11 +285,19 @@ static void pl022_tx16(struct spi_chip *chip, uint16_t *wdat,
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
+/*
+ * @param[inout]	*num_rxpkts	number of max packets to receive
+ */
 static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
 	size_t *num_rxpkts)
 {
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	if (!*num_rxpkts) {
+		EMSG("*num_rxpkts = 0!\n");
+		return;
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
@@ -289,11 +313,19 @@ static void pl022_rx8(struct spi_chip *chip, uint8_t *rdat,
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_HIGH);
 }
 
+/*
+ * @param[inout]	*num_rxpkts	number of max packets to receive
+ */
 static void pl022_rx16(struct spi_chip *chip, uint16_t *rdat,
 	size_t *num_rxpkts)
 {
 	size_t j = 0;
 	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
+
+	if (!*num_rxpkts) {
+		EMSG("*num_rxpkts = 0!\n");
+		return;
+	}
 
 	pd->gpio->ops->set_value(pd->cs_gpio_pin, GPIO_LEVEL_LOW);
 
