@@ -15,11 +15,11 @@ $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 arm32-platform-cpuarch		:= cortex-a9
 else
-$(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 arm32-platform-cpuarch		:= cortex-a15
 endif
+$(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_GIC,y)
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 $(call force,CFG_DRA7_RNG,y)
