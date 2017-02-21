@@ -193,8 +193,11 @@ script:
   - $make PLATFORM=imx-mx6qsabresd
   - $make PLATFORM=imx-mx6dlsabresd
 
-  # Texas Instruments dra7xx
+  # Texas Instruments DRA7xx
   - $make PLATFORM=ti-dra7xx
+
+  # Texas Instruments AM43xx
+  - $make PLATFORM=ti-am43xx
 
   # Spreadtrum sc9860
   - $make PLATFORM=sprd-sc9860

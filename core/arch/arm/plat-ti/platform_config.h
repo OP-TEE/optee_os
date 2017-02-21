@@ -66,6 +66,42 @@
 /* RNG */
 #define RNG_BASE        0x48090000
 
+#elif defined(PLATFORM_FLAVOR_am43xx)
+
+/* Location of protected DDR on the AM43xx platform */
+#define TZDRAM_BASE     0xbdb00000
+#define TZDRAM_SIZE     0x01c00000
+
+#define CFG_TEE_CORE_NB_CORE	1
+
+#define UART0_BASE      0x44E09000
+#define UART1_BASE      0x48022000
+#define UART2_BASE      0x48024000
+#define UART3_BASE      0x481A6000
+#define UART4_BASE      0x481A8000
+#define UART5_BASE      0x481AA000
+
+#define CONSOLE_UART_BASE       UART0_BASE
+#define CONSOLE_BAUDRATE        115200
+#define CONSOLE_UART_CLK_IN_HZ	48000000
+
+#define SCU_BASE        0x48240000
+#define GICD_OFFSET     0x1000
+#define GICD_SIZE       0x1000
+#define GICC_OFFSET     0x0100
+#define GICC_SIZE       0x0100
+#define PL310_OFFSET    0x2000
+#define PL310_SIZE      0x1000
+#define GICD_BASE       (SCU_BASE + GICD_OFFSET)
+#define GICC_BASE       (SCU_BASE + GICC_OFFSET)
+#define PL310_BASE      (SCU_BASE + PL310_OFFSET)
+
+#define SECRAM_BASE     0x402F0000
+#define SECRAM_SIZE     0x00100000
+
+/* RNG */
+#define RNG_BASE        0x48310000
+
 #else
 #error "Unknown platform flavor"
 #endif

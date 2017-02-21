@@ -23,6 +23,7 @@ for these platforms.
 | STMicroelectronics b2260 - h410	|`Linaro <op-tee@linaro.org>`|
 | STMicroelectronics b2120 - h310 / h410|`Linaro <op-tee@linaro.org>`|
 | Texas Instruments DRA7xx		|`Harinarayan Bhatta <harinarayan@ti.com>`|
+| Texas Instruments AM43xx		|`Andrew F. Davis <afd@ti.com>`|
 | Xilinx Zynq 7000 ZC702 Board		|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | Xilinx Zynq UltraScale+ MPSOC		|`Sören Brinkmann <soren.brinkmann@xilinx.com`|
 | Spreadtrum SC9860			|`Aijun Sun <aijun.sun@spreadtrum.com>`|
