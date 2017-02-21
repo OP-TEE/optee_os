@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Texas Instruments
+ * Copyright (c) 2015, Texas Instruments
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,33 +25,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm32.h>
-#include <sm/sm.h>
-#include "api_monitor_index.h"
+#ifndef API_MONITOR_INDEX_H
+#define API_MONITOR_INDEX_H
 
 #define API_HAL_RET_VALUE_OK 0x00000000
 #define API_HAL_RET_VALUE_SERVICE_UNKNWON 0xFFFFFFFF
 
-bool sm_platform_handler(struct sm_ctx *ctx)
-{
-	if (ctx->nsec.r12 == 0x200)
-		return true;
+/* Base Index of APIs */
+#define API_MONITOR_BASE_INDEX 0x00000100
 
-	switch (ctx->nsec.r12) {
-	case API_MONITOR_ACTLR_SETREGISTER_INDEX:
-		write_actlr(ctx->nsec.r0);
-		isb();
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
-		break;
-	case API_MONITOR_TIMER_SETCNTFRQ_INDEX:
-		write_cntfrq(ctx->nsec.r0);
-		isb();
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
-		break;
-	default:
-		ctx->nsec.r0 = API_HAL_RET_VALUE_SERVICE_UNKNWON;
-		break;
-	}
+/* HyperVisor Start */
+#define API_MONITOR_HYP_STARTHYPERVISOR_INDEX   (API_MONITOR_BASE_INDEX + 0x00000002)
+/* Caches cleaning */
+#define API_MONITOR_CACHES_CLEAN_INDEX          (API_MONITOR_BASE_INDEX + 0x00000003)
+/* Write the L2 Cache Controller Auxiliary Control */
+#define API_MONITOR_L2ACTLR_SETREGISTER_INDEX   (API_MONITOR_BASE_INDEX + 0x00000004)
+/* Set the Data and Tag RAM Latency */
+#define API_MONITOR_L2CACHE_SETLATENCY_INDEX    (API_MONITOR_BASE_INDEX + 0x00000005)
+/* L2 Cache Prefetch Control Register */
+#define API_MONITOR_L2PFR_SETREGISTER_INDEX     (API_MONITOR_BASE_INDEX + 0x00000006)
+/* Set Auxiliary Control Register */
+#define API_MONITOR_ACTLR_SETREGISTER_INDEX     (API_MONITOR_BASE_INDEX + 0x00000007)
+/* AMBA IF mode */
+#define API_MONITOR_WUGEN_MPU_SETAMBAIF_INDEX   (API_MONITOR_BASE_INDEX + 0x00000008)
+/* Timer CNTFRQ register set */
+#define API_MONITOR_TIMER_SETCNTFRQ_INDEX       (API_MONITOR_BASE_INDEX + 0x00000009)
 
-	return false;
-}
+#endif /* API_MONITOR_INDEX_H */
