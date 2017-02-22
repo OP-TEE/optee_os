@@ -10,7 +10,7 @@ hash $CHECKPATCH 2>/dev/null ||
 usage() {
   SCR=$(basename "$0")
   echo "Usage: $SCR [--working]                 Check working area"
-  echo "       $SCR <commit>                    Check specific commit"
+  echo "       $SCR <commit>...                 Check specific commit(s)"
   echo "       $SCR --diff <commit1> <commit2>  Check diff commit1...commit2"
   echo "       $SCR --cached                    Check staging area"
   echo "       $SCR --help                      This help"
@@ -35,8 +35,8 @@ case "$op" in
 		usage
 		;;
 	*)
-		echo "Checking commit:  "
-		checkpatch "$1"
+		echo "Checking commit(s):"
+		for c in $*; do checkpatch $c; done
 		;;
 
 esac
