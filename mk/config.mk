@@ -119,9 +119,6 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 # TEE_STORAGE_PRIVATE is passed to the trusted storage API)
 CFG_REE_FS ?= y
 
-# REE filesystem block cache support
-CFG_REE_FS_BLOCK_CACHE ?= n
-
 # RPMB file system support
 CFG_RPMB_FS ?= n
 
