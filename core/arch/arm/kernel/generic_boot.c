@@ -457,20 +457,6 @@ static int add_optee_dt_node(void *fdt)
 	return 0;
 }
 
-static int get_dt_cell_size(void *fdt, int offs, const char *cell_name,
-			    uint32_t *cell_size)
-{
-	int len;
-	const uint32_t *cell = fdt_getprop(fdt, offs, cell_name, &len);
-
-	if (len != sizeof(*cell))
-		return -1;
-	*cell_size = fdt32_to_cpu(*cell);
-	if (*cell_size != 1 && *cell_size != 2)
-		return -1;
-	return 0;
-}
-
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 {
 	if (cell_size == 1) {
@@ -488,8 +474,8 @@ static int add_optee_res_mem_dt_node(void *fdt)
 {
 	int offs;
 	int ret;
-	uint32_t addr_size = 2;
-	uint32_t len_size = 2;
+	int addr_size = 2;
+	int len_size = 2;
 	vaddr_t shm_va_start;
 	vaddr_t shm_va_end;
 	paddr_t shm_pa;
@@ -497,11 +483,11 @@ static int add_optee_res_mem_dt_node(void *fdt)
 
 	offs = fdt_path_offset(fdt, "/reserved-memory");
 	if (offs >= 0) {
-		ret = get_dt_cell_size(fdt, offs, "#address-cells", &addr_size);
-		if (ret < 0)
+		addr_size = fdt_address_cells(fdt, offs);
+		if (addr_size < 0)
 			return -1;
-		ret = get_dt_cell_size(fdt, offs, "#size-cells", &len_size);
-		if (ret < 0)
+		len_size = fdt_size_cells(fdt, offs);
+		if (len_size < 0)
 			return -1;
 	} else {
 		offs = fdt_path_offset(fdt, "/");
