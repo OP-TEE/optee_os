@@ -358,20 +358,6 @@ bool core_mmu_is_shm_cached(void);
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
-/* L1/L2 cache maintenance (op: refer to ???) */
-unsigned int cache_maintenance_l1(int op, void *va, size_t len);
-#ifdef CFG_PL310
-unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len);
-#else
-static inline unsigned int cache_maintenance_l2(int op __unused,
-						paddr_t pa __unused,
-						size_t len __unused)
-{
-	/* Nothing to do about L2 Cache Maintenance when no PL310 */
-	return TEE_SUCCESS;
-}
-#endif
-
 /* various invalidate secure TLB */
 enum teecore_tlb_op {
 	TLBINV_UNIFIEDTLB,	/* invalidate unified tlb */
@@ -383,7 +369,7 @@ enum teecore_tlb_op {
 int core_tlb_maintenance(int op, unsigned int a);
 
 /* Cache maintenance operation type */
-typedef enum {
+enum cache_op {
 	DCACHE_CLEAN = 0x1,
 	DCACHE_AREA_CLEAN = 0x2,
 	DCACHE_INVALIDATE = 0x3,
@@ -399,7 +385,21 @@ typedef enum {
 	L2CACHE_AREA_CLEAN = 0xD,
 	L2CACHE_CLEAN_INV = 0xE,
 	L2CACHE_AREA_CLEAN_INV = 0xF
-} t_cache_operation_id;
+};
+
+/* L1/L2 cache maintenance */
+unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len);
+#ifdef CFG_PL310
+unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len);
+#else
+static inline unsigned int cache_maintenance_l2(enum cache_op op __unused,
+						paddr_t pa __unused,
+						size_t len __unused)
+{
+	/* Nothing to do about L2 Cache Maintenance when no PL310 */
+	return TEE_SUCCESS;
+}
+#endif
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
