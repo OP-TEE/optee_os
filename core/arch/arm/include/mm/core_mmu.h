@@ -100,6 +100,7 @@ enum teecore_memtypes {
 	MEM_AREA_IO_SEC,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_TA_VASPACE,
+	MEM_AREA_SDP_MEM,
 	MEM_AREA_MAXTYPE
 };
 
@@ -115,6 +116,13 @@ struct core_mmu_phys_mem {
 		__used __section("phys_mem_map_section") = \
 		{ #addr, (type), (addr), (size) }
 
+#define __register_sdp_mem2(pa, sz, id) \
+	static const struct core_mmu_phys_mem __phys_sdp_mem_ ## id \
+		__used __section("phys_sdp_mem_section") = \
+		{ .type = MEM_AREA_SDP_MEM, .addr = (pa), .size = (sz), }
+
+#define __register_sdp_mem1(pa, sz, id)	__register_sdp_mem2(pa, sz, id)
+#define register_sdp_mem(pa, sz)	__register_sdp_mem1(pa, sz, __LINE__)
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
