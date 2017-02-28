@@ -404,4 +404,7 @@ typedef enum {
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
 
+/* Alloc and fill SDP memory objects table - table is NULL terminated */
+struct mobj **core_sdp_mem_create_mobjs(void);
+
 #endif /* CORE_MMU_H */

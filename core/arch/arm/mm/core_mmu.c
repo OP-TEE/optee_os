@@ -229,6 +229,18 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
 extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
 
+static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
+{
+	const struct core_mmu_phys_mem *mem;
+
+	for (mem = &__start_phys_sdp_mem_section;
+	     mem < &__end_phys_sdp_mem_section; mem++)
+		if (core_is_buffer_inside(pbuf, len, mem->addr, mem->size))
+			return true;
+
+	return false;
+}
+
 #define MSG_SDP_INSTERSECT(pa1, sz1, pa2, sz2) \
 	EMSG("[%" PRIxPA " %" PRIxPA "] intersecs [%" PRIxPA " %" PRIxPA "]", \
 			pa1, pa1 + sz1, pa2, pa2 + sz2)
@@ -273,6 +285,33 @@ static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map, size_t len)
 			}
 		}
 	}
+}
+
+struct mobj **core_sdp_mem_create_mobjs(void)
+{
+	const struct core_mmu_phys_mem *mem;
+	struct mobj **mobj_base;
+	struct mobj **mobj;
+	int cnt;
+
+	for (mem = &__start_phys_sdp_mem_section, cnt = 0;
+	     mem < &__end_phys_sdp_mem_section; mem++, cnt++)
+		;
+
+	/* SDP mobjs table must end with a NULL entry */
+	mobj_base = calloc(cnt + 1, sizeof(*mobj));
+	if (!mobj_base)
+		panic("Out of memory");
+
+	for (mem = &__start_phys_sdp_mem_section, mobj = mobj_base;
+	     mem < &__end_phys_sdp_mem_section; mem++, mobj++) {
+		 *mobj = mobj_phys_alloc(mem->addr, mem->size,
+					 TEE_MATTR_CACHE_CACHED,
+					 CORE_MEM_SDP_MEM);
+		if (!*mobj)
+			panic("can't create SDP physical memory object");
+	}
+	return mobj_base;
 }
 
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
@@ -596,6 +635,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return pbuf_inside_map_area(pbuf, len, map_ta_ram);
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
+	case CORE_MEM_SDP_MEM:
+		return pbuf_is_sdp_mem(pbuf, len);
 	case CORE_MEM_EXTRAM:
 		return pbuf_is_inside(ddr, pbuf, len);
 	case CORE_MEM_CACHED:

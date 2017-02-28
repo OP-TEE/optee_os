@@ -52,6 +52,7 @@ enum buf_is_attr {
 	CORE_MEM_SEC,
 	CORE_MEM_TEE_RAM,
 	CORE_MEM_TA_RAM,
+	CORE_MEM_SDP_MEM,
 };
 
 /* redirect legacy tee_vbuf_is() and tee_pbuf_is() to our routines */
