@@ -386,7 +386,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	uint32_t man_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
 	/* opt_flags: optional flags */
 	uint32_t opt_flags = man_flags | TA_FLAG_SINGLE_INSTANCE |
-	    TA_FLAG_MULTI_SESSION | TA_FLAG_UNSAFE_NW_PARAMS |
+	    TA_FLAG_MULTI_SESSION | TA_FLAG_SECURE_DATA_PATH |
 	    TA_FLAG_INSTANCE_KEEP_ALIVE | TA_FLAG_CACHE_MAINTENANCE;
 	struct user_ta_ctx *utc = NULL;
 	struct shdr *sec_shdr = NULL;
