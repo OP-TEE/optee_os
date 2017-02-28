@@ -43,6 +43,7 @@
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_obj.h>
@@ -277,6 +278,42 @@ static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
 	return TEE_SUCCESS;
 }
 
+/* check if invocation parameters matches TA properties */
+static bool check_params(struct tee_ta_session *s, struct tee_ta_param *param)
+{
+	int n;
+
+	/*
+	 * Specifications:
+	 * - input argument 'param' holds identified references, and memory
+	 *   buffer references are identified by a valid 'mobj'.
+	 * - At OP-TEE entry, illegitimate memref parameters are filtered out.
+	 * - This code checks that TA properties matches the domain assigned
+	 *   to the memref parameters, if any.
+	 *
+	 * Policy:
+	 * - All TAs can access 'non-secure' shared memory.
+	 * - Only SDP flaged TAs can accept SDP memory references.
+	 */
+	if (s->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
+		return true;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
+		struct param_mem *mem = &param->u[n].mem;
+
+		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+			continue;
+		if (!mem->size)
+			continue;
+		if (mobj_is_sdp_mem(mem->mobj))
+			return false;
+	}
+	return true;
+}
+
 static void set_invoke_timeout(struct tee_ta_session *sess,
 				      uint32_t cancel_req_to)
 {
@@ -481,6 +518,9 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		return res;
 	}
 
+	if (!check_params(s, param))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ctx = s->ctx;
 
 	if (ctx->panicked) {
@@ -535,6 +575,9 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	if (check_client(sess, clnt_id) != TEE_SUCCESS)
 		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
+
+	if (!check_params(sess, param))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (sess->ctx->panicked) {
 		DMSG("   Panicked !");
