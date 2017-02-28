@@ -74,18 +74,19 @@ static bool mem_param_from_mobj(struct param_mem *mem, struct mobj *mobj,
 static TEE_Result assign_mobj_to_mem_param(const paddr_t pa, const size_t sz,
 					   struct param_mem *mem)
 {
-	struct mobj **mobj;
+	struct mobj __maybe_unused **mobj;
 
-	/* look for the nonsecure shm objects */
+	/* belongs to nonsecure shared memory ? */
 	if (mem_param_from_mobj(mem, shm_mobj, pa, sz))
 		return TEE_SUCCESS;
 
-	/* look for the SDP memory objects */
+#ifdef CFG_SECURE_DATA_PATH
+	/* belongs to SDP memories ? */
 	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
 		if (mem_param_from_mobj(mem, *mobj, pa, sz))
 			return TEE_SUCCESS;
+#endif
 
-	/* not found: invalid memory reference */
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 

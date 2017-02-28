@@ -278,24 +278,39 @@ static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
 	return TEE_SUCCESS;
 }
 
-/* check if invocation parameters matches TA properties */
-static bool check_params(struct tee_ta_session *s, struct tee_ta_param *param)
+/*
+ * Check if invocation parameters matches TA properties
+ *
+ * @s - current session handle
+ * @param - already identified memory references hold a valid 'mobj'.
+ *
+ * Policy:
+ * - All TAs can access 'non-secure' shared memory.
+ * - All TAs can access TEE private memory (seccpy)
+ * - Only SDP flagged TAs can accept SDP memory references.
+ */
+#ifndef CFG_SECURE_DATA_PATH
+static bool check_params(struct tee_ta_session *sess __unused,
+			 struct tee_ta_param *param __unused)
+{
+	/*
+	 * When CFG_SECURE_DATA_PATH is not enable, SDP memory references
+	 * are rejected at OP-TEE core entry. Hence here all TAs have same
+	 * permissions regarding memory reference parameters.
+	 */
+	return true;
+}
+#else
+static bool check_params(struct tee_ta_session *sess,
+			 struct tee_ta_param *param)
 {
 	int n;
 
 	/*
-	 * Specifications:
-	 * - input argument 'param' holds identified references, and memory
-	 *   buffer references are identified by a valid 'mobj'.
-	 * - At OP-TEE entry, illegitimate memref parameters are filtered out.
-	 * - This code checks that TA properties matches the domain assigned
-	 *   to the memref parameters, if any.
-	 *
-	 * Policy:
-	 * - All TAs can access 'non-secure' shared memory.
-	 * - Only SDP flaged TAs can accept SDP memory references.
+	 * When CFG_SECURE_DATA_PATH is enable, OP-TEE entry allows SHM and SDP
+	 * memory references. Only TAs flagged SDP can access SDP memory.
 	 */
-	if (s->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
+	if (sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
 		return true;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -313,6 +328,7 @@ static bool check_params(struct tee_ta_session *s, struct tee_ta_param *param)
 	}
 	return true;
 }
+#endif
 
 static void set_invoke_timeout(struct tee_ta_session *sess,
 				      uint32_t cancel_req_to)
