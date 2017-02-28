@@ -224,7 +224,7 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	struct tee_ta_ctx *ctx;
 	const struct pseudo_ta_head *ta;
 
-	DMSG("   Lookup for Static TA %pUl", (void *)uuid);
+	DMSG("   Lookup for pseudo TA %pUl", (void *)uuid);
 
 	ta = &__start_ta_head_section;
 	while (true) {
