@@ -151,6 +151,7 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr)
 {
 	struct mobj_phys *moph;
+	enum teecore_memtypes area_type;
 	void *va;
 
 	if ((pa & CORE_MMU_USER_PARAM_MASK) ||
@@ -159,7 +160,22 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 		return NULL;
 	}
 
-	va = phys_to_virt(pa, battr);
+	switch (battr) {
+	case CORE_MEM_TEE_RAM:
+		area_type = MEM_AREA_TEE_RAM;
+		break;
+	case CORE_MEM_TA_RAM:
+		area_type = MEM_AREA_TA_RAM;
+		break;
+	case CORE_MEM_NSEC_SHM:
+		area_type = MEM_AREA_NSEC_SHM;
+		break;
+	default:
+		DMSG("can't allocate with specified attribute");
+		return NULL;
+	}
+
+	va = phys_to_virt(pa, area_type);
 	if (!va)
 		return NULL;
 
