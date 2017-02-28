@@ -64,7 +64,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    unsigned char *DB, *mask, *salt, *hash;
    unsigned long x, y, hLen, modulus_len;
    int           err;
-   hash_state    md;
+   void          *md;
 
    LTC_ARGCHK(msghash != NULL);
    LTC_ARGCHK(res     != NULL);
@@ -158,23 +158,32 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
       goto LBL_ERR;
    }
 
+   if ((err = hash_descriptor[hash_idx]->create(&md)) != CRYPT_OK) {
+      goto LBL_ERR;
+   }
    /* M = (eight) 0x00 || msghash || salt, mask = H(M) */
-   if ((err = hash_descriptor[hash_idx]->init(&md)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->init(md)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
    zeromem(mask, 8);
-   if ((err = hash_descriptor[hash_idx]->process(&md, mask, 8)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, mask, 8)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->process(&md, msghash, msghashlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, msghash, msghashlen)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->process(&md, DB+x, saltlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, DB+x, saltlen)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->done(&md, mask)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->done(md, mask)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
+   hash_descriptor[hash_idx]->destroy(md);
 
    /* mask == hash means valid signature */
    if (XMEM_NEQ(mask, hash, hLen) == 0) {

@@ -55,7 +55,7 @@
 int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
                       const unsigned char *in, unsigned long inlen, ...)
 {
-    hash_state          *md;
+    void                 *md;
     int                  err;
     va_list              args;
     const unsigned char *curptr;
@@ -74,9 +74,8 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
        return CRYPT_BUFFER_OVERFLOW;
     }
 
-    md = XMALLOC(sizeof(hash_state));
-    if (md == NULL) {
-       return CRYPT_MEM;
+    if ((err = hash_descriptor[hash]->create(&md)) != CRYPT_OK) {
+       return err;
     }
 
     if ((err = hash_descriptor[hash]->init(md)) != CRYPT_OK) {
@@ -101,10 +100,7 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
     err = hash_descriptor[hash]->done(md, out);
     *outlen = hash_descriptor[hash]->hashsize;
 LBL_ERR:
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
-    XFREE(md);
+    hash_descriptor[hash]->destroy(md);
     va_end(args);
     return err;
 }

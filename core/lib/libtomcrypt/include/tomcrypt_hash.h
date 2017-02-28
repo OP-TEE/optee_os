@@ -188,24 +188,39 @@ extern  const struct ltc_hash_descriptor {
     /** Length of DER encoding */
     unsigned long OIDlen;
 
+    /** Create a hash state
+      @param hash   The hash pointer to save hash state
+      @return CRYPT_OK if successful
+    */
+    int (*create)(void **hash);
+    /** Destroy a hash state
+      @param hash   The hash to destroy
+    */
+    void (*destroy)(void *hash);
+    /** Copy a hash state
+      @param dst_hash   The hash state copy to
+      @param src_hash   The hash state copy from
+      @return CRYPT_OK if successful
+    */
+    int (*copy)(void *dst_hash, void *src_hash);
     /** Init a hash state
       @param hash   The hash to initialize
       @return CRYPT_OK if successful
     */
-    int (*init)(hash_state *hash);
+    int (*init)(void *hash);
     /** Process a block of data 
       @param hash   The hash state
       @param in     The data to hash
       @param inlen  The length of the data (octets)
       @return CRYPT_OK if successful
     */
-    int (*process)(hash_state *hash, const unsigned char *in, unsigned long inlen);
+    int (*process)(void *hash, const unsigned char *in, unsigned long inlen);
     /** Produce the digest and store it
       @param hash   The hash state
       @param out    [out] The destination of the digest
       @return CRYPT_OK if successful
     */
-    int (*done)(hash_state *hash, unsigned char *out);
+    int (*done)(void *hash, unsigned char *out);
     /** Self-test
       @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
     */
@@ -220,25 +235,28 @@ extern  const struct ltc_hash_descriptor {
 
 #ifdef LTC_CHC_HASH
 int chc_register(int cipher);
-int chc_init(hash_state * md);
-int chc_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int chc_done(hash_state * md, unsigned char *hash);
+int chc_init(void * md);
+int chc_process(void * md, const unsigned char *in, unsigned long inlen);
+int chc_done(void * md, unsigned char *hash);
 int chc_test(void);
 extern const struct ltc_hash_descriptor chc_desc;
 #endif
 
 #ifdef LTC_WHIRLPOOL
-int whirlpool_init(hash_state * md);
-int whirlpool_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int whirlpool_done(hash_state * md, unsigned char *hash);
+int whirlpool_init(void * md);
+int whirlpool_process(void * md, const unsigned char *in, unsigned long inlen);
+int whirlpool_done(void * md, unsigned char *hash);
 int whirlpool_test(void);
 extern const struct ltc_hash_descriptor whirlpool_desc;
 #endif
 
 #ifdef LTC_SHA512
-int sha512_init(hash_state * md);
-int sha512_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int sha512_done(hash_state * md, unsigned char *hash);
+#define sha512_create hash_common_create
+#define sha512_destroy hash_common_destroy
+#define sha512_copy hash_common_copy
+int sha512_init(void * md);
+int sha512_process(void * md, const unsigned char *in, unsigned long inlen);
+int sha512_done(void * md, unsigned char *hash);
 int sha512_test(void);
 extern const struct ltc_hash_descriptor sha512_desc;
 #endif
@@ -247,17 +265,23 @@ extern const struct ltc_hash_descriptor sha512_desc;
 #ifndef LTC_SHA512
    #error LTC_SHA512 is required for LTC_SHA384
 #endif
-int sha384_init(hash_state * md);
+#define sha384_create hash_common_create
+#define sha384_destroy hash_common_destroy
+#define sha384_copy hash_common_copy
+int sha384_init(void * md);
 #define sha384_process sha512_process
-int sha384_done(hash_state * md, unsigned char *hash);
+int sha384_done(void * md, unsigned char *hash);
 int sha384_test(void);
 extern const struct ltc_hash_descriptor sha384_desc;
 #endif
 
 #if defined(LTC_SHA256) || defined(LTC_SHA256_ARM32_CE)
-int sha256_init(hash_state * md);
-int sha256_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int sha256_done(hash_state * md, unsigned char *hash);
+#define sha256_create hash_common_create
+#define sha256_destroy hash_common_destroy
+#define sha256_copy hash_common_copy
+int sha256_init(void * md);
+int sha256_process(void * md, const unsigned char *in, unsigned long inlen);
+int sha256_done(void * md, unsigned char *hash);
 int sha256_test(void);
 extern const struct ltc_hash_descriptor sha256_desc;
 
@@ -265,82 +289,97 @@ extern const struct ltc_hash_descriptor sha256_desc;
 #ifndef LTC_SHA256
    #error LTC_SHA256 is required for LTC_SHA224
 #endif
-int sha224_init(hash_state * md);
+#define sha224_create hash_common_create
+#define sha224_destroy hash_common_destroy
+#define sha224_copy hash_common_copy
+int sha224_init(void * md);
 #define sha224_process sha256_process
-int sha224_done(hash_state * md, unsigned char *hash);
+int sha224_done(void * md, unsigned char *hash);
 int sha224_test(void);
 extern const struct ltc_hash_descriptor sha224_desc;
 #endif
 #endif
 
 #if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE)
-int sha1_init(hash_state * md);
-int sha1_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int sha1_done(hash_state * md, unsigned char *hash);
+#define sha1_create hash_common_create
+#define sha1_destroy hash_common_destroy
+#define sha1_copy hash_common_copy
+int sha1_init(void * md);
+int sha1_process(void * md, const unsigned char *in, unsigned long inlen);
+int sha1_done(void * md, unsigned char *hash);
 int sha1_test(void);
 extern const struct ltc_hash_descriptor sha1_desc;
 #endif
 
 #ifdef LTC_MD5
-int md5_init(hash_state * md);
-int md5_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int md5_done(hash_state * md, unsigned char *hash);
+#define md5_create hash_common_create
+#define md5_destroy hash_common_destroy
+#define md5_copy hash_common_copy
+int md5_init(void * md);
+int md5_process(void * md, const unsigned char *in, unsigned long inlen);
+int md5_done(void * md, unsigned char *hash);
 int md5_test(void);
 extern const struct ltc_hash_descriptor md5_desc;
 #endif
 
 #ifdef LTC_MD4
-int md4_init(hash_state * md);
-int md4_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int md4_done(hash_state * md, unsigned char *hash);
+#define md4_create hash_common_create
+#define md4_destroy hash_common_destroy
+#define md4_copy hash_common_copy
+int md4_init(void * md);
+int md4_process(void * md, const unsigned char *in, unsigned long inlen);
+int md4_done(void * md, unsigned char *hash);
 int md4_test(void);
 extern const struct ltc_hash_descriptor md4_desc;
 #endif
 
 #ifdef LTC_MD2
-int md2_init(hash_state * md);
-int md2_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int md2_done(hash_state * md, unsigned char *hash);
+#define md2_create hash_common_create
+#define md2_destroy hash_common_destroy
+#define md2_copy hash_common_copy
+int md2_init(void * md);
+int md2_process(void * md, const unsigned char *in, unsigned long inlen);
+int md2_done(void * md, unsigned char *hash);
 int md2_test(void);
 extern const struct ltc_hash_descriptor md2_desc;
 #endif
 
 #ifdef LTC_TIGER
-int tiger_init(hash_state * md);
-int tiger_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int tiger_done(hash_state * md, unsigned char *hash);
+int tiger_init(void * md);
+int tiger_process(void * md, const unsigned char *in, unsigned long inlen);
+int tiger_done(void * md, unsigned char *hash);
 int tiger_test(void);
 extern const struct ltc_hash_descriptor tiger_desc;
 #endif
 
 #ifdef LTC_RIPEMD128
-int rmd128_init(hash_state * md);
-int rmd128_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int rmd128_done(hash_state * md, unsigned char *hash);
+int rmd128_init(void * md);
+int rmd128_process(void * md, const unsigned char *in, unsigned long inlen);
+int rmd128_done(void * md, unsigned char *hash);
 int rmd128_test(void);
 extern const struct ltc_hash_descriptor rmd128_desc;
 #endif
 
 #ifdef LTC_RIPEMD160
-int rmd160_init(hash_state * md);
-int rmd160_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int rmd160_done(hash_state * md, unsigned char *hash);
+int rmd160_init(void * md);
+int rmd160_process(void * md, const unsigned char *in, unsigned long inlen);
+int rmd160_done(void * md, unsigned char *hash);
 int rmd160_test(void);
 extern const struct ltc_hash_descriptor rmd160_desc;
 #endif
 
 #ifdef LTC_RIPEMD256
-int rmd256_init(hash_state * md);
-int rmd256_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int rmd256_done(hash_state * md, unsigned char *hash);
+int rmd256_init(void * md);
+int rmd256_process(void * md, const unsigned char *in, unsigned long inlen);
+int rmd256_done(void * md, unsigned char *hash);
 int rmd256_test(void);
 extern const struct ltc_hash_descriptor rmd256_desc;
 #endif
 
 #ifdef LTC_RIPEMD320
-int rmd320_init(hash_state * md);
-int rmd320_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-int rmd320_done(hash_state * md, unsigned char *hash);
+int rmd320_init(void * md);
+int rmd320_process(void * md, const unsigned char *in, unsigned long inlen);
+int rmd320_done(void * md, unsigned char *hash);
 int rmd320_test(void);
 extern const struct ltc_hash_descriptor rmd320_desc;
 #endif
@@ -363,13 +402,17 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
                       const unsigned char *in, unsigned long inlen, ...);
 int hash_filehandle(int hash, FILE *in, unsigned char *out, unsigned long *outlen);
 int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *outlen);
+int hash_common_create(void **hash);
+void hash_common_destroy(void *hash);
+int hash_common_copy(void *dst_hash, void *src_hash);
 
 /* a macro for making hash "process" functions */
 #define HASH_PROCESS_(func_name, compress_name, compress_n_name, state_var, block_size)     \
-int func_name (hash_state * md, const unsigned char *in, unsigned long inlen)               \
+int func_name (void * hash, const unsigned char *in, unsigned long inlen)               \
 {                                                                                           \
     unsigned long n, blocks;                                                                \
     int           err;                                                                      \
+    hash_state    *md = hash;                                                               \
     int           (*compress)(hash_state *, unsigned char *) = compress_name;               \
     int           (*compress_n)(hash_state *, unsigned char *, int) = compress_n_name;      \
     LTC_ARGCHK(md != NULL);                                                                 \

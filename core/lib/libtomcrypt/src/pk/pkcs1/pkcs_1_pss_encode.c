@@ -66,7 +66,7 @@ int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
    unsigned char *DB, *mask, *salt, *hash;
    unsigned long x, y, hLen, modulus_len;
    int           err;
-   hash_state    md;
+   void          *md;
 
    LTC_ARGCHK(msghash != NULL);
    LTC_ARGCHK(out     != NULL);
@@ -119,23 +119,32 @@ int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
       }
    }
 
+   if ((err = hash_descriptor[hash_idx]->create(&md)) != CRYPT_OK) {
+      goto LBL_ERR;
+   }
    /* M = (eight) 0x00 || msghash || salt, hash = H(M) */
-   if ((err = hash_descriptor[hash_idx]->init(&md)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->init(md)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
    zeromem(DB, 8);
-   if ((err = hash_descriptor[hash_idx]->process(&md, DB, 8)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, DB, 8)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->process(&md, msghash, msghashlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, msghash, msghashlen)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->process(&md, salt, saltlen)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->process(md, salt, saltlen)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx]->done(&md, hash)) != CRYPT_OK) {
+   if ((err = hash_descriptor[hash_idx]->done(md, hash)) != CRYPT_OK) {
+      hash_descriptor[hash_idx]->destroy(md);
       goto LBL_ERR;
    }
+   hash_descriptor[hash_idx]->destroy(md);
 
    /* generate DB = PS || 0x01 || salt, PS == modulus_len - saltlen - hLen - 2 zero bytes */
    x = 0;

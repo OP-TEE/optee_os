@@ -53,7 +53,7 @@
 */
 int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned char *out, unsigned long *outlen)
 {
-    hash_state *md;
+    void *md;
     int err;
 
     LTC_ARGCHK(in     != NULL);
@@ -69,9 +69,8 @@ int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned
        return CRYPT_BUFFER_OVERFLOW;
     }
 
-    md = XMALLOC(sizeof(hash_state));
-    if (md == NULL) {
-       return CRYPT_MEM;
+    if ((err = hash_descriptor[hash]->create(&md)) != CRYPT_OK) {
+       return err;
     }
 
     if ((err = hash_descriptor[hash]->init(md)) != CRYPT_OK) {
@@ -83,10 +82,7 @@ int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned
     err = hash_descriptor[hash]->done(md, out);
     *outlen = hash_descriptor[hash]->hashsize;
 LBL_ERR:
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
-    XFREE(md);
+    hash_descriptor[hash]->destroy(md);
 
     return err;
 }

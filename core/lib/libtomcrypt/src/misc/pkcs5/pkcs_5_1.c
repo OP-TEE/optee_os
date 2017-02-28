@@ -60,7 +60,7 @@ int pkcs_5_alg1(const unsigned char *password, unsigned long password_len,
 {
    int err;
    unsigned long x;
-   hash_state    *md;
+   void          *md;
    unsigned char *buf;
 
    LTC_ARGCHK(password != NULL);
@@ -74,18 +74,15 @@ int pkcs_5_alg1(const unsigned char *password, unsigned long password_len,
    }
 
    /* allocate memory */
-   md  = XMALLOC(sizeof(hash_state));
    buf = XMALLOC(MAXBLOCKSIZE);
-   if (md == NULL || buf == NULL) {
-      if (md != NULL) {
-         XFREE(md);
-      }
-      if (buf != NULL) { 
-         XFREE(buf);
-      }
+   if (buf == NULL) {
       return CRYPT_MEM;
    }        
 
+   if ((err = hash_descriptor[hash_idx].create(&md)) != CRYPT_OK) {
+       XFREE(buf);
+       return err;
+   }
    /* hash initial password + salt */
    if ((err = hash_descriptor[hash_idx].init(md)) != CRYPT_OK) {
        goto LBL_ERR;
@@ -117,11 +114,10 @@ int pkcs_5_alg1(const unsigned char *password, unsigned long password_len,
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK 
    zeromem(buf, MAXBLOCKSIZE);
-   zeromem(md, sizeof(hash_state));
 #endif
 
    XFREE(buf);
-   XFREE(md);
+   hash_descriptor[hash_idx].destroy(md);
 
    return err;
 }

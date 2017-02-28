@@ -56,6 +56,9 @@ const struct ltc_hash_descriptor sha1_desc =
    { 1, 3, 14, 3, 2, 26,  },
    6,
 
+    &sha1_create,
+    &sha1_destroy,
+    &sha1_copy,
     &sha1_init,
     &sha1_process,
     &sha1_done,
@@ -189,8 +192,9 @@ static int sha1_compress(hash_state *md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int sha1_init(hash_state * md)
+int sha1_init(void * hash)
 {
+   hash_state *md = hash;
    LTC_ARGCHK(md != NULL);
    md->sha1.state[0] = 0x67452301UL;
    md->sha1.state[1] = 0xefcdab89UL;
@@ -217,8 +221,9 @@ HASH_PROCESS(sha1_process, sha1_compress, sha1, 64)
    @param out [out] The destination of the hash (20 bytes)
    @return CRYPT_OK if successful
 */
-int sha1_done(hash_state * md, unsigned char *out)
+int sha1_done(void * hash, unsigned char *out)
 {
+    hash_state *md = hash;
     int i;
 
     LTC_ARGCHK(md  != NULL);
@@ -259,9 +264,6 @@ int sha1_done(hash_state * md, unsigned char *out)
     for (i = 0; i < 5; i++) {
         STORE32H(md->sha1.state[i], out+(4*i));
     }
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
     return CRYPT_OK;
 }
 
@@ -292,16 +294,19 @@ int  sha1_test(void)
 
   int i;
   unsigned char tmp[20];
-  hash_state md;
+  void *md;
 
+  sha1_create(&md);
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0]));  i++) {
-      sha1_init(&md);
-      sha1_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      sha1_done(&md, tmp);
+      sha1_init(md);
+      sha1_process(md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha1_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 20) != 0) {
+         sha1_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  sha1_destroy(md);
   return CRYPT_OK;
   #endif
 }

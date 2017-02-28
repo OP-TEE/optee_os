@@ -1865,7 +1865,27 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 	TAILQ_REMOVE(&utc->cryp_states, cs, link);
 	if (cs->ctx_finalize != NULL)
 		cs->ctx_finalize(cs->ctx, cs->algo);
-	free(cs->ctx);
+
+	switch (TEE_ALG_GET_CLASS(cs->algo)) {
+	case TEE_OPERATION_CIPHER:
+		if (crypto_ops.cipher.destroy)
+			crypto_ops.cipher.destroy(cs->ctx, cs->algo);
+		break;
+	case TEE_OPERATION_AE:
+		if (crypto_ops.authenc.destroy)
+			crypto_ops.authenc.destroy(cs->ctx, cs->algo);
+		break;
+	case TEE_OPERATION_MAC:
+		if (crypto_ops.mac.destroy)
+			crypto_ops.mac.destroy(cs->ctx, cs->algo);
+		break;
+	case TEE_OPERATION_DIGEST:
+		if (crypto_ops.hash.destroy)
+			crypto_ops.hash.destroy(cs->ctx, cs->algo);
+		break;
+	default:
+		break;
+	}
 	free(cs);
 }
 
@@ -2000,64 +2020,52 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.cipher.get_ctx_size)
-				res = crypto_ops.cipher.get_ctx_size(algo,
-								&cs->ctx_size);
+			if (crypto_ops.cipher.create)
+				res = crypto_ops.cipher.create(&cs->ctx,
+								algo);
 			else
 				res = TEE_ERROR_NOT_IMPLEMENTED;
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_AE:
 		if (key1 == 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.authenc.get_ctx_size)
-				res = crypto_ops.authenc.get_ctx_size(algo,
-								&cs->ctx_size);
+			if (crypto_ops.authenc.create)
+				res = crypto_ops.authenc.create(&cs->ctx,
+								algo);
 			else
 				res = TEE_ERROR_NOT_IMPLEMENTED;
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_MAC:
 		if (key1 == 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.mac.get_ctx_size)
-				res = crypto_ops.mac.get_ctx_size(algo,
-								&cs->ctx_size);
+			if (crypto_ops.mac.create)
+				res = crypto_ops.mac.create(&cs->ctx,
+								algo);
 			else
 				res = TEE_ERROR_NOT_IMPLEMENTED;
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_DIGEST:
 		if (key1 != 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.hash.get_ctx_size)
-				res = crypto_ops.hash.get_ctx_size(algo,
-								&cs->ctx_size);
+			if (crypto_ops.hash.create)
+				res = crypto_ops.hash.create(&cs->ctx,
+								algo);
 			else
 				res = TEE_ERROR_NOT_IMPLEMENTED;
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
@@ -2120,7 +2128,46 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 	if (cs_dst->ctx_size != cs_src->ctx_size)
 		return TEE_ERROR_BAD_STATE;
 
-	memcpy(cs_dst->ctx, cs_src->ctx, cs_src->ctx_size);
+	switch (TEE_ALG_GET_CLASS(cs_src->algo)) {
+	case TEE_OPERATION_CIPHER:
+		if (crypto_ops.cipher.copy)
+			res = crypto_ops.cipher.copy(cs_dst->ctx,
+					cs_src->ctx, cs_src->algo);
+		else
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+		if (res != TEE_SUCCESS)
+			return res;
+		break;
+	case TEE_OPERATION_AE:
+		if (crypto_ops.authenc.copy)
+			res = crypto_ops.authenc.copy(cs_dst->ctx,
+					cs_src->ctx, cs_src->algo);
+		else
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+		if (res != TEE_SUCCESS)
+			return res;
+		break;
+	case TEE_OPERATION_MAC:
+		if (crypto_ops.mac.copy)
+			res = crypto_ops.mac.copy(cs_dst->ctx,
+					cs_src->ctx, cs_src->algo);
+		else
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+		if (res != TEE_SUCCESS)
+			return res;
+		break;
+	case TEE_OPERATION_DIGEST:
+		if (crypto_ops.hash.copy)
+			res = crypto_ops.hash.copy(cs_dst->ctx,
+					cs_src->ctx, cs_src->algo);
+		else
+			res = TEE_ERROR_NOT_IMPLEMENTED;
+		if (res != TEE_SUCCESS)
+			return res;
+		break;
+	default:
+		break;
+	}
 	return TEE_SUCCESS;
 }
 

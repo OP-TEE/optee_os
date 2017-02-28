@@ -55,6 +55,9 @@ const struct ltc_hash_descriptor sha224_desc =
    { 2, 16, 840, 1, 101, 3, 4, 2, 4,  },
    9,
 
+    &sha224_create,
+    &sha224_destroy,
+    &sha224_copy,
     &sha224_init,
     &sha256_process,
     &sha224_done,
@@ -68,8 +71,9 @@ const struct ltc_hash_descriptor sha224_desc =
    @param md   The hash state you wish to initialize
    @return CRYPT_OK if successful
 */
-int sha224_init(hash_state * md)
+int sha224_init(void * hash)
 {
+    hash_state *md = hash;
     LTC_ARGCHK(md != NULL);
 
     md->sha256.curlen = 0;
@@ -91,7 +95,7 @@ int sha224_init(hash_state * md)
    @param out [out] The destination of the hash (28 bytes)
    @return CRYPT_OK if successful
 */
-int sha224_done(hash_state * md, unsigned char *out)
+int sha224_done(void * md, unsigned char *out)
 {
     unsigned char buf[32];
     int err;
@@ -136,16 +140,19 @@ int  sha224_test(void)
 
   int i;
   unsigned char tmp[28];
-  hash_state md;
+  void *md;
 
+  sha224_create(&md);
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      sha224_init(&md);
-      sha224_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      sha224_done(&md, tmp);
+      sha224_init(md);
+      sha224_process(md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha224_done(md, tmp);
       if (XMEMCMP(tmp, tests[i].hash, 28) != 0) {
+         sha224_destroy(md);
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
+  sha224_destroy(md);
   return CRYPT_OK;
  #endif
 }

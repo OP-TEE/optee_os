@@ -66,33 +66,35 @@ static void fortuna_update_iv(prng_state *prng)
 static int fortuna_reseed(prng_state *prng)
 {
    unsigned char tmp[MAXBLOCKSIZE];
-   hash_state    md;
+   void          *md;
    int           err, x;
 
    ++prng->fortuna.reset_cnt;
 
    /* new K == LTC_SHA256(K || s) where s == LTC_SHA256(P0) || LTC_SHA256(P1) ... */
-   sha256_init(&md);
-   if ((err = sha256_process(&md, prng->fortuna.K, 32)) != CRYPT_OK) {
-      sha256_done(&md, tmp);
+   if (sha256_create(&md) != CRYPT_OK)
+      return CRYPT_MEM;   
+   sha256_init(md);
+   if ((err = sha256_process(md, prng->fortuna.K, 32)) != CRYPT_OK) {
+      sha256_destroy(md);
       return err;
    }
 
    for (x = 0; x < LTC_FORTUNA_POOLS; x++) {
        if (x == 0 || ((prng->fortuna.reset_cnt >> (x-1)) & 1) == 0) {
           /* terminate this hash */
-          if ((err = sha256_done(&prng->fortuna.pool[x], tmp)) != CRYPT_OK) {
-             sha256_done(&md, tmp);
+          if ((err = sha256_done(prng->fortuna.pool[x], tmp)) != CRYPT_OK) {
+             sha256_destroy(md);
              return err;
           }
           /* add it to the string */
-          if ((err = sha256_process(&md, tmp, 32)) != CRYPT_OK) {
-             sha256_done(&md, tmp);
+          if ((err = sha256_process(md, tmp, 32)) != CRYPT_OK) {
+             sha256_destroy(md);
              return err;
           }
           /* reset this pool */
-          if ((err = sha256_init(&prng->fortuna.pool[x])) != CRYPT_OK) {
-             sha256_done(&md, tmp);
+          if ((err = sha256_init(prng->fortuna.pool[x])) != CRYPT_OK) {
+             sha256_destroy(md);
              return err;
           }
        } else {
@@ -101,9 +103,10 @@ static int fortuna_reseed(prng_state *prng)
    }
 
    /* finish key */
-   if ((err = sha256_done(&md, prng->fortuna.K)) != CRYPT_OK) {
+   if ((err = sha256_done(md, prng->fortuna.K)) != CRYPT_OK) {
       return err;
    }
+   sha256_destroy(md);
    if ((err = rijndael_setup(prng->fortuna.K, 32, 0, &prng->fortuna.skey)) != CRYPT_OK) {
       return err;
    }
@@ -115,7 +118,6 @@ static int fortuna_reseed(prng_state *prng)
 
 
 #ifdef LTC_CLEAN_STACK
-   zeromem(&md, sizeof(md));
    zeromem(tmp, sizeof(tmp));
 #endif
 
@@ -136,9 +138,15 @@ int fortuna_start(prng_state *prng)
 
    /* initialize the pools */
    for (x = 0; x < LTC_FORTUNA_POOLS; x++) {
-       if ((err = sha256_init(&prng->fortuna.pool[x])) != CRYPT_OK) {
+       if ((err = sha256_create(&prng->fortuna.pool[x])) != CRYPT_OK) {
           for (y = 0; y < x; y++) {
-              sha256_done(&prng->fortuna.pool[y], tmp);
+              sha256_destroy(prng->fortuna.pool[y]);
+          }
+          return err;
+       }
+       if ((err = sha256_init(prng->fortuna.pool[x])) != CRYPT_OK) {
+          for (y = 0; y < LTC_FORTUNA_POOLS; y++) {
+              sha256_destroy(prng->fortuna.pool[y]);
           }
           return err;
        }
@@ -150,7 +158,7 @@ int fortuna_start(prng_state *prng)
    zeromem(prng->fortuna.K, 32);
    if ((err = rijndael_setup(prng->fortuna.K, 32, 0, &prng->fortuna.skey)) != CRYPT_OK) {
       for (x = 0; x < LTC_FORTUNA_POOLS; x++) {
-          sha256_done(&prng->fortuna.pool[x], tmp);
+          sha256_destroy(prng->fortuna.pool[x]);
       }
       return err;
    }
@@ -187,11 +195,11 @@ int fortuna_add_entropy(const unsigned char *in, unsigned long inlen, prng_state
    /* add s || length(in) || in to pool[pool_idx] */
    tmp[0] = 0;
    tmp[1] = (unsigned char)inlen;
-   if ((err = sha256_process(&prng->fortuna.pool[prng->fortuna.pool_idx], tmp, 2)) != CRYPT_OK) {
+   if ((err = sha256_process(prng->fortuna.pool[prng->fortuna.pool_idx], tmp, 2)) != CRYPT_OK) {
       LTC_MUTEX_UNLOCK(&prng->fortuna.prng_lock);
       return err;
    }
-   if ((err = sha256_process(&prng->fortuna.pool[prng->fortuna.pool_idx], in, inlen)) != CRYPT_OK) {
+   if ((err = sha256_process(prng->fortuna.pool[prng->fortuna.pool_idx], in, inlen)) != CRYPT_OK) {
       LTC_MUTEX_UNLOCK(&prng->fortuna.prng_lock);
       return err;
    }
@@ -294,10 +302,7 @@ int fortuna_done(prng_state *prng)
 
    /* terminate all the hashes */
    for (x = 0; x < LTC_FORTUNA_POOLS; x++) {
-       if ((err = sha256_done(&(prng->fortuna.pool[x]), tmp)) != CRYPT_OK) {
-          LTC_MUTEX_UNLOCK(&prng->fortuna.prng_lock);
-          return err;
-       }
+       sha256_destroy(prng->fortuna.pool[x]);
    }
    /* call cipher done when we invent one ;-) */
 
@@ -319,7 +324,7 @@ int fortuna_done(prng_state *prng)
 int fortuna_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
 {
    int         x, err;
-   hash_state *md;
+   void        *md;
 
    LTC_ARGCHK(out    != NULL);
    LTC_ARGCHK(outlen != NULL);
@@ -334,10 +339,9 @@ int fortuna_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
       return CRYPT_BUFFER_OVERFLOW;
    }
 
-   md = XMALLOC(sizeof(hash_state));
-   if (md == NULL) {
+   if((err = sha256_create(&md)) != CRYPT_OK) {
       LTC_MUTEX_UNLOCK(&prng->fortuna.prng_lock);
-      return CRYPT_MEM;
+      return err;
    }
 
    /* to emit the state we copy each pool, terminate it then hash it again so
@@ -345,7 +349,9 @@ int fortuna_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
     */
    for (x = 0; x < LTC_FORTUNA_POOLS; x++) {
       /* copy the PRNG */
-      XMEMCPY(md, &(prng->fortuna.pool[x]), sizeof(*md));
+      if ((err = sha256_copy(md, prng->fortuna.pool[x])) != CRYPT_OK) {
+         goto LBL_ERR;
+      }
 
       /* terminate it */
       if ((err = sha256_done(md, out+x*32)) != CRYPT_OK) {
@@ -367,10 +373,7 @@ int fortuna_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
    err = CRYPT_OK;
 
 LBL_ERR:
-#ifdef LTC_CLEAN_STACK
-   zeromem(md, sizeof(*md));
-#endif
-   XFREE(md);
+   sha256_destroy(md);
    LTC_MUTEX_UNLOCK(&prng->fortuna.prng_lock);
    return err;
 }

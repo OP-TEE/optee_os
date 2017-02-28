@@ -74,19 +74,14 @@ static TEE_Result do_hmac(uint8_t *out_key, uint32_t out_key_size,
 			  const uint8_t *message, uint32_t message_size)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint8_t *ctx = NULL;
-	size_t hash_ctx_size = 0;
+	void *ctx = NULL;
 
 	if (!out_key || !in_key || !message)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = crypto_ops.mac.get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
+	res = crypto_ops.mac.create(&ctx, TEE_FS_KM_HMAC_ALG);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(hash_ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_ops.mac.init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
 	if (res != TEE_SUCCESS)
@@ -105,7 +100,7 @@ static TEE_Result do_hmac(uint8_t *out_key, uint32_t out_key_size,
 	res = TEE_SUCCESS;
 
 exit:
-	free(ctx);
+	crypto_ops.mac.destroy(ctx, TEE_FS_KM_HMAC_ALG);
 	return res;
 }
 
@@ -113,8 +108,7 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 		uint8_t *key, int size)
 {
 	TEE_Result res;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
+	void *ctx = NULL;
 	uint8_t tsk[TEE_FS_KM_TSK_SIZE];
 	uint8_t dst_key[TEE_FS_KM_FEK_SIZE];
 	struct tee_ta_session *sess;
@@ -137,13 +131,9 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_ops.cipher.get_ctx_size(TEE_FS_KM_ENC_FEK_ALG, &ctx_size);
+	res = crypto_ops.cipher.create(&ctx, TEE_FS_KM_ENC_FEK_ALG);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_ops.cipher.init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
 				     sizeof(tsk), NULL, 0, NULL, 0);
@@ -160,7 +150,7 @@ static TEE_Result fek_crypt(TEE_OperationMode mode,
 	memcpy(key, dst_key, sizeof(dst_key));
 
 exit:
-	free(ctx);
+	crypto_ops.cipher.destroy(ctx, TEE_FS_KM_ENC_FEK_ALG);
 
 	return res;
 }
@@ -211,8 +201,7 @@ static TEE_Result do_auth_enc(TEE_OperationMode mode,
 		uint8_t *data_out, size_t *out_size)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
+	void *ctx = NULL;
 	size_t tag_len = TEE_FS_KM_MAX_TAG_LEN;
 
 	if ((mode != TEE_MODE_ENCRYPT) && (mode != TEE_MODE_DECRYPT))
@@ -224,16 +213,9 @@ static TEE_Result do_auth_enc(TEE_OperationMode mode,
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-	res = crypto_ops.authenc.get_ctx_size(TEE_FS_KM_AUTH_ENC_ALG,
-			&ctx_size);
+	res = crypto_ops.authenc.create(&ctx, TEE_FS_KM_AUTH_ENC_ALG);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		EMSG("request memory size %zu failed", ctx_size);
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
 
 	res = crypto_ops.authenc.init(ctx, TEE_FS_KM_AUTH_ENC_ALG,
 			mode, fek, fek_len, hdr->aad.iv,
@@ -270,7 +252,7 @@ static TEE_Result do_auth_enc(TEE_OperationMode mode,
 	crypto_ops.authenc.final(ctx, TEE_FS_KM_AUTH_ENC_ALG);
 
 exit:
-	free(ctx);
+	crypto_ops.authenc.destroy(ctx, TEE_FS_KM_AUTH_ENC_ALG);
 	return res;
 }
 
@@ -420,17 +402,12 @@ static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
 			 size_t in_size)
 {
 	TEE_Result res;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
+	void *ctx = NULL;
 	uint32_t algo = TEE_ALG_SHA256;
 
-	res = crypto_ops.hash.get_ctx_size(algo, &ctx_size);
+	res = crypto_ops.hash.create(&ctx, algo);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_ops.hash.init(ctx, algo);
 	if (res != TEE_SUCCESS)
@@ -443,7 +420,7 @@ static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
 	res = crypto_ops.hash.final(ctx, algo, out, out_size);
 
 out:
-	free(ctx);
+	crypto_ops.hash.destroy(ctx, algo);
 	return res;
 }
 
@@ -452,17 +429,12 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 			  const uint8_t *key, size_t key_size)
 {
 	TEE_Result res;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
+	void *ctx = NULL;
 	uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
 
-	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
+	res = crypto_ops.cipher.create(&ctx, algo);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_ops.cipher.init(ctx, algo, TEE_MODE_ENCRYPT, key,
 				     key_size, NULL, 0, NULL, 0);
@@ -478,7 +450,7 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 	res = TEE_SUCCESS;
 
 out:
-	free(ctx);
+	crypto_ops.cipher.destroy(ctx, algo);
 	return res;
 }
 
@@ -510,8 +482,7 @@ TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 	TEE_Result res;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	uint8_t iv[TEE_AES_BLOCK_SIZE];
-	uint8_t *ctx;
-	size_t ctx_size;
+	void *ctx;
 	uint32_t algo = TEE_ALG_AES_CBC_NOPAD;
 
 	DMSG("%scrypt block #%u", (mode == TEE_MODE_ENCRYPT) ? "En" : "De",
@@ -527,12 +498,9 @@ TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 	res = essiv(iv, fek, blk_idx);
 
 	/* Run AES CBC */
-	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
+	res = crypto_ops.cipher.create(&ctx, algo);
 	if (res != TEE_SUCCESS)
 		return res;
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_ops.cipher.init(ctx, algo, mode, fek, sizeof(fek), NULL,
 				     0, iv, TEE_AES_BLOCK_SIZE);
@@ -545,7 +513,7 @@ TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
 	crypto_ops.cipher.final(ctx, algo);
 
 exit:
-	free(ctx);
+	crypto_ops.cipher.destroy(ctx, algo);
 	return res;
 }
 

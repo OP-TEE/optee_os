@@ -60,7 +60,7 @@ int pkcs_1_mgf1(int                  hash_idx,
    unsigned long hLen, x;
    ulong32       counter;
    int           err;
-   hash_state    *md;
+   void          *md;
    unsigned char *buf;
  
    LTC_ARGCHK(seed != NULL);
@@ -75,16 +75,14 @@ int pkcs_1_mgf1(int                  hash_idx,
    hLen = hash_descriptor[hash_idx]->hashsize;
 
    /* allocate memory */
-   md  = XMALLOC(sizeof(hash_state));
    buf = XMALLOC(hLen);
-   if (md == NULL || buf == NULL) {
-      if (md != NULL) {
-         XFREE(md);
-      }
-      if (buf != NULL) {
-         XFREE(buf);
-      }
+   if (buf == NULL) {
       return CRYPT_MEM;
+   }
+
+   if ((err = hash_descriptor[hash_idx]->create(&md)) != CRYPT_OK) {
+      XFREE(buf);
+      return err;
    }
 
    /* start counter */
@@ -119,11 +117,10 @@ int pkcs_1_mgf1(int                  hash_idx,
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
    zeromem(buf, hLen);
-   zeromem(md,  sizeof(hash_state));
 #endif
 
    XFREE(buf);
-   XFREE(md);
+   hash_descriptor[hash_idx]->destroy(md);
 
    return err;
 }

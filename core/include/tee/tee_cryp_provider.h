@@ -49,7 +49,10 @@
 
 /* Message digest functions */
 struct hash_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
+	TEE_Result (*create)(void **ctx, uint32_t algo);
+	void (*destroy)(void *ctx, uint32_t algo);
+	TEE_Result (*copy)(void *dst_ctx, void *src_ctx,
+			   uint32_t algo);
 	TEE_Result (*init)(void *ctx, uint32_t algo);
 	TEE_Result (*update)(void *ctx, uint32_t algo,
 			     const uint8_t *data, size_t len);
@@ -59,7 +62,10 @@ struct hash_ops {
 
 /* Symmetric ciphers */
 struct cipher_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
+	TEE_Result (*create)(void **ctx, uint32_t algo);
+	void (*destroy)(void *ctx, uint32_t algo);
+	TEE_Result (*copy)(void *dst_ctx, void *src_ctx,
+			   uint32_t algo);
 	TEE_Result (*init)(void *ctx, uint32_t algo,
 			    TEE_OperationMode mode,
 			    const uint8_t *key1, size_t key1_len,
@@ -75,7 +81,10 @@ struct cipher_ops {
 
 /* Message Authentication Code functions */
 struct mac_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
+	TEE_Result (*create)(void **ctx, uint32_t algo);
+	void (*destroy)(void *ctx, uint32_t algo);
+	TEE_Result (*copy)(void *dst_ctx, void *src_ctx,
+			   uint32_t algo);
 	TEE_Result (*init)(void *ctx, uint32_t algo,
 			   const uint8_t *key, size_t len);
 	TEE_Result (*update)(void *ctx, uint32_t algo,
@@ -86,7 +95,10 @@ struct mac_ops {
 
 /* Authenticated encryption */
 struct authenc_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
+	TEE_Result (*create)(void **ctx, uint32_t algo);
+	void (*destroy)(void *ctx, uint32_t algo);
+	TEE_Result (*copy)(void *dst_ctx, void *src_ctx,
+			   uint32_t algo);
 	TEE_Result (*init)(void *ctx, uint32_t algo,
 			   TEE_OperationMode mode,
 			   const uint8_t *key, size_t key_len,
