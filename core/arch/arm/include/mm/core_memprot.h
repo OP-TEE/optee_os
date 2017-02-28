@@ -45,14 +45,13 @@
 
 /* memory atttributes */
 enum buf_is_attr {
-	CORE_MEM_SEC,
+	CORE_MEM_CACHED,
+	CORE_MEM_EXTRAM,
+	CORE_MEM_NSEC_SHM,
 	CORE_MEM_NON_SEC,
+	CORE_MEM_SEC,
 	CORE_MEM_TEE_RAM,
 	CORE_MEM_TA_RAM,
-	CORE_MEM_NSEC_SHM,
-	CORE_MEM_EXTRAM,
-	CORE_MEM_INTRAM,
-	CORE_MEM_CACHED,
 };
 
 /* redirect legacy tee_vbuf_is() and tee_pbuf_is() to our routines */
