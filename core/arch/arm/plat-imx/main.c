@@ -84,7 +84,7 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 
 static void main_fiq(void)
 {
-	panic();
+	gic_it_handle(&gic_data);
 }
 
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
