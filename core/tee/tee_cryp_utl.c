@@ -392,6 +392,13 @@ __weak void plat_prng_add_jitter_entropy(void)
 		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
 }
 
+__weak void plat_prng_add_jitter_entropy_norpc(void)
+{
+#ifndef CFG_SECURE_TIME_SOURCE_REE
+	plat_prng_add_jitter_entropy();
+#endif
+}
+
 static TEE_Result tee_cryp_init(void)
 {
 	if (crypto_ops.init)

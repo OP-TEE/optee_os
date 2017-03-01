@@ -171,7 +171,7 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 
 	prng->index = prng_index;
 
-	plat_prng_add_jitter_entropy();
+	plat_prng_add_jitter_entropy_norpc();
 
 	return  TEE_SUCCESS;
 }

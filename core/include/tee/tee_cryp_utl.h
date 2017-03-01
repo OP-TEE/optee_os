@@ -50,5 +50,6 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 
 TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len);
 void plat_prng_add_jitter_entropy(void);
+void plat_prng_add_jitter_entropy_norpc(void);
 
 #endif
