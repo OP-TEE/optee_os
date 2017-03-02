@@ -762,15 +762,15 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg)
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
+	if (!ht->dirty)
+		return TEE_SUCCESS;
+
 	res = crypto_ops.hash.get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 	ctx = malloc(size);
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
-
-	if (!ht->dirty)
-		return TEE_SUCCESS;
 
 	res = htree_traverse_post_order(ht, htree_sync_node_to_storage, ctx);
 	if (res != TEE_SUCCESS)
