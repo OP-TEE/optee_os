@@ -25,9 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <kernel/dt.h>
 #include <libfdt.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <string.h>
+#include <trace.h>
 
 const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
 {
@@ -51,6 +55,49 @@ const struct dt_driver *__dt_driver_start(void)
 const struct dt_driver *__dt_driver_end(void)
 {
 	return &__rodata_dtdrv_end;
+}
+
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
+{
+	enum teecore_memtypes mtype;
+	paddr_t pbase;
+	vaddr_t vbase;
+	ssize_t sz;
+	int st;
+
+	assert(cpu_mmu_enabled());
+
+	st = _fdt_get_status(fdt, offs);
+	if (st == DT_STATUS_DISABLED)
+		return -1;
+
+	pbase = _fdt_reg_base_address(fdt, offs);
+	if (pbase == (paddr_t)-1)
+		return -1;
+	sz = _fdt_reg_size(fdt, offs);
+	if (sz < 0)
+		return -1;
+
+	if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
+		mtype = MEM_AREA_IO_SEC;
+	else
+		mtype = MEM_AREA_IO_NSEC;
+
+	/* Check if we have a mapping, create one if needed */
+	if (!core_mmu_add_mapping(mtype, pbase, sz)) {
+		EMSG("Failed to map %zu bytes at PA 0x%"PRIxPA,
+		     (size_t)size, pbase);
+		return -1;
+	}
+	vbase = (vaddr_t)phys_to_virt(pbase, mtype);
+	if (!vbase) {
+		EMSG("Failed to get VA for PA 0x%"PRIxPA, pbase);
+		return -1;
+	}
+
+	*base = vbase;
+	*size = sz;
+	return 0;
 }
 
 /* Read a physical address (n=1 or 2 cells) */

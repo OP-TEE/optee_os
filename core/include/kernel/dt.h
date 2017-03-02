@@ -75,6 +75,22 @@ const struct dt_driver *__dt_driver_start(void);
 const struct dt_driver *__dt_driver_end(void);
 
 /*
+ * Map a device into secure or non-secure memory and return the base VA and
+ * the mapping size. The mapping is done with type MEM_AREA_IO_SEC or
+ * MEM_AREA_IO_NSEC, depending on the device status.
+ * If the mapping already exists, the function simply returns the @vbase and
+ * @size information.
+ *
+ * @offs is the offset of the node that describes the device in @fdt.
+ * @base receives the base virtual address corresponding to the base physical
+ * address of the "reg" property
+ * @size receives the size of the mapping
+ *
+ * Returns 0 on success or -1 in case of error.
+ */
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
+
+/*
  * FDT manipulation functions, not provided by <libfdt.h>
  */
 
@@ -115,6 +131,12 @@ static inline const struct dt_driver *dt_find_compatible_driver(
 					int offs __unused)
 {
 	return NULL;
+}
+
+static inline int dt_map_dev(const void *fdt __unused, int offs __unused,
+			     vaddr_t *vbase __unused, size_t *size __unused)
+{
+	return -1;
 }
 
 static inline paddr_t _fdt_reg_base_address(const void *fdt __unused,
