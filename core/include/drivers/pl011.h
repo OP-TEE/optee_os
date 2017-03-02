@@ -37,7 +37,7 @@ struct pl011_data {
 	struct serial_chip chip;
 };
 
-void pl011_init(struct pl011_data *pd, paddr_t base, uint32_t uart_clk,
+void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 		uint32_t baud_rate);
 
 #endif /* PL011_H */
