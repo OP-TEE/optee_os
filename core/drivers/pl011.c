@@ -28,6 +28,10 @@
 #include <drivers/pl011.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/dt.h>
+#include <stdlib.h>
+#include <trace.h>
+#include <types_ext.h>
 #include <util.h>
 
 #define UART_DR		0x00 /* data register */
@@ -144,11 +148,15 @@ static const struct serial_ops pl011_ops = {
 };
 KEEP_PAGER(pl011_ops);
 
-void pl011_init(struct pl011_data *pd, paddr_t base, uint32_t uart_clk,
+void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 		uint32_t baud_rate)
 {
-	pd->base.pa = base;
+	vaddr_t base;
+
+	pd->base.pa = pbase;
 	pd->chip.ops = &pl011_ops;
+
+	base = io_pa_or_va(&pd->base);
 
 	/* Clear all errors */
 	write32(0, base + UART_RSR_ECR);
@@ -174,3 +182,64 @@ void pl011_init(struct pl011_data *pd, paddr_t base, uint32_t uart_clk,
 	pl011_flush(&pd->chip);
 }
 
+#ifdef CFG_DT
+
+static struct serial_chip *pl011_dev_alloc(void)
+{
+	struct pl011_data *pd = malloc(sizeof(*pd));
+
+	if (!pd)
+		return NULL;
+	return &pd->chip;
+}
+
+static int pl011_dev_init(struct serial_chip *chip, const void *fdt, int offs,
+			  const char *parms)
+{
+	struct pl011_data *pd = container_of(chip, struct pl011_data, chip);
+	vaddr_t vbase;
+	paddr_t pbase;
+	size_t size;
+
+	if (parms && parms[0])
+		IMSG("pl011: device parameters ignored (%s)", parms);
+
+	if (dt_map_dev(fdt, offs, &vbase, &size) < 0)
+		return -1;
+
+	if (size != 0x1000) {
+		EMSG("pl011: unexpected register size: %zx", size);
+		return -1;
+	}
+
+	pbase = virt_to_phys((void *)vbase);
+	pl011_init(pd, pbase, 0, 0);
+
+	return 0;
+}
+
+static void pl011_dev_free(struct serial_chip *chip)
+{
+	struct pl011_data *pd = container_of(chip, struct pl011_data, chip);
+
+	free(pd);
+}
+
+static const struct serial_driver pl011_driver = {
+	.dev_alloc = pl011_dev_alloc,
+	.dev_init = pl011_dev_init,
+	.dev_free = pl011_dev_free,
+};
+
+static const struct dt_device_match pl011_match_table[] = {
+	{ .compatible = "arm,pl011" },
+	{ 0 }
+};
+
+const struct dt_driver pl011_dt_driver __dt_driver = {
+	.name = "pl011",
+	.match_table = pl011_match_table,
+	.driver = &pl011_driver,
+};
+
+#endif /* CFG_DT */
