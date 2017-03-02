@@ -38,7 +38,7 @@ static uint32_t get_instance_id(struct tee_ta_session *sess)
 	return sess->ctx->ops->get_instance_id(sess->ctx);
 }
 
-static TEE_Result socket_open(struct tee_ta_session *sess, uint32_t param_types,
+static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
@@ -65,7 +65,7 @@ static TEE_Result socket_open(struct tee_ta_session *sess, uint32_t param_types,
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_OPEN;
-	msg_params[0].u.value.b = get_instance_id(sess);
+	msg_params[0].u.value.b = instance_id;
 
 	msg_params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[1].u.value.a = params[0].value.b; /* server port number */
@@ -90,8 +90,7 @@ static TEE_Result socket_open(struct tee_ta_session *sess, uint32_t param_types,
 	return res;
 }
 
-static TEE_Result socket_close(struct tee_ta_session *sess,
-			       uint32_t param_types,
+static TEE_Result socket_close(uint32_t instance_id, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	struct optee_msg_param msg_params[1];
@@ -110,13 +109,13 @@ static TEE_Result socket_close(struct tee_ta_session *sess,
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_CLOSE;
-	msg_params[0].u.value.b = get_instance_id(sess);
+	msg_params[0].u.value.b = instance_id;
 	msg_params[0].u.value.c = params[0].value.a;
 
 	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, msg_params);
 }
 
-static TEE_Result socket_send(struct tee_ta_session *sess, uint32_t param_types,
+static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
@@ -143,7 +142,7 @@ static TEE_Result socket_send(struct tee_ta_session *sess, uint32_t param_types,
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_SEND;
-	msg_params[0].u.value.b = get_instance_id(sess);
+	msg_params[0].u.value.b = instance_id;
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
@@ -162,7 +161,7 @@ static TEE_Result socket_send(struct tee_ta_session *sess, uint32_t param_types,
 	return res;
 }
 
-static TEE_Result socket_recv(struct tee_ta_session *sess, uint32_t param_types,
+static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
@@ -189,7 +188,7 @@ static TEE_Result socket_recv(struct tee_ta_session *sess, uint32_t param_types,
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_RECV;
-	msg_params[0].u.value.b = get_instance_id(sess);
+	msg_params[0].u.value.b = instance_id;
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
@@ -209,8 +208,7 @@ static TEE_Result socket_recv(struct tee_ta_session *sess, uint32_t param_types,
 	return res;
 }
 
-static TEE_Result socket_ioctl(struct tee_ta_session *sess,
-			       uint32_t param_types,
+static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
@@ -237,7 +235,7 @@ static TEE_Result socket_ioctl(struct tee_ta_session *sess,
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_IOCTL;
-	msg_params[0].u.value.b = get_instance_id(sess);
+	msg_params[0].u.value.b = instance_id;
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
@@ -257,7 +255,7 @@ static TEE_Result socket_ioctl(struct tee_ta_session *sess,
 	return res;
 }
 
-typedef TEE_Result (*ta_func)(struct tee_ta_session *sess, uint32_t param_types,
+typedef TEE_Result (*ta_func)(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS]);
 
 static const ta_func ta_funcs[] = {
@@ -274,7 +272,7 @@ static const ta_func ta_funcs[] = {
 
 static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 			TEE_Param pParams[TEE_NUM_PARAMS] __unused,
-			void **sess_ctx __unused)
+			void **sess_ctx)
 {
 	struct tee_ta_session *s;
 
@@ -283,7 +281,7 @@ static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 	if (!s)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	*sess_ctx = s;
+	*sess_ctx = (void *)(vaddr_t)get_instance_id(s);
 
 	return TEE_SUCCESS;
 }
@@ -297,7 +295,7 @@ static void pta_socket_close_session(void *sess_ctx)
 
 	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_CLOSE_ALL;
-	msg_params[0].u.value.b = get_instance_id(sess_ctx);
+	msg_params[0].u.value.b = (vaddr_t)sess_ctx;
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, msg_params);
 	if (res != TEE_SUCCESS)
@@ -308,7 +306,7 @@ static TEE_Result pta_socket_invoke_command(void *sess_ctx, uint32_t cmd_id,
 			uint32_t param_types, TEE_Param params[TEE_NUM_PARAMS])
 {
 	if (cmd_id < ARRAY_SIZE(ta_funcs) && ta_funcs[cmd_id])
-		return ta_funcs[cmd_id](sess_ctx, param_types, params);
+		return ta_funcs[cmd_id]((vaddr_t)sess_ctx, param_types, params);
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
