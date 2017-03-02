@@ -44,6 +44,25 @@ struct serial_ops {
 	int (*getchar)(struct serial_chip *chip);
 };
 
+struct serial_driver {
+	/* Allocate device data and return the inner serial_chip */
+	struct serial_chip *(*dev_alloc)(void);
+	/*
+	 * Initialize device from FDT node. @parms is device-specific,
+	 * its meaning is as defined by the DT bindings for the characters
+	 * following the ":" in /chosen/stdout-path. Typically for UART
+	 * devices this is <baud>{<parity>{<bits>{<flow>}}} where:
+	 *   baud   - baud rate in decimal
+	 *   parity - 'n' (none), 'o', (odd) or 'e' (even)
+	 *   bits   - number of data bits
+	 *   flow   - 'r' (rts)
+	 * For example: 115200n8r
+	 */
+	int (*dev_init)(struct serial_chip *dev, const void *fdt,
+			int offset, const char *parms);
+	void (*dev_free)(struct serial_chip *dev);
+};
+
 struct io_pa_va {
 	paddr_t pa;
 	vaddr_t va;
