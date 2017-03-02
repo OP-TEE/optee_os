@@ -309,6 +309,7 @@ static TEE_Result sql_fs_ftruncate_internal(struct sql_fs_fd *fdp,
 	}
 
 	meta->length = new_length;
+	res = TEE_SUCCESS;
 exit:
 	if (res == TEE_SUCCESS)
 		res = tee_fs_htree_sync_to_storage(&fdp->ht);
