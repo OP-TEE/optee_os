@@ -93,7 +93,7 @@ void plat_prng_add_jitter_entropy(void)
 		}
 	}
 	if (bytes) {
-		DMSG("%s: 0x%02X\n", __func__,
+		FMSG("%s: 0x%02X\n", __func__,
 		     (int)acc & ((1 << (bytes * 8)) - 1));
 		tee_prng_add_entropy((uint8_t *)&acc, bytes);
 	}
