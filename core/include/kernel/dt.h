@@ -32,6 +32,14 @@
 #include <stdint.h>
 #include <types_ext.h>
 
+/*
+ * Bitfield to reflect status and secure-status values ("ok", "disabled" or not
+ * present)
+ */
+#define DT_STATUS_DISABLED 0
+#define DT_STATUS_OK_NSEC  1
+#define DT_STATUS_OK_SEC   2
+
 #if defined(CFG_DT)
 
 /*
@@ -51,15 +59,37 @@ struct dt_driver {
 #define __dt_driver __attribute__((__section__(".rodata.dtdrv")))
 
 const struct dt_driver *dt_find_driver(const char *compatible);
-
 const struct dt_driver *__dt_driver_start(void);
-
 const struct dt_driver *__dt_driver_end(void);
 
 #define for_each_dt_driver(drv) \
 	for (drv = __dt_driver_start(); drv < __dt_driver_end(); drv++)
 
-#else
+/*
+ * FDT manipulation functions, not provided by <libfdt.h>
+ */
+
+/*
+ * Return the base address for the "reg" property of the specified node or
+ * (paddr_t)-1 in case of error
+ */
+paddr_t _fdt_reg_base_address(const void *fdt, int offs);
+
+/*
+ * Return the reg size for the reg property of the specified node or -1 in case
+ * of error
+ */
+ssize_t _fdt_reg_size(const void *fdt, int offs);
+
+/*
+ * Read the status and secure-status properties into a bitfield.
+ * @status is set to DT_STATUS_DISABLED or a combination of DT_STATUS_OK_NSEC
+ * and DT_STATUS_OK_SEC
+ * Returns 0 on success or -1 in case of error.
+ */
+int _fdt_get_status(const void *fdt, int offs, int *status);
+
+#else /* !CFG_DT */
 
 static inline const struct dt_driver *dt_find_driver(const char *compatible
 						     __unused)
@@ -80,6 +110,24 @@ static inline const struct dt_driver *__dt_driver_end(void)
 #define for_each_dt_driver(drv) if (0)
 
 #define __dt_driver
+
+static inline paddr_t _fdt_reg_base_address(const void *fdt __unused,
+					    int offs __unused)
+{
+	return (paddr_t)-1;
+}
+
+static inline ssize_t _fdt_reg_size(const void *fdt __unused,
+				    int offs __unused)
+{
+	return -1;
+}
+
+static inline int _fdt_get_status(const void *fdt __unused, int offs __unused,
+				  int *status __unused)
+{
+	return -1;
+}
 
 #endif /* !CFG_DT */
 
