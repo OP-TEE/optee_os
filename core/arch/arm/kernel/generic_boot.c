@@ -28,6 +28,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <compiler.h>
+#include <console.h>
 #include <inttypes.h>
 #include <keep.h>
 #include <kernel/generic_boot.h>
@@ -575,6 +576,7 @@ static void init_fdt(unsigned long phys_fdt)
 		panic();
 	}
 }
+
 #else
 static void init_fdt(unsigned long phys_fdt __unused)
 {
@@ -593,18 +595,18 @@ static void init_primary_helper(unsigned long pageable_part,
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	init_vfp_sec();
-
 	init_runtime(pageable_part);
-
-	IMSG("Initializing (%s)\n", core_v_str);
 
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 	init_fdt(fdt);
+	configure_console_from_dt(fdt);
+
+	IMSG("OP-TEE version: %s", core_v_str);
+
 	main_init_gic();
 	init_vfp_nsec();
-
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 	DMSG("Primary CPU switching to normal world boot\n");
