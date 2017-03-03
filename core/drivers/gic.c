@@ -81,8 +81,6 @@
 /* Maximum number of interrups a GIC can support */
 #define GIC_MAX_INTS		1020
 
-#define GIC_SPURIOUS_ID		1023
-
 #define GICC_IAR_IT_ID_MASK	0x3ff
 #define GICC_IAR_CPU_ID_MASK	0x7
 #define GICC_IAR_CPU_ID_SHIFT	10
@@ -380,10 +378,10 @@ void gic_it_handle(struct gic_data *gd)
 	iar = gic_read_iar(gd);
 	id = iar & GICC_IAR_IT_ID_MASK;
 
-	if (id == GIC_SPURIOUS_ID)
-		DMSG("ignoring spurious interrupt");
-	else
+	if (id < gd->max_it)
 		itr_handle(id);
+	else
+		DMSG("ignoring interrupt %" PRIu32, id);
 
 	gic_write_eoir(gd, iar);
 }
