@@ -57,6 +57,7 @@ static const struct time_source arm_cntpct_time_source = {
 
 REGISTER_TIME_SOURCE(arm_cntpct_time_source)
 
+#ifdef CFG_WITH_SOFTWARE_PRNG
 /*
  * We collect jitter using cntpct in 32- or 64-bit mode that is typically
  * clocked at around 1MHz.
@@ -98,3 +99,4 @@ void plat_prng_add_jitter_entropy(void)
 		tee_prng_add_entropy((uint8_t *)&acc, bytes);
 	}
 }
+#endif
