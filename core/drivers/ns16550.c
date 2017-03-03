@@ -85,6 +85,6 @@ void ns16550_init(struct ns16550_data *pd, vaddr_t base)
 
 	/*
 	 * Do nothing, uart driver shared with normal world,
-	 * everything for uart driver intialization is done in bootloader.
+	 * everything for uart driver initialization is done in bootloader.
 	 */
 }
