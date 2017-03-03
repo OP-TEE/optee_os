@@ -58,6 +58,8 @@ struct dt_driver {
 
 #define __dt_driver __attribute__((__section__(".rodata.dtdrv")))
 
+extern struct dt_driver __rodata_dtdrv_start, __rodata_dtdrv_end;
+
 const struct dt_driver *dt_find_driver(const char *compatible);
 const struct dt_driver *__dt_driver_start(void);
 const struct dt_driver *__dt_driver_end(void);

@@ -33,8 +33,6 @@
 #include <string.h>
 #include <trace.h>
 
-extern struct dt_driver __rodata_dtdrv_start, __rodata_dtdrv_end;
-
 const struct dt_driver *dt_find_driver(const char *compatible)
 {
 	const struct dt_driver *drv = NULL;
