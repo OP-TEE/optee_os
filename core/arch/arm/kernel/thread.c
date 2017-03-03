@@ -1199,7 +1199,14 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 
 	assert(arg && carg && num_params <= THREAD_RPC_MAX_NUM_PARAMS);
 
-	plat_prng_add_jitter_entropy_norpc();
+
+	/*
+	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
+	 * sleeps on a mutex or unlocks a mutex with a sleeper (contended
+	 * mutex).
+	 */
+	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
+		plat_prng_add_jitter_entropy_norpc();
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS));
 	arg->cmd = cmd;
