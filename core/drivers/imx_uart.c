@@ -134,6 +134,6 @@ void imx_uart_init(struct imx_uart_data *pd, vaddr_t base)
 
 	/*
 	 * Do nothing, debug uart(uart0) share with normal world,
-	 * everything for uart0 intialization is done in bootloader.
+	 * everything for uart0 initialization is done in bootloader.
 	 */
 }
