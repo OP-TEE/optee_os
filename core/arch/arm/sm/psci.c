@@ -149,7 +149,7 @@ void tee_psci_handler(struct thread_smc_args *args)
 			;
 		break;
 	case PSCI_SYSTEM_RESET:
-		psci_system_off();
+		psci_system_reset();
 		while (1)
 			;
 		break;
