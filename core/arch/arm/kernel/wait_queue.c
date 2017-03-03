@@ -43,7 +43,8 @@ void wq_init(struct wait_queue *wq)
 }
 
 static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
-			const char *fname, int lineno __maybe_unused)
+		   int owner __maybe_unused, const char *fname,
+		   int lineno __maybe_unused)
 {
 	uint32_t ret;
 	struct optee_msg_param params;
@@ -51,10 +52,10 @@ static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 	     func == OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ";
 
 	if (fname)
-		DMSG("%s thread %u %p %s:%d", cmd_str, id,
-		     sync_obj, fname, lineno);
+		DMSG("%s thread %u %p %d %s:%d", cmd_str, id,
+		     sync_obj, owner, fname, lineno);
 	else
-		DMSG("%s thread %u %p", cmd_str, id, sync_obj);
+		DMSG("%s thread %u %p %d", cmd_str, id, sync_obj, owner);
 
 	memset(&params, 0, sizeof(params));
 	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
@@ -99,14 +100,15 @@ void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
 }
 
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
-			const void *sync_obj, const char *fname, int lineno)
+		   const void *sync_obj, int owner, const char *fname,
+		   int lineno)
 {
 	uint32_t old_itr_status;
 	unsigned done;
 
 	do {
 		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP, wqe->handle,
-		       sync_obj, fname, lineno);
+		       sync_obj, owner, fname, lineno);
 
 		old_itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
 		cpu_spin_lock(&wq_spin_lock);
@@ -145,7 +147,7 @@ void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
 
 	if (do_wakeup)
 		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
-		       sync_obj, fname, lineno);
+		       sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK, fname, lineno);
 }
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,

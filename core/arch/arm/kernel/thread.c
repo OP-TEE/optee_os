@@ -1115,7 +1115,7 @@ void thread_add_mutex(struct mutex *m)
 	int ct = l->curr_thread;
 
 	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == -1);
+	assert(m->owner_id == MUTEX_OWNER_ID_NONE);
 	m->owner_id = ct;
 	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
 }
@@ -1127,7 +1127,7 @@ void thread_rem_mutex(struct mutex *m)
 
 	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
 	assert(m->owner_id == ct);
-	m->owner_id = -1;
+	m->owner_id = MUTEX_OWNER_ID_NONE;
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
 

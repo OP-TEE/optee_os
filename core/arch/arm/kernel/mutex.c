@@ -45,6 +45,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 		uint32_t old_itr_status;
 		enum mutex_value old_value;
 		struct wait_queue_elem wqe;
+		int owner = MUTEX_OWNER_ID_NONE;
 
 		/*
 		 * If the mutex is locked we need to initialize the wqe
@@ -61,6 +62,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 		old_value = m->value;
 		if (old_value == MUTEX_VALUE_LOCKED) {
 			wq_wait_init(&m->wq, &wqe);
+			owner = m->owner_id;
 		} else {
 			m->value = MUTEX_VALUE_LOCKED;
 			thread_add_mutex(m);
@@ -74,7 +76,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 			 * Someone else is holding the lock, wait in normal
 			 * world for the lock to become available.
 			 */
-			wq_wait_final(&m->wq, &wqe, m, fname, lineno);
+			wq_wait_final(&m->wq, &wqe, m, owner, fname, lineno);
 		} else
 			return;
 	}
@@ -260,7 +262,8 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 	/* Wake eventual waiters */
 	wq_wake_one(&m->wq, m, fname, lineno);
 
-	wq_wait_final(&m->wq, &wqe, m, fname, lineno);
+	wq_wait_final(&m->wq, &wqe,
+		      m, MUTEX_OWNER_ID_CONDVAR_SLEEP, fname, lineno);
 
 	mutex_lock(m);
 }

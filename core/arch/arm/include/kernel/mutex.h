@@ -36,6 +36,15 @@ enum mutex_value {
 	MUTEX_VALUE_LOCKED,
 };
 
+/*
+ * Positive owner ids signifies actual threads, negative ids has special
+ * meanings according to the defines below. Note that only the first of the
+ * defines is allowed in struct mutex::owener_id.
+ */
+#define MUTEX_OWNER_ID_NONE		-1
+#define MUTEX_OWNER_ID_CONDVAR_SLEEP	-2
+#define MUTEX_OWNER_ID_MUTEX_UNLOCK	-3
+
 struct mutex {
 	enum mutex_value value;
 	unsigned spin_lock;	/* used when operating on this struct */
@@ -44,7 +53,7 @@ struct mutex {
 	TAILQ_ENTRY(mutex) link;
 };
 #define MUTEX_INITIALIZER \
-	{ .value = MUTEX_VALUE_UNLOCKED, .owner_id = -1, \
+	{ .value = MUTEX_VALUE_UNLOCKED, .owner_id = MUTEX_OWNER_ID_NONE, \
 	  .wq = WAIT_QUEUE_INITIALIZER, }
 
 TAILQ_HEAD(mutex_head, mutex);
