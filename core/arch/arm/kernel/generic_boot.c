@@ -603,6 +603,8 @@ static void configure_console_from_dt(unsigned long phys_fdt)
 	char *p;
 	int st;
 
+	if (!phys_fdt)
+		return;
 	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
 	if (!fdt)
 		panic();
