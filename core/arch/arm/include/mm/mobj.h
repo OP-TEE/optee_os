@@ -39,6 +39,7 @@
 struct mobj {
 	const struct mobj_ops *ops;
 	size_t size;
+	size_t phys_granule;
 };
 
 struct mobj_ops {
@@ -90,7 +91,6 @@ static inline void mobj_free(struct mobj *mobj)
 		mobj->ops->free(mobj);
 }
 
-
 static inline void mobj_update_mapping(struct mobj *mobj,
 				       struct user_ta_ctx *utc, vaddr_t va)
 {
@@ -113,11 +113,31 @@ static inline bool mobj_is_sdp_mem(struct mobj *mobj)
 	return mobj_matches(mobj, CORE_MEM_SDP_MEM);
 }
 
+static inline size_t mobj_get_phys_granule(struct mobj *mobj)
+{
+	if (mobj->phys_granule)
+		return mobj->phys_granule;
+	return mobj->size;
+}
+
 struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 			   tee_mm_pool_t *pool);
 
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
+
+/* reg_shm represents TEE shared memory */
+struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
+				paddr_t page_offset, uint64_t cookie);
+
+struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie);
+
+/*
+ * mapped_shm represents registered shared buffer
+ * which is mapped into OPTEE va space
+ */
+struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
+				   paddr_t page_offset, uint64_t cookie);
 
 struct mobj *mobj_paged_alloc(size_t size);
 
