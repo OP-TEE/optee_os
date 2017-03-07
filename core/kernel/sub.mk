@@ -1,6 +1,7 @@
 srcs-y += assert.c
 srcs-y += console.c
 srcs-$(CFG_DT) += dt.c
+srcs-y += msg_param.c
 srcs-y += tee_ta_manager.c
 srcs-y += tee_misc.c
 srcs-y += panic.c
