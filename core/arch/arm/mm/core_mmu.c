@@ -441,7 +441,6 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TA_RAM:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_NSEC_SHM:
-	case MEM_AREA_SHM_VASPACE:
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_IO_NSEC:
 		return attr | TEE_MATTR_PRW | noncache;
@@ -452,6 +451,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RAM_SEC:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RES_VASPACE:
+	case MEM_AREA_SHM_VASPACE:
 		return 0;
 	default:
 		panic("invalid type");
@@ -820,7 +820,6 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 	return core_pbuf_is(attr, p, len);
 }
 
-
 /* core_va2pa - teecore exported service */
 static int __maybe_unused core_va2pa_helper(void *va, paddr_t *pa)
 {
@@ -830,7 +829,15 @@ static int __maybe_unused core_va2pa_helper(void *va, paddr_t *pa)
 	if (!va_is_in_map(map, (vaddr_t)va))
 		return -1;
 
-	*pa = map->pa + (vaddr_t)va  - map->va;
+	/*
+	 * We can calculate PA for static map. Virtual address ranges
+	 * reserved to core dynamic mapping return a 'match' (return 0;)
+	 * together with an invalid null physical address.
+	 */
+	if (map->pa)
+		*pa = map->pa + (vaddr_t)va  - map->va;
+	else
+		*pa = 0;
 
 	return 0;
 }
@@ -1359,7 +1366,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	}
 #endif
 	if (!core_va2pa_helper(va, &p)) {
-		if (pa != p)
+		/* Verfiy only the static mapping (case non null phys addr) */
+		if (p && pa != p)
 			panic();
 	} else {
 		if (pa)
