@@ -56,6 +56,19 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INPUT		0x9
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
+/*
+ * Special parameter type denoting that command buffer continues on
+ * specified page. It is used together with registered memory
+ * buffers. When NW tries to register shared memory, it passes list
+ * of pages to OP-TEE. List of pages can be so long, that it overlaps
+ * over physical page boundary. In this case the last entry of
+ * of optee_msg_param should have type OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT
+ * and param.u.tmem.buf_ptr should point to next page, where list of
+ * parameter continues. The same mechanism applies not only for
+ * registered memory buffers, but for shared memory buffers requested by
+ * OPTEE via RPC.
+ */
+#define OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT	0xc
 
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 
