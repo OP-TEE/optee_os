@@ -33,6 +33,7 @@
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
+#include <kernel/msg_param.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -93,6 +94,23 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
+static TEE_Result set_rmem_param(const struct optee_msg_param *param,
+			  struct param_mem *mem)
+{
+	struct mobj *rmem_mobj =
+		mobj_reg_shm_find_by_cookie(param->u.rmem.shm_ref);
+	paddr_t b;
+
+	if (mobj_get_pa(rmem_mobj, 0, 0, &b) != TEE_SUCCESS)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mem->mobj = rmem_mobj;
+	mem->offs = param->u.rmem.offs + (b & SMALL_PAGE_MASK);
+	mem->size = param->u.rmem.size;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, struct tee_ta_param *ta_param)
 {
@@ -139,6 +157,16 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
+				OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
+
+			res = set_rmem_param(params + n, &ta_param->u[n].mem);
+			if (res != TEE_SUCCESS)
+				return res;
+			break;
 		default:
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -158,7 +186,18 @@ static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
 		switch (TEE_PARAM_TYPE_GET(ta_param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			params[n].u.tmem.size = ta_param->u[n].mem.size;
+			switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
+			case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
+			case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
+				params[n].u.tmem.size = ta_param->u[n].mem.size;
+				break;
+			case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
+			case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+				params[n].u.rmem.size = ta_param->u[n].mem.size;
+				break;
+			default:
+				break;
+			}
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
@@ -341,11 +380,128 @@ out:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
+static void register_shm(struct thread_smc_args *smc_args,
+			 struct optee_msg_arg *arg, uint32_t num_params)
+{
+	paddr_t *pages = NULL;
+	paddr_t page_offset;
+	int num_pages, pages_cnt;
+
+	if (num_params == 0) {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		return;
+	}
+	page_offset = arg->params[0].u.tmem.buf_ptr & SMALL_PAGE_MASK;
+	num_pages = (arg->params[0].u.tmem.size + page_offset - 1)
+		/ SMALL_PAGE_SIZE + 1;
+
+	pages = malloc(num_pages * sizeof(paddr_t));
+
+	if (!pages) {
+		arg->ret = TEE_ERROR_OUT_OF_MEMORY;
+		return;
+	}
+
+	pages_cnt = msg_param_extract_pages(arg->params, pages, num_params);
+	if (pages_cnt < 0) {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (num_pages != pages_cnt) {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (mobj_reg_shm_alloc(pages, pages_cnt, page_offset,
+			       arg->params[0].u.tmem.shm_ref) == NULL) {
+		arg->ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	arg->ret = TEE_SUCCESS;
+out:
+	free(pages);
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
+static void unregister_shm(struct thread_smc_args *smc_args,
+			   struct optee_msg_arg *arg, uint32_t num_params)
+{
+	if (num_params == 1) {
+		struct mobj *mobj;
+		uint64_t cookie = arg->params[0].u.rmem.shm_ref;
+
+		mobj = mobj_reg_shm_find_by_cookie(cookie);
+		if (mobj) {
+			mobj_free(mobj);
+			arg->ret = TEE_SUCCESS;
+		} else {
+			EMSG("Can't find mapping with given cookie\n");
+			arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		}
+	} else {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		arg->ret_origin = TEE_ORIGIN_TEE;
+	}
+
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
+static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
+{
+	struct mobj *mobj = NULL;
+	struct optee_msg_arg *arg;
+	size_t args_size;
+
+	/* mobj_mapped_shm_alloc checks if parg resides in nonsec ddr */
+	mobj = mobj_mapped_shm_alloc(&parg, 1, 0, 0);
+	if (!mobj)
+		return NULL;
+
+	arg = (struct optee_msg_arg *)mobj_get_va(mobj, 0);
+	if (arg == NULL) {
+		mobj_free(mobj);
+		return NULL;
+	}
+
+	*num_params = arg->num_params;
+	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+	if ((parg & SMALL_PAGE_MASK) + args_size <= SMALL_PAGE_SIZE)
+		return mobj;
+
+	mobj_free(mobj);
+	mobj = msg_param_map_buffer(parg + sizeof(struct optee_msg_arg),
+				 *num_params);
+
+	return mobj;
+}
+
+static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
+{
+	struct mobj *mobj = NULL;
+	struct optee_msg_arg *arg;
+	size_t args_size;
+
+	arg = (struct optee_msg_arg *)phys_to_virt(parg, MEM_AREA_NSEC_SHM);
+	if (arg == NULL)
+		return NULL;
+
+	*num_params = arg->num_params;
+	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+
+	mobj = mobj_phys_alloc(parg, args_size,
+			       TEE_MATTR_CACHE_CACHED,
+			       CORE_MEM_NSEC_SHM);
+	return mobj;
+}
+
 void tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
 	uint32_t num_params;
+	struct mobj *mobj = NULL;
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
@@ -354,20 +510,28 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
-	if (!tee_pbuf_is_non_sec(parg, sizeof(struct optee_msg_arg)) ||
-	    !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-	    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
+
+	/* Check if this region is in static shared space */
+	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg,
+			  sizeof(struct optee_msg_arg))) {
+		mobj = get_cmd_buffer(parg, &num_params);
+	} else {
+		if (parg & SMALL_PAGE_MASK) {
+			smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
+			return;
+		}
+		mobj = map_cmd_buffer(parg, &num_params);
+	}
+
+	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
+		mobj_free(mobj);
 		return;
 	}
 
-	num_params = arg->num_params;
-	if (!tee_pbuf_is_non_sec(parg, OPTEE_MSG_GET_ARG_SIZE(num_params))) {
-		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-		return;
-	}
+	arg = mobj_get_va(mobj, 0);
+	assert(arg && mobj_is_nonsec(mobj));
 
 	/* Enable foreign interrupts for STD calls */
 	thread_set_foreign_intr(true);
@@ -384,10 +548,18 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 	case OPTEE_MSG_CMD_CANCEL:
 		entry_cancel(smc_args, arg, num_params);
 		break;
+	case OPTEE_MSG_CMD_REGISTER_SHM:
+		register_shm(smc_args, arg, num_params);
+		break;
+	case OPTEE_MSG_CMD_UNREGISTER_SHM:
+		unregister_shm(smc_args, arg, num_params);
+		break;
+
 	default:
 		EMSG("Unknown cmd 0x%x\n", arg->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
+	mobj_free(mobj);
 }
 
 static TEE_Result default_mobj_init(void)

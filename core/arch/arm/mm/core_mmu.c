@@ -1060,6 +1060,9 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 
 		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
 			     end - r.va);
+		r.size = MIN(r.size, mobj_get_phys_granule(region->mobj));
+		r.size = ROUNDUP(r.size, SMALL_PAGE_SIZE);
+
 		if (!mobj_is_paged(region->mobj)) {
 			size_t granule = BIT(pg_info->shift);
 			size_t offset = r.va - region->va + region->offset;

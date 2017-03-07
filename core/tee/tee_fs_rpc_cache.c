@@ -28,19 +28,21 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/mobj.h>
 #include <tee/tee_fs_rpc.h>
 
 void tee_fs_rpc_cache_clear(struct thread_specific_data *tsd)
 {
 	if (tsd->rpc_fs_payload) {
-		thread_rpc_free_payload(tsd->rpc_fs_payload_cookie);
+		thread_rpc_free_payload(tsd->rpc_fs_payload_cookie,
+					tsd->rpc_fs_payload_mobj);
 		tsd->rpc_fs_payload = NULL;
 		tsd->rpc_fs_payload_cookie = 0;
 		tsd->rpc_fs_payload_size = 0;
 	}
 }
 
-void *tee_fs_rpc_cache_alloc(size_t size, paddr_t *pa, uint64_t *cookie)
+void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj, uint64_t *cookie)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	size_t sz = size;
@@ -60,26 +62,30 @@ void *tee_fs_rpc_cache_alloc(size_t size, paddr_t *pa, uint64_t *cookie)
 	if (sz > tsd->rpc_fs_payload_size) {
 		tee_fs_rpc_cache_clear(tsd);
 
-		thread_rpc_alloc_payload(sz, &p, &c);
-		if (!p)
+		*mobj = thread_rpc_alloc_payload(sz,  &c);
+		if (!*mobj)
 			return NULL;
+
+		if (mobj_get_pa(*mobj, 0, 0, &p))
+			goto err;
+
 		if (!ALIGNMENT_IS_OK(p, uint64_t))
 			goto err;
 
-		va = phys_to_virt(p, MEM_AREA_NSEC_SHM);
+		va = mobj_get_va(*mobj, 0);
 		if (!va)
 			goto err;
 
 		tsd->rpc_fs_payload = va;
-		tsd->rpc_fs_payload_pa = p;
+		tsd->rpc_fs_payload_mobj = *mobj;
 		tsd->rpc_fs_payload_cookie = c;
 		tsd->rpc_fs_payload_size = sz;
-	}
+	} else
+		*mobj = tsd->rpc_fs_payload_mobj;
 
-	*pa = tsd->rpc_fs_payload_pa;
 	*cookie = tsd->rpc_fs_payload_cookie;
 	return tsd->rpc_fs_payload;
 err:
-	thread_rpc_free_payload(c);
+	thread_rpc_free_payload(c, *mobj);
 	return NULL;
 }

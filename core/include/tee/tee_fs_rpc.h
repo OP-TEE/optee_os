@@ -96,6 +96,6 @@ static inline void tee_fs_rpc_cache_clear(
  * cache. The pointer is guaranteed to point to a large enough area or to
  * be NULL.
  */
-void *tee_fs_rpc_cache_alloc(size_t size, paddr_t *pa, uint64_t *cookie);
+void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj, uint64_t *cookie);
 
 #endif /* TEE_FS_RPC_H */

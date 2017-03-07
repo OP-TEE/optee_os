@@ -70,6 +70,19 @@
  */
 #define OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT	0xc
 
+/*
+ * Special parameter type that points to real command buffer. It is used
+ * when dynamic shared memory is enabled. In this case when OPTEE issues
+ * "allocate shared buffer" RPC it expects that address of that shared buffer
+ * will be returned in RPC params. But problem is that shared buffer is not
+ * physically contiguous, so one parameter is not enough to describe the whole
+ * buffer. Thus, NW returns type OPTEE_MSG_ATTR_TYPE_NESTED.
+ * @optee_msg_param_nested describes this buffer. It holds address with actual
+ * list of pages and also count of pages. Pages are stored as
+ * OPTEE_MSG_ATTR_TYPE_TMEM_* parameters.
+ */
+#define OPTEE_MSG_ATTR_TYPE_NESTED		0xd
+
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 
 /*
@@ -153,15 +166,29 @@ struct optee_msg_param_value {
 };
 
 /**
+ * struct optee_msg_param_nested - nested params
+ * @buf_ptr: Address of the buffer with nested params
+ * @params_num: Number of nested params
+ * @shm_ref: Shared memory reference, pointer to a struct tee_shm
+ */
+struct optee_msg_param_nested {
+	uint64_t buf_ptr;
+	uint64_t params_num;
+	uint64_t shm_ref;
+};
+
+/**
  * struct optee_msg_param - parameter
  * @attr: attributes
  * @memref: a memory reference
  * @value: a value
+ * @nested: nested params
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
- * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates tmem and
- * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates rmem.
+ * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
+ * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates @rmem,
+ * OPTEE_MSG_ATTR_TYPE_NESTED indicates @nested parameters.
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
  */
 struct optee_msg_param {
@@ -170,6 +197,7 @@ struct optee_msg_param {
 		struct optee_msg_param_tmem tmem;
 		struct optee_msg_param_rmem rmem;
 		struct optee_msg_param_value value;
+		struct optee_msg_param_nested nested;
 	} u;
 };
 
