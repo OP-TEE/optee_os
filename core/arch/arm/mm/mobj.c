@@ -180,7 +180,7 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 		return NULL;
 	}
 
-	/* only SDP memory may not have a virtaul address */
+	/* only SDP memory may not have a virtual address */
 	va = phys_to_virt(pa, area_type);
 	if (!va && battr != CORE_MEM_SDP_MEM)
 		return NULL;
