@@ -82,17 +82,21 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 
 static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
-	if (args->a1) {
-		/*
-		 * Either unknown capability or
-		 * OPTEE_SMC_NSEC_CAP_UNIPROCESSOR, in either case we can't
-		 * deal with it.
-		 *
-		 * The memory mapping of shared memory is defined as normal
-		 * shared memory for SMP systems and normal memory for UP
-		 * systems. Currently we map all memory as shared in secure
-		 * world.
-		 */
+	/*
+	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
+	 *
+	 * The memory mapping of shared memory is defined as normal
+	 * shared memory for SMP systems and normal memory for UP
+	 * systems. Currently we map all memory as shared in secure
+	 * world.
+	 *
+	 * When translation tables are created with shared bit cleared for
+	 * uniprocessor systems we'll need to check
+	 * OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
+	 */
+
+	if (args->a1 & ~OPTEE_SMC_NSEC_CAP_UNIPROCESSOR) {
+		/* Unknown capability. */
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		return;
 	}
