@@ -61,7 +61,7 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
-static struct cdns_uart_data console_data __early_bss;
+static struct cdns_uart_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
@@ -126,7 +126,7 @@ void console_init(void)
 
 vaddr_t pl310_base(void)
 {
-	static void *va __early_bss;
+	static void *va;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
@@ -207,7 +207,7 @@ static uint32_t write_slcr(uint32_t addr, uint32_t val)
 	for (i = 0; i < ARRAY_SIZE(slcr_access_range); i += 2) {
 		if (addr >= slcr_access_range[i] &&
 		    addr <= slcr_access_range[i+1]) {
-			static vaddr_t va __early_bss;
+			static vaddr_t va;
 
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,
@@ -226,7 +226,7 @@ static uint32_t read_slcr(uint32_t addr, uint32_t *val)
 	for (i = 0; i < ARRAY_SIZE(slcr_access_range); i += 2) {
 		if (addr >= slcr_access_range[i] &&
 		    addr <= slcr_access_range[i+1]) {
-			static vaddr_t va __early_bss;
+			static vaddr_t va;
 
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,

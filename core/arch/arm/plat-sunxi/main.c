@@ -176,7 +176,7 @@ void tee_entry_get_api_call_count(struct thread_smc_args *args)
 	args->a0 = tee_entry_generic_get_api_call_count() + 3;
 }
 
-static struct sunxi_uart_data console_data __early_bss;
+static struct sunxi_uart_data console_data;
 
 void console_init(void)
 {

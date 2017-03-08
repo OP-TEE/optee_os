@@ -56,7 +56,7 @@ void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-extern paddr_t ns_entry_addrs[] __early_bss;
+extern paddr_t ns_entry_addrs[];
 int generic_boot_core_release(size_t core_idx, paddr_t entry);
 paddr_t generic_boot_core_hpen(void);
 #endif
@@ -90,8 +90,6 @@ extern uint8_t __data_start[];
 extern uint8_t __data_end[];
 extern uint8_t __rodata_start[];
 extern uint8_t __rodata_end[];
-extern uint8_t __early_bss_start[];
-extern uint8_t __early_bss_end[];
 extern uint8_t __bss_start[];
 extern uint8_t __bss_end[];
 extern uint8_t __nozi_start[];

@@ -58,7 +58,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
-static struct pl011_data console_data __early_bss;
+static struct pl011_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, PMUSSI_BASE, PMUSSI_REG_SIZE);

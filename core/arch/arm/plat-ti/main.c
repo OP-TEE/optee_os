@@ -51,7 +51,7 @@
 #define PLAT_HW_UNIQUE_KEY_LENGTH 32
 
 static struct gic_data gic_data;
-static struct serial8250_uart_data console_data __early_bss;
+static struct serial8250_uart_data console_data;
 static uint8_t plat_huk[PLAT_HW_UNIQUE_KEY_LENGTH];
 
 register_phys_mem(MEM_AREA_RAM_SEC, TZDRAM_BASE, CFG_TEE_RAM_VA_SIZE);

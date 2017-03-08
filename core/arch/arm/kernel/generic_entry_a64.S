@@ -105,6 +105,17 @@ copy_init:
 	b.lt	copy_init
 #endif
 
+	/*
+	 * Clear .bss, this code obviously depends on the linker keeping
+	 * start/end of .bss at least 8 byte aligned.
+	 */
+	adr	x0, __bss_start
+	adr	x1, __bss_end
+clear_bss:
+	str	xzr, [x0], #8
+	cmp	x0, x1
+	b.lt	clear_bss
+
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 

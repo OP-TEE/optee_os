@@ -44,7 +44,7 @@
 
 static vaddr_t rng_base(void)
 {
-	static void *va __early_bss;
+	static void *va;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)

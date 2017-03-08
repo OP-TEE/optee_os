@@ -57,7 +57,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
-static struct serial8250_uart_data console_data __early_bss;
+static struct serial8250_uart_data console_data;
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {

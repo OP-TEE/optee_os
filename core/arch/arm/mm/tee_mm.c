@@ -348,10 +348,10 @@ bool tee_mm_is_empty(tee_mm_pool_t *pool)
 }
 
 /* Physical Secure DDR pool */
-tee_mm_pool_t tee_mm_sec_ddr __early_bss;
+tee_mm_pool_t tee_mm_sec_ddr;
 
 /* Virtual eSRAM pool */
-tee_mm_pool_t tee_mm_vcore __early_bss;
+tee_mm_pool_t tee_mm_vcore;
 
 tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, paddr_t addr)
 {

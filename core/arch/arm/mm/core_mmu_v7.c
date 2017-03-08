@@ -241,7 +241,7 @@ static paddr_t core_mmu_get_ul1_ttb_pa(void)
 static void *core_mmu_alloc_l2(size_t size)
 {
 	/* Can't have this in .bss since it's not initialized yet */
-	static uint32_t tables_used __early_bss;
+	static uint32_t tables_used;
 	uint32_t to_alloc = ROUNDUP(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE) /
 		(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
 
