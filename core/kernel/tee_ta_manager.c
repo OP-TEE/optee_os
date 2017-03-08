@@ -294,7 +294,7 @@ static bool check_params(struct tee_ta_session *sess __unused,
 			 struct tee_ta_param *param __unused)
 {
 	/*
-	 * When CFG_SECURE_DATA_PATH is not enable, SDP memory references
+	 * When CFG_SECURE_DATA_PATH is not enabled, SDP memory references
 	 * are rejected at OP-TEE core entry. Hence here all TAs have same
 	 * permissions regarding memory reference parameters.
 	 */
@@ -307,8 +307,8 @@ static bool check_params(struct tee_ta_session *sess,
 	int n;
 
 	/*
-	 * When CFG_SECURE_DATA_PATH is enable, OP-TEE entry allows SHM and SDP
-	 * memory references. Only TAs flagged SDP can access SDP memory.
+	 * When CFG_SECURE_DATA_PATH is enabled, OP-TEE entry allows SHM and
+	 * SDP memory references. Only TAs flagged SDP can access SDP memory.
 	 */
 	if (sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
 		return true;
