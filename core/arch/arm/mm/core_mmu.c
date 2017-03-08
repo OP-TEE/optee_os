@@ -277,7 +277,7 @@ static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map, size_t len)
 	}
 
 	/*
-	 * chech SDP memories do not intersect any mapped memory.
+	 * check SDP memories do not intersect any mapped memory.
 	 * This is called before reserved VA space is loaded in mem_map.
 	 */
 	for (mem = start; mem < end; mem++) {
