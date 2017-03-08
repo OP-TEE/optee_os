@@ -68,7 +68,7 @@ void arm_cl2_enable(vaddr_t pl310_base)
 
 vaddr_t pl310_base(void)
 {
-	static void *va __early_bss;
+	static void *va;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)

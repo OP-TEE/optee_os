@@ -60,7 +60,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
-static struct imx_uart_data console_data __early_bss;
+static struct imx_uart_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);

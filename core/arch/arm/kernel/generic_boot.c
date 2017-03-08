@@ -74,8 +74,8 @@
 #define PADDR_INVALID		ULONG_MAX
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE] __early_bss;
-static uint32_t spin_table[CFG_TEE_CORE_NB_CORE] __early_bss;
+paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE];
+static uint32_t spin_table[CFG_TEE_CORE_NB_CORE];
 #endif
 
 #ifdef CFG_BOOT_SYNC_CPU
@@ -84,7 +84,7 @@ static uint32_t spin_table[CFG_TEE_CORE_NB_CORE] __early_bss;
  * When 0, the cpu has not started.
  * When 1, it has started
  */
-uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __early_bss;
+uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 KEEP_PAGER(sem_cpu_sync);
 #endif
 
@@ -208,13 +208,6 @@ static void init_runtime(unsigned long pageable_part)
 
 	assert(pageable_size % SMALL_PAGE_SIZE == 0);
 	assert(hash_size == (size_t)__tmp_hashes_size);
-
-	/*
-	 * Zero BSS area. Note that globals that would normally would go
-	 * into BSS which are used before this has to be put into .nozi.*
-	 * to avoid getting overwritten.
-	 */
-	memset(__bss_start, 0, __bss_end - __bss_start);
 
 	/*
 	 * This needs to be initialized early to support address lookup
@@ -373,7 +366,6 @@ static void init_asan(void)
 	asan_tag_access(&__initcall_start, &__initcall_end);
 	asan_tag_access(&__ctor_list, &__ctor_end);
 	asan_tag_access(__rodata_start, __rodata_end);
-	asan_tag_access(__early_bss_start, __early_bss_end);
 	asan_tag_access(__nozi_start, __nozi_end);
 
 	init_run_constructors();
@@ -389,13 +381,6 @@ static void init_asan(void)
 
 static void init_runtime(unsigned long pageable_part __unused)
 {
-	/*
-	 * Zero BSS area. Note that globals that would normally would go
-	 * into BSS which are used before this has to be put into .nozi.*
-	 * to avoid getting overwritten.
-	 */
-	memset(__bss_start, 0, __bss_end - __bss_start);
-
 	thread_init_boot_thread();
 
 	init_asan();

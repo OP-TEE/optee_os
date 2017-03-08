@@ -158,7 +158,7 @@ const struct thread_handlers *generic_boot_get_handlers(void)
  */
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
 
-static struct serial8250_uart_data console_data __early_bss;
+static struct serial8250_uart_data console_data;
 
 void console_init(void)
 {

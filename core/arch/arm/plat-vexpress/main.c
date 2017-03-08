@@ -74,7 +74,7 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
-static struct pl011_data console_data __early_bss;
+static struct pl011_data console_data;
 
 register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 

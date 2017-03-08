@@ -49,7 +49,7 @@ register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
 
 static struct gic_data gic_data;
-static struct stih_asc_pd console_data __early_bss;
+static struct stih_asc_pd console_data;
 
 static void main_fiq(void);
 
@@ -61,7 +61,7 @@ static bool ns_resources_ready(void)
 }
 #else
 /* some nonsecure resource might not be ready (uart) */
-static int boot_is_completed __early_bss;
+static int boot_is_completed;
 static bool ns_resources_ready(void)
 {
 	return !!boot_is_completed;
@@ -118,7 +118,7 @@ void console_flush(void)
 
 vaddr_t pl310_base(void)
 {
-	static void *va __early_bss;
+	static void *va;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
