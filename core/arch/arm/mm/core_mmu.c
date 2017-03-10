@@ -319,6 +319,17 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	}
 	return mobj_base;
 }
+#else
+static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
+{
+	return false;
+}
+
+static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map __unused,
+				 size_t len __unused)
+{
+}
+
 #endif /* CFG_SECURE_DATA_PATH */
 
 
