@@ -352,14 +352,12 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return test_trace(nParamTypes, pParams);
 	case CMD_PARAMS:
 		return test_entry_params(nParamTypes, pParams);
-#ifdef CFG_SECURE_DATA_PATH
 	case CMD_INJECT_SDP:
 		return test_inject_sdp(nParamTypes, pParams);
 	case CMD_TRANSFORM_SDP:
 		return test_transform_sdp(nParamTypes, pParams);
 	case CMD_DUMP_SDP:
 		return test_dump_sdp(nParamTypes, pParams);
-#endif
 	case CMD_SELF_TESTS:
 		return core_self_tests(nParamTypes, pParams);
 	default:
