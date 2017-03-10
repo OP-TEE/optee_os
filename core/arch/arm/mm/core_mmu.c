@@ -226,6 +226,7 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
+#ifdef CFG_SECURE_DATA_PATH
 extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
 extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
 
@@ -255,10 +256,10 @@ static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map, size_t len)
 	struct tee_mmap_region *mmap;
 	size_t n;
 
-#ifndef CFG_SECURE_DATA_PATH
-	if (start != end)
-		panic("SDP memory found but CFG_SECURE_DATA_PATH is disabled");
-#endif
+	if (start == end) {
+		IMSG("Secure data path is enable without any SDP memory area");
+		return;
+	}
 
 	for (mem = start; mem < end; mem++)
 		DMSG("SDP memory [%" PRIxPA " %" PRIxPA "]",
@@ -318,6 +319,8 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	}
 	return mobj_base;
 }
+#endif /* CFG_SECURE_DATA_PATH */
+
 
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
 extern const struct core_mmu_phys_mem __end_phys_mem_map_section;

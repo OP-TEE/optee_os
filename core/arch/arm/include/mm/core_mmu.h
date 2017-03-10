@@ -404,7 +404,9 @@ static inline unsigned int cache_maintenance_l2(enum cache_op op __unused,
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
 
+#ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);
+#endif
 
 #endif /* CORE_MMU_H */
