@@ -368,7 +368,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-pseudo_ta_register(.uuid = PTA_SELF_TEST_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = PTA_INVOKE_TEST_UUID, .name = TA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_SECURE_DATA_PATH,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
