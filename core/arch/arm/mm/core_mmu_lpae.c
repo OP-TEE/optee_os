@@ -640,7 +640,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		if (!tbl)
 			return false;
 
-		va_base += n << level_size_shift;
+		va_base += (vaddr_t)n << level_size_shift;
 		level++;
 		num_entries = XLAT_TABLE_ENTRIES;
 	}
