@@ -25,16 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
-
-#include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
+#include <asm.S>
+#include <platform_config.h>
+#include <keep.h>
+#include <kernel/asan.h>
+#include <kernel/unwind.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
-#include <kernel/unwind.h>
-#include <kernel/asan.h>
 
 .section .data
 .balign 4
@@ -86,6 +86,14 @@ END_FUNC __assert_flat_mapped_range
 		bl	__assert_flat_mapped_range
 	.endm
 #endif /* CFG_PL310 */
+
+.weak plat_cpu_reset_early
+FUNC plat_cpu_reset_early , :
+UNWIND(	.fnstart)
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC plat_cpu_reset_early
+KEEP_PAGER plat_cpu_reset_early
 
 .section .text.boot
 FUNC _start , :
