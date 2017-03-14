@@ -96,7 +96,7 @@ UNWIND(	.fnstart)
 	mov_imm r0, 0x00000041
 	write_actlr r0
 
-	mov_imm r0, 0x00020FFF
+	mov_imm r0, 0x00020C00
 	write_nsacr r0
 
 	mov_imm r0, 0x00000001
