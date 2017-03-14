@@ -283,9 +283,8 @@ static void init_runtime(unsigned long pageable_part)
 		p = (uint8_t *)(((vaddr_t)__init_start + init_size) &
 				~SMALL_PAGE_MASK);
 
-		cache_maintenance_l1(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
-		cache_maintenance_l1(ICACHE_AREA_INVALIDATE, p,
-				     SMALL_PAGE_SIZE);
+		cache_op_inner(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
+		cache_op_inner(ICACHE_AREA_INVALIDATE, p, SMALL_PAGE_SIZE);
 	}
 
 	/*

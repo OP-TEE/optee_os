@@ -109,11 +109,11 @@ uint32_t platform_smc_handle(struct thread_smc_args *smc_args)
 	switch (smc_args->a1) {
 	case OPTEE_SMC_SIP_SUNXI_SET_SMP_BOOTENTRY:
 		sunxi_secondary_ns_entry = smc_args->a2;
-		
+
 		/* in order to sync with secondary up cpu */
-		cache_maintenance_l1(DCACHE_AREA_CLEAN, 
-		                       (void *)(&sunxi_secondary_ns_entry), 
-		                       sizeof(uint32_t));
+		cache_op_inner(DCACHE_AREA_CLEAN,
+				(void *)(&sunxi_secondary_ns_entry),
+				sizeof(uint32_t));
 		break;
 	default:
 		ret = OPTEE_SMC_RETURN_EBADCMD;

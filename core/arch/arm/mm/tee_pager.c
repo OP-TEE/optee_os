@@ -891,10 +891,10 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				void *va = (void *)area_idx2va(pmem->area,
 							       pmem->pgidx);
 
-				cache_maintenance_l1(DCACHE_AREA_CLEAN, va,
-						     SMALL_PAGE_SIZE);
-				cache_maintenance_l1(ICACHE_AREA_INVALIDATE, va,
-						     SMALL_PAGE_SIZE);
+				cache_op_inner(DCACHE_AREA_CLEAN, va,
+						SMALL_PAGE_SIZE);
+				cache_op_inner(ICACHE_AREA_INVALIDATE, va,
+						SMALL_PAGE_SIZE);
 			}
 		}
 
@@ -1269,10 +1269,9 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 			 * Doing these operations to LoUIS (Level of
 			 * unification, Inner Shareable) would be enough
 			 */
-			cache_maintenance_l1(DCACHE_AREA_CLEAN,
-				pmem->va_alias, SMALL_PAGE_SIZE);
-
-			cache_maintenance_l1(ICACHE_INVALIDATE, NULL, 0);
+			cache_op_inner(DCACHE_AREA_CLEAN, pmem->va_alias,
+					SMALL_PAGE_SIZE);
+			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 		}
 
 		pmem->area = area;

@@ -648,7 +648,7 @@ int core_tlb_maintenance(int op, unsigned int a)
 	return 0;
 }
 
-unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len)
+TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
 	case DCACHE_CLEAN:

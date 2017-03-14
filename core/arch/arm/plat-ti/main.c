@@ -126,8 +126,8 @@ void init_sec_mon(unsigned long nsec_entry)
 		panic();
 
 	/* Invalidate cache to fetch data from external memory */
-	cache_maintenance_l1(DCACHE_AREA_INVALIDATE,
-			     plat_ctx, sizeof(*plat_ctx));
+	cache_op_inner(DCACHE_AREA_INVALIDATE,
+			plat_ctx, sizeof(*plat_ctx));
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();

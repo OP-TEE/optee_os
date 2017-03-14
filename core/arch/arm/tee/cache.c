@@ -31,12 +31,11 @@
 #include <tee/cache.h>
 
 /*
- * tee_uta_cache_operation - dynamic cache clean/inval request from a TA
+ * tee_uta_cache_operation - dynamic cache clean/inval request from a TA.
  * It follows ARM recommendation:
  *     http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246d/Beicdhde.html
  * Note that this implementation assumes dsb operations are part of
- * cache_maintenance_l1(), and L2 cache sync are part of
- * cache_op_outer().
+ * cache_op_inner(), and outer cache sync are part of cache_op_outer().
  */
 TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 {
@@ -51,18 +50,18 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 	case TEE_CACHEFLUSH:
 #ifdef CFG_PL310 /* prevent initial L1 clean in case there is no outer L2 */
 		/* Clean L1, Flush L2, Flush L1 */
-		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		res = cache_op_inner(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
 		res = cache_op_outer(L2CACHE_AREA_CLEAN_INV, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
 #endif
-		return cache_maintenance_l1(DCACHE_AREA_CLEAN_INV, va, len);
+		return cache_op_inner(DCACHE_AREA_CLEAN_INV, va, len);
 
 	case TEE_CACHECLEAN:
 		/* Clean L1, Clean L2 */
-		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		res = cache_op_inner(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
 		return cache_op_outer(L2CACHE_AREA_CLEAN, pa, len);
@@ -72,7 +71,7 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 		res = cache_op_outer(L2CACHE_AREA_INVALIDATE, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
-		return cache_maintenance_l1(DCACHE_AREA_INVALIDATE, va, len);
+		return cache_op_inner(DCACHE_AREA_INVALIDATE, va, len);
 
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
