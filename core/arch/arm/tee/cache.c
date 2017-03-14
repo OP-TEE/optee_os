@@ -49,6 +49,7 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 
 	switch (op) {
 	case TEE_CACHEFLUSH:
+#ifdef CFG_PL310
 		/* Clean L1, Flush L2, Flush L1 */
 		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
@@ -56,6 +57,7 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 		res = cache_maintenance_l2(L2CACHE_AREA_CLEAN_INV, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
+#endif
 		return cache_maintenance_l1(DCACHE_AREA_CLEAN_INV, va, len);
 
 	case TEE_CACHECLEAN:
