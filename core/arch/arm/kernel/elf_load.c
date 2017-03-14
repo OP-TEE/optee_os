@@ -499,15 +499,40 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 static TEE_Result e64_process_rel(struct elf_load_state *state,
 			size_t rel_sidx, vaddr_t vabase)
 {
+	Elf64_Ehdr *ehdr = state->ehdr;
 	Elf64_Shdr *shdr = state->shdr;
 	Elf64_Rela *rela;
 	Elf64_Rela *rela_end;
+	size_t sym_tab_idx;
+	Elf64_Sym *sym_tab = NULL;
+	size_t num_syms = 0;
 
 	if (shdr[rel_sidx].sh_type != SHT_RELA)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	if (shdr[rel_sidx].sh_entsize != sizeof(Elf64_Rela))
 		return TEE_ERROR_BAD_FORMAT;
+
+	sym_tab_idx = shdr[rel_sidx].sh_link;
+	if (sym_tab_idx) {
+		if (sym_tab_idx >= ehdr->e_shnum)
+			return TEE_ERROR_BAD_FORMAT;
+
+		if (shdr[sym_tab_idx].sh_entsize != sizeof(Elf64_Sym))
+			return TEE_ERROR_BAD_FORMAT;
+
+		/* Check the address is inside TA memory */
+		if (shdr[sym_tab_idx].sh_addr > state->vasize ||
+		    (shdr[sym_tab_idx].sh_addr +
+				shdr[sym_tab_idx].sh_size) > state->vasize)
+			return TEE_ERROR_BAD_FORMAT;
+
+		sym_tab = (Elf64_Sym *)(vabase + shdr[sym_tab_idx].sh_addr);
+		if (!ALIGNMENT_IS_OK(sym_tab, Elf64_Sym))
+			return TEE_ERROR_BAD_FORMAT;
+
+		num_syms = shdr[sym_tab_idx].sh_size / sizeof(Elf64_Sym);
+	}
 
 	/* Check the address is inside TA memory */
 	if (shdr[rel_sidx].sh_addr >= state->vasize)
@@ -522,6 +547,7 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf64_Rela);
 	for (; rela < rela_end; rela++) {
 		Elf64_Addr *where;
+		size_t sym_idx;
 
 		/* Check the address is inside TA memory */
 		if (rela->r_offset >= state->vasize)
@@ -532,6 +558,13 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 			return TEE_ERROR_BAD_FORMAT;
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
+		case R_AARCH64_ABS64:
+			sym_idx = ELF64_R_SYM(rela->r_info);
+			if (sym_idx > num_syms)
+				return TEE_ERROR_BAD_FORMAT;
+			*where = rela->r_addend + sym_tab[sym_idx].st_value +
+				 vabase;
+			break;
 		case R_AARCH64_RELATIVE:
 			*where = rela->r_addend + vabase;
 			break;
