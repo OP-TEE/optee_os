@@ -76,16 +76,13 @@ UNWIND(	.fnstart)
 	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
 	 * - NSec can use SIMD/VFP (CP10/CP11) (bit15:14=2b00, bit11:10=2b11)
 	 */
-	movw r0, #0x0000
-	movt r0, #0x0000
+	mov_imm r0, 0x00000000
 	write_sctlr r0
 
-	movw r0, #0x0040
-	movt r0, #0x0000
+	mov_imm r0, 0x00000040
 	write_actlr r0
 
-	movw r0, #0x0C00
-	movt r0, #0x0000
+	mov_imm r0, 0x00000C00
 	write_nsacr r0
 
 	mov pc, lr

@@ -78,20 +78,16 @@ END_FUNC arm_cl2_enable
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
-	movw r0, #(CPU_SCTLR_INIT & 0xFFFF)
-	movt r0, #((CPU_SCTLR_INIT >> 16) & 0xFFFF)
+	mov_imm r0, CPU_SCTLR_INIT
 	write_sctlr r0
 
-	movw r0, #(CPU_ACTLR_INIT & 0xFFFF)
-	movt r0, #((CPU_ACTLR_INIT >> 16) & 0xFFFF)
+	mov_imm r0, CPU_ACTLR_INIT
 	write_actlr r0
 
-	movw r0, #(CPU_NSACR_INIT & 0xFFFF)
-	movt r0, #((CPU_NSACR_INIT >> 16) & 0xFFFF)
+	mov_imm r0, CPU_NSACR_INIT
 	write_nsacr r0
 
-	movw r0, #(CPU_PCR_INIT & 0xFFFF)
-	movt r0, #((CPU_PCR_INIT >> 16) & 0xFFFF)
+	mov_imm r0, CPU_PCR_INIT
 	write_pcr r0
 
 	mov pc, lr
