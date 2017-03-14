@@ -102,8 +102,8 @@ UNWIND(	.fnstart)
 	movt r0, #0x0002
 	write_nsacr r0
 
-	movw r0, #0x0000
-	movt r0, #0x0001
+	movw r0, #0x0001
+	movt r0, #0x0000
 	write_pcr r0
 
 	mov pc, lr
