@@ -69,10 +69,10 @@ UNWIND(	.fnstart)
 	 *
 	 * SCTLR = 0x00000000
 	 *
-	 * ACTRL = 0x00000041
-	 * - core always in full SMP (FW bit0=1)
+	 * ACTRL = 0x00000040
+	 * - core NOT booted in full SMP (FW bit0=0)
 	 *
-	 * NSACR = 0x00020C00
+	 * NSACR = 0x00000C00
 	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
 	 * - NSec can use SIMD/VFP (CP10/CP11) (bit15:14=2b00, bit11:10=2b11)
 	 */
