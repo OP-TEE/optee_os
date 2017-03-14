@@ -648,7 +648,7 @@ int core_tlb_maintenance(int op, unsigned int a)
 	return 0;
 }
 
-unsigned int cache_maintenance_l1(int op, void *va, size_t len)
+unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
 	case DCACHE_CLEAN:
@@ -690,7 +690,7 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 }
 
 #ifdef CFG_PL310
-unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
+unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len)
 {
 	unsigned int ret = TEE_SUCCESS;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
