@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <tee/cache.h>
 
 /*
@@ -36,7 +36,7 @@
  *     http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246d/Beicdhde.html
  * Note that this implementation assumes dsb operations are part of
  * cache_maintenance_l1(), and L2 cache sync are part of
- * cache_maintenance_l2()
+ * cache_op_outer().
  */
 TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 {
@@ -49,12 +49,12 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 
 	switch (op) {
 	case TEE_CACHEFLUSH:
-#ifdef CFG_PL310
+#ifdef CFG_PL310 /* prevent initial L1 clean in case there is no outer L2 */
 		/* Clean L1, Flush L2, Flush L1 */
 		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
-		res = cache_maintenance_l2(L2CACHE_AREA_CLEAN_INV, pa, len);
+		res = cache_op_outer(L2CACHE_AREA_CLEAN_INV, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
 #endif
@@ -65,11 +65,11 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
-		return cache_maintenance_l2(L2CACHE_AREA_CLEAN, pa, len);
+		return cache_op_outer(L2CACHE_AREA_CLEAN, pa, len);
 
 	case TEE_CACHEINVALIDATE:
 		/* Inval L2, Inval L1 */
-		res = cache_maintenance_l2(L2CACHE_AREA_INVALIDATE, pa, len);
+		res = cache_op_outer(L2CACHE_AREA_INVALIDATE, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
 		return cache_maintenance_l1(DCACHE_AREA_INVALIDATE, va, len);

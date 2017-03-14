@@ -382,9 +382,9 @@ enum cache_op {
 /* L1/L2 cache maintenance */
 unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len);
 #ifdef CFG_PL310
-unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len);
+TEE_Result cache_op_outer(enum cache_op op, paddr_t pa, size_t len);
 #else
-static inline unsigned int cache_maintenance_l2(enum cache_op op __unused,
+static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 						paddr_t pa __unused,
 						size_t len __unused)
 {

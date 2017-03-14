@@ -690,9 +690,9 @@ unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len)
 }
 
 #ifdef CFG_PL310
-unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len)
+TEE_Result cache_op_outer(enum cache_op op, paddr_t pa, size_t len)
 {
-	unsigned int ret = TEE_SUCCESS;
+	TEE_Result ret = TEE_SUCCESS;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 
 	tee_l2cc_mutex_lock();
