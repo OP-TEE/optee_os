@@ -60,10 +60,11 @@ static int pos_to_block_num(int position)
 
 static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 
-static TEE_Result ree_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
+static TEE_Result ree_fs_opendir_rpc(const TEE_UUID *uuid,
+				     struct tee_fs_dir **d)
 
 {
-	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, name, d);
+	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_FS, uuid, d);
 }
 
 static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
@@ -251,19 +252,11 @@ static const struct tee_fs_htree_storage ree_fs_storage_ops = {
 	.rpc_write_init = ree_fs_rpc_write_init,
 };
 
-static TEE_Result open_internal(const char *file, bool create,
+static TEE_Result open_internal(struct tee_pobj *po, bool create,
 				struct tee_file_handle **fh)
 {
 	TEE_Result res;
-	size_t len;
 	struct tee_fs_fd *fdp = NULL;
-
-	if (!file)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	len = strlen(file) + 1;
-	if (len > TEE_FS_NAME_MAX)
-		return TEE_ERROR_BAD_PARAMETERS;
 
 	fdp = calloc(1, sizeof(struct tee_fs_fd));
 	if (!fdp)
@@ -273,9 +266,9 @@ static TEE_Result open_internal(const char *file, bool create,
 	mutex_lock(&ree_fs_mutex);
 
 	if (create)
-		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_FS, file, &fdp->fd);
+		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_FS, po, &fdp->fd);
 	else
-		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, file, &fdp->fd);
+		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_FS, po, &fdp->fd);
 
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -288,7 +281,7 @@ out:
 		if (fdp->fd != -1)
 			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
 		if (create)
-			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, file);
+			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, po);
 		free(fdp);
 	}
 
@@ -296,14 +289,15 @@ out:
 	return res;
 }
 
-static TEE_Result ree_fs_open(const char *file, struct tee_file_handle **fh)
+static TEE_Result ree_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
 {
-	return open_internal(file, false, fh);
+	return open_internal(po, false, fh);
 }
 
-static TEE_Result ree_fs_create(const char *file, struct tee_file_handle **fh)
+static TEE_Result ree_fs_create(struct tee_pobj *po,
+				struct tee_file_handle **fh)
 {
-	return open_internal(file, true, fh);
+	return open_internal(po, true, fh);
 }
 
 static void ree_fs_close(struct tee_file_handle **fh)
@@ -454,7 +448,7 @@ exit:
 	return res;
 }
 
-static TEE_Result ree_fs_rename(const char *old, const char *new,
+static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 				bool overwrite)
 {
 	TEE_Result res;
@@ -466,12 +460,12 @@ static TEE_Result ree_fs_rename(const char *old, const char *new,
 	return res;
 }
 
-static TEE_Result ree_fs_remove(const char *file)
+static TEE_Result ree_fs_remove(struct tee_pobj *po)
 {
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, file);
+	res = tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_FS, po);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;

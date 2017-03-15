@@ -80,7 +80,8 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 }
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
-			uint32_t flags, const struct tee_file_operations *fops,
+			uint32_t flags, bool temporary,
+			const struct tee_file_operations *fops,
 			struct tee_pobj **obj)
 {
 	struct tee_pobj *o;
@@ -100,10 +101,12 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	}
 
 	if (*obj) {
+		if (temporary != (*obj)->temporary) {
+			res = TEE_ERROR_ACCESS_CONFLICT;
+			goto out;
+		}
 		res = tee_pobj_check_access((*obj)->flags, flags);
-		if (res != TEE_SUCCESS)
-			*obj = NULL;
-		else
+		if (res == TEE_SUCCESS)
 			(*obj)->refcnt++;
 		goto out;
 	}
@@ -119,6 +122,7 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
 	o->flags = flags;
 	o->fops = fops;
+	o->temporary = temporary;
 
 	o->obj_id = malloc(obj_id_len);
 	if (o->obj_id == NULL) {
@@ -134,6 +138,8 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 
 	res = TEE_SUCCESS;
 out:
+	if (res != TEE_SUCCESS)
+		*obj = NULL;
 	mutex_unlock(&pobjs_mutex);
 	return res;
 }

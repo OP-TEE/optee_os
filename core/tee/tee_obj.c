@@ -78,32 +78,20 @@ void tee_obj_close_all(struct user_ta_ctx *utc)
 TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 {
 	TEE_Result res;
-	char *file = NULL;
 	const struct tee_file_operations *fops = o->pobj->fops;
 	struct tee_file_handle *fh = NULL;
 
 	if (!fops)
 		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
 
-	file = tee_svc_storage_create_filename(sess,
-					       o->pobj->obj_id,
-					       o->pobj->obj_id_len,
-					       false);
-	if (file == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	res = fops->open(file, &fh);
+	res = fops->open(o->pobj, &fh);
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
 		EMSG("Object corrupt\n");
+		fops->remove(o->pobj);
 		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
-		fops->remove(file);
 	}
 
-	free(file);
 	fops->close(&fh);
-exit:
 	return res;
 }
 

@@ -38,29 +38,31 @@ typedef int64_t tee_fs_off_t;
 typedef uint32_t tee_fs_mode_t;
 
 struct tee_fs_dirent {
-	char *d_name;
+	uint8_t oid[TEE_OBJECT_ID_MAX_LEN];
+	size_t oidlen;
 };
 
 struct tee_fs_dir;
 struct tee_file_handle;
+struct tee_pobj;
 
 /*
  * tee_fs implements a POSIX like secure file system with GP extension
  */
 struct tee_file_operations {
-	TEE_Result (*open)(const char *name, struct tee_file_handle **fh);
-	TEE_Result (*create)(const char *name, struct tee_file_handle **fh);
+	TEE_Result (*open)(struct tee_pobj *po, struct tee_file_handle **fh);
+	TEE_Result (*create)(struct tee_pobj *po, struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle **fh);
 	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
 			   void *buf, size_t *len);
 	TEE_Result (*write)(struct tee_file_handle *fh, size_t pos,
 			    const void *buf, size_t len);
-	TEE_Result (*rename)(const char *old_name, const char *new_name,
+	TEE_Result (*rename)(struct tee_pobj *old_po, struct tee_pobj *new_po,
 			     bool overwrite);
-	TEE_Result (*remove)(const char *name);
+	TEE_Result (*remove)(struct tee_pobj *po);
 	TEE_Result (*truncate)(struct tee_file_handle *fh, size_t size);
 
-	TEE_Result (*opendir)(const char *name, struct tee_fs_dir **d);
+	TEE_Result (*opendir)(const TEE_UUID *uuid, struct tee_fs_dir **d);
 	TEE_Result (*readdir)(struct tee_fs_dir *d, struct tee_fs_dirent **ent);
 	void (*closedir)(struct tee_fs_dir *d);
 };

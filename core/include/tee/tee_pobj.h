@@ -40,12 +40,14 @@ struct tee_pobj {
 	void *obj_id;
 	uint32_t obj_id_len;
 	uint32_t flags;
+	bool temporary;
 	/* Filesystem handling this object */
 	const struct tee_file_operations *fops;
 };
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
-			uint32_t flags, const struct tee_file_operations *fops,
+			uint32_t flags, bool temporary,
+			const struct tee_file_operations *fops,
 			struct tee_pobj **obj);
 
 TEE_Result tee_pobj_release(struct tee_pobj *obj);

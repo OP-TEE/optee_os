@@ -26,14 +26,17 @@
  */
 
 #include <assert.h>
+#include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <optee_msg_supplicant.h>
 #include <stdlib.h>
-#include <string.h>
 #include <string_ext.h>
+#include <string.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
+#include <tee/tee_pobj.h>
+#include <tee/tee_svc_storage.h>
 #include <trace.h>
 #include <util.h>
 
@@ -48,16 +51,15 @@ static TEE_Result operation_commit(struct tee_fs_rpc_operation *op)
 }
 
 static TEE_Result operation_open(uint32_t id, unsigned int cmd,
-				 const char *fname, int *fd)
+				 struct tee_pobj *po, int *fd)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	TEE_Result res;
 	void *va;
 	paddr_t pa;
 	uint64_t cookie;
-	size_t fname_size = strlen(fname) + 1;
 
-	va = tee_fs_rpc_cache_alloc(fname_size, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &pa, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -66,9 +68,12 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 
 	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	op.params[1].u.tmem.buf_ptr = pa;
-	op.params[1].u.tmem.size = fname_size;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
 	op.params[1].u.tmem.shm_ref = cookie;
-	strlcpy(va, fname, fname_size);
+	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
+					      po, po->temporary);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
 
@@ -79,14 +84,14 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 	return res;
 }
 
-TEE_Result tee_fs_rpc_open(uint32_t id, const char *fname, int *fd)
+TEE_Result tee_fs_rpc_open(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_OPEN, fname, fd);
+	return operation_open(id, OPTEE_MRF_OPEN, po, fd);
 }
 
-TEE_Result tee_fs_rpc_create(uint32_t id, const char *fname, int *fd)
+TEE_Result tee_fs_rpc_create(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_CREATE, fname, fd);
+	return operation_open(id, OPTEE_MRF_CREATE, po, fd);
 }
 
 TEE_Result tee_fs_rpc_close(uint32_t id, int fd)
@@ -196,15 +201,15 @@ TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_remove(uint32_t id, const char *fname)
+TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 {
+	TEE_Result res;
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
 	void *va;
 	paddr_t pa;
 	uint64_t cookie;
-	size_t name_len = strlen(fname) + 1;
 
-	va = tee_fs_rpc_cache_alloc(name_len, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &pa, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -213,25 +218,27 @@ TEE_Result tee_fs_rpc_remove(uint32_t id, const char *fname)
 
 	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	op.params[1].u.tmem.buf_ptr = pa;
-	op.params[1].u.tmem.size = name_len;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
 	op.params[1].u.tmem.shm_ref = cookie;
-	strlcpy(va, fname, name_len);
+	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
+					      po, po->temporary);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_rename(uint32_t id, const char *old_fname,
-			     const char *new_fname, bool overwrite)
+TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
+			     struct tee_pobj *new, bool overwrite)
 {
+	TEE_Result res;
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	char *va;
 	paddr_t pa;
 	uint64_t cookie;
-	size_t old_fname_size = strlen(old_fname) + 1;
-	size_t new_fname_size = strlen(new_fname) + 1;
+	bool temp;
 
-	va = tee_fs_rpc_cache_alloc(old_fname_size + new_fname_size,
-				    &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX * 2, &pa, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -241,20 +248,37 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, const char *old_fname,
 
 	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	op.params[1].u.tmem.buf_ptr = pa;
-	op.params[1].u.tmem.size = old_fname_size;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
 	op.params[1].u.tmem.shm_ref = cookie;
-	strlcpy(va, old_fname, old_fname_size);
+	if (new)
+		temp = old->temporary;
+	else
+		temp = true;
+	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
+					      old, temp);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	op.params[2].u.tmem.buf_ptr = pa + old_fname_size;
-	op.params[2].u.tmem.size = new_fname_size;
+	op.params[2].u.tmem.buf_ptr = pa + TEE_FS_NAME_MAX;
+	op.params[2].u.tmem.size = TEE_FS_NAME_MAX;
 	op.params[2].u.tmem.shm_ref = cookie;
-	strlcpy(va + old_fname_size, new_fname, new_fname_size);
+	if (new) {
+		res = tee_svc_storage_create_filename(va + TEE_FS_NAME_MAX,
+						      TEE_FS_NAME_MAX,
+						      new, new->temporary);
+	} else {
+		res = tee_svc_storage_create_filename(va + TEE_FS_NAME_MAX,
+						      TEE_FS_NAME_MAX,
+						      old, false);
+	}
+	if (res != TEE_SUCCESS)
+		return res;
 
 	return operation_commit(&op);
 }
 
-TEE_Result tee_fs_rpc_opendir(uint32_t id, const char *name,
+TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 			      struct tee_fs_dir **d)
 {
 	TEE_Result res;
@@ -262,13 +286,12 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const char *name,
 	void *va;
 	paddr_t pa;
 	uint64_t cookie;
-	size_t name_len = strlen(name) + 1;
 	struct tee_fs_dir *dir = calloc(1, sizeof(*dir));
 
 	if (!dir)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	va = tee_fs_rpc_cache_alloc(name_len, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &pa, &cookie);
 	if (!va) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err_exit;
@@ -279,9 +302,11 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const char *name,
 
 	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	op.params[1].u.tmem.buf_ptr = pa;
-	op.params[1].u.tmem.size = name_len;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
 	op.params[1].u.tmem.shm_ref = cookie;
-	strlcpy(va, name, name_len);
+	res = tee_svc_storage_create_dirname(va, TEE_FS_NAME_MAX, uuid);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
 
@@ -308,8 +333,6 @@ TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d)
 	op.params[0].u.value.a = OPTEE_MRF_CLOSEDIR;
 	op.params[0].u.value.b = d->nw_dir;
 
-	if (d)
-		free(d->d.d_name);
 	free(d);
 	return operation_commit(&op);
 }
@@ -344,9 +367,9 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	free(d->d.d_name);
-	d->d.d_name = strndup(va, max_name_len);
-	if (!d->d.d_name)
+	d->d.oidlen = tee_hs2b(va, d->d.oid, strnlen(va, max_name_len),
+			       sizeof(d->d.oid));
+	if (!d->d.oidlen)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	*ent = &d->d;

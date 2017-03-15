@@ -82,11 +82,11 @@ void tee_svc_storage_close_all_enum(struct user_ta_ctx *utc);
 
 void tee_svc_storage_init(void);
 
-char *tee_svc_storage_create_filename(struct tee_ta_session *sess,
-				      void *object_id,
-				      uint32_t object_id_len,
-				      bool transient);
+struct tee_pobj;
+TEE_Result tee_svc_storage_create_filename(void *buf, size_t blen,
+					   struct tee_pobj *po, bool transient);
 
-char *tee_svc_storage_create_dirname(struct tee_ta_session *sess);
+TEE_Result tee_svc_storage_create_dirname(void *buf, size_t blen,
+					  const TEE_UUID *uuid);
 
 #endif /* TEE_SVC_STORAGE_H */

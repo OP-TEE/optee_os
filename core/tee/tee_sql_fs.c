@@ -74,9 +74,10 @@ static TEE_Result sql_fs_end_transaction_rpc(bool rollback)
 					     rollback);
 }
 
-static TEE_Result sql_fs_opendir_rpc(const char *name, struct tee_fs_dir **d)
+static TEE_Result sql_fs_opendir_rpc(const TEE_UUID *uuid,
+				     struct tee_fs_dir **d)
 {
-	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_SQL_FS, name, d);
+	return tee_fs_rpc_opendir(OPTEE_MSG_RPC_CMD_SQL_FS, uuid, d);
 }
 
 static TEE_Result sql_fs_readdir_rpc(struct tee_fs_dir *d,
@@ -85,15 +86,15 @@ static TEE_Result sql_fs_readdir_rpc(struct tee_fs_dir *d,
 	return tee_fs_rpc_readdir(OPTEE_MSG_RPC_CMD_SQL_FS, d, ent);
 }
 
-static TEE_Result sql_fs_remove_rpc(const char *file)
+static TEE_Result sql_fs_remove_rpc(struct tee_pobj *po)
 {
-	return tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+	return tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, po);
 }
 
-static TEE_Result sql_fs_rename_rpc(const char *old, const char *nw,
+static TEE_Result sql_fs_rename_rpc(struct tee_pobj *old, struct tee_pobj *new,
 				    bool overwrite)
 {
-	return tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, nw, overwrite);
+	return tee_fs_rpc_rename(OPTEE_MSG_RPC_CMD_SQL_FS, old, new, overwrite);
 }
 
 static void sql_fs_closedir_rpc(struct tee_fs_dir *d)
@@ -328,7 +329,7 @@ static void sql_fs_close(struct tee_file_handle **fh)
 	}
 }
 
-static TEE_Result open_internal(const char *file, bool create,
+static TEE_Result open_internal(struct tee_pobj *po, bool create,
 				struct tee_file_handle **fh)
 {
 	TEE_Result res;
@@ -343,10 +344,9 @@ static TEE_Result open_internal(const char *file, bool create,
 	mutex_lock(&sql_fs_mutex);
 
 	if (create)
-		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, file,
-					&fdp->fd);
+		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
 	else
-		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, file, &fdp->fd);
+		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -358,21 +358,22 @@ out:
 		if (fdp && fdp->fd != -1)
 			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
 		if (created)
-			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, file);
+			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, po);
 		free(fdp);
 	}
 	mutex_unlock(&sql_fs_mutex);
 	return res;
 }
 
-static TEE_Result sql_fs_open(const char *file, struct tee_file_handle **fh)
+static TEE_Result sql_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
 {
-	return open_internal(file, false, fh);
+	return open_internal(po, false, fh);
 }
 
-static TEE_Result sql_fs_create(const char *file, struct tee_file_handle **fh)
+static TEE_Result sql_fs_create(struct tee_pobj *po,
+				struct tee_file_handle **fh)
 {
-	return open_internal(file, true, fh);
+	return open_internal(po, true, fh);
 }
 
 
