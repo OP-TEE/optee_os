@@ -43,6 +43,7 @@
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <mm/tee_mmu.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_obj.h>
@@ -277,6 +278,58 @@ static TEE_Result check_client(struct tee_ta_session *s, const TEE_Identity *id)
 	return TEE_SUCCESS;
 }
 
+/*
+ * Check if invocation parameters matches TA properties
+ *
+ * @s - current session handle
+ * @param - already identified memory references hold a valid 'mobj'.
+ *
+ * Policy:
+ * - All TAs can access 'non-secure' shared memory.
+ * - All TAs can access TEE private memory (seccpy)
+ * - Only SDP flagged TAs can accept SDP memory references.
+ */
+#ifndef CFG_SECURE_DATA_PATH
+static bool check_params(struct tee_ta_session *sess __unused,
+			 struct tee_ta_param *param __unused)
+{
+	/*
+	 * When CFG_SECURE_DATA_PATH is not enabled, SDP memory references
+	 * are rejected at OP-TEE core entry. Hence here all TAs have same
+	 * permissions regarding memory reference parameters.
+	 */
+	return true;
+}
+#else
+static bool check_params(struct tee_ta_session *sess,
+			 struct tee_ta_param *param)
+{
+	int n;
+
+	/*
+	 * When CFG_SECURE_DATA_PATH is enabled, OP-TEE entry allows SHM and
+	 * SDP memory references. Only TAs flagged SDP can access SDP memory.
+	 */
+	if (sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
+		return true;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uint32_t param_type = TEE_PARAM_TYPE_GET(param->types, n);
+		struct param_mem *mem = &param->u[n].mem;
+
+		if (param_type != TEE_PARAM_TYPE_MEMREF_INPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
+		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
+			continue;
+		if (!mem->size)
+			continue;
+		if (mobj_is_sdp_mem(mem->mobj))
+			return false;
+	}
+	return true;
+}
+#endif
+
 static void set_invoke_timeout(struct tee_ta_session *sess,
 				      uint32_t cancel_req_to)
 {
@@ -481,6 +534,9 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		return res;
 	}
 
+	if (!check_params(s, param))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ctx = s->ctx;
 
 	if (ctx->panicked) {
@@ -535,6 +591,9 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	if (check_client(sess, clnt_id) != TEE_SUCCESS)
 		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
+
+	if (!check_params(sess, param))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (sess->ctx->panicked) {
 		DMSG("   Panicked !");

@@ -101,6 +101,10 @@ static struct memaccess_area nsec_shared[] = {
 	MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE),
 };
 
+#ifdef CFG_TEE_SDP_MEM_BASE
+register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
+#endif
+
 register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
 register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
@@ -221,6 +225,113 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	}
 	return NULL;
 }
+
+#ifdef CFG_SECURE_DATA_PATH
+extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
+extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
+
+static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
+{
+	const struct core_mmu_phys_mem *mem;
+
+	for (mem = &__start_phys_sdp_mem_section;
+	     mem < &__end_phys_sdp_mem_section; mem++)
+		if (core_is_buffer_inside(pbuf, len, mem->addr, mem->size))
+			return true;
+
+	return false;
+}
+
+#define MSG_SDP_INSTERSECT(pa1, sz1, pa2, sz2) \
+	EMSG("[%" PRIxPA " %" PRIxPA "] intersecs [%" PRIxPA " %" PRIxPA "]", \
+			pa1, pa1 + sz1, pa2, pa2 + sz2)
+
+/* check SDP memories comply with registered memories */
+static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map, size_t len)
+{
+	const struct core_mmu_phys_mem *mem;
+	const struct core_mmu_phys_mem *mem2;
+	const struct core_mmu_phys_mem *start = &__start_phys_sdp_mem_section;
+	const struct core_mmu_phys_mem *end = &__end_phys_sdp_mem_section;
+	struct tee_mmap_region *mmap;
+	size_t n;
+
+	if (start == end) {
+		IMSG("Secure data path is enable without any SDP memory area");
+		return;
+	}
+
+	for (mem = start; mem < end; mem++)
+		DMSG("SDP memory [%" PRIxPA " %" PRIxPA "]",
+			mem->addr, mem->addr + mem->size);
+
+	/* check SDP memories do not intersect each other */
+	for (mem = start; mem < end - 1; mem++) {
+		for (mem2 = mem + 1; mem2 < end; mem2++) {
+			if (core_is_buffer_intersect(mem2->addr, mem2->size,
+						     mem->addr, mem->size)) {
+				MSG_SDP_INSTERSECT(mem2->addr, mem2->size,
+						   mem->addr, mem->size);
+				panic("SDP memory intersection");
+			}
+		}
+	}
+
+	/*
+	 * check SDP memories do not intersect any mapped memory.
+	 * This is called before reserved VA space is loaded in mem_map.
+	 */
+	for (mem = start; mem < end; mem++) {
+		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
+			if (core_is_buffer_intersect(mem->addr, mem->size,
+						     mmap->pa, mmap->size)) {
+				MSG_SDP_INSTERSECT(mem->addr, mem->size,
+						   mmap->pa, mmap->size);
+				panic("SDP memory intersection");
+			}
+		}
+	}
+}
+
+struct mobj **core_sdp_mem_create_mobjs(void)
+{
+	const struct core_mmu_phys_mem *mem;
+	struct mobj **mobj_base;
+	struct mobj **mobj;
+	int cnt;
+
+	for (mem = &__start_phys_sdp_mem_section, cnt = 0;
+	     mem < &__end_phys_sdp_mem_section; mem++, cnt++)
+		;
+
+	/* SDP mobjs table must end with a NULL entry */
+	mobj_base = calloc(cnt + 1, sizeof(*mobj));
+	if (!mobj_base)
+		panic("Out of memory");
+
+	for (mem = &__start_phys_sdp_mem_section, mobj = mobj_base;
+	     mem < &__end_phys_sdp_mem_section; mem++, mobj++) {
+		 *mobj = mobj_phys_alloc(mem->addr, mem->size,
+					 TEE_MATTR_CACHE_CACHED,
+					 CORE_MEM_SDP_MEM);
+		if (!*mobj)
+			panic("can't create SDP physical memory object");
+	}
+	return mobj_base;
+}
+#else
+static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
+{
+	return false;
+}
+
+static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map __unused,
+				 size_t len __unused)
+{
+}
+
+#endif /* CFG_SECURE_DATA_PATH */
+
 
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
 extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
@@ -352,6 +463,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		}
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
+
+	verify_sdp_mem_areas(memory_map, num_elems);
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     RES_VASPACE_SIZE, &last);
@@ -541,6 +654,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return pbuf_inside_map_area(pbuf, len, map_ta_ram);
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
+	case CORE_MEM_SDP_MEM:
+		return pbuf_is_sdp_mem(pbuf, len);
 	case CORE_MEM_EXTRAM:
 		return pbuf_is_inside(ddr, pbuf, len);
 	case CORE_MEM_CACHED:
@@ -648,7 +763,7 @@ int core_tlb_maintenance(int op, unsigned int a)
 	return 0;
 }
 
-unsigned int cache_maintenance_l1(int op, void *va, size_t len)
+unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
 	case DCACHE_CLEAN:
@@ -690,7 +805,7 @@ unsigned int cache_maintenance_l1(int op, void *va, size_t len)
 }
 
 #ifdef CFG_PL310
-unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len)
+unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len)
 {
 	unsigned int ret = TEE_SUCCESS;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);

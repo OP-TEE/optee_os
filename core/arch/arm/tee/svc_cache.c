@@ -30,8 +30,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
 #include <mm/core_memprot.h>
-
-#include "svc_cache.h"
+#include <tee/svc_cache.h>
 
 /*
  * tee_uta_cache_operation - dynamic cache clean/inval request from a TA
@@ -41,28 +40,10 @@
  * cache_maintenance_l1(), and L2 cache sync are part of
  * cache_maintenance_l2()
  */
-static TEE_Result cache_operation(struct tee_ta_session *sess,
-			enum utee_cache_operation op, void *va, size_t len)
+TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 {
-	TEE_Result ret;
+	TEE_Result res;
 	paddr_t pa = 0;
-	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
-
-	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	/*
-	 * TAs are allowed to operate cache maintenance on TA memref parameters
-	 * only, not on the TA private memory.
-	 */
-	if (tee_mmu_is_vbuf_intersect_ta_private(utc, va, len))
-		return TEE_ERROR_ACCESS_DENIED;
-
-	ret = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)va, len);
-	if (ret != TEE_SUCCESS)
-		return TEE_ERROR_ACCESS_DENIED;
 
 	pa = virt_to_phys(va);
 	if (!pa)
@@ -71,26 +52,26 @@ static TEE_Result cache_operation(struct tee_ta_session *sess,
 	switch (op) {
 	case TEE_CACHEFLUSH:
 		/* Clean L1, Flush L2, Flush L1 */
-		ret = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
-		if (ret != TEE_SUCCESS)
-			return ret;
-		ret = cache_maintenance_l2(L2CACHE_AREA_CLEAN_INV, pa, len);
-		if (ret != TEE_SUCCESS)
-			return ret;
+		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		if (res != TEE_SUCCESS)
+			return res;
+		res = cache_maintenance_l2(L2CACHE_AREA_CLEAN_INV, pa, len);
+		if (res != TEE_SUCCESS)
+			return res;
 		return cache_maintenance_l1(DCACHE_AREA_CLEAN_INV, va, len);
 
 	case TEE_CACHECLEAN:
 		/* Clean L1, Clean L2 */
-		ret = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
-		if (ret != TEE_SUCCESS)
-			return ret;
+		res = cache_maintenance_l1(DCACHE_AREA_CLEAN, va, len);
+		if (res != TEE_SUCCESS)
+			return res;
 		return cache_maintenance_l2(L2CACHE_AREA_CLEAN, pa, len);
 
 	case TEE_CACHEINVALIDATE:
 		/* Inval L2, Inval L1 */
-		ret = cache_maintenance_l2(L2CACHE_AREA_INVALIDATE, pa, len);
-		if (ret != TEE_SUCCESS)
-			return ret;
+		res = cache_maintenance_l2(L2CACHE_AREA_INVALIDATE, pa, len);
+		if (res != TEE_SUCCESS)
+			return res;
 		return cache_maintenance_l1(DCACHE_AREA_INVALIDATE, va, len);
 
 	default:
@@ -98,17 +79,36 @@ static TEE_Result cache_operation(struct tee_ta_session *sess,
 	}
 }
 
-TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op)
+#ifdef CFG_CACHE_API
+TEE_Result syscall_cache_operation(void *va, size_t len,
+				   enum utee_cache_operation op)
 {
 	TEE_Result res;
-	struct tee_ta_session *s = NULL;
+	struct tee_ta_session *sess;
+	struct user_ta_ctx *utc;
 
-	res = tee_ta_get_current_session(&s);
+	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if ((s->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
+	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	return cache_operation(s, op, va, len);
+	utc = to_user_ta_ctx(sess->ctx);
+
+	/*
+	 * TAs are allowed to operate cache maintenance on TA memref parameters
+	 * only, not on the TA private memory.
+	 */
+	if (tee_mmu_is_vbuf_intersect_ta_private(utc, va, len))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)va, len);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return cache_operation(op, va, len);
 }
+#endif

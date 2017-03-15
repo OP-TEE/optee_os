@@ -100,6 +100,7 @@ enum teecore_memtypes {
 	MEM_AREA_IO_SEC,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_TA_VASPACE,
+	MEM_AREA_SDP_MEM,
 	MEM_AREA_MAXTYPE
 };
 
@@ -115,6 +116,13 @@ struct core_mmu_phys_mem {
 		__used __section("phys_mem_map_section") = \
 		{ #addr, (type), (addr), (size) }
 
+#define __register_sdp_mem2(pa, sz, id) \
+	static const struct core_mmu_phys_mem __phys_sdp_mem_ ## id \
+		__used __section("phys_sdp_mem_section") = \
+		{ .type = MEM_AREA_SDP_MEM, .addr = (pa), .size = (sz), }
+
+#define __register_sdp_mem1(pa, sz, id)	__register_sdp_mem2(pa, sz, id)
+#define register_sdp_mem(pa, sz)	__register_sdp_mem1(pa, sz, __LINE__)
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
@@ -350,20 +358,6 @@ bool core_mmu_is_shm_cached(void);
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
-/* L1/L2 cache maintenance (op: refer to ???) */
-unsigned int cache_maintenance_l1(int op, void *va, size_t len);
-#ifdef CFG_PL310
-unsigned int cache_maintenance_l2(int op, paddr_t pa, size_t len);
-#else
-static inline unsigned int cache_maintenance_l2(int op __unused,
-						paddr_t pa __unused,
-						size_t len __unused)
-{
-	/* Nothing to do about L2 Cache Maintenance when no PL310 */
-	return TEE_SUCCESS;
-}
-#endif
-
 /* various invalidate secure TLB */
 enum teecore_tlb_op {
 	TLBINV_UNIFIEDTLB,	/* invalidate unified tlb */
@@ -375,7 +369,7 @@ enum teecore_tlb_op {
 int core_tlb_maintenance(int op, unsigned int a);
 
 /* Cache maintenance operation type */
-typedef enum {
+enum cache_op {
 	DCACHE_CLEAN = 0x1,
 	DCACHE_AREA_CLEAN = 0x2,
 	DCACHE_INVALIDATE = 0x3,
@@ -391,9 +385,28 @@ typedef enum {
 	L2CACHE_AREA_CLEAN = 0xD,
 	L2CACHE_CLEAN_INV = 0xE,
 	L2CACHE_AREA_CLEAN_INV = 0xF
-} t_cache_operation_id;
+};
+
+/* L1/L2 cache maintenance */
+unsigned int cache_maintenance_l1(enum cache_op op, void *va, size_t len);
+#ifdef CFG_PL310
+unsigned int cache_maintenance_l2(enum cache_op op, paddr_t pa, size_t len);
+#else
+static inline unsigned int cache_maintenance_l2(enum cache_op op __unused,
+						paddr_t pa __unused,
+						size_t len __unused)
+{
+	/* Nothing to do about L2 Cache Maintenance when no PL310 */
+	return TEE_SUCCESS;
+}
+#endif
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
+
+#ifdef CFG_SECURE_DATA_PATH
+/* Alloc and fill SDP memory objects table - table is NULL terminated */
+struct mobj **core_sdp_mem_create_mobjs(void);
+#endif
 
 #endif /* CORE_MMU_H */

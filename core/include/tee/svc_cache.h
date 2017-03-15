@@ -31,9 +31,12 @@
 #include <tee_api_types.h>
 
 #ifdef CFG_CACHE_API
-TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op);
+TEE_Result syscall_cache_operation(void *va, size_t len,
+				   enum utee_cache_operation op);
 #else
 #define  syscall_cache_operation syscall_not_supported
 #endif
+
+TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len);
 
 #endif /*SVC_CACHE_H*/
