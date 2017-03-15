@@ -54,7 +54,6 @@
 /* File descriptor */
 struct sql_fs_fd {
 	struct tee_fs_htree *ht;
-	tee_fs_off_t pos;
 	int fd; /* returned by normal world */
 };
 
@@ -317,54 +316,6 @@ exit:
 	return res;
 }
 
-static TEE_Result sql_fs_seek(struct tee_file_handle *fh, int32_t offset,
-			      TEE_Whence whence, int32_t *new_offs)
-{
-	TEE_Result res;
-	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
-	tee_fs_off_t pos;
-	size_t filelen;
-
-	mutex_lock(&sql_fs_mutex);
-
-	filelen = tee_fs_htree_get_meta(fdp->ht)->length;
-
-	switch (whence) {
-	case TEE_DATA_SEEK_SET:
-		pos = offset;
-		break;
-
-	case TEE_DATA_SEEK_CUR:
-		pos = fdp->pos + offset;
-		break;
-
-	case TEE_DATA_SEEK_END:
-		pos = filelen + offset;
-		break;
-
-	default:
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit_ret;
-	}
-
-	if (pos > TEE_DATA_MAX_POSITION) {
-		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit_ret;
-	}
-
-	if (pos < 0)
-		pos = 0;
-
-	fdp->pos = pos;
-	if (new_offs)
-		*new_offs = pos;
-	res = TEE_SUCCESS;
-exit_ret:
-	mutex_unlock(&sql_fs_mutex);
-	return res;
-}
-
 static void sql_fs_close(struct tee_file_handle **fh)
 {
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)*fh;
@@ -425,8 +376,8 @@ static TEE_Result sql_fs_create(const char *file, struct tee_file_handle **fh)
 }
 
 
-static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
-			      size_t *len)
+static TEE_Result sql_fs_read(struct tee_file_handle *fh, size_t pos,
+			      void *buf, size_t *len)
 {
 	TEE_Result res;
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
@@ -440,11 +391,10 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 	mutex_lock(&sql_fs_mutex);
 
 	file_size = tee_fs_htree_get_meta(fdp->ht)->length;
-	if ((fdp->pos + remain_bytes) < remain_bytes ||
-	    fdp->pos > (tee_fs_off_t)file_size)
+	if ((pos + remain_bytes) < remain_bytes || pos > file_size)
 		remain_bytes = 0;
-	else if (fdp->pos + remain_bytes > file_size)
-		remain_bytes = file_size - fdp->pos;
+	else if (pos + remain_bytes > file_size)
+		remain_bytes = file_size - pos;
 
 	*len = remain_bytes;
 
@@ -453,8 +403,8 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 		goto exit;
 	}
 
-	start_block_num = block_num(fdp->pos);
-	end_block_num = block_num(fdp->pos + remain_bytes - 1);
+	start_block_num = block_num(pos);
+	end_block_num = block_num(pos + remain_bytes - 1);
 
 	block = malloc(BLOCK_SIZE);
 	if (!block) {
@@ -463,7 +413,7 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 	}
 
 	while (start_block_num <= end_block_num) {
-		tee_fs_off_t offset = fdp->pos % BLOCK_SIZE;
+		size_t offset = pos % BLOCK_SIZE;
 		size_t size_to_read = MIN(remain_bytes, (size_t)BLOCK_SIZE);
 
 		if (size_to_read + offset > BLOCK_SIZE)
@@ -477,7 +427,7 @@ static TEE_Result sql_fs_read(struct tee_file_handle *fh, void *buf,
 
 		data_ptr += size_to_read;
 		remain_bytes -= size_to_read;
-		fdp->pos += size_to_read;
+		pos += size_to_read;
 
 		start_block_num++;
 	}
@@ -488,8 +438,8 @@ exit:
 	return res;
 }
 
-static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
-			       size_t len)
+static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
+			       const void *buf, size_t len)
 {
 	TEE_Result res;
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
@@ -506,18 +456,18 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 
 	sql_fs_begin_transaction_rpc();
 
-	if (meta->length < (size_t)fdp->pos) {
+	if (meta->length < pos) {
 		/* Fill hole */
-		res = sql_fs_ftruncate_internal(fdp, fdp->pos);
+		res = sql_fs_ftruncate_internal(fdp, pos);
 		if (res != TEE_SUCCESS)
 			goto exit;
 	}
 
-	start_block_num = block_num(fdp->pos);
-	end_block_num = block_num(fdp->pos + len - 1);
+	start_block_num = block_num(pos);
+	end_block_num = block_num(pos + len - 1);
 
 	while (start_block_num <= end_block_num) {
-		tee_fs_off_t offset = fdp->pos % BLOCK_SIZE;
+		size_t offset = pos % BLOCK_SIZE;
 		size_t size_to_write = MIN(remain_bytes, (size_t)BLOCK_SIZE);
 
 		if (size_to_write + offset > BLOCK_SIZE)
@@ -530,13 +480,13 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, const void *buf,
 
 		data_ptr += size_to_write;
 		remain_bytes -= size_to_write;
-		fdp->pos += size_to_write;
+		pos += size_to_write;
 
 		start_block_num++;
 	}
 
-	if (fdp->pos > (tee_fs_off_t)meta->length)
-		meta->length = fdp->pos;
+	if (pos > meta->length)
+		meta->length = pos;
 
 exit:
 	if (res == TEE_SUCCESS)
@@ -564,7 +514,6 @@ const struct tee_file_operations sql_fs_ops = {
 	.close = sql_fs_close,
 	.read = sql_fs_read,
 	.write = sql_fs_write,
-	.seek = sql_fs_seek,
 	.truncate = sql_fs_truncate,
 
 	.opendir = sql_fs_opendir_rpc,

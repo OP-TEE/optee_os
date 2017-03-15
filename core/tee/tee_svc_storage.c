@@ -240,7 +240,7 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 
 	/* read head */
 	bytes = sizeof(struct tee_svc_storage_head);
-	res = fops->read(o->fh, &head, &bytes);
+	res = fops->read(o->fh, 0, &head, &bytes);
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT)
 			EMSG("Head corrupt\n");
@@ -256,6 +256,7 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
+	o->ds_pos = sizeof(struct tee_svc_storage_head) + head.meta_size;
 	if (head.meta_size) {
 		attr = malloc(head.meta_size);
 		if (!attr) {
@@ -265,7 +266,8 @@ static TEE_Result tee_svc_storage_read_head(struct tee_ta_session *sess,
 
 		/* read meta */
 		bytes = head.meta_size;
-		res = fops->read(o->fh, attr, &bytes);
+		res = fops->read(o->fh, sizeof(struct tee_svc_storage_head),
+				 attr, &bytes);
 		if (res != TEE_SUCCESS || bytes != head.meta_size) {
 			res = TEE_ERROR_CORRUPT_OBJECT;
 			goto exit;
@@ -292,30 +294,9 @@ exit:
 static TEE_Result tee_svc_storage_update_head(struct tee_obj *o,
 					uint32_t ds_size)
 {
-	TEE_Result res;
-	const struct tee_file_operations *fops;
-	int32_t old_off;
+	size_t pos = offsetof(struct tee_svc_storage_head, ds_size);
 
-	fops = o->pobj->fops;
-
-	/* save original offset */
-	res = fops->seek(o->fh, 0, TEE_DATA_SEEK_CUR, &old_off);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	/* update head.ds_size */
-	res = fops->seek(o->fh, offsetof(struct tee_svc_storage_head,
-			ds_size), TEE_DATA_SEEK_SET, NULL);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = fops->write(o->fh, &ds_size, sizeof(uint32_t));
-	if (res != TEE_SUCCESS)
-		return res;
-
-	/* restore original offset */
-	res = fops->seek(o->fh, old_off, TEE_DATA_SEEK_SET, NULL);
-	return res;
+	return o->pobj->fops->write(o->fh, pos, &ds_size, sizeof(uint32_t));
 }
 
 static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
@@ -380,6 +361,8 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 			goto exit;
 	}
 
+	o->ds_pos = sizeof(struct tee_svc_storage_head) + attr_size;
+
 	/* write head */
 	head.magic = TEE_SVC_STORAGE_MAGIC;
 	head.head_size = sizeof(struct tee_svc_storage_head);
@@ -392,12 +375,13 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 	head.have_attrs = o->have_attrs;
 
 	/* write head */
-	res = fops->write(o->fh, &head, sizeof(struct tee_svc_storage_head));
+	res = fops->write(o->fh, 0, &head, sizeof(struct tee_svc_storage_head));
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	/* write meta */
-	res = fops->write(o->fh, attr, attr_size);
+	res = fops->write(o->fh, sizeof(struct tee_svc_storage_head),
+			  attr, attr_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -406,7 +390,7 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 
 	/* write data to fs if needed */
 	if (data && len)
-		res = fops->write(o->fh, data, len);
+		res = fops->write(o->fh, o->ds_pos, data, len);
 
 exit:
 	free(attr);
@@ -486,11 +470,6 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 	if (res != TEE_SUCCESS)
 		goto oclose;
-
-	res = fops->seek(o->fh, sizeof(struct tee_svc_storage_head) + attr_size,
-			 TEE_DATA_SEEK_SET, NULL);
-	if (res  != TEE_SUCCESS)
-		goto err;
 
 	goto exit;
 
@@ -616,11 +595,6 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto oclose;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS)
-		goto oclose;
-
-	res = fops->seek(o->fh, sizeof(struct tee_svc_storage_head) + attr_size,
-			 TEE_DATA_SEEK_SET, NULL);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -1031,7 +1005,8 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 		goto exit;
 
 	bytes = len;
-	res = o->pobj->fops->read(o->fh, data, &bytes);
+	res = o->pobj->fops->read(o->fh, o->ds_pos + o->info.dataPosition,
+				  data, &bytes);
 	if (res != TEE_SUCCESS) {
 		EMSG("Error code=%x\n", (uint32_t)res);
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
@@ -1083,7 +1058,8 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = o->pobj->fops->write(o->fh, data, len);
+	res = o->pobj->fops->write(o->fh, o->ds_pos + o->info.dataPosition,
+				   data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -1154,39 +1130,50 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
-	int32_t off;
 	size_t attr_size;
+	tee_fs_off_t new_pos;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
 			  tee_svc_uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
-	if (!(o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT)) {
-		res = TEE_ERROR_BAD_STATE;
-		goto exit;
-	}
+	if (!(o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT))
+		return TEE_ERROR_BAD_STATE;
 
 	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
-	off = offset;
-	if (whence == TEE_DATA_SEEK_SET)
-		off += sizeof(struct tee_svc_storage_head) + attr_size;
+	switch (whence) {
+	case TEE_DATA_SEEK_SET:
+		new_pos = offset;
+		break;
+	case TEE_DATA_SEEK_CUR:
+		new_pos = o->info.dataPosition + offset;
+		break;
+	case TEE_DATA_SEEK_END:
+		new_pos = o->info.dataSize + offset;
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
-	res = o->pobj->fops->seek(o->fh, off, whence, &off);
-	if (res != TEE_SUCCESS)
-		goto exit;
-	o->info.dataPosition = off - (sizeof(struct tee_svc_storage_head) +
-				      attr_size);
+	if (new_pos < 0)
+		new_pos = 0;
 
-exit:
-	return res;
+	if (new_pos > TEE_DATA_MAX_POSITION) {
+		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	o->info.dataPosition = new_pos;
+
+	return TEE_SUCCESS;
 }
 
 void tee_svc_storage_close_all_enum(struct user_ta_ctx *utc)

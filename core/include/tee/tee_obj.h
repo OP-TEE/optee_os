@@ -40,9 +40,9 @@ struct tee_obj {
 	bool busy;		/* true if used by an operation */
 	uint32_t have_attrs;	/* bitfield identifying set properties */
 	void *attr;
+	size_t ds_pos;
 	struct tee_pobj *pobj;	/* ptr to persistant object */
 	struct tee_file_handle *fh;
-	uint32_t ds_size;	/* data stream size */
 	uint32_t flags;		/* permission flags for persistent objects */
 };
 

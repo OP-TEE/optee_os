@@ -88,8 +88,6 @@ struct rpmb_file_handle {
 	char filename[TEE_RPMB_FS_FILENAME_LENGTH];
 	/* Address for current entry in RPMB */
 	uint32_t rpmb_fat_address;
-	/* Current position */
-	uint32_t pos;
 };
 
 /**
@@ -1580,7 +1578,6 @@ out:
 static void dump_fh(struct rpmb_file_handle *fh)
 {
 	DMSG("fh->filename=%s", fh->filename);
-	DMSG("fh->pos=%u", fh->pos);
 	DMSG("fh->rpmb_fat_address=%u", fh->rpmb_fat_address);
 	DMSG("fh->fat_entry.start_address=%u", fh->fat_entry.start_address);
 	DMSG("fh->fat_entry.data_size=%u", fh->fat_entry.data_size);
@@ -2024,8 +2021,8 @@ static void rpmb_fs_close(struct tee_file_handle **tfh)
 	*tfh = NULL;
 }
 
-static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, void *buf,
-			       size_t *len)
+static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, size_t pos,
+			       void *buf, size_t *len)
 {
 	TEE_Result res;
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
@@ -2042,29 +2039,28 @@ static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, void *buf,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (fh->pos >= fh->fat_entry.data_size) {
+	if (pos >= fh->fat_entry.data_size) {
 		*len = 0;
 		goto out;
 	}
 
-	size = MIN(size, fh->fat_entry.data_size - fh->pos);
+	size = MIN(size, fh->fat_entry.data_size - pos);
 	if (size) {
 		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
-				    fh->fat_entry.start_address + fh->pos, buf,
+				    fh->fat_entry.start_address + pos, buf,
 				    size, fh->fat_entry.fek);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
 	*len = size;
-	fh->pos += size;
 
 out:
 	mutex_unlock(&rpmb_mutex);
 	return res;
 }
 
-static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, const void *buf,
-				size_t size)
+static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
+				const void *buf, size_t size)
 {
 	TEE_Result res;
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
@@ -2107,8 +2103,8 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, const void *buf,
 	if (fh->fat_entry.flags & FILE_IS_LAST_ENTRY)
 		panic("invalid last entry flag");
 
-	end = fh->pos + size;
-	start_addr = fh->fat_entry.start_address + fh->pos;
+	end = pos + size;
+	start_addr = fh->fat_entry.start_address + pos;
 
 	if (end <= fh->fat_entry.data_size &&
 	    tee_rpmb_write_is_atomic(CFG_RPMB_FS_DEV_ID, start_addr, size)) {
@@ -2142,7 +2138,7 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, const void *buf,
 				goto out;
 		}
 
-		memcpy(newbuf + fh->pos, buf, size);
+		memcpy(newbuf + pos, buf, size);
 
 		newaddr = tee_mm_get_smem(mm);
 		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf,
@@ -2157,7 +2153,6 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, const void *buf,
 			goto out;
 	}
 
-	fh->pos += size;
 out:
 	mutex_unlock(&rpmb_mutex);
 	if (pool_result)
@@ -2165,55 +2160,6 @@ out:
 	if (newbuf)
 		free(newbuf);
 
-	return res;
-}
-
-static TEE_Result rpmb_fs_seek(struct tee_file_handle *tfh, int32_t offset,
-			       TEE_Whence whence, int32_t *new_offs)
-
-{
-	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
-	TEE_Result res;
-	tee_fs_off_t new_pos;
-
-	mutex_lock(&rpmb_mutex);
-
-	res = read_fat(fh, NULL);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	switch (whence) {
-	case TEE_DATA_SEEK_SET:
-		new_pos = offset;
-		break;
-
-	case TEE_DATA_SEEK_CUR:
-		new_pos = fh->pos + offset;
-		break;
-
-	case TEE_DATA_SEEK_END:
-		new_pos = fh->fat_entry.data_size + offset;
-		break;
-
-	default:
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (new_pos < 0)
-		new_pos = 0;
-
-	if (new_pos > TEE_DATA_MAX_POSITION) {
-		EMSG("Position is beyond TEE_DATA_MAX_POSITION");
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	fh->pos = new_pos;
-	if (new_offs)
-		*new_offs = new_pos;
-out:
-	mutex_unlock(&rpmb_mutex);
 	return res;
 }
 
@@ -2606,7 +2552,6 @@ const struct tee_file_operations rpmb_fs_ops = {
 	.close = rpmb_fs_close,
 	.read = rpmb_fs_read,
 	.write = rpmb_fs_write,
-	.seek = rpmb_fs_seek,
 	.truncate = rpmb_fs_truncate,
 	.rename = rpmb_fs_rename,
 	.remove = rpmb_fs_remove,

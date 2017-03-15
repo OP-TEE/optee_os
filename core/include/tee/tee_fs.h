@@ -51,11 +51,10 @@ struct tee_file_operations {
 	TEE_Result (*open)(const char *name, struct tee_file_handle **fh);
 	TEE_Result (*create)(const char *name, struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle **fh);
-	TEE_Result (*read)(struct tee_file_handle *fh, void *buf, size_t *len);
-	TEE_Result (*write)(struct tee_file_handle *fh, const void *buf,
-			    size_t len);
-	TEE_Result (*seek)(struct tee_file_handle *fh, int32_t offs,
-			   TEE_Whence whence, int32_t *new_offs);
+	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
+			   void *buf, size_t *len);
+	TEE_Result (*write)(struct tee_file_handle *fh, size_t pos,
+			    const void *buf, size_t len);
 	TEE_Result (*rename)(const char *old_name, const char *new_name,
 			     bool overwrite);
 	TEE_Result (*remove)(const char *name);

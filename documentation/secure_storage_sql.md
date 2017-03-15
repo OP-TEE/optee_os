@@ -46,8 +46,8 @@ the SQL filesystem is the **tee_file_operations** structure `sql_fs_ops`.
 
 The secure side of the SQL FS implementation is mostly in
 [core/tee/tee_sql_fs.c](../core/tee/tee_sql_fs.c). This file maps the
-operations in `sql_fs_ops` such as `open`, `truncate`, `read`, `write`,
-`seek` and so on, to similar operations on a file that is a container for
+operations in `sql_fs_ops` such as `open`, `truncate`, `read`, `write`
+and so on, to similar operations on a file that is a container for
 the encrypted data and associated meta-data. This container is created and
 manipulated by `tee-supplicant` on request from the secure OS. Its logical
 layout is similar to REE FS except that there's only a single version of
@@ -56,7 +56,7 @@ each field as atomic updates are ensured by **libsqlfs** instead.
 How this file is stored in the SQLite database is private to **libsqlfs**. From
 the point of view of OP-TEE, it is a byte-addressable linear file on which
 atomic updates can be performed through a standard interface (`open`,
-`truncate`, `seek`, `read`, `write`...) with the addition of `begin_transaction`
+`truncate`, `read`, `write`...) with the addition of `begin_transaction`
 and `end_transaction`.
 
 ## Encryption
