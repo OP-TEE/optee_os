@@ -98,12 +98,6 @@ struct tee_storage_enum {
 	const struct tee_file_operations *fops;
 };
 
-/*
- * Protect TA storage directory: avoid race conditions between (create
- * directory + create file) and (remove directory)
- */
-static struct mutex ta_dir_mutex = MUTEX_INITIALIZER;
-
 static TEE_Result tee_svc_storage_get_enum(struct user_ta_ctx *utc,
 					   uint32_t enum_id,
 					   struct tee_storage_enum **e_out)
@@ -352,9 +346,7 @@ static TEE_Result tee_svc_storage_init_file(struct tee_ta_session *sess,
 		goto exit;
 	}
 
-	mutex_lock(&ta_dir_mutex);
 	res = fops->create(tmpfile, &o->fh);
-	mutex_unlock(&ta_dir_mutex);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
