@@ -53,7 +53,7 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 		res = cache_op_inner(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
-		res = cache_op_outer(L2CACHE_AREA_CLEAN_INV, pa, len);
+		res = cache_op_outer(DCACHE_AREA_CLEAN_INV, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
 #endif
@@ -64,11 +64,11 @@ TEE_Result cache_operation(enum utee_cache_operation op, void *va, size_t len)
 		res = cache_op_inner(DCACHE_AREA_CLEAN, va, len);
 		if (res != TEE_SUCCESS)
 			return res;
-		return cache_op_outer(L2CACHE_AREA_CLEAN, pa, len);
+		return cache_op_outer(DCACHE_AREA_CLEAN, pa, len);
 
 	case TEE_CACHEINVALIDATE:
 		/* Inval L2, Inval L1 */
-		res = cache_op_outer(L2CACHE_AREA_INVALIDATE, pa, len);
+		res = cache_op_outer(DCACHE_AREA_INVALIDATE, pa, len);
 		if (res != TEE_SUCCESS)
 			return res;
 		return cache_op_inner(DCACHE_AREA_INVALIDATE, va, len);
