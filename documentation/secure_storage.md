@@ -19,7 +19,7 @@ by CFG_REE_FS=y.
 of an eMMC device, and is enabled by setting `CFG_RPMB_FS=y`. It is described
 in [secure_storage_rpmb.md](secure_storage_rpmb.md).
 - The third one stores objects in a SQLite database in normal world. It is
-enabled by `CFG_SQL_FS=y`. See [secure_storage_sql.md](secure_storage_sql.db).
+enabled by `CFG_SQL_FS=y`. See [secure_storage_sql.md](secure_storage_sql.md).
 
 It is possible to use the normal world filesystems and the RPMB implementations
 simultaneously. For this, three OP-TEE specific storage identifiers have been
@@ -73,7 +73,7 @@ Below is an excerpt from the specification listing the most vital requirements:
    instances of that TA but separated from the other TAs.
 5. The Trusted Storage must provide a minimum level of protection against
    rollback attacks. It is accepted that the actually physical storage may be in
-   an unsecure areas and so is vulnerable to actions from outside of the TEE.
+   an insecure area and so is vulnerable to actions from outside of the TEE.
    Typically, an implementation may rely on the REE for that purpose (protection
    level 100) or on hardware assets controlled by the TEE (protection level
    1000).
@@ -141,7 +141,7 @@ stored in meta file or the data stored in block file.
 
 ## Hash Tree
 
-The hash tree is reponsible for handling data encryption and decryption of
+The hash tree is responsible for handling data encryption and decryption of
 a secure storage file.
 
 The hash tree is implemented as a binary tree where
