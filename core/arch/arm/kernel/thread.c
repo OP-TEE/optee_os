@@ -586,34 +586,18 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 /* Helper routine for the assembly function thread_std_smc_entry() */
 void __thread_std_smc_entry(struct thread_smc_args *args)
 {
-	struct thread_ctx *thr = threads + thread_get_id();
-
-	if (!thr->rpc_arg) {
-		paddr_t parg;
-		uint64_t carg;
-		void *arg;
-
-		thread_rpc_alloc_arg(
-			OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS),
-			&parg, &carg);
-		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-		    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
-			thread_rpc_free_arg(carg);
-			args->a0 = OPTEE_SMC_RETURN_ENOMEM;
-			return;
-		}
-
-		thr->rpc_arg = arg;
-		thr->rpc_carg = carg;
-	}
 
 	thread_std_smc_handler_ptr(args);
 
-	tee_fs_rpc_cache_clear(&thr->tsd);
-	if (!thread_prealloc_rpc_cache) {
-		thread_rpc_free_arg(thr->rpc_carg);
-		thr->rpc_carg = 0;
-		thr->rpc_arg = 0;
+	if (args->a0 == OPTEE_SMC_RETURN_OK) {
+		struct thread_ctx *thr = threads + thread_get_id();
+
+		tee_fs_rpc_cache_clear(&thr->tsd);
+		if (!thread_prealloc_rpc_cache) {
+			thread_rpc_free_arg(thr->rpc_carg);
+			thr->rpc_carg = 0;
+			thr->rpc_arg = 0;
+		}
 	}
 }
 
@@ -1183,63 +1167,6 @@ out:
 	return rv;
 }
 
-static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
-		struct optee_msg_param *params)
-{
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct thread_ctx *thr = threads + thread_get_id();
-	struct optee_msg_arg *arg = thr->rpc_arg;
-	uint64_t carg = thr->rpc_carg;
-	const size_t params_size = sizeof(struct optee_msg_param) * num_params;
-	size_t n;
-
-	assert(arg && carg && num_params <= THREAD_RPC_MAX_NUM_PARAMS);
-
-
-	/*
-	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
-	 * sleeps on a mutex or unlocks a mutex with a sleeper (contended
-	 * mutex).
-	 */
-	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
-		plat_prng_add_jitter_entropy_norpc();
-
-	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS));
-	arg->cmd = cmd;
-	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
-	arg->num_params = num_params;
-	memcpy(OPTEE_MSG_GET_PARAMS(arg), params, params_size);
-
-	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	thread_rpc(rpc_args);
-	for (n = 0; n < num_params; n++) {
-		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
-		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
-		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			memcpy(params + n, OPTEE_MSG_GET_PARAMS(arg) + n,
-			       sizeof(struct optee_msg_param));
-			break;
-		default:
-			break;
-		}
-	}
-	return arg->ret;
-}
-
-uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-		struct optee_msg_param *params)
-{
-	uint32_t ret;
-
-	ret = rpc_cmd_nolock(cmd, num_params, params);
-
-	return ret;
-}
-
 static bool check_alloced_shm(paddr_t pa, size_t len, size_t align)
 {
 	if (pa & (align - 1))
@@ -1281,24 +1208,104 @@ void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie)
 	*cookie = co;
 }
 
+static bool get_rpc_arg(uint32_t cmd, size_t num_params,
+			struct optee_msg_arg **arg_ret, uint64_t *carg_ret,
+			struct optee_msg_param **params_ret)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct optee_msg_arg *arg = thr->rpc_arg;
+	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+	paddr_t p;
+	uint64_t c;
+
+	if (num_params > THREAD_RPC_MAX_NUM_PARAMS)
+		return false;
+
+	if (!arg) {
+		thread_rpc_alloc_arg(sz, &p, &c);
+		if (!p)
+			return false;
+		if (!ALIGNMENT_IS_OK(p, struct optee_msg_arg))
+			goto bad;
+		arg = phys_to_virt(p, MEM_AREA_NSEC_SHM);
+		if (!arg)
+			goto bad;
+
+		thr->rpc_arg = arg;
+		thr->rpc_carg = c;
+	}
+
+	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
+	arg->cmd = cmd;
+	arg->num_params = num_params;
+	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
+
+	*arg_ret = arg;
+	*carg_ret = thr->rpc_carg;
+	*params_ret = OPTEE_MSG_GET_PARAMS(arg);
+	return true;
+
+bad:
+	thread_rpc_free_arg(c);
+	return false;
+}
+
+uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+			struct optee_msg_param *params)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	struct optee_msg_arg *arg;
+	uint64_t carg;
+	size_t n;
+	struct optee_msg_param *arg_params;
+
+	/*
+	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
+	 * sleeps on a mutex or unlocks a mutex with a sleeper (contended
+	 * mutex).
+	 */
+	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
+		plat_prng_add_jitter_entropy_norpc();
+
+	if (!get_rpc_arg(cmd, num_params, &arg, &carg, &arg_params))
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(arg_params, params, sizeof(*params) * num_params);
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	thread_rpc(rpc_args);
+	for (n = 0; n < num_params; n++) {
+		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
+		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
+			params[n] = arg_params[n];
+			break;
+		default:
+			break;
+		}
+	}
+	return arg->ret;
+}
+
 /**
  * Free physical memory previously allocated with thread_rpc_alloc()
  *
  * @cookie:	cookie received when allocating the buffer
- * @bt:		 must be the same as supplied when allocating
+ * @bt:		must be the same as supplied when allocating
  */
 static void thread_rpc_free(unsigned int bt, uint64_t cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct thread_ctx *thr = threads + thread_get_id();
-	struct optee_msg_arg *arg = thr->rpc_arg;
-	uint64_t carg = thr->rpc_carg;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	struct optee_msg_arg *arg;
+	uint64_t carg;
+	struct optee_msg_param *params;
 
-	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
-	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_FREE;
-	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
-	arg->num_params = 1;
+	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &arg, &carg, &params))
+		return;
 
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	params[0].u.value.a = bt;
@@ -1323,15 +1330,12 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 			paddr_t *payload, uint64_t *cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct thread_ctx *thr = threads + thread_get_id();
-	struct optee_msg_arg *arg = thr->rpc_arg;
-	uint64_t carg = thr->rpc_carg;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	struct optee_msg_arg *arg;
+	uint64_t carg;
+	struct optee_msg_param *params;
 
-	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
-	arg->cmd = OPTEE_MSG_RPC_CMD_SHM_ALLOC;
-	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
-	arg->num_params = 1;
+	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg, &params))
+		goto fail;
 
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	params[0].u.value.a = bt;
