@@ -26,11 +26,12 @@
  */
 
 #include <platform_config.h>
-
+#include <console.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
 #include <drivers/gic.h>
+#include <drivers/serial8250_uart.h>
 #include <arm.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
@@ -47,9 +48,12 @@
 #include <sm/sm.h>
 
 static struct gic_data gic_data;
+static struct serial8250_uart_data console_data __early_bss;
 
 register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
+		  SERIAL8250_UART_REG_SIZE);
 
 void main_init_gic(void)
 {
@@ -148,4 +152,11 @@ void init_sec_mon(unsigned long nsec_entry)
 	nsec_ctx->mode_regs.und_lr = plat_ctx->und_lr;
 	nsec_ctx->mon_lr = plat_ctx->mon_lr;
 	nsec_ctx->mon_spsr = plat_ctx->mon_spsr;
+}
+
+void console_init(void)
+{
+	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
+			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+	register_serial_console(&console_data.chip);
 }
