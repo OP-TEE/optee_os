@@ -30,8 +30,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
 #include <mm/core_memprot.h>
-
-#include "svc_cache.h"
+#include <tee/svc_cache.h>
 
 /*
  * tee_uta_cache_operation - dynamic cache clean/inval request from a TA

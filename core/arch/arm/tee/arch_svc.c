@@ -35,12 +35,12 @@
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
 #include <tee/se/svc.h>
+#include <tee/svc_cache.h>
 #include <tee_syscall_numbers.h>
 #include <trace.h>
 #include <util.h>
 
 #include "arch_svc_private.h"
-#include "svc_cache.h"
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 #define TRACE_SYSCALLS
