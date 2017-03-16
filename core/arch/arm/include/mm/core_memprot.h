@@ -95,6 +95,13 @@ bool core_vbuf_is(uint32_t flags, const void *vbuf, size_t len);
 void *phys_to_virt(paddr_t pa, enum teecore_memtypes m);
 
 /*
+ * Translate physical address to virtual address trying MEM_AREA_IO_SEC
+ * first then MEM_AREA_IO_NSEC if not found.
+ * Returns NULL on failure or a valid virtual address on success.
+ */
+void *phys_to_virt_io(paddr_t pa);
+
+/*
  * Translate virtual address to physical address
  * Returns 0 on failure or a valid physical address on success.
  */

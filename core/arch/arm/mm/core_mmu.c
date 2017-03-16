@@ -1268,6 +1268,21 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	return va;
 }
 
+void *phys_to_virt_io(paddr_t pa)
+{
+	struct tee_mmap_region *map;
+	void *va;
+
+	map = find_map_by_type_and_pa(MEM_AREA_IO_SEC, pa);
+	if (!map)
+		map = find_map_by_type_and_pa(MEM_AREA_IO_NSEC, pa);
+	if (!map)
+		return NULL;
+	va = map_pa2va(map, pa);
+	check_va_matches_pa(pa, va);
+	return va;
+}
+
 bool cpu_mmu_enabled(void)
 {
 	uint32_t sctlr;
