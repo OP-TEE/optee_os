@@ -55,27 +55,41 @@ static struct mobj *shm_mobj;
 static struct mobj **sdp_mem_mobjs;
 #endif
 
-static TEE_Result set_mem_param(const struct optee_msg_param *param,
-				struct param_mem *mem)
+static bool mem_param_from_mobj(struct param_mem *mem, struct mobj *mobj,
+				const paddr_t pa, const size_t sz)
 {
 	paddr_t b;
-	size_t sz;
-	size_t tsz;
 
-	if (mobj_get_pa(shm_mobj, 0, 0, &b) != TEE_SUCCESS)
-		panic("Failed to be PA of shared memory MOBJ");
+	if (mobj_get_pa(mobj, 0, 0, &b) != TEE_SUCCESS)
+		panic("mobj_get_pa failed");
 
-	sz = shm_mobj->size;
-	tsz = param->u.tmem.size;
-	if (param->u.tmem.buf_ptr && !tsz)
-		tsz++;
-	if (!core_is_buffer_inside(param->u.tmem.buf_ptr, tsz, b, sz))
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (!core_is_buffer_inside(pa, MAX(sz, 1UL), b, mobj->size))
+		return false;
 
-	mem->mobj = shm_mobj;
-	mem->offs = param->u.tmem.buf_ptr - b;
-	mem->size = param->u.tmem.size;
-	return TEE_SUCCESS;
+	mem->mobj = mobj;
+	mem->offs = pa - b;
+	mem->size = sz;
+	return true;
+}
+
+/* fill 'struct param_mem' structure if buffer matches a valid memory object */
+static TEE_Result assign_mobj_to_mem_param(const paddr_t pa, const size_t sz,
+					   struct param_mem *mem)
+{
+	struct mobj __maybe_unused **mobj;
+
+	/* belongs to nonsecure shared memory ? */
+	if (mem_param_from_mobj(mem, shm_mobj, pa, sz))
+		return TEE_SUCCESS;
+
+#ifdef CFG_SECURE_DATA_PATH
+	/* belongs to SDP memories ? */
+	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
+		if (mem_param_from_mobj(mem, *mobj, pa, sz))
+			return TEE_SUCCESS;
+#endif
+
+	return TEE_ERROR_BAD_PARAMETERS;
 }
 
 static TEE_Result copy_in_params(const struct optee_msg_param *params,
@@ -118,7 +132,9 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-			res = set_mem_param(params + n, &ta_param->u[n].mem);
+			res = assign_mobj_to_mem_param(params[n].u.tmem.buf_ptr,
+						       params[n].u.tmem.size,
+						       &ta_param->u[n].mem);
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
