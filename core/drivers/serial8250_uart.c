@@ -24,12 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <platform_config.h>
 
+#include <compiler.h>
 #include <drivers/serial8250_uart.h>
 #include <console.h>
 #include <io.h>
-#include <compiler.h>
+#include <mm/core_mmu.h>
+#include <util.h>
 
 /* uart register defines */
 #define UART_RHR	0x0
@@ -49,45 +50,83 @@
 #define LSR_EMPTY	(LSR_TEMT | LSR_THRE)
 #define LSR_DR		0x01 /* DATA Ready */
 
-void serial8250_uart_init(vaddr_t __unused base,
-		uint32_t __unused uart_clk, uint32_t __unused baud_rate)
+static vaddr_t base_addr(struct serial8250_uart_data *pd)
 {
-	/*
-	 * do nothing, debug uart(uart0) share with normal world,
-	 * everything for uart0 is ready now.
-	 */
+	return cpu_mmu_enabled() ? pd->vbase : pd->pbase;
 }
 
-void serial8250_uart_flush_tx_fifo(vaddr_t base)
+static void serial8250_uart_flush(struct serial_chip *chip)
 {
+	struct serial8250_uart_data *pd = container_of(chip,
+						struct serial8250_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
+
 	while (1) {
 		uint8_t state = read8(base + UART_LSR);
 
-		/* waiting transmit fifo empty */
+		/* Wait until transmit FIFO is empty */
 		if ((state & LSR_EMPTY) == LSR_EMPTY)
 			break;
 	}
 }
 
-bool serial8250_uart_have_rx_data(vaddr_t base)
+static bool serial8250_uart_have_rx_data(struct serial_chip *chip)
 {
+	struct serial8250_uart_data *pd = container_of(chip,
+						struct serial8250_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
+
 	return (read32(base + UART_LSR) & LSR_DR);
 }
 
-void serial8250_uart_putc(int ch, vaddr_t base)
+static int serial8250_uart_getchar(struct serial_chip *chip)
 {
-	serial8250_uart_flush_tx_fifo(base);
+	struct serial8250_uart_data *pd = container_of(chip,
+						struct serial8250_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
 
-	/* write out charset to transmit fifo */
-	write8(ch, base + UART_THR);
-}
-
-int serial8250_uart_getchar(vaddr_t base)
-{
-	while (!serial8250_uart_have_rx_data(base)) {
-		/* transmit fifo is empty, waiting again. */
+	while (!serial8250_uart_have_rx_data(chip)) {
+		/* Transmit FIFO is empty, waiting again */
 		;
 	}
 	return read8(base + UART_RHR);
 }
 
+static void serial8250_uart_putc(struct serial_chip *chip, int ch)
+{
+	struct serial8250_uart_data *pd = container_of(chip,
+						struct serial8250_uart_data,
+						chip);
+	vaddr_t base = base_addr(pd);
+
+	serial8250_uart_flush(chip);
+
+	/* Write out character to transmit FIFO */
+	write8(ch, base + UART_THR);
+}
+
+static const struct serial_ops serial8250_uart_ops = {
+	.flush = serial8250_uart_flush,
+	.getchar = serial8250_uart_getchar,
+	.have_rx_data = serial8250_uart_have_rx_data,
+	.putc = serial8250_uart_putc,
+};
+
+void serial8250_uart_init(struct serial8250_uart_data *pd, vaddr_t base,
+			  uint32_t __unused uart_clk,
+			  uint32_t __unused baud_rate)
+{
+	if (cpu_mmu_enabled())
+		pd->vbase = base;
+	else
+		pd->pbase = base;
+	pd->chip.ops = &serial8250_uart_ops;
+
+	/*
+	 * do nothing, debug uart(uart0) share with normal world,
+	 * everything for uart0 is ready now.
+	 */
+}

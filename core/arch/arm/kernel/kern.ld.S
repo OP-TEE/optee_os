@@ -92,6 +92,11 @@ SECTIONS
 		*(.rodata .rodata.__unpaged)
 #include <rodata_unpaged.ld.S>
 #else
+#ifdef CFG_DT
+		__rodata_dtdrv_start = .;
+		KEEP(*(.rodata.dtdrv))
+		__rodata_dtdrv_end = .;
+#endif
 		*(.rodata .rodata.*)
 
 		/*
@@ -277,6 +282,11 @@ SECTIONS
 
 	.rodata_pageable : ALIGN(8) {
 		__rodata_pageable_start = .;
+#ifdef CFG_DT
+		__rodata_dtdrv_start = .;
+		KEEP(*(.rodata.dtdrv))
+		__rodata_dtdrv_end = .;
+#endif
 		*(.rodata*)
 		/*
 		 * 8 to avoid unwanted padding between __start_ta_head_section

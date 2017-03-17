@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,24 +26,26 @@
  */
 
 #include <console.h>
-#include <drivers/serial8250_uart.h>
-#include <mm/core_memprot.h>
-#include <platform_config.h>
+#include <compiler.h>
+#include <drivers/serial.h>
+#include <stdlib.h>
 
-static struct serial8250_uart_data console_data __early_bss;
+struct serial_chip *serial_console __weak;
 
-register_phys_mem(MEM_AREA_IO_NSEC,
-		  CONSOLE_UART_BASE,
-		  SERIAL8250_UART_REG_SIZE);
-
-void console_init(void)
+void __weak console_putc(int ch)
 {
-	if (cpu_mmu_enabled()) {
-		console_data.vbase = (vaddr_t)phys_to_virt(console_data.pbase,
-							   MEM_AREA_IO_SEC);
+	if (!serial_console)
 		return;
-	}
-	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
-			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
-	serial_console = &console_data.chip;
+
+	if (ch == '\n')
+		serial_console->ops->putc(serial_console, '\r');
+	serial_console->ops->putc(serial_console, ch);
+}
+
+void __weak console_flush(void)
+{
+	if (!serial_console)
+		return;
+
+	serial_console->ops->flush(serial_console);
 }

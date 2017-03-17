@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <compiler.h>
 #include <drivers/cdns_uart.h>
 #include <io.h>
+#include <mm/core_mmu.h>
 #include <util.h>
 
 #define CDNS_UART_CONTROL		0
@@ -52,31 +52,49 @@
 #define CDNS_UART_IRQ_RXTRIG		BIT(0)
 #define CDNS_UART_IRQ_RXTOUT		BIT(8)
 
-void cdns_uart_flush(vaddr_t base)
+static vaddr_t base_addr(struct cdns_uart_data *pd)
 {
+	return cpu_mmu_enabled() ? pd->vbase : pd->pbase;
+}
+
+static void cdns_uart_flush(struct serial_chip *chip)
+{
+	struct cdns_uart_data *pd = container_of(chip, struct cdns_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
 	while (!(read32(base + CDNS_UART_CHANNEL_STATUS) &
-				CDNS_UART_CHANNEL_STATUS_TEMPTY))
+		 CDNS_UART_CHANNEL_STATUS_TEMPTY))
 		;
 }
 
-/*
- * we rely on the bootloader having set up the HW correctly, we just enable
- * transmitter/receiver here, just in case.
- */
-void cdns_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate)
+static bool cdns_uart_have_rx_data(struct serial_chip *chip)
 {
-	if (!base || !uart_clk || !baud_rate)
-		return;
+	struct cdns_uart_data *pd = container_of(chip, struct cdns_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
 
-	/* Enable UART and RX/TX */
-	write32(CDNS_UART_CONTROL_RXEN | CDNS_UART_CONTROL_TXEN,
-		base + CDNS_UART_CONTROL);
-
-	cdns_uart_flush(base);
+	return !(read32(base + CDNS_UART_CHANNEL_STATUS) &
+			CDNS_UART_CHANNEL_STATUS_REMPTY);
 }
 
-void cdns_uart_putc(int ch, vaddr_t base)
+static int cdns_uart_getchar(struct serial_chip *chip)
 {
+	struct cdns_uart_data *pd = container_of(chip, struct cdns_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
+	while (!cdns_uart_have_rx_data(chip))
+		;
+	return read32(base + CDNS_UART_FIFO) & 0xff;
+}
+
+static void cdns_uart_putc(struct serial_chip *chip, int ch)
+{
+	struct cdns_uart_data *pd = container_of(chip, struct cdns_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
 	/* Wait until there is space in the FIFO */
 	while (read32(base + CDNS_UART_CHANNEL_STATUS) &
 			CDNS_UART_CHANNEL_STATUS_TFUL)
@@ -86,15 +104,33 @@ void cdns_uart_putc(int ch, vaddr_t base)
 	write32(ch, base + CDNS_UART_FIFO);
 }
 
-bool cdns_uart_have_rx_data(vaddr_t base)
-{
-	return !(read32(base + CDNS_UART_CHANNEL_STATUS) &
-			CDNS_UART_CHANNEL_STATUS_REMPTY);
-}
 
-int cdns_uart_getchar(vaddr_t base)
+static const struct serial_ops cdns_uart_ops = {
+	.flush = cdns_uart_flush,
+	.getchar = cdns_uart_getchar,
+	.have_rx_data = cdns_uart_have_rx_data,
+	.putc = cdns_uart_putc,
+};
+
+/*
+ * we rely on the bootloader having set up the HW correctly, we just enable
+ * transmitter/receiver here, just in case.
+ */
+void cdns_uart_init(struct cdns_uart_data *pd, vaddr_t base, uint32_t uart_clk,
+		uint32_t baud_rate)
 {
-	while (!cdns_uart_have_rx_data(base))
-		;
-	return read32(base + CDNS_UART_FIFO) & 0xff;
+	if (cpu_mmu_enabled())
+		pd->vbase = base;
+	else
+		pd->pbase = base;
+	pd->chip.ops = &cdns_uart_ops;
+
+	if (!uart_clk || !baud_rate)
+		return;
+
+	/* Enable UART and RX/TX */
+	write32(CDNS_UART_CONTROL_RXEN | CDNS_UART_CONTROL_TXEN,
+		base + CDNS_UART_CONTROL);
+
+	cdns_uart_flush(&pd->chip);
 }

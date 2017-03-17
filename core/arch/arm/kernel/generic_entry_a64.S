@@ -118,14 +118,26 @@ copy_init:
 	sub	x1, x1, x0
 	bl	inv_dcache_range
 
-	/* Enable Console */
+	/* Enable the console using physical addresses */
 	bl	console_init
 
+	/* Configure the MMU */
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
+
+	/* Avoid losing any output due to the console_init call below */
+	bl	console_flush
+
+	/* Enable the MMU */
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
+
+	/*
+	 * MMU is turned on: re-initialize the console so that the driver
+	 * uses the proper virtual addresses from now on
+	 */
+	bl	console_init
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1

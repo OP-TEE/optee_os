@@ -28,9 +28,14 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
+#include <compiler.h>
+
 void console_init(void);
 void console_putc(int ch);
 void console_flush(void);
+
+struct serial_chip;
+extern struct serial_chip *serial_console __early_bss;
 
 #endif /* CONSOLE_H */
 

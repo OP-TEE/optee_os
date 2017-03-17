@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,15 +29,14 @@
 #define IMX_UART_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
-void imx_uart_init(vaddr_t base);
+struct imx_uart_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void imx_uart_putc(const char ch, vaddr_t base);
-
-void imx_uart_flush_tx_fifo(vaddr_t base);
-
-bool imx_uart_have_rx_data(vaddr_t base);
-
-int imx_uart_getchar(vaddr_t base);
+void imx_uart_init(struct imx_uart_data *pd, vaddr_t base);
 
 #endif /* IMX_UART_H */

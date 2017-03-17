@@ -51,6 +51,8 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
+static struct hi16xx_uart_data console_data __early_bss;
+
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, HI16XX_UART_REG_SIZE);
 
 const struct thread_handlers *generic_boot_get_handlers(void)
@@ -63,34 +65,14 @@ static void main_fiq(void)
 	panic();
 }
 
-static vaddr_t console_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_NSEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	hi16xx_uart_init(console_base(), CONSOLE_UART_CLK_IN_HZ,
-			 CONSOLE_BAUDRATE);
-}
-
-void console_putc(int ch)
-{
-	vaddr_t base = console_base();
-
-	if (ch == '\n')
-		hi16xx_uart_putc('\r', base);
-	hi16xx_uart_putc(ch, base);
-}
-
-void console_flush(void)
-{
-	hi16xx_uart_flush(console_base());
+	if (cpu_mmu_enabled()) {
+		console_data.vbase = (vaddr_t)phys_to_virt(console_data.pbase,
+							   MEM_AREA_IO_SEC);
+		return;
+	}
+	hi16xx_uart_init(&console_data, CONSOLE_UART_BASE,
+			 CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+	serial_console = &console_data.chip;
 }

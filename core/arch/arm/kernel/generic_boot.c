@@ -59,6 +59,9 @@
 #endif
 
 #if defined(CFG_DT)
+#include <console.h>
+#include <drivers/serial.h>
+#include <kernel/dt.h>
 #include <libfdt.h>
 #endif
 
@@ -455,20 +458,6 @@ static int add_optee_dt_node(void *fdt)
 	return 0;
 }
 
-static int get_dt_cell_size(void *fdt, int offs, const char *cell_name,
-			    uint32_t *cell_size)
-{
-	int len;
-	const uint32_t *cell = fdt_getprop(fdt, offs, cell_name, &len);
-
-	if (len != sizeof(*cell))
-		return -1;
-	*cell_size = fdt32_to_cpu(*cell);
-	if (*cell_size != 1 && *cell_size != 2)
-		return -1;
-	return 0;
-}
-
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 {
 	if (cell_size == 1) {
@@ -486,8 +475,8 @@ static int add_optee_res_mem_dt_node(void *fdt)
 {
 	int offs;
 	int ret;
-	uint32_t addr_size = 2;
-	uint32_t len_size = 2;
+	int addr_size = 2;
+	int len_size = 2;
 	vaddr_t shm_va_start;
 	vaddr_t shm_va_end;
 	paddr_t shm_pa;
@@ -495,11 +484,11 @@ static int add_optee_res_mem_dt_node(void *fdt)
 
 	offs = fdt_path_offset(fdt, "/reserved-memory");
 	if (offs >= 0) {
-		ret = get_dt_cell_size(fdt, offs, "#address-cells", &addr_size);
-		if (ret < 0)
+		addr_size = fdt_address_cells(fdt, offs);
+		if (addr_size < 0)
 			return -1;
-		ret = get_dt_cell_size(fdt, offs, "#size-cells", &len_size);
-		if (ret < 0)
+		len_size = fdt_size_cells(fdt, offs);
+		if (len_size < 0)
 			return -1;
 	} else {
 		offs = fdt_path_offset(fdt, "/");
@@ -587,8 +576,105 @@ static void init_fdt(unsigned long phys_fdt)
 		panic();
 	}
 }
+
+/*
+ * Check if the /secure-chosen node in the DT contains an stdout-path value
+ * for which we have a compatible driver. If so, switch the console to
+ * this device.
+ */
+static void configure_console_from_dt(unsigned long phys_fdt)
+{
+	const struct dt_driver *drv, *found = NULL;
+	const struct serial_driver *sdrv;
+	const struct fdt_property *prop;
+	struct serial_chip *dev;
+	char *stdout_data;
+	const char *uart;
+	const char *parms = NULL;
+	void *fdt;
+	int offs;
+	char *p;
+	int st;
+
+	if (!phys_fdt)
+		return;
+	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
+	if (!fdt)
+		panic();
+
+	offs = fdt_path_offset(fdt, "/secure-chosen");
+	if (offs < 0)
+		return;
+	prop = fdt_get_property(fdt, offs, "stdout-path", NULL);
+	if (!prop) {
+		/*
+		 * /secure-chosen node present but no stdout-path property
+		 * means we don't want any console output
+		 */
+		IMSG("Switching off console");
+		serial_console = NULL;
+		return;
+	}
+
+	stdout_data = strdup(prop->data);
+	if (!stdout_data)
+		return;
+	for (p = stdout_data; *p; p++) {
+		if (*p == ':') {
+			*p = '\0';
+			parms = p + 1;
+			break;
+		}
+	}
+
+	/* stdout-path may refer to an alias */
+	uart = fdt_get_alias(fdt, stdout_data);
+	if (!uart) {
+		/* Not an alias, assume we have a node path */
+		uart = stdout_data;
+	}
+	offs = fdt_path_offset(fdt, uart);
+	if (offs < 0)
+		goto out;
+
+	for_each_dt_driver(drv) {
+		const struct dt_device_match *dm;
+
+		for (dm = drv->match_table; dm; dm++) {
+			st = fdt_node_check_compatible(fdt, offs,
+						       dm->compatible);
+			if (!st) {
+				found = drv;
+				break;
+			}
+		}
+	}
+	if (!found)
+		goto out;
+
+	sdrv = (const struct serial_driver *)found->driver;
+	if (!sdrv)
+		goto out;
+	dev = sdrv->dev_alloc();
+	if (!dev)
+		goto out;
+	if (sdrv->dev_init(dev, fdt, offs, parms) < 0) {
+		sdrv->dev_free(dev);
+		goto out;
+	}
+
+	IMSG("Switching console to device: %s", uart);
+	serial_console = dev;
+out:
+	free(stdout_data);
+}
+
 #else
 static void init_fdt(unsigned long phys_fdt __unused)
+{
+}
+
+static void configure_console_from_dt(unsigned long phys_fdt __unused)
 {
 }
 #endif /*!CFG_DT*/
@@ -605,18 +691,18 @@ static void init_primary_helper(unsigned long pageable_part,
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	init_vfp_sec();
-
 	init_runtime(pageable_part);
-
-	IMSG("Initializing (%s)\n", core_v_str);
 
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 	init_fdt(fdt);
+	configure_console_from_dt(fdt);
+
+	IMSG("OP-TEE version: %s", core_v_str);
+
 	main_init_gic();
 	init_vfp_nsec();
-
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
 	DMSG("Primary CPU switching to normal world boot\n");
