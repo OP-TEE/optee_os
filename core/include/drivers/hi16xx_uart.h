@@ -33,18 +33,17 @@
 #define HI16XX_UART_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
 #define HI16XX_UART_REG_SIZE 0xF8
 
-void hi16xx_uart_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
+struct hi16xx_uart_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void hi16xx_uart_putc(int ch, vaddr_t base);
-
-void hi16xx_uart_flush(vaddr_t base);
-
-bool hi16xx_uart_have_rx_data(vaddr_t base);
-
-int hi16xx_uart_getchar(vaddr_t base);
+void hi16xx_uart_init(struct hi16xx_uart_data *pd, vaddr_t base,
+		      uint32_t uart_clk, uint32_t baud_rate);
 
 #endif /* HI16XX_UART_H */
-

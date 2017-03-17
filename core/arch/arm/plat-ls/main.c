@@ -58,6 +58,7 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
+static struct ns16550_data console_data __early_bss;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
@@ -120,38 +121,15 @@ void plat_cpu_reset_late(void)
 	}
 }
 
-static vaddr_t console_base(void)
-{
-	static void *va __early_bss;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(CONSOLE_UART_BASE, MEM_AREA_IO_NSEC);
-		return (vaddr_t)va;
-	}
-	return CONSOLE_UART_BASE;
-}
-
 void console_init(void)
 {
-	/*
-	 * Do nothing, uart driver shared with normal world,
-	 * everything for uart driver intialization is done in bootloader.
-	 */
-}
-
-void console_putc(int ch)
-{
-	vaddr_t base = console_base();
-
-	if (ch == '\n')
-		ns16550_putc('\r', base);
-	ns16550_putc(ch, base);
-}
-
-void console_flush(void)
-{
-	ns16550_flush(console_base());
+	if (cpu_mmu_enabled()) {
+		console_data.vbase = (vaddr_t)phys_to_virt(console_data.pbase,
+							   MEM_AREA_IO_SEC);
+		return;
+	}
+	ns16550_init(&console_data, CONSOLE_UART_BASE);
+	serial_console = &console_data.chip;
 }
 
 void main_init_gic(void)

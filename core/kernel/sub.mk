@@ -1,4 +1,5 @@
 srcs-y += assert.c
+srcs-y += console.c
 srcs-y += tee_ta_manager.c
 srcs-y += tee_misc.c
 srcs-y += panic.c

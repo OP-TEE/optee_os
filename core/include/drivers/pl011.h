@@ -28,18 +28,17 @@
 #define PL011_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
 #define PL011_REG_SIZE	0x1000
 
-void pl011_init(vaddr_t base, uint32_t uart_clk, uint32_t baud_rate);
+struct pl011_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void pl011_putc(int ch, vaddr_t base);
-
-void pl011_flush(vaddr_t base);
-
-bool pl011_have_rx_data(vaddr_t base);
-
-int pl011_getchar(vaddr_t base);
+void pl011_init(struct pl011_data *pd, vaddr_t base, uint32_t uart_clk,
+		uint32_t baud_rate);
 
 #endif /* PL011_H */
-

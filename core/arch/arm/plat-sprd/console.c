@@ -29,30 +29,26 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
+static struct sprd_uart_data console_data __early_bss;
+
 static vaddr_t console_base(void)
 {
-	static vaddr_t base;
-
 	if (cpu_mmu_enabled())
-		base = (vaddr_t)phys_to_virt(CONSOLE_UART_BASE,
-					     MEM_AREA_IO_SEC);
-	else
-		base = CONSOLE_UART_BASE;
-
-	return base;
+		return (vaddr_t)phys_to_virt(CONSOLE_UART_BASE,
+					     MEM_AREA_IO_NSEC);
+	return CONSOLE_UART_BASE;
 }
 
-/* Do nothing in this function */
 void console_init(void)
 {
+	sprd_uart_init(&console_data, console_base());
+	serial_console = &console_data.chip;
 }
 
 void console_putc(int ch)
 {
-	sprd_uart_putc(console_base(), (unsigned char)(ch & 0xff));
+	struct serial_chip *cons = &console_data.chip;
+
+	cons->ops->putc(cons, ch & 0xff);
 }
 
-void console_flush(void)
-{
-	sprd_uart_flush(console_base());
-}

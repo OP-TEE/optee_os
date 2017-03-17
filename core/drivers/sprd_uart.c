@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, Spreadtrum Communications Inc.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +25,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <io.h>
 #include <drivers/sprd_uart.h>
+#include <io.h>
+#include <mm/core_mmu.h>
+#include <util.h>
 
 /* Register definitions */
 #define UART_TXD		0x0000
@@ -36,43 +39,64 @@
 #define STS1_RXF_CNT_MASK	0x00ff  /* Rx FIFO data counter mask */
 #define STS1_TXF_CNT_MASK	0xff00 /* Tx FIFO data counter mask */
 
-static uint32_t sprd_uart_read(vaddr_t base, uint32_t reg)
+static vaddr_t base_addr(struct sprd_uart_data *pd)
 {
-	return read32(base + reg);
+	return cpu_mmu_enabled() ? pd->vbase : pd->pbase;
 }
 
-static void sprd_uart_write(vaddr_t base, uint32_t reg, uint32_t value)
+static void sprd_uart_flush(struct serial_chip *chip)
 {
-	write32(value, base + reg);
-}
+	struct sprd_uart_data *pd = container_of(chip, struct sprd_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
 
-static void sprd_uart_wait_xmit_done(vaddr_t base)
-{
-	while (sprd_uart_read(base, UART_STS1) & STS1_TXF_CNT_MASK)
+	while (read32(base + UART_STS1) & STS1_TXF_CNT_MASK)
 		;
 }
 
-static void sprd_uart_wait_rx_data(vaddr_t base)
+static bool sprd_uart_have_rx_data(struct serial_chip *chip)
 {
-	while (!(sprd_uart_read(base, UART_STS1) & STS1_RXF_CNT_MASK))
+	struct sprd_uart_data *pd = container_of(chip, struct sprd_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
+	return !!(read32(base + UART_STS1) & STS1_RXF_CNT_MASK);
+}
+
+static void sprd_uart_putc(struct serial_chip *chip, int ch)
+{
+	struct sprd_uart_data *pd = container_of(chip, struct sprd_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
+	sprd_uart_flush(chip);
+	write32(base + UART_TXD, ch);
+}
+
+static int sprd_uart_getchar(struct serial_chip *chip)
+{
+	struct sprd_uart_data *pd = container_of(chip, struct sprd_uart_data,
+						 chip);
+	vaddr_t base = base_addr(pd);
+
+	while (!sprd_uart_have_rx_data(chip))
 		;
+
+	return read32(base + UART_RXD) & 0xff;
 }
 
-void sprd_uart_flush(vaddr_t base)
+static const struct serial_ops sprd_uart_ops = {
+	.flush = sprd_uart_flush,
+	.getchar = sprd_uart_getchar,
+	.have_rx_data = sprd_uart_have_rx_data,
+	.putc = sprd_uart_putc,
+};
+
+void sprd_uart_init(struct sprd_uart_data *pd, vaddr_t base)
 {
-	sprd_uart_wait_xmit_done(base);
-}
-
-void sprd_uart_putc(vaddr_t base, unsigned char ch)
-{
-	sprd_uart_wait_xmit_done(base);
-
-	sprd_uart_write(base, UART_TXD, (uint32_t)ch);
-}
-
-unsigned char sprd_uart_getc(vaddr_t base)
-{
-	sprd_uart_wait_rx_data(base);
-
-	return sprd_uart_read(base, UART_RXD) & 0xff;
+	if (cpu_mmu_enabled())
+		pd->vbase = base;
+	else
+		pd->pbase = base;
+	pd->chip.ops = &sprd_uart_ops;
 }

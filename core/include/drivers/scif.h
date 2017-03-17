@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, GlobalLogic
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +29,16 @@
 #define SCIF_H
 
 #include <types_ext.h>
+#include <drivers/serial.h>
 
 #define SCIF_REG_SIZE	0x1000
 
-void scif_uart_flush(vaddr_t base);
+struct scif_uart_data {
+	paddr_t pbase;
+	vaddr_t vbase;
+	struct serial_chip chip;
+};
 
-void scif_uart_init(vaddr_t base);
-
-void scif_uart_putc(int ch, vaddr_t base);
+void scif_uart_init(struct scif_uart_data *pd, vaddr_t base);
 
 #endif /* SCIF */
