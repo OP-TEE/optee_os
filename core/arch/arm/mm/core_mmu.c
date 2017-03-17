@@ -328,6 +328,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | cached;
 	case MEM_AREA_RES_VASPACE:
 		return 0;
+	case MEM_AREA_TEE_RAM_UNCACHED:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PX | noncache;
 	default:
 		panic("invalid type");
 	}
@@ -471,6 +473,7 @@ void core_init_mmu_map(void)
 				panic("NS_SHM can't fit in nsec_shared");
 			map_nsec_shm = map;
 			break;
+		case MEM_AREA_TEE_RAM_UNCACHED:
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_RAM_SEC:
@@ -1157,6 +1160,14 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	}
 	check_va_matches_pa(pa, va);
 	return va;
+}
+
+vaddr_t get_base(paddr_t base, enum teecore_memtypes type)
+{
+	if (cpu_mmu_enabled())
+		return (vaddr_t)phys_to_virt(base, type);
+
+	return (vaddr_t)base;
 }
 
 bool cpu_mmu_enabled(void)

@@ -86,6 +86,7 @@
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
+ * MEM_AREA_TEE_RAM_UNCACHED:  Same as MEM_AREA_TEE_RAM, but cache disabled.
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
@@ -100,6 +101,7 @@ enum teecore_memtypes {
 	MEM_AREA_IO_SEC,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_TA_VASPACE,
+	MEM_AREA_TEE_RAM_UNCACHED,
 	MEM_AREA_MAXTYPE
 };
 
@@ -388,5 +390,6 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
+void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb);
 
 #endif /* CORE_MMU_H */

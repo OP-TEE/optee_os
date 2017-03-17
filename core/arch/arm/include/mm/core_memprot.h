@@ -99,4 +99,9 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m);
  */
 paddr_t virt_to_phys(void *va);
 
+/*
+ * Return runtime usable address
+ */
+vaddr_t get_base(paddr_t base, enum teecore_memtypes type);
+
 #endif /* CORE_MEMPROT_H */

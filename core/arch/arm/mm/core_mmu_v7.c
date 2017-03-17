@@ -649,7 +649,7 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 * map_memarea - load mapping in target L1 table
 * A finer mapping must be supported. Currently section mapping only!
 */
-static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
+void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 {
 	size_t m, n;
 	uint32_t attr;
@@ -671,8 +671,10 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	 * TODO: support mapping devices at a virtual address which isn't
 	 * the same as the physical address.
 	 */
-	if (mm->va < (NUM_UL1_ENTRIES * SECTION_SIZE))
-		panic("va conflicts with user ta address");
+	if (ttb == (void *)core_mmu_get_main_ttb_va()) {
+		if (mm->va < (NUM_UL1_ENTRIES * SECTION_SIZE))
+			panic("va conflicts with user ta address");
+	}
 
 	if ((mm->va | mm->pa | mm->size) & SECTION_MASK) {
 		region_size = SMALL_PAGE_SIZE;
