@@ -51,6 +51,9 @@ static struct tee_ta_session_head tee_open_sessions =
 TAILQ_HEAD_INITIALIZER(tee_open_sessions);
 
 static struct mobj *shm_mobj;
+#ifdef CFG_SECURE_DATA_PATH
+static struct mobj **sdp_mem_mobjs;
+#endif
 
 static TEE_Result set_mem_param(const struct optee_msg_param *param,
 				struct param_mem *mem)
@@ -380,6 +383,12 @@ static TEE_Result default_mobj_init(void)
 				       SHM_CACHE_ATTRS, CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
+
+#ifdef CFG_SECURE_DATA_PATH
+	sdp_mem_mobjs = core_sdp_mem_create_mobjs();
+	if (!sdp_mem_mobjs)
+		panic("Failed to register SDP memory");
+#endif
 
 	return TEE_SUCCESS;
 }
