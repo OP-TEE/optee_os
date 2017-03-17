@@ -308,8 +308,7 @@ TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d)
 	op.params[0].u.value.a = OPTEE_MRF_CLOSEDIR;
 	op.params[0].u.value.b = d->nw_dir;
 
-	if (d)
-		free(d->d.d_name);
+	free(d->d.d_name);
 	free(d);
 	return operation_commit(&op);
 }

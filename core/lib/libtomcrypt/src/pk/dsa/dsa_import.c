@@ -138,6 +138,7 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
       }
 
       XFREE(tmpbuf);
+      tmpbuf = NULL;
       key->type = PK_PUBLIC;
   }
 

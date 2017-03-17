@@ -72,7 +72,8 @@ static int fortuna_reseed(prng_state *prng)
    ++prng->fortuna.reset_cnt;
 
    /* new K == LTC_SHA256(K || s) where s == LTC_SHA256(P0) || LTC_SHA256(P1) ... */
-   sha256_init(&md);
+   if ((err = sha256_init(&md)) != CRYPT_OK)
+      return err;
    if ((err = sha256_process(&md, prng->fortuna.K, 32)) != CRYPT_OK) {
       sha256_done(&md, tmp);
       return err;

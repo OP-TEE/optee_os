@@ -56,7 +56,7 @@
 int cbc_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, symmetric_CBC *cbc)
 {
    int x, err;
-   unsigned char tmp[16];
+   unsigned char tmp[MAXBLOCKSIZE];
 #ifdef LTC_FAST
    LTC_FAST_TYPE tmpy;
 #else
