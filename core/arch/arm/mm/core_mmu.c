@@ -101,6 +101,10 @@ static struct memaccess_area nsec_shared[] = {
 	MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE),
 };
 
+#ifdef CFG_TEE_SDP_MEM_BASE
+register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
+#endif
+
 register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
 register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
@@ -221,6 +225,67 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	}
 	return NULL;
 }
+
+#ifdef CFG_SECURE_DATA_PATH
+extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
+extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
+
+#define MSG_SDP_INSTERSECT(pa1, sz1, pa2, sz2) \
+	EMSG("[%" PRIxPA " %" PRIxPA "] intersecs [%" PRIxPA " %" PRIxPA "]", \
+			pa1, pa1 + sz1, pa2, pa2 + sz2)
+
+/* Check SDP memories comply with registered memories */
+static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map, size_t len)
+{
+	const struct core_mmu_phys_mem *mem;
+	const struct core_mmu_phys_mem *mem2;
+	const struct core_mmu_phys_mem *start = &__start_phys_sdp_mem_section;
+	const struct core_mmu_phys_mem *end = &__end_phys_sdp_mem_section;
+	struct tee_mmap_region *mmap;
+	size_t n;
+
+	if (start == end) {
+		IMSG("Secure data path enabled without any SDP memory area");
+		return;
+	}
+
+	for (mem = start; mem < end; mem++)
+		DMSG("SDP memory [%" PRIxPA " %" PRIxPA "]",
+			mem->addr, mem->addr + mem->size);
+
+	/* Check SDP memories do not intersect each other */
+	for (mem = start; mem < end - 1; mem++) {
+		for (mem2 = mem + 1; mem2 < end; mem2++) {
+			if (core_is_buffer_intersect(mem2->addr, mem2->size,
+						     mem->addr, mem->size)) {
+				MSG_SDP_INSTERSECT(mem2->addr, mem2->size,
+						   mem->addr, mem->size);
+				panic("SDP memory intersection");
+			}
+		}
+	}
+
+	/*
+	 * Check SDP memories do not intersect any mapped memory.
+	 * This is called before reserved VA space is loaded in mem_map.
+	 */
+	for (mem = start; mem < end; mem++) {
+		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
+			if (core_is_buffer_intersect(mem->addr, mem->size,
+						     mmap->pa, mmap->size)) {
+				MSG_SDP_INSTERSECT(mem->addr, mem->size,
+						   mmap->pa, mmap->size);
+				panic("SDP memory intersection");
+			}
+		}
+	}
+}
+#else /* CFG_SECURE_DATA_PATH */
+static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map __unused,
+				 size_t len __unused)
+{
+}
+#endif /* CFG_SECURE_DATA_PATH */
 
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
 extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
@@ -352,6 +417,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		}
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
+
+	verify_sdp_mem_areas(memory_map, num_elems);
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     RES_VASPACE_SIZE, &last);
