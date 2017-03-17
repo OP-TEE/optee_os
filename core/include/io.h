@@ -30,12 +30,6 @@
 #include <stdint.h>
 #include <types_ext.h>
 
-/*
- * IO access macro, please avoid using this macro, since it's going to be
- * deprecated.
- */
-#define  IO(addr)  (*((volatile unsigned long *)(addr)))
-
 static inline void write8(uint8_t val, vaddr_t addr)
 {
 	*(volatile uint8_t *)addr = val;
