@@ -6,4 +6,3 @@ srcs-y += platform.c
 srcs-y += smp_boot.S
 srcs-y += smp_fixup.S
 srcs-y += head.c
-srcs-y += console.c

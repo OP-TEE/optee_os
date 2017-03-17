@@ -25,31 +25,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
-
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-
-#include <sm/sm.h>
-#include <sm/tee_mon.h>
-#include <sm/optee_smc.h>
-#include <optee_msg.h>
-
 #include <arm.h>
-#include <kernel/thread.h>
-#include <kernel/time_source.h>
+#include <assert.h>
+#include <console.h>
+#include <drivers/sunxi_uart.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
-#include <kernel/misc.h>
-#include <mm/tee_mmu.h>
-#include <mm/core_mmu.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
-#include <platform.h>
-#include <util.h>
-#include <trace.h>
+#include <kernel/thread.h>
+#include <kernel/time_source.h>
 #include <malloc.h>
+#include <mm/core_mmu.h>
+#include <mm/tee_mmu.h>
+#include <optee_msg.h>
+#include <platform_config.h>
+#include <platform.h>
+#include <sm/optee_smc.h>
+#include <sm/sm.h>
+#include <sm/tee_mon.h>
+#include <stdint.h>
+#include <string.h>
+#include <tee/entry_fast.h>
+#include <tee/entry_std.h>
+#include <trace.h>
+#include <util.h>
 
 /* teecore heap address/size is defined in scatter file */
 extern unsigned char teecore_heap_start;
@@ -175,4 +174,12 @@ static void main_tee_entry_std(struct thread_smc_args *args)
 void tee_entry_get_api_call_count(struct thread_smc_args *args)
 {
 	args->a0 = tee_entry_generic_get_api_call_count() + 3;
+}
+
+static struct sunxi_uart_data console_data __early_bss;
+
+void console_init(void)
+{
+	sunxi_uart_init(&console_data, CONSOLE_UART_BASE);
+	register_serial_console(&console_data.chip);
 }
