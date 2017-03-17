@@ -109,6 +109,8 @@ platform.
 
 [github_commits_2_4_0]: https://github.com/OP-TEE/optee_os/compare/2.3.0...7ad480 <!-- replace with 2.4.0 -->
 [issue1332]: https://github.com/OP-TEE/optee_os/issues/1332
+[commit_a238b74]: https://github.com/OP-TEE/optee_os/commit/a238b744b1b3
+[commit_44e900e]: https://github.com/OP-TEE/optee_os/commit/44e900eabfc1
 
 # OP-TEE - version 2.3.0
 
