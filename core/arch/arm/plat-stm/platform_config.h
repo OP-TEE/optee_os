@@ -242,13 +242,16 @@
  *  |   external memory  +------------------+   |
  *  |                    |  TA_RAM          |   |
  *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  | Secure Data Path test memory (opt.)   |   |
+ *  +---------------------------------------+   |
  *  |     Non secure     |  SHM             |   |
  *  |   shared memory    |                  |   |
  *  +---------------------------------------+   v
  *
  *  TEE_RAM : default 1MByte
- *  PUB_RAM : default 2MByte
  *  TA_RAM  : all what is left
+ *  SDP_RAM : optional default SDP test memory 8MByte
+ *  PUB_RAM : default 2MByte
  *
  * ----------------------------------------------------------------------------
  * TEE RAM layout with CFG_WITH_PAGER=y:
@@ -262,12 +265,15 @@
  *  | TEE private secure |  TA_RAM          |   ^
  *  |   external memory  |                  |   |
  *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  | Secure Data Path test memory (opt.)   |   |
+ *  +---------------------------------------+   |
  *  |     Non secure     |  SHM             |   |
  *  |   shared memory    |                  |   |
  *  +---------------------------------------+   v
  *
  *  TEE_RAM : default 256kByte
  *  TA_RAM  : all what is left in DDR TEE reserved area
+ *  SDP_RAM : optional default SDP test memory 8MByte
  *  PUB_RAM : default 2MByte
  */
 
@@ -282,13 +288,30 @@
 				CFG_SHMEM_SIZE)
 #endif
 
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
+/* default locate SDP memory right before the shared memory in DDR */
+#define CFG_TEE_SDP_TEST_MEM_SIZE	0x00300000
+
+#define CFG_TEE_SDP_MEM_SIZE	CFG_TEE_SDP_TEST_MEM_SIZE
+#define CFG_TEE_SDP_MEM_BASE	(CFG_DDR_TEETZ_RESERVED_START + \
+				CFG_DDR_TEETZ_RESERVED_SIZE - \
+				CFG_SHMEM_SIZE - \
+				CFG_TEE_SDP_MEM_SIZE)
+#endif
+
+#ifndef CFG_TEE_SDP_TEST_MEM_SIZE
+#define CFG_TEE_SDP_TEST_MEM_SIZE	0
+#endif
+
 #if defined(CFG_WITH_PAGER)
 
 #define TZSRAM_BASE		CFG_CORE_TZSRAM_EMUL_START
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
 #define TZDRAM_BASE		CFG_DDR_TEETZ_RESERVED_START
-#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - CFG_SHMEM_SIZE)
+#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
+				CFG_SHMEM_SIZE - \
+				CFG_TEE_SDP_TEST_MEM_SIZE)
 
 #define CFG_TEE_RAM_START	TZSRAM_BASE
 #define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
@@ -299,7 +322,9 @@
 #else  /* CFG_WITH_PAGER */
 
 #define TZDRAM_BASE		CFG_DDR_TEETZ_RESERVED_START
-#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - CFG_SHMEM_SIZE)
+#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
+				CFG_SHMEM_SIZE - \
+				CFG_TEE_SDP_TEST_MEM_SIZE)
 
 #define CFG_TEE_RAM_START	TZDRAM_BASE
 #ifndef CFG_TEE_RAM_PH_SIZE
