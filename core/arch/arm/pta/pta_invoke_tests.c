@@ -36,9 +36,9 @@
 
 #include "core_self_tests.h"
 
-#define TA_NAME		"sta_self_tests.ta"
+#define TA_NAME		"invoke_tests.pta"
 
-#define STA_SELF_TEST_UUID \
+#define PTA_INVOKE_TESTS_UUID \
 		{ 0xd96a5b40, 0xc3e5, 0x21e3, \
 			{ 0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1b } }
 
@@ -347,7 +347,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-pseudo_ta_register(.uuid = STA_SELF_TEST_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = PTA_INVOKE_TESTS_UUID, .name = TA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_SECURE_DATA_PATH,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
