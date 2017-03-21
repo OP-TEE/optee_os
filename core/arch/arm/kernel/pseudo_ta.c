@@ -37,9 +37,41 @@
 #include <trace.h>
 #include <types_ext.h>
 
+#ifdef CFG_SECURE_DATA_PATH
+static bool client_is_secure(struct tee_ta_session *s)
+{
+	/* rely on core entry to have constrained client IDs */
+	if (s->clnt_id.login == TEE_LOGIN_TRUSTED_APP)
+		return true;
+
+	return false;
+}
+
+static bool validate_in_param(struct tee_ta_session *s, struct mobj *mobj)
+{
+	/* for secure clients, core entry always holds valid memref objects */
+	if (client_is_secure(s))
+		return true;
+
+	/* all non-secure memory references are hanlded by pTAs */
+	if (mobj_is_nonsec(mobj))
+		return true;
+
+	return false;
+}
+#else
+static bool validate_in_param(struct tee_ta_session *s __unused,
+				struct mobj *mobj __unused)
+{
+	/* At this point, core has filled only valid accessible memref mobj */
+	return true;
+}
+#endif
+
 /* Maps static TA params */
-static TEE_Result copy_in_param(struct tee_ta_param *param,
-				     TEE_Param tee_param[TEE_NUM_PARAMS])
+static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
+				struct tee_ta_param *param,
+				TEE_Param tee_param[TEE_NUM_PARAMS])
 {
 	size_t n;
 	void *va;
@@ -55,6 +87,9 @@ static TEE_Result copy_in_param(struct tee_ta_param *param,
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			if (!validate_in_param(s, param->u[n].mem.mobj))
+				return TEE_ERROR_BAD_PARAMETERS;
+
 			va = mobj_get_va(param->u[n].mem.mobj,
 					 param->u[n].mem.offs);
 			if (!va)
@@ -110,7 +145,7 @@ static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 	}
 
 	if (stc->pseudo_ta->open_session_entry_point) {
-		res = copy_in_param(param, tee_param);
+		res = copy_in_param(s, param, tee_param);
 		if (res != TEE_SUCCESS) {
 			*eo = TEE_ORIGIN_TEE;
 			goto out;
@@ -136,7 +171,7 @@ static TEE_Result pseudo_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	TEE_Param tee_param[TEE_NUM_PARAMS];
 
 	tee_ta_push_current_session(s);
-	res = copy_in_param(param, tee_param);
+	res = copy_in_param(s, param, tee_param);
 	if (res != TEE_SUCCESS) {
 		*eo = TEE_ORIGIN_TEE;
 		goto out;
