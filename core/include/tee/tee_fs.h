@@ -50,7 +50,8 @@ struct tee_pobj;
  * tee_fs implements a POSIX like secure file system with GP extension
  */
 struct tee_file_operations {
-	TEE_Result (*open)(struct tee_pobj *po, struct tee_file_handle **fh);
+	TEE_Result (*open)(struct tee_pobj *po, size_t *size,
+			   struct tee_file_handle **fh);
 	TEE_Result (*create)(struct tee_pobj *po, bool overwrite,
 			     const void *head, size_t head_size,
 			     const void *attr, size_t attr_size,

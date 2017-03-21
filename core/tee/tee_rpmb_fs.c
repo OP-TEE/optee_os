@@ -2541,12 +2541,18 @@ static void rpmb_fs_closedir(struct tee_fs_dir *dir)
 	}
 }
 
-static TEE_Result rpmb_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
+static TEE_Result rpmb_fs_open(struct tee_pobj *po, size_t *size,
+			       struct tee_file_handle **fh)
 {
 	TEE_Result res;
 
 	mutex_lock(&rpmb_mutex);
 	res = rpmb_fs_open_internal(po, false, fh);
+	if (!res && size) {
+		struct rpmb_file_handle *f = (struct rpmb_file_handle *)*fh;
+
+		*size = f->fat_entry.data_size;
+	}
 	mutex_unlock(&rpmb_mutex);
 
 	return res;

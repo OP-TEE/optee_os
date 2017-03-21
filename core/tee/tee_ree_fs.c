@@ -430,12 +430,18 @@ out:
 	return res;
 }
 
-static TEE_Result ree_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
+static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
+			      struct tee_file_handle **fh)
 {
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
 	res = open_internal(po, false, fh);
+	if (!res && size) {
+		struct tee_fs_fd *fdp = (struct tee_fs_fd *)*fh;
+
+		*size = tee_fs_htree_get_meta(fdp->ht)->length;
+	}
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
