@@ -705,9 +705,12 @@ TEE_Result syscall_storage_reset_enum(unsigned long obj_enum)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	e->fops->closedir(e->dir);
-	e->fops = NULL;
-	e->dir = NULL;
+	if (e->fops) {
+		e->fops->closedir(e->dir);
+		e->fops = NULL;
+		e->dir = NULL;
+	}
+	assert(!e->dir);
 
 	return TEE_SUCCESS;
 }
