@@ -28,6 +28,7 @@
 #include <compiler.h>
 #include <kernel/pseudo_ta.h>
 #include <mm/core_memprot.h>
+#include <pta_invoke_tests.h>
 #include <string.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
@@ -38,17 +39,6 @@
 #include "core_self_tests.h"
 
 #define TA_NAME		"invoke_tests.pta"
-
-#define PTA_INVOKE_TESTS_UUID \
-		{ 0xd96a5b40, 0xc3e5, 0x21e3, \
-			{ 0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1b } }
-
-#define CMD_TRACE		0
-#define CMD_PARAMS		1
-#define CMD_SELF_TESTS		2
-#define CMD_INJECT_SDP		3
-#define CMD_TRANSFORM_SDP	4
-#define CMD_DUMP_SDP		5
 
 static TEE_Result test_trace(uint32_t param_types __unused,
 			TEE_Param params[TEE_NUM_PARAMS] __unused)
@@ -348,17 +338,17 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	DMSG("command entry point for pseudo ta \"%s\"", TA_NAME);
 
 	switch (nCommandID) {
-	case CMD_TRACE:
+	case PTA_INVOKE_TESTS_CMD_TRACE:
 		return test_trace(nParamTypes, pParams);
-	case CMD_PARAMS:
+	case PTA_INVOKE_TESTS_CMD_PARAMS:
 		return test_entry_params(nParamTypes, pParams);
-	case CMD_INJECT_SDP:
+	case PTA_INVOKE_TESTS_CMD_COPY_NSEC_TO_SEC:
 		return test_inject_sdp(nParamTypes, pParams);
-	case CMD_TRANSFORM_SDP:
+	case PTA_INVOKE_TESTS_CMD_READ_MODIFY_SEC:
 		return test_transform_sdp(nParamTypes, pParams);
-	case CMD_DUMP_SDP:
+	case PTA_INVOKE_TESTS_CMD_COPY_SEC_TO_NSEC:
 		return test_dump_sdp(nParamTypes, pParams);
-	case CMD_SELF_TESTS:
+	case PTA_INVOKE_TESTS_CMD_SELF_TESTS:
 		return core_self_tests(nParamTypes, pParams);
 	default:
 		break;
