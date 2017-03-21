@@ -1931,8 +1931,6 @@ static TEE_Result rpmb_fs_open_internal(struct tee_pobj *po, bool create,
 	bool pool_result;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	mutex_lock(&rpmb_mutex);
-
 	fh = alloc_file_handle(po, po->temporary);
 	if (!fh) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -2001,7 +1999,6 @@ out:
 	else
 		free(fh);
 
-	mutex_unlock(&rpmb_mutex);
 	return res;
 }
 
@@ -2051,8 +2048,9 @@ out:
 	return res;
 }
 
-static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
-				const void *buf, size_t size)
+static TEE_Result rpmb_fs_write_primitive(struct tee_file_handle *tfh,
+					  size_t pos, const void *buf,
+					  size_t size)
 {
 	TEE_Result res;
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
@@ -2067,8 +2065,6 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
 
 	if (!size)
 		return TEE_SUCCESS;
-
-	mutex_lock(&rpmb_mutex);
 
 	if (!fs_par) {
 		res = TEE_ERROR_GENERIC;
@@ -2146,7 +2142,6 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
 	}
 
 out:
-	mutex_unlock(&rpmb_mutex);
 	if (pool_result)
 		tee_mm_final(&p);
 	if (newbuf)
@@ -2155,12 +2150,22 @@ out:
 	return res;
 }
 
-static TEE_Result rpmb_fs_remove(struct tee_pobj *po)
+static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
+				const void *buf, size_t size)
+{
+	TEE_Result res;
+
+	mutex_lock(&rpmb_mutex);
+	res = rpmb_fs_write_primitive(tfh, pos, buf, size);
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
+}
+
+static TEE_Result rpmb_fs_remove_internal(struct tee_pobj *po)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rpmb_file_handle *fh = NULL;
-
-	mutex_lock(&rpmb_mutex);
 
 	fh = alloc_file_handle(po, po->temporary);
 	if (!fh) {
@@ -2177,19 +2182,28 @@ static TEE_Result rpmb_fs_remove(struct tee_pobj *po)
 	res = write_fat_entry(fh, false);
 
 out:
-	mutex_unlock(&rpmb_mutex);
 	free(fh);
 	return res;
 }
 
-static  TEE_Result rpmb_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
-				  bool overwrite)
+static TEE_Result rpmb_fs_remove(struct tee_pobj *po)
+{
+	TEE_Result res;
+
+	mutex_lock(&rpmb_mutex);
+	res = rpmb_fs_remove_internal(po);
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
+}
+
+static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
+					   struct tee_pobj *new,
+					   bool overwrite)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rpmb_file_handle *fh_old = NULL;
 	struct rpmb_file_handle *fh_new = NULL;
-
-	mutex_lock(&rpmb_mutex);
 
 	if (!old) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -2239,9 +2253,20 @@ static  TEE_Result rpmb_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 	res = write_fat_entry(fh_old, false);
 
 out:
-	mutex_unlock(&rpmb_mutex);
 	free(fh_old);
 	free(fh_new);
+
+	return res;
+}
+
+static  TEE_Result rpmb_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
+				  bool overwrite)
+{
+	TEE_Result res;
+
+	mutex_lock(&rpmb_mutex);
+	res = rpmb_fs_rename_internal(old, new, overwrite);
+	mutex_unlock(&rpmb_mutex);
 
 	return res;
 }
@@ -2518,13 +2543,77 @@ static void rpmb_fs_closedir(struct tee_fs_dir *dir)
 
 static TEE_Result rpmb_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
 {
-	return rpmb_fs_open_internal(po, false, fh);
+	TEE_Result res;
+
+	mutex_lock(&rpmb_mutex);
+	res = rpmb_fs_open_internal(po, false, fh);
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
 }
 
-static TEE_Result rpmb_fs_create(struct tee_pobj *po,
+static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
+				 const void *head, size_t head_size,
+				 const void *attr, size_t attr_size,
+				 const void *data, size_t data_size,
 				 struct tee_file_handle **fh)
 {
-	return rpmb_fs_open_internal(po, true, fh);
+	TEE_Result res;
+	size_t pos = 0;
+
+	*fh = NULL;
+	mutex_lock(&rpmb_mutex);
+	res = rpmb_fs_open_internal(po, true, fh);
+	if (res)
+		goto out;
+
+	if (head && head_size) {
+		res = rpmb_fs_write_primitive(*fh, pos, head, head_size);
+		if (res)
+			goto out;
+		pos += head_size;
+	}
+
+	if (attr && attr_size) {
+		res = rpmb_fs_write_primitive(*fh, pos, attr, attr_size);
+		if (res)
+			goto out;
+		pos += attr_size;
+	}
+
+	if (data && data_size) {
+		res = rpmb_fs_write_primitive(*fh, pos, data, data_size);
+		if (res)
+			goto out;
+	}
+
+	if (po->temporary) {
+		struct rpmb_file_handle *f = (struct rpmb_file_handle *)*fh;
+
+		/*
+		 * If it's a temporary filename (which it normally is)
+		 * rename into the final filename now that the file is
+		 * fully initialized.
+		 */
+		po->temporary = false;
+		res = rpmb_fs_rename_internal(po, NULL, overwrite);
+		if (res) {
+			po->temporary = true;
+			goto out;
+		}
+		/* Update file handle after rename. */
+		tee_svc_storage_create_filename(f->filename,
+						sizeof(f->filename), po, false);
+	}
+
+out:
+	if (res && *fh) {
+		rpmb_fs_close(fh);
+		rpmb_fs_remove_internal(po);
+	}
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
 }
 
 const struct tee_file_operations rpmb_fs_ops = {

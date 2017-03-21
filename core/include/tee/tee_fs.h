@@ -51,7 +51,11 @@ struct tee_pobj;
  */
 struct tee_file_operations {
 	TEE_Result (*open)(struct tee_pobj *po, struct tee_file_handle **fh);
-	TEE_Result (*create)(struct tee_pobj *po, struct tee_file_handle **fh);
+	TEE_Result (*create)(struct tee_pobj *po, bool overwrite,
+			     const void *head, size_t head_size,
+			     const void *attr, size_t attr_size,
+			     const void *data, size_t data_size,
+			     struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle **fh);
 	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
 			   void *buf, size_t *len);

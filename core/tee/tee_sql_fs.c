@@ -43,6 +43,7 @@
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
+#include <tee/tee_pobj.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -319,66 +320,6 @@ exit:
 	return res;
 }
 
-static void sql_fs_close(struct tee_file_handle **fh)
-{
-	struct sql_fs_fd *fdp = (struct sql_fs_fd *)*fh;
-
-	if (fdp) {
-		tee_fs_htree_close(&fdp->ht);
-		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
-		free(fdp);
-		*fh = NULL;
-	}
-}
-
-static TEE_Result open_internal(struct tee_pobj *po, bool create,
-				struct tee_file_handle **fh)
-{
-	TEE_Result res;
-	struct sql_fs_fd *fdp;
-	bool created = false;
-
-	fdp = calloc(1, sizeof(*fdp));
-	if (!fdp)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	fdp->fd = -1;
-
-	mutex_lock(&sql_fs_mutex);
-
-	if (create)
-		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
-	else
-		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = tee_fs_htree_open(create, &sql_fs_storage_ops, fdp, &fdp->ht);
-out:
-	if (res == TEE_SUCCESS) {
-		*fh = (struct tee_file_handle *)fdp;
-	} else {
-		if (fdp && fdp->fd != -1)
-			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
-		if (created)
-			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, po);
-		free(fdp);
-	}
-	mutex_unlock(&sql_fs_mutex);
-	return res;
-}
-
-static TEE_Result sql_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
-{
-	return open_internal(po, false, fh);
-}
-
-static TEE_Result sql_fs_create(struct tee_pobj *po,
-				struct tee_file_handle **fh)
-{
-	return open_internal(po, true, fh);
-}
-
-
 static TEE_Result sql_fs_read(struct tee_file_handle *fh, size_t pos,
 			      void *buf, size_t *len)
 {
@@ -441,8 +382,8 @@ exit:
 	return res;
 }
 
-static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
-			       const void *buf, size_t len)
+static TEE_Result sql_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
+					 const void *buf, size_t len)
 {
 	TEE_Result res;
 	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
@@ -455,15 +396,11 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
 	if (!len)
 		return TEE_SUCCESS;
 
-	mutex_lock(&sql_fs_mutex);
-
-	sql_fs_begin_transaction_rpc();
-
 	if (meta->length < pos) {
 		/* Fill hole */
 		res = sql_fs_ftruncate_internal(fdp, pos);
 		if (res != TEE_SUCCESS)
-			goto exit;
+			return res;
 	}
 
 	start_block_num = block_num(pos);
@@ -479,7 +416,7 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
 		res = write_block_partial(fdp, start_block_num, data_ptr,
 					  size_to_write, offset);
 		if (res != TEE_SUCCESS)
-			goto exit;
+			return res;
 
 		data_ptr += size_to_write;
 		remain_bytes -= size_to_write;
@@ -491,11 +428,159 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
 	if (pos > meta->length)
 		meta->length = pos;
 
-exit:
+	return TEE_SUCCESS;
+}
+static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
+			       const void *buf, size_t len)
+{
+	TEE_Result res;
+	struct sql_fs_fd *fdp = (struct sql_fs_fd *)fh;
+
+	mutex_lock(&sql_fs_mutex);
+	sql_fs_begin_transaction_rpc();
+
+	res = sql_fs_write_primitive(fh, pos, buf, len);
+
 	if (res == TEE_SUCCESS)
 		res = tee_fs_htree_sync_to_storage(&fdp->ht);
+
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	mutex_unlock(&sql_fs_mutex);
+	return res;
+}
+
+static void sql_fs_close(struct tee_file_handle **fh)
+{
+	struct sql_fs_fd *fdp = (struct sql_fs_fd *)*fh;
+
+	if (fdp) {
+		tee_fs_htree_close(&fdp->ht);
+		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+		free(fdp);
+		*fh = NULL;
+	}
+}
+
+static TEE_Result open_internal(struct tee_pobj *po, bool create,
+				struct tee_file_handle **fh)
+{
+	TEE_Result res;
+	struct sql_fs_fd *fdp;
+
+	fdp = calloc(1, sizeof(*fdp));
+	if (!fdp)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	fdp->fd = -1;
+
+	if (create)
+		res = tee_fs_rpc_create(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
+	else
+		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = tee_fs_htree_open(create, &sql_fs_storage_ops, fdp, &fdp->ht);
+out:
+	if (res == TEE_SUCCESS) {
+		*fh = (struct tee_file_handle *)fdp;
+	} else {
+		if (fdp && fdp->fd != -1)
+			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+		if (create)
+			tee_fs_rpc_remove(OPTEE_MSG_RPC_CMD_SQL_FS, po);
+		free(fdp);
+	}
+
+	return res;
+}
+
+static TEE_Result sql_fs_open(struct tee_pobj *po, struct tee_file_handle **fh)
+{
+	TEE_Result res;
+
+	mutex_lock(&sql_fs_mutex);
+	res = open_internal(po, false, fh);
+	mutex_unlock(&sql_fs_mutex);
+
+	return res;
+}
+
+static TEE_Result sql_fs_create(struct tee_pobj *po, bool overwrite,
+				const void *head, size_t head_size,
+				const void *attr, size_t attr_size,
+				const void *data, size_t data_size,
+				struct tee_file_handle **fh)
+{
+	struct sql_fs_fd *fdp;
+	TEE_Result res;
+	size_t pos = 0;
+
+	*fh = NULL;
+	mutex_lock(&sql_fs_mutex);
+	sql_fs_begin_transaction_rpc();
+
+	res = open_internal(po, true, fh);
+	if (res)
+		goto out;
+
+	if (head && head_size) {
+		res = sql_fs_write_primitive(*fh, pos, head, head_size);
+		if (res)
+			goto out;
+		pos += head_size;
+	}
+
+	if (attr && attr_size) {
+		res = sql_fs_write_primitive(*fh, pos, attr, attr_size);
+		if (res)
+			goto out;
+		pos += attr_size;
+	}
+
+	if (data && data_size) {
+		res = sql_fs_write_primitive(*fh, pos, data, data_size);
+		if (res)
+			goto out;
+	}
+
+	fdp = (struct sql_fs_fd *)*fh;
+	res = tee_fs_htree_sync_to_storage(&fdp->ht);
+	if (res)
+		goto out;
+
+	if (po->temporary) {
+		/*
+		 * If it's a temporary filename (which it normally is)
+		 * rename into the final filename now that the file is
+		 * fully initialized.
+		 */
+		po->temporary = false;
+		res = sql_fs_rename_rpc(po, NULL, overwrite);
+		if (res) {
+			po->temporary = true;
+			goto out;
+		}
+
+		/*
+		 * Workaround for a bug in tee-supplicant SQL-FS
+		 * implementation where renaming an open file doesn't
+		 * update the "file descriptor" which still refers to the
+		 * old file name.
+		 */
+		res = tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_SQL_FS, fdp->fd);
+		if (res)
+			goto out;
+		fdp->fd = -1;
+		res = tee_fs_rpc_open(OPTEE_MSG_RPC_CMD_SQL_FS, po, &fdp->fd);
+	}
+
+out:
+	if (res && *fh)
+		sql_fs_close(fh);
+
+	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
+	mutex_unlock(&sql_fs_mutex);
+
 	return res;
 }
 
