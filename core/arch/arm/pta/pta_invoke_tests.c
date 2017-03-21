@@ -29,6 +29,7 @@
 #include <kernel/pseudo_ta.h>
 #include <mm/core_memprot.h>
 #include <string.h>
+#include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
 #include <trace.h>
@@ -233,7 +234,13 @@ static TEE_Result test_inject_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+
 	memcpy(dst, src, sz);
+
+	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
@@ -257,8 +264,14 @@ static TEE_Result test_transform_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	if (cache_operation(TEE_CACHEFLUSH, buf, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+
 	for (; sz; sz--, buf++)
 		*buf = ~(*buf) + 1;
+
+	if (cache_operation(TEE_CACHEFLUSH, buf, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
@@ -289,7 +302,13 @@ static TEE_Result test_dump_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+
 	memcpy(dst, src, sz);
+
+	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
