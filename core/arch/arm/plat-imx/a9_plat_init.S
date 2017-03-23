@@ -65,7 +65,7 @@ UNWIND(	.fnstart)
 	 * IRQ always trapped to IRQ Mode [bit1: IRQ=0]
 	 * Secure World [bit0: NS=0]
 	 */
-	mov r0, #SCR_AW
+	mov_imm r0, SCR_AW
 	write_scr r0
 
 	/*
@@ -88,20 +88,16 @@ UNWIND(	.fnstart)
 	 * PCR = 0x00000001
 	 * - no change latency, enable clk gating
 	 */
-	movw r0, #0x4000
-	movt r0, #0x0000
+	mov_imm r0, 0x00004000
 	write_sctlr r0
 
-	movw r0, #0x0041
-	movt r0, #0x0000
+	mov_imm r0, 0x00000041
 	write_actlr r0
 
-	movw r0, #0x0C00
-	movt r0, #0x0002
+	mov_imm r0, 0x00020C00
 	write_nsacr r0
 
-	movw r0, #0x0000
-	movt r0, #0x0001
+	mov_imm r0, 0x00000001
 	write_pcr r0
 
 	mov pc, lr
