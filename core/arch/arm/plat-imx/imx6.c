@@ -27,81 +27,53 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm32.h>
-#include <console.h>
 #include <drivers/gic.h>
-#include <drivers/imx_uart.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
-#include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
+#include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_mmu.h>
-#include <mm/core_memprot.h>
 #include <platform_config.h>
-#include <stdint.h>
-#include <sm/optee_smc.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 
+register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
 
-static void main_fiq(void);
-static struct gic_data gic_data;
-
-static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
-	.fast_smc = tee_entry_fast,
-	.nintr = main_fiq,
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
-
-static struct imx_uart_data console_data __early_bss;
-
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
-
-const struct thread_handlers *generic_boot_get_handlers(void)
+void plat_cpu_reset_late(void)
 {
-	return &handlers;
-}
+	uintptr_t addr;
 
-static void main_fiq(void)
-{
-	gic_it_handle(&gic_data);
-}
+	if (!get_core_pos()) {
+		/* primary core */
+#if defined(CFG_BOOT_SYNC_CPU)
+		/* set secondary entry address and release core */
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 8);
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 16);
+		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 24);
 
-void console_init(void)
-{
-	imx_uart_init(&console_data, CONSOLE_UART_BASE);
-	register_serial_console(&console_data.chip);
-}
-
-void main_init_gic(void)
-{
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
-
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
-	itr_init(&gic_data.chip);
-}
-
-#if defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL)
-void main_secondary_init_gic(void)
-{
-	gic_cpu_init(&gic_data);
-}
+		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
 #endif
+
+		/* SCU config */
+		write32(SCU_INV_CTRL_INIT, SCU_BASE + SCU_INV_SEC);
+		write32(SCU_SAC_CTRL_INIT, SCU_BASE + SCU_SAC);
+		write32(SCU_NSAC_CTRL_INIT, SCU_BASE + SCU_NSAC);
+
+		/* SCU enable */
+		write32(read32(SCU_BASE + SCU_CTRL) | 0x1,
+			SCU_BASE + SCU_CTRL);
+
+		/* configure imx6 CSU */
+
+		/* first grant all peripherals */
+		for (addr = CSU_BASE + CSU_CSL_START;
+			 addr != CSU_BASE + CSU_CSL_END;
+			 addr += 4)
+			write32(CSU_ACCESS_ALL, addr);
+
+		/* lock the settings */
+		for (addr = CSU_BASE + CSU_CSL_START;
+			 addr != CSU_BASE + CSU_CSL_END;
+			 addr += 4)
+			write32(read32(addr) | CSU_SETTING_LOCK, addr);
+	}
+}
+
