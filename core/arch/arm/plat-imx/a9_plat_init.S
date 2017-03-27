@@ -85,7 +85,7 @@ UNWIND(	.fnstart)
 	 * - NSec cannot access PLE (PLE bit16=0)
 	 * - NSec can use SIMD/VFP (CP10/CP11) (bit15:14=2b00, bit11:10=2b11)
 	 *
-	 * PCR = 0x00000001
+	 * PCR
 	 * - no change latency, enable clk gating
 	 */
 	movw r0, #0x4000
@@ -100,8 +100,8 @@ UNWIND(	.fnstart)
 	movt r0, #0x0002
 	write_nsacr r0
 
-	movw r0, #0x0000
-	movt r0, #0x0001
+	read_pcr r0
+	orr r0, r0, #0x1
 	write_pcr r0
 
 	mov pc, lr
