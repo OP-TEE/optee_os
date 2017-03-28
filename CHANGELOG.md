@@ -85,7 +85,7 @@ platform.
 * hikey: TBD
 * imx-mx6qsabrelite: TBD
 * imx-mx6qsabresd: TBD
-* imx-mx6ulevk: TBD
+* imx-mx6ulevk: standard
 * ls-ls1021aqds: TBD
 * ls-ls1021atwr: TBD
 * mediatek-mt8173: TBD
