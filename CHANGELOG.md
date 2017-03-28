@@ -82,7 +82,7 @@ platform.
 
 <!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
 * d02: TBD
-* hikey: TBD
+* hikey: extended
 * imx-mx6qsabrelite: TBD
 * imx-mx6qsabresd: TBD
 * imx-mx6ulevk: standard
