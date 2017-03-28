@@ -99,7 +99,7 @@ platform.
 * ti-dra7xx: TBD
 * ti-am57xx: TBD
 * vexpress-fvp: TBD
-* vexpress-juno: TBD
+* vexpress-juno: standard
 * vexpress-qemu_armv8a: TBD
 * vexpress-qemu_virt: TBD
 * zynq7k-zc702: TBD
