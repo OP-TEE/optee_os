@@ -81,7 +81,7 @@ If a platform is not listed, it means the release was not tested on this
 platform.
 
 <!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
-* d02: TBD
+* d02: extended
 * hikey: extended
 * imx-mx6qsabrelite: TBD
 * imx-mx6qsabresd: TBD
