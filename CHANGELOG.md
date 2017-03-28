@@ -101,7 +101,7 @@ platform.
 * vexpress-fvp: TBD
 * vexpress-juno: standard
 * vexpress-qemu_armv8a: TBD
-* vexpress-qemu_virt: TBD
+* vexpress-qemu_virt: standard
 * zynq7k-zc702: TBD
 * zynqmp-zc1751_dc1: TBD
 * zynqmp-zc1751_dc2: TBD
