@@ -92,7 +92,7 @@ platform.
 * rcar-h3: TBD
 * rpi3: TBD
 * sprd-sc98960: TBD
-* stm-b2260: TBD
+* stm-b2260: extended
 * stm-cannes: TBD
 * stm-orly2: TBD
 * sunxi: TBD
