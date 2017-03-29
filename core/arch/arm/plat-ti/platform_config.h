@@ -30,7 +30,7 @@
 
 #if defined(PLATFORM_FLAVOR_dra7xx) || defined(PLATFORM_FLAVOR_am57xx)
 
-#define DRAM0_BASE		0xbe000000
+#define DRAM0_BASE		0xbdb00000
 #define DRAM0_SIZE		0x02000000
 
 #ifdef CFG_WITH_PAGER
@@ -38,7 +38,7 @@
 #endif /*CFG_WITH_PAGER*/
 
 /* Location of protected DDR on the DRA7xx platform */
-#define TZDRAM_BASE		0xbe000000
+#define TZDRAM_BASE		0xbdb00000
 #define TZDRAM_SIZE		0x01c00000
 
 #define CFG_TEE_CORE_NB_CORE	2
