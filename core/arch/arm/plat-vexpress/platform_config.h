@@ -39,6 +39,13 @@
 #endif
 #endif /*ARM64*/
 
+/* SDP enable but no pool defined: reserve 4MB for SDP tests */
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
+#define CFG_TEE_SDP_MEM_TEST_SIZE	0x00400000
+#else
+#define CFG_TEE_SDP_MEM_TEST_SIZE	0
+#endif
+
 #if defined(PLATFORM_FLAVOR_fvp)
 
 #define GIC_BASE		0x2c000000
@@ -187,31 +194,22 @@
 #define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
 #define DRAM0_TEERES_SIZE	CFG_SHMEM_SIZE
 
-/* Secure RAM: SDP memory followed by OP-TEE secure memory */
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
-
-#ifdef CFG_SECURE_DATA_PATH
-#define CFG_TEE_SDP_MEM_BASE	SECRAM_BASE
-#define CFG_TEE_SDP_MEM_SIZE	0x00300000
-#else
-#define CFG_TEE_SDP_MEM_SIZE	0
-#endif
 
 #ifdef CFG_WITH_PAGER
 
 /* Emulated SRAM */
-#define TZSRAM_BASE		(SECRAM_BASE + CFG_TEE_SDP_MEM_SIZE)
+#define TZSRAM_BASE		SECRAM_BASE
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
 #define TZDRAM_BASE		(TZSRAM_BASE + TZSRAM_SIZE)
-#define TZDRAM_SIZE		(SECRAM_SIZE - TZSRAM_SIZE - \
-					CFG_TEE_SDP_MEM_SIZE)
+#define TZDRAM_SIZE		(SECRAM_SIZE - TZSRAM_SIZE)
 
 #else /* CFG_WITH_PAGER */
 
-#define TZDRAM_BASE		(SECRAM_BASE + CFG_TEE_SDP_MEM_SIZE)
-#define TZDRAM_SIZE		(SECRAM_SIZE - CFG_TEE_SDP_MEM_SIZE)
+#define TZDRAM_BASE		SECRAM_BASE
+#define TZDRAM_SIZE		SECRAM_SIZE
 
 #endif /* CFG_WITH_PAGER */
 
@@ -237,19 +235,12 @@
 #define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
 #define DRAM0_TEERES_SIZE	CFG_SHMEM_SIZE
 
-/* Secure RAM: SDP memory followed by OP-TEE secure memory */
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
 
-#ifdef CFG_SECURE_DATA_PATH
-#define CFG_TEE_SDP_MEM_BASE	SECRAM_BASE
-#define CFG_TEE_SDP_MEM_SIZE	0x00300000
-#else
-#define CFG_TEE_SDP_MEM_SIZE	0
-#endif
-
-#define TZDRAM_BASE		(SECRAM_BASE + CFG_TEE_SDP_MEM_SIZE)
-#define TZDRAM_SIZE		(SECRAM_SIZE - CFG_TEE_SDP_MEM_SIZE)
+/* First 1MByte of the secure RAM is reserved to ARM-TF runtime services */
+#define TZDRAM_BASE		(SECRAM_BASE + 0x00100000)
+#define TZDRAM_SIZE		(SECRAM_SIZE - 0x00100000)
 
 #define CFG_TEE_CORE_NB_CORE	2
 
@@ -276,28 +267,42 @@
  * | TZSRAM | TEE_RAM |
  * +--------+---------+
  * | TZDRAM | TA_RAM  |
+ * |        +---------+
+ * |        | SDP RAM | (SDP test pool, optional)
  * +--------+---------+
  */
 #define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
 #define CFG_TEE_RAM_START	TZSRAM_BASE
 #define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE, CORE_MMU_DEVICE_SIZE)
+
 #else
 /*
  * Assumes that either TZSRAM isn't large enough or TZSRAM doesn't exist,
  * everything is in TZDRAM.
  * +------------------+
  * |        | TEE_RAM |
- * + TZDRAM +---------+
+ * | TZDRAM +---------+
  * |        | TA_RAM  |
+ * |        +---------+
+ * |        | SDP RAM | (test pool, optional)
  * +--------+---------+
  */
 #define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
 #define CFG_TEE_RAM_START	TZDRAM_BASE
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE, \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
+#endif
+
+#define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \
+					  (CFG_TA_RAM_START - TZDRAM_BASE) - \
+					  CFG_TEE_SDP_MEM_TEST_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
+
+/* Secure data path test memory pool: located at end of TA RAM */
+#if CFG_TEE_SDP_MEM_TEST_SIZE
+#define CFG_TEE_SDP_MEM_SIZE		CFG_TEE_SDP_MEM_TEST_SIZE
+#define CFG_TEE_SDP_MEM_BASE		(TZDRAM_BASE + TZDRAM_SIZE - \
+						CFG_TEE_SDP_MEM_SIZE)
 #endif
 
 #ifdef GIC_BASE
