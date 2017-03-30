@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -680,14 +680,19 @@ LOCAL_FUNC el0_sync_abort , :
 	eret
 END_FUNC el0_sync_abort
 
-LOCAL_FUNC elx_irq , :
+/* The handler of foreign interrupt. */
+.macro foreign_intr_handler mode:req
 	/*
 	 * Update core local flags
 	 */
 	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	orr	w1, w1, #THREAD_CLF_TMP
+	.ifc	\mode\(),fiq
+	orr	w1, w1, #THREAD_CLF_FIQ
+	.else
 	orr	w1, w1, #THREAD_CLF_IRQ
+	.endif
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* get pointer to current thread context in x0 */
@@ -740,30 +745,35 @@ LOCAL_FUNC elx_irq , :
 	/* w4 is already filled in above */
 	smc	#0
 	b	.	/* SMC should not return */
-END_FUNC elx_irq
+.endm
 
 /*
  * This struct is never used from C it's only here to visualize the
  * layout.
  *
- * struct elx_fiq_rec {
+ * struct elx_nintr_rec {
  * 	uint64_t x[19 - 4]; x4..x18
  * 	uint64_t lr;
  * 	uint64_t sp_el0;
  * };
  */
-#define ELX_FIQ_REC_X(x)		(8 * ((x) - 4))
-#define ELX_FIQ_REC_LR			(8 + ELX_FIQ_REC_X(19))
-#define ELX_FIQ_REC_SP_EL0		(8 + ELX_FIQ_REC_LR)
-#define ELX_FIQ_REC_SIZE		(8 + ELX_FIQ_REC_SP_EL0)
+#define ELX_NINTR_REC_X(x)		(8 * ((x) - 4))
+#define ELX_NINTR_REC_LR		(8 + ELX_NINTR_REC_X(19))
+#define ELX_NINTR_REC_SP_EL0		(8 + ELX_NINTR_REC_LR)
+#define ELX_NINTR_REC_SIZE		(8 + ELX_NINTR_REC_SP_EL0)
 
-LOCAL_FUNC elx_fiq , :
+/* The handler of native interrupt. */
+.macro native_intr_handler mode:req
 	/*
 	 * Update core local flags
 	 */
 	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsl	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	.ifc	\mode\(),fiq
 	orr	w1, w1, #THREAD_CLF_FIQ
+	.else
+	orr	w1, w1, #THREAD_CLF_IRQ
+	.endif
 	orr	w1, w1, #THREAD_CLF_TMP
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
@@ -779,12 +789,12 @@ LOCAL_FUNC elx_fiq , :
 	 * Save registers on stack that can be corrupted by a call to
 	 * a C function
 	 */
-	/* Make room for struct elx_fiq_rec */
-	sub	sp, sp, #ELX_FIQ_REC_SIZE
+	/* Make room for struct elx_nintr_rec */
+	sub	sp, sp, #ELX_NINTR_REC_SIZE
 	/* Store x4..x18 */
-	store_xregs sp, ELX_FIQ_REC_X(4), 4, 18
+	store_xregs sp, ELX_NINTR_REC_X(4), 4, 18
 	/* Store lr and original sp_el0 */
-	stp	x30, x2, [sp, #ELX_FIQ_REC_LR]
+	stp	x30, x2, [sp, #ELX_NINTR_REC_LR]
 
 	bl	thread_check_canaries
 	adr	x16, thread_nintr_handler_ptr
@@ -795,9 +805,9 @@ LOCAL_FUNC elx_fiq , :
 	 * Restore registers
 	 */
 	/* Restore x4..x18 */
-	load_xregs sp, ELX_FIQ_REC_X(4), 4, 18
+	load_xregs sp, ELX_NINTR_REC_X(4), 4, 18
 	/* Load  lr and original sp_el0 */
-	ldp	x30, x2, [sp, #ELX_FIQ_REC_LR]
+	ldp	x30, x2, [sp, #ELX_NINTR_REC_LR]
 	/* Restore SP_El0 */
 	mov	sp, x2
 	/* Switch back to SP_EL1 */
@@ -813,4 +823,12 @@ LOCAL_FUNC elx_fiq , :
 
 	/* Return from exception */
 	eret
+.endm
+
+LOCAL_FUNC elx_irq , :
+	foreign_intr_handler	irq
+END_FUNC elx_irq
+
+LOCAL_FUNC elx_fiq , :
+	native_intr_handler	fiq
 END_FUNC elx_fiq

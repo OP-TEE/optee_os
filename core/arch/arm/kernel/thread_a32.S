@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2017, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -244,6 +244,53 @@ UNWIND(	.fnend)
 END_FUNC thread_resume
 
 /*
+ * Disables IRQ and FIQ and saves state of thread in fiq mode which has
+ * the banked r8-r12 registers, returns original CPSR.
+ */
+LOCAL_FUNC thread_save_state_fiq , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	mov	r9, lr
+
+	/*
+	 * Uses stack for temporary storage, while storing needed
+	 * context in the thread context struct.
+	 */
+
+	mrs	r8, cpsr
+
+	cpsid	aif			/* Disable Async abort, IRQ and FIQ */
+
+	push	{r4-r7}
+	push	{r0-r3}
+
+	mrs	r6, cpsr		/* Save current CPSR */
+
+	bl	thread_get_ctx_regs
+
+	pop	{r1-r4}			/* r0-r3 pushed above */
+	stm	r0!, {r1-r4}
+	pop	{r1-r4}			/* r4-r7 pushed above */
+	stm	r0!, {r1-r4}
+
+	cps     #CPSR_MODE_SYS
+	stm	r0!, {r8-r12}
+	stm     r0!, {sp, lr}
+
+	cps     #CPSR_MODE_SVC
+	mrs     r1, spsr
+	stm     r0!, {r1, sp, lr}
+
+	/* back to fiq mode */
+	orr	r6, r6, #ARM32_CPSR_FIA	/* Disable Async abort, IRQ and FIQ */
+	msr	cpsr, r6		/* Restore mode */
+
+	mov	r0, r8			/* Return original CPSR */
+	bx	r9
+UNWIND(	.fnend)
+END_FUNC thread_save_state_fiq
+
+/*
  * Disables IRQ and FIQ and saves state of thread, returns original
  * CPSR.
  */
@@ -379,42 +426,59 @@ UNWIND(	.save	{r0})
 UNWIND(	.fnend)
 END_FUNC thread_rpc
 
-LOCAL_FUNC thread_fiq_handler , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
-	/* FIQ has a +4 offset for lr compared to preferred return address */
-	sub     lr, lr, #4
+/* The handler of native interrupt. */
+.macro	native_intr_handler mode:req
 	/*
-	 * We're saving {r0-r3} and the banked fiq registers {r8-r12}. The
-	 * banked fiq registers need to be saved because the secure monitor
-	 * doesn't save those. The treatment of the banked fiq registers is
-	 * somewhat analogous to the lazy save of VFP registers.
+	 * FIQ and IRQ have a +4 offset for lr compared to preferred return
+	 * address
 	 */
+	sub     lr, lr, #4
+
+	/*
+	 * We're saving {r0-r3}. The banked fiq registers {r8-r12} need to be
+	 * saved if the native interrupt is sent as FIQ because the secure
+	 * monitor doesn't save those. The treatment of the banked fiq
+	 * registers is somewhat analogous to the lazy save of VFP registers.
+	 */
+	.ifc	\mode\(),fiq
 	push	{r0-r3, r8-r12, lr}
+	.else
+	push	{r0-r3, lr}
+	.endif
 	bl	thread_check_canaries
 	ldr	lr, =thread_nintr_handler_ptr
 	ldr	lr, [lr]
 	blx	lr
+	.ifc	\mode\(),fiq
 	pop	{r0-r3, r8-r12, lr}
+	.else
+	pop	{r0-r3, lr}
+	.endif
 	movs	pc, lr
-UNWIND(	.fnend)
-END_FUNC thread_fiq_handler
+.endm
 
-LOCAL_FUNC thread_irq_handler , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
+/* The handler of foreign interrupt. */
+.macro foreign_intr_handler mode:req
+	.ifc	\mode\(),irq
 	/*
+	 * Disable FIQ if the foreign interrupt is sent as IRQ.
 	 * IRQ mode is set up to use tmp stack so FIQ has to be
 	 * disabled before touching the stack. We can also assign
 	 * SVC sp from IRQ sp to get SVC mode into the state we
 	 * need when doing the SMC below.
+	 * If it is sent as FIQ, the IRQ has already been masked by hardware
 	 */
-	cpsid	f			/* Disable FIQ also */
+	cpsid	f
+	.endif
 	sub	lr, lr, #4
 	push	{lr}
 	push	{r12}
 
+	.ifc	\mode\(),fiq
+	bl	thread_save_state_fiq
+	.else
 	bl	thread_save_state
+	.endif
 
 	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
 	mrs	r1, spsr
@@ -438,6 +502,19 @@ UNWIND(	.cantunwind)
 	/* r4 is already filled in above */
 	smc	#0
 	b	.	/* SMC should not return */
+.endm
+
+LOCAL_FUNC thread_fiq_handler , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	native_intr_handler	fiq
+UNWIND(	.fnend)
+END_FUNC thread_fiq_handler
+
+LOCAL_FUNC thread_irq_handler , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	foreign_intr_handler	irq
 UNWIND(	.fnend)
 END_FUNC thread_irq_handler
 
