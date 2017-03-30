@@ -34,9 +34,4 @@
 #include <tee_api_types.h>
 #include <tee_ta_api.h>
 
-#define SLogTrace(...)
-#define SLogError(...)
-#define SLogWarning(...)
-#define S_VAR_NOT_USED(x)
-
 #endif
