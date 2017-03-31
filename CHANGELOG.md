@@ -88,7 +88,7 @@ platform.
 * imx-mx6ulevk: standard
 * ls-ls1021aqds: TBD
 * ls-ls1021atwr: TBD
-* mediatek-mt8173: TBD
+* mediatek-mt8173: standard
 * rcar-h3: TBD
 * rpi3: TBD
 * sprd-sc98960: TBD
