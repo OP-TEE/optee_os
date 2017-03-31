@@ -43,7 +43,8 @@
 
 static vaddr_t src_base(void)
 {
-	static void *va __data; /* in case it's used before .bss is cleared */
+	/* in case it's used before .bss is cleared */
+	static void *va __early_bss;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
