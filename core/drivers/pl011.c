@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <drivers/pl011.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 #define UART_DR		0x00 /* data register */
@@ -141,6 +142,7 @@ static const struct serial_ops pl011_ops = {
 	.have_rx_data = pl011_have_rx_data,
 	.putc = pl011_putc,
 };
+KEEP_PAGER(pl011_ops);
 
 void pl011_init(struct pl011_data *pd, paddr_t base, uint32_t uart_clk,
 		uint32_t baud_rate)

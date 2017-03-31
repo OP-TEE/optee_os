@@ -26,9 +26,10 @@
  */
 
 #include <compiler.h>
-#include <drivers/serial8250_uart.h>
 #include <console.h>
+#include <drivers/serial8250_uart.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 /* uart register defines */
@@ -104,6 +105,7 @@ static const struct serial_ops serial8250_uart_ops = {
 	.have_rx_data = serial8250_uart_have_rx_data,
 	.putc = serial8250_uart_putc,
 };
+KEEP_PAGER(serial8250_uart_ops);
 
 void serial8250_uart_init(struct serial8250_uart_data *pd, paddr_t base,
 			  uint32_t __unused uart_clk,

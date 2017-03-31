@@ -27,6 +27,7 @@
  */
 #include <drivers/scif.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 #define SCIF_SCFSR		(0x10)
@@ -74,6 +75,7 @@ static const struct serial_ops scif_uart_ops = {
 	.flush = scif_uart_flush,
 	.putc = scif_uart_putc,
 };
+KEEP_PAGER(scif_uart_ops);
 
 void scif_uart_init(struct scif_uart_data *pd, vaddr_t base)
 {

@@ -26,8 +26,9 @@
  */
 #include <compiler.h>
 #include <drivers/pl050.h>
-#include <util.h>
 #include <io.h>
+#include <keep.h>
+#include <util.h>
 
 #define KMI_ICR		0x00
 #define KMI_STAT	0x04
@@ -91,6 +92,7 @@ static const struct serial_ops pl050_ops = {
 	.have_rx_data = pl050_have_rx_data,
 	.getchar = pl050_getchar,
 };
+KEEP_PAGER(pl050_ops);
 
 void pl050_init(struct pl050_data *pd, vaddr_t base, uint32_t clk)
 {

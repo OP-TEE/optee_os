@@ -26,6 +26,7 @@
  */
 #include <drivers/sunxi_uart.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 /* uart register defines */
@@ -108,6 +109,7 @@ static const struct serial_ops sunxi_uart_ops = {
 	.have_rx_data = sunxi_uart_have_rx_data,
 	.putc = sunxi_uart_putc,
 };
+KEEP_PAGER(sunxi_uart_ops);
 
 void sunxi_uart_init(struct sunxi_uart_data *pd, paddr_t base)
 {

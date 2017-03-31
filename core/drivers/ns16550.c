@@ -28,6 +28,7 @@
 
 #include <drivers/ns16550.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 /* uart register defines */
@@ -74,6 +75,7 @@ static const struct serial_ops ns16550_ops = {
 	.flush = ns16550_flush,
 	.putc = ns16550_putc,
 };
+KEEP_PAGER(ns16550_ops);
 
 void ns16550_init(struct ns16550_data *pd, paddr_t base)
 {
