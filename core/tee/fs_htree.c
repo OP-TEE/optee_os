@@ -84,7 +84,7 @@
  *
  * htree_node_image is a node in the hash tree, each node has two instances
  * which is committed is decided by the parent node .flag bit
- * HTREE_NODE_CHILD_COMMITTED. Which version is the committed version of
+ * HTREE_NODE_COMMITTED_CHILD. Which version is the committed version of
  * node 1 is determined by the by the lowest bit of the counter field in
  * the header.
  *
@@ -104,7 +104,7 @@
 struct htree_node {
 	size_t id;
 	bool dirty;
-	uint8_t committed_block;
+	bool block_updated;
 	struct tee_fs_htree_node_image node;
 	struct htree_node *parent;
 	struct htree_node *child[2];
@@ -641,6 +641,8 @@ TEE_Result tee_fs_htree_open(bool create,
 	ht->stor_aux = stor_aux;
 
 	if (create) {
+		const struct tee_fs_htree_image dummy_head = { .counter = 0 };
+
 		res = crypto_ops.prng.read(ht->fek, sizeof(ht->fek));
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -656,6 +658,9 @@ TEE_Result tee_fs_htree_open(bool create,
 
 		ht->dirty = true;
 		res = tee_fs_htree_sync_to_storage(&ht);
+		if (res != TEE_SUCCESS)
+			goto out;
+		res = rpc_write_head(ht, 0, &dummy_head);
 	} else {
 		res = init_head_from_data(ht);
 		if (res != TEE_SUCCESS)
@@ -707,6 +712,13 @@ static TEE_Result htree_sync_node_to_storage(struct traverse_arg *targ,
 	TEE_Result res;
 	uint8_t vers;
 
+	/*
+	 * The node can be dirty while the block isn't updated due to
+	 * updated children, but if block is updated the node has to be
+	 * dirty.
+	 */
+	assert(node->dirty >= node->block_updated);
+
 	if (!node->dirty)
 		return TEE_SUCCESS;
 
@@ -723,16 +735,13 @@ static TEE_Result htree_sync_node_to_storage(struct traverse_arg *targ,
 		 */
 		vers = !(targ->ht->head.counter & 1);
 	}
-	if (node->committed_block !=
-	    !!(node->node.flags & HTREE_NODE_COMMITTED_BLOCK))
-		node->node.flags ^= HTREE_NODE_COMMITTED_BLOCK;
-
 
 	res = calc_node_hash(node, targ->arg, node->node.hash);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	node->dirty = false;
+	node->block_updated = false;
 
 	return rpc_write_node(targ->ht, node->id, vers, &node->node);
 }
@@ -794,17 +803,14 @@ out:
 }
 
 static TEE_Result get_block_node(struct tee_fs_htree *ht, bool create,
-				 size_t block_num, uint8_t *block_vers,
-				 struct htree_node **node)
+				 size_t block_num, struct htree_node **node)
 {
 	TEE_Result res;
 	struct htree_node *nd;
 
 	res = get_node(ht, create, BLOCK_NUM_TO_NODE_ID(block_num), &nd);
-	if (res == TEE_SUCCESS) {
-		*block_vers = nd->committed_block;
+	if (res == TEE_SUCCESS)
 		*node = nd;
-	}
 
 	return res;
 }
@@ -823,10 +829,14 @@ TEE_Result tee_fs_htree_write_block(struct tee_fs_htree **ht_arg,
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
-	res = get_block_node(ht, true, block_num, &block_vers, &node);
+	res = get_block_node(ht, true, block_num, &node);
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	if (!node->block_updated)
+		node->node.flags ^= HTREE_NODE_COMMITTED_BLOCK;
+
+	block_vers = !!(node->node.flags & HTREE_NODE_COMMITTED_BLOCK);
 	res = ht->stor->rpc_write_init(ht->stor_aux, &op,
 				       TEE_FS_HTREE_TYPE_BLOCK, block_num,
 				       block_vers, &enc_block);
@@ -846,10 +856,7 @@ TEE_Result tee_fs_htree_write_block(struct tee_fs_htree **ht_arg,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (node->committed_block !=
-	    !!(node->node.flags & HTREE_NODE_COMMITTED_BLOCK))
-		node->committed_block = !node->committed_block;
-
+	node->block_updated = true;
 	node->dirty = true;
 	ht->dirty = true;
 out:
@@ -873,10 +880,11 @@ TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht_arg,
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
-	res = get_block_node(ht, false, block_num, &block_vers, &node);
+	res = get_block_node(ht, false, block_num, &node);
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	block_vers = !!(node->node.flags & HTREE_NODE_COMMITTED_BLOCK);
 	res = ht->stor->rpc_read_init(ht->stor_aux, &op,
 				      TEE_FS_HTREE_TYPE_BLOCK, block_num,
 				      block_vers, &enc_block);
