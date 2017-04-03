@@ -26,6 +26,7 @@
  */
 #include <drivers/stih_asc.h>
 #include <io.h>
+#include <keep.h>
 #include <util.h>
 
 #define ASC_BAUDRATE		0x00
@@ -35,27 +36,40 @@
 #define ASC_STATUS_TX_EMPTY		BIT(1)
 #define ASC_STATUS_TX_HALF_EMPTY	BIT(2)
 
-void stih_asc_flush(vaddr_t base)
+static vaddr_t chip_to_base(struct serial_chip *chip)
 {
+	struct stih_asc_pd *pd =
+		container_of(chip, struct stih_asc_pd, chip);
+
+	return io_pa_or_va(&pd->base);
+}
+
+static void stih_asc_flush(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read32(base + ASC_STATUS) & ASC_STATUS_TX_EMPTY))
 		;
 }
 
-void stih_asc_putc(int ch, vaddr_t base)
+static void stih_asc_putc(struct serial_chip *chip, int ch)
 {
-	/* Wait until there is space in the FIFO */
+	vaddr_t base = chip_to_base(chip);
+
 	while (!(read32(base + ASC_STATUS) & ASC_STATUS_TX_HALF_EMPTY))
 		;
 
-	/* Send the character */
 	write32(ch, base + ASC_TXBUFFER);
 }
 
-void stih_asc_init(vaddr_t base)
+static const struct serial_ops stih_asc_ops = {
+	.flush = stih_asc_flush,
+	.putc = stih_asc_putc,
+};
+KEEP_PAGER(stih_asc_ops);
+
+void stih_asc_init(struct stih_asc_pd *pd, vaddr_t base)
 {
-	/*
-	 * Console setup relies on early bootstage or nonsecure world.
-	 * Only flush ASC FIFO if possible.
-	 */
-	console_flush();
+	pd->base.pa = base;
+	pd->chip.ops = &stih_asc_ops;
 }
