@@ -26,10 +26,9 @@
  */
 
 #include <arm32.h>
-#include <asc.h>
 #include <console.h>
 #include <drivers/gic.h>
-#include <drivers/pl011.h>
+#include <drivers/stih_asc.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
@@ -103,21 +102,24 @@ static vaddr_t console_base(void)
 
 void console_init(void)
 {
+	stih_asc_init(console_base());
 }
 
 void console_putc(int ch)
 {
 	if (ns_resources_ready()) {
+		vaddr_t base = console_base();
+
 		if (ch == '\n')
-			__asc_xmit_char('\r', console_base());
-		__asc_xmit_char((char)ch, console_base());
+			stih_asc_putc('\r', base);
+		stih_asc_putc(ch, base);
 	}
 }
 
 void console_flush(void)
 {
 	if (ns_resources_ready())
-		__asc_flush(console_base());
+		stih_asc_flush(console_base());
 }
 
 vaddr_t pl310_base(void)

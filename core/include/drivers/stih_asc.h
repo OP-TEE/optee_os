@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ASC_H
-#define ASC_H
+#ifndef STIH_ASC_H
+#define STIH_ASC_H
 
 #include <types_ext.h>
 
-extern int __asc_xmit_char(const char p, vaddr_t base);
-extern void __asc_flush(vaddr_t base);
+#define STIH_ASC_REG_SIZE	0x1000
 
-#endif
+void stih_asc_init(vaddr_t base);
+void stih_asc_flush(vaddr_t base);
+void stih_asc_putc(int ch, vaddr_t base);
+
+#endif /* STIH_ASC_H */
+
