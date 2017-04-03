@@ -141,7 +141,7 @@ static TEE_Result rpc_read(struct tee_fs_htree *ht, enum tee_fs_htree_type type,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_fs_rpc_read_final(&op, &bytes);
+	res = ht->stor->rpc_read_final(&op, &bytes);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -180,7 +180,7 @@ static TEE_Result rpc_write(struct tee_fs_htree *ht,
 		return res;
 
 	memcpy(p, data, dlen);
-	return tee_fs_rpc_write_final(&op);
+	return ht->stor->rpc_write_final(&op);
 }
 
 static TEE_Result rpc_write_head(struct tee_fs_htree *ht, size_t vers,
@@ -842,7 +842,7 @@ TEE_Result tee_fs_htree_write_block(struct tee_fs_htree **ht_arg,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_rpc_write_final(&op);
+	res = ht->stor->rpc_write_final(&op);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -883,7 +883,7 @@ TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht_arg,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_rpc_read_final(&op, &len);
+	res = ht->stor->rpc_read_final(&op, &len);
 	if (res != TEE_SUCCESS)
 		goto out;
 	if (len != ht->stor->block_size) {

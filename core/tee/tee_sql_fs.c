@@ -212,7 +212,9 @@ static TEE_Result sql_fs_rpc_write_init(void *aux,
 static const struct tee_fs_htree_storage sql_fs_storage_ops = {
 	.block_size = BLOCK_SIZE,
 	.rpc_read_init = sql_fs_rpc_read_init,
+	.rpc_read_final = tee_fs_rpc_read_final,
 	.rpc_write_init = sql_fs_rpc_write_init,
+	.rpc_write_final = tee_fs_rpc_write_final,
 };
 
 /*

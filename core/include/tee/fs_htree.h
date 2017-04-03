@@ -110,9 +110,12 @@ struct tee_fs_htree_storage {
 	TEE_Result (*rpc_read_init)(void *aux, struct tee_fs_rpc_operation *op,
 				    enum tee_fs_htree_type type, size_t idx,
 				    uint8_t vers, void **data);
+	TEE_Result (*rpc_read_final)(struct tee_fs_rpc_operation *op,
+				     size_t *bytes);
 	TEE_Result (*rpc_write_init)(void *aux, struct tee_fs_rpc_operation *op,
 				     enum tee_fs_htree_type type, size_t idx,
 				     uint8_t vers, void **data);
+	TEE_Result (*rpc_write_final)(struct tee_fs_rpc_operation *op);
 };
 
 struct tee_fs_htree;
