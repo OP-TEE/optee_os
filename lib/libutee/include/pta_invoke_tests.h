@@ -73,5 +73,10 @@
  */
 #define PTA_INVOKE_TESTS_CMD_COPY_SEC_TO_NSEC	5
 
+/*
+ * Tests FS hash-tree corner cases in error handling
+ */
+#define PTA_INVOKE_TESTS_CMD_FS_HTREE		6
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 

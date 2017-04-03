@@ -1,6 +1,7 @@
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += pta_invoke_tests.c
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += core_self_tests.c
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += interrupt_tests.c
+srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += core_fs_htree_tests.c
 srcs-$(CFG_WITH_STATS) += stats.c
 srcs-$(CFG_TA_GPROF_SUPPORT) += gprof.c
 

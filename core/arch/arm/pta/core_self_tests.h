@@ -34,4 +34,7 @@
 TEE_Result core_self_tests(uint32_t nParamTypes,
 		TEE_Param pParams[TEE_NUM_PARAMS]);
 
+TEE_Result core_fs_htree_tests(uint32_t nParamTypes,
+		TEE_Param pParams[TEE_NUM_PARAMS]);
+
 #endif /*CORE_SELF_TESTS_H*/
