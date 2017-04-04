@@ -30,11 +30,13 @@
 #include <keep.h>
 #include <util.h>
 
+#define SCIF_SCSCR		(0x08)
 #define SCIF_SCFSR		(0x10)
 #define SCIF_SCFTDR		(0x0C)
 #define SCIF_SCFCR		(0x18)
 #define SCIF_SCFDR		(0x1C)
 
+#define SCSCR_TE		BIT(5)
 #define SCFSR_TDFE		BIT(5)
 #define SCFSR_TEND		BIT(6)
 
@@ -77,11 +79,13 @@ static const struct serial_ops scif_uart_ops = {
 };
 KEEP_PAGER(scif_uart_ops);
 
-void scif_uart_init(struct scif_uart_data *pd, vaddr_t base)
+void scif_uart_init(struct scif_uart_data *pd, paddr_t base)
 {
 	pd->base.pa = base;
 	pd->chip.ops = &scif_uart_ops;
 
-	/* Bootloader should initialize device for us */
+	/* Set Transmit Enable in Control register */
+	write16(read16(base + SCIF_SCSCR) | SCSCR_TE, base + SCIF_SCSCR);
+
 	scif_uart_flush(&pd->chip);
 }

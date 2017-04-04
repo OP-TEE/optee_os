@@ -38,6 +38,6 @@ struct scif_uart_data {
 	struct serial_chip chip;
 };
 
-void scif_uart_init(struct scif_uart_data *pd, vaddr_t base);
+void scif_uart_init(struct scif_uart_data *pd, paddr_t base);
 
 #endif /* SCIF */
