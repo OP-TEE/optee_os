@@ -350,8 +350,10 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return test_dump_sdp(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_SELF_TESTS:
 		return core_self_tests(nParamTypes, pParams);
+#if defined(CFG_WITH_USER_TA)
 	case PTA_INVOKE_TESTS_CMD_FS_HTREE:
 		return core_fs_htree_tests(nParamTypes, pParams);
+#endif
 	default:
 		break;
 	}
