@@ -500,6 +500,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		while (map->type != MEM_AREA_NOTYPE) {
 			map->attr = core_mmu_type_to_attr(map->type);
 			va -= map->size;
+			va = ROUNDDOWN(va, map->region_size);
 			map->va = va;
 			map++;
 		}
@@ -520,6 +521,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		map++;
 		while (map->type != MEM_AREA_NOTYPE) {
 			map->attr = core_mmu_type_to_attr(map->type);
+			va = ROUNDUP(va, map->region_size);
 			map->va = va;
 			va += map->size;
 			map++;
