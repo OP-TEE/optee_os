@@ -79,9 +79,16 @@
 /* Normal memory, Outer Write-Back Write-Allocate Cacheable */
 #define TEE_MMU_TTB_RNG_WBWA    (1 << 3)
 
+/* Normal memory, Outer Write-Back no Write-Allocate Cacheable */
+#define TEE_MMU_TTB_RNG_WB      (3 << 3)
+
+#ifndef CFG_NO_SMP
 #define TEE_MMU_DEFAULT_ATTRS \
 		(TEE_MMU_TTB_S | TEE_MMU_TTB_NOS | \
 		 TEE_MMU_TTB_IRGN_WBWA | TEE_MMU_TTB_RNG_WBWA)
+#else
+#define TEE_MMU_DEFAULT_ATTRS (TEE_MMU_TTB_IRGN_WB | TEE_MMU_TTB_RNG_WB)
+#endif
 
 
 #define INVALID_DESC		0x0
@@ -145,8 +152,13 @@
 #define ATTR_DEVICE_PRRR		PRRR_IDX(ATTR_DEVICE_INDEX, 1, 0)
 #define ATTR_DEVICE_NMRR		NMRR_IDX(ATTR_DEVICE_INDEX, 0, 0)
 
+#ifndef CFG_NO_SMP
 #define ATTR_NORMAL_CACHED_PRRR		PRRR_IDX(ATTR_NORMAL_CACHED_INDEX, 2, 1)
 #define ATTR_NORMAL_CACHED_NMRR		NMRR_IDX(ATTR_NORMAL_CACHED_INDEX, 1, 1)
+#else
+#define ATTR_NORMAL_CACHED_PRRR		PRRR_IDX(ATTR_NORMAL_CACHED_INDEX, 2, 0)
+#define ATTR_NORMAL_CACHED_NMRR		NMRR_IDX(ATTR_NORMAL_CACHED_INDEX, 3, 3)
+#endif
 
 #define NUM_L1_ENTRIES		4096
 #define NUM_L2_ENTRIES		256
@@ -373,7 +385,11 @@ static uint32_t mattr_to_desc(unsigned level, uint32_t attr)
 	texcb = mattr_to_texcb(a);
 
 	if (level == 1) {	/* Section */
+#ifndef CFG_NO_SMP
 		desc = SECTION_SECTION | SECTION_SHARED;
+#else
+		desc = SECTION_SECTION;
+#endif
 
 		if (!(a & (TEE_MATTR_PX | TEE_MATTR_UX)))
 			desc |= SECTION_XN;
@@ -400,7 +416,11 @@ static uint32_t mattr_to_desc(unsigned level, uint32_t attr)
 
 		desc |= SECTION_TEXCB(texcb);
 	} else {
+#ifndef CFG_NO_SMP
 		desc = SMALL_PAGE_SMALL_PAGE | SMALL_PAGE_SHARED;
+#else
+		desc = SMALL_PAGE_SMALL_PAGE;
+#endif
 
 		if (!(a & (TEE_MATTR_PX | TEE_MATTR_UX)))
 			desc |= SMALL_PAGE_XN;
