@@ -304,6 +304,12 @@ DEFINE_U64_REG_WRITE_FUNC(mair_el1)
 
 DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
 
+/* Register read/write functions for GICC registers by using system interface */
+DEFINE_REG_READ_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
+DEFINE_REG_WRITE_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
+DEFINE_REG_WRITE_FUNC_(icc_pmr, uint32_t, S3_0_C4_C6_0)
+DEFINE_REG_READ_FUNC_(icc_iar0, uint32_t, S3_0_c12_c8_0)
+DEFINE_REG_WRITE_FUNC_(icc_eoir0, uint32_t, S3_0_c12_c8_1)
 #endif /*ASM*/
 
 #endif /*ARM64_H*/

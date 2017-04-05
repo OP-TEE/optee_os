@@ -826,9 +826,17 @@ END_FUNC el0_sync_abort
 .endm
 
 LOCAL_FUNC elx_irq , :
+#if defined(CFG_ARM_GICV3)
+	native_intr_handler	irq
+#else
 	foreign_intr_handler	irq
+#endif
 END_FUNC elx_irq
 
 LOCAL_FUNC elx_fiq , :
+#if defined(CFG_ARM_GICV3)
+	foreign_intr_handler	fiq
+#else
 	native_intr_handler	fiq
+#endif
 END_FUNC elx_fiq

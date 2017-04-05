@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2017, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * All rights reserved.
  *
@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm.h>
 #include <assert.h>
 #include <drivers/gic.h>
 #include <kernel/interrupt.h>
@@ -103,7 +104,7 @@ static const struct itr_ops gic_ops = {
 	.set_affinity = gic_op_set_affinity,
 };
 
-static size_t probe_max_it(vaddr_t gicc_base, vaddr_t gicd_base)
+static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
 	int i;
 	uint32_t old_ctlr;
@@ -114,8 +115,13 @@ static size_t probe_max_it(vaddr_t gicc_base, vaddr_t gicd_base)
 	/*
 	 * Probe which interrupt number is the largest.
 	 */
+#if defined(CFG_ARM_GICV3)
+	old_ctlr = read_icc_ctlr();
+	write_icc_ctlr(0);
+#else
 	old_ctlr = read32(gicc_base + GICC_CTLR);
 	write32(0, gicc_base + GICC_CTLR);
+#endif
 	for (i = max_regs; i >= 0; i--) {
 		uint32_t old_reg;
 		uint32_t reg;
@@ -133,13 +139,21 @@ static size_t probe_max_it(vaddr_t gicc_base, vaddr_t gicd_base)
 		}
 	}
 out:
+#if defined(CFG_ARM_GICV3)
+	write_icc_ctlr(old_ctlr);
+#else
 	write32(old_ctlr, gicc_base + GICC_CTLR);
+#endif
 	return ret;
 }
 
 void gic_cpu_init(struct gic_data *gd)
 {
+#if defined(CFG_ARM_GICV3)
+	assert(gd->gicd_base);
+#else
 	assert(gd->gicd_base && gd->gicc_base);
+#endif
 
 	/* per-CPU interrupts config:
 	 * ID0-ID7(SGI)   for Non-secure interrupts
@@ -151,14 +165,21 @@ void gic_cpu_init(struct gic_data *gd)
 	/* Set the priority mask to permit Non-secure interrupts, and to
 	 * allow the Non-secure world to adjust the priority mask itself
 	 */
+#if defined(CFG_ARM_GICV3)
+	write_icc_pmr(0x80);
+	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
+		       GICC_CTLR_FIQEN);
+#else
 	write32(0x80, gd->gicc_base + GICC_PMR);
 
 	/* Enable GIC */
 	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
 		gd->gicc_base + GICC_CTLR);
+#endif
 }
 
-void gic_init(struct gic_data *gd, vaddr_t gicc_base, vaddr_t gicd_base)
+void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
+	      vaddr_t gicd_base)
 {
 	size_t n;
 
@@ -187,16 +208,22 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base, vaddr_t gicd_base)
 	/* Set the priority mask to permit Non-secure interrupts, and to
 	 * allow the Non-secure world to adjust the priority mask itself
 	 */
+#if defined(CFG_ARM_GICV3)
+	write_icc_pmr(0x80);
+	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
+		       GICC_CTLR_FIQEN);
+#else
 	write32(0x80, gd->gicc_base + GICC_PMR);
 
 	/* Enable GIC */
 	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
 		gd->gicc_base + GICC_CTLR);
+#endif
 	write32(GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1,
 		gd->gicd_base + GICD_CTLR);
 }
 
-void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base,
+void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 			vaddr_t gicd_base)
 {
 	gd->gicc_base = gicc_base;
@@ -318,14 +345,22 @@ static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
 	write32(mask, gd->gicd_base + GICD_SGIR);
 }
 
-static uint32_t gic_read_iar(struct gic_data *gd)
+static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 {
+#if defined(CFG_ARM_GICV3)
+	return read_icc_iar0();
+#else
 	return read32(gd->gicc_base + GICC_IAR);
+#endif
 }
 
-static void gic_write_eoir(struct gic_data *gd, uint32_t eoir)
+static void gic_write_eoir(struct gic_data *gd __maybe_unused, uint32_t eoir)
 {
+#if defined(CFG_ARM_GICV3)
+	write_icc_eoir0(eoir);
+#else
 	write32(eoir, gd->gicc_base + GICC_EOIR);
+#endif
 }
 
 static bool gic_it_is_enabled(struct gic_data *gd, size_t it)
@@ -359,7 +394,11 @@ void gic_dump_state(struct gic_data *gd)
 {
 	int i;
 
+#if defined(CFG_ARM_GICV3)
+	DMSG("GICC_CTLR: 0x%x", read_icc_ctlr());
+#else
 	DMSG("GICC_CTLR: 0x%x", read32(gd->gicc_base + GICC_CTLR));
+#endif
 	DMSG("GICD_CTLR: 0x%x", read32(gd->gicd_base + GICD_CTLR));
 
 	for (i = 0; i < (int)gd->max_it; i++) {

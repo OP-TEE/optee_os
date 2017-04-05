@@ -28,10 +28,6 @@ Two types of interrupt are defined in optee_os:
 For ARM GICv2 mode, native interrupt is sent as FIQ and foreign interrupt is
 sent as IRQ.
 
-For ARM GICv3 mode, foreign interrupt is sent as FIQ which could be handled
-by either secure world (EL3 in AArch64) or normal world. This mode is not
-supported yet.
-
 Since IRQs are received using the state vector the actual vector used
 depends on the current state of the CPU. If the NS (non-secure) bit in SCR
 (Secure Control Register) is set then either HVBAR or VBAR (non-secure) is
@@ -40,6 +36,12 @@ VBAR is used instead. This has the consequence that secure world can
 receive IRQ that are supposed to be handled by normal world. When secure
 world receives an IRQ it has to be forwarded to normal world for
 processing.
+
+For ARM GICv3 mode, foreign interrupt is sent as FIQ which could be handled
+by either secure world (aarch32 Monitor mode or aarch64 EL3) or normal world.
+ARM GICv3 mode can be enabled by setting `CFG_ARM_GICV3=y`.
+
+The following descriptions take ARM GICv2 mode as the example.
 
 # The monitor
 The monitor manages all entry and exit of secure world. To enter secure

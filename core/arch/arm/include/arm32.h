@@ -601,6 +601,38 @@ static __always_inline uint32_t read_r7(void)
 	asm volatile ("mov %0, r7" : "=r" (val));
 	return val;
 }
+
+/* Register read/write functions for GICC registers by using system interface */
+static inline uint32_t read_icc_ctlr(void)
+{
+	uint32_t v;
+
+	asm volatile ("mrc p15,0,%0,c12,c12,4" : "=r" (v));
+	return v;
+}
+
+static inline void write_icc_ctlr(uint32_t v)
+{
+	asm volatile ("mcr p15,0,%0,c12,c12,4" : : "r" (v));
+}
+
+static inline void write_icc_pmr(uint32_t v)
+{
+	asm volatile ("mcr p15,0,%0,c4,c6,0" : : "r" (v));
+}
+
+static inline uint32_t read_icc_iar0(void)
+{
+	uint32_t v;
+
+	asm volatile ("mrc p15,0,%0,c12,c8,0" : "=r" (v));
+	return v;
+}
+
+static inline void write_icc_eoir0(uint32_t v)
+{
+	asm volatile ("mcr p15,0,%0,c12,c8,1" : : "r" (v));
+}
 #endif /*ASM*/
 
 #endif /*ARM32_H*/

@@ -507,14 +507,22 @@ END_FUNC thread_rpc
 LOCAL_FUNC thread_fiq_handler , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+#if defined(CFG_ARM_GICV3)
+	foreign_intr_handler	fiq
+#else
 	native_intr_handler	fiq
+#endif
 UNWIND(	.fnend)
 END_FUNC thread_fiq_handler
 
 LOCAL_FUNC thread_irq_handler , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+#if defined(CFG_ARM_GICV3)
+	native_intr_handler	irq
+#else
 	foreign_intr_handler	irq
+#endif
 UNWIND(	.fnend)
 END_FUNC thread_irq_handler
 
