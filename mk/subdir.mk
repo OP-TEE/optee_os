@@ -4,7 +4,7 @@
 #
 # Output
 #
-# set srcs
+# set     srcs gen-srcs
 # set     cflags-$(oname) cflags-remove-$(oname)
 #         aflags-$(oname) aflags-remove-$(oname)
 #         cppflags-$(oname) cppflags-remove-$(oname)
@@ -16,6 +16,7 @@
 # source file
 
 srcs :=
+gen-srcs :=
 
 define process-subdir-srcs-y
 ifeq ($$(sub-dir),.)
