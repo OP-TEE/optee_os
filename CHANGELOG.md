@@ -1,3 +1,117 @@
+# OP-TEE - version 2.4.0
+
+[Link][github_commits_2_4_0] to a list of all commits between this release and
+the previous one (2.3.0).
+
+Please note: this release is API-compatible with the previous one, but the
+Secure Storage internal format for the REE and SQL FS is not compatible due to
+commits [a238b74][commit_a238b74] ("core: REE FS: use the new hash tree
+interface") and [44e900e][commit_44e900e] ("core: SQL FS: use the new hash tree
+interface").
+
+## New features
+
+* Add support for Secure Data Path which allows Client and Trusted Applications
+  to share references to secure memory
+
+* New supported platform: Texas Instruments AM57xx (`PLATFORM=ti-am57xx`)
+
+* ARMv7-A: add support for platform services in secure monitor and add these
+  services for the DRA7xx platform
+
+* SPI framework and PL022 driver cleanup and improvements
+
+* Use CNTPCT (when available) to add entropy to the software PRNG
+
+* Add GlobalPlatform Socket API for UDP and TCP (IPv4 and IPv6)
+
+* DRA7: add TRNG driver, enable GICv2 driver 
+
+* Support load address larger than 4G
+
+* libutee: preserve error code when calling TEE_Panic() for easier
+  troubleshooting
+
+* Support TA profiling with gprof (-pg compiler switch)
+
+* Optimize the ELF loader for TAs when pager is enabled
+
+* Update documentation
+
+* Add paged secure shared memory that can be transferred between TAs as
+  needed
+
+* Introduce MOBJ abstraction
+
+* i.MX6: add PSCI "on" function
+
+* arm32: introduce PSCI framework
+
+## Bug fixes
+
+* Secure storage: improve integrity checking of the REE and SQL filesystems by
+  adding a hash tree on the internal data structures. Any external modification
+  is detected, except full rollback. Fixes [#1188][issue1188].
+
+* The linux driver will set the 'privileged' flag (TEE_GEN_CAP_PRIVILEGED) on
+  the device intended for use by tee-supplicant. Fixes [#1199][issue1199].
+  
+* RPMB: don't try to program the RPMB key by default
+
+* Fix "make clean" error cases
+
+* Fix issue when resetting persistent storage enumerator [#1332][issue1332]
+
+* Fix TA panic when doing AES CTS with specific buffer sizes
+  [#1203][issue1203].
+
+## Known issues
+
+* New issues open on GitHub
+  * TBD
+
+## Tested on
+
+In the list below, _standard_ means that the `xtest` program passed with
+its default configuration, while _extended_ means it was run successfully
+with the additional GlobalPlatform™ TEE Initial Configuration Test Suite
+v1.1.0.4.
+
+If a platform is not listed, it means the release was not tested on this
+platform.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02: extended
+* hikey: extended
+* imx-mx6qsabrelite: TBD
+* imx-mx6qsabresd: TBD
+* imx-mx6ulevk: standard
+* ls-ls1021aqds: TBD
+* ls-ls1021atwr: TBD
+* mediatek-mt8173: standard
+* rcar-h3: TBD
+* rpi3: TBD
+* sprd-sc98960: TBD
+* stm-b2260: extended
+* stm-cannes: TBD
+* stm-orly2: TBD
+* sunxi: TBD
+* ti-dra7xx: TBD
+* ti-am57xx: TBD
+* vexpress-fvp: TBD
+* vexpress-juno: standard
+* vexpress-qemu_armv8a: TBD
+* vexpress-qemu_virt: standard
+* zynq7k-zc702: TBD
+* zynqmp-zc1751_dc1: TBD
+* zynqmp-zc1751_dc2: TBD
+* zynqmp-zcu102: TBD
+
+[github_commits_2_4_0]: https://github.com/OP-TEE/optee_os/compare/2.3.0...7ad480 <!-- replace with 2.4.0 -->
+[issue1332]: https://github.com/OP-TEE/optee_os/issues/1332
+[commit_a238b74]: https://github.com/OP-TEE/optee_os/commit/a238b744b1b3
+[commit_44e900e]: https://github.com/OP-TEE/optee_os/commit/44e900eabfc1
+
 # OP-TEE - version 2.3.0
 
 [Link][github_commits_2_3_0] to a list of all commits between this release and
