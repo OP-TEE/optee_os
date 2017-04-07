@@ -66,14 +66,10 @@
 #endif
 #define STACK_THREAD_SIZE	8192
 
-#if TRACE_LEVEL > 0
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 #define STACK_ABT_SIZE		3072
 #else
 #define STACK_ABT_SIZE		2048
-#endif
-#else
-#define STACK_ABT_SIZE		1024
 #endif
 
 #endif /*ARM32*/
