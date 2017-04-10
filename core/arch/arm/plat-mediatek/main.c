@@ -39,12 +39,7 @@
 static void main_fiq(void);
 
 register_phys_mem(MEM_AREA_IO_NSEC,
-		  ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
-
-register_phys_mem(MEM_AREA_IO_SEC,
-		  ROUNDDOWN(GIC_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
+		  CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
 
 static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
