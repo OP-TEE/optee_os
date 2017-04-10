@@ -418,7 +418,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	}
 }
 
-static bool __maybe_unused is_map_tee_ram(struct tee_mmap_region *mm)
+static bool __maybe_unused map_is_tee_ram(struct tee_mmap_region *mm)
 {
 	return mm->type == MEM_AREA_TEE_RAM;
 }
@@ -481,7 +481,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			panic("Impossible memory alignment");
 
 #ifdef CFG_WITH_PAGER
-		if (is_map_tee_ram(map))
+		if (map_is_tee_ram(map))
 			map->region_size = SMALL_PAGE_SIZE;
 #endif
 	}

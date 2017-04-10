@@ -347,7 +347,7 @@ static uint32_t mattr_to_desc(unsigned level, uint32_t attr)
 	}
 
 	if (!(a & TEE_MATTR_VALID_BLOCK))
-		return 0;
+		return INVALID_DESC;
 
 	if (a & (TEE_MATTR_PX | TEE_MATTR_PW))
 		a |= TEE_MATTR_PR;
@@ -630,9 +630,11 @@ static paddr_t map_page_memarea(struct tee_mmap_region *mm)
 
 	/* Fill in the entries */
 	while ((pg_idx * SMALL_PAGE_SIZE) <
-		(mm->size + (mm->va & SECTION_MASK))) {
-		l2[pg_idx] = ((mm->pa & ~SECTION_MASK) +
-				pg_idx * SMALL_PAGE_SIZE) | attr;
+	       (mm->size + (mm->va & SECTION_MASK))) {
+		l2[pg_idx] = attr;
+		if (attr != INVALID_DESC)
+			l2[pg_idx] |= (mm->pa & ~SECTION_MASK) +
+					pg_idx * SMALL_PAGE_SIZE;
 		pg_idx++;
 	}
 
@@ -690,7 +692,10 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		region_size = SECTION_SIZE;
 
 		attr = mattr_to_desc(1, mm->attr);
-		pa = mm->pa;
+		if (attr == INVALID_DESC)
+			pa = 0;
+		else
+			pa = mm->pa;
 	}
 
 	m = (mm->va >> SECTION_SHIFT);
