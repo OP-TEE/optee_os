@@ -229,6 +229,7 @@ static void *core_mmu_alloc_l2(size_t size)
 	uint32_t to_alloc = ROUNDUP(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE) /
 		(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
 
+	DMSG("L2 table used: %d/%d", tables_used + to_alloc, MAX_XLAT_TABLES);
 	if (tables_used + to_alloc > MAX_XLAT_TABLES)
 		return NULL;
 
