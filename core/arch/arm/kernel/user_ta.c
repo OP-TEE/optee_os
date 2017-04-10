@@ -59,8 +59,6 @@
 #include "elf_load.h"
 #include "elf_common.h"
 
-#define STACK_ALIGNMENT   (sizeof(long) * 2)
-
 static TEE_Result load_header(const struct shdr *signed_ta,
 		struct shdr **sec_shdr)
 {

@@ -31,6 +31,7 @@
 #include <compiler.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
+#include <platform_config.h>
 #include <types_ext.h>
 
 /* A small page is the smallest unit of memory that can be mapped */
@@ -72,6 +73,14 @@
 #endif
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
+
+#ifndef CFG_TEE_RAM_VA_SIZE
+#define CFG_TEE_RAM_VA_SIZE		CORE_MMU_PGDIR_SIZE
+#endif
+
+#ifndef STACK_ALIGNMENT
+#define STACK_ALIGNMENT			(sizeof(long) * 2)
+#endif
 
 /*
  * Memory area type:
