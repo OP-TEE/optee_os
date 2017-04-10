@@ -44,9 +44,9 @@
 #include <trace.h>
 #include <util.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CPU_IOMEM_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
 
 static struct gic_data gic_data;
 static struct stih_asc_pd console_data __early_bss;
