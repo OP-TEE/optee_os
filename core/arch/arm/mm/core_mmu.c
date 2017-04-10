@@ -489,6 +489,9 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	     mem < &__end_phys_mem_map_section; mem++) {
 		struct core_mmu_phys_mem m = *mem;
 
+		if (!m.size)
+			continue;
+
 		if (m.type == MEM_AREA_IO_NSEC || m.type == MEM_AREA_IO_SEC) {
 			m.addr = ROUNDDOWN(m.addr, CORE_MMU_PGDIR_SIZE);
 			m.size = ROUNDUP(m.size + (mem->addr - m.addr),
