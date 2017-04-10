@@ -44,6 +44,16 @@
 #error This file is not to be used with LPAE
 #endif
 
+#ifndef DEBUG_XLAT_TABLE
+#define DEBUG_XLAT_TABLE 0
+#endif
+
+#if DEBUG_XLAT_TABLE
+#define debug_print(...) DMSG_RAW(__VA_ARGS__)
+#else
+#define debug_print(...) ((void)0)
+#endif
+
 /*
  * MMU related values
  */
@@ -686,16 +696,42 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 		if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK)
 			panic("memarea can't be mapped");
 
+		if (!(mm->attr & TEE_MATTR_VALID_BLOCK))
+			debug_print("4k page map [%08" PRIxVA " %08" PRIxVA
+				"] not-mapped", mm->va, mm->va + mm->size);
+		else
+			debug_print("4k page map [%08" PRIxVA " %08" PRIxVA
+				"] %s-%s-%s-%s",
+				mm->va, mm->va + mm->size,
+				mm->attr & (TEE_MATTR_CACHE_CACHED <<
+					TEE_MATTR_CACHE_SHIFT) ?
+					"MEM" : "DEV",
+				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
+				mm->attr & TEE_MATTR_PX ? "X" : "XN",
+				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
+
 		attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
 		pa = map_page_memarea(mm);
 	} else {
 		region_size = SECTION_SIZE;
 
 		attr = mattr_to_desc(1, mm->attr);
-		if (attr == INVALID_DESC)
+		if (attr == INVALID_DESC) {
+			debug_print("section map [%08" PRIxVA " %08" PRIxVA
+				"] not-mapped", mm->va, mm->va + mm->size);
 			pa = 0;
-		else
+		} else {
+			debug_print("section map [%08" PRIxVA " %08" PRIxVA
+				"] %s-%s-%s-%s",
+				mm->va, mm->va + mm->size,
+				mm->attr & (TEE_MATTR_CACHE_CACHED <<
+					TEE_MATTR_CACHE_SHIFT) ?
+					"MEM" : "DEV",
+				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
+				mm->attr & TEE_MATTR_PX ? "X" : "XN",
+				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
 			pa = mm->pa;
+		}
 	}
 
 	m = (mm->va >> SECTION_SHIFT);
