@@ -418,6 +418,22 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	}
 }
 
+static void dump_mmap_table(struct tee_mmap_region *memory_map)
+{
+	struct tee_mmap_region *map;
+
+	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		vaddr_t __maybe_unused vstart;
+
+		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
+		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
+		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx",
+		     map->type, vstart, vstart + map->size - 1,
+		     map->pa, (paddr_t)(map->pa + map->size - 1),
+		     map->size);
+	}
+}
+
 static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 {
 	const struct core_mmu_phys_mem *mem;
@@ -508,16 +524,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		}
 	}
 
-	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
-		vaddr_t __maybe_unused vstart;
-
-		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
-		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
-		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx",
-		     map->type, vstart, vstart + map->size - 1,
-		     (paddr_t)map->pa, (paddr_t)map->pa + map->size - 1,
-		     map->size);
-	}
+	dump_mmap_table(memory_map);
 }
 
 /*
