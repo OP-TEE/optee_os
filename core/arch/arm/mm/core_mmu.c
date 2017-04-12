@@ -108,27 +108,6 @@ register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
 register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
 register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
-#ifdef DEVICE0_PA_BASE
-register_phys_mem(DEVICE0_TYPE, DEVICE0_PA_BASE, DEVICE0_SIZE);
-#endif
-#ifdef DEVICE1_PA_BASE
-register_phys_mem(DEVICE1_TYPE, DEVICE1_PA_BASE, DEVICE1_SIZE);
-#endif
-#ifdef DEVICE2_PA_BASE
-register_phys_mem(DEVICE2_TYPE, DEVICE2_PA_BASE, DEVICE2_SIZE);
-#endif
-#ifdef DEVICE3_PA_BASE
-register_phys_mem(DEVICE3_TYPE, DEVICE3_PA_BASE, DEVICE3_SIZE);
-#endif
-#ifdef DEVICE4_PA_BASE
-register_phys_mem(DEVICE4_TYPE, DEVICE4_PA_BASE, DEVICE4_SIZE);
-#endif
-#ifdef DEVICE5_PA_BASE
-register_phys_mem(DEVICE5_TYPE, DEVICE5_PA_BASE, DEVICE5_SIZE);
-#endif
-#ifdef DEVICE6_PA_BASE
-register_phys_mem(DEVICE6_TYPE, DEVICE6_PA_BASE, DEVICE6_SIZE);
-#endif
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)

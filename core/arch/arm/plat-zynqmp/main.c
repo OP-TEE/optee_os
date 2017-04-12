@@ -48,6 +48,18 @@ static void main_fiq(void);
 static struct gic_data gic_data;
 static struct cdns_uart_data console_data __early_bss;
 
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE),
+		  CORE_MMU_DEVICE_SIZE);
+
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(GIC_BASE, CORE_MMU_DEVICE_SIZE),
+		  CORE_MMU_DEVICE_SIZE);
+
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(GIC_BASE + GICD_OFFSET, CORE_MMU_DEVICE_SIZE),
+		  CORE_MMU_DEVICE_SIZE);
+
 static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,

@@ -56,6 +56,22 @@ uint32_t sunxi_secondary_ns_entry;
 
 struct gic_data gic_data;
 
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(AHB0_BASE, CORE_MMU_DEVICE_SIZE),
+		  ROUNDUP(AHB0_SIZE, CORE_MMU_DEVICE_SIZE));
+
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(AHB1_BASE, CORE_MMU_DEVICE_SIZE),
+		  ROUNDUP(AHB1_SIZE, CORE_MMU_DEVICE_SIZE));
+
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(AHB2_BASE, CORE_MMU_DEVICE_SIZE),
+		  ROUNDUP(AHB2_SIZE, CORE_MMU_DEVICE_SIZE));
+
+register_phys_mem(MEM_AREA_IO_SEC,
+		  ROUNDDOWN(AHBS_BASE, CORE_MMU_DEVICE_SIZE),
+		  ROUNDUP(AHBS_SIZE, CORE_MMU_DEVICE_SIZE));
+
 static int platform_smp_init(void)
 {
 	vaddr_t base = (vaddr_t)phys_to_virt(PRCM_BASE, MEM_AREA_IO_SEC);

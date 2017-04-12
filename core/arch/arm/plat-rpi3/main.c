@@ -37,6 +37,10 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 
+register_phys_mem(MEM_AREA_IO_NSEC,
+		  ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE),
+		  CORE_MMU_DEVICE_SIZE);
+
 static void main_fiq(void)
 {
 	panic();
