@@ -111,18 +111,21 @@ struct core_mmu_phys_mem {
 	size_t size;
 };
 
+#define __register_memory2(_name, _type, _addr, _size, _section, _id) \
+	static const struct core_mmu_phys_mem __phys_mem_ ## _id \
+		__used __section(_section) = \
+		{ .name = _name, .type = _type, .addr = _addr, .size = _size }
+
+#define __register_memory1(name, type, addr, size, section, id) \
+		__register_memory2(name, type, addr, size, #section, id)
+
 #define register_phys_mem(type, addr, size) \
-	static const struct core_mmu_phys_mem __phys_mem_ ## addr \
-		__used __section("phys_mem_map_section") = \
-		{ #addr, (type), (addr), (size) }
+		__register_memory1(#addr, (type), (addr), (size), \
+				   phys_mem_map_section, __COUNTER__)
 
-#define __register_sdp_mem2(pa, sz, id) \
-	static const struct core_mmu_phys_mem __phys_sdp_mem_ ## id \
-		__used __section("phys_sdp_mem_section") = \
-		{ .type = MEM_AREA_SDP_MEM, .addr = (pa), .size = (sz), }
-
-#define __register_sdp_mem1(pa, sz, id)	__register_sdp_mem2(pa, sz, id)
-#define register_sdp_mem(pa, sz)	__register_sdp_mem1(pa, sz, __COUNTER__)
+#define register_sdp_mem(addr, size) \
+		__register_memory1(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
+				   phys_sdp_mem_section, __COUNTER__)
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
