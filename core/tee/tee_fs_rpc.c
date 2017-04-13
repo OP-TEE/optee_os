@@ -94,6 +94,55 @@ TEE_Result tee_fs_rpc_create(uint32_t id, struct tee_pobj *po, int *fd)
 	return operation_open(id, OPTEE_MRF_CREATE, po, fd);
 }
 
+static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
+				 const struct tee_fs_dirfile_fileh *dfh,
+				 int *fd)
+{
+	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
+	TEE_Result res;
+	void *va;
+	paddr_t pa;
+	uint64_t cookie;
+
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &pa, &cookie);
+	if (!va)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	op.params[0].u.value.a = cmd;
+
+	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
+	op.params[1].u.tmem.buf_ptr = pa;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
+	op.params[1].u.tmem.shm_ref = cookie;
+	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+
+	res = operation_commit(&op);
+	if (res == TEE_SUCCESS)
+		*fd = op.params[2].u.value.a;
+
+	return res;
+}
+
+
+
+TEE_Result tee_fs_rpc_open_dfh(uint32_t id,
+			       const struct tee_fs_dirfile_fileh *dfh, int *fd)
+{
+	return operation_open_dfh(id, OPTEE_MRF_OPEN, dfh, fd);
+}
+
+TEE_Result tee_fs_rpc_create_dfh(uint32_t id,
+				 const struct tee_fs_dirfile_fileh *dfh,
+				 int *fd)
+{
+	return operation_open_dfh(id, OPTEE_MRF_CREATE, dfh, fd);
+}
+
 TEE_Result tee_fs_rpc_close(uint32_t id, int fd)
 {
 	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
@@ -222,6 +271,33 @@ TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 	op.params[1].u.tmem.shm_ref = cookie;
 	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
 					      po, po->temporary);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return operation_commit(&op);
+}
+
+TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
+				 const struct tee_fs_dirfile_fileh *dfh)
+{
+	TEE_Result res;
+	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
+	void *va;
+	paddr_t pa;
+	uint64_t cookie;
+
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &pa, &cookie);
+	if (!va)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	op.params[0].u.value.a = OPTEE_MRF_REMOVE;
+
+	op.params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
+	op.params[1].u.tmem.buf_ptr = pa;
+	op.params[1].u.tmem.size = TEE_FS_NAME_MAX;
+	op.params[1].u.tmem.shm_ref = cookie;
+	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
 	if (res != TEE_SUCCESS)
 		return res;
 

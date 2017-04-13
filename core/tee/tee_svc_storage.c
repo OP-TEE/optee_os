@@ -32,6 +32,7 @@
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
+#include <tee/fs_dirfile.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_pobj.h>
@@ -154,6 +155,27 @@ TEE_Result tee_svc_storage_create_filename(void *buf, size_t blen,
 	tee_b2hs(po->obj_id, file + pos, po->obj_id_len, hslen - pos);
 
 	return TEE_SUCCESS;
+}
+
+/* "/dirf.db" or "/<file number>" */
+TEE_Result
+tee_svc_storage_create_filename_dfh(void *buf, size_t blen,
+				    const struct tee_fs_dirfile_fileh *dfh)
+{
+	char *file = buf;
+	size_t pos = 0;
+	size_t l;
+
+	if (pos >= blen)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	file[pos] = '/';
+	pos++;
+	if (pos >= blen)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	l = blen - pos;
+	return tee_fs_dirfile_fileh_to_fname(dfh, file + pos, &l);
 }
 
 /* "/TA_uuid" */
