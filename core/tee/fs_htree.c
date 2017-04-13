@@ -341,27 +341,49 @@ static int get_idx_from_counter(uint32_t counter0, uint32_t counter1)
 		return -1;
 }
 
-static TEE_Result init_head_from_data(struct tee_fs_htree *ht)
+static TEE_Result init_head_from_data(struct tee_fs_htree *ht,
+				      const uint8_t *hash)
 {
 	TEE_Result res;
-	struct tee_fs_htree_image head[2];
 	int idx;
 
-	for (idx = 0; idx < 2; idx++) {
-		res = rpc_read_head(ht, idx, head + idx);
+	if (hash) {
+		for (idx = 0;; idx++) {
+			res = rpc_read_node(ht, 1, idx, &ht->root.node);
+			if (res != TEE_SUCCESS)
+				return res;
+
+			if (!memcmp(ht->root.node.hash, hash,
+				    sizeof(ht->root.node.hash))) {
+				res = rpc_read_head(ht, idx, &ht->head);
+				if (res != TEE_SUCCESS)
+					return res;
+				break;
+			}
+
+			if (idx)
+				return TEE_ERROR_SECURITY;
+		}
+	} else {
+		struct tee_fs_htree_image head[2];
+
+		for (idx = 0; idx < 2; idx++) {
+			res = rpc_read_head(ht, idx, head + idx);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
+
+		idx = get_idx_from_counter(head[0].counter, head[1].counter);
+		if (idx < 0)
+			return TEE_ERROR_SECURITY;
+
+		res = rpc_read_node(ht, 1, idx, &ht->root.node);
 		if (res != TEE_SUCCESS)
 			return res;
+
+		ht->head = head[idx];
 	}
 
-	idx = get_idx_from_counter(head[0].counter, head[1].counter);
-	if (idx < 0)
-		return TEE_ERROR_SECURITY;
-
-	res = rpc_read_node(ht, 1, idx, &ht->root.node);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	ht->head = head[idx];
 	ht->root.id = 1;
 
 	return TEE_SUCCESS;
@@ -627,7 +649,7 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	return res;
 }
 
-TEE_Result tee_fs_htree_open(bool create,
+TEE_Result tee_fs_htree_open(bool create, uint8_t *hash,
 			     const struct tee_fs_htree_storage *stor,
 			     void *stor_aux, struct tee_fs_htree **ht_ret)
 {
@@ -657,12 +679,12 @@ TEE_Result tee_fs_htree_open(bool create,
 			goto out;
 
 		ht->dirty = true;
-		res = tee_fs_htree_sync_to_storage(&ht);
+		res = tee_fs_htree_sync_to_storage(&ht, hash);
 		if (res != TEE_SUCCESS)
 			goto out;
 		res = rpc_write_head(ht, 0, &dummy_head);
 	} else {
-		res = init_head_from_data(ht);
+		res = init_head_from_data(ht, hash);
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -761,7 +783,8 @@ static TEE_Result update_root(struct tee_fs_htree *ht)
 				     sizeof(ht->imeta), &ht->head.imeta);
 }
 
-TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg)
+TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
+					uint8_t *hash)
 {
 	TEE_Result res;
 	struct tee_fs_htree *ht = *ht_arg;
@@ -795,6 +818,8 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg)
 		goto out;
 
 	ht->dirty = false;
+	if (hash)
+		memcpy(hash, ht->root.node.hash, sizeof(ht->root.node.hash));
 out:
 	free(ctx);
 	if (res != TEE_SUCCESS)
