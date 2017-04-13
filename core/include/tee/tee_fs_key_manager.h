@@ -38,12 +38,15 @@
 #define TEE_FS_KM_TSK_SIZE          TEE_SHA256_HASH_SIZE
 #define TEE_FS_KM_FEK_SIZE          16  /* bytes */
 
-TEE_Result tee_fs_generate_fek(uint8_t *encrypted_fek, int fek_size);
-TEE_Result tee_fs_crypt_block(uint8_t *out, const uint8_t *in, size_t size,
+TEE_Result tee_fs_generate_fek(const TEE_UUID *uuid, void *encrypted_fek,
+			       size_t fek_size);
+TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
+			      const uint8_t *in, size_t size,
 			      uint16_t blk_idx, const uint8_t *encrypted_fek,
 			      TEE_OperationMode mode);
 
-TEE_Result tee_fs_fek_crypt(TEE_OperationMode mode, const uint8_t *in_key,
-			    size_t size, uint8_t *out_key);
+TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
+			    const uint8_t *in_key, size_t size,
+			    uint8_t *out_key);
 
 #endif

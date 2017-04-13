@@ -511,15 +511,25 @@ static bool is_zero(const uint8_t *buf, size_t size)
 static TEE_Result encrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek)
 {
-	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
-				  TEE_MODE_ENCRYPT);
+	struct tee_ta_session *sess;
+	TEE_Result res = tee_ta_get_current_session(&sess);
+
+	if (res)
+		return res;
+	return tee_fs_crypt_block(&sess->ctx->uuid, out, in, RPMB_DATA_SIZE,
+				  blk_idx, fek, TEE_MODE_ENCRYPT);
 }
 
 static TEE_Result decrypt_block(uint8_t *out, const uint8_t *in,
 				uint16_t blk_idx, const uint8_t *fek)
 {
-	return tee_fs_crypt_block(out, in, RPMB_DATA_SIZE, blk_idx, fek,
-				  TEE_MODE_DECRYPT);
+	struct tee_ta_session *sess;
+	TEE_Result res = tee_ta_get_current_session(&sess);
+
+	if (res)
+		return res;
+	return tee_fs_crypt_block(&sess->ctx->uuid, out, in, RPMB_DATA_SIZE,
+				  blk_idx, fek, TEE_MODE_DECRYPT);
 }
 
 /* Decrypt/copy at most one block of data */
@@ -1908,12 +1918,12 @@ out:
 	return res;
 }
 
-static TEE_Result generate_fek(struct rpmb_fat_entry *fe)
+static TEE_Result generate_fek(struct rpmb_fat_entry *fe, const TEE_UUID *uuid)
 {
 	TEE_Result res;
 
 again:
-	res = tee_fs_generate_fek(fe->fek, sizeof(fe->fek));
+	res = tee_fs_generate_fek(uuid, fe->fek, sizeof(fe->fek));
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1978,7 +1988,7 @@ static TEE_Result rpmb_fs_open_internal(struct tee_pobj *po, bool create,
 			/* Start address and size are 0 */
 			fh->fat_entry.flags = FILE_IS_ACTIVE;
 
-			res = generate_fek(&fh->fat_entry);
+			res = generate_fek(&fh->fat_entry, &po->uuid);
 			if (res != TEE_SUCCESS)
 				goto out;
 			DMSG("GENERATE FEK key: %p",
