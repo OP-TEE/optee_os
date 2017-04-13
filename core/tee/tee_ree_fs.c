@@ -290,7 +290,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 		meta->length = new_file_len;
 	}
 
-	return tee_fs_htree_sync_to_storage(&fdp->ht);
+	return tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 }
 
 static TEE_Result ree_fs_read(struct tee_file_handle *fh, size_t pos,
@@ -389,7 +389,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	res = ree_fs_write_primitive(fh, pos, buf, len);
 
 	if (res == TEE_SUCCESS)
-		res = tee_fs_htree_sync_to_storage(&fdp->ht);
+		res = tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 
 	mutex_unlock(&ree_fs_mutex);
 
@@ -415,7 +415,8 @@ static TEE_Result open_internal(struct tee_pobj *po, bool create,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_htree_open(create, &ree_fs_storage_ops, fdp, &fdp->ht);
+	res = tee_fs_htree_open(create, NULL, &ree_fs_storage_ops,
+				fdp, &fdp->ht);
 out:
 	if (res == TEE_SUCCESS) {
 		*fh = (struct tee_file_handle *)fdp;
@@ -497,7 +498,7 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 	}
 
 	fdp = (struct tee_fs_fd *)*fh;
-	res = tee_fs_htree_sync_to_storage(&fdp->ht);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 	if (res)
 		goto out;
 

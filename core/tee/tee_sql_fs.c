@@ -315,7 +315,7 @@ static TEE_Result sql_fs_ftruncate_internal(struct sql_fs_fd *fdp,
 	res = TEE_SUCCESS;
 exit:
 	if (res == TEE_SUCCESS)
-		res = tee_fs_htree_sync_to_storage(&fdp->ht);
+		res = tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	return res;
 }
@@ -442,7 +442,7 @@ static TEE_Result sql_fs_write(struct tee_file_handle *fh, size_t pos,
 	res = sql_fs_write_primitive(fh, pos, buf, len);
 
 	if (res == TEE_SUCCESS)
-		res = tee_fs_htree_sync_to_storage(&fdp->ht);
+		res = tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 
 	sql_fs_end_transaction_rpc(res != TEE_SUCCESS);
 	mutex_unlock(&sql_fs_mutex);
@@ -479,7 +479,8 @@ static TEE_Result open_internal(struct tee_pobj *po, bool create,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_htree_open(create, &sql_fs_storage_ops, fdp, &fdp->ht);
+	res = tee_fs_htree_open(create, NULL, &sql_fs_storage_ops,
+				fdp, &fdp->ht);
 out:
 	if (res == TEE_SUCCESS) {
 		*fh = (struct tee_file_handle *)fdp;
@@ -550,7 +551,7 @@ static TEE_Result sql_fs_create(struct tee_pobj *po, bool overwrite,
 	}
 
 	fdp = (struct sql_fs_fd *)*fh;
-	res = tee_fs_htree_sync_to_storage(&fdp->ht);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, NULL);
 	if (res)
 		goto out;
 
