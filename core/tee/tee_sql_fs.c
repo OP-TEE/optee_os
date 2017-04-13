@@ -479,7 +479,7 @@ static TEE_Result open_internal(struct tee_pobj *po, bool create,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_htree_open(create, NULL, &sql_fs_storage_ops,
+	res = tee_fs_htree_open(create, NULL, &po->uuid, &sql_fs_storage_ops,
 				fdp, &fdp->ht);
 out:
 	if (res == TEE_SUCCESS) {

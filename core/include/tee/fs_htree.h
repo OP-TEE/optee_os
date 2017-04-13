@@ -125,12 +125,13 @@ struct tee_fs_htree;
  * @create:	true if a new hash tree is to be created, else the hash tree
  *		is read in and verified
  * @hash:	hash of root node, ignored if NULL
+ * @uuid:	uuid of requesting TA, may be NULL if not from a TA
  * @stor:	storage description
  * @stor_aux:	auxilary pointer supplied to callbacks in struct
  *		tee_fs_htree_storage
  * @ht:		returned hash tree on success
  */
-TEE_Result tee_fs_htree_open(bool create, uint8_t *hash,
+TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, const TEE_UUID *uuid,
 			     const struct tee_fs_htree_storage *stor,
 			     void *stor_aux, struct tee_fs_htree **ht);
 /**

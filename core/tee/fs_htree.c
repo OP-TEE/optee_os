@@ -116,6 +116,7 @@ struct tee_fs_htree {
 	uint8_t fek[TEE_FS_HTREE_FEK_SIZE];
 	struct tee_fs_htree_imeta imeta;
 	bool dirty;
+	const TEE_UUID *uuid;
 	const struct tee_fs_htree_storage *stor;
 	void *stor_aux;
 };
@@ -576,7 +577,7 @@ static TEE_Result verify_root(struct tee_fs_htree *ht)
 	TEE_Result res;
 	void *ctx;
 
-	res = tee_fs_fek_crypt(TEE_MODE_DECRYPT, ht->head.enc_fek,
+	res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_DECRYPT, ht->head.enc_fek,
 			       sizeof(ht->fek), ht->fek);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -649,7 +650,7 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	return res;
 }
 
-TEE_Result tee_fs_htree_open(bool create, uint8_t *hash,
+TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, const TEE_UUID *uuid,
 			     const struct tee_fs_htree_storage *stor,
 			     void *stor_aux, struct tee_fs_htree **ht_ret)
 {
@@ -659,6 +660,7 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash,
 	if (!ht)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	ht->uuid = uuid;
 	ht->stor = stor;
 	ht->stor_aux = stor_aux;
 
@@ -669,7 +671,7 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash,
 		if (res != TEE_SUCCESS)
 			goto out;
 
-		res = tee_fs_fek_crypt(TEE_MODE_ENCRYPT, ht->fek,
+		res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_ENCRYPT, ht->fek,
 				       sizeof(ht->fek), ht->head.enc_fek);
 		if (res != TEE_SUCCESS)
 			goto out;
