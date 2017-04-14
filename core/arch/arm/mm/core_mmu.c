@@ -51,6 +51,7 @@
 
 #define MAX_MMAP_REGIONS	10
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
+#define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
 /*
  * These variables are initialized before .bss is cleared. To avoid
@@ -395,6 +396,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TA_RAM:
 		return attr | TEE_MATTR_SECURE | cached;
 	case MEM_AREA_NSEC_SHM:
+	case MEM_AREA_SHM_VASPACE:
 		return attr | cached;
 	case MEM_AREA_IO_NSEC:
 		return attr | noncache;
@@ -507,6 +509,9 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	verify_sdp_mem_areas(memory_map, num_elems);
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
+		     RES_VASPACE_SIZE, &last);
+
+	add_va_space(memory_map, num_elems, MEM_AREA_SHM_VASPACE,
 		     RES_VASPACE_SIZE, &last);
 
 	memory_map[last].type = MEM_AREA_NOTYPE;
@@ -654,6 +659,7 @@ void core_init_mmu_map(void)
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
+		case MEM_AREA_SHM_VASPACE:
 			break;
 		default:
 			EMSG("Uhandled memtype %d", map->type);

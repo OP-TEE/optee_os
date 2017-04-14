@@ -361,12 +361,15 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 	do  {
 		uint64_t desc = UNSET_DESC;
 
-		if (mm->va + mm->size <= base_va) {
-			/* Area now after the region so skip it */
+		if ((mm->va + mm->size <= base_va) ||
+		    core_mmu_is_dynamic_vaspace(mm)) {
+			/*
+			 * Area now after the region or area should not be
+			 * mapped at init so skip it
+			 */
 			mm++;
 			continue;
 		}
-
 
 		if (mm->va >= base_va + level_size) {
 			/* Next region is after area so nothing to map yet */

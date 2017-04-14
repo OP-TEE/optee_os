@@ -96,6 +96,7 @@
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
+ * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
@@ -110,6 +111,7 @@ enum teecore_memtypes {
 	MEM_AREA_IO_NSEC,
 	MEM_AREA_IO_SEC,
 	MEM_AREA_RES_VASPACE,
+	MEM_AREA_SHM_VASPACE,
 	MEM_AREA_TA_VASPACE,
 	MEM_AREA_SDP_MEM,
 	MEM_AREA_MAXTYPE
@@ -365,6 +367,18 @@ static inline size_t core_mmu_get_block_offset(
 			struct core_mmu_table_info *tbl_info, paddr_t pa)
 {
 	return pa & ((1 << tbl_info->shift) - 1);
+}
+
+/*
+ * core_mmu_is_dynamic_vaspace() - Check if memory region belongs to
+ *  empty virtual address space that is used for dymanic mappings
+ * @mm:		memory region to be checked
+ * @returns result of the check
+ */
+static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
+{
+	return mm->type == MEM_AREA_RES_VASPACE ||
+		mm->type == MEM_AREA_SHM_VASPACE;
 }
 
 /*
