@@ -201,14 +201,14 @@ $(link-out-dir)/tee-init_mem_usage.txt: $(link-out-dir)/tee.elf
 	@echo -n 0x > $@
 	$(q)$(NMcore) $< | grep ' __init_mem_usage' | sed 's/ .*$$//' >> $@
 
-all: $(link-out-dir)/tee.bin
-cleanfiles += $(link-out-dir)/tee.bin
-$(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
-			 $(link-out-dir)/tee-pageable.bin \
-			 $(link-out-dir)/tee-init_size.txt \
-			 $(link-out-dir)/tee-init_load_addr.txt \
-			 $(link-out-dir)/tee-init_mem_usage.txt \
+gen_hash_bin_deps :=	$(link-out-dir)/tee-pager.bin \
+			$(link-out-dir)/tee-pageable.bin \
+			$(link-out-dir)/tee-init_size.txt \
+			$(link-out-dir)/tee-init_load_addr.txt \
+			$(link-out-dir)/tee-init_mem_usage.txt \
 			./scripts/gen_hashed_bin.py
+
+define gen_hash_bin_cmd
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)load_addr=`cat $(link-out-dir)/tee-init_load_addr.txt` && \
 	./scripts/gen_hashed_bin.py \
@@ -218,9 +218,28 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
 		--init_load_addr_lo $$(($$load_addr & 0xffffffff)) \
 		--init_mem_usage `cat $(link-out-dir)/tee-init_mem_usage.txt` \
 		--tee_pager_bin $(link-out-dir)/tee-pager.bin \
-		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin \
-		--out $@
+		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin
+endef
 
+all: $(link-out-dir)/tee.bin
+cleanfiles += $(link-out-dir)/tee.bin
+$(link-out-dir)/tee.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out $@
+
+all: $(link-out-dir)/tee-header_v2.bin
+cleanfiles += $(link-out-dir)/tee-header_v2.bin
+$(link-out-dir)/tee-header_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_header_v2 $@
+
+all: $(link-out-dir)/tee-pager_v2.bin
+cleanfiles += $(link-out-dir)/tee-pager_v2.bin
+$(link-out-dir)/tee-pager_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_pager_v2 $@
+
+all: $(link-out-dir)/tee-pageable_v2.bin
+cleanfiles += $(link-out-dir)/tee-pageable_v2.bin
+$(link-out-dir)/tee-pageable_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_pageable_v2 $@
 
 all: $(link-out-dir)/tee.symb_sizes
 cleanfiles += $(link-out-dir)/tee.symb_sizes

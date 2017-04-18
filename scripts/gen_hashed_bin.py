@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2014, Linaro Limited
+# Copyright (c) 2014-2017, Linaro Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,28 @@ import struct
 import hashlib
 
 arch_id = {'arm32': 0, 'arm64': 1}
+image_id = {'pager': 0, 'paged': 1}
 
-def write_header(outf, init_size, args, paged_size):
+def write_header_v1(outf, init_size, args, paged_size):
 	magic = 0x4554504f # 'OPTE'
 	version = 1;
 	outf.write(struct.pack('<IBBHIIIII', \
 		magic, version, arch_id[args.arch], args.flags, init_size, \
 		args.init_load_addr_hi, args.init_load_addr_lo, \
 		args.init_mem_usage, paged_size))
-	
+
+def write_header_v2(outf, init_size, args, paged_size):
+	magic = 0x4554504f # 'OPTE'
+	version = 2
+	nb_images = 1 if paged_size == 0 else 2
+	outf.write(struct.pack('<IBBHI', \
+		magic, version, arch_id[args.arch], args.flags, nb_images))
+	outf.write(struct.pack('<IIII', \
+		args.init_load_addr_hi, args.init_load_addr_lo, \
+		image_id['pager'], init_size))
+	if nb_images == 2:
+		outf.write(struct.pack('<IIII', \
+		0xffffffff, 0xffffffff, image_id['paged'], paged_size))
 
 def append_to(outf, start_offs, in_fname, max_bytes=0xffffffff):
 	#print "Appending %s@0x%x 0x%x bytes at position 0x%x" % \
@@ -117,8 +130,20 @@ def get_args():
 		help='The input tee_pageable.bin')
 
 	parser.add_argument('--out', \
-		required=True, type=argparse.FileType('wb'), \
+		required=False, type=argparse.FileType('wb'), \
 		help='The output tee.bin')
+
+	parser.add_argument('--out_header_v2', \
+		required=False, type=argparse.FileType('wb'), \
+		help='The output tee_header_v2.bin')
+
+	parser.add_argument('--out_pager_v2', \
+		required=False, type=argparse.FileType('wb'), \
+		help='The output tee_pager_v2.bin')
+
+	parser.add_argument('--out_pageable_v2', \
+		required=False, type=argparse.FileType('wb'), \
+		help='The output tee_pageable_v2.bin')
 
 	return parser.parse_args();
 
@@ -127,22 +152,47 @@ def main():
 	init_bin_size	   = args.init_size
 	tee_pager_fname	   = args.tee_pager_bin
 	tee_pageable_fname = args.tee_pageable_bin
-	outf		   = args.out
+	pager_input_size   = os.path.getsize(tee_pager_fname);
+	paged_input_size   = os.path.getsize(tee_pageable_fname);
+	hash_size          = paged_input_size / (4 * 1024) * \
+			     hashlib.sha256().digest_size
 
-	write_header(outf, 0, args, 0)
-	header_size = outf.tell();
-	append_to(outf, 0, tee_pager_fname)
-	append_to(outf, 0, tee_pageable_fname, init_bin_size)
-	append_hashes(outf, tee_pageable_fname)
-	init_size = outf.tell() - header_size;
-	append_to(outf, init_bin_size, tee_pageable_fname)
-	paged_size = outf.tell() - init_size - header_size;
+	if paged_input_size % (4 * 1024) != 0:
+		print("Error: pageable size not a multiple of 4K:" + \
+			repr(paged_input_size))
+		sys.exit(1)
 
-	outf.seek(0)
-	#print "init_size 0x%x" % init_size
-	write_header(outf, init_size, args, paged_size)
+	init_size	  = pager_input_size + \
+			    min(init_bin_size, paged_input_size) + \
+			    hash_size
+	paged_size	  = paged_input_size - \
+			    min(init_bin_size, paged_input_size)
 
-	outf.close()
+	if args.out is not None:
+		outf = args.out
+		write_header_v1(outf, init_size, args, paged_size)
+		append_to(outf, 0, tee_pager_fname)
+		append_to(outf, 0, tee_pageable_fname, init_bin_size)
+		append_hashes(outf, tee_pageable_fname)
+		append_to(outf, init_bin_size, tee_pageable_fname)
+		outf.close()
+
+	if args.out_header_v2 is not None:
+		outf = args.out_header_v2
+		write_header_v2(outf, init_size, args, paged_size)
+		outf.close()
+
+	if args.out_pager_v2 is not None:
+		outf = args.out_pager_v2
+		append_to(outf, 0, tee_pager_fname)
+		append_to(outf, 0, tee_pageable_fname, init_bin_size)
+		append_hashes(outf, tee_pageable_fname)
+		outf.close()
+
+	if args.out_pageable_v2 is not None:
+		outf = args.out_pageable_v2
+		append_to(outf, init_bin_size, tee_pageable_fname)
+		outf.close()
 
 if __name__ == "__main__":
 	main()
