@@ -169,6 +169,10 @@ struct core_mmu_phys_mem {
 		__register_memory1(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
 				   phys_sdp_mem_section, __COUNTER__)
 
+#define register_nsec_ddr(addr, size) \
+		__register_memory1(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
+				   phys_nsec_ddr_section, __COUNTER__)
+
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
@@ -472,6 +476,13 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
+
+/*
+ * Check if platform defines nsec DDR range(s).
+ * Static SHM (MEM_AREA_NSEC_SHM) is not covered by this API as it is
+ * always present.
+ */
+bool core_mmu_nsec_ddr_is_defined(void);
 
 #ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */

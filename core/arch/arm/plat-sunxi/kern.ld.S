@@ -144,6 +144,10 @@ SECTIONS
 		__start_phys_mem_map_section = . ;
 		KEEP(*(phys_mem_map_section))
 		__end_phys_mem_map_section = . ;
+		. = ALIGN(8);
+		__start_phys_nsec_ddr_section = . ;
+		KEEP(*(phys_nsec_ddr_section))
+		__end_phys_nsec_ddr_section = . ;
 
 		. = ALIGN(4);
 		__rodata_end = .;
