@@ -52,6 +52,8 @@ extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
 extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
 extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
 extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
+extern const struct core_mmu_phys_mem __start_phys_nsec_ddr_section;
+extern const struct core_mmu_phys_mem __end_phys_nsec_ddr_section;
 
 #define VCORE_UNPG_RX_PA	((paddr_t)__vcore_unpg_rx_start)
 #define VCORE_UNPG_RX_SZ	((size_t)__vcore_unpg_rx_size)

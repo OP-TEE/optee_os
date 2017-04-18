@@ -137,6 +137,10 @@ SECTIONS
 		__start_phys_sdp_mem_section = . ;
 		KEEP(*(phys_sdp_mem_section))
 		__end_phys_sdp_mem_section = . ;
+		. = ALIGN(8);
+		__start_phys_nsec_ddr_section = . ;
+		KEEP(*(phys_nsec_ddr_section))
+		__end_phys_nsec_ddr_section = . ;
 #endif
 		. = ALIGN(8);
 		__rodata_end = .;
@@ -305,6 +309,11 @@ SECTIONS
 		KEEP(*(phys_sdp_mem_section))
 		__end_phys_sdp_mem_section = . ;
 		. = ALIGN(8);
+		__start_phys_nsec_ddr_section = . ;
+		KEEP(*(phys_nsec_ddr_section))
+		__end_phys_nsec_ddr_section = . ;
+		. = ALIGN(8);
+		__rodata_init_end = .;
 	}
 	__rodata_init_end = .;
 
