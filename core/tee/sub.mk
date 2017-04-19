@@ -30,13 +30,11 @@ srcs-y += tee_svc_cryp.c
 srcs-y += tee_svc_storage.c
 srcs-$(CFG_RPMB_FS) += tee_rpmb_fs.c
 srcs-$(CFG_REE_FS) += tee_ree_fs.c
-srcs-$(CFG_SQL_FS) += tee_sql_fs.c
-srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS \
-       CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += fs_htree.c
+srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += \
+	fs_htree.c
 srcs-$(CFG_REE_FS) += fs_dirfile.c
-srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS) += tee_fs_rpc.c
-srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_SQL_FS CFG_RPMB_FS) += \
-	tee_fs_rpc_cache.c
+srcs-$(CFG_REE_FS) += tee_fs_rpc.c
+srcs-$(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS) += tee_fs_rpc_cache.c
 srcs-y += tee_fs_key_manager.c
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c

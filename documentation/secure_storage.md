@@ -10,7 +10,7 @@ integrity of the data stored and the atomicity of the operations that modifies
 the storage (atomicity here means that either the entire operation completes
 successfully or no write is done).
 
-There are currently three secure storage implementations in OP-TEE:
+There are currently two secure storage implementations in OP-TEE:
 
 - The first one relies on the normal world (REE) file system. It is described in
 this document and is the default implementation. It is enabled at compile time
@@ -18,16 +18,13 @@ by CFG_REE_FS=y.
 - The second one makes use of the Replay Protected Memory Block (RPMB) partition
 of an eMMC device, and is enabled by setting `CFG_RPMB_FS=y`. It is described
 in [secure_storage_rpmb.md](secure_storage_rpmb.md).
-- The third one stores objects in a SQLite database in normal world. It is
-enabled by `CFG_SQL_FS=y`. See [secure_storage_sql.md](secure_storage_sql.md).
 
 It is possible to use the normal world filesystems and the RPMB implementations
-simultaneously. For this, three OP-TEE specific storage identifiers have been
-defined: TEE_STORAGE_PRIVATE_REE, TEE_STORAGE_PRIVATE_RPMB and
-TEE_STORAGE_PRIVATE_SQL. Depending on the
+simultaneously. For this, two OP-TEE specific storage identifiers have been
+defined: TEE_STORAGE_PRIVATE_REE and TEE_STORAGE_PRIVATE_RPMB. Depending on the
 compile-time configuration, one or several values may be used.
 The value TEE_STORAGE_PRIVATE selects the REE FS when available, otherwise the
-RPMB FS if available, otherwise the SQL FS (in this order).
+RPMB FS (in this order).
 
 The rest of this document describes the REE FS only.
 

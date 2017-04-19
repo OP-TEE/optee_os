@@ -137,9 +137,6 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
-# SQL FS stores its data in a SQLite database, accessed by normal world
-CFG_SQL_FS ?= n
-
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
 

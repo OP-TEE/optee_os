@@ -451,24 +451,3 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 	*ent = &d->d;
 	return TEE_SUCCESS;
 }
-
-TEE_Result tee_fs_rpc_begin_transaction(uint32_t id)
-{
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
-
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_BEGIN_TRANSACTION;
-
-	return operation_commit(&op);
-}
-
-TEE_Result tee_fs_rpc_end_transaction(uint32_t id, bool rollback)
-{
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
-
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_END_TRANSACTION;
-	op.params[0].u.value.b = rollback;
-
-	return operation_commit(&op);
-}

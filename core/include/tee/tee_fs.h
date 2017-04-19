@@ -78,8 +78,5 @@ extern const struct tee_file_operations ree_fs_ops;
 #ifdef CFG_RPMB_FS
 extern const struct tee_file_operations rpmb_fs_ops;
 #endif
-#ifdef CFG_SQL_FS
-extern const struct tee_file_operations sql_fs_ops;
-#endif
 
-#endif
+#endif /*TEE_FS_H*/

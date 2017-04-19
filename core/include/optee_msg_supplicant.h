@@ -43,19 +43,16 @@
  */
 #define OPTEE_MSG_RPC_CMD_FS		2
 
+/* Was OPTEE_MSG_RPC_CMD_SQL_FS, which isn't supported any longer */
+#define OPTEE_MSG_RPC_CMD_SQL_FS_RESERVED	8
+
 /*
  * Values 3-7 are reserved in optee_msg.h for use by the kernel driver
  */
 
 /*
- * SQLite file system access
- */
-#define OPTEE_MSG_RPC_CMD_SQL_FS	8
-
-/*
- * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
- * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS and first parameter has the attribute
- * OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_FS and first
+ * parameter has the attribute OPTEE_MSG_ATTR_TYPE_VALUE_INPUT.
  */
 
 /*
@@ -159,24 +156,9 @@
 #define OPTEE_MRF_READDIR		10
 
 /*
- * Begins a new transaction (only valid for SQL FS)
- *
- * [in]  param[0].u.value.a	OPTEE_MRF_BEGIN_TRANSACTION
+ * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_FS
  */
-#define OPTEE_MRF_BEGIN_TRANSACTION	11
 
-/*
- * Ends a transaction (only valid for SQL FS)
- *
- * [in]  param[0].u.value.a	OPTEE_MRF_END_TRANSACTION
- * [in]  param[0].u.value.b	true if rolling back to previous state
- */
-#define OPTEE_MRF_END_TRANSACTION	12
-
-/*
- * End of definitions for messages with .cmd == OPTEE_MSG_RPC_CMD_FS or
- * .cmd == OPTEE_MSG_RPC_CMD_SQL_FS
- */
 /*
  * Send TA profiling information to normal world
  *

@@ -92,9 +92,7 @@
  * block 0 is represented by node 1.
  *
  * Where different elements are stored in the file is managed by the file
- * system. In the case of SQL FS the version of the node/block is ignored
- * as the atomic update is finalized with a call to
- * tee_fs_rpc_end_transaction().
+ * system.
  */
 
 #define HTREE_NODE_COMMITTED_BLOCK	BIT32(0)
