@@ -320,8 +320,8 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 	 * mapped as both secure and non-secure. This will probably not
 	 * happen often in practice.
 	 */
-	DMSG("%s %d 0x%08" PRIxPA " size 0x%08zx",
-	     mem->name, mem->type, mem->addr, mem->size);
+	DMSG("%s type %s 0x%08" PRIxPA " size 0x%08zx",
+	     mem->name, teecore_memtype_name(mem->type), mem->addr, mem->size);
 	while (true) {
 		if (n >= (num_elems - 1)) {
 			EMSG("Out of entries (%zu) in memory_map", num_elems);
@@ -356,10 +356,11 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 }
 
 static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
-			 unsigned int type, size_t size, size_t *last) {
+			 enum teecore_memtypes type, size_t size, size_t *last)
+{
 	size_t n = 0;
 
-	DMSG("type %d size 0x%08zx", type, size);
+	DMSG("type %s size 0x%08zx", teecore_memtype_name(type), size);
 	while (true) {
 		if (n >= (num_elems - 1)) {
 			EMSG("Out of entries (%zu) in memory_map", num_elems);
@@ -467,11 +468,11 @@ static void dump_mmap_table(struct tee_mmap_region *memory_map)
 		vaddr_t __maybe_unused vstart;
 
 		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
-		DMSG("type va %d 0x%08" PRIxVA "..0x%08" PRIxVA
-		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size %#zx (%s)",
-		     map->type, vstart, vstart + map->size - 1,
-		     map->pa, (paddr_t)(map->pa + map->size - 1),
-		     map->size,
+		DMSG("type %-12s va 0x%08" PRIxVA "..0x%08" PRIxVA
+		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size 0x%08zx (%s)",
+		     teecore_memtype_name(map->type), vstart,
+		     vstart + map->size - 1, map->pa,
+		     (paddr_t)(map->pa + map->size - 1), map->size,
 		     map->region_size == SMALL_PAGE_SIZE ? "smallpg" : "pgdir");
 	}
 }

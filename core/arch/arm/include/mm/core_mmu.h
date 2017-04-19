@@ -28,11 +28,13 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
+#include <assert.h>
 #include <compiler.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <platform_config.h>
 #include <types_ext.h>
+#include <util.h>
 
 /* A small page is the smallest unit of memory that can be mapped */
 #define SMALL_PAGE_SHIFT	12
@@ -112,6 +114,27 @@ enum teecore_memtypes {
 	MEM_AREA_SDP_MEM,
 	MEM_AREA_MAXTYPE
 };
+
+static inline const char *teecore_memtype_name(enum teecore_memtypes type)
+{
+	static const char * const names[] = {
+		[MEM_AREA_NOTYPE] = "NOTYPE",
+		[MEM_AREA_TEE_RAM] = "TEE_RAM",
+		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
+		[MEM_AREA_TA_RAM] = "TA_RAM",
+		[MEM_AREA_NSEC_SHM] = "NSEC_SHM",
+		[MEM_AREA_RAM_NSEC] = "RAM_NSEC",
+		[MEM_AREA_RAM_SEC] = "RAM_SEC",
+		[MEM_AREA_IO_NSEC] = "IO_NSEC",
+		[MEM_AREA_IO_SEC] = "IO_SEC",
+		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
+		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
+		[MEM_AREA_SDP_MEM] = "SDP_MEM",
+	};
+
+	COMPILE_TIME_ASSERT(ARRAY_SIZE(names) == MEM_AREA_MAXTYPE);
+	return names[type];
+}
 
 struct core_mmu_phys_mem {
 	const char *name;
