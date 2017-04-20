@@ -40,6 +40,7 @@
 #include <kernel/misc.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_time.h>
+#include <kernel/tee_common_otp.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <tee/entry_std.h>
@@ -175,3 +176,12 @@ void console_init(void)
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
 }
+
+#if defined(CFG_OTP_SUPPORT)
+
+void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	memcpy(&hwkey->data[0], &plat_huk[0], sizeof(hwkey->data));
+}
+
+#endif
