@@ -47,8 +47,11 @@
 #include <console.h>
 #include <sm/sm.h>
 
+#define PLAT_HW_UNIQUE_KEY_LENGTH 32
+
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data __early_bss;
+static uint8_t plat_huk[PLAT_HW_UNIQUE_KEY_LENGTH];
 
 register_phys_mem(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
@@ -127,6 +130,7 @@ struct plat_nsec_ctx {
 
 struct plat_boot_args {
 	struct plat_nsec_ctx nsec_ctx;
+	uint8_t huk[PLAT_HW_UNIQUE_KEY_LENGTH];
 };
 
 void init_sec_mon(unsigned long nsec_entry)
@@ -161,6 +165,8 @@ void init_sec_mon(unsigned long nsec_entry)
 	nsec_ctx->mode_regs.und_lr = plat_boot_args->nsec_ctx.und_lr;
 	nsec_ctx->mon_lr = plat_boot_args->nsec_ctx.mon_lr;
 	nsec_ctx->mon_spsr = plat_boot_args->nsec_ctx.mon_spsr;
+
+	memcpy(plat_huk, plat_boot_args->huk, sizeof(plat_boot_args->huk));
 }
 
 void console_init(void)
