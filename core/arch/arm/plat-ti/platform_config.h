@@ -37,6 +37,11 @@
 #define TZDRAM_BASE     0xbdb00000
 #define TZDRAM_SIZE     0x01c00000
 
+#ifdef CFG_WITH_PAGER
+#define TZSRAM_BASE     0x40300000
+#define TZSRAM_SIZE     (256 * 1024)
+#endif /* CFG_WITH_PAGER */
+
 #define CFG_TEE_CORE_NB_CORE	2
 
 #define UART1_BASE      0x4806A000
@@ -111,6 +116,25 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
+#ifdef CFG_WITH_PAGER
+/*
+ * Use TZSRAM for TEE, page out everything else to TZDRAM.
+ * +--------+----------+
+ * |  DRAM  |  SHMEM   |
+ * +--------+----------+
+ * |        | TA_RAM   |
+ * | TZDRAM +----------+
+ * |        | PAGE_RAM |
+ * +--------+----------+
+ * | TZSRAM | TEE_RAM  |
+ * +--------+----------+
+ */
+#define CFG_TEE_RAM_VA_SIZE     (1 * 1024 * 1024)
+#define CFG_TEE_RAM_PH_SIZE     TZSRAM_SIZE
+#define CFG_TEE_RAM_START       TZSRAM_BASE
+#define CFG_TEE_LOAD_ADDR       (CFG_TEE_RAM_START + 0x1000)
+
+#else /* CFG_WITH_PAGER */
 /*
  * Assumes that either TZSRAM isn't large enough or TZSRAM doesn't exist,
  * everything is in TZDRAM.
@@ -126,6 +150,8 @@
 #define CFG_TEE_RAM_PH_SIZE     CFG_TEE_RAM_VA_SIZE
 #define CFG_TEE_RAM_START       TZDRAM_BASE
 #define CFG_TEE_LOAD_ADDR       (CFG_TEE_RAM_START + 0x100)
+
+#endif /* CFG_WITH_PAGER */
 
 #define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
