@@ -60,10 +60,6 @@ register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 		  SERIAL8250_UART_REG_SIZE);
 
-register_phys_mem(MEM_AREA_IO_SEC,
-		  ROUNDDOWN(SECRAM_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
-
 void main_init_gic(void)
 {
 	vaddr_t gicc_base;
