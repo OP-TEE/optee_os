@@ -125,38 +125,42 @@ struct plat_nsec_ctx {
 	uint32_t mon_spsr;
 };
 
+struct plat_boot_args {
+	struct plat_nsec_ctx nsec_ctx;
+};
+
 void init_sec_mon(unsigned long nsec_entry)
 {
-	struct plat_nsec_ctx *plat_ctx;
+	struct plat_boot_args *plat_boot_args;
 	struct sm_nsec_ctx *nsec_ctx;
 
-	plat_ctx = phys_to_virt(nsec_entry, MEM_AREA_IO_SEC);
-	if (!plat_ctx)
+	plat_boot_args = phys_to_virt(nsec_entry, MEM_AREA_IO_SEC);
+	if (!plat_boot_args)
 		panic();
 
 	/* Invalidate cache to fetch data from external memory */
 	cache_op_inner(DCACHE_AREA_INVALIDATE,
-			plat_ctx, sizeof(*plat_ctx));
+			plat_boot_args, sizeof(*plat_boot_args));
 
 	/* Initialize secure monitor */
 	nsec_ctx = sm_get_nsec_ctx();
 
-	nsec_ctx->mode_regs.usr_sp = plat_ctx->usr_sp;
-	nsec_ctx->mode_regs.usr_lr = plat_ctx->usr_lr;
-	nsec_ctx->mode_regs.irq_spsr = plat_ctx->irq_spsr;
-	nsec_ctx->mode_regs.irq_sp = plat_ctx->irq_sp;
-	nsec_ctx->mode_regs.irq_lr = plat_ctx->irq_lr;
-	nsec_ctx->mode_regs.svc_spsr = plat_ctx->svc_spsr;
-	nsec_ctx->mode_regs.svc_sp = plat_ctx->svc_sp;
-	nsec_ctx->mode_regs.svc_lr = plat_ctx->svc_lr;
-	nsec_ctx->mode_regs.abt_spsr = plat_ctx->abt_spsr;
-	nsec_ctx->mode_regs.abt_sp = plat_ctx->abt_sp;
-	nsec_ctx->mode_regs.abt_lr = plat_ctx->abt_lr;
-	nsec_ctx->mode_regs.und_spsr = plat_ctx->und_spsr;
-	nsec_ctx->mode_regs.und_sp = plat_ctx->und_sp;
-	nsec_ctx->mode_regs.und_lr = plat_ctx->und_lr;
-	nsec_ctx->mon_lr = plat_ctx->mon_lr;
-	nsec_ctx->mon_spsr = plat_ctx->mon_spsr;
+	nsec_ctx->mode_regs.usr_sp = plat_boot_args->nsec_ctx.usr_sp;
+	nsec_ctx->mode_regs.usr_lr = plat_boot_args->nsec_ctx.usr_lr;
+	nsec_ctx->mode_regs.irq_spsr = plat_boot_args->nsec_ctx.irq_spsr;
+	nsec_ctx->mode_regs.irq_sp = plat_boot_args->nsec_ctx.irq_sp;
+	nsec_ctx->mode_regs.irq_lr = plat_boot_args->nsec_ctx.irq_lr;
+	nsec_ctx->mode_regs.svc_spsr = plat_boot_args->nsec_ctx.svc_spsr;
+	nsec_ctx->mode_regs.svc_sp = plat_boot_args->nsec_ctx.svc_sp;
+	nsec_ctx->mode_regs.svc_lr = plat_boot_args->nsec_ctx.svc_lr;
+	nsec_ctx->mode_regs.abt_spsr = plat_boot_args->nsec_ctx.abt_spsr;
+	nsec_ctx->mode_regs.abt_sp = plat_boot_args->nsec_ctx.abt_sp;
+	nsec_ctx->mode_regs.abt_lr = plat_boot_args->nsec_ctx.abt_lr;
+	nsec_ctx->mode_regs.und_spsr = plat_boot_args->nsec_ctx.und_spsr;
+	nsec_ctx->mode_regs.und_sp = plat_boot_args->nsec_ctx.und_sp;
+	nsec_ctx->mode_regs.und_lr = plat_boot_args->nsec_ctx.und_lr;
+	nsec_ctx->mon_lr = plat_boot_args->nsec_ctx.mon_lr;
+	nsec_ctx->mon_spsr = plat_boot_args->nsec_ctx.mon_spsr;
 }
 
 void console_init(void)
