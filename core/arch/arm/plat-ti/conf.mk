@@ -15,6 +15,7 @@ $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 arm32-platform-cpuarch		:= cortex-a9
 else
+CFG_OTP_SUPPORT ?= y
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 arm32-platform-cpuarch		:= cortex-a15
