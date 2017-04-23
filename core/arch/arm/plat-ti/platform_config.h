@@ -45,8 +45,10 @@
 
 #if defined(PLATFORM_FLAVOR_dra7xx)
 #define CONSOLE_UART_BASE       UART1_BASE
-#elif
+#elif defined(PLATFORM_FLAVOR_am57xx)
 #define CONSOLE_UART_BASE       UART3_BASE
+#else
+#error "Unknown platform flavor"
 #endif
 
 #define CONSOLE_BAUDRATE        115200

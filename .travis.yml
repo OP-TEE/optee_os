@@ -196,6 +196,9 @@ script:
   # Texas Instruments DRA7xx
   - $make PLATFORM=ti-dra7xx
 
+  # Texas Instruments AM57xx
+  - $make PLATFORM=ti-am57xx
+
   # Texas Instruments AM43xx
   - $make PLATFORM=ti-am43xx
 
