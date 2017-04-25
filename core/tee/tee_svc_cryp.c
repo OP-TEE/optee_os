@@ -3487,35 +3487,16 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		goto out;
 	}
 
-	if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDSA)
-		hash_algo = TEE_ALG_SHA1;
-	else
-		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-
-	res = tee_hash_get_digest_size(hash_algo, &hash_size);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_DSA) {
-		/*
-		 * Depending on the DSA algorithm (NIST), the digital signature
-		 * output size may be truncated to the size of a key pair
-		 * (Q prime size). Q prime size must be less or equal than the
-		 * hash output length of the hash algorithm involved.
-		 */
-		if (data_len > hash_size) {
-			res = TEE_ERROR_BAD_PARAMETERS;
-			goto out;
-		}
-	} else {
-		if (data_len != hash_size) {
-			res = TEE_ERROR_BAD_PARAMETERS;
-			goto out;
-		}
-	}
-
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {
 	case TEE_MAIN_ALGO_RSA:
+		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
+		res = tee_hash_get_digest_size(hash_algo, &hash_size);
+		if (res != TEE_SUCCESS)
+			break;
+		if (data_len != hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			break;
+		}
 		salt_len = pkcs1_get_salt_len(params, num_params, hash_size);
 		if (!crypto_ops.acipher.rsassa_verify) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
@@ -3527,6 +3508,20 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		break;
 
 	case TEE_MAIN_ALGO_DSA:
+		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
+		res = tee_hash_get_digest_size(hash_algo, &hash_size);
+		if (res != TEE_SUCCESS)
+			break;
+		/*
+		 * Depending on the DSA algorithm (NIST), the digital signature
+		 * output size may be truncated to the size of a key pair
+		 * (Q prime size). Q prime size must be less or equal than the
+		 * hash output length of the hash algorithm involved.
+		 */
+		if (data_len > hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			break;
+		}
 		if (!crypto_ops.acipher.dsa_verify) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			break;
