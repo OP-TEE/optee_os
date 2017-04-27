@@ -9,34 +9,195 @@
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
+#include "mbedtls.h"
 #include <stdlib.h>
+#include <string_ext.h>
+#include <string.h>
+#include <utee_defines.h>
+
+#if defined(_CFG_CRYPTO_WITH_HASH) || defined(CFG_CRYPTO_RSA) || \
+	defined(CFG_CRYPTO_HMAC)
+/*
+ * Get mbedtls hash info given a TEE Algorithm "algo"
+ * Return
+ * - mbedtls_md_info_t * in case of success,
+ * - NULL in case of error
+ */
+static const mbedtls_md_info_t *tee_algo_to_mbedtls_hash_info(uint32_t algo)
+{
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
+	case TEE_ALG_SHA1:
+	case TEE_ALG_DSA_SHA1:
+	case TEE_ALG_HMAC_SHA1:
+		return mbedtls_md_info_from_string("SHA1");
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_MD5:
+	case TEE_ALG_HMAC_MD5:
+		return mbedtls_md_info_from_string("MD5");
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
+	case TEE_ALG_SHA224:
+	case TEE_ALG_DSA_SHA224:
+	case TEE_ALG_HMAC_SHA224:
+		return mbedtls_md_info_from_string("SHA224");
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
+	case TEE_ALG_SHA256:
+	case TEE_ALG_DSA_SHA256:
+	case TEE_ALG_HMAC_SHA256:
+		return mbedtls_md_info_from_string("SHA256");
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
+	case TEE_ALG_SHA384:
+	case TEE_ALG_HMAC_SHA384:
+		return mbedtls_md_info_from_string("SHA384");
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_SHA512:
+	case TEE_ALG_HMAC_SHA512:
+		return mbedtls_md_info_from_string("SHA512");
+#endif
+	case TEE_ALG_RSAES_PKCS1_V1_5:
+		/* invalid one. but it should not be used anyway */
+		return NULL;
+
+	default:
+		return NULL;
+	}
+}
+#endif /*
+	* defined(_CFG_CRYPTO_WITH_HASH) ||
+	* defined(CFG_CRYPTO_RSA) || defined(_CFG_CRYPTO_WITH_MAC)
+	*/
 
 /******************************************************************************
  * Message digest functions
  ******************************************************************************/
 
 #if defined(_CFG_CRYPTO_WITH_HASH)
+
 TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size)
 {
+	switch (algo) {
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+#endif
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+#endif
+		*size = sizeof(mbedtls_md_context_t);
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return TEE_SUCCESS;
 }
 
 TEE_Result crypto_hash_init(void *ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	int lmd_res;
+	const mbedtls_md_info_t *md_info = NULL;
+
+	if (ctx == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	md_info = tee_algo_to_mbedtls_hash_info(algo);
+	if (md_info == NULL)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	mbedtls_md_init(ctx);
+
+	lmd_res = mbedtls_md_setup(ctx, md_info, 0);
+	if (lmd_res != 0) {
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	lmd_res = mbedtls_md_starts(ctx);
+	if (lmd_res != 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+	return res;
+err:
+	mbedtls_md_free(ctx);
+
+	return res;
 }
 
 TEE_Result crypto_hash_update(void *ctx, uint32_t algo,
 				      const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res;
+
+	if (ctx == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	lmd_res = mbedtls_md_update(ctx, data, len);
+	if (lmd_res != 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 			     size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	size_t hash_size;
+	uint8_t block_digest[TEE_MAX_HASH_SIZE];
+	uint8_t *tmp_digest;
+
+	if (ctx == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	hash_size = ((mbedtls_md_context_t *)ctx)->md_info->size;
+
+	if (hash_size > len) {
+		if (hash_size > sizeof(block_digest))
+			return TEE_ERROR_BAD_STATE;
+		tmp_digest = block_digest; /* use a tempory buffer */
+	} else {
+		tmp_digest = digest;
+	}
+
+	mbedtls_md_finish(ctx, tmp_digest);
+
+	if (hash_size > len)
+		memcpy(digest, tmp_digest, len);
+
+	return TEE_SUCCESS;
 }
 #endif /*_CFG_CRYPTO_WITH_HASH*/
 
@@ -451,15 +612,28 @@ TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len)
 
 TEE_Result crypto_init(void)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return TEE_SUCCESS;
 }
-
 
 #if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	mbedtls_md_context_t hs;
+	uint8_t digest[TEE_SHA256_HASH_SIZE];
+
+	if (crypto_hash_init(&hs, TEE_ALG_SHA256) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+	if (crypto_hash_update(&hs, TEE_ALG_SHA256, data,
+		data_size) != TEE_SUCCESS) {
+		return TEE_ERROR_GENERIC;
+	}
+	if (crypto_hash_final(&hs, TEE_ALG_SHA256, digest,
+			sizeof(digest)) != TEE_SUCCESS)
+		return TEE_ERROR_GENERIC;
+	if (buf_compare_ct(digest, hash, sizeof(digest)) != 0)
+		return TEE_ERROR_SECURITY;
+	return TEE_SUCCESS;
 }
 #endif
 
