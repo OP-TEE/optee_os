@@ -484,7 +484,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	size_t last = 0;
 	size_t __maybe_unused count = 0;
 	vaddr_t va;
-	vaddr_t __maybe_unused va_max;
+	vaddr_t __maybe_unused end;
 
 	for (mem = &__start_phys_mem_map_section;
 	     mem < &__end_phys_mem_map_section; mem++) {
@@ -557,7 +557,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 * setup the virtual mapping of the non flat-mapped areas.
 	 */
 	va = (vaddr_t)~0UL;
-	va_max = 0;
+	end = 0;
 	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
 		if (!map_is_flat_mapped(map))
 			continue;
@@ -565,10 +565,10 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		map->attr = core_mmu_type_to_attr(map->type);
 		map->va = map->pa;
 		va = MIN(va, ROUNDDOWN(map->va, map->region_size));
-		va_max = MAX(va_max, ROUNDUP(va + map->size, map->region_size));
+		end = MAX(end, ROUNDUP(map->va + map->size, map->region_size));
 	}
 	assert(va >= CFG_TEE_RAM_START);
-	assert(va_max <= CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE);
+	assert(end <= CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE);
 
 	if (core_mmu_place_tee_ram_at_top(va)) {
 		/* Map non-flat mapped addresses below flat mapped addresses */
