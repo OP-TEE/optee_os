@@ -9,43 +9,259 @@
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
+#if defined(CFG_CRYPTO_MD5)
+#include "mbedtls/md5.h"
+#endif
+#if defined(CFG_CRYPTO_SHA1)
+#include "mbedtls/sha1.h"
+#endif
+#if defined(CFG_CRYPTO_SHA224) || defined(CFG_CRYPTO_SHA256)
+#include "mbedtls/sha256.h"
+#endif
+#if defined(CFG_CRYPTO_SHA384) || defined(CFG_CRYPTO_SHA512)
+#include "mbedtls/sha512.h"
+#endif
 #include <stdlib.h>
+#include <string_ext.h>
+#include <string.h>
+#include <tee/tee_cryp_utl.h>
+#include <utee_defines.h>
 
 /******************************************************************************
  * Message digest functions
  ******************************************************************************/
 #if defined(_CFG_CRYPTO_WITH_HASH)
-TEE_Result crypto_hash_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+		*size = sizeof(mbedtls_md5_context);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+		*size = sizeof(mbedtls_sha1_context);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+		*size = sizeof(mbedtls_sha256_context);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+		*size = sizeof(mbedtls_sha256_context);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+		*size = sizeof(mbedtls_sha512_context);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+		*size = sizeof(mbedtls_sha512_context);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_hash_alloc_ctx(void **ctx_ret, uint32_t algo)
+{
+	TEE_Result res;
+	size_t ctx_size;
+	void *ctx;
+
+	res = hash_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
 }
 
 void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
 {
-	if (ctx)
-		assert(0);
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_hash_alloc_ctx()
+	 * could never have succeded above.
+	 */
+	assert(!hash_get_ctx_size(algo, &ctx_size));
+	free(ctx);
 }
 
-void crypto_hash_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			    uint32_t algo __unused)
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 {
+	TEE_Result res __maybe_unused;
+	size_t ctx_size = 0;
+
+	res = hash_get_ctx_size(algo, &ctx_size);
+	assert(!res);
+	memcpy(dst_ctx, src_ctx, ctx_size);
 }
 
-TEE_Result crypto_hash_init(void *ctx __unused, uint32_t algo __unused)
+TEE_Result crypto_hash_init(void *ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+		mbedtls_sha1_init(ctx);
+		mbedtls_sha1_starts(ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+		mbedtls_md5_init(ctx);
+		mbedtls_md5_starts(ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+		mbedtls_sha256_init(ctx);
+		mbedtls_sha256_starts(ctx, 1);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+		mbedtls_sha256_init(ctx);
+		mbedtls_sha256_starts(ctx, 0);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+		mbedtls_sha512_init(ctx);
+		mbedtls_sha512_starts(ctx, 1);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+		mbedtls_sha512_init(ctx);
+		mbedtls_sha512_starts(ctx, 0);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_hash_update(void *ctx __unused, uint32_t algo __unused,
-			      const uint8_t *data __unused, size_t len __unused)
+TEE_Result crypto_hash_update(void *ctx, uint32_t algo,
+				      const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+		mbedtls_sha1_update(ctx, data, len);
+		break;
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+		mbedtls_md5_update(ctx, data, len);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+		mbedtls_sha256_update(ctx, data, len);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+		mbedtls_sha256_update(ctx, data, len);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+		mbedtls_sha512_update(ctx, data, len);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+		mbedtls_sha512_update(ctx, data, len);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_hash_final(void *ctx __unused, uint32_t algo __unused,
-			     uint8_t *digest __unused, size_t len __unused)
+TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
+			     size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	size_t hash_size;
+	uint8_t block_digest[TEE_MAX_HASH_SIZE];
+	uint8_t *tmp_digest;
+
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = tee_hash_get_digest_size(algo, &hash_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (hash_size > len) {
+		if (hash_size > sizeof(block_digest))
+			return TEE_ERROR_BAD_STATE;
+		tmp_digest = block_digest; /* use a tempory buffer */
+	} else {
+		tmp_digest = digest;
+	}
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+		mbedtls_sha1_finish(ctx, tmp_digest);
+		break;
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+		mbedtls_md5_finish(ctx, tmp_digest);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+		mbedtls_sha256_finish(ctx, tmp_digest);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+		mbedtls_sha256_finish(ctx, tmp_digest);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+		mbedtls_sha512_finish(ctx, tmp_digest);
+		break;
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+		mbedtls_sha512_finish(ctx, tmp_digest);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	if (hash_size > len)
+		memcpy(digest, tmp_digest, len);
+
+	return res;
 }
 #endif /* _CFG_CRYPTO_WITH_HASH */
 
@@ -550,15 +766,25 @@ void crypto_aes_gcm_final(void *ctx __unused)
 
 TEE_Result crypto_init(void)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return TEE_SUCCESS;
 }
 
 #if defined(CFG_CRYPTO_SHA256)
-TEE_Result hash_sha256_check(const uint8_t *hash  __unused,
-		const uint8_t *data __unused,
-		size_t data_size __unused)
+TEE_Result hash_sha256_check(const uint8_t *hash,
+		const uint8_t *data, size_t data_size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	mbedtls_sha256_context hs;
+	uint8_t digest[TEE_SHA256_HASH_SIZE];
+
+	mbedtls_sha256_init(&hs);
+	mbedtls_sha256_starts(&hs, 0);
+	mbedtls_sha256_update(&hs, data, data_size);
+	mbedtls_sha256_finish(&hs, digest);
+	mbedtls_sha256_free(&hs);
+
+	if (buf_compare_ct(digest, hash, sizeof(digest)) != 0)
+		return TEE_ERROR_SECURITY;
+	return TEE_SUCCESS;
 }
 #endif
 
