@@ -34,6 +34,7 @@
 #define KERNEL_UNWIND
 
 #ifndef ASM
+#include <compiler.h>
 #include <types_ext.h>
 
 #ifdef ARM32
