@@ -63,6 +63,8 @@ SECTIONS
 	. = CFG_TEE_LOAD_ADDR;
 
 	__text_start = .;
+	__flatmap_unpg_rx_start = __text_start;
+
 	.text : {
 		KEEP(*(.text.boot.vectab1))
 		KEEP(*(.text.boot.vectab2))
@@ -87,6 +89,9 @@ SECTIONS
 		. = ALIGN(8);
 	}
 	__text_end = .;
+
+	__flatmap_unpg_rx_size = . - __flatmap_unpg_rx_start;
+	__flatmap_unpg_ro_start = .;
 
 	.rodata : ALIGN(8) {
 		__rodata_start = .;
@@ -163,6 +168,9 @@ SECTIONS
 		*(.ARM.extab*)
 		__extab_end = .;
 	}
+
+	__flatmap_unpg_ro_size = . - __flatmap_unpg_ro_start;
+	__flatmap_unpg_rw_start = .;
 
 	.data : ALIGN(8) {
 		/* writable data  */
@@ -248,7 +256,15 @@ SECTIONS
 		__heap2_end = .;
 	}
 
+	/* Start page aligned read-only memory */
+	__flatmap_unpg_rw_size = . - __flatmap_unpg_rw_start;
+
 	__init_start = .;
+	__flatmap_init_rx_start = .;
+
+	ASSERT(!(__flatmap_init_rx_start & (SMALL_PAGE_SIZE - 1)),
+		"read-write memory is not paged aligned")
+
 	.text_init : {
 /*
  * Include list of sections needed for boot initialization, this list
@@ -258,6 +274,9 @@ SECTIONS
 #include <text_init.ld.S>
 		. = ALIGN(8);
 	}
+
+	__flatmap_init_rx_size = . - __flatmap_init_rx_start;
+	__flatmap_init_ro_start = .;
 
 	.rodata_init : {
 #include <rodata_init.ld.S>
@@ -274,6 +293,9 @@ SECTIONS
 
 	__init_end = .;
 	__init_size = __init_end - __init_start;
+
+	/* vcore flat map stops here. No need to page align, rodata follows. */
+	__flatmap_init_ro_size = __init_end - __flatmap_init_ro_start;
 
 	.text_pageable : ALIGN(8) {
 		*(.text*)
@@ -344,7 +366,12 @@ SECTIONS
 	__init_mem_usage = __end - CFG_TEE_LOAD_ADDR;
 #endif
 	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
+
 	_end_of_ram = .;
+
+#ifndef CFG_WITH_PAGER
+	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
+#endif
 
 	/DISCARD/ : {
 		/* Strip unnecessary stuff */
@@ -354,3 +381,29 @@ SECTIONS
 	}
 
 }
+
+PROVIDE(__vcore_unpg_rwx_start = __flatmap_unpg_rx_start);
+#ifdef CFG_WITH_PAGER
+PROVIDE(__vcore_unpg_rwx_size = CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE -
+				__flatmap_unpg_rx_start);
+#else
+PROVIDE(__vcore_unpg_rwx_size = _end_of_ram - __flatmap_unpg_rx_start);
+#endif
+
+/* Unpaged read-only memories */
+PROVIDE(__vcore_unpg_rx_start = __flatmap_unpg_rx_start);
+PROVIDE(__vcore_unpg_ro_start = __flatmap_unpg_ro_start);
+PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size);
+PROVIDE(__vcore_unpg_ro_size = __flatmap_unpg_ro_size);
+
+/* Unpaged read-write memory */
+PROVIDE(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
+PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
+
+#ifdef CFG_WITH_PAGER
+/* Paged/init read-only memories */
+PROVIDE(__vcore_init_rx_start = __flatmap_init_rx_start);
+PROVIDE(__vcore_init_ro_start = __flatmap_init_ro_start);
+PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size);
+PROVIDE(__vcore_init_ro_size = __flatmap_init_ro_size);
+#endif /* CFG_WITH_PAGER */

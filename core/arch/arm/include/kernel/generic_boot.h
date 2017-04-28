@@ -61,6 +61,19 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry);
 paddr_t generic_boot_core_hpen(void);
 #endif
 
+extern uint8_t __vcore_unpg_rwx_start[];
+extern uint8_t __vcore_unpg_rwx_size[];
+extern uint8_t __vcore_unpg_rx_start[];
+extern uint8_t __vcore_unpg_rx_size[];
+extern uint8_t __vcore_unpg_ro_start[];
+extern uint8_t __vcore_unpg_ro_size[];
+extern uint8_t __vcore_unpg_rw_start[];
+extern uint8_t __vcore_unpg_rw_size[];
+extern uint8_t __vcore_init_rx_start[];
+extern uint8_t __vcore_init_rx_size[];
+extern uint8_t __vcore_init_ro_start[];
+extern uint8_t __vcore_init_ro_size[];
+
 extern uint8_t __text_start[];
 extern initcall_t __initcall_start;
 extern initcall_t __initcall_end;

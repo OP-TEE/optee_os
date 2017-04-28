@@ -50,6 +50,10 @@
 
 #include <platform_config.h>
 
+#ifndef SMALL_PAGE_SIZE
+#define SMALL_PAGE_SIZE		4096
+#endif
+
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 
@@ -57,6 +61,7 @@ ENTRY(_start)
 SECTIONS
 {
 	. = TEE_RAM_START;
+	__flatmap_unpg_rx_start = .;
 
 	/* text/read-only data */
 	.text : {
@@ -76,6 +81,13 @@ SECTIONS
 		*(.initcall4)
 		__initcall_end = .;
 	}
+
+#ifdef CFG_CORE_RODATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
+	__flatmap_unpg_rx_size = . - __flatmap_unpg_rx_start;
+	__flatmap_unpg_ro_start = .;
+
 
 	.interp : { *(.interp) }
 	.hash : { *(.hash) }
@@ -137,6 +149,12 @@ SECTIONS
 		__rodata_end = .;
 	}
 
+	/* Start page aligned read-write memory */
+#ifdef CFG_CORE_RWDATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
+	__flatmap_unpg_ro_size = . - __flatmap_unpg_ro_start;
+	__flatmap_unpg_rw_start = .;
 
 	.data : ALIGN(4) {
 		/* writable data  */
@@ -193,6 +211,25 @@ SECTIONS
 	. = TEE_RAM_START + TEE_RAM_SIZE;
 	_end_of_ram = .;
 
+	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
+
 	/* Strip unnecessary stuff */
 	/DISCARD/ : { *(.comment .note .eh_frame) }
 }
+
+/* Read-only memories */
+PROVIDE(__vcore_unpg_rx_start = __flatmap_unpg_rx_start);
+PROVIDE(__vcore_unpg_ro_start = __flatmap_unpg_ro_start);
+
+#ifdef CFG_CORE_RODATA_NOEXEC
+PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size);
+PROVIDE(__vcore_unpg_ro_size = __flatmap_unpg_ro_size);
+#else
+PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size +
+				__flatmap_unpg_ro_size);
+PROVIDE(__vcore_unpg_ro_size = 0);
+#endif
+
+/* Read-write memory */
+PROVIDE(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
+PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
