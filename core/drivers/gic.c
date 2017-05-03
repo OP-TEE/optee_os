@@ -219,8 +219,8 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
 		gd->gicc_base + GICC_CTLR);
 #endif
-	write32(GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1,
-		gd->gicd_base + GICD_CTLR);
+	write32(read32(gd->gicd_base + GICD_CTLR) | GICD_CTLR_ENABLEGRP0 |
+		GICD_CTLR_ENABLEGRP1, gd->gicd_base + GICD_CTLR);
 }
 
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
