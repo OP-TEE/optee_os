@@ -59,74 +59,8 @@
 #include "elf_load.h"
 #include "elf_common.h"
 
-static TEE_Result load_header(const struct shdr *signed_ta,
-		struct shdr **sec_shdr)
-{
-	size_t s;
-
-	if (!tee_vbuf_is_non_sec(signed_ta, sizeof(*signed_ta)))
-		return TEE_ERROR_SECURITY;
-
-	s = SHDR_GET_SIZE(signed_ta);
-	if (!tee_vbuf_is_non_sec(signed_ta, s))
-		return TEE_ERROR_SECURITY;
-
-	/* Copy signed header into secure memory */
-	*sec_shdr = malloc(s);
-	if (!*sec_shdr)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	memcpy(*sec_shdr, signed_ta, s);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result check_shdr(struct shdr *shdr)
-{
-	struct rsa_public_key key;
-	TEE_Result res;
-	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
-	size_t hash_size;
-
-	if (shdr->magic != SHDR_MAGIC || shdr->img_type != SHDR_TA)
-		return TEE_ERROR_SECURITY;
-
-	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
-		return TEE_ERROR_SECURITY;
-
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
-				       &hash_size);
-	if (res != TEE_SUCCESS)
-		return res;
-	if (hash_size != shdr->hash_size)
-		return TEE_ERROR_SECURITY;
-
-	if (!crypto_ops.acipher.alloc_rsa_public_key ||
-	    !crypto_ops.acipher.free_rsa_public_key ||
-	    !crypto_ops.acipher.rsassa_verify ||
-	    !crypto_ops.bignum.bin2bn)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = crypto_ops.bignum.bin2bn((uint8_t *)&e, sizeof(e), key.e);
-	if (res != TEE_SUCCESS)
-		goto out;
-	res = crypto_ops.bignum.bin2bn(ta_pub_key_modulus,
-				       ta_pub_key_modulus_size, key.n);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = crypto_ops.acipher.rsassa_verify(shdr->algo, &key, -1,
-				SHDR_GET_HASH(shdr), shdr->hash_size,
-				SHDR_GET_SIG(shdr), shdr->sig_size);
-out:
-	crypto_ops.acipher.free_rsa_public_key(&key);
-	if (res != TEE_SUCCESS)
-		return TEE_ERROR_SECURITY;
-	return TEE_SUCCESS;
-}
+static struct tee_ta_load_ops *ta_load_ops;
+static struct tee_ta_decryption_ops *ta_decryption_ops;
 
 static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 {
@@ -249,48 +183,16 @@ static struct mobj *alloc_ta_mem(size_t size)
 #endif
 }
 
-static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
-			const struct shdr *nmem_shdr)
+static TEE_Result load_elf(struct user_ta_ctx *utc, void *elf_ta,
+		size_t elf_size)
 {
 	TEE_Result res;
-	size_t hash_ctx_size;
-	void *hash_ctx = NULL;
-	uint32_t hash_algo;
-	uint8_t *nwdata = (uint8_t *)nmem_shdr + SHDR_GET_SIZE(shdr);
-	size_t nwdata_len = shdr->img_size;
-	void *digest = NULL;
 	struct elf_load_state *elf_state = NULL;
 	struct ta_head *ta_head;
 	void *p;
 	size_t vasize;
 
-	if (!tee_vbuf_is_non_sec(nwdata, nwdata_len))
-		return TEE_ERROR_SECURITY;
-
-	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
-	    !crypto_ops.hash.update || !crypto_ops.hash.final) {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
-		goto out;
-	}
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_ops.hash.get_ctx_size(hash_algo, &hash_ctx_size);
-	if (res != TEE_SUCCESS)
-		goto out;
-	hash_ctx = malloc(hash_ctx_size);
-	if (!hash_ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-	res = crypto_ops.hash.init(hash_ctx, hash_algo);
-	if (res != TEE_SUCCESS)
-		goto out;
-	res = crypto_ops.hash.update(hash_ctx, hash_algo,
-				     (uint8_t *)shdr, sizeof(struct shdr));
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = elf_load_init(hash_ctx, hash_algo, nwdata, nwdata_len,
-			    &elf_state);
+	res = elf_load_init(elf_ta, elf_size, &elf_state);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -340,22 +242,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	digest = malloc(shdr->hash_size);
-	if (!digest) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	res = crypto_ops.hash.final(hash_ctx, hash_algo, digest,
-				    shdr->hash_size);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	if (memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size) != 0) {
-		res = TEE_ERROR_SECURITY;
-		goto out;
-	}
-
 	/*
 	 * Replace the init attributes with attributes used when the TA is
 	 * running.
@@ -366,8 +252,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc, struct shdr *shdr,
 
 out:
 	elf_load_final(elf_state);
-	free(digest);
-	free(hash_ctx);
 	return res;
 }
 
@@ -376,8 +260,8 @@ out:
  * Verifies the TA signature.
  * Returns context ptr and TEE_Result.
  *---------------------------------------------------------------------------*/
-static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
-			struct tee_ta_ctx **ta_ctx)
+static TEE_Result ta_load(const TEE_UUID *uuid, void *elf_ta,
+			size_t elf_size, struct tee_ta_ctx **ta_ctx)
 {
 	TEE_Result res;
 	/* man_flags: mandatory flags */
@@ -387,20 +271,10 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	    TA_FLAG_MULTI_SESSION | TA_FLAG_SECURE_DATA_PATH |
 	    TA_FLAG_INSTANCE_KEEP_ALIVE | TA_FLAG_CACHE_MAINTENANCE;
 	struct user_ta_ctx *utc = NULL;
-	struct shdr *sec_shdr = NULL;
 	struct ta_head *ta_head;
-
-	res = load_header(signed_ta, &sec_shdr);
-	if (res != TEE_SUCCESS)
-		goto error_return;
-
-	res = check_shdr(sec_shdr);
-	if (res != TEE_SUCCESS)
-		goto error_return;
-
 	/*
 	 * ------------------------------------------------------------------
-	 * 2nd step: Register context
+	 * 1st step: Register context
 	 * Alloc and init the ta context structure, alloc physical/virtual
 	 * memories to store/map the TA.
 	 * ------------------------------------------------------------------
@@ -424,7 +298,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	utc->se_service = NULL;
 #endif
 
-	res = load_elf(utc, sec_shdr, signed_ta);
+	res = load_elf(utc, elf_ta, elf_size);
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
@@ -460,11 +334,9 @@ static TEE_Result ta_load(const TEE_UUID *uuid, const struct shdr *signed_ta,
 	tee_mmu_set_ctx(NULL);
 	/* end thread protection (multi-threaded) */
 
-	free(sec_shdr);
 	return TEE_SUCCESS;
 
 error_return:
-	free(sec_shdr);
 	tee_mmu_set_ctx(NULL);
 	if (utc) {
 		pgt_flush_ctx(&utc->ctx);
@@ -613,70 +485,14 @@ cleanup_return:
 	return res;
 }
 
-/*
- * Load a TA via RPC with UUID defined by input param uuid. The virtual
- * address of the TA is recieved in out parameter ta
- *
- * Function is not thread safe
- */
-static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
-			uint64_t *cookie_ta)
-{
-	TEE_Result res;
-	struct optee_msg_param params[2];
-	paddr_t phta = 0;
-	uint64_t cta = 0;
-
-
-	if (!uuid || !ta || !cookie_ta)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[1].u.tmem.buf_ptr = 0;
-	params[1].u.tmem.size = 0;
-	params[1].u.tmem.shm_ref = 0;
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	thread_rpc_alloc_payload(params[1].u.tmem.size, &phta, &cta);
-	if (!phta)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	*ta = phys_to_virt(phta, MEM_AREA_NSEC_SHM);
-	if (!*ta) {
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-	*cookie_ta = cta;
-
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[1].u.tmem.buf_ptr = phta;
-	params[1].u.tmem.shm_ref = cta;
-	/* Note that params[1].u.tmem.size is already assigned */
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
-out:
-	if (res != TEE_SUCCESS)
-		thread_rpc_free_payload(cta);
-	return res;
-}
-
-static TEE_Result init_session_with_signed_ta(const TEE_UUID *uuid,
-				const struct shdr *signed_ta,
-				struct tee_ta_session *s)
+static TEE_Result init_session_with_elf_ta(const TEE_UUID *uuid,
+			void *elf_ta, size_t elf_size, struct tee_ta_session *s)
 {
 	TEE_Result res;
 
 	DMSG("   Load dynamic TA");
 	/* load and verify */
-	res = ta_load(uuid, signed_ta, &s->ctx);
+	res = ta_load(uuid, elf_ta, elf_size, &s->ctx);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -802,23 +618,69 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s)
 {
 	TEE_Result res;
-	struct shdr *ta = NULL;
-	uint64_t cookie_ta = 0;
+	struct mobj *file_mm = NULL;
+	struct mobj *elf_mm = NULL;
+	void *file_virt;
+	void *elf_virt;
+	size_t file_size;
+	size_t elf_size;
 
+	assert(ta_load_ops && ta_decryption_ops);
 
-	/* Request TA from tee-supplicant */
-	res = rpc_load(uuid, &ta, &cookie_ta);
+	res = ta_load_ops->get_file_size(uuid, &file_size);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
-	res = init_session_with_signed_ta(uuid, ta, s);
-	/*
-	 * Free normal world shared memory now that the TA either has been
-	 * copied into secure memory or the TA failed to be initialized.
-	 */
-	thread_rpc_free_payload(cookie_ta);
+	file_mm = alloc_ta_mem(file_size);
+	if (!file_mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	file_virt = mobj_get_va(file_mm, 0);
+
+	res = ta_load_ops->load_file(uuid, file_virt, file_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = ta_decryption_ops->get_elf_size(uuid, file_virt, file_size,
+					      &elf_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	elf_mm = alloc_ta_mem(elf_size);
+	if (!elf_mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	elf_virt = mobj_get_va(elf_mm, 0);
+
+	res = ta_decryption_ops->verify_and_decrypt(uuid, elf_virt, file_virt,
+						    file_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = init_session_with_elf_ta(uuid, elf_virt, elf_size, s);
+
+out:
+	mobj_free(file_mm);
+	mobj_free(elf_mm);
 
 	if (res == TEE_SUCCESS)
 		s->ctx->ops = &user_ta_ops;
 	return res;
 }
+
+void tee_ta_register_load_ops(struct tee_ta_load_ops *ops)
+{
+	assert(ops && ops->get_file_size && ops->load_file);
+
+	ta_load_ops = ops;
+}
+
+void tee_ta_register_decryption_ops(struct tee_ta_decryption_ops *ops)
+{
+	assert(ops && ops->get_elf_size && ops->verify_and_decrypt);
+
+	ta_decryption_ops = ops;
+}
+

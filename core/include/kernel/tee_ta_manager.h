@@ -82,6 +82,20 @@ struct tee_ta_ops {
 	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
 };
 
+struct tee_ta_load_ops {
+	TEE_Result (*get_file_size)(const TEE_UUID *uuid, size_t *size);
+	TEE_Result (*load_file)(const TEE_UUID *uuid, void *ta_file,
+				size_t ta_file_size);
+};
+
+struct tee_ta_decryption_ops {
+	TEE_Result (*get_elf_size)(const TEE_UUID *uuid, const void *ta_file,
+				   size_t ta_file_size, size_t *elf_size);
+	TEE_Result (*verify_and_decrypt)(const TEE_UUID *uuid, void *ta_elf,
+					 const void *ta_file,
+					 size_t ta_file_size);
+};
+
 #if defined(CFG_TA_GPROF_SUPPORT)
 struct sample_buf {
 	uint32_t nsamples;	/* Size of @samples array in uint16_t */
@@ -189,5 +203,9 @@ static inline void tee_ta_gprof_sample_pc(vaddr_t pc __unused) {}
 static inline void tee_ta_update_session_utime_suspend(void) {}
 static inline void tee_ta_update_session_utime_resume(void) {}
 #endif
+
+void tee_ta_register_load_ops(struct tee_ta_load_ops *ops);
+
+void tee_ta_register_decryption_ops(struct tee_ta_decryption_ops *ops);
 
 #endif
