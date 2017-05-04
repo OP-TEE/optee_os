@@ -130,6 +130,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_IO_NSEC] = "IO_NSEC",
 		[MEM_AREA_IO_SEC] = "IO_SEC",
 		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
+		[MEM_AREA_SHM_VASPACE] = "SHM_VASPACE",
 		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
 		[MEM_AREA_SDP_MEM] = "SDP_MEM",
 	};
