@@ -28,7 +28,7 @@
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include <kernel/tee_misc.h>
-#include <tee/tee_cryp_provider.h>
+#include <kernel/user_ta.h>
 #include <stdlib.h>
 #include <string.h>
 #include <util.h>
@@ -41,11 +41,9 @@
 struct elf_load_state {
 	bool is_32bit;
 
-	uint8_t *nwdata;
-	size_t nwdata_len;
-
-	void *hash_ctx;
-	uint32_t hash_algo;
+	struct user_ta_store_handle *ta_handle;
+	const struct user_ta_store_ops *ta_store;
+	size_t data_len;
 
 	size_t next_offs;
 
@@ -139,16 +137,15 @@ static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 	if (offs == state->next_offs)
 		return TEE_SUCCESS;
 
-	if (offs > state->nwdata_len)
+	if (offs > state->data_len)
 		return TEE_ERROR_SECURITY;
 
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-			state->nwdata + state->next_offs,
-			offs - state->next_offs);
+	res = state->ta_store->read(state->ta_handle, NULL,
+				    offs - state->next_offs);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->next_offs = offs;
-	return res;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result copy_to(struct elf_load_state *state,
@@ -165,12 +162,12 @@ static TEE_Result copy_to(struct elf_load_state *state,
 
 	/* Check for integer overflow */
 	if ((len + dst_offs) < dst_offs || (len + dst_offs) > dst_size ||
-	    (len + offs) < offs || (len + offs) > state->nwdata_len)
+	    (len + offs) < offs || (len + offs) > state->data_len)
 		return TEE_ERROR_SECURITY;
 
-	memcpy((uint8_t *)dst + dst_offs, state->nwdata + offs, len);
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-				      (uint8_t *)dst + dst_offs, len);
+	res = state->ta_store->read(state->ta_handle,
+				    (uint8_t *)dst + dst_offs,
+				    len);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->next_offs = offs + len;
@@ -194,20 +191,27 @@ static TEE_Result alloc_and_copy_to(void **p, struct elf_load_state *state,
 	return res;
 }
 
-TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
-			size_t nwdata_len, struct elf_load_state **ret_state)
+TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
+			 struct user_ta_store_handle *ta_handle,
+			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
+	TEE_Result res;
 
 	state = calloc(1, sizeof(*state));
 	if (!state)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	state->hash_ctx = hash_ctx;
-	state->hash_algo = hash_algo;
-	state->nwdata = nwdata;
-	state->nwdata_len = nwdata_len;
+
+	state->ta_store = ta_store;
+	state->ta_handle = ta_handle;
+	res = ta_store->get_size(ta_handle, &state->data_len);
+	if (res != TEE_SUCCESS) {
+		free(state);
+		return res;
+	}
+
 	*ret_state = state;
-	return TEE_SUCCESS;
+	return res;
 }
 
 static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
@@ -639,7 +643,7 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	}
 
 	/* Hash until end of ELF */
-	res = advance_to(state, state->nwdata_len);
+	res = advance_to(state, state->data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 

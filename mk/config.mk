@@ -164,6 +164,11 @@ endif
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
 
+# Load user TAs from the REE filesystem via tee-supplicant
+# There is currently no other alternative, but you may want to disable this in
+# case you implement your own TA store
+CFG_REE_FS_TA ?= y
+
 # Use small pages to map user TAs
 CFG_SMALL_PAGE_USER_TA ?= y
 
