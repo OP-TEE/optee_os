@@ -87,7 +87,10 @@
 /*
  * Memory area type:
  * MEM_AREA_NOTYPE:   Undefined type. Used as end of table.
- * MEM_AREA_TEE_RAM:  teecore execution RAM (secure, reserved to TEE, unused)
+ * MEM_AREA_TEE_RAM:  core RAM (read/write/executable, secure, reserved to TEE)
+ * MEM_AREA_TEE_RAM_RX:  core private read-only/executable memory (secure)
+ * MEM_AREA_TEE_RAM_RO:  core private read-only/non-executable memory (secure)
+ * MEM_AREA_TEE_RAM_RW:  core private read/write/non-executable memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
@@ -103,6 +106,9 @@
 enum teecore_memtypes {
 	MEM_AREA_NOTYPE = 0,
 	MEM_AREA_TEE_RAM,
+	MEM_AREA_TEE_RAM_RX,
+	MEM_AREA_TEE_RAM_RO,
+	MEM_AREA_TEE_RAM_RW,
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
@@ -121,7 +127,10 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 {
 	static const char * const names[] = {
 		[MEM_AREA_NOTYPE] = "NOTYPE",
-		[MEM_AREA_TEE_RAM] = "TEE_RAM",
+		[MEM_AREA_TEE_RAM] = "TEE_RAM_RWX",
+		[MEM_AREA_TEE_RAM_RX] = "TEE_RAM_RX",
+		[MEM_AREA_TEE_RAM_RO] = "TEE_RAM_RO",
+		[MEM_AREA_TEE_RAM_RW] = "TEE_RAM_RW",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
 		[MEM_AREA_TA_RAM] = "TA_RAM",
 		[MEM_AREA_NSEC_SHM] = "NSEC_SHM",

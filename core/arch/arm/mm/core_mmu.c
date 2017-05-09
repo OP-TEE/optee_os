@@ -373,28 +373,33 @@ static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
 
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 {
-	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW |
-			      TEE_MATTR_GLOBAL;
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL;
 	const uint32_t cached = TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
 	const uint32_t noncache = TEE_MATTR_CACHE_NONCACHE <<
 				  TEE_MATTR_CACHE_SHIFT;
 
 	switch (t) {
 	case MEM_AREA_TEE_RAM:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PX | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | cached;
+	case MEM_AREA_TEE_RAM_RX:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRX | cached;
+	case MEM_AREA_TEE_RAM_RO:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
+	case MEM_AREA_TEE_RAM_RW:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_TA_RAM:
-		return attr | TEE_MATTR_SECURE | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_NSEC_SHM:
 	case MEM_AREA_SHM_VASPACE:
-		return attr | cached;
+		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_IO_NSEC:
-		return attr | noncache;
+		return attr | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_IO_SEC:
-		return attr | TEE_MATTR_SECURE | noncache;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_RAM_NSEC:
-		return attr | cached;
+		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RAM_SEC:
-		return attr | TEE_MATTR_SECURE | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RES_VASPACE:
 		return 0;
 	default:
@@ -404,7 +409,15 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 
 static bool __maybe_unused map_is_tee_ram(const struct tee_mmap_region *mm)
 {
-	return mm->type == MEM_AREA_TEE_RAM;
+	switch (mm->type) {
+	case MEM_AREA_TEE_RAM:
+	case MEM_AREA_TEE_RAM_RX:
+	case MEM_AREA_TEE_RAM_RO:
+	case MEM_AREA_TEE_RAM_RW:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static bool map_is_flat_mapped(const struct tee_mmap_region *mm)
@@ -641,6 +654,9 @@ void core_init_mmu_map(void)
 	while (map->type != MEM_AREA_NOTYPE) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
+		case MEM_AREA_TEE_RAM_RX:
+		case MEM_AREA_TEE_RAM_RO:
+		case MEM_AREA_TEE_RAM_RW:
 			if (!pbuf_is_inside(secure_only, map->pa, map->size))
 				panic("TEE_RAM can't fit in secure_only");
 			break;
@@ -1395,7 +1411,17 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 #else
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
-	return map_pa2va(find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa), pa);
+	struct tee_mmap_region *mmap;
+
+	mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa);
+	if (!mmap)
+		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RW, pa);
+	if (!mmap)
+		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RO, pa);
+	if (!mmap)
+		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RX, pa);
+
+	return map_pa2va(mmap, pa);
 }
 #endif
 
@@ -1408,6 +1434,9 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 		va = phys_to_virt_ta_vaspace(pa);
 		break;
 	case MEM_AREA_TEE_RAM:
+	case MEM_AREA_TEE_RAM_RX:
+	case MEM_AREA_TEE_RAM_RO:
+	case MEM_AREA_TEE_RAM_RW:
 		va = phys_to_virt_tee_ram(pa);
 		break;
 	default:
