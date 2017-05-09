@@ -476,6 +476,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	size_t __maybe_unused count = 0;
 	vaddr_t va;
 	vaddr_t __maybe_unused end;
+	bool __maybe_unused va_is_secure = true; /* any init value fits */
 
 	for (mem = &__start_phys_mem_map_section;
 	     mem < &__end_phys_mem_map_section; mem++) {
@@ -570,6 +571,12 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			if (map_is_flat_mapped(map))
 				continue;
 
+#if !defined(CFG_WITH_LPAE)
+			if (va_is_secure != map_is_secure(map)) {
+				va_is_secure = !va_is_secure;
+				va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
+			}
+#endif
 			map->attr = core_mmu_type_to_attr(map->type);
 			va -= map->size;
 			va = ROUNDDOWN(va, map->region_size);
@@ -586,6 +593,12 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			if (map_is_flat_mapped(map))
 				continue;
 
+#if !defined(CFG_WITH_LPAE)
+			if (va_is_secure != map_is_secure(map)) {
+				va_is_secure = !va_is_secure;
+				va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
+			}
+#endif
 			map->attr = core_mmu_type_to_attr(map->type);
 			va = ROUNDUP(va, map->region_size);
 #if !defined(CFG_WITH_LPAE)
