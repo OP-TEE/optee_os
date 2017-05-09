@@ -68,11 +68,11 @@
 
 struct tee_mmap_region {
 	unsigned int type; /* enum teecore_memtypes */
-	unsigned int region_size;
+	uint32_t attr; /* TEE_MATTR_* above */
 	paddr_t pa;
 	vaddr_t va;
 	size_t size;
-	uint32_t attr; /* TEE_MATTR_* above */
+	size_t region_size;
 };
 
 struct tee_ta_region {
