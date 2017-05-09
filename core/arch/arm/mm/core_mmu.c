@@ -766,8 +766,8 @@ int core_va2pa_helper(void *va, paddr_t *pa)
 	if (!va_is_in_map(map, (vaddr_t)va))
 		return -1;
 
-	*pa = ((uintptr_t)va & (map->region_size - 1)) |
-	    ((map->pa + (uintptr_t)va - map->va) & ~(map->region_size - 1));
+	*pa = map->pa + (vaddr_t)va  - map->va;
+
 	return 0;
 }
 
@@ -775,8 +775,8 @@ static void *map_pa2va(struct tee_mmap_region *map, paddr_t pa)
 {
 	if (!pa_is_in_map(map, pa))
 		return NULL;
-	return (void *)((pa & (map->region_size - 1)) |
-		((map->va + pa - map->pa) & ~((vaddr_t)map->region_size - 1)));
+
+	return (void *)(map->va + pa - map->pa);
 }
 
 /*
