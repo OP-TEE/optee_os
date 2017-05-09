@@ -642,7 +642,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		/* Copy bits 39:12 from tbl[n] to ntbl */
 		ntbl = (tbl[n] & ((1ULL << 40) - 1)) & ~((1 << 12) - 1);
 
-		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
+		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
 		if (!tbl)
 			return false;
 

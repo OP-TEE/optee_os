@@ -160,7 +160,7 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 
 	switch (battr) {
 	case CORE_MEM_TEE_RAM:
-		area_type = MEM_AREA_TEE_RAM;
+		area_type = MEM_AREA_TEE_RAM_RW_DATA;
 		break;
 	case CORE_MEM_TA_RAM:
 		area_type = MEM_AREA_TA_RAM;

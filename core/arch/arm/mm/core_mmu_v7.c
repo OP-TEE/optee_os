@@ -495,7 +495,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		core_mmu_set_info_table(tbl_info, 1, 0, tbl);
 	} else {
 		paddr_t ntbl = tbl[n] & ~((1 << 10) - 1);
-		void *l2tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
+		void *l2tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
 
 		if (!l2tbl)
 			return false;
@@ -678,7 +678,7 @@ static paddr_t map_page_memarea(const struct tee_mmap_region *mm, uint32_t xlat)
 		l2 = core_mmu_alloc_l2(mm->size);
 	else
 		l2 = phys_to_virt(xlat & SECTION_PT_ATTR_MASK,
-				  MEM_AREA_TEE_RAM_DATA);
+				  MEM_AREA_TEE_RAM_RW_DATA);
 
 	/*
 	 * If allocation above failed, it panicked.
