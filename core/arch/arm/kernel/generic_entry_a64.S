@@ -83,7 +83,7 @@ FUNC _start , :
 	 *
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
-	 * [Init code and rodata] : Should be copied to __text_init_start
+	 * [Init code and rodata] : Should be copied to __init_start
 	 * [Hashes] : Should be saved before clearing bss
 	 *
 	 * When we copy init code and rodata into correct location we don't
@@ -91,9 +91,9 @@ FUNC _start , :
 	 * .heap, .nozi and .heap3 is much larger than the size of init
 	 * code and rodata and hashes.
 	 */
-	adr	x0, __text_init_start	/* dst */
-	adr	x1, __data_end 	/* src */
-	adr	x2, __rodata_init_end	/* dst limit */
+	adr	x0, __init_start	/* dst */
+	adr	x1, __data_end		/* src */
+	adr	x2, __init_end		/* dst limit */
 copy_init:
 	ldp	x3, x4, [x1], #16
 	stp	x3, x4, [x0], #16

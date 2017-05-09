@@ -293,18 +293,18 @@ UNWIND(	.cantunwind)
 	 *
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
-	 * [Init code and rodata] : Should be copied to __text_init_start
+	 * [Init code and rodata] : Should be copied to __init_start
 	 * [Hashes] : Should be saved before initializing pager
 	 *
 	 */
-	ldr	r0, =__text_init_start	/* dst */
+	ldr	r0, =__init_start	/* dst */
 	ldr	r1, =__data_end 	/* src */
 	ldr	r2, =__tmp_hashes_end	/* dst limit */
 	/* Copy backwards (as memmove) in case we're overlapping */
 	sub	r2, r2, r0		/* len */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	ldr	r2, =__text_init_start
+	ldr	r2, =__init_start
 copy_init:
 	ldmdb	r1!, {r3, r8-r12, sp}
 	stmdb	r0!, {r3, r8-r12, sp}

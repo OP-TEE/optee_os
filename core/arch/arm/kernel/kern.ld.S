@@ -50,6 +50,10 @@
 
 #include <platform_config.h>
 
+#ifndef SMALL_PAGE_SIZE
+#define SMALL_PAGE_SIZE		4096
+#endif
+
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 
@@ -58,9 +62,8 @@ SECTIONS
 {
 	. = CFG_TEE_LOAD_ADDR;
 
-	/* text/read-only data */
+	__text_start = .;
 	.text : {
-		__text_start = .;
 		KEEP(*(.text.boot.vectab1))
 		KEEP(*(.text.boot.vectab2))
 		KEEP(*(.text.boot))
@@ -82,8 +85,8 @@ SECTIONS
 #endif
 		*(.sram.text.glue_7* .gnu.linkonce.t.*)
 		. = ALIGN(8);
-		__text_end = .;
 	}
+	__text_end = .;
 
 	.rodata : ALIGN(8) {
 		__rodata_start = .;
@@ -219,8 +222,10 @@ SECTIONS
 	 *
 	 * L1 mmu table requires 16 KiB alignment
 	 */
-	.nozi (NOLOAD) : ALIGN(16 * 1024) {
+	.nozi (NOLOAD) : {
 		__nozi_start = .;
+		ASSERT(!(__nozi_start & (16 * 1024 - 1)), "align nozi to 16kB");
+
 		KEEP(*(.nozi .nozi.*))
 		. = ALIGN(16);
 		__nozi_end = .;
@@ -239,12 +244,12 @@ SECTIONS
 		 * been reserved in .heap1
 		 */
 		. += CFG_CORE_HEAP_SIZE - (__heap1_end - __heap1_start);
-		. = ALIGN(4 * 1024);
+		. = ALIGN(SMALL_PAGE_SIZE);
 		__heap2_end = .;
 	}
 
-	.text_init : ALIGN(4 * 1024) {
-		__text_init_start = .;
+	__init_start = .;
+	.text_init : {
 /*
  * Include list of sections needed for boot initialization, this list
  * overlaps with unpaged.ld.S but since unpaged.ld.S is first all those
@@ -252,11 +257,9 @@ SECTIONS
  */
 #include <text_init.ld.S>
 		. = ALIGN(8);
-		__text_init_end = .;
 	}
 
-	.rodata_init : ALIGN(8) {
-		__rodata_init_start = .;
+	.rodata_init : {
 #include <rodata_init.ld.S>
 		. = ALIGN(8);
 		__start_phys_mem_map_section = . ;
@@ -267,21 +270,17 @@ SECTIONS
 		KEEP(*(phys_sdp_mem_section))
 		__end_phys_sdp_mem_section = . ;
 		. = ALIGN(8);
-		__rodata_init_end = .;
 	}
-	__init_start = __text_init_start;
+
 	__init_end = .;
-	__init_size = __init_end - __text_init_start;
+	__init_size = __init_end - __init_start;
 
 	.text_pageable : ALIGN(8) {
-		__text_pageable_start = .;
 		*(.text*)
 		. = ALIGN(8);
-		__text_pageable_end = .;
 	}
 
 	.rodata_pageable : ALIGN(8) {
-		__rodata_pageable_start = .;
 #ifdef CFG_DT
 		__rodata_dtdrv_start = .;
 		KEEP(*(.rodata.dtdrv))
@@ -297,22 +296,21 @@ SECTIONS
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
-		. = ALIGN(4 * 1024);
-		__rodata_pageable_end = .;
+		. = ALIGN(SMALL_PAGE_SIZE);
 	}
 
-	__pageable_part_start = __rodata_init_end;
-	__pageable_part_end = __rodata_pageable_end;
-	__pageable_start = __text_init_start;
+	__pageable_part_end = .;
+	__pageable_part_start = __init_end;
+	__pageable_start = __init_start;
 	__pageable_end = __pageable_part_end;
 
 	/*
 	 * Assign a safe spot to store the hashes of the pages before
 	 * heap is initialized.
 	 */
-	__tmp_hashes_start = __rodata_init_end;
+	__tmp_hashes_start = __init_end;
 	__tmp_hashes_size = ((__pageable_end - __pageable_start) /
-				(4 * 1024)) * 32;
+				SMALL_PAGE_SIZE) * 32;
 	__tmp_hashes_end = __tmp_hashes_start + __tmp_hashes_size;
 
 	__init_mem_usage = __tmp_hashes_end - CFG_TEE_LOAD_ADDR;
@@ -324,7 +322,7 @@ SECTIONS
 	ASSERT(__tmp_hashes_end < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
 		"OP-TEE can't fit init part into available physical memory")
 	ASSERT((CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE - __init_end) >
-		1 * 4096, "Too few free pages to initialize paging")
+		SMALL_PAGE_SIZE, "Too few free pages to initialize paging")
 
 
 #endif /*CFG_WITH_PAGER*/

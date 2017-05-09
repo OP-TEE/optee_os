@@ -61,7 +61,6 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry);
 paddr_t generic_boot_core_hpen(void);
 #endif
 
-extern uint8_t __text_init_start[];
 extern uint8_t __text_start[];
 extern initcall_t __initcall_start;
 extern initcall_t __initcall_end;
