@@ -44,10 +44,11 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 /* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
+#define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
+			  ~((__typeof__(v))(size) - 1))
 
 /* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
+#define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
