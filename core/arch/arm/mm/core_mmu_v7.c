@@ -121,6 +121,8 @@
 #define SECTION_PT_NOTSECURE		(1 << 3)
 #define SECTION_PT_PT			(1 << 0)
 
+#define SECTION_PT_ATTR_MASK		~((1 << 10) - 1)
+
 #define SMALL_PAGE_SMALL_PAGE		(1 << 1)
 #define SMALL_PAGE_SHARED		(1 << 10)
 #define SMALL_PAGE_NOTGLOBAL		(1 << 11)
@@ -245,6 +247,8 @@ static void *core_mmu_alloc_l2(size_t size)
 	if (tables_used + to_alloc > MAX_XLAT_TABLES)
 		return NULL;
 
+	memset(main_mmu_l2_ttb[tables_used], 0,
+		sizeof(main_mmu_l2_ttb[0]) * to_alloc);
 	tables_used += to_alloc;
 	return main_mmu_l2_ttb[tables_used - to_alloc];
 }
@@ -648,53 +652,121 @@ bool core_mmu_user_mapping_is_active(void)
 	return read_ttbr0() != read_ttbr1();
 }
 
-static paddr_t map_page_memarea(struct tee_mmap_region *mm)
+static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
+				const char *str __maybe_unused)
 {
-	uint32_t *l2 = core_mmu_alloc_l2(mm->size);
+	if (!(mm->attr & TEE_MATTR_VALID_BLOCK))
+		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] not mapped",
+				str, mm->va, mm->va + mm->size);
+	else
+		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] %s-%s-%s-%s",
+				str, mm->va, mm->va + mm->size,
+				mm->attr & (TEE_MATTR_CACHE_CACHED <<
+					TEE_MATTR_CACHE_SHIFT) ? "MEM" : "DEV",
+				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
+				mm->attr & TEE_MATTR_PX ? "X" : "XN",
+				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
+}
+
+static paddr_t map_page_memarea(const struct tee_mmap_region *mm, uint32_t xlat)
+{
+	uint32_t *l2;
 	size_t pg_idx;
 	uint32_t attr;
 
-	if (!l2)
-		panic("no l2 table");
+	if (!xlat)
+		l2 = core_mmu_alloc_l2(mm->size);
+	else
+		l2 = phys_to_virt(xlat & SECTION_PT_ATTR_MASK,
+				  MEM_AREA_TEE_RAM_DATA);
+
+	/*
+	 * If allocation above failed, it panicked.
+	 * If xlat was non null, it is expected already a valid entry.
+	 */
+	assert(l2);
 
 	attr = mattr_to_desc(2, mm->attr);
 
-	/* Zero fill initial entries */
-	pg_idx = 0;
-	while ((pg_idx * SMALL_PAGE_SIZE) < (mm->va & SECTION_MASK)) {
-		l2[pg_idx] = 0;
-		pg_idx++;
-	}
-
-	/* Fill in the entries */
+	pg_idx = (mm->va & SECTION_MASK) >> SMALL_PAGE_SHIFT;
 	while ((pg_idx * SMALL_PAGE_SIZE) <
 	       (mm->size + (mm->va & SECTION_MASK))) {
-		l2[pg_idx] = attr;
-		if (attr != INVALID_DESC)
-			l2[pg_idx] |= (mm->pa & ~SECTION_MASK) +
-					pg_idx * SMALL_PAGE_SIZE;
-		pg_idx++;
-	}
+		uint32_t desc = attr;
 
-	/* Zero fill the rest */
-	while (pg_idx < ROUNDUP(mm->size, SECTION_SIZE) / SMALL_PAGE_SIZE) {
-		l2[pg_idx] = 0;
+		if (attr != INVALID_DESC)
+			desc |= ((mm->pa & ~SECTION_MASK) +
+				pg_idx * SMALL_PAGE_SIZE);
+
+		assert(!desc || !l2[pg_idx] || l2[pg_idx] == desc);
+		l2[pg_idx] = desc;
 		pg_idx++;
 	}
 
 	return virt_to_phys(l2);
 }
 
+static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
+					uint32_t *ttb)
+{
+	uint32_t attr = INVALID_DESC;
+	size_t idx = mm->va >> SECTION_SHIFT;
+	paddr_t pa = 0;
+	size_t n;
+
+	if (!mm->size)
+		return;
+
+	print_mmap_area(mm, "4k page map");
+
+	if (mm->attr & TEE_MATTR_VALID_BLOCK) {
+		attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
+		pa = map_page_memarea(mm, ttb[idx]);
+	}
+
+	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
+	while (n--) {
+		assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
+		ttb[idx] = pa | attr;
+		idx++;
+		pa += SECTION_SIZE;
+	}
+}
+
+static void map_memarea_sections(const struct tee_mmap_region *mm,
+				 uint32_t *ttb)
+{
+	uint32_t attr = mattr_to_desc(1, mm->attr);
+	size_t idx = mm->va >> SECTION_SHIFT;
+	paddr_t pa = 0;
+	size_t n;
+
+	if (!mm->size)
+		return;
+
+	print_mmap_area(mm, "section map");
+
+	attr = mattr_to_desc(1, mm->attr);
+	if (attr != INVALID_DESC)
+		pa = mm->pa;
+
+	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
+	while (n--) {
+		assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
+
+		ttb[idx] = pa | attr;
+		idx++;
+		pa += SECTION_SIZE;
+	}
+}
+
 /*
 * map_memarea - load mapping in target L1 table
 * A finer mapping must be supported. Currently section mapping only!
 */
-static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
+static void map_memarea(const struct tee_mmap_region *mm, uint32_t *ttb)
 {
-	size_t m, n;
-	uint32_t attr;
-	paddr_t pa;
-	uint32_t region_size;
+	struct tee_mmap_region mm2;
+	size_t size;
 
 	assert(mm && ttb);
 
@@ -703,74 +775,26 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	 * user TA address space. This mapping will be overridden/hidden
 	 * later when a user TA is loaded since these low addresses are
 	 * used as TA virtual address space.
-	 *
-	 * Some SoCs have devices at low addresses, so we need to map at
-	 * least those devices at a virtual address which isn't the same
-	 * as the physical.
-	 *
-	 * TODO: support mapping devices at a virtual address which isn't
-	 * the same as the physical address.
 	 */
 	if (mm->va < (NUM_UL1_ENTRIES * SECTION_SIZE))
 		panic("va conflicts with user ta address");
 
-	if ((mm->va | mm->pa | mm->size) & SECTION_MASK) {
-		region_size = SMALL_PAGE_SIZE;
-
-		/*
-		 * Need finer grained mapping, if small pages aren't
-		 * good enough, panic.
-		 */
-		if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK)
-			panic("memarea can't be mapped");
-
-		if (!(mm->attr & TEE_MATTR_VALID_BLOCK))
-			debug_print("4k page map [%08" PRIxVA " %08" PRIxVA
-				"] not-mapped", mm->va, mm->va + mm->size);
-		else
-			debug_print("4k page map [%08" PRIxVA " %08" PRIxVA
-				"] %s-%s-%s-%s",
-				mm->va, mm->va + mm->size,
-				mm->attr & (TEE_MATTR_CACHE_CACHED <<
-					TEE_MATTR_CACHE_SHIFT) ?
-					"MEM" : "DEV",
-				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
-				mm->attr & TEE_MATTR_PX ? "X" : "XN",
-				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
-
-		attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
-		pa = map_page_memarea(mm);
-	} else {
-		region_size = SECTION_SIZE;
-
-		attr = mattr_to_desc(1, mm->attr);
-		if (attr == INVALID_DESC) {
-			debug_print("section map [%08" PRIxVA " %08" PRIxVA
-				"] not-mapped", mm->va, mm->va + mm->size);
-			pa = 0;
-		} else {
-			debug_print("section map [%08" PRIxVA " %08" PRIxVA
-				"] %s-%s-%s-%s",
-				mm->va, mm->va + mm->size,
-				mm->attr & (TEE_MATTR_CACHE_CACHED <<
-					TEE_MATTR_CACHE_SHIFT) ?
-					"MEM" : "DEV",
-				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
-				mm->attr & TEE_MATTR_PX ? "X" : "XN",
-				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
-			pa = mm->pa;
-		}
+	if (!((mm->va | mm->pa | mm->size) & SECTION_MASK)) {
+		map_memarea_sections(mm, ttb);
+		return;
 	}
+	if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK)
+		panic("memarea can't be mapped");
 
-	m = (mm->va >> SECTION_SHIFT);
-	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
-	while (n--) {
-		ttb[m] = pa | attr;
-		m++;
-		if (region_size == SECTION_SIZE)
-			pa += SECTION_SIZE;
-		else
-			pa += L2_TBL_SIZE;
+	mm2 = *mm;
+	size = mm->size;
+	while (size) {
+		mm2.size = MIN(size, SECTION_SIZE -
+				(mm2.va - ROUNDDOWN(mm2.va, SECTION_SIZE)));
+		map_page_memarea_in_pgdirs(&mm2, ttb);
+		size -= mm2.size;
+		mm2.pa += mm2.size;
+		mm2.va += mm2.size;
 	}
 }
 
