@@ -8,7 +8,8 @@ _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {
 		$CHECKPATCH --quiet --ignore FILE_PATH_CHANGES \
-				--ignore GERRIT_CHANGE_ID --no-tree -
+				--ignore GERRIT_CHANGE_ID \
+				--typedefsfile typedefs.checkpatch --no-tree -
 }
 
 function checkpatch() {
