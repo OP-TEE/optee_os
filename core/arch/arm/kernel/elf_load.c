@@ -397,25 +397,26 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 }
 
 TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
-			vaddr_t *vaddr, size_t *size, uint32_t *flags)
+			vaddr_t *vaddr, size_t *size, uint32_t *flags,
+			uint32_t *type)
 {
 	struct elf_ehdr ehdr;
 
 	copy_ehdr(&ehdr, state);
-	while (*idx < ehdr.e_phnum) {
+	if (*idx < ehdr.e_phnum) {
 		struct elf_phdr phdr;
 
 		copy_phdr(&phdr, state, *idx);
 		(*idx)++;
-		if (phdr.p_type == PT_LOAD) {
-			if (vaddr)
-				*vaddr = phdr.p_vaddr;
-			if (size)
-				*size = phdr.p_memsz;
-			if (flags)
-				*flags = phdr.p_flags;
-			return TEE_SUCCESS;
-		}
+		if (vaddr)
+			*vaddr = phdr.p_vaddr;
+		if (size)
+			*size = phdr.p_memsz;
+		if (flags)
+			*flags = phdr.p_flags;
+		if (type)
+			*type = phdr.p_type;
+		return TEE_SUCCESS;
 	}
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }

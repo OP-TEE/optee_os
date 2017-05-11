@@ -37,9 +37,8 @@
 #include <compiler.h>
 #include <types_ext.h>
 
-#ifdef ARM32
-/* The state of the unwind process */
-struct unwind_state {
+/* The state of the unwind process (32-bit mode) */
+struct unwind_state_arm32 {
 	uint32_t registers[16];
 	uint32_t start_pc;
 	uint32_t *insn;
@@ -47,29 +46,42 @@ struct unwind_state {
 	unsigned byte;
 	uint16_t update_mask;
 };
-#endif /*ARM32*/
+
+/*
+ * Unwind a 32-bit user or kernel stack.
+ * @exidx, @exidx_sz: address and size of the binary search index table
+ * (.ARM.exidx section).
+ */
+bool unwind_stack_arm32(struct unwind_state_arm32 *state, uaddr_t exidx,
+			size_t exidx_sz);
 
 #ifdef ARM64
-struct unwind_state {
+/* The state of the unwind process (64-bit mode) */
+struct unwind_state_arm64 {
 	uint64_t fp;
 	uint64_t sp;
 	uint64_t pc;
 };
+
+/*
+ * Unwind a 64-bit user or kernel stack.
+ * @stack, @stack_size: the bottom of the stack and its size, respectively.
+ */
+bool unwind_stack_arm64(struct unwind_state_arm64 *state, uaddr_t stack,
+			size_t stack_size);
 #endif /*ARM64*/
 
-bool unwind_stack(struct unwind_state *state);
-
-#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
-void print_stack(int level);
+#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
+void print_kernel_stack(int level);
 #else
-static inline void print_stack(int level __unused)
+static inline void print_kernel_stack(int level __unused)
 {
 }
 #endif
 
 #endif /*ASM*/
 
-#ifdef CFG_CORE_UNWIND
+#ifdef CFG_UNWIND
 #define UNWIND(...)	__VA_ARGS__
 #else
 #define UNWIND(...)

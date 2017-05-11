@@ -150,19 +150,25 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 		vaddr_t offs;
 		size_t size;
 		uint32_t flags;
+		uint32_t type;
 
 		res = elf_load_get_next_segment(elf_state, &idx, &offs, &size,
-						&flags);
+						&flags, &type);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			break;
 		if (res != TEE_SUCCESS)
 			return res;
 
-		mattr = elf_flags_to_mattr(flags, init_attrs);
-		res = tee_mmu_map_add_segment(utc, utc->mobj_code, offs, size,
-					      mattr);
-		if (res != TEE_SUCCESS)
-			return res;
+		if (type == PT_LOAD) {
+			mattr = elf_flags_to_mattr(flags, init_attrs);
+			res = tee_mmu_map_add_segment(utc, utc->mobj_code,
+						      offs, size, mattr);
+			if (res != TEE_SUCCESS)
+				return res;
+		} else if (type == PT_ARM_EXIDX) {
+			utc->exidx_start = offs;
+			utc->exidx_size = size;
+		}
 	}
 
 	if (init_attrs)

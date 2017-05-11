@@ -97,7 +97,7 @@ arch-bits-core := 32
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
-ifeq ($(CFG_CORE_UNWIND),y)
+ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
 core-platform-cflags += $(arm32-platform-cflags-generic)
@@ -119,6 +119,9 @@ ifeq ($(platform-hard-float-enabled),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
+endif
+ifeq ($(CFG_UNWIND),y)
+ta_arm32-platform-cflags += -funwind-tables
 endif
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)

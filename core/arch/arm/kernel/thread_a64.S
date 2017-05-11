@@ -305,6 +305,8 @@ FUNC __thread_enter_user_mode , :
 	msr	sp_el0, x4	/* Used when running TA in Aarch64 */
 	/* Set user function */
 	msr	elr_el1, x5
+	/* Set frame pointer (user stack can't be unwound past this point) */
+	mov x29, #0
 
 	/* Jump into user mode */
 	eret

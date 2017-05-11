@@ -95,13 +95,6 @@ struct unwind_idx {
 	uint32_t insn;
 };
 
-/*
- * These are set in the linker script. Their addresses will be
- * either the start or end of the exception table or index.
- */
-extern struct unwind_idx __exidx_start;
-extern struct unwind_idx __exidx_end;
-
 /* Expand a 31-bit signed value to a 32-bit signed value */
 static int32_t expand_prel31(uint32_t prel31)
 {
@@ -113,18 +106,19 @@ static int32_t expand_prel31(uint32_t prel31)
  * Perform a binary search of the index table to find the function
  * with the largest address that doesn't exceed addr.
  */
-static struct unwind_idx *find_index(uint32_t addr)
+static struct unwind_idx *find_index(uint32_t addr, vaddr_t exidx,
+				     size_t exidx_sz)
 {
 	vaddr_t idx_start, idx_end;
 	unsigned int min, mid, max;
 	struct unwind_idx *start;
 	struct unwind_idx *item;
 	int32_t prel31_addr;
-	uint32_t func_addr;
+	vaddr_t func_addr;
 
-	start = &__exidx_start;
-	idx_start = (vaddr_t)&__exidx_start;
-	idx_end = (vaddr_t)&__exidx_end;
+	start = (struct unwind_idx *)exidx;
+	idx_start = exidx;
+	idx_end = exidx + exidx_sz;
 
 	min = 0;
 	max = (idx_end - idx_start) / sizeof(struct unwind_idx);
@@ -135,7 +129,7 @@ static struct unwind_idx *find_index(uint32_t addr)
 		item = &start[mid];
 
 		prel31_addr = expand_prel31(item->offset);
-		func_addr = (uint32_t)&item->offset + prel31_addr;
+		func_addr = (vaddr_t)&item->offset + prel31_addr;
 
 		if (func_addr <= addr) {
 			min = mid;
@@ -148,7 +142,7 @@ static struct unwind_idx *find_index(uint32_t addr)
 }
 
 /* Reads the next byte from the instruction list */
-static uint8_t unwind_exec_read_byte(struct unwind_state *state)
+static uint8_t unwind_exec_read_byte(struct unwind_state_arm32 *state)
 {
 	uint8_t insn;
 
@@ -167,10 +161,10 @@ static uint8_t unwind_exec_read_byte(struct unwind_state *state)
 }
 
 /* Executes the next instruction on the list */
-static bool unwind_exec_insn(struct unwind_state *state)
+static bool unwind_exec_insn(struct unwind_state_arm32 *state)
 {
 	unsigned int insn;
-	uint32_t *vsp = (uint32_t *)state->registers[SP];
+	uint32_t *vsp = (uint32_t *)(uintptr_t)state->registers[SP];
 	int update_vsp = 0;
 
 	/* This should never happen */
@@ -276,14 +270,14 @@ static bool unwind_exec_insn(struct unwind_state *state)
 	}
 
 	if (update_vsp) {
-		state->registers[SP] = (uint32_t)vsp;
+		state->registers[SP] = (uint32_t)(uintptr_t)vsp;
 	}
 
 	return true;
 }
 
 /* Performs the unwind of a function */
-static bool unwind_tab(struct unwind_state *state)
+static bool unwind_tab(struct unwind_state_arm32 *state)
 {
 	uint32_t entry;
 
@@ -325,7 +319,8 @@ static bool unwind_tab(struct unwind_state *state)
 	return false;
 }
 
-bool unwind_stack(struct unwind_state *state)
+bool unwind_stack_arm32(struct unwind_state_arm32 *state, uaddr_t exidx,
+			size_t exidx_sz)
 {
 	struct unwind_idx *index;
 	bool finished;
@@ -337,7 +332,7 @@ bool unwind_stack(struct unwind_state *state)
 	state->start_pc = state->registers[PC];
 
 	/* Find the item to run */
-	index = find_index(state->start_pc);
+	index = find_index(state->start_pc, exidx, exidx_sz);
 
 	finished = false;
 	if (index->insn != EXIDX_CANTUNWIND) {
@@ -361,11 +356,11 @@ bool unwind_stack(struct unwind_state *state)
 	return !finished;
 }
 
-#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
+#if defined(CFG_UNWIND) && defined(ARM32) && (TRACE_LEVEL > 0)
 
-void print_stack(int level)
+void print_kernel_stack(int level)
 {
-	struct unwind_state state;
+	struct unwind_state_arm32 state;
 
 	memset(state.registers, 0, sizeof(state.registers));
 	/* r7: Thumb-style frame pointer */
@@ -374,7 +369,7 @@ void print_stack(int level)
 	state.registers[FP] = read_fp();
 	state.registers[SP] = read_sp();
 	state.registers[LR] = read_lr();
-	state.registers[PC] = (uint32_t)print_stack;
+	state.registers[PC] = (uint32_t)print_kernel_stack;
 
 	do {
 		switch (level) {
@@ -393,25 +388,7 @@ void print_stack(int level)
 		default:
 			break;
 		}
-	} while (unwind_stack(&state));
+	} while (unwind_stack_arm32(&state, 0, 0));
 }
 
-#endif /* defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0) */
-
-/*
- * These functions are referenced but never used
- */
-void __aeabi_unwind_cpp_pr0(void);
-void __aeabi_unwind_cpp_pr0(void)
-{
-}
-
-void __aeabi_unwind_cpp_pr1(void);
-void __aeabi_unwind_cpp_pr1(void)
-{
-}
-
-void __aeabi_unwind_cpp_pr2(void);
-void __aeabi_unwind_cpp_pr2(void)
-{
-}
+#endif

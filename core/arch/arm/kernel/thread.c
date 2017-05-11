@@ -619,17 +619,21 @@ vaddr_t thread_get_saved_thread_sp(void)
 }
 #endif /*ARM64*/
 
-bool thread_addr_is_in_stack(vaddr_t va)
+vaddr_t thread_stack_start(void)
 {
 	struct thread_ctx *thr;
 	int ct = thread_get_id_may_fail();
 
 	if (ct == -1)
-		return false;
+		return 0;
 
 	thr = threads + ct;
-	return va < thr->stack_va_end &&
-	       va >= (thr->stack_va_end - STACK_THREAD_SIZE);
+	return thr->stack_va_end - STACK_THREAD_SIZE;
+}
+
+size_t thread_stack_size(void)
+{
+	return STACK_THREAD_SIZE;
 }
 
 void thread_state_free(void)

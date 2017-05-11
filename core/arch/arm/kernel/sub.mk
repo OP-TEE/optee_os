@@ -43,7 +43,7 @@ srcs-$(CFG_ARM32_core) += generic_entry_a32.S
 srcs-$(CFG_ARM64_core) += generic_entry_a64.S
 endif
 
-ifeq ($(CFG_CORE_UNWIND),y)
-srcs-$(CFG_ARM32_core) += unwind_arm32.c
+ifeq ($(CFG_UNWIND),y)
+srcs-y += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif

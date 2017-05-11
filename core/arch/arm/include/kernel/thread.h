@@ -489,7 +489,15 @@ void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
 vaddr_t thread_get_saved_thread_sp(void);
 #endif /*ARM64*/
 
-bool thread_addr_is_in_stack(vaddr_t va);
+/*
+ * Returns the start address (bottom) of the stack for the current thread,
+ * zero if there is no current thread.
+ */
+vaddr_t thread_stack_start(void);
+
+
+/* Returns the stack size for the current thread */
+size_t thread_stack_size(void);
 
 /*
  * Adds a mutex to the list of held mutexes for current thread
