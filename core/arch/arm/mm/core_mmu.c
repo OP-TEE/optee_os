@@ -78,13 +78,6 @@ struct memaccess_area {
 };
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
 
-static struct memaccess_area ddr[] = {
-	MEMACCESS_AREA(DRAM0_BASE, DRAM0_SIZE),
-#ifdef DRAM1_BASE
-	MEMACCESS_AREA(DRAM1_BASE, DRAM1_SIZE),
-#endif
-};
-
 static struct memaccess_area secure_only[] = {
 #ifdef TZSRAM_BASE
 	MEMACCESS_AREA(TZSRAM_BASE, TZSRAM_SIZE),
@@ -727,8 +720,6 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
 	case CORE_MEM_SDP_MEM:
 		return pbuf_is_sdp_mem(pbuf, len);
-	case CORE_MEM_EXTRAM:
-		return pbuf_is_inside(ddr, pbuf, len);
 	case CORE_MEM_CACHED:
 		map = find_map_by_pa(pbuf);
 		if (map == NULL || !pbuf_inside_map_area(pbuf, len, map))
