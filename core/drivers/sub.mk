@@ -20,3 +20,4 @@ srcs-$(CFG_HI16XX_RNG) += hi16xx_rng.c
 srcs-$(CFG_SCIF) += scif.c
 srcs-$(CFG_DRA7_RNG) += dra7_rng.c
 srcs-$(CFG_STIH_UART) += stih_asc.c
+srcs-$(CFG_ATMEL_UART) += atmel_uart.c
