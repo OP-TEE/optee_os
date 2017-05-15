@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 
 #include <compiler.h>
 #include <types_ext.h>
+#include <util.h>
 
 /*
  * This file defines the OP-TEE message protocol used to communicate
@@ -56,7 +57,7 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
 
-#define OPTEE_MSG_ATTR_TYPE_MASK		0xff
+#define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 
 /*
  * Meta parameter to be absorbed by the Secure OS and not passed
@@ -64,14 +65,14 @@
  *
  * Currently only used with OPTEE_MSG_CMD_OPEN_SESSION.
  */
-#define OPTEE_MSG_ATTR_META			(1 << 8)
+#define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
  * The temporary shared memory object is not physically contiguous and this
  * temp memref is followed by another fragment until the last temp memref
  * that doesn't have this bit set.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			(1 << 9)
+#define OPTEE_MSG_ATTR_FRAGMENT			BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -81,7 +82,7 @@
  * bearer of this protocol OPTEE_SMC_SHM_* is used for values.
  */
 #define OPTEE_MSG_ATTR_CACHE_SHIFT		16
-#define OPTEE_MSG_ATTR_CACHE_MASK		0x7
+#define OPTEE_MSG_ATTR_CACHE_MASK		GENMASK_32(2, 0)
 #define OPTEE_MSG_ATTR_CACHE_PREDEFINED		0
 
 /*
@@ -96,7 +97,7 @@
 
 #ifndef ASM
 /**
- * struct optee_msg_param_tmem - temporary memory reference
+ * struct optee_msg_param_tmem - temporary memory reference parameter
  * @buf_ptr:	Address of the buffer
  * @size:	Size of the buffer
  * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
@@ -115,7 +116,7 @@ struct optee_msg_param_tmem {
 };
 
 /**
- * struct optee_msg_param_rmem - registered memory reference
+ * struct optee_msg_param_rmem - registered memory reference parameter
  * @offs:	Offset into shared memory reference
  * @size:	Size of the buffer
  * @shm_ref:	Shared memory reference, pointer to a struct tee_shm
@@ -195,29 +196,9 @@ struct optee_msg_arg {
 	uint32_t ret_origin;
 	uint32_t num_params;
 
-	/*
-	 * this struct is 8 byte aligned since the 'struct optee_msg_param'
-	 * which follows requires 8 byte alignment.
-	 *
-	 * Commented out element used to visualize the layout dynamic part
-	 * of the struct. This field is not available at all if
-	 * num_params == 0.
-	 *
-	 * params is accessed through the macro OPTEE_MSG_GET_PARAMS
-	 *
-	 * struct optee_msg_param params[num_params];
-	 */
-} __aligned(8);
-
-/**
- * OPTEE_MSG_GET_PARAMS - return pointer to struct optee_msg_param *
- *
- * @x: Pointer to a struct optee_msg_arg
- *
- * Returns a pointer to the params[] inside a struct optee_msg_arg.
- */
-#define OPTEE_MSG_GET_PARAMS(x) \
-	(struct optee_msg_param *)(((struct optee_msg_arg *)(x)) + 1)
+	/* num_params tells the actual number of element in params */
+	struct optee_msg_param params[];
+};
 
 /**
  * OPTEE_MSG_GET_ARG_SIZE - return size of struct optee_msg_arg
@@ -358,7 +339,12 @@ struct optee_msg_arg {
 #define OPTEE_MSG_RPC_CMD_GET_TIME	3
 
 /*
- * Wait queue primitive, helper for secure world to implement a wait queue
+ * Wait queue primitive, helper for secure world to implement a wait queue.
+ *
+ * If secure world needs to wait for a secure world mutex it issues a sleep
+ * request instead of spinning in secure world. Conversely is a wakeup
+ * request issued when a secure world mutex with a thread waiting thread is
+ * unlocked.
  *
  * Waiting on a key
  * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP

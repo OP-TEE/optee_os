@@ -1209,8 +1209,7 @@ void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie)
 }
 
 static bool get_rpc_arg(uint32_t cmd, size_t num_params,
-			struct optee_msg_arg **arg_ret, uint64_t *carg_ret,
-			struct optee_msg_param **params_ret)
+			struct optee_msg_arg **arg_ret, uint64_t *carg_ret)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct optee_msg_arg *arg = thr->rpc_arg;
@@ -1242,7 +1241,6 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 
 	*arg_ret = arg;
 	*carg_ret = thr->rpc_carg;
-	*params_ret = OPTEE_MSG_GET_PARAMS(arg);
 	return true;
 
 bad:
@@ -1257,7 +1255,6 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	struct optee_msg_arg *arg;
 	uint64_t carg;
 	size_t n;
-	struct optee_msg_param *arg_params;
 
 	/*
 	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
@@ -1267,10 +1264,10 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
 		plat_prng_add_jitter_entropy_norpc();
 
-	if (!get_rpc_arg(cmd, num_params, &arg, &carg, &arg_params))
+	if (!get_rpc_arg(cmd, num_params, &arg, &carg))
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(arg_params, params, sizeof(*params) * num_params);
+	memcpy(arg->params, params, sizeof(*params) * num_params);
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
@@ -1282,7 +1279,7 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			params[n] = arg_params[n];
+			params[n] = arg->params[n];
 			break;
 		default:
 			break;
@@ -1302,15 +1299,14 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie)
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct optee_msg_arg *arg;
 	uint64_t carg;
-	struct optee_msg_param *params;
 
-	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &arg, &carg, &params))
+	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &arg, &carg))
 		return;
 
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params[0].u.value.a = bt;
-	params[0].u.value.b = cookie;
-	params[0].u.value.c = 0;
+	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	arg->params[0].u.value.a = bt;
+	arg->params[0].u.value.b = cookie;
+	arg->params[0].u.value.c = 0;
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
@@ -1332,15 +1328,14 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct optee_msg_arg *arg;
 	uint64_t carg;
-	struct optee_msg_param *params;
 
-	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg, &params))
+	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg))
 		goto fail;
 
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params[0].u.value.a = bt;
-	params[0].u.value.b = size;
-	params[0].u.value.c = align;
+	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	arg->params[0].u.value.a = bt;
+	arg->params[0].u.value.b = size;
+	arg->params[0].u.value.c = align;
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
@@ -1350,16 +1345,16 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	if (arg->num_params != 1)
 		goto fail;
 
-	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
+	if (arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
 		goto fail;
 
-	if (!check_alloced_shm(params[0].u.tmem.buf_ptr, size, align)) {
-		thread_rpc_free(bt, params[0].u.tmem.shm_ref);
+	if (!check_alloced_shm(arg->params[0].u.tmem.buf_ptr, size, align)) {
+		thread_rpc_free(bt, arg->params[0].u.tmem.shm_ref);
 		goto fail;
 	}
 
-	*payload = params[0].u.tmem.buf_ptr;
-	*cookie = params[0].u.tmem.shm_ref;
+	*payload = arg->params[0].u.tmem.buf_ptr;
+	*cookie = arg->params[0].u.tmem.shm_ref;
 	return;
 fail:
 	*payload = 0;

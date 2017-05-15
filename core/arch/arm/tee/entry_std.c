@@ -217,7 +217,6 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 			       struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s = NULL;
 	TEE_Identity clnt_id;
@@ -225,12 +224,13 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	struct tee_ta_param param;
 	size_t num_meta;
 
-	res = get_open_session_meta(num_params, params, &num_meta, &uuid,
+	res = get_open_session_meta(num_params, arg->params, &num_meta, &uuid,
 				    &clnt_id);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = copy_in_params(params + num_meta, num_params - num_meta, &param);
+	res = copy_in_params(arg->params + num_meta, num_params - num_meta,
+			     &param);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -238,7 +238,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
 	if (res != TEE_SUCCESS)
 		s = NULL;
-	copy_out_param(&param, num_params - num_meta, params + num_meta);
+	copy_out_param(&param, num_params - num_meta, arg->params + num_meta);
 
 	/*
 	 * The occurrence of open/close session command is usually
@@ -282,12 +282,11 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 				 struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s;
 	struct tee_ta_param param;
 
-	res = copy_in_params(params, num_params, &param);
+	res = copy_in_params(arg->params, num_params, &param);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -302,7 +301,7 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 
 	tee_ta_put_session(s);
 
-	copy_out_param(&param, num_params, params);
+	copy_out_param(&param, num_params, arg->params);
 
 out:
 	arg->ret = res;
