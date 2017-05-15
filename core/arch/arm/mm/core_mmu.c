@@ -749,7 +749,7 @@ bool core_vbuf_is(uint32_t attr, const void *vbuf, size_t len)
 
 
 /* core_va2pa - teecore exported service */
-int core_va2pa_helper(void *va, paddr_t *pa)
+static int __maybe_unused core_va2pa_helper(void *va, paddr_t *pa)
 {
 	struct tee_mmap_region *map;
 
