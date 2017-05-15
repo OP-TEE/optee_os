@@ -7,9 +7,15 @@ CHECKPATCH_IGNORE=$(echo core/lib/lib{fdt,tomcrypt} lib/lib{png,utils,zlib} \
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {
+		# Use --typedefsfile if supported by the checkpatch tool
+		typedefs_opt="--typedefsfile typedefs.checkpatch"
+		$CHECKPATCH --help 2>&1 | grep -q -- --typedefsfile || \
+				typedefs_opt="";
+
 		$CHECKPATCH --quiet --ignore FILE_PATH_CHANGES \
-				--ignore GERRIT_CHANGE_ID \
-				--typedefsfile typedefs.checkpatch --no-tree -
+				--ignore GERRIT_CHANGE_ID --no-tree \
+				$typedefs_opt \
+				-
 }
 
 function checkpatch() {
