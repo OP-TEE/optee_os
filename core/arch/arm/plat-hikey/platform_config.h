@@ -72,9 +72,13 @@
  *    TEE RAM: 1 MiB (CFG_TEE_RAM_VA_SIZE)    |
  *  0x3F00_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
  *    Shared memory: 2 MiB                    |
- *  0x3EE0_0000                               |
- *    Reserved by UEFI for OP-TEE, unused     | DRAM0
- *  0x3E00_0000                               |
+ *  0x3EE0_0000                               | DRAM0
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3EC0_0000                               -
+ *    Secure Data Path buffers: 4 MiB         | DRAM0 (secure)
+ *  0x3E80_0000 [CFG_TEE_SDP_MEM_BASE]        -
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3E00_0000                               | DRAM0
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  *
@@ -88,9 +92,13 @@
  *    TEE RAM: 200 KiB                        | TZSRAM
  *  0x3F00_0000 [TZSRAM_BASE, BL32_LOAD_ADDR] -
  *    Shared memory: 2 MiB                    |
- *  0x3EE0_0000                               |
- *    Reserved by UEFI for OP-TEE, unused     | DRAM0
- *  0x3E00_0000                               |
+ *  0x3EE0_0000                               | DRAM0
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3EC0_0000                               -
+ *    Secure Data Path buffers: 4 MiB         | DRAM0 (secure)
+ *  0x3E80_0000 [CFG_TEE_SDP_MEM_BASE]        -
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3E00_0000                               | DRAM0
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  */
