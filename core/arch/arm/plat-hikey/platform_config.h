@@ -52,31 +52,49 @@
 /*
  * HiKey memory map
  *
- * We use only non-secure DRAM (TZDRAM and TZSRAM are emulated).
+ * TZDRAM is secured (firewalled) by the DDR controller, see ARM-TF, but note
+ * that security of this type of memory is weak for two reasons:
+ *   1. It is prone to physical tampering since DRAM is external to the SoC
+ *   2. It is still somewhat prone to software attacks because the memory
+ *      protection may be reverted by the non-secure kernel with a piece of
+ *      code similar to the one that sets the protection in ARM-TF (we're
+ *      missing a "lockdown" step which would prevent any change to the DDRC
+ *      configuration until the next SoC reset).
+ * TZSRAM is emulated in the TZDRAM area, because the on-chip SRAM of the SoC
+ * is too small to run OP-TEE (72K total with 64K available, see "SRAM Memory
+ * Region Layout" in ARM-TF plat/hikey/include/hisi_sram_map.h).
  *
  * CFG_WITH_PAGER=n
  *
  *  0x4000_0000                               -
- *    TA RAM: 15 MiB                          |
- *  0x3F10_0000                               | TZDRAM
- *    TEE RAM: 1 MiB (CFG_TEE_RAM_VA_SIZE)    |
- *  0x3F00_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
- *    Shared memory: 1 MiB                    |
- *  0x3EF0_0000                               | DRAM0
+ *    TA RAM: 12 MiB                          |
+ *  0x3F40_0000                               |
+ *    TEE RAM: 1 MiB (CFG_TEE_RAM_VA_SIZE)    |  TZDRAM
+ *  0x3F30_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
+ *    Secure Data Path (SDP) pool: 3 MiB      | (TZDRAM)
+ *  0x3F00_0000                               -
+ *    Shared memory: 2 MiB                    |
+ *  0x3EE0_0000                               |
+ *    Reserved by UEFI for OP-TEE, unused     |  DRAM0
+ *  0x3E00_0000                               |
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  *
  * CFG_WITH_PAGER=y
  *
  *  0x4000_0000                               -
- *    TA RAM: 15 MiB                          | TZDRAM
- *  0x3F10_0000                               -
- *    Unused
- *  0x3F03_2000                               -
- *    TEE RAM: 200 KiB                        | TZSRAM
- *  0x3F00_0000 [TZSRAM_BASE, BL32_LOAD_ADDR] -
- *    Shared memory: 1 MiB                    |
- *  0x3EF0_0000                               | DRAM0
+ *    TA RAM: 12 MiB                          |  TZDRAM
+ *  0x3F40_0000                               -
+ *    Unused                                  |
+ *  0x3F33_2000                               |
+ *    TEE RAM: 200 KiB                        |  TZSRAM
+ *  0x3F30_0000 [TZSRAM_BASE, BL32_LOAD_ADDR] -
+ *    Secure Data Path (SDP) pool: 3 MiB      | (TZDRAM)
+ *  0x3F00_0000                               -
+ *    Shared memory: 2 MiB                    |
+ *  0x3EE0_0000                               |
+ *    Reserved by UEFI for OP-TEE, unused     |  DRAM0
+ *  0x3E00_0000                               |
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  */
@@ -84,20 +102,28 @@
 #define DRAM0_BASE		0x00000000
 #define DRAM0_SIZE		0x3F000000
 
+#ifdef CFG_SECURE_DATA_PATH
+#define CFG_TEE_SDP_MEM_BASE	0x3F000000
+#define CFG_TEE_SDP_MEM_SIZE	(3 * 1024 * 1024)
+#else
+#define CFG_TEE_SDP_MEM_SIZE	0
+#endif
+
 #ifdef CFG_WITH_PAGER
 
-#define TZSRAM_BASE		0x3F000000
+#define TZDRAM_BASE		0x3F400000
+#define TZDRAM_SIZE		(12 * 1024 * 1024)
+
+#define TZSRAM_BASE		0x3F300000
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		0x3F100000
-#define TZDRAM_SIZE		(15 * 1024 * 1024)
+#else
 
-#else /* CFG_WITH_PAGER */
-
-#define TZDRAM_BASE		0x3F000000
-#define TZDRAM_SIZE		(16 * 1024 * 1024)
+#define TZDRAM_BASE		0x3F300000
+#define TZDRAM_SIZE		(13 * 1024 * 1024)
 
 #endif /* CFG_WITH_PAGER */
+
 
 #define CFG_SHMEM_START		0x3EE00000
 #define CFG_SHMEM_SIZE		(2 * 1024 * 1024)
@@ -106,14 +132,15 @@
 
 #define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
 
-#define CFG_TEE_LOAD_ADDR	0x3F000000
+#define CFG_TEE_LOAD_ADDR	0x3F300000
 
 #ifdef CFG_WITH_PAGER
 
 #define CFG_TEE_RAM_START	TZSRAM_BASE
 #define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
 #define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE, CORE_MMU_DEVICE_SIZE)
+#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE), \
+					  CORE_MMU_DEVICE_SIZE)
 
 #else /* CFG_WITH_PAGER */
 
@@ -121,8 +148,8 @@
 #define CFG_TEE_RAM_START	TZDRAM_BASE
 #define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE),\
+#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - \
+					   CFG_TEE_RAM_VA_SIZE), \
 					  CORE_MMU_DEVICE_SIZE)
 
 #endif /* CFG_WITH_PAGER */
