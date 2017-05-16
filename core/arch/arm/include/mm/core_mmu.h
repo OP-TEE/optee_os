@@ -148,7 +148,11 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 	return names[type];
 }
 
+#ifdef CFG_CORE_RWDATA_NOEXEC
+#define MEM_AREA_TEE_RAM_RW_DATA	MEM_AREA_TEE_RAM_RW
+#else
 #define MEM_AREA_TEE_RAM_RW_DATA	MEM_AREA_TEE_RAM
+#endif
 
 struct core_mmu_phys_mem {
 	const char *name;

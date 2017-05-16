@@ -53,6 +53,9 @@
 #ifndef SMALL_PAGE_SIZE
 #define SMALL_PAGE_SIZE		4096
 #endif
+#ifndef ROUNDUP
+#define ROUNDUP(x, y)		((((x) + (y) - 1) / (y)) * (y))
+#endif
 
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
@@ -169,6 +172,10 @@ SECTIONS
 		__extab_end = .;
 	}
 
+	/* Start page aligned read-write memory */
+#ifdef CFG_CORE_RWDATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
 	__flatmap_unpg_ro_size = . - __flatmap_unpg_ro_start;
 	__flatmap_unpg_rw_start = .;
 
@@ -290,8 +297,9 @@ SECTIONS
 		__end_phys_sdp_mem_section = . ;
 		. = ALIGN(8);
 	}
+	__rodata_init_end = .;
 
-	__init_end = .;
+	__init_end = ROUNDUP(__rodata_init_end, SMALL_PAGE_SIZE);
 	__init_size = __init_end - __init_start;
 
 	/* vcore flat map stops here. No need to page align, rodata follows. */
@@ -382,28 +390,32 @@ SECTIONS
 
 }
 
-PROVIDE(__vcore_unpg_rwx_start = __flatmap_unpg_rx_start);
-#ifdef CFG_WITH_PAGER
-PROVIDE(__vcore_unpg_rwx_size = CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE -
-				__flatmap_unpg_rx_start);
-#else
-PROVIDE(__vcore_unpg_rwx_size = _end_of_ram - __flatmap_unpg_rx_start);
-#endif
-
 /* Unpaged read-only memories */
 PROVIDE(__vcore_unpg_rx_start = __flatmap_unpg_rx_start);
 PROVIDE(__vcore_unpg_ro_start = __flatmap_unpg_ro_start);
-PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size);
-PROVIDE(__vcore_unpg_ro_size = __flatmap_unpg_ro_size);
+PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size +
+				__flatmap_unpg_ro_size);
+PROVIDE(__vcore_unpg_ro_size = 0);
 
 /* Unpaged read-write memory */
 PROVIDE(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
 PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
 
 #ifdef CFG_WITH_PAGER
+/*
+ * Core init mapping shall cover up to end of the physical RAM.
+ * This is required since the hash table is appended to the
+ * binary data after the firmware build sequence.
+ */
+#define __FLATMAP_PAGER_TRAILING_SPACE	\
+	(CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE - \
+		(__flatmap_init_ro_start + __flatmap_init_ro_size))
+
 /* Paged/init read-only memories */
 PROVIDE(__vcore_init_rx_start = __flatmap_init_rx_start);
 PROVIDE(__vcore_init_ro_start = __flatmap_init_ro_start);
-PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size);
-PROVIDE(__vcore_init_ro_size = __flatmap_init_ro_size);
+PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size +
+				__flatmap_init_ro_size +
+				__FLATMAP_PAGER_TRAILING_SPACE);
+PROVIDE(__vcore_init_ro_size = 0);
 #endif /* CFG_WITH_PAGER */

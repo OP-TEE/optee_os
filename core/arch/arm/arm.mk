@@ -26,6 +26,8 @@ platform-hard-float-enabled := y
 endif
 endif
 
+CFG_CORE_RWDATA_NOEXEC ?= y
+
 ifeq ($(CFG_WITH_PAGER),y)
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 $(error Error: CFG_CORE_SANITIZE_KADDRESS not compatible with CFG_WITH_PAGER)

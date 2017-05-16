@@ -271,23 +271,10 @@ static void init_runtime(unsigned long pageable_part)
 	}
 
 	/*
-	 * Copy what's not initialized in the last init page. Needed
-	 * because we're not going fault in the init pages again. We can't
-	 * fault in pages until we've switched to the new vector by calling
-	 * thread_init_handlers() below.
+	 * Assert prepaged init sections are page aligned so that nothing
+	 * trails uninited at the end of the premapped init area.
 	 */
-	if (init_size % SMALL_PAGE_SIZE) {
-		uint8_t *p;
-
-		memcpy(__init_start + init_size, paged_store + init_size,
-			SMALL_PAGE_SIZE - (init_size % SMALL_PAGE_SIZE));
-
-		p = (uint8_t *)(((vaddr_t)__init_start + init_size) &
-				~SMALL_PAGE_MASK);
-
-		cache_op_inner(DCACHE_AREA_CLEAN, p, SMALL_PAGE_SIZE);
-		cache_op_inner(ICACHE_AREA_INVALIDATE, p, SMALL_PAGE_SIZE);
-	}
+	assert(!(init_size & SMALL_PAGE_MASK));
 
 	/*
 	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
@@ -334,11 +321,9 @@ static void init_runtime(unsigned long pageable_part)
 		panic("failed to add pageable to vcore");
 
 	tee_pager_add_pages((vaddr_t)__pageable_start,
-		ROUNDUP(init_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE, false);
-	tee_pager_add_pages((vaddr_t)__pageable_start +
-				ROUNDUP(init_size, SMALL_PAGE_SIZE),
-			(pageable_size - ROUNDUP(init_size, SMALL_PAGE_SIZE)) /
-				SMALL_PAGE_SIZE, true);
+			init_size / SMALL_PAGE_SIZE, false);
+	tee_pager_add_pages((vaddr_t)__pageable_start + init_size,
+			(pageable_size - init_size) / SMALL_PAGE_SIZE, true);
 
 }
 #else
