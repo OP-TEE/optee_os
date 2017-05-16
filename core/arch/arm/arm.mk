@@ -27,6 +27,10 @@ endif
 endif
 
 CFG_CORE_RWDATA_NOEXEC ?= y
+CFG_CORE_RODATA_NOEXEC ?= n
+ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
+$(call force,CFG_CORE_RWDATA_NOEXEC,y)
+endif
 
 ifeq ($(CFG_WITH_PAGER),y)
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)

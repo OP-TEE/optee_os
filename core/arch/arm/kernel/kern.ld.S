@@ -93,6 +93,9 @@ SECTIONS
 	}
 	__text_end = .;
 
+#ifdef CFG_CORE_RODATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
 	__flatmap_unpg_rx_size = . - __flatmap_unpg_rx_start;
 	__flatmap_unpg_ro_start = .;
 
@@ -282,6 +285,9 @@ SECTIONS
 		. = ALIGN(8);
 	}
 
+#ifdef CFG_CORE_RODATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
 	__flatmap_init_rx_size = . - __flatmap_init_rx_start;
 	__flatmap_init_ro_start = .;
 
@@ -305,11 +311,6 @@ SECTIONS
 	/* vcore flat map stops here. No need to page align, rodata follows. */
 	__flatmap_init_ro_size = __init_end - __flatmap_init_ro_start;
 
-	.text_pageable : ALIGN(8) {
-		*(.text*)
-		. = ALIGN(8);
-	}
-
 	.rodata_pageable : ALIGN(8) {
 #ifdef CFG_DT
 		__rodata_dtdrv_start = .;
@@ -326,6 +327,14 @@ SECTIONS
 		__start_ta_head_section = . ;
 		KEEP(*(ta_head_section))
 		__stop_ta_head_section = . ;
+	}
+
+#ifdef CFG_CORE_RODATA_NOEXEC
+	. = ALIGN(SMALL_PAGE_SIZE);
+#endif
+
+	.text_pageable : ALIGN(8) {
+		*(.text*)
 		. = ALIGN(SMALL_PAGE_SIZE);
 	}
 
@@ -393,9 +402,14 @@ SECTIONS
 /* Unpaged read-only memories */
 PROVIDE(__vcore_unpg_rx_start = __flatmap_unpg_rx_start);
 PROVIDE(__vcore_unpg_ro_start = __flatmap_unpg_ro_start);
+#ifdef CFG_CORE_RODATA_NOEXEC
+PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size);
+PROVIDE(__vcore_unpg_ro_size = __flatmap_unpg_ro_size);
+#else
 PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size +
 				__flatmap_unpg_ro_size);
 PROVIDE(__vcore_unpg_ro_size = 0);
+#endif
 
 /* Unpaged read-write memory */
 PROVIDE(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
@@ -414,8 +428,14 @@ PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
 /* Paged/init read-only memories */
 PROVIDE(__vcore_init_rx_start = __flatmap_init_rx_start);
 PROVIDE(__vcore_init_ro_start = __flatmap_init_ro_start);
+#ifdef CFG_CORE_RODATA_NOEXEC
+PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size);
+PROVIDE(__vcore_init_ro_size = __flatmap_init_ro_size +
+				__FLATMAP_PAGER_TRAILING_SPACE);
+#else
 PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size +
 				__flatmap_init_ro_size +
 				__FLATMAP_PAGER_TRAILING_SPACE);
 PROVIDE(__vcore_init_ro_size = 0);
+#endif /* CFG_CORE_RODATA_NOEXEC */
 #endif /* CFG_WITH_PAGER */
