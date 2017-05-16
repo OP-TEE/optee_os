@@ -783,7 +783,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	memset(ttb1, 0, L1_TBL_SIZE);
 
 	for (n = 0; mm[n].size; n++)
-		if (!core_mmu_is_dynamic_vaspace(mm))
+		if (!core_mmu_is_dynamic_vaspace(mm + n))
 			map_memarea(mm + n, ttb1);
 }
 
