@@ -283,21 +283,20 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	void *p;
 	struct elf_ehdr ehdr;
 	struct elf_phdr phdr;
-	struct elf_phdr phdr0;
+	struct elf_phdr ptload0;
 
 	copy_ehdr(&ehdr, state);
 	/*
-	 * Program headers are supposed to be arranged as:
-	 * PT_LOAD [0] : .ta_head ...
-	 * ...
-	 * PT_LOAD [n]
-	 *
-	 * .ta_head must be located first in the first program header,
-	 * which also has to be of PT_LOAD type.
-	 *
-	 * A PT_DYNAMIC segment may appear, but is ignored. Any other
-	 * segment except PT_LOAD and PT_DYNAMIC will cause an error. All
-	 * sections not included by a PT_LOAD segment are ignored.
+	 * Program headers:
+	 * We're expecting at least one header of PT_LOAD type.
+	 * .ta_head must be located first in the first PT_LOAD header, which
+	 * must start at virtual address 0. Other types of headers may appear
+	 * before the first PT_LOAD (for example, GNU ld will typically insert
+	 * a PT_ARM_EXIDX segment first when it encounters a .ARM.exidx section
+	 * i.e., unwind tables for 32-bit binaries).
+	 * The last PT_LOAD header gives the maximum VA.
+	 * A PT_DYNAMIC segment may appear, but is ignored.
+	 * All sections not included by a PT_LOAD segment are ignored.
 	 */
 	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
@@ -313,12 +312,15 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	state->phdr = p;
 
 	/*
-	 * Check that the first program header is a PT_LOAD (not strictly
-	 * needed but our link script is supposed to arrange it that way)
-	 * and that it starts at virtual address 0.
+	 * Check that the first program header of type PT_LOAD starts at
+	 * virtual address 0.
 	 */
-	copy_phdr(&phdr0, state, 0);
-	if (phdr0.p_type != PT_LOAD || phdr0.p_vaddr != 0)
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		copy_phdr(&ptload0, state, n);
+		if (ptload0.p_type == PT_LOAD)
+			break;
+	}
+	if (ptload0.p_type != PT_LOAD || ptload0.p_vaddr != 0)
 		return TEE_ERROR_BAD_FORMAT;
 
 	/*
@@ -328,7 +330,7 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	 * the memory will also be allocated.
 	 *
 	 * Note that this loop will terminate at n = 0 if not earlier
-	 * as we already know from above that state->phdr[0].p_type == PT_LOAD
+	 * as we already know from above that we have at least one PT_LOAD
 	 */
 	n = ehdr.e_phnum;
 	do {
@@ -349,9 +351,9 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	 * function has returned and the hash has been verified the flags
 	 * field will be updated with eventual other flags.
 	 */
-	if (phdr0.p_filesz < head_size)
+	if (ptload0.p_filesz < head_size)
 		return TEE_ERROR_BAD_FORMAT;
-	res = alloc_and_copy_to(&p, state, phdr0.p_offset, head_size);
+	res = alloc_and_copy_to(&p, state, ptload0.p_offset, head_size);
 	if (res == TEE_SUCCESS) {
 		state->ta_head = p;
 		state->ta_head_size = head_size;
