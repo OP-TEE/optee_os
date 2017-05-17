@@ -27,7 +27,15 @@
 #ifndef KEEP_H
 #define KEEP_H
 
+/*
+ * A bug in the Aarch64 linker sometimes triggers an assert when linking.
+ * These macros are only needed when the pager is active so stub them when
+ * not needed.
+ */
+
 #ifdef ASM
+
+#ifdef CFG_WITH_PAGER
 
 	.macro KEEP_PAGER sym
 	.pushsection __keep_meta_vars_pager
@@ -43,9 +51,21 @@
 	.popsection
 	.endm
 
+#else /* CFG_WITH_PAGER */
+
+	.macro KEEP_PAGER sym
+	.endm
+
+	.macro KEEP_INIT sym
+	.endm
+
+#endif /* CFG_WITH_PAGER */
+
 #else
 
 #include <compiler.h>
+
+#ifdef CFG_WITH_PAGER
 
 #define KEEP_PAGER(sym) \
 	const unsigned long ____keep_pager_##sym  \
@@ -54,6 +74,16 @@
 #define KEEP_INIT(sym) \
 	const unsigned long ____keep_init_##sym  \
 		__section("__keep_meta_vars_init") = (unsigned long)&sym
+
+#else /* CFG_WITH_PAGER */
+
+#define KEEP_PAGER(sym) \
+	extern const unsigned long ____keep_pager_##sym
+
+#define KEEP_INIT(sym) \
+	extern const unsigned long ____keep_init_##sym
+
+#endif /* CFG_WITH_PAGER */
 
 #endif /* ASM */
 
