@@ -502,9 +502,9 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
 	size_t n;
 
-	EMSG_RAW("- load addr : 0x%x    ctx-idr: %d",
+	EMSG_RAW(" load address: 0x%x    ctx-idr: %d",
 		 utc->load_addr, utc->context);
-	EMSG_RAW("- stack: 0x%" PRIxVA " %zu",
+	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
 		 utc->mmu->regions[0].va, utc->mobj_stack->size);
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
 		paddr_t pa = 0;
@@ -513,7 +513,8 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 			mobj_get_pa(utc->mmu->regions[n].mobj,
 				    utc->mmu->regions[n].offset, 0, &pa);
 
-		EMSG_RAW("sect %zu : va %#" PRIxVA " pa %#" PRIxPA " %#zx",
+		EMSG_RAW(" region %zu: va %#" PRIxVA " pa %#" PRIxPA
+			 " size %#zx",
 			 n, utc->mmu->regions[n].va, pa,
 			 utc->mmu->regions[n].size);
 	}

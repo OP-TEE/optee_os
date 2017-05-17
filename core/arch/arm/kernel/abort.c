@@ -113,7 +113,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 
 	EMSG_RAW("Call stack:");
 	do {
-		EMSG_RAW(" pc 0x%08x", state.registers[15]);
+		EMSG_RAW(" 0x%08x", state.registers[15]);
 	} while (exidx && unwind_stack_arm32(&state, exidx, exidx_sz));
 }
 #else /* ARM32 */
@@ -149,7 +149,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 
 	EMSG_RAW("Call stack:");
 	do {
-		EMSG_RAW(" pc 0x%08x", state.registers[15]);
+		EMSG_RAW(" 0x%08x", state.registers[15]);
 	} while (exidx && unwind_stack_arm32(&state, exidx, exidx_sz));
 }
 #endif /* ARM32 */
@@ -184,7 +184,7 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 
 	EMSG_RAW("Call stack:");
 	do {
-		EMSG_RAW("pc  0x%016" PRIx64, state.pc);
+		EMSG_RAW(" 0x%016" PRIx64, state.pc);
 	} while (stack && unwind_stack_arm64(&state, stack, stack_size));
 }
 #else
@@ -237,66 +237,66 @@ static __maybe_unused void __print_abort_info(
 				struct abort_info *ai __maybe_unused,
 				const char *ctx __maybe_unused)
 {
-	EMSG_RAW("\n");
-	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s\n",
+	EMSG_RAW("");
+	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
 		ctx, abort_type_to_str(ai->abort_type), ai->va,
 		fault_to_str(ai->abort_type, ai->fault_descr));
 #ifdef ARM32
-	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X\n",
+	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X",
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
 		 read_contextidr());
-	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
+	EMSG_RAW(" cpu #%zu          cpsr 0x%08x",
 		 get_core_pos(), ai->regs->spsr);
-	EMSG_RAW(" r0 0x%08x      r4 0x%08x    r8 0x%08x   r12 0x%08x\n",
+	EMSG_RAW(" r0 0x%08x      r4 0x%08x    r8 0x%08x   r12 0x%08x",
 		 ai->regs->r0, ai->regs->r4, ai->regs->r8, ai->regs->ip);
-	EMSG_RAW(" r1 0x%08x      r5 0x%08x    r9 0x%08x    sp 0x%08x\n",
+	EMSG_RAW(" r1 0x%08x      r5 0x%08x    r9 0x%08x    sp 0x%08x",
 		 ai->regs->r1, ai->regs->r5, ai->regs->r9,
 		 read_mode_sp(ai->regs->spsr & CPSR_MODE_MASK));
-	EMSG_RAW(" r2 0x%08x      r6 0x%08x   r10 0x%08x    lr 0x%08x\n",
+	EMSG_RAW(" r2 0x%08x      r6 0x%08x   r10 0x%08x    lr 0x%08x",
 		 ai->regs->r2, ai->regs->r6, ai->regs->r10,
 		 read_mode_lr(ai->regs->spsr & CPSR_MODE_MASK));
-	EMSG_RAW(" r3 0x%08x      r7 0x%08x   r11 0x%08x    pc 0x%08x\n",
+	EMSG_RAW(" r3 0x%08x      r7 0x%08x   r11 0x%08x    pc 0x%08x",
 		 ai->regs->r3, ai->regs->r7, ai->regs->r11, ai->pc);
 #endif /*ARM32*/
 #ifdef ARM64
-	EMSG_RAW(" esr 0x%08x  ttbr0 0x%08" PRIx64 "   ttbr1 0x%08" PRIx64 "   cidr 0x%X\n",
-		 ai->fault_descr, read_ttbr0_el1(), read_ttbr1_el1(),
-		 read_contextidr_el1());
-	EMSG_RAW(" cpu #%zu          cpsr 0x%08x\n",
+	EMSG_RAW(" esr 0x%08x  ttbr0 0x%08" PRIx64 "   ttbr1 0x%08" PRIx64
+		 "   cidr 0x%X", ai->fault_descr, read_ttbr0_el1(),
+		 read_ttbr1_el1(), read_contextidr_el1());
+	EMSG_RAW(" cpu #%zu          cpsr 0x%08x",
 		 get_core_pos(), (uint32_t)ai->regs->spsr);
-	EMSG_RAW("x0  %016" PRIx64 " x1  %016" PRIx64,
+	EMSG_RAW(" x0  %016" PRIx64 " x1  %016" PRIx64,
 		 ai->regs->x0, ai->regs->x1);
-	EMSG_RAW("x2  %016" PRIx64 " x3  %016" PRIx64,
+	EMSG_RAW(" x2  %016" PRIx64 " x3  %016" PRIx64,
 		 ai->regs->x2, ai->regs->x3);
-	EMSG_RAW("x4  %016" PRIx64 " x5  %016" PRIx64,
+	EMSG_RAW(" x4  %016" PRIx64 " x5  %016" PRIx64,
 		 ai->regs->x4, ai->regs->x5);
-	EMSG_RAW("x6  %016" PRIx64 " x7  %016" PRIx64,
+	EMSG_RAW(" x6  %016" PRIx64 " x7  %016" PRIx64,
 		 ai->regs->x6, ai->regs->x7);
-	EMSG_RAW("x8  %016" PRIx64 " x9  %016" PRIx64,
+	EMSG_RAW(" x8  %016" PRIx64 " x9  %016" PRIx64,
 		 ai->regs->x8, ai->regs->x9);
-	EMSG_RAW("x10 %016" PRIx64 " x11 %016" PRIx64,
+	EMSG_RAW(" x10 %016" PRIx64 " x11 %016" PRIx64,
 		 ai->regs->x10, ai->regs->x11);
-	EMSG_RAW("x12 %016" PRIx64 " x13 %016" PRIx64,
+	EMSG_RAW(" x12 %016" PRIx64 " x13 %016" PRIx64,
 		 ai->regs->x12, ai->regs->x13);
-	EMSG_RAW("x14 %016" PRIx64 " x15 %016" PRIx64,
+	EMSG_RAW(" x14 %016" PRIx64 " x15 %016" PRIx64,
 		 ai->regs->x14, ai->regs->x15);
-	EMSG_RAW("x16 %016" PRIx64 " x17 %016" PRIx64,
+	EMSG_RAW(" x16 %016" PRIx64 " x17 %016" PRIx64,
 		 ai->regs->x16, ai->regs->x17);
-	EMSG_RAW("x18 %016" PRIx64 " x19 %016" PRIx64,
+	EMSG_RAW(" x18 %016" PRIx64 " x19 %016" PRIx64,
 		 ai->regs->x18, ai->regs->x19);
-	EMSG_RAW("x20 %016" PRIx64 " x21 %016" PRIx64,
+	EMSG_RAW(" x20 %016" PRIx64 " x21 %016" PRIx64,
 		 ai->regs->x20, ai->regs->x21);
-	EMSG_RAW("x22 %016" PRIx64 " x23 %016" PRIx64,
+	EMSG_RAW(" x22 %016" PRIx64 " x23 %016" PRIx64,
 		 ai->regs->x22, ai->regs->x23);
-	EMSG_RAW("x24 %016" PRIx64 " x25 %016" PRIx64,
+	EMSG_RAW(" x24 %016" PRIx64 " x25 %016" PRIx64,
 		 ai->regs->x24, ai->regs->x25);
-	EMSG_RAW("x26 %016" PRIx64 " x27 %016" PRIx64,
+	EMSG_RAW(" x26 %016" PRIx64 " x27 %016" PRIx64,
 		 ai->regs->x26, ai->regs->x27);
-	EMSG_RAW("x28 %016" PRIx64 " x29 %016" PRIx64,
+	EMSG_RAW(" x28 %016" PRIx64 " x29 %016" PRIx64,
 		 ai->regs->x28, ai->regs->x29);
-	EMSG_RAW("x30 %016" PRIx64 " elr %016" PRIx64,
+	EMSG_RAW(" x30 %016" PRIx64 " elr %016" PRIx64,
 		 ai->regs->x30, ai->regs->elr);
-	EMSG_RAW("sp_el0 %016" PRIx64, ai->regs->sp_el0);
+	EMSG_RAW(" sp_el0 %016" PRIx64, ai->regs->sp_el0);
 #endif /*ARM64*/
 }
 
@@ -335,12 +335,12 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 		paged_ta = true;
 #endif
 
-		__print_abort_info(ai, "user TA");
+		__print_abort_info(ai, "User TA");
 		tee_ta_dump_current();
 	} else {
 		is_32bit = kernel_is32bit;
 
-		__print_abort_info(ai, "core");
+		__print_abort_info(ai, "Core");
 	}
 
 	if (!stack_dump || paged_ta)
