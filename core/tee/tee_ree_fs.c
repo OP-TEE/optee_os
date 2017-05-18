@@ -71,6 +71,8 @@ static int pos_to_block_num(int position)
 
 static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 
+
+
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 				     const void *buf, size_t len)
 {
@@ -457,6 +459,45 @@ static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 	.commit_writes = ree_dirf_commit_writes,
 };
 
+static struct tee_fs_dirfile_dirh *ree_fs_dirh;
+static size_t ree_fs_dirh_refcount;
+
+static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
+{
+	if (!ree_fs_dirh_refcount) {
+		TEE_Result res;
+
+		assert(!ree_fs_dirh);
+		res = tee_fs_dirfile_open(&ree_dirf_ops, &ree_fs_dirh);
+		if (res)
+			return res;
+	}
+	assert(ree_fs_dirh);
+	ree_fs_dirh_refcount++;
+	*dirh = ree_fs_dirh;
+	return TEE_SUCCESS;
+}
+
+static void put_dirh_primitive(void)
+{
+	assert(ree_fs_dirh_refcount);
+	assert(ree_fs_dirh);
+
+	ree_fs_dirh_refcount--;
+	if (!ree_fs_dirh_refcount) {
+		tee_fs_dirfile_close(ree_fs_dirh);
+		ree_fs_dirh = NULL;
+	}
+}
+
+static void put_dirh(struct tee_fs_dirfile_dirh *dirh)
+{
+	if (dirh) {
+		assert(dirh == ree_fs_dirh);
+		put_dirh_primitive();
+	}
+}
+
 static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 			      struct tee_file_handle **fh)
 {
@@ -466,7 +507,7 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -489,7 +530,8 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 	}
 
 out:
-	tee_fs_dirfile_close(dirh);
+	if (res)
+		put_dirh(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -534,8 +576,14 @@ static TEE_Result set_name(struct tee_fs_dirfile_dirh *dirh,
 
 static void ree_fs_close(struct tee_file_handle **fh)
 {
-	ree_fs_close_primitive(*fh);
-	*fh = NULL;
+	if (*fh) {
+		mutex_lock(&ree_fs_mutex);
+		put_dirh_primitive();
+		mutex_unlock(&ree_fs_mutex);
+
+		ree_fs_close_primitive(*fh);
+		*fh = NULL;
+	}
 }
 
 static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
@@ -553,7 +601,7 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 	*fh = NULL;
 	mutex_lock(&ree_fs_mutex);
 
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res)
 		goto out;
 
@@ -592,11 +640,13 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 
 	res = set_name(dirh, fdp, po, overwrite);
 out:
-	if (res && *fh) {
-		ree_fs_close(fh);
-		tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &dfh);
+	if (res) {
+		put_dirh(dirh);
+		if (*fh) {
+			ree_fs_close(fh);
+			tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &dfh);
+		}
 	}
-	tee_fs_dirfile_close(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -611,7 +661,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res)
 		goto out;
 
@@ -628,7 +678,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 		goto out;
 	res = tee_fs_dirfile_commit_writes(dirh);
 out:
-	tee_fs_dirfile_close(dirh);
+	put_dirh(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -646,7 +696,7 @@ static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	mutex_lock(&ree_fs_mutex);
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res)
 		goto out;
 
@@ -681,7 +731,7 @@ static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 		tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &remove_dfh);
 
 out:
-	tee_fs_dirfile_close(dirh);
+	put_dirh(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -695,7 +745,7 @@ static TEE_Result ree_fs_remove(struct tee_pobj *po)
 	struct tee_fs_dirfile_fileh dfh;
 
 	mutex_lock(&ree_fs_mutex);
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res)
 		goto out;
 
@@ -717,7 +767,7 @@ static TEE_Result ree_fs_remove(struct tee_pobj *po)
 	assert(tee_fs_dirfile_find(dirh, &po->uuid, po->obj_id, po->obj_id_len,
 				   &dfh));
 out:
-	tee_fs_dirfile_close(dirh);
+	put_dirh(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -731,7 +781,7 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &dirh);
+	res = get_dirh(&dirh);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -746,7 +796,7 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
 
 out:
-	tee_fs_dirfile_close(dirh);
+	put_dirh(dirh);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -766,7 +816,7 @@ static TEE_Result ree_fs_opendir_rpc(const TEE_UUID *uuid,
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = tee_fs_dirfile_open(&ree_dirf_ops, &d->dirh);
+	res = get_dirh(&d->dirh);
 	if (res)
 		goto out;
 
@@ -782,7 +832,7 @@ out:
 		*dir = d;
 	} else {
 		if (d)
-			tee_fs_dirfile_close(d->dirh);
+			put_dirh(d->dirh);
 		free(d);
 	}
 	mutex_unlock(&ree_fs_mutex);
@@ -795,7 +845,7 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 	if (d) {
 		mutex_lock(&ree_fs_mutex);
 
-		tee_fs_dirfile_close(d->dirh);
+		put_dirh(d->dirh);
 		free(d);
 
 		mutex_unlock(&ree_fs_mutex);
