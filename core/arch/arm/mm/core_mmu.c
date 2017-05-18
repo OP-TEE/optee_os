@@ -67,8 +67,6 @@ static struct tee_mmap_region
 	static_memory_map[MAX_MMAP_REGIONS + 1] __early_bss;
 static bool mem_map_inited __early_bss;
 
-static struct tee_mmap_region *map_tee_ram __early_bss;
-static struct tee_mmap_region *map_ta_ram __early_bss;
 static struct tee_mmap_region *map_nsec_shm __early_bss;
 
 /* Define the platform's memory layout. */
@@ -634,13 +632,10 @@ void core_init_mmu_map(void)
 		case MEM_AREA_TEE_RAM:
 			if (!pbuf_is_inside(secure_only, map->pa, map->size))
 				panic("TEE_RAM can't fit in secure_only");
-
-			map_tee_ram = map;
 			break;
 		case MEM_AREA_TA_RAM:
 			if (!pbuf_is_inside(secure_only, map->pa, map->size))
 				panic("TA_RAM can't fit in secure_only");
-			map_ta_ram = map;
 			break;
 		case MEM_AREA_NSEC_SHM:
 			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
@@ -662,7 +657,7 @@ void core_init_mmu_map(void)
 	}
 
 	/* Check that we have the mandatory memory areas defined */
-	if (!map_tee_ram || !map_ta_ram || !map_nsec_shm)
+	if (!map_nsec_shm)
 		panic("mandatory area(s) not found");
 
 	core_init_mmu_tables(static_memory_map);
@@ -713,9 +708,11 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 	case CORE_MEM_NON_SEC:
 		return pbuf_is_inside(nsec_shared, pbuf, len);
 	case CORE_MEM_TEE_RAM:
-		return pbuf_inside_map_area(pbuf, len, map_tee_ram);
+		return core_is_buffer_inside(pbuf, len, CFG_TEE_RAM_START,
+							CFG_TEE_RAM_PH_SIZE);
 	case CORE_MEM_TA_RAM:
-		return pbuf_inside_map_area(pbuf, len, map_ta_ram);
+		return core_is_buffer_inside(pbuf, len, CFG_TA_RAM_START,
+							CFG_TA_RAM_SIZE);
 	case CORE_MEM_NSEC_SHM:
 		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
 	case CORE_MEM_SDP_MEM:
