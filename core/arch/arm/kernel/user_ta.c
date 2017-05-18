@@ -502,8 +502,9 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
 	size_t n;
 
-	EMSG_RAW(" load address: 0x%x    ctx-idr: %d",
-		 utc->load_addr, utc->context);
+	EMSG_RAW(" arch: %s  load address: 0x%x  ctx-idr: %d",
+		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
+		 utc->context);
 	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
 		 utc->mmu->regions[0].va, utc->mobj_stack->size);
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
