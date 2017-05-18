@@ -46,29 +46,18 @@ enum msg_param_mem_dir {
 
 /**
  * msg_param_extract_pages() - extract list of pages from
- * OPTEE_MSG_ATTR_FRAGMENT parameters
+ * OPTEE_MSG_ATTR_TYPE_NONCONTIG buffer
  *
- * @params:	pointer to parameters array
+ * @buffer:	pointer to parameters array
  * @pages:	output array of page addresses
- * @num_params: number of parameters in array
+ * @num_pages:  number of pages in array
  *
  * return:
  *   page count on success
  *   <0 on error
  */
-ssize_t msg_param_extract_pages(struct optee_msg_param *params, paddr_t *pages,
-				size_t num_params);
-
-/**
- * msg_param_map_buffer() - map parameters buffer into OP-TEE VA space
- * @pa_params - physical pointer to parameters
- * @num_params - number of parameters
- *
- * return:
- *  struct shmem_mapping of mapped buffer on success
- *  NULL on error.
- */
-struct mobj *msg_param_map_buffer(paddr_t pa_params, size_t num_params);
+ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
+				size_t num_pages);
 
 /**
  * msg_param_init_memparam() - fill memory reference parameter for RPC call

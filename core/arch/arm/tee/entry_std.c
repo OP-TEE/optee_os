@@ -385,9 +385,10 @@ static void register_shm(struct thread_smc_args *smc_args,
 {
 	paddr_t *pages = NULL;
 	paddr_t page_offset;
-	int num_pages, pages_cnt;
+	ssize_t num_pages, pages_cnt;
 
-	if (num_params == 0) {
+	if (num_params != 1 ||
+	    arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_NONCONTIG) {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		return;
 	}
@@ -399,17 +400,14 @@ static void register_shm(struct thread_smc_args *smc_args,
 
 	if (!pages) {
 		arg->ret = TEE_ERROR_OUT_OF_MEMORY;
-		return;
-	}
-
-	pages_cnt = msg_param_extract_pages(arg->params, pages, num_params);
-	if (pages_cnt < 0) {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	if (num_pages != pages_cnt) {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	pages_cnt = msg_param_extract_pages(
+		arg->params[0].u.tmem.buf_ptr & ~SMALL_PAGE_MASK,
+		pages, num_pages);
+	if (pages_cnt < 0) {
+		arg->ret = pages_cnt;
 		goto out;
 	}
 
@@ -418,7 +416,6 @@ static void register_shm(struct thread_smc_args *smc_args,
 		arg->ret = TEE_ERROR_GENERIC;
 		goto out;
 	}
-
 	arg->ret = TEE_SUCCESS;
 out:
 	free(pages);
@@ -469,12 +466,11 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 	if ((parg & SMALL_PAGE_MASK) + args_size <= SMALL_PAGE_SIZE)
 		return mobj;
-
-	mobj_free(mobj);
-	mobj = msg_param_map_buffer(parg + sizeof(struct optee_msg_arg),
-				 *num_params);
-
-	return mobj;
+	else {
+		EMSG("Command buffer spans across page boundary");
+		mobj_free(mobj);
+		return NULL;
+	}
 }
 
 static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)

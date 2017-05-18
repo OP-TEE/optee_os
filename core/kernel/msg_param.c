@@ -33,121 +33,57 @@
 
 /**
  * msg_param_extract_pages() - extract list of pages from
- * OPTEE_MSG_ATTR_FRAGMENT parameters
+ * OPTEE_MSG_ATTR_TYPE_NONCONTIG buffer
  *
- * @params:	pointer to parameters array
+ * @buffer:	pointer to parameters array
  * @pages:	output array of page addresses
- * @num_params: number of parameters in array
+ * @num_pages:  number of pages in array
  *
  * return:
  *   page count on success
  *   <0 on error
  */
-ssize_t msg_param_extract_pages(struct optee_msg_param *params, paddr_t *pages,
-				size_t num_params)
+ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
+				size_t num_pages)
 {
-	size_t pages_cnt = 0;
-	size_t i;
-	uint32_t attr;
+	size_t cnt;
+	struct mobj *mobj;
+	paddr_t page;
+	uint64_t *va;
 
-	if (params[num_params - 1].attr & OPTEE_MSG_ATTR_FRAGMENT)
-		return -1;
-
-	for (i = 0; i < num_params; i++) {
-		attr = params[i].attr & OPTEE_MSG_ATTR_TYPE_MASK;
-
-		switch (attr) {
-		case OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT:
-			continue;
-		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			if (pages_cnt >= num_params)
-				return -1;
-			if (!(params[i].attr & OPTEE_MSG_ATTR_FRAGMENT) &&
-			    (i != num_params - 1))
-				return -1;
-			pages[pages_cnt++] = params[i].u.tmem.buf_ptr
-				& ~SMALL_PAGE_MASK;
-			break;
-		default:
-			return -1;
-		}
-	}
-	return pages_cnt;
-}
-
-/**
- * msg_param_map_buffer() - map parameters buffer into OP-TEE VA space
- * @pa_params - physical pointer to parameters
- * @num_params - number of parameters
- *
- * return:
- *  struct shmem_mapping of mapped buffer on success
- *  NULL on error.
- */
-struct mobj *msg_param_map_buffer(paddr_t pa_params, size_t num_params)
-{
-	struct mobj *mobj = NULL;
-	struct optee_msg_param *params;
-	paddr_t *pages = NULL;
-	size_t pages_cnt = 1;
-	size_t max_pages;
-	size_t args_size;
-	size_t i;
-
-	args_size = OPTEE_MSG_GET_ARG_SIZE(num_params);
-	max_pages = args_size / SMALL_PAGE_SIZE + 1;
-
-	pages = calloc(max_pages, sizeof(paddr_t));
-	if (!pages)
-		goto err;
-
-	pages[0] = pa_params & ~SMALL_PAGE_MASK;
-	mobj = mobj_mapped_shm_alloc(pages, 1, 0, 0);
+	if (buffer & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+	/* mobj_mapped_shm_alloc will check if page resides in nonsec ddr */
+	mobj = mobj_mapped_shm_alloc(&buffer, 1, 0, 0);
 	if (!mobj)
-		goto err;
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	params = mobj_get_va(mobj, pa_params & SMALL_PAGE_MASK);
+	va = mobj_get_va(mobj, 0);
+	assert(va);
 
-	for (i = 0; i < num_params; i++) {
-		if ((params->attr & OPTEE_MSG_ATTR_TYPE_MASK) ==
-		    OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT) {
-			if (pages_cnt >= max_pages)
-				goto err;
+	for (cnt = 0; cnt < num_pages; cnt++, va++) {
+		/* if we are rolling over page boundary */
+		if (!((vaddr_t)(va + 1) & SMALL_PAGE_MASK)) {
+			page = *va;
 
-			pages[pages_cnt] = params->u.tmem.buf_ptr;
 			mobj_free(mobj);
 
-			mobj = mobj_mapped_shm_alloc(pages + pages_cnt,
-						     1, 0, 0);
-			if (!mobj)
-				goto err;
+			if (page & SMALL_PAGE_MASK)
+				return TEE_ERROR_BAD_PARAMETERS;
 
-			pages_cnt++;
-			params = mobj_get_va(mobj, 0);
-		} else {
-			params++;
-			/* Check if we are not overflowing over page */
-			if (((vaddr_t)params & SMALL_PAGE_MASK) == 0)
-				goto err;
+			mobj = mobj_mapped_shm_alloc(&page, 1, 0, 0);
+			if (!mobj)
+				return TEE_ERROR_BAD_PARAMETERS;
+
+			va = mobj_get_va(mobj, 0);
+			assert(va);
 		}
+		pages[cnt] = *va;
 	}
 
 	mobj_free(mobj);
-
-	mobj = mobj_mapped_shm_alloc(pages, pages_cnt, 0, 0);
-	if (!mobj)
-		goto err;
-
-	free(pages);
-	return mobj;
-err:
-	free(pages);
-	mobj_free(mobj);
-	return NULL;
+	return cnt;
 }
-
 
 /**
  * msg_param_init_memparam() - fill memory reference parameter for RPC call

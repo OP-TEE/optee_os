@@ -57,31 +57,15 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
 /*
- * Special parameter type denoting that command buffer continues on
- * specified page. It is used together with registered memory
- * buffers. When NW tries to register shared memory, it passes list
- * of pages to OP-TEE. List of pages can be so long, that it overlaps
- * over physical page boundary. In this case the last entry of
- * of optee_msg_param should have type OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT
- * and param.u.tmem.buf_ptr should point to next page, where list of
- * parameter continues. The same mechanism applies not only for
- * registered memory buffers, but for shared memory buffers requested by
- * OPTEE via RPC.
+ * Pointer to a list of pages used to registed user-defined SHM buffer.
+ * Uses the same union as OPTEE_MSG_ATTR_TYPE_TMEM_INOUT.
+ * buf_ptr should point to the beginning of the buffer. Buffer will contain
+ * list of page addresses. OP-TEE core can reconstruct contigous buffer from
+ * that page adresses list. Page addresses are stored as 64 bit values.
+ * Last entry on a page should point to the next page of buffer.
+ * 12 least significant of buf_ptr should hold page offset of user buffer.
  */
-#define OPTEE_MSG_ATTR_TYPE_NEXT_FRAGMENT	0xc
-
-/*
- * Special parameter type that points to real command buffer. It is used
- * when dynamic shared memory is enabled. In this case when OPTEE issues
- * "allocate shared buffer" RPC it expects that address of that shared buffer
- * will be returned in RPC params. But problem is that shared buffer is not
- * physically contiguous, so one parameter is not enough to describe the whole
- * buffer. Thus, NW returns type OPTEE_MSG_ATTR_TYPE_NESTED.
- * @optee_msg_param_nested describes this buffer. It holds address with actual
- * list of pages and also count of pages. Pages are stored as
- * OPTEE_MSG_ATTR_TYPE_TMEM_* parameters.
- */
-#define OPTEE_MSG_ATTR_TYPE_NESTED		0xd
+#define OPTEE_MSG_ATTR_TYPE_NONCONTIG		0xc
 
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 

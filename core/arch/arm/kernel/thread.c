@@ -1327,45 +1327,33 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 	thread_rpc(rpc_args);
 }
 
-static struct mobj *get_mobj_from_nested_params(struct optee_msg_param *params)
+static struct mobj *get_registed_mobj(struct optee_msg_param *params)
 {
 	paddr_t *pages = NULL;
 	paddr_t page_offset;
 	int num_pages;
-	struct mobj *nested_mobj = NULL;
-	struct optee_msg_param *nested_params;
 	struct mobj *mobj = NULL;
 
-	assert(params->attr == OPTEE_MSG_ATTR_TYPE_NESTED);
+	assert(params->attr == OPTEE_MSG_ATTR_TYPE_NONCONTIG);
 
-	page_offset = params->u.nested.buf_ptr & SMALL_PAGE_MASK;
+	page_offset = params->u.tmem.buf_ptr & SMALL_PAGE_MASK;
 
-	nested_mobj = msg_param_map_buffer(params->u.nested.buf_ptr,
-					   params->u.nested.params_num);
-	if (!nested_mobj)
-		goto out;
-
-	nested_params = mobj_get_va(nested_mobj, page_offset);
-	if (!msg_param_attr_is_tmem(nested_params))
-		goto out;
-
-	num_pages = (nested_params[0].u.tmem.size + page_offset - 1) /
+	num_pages = (params->u.tmem.size + page_offset - 1) /
 		SMALL_PAGE_SIZE + 1;
 
 	pages = malloc(num_pages * sizeof(paddr_t));
 	if (!pages)
 		goto out;
 
-	if (msg_param_extract_pages(nested_params, pages,
-				    params->u.nested.params_num) != num_pages)
+	if (msg_param_extract_pages(params->u.tmem.buf_ptr & ~SMALL_PAGE_MASK,
+				    pages, num_pages) != num_pages)
 		goto out;
 
 	mobj = mobj_mapped_shm_alloc(pages, num_pages, page_offset,
-				     params->u.nested.shm_ref);
+				     params->u.tmem.shm_ref);
 
 out:
 	free(pages);
-	mobj_free(nested_mobj);
 	return mobj;
 }
 /**
@@ -1403,9 +1391,9 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	if (arg->num_params != 1)
 		goto fail;
 
-	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_NESTED) {
+	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_NONCONTIG) {
 		*cookie = arg->params[0].u.nested.shm_ref;
-		mobj = get_mobj_from_nested_params(arg->params);
+		mobj = get_registed_mobj(arg->params);
 	} else if ((arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) &&
 		   core_pbuf_is(CORE_MEM_NSEC_SHM,
 				arg->params[0].u.tmem.buf_ptr,
