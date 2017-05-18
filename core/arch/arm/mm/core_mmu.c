@@ -67,8 +67,6 @@ static struct tee_mmap_region
 	static_memory_map[MAX_MMAP_REGIONS + 1] __early_bss;
 static bool mem_map_inited __early_bss;
 
-static struct tee_mmap_region *map_nsec_shm __early_bss;
-
 /* Define the platform's memory layout. */
 struct memaccess_area {
 	paddr_t paddr;
@@ -640,7 +638,6 @@ void core_init_mmu_map(void)
 		case MEM_AREA_NSEC_SHM:
 			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
 				panic("NS_SHM can't fit in nsec_shared");
-			map_nsec_shm = map;
 			break;
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
@@ -656,20 +653,7 @@ void core_init_mmu_map(void)
 		map++;
 	}
 
-	/* Check that we have the mandatory memory areas defined */
-	if (!map_nsec_shm)
-		panic("mandatory area(s) not found");
-
 	core_init_mmu_tables(static_memory_map);
-}
-
-/* routines to retrieve shared mem configuration */
-bool core_mmu_is_shm_cached(void)
-{
-	if (!map_nsec_shm)
-		return false;
-	return map_nsec_shm->attr >> TEE_MATTR_CACHE_SHIFT ==
-	       TEE_MATTR_CACHE_CACHED;
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
@@ -714,7 +698,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return core_is_buffer_inside(pbuf, len, CFG_TA_RAM_START,
 							CFG_TA_RAM_SIZE);
 	case CORE_MEM_NSEC_SHM:
-		return pbuf_inside_map_area(pbuf, len, map_nsec_shm);
+		return core_is_buffer_inside(pbuf, len, CFG_SHMEM_START,
+							CFG_SHMEM_SIZE);
 	case CORE_MEM_SDP_MEM:
 		return pbuf_is_sdp_mem(pbuf, len);
 	case CORE_MEM_CACHED:

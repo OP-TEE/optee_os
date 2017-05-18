@@ -419,7 +419,11 @@ void core_mmu_get_mem_by_type(enum teecore_memtypes type, vaddr_t *s,
 enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa);
 
 /* routines to retreive shared mem configuration */
-bool core_mmu_is_shm_cached(void);
+static inline bool core_mmu_is_shm_cached(void)
+{
+	return core_mmu_type_to_attr(MEM_AREA_NSEC_SHM) &
+		(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+}
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
