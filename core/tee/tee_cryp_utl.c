@@ -394,7 +394,7 @@ __weak void plat_prng_add_jitter_entropy(void)
 
 __weak void plat_prng_add_jitter_entropy_norpc(void)
 {
-#ifndef CFG_SECURE_TIME_SOURCE_REE
+#if !defined(CFG_SECURE_TIME_SOURCE_REE) && defined(CFG_ENABLE_BUG_PRNG_PR1377)
 	plat_prng_add_jitter_entropy();
 #endif
 }
