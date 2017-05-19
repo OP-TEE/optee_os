@@ -61,6 +61,7 @@ platforms have different sub-maintainers, please refer to the file
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
+| [Texas Instruments AM57xx](http://www.ti.com/product/AM5728)|`PLATFORM=ti-am57xx`| Yes |
 | [Texas Instruments AM43xx](http://www.ti.com/product/AM4379)|`PLATFORM=ti-am43xx`| Yes |
 | [Xilinx Zynq 7000 ZC702](http://www.xilinx.com/products/boards-and-kits/ek-z7-zc702-g.html)|`PLATFORM=zynq7k-zc702`| Yes |
 | [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |
