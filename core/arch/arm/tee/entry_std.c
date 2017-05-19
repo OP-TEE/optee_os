@@ -128,8 +128,6 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 		if (params[n].attr & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (params[n].attr & OPTEE_MSG_ATTR_FRAGMENT)
-			return TEE_ERROR_BAD_PARAMETERS;
 
 		attr = params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK;
 
@@ -388,10 +386,12 @@ static void register_shm(struct thread_smc_args *smc_args,
 	ssize_t num_pages, pages_cnt;
 
 	if (num_params != 1 ||
-	    arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_NONCONTIG) {
+	    (arg->params[0].attr != (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
+				     OPTEE_MSG_ATTR_NONCONTIG))) {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		return;
 	}
+
 	page_offset = arg->params[0].u.tmem.buf_ptr & SMALL_PAGE_MASK;
 	num_pages = (arg->params[0].u.tmem.size + page_offset - 1)
 		/ SMALL_PAGE_SIZE + 1;

@@ -1334,7 +1334,7 @@ static struct mobj *get_registed_mobj(struct optee_msg_param *params)
 	int num_pages;
 	struct mobj *mobj = NULL;
 
-	assert(params->attr == OPTEE_MSG_ATTR_TYPE_NONCONTIG);
+	assert(params->attr & OPTEE_MSG_ATTR_NONCONTIG);
 
 	page_offset = params->u.tmem.buf_ptr & SMALL_PAGE_MASK;
 
@@ -1391,7 +1391,8 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	if (arg->num_params != 1)
 		goto fail;
 
-	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_NONCONTIG) {
+	if ((arg->params[0].attr =
+	     (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT | OPTEE_MSG_ATTR_TYPE_MASK))) {
 		*cookie = arg->params[0].u.nested.shm_ref;
 		mobj = get_registed_mobj(arg->params);
 	} else if ((arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) &&
@@ -1399,7 +1400,7 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 				arg->params[0].u.tmem.buf_ptr,
 				arg->params[0].u.tmem.size)) {
 		mobj = mobj_phys_alloc(arg->params[0].u.tmem.buf_ptr,
-				       arg->params[0].u.tmem.size,
+			       arg->params[0].u.tmem.size,
 				       TEE_MATTR_CACHE_CACHED,
 				       CORE_MEM_NSEC_SHM);
 		*cookie = arg->params[0].u.tmem.shm_ref;

@@ -56,16 +56,6 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INPUT		0x9
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
-/*
- * Pointer to a list of pages used to registed user-defined SHM buffer.
- * Uses the same union as OPTEE_MSG_ATTR_TYPE_TMEM_INOUT.
- * buf_ptr should point to the beginning of the buffer. Buffer will contain
- * list of page addresses. OP-TEE core can reconstruct contigous buffer from
- * that page adresses list. Page addresses are stored as 64 bit values.
- * Last entry on a page should point to the next page of buffer.
- * 12 least significant of buf_ptr should hold page offset of user buffer.
- */
-#define OPTEE_MSG_ATTR_TYPE_NONCONTIG		0xc
 
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 
@@ -78,11 +68,15 @@
 #define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
- * The temporary shared memory object is not physically contiguous and this
- * temp memref is followed by another fragment until the last temp memref
- * that doesn't have this bit set.
+ * Pointer to a list of pages used to registed user-defined SHM buffer.
+ * Used with OPTEE_MSG_ATTR_TYPE_TMEM_*.
+ * buf_ptr should point to the beginning of the buffer. Buffer will contain
+ * list of page addresses. OP-TEE core can reconstruct contigous buffer from
+ * that page adresses list. Page addresses are stored as 64 bit values.
+ * Last entry on a page should point to the next page of buffer.
+ * 12 least significant of buf_ptr should hold page offset of user buffer.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			BIT(9)
+#define OPTEE_MSG_ATTR_NONCONTIG		BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
