@@ -27,6 +27,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <compiler.h>
 #include <stdint.h>
 
 #ifndef MAX
@@ -90,5 +91,16 @@
 
 #define GENMASK_64(h, l) \
 	(((~UINT64_C(0)) << (l)) & (~UINT64_C(0) >> (64 - 1 - (h))))
+
+/*
+ * Checking overflow for addition, subtraction and multiplication. Result
+ * of operation is stored in res which is a pointer to some kind of
+ * integer.
+ *
+ * The macros return true if an overflow occurred and *res is undefined.
+ */
+#define ADD_OVERFLOW(a, b, res) __compiler_add_overflow((a), (b), (res))
+#define SUB_OVERFLOW(a, b, res) __compiler_sub_overflow((a), (b), (res))
+#define MUL_OVERFLOW(a, b, res) __compiler_mul_overflow((a), (b), (res))
 
 #endif /*UTIL_H*/
