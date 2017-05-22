@@ -24,9 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <assert.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <trace.h>
+#include <kernel/panic.h>
+#include <util.h>
 #include "core_self_tests.h"
 
 /*
@@ -37,18 +40,156 @@
  */
 #define LOG(...)
 
-static int self_test_division(void);
-static int self_test_malloc(void);
-
-/* exported entry points for some basic test */
-TEE_Result core_self_tests(uint32_t nParamTypes __unused,
-		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+static int self_test_add_overflow(void)
 {
-	if (self_test_division() || self_test_malloc()) {
-		EMSG("some self_test_xxx failed! you should enable local LOG");
-		return TEE_ERROR_GENERIC;
-	}
-	return TEE_SUCCESS;
+	uint32_t r_u32;
+	int32_t r_s32;
+
+	if (ADD_OVERFLOW(32U, 30U, &r_u32))
+		return -1;
+	if (r_u32 != 62)
+		return -1;
+	if (!ADD_OVERFLOW(UINT32_MAX, UINT32_MAX, &r_u32))
+		return -1;
+	if (!ADD_OVERFLOW(UINT32_MAX / 2 + 1, UINT32_MAX / 2 + 1, &r_u32))
+		return -1;
+	if (ADD_OVERFLOW(UINT32_MAX / 2, UINT32_MAX / 2 + 1, &r_u32))
+		return -1;
+	if (r_u32 != UINT32_MAX)
+		return -1;
+
+	if (ADD_OVERFLOW(30, -31, &r_s32))
+		return -1;
+	if (r_s32 != -1)
+		return -1;
+	if (ADD_OVERFLOW(INT32_MIN + 1, -1, &r_s32))
+		return -1;
+	if (r_s32 != INT32_MIN)
+		return -1;
+	if (!ADD_OVERFLOW(INT32_MIN, -1, &r_s32))
+		return -1;
+	if (!ADD_OVERFLOW(INT32_MIN + 1, -2, &r_s32))
+		return -1;
+	if (!ADD_OVERFLOW(INT32_MAX, INT32_MAX, &r_s32))
+		return -1;
+	if (!ADD_OVERFLOW(INT32_MAX / 2 + 1, INT32_MAX / 2 + 1, &r_s32))
+		return -1;
+	if (ADD_OVERFLOW(INT32_MAX / 2, INT32_MAX / 2 + 1, &r_s32))
+		return -1;
+	if (r_s32 != INT32_MAX)
+		return -1;
+
+	return 0;
+}
+
+static int self_test_sub_overflow(void)
+{
+	uint32_t r_u32;
+	int32_t r_s32;
+
+	if (SUB_OVERFLOW(32U, 30U, &r_u32))
+		return -1;
+	if (r_u32 != 2)
+		return -1;
+	if (!SUB_OVERFLOW(30U, 31U, &r_u32))
+		return -1;
+
+	if (SUB_OVERFLOW(30, 31, &r_s32))
+		return -1;
+	if (r_s32 != -1)
+		return -1;
+	if (SUB_OVERFLOW(-1, INT32_MAX, &r_s32))
+		return -1;
+	if (r_s32 != INT32_MIN)
+		return -1;
+	if (!SUB_OVERFLOW(-2, INT32_MAX, &r_s32))
+		return -1;
+
+	return 0;
+}
+
+static int self_test_mul_unsigned_overflow(void)
+{
+	const size_t um_half_shift = sizeof(uintmax_t) * 8 / 2;
+	const uintmax_t um_half_mask = UINTMAX_MAX >> um_half_shift;
+	uint32_t r_u32;
+	uintmax_t r_um;
+
+	if (MUL_OVERFLOW(32, 30, &r_u32))
+		return -1;
+	if (r_u32 != 960)
+		return -1;
+	if (MUL_OVERFLOW(-32, -30, &r_u32))
+		return -1;
+	if (r_u32 != 960)
+		return -1;
+
+	if (MUL_OVERFLOW(UINTMAX_MAX, 1, &r_um))
+		return -1;
+	if (r_um != UINTMAX_MAX)
+		return -1;
+	if (MUL_OVERFLOW(UINTMAX_MAX / 4, 4, &r_um))
+		return -1;
+	if (r_um != (UINTMAX_MAX - 3))
+		return -1;
+	if (!MUL_OVERFLOW(UINTMAX_MAX / 4 + 1, 4, &r_um))
+		return -1;
+	if (!MUL_OVERFLOW(UINTMAX_MAX, UINTMAX_MAX, &r_um))
+		return -1;
+	if (!MUL_OVERFLOW(um_half_mask << um_half_shift,
+			  um_half_mask << um_half_shift, &r_um))
+		return -1;
+
+	return 0;
+}
+
+static int self_test_mul_signed_overflow(void)
+{
+	intmax_t r;
+
+	if (MUL_OVERFLOW(32, -30, &r))
+		return -1;
+	if (r != -960)
+		return -1;
+	if (MUL_OVERFLOW(-32, 30, &r))
+		return -1;
+	if (r != -960)
+		return -1;
+	if (MUL_OVERFLOW(32, 30, &r))
+		return -1;
+	if (r != 960)
+		return -1;
+
+	if (MUL_OVERFLOW(INTMAX_MAX, 1, &r))
+		return -1;
+	if (r != INTMAX_MAX)
+		return -1;
+	if (MUL_OVERFLOW(INTMAX_MAX / 4, 4, &r))
+		return -1;
+	if (r != (INTMAX_MAX - 3))
+		return -1;
+	if (!MUL_OVERFLOW(INTMAX_MAX / 4 + 1, 4, &r))
+		return -1;
+	if (!MUL_OVERFLOW(INTMAX_MAX, INTMAX_MAX, &r))
+		return -1;
+	if (MUL_OVERFLOW(INTMAX_MIN + 1, 1, &r))
+		return -1;
+	if (r != INTMAX_MIN + 1)
+		return -1;
+	if (MUL_OVERFLOW(1, INTMAX_MIN + 1, &r))
+		return -1;
+	if (r != INTMAX_MIN + 1)
+		return -1;
+	if (MUL_OVERFLOW(0, INTMAX_MIN, &r))
+		return -1;
+	if (r != 0)
+		return -1;
+	if (MUL_OVERFLOW(1, INTMAX_MIN, &r))
+		return -1;
+	if (r != INTMAX_MIN)
+		return -1;
+
+	return 0;
 }
 
 /* test division support. resulting trace shall be manually checked */
@@ -249,4 +390,17 @@ static int self_test_malloc(void)
 	LOG("malloc test done");
 
 	return ret;
+}
+
+/* exported entry points for some basic test */
+TEE_Result core_self_tests(uint32_t nParamTypes __unused,
+		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+{
+	if (self_test_mul_signed_overflow() || self_test_add_overflow() ||
+	    self_test_sub_overflow() || self_test_mul_unsigned_overflow() ||
+	    self_test_division() || self_test_malloc()) {
+		EMSG("some self_test_xxx failed! you should enable local LOG");
+		return TEE_ERROR_GENERIC;
+	}
+	return TEE_SUCCESS;
 }
