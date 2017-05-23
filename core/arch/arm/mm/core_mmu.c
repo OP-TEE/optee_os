@@ -962,7 +962,6 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	}
 }
 
-#ifdef CFG_SMALL_PAGE_USER_TA
 static void set_pg_region(struct core_mmu_table_info *dir_info,
 			struct tee_ta_region *region, struct pgt **pgt,
 			struct core_mmu_table_info *pg_info)
@@ -1139,34 +1138,6 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 		set_pg_region(dir_info, utc->mmu->regions + n, &pgt, &pg_info);
 	}
 }
-
-#else
-void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
-				struct user_ta_ctx *utc)
-{
-	unsigned n;
-	struct tee_mmap_region r;
-	size_t offset;
-	size_t granule = BIT(dir_info->shift);
-
-	memset(&r, 0, sizeof(r));
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (!utc->mmu->regions[n].size)
-			continue;
-
-		offset = utc->mmu->regions[n].offset;
-		r.va = utc->mmu->regions[n].va;
-		r.size = utc->mmu->regions[n].size;
-		r.attr = utc->mmu->regions[n].attr;
-
-		if (mobj_get_pa(utc->mmu->regions[n].mobj, offset, granule,
-				&r.pa) != TEE_SUCCESS)
-			panic("Failed to get PA of unpaged mobj");
-
-		set_region(dir_info, &r);
-	}
-}
-#endif
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 {

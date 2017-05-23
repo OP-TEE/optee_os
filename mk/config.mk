@@ -174,9 +174,6 @@ CFG_WITH_USER_TA ?= y
 # case you implement your own TA store
 CFG_REE_FS_TA ?= y
 
-# Use small pages to map user TAs
-CFG_SMALL_PAGE_USER_TA ?= y
-
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 
