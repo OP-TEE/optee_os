@@ -402,9 +402,7 @@ void thread_init_boot_thread(void)
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		TAILQ_INIT(&threads[n].mutexes);
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
-#ifdef CFG_SMALL_PAGE_USER_TA
 		SLIST_INIT(&threads[n].tsd.pgt_cache);
-#endif
 	}
 
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)

@@ -14,8 +14,7 @@ include core/arch/$(ARCH)/$(ARCH).mk
 PLATFORM_$(PLATFORM) := y
 PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-$(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER \
-	CFG_SMALL_PAGE_USER_TA CFG_WITH_USER_TA)
+$(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA)
 
 # Setup compiler for this sub module
 COMPILER_$(sm)		?= $(COMPILER)

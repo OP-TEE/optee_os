@@ -238,7 +238,6 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 	return TEE_SUCCESS;
 }
 
-#ifdef CFG_SMALL_PAGE_USER_TA
 static TEE_Result alloc_pgt(struct user_ta_ctx *utc __maybe_unused,
 			    vaddr_t base, vaddr_t end)
 {
@@ -276,19 +275,6 @@ static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 
 	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
 }
-
-#else
-static TEE_Result alloc_pgt(struct user_ta_ctx *utc __unused,
-			    vaddr_t base __unused, vaddr_t end __unused)
-{
-	return TEE_SUCCESS;
-}
-
-static void free_pgt(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
-		     size_t size __unused)
-{
-}
-#endif
 
 void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 {
@@ -793,7 +779,6 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	struct thread_specific_data *tsd = thread_get_tsd();
 
 	core_mmu_set_user_map(NULL);
-#ifdef CFG_SMALL_PAGE_USER_TA
 	/*
 	 * No matter what happens below, the current user TA will not be
 	 * current any longer. Make sure pager is in sync with that.
@@ -803,7 +788,6 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	 * Save translation tables in a cache if it's a user TA.
 	 */
 	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
-#endif
 
 	if (ctx && is_user_ta_ctx(ctx)) {
 		struct core_mmu_user_map map;
