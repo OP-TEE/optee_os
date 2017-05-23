@@ -55,6 +55,7 @@
 #endif
 #ifndef ROUNDUP
 #define ROUNDUP(x, y)		((((x) + (y) - 1) / (y)) * (y))
+#define ROUNDDOWN(x, y)		(((x) / (y)) * (y))
 #endif
 
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
@@ -66,7 +67,13 @@ SECTIONS
 	. = CFG_TEE_LOAD_ADDR;
 
 	__text_start = .;
-	__flatmap_unpg_rx_start = __text_start;
+
+	/*
+	 * Memory between CFG_TEE_LOAD_ADDR and page aligned rounded down
+	 * value will be mapped with unpaged "text" section attributes:
+	 * likely to be read-only/executable.
+	 */
+	__flatmap_unpg_rx_start = ROUNDDOWN(__text_start, SMALL_PAGE_SIZE);
 
 	.text : {
 		KEEP(*(.text.boot.vectab1))
