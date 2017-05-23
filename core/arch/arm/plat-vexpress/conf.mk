@@ -1,21 +1,21 @@
 PLATFORM_FLAVOR ?= qemu_virt
 
 # 32-bit flags
-arm32-platform-cpuarch		:= cortex-a15
-arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
 core_arm32-platform-aflags	+= -mfpu=neon
 
+ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+include core/arch/arm/cpu/cortex-a15.mk
+endif
 ifeq ($(PLATFORM_FLAVOR),fvp)
-platform-flavor-armv8 := 1
+include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
 endif
 ifeq ($(PLATFORM_FLAVOR),juno)
-platform-flavor-armv8 := 1
+include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
 endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
-platform-flavor-armv8 := 1
+include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_DT,y)
 endif
 
@@ -32,8 +32,6 @@ endif
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
-$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
