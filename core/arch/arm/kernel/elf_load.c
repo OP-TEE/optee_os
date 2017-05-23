@@ -153,6 +153,8 @@ static TEE_Result copy_to(struct elf_load_state *state,
 			size_t offs, size_t len)
 {
 	TEE_Result res;
+	size_t read_max;
+	size_t data_max;
 
 	res = advance_to(state, offs);
 	if (res != TEE_SUCCESS)
@@ -160,9 +162,8 @@ static TEE_Result copy_to(struct elf_load_state *state,
 	if (!len)
 		return TEE_SUCCESS;
 
-	/* Check for integer overflow */
-	if ((len + dst_offs) < dst_offs || (len + dst_offs) > dst_size ||
-	    (len + offs) < offs || (len + offs) > state->data_len)
+	if (ADD_OVERFLOW(len, dst_offs, &read_max) || read_max > dst_size ||
+	    ADD_OVERFLOW(len, offs, &data_max) || data_max > state->data_len)
 		return TEE_ERROR_SECURITY;
 
 	res = state->ta_store->read(state->ta_handle,
@@ -284,6 +285,7 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	struct elf_ehdr ehdr;
 	struct elf_phdr phdr;
 	struct elf_phdr ptload0;
+	size_t phsize;
 
 	copy_ehdr(&ehdr, state);
 	/*
@@ -301,12 +303,10 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
 
-	/* Check for integer overflow */
-	if (((uint64_t)ehdr.e_phnum * ehdr.e_phentsize) > SIZE_MAX)
+	if (MUL_OVERFLOW(ehdr.e_phnum, ehdr.e_phentsize, &phsize))
 		return TEE_ERROR_SECURITY;
 
-	res = alloc_and_copy_to(&p, state, ehdr.e_phoff,
-				ehdr.e_phnum * ehdr.e_phentsize);
+	res = alloc_and_copy_to(&p, state, ehdr.e_phoff, phsize);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->phdr = p;
@@ -337,10 +337,8 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 		n--;
 		copy_phdr(&phdr, state, n);
 	} while (phdr.p_type != PT_LOAD);
-	state->vasize = phdr.p_vaddr + phdr.p_memsz;
 
-	/* Check for integer overflow */
-	if (state->vasize < phdr.p_vaddr)
+	if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &state->vasize))
 		return TEE_ERROR_SECURITY;
 
 	/*
