@@ -258,9 +258,10 @@ static void *pager_add_alias_page(paddr_t pa)
 {
 	unsigned idx;
 	struct core_mmu_table_info *ti = &pager_alias_tbl_info;
+	/* Alias pages mapped without write permission: runtime will care */
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
 			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
-			TEE_MATTR_SECURE | TEE_MATTR_PRW;
+			TEE_MATTR_SECURE | TEE_MATTR_PR;
 
 	DMSG("0x%" PRIxPA, pa);
 
@@ -484,6 +485,21 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 {
 	size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
 	const void *stored_page = area->store + idx * SMALL_PAGE_SIZE;
+	struct core_mmu_table_info *ti;
+	uint32_t attr_alias;
+	paddr_t pa_alias;
+	unsigned int idx_alias;
+
+	/* Insure we are allowed to write to aliased virtual page */
+	ti = &pager_alias_tbl_info;
+	idx_alias = core_mmu_va2idx(ti, (vaddr_t)va_alias);
+	core_mmu_get_entry(ti, idx_alias, &pa_alias, &attr_alias);
+	if (!(attr_alias & TEE_MATTR_PW)) {
+		attr_alias |= TEE_MATTR_PW;
+		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
+		/* TODO: flush TLB for target page only */
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	}
 
 	switch (area->type) {
 	case AREA_TYPE_RO:
@@ -500,6 +516,11 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 				panic();
 			}
 		}
+		/* Forbid write to aliases for read-only (maybe exec) pages */
+		attr_alias &= ~TEE_MATTR_PW;
+		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
+		/* TODO: flush TLB for target page only */
+		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 		break;
 	case AREA_TYPE_RW:
 		FMSG("Restore %p %#" PRIxVA " iv %#" PRIx64,
