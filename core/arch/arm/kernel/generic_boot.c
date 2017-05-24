@@ -432,11 +432,11 @@ static int add_optee_dt_node(void *fdt)
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 {
 	if (cell_size == 1) {
-		uint32_t v = cpu_to_fdt32((uint32_t)val);
+		fdt32_t v = cpu_to_fdt32((uint32_t)val);
 
 		memcpy(data, &v, sizeof(v));
 	} else {
-		uint64_t v = cpu_to_fdt64(val);
+		fdt64_t v = cpu_to_fdt64(val);
 
 		memcpy(data, &v, sizeof(v));
 	}
@@ -485,12 +485,13 @@ static int add_optee_res_mem_dt_node(void *fdt)
 		 "optee@0x%" PRIxPA, shm_pa);
 	offs = fdt_add_subnode(fdt, offs, subnode_name);
 	if (offs >= 0) {
-		uint32_t data[addr_size + len_size] ;
+		uint32_t data[FDT_MAX_NCELLS * 2];
 
 		set_dt_val(data, addr_size, shm_pa);
 		set_dt_val(data + addr_size, len_size,
 			   shm_va_end - shm_va_start);
-		ret = fdt_setprop(fdt, offs, "reg", data, sizeof(data));
+		ret = fdt_setprop(fdt, offs, "reg", data,
+				  sizeof(uint32_t) * (addr_size + len_size));
 		if (ret < 0)
 			return -1;
 		ret = fdt_setprop(fdt, offs, "no-map", NULL, 0);
