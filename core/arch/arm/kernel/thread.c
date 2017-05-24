@@ -1327,35 +1327,6 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 	thread_rpc(rpc_args);
 }
 
-static struct mobj *get_registed_mobj(struct optee_msg_param *params)
-{
-	paddr_t *pages = NULL;
-	paddr_t page_offset;
-	int num_pages;
-	struct mobj *mobj = NULL;
-
-	assert(params->attr & OPTEE_MSG_ATTR_NONCONTIG);
-
-	page_offset = params->u.tmem.buf_ptr & SMALL_PAGE_MASK;
-
-	num_pages = (params->u.tmem.size + page_offset - 1) /
-		SMALL_PAGE_SIZE + 1;
-
-	pages = malloc(num_pages * sizeof(paddr_t));
-	if (!pages)
-		goto out;
-
-	if (msg_param_extract_pages(params->u.tmem.buf_ptr & ~SMALL_PAGE_MASK,
-				    pages, num_pages) != num_pages)
-		goto out;
-
-	mobj = mobj_mapped_shm_alloc(pages, num_pages, page_offset,
-				     params->u.tmem.shm_ref);
-
-out:
-	free(pages);
-	return mobj;
-}
 /**
  * Allocates shared memory buffer via RPC
  *
@@ -1391,16 +1362,16 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	if (arg->num_params != 1)
 		goto fail;
 
-	if ((arg->params[0].attr =
-	     (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT | OPTEE_MSG_ATTR_TYPE_MASK))) {
+	if ((arg->params[0].attr ==
+	     (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT | OPTEE_MSG_ATTR_NONCONTIG))) {
 		*cookie = arg->params[0].u.nested.shm_ref;
-		mobj = get_registed_mobj(arg->params);
+		mobj = msg_param_mobj_from_noncontig_param(arg->params, true);
 	} else if ((arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) &&
 		   core_pbuf_is(CORE_MEM_NSEC_SHM,
 				arg->params[0].u.tmem.buf_ptr,
 				arg->params[0].u.tmem.size)) {
 		mobj = mobj_phys_alloc(arg->params[0].u.tmem.buf_ptr,
-			       arg->params[0].u.tmem.size,
+				       arg->params[0].u.tmem.size,
 				       TEE_MATTR_CACHE_CACHED,
 				       CORE_MEM_NSEC_SHM);
 		*cookie = arg->params[0].u.tmem.shm_ref;

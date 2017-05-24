@@ -45,19 +45,18 @@ enum msg_param_mem_dir {
 };
 
 /**
- * msg_param_extract_pages() - extract list of pages from
- * OPTEE_MSG_ATTR_TYPE_NONCONTIG buffer
+ * msg_param_mobj_from_noncontig_param() - construct mobj from non-contigous
+ * list of pages.
  *
- * @buffer:	pointer to parameters array
- * @pages:	output array of page addresses
- * @num_pages:  number of pages in array
+ * @param - pointer to msg_param with OPTEE_MSG_ATTR_TYPE_NONCONTIG flag set
+ * @bool  - true of buffer needs to be mapped into OP-TEE address space
  *
  * return:
- *   page count on success
- *   <0 on error
+ *	mobj or NULL on error
  */
-ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
-				size_t num_pages);
+struct mobj *msg_param_mobj_from_noncontig_param(
+	const struct optee_msg_param *param,
+	bool map_buffer);
 
 /**
  * msg_param_init_memparam() - fill memory reference parameter for RPC call

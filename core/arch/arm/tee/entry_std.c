@@ -75,19 +75,39 @@ static bool param_mem_from_mobj(struct param_mem *mem, struct mobj *mobj,
 }
 
 /* fill 'struct param_mem' structure if buffer matches a valid memory object */
-static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
+static TEE_Result assign_mobj_to_param_mem(const struct optee_msg_param *param,
 					   struct param_mem *mem)
 {
-	struct mobj __maybe_unused **mobj;
+	struct mobj __maybe_unused **sdp_mobj;
+
+	/* NULL Memory Rerefence ? */
+	if (!param->u.tmem.buf_ptr && !param->u.tmem.size) {
+		mem->mobj = NULL;
+		mem->offs = 0;
+		mem->size = 0;
+		return TEE_SUCCESS;
+	}
+
+	/* Non-contigous buffer from non sec DDR? */
+	if (param->attr & OPTEE_MSG_ATTR_NONCONTIG) {
+		mem->mobj = msg_param_mobj_from_noncontig_param(param, false);
+		if (!mem->mobj)
+			return TEE_ERROR_BAD_PARAMETERS;
+		mem->offs = (param->u.tmem.buf_ptr & SMALL_PAGE_MASK);
+		mem->size = param->u.tmem.size;
+		return TEE_SUCCESS;
+	}
 
 	/* belongs to nonsecure shared memory ? */
-	if (param_mem_from_mobj(mem, shm_mobj, pa, sz))
+	if (param_mem_from_mobj(mem, shm_mobj, param->u.tmem.buf_ptr,
+				param->u.tmem.size))
 		return TEE_SUCCESS;
 
 #ifdef CFG_SECURE_DATA_PATH
 	/* belongs to SDP memories ? */
-	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
-		if (param_mem_from_mobj(mem, *mobj, pa, sz))
+	for (sdp_mobj = sdp_mem_mobjs; *sdp_mobj; sdp_mobj++)
+		if (param_mem_from_mobj(mem, *sdp_mobj, param->u.tmem.buf_ptr,
+					param->u.tmem.size))
 			return TEE_SUCCESS;
 #endif
 
@@ -149,8 +169,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-			res = assign_mobj_to_param_mem(params[n].u.tmem.buf_ptr,
-						       params[n].u.tmem.size,
+			res = assign_mobj_to_param_mem(params + n,
 						       &ta_param->u[n].mem);
 			if (res != TEE_SUCCESS)
 				return res;
@@ -181,6 +200,10 @@ static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
 	size_t n;
 
 	for (n = 0; n < num_params; n++) {
+		if (params[n].attr & OPTEE_MSG_ATTR_NONCONTIG)
+			mobj_free(mobj_reg_shm_find_by_cookie(
+					  params[n].u.tmem.shm_ref));
+
 		switch (TEE_PARAM_TYPE_GET(ta_param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
@@ -381,10 +404,6 @@ out:
 static void register_shm(struct thread_smc_args *smc_args,
 			 struct optee_msg_arg *arg, uint32_t num_params)
 {
-	paddr_t *pages = NULL;
-	paddr_t page_offset;
-	ssize_t num_pages, pages_cnt;
-
 	if (num_params != 1 ||
 	    (arg->params[0].attr != (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 				     OPTEE_MSG_ATTR_NONCONTIG))) {
@@ -392,33 +411,12 @@ static void register_shm(struct thread_smc_args *smc_args,
 		return;
 	}
 
-	page_offset = arg->params[0].u.tmem.buf_ptr & SMALL_PAGE_MASK;
-	num_pages = (arg->params[0].u.tmem.size + page_offset - 1)
-		/ SMALL_PAGE_SIZE + 1;
+	/* We don't need mobj there, we only care if it was created */
+	if (!msg_param_mobj_from_noncontig_param(arg->params, false))
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	else
+		arg->ret = TEE_SUCCESS;
 
-	pages = malloc(num_pages * sizeof(paddr_t));
-
-	if (!pages) {
-		arg->ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	pages_cnt = msg_param_extract_pages(
-		arg->params[0].u.tmem.buf_ptr & ~SMALL_PAGE_MASK,
-		pages, num_pages);
-	if (pages_cnt < 0) {
-		arg->ret = pages_cnt;
-		goto out;
-	}
-
-	if (mobj_reg_shm_alloc(pages, pages_cnt, page_offset,
-			       arg->params[0].u.tmem.shm_ref) == NULL) {
-		arg->ret = TEE_ERROR_GENERIC;
-		goto out;
-	}
-	arg->ret = TEE_SUCCESS;
-out:
-	free(pages);
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 

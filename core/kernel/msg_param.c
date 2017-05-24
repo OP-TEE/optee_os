@@ -43,8 +43,8 @@
  *   page count on success
  *   <0 on error
  */
-ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
-				size_t num_pages)
+static ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
+				       size_t num_pages)
 {
 	size_t cnt;
 	struct mobj *mobj;
@@ -83,6 +83,53 @@ ssize_t msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 
 	mobj_free(mobj);
 	return cnt;
+}
+
+/**
+ * msg_param_mobj_from_noncontig_param() - construct mobj from non-contigous
+ * list of pages.
+ *
+ * @param - pointer to msg_param with OPTEE_MSG_ATTR_TYPE_NONCONTIG flag set
+ * @bool  - true of buffer needs to be mapped into OP-TEE address space
+ *
+ * return:
+ *	mobj or NULL on error
+ */
+struct mobj *msg_param_mobj_from_noncontig_param(
+	const struct optee_msg_param *param,
+	bool map_buffer)
+{
+	struct mobj *mobj = NULL;
+	paddr_t *pages;
+	paddr_t page_offset;
+	ssize_t num_pages, pages_cnt;
+
+	assert(param->attr & OPTEE_MSG_ATTR_NONCONTIG);
+
+	page_offset = param->u.tmem.buf_ptr & SMALL_PAGE_MASK;
+	num_pages = (param->u.tmem.size + page_offset - 1)
+		/ SMALL_PAGE_SIZE + 1;
+
+	pages = malloc(num_pages * sizeof(paddr_t));
+
+	if (!pages)
+		return NULL;
+
+	pages_cnt = msg_param_extract_pages(
+		param->u.tmem.buf_ptr & ~SMALL_PAGE_MASK,
+		pages, num_pages);
+	if (pages_cnt != num_pages)
+		goto out;
+
+	if (map_buffer)
+		mobj = mobj_mapped_shm_alloc(pages, pages_cnt, page_offset,
+					     param->u.tmem.shm_ref);
+	else
+		mobj = mobj_reg_shm_alloc(pages, pages_cnt, page_offset,
+					  param->u.tmem.shm_ref);
+out:
+	free(pages);
+	return mobj;
 }
 
 /**
