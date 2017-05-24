@@ -334,28 +334,34 @@ static void set_invoke_timeout(struct tee_ta_session *sess,
 				      uint32_t cancel_req_to)
 {
 	TEE_Time current_time;
-	TEE_Time cancel_time = { UINT32_MAX, UINT32_MAX };
+	TEE_Time cancel_time;
 
 	if (cancel_req_to == TEE_TIMEOUT_INFINITE)
-		goto out;
+		goto infinite;
 
 	if (tee_time_get_sys_time(&current_time) != TEE_SUCCESS)
-		goto out;
+		goto infinite;
 
-	/* Check that it doesn't wrap */
-	if (current_time.seconds + (cancel_req_to / 1000) >=
-	    current_time.seconds) {
-		cancel_time.seconds =
-		    current_time.seconds + cancel_req_to / 1000;
-		cancel_time.millis = current_time.millis + cancel_req_to % 1000;
-		if (cancel_time.millis > 1000) {
-			cancel_time.seconds++;
-			cancel_time.millis -= 1000;
-		}
+	if (ADD_OVERFLOW(current_time.seconds, cancel_req_to / 1000,
+			 &cancel_time.seconds))
+		goto infinite;
+
+	cancel_time.millis = current_time.millis + cancel_req_to % 1000;
+	if (cancel_time.millis > 1000) {
+		if (ADD_OVERFLOW(current_time.seconds, 1,
+				 &cancel_time.seconds))
+			goto infinite;
+
+		cancel_time.seconds++;
+		cancel_time.millis -= 1000;
 	}
 
-out:
 	sess->cancel_time = cancel_time;
+	return;
+
+infinite:
+	sess->cancel_time.seconds = UINT32_MAX;
+	sess->cancel_time.millis = UINT32_MAX;
 }
 
 /*-----------------------------------------------------------------------------
