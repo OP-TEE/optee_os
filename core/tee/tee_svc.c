@@ -627,10 +627,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			if (tee_mmu_is_vbuf_inside_ta_private(utc, va, s)) {
 
 				s = ROUNDUP(s, sizeof(uint32_t));
-				/* Check overflow */
-				if (req_mem + s < req_mem)
+				if (ADD_OVERFLOW(req_mem, s, &req_mem))
 					return TEE_ERROR_BAD_PARAMETERS;
-				req_mem += s;
 				ta_private_memref[n] = true;
 				break;
 			}
