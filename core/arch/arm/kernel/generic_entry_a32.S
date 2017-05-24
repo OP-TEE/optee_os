@@ -215,23 +215,19 @@ END_FUNC reset
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
-	 * sp is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride -
-	 * stack_tmp_offset
+	 * sp is assigned stack_tmp_export + cpu_id * stack_tmp_stride
 	 */
 	.macro set_sp
 		bl	get_core_pos
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		add	r0, r0, #1
-		ldr	r2, =stack_tmp_stride
-		ldr	r1, [r2]
-		mul	r2, r0, r1
-		ldr	r1, =stack_tmp
-		add	r1, r1, r2
-		ldr	r2, =stack_tmp_offset
-		ldr	r2, [r2]
-		sub	sp, r1, r2
+		ldr	r1, =stack_tmp_stride
+		ldr	r1, [r1]
+		mul	r1, r0, r1
+		ldr	r0, =stack_tmp_export
+		ldr	r0, [r0]
+		add	sp, r1, r0
 	.endm
 
 	/*
