@@ -50,10 +50,12 @@
 #include <compiler.h>
 
 #define KEEP_PAGER(sym) \
+	extern const unsigned long ____keep_pager_##sym; \
 	const unsigned long ____keep_pager_##sym  \
 		__section("__keep_meta_vars_pager") = (unsigned long)&sym
 
 #define KEEP_INIT(sym) \
+	extern const unsigned long ____keep_init_##sym; \
 	const unsigned long ____keep_init_##sym  \
 		__section("__keep_meta_vars_init") = (unsigned long)&sym
 
