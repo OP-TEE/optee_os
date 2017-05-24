@@ -167,6 +167,18 @@ struct thread_core_local {
 #endif /*ARM64*/
 
 #ifndef ASM
+extern const uint32_t stack_tmp_stride;
+extern const uint32_t stack_tmp_offset;
+extern struct thread_ctx threads[];
+extern thread_smc_handler_t thread_std_smc_handler_ptr;
+extern thread_nintr_handler_t thread_nintr_handler_ptr;
+extern thread_pm_handler_t thread_cpu_on_handler_ptr;
+extern thread_pm_handler_t thread_cpu_off_handler_ptr;
+extern thread_pm_handler_t thread_cpu_suspend_handler_ptr;
+extern thread_pm_handler_t thread_cpu_resume_handler_ptr;
+extern thread_pm_handler_t thread_system_off_handler_ptr;
+extern thread_pm_handler_t thread_system_reset_handler_ptr;
+
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
