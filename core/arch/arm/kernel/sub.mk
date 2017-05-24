@@ -36,6 +36,7 @@ srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c
 srcs-y += wait_queue.c
 srcs-$(CFG_PM_STUBS) += pm_stubs.c
+cflags-pm_stubs.c-y += -Wno-suggest-attribute=noreturn
 
 srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
 ifeq ($(CFG_GENERIC_BOOT),y)
