@@ -747,8 +747,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 	size_t addr_incr = MIN(CORE_MMU_USER_CODE_SIZE,
 			       CORE_MMU_USER_PARAM_SIZE);
 
-	/* Address wrap */
-	if ((uaddr + len) < uaddr)
+	if (ADD_OVERFLOW(uaddr, len, &a))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	if ((flags & TEE_MEMORY_ACCESS_NONSECURE) &&
