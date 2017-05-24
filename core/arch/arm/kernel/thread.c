@@ -117,22 +117,22 @@ linkage uint32_t name[num_stacks] \
 #define GET_STACK(stack) \
 	((vaddr_t)(stack) + STACK_SIZE(stack))
 
-DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, /* global */);
+DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, static);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #ifndef CFG_WITH_PAGER
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
+const void *stack_tmp_export = (uint8_t *)stack_tmp + sizeof(stack_tmp[0]) -
+			       (STACK_TMP_OFFS + STACK_CANARY_SIZE / 2);
 const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
-const uint32_t stack_tmp_offset = STACK_TMP_OFFS + STACK_CANARY_SIZE / 2;
 
 /*
  * These stack setup info are required by secondary boot cores before they
  * each locally enable the pager (the mmu). Hence kept in pager sections.
  */
-KEEP_PAGER(stack_tmp);
+KEEP_PAGER(stack_tmp_export);
 KEEP_PAGER(stack_tmp_stride);
-KEEP_PAGER(stack_tmp_offset);
 
 thread_smc_handler_t thread_std_smc_handler_ptr;
 static thread_smc_handler_t thread_fast_smc_handler_ptr;

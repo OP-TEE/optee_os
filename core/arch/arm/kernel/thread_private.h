@@ -167,8 +167,8 @@ struct thread_core_local {
 #endif /*ARM64*/
 
 #ifndef ASM
+extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
-extern const uint32_t stack_tmp_offset;
 extern struct thread_ctx threads[];
 extern thread_smc_handler_t thread_std_smc_handler_ptr;
 extern thread_nintr_handler_t thread_nintr_handler_ptr;

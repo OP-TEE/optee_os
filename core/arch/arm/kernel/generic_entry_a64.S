@@ -36,8 +36,7 @@
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride -
-	 *		      stack_tmp_offset
+	 * SP_EL0 is assigned stack_tmp_export + cpu_id * stack_tmp_stride
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
@@ -45,18 +44,14 @@
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		add	x0, x0, #1
-		adr	x2, stack_tmp_stride
-		ldr	w1, [x2]
-		mul	x2, x0, x1
-		adrp	x1, stack_tmp
-		add	x1, x1, :lo12:stack_tmp
-		add	x1, x1, x2
-		adr	x2, stack_tmp_offset
-		ldr	w2, [x2]
-		sub	x1, x1, x2
+		adr	x1, stack_tmp_stride
+		ldr	w1, [x1]
+		mul	x1, x0, x1
+		adrp	x0, stack_tmp_export
+		add	x0, x0, :lo12:stack_tmp_export
+		ldr	x0, [x0]
 		msr	spsel, #0
-		mov	sp, x1
+		add	sp, x1, x0
 		bl	thread_get_core_local
 		msr	spsel, #1
 		mov	sp, x0
