@@ -132,7 +132,7 @@
 #define CFG_TEE_RAM_VA_SIZE     (1 * 1024 * 1024)
 #define CFG_TEE_RAM_PH_SIZE     TZSRAM_SIZE
 #define CFG_TEE_RAM_START       TZSRAM_BASE
-#define CFG_TEE_LOAD_ADDR       CFG_TEE_RAM_START
+#define CFG_TEE_LOAD_ADDR       (CFG_TEE_RAM_START + 0x1000)
 
 #else /* CFG_WITH_PAGER */
 /*
