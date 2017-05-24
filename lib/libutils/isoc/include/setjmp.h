@@ -33,25 +33,22 @@
 #ifndef __SETJMP_H
 #define __SETJMP_H
 
-#if defined(__arm__) || defined(__thumb__)
+#if defined(ARM32)
 /*
  * All callee preserved registers:
  * v1 - v7, fp, ip, sp, lr, f4, f5, f6, f7
  */
 #define _JBLEN 23
+#define _JBTYPE int
 #endif
 
-#if defined(__aarch64__)
+#if defined(ARM64)
 #define _JBLEN 22
 #define _JBTYPE long long
 #endif
 
 #ifdef _JBLEN
-#ifdef _JBTYPE
 typedef	_JBTYPE jmp_buf[_JBLEN];
-#else
-typedef	int jmp_buf[_JBLEN];
-#endif
 #endif
 
 void longjmp(jmp_buf env, int val);
