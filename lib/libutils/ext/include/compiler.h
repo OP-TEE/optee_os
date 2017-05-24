@@ -61,7 +61,7 @@
 #define __GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + \
 		       __GNUC_PATCHLEVEL__)
 
-#if __GCC_VERSION >= 50100
+#if __GCC_VERSION >= 50100 && !defined(__CHECKER__)
 #define __HAVE_BUILTIN_OVERFLOW 1
 #endif
 
