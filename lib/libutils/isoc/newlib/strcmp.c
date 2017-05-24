@@ -78,10 +78,11 @@ QUICKREF
 
 /* DETECTNULL returns nonzero if (long)X contains a NULL byte. */
 #if LONG_MAX == 2147483647L
-#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
+#define DETECTNULL(X) (((X) - 0x01010101L) & ~(X) & 0x80808080UL)
 #else
 #if LONG_MAX == 9223372036854775807L
-#define DETECTNULL(X) (((X) - 0x0101010101010101) & ~(X) & 0x8080808080808080)
+#define DETECTNULL(X) (((X) - 0x0101010101010101L) & ~(X) & \
+		       0x8080808080808080UL)
 #else
 #error long int is not a 32bit or 64bit type.
 #endif
