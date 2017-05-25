@@ -31,14 +31,16 @@
 
 	.macro KEEP_PAGER sym
 	.pushsection __keep_meta_vars_pager
-	___keep_pager_\sym:
+	.global ____keep_pager_\sym
+	____keep_pager_\sym:
 	.long	\sym
 	.popsection
 	.endm
 
 	.macro KEEP_INIT sym
 	.pushsection __keep_meta_vars_init
-	___keep_init_\sym:
+	.global ____keep_init_\sym
+	____keep_init_\sym:
 	.long	\sym
 	.popsection
 	.endm
