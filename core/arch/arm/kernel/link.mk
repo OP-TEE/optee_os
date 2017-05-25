@@ -26,12 +26,6 @@ link-script-cppflags := -DASM=1 \
 		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
 		$(cppflagscore))
 
-entries-unpaged += thread_init_vbar
-entries-unpaged += sm_init
-entries-unpaged += core_init_mmu_regs
-entries-unpaged += sem_cpu_sync
-entries-unpaged += generic_boot_get_handlers
-
 ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
 	$(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
@@ -50,8 +44,7 @@ objs-unpaged-rem += core/arch/arm/tee/entry_std.o
 objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
-ldargs-unpaged = -T $(link-script-dummy) --no-check-sections --gc-sections \
-		$(addprefix -u, $(entries-unpaged))
+ldargs-unpaged = -T $(link-script-dummy) --no-check-sections --gc-sections
 ldargs-unpaged-objs := $(objs-unpaged) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
@@ -83,12 +76,10 @@ funcs-init-rem = $(funcs-unpaged-rem)
 funcs-init-rem += .text.init_teecore
 objs-init-rem = $(objs-unpaged-rem)
 objs-init-rem += core/arch/arm/tee/init.o
-entries-init += _start
 objs-init := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
 		$(link-out-dir)/version.o)
-ldargs-init := -T $(link-script-dummy) --no-check-sections --gc-sections \
-		$(addprefix -u, $(entries-init))
+ldargs-init := -T $(link-script-dummy) --no-check-sections --gc-sections
 
 ldargs-init-objs := $(objs-init) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o

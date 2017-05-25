@@ -28,6 +28,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
@@ -38,6 +39,7 @@
 #include <string.h>
 #include <trace.h>
 #include <util.h>
+
 #include "core_mmu_private.h"
 
 #ifdef CFG_WITH_LPAE
@@ -851,6 +853,7 @@ void core_init_mmu_regs(void)
 	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
 	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
 }
+KEEP_PAGER(core_init_mmu_regs);
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {

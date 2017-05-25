@@ -26,15 +26,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm.S>
-#include <arm.h>
 #include <arm32_macros.S>
-#include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
-#include <sm/teesmc_opteed.h>
+#include <arm.h>
+#include <asm.S>
+#include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/thread_defs.h>
 #include <kernel/unwind.h>
+#include <sm/optee_smc.h>
+#include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
 
 	.section .text.thread_asm
 
@@ -534,6 +535,7 @@ UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_init_vbar
+KEEP_PAGER thread_init_vbar
 
 /*
  * Below are low level routines handling entry and return from user mode.

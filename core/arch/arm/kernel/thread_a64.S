@@ -25,14 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm.S>
-#include <arm64_macros.S>
 #include <arm64.h>
-#include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
-#include <sm/teesmc_opteed.h>
+#include <arm64_macros.S>
 #include <asm-defines.h>
+#include <asm.S>
+#include <keep.h>
 #include <kernel/thread_defs.h>
+#include <sm/optee_smc.h>
+#include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
+
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
@@ -259,6 +261,7 @@ FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
+KEEP_PAGER thread_init_vbar
 
 /*
  * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,

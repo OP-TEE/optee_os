@@ -27,11 +27,12 @@
 
 #include <platform_config.h>
 
-#include <asm.S>
 #include <arm.h>
+#include <asm.S>
+#include <keep.h>
 #include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
@@ -163,6 +164,7 @@ copy_init:
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC _start
+KEEP_INIT _start
 
 
 .section .text.cpu_on_handler

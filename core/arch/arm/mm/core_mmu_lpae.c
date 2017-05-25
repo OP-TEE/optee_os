@@ -60,12 +60,13 @@
 #include <assert.h>
 #include <compiler.h>
 #include <inttypes.h>
-#include <kernel/thread.h>
-#include <kernel/panic.h>
+#include <keep.h>
 #include <kernel/misc.h>
+#include <kernel/panic.h>
+#include <kernel/thread.h>
+#include <mm/core_memprot.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
-#include <mm/core_memprot.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -568,6 +569,8 @@ void core_init_mmu_regs(void)
 	write_ttbr1_el1(0);
 }
 #endif /*ARM64*/
+
+KEEP_PAGER(core_init_mmu_regs);
 
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		unsigned level, vaddr_t va_base, void *table)

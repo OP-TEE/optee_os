@@ -26,14 +26,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm.S>
-#include <arm.h>
 #include <arm32_macros.S>
+#include <arm.h>
+#include <asm-defines.h>
+#include <asm.S>
+#include <keep.h>
 #include <kernel/unwind.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
-#include <asm-defines.h>
 
 	.section .text.sm_asm
 
@@ -274,6 +275,7 @@ UNWIND(	.fnstart)
 
 	bx	lr
 END_FUNC sm_init
+KEEP_PAGER sm_init
 
 
 /* struct sm_nsec_ctx *sm_get_nsec_ctx(void); */

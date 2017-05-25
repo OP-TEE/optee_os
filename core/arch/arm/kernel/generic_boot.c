@@ -85,6 +85,7 @@ static uint32_t spin_table[CFG_TEE_CORE_NB_CORE] __early_bss;
  * When 1, it has started
  */
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE] __early_bss;
+KEEP_PAGER(sem_cpu_sync);
 #endif
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
@@ -596,6 +597,9 @@ static void init_primary_helper(unsigned long pageable_part,
 		panic();
 	DMSG("Primary CPU switching to normal world boot\n");
 }
+
+/* What this function is using is needed each time another CPU is started */
+KEEP_PAGER(generic_boot_get_handlers);
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {

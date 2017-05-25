@@ -25,16 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm.h>
 #include <arm32_macros.S>
+#include <arm.h>
 #include <asm.S>
-#include <platform_config.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/unwind.h>
+#include <platform_config.h>
 #include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
 
 .section .data
 .balign 4
@@ -106,6 +106,7 @@ FUNC _start , :
 	b	.	/* IRQ */
 	b	.	/* FIQ */
 END_FUNC _start
+KEEP_INIT _start
 
 	.macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
