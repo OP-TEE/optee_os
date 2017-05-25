@@ -151,6 +151,7 @@ TEE_Result tee_svc_storage_create_filename(void *buf, size_t blen,
 	return TEE_SUCCESS;
 }
 
+#ifdef CFG_REE_FS
 /* "/dirf.db" or "/<file number>" */
 TEE_Result
 tee_svc_storage_create_filename_dfh(void *buf, size_t blen,
@@ -171,6 +172,7 @@ tee_svc_storage_create_filename_dfh(void *buf, size_t blen,
 	l = blen - pos;
 	return tee_fs_dirfile_fileh_to_fname(dfh, file + pos, &l);
 }
+#endif
 
 /* "/TA_uuid" */
 TEE_Result tee_svc_storage_create_dirname(void *buf, size_t blen,

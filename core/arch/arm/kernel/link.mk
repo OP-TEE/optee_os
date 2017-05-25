@@ -1,5 +1,6 @@
 link-out-dir = $(out-dir)/core
 
+link-script-dummy = core/arch/arm/kernel/link_dummy.ld
 link-script = $(platform-dir)/kern.ld.S
 link-script-pp = $(link-out-dir)/kern.ld
 link-script-dep = $(link-out-dir)/.kern.ld.d
@@ -31,7 +32,8 @@ entries-unpaged += core_init_mmu_regs
 entries-unpaged += sem_cpu_sync
 entries-unpaged += generic_boot_get_handlers
 
-ldargs-all_objs := -i $(objs) $(link-ldadd) $(libgcccore)
+ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
+	$(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
 	@$(cmd-echo-silent) '  LD      $@'
@@ -43,11 +45,13 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
+funcs-unpaged-rem += .text.tee_entry_std .text.tee_svc_handler
 objs-unpaged-rem += core/arch/arm/tee/entry_std.o
 objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
 objs-unpaged := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
-ldargs-unpaged = -i --gc-sections $(addprefix -u, $(entries-unpaged))
+ldargs-unpaged = -T $(link-script-dummy) --no-check-sections --gc-sections \
+		$(addprefix -u, $(entries-unpaged))
 ldargs-unpaged-objs := $(objs-unpaged) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
@@ -59,13 +63,14 @@ $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
 cleanfiles += $(link-out-dir)/text_unpaged.ld.S
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .text. $(funcs-unpaged-rem) > $@
 
 cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S
 $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | \
-		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .rodata. > $@
 
 
 cleanfiles += $(link-out-dir)/init_entries.txt
@@ -74,15 +79,16 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_init/ { printf "-u%s", $$3 }' > $@
 
-objs-init-rem += core/arch/arm/tee/arch_svc.o
-objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
+funcs-init-rem = $(funcs-unpaged-rem)
+funcs-init-rem += .text.init_teecore
+objs-init-rem = $(objs-unpaged-rem)
 objs-init-rem += core/arch/arm/tee/init.o
-objs-init-rem += core/arch/arm/tee/entry_std.o
 entries-init += _start
 objs-init := \
 	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
 		$(link-out-dir)/version.o)
-ldargs-init := -i --gc-sections $(addprefix -u, $(entries-init))
+ldargs-init := -T $(link-script-dummy) --no-check-sections --gc-sections \
+		$(addprefix -u, $(entries-init))
 
 ldargs-init-objs := $(objs-init) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
@@ -96,13 +102,13 @@ $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 cleanfiles += $(link-out-dir)/text_init.ld.S
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .text. $(funcs-init-rem) > $@
 
 cleanfiles += $(link-out-dir)/rodata_init.ld.S
 $(link-out-dir)/rodata_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | \
-		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | ./scripts/gen_ld_sects.py .rodata. > $@
 
 -include $(link-script-dep)
 
