@@ -9,6 +9,7 @@ CFG_CORE_HEAP_SIZE ?= 98304
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
+$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 $(call force,CFG_HI16XX_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)

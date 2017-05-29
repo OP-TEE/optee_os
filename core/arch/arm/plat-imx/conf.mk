@@ -43,6 +43,7 @@ ifeq ($(CFG_MX6UL),y)
 arm32-platform-cpuarch		:= cortex-a7
 
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 endif
 
 
@@ -53,6 +54,7 @@ arm32-platform-cpuarch		:= cortex-a9
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
+$(call force,CFG_HWSUPP_MEM_PERM_WXN,n)
 
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y

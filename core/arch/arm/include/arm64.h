@@ -36,6 +36,7 @@
 #define SCTLR_C		BIT32(2)
 #define SCTLR_SA	BIT32(3)
 #define SCTLR_I		BIT32(12)
+#define SCTLR_WXN	BIT32(19)
 
 #define TTBR_ASID_MASK		0xff
 #define TTBR_ASID_SHIFT		48

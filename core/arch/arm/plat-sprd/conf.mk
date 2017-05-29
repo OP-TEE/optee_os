@@ -22,6 +22,7 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_SPRD_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 
 CFG_WITH_STACK_CANARIES ?= y
 # Overrides default in mk/config.mk with 128 kB
