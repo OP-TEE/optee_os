@@ -189,6 +189,9 @@ UNWIND(	.cantunwind)
 	orr	r0, r0, #SCTLR_A
 	bic	r0, r0, #SCTLR_C
 	bic	r0, r0, #SCTLR_I
+#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
 	write_sctlr r0
 	isb
 
@@ -446,6 +449,9 @@ UNWIND(	.cantunwind)
 	mov	r6, lr
 	read_sctlr r0
 	orr	r0, r0, #SCTLR_A
+#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
 	write_sctlr r0
 
 	ldr	r0, =_start

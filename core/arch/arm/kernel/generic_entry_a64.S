@@ -73,6 +73,9 @@ FUNC _start , :
 
 	mrs	x0, sctlr_el1
 	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	x1, x1, #SCTLR_WXN
+#endif
 	orr	x0, x0, x1
 	msr	sctlr_el1, x0
 	isb
@@ -177,6 +180,9 @@ FUNC cpu_on_handler , :
 
 	mrs	x0, sctlr_el1
 	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	x1, x1, #SCTLR_WXN
+#endif
 	orr	x0, x0, x1
 	msr	sctlr_el1, x0
 	isb

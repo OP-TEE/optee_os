@@ -11,6 +11,7 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_16550_UART,y)
 $(call force,CFG_PM_STUBS,y)
+$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 
 ta-targets = ta_arm32
 
