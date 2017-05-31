@@ -68,13 +68,6 @@ void arm_cl2_enable(vaddr_t pl310_base)
 
 vaddr_t pl310_base(void)
 {
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-	return PL310_BASE;
+	return core_mmu_get_va(PL310_BASE, MEM_AREA_IO_SEC);
 }
 
