@@ -41,23 +41,14 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
-static vaddr_t src_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(SRC_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-	return SRC_BASE;
-}
-
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id __attribute__((unused)))
 {
 	uint32_t val;
-	vaddr_t va = src_base();
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+
+	if (!va)
+		EMSG("No SRC mapping\n");
 
 	if ((core_idx == 0) || (core_idx >= CFG_TEE_CORE_NB_CORE))
 		return PSCI_RET_INVALID_PARAMETERS;
