@@ -136,7 +136,6 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_AES_CTR:
 	case TEE_ALG_AES_CCM:
-	case TEE_ALG_AES_GCM:
 	case TEE_ALG_DES_ECB_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_ECB_NOPAD:
@@ -145,7 +144,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			block_size = TEE_AES_BLOCK_SIZE;
 		else
 			block_size = TEE_DES_BLOCK_SIZE;
-
+		/* FALLTHROUGH */
+	case TEE_ALG_AES_GCM:
 		if (mode == TEE_MODE_ENCRYPT)
 			req_key_usage = TEE_USAGE_ENCRYPT;
 		else if (mode == TEE_MODE_DECRYPT)
@@ -1371,8 +1371,13 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = ROUNDDOWN(operation->buffer_offs + srcLen,
-			     operation->block_size);
+	if (operation->block_size > 1) {
+		req_dlen = ROUNDDOWN(operation->buffer_offs + srcLen,
+				     operation->block_size);
+	} else {
+		req_dlen = srcLen;
+	}
+
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -1380,8 +1385,22 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
 	}
 
 	dl = *destLen;
-	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
-				srcLen, destData, &dl);
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, utee_authenc_update_payload,
+					srcData, srcLen, destData, &dl);
+	} else {
+		if (srcLen > 0) {
+			res = utee_authenc_update_payload(operation->state,
+							  srcData, srcLen,
+							  destData, &dl);
+		} else {
+			dl = 0;
+			res = TEE_SUCCESS;
+		}
+	}
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	*destLen = dl;
 
 	operation->operationState = TEE_OPERATION_STATE_ACTIVE;
@@ -1447,20 +1466,27 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	tmp_dlen = *destLen - acc_dlen;
-	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
-				srcLen, dst, &tmp_dlen);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	dst += tmp_dlen;
-	acc_dlen += tmp_dlen;
-
-	tmp_dlen = *destLen - acc_dlen;
 	tl = *tagLen;
-	res = utee_authenc_enc_final(operation->state, operation->buffer,
-				     operation->buffer_offs, dst, &tmp_dlen,
-				     tag, &tl);
+	tmp_dlen = *destLen - acc_dlen;
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, utee_authenc_update_payload,
+					srcData, srcLen, dst, &tmp_dlen);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		dst += tmp_dlen;
+		acc_dlen += tmp_dlen;
+
+		tmp_dlen = *destLen - acc_dlen;
+		res = utee_authenc_enc_final(operation->state,
+					     operation->buffer,
+					     operation->buffer_offs, dst,
+					     &tmp_dlen, tag, &tl);
+	} else {
+		res = utee_authenc_enc_final(operation->state, srcData,
+					     srcLen, dst, &tmp_dlen,
+					     tag, &tl);
+	}
 	*tagLen = tl;
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -1523,18 +1549,25 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 	}
 
 	tmp_dlen = *destLen - acc_dlen;
-	res = tee_buffer_update(operation, utee_authenc_update_payload, srcData,
-				srcLen, dst, &tmp_dlen);
-	if (res != TEE_SUCCESS)
-		goto out;
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, utee_authenc_update_payload,
+					srcData, srcLen, dst, &tmp_dlen);
+		if (res != TEE_SUCCESS)
+			goto out;
 
-	dst += tmp_dlen;
-	acc_dlen += tmp_dlen;
+		dst += tmp_dlen;
+		acc_dlen += tmp_dlen;
 
-	tmp_dlen = *destLen - acc_dlen;
-	res = utee_authenc_dec_final(operation->state, operation->buffer,
-				     operation->buffer_offs, dst, &tmp_dlen,
-				     tag, tagLen);
+		tmp_dlen = *destLen - acc_dlen;
+		res = utee_authenc_dec_final(operation->state,
+					     operation->buffer,
+					     operation->buffer_offs, dst,
+					     &tmp_dlen, tag, tagLen);
+	} else {
+		res = utee_authenc_dec_final(operation->state, srcData,
+					     srcLen, dst, &tmp_dlen,
+					     tag, tagLen);
+	}
 	if (res != TEE_SUCCESS)
 		goto out;
 
