@@ -64,7 +64,7 @@ void itr_handle(size_t it)
 		return;
 	}
 
-	if (h->handler(h) != ITRR_HANDLED) {
+	if (h->handler(h->data) != ITRR_HANDLED) {
 		EMSG("Disabling interrupt %zu not handled by handler", it);
 		itr_chip->ops->disable(itr_chip, it);
 	}

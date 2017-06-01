@@ -125,7 +125,7 @@ void console_init(void)
 }
 
 #ifdef IT_CONSOLE_UART
-static enum itr_return console_itr_cb(struct itr_handler *h __unused)
+static enum itr_return console_itr_cb(void *data __unused)
 {
 	struct serial_chip *cons = &console_data.chip;
 

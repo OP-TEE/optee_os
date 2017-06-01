@@ -126,9 +126,9 @@ reset:
 	d->serial->ops->putc(d->serial, PS2_CMD_RESET);
 }
 
-static enum itr_return ps2mouse_itr_cb(struct itr_handler *h)
+static enum itr_return ps2mouse_itr_cb(void *data)
 {
-	struct ps2mouse_data *d = h->data;
+	struct ps2mouse_data *d = data;
 
 	if (!d->serial->ops->have_rx_data(d->serial))
 		return ITRR_NONE;
