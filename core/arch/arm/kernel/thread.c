@@ -658,16 +658,28 @@ void thread_state_free(void)
 }
 
 #ifdef CFG_WITH_PAGER
-static void release_unused_kernel_stack(struct thread_ctx *thr)
+static void release_unused_kernel_stack(struct thread_ctx *thr,
+					uint32_t cpsr __maybe_unused)
 {
+#ifdef ARM64
+	/*
+	 * If we're from user mode then thr->regs.sp is the saved user
+	 * stack pointer and thr->kern_sp holds the last kernel stack
+	 * pointer. But if we're from kernel mode then thr->kern_sp isn't
+	 * up to date so we need to read from thr->regs.sp instead.
+	 */
+	vaddr_t sp = is_from_user(cpsr) ?  thr->kern_sp : thr->regs.sp;
+#else
 	vaddr_t sp = thr->regs.svc_sp;
+#endif
 	vaddr_t base = thr->stack_va_end - STACK_THREAD_SIZE;
 	size_t len = sp - base;
 
 	tee_pager_release_phys((void *)base, len);
 }
 #else
-static void release_unused_kernel_stack(struct thread_ctx *thr __unused)
+static void release_unused_kernel_stack(struct thread_ctx *thr __unused,
+					uint32_t cpsr __unused)
 {
 }
 #endif
@@ -681,7 +693,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	thread_check_canaries();
 
-	release_unused_kernel_stack(threads + ct);
+	release_unused_kernel_stack(threads + ct, cpsr);
 
 	if (is_from_user(cpsr)) {
 		thread_user_save_vfp();
