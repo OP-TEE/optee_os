@@ -33,12 +33,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM64
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for ARM64"
-#endif
-#endif /*ARM64*/
-
 /* SDP enable but no pool defined: reserve 4MB for SDP tests */
 #if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
 #define CFG_TEE_SDP_MEM_TEST_SIZE	0x00400000
@@ -225,10 +219,6 @@
 
 #elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for platform vexpress-qemu_armv8a"
-#endif
-
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
 #define DRAM0_SIZE		(UINTPTR_C(0x40000000) - CFG_SHMEM_SIZE)
 
@@ -238,9 +228,24 @@
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
 
+
+#ifdef CFG_WITH_PAGER
+
+/* Emulated SRAM */
+/* First 1MByte of the secure RAM is reserved to ARM-TF runtime services */
+#define TZSRAM_BASE		(SECRAM_BASE + 0x00100000)
+#define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
+
+#define TZDRAM_BASE		(TZSRAM_BASE + TZSRAM_SIZE)
+#define TZDRAM_SIZE		(SECRAM_SIZE - TZSRAM_SIZE - 0x00100000)
+
+#else /* CFG_WITH_PAGER */
+
 /* First 1MByte of the secure RAM is reserved to ARM-TF runtime services */
 #define TZDRAM_BASE		(SECRAM_BASE + 0x00100000)
 #define TZDRAM_SIZE		(SECRAM_SIZE - 0x00100000)
+
+#endif /* CFG_WITH_PAGER */
 
 #define CFG_TEE_CORE_NB_CORE	2
 
