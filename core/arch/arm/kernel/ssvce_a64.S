@@ -30,7 +30,7 @@
 
 /* void secure_mmu_unifiedtlbinvall(void); */
 FUNC secure_mmu_unifiedtlbinvall , :
-	tlbi	vmalle1
+	tlbi	vmalle1is
 	isb
 	ret
 END_FUNC secure_mmu_unifiedtlbinvall
@@ -45,7 +45,7 @@ END_FUNC secure_mmu_unifiedtlbinv_curasid
 /* void secure_mmu_unifiedtlbinv_byasid(unsigned int asid); */
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 	and	x0, x0, #TTBR_ASID_MASK
-	tlbi	aside1, x0
+	tlbi	aside1is, x0
 	isb
 	ret
 END_FUNC secure_mmu_unifiedtlbinv_byasid
