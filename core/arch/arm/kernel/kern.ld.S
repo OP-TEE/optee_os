@@ -216,9 +216,9 @@ SECTIONS
 	.got : { *(.got.plt) *(.got) }
 	.dynamic : { *(.dynamic) }
 
-	__data_end = .;
 	/* unintialized data */
-	.bss : ALIGN(8) {
+	.bss : {
+		__data_end = .;
 		__bss_start = .;
 		*(.bss .bss.*)
 		*(.gnu.linkonce.b.*)
