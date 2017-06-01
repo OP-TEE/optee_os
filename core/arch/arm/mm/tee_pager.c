@@ -1454,7 +1454,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 	struct tee_pager_area *area;
 	uint32_t exceptions;
 
-	if (!size)
+	if (end <= begin)
 		return;
 
 	area = find_area(&tee_pager_area_head, begin);
