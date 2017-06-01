@@ -106,4 +106,10 @@ void *phys_to_virt_io(paddr_t pa);
  */
 paddr_t virt_to_phys(void *va);
 
+/*
+ * Return runtime usable address, irrespective of whether
+ * the MMU is enabled or not.
+ */
+vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type);
+
 #endif /* CORE_MEMPROT_H */
