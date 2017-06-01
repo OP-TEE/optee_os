@@ -373,6 +373,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 {
 	struct tee_ta_session *sess;
 	struct tee_ta_ctx *ctx;
+	bool keep_alive;
 
 	DMSG("tee_ta_close_session(0x%" PRIxVA ")",  (vaddr_t)csess);
 
@@ -416,7 +417,9 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 		panic();
 
 	ctx->ref_count--;
-	if (!ctx->ref_count && !(ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE)) {
+	keep_alive = (ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) &&
+			(ctx->flags & TA_FLAG_SINGLE_INSTANCE);
+	if (!ctx->ref_count && !keep_alive) {
 		DMSG("   ... Destroy TA ctx");
 
 		TAILQ_REMOVE(&tee_ctxes, ctx, link);
