@@ -55,6 +55,7 @@
 FUNC secure_mmu_unifiedtlbinvall , :
 UNWIND(	.fnstart)
 
+	dsb	/* Ensure visibility of the update to translation table walks */
 	write_tlbiallis
 
 	DSB
@@ -73,6 +74,7 @@ FUNC secure_mmu_unifiedtlbinvbymva , :
 UNWIND(	.fnstart)
 
 	b .	@ Wrong code to force fix/check the routine before using it
+	dsb	/* Ensure visibility of the update to translation table walks */
 
 	MRC     p15, 0, R1, c13, c0, 1		/* Read CP15 Context ID Register (CONTEXTIDR) */
 	ANDS    R1, R1, #0xFF			/* Get current ASID */
@@ -96,6 +98,7 @@ FUNC secure_mmu_unifiedtlbinv_curasid , :
 UNWIND(	.fnstart)
 	read_contextidr r0
 	and     r0, r0, #0xff               /* Get current ASID */
+	dsb	/* Ensure visibility of the update to translation table walks */
 	/* Invalidate unified TLB by ASID Inner Sharable */
 	write_tlbiasidis r0
 	dsb
@@ -112,6 +115,7 @@ END_FUNC secure_mmu_unifiedtlbinv_curasid
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 UNWIND(	.fnstart)
 	and     r0, r0, #0xff               /* Get ASID */
+	dsb	/* Ensure visibility of the update to translation table walks */
 	/* Invalidate unified TLB by ASID Inner Sharable */
 	write_tlbiasidis r0
 	dsb

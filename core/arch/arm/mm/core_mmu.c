@@ -877,12 +877,6 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 
 int core_tlb_maintenance(int op, unsigned int a)
 {
-	/*
-	 * We're doing TLB invalidation because we've changed mapping.
-	 * The dsb() makes sure that written data is visible.
-	 */
-	dsb();
-
 	switch (op) {
 	case TLBINV_UNIFIEDTLB:
 		secure_mmu_unifiedtlbinvall();

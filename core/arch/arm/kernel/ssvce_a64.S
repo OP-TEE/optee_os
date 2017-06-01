@@ -30,7 +30,12 @@
 
 /* void secure_mmu_unifiedtlbinvall(void); */
 FUNC secure_mmu_unifiedtlbinvall , :
+	/* Ensure visibility of the update to translation table walks */
+	dsb	ishst
+
 	tlbi	vmalle1is
+
+	dsb	ish /* Ensure completion of TLB invalidation */
 	isb
 	ret
 END_FUNC secure_mmu_unifiedtlbinvall
@@ -45,7 +50,13 @@ END_FUNC secure_mmu_unifiedtlbinv_curasid
 /* void secure_mmu_unifiedtlbinv_byasid(unsigned int asid); */
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 	and	x0, x0, #TTBR_ASID_MASK
+
+	/* Ensure visibility of the update to translation table walks */
+	dsb	ishst
+
 	tlbi	aside1is, x0
+
+	dsb	ish /* Ensure completion of TLB invalidation */
 	isb
 	ret
 END_FUNC secure_mmu_unifiedtlbinv_byasid
@@ -101,6 +112,11 @@ END_FUNC arm_cl1_d_cleaninvbyva
 /* void arm_cl1_i_inv_all( void ); */
 FUNC arm_cl1_i_inv_all , :
 	ic	ialluis
+	/*
+	 * ensure completion of the ICache and branch predictor
+	 * invalidation on all processors.
+	 */
+	dsb	ish
 	isb
 	ret
 END_FUNC arm_cl1_i_inv_all
