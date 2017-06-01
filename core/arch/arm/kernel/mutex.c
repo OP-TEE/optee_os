@@ -63,6 +63,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 		if (old_value == MUTEX_VALUE_LOCKED) {
 			wq_wait_init(&m->wq, &wqe);
 			owner = m->owner_id;
+			assert(owner != thread_get_id_may_fail());
 		} else {
 			m->value = MUTEX_VALUE_LOCKED;
 			thread_add_mutex(m);
