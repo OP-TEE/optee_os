@@ -87,26 +87,28 @@ FUNC _start , :
 
 #ifdef CFG_WITH_PAGER
 	/*
-	 * Move init code into correct location
+	 * Move init code into correct location and move hashes to a
+	 * temporary safe location until the heap is initialized.
 	 *
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
 	 * [Init code and rodata] : Should be copied to __init_start
-	 * [Hashes] : Should be saved before clearing bss
+	 * [Hashes] : Should be saved before initializing pager
 	 *
-	 * When we copy init code and rodata into correct location we don't
-	 * need to worry about hashes being overwritten as size of .bss,
-	 * .heap, .nozi and .heap3 is much larger than the size of init
-	 * code and rodata and hashes.
 	 */
 	adr	x0, __init_start	/* dst */
 	adr	x1, __data_end		/* src */
-	adr	x2, __init_end		/* dst limit */
+	adr	x2, __tmp_hashes_end	/* dst limit */
+	/* Copy backwards (as memmove) in case we're overlapping */
+	sub	x2, x2, x0		/* len */
+	add	x0, x0, x2		/* __init_start + len = __init_end */
+	add	x1, x1, x2		/* __data_end + len */
+	adr	x2, __init_start
 copy_init:
-	ldp	x3, x4, [x1], #16
-	stp	x3, x4, [x0], #16
+	ldp	x3, x4, [x1, #-16]!
+	stp	x3, x4, [x0, #-16]!
 	cmp	x0, x2
-	b.lt	copy_init
+	b.gt	copy_init
 #endif
 
 	/*
