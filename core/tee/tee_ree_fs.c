@@ -643,7 +643,8 @@ out:
 	if (res) {
 		put_dirh(dirh);
 		if (*fh) {
-			ree_fs_close(fh);
+			ree_fs_close_primitive(*fh);
+			*fh = NULL;
 			tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &dfh);
 		}
 	}
