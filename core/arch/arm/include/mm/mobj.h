@@ -139,6 +139,8 @@ struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie);
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
 
+struct mobj *mobj_shm_alloc(paddr_t pa, size_t size);
+
 struct mobj *mobj_paged_alloc(size_t size);
 
 #ifdef CFG_PAGED_USER_TA
