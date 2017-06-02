@@ -104,7 +104,6 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	args->a0 = OPTEE_SMC_RETURN_OK;
 
 	args->a1 = OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
-#ifdef CFG_SMALL_PAGE_USER_TA
 	if (core_mmu_nsec_ddr_is_defined()) {
 		IMSG("NS DDR configured. Enabling dynamic SHM");
 		args->a1 |= OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM |
@@ -112,7 +111,6 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	} else {
 		EMSG("No NS DDR configured for the platform. Disabling dynamic SHM");
 	}
-#endif
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)

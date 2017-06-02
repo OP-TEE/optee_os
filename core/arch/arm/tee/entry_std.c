@@ -473,7 +473,6 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 
 static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 {
-	struct mobj *mobj = NULL;
 	struct optee_msg_arg *arg;
 	size_t args_size;
 
@@ -484,10 +483,7 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	*num_params = arg->num_params;
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 
-	mobj = mobj_phys_alloc(parg, args_size,
-			       TEE_MATTR_CACHE_CACHED,
-			       CORE_MEM_NSEC_SHM);
-	return mobj;
+	return mobj_shm_alloc(parg, args_size);
 }
 
 void tee_entry_std(struct thread_smc_args *smc_args)

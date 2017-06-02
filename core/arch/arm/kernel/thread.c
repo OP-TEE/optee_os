@@ -1201,8 +1201,7 @@ struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
 		goto err;
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size)) {
-		mobj = mobj_phys_alloc(pa, size, TEE_MATTR_CACHE_CACHED,
-				       CORE_MEM_NSEC_SHM);
+		mobj = mobj_shm_alloc(pa, size);
 	} else {
 		page = pa & ~SMALL_PAGE_MASK;
 		mobj = mobj_mapped_shm_alloc(&page, 1, 0, co);
@@ -1370,10 +1369,8 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 		   core_pbuf_is(CORE_MEM_NSEC_SHM,
 				arg->params[0].u.tmem.buf_ptr,
 				arg->params[0].u.tmem.size)) {
-		mobj = mobj_phys_alloc(arg->params[0].u.tmem.buf_ptr,
-				       arg->params[0].u.tmem.size,
-				       TEE_MATTR_CACHE_CACHED,
-				       CORE_MEM_NSEC_SHM);
+		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
+				      arg->params[0].u.tmem.size);
 		*cookie = arg->params[0].u.tmem.shm_ref;
 	} else
 		goto fail;
