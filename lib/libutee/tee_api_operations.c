@@ -134,7 +134,6 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		/* FALLTHROUGH */
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_AES_CBC_NOPAD:
-	case TEE_ALG_AES_CTR:
 	case TEE_ALG_AES_CCM:
 	case TEE_ALG_DES_ECB_NOPAD:
 	case TEE_ALG_DES_CBC_NOPAD:
@@ -145,6 +144,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		else
 			block_size = TEE_DES_BLOCK_SIZE;
 		/* FALLTHROUGH */
+	case TEE_ALG_AES_CTR:
 	case TEE_ALG_AES_GCM:
 		if (mode == TEE_MODE_ENCRYPT)
 			req_key_usage = TEE_USAGE_ENCRYPT;
@@ -993,8 +993,12 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 	}
 
 	/* Calculate required dlen */
-	req_dlen = ((operation->buffer_offs + srcLen) / operation->block_size) *
-	    operation->block_size;
+	if (operation->block_size > 1) {
+		req_dlen = ((operation->buffer_offs + srcLen) /
+			    operation->block_size) * operation->block_size;
+	} else {
+		req_dlen = srcLen;
+	}
 	if (operation->buffer_two_blocks) {
 		if (req_dlen > operation->block_size * 2)
 			req_dlen -= operation->block_size * 2;
@@ -1013,8 +1017,18 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 	}
 
 	dl = *destLen;
-	res = tee_buffer_update(operation, utee_cipher_update, srcData, srcLen,
-				destData, &dl);
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, utee_cipher_update, srcData,
+					srcLen, destData, &dl);
+	} else {
+		if (srcLen > 0) {
+			res = utee_cipher_update(operation->state, srcData,
+						 srcLen, destData, &dl);
+		} else {
+			res = TEE_SUCCESS;
+			dl = 0;
+		}
+	}
 	*destLen = dl;
 
 out:
@@ -1080,7 +1094,11 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
 	 */
-	req_dlen = operation->buffer_offs + srcLen;
+	if (operation->block_size > 1) {
+		req_dlen = operation->buffer_offs + srcLen;
+	} else {
+		req_dlen = srcLen;
+	}
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -1088,17 +1106,22 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	}
 
 	tmp_dlen = *destLen - acc_dlen;
-	res = tee_buffer_update(operation, utee_cipher_update, srcData, srcLen,
-				dst, &tmp_dlen);
-	if (res != TEE_SUCCESS)
-		goto out;
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, utee_cipher_update,
+					srcData, srcLen, dst, &tmp_dlen);
+		if (res != TEE_SUCCESS)
+			goto out;
 
-	dst += tmp_dlen;
-	acc_dlen += tmp_dlen;
+		dst += tmp_dlen;
+		acc_dlen += tmp_dlen;
 
-	tmp_dlen = *destLen - acc_dlen;
-	res = utee_cipher_final(operation->state, operation->buffer,
-				operation->buffer_offs, dst, &tmp_dlen);
+		tmp_dlen = *destLen - acc_dlen;
+		res = utee_cipher_final(operation->state, operation->buffer,
+					operation->buffer_offs, dst, &tmp_dlen);
+	} else {
+		res = utee_cipher_final(operation->state, srcData,
+					srcLen, dst, &tmp_dlen);
+	}
 	if (res != TEE_SUCCESS)
 		goto out;
 
