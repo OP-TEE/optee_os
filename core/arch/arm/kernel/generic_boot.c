@@ -31,23 +31,24 @@
 #include <console.h>
 #include <inttypes.h>
 #include <keep.h>
-#include <kernel/generic_boot.h>
-#include <kernel/thread.h>
-#include <kernel/panic.h>
-#include <kernel/misc.h>
 #include <kernel/asan.h>
+#include <kernel/generic_boot.h>
+#include <kernel/linker.h>
+#include <kernel/misc.h>
+#include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <malloc.h>
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <sm/tee_mon.h>
-#include <trace.h>
+#include <stdio.h>
 #include <tee/tee_cryp_provider.h>
+#include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <stdio.h>
 
 #include <platform_config.h>
 
@@ -325,7 +326,7 @@ static void init_runtime(unsigned long pageable_part)
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 static void init_run_constructors(void)
 {
-	vaddr_t *ctor;
+	const vaddr_t *ctor;
 
 	for (ctor = &__ctor_list; ctor < &__ctor_end; ctor++)
 		((void (*)(void))(*ctor))();

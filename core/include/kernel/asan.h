@@ -38,21 +38,24 @@
 #ifndef ASM
 #include <types_ext.h>
 
-void asan_set_shadowed(void *va_begin, void *va_end);
+void asan_set_shadowed(const void *va_begin, const void *va_end);
 void asan_start(void);
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-void asan_tag_no_access(void *begin, void *end);
-void asan_tag_access(void *begin, void *end);
-void asan_tag_heap_free(void *begin, void *end);
+void asan_tag_no_access(const void *begin, const void *end);
+void asan_tag_access(const void *begin, const void *end);
+void asan_tag_heap_free(const void *begin, const void *end);
 #else
-static inline void asan_tag_no_access(void *begin __unused, void *end __unused)
+static inline void asan_tag_no_access(const void *begin __unused,
+				      const void *end __unused)
 {
 }
-static inline void asan_tag_access(void *begin __unused, void *end __unused)
+static inline void asan_tag_access(const void *begin __unused,
+				   const void *end __unused)
 {
 }
-static inline void asan_tag_heap_free(void *begin __unused, void *end __unused)
+static inline void asan_tag_heap_free(const void *begin __unused,
+				      const void *end __unused)
 {
 }
 #endif
