@@ -53,19 +53,22 @@
 #define CFG_DDR_START			DDR_PHYS_START
 #define CFG_DDR_SIZE			DDR_SIZE
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START			(TZDRAM_BASE - 0x100000)
-#define CFG_SHMEM_SIZE			0x100000
-
-/* Location of trusted dram on imx */
-#define TZDRAM_BASE			(0x9c100000)
-#define TZDRAM_SIZE			(0x03000000)
-
-#define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
-
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		CFG_TEE_RAM_START
+#ifndef CFG_DDR_TEETZ_RESERVED_START
+#define CFG_DDR_TEETZ_RESERVED_START	0x9E000000
 #endif
+
+#define CFG_DDR_TEETZ_RESERVED_SIZE	0x02000000
+
+#define CFG_PUB_RAM_SIZE	(2 * 1024 * 1024)
+
+#define TZDRAM_BASE		(CFG_DDR_TEETZ_RESERVED_START)
+#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
+				 CFG_PUB_RAM_SIZE)
+
+#define CFG_SHMEM_START		(CFG_DDR_TEETZ_RESERVED_START + \
+				 TZDRAM_SIZE)
+/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
+#define CFG_SHMEM_SIZE		CFG_PUB_RAM_SIZE
 
 /*
  * Everything is in TZDRAM.
@@ -75,14 +78,19 @@
  * |        | TA_RAM  |
  * +--------+---------+
  */
+#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
 #define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
 #define CFG_TEE_RAM_START	TZDRAM_BASE
 #define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
-						CORE_MMU_DEVICE_SIZE)
+					CORE_MMU_DEVICE_SIZE)
 #define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
-						CORE_MMU_DEVICE_SIZE)
+					  CORE_MMU_DEVICE_SIZE)
+#ifndef CFG_TEE_LOAD_ADDR
+#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#endif
 
-#define CONSOLE_UART_BASE		(UART0_BASE)
+
+#define CONSOLE_UART_BASE	(UART0_BASE)
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
