@@ -29,6 +29,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <kernel/generic_boot.h>
+#include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
@@ -201,9 +202,6 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 }
 
 #ifdef CFG_SECURE_DATA_PATH
-extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
-extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
-
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
 	const struct core_mmu_phys_mem *mem;
@@ -300,9 +298,6 @@ static void verify_sdp_mem_areas(struct tee_mmap_region *mem_map __unused,
 {
 }
 #endif /* CFG_SECURE_DATA_PATH */
-
-extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
-extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
 
 static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 			 const struct core_mmu_phys_mem *mem, size_t *last)

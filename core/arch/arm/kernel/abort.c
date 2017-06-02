@@ -25,18 +25,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arm.h>
 #include <kernel/abort.h>
+#include <kernel/linker.h>
 #include <kernel/misc.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/panic.h>
-#include <kernel/user_ta.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/unwind.h>
+#include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
-#include <arm.h>
 
 #include "thread_private.h"
 
@@ -69,13 +70,6 @@ static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
 }
 
 #ifdef ARM32
-
-/*
- * These are set in the linker script. Their addresses will be the start or end
- * of the exception binary search index table (.ARM.exidx section)
- */
-extern uint8_t __exidx_start[];
-extern uint8_t __exidx_end[];
 
 /*
  * Kernel or user mode unwind (32-bit execution state).
