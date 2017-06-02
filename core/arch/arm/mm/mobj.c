@@ -595,6 +595,96 @@ static TEE_Result mobj_mapped_shm_init(void)
 
 service_init(mobj_mapped_shm_init);
 
+/*
+ * mobj_shm implementation. mobj_shm represents buffer in predefined shm region
+ * - it is physically contiguous.
+ * - it is identified in static physical layout as MEM_AREA_NSEC_SHM.
+ * - it creates mobjs that match specific CORE_MEM_NSEC_SHM and non secure
+ *   generic CORE_MEM_NON_SEC.
+ */
+
+struct mobj_shm {
+	struct mobj mobj;
+	paddr_t pa;
+};
+
+static struct mobj_shm *to_mobj_shm(struct mobj *mobj);
+
+static void *mobj_shm_get_va(struct mobj *mobj, size_t offset)
+{
+	struct mobj_shm *m = to_mobj_shm(mobj);
+
+	if (offset >= mobj->size)
+		return NULL;
+
+	return phys_to_virt(m->pa + offset, MEM_AREA_NSEC_SHM);
+}
+
+static TEE_Result mobj_shm_get_pa(struct mobj *mobj, size_t offs,
+				   size_t granule, paddr_t *pa)
+{
+	struct mobj_shm *m = to_mobj_shm(mobj);
+	paddr_t p;
+
+	if (!pa || offs >= mobj->size)
+		return TEE_ERROR_GENERIC;
+
+	p = m->pa + offs;
+
+	if (granule) {
+		if (granule != SMALL_PAGE_SIZE &&
+		    granule != CORE_MMU_PGDIR_SIZE)
+			return TEE_ERROR_GENERIC;
+		p &= ~(granule - 1);
+	}
+
+	*pa = p;
+	return TEE_SUCCESS;
+}
+
+static bool mobj_shm_matches(struct mobj *mobj __unused, enum buf_is_attr attr)
+{
+	return attr == CORE_MEM_NSEC_SHM || attr == CORE_MEM_NON_SEC;
+}
+
+static void mobj_shm_free(struct mobj *mobj)
+{
+	struct mobj_shm *m = to_mobj_shm(mobj);
+
+	free(m);
+}
+
+static const struct mobj_ops mobj_shm_ops __rodata_unpaged = {
+	.get_va = mobj_shm_get_va,
+	.get_pa = mobj_shm_get_pa,
+	.matches = mobj_shm_matches,
+	.free = mobj_shm_free,
+};
+
+static struct mobj_shm *to_mobj_shm(struct mobj *mobj)
+{
+	assert(mobj->ops == &mobj_shm_ops);
+	return container_of(mobj, struct mobj_shm, mobj);
+}
+
+struct mobj *mobj_shm_alloc(paddr_t pa, size_t size)
+{
+	struct mobj_shm *m;
+
+	if (!core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
+		return NULL;
+
+	m = calloc(1, sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->mobj.size = size;
+	m->mobj.ops = &mobj_shm_ops;
+	m->pa = pa;
+
+	return &m->mobj;
+}
+
 #ifdef CFG_PAGED_USER_TA
 /*
  * mobj_paged implementation
