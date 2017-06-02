@@ -53,6 +53,9 @@
 #if defined(CFG_CRYPTO_PBKDF2)
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
+#if defined(CFG_CRYPTO_SCRYPT)
+#include <tee/cryp_scrypt.h>
+#endif
 
 typedef void (*tee_cryp_ctx_finalize_func_t) (void *ctx, uint32_t algo);
 struct tee_cryp_state {
@@ -67,16 +70,19 @@ struct tee_cryp_state {
 };
 
 struct tee_cryp_obj_secret {
-	uint32_t key_size;
-	uint32_t alloc_size;
-
-	/*
-	 * Pseudo code visualize layout of structure
-	 * Next follows data, such as:
-	 *	uint8_t data[alloc_size]
-	 * key_size must never exceed alloc_size
-	 */
+	size_t key_size;
+	size_t alloc_size;
+	void *key;
 };
+
+#if defined(CFG_CRYPTO_SCRYPT)
+struct scrypt_key_param {
+	size_t n;
+	size_t r;
+	size_t p;
+	struct tee_cryp_obj_secret passwd;
+};
+#endif
 
 #define TEE_TYPE_ATTR_OPTIONAL       0x0
 #define TEE_TYPE_ATTR_REQUIRED       0x1
@@ -340,6 +346,36 @@ static const struct tee_cryp_obj_type_attrs
 };
 #endif
 
+#if defined(CFG_CRYPTO_SCRYPT)
+static const struct tee_cryp_obj_type_attrs
+	tee_cryp_obj_scrypt_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_SCRYPT_PASSWORD,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
+	.ops_index = ATTR_OPS_INDEX_SECRET,
+	RAW_DATA(struct scrypt_key_param, passwd)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_N,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, n)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_R,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, r)
+	},
+	{
+	.attr_id = TEE_ATTR_SCRYPT_P,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct scrypt_key_param, p)
+	},
+};
+#endif
+
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
@@ -410,58 +446,55 @@ struct tee_cryp_obj_type_props {
 
 static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_AES, 64, 128, 256,	/* valid sizes 128, 192, 256 */
-		256 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
-	PROP(TEE_TYPE_DES, 56, 56, 56,
-		/*
-		* Valid size 56 without parity, note that we still allocate
-		* for 64 bits since the key is supplied with parity.
-		*/
-		64 / 8 + sizeof(struct tee_cryp_obj_secret),
+	PROP(TEE_TYPE_DES, 56, 56, 56, /* Valid size 56 without parity */
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_DES3, 56, 112, 168,
-		/*
-		* Valid sizes 112, 168 without parity, note that we still
-		* allocate for with space for the parity since the key is
-		* supplied with parity.
-		*/
-		192 / 8 + sizeof(struct tee_cryp_obj_secret),
+		/* Valid sizes 112, 168 without parity */
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_MD5, 8, 64, 512,
-		512 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SHA1, 8, 80, 512,
-		512 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SHA224, 8, 112, 512,
-		512 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SHA256, 8, 192, 1024,
-		1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SHA384, 8, 256, 1024,
-		1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SHA512, 8, 256, 1024,
-		1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_GENERIC_SECRET, 8, 0, 4096,
-		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
 #if defined(CFG_CRYPTO_HKDF)
 	PROP(TEE_TYPE_HKDF_IKM, 8, 0, 4096,
-		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_hkdf_ikm_attrs),
 #endif
 #if defined(CFG_CRYPTO_CONCAT_KDF)
 	PROP(TEE_TYPE_CONCAT_KDF_Z, 8, 0, 4096,
-		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_concat_kdf_z_attrs),
 #endif
 #if defined(CFG_CRYPTO_PBKDF2)
 	PROP(TEE_TYPE_PBKDF2_PASSWORD, 8, 0, 4096,
-		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
+		sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_pbkdf2_passwd_attrs),
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	PROP(TEE_TYPE_SCRYPT, 8, 0, 4096,
+		sizeof(struct scrypt_key_param),
+		tee_cryp_obj_scrypt_attrs),
 #endif
 	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, 2048,
 		sizeof(struct rsa_public_key),
@@ -547,7 +580,7 @@ static TEE_Result op_attr_secret_value_from_user(void *attr, const void *buffer,
 	/* Data size has to fit in allocated buffer */
 	if (size > key->alloc_size)
 		return TEE_ERROR_SECURITY;
-	memcpy(key + 1, buffer, size);
+	memcpy(key->key, buffer, size);
 	key->key_size = size;
 	return TEE_SUCCESS;
 }
@@ -573,7 +606,7 @@ static TEE_Result op_attr_secret_value_to_user(void *attr,
 	if (s < key->key_size)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	return tee_svc_copy_to_user(buffer, key + 1, key->key_size);
+	return tee_svc_copy_to_user(buffer, key->key, key->key_size);
 }
 
 static void op_attr_secret_value_to_binary(void *attr, void *data,
@@ -583,7 +616,7 @@ static void op_attr_secret_value_to_binary(void *attr, void *data,
 
 	op_u32_to_binary_helper(key->key_size, data, data_len, offs);
 	if (data && (*offs + key->key_size) <= data_len)
-		memcpy((uint8_t *)data + *offs, key + 1, key->key_size);
+		memcpy((uint8_t *)data + *offs, key->key, key->key_size);
 	(*offs) += key->key_size;
 }
 
@@ -603,7 +636,7 @@ static bool op_attr_secret_value_from_binary(void *attr, const void *data,
 	if (s > key->alloc_size)
 		return false;
 	key->key_size = s;
-	memcpy(key + 1, (const uint8_t *)data + *offs, s);
+	memcpy(key->key, (const uint8_t *)data + *offs, s);
 	(*offs) += s;
 	return true;
 }
@@ -616,7 +649,7 @@ static TEE_Result op_attr_secret_value_from_obj(void *attr, void *src_attr)
 
 	if (src_key->key_size > key->alloc_size)
 		return TEE_ERROR_BAD_STATE;
-	memcpy(key + 1, src_key + 1, src_key->key_size);
+	memcpy(key->key, src_key->key, src_key->key_size);
 	key->key_size = src_key->key_size;
 	return TEE_SUCCESS;
 }
@@ -626,7 +659,17 @@ static void op_attr_secret_value_clear(void *attr)
 	struct tee_cryp_obj_secret *key = attr;
 
 	key->key_size = 0;
-	memset(key + 1, 0, key->alloc_size);
+	memset(key->key, 0, key->alloc_size);
+}
+
+static void op_attr_secret_value_free(void *attr)
+{
+	struct tee_cryp_obj_secret *key = attr;
+
+	op_attr_secret_value_clear(attr);
+	key->alloc_size = 0;
+	free(key->key);
+	key->key = NULL;
 }
 
 static TEE_Result op_attr_bignum_from_user(void *attr, const void *buffer,
@@ -804,7 +847,7 @@ static const struct attr_ops attr_ops[] = {
 		.to_binary = op_attr_secret_value_to_binary,
 		.from_binary = op_attr_secret_value_from_binary,
 		.from_obj = op_attr_secret_value_from_obj,
-		.free = op_attr_secret_value_clear, /* not a typo */
+		.free = op_attr_secret_value_free,
 		.clear = op_attr_secret_value_clear,
 	},
 	[ATTR_OPS_INDEX_BIGNUM] = {
@@ -1215,12 +1258,35 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		res = crypto_ops.acipher.alloc_ecc_keypair(o->attr,
 							   max_key_size);
 		break;
-	default:
-		if (obj_type != TEE_TYPE_DATA) {
-			struct tee_cryp_obj_secret *key = o->attr;
+	case TEE_TYPE_DATA:
+		break;
+#if defined(CFG_CRYPTO_SCRYPT)
+	case TEE_TYPE_SCRYPT:
+		{
+			struct scrypt_key_param *key = o->attr;
 
-			key->alloc_size = type_props->alloc_size -
-					  sizeof(*key);
+			key->passwd.alloc_size = max_key_size / 8;
+			key->passwd.key = calloc(1, key->passwd.alloc_size);
+			if (!key->passwd.key)
+				return TEE_ERROR_OUT_OF_MEMORY;
+		}
+		break;
+#endif
+	default:
+		{
+			struct tee_cryp_obj_secret *key = o->attr;
+			size_t s;
+
+			if (obj_type == TEE_TYPE_DES ||
+			    obj_type == TEE_TYPE_DES3)
+				s = max_key_size / 7; /* parity bits */
+			else
+				s = max_key_size / 8;
+
+			key->key = calloc(1, s);
+			if (!key->key)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			key->alloc_size = s;
 		}
 		break;
 	}
@@ -1491,6 +1557,19 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 	if (o->info.objectType == TEE_TYPE_DES ||
 	    o->info.objectType == TEE_TYPE_DES3)
 		obj_size -= obj_size / 8; /* Exclude parity in size of key */
+#if defined(CFG_CRYPTO_SCRYPT)
+	else if (o->info.objectType == TEE_TYPE_SCRYPT) {
+		struct scrypt_key_param *key = o->attr;
+
+		res = tee_scrypt_validate_param(key->n, key->r, key->p);
+		/*
+		 * Can't return TEE_ERROR_OUT_OF_MEMORY as that would panic
+		 * the TA, instead we return bad parameters.
+		 */
+		if (res != TEE_SUCCESS)
+			return TEE_ERROR_BAD_PARAMETERS;
+	}
+#endif
 
 	o->have_attrs = have_attrs;
 	o->info.keySize = obj_size;
@@ -1785,7 +1864,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 			goto out;
 		}
 
-		res = crypto_ops.prng.read((void *)(key + 1), byte_size);
+		res = crypto_ops.prng.read(key->key, byte_size);
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -1938,6 +2017,11 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 #if defined(CFG_CRYPTO_PBKDF2)
 	case TEE_MAIN_ALGO_PBKDF2:
 		req_key_type = TEE_TYPE_PBKDF2_PASSWORD;
+		break;
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	case TEE_MAIN_ALGO_SCRYPT:
+		req_key_type = TEE_TYPE_SCRYPT;
 		break;
 #endif
 	default:
@@ -2190,8 +2274,7 @@ TEE_Result syscall_hash_init(unsigned long state,
 			if (!crypto_ops.mac.init)
 				return TEE_ERROR_NOT_IMPLEMENTED;
 			res = crypto_ops.mac.init(cs->ctx, cs->algo,
-						  (void *)(key + 1),
-						  key->key_size);
+						  key->key, key->key_size);
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
@@ -2400,17 +2483,13 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 			return TEE_ERROR_BAD_PARAMETERS;
 
 		res = crypto_ops.cipher.init(cs->ctx, cs->algo, cs->mode,
-					     (uint8_t *)(key1 + 1),
-					     key1->key_size,
-					     (uint8_t *)(key2 + 1),
-					     key2->key_size,
+					     key1->key, key1->key_size,
+					     key2->key, key2->key_size,
 					     iv, iv_len);
 	} else {
 		res = crypto_ops.cipher.init(cs->ctx, cs->algo, cs->mode,
-					     (uint8_t *)(key1 + 1),
-					     key1->key_size,
-					     NULL,
-					     0,
+					     key1->key, key1->key_size,
+					     NULL, 0,
 					     iv, iv_len);
 	}
 	if (res != TEE_SUCCESS)
@@ -2642,6 +2721,47 @@ static TEE_Result get_pbkdf2_params(const TEE_Attribute *params,
 }
 #endif
 
+#if defined(CFG_CRYPTO_SCRYPT)
+static TEE_Result get_scrypt_params(const TEE_Attribute *params,
+				   uint32_t param_count, void **salt,
+				   size_t *salt_len, size_t *derived_key_len)
+{
+	size_t n;
+	bool have_dk_len = false;
+	bool have_salt = false;
+
+	for (n = 0; n < param_count; n++) {
+		switch (params[n].attributeID) {
+		case TEE_ATTR_SCRYPT_SALT:
+			if (!have_salt) {
+				*salt = params[n].content.ref.buffer;
+				*salt_len = params[n].content.ref.length;
+				have_salt = true;
+			}
+			break;
+		case TEE_ATTR_SCRYPT_DK_LENGTH:
+			if (!have_dk_len) {
+				*derived_key_len = params[n].content.value.a;
+				have_dk_len = true;
+			}
+			break;
+		default:
+			/* Unexpected attribute */
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+
+	if (!have_dk_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (!have_salt) {
+		*salt = NULL;
+		*salt_len = 0;
+	}
+
+	return TEE_SUCCESS;
+}
+#endif
+
 TEE_Result syscall_cryp_derive_key(unsigned long state,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count, unsigned long derived_key)
@@ -2721,8 +2841,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 								  pub, ss);
 			if (res == TEE_SUCCESS) {
 				sk->key_size = crypto_ops.bignum.num_bytes(ss);
-				crypto_ops.bignum.bn2bin(ss,
-							 (uint8_t *)(sk + 1));
+				crypto_ops.bignum.bn2bin(ss, sk->key);
 				so->info.handleFlags |=
 						TEE_HANDLE_FLAG_INITIALIZED;
 				set_attribute(so, type_props,
@@ -2736,7 +2855,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
 		size_t alloc_size;
 		struct ecc_public_key key_public;
-		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
 
 		if (!crypto_ops.bignum.bin2bn ||
@@ -2787,10 +2905,9 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 					 params[1].content.ref.length,
 					 key_public.y);
 
-		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;
 		res = crypto_ops.acipher.ecc_shared_secret(ko->attr,
-				&key_public, pt_secret, &pt_secret_len);
+				&key_public, sk->key, &pt_secret_len);
 
 		if (res == TEE_SUCCESS) {
 			sk->key_size = pt_secret_len;
@@ -2807,7 +2924,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		size_t salt_len, info_len, okm_len;
 		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
 		struct tee_cryp_obj_secret *ik = ko->attr;
-		const uint8_t *ikm = (const uint8_t *)(ik + 1);
 
 		res = get_hkdf_params(params, param_count, &salt, &salt_len,
 				      &info, &info_len, &okm_len);
@@ -2820,9 +2936,9 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		res = tee_cryp_hkdf(hash_id, ikm, ik->key_size, salt, salt_len,
-				    info, info_len, (uint8_t *)(sk + 1),
-				    okm_len);
+		res = tee_cryp_hkdf(hash_id, ik->key, ik->key_size,
+				    salt, salt_len, info, info_len,
+				    sk->key, okm_len);
 		if (res == TEE_SUCCESS) {
 			sk->key_size = okm_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
@@ -2836,7 +2952,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		size_t info_len, derived_key_len;
 		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
 		struct tee_cryp_obj_secret *ss = ko->attr;
-		const uint8_t *shared_secret = (const uint8_t *)(ss + 1);
 
 		res = get_concat_kdf_params(params, param_count, &info,
 					    &info_len, &derived_key_len);
@@ -2849,8 +2964,8 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		res = tee_cryp_concat_kdf(hash_id, shared_secret, ss->key_size,
-					  info, info_len, (uint8_t *)(sk + 1),
+		res = tee_cryp_concat_kdf(hash_id, ss->key, ss->key_size,
+					  info, info_len, sk->key,
 					  derived_key_len);
 		if (res == TEE_SUCCESS) {
 			sk->key_size = derived_key_len;
@@ -2865,7 +2980,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		size_t salt_len, iteration_count, derived_key_len;
 		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
 		struct tee_cryp_obj_secret *ss = ko->attr;
-		const uint8_t *password = (const uint8_t *)(ss + 1);
 
 		res = get_pbkdf2_params(params, param_count, &salt, &salt_len,
 					&derived_key_len, &iteration_count);
@@ -2878,9 +2992,37 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		res = tee_cryp_pbkdf2(hash_id, password, ss->key_size, salt,
+		res = tee_cryp_pbkdf2(hash_id, ss->key, ss->key_size, salt,
 				      salt_len, iteration_count,
-				      (uint8_t *)(sk + 1), derived_key_len);
+				      sk->key, derived_key_len);
+		if (res == TEE_SUCCESS) {
+			sk->key_size = derived_key_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			SET_ATTRIBUTE(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+	}
+#endif
+#if defined(CFG_CRYPTO_SCRYPT)
+	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_SCRYPT) {
+		void *salt;
+		size_t salt_len;
+		size_t derived_key_len;
+		struct scrypt_key_param *key = ko->attr;
+
+		res = get_scrypt_params(params, param_count, &salt, &salt_len,
+					&derived_key_len);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		/* Requested size must fit into the output object's buffer */
+		if (derived_key_len > sk->alloc_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		res = tee_cryp_scrypt(key->passwd.key, key->passwd.key_size,
+				      salt, salt_len, key->n, key->r, key->p,
+				      sk->key, derived_key_len);
 		if (res == TEE_SUCCESS) {
 			sk->key_size = derived_key_len;
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
@@ -2947,7 +3089,7 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	key = o->attr;
 	res = crypto_ops.authenc.init(cs->ctx, cs->algo, cs->mode,
-				      (uint8_t *)(key + 1), key->key_size,
+				      key->key, key->key_size,
 				      nonce, nonce_len, tag_len, aad_len,
 				      payload_len);
 	if (res != TEE_SUCCESS)

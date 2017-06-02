@@ -71,10 +71,12 @@ int hmac_init(hmac_state *hmac, int hash, const unsigned char *key, unsigned lon
     hmac->hash = hash;
     hashsize   = hash_descriptor[hash]->hashsize;
 
+#ifndef LTC_HMAC_ZERO_KEYLEN_OK
     /* valid key length? */
     if (keylen == 0) {
         return CRYPT_INVALID_KEYSIZE;
     }
+#endif
 
     /* allocate ram for buf */
     buf = XMALLOC(LTC_HMAC_BLOCKSIZE);

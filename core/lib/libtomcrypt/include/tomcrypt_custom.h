@@ -128,6 +128,7 @@
 
    #define LTC_NO_MACS
    #define LTC_HMAC
+   #define LTC_HMAC_ZERO_KEYLEN_OK
    #define LTC_OMAC
    #define LTC_CCM_MODE
 
@@ -204,6 +205,7 @@
 
 #ifdef CFG_CRYPTO_HMAC
    #define LTC_HMAC
+   #define LTC_HMAC_ZERO_KEYLEN_OK
 #endif
 #ifdef CFG_CRYPTO_CMAC
    #define LTC_OMAC
@@ -337,6 +339,7 @@
 #ifndef LTC_NO_MACS
 
 #define LTC_HMAC
+#define LTC_HMAC_ZERO_KEYLEN_OK
 #define LTC_OMAC
 #define LTC_PMAC
 #define LTC_XCBC

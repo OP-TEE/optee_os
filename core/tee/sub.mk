@@ -15,12 +15,18 @@ CFG_CRYPTO_CONCAT_KDF ?= y
 # This is an OP-TEE extension
 CFG_CRYPTO_PBKDF2 ?= y
 
+# The scrypt Password-Based Key Derivation Function
+# https://tools.ietf.org/html/draft-josefsson-scrypt-kdf-05
+# This is an OP-TEE extension
+CFG_CRYPTO_SCRYPT ?= y
+
 endif
 
 srcs-y += tee_cryp_utl.c
 srcs-$(CFG_CRYPTO_HKDF) += tee_cryp_hkdf.c
 srcs-$(CFG_CRYPTO_CONCAT_KDF) += tee_cryp_concat_kdf.c
 srcs-$(CFG_CRYPTO_PBKDF2) += tee_cryp_pbkdf2.c
+srcs-$(CFG_CRYPTO_SCRYPT) += cryp_scrypt.c
 
 ifeq ($(CFG_WITH_USER_TA),y)
 
