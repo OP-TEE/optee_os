@@ -394,6 +394,12 @@ SECTIONS
 	__init_size = __data_end - CFG_TEE_LOAD_ADDR;
 	__init_mem_usage = __end - CFG_TEE_LOAD_ADDR;
 #endif
+	/*
+	 * Guard against moving the location counter backwards in the assignment
+	 * below.
+	 */
+	ASSERT(. <= (CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE),
+		"CFG_TEE_RAM_VA_SIZE is too small")
 	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 
 	_end_of_ram = .;
