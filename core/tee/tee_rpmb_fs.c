@@ -26,6 +26,8 @@
  */
 
 #include <assert.h>
+#include <kernel/misc.h>
+#include <kernel/msg_param.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common.h>
@@ -33,6 +35,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <optee_msg_supplicant.h>
 #include <stdlib.h>
@@ -421,9 +424,9 @@ func_exit:
 }
 
 struct tee_rpmb_mem {
-	paddr_t phreq;
+	struct mobj *phreq_mobj;
 	uint64_t phreq_cookie;
-	paddr_t phresp;
+	struct mobj *phresp_mobj;
 	uint64_t phresp_cookie;
 	size_t req_size;
 	size_t resp_size;
@@ -434,15 +437,15 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 	if (!mem)
 		return;
 
-	if (mem->phreq) {
-		thread_rpc_free_payload(mem->phreq_cookie);
+	if (mem->phreq_mobj) {
+		thread_rpc_free_payload(mem->phreq_cookie, mem->phreq_mobj);
 		mem->phreq_cookie = 0;
-		mem->phreq = 0;
+		mem->phreq_mobj = NULL;
 	}
-	if (mem->phresp) {
-		thread_rpc_free_payload(mem->phresp_cookie);
+	if (mem->phresp_mobj) {
+		thread_rpc_free_payload(mem->phresp_cookie, mem->phresp_mobj);
 		mem->phresp_cookie = 0;
-		mem->phresp = 0;
+		mem->phresp_mobj = NULL;
 	}
 }
 
@@ -458,15 +461,18 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	memset(mem, 0, sizeof(*mem));
-	thread_rpc_alloc_payload(req_s, &mem->phreq, &mem->phreq_cookie);
-	thread_rpc_alloc_payload(resp_s, &mem->phresp, &mem->phresp_cookie);
-	if (!mem->phreq || !mem->phresp) {
+
+	mem->phreq_mobj = thread_rpc_alloc_payload(req_s, &mem->phreq_cookie);
+	mem->phresp_mobj =
+		thread_rpc_alloc_payload(resp_s, &mem->phresp_cookie);
+
+	if (!mem->phreq_mobj || !mem->phresp_mobj) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
-	*req = phys_to_virt(mem->phreq, MEM_AREA_NSEC_SHM);
-	*resp = phys_to_virt(mem->phresp, MEM_AREA_NSEC_SHM);
+	*req = mobj_get_va(mem->phreq_mobj, 0);
+	*resp = mobj_get_va(mem->phresp_mobj, 0);
 	if (!*req || !*resp) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
@@ -486,14 +492,16 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	struct optee_msg_param params[2];
 
 	memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[0].u.tmem.buf_ptr = mem->phreq;
-	params[0].u.tmem.size = mem->req_size;
-	params[0].u.tmem.shm_ref = mem->phreq_cookie;
-	params[1].u.tmem.buf_ptr = mem->phresp;
-	params[1].u.tmem.size = mem->resp_size;
-	params[1].u.tmem.shm_ref = mem->phresp_cookie;
+
+	if (!msg_param_init_memparam(params + 0, mem->phreq_mobj, 0,
+				     mem->req_size, mem->phreq_cookie,
+				     MSG_PARAM_MEM_DIR_IN))
+		return TEE_ERROR_BAD_STATE;
+
+	if (!msg_param_init_memparam(params + 1, mem->phresp_mobj, 0,
+				     mem->resp_size, mem->phresp_cookie,
+				     MSG_PARAM_MEM_DIR_OUT))
+		return TEE_ERROR_BAD_STATE;
 
 	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_RPMB, 2, params);
 }

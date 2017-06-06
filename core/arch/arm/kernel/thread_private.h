@@ -113,6 +113,7 @@ struct thread_ctx {
 #endif
 	void *rpc_arg;
 	uint64_t rpc_carg;
+	struct mobj *rpc_mobj;
 	struct mutex_head mutexes;
 	struct thread_specific_data tsd;
 };

@@ -33,6 +33,7 @@
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
+#include <kernel/msg_param.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -341,11 +342,27 @@ out:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
+static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
+{
+	struct optee_msg_arg *arg;
+	size_t args_size;
+
+	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM);
+	if (!arg)
+		return NULL;
+
+	*num_params = arg->num_params;
+	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+
+	return mobj_shm_alloc(parg, args_size);
+}
+
 void tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
 	uint32_t num_params;
+	struct mobj *mobj;
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
@@ -354,20 +371,18 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
-	if (!tee_pbuf_is_non_sec(parg, sizeof(struct optee_msg_arg)) ||
-	    !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-	    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
+
+	mobj = get_cmd_buffer(parg, &num_params);
+
+	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
+		mobj_free(mobj);
 		return;
 	}
 
-	num_params = arg->num_params;
-	if (!tee_pbuf_is_non_sec(parg, OPTEE_MSG_GET_ARG_SIZE(num_params))) {
-		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-		return;
-	}
+	arg = mobj_get_va(mobj, 0);
+	assert(arg && mobj_is_nonsec(mobj));
 
 	/* Enable foreign interrupts for STD calls */
 	thread_set_foreign_intr(true);
@@ -388,6 +403,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		EMSG("Unknown cmd 0x%x\n", arg->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
+	mobj_free(mobj);
 }
 
 static TEE_Result default_mobj_init(void)

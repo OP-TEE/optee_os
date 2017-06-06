@@ -27,10 +27,12 @@
 
 #include <arm.h>
 #include <kernel/misc.h>
+#include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <mm/tee_mmu.h>
 #include <optee_msg_supplicant.h>
 #include <pta_gprof.h>
@@ -40,16 +42,16 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
 {
 	struct optee_msg_param params[3];
+	struct mobj *mobj;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint64_t c = 0;
-	paddr_t pa;
 	char *va;
 
-	thread_rpc_alloc_payload(sizeof(*uuid) + len, &pa, &c);
-	if (!pa)
+	mobj = thread_rpc_alloc_payload(sizeof(*uuid) + len, &c);
+	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	va = phys_to_virt(pa, MEM_AREA_NSEC_SHM);
+	va = mobj_get_va(mobj, 0);
 	if (!va)
 		goto exit;
 
@@ -60,15 +62,10 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 	params[0].u.value.a = *id;
 
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	params[1].u.tmem.buf_ptr = pa;
-	params[1].u.tmem.size = sizeof(*uuid);
-	params[1].u.tmem.shm_ref = c;
-
-	params[2].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	params[2].u.tmem.buf_ptr = pa + sizeof(*uuid);
-	params[2].u.tmem.size = len;
-	params[2].u.tmem.shm_ref = c;
+	msg_param_init_memparam(params + 1, mobj, 0, sizeof(*uuid), c,
+				MSG_PARAM_MEM_DIR_IN);
+	msg_param_init_memparam(params + 2, mobj, sizeof(*uuid), len, c,
+				MSG_PARAM_MEM_DIR_IN);
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GPROF, 3, params);
 	if (res != TEE_SUCCESS)
@@ -76,7 +73,7 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 
 	*id = (uint32_t)params[0].u.value.a;
 exit:
-	thread_rpc_free_payload(c);
+	thread_rpc_free_payload(c, mobj);
 	return res;
 }
 
