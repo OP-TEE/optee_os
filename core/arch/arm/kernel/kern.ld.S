@@ -394,6 +394,7 @@ SECTIONS
 	__init_size = __data_end - CFG_TEE_LOAD_ADDR;
 	__init_mem_usage = __end - CFG_TEE_LOAD_ADDR;
 #endif
+	ASSERT(. <= (CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE), "the CFG_TEE_RAM_VA_SIZE is not enough!")
 	. = CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE;
 
 	_end_of_ram = .;
