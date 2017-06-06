@@ -26,7 +26,9 @@
  */
 
 #include <assert.h>
+#include <mm/mobj.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/msg_param.h>
 #include <optee_msg.h>
 #include <optee_msg_supplicant.h>
 #include <pta_socket.h>
@@ -41,8 +43,8 @@ static uint32_t get_instance_id(struct tee_ta_session *sess)
 static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct mobj *mobj;
 	TEE_Result res;
-	paddr_t pa;
 	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[4];
@@ -59,7 +61,7 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -73,10 +75,10 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 	msg_params[1].u.value.c = params[0].value.a; /* ip version */
 
 	/* server address */
-	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	msg_params[2].u.tmem.buf_ptr = pa;
-	msg_params[2].u.tmem.size = params[1].memref.size;
-	msg_params[2].u.tmem.shm_ref = cookie;
+	if (!msg_param_init_memparam(msg_params + 2, mobj, 0,
+				     params[1].memref.size, cookie,
+				     MSG_PARAM_MEM_DIR_IN))
+		return TEE_ERROR_BAD_STATE;
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	/* socket handle */
@@ -118,8 +120,8 @@ static TEE_Result socket_close(uint32_t instance_id, uint32_t param_types,
 static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct mobj *mobj;
 	TEE_Result res;
-	paddr_t pa;
 	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
@@ -136,7 +138,7 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -146,10 +148,11 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
-	msg_params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
-	msg_params[1].u.tmem.buf_ptr = pa;
-	msg_params[1].u.tmem.size = params[1].memref.size;
-	msg_params[1].u.tmem.shm_ref = cookie;
+	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
+				     params[1].memref.size, cookie,
+				     MSG_PARAM_MEM_DIR_IN))
+		return TEE_ERROR_BAD_STATE;
+
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
@@ -164,8 +167,8 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct mobj *mobj;
 	TEE_Result res;
-	paddr_t pa;
 	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
@@ -182,7 +185,7 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -192,27 +195,27 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
-	msg_params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	msg_params[1].u.tmem.buf_ptr = pa;
-	msg_params[1].u.tmem.size = params[1].memref.size;
-	msg_params[1].u.tmem.shm_ref = cookie;
+	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
+				     params[1].memref.size, cookie,
+				     MSG_PARAM_MEM_DIR_OUT))
+		return TEE_ERROR_BAD_STATE;
 
 	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[2].u.value.a = params[0].value.b /* timeout */;
 
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, msg_params);
-	params[1].memref.size = msg_params[1].u.tmem.size;
-	if (msg_params[1].u.tmem.size)
-		memcpy(params[1].memref.buffer, va, msg_params[1].u.tmem.size);
+	params[1].memref.size = msg_param_get_buf_size(msg_params + 1);
+	if (params[1].memref.size)
+		memcpy(params[1].memref.buffer, va, params[1].memref.size);
 	return res;
 }
 
 static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct mobj *mobj;
 	TEE_Result res;
-	paddr_t pa;
 	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
@@ -229,7 +232,7 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &pa, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -239,19 +242,22 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 	msg_params[0].u.value.c = params[0].value.a; /* handle */
 
 	/* buffer */
-	msg_params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_INOUT;
-	msg_params[1].u.tmem.buf_ptr = pa;
-	msg_params[1].u.tmem.size = params[1].memref.size;
-	msg_params[1].u.tmem.shm_ref = cookie;
+	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
+				     params[1].memref.size, cookie,
+				     MSG_PARAM_MEM_DIR_INOUT))
+		return TEE_ERROR_BAD_STATE;
+
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	msg_params[2].u.value.a = params[0].value.b; /* ioctl command */
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, msg_params);
-	if (msg_params[1].u.tmem.size <= params[1].memref.size)
-		memcpy(params[1].memref.buffer, va, msg_params[1].u.tmem.size);
-	params[1].memref.size = msg_params[1].u.tmem.size;
+	if (msg_param_get_buf_size(msg_params + 1) <= params[1].memref.size)
+		memcpy(params[1].memref.buffer, va,
+		       msg_param_get_buf_size(msg_params + 1));
+
+	params[1].memref.size = msg_param_get_buf_size(msg_params + 1);
 	return res;
 }
 
