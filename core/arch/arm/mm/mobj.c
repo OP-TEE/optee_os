@@ -407,15 +407,6 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	if (!num_pages)
 		return NULL;
 
-	for (i = 0; i < num_pages; i++) {
-		if (pages[i] & SMALL_PAGE_MASK)
-			return NULL;
-
-		/* Only Non-secure memory can be mapped there */
-		if (!core_pbuf_is(CORE_MEM_NON_SEC, pages[i], SMALL_PAGE_SIZE))
-			return NULL;
-	}
-
 	mobj_reg_shm = calloc(1, MOBJ_REG_SHM_SIZE(num_pages));
 	if (!mobj_reg_shm)
 		return NULL;
@@ -428,11 +419,25 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	mobj_reg_shm->page_offset = page_offset;
 	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
 
+	/* Insure loaded references match format and security constraints */
+	for (i = 0; i < num_pages; i++) {
+		if (mobj_reg_shm->pages[i] & SMALL_PAGE_MASK)
+			goto err;
+
+		/* Only Non-secure memory can be mapped there */
+		if (!core_pbuf_is(CORE_MEM_NON_SEC, mobj_reg_shm->pages[i],
+					SMALL_PAGE_SIZE))
+			goto err;
+	}
+
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	SLIST_INSERT_HEAD(&reg_shm_list, mobj_reg_shm, next);
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 
 	return &mobj_reg_shm->mobj;
+err:
+	free(mobj_reg_shm);
+	return NULL;
 }
 
 struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie)
@@ -552,7 +557,9 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 		goto err;
 
 	vaddr = tee_mm_get_smem(mobj_mapped_shm->mm_entry);
-	if (core_mmu_map_pages(vaddr, pages, num_pages, MEM_AREA_NSEC_SHM))
+	if (core_mmu_map_pages(vaddr,
+			to_mobj_reg_shm(mobj_mapped_shm->reg_shm)->pages,
+			num_pages, MEM_AREA_NSEC_SHM))
 		goto err;
 
 	mobj_mapped_shm->mobj.ops = &mobj_mapped_shm_ops;
