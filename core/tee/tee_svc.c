@@ -714,7 +714,7 @@ static TEE_Result tee_svc_update_out_param(
 	bool have_private_mem_map = is_user_ta_ctx(called_sess->ctx);
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
-		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
+		switch (TEE_PARAM_TYPE_GET(usr_param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			p = (void *)(uintptr_t)usr_param->vals[n * 2];
