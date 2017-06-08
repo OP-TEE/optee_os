@@ -187,7 +187,11 @@ UNWIND(	.cantunwind)
 
 	/* Enable alignment checks and disable data and instruction cache. */
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	bic	r0, r0, #SCTLR_C
 	bic	r0, r0, #SCTLR_I
 #if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
@@ -457,7 +461,11 @@ UNWIND(	.cantunwind)
 	mov	r5, r1
 	mov	r6, lr
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 #if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
 	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
 #endif

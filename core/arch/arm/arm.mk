@@ -31,6 +31,8 @@ CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 endif
+# 'y' to set the Alignment Check Enable bit in SCTLR/SCTLR_EL1, 'n' to clear it
+CFG_SCTLR_ALIGNMENT_CHECK ?= y
 
 ifeq ($(CFG_WITH_PAGER),y)
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)

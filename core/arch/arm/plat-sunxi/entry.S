@@ -52,7 +52,11 @@ LOCAL_FUNC reset , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
         read_sctlr  r0
-	orr	    r0, r0, #SCTLR_A
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
+	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	write_sctlr r0
 
 	ldr	   r0, =_start

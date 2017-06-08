@@ -50,7 +50,11 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* secondary CPUs internal initialization */
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	write_sctlr r0
 	
 	/* install smp initialization vector */

@@ -58,6 +58,21 @@
 		msr	spsel, #0
 	.endm
 
+	.macro set_sctlr_el1
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_I
+		orr	x0, x0, #SCTLR_SA
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+		orr	x0, x0, #SCTLR_WXN
+#endif
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
+		orr	x0, x0, #SCTLR_A
+#else
+		bic	x0, x0, #SCTLR_A
+#endif
+		msr	sctlr_el1, x0
+	.endm
+
 .section .text.boot
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
@@ -67,13 +82,7 @@ FUNC _start , :
 	msr	vbar_el1, x0
 	isb
 
-	mrs	x0, sctlr_el1
-	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
-#if defined(CFG_CORE_RWDATA_NOEXEC)
-	orr	x1, x1, #SCTLR_WXN
-#endif
-	orr	x0, x0, x1
-	msr	sctlr_el1, x0
+	set_sctlr_el1
 	isb
 
 #ifdef CFG_WITH_PAGER
@@ -186,13 +195,7 @@ FUNC cpu_on_handler , :
 	msr	vbar_el1, x0
 	isb
 
-	mrs	x0, sctlr_el1
-	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
-#if defined(CFG_CORE_RWDATA_NOEXEC)
-	orr	x1, x1, #SCTLR_WXN
-#endif
-	orr	x0, x0, x1
-	msr	sctlr_el1, x0
+	set_sctlr_el1
 	isb
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
