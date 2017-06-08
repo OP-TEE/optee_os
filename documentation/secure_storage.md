@@ -2,7 +2,7 @@
 
 ## Background
 
-Secure Storage (SST) in OP-TEE is implemented according to what has been defined
+Secure Storage in OP-TEE is implemented according to what has been defined
 in GloblaPlatform’s TEE Internal API specification (here called Trusted
 Storage). This specification mandates that it should be possible to store
 general-purpose data and key material that guarantees confidentiality and
@@ -74,16 +74,17 @@ Below is an excerpt from the specification listing the most vital requirements:
    Typically, an implementation may rely on the REE for that purpose (protection
    level 100) or on hardware assets controlled by the TEE (protection level
    1000).
+   The current implementation does *not* provide any protection against
+   rollback, and therefore the protection level is set to 0.
 
 ### TEE File Structure In Linux File System
 
-![TEE File Structure](images/secure_storage/tee_file_structure.png
-"TEE file structure in Linux file system")
-
-OP-TEE by default use "/data/tee/" as the secure storage space in Linux
-file system. For each TA, OP-TEE use the TA's UUID to create a standalone folder
-for it under the secure storage space folder. For a persistent object belonging
-to a specific TA, OP-TEE creates a TEE file is object-id under the TA folder.
+OP-TEE by default uses `/data/tee/` as the secure storage space in the Linux
+file system. Each persistent object is assigned an internal identifier. It is
+an integer which is visible in the Linux file system as
+`/data/tee/<file number>`. A directory file, `/data/tee/dirf.db`, lists all the
+objects that are in the secure storage. All normal world files are integrity
+protected and encrypted, as described below.
 
 ## Key Manager
 
@@ -117,17 +118,6 @@ to encrypt/decrypt the FEK.
 
 TSK is derived by:
 > TSK = HMAC<sub>SHA256</sub> (SSK, TA_UUID)
-
-#### TA storage space isolation
-
-OP-TEE provides different folders for different TAs in Linux file system for
-storing their own TEE files, but OP-TEE cannot prevent an attacker from
-directly copying a TEE file from one TA's folder to another TA's folder in
-Linux file system.
-
-The TSK offers an effective protection against this kind of attack. If an
-attacker copies an TEE file from one TA's folder to another TA's folder,
-this TA would not be able to obtain the plaintext of the TEE file.
 
 ### File Encryption Key (FEK)
 
@@ -235,24 +225,14 @@ or crypto unit according to the method defined by your SoC vendor.
 
 ## Future Work
 
-- **TEE file renaming attack detection**
-
-OP-TEE creates a specific folder under the TA's folder for each TEE file in
-Linux file system and use the filename of the TEE file as the folder's name.
-If an attacker directly rename the name of a TEE file folder, the renamed
-TEE file is still a valid TEE file in OP-TEE.
-
-A solution to detect the attack is using TEE filename as AAD when calculating
-the tag of meta file.
-
 - **Rollback attack detection**
 
-An attacker can backup each version of a TEE file directly from Linux file
-system and can replace the TEE file by an old version one sooner or later.
+An attacker can backup the whole `/data/tee` folder and restore it at later
+time.
 
-The basic idea of detecting rollback attack is to add write counter both in
-meta file and another storage which has anti-rollback capability such as eMMC
-RPMB partition.
+The basic idea of detecting rollback attack is to store information
+representing the state of `/data/tee/dirf.db` into another storage which has
+anti-rollback capability such as the eMMC RPMB partition.
 
 ## Reference
 
