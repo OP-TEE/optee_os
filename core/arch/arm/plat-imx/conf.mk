@@ -40,7 +40,7 @@ ifeq ($(CFG_MX6UL),y)
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_MX6,y)
-$(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 endif
 
 
