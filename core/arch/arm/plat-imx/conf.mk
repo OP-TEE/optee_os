@@ -2,6 +2,7 @@ PLATFORM_FLAVOR ?= mx6ulevk
 
 # Get SoC associated with the PLATFORM_FLAVOR
 mx6ul-flavorlist = mx6ulevk
+mx6ull-flavorlist = mx6ullevk
 mx6q-flavorlist = mx6qsabrelite mx6qsabresd
 mx6d-flavorlist =
 mx6dl-flavorlist = mx6dlsabresd
@@ -9,6 +10,8 @@ mx6s-flavorlist =
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6UL,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ull-flavorlist)))
+$(call force,CFG_MX6ULL,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist)))
 $(call force,CFG_MX6Q,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6d-flavorlist)))
@@ -35,8 +38,8 @@ CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
 
 
-# i.MX6UL specific config
-ifeq ($(CFG_MX6UL),y)
+# i.MX6UL/ULL specific config
+ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL)))
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_MX6,y)

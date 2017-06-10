@@ -73,7 +73,7 @@
 #define GIC_BASE			0x00A00000
 #define GICD_OFFSET			0x1000
 
-#if defined(CFG_MX6UL)
+#if defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #define GICC_OFFSET			0x2000
 /* No CAAM on i.MX6ULL */
 #define CAAM_BASE			0x02140000
@@ -141,7 +141,7 @@
 #define CSU_ACCESS_ALL			0x00FF00FF
 #define CSU_SETTING_LOCK		0x01000100
 
-#ifdef CFG_MX6UL
+#if defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #define DRAM0_BASE			0x80000000
 #else
 #define DRAM0_BASE			0x10000000
