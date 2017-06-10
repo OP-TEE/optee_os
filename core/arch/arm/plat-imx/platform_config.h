@@ -32,9 +32,9 @@
 
 #define STACK_ALIGNMENT			64
 
-/* For i.MX 6UltraLite EVK board */
+/* For i.MX 6UltraLite and 6ULL EVK board */
 
-#if defined(CFG_MX6UL)
+#if defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #include <imx-regs.h>
 
 #ifdef CFG_WITH_PAGER

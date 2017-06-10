@@ -9,8 +9,7 @@ ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL)))
 srcs-y += a9_plat_init.S imx6.c
 endif
 
-ifneq (,$(filter y, $(CFG_MX6UL))
+ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL)))
 srcs-y += a7_plat_init.S
+srcs-y += imx6ul.c
 endif
-
-srcs-$(CFG_MX6UL) += imx6ul.c
