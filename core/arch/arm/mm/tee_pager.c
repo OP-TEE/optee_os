@@ -820,6 +820,9 @@ static void rem_area(struct tee_pager_area_head *area_head,
 		}
 	}
 
+	/* TODO only invalidate entries touched above */
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
 	pager_unlock(exceptions);
 	free_area(area);
 }
@@ -1403,6 +1406,8 @@ static void pager_save_and_release_entry(struct tee_pager_pmem *pmem)
 
 	area_get_entry(pmem->area, pmem->pgidx, NULL, &attr);
 	area_set_entry(pmem->area, pmem->pgidx, 0, 0);
+	/* TODO only invalidate entry touched above */
+	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
 	tee_pager_save_page(pmem, attr);
 	assert(pmem->area->pgt->num_used_entries);
 	pmem->area->pgt->num_used_entries--;
