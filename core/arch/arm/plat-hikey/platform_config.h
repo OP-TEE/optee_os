@@ -31,12 +31,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM64
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for ARM64"
-#endif
-#endif /* ARM64 */
-
 /* PL011 UART */
 #if defined(CFG_CONSOLE_UART) && (CFG_CONSOLE_UART == 0)
 #define CONSOLE_UART_BASE       0xF8015000
