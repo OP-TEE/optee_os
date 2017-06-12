@@ -129,9 +129,9 @@ bool _core_is_buffer_outside(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 /* Returns true when buffer 'b' intersects area 'a' */
 bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 {
-	/* invalid config or "null size" return false */
+	/* invalid config or "null size" return true */
 	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
-		return false;
+		return true;
 
 	if ((b + bl <= a) || (b >= a + al))
 		return false;
