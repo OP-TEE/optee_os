@@ -86,7 +86,7 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		return;
 	boffs += res;
 
-	if (level_ok && level < CFG_MSG_LONG_PREFIX_THRESHOLD)
+	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
 		thread_id = -1;
 	else
 		thread_id = trace_ext_get_thread_id();
@@ -105,7 +105,7 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		return;
 	boffs += res;
 
-	if (level_ok && level < CFG_MSG_LONG_PREFIX_THRESHOLD)
+	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
 		function = NULL;
 
 	if (function) {
