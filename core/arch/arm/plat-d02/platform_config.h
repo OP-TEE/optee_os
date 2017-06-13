@@ -31,12 +31,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM64
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for ARM64"
-#endif
-#endif /* ARM64 */
-
 /* UART */
 #define PERI_SUB_CTRL_ADDR	0x80000000
 #define CONSOLE_UART_BASE       (PERI_SUB_CTRL_ADDR + 0x00300000)
