@@ -4,7 +4,6 @@ CFG_NUM_THREADS ?= 16
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
-CFG_CORE_TZSRAM_EMUL_SIZE ?= 524288
 # Overrides default in mk/config.mk with 96 kB
 CFG_CORE_HEAP_SIZE ?= 98304
 
@@ -25,7 +24,9 @@ ta-targets = ta_arm32
 
 ifeq ($(CFG_ARM64_core),y)
 ta-targets += ta_arm64
+CFG_CORE_TZSRAM_EMUL_SIZE ?= 655360
 else
 $(call force,CFG_ARM32_core,y)
+CFG_CORE_TZSRAM_EMUL_SIZE ?= 524288
 endif
 
