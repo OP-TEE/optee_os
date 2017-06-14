@@ -347,11 +347,11 @@ static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
 
 	switch (granule) {
 	case 0:
-		p = mobj_reg_shm->pages[offst / SMALL_PAGE_SIZE] +
-			offst % SMALL_PAGE_SIZE;
+		p = mobj_reg_shm->pages[full_offset / SMALL_PAGE_SIZE] +
+			(full_offset & SMALL_PAGE_MASK);
 		break;
 	case SMALL_PAGE_SIZE:
-		p = mobj_reg_shm->pages[offst / SMALL_PAGE_SIZE];
+		p = mobj_reg_shm->pages[full_offset / SMALL_PAGE_SIZE];
 		break;
 	default:
 		return TEE_ERROR_GENERIC;
