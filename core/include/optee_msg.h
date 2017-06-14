@@ -68,11 +68,15 @@
 #define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
- * The temporary shared memory object is not physically contiguous and this
- * temp memref is followed by another fragment until the last temp memref
- * that doesn't have this bit set.
+ * Pointer to a list of pages used to registed user-defined SHM buffer.
+ * Used with OPTEE_MSG_ATTR_TYPE_TMEM_*.
+ * buf_ptr should point to the beginning of the buffer. Buffer will contain
+ * list of page addresses. OP-TEE core can reconstruct contigous buffer from
+ * that page adresses list. Page addresses are stored as 64 bit values.
+ * Last entry on a page should point to the next page of buffer.
+ * 12 least significant of buf_ptr should hold page offset of user buffer.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			BIT(9)
+#define OPTEE_MSG_ATTR_NONCONTIG		BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -140,15 +144,29 @@ struct optee_msg_param_value {
 };
 
 /**
+ * struct optee_msg_param_nested - nested params
+ * @buf_ptr: Address of the buffer with nested params
+ * @params_num: Number of nested params
+ * @shm_ref: Shared memory reference, pointer to a struct tee_shm
+ */
+struct optee_msg_param_nested {
+	uint64_t buf_ptr;
+	uint64_t params_num;
+	uint64_t shm_ref;
+};
+
+/**
  * struct optee_msg_param - parameter
  * @attr: attributes
  * @memref: a memory reference
  * @value: a value
+ * @nested: nested params
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
- * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates tmem and
- * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates rmem.
+ * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
+ * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates @rmem,
+ * OPTEE_MSG_ATTR_TYPE_NESTED indicates @nested parameters.
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
  */
 struct optee_msg_param {
@@ -157,6 +175,7 @@ struct optee_msg_param {
 		struct optee_msg_param_tmem tmem;
 		struct optee_msg_param_rmem rmem;
 		struct optee_msg_param_value value;
+		struct optee_msg_param_nested nested;
 	} u;
 };
 

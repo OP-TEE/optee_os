@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <keep.h>
+#include <kernel/msg_param.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>

@@ -290,6 +290,8 @@
 #define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	(1 << 0)
 /* Secure world can communicate via previously unregistered shared memory */
 #define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	(1 << 1)
+/* Secure world supporst commands "register/unregister shared memory" */
+#define OPTEE_SMC_SEC_CAP_REGISTER_SHM		(1 << 2)
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES)
