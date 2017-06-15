@@ -82,6 +82,8 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 
 static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
+	bool dyn_shm_en = false;
+
 	/*
 	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
 	 *
@@ -103,6 +105,12 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	args->a0 = OPTEE_SMC_RETURN_OK;
 	args->a1 = OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
+
+	dyn_shm_en = core_mmu_nsec_ddr_is_defined();
+	if (dyn_shm_en)
+		args->a1 |= OPTEE_SMC_SEC_CAP_DYNAMIC_SHM;
+
+	IMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
