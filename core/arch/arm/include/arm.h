@@ -32,6 +32,28 @@
 #define MPIDR_CLUSTER_SHIFT	8
 #define MPIDR_CLUSTER_MASK	(0xff << MPIDR_CLUSTER_SHIFT)
 
+
+/* CLIDR definitions */
+#define CLIDR_LOUIS_SHIFT	21
+#define CLIDR_LOC_SHIFT		24
+#define CLIDR_FIELD_WIDTH	3
+
+/* CSSELR definitions */
+#define CSSELR_LEVEL_SHIFT	1
+
+/* CTR definitions */
+#define CTR_CWG_SHIFT		24
+#define CTR_CWG_MASK		0xf
+#define CTR_ERG_SHIFT		20
+#define CTR_ERG_MASK		0xf
+#define CTR_DMINLINE_SHIFT	16
+#define CTR_DMINLINE_WIDTH	4
+#define CTR_DMINLINE_MASK	((1 << 4) - 1)
+#define CTR_L1IP_SHIFT		14
+#define CTR_L1IP_MASK		0x3
+#define CTR_IMINLINE_SHIFT	0
+#define CTR_IMINLINE_MASK	0xf
+
 #define ARM32_CPSR_MODE_MASK	0x1f
 #define ARM32_CPSR_MODE_USR	0x10
 #define ARM32_CPSR_MODE_FIQ	0x11
