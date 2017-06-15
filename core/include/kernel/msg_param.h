@@ -45,6 +45,19 @@ enum msg_param_mem_dir {
 };
 
 /**
+ * msg_param_mobj_from_noncontig() - construct mobj from non-contiguous
+ * list of pages.
+ *
+ * @param - pointer to msg_param with OPTEE_MSG_ATTR_NONCONTIG flag set
+ * @map_buffer - true if buffer needs to be mapped into OP-TEE address space
+ *
+ * return:
+ *	mobj or NULL on error
+ */
+struct mobj *msg_param_mobj_from_noncontig(const struct optee_msg_param *param,
+					   bool map_buffer);
+
+/**
  * msg_param_init_memparam() - fill memory reference parameter for RPC call
  * @param	- parameter to fill
  * @mobj	- mobj describing the shared memory buffer

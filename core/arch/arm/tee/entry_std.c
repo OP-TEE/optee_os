@@ -111,7 +111,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 		if (params[n].attr & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (params[n].attr & OPTEE_MSG_ATTR_FRAGMENT)
+		if (params[n].attr & OPTEE_MSG_ATTR_NONCONTIG)
 			return TEE_ERROR_BAD_PARAMETERS;
 
 		attr = params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK;
