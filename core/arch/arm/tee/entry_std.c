@@ -76,9 +76,29 @@ static bool param_mem_from_mobj(struct param_mem *mem, struct mobj *mobj,
 
 /* fill 'struct param_mem' structure if buffer matches a valid memory object */
 static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
+					   uint32_t attr, uint64_t shm_ref,
 					   struct param_mem *mem)
 {
 	struct mobj __maybe_unused **mobj;
+
+	/* NULL Memory Rerefence ? */
+	if (!pa && !sz) {
+		mem->mobj = NULL;
+		mem->offs = 0;
+		mem->size = 0;
+		return TEE_SUCCESS;
+	}
+
+	/* Non-contigous buffer from non sec DDR? */
+	if (attr & OPTEE_MSG_ATTR_NONCONTIG) {
+		mem->mobj = msg_param_mobj_from_noncontig(pa, sz, shm_ref,
+							  false);
+		if (!mem->mobj)
+			return TEE_ERROR_BAD_PARAMETERS;
+		mem->offs = pa & SMALL_PAGE_MASK;
+		mem->size = sz;
+		return TEE_SUCCESS;
+	}
 
 	/* belongs to nonsecure shared memory ? */
 	if (param_mem_from_mobj(mem, shm_mobj, pa, sz))
@@ -131,8 +151,6 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 		if (saved_attr[n] & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
-			return TEE_ERROR_BAD_PARAMETERS;
 
 		attr = saved_attr[n] & OPTEE_MSG_ATTR_TYPE_MASK;
 		switch (attr) {
@@ -155,6 +173,8 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 			res = assign_mobj_to_param_mem(params[n].u.tmem.buf_ptr,
 						       params[n].u.tmem.size,
+						       saved_attr[n],
+						       params[n].u.tmem.shm_ref,
 						       &ta_param->u[n].mem);
 			if (res != TEE_SUCCESS)
 				return res;
@@ -177,6 +197,19 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 	ta_param->types = TEE_PARAM_TYPES(pt[0], pt[1], pt[2], pt[3]);
 
 	return TEE_SUCCESS;
+}
+
+static void cleanup_params(const struct optee_msg_param *params,
+			   const uint64_t *saved_attr,
+			   uint32_t num_params)
+{
+	size_t n;
+
+	for (n = 0; n < num_params; n++)
+		if (msg_param_attr_is_tmem(saved_attr[n]) &&
+		    saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
+			mobj_free(mobj_reg_shm_find_by_cookie(
+					  params[n].u.tmem.shm_ref));
 }
 
 static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
@@ -275,7 +308,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	res = copy_in_params(arg->params + num_meta, num_params - num_meta,
 			     &param, saved_attr);
 	if (res != TEE_SUCCESS)
-		goto out;
+		goto cleanup_params;
 
 	res = tee_ta_open_session(&err_orig, &s, &tee_open_sessions, &uuid,
 				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
@@ -290,6 +323,10 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	 * of prng
 	 */
 	plat_prng_add_jitter_entropy();
+
+cleanup_params:
+	cleanup_params(arg->params + num_meta, saved_attr,
+		       num_params - num_meta);
 
 out:
 	if (s)
@@ -353,6 +390,8 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	copy_out_param(&param, num_params, arg->params, saved_attr);
 
 out:
+	cleanup_params(arg->params, saved_attr, num_params);
+
 	arg->ret = res;
 	arg->ret_origin = err_orig;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
@@ -396,7 +435,10 @@ static void register_shm(struct thread_smc_args *smc_args,
 	}
 
 	/* We don't need mobj pointer there, we only care if it was created */
-	if (!msg_param_mobj_from_noncontig(arg->params, false))
+	if (!msg_param_mobj_from_noncontig(arg->params[0].u.tmem.buf_ptr,
+					   arg->params[0].u.tmem.size,
+					   arg->params[0].u.tmem.shm_ref,
+					   false))
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 	else
 		arg->ret = TEE_SUCCESS;

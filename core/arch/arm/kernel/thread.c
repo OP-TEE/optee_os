@@ -1418,7 +1418,11 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 					   OPTEE_MSG_ATTR_NONCONTIG)) {
 		*cookie = arg->params[0].u.tmem.shm_ref;
-		mobj = msg_param_mobj_from_noncontig(arg->params, true);
+		mobj = msg_param_mobj_from_noncontig(
+			arg->params[0].u.tmem.buf_ptr,
+			arg->params[0].u.tmem.size,
+			*cookie,
+			true);
 	} else
 		goto fail;
 

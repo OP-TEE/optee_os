@@ -48,14 +48,16 @@ enum msg_param_mem_dir {
  * msg_param_mobj_from_noncontig() - construct mobj from non-contiguous
  * list of pages.
  *
- * @param - pointer to msg_param with OPTEE_MSG_ATTR_NONCONTIG flag set
+ * @buf_ptr - optee_msg_param.u.tmem.buf_ptr value
+ * @size - optee_msg_param.u.tmem.size value
+ * @shm_ref - optee_msg_param.u.tmem.shm_ref value
  * @map_buffer - true if buffer needs to be mapped into OP-TEE address space
  *
  * return:
  *	mobj or NULL on error
  */
-struct mobj *msg_param_mobj_from_noncontig(const struct optee_msg_param *param,
-					   bool map_buffer);
+struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
+					   uint64_t shm_ref, bool map_buffer);
 
 /**
  * msg_param_init_memparam() - fill memory reference parameter for RPC call
@@ -105,16 +107,16 @@ static inline size_t msg_param_get_buf_size(const struct optee_msg_param *param)
 }
 
 /**
- * msg_param_attr_is_tmem - helper functions that cheks if parameter is tmem
+ * msg_param_attr_is_tmem - helper functions that cheks if attribute is tmem
  *
- * @param - struct optee_msg_param to check
+ * @attr - attribute to check
  *
  * return:
  *	corresponding size field
  */
-static inline bool msg_param_attr_is_tmem(const struct optee_msg_param *param)
+static inline bool msg_param_attr_is_tmem(uint64_t attr)
 {
-	switch (param->attr & OPTEE_MSG_ATTR_TYPE_MASK) {
+	switch (attr & OPTEE_MSG_ATTR_TYPE_MASK) {
 	case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 	case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 	case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
