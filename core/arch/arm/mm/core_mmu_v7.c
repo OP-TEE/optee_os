@@ -808,7 +808,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	/* reset L1 table */
 	memset(ttb1, 0, L1_TBL_SIZE);
 
-	for (n = 0; mm[n].size; n++)
+	for (n = 0; mm[n].type != MEM_AREA_NOTYPE; n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
 			map_memarea(mm + n, ttb1);
 }
