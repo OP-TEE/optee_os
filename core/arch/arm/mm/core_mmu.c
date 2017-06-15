@@ -28,6 +28,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
@@ -904,32 +905,28 @@ TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
 	case DCACHE_CLEAN:
-		arm_cl1_d_cleanbysetway();
+		dcache_op_all(DCACHE_OP_CLEAN);
 		break;
 	case DCACHE_AREA_CLEAN:
-		if (len)
-			arm_cl1_d_cleanbyva(va, (char *)va + len - 1);
+		dcache_clean_range(va, len);
 		break;
 	case DCACHE_INVALIDATE:
-		arm_cl1_d_invbysetway();
+		dcache_op_all(DCACHE_OP_INV);
 		break;
 	case DCACHE_AREA_INVALIDATE:
-		if (len)
-			arm_cl1_d_invbyva(va, (char *)va + len - 1);
+		dcache_inv_range(va, len);
 		break;
 	case ICACHE_INVALIDATE:
-		arm_cl1_i_inv_all();
+		icache_inv_all();
 		break;
 	case ICACHE_AREA_INVALIDATE:
-		if (len)
-			arm_cl1_i_inv(va, (char *)va + len - 1);
+		icache_inv_range(va, len);
 		break;
 	case DCACHE_CLEAN_INV:
-		arm_cl1_d_cleaninvbysetway();
+		dcache_op_all(DCACHE_OP_CLEAN_INV);
 		break;
 	case DCACHE_AREA_CLEAN_INV:
-		if (len)
-			arm_cl1_d_cleaninvbyva(va, (char *)va + len - 1);
+		dcache_cleaninv_range(va, len);
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;

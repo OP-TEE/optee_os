@@ -18,6 +18,7 @@ srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
 srcs-$(CFG_ARM32_core) += ssvce_a32.S
 srcs-$(CFG_ARM64_core) += ssvce_a64.S
 srcs-$(CFG_ARM64_core) += cache_helpers_a64.S
+srcs-$(CFG_ARM32_core) += cache_helpers_a32.S
 srcs-$(CFG_PL310) += tz_ssvce_pl310_a32.S
 srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 
