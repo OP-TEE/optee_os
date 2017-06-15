@@ -75,7 +75,7 @@ bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
  * return:
  *	corresponding size field
  */
-static inline size_t msg_param_get_buf_size(struct optee_msg_param *param)
+static inline size_t msg_param_get_buf_size(const struct optee_msg_param *param)
 {
 	switch (param->attr & OPTEE_MSG_ATTR_TYPE_MASK) {
 	case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
@@ -99,7 +99,7 @@ static inline size_t msg_param_get_buf_size(struct optee_msg_param *param)
  * return:
  *	corresponding size field
  */
-static inline bool msg_param_attr_is_tmem(struct optee_msg_param *param)
+static inline bool msg_param_attr_is_tmem(const struct optee_msg_param *param)
 {
 	switch (param->attr & OPTEE_MSG_ATTR_TYPE_MASK) {
 	case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
