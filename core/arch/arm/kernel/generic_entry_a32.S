@@ -30,6 +30,7 @@
 #include <asm.S>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/unwind.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
@@ -251,7 +252,8 @@ END_FUNC reset
 #endif
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_invbyva
+		sub	r1, r1, r0
+		bl	dcache_inv_range
 	.endm
 
 	.macro __flush_cache_vrange vbase, vend, line
@@ -259,7 +261,8 @@ END_FUNC reset
 		assert_flat_mapped_range (\vbase), (\line)
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_cleanbyva
+		sub	r1, r1, r0
+		bl	dcache_clean_range
 		bl	pl310_base
 		ldr	r1, =(\vbase)
 		ldr	r2, =(\vend)
@@ -267,7 +270,8 @@ END_FUNC reset
 #endif
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_cleaninvbyva
+		sub	r1, r1, r0
+		bl	dcache_cleaninv_range
 	.endm
 
 #define inval_cache_vrange(vbase, vend) \
@@ -504,7 +508,8 @@ UNWIND(	.cantunwind)
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
-	bl	arm_cl1_d_invbysetway
+	mov	r0, #DCACHE_OP_INV
+	bl	dcache_op_level1
 #endif
 
 	bl	core_init_mmu_regs

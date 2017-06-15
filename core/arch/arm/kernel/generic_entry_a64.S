@@ -137,7 +137,7 @@ clear_bss:
 	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
-	bl	inv_dcache_range
+	bl	dcache_inv_range
 
 	/* Enable Console */
 	bl	console_init
@@ -168,7 +168,7 @@ clear_bss:
 	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
-	bl	flush_dcache_range
+	bl	dcache_cleaninv_range
 
 
 	/*
