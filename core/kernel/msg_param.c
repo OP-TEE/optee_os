@@ -110,23 +110,16 @@ out:
 	return ret;
 }
 
-struct mobj *msg_param_mobj_from_noncontig(const struct optee_msg_param *param,
-					   bool map_buffer)
+struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
+					   uint64_t shm_ref, bool map_buffer)
 {
 	struct mobj *mobj = NULL;
 	paddr_t *pages;
 	paddr_t page_offset;
 	size_t num_pages;
-	uint64_t buf_ptr;
-
-	assert(param->attr & OPTEE_MSG_ATTR_NONCONTIG);
-
-	/* Make sure that NW will not change value in SHM */
-	buf_ptr = param->u.tmem.buf_ptr;
 
 	page_offset = buf_ptr & SMALL_PAGE_MASK;
-	num_pages = (param->u.tmem.size + page_offset - 1) /
-		    SMALL_PAGE_SIZE + 1;
+	num_pages = (size + page_offset - 1) / SMALL_PAGE_SIZE + 1;
 
 	pages = malloc(num_pages * sizeof(paddr_t));
 	if (!pages)
@@ -138,10 +131,10 @@ struct mobj *msg_param_mobj_from_noncontig(const struct optee_msg_param *param,
 
 	if (map_buffer)
 		mobj = mobj_mapped_shm_alloc(pages, num_pages, page_offset,
-					     param->u.tmem.shm_ref);
+					     shm_ref);
 	else
 		mobj = mobj_reg_shm_alloc(pages, num_pages, page_offset,
-					  param->u.tmem.shm_ref);
+					  shm_ref);
 out:
 	free(pages);
 	return mobj;
