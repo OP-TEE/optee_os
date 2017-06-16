@@ -83,18 +83,18 @@ UNWIND(	.cantunwind)
 	orr     r0, r0, #ACTLR_SMP
 	write_actlr  r0
 
+	/* init BSS section */
+	ldr	r0, =__bss_start
+	ldr	r2, =__bss_end
+	sub	r2, r2, r0
+	ldr	r1, =0
+	bl	memset
+
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
-
-	/* init BSS section */
-	ldr     r0, =__bss_start
-	ldr     r2, =__bss_end
-	sub     r2, r2, r0
-	ldr     r1, =0
-	bl      memset
 	
 	/* r4: the return address of normal world */
 	mov	r0, r4
