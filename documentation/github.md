@@ -1,188 +1,213 @@
 GitHub usage
 ============
 
-The document describes how to use GitHub. Various links to GitHub
-documentation are given. The main GitHub  documentation is located
-at <a href="https://help.github.com/">https://help.github.com/</a>
-
-
------------------------------------------------------------------
+This document describes how to use GitHub for OP-TEE development and
+contributions.
 
 
 GitHub Setup
 ------------
 
-### GitHub Account Setup
+### Setting up an account
 
-In order to clone a repository, there is no need to own a GitHub
-account. But as soon as one wants to contribute, a GitHub account
-is required. In such a case, you must create a GitHub account
-by connecting to
-<a href="https://github.com/">https://github.com/</a>.
-Click on *Sign up for GitHub* and follow the steps.
-Note that a free plan is sufficient to collaborate to the project.
+You do not need to own a GitHub account in order to clone a repository. But if
+you want to contribute, you need to create an account at
+[github.com](https://github.com) first. Note that a free plan is sufficient to
+collaborate.
 
-SSH connection with GitHub repositories is the way of developing that
-is described in this help. For this, SSH keys must be configured as
-described in the *ssh* section of
-<a href="https://help.github.com/">https://help.github.com/</a>.
+SSH is recommended to access your GitHub repositories securely and without
+supplying your username and password each time you pull or push something.
+To configure SSH for GitHub, please refer to [Connecting to GitHub with SSH](
+https://help.github.com/articles/connecting-to-github-with-ssh/).
 
+### Forking
 
-### Fork
+Only owners of the OP-TEE projects have write permission to the Git
+repositories of those projects. Contributors should *fork*
+`OP-TEE/optee_os.git` into their own account, then work on this forked
+repository. The complete documentation about *forking* can be found at
+[Fork A Repo](https://help.github.com/articles/fork-a-repo).
 
-Only owners of the OP-TEE repositories can write directly to the git
-repositories. Contributors must *fork* the OP-TEE/optee_os.git repository
-into their personal account to work. The complete documentation about *forking*
-can be found at
-<a href="https://help.github.com/articles/fork-a-repo">https://help.github.com/articles/fork-a-repo</a>.
-
-Note that the fork has to be performed once and only once.
-
-
------------------------------------------------------------------
-
+Note that the fork only has to be performed once.
 
 Contributing
 ------------
 In the following:
 
-* Only the Linux commands to extract the sources and to
-  contribute are given. Windows or iMac way of working are not described.
-* *myaccount* stands for the developer github account id
-
-### SSH Configuration
-.ssh/config file may contain something like:
-
-	Host github.com
-	  user myaccount
-	  IdentityFile ~/.ssh/id_rsa_github
-	  Hostname 192.30.252.128
+* *myaccount* stands for the name of your GitHub account.
+* It is assumed you have configured SSH keys so that the `git` command can
+fetch and push code to your GitHub repositories. Otherwise, your GitHub
+credentials (email address and password) will be asked for each `git push`
+command.
 
 ### Cloning the sources
-	# Clone the forked repository
-	git clone git@github.com:myaccount/optee_os.git
 
-	# Add the reference, called "upstream"
-	cd optee_os
-	git remote add upstream git@github.com:OP-TEE/optee_os.git
+To obtain a local copy of your `optee_os` project, do:
 
-	# Retrieve the gits
-	git fetch --all
+    # Clone the forked repository
+    git clone git@github.com:myaccount/optee_os
 
-In order to be able to read the pull-request, one may add
-in .git/config the following section
+    # Add a remote called "upstream" which is the official OP-TEE Git
+    cd optee_os
+    git remote add upstream https://github.com/OP-TEE/optee_os
 
-     # Add to manage Pull-Request
-     [remote "upstream"]
-         fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*
+    # Retrieve the gits
+    git fetch --all
 
-Once retrieve, remotes/upstream/pr/* branches are appearing. They
-correspond to the pull-request id code. Note that these branches
-are read-only, for developers and owners. Have a look at
-<a href="https://gist.github.com/piscisaureus/3342247">https://gist.github.com/piscisaureus/3342247</a>
-for a complete description of this syntax.
+The above steps are enough to be able to build OP-TEE OS, make some changes,
+and optionally publish (or "push") them to your GitHub account.
+Pushing commits to your account allows you to later create "pull requests"
+against the official OP-TEE repository (called "upstream"), if you would
+like to contribute your changes back to the project.
 
-Another way to pull a pull-request, without modifying .git/config file,
-is to use the patch file that is available for each pull-request. As an
-example, here is the command to pull the pull-request id #784:
-
-    curl -L 'https://github.com/OP-TEE/optee_os/pull/784.patch' | git am
-
-### Synchronization
-
-First of all, the forked repository must be in sync with the OP-TEE
-sources. Let's assume that *upstream_master* is the local branch corresponding to *remotes/upstream/master*
-
-Synchronizing the forked and the upstream repositories can be done through
-
-	# Update the local sources
-	git fetch --all
-
-	# Reset upstream_master
-	git checkout upstream_master
-	git reset --hard upstream/master
-	git push origin upstream_master:master
+However, please note that [optee_os](https://github.com/OP-TEE/optee_os]) is
+only a fraction of the software needed to run an OP-TEE environment. As such,
+OP-TEE developers typically have to deal with a forest of Git trees including
+[optee_client](https://github.com/OP-TEE/optee_client]), the Linux kernel,
+ARM Trusted Firmware, test applications and other things. For this reason, it
+is recommended that you check the
+[OP-TEE build project](https://github.com/OP-TEE/build). This project contains
+the complete source code required to build working OP-TEE environments for
+several platforms. You may then apply the instructions given here to the
+`optee_os` repository that is checked out as a part of the main project. Some
+adjustments will be needed, though, because of the way the `repo` tool sets up
+the Git repositories.
 
 ### Contributing
 
-To be able to contribute, you must create a local branch containing your fixes.
-The branch name must be explicit. Here are some examples:
+The typical workflow to make a change to the OP-TEE OS code and push it to
+your GitHub account is as follows.
 
-* issue/75 if the contribution is expected to fix issue number 75.
-* feature/more_traces if the contribution will add new traces
-* ...
+    # Update your local references to upstream branches
+    git fetch upstream
+    # Switch to the local master branch
+    git checkout master
+    # Update with the latest commits from upstream
+    # WARNING: this command will lose any work you may have committed
+    # on your local "master" branch or may have in your working area.
+    # (In this work flow it is assumed local master is only ever used as a
+    # copy of upstream master)
+    git reset --hard upstream/master
+    # Create a feature branch to receive your changes, based on master
+    git checkout -b my_new_feature
+    ... Code, build, test, debug, repeat ...
+    ... Stage your changes with git add and/or git rm etc. ...
+    # Commit your changes locally (-s adds your Signed-off-by: tag)
+    git commit -s
 
-Here is how to create the contribute and push on the forked repository
+We expect commit messages to mostly follow the [Linux kernel recommendations](
+https://www.kernel.org/doc/Documentation/process/submitting-patches.rst).
+Please use the output of `git log` in the `optee_os` repository  as a source of
+inspiration. The important points are:
 
-	git checkout -b feature/my_new_feature
-	... contribution ...
-	git add .
-	git commit -s
+- The subject line should explain *what* the patch does as precisely as
+possible. It is usually prefixed with keywords indicating which part of the
+code is affected, but not always. Avoid lines longer than 80 characters.
+- The commit description should give more details on *what* is changed, and
+explain *why* it is done. Indication on how to enable and use some particular
+feature can be useful, too. Try to limit line length to 72 characters, except
+when pasting some error message (compiler diagnostic etc.). Long lines are
+allowed to accommodate URLs, too (preferably use URLs in a Fixes: or Link:
+tag).
+- The commit message must end with a blank line followed by some tags,
+including your sign-off:
 
-Commit message should be clear and as much explicit as possible.
-Moreover, if the fix is related to the issue number 75 (as an example),
-you must add in the commit message
+        Signed-off-by: Your Name <your.email@some.domain>
 
-	It fixes #75 (GitHub issue)
+  By applying such a tag to your commit, you are effectively declaring that your
+contribution follows the terms stated by
+[Notice - Contributions](../Notice.md#contributions). Other tags may follow,
+such as:
 
-Then the contribution is pushed on the forked repository
+        Fixes: <some bug URL>
+        Fixes: 0123456789ab ("Some commit subject")
+        Link: <some useful URL>
 
-	git push origin feature/my_new_feature:feature/my_new_feature
+- When citing a previous commit, whether in the text body or in a Fixes: tag,
+always use the format shown above (12 hexadecimal digits prefix of the commit
+SHA1, followed by the commit subject in double quotes and parentheses).
 
-Then the pull-request can be created through the GitHub UI. Documentation
+Always split your changes into logical steps and create one commit for each
+step.
+
+Then the contribution is pushed on the forked repository with:
+
+    git push
+
+The pull-request can be created through the GitHub interface. Documentation
 can be found at
-<a href="https://help.github.com/articles/using-pull-requests">https://help.github.com/articles/using-pull-requests</a>
-and the *Collaborating* section of
-<a href="https://help.github.com">https://help.github.com</a>
+[Using Pull Requests](https://help.github.com/articles/using-pull-requests) and
+the *Collaborating* section of [help.github.com](https://help.github.com<).
 
-It may be that you will get comments from reviewers on the commits you provided.
+It may be that you will get comments from reviewers on the commit(s) you provided.
 If so happens, you will need to address the comments and you might end up having
-to upload additional commits, which could be done by the following commands
+to upload additional commits. If possible, create one or several fixup commit for
+each initial commit that has to be changed. Doing so makes it easier for
+reviewers to see what has changed and also for you when it is time to squash
+commits (see below). The steps are:
 
-	git add .
-	git commit -s
-	git push origin feature/my_new_feature:feature/my_new_feature
+    ... Address comments ...
+    ... git add / git remove ...
+    # Commit your updates locally
+    git commit -s
 
-Note that the pull-request is automatically updated with the new commit.
+If your changes are related to one initial commit, use the following subject:
 
-### Finalizing the contribution
-Once reviewers and the contributor has agreed that the patch-set is OK, then the
-contributor needs to squash the commits into a single commit (a
-*"squashed-commit-on-top-of-master"*), meaning
+    [Review] <Commit subject of the commit that is fixed by this one>
 
-* A single-point contribution for most of the cases
-* That is rebased on upstream/master, in case the master has
-  been updated
-* Add tags in the commit message to grant people that reviewed and tested the patch.
-  Typically, you may add at the end of the commit message the tags *Reviewed-by*
-  and *Tested-by*, as provided in the comments of the pull-request.
+...and give a quick description of what is being addressed if it is not
+obvious. Note that you are expected to include your `Signed-off-by:` to those
+fixup commits, too. You may use some other prefix than `[Review]`, it does not
+matter much, but just make it clear you are updating a previous commit, and
+which one it is.
 
+Once you are happy with your changes, and think all review comments have been
+addressed (either by a followup commit or by replying to the comment on GitHub)
+then you are ready to push your updates:
 
-Following commands are guidelines to achieve the
-*squashed-commit-on-top-of-master*. Note that this ends with a
-*"push -f"*
+    git push
 
-	git fetch --all
-	git checkout -b feature/my_new_feature_tbs
-	git checkout feature/my_new_feature
-	git reset --hard upstream/master
-	git merge --squash feature/my_new_feature_tbs
-	git commit -s
-		(add the tag, as for example):
-		Reviewed-by: Jerome Forissier <jerome.forissier@linaro.org>
-		Reviewed-by: Jens Wiklander <jens.wiklander@linaro.org>
-		Tested-by: Joakim Bech <joakim.bech@linaro.org> (FVP platform)
-		Tested-by: Pascal Brand <pascal.brand@linaro.org> (STM platform)
-	git push -f origin feature/my_new_feature:feature/my_new_feature
+The pull request is automatically updated with the new commit(s) and reviewers
+are notified, too.
 
-Note:
+### Finalizing your contribution
 
-* The commit message may take a summary of all the squashed
-  commit messages. Also, one should add which GitHub issue it fixes,
-  if any.
-* Some comments created in the GitHub UI will be lost.
+Once you and reviewers have agreed on the patch set, which is when all the
+people who have commented on the pull request have given their `Acked-by:` or
+`Reviewed-by:`, you need to consolidate your commits:
 
-The owner of OP-TEE/optee_os.git can now merge the pull-request.
-How this is done is not described in this document.
-It is the owners responsibility to save a log of the comments that were
-available before the forced-push.
+Use `git rebase -i` to squash the fixup commits (if any) into the initial
+ones. For instance, suppose the `git log --oneline` for you contribution looks
+as follows when the review process ends:
+
+    <commit1> Do something
+    <commit2> Do something else
+    <commit3> [Review] Do something
+    <commit4> [Review] Do something
+
+Then you would do:
+
+    git rebase -i <commit1>^
+    # Edit the commit script so it looks like so:
+    pick <commit1> Do something
+    squash <commit3> [Review] Do something
+    squash <commit4> [Review] Do something
+    pick <commit2> Do something else
+
+Add the proper tags (`Acked-by: ...`, `Reviewed-by: ...`, `Tested-by: ...`) to
+the commit message(s), as provided by the people who reviewed and/or tested the
+patches.
+
+If you are not familiar with Git's interactive rebase feature, please read the
+documentation at [Git Tools - Rewriting History](
+https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History). Sections
+*Changing Multiple Commit Messages*, *Reordering Commits* and *Squashing
+Commits* are relevant to the current discussion.
+
+Once `rebase -i` is done, you need to force-push (`-f`) to your GitHub branch
+in order to update the pull request page.
+
+    git push -f
+
+At this point, it is the project maintainer's job to apply your patches to the
+master branch.
