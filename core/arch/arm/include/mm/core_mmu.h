@@ -78,7 +78,7 @@
 
 /*
  * Memory area type:
- * MEM_AREA_NOTYPE:   Undefined type. Used as end of table.
+ * MEM_AREA_END:      Reserved, marks the end of a table of mapping areas.
  * MEM_AREA_TEE_RAM:  core RAM (read/write/executable, secure, reserved to TEE)
  * MEM_AREA_TEE_RAM_RX:  core private read-only/executable memory (secure)
  * MEM_AREA_TEE_RAM_RO:  core private read-only/non-executable memory (secure)
@@ -96,7 +96,7 @@
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
-	MEM_AREA_NOTYPE = 0,
+	MEM_AREA_END = 0,
 	MEM_AREA_TEE_RAM,
 	MEM_AREA_TEE_RAM_RX,
 	MEM_AREA_TEE_RAM_RO,
@@ -118,7 +118,7 @@ enum teecore_memtypes {
 static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 {
 	static const char * const names[] = {
-		[MEM_AREA_NOTYPE] = "NOTYPE",
+		[MEM_AREA_END] = "END",
 		[MEM_AREA_TEE_RAM] = "TEE_RAM_RWX",
 		[MEM_AREA_TEE_RAM_RX] = "TEE_RAM_RX",
 		[MEM_AREA_TEE_RAM_RO] = "TEE_RAM_RO",

@@ -715,7 +715,7 @@ static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
 	paddr_t pa = 0;
 	size_t n;
 
-	if (!mm->size)
+	if (core_mmap_is_end_of_table(mm))
 		return;
 
 	print_mmap_area(mm, "4k page map");
@@ -742,7 +742,7 @@ static void map_memarea_sections(const struct tee_mmap_region *mm,
 	paddr_t pa = 0;
 	size_t n;
 
-	if (!mm->size)
+	if (core_mmap_is_end_of_table(mm))
 		return;
 
 	print_mmap_area(mm, "section map");
@@ -808,7 +808,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	/* reset L1 table */
 	memset(ttb1, 0, L1_TBL_SIZE);
 
-	for (n = 0; mm[n].type != MEM_AREA_NOTYPE; n++)
+	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
 			map_memarea(mm + n, ttb1);
 }
