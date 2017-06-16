@@ -156,7 +156,7 @@ static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
 {
 	struct tee_mmap_region *map;
 
-	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++)
+	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++)
 		if (map->type == type)
 			return map;
 	return NULL;
@@ -167,7 +167,7 @@ static struct tee_mmap_region *find_map_by_type_and_pa(
 {
 	struct tee_mmap_region *map;
 
-	for (map = static_memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
 		if (map->type != type)
 			continue;
 		if (pa_is_in_map(map, pa))
@@ -181,7 +181,7 @@ static struct tee_mmap_region *find_map_by_va(void *va)
 	struct tee_mmap_region *map = static_memory_map;
 	unsigned long a = (unsigned long)va;
 
-	while (map->type != MEM_AREA_NOTYPE) {
+	while (!core_mmap_is_end_of_table(map)) {
 		if ((a >= map->va) && (a <= (map->va - 1 + map->size)))
 			return map;
 		map++;
@@ -193,7 +193,7 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 {
 	struct tee_mmap_region *map = static_memory_map;
 
-	while (map->type != MEM_AREA_NOTYPE) {
+	while (!core_mmap_is_end_of_table(map)) {
 		if ((pa >= map->pa) && (pa < (map->pa + map->size)))
 			return map;
 		map++;
@@ -519,7 +519,7 @@ static void dump_mmap_table(struct tee_mmap_region *memory_map)
 {
 	struct tee_mmap_region *map;
 
-	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 		vaddr_t __maybe_unused vstart;
 
 		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
@@ -546,6 +546,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	     mem < &__end_phys_mem_map_section; mem++) {
 		struct core_mmu_phys_mem m = *mem;
 
+		/* Discard null size entries */
 		if (!m.size)
 			continue;
 
@@ -578,13 +579,13 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	add_va_space(memory_map, num_elems, MEM_AREA_SHM_VASPACE,
 		     RES_VASPACE_SIZE, &last);
 
-	memory_map[last].type = MEM_AREA_NOTYPE;
+	memory_map[last].type = MEM_AREA_END;
 
 	/*
 	 * Assign region sizes, note that MEM_AREA_TEE_RAM always uses
 	 * SMALL_PAGE_SIZE if paging is enabled.
 	 */
-	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 		paddr_t mask = map->pa | map->size;
 
 		if (!(mask & CORE_MMU_PGDIR_MASK))
@@ -627,7 +628,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	 */
 	va = (vaddr_t)~0UL;
 	end = 0;
-	for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 		if (!map_is_flat_mapped(map))
 			continue;
 
@@ -641,7 +642,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 
 	if (core_mmu_place_tee_ram_at_top(va)) {
 		/* Map non-flat mapped addresses below flat mapped addresses */
-		for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 			if (map_is_flat_mapped(map))
 				continue;
 
@@ -663,7 +664,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	} else {
 		/* Map non-flat mapped addresses above flat mapped addresses */
 		va = ROUNDUP(va + CFG_TEE_RAM_VA_SIZE, CORE_MMU_PGDIR_SIZE);
-		for (map = memory_map; map->type != MEM_AREA_NOTYPE; map++) {
+		for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 			if (map_is_flat_mapped(map))
 				continue;
 
@@ -712,7 +713,7 @@ void core_init_mmu_map(void)
 		init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
 
 	map = static_memory_map;
-	while (map->type != MEM_AREA_NOTYPE) {
+	while (!core_mmap_is_end_of_table(map)) {
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM:
 		case MEM_AREA_TEE_RAM_RX:
@@ -871,7 +872,7 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 	struct tee_mmap_region *map = find_map_by_pa(pa);
 
 	if (!map)
-		return MEM_AREA_NOTYPE;
+		return MEM_AREA_MAXTYPE;
 	return map->type;
 }
 
@@ -1229,14 +1230,14 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 
 	/* Find end of the memory map */
 	n = 0;
-	while (static_memory_map[n].type != MEM_AREA_NOTYPE)
+	while (!core_mmap_is_end_of_table(static_memory_map + n))
 		n++;
 
 	if (n < (ARRAY_SIZE(static_memory_map) - 1)) {
 		/* There's room for another entry */
 		static_memory_map[n].va = map->va;
 		static_memory_map[n].size = l;
-		static_memory_map[n + 1].type = MEM_AREA_NOTYPE;
+		static_memory_map[n + 1].type = MEM_AREA_END;
 		map->va += l;
 		map->size -= l;
 		map = static_memory_map + n;
