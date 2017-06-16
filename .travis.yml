@@ -106,29 +106,18 @@ script:
 
   # b2260
   - $make PLATFORM=stm-b2260
-  - $make PLATFORM=stm-b2260 CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=stm-b2260 CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # Cannes
   - $make PLATFORM=stm-cannes
-  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # FVP
-  - $make PLATFORM=vexpress-fvp CFG_ARM32_core=y
-  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TZC400=y
-  - $make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0 CFG_TZC400=y
+  - $make PLATFORM=vexpress-fvp
   - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y
-  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TZC400=y
-  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0 CFG_TZC400=y
+  - $make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TZC400=y
 
   # Juno
   - $make PLATFORM=vexpress-juno
-  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
   - $make PLATFORM=vexpress-juno CFG_ARM64_core=y
-  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
 
   # QEMU-virt (PLATFORM=vexpress-qemu_virt)
   - $make
@@ -140,7 +129,6 @@ script:
   - $make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=y DEBUG=1
   - $make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n DEBUG=0
   - $make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
-  - $make CFG_TEE_CORE_MALLOC_DEBUG=y
   - $make CFG_CORE_SANITIZE_UNDEFINED=y
   - $make CFG_CORE_SANITIZE_KADDRESS=y
   - $make CFG_CRYPTO=n
@@ -168,18 +156,17 @@ script:
 
   # QEMU-ARMv8A
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
+  - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_RPMB_FS=y
   - $make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
 
   # SUNXI(Allwinner A80)
-  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-  - $make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
+  - $make PLATFORM=sunxi
 
   # HiKey board (HiSilicon Kirin 620)
   - $make PLATFORM=hikey
   - $make PLATFORM=hikey CFG_ARM64_core=y
-  - $make PLATFORM=hikey CFG_ARM64_core=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
 
   # Mediatek mt8173 EVB
   - $make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
