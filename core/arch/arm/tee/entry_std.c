@@ -360,7 +360,8 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 void tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
-	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
+	struct optee_msg_arg *arg, *arg_local;
+	size_t arg_size;
 	uint32_t num_params;
 	struct mobj *mobj;
 
@@ -384,25 +385,40 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 	arg = mobj_get_va(mobj, 0);
 	assert(arg && mobj_is_nonsec(mobj));
 
+	/* Use local copy of args to ensure that NW will not alter them */
+	arg_size = OPTEE_MSG_GET_ARG_SIZE(num_params);
+	arg_local = malloc(arg_size);
+
+	if (!arg_local) {
+		smc_args->a0 = OPTEE_SMC_RETURN_ENOMEM;
+		mobj_free(mobj);
+		return;
+	}
+
+	memcpy(arg_local, arg, arg_size);
+
 	/* Enable foreign interrupts for STD calls */
 	thread_set_foreign_intr(true);
 	switch (arg->cmd) {
 	case OPTEE_MSG_CMD_OPEN_SESSION:
-		entry_open_session(smc_args, arg, num_params);
+		entry_open_session(smc_args, arg_local, num_params);
 		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:
-		entry_close_session(smc_args, arg, num_params);
+		entry_close_session(smc_args, arg_local, num_params);
 		break;
 	case OPTEE_MSG_CMD_INVOKE_COMMAND:
-		entry_invoke_command(smc_args, arg, num_params);
+		entry_invoke_command(smc_args, arg_local, num_params);
 		break;
 	case OPTEE_MSG_CMD_CANCEL:
-		entry_cancel(smc_args, arg, num_params);
+		entry_cancel(smc_args, arg_local, num_params);
 		break;
 	default:
-		EMSG("Unknown cmd 0x%x\n", arg->cmd);
+		EMSG("Unknown cmd 0x%x\n", arg_local->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
+
+	memcpy(arg, arg_local, arg_size);
+	free(arg_local);
 	mobj_free(mobj);
 }
 
