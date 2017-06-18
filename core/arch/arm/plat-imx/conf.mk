@@ -39,6 +39,7 @@ CFG_WITH_STACK_CANARIES ?= y
 ifeq ($(CFG_MX6UL),y)
 include core/arch/arm/cpu/cortex-a7.mk
 
+$(call force,CFG_MX6,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 endif
 
@@ -47,6 +48,7 @@ endif
 ifeq ($(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)), y)
 include core/arch/arm/cpu/cortex-a9.mk
 
+$(call force,CFG_MX6,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)

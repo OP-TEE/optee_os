@@ -35,7 +35,7 @@
 /* For i.MX 6UltraLite EVK board */
 
 #if defined(CFG_MX6UL)
-#include <imx6ul-regs.h>
+#include <imx-regs.h>
 
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform mx6ulevk"
@@ -90,14 +90,14 @@
 #endif
 
 
-#define CONSOLE_UART_BASE	(UART0_BASE)
+#define CONSOLE_UART_BASE	(UART1_BASE)
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
 #elif defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
 	defined(CFG_MX6S)
 
-#include <imx6-regs.h>
+#include <imx-regs.h>
 
 /* Board specific console UART */
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite)
