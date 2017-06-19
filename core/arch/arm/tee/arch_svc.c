@@ -187,7 +187,11 @@ static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
 }
 #endif /*ARM64*/
 
-void tee_svc_handler(struct thread_svc_regs *regs)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak tee_svc_handler(struct thread_svc_regs *regs)
 {
 	size_t scn;
 	size_t max_args;

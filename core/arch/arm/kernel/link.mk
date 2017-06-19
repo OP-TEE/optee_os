@@ -7,7 +7,6 @@ link-script-dep = $(link-out-dir)/.kern.ld.d
 
 AWK	 = awk
 
-
 link-ldflags  = $(LDFLAGS)
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
@@ -17,8 +16,10 @@ link-ldflags += --gc-sections
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(libnames))
-ldargs-tee.elf := $(link-ldflags) $(objs) $(link-out-dir)/version.o \
-	$(link-ldadd) $(libgcccore)
+link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
+			  $(objs))
+ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
+		  $(link-ldadd) $(libgcccore)
 
 link-script-cppflags := -DASM=1 \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
@@ -27,7 +28,7 @@ link-script-cppflags := -DASM=1 \
 		$(cppflagscore))
 
 ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
-	$(objs) $(link-ldadd) $(libgcccore)
+		   $(link-objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
 	@$(cmd-echo-silent) '  LD      $@'
@@ -39,25 +40,20 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
-funcs-unpaged-rem += .text.tee_entry_std .text.tee_svc_handler
-objs-unpaged-rem += core/arch/arm/tee/entry_std.o
-objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
-objs-unpaged := \
-	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
-ldargs-unpaged = -T $(link-script-dummy) --no-check-sections --gc-sections
-ldargs-unpaged-objs := $(objs-unpaged) $(link-ldadd) $(libgcccore)
+unpaged-ldargs = -T $(link-script-dummy) --no-check-sections --gc-sections
+unpaged-ldadd := $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-unpaged) \
+	$(q)$(LDcore) $(unpaged-ldargs) \
 		`cat $(link-out-dir)/unpaged_entries.txt` \
-		$(ldargs-unpaged-objs) -o $@
+		$(unpaged-ldadd) -o $@
 
 cleanfiles += $(link-out-dir)/text_unpaged.ld.S
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -S -W $< | \
-		./scripts/gen_ld_sects.py .text. $(funcs-unpaged-rem) > $@
+		./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S
 $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
@@ -72,29 +68,21 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
-funcs-init-rem = $(funcs-unpaged-rem)
-funcs-init-rem += .text.init_teecore
-objs-init-rem = $(objs-unpaged-rem)
-objs-init-rem += core/arch/arm/tee/init.o
-objs-init := \
-	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
-		$(link-out-dir)/version.o)
-ldargs-init := -T $(link-script-dummy) --no-check-sections --gc-sections
-
-ldargs-init-objs := $(objs-init) $(link-ldadd) $(libgcccore)
+init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
+init-ldadd := $(objs) $(link-out-dir)/version.o  $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
 $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 	$(call gen-version-o)
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-init) \
+	$(q)$(LDcore) $(init-ldargs) \
 		`cat $(link-out-dir)/init_entries.txt` \
-		$(ldargs-init-objs) -o $@
+		$(init-ldadd) -o $@
 
 cleanfiles += $(link-out-dir)/text_init.ld.S
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -S -W $< | \
-		./scripts/gen_ld_sects.py .text. $(funcs-init-rem) > $@
+		./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_init.ld.S
 $(link-out-dir)/rodata_init.ld.S: $(link-out-dir)/init.o
@@ -143,11 +131,12 @@ endef
 $(link-out-dir)/version.o:
 	$(call gen-version-o)
 
+
 all: $(link-out-dir)/tee.elf
 cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
 cleanfiles += $(link-out-dir)/version.o
 cleanfiles += $(link-out-dir)/.buildcount
-$(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
+$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp)
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 

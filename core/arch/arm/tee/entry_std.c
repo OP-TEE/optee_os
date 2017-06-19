@@ -357,7 +357,11 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	return mobj_shm_alloc(parg, args_size);
 }
 
-void tee_entry_std(struct thread_smc_args *smc_args)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
