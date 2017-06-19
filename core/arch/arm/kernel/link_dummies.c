@@ -26,6 +26,7 @@
  */
 #include <compiler.h>
 #include <kernel/thread.h>
+#include <kernel/wait_queue.h>
 #include <sm/tee_mon.h>
 #include <tee_api_types.h>
 #include <tee/arch_svc.h>
@@ -50,5 +51,11 @@ TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
 
 void __section(".text.dummy.__thread_std_smc_entry")
 __thread_std_smc_entry(struct thread_smc_args *args __unused)
+{
+}
+void __section(".text.dummy.__wq_rpc")
+__wq_rpc(uint32_t func __unused, int id __unused,
+	 const void *sync_obj __unused, int owner __unused,
+	 const char *fname __unused, int lineno  __unused)
 {
 }
