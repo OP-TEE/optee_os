@@ -25,10 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <types_ext.h>
+#include <compiler.h>
 #include <kernel/panic.h>
-#include <trace.h>
 #include <string.h>
+#include <trace.h>
+#include <types_ext.h>
 
 struct source_location {
 	const char *file_name;
@@ -111,7 +112,11 @@ void __ubsan_handle_vla_bound_not_positive(struct vla_bound_data *data,
 					   unsigned long bound);
 void __ubsan_handle_load_invalid_value(struct invalid_value_data *data,
 				       unsigned long val);
-void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data, size_t arg_no);
+void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data
+#if __GCC_VERSION < 60000
+				, size_t arg_no
+#endif
+			       );
 
 static void print_loc(const char *func, struct source_location *loc)
 {
@@ -226,8 +231,11 @@ void __ubsan_handle_load_invalid_value(struct invalid_value_data *data,
 		panic();
 }
 
-void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data,
-				size_t arg_no __unused)
+void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data
+#if __GCC_VERSION < 60000
+				, size_t arg_no __unused
+#endif
+			       )
 {
 	print_loc(__func__, &data->loc);
 	if (ubsan_panic)
