@@ -70,7 +70,7 @@ cleanfiles += $(link-out-dir)/init_entries.txt
 $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(NMcore) $< | \
-		$(AWK) '/ ____keep_init/ { printf "-u%s", $$3 }' > $@
+		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
 funcs-init-rem = $(funcs-unpaged-rem)
 funcs-init-rem += .text.init_teecore
