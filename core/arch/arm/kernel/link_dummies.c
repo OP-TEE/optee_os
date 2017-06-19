@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,65 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <initcall.h>
-#include <kernel/linker.h>
-#include <kernel/tee_misc.h>
-#include <kernel/time_source.h>
-#include <malloc.h>		/* required for inits */
-#include <mm/core_memprot.h>
-#include <mm/tee_mmu.h>
+#include <compiler.h>
+#include <kernel/thread.h>
 #include <sm/tee_mon.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_svc.h>
-#include <trace.h>
+#include <tee_api_types.h>
+#include <tee/arch_svc.h>
+#include <tee/entry_std.h>
 
-#include <platform_config.h>
-
-
-#define TEE_MON_MAX_NUM_ARGS    8
-
-static void call_initcalls(void)
+void __section(".text.dummy.tee_svc_handler")
+tee_svc_handler(struct thread_svc_regs *regs __unused)
 {
-	const initcall_t *call;
-
-	for (call = &__initcall_start; call < &__initcall_end; call++) {
-		TEE_Result ret;
-		ret = (*call)();
-		if (ret != TEE_SUCCESS) {
-			EMSG("Initial call 0x%08" PRIxVA " failed",
-			     (vaddr_t)call);
-		}
-	}
 }
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-TEE_Result __weak init_teecore(void)
+void __section(".text.dummy.tee_entry_std")
+tee_entry_std(struct thread_smc_args *smc_args __unused)
 {
-	static int is_first = 1;
+}
 
-	/* (DEBUG) for inits at 1st TEE service: when UART is setup */
-	if (!is_first)
-		return TEE_SUCCESS;
-	is_first = 0;
-
-#ifdef CFG_WITH_USER_TA
-	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
-#endif
-
-	/* init support for future mapping of TAs */
-	teecore_init_pub_ram();
-
-	/* time initialization */
-	time_source_init();
-
-	/* call pre-define initcall routines */
-	call_initcalls();
-
-	IMSG("Initialized");
+TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
+{
 	return TEE_SUCCESS;
 }
