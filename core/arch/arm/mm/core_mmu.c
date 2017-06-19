@@ -216,15 +216,165 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 	return false;
 }
 
+#ifdef CFG_DT
+static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
+			       paddr_t pa, size_t size)
+{
+	struct core_mmu_phys_mem *m = *mem;
+	size_t n = 0;
+
+	while (true) {
+		if (n >= *nelems) {
+			DMSG("No need to carve out %#" PRIxPA " size %#zx",
+			     pa, size);
+			return;
+		}
+		if (core_is_buffer_inside(pa, size, m[n].addr, m[n].size))
+			break;
+		if (!core_is_buffer_outside(pa, size, m[n].addr, m[n].size))
+			panic();
+		n++;
+	}
+
+	if (pa == m[n].addr && size == m[n].size) {
+		/* Remove this entry */
+		(*nelems)--;
+		memmove(m + n, m + n + 1, sizeof(*m) * (*nelems - n));
+		m = realloc(m, sizeof(*m) * *nelems);
+		if (!m)
+			panic();
+		*mem = m;
+	} else if (pa == m[n].addr) {
+		m[n].addr += size;
+	} else if ((pa + size) == (m[n].addr + m[n].size)) {
+		m[n].size -= size;
+	} else {
+		/* Need to split the memory entry */
+		m = realloc(m, sizeof(*m) * (*nelems + 1));
+		if (!m)
+			panic();
+		*mem = m;
+		memmove(m + n + 1, m + n, sizeof(*m) * (*nelems - n));
+		(*nelems)++;
+		m[n].size = pa - m[n].addr;
+		m[n + 1].size -= size + m[n].size;
+		m[n + 1].addr = pa + size;
+	}
+}
+
+static void check_phys_mem_is_outside(struct core_mmu_phys_mem *start,
+				      size_t nelems,
+				      struct tee_mmap_region *map)
+{
+	size_t n;
+
+	for (n = 0; n < nelems; n++) {
+		if (!core_is_buffer_outside(start[n].addr, start[n].size,
+					    map->pa, map->size)) {
+			EMSG(
+"Non-sec mem (%#" PRIxPA ":%#zx) overlaps map (type %d %#" PRIxPA ":%#zx)",
+			     start[n].addr, start[n].size,
+			     map->type, map->pa, map->size);
+			panic();
+		}
+	}
+}
+
+static const struct core_mmu_phys_mem *discovered_nsec_ddr_start;
+static size_t discovered_nsec_ddr_nelems;
+
+static int cmp_pmem_by_addr(const void *a, const void *b)
+{
+	return ((const struct core_mmu_phys_mem *)a)->addr -
+	       ((const struct core_mmu_phys_mem *)b)->addr;
+}
+
+void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
+				      size_t nelems)
+{
+	struct core_mmu_phys_mem *m = start;
+	size_t num_elems = nelems;
+	struct tee_mmap_region *map = static_memory_map;
+	const struct core_mmu_phys_mem __maybe_unused *pmem;
+
+	assert(!discovered_nsec_ddr_start);
+	assert(m && num_elems);
+
+	qsort(m, num_elems, sizeof(*m), cmp_pmem_by_addr);
+
+	/*
+	 * Non-secure shared memory and also secure data
+	 * path memory are supposed to reside inside
+	 * non-secure memory. Since NSEC_SHM and SDP_MEM
+	 * are used for a specific purpose make holes for
+	 * those memory in the normal non-secure memory.
+	 *
+	 * This has to be done since for instance QEMU
+	 * isn't aware of which memory range in the
+	 * non-secure memory is used for NSEC_SHM.
+	 */
+
+#ifdef CFG_SECURE_DATA_PATH
+	for (pmem = &__start_phys_sdp_mem_section;
+	     pmem < &__end_phys_sdp_mem_section; pmem++)
+		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
+#endif
+
+	for (map = static_memory_map; core_mmap_is_end_of_table(map); map++) {
+		if (map->type == MEM_AREA_NSEC_SHM)
+			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
+		else
+			check_phys_mem_is_outside(m, num_elems, map);
+	}
+
+	discovered_nsec_ddr_start = m;
+	discovered_nsec_ddr_nelems = num_elems;
+}
+
+static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,
+				    const struct core_mmu_phys_mem **end)
+{
+	if (!discovered_nsec_ddr_start)
+		return false;
+
+	*start = discovered_nsec_ddr_start;
+	*end = discovered_nsec_ddr_start + discovered_nsec_ddr_nelems;
+
+	return true;
+}
+#else /*!CFG_DT*/
+static bool
+get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start __unused,
+			const struct core_mmu_phys_mem **end __unused)
+{
+	return false;
+}
+#endif /*!CFG_DT*/
+
 static bool pbuf_is_nsec_ddr(paddr_t pbuf, size_t len)
 {
-	return pbuf_is_special_mem(pbuf, len, &__start_phys_nsec_ddr_section,
-				    &__end_phys_nsec_ddr_section);
+	const struct core_mmu_phys_mem *start;
+	const struct core_mmu_phys_mem *end;
+
+	if (!get_discovered_nsec_ddr(&start, &end)) {
+		start = &__start_phys_nsec_ddr_section;
+		end = &__end_phys_nsec_ddr_section;
+	}
+
+	return pbuf_is_special_mem(pbuf, len, start, end);
 }
 
 bool core_mmu_nsec_ddr_is_defined(void)
 {
-	return &__start_phys_nsec_ddr_section != &__end_phys_nsec_ddr_section;
+	const struct core_mmu_phys_mem *start;
+	const struct core_mmu_phys_mem *end;
+
+	if (!get_discovered_nsec_ddr(&start, &end)) {
+		start = &__start_phys_nsec_ddr_section;
+		end = &__end_phys_nsec_ddr_section;
+	}
+
+	return start != end;
 }
 
 #define MSG_MEM_INSTERSECT(pa1, sz1, pa2, sz2) \

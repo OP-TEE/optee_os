@@ -443,15 +443,35 @@ static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 	}
 }
 
-static int add_optee_res_mem_dt_node(void *fdt)
+static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
+				       uint32_t cell_size)
+{
+	uint64_t rv;
+
+	if (cell_size == 1) {
+		uint32_t v;
+
+		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
+		*offs += sizeof(v);
+		rv = fdt32_to_cpu(v);
+	} else {
+		uint64_t v;
+
+		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
+		*offs += sizeof(v);
+		rv = fdt64_to_cpu(v);
+	}
+
+	return rv;
+}
+
+static int add_res_mem_dt_node(void *fdt, const char *name, paddr_t pa,
+			       size_t size)
 {
 	int offs;
 	int ret;
 	int addr_size = 2;
 	int len_size = 2;
-	vaddr_t shm_va_start;
-	vaddr_t shm_va_end;
-	paddr_t shm_pa;
 	char subnode_name[80];
 
 	offs = fdt_path_offset(fdt, "/reserved-memory");
@@ -480,17 +500,14 @@ static int add_optee_res_mem_dt_node(void *fdt)
 			return -1;
 	}
 
-	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_va_start, &shm_va_end);
-	shm_pa = virt_to_phys((void *)shm_va_start);
 	snprintf(subnode_name, sizeof(subnode_name),
-		 "optee@0x%" PRIxPA, shm_pa);
+		 "%s@0x%" PRIxPA, name, pa);
 	offs = fdt_add_subnode(fdt, offs, subnode_name);
 	if (offs >= 0) {
 		uint32_t data[FDT_MAX_NCELLS * 2];
 
-		set_dt_val(data, addr_size, shm_pa);
-		set_dt_val(data + addr_size, len_size,
-			   shm_va_end - shm_va_start);
+		set_dt_val(data, addr_size, pa);
+		set_dt_val(data + addr_size, len_size, size);
 		ret = fdt_setprop(fdt, offs, "reg", data,
 				  sizeof(uint32_t) * (addr_size + len_size));
 		if (ret < 0)
@@ -502,6 +519,84 @@ static int add_optee_res_mem_dt_node(void *fdt)
 		return -1;
 	}
 	return 0;
+}
+
+static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
+{
+	int offs;
+	int addr_size;
+	int len_size;
+	size_t prop_len;
+	const uint8_t *prop;
+	size_t prop_offs;
+	size_t n;
+	struct core_mmu_phys_mem *mem;
+
+	offs = fdt_subnode_offset(fdt, 0, "memory");
+	if (offs < 0)
+		return NULL;
+
+	prop = fdt_getprop(fdt, offs, "reg", &addr_size);
+	if (!prop)
+		return NULL;
+
+	prop_len = addr_size;
+	addr_size = fdt_address_cells(fdt, offs);
+	if (addr_size < 0)
+		return NULL;
+
+	len_size = fdt_size_cells(fdt, offs);
+	if (len_size < 0)
+		return NULL;
+
+	for (n = 0, prop_offs = 0; prop_offs < prop_len; n++) {
+		get_dt_val_and_advance(prop, &prop_offs, addr_size);
+		if (prop_offs >= prop_len) {
+			n--;
+			break;
+		}
+		get_dt_val_and_advance(prop, &prop_offs, len_size);
+	}
+
+	if (!n)
+		return NULL;
+
+	*nelems = n;
+	mem = calloc(n, sizeof(*mem));
+	if (!mem)
+		panic();
+
+	for (n = 0, prop_offs = 0; n < *nelems; n++) {
+		mem[n].type = MEM_AREA_RAM_NSEC;
+		mem[n].addr = get_dt_val_and_advance(prop, &prop_offs,
+						     addr_size);
+		mem[n].size = get_dt_val_and_advance(prop, &prop_offs,
+						     len_size);
+	}
+
+	return mem;
+}
+
+static int config_nsmem(void *fdt)
+{
+	struct core_mmu_phys_mem *mem;
+	size_t nelems;
+	vaddr_t shm_start;
+	vaddr_t shm_end;
+
+	mem = get_memory(fdt, &nelems);
+	if (mem)
+		core_mmu_set_discovered_nsec_ddr(mem, nelems);
+	else
+		DMSG("No non-secure memory found in FDT");
+
+	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_start, &shm_end);
+	if (shm_start != shm_end)
+		return add_res_mem_dt_node(fdt, "optee", shm_start,
+					   shm_end - shm_start);
+
+	DMSG("No SHM configured");
+	return -1;
 }
 
 static void init_fdt(unsigned long phys_fdt)
@@ -539,8 +634,8 @@ static void init_fdt(unsigned long phys_fdt)
 	if (add_optee_dt_node(fdt))
 		panic("Failed to add OP-TEE Device Tree node");
 
-	if (add_optee_res_mem_dt_node(fdt))
-		panic("Failed to add OP-TEE reserved memory DT node");
+	if (config_nsmem(fdt))
+		panic("Failed to config non-secure memory");
 
 	ret = fdt_pack(fdt);
 	if (ret < 0) {

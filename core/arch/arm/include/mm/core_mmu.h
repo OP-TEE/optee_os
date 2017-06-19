@@ -484,6 +484,11 @@ bool cpu_mmu_enabled(void);
  */
 bool core_mmu_nsec_ddr_is_defined(void);
 
+#ifdef CFG_DT
+void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
+				      size_t nelems);
+#endif
+
 #ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);
