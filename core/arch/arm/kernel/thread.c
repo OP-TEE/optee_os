@@ -583,8 +583,13 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_alloc_and_run(args);
 }
 
-/* Helper routine for the assembly function thread_std_smc_entry() */
-void __thread_std_smc_entry(struct thread_smc_args *args)
+/*
+ * Helper routine for the assembly function thread_std_smc_entry()
+ *
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 {
 	thread_std_smc_handler_ptr(args);
 
