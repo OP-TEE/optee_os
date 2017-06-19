@@ -98,8 +98,7 @@ struct unwind_idx {
 /* Expand a 31-bit signed value to a 32-bit signed value */
 static int32_t expand_prel31(uint32_t prel31)
 {
-
-	return ((int32_t)(prel31 & 0x7fffffffu) << 1) / 2;
+	return prel31 | SHIFT_U32(prel31 & BIT32(30), 1);
 }
 
 /*
