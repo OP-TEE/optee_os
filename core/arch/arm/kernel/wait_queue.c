@@ -42,9 +42,13 @@ void wq_init(struct wait_queue *wq)
 	*wq = (struct wait_queue)WAIT_QUEUE_INITIALIZER;
 }
 
-static void wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
-		   int owner __maybe_unused, const char *fname,
-		   int lineno __maybe_unused)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
+		     int owner __maybe_unused, const char *fname,
+		     int lineno __maybe_unused)
 {
 	uint32_t ret;
 	struct optee_msg_param params;
@@ -105,8 +109,8 @@ void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
 	unsigned done;
 
 	do {
-		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP, wqe->handle,
-		       sync_obj, owner, fname, lineno);
+		__wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP, wqe->handle,
+			 sync_obj, owner, fname, lineno);
 
 		old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
@@ -140,8 +144,8 @@ void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
 	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
 
 	if (do_wakeup)
-		wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
-		       sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK, fname, lineno);
+		__wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
+			 sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK, fname, lineno);
 }
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
