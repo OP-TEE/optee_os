@@ -31,6 +31,8 @@
 #include <tee/arch_svc.h>
 #include <tee/entry_std.h>
 
+#include "thread_private.h"
+
 void __section(".text.dummy.tee_svc_handler")
 tee_svc_handler(struct thread_svc_regs *regs __unused)
 {
@@ -44,4 +46,9 @@ tee_entry_std(struct thread_smc_args *smc_args __unused)
 TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
 {
 	return TEE_SUCCESS;
+}
+
+void __section(".text.dummy.__thread_std_smc_entry")
+__thread_std_smc_entry(struct thread_smc_args *args __unused)
+{
 }
