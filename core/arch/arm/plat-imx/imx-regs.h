@@ -155,4 +155,9 @@
 #else
 #error "CFG_MX6 not defined"
 #endif
+
+#define IOMUXC_GPR4_OFFSET	0x10
+#define IOMUXC_GPR5_OFFSET	0x14
+#define ARM_WFI_STAT_MASK(n)	BIT(n)
+
 #endif
