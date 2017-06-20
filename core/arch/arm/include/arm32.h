@@ -658,6 +658,11 @@ static inline uint64_t read_pmu_ccnt(void)
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(val));
 	return val;
 }
+
+static inline void wfi(void)
+{
+	asm volatile("wfi");
+}
 #endif /*ASM*/
 
 #endif /*ARM32_H*/

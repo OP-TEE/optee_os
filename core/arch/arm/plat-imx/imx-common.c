@@ -1,8 +1,9 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  * All rights reserved.
- * Copyright (c) 2016, Wind River Systems.
- * All rights reserved.
+ *
+ * Peng Fan <peng.fan@nxp.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,52 +28,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <drivers/gic.h>
+#include <console.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
-#include <kernel/misc.h>
-#include <kernel/tz_ssvce_pl310.h>
+#include <imx.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <platform_config.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
-
-void plat_cpu_reset_late(void)
+uint32_t imx_get_src_gpr(int cpu)
 {
-	uintptr_t addr;
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-	if (!get_core_pos()) {
-		/* primary core */
-#if defined(CFG_BOOT_SYNC_CPU)
-		/* set secondary entry address and release core */
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 8);
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 16);
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 24);
+	return read32(va + SRC_GPR1 + cpu * 8 + 4);
+}
 
-		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
-#endif
+void imx_set_src_gpr(int cpu, uint32_t val)
+{
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-		/* SCU config */
-		write32(SCU_INV_CTRL_INIT, SCU_BASE + SCU_INV_SEC);
-		write32(SCU_SAC_CTRL_INIT, SCU_BASE + SCU_SAC);
-		write32(SCU_NSAC_CTRL_INIT, SCU_BASE + SCU_NSAC);
-
-		/* SCU enable */
-		write32(read32(SCU_BASE + SCU_CTRL) | 0x1,
-			SCU_BASE + SCU_CTRL);
-
-		/* configure imx6 CSU */
-
-		/* first grant all peripherals */
-		for (addr = CSU_BASE + CSU_CSL_START;
-			 addr != CSU_BASE + CSU_CSL_END;
-			 addr += 4)
-			write32(CSU_ACCESS_ALL, addr);
-
-		/* lock the settings */
-		for (addr = CSU_BASE + CSU_CSL_START;
-			 addr != CSU_BASE + CSU_CSL_END;
-			 addr += 4)
-			write32(read32(addr) | CSU_SETTING_LOCK, addr);
-	}
+	write32(val, va + SRC_GPR1 + cpu * 8 + 4);
 }
