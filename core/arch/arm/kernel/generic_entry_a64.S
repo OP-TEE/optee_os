@@ -130,8 +130,8 @@ clear_bss:
 
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adrp	x1, __init_end
-	add	x1, x1, :lo12:__init_end
+	adrp	x1, __tmp_hashes_end
+	add	x1, x1, :lo12:__tmp_hashes_end
 #else
 	adrp	x1, __end
 	add	x1, x1, :lo12:__end
@@ -161,8 +161,8 @@ clear_bss:
 	mov	x19, x0
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adrp	x1, __init_end
-	add	x1, x1, :lo12:__init_end
+	adrp	x1, __tmp_hashes_end
+	add	x1, x1, :lo12:__tmp_hashes_end
 #else
 	adrp	x1, __end
 	add	x1, x1, :lo12:__end
