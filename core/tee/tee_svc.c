@@ -103,7 +103,11 @@ static const uint32_t crypto_ecc_en;
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
+#ifdef CFG_RPMB_FS
+static const uint32_t ts_antiroll_prot_lvl = 1000;
+#else
 static const uint32_t ts_antiroll_prot_lvl;
+#endif
 
 /* Trusted OS implementation version */
 static const char trustedos_impl_version[] = TO_STR(TEE_IMPL_VERSION);

@@ -74,8 +74,9 @@ Below is an excerpt from the specification listing the most vital requirements:
    Typically, an implementation may rely on the REE for that purpose (protection
    level 100) or on hardware assets controlled by the TEE (protection level
    1000).
-   The current implementation does *not* provide any protection against
-   rollback, and therefore the protection level is set to 0.
+   If configured with CFG_RPMB_FS=y the protection against rollback is is
+   controlled by the TEE and is set to 1000. If CFG_RPMB_FS=n, there's no
+   protection against rollback, and the protection level is set to 0.
 
 ### TEE File Structure In Linux File System
 
@@ -222,17 +223,6 @@ implementations in your platform code for:
 
 These implementations should fetch the key data from your SoC-specific e-fuses,
 or crypto unit according to the method defined by your SoC vendor.
-
-## Future Work
-
-- **Rollback attack detection**
-
-An attacker can backup the whole `/data/tee` folder and restore it at later
-time.
-
-The basic idea of detecting rollback attack is to store information
-representing the state of `/data/tee/dirf.db` into another storage which has
-anti-rollback capability such as the eMMC RPMB partition.
 
 ## Reference
 
