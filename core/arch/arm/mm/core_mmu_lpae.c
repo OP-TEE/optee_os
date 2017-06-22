@@ -64,6 +64,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/core_memprot.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
@@ -705,7 +706,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	*entry = new_table_desc;
 
 	if (flush_tlb)
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 	return true;
 }
 
@@ -790,7 +791,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		dsb();	/* Make sure the write above is visible */
 	}
 
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 
 	thread_unmask_exceptions(exceptions);
 }
@@ -864,7 +865,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		dsb();	/* Make sure the write above is visible */
 	}
 
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 
 	write_daif(daif);
 }
