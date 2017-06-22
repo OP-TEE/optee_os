@@ -40,13 +40,6 @@ FUNC secure_mmu_unifiedtlbinvall , :
 	ret
 END_FUNC secure_mmu_unifiedtlbinvall
 
-/* void secure_mmu_unifiedtlbinv_curasid(void) */
-FUNC secure_mmu_unifiedtlbinv_curasid , :
-	mrs	x0, ttbr0_el1
-	lsr	x0, x0, #TTBR_ASID_SHIFT
-	b	secure_mmu_unifiedtlbinv_byasid
-END_FUNC secure_mmu_unifiedtlbinv_curasid
-
 /* void secure_mmu_unifiedtlbinv_byasid(unsigned int asid); */
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 	and	x0, x0, #TTBR_ASID_MASK
