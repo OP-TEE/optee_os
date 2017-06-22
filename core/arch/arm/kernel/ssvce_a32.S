@@ -49,8 +49,8 @@
  */
 
 
-/* void secure_mmu_unifiedtlbinvall(void); */
-FUNC secure_mmu_unifiedtlbinvall , :
+/* void tlbi_all(void); */
+FUNC tlbi_all , :
 UNWIND(	.fnstart)
 	dsb	ishst		/* Sync with table update */
 	write_tlbiallis 	/* Invalidate TLBs */
@@ -58,10 +58,10 @@ UNWIND(	.fnstart)
 	isb			/* Sync execution on tlb update */
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC secure_mmu_unifiedtlbinvall
+END_FUNC tlbi_all
 
-/* void secure_mmu_unifiedtlbinvbymva(mva); FIXME: DISABLED */
-FUNC secure_mmu_unifiedtlbinvbymva , :
+/* void tlbi_mva_asid(unsigned long mva); FIXME: DISABLED */
+FUNC tlbi_mva_asid , :
 UNWIND(	.fnstart)
 
 	b .	@ Wrong code to force fix/check the routine before using it
@@ -75,14 +75,10 @@ UNWIND(	.fnstart)
 	isb			/* Sync execution on tlb update */
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC secure_mmu_unifiedtlbinvbymva
+END_FUNC tlbi_mva_asid
 
-/*
- * void secure_mmu_unifiedtlbinv_byasid(unsigned int asid)
- *
- * Invalidate TLB matching current ASID
- */
-FUNC secure_mmu_unifiedtlbinv_byasid , :
+/* void tlbi_asid(unsigned long asid); */
+FUNC tlbi_asid , :
 UNWIND(	.fnstart)
 	and     r0, r0, #0xff               /* Get ASID */
 	dsb	ishst		/* Sync with table update */
@@ -91,6 +87,6 @@ UNWIND(	.fnstart)
 	isb			/* Sync execution on tlb update */
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC secure_mmu_unifiedtlbinv_byasid
+END_FUNC tlbi_asid
 
 

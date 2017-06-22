@@ -1031,24 +1031,24 @@ int core_tlb_maintenance(int op, unsigned int a)
 {
 	switch (op) {
 	case TLBINV_UNIFIEDTLB:
-		secure_mmu_unifiedtlbinvall();
+		tlbi_all();
 		break;
 	case TLBINV_CURRENT_ASID:
 #ifdef ARM32
-		secure_mmu_unifiedtlbinv_byasid(read_contextidr());
+		tlbi_asid(read_contextidr());
 #endif
 #ifdef ARM64
-		secure_mmu_unifiedtlbinv_byasid(read_contextidr_el1());
+		tlbi_asid(read_contextidr_el1());
 #endif
 		break;
 	case TLBINV_BY_ASID:
-		secure_mmu_unifiedtlbinv_byasid(a);
+		tlbi_asid(a);
 		break;
 	case TLBINV_BY_MVA:
 		EMSG("TLB_INV_SECURE_MVA is not yet supported!");
 		while (1)
 			;
-		secure_mmu_unifiedtlbinvbymva(a);
+		tlbi_mva_curasid(a);
 		break;
 	default:
 		return 1;

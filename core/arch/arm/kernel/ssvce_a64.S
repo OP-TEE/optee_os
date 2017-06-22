@@ -28,21 +28,21 @@
 #include <arm64.h>
 #include <asm.S>
 
-/* void secure_mmu_unifiedtlbinvall(void); */
-FUNC secure_mmu_unifiedtlbinvall , :
+/* void tlbi_all(void); */
+FUNC tlbi_all , :
 	dsb	ishst		/* Sync with table update */
 	tlbi	vmalle1is	/* All tlb in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
 	ret
-END_FUNC secure_mmu_unifiedtlbinvall
+END_FUNC tlbi_all
 
-/* void secure_mmu_unifiedtlbinv_byasid(unsigned int asid); */
-FUNC secure_mmu_unifiedtlbinv_byasid , :
+/* void tlbi_asid(unsigned int asid); */
+FUNC tlbi_asid , :
 	and	x0, x0, #TTBR_ASID_MASK
 	dsb	ishst		/* Sync with table update */
 	tlbi	aside1is, x0	/* Tlb by asid in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
 	ret
-END_FUNC secure_mmu_unifiedtlbinv_byasid
+END_FUNC tlbi_asid
