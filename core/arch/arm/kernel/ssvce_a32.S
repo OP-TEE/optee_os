@@ -49,43 +49,31 @@
  */
 
 
-/*
- * void secure_mmu_unifiedtlbinvall(void);
- */
+/* void secure_mmu_unifiedtlbinvall(void); */
 FUNC secure_mmu_unifiedtlbinvall , :
 UNWIND(	.fnstart)
-
-	dsb	/* Ensure visibility of the update to translation table walks */
-	write_tlbiallis
-
-	DSB
-	ISB
-
-	MOV     PC, LR
+	dsb	ishst		/* Sync with table update */
+	write_tlbiallis 	/* Invalidate TLBs */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
 UNWIND(	.fnend)
 END_FUNC secure_mmu_unifiedtlbinvall
 
-/*
- * void secure_mmu_unifiedtlbinvbymva(mva);
- *
- * Combine VA and current ASID, and invalidate matching TLB
- */
+/* void secure_mmu_unifiedtlbinvbymva(mva); FIXME: DISABLED */
 FUNC secure_mmu_unifiedtlbinvbymva , :
 UNWIND(	.fnstart)
 
 	b .	@ Wrong code to force fix/check the routine before using it
-	dsb	/* Ensure visibility of the update to translation table walks */
 
+	dsb	ishst		/* Sync with table update */
 	MRC     p15, 0, R1, c13, c0, 1		/* Read CP15 Context ID Register (CONTEXTIDR) */
 	ANDS    R1, R1, #0xFF			/* Get current ASID */
 	ORR     R1, R1, R0			/* Combine MVA and ASID */
-
 	MCR     p15, 0, R1, c8, c7, 1		/* Invalidate Unified TLB entry by MVA */
-
-	DSB
-	ISB
-
-	MOV     PC, LR
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
 UNWIND(	.fnend)
 END_FUNC secure_mmu_unifiedtlbinvbymva
 
@@ -97,12 +85,11 @@ END_FUNC secure_mmu_unifiedtlbinvbymva
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 UNWIND(	.fnstart)
 	and     r0, r0, #0xff               /* Get ASID */
-	dsb	/* Ensure visibility of the update to translation table walks */
-	/* Invalidate unified TLB by ASID Inner Sharable */
-	write_tlbiasidis r0
-	dsb
-	isb
-	mov	pc, lr
+	dsb	ishst		/* Sync with table update */
+	write_tlbiasidis r0	/* Inval unified TLB by ASID Inner Sharable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
 UNWIND(	.fnend)
 END_FUNC secure_mmu_unifiedtlbinv_byasid
 
