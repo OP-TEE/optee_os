@@ -884,7 +884,12 @@ int core_tlb_maintenance(int op, unsigned int a)
 		secure_mmu_unifiedtlbinvall();
 		break;
 	case TLBINV_CURRENT_ASID:
-		secure_mmu_unifiedtlbinv_curasid();
+#ifdef ARM32
+		secure_mmu_unifiedtlbinv_byasid(read_contextidr());
+#endif
+#ifdef ARM64
+		secure_mmu_unifiedtlbinv_byasid(read_contextidr_el1());
+#endif
 		break;
 	case TLBINV_BY_ASID:
 		secure_mmu_unifiedtlbinv_byasid(a);

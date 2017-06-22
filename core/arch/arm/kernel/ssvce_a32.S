@@ -90,24 +90,6 @@ UNWIND(	.fnend)
 END_FUNC secure_mmu_unifiedtlbinvbymva
 
 /*
- * void secure_mmu_unifiedtlbinv_curasid(void)
- *
- * Invalidate TLB matching current ASID
- */
-FUNC secure_mmu_unifiedtlbinv_curasid , :
-UNWIND(	.fnstart)
-	read_contextidr r0
-	and     r0, r0, #0xff               /* Get current ASID */
-	dsb	/* Ensure visibility of the update to translation table walks */
-	/* Invalidate unified TLB by ASID Inner Sharable */
-	write_tlbiasidis r0
-	dsb
-	isb
-	mov	pc, lr
-UNWIND(	.fnend)
-END_FUNC secure_mmu_unifiedtlbinv_curasid
-
-/*
  * void secure_mmu_unifiedtlbinv_byasid(unsigned int asid)
  *
  * Invalidate TLB matching current ASID
