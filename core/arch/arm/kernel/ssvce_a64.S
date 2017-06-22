@@ -24,9 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <kernel/tz_ssvce.h>
+
 #include <arm64.h>
 #include <asm.S>
+#include <kernel/tz_ssvce.h>
 
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
@@ -36,6 +37,16 @@ FUNC tlbi_all , :
 	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC tlbi_all
+
+/* void tlbi_mva_allasid(vaddr_t mva); */
+FUNC tlbi_mva_allasid , :
+	lsr	x0, x0, #TLBI_MVA_SHIFT
+	dsb	ishst		/* Sync with table update */
+	tlbi	vaae1is, x0	/* Invalidate tlb by mva in inner shareable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	ret
+END_FUNC tlbi_mva_allasid
 
 /* void tlbi_asid(unsigned int asid); */
 FUNC tlbi_asid , :

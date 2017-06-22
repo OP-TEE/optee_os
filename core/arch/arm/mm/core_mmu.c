@@ -898,7 +898,6 @@ int core_tlb_maintenance(int op, unsigned int a)
 		EMSG("TLB_INV_SECURE_MVA is not yet supported!");
 		while (1)
 			;
-		tlbi_mva_curasid(a);
 		break;
 	default:
 		return 1;

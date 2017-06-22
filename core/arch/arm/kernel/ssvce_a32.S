@@ -60,22 +60,16 @@ UNWIND(	.fnstart)
 UNWIND(	.fnend)
 END_FUNC tlbi_all
 
-/* void tlbi_mva_asid(unsigned long mva); FIXME: DISABLED */
-FUNC tlbi_mva_asid , :
+/* void tlbi_mva_allasid(vaddr_t mva); */
+FUNC tlbi_mva_allasid , :
 UNWIND(	.fnstart)
-
-	b .	@ Wrong code to force fix/check the routine before using it
-
 	dsb	ishst		/* Sync with table update */
-	MRC     p15, 0, R1, c13, c0, 1		/* Read CP15 Context ID Register (CONTEXTIDR) */
-	ANDS    R1, R1, #0xFF			/* Get current ASID */
-	ORR     R1, R1, R0			/* Combine MVA and ASID */
-	MCR     p15, 0, R1, c8, c7, 1		/* Invalidate Unified TLB entry by MVA */
+	write_tlbimvaais r0	/* Inval TLB by MVA all ASID Inner Sharable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC tlbi_mva_asid
+END_FUNC tlbi_mva_allasid
 
 /* void tlbi_asid(unsigned long asid); */
 FUNC tlbi_asid , :
