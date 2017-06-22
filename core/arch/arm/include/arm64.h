@@ -218,6 +218,16 @@ static inline void dsb(void)
 	asm volatile ("dsb sy");
 }
 
+static inline void dsb_ish(void)
+{
+	asm volatile ("dsb ish");
+}
+
+static inline void dsb_ishst(void)
+{
+	asm volatile ("dsb ishst");
+}
+
 static inline void write_at_s1e1r(uint64_t va)
 {
 	asm volatile ("at	S1E1R, %0" : : "r" (va));

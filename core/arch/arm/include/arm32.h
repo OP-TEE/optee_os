@@ -368,6 +368,16 @@ static inline void dsb(void)
 	asm volatile ("dsb");
 }
 
+static inline void dsb_ish(void)
+{
+	asm volatile ("dsb ish");
+}
+
+static inline void dsb_ishst(void)
+{
+	asm volatile ("dsb ishst");
+}
+
 static inline void dmb(void)
 {
 	asm volatile ("dmb");
