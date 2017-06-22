@@ -446,6 +446,9 @@ enum teecore_tlb_op {
 	TLBINV_BY_MVA,		/* invalidate unified tlb by MVA */
 };
 
+/* TLB invalidation for a range of virtual address */
+void tlbi_mva_range(vaddr_t va, size_t size, size_t granule);
+
 /* deprecated: please call straight tlbi_all() and friends */
 int core_tlb_maintenance(int op, unsigned long a) __deprecated;
 

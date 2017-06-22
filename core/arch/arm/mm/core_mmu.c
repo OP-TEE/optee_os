@@ -902,6 +902,24 @@ int __deprecated core_tlb_maintenance(int op, unsigned long a)
 	return 0;
 }
 
+void tlbi_mva_range(vaddr_t va, size_t size, size_t granule)
+{
+	size_t sz = size;
+
+	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
+
+	dsb_ishst();
+	while (sz) {
+		tlbi_mva_allasid_nosync(va);
+		if (sz < granule)
+			break;
+		sz -= granule;
+		va += granule;
+	}
+	dsb_ish();
+	isb();
+}
+
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
