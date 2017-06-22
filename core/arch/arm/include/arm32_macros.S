@@ -188,6 +188,11 @@
 	mcr	p15, 0, \reg, c8, c3, 2
 	.endm
 
+	.macro write_tlbimvaais reg
+	/* Invalidate unified TLB by MVA all ASID Inner Sharable */
+	mcr	p15, 0, \reg, c8, c3, 3
+	.endm
+
 	.macro write_prrr reg
 	mcr	p15, 0, \reg, c10, c2, 0
 	.endm
