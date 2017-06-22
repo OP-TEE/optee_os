@@ -95,7 +95,9 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 }
 
 static TEE_Result copy_in_params(const struct optee_msg_param *params,
-		uint32_t num_params, struct tee_ta_param *ta_param)
+				 uint32_t num_params,
+				 struct tee_ta_param *ta_param,
+				 uint64_t *saved_attr)
 {
 	TEE_Result res;
 	size_t n;
@@ -108,14 +110,14 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 	for (n = 0; n < num_params; n++) {
 		uint32_t attr;
+		saved_attr[n] = params[n].attr;
 
-		if (params[n].attr & OPTEE_MSG_ATTR_META)
+		if (saved_attr[n] & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (params[n].attr & OPTEE_MSG_ATTR_NONCONTIG)
+		if (saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		attr = params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK;
-
+		attr = saved_attr[n] & OPTEE_MSG_ATTR_TYPE_MASK;
 		switch (attr) {
 		case OPTEE_MSG_ATTR_TYPE_NONE:
 			pt[n] = TEE_PARAM_TYPE_NONE;
@@ -225,6 +227,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	TEE_UUID uuid;
 	struct tee_ta_param param;
 	size_t num_meta;
+	uint64_t saved_attr[TEE_NUM_PARAMS];
 
 	res = get_open_session_meta(num_params, arg->params, &num_meta, &uuid,
 				    &clnt_id);
@@ -232,7 +235,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 		goto out;
 
 	res = copy_in_params(arg->params + num_meta, num_params - num_meta,
-			     &param);
+			     &param, saved_attr);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -287,10 +290,11 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s;
 	struct tee_ta_param param;
+	uint64_t saved_attr[TEE_NUM_PARAMS];
 
 	bm_timestamp();
 
-	res = copy_in_params(arg->params, num_params, &param);
+	res = copy_in_params(arg->params, num_params, &param, saved_attr);
 	if (res != TEE_SUCCESS)
 		goto out;
 
