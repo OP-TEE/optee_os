@@ -239,8 +239,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 	for (; idx < last_idx; idx++)
 		core_mmu_set_entry(ti, idx, 0, 0);
 
-	/* TODO only invalidate entries touched above */
-	tlbi_all();
+	tlbi_mva_range(smem, nbytes, SMALL_PAGE_SIZE);
 }
 
 static void generate_ae_key(void)
@@ -498,8 +497,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 	if (!(attr_alias & TEE_MATTR_PW)) {
 		attr_alias |= TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
-		/* TODO: flush TLB for target page only */
-		tlbi_all();
+		tlbi_mva_allasid((vaddr_t)va_alias);
 	}
 
 	switch (area->type) {
@@ -520,8 +518,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 		/* Forbid write to aliases for read-only (maybe exec) pages */
 		attr_alias &= ~TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
-		/* TODO: flush TLB for target page only */
-		tlbi_all();
+		tlbi_mva_allasid((vaddr_t)va_alias);
 		break;
 	case AREA_TYPE_RW:
 		FMSG("Restore %p %#" PRIxVA " iv %#" PRIx64,
@@ -815,14 +812,12 @@ static void rem_area(struct tee_pager_area_head *area_head,
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
 		if (pmem->area == area) {
 			area_set_entry(area, pmem->pgidx, 0, 0);
+			tlbi_mva_allasid(area_idx2va(area, pmem->pgidx));
 			pgt_dec_used_entries(area->pgt);
 			pmem->area = NULL;
 			pmem->pgidx = INVALID_PGIDX;
 		}
 	}
-
-	/* TODO only invalidate entries touched above */
-	tlbi_all();
 
 	pager_unlock(exceptions);
 	free_area(area);
@@ -901,8 +896,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 			if (a == f)
 				continue;
 			area_set_entry(pmem->area, pmem->pgidx, 0, 0);
-			/* TODO only invalidate entries touched above */
-			tlbi_all();
+			tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 			if (!(flags & TEE_MATTR_UW))
 				tee_pager_save_page(pmem, a);
 
@@ -972,8 +966,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 
-			/* TODO only invalidate entry touched above */
-			tlbi_all();
+			tlbi_mva_allasid(page_va);
 
 			incr_hidden_hits();
 			return true;
@@ -1012,11 +1005,10 @@ static void tee_pager_hide_pages(void)
 			     area_idx2va(pmem->area, pmem->pgidx));
 		} else
 			a = TEE_MATTR_HIDDEN_BLOCK;
-		area_set_entry(pmem->area, pmem->pgidx, pa, a);
-	}
 
-	/* TODO only invalidate entries touched above */
-	tlbi_all();
+		area_set_entry(pmem->area, pmem->pgidx, pa, a);
+		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
+	}
 }
 
 /*
@@ -1073,8 +1065,7 @@ static struct tee_pager_pmem *tee_pager_get_page(struct tee_pager_area *area)
 		area_get_entry(pmem->area, pmem->pgidx, NULL, &a);
 		area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 		pgt_dec_used_entries(pmem->area->pgt);
-		/* TODO only invalidate entries touched above */
-		tlbi_all();
+		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 		tee_pager_save_page(pmem, a);
 	}
 
@@ -1149,8 +1140,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				     (void *)(ai->va & ~SMALL_PAGE_MASK));
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
-				/* TODO only invalidate entry above */
-				tlbi_all();
+				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
 			}
 
 		} else {
@@ -1163,8 +1153,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				     (void *)(ai->va & ~SMALL_PAGE_MASK));
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
-				/* TODO only invalidate entry above */
-				tlbi_all();
+				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
 			}
 		}
 		/* Since permissions has been updated now it's OK */
@@ -1300,6 +1289,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		attr = get_area_mattr(area->flags) &
 			~(TEE_MATTR_PW | TEE_MATTR_UW);
 		area_set_entry(area, pmem->pgidx, get_pmem_pa(pmem), attr);
+		/* No need to flush TLB for this entry, it was invalid */
 		pgt_inc_used_entries(area->pgt);
 
 		FMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA,
@@ -1410,8 +1400,7 @@ static void pager_save_and_release_entry(struct tee_pager_pmem *pmem)
 
 	area_get_entry(pmem->area, pmem->pgidx, NULL, &attr);
 	area_set_entry(pmem->area, pmem->pgidx, 0, 0);
-	/* TODO only invalidate entry touched above */
-	tlbi_all();
+	tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 	tee_pager_save_page(pmem, attr);
 	assert(pmem->area->pgt->num_used_entries);
 	pmem->area->pgt->num_used_entries--;
@@ -1472,7 +1461,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 		unmaped |= tee_pager_release_one_phys(area, va);
 
 	if (unmaped)
-		tlbi_all();
+		tlbi_mva_range(begin, end - begin, SMALL_PAGE_SIZE);
 
 	pager_unlock(exceptions);
 }

@@ -553,6 +553,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	/* Update descriptor at current level */
 	*entry = new_table_desc;
 
+	/* TODO: only invalidate entries touched above */
 	if (flush_tlb)
 		tlbi_all();
 	return true;
