@@ -460,6 +460,59 @@ static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 static struct tee_fs_dirfile_dirh *ree_fs_dirh;
 static size_t ree_fs_dirh_refcount;
 
+#ifdef CFG_RPMB_FS
+static struct tee_file_handle *ree_fs_rpmb_fh;
+
+static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
+{
+	TEE_Result res;
+	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
+	uint8_t *hashp = NULL;
+	const char fname[] = "dirfile.db.hash";
+
+	res = tee_rpmb_fs_raw_open(fname, false, &ree_fs_rpmb_fh);
+	if (!res) {
+		size_t l = sizeof(hash);
+
+		res = rpmb_fs_ops.read(ree_fs_rpmb_fh, 0, hash, &l);
+		if (res)
+			return res;
+		if (l == sizeof(hash))
+			hashp = hash;
+	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		res = tee_rpmb_fs_raw_open(fname, true, &ree_fs_rpmb_fh);
+	}
+	if (res)
+		return res;
+
+	if (!tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh))
+		return TEE_SUCCESS;
+
+	res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+	if (res)
+		rpmb_fs_ops.close(&ree_fs_rpmb_fh);
+	return res;
+}
+
+static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
+{
+	TEE_Result res;
+	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
+
+	res = tee_fs_dirfile_commit_writes(dirh, hash);
+	if (res)
+		return res;
+	return rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, sizeof(hash));
+}
+
+static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
+{
+	tee_fs_dirfile_close(*dirh);
+	*dirh = NULL;
+	rpmb_fs_ops.close(&ree_fs_rpmb_fh);
+}
+
+#else /*!CFG_RPMB_FS*/
 static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
 	if (!tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh))
@@ -477,6 +530,7 @@ static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
 	tee_fs_dirfile_close(*dirh);
 	*dirh = NULL;
 }
+#endif /*!CFG_RPMB_FS*/
 
 static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
