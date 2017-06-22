@@ -460,25 +460,11 @@ static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 static struct tee_fs_dirfile_dirh *ree_fs_dirh;
 static size_t ree_fs_dirh_refcount;
 
-static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
+static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
-	if (!ree_fs_dirh_refcount) {
-		TEE_Result res;
-
-		assert(!ree_fs_dirh);
-		res = tee_fs_dirfile_open(false, NULL, &ree_dirf_ops,
-					  &ree_fs_dirh);
-		if (res) {
-			res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops,
-						  &ree_fs_dirh);
-			if (res)
-				return res;
-		}
-	}
-	assert(ree_fs_dirh);
-	ree_fs_dirh_refcount++;
-	*dirh = ree_fs_dirh;
-	return TEE_SUCCESS;
+	if (!tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh))
+		return TEE_SUCCESS;
+	return tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
 }
 
 static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
@@ -486,23 +472,44 @@ static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
 	return tee_fs_dirfile_commit_writes(dirh, NULL);
 }
 
-static void put_dirh_primitive(void)
+static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
+{
+	tee_fs_dirfile_close(*dirh);
+	*dirh = NULL;
+}
+
+static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
+{
+	if (!ree_fs_dirh) {
+		TEE_Result res = open_dirh(&ree_fs_dirh);
+
+		if (res) {
+			*dirh = NULL;
+			return res;
+		}
+	}
+	ree_fs_dirh_refcount++;
+	assert(ree_fs_dirh);
+	assert(ree_fs_dirh_refcount);
+	*dirh = ree_fs_dirh;
+	return TEE_SUCCESS;
+}
+
+static void put_dirh_primitive(bool close)
 {
 	assert(ree_fs_dirh_refcount);
 	assert(ree_fs_dirh);
 
 	ree_fs_dirh_refcount--;
-	if (!ree_fs_dirh_refcount) {
-		tee_fs_dirfile_close(ree_fs_dirh);
-		ree_fs_dirh = NULL;
-	}
+	if (!ree_fs_dirh_refcount || close)
+		close_dirh(&ree_fs_dirh);
 }
 
-static void put_dirh(struct tee_fs_dirfile_dirh *dirh)
+static void put_dirh(struct tee_fs_dirfile_dirh *dirh, bool close)
 {
 	if (dirh) {
 		assert(dirh == ree_fs_dirh);
-		put_dirh_primitive();
+		put_dirh_primitive(close);
 	}
 }
 
@@ -539,7 +546,7 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 
 out:
 	if (res)
-		put_dirh(dirh);
+		put_dirh(dirh, false);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -586,7 +593,7 @@ static void ree_fs_close(struct tee_file_handle **fh)
 {
 	if (*fh) {
 		mutex_lock(&ree_fs_mutex);
-		put_dirh_primitive();
+		put_dirh_primitive(false);
 		mutex_unlock(&ree_fs_mutex);
 
 		ree_fs_close_primitive(*fh);
@@ -649,7 +656,7 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 	res = set_name(dirh, fdp, po, overwrite);
 out:
 	if (res) {
-		put_dirh(dirh);
+		put_dirh(dirh, true);
 		if (*fh) {
 			ree_fs_close_primitive(*fh);
 			*fh = NULL;
@@ -687,7 +694,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 		goto out;
 	res = commit_dirh_writes(dirh);
 out:
-	put_dirh(dirh);
+	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -740,7 +747,7 @@ static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 		tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &remove_dfh);
 
 out:
-	put_dirh(dirh);
+	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -776,7 +783,7 @@ static TEE_Result ree_fs_remove(struct tee_pobj *po)
 	assert(tee_fs_dirfile_find(dirh, &po->uuid, po->obj_id, po->obj_id_len,
 				   &dfh));
 out:
-	put_dirh(dirh);
+	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -805,7 +812,7 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
 
 out:
-	put_dirh(dirh);
+	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -841,7 +848,7 @@ out:
 		*dir = d;
 	} else {
 		if (d)
-			put_dirh(d->dirh);
+			put_dirh(d->dirh, false);
 		free(d);
 	}
 	mutex_unlock(&ree_fs_mutex);
@@ -854,7 +861,7 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 	if (d) {
 		mutex_lock(&ree_fs_mutex);
 
-		put_dirh(d->dirh);
+		put_dirh(d->dirh, false);
 		free(d);
 
 		mutex_unlock(&ree_fs_mutex);
