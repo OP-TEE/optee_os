@@ -35,9 +35,10 @@
 unsigned int secure_get_cpu_id(void);
 
 void secure_mmu_datatlbinvall(void);
-void secure_mmu_unifiedtlbinvall(void);
-void secure_mmu_unifiedtlbinvbymva(unsigned long addr);
-void secure_mmu_unifiedtlbinv_byasid(unsigned long asid);
+
+void tlbi_all(void);
+void tlbi_asid(unsigned long asid);
+void tlbi_mva_curasid(unsigned long addr);
 
 void secure_mmu_disable(void);
 #endif /*!ASM*/

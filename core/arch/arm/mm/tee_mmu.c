@@ -618,7 +618,7 @@ void tee_mmu_final(struct user_ta_ctx *utc)
 	g_asid |= asid;
 
 	/* clear MMU entries to avoid clash when asid is reused */
-	secure_mmu_unifiedtlbinv_byasid(utc->context & 0xff);
+	tlbi_asid(utc->context & 0xff);
 	utc->context = 0;
 
 	free(utc->mmu);
