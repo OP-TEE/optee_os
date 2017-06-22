@@ -30,26 +30,19 @@
 
 /* void secure_mmu_unifiedtlbinvall(void); */
 FUNC secure_mmu_unifiedtlbinvall , :
-	/* Ensure visibility of the update to translation table walks */
-	dsb	ishst
-
-	tlbi	vmalle1is
-
-	dsb	ish /* Ensure completion of TLB invalidation */
-	isb
+	dsb	ishst		/* Sync with table update */
+	tlbi	vmalle1is	/* All tlb in inner shareable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC secure_mmu_unifiedtlbinvall
 
 /* void secure_mmu_unifiedtlbinv_byasid(unsigned int asid); */
 FUNC secure_mmu_unifiedtlbinv_byasid , :
 	and	x0, x0, #TTBR_ASID_MASK
-
-	/* Ensure visibility of the update to translation table walks */
-	dsb	ishst
-
-	tlbi	aside1is, x0
-
-	dsb	ish /* Ensure completion of TLB invalidation */
-	isb
+	dsb	ishst		/* Sync with table update */
+	tlbi	aside1is, x0	/* Tlb by asid in inner shareable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC secure_mmu_unifiedtlbinv_byasid
