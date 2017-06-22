@@ -432,6 +432,13 @@ static inline uint64_t read_par64(void)
 }
 #endif
 
+static inline void write_tlbimvaais(uint32_t mva)
+{
+	asm volatile ("mcr	p15, 0, %[mva], c8, c3, 3"
+			: : [mva] "r" (mva)
+	);
+}
+
 static inline void write_mair0(uint32_t mair0)
 {
 	asm volatile ("mcr	p15, 0, %[mair0], c10, c2, 0"

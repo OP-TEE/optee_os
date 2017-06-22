@@ -207,6 +207,10 @@
 #define PAR_PA_SHIFT		12
 #define PAR_PA_MASK		(BIT64(36) - 1)
 
+#define TLBI_MVA_SHIFT		12
+#define TLBI_ASID_SHIFT		48
+#define TLBI_ASID_MASK		0xff
+
 #ifndef ASM
 static inline void isb(void)
 {
@@ -255,6 +259,11 @@ static inline uint64_t read_pmu_ccnt(void)
 
 	asm volatile("mrs %0, PMCCNTR_EL0" : "=r"(val));
 	return val;
+}
+
+static inline void tlbi_vaae1is(uint64_t mva)
+{
+	asm volatile ("tlbi	vaae1is, %0" : : "r" (mva));
 }
 
 /*
