@@ -1027,7 +1027,7 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 	return map->type;
 }
 
-int core_tlb_maintenance(int op, unsigned int a)
+int __deprecated core_tlb_maintenance(int op, unsigned long a)
 {
 	switch (op) {
 	case TLBINV_UNIFIEDTLB:
@@ -1045,10 +1045,7 @@ int core_tlb_maintenance(int op, unsigned int a)
 		tlbi_asid(a);
 		break;
 	case TLBINV_BY_MVA:
-		EMSG("TLB_INV_SECURE_MVA is not yet supported!");
-		while (1)
-			;
-		break;
+		panic();
 	default:
 		return 1;
 	}
@@ -1302,7 +1299,7 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 		idx = core_mmu_va2idx(&tbl_info, vstart);
 		core_mmu_set_entry(&tbl_info, idx, 0, 0);
 	}
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 }
 
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,

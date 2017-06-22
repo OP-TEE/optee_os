@@ -31,6 +31,7 @@
 #include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
@@ -553,7 +554,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	*entry = new_table_desc;
 
 	if (flush_tlb)
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 	return true;
 }
 
@@ -639,11 +640,13 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		write_ttbr0(map->ttbr0);
 		isb();
 		write_contextidr(map->ctxid);
+		isb();
 	} else {
 		write_ttbr0(read_ttbr1());
+		isb();
 	}
-	isb();
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+
+	tlbi_all();
 
 	/* Restore interrupts */
 	thread_unmask_exceptions(exceptions);

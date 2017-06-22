@@ -36,6 +36,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/tz_ssvce.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
@@ -239,7 +240,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 		core_mmu_set_entry(ti, idx, 0, 0);
 
 	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 }
 
 static void generate_ae_key(void)
@@ -498,7 +499,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 		attr_alias |= TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
 		/* TODO: flush TLB for target page only */
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 	}
 
 	switch (area->type) {
@@ -520,7 +521,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 		attr_alias &= ~TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
 		/* TODO: flush TLB for target page only */
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 		break;
 	case AREA_TYPE_RW:
 		FMSG("Restore %p %#" PRIxVA " iv %#" PRIx64,
@@ -821,7 +822,7 @@ static void rem_area(struct tee_pager_area_head *area_head,
 	}
 
 	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 
 	pager_unlock(exceptions);
 	free_area(area);
@@ -901,7 +902,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				continue;
 			area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 			/* TODO only invalidate entries touched above */
-			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+			tlbi_all();
 			if (!(flags & TEE_MATTR_UW))
 				tee_pager_save_page(pmem, a);
 
@@ -972,7 +973,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 
 			/* TODO only invalidate entry touched above */
-			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+			tlbi_all();
 
 			incr_hidden_hits();
 			return true;
@@ -1015,7 +1016,7 @@ static void tee_pager_hide_pages(void)
 	}
 
 	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 }
 
 /*
@@ -1073,7 +1074,7 @@ static struct tee_pager_pmem *tee_pager_get_page(struct tee_pager_area *area)
 		area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 		pgt_dec_used_entries(pmem->area->pgt);
 		/* TODO only invalidate entries touched above */
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 		tee_pager_save_page(pmem, a);
 	}
 
@@ -1149,7 +1150,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
 				/* TODO only invalidate entry above */
-				core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+				tlbi_all();
 			}
 
 		} else {
@@ -1163,7 +1164,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
 				/* TODO only invalidate entry above */
-				core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+				tlbi_all();
 			}
 		}
 		/* Since permissions has been updated now it's OK */
@@ -1369,8 +1370,11 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 	}
 
-	/* Invalidate secure TLB */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	/*
+	 * As this is done at inits, invalidate all TLBs once instead of
+	 * targeting only the modified entries.
+	 */
+	tlbi_all();
 }
 
 #ifdef CFG_PAGED_USER_TA
@@ -1407,7 +1411,7 @@ static void pager_save_and_release_entry(struct tee_pager_pmem *pmem)
 	area_get_entry(pmem->area, pmem->pgidx, NULL, &attr);
 	area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 	/* TODO only invalidate entry touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 	tee_pager_save_page(pmem, attr);
 	assert(pmem->area->pgt->num_used_entries);
 	pmem->area->pgt->num_used_entries--;
@@ -1467,9 +1471,8 @@ void tee_pager_release_phys(void *addr, size_t size)
 	for (va = begin; va < end; va += SMALL_PAGE_SIZE)
 		unmaped |= tee_pager_release_one_phys(area, va);
 
-	/* Invalidate secure TLB */
 	if (unmaped)
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 
 	pager_unlock(exceptions);
 }

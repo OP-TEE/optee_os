@@ -446,9 +446,10 @@ enum teecore_tlb_op {
 	TLBINV_BY_MVA,		/* invalidate unified tlb by MVA */
 };
 
-int core_tlb_maintenance(int op, unsigned int a);
+/* deprecated: please call straight tlbi_all() and friends */
+int core_tlb_maintenance(int op, unsigned long a) __deprecated;
 
-/* Cache maintenance operation type */
+/* Cache maintenance operation type (deprecated with core_tlb_maintenance()) */
 enum cache_op {
 	DCACHE_CLEAN,
 	DCACHE_AREA_CLEAN,
