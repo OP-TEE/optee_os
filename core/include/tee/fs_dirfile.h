@@ -56,7 +56,7 @@ struct tee_fs_dirfile_fileh {
  * @commit_writes:	commits changes since the file was opened
  */
 struct tee_fs_dirfile_operations {
-	TEE_Result (*open)(bool create, const TEE_UUID *uuid,
+	TEE_Result (*open)(bool create, uint8_t *hash, const TEE_UUID *uuid,
 			   struct tee_fs_dirfile_fileh *dfh,
 			   struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle *fh);
@@ -69,10 +69,14 @@ struct tee_fs_dirfile_operations {
 
 /**
  * tee_fs_dirfile_open() - opens a dirfile handle
+ * @create:	true if a new dirfile is to be created, else the dirfile
+ *		is read opened and verified
+ * @hash:	hash of underlying file
  * @fops:	file interface
  * @dirh:	returned dirfile handle
  */
-TEE_Result tee_fs_dirfile_open(const struct tee_fs_dirfile_operations *fops,
+TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
+			       const struct tee_fs_dirfile_operations *fops,
 			       struct tee_fs_dirfile_dirh **dirh);
 /**
  * tee_fs_dirfile_close() - closes a dirfile handle
@@ -86,8 +90,10 @@ void tee_fs_dirfile_close(struct tee_fs_dirfile_dirh *dirh);
 /**
  * tee_fs_dirfile_commit_writes() - commit updates of dirfile
  * @dirh:	dirfile handle
+ * @hash:	hash of underlying file is copied here if not NULL
  */
-TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh);
+TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh,
+					uint8_t *hash);
 
 /**
  * tee_fs_dirfile_get_tmp() - get a temporary file handle

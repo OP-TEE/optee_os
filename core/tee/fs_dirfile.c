@@ -129,7 +129,8 @@ static TEE_Result write_dent(struct tee_fs_dirfile_dirh *dirh, size_t n,
 	return res;
 }
 
-TEE_Result tee_fs_dirfile_open(const struct tee_fs_dirfile_operations *fops,
+TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
+			       const struct tee_fs_dirfile_operations *fops,
 			       struct tee_fs_dirfile_dirh **dirh_ret)
 {
 	TEE_Result res;
@@ -140,12 +141,9 @@ TEE_Result tee_fs_dirfile_open(const struct tee_fs_dirfile_operations *fops,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	dirh->fops = fops;
-	res = fops->open(false, NULL, NULL, &dirh->fh);
-	if (res) {
-		res = fops->open(true, NULL, NULL, &dirh->fh);
-		if (res)
-			goto out;
-	}
+	res = fops->open(create, hash, NULL, NULL, &dirh->fh);
+	if (res)
+		goto out;
 
 	for (n = 0;; n++) {
 		struct dirfile_entry dent;
@@ -193,9 +191,10 @@ void tee_fs_dirfile_close(struct tee_fs_dirfile_dirh *dirh)
 	}
 }
 
-TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh)
+TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh,
+					uint8_t *hash)
 {
-	return dirh->fops->commit_writes(dirh->fh, NULL);
+	return dirh->fops->commit_writes(dirh->fh, hash);
 }
 
 TEE_Result tee_fs_dirfile_get_tmp(struct tee_fs_dirfile_dirh *dirh,
