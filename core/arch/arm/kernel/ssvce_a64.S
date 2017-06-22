@@ -50,9 +50,10 @@ END_FUNC tlbi_mva_allasid
 
 /* void tlbi_asid(unsigned int asid); */
 FUNC tlbi_asid , :
-	and	x0, x0, #TTBR_ASID_MASK
+	and	x0, x0, #TLBI_ASID_MASK
+	lsl	x0, x0, #TLBI_ASID_SHIFT
 	dsb	ishst		/* Sync with table update */
-	tlbi	aside1is, x0	/* Tlb by asid in inner shareable */
+	tlbi	aside1is, x0	/* Invalidate tlb by asid in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
 	ret
