@@ -25,29 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * ARMv7 Secure Services library
- */
-
-/*
- * Variable(s)
- */
-#include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-
-#include <kernel/tz_proc_def.h>
-#include <kernel/tz_ssvce_def.h>
+#include <asm.S>
 #include <kernel/unwind.h>
 
 	.section .text.ssvce
-
-
-
-/*
- * - MMU maintenaince support ---------------------------------------------
- */
-
 
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
@@ -82,5 +65,3 @@ UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC tlbi_asid
-
-
