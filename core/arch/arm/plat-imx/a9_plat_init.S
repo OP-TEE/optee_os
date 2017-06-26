@@ -88,7 +88,7 @@ UNWIND(	.fnstart)
 	 * PCR
 	 * - no change latency, enable clk gating
 	 */
-	mov_imm r0, 0x00004000
+	mov_imm r0, 0x00004800
 	write_sctlr r0
 
 	mov_imm r0, 0x00000041
