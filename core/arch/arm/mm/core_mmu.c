@@ -482,9 +482,17 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	/*
 	 * Check memories do not intersect any mapped memory.
 	 * This is called before reserved VA space is loaded in mem_map.
+	 *
+	 * Only exception is with MEM_AREA_RAM_NSEC and MEM_AREA_NSEC_SHM,
+	 * which may overlap since they are used for the same purpose
+	 * except that MEM_AREA_NSEC_SHM is always mapped and
+	 * MEM_AREA_RAM_NSEC only uses a dynamic mapping.
 	 */
 	for (mem = start; mem < end; mem++) {
 		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
+			if (mem->type == MEM_AREA_RAM_NSEC &&
+			    mmap->type == MEM_AREA_NSEC_SHM)
+				continue;
 			if (core_is_buffer_intersect(mem->addr, mem->size,
 						     mmap->pa, mmap->size)) {
 				MSG_MEM_INSTERSECT(mem->addr, mem->size,
