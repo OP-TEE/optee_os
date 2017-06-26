@@ -724,10 +724,8 @@ static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
 
 	print_mmap_area(mm, "4k page map");
 
-	if (mm->attr & TEE_MATTR_VALID_BLOCK) {
-		attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
-		pa = map_page_memarea(mm, ttb[idx]);
-	}
+	attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
+	pa = map_page_memarea(mm, ttb[idx]);
 
 	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
 	while (n--) {
@@ -785,11 +783,11 @@ static void map_memarea(const struct tee_mmap_region *mm, uint32_t *ttb)
 	if (mm->va < (NUM_UL1_ENTRIES * SECTION_SIZE))
 		panic("va conflicts with user ta address");
 
-	if (!((mm->va | mm->pa | mm->size) & SECTION_MASK)) {
+	if (!((mm->va | mm->pa | mm->size | mm->region_size) & SECTION_MASK)) {
 		map_memarea_sections(mm, ttb);
 		return;
 	}
-	if ((mm->va | mm->pa | mm->size) & SMALL_PAGE_MASK)
+	if ((mm->va | mm->pa | mm->size | mm->region_size) & SMALL_PAGE_MASK)
 		panic("memarea can't be mapped");
 
 	mm2 = *mm;

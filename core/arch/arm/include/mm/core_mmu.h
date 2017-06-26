@@ -113,6 +113,7 @@ enum teecore_memtypes {
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_SHM_VASPACE,
 	MEM_AREA_TA_VASPACE,
+	MEM_AREA_PAGER_VASPACE,
 	MEM_AREA_SDP_MEM,
 	MEM_AREA_MAXTYPE
 };
@@ -135,6 +136,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
 		[MEM_AREA_SHM_VASPACE] = "SHM_VASPACE",
 		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
+		[MEM_AREA_PAGER_VASPACE] = "PAGER_VASPACE",
 		[MEM_AREA_SDP_MEM] = "SDP_MEM",
 	};
 

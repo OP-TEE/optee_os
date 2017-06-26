@@ -315,12 +315,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static uint64_t mmap_desc(uint32_t attr, uint64_t addr_pa,
-					unsigned level)
-{
-	return mattr_to_desc(level, attr) | addr_pa;
-}
-
 static int mmap_region_attr(struct tee_mmap_region *mm, uint64_t base_va,
 					uint64_t size)
 {
@@ -383,14 +377,17 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 					level * 2, "", base_va, level_size);
 		} else if (mm->va <= base_va &&
 			   mm->va + mm->size >= base_va + level_size &&
-			   !(mm->pa & (level_size - 1))) {
+			   !((mm->pa | mm->region_size) & (level_size - 1))) {
 			/* Next region covers all of area */
 			int attr = mmap_region_attr(mm, base_va, level_size);
 
 			if (attr >= 0) {
-				desc = mmap_desc(attr,
-						 base_va - mm->va + mm->pa,
-						 level);
+				desc = mattr_to_desc(level, attr);
+				if (desc)
+					desc |= base_va - mm->va + mm->pa;
+			}
+
+			if (desc != UNSET_DESC && desc)
 				debug_print("%*s%010" PRIx64 " %8x %s-%s-%s-%s",
 					level * 2, "", base_va, level_size,
 					attr & (TEE_MATTR_CACHE_CACHED <<
@@ -399,10 +396,9 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 					attr & TEE_MATTR_PW ? "RW" : "RO",
 					attr & TEE_MATTR_PX ? "X" : "XN",
 					attr & TEE_MATTR_SECURE ? "S" : "NS");
-			} else {
+			else
 				debug_print("%*s%010" PRIx64 " %8x",
 					level * 2, "", base_va, level_size);
-			}
 		}
 		/* else Next region only partially covers area, so need */
 
