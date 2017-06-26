@@ -33,10 +33,10 @@
 #include <kernel/abort.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
-#include <kernel/tz_ssvce.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>

@@ -63,8 +63,8 @@
 #include <keep.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/thread.h>
-#include <kernel/tz_ssvce.h>
 #include <mm/core_memprot.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>

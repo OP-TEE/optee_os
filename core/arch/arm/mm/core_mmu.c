@@ -32,11 +32,11 @@
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
-#include <kernel/tz_ssvce.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,25 +26,42 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TZ_SSVCE_H
-#define TZ_SSVCE_H
+#include <arm32_macros.S>
+#include <asm.S>
+#include <kernel/unwind.h>
 
-#include <arm.h>
+	.section .text.ssvce
 
-#ifndef ASM
-#include <types_ext.h>
+/* void tlbi_all(void); */
+FUNC tlbi_all , :
+UNWIND(	.fnstart)
+	dsb	ishst		/* Sync with table update */
+	write_tlbiallis 	/* Invalidate TLBs */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_all
 
-void tlbi_all(void);
-void tlbi_asid(unsigned long asid);
-void tlbi_mva_allasid(unsigned long addr);
-static inline void tlbi_mva_allasid_nosync(vaddr_t va)
-{
-#ifdef ARM64
-	tlbi_vaae1is(va >> TLBI_MVA_SHIFT);
-#else
-	write_tlbimvaais(va);
-#endif
-}
-#endif /*!ASM*/
+/* void tlbi_mva_allasid(vaddr_t mva); */
+FUNC tlbi_mva_allasid , :
+UNWIND(	.fnstart)
+	dsb	ishst		/* Sync with table update */
+	write_tlbimvaais r0	/* Inval TLB by MVA all ASID Inner Sharable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_mva_allasid
 
-#endif
+/* void tlbi_asid(unsigned long asid); */
+FUNC tlbi_asid , :
+UNWIND(	.fnstart)
+	and     r0, r0, #0xff	/* Get ASID */
+	dsb	ishst		/* Sync with table update */
+	write_tlbiasidis r0	/* Inval unified TLB by ASID Inner Sharable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_asid

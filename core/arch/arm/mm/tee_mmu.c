@@ -29,9 +29,9 @@
 #include <arm.h>
 #include <assert.h>
 #include <kernel/panic.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
-#include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/pgt_cache.h>
