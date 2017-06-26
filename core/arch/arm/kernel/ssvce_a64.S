@@ -27,7 +27,6 @@
 
 #include <arm64.h>
 #include <asm.S>
-#include <kernel/tz_ssvce.h>
 
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
