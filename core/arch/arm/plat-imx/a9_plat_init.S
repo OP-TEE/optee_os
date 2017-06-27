@@ -71,8 +71,9 @@ UNWIND(	.fnstart)
 	/*
 	 * Mandated HW config loaded
 	 *
-	 * SCTLR = 0x00004000
+	 * SCTLR
 	 * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
+	 * - Branch prediction enabled
 	 *
 	 * ACTRL = 0x00000041
 	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
@@ -88,7 +89,8 @@ UNWIND(	.fnstart)
 	 * PCR
 	 * - no change latency, enable clk gating
 	 */
-	mov_imm r0, 0x00004800
+	read_sctlr r0
+	orr r0, r0, #(SCTLR_RR | SCTLR_Z)
 	write_sctlr r0
 
 	mov_imm r0, 0x00000041
