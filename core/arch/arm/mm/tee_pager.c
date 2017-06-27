@@ -250,6 +250,46 @@ static void pager_unlock(uint32_t exceptions)
 	cpu_spin_unlock_xrestore(&pager_spinlock, exceptions);
 }
 
+void *tee_pager_phys_to_virt(paddr_t pa)
+{
+	struct core_mmu_table_info *ti = &tee_pager_tbl_info;
+	unsigned idx;
+	unsigned end_idx;
+	uint32_t a;
+	paddr_t p;
+
+	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
+				      CFG_TEE_RAM_VA_SIZE);
+	/* Most addresses are mapped lineary, try that first if possible. */
+	idx = core_mmu_va2idx(ti, pa);
+	if (idx >= core_mmu_va2idx(ti, CFG_TEE_RAM_START) &&
+	    idx < end_idx) {
+		core_mmu_get_entry(ti, idx, &p, &a);
+		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
+			return (void *)core_mmu_idx2va(ti, idx);
+	}
+
+	for (idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START);
+	     idx < end_idx; idx++) {
+		core_mmu_get_entry(ti, idx, &p, &a);
+		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
+			return (void *)core_mmu_idx2va(ti, idx);
+	}
+
+	return NULL;
+}
+
+bool tee_pager_get_table_info(vaddr_t va, struct core_mmu_table_info *ti)
+{
+	if (va >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
+	    va <= (CFG_TEE_LOAD_ADDR | CORE_MMU_PGDIR_MASK)) {
+		*ti = tee_pager_tbl_info;
+		return true;
+	}
+
+	return false;
+}
+
 static void set_alias_area(tee_mm_entry_t *mm)
 {
 	struct core_mmu_table_info *ti = &pager_alias_tbl_info;
@@ -297,6 +337,16 @@ static void generate_ae_key(void)
 {
 	if (rng_generate(pager_ae_key, sizeof(pager_ae_key)) != TEE_SUCCESS)
 		panic("failed to generate random");
+}
+
+void tee_pager_early_init(void)
+{
+	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
+				 &tee_pager_tbl_info))
+		panic("can't find mmu tables");
+
+	if (tee_pager_tbl_info.shift != SMALL_PAGE_SHIFT)
+		panic("Unsupported page size in translation table");
 }
 
 void tee_pager_init(tee_mm_entry_t *mm_alias)

@@ -1488,6 +1488,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	TEE_Result res;
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
+	struct core_mmu_table_info ti __maybe_unused;
 
 	if (core_mmu_user_va_range_is_defined()) {
 		vaddr_t user_va_base;
@@ -1517,9 +1518,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			panic("issue in linear address space");
 		return;
 	}
-	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
-	    v <= (CFG_TEE_LOAD_ADDR | CORE_MMU_PGDIR_MASK)) {
-		struct core_mmu_table_info *ti = &tee_pager_tbl_info;
+
+	if (tee_pager_get_table_info(v, &ti)) {
 		uint32_t a;
 
 		/*
@@ -1528,9 +1528,9 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		 * changes all the time. But some ranges are safe,
 		 * rw-locked areas when the page is populated for instance.
 		 */
-		core_mmu_get_entry(ti, core_mmu_va2idx(ti, v), &p, &a);
+		core_mmu_get_entry(&ti, core_mmu_va2idx(&ti, v), &p, &a);
 		if (a & TEE_MATTR_VALID_BLOCK) {
-			paddr_t mask = ((1 << ti->shift) - 1);
+			paddr_t mask = ((1 << ti.shift) - 1);
 
 			p |= v & mask;
 			if (pa != p)
@@ -1596,34 +1596,9 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 #ifdef CFG_WITH_PAGER
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
-	struct core_mmu_table_info *ti = &tee_pager_tbl_info;
-	unsigned idx;
-	unsigned end_idx;
-	uint32_t a;
-	paddr_t p;
-
 	if (pa >= CFG_TEE_LOAD_ADDR && pa < get_linear_map_end())
 		return (void *)(vaddr_t)pa;
-
-	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
-				      CFG_TEE_RAM_VA_SIZE);
-	/* Most addresses are mapped lineary, try that first if possible. */
-	idx = core_mmu_va2idx(ti, pa);
-	if (idx >= core_mmu_va2idx(ti, CFG_TEE_RAM_START) &&
-	    idx < end_idx) {
-		core_mmu_get_entry(ti, idx, &p, &a);
-		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
-			return (void *)core_mmu_idx2va(ti, idx);
-	}
-
-	for (idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START);
-	     idx < end_idx; idx++) {
-		core_mmu_get_entry(ti, idx, &p, &a);
-		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
-			return (void *)core_mmu_idx2va(ti, idx);
-	}
-
-	return NULL;
+	return tee_pager_phys_to_virt(pa);
 }
 #else
 static void *phys_to_virt_tee_ram(paddr_t pa)

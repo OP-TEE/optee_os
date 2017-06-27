@@ -197,12 +197,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
 	 */
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
-				 &tee_pager_tbl_info))
-		panic("can't find mmu tables");
-
-	if (tee_pager_tbl_info.shift != SMALL_PAGE_SHIFT)
-		panic("Unsupported page size in translation table");
+	tee_pager_early_init();
 
 	thread_init_boot_thread();
 
