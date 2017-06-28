@@ -452,8 +452,8 @@ static size_t tbl_usage_count(struct pgt *pgt)
 	return usage;
 }
 
-bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
-			const void *store, const void *hashes)
+void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
+			     const void *store, const void *hashes)
 {
 	struct tee_pager_area *area;
 	size_t tbl_va_size;
@@ -483,15 +483,14 @@ bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	if (!core_is_buffer_inside(base, size, ti->va_base, tbl_va_size)) {
 		DMSG("area 0x%" PRIxPTR " len 0x%zx doesn't fit it translation table 0x%" PRIxVA " len 0x%zx",
 			base, size, ti->va_base, tbl_va_size);
-		return false;
+		panic();
 	}
 
 	area = alloc_area(&pager_core_pgt, base, size, flags, store, hashes);
 	if (!area)
-		return false;
+		panic();
 
 	area_insert_tail(area);
-	return true;
 }
 
 static struct tee_pager_area *find_area(struct tee_pager_area_head *areas,
