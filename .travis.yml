@@ -195,6 +195,9 @@ script:
   - $make PLATFORM=imx-mx6qsabresd
   - $make PLATFORM=imx-mx6dlsabresd
 
+  # i.MX7Dual SABRE
+  - $make PLATFORM=imx-mx7dsabresd
+
   # Texas Instruments DRA7xx
   - $make PLATFORM=ti-dra7xx
 

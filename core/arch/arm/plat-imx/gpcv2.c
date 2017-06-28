@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright (C) 2017 NXP
  * All rights reserved.
  *
  * Peng Fan <peng.fan@nxp.com>
@@ -26,35 +26,58 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef PLAT_IMX_IMX_H
-#define PLAT_IMX_IMX_H
 
+#include <imx.h>
+#include <io.h>
+#include <mm/core_memprot.h>
+#include <platform_config.h>
 #include <stdint.h>
-#include <stdbool.h>
 
-#define SOC_MX6SL	0x60
-#define SOC_MX6DL	0x61
-#define SOC_MX6SX	0x62
-#define SOC_MX6Q	0x63
-#define SOC_MX6UL	0x64
-#define SOC_MX6ULL	0x65
-#define SOC_MX6SLL	0x67
-#define SOC_MX6D	0x6A
-#define SOC_MX7D	0x72
+static vaddr_t gpc_base(void)
+{
+	return core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC);
+}
 
-uint32_t imx_get_src_gpr(int cpu);
-void imx_set_src_gpr(int cpu, uint32_t val);
+void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset)
+{
+	uint32_t val = read32(gpc_base() + offset) & (~GPC_PGC_PCG_MASK);
 
-bool soc_is_imx6ul(void);
-bool soc_is_imx6ull(void);
-bool soc_is_imx6sdl(void);
-bool soc_is_imx6dq(void);
-bool soc_is_imx6dqp(void);
-bool soc_is_imx7ds(void);
-bool soc_is_imx7d(void);
-bool soc_is_imx7s(void);
-uint32_t imx_soc_type(void);
-void imx_gpcv2_set_core1_pdn_by_software(void);
-void imx_gpcv2_set_core1_pup_by_software(void);
-void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
-#endif
+	if (enable)
+		val |= GPC_PGC_PCG_MASK;
+
+	write32(val, gpc_base() + offset);
+}
+
+void imx_gpcv2_set_core1_pdn_by_software(void)
+{
+	uint32_t val = read32(gpc_base() + GPC_CPU_PGC_SW_PDN_REQ);
+
+	imx_gpcv2_set_core_pgc(true, GPC_PGC_C1);
+
+	val |= GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK;
+
+	write32(val, gpc_base() + GPC_CPU_PGC_SW_PDN_REQ);
+
+	while ((read32(gpc_base() + GPC_CPU_PGC_SW_PDN_REQ) &
+	       GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK) != 0)
+		;
+
+	imx_gpcv2_set_core_pgc(false, GPC_PGC_C1);
+}
+
+void imx_gpcv2_set_core1_pup_by_software(void)
+{
+	uint32_t val = read32(gpc_base() + GPC_CPU_PGC_SW_PUP_REQ);
+
+	imx_gpcv2_set_core_pgc(true, GPC_PGC_C1);
+
+	val |= GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK;
+
+	write32(val, gpc_base() + GPC_CPU_PGC_SW_PUP_REQ);
+
+	while ((read32(gpc_base() + GPC_CPU_PGC_SW_PUP_REQ) &
+	       GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK) != 0)
+		;
+
+	imx_gpcv2_set_core_pgc(false, GPC_PGC_C1);
+}
