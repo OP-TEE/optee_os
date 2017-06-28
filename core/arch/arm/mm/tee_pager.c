@@ -1586,15 +1586,14 @@ void tee_pager_release_phys(void *addr, size_t size)
 	if (end <= begin)
 		return;
 
-	area = find_area(&tee_pager_area_head, begin);
-	if (!area ||
-	    area != find_area(&tee_pager_area_head, end - SMALL_PAGE_SIZE))
-		panic();
-
 	exceptions = pager_lock_check_stack(128);
 
-	for (va = begin; va < end; va += SMALL_PAGE_SIZE)
+	for (va = begin; va < end; va += SMALL_PAGE_SIZE) {
+		area = find_area(&tee_pager_area_head, va);
+		if (!area)
+			panic();
 		unmaped |= tee_pager_release_one_phys(area, va);
+	}
 
 	if (unmaped)
 		tlbi_mva_range(begin, end - begin, SMALL_PAGE_SIZE);
