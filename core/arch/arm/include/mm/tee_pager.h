@@ -93,11 +93,9 @@ void tee_pager_init(tee_mm_entry_t *mm_alias);
  *
  * Invalid use of flags or non-page aligned base or size or size == 0 will
  * cause a panic.
- *
- * Return true on success or false if area can't be added.
  */
-bool tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
-			const void *store, const void *hashes);
+void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
+			     const void *store, const void *hashes);
 
 /*
  * tee_pager_add_uta_area() - Adds a pageable user ta area

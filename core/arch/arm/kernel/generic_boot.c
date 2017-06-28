@@ -290,9 +290,8 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
 	assert(mm);
-	if (!tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				     TEE_MATTR_PRX, paged_store, hashes))
-		panic("failed to add pageable to vcore");
+	tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
+				TEE_MATTR_PRX, paged_store, hashes);
 
 	tee_pager_add_pages((vaddr_t)__pageable_start,
 			init_size / SMALL_PAGE_SIZE, false);
