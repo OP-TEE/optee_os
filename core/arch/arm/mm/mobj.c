@@ -588,7 +588,7 @@ static TEE_Result mobj_mapped_shm_init(void)
 		    TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 
-	IMSG("Shared memory address range: %" PRIxVA ", %" PRIxVA,
+	DMSG("Shared memory address range: %" PRIxVA ", %" PRIxVA,
 	     pool_start, pool_end);
 	return TEE_SUCCESS;
 }
