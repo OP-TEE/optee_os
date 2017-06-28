@@ -339,6 +339,49 @@ static void generate_ae_key(void)
 		panic("failed to generate random");
 }
 
+static size_t tbl_usage_count(struct pgt *pgt)
+{
+	size_t n;
+	paddr_t pa;
+	size_t usage = 0;
+
+	for (n = 0; n < tee_pager_tbl_info.num_entries; n++) {
+		core_mmu_get_entry_primitive(pgt->tbl, tee_pager_tbl_info.level,
+					     n, &pa, NULL);
+		if (pa)
+			usage++;
+	}
+	return usage;
+}
+
+static void area_get_entry(struct tee_pager_area *area, size_t idx,
+			   paddr_t *pa, uint32_t *attr)
+{
+	assert(area->pgt);
+	assert(idx < tee_pager_tbl_info.num_entries);
+	core_mmu_get_entry_primitive(area->pgt->tbl, tee_pager_tbl_info.level,
+				     idx, pa, attr);
+}
+
+static void area_set_entry(struct tee_pager_area *area, size_t idx,
+			   paddr_t pa, uint32_t attr)
+{
+	assert(area->pgt);
+	assert(idx < tee_pager_tbl_info.num_entries);
+	core_mmu_set_entry_primitive(area->pgt->tbl, tee_pager_tbl_info.level,
+				     idx, pa, attr);
+}
+
+static size_t area_va2idx(struct tee_pager_area *area, vaddr_t va)
+{
+	return (va - (area->base & ~CORE_MMU_PGDIR_MASK)) >> SMALL_PAGE_SHIFT;
+}
+
+static vaddr_t area_idx2va(struct tee_pager_area *area, size_t idx)
+{
+	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
+}
+
 void tee_pager_early_init(void)
 {
 	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
@@ -436,21 +479,6 @@ static void area_insert_tail(struct tee_pager_area *area)
 	pager_unlock(exceptions);
 }
 KEEP_PAGER(area_insert_tail);
-
-static size_t tbl_usage_count(struct pgt *pgt)
-{
-	size_t n;
-	paddr_t pa;
-	size_t usage = 0;
-
-	for (n = 0; n < tee_pager_tbl_info.num_entries; n++) {
-		core_mmu_get_entry_primitive(pgt->tbl, tee_pager_tbl_info.level,
-					     n, &pa, NULL);
-		if (pa)
-			usage++;
-	}
-	return usage;
-}
 
 void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 			     const void *store, const void *hashes)
@@ -658,35 +686,6 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 			pmem->area->base + idx * SMALL_PAGE_SIZE,
 			pmem->area->u.rwp[idx].iv);
 	}
-}
-
-static void area_get_entry(struct tee_pager_area *area, size_t idx,
-			   paddr_t *pa, uint32_t *attr)
-{
-	assert(area->pgt);
-	assert(idx < tee_pager_tbl_info.num_entries);
-	core_mmu_get_entry_primitive(area->pgt->tbl, tee_pager_tbl_info.level,
-				     idx, pa, attr);
-}
-
-static void area_set_entry(struct tee_pager_area *area, size_t idx,
-			   paddr_t pa, uint32_t attr)
-{
-	assert(area->pgt);
-	assert(idx < tee_pager_tbl_info.num_entries);
-	core_mmu_set_entry_primitive(area->pgt->tbl, tee_pager_tbl_info.level,
-				     idx, pa, attr);
-}
-
-static size_t area_va2idx(struct tee_pager_area *area, vaddr_t va)
-{
-	return (va - (area->base & ~CORE_MMU_PGDIR_MASK)) >> SMALL_PAGE_SHIFT;
-}
-
-static vaddr_t __maybe_unused area_idx2va(struct tee_pager_area *area,
-					 size_t idx)
-{
-	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
 }
 
 #ifdef CFG_PAGED_USER_TA
