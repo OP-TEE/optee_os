@@ -30,11 +30,16 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <imx-regs.h>
+
 #define STACK_ALIGNMENT			64
 
-/* For i.MX 6UltraLite and 6ULL EVK board */
+/* For i.MX7D/S platforms */
+#if defined(CFG_MX7)
+#include <config/config_imx7.h>
 
-#if defined(CFG_MX6UL) || defined(CFG_MX6ULL)
+/* For i.MX 6UltraLite and 6ULL EVK board */
+#elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #include <imx-regs.h>
 
 #ifdef CFG_WITH_PAGER

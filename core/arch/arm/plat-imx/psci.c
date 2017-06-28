@@ -60,6 +60,21 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	/* set secondary cores' NS entry addresses */
 	ns_entry_addrs[core_idx] = entry;
 
+	if (soc_is_imx7ds()) {
+		write32((uint32_t)CFG_TEE_LOAD_ADDR,
+			va + SRC_GPR1_MX7 + core_idx * 8);
+
+		imx_gpcv2_set_core1_pup_by_software();
+
+		/* release secondary core */
+		val = read32(va + SRC_A7RCR1);
+		val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
+			      (core_idx - 1));
+		write32(val, va + SRC_A7RCR1);
+
+		return PSCI_RET_SUCCESS;
+	}
+
 	/* boot secondary cores from OP-TEE load address */
 	write32((uint32_t)CFG_TEE_LOAD_ADDR, va + SRC_GPR1 + core_idx * 8);
 
@@ -103,7 +118,10 @@ int psci_affinity_info(uint32_t affinity,
 
 	cpu = affinity;
 
-	wfi = read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
+	if (soc_is_imx7d())
+		wfi = true;
+	else
+		wfi = read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
 
 	if ((imx_get_src_gpr(cpu) == 0) || !wfi)
 		return PSCI_AFFINITY_LEVEL_ON;
@@ -113,14 +131,23 @@ int psci_affinity_info(uint32_t affinity,
 	 * Wait secondary cpus ready to be killed
 	 * TODO: Change to non dead loop
 	 */
-	while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
-		;
+	if (soc_is_imx7d()) {
+		while (read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
+			;
 
-	/* Kill cpu */
-	val = read32(va + SRC_SCR);
-	val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
-	val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
-	write32(val, va + SRC_SCR);
+		val = read32(va + SRC_A7RCR1);
+		val &=  ~BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET + (cpu - 1));
+		write32(val, va + SRC_A7RCR1);
+	} else {
+		while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
+			;
+
+		/* Kill cpu */
+		val = read32(va + SRC_SCR);
+		val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
+		val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
+		write32(val, va + SRC_SCR);
+	}
 
 	/* Clean arg */
 	imx_set_src_gpr(cpu, 0);

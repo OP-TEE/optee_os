@@ -26,35 +26,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef PLAT_IMX_IMX_H
-#define PLAT_IMX_IMX_H
 
-#include <stdint.h>
-#include <stdbool.h>
-
-#define SOC_MX6SL	0x60
-#define SOC_MX6DL	0x61
-#define SOC_MX6SX	0x62
-#define SOC_MX6Q	0x63
-#define SOC_MX6UL	0x64
-#define SOC_MX6ULL	0x65
-#define SOC_MX6SLL	0x67
-#define SOC_MX6D	0x6A
-#define SOC_MX7D	0x72
-
-uint32_t imx_get_src_gpr(int cpu);
-void imx_set_src_gpr(int cpu, uint32_t val);
-
-bool soc_is_imx6ul(void);
-bool soc_is_imx6ull(void);
-bool soc_is_imx6sdl(void);
-bool soc_is_imx6dq(void);
-bool soc_is_imx6dqp(void);
-bool soc_is_imx7ds(void);
-bool soc_is_imx7d(void);
-bool soc_is_imx7s(void);
-uint32_t imx_soc_type(void);
-void imx_gpcv2_set_core1_pdn_by_software(void);
-void imx_gpcv2_set_core1_pup_by_software(void);
-void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
+#ifndef CFG_UART_BASE
+#define CFG_UART_BASE	(UART1_BASE)
 #endif
+
+#ifndef CFG_DDR_SIZE
+#error "CFG_DDR_SIZE not defined"
+#endif
+
+#define DRAM0_BASE		0x80000000
+#define DRAM0_SIZE		CFG_DDR_SIZE
+
+/* Location of trusted dram */
+#define TZDRAM_BASE		(DRAM0_BASE + CFG_DDR_SIZE - 32 * 1024 * 1024)
+#define TZDRAM_SIZE		(30 * 1024 * 1024)
+
+/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
+#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_SIZE		0x200000
+
+#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+
+/*
+ * Everything is in TZDRAM.
+ * +------------------+
+ * |        | TEE_RAM |
+ * + TZDRAM +---------+
+ * |        | TA_RAM  |
+ * +--------+---------+
+ */
+#define CFG_TEE_RAM_PH_SIZE     CFG_TEE_RAM_VA_SIZE
+#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+					CORE_MMU_DEVICE_SIZE)
+#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
+					  CORE_MMU_DEVICE_SIZE)
+
+#ifndef CFG_TEE_LOAD_ADDR
+#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#endif
+
+#define CONSOLE_UART_BASE	(CFG_UART_BASE)

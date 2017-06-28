@@ -7,6 +7,7 @@ mx6q-flavorlist = mx6qsabrelite mx6qsabresd
 mx6d-flavorlist =
 mx6dl-flavorlist = mx6dlsabresd
 mx6s-flavorlist =
+mx7-flavorlist = mx7dsabresd
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6UL,y)
@@ -20,10 +21,19 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6dl-flavorlist)))
 $(call force,CFG_MX6DL,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6S,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7-flavorlist)))
+$(call force,CFG_MX7,y)
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dsabresd))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_DT ?= y
+CFG_NS_ENTRY_ADDR ?= 0x80800000
+CFG_PSCI_ARM32 ?= y
+CFG_TEE_CORE_NB_CORE ?= 2
+endif
 
 # Common i.MX6 config
 core_arm32-platform-aflags	+= -mfpu=neon
@@ -60,6 +70,11 @@ CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
 
+ifeq ($(filter y, $(CFG_MX7)), y)
+include core/arch/arm/cpu/cortex-a7.mk
+
+$(call force,CFG_SECURE_TIME_SOURCE_REE,y)
+CFG_BOOT_SECONDARY_REQUEST ?= y
+endif
 
 ta-targets = ta_arm32
-

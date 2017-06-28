@@ -64,6 +64,7 @@ static struct imx_uart_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_DEVICE_SIZE);
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
@@ -97,7 +98,8 @@ void main_init_gic(void)
 	itr_init(&gic_data.chip);
 }
 
-#if defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL)
+#if defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
+	defined(CFG_MX7)
 void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
