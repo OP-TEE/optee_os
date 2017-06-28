@@ -459,7 +459,7 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	size_t n;
 
 	if (start == end) {
-		IMSG("No %s memory area defined", area_name);
+		DMSG("No %s memory area defined", area_name);
 		return;
 	}
 
