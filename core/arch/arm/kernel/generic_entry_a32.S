@@ -198,6 +198,9 @@ UNWIND(	.cantunwind)
 #if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
 	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
 #endif
+#if defined(CFG_SCTLR_ROUNDROBIN_REPLACEMENT)
+	orr	r0, r0, #SCTLR_RR
+#endif
 	write_sctlr r0
 	isb
 
@@ -472,6 +475,9 @@ UNWIND(	.cantunwind)
 #endif
 #if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
 	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
+#if defined(CFG_SCTLR_ROUNDROBIN_REPLACEMENT)
+	orr	r0, r0, #SCTLR_RR
 #endif
 	write_sctlr r0
 
