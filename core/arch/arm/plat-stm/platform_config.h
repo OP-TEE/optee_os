@@ -117,20 +117,12 @@
 /* Below are settings common to stm platform flavors */
 
 /*
- * CP15 Secure ConTroL Register (SCTLR
- *
- * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
- */
-#define CPU_SCTLR_INIT			0x00004000
-
-/*
  * CP15 Auxiliary ConTroL Register (ACTRL)
  *
  * - core always in full SMP (FW bit0=1, SMP bit6=1)
  * - L2 write full line of zero disabled (bit3=0)
  *   (keep WFLZ low. Will be set once outer L2 is ready)
  */
-
 #define CPU_ACTLR_INIT			0x00000041
 
 /*

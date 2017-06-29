@@ -78,9 +78,6 @@ END_FUNC arm_cl2_enable
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
-	mov_imm r0, CPU_SCTLR_INIT
-	write_sctlr r0
-
 	mov_imm r0, CPU_ACTLR_INIT
 	write_actlr r0
 
