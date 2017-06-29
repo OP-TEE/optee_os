@@ -1,6 +1,6 @@
 $(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
-$(call force,CFG_SCTLR_ROUNDROBIN_REPLACEMENT,n)
+$(call force,CFG_SCTLR_ENABLE_RR,n)
 $(call force,CFG_EARLY_BRANCH_PREDICTION,n)
 # cortex-a53 and cortex-a57 complies on arm32 architectures
 arm32-platform-cpuarch 	:= cortex-a53
