@@ -204,7 +204,7 @@ UNWIND(	.cantunwind)
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 
-#if defined(CFG_SCTLR_ENABLE_Z)
+#if defined(CFG_ENABLE_SCTLR_Z)
 	/* Some ARMv7 architectures need btac flush */
 	write_bpiall
 	dsb
@@ -485,7 +485,7 @@ UNWIND(	.cantunwind)
 #endif
 	write_sctlr r0
 
-#if defined(CFG_SCTLR_ENABLE_Z)
+#if defined(CFG_ENABLE_SCTLR_Z)
 	/* Some ARMv7 architectures need btac flush */
 	write_bpiall
 	dsb
