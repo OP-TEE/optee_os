@@ -204,6 +204,12 @@ UNWIND(	.cantunwind)
 	write_sctlr r0
 	isb
 
+#if defined(CFG_EARLY_BRANCH_PREDICTION)
+	write_bpiall
+	orr	r0, r0, #SCTLR_Z
+	write_sctlr r0
+#endif
+
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 
@@ -480,6 +486,12 @@ UNWIND(	.cantunwind)
 	orr	r0, r0, #SCTLR_RR
 #endif
 	write_sctlr r0
+
+#if defined(CFG_EARLY_BRANCH_PREDICTION)
+	write_bpiall
+	orr	r0, r0, #SCTLR_Z
+	write_sctlr r0
+#endif
 
 	ldr	r0, =_start
 	write_vbar r0
