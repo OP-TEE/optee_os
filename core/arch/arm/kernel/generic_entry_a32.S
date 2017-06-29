@@ -204,6 +204,16 @@ UNWIND(	.cantunwind)
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 
+#if defined(CFG_ENABLE_SCTLR_Z)
+	/* Some ARMv7 architectures need btac flush */
+	write_bpiall
+	dsb
+	isb
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_Z
+	write_sctlr r0
+#endif
+
 	ldr	r0, =_start
 	write_vbar r0
 
@@ -474,6 +484,16 @@ UNWIND(	.cantunwind)
 	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
 #endif
 	write_sctlr r0
+
+#if defined(CFG_ENABLE_SCTLR_Z)
+	/* Some ARMv7 architectures need btac flush */
+	write_bpiall
+	dsb
+	isb
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_Z
+	write_sctlr r0
+#endif
 
 	ldr	r0, =_start
 	write_vbar r0
