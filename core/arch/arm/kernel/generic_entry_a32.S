@@ -204,7 +204,7 @@ UNWIND(	.cantunwind)
 	write_sctlr r0
 	isb
 
-#if defined(CFG_EARLY_BRANCH_PREDICTION)
+#if defined(CFG_SCTLR_ENABLE_Z)
 	write_bpiall
 	dsb
 	isb
@@ -489,7 +489,7 @@ UNWIND(	.cantunwind)
 #endif
 	write_sctlr r0
 
-#if defined(CFG_EARLY_BRANCH_PREDICTION)
+#if defined(CFG_SCTLR_ENABLE_Z)
 	write_bpiall
 	orr	r0, r0, #SCTLR_Z
 	write_sctlr r0
