@@ -206,6 +206,8 @@ UNWIND(	.cantunwind)
 
 #if defined(CFG_EARLY_BRANCH_PREDICTION)
 	write_bpiall
+	dsb
+	isb
 	orr	r0, r0, #SCTLR_Z
 	write_sctlr r0
 #endif
