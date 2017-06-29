@@ -3,6 +3,8 @@ CFG_LTC_OPTEE_THREAD ?= y
 # Only applicable when paging is enabled.
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 458752
 CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 32)
+# Early branch prediction may be unsafe against uncontrolled memory prefetches.
+CFG_SCTLR_ENABLE_Z ?= n
 
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
