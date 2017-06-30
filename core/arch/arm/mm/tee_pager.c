@@ -963,10 +963,13 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 					page_va, a);
 			area_set_entry(pmem->area, pmem->pgidx, pa, a);
 
+			/*
+			 * Note that TLB invalidation isn't needed since
+			 * there wasn't a valid mapping before.
+			 */
+
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
-
-			tlbi_mva_allasid(page_va);
 
 			incr_hidden_hits();
 			return true;
