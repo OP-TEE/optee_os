@@ -179,22 +179,6 @@ static void init_vfp_sec(void)
 #endif
 
 #ifdef CFG_WITH_PAGER
-
-static size_t get_block_size(void)
-{
-	struct core_mmu_table_info tbl_info;
-	unsigned l;
-
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info))
-		panic("can't find mmu tables");
-
-	l = tbl_info.level - 1;
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info))
-		panic("can't find mmu table upper level");
-
-	return 1 << tbl_info.shift;
-}
-
 static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
@@ -205,7 +189,6 @@ static void init_runtime(unsigned long pageable_part)
 	tee_mm_entry_t *mm;
 	uint8_t *paged_store;
 	uint8_t *hashes;
-	size_t block_size;
 
 	assert(pageable_size % SMALL_PAGE_SIZE == 0);
 	assert(hash_size == (size_t)__tmp_hashes_size);
@@ -279,12 +262,9 @@ static void init_runtime(unsigned long pageable_part)
 	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
 	 * is supplied to tee_pager_init() below.
 	 */
-	block_size = get_block_size();
-	if (!tee_mm_init(&tee_mm_vcore,
-			ROUNDDOWN(CFG_TEE_RAM_START, block_size),
-			ROUNDUP(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
-				block_size),
-			SMALL_PAGE_SHIFT, 0))
+	if (!tee_mm_init(&tee_mm_vcore, CFG_TEE_RAM_START,
+			 CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+			 SMALL_PAGE_SHIFT, 0))
 		panic("tee_mm_vcore init failed");
 
 	/*
