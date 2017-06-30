@@ -83,9 +83,9 @@
  * CFG_WITH_PAGER=n
  *
  *  0x4000_0000                               -
- *    TA RAM: 15 MiB                          |
- *  0x3F10_0000                               | TZDRAM
- *    TEE RAM: 1 MiB (CFG_TEE_RAM_VA_SIZE)    |
+ *    TA RAM: 14 MiB                          |
+ *  0x3F20_0000                               | TZDRAM
+ *    TEE RAM: 2 MiB (CFG_TEE_RAM_VA_SIZE)    |
  *  0x3F00_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
  *    Shared memory: 2 MiB                    |
  *  0x3EE0_0000                               | DRAM0
@@ -101,8 +101,8 @@
  * CFG_WITH_PAGER=y
  *
  *  0x4000_0000                               -
- *    TA RAM: 15 MiB                          | TZDRAM
- *  0x3F10_0000                               -
+ *    TA RAM: 14 MiB                          | TZDRAM
+ *  0x3F20_0000                               -
  *    Unused
  *  0x3F03_2000                               -
  *    TEE RAM: 200 KiB                        | TZSRAM
@@ -127,8 +127,8 @@
 #define TZSRAM_BASE		0x3F000000
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		0x3F100000
-#define TZDRAM_SIZE		(15 * 1024 * 1024)
+#define TZDRAM_BASE		0x3F200000
+#define TZDRAM_SIZE		(14 * 1024 * 1024)
 
 #else /* CFG_WITH_PAGER */
 
@@ -142,7 +142,7 @@
 
 #define CFG_TEE_CORE_NB_CORE	8
 
-#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+#define CFG_TEE_RAM_VA_SIZE	(2 * 1024 * 1024)
 
 #define CFG_TEE_LOAD_ADDR	0x3F000000
 
