@@ -983,6 +983,7 @@ static void tee_pager_hide_pages(void)
 {
 	struct tee_pager_pmem *pmem;
 	size_t n = 0;
+	bool need_icache_inval = false;
 
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
 		paddr_t pa;
@@ -1012,8 +1013,11 @@ static void tee_pager_hide_pages(void)
 		area_set_entry(pmem->area, pmem->pgidx, pa, a);
 		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 		if (attr & (TEE_MATTR_PX | TEE_MATTR_UX))
-			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
+			need_icache_inval = true;
 	}
+
+	if (need_icache_inval)
+		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 }
 
 /*
