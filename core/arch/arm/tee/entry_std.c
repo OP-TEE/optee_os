@@ -81,7 +81,7 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 {
 	struct mobj __maybe_unused **mobj;
 
-	/* NULL Memory Rerefence ? */
+	/* NULL Memory Rerefence? */
 	if (!pa && !sz) {
 		mem->mobj = NULL;
 		mem->offs = 0;
@@ -100,12 +100,12 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 		return TEE_SUCCESS;
 	}
 
-	/* belongs to nonsecure shared memory ? */
+	/* Belongs to nonsecure shared memory? */
 	if (param_mem_from_mobj(mem, shm_mobj, pa, sz))
 		return TEE_SUCCESS;
 
 #ifdef CFG_SECURE_DATA_PATH
-	/* belongs to SDP memories ? */
+	/* Belongs to SDP memories? */
 	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
 		if (param_mem_from_mobj(mem, *mobj, pa, sz))
 			return TEE_SUCCESS;
