@@ -901,6 +901,11 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				tee_pager_save_page(pmem, a);
 
 			area_set_entry(pmem->area, pmem->pgidx, pa, f);
+			/*
+			 * Make sure the table update is visible before
+			 * continuing.
+			 */
+			dsb_ishst();
 
 			if (flags & TEE_MATTR_UX) {
 				void *va = (void *)area_idx2va(pmem->area,
