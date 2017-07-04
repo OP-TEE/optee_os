@@ -117,9 +117,15 @@ static TEE_Result get_benchmark_memref(uint32_t type,
 
 	DMSG("Sending back timestamp buffer paddr = %p\n",
 		(void *)virt_to_phys(bench_ts_global));
-	p[0].value.a = virt_to_phys(bench_ts_global);
-	p[0].value.b = sizeof(struct tee_ts_global) +
+
+	if (bench_ts_global) {
+		p[0].value.a = virt_to_phys(bench_ts_global);
+		p[0].value.b = sizeof(struct tee_ts_global) +
 			sizeof(struct tee_ts_cpu_buf) * bench_ts_global->cores;
+	} else {
+		p[0].value.a = 0;
+		p[0].value.b = 0;
+	}
 
 	mutex_unlock(&bench_reg_mu);
 
