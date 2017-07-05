@@ -177,7 +177,7 @@ LOCAL_FUNC _arm_cl2_xxxbypa , :
 UNWIND(	.fnstart)
 	/* Align start address on PL310 line size */
 	and	r1, #(~(PL310_LINE_SIZE - 1))
-
+#ifdef SCU_BASE
 	/*
 	 * ARM ERRATA #764369
 	 * Undocummented SCU Diagnostic Control Register
@@ -192,7 +192,7 @@ UNWIND(	.fnstart)
 	str	r12, [r0, #SCU_ERRATA744369]
 	dsb
 	add	r0, r0, #(PL310_BASE - SCU_BASE)
-
+#endif
 loop_cl2_xxxbypa:
 	str	r1, [r0, r3]
 
