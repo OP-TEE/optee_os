@@ -1296,6 +1296,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	if (!tee_pager_unhide_page(page_va)) {
 		struct tee_pager_pmem *pmem = NULL;
 		uint32_t attr;
+		paddr_t pa;
 
 		/*
 		 * The page wasn't hidden, but some other core may have
@@ -1320,40 +1321,67 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		/* load page code & data */
 		tee_pager_load_page(area, page_va, pmem->va_alias);
 
+
+		pmem->area = area;
+		pmem->pgidx = area_va2idx(area, ai->va);
+		attr = get_area_mattr(area->flags) &
+			~(TEE_MATTR_PW | TEE_MATTR_UW);
+		pa = get_pmem_pa(pmem);
+
 		/*
 		 * We've updated the page using the aliased mapping and
 		 * some cache maintenence is now needed if it's an
 		 * executable page.
 		 *
 		 * Since the d-cache is a Physically-indexed,
-		 * physically-tagged (PIPT) cache we can clean the aliased
-		 * address instead of the real virtual address.
+		 * physically-tagged (PIPT) cache we can clean either the
+		 * aliased address or the real virtual address. In this
+		 * case we choose the real virtual address.
 		 *
 		 * The i-cache can also be PIPT, but may be something else
-		 * to, to keep it simple we invalidate the entire i-cache.
-		 * As a future optimization we may invalidate only the
-		 * aliased area if it a PIPT cache else the entire cache.
+		 * too like VIPT. The current code requires the caches to
+		 * implement the IVIPT extension, that is:
+		 * "instruction cache maintenance is required only after
+		 * writing new data to a physical address that holds an
+		 * instruction."
+		 *
+		 * To portably invalidate the icache the page has to
+		 * be mapped at the final virtual address but not
+		 * executable.
 		 */
 		if (area->flags & (TEE_MATTR_PX | TEE_MATTR_UX)) {
+			uint32_t mask = TEE_MATTR_PX | TEE_MATTR_UX |
+					TEE_MATTR_PW | TEE_MATTR_UW;
+
+			/* Set a temporary read-only mapping */
+			area_set_entry(pmem->area, pmem->pgidx, pa,
+				       attr & ~mask);
+			tlbi_mva_allasid(page_va);
+
 			/*
 			 * Doing these operations to LoUIS (Level of
 			 * unification, Inner Shareable) would be enough
 			 */
-			cache_op_inner(DCACHE_AREA_CLEAN, pmem->va_alias,
-					SMALL_PAGE_SIZE);
-			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
-		}
+			cache_op_inner(DCACHE_AREA_CLEAN, (void *)page_va,
+				       SMALL_PAGE_SIZE);
+			cache_op_inner(ICACHE_AREA_INVALIDATE, (void *)page_va,
+				       SMALL_PAGE_SIZE);
 
-		pmem->area = area;
-		pmem->pgidx = area_va2idx(area, ai->va);
-		attr = get_area_mattr(area->flags) &
-			~(TEE_MATTR_PW | TEE_MATTR_UW);
-		area_set_entry(area, pmem->pgidx, get_pmem_pa(pmem), attr);
-		/* No need to flush TLB for this entry, it was invalid */
+			/* Set the final mapping */
+			area_set_entry(area, pmem->pgidx, pa, attr);
+			tlbi_mva_allasid(page_va);
+		} else {
+			area_set_entry(area, pmem->pgidx, pa, attr);
+			/*
+			 * No need to flush TLB for this entry, it was
+			 * invalid. We should use a barrier though, to make
+			 * sure that the change is visible.
+			 */
+			dsb_ishst();
+		}
 		pgt_inc_used_entries(area->pgt);
 
-		FMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA,
-		     area_idx2va(area, pmem->pgidx), get_pmem_pa(pmem));
+		FMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA, page_va, pa);
 
 	}
 
