@@ -30,6 +30,7 @@
  */
 
 #include <arm.h>
+#include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/unwind.h>
 #include <string.h>
@@ -360,6 +361,8 @@ bool unwind_stack_arm32(struct unwind_state_arm32 *state, uaddr_t exidx,
 void print_kernel_stack(int level)
 {
 	struct unwind_state_arm32 state;
+	uaddr_t exidx = (vaddr_t)__exidx_start;
+	size_t exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
 
 	memset(state.registers, 0, sizeof(state.registers));
 	/* r7: Thumb-style frame pointer */
@@ -387,7 +390,7 @@ void print_kernel_stack(int level)
 		default:
 			break;
 		}
-	} while (unwind_stack_arm32(&state, 0, 0));
+	} while (unwind_stack_arm32(&state, exidx, exidx_sz));
 }
 
 #endif
