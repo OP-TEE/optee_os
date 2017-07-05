@@ -968,10 +968,13 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 					page_va, a);
 			area_set_entry(pmem->area, pmem->pgidx, pa, a);
 
+			/*
+			 * Note that TLB invalidation isn't needed since
+			 * there wasn't a valid mapping before.
+			 */
+
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
-
-			tlbi_mva_allasid(page_va);
 
 			incr_hidden_hits();
 			return true;
@@ -985,6 +988,7 @@ static void tee_pager_hide_pages(void)
 {
 	struct tee_pager_pmem *pmem;
 	size_t n = 0;
+	bool need_icache_inval = false;
 
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
 		paddr_t pa;
@@ -1013,7 +1017,12 @@ static void tee_pager_hide_pages(void)
 
 		area_set_entry(pmem->area, pmem->pgidx, pa, a);
 		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
+		if (attr & (TEE_MATTR_PX | TEE_MATTR_UX))
+			need_icache_inval = true;
 	}
+
+	if (need_icache_inval)
+		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 }
 
 /*
@@ -1038,6 +1047,7 @@ static bool tee_pager_release_one_phys(struct tee_pager_area *area,
 			continue;
 
 		assert(pa == get_pmem_pa(pmem));
+		assert(!(attr & (TEE_MATTR_PX | TEE_MATTR_UX)));
 		area_set_entry(area, pgidx, 0, 0);
 		pgt_dec_used_entries(area->pgt);
 		TAILQ_REMOVE(&tee_pager_lock_pmem_head, pmem, link);
@@ -1071,6 +1081,8 @@ static struct tee_pager_pmem *tee_pager_get_page(struct tee_pager_area *area)
 		area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 		pgt_dec_used_entries(pmem->area->pgt);
 		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
+		if (a & (TEE_MATTR_PX | TEE_MATTR_UX))
+			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 		tee_pager_save_page(pmem, a);
 	}
 
