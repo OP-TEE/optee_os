@@ -498,6 +498,14 @@ vaddr_t thread_stack_start(void);
 size_t thread_stack_size(void);
 
 /*
+ * Returns true if previous exeception also was in abort mode.
+ *
+ * Note: it's only valid to call this function from an abort exception
+ * handler before interrupts has been re-enabled.
+ */
+bool thread_is_from_abort_mode(struct thread_abort_regs *regs);
+
+/*
  * Adds a mutex to the list of held mutexes for current thread
  * Requires foreign interrupts to be disabled.
  */

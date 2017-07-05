@@ -493,23 +493,6 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 }
 #endif /*CFG_WITH_USER_TA*/
 
-#ifdef ARM32
-/* Returns true if the exception originated from abort mode */
-static bool is_abort_in_abort_handler(struct abort_info *ai)
-{
-	return (ai->regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_ABT;
-}
-#endif /*ARM32*/
-
-#ifdef ARM64
-/* Returns true if the exception originated from abort mode */
-static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
-{
-	return false;
-}
-#endif /*ARM64*/
-
-
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 #ifdef ARM32
 
@@ -609,7 +592,7 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 #endif
 	}
 
-	if (is_abort_in_abort_handler(ai)) {
+	if (thread_is_from_abort_mode(ai->regs)) {
 		abort_print_error(ai);
 		panic("[abort] abort in abort handler (trap CPU)");
 	}
