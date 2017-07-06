@@ -180,9 +180,9 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 #define TBL_SHIFT	SMALL_PAGE_SHIFT
 
 #define EFFECTIVE_VA_SIZE \
-	(ROUNDUP(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE, \
+	(ROUNDUP(TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE, \
 		 CORE_MMU_PGDIR_SIZE) - \
-	 ROUNDDOWN(CFG_TEE_RAM_START, CORE_MMU_PGDIR_SIZE))
+	 ROUNDDOWN(TEE_RAM_VA_START, CORE_MMU_PGDIR_SIZE))
 
 static struct pager_table {
 	struct pgt pgt;
@@ -280,11 +280,11 @@ void *tee_pager_phys_to_virt(paddr_t pa)
 		return (void *)core_mmu_idx2va(&ti, idx);
 
 	n = 0;
-	idx = core_mmu_va2idx(&pager_tables[n].tbl_info, CFG_TEE_RAM_START);
+	idx = core_mmu_va2idx(&pager_tables[n].tbl_info, TEE_RAM_VA_START);
 	while (true) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pager_tables[n].tbl_info, idx);
-			if (v >= (CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE))
+			if (v >= (TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE))
 				return NULL;
 
 			core_mmu_get_entry(&pager_tables[n].tbl_info,
@@ -438,7 +438,7 @@ void tee_pager_early_init(void)
 	 * after end of memory.
 	 */
 	for (n = 0; n < ARRAY_SIZE(pager_tables); n++) {
-		if (!core_mmu_find_table(CFG_TEE_RAM_START +
+		if (!core_mmu_find_table(TEE_RAM_VA_START +
 					 n * CORE_MMU_PGDIR_SIZE, UINT_MAX,
 					 &pager_tables[n].tbl_info))
 			panic("can't find mmu tables");

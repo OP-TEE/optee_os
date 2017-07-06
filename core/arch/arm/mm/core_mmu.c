@@ -835,8 +835,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		va = MIN(va, ROUNDDOWN(map->va, map->region_size));
 		end = MAX(end, ROUNDUP(map->va + map->size, map->region_size));
 	}
-	assert(va >= CFG_TEE_RAM_START);
-	assert(end <= CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE);
+	assert(va >= TEE_RAM_VA_START);
+	assert(end <= TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE);
 
 	add_pager_vaspace(memory_map, num_elems, va, &end, &last);
 
@@ -1554,7 +1554,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		}
 	}
 #ifdef CFG_WITH_PAGER
-	if (v >= CFG_TEE_LOAD_ADDR && v < get_linear_map_end()) {
+	if (v >= TEE_TEXT_VA_ADDR && v < get_linear_map_end()) {
 		if (v != pa)
 			panic("issue in linear address space");
 		return;

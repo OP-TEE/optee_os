@@ -74,6 +74,18 @@
 #define CFG_TEE_RAM_VA_SIZE		CORE_MMU_PGDIR_SIZE
 #endif
 
+/*
+ * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
+ * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
+ */
+
+/*
+ * Identify mapping constraint: virtual base address is the physical start addr.
+ */
+#define TEE_RAM_VA_START		CFG_TEE_RAM_START
+#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
+				(CFG_TEE_LOAD_ADDR - CFG_TEE_RAM_START))
+
 #ifndef STACK_ALIGNMENT
 #define STACK_ALIGNMENT			(sizeof(long) * 2)
 #endif
