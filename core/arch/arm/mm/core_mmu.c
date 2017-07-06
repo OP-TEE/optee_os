@@ -796,8 +796,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		va = MIN(va, ROUNDDOWN(map->va, map->region_size));
 		end = MAX(end, ROUNDUP(map->va + map->size, map->region_size));
 	}
-	assert(va >= CFG_TEE_RAM_START);
-	assert(end <= CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE);
+	assert(va >= TEE_RAM_VA_START);
+	assert(end <= TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE);
 
 	if (core_mmu_place_tee_ram_at_top(va)) {
 		/* Map non-flat mapped addresses below flat mapped addresses */
@@ -1505,13 +1505,13 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		}
 	}
 #ifdef CFG_WITH_PAGER
-	if (v >= CFG_TEE_LOAD_ADDR && v < get_linear_map_end()) {
+	if (v >= TEE_TEXT_VA_START && v < get_linear_map_end()) {
 		if (v != pa)
 			panic("issue in linear address space");
 		return;
 	}
-	if (v >= (CFG_TEE_LOAD_ADDR & ~CORE_MMU_PGDIR_MASK) &&
-	    v <= (CFG_TEE_LOAD_ADDR | CORE_MMU_PGDIR_MASK)) {
+	if (v >= (TEE_TEXT_VA_START & ~CORE_MMU_PGDIR_MASK) &&
+	    v <= (TEE_TEXT_VA_START | CORE_MMU_PGDIR_MASK)) {
 		struct core_mmu_table_info *ti = &tee_pager_tbl_info;
 		uint32_t a;
 
@@ -1598,18 +1598,18 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 	if (pa >= CFG_TEE_LOAD_ADDR && pa < get_linear_map_end())
 		return (void *)(vaddr_t)pa;
 
-	end_idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START +
+	end_idx = core_mmu_va2idx(ti, TEE_RAM_VA_START +
 				      CFG_TEE_RAM_VA_SIZE);
 	/* Most addresses are mapped lineary, try that first if possible. */
 	idx = core_mmu_va2idx(ti, pa);
-	if (idx >= core_mmu_va2idx(ti, CFG_TEE_RAM_START) &&
+	if (idx >= core_mmu_va2idx(ti, TEE_RAM_VA_START) &&
 	    idx < end_idx) {
 		core_mmu_get_entry(ti, idx, &p, &a);
 		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
 			return (void *)core_mmu_idx2va(ti, idx);
 	}
 
-	for (idx = core_mmu_va2idx(ti, CFG_TEE_RAM_START);
+	for (idx = core_mmu_va2idx(ti, TEE_RAM_VA_START);
 	     idx < end_idx; idx++) {
 		core_mmu_get_entry(ti, idx, &p, &a);
 		if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
