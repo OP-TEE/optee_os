@@ -55,7 +55,7 @@ endif
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # CFG_ASAN_SHADOW_OFFSET is calculated as:
-# (&__asan_shadow_start - (CFG_TEE_RAM_START / 8)
+# (&__asan_shadow_start - (TEE_RAM_VA_START / 8)
 # This is unfortunately currently not possible to do in make so we have to
 # calculate it offline, there's some asserts in
 # core/arch/arm/kernel/generic_boot.c to check that we got it right
