@@ -63,7 +63,7 @@ static void serial8250_uart_flush(struct serial_chip *chip)
 	vaddr_t base = chip_to_base(chip);
 
 	while (1) {
-		uint8_t state = read8(base + UART_LSR);
+		uint32_t state = read32(base + UART_LSR);
 
 		/* Wait until transmit FIFO is empty */
 		if ((state & LSR_EMPTY) == LSR_EMPTY)
@@ -86,7 +86,7 @@ static int serial8250_uart_getchar(struct serial_chip *chip)
 		/* Transmit FIFO is empty, waiting again */
 		;
 	}
-	return read8(base + UART_RHR);
+	return read32(base + UART_RHR) & 0xff;
 }
 
 static void serial8250_uart_putc(struct serial_chip *chip, int ch)
@@ -96,7 +96,7 @@ static void serial8250_uart_putc(struct serial_chip *chip, int ch)
 	serial8250_uart_flush(chip);
 
 	/* Write out character to transmit FIFO */
-	write8(ch, base + UART_THR);
+	write32(ch, base + UART_THR);
 }
 
 static const struct serial_ops serial8250_uart_ops = {
