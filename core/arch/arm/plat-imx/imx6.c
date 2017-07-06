@@ -45,9 +45,9 @@ void plat_cpu_reset_late(void)
 		/* primary core */
 #if defined(CFG_BOOT_SYNC_CPU)
 		/* set secondary entry address and release core */
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 8);
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 16);
-		write32(CFG_TEE_LOAD_ADDR, SRC_BASE + SRC_GPR1 + 24);
+		write32(TEE_TEXT_VA_START, SRC_BASE + SRC_GPR1 + 8);
+		write32(TEE_TEXT_VA_START, SRC_BASE + SRC_GPR1 + 16);
+		write32(TEE_TEXT_VA_START, SRC_BASE + SRC_GPR1 + 24);
 
 		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
 #endif
