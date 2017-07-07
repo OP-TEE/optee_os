@@ -497,6 +497,8 @@ vaddr_t thread_stack_start(void);
 /* Returns the stack size for the current thread */
 size_t thread_stack_size(void);
 
+bool thread_is_in_normal_mode(void);
+
 /*
  * Returns true if previous exeception also was in abort mode.
  *
