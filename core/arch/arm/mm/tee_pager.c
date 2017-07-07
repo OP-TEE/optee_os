@@ -189,10 +189,38 @@ static tee_mm_entry_t *pager_alias_area;
  */
 static uintptr_t pager_alias_next_free;
 
-static uint32_t pager_lock(void)
+#ifdef CFG_TEE_CORE_DEBUG
+#define pager_lock(ai) pager_lock_dldetect(__func__, __LINE__, ai)
+
+static uint32_t pager_lock_dldetect(const char *func, const int line,
+				    struct abort_info *ai)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	unsigned int retries = 0;
+	unsigned int reminder = 0;
+
+	while (!cpu_spin_trylock(&pager_spinlock)) {
+		retries++;
+		if (!retries) {
+			/* wrapped, time to report */
+			trace_printf(func, line, TRACE_ERROR, true,
+				     "possible spinlock deadlock reminder %u",
+				     reminder);
+			if (reminder < UINT_MAX)
+				reminder++;
+			if (ai)
+				abort_print(ai);
+		}
+	}
+
+	return exceptions;
+}
+#else
+static uint32_t pager_lock(struct abort_info __unused *ai)
 {
 	return cpu_spin_lock_xsave(&pager_spinlock);
 }
+#endif
 
 static void pager_unlock(uint32_t exceptions)
 {
@@ -328,7 +356,7 @@ bad:
 
 static void area_insert_tail(struct tee_pager_area *area)
 {
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock(NULL);
 
 	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
 
@@ -719,7 +747,7 @@ static void init_tbl_info_from_pgt(struct core_mmu_table_info *ti,
 static void transpose_area(struct tee_pager_area *area, struct pgt *new_pgt,
 			   vaddr_t new_base)
 {
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock(NULL);
 
 	/*
 	 * If there's no pgt assigned to the old area there's no pages to
@@ -805,7 +833,7 @@ static void rem_area(struct tee_pager_area_head *area_head,
 	struct tee_pager_pmem *pmem;
 	uint32_t exceptions;
 
-	exceptions = pager_lock();
+	exceptions = pager_lock(NULL);
 
 	TAILQ_REMOVE(area_head, area, link);
 
@@ -874,7 +902,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		f |= TEE_MATTR_PW;
 	f = get_area_mattr(f);
 
-	exceptions = pager_lock();
+	exceptions = pager_lock(NULL);
 
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
@@ -1220,7 +1248,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	 * page, instead we use the aliased mapping to populate the page
 	 * and once everything is ready we map it.
 	 */
-	exceptions = pager_lock();
+	exceptions = pager_lock(ai);
 
 	stat_handle_fault();
 
@@ -1417,7 +1445,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 {
 	struct tee_pager_pmem *pmem;
 	struct tee_pager_area *area;
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock(NULL);
 
 	if (!pgt->num_used_entries)
 		goto out;
@@ -1460,7 +1488,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 	    area != find_area(&tee_pager_area_head, end - SMALL_PAGE_SIZE))
 		panic();
 
-	exceptions = pager_lock();
+	exceptions = pager_lock(NULL);
 
 	for (va = begin; va < end; va += SMALL_PAGE_SIZE)
 		unmaped |= tee_pager_release_one_phys(area, va);
