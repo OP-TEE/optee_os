@@ -654,6 +654,28 @@ bool thread_is_from_abort_mode(struct thread_abort_regs __maybe_unused *regs)
 #endif
 }
 
+#ifdef ARM32
+bool thread_is_in_normal_mode(void)
+{
+	return (read_cpsr() & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_SVC;
+}
+#endif
+
+#ifdef ARM64
+bool thread_is_in_normal_mode(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_core_local *l = thread_get_core_local();
+	bool ret;
+
+	/* If any bit in l->flags is set we're handling some exception. */
+	ret = !l->flags;
+	thread_unmask_exceptions(exceptions);
+
+	return ret;
+}
+#endif
+
 void thread_state_free(void)
 {
 	struct thread_core_local *l = thread_get_core_local();

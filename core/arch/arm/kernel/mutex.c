@@ -40,6 +40,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
+	assert(thread_is_in_normal_mode());
 
 	while (true) {
 		uint32_t old_itr_status;
