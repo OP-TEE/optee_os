@@ -63,8 +63,8 @@
  * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
  */
 #define TEE_RAM_VA_START                CFG_TEE_RAM_START
-#define TEE_TEXT_VA_START               (TEE_RAM_VA_START + CFG_TEE_RAM_START - \
-                                          CFG_TEE_LOAD_ADDR)
+#define TEE_TEXT_VA_START               (TEE_RAM_VA_START + \
+			(CFG_TEE_LOAD_ADDR - CFG_TEE_RAM_START))
 
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
@@ -73,7 +73,8 @@ ENTRY(_start)
 SECTIONS
 {
 	. = TEE_TEXT_VA_START;
-
+	ASSERT(!(TEE_TEXT_VA_START & (0x20 - 1)),
+		"text start should align to 0x20")
 	__text_start = .;
 
 	/*

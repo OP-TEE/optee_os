@@ -77,16 +77,12 @@
  * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
  */
 
-/* Identify mapping constraint: virtual base address is the physical start addr.*/
+/*
+ * Identify mapping constraint: virtual base address is the physical start addr.
+ */
 #define TEE_RAM_VA_START		CFG_TEE_RAM_START
-#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + CFG_TEE_RAM_START \
-					 - CFG_TEE_LOAD_ADDR)
-
-/* Offset from page aligned load address must comply with the VBAR
- * constraint */
-#ifdef ARM32
-COMPILE_TIME_ASSERT(!(TEE_TEXT_VA_START & (BIT(6) - 1)));
-#endif
+#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
+				(CFG_TEE_LOAD_ADDR - CFG_TEE_RAM_START))
 
 #ifndef STACK_ALIGNMENT
 #define STACK_ALIGNMENT			(sizeof(long) * 2)
