@@ -44,7 +44,7 @@ void trace_ext_puts(const char *str)
 
 	if (mmu_enabled && !cpu_spin_trylock(&puts_lock)) {
 		was_contended = true;
-		cpu_spin_lock(&puts_lock);
+		cpu_spin_lock_no_dldetect(&puts_lock);
 	}
 
 	console_flush();
