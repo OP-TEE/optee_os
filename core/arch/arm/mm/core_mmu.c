@@ -735,7 +735,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		     RES_VASPACE_SIZE, &last);
 
 	add_va_space(memory_map, num_elems, MEM_AREA_SHM_VASPACE,
-		     RES_VASPACE_SIZE, &last);
+		     SHM_VASPACE_SIZE, &last);
 
 	memory_map[last].type = MEM_AREA_END;
 
