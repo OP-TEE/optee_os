@@ -67,7 +67,6 @@ unsigned long default_nsec_shm_paddr;
 
 static struct tee_mmap_region
 	static_memory_map[MAX_MMAP_REGIONS + 1];
-static bool mem_map_inited;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -868,8 +867,7 @@ void core_init_mmu_map(void)
 			panic("Invalid memory access config: sec/nsec");
 	}
 
-	if (!mem_map_inited)
-		init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
+	init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
 
 	map = static_memory_map;
 	while (!core_mmap_is_end_of_table(map)) {
