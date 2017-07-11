@@ -642,16 +642,11 @@ size_t thread_stack_size(void)
 	return STACK_THREAD_SIZE;
 }
 
-bool thread_is_from_abort_mode(struct thread_abort_regs __maybe_unused *regs)
+bool thread_is_from_abort_mode(void)
 {
-#ifdef ARM32
-	return (regs->spsr & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_ABT;
-#endif
-#ifdef ARM64
 	struct thread_core_local *l = thread_get_core_local();
 
 	return (l->flags >> THREAD_CLF_SAVED_SHIFT) & THREAD_CLF_ABORT;
-#endif
 }
 
 #ifdef ARM32
@@ -773,9 +768,11 @@ static void set_tmp_stack(struct thread_core_local *l, vaddr_t sp)
 	thread_set_fiq_sp(sp);
 }
 
-static void set_abt_stack(struct thread_core_local *l __unused, vaddr_t sp)
+static void set_abt_stack(struct thread_core_local *l, vaddr_t sp)
 {
-	thread_set_abt_sp(sp);
+	l->abt_stack_va_end = sp;
+	thread_set_abt_sp((vaddr_t)l);
+	thread_set_und_sp((vaddr_t)l);
 }
 #endif /*ARM32*/
 

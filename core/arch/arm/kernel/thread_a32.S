@@ -28,6 +28,7 @@
 
 #include <arm32_macros.S>
 #include <arm.h>
+#include <asm-defines.h>
 #include <asm.S>
 #include <keep.h>
 #include <kernel/abort.h>
@@ -36,6 +37,8 @@
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
+
+#include "thread_private.h"
 
 	.section .text.thread_asm
 
@@ -192,6 +195,17 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_ABT
+	mov	sp, r0
+	msr	cpsr, r1
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC thread_set_abt_sp
+
+FUNC thread_set_und_sp , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	mrs	r1, cpsr
+	cps	#CPSR_MODE_UND
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
@@ -645,59 +659,111 @@ UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
 
 LOCAL_FUNC thread_abort_handler , :
-thread_abort_handler:
 thread_und_handler:
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	/*
-	 * Switch to abort mode to use that stack instead.
-	 */
-	cps	#CPSR_MODE_ABT
-	push	{r0-r11, ip}
-	cps	#CPSR_MODE_UND
-	mrs	r0, spsr
-	tst	r0, #CPSR_T
-	subne	r1, lr, #2
-	subeq	r1, lr, #4
-	cps	#CPSR_MODE_ABT
-	push	{r0, r1}
-	msr	spsr_fsxc, r0	/* In case some code reads spsr directly */
+	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
+	mrs	r1, spsr
+	tst	r1, #CPSR_T
+	subne	lr, lr, #2
+	subeq	lr, lr, #4
 	mov	r0, #ABORT_TYPE_UNDEF
 	b	.thread_abort_generic
 
 thread_dabort_handler:
-	push	{r0-r11, ip}
-	sub	r1, lr, #8
-	mrs	r0, spsr
-	push	{r0, r1}
+	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
+	sub	lr, lr, #8
 	mov	r0, #ABORT_TYPE_DATA
 	b	.thread_abort_generic
 
 thread_pabort_handler:
-	push	{r0-r11, ip}
-	sub	r1, lr, #4
-	mrs	r0, spsr
-	push	{r0, r1}
+	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
+	sub	lr, lr, #4
 	mov	r0, #ABORT_TYPE_PREFETCH
-	b	.thread_abort_generic
 
 .thread_abort_generic:
+	/*
+	 * At this label:
+	 * cpsr is in mode undef or abort
+	 * sp is still pointing to struct thread_core_local belonging to
+	 * this core.
+	 * {r0, r1} are saved in struct thread_core_local pointed to by sp
+	 * {r2-r11, ip} are untouched.
+	 * r0 holds the first argument for abort_handler()
+	 */
+
+	/*
+	 * Update core local flags.
+	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_ABORT;
+	 */
+	ldr	r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsl	r1, r1, #THREAD_CLF_SAVED_SHIFT
+	orr	r1, r1, #THREAD_CLF_ABORT
+
+	/*
+	 * Select stack and update flags accordingly
+	 *
+	 * Normal case:
+	 * If the abort stack is unused select that.
+	 *
+	 * Fatal error handling:
+	 * If we're already using the abort stack as noted by bit
+	 * (THREAD_CLF_SAVED_SHIFT + THREAD_CLF_ABORT_SHIFT) in the flags
+	 * field we're selecting the temporary stack instead to be able to
+	 * make a stack trace of the abort in abort mode.
+	 *
+	 * r1 is initialized as a temporary stack pointer until we've
+	 * switched to system mode.
+	 */
+	tst	r1, #(THREAD_CLF_ABORT << THREAD_CLF_SAVED_SHIFT)
+	orrne	r1, r1, #THREAD_CLF_TMP /* flags |= THREAD_CLF_TMP; */
+	str	r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	ldrne	r1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	ldreq	r1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+
+	/*
+	 * Store registers on stack fitting struct thread_abort_regs
+	 * start from the end of the struct
+	 * {r2-r11, ip}
+	 * Load content of previously saved {r0-r1} and stores
+	 * it up to the pad field.
+	 * After this is only {usr_sp, usr_lr} missing in the struct
+	 */
+	stmdb	r1!, {r2-r11, ip}	/* Push on the selected stack */
+	ldrd	r2, r3, [sp, #THREAD_CORE_LOCAL_R0]
+	/* Push the original {r0-r1} on the selected stack */
+	stmdb	r1!, {r2-r3}
+	mrs	r3, spsr
+	/* Push {pad, spsr, elr} on the selected stack */
+	stmdb	r1!, {r2, r3, lr}
+
 	cps	#CPSR_MODE_SYS
-	mov	r1, sp
-	mov	r2, lr
-	cps	#CPSR_MODE_ABT
-	push	{r1-r3}
-	mov	r1, sp
-	bl	abort_handler
-	pop	{r1-r3}
-	cps	#CPSR_MODE_SYS
+	str	lr, [r1, #-4]!
+	str	sp, [r1, #-4]!
 	mov	sp, r1
-	mov	lr, r2
+
+	bl	abort_handler
+
+	mov	ip, sp
+	ldr	sp, [ip], #4
+	ldr	lr, [ip], #4
+
+	/*
+	 * Even if we entered via CPSR_MODE_UND, we are returning via
+	 * CPSR_MODE_ABT. It doesn't matter as lr and spsr are assigned
+	 * here.
+	 */
 	cps	#CPSR_MODE_ABT
-	pop	{r0, r1}
-	mov	lr, r1
-	msr	spsr_fsxc, r0
-	pop	{r0-r11, ip}
+	ldm	ip!, {r0, r1, lr}	/* r0 is pad */
+	msr	spsr_fsxc, r1
+
+	/* Update core local flags */
+	ldr	r0, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsr	r0, r0, #THREAD_CLF_SAVED_SHIFT
+	str	r0, [sp, #THREAD_CORE_LOCAL_FLAGS]
+
+	ldm	ip, {r0-r11, ip}
+
 	movs	pc, lr
 UNWIND(	.fnend)
 END_FUNC thread_abort_handler
