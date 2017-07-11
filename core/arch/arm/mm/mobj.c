@@ -702,8 +702,10 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size)
  */
 
 static void mobj_paged_free(struct mobj *mobj);
+static bool mobj_paged_matches(struct mobj *mobj, enum buf_is_attr attr);
 
 static const struct mobj_ops mobj_paged_ops __rodata_unpaged = {
+	.matches = mobj_paged_matches,
 	.free = mobj_paged_free,
 };
 
@@ -711,6 +713,14 @@ static void mobj_paged_free(struct mobj *mobj)
 {
 	assert(mobj->ops == &mobj_paged_ops);
 	free(mobj);
+}
+
+static bool mobj_paged_matches(struct mobj *mobj __maybe_unused,
+				 enum buf_is_attr attr)
+{
+	assert(mobj->ops == &mobj_paged_ops);
+
+	return attr == CORE_MEM_SEC || attr == CORE_MEM_TEE_RAM;
 }
 
 struct mobj *mobj_paged_alloc(size_t size)
