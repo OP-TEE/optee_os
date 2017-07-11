@@ -505,7 +505,7 @@ bool thread_is_in_normal_mode(void);
  * Note: it's only valid to call this function from an abort exception
  * handler before interrupts has been re-enabled.
  */
-bool thread_is_from_abort_mode(struct thread_abort_regs *regs);
+bool thread_is_from_abort_mode(void);
 
 /*
  * Adds a mutex to the list of held mutexes for current thread
