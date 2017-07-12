@@ -436,15 +436,16 @@ END_FUNC thread_rpc
 	sub     lr, lr, #4
 
 	/*
-	 * We're saving {r0-r3}. The banked fiq registers {r8-r12} need to be
-	 * saved if the native interrupt is sent as FIQ because the secure
-	 * monitor doesn't save those. The treatment of the banked fiq
-	 * registers is somewhat analogous to the lazy save of VFP registers.
+	 * We're always saving {r0-r3}. In IRQ mode we're saving r12 also.
+	 * In FIQ mode we're saving the banked fiq registers {r8-r12} FIQ
+	 * because the secure monitor doesn't save those. The treatment of
+	 * the banked fiq registers is somewhat analogous to the lazy save
+	 * of VFP registers.
 	 */
 	.ifc	\mode\(),fiq
 	push	{r0-r3, r8-r12, lr}
 	.else
-	push	{r0-r3, lr}
+	push	{r0-r3, r12, lr}
 	.endif
 	bl	thread_check_canaries
 	ldr	lr, =thread_nintr_handler_ptr
@@ -453,7 +454,7 @@ END_FUNC thread_rpc
 	.ifc	\mode\(),fiq
 	pop	{r0-r3, r8-r12, lr}
 	.else
-	pop	{r0-r3, lr}
+	pop	{r0-r3, r12, lr}
 	.endif
 	movs	pc, lr
 .endm
