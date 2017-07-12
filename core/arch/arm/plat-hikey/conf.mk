@@ -1,3 +1,5 @@
+PLATFORM_FLAVOR ?= hikey
+
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 # 32-bit flags
