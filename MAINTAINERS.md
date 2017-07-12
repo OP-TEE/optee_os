@@ -17,6 +17,7 @@ for these platforms.
 | NXP i.MX7 Dual SabreSD Board		|`Peng Fan <peng.fan@nxp.com>`|
 | ARM Foundation FVP			|`Linaro <op-tee@linaro.org>`|
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
+| HiKey960 Board (HiSilicon Kirin 960)	|`Linaro <op-tee@linaro.org>`|
 | HiSilicon D02				|`Linaro <op-tee@linaro.org>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
