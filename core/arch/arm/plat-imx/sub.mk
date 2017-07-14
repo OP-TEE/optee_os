@@ -5,7 +5,7 @@ srcs-$(CFG_PL310) += imx_pl310.c
 srcs-$(CFG_PSCI_ARM32) += psci.c gpcv2.c
 cflags-psci.c-y += -Wno-suggest-attribute=noreturn
 
-ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL)))
+ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)))
 srcs-y += a9_plat_init.S imx6.c
 endif
 
