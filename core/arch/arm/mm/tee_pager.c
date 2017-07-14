@@ -28,23 +28,24 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <io.h>
 #include <keep.h>
-#include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
-#include <kernel/tlb_helpers.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
-#include <types_ext.h>
 #include <stdlib.h>
+#include <sys/queue.h>
 #include <tee_api_defines.h>
 #include <tee/tee_cryp_provider.h>
 #include <trace.h>
+#include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -222,6 +223,28 @@ static uint32_t pager_lock(struct abort_info __unused *ai)
 }
 #endif
 
+static uint32_t pager_lock_check_stack(size_t stack_size)
+{
+	if (stack_size) {
+		int8_t buf[stack_size];
+		size_t n;
+
+		/*
+		 * Make sure to touch all pages of the stack that we expect
+		 * to use with this lock held. We need to take eventual
+		 * page faults before the lock is taken or we'll deadlock
+		 * the pager. The pages that are populated in this way will
+		 * eventually be released at certain save transitions of
+		 * the thread.
+		 */
+		for (n = 0; n < stack_size; n += SMALL_PAGE_SIZE)
+			write8(1, (vaddr_t)buf + n);
+		write8(1, (vaddr_t)buf + stack_size - 1);
+	}
+
+	return pager_lock(NULL);
+}
+
 static void pager_unlock(uint32_t exceptions)
 {
 	cpu_spin_unlock_xrestore(&pager_spinlock, exceptions);
@@ -356,7 +379,7 @@ bad:
 
 static void area_insert_tail(struct tee_pager_area *area)
 {
-	uint32_t exceptions = pager_lock(NULL);
+	uint32_t exceptions = pager_lock_check_stack(8);
 
 	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
 
@@ -747,7 +770,7 @@ static void init_tbl_info_from_pgt(struct core_mmu_table_info *ti,
 static void transpose_area(struct tee_pager_area *area, struct pgt *new_pgt,
 			   vaddr_t new_base)
 {
-	uint32_t exceptions = pager_lock(NULL);
+	uint32_t exceptions = pager_lock_check_stack(64);
 
 	/*
 	 * If there's no pgt assigned to the old area there's no pages to
@@ -833,7 +856,7 @@ static void rem_area(struct tee_pager_area_head *area_head,
 	struct tee_pager_pmem *pmem;
 	uint32_t exceptions;
 
-	exceptions = pager_lock(NULL);
+	exceptions = pager_lock_check_stack(64);
 
 	TAILQ_REMOVE(area_head, area, link);
 
@@ -902,7 +925,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		f |= TEE_MATTR_PW;
 	f = get_area_mattr(f);
 
-	exceptions = pager_lock(NULL);
+	exceptions = pager_lock_check_stack(64);
 
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
@@ -1445,7 +1468,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 {
 	struct tee_pager_pmem *pmem;
 	struct tee_pager_area *area;
-	uint32_t exceptions = pager_lock(NULL);
+	uint32_t exceptions = pager_lock_check_stack(2048);
 
 	if (!pgt->num_used_entries)
 		goto out;
@@ -1488,7 +1511,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 	    area != find_area(&tee_pager_area_head, end - SMALL_PAGE_SIZE))
 		panic();
 
-	exceptions = pager_lock(NULL);
+	exceptions = pager_lock_check_stack(128);
 
 	for (va = begin; va < end; va += SMALL_PAGE_SIZE)
 		unmaped |= tee_pager_release_one_phys(area, va);
