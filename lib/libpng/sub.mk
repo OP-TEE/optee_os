@@ -3,6 +3,8 @@ global-incdirs-y += include
 # Disable eventual ARM NEON optimization
 cppflags-y += -DPNG_ARM_NEON_OPT=0
 
+cflags-y += -Wno-extra
+
 srcs-y += png.c
 srcs-y += pngerror.c
 srcs-y += pngget.c
