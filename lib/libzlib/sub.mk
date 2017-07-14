@@ -1,11 +1,11 @@
 global-incdirs-y += include
 
+cflags-y += -Wno-extra
 cflags-y += -Wno-old-style-definition
 cflags-y += -Wno-switch-default
 cflags-y += -Wno-strict-prototypes
 cflags-y += -Wno-missing-prototypes
 cflags-y += -Wno-missing-declarations
-cflags-y += -Wno-shift-negative-value
 
 srcs-y += adler32.c
 srcs-y += crc32.c
