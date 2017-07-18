@@ -58,9 +58,11 @@ Contributions to OP-TEE are managed by the OP-TEE gatekeepers, whose contact
 email is op-tee[at]linaro[.]org.
 
 Anyone can contribute to OP-TEE as long as it is understood that it will require
-a Signed-off-by tag in the patch and when adding the Signed-off-by tag, you
-thereby assure that you have read and are following the rules stated in the
-`Developer Certificate of Origin` as stated below.
+a sign-off. The sign-off is a simple line at the end of the explanation for the
+patch, which certifies that you wrote it or otherwise have the right to
+pass it on as an open-source patch (see below). You thereby assure that you have
+read and are following the rules stated in the `Developer Certificate of Origin`
+as stated below.
 
 ```
 Developer Certificate of Origin
@@ -101,3 +103,11 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
+We have borrowed this procedure from the Linux kernel project to
+improve tracking of who did what, and for legal reasons.
+
+To sign-off a patch, just add a line saying:
+```
+    Signed-off-by: Random J Developer <random@developer.example.org>
+```
+using your real name (sorry, no pseudonyms or anonymous contributions.)

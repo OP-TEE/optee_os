@@ -28,22 +28,24 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <io.h>
 #include <keep.h>
-#include <sys/queue.h>
 #include <kernel/abort.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
-#include <types_ext.h>
 #include <stdlib.h>
+#include <sys/queue.h>
 #include <tee_api_defines.h>
 #include <tee/tee_cryp_provider.h>
 #include <trace.h>
+#include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -188,9 +190,59 @@ static tee_mm_entry_t *pager_alias_area;
  */
 static uintptr_t pager_alias_next_free;
 
-static uint32_t pager_lock(void)
+#ifdef CFG_TEE_CORE_DEBUG
+#define pager_lock(ai) pager_lock_dldetect(__func__, __LINE__, ai)
+
+static uint32_t pager_lock_dldetect(const char *func, const int line,
+				    struct abort_info *ai)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	unsigned int retries = 0;
+	unsigned int reminder = 0;
+
+	while (!cpu_spin_trylock(&pager_spinlock)) {
+		retries++;
+		if (!retries) {
+			/* wrapped, time to report */
+			trace_printf(func, line, TRACE_ERROR, true,
+				     "possible spinlock deadlock reminder %u",
+				     reminder);
+			if (reminder < UINT_MAX)
+				reminder++;
+			if (ai)
+				abort_print(ai);
+		}
+	}
+
+	return exceptions;
+}
+#else
+static uint32_t pager_lock(struct abort_info __unused *ai)
 {
 	return cpu_spin_lock_xsave(&pager_spinlock);
+}
+#endif
+
+static uint32_t pager_lock_check_stack(size_t stack_size)
+{
+	if (stack_size) {
+		int8_t buf[stack_size];
+		size_t n;
+
+		/*
+		 * Make sure to touch all pages of the stack that we expect
+		 * to use with this lock held. We need to take eventual
+		 * page faults before the lock is taken or we'll deadlock
+		 * the pager. The pages that are populated in this way will
+		 * eventually be released at certain save transitions of
+		 * the thread.
+		 */
+		for (n = 0; n < stack_size; n += SMALL_PAGE_SIZE)
+			write8(1, (vaddr_t)buf + n);
+		write8(1, (vaddr_t)buf + stack_size - 1);
+	}
+
+	return pager_lock(NULL);
 }
 
 static void pager_unlock(uint32_t exceptions)
@@ -238,8 +290,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 	for (; idx < last_idx; idx++)
 		core_mmu_set_entry(ti, idx, 0, 0);
 
-	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_mva_range(smem, nbytes, SMALL_PAGE_SIZE);
 }
 
 static void generate_ae_key(void)
@@ -258,9 +309,10 @@ static void *pager_add_alias_page(paddr_t pa)
 {
 	unsigned idx;
 	struct core_mmu_table_info *ti = &pager_alias_tbl_info;
+	/* Alias pages mapped without write permission: runtime will care */
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
 			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
-			TEE_MATTR_SECURE | TEE_MATTR_PRW;
+			TEE_MATTR_SECURE | TEE_MATTR_PR;
 
 	DMSG("0x%" PRIxPA, pa);
 
@@ -327,7 +379,7 @@ bad:
 
 static void area_insert_tail(struct tee_pager_area *area)
 {
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock_check_stack(8);
 
 	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
 
@@ -484,6 +536,20 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 {
 	size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
 	const void *stored_page = area->store + idx * SMALL_PAGE_SIZE;
+	struct core_mmu_table_info *ti;
+	uint32_t attr_alias;
+	paddr_t pa_alias;
+	unsigned int idx_alias;
+
+	/* Insure we are allowed to write to aliased virtual page */
+	ti = &pager_alias_tbl_info;
+	idx_alias = core_mmu_va2idx(ti, (vaddr_t)va_alias);
+	core_mmu_get_entry(ti, idx_alias, &pa_alias, &attr_alias);
+	if (!(attr_alias & TEE_MATTR_PW)) {
+		attr_alias |= TEE_MATTR_PW;
+		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
+		tlbi_mva_allasid((vaddr_t)va_alias);
+	}
 
 	switch (area->type) {
 	case AREA_TYPE_RO:
@@ -500,6 +566,10 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 				panic();
 			}
 		}
+		/* Forbid write to aliases for read-only (maybe exec) pages */
+		attr_alias &= ~TEE_MATTR_PW;
+		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
+		tlbi_mva_allasid((vaddr_t)va_alias);
 		break;
 	case AREA_TYPE_RW:
 		FMSG("Restore %p %#" PRIxVA " iv %#" PRIx64,
@@ -700,7 +770,7 @@ static void init_tbl_info_from_pgt(struct core_mmu_table_info *ti,
 static void transpose_area(struct tee_pager_area *area, struct pgt *new_pgt,
 			   vaddr_t new_base)
 {
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock_check_stack(64);
 
 	/*
 	 * If there's no pgt assigned to the old area there's no pages to
@@ -786,13 +856,14 @@ static void rem_area(struct tee_pager_area_head *area_head,
 	struct tee_pager_pmem *pmem;
 	uint32_t exceptions;
 
-	exceptions = pager_lock();
+	exceptions = pager_lock_check_stack(64);
 
 	TAILQ_REMOVE(area_head, area, link);
 
 	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
 		if (pmem->area == area) {
 			area_set_entry(area, pmem->pgidx, 0, 0);
+			tlbi_mva_allasid(area_idx2va(area, pmem->pgidx));
 			pgt_dec_used_entries(area->pgt);
 			pmem->area = NULL;
 			pmem->pgidx = INVALID_PGIDX;
@@ -854,7 +925,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		f |= TEE_MATTR_PW;
 	f = get_area_mattr(f);
 
-	exceptions = pager_lock();
+	exceptions = pager_lock_check_stack(64);
 
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
@@ -876,12 +947,16 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 			if (a == f)
 				continue;
 			area_set_entry(pmem->area, pmem->pgidx, 0, 0);
-			/* TODO only invalidate entries touched above */
-			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+			tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 			if (!(flags & TEE_MATTR_UW))
 				tee_pager_save_page(pmem, a);
 
 			area_set_entry(pmem->area, pmem->pgidx, pa, f);
+			/*
+			 * Make sure the table update is visible before
+			 * continuing.
+			 */
+			dsb_ishst();
 
 			if (flags & TEE_MATTR_UX) {
 				void *va = (void *)area_idx2va(pmem->area,
@@ -947,8 +1022,7 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 
-			/* TODO only invalidate entry touched above */
-			core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+			tlbi_mva_allasid(page_va);
 
 			incr_hidden_hits();
 			return true;
@@ -987,11 +1061,10 @@ static void tee_pager_hide_pages(void)
 			     area_idx2va(pmem->area, pmem->pgidx));
 		} else
 			a = TEE_MATTR_HIDDEN_BLOCK;
-		area_set_entry(pmem->area, pmem->pgidx, pa, a);
-	}
 
-	/* TODO only invalidate entries touched above */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		area_set_entry(pmem->area, pmem->pgidx, pa, a);
+		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
+	}
 }
 
 /*
@@ -1048,8 +1121,7 @@ static struct tee_pager_pmem *tee_pager_get_page(struct tee_pager_area *area)
 		area_get_entry(pmem->area, pmem->pgidx, NULL, &a);
 		area_set_entry(pmem->area, pmem->pgidx, 0, 0);
 		pgt_dec_used_entries(pmem->area->pgt);
-		/* TODO only invalidate entries touched above */
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 		tee_pager_save_page(pmem, a);
 	}
 
@@ -1124,8 +1196,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				     (void *)(ai->va & ~SMALL_PAGE_MASK));
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
-				/* TODO only invalidate entry above */
-				core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
 			}
 
 		} else {
@@ -1138,8 +1209,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				     (void *)(ai->va & ~SMALL_PAGE_MASK));
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
-				/* TODO only invalidate entry above */
-				core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
 			}
 		}
 		/* Since permissions has been updated now it's OK */
@@ -1201,7 +1271,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	 * page, instead we use the aliased mapping to populate the page
 	 * and once everything is ready we map it.
 	 */
-	exceptions = pager_lock();
+	exceptions = pager_lock(ai);
 
 	stat_handle_fault();
 
@@ -1275,6 +1345,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		attr = get_area_mattr(area->flags) &
 			~(TEE_MATTR_PW | TEE_MATTR_UW);
 		area_set_entry(area, pmem->pgidx, get_pmem_pa(pmem), attr);
+		/* No need to flush TLB for this entry, it was invalid */
 		pgt_inc_used_entries(area->pgt);
 
 		FMSG("Mapped 0x%" PRIxVA " -> 0x%" PRIxPA,
@@ -1345,8 +1416,11 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
 	}
 
-	/* Invalidate secure TLB */
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	/*
+	 * As this is done at inits, invalidate all TLBs once instead of
+	 * targeting only the modified entries.
+	 */
+	tlbi_all();
 }
 
 #ifdef CFG_PAGED_USER_TA
@@ -1382,6 +1456,7 @@ static void pager_save_and_release_entry(struct tee_pager_pmem *pmem)
 
 	area_get_entry(pmem->area, pmem->pgidx, NULL, &attr);
 	area_set_entry(pmem->area, pmem->pgidx, 0, 0);
+	tlbi_mva_allasid(area_idx2va(pmem->area, pmem->pgidx));
 	tee_pager_save_page(pmem, attr);
 	assert(pmem->area->pgt->num_used_entries);
 	pmem->area->pgt->num_used_entries--;
@@ -1393,7 +1468,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 {
 	struct tee_pager_pmem *pmem;
 	struct tee_pager_area *area;
-	uint32_t exceptions = pager_lock();
+	uint32_t exceptions = pager_lock_check_stack(2048);
 
 	if (!pgt->num_used_entries)
 		goto out;
@@ -1428,7 +1503,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 	struct tee_pager_area *area;
 	uint32_t exceptions;
 
-	if (!size)
+	if (end <= begin)
 		return;
 
 	area = find_area(&tee_pager_area_head, begin);
@@ -1436,14 +1511,13 @@ void tee_pager_release_phys(void *addr, size_t size)
 	    area != find_area(&tee_pager_area_head, end - SMALL_PAGE_SIZE))
 		panic();
 
-	exceptions = pager_lock();
+	exceptions = pager_lock_check_stack(128);
 
 	for (va = begin; va < end; va += SMALL_PAGE_SIZE)
 		unmaped |= tee_pager_release_one_phys(area, va);
 
-	/* Invalidate secure TLB */
 	if (unmaped)
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_mva_range(begin, end - begin, SMALL_PAGE_SIZE);
 
 	pager_unlock(exceptions);
 }

@@ -26,18 +26,18 @@
  */
 
 #include <initcall.h>
-#include <malloc.h>		/* required for inits */
-
-#include <sm/tee_mon.h>
+#include <kernel/linker.h>
 #include <kernel/tee_misc.h>
-#include <mm/core_memprot.h>
-#include <trace.h>
 #include <kernel/time_source.h>
-#include <kernel/generic_boot.h>
+#include <malloc.h>		/* required for inits */
+#include <mm/core_memprot.h>
 #include <mm/tee_mmu.h>
-#include <tee/tee_fs.h>
+#include <sm/tee_mon.h>
 #include <tee/tee_cryp_provider.h>
+#include <tee/tee_fs.h>
 #include <tee/tee_svc.h>
+#include <trace.h>
+
 #include <platform_config.h>
 
 
@@ -45,7 +45,7 @@
 
 static void call_initcalls(void)
 {
-	initcall_t *call;
+	const initcall_t *call;
 
 	for (call = &__initcall_start; call < &__initcall_end; call++) {
 		TEE_Result ret;
@@ -57,7 +57,11 @@ static void call_initcalls(void)
 	}
 }
 
-TEE_Result init_teecore(void)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+TEE_Result __weak init_teecore(void)
 {
 	static int is_first = 1;
 

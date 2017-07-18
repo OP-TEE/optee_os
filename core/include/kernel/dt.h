@@ -59,8 +59,6 @@ struct dt_driver {
 
 #define __dt_driver __section(".rodata.dtdrv")
 
-extern const struct dt_driver __rodata_dtdrv_start, __rodata_dtdrv_end;
-
 /*
  * Find a driver that is suitable for the given DT node, that is, with
  * a matching "compatible" property.

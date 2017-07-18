@@ -1,8 +1,7 @@
 PLATFORM_FLAVOR ?= ls1021atwr
 
-arm32-platform-cpuarch		:= cortex-a7
-arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
+include core/arch/arm/cpu/cortex-a7.mk
+
 core_arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_GENERIC_BOOT,y)

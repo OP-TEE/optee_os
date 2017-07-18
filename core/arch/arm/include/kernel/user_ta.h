@@ -41,6 +41,8 @@ TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
 struct user_ta_ctx {
 	uaddr_t entry_func;
+	uaddr_t exidx_start;	/* 32-bit TA: exception handling index table */
+	size_t exidx_size;
 	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
 	/* list of sessions opened by this TA */
 	struct tee_ta_session_head open_sessions;
@@ -78,15 +80,24 @@ static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 	return container_of(ctx, struct user_ta_ctx, ctx);
 }
 
+struct user_ta_store_ops;
+
 #ifdef CFG_WITH_USER_TA
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
+TEE_Result tee_ta_register_ta_store(const struct user_ta_store_ops *ops);
 #else
 static inline TEE_Result tee_ta_init_user_ta_session(
 			const TEE_UUID *uuid __unused,
 			struct tee_ta_session *s __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static inline TEE_Result tee_ta_register_ta_store(
+			const struct user_ta_store_ops *ops __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
 

@@ -1,7 +1,7 @@
 CFG_LTC_OPTEE_THREAD ?= y
-# Size of emulated TrustZone protected SRAM, 360 kB.
+# Size of emulated TrustZone protected SRAM, 448 kB.
 # Only applicable when paging is enabled.
-CFG_CORE_TZSRAM_EMUL_SIZE ?= 368640
+CFG_CORE_TZSRAM_EMUL_SIZE ?= 458752
 CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 32)
 
 ifeq ($(CFG_ARM64_core),y)
@@ -25,6 +25,14 @@ ifeq ($(CFG_WITH_VFP),y)
 platform-hard-float-enabled := y
 endif
 endif
+
+CFG_CORE_RWDATA_NOEXEC ?= y
+CFG_CORE_RODATA_NOEXEC ?= n
+ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
+$(call force,CFG_CORE_RWDATA_NOEXEC,y)
+endif
+# 'y' to set the Alignment Check Enable bit in SCTLR/SCTLR_EL1, 'n' to clear it
+CFG_SCTLR_ALIGNMENT_CHECK ?= y
 
 ifeq ($(CFG_WITH_PAGER),y)
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
@@ -91,7 +99,7 @@ arch-bits-core := 32
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
-ifeq ($(CFG_CORE_UNWIND),y)
+ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
 core-platform-cflags += $(arm32-platform-cflags-generic)
@@ -113,6 +121,9 @@ ifeq ($(platform-hard-float-enabled),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
+endif
+ifeq ($(CFG_UNWIND),y)
+ta_arm32-platform-cflags += -funwind-tables
 endif
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)

@@ -61,11 +61,9 @@ extern struct thread_vector_table thread_vector_table;
 struct thread_specific_data {
 	TAILQ_HEAD(, tee_ta_session) sess_stack;
 	struct tee_ta_ctx *ctx;
-#ifdef CFG_SMALL_PAGE_USER_TA
 	struct pgt_cache pgt_cache;
-#endif
 	void *rpc_fs_payload;
-	paddr_t rpc_fs_payload_pa;
+	struct mobj *rpc_fs_payload_mobj;
 	uint64_t rpc_fs_payload_cookie;
 	size_t rpc_fs_payload_size;
 };
@@ -489,7 +487,25 @@ void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
 vaddr_t thread_get_saved_thread_sp(void);
 #endif /*ARM64*/
 
-bool thread_addr_is_in_stack(vaddr_t va);
+/*
+ * Returns the start address (bottom) of the stack for the current thread,
+ * zero if there is no current thread.
+ */
+vaddr_t thread_stack_start(void);
+
+
+/* Returns the stack size for the current thread */
+size_t thread_stack_size(void);
+
+bool thread_is_in_normal_mode(void);
+
+/*
+ * Returns true if previous exeception also was in abort mode.
+ *
+ * Note: it's only valid to call this function from an abort exception
+ * handler before interrupts has been re-enabled.
+ */
+bool thread_is_from_abort_mode(struct thread_abort_regs *regs);
 
 /*
  * Adds a mutex to the list of held mutexes for current thread
@@ -523,11 +539,11 @@ bool thread_enable_prealloc_rpc_cache(void);
  * Allocates data for struct optee_msg_arg.
  *
  * @size:	size in bytes of struct optee_msg_arg
- * @arg:	returned physcial pointer to a struct optee_msg_arg buffer,
- *		0 if allocation failed.
  * @cookie:	returned cookie used when freeing the buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
  */
-void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie);
+struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie);
 
 /**
  * Free physical memory previously allocated with thread_rpc_alloc_arg()
@@ -540,18 +556,19 @@ void thread_rpc_free_arg(uint64_t cookie);
  * Allocates data for payload buffers.
  *
  * @size:	size in bytes of payload buffer
- * @payload:	returned physcial pointer to payload buffer, 0 if allocation
- *		failed.
  * @cookie:	returned cookie used when freeing the buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
  */
-void thread_rpc_alloc_payload(size_t size, paddr_t *payload, uint64_t *cookie);
+struct mobj *thread_rpc_alloc_payload(size_t size, uint64_t *cookie);
 
 /**
  * Free physical memory previously allocated with thread_rpc_alloc_payload()
  *
  * @cookie:	cookie received when allocating the buffer
+ * @mobj:	mobj that describes the buffer
  */
-void thread_rpc_free_payload(uint64_t cookie);
+void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj);
 
 /**
  * Does an RPC using a preallocated argument buffer

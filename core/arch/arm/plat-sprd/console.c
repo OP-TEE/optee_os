@@ -29,7 +29,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
-static struct sprd_uart_data console_data __early_bss;
+static struct sprd_uart_data console_data;
 
 void console_init(void)
 {

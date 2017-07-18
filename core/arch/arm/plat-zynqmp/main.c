@@ -46,7 +46,7 @@
 
 static void main_fiq(void);
 static struct gic_data gic_data;
-static struct cdns_uart_data console_data __early_bss;
+static struct cdns_uart_data console_data;
 
 register_phys_mem(MEM_AREA_IO_SEC,
 		  ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE),

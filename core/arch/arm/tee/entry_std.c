@@ -28,10 +28,12 @@
  */
 
 #include <assert.h>
+#include <bench.h>
 #include <compiler.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
+#include <kernel/msg_param.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -109,7 +111,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 		if (params[n].attr & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
-		if (params[n].attr & OPTEE_MSG_ATTR_FRAGMENT)
+		if (params[n].attr & OPTEE_MSG_ATTR_NONCONTIG)
 			return TEE_ERROR_BAD_PARAMETERS;
 
 		attr = params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK;
@@ -217,7 +219,6 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 			       struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s = NULL;
 	TEE_Identity clnt_id;
@@ -225,12 +226,13 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	struct tee_ta_param param;
 	size_t num_meta;
 
-	res = get_open_session_meta(num_params, params, &num_meta, &uuid,
+	res = get_open_session_meta(num_params, arg->params, &num_meta, &uuid,
 				    &clnt_id);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = copy_in_params(params + num_meta, num_params - num_meta, &param);
+	res = copy_in_params(arg->params + num_meta, num_params - num_meta,
+			     &param);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -238,7 +240,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
 	if (res != TEE_SUCCESS)
 		s = NULL;
-	copy_out_param(&param, num_params - num_meta, params + num_meta);
+	copy_out_param(&param, num_params - num_meta, arg->params + num_meta);
 
 	/*
 	 * The occurrence of open/close session command is usually
@@ -282,12 +284,13 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 				 struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
-	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s;
 	struct tee_ta_param param;
 
-	res = copy_in_params(params, num_params, &param);
+	bm_timestamp();
+
+	res = copy_in_params(arg->params, num_params, &param);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -300,9 +303,11 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 	res = tee_ta_invoke_command(&err_orig, s, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, arg->func, &param);
 
+	bm_timestamp();
+
 	tee_ta_put_session(s);
 
-	copy_out_param(&param, num_params, params);
+	copy_out_param(&param, num_params, arg->params);
 
 out:
 	arg->ret = res;
@@ -337,11 +342,31 @@ out:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
-void tee_entry_std(struct thread_smc_args *smc_args)
+static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
+{
+	struct optee_msg_arg *arg;
+	size_t args_size;
+
+	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM);
+	if (!arg)
+		return NULL;
+
+	*num_params = arg->num_params;
+	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+
+	return mobj_shm_alloc(parg, args_size);
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
 	uint32_t num_params;
+	struct mobj *mobj;
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
@@ -350,20 +375,18 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
-	if (!tee_pbuf_is_non_sec(parg, sizeof(struct optee_msg_arg)) ||
-	    !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
-	    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
+
+	mobj = get_cmd_buffer(parg, &num_params);
+
+	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
+		mobj_free(mobj);
 		return;
 	}
 
-	num_params = arg->num_params;
-	if (!tee_pbuf_is_non_sec(parg, OPTEE_MSG_GET_ARG_SIZE(num_params))) {
-		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-		return;
-	}
+	arg = mobj_get_va(mobj, 0);
+	assert(arg && mobj_is_nonsec(mobj));
 
 	/* Enable foreign interrupts for STD calls */
 	thread_set_foreign_intr(true);
@@ -384,6 +407,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		EMSG("Unknown cmd 0x%x\n", arg->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
+	mobj_free(mobj);
 }
 
 static TEE_Result default_mobj_init(void)

@@ -1,5 +1,6 @@
+#!/usr/bin/env python
 #
-# Copyright (c) 2014, Linaro Limited
+# Copyright (c) 2017, Linaro Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,31 +26,58 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-BEGIN {
-	in_shdr = 0;
-}
+import sys
+import re
 
-/Section Headers:/ {
-	in_shdr = 1;
-	next;
-}
+def usage():
+	print "Usage: {} <section reg exp match> [<skip section>...]".format( \
+		sys.argv[0])
+	sys.exit (1)
 
-/Key to Flags:/ {
-	in_shdr = 0;
-	next;
-}
+def main():
+	if len(sys.argv) < 2 :
+		usage()
 
-{
-	if (in_shdr) {
-		if ($1 == "[")
-			name_offs = 3;
-		else
-			name_offs = 2;
+	in_shdr = False
+	section_headers = re.compile("Section Headers:")
+	key_to_flags = re.compile("Key to Flags:")
+	match_rule = re.compile(sys.argv[1])
+	skip_sections = sys.argv[2:]
 
-		name = $(name_offs);
-		type = $(name_offs + 1);
-		flags = $(name_offs + 6);
-		if (name ~ /^\.rodata\./ && type == "PROGBITS")
-			printf "\t*(%s)\n", name;
-	}
-}
+	for line in sys.stdin:
+		if section_headers.match(line) :
+			in_shdr = True;
+			continue
+		if key_to_flags.match(line) :
+			in_shdr = False;
+			continue
+
+		if not in_shdr :
+			continue
+
+		words = line.split()
+
+		if len(words) < 3 :
+			continue
+
+		if words[0] == "[" :
+			name_offs = 2
+		else :
+			name_offs = 1;
+
+		sect_name = words[name_offs]
+		sect_type = words[name_offs + 1]
+
+		if sect_type != "PROGBITS" :
+			continue
+
+		if not match_rule.match(sect_name) :
+			continue
+
+		if sect_name in skip_sections :
+			continue
+
+		print '\t*({})'.format(sect_name)
+
+if __name__ == "__main__":
+        main()

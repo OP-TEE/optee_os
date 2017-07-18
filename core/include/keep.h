@@ -31,14 +31,16 @@
 
 	.macro KEEP_PAGER sym
 	.pushsection __keep_meta_vars_pager
-	___keep_pager_\sym:
+	.global ____keep_pager_\sym
+	____keep_pager_\sym:
 	.long	\sym
 	.popsection
 	.endm
 
 	.macro KEEP_INIT sym
 	.pushsection __keep_meta_vars_init
-	___keep_init_\sym:
+	.global ____keep_init_\sym
+	____keep_init_\sym:
 	.long	\sym
 	.popsection
 	.endm
@@ -48,10 +50,12 @@
 #include <compiler.h>
 
 #define KEEP_PAGER(sym) \
+	extern const unsigned long ____keep_pager_##sym; \
 	const unsigned long ____keep_pager_##sym  \
 		__section("__keep_meta_vars_pager") = (unsigned long)&sym
 
 #define KEEP_INIT(sym) \
+	extern const unsigned long ____keep_init_##sym; \
 	const unsigned long ____keep_init_##sym  \
 		__section("__keep_meta_vars_init") = (unsigned long)&sym
 

@@ -60,12 +60,14 @@
 #include <assert.h>
 #include <compiler.h>
 #include <inttypes.h>
-#include <kernel/thread.h>
-#include <kernel/panic.h>
+#include <keep.h>
 #include <kernel/misc.h>
+#include <kernel/panic.h>
+#include <kernel/tlb_helpers.h>
+#include <kernel/thread.h>
+#include <mm/core_memprot.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
-#include <mm/core_memprot.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -187,8 +189,8 @@ static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 
-static unsigned next_xlat __early_bss;
-static uint64_t tcr_ps_bits __early_bss;
+static unsigned int next_xlat;
+static uint64_t tcr_ps_bits;
 static int user_va_idx = -1;
 
 static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
@@ -327,7 +329,7 @@ static int mmap_region_attr(struct tee_mmap_region *mm, uint64_t base_va,
 	for (;;) {
 		mm++;
 
-		if (!mm->size)
+		if (core_mmap_is_end_of_table(mm))
 			return attr; /* Reached end of list */
 
 		if (mm->va >= base_va + size)
@@ -351,8 +353,8 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 	unsigned int level_size_shift = L1_XLAT_ADDRESS_SHIFT - (level - 1) *
 						XLAT_TABLE_ENTRIES_SHIFT;
 	unsigned int level_size = BIT32(level_size_shift);
-	uint64_t level_index_mask = SHIFT_U64(XLAT_TABLE_ENTRIES_MASK,
-					      level_size_shift);
+	uint64_t level_index_msk = SHIFT_U64(XLAT_TABLE_ENTRIES_MASK,
+					     level_size_shift);
 
 	assert(level <= 3);
 
@@ -361,12 +363,15 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 	do  {
 		uint64_t desc = UNSET_DESC;
 
-		if ((mm->va + mm->size <= base_va) ||
-		    core_mmu_is_dynamic_vaspace(mm)) {
-			/*
-			 * Area now after the region or area should not be
-			 * mapped at init so skip it
-			 */
+		/* Skip unmapped entries */
+		while (!core_mmap_is_end_of_table(mm) &&
+		       core_mmu_is_dynamic_vaspace(mm))
+			mm++;
+		if (core_mmap_is_end_of_table(mm))
+			break;
+
+		if (mm->va + mm->size <= base_va) {
+			/* Area now after the region so skip it */
 			mm++;
 			continue;
 		}
@@ -420,7 +425,7 @@ static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 
 		*table++ = desc;
 		base_va += level_size;
-	} while (mm->size && (base_va & level_index_mask));
+	} while (!core_mmap_is_end_of_table(mm) && (base_va & level_index_msk));
 
 	return mm;
 }
@@ -459,7 +464,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	uint64_t max_va = 0;
 	size_t n;
 
-	for (n = 0; mm[n].size; n++) {
+	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
 		paddr_t pa_end;
 		vaddr_t va_end;
 
@@ -567,6 +572,8 @@ void core_init_mmu_regs(void)
 }
 #endif /*ARM64*/
 
+KEEP_PAGER(core_init_mmu_regs);
+
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		unsigned level, vaddr_t va_base, void *table)
 {
@@ -640,7 +647,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		/* Copy bits 39:12 from tbl[n] to ntbl */
 		ntbl = (tbl[n] & ((1ULL << 40) - 1)) & ~((1 << 12) - 1);
 
-		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM);
+		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
 		if (!tbl)
 			return false;
 
@@ -699,7 +706,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	*entry = new_table_desc;
 
 	if (flush_tlb)
-		core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+		tlbi_all();
 	return true;
 }
 
@@ -784,7 +791,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		dsb();	/* Make sure the write above is visible */
 	}
 
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 
 	thread_unmask_exceptions(exceptions);
 }
@@ -858,7 +865,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		dsb();	/* Make sure the write above is visible */
 	}
 
-	core_tlb_maintenance(TLBINV_UNIFIEDTLB, 0);
+	tlbi_all();
 
 	write_daif(daif);
 }

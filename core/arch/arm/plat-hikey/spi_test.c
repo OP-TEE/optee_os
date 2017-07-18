@@ -30,6 +30,7 @@
 #include <hikey_peripherals.h>
 #include <io.h>
 #include <kernel/tee_time.h>
+#include <mm/core_memprot.h>
 #include <stdint.h>
 #include <trace.h>
 #include <util.h>
@@ -41,8 +42,8 @@ static void spi_cs_callback(enum gpio_level value)
 {
 	static bool inited;
 	static struct pl061_data pd;
-	vaddr_t gpio6_base = nsec_periph_base(GPIO6_BASE);
-	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
+	vaddr_t gpio6_base = core_mmu_get_va(GPIO6_BASE, MEM_AREA_IO_NSEC);
+	vaddr_t spi_base = core_mmu_get_va(SPI_BASE, MEM_AREA_IO_NSEC);
 
 	if (!inited) {
 		pl061_init(&pd);
@@ -65,7 +66,7 @@ static void spi_cs_callback(enum gpio_level value)
 static void spi_set_cs_mux(uint32_t val)
 {
 	uint32_t data;
-	vaddr_t pmx0_base = nsec_periph_base(PMX0_BASE);
+	vaddr_t pmx0_base = core_mmu_get_va(PMX0_BASE, MEM_AREA_IO_NSEC);
 
 	if (val == PINMUX_SPI) {
 		DMSG("Configure gpio6 pin2 as SPI");
@@ -85,7 +86,7 @@ static void spi_set_cs_mux(uint32_t val)
 static void spi_test_with_manual_cs_control(void)
 {
 	struct pl022_data pd;
-	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
+	vaddr_t spi_base = core_mmu_get_va(SPI_BASE, MEM_AREA_IO_NSEC);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
 	size_t i, j, len = 3;
@@ -173,7 +174,7 @@ static void spi_test_with_manual_cs_control(void)
 static void spi_test_with_registered_cs_cb(void)
 {
 	struct pl022_data pd;
-	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
+	vaddr_t spi_base = core_mmu_get_va(SPI_BASE, MEM_AREA_IO_NSEC);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
 	size_t i, j, len = 3;
@@ -219,8 +220,8 @@ static void spi_test_with_builtin_cs_control(void)
 {
 	struct pl061_data pd061;
 	struct pl022_data pd022;
-	vaddr_t gpio6_base = nsec_periph_base(GPIO6_BASE);
-	vaddr_t spi_base = nsec_periph_base(SPI_BASE);
+	vaddr_t gpio6_base = core_mmu_get_va(GPIO6_BASE, MEM_AREA_IO_NSEC);
+	vaddr_t spi_base = core_mmu_get_va(SPI_BASE, MEM_AREA_IO_NSEC);
 	uint8_t tx[3] = {0x01, 0x80, 0x00};
 	uint8_t rx[3] = {0};
 	size_t i, j, len = 3;

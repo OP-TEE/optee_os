@@ -1,4 +1,7 @@
-srcs-$(CFG_WITH_USER_TA) += user_ta.c
+ifeq ($(CFG_WITH_USER_TA),y)
+srcs-y += user_ta.c
+srcs-$(CFG_REE_FS_TA) += ree_fs_ta.c
+endif
 srcs-y += pseudo_ta.c
 srcs-y += elf_load.c
 srcs-y += tee_time.c
@@ -12,9 +15,10 @@ srcs-$(CFG_ARM32_core) += spin_lock_a32.S
 srcs-$(CFG_ARM64_core) += proc_a64.S
 srcs-$(CFG_ARM64_core) += spin_lock_a64.S
 srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
-srcs-$(CFG_ARM32_core) += ssvce_a32.S
-srcs-$(CFG_ARM64_core) += ssvce_a64.S
+srcs-$(CFG_ARM32_core) += tlb_helpers_a32.S
+srcs-$(CFG_ARM64_core) += tlb_helpers_a64.S
 srcs-$(CFG_ARM64_core) += cache_helpers_a64.S
+srcs-$(CFG_ARM32_core) += cache_helpers_a32.S
 srcs-$(CFG_PL310) += tz_ssvce_pl310_a32.S
 srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 
@@ -33,6 +37,7 @@ srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c
 srcs-y += wait_queue.c
 srcs-$(CFG_PM_STUBS) += pm_stubs.c
+cflags-pm_stubs.c-y += -Wno-suggest-attribute=noreturn
 
 srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
 ifeq ($(CFG_GENERIC_BOOT),y)
@@ -40,7 +45,9 @@ srcs-$(CFG_ARM32_core) += generic_entry_a32.S
 srcs-$(CFG_ARM64_core) += generic_entry_a64.S
 endif
 
-ifeq ($(CFG_CORE_UNWIND),y)
-srcs-$(CFG_ARM32_core) += unwind_arm32.c
+ifeq ($(CFG_UNWIND),y)
+srcs-y += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
+
+srcs-y += link_dummies.c

@@ -29,9 +29,9 @@
 #include <arm.h>
 #include <assert.h>
 #include <kernel/panic.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
-#include <kernel/tz_ssvce.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/pgt_cache.h>
@@ -238,7 +238,6 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 	return TEE_SUCCESS;
 }
 
-#ifdef CFG_SMALL_PAGE_USER_TA
 static TEE_Result alloc_pgt(struct user_ta_ctx *utc __maybe_unused,
 			    vaddr_t base, vaddr_t end)
 {
@@ -276,19 +275,6 @@ static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 
 	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
 }
-
-#else
-static TEE_Result alloc_pgt(struct user_ta_ctx *utc __unused,
-			    vaddr_t base __unused, vaddr_t end __unused)
-{
-	return TEE_SUCCESS;
-}
-
-static void free_pgt(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
-		     size_t size __unused)
-{
-}
-#endif
 
 void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 {
@@ -632,7 +618,7 @@ void tee_mmu_final(struct user_ta_ctx *utc)
 	g_asid |= asid;
 
 	/* clear MMU entries to avoid clash when asid is reused */
-	secure_mmu_unifiedtlbinv_byasid(utc->context & 0xff);
+	tlbi_asid(utc->context & 0xff);
 	utc->context = 0;
 
 	free(utc->mmu);
@@ -747,8 +733,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 	size_t addr_incr = MIN(CORE_MMU_USER_CODE_SIZE,
 			       CORE_MMU_USER_PARAM_SIZE);
 
-	/* Address wrap */
-	if ((uaddr + len) < uaddr)
+	if (ADD_OVERFLOW(uaddr, len, &a))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	if ((flags & TEE_MEMORY_ACCESS_NONSECURE) &&
@@ -793,7 +778,6 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	struct thread_specific_data *tsd = thread_get_tsd();
 
 	core_mmu_set_user_map(NULL);
-#ifdef CFG_SMALL_PAGE_USER_TA
 	/*
 	 * No matter what happens below, the current user TA will not be
 	 * current any longer. Make sure pager is in sync with that.
@@ -803,7 +787,6 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	 * Save translation tables in a cache if it's a user TA.
 	 */
 	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
-#endif
 
 	if (ctx && is_user_ta_ctx(ctx)) {
 		struct core_mmu_user_map map;

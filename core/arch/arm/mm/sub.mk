@@ -8,5 +8,5 @@ else
 srcs-y += core_mmu_v7.c
 endif
 srcs-y += tee_mm.c
-srcs-$(CFG_SMALL_PAGE_USER_TA) += pgt_cache.c
+srcs-y += pgt_cache.c
 srcs-y += mobj.c

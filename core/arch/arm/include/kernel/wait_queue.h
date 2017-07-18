@@ -82,5 +82,8 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 			int lineno);
 bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv);
 
+void __wq_rpc(uint32_t func, int id, const void *sync_obj, int owner,
+	      const char *fname, int lineno);
+
 #endif /*KERNEL_WAIT_QUEUE_H*/
 

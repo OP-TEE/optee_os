@@ -85,8 +85,6 @@
 #define SPI_500_KHZ	500000
 #define SPI_10_KHZ	10000
 
-vaddr_t nsec_periph_base(paddr_t pa);
-
 #ifdef CFG_SPI
 void spi_init(void);
 #ifdef CFG_SPI_TEST

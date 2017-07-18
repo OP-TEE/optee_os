@@ -37,7 +37,7 @@
 #include <libfdt.h>
 #endif
 
-static struct serial_chip *serial_console __early_bss;
+static struct serial_chip *serial_console;
 
 void __weak console_putc(int ch)
 {

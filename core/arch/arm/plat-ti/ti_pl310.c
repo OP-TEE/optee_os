@@ -37,7 +37,7 @@ register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, PL310_SIZE);
 
 vaddr_t pl310_base(void)
 {
-	static void *va __early_bss;
+	static void *va;
 
 	if (cpu_mmu_enabled()) {
 		if (!va)

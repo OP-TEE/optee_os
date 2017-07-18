@@ -529,6 +529,17 @@ static void montgomery_deinit(void *a)
 	free(a);
 }
 
+/*
+ * This function calculates:
+ *  d = a^b mod c
+ *
+ * It does this by transform the numbers into Montgomery domain.
+ *
+ * @a: base
+ * @b: exponent
+ * @c: modulus
+ * @d: destination
+ */
 static int exptmod(void *a, void *b, void *c, void *d)
 {
 	LTC_ARGCHK(a != NULL);
@@ -545,6 +556,11 @@ static int exptmod(void *a, void *b, void *c, void *d)
 
 	memguard = (a == d || b == d);
 
+	/*
+	 * If the calculated result is supposed to be stored at the same address
+	 * as either the base or the exponent, then we must use a temporary
+	 * variable.
+	 */
 	if (memguard) {
 		if (init(&d_tmp) != CRYPT_OK) {
 			return CRYPT_MEM;
@@ -553,24 +569,27 @@ static int exptmod(void *a, void *b, void *c, void *d)
 		d_tmp = d;
 	}
 
-	// WARNING !!
-	// Temporary fix, since ExpMod behaves badly when a > c
-	//           (ie "a" is greater than the modulus)
+	/*
+	 * WARNING! Temporary fix, since ExpMod behaves badly when a > c
+	 * (ie "a" * is greater than the modulus).
+	 */
 	mod(a, c, d_tmp);
 
+	mpa_exp_mod((mpanum)d,
+		    (const mpanum)d_tmp,
+		    (const mpanum)b,
+		    (const mpanum)c,
+		    ((mpa_fmm_context)c_mont)->r_ptr,
+		    ((mpa_fmm_context)c_mont)->r2_ptr,
+		    ((mpa_fmm_context)c_mont)->n_inv,
+		    external_mem_pool);
 
-	mpa_exp_mod((mpanum) d,
-			(const mpanum) d_tmp,
-			(const mpanum) b,
-			(const mpanum) c,
-			((mpa_fmm_context)c_mont)->r_ptr,
-			((mpa_fmm_context)c_mont)->r2_ptr,
-			((mpa_fmm_context)c_mont)->n_inv,
-			external_mem_pool);
 	montgomery_deinit(c_mont);
+
 	if (memguard) {
 		deinit(d_tmp);
 	}
+
 	return CRYPT_OK;
 }
 
@@ -581,6 +600,12 @@ static int isprime(void *a, int b, int *c)
 	LTC_UNUSED_PARAM(b);
 	*c = mpa_is_prob_prime((mpanum) a, 100, external_mem_pool) != 0 ? LTC_MP_YES : LTC_MP_NO;
 	return CRYPT_OK;
+}
+
+static int rand(void *a, int size)
+{
+	return mpa_get_random_digits(a, size) != size ?
+					CRYPT_ERROR_READPRNG : CRYPT_OK;
 }
 
 ltc_math_descriptor ltc_mp = {
@@ -659,5 +684,6 @@ ltc_math_descriptor ltc_mp = {
 	.rsa_keygen = &rsa_make_key,
 	.rsa_me = &rsa_exptmod,
 #endif
+	.rand = &rand,
 
 };

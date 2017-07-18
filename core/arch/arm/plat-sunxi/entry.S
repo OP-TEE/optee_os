@@ -52,7 +52,11 @@ LOCAL_FUNC reset , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
         read_sctlr  r0
-	orr	    r0, r0, #SCTLR_A
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
+	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	write_sctlr r0
 
 	ldr	   r0, =_start
@@ -60,12 +64,12 @@ UNWIND(	.cantunwind)
 	
 	mov	r4, r1
 	bl	get_core_pos
-	add	r0, r0, #1
-	ldr	r2, =stack_tmp_stride
-	ldr	r1, [r2]
-	mul	r2, r0, r1
-	ldr	r1, =stack_tmp
-	ldr	sp, [r1, r2]
+	ldr	r1, =stack_tmp_stride
+	ldr	r1, [r1]
+	mul	r1, r0, r1
+	ldr	r0, =stack_tmp_export
+	ldr	r0, [r0]
+	add	sp, r1, r0
 
     	/* NSACR configuration */
     	read_nsacr  r1
@@ -79,18 +83,18 @@ UNWIND(	.cantunwind)
 	orr     r0, r0, #ACTLR_SMP
 	write_actlr  r0
 
+	/* init BSS section */
+	ldr	r0, =__bss_start
+	ldr	r2, =__bss_end
+	sub	r2, r2, r0
+	ldr	r1, =0
+	bl	memset
+
 	bl	core_init_mmu_map
 	bl	core_init_mmu_regs
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
-
-	/* init BSS section */
-	ldr     r0, =__bss_start
-	ldr     r2, =__bss_end
-	sub     r2, r2, r0
-	ldr     r1, =0
-	bl      memset
 	
 	/* r4: the return address of normal world */
 	mov	r0, r4

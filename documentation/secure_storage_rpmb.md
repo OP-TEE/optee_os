@@ -132,6 +132,12 @@ CBC block encryption is used only for RPMB (the REE implementation uses GCM).
 
 The FAT is not encrypted.
 
+## REE FS
+
+If configured with both CFG_REE_FS=y and CFG_RPMB_FS=y the REE FS will
+create a special file, "dirfile.db.hash" in RPMB which hold a hash
+representing the state of REE FS.
+
 ## References
 
 - <a name="JEDECeMMC"></a>[1] _Embedded Multi-Media Card (e•MMC) Electrical Standard (5.1)_, JEDEC JESD84-B51, February 2015

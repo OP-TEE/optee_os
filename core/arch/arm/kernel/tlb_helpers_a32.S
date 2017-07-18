@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,49 +26,42 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TZ_SSVCE_H
-#define TZ_SSVCE_H
+#include <arm32_macros.S>
+#include <asm.S>
+#include <kernel/unwind.h>
 
-#ifndef ASM
+	.section .text.ssvce
 
-#include <types_ext.h>
+/* void tlbi_all(void); */
+FUNC tlbi_all , :
+UNWIND(	.fnstart)
+	dsb	ishst		/* Sync with table update */
+	write_tlbiallis 	/* Invalidate TLBs */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_all
 
-unsigned int secure_get_cpu_id(void);
+/* void tlbi_mva_allasid(vaddr_t mva); */
+FUNC tlbi_mva_allasid , :
+UNWIND(	.fnstart)
+	dsb	ishst		/* Sync with table update */
+	write_tlbimvaais r0	/* Inval TLB by MVA all ASID Inner Sharable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_mva_allasid
 
-void arm_cl1_d_cleanbysetway(void);
-void arm_cl1_d_invbysetway(void);
-void arm_cl1_d_cleaninvbysetway(void);
-/* End address is included in the range (last address in range)*/
-void arm_cl1_d_cleanbyva(void *start, void *end);
-/* End address is included in the range (last address in range)*/
-void arm_cl1_d_invbyva(void *start, void *end);
-/* End address is included in the range (last address in range)*/
-void arm_cl1_d_cleaninvbyva(void *start, void *end);
-void arm_cl1_i_inv_all(void);
-/* End address is included in the range (last address in range)*/
-void arm_cl1_i_inv(void *start, void *end);
-
-void secure_mmu_datatlbinvall(void);
-void secure_mmu_unifiedtlbinvall(void);
-void secure_mmu_unifiedtlbinvbymva(unsigned long addr);
-void secure_mmu_unifiedtlbinv_curasid(void);
-void secure_mmu_unifiedtlbinv_byasid(unsigned long asid);
-
-void secure_mmu_disable(void);
-#endif /*!ASM*/
-
-#ifdef ARM64
-/* D$ set/way op type defines */
-#define DCISW			0x0
-#define DCCISW			0x1
-#define DCCSW			0x2
-
-#ifndef ASM
-void flush_dcache_range(vaddr_t va, size_t len);
-void inv_dcache_range(vaddr_t va, size_t len);
-void dcsw_op_louis(uint32_t op);
-void dcsw_op_all(uint32_t op);
-#endif /*!ASM*/
-#endif /*ARM64*/
-
-#endif
+/* void tlbi_asid(unsigned long asid); */
+FUNC tlbi_asid , :
+UNWIND(	.fnstart)
+	and     r0, r0, #0xff	/* Get ASID */
+	dsb	ishst		/* Sync with table update */
+	write_tlbiasidis r0	/* Inval unified TLB by ASID Inner Sharable */
+	dsb	ish		/* Sync with tlb invalidation completion */
+	isb			/* Sync execution on tlb update */
+	bx	lr
+UNWIND(	.fnend)
+END_FUNC tlbi_asid

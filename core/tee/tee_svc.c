@@ -103,7 +103,11 @@ static const uint32_t crypto_ecc_en;
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
+#ifdef CFG_RPMB_FS
+static const uint32_t ts_antiroll_prot_lvl = 1000;
+#else
 static const uint32_t ts_antiroll_prot_lvl;
+#endif
 
 /* Trusted OS implementation version */
 static const char trustedos_impl_version[] = TO_STR(TEE_IMPL_VERSION);
@@ -627,10 +631,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			if (tee_mmu_is_vbuf_inside_ta_private(utc, va, s)) {
 
 				s = ROUNDUP(s, sizeof(uint32_t));
-				/* Check overflow */
-				if (req_mem + s < req_mem)
+				if (ADD_OVERFLOW(req_mem, s, &req_mem))
 					return TEE_ERROR_BAD_PARAMETERS;
-				req_mem += s;
 				ta_private_memref[n] = true;
 				break;
 			}

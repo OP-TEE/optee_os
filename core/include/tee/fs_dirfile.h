@@ -56,7 +56,7 @@ struct tee_fs_dirfile_fileh {
  * @commit_writes:	commits changes since the file was opened
  */
 struct tee_fs_dirfile_operations {
-	TEE_Result (*open)(bool create, const TEE_UUID *uuid,
+	TEE_Result (*open)(bool create, uint8_t *hash, const TEE_UUID *uuid,
 			   struct tee_fs_dirfile_fileh *dfh,
 			   struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle *fh);
@@ -69,11 +69,13 @@ struct tee_fs_dirfile_operations {
 
 /**
  * tee_fs_dirfile_open() - opens a dirfile handle
- * @uuid:	uuid of requesting TA
+ * @create:	true if a new dirfile is to be created, else the dirfile
+ *		is read opened and verified
+ * @hash:	hash of underlying file
  * @fops:	file interface
  * @dirh:	returned dirfile handle
  */
-TEE_Result tee_fs_dirfile_open(const TEE_UUID *uuid,
+TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
 			       const struct tee_fs_dirfile_operations *fops,
 			       struct tee_fs_dirfile_dirh **dirh);
 /**
@@ -88,8 +90,10 @@ void tee_fs_dirfile_close(struct tee_fs_dirfile_dirh *dirh);
 /**
  * tee_fs_dirfile_commit_writes() - commit updates of dirfile
  * @dirh:	dirfile handle
+ * @hash:	hash of underlying file is copied here if not NULL
  */
-TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh);
+TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh,
+					uint8_t *hash);
 
 /**
  * tee_fs_dirfile_get_tmp() - get a temporary file handle
@@ -104,13 +108,14 @@ TEE_Result tee_fs_dirfile_get_tmp(struct tee_fs_dirfile_dirh *dirh,
 /**
  * tee_fs_dirfile_find() - find a file handle
  * @dirh:	dirfile handle
+ * @uuid:	uuid of requesting TA
  * @oid:	object id
  * @oidlen:	length of object id
  * @dfh:	returned file handle
  */
 TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
-			       const void *oid, size_t oidlen,
-			       struct tee_fs_dirfile_fileh *dfh);
+			       const TEE_UUID *uuid, const void *oid,
+			       size_t oidlen, struct tee_fs_dirfile_fileh *dfh);
 
 /**
  * tee_fs_dirfile_fileh_to_fname() - get string representation of file handle
@@ -124,6 +129,7 @@ TEE_Result tee_fs_dirfile_fileh_to_fname(const struct tee_fs_dirfile_fileh *dfh,
 /**
  * tee_fs_dirfile_rename() - changes/supplies file handle object id
  * @dirh:	dirfile handle
+ * @uuid:	uuid of requesting TA
  * @dfh:	file handle
  * @oid:	object id
  * @oidlen:	length of object id
@@ -132,6 +138,7 @@ TEE_Result tee_fs_dirfile_fileh_to_fname(const struct tee_fs_dirfile_fileh *dfh,
  * removed from the dirfile.
  */
 TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
+				 const TEE_UUID *uuid,
 				 struct tee_fs_dirfile_fileh *dfh,
 				 const void *oid, size_t oidlen);
 
@@ -154,6 +161,7 @@ TEE_Result tee_fs_dirfile_update_hash(struct tee_fs_dirfile_dirh *dirh,
 /**
  * tee_fs_dirfile_get_next() - get object id of next file
  * @dirh:	dirfile handle
+ * @uuid:	uuid of requesting TA
  * @idx:	pointer to index
  * @oid:	object id
  * @oidlen:	length of object id
@@ -162,6 +170,7 @@ TEE_Result tee_fs_dirfile_update_hash(struct tee_fs_dirfile_dirh *dirh,
  * with the index of the file.
  */
 TEE_Result tee_fs_dirfile_get_next(struct tee_fs_dirfile_dirh *dirh,
-				   int *idx, void *oid, size_t *oidlen);
+				   const TEE_UUID *uuid, int *idx, void *oid,
+				   size_t *oidlen);
 
 #endif /*__TEE_FS_DIRFILE_H*/

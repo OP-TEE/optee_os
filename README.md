@@ -47,9 +47,10 @@ platforms have different sub-maintainers, please refer to the file
 | [Allwinner A80 Board](http://linux-sunxi.org/A80)|`PLATFORM=sunxi`| No |
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes |
-| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx`| Yes |
-| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx`| Yes |
-| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx`| Yes |
+| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx-mx6qsabrelite`| Yes |
+| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx-mx6qsabresd`| Yes |
+| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx-mx6ulevk`| Yes |
+| [NXP i.MX7Dual SabreSD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-7dual-applications-processors:MCIMX7SABRE) |`PLATFORM=imx-mx7dsabresd`| Yes |
 | [ARM Foundation FVP](https://developer.arm.com/products/system-design/fixed-virtual-platforms) |`PLATFORM=vexpress-fvp`| Yes |
 | [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No |
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/products/hikey)|`PLATFORM=hikey`| Yes |
@@ -61,6 +62,7 @@ platforms have different sub-maintainers, please refer to the file
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
 | [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
+| [Texas Instruments AM57xx](http://www.ti.com/product/AM5728)|`PLATFORM=ti-am57xx`| Yes |
 | [Texas Instruments AM43xx](http://www.ti.com/product/AM4379)|`PLATFORM=ti-am43xx`| Yes |
 | [Xilinx Zynq 7000 ZC702](http://www.xilinx.com/products/boards-and-kits/ek-z7-zc702-g.html)|`PLATFORM=zynq7k-zc702`| Yes |
 | [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |

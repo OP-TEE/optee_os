@@ -34,7 +34,6 @@
 #include <types_ext.h>
 
 struct tee_fs_dirfile_dirh {
-	const TEE_UUID *uuid;
 	const struct tee_fs_dirfile_operations *fops;
 	struct tee_file_handle *fh;
 	int nbits;
@@ -130,7 +129,7 @@ static TEE_Result write_dent(struct tee_fs_dirfile_dirh *dirh, size_t n,
 	return res;
 }
 
-TEE_Result tee_fs_dirfile_open(const TEE_UUID *uuid,
+TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
 			       const struct tee_fs_dirfile_operations *fops,
 			       struct tee_fs_dirfile_dirh **dirh_ret)
 {
@@ -141,14 +140,10 @@ TEE_Result tee_fs_dirfile_open(const TEE_UUID *uuid,
 	if (!dirh)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	dirh->uuid = uuid;
 	dirh->fops = fops;
-	res = fops->open(false, NULL, NULL, &dirh->fh);
-	if (res) {
-		res = fops->open(true, NULL, NULL, &dirh->fh);
-		if (res)
-			goto out;
-	}
+	res = fops->open(create, hash, NULL, NULL, &dirh->fh);
+	if (res)
+		goto out;
 
 	for (n = 0;; n++) {
 		struct dirfile_entry dent;
@@ -196,9 +191,10 @@ void tee_fs_dirfile_close(struct tee_fs_dirfile_dirh *dirh)
 	}
 }
 
-TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh)
+TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh,
+					uint8_t *hash)
 {
-	return dirh->fops->commit_writes(dirh->fh, NULL);
+	return dirh->fops->commit_writes(dirh->fh, hash);
 }
 
 TEE_Result tee_fs_dirfile_get_tmp(struct tee_fs_dirfile_dirh *dirh,
@@ -221,8 +217,8 @@ TEE_Result tee_fs_dirfile_get_tmp(struct tee_fs_dirfile_dirh *dirh,
 }
 
 TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
-			       const void *oid, size_t oidlen,
-			       struct tee_fs_dirfile_fileh *dfh)
+			       const TEE_UUID *uuid, const void *oid,
+			       size_t oidlen, struct tee_fs_dirfile_fileh *dfh)
 {
 	TEE_Result res;
 	struct dirfile_entry dent;
@@ -240,6 +236,8 @@ TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
 		if (res)
 			return res;
 
+		/* TODO check this loop when oidlen == 0 */
+
 		if (!dent.oidlen && first_free == -1)
 			first_free = n;
 		if (dent.oidlen != oidlen)
@@ -248,7 +246,7 @@ TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
 		assert(!oidlen || !dent.oidlen ||
 		       test_file(dirh, dent.file_number));
 
-		if (!memcmp(&dent.uuid, dirh->uuid, sizeof(dent.uuid)) &&
+		if (!memcmp(&dent.uuid, uuid, sizeof(dent.uuid)) &&
 		    !memcmp(&dent.oid, oid, oidlen))
 			break;
 	}
@@ -284,6 +282,7 @@ TEE_Result tee_fs_dirfile_fileh_to_fname(const struct tee_fs_dirfile_fileh *dfh,
 }
 
 TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
+				 const TEE_UUID *uuid,
 				 struct tee_fs_dirfile_fileh *dfh,
 				 const void *oid, size_t oidlen)
 {
@@ -293,7 +292,7 @@ TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
 	if (!oidlen || oidlen > sizeof(dent.oid))
 		return TEE_ERROR_BAD_PARAMETERS;
 	memset(&dent, 0, sizeof(dent));
-	dent.uuid = *dirh->uuid;
+	dent.uuid = *uuid;
 	memcpy(dent.oid, oid, oidlen);
 	dent.oidlen = oidlen;
 	memcpy(dent.hash, dfh->hash, sizeof(dent.hash));
@@ -302,10 +301,11 @@ TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
 	if (dfh->idx < 0) {
 		struct tee_fs_dirfile_fileh dfh2;
 
-		res = tee_fs_dirfile_find(dirh, oid, oidlen, &dfh2);
+		res = tee_fs_dirfile_find(dirh, uuid, oid, oidlen, &dfh2);
 		if (res) {
 			if (res == TEE_ERROR_ITEM_NOT_FOUND)
-				res = tee_fs_dirfile_find(dirh, NULL, 0, &dfh2);
+				res = tee_fs_dirfile_find(dirh, uuid, NULL, 0,
+							  &dfh2);
 			if (res)
 				return res;
 		}
@@ -359,7 +359,8 @@ TEE_Result tee_fs_dirfile_update_hash(struct tee_fs_dirfile_dirh *dirh,
 }
 
 TEE_Result tee_fs_dirfile_get_next(struct tee_fs_dirfile_dirh *dirh,
-				   int *idx, void *oid, size_t *oidlen)
+				   const TEE_UUID *uuid, int *idx, void *oid,
+				   size_t *oidlen)
 {
 	TEE_Result res;
 	int i = *idx + 1;
@@ -372,7 +373,7 @@ TEE_Result tee_fs_dirfile_get_next(struct tee_fs_dirfile_dirh *dirh,
 		res = read_dent(dirh, i, &dent);
 		if (res)
 			return res;
-		if (!memcmp(&dent.uuid, dirh->uuid, sizeof(dent.uuid)) &&
+		if (!memcmp(&dent.uuid, uuid, sizeof(dent.uuid)) &&
 		    dent.oidlen)
 			break;
 	}

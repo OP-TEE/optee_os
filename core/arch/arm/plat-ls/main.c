@@ -58,7 +58,7 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
-static struct ns16550_data console_data __early_bss;
+static struct ns16550_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
@@ -75,7 +75,7 @@ static void main_fiq(void)
 
 void plat_cpu_reset_late(void)
 {
-	static uint32_t cntfrq __early_bss;
+	static uint32_t cntfrq;
 	vaddr_t addr;
 
 	if (!get_core_pos()) {

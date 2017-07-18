@@ -1,6 +1,5 @@
-arm32-platform-cpuarch		:= cortex-a15
-arm32-platform-cflags	 	+= -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags	 	+= -mcpu=$(arm32-platform-cpuarch)
+include core/arch/arm/cpu/cortex-a15.mk
+
 core_arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_ARM32_core,y)

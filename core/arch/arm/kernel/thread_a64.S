@@ -25,14 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm.S>
-#include <arm64_macros.S>
 #include <arm64.h>
-#include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
-#include <sm/teesmc_opteed.h>
+#include <arm64_macros.S>
 #include <asm-defines.h>
+#include <asm.S>
+#include <keep.h>
 #include <kernel/thread_defs.h>
+#include <sm/optee_smc.h>
+#include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
+
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
@@ -259,6 +261,7 @@ FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
+KEEP_PAGER thread_init_vbar
 
 /*
  * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
@@ -305,6 +308,8 @@ FUNC __thread_enter_user_mode , :
 	msr	sp_el0, x4	/* Used when running TA in Aarch64 */
 	/* Set user function */
 	msr	elr_el1, x5
+	/* Set frame pointer (user stack can't be unwound past this point) */
+	mov x29, #0
 
 	/* Jump into user mode */
 	eret
@@ -491,7 +496,11 @@ LOCAL_FUNC el0_svc , :
 	 * nothing left in sp_el1. Note that the SVC handler is excepted to
 	 * re-enable foreign interrupts by itself.
 	 */
+#if defined(CFG_ARM_GICV3)
+	msr	daifclr, #(DAIFBIT_IRQ | DAIFBIT_ABT | DAIFBIT_DBG)
+#else
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
+#endif
 
 	/* Call the handler */
 	bl	tee_svc_handler

@@ -27,16 +27,16 @@
 
 #include <platform_config.h>
 
-#include <asm.S>
 #include <arm.h>
+#include <asm.S>
+#include <keep.h>
 #include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride -
-	 *		      stack_tmp_offset
+	 * SP_EL0 is assigned stack_tmp_export + cpu_id * stack_tmp_stride
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
@@ -44,22 +44,33 @@
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		add	x0, x0, #1
-		adr	x2, stack_tmp_stride
-		ldr	w1, [x2]
-		mul	x2, x0, x1
-		adrp	x1, stack_tmp
-		add	x1, x1, :lo12:stack_tmp
-		add	x1, x1, x2
-		adr	x2, stack_tmp_offset
-		ldr	w2, [x2]
-		sub	x1, x1, x2
+		adr	x1, stack_tmp_stride
+		ldr	w1, [x1]
+		mul	x1, x0, x1
+		adrp	x0, stack_tmp_export
+		add	x0, x0, :lo12:stack_tmp_export
+		ldr	x0, [x0]
 		msr	spsel, #0
-		mov	sp, x1
+		add	sp, x1, x0
 		bl	thread_get_core_local
 		msr	spsel, #1
 		mov	sp, x0
 		msr	spsel, #0
+	.endm
+
+	.macro set_sctlr_el1
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_I
+		orr	x0, x0, #SCTLR_SA
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+		orr	x0, x0, #SCTLR_WXN
+#endif
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
+		orr	x0, x0, #SCTLR_A
+#else
+		bic	x0, x0, #SCTLR_A
+#endif
+		msr	sctlr_el1, x0
 	.endm
 
 .section .text.boot
@@ -71,35 +82,45 @@ FUNC _start , :
 	msr	vbar_el1, x0
 	isb
 
-	mrs	x0, sctlr_el1
-	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
-	orr	x0, x0, x1
-	msr	sctlr_el1, x0
+	set_sctlr_el1
 	isb
 
 #ifdef CFG_WITH_PAGER
 	/*
-	 * Move init code into correct location
+	 * Move init code into correct location and move hashes to a
+	 * temporary safe location until the heap is initialized.
 	 *
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
-	 * [Init code and rodata] : Should be copied to __text_init_start
-	 * [Hashes] : Should be saved before clearing bss
+	 * [Init code and rodata] : Should be copied to __init_start
+	 * [Hashes] : Should be saved before initializing pager
 	 *
-	 * When we copy init code and rodata into correct location we don't
-	 * need to worry about hashes being overwritten as size of .bss,
-	 * .heap, .nozi and .heap3 is much larger than the size of init
-	 * code and rodata and hashes.
 	 */
-	adr	x0, __text_init_start	/* dst */
-	adr	x1, __data_end 	/* src */
-	adr	x2, __rodata_init_end	/* dst limit */
+	adr	x0, __init_start	/* dst */
+	adr	x1, __data_end		/* src */
+	adr	x2, __tmp_hashes_end	/* dst limit */
+	/* Copy backwards (as memmove) in case we're overlapping */
+	sub	x2, x2, x0		/* len */
+	add	x0, x0, x2		/* __init_start + len = __init_end */
+	add	x1, x1, x2		/* __data_end + len */
+	adr	x2, __init_start
 copy_init:
-	ldp	x3, x4, [x1], #16
-	stp	x3, x4, [x0], #16
+	ldp	x3, x4, [x1, #-16]!
+	stp	x3, x4, [x0, #-16]!
 	cmp	x0, x2
-	b.lt	copy_init
+	b.gt	copy_init
 #endif
+
+	/*
+	 * Clear .bss, this code obviously depends on the linker keeping
+	 * start/end of .bss at least 8 byte aligned.
+	 */
+	adr	x0, __bss_start
+	adr	x1, __bss_end
+clear_bss:
+	str	xzr, [x0], #8
+	cmp	x0, x1
+	b.lt	clear_bss
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
@@ -109,14 +130,14 @@ copy_init:
 
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adrp	x1, __init_end
-	add	x1, x1, :lo12:__init_end
+	adrp	x1, __tmp_hashes_end
+	add	x1, x1, :lo12:__tmp_hashes_end
 #else
 	adrp	x1, __end
 	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
-	bl	inv_dcache_range
+	bl	dcache_inv_range
 
 	/* Enable Console */
 	bl	console_init
@@ -140,14 +161,14 @@ copy_init:
 	mov	x19, x0
 	adr	x0, __text_start
 #ifdef CFG_WITH_PAGER
-	adrp	x1, __init_end
-	add	x1, x1, :lo12:__init_end
+	adrp	x1, __tmp_hashes_end
+	add	x1, x1, :lo12:__tmp_hashes_end
 #else
 	adrp	x1, __end
 	add	x1, x1, :lo12:__end
 #endif
 	sub	x1, x1, x0
-	bl	flush_dcache_range
+	bl	dcache_cleaninv_range
 
 
 	/*
@@ -163,6 +184,7 @@ copy_init:
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC _start
+KEEP_INIT _start
 
 
 .section .text.cpu_on_handler
@@ -175,10 +197,7 @@ FUNC cpu_on_handler , :
 	msr	vbar_el1, x0
 	isb
 
-	mrs	x0, sctlr_el1
-	mov	x1, #(SCTLR_I | SCTLR_A | SCTLR_SA)
-	orr	x0, x0, x1
-	msr	sctlr_el1, x0
+	set_sctlr_el1
 	isb
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */

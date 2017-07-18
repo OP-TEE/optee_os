@@ -29,7 +29,10 @@
 #include <console.h>
 #include <drivers/imx_uart.h>
 #include <io.h>
+#include <imx.h>
+#include <imx-regs.h>
 #include <kernel/generic_boot.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_mmu.h>
@@ -41,30 +44,36 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
-static vaddr_t src_base(void)
-{
-	/* in case it's used before .bss is cleared */
-	static void *va __early_bss;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(SRC_BASE, MEM_AREA_IO_SEC);
-		return (vaddr_t)va;
-	}
-	return SRC_BASE;
-}
-
+#ifdef CFG_BOOT_SECONDARY_REQUEST
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id __attribute__((unused)))
 {
 	uint32_t val;
-	vaddr_t va = src_base();
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+
+	if (!va)
+		EMSG("No SRC mapping\n");
 
 	if ((core_idx == 0) || (core_idx >= CFG_TEE_CORE_NB_CORE))
 		return PSCI_RET_INVALID_PARAMETERS;
 
 	/* set secondary cores' NS entry addresses */
 	ns_entry_addrs[core_idx] = entry;
+
+	if (soc_is_imx7ds()) {
+		write32((uint32_t)CFG_TEE_LOAD_ADDR,
+			va + SRC_GPR1_MX7 + core_idx * 8);
+
+		imx_gpcv2_set_core1_pup_by_software();
+
+		/* release secondary core */
+		val = read32(va + SRC_A7RCR1);
+		val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
+			      (core_idx - 1));
+		write32(val, va + SRC_A7RCR1);
+
+		return PSCI_RET_SUCCESS;
+	}
 
 	/* boot secondary cores from OP-TEE load address */
 	write32((uint32_t)CFG_TEE_LOAD_ADDR, va + SRC_GPR1 + core_idx * 8);
@@ -77,3 +86,72 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 
 	return PSCI_RET_SUCCESS;
 }
+
+int psci_cpu_off(void)
+{
+	uint32_t core_id;
+
+	core_id = get_core_pos();
+
+	DMSG("core_id: %" PRIu32, core_id);
+
+	psci_armv7_cpu_off();
+
+	imx_set_src_gpr(core_id, UINT32_MAX);
+
+	thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	while (true)
+		wfi();
+
+	return PSCI_RET_INTERNAL_FAILURE;
+}
+
+int psci_affinity_info(uint32_t affinity,
+		       uint32_t lowest_affnity_level __unused)
+{
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	vaddr_t gpr5 = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC) +
+				       IOMUXC_GPR5_OFFSET;
+	uint32_t cpu, val;
+	bool wfi;
+
+	cpu = affinity;
+
+	if (soc_is_imx7d())
+		wfi = true;
+	else
+		wfi = read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
+
+	if ((imx_get_src_gpr(cpu) == 0) || !wfi)
+		return PSCI_AFFINITY_LEVEL_ON;
+
+	DMSG("cpu: %" PRIu32 "GPR: %" PRIx32, cpu, imx_get_src_gpr(cpu));
+	/*
+	 * Wait secondary cpus ready to be killed
+	 * TODO: Change to non dead loop
+	 */
+	if (soc_is_imx7d()) {
+		while (read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
+			;
+
+		val = read32(va + SRC_A7RCR1);
+		val &=  ~BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET + (cpu - 1));
+		write32(val, va + SRC_A7RCR1);
+	} else {
+		while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
+			;
+
+		/* Kill cpu */
+		val = read32(va + SRC_SCR);
+		val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
+		val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
+		write32(val, va + SRC_SCR);
+	}
+
+	/* Clean arg */
+	imx_set_src_gpr(cpu, 0);
+
+	return PSCI_AFFINITY_LEVEL_OFF;
+}
+#endif

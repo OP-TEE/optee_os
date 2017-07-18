@@ -27,6 +27,7 @@
 
 #include <assert.h>
 #include <kernel/dt.h>
+#include <kernel/linker.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

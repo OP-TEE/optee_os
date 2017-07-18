@@ -27,6 +27,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <compiler.h>
 #include <stdint.h>
 
 #ifndef MAX
@@ -44,10 +45,11 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 /* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((size) - 1)) & ~((size) - 1))
+#define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
+			  ~((__typeof__(v))(size) - 1))
 
 /* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((size) - 1))
+#define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
@@ -89,5 +91,16 @@
 
 #define GENMASK_64(h, l) \
 	(((~UINT64_C(0)) << (l)) & (~UINT64_C(0) >> (64 - 1 - (h))))
+
+/*
+ * Checking overflow for addition, subtraction and multiplication. Result
+ * of operation is stored in res which is a pointer to some kind of
+ * integer.
+ *
+ * The macros return true if an overflow occurred and *res is undefined.
+ */
+#define ADD_OVERFLOW(a, b, res) __compiler_add_overflow((a), (b), (res))
+#define SUB_OVERFLOW(a, b, res) __compiler_sub_overflow((a), (b), (res))
+#define MUL_OVERFLOW(a, b, res) __compiler_mul_overflow((a), (b), (res))
 
 #endif /*UTIL_H*/

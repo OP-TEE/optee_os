@@ -1,3 +1,130 @@
+# OP-TEE - version 2.5.0
+
+[Link][github_commits_2_5_0] to a list of all commits between this release and
+the previous one (2.4.0).
+
+## New features
+
+* New supported platform: i.MX7D ([#1639])
+* Secure storage: anti-rollback protection for REE FS using RPMB FS ([#1630])
+* Assign non-secure DDR configuration from DT if CFG_DT=y ([#1623])
+* Add new image format: split image into three separate binaries suitable for
+  upcoming ARM Trusted Firmware ([#1589]).
+* Make alignment check configurable ([#1586])
+* drivers: add TZC380 driver ([#1578])
+* plat-imx: PSCI CPU off ([#1577])
+* 64-bit paging on QEMU v8 and HiKey ([#1575], [#1592])
+* Benchmark framework ([#1365])
+* Dump call stack of user TAs on abort ([#1552])
+* plat-hikey: enable Secure Data Path ([#1440])
+* Add interface to load and decrypt/authenticate user TAs ([#1513])
+* plat-ti: add secure paging support ([#1493])
+* plat-ti: add OTP hardware key support ([#1492])
+* Support ARM GICv3 ([#1465])
+
+## Removed features
+
+* stm-orly2 is not supported anymore ([#1650])
+* Remove secure storage based on SQL FS (`CFG_SQL_FS=y`) ([#1490])
+* Remove support for mapping user TAs with 1 MiB or 2 MiB granularity
+  (`CFG_SMALL_PAGE_USER_TA=n`) ([#1559]). TAs are always mapped using small
+  pages.
+
+## Bug fixes
+
+* Reduce size of non-pageable code ([#1621])
+* Ignore `TA_FLAG_MULTI_SESSION` and `TA_FLAG_INSTANCE_KEEP_ALIVE` when
+  `TA_FLAG_SINGLE_INSTANCE` is not set ([#1574])
+* libutee: remove buffering for AES GCM (PR#1573) and AES CTR ([#1580])
+* Fix ROUNDUP()/ROUNDDOWN() macros ([#1519])
+* Do not touch other bits in GICD_CTLR ([#1508])
+* Fix build issue with `DEBUG=y` and `CFG_TEE_CORE_LOG_LEVEL=0` ([#1502])
+* crypto: do not restrict hash size when algorithm is ECDSA ([#1497])
+
+## Security fixes or enhancements
+
+- crypto: fix RSA key leakage after fault injection attack
+  ([OP-TEE-2016-0003][OP-TEE-2016-0003])  ([#1610])
+* crypto: fix RSA key leakage after side channel attack
+  ([OP-TEE-2016-0002][OP-TEE-2016-0002]) ([#1610])
+* Make pager aliased pages not always writable ([#1551])
+* Support for no-exec RO and RW data ([#1459], [#1550])
+
+## New issues
+
+* armv7: some platform-specific code (`plat_cpu_reset_early()`) overwrites
+SCTLR bits configured by generic code. This affects alignment checks (`SCTLR.A`)
+and write-implies-no-exec (`SCTLR.WXN`, `SCTLR.UWXN`), which can therefore not
+be configured via the compile-time `CFG_` variables.
+* armv7: plat-imx: Cortex-A9 cores should enable branch prediction (`SCLTR.Z`)
+for improved performance.
+* [#1656] qemu_armv8a: init hangs when secure data path and pager are both
+  enabled.
+
+## Tested on
+
+In the list below, _standard_ means that the `xtest` program passed with
+its default configuration, while _extended_ means it was run successfully
+with the additional GlobalPlatform™ TEE Initial Configuration Test Suite
+v1.1.0.4.
+
+If a platform is not listed, it means the release was not tested on this
+platform.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02: extended
+* hikey: extended
+* imx-mx6ulevk: standard
+* imx-mx6ullevk: standard
+* imx-mx7dsabresd: standard
+* ls-ls1021atwr: standard
+* mediatek-mt8173: standard
+* rcar-h3: standard
+* rpi3: standard
+* stm-b2260: extended
+* stm-cannes: extended
+* ti-am43xx: standard
+* ti-am57xx: standard
+* ti-dra7xx: standard
+* vexpress-fvp: standard
+* vexpress-juno: standard
+* vexpress-qemu_armv8a: standard
+* vexpress-qemu_virt: standard
+
+[github_commits_2_5_0]: https://github.com/OP-TEE/optee_os/compare/2.4.0...2.5.0-rc1
+[#1656]: https://github.com/OP-TEE/optee_os/issues/1656
+[#1650]: https://github.com/OP-TEE/optee_os/pull/1650
+[#1639]: https://github.com/OP-TEE/optee_os/pull/1639
+[#1630]: https://github.com/OP-TEE/optee_os/pull/1630
+[#1623]: https://github.com/OP-TEE/optee_os/pull/1623
+[#1621]: https://github.com/OP-TEE/optee_os/pull/1621
+[#1610]: https://github.com/OP-TEE/optee_os/pull/1610
+[#1592]: https://github.com/OP-TEE/optee_os/pull/1592
+[#1589]: https://github.com/OP-TEE/optee_os/pull/1589
+[#1586]: https://github.com/OP-TEE/optee_os/pull/1586
+[#1580]: https://github.com/OP-TEE/optee_os/pull/1580
+[#1578]: https://github.com/OP-TEE/optee_os/pull/1578
+[#1577]: https://github.com/OP-TEE/optee_os/pull/1577
+[#1574]: https://github.com/OP-TEE/optee_os/pull/1574
+[#1559]: https://github.com/OP-TEE/optee_os/pull/1559
+[#1551]: https://github.com/OP-TEE/optee_os/pull/1551
+[#1550]: https://github.com/OP-TEE/optee_os/pull/1550
+[#1519]: https://github.com/OP-TEE/optee_os/pull/1519
+[#1502]: https://github.com/OP-TEE/optee_os/pull/1502
+[#1365]: https://github.com/OP-TEE/optee_os/pull/1365
+[#1552]: https://github.com/OP-TEE/optee_os/pull/1552
+[#1513]: https://github.com/OP-TEE/optee_os/pull/1513
+[#1508]: https://github.com/OP-TEE/optee_os/pull/1508
+[#1493]: https://github.com/OP-TEE/optee_os/pull/1493
+[#1497]: https://github.com/OP-TEE/optee_os/pull/1497
+[#1492]: https://github.com/OP-TEE/optee_os/pull/1492
+[#1490]: https://github.com/OP-TEE/optee_os/pull/1490
+[#1465]: https://github.com/OP-TEE/optee_os/pull/1465
+[#1459]: https://github.com/OP-TEE/optee_os/pull/1459
+[#1440]: https://github.com/OP-TEE/optee_os/pull/1440
+[OP-TEE-2016-0003]: https://www.op-tee.org/security-advisories/
+[OP-TEE-2016-0002]: https://www.op-tee.org/security-advisories/
+
 # OP-TEE - version 2.4.0
 
 [Link][github_commits_2_4_0] to a list of all commits between this release and

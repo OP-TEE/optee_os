@@ -25,16 +25,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm.h>
 #include <arm32_macros.S>
+#include <arm.h>
 #include <asm.S>
-#include <platform_config.h>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/unwind.h>
+#include <platform_config.h>
 #include <sm/optee_smc.h>
-#include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
+#include <sm/teesmc_opteed_macros.h>
 
 .section .data
 .balign 4
@@ -106,6 +107,7 @@ FUNC _start , :
 	b	.	/* IRQ */
 	b	.	/* FIQ */
 END_FUNC _start
+KEEP_INIT _start
 
 	.macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
@@ -186,9 +188,16 @@ UNWIND(	.cantunwind)
 
 	/* Enable alignment checks and disable data and instruction cache. */
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	bic	r0, r0, #SCTLR_C
 	bic	r0, r0, #SCTLR_I
+#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
 	write_sctlr r0
 	isb
 
@@ -211,23 +220,19 @@ END_FUNC reset
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
-	 * sp is assigned stack_tmp + (cpu_id + 1) * stack_tmp_stride -
-	 * stack_tmp_offset
+	 * sp is assigned stack_tmp_export + cpu_id * stack_tmp_stride
 	 */
 	.macro set_sp
 		bl	get_core_pos
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		add	r0, r0, #1
-		ldr	r2, =stack_tmp_stride
-		ldr	r1, [r2]
-		mul	r2, r0, r1
-		ldr	r1, =stack_tmp
-		add	r1, r1, r2
-		ldr	r2, =stack_tmp_offset
-		ldr	r2, [r2]
-		sub	sp, r1, r2
+		ldr	r1, =stack_tmp_stride
+		ldr	r1, [r1]
+		mul	r1, r0, r1
+		ldr	r0, =stack_tmp_export
+		ldr	r0, [r0]
+		add	sp, r1, r0
 	.endm
 
 	/*
@@ -247,7 +252,8 @@ END_FUNC reset
 #endif
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_invbyva
+		sub	r1, r1, r0
+		bl	dcache_inv_range
 	.endm
 
 	.macro __flush_cache_vrange vbase, vend, line
@@ -255,7 +261,8 @@ END_FUNC reset
 		assert_flat_mapped_range (\vbase), (\line)
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_cleanbyva
+		sub	r1, r1, r0
+		bl	dcache_clean_range
 		bl	pl310_base
 		ldr	r1, =(\vbase)
 		ldr	r2, =(\vend)
@@ -263,7 +270,8 @@ END_FUNC reset
 #endif
 		ldr	r0, =(\vbase)
 		ldr	r1, =(\vend)
-		bl	arm_cl1_d_cleaninvbyva
+		sub	r1, r1, r0
+		bl	dcache_cleaninv_range
 	.endm
 
 #define inval_cache_vrange(vbase, vend) \
@@ -293,18 +301,18 @@ UNWIND(	.cantunwind)
 	 *
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
-	 * [Init code and rodata] : Should be copied to __text_init_start
+	 * [Init code and rodata] : Should be copied to __init_start
 	 * [Hashes] : Should be saved before initializing pager
 	 *
 	 */
-	ldr	r0, =__text_init_start	/* dst */
+	ldr	r0, =__init_start	/* dst */
 	ldr	r1, =__data_end 	/* src */
 	ldr	r2, =__tmp_hashes_end	/* dst limit */
 	/* Copy backwards (as memmove) in case we're overlapping */
 	sub	r2, r2, r0		/* len */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	ldr	r2, =__text_init_start
+	ldr	r2, =__init_start
 copy_init:
 	ldmdb	r1!, {r3, r8-r12, sp}
 	stmdb	r0!, {r3, r8-r12, sp}
@@ -312,6 +320,18 @@ copy_init:
 	bgt	copy_init
 #endif
 
+	/*
+	 * Clear .bss, this code obviously depends on the linker keeping
+	 * start/end of .bss at least 8 byte aligned.
+	 */
+	ldr	r0, =__bss_start
+	ldr	r1, =__bss_end
+	mov	r2, #0
+	mov	r3, #0
+clear_bss:
+	stmia	r0!, {r2, r3}
+	cmp	r0, r1
+	bls	clear_bss
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/* First initialize the entire shadow area with no access */
@@ -445,7 +465,14 @@ UNWIND(	.cantunwind)
 	mov	r5, r1
 	mov	r6, lr
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
+#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
+	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
 	write_sctlr r0
 
 	ldr	r0, =_start
@@ -481,7 +508,8 @@ UNWIND(	.cantunwind)
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
-	bl	arm_cl1_d_invbysetway
+	mov	r0, #DCACHE_OP_INV
+	bl	dcache_op_level1
 #endif
 
 	bl	core_init_mmu_regs

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 
 #include <compiler.h>
 #include <types_ext.h>
+#include <util.h>
 
 /*
  * This file defines the OP-TEE message protocol used to communicate
@@ -56,7 +57,7 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
 
-#define OPTEE_MSG_ATTR_TYPE_MASK		0xff
+#define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK_32(7, 0)
 
 /*
  * Meta parameter to be absorbed by the Secure OS and not passed
@@ -64,14 +65,35 @@
  *
  * Currently only used with OPTEE_MSG_CMD_OPEN_SESSION.
  */
-#define OPTEE_MSG_ATTR_META			(1 << 8)
+#define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
- * The temporary shared memory object is not physically contiguous and this
- * temp memref is followed by another fragment until the last temp memref
- * that doesn't have this bit set.
+ * Pointer to a list of pages used to register user-defined SHM buffer.
+ * Used with OPTEE_MSG_ATTR_TYPE_TMEM_*.
+ * buf_ptr should point to the beginning of the buffer. Buffer will contain
+ * list of page addresses. OP-TEE core can reconstruct contiguous buffer from
+ * that page addresses list. Page addresses are stored as 64 bit values.
+ * Last entry on a page should point to the next page of buffer.
+ * Every entry in buffer should point to a 4k page beginning (12 least
+ * significant bits must be equal to zero).
+ *
+ * 12 least significant of optee_msg_param.u.tmem.buf_ptr should hold page
+ * offset of user buffer.
+ *
+ * So, entries should be placed like members of this structure:
+ *
+ * struct page_data {
+ *   uint64_t pages_array[OPTEE_MSG_NONCONTIG_PAGE_SIZE/sizeof(uint64_t) - 1];
+ *   uint64_t next_page_data;
+ * };
+ *
+ * Structure is designed to exactly fit into the page size
+ * OPTEE_MSG_NONCONTIG_PAGE_SIZE which is a standard 4KB page.
+ *
+ * The size of 4KB is chosen because this is the smallest page size for ARM
+ * architectures. If REE uses larger pages, it should divide them to 4KB ones.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			(1 << 9)
+#define OPTEE_MSG_ATTR_NONCONTIG		BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -81,7 +103,7 @@
  * bearer of this protocol OPTEE_SMC_SHM_* is used for values.
  */
 #define OPTEE_MSG_ATTR_CACHE_SHIFT		16
-#define OPTEE_MSG_ATTR_CACHE_MASK		0x7
+#define OPTEE_MSG_ATTR_CACHE_MASK		GENMASK_32(2, 0)
 #define OPTEE_MSG_ATTR_CACHE_PREDEFINED		0
 
 /*
@@ -94,9 +116,14 @@
 #define OPTEE_MSG_LOGIN_APPLICATION_USER	0x00000005
 #define OPTEE_MSG_LOGIN_APPLICATION_GROUP	0x00000006
 
+/*
+ * Page size used in non-contiguous buffer entries
+ */
+#define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
+
 #ifndef ASM
 /**
- * struct optee_msg_param_tmem - temporary memory reference
+ * struct optee_msg_param_tmem - temporary memory reference parameter
  * @buf_ptr:	Address of the buffer
  * @size:	Size of the buffer
  * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
@@ -115,7 +142,7 @@ struct optee_msg_param_tmem {
 };
 
 /**
- * struct optee_msg_param_rmem - registered memory reference
+ * struct optee_msg_param_rmem - registered memory reference parameter
  * @offs:	Offset into shared memory reference
  * @size:	Size of the buffer
  * @shm_ref:	Shared memory reference, pointer to a struct tee_shm
@@ -195,29 +222,9 @@ struct optee_msg_arg {
 	uint32_t ret_origin;
 	uint32_t num_params;
 
-	/*
-	 * this struct is 8 byte aligned since the 'struct optee_msg_param'
-	 * which follows requires 8 byte alignment.
-	 *
-	 * Commented out element used to visualize the layout dynamic part
-	 * of the struct. This field is not available at all if
-	 * num_params == 0.
-	 *
-	 * params is accessed through the macro OPTEE_MSG_GET_PARAMS
-	 *
-	 * struct optee_msg_param params[num_params];
-	 */
-} __aligned(8);
-
-/**
- * OPTEE_MSG_GET_PARAMS - return pointer to struct optee_msg_param *
- *
- * @x: Pointer to a struct optee_msg_arg
- *
- * Returns a pointer to the params[] inside a struct optee_msg_arg.
- */
-#define OPTEE_MSG_GET_PARAMS(x) \
-	(struct optee_msg_param *)(((struct optee_msg_arg *)(x)) + 1)
+	/* num_params tells the actual number of element in params */
+	struct optee_msg_param params[];
+};
 
 /**
  * OPTEE_MSG_GET_ARG_SIZE - return size of struct optee_msg_arg
@@ -358,7 +365,12 @@ struct optee_msg_arg {
 #define OPTEE_MSG_RPC_CMD_GET_TIME	3
 
 /*
- * Wait queue primitive, helper for secure world to implement a wait queue
+ * Wait queue primitive, helper for secure world to implement a wait queue.
+ *
+ * If secure world needs to wait for a secure world mutex it issues a sleep
+ * request instead of spinning in secure world. Conversely is a wakeup
+ * request issued when a secure world mutex with a thread waiting thread is
+ * unlocked.
  *
  * Waiting on a key
  * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP
@@ -418,5 +430,14 @@ struct optee_msg_arg {
  *					above
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
+
+/*
+ * Register timestamp buffer in the linux kernel optee driver
+ *
+ * [in] param[0].u.value.a	Subcommand (register buffer, unregister buffer)
+ * [in] param[0].u.value.b	Physical address of timestamp buffer
+ * [in] param[0].u.value.c	Size of buffer
+ */
+#define OPTEE_MSG_RPC_CMD_BENCH_REG	20
 
 #endif /* _OPTEE_MSG_H */

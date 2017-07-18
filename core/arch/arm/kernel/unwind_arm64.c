@@ -34,12 +34,13 @@
 #include <string.h>
 #include <trace.h>
 
-bool unwind_stack(struct unwind_state *frame)
+bool unwind_stack_arm64(struct unwind_state_arm64 *frame, uaddr_t stack,
+		      size_t stack_size)
 {
 	uint64_t fp;
 
 	fp = frame->fp;
-	if (!thread_addr_is_in_stack(fp))
+	if (fp < stack || fp >= stack + stack_size)
 		return false;
 
 	frame->sp = fp + 0x10;
@@ -51,11 +52,11 @@ bool unwind_stack(struct unwind_state *frame)
 	return true;
 }
 
-#if defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0)
+#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
 
-void print_stack(int level)
+void print_kernel_stack(int level)
 {
-	struct unwind_state state;
+	struct unwind_state_arm64 state;
 
 	memset(&state, 0, sizeof(state));
 	state.pc = read_pc();
@@ -78,7 +79,7 @@ void print_stack(int level)
 		default:
 			break;
 		}
-	} while (unwind_stack(&state));
+	} while (unwind_stack_arm64(&state, 0, 0));
 }
 
-#endif /* defined(CFG_CORE_UNWIND) && (TRACE_LEVEL > 0) */
+#endif

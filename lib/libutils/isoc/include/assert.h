@@ -30,7 +30,7 @@
 #include <compiler.h>
 #include <trace.h>
 
-void _assert_break(void) __noreturn;
+void __noreturn _assert_break(void);
 void _assert_log(const char *expr, const char *file, const int line,
 			const char *func);
 

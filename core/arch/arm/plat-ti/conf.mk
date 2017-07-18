@@ -13,12 +13,11 @@ $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
-arm32-platform-cpuarch		:= cortex-a9
+include core/arch/arm/cpu/cortex-a9.mk
 else
 CFG_OTP_SUPPORT ?= y
-$(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
-arm32-platform-cpuarch		:= cortex-a15
+include core/arch/arm/cpu/cortex-a15.mk
 endif
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_GIC,y)
@@ -27,8 +26,6 @@ $(call force,CFG_DRA7_RNG,y)
 endif
 
 # 32-bit flags
-arm32-platform-cflags		+= -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags		+= -mcpu=$(arm32-platform-cpuarch)
 core_arm32-platform-aflags	+= -mfpu=neon
 
 ta-targets = ta_arm32

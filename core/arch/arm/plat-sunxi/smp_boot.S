@@ -50,7 +50,11 @@ UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* secondary CPUs internal initialization */
 	read_sctlr r0
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 	orr	r0, r0, #SCTLR_A
+#else
+	bic	r0, r0, #SCTLR_A
+#endif
 	write_sctlr r0
 	
 	/* install smp initialization vector */
@@ -58,13 +62,13 @@ UNWIND(	.cantunwind)
 	write_vbar r0
 
 	/* Setup tmp stack */
-        bl      get_core_pos
-        add     r0, r0, #1
-        ldr     r2, =stack_tmp_stride
-        ldr     r1, [r2]
-        mul     r2, r0, r1
-        ldr     r1, =stack_tmp
-        ldr     sp, [r1, r2]
+	bl	get_core_pos
+	ldr	r1, =stack_tmp_stride
+	ldr	r1, [r1]
+	mul	r1, r0, r1
+	ldr	r0, =stack_tmp_export
+	ldr	r0, [r0]
+	add	sp, r1, r0
 
         /* NSACR configuration */
     	read_nsacr  r1

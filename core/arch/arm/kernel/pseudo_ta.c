@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <initcall.h>
+#include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
@@ -214,10 +215,6 @@ static const struct tee_ta_ops pseudo_ta_ops = {
 	.destroy = pseudo_ta_destroy,
 };
 
-
-/* Defined in link script */
-extern const struct pseudo_ta_head __start_ta_head_section;
-extern const struct pseudo_ta_head __stop_ta_head_section;
 
 /* Insures declared pseudo TAs conforms with core expectations */
 static TEE_Result verify_pseudo_tas_conformance(void)

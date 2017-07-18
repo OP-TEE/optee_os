@@ -52,12 +52,9 @@ struct pgt {
 	struct pgt_parent *parent;
 #endif
 #endif
-#ifdef CFG_SMALL_PAGE_USER_TA
 	SLIST_ENTRY(pgt) link;
-#endif
 };
 
-#ifdef CFG_SMALL_PAGE_USER_TA
 /*
  * Reserve 2 page tables per thread, but at least 4 page tables in total
  */
@@ -94,14 +91,6 @@ void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
 		  void *new_ctx, vaddr_t new_va, size_t size);
 
 void pgt_init(void);
-
-#else
-
-static inline void pgt_init(void)
-{
-}
-
-#endif
 
 #if defined(CFG_PAGED_USER_TA)
 void pgt_flush_ctx(struct tee_ta_ctx *ctx);

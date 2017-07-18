@@ -28,7 +28,7 @@
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include <kernel/tee_misc.h>
-#include <tee/tee_cryp_provider.h>
+#include <kernel/user_ta.h>
 #include <stdlib.h>
 #include <string.h>
 #include <util.h>
@@ -41,11 +41,9 @@
 struct elf_load_state {
 	bool is_32bit;
 
-	uint8_t *nwdata;
-	size_t nwdata_len;
-
-	void *hash_ctx;
-	uint32_t hash_algo;
+	struct user_ta_store_handle *ta_handle;
+	const struct user_ta_store_ops *ta_store;
+	size_t data_len;
 
 	size_t next_offs;
 
@@ -139,16 +137,15 @@ static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 	if (offs == state->next_offs)
 		return TEE_SUCCESS;
 
-	if (offs > state->nwdata_len)
+	if (offs > state->data_len)
 		return TEE_ERROR_SECURITY;
 
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-			state->nwdata + state->next_offs,
-			offs - state->next_offs);
+	res = state->ta_store->read(state->ta_handle, NULL,
+				    offs - state->next_offs);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->next_offs = offs;
-	return res;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result copy_to(struct elf_load_state *state,
@@ -156,6 +153,8 @@ static TEE_Result copy_to(struct elf_load_state *state,
 			size_t offs, size_t len)
 {
 	TEE_Result res;
+	size_t read_max;
+	size_t data_max;
 
 	res = advance_to(state, offs);
 	if (res != TEE_SUCCESS)
@@ -163,14 +162,13 @@ static TEE_Result copy_to(struct elf_load_state *state,
 	if (!len)
 		return TEE_SUCCESS;
 
-	/* Check for integer overflow */
-	if ((len + dst_offs) < dst_offs || (len + dst_offs) > dst_size ||
-	    (len + offs) < offs || (len + offs) > state->nwdata_len)
+	if (ADD_OVERFLOW(len, dst_offs, &read_max) || read_max > dst_size ||
+	    ADD_OVERFLOW(len, offs, &data_max) || data_max > state->data_len)
 		return TEE_ERROR_SECURITY;
 
-	memcpy((uint8_t *)dst + dst_offs, state->nwdata + offs, len);
-	res = crypto_ops.hash.update(state->hash_ctx, state->hash_algo,
-				      (uint8_t *)dst + dst_offs, len);
+	res = state->ta_store->read(state->ta_handle,
+				    (uint8_t *)dst + dst_offs,
+				    len);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->next_offs = offs + len;
@@ -194,20 +192,27 @@ static TEE_Result alloc_and_copy_to(void **p, struct elf_load_state *state,
 	return res;
 }
 
-TEE_Result elf_load_init(void *hash_ctx, uint32_t hash_algo, uint8_t *nwdata,
-			size_t nwdata_len, struct elf_load_state **ret_state)
+TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
+			 struct user_ta_store_handle *ta_handle,
+			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
+	TEE_Result res;
 
 	state = calloc(1, sizeof(*state));
 	if (!state)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	state->hash_ctx = hash_ctx;
-	state->hash_algo = hash_algo;
-	state->nwdata = nwdata;
-	state->nwdata_len = nwdata_len;
+
+	state->ta_store = ta_store;
+	state->ta_handle = ta_handle;
+	res = ta_store->get_size(ta_handle, &state->data_len);
+	if (res != TEE_SUCCESS) {
+		free(state);
+		return res;
+	}
+
 	*ret_state = state;
-	return TEE_SUCCESS;
+	return res;
 }
 
 static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
@@ -279,42 +284,43 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	void *p;
 	struct elf_ehdr ehdr;
 	struct elf_phdr phdr;
-	struct elf_phdr phdr0;
+	struct elf_phdr ptload0;
+	size_t phsize;
 
 	copy_ehdr(&ehdr, state);
 	/*
-	 * Program headers are supposed to be arranged as:
-	 * PT_LOAD [0] : .ta_head ...
-	 * ...
-	 * PT_LOAD [n]
-	 *
-	 * .ta_head must be located first in the first program header,
-	 * which also has to be of PT_LOAD type.
-	 *
-	 * A PT_DYNAMIC segment may appear, but is ignored. Any other
-	 * segment except PT_LOAD and PT_DYNAMIC will cause an error. All
-	 * sections not included by a PT_LOAD segment are ignored.
+	 * Program headers:
+	 * We're expecting at least one header of PT_LOAD type.
+	 * .ta_head must be located first in the first PT_LOAD header, which
+	 * must start at virtual address 0. Other types of headers may appear
+	 * before the first PT_LOAD (for example, GNU ld will typically insert
+	 * a PT_ARM_EXIDX segment first when it encounters a .ARM.exidx section
+	 * i.e., unwind tables for 32-bit binaries).
+	 * The last PT_LOAD header gives the maximum VA.
+	 * A PT_DYNAMIC segment may appear, but is ignored.
+	 * All sections not included by a PT_LOAD segment are ignored.
 	 */
 	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
 
-	/* Check for integer overflow */
-	if (((uint64_t)ehdr.e_phnum * ehdr.e_phentsize) > SIZE_MAX)
+	if (MUL_OVERFLOW(ehdr.e_phnum, ehdr.e_phentsize, &phsize))
 		return TEE_ERROR_SECURITY;
 
-	res = alloc_and_copy_to(&p, state, ehdr.e_phoff,
-				ehdr.e_phnum * ehdr.e_phentsize);
+	res = alloc_and_copy_to(&p, state, ehdr.e_phoff, phsize);
 	if (res != TEE_SUCCESS)
 		return res;
 	state->phdr = p;
 
 	/*
-	 * Check that the first program header is a PT_LOAD (not strictly
-	 * needed but our link script is supposed to arrange it that way)
-	 * and that it starts at virtual address 0.
+	 * Check that the first program header of type PT_LOAD starts at
+	 * virtual address 0.
 	 */
-	copy_phdr(&phdr0, state, 0);
-	if (phdr0.p_type != PT_LOAD || phdr0.p_vaddr != 0)
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		copy_phdr(&ptload0, state, n);
+		if (ptload0.p_type == PT_LOAD)
+			break;
+	}
+	if (ptload0.p_type != PT_LOAD || ptload0.p_vaddr != 0)
 		return TEE_ERROR_BAD_FORMAT;
 
 	/*
@@ -324,17 +330,15 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	 * the memory will also be allocated.
 	 *
 	 * Note that this loop will terminate at n = 0 if not earlier
-	 * as we already know from above that state->phdr[0].p_type == PT_LOAD
+	 * as we already know from above that we have at least one PT_LOAD
 	 */
 	n = ehdr.e_phnum;
 	do {
 		n--;
 		copy_phdr(&phdr, state, n);
 	} while (phdr.p_type != PT_LOAD);
-	state->vasize = phdr.p_vaddr + phdr.p_memsz;
 
-	/* Check for integer overflow */
-	if (state->vasize < phdr.p_vaddr)
+	if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &state->vasize))
 		return TEE_ERROR_SECURITY;
 
 	/*
@@ -345,9 +349,9 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	 * function has returned and the hash has been verified the flags
 	 * field will be updated with eventual other flags.
 	 */
-	if (phdr0.p_filesz < head_size)
+	if (ptload0.p_filesz < head_size)
 		return TEE_ERROR_BAD_FORMAT;
-	res = alloc_and_copy_to(&p, state, phdr0.p_offset, head_size);
+	res = alloc_and_copy_to(&p, state, ptload0.p_offset, head_size);
 	if (res == TEE_SUCCESS) {
 		state->ta_head = p;
 		state->ta_head_size = head_size;
@@ -391,25 +395,26 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 }
 
 TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
-			vaddr_t *vaddr, size_t *size, uint32_t *flags)
+			vaddr_t *vaddr, size_t *size, uint32_t *flags,
+			uint32_t *type)
 {
 	struct elf_ehdr ehdr;
 
 	copy_ehdr(&ehdr, state);
-	while (*idx < ehdr.e_phnum) {
+	if (*idx < ehdr.e_phnum) {
 		struct elf_phdr phdr;
 
 		copy_phdr(&phdr, state, *idx);
 		(*idx)++;
-		if (phdr.p_type == PT_LOAD) {
-			if (vaddr)
-				*vaddr = phdr.p_vaddr;
-			if (size)
-				*size = phdr.p_memsz;
-			if (flags)
-				*flags = phdr.p_flags;
-			return TEE_SUCCESS;
-		}
+		if (vaddr)
+			*vaddr = phdr.p_vaddr;
+		if (size)
+			*size = phdr.p_memsz;
+		if (flags)
+			*flags = phdr.p_flags;
+		if (type)
+			*type = phdr.p_type;
+		return TEE_SUCCESS;
 	}
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
@@ -639,7 +644,7 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	}
 
 	/* Hash until end of ELF */
-	res = advance_to(state, state->nwdata_len);
+	res = advance_to(state, state->data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 

@@ -1,11 +1,11 @@
 link-out-dir = $(out-dir)/core
 
+link-script-dummy = core/arch/arm/kernel/link_dummy.ld
 link-script = $(platform-dir)/kern.ld.S
 link-script-pp = $(link-out-dir)/kern.ld
 link-script-dep = $(link-out-dir)/.kern.ld.d
 
 AWK	 = awk
-
 
 link-ldflags  = $(LDFLAGS)
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
@@ -16,8 +16,10 @@ link-ldflags += --gc-sections
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
 link-ldadd += $(addprefix -l,$(libnames))
-ldargs-tee.elf := $(link-ldflags) $(objs) $(link-out-dir)/version.o \
-	$(link-ldadd) $(libgcccore)
+link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
+			  $(objs))
+ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
+		  $(link-ldadd) $(libgcccore)
 
 link-script-cppflags := -DASM=1 \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
@@ -25,13 +27,8 @@ link-script-cppflags := -DASM=1 \
 		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
 		$(cppflagscore))
 
-entries-unpaged += thread_init_vbar
-entries-unpaged += sm_init
-entries-unpaged += core_init_mmu_regs
-entries-unpaged += sem_cpu_sync
-entries-unpaged += generic_boot_get_handlers
-
-ldargs-all_objs := -i $(objs) $(link-ldadd) $(libgcccore)
+ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
+		   $(link-objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
 	@$(cmd-echo-silent) '  LD      $@'
@@ -43,66 +40,54 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
-objs-unpaged-rem += core/arch/arm/tee/entry_std.o
-objs-unpaged-rem += core/arch/arm/tee/arch_svc.o
-objs-unpaged := \
-	$(filter-out $(addprefix $(out-dir)/, $(objs-unpaged-rem)), $(objs))
-ldargs-unpaged = -i --gc-sections $(addprefix -u, $(entries-unpaged))
-ldargs-unpaged-objs := $(objs-unpaged) $(link-ldadd) $(libgcccore)
+unpaged-ldargs = -T $(link-script-dummy) --no-check-sections --gc-sections
+unpaged-ldadd := $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-unpaged) \
+	$(q)$(LDcore) $(unpaged-ldargs) \
 		`cat $(link-out-dir)/unpaged_entries.txt` \
-		$(ldargs-unpaged-objs) -o $@
+		$(unpaged-ldadd) -o $@
 
 cleanfiles += $(link-out-dir)/text_unpaged.ld.S
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S
 $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | \
-		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .rodata. > $@
 
 
 cleanfiles += $(link-out-dir)/init_entries.txt
 $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(NMcore) $< | \
-		$(AWK) '/ ____keep_init/ { printf "-u%s", $$3 }' > $@
+		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
-objs-init-rem += core/arch/arm/tee/arch_svc.o
-objs-init-rem += core/arch/arm/tee/arch_svc_asm.o
-objs-init-rem += core/arch/arm/tee/init.o
-objs-init-rem += core/arch/arm/tee/entry_std.o
-entries-init += _start
-objs-init := \
-	$(filter-out $(addprefix $(out-dir)/, $(objs-init-rem)), $(objs) \
-		$(link-out-dir)/version.o)
-ldargs-init := -i --gc-sections $(addprefix -u, $(entries-init))
-
-ldargs-init-objs := $(objs-init) $(link-ldadd) $(libgcccore)
+init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
+init-ldadd := $(objs) $(link-out-dir)/version.o  $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
 $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 	$(call gen-version-o)
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LDcore) $(ldargs-init) \
+	$(q)$(LDcore) $(init-ldargs) \
 		`cat $(link-out-dir)/init_entries.txt` \
-		$(ldargs-init-objs) -o $@
+		$(init-ldadd) -o $@
 
 cleanfiles += $(link-out-dir)/text_init.ld.S
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/gen_ld_text_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | \
+		./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_init.ld.S
 $(link-out-dir)/rodata_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | \
-		${AWK} -f ./scripts/gen_ld_rodata_sects.awk > $@
+	$(q)$(READELFcore) -S -W $< | ./scripts/gen_ld_sects.py .rodata. > $@
 
 -include $(link-script-dep)
 
@@ -146,11 +131,12 @@ endef
 $(link-out-dir)/version.o:
 	$(call gen-version-o)
 
+
 all: $(link-out-dir)/tee.elf
 cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
 cleanfiles += $(link-out-dir)/version.o
 cleanfiles += $(link-out-dir)/.buildcount
-$(link-out-dir)/tee.elf: $(objs) $(libdeps) $(link-script-pp)
+$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp)
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
@@ -204,14 +190,14 @@ $(link-out-dir)/tee-init_mem_usage.txt: $(link-out-dir)/tee.elf
 	@echo -n 0x > $@
 	$(q)$(NMcore) $< | grep ' __init_mem_usage' | sed 's/ .*$$//' >> $@
 
-all: $(link-out-dir)/tee.bin
-cleanfiles += $(link-out-dir)/tee.bin
-$(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
-			 $(link-out-dir)/tee-pageable.bin \
-			 $(link-out-dir)/tee-init_size.txt \
-			 $(link-out-dir)/tee-init_load_addr.txt \
-			 $(link-out-dir)/tee-init_mem_usage.txt \
+gen_hash_bin_deps :=	$(link-out-dir)/tee-pager.bin \
+			$(link-out-dir)/tee-pageable.bin \
+			$(link-out-dir)/tee-init_size.txt \
+			$(link-out-dir)/tee-init_load_addr.txt \
+			$(link-out-dir)/tee-init_mem_usage.txt \
 			./scripts/gen_hashed_bin.py
+
+define gen_hash_bin_cmd
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)load_addr=`cat $(link-out-dir)/tee-init_load_addr.txt` && \
 	./scripts/gen_hashed_bin.py \
@@ -221,9 +207,28 @@ $(link-out-dir)/tee.bin: $(link-out-dir)/tee-pager.bin \
 		--init_load_addr_lo $$(($$load_addr & 0xffffffff)) \
 		--init_mem_usage `cat $(link-out-dir)/tee-init_mem_usage.txt` \
 		--tee_pager_bin $(link-out-dir)/tee-pager.bin \
-		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin \
-		--out $@
+		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin
+endef
 
+all: $(link-out-dir)/tee.bin
+cleanfiles += $(link-out-dir)/tee.bin
+$(link-out-dir)/tee.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out $@
+
+all: $(link-out-dir)/tee-header_v2.bin
+cleanfiles += $(link-out-dir)/tee-header_v2.bin
+$(link-out-dir)/tee-header_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_header_v2 $@
+
+all: $(link-out-dir)/tee-pager_v2.bin
+cleanfiles += $(link-out-dir)/tee-pager_v2.bin
+$(link-out-dir)/tee-pager_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_pager_v2 $@
+
+all: $(link-out-dir)/tee-pageable_v2.bin
+cleanfiles += $(link-out-dir)/tee-pageable_v2.bin
+$(link-out-dir)/tee-pageable_v2.bin: $(gen_hash_bin_deps)
+	$(gen_hash_bin_cmd) --out_pageable_v2 $@
 
 all: $(link-out-dir)/tee.symb_sizes
 cleanfiles += $(link-out-dir)/tee.symb_sizes

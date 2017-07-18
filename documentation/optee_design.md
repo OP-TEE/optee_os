@@ -451,6 +451,56 @@ OP-TEE to be able to initialize at all. The loader supplies in `r0/x0` the
 address of the first byte following what was not copied and jumps to the load
 address to start OP-TEE.
 
+In addition to overall binary with partitions inside described as above, extra
+three binaries are generated simultaneously during build process for loaders
+who support loading separate binaries:
+```
++----------+
+| Header   |
++----------+
+
++----------+
+| Init     |
++----------+
+| Hashes   |
++----------+
+
++----------+
+| Pageable |
++----------+
+```
+In this case, loaders load header binary first to get image list and information
+of each image; and then load each of them into specific load address assigned
+in structure. These binaries are named with v2 suffix to distinguish from the
+existing binaries. Header format is updated to help loaders loading binaries
+efficiently:
+```c
+#define OPTEE_IMAGE_ID_PAGER    0
+#define OPTEE_IMAGE_ID_PAGED    1
+
+struct optee_image {
+        uint32_t load_addr_hi;
+        uint32_t load_addr_lo;
+        uint32_t image_id;
+        uint32_t size;
+};
+
+struct optee_header_v2 {
+        uint32_t magic;
+        uint8_t version;
+        uint8_t arch;
+        uint16_t flags;
+        uint32_t nb_images;
+        struct optee_image optee_image[];
+};
+```
+
+Magic number and architecture are identical as original. Version is increased
+to 2. `load_addr_hi` and `load_addr_lo` may be 0xFFFFFFFF for pageable binary
+since pageable part may get loaded by loader into dynamic available position.
+`image_id` indicates how loader handles current binary.
+Loaders who don't support separate loading just ignore all v2 binaries.
+
 ## Initializing the pager
 The pager is initialized as early as possible during boot in order to minimize
 the "init" area. The global variable `tee_mm_vcore` describes the virtual memory

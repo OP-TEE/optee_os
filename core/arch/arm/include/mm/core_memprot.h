@@ -46,13 +46,13 @@
 /* memory atttributes */
 enum buf_is_attr {
 	CORE_MEM_CACHED,
-	CORE_MEM_EXTRAM,
 	CORE_MEM_NSEC_SHM,
 	CORE_MEM_NON_SEC,
 	CORE_MEM_SEC,
 	CORE_MEM_TEE_RAM,
 	CORE_MEM_TA_RAM,
 	CORE_MEM_SDP_MEM,
+	CORE_MEM_REG_SHM,
 };
 
 /* redirect legacy tee_vbuf_is() and tee_pbuf_is() to our routines */
@@ -106,5 +106,11 @@ void *phys_to_virt_io(paddr_t pa);
  * Returns 0 on failure or a valid physical address on success.
  */
 paddr_t virt_to_phys(void *va);
+
+/*
+ * Return runtime usable address, irrespective of whether
+ * the MMU is enabled or not.
+ */
+vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type);
 
 #endif /* CORE_MEMPROT_H */

@@ -505,7 +505,7 @@ static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
 /* release unused pageable_zi vmem */
 static void release_unused_mpa_scratch_memory(void)
 {
-	mpa_scratch_mem pool = (mpa_scratch_mem)_ltc_mempool_u32;
+	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
 	struct mpa_scratch_item *item;
 	vaddr_t start;
 	vaddr_t end;

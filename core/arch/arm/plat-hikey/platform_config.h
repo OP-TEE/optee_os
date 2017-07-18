@@ -31,12 +31,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#ifdef ARM64
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for ARM64"
-#endif
-#endif /* ARM64 */
-
 /* PL011 UART */
 #if defined(CFG_CONSOLE_UART) && (CFG_CONSOLE_UART == 0)
 #define CONSOLE_UART_BASE       0xF8015000
@@ -52,7 +46,17 @@
 /*
  * HiKey memory map
  *
- * We use only non-secure DRAM (TZDRAM and TZSRAM are emulated).
+ * TZDRAM is secured (firewalled) by the DDR controller, see ARM-TF, but note
+ * that security of this type of memory is weak for two reasons:
+ *   1. It is prone to physical tampering since DRAM is external to the SoC
+ *   2. It is still somewhat prone to software attacks because the memory
+ *      protection may be reverted by the non-secure kernel with a piece of
+ *      code similar to the one that sets the protection in ARM-TF (we're
+ *      missing a "lockdown" step which would prevent any change to the DDRC
+ *      configuration until the next SoC reset).
+ * TZSRAM is emulated in the TZDRAM area, because the on-chip SRAM of the SoC
+ * is too small to run OP-TEE (72K total with 64K available, see "SRAM Memory
+ * Region Layout" in ARM-TF plat/hikey/include/hisi_sram_map.h).
  *
  * CFG_WITH_PAGER=n
  *
@@ -61,8 +65,14 @@
  *  0x3F10_0000                               | TZDRAM
  *    TEE RAM: 1 MiB (CFG_TEE_RAM_VA_SIZE)    |
  *  0x3F00_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
- *    Shared memory: 1 MiB                    |
- *  0x3EF0_0000                               | DRAM0
+ *    Shared memory: 2 MiB                    |
+ *  0x3EE0_0000                               | DRAM0
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3EC0_0000                               -
+ *    Secure Data Path buffers: 4 MiB         | DRAM0 (secure)
+ *  0x3E80_0000 [CFG_TEE_SDP_MEM_BASE]        -
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3E00_0000                               | DRAM0
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  *
@@ -75,8 +85,14 @@
  *  0x3F03_2000                               -
  *    TEE RAM: 200 KiB                        | TZSRAM
  *  0x3F00_0000 [TZSRAM_BASE, BL32_LOAD_ADDR] -
- *    Shared memory: 1 MiB                    |
- *  0x3EF0_0000                               | DRAM0
+ *    Shared memory: 2 MiB                    |
+ *  0x3EE0_0000                               | DRAM0
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3EC0_0000                               -
+ *    Secure Data Path buffers: 4 MiB         | DRAM0 (secure)
+ *  0x3E80_0000 [CFG_TEE_SDP_MEM_BASE]        -
+ *    Reserved by UEFI for OP-TEE, unused     |
+ *  0x3E00_0000                               | DRAM0
  *    Available to Linux                      |
  *  0x0000_0000 [DRAM0_BASE]                  -
  */
