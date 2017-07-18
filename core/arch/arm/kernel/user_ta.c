@@ -430,7 +430,8 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = (uaddr_t)utc->mmu->regions[0].va + utc->mobj_stack->size;
+	usr_stack = (uaddr_t)utc->mmu->regions[TEE_MMU_UMAP_STACK_IDX].va +
+		utc->mobj_stack->size;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param, param_va);
@@ -508,7 +509,8 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
 		 utc->context);
 	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
-		 utc->mmu->regions[0].va, utc->mobj_stack->size);
+		 utc->mmu->regions[TEE_MMU_UMAP_STACK_IDX].va,
+		 utc->mobj_stack->size);
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
 		paddr_t pa = 0;
 
