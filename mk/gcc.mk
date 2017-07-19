@@ -1,7 +1,7 @@
 
 CC$(sm)		:= $(CROSS_COMPILE_$(sm))gcc
 CPP$(sm)	:= $(CROSS_COMPILE_$(sm))cpp
-LD$(sm)		:= $(CROSS_COMPILE_$(sm))ld
+LD$(sm)		:= $(CROSS_COMPILE_$(sm))ld.bfd
 AR$(sm)		:= $(CROSS_COMPILE_$(sm))ar
 NM$(sm)		:= $(CROSS_COMPILE_$(sm))nm
 OBJCOPY$(sm)	:= $(CROSS_COMPILE_$(sm))objcopy
