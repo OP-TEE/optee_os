@@ -1426,6 +1426,10 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	map->pa = p;
 
 	set_region(&tbl_info, map);
+
+	/* Make sure the new entry is visible before continuing. */
+	dsb_ishst();
+
 	return true;
 }
 
