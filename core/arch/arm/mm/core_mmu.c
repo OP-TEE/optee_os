@@ -596,6 +596,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
 	case MEM_AREA_TEE_RAM_RW:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
+	case MEM_AREA_TEE_COHERENT:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | noncache;
 	case MEM_AREA_TA_RAM:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_NSEC_SHM:
@@ -887,6 +889,7 @@ void core_init_mmu_map(void)
 			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
 				panic("NS_SHM can't fit in nsec_shared");
 			break;
+		case MEM_AREA_TEE_COHERENT:
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_RAM_SEC:
