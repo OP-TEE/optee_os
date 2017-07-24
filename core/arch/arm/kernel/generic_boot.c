@@ -541,11 +541,11 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 		return NULL;
 
 	prop_len = addr_size;
-	addr_size = fdt_address_cells(fdt, offs);
+	addr_size = fdt_address_cells(fdt, 0);
 	if (addr_size < 0)
 		return NULL;
 
-	len_size = fdt_size_cells(fdt, offs);
+	len_size = fdt_size_cells(fdt, 0);
 	if (len_size < 0)
 		return NULL;
 
