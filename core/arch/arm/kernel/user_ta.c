@@ -625,16 +625,19 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s)
 {
 	const struct user_ta_store_ops *store;
-	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+	TEE_Result res;
 
 	SLIST_FOREACH(store, &uta_store_list, link) {
 		DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
 		     store->description);
 		res = ta_load(uuid, store, &s->ctx);
-		if (res == TEE_SUCCESS) {
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			continue;
+		if (res == TEE_SUCCESS)
 			s->ctx->ops = &user_ta_ops;
-			return res;
-		}
+		else
+			DMSG("res=0x%x", res);
+		return res;
 	}
-	return res;
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
