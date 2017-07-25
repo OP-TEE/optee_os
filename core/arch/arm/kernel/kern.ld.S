@@ -118,6 +118,13 @@ SECTIONS
 		KEEP(*(.rodata.dtdrv))
 		__rodata_dtdrv_end = .;
 #endif
+#ifdef CFG_EARLY_TA
+		. = ALIGN(8);
+		__rodata_early_ta_start = .;
+		KEEP(*(.rodata.early_ta))
+		__rodata_early_ta_end = .;
+#endif
+
 		*(.rodata .rodata.*)
 
 		/*
@@ -328,6 +335,12 @@ SECTIONS
 		__rodata_dtdrv_start = .;
 		KEEP(*(.rodata.dtdrv))
 		__rodata_dtdrv_end = .;
+#endif
+#ifdef CFG_EARLY_TA
+		. = ALIGN(8);
+		__rodata_early_ta_start = .;
+		KEEP(*(.rodata.early_ta))
+		__rodata_early_ta_end = .;
 #endif
 		*(.rodata*)
 		/*

@@ -52,6 +52,7 @@
 #define __bss		__section(".bss")
 #define __rodata	__section(".rodata")
 #define __rodata_unpaged __section(".rodata.__unpaged")
+#define __early_ta	__section(".rodata.early_ta")
 #define __noprof	__attribute__((no_instrument_function))
 
 #define __compiler_bswap64(x)	__builtin_bswap64((x))
