@@ -239,6 +239,10 @@ script:
   - $make PLATFORM=rpi3
   - $make PLATFORM=rpi3 CFG_ARM64_core=y
 
+  # Rockchip RK322X
+  - $make PLATFORM=rockchip-rk322x
+  - $make PLATFORM=rockchip-rk322x CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
+
   # Run regression tests (xtest in QEMU)
   - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
 
