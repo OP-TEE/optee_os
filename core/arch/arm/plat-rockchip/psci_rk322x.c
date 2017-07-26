@@ -67,6 +67,11 @@ static bool core_held_in_reset(uint32_t core)
 	return val & CORE_HELD_IN_RESET(core);
 }
 
+uint32_t psci_version(void)
+{
+	return PSCI_VERSION_1_0;
+}
+
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id __unused)
 {
