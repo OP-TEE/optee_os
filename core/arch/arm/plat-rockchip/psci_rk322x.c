@@ -72,6 +72,20 @@ uint32_t psci_version(void)
 	return PSCI_VERSION_1_0;
 }
 
+int psci_features(uint32_t psci_fid)
+{
+	switch (psci_fid) {
+	case PSCI_PSCI_FEATURES:
+	case PSCI_VERSION:
+	case PSCI_CPU_ON:
+	case PSCI_CPU_OFF:
+	case PSCI_SYSTEM_RESET:
+		return PSCI_RET_SUCCESS;
+	default:
+		return PSCI_RET_NOT_SUPPORTED;
+	}
+}
+
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id __unused)
 {
