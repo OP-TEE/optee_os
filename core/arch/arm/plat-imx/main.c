@@ -158,5 +158,9 @@ void plat_cpu_reset_late(void)
 #ifdef CFG_CSU
 		csu_init();
 #endif
+
+#ifdef CFG_TZC380
+		tzasc_init();
+#endif
 	}
 }

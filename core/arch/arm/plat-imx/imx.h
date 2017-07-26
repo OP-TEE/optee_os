@@ -36,6 +36,9 @@ bool soc_is_imx6dqp(void);
 bool soc_is_imx7ds(void);
 void imx_gpcv2_set_core1_pdn_by_software(void);
 void imx_gpcv2_set_core1_pup_by_software(void);
+#ifdef CFG_TZC380
+TEE_Result tzasc_init(void);
+#endif
 #ifdef CFG_CSU
 TEE_Result csu_init(void);
 #endif

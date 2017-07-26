@@ -25,5 +25,6 @@ srcs-y += a7_plat_init.S
 endif
 
 srcs-$(CFG_MX7) += a7_plat_init.S
+srcs-$(CFG_TZC380) += tzasc.c
 srcs-$(CFG_CSU) += imx_csu.c
 srcs-$(CFG_SCU) += imx_scu.c

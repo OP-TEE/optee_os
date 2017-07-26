@@ -62,6 +62,7 @@ $(call force,CFG_IMX_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
+CFG_TZC380 ?= y
 CFG_CSU ?= y
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
@@ -179,6 +180,8 @@ CFG_DDR_SIZE ?= 0x40000000
 CFG_PSCI_ARM32 ?= y
 CFG_BOOT_SYNC_CPU = n
 CFG_BOOT_SECONDARY_REQUEST = y
+# Currently there is a board rework to enable TZASC on i.MX6QP
+CFG_TZC380 = n
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabreauto))
@@ -189,6 +192,8 @@ CFG_DDR_SIZE ?= 0x80000000
 CFG_PSCI_ARM32 ?= y
 CFG_BOOT_SYNC_CPU = n
 CFG_BOOT_SECONDARY_REQUEST = y
+# Currently there is a board rework to enable TZASC on i.MX6QP
+CFG_TZC380 = n
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabresd))
@@ -226,6 +231,8 @@ CFG_DT ?= y
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_DDR_SIZE ?= 0x20000000
 CFG_PSCI_ARM32 ?= y
+# TZASC config is not defined for the warp board
+CFG_TZC380 = n
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
