@@ -85,7 +85,7 @@ struct user_ta_store_ops;
 #ifdef CFG_WITH_USER_TA
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
-TEE_Result tee_ta_register_ta_store(const struct user_ta_store_ops *ops);
+TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops);
 #else
 static inline TEE_Result tee_ta_init_user_ta_session(
 			const TEE_UUID *uuid __unused,
@@ -95,7 +95,7 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 }
 
 static inline TEE_Result tee_ta_register_ta_store(
-			const struct user_ta_store_ops *ops __unused)
+			struct user_ta_store_ops *ops __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
