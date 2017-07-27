@@ -256,7 +256,7 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	struct tee_ta_ctx *ctx;
 	const struct pseudo_ta_head *ta;
 
-	DMSG("   Lookup for pseudo TA %pUl", (void *)uuid);
+	DMSG("Lookup pseudo TA %pUl", (void *)uuid);
 
 	ta = &__start_ta_head_section;
 	while (true) {
@@ -268,7 +268,7 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	}
 
 	/* Load a new TA and create a session */
-	DMSG("      Open %s", ta->name);
+	DMSG("Open %s", ta->name);
 	stc = calloc(1, sizeof(struct pseudo_ta_ctx));
 	if (!stc)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -282,7 +282,7 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	ctx->ops = &pseudo_ta_ops;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
 
-	DMSG("      %s : %pUl", stc->pseudo_ta->name, (void *)&ctx->uuid);
+	DMSG("%s : %pUl", stc->pseudo_ta->name, (void *)&ctx->uuid);
 
 	return TEE_SUCCESS;
 }
