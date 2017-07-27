@@ -607,7 +607,8 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	if (!user_ta_store)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	DMSG("Load user TA %pUl", (void *)uuid);
+	DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
+	     user_ta_store->description);
 	res = ta_load(uuid, user_ta_store, &s->ctx);
 	if (res == TEE_SUCCESS)
 		s->ctx->ops = &user_ta_ops;

@@ -325,6 +325,7 @@ static void ta_close(struct user_ta_store_handle *h)
 }
 
 static const struct user_ta_store_ops ops = {
+	.description = "REE",
 	.open = ta_open,
 	.get_size = ta_get_size,
 	.read = ta_read,
