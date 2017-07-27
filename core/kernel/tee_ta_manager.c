@@ -394,7 +394,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	}
 
 	ctx = sess->ctx;
-	DMSG("   ... Destroy session");
+	DMSG("Destroy session");
 
 	tee_ta_set_busy(ctx);
 
@@ -420,7 +420,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	keep_alive = (ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) &&
 			(ctx->flags & TA_FLAG_SINGLE_INSTANCE);
 	if (!ctx->ref_count && !keep_alive) {
-		DMSG("   ... Destroy TA ctx");
+		DMSG("Destroy TA ctx");
 
 		TAILQ_REMOVE(&tee_ctxes, ctx, link);
 		mutex_unlock(&tee_ta_mutex);
@@ -458,7 +458,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 	      (ctx->ref_count == 0)))
 		return TEE_ERROR_BUSY;
 
-	DMSG("   ... Re-open TA %pUl", (void *)&ctx->uuid);
+	DMSG("Re-open TA %pUl", (void *)&ctx->uuid);
 
 	ctx->ref_count++;
 	s->ctx = ctx;
@@ -605,7 +605,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (sess->ctx->panicked) {
-		DMSG("   Panicked !");
+		DMSG("Panicked !");
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -622,7 +622,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	tee_ta_clear_busy(sess->ctx);
 	if (res != TEE_SUCCESS)
-		DMSG("  => Error: %x of %d\n", res, *err);
+		DMSG("Error: %x of %d\n", res, *err);
 	return res;
 }
 
