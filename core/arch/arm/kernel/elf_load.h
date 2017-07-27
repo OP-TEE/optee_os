@@ -35,6 +35,11 @@ struct elf_load_state;
 struct user_ta_store_handle;
 struct user_ta_store_ops {
 	/*
+	 * Human-readable string to describe where the TA comes from.
+	 * For debug purposes only.
+	 */
+	const char *description;
+	/*
 	 * Open a TA. Does not guarantee that the TA is valid or even exists.
 	 */
 	TEE_Result (*open)(const TEE_UUID *uuid,
