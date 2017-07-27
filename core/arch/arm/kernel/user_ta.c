@@ -43,6 +43,7 @@
 #include <optee_msg_supplicant.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
+#include <sys/queue.h>
 #include <ta_pub_key.h>
 #include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
@@ -591,26 +592,49 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.get_instance_id = user_ta_get_instance_id,
 };
 
-static const struct user_ta_store_ops *user_ta_store;
+static SLIST_HEAD(uta_stores_head, user_ta_store_ops) uta_store_list =
+		SLIST_HEAD_INITIALIZER(uta_stores_head);
 
-TEE_Result tee_ta_register_ta_store(const struct user_ta_store_ops *ops)
+TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
 {
-	user_ta_store = ops;
+	struct user_ta_store_ops *p = NULL;
+	struct user_ta_store_ops *e;
+
+	DMSG("Registering TA store: '%s' (priority %d)", ops->description,
+	     ops->priority);
+
+	SLIST_FOREACH(e, &uta_store_list, link) {
+		/*
+		 * Do not allow equal priorities to avoid any dependency on
+		 * registration order.
+		 */
+		assert(e->priority != ops->priority);
+		if (e->priority > ops->priority)
+			break;
+		p = e;
+	}
+	if (p)
+		SLIST_INSERT_AFTER(p, ops, link);
+	else
+		SLIST_INSERT_HEAD(&uta_store_list, ops, link);
+
 	return TEE_SUCCESS;
 }
 
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s)
 {
-	TEE_Result res;
+	const struct user_ta_store_ops *store;
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (!user_ta_store)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
-	     user_ta_store->description);
-	res = ta_load(uuid, user_ta_store, &s->ctx);
-	if (res == TEE_SUCCESS)
-		s->ctx->ops = &user_ta_ops;
+	SLIST_FOREACH(store, &uta_store_list, link) {
+		DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
+		     store->description);
+		res = ta_load(uuid, store, &s->ctx);
+		if (res == TEE_SUCCESS) {
+			s->ctx->ops = &user_ta_ops;
+			return res;
+		}
+	}
 	return res;
 }
