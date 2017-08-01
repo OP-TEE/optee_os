@@ -197,6 +197,9 @@ $(call force,CFG_EARLY_TA,y)
 else
 CFG_EARLY_TA ?= n
 endif
+ifeq ($(CFG_EARLY_TA),y)
+$(call force,CFG_ZLIB,y)
+endif
 
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n

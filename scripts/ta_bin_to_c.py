@@ -31,6 +31,7 @@ import array
 import os
 import re
 import uuid
+import zlib
 
 def get_args():
 
@@ -45,6 +46,10 @@ def get_args():
 		help='Path to the TA binary. File name has to be: <uuid>.* '
 		'such as: 8aaaf200-2450-11e4-abe2-0002a5d5c51b.stripped.elf')
 
+	parser.add_argument('--compress', dest="compress",
+		action="store_true", help='Compress the TA using the DEFLATE '
+		'algorithm')
+
 	return parser.parse_args()
 
 def main():
@@ -52,6 +57,13 @@ def main():
 	args = get_args();
 
 	ta_uuid = uuid.UUID(re.sub('\..*', '', os.path.basename(args.ta)))
+
+	with open(args.ta, 'rb') as ta:
+		bytes = ta.read()
+		uncompressed_size = len(bytes)
+		if args.compress:
+			bytes = zlib.compress(bytes)
+		size = len(bytes)
 
 	f = open(args.out, 'w')
 	f.write('/* Generated from ' + args.ta + ' by ' +
@@ -72,21 +84,21 @@ def main():
 	f.write('\t\t\t')
 	f.write(', '.join('0x' + csn[i:i+2] for i in range(0, len(csn), 2)))
 	f.write('\n\t\t},\n\t},\n')
-	f.write('\t.size = {:d},'.format(os.path.getsize(args.ta)))
+	f.write('\t.size = {:d},\n'.format(size))
+	if args.compress:
+		f.write('\t.uncompressed_size = '
+			'{:d},\n'.format(uncompressed_size))
 	f.write('\t.ta = {\n')
 	i = 0
-	with open(args.ta, 'rb') as ta:
-		byte = ta.read(1)
-		while byte:
-			if i % 8 == 0:
-				f.write('\t\t');
-			f.write('0x' + '{:02x}'.format(ord(byte)) + ',')
-			i = i + 1
-			byte = ta.read(1)
-			if i % 8 == 0 or not byte:
-				f.write('\n')
-			else:
-				f.write(' ')
+	while i < size:
+		if i % 8 == 0:
+			f.write('\t\t');
+		f.write('0x' + '{:02x}'.format(ord(bytes[i])) + ',')
+		i = i + 1
+		if i % 8 == 0 or i == size:
+			f.write('\n')
+		else:
+			f.write(' ')
 	f.write('\t},\n')
 	f.write('};\n');
 	f.close()

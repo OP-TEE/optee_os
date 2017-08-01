@@ -34,6 +34,7 @@
 struct early_ta {
 	TEE_UUID uuid;
 	uint32_t size;
+	uint32_t uncompressed_size; /* 0: not compressed */
 	const uint8_t ta[]; /* @size bytes */
 };
 
