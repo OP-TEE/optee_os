@@ -17,7 +17,7 @@ early-ta-$1-uuid := $(firstword $(subst ., ,$(notdir $1)))
 gensrcs-y += early-ta-$1
 produce-early-ta-$1 = early_ta_$$(early-ta-$1-uuid).c
 depends-early-ta-$1 = $1 scripts/ta_bin_to_c.py
-recipe-early-ta-$1 = scripts/ta_bin_to_c.py --ta $1 \
+recipe-early-ta-$1 = scripts/ta_bin_to_c.py --compress --ta $1 \
 		--out $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
 cleanfiles += $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
 endef
