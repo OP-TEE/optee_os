@@ -94,6 +94,12 @@ libdir = core/lib/libfdt
 include mk/lib.mk
 endif
 
+ifeq ($(CFG_ZLIB),y)
+libname = zlib
+libdir = core/lib/zlib
+include mk/lib.mk
+endif
+
 #
 # Do main source
 #
