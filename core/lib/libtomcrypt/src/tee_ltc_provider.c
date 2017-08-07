@@ -1130,6 +1130,9 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 
 	ltc_sig_len = mod_size;
 
+	if (ltc_rsa_algo == LTC_PKCS_1_PSS && salt_len == -1)
+		salt_len = hash_size;
+
 	ltc_res = rsa_sign_hash_ex(msg, msg_len, sig, &ltc_sig_len,
 				   ltc_rsa_algo, &prng->state, prng->index,
 				   ltc_hashindex, salt_len, &ltc_key);
@@ -1154,7 +1157,7 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 	TEE_Result res;
 	uint32_t bigint_size;
 	size_t hash_size;
-	int stat, ltc_hashindex, ltc_res, ltc_rsa_algo;
+	int ltc_stat, ltc_hashindex, ltc_res, ltc_rsa_algo;
 	rsa_key ltc_key = {
 		.type = PK_PUBLIC,
 		.e = key->e,
@@ -1203,13 +1206,21 @@ static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
 		goto err;
 	}
 
+	if (ltc_rsa_algo == LTC_PKCS_1_PSS && salt_len == -1)
+		salt_len = hash_size;
+
 	ltc_res = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
-				     ltc_hashindex, salt_len, &stat, &ltc_key);
-	if ((ltc_res != CRYPT_OK) || (stat != 1)) {
-		res = TEE_ERROR_SIGNATURE_INVALID;
-		goto err;
+				     ltc_hashindex, salt_len, &ltc_stat,
+				     &ltc_key);
+
+	if (ltc_res == CRYPT_OK) {
+		if (ltc_stat == 1)
+			res = TEE_SUCCESS;
+		else
+			res = TEE_ERROR_SIGNATURE_INVALID;
+	} else {
+		res = TEE_ERROR_GENERIC;
 	}
-	res = TEE_SUCCESS;
 
 err:
 	return res;
@@ -1409,10 +1420,14 @@ static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
 	ltc_res = dsa_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
 	mp_clear_multi(r, s, NULL);
 
-	if ((ltc_res == CRYPT_OK) && (ltc_stat == 1))
-		res = TEE_SUCCESS;
-	else
+	if (ltc_res == CRYPT_OK) {
+		if (ltc_stat == 1)
+			res = TEE_SUCCESS;
+		else
+			res = TEE_ERROR_SIGNATURE_INVALID;
+	} else {
 		res = TEE_ERROR_GENERIC;
+	}
 
 err:
 	return res;
@@ -1819,10 +1834,14 @@ static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
 
 	ltc_res = ecc_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
-	if ((ltc_res == CRYPT_OK) && (ltc_stat == 1))
-		res = TEE_SUCCESS;
-	else
+	if (ltc_res == CRYPT_OK) {
+		if (ltc_stat == 1)
+			res = TEE_SUCCESS;
+		else
+			res = TEE_ERROR_SIGNATURE_INVALID;
+	} else {
 		res = TEE_ERROR_GENERIC;
+	}
 
 out:
 	mp_clear_multi(key_z, r, s, NULL);
