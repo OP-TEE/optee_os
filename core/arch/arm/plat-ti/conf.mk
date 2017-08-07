@@ -9,6 +9,7 @@ $(call force,CFG_ARM32_core,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PM_STUBS,y)
 ifeq ($(PLATFORM_FLAVOR),am43xx)
+CFG_WITH_SOFTWARE_PRNG = y
 $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
