@@ -662,6 +662,12 @@ LOCAL_FUNC thread_abort_handler , :
 thread_und_handler:
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+	/*
+	 * Disable both foreign and native interrupts in the thread handlers.
+	 * The tee handlers can decide when the native interrupts should
+	 * be enabled.
+	 */
+	cpsid	f	/* IRQ is already masked by the hardware */
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	mrs	r1, spsr
 	tst	r1, #CPSR_T
@@ -671,12 +677,24 @@ UNWIND(	.cantunwind)
 	b	.thread_abort_generic
 
 thread_dabort_handler:
+	/*
+	 * Disable both foreign and native interrupts in the thread handlers.
+	 * The tee handlers can decide when the native interrupts should
+	 * be enabled.
+	 */
+	cpsid	f	/* IRQ is already masked by the hardware */
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #8
 	mov	r0, #ABORT_TYPE_DATA
 	b	.thread_abort_generic
 
 thread_pabort_handler:
+	/*
+	 * Disable both foreign and native interrupts in the thread handlers.
+	 * The tee handlers can decide when the native interrupts should
+	 * be enabled.
+	 */
+	cpsid	f	/* IRQ is already masked by the hardware */
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #4
 	mov	r0, #ABORT_TYPE_PREFETCH
@@ -771,6 +789,12 @@ END_FUNC thread_abort_handler
 LOCAL_FUNC thread_svc_handler , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+	/*
+	 * Disable both foreign and native interrupts in the thread handlers.
+	 * The tee handlers can decide when the native interrupts should
+	 * be enabled.
+	 */
+	cpsid	f	/* IRQ is already masked by the hardware */
 	push	{r0-r7, lr}
 	mrs	r0, spsr
 	push	{r0}

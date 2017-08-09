@@ -196,9 +196,14 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
+	uint32_t state;
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
+
+	/* Enable native interupts */
+	state = thread_get_exceptions();
+	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
 
