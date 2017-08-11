@@ -131,12 +131,20 @@ endef
 $(link-out-dir)/version.o:
 	$(call gen-version-o)
 
+-include $(link-out-dir)/.tee.elf.cmd
+define check-link-objs
+$(if $(strip $(filter-out $(link-objs), $(old-link-objs))
+	     $(filter-out $(old-link-objs), $(link-objs))), FORCE_LINK := FORCE)
+endef
+$(eval $(call check-link-objs))
 
 all: $(link-out-dir)/tee.elf
 cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
 cleanfiles += $(link-out-dir)/version.o
 cleanfiles += $(link-out-dir)/.buildcount
-$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp)
+cleanfiles += $(link-out-dir)/.tee.elf.cmd
+$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK)
+	@echo "old-link-objs := $(link-objs)" >$(link-out-dir)/.tee.elf.cmd
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
 
