@@ -66,6 +66,22 @@
 #if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
     defined(CFG_CRYPTO_DH) || defined(CFG_CRYPTO_ECC)
 #define MBEDTLS_BIGNUM_C
+#define MBEDTLS_OID_C
+#define MBEDTLS_PKCS1_V15
+#define MBEDTLS_PKCS1_V21
+#define MBEDTLS_PK_C
+#define MBEDTLS_GENPRIME
+#define MBEDTLS_CTR_DRBG_C
+#endif
+
+#if defined(CFG_CRYPTO_RSA)
+#define MBEDTLS_RSA_C
+#define MBEDTLS_RSA_NO_CRT
+#endif
+
+#if defined(CFG_CRYPTO_RSA)
+#define MBEDTLS_ASN1_PARSE_C
+#define MBEDTLS_ASN1_WRITE_C
 #endif
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/

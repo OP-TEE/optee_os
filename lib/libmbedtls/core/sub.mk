@@ -24,3 +24,4 @@ srcs-$(CFG_CRYPTO_CMAC) += aes_cmac.c
 
 srcs-$(call cfg-one-enabled, CFG_CRYPTO_RSA CFG_CRYPTO_DSA \
 			     CFG_CRYPTO_DH CFG_CRYPTO_ECC) += bignum.c
+srcs-$(CFG_CRYPTO_RSA) += rsa.c
