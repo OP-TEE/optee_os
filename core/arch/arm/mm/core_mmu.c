@@ -284,8 +284,10 @@ static size_t discovered_nsec_ddr_nelems;
 
 static int cmp_pmem_by_addr(const void *a, const void *b)
 {
-	return ((const struct core_mmu_phys_mem *)a)->addr -
-	       ((const struct core_mmu_phys_mem *)b)->addr;
+	const struct core_mmu_phys_mem *pmem_a = a;
+	const struct core_mmu_phys_mem *pmem_b = b;
+
+	return CMP_TRILEAN(pmem_a->addr, pmem_b->addr);
 }
 
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
@@ -651,7 +653,7 @@ static int cmp_mmap_by_lower_va(const void *a, const void *b)
 	const struct tee_mmap_region *mm_a = a;
 	const struct tee_mmap_region *mm_b = b;
 
-	return mm_a->va - mm_b->va;
+	return CMP_TRILEAN(mm_a->va, mm_b->va);
 }
 
 static int __maybe_unused cmp_mmap_by_secure_attr(const void *a, const void *b)
