@@ -103,4 +103,13 @@
 #define SUB_OVERFLOW(a, b, res) __compiler_sub_overflow((a), (b), (res))
 #define MUL_OVERFLOW(a, b, res) __compiler_mul_overflow((a), (b), (res))
 
+/* Return a signed +1, 0 or -1 value based on data comparison */
+#define CMP_TRILEAN(a, b) \
+	(__extension__({ \
+		__typeof__(a) _a = (a); \
+		__typeof__(b) _b = (b); \
+		\
+		_a > _b ? 1 : _a < _b ? -1 : 0; \
+	}))
+
 #endif /*UTIL_H*/
