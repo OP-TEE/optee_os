@@ -16,4 +16,13 @@
 
 #include "mbedtls/bignum.h"
 
+#include "mbedtls/ctr_drbg.h"
+
+#include "mbedtls/entropy.h"
+
+#if defined(MBEDTLS_PK_C)
+#include "mbedtls/pk.h"
+#include "mbedtls/pk_internal.h"
+#endif
+
 #endif /* MBEDTLS_ACIPHER_H */

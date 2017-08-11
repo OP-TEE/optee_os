@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
+#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 #if defined(_CFG_CRYPTO_WITH_HASH) || defined(CFG_CRYPTO_RSA) || \
@@ -81,6 +82,63 @@ static const mbedtls_md_info_t *tee_algo_to_mbedtls_hash_info(uint32_t algo)
 
 	default:
 		return NULL;
+	}
+}
+
+static uint32_t tee_algo_to_mbedtls_hash_algo(uint32_t algo)
+{
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
+	case TEE_ALG_SHA1:
+	case TEE_ALG_DSA_SHA1:
+	case TEE_ALG_HMAC_SHA1:
+		return MBEDTLS_MD_SHA1;
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_MD5:
+	case TEE_ALG_HMAC_MD5:
+		return MBEDTLS_MD_MD5;
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
+	case TEE_ALG_SHA224:
+	case TEE_ALG_DSA_SHA224:
+	case TEE_ALG_HMAC_SHA224:
+		return MBEDTLS_MD_SHA224;
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
+	case TEE_ALG_SHA256:
+	case TEE_ALG_DSA_SHA256:
+	case TEE_ALG_HMAC_SHA256:
+		return MBEDTLS_MD_SHA256;
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
+	case TEE_ALG_SHA384:
+	case TEE_ALG_HMAC_SHA384:
+		return MBEDTLS_MD_SHA384;
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_SHA512:
+	case TEE_ALG_HMAC_SHA512:
+		return MBEDTLS_MD_SHA512;
+#endif
+	default:
+		return MBEDTLS_MD_NONE;
 	}
 }
 #endif /*
@@ -211,7 +269,7 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #define biH		(ciL << 2)			/* half limb size */
 #define BITS_TO_LIMBS(i)		((i) / biL + ((i) % biL != 0))
 
-#define LMD_MAX_BITS_PER_VARIABLE   (4096)
+#define LMD_MAX_BITS_PER_VARIABLE	(4096)
 
 size_t crypto_bignum_num_bytes(struct bignum *a)
 {
@@ -303,18 +361,95 @@ static bool bn_alloc_max(struct bignum **s)
 	return !!(*s);
 }
 
+static unsigned long int next = 1;
+
+/* Return next random integer */
+
+static int _rand(void)
+{
+	next = next * 1103515245L + 12345;
+	return (unsigned int) (next / 65536L) % 32768L;
+}
+
+static int mbd_rand(void *rng_state, unsigned char *output, size_t len)
+{
+	size_t use_len;
+	int rnd;
+
+	if (rng_state != NULL)
+		rng_state  = NULL;
+
+	while (len > 0) {
+		use_len = len;
+		if (use_len > sizeof(int))
+			use_len = sizeof(int);
+
+		rnd = _rand();
+		memcpy(output, &rnd, use_len);
+		output += use_len;
+		len -= use_len;
+	}
+	return 0;
+}
+
 #if defined(CFG_CRYPTO_RSA)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
-					    size_t key_size_bits __unused)
+					    size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->e = crypto_bignum_allocate(key_size_bits);
+	if (!(s->e))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->d = crypto_bignum_allocate(key_size_bits);
+	if (!(s->d))
+		goto err;
+	s->n = crypto_bignum_allocate(key_size_bits);
+	if (!(s->n))
+		goto err;
+	s->p = crypto_bignum_allocate(key_size_bits);
+	if (!(s->p))
+		goto err;
+	s->q = crypto_bignum_allocate(key_size_bits);
+	if (!(s->q))
+		goto err;
+	s->qp = crypto_bignum_allocate(key_size_bits);
+	if (!(s->qp))
+		goto err;
+	s->dp = crypto_bignum_allocate(key_size_bits);
+	if (!(s->dp))
+		goto err;
+	s->dq = crypto_bignum_allocate(key_size_bits);
+	if (!(s->dq))
+		goto err;
+
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->e);
+	crypto_bignum_free(s->d);
+	crypto_bignum_free(s->n);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
+	crypto_bignum_free(s->qp);
+	crypto_bignum_free(s->dp);
+
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
 TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
-					       size_t key_size_bits __unused)
+					       size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->e = crypto_bignum_allocate(key_size_bits);
+	if (!(s->e))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->n = crypto_bignum_allocate(key_size_bits);
+	if (!(s->n))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->e);
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
 void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
@@ -327,21 +462,175 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	mbedtls_rsa_context rsa;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	int lmd_res;
+	uint32_t e;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	lmd_res = mbedtls_ctr_drbg_seed(&ctr_drbg, mbd_rand, NULL, NULL, 0);
+
+	if (lmd_res != 0) {
+		EMSG(" failed\n  ! mbedtls_ctr_drbg_seed ret is 0x%x\n",
+			-lmd_res);
+		mbedtls_ctr_drbg_free(&ctr_drbg);
+		return TEE_ERROR_SECURITY;
+	}
+
+	/* get the public exponent */
+	mbedtls_mpi_write_binary((mbedtls_mpi *)key->e,
+			(unsigned char *)&e, sizeof(uint32_t));
+
+	e = TEE_U32_FROM_BIG_ENDIAN(e);
+	lmd_res = mbedtls_rsa_gen_key(&rsa, mbedtls_ctr_drbg_random,
+					&ctr_drbg, key_size, (int)e);
+	if (lmd_res != 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else if ((size_t)mbedtls_mpi_bitlen(&rsa.N) != key_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		/* Copy the key */
+		crypto_bignum_copy(key->e, (void *)&rsa.E);
+		crypto_bignum_copy(key->d, (void *)&rsa.D);
+		crypto_bignum_copy(key->n, (void *)&rsa.N);
+		crypto_bignum_copy(key->p, (void *)&rsa.P);
+
+		crypto_bignum_copy(key->q, (void *)&rsa.Q);
+		crypto_bignum_copy(key->qp, (void *)&rsa.QP);
+		crypto_bignum_copy(key->dp, (void *)&rsa.DP);
+		crypto_bignum_copy(key->dq, (void *)&rsa.DQ);
+
+		res = TEE_SUCCESS;
+	}
+	/* Free the temporary key */
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_rsa_free(&rsa);
+
+	return res;
 }
 
 TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 					   const uint8_t *src, size_t src_len,
 					   uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_rsa_context rsa;
+	int lmd_res;
+	uint8_t *buf = NULL;
+	unsigned long blen, offset;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+
+	rsa.len = crypto_bignum_num_bytes((void *)&rsa.N);
+
+	blen = LMD_MAX_BITS_PER_VARIABLE / 8;
+	buf = malloc(blen);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	memset(buf, 0, blen);
+	memcpy(buf + rsa.len - src_len, src, src_len);
+
+	lmd_res = mbedtls_rsa_public(&rsa, buf, buf);
+	switch (lmd_res) {
+	case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+		EMSG("mbedtls_rsa_public() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case 0:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("mbedtls_rsa_public() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	/* Remove the zero-padding (leave one zero if buff is all zeroes) */
+	offset = 0;
+	while ((offset < rsa.len - 1) && (buf[offset] == 0))
+		offset++;
+
+	*dst_len = rsa.len - offset;
+	memcpy(dst, (char *)buf + offset, *dst_len);
+out:
+	if (buf)
+		free(buf);
+	mbedtls_rsa_free(&rsa);
+
+	return res;
 }
 
 TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 					   const uint8_t *src, size_t src_len,
 					   uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_rsa_context rsa;
+	int lmd_res;
+	uint8_t *buf = NULL;
+	unsigned long blen, offset;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.D, key->d);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		crypto_bignum_copy((void *)&rsa.P, key->p);
+		crypto_bignum_copy((void *)&rsa.Q, key->q);
+		crypto_bignum_copy((void *)&rsa.QP, key->qp);
+		crypto_bignum_copy((void *)&rsa.DP, key->dp);
+		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+	}
+
+	rsa.len = mbedtls_mpi_size(&rsa.N);
+
+	blen = LMD_MAX_BITS_PER_VARIABLE / 8;
+	buf = malloc(blen);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	memset(buf, 0, blen);
+	memcpy(buf + rsa.len - src_len, src, src_len);
+
+	lmd_res = mbedtls_rsa_private(&rsa, NULL, NULL, buf, buf);
+	switch (lmd_res) {
+	case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+		EMSG("mbedtls_rsa_private() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case 0:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("mbedtls_rsa_private() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	/* Remove the zero-padding (leave one zero if buff is all zeroes) */
+	offset = 0;
+	while ((offset < rsa.len - 1) && (buf[offset] == 0))
+		offset++;
+
+	*dst_len = rsa.len - offset;
+	memcpy(dst, (char *)buf + offset, *dst_len);
+out:
+	if (buf)
+		free(buf);
+	mbedtls_rsa_free(&rsa);
+
+	return res;
 }
 
 TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
@@ -349,7 +638,120 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	int lmd_res, lmd_padding;
+	unsigned long blen;
+	size_t mod_size;
+	void *buf = NULL;
+	mbedtls_rsa_context rsa;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	const mbedtls_pk_info_t *pk_info = NULL;
+	uint32_t md_algo = MBEDTLS_MD_NONE;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.D, key->d);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		crypto_bignum_copy((void *)&rsa.P, key->p);
+		crypto_bignum_copy((void *)&rsa.Q, key->q);
+		crypto_bignum_copy((void *)&rsa.QP, key->qp);
+		crypto_bignum_copy((void *)&rsa.DP, key->dp);
+		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+	}
+
+	/*
+	 * Use a temporary buffer since we don't know exactly how large
+	 * the required size of the out buffer without doing a partial
+	 * decrypt. We know the upper bound though.
+	 */
+	if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
+		mod_size =  crypto_bignum_num_bytes(key->n);
+		blen = mod_size - 11;
+		lmd_padding = MBEDTLS_RSA_PKCS_V15;
+	} else {
+		/* Decoded message is always shorter than encrypted message */
+		blen = src_len;
+		lmd_padding = MBEDTLS_RSA_PKCS_V21;
+	}
+
+	rsa.len =  crypto_bignum_num_bytes(key->n);
+
+	buf = malloc(blen);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+	if (pk_info == NULL) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	/*
+	 * TEE_ALG_RSAES_PKCS1_V1_5 is invalid in hash. But its hash algo will
+	 * not be used in rsa, so skip it here.
+	 */
+	if (algo != TEE_ALG_RSAES_PKCS1_V1_5) {
+		md_algo = tee_algo_to_mbedtls_hash_algo(algo);
+		if (md_algo == MBEDTLS_MD_NONE) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto out;
+		}
+	}
+
+	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
+
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	lmd_res = mbedtls_ctr_drbg_seed(&ctr_drbg, mbd_rand, NULL, NULL, 0);
+	if (lmd_res != 0) {
+		EMSG(" failed\n  ! mbedtls_ctr_drbg_seed ret is 0x%x\n",
+				-lmd_res);
+		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
+
+	if (lmd_padding == MBEDTLS_RSA_PKCS_V15)
+		lmd_res = pk_info->decrypt_func(&rsa, src, src_len, buf, &blen,
+						blen, NULL, NULL);
+	else
+		lmd_res = pk_info->decrypt_func(&rsa, src, src_len, buf, &blen,
+						blen, mbedtls_ctr_drbg_random,
+						&ctr_drbg);
+
+	switch (lmd_res) {
+	case MBEDTLS_ERR_RSA_INVALID_PADDING:
+	case MBEDTLS_ERR_PK_TYPE_MISMATCH:
+	case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+		EMSG("decrypt_func() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case 0:
+		break;
+	default:
+		/* This will result in a panic */
+		EMSG("decrypt_func() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (*dst_len < blen) {
+		*dst_len = blen;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+	*dst_len = blen;
+	memcpy(dst, buf, blen);
+out:
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	if (buf)
+		free(buf);
+	mbedtls_rsa_free(&rsa);
+	return res;
 }
 
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
@@ -358,7 +760,85 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	int lmd_res, lmd_padding;
+	size_t mod_size;
+	mbedtls_rsa_context rsa;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	const mbedtls_pk_info_t *pk_info = NULL;
+	uint32_t md_algo = MBEDTLS_MD_NONE;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+
+	mod_size = crypto_bignum_num_bytes(key->n);
+	if (*dst_len < mod_size) {
+		*dst_len = mod_size;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+	*dst_len = mod_size;
+	rsa.len = mod_size;
+
+	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
+		lmd_padding = MBEDTLS_RSA_PKCS_V15;
+	else
+		lmd_padding = MBEDTLS_RSA_PKCS_V21;
+
+	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+	if (pk_info == NULL) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	/*
+	 * TEE_ALG_RSAES_PKCS1_V1_5 is invalid in hash. But its hash algo will
+	 * not be used in rsa, so skip it here.
+	 */
+	if (algo != TEE_ALG_RSAES_PKCS1_V1_5) {
+		md_algo = tee_algo_to_mbedtls_hash_algo(algo);
+		if (md_algo == MBEDTLS_MD_NONE) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto out;
+		}
+	}
+
+	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
+
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	lmd_res = mbedtls_ctr_drbg_seed(&ctr_drbg, mbd_rand, NULL, NULL, 0);
+	if (lmd_res != 0) {
+		EMSG(" failed\n  ! mbedtls_ctr_drbg_seed ret is 0x%x\n",
+					-lmd_res);
+		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
+
+	lmd_res = pk_info->encrypt_func(&rsa, src, src_len, dst,
+			dst_len, *dst_len,
+			mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	switch (lmd_res) {
+	case MBEDTLS_ERR_RSA_INVALID_PADDING:
+	case MBEDTLS_ERR_PK_TYPE_MISMATCH:
+	case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+		EMSG("encrypt_func() returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	case 0:
+		break;
+	default:
+		/* This will result in a panic */
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+	res = TEE_SUCCESS;
+out:
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_rsa_free(&rsa);
+	return res;
 }
 
 TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
@@ -366,7 +846,109 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 				      size_t msg_len, uint8_t *sig,
 				      size_t *sig_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res, lmd_padding;
+	size_t mod_size, hash_size;
+	mbedtls_rsa_context rsa;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	const mbedtls_pk_info_t *pk_info = NULL;
+	uint32_t md_algo;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.D, key->d);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		crypto_bignum_copy((void *)&rsa.P, key->p);
+		crypto_bignum_copy((void *)&rsa.Q, key->q);
+		crypto_bignum_copy((void *)&rsa.QP, key->qp);
+		crypto_bignum_copy((void *)&rsa.DP, key->dp);
+		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+	}
+
+	switch (algo) {
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+		lmd_padding = MBEDTLS_RSA_PKCS_V15;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		lmd_padding = MBEDTLS_RSA_PKCS_V21;
+		break;
+	default:
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				       &hash_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+
+	mod_size = crypto_bignum_num_bytes(key->n);
+
+	if (*sig_len < mod_size) {
+		*sig_len = mod_size;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
+	}
+	rsa.len = mod_size;
+
+	md_algo = tee_algo_to_mbedtls_hash_algo(algo);
+	if (md_algo == MBEDTLS_MD_NONE) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+	}
+
+	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+	if (pk_info == NULL) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+	}
+
+	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
+
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	lmd_res = mbedtls_ctr_drbg_seed(&ctr_drbg,
+		mbd_rand, NULL, NULL, 0);
+	if (lmd_res != 0) {
+		EMSG(" failed\n  ! mbedtls_ctr_drbg_seed ret is 0x%x\n",
+			-lmd_res);
+		res = TEE_ERROR_SECURITY;
+		goto err;
+	}
+
+	if (lmd_padding == MBEDTLS_RSA_PKCS_V15)
+		lmd_res = pk_info->sign_func(&rsa, md_algo, msg, msg_len, sig,
+					sig_len, NULL, NULL);
+	else
+		lmd_res = pk_info->sign_func(&rsa, md_algo, msg, msg_len, sig,
+					sig_len, mbedtls_ctr_drbg_random,
+					&ctr_drbg);
+
+	if (lmd_res != 0) {
+		EMSG("sign_func failed, returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+	res = TEE_SUCCESS;
+err:
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_rsa_free(&rsa);
+	return res;
 }
 
 TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
@@ -375,7 +957,82 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 					size_t msg_len, const uint8_t *sig,
 					size_t sig_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res, lmd_padding;
+	size_t hash_size, bigint_size;
+	mbedtls_rsa_context rsa;
+	const mbedtls_pk_info_t *pk_info = NULL;
+	uint32_t md_algo;
+
+	mbedtls_rsa_init(&rsa, 0, 0);
+
+	crypto_bignum_copy((void *)&rsa.E, key->e);
+	crypto_bignum_copy((void *)&rsa.N, key->n);
+
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+		&hash_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+
+	bigint_size = crypto_bignum_num_bytes(key->n);
+	if (sig_len < bigint_size) {
+		res = TEE_ERROR_MAC_INVALID;
+		goto err;
+	}
+
+	rsa.len = bigint_size;
+
+	switch (algo) {
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+		lmd_padding = MBEDTLS_RSA_PKCS_V15;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		lmd_padding = MBEDTLS_RSA_PKCS_V21;
+		break;
+	default:
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+	}
+
+	md_algo = tee_algo_to_mbedtls_hash_algo(algo);
+	if (md_algo == MBEDTLS_MD_NONE) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+	}
+
+	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+	if (pk_info == NULL) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+	}
+
+	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
+
+	lmd_res = pk_info->verify_func(&rsa, md_algo, msg, msg_len,
+		sig, sig_len);
+	if (lmd_res != 0) {
+		EMSG("verify_func failed, returned 0x%x\n", -lmd_res);
+		res = TEE_ERROR_SIGNATURE_INVALID;
+		goto err;
+	}
+	res = TEE_SUCCESS;
+err:
+	mbedtls_rsa_free(&rsa);
+	return res;
 }
 
 #endif /* CFG_CRYPTO_RSA */
@@ -667,7 +1324,6 @@ TEE_Result crypto_init(void)
 {
 	return TEE_SUCCESS;
 }
-
 
 #if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
