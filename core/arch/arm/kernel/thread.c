@@ -549,8 +549,13 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	if (is_user_mode(&threads[n].regs))
 		tee_ta_update_session_utime_resume();
 
-	if (threads[n].have_user_map)
-		core_mmu_set_user_map(&threads[n].user_map);
+	if (threads[n].have_user_map) {
+		struct user_ta_ctx *utc;
+
+		assert(threads[n].tsd.ctx);
+		utc = to_user_ta_ctx(threads[n].tsd.ctx);
+		core_mmu_set_user_map(utc, &threads[n].user_map);
+	}
 
 	/*
 	 * Return from RPC to request service of a foreign interrupt must not
@@ -754,8 +759,9 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	threads[ct].have_user_map = core_mmu_user_mapping_is_active();
 	if (threads[ct].have_user_map) {
+		assert(threads[ct].tsd.ctx);
 		core_mmu_get_user_map(&threads[ct].user_map);
-		core_mmu_set_user_map(NULL);
+		core_mmu_set_user_map(NULL, NULL);
 	}
 
 	l->curr_thread = -1;

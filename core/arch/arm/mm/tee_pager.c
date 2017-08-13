@@ -724,7 +724,7 @@ bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 	 * tables are registered in the upper table.
 	 */
 	tee_pager_assign_uta_tables(utc);
-	core_mmu_get_user_pgdir(&dir_info);
+	core_mmu_get_user_pgdir(utc, &dir_info);
 	TAILQ_FOREACH(area, utc->areas, link) {
 		paddr_t pa;
 		size_t idx;

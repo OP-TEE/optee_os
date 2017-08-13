@@ -195,6 +195,8 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	struct ta_head *ta_head;
 	void *p;
 	size_t vasize;
+	size_t va_range_size;
+	uint64_t rnd;
 
 	res = elf_load_init(ta_store, ta_handle, &elf_state);
 	if (res != TEE_SUCCESS)
@@ -235,6 +237,24 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	res = tee_mmu_init(utc);
 	if (res != TEE_SUCCESS)
 		goto out;
+
+	/* Apply finer-grained ASLR */
+	rng_generate(&rnd, sizeof(rnd));
+	/* needs to fit in the VA space we were allocated */
+	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start,
+				   &va_range_size);
+	rnd = rnd & (va_range_size - 1);
+	/* needs to be aligned to pgdir */
+	rnd = rnd & ~CORE_MMU_PGDIR_MASK;
+	/* FIXME: needs to fit the entire TA, and everything it might
+	   need to map :-( */
+	while (va_range_size - rnd <
+	       CORE_MMU_PGDIR_MASK * TEE_MMU_UMAP_MAX_ENTRIES)
+		rnd -= CORE_MMU_PGDIR_SIZE;
+	/*rnd = rnd & ~(ROUNDUP(vasize, CORE_MMU_USER_CODE_SIZE));
+	rnd = rnd & ~(TEE_MMU_UMAP_MAX_ENTRIES * CORE_MMU_PGDIR_MASK);*/
+	DMSG("hat %" PRIx64 " (vasize %zu)", rnd, vasize);
+	utc->mmu->ta_private_vmem_start += rnd;
 
 	res = load_elf_segments(utc, elf_state, true /* init attrs */);
 	if (res != TEE_SUCCESS)
@@ -313,7 +333,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 		goto error_return;
 	}
 
-	DMSG("ELF load address 0x%x", utc->load_addr);
+	DMSG("ELF load address %#" PRIxVA, utc->load_addr);
 	utc->ctx.flags = ta_head->flags;
 	utc->ctx.uuid = ta_head->uuid;
 	utc->entry_func = ta_head->entry.ptr64;
@@ -502,7 +522,7 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
 	size_t n;
 
-	EMSG_RAW(" arch: %s  load address: 0x%x  ctx-idr: %d",
+	EMSG_RAW(" arch: %s  load address: 0x%#" PRIxVA "  ctx-idr: %d",
 		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
 		 utc->context);
 	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",

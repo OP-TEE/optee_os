@@ -252,8 +252,9 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 			uint32_t panic_code, struct thread_svc_regs *regs)
 {
 	if (panic) {
+		/* FIXME x13 is not sp also what if caller is 32-bit */
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%" PRIx64 " usr_lr 0x%" PRIx64,
-			panic_code, regs->x13, regs->x14);
+			panic_code, regs->x13, regs->elr);
 	}
 	regs->x1 = panic;
 	regs->x2 = panic_code;

@@ -1487,7 +1487,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
 
-	if (core_mmu_user_va_range_is_defined()) {
+	if (core_mmu_user_va_range_is_defined() && 0) { // FIXME alyssa
 		vaddr_t user_va_base;
 		size_t user_va_size;
 

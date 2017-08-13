@@ -277,10 +277,12 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map);
 
 /*
  * core_mmu_set_user_map() - Set new MMU configuration for user VA space
+ * @utc:	Pointer to user TA context (or NULL)
  * @map:	If NULL will disable user VA space, if not NULL the user
  *		VA space to activate.
  */
-void core_mmu_set_user_map(struct core_mmu_user_map *map);
+void core_mmu_set_user_map(struct user_ta_ctx *utc,
+			   struct core_mmu_user_map *map);
 
 /*
  * struct core_mmu_table_info - Properties for a translation table
@@ -320,7 +322,8 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 				  paddr_t pa, uint32_t attr);
 
-void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info);
+void core_mmu_get_user_pgdir(struct user_ta_ctx *utc,
+			     struct core_mmu_table_info *pgd_info);
 
 /*
  * core_mmu_set_entry() - Set entry in translation table

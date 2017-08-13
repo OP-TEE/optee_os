@@ -2,7 +2,8 @@ CFG_LTC_OPTEE_THREAD ?= y
 # Size of emulated TrustZone protected SRAM, 448 kB.
 # Only applicable when paging is enabled.
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 458752
-CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 32)
+#CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 32)
+CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 39)
 
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64

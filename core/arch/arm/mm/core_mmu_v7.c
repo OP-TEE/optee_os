@@ -466,9 +466,12 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	}
 }
 
-void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
+void core_mmu_get_user_pgdir(struct user_ta_ctx *utc,
+			     struct core_mmu_table_info *pgd_info)
 {
 	void *tbl = (void *)core_mmu_get_ul1_ttb_va();
+
+	(void)utc;
 
 	core_mmu_set_info_table(pgd_info, 1, 0, tbl);
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
@@ -481,7 +484,7 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
-	core_mmu_get_user_pgdir(&dir_info);
+	core_mmu_get_user_pgdir(utc, &dir_info);
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
 	core_mmu_populate_user_map(&dir_info, utc);
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
@@ -625,9 +628,12 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 	map->ctxid = read_contextidr();
 }
 
-void core_mmu_set_user_map(struct core_mmu_user_map *map)
+void core_mmu_set_user_map(struct user_ta_ctx *utc,
+			   struct core_mmu_user_map *map)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	(void)utc;
 
 	/*
 	 * Update the reserved Context ID and TTBR0

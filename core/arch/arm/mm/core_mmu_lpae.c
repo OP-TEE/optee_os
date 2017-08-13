@@ -73,6 +73,8 @@
 #include <types_ext.h>
 #include <util.h>
 
+#include <tee/tee_cryp_provider.h>
+
 #include "core_mmu_private.h"
 
 #ifndef DEBUG_XLAT_TABLE
@@ -181,6 +183,8 @@
 static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
 	__aligned(NUM_L1_ENTRIES * XLAT_ENTRY_SIZE) __section(".nozi.mmu.l1");
 
+static int active_user_va[CFG_TEE_CORE_NB_CORE];
+
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
@@ -191,7 +195,8 @@ static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 
 static unsigned int next_xlat;
 static uint64_t tcr_ps_bits;
-static int user_va_idx = -1;
+static int first_free_user_va_idx = -1;
+static int last_free_user_va_idx = -1;
 
 static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 {
@@ -491,11 +496,19 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 
 	for (n = 1; n < NUM_L1_ENTRIES; n++) {
 		if (!l1_xlation_table[0][n]) {
-			user_va_idx = n;
+			if (first_free_user_va_idx == -1)
+				first_free_user_va_idx = n;
+			last_free_user_va_idx = n;
+		} else if (first_free_user_va_idx != -1) {
 			break;
 		}
 	}
-	assert(user_va_idx != -1);
+	DMSG("user VA indexes from %d to %d", first_free_user_va_idx,
+	     last_free_user_va_idx);
+	assert(first_free_user_va_idx != -1);
+
+	memset(active_user_va, 0xff,
+	       CFG_TEE_CORE_NB_CORE * sizeof(active_user_va[0]));
 
 	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
 	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_SIZE > 0);
@@ -589,12 +602,15 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		tbl_info->num_entries = XLAT_TABLE_ENTRIES;
 }
 
-void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
+void core_mmu_get_user_pgdir(struct user_ta_ctx *utc,
+			     struct core_mmu_table_info *pgd_info)
 {
 	vaddr_t va_range_base;
 	void *tbl = xlat_tables_ul1[thread_get_id()];
 
-	core_mmu_get_user_va_range(&va_range_base, NULL);
+	va_range_base = (utc->mmu->ta_private_vmem_start
+			 >> L1_XLAT_ADDRESS_SHIFT)
+			 << L1_XLAT_ADDRESS_SHIFT;
 	core_mmu_set_info_table(pgd_info, 2, va_range_base, tbl);
 }
 
@@ -602,10 +618,16 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 			      struct core_mmu_user_map *map)
 {
 	struct core_mmu_table_info dir_info;
+	vaddr_t va_range_base;
+	void *tbl;
 
 	COMPILE_TIME_ASSERT(sizeof(uint64_t) * XLAT_TABLE_ENTRIES == PGT_SIZE);
 
-	core_mmu_get_user_pgdir(&dir_info);
+	tbl = xlat_tables_ul1[thread_get_id()];
+	va_range_base = (utc->mmu->ta_private_vmem_start
+			 >> L1_XLAT_ADDRESS_SHIFT)
+			 << L1_XLAT_ADDRESS_SHIFT;
+	core_mmu_set_info_table(&dir_info, 2, va_range_base, tbl);
 	memset(dir_info.table, 0, PGT_SIZE);
 	core_mmu_populate_user_map(&dir_info, utc);
 	map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
@@ -733,23 +755,36 @@ void core_mmu_get_entry_primitive(const void *table, size_t level,
 
 bool core_mmu_user_va_range_is_defined(void)
 {
-	return user_va_idx != -1;
+	return first_free_user_va_idx != -1;
 }
 
 void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 {
-	assert(user_va_idx != -1);
+	assert(first_free_user_va_idx != -1);
 
-	if (base)
-		*base = (vaddr_t)user_va_idx << L1_XLAT_ADDRESS_SHIFT;
+	if (base && !*base) {
+		/* Apply coarse-grained ASLR */
+		uint32_t rnd;
+		int idx = first_free_user_va_idx;
+
+		rng_generate(&rnd, sizeof(rnd));
+		idx = idx + rnd %
+		      (last_free_user_va_idx - first_free_user_va_idx + 1);
+
+		*base = (vaddr_t)idx << L1_XLAT_ADDRESS_SHIFT;
+		DMSG("generated new user VA base %10lx", *base);
+	}
 	if (size)
 		*size = 1 << L1_XLAT_ADDRESS_SHIFT;
 }
 
 bool core_mmu_user_mapping_is_active(void)
 {
-	assert(user_va_idx != -1);
-	return !!l1_xlation_table[get_core_pos()][user_va_idx];
+	int user_va_idx;
+
+	user_va_idx = active_user_va[get_core_pos()];
+	return (user_va_idx != -1) &&
+	       !!l1_xlation_table[get_core_pos()][user_va_idx];
 }
 
 #ifdef ARM32
@@ -766,7 +801,8 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 	}
 }
 
-void core_mmu_set_user_map(struct core_mmu_user_map *map)
+void core_mmu_set_user_map(struct user_ta_context *utc,
+			   struct core_mmu_user_map *map)
 {
 	uint64_t ttbr;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
@@ -829,7 +865,13 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 #ifdef ARM64
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
-	assert(user_va_idx != -1);
+	int user_va_idx;
+
+	user_va_idx = active_user_va[get_core_pos()];
+	if (user_va_idx == -1) {
+		map->asid = 0;
+		return;
+	}
 
 	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
 	if (map->user_map) {
@@ -840,7 +882,8 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 	}
 }
 
-void core_mmu_set_user_map(struct core_mmu_user_map *map)
+void core_mmu_set_user_map(struct user_ta_ctx *utc,
+			   struct core_mmu_user_map *map)
 {
 	uint64_t ttbr;
 	uint32_t daif = read_daif();
@@ -855,14 +898,22 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	/* Set the new map */
 	if (map && map->user_map) {
+		int user_va_idx = utc->mmu->ta_private_vmem_start
+				  >> L1_XLAT_ADDRESS_SHIFT;
+		active_user_va[get_core_pos()] = user_va_idx;
 		l1_xlation_table[get_core_pos()][user_va_idx] = map->user_map;
 		dsb();	/* Make sure the write above is visible */
 		ttbr |= ((uint64_t)map->asid << TTBR_ASID_SHIFT);
 		write_ttbr0_el1(ttbr);
 		isb();
 	} else {
-		l1_xlation_table[get_core_pos()][user_va_idx] = 0;
-		dsb();	/* Make sure the write above is visible */
+		int user_va_idx = active_user_va[get_core_pos()];
+
+		if (user_va_idx != -1) {
+			active_user_va[get_core_pos()] = -1;
+			l1_xlation_table[get_core_pos()][user_va_idx] = 0;
+			dsb();	/* Make sure the write above is visible */
+		}
 	}
 
 	tlbi_all();

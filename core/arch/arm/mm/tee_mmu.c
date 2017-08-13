@@ -171,8 +171,8 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	va = mmu->regions[n].va + mmu->regions[n].size;
 	assert(va);
 
+	va_range_base = mmu->ta_private_vmem_start;
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
-	assert(va_range_base == mmu->ta_private_vmem_start);
 
 	/*
 	 * Assign parameters in secure memory.
@@ -235,6 +235,9 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 	if (!utc->mmu)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
+	/* FIXME: untested, broken */
+	if (utc->is_32bit)
+		utc->mmu->ta_private_vmem_start &= 0xffffffff;
 	return TEE_SUCCESS;
 }
 
@@ -777,7 +780,7 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
-	core_mmu_set_user_map(NULL);
+	core_mmu_set_user_map(NULL, NULL);
 	/*
 	 * No matter what happens below, the current user TA will not be
 	 * current any longer. Make sure pager is in sync with that.
@@ -788,15 +791,15 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	 */
 	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
 
+	tsd->ctx = ctx;
 	if (ctx && is_user_ta_ctx(ctx)) {
 		struct core_mmu_user_map map;
 		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
 		core_mmu_create_user_map(utc, &map);
-		core_mmu_set_user_map(&map);
+		core_mmu_set_user_map(utc, &map);
 		tee_pager_assign_uta_tables(utc);
 	}
-	tsd->ctx = ctx;
 }
 
 struct tee_ta_ctx *tee_mmu_get_ctx(void)
