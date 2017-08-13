@@ -82,6 +82,9 @@ CFG_TEE_TA_MALLOC_DEBUG ?= n
 # Levels: 0=none 1=error 2=info 3=debug 4=flow
 CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 
+# If y, enable stack protection (per-function stack canaries) for TAs.
+CFG_TEE_TA_STACK_GUARD ?= y
+
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.

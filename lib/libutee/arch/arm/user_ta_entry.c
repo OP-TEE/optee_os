@@ -67,6 +67,11 @@ static bool context_init;
 extern uint8_t ta_heap[];
 extern const size_t ta_heap_size;
 
+#ifdef CFG_TEE_TA_STACK_GUARD
+/* from libutils */
+extern void *__stack_chk_guard;
+#endif
+
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
 
@@ -214,6 +219,9 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
 {
+#ifdef CFG_TEE_TA_STACK_GUARD
+	static bool stack_inited;
+#endif
 	TEE_Result res;
 
 #if defined(ARM32) && defined(CFG_UNWIND)
@@ -222,6 +230,14 @@ void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
 	 * so that the unwinding code won't try to go further down.
 	 */
 	asm(".cantunwind");
+#endif
+
+#ifdef CFG_TEE_TA_STACK_GUARD
+	if (!stack_inited) {
+		TEE_GenerateRandom(&__stack_chk_guard,
+				   sizeof(__stack_chk_guard));
+		stack_inited = true;
+	}
 #endif
 
 	switch (func) {

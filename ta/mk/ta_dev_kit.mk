@@ -58,6 +58,10 @@ ifeq ($(CFG_TEE_PANIC_DEBUG),y)
 cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
 endif
 
+ifeq ($(CFG_TEE_TA_STACK_GUARD),y)
+cppflags$(sm) += -fstack-protector
+endif
+
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 libdirs += $(ta-dev-kit-dir)/lib

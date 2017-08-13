@@ -22,6 +22,10 @@ ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 cppflags$(sm) += -DENABLE_MDBG=1
 endif
 
+ifeq ($(CFG_TEE_TA_STACK_GUARD),y)
+cppflags$(sm) += -fstack-protector
+endif
+
 base-prefix := $(sm)-
 
 libname = utils
@@ -123,6 +127,7 @@ $(conf-mk-file-export): $(conf-mk-file)
 	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@
 	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@
 	$(q)echo CFG_TA_FLOAT_SUPPORT := $$(CFG_TA_FLOAT_SUPPORT) >> $$@
+	$(q)echo CFG_TEE_TA_STACK_GUARD := $$(CFG_TEE_TA_STACK_GUARD) >> $$@
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \
 		echo $$(v) := $$($$(v));)) >> $$@
 	$(q)echo '$$(ta-mk-file-export-add-$$(sm-$(conf-mk-file-export)))' | sed 's/_nl_ */\n/g' >> $$@
