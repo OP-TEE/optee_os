@@ -155,6 +155,37 @@ KEEP_INIT _start
 	.endm
 
 	/*
+	 * set_sctlr : Setup some core configuration in CP15 SCTLR
+	 *
+	 * Setup required by current implementation of the OP-TEE core:
+	 * - Disable data and instruction cache.
+	 * - MMU is expected off and exceptions trapped in ARM mode.
+	 * - Enable or disable alignment checks upon platform configuration.
+	 * - Optinally enable write-implies-execute-never.
+	 * - Optinally enable round robin strategy for cache replacement.
+	 *
+	 * Clobbers r0.
+	 */
+	.macro set_sctlr
+		read_sctlr r0
+		bic	r0, r0, #(SCTLR_M | SCTLR_C)
+		bic	r0, r0, #SCTLR_I
+		bic	r0, r0, #SCTLR_TE
+#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
+		orr	r0, r0, #SCTLR_A
+#else
+		bic	r0, r0, #SCTLR_A
+#endif
+#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
+		orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
+#endif
+#if defined(CFG_ENABLE_SCTLR_RR)
+		orr	r0, r0, #SCTLR_RR
+#endif
+		write_sctlr r0
+	.endm
+
+	/*
 	 * Save boot arguments
 	 * entry r0, saved r4: pagestore
 	 * entry r1, saved r7: (ARMv7 standard bootarg #1)
@@ -189,24 +220,8 @@ UNWIND(	.cantunwind)
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 
-	/* Enable alignment checks and disable data and instruction cache. */
-	read_sctlr r0
-#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
-	orr	r0, r0, #SCTLR_A
-#else
-	bic	r0, r0, #SCTLR_A
-#endif
-	bic	r0, r0, #SCTLR_C
-	bic	r0, r0, #SCTLR_I
-#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
-	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
-#endif
-#if defined(CFG_ENABLE_SCTLR_RR)
-	orr	r0, r0, #SCTLR_RR
-#endif
-	write_sctlr r0
+	set_sctlr
 	isb
-
 
 	ldr	r0, =_start
 	write_vbar r0
@@ -468,19 +483,9 @@ UNWIND(	.cantunwind)
 	mov	r4, r0
 	mov	r5, r1
 	mov	r6, lr
-	read_sctlr r0
-#if defined(CFG_SCTLR_ALIGNMENT_CHECK)
-	orr	r0, r0, #SCTLR_A
-#else
-	bic	r0, r0, #SCTLR_A
-#endif
-#if defined(CFG_HWSUPP_MEM_PERM_WXN) && defined(CFG_CORE_RWDATA_NOEXEC)
-	orr	r0, r0, #(SCTLR_WXN | SCTLR_UWXN)
-#endif
-#if defined(CFG_ENABLE_SCTLR_RR)
-	orr	r0, r0, #SCTLR_RR
-#endif
-	write_sctlr r0
+
+	set_sctlr
+	isb
 
 	ldr	r0, =_start
 	write_vbar r0
