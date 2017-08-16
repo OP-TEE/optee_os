@@ -186,6 +186,9 @@ UNWIND(	.cantunwind)
 
 	bootargs_entry
 
+	/* Early ARM secure MP specific configuration */
+	bl	plat_cpu_reset_early
+
 	/* Enable alignment checks and disable data and instruction cache. */
 	read_sctlr r0
 #if defined(CFG_SCTLR_ALIGNMENT_CHECK)
@@ -201,8 +204,6 @@ UNWIND(	.cantunwind)
 	write_sctlr r0
 	isb
 
-	/* Early ARM secure MP specific configuration */
-	bl	plat_cpu_reset_early
 
 	ldr	r0, =_start
 	write_vbar r0
