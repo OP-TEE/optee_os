@@ -68,7 +68,7 @@ $2/$$(notdir $1): $1
 	cp $$< $$@
 
 cleanfiles += $2/$$(notdir $1)
-all: $2/$$(notdir $1)
+ta_dev_kit: $2/$$(notdir $1)
 endef
 
 # Copy the .a files
@@ -128,4 +128,6 @@ endef
 $(eval $(mk-file-export))
 
 cleanfiles := $(cleanfiles) $(conf-mk-file-export)
-all: $(conf-mk-file-export)
+ta_dev_kit: $(conf-mk-file-export)
+
+all: ta_dev_kit
