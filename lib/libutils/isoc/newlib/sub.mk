@@ -1,4 +1,3 @@
-cflags-y += -ffreestanding
 cflags-y += -Wno-sign-compare
 cflags-remove-y += -Wcast-align
 
