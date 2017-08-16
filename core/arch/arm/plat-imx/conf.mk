@@ -68,6 +68,7 @@ $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
+CFG_ENABLE_SCTLR_RR ?= y
 endif
 
 ifeq ($(filter y, $(CFG_MX7)), y)
