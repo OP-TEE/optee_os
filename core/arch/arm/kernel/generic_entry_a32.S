@@ -186,6 +186,26 @@ KEEP_INIT _start
 	.endm
 
 	/*
+	 * enable_branch_prediction : manually enable branch prediction
+	 *
+	 * This macro targets only ARMv7 architecture and hence conditionned
+	 * by configuration directive CFG_ENABLE_SCTLR_Z. For recent
+	 * architectures, the program flow prediction is automatically enable
+	 * upon MMU enablement.
+	 */
+	.macro enable_branch_prediction
+#if defined(CFG_ENABLE_SCTLR_Z)
+		read_sctlr r0
+		/* Some ARMv7 architectures need btac flush with post synchro */
+		write_bpiall
+		dsb
+		isb
+		orr	r0, r0, #SCTLR_Z
+		write_sctlr r0
+#endif
+	.endm
+
+	/*
 	 * Save boot arguments
 	 * entry r0, saved r4: pagestore
 	 * entry r1, saved r7: (ARMv7 standard bootarg #1)
@@ -414,6 +434,8 @@ shadow_stack_access_ok:
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
+	enable_branch_prediction
+
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	mov	r2, r6		/* DT address */
@@ -498,6 +520,8 @@ UNWIND(	.cantunwind)
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
 
+	enable_branch_prediction
+
 	mov	r0, r4
 	mov	r1, r5
 	bl	generic_boot_cpu_on_handler
@@ -528,6 +552,8 @@ UNWIND(	.cantunwind)
 	bl	cpu_mmu_enable
 	bl	cpu_mmu_enable_icache
 	bl	cpu_mmu_enable_dcache
+
+	enable_branch_prediction
 
 	cpu_is_ready
 
