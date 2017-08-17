@@ -96,6 +96,20 @@ int puts(const char *str)
 	return 1;
 }
 
+int putchar(int c)
+{
+	char str[2] = { (char)c, '\0' };
+
+	if (trace_get_level() >= TRACE_PRINTF_LEVEL)
+		trace_ext_puts(str);
+	/*
+	 * From the putchar() man page:
+	 * "fputc(), putc() and putchar() return the character written as an
+	 * unsigned char cast to an int or EOF on error."
+	 */
+	return (int)(unsigned char)c;
+}
+
 #else
 
 int printf(const char *fmt __unused, ...)
@@ -106,6 +120,11 @@ int printf(const char *fmt __unused, ...)
 int puts(const char *str __unused)
 {
 	return 0;
+}
+
+int putchar(int c)
+{
+	return (int)(unsigned char)c;
 }
 
 #endif
