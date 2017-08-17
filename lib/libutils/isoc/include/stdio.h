@@ -40,5 +40,6 @@ int vsnprintf (char *str, size_t size, const char *fmt, va_list ap)
                     __attribute__ ((__format__ (__printf__, 3, 0)));
 
 int puts(const char *str);
+int putchar(int c);
 
 #endif /*STDIO_H*/
