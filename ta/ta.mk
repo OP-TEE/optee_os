@@ -77,8 +77,7 @@ $(foreach f, $(libfiles), \
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/cleandirs.mk \
-	$(wildcard ta/arch/$(ARCH)/link.mk) \
-	ta/mk/ta_dev_kit.mk
+	ta/arch/$(ARCH)/link.mk ta/mk/ta_dev_kit.mk
 
 $(foreach f, $(ta-mkfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/mk)))
@@ -99,8 +98,7 @@ $(foreach f, $(incfiles-extra-host), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/host_include)))
 
 # Copy the src files
-ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c \
-	$(wildcard ta/arch/$(ARCH)/ta.ld.S)
+ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
 $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/src)))
 
@@ -110,7 +108,7 @@ $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 
 # Copy the scripts
-ta-scripts = $(wildcard scripts/sign.py)
+ta-scripts = scripts/sign.py
 $(foreach f, $(ta-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/scripts)))
 
