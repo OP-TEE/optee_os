@@ -241,13 +241,17 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
 	assert(mm);
 	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
-	/* Copy init part into pageable area */
-	memcpy(paged_store, __init_start, init_size);
-	/* Copy pageable part after init part into pageable area */
-	memcpy(paged_store + init_size,
-	       phys_to_virt(pageable_part,
-			    core_mmu_get_type_by_pa(pageable_part)),
+	/*
+	 * Load pageable part in the dedicated allocated area:
+	 * - Move pageable non-init part into pageable area. Note bootloader
+	 *   may have loaded it anywhere in TA RAM hence use memmove().
+	 * - Copy pageable init part from current location into pageable area.
+	 */
+	memmove(paged_store + init_size,
+		phys_to_virt(pageable_part,
+			     core_mmu_get_type_by_pa(pageable_part)),
 		__pageable_part_end - __pageable_part_start);
+	memcpy(paged_store, __init_start, init_size);
 
 	/* Check that hashes of what's in pageable area is OK */
 	DMSG("Checking hashes of pageable area");
