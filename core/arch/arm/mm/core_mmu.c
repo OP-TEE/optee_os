@@ -1595,8 +1595,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 	uint32_t a;
 	paddr_t p;
 
-	if (pa >= CFG_TEE_LOAD_ADDR &&
-	    pa < virt_to_phys((void *)get_linear_map_end()))
+	if (pa >= CFG_TEE_LOAD_ADDR && pa < get_linear_map_end())
 		return (void *)(vaddr_t)pa;
 
 	end_idx = core_mmu_va2idx(ti, TEE_RAM_VA_START +

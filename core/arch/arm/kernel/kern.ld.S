@@ -73,8 +73,12 @@ ENTRY(_start)
 SECTIONS
 {
 	. = TEE_TEXT_VA_START;
-	ASSERT(!(TEE_TEXT_VA_START & (0x20 - 1)),
-		"text start should align to 0x20")
+#ifdef ARM32
+	ASSERT(!(TEE_TEXT_VA_START & 31), "text start should align to 0x20")
+#endif
+#ifdef ARM64
+	ASSERT(!(TEE_TEXT_VA_START & 127), "text start must align to 128byte")
+#endif
 	__text_start = .;
 
 	/*
