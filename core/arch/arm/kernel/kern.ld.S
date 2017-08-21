@@ -394,6 +394,12 @@ SECTIONS
 	__init_size = __data_end - CFG_TEE_LOAD_ADDR;
 	__init_mem_usage = __end - CFG_TEE_LOAD_ADDR;
 #endif
+
+#ifdef CFG_PLAT_EXTRA_LD_SCRIPT
+	__tee_plat_extra_base = .;
+	#include <plat.ld.S>
+#endif
+
 	/*
 	 * Guard against moving the location counter backwards in the assignment
 	 * below.
