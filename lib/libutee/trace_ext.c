@@ -73,8 +73,10 @@ int printf(const char *fmt, ...)
 
 int puts(const char *str)
 {
-	if (trace_get_level() >= TRACE_PRINTF_LEVEL)
+	if (trace_get_level() >= TRACE_PRINTF_LEVEL) {
 		trace_ext_puts(str);
+		trace_ext_puts("\n");
+	}
 	return 1;
 }
 
