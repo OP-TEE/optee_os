@@ -45,44 +45,26 @@ int trace_ext_get_thread_id(void)
 	return -1;
 }
 
-
 /*
  * printf and puts - stdio printf support
  *
  * 'printf()' and 'puts()' traces have the 'info' trace level.
- * Traces are prefixed with string "[ta log] ".
  */
 int printf(const char *fmt, ...)
 {
 	char to_format[MAX_PRINT_SIZE];
-	static const char prefix[] = "[ta log] ";
-	static const char failed[] = "uta trace failed";
-	static const char trunc[] = "...\n";
 	va_list ap;
 	int s;
 
 	if (trace_get_level() < TRACE_PRINTF_LEVEL)
 		return 0;
 
-	s = strlcpy(to_format, prefix, sizeof(to_format));
-	if ((unsigned int)s >= sizeof(to_format)) {
-		puts(failed);
-		return 0;
-	}
-
 	va_start(ap, fmt);
-	s = vsnprintf(to_format + s, sizeof(to_format) - s, fmt, ap);
+	s = vsnprintf(to_format, sizeof(to_format), fmt, ap);
 	va_end(ap);
 
-	if (s < 0) {
-		puts(failed);
+	if (s < 0)
 		return s;
-	}
-	if (((unsigned int)s >= (sizeof(to_format) - strlen(prefix)))) {
-		memcpy(&to_format[sizeof(to_format) - sizeof(trunc)], trunc,
-		       sizeof(trunc));
-		s = sizeof(to_format) - sizeof(prefix) - sizeof(trunc);
-	}
 
 	puts(to_format);
 
