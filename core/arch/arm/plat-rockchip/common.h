@@ -46,4 +46,7 @@
 #define BITS_WITH_WMASK(bits, msk, shift) \
 				(SHIFT_U32(bits, shift) | BITS_WMSK(msk, shift))
 
+#define __sramfunc __attribute__((section(".sram.text"))) \
+					__attribute__((noinline))
+
 #endif

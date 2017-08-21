@@ -15,6 +15,10 @@ $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_8250_UART,y)
 
+ifeq ($(PLATFORM_FLAVOR),rk322x)
+$(call force,CFG_PLAT_EXTRA_LD_SCRIPT,y)
+endif
+
 ta-targets = ta_arm32
 
 CFG_WITH_STACK_CANARIES ?= y

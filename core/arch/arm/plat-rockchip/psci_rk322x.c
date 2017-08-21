@@ -377,12 +377,18 @@ int psci_system_suspend(uintptr_t entry __unused,
 	return PSCI_RET_SUCCESS;
 }
 
+__sramfunc static void foo(void)
+{
+	IMSG("This is a foo function test for sram section");
+}
+
 /* When SMP bootup, we release cores one by one */
 static TEE_Result reset_nonboot_cores(void)
 {
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
 	write32(NONBOOT_CORES_SOFT_RESET, va_base + CRU_SOFTRST_CON(0));
+	foo();
 
 	return TEE_SUCCESS;
 }

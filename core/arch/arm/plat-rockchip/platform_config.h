@@ -31,6 +31,8 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
+#include <common.h>
+
 #if defined(PLATFORM_FLAVOR_rk322x)
 
 #define GIC_BASE		0x32010000
@@ -53,6 +55,9 @@
 /* Periph IO */
 #define PERIPH_BASE		0x10100000
 #define PERIPH_SIZE		0x22000000
+
+#define ISRAM_LDS_BASE		(ISRAM_BASE + BOOT_ADDR_OFFSET)
+#define ISRAM_LDS_SIZE		(ISRAM_SIZE - BOOT_ADDR_OFFSET)
 
 #define CFG_TEE_CORE_NB_CORE	4
 #else
