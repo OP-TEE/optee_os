@@ -54,6 +54,7 @@ END_FUNC psci_enable_smp
 FUNC psci_armv7_cpu_off, :
 UNWIND(	.fnstart)
 	push	{r12, lr}
+UNWIND(	.save	{r12, lr})
 
 	mov     r0, #DCACHE_OP_CLEAN_INV
 	bl	dcache_op_all
