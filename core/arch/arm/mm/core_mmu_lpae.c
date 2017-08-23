@@ -713,6 +713,8 @@ void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 	uint64_t desc = mattr_to_desc(level, attr);
 
 	tbl[idx] = desc | pa;
+
+	dsb();	/* Make sure the write above is visible */
 }
 
 void core_mmu_get_entry_primitive(const void *table, size_t level,
