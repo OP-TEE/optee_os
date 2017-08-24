@@ -29,6 +29,7 @@
 
 import argparse
 import glob
+import os
 import re
 import subprocess
 import sys
@@ -75,7 +76,8 @@ def get_args():
     parser.add_argument('-d', '--dir', action='append', nargs='+',
         help='Search for ELF file in DIR. tee.elf is needed to decode '
              'a TEE Core or pseudo-TA abort, while <TA_uuid>.elf is required '
-             'if a user-mode TA has crashed.')
+             'if a user-mode TA has crashed. For convenience, ELF files '
+             'may also be given.')
     parser.add_argument('-s', '--strip_path',
         help='Strip STRIP_PATH from file paths')
 
@@ -94,6 +96,8 @@ class Symbolizer(object):
         if not elf_or_uuid.endswith('.elf'):
             elf_or_uuid += '.elf'
         for d in self._dirs:
+            if d.endswith(elf_or_uuid) and os.path.isfile(d):
+                return d
             elf = glob.glob(d + '/' + elf_or_uuid)
             if elf:
                 return elf[0]
