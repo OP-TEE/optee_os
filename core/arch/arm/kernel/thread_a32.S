@@ -443,6 +443,16 @@ END_FUNC thread_rpc
 
 /* The handler of native interrupt. */
 .macro	native_intr_handler mode:req
+	.ifc	\mode\(),irq
+	/*
+	 * Foreign interrupts should be masked.
+	 * For GICv2, IRQ is for foreign interrupt and already masked by
+	 * hardware in FIQ mode which is used for native interrupt.
+	 * For GICv3, FIQ is for foreign interrupt. It's not masked by hardware
+	 * in IRQ mode which is used for natvie interrupt.
+	 */
+	cpsid	f
+	.endif
 	/*
 	 * FIQ and IRQ have a +4 offset for lr compared to preferred return
 	 * address
