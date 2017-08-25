@@ -40,6 +40,8 @@ TA_INFO_RE = re.compile(':  arch: (?P<arch>\w+)  '
 CALL_STACK_RE = re.compile('Call stack:')
 STACK_ADDR_RE = re.compile(r':  (?P<addr>0x[0-9a-f]+)')
 ABORT_ADDR_RE = re.compile('-abort at address (?P<addr>0x[0-9a-f]+)')
+REGION_RE = re.compile('region [0-9]+: va (?P<addr>0x[0-9a-f]+) '
+                       'pa 0x[0-9a-f]+ size (?P<size>0x[0-9a-f]+)')
 
 epilog = '''
 This scripts reads an OP-TEE abort message from stdin and adds debug
@@ -157,7 +159,7 @@ class Symbolizer(object):
         cmd = self.arch_prefix('nm')
         if not reladdr or not elf or not cmd:
             return ''
-        ireladdr = int(reladdr, 0)
+        ireladdr = int(reladdr, 16)
         nm = subprocess.Popen([cmd, '--numeric-sort', '--print-size', elf],
                                stdin = subprocess.PIPE,
                                stdout = subprocess.PIPE)
@@ -193,7 +195,7 @@ class Symbolizer(object):
         cmd = self.arch_prefix('objdump')
         if not reladdr or not elf or not cmd:
             return ''
-        iaddr = int(reladdr, 0)
+        iaddr = int(reladdr, 16)
         objdump = subprocess.Popen([cmd, '--section-headers', elf],
                                     stdin = subprocess.PIPE,
                                     stdout = subprocess.PIPE)
@@ -232,6 +234,44 @@ class Symbolizer(object):
             ret += line[post:]
         return ret
 
+    # Return all ELF sections with the ALLOC flag
+    def read_sections(self):
+        if self._sections:
+            return
+        elf = self.get_elf(self._bin)
+        cmd = self.arch_prefix('objdump')
+        if not elf or not cmd:
+            return
+        objdump = subprocess.Popen([cmd, '--section-headers', elf],
+                                    stdin = subprocess.PIPE,
+                                    stdout = subprocess.PIPE)
+        for line in iter(objdump.stdout.readline, ''):
+            try:
+                _, name, size, vma, _, _, _ = line.split()
+            except:
+                if 'ALLOC' in line:
+                    self._sections.append([name, int(vma, 16), int(size, 16)])
+
+    def overlaps(self, section, addr, size):
+        sec_addr = section[1]
+        sec_size = section[2]
+        if not size or not sec_size:
+            return False
+        return (addr <= (sec_addr + sec_size - 1)) and ((addr + size - 1) >= sec_addr)
+
+    def sections_in_region(self, addr, size):
+        ret = ''
+        addr = self.subtract_load_addr(addr)
+        if not addr:
+            return ''
+        iaddr = int(addr, 16)
+        isize = int(size, 16)
+        self.read_sections()
+        for s in self._sections:
+            if self.overlaps(s, iaddr, isize):
+                ret += ' ' + s[0]
+        return ret
+
     def reset(self):
         self._call_stack_found = False
         self._load_addr = '0'
@@ -240,6 +280,7 @@ class Symbolizer(object):
             self._addr2line = None
         self._arch = None
         self._saved_abort_line = ''
+        self._sections = []
 
     def write(self, line):
             if self._call_stack_found:
@@ -259,6 +300,13 @@ class Symbolizer(object):
                     return
                 else:
                     self.reset()
+            match = re.search(REGION_RE, line)
+            if match:
+                addr = match.group('addr')
+                size = match.group('size')
+                self._out.write(line.strip() +
+                                self.sections_in_region(addr, size) + '\n');
+                return
             match = re.search(CALL_STACK_RE, line)
             if match:
                 self._call_stack_found = True
