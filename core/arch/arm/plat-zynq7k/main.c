@@ -84,7 +84,7 @@ void plat_cpu_reset_late(void)
 		/* primary core */
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
 		/* set secondary entry address and release core */
-		write32(TEE_TEXT_VA_START, SECONDARY_ENTRY_DROP);
+		write32(CFG_TEE_LOAD_ADDR, SECONDARY_ENTRY_DROP);
 		dsb();
 		sev();
 #endif
