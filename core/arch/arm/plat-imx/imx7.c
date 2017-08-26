@@ -47,16 +47,6 @@
 #include <tee/entry_fast.h>
 #include <util.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, IOMUXC_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, CCM_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GPC_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, DDRC_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, AIPS1_BASE, AIPS1_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, AIPS2_BASE, AIPS2_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, AIPS3_BASE, AIPS3_SIZE);
-
 void plat_cpu_reset_late(void)
 {
 	uintptr_t addr;
