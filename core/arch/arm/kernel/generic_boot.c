@@ -185,11 +185,11 @@ static size_t get_block_size(void)
 	struct core_mmu_table_info tbl_info;
 	unsigned l;
 
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX, &tbl_info))
+	if (!core_mmu_find_table(TEE_RAM_VA_START, UINT_MAX, &tbl_info))
 		panic("can't find mmu tables");
 
 	l = tbl_info.level - 1;
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, l, &tbl_info))
+	if (!core_mmu_find_table(TEE_RAM_VA_START, l, &tbl_info))
 		panic("can't find mmu table upper level");
 
 	return 1 << tbl_info.shift;
@@ -214,7 +214,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
 	 */
-	if (!core_mmu_find_table(CFG_TEE_RAM_START, UINT_MAX,
+	if (!core_mmu_find_table(TEE_RAM_VA_START, UINT_MAX,
 				 &tee_pager_tbl_info))
 		panic("can't find mmu tables");
 
@@ -281,8 +281,8 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	block_size = get_block_size();
 	if (!tee_mm_init(&tee_mm_vcore,
-			ROUNDDOWN(CFG_TEE_RAM_START, block_size),
-			ROUNDUP(CFG_TEE_RAM_START + CFG_TEE_RAM_VA_SIZE,
+			ROUNDDOWN(TEE_RAM_VA_START, block_size),
+			ROUNDUP(TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE,
 				block_size),
 			SMALL_PAGE_SHIFT, 0))
 		panic("tee_mm_vcore init failed");
@@ -350,10 +350,10 @@ static void init_asan(void)
 	 */
 
 #define __ASAN_SHADOW_START \
-	ROUNDUP(CFG_TEE_RAM_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
+	ROUNDUP(TEE_RAM_VA_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
 	assert(__ASAN_SHADOW_START == (vaddr_t)&__asan_shadow_start);
 #define __CFG_ASAN_SHADOW_OFFSET \
-	(__ASAN_SHADOW_START - (CFG_TEE_RAM_START / 8))
+	(__ASAN_SHADOW_START - (TEE_RAM_VA_START / 8))
 	COMPILE_TIME_ASSERT(CFG_ASAN_SHADOW_OFFSET == __CFG_ASAN_SHADOW_OFFSET);
 #undef __ASAN_SHADOW_START
 #undef __CFG_ASAN_SHADOW_OFFSET
@@ -362,7 +362,7 @@ static void init_asan(void)
 	 * Assign area covered by the shadow area, everything from start up
 	 * to the beginning of the shadow area.
 	 */
-	asan_set_shadowed((void *)CFG_TEE_LOAD_ADDR, &__asan_shadow_start);
+	asan_set_shadowed((void *)TEE_TEXT_VA_START, &__asan_shadow_start);
 
 	/*
 	 * Add access to areas that aren't opened automatically by a

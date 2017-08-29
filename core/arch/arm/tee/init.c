@@ -71,7 +71,7 @@ TEE_Result __weak init_teecore(void)
 	is_first = 0;
 
 #ifdef CFG_WITH_USER_TA
-	tee_svc_uref_base = CFG_TEE_LOAD_ADDR;
+	tee_svc_uref_base = TEE_TEXT_VA_START;
 #endif
 
 	/* init support for future mapping of TAs */
