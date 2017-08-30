@@ -115,9 +115,9 @@ class Symbolizer(object):
 
     def resolve(self, addr):
         offs = self._load_addr
-        if int(offs, 0) > int(addr, 0):
+        if int(offs, 16) > int(addr, 16):
             return '???'
-        reladdr = '0x{:x}'.format(int(addr, 0) - int(offs, 0))
+        reladdr = '0x{:x}'.format(int(addr, 16) - int(offs, 16))
         self.spawn_addr2line()
         if not self._addr2line:
             return '???'
