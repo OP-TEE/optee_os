@@ -89,4 +89,15 @@ struct tee_mmu_info {
 	vaddr_t ta_private_vmem_end;
 };
 
+static inline void mattr_uflags_to_str(char *str, size_t size, uint32_t attr)
+{
+	if (size < 4)
+		return;
+
+	str[0] = (attr & TEE_MATTR_UR) ? 'r' : '-';
+	str[1] = (attr & TEE_MATTR_UW) ? 'w' : '-';
+	str[2] = (attr & TEE_MATTR_UX) ? 'x' : '-';
+	str[3] = '\0';
+}
+
 #endif
