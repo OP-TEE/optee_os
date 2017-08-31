@@ -497,6 +497,9 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);
 
+/* Do section mapping, not support on LPAE */
+void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
+
 /*
  * Check if platform defines nsec DDR range(s).
  * Static SHM (MEM_AREA_NSEC_SHM) is not covered by this API as it is

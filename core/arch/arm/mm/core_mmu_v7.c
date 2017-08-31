@@ -742,8 +742,7 @@ static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
 	}
 }
 
-static void map_memarea_sections(const struct tee_mmap_region *mm,
-				 uint32_t *ttb)
+void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
 {
 	uint32_t attr = mattr_to_desc(1, mm->attr);
 	size_t idx = mm->va >> SECTION_SHIFT;
