@@ -7,10 +7,13 @@ CFG_LPAE_ADDR_SPACE_SIZE ?= (1ull << 32)
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64
-endif
+else
 ifeq ($(CFG_ARM32_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
 CFG_KERN_LINKER_ARCH ?= arm
+else
+$(error Error: CFG_ARM64_core or CFG_ARM32_core should be defined)
+endif
 endif
 
 ifeq ($(CFG_TA_FLOAT_SUPPORT),y)
