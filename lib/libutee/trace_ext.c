@@ -66,7 +66,7 @@ int printf(const char *fmt, ...)
 	if (s < 0)
 		return s;
 
-	puts(to_format);
+	trace_ext_puts(to_format);
 
 	return s;
 }
