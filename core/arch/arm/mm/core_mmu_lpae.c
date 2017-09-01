@@ -744,8 +744,14 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 
 bool core_mmu_user_mapping_is_active(void)
 {
+	bool ret;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
 	assert(user_va_idx != -1);
-	return !!l1_xlation_table[get_core_pos()][user_va_idx];
+	ret = l1_xlation_table[get_core_pos()][user_va_idx];
+	thread_unmask_exceptions(exceptions);
+
+	return ret;
 }
 
 #ifdef ARM32
