@@ -655,7 +655,13 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 bool core_mmu_user_mapping_is_active(void)
 {
-	return read_ttbr0() != read_ttbr1();
+	bool ret;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	ret = read_ttbr0() != read_ttbr1();
+	thread_unmask_exceptions(exceptions);
+
+	return ret;
 }
 
 static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
