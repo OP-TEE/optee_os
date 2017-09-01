@@ -163,17 +163,17 @@ static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
 		if (res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
 
+		plat_prng_add_jitter_entropy_norpc();
+
 		res = prng_descriptor[prng_index]->ready(&prng->state);
 		if (res != CRYPT_OK)
 			return TEE_ERROR_BAD_STATE;
+
+		prng->index = prng_index;
 		prng->inited = true;
 	}
 
-	prng->index = prng_index;
-
-	plat_prng_add_jitter_entropy_norpc();
-
-	return  TEE_SUCCESS;
+	return TEE_SUCCESS;
 }
 
 /*
