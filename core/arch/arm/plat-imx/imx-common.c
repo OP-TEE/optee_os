@@ -89,36 +89,6 @@ bool soc_is_imx6dqp(void)
 	return (imx_soc_type() == SOC_MX6Q) && (imx_soc_rev_major() == 2);
 }
 
-bool soc_is_imx7s(void)
-{
-	vaddr_t addr = core_mmu_get_va(OCOTP_BASE + 0x450, MEM_AREA_IO_SEC);
-	uint32_t val = read32(addr);
-
-	if (soc_is_imx7ds()) {
-		if (val & 1)
-			return true;
-		else
-			return false;
-	}
-
-	return false;
-}
-
-bool soc_is_imx7d(void)
-{
-	vaddr_t addr = core_mmu_get_va(OCOTP_BASE + 0x450, MEM_AREA_IO_SEC);
-	uint32_t val = read32(addr);
-
-	if (soc_is_imx7ds()) {
-		if (val & 1)
-			return false;
-		else
-			return true;
-	}
-
-	return false;
-}
-
 bool soc_is_imx7ds(void)
 {
 	return imx_soc_type() == SOC_MX7D;
@@ -128,7 +98,7 @@ uint32_t imx_get_src_gpr(int cpu)
 {
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-	if (soc_is_imx7d())
+	if (soc_is_imx7ds())
 		return read32(va + SRC_GPR1_MX7 + cpu * 8 + 4);
 	else
 		return read32(va + SRC_GPR1 + cpu * 8 + 4);
@@ -138,7 +108,7 @@ void imx_set_src_gpr(int cpu, uint32_t val)
 {
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-	if (soc_is_imx7d())
+	if (soc_is_imx7ds())
 		write32(val, va + SRC_GPR1_MX7 + cpu * 8 + 4);
 	else
 		write32(val, va + SRC_GPR1 + cpu * 8 + 4);
