@@ -118,7 +118,7 @@ int psci_affinity_info(uint32_t affinity,
 
 	cpu = affinity;
 
-	if (soc_is_imx7d())
+	if (soc_is_imx7ds())
 		wfi = true;
 	else
 		wfi = read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
@@ -131,7 +131,7 @@ int psci_affinity_info(uint32_t affinity,
 	 * Wait secondary cpus ready to be killed
 	 * TODO: Change to non dead loop
 	 */
-	if (soc_is_imx7d()) {
+	if (soc_is_imx7ds()) {
 		while (read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
 			;
 
