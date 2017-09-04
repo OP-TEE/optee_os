@@ -57,6 +57,8 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, uaddr_t stack,
 void print_kernel_stack(int level)
 {
 	struct unwind_state_arm64 state;
+	uaddr_t stack = thread_stack_start();
+	size_t stack_size = thread_stack_size();
 
 	memset(&state, 0, sizeof(state));
 	state.pc = read_pc();
@@ -79,7 +81,7 @@ void print_kernel_stack(int level)
 		default:
 			break;
 		}
-	} while (unwind_stack_arm64(&state, 0, 0));
+	} while (unwind_stack_arm64(&state, stack, stack_size));
 }
 
 #endif
