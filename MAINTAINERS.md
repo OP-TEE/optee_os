@@ -10,7 +10,9 @@ for these platforms.
 | Allwinner A80 Board			|`Sun Yangbang <sunny@allwinnertech.com>`|
 | ARM Juno Board			|`Linaro <op-tee@linaro.org>`|
 | Atmel ATSAMA5D2-XULT Board		|`Akshay Bhat <akshay.bhat@timesys.com>`|
-| FSL ls1021a				|`Sumit Garg <sumit.garg@freescale.com>`|
+| NXP LS1021A				|`Sumit Garg <sumit.garg@nxp.com>`|
+| NXP LS1043A-RDB			|`Sumit Garg <sumit.garg@nxp.com>`|
+| NXP LS1046A-RDB			|`Sumit Garg <sumit.garg@nxp.com>`|
 | FSL i.MX6 Quad SABRE Lite Board	|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | FSL i.MX6 Quad SABRE SD Board		|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | FSL i.MX6 UltraLite EVK Board		|`Peng Fan <peng.fan@nxp.com>`|

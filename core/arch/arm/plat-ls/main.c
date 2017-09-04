@@ -27,7 +27,7 @@
 
 #include <platform_config.h>
 
-#include <arm32.h>
+#include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/ns16550.h>
@@ -49,12 +49,21 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
 	.cpu_resume = pm_panic,
 	.system_off = pm_panic,
 	.system_reset = pm_panic,
+#endif
 };
 
 static struct gic_data gic_data;
@@ -73,6 +82,7 @@ static void main_fiq(void)
 	panic();
 }
 
+#ifdef CFG_ARM32_core
 void plat_cpu_reset_late(void)
 {
 	static uint32_t cntfrq;
@@ -120,6 +130,7 @@ void plat_cpu_reset_late(void)
 		write_cntfrq(cntfrq);
 	}
 }
+#endif
 
 void console_init(void)
 {

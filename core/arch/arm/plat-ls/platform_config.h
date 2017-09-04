@@ -63,29 +63,35 @@
 #define CONSOLE_UART_BASE		UART0_BASE
 
 #define DRAM0_BASE			0x80000000
+
+/* Platform specific defines */
+
 #if defined(PLATFORM_FLAVOR_ls1021aqds)
 #define DRAM0_SIZE			0x80000000
+#define CFG_DDR_TEETZ_RESERVED_START	0xFC000000
+#define CFG_DDR_TEETZ_RESERVED_SIZE	0x03F00000
+#define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
+#define CFG_PUB_RAM_SIZE		(1024 * 1024)
+#define CFG_TEE_CORE_NB_CORE		2
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1021atwr)
 #define DRAM0_SIZE			0x40000000
-#endif
-
-/* Location of trusted dram on layerscape */
-
-#if defined(PLATFORM_FLAVOR_ls1021atwr)
 #define CFG_DDR_TEETZ_RESERVED_START	0xBC000000
-#endif
-
-#if defined(PLATFORM_FLAVOR_ls1021aqds)
-#define CFG_DDR_TEETZ_RESERVED_START	0xFC000000
-#endif
-
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x03F00000
-
 #define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
-
+#define CFG_PUB_RAM_SIZE		(1024 * 1024)
 #define CFG_TEE_CORE_NB_CORE		2
+#endif
+
+#if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb)
+#define DRAM0_SIZE			0x80000000
+#define CFG_DDR_TEETZ_RESERVED_START	0xFC000000
+#define CFG_DDR_TEETZ_RESERVED_SIZE	0x04000000
+#define CFG_TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
+#define CFG_PUB_RAM_SIZE		(2 * 1024 * 1024)
+#define CFG_TEE_CORE_NB_CORE		4
+#endif
 
 #define DDR_PHYS_START			DRAM0_BASE
 #define DDR_SIZE			DRAM0_SIZE
@@ -124,8 +130,7 @@
 #endif
 
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE		(1 * 1024 * 1024)
+#define CFG_TEE_RAM_PH_SIZE		CFG_TEE_RAM_VA_SIZE
 #define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
 					 CFG_TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
 
