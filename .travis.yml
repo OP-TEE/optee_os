@@ -216,9 +216,15 @@ script:
   - $make PLATFORM=sprd-sc9860
   - $make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
 
-  # FSL ls1021a
+  # NXP LS1021A
   - $make PLATFORM=ls-ls1021atwr
   - $make PLATFORM=ls-ls1021aqds
+
+  # NXP LS1043A-RDB (ARMv8-A)
+  - $make PLATFORM=ls-ls1043ardb CFG_ARM64_core=y
+
+  # NXP LS1046A-RDB (ARMv8-A)
+  - $make PLATFORM=ls-ls1046ardb CFG_ARM64_core=y
 
   # Xilinx Zynq7000 ZC702
   - $make PLATFORM=zynq7k-zc702
