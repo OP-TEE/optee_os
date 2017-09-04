@@ -356,6 +356,20 @@ bool unwind_stack_arm32(struct unwind_state_arm32 *state, uaddr_t exidx,
 	return !finished;
 }
 
+#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
+
+void print_stack_arm32(int level, struct unwind_state_arm32 *state, uaddr_t exidx,
+		       size_t exidx_sz)
+{
+	trace_printf_helper_raw(level, true, "Call stack:");
+	do {
+		trace_printf_helper_raw(level, true, " 0x%08x" PRIx32,
+					state->registers[PC]);
+	} while (unwind_stack_arm32(state, exidx, exidx_sz));
+}
+
+#endif
+
 #if defined(CFG_UNWIND) && defined(ARM32) && (TRACE_LEVEL > 0)
 
 void print_kernel_stack(int level)
@@ -373,24 +387,7 @@ void print_kernel_stack(int level)
 	state.registers[LR] = read_lr();
 	state.registers[PC] = (uint32_t)print_kernel_stack;
 
-	do {
-		switch (level) {
-		case TRACE_FLOW:
-			FMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
-			break;
-		case TRACE_DEBUG:
-			DMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
-			break;
-		case TRACE_INFO:
-			IMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
-			break;
-		case TRACE_ERROR:
-			EMSG_RAW("pc  0x%08" PRIx32, state.registers[PC]);
-			break;
-		default:
-			break;
-		}
-	} while (unwind_stack_arm32(&state, exidx, exidx_sz));
+	print_stack_arm32(level, &state, exidx, exidx_sz);
 }
 
 #endif
