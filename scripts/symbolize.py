@@ -39,7 +39,6 @@ TA_INFO_RE = re.compile(':  arch: (?P<arch>\w+)  '
                         'load address: (?P<load_addr>0x[0-9a-f]+)')
 CALL_STACK_RE = re.compile('Call stack:')
 STACK_ADDR_RE = re.compile(r':  (?P<addr>0x[0-9a-f]+)')
-X64_REGS_RE = re.compile(':  x0  [0-9a-f]{16} x1  [0-9a-f]{16}')
 ABORT_ADDR_RE = re.compile('-abort at address (?P<addr>0x[0-9a-f]+)')
 
 epilog = '''
@@ -103,13 +102,22 @@ class Symbolizer(object):
             if elf:
                 return elf[0]
 
+    def set_arch(self):
+        if self._arch:
+            return
+        if self._bin:
+            p = subprocess.Popen([ 'file', self.get_elf(self._bin) ],
+                                 stdout=subprocess.PIPE)
+            output = p.stdout.readlines()
+            p.terminate()
+            if 'ARM aarch64,' in output[0]:
+                self._arch = 'aarch64-linux-gnu-'
+            elif 'ARM,' in output[0]:
+                self._arch = 'arm-linux-gnueabihf-'
+
     def arch_prefix(self, cmd):
-        if self._arch == 'arm':
-            return 'arm-linux-gnueabihf-' + cmd
-        elif self._arch == 'aarch64':
-            return 'aarch64-linux-gnu-' + cmd
-        else:
-            return ''
+        self.set_arch()
+        return self._arch + cmd
 
     def spawn_addr2line(self):
         if not self._addr2line:
@@ -230,7 +238,7 @@ class Symbolizer(object):
         if self._addr2line:
             self._addr2line.terminate()
             self._addr2line = None
-        self._arch = 'arm'
+        self._arch = None
         self._saved_abort_line = ''
 
     def write(self, line):
@@ -263,13 +271,7 @@ class Symbolizer(object):
                 self._bin = match.group('uuid')
             match = re.search(TA_INFO_RE, line)
             if match:
-                self._arch = match.group('arch')
                 self._load_addr = match.group('load_addr')
-            match = re.search(X64_REGS_RE, line)
-            if match:
-                # Assume _arch represents the TEE core. If we have a TA dump,
-                # it will be overwritten later
-                self._arch = 'aarch64'
             match = re.search(ABORT_ADDR_RE, line)
             if match:
                 # At this point the arch and TA load address are unknown.
