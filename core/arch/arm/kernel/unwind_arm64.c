@@ -54,6 +54,16 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, uaddr_t stack,
 
 #if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
 
+void print_stack_arm64(int level, struct unwind_state_arm64 *state,
+		       uaddr_t stack, size_t stack_size)
+{
+	trace_printf_helper_raw(level, true, "Call stack:");
+	do {
+		trace_printf_helper_raw(level, true, " 0x%016" PRIx64,
+					state->pc);
+	} while (stack && unwind_stack_arm64(state, stack, stack_size));
+}
+
 void print_kernel_stack(int level)
 {
 	struct unwind_state_arm64 state;
@@ -64,24 +74,7 @@ void print_kernel_stack(int level)
 	state.pc = read_pc();
 	state.fp = read_fp();
 
-	do {
-		switch (level) {
-		case TRACE_FLOW:
-			FMSG_RAW("pc  0x%016" PRIx64, state.pc);
-			break;
-		case TRACE_DEBUG:
-			DMSG_RAW("pc  0x%016" PRIx64, state.pc);
-			break;
-		case TRACE_INFO:
-			IMSG_RAW("pc  0x%016" PRIx64, state.pc);
-			break;
-		case TRACE_ERROR:
-			EMSG_RAW("pc  0x%016" PRIx64, state.pc);
-			break;
-		default:
-			break;
-		}
-	} while (unwind_stack_arm64(&state, stack, stack_size));
+	print_stack_arm64(level, &state, stack, stack_size);
 }
 
 #endif

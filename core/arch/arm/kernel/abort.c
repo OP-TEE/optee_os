@@ -115,10 +115,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	EMSG_RAW("Call stack:");
-	do {
-		EMSG_RAW(" 0x%08x", state.registers[15]);
-	} while (exidx && unwind_stack_arm32(&state, exidx, exidx_sz));
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
 }
 #else /* ARM32 */
 
@@ -151,10 +148,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 	state.registers[14] = ai->regs->x14;
 	state.registers[15] = ai->pc;
 
-	EMSG_RAW("Call stack:");
-	do {
-		EMSG_RAW(" 0x%08x", state.registers[15]);
-	} while (exidx && unwind_stack_arm32(&state, exidx, exidx_sz));
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
 }
 #endif /* ARM32 */
 #ifdef ARM64
@@ -186,10 +180,7 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 	state.pc = ai->regs->elr;
 	state.fp = ai->regs->x29;
 
-	EMSG_RAW("Call stack:");
-	do {
-		EMSG_RAW(" 0x%016" PRIx64, state.pc);
-	} while (stack && unwind_stack_arm64(&state, stack, stack_size));
+	print_stack_arm64(TRACE_ERROR, &state, stack, stack_size);
 }
 #else
 static void __print_stack_unwind_arm64(struct abort_info *ai __unused)

@@ -72,12 +72,36 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *state, uaddr_t stack,
 #endif /*ARM64*/
 
 #if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
+
+#ifdef ARM64
+void print_stack_arm64(int level, struct unwind_state_arm64 *state, uaddr_t exidx,
+		       size_t exidx_sz);
+#endif
+void print_stack_arm32(int level, struct unwind_state_arm32 *state, uaddr_t exidx,
+		       size_t exidx_sz);
 void print_kernel_stack(int level);
-#else
-static inline void print_kernel_stack(int level __unused)
+
+#else /* defined(CFG_UNWIND) && (TRACE_LEVEL > 0) */
+
+#ifdef ARM64
+static inline void print_stack_arm64(int level __unused,
+				     struct unwind_state_arm64 *state __unused,
+				     uaddr_t exidx __unused,
+				     size_t exidx_sz __unused)
 {
 }
 #endif
+static inline void print_stack_arm32(int level __unused,
+				     struct unwind_state_arm32 *state __unused,
+				     uaddr_t exidx __unused,
+				     size_t exidx_sz __unused)
+{
+}
+static inline void print_kernel_stack(int level __unused)
+{
+}
+
+#endif /* defined(CFG_UNWIND) && (TRACE_LEVEL > 0) */
 
 #endif /*ASM*/
 
