@@ -1,6 +1,8 @@
 global-incdirs-y += .
 srcs-y += main.c imx-common.c
 
+srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c
+
 srcs-$(CFG_PL310) += imx_pl310.c
 srcs-$(CFG_PSCI_ARM32) += pm/psci.c pm/gpcv2.c
 cflags-pm/psci.c-y += -Wno-suggest-attribute=noreturn
