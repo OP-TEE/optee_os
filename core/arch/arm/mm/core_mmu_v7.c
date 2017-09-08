@@ -722,7 +722,7 @@ static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 {
 	uint32_t attr;
 	size_t idx = mm->va >> SECTION_SHIFT;
-	paddr_t pa = 0;
+	paddr_t pa;
 
 	if (core_mmap_is_end_of_table(mm))
 		return;
