@@ -346,6 +346,8 @@ static void init_asan(void)
 	asan_tag_access(&__ctor_list, &__ctor_end);
 	asan_tag_access(__rodata_start, __rodata_end);
 	asan_tag_access(__nozi_start, __nozi_end);
+	asan_tag_access(__exidx_start, __exidx_end);
+	asan_tag_access(__extab_start, __extab_end);
 
 	init_run_constructors();
 
