@@ -182,8 +182,8 @@ static void check_access(vaddr_t addr, size_t size)
 	if (!va_range_inside_shadow(begin, end))
 		panic();
 
-	e = va_to_shadow(end);
-	for (a = va_to_shadow(begin); a != e; a++)
+	e = va_to_shadow((void *)(addr + size - 1));
+	for (a = va_to_shadow(begin); a <= e; a++)
 		if (*a < 0)
 			panic();
 
