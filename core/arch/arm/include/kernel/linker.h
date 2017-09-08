@@ -45,6 +45,8 @@
  */
 extern const uint8_t __exidx_start[];
 extern const uint8_t __exidx_end[];
+extern const uint8_t __extab_start[];
+extern const uint8_t __extab_end[];
 
 extern const struct pseudo_ta_head __start_ta_head_section;
 extern const struct pseudo_ta_head __stop_ta_head_section;
