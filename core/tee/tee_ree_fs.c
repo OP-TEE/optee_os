@@ -552,10 +552,21 @@ static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
 static void put_dirh_primitive(bool close)
 {
 	assert(ree_fs_dirh_refcount);
-	assert(ree_fs_dirh);
 
+	/*
+	 * During the execution of one of the ree_fs_ops ree_fs_dirh is
+	 * guareteed to be a valid pointer. But when the fop has returned
+	 * another thread may get an error or something causing that fop
+	 * to do a put with close=1.
+	 *
+	 * For all fops but ree_fs_close() there's a call to get_dirh() to
+	 * get a new dirh which will open it again if it was closed before.
+	 * But in the ree_fs_close() case there's no call to get_dirh()
+	 * only to this function, put_dirh_primitive(), and in this case
+	 * ree_fs_dirh may actually be NULL.
+	 */
 	ree_fs_dirh_refcount--;
-	if (!ree_fs_dirh_refcount || close)
+	if (ree_fs_dirh && (!ree_fs_dirh_refcount || close))
 		close_dirh(&ree_fs_dirh);
 }
 
