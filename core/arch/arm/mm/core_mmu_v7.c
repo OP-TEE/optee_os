@@ -723,7 +723,6 @@ static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 	uint32_t attr = INVALID_DESC;
 	size_t idx = mm->va >> SECTION_SHIFT;
 	paddr_t pa = 0;
-	//size_t n;
 
 	if (core_mmap_is_end_of_table(mm))
 		return;
@@ -731,11 +730,11 @@ static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 	print_mmap_area(mm, "4k page map");
 
 	attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
+	assert(idx == ((mm->va + mm->size) >> SECTION_SHIFT));
 	pa = map_page_memarea(mm, ttb[idx]);
 
-	assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
+	assert(!ttb[idx] || ttb[idx] == (pa | attr));
 	ttb[idx] = pa | attr;
-	idx++;
 }
 
 static void map_memarea_sections(const struct tee_mmap_region *mm,
