@@ -720,7 +720,7 @@ static paddr_t map_page_memarea(const struct tee_mmap_region *mm, uint32_t xlat)
 static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 					uint32_t *ttb)
 {
-	uint32_t attr = INVALID_DESC;
+	uint32_t attr;
 	size_t idx = mm->va >> SECTION_SHIFT;
 	paddr_t pa = 0;
 
