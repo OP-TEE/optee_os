@@ -363,7 +363,7 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state, uaddr_t exid
 {
 	trace_printf_helper_raw(level, true, "Call stack:");
 	do {
-		trace_printf_helper_raw(level, true, " 0x%08x" PRIx32,
+		trace_printf_helper_raw(level, true, " 0x%08" PRIx32,
 					state->registers[PC]);
 	} while (unwind_stack_arm32(state, exidx, exidx_sz));
 }
