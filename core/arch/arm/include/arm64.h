@@ -317,7 +317,11 @@ DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
 DEFINE_U32_REG_READ_FUNC(contextidr_el1)
 DEFINE_U32_REG_READ_FUNC(sctlr_el1)
 
+/* ARM Generic timer functions */
 DEFINE_REG_READ_FUNC_(cntfrq, uint32_t, cntfrq_el0)
+DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
+DEFINE_REG_READ_FUNC_(cntkctl, uint32_t, cntkctl_el1)
+DEFINE_REG_WRITE_FUNC_(cntkctl, uint32_t, cntkctl_el1)
 
 DEFINE_U64_REG_READWRITE_FUNCS(ttbr0_el1)
 DEFINE_U64_REG_READWRITE_FUNCS(ttbr1_el1)
@@ -329,8 +333,6 @@ DEFINE_U64_REG_READ_FUNC(mpidr_el1)
 DEFINE_U64_REG_READ_FUNC(par_el1)
 
 DEFINE_U64_REG_WRITE_FUNC(mair_el1)
-
-DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
 
 /* Register read/write functions for GICC registers by using system interface */
 DEFINE_REG_READ_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
