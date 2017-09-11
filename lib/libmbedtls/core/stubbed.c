@@ -57,59 +57,6 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
 }
 #endif /* CFG_CRYPTO_DSA */
 
-#if defined(CFG_CRYPTO_ECC)
-TEE_Result
-crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s __unused,
-				    size_t key_size_bits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s __unused,
-					    size_t key_size_bits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s __unused)
-{
-}
-
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_ecc_sign(uint32_t algo __unused,
-				   struct ecc_keypair *key __unused,
-				   const uint8_t *msg __unused,
-				   size_t msg_len __unused,
-				   uint8_t *sig __unused,
-				   size_t *sig_len __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_ecc_verify(uint32_t algo __unused,
-				     struct ecc_public_key *key __unused,
-				     const uint8_t *msg __unused,
-				     size_t msg_len __unused,
-				     const uint8_t *sig __unused,
-				     size_t sig_len __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result
-crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
-				 struct ecc_public_key *public_key __unused,
-				 void *secret __unused,
-				 unsigned long *secret_len __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-#endif /* CFG_CRYPTO_ECC */
-
 
 /* Stubs for the crypto alloc ctx functions matching crypto_impl.h */
 #undef CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED
