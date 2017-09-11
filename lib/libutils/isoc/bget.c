@@ -779,7 +779,7 @@ void *bgetz(size)
 	    rsize -= sizeof(struct bhead);
 	}
 	assert(rsize >= size);
-	V memset(buf, 0, (MemSize) rsize);
+	V memset_unchecked(buf, 0, (MemSize) rsize);
     }
     return ((void *) buf);
 }
@@ -848,8 +848,8 @@ void brel(buf)
 	numdrel++;		      /* Number of direct releases */
 #endif /* BufStats */
 #ifdef FreeWipe
-	V memset((char *) buf, 0x55,
-		 (MemSize) (bdh->tsize - sizeof(struct bdhead)));
+	V memset_unchecked((char *) buf, 0x55,
+			   (MemSize) (bdh->tsize - sizeof(struct bdhead)));
 #endif /* FreeWipe */
 	bs = bdh->tsize - sizeof(struct bdhead);
 	assert(relfcn != NULL);
@@ -936,8 +936,8 @@ void brel(buf)
 	bn = BFH(((char *) b) + b->bh.bsize);
     }
 #ifdef FreeWipe
-    V memset(((char *) b) + sizeof(struct bfhead), 0x55,
-	    (MemSize) (b->bh.bsize - sizeof(struct bfhead)));
+    V memset_unchecked(((char *) b) + sizeof(struct bfhead), 0x55,
+		       (MemSize) (b->bh.bsize - sizeof(struct bfhead)));
 #endif
     assert(bn->bh.bsize < 0);
 
@@ -1048,8 +1048,8 @@ void bpool(buf, len)
     len -= sizeof(struct bhead);
     b->bh.bsize = (bufsize) len;
 #ifdef FreeWipe
-    V memset(((char *) b) + sizeof(struct bfhead), 0x55,
-	     (MemSize) (len - sizeof(struct bfhead)));
+    V memset_unchecked(((char *) b) + sizeof(struct bfhead), 0x55,
+		       (MemSize) (len - sizeof(struct bfhead)));
 #endif
     bn = BH(((char *) b) + len);
     bn->prevfree = (bufsize) len;
