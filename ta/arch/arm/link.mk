@@ -25,7 +25,7 @@ reverse = $(if $(wordlist 2,2,$(1)),$(call reverse,$(wordlist 2,$(words $(1)),$(
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
-link-ldadd += $(addprefix -l,$(call reverse,$(libnames)))
+link-ldadd += --start-group $(addprefix -l,$(call reverse,$(libnames))) --end-group
 ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd)
 
 
