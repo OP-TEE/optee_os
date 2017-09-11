@@ -29,4 +29,13 @@
 #include "mbedtls/dhm.h"
 #endif
 
+#if defined(MBEDTLS_ECDSA_C)
+#include "mbedtls/ecdsa.h"
+#include "mbedtls/ecp.h"
+#endif
+
+#if defined(MBEDTLS_ECDH_C)
+#include "mbedtls/ecdh.h"
+#endif
+
 #endif /* MBEDTLS_ACIPHER_H */
