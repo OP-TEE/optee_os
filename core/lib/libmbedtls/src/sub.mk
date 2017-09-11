@@ -39,4 +39,8 @@ srcs-y += mbedtls/library/bignum.c \
 		mbedtls/library/pk_wrap.c \
 		mbedtls/library/pk.c \
 		mbedtls/library/rsa.c \
+		mbedtls/library/ecp_curves.c \
+		mbedtls/library/ecp.c \
+		mbedtls/library/ecdsa.c \
+		mbedtls/library/ecdh.c \
 		mbedtls/library/dhm.c
