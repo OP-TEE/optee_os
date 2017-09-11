@@ -116,8 +116,8 @@ void asan_tag_no_access(const void *begin, const void *end)
 	assert(va_is_well_aligned(end));
 	assert(va_range_inside_shadow(begin, end));
 
-	memset(va_to_shadow(begin), ASAN_DATA_RED_ZONE,
-	       va_range_to_shadow_size(begin, end));
+	asan_memset_unchecked(va_to_shadow(begin), ASAN_DATA_RED_ZONE,
+			      va_range_to_shadow_size(begin, end));
 }
 
 void asan_tag_access(const void *begin, const void *end)
@@ -128,7 +128,8 @@ void asan_tag_access(const void *begin, const void *end)
 	assert(va_range_inside_shadow(begin, end));
 	assert(va_is_well_aligned(begin));
 
-	memset(va_to_shadow(begin), 0, va_range_to_shadow_size(begin, end));
+	asan_memset_unchecked(va_to_shadow(begin), 0,
+			      va_range_to_shadow_size(begin, end));
 	if (!va_is_well_aligned(end))
 		*va_to_shadow(end) = ASAN_BLOCK_SIZE - va_misalignment(end);
 }
@@ -142,8 +143,19 @@ void asan_tag_heap_free(const void *begin, const void *end)
 	assert(va_is_well_aligned(begin));
 	assert(va_is_well_aligned(end));
 
-	memset(va_to_shadow(begin), ASAN_HEAP_RED_ZONE,
-	       va_range_to_shadow_size(begin, end));
+	asan_memset_unchecked(va_to_shadow(begin), ASAN_HEAP_RED_ZONE,
+			      va_range_to_shadow_size(begin, end));
+}
+
+void *asan_memset_unchecked(void *s, int c, size_t n)
+{
+	uint8_t *b = s;
+	size_t m;
+
+	for (m = 0; m < n; m++)
+		b[m] = c;
+
+	return s;
 }
 
 void asan_start(void)
