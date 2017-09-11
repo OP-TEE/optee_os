@@ -26,3 +26,4 @@ srcs-$(call cfg-one-enabled, CFG_CRYPTO_RSA CFG_CRYPTO_DSA \
 			     CFG_CRYPTO_DH CFG_CRYPTO_ECC) += bignum.c
 srcs-$(CFG_CRYPTO_RSA) += rsa.c
 srcs-$(CFG_CRYPTO_DH) += dh.c
+srcs-$(CFG_CRYPTO_ECC) += ecc.c
