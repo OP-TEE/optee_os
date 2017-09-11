@@ -57,29 +57,6 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
 }
 #endif /* CFG_CRYPTO_DSA */
 
-#if defined(CFG_CRYPTO_DH)
-TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
-					   size_t key_size_bits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key __unused,
-				     struct bignum *q __unused,
-				     size_t xbits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result
-crypto_acipher_dh_shared_secret(struct dh_keypair *private_key __unused,
-				struct bignum *public_key __unused,
-				struct bignum *secret __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-#endif /* CFG_CRYPTO_DH */
-
 #if defined(CFG_CRYPTO_ECC)
 TEE_Result
 crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s __unused,

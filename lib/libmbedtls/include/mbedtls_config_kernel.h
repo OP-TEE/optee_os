@@ -84,6 +84,10 @@
 #define MBEDTLS_ASN1_WRITE_C
 #endif
 
+#if defined(CFG_CRYPTO_DH)
+#define MBEDTLS_DHM_C
+#endif
+
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
 #include <mbedtls/check_config.h>
