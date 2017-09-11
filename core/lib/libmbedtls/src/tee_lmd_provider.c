@@ -15,6 +15,40 @@
 #include <string.h>
 #include <utee_defines.h>
 
+#if defined(_CFG_CRYPTO_WITH_ACIPHER) || defined(_CFG_CRYPTO_WITH_DRBG)
+static unsigned long int next = 1;
+
+/* Return next random integer */
+static int _rand(void)
+{
+	next = next * 1103515245L + 12345;
+	return (unsigned int) (next / 65536L) % 32768L;
+}
+
+static int mbd_rand(void *rng_state, unsigned char *output, size_t len)
+{
+	size_t use_len;
+	int rnd;
+
+	if (rng_state != NULL)
+		rng_state  = NULL;
+
+	while (len > 0) {
+		use_len = len;
+		if (use_len > sizeof(int))
+			use_len = sizeof(int);
+
+		rnd = _rand();
+		memcpy(output, &rnd, use_len);
+		output += use_len;
+		len -= use_len;
+	}
+	return 0;
+}
+#endif /* defined(_CFG_CRYPTO_WITH_ACIPHER) ||
+	* defined(_CFG_CRYPTO_WITH_DRBG)
+	*/
+
 #if defined(_CFG_CRYPTO_WITH_HASH) || defined(CFG_CRYPTO_RSA) || \
 	defined(CFG_CRYPTO_HMAC)
 /*
@@ -270,7 +304,7 @@ struct bignum *crypto_bignum_allocate(size_t size_bits)
 	if (bn == NULL)
 		return NULL;
 	mbedtls_mpi_init(bn);
-	if (mbedtls_mpi_grow(bn, size_bits / BYTE_TO_BIT) != 0)
+	if (mbedtls_mpi_grow(bn, size_bits / 8) != 0)
 		return NULL;
 
 	return (struct bignum *)bn;
@@ -293,7 +327,7 @@ void crypto_bignum_clear(struct bignum *s)
 
 static bool bn_alloc_max(struct bignum **s)
 {
-	*s = crypto_bignum_allocate(MBEDTLS_MPI_MAX_LIMBS * BYTE_TO_BIT);
+	*s = crypto_bignum_allocate(MBEDTLS_MPI_MAX_LIMBS * 8);
 	return !!(*s);
 }
 
@@ -301,6 +335,7 @@ static bool bn_alloc_max(struct bignum **s)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
 					    size_t key_size_bits __unused)
+
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
@@ -413,22 +448,116 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo, struct dsa_public_key *key,
 #if defined(CFG_CRYPTO_DH)
 
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
-					   size_t key_size_bits __unused)
+					   size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->g = crypto_bignum_allocate(key_size_bits);
+	if (!(s->g))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->p = crypto_bignum_allocate(key_size_bits);
+	if (!(s->p))
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!(s->y))
+		goto err;
+	s->x = crypto_bignum_allocate(key_size_bits);
+	if (!(s->x))
+		goto err;
+	s->q = crypto_bignum_allocate(key_size_bits);
+	if (!(s->q))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->y);
+	crypto_bignum_free(s->x);
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 				     size_t xbits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res;
+	mbedtls_dhm_context dhm;
+	unsigned char *buf = NULL;
+
+	mbedtls_dhm_init(&dhm);
+
+	crypto_bignum_copy((void *)&dhm.G, key->g);
+	crypto_bignum_copy((void *)&dhm.P, key->p);
+
+	dhm.len = crypto_bignum_num_bytes(key->p);
+
+	if (xbits == 0)
+		xbits = dhm.len;
+	else
+		xbits = xbits / 8;
+
+	buf = malloc(dhm.len);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbits, buf,
+			dhm.len, mbd_rand, NULL);
+	if (lmd_res != 0) {
+		EMSG("mbedtls_dhm_make_public err, return is 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		crypto_bignum_bin2bn(buf, xbits / 8, key->y);
+		crypto_bignum_copy(key->x, (void *)&dhm.X);
+		res = TEE_SUCCESS;
+	}
+out:
+	if (buf)
+		free(buf);
+	mbedtls_dhm_free(&dhm);
+
+	return res;
 }
 
 TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 					   struct bignum *public_key,
 					   struct bignum *secret)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res;
+	mbedtls_dhm_context dhm;
+	unsigned char *buf = NULL;
+	size_t olen;
+
+	mbedtls_dhm_init(&dhm);
+
+	crypto_bignum_copy((void *)&dhm.G, private_key->g);
+	crypto_bignum_copy((void *)&dhm.P, private_key->p);
+	crypto_bignum_copy((void *)&dhm.GX, private_key->y);
+	crypto_bignum_copy((void *)&dhm.X, private_key->x);
+	crypto_bignum_copy((void *)&dhm.GY, public_key);
+
+	dhm.len = crypto_bignum_num_bytes(private_key->p);
+
+	buf = malloc(dhm.len);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	lmd_res = mbedtls_dhm_calc_secret(&dhm, buf, dhm.len,
+			&olen, mbd_rand, NULL);
+	if (lmd_res != 0) {
+		EMSG("mbedtls_dhm_calc_secret failed, ret is 0x%x\n", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		crypto_bignum_bin2bn(buf, olen, secret);
+		res = TEE_SUCCESS;
+	}
+out:
+	if (buf)
+		free(buf);
+	mbedtls_dhm_free(&dhm);
+	return res;
 }
 
 #endif /* CFG_CRYPTO_DH */

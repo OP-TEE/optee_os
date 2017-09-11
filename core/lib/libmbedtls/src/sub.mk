@@ -23,3 +23,5 @@ srcs-$(_CFG_CRYPTO_WITH_HASH) += mbedtls/library/md.c \
 
 # Asymmetric ciphers
 srcs-$(_CFG_CRYPTO_WITH_ACIPHER) += mbedtls/library/bignum.c
+# DH
+srcs-$(CFG_CRYPTO_DH) += mbedtls/library/dhm.c

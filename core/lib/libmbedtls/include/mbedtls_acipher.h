@@ -16,4 +16,8 @@
 
 #include "mbedtls/bignum.h"
 
+#if defined(MBEDTLS_DHM_C)
+#include "mbedtls/dhm.h"
+#endif
+
 #endif /* MBEDTLS_ACIPHER_H */
