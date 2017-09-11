@@ -78,6 +78,10 @@
 #define MBEDTLS_ASN1_WRITE_C
 #endif
 
+#if defined(CFG_CRYPTO_DH)
+#define MBEDTLS_DHM_C
+#endif
+
 #include <mbedtls/check_config.h>
 
 #endif /* __MBEDTLS_CONFIG_KERNEL_H */
