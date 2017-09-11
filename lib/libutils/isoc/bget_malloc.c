@@ -100,12 +100,13 @@
 #endif
 
 #include <compiler.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <malloc.h>
-#include <util.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #include <trace.h>
+#include <util.h>
 
 #if defined(__KERNEL__)
 /* Compiling for TEE Core */
@@ -133,6 +134,11 @@ static void tag_asan_alloced(void *buf, size_t len)
 	asan_tag_access(buf, (uint8_t *)buf + len);
 }
 
+static void *memset_unchecked(void *s, int c, size_t n)
+{
+	return asan_memset_unchecked(s, c, n);
+}
+
 #else /*__KERNEL__*/
 /* Compiling for TA */
 static uint32_t malloc_lock(void)
@@ -151,6 +157,12 @@ static void tag_asan_free(void *buf __unused, size_t len __unused)
 static void tag_asan_alloced(void *buf __unused, size_t len __unused)
 {
 }
+
+static void *memset_unchecked(void *s, int c, size_t n)
+{
+	return memset(s, c, n);
+}
+
 #endif /*__KERNEL__*/
 
 #include "bget.c"		/* this is ugly, but this is bget */
