@@ -38,4 +38,5 @@ srcs-y += mbedtls/library/bignum.c \
 		mbedtls/library/asn1write.c \
 		mbedtls/library/pk_wrap.c \
 		mbedtls/library/pk.c \
-		mbedtls/library/rsa.c
+		mbedtls/library/rsa.c \
+		mbedtls/library/dhm.c

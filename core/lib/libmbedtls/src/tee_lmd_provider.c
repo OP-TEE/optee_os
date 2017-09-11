@@ -17,9 +17,6 @@
 #if defined(CFG_CRYPTO_AES)
 #include "mbedtls/aes.h"
 #endif
-#if defined(CFG_CRYPTO_DES)
-#include "mbedtls/des.h"
-#endif
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 #include "mbedtls/bignum.h"
 #include "mbedtls/ctr_drbg.h"
@@ -38,6 +35,12 @@
 #endif
 #if defined(CFG_MBEDTLS_CTR_PRNG)
 #include "mbedtls/ctr_drbg.h"
+#endif
+#if defined(CFG_CRYPTO_DES)
+#include "mbedtls/des.h"
+#endif
+#if defined(CFG_CRYPTO_DH)
+#include "mbedtls/dhm.h"
 #endif
 #if defined(MBEDTLS_ENTROPY_C)
 #include "mbedtls/entropy.h"
@@ -1387,26 +1390,128 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
 #endif /* CFG_CRYPTO_DSA */
 
 #if defined(CFG_CRYPTO_DH)
-TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
-					   size_t key_size_bits __unused)
+
+TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
+					   size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->g = crypto_bignum_allocate(key_size_bits);
+	if (!(s->g))
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->p = crypto_bignum_allocate(key_size_bits);
+	if (!(s->p))
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!(s->y))
+		goto err;
+	s->x = crypto_bignum_allocate(key_size_bits);
+	if (!(s->x))
+		goto err;
+	s->q = crypto_bignum_allocate(key_size_bits);
+	if (!(s->q))
+		goto err;
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->y);
+	crypto_bignum_free(s->x);
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key __unused,
-				     struct bignum *q __unused,
-				     size_t xbits __unused)
+TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
+				     size_t xbits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res;
+	mbedtls_dhm_context dhm;
+	unsigned char *buf = NULL;
+
+	mbedtls_dhm_init(&dhm);
+
+	dhm.G = *(mbedtls_mpi *)key->g;
+	dhm.P = *(mbedtls_mpi *)key->p;
+
+	dhm.len = crypto_bignum_num_bytes(key->p);
+
+	if (xbits == 0)
+		xbits = dhm.len;
+	else
+		xbits = xbits / 8;
+
+	buf = malloc(dhm.len);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbits, buf,
+					  dhm.len, mbd_rand, NULL);
+	if (lmd_res != 0) {
+		EMSG("mbedtls_dhm_make_public err, return is 0x%x", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		crypto_bignum_bin2bn(buf, xbits / 8, key->y);
+		crypto_bignum_copy(key->x, (void *)&dhm.X);
+		res = TEE_SUCCESS;
+	}
+out:
+	if (buf)
+		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&dhm.G);
+	mbedtls_mpi_init(&dhm.P);
+	mbedtls_dhm_free(&dhm);
+	return res;
 }
 
-TEE_Result
-crypto_acipher_dh_shared_secret(struct dh_keypair *private_key __unused,
-				struct bignum *public_key __unused,
-				struct bignum *secret __unused)
+TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
+					   struct bignum *public_key,
+					   struct bignum *secret)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	int lmd_res;
+	mbedtls_dhm_context dhm;
+	unsigned char *buf = NULL;
+	size_t olen;
+
+	mbedtls_dhm_init(&dhm);
+
+	dhm.G = *(mbedtls_mpi *)private_key->g;
+	dhm.P = *(mbedtls_mpi *)private_key->p;
+	dhm.GX = *(mbedtls_mpi *)private_key->y;
+	dhm.X = *(mbedtls_mpi *)private_key->x;
+	dhm.GY = *(mbedtls_mpi *)public_key;
+
+	dhm.len = crypto_bignum_num_bytes(private_key->p);
+
+	buf = malloc(dhm.len);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	lmd_res = mbedtls_dhm_calc_secret(&dhm, buf, dhm.len,
+					  &olen, mbd_rand, NULL);
+	if (lmd_res != 0) {
+		EMSG("mbedtls_dhm_calc_secret failed, ret is 0x%x", -lmd_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		crypto_bignum_bin2bn(buf, olen, secret);
+		res = TEE_SUCCESS;
+	}
+out:
+	if (buf)
+		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&dhm.G);
+	mbedtls_mpi_init(&dhm.P);
+	mbedtls_mpi_init(&dhm.GX);
+	mbedtls_mpi_init(&dhm.X);
+	mbedtls_mpi_init(&dhm.GY);
+	mbedtls_dhm_free(&dhm);
+	return res;
 }
+
 #endif /* CFG_CRYPTO_DH */
 
 #if defined(CFG_CRYPTO_ECC)
