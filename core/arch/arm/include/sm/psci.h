@@ -1,4 +1,5 @@
 #include <kernel/thread.h>
+#include <sm/sm.h>
 #include <stdint.h>
 
 #define PSCI_FN_BASE			(0x84000000U)
@@ -44,7 +45,7 @@
 
 uint32_t psci_version(void);
 int psci_cpu_suspend(uint32_t power_state, uintptr_t entry,
-		     uint32_t context_id);
+		     uint32_t context_id, struct sm_nsec_ctx *nsec);
 int psci_cpu_off(void);
 int psci_cpu_on(uint32_t cpu_id, uint32_t entry, uint32_t context_id);
 int psci_affinity_info(uint32_t affinity, uint32_t lowest_affnity_level);
@@ -58,6 +59,6 @@ int psci_node_hw_state(uint32_t cpu_id, uint32_t power_level);
 int psci_system_suspend(uintptr_t entry, uint32_t context_id);
 int psci_stat_residency(uint32_t cpu_id, uint32_t power_state);
 int psci_stat_count(uint32_t cpu_id, uint32_t power_state);
-void tee_psci_handler(struct thread_smc_args *args);
+void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec);
 
 void psci_armv7_cpu_off(void);

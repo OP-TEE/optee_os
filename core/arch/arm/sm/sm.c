@@ -44,7 +44,7 @@ bool sm_from_nsec(struct sm_ctx *ctx)
 
 #ifdef CFG_PSCI_ARM32
 	if (OPTEE_SMC_OWNER_NUM(*nsec_r0) == OPTEE_SMC_OWNER_STANDARD) {
-		smc_std_handler((struct thread_smc_args *)nsec_r0);
+		smc_std_handler((struct thread_smc_args *)nsec_r0, &ctx->nsec);
 		return false;	/* Return to non secure state */
 	}
 #endif

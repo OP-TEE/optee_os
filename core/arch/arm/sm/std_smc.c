@@ -40,12 +40,12 @@ static const TEE_UUID uuid = {
 	{0x98, 0xd2, 0x74, 0xf4, 0x38, 0x27, 0x98, 0xbb},
 };
 
-void smc_std_handler(struct thread_smc_args *args)
+void smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 {
 	uint32_t smc_fid = args->a0;
 
 	if (is_psci_fid(smc_fid)) {
-		tee_psci_handler(args);
+		tee_psci_handler(args, nsec);
 		return;
 	}
 
