@@ -43,7 +43,8 @@ __weak uint32_t psci_version(void)
 
 __weak int psci_cpu_suspend(uint32_t power_state __unused,
 			    uintptr_t entry __unused,
-			    uint32_t context_id __unused)
+			    uint32_t context_id __unused,
+			    struct sm_nsec_ctx *nsec __unused)
 {
 	return PSCI_RET_NOT_SUPPORTED;
 }
@@ -117,7 +118,7 @@ __weak int psci_stat_count(uint32_t cpu_id __unused,
 	return PSCI_RET_NOT_SUPPORTED;
 }
 
-void tee_psci_handler(struct thread_smc_args *args)
+void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 {
 	uint32_t smc_fid = args->a0;
 	uint32_t a1 = args->a1;
@@ -129,7 +130,7 @@ void tee_psci_handler(struct thread_smc_args *args)
 		args->a0 = psci_version();
 		break;
 	case PSCI_CPU_SUSPEND:
-		args->a0 = psci_cpu_suspend(a1, a2, a3);
+		args->a0 = psci_cpu_suspend(a1, a2, a3, nsec);
 		break;
 	case PSCI_CPU_OFF:
 		args->a0 = psci_cpu_off();

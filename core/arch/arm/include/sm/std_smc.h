@@ -1,6 +1,8 @@
 #ifndef __STD_SMC_H__
 #define __STD_SMC_H__
 
+#include <sm/sm.h>
+
 /* SMC function IDs for Standard Service queries */
 
 #define ARM_STD_SVC_CALL_COUNT		0x8400ff00
@@ -18,5 +20,5 @@
 #define is_psci_fid(_fid) \
 	(((_fid) & PSCI_FID_MASK) == PSCI_FID_VALUE)
 
-void smc_std_handler(struct thread_smc_args *args);
+void smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec);
 #endif
