@@ -84,8 +84,8 @@ void plat_cpu_reset_late(void)
 	 */
 	write32(0x00FF0033, core_mmu_get_va(CSU_CSL_15, MEM_AREA_IO_SEC));
 	/*
-	 * Proect SRC
-	 * write32(0x003300FF, get_base(CSU_CSL_12, MEM_AREA_IO_SEC));
+	 * Protect SRC
+	 * write32(0x003300FF, core_mmu_get_va(CSU_CSL_12, MEM_AREA_IO_SEC));
 	 */
 	dsb();
 
