@@ -31,6 +31,12 @@
 #define API_HAL_RET_VALUE_OK 0x00000000
 #define API_HAL_RET_VALUE_SERVICE_UNKNWON 0xFFFFFFFF
 
+/* Base for power management related services */
+#define SECURE_SVC_PM       0x70
+
+/* Carry out late actions as part of suspend sequence */
+#define SECURE_SVC_PM_LATE_SUSPEND      (SECURE_SVC_PM + 1)
+
 /* Base Index of APIs */
 #define API_MONITOR_BASE_INDEX 0x00000100
 

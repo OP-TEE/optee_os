@@ -13,6 +13,7 @@ CFG_WITH_SOFTWARE_PRNG = y
 $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
+$(call force,CFG_PM_ARM32,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 include core/arch/arm/cpu/cortex-a9.mk
 else

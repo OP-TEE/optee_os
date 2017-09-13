@@ -27,11 +27,16 @@
 
 #include <arm32.h>
 #include <io.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/tz_ssvce_def.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <platform_config.h>
+#include <sm/pm.h>
 #include <sm/sm.h>
+#include <mm/core_memprot.h>
 #include "api_monitor_index_a9.h"
+
+uint32_t suspend_regs[16];
 
 bool sm_platform_handler(struct sm_ctx *ctx)
 {
@@ -39,6 +44,23 @@ bool sm_platform_handler(struct sm_ctx *ctx)
 		return true;
 
 	switch (ctx->nsec.r12) {
+	case 0x0:
+		switch (ctx->nsec.r0) {
+		case SECURE_SVC_PM_LATE_SUSPEND:
+			sm_pm_cpu_do_suspend(suspend_regs);
+			cache_op_inner(DCACHE_AREA_CLEAN,
+				       suspend_regs,
+				       sizeof(suspend_regs));
+			cache_op_outer(DCACHE_AREA_CLEAN,
+				       virt_to_phys(suspend_regs),
+				       sizeof(suspend_regs));
+			ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+			break;
+		default:
+			ctx->nsec.r0 = API_HAL_RET_VALUE_SERVICE_UNKNWON;
+			break;
+		}
+		break;
 	case API_MONITOR_L2CACHE_SETDEBUG_INDEX:
 		write32(ctx->nsec.r0, pl310_base() + PL310_DEBUG_CTRL);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
