@@ -27,11 +27,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <compiler.h>
 #include <drivers/gic.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
 #include <kernel/tz_ssvce_pl310.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 
@@ -40,17 +42,16 @@ register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
 void plat_cpu_reset_late(void)
 {
 	uintptr_t addr;
+	uint32_t pa __maybe_unused;
 
 	if (!get_core_pos()) {
 		/* primary core */
 #if defined(CFG_BOOT_SYNC_CPU)
+		pa = virt_to_phys((void *)TEE_TEXT_VA_START);
 		/* set secondary entry address and release core */
-		write32(virt_to_phys(TEE_TEXT_VA_START),
-			SRC_BASE + SRC_GPR1 + 8);
-		write32(virt_to_phys(TEE_TEXT_VA_START),
-			SRC_BASE + SRC_GPR1 + 16);
-		write32(virt_to_phys(TEE_TEXT_VA_START),
-			SRC_BASE + SRC_GPR1 + 24);
+		write32(pa, SRC_BASE + SRC_GPR1 + 8);
+		write32(pa, SRC_BASE + SRC_GPR1 + 16);
+		write32(pa, SRC_BASE + SRC_GPR1 + 24);
 
 		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
 #endif

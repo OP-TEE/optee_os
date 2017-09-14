@@ -60,9 +60,9 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	/* set secondary cores' NS entry addresses */
 	ns_entry_addrs[core_idx] = entry;
 
+	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 	if (soc_is_imx7ds()) {
-		write32((uint32_t)virt_to_phys(TEE_TEXT_VA_START),
-			va + SRC_GPR1_MX7 + core_idx * 8);
+		write32(val, va + SRC_GPR1_MX7 + core_idx * 8);
 
 		imx_gpcv2_set_core1_pup_by_software();
 
@@ -76,8 +76,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	}
 
 	/* boot secondary cores from OP-TEE load address */
-	write32((uint32_t)virt_to_phys(TEE_TEXT_VA_START),
-		va + SRC_GPR1 + core_idx * 8);
+	write32(val, va + SRC_GPR1 + core_idx * 8);
 
 	/* release secondary core */
 	val = read32(va + SRC_SCR);
