@@ -266,7 +266,7 @@
 
 	.macro mov_imm reg, val
 		.if ((\val) & 0xffff0000) == 0
-			mov	\reg, #(\val)
+			movw	\reg, #(\val)
 		.else
 			movw	\reg, #((\val) & 0xffff)
 			movt	\reg, #((\val) >> 16)
