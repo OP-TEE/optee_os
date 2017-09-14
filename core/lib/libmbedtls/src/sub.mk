@@ -30,3 +30,6 @@ srcs-y += mbedtls/library/entropy.c \
 
 # MAC
 srcs-y += mbedtls/library/cmac.c
+
+# Asymmetric ciphers
+srcs-y += mbedtls/library/bignum.c

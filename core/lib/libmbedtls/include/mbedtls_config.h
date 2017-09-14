@@ -66,6 +66,10 @@
 #define MBEDTLS_CIPHER_MODE_CTR
 #endif
 
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+#define MBEDTLS_BIGNUM_C
+#endif
+
 #include "mbedtls/check_config.h"
 
 #endif /* MBEDTLS_FEATURE_CONFIG_H */
