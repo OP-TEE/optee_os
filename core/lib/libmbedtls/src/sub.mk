@@ -1,5 +1,5 @@
 srcs-y += tee_lmd_provider.c
-cflags-tee_lmd_provider.c-y += -Wno-unused-parameter
+cflags-tee_lmd_provider.c-y += -Wno-unused-parameter -Wno-unused-function
 
 # For mbedtls
 cflags-y += -Icore/lib/libmbedtls/src/mbedtls/include
@@ -20,3 +20,6 @@ endif
 srcs-$(CFG_CRYPTO_RIPEMD160) += mbedtls/library/ripemd160.c
 srcs-$(_CFG_CRYPTO_WITH_HASH) += mbedtls/library/md.c \
 			mbedtls/library/md_wrap.c
+
+# Asymmetric ciphers
+srcs-$(_CFG_CRYPTO_WITH_ACIPHER) += mbedtls/library/bignum.c
