@@ -20,6 +20,9 @@
 #if defined(CFG_CRYPTO_DES)
 #include "mbedtls/des.h"
 #endif
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+#include "mbedtls/bignum.h"
+#endif
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
 #include "mbedtls/cipher.h"
 #include "mbedtls/cipher_internal.h"
@@ -48,6 +51,7 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
+#include <util.h>
 
 #if defined(CFG_CRYPTO_AES) || defined(_CFG_CRYPTO_WITH_MAC)
 /* Translate mbedtls result to TEE result */
@@ -462,55 +466,92 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
  ******************************************************************************/
 
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
-struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
+#define ciL		(sizeof(mbedtls_mpi_uint))	/* chars in limb  */
+#define biL		(ciL << 3)			/* bits  in limb  */
+#define BITS_TO_LIMBS(i) ((i) / biL + ((i) % biL != 0))
+
+size_t crypto_bignum_num_bytes(struct bignum *a)
 {
-	return NULL;
+	assert(a != NULL);
+	return mbedtls_mpi_size((const mbedtls_mpi *)a);
 }
 
-TEE_Result crypto_bignum_bin2bn(const uint8_t *from __unused,
-				size_t fromsize __unused,
-				struct bignum *to __unused)
+size_t crypto_bignum_num_bits(struct bignum *a)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(a != NULL);
+	return mbedtls_mpi_bitlen((const mbedtls_mpi *)a);
 }
 
-size_t crypto_bignum_num_bytes(struct bignum *a __unused)
+int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
 {
-	return 0;
+	int ret;
+
+	assert(a != NULL);
+	assert(b != NULL);
+	ret = mbedtls_mpi_cmp_mpi((const mbedtls_mpi *)a,
+				  (const mbedtls_mpi *)b);
+	return CMP_TRILEAN(ret, 0);
 }
 
-size_t crypto_bignum_num_bits(struct bignum *a __unused)
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
 {
-	return 0;
+	size_t len;
+
+	assert(from != NULL);
+	assert(to != NULL);
+	len = crypto_bignum_num_bytes((struct bignum *)from);
+	mbedtls_mpi_write_binary((mbedtls_mpi *)from, to, len);
 }
 
-void crypto_bignum_bn2bin(const struct bignum *from __unused,
-			  uint8_t *to __unused)
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
+			 struct bignum *to)
 {
+	assert(from != NULL);
+	assert(to != NULL);
+	if (mbedtls_mpi_read_binary((mbedtls_mpi *)to, from, fromsize) != 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+	return TEE_SUCCESS;
 }
 
-void crypto_bignum_copy(struct bignum *to __unused,
-			const struct bignum *from __unused)
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
 {
+	assert(from != NULL);
+	assert(to != NULL);
+	mbedtls_mpi_copy((mbedtls_mpi *)to, (const mbedtls_mpi *)from);
 }
 
-void crypto_bignum_free(struct bignum *a)
+struct bignum *crypto_bignum_allocate(size_t size_bits)
 {
-	if (a)
-		panic();
+	mbedtls_mpi *bn;
+
+	if (size_bits > CFG_CORE_BIGNUM_MAX_BITS) {
+		size_bits = CFG_CORE_BIGNUM_MAX_BITS;
+	}
+
+	bn = calloc(1, sizeof(mbedtls_mpi));
+	if (!bn)
+		return NULL;
+	mbedtls_mpi_init(bn);
+	if (mbedtls_mpi_grow(bn, BITS_TO_LIMBS(size_bits)) != 0) {
+		free(bn);
+		return NULL;
+	}
+
+	return (struct bignum *)bn;
 }
 
-void crypto_bignum_clear(struct bignum *a __unused)
+void crypto_bignum_free(struct bignum *s)
 {
+	mbedtls_mpi_free((mbedtls_mpi *)s);
+	free(s);
 }
 
-/* return -1 if a<b, 0 if a==b, +1 if a>b */
-int32_t crypto_bignum_compare(struct bignum *a __unused,
-			      struct bignum *b __unused)
+void crypto_bignum_clear(struct bignum *s)
 {
-	return -1;
-}
+	mbedtls_mpi *bn = (mbedtls_mpi *)s;
 
+	memset(bn->p, 0, mbedtls_mpi_size((const mbedtls_mpi *)bn));
+}
 
 #if defined(CFG_CRYPTO_RSA)
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s __unused,
