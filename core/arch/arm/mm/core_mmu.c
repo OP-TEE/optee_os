@@ -1554,7 +1554,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		}
 	}
 #ifdef CFG_WITH_PAGER
-	if (v >= TEE_TEXT_VA_ADDR && v < get_linear_map_end()) {
+	if (v >= TEE_TEXT_VA_START && v < get_linear_map_end()) {
 		if (v != pa)
 			panic("issue in linear address space");
 		return;
