@@ -15,59 +15,6 @@
  * Asymmetric algorithms
  ******************************************************************************/
 
-#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
-    defined(CFG_CRYPTO_DH) || defined(CFG_CRYPTO_ECC)
-struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
-{
-	return NULL;
-}
-
-TEE_Result crypto_bignum_bin2bn(const uint8_t *from __unused,
-				size_t fromsize __unused,
-				struct bignum *to __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-size_t crypto_bignum_num_bytes(struct bignum *a __unused)
-{
-	return 0;
-}
-
-size_t crypto_bignum_num_bits(struct bignum *a __unused)
-{
-	return 0;
-}
-
-void crypto_bignum_bn2bin(const struct bignum *from __unused,
-			  uint8_t *to __unused)
-{
-}
-
-void crypto_bignum_copy(struct bignum *to __unused,
-			const struct bignum *from __unused)
-{
-}
-
-void crypto_bignum_free(struct bignum *a)
-{
-	if (a)
-		panic();
-}
-
-void crypto_bignum_clear(struct bignum *a __unused)
-{
-}
-
-/* return -1 if a<b, 0 if a==b, +1 if a>b */
-int32_t crypto_bignum_compare(struct bignum *a __unused,
-			      struct bignum *b __unused)
-{
-	return -1;
-}
-#endif
-
-
 #if defined(CFG_CRYPTO_RSA)
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s __unused,
 					    size_t key_size_bits __unused)

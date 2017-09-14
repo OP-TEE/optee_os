@@ -63,6 +63,11 @@
 #define MBEDTLS_CIPHER_C
 #endif
 
+#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
+    defined(CFG_CRYPTO_DH) || defined(CFG_CRYPTO_ECC)
+#define MBEDTLS_BIGNUM_C
+#endif
+
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
 #include <mbedtls/check_config.h>
