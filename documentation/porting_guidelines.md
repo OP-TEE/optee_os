@@ -123,8 +123,7 @@ this (here we are excluding the necessary license header to save some space):
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
-#include <mm/core_memprot.h>
-#include <mm/tee_pager.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <tee/entry_fast.h>
@@ -183,12 +182,6 @@ could look like this:
 
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
-
-#ifdef ARM64
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for ARM64"
-#endif
-#endif /* ARM64 */
 
 /* 8250 UART */
 #define CONSOLE_UART_BASE	0xcafebabe /* UART0 */
