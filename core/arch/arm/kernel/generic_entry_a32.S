@@ -574,4 +574,5 @@ UNWIND(	.cantunwind)
 	b	.	/* SMC should not return */
 UNWIND(	.fnend)
 END_FUNC reset_secondary
+KEEP_PAGER reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */
