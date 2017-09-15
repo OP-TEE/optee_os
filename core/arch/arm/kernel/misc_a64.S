@@ -29,13 +29,19 @@
 #include <arm.h>
 
 /* Let platforms override this if needed */
-.weak get_core_pos
+.weak get_core_pos_mpidr
 
+/* size_t get_core_pos(void); */
 FUNC get_core_pos , :
 	mrs	x0, mpidr_el1
+	b get_core_pos_mpidr
+END_FUNC get_core_pos
+
+/* size_t get_core_pos_mpidr(uint32_t mpidr); */
+FUNC get_core_pos_mpidr , :
 	/* Calculate CorePos = (ClusterId * 4) + CoreId */
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
 	add	x0, x1, x0, LSR #6
 	ret
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr

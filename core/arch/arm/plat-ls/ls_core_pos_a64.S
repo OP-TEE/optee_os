@@ -29,8 +29,7 @@
 #include <arm.h>
 
 /* Layerscape platform specific function to calculate core position. */
-FUNC get_core_pos , :
-	mrs	x0, mpidr_el1
+FUNC get_core_pos_mpidr , :
 	and	x0, x0, #MPIDR_CPU_MASK
 	ret
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr

@@ -31,9 +31,8 @@
 #include <kernel/unwind.h>
 
 /* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
-FUNC get_core_pos , :
+FUNC get_core_pos_mpidr , :
 UNWIND(	.fnstart)
-	read_mpidr r0
 	/* Calculate CorePos = ((ClusterId ^ 1) * 4) + CoreId */
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK
@@ -41,5 +40,5 @@ UNWIND(	.fnstart)
 	add	r0, r1, r0, LSR #6
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr
 
