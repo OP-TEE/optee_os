@@ -28,8 +28,7 @@
 #include <asm.S>
 #include <arm.h>
 
-FUNC get_core_pos , :
-	mrs	x0, mpidr_el1
+FUNC get_core_pos_mpidr , :
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
 	/*
@@ -43,5 +42,5 @@ FUNC get_core_pos , :
 	 */
 	add	x0, x1, x0, LSR #7
 	ret
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr
 

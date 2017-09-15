@@ -31,11 +31,10 @@
 #include <kernel/unwind.h>
 
 /* Layerscape platform specific function to calculate core position. */
-FUNC get_core_pos , :
+FUNC get_core_pos_mpidr , :
 UNWIND(	.fnstart)
-	read_mpidr r0
 	/* Calculate CorePos =  CoreId */
 	and	r0, r0, #MPIDR_CPU_MASK
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr

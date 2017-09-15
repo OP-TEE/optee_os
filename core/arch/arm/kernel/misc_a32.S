@@ -31,18 +31,26 @@
 #include <kernel/unwind.h>
 
 /* Let platforms override this if needed */
-.weak get_core_pos
+.weak get_core_pos_mpidr
 
+/* size_t get_core_pos(void); */
 FUNC get_core_pos , :
 UNWIND(	.fnstart)
 	read_mpidr r0
+	b get_core_pos_mpidr
+UNWIND(	.fnend)
+END_FUNC get_core_pos
+
+/* size_t get_core_pos_mpidr(uint32_t mpidr); */
+FUNC get_core_pos_mpidr , :
+UNWIND(	.fnstart)
 	/* Calculate CorePos = (ClusterId * 4) + CoreId */
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK
 	add	r0, r1, r0, LSR #6
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC get_core_pos
+END_FUNC get_core_pos_mpidr
 
 /*
  * uint32_t temp_set_mode(int cpu_mode)

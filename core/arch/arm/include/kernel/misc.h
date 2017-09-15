@@ -33,6 +33,7 @@
 #include <kernel/thread.h>
 
 size_t get_core_pos(void);
+size_t get_core_pos_mpidr(uint32_t mpidr);
 
 uint32_t read_mode_sp(int cpu_mode);
 uint32_t read_mode_lr(int cpu_mode);
