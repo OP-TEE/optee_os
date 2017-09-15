@@ -26,29 +26,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_config.h>
-
-#include <stdint.h>
-#include <string.h>
-
+#include <arm.h>
+#include <console.h>
 #include <drivers/gic.h>
 #include <drivers/pl011.h>
 #include <drivers/tzc400.h>
-
-#include <arm.h>
+#include <initcall.h>
+#include <keep.h>
 #include <kernel/generic_boot.h>
-#include <kernel/pm_stubs.h>
-#include <trace.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/pm_stubs.h>
 #include <kernel/tee_time.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <console.h>
-#include <keep.h>
-#include <initcall.h>
+#include <platform_config.h>
+#include <sm/psci.h>
+#include <stdint.h>
+#include <string.h>
+#include <tee/entry_fast.h>
+#include <tee/entry_std.h>
+#include <trace.h>
 
 static void main_fiq(void);
 
@@ -78,6 +76,9 @@ static struct pl011_data console_data;
 
 #if defined(PLATFORM_FLAVOR_fvp)
 register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
+#endif
+#if defined(PLATFORM_FLAVOR_qemu_virt)
+register_phys_mem(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_COHERENT_SIZE);
 #endif
 register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 register_nsec_ddr(DRAM0_BASE, DRAM0_SIZE);
@@ -187,3 +188,36 @@ static TEE_Result init_tzc400(void)
 
 service_init(init_tzc400);
 #endif /*CFG_TZC400*/
+
+#if defined(PLATFORM_FLAVOR_qemu_virt)
+int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id __unused)
+{
+	size_t pos = get_core_pos_mpidr(core_id);
+	uint32_t *sec_entry_addrs = phys_to_virt(SECRAM_BASE, MEM_AREA_IO_SEC);
+	static bool core_is_released[CFG_TEE_CORE_NB_CORE];
+
+	if (!sec_entry_addrs)
+		panic();
+
+	if (!pos || pos >= CFG_TEE_CORE_NB_CORE)
+		return PSCI_RET_INVALID_PARAMETERS;
+
+	DMSG("core pos: %zu: ns_entry %#" PRIx32, pos, entry);
+
+	if (core_is_released[pos]) {
+		EMSG("core %zu already released", pos);
+		return PSCI_RET_DENIED;
+	}
+	core_is_released[pos] = true;
+
+	/* set NS entry addresses of core */
+	ns_entry_addrs[pos] = entry;
+	dsb_ishst();
+
+	sec_entry_addrs[pos] = CFG_TEE_RAM_START;
+	dsb_ishst();
+	sev();
+
+	return PSCI_RET_SUCCESS;
+}
+#endif /*PLATFORM_FLAVOR_qemu_virt*/
