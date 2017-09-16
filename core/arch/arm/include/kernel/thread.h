@@ -45,6 +45,33 @@
 #define THREAD_RPC_MAX_NUM_PARAMS	4
 
 #ifndef ASM
+
+#ifdef ARM64
+/*
+ * struct thread_core_local needs to have alignment suitable for a stack
+ * pointer since SP_EL1 points to this
+ */
+#define THREAD_CORE_LOCAL_ALIGNED __aligned(16)
+#else
+#define THREAD_CORE_LOCAL_ALIGNED
+#endif
+
+struct thread_core_local {
+	vaddr_t tmp_stack_va_end;
+	int curr_thread;
+	uint32_t flags;
+	vaddr_t abt_stack_va_end;
+#ifdef ARM32
+	uint32_t r[2];
+#endif
+#ifdef ARM64
+	uint64_t x[4];
+#endif
+#ifdef CFG_TEE_CORE_DEBUG
+	unsigned int locked_count; /* Number of spinlocks held */
+#endif
+} THREAD_CORE_LOCAL_ALIGNED;
+
 struct thread_vector_table {
 	uint32_t std_smc_entry;
 	uint32_t fast_smc_entry;
@@ -251,6 +278,8 @@ struct thread_handlers {
 };
 void thread_init_primary(const struct thread_handlers *handlers);
 void thread_init_per_cpu(void);
+
+struct thread_core_local *thread_get_core_local(void);
 
 /*
  * Sets the stacks to be used by the different threads. Use THREAD_ID_0 for
