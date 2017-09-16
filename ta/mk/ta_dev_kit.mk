@@ -53,11 +53,6 @@ cflags$(sm)    := $($(sm)-platform-cflags) $(CFLAGS_$(sm))
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 
-# CFG_TEE_PANIC_DEBUG is used in tee_api.h
-ifeq ($(CFG_TEE_PANIC_DEBUG),y)
-cppflags$(sm) += -DCFG_TEE_PANIC_DEBUG=1
-endif
-
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 libdirs += $(ta-dev-kit-dir)/lib

@@ -61,10 +61,14 @@ CFG_TEE_TA_LOG_LEVEL ?= 1
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
 CFG_TEE_CORE_TA_TRACE ?= y
 
-# Define TEE_Panic as a macro to help debugging panics caused by calls to
-# TEE_Panic. This flag can have a different value when later compiling the
-# TA
-CFG_TEE_PANIC_DEBUG ?= y
+# TEE_Panic() debugging
+# This should be set to a value that is *NOT* a valid virtual address for a
+# user-space TA. When TEE_Panic() is called (by the TA code or the libutee
+# library), an invalid write is generated to this address, which is trapped
+# by the TEE core and the call stack is printed to the console.
+# Set this variable to an empty value, or do not set it, to disable this
+# debug feature.
+CFG_TEE_PANIC_DEBUG_ADDR ?= 0xbad
 
 # If 1, enable debug features in TA memory allocation.
 # Debug features include check of buffer overflow, statistics, mark/check heap
