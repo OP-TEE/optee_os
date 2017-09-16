@@ -43,6 +43,21 @@
 
 struct tee_ts_global *bench_ts_global;
 static struct mutex bench_reg_mu = MUTEX_INITIALIZER;
+static uint32_t prev_cntkctl;
+
+static void timer_enable_el0_access(void)
+{
+	uint32_t cntkctl;
+
+	prev_cntkctl = read_cntkctl();
+	cntkctl = prev_cntkctl | CNTKCTL_PL0VCTEN;
+	write_cntkctl(cntkctl);
+}
+
+static void timer_disable_el0_access(void)
+{
+	write_cntkctl(prev_cntkctl);
+}
 
 static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
 {
@@ -77,6 +92,8 @@ static TEE_Result register_benchmark_memref(uint32_t type,
 	if (!tee_vbuf_is_non_sec(p[0].memref.buffer, p[0].memref.size))
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	timer_enable_el0_access();
+
 	mutex_lock(&bench_reg_mu);
 
 	/* Check if we have already registered buffer */
@@ -90,6 +107,9 @@ static TEE_Result register_benchmark_memref(uint32_t type,
 			p[0].memref.buffer,
 			virt_to_phys(p[0].memref.buffer));
 	bench_ts_global = p[0].memref.buffer;
+
+	/* Frequency of system timer is fixed */
+	bench_ts_global->freq = read_cntfrq();
 
 	mutex_unlock(&bench_reg_mu);
 
@@ -153,6 +173,8 @@ static TEE_Result unregister_benchmark(uint32_t type,
 
 	res = rpc_reg_global_buf(OPTEE_MSG_RPC_CMD_BENCH_REG_DEL, 0, 0);
 
+	timer_disable_el0_access();
+
 	return res;
 }
 
@@ -202,7 +224,7 @@ void bm_timestamp(void)
 
 	cpu_buf = &bench_ts_global->cpu_buf[cur_cpu];
 	ts_i = cpu_buf->head++;
-	ts_data.cnt = read_pmu_ccnt() * TEE_BENCH_DIVIDER;
+	ts_data.cnt = read_cntpct();
 	ts_data.addr = (uintptr_t)ret_addr;
 	ts_data.src = TEE_BENCH_CORE;
 	cpu_buf->stamps[ts_i & TEE_BENCH_MAX_MASK] = ts_data;
