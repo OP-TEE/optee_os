@@ -89,7 +89,7 @@
 
 struct thread_ctx threads[CFG_NUM_THREADS];
 
-static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
+struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 
 #ifdef CFG_WITH_STACK_CANARIES
 #ifdef ARM32

@@ -117,33 +117,6 @@ struct thread_ctx {
 	struct mutex_head mutexes;
 	struct thread_specific_data tsd;
 };
-
-#ifdef ARM64
-/*
- * struct thread_core_local need to have alignment suitable for a stack
- * pointer since SP_EL1 points to this
- */
-#define THREAD_CORE_LOCAL_ALIGNED __aligned(16)
-#else
-#define THREAD_CORE_LOCAL_ALIGNED
-#endif
-
-struct thread_core_local {
-	vaddr_t tmp_stack_va_end;
-	int curr_thread;
-	uint32_t flags;
-	vaddr_t abt_stack_va_end;
-#ifdef ARM32
-	uint32_t r[2];
-#endif
-#ifdef ARM64
-	uint64_t x[4];
-#endif
-#ifdef CFG_TEE_CORE_DEBUG
-	unsigned int locked_count; /* Number of spinlocks held */
-#endif
-} THREAD_CORE_LOCAL_ALIGNED;
-
 #endif /*ASM*/
 
 #ifdef ARM64
@@ -189,8 +162,6 @@ void thread_init_vbar(void);
 
 /* Handles a stdcall, r0-r7 holds the parameters */
 void thread_std_smc_entry(void);
-
-struct thread_core_local *thread_get_core_local(void);
 
 /*
  * Resumes execution of currently active thread by restoring context and
