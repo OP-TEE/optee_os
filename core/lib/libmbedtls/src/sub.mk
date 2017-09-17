@@ -1,11 +1,26 @@
 srcs-y += tee_lmd_provider.c
 
+# Random bit generator configure
+CFG_MBEDTLS_CTR_PRNG ?= y
+CFG_MBEDTLS_HMAC_PRNG ?= n
+
 # For mbedtls
 cflags-y += -Icore/lib/libmbedtls/src/mbedtls/include
 cppflags-y += -D'MBEDTLS_CONFIG_FILE="mbedtls_config.h"'
+cflags-y += -Wno-switch-default
 
 # Hashes
 srcs-y += mbedtls/library/md5.c \
 		mbedtls/library/sha1.c \
 		mbedtls/library/sha256.c \
-		mbedtls/library/sha512.c
+		mbedtls/library/sha512.c \
+		mbedtls/library/md_wrap.c \
+		mbedtls/library/md.c
+
+# Cipher
+srcs-y += mbedtls/library/aes.c
+
+# DRBG
+srcs-y += mbedtls/library/entropy.c \
+		mbedtls/library/ctr_drbg.c \
+		mbedtls/library/hmac_drbg.c
