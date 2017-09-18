@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2016, Linaro Limited
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright 2017 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SM_PRIVATE_H
-#define SM_PRIVATE_H
 
-/* Returns true if returning to sec, false if returning to nsec */
-bool sm_from_nsec(struct sm_ctx *ctx);
-#endif /*SM_PRIVATE_H*/
+#ifndef SM_PM_H
+#define SM_PM_H
+#include <stdint.h>
+#include <types_ext.h>
 
+struct sm_pm_ctx {
+	uint32_t sp;
+	paddr_t cpu_resume_addr;
+	uint32_t suspend_regs[16];
+};
+
+/* suspend/resume core functions */
+void sm_pm_cpu_suspend_save(struct sm_pm_ctx *ptr, uint32_t sp);
+void sm_pm_cpu_do_suspend(uint32_t *ptr);
+void sm_pm_cpu_do_resume(void);
+
+/*
+ * Exported to platform suspend, arg will be passed to fn as r0
+ * Return value: 0  - cpu resumed from suspended state.
+ *               -1 - cpu not suspended.
+ */
+int sm_pm_cpu_suspend(uint32_t arg, int (*fn)(uint32_t));
+#endif
