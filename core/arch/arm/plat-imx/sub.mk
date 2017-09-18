@@ -4,7 +4,11 @@ srcs-y += main.c imx-common.c
 srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c
 
 srcs-$(CFG_PL310) += imx_pl310.c
-srcs-$(CFG_PSCI_ARM32) += pm/psci.c pm/gpcv2.c
+ifeq ($(CFG_PSCI_ARM32),y)
+srcs-y += pm/psci.c pm/gpcv2.c
+srcs-$(CFG_MX7) += pm/pm-imx7.c pm/psci-suspend-imx7.S pm/imx7_suspend.c
+endif
+
 cflags-pm/psci.c-y += -Wno-suggest-attribute=noreturn
 
 ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)))
