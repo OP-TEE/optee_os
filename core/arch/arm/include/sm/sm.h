@@ -134,4 +134,6 @@ static inline bool sm_platform_handler(__unused struct sm_ctx *ctx)
 bool sm_platform_handler(struct sm_ctx *ctx);
 #endif
 
+void sm_save_modes_regs(struct sm_mode_regs *regs);
+void sm_restore_modes_regs(struct sm_mode_regs *regs);
 #endif /*SM_SM_H*/

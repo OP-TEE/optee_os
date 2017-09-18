@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2016, Linaro Limited
- * Copyright (c) 2014, STMicroelectronics International N.V.
- * All rights reserved.
+ * Copyright 2017 NXP
+ *
+ * Peng Fan <peng.fan@nxp.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,10 +25,48 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SM_PRIVATE_H
-#define SM_PRIVATE_H
 
-/* Returns true if returning to sec, false if returning to nsec */
-bool sm_from_nsec(struct sm_ctx *ctx);
-#endif /*SM_PRIVATE_H*/
+#include <arm32.h>
+#include <console.h>
+#include <drivers/imx_uart.h>
+#include <io.h>
+#include <kernel/cache_helpers.h>
+#include <kernel/generic_boot.h>
+#include <kernel/misc.h>
+#include <kernel/panic.h>
+#include <kernel/pm_stubs.h>
+#include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
+#include <kernel/tz_ssvce_pl310.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <platform_config.h>
+#include <sm/optee_smc.h>
+#include <sm/pm.h>
+#include <sm/psci.h>
+#include <sm/sm.h>
+#include <stdint.h>
 
+#if CFG_TEE_CORE_NB_CORE > 4
+#error "Max support 4 cores in one cluster now"
+#endif
+
+void sm_pm_cpu_suspend_save(struct sm_pm_ctx *ctx, uint32_t sp)
+{
+	struct thread_core_local *p = thread_get_core_local();
+
+	p->sm_pm_ctx_phys = virt_to_phys((void *)ctx);
+
+	/* The content will be passed to sm_pm_cpu_do_resume as register sp */
+	ctx->sp = sp;
+	ctx->cpu_resume_addr =
+		virt_to_phys((void *)(vaddr_t)sm_pm_cpu_do_resume);
+
+	sm_pm_cpu_do_suspend(ctx->suspend_regs);
+
+	dcache_op_level1(DCACHE_OP_CLEAN_INV);
+
+#ifdef CFG_PL310
+	arm_cl2_cleanbyway(core_mmu_get_va(PL310_BASE, MEM_AREA_IO_SEC));
+#endif
+}

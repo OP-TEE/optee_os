@@ -62,6 +62,7 @@ struct thread_core_local {
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;
 #ifdef ARM32
+	paddr_t sm_pm_ctx_phys;
 	uint32_t r[2];
 #endif
 #ifdef ARM64

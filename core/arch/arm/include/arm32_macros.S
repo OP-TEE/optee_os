@@ -27,6 +27,10 @@
 
 	/* Please keep them sorted based on the CRn register */
 
+	.macro read_midr reg
+	mrc     p15, 0, \reg, c0, c0, 0
+	.endm
+
 	.macro read_ctr reg
 	mrc	p15, 0, \reg, c0, c0, 1
 	.endm
