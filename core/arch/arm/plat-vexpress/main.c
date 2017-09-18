@@ -104,8 +104,7 @@ void main_init_gic(void)
 	if (!gicc_base || !gicd_base)
 		panic();
 
-#if defined(PLATFORM_FLAVOR_fvp) || defined(PLATFORM_FLAVOR_juno) || \
-	defined(PLATFORM_FLAVOR_qemu_armv8a)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 #else
@@ -114,6 +113,14 @@ void main_init_gic(void)
 #endif
 	itr_init(&gic_data.chip);
 }
+
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
+void main_secondary_init_gic(void)
+{
+	gic_cpu_init(&gic_data);
+}
+#endif
+
 #endif
 
 static void main_fiq(void)
