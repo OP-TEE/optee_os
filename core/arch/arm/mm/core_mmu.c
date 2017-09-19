@@ -682,7 +682,7 @@ static void dump_mmap_table(struct tee_mmap_region *memory_map)
 		vaddr_t __maybe_unused vstart;
 
 		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
-		DMSG("type %-12s va 0x%08" PRIxVA "..0x%08" PRIxVA
+		DMSG("type %-13s va 0x%08" PRIxVA "..0x%08" PRIxVA
 		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size 0x%08zx (%s)",
 		     teecore_memtype_name(map->type), vstart,
 		     vstart + map->size - 1, map->pa,
