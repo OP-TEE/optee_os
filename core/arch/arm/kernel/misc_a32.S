@@ -29,6 +29,7 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <kernel/unwind.h>
+#include <platform_config.h>
 
 /* Let platforms override this if needed */
 .weak get_core_pos_mpidr
@@ -44,10 +45,10 @@ END_FUNC get_core_pos
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 FUNC get_core_pos_mpidr , :
 UNWIND(	.fnstart)
-	/* Calculate CorePos = (ClusterId * 4) + CoreId */
+	/* Calculate CorePos = (ClusterId * (cores/cluster)) + CoreId */
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK
-	add	r0, r1, r0, LSR #6
+	add	r0, r1, r0, LSR #(MPIDR_CLUSTER_SHIFT - CFG_CORE_CLUSTER_SHIFT)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC get_core_pos_mpidr

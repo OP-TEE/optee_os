@@ -262,3 +262,9 @@ CFG_GP_SOCKETS ?= y
 # Enable Secure Data Path support in OP-TEE core (TA may be invoked with
 # invocation parameters referring to specific secure memories).
 CFG_SECURE_DATA_PATH ?= n
+
+# Define the number of cores per cluster used in calculating core position.
+# The cluster number is shifted by this value and added to the core ID,
+# so its value represents log2(cores/cluster).
+# Default is 2**(2) = 4 cores per cluster.
+CFG_CORE_CLUSTER_SHIFT ?= 2
