@@ -27,6 +27,7 @@
 
 #include <asm.S>
 #include <arm.h>
+#include <platform_config.h>
 
 /* Let platforms override this if needed */
 .weak get_core_pos_mpidr
@@ -39,9 +40,9 @@ END_FUNC get_core_pos
 
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 FUNC get_core_pos_mpidr , :
-	/* Calculate CorePos = (ClusterId * 4) + CoreId */
+	/* Calculate CorePos = (ClusterId * (cores/cluster)) + CoreId */
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
-	add	x0, x1, x0, LSR #6
+	add	x0, x1, x0, LSR #(MPIDR_CLUSTER_SHIFT - CFG_CORE_CLUSTER_SHIFT)
 	ret
 END_FUNC get_core_pos_mpidr
