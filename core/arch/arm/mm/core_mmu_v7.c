@@ -730,7 +730,7 @@ static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 	print_mmap_area(mm, "4k page map");
 
 	attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
-	assert(idx == ((mm->va + mm->size) >> SECTION_SHIFT));
+	assert(mm->size && idx == ((mm->va + mm->size - 1) >> SECTION_SHIFT));
 	pa = map_page_memarea(mm, ttb[idx]);
 
 	assert(!ttb[idx] || ttb[idx] == (pa | attr));
