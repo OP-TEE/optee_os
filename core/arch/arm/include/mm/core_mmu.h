@@ -118,10 +118,10 @@
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
  * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
- * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
- * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets
- * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
- * MEM_AREA_IO_SEC:   Secure HW mapped registers
+ * MEM_AREA_RAM_NSEC: NonSecure RAM storing data, cached, read/write.
+ * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets, cached, read/write.
+ * MEM_AREA_IO_NSEC:  NonSecure noncached read/write (i.e HW mapped registers)
+ * MEM_AREA_IO_SEC:   Secure noncached read/write (i.e HW mapped registers)
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
