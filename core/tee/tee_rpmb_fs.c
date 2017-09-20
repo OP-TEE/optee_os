@@ -53,6 +53,8 @@
 #define RPMB_STORAGE_START_ADDRESS      0
 #define RPMB_FS_FAT_START_ADDRESS       512
 #define RPMB_BLOCK_SIZE_SHIFT           8
+#define RPMB_CID_PRV_OFFSET             9
+#define RPMB_CID_CRC_OFFSET             15
 
 #define RPMB_FS_MAGIC                   0x52504D42
 #define FS_VERSION                      2
@@ -320,6 +322,7 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 {
 	TEE_Result res;
 	struct tee_hw_unique_key hwkey;
+	uint8_t message[RPMB_EMMC_CID_SIZE];
 	uint8_t *ctx = NULL;
 
 	if (!key || RPMB_KEY_MAC_SIZE != len) {
@@ -338,13 +341,24 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 		goto out;
 	}
 
+	/*
+	 * PRV/CRC would be changed when doing eMMC FFU
+	 * The following fields should be masked off when deriving RPMB key
+	 *
+	 * CID [55: 48]: PRV (Product revision)
+	 * CID [07: 01]: CRC (CRC7 checksum)
+	 * CID [00]: not used
+	 */
+	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
+	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
+	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
 	res = crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, hwkey.data,
 				  HW_UNIQUE_KEY_LENGTH);
 	if (res != TEE_SUCCESS)
 		goto out;
 
 	res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-				    (uint8_t *)rpmb_ctx->cid,
+				    message,
 				    RPMB_EMMC_CID_SIZE);
 	if (res != TEE_SUCCESS)
 		goto out;
