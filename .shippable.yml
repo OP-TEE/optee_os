@@ -44,7 +44,7 @@ build:
         checkpatch HEAD || export checkpatch_failed=1;
       else
         echo "Running checkpatch on each patch in pull request:";
-        for c in $(git rev-list --reverse ${SHIPPABLE_COMMIT_RANGE}); do
+        for c in $(git rev-list --reverse $(echo ${SHIPPABLE_COMMIT_RANGE} | sed 's/\.\.\./../')); do
           checkpatch $c || export checkpatch_failed=1;
         done;
       fi;
