@@ -92,8 +92,6 @@ static TEE_Result register_benchmark_memref(uint32_t type,
 	if (!tee_vbuf_is_non_sec(p[0].memref.buffer, p[0].memref.size))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	timer_enable_el0_access();
-
 	mutex_lock(&bench_reg_mu);
 
 	/* Check if we have already registered buffer */
@@ -102,6 +100,9 @@ static TEE_Result register_benchmark_memref(uint32_t type,
 		mutex_unlock(&bench_reg_mu);
 		return TEE_ERROR_BAD_STATE;
 	}
+
+	DMSG("Enabling EL0 access to CNTVCT\n");
+	timer_enable_el0_access();
 
 	DMSG("Registering timestamp buffer, addr = %p, paddr = %" PRIxPA "\n",
 			p[0].memref.buffer,
