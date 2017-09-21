@@ -1337,6 +1337,13 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 		vaddr += SMALL_PAGE_SIZE;
 	}
 
+	/*
+	 * Make sure all the changes to translation tables are visible
+	 * before returning. TLB doesn't need to be invalidated as we are
+	 * guaranteed that there's no valid mapping in this range.
+	 */
+	dsb_ishst();
+
 	return TEE_SUCCESS;
 err:
 	if (i)
