@@ -43,26 +43,20 @@
 
 struct tee_ts_global *bench_ts_global;
 static struct mutex bench_reg_mu = MUTEX_INITIALIZER;
-static uint32_t prev_cntkctl;
-
-static void timer_set_access(uint32_t cntkctl)
-{
-	write_cntkctl(cntkctl);
-}
-
-static uint32_t timer_get_access(void)
-{
-	return read_cntkctl();
-}
+static uint32_t timer_saved_kctl;
 
 static uint32_t timer_enable_el0_access(void)
 {
-	uint32_t cntkctl;
+	uint32_t kctl = read_cntkctl();
 
-	cntkctl = timer_get_access();
-	timer_set_access(cntkctl | CNTKCTL_PL0VCTEN);
+	write_cntkctl(kctl | CNTKCTL_PL0VCTEN);
 
-	return cntkctl;
+	return kctl;
+}
+
+static void timer_restore_access(uint32_t saved_kctl)
+{
+	write_cntkctl(saved_kctl);
 }
 
 static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
@@ -108,7 +102,7 @@ static TEE_Result register_benchmark_memref(uint32_t type,
 	}
 
 	DMSG("Enabling EL0 access to CNTVCT\n");
-	prev_cntkctl = timer_enable_el0_access();
+	timer_saved_kctl = timer_enable_el0_access();
 
 	DMSG("Registering timestamp buffer, addr = %p, paddr = %" PRIxPA "\n",
 			p[0].memref.buffer,
@@ -180,7 +174,7 @@ static TEE_Result unregister_benchmark(uint32_t type,
 
 	res = rpc_reg_global_buf(OPTEE_MSG_RPC_CMD_BENCH_REG_DEL, 0, 0);
 
-	timer_set_access(prev_cntkctl);
+	timer_restore_access(timer_saved_kctl);
 
 	return res;
 }
