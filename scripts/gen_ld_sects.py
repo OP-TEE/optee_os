@@ -30,7 +30,7 @@ import sys
 import re
 
 def usage():
-	print "Usage: {} <section reg exp match> [<skip section>...]".format( \
+	print "Usage: {0} <section reg exp match> [<skip section>...]".format( \
 		sys.argv[0])
 	sys.exit (1)
 
@@ -77,7 +77,7 @@ def main():
 		if sect_name in skip_sections :
 			continue
 
-		print '\t*({})'.format(sect_name)
+		print '\t*({0})'.format(sect_name)
 
 if __name__ == "__main__":
         main()
