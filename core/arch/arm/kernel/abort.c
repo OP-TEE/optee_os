@@ -468,9 +468,14 @@ static void handle_user_ta_panic(struct abort_info *ai)
 	 * It was a user exception, stop user execution and return
 	 * to TEE Core.
 	 */
+#ifdef CFG_TEE_PANIC_DEBUG_ADDR
+	ai->regs->x2 = ai->va == CFG_TEE_PANIC_DEBUG_ADDR ? ai->regs->x0
+							  : 0xdeadbeef;
+#else
+	ai->regs->x2 = 0xdeadbeef;
+#endif
 	ai->regs->x0 = TEE_ERROR_TARGET_DEAD;
 	ai->regs->x1 = true;
-	ai->regs->x2 = 0xdeadbeef;
 	ai->regs->elr = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp_el0 = thread_get_saved_thread_sp();
 
