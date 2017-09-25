@@ -30,6 +30,7 @@
 #include <png.h>
 #include <tee_api.h>
 #include <string.h>
+#include <trace.h>
 #include <util.h>
 #include <utee_defines.h>
 #include "image.h"
