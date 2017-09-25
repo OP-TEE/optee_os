@@ -128,6 +128,7 @@ endif
 ifeq ($(CFG_UNWIND),y)
 ta_arm32-platform-cflags += -funwind-tables
 endif
+ta_arm32-platform-aflags += $(platform-aflags-generic)
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
@@ -156,6 +157,7 @@ ta_arm64-platform-cflags += $(arm64-platform-cflags-hard-float)
 else
 ta_arm64-platform-cflags += $(arm64-platform-cflags-no-hard-float)
 endif
+ta_arm64-platform-aflags += $(platform-aflags-generic)
 ta_arm64-platform-aflags += $(platform-aflags-debug-info)
 ta_arm64-platform-aflags += $(arm64-platform-aflags)
 
