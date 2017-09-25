@@ -247,9 +247,22 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 #endif /*ARM32*/
 
 	EMSG_RAW("");
-	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
-		ctx, abort_type_to_str(ai->abort_type), ai->va,
-		fault_to_str(ai->abort_type, ai->fault_descr));
+#if defined(CFG_TEE_PANIC_DEBUG_ADDR)
+	if (ai->va == CFG_TEE_PANIC_DEBUG_ADDR) {
+		/*
+		 * This special (unmapped) address is used in libutee to
+		 * cause an abort so that we can obtain a full call stack on
+		 * TEE_Panic(). At this point, ai->r0 contains the panic code.
+		 */
+		EMSG_RAW("%s TEE_Panic()", ctx);
+	} else {
+#endif
+		EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
+			 ctx, abort_type_to_str(ai->abort_type), ai->va,
+			 fault_to_str(ai->abort_type, ai->fault_descr));
+#if defined(CFG_TEE_PANIC_DEBUG_ADDR)
+	}
+#endif
 #ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X",
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
@@ -426,9 +439,14 @@ static void handle_user_ta_panic(struct abort_info *ai)
 	 * It was a user exception, stop user execution and return
 	 * to TEE Core.
 	 */
+#ifdef CFG_TEE_PANIC_DEBUG_ADDR
+	ai->regs->r2 = ai->va == CFG_TEE_PANIC_DEBUG_ADDR ? ai->regs->r0
+							  : 0xdeadbeef;
+#else
+	ai->regs->r2 = 0xdeadbeef;
+#endif
 	ai->regs->r0 = TEE_ERROR_TARGET_DEAD;
 	ai->regs->r1 = true;
-	ai->regs->r2 = 0xdeadbeef;
 	ai->regs->elr = (uint32_t)thread_unwind_user_mode;
 	ai->regs->spsr &= CPSR_FIA;
 	ai->regs->spsr &= ~CPSR_MODE_MASK;
@@ -450,9 +468,14 @@ static void handle_user_ta_panic(struct abort_info *ai)
 	 * It was a user exception, stop user execution and return
 	 * to TEE Core.
 	 */
+#ifdef CFG_TEE_PANIC_DEBUG_ADDR
+	ai->regs->x2 = ai->va == CFG_TEE_PANIC_DEBUG_ADDR ? ai->regs->x0
+							  : 0xdeadbeef;
+#else
+	ai->regs->x2 = 0xdeadbeef;
+#endif
 	ai->regs->x0 = TEE_ERROR_TARGET_DEAD;
 	ai->regs->x1 = true;
-	ai->regs->x2 = 0xdeadbeef;
 	ai->regs->elr = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp_el0 = thread_get_saved_thread_sp();
 
@@ -664,7 +687,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
-		DMSG("[abort] abort in User mode (TA will panic)");
+#ifdef CFG_TEE_PANIC_DEBUG_ADDR
+		if (ai.va != CFG_TEE_PANIC_DEBUG_ADDR)
+#endif
+			DMSG("[abort] abort in User mode (TA will panic)");
 		abort_print_error(&ai);
 		vfp_disable();
 		handle_user_ta_panic(&ai);

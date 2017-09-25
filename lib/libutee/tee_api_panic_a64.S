@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,14 +24,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <tee_api.h>
-#include <trace.h>
-#include <utee_syscalls.h>
 
-/* System API - Misc */
+#include <asm.S>
 
-void __noreturn TEE_Panic(TEE_Result panicCode)
-{
-	utee_panic(panicCode);
-}
+/*
+ * Cause a fault at special address CFG_TEE_PANIC_DEBUG_ADDR.
+ * The abort handler will dump the call stack, print the panic code and panic
+ * the TA.
+ */
+FUNC TEE_Panic, :
+	mov	x1, CFG_TEE_PANIC_DEBUG_ADDR
+	ldr	w1, [x1]
+	/* In case CFG_TEE_PANIC_DEBUG_ADDR did not cause an exception */
+	bl	utee_panic
+END_FUNC TEE_Panic
 
