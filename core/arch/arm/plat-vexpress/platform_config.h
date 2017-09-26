@@ -227,9 +227,6 @@
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
 #define DRAM0_SIZE		(UINTPTR_C(0x40000000) - CFG_SHMEM_SIZE)
 
-#define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
-#define DRAM0_TEERES_SIZE	CFG_SHMEM_SIZE
-
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
 
@@ -254,8 +251,11 @@
 
 #define CFG_TEE_CORE_NB_CORE	2
 
-#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
-					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
+/*
+ * CFG_SHMEM_START chosen arbitrary, in a way that it does not interfere
+ * with initial location of linux kernel, dtb and initrd
+ */
+#define CFG_SHMEM_START	(DRAM0_BASE + 0x2000000)
 #define CFG_SHMEM_SIZE		0x200000
 
 #else
