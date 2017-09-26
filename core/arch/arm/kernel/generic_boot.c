@@ -671,7 +671,8 @@ static int config_nsmem(void *fdt)
 
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_start, &shm_end);
 	if (shm_start != shm_end)
-		return add_res_mem_dt_node(fdt, "optee", shm_start,
+		return add_res_mem_dt_node(fdt, "optee",
+					   virt_to_phys((void *)shm_start),
 					   shm_end - shm_start);
 
 	DMSG("No SHM configured");
