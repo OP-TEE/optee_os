@@ -61,12 +61,10 @@ endif
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 libdirs += $(ta-dev-kit-dir)/lib
-libnames += utils utee mpa zlib png
+libnames += utils utee mpa
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a
-libdeps += $(ta-dev-kit-dir)/lib/libzlib.a
-libdeps += $(ta-dev-kit-dir)/lib/libpng.a
 
 include $(ta-dev-kit-dir)/mk/cleandirs.mk
 
