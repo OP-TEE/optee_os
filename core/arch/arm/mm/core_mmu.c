@@ -543,7 +543,7 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 		}
 		if (mem->type < memory_map[n].type ||
 		    (mem->type == memory_map[n].type && mem->addr < pa))
-			break; /* found the spot where to inseart this memory */
+			break; /* found the spot where to insert this memory */
 		n++;
 	}
 
