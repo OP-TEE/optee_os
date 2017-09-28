@@ -58,6 +58,15 @@ const struct dt_driver *__dt_driver_end(void)
 	return &__rodata_dtdrv_end;
 }
 
+bool dt_have_prop(const void *fdt, int offs, const char *propname)
+{
+	const void *prop;
+
+	prop = fdt_getprop(fdt, offs, propname, NULL);
+
+	return prop;
+}
+
 int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 {
 	enum teecore_memtypes mtype;

@@ -89,6 +89,16 @@ const struct dt_driver *__dt_driver_end(void);
 int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
 
 /*
+ * Check whether the node at @offs contains the property with propname or not.
+ *
+ * @offs is the offset of the node that describes the device in @fdt.
+ * @propname is the property that need to check
+ *
+ * Returns true on success or false if no propname.
+ */
+bool dt_have_prop(const void *fdt, int offs, const char *propname);
+
+/*
  * FDT manipulation functions, not provided by <libfdt.h>
  */
 
