@@ -172,19 +172,35 @@ FUNC tee_svc_do_call , :
 END_FUNC tee_svc_do_call
 
 /*
+ * syscall_sys_return() and syscall_panic() are two special cases for syscalls
+ * in the way that they do not return to the TA, instead execution is resumed
+ * as if __thread_enter_user_mode() had returned to thread_enter_user_mode().
+ *
+ * In order to do this the functions need a way to get hold of a pointer to
+ * the struct thread_svc_regs provided by storing relevant registers on the
+ * stack in el0_svc() and later load them into registers again when el0_svc()
+ * is returning.
+ *
+ * tee_svc_do_call() is supplied the pointer to struct thread_svc_regs in
+ * x0. This pointer can later be retrieved by chasing x19.
+ */
+
+/*
  * User space sees this function as:
  * void syscall_sys_return(uint32_t ret) __noreturn;
  *
  * But internally the function depends on being called from
- * tee_svc_do_call() with pointer to the struct thread_svc_regs saved by
- * thread_svc_handler() in r8. The argument ret is already in r0 so we
- * don't touch that and let it propagate as return value of the called
+ * tee_svc_do_call() to be able to chase x19 in order to get hold of a
+ * pointer to struct thread_svc_regs.
+ *
+ * The argument ret is already in x0 so we don't touch that and let it
+ * propagate as return value of the called
  * tee_svc_unwind_enter_user_mode().
  */
 FUNC syscall_sys_return , :
 	mov	x1, #0  /* panic = false */
 	mov	x2, #0  /* panic_code = 0 */
-	ldr	x3, [x19, #SC_REC_X0]
+	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_svc_regs */
 	b	tee_svc_sys_return_helper
 END_FUNC syscall_sys_return
 
@@ -193,13 +209,13 @@ END_FUNC syscall_sys_return
  * void syscall_panic(uint32_t code) __noreturn;
  *
  * But internally the function depends on being called from
- * tee_svc_do_call() with pointer to the struct thread_svc_regs saved by
- * thread_svc_handler() in r8.
+ * tee_svc_do_call() to be able to chase x19 in order to get hold of a
+ * pointer to struct thread_svc_regs.
  */
 FUNC syscall_panic , :
 	mov	x1, #1  /* panic = true */
 	mov	x2, x0  /* code */
 	ldr	w0, =TEE_ERROR_TARGET_DEAD
-	ldr	x3, [x19, #SC_REC_X0]
+	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_svc_regs */
 	b	tee_svc_sys_return_helper
 END_FUNC syscall_panic
