@@ -34,8 +34,8 @@
 #include <util.h>
 
 /*
- * Bitfield to reflect status and secure-status values ("ok", "disabled" or not
- * present)
+ * Bitfield to reflect status and secure-status values ("okay", "disabled"
+ * or not present)
  */
 #define DT_STATUS_DISABLED 0
 #define DT_STATUS_OK_NSEC  BIT(0)
