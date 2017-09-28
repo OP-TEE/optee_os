@@ -28,6 +28,7 @@
  */
 #include <console.h>
 #include <drivers/imx_uart.h>
+#include <drivers/imx_wdog.h>
 #include <io.h>
 #include <imx.h>
 #include <imx_pm.h>
@@ -204,4 +205,9 @@ int psci_cpu_suspend(uint32_t power_state,
 	DMSG("ID %d not supported\n", id);
 
 	return ret;
+}
+
+void psci_system_reset(void)
+{
+	imx_wdog_restart();
 }
