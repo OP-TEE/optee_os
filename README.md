@@ -66,9 +66,9 @@ platforms have different sub-maintainers, please refer to the file
 | [Rockchip RK322X](http://www.rock-chips.com/a/en/products/RK32_Series/2016/1109/799.html) |`PLATFORM=rockchip-rk322x`| No |
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
-| [Texas Instruments DRA7xx](http://www.ti.com/product/DRA746)|`PLATFORM=ti-dra7xx`| Yes |
-| [Texas Instruments AM57xx](http://www.ti.com/product/AM5728)|`PLATFORM=ti-am57xx`| Yes |
-| [Texas Instruments AM43xx](http://www.ti.com/product/AM4379)|`PLATFORM=ti-am43xx`| Yes |
+| [Texas Instruments DRA7xx](http://www.ti.com/processors/automotive-processors/drax-infotainment-socs/overview.html)|`PLATFORM=ti-dra7xx`| Yes |
+| [Texas Instruments AM57xx](http://www.ti.com/processors/sitara/arm-cortex-a15/am57x/overview.html)|`PLATFORM=ti-am57xx`| Yes |
+| [Texas Instruments AM43xx](http://www.ti.com/processors/sitara/arm-cortex-a9/am438x/overview.html)|`PLATFORM=ti-am43xx`| Yes |
 | [Xilinx Zynq 7000 ZC702](http://www.xilinx.com/products/boards-and-kits/ek-z7-zc702-g.html)|`PLATFORM=zynq7k-zc702`| Yes |
 | [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |
 | [Spreadtrum SC9860](http://www.spreadtrum.com/en/SC9860GV.html)|`PLATFORM=sprd-sc9860`| No |
