@@ -82,4 +82,6 @@ ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
 CFG_HWSUPP_MEM_PERM_WXN = n
 endif
 
+CFG_MMAP_REGIONS ?= 24
+
 ta-targets = ta_arm32
