@@ -87,7 +87,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 	/* Check if we have a mapping, create one if needed */
 	if (!core_mmu_add_mapping(mtype, pbase, sz)) {
 		EMSG("Failed to map %zu bytes at PA 0x%"PRIxPA,
-		     (size_t)size, pbase);
+		     (size_t)sz, pbase);
 		return -1;
 	}
 	vbase = (vaddr_t)phys_to_virt(pbase, mtype);
