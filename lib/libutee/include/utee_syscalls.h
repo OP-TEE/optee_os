@@ -55,7 +55,8 @@ void utee_return(unsigned long ret) __noreturn;
 
 void utee_log(const void *buf, size_t len);
 
-void utee_panic(unsigned long code) __noreturn;
+/* This is not __noreturn because AArch32 stack unwinding fails otherwise */
+void utee_panic(unsigned long code);
 
 /* prop_set is TEE_PROPSET_xxx*/
 TEE_Result utee_get_property(unsigned long prop_set, unsigned long index,

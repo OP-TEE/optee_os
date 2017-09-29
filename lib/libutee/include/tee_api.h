@@ -33,9 +33,7 @@
 #include <compiler.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
-#if defined(CFG_TEE_PANIC_DEBUG)
 #include <trace.h>
-#endif
 
 /* Property access functions */
 
@@ -75,14 +73,7 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator);
 
 /* System API - Misc */
 
-void __TEE_Panic(TEE_Result panicCode);
 void TEE_Panic(TEE_Result panicCode);
-#if defined(CFG_TEE_PANIC_DEBUG)
-#define TEE_Panic(c) do { \
-		EMSG("Panic 0x%x", (c)); \
-		__TEE_Panic(c); \
-	} while (0)
-#endif
 
 /* System API - Internal Client API */
 

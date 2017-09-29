@@ -27,17 +27,9 @@
 #include <tee_api.h>
 #include <utee_syscalls.h>
 
-#undef TEE_Panic
-
 /* System API - Misc */
 
-void __noreturn __TEE_Panic(TEE_Result panicCode)
+void TEE_Panic(TEE_Result panicCode)
 {
 	utee_panic(panicCode);
 }
-
-void __noreturn TEE_Panic(TEE_Result panicCode)
-{
-	__TEE_Panic(panicCode);
-}
-

@@ -27,9 +27,14 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <kernel/abort.h>
 #include <kernel/misc.h>
+#include <kernel/panic.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
+#include <kernel/user_ta.h>
+#include <string.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
 #include <tee/tee_svc_cryp.h>
@@ -237,14 +242,60 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 }
 
 #ifdef ARM32
+#ifdef CFG_UNWIND
+/* Get register values pushed onto the stack by utee_panic() */
+static void get_panic_regs_a32_ta(uint32_t *pushed, struct abort_info *ai)
+{
+	struct thread_abort_regs *ar = ai->regs;
+
+	ai->abort_type = ABORT_TYPE_TA_PANIC;
+
+	memset(ar, 0, sizeof(*ar));
+	ai->pc = pushed[0];
+	ar->r0 = pushed[1];
+	ar->r1 = pushed[2];
+	ar->r2 = pushed[3];
+	ar->r3 = pushed[4];
+	ar->r4 = pushed[5];
+	ar->r5 = pushed[6];
+	ar->r6 = pushed[7];
+	ar->r7 = pushed[8];
+	ar->r8 = pushed[9];
+	ar->r9 = pushed[10];
+	ar->r10 = pushed[11];
+	ar->r11 = pushed[12];
+	ar->usr_sp = (uint32_t)pushed;
+	ar->usr_lr = pushed[13];
+	ar->spsr = read_spsr();
+}
+
+static void print_panic_stack(struct thread_svc_regs *regs)
+{
+	struct abort_info ai;
+	struct thread_abort_regs ar;
+	uint32_t *pregs = (uint32_t *)regs->r1;
+
+	memset(&ai, 0, sizeof(ai));
+	ai.regs = &ar;
+	get_panic_regs_a32_ta(pregs, &ai);
+
+	abort_print_error(&ai);
+}
+#else /* CFG_UNWIND */
+static void print_panic_stack(struct thread_svc_regs *regs __unused)
+{
+}
+#endif
+
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 			uint32_t panic_code, struct thread_svc_regs *regs)
 {
 	if (panic) {
-		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
-		      panic_code, read_mode_sp(CPSR_MODE_SYS),
-		      read_mode_lr(CPSR_MODE_SYS));
+		TAMSG_RAW("");
+		TAMSG_RAW("TA panicked with code 0x%" PRIx32, panic_code);
+		print_panic_stack(regs);
 	}
+
 	regs->r1 = panic;
 	regs->r2 = panic_code;
 	regs->lr = (uintptr_t)thread_unwind_user_mode;
@@ -253,13 +304,81 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 }
 #endif /*ARM32*/
 #ifdef ARM64
+#ifdef CFG_UNWIND
+/* Get register values pushed onto the stack by utee_panic() (32-bit TA) */
+static void get_panic_regs_a32_ta(uint32_t *pushed, struct abort_info *ai)
+{
+	struct thread_abort_regs *ar = ai->regs;
+
+	ai->abort_type = ABORT_TYPE_TA_PANIC;
+
+	memset(ar, 0, sizeof(*ar));
+	ai->pc = pushed[0];
+	ar->x0 = pushed[1];
+	ar->x1 = pushed[2];
+	ar->x2 = pushed[3];
+	ar->x3 = pushed[4];
+	ar->x4 = pushed[5];
+	ar->x5 = pushed[6];
+	ar->x6 = pushed[7];
+	ar->x7 = pushed[8];
+	ar->x8 = pushed[9];
+	ar->x9 = pushed[10];
+	ar->x10 = pushed[11];
+	ar->x11 = pushed[12];
+	ar->x13 = (uint64_t)pushed;
+	ar->x14 = pushed[13];
+	ar->spsr = (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT);
+}
+
+/* Get register values pushed onto the stack by utee_panic() (64-bit TA) */
+static void get_panic_regs_a64_ta(uint64_t *pushed, struct abort_info *ai)
+{
+	struct thread_abort_regs *ar = ai->regs;
+
+	ai->abort_type = ABORT_TYPE_TA_PANIC;
+
+	memset(ar, 0, sizeof(*ar));
+	ar->x29 = pushed[0];
+	ar->elr = pushed[1];
+	ar->spsr = (SPSR_64_MODE_EL0 << SPSR_64_MODE_EL_SHIFT);
+}
+
+static void print_panic_stack(struct thread_svc_regs *regs)
+{
+	struct tee_ta_session *s;
+	struct user_ta_ctx *utc;
+	struct abort_info ai;
+	struct thread_abort_regs ar;
+
+	memset(&ai, 0, sizeof(ai));
+	ai.regs = &ar;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		panic();
+	utc = to_user_ta_ctx(s->ctx);
+	if (utc->is_32bit)
+		get_panic_regs_a32_ta((uint32_t *)regs->x1, &ai);
+	else
+		get_panic_regs_a64_ta((uint64_t *)regs->x1, &ai);
+
+	abort_print_error(&ai);
+}
+#else /* CFG_UNWIND */
+static void print_panic_stack(struct thread_svc_regs *regs __unused)
+{
+}
+#endif /* CFG_UNWIND */
+
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 			uint32_t panic_code, struct thread_svc_regs *regs)
 {
 	if (panic) {
-		TAMSG("TA panicked with code 0x%x usr_sp 0x%" PRIx64 " usr_lr 0x%" PRIx64,
-			panic_code, regs->x13, regs->x14);
+		TAMSG_RAW("");
+		TAMSG_RAW("TA panicked with code 0x%" PRIx32, panic_code);
+		print_panic_stack(regs);
 	}
+
 	regs->x1 = panic;
 	regs->x2 = panic_code;
 	regs->elr = (uintptr_t)thread_unwind_user_mode;
