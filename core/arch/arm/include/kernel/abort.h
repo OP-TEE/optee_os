@@ -31,6 +31,7 @@
 #define ABORT_TYPE_UNDEF	0
 #define ABORT_TYPE_PREFETCH	1
 #define ABORT_TYPE_DATA		2
+#define ABORT_TYPE_TA_PANIC	3 /* Dump stack on TA panic (not an abort) */
 
 #ifndef ASM
 

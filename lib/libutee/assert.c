@@ -44,4 +44,7 @@ void _assert_log(const char *expr __maybe_unused,
 void __noreturn _assert_break(void)
 {
 	utee_panic(TEE_ERROR_GENERIC);
+	/* Not reached */
+	while (1)
+		;
 }

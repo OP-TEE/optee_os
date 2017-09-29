@@ -341,8 +341,8 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 		 */
 		paged_ta = true;
 #endif
-
-		__print_abort_info(ai, "User TA");
+		if (ai->abort_type != ABORT_TYPE_TA_PANIC)
+			__print_abort_info(ai, "User TA");
 		tee_ta_dump_current();
 	} else {
 		is_32bit = kernel_is32bit;
