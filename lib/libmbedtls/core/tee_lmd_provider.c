@@ -24,6 +24,10 @@
 #include "mbedtls/cipher.h"
 #include "mbedtls/cipher_internal.h"
 #endif
+#if defined(CFG_CRYPTO_HMAC)
+#include "mbedtls/md_internal.h"
+#include "mbedtls/md.h"
+#endif
 #if defined(CFG_CRYPTO_MD5)
 #include "mbedtls/md5.h"
 #endif
@@ -42,7 +46,7 @@
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
-#if defined(CFG_CRYPTO_AES)
+#if defined(CFG_CRYPTO_AES) || defined(_CFG_CRYPTO_WITH_MAC)
 /* Translate mbedtls result to TEE result */
 static TEE_Result get_tee_result(int lmd_res)
 {
@@ -55,13 +59,19 @@ static TEE_Result get_tee_result(int lmd_res)
 	case MBEDTLS_ERR_CIPHER_ALLOC_FAILED:
 		return TEE_ERROR_OUT_OF_MEMORY;
 #endif
+#if defined(_CFG_CRYPTO_WITH_MAC)
+	case MBEDTLS_ERR_MD_BAD_INPUT_DATA:
+		return TEE_ERROR_BAD_PARAMETERS;
+	case MBEDTLS_ERR_MD_ALLOC_FAILED:
+		return TEE_ERROR_OUT_OF_MEMORY;
+#endif
 	case 0:
 		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_BAD_STATE;
 	}
 }
-#endif /* defined(CFG_CRYPTO_AES) */
+#endif /* defined(CFG_CRYPTO_AES) || defined(_CFG_CRYPTO_WITH_MAC) */
 
 #if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(_CFG_CRYPTO_WITH_MAC) || \
 	defined(_CFG_CRYPTO_WITH_AUTHENC)
@@ -165,6 +175,46 @@ static const mbedtls_cipher_info_t *get_cipher_info(uint32_t algo,
 #endif	/* defined(_CFG_CRYPTO_WITH_CIPHER) ||
 	 * defined(_CFG_CRYPTO_WITH_MAC) || defined(_CFG_CRYPTO_WITH_AUTHENC)
 	 */
+
+#if defined(CFG_CRYPTO_HMAC)
+/*
+ * Get mbedtls hash info given a TEE Algorithm "algo"
+ * Return
+ * - mbedtls_md_info_t * in case of success,
+ * - NULL in case of error
+ */
+static const mbedtls_md_info_t *get_hash_info(uint32_t algo)
+{
+	switch (algo) {
+#if defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_SHA1:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+#endif
+#if defined(CFG_CRYPTO_MD5)
+	case TEE_ALG_MD5:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_MD5);
+#endif
+#if defined(CFG_CRYPTO_SHA224)
+	case TEE_ALG_SHA224:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA224);
+#endif
+#if defined(CFG_CRYPTO_SHA256)
+	case TEE_ALG_SHA256:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+#endif
+#if defined(CFG_CRYPTO_SHA384)
+	case TEE_ALG_SHA384:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
+#endif
+#if defined(CFG_CRYPTO_SHA512)
+	case TEE_ALG_SHA512:
+		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
+#endif
+	default:
+		return NULL;
+	}
+}
+#endif /*  defined(CFG_CRYPTO_HMAC) */
 
 /******************************************************************************
  * Message digest functions
@@ -981,41 +1031,319 @@ void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
  * Message Authentication Code functions
  *****************************************************************************/
 #if defined(_CFG_CRYPTO_WITH_MAC)
-TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		*size = sizeof(mbedtls_md_context_t);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
 }
 
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
+TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 {
+	const mbedtls_md_info_t *md_info __maybe_unused;
+	int lmd_res __maybe_unused;
+	TEE_Result res = TEE_SUCCESS;
+	size_t ctx_size;
+	void *ctx;
+
+	res = mac_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		md_info = get_hash_info(TEE_ALG_HASH_ALGO(
+					TEE_ALG_GET_MAIN_ALG(algo)));
+		if (!md_info) {
+			res =  TEE_ERROR_NOT_SUPPORTED;
+			goto err;
+		}
+
+		mbedtls_md_init(ctx);
+		lmd_res = mbedtls_md_setup(ctx, md_info, 1);
+		if (lmd_res != 0) {
+			FMSG("md setup failed, res is 0x%x", -lmd_res);
+			res = get_tee_result(lmd_res);
+			goto err;
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+#endif
+	default:
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
+	}
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+err:
+	free(ctx);
+	return res;
+}
+
+void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+{
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_mac_alloc_ctx()
+	 * could never have succeded above.
+	 */
 	if (ctx)
-		assert(0);
+		assert(!mac_get_ctx_size(algo, &ctx_size));
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		mbedtls_md_free(ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		break;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		break;
+#endif
+	default:
+		break;
+	}
+	free(ctx);
 }
 
-void crypto_mac_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			   uint32_t algo __unused)
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 {
+	int lmd_res __maybe_unused;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		lmd_res = mbedtls_md_clone(dst_ctx, src_ctx);
+		if (lmd_res != 0) {
+			FMSG("hmac clone failed, res is 0x%x", -lmd_res);
+			panic();
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		break;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		break;
+#endif
+	default:
+		break;
+	}
 }
 
-TEE_Result crypto_mac_init(void *ctx __unused, uint32_t algo __unused,
-			   const uint8_t *key __unused, size_t len __unused)
+TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
+			   size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res __maybe_unused;
+
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		lmd_res = mbedtls_md_hmac_reset(ctx);
+		if (lmd_res != 0) {
+			FMSG("hmac starts failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+		lmd_res = mbedtls_md_hmac_starts(ctx, key, len);
+		if (lmd_res != 0) {
+			FMSG("hmac starts failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_mac_update(void *ctx __unused, uint32_t algo __unused,
-			     const uint8_t *data __unused, size_t len __unused)
+TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
+			     size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res __maybe_unused;
+
+	if (!data || !len)
+		return TEE_SUCCESS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		lmd_res = mbedtls_md_hmac_update(ctx, data, len);
+		if (lmd_res != 0) {
+			FMSG("hmac update failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
-			    uint8_t *digest __unused,
-			    size_t digest_len __unused)
+TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
+			    size_t digest_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res __maybe_unused;
+	size_t block_size __maybe_unused;
+	mbedtls_md_context_t *md_ctx __maybe_unused;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_HMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+		md_ctx = (mbedtls_md_context_t *)ctx;
+		block_size = mbedtls_md_get_size(md_ctx->md_info);
+		if (block_size > digest_len)
+			return TEE_ERROR_SHORT_BUFFER;
+		lmd_res = mbedtls_md_hmac_finish(md_ctx, digest);
+		if (lmd_res != 0) {
+			FMSG("hmac finish failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_AES_CMAC:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	return TEE_SUCCESS;
 }
-#endif /*_CFG_CRYPTO_WITH_MAC*/
+#endif /* _CFG_CRYPTO_WITH_MAC */
 
 /******************************************************************************
  * Authenticated encryption

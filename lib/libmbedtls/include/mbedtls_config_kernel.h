@@ -30,6 +30,10 @@
 #define MBEDTLS_SHA512_C
 #endif
 
+#if defined(CFG_CRYPTO_HMAC)
+#define MBEDTLS_MD_C
+#endif
+
 #if defined(CFG_CRYPTO_AES)
 #define MBEDTLS_AES_C
 #endif
