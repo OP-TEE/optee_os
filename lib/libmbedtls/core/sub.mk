@@ -18,3 +18,5 @@ srcs-$(CFG_CRYPTO_ECB) += des3_ecb.c
 srcs-$(CFG_CRYPTO_CBC) += des_cbc.c
 srcs-$(CFG_CRYPTO_CBC) += des3_cbc.c
 endif
+
+srcs-$(CFG_CRYPTO_HMAC) += hmac.c
