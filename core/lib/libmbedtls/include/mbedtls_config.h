@@ -25,6 +25,10 @@
 #define MBEDTLS_SHA512_C
 #endif
 
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_MBEDTLS_HMAC_PRNG)
+#define MBEDTLS_MD_C
+#endif
+
 #if defined(CFG_CRYPTO_AES) || defined(CFG_MBEDTLS_CTR_PRNG)
 #define MBEDTLS_AES_C
 #endif
@@ -40,7 +44,6 @@
 
 #if defined(CFG_MBEDTLS_HMAC_PRNG)
 #define MBEDTLS_HMAC_DRBG_C
-#define MBEDTLS_MD_C
 #endif
 
 #if defined(CFG_CRYPTO_DES)
