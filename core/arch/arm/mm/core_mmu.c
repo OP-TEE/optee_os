@@ -51,7 +51,6 @@
 
 #include "core_mmu_private.h"
 
-#define MAX_MMAP_REGIONS	13
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
@@ -66,7 +65,7 @@ unsigned long default_nsec_shm_size;
 unsigned long default_nsec_shm_paddr;
 
 static struct tee_mmap_region
-	static_memory_map[MAX_MMAP_REGIONS + 1];
+	static_memory_map[CFG_MMAP_REGIONS + 1];
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -911,6 +910,7 @@ void core_init_mmu_map(void)
 			panic("Invalid memory access config: sec/nsec");
 	}
 
+	COMPILE_TIME_ASSERT(CFG_MMAP_REGIONS >= 13);
 	init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
 
 	map = static_memory_map;
