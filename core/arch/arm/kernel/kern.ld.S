@@ -310,6 +310,9 @@ SECTIONS
  * sections will go into the unpaged area.
  */
 #include <text_init.ld.S>
+		KEEP(*(.text.startup.*));
+		/* Make sure constructor functions are available during init */
+		KEEP(*(.text._GLOBAL__sub_*));
 		. = ALIGN(8);
 	}
 
