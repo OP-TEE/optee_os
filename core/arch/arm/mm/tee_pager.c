@@ -368,7 +368,7 @@ static void set_alias_area(tee_mm_entry_t *mm)
 	while (pt <= (pager_tables + ARRAY_SIZE(pager_tables) - 1)) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pt->tbl_info, idx);
-			if (v > (smem + nbytes))
+			if (v >= (smem + nbytes))
 				goto out;
 
 			core_mmu_set_entry(&pt->tbl_info, idx, 0, 0);
