@@ -184,6 +184,21 @@ static void init_vfp_sec(void)
 #endif
 
 #ifdef CFG_WITH_PAGER
+static void init_vcore(tee_mm_pool_t *mm_vcore)
+{
+	const vaddr_t begin = TEE_RAM_VA_START;
+	vaddr_t end = TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE;
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	if (end > ASAN_SHADOW_PA)
+		end = ASAN_MAP_PA;
+#endif
+
+	if (!tee_mm_init(mm_vcore, begin, end, SMALL_PAGE_SHIFT,
+			 TEE_MM_POOL_NO_FLAGS))
+		panic("tee_mm_vcore init failed");
+}
+
 static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
@@ -262,14 +277,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
 	 * is supplied to tee_pager_init() below.
 	 */
-	if (!tee_mm_init(&tee_mm_vcore, TEE_RAM_VA_START,
-			 TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE,
-			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
-		panic("tee_mm_vcore init failed");
-#ifdef CFG_CORE_SANITIZE_KADDRESS
-	mm = tee_mm_alloc2(&tee_mm_vcore, ASAN_SHADOW_PA, ASAN_SHADOW_SZ);
-	assert(mm);
-#endif
+	init_vcore(&tee_mm_vcore);
 
 	/*
 	 * Assign alias area for pager end of the small page block the rest
