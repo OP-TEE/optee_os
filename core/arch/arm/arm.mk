@@ -39,12 +39,6 @@ endif
 # 'y' to set the Alignment Check Enable bit in SCTLR/SCTLR_EL1, 'n' to clear it
 CFG_SCTLR_ALIGNMENT_CHECK ?= y
 
-ifeq ($(CFG_WITH_PAGER),y)
-ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
-$(error Error: CFG_CORE_SANITIZE_KADDRESS not compatible with CFG_WITH_PAGER)
-endif
-endif
-
 ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
 endif
