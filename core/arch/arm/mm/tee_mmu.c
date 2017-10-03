@@ -214,6 +214,7 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 {
 	uint32_t asid = 1;
+	bool asid_allocated = false;
 
 	if (!utc->context) {
 		utc->context = 1;
@@ -229,11 +230,15 @@ TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 			return TEE_ERROR_GENERIC;
 		}
 		g_asid &= ~asid;
+		asid_allocated = true;
 	}
 
 	utc->mmu = calloc(1, sizeof(struct tee_mmu_info));
-	if (!utc->mmu)
+	if (!utc->mmu) {
+		if (asid_allocated)
+			g_asid |= asid;
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
 	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }
