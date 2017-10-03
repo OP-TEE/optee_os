@@ -47,6 +47,8 @@ void asan_tag_no_access(const void *begin, const void *end);
 void asan_tag_access(const void *begin, const void *end);
 void asan_tag_heap_free(const void *begin, const void *end);
 void *asan_memset_unchecked(void *s, int c, size_t n);
+void *asan_memcpy_unchecked(void *__restrict s1, const void *__restrict s2,
+			    size_t n);
 #else
 static inline void asan_tag_no_access(const void *begin __unused,
 				      const void *end __unused)
@@ -64,6 +66,12 @@ static inline void asan_tag_heap_free(const void *begin __unused,
 static inline void *asan_memset_unchecked(void *s, int c, size_t n)
 {
 	return memset(s, c, n);
+}
+
+static inline void *asan_memcpy_unchecked(void *__restrict s1,
+					  const void *__restrict s2, size_t n)
+{
+	return memcpy(s1, s2, n);
 }
 
 #endif
