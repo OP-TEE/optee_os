@@ -183,6 +183,65 @@ static void init_vfp_sec(void)
 }
 #endif
 
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+static void init_run_constructors(void)
+{
+	const vaddr_t *ctor;
+
+	for (ctor = &__ctor_list; ctor < &__ctor_end; ctor++)
+		((void (*)(void))(*ctor))();
+}
+
+static void init_asan(void)
+{
+
+	/*
+	 * CFG_ASAN_SHADOW_OFFSET is also supplied as
+	 * -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET) to the compiler.
+	 * Since all the needed values to calculate the value of
+	 * CFG_ASAN_SHADOW_OFFSET isn't available in to make we need to
+	 * calculate it in advance and hard code it into the platform
+	 * conf.mk. Here where we have all the needed values we double
+	 * check that the compiler is supplied the correct value.
+	 */
+
+#define __ASAN_SHADOW_START \
+	ROUNDUP(TEE_RAM_VA_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
+	assert(__ASAN_SHADOW_START == (vaddr_t)&__asan_shadow_start);
+#define __CFG_ASAN_SHADOW_OFFSET \
+	(__ASAN_SHADOW_START - (TEE_RAM_VA_START / 8))
+	COMPILE_TIME_ASSERT(CFG_ASAN_SHADOW_OFFSET == __CFG_ASAN_SHADOW_OFFSET);
+#undef __ASAN_SHADOW_START
+#undef __CFG_ASAN_SHADOW_OFFSET
+
+	/*
+	 * Assign area covered by the shadow area, everything from start up
+	 * to the beginning of the shadow area.
+	 */
+	asan_set_shadowed((void *)TEE_TEXT_VA_START, &__asan_shadow_start);
+
+	/*
+	 * Add access to areas that aren't opened automatically by a
+	 * constructor.
+	 */
+	asan_tag_access(&__initcall_start, &__initcall_end);
+	asan_tag_access(&__ctor_list, &__ctor_end);
+	asan_tag_access(__rodata_start, __rodata_end);
+	asan_tag_access(__nozi_start, __nozi_end);
+	asan_tag_access(__exidx_start, __exidx_end);
+	asan_tag_access(__extab_start, __extab_end);
+
+	init_run_constructors();
+
+	/* Everything is tagged correctly, let's start address sanitizing. */
+	asan_start();
+}
+#else /*CFG_CORE_SANITIZE_KADDRESS*/
+static void init_asan(void)
+{
+}
+#endif /*CFG_CORE_SANITIZE_KADDRESS*/
+
 #ifdef CFG_WITH_PAGER
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
@@ -317,65 +376,6 @@ static void init_runtime(unsigned long pageable_part)
 
 }
 #else
-
-#ifdef CFG_CORE_SANITIZE_KADDRESS
-static void init_run_constructors(void)
-{
-	const vaddr_t *ctor;
-
-	for (ctor = &__ctor_list; ctor < &__ctor_end; ctor++)
-		((void (*)(void))(*ctor))();
-}
-
-static void init_asan(void)
-{
-
-	/*
-	 * CFG_ASAN_SHADOW_OFFSET is also supplied as
-	 * -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET) to the compiler.
-	 * Since all the needed values to calculate the value of
-	 * CFG_ASAN_SHADOW_OFFSET isn't available in to make we need to
-	 * calculate it in advance and hard code it into the platform
-	 * conf.mk. Here where we have all the needed values we double
-	 * check that the compiler is supplied the correct value.
-	 */
-
-#define __ASAN_SHADOW_START \
-	ROUNDUP(TEE_RAM_VA_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
-	assert(__ASAN_SHADOW_START == (vaddr_t)&__asan_shadow_start);
-#define __CFG_ASAN_SHADOW_OFFSET \
-	(__ASAN_SHADOW_START - (TEE_RAM_VA_START / 8))
-	COMPILE_TIME_ASSERT(CFG_ASAN_SHADOW_OFFSET == __CFG_ASAN_SHADOW_OFFSET);
-#undef __ASAN_SHADOW_START
-#undef __CFG_ASAN_SHADOW_OFFSET
-
-	/*
-	 * Assign area covered by the shadow area, everything from start up
-	 * to the beginning of the shadow area.
-	 */
-	asan_set_shadowed((void *)TEE_TEXT_VA_START, &__asan_shadow_start);
-
-	/*
-	 * Add access to areas that aren't opened automatically by a
-	 * constructor.
-	 */
-	asan_tag_access(&__initcall_start, &__initcall_end);
-	asan_tag_access(&__ctor_list, &__ctor_end);
-	asan_tag_access(__rodata_start, __rodata_end);
-	asan_tag_access(__nozi_start, __nozi_end);
-	asan_tag_access(__exidx_start, __exidx_end);
-	asan_tag_access(__extab_start, __extab_end);
-
-	init_run_constructors();
-
-	/* Everything is tagged correctly, let's start address sanitizing. */
-	asan_start();
-}
-#else /*CFG_CORE_SANITIZE_KADDRESS*/
-static void init_asan(void)
-{
-}
-#endif /*CFG_CORE_SANITIZE_KADDRESS*/
 
 static void init_runtime(unsigned long pageable_part __unused)
 {
