@@ -323,6 +323,8 @@ static void init_runtime(unsigned long pageable_part)
 
 	thread_init_boot_thread();
 
+	init_asan();
+
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
