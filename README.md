@@ -41,41 +41,47 @@ please read the file [build_system.md](documentation/build_system.md). Some
 platforms have different sub-maintainers, please refer to the file
 [MAINTAINERS.md](MAINTAINERS.md) for contact details for various platforms.
 
+The `Maintained` column shows:
+
+- A green image if the platform is actively maintained: either tested successfully
+  with the latest release (N), or is a newly supported platform.
+- An orange image if the platform was last tested successfully with release N-1.
+- A red image if the last successful test report is older.
+
 <!-- Please keep this list sorted in alphabetic order -->
-| Platform | Composite PLATFORM flag | Publicly available? |
-|----------|-------------------------|---------------------|
-| [Allwinner A80 Board](http://linux-sunxi.org/A80)|`PLATFORM=sunxi`| No |
-| [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes |
-| [Atmel ATSAMA5D2-XULT Board](http://www.atmel.com/tools/atsama5d2-xult.aspx)|`PLATFORM=sam`| Yes |
-| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes |
-| [NXP ls1043ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1043a-reference-design-board:LS1043A-RDB)|`PLATFORM=ls-ls1043ardb`| Yes |
-| [NXP ls1046ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1046a-reference-design-board:LS1046A-RDB)|`PLATFORM=ls-ls1046ardb`| Yes |
-| [NXP ls1012ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1012a-reference-design-board:LS1012A-RDB)|`PLATFORM=ls-ls1012ardb`| Yes |
-| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx-mx6qsabrelite`| Yes |
-| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx-mx6qsabresd`| Yes |
-| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx-mx6ulevk`| Yes |
-| [NXP i.MX7Dual SabreSD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-7dual-applications-processors:MCIMX7SABRE) |`PLATFORM=imx-mx7dsabresd`| Yes |
-| [ARM Foundation FVP](https://developer.arm.com/products/system-design/fixed-virtual-platforms) |`PLATFORM=vexpress-fvp`| Yes |
-| [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No |
-| [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/product/hikey)|`PLATFORM=hikey` or `PLATFORM=hikey-hikey`| Yes |
-| [HiKey960 Board (HiSilicon Kirin 960)](https://www.96boards.org/product/hikey960)|`PLATFORM=hikey-hikey960`| Yes |
-| [Marvell ARMADA 7K Family](http://www.marvell.com/embedded-processors/armada-70xx/)|`PLATFORM=marvell-armada7k8k`| Yes |
-| [Marvell ARMADA 8K Family](http://www.marvell.com/embedded-processors/armada-80xx/)|`PLATFORM=marvell-armada7k8k`| Yes |
-| [Marvell ARMADA 3700 Family](http://www.marvell.com/embedded-processors/armada-3700/)|`PLATFORM=marvell-armada3700`| Yes |
-| [MediaTek MT8173 EVB Board](https://www.mediatek.com/products/tablets/mt8173)|`PLATFORM=mediatek-mt8173`| No |
-| [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
-| [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
-| [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes |
-| [Renesas RCAR](https://www.renesas.com/en-sg/solutions/automotive/products/rcar-h3.html)|`PLATFORM=rcar`| No |
-| [Rockchip RK322X](http://www.rock-chips.com/a/en/products/RK32_Series/2016/1109/799.html) |`PLATFORM=rockchip-rk322x`| No |
-| [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No |
-| [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No |
-| [Texas Instruments DRA7xx](http://www.ti.com/processors/automotive-processors/drax-infotainment-socs/overview.html)|`PLATFORM=ti-dra7xx`| Yes |
-| [Texas Instruments AM57xx](http://www.ti.com/processors/sitara/arm-cortex-a15/am57x/overview.html)|`PLATFORM=ti-am57xx`| Yes |
-| [Texas Instruments AM43xx](http://www.ti.com/processors/sitara/arm-cortex-a9/am438x/overview.html)|`PLATFORM=ti-am43xx`| Yes |
-| [Xilinx Zynq 7000 ZC702](http://www.xilinx.com/products/boards-and-kits/ek-z7-zc702-g.html)|`PLATFORM=zynq7k-zc702`| Yes |
-| [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes |
-| [Spreadtrum SC9860](http://www.spreadtrum.com/en/SC9860GV.html)|`PLATFORM=sprd-sc9860`| No |
+| Platform | Composite PLATFORM flag | Publicly available? | Maintained? |
+|----------|-------------------------|---------------------|-------------|
+| [Allwinner A80 Board](http://linux-sunxi.org/A80)|`PLATFORM=sunxi`| No | ![Not maintained](documentation/images/red.svg) v0.1.0 |
+| [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Atmel ATSAMA5D2-XULT Board](http://www.atmel.com/tools/atsama5d2-xult.aspx)|`PLATFORM=sam`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [NXP ls1043ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1043a-reference-design-board:LS1043A-RDB)|`PLATFORM=ls-ls1043ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP ls1046ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1046a-reference-design-board:LS1046A-RDB)|`PLATFORM=ls-ls1046ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx-mx6qsabrelite`| Yes | ![Not maintained](documentation/images/red.svg) v2.2.0 |
+| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx-mx6qsabresd`| Yes | ![Not maintained](documentation/images/red.svg) v2.2.0 |
+| [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx-mx6ulevk`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP i.MX7Dual SabreSD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-7dual-applications-processors:MCIMX7SABRE) |`PLATFORM=imx-mx7dsabresd`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [ARM Foundation FVP](https://developer.arm.com/products/system-design/fixed-virtual-platforms) |`PLATFORM=vexpress-fvp`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No | ![Actively Maintained](documentation/images/green.svg) |
+| [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/product/hikey)|`PLATFORM=hikey` or `PLATFORM=hikey-hikey`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [HiKey960 Board (HiSilicon Kirin 960)](https://www.96boards.org/product/hikey960)|`PLATFORM=hikey-hikey960`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Marvell ARMADA 7K Family](http://www.marvell.com/embedded-processors/armada-70xx/)|`PLATFORM=marvell-armada7k8k`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Marvell ARMADA 8K Family](http://www.marvell.com/embedded-processors/armada-80xx/)|`PLATFORM=marvell-armada7k8k`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Marvell ARMADA 3700 Family](http://www.marvell.com/embedded-processors/armada-3700/)|`PLATFORM=marvell-armada3700`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [MediaTek MT8173 EVB Board](https://www.mediatek.com/products/tablets/mt8173)|`PLATFORM=mediatek-mt8173`| No | ![Actively Maintained](documentation/images/green.svg) |
+| [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [Renesas RCAR](https://www.renesas.com/en-sg/solutions/automotive/products/rcar-h3.html)|`PLATFORM=rcar`| No | ![Actively maintained](documentation/images/green.svg) |
+| [Rockchip RK322X](http://www.rock-chips.com/a/en/products/RK32_Series/2016/1109/799.html) |`PLATFORM=rockchip-rk322x`| No | ![Actively maintained](documentation/images/green.svg) |
+| [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No | ![Actively maintained](documentation/images/green.svg) |
+| [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No | ![Actively maintained](documentation/images/green.svg) |
+| [Texas Instruments DRA7xx](http://www.ti.com/processors/automotive-processors/drax-infotainment-socs/overview.html)|`PLATFORM=ti-dra7xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [Texas Instruments AM57xx](http://www.ti.com/processors/sitara/arm-cortex-a15/am57x/overview.html)|`PLATFORM=ti-am57xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [Texas Instruments AM43xx](http://www.ti.com/processors/sitara/arm-cortex-a9/am438x/overview.html)|`PLATFORM=ti-am43xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [Xilinx Zynq 7000 ZC702](http://www.xilinx.com/products/boards-and-kits/ek-z7-zc702-g.html)|`PLATFORM=zynq7k-zc702`| Yes | ![Not maintained](documentation/images/red.svg) v2.3.0 |
+| [Xilinx Zynq UltraScale+ MPSOC](http://www.xilinx.com/products/silicon-devices/soc/zynq-ultrascale-mpsoc.html)|`PLATFORM=zynqmp-zcu102`| Yes | ![Not maintained](documentation/images/red.svg) v2.4.0 |
+| [Spreadtrum SC9860](http://www.spreadtrum.com/en/SC9860GV.html)|`PLATFORM=sprd-sc9860`| No | ![Not maintained](documentation/images/red.svg) v2.1.0 |
 
 ---
 ## 4. Get and build OP-TEE software
