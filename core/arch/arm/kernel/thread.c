@@ -31,6 +31,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <keep.h>
+#include <kernel/asan.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/panic.h>
@@ -46,8 +47,8 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
-#include <tee/tee_fs_rpc.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/tee_fs_rpc.h>
 #include <trace.h>
 #include <util.h>
 
@@ -864,6 +865,7 @@ static void init_thread_stacks(void)
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
+		asan_tag_access((void *)tee_mm_get_smem(mm), (void *)sp);
 		if (!thread_init_stack(n, sp))
 			panic("init stack failed");
 	}
