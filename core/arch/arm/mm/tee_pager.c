@@ -31,6 +31,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
+#include <kernel/asan.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
@@ -687,6 +688,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 		tlbi_mva_allasid((vaddr_t)va_alias);
 	}
 
+	asan_tag_access(va_alias, (uint8_t *)va_alias + SMALL_PAGE_SIZE);
 	switch (area->type) {
 	case AREA_TYPE_RO:
 		{
@@ -726,6 +728,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 	default:
 		panic();
 	}
+	asan_tag_no_access(va_alias, (uint8_t *)va_alias + SMALL_PAGE_SIZE);
 }
 
 static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
@@ -739,8 +742,12 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
 		assert(pmem->area->flags & (TEE_MATTR_PW | TEE_MATTR_UW));
+		asan_tag_access(pmem->va_alias,
+				(uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
 		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
 			     stored_page);
+		asan_tag_no_access(pmem->va_alias,
+				   (uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
 		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
 			pmem->area->base + idx * SMALL_PAGE_SIZE,
 			pmem->area->u.rwp[idx].iv);
@@ -1032,7 +1039,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		f |= TEE_MATTR_PW;
 	f = get_area_mattr(f);
 
-	exceptions = pager_lock_check_stack(64);
+	exceptions = pager_lock_check_stack(SMALL_PAGE_SIZE);
 
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
@@ -1609,7 +1616,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 {
 	struct tee_pager_pmem *pmem;
 	struct tee_pager_area *area;
-	uint32_t exceptions = pager_lock_check_stack(2048);
+	uint32_t exceptions = pager_lock_check_stack(SMALL_PAGE_SIZE);
 
 	if (!pgt->num_used_entries)
 		goto out;
@@ -1667,6 +1674,8 @@ void *tee_pager_alloc(size_t size, uint32_t flags)
 {
 	tee_mm_entry_t *mm;
 	uint32_t f = TEE_MATTR_PW | TEE_MATTR_PR | (flags & TEE_MATTR_LOCKED);
+	uint8_t *smem;
+	size_t bytes;
 
 	if (!size)
 		return NULL;
@@ -1675,8 +1684,10 @@ void *tee_pager_alloc(size_t size, uint32_t flags)
 	if (!mm)
 		return NULL;
 
-	tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				f, NULL, NULL);
+	bytes = tee_mm_get_bytes(mm);
+	smem = (uint8_t *)tee_mm_get_smem(mm);
+	tee_pager_add_core_area((vaddr_t)smem, bytes, f, NULL, NULL);
+	asan_tag_access(smem, smem + bytes);
 
-	return (void *)tee_mm_get_smem(mm);
+	return smem;
 }
