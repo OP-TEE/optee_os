@@ -27,12 +27,13 @@
 
 #include <assert.h>
 #include <compiler.h>
-#include <kernel/panic.h>
+#include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/panic.h>
 #include <string.h>
+#include <trace.h>
 #include <types_ext.h>
 #include <util.h>
-#include <trace.h>
 
 struct asan_source_location {
 	const char *file_name;
@@ -288,6 +289,7 @@ void __asan_register_globals(struct asan_global *globals, size_t size)
 		asan_tag_access((void *)globals[n].beg,
 				(void *)(globals[n].beg + globals[n].size));
 }
+KEEP_INIT(__asan_register_globals);
 
 void __asan_unregister_globals(struct asan_global *globals, size_t size);
 void __asan_unregister_globals(struct asan_global *globals __unused,
