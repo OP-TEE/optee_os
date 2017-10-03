@@ -36,6 +36,7 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
@@ -227,6 +228,9 @@ static void init_asan(void)
 	asan_tag_access(&__initcall_start, &__initcall_end);
 	asan_tag_access(&__ctor_list, &__ctor_end);
 	asan_tag_access(__rodata_start, __rodata_end);
+#ifdef CFG_WITH_PAGER
+	asan_tag_access(__pageable_start, __pageable_end);
+#endif /*CFG_WITH_PAGER*/
 	asan_tag_access(__nozi_start, __nozi_end);
 	asan_tag_access(__exidx_start, __exidx_end);
 	asan_tag_access(__extab_start, __extab_end);
@@ -243,12 +247,51 @@ static void init_asan(void)
 #endif /*CFG_CORE_SANITIZE_KADDRESS*/
 
 #ifdef CFG_WITH_PAGER
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+static void carve_out_asan_mem(tee_mm_pool_t *pool)
+{
+	const size_t s = pool->hi - pool->lo;
+	tee_mm_entry_t *mm;
+	paddr_t apa = ASAN_MAP_PA;
+	size_t asz = ASAN_MAP_SZ;
+
+	if (core_is_buffer_outside(apa, asz, pool->lo, s))
+		return;
+
+	/* Reserve the shadow area */
+	if (!core_is_buffer_inside(apa, asz, pool->lo, s)) {
+		if (apa < pool->lo) {
+			/*
+			 * ASAN buffer is overlapping with the beginning of
+			 * the pool.
+			 */
+			asz -= pool->lo - apa;
+			apa = pool->lo;
+		} else {
+			/*
+			 * ASAN buffer is overlapping with the end of the
+			 * pool.
+			 */
+			asz = pool->hi - apa;
+		}
+	}
+	mm = tee_mm_alloc2(pool, apa, asz);
+	assert(mm);
+}
+#else
+static void carve_out_asan_mem(tee_mm_pool_t *pool __unused)
+{
+}
+#endif
+
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
 	const vaddr_t begin = TEE_RAM_VA_START;
 	vaddr_t end = TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE;
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
+	/* Carve out asan memory, flat maped after core memory */
 	if (end > ASAN_SHADOW_PA)
 		end = ASAN_MAP_PA;
 #endif
@@ -287,13 +330,15 @@ static void init_runtime(unsigned long pageable_part)
 	IMSG_RAW("\n");
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	assert(hashes);
-	memcpy(hashes, __tmp_hashes_start, hash_size);
+	asan_memcpy_unchecked(hashes, __tmp_hashes_start, hash_size);
 
 	/*
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
 	 * DDR below.
 	 */
 	teecore_init_ta_ram();
+
+	carve_out_asan_mem(&tee_mm_sec_ddr);
 
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
 	assert(mm);
@@ -308,7 +353,7 @@ static void init_runtime(unsigned long pageable_part)
 		phys_to_virt(pageable_part,
 			     core_mmu_get_type_by_pa(pageable_part)),
 		__pageable_part_end - __pageable_part_start);
-	memcpy(paged_store, __init_start, init_size);
+	asan_memcpy_unchecked(paged_store, __init_start, init_size);
 
 	/* Check that hashes of what's in pageable area is OK */
 	DMSG("Checking hashes of pageable area");
