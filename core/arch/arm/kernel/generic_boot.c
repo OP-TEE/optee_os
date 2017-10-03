@@ -266,6 +266,10 @@ static void init_runtime(unsigned long pageable_part)
 			 TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE,
 			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
 		panic("tee_mm_vcore init failed");
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	mm = tee_mm_alloc2(&tee_mm_vcore, ASAN_SHADOW_PA, ASAN_SHADOW_SZ);
+	assert(mm);
+#endif
 
 	/*
 	 * Assign alias area for pager end of the small page block the rest
