@@ -110,8 +110,18 @@ extern const uint8_t __pageable_part_end[];
 extern const uint8_t __pageable_start[];
 extern const uint8_t __pageable_end[];
 
+#define ASAN_SHADOW_PA	((paddr_t)__asan_shadow_start)
+#define ASAN_SHADOW_SZ	((size_t)__asan_shadow_size)
 extern const uint8_t __asan_shadow_start[];
 extern const uint8_t __asan_shadow_end[];
+extern const uint8_t __asan_shadow_size[];
+
+#define ASAN_MAP_PA	((paddr_t)__asan_map_start)
+#define ASAN_MAP_SZ	((size_t)__asan_map_size)
+extern const uint8_t __asan_map_start[];
+extern const uint8_t __asan_map_end[];
+extern const uint8_t __asan_map_size[];
+
 extern const vaddr_t __ctor_list;
 extern const vaddr_t __ctor_end;
 

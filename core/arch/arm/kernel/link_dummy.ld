@@ -34,8 +34,12 @@ SECTIONS
 	..dummy : { }
 }
 
+__asan_map_end = .;
+__asan_map_start = .;
+__asan_map_size = .;
 __asan_shadow_end = .;
 __asan_shadow_start = .;
+__asan_shadow_size = .;
 __bss_end = .;
 __bss_start = .;
 __ctor_end = .;
