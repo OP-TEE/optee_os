@@ -158,6 +158,19 @@ void *asan_memset_unchecked(void *s, int c, size_t n)
 	return s;
 }
 
+void *asan_memcpy_unchecked(void *__restrict dst, const void *__restrict src,
+			    size_t len)
+{
+	uint8_t *__restrict d = dst;
+	const uint8_t *__restrict s = src;
+	size_t n;
+
+	for (n = 0; n < len; n++)
+		d[n] = s[n];
+
+	return dst;
+}
+
 void asan_start(void)
 {
 	assert(asan_va_base && !asan_active);
