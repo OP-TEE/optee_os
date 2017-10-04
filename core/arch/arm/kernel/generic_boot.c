@@ -90,6 +90,10 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 KEEP_PAGER(sem_cpu_sync);
 #endif
 
+#ifdef CFG_DT
+static void *dt_blob_addr;
+#endif
+
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void plat_cpu_reset_late(void)
 {
@@ -378,6 +382,18 @@ static void init_runtime(unsigned long pageable_part __unused)
 #endif
 
 #ifdef CFG_DT
+void *get_dt_blob(void)
+{
+	assert(cpu_mmu_enabled());
+	return dt_blob_addr;
+}
+
+static void reset_dt_references(void)
+{
+	/* dt no more reached, reset pointer to invalid */
+	dt_blob_addr = NULL;
+}
+
 static int add_optee_dt_node(void *fdt)
 {
 	int offs;
@@ -726,12 +742,19 @@ static void init_fdt(unsigned long phys_fdt)
 		     phys_fdt, ret);
 		panic();
 	}
+
+	dt_blob_addr = fdt;
 }
 
 #else
 static void init_fdt(unsigned long phys_fdt __unused)
 {
 }
+
+static void reset_dt_references(void)
+{
+}
+
 #endif /*!CFG_DT*/
 
 static void init_primary_helper(unsigned long pageable_part,
@@ -760,6 +783,7 @@ static void init_primary_helper(unsigned long pageable_part,
 	init_vfp_nsec();
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
+	reset_dt_references();
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 

@@ -61,4 +61,6 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry);
 paddr_t generic_boot_core_hpen(void);
 #endif
 
+void *get_dt_blob(void);
+
 #endif /* KERNEL_GENERIC_BOOT_H */
