@@ -687,7 +687,8 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,
 				if (res != TEE_SUCCESS)
 					return res;
 
-				*pa = (paddr_t)ua - utc->mmu->regions[n].va + p;
+				*pa = (paddr_t)(vaddr_t)ua -
+				      utc->mmu->regions[n].va + p;
 			}
 			if (attr)
 				*attr = utc->mmu->regions[n].attr;
@@ -722,7 +723,8 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 
 		if (core_is_buffer_inside(pa, 1, p,
 					  utc->mmu->regions[n].size)) {
-			*va = (void *)(pa - p + utc->mmu->regions[n].va);
+			*va = (void *)(vaddr_t)(pa - p +
+						utc->mmu->regions[n].va);
 			return TEE_SUCCESS;
 		}
 	}

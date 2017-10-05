@@ -269,8 +269,8 @@ static void check_phys_mem_is_outside(struct core_mmu_phys_mem *start,
 	for (n = 0; n < nelems; n++) {
 		if (!core_is_buffer_outside(start[n].addr, start[n].size,
 					    map->pa, map->size)) {
-			EMSG(
-"Non-sec mem (%#" PRIxPA ":%#zx) overlaps map (type %d %#" PRIxPA ":%#zx)",
+			EMSG("Non-sec mem (%#" PRIxPA ":%#" PRIxPASZ
+			     ") overlaps map (type %d %#" PRIxPA ":%#zx)",
 			     start[n].addr, start[n].size,
 			     map->type, map->pa, map->size);
 			panic();
@@ -1051,7 +1051,7 @@ static void *map_pa2va(struct tee_mmap_region *map, paddr_t pa)
 	if (!pa_is_in_map(map, pa))
 		return NULL;
 
-	return (void *)(map->va + pa - map->pa);
+	return (void *)(vaddr_t)(map->va + pa - map->pa);
 }
 
 /*
