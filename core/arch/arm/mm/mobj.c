@@ -496,8 +496,8 @@ static void *mobj_mapped_shm_get_va(struct mobj *mobj, size_t offst)
 	struct mobj_reg_shm *reg_shm =
 		to_mobj_reg_shm(mobj_mapped_shm->reg_shm);
 
-	return (void *)(tee_mm_get_smem(mobj_mapped_shm->mm_entry) + offst +
-			reg_shm->page_offset);
+	return (void *)(vaddr_t)(tee_mm_get_smem(mobj_mapped_shm->mm_entry) +
+				 offst + reg_shm->page_offset);
 }
 
 static void mobj_mapped_shm_free(struct mobj *mobj)
