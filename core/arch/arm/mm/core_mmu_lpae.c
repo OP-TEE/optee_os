@@ -61,10 +61,11 @@
 #include <compiler.h>
 #include <inttypes.h>
 #include <keep.h>
+#include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/tlb_helpers.h>
 #include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
@@ -454,9 +455,21 @@ static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 	return TCR_PS_BITS_4GB;
 }
 
-void core_init_mmu_tables(struct tee_mmap_region *mm)
+static paddr_t get_nsec_ddr_max_pa(void)
 {
 	paddr_t max_pa = 0;
+	const struct core_mmu_phys_mem *mem;
+
+	for (mem = &__start_phys_nsec_ddr_section;
+	     mem < &__end_phys_nsec_ddr_section; mem++)
+		max_pa = MAX(max_pa, mem->addr + mem->size);
+
+	return max_pa;
+}
+
+void core_init_mmu_tables(struct tee_mmap_region *mm)
+{
+	paddr_t max_pa = get_nsec_ddr_max_pa();
 	uint64_t max_va = 0;
 	size_t n;
 
