@@ -165,8 +165,24 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 struct core_mmu_phys_mem {
 	const char *name;
 	enum teecore_memtypes type;
-	paddr_t addr;
-	size_t size;
+	__extension__ union {
+#if __SIZEOF_LONG__ != __SIZEOF_PADDR__
+		struct {
+			uint32_t lo_addr;
+			uint32_t hi_addr;
+		};
+#endif
+		paddr_t addr;
+	};
+	__extension__ union {
+#if __SIZEOF_LONG__ != __SIZEOF_PADDR__
+		struct {
+			uint32_t lo_size;
+			uint32_t hi_size;
+		};
+#endif
+		paddr_size_t size;
+	};
 };
 
 #define __register_memory2(_name, _type, _addr, _size, _section, _id) \
@@ -174,11 +190,29 @@ struct core_mmu_phys_mem {
 		__used __section(_section) = \
 		{ .name = _name, .type = _type, .addr = _addr, .size = _size }
 
+#if __SIZEOF_LONG__ != __SIZEOF_PADDR__
+#define __register_memory2_ul(_name, _type, _addr, _size, _section, _id) \
+	static const struct core_mmu_phys_mem __phys_mem_ ## _id \
+		__used __section(_section) = \
+		{ .name = _name, .type = _type, .lo_addr = _addr, \
+		  .lo_size = _size }
+#else
+#define __register_memory2_ul(_name, _type, _addr, _size, _section, _id) \
+		__register_memory2(_name, _type, _addr, _size, _section, _id)
+#endif
+
 #define __register_memory1(name, type, addr, size, section, id) \
 		__register_memory2(name, type, addr, size, #section, id)
 
+#define __register_memory1_ul(name, type, addr, size, section, id) \
+		__register_memory2_ul(name, type, addr, size, #section, id)
+
 #define register_phys_mem(type, addr, size) \
 		__register_memory1(#addr, (type), (addr), (size), \
+				   phys_mem_map_section, __COUNTER__)
+
+#define register_phys_mem_ul(type, addr, size) \
+		__register_memory1_ul(#addr, (type), (addr), (size), \
 				   phys_mem_map_section, __COUNTER__)
 
 #define register_sdp_mem(addr, size) \
