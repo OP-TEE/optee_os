@@ -45,6 +45,10 @@ $(error Error: CFG_CORE_SANITIZE_KADDRESS not compatible with CFG_WITH_PAGER)
 endif
 endif
 
+ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
+$(call force,CFG_WITH_LPAE,y)
+endif
+
 ifeq ($(CFG_ARM32_core),y)
 # Configration directive related to ARMv7 optee boot arguments.
 # CFG_PAGEABLE_ADDR: if defined, forces pageable data physical address.
