@@ -90,12 +90,12 @@ register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
 #endif
 
 #ifdef CFG_CORE_RWDATA_NOEXEC
-register_phys_mem(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA, VCORE_UNPG_RX_SZ);
-register_phys_mem(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA, VCORE_UNPG_RO_SZ);
-register_phys_mem(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA, VCORE_UNPG_RX_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA, VCORE_UNPG_RO_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
 #ifdef CFG_WITH_PAGER
-register_phys_mem(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA, VCORE_INIT_RX_SZ);
-register_phys_mem(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA, VCORE_INIT_RX_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
 #endif
 #else
 register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
@@ -508,7 +508,7 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 {
 	size_t n = 0;
 	paddr_t pa;
-	size_t size;
+	paddr_size_t size;
 
 	/*
 	 * If some ranges of memory of the same type do overlap
@@ -520,7 +520,7 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 	 * mapped as both secure and non-secure. This will probably not
 	 * happen often in practice.
 	 */
-	DMSG("%s type %s 0x%08" PRIxPA " size 0x%08zx",
+	DMSG("%s type %s 0x%08" PRIxPA " size 0x%08" PRIxPASZ,
 	     mem->name, teecore_memtype_name(mem->type), mem->addr, mem->size);
 	while (true) {
 		if (n >= (num_elems - 1)) {
