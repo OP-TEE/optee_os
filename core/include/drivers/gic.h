@@ -46,7 +46,7 @@ struct gic_data {
  * then used by the other functions.
  */
 
-void gic_init(struct gic_data *gd, paddr_t gicc_base, paddr_t gicd_base);
+void gic_init(struct gic_data *gd, vaddr_t gicc_base, vaddr_t gicd_base);
 /* initial base address only */
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base,
 			vaddr_t gicd_base);
