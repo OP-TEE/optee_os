@@ -123,7 +123,7 @@ void asan_tag_no_access(const void *begin, const void *end)
 
 void asan_tag_access(const void *begin, const void *end)
 {
-	if (!asan_va_base)
+	if (!asan_va_base || (begin == end))
 		return;
 
 	assert(va_range_inside_shadow(begin, end));
