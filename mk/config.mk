@@ -270,3 +270,7 @@ CFG_CORE_CLUSTER_SHIFT ?= 2
 # report to Normal World that it support dynamic SHM. But, nevertheles it
 # will accept dynamic SHM buffers.
 CFG_DYN_SHM_CAP ?= y
+
+# Enables support for larger physical addresses, that is, it will define
+# paddr_t as a 64-bit type.
+CFG_CORE_LARGE_PHYS_ADDR ?= n
