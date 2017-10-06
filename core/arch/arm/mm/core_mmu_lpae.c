@@ -679,6 +679,8 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 		return false;
 
 	new_table = xlat_tables[next_xlat++];
+	if (next_xlat > MAX_XLAT_TABLES)
+		panic("running out of xlat tables");
 	memset(new_table, 0, XLAT_TABLE_SIZE);
 
 	*entry = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
