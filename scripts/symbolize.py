@@ -281,6 +281,7 @@ class Symbolizer(object):
         self._arch = None
         self._saved_abort_line = ''
         self._sections = []
+        self._bin = "tee.elf"
 
     def write(self, line):
             if self._call_stack_found:
@@ -322,6 +323,7 @@ class Symbolizer(object):
                 self._load_addr = match.group('load_addr')
             match = re.search(ABORT_ADDR_RE, line)
             if match:
+                self.reset()
                 # At this point the arch and TA load address are unknown.
                 # Save the line so We can translate the abort address later.
                 self._saved_abort_line = line
