@@ -654,7 +654,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 }
 
 bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
-			   unsigned int idx)
+			   unsigned int idx, bool __unused secure)
 {
 	uint64_t *new_table;
 	uint64_t *entry;
