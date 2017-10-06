@@ -508,8 +508,8 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	return true;
 }
 
-bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
-			   unsigned int idx, bool secure)
+bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
+					 unsigned int idx, bool secure)
 {
 	uint32_t *new_table;
 	uint32_t *entry;
