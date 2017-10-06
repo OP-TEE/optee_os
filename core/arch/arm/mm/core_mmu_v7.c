@@ -525,23 +525,23 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 	if (idx >= NUM_L1_ENTRIES)
 		return false;
 
-	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
-	if (!new_table)
-		return false;
-
 	entry = (uint32_t *)tbl_info->table + idx;
 	assert(!*entry || get_desc_type(1, *entry) == DESC_TYPE_SECTION);
 
 	/* We need to flush TLBs only if there already was some mapping */
 	flush_tlb = *entry;
 
-	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
-	if (*entry & SECTION_NOTSECURE)
-		new_table_desc |= SECTION_PT_NOTSECURE;
-
 	/* store attributes of original block */
 	attr = desc_to_mattr(1, *entry);
 	paddr = *entry & ~SECTION_MASK;
+
+	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	if (!new_table)
+		return false;
+
+	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
+	if (*entry & SECTION_NOTSECURE)
+		new_table_desc |= SECTION_PT_NOTSECURE;
 
 	/* Fill new xlat table with entries pointing to the same memory */
 	for (i = 0; i < NUM_L2_ENTRIES; i++) {
