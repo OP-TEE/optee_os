@@ -325,14 +325,15 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info);
 
 /*
- * core_mmu_divide_block() - divide larger block/section into smaller ones
+ * core_mmu_prepare_small_page_mapping() - prepare target small page parent
+ *	pgdir so that each of its entry can be used to map a page.
  * @tbl_info:	table where target record located
- * @idx:	index of record
+ * @idx:	index of record for which a pdgir must be setup.
  * @secure:	true/false if pgdir maps secure/non-secure memory (32bit mmu)
- * @return true if function was able to divide block, false on error
+ * @return true on successful, false on error
  */
-bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
-			   unsigned int idx, bool secure);
+bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
+					 unsigned int idx, bool secure);
 
 void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 				  paddr_t pa, uint32_t attr);
