@@ -509,7 +509,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 }
 
 bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
-			   unsigned int idx)
+			   unsigned int idx, bool secure)
 {
 	uint32_t *new_table;
 	uint32_t *entry;
@@ -533,6 +533,11 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 
 	/* store attributes of original block */
 	attr = desc_to_mattr(1, *entry);
+	if (attr && secure != (attr & TEE_MATTR_SECURE))
+		return false;
+	if (!attr && secure)
+		attr = TEE_MATTR_SECURE;
+
 	paddr = *entry & ~SECTION_MASK;
 
 	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
@@ -540,7 +545,7 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 		return false;
 
 	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
-	if (*entry & SECTION_NOTSECURE)
+	if (!(attr & TEE_MATTR_SECURE))
 		new_table_desc |= SECTION_PT_NOTSECURE;
 
 	/* Fill new xlat table with entries pointing to the same memory */

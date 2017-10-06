@@ -1296,8 +1296,11 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 	uint32_t old_attr;
 	vaddr_t vaddr = vstart;
 	size_t i;
+	bool secure;
 
 	assert(!(core_mmu_type_to_attr(memtype) & TEE_MATTR_PX));
+
+	secure = core_mmu_type_to_attr(memtype) & TEE_MATTR_SECURE;
 
 	if (vaddr & SMALL_PAGE_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1324,8 +1327,8 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 				break;
 
 			/* This is supertable. Need to divide it. */
-			if (!core_mmu_divide_block(&tbl_info, idx))
-				panic("Could not divide block into smaller tables");
+			if (!core_mmu_divide_block(&tbl_info, idx, secure))
+				panic("Failed to spread pgdir on small tables");
 		}
 
 		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
