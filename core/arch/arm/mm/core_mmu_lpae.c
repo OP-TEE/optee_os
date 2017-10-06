@@ -658,12 +658,6 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 {
 	uint64_t *new_table;
 	uint64_t *entry;
-	uint64_t new_table_desc;
-	size_t new_entry_size;
-	paddr_t paddr;
-	uint32_t attr;
-	int i;
-	bool flush_tlb;
 
 	if (tbl_info->level >= 3)
 		return false;
@@ -678,31 +672,17 @@ bool core_mmu_divide_block(struct core_mmu_table_info *tbl_info,
 		return false;
 
 	entry = (uint64_t *)tbl_info->table + idx;
-	assert(!*entry || (*entry & DESC_ENTRY_TYPE_MASK) == BLOCK_DESC);
 
-	/* We need to flush TLBs only if there already was some mapping */
-	flush_tlb = *entry;
+	if ((*entry & DESC_ENTRY_TYPE_MASK) == BLOCK_DESC)
+		return true;
+	if (*entry)
+		return false;
 
 	new_table = xlat_tables[next_xlat++];
-	new_table_desc = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
+	memset(new_table, 0, XLAT_TABLE_SIZE);
 
-	/* store attributes of original block */
-	attr = desc_to_mattr(tbl_info->level, *entry);
-	paddr = *entry & OUTPUT_ADDRESS_MASK;
-	new_entry_size = 1 << (tbl_info->shift - XLAT_TABLE_ENTRIES_SHIFT);
+	*entry = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
 
-	/* Fill new xlat table with entries pointing to the same memory */
-	for (i = 0; i < XLAT_TABLE_ENTRIES; i++) {
-		*new_table = paddr | mattr_to_desc(tbl_info->level + 1, attr);
-		paddr += new_entry_size;
-		new_table++;
-	}
-
-	/* Update descriptor at current level */
-	*entry = new_table_desc;
-
-	if (flush_tlb)
-		tlbi_all();
 	return true;
 }
 
