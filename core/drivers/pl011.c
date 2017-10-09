@@ -108,7 +108,15 @@ static void pl011_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + UART_FR) & UART_FR_TXFE))
+	/*
+	 * Wait for the transmit FIFO to be empty.
+	 * It can happen that Linux initializes the OP-TEE driver with the
+	 * console UART disabled; avoid an infinite loop by checking the UART
+	 * enabled flag. Checking it in the loop makes the code safe against
+	 * asynchronous disable.
+	 */
+	while ((read32(base + UART_CR) & UART_CR_UARTEN) &&
+	       !(read32(base + UART_FR) & UART_FR_TXFE))
 		;
 }
 
@@ -132,7 +140,7 @@ static void pl011_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	/* Wait until there is space in the FIFO */
+	/* Wait until there is space in the FIFO or device is disabled */
 	while (read32(base + UART_FR) & UART_FR_TXFF)
 		;
 
