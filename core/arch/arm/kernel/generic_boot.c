@@ -260,7 +260,7 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	if (!tee_mm_init(&tee_mm_vcore, TEE_RAM_VA_START,
 			 TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE,
-			 SMALL_PAGE_SHIFT, 0))
+			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
 		panic("tee_mm_vcore init failed");
 
 	/*
