@@ -165,6 +165,7 @@ build:
     # Use repo to clone the OP-TEE CI environment for QEMU and link optee_os to the current checkout
     - >
       mkdir -p ${SHIPPABLE_BUILD_DIR}/optee_repo_qemu &&
+      rm -rf ${SHIPPABLE_BUILD_DIR}/optee_repo_qemu/optee_os &&
       cd ${SHIPPABLE_BUILD_DIR}/optee_repo_qemu &&
       repo init -u https://github.com/OP-TEE/manifest.git -m travis.xml </dev/null &&
       repo sync -d --force-sync --no-clone-bundle --no-tags --quiet -j 2 &&
