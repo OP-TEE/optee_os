@@ -1,4 +1,4 @@
-PLATFORM_FLAVOR ?= h3
+PLATFORM_FLAVOR ?= salvator_h3
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
