@@ -1,7 +1,9 @@
 link-out-dir = $(out-dir)/core
 
 link-script-dummy = core/arch/arm/kernel/link_dummy.ld
-link-script = $(platform-dir)/kern.ld.S
+link-script = $(if $(wildcard $(platform-dir)/kern.ld.S), \
+		$(platform-dir)/kern.ld.S, \
+		core/arch/arm/kernel/kern.ld.S)
 link-script-pp = $(link-out-dir)/kern.ld
 link-script-dep = $(link-out-dir)/.kern.ld.d
 
