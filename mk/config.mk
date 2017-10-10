@@ -263,3 +263,10 @@ CFG_SECURE_DATA_PATH ?= n
 # so its value represents log2(cores/cluster).
 # Default is 2**(2) = 4 cores per cluster.
 CFG_CORE_CLUSTER_SHIFT ?= 2
+
+# Do not report to NW that dynamic shared memory (shared memory outside
+# predefined region) is enabled.
+# Note that you can disable this feature for debug purposes. OP-TEE will not
+# report to Normal World that it support dynamic SHM. But, nevertheles it
+# will accept dynamic SHM buffers.
+CFG_DYN_SHM_CAP ?= y
