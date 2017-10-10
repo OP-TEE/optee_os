@@ -50,7 +50,11 @@
 #define TZDRAM_BASE		0x44000000
 #define TZDRAM_SIZE		0x03E00000
 
+#if defined(PLATFORM_FLAVOR_salvator_h3)
 #define CFG_TEE_CORE_NB_CORE	8
+#elif defined(PLATFORM_FLAVOR_salvator_m3)
+#define CFG_TEE_CORE_NB_CORE	4
+#endif
 
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
 #define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
