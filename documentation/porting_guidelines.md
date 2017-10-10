@@ -43,7 +43,7 @@ where you are supposed to add a new platform or modify an existing one.
 Typically you will find this set of files in a specific platform folder:
 ```bash
 $ ls
-conf.mk  link.mk  main.c  platform_config.h  sub.mk
+conf.mk  main.c  platform_config.h  sub.mk
 ```
 
 So for the gendev platform it means that the files should be placed in this
@@ -94,14 +94,6 @@ CFG_CRYPTO_WITH_CE ?= n
 There are probably quite a few other flags that could be useful or even
 necessary. Please refer to the other `conf.mk` file in the already existing
 platforms.
-
-##### link.mk
-This is the makefile for the linker, just as for the linker script, most
-platforms use the same and generic makefile for the linker, so adding only this
-should probably be sufficient:
-```Makefile
-include core/arch/arm/kernel/link.mk
-```
 
 ##### main.c
 This platform specific file will contain power management handlers and code
