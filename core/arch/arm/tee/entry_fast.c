@@ -106,9 +106,11 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	args->a0 = OPTEE_SMC_RETURN_OK;
 	args->a1 = OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
 
+#if defined(CFG_DYN_SHM_CAP)
 	dyn_shm_en = core_mmu_nsec_ddr_is_defined();
 	if (dyn_shm_en)
 		args->a1 |= OPTEE_SMC_SEC_CAP_DYNAMIC_SHM;
+#endif
 
 	IMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
 }
