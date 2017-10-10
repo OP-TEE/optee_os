@@ -43,17 +43,28 @@
 
 #define CONSOLE_UART_BASE	0xE6E88000
 
-#define DRAM0_BASE		0x44000000
-#define DRAM0_SIZE		0x04000000
-
 /* Location of trusted dram */
 #define TZDRAM_BASE		0x44000000
 #define TZDRAM_SIZE		0x03E00000
 
 #if defined(PLATFORM_FLAVOR_salvator_h3)
 #define CFG_TEE_CORE_NB_CORE	8
+#define NSEC_DDR_0_BASE		0x47E00000
+#define NSEC_DDR_0_SIZE		0x38200000
+#define NSEC_DDR_1_BASE		0x500000000U
+#define NSEC_DDR_1_SIZE		0x40000000
+#define NSEC_DDR_2_BASE		0x600000000U
+#define NSEC_DDR_2_SIZE		0x40000000
+#define NSEC_DDR_3_BASE		0x700000000U
+#define NSEC_DDR_3_SIZE		0x40000000
+
 #elif defined(PLATFORM_FLAVOR_salvator_m3)
 #define CFG_TEE_CORE_NB_CORE	4
+#define NSEC_DDR_0_BASE		0x47E00000
+#define NSEC_DDR_0_SIZE		0x78200000
+#define NSEC_DDR_1_BASE		0x600000000U
+#define NSEC_DDR_1_SIZE		0x80000000
+
 #endif
 
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
