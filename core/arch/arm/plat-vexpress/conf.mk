@@ -74,3 +74,8 @@ ifeq ($(PLATFORM_FLAVOR),fvp)
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 endif
+
+ifeq ($(PLATFORM_FLAVOR),juno)
+# DRAM1 is defined above 4G
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+endif
