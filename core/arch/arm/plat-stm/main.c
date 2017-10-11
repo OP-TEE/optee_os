@@ -48,6 +48,13 @@ register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CPU_IOMEM_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
 
+#ifdef DRAM0_BASE
+register_nsec_ddr(DRAM0_BASE, DRAM0_SIZE);
+#endif
+#ifdef DRAM1_BASE
+register_nsec_ddr(DRAM1_BASE, DRAM1_SIZE);
+#endif
+
 static struct gic_data gic_data;
 static struct stih_asc_pd console_data;
 

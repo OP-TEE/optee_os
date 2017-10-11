@@ -46,6 +46,17 @@
 #define CFG_CORE_TZSRAM_EMUL_START	0x7FE00000
 #endif
 
+#ifdef CFG_DDR_SECURE_BASE
+/* Non-secure external RAM: DDR eventually split in 2 by TZ reserved DDR */
+#define DRAM0_BASE		CFG_DDR_START
+#define DRAM0_SIZE		(CFG_DDR_SECURE_BASE - CFG_DDR_START)
+#if ((CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE) < 0x80000000ULL)
+#define DRAM1_BASE		(CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE)
+#define DRAM1_SIZE		(CFG_DDR_START + CFG_DDR_SIZE - DRAM1_BASE)
+#endif
+#endif
+
+/* IOmem */
 #define CPU_IOMEM_BASE		0x08760000
 #define CPU_IOMEM_SIZE		0x000a0000
 #define CPU_PORT_FILT_START	0x40000000
@@ -73,6 +84,20 @@
 #define CFG_CORE_TZSRAM_EMUL_START	0x94a00000
 #endif
 
+#ifdef CFG_DDR_SECURE_BASE
+/*
+ * Non-secure external RAM: DDR eventually split in 2 by TZ reserved DDR.
+ * The 32 first MBytes of the DDR are not eligible to REE/TEE SHM.
+ */
+#define DRAM0_BASE		(CFG_DDR_START + 0x02000000)
+#define DRAM0_SIZE		(CFG_DDR_SECURE_BASE - CFG_DDR_START)
+#if ((CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE) < 0x80000000ULL)
+#define DRAM1_BASE		(CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE)
+#define DRAM1_SIZE		(CFG_DDR_START + CFG_DDR_SIZE - DRAM1_BASE)
+#endif
+#endif
+
+/* IOmem */
 #define CPU_IOMEM_BASE		0x08760000
 #define CPU_IOMEM_SIZE		0x000a0000
 #define CPU_PORT_FILT_START	0x40000000
@@ -315,14 +340,6 @@
 #define CFG_TA_RAM_SIZE		(TZDRAM_SIZE - CFG_TEE_RAM_PH_SIZE)
 
 #endif /* !CFG_WITH_PAGER */
-
-/* External DDR dies */
-#define DRAM0_BASE		CFG_DDR_START
-#define DRAM0_SIZE		CFG_DDR_SIZE
-#ifdef CFG_DDR1_START
-#define DRAM1_BASE		CFG_DDR1_START
-#define DRAM1_SIZE		CFG_DDR1_SIZE
-#endif
 
 #ifndef CFG_TEE_RAM_VA_SIZE
 #define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
