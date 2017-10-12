@@ -275,9 +275,8 @@ void __noreturn __asan_report_store_n_noabort(vaddr_t addr, size_t size)
 }
 
 void __asan_handle_no_return(void);
-void __noreturn __asan_handle_no_return(void)
+void __asan_handle_no_return(void)
 {
-	panic();
 }
 
 void __asan_register_globals(struct asan_global *globals, size_t size);
