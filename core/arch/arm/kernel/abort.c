@@ -322,7 +322,7 @@ static const bool kernel_is32bit;
 static void __abort_print(struct abort_info *ai, bool stack_dump)
 {
 	bool is_32bit;
-	bool paged_ta = false;
+	bool paged_ta_abort = false;
 
 	if (abort_is_user_exception(ai)) {
 		struct tee_ta_session *s;
@@ -335,11 +335,13 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 		is_32bit = utc->is_32bit;
 #ifdef CFG_PAGED_USER_TA
 		/*
-		 * We don't want to unwind paged TAs, because we currently
-		 * don't handle page faults that could occur when accessing the
-		 * TA memory (unwind tables for instance).
+		 * It is not safe to unwind paged TAs that received an abort,
+		 * because we currently don't handle page faults that could
+		 * occur when accessing the TA memory (unwind tables for
+		 * instance).
 		 */
-		paged_ta = true;
+		if (ai->abort_type != ABORT_TYPE_TA_PANIC)
+			paged_ta_abort = true;
 #endif
 		if (ai->abort_type != ABORT_TYPE_TA_PANIC)
 			__print_abort_info(ai, "User TA");
@@ -350,7 +352,7 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 		__print_abort_info(ai, "Core");
 	}
 
-	if (!stack_dump || paged_ta)
+	if (!stack_dump || paged_ta_abort)
 		return;
 
 	if (is_32bit)
