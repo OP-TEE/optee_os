@@ -152,13 +152,17 @@ CFG_LIBUTILS_WITH_ISOC ?= y
 # With CFG_TA_FLOAT_SUPPORT enabled TA code is free use floating point types
 CFG_TA_FLOAT_SUPPORT ?= y
 
-# Stack unwinding: print a stack dump to the console on abort
+# Stack unwinding: print a stack dump to the console on core or TA abort, or
+# when a TA panics.
 # If CFG_UNWIND is enabled, both the kernel and user mode call stacks can be
 # unwound (not paged TAs, however).
 # Note that 32-bit ARM code needs unwind tables for this to work, so enabling
 # this option will increase the size of the 32-bit TEE binary by a few KB.
 # Similarly, TAs have to be compiled with -funwind-tables (default when the
 # option is set) otherwise they can't be unwound.
+# Warning: since the unwind sequence for user-mode (TA) code is implemented in
+# the privileged layer of OP-TEE, enabling this feature will weaken the
+# user/kernel isolation. Therefore it should be disabled in release builds.
 ifeq ($(CFG_TEE_CORE_DEBUG),y)
 CFG_UNWIND ?= y
 endif
