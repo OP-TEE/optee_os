@@ -30,6 +30,13 @@
 #include <compiler.h>
 #include <stdint.h>
 
+#define SIZE_4K	UINTPTR_C(0x1000)
+#define SIZE_1M	UINTPTR_C(0x100000)
+#define SIZE_2M	UINTPTR_C(0x200000)
+#define SIZE_4M	UINTPTR_C(0x400000)
+#define SIZE_8M	UINTPTR_C(0x800000)
+#define SIZE_2G	UINTPTR_C(0x80000000)
+
 #ifndef MAX
 #define MAX(a, b) \
 	(__extension__({ __typeof__(a) _a = (a); \
