@@ -51,12 +51,17 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+#ifndef ASM
 /* Round up the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
 			  ~((__typeof__(v))(size) - 1))
 
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
+#else
+#define ROUNDUP(x, y)			((((x) + (y) - 1) / (y)) * (y))
+#define ROUNDDOWN(x, y)		(((x) / (y)) * (y))
+#endif
 
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
