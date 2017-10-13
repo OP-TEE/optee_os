@@ -22,6 +22,8 @@ for these platforms.
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
 | HiKey960 Board (HiSilicon Kirin 960)	|`Linaro <op-tee@linaro.org>`|
 | HiSilicon D02				|`Linaro <op-tee@linaro.org>`|
+| Marvell Armada 70x0		|`Kevin Peng <kevinp@marvell.com>`|
+| Marvell Armada 80x0		|`Kevin Peng <kevinp@marvell.com>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
 | Raspberry Pi3				|`Linaro <op-tee@linaro.org>`|
