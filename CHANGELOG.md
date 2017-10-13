@@ -1,3 +1,119 @@
+# OP-TEE - version 2.6.0
+
+[Link][github_commits_2_6_0] to a list of all commits between this release and
+the previous one (2.5.0).
+
+## New features
+
+* New supported platforms: Atmel SAMA5 ([#1714]), HiSilicon HiKey960 ([#1684]),
+  Rockchip RK322X ([#1666]), NXP LS1043A-RDB/LS1046A-RDB ([#1787]), Marvell
+  Armada 70x0/80x0 ([#1807]).
+* Dynamic shared memory (non-contiguous, non-secure memory can be mapped into
+  Trusted Applications VA space) ([#1631])
+* Dump TA call stack on panic ([#1858])
+* i.MX: PSCI reset ([#1849])
+* plat-ti: AM43xx: suspend/resume support ([#1822])
+* QEMU SMP support ([#1820])
+* plat-ti: AM43xx: disable TRNG ([#1816])
+* plat-ti: enable Secure Data Path by default ([#1815])
+* Improve symbolize.py ([#1778], [#1767], [#1766])
+* Early TAs (TAs linked in tee.bin) ([#1733])
+* Suspend/resume framework for arm32 and imx7d support ([#1729])
+* RK322X PSCI version, features and suspend support ([#1720])
+* arm32: handle aborts in system mode ([#1703])
+* i.MX: add SNVS SRTC support ([#1700])
+* GCC7 support ([#1693])
+* Improve detection of programming errors in locking code ([#1671], [#1670])
+* Support TEE RAM size larger than page directory size ([#1669])
+
+## Removed features
+
+* Remove TUI code ([#1842])
+
+## Bug fixes
+
+* Add missing synchronization barrier in core_mmu_map_pages() ([#1827])
+* Secure storage: REE FS: fix bug in error path ([#1801])
+* ASAN bug fixes ([#1799])
+* Fix race in core_mmu_user_mapping_is_active() ([#1785])
+* libutee: printf() and puts() fixes, add putchar() ([#1759], [#1754])
+* arm32: GICv3: fix FIQ masking in IRQ/ABT/SVC/UND handlers ([#1748])
+* arm32: preserve r12 in native_intr_handler() ([#1682])
+* arm64: fix print_kernel_stack() ([#1664])
+* benchmark: fix core data-abort ([#1658])
+
+## Security fixes or enhancements
+
+* crypto: fix software PRNG weaknesses
+  ([OP-TEE-2017-0001][OP-TEE-2017-0001]) ([#1843])
+
+## Tested on
+
+The release was tested successfuly on the platforms listed below.
+If a platform is not listed, it means the release was not tested on this
+platform.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02
+* hikey
+* hikey-hikey960
+* imx-mx6ulevk
+* imx-mx7dsabresd
+* ls-ls1021a??? (single core)
+* ls-ls1043ardb
+* ls-ls1046ardb
+* mediatek-mt8173
+* rcar
+* rockchip-rk322x
+* rpi3
+* sam
+* stm-b2260
+* stm-cannes
+* ti-???
+* vexpress-fvp
+* vexpress-juno
+* vexpress-qemu_armv8a
+* vexpress-qemu_virt
+
+[github_commits_2_6_0]: https://github.com/OP-TEE/optee_os/compare/2.5.0...HEAD
+[#1858]: https://github.com/OP-TEE/optee_os/issues/1858
+[#1849]: https://github.com/OP-TEE/optee_os/issues/1849
+[#1843]: https://github.com/OP-TEE/optee_os/issues/1843
+[#1842]: https://github.com/OP-TEE/optee_os/issues/1842
+[#1827]: https://github.com/OP-TEE/optee_os/issues/1827
+[#1822]: https://github.com/OP-TEE/optee_os/issues/1822
+[#1820]: https://github.com/OP-TEE/optee_os/issues/1820
+[#1816]: https://github.com/OP-TEE/optee_os/issues/1816
+[#1815]: https://github.com/OP-TEE/optee_os/issues/1815
+[#1807]: https://github.com/OP-TEE/optee_os/issues/1807
+[#1801]: https://github.com/OP-TEE/optee_os/issues/1801
+[#1799]: https://github.com/OP-TEE/optee_os/issues/1799
+[#1787]: https://github.com/OP-TEE/optee_os/issues/1787
+[#1785]: https://github.com/OP-TEE/optee_os/issues/1785
+[#1778]: https://github.com/OP-TEE/optee_os/issues/1778
+[#1767]: https://github.com/OP-TEE/optee_os/issues/1767
+[#1766]: https://github.com/OP-TEE/optee_os/issues/1766
+[#1759]: https://github.com/OP-TEE/optee_os/issues/1759
+[#1754]: https://github.com/OP-TEE/optee_os/issues/1754
+[#1748]: https://github.com/OP-TEE/optee_os/issues/1748
+[#1733]: https://github.com/OP-TEE/optee_os/issues/1733
+[#1729]: https://github.com/OP-TEE/optee_os/issues/1729
+[#1720]: https://github.com/OP-TEE/optee_os/issues/1720
+[#1714]: https://github.com/OP-TEE/optee_os/issues/1714
+[#1703]: https://github.com/OP-TEE/optee_os/issues/1703
+[#1700]: https://github.com/OP-TEE/optee_os/issues/1700
+[#1693]: https://github.com/OP-TEE/optee_os/issues/1693
+[#1684]: https://github.com/OP-TEE/optee_os/issues/1684
+[#1682]: https://github.com/OP-TEE/optee_os/issues/1682
+[#1671]: https://github.com/OP-TEE/optee_os/issues/1671
+[#1670]: https://github.com/OP-TEE/optee_os/issues/1670
+[#1669]: https://github.com/OP-TEE/optee_os/issues/1669
+[#1666]: https://github.com/OP-TEE/optee_os/issues/1666
+[#1664]: https://github.com/OP-TEE/optee_os/issues/1664
+[#1658]: https://github.com/OP-TEE/optee_os/issues/1658
+[#1631]: https://github.com/OP-TEE/optee_os/issues/1631
+[OP-TEE-2017-0001]: https://www.op-tee.org/security-advisories/
+
 # OP-TEE - version 2.5.0
 
 [Link][github_commits_2_5_0] to a list of all commits between this release and
@@ -819,7 +935,7 @@ Definitions:
 
 
 -------------------------------------------
-#OP-TEE - version 0.1.0
+# OP-TEE - version 0.1.0
 
 ## New features
 Below is a summary of the most important features added, but at the end you will
