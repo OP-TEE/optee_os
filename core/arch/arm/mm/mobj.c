@@ -323,6 +323,7 @@ struct mobj_reg_shm {
 	struct mobj mobj;
 	SLIST_ENTRY(mobj_reg_shm) next;
 	uint64_t cookie;
+	tee_mm_entry_t *mm;
 	paddr_t page_offset;
 	int num_pages;
 	paddr_t pages[];
@@ -376,10 +377,23 @@ static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
 	return to_mobj_reg_shm(mobj)->page_offset;
 }
 
+static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
+{
+	struct mobj_reg_shm *mrs = to_mobj_reg_shm(mobj);
+
+	if (!mrs->mm)
+		return NULL;
+
+	return (void *)(vaddr_t)(tee_mm_get_smem(mrs->mm) + offst +
+				 mrs->page_offset);
+}
+
 static void mobj_reg_shm_free(struct mobj *mobj)
 {
 	struct mobj_reg_shm *mobj_reg_shm = to_mobj_reg_shm(mobj);
 	uint32_t exceptions;
+
+	mobj_reg_shm_unmap(mobj);
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm,
@@ -404,6 +418,7 @@ static bool mobj_reg_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
 static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.get_pa = mobj_reg_shm_get_pa,
 	.get_phys_offs = mobj_reg_shm_get_phys_offs,
+	.get_va = mobj_reg_shm_get_va,
 	.get_cattr = mobj_reg_shm_get_cattr,
 	.matches = mobj_reg_shm_matches,
 	.free = mobj_reg_shm_free,
@@ -481,6 +496,53 @@ struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie)
 	}
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 	return NULL;
+}
+
+TEE_Result mobj_reg_shm_map(struct mobj *mobj)
+{
+	TEE_Result res;
+	struct mobj_reg_shm *mrs;
+
+	if (mobj->ops != &mobj_reg_shm_ops)
+		return TEE_ERROR_GENERIC;
+
+	mrs = to_mobj_reg_shm(mobj);
+
+	if (mrs->mm)	/* Guard against mapping twice */
+		return TEE_ERROR_ACCESS_CONFLICT;
+
+	mrs->mm = tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * mrs->num_pages);
+	if (!mrs->mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = core_mmu_map_pages(tee_mm_get_smem(mrs->mm), mrs->pages,
+				  mrs->num_pages, MEM_AREA_NSEC_SHM);
+	if (res) {
+		tee_mm_free(mrs->mm);
+		mrs->mm = NULL;
+		return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result mobj_reg_shm_unmap(struct mobj *mobj)
+{
+	struct mobj_reg_shm *mrs;
+
+	if (mobj->ops != &mobj_reg_shm_ops)
+		return TEE_ERROR_GENERIC;
+
+	mrs = to_mobj_reg_shm(mobj);
+	if (!mrs->mm)
+		return TEE_ERROR_BAD_STATE;
+
+	core_mmu_unmap_pages(tee_mm_get_smem(mrs->mm),
+			     mobj->size / SMALL_PAGE_SIZE);
+	tee_mm_free(mrs->mm);
+	mrs->mm = NULL;
+
+	return TEE_SUCCESS;
 }
 
 /*
