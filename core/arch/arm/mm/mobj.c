@@ -545,128 +545,21 @@ TEE_Result mobj_reg_shm_unmap(struct mobj *mobj)
 	return TEE_SUCCESS;
 }
 
-/*
- * mobj_mapped_shm implementation.
- * Used for registered SHM that is mapped to OP-TEE virtual address space
- */
-
-struct mobj_mapped_shm {
-	struct mobj mobj;
-	tee_mm_entry_t *mm_entry;
-	struct mobj *reg_shm;
-};
-
-static struct mobj_mapped_shm *to_mobj_mapped_shm(struct mobj *mobj);
-
-static TEE_Result mobj_mapped_shm_get_pa(struct mobj *mobj, size_t offst,
-				      size_t granule, paddr_t *pa)
-{
-	struct mobj_mapped_shm *mobj_mapped_shm = to_mobj_mapped_shm(mobj);
-
-	return mobj_reg_shm_get_pa(mobj_mapped_shm->reg_shm, offst,
-				   granule, pa);
-}
-
-static size_t mobj_mapped_shm_get_phys_offs(struct mobj *mobj, size_t granule)
-{
-	return mobj_get_phys_offs(to_mobj_mapped_shm(mobj)->reg_shm, granule);
-}
-
-static void *mobj_mapped_shm_get_va(struct mobj *mobj, size_t offst)
-{
-	struct mobj_mapped_shm *mobj_mapped_shm = to_mobj_mapped_shm(mobj);
-	struct mobj_reg_shm *reg_shm =
-		to_mobj_reg_shm(mobj_mapped_shm->reg_shm);
-
-	return (void *)(vaddr_t)(tee_mm_get_smem(mobj_mapped_shm->mm_entry) +
-				 offst + reg_shm->page_offset);
-}
-
-static void mobj_mapped_shm_free(struct mobj *mobj)
-{
-	struct mobj_mapped_shm *mobj_mapped_shm = to_mobj_mapped_shm(mobj);
-	vaddr_t va = tee_mm_get_smem(mobj_mapped_shm->mm_entry);
-
-	core_mmu_unmap_pages(va, mobj->size / SMALL_PAGE_SIZE);
-	tee_mm_free(mobj_mapped_shm->mm_entry);
-	mobj_free(mobj_mapped_shm->reg_shm);
-	free(mobj_mapped_shm);
-}
-
-static TEE_Result mobj_mapped_shm_get_cattr(struct mobj *mobj __unused,
-					 uint32_t *cattr)
-{
-	if (!cattr)
-		return TEE_ERROR_GENERIC;
-
-	*cattr = TEE_MATTR_CACHE_CACHED;
-
-	return TEE_SUCCESS;
-}
-
-static bool mobj_mapped_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
-
-static const struct mobj_ops mobj_mapped_shm_ops __rodata_unpaged = {
-	.get_pa = mobj_mapped_shm_get_pa,
-	.get_va = mobj_mapped_shm_get_va,
-	.get_phys_offs = mobj_mapped_shm_get_phys_offs,
-	.get_cattr = mobj_mapped_shm_get_cattr,
-	.matches = mobj_mapped_shm_matches,
-	.free = mobj_mapped_shm_free,
-};
-
-static bool mobj_mapped_shm_matches(struct mobj *mobj __maybe_unused,
-				   enum buf_is_attr attr)
-{
-	assert(mobj->ops == &mobj_mapped_shm_ops);
-
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_NSEC_SHM ||
-		attr == CORE_MEM_REG_SHM;
-}
-
-static struct mobj_mapped_shm *to_mobj_mapped_shm(struct mobj *mobj)
-{
-	assert(mobj->ops == &mobj_mapped_shm_ops);
-	return container_of(mobj, struct mobj_mapped_shm, mobj);
-}
-
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				  paddr_t page_offset, uint64_t cookie)
 {
-	struct mobj_mapped_shm *mobj_mapped_shm;
-	vaddr_t vaddr;
+	struct mobj *mobj = mobj_reg_shm_alloc(pages, num_pages,
+					       page_offset, cookie);
 
-	mobj_mapped_shm = calloc(1, sizeof(struct mobj_mapped_shm));
-	if (!mobj_mapped_shm)
+	if (!mobj)
 		return NULL;
 
-	mobj_mapped_shm->reg_shm =
-		mobj_reg_shm_alloc(pages, num_pages, page_offset, cookie);
-	if (!mobj_mapped_shm->reg_shm)
-		goto err;
+	if (mobj_reg_shm_map(mobj)) {
+		mobj_free(mobj);
+		return NULL;
+	}
 
-	mobj_mapped_shm->mm_entry =
-		tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * num_pages);
-	if (!mobj_mapped_shm->mm_entry)
-		goto err;
-
-	vaddr = tee_mm_get_smem(mobj_mapped_shm->mm_entry);
-	if (core_mmu_map_pages(vaddr,
-			to_mobj_reg_shm(mobj_mapped_shm->reg_shm)->pages,
-			num_pages, MEM_AREA_NSEC_SHM))
-		goto err;
-
-	mobj_mapped_shm->mobj.ops = &mobj_mapped_shm_ops;
-	mobj_mapped_shm->mobj.size =  num_pages * SMALL_PAGE_SIZE;
-	mobj_mapped_shm->mobj.phys_granule = SMALL_PAGE_SIZE;
-
-	return &mobj_mapped_shm->mobj;
-err:
-	mobj_free(mobj_mapped_shm->reg_shm);
-	tee_mm_free(mobj_mapped_shm->mm_entry);
-	free(mobj_mapped_shm);
-
-	return NULL;
+	return mobj;
 }
 
 static TEE_Result mobj_mapped_shm_init(void)
