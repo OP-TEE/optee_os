@@ -140,6 +140,9 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 
 struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie);
 
+TEE_Result mobj_reg_shm_map(struct mobj *mobj);
+TEE_Result mobj_reg_shm_unmap(struct mobj *mobj);
+
 /*
  * mapped_shm represents registered shared buffer
  * which is mapped into OPTEE va space
