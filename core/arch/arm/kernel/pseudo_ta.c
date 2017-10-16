@@ -72,7 +72,8 @@ static bool validate_in_param(struct tee_ta_session *s __unused,
 /* Maps static TA params */
 static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 				struct tee_ta_param *param,
-				TEE_Param tee_param[TEE_NUM_PARAMS])
+				TEE_Param tee_param[TEE_NUM_PARAMS],
+				bool did_map[TEE_NUM_PARAMS])
 {
 	size_t n;
 	void *va;
@@ -90,11 +91,22 @@ static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			if (!validate_in_param(s, param->u[n].mem.mobj))
 				return TEE_ERROR_BAD_PARAMETERS;
-
 			va = mobj_get_va(param->u[n].mem.mobj,
 					 param->u[n].mem.offs);
-			if (!va)
-				return TEE_ERROR_BAD_PARAMETERS;
+			if (!va) {
+				TEE_Result res;
+
+				res  = mobj_reg_shm_map(param->u[n].mem.mobj);
+				if (res)
+					return res;
+				did_map[n] = true;
+
+				va = mobj_get_va(param->u[n].mem.mobj,
+						 param->u[n].mem.offs);
+				if (!va)
+					return TEE_ERROR_BAD_PARAMETERS;
+			}
+
 			tee_param[n].memref.buffer = va;
 			tee_param[n].memref.size = param->u[n].mem.size;
 			break;
@@ -129,12 +141,28 @@ static void update_out_param(TEE_Param tee_param[TEE_NUM_PARAMS],
 	}
 }
 
+static void unmap_mapped_param(struct tee_ta_param *param,
+			       bool did_map[TEE_NUM_PARAMS])
+{
+	size_t n;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		if (did_map[n]) {
+			TEE_Result res __maybe_unused;
+
+			res = mobj_reg_shm_unmap(param->u[n].mem.mobj);
+			assert(!res);
+		}
+	}
+}
+
 static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 	TEE_Param tee_param[TEE_NUM_PARAMS];
+	bool did_map[TEE_NUM_PARAMS] = { false };
 
 	tee_ta_push_current_session(s);
 	*eo = TEE_ORIGIN_TRUSTED_APP;
@@ -146,8 +174,9 @@ static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 	}
 
 	if (stc->pseudo_ta->open_session_entry_point) {
-		res = copy_in_param(s, param, tee_param);
+		res = copy_in_param(s, param, tee_param, did_map);
 		if (res != TEE_SUCCESS) {
+			unmap_mapped_param(param, did_map);
 			*eo = TEE_ORIGIN_TEE;
 			goto out;
 		}
@@ -156,6 +185,7 @@ static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 								tee_param,
 								&s->user_ctx);
 		update_out_param(tee_param, param);
+		unmap_mapped_param(param, did_map);
 	}
 
 out:
@@ -170,10 +200,12 @@ static TEE_Result pseudo_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	TEE_Result res;
 	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
 	TEE_Param tee_param[TEE_NUM_PARAMS];
+	bool did_map[TEE_NUM_PARAMS] = { false };
 
 	tee_ta_push_current_session(s);
-	res = copy_in_param(s, param, tee_param);
+	res = copy_in_param(s, param, tee_param, did_map);
 	if (res != TEE_SUCCESS) {
+		unmap_mapped_param(param, did_map);
 		*eo = TEE_ORIGIN_TEE;
 		goto out;
 	}
@@ -183,6 +215,7 @@ static TEE_Result pseudo_ta_enter_invoke_cmd(struct tee_ta_session *s,
 							 param->types,
 							 tee_param);
 	update_out_param(tee_param, param);
+	unmap_mapped_param(param, did_map);
 out:
 	tee_ta_pop_current_session();
 	return res;
