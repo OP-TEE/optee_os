@@ -117,15 +117,10 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 static TEE_Result set_rmem_param(const struct optee_msg_param *param,
 				 struct param_mem *mem)
 {
-	struct mobj *rmem_mobj =
-		mobj_reg_shm_find_by_cookie(param->u.rmem.shm_ref);
-	paddr_t b;
-
-	if (mobj_get_pa(rmem_mobj, 0, 0, &b) != TEE_SUCCESS)
+	mem->mobj = mobj_reg_shm_find_by_cookie(param->u.rmem.shm_ref);
+	if (!mem->mobj)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	mem->mobj = rmem_mobj;
-	mem->offs = param->u.rmem.offs + (b & SMALL_PAGE_MASK);
+	mem->offs = param->u.rmem.offs;
 	mem->size = param->u.rmem.size;
 
 	return TEE_SUCCESS;

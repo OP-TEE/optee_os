@@ -75,6 +75,7 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
 	uint32_t attr = TEE_MMU_UDATA_ATTR;
 	size_t nsz;
 	size_t noffs;
+	size_t phys_offs;
 
 	if (!mobj_is_paged(mem->mobj)) {
 		uint32_t cattr;
@@ -102,10 +103,13 @@ static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
 		return TEE_ERROR_EXCESS_DATA;
 	}
 
+	phys_offs = mobj_get_phys_offs(mem->mobj, CORE_MMU_USER_PARAM_SIZE);
+
 	mmu->regions[n].mobj = mem->mobj;
-	mmu->regions[n].offset = ROUNDDOWN(mem->offs, CORE_MMU_USER_PARAM_SIZE);
-	mmu->regions[n].size = ROUNDUP(mem->offs - mmu->regions[n].offset +
-				       mem->size,
+	mmu->regions[n].offset = ROUNDDOWN(phys_offs + mem->offs,
+					   CORE_MMU_USER_PARAM_SIZE);
+	mmu->regions[n].size = ROUNDUP(phys_offs + mem->offs -
+				       mmu->regions[n].offset + mem->size,
 				       CORE_MMU_USER_PARAM_SIZE);
 	mmu->regions[n].attr = attr;
 
@@ -411,6 +415,7 @@ static TEE_Result param_mem_to_user_va(struct user_ta_ctx *utc,
 	for (n = TEE_MMU_UMAP_PARAM_IDX; n < TEE_MMU_UMAP_MAX_ENTRIES; n++) {
 		struct tee_ta_region *region = utc->mmu->regions + n;
 		vaddr_t va;
+		size_t phys_offs;
 
 		if (mem->mobj != region->mobj)
 			continue;
@@ -418,7 +423,9 @@ static TEE_Result param_mem_to_user_va(struct user_ta_ctx *utc,
 			continue;
 		if (mem->offs >= (region->offset + region->size))
 			continue;
-		va = region->va + mem->offs - region->offset;
+		phys_offs = mobj_get_phys_offs(mem->mobj,
+					       CORE_MMU_USER_PARAM_SIZE);
+		va = region->va + mem->offs + phys_offs - region->offset;
 		*user_va = (void *)va;
 		return TEE_SUCCESS;
 	}
@@ -659,9 +666,13 @@ TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_ta_ctx *utc,
 			continue;
 		if (core_is_buffer_inside(va, size, utc->mmu->regions[n].va,
 					  utc->mmu->regions[n].size)) {
+			size_t poffs;
+
+			poffs = mobj_get_phys_offs(utc->mmu->regions[n].mobj,
+						   CORE_MMU_USER_PARAM_SIZE);
 			*mobj = utc->mmu->regions[n].mobj;
 			*offs = (vaddr_t)va - utc->mmu->regions[n].va +
-				utc->mmu->regions[n].offset;
+				utc->mmu->regions[n].offset - poffs;
 			return TEE_SUCCESS;
 		}
 	}
