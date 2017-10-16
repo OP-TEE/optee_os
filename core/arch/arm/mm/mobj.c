@@ -136,6 +136,7 @@ static void mobj_phys_free(struct mobj *mobj)
 static const struct mobj_ops mobj_phys_ops __rodata_unpaged = {
 	.get_va = mobj_phys_get_va,
 	.get_pa = mobj_phys_get_pa,
+	.get_phys_offs = NULL, /* only offset 0 */
 	.get_cattr = mobj_phys_get_cattr,
 	.matches = mobj_phys_matches,
 	.free = mobj_phys_free,
@@ -255,6 +256,11 @@ static TEE_Result mobj_mm_get_pa(struct mobj *mobj, size_t offs,
 }
 KEEP_PAGER(mobj_mm_get_pa);
 
+static size_t mobj_mm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	return mobj_get_phys_offs(to_mobj_mm(mobj)->parent_mobj, granule);
+}
+
 static TEE_Result mobj_mm_get_cattr(struct mobj *mobj, uint32_t *cattr)
 {
 	return mobj_get_cattr(to_mobj_mm(mobj)->parent_mobj, cattr);
@@ -276,6 +282,7 @@ static void mobj_mm_free(struct mobj *mobj)
 static const struct mobj_ops mobj_mm_ops __rodata_unpaged = {
 	.get_va = mobj_mm_get_va,
 	.get_pa = mobj_mm_get_pa,
+	.get_phys_offs = mobj_mm_get_phys_offs,
 	.get_cattr = mobj_mm_get_cattr,
 	.matches = mobj_mm_matches,
 	.free = mobj_mm_free,
@@ -362,6 +369,13 @@ static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
 	return TEE_SUCCESS;
 }
 
+static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
+					 size_t granule __maybe_unused)
+{
+	assert(granule >= mobj->phys_granule);
+	return to_mobj_reg_shm(mobj)->page_offset;
+}
+
 static void mobj_reg_shm_free(struct mobj *mobj)
 {
 	struct mobj_reg_shm *mobj_reg_shm = to_mobj_reg_shm(mobj);
@@ -389,6 +403,7 @@ static bool mobj_reg_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
 
 static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.get_pa = mobj_reg_shm_get_pa,
+	.get_phys_offs = mobj_reg_shm_get_phys_offs,
 	.get_cattr = mobj_reg_shm_get_cattr,
 	.matches = mobj_reg_shm_matches,
 	.free = mobj_reg_shm_free,
@@ -490,6 +505,11 @@ static TEE_Result mobj_mapped_shm_get_pa(struct mobj *mobj, size_t offst,
 				   granule, pa);
 }
 
+static size_t mobj_mapped_shm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	return mobj_get_phys_offs(to_mobj_mapped_shm(mobj)->reg_shm, granule);
+}
+
 static void *mobj_mapped_shm_get_va(struct mobj *mobj, size_t offst)
 {
 	struct mobj_mapped_shm *mobj_mapped_shm = to_mobj_mapped_shm(mobj);
@@ -527,6 +547,7 @@ static bool mobj_mapped_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
 static const struct mobj_ops mobj_mapped_shm_ops __rodata_unpaged = {
 	.get_pa = mobj_mapped_shm_get_pa,
 	.get_va = mobj_mapped_shm_get_va,
+	.get_phys_offs = mobj_mapped_shm_get_phys_offs,
 	.get_cattr = mobj_mapped_shm_get_cattr,
 	.matches = mobj_mapped_shm_matches,
 	.free = mobj_mapped_shm_free,
@@ -653,6 +674,12 @@ static TEE_Result mobj_shm_get_pa(struct mobj *mobj, size_t offs,
 	return TEE_SUCCESS;
 }
 
+static size_t mobj_shm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	assert(IS_POWER_OF_TWO(granule));
+	return to_mobj_shm(mobj)->pa & (granule - 1);
+}
+
 static bool mobj_shm_matches(struct mobj *mobj __unused, enum buf_is_attr attr)
 {
 	return attr == CORE_MEM_NSEC_SHM || attr == CORE_MEM_NON_SEC;
@@ -668,6 +695,7 @@ static void mobj_shm_free(struct mobj *mobj)
 static const struct mobj_ops mobj_shm_ops __rodata_unpaged = {
 	.get_va = mobj_shm_get_va,
 	.get_pa = mobj_shm_get_pa,
+	.get_phys_offs = mobj_shm_get_phys_offs,
 	.matches = mobj_shm_matches,
 	.free = mobj_shm_free,
 };
