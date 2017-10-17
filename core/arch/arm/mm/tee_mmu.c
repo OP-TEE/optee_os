@@ -686,26 +686,44 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_ta_ctx *utc,
 	size_t n;
 
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (core_is_buffer_inside(ua, 1, utc->mmu->regions[n].va,
-					  utc->mmu->regions[n].size)) {
-			if (pa) {
-				TEE_Result res;
-				paddr_t p;
+		struct tee_ta_region *region = &utc->mmu->regions[n];
 
-				res = mobj_get_pa(utc->mmu->regions[n].mobj,
-						  utc->mmu->regions[n].offset,
-						  0, &p);
-				if (res != TEE_SUCCESS)
-					return res;
+		if (!core_is_buffer_inside(ua, 1, region->va, region->size))
+			continue;
 
-				*pa = (paddr_t)(vaddr_t)ua -
-				      utc->mmu->regions[n].va + p;
-			}
-			if (attr)
-				*attr = utc->mmu->regions[n].attr;
-			return TEE_SUCCESS;
+		if (pa) {
+			TEE_Result res;
+			paddr_t p;
+			size_t offset;
+			size_t granule;
+
+			/*
+			 * mobj and input user address may each include
+			 * a specific offset-in-granule position.
+			 * Drop both to get target physical page base
+			 * address then apply only user address
+			 * offset-in-granule.
+			 * Mapping lowest granule is the small page.
+			 */
+			granule = MAX(region->mobj->phys_granule,
+				      (size_t)SMALL_PAGE_SIZE);
+			assert(!granule || IS_POWER_OF_TWO(granule));
+
+			offset = region->offset +
+				 ROUNDDOWN((vaddr_t)ua - region->va, granule);
+
+			res = mobj_get_pa(region->mobj, offset, granule, &p);
+			if (res != TEE_SUCCESS)
+				return res;
+
+			*pa = p | ((vaddr_t)ua & (granule - 1));
 		}
+		if (attr)
+			*attr = utc->mmu->regions[n].attr;
+
+		return TEE_SUCCESS;
 	}
+
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
