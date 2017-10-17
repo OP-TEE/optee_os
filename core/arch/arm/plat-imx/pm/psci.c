@@ -49,7 +49,7 @@
 
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
-		uint32_t context_id __attribute__((unused)))
+		uint32_t context_id)
 {
 	uint32_t val;
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
@@ -61,7 +61,8 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		return PSCI_RET_INVALID_PARAMETERS;
 
 	/* set secondary cores' NS entry addresses */
-	ns_entry_addrs[core_idx] = entry;
+	ns_entry_contexts[core_idx].entry_point = entry;
+	ns_entry_contexts[core_idx].context_id = context_id;
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 	if (soc_is_imx7ds()) {

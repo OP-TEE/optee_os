@@ -262,7 +262,7 @@ int psci_features(uint32_t psci_fid)
 }
 
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
-		uint32_t context_id __unused)
+		uint32_t context_id)
 {
 	bool wfei;
 	vaddr_t cru_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
@@ -275,7 +275,8 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	DMSG("core_id: %" PRIu32, core_idx);
 
 	/* set secondary cores' NS entry addresses */
-	ns_entry_addrs[core_idx] = entry;
+	ns_entry_contexts[core_idx].entry_point = entry;
+	ns_entry_contexts[core_idx].context_id = context_id;
 
 	/* wait */
 	if (!core_held_in_reset(core_idx)) {
