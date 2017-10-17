@@ -1600,11 +1600,16 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 #endif
 	if (!core_va2pa_helper(va, &p)) {
 		/* Verfiy only the static mapping (case non null phys addr) */
-		if (p && pa != p)
+		if (p && pa != p) {
+			DMSG("va %p maps 0x%" PRIxPA ", expect 0x%" PRIxPA,
+					va, p, pa);
 			panic();
+		}
 	} else {
-		if (pa)
+		if (pa) {
+			DMSG("va %p unmapped, expect 0x%" PRIxPA, va, pa);
 			panic();
+		}
 	}
 }
 #else
@@ -1626,8 +1631,16 @@ paddr_t virt_to_phys(void *va)
 #if defined(CFG_TEE_CORE_DEBUG)
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	if (va && virt_to_phys(va) != pa)
+	paddr_t p;
+
+	if (!va)
+		return;
+
+	p = virt_to_phys(va);
+	if (p != pa) {
+		DMSG("va %p maps 0x%" PRIxPA " expect 0x%" PRIxPA, va, p, pa);
 		panic();
+	}
 }
 #else
 static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
