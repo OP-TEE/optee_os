@@ -1701,6 +1701,10 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	case MEM_AREA_TEE_RAM_RW:
 		va = phys_to_virt_tee_ram(pa);
 		break;
+	case MEM_AREA_SHM_VASPACE:
+		/* Find VA from PA in dynamic SHM is not yet supported */
+		va = NULL;
+		break;
 	default:
 		va = map_pa2va(find_map_by_type_and_pa(m, pa), pa);
 	}
