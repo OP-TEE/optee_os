@@ -27,6 +27,7 @@
 
 #include <compiler.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <pta_invoke_tests.h>
 #include <string.h>
@@ -46,6 +47,49 @@ static TEE_Result test_trace(uint32_t param_types __unused,
 	IMSG("pseudo TA \"%s\" says \"Hello world !\"", TA_NAME);
 
 	return TEE_SUCCESS;
+}
+
+static int test_v2p2v(void *va)
+{
+	struct tee_ta_session *session;
+	paddr_t p;
+	void *v;
+
+	if  (!va)
+		return 0;
+
+	if (tee_ta_get_current_session(&session))
+		panic();
+
+	p = virt_to_phys(va);
+
+	/* 0 is not a valid physical address */
+	if (!p)
+		return 1;
+
+	if (session->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
+		v = phys_to_virt(p, MEM_AREA_TA_VASPACE);
+	} else {
+		v = phys_to_virt(p, MEM_AREA_NSEC_SHM);
+		if (!v)
+			v = phys_to_virt(p, MEM_AREA_SDP_MEM);
+		if (!v)
+			v = phys_to_virt(p, MEM_AREA_SHM_VASPACE);
+	}
+
+	/*
+	 * Return an error only the vaddr found mismatches input address.
+	 * Finding a virtual address from a physical address cannot be painful
+	 * in some case (i.e pager). Moreover this operation is more debug
+	 * related. Thus do not report error if phys_to_virt failed
+	 */
+	if (v && va != v) {
+		EMSG("Failed to p2v/v2p on caller TA memref arguments");
+		EMSG("va %p -> pa 0x%" PRIxPA " -> va %p", va, p, v);
+		return 1;
+	}
+
+	return 0;
 }
 
 /*
@@ -146,6 +190,8 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[0].memref.buffer;
+		if (test_v2p2v(in))
+			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[0].memref.size; i++)
 			d8 += in[i];
@@ -158,6 +204,8 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[1].memref.buffer;
+		if (test_v2p2v(in))
+			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[1].memref.size; i++)
 			d8 += in[i];
@@ -170,6 +218,8 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_MEMREF_INOUT) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[2].memref.buffer;
+		if (test_v2p2v(in))
+			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[2].memref.size; i++)
 			d8 += in[i];
@@ -182,6 +232,8 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_MEMREF_INOUT)) {
 		in = (uint8_t *)p[3].memref.buffer;
+		if (test_v2p2v(in))
+			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[3].memref.size; i++)
 			d8 += in[i];
@@ -217,12 +269,19 @@ static TEE_Result test_inject_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-
 	if (!core_vbuf_is(CORE_MEM_NON_SEC, src, sz) ||
 	    !core_vbuf_is(CORE_MEM_SDP_MEM, dst, sz)) {
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (!sz)
+		return TEE_SUCCESS;
+
+	/* Check that core can p2v and v2p over memory reference arguments */
+	if (test_v2p2v(src) || test_v2p2v(src + sz - 1) ||
+	    test_v2p2v(dst) || test_v2p2v(dst + sz - 1))
+		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
 		return TEE_ERROR_GENERIC;
@@ -253,6 +312,13 @@ static TEE_Result test_transform_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (!sz)
+		return TEE_SUCCESS;
+
+	/* Check that core can p2v and v2p over memory reference arguments */
+	if (test_v2p2v(buf) || test_v2p2v(buf + sz - 1))
+		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, buf, sz) != TEE_SUCCESS)
 		return TEE_ERROR_GENERIC;
@@ -291,6 +357,14 @@ static TEE_Result test_dump_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (!sz)
+		return TEE_SUCCESS;
+
+	/* Check that core can p2v and v2p over memory reference arguments */
+	if (test_v2p2v(src) || test_v2p2v(src + sz - 1) ||
+	    test_v2p2v(dst) || test_v2p2v(dst + sz - 1))
+		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
 		return TEE_ERROR_GENERIC;
