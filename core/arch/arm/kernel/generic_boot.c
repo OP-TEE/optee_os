@@ -55,7 +55,7 @@
 #define PADDR_INVALID		ULONG_MAX
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-paddr_t ns_entry_addrs[CFG_TEE_CORE_NB_CORE];
+struct ns_entry_context ns_entry_contexts[CFG_TEE_CORE_NB_CORE];
 static uint32_t spin_table[CFG_TEE_CORE_NB_CORE];
 #endif
 
@@ -939,7 +939,7 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry)
 	if (!core_idx || core_idx >= CFG_TEE_CORE_NB_CORE)
 		return -1;
 
-	ns_entry_addrs[core_idx] = entry;
+	ns_entry_contexts[core_idx].entry_point = entry;
 	dmb();
 	spin_table[core_idx] = 1;
 	dsb();
@@ -952,16 +952,16 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry)
  * spin until secondary boot request, then returns with
  * the secondary core entry address.
  */
-paddr_t generic_boot_core_hpen(void)
+struct ns_entry_context *generic_boot_core_hpen(void)
 {
 #ifdef CFG_PSCI_ARM32
-	return ns_entry_addrs[get_core_pos()];
+	return &ns_entry_contexts[get_core_pos()];
 #else
 	do {
 		wfe();
 	} while (!spin_table[get_core_pos()]);
 	dmb();
-	return ns_entry_addrs[get_core_pos()];
+	return &ns_entry_contexts[get_core_pos()];
 #endif
 }
 #endif
