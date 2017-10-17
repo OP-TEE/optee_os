@@ -34,6 +34,7 @@
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
 #include <kernel/user_ta.h>
+#include <mm/tee_mmu.h>
 #include <string.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
@@ -241,6 +242,9 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 	}
 }
 
+#define TA32_CONTEXT_MAX_SIZE		(14 * sizeof(uint32_t))
+#define TA64_CONTEXT_MAX_SIZE		(2 * sizeof(uint64_t))
+
 #ifdef ARM32
 #ifdef CFG_UNWIND
 /* Get register values pushed onto the stack by utee_panic() */
@@ -274,6 +278,21 @@ static void print_panic_stack(struct thread_svc_regs *regs)
 	struct abort_info ai;
 	struct thread_abort_regs ar;
 	uint32_t *pregs = (uint32_t *)regs->r1;
+	struct tee_ta_session *s;
+
+	if (tee_ta_get_current_session(&s))
+		panic("No current session");
+
+	if (tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
+					TEE_MEMORY_ACCESS_READ |
+					TEE_MEMORY_ACCESS_WRITE,
+					(uaddr_t)pregs,
+					TA32_CONTEXT_MAX_SIZE)) {
+		TAMSG_RAW("");
+		TAMSG_RAW("Can't unwind invalid user stack 0x%" PRIxUA,
+				(uaddr_t)pregs);
+		return;
+	}
 
 	memset(&ai, 0, sizeof(ai));
 	ai.regs = &ar;
@@ -356,7 +375,21 @@ static void print_panic_stack(struct thread_svc_regs *regs)
 
 	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
 		panic();
+
 	utc = to_user_ta_ctx(s->ctx);
+
+	if (tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					TEE_MEMORY_ACCESS_WRITE,
+					(uaddr_t)regs->x1,
+					utc->is_32bit ?
+					TA32_CONTEXT_MAX_SIZE :
+					TA64_CONTEXT_MAX_SIZE)) {
+		TAMSG_RAW("");
+		TAMSG_RAW("Can't unwind invalid user stack 0x%" PRIxUA,
+				(uaddr_t)regs->x1);
+		return;
+	}
+
 	if (utc->is_32bit)
 		get_panic_regs_a32_ta((uint32_t *)regs->x1, &ai);
 	else
