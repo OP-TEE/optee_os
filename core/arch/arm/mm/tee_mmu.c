@@ -742,19 +742,43 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_ta_ctx *utc,
 	size_t n;
 
 	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (!utc->mmu->regions[n].mobj)
+		struct tee_ta_region *region = &utc->mmu->regions[n];
+		size_t granule;
+		size_t size;
+		size_t ofs;
+
+		/* pa2va is expected only for memory tracked through mobj */
+		if (!region->mobj)
 			continue;
 
-		res = mobj_get_pa(utc->mmu->regions[n].mobj,
-				  utc->mmu->regions[n].offset, 0, &p);
-		if (res != TEE_SUCCESS)
-			return res;
+		/* Physically granulated memory object must be scanned */
+		granule = region->mobj->phys_granule;
+		assert(!granule || IS_POWER_OF_TWO(granule));
 
-		if (core_is_buffer_inside(pa, 1, p,
-					  utc->mmu->regions[n].size)) {
-			*va = (void *)(vaddr_t)(pa - p +
-						utc->mmu->regions[n].va);
-			return TEE_SUCCESS;
+		for (ofs = region->offset; ofs < region->size; ofs += size) {
+
+			if (granule) {
+				/* From current offset to buffer/granule end */
+				size = granule - (ofs & (granule - 1));
+
+				if (size > (region->size - ofs))
+					size = region->size - ofs;
+			} else
+				size = region->size;
+
+			res = mobj_get_pa(region->mobj, ofs, granule, &p);
+			if (res != TEE_SUCCESS)
+				return res;
+
+			if (core_is_buffer_inside(pa, 1, p, size)) {
+				/* Remove region offset (mobj phys offset) */
+				ofs -= region->offset;
+				/* Get offset-in-granule */
+				p = pa - p;
+
+				*va = (void *)(region->va + ofs + (vaddr_t)p);
+				return TEE_SUCCESS;
+			}
 		}
 	}
 
