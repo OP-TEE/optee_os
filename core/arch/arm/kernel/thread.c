@@ -1182,6 +1182,7 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 	rv = true;
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].rpc_arg) {
+			mobj_free(threads[n].rpc_mobj);
 			*cookie = threads[n].rpc_carg;
 			threads[n].rpc_carg = 0;
 			threads[n].rpc_arg = NULL;
