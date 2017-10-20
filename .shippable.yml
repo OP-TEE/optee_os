@@ -84,6 +84,8 @@ build:
     - _make PLATFORM=rpi3 CFG_ARM64_core=y
     - _make PLATFORM=hikey-hikey960
     - _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y
+    - _make PLATFORM=poplar
+    - _make PLATFORM=poplar CFG_ARM64_core=y
     - _make PLATFORM=rockchip-rk322x
     - _make PLATFORM=sam
     - _make PLATFORM=marvell-armada7k8k

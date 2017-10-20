@@ -69,6 +69,7 @@ The `Maintained` column shows:
 | [Marvell ARMADA 8K Family](http://www.marvell.com/embedded-processors/armada-80xx/)|`PLATFORM=marvell-armada7k8k`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Marvell ARMADA 3700 Family](http://www.marvell.com/embedded-processors/armada-3700/)|`PLATFORM=marvell-armada3700`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [MediaTek MT8173 EVB Board](https://www.mediatek.com/products/tablets/mt8173)|`PLATFORM=mediatek-mt8173`| No | ![Actively Maintained](documentation/images/green.svg) |
+| [Poplar Board (HiSilicon Hi3798C V200)](https://www.96boards.org/product/poplar)|`PLATFORM=poplar`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Raspberry Pi 3](https://www.raspberrypi.org/products/raspberry-pi-3-model-b) |`PLATFORM=rpi3`| Yes | ![Actively maintained](documentation/images/green.svg) |
