@@ -28,6 +28,7 @@ for these platforms.
 | Marvell Armada 80x0		|`Kevin Peng <kevinp@marvell.com>`|
 | Marvell Armada 3700		|`Kevin Peng <kevinp@marvell.com>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
+| Poplar Board (HiSilicon Hi3798C V200)	|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
 | Raspberry Pi3				|`Linaro <op-tee@linaro.org>`|
 | Renesas RCAR			|`Volodymyr Babchuk <vlad.babchuk@gmail.com>`|
