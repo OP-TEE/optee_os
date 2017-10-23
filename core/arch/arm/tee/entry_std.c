@@ -516,7 +516,7 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
-	uint32_t num_params;
+	uint32_t num_params = 0;		/* fix gcc warning */
 	struct mobj *mobj;
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
