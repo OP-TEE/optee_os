@@ -142,6 +142,10 @@ static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
 
 	/*
 	 * File layout
+	 * [demo with input:
+	 * BLOCK_SIZE = 4096,
+	 * node_size = 66,
+	 * block_nodes = 4096/(66*2) = 31 ]
 	 *
 	 * phys block 0:
 	 * tee_fs_htree_image vers 0 @ offs = 0
@@ -153,8 +157,8 @@ static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
 	 * tee_fs_htree_node_image 1  vers 0 @ offs = node_size * 2
 	 * tee_fs_htree_node_image 1  vers 1 @ offs = node_size * 3
 	 * ...
-	 * tee_fs_htree_node_image 61 vers 0 @ offs = node_size * 122
-	 * tee_fs_htree_node_image 61 vers 1 @ offs = node_size * 123
+	 * tee_fs_htree_node_image 30 vers 0 @ offs = node_size * 60
+	 * tee_fs_htree_node_image 30 vers 1 @ offs = node_size * 61
 	 *
 	 * phys block 2:
 	 * data block 0 vers 0
@@ -163,21 +167,26 @@ static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
 	 * data block 0 vers 1
 	 *
 	 * ...
+	 * phys block 62:
+	 * data block 30 vers 0
+	 *
 	 * phys block 63:
-	 * data block 61 vers 0
+	 * data block 30 vers 1
 	 *
 	 * phys block 64:
-	 * data block 61 vers 1
+	 * tee_fs_htree_node_image 31  vers 0 @ offs = 0
+	 * tee_fs_htree_node_image 31  vers 1 @ offs = node_size
+	 * tee_fs_htree_node_image 32  vers 0 @ offs = node_size * 2
+	 * tee_fs_htree_node_image 32  vers 1 @ offs = node_size * 3
+	 * ...
+	 * tee_fs_htree_node_image 61 vers 0 @ offs = node_size * 60
+	 * tee_fs_htree_node_image 61 vers 1 @ offs = node_size * 61
 	 *
 	 * phys block 65:
-	 * tee_fs_htree_node_image 62  vers 0 @ offs = 0
-	 * tee_fs_htree_node_image 62  vers 1 @ offs = node_size
-	 * tee_fs_htree_node_image 63  vers 0 @ offs = node_size * 2
-	 * tee_fs_htree_node_image 63  vers 1 @ offs = node_size * 3
-	 * ...
-	 * tee_fs_htree_node_image 121 vers 0 @ offs = node_size * 122
-	 * tee_fs_htree_node_image 121 vers 1 @ offs = node_size * 123
+	 * data block 31 vers 0
 	 *
+	 * phys block 66:
+	 * data block 31 vers 1
 	 * ...
 	 */
 
