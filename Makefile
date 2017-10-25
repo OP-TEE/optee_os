@@ -86,7 +86,7 @@ include mk/cleandirs.mk
 .PHONY: clean
 clean:
 	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
-	${q}rm -f $(cleanfiles)
+	$(call do-rm-f, $(cleanfiles))
 	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then $(RMDIR) $$dirs; fi
 	@if [ "$(out-dir)" != "$(O)" ]; then $(cmd-echo-silent) '  CLEAN   $(O)'; fi
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
