@@ -472,7 +472,6 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	    TEE_HANDLE_FLAG_PERSISTENT | TEE_HANDLE_FLAG_INITIALIZED;
 	o->flags = flags;
 	o->pobj = po;
-	po = NULL; /* o owns it from now on */
 
 	if (attr != TEE_HANDLE_NULL) {
 		res = tee_obj_get(utc, tee_svc_uref_to_vaddr(attr),
@@ -485,6 +484,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto err;
 
+	po = NULL; /* o owns it from now on */
 	tee_obj_add(utc, o);
 
 	res = tee_svc_copy_kaddr_to_uref(obj, o);
