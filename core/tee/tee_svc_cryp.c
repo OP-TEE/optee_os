@@ -504,8 +504,8 @@ struct attr_ops {
 	TEE_Result (*from_user)(void *attr, const void *buffer, size_t size);
 	TEE_Result (*to_user)(void *attr, struct tee_ta_session *sess,
 			      void *buffer, uint64_t *size);
-	void (*to_binary)(void *attr, void *data, size_t data_len,
-			  size_t *offs);
+	TEE_Result (*to_binary)(void *attr, void *data, size_t data_len,
+			    size_t *offs);
 	bool (*from_binary)(void *attr, const void *data, size_t data_len,
 			    size_t *offs);
 	TEE_Result (*from_obj)(void *attr, void *src_attr);
@@ -513,16 +513,22 @@ struct attr_ops {
 	void (*clear)(void *attr);
 };
 
-static void op_u32_to_binary_helper(uint32_t v, uint8_t *data,
+static TEE_Result op_u32_to_binary_helper(uint32_t v, uint8_t *data,
 				    size_t data_len, size_t *offs)
 {
 	uint32_t field;
+	size_t next_offs;
 
-	if (data && (*offs + sizeof(field)) <= data_len) {
+	if (ADD_OVERFLOW(*offs, sizeof(field), &next_offs))
+		return TEE_ERROR_OVERFLOW;
+
+	if (data && next_offs <= data_len) {
 		field = TEE_U32_TO_BIG_ENDIAN(v);
 		memcpy(data + *offs, &field, sizeof(field));
 	}
-	(*offs) += sizeof(field);
+	(*offs) = next_offs;
+
+	return TEE_SUCCESS;
 }
 
 static bool op_u32_from_binary_helper(uint32_t *v, const uint8_t *data,
@@ -576,15 +582,25 @@ static TEE_Result op_attr_secret_value_to_user(void *attr,
 	return tee_svc_copy_to_user(buffer, key + 1, key->key_size);
 }
 
-static void op_attr_secret_value_to_binary(void *attr, void *data,
+static TEE_Result op_attr_secret_value_to_binary(void *attr, void *data,
 					   size_t data_len, size_t *offs)
 {
+	TEE_Result res;
 	struct tee_cryp_obj_secret *key = attr;
+	size_t next_offs;
 
-	op_u32_to_binary_helper(key->key_size, data, data_len, offs);
-	if (data && (*offs + key->key_size) <= data_len)
+	res = op_u32_to_binary_helper(key->key_size, data, data_len, offs);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (ADD_OVERFLOW(*offs, key->key_size, &next_offs))
+		return TEE_ERROR_OVERFLOW;
+
+	if (data && next_offs <= data_len)
 		memcpy((uint8_t *)data + *offs, key + 1, key->key_size);
-	(*offs) += key->key_size;
+	(*offs) = next_offs;
+
+	return TEE_SUCCESS;
 }
 
 static bool op_attr_secret_value_from_binary(void *attr, const void *data,
@@ -677,17 +693,26 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	return TEE_SUCCESS;
 }
 
-static void op_attr_bignum_to_binary(void *attr, void *data, size_t data_len,
-				     size_t *offs)
+static TEE_Result op_attr_bignum_to_binary(void *attr, void *data,
+					   size_t data_len, size_t *offs)
 {
+	TEE_Result res;
 	struct bignum **bn = attr;
 	uint32_t n = crypto_ops.bignum.num_bytes(*bn);
+	size_t next_offs;
 
-	op_u32_to_binary_helper(n, data, data_len, offs);
+	res = op_u32_to_binary_helper(n, data, data_len, offs);
+	if (res != TEE_SUCCESS)
+		return res;
 
-	if (data && (*offs + n) <= data_len)
+	if (ADD_OVERFLOW(*offs, n, &next_offs))
+		return TEE_ERROR_OVERFLOW;
+
+	if (data && next_offs <= data_len)
 		crypto_ops.bignum.bn2bin(*bn, (uint8_t *)data + *offs);
-	(*offs) += n;
+	(*offs) = next_offs;
+
+	return TEE_SUCCESS;
 }
 
 static bool op_attr_bignum_from_binary(void *attr, const void *data,
@@ -765,12 +790,12 @@ static TEE_Result op_attr_value_to_user(void *attr,
 	return tee_svc_copy_to_user(buffer, value, req_size);
 }
 
-static void op_attr_value_to_binary(void *attr, void *data, size_t data_len,
-				    size_t *offs)
+static TEE_Result op_attr_value_to_binary(void *attr, void *data,
+					  size_t data_len, size_t *offs)
 {
 	uint32_t *v = attr;
 
-	op_u32_to_binary_helper(*v, data, data_len, offs);
+	return op_u32_to_binary_helper(*v, data, data_len, offs);
 }
 
 static bool op_attr_value_from_binary(void *attr, const void *data,
@@ -1008,6 +1033,7 @@ TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
 	size_t n;
 	size_t offs = 0;
 	size_t len = data ? *data_len : 0;
+	TEE_Result res;
 
 	if (o->info.objectType == TEE_TYPE_DATA) {
 		*data_len = 0;
@@ -1023,7 +1049,9 @@ TEE_Result tee_obj_attr_to_binary(struct tee_obj *o, void *data,
 		const struct tee_cryp_obj_type_attrs *ta = tp->type_attrs + n;
 		void *attr = (uint8_t *)o->attr + ta->raw_offs;
 
-		attr_ops[ta->ops_index].to_binary(attr, data, len, &offs);
+		res = attr_ops[ta->ops_index].to_binary(attr, data, len, &offs);
+		if (res != TEE_SUCCESS)
+			return res;
 	}
 
 	*data_len = offs;
