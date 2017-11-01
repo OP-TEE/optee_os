@@ -35,6 +35,7 @@
 #include <kernel/msg_param.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <kernel/virtualization.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
@@ -148,7 +149,6 @@ thread_pm_handler_t thread_system_reset_handler_ptr;
 
 
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
-static bool thread_prealloc_rpc_cache;
 
 static void init_canaries(void)
 {
@@ -591,18 +591,22 @@ void thread_handle_std_smc(struct thread_smc_args *args)
  */
 void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 {
+	update_curr_client(args->a7);
+
 	thread_std_smc_handler_ptr(args);
 
 	if (args->a0 == OPTEE_SMC_RETURN_OK) {
 		struct thread_ctx *thr = threads + thread_get_id();
+		struct thread_rpc_arg *arg =
+			curr_client()->thr_rpc_arg + thread_get_id();
 
 		tee_fs_rpc_cache_clear(&thr->tsd);
-		if (!thread_prealloc_rpc_cache) {
-			thread_rpc_free_arg(thr->rpc_carg);
-			mobj_free(thr->rpc_mobj);
-			thr->rpc_carg = 0;
-			thr->rpc_arg = 0;
-			thr->rpc_mobj = NULL;
+		if (!curr_client()->thread_prealloc_rpc_cache) {
+			thread_rpc_free_arg(arg->rpc_carg);
+			mobj_free(arg->rpc_mobj);
+			arg->rpc_carg = 0;
+			arg->rpc_arg = 0;
+			arg->rpc_mobj = NULL;
 		}
 	}
 }
@@ -1164,16 +1168,19 @@ void thread_rem_mutex(struct mutex *m)
 	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
 }
 
-bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
+bool thread_disable_prealloc_rpc_cache(uint64_t *cookie,
+				       struct client_context *client_ctx)
 {
 	bool rv;
 	size_t n;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_rpc_arg *args = client_ctx->thr_rpc_arg;
 
 	lock_global();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state != THREAD_STATE_FREE) {
+		if (threads[n].hyp_clnt_id == client_ctx->id &&
+		    threads[n].state != THREAD_STATE_FREE) {
 			rv = false;
 			goto out;
 		}
@@ -1181,23 +1188,23 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 
 	rv = true;
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].rpc_arg) {
-			*cookie = threads[n].rpc_carg;
-			threads[n].rpc_carg = 0;
-			threads[n].rpc_arg = NULL;
+		if (args[n].rpc_arg) {
+			*cookie = args[n].rpc_carg;
+			args[n].rpc_carg = 0;
+			args[n].rpc_arg = NULL;
 			goto out;
 		}
 	}
 
 	*cookie = 0;
-	thread_prealloc_rpc_cache = false;
+	curr_client()->thread_prealloc_rpc_cache = false;
 out:
 	unlock_global();
 	thread_unmask_exceptions(exceptions);
 	return rv;
 }
 
-bool thread_enable_prealloc_rpc_cache(void)
+bool thread_enable_prealloc_rpc_cache(struct client_context *client_ctx)
 {
 	bool rv;
 	size_t n;
@@ -1206,18 +1213,37 @@ bool thread_enable_prealloc_rpc_cache(void)
 	lock_global();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state != THREAD_STATE_FREE) {
+		if (threads[n].hyp_clnt_id == client_ctx->id &&
+		    threads[n].state != THREAD_STATE_FREE) {
 			rv = false;
 			goto out;
 		}
 	}
 
 	rv = true;
-	thread_prealloc_rpc_cache = true;
+	client_ctx->thread_prealloc_rpc_cache = true;
 out:
 	unlock_global();
 	thread_unmask_exceptions(exceptions);
 	return rv;
+}
+
+void thread_force_free_prealloc_rpc_cache(struct client_context *client_ctx)
+{
+	int n;
+	struct thread_rpc_arg *args = client_ctx->thr_rpc_arg;
+
+	/*
+	 * At this moment client is dead. So, if it  not released buffers,
+	 * we will just forget about them.
+	 */
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		if (args[n].rpc_arg) {
+			args[n].rpc_carg = 0;
+			args[n].rpc_arg = NULL;
+			mobj_free(args[n].rpc_mobj);
+		}
+	}
 }
 
 void thread_rpc_free_arg(uint64_t cookie)
@@ -1270,8 +1296,9 @@ err:
 static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 			struct optee_msg_arg **arg_ret, uint64_t *carg_ret)
 {
-	struct thread_ctx *thr = threads + thread_get_id();
-	struct optee_msg_arg *arg = thr->rpc_arg;
+	struct thread_rpc_arg *thr_arg =
+		curr_client()->thr_rpc_arg + thread_get_id();
+	struct optee_msg_arg *arg = thr_arg->rpc_arg;
 	struct mobj *mobj;
 	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
 	uint64_t c;
@@ -1288,9 +1315,9 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 		if (!arg)
 			goto bad;
 
-		thr->rpc_arg = arg;
-		thr->rpc_carg = c;
-		thr->rpc_mobj = mobj;
+		thr_arg->rpc_arg = arg;
+		thr_arg->rpc_carg = c;
+		thr_arg->rpc_mobj = mobj;
 	}
 
 	memset(arg, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
@@ -1299,7 +1326,7 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 
 	*arg_ret = arg;
-	*carg_ret = thr->rpc_carg;
+	*carg_ret = thr_arg->rpc_carg;
 	return true;
 
 bad:

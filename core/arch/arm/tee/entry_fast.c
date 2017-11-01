@@ -31,6 +31,7 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <kernel/generic_boot.h>
+#include <kernel/virtualization.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
@@ -118,8 +119,14 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
 {
 	uint64_t cookie;
+	struct client_context *client_ctx = get_client_context(args->a7);
 
-	if (!thread_disable_prealloc_rpc_cache(&cookie)) {
+	if (!client_ctx) {
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+		return;
+	}
+
+	if (!thread_disable_prealloc_rpc_cache(&cookie, client_ctx)) {
 		args->a0 = OPTEE_SMC_RETURN_EBUSY;
 		return;
 	}
@@ -136,7 +143,14 @@ static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
 
 static void tee_entry_enable_shm_cache(struct thread_smc_args *args)
 {
-	if (thread_enable_prealloc_rpc_cache())
+	struct client_context *client_ctx = get_client_context(args->a7);
+
+	if (!client_ctx) {
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+		return;
+	}
+
+	if (thread_enable_prealloc_rpc_cache(client_ctx))
 		args->a0 = OPTEE_SMC_RETURN_OK;
 	else
 		args->a0 = OPTEE_SMC_RETURN_EBUSY;
@@ -153,6 +167,23 @@ static void tee_entry_boot_secondary(struct thread_smc_args *args)
 	args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 #endif
 }
+
+#if defined(CFG_VIRTUALIZATION)
+static void tee_entry_vm_created(struct thread_smc_args *args)
+{
+	uint16_t vm_id = args->a1;
+
+	args->a0 = client_created(vm_id);
+}
+
+static void tee_entry_vm_destroyed(struct thread_smc_args *args)
+{
+	uint16_t vm_id = args->a1;
+
+	client_destroyed(vm_id);
+	args->a0 = OPTEE_SMC_RETURN_OK;
+}
+#endif
 
 void tee_entry_fast(struct thread_smc_args *args)
 {
@@ -194,7 +225,14 @@ void tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_BOOT_SECONDARY:
 		tee_entry_boot_secondary(args);
 		break;
-
+#if defined(CFG_VIRTUALIZATION)
+	case OPTEE_SMC_VM_CREATED:
+		tee_entry_vm_created(args);
+		break;
+	case OPTEE_SMC_VM_DESTROYED:
+		tee_entry_vm_destroyed(args);
+		break;
+#endif
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
@@ -208,7 +246,12 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 * target has additional calls it will call this function and
 	 * add the number of calls the target has added.
 	 */
-	return 9;
+	size_t ret = 9;
+
+#if defined(CFG_VIRTUALIZATION)
+	ret += 2;
+#endif
+	return ret;
 }
 
 void __weak tee_entry_get_api_call_count(struct thread_smc_args *args)

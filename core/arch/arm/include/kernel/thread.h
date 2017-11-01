@@ -46,6 +46,8 @@
 
 #ifndef ASM
 
+struct client_context;
+
 #ifdef ARM64
 /*
  * struct thread_core_local needs to have alignment suitable for a stack
@@ -94,6 +96,10 @@ struct thread_specific_data {
 	struct mobj *rpc_fs_payload_mobj;
 	uint64_t rpc_fs_payload_cookie;
 	size_t rpc_fs_payload_size;
+#ifdef CFG_VIRTUALIZATION
+	uint16_t hyp_client_id;
+	struct client_context *client_ctx;
+#endif
 };
 
 struct thread_user_vfp_state {
@@ -556,14 +562,23 @@ void thread_rem_mutex(struct mutex *m);
  * is set to 0 and the cache is disabled else a valid cookie value. If one
  * thread isn't idle this function returns false.
  */
-bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
+bool thread_disable_prealloc_rpc_cache(uint64_t *cookie,
+				       struct client_context *client_ctx);
 
 /*
  * Enabled the prealloc RPC cache. If all threads are idle the cache is
  * enabled and this function returns true. If one thread isn't idle this
  * function return false.
  */
-bool thread_enable_prealloc_rpc_cache(void);
+bool thread_enable_prealloc_rpc_cache(struct client_context *client_ctx);
+
+/*
+ * Forgets about all prealloc RPC caches for a given client. This function
+ * should be called when hypervisor destroys a client. At this moment
+ * client can't execute any more. So if didn't gracefully freed cached,
+ * it will never do.
+ */
+void thread_force_free_prealloc_rpc_cache(struct client_context *client_ctx);
 
 /**
  * Allocates data for struct optee_msg_arg.

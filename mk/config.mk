@@ -278,3 +278,6 @@ CFG_DYN_SHM_CAP ?= y
 # Enables support for larger physical addresses, that is, it will define
 # paddr_t as a 64-bit type.
 CFG_CORE_LARGE_PHYS_ADDR ?= n
+
+# Enables support for virtualization.
+CFG_VIRTUALIZATION ?= n
