@@ -45,7 +45,6 @@
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
 
-	.section .text.thread_asm
 LOCAL_FUNC vector_std_smc_entry , :
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
 	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
@@ -165,6 +164,7 @@ FUNC thread_vector_table , :
 	b	vector_system_off_entry
 	b	vector_system_reset_entry
 END_FUNC thread_vector_table
+KEEP_PAGER thread_vector_table
 
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
@@ -255,6 +255,7 @@ FUNC thread_rpc , :
 	store_wregs x16, 0, 0, 5	/* Store w0-w5 into rv[] */
 	ret
 END_FUNC thread_rpc
+KEEP_PAGER thread_rpc
 
 FUNC thread_init_vbar , :
 	adr	x0, thread_vect_table
@@ -345,6 +346,7 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 
+	.section .text.thread_vect_table
 	.align	11
 LOCAL_FUNC thread_vect_table , :
 	/* -----------------------------------------------------

@@ -52,7 +52,6 @@ panic_boot_file:
 /*
  * void assert_flat_mapped_range(uint32_t vaddr, uint32_t line)
  */
-.section .text.init
 LOCAL_FUNC __assert_flat_mapped_range , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
@@ -96,7 +95,6 @@ UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 KEEP_PAGER plat_cpu_reset_early
 
-.section .text.boot
 FUNC _start , :
 	b	reset
 	b	.	/* Undef */
@@ -490,7 +488,6 @@ shadow_stack_access_ok:
 UNWIND(	.fnend)
 END_FUNC reset_primary
 
-
 LOCAL_FUNC unhandled_cpu , :
 UNWIND(	.fnstart)
 	wfi
@@ -529,6 +526,7 @@ UNWIND(	.cantunwind)
 	bx	r6
 UNWIND(	.fnend)
 END_FUNC cpu_on_handler
+KEEP_PAGER cpu_on_handler
 
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
