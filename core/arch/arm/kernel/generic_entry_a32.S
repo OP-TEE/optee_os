@@ -95,8 +95,10 @@ UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 KEEP_PAGER plat_cpu_reset_early
 
-FUNC _start , :
-	b	reset
+	.section .text.reset_vect_table
+	.align 5
+LOCAL_FUNC reset_vect_table , :
+	b	.
 	b	.	/* Undef */
 	b	.	/* Syscall */
 	b	.	/* Prefetch abort */
@@ -104,8 +106,7 @@ FUNC _start , :
 	b	.	/* Reserved */
 	b	.	/* IRQ */
 	b	.	/* FIQ */
-END_FUNC _start
-KEEP_INIT _start
+END_FUNC reset_vect_table
 
 	.macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
@@ -229,7 +230,7 @@ KEEP_INIT _start
 	mov	r7, r1
 	.endm
 
-LOCAL_FUNC reset , :
+FUNC _start , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
@@ -241,7 +242,7 @@ UNWIND(	.cantunwind)
 	set_sctlr
 	isb
 
-	ldr	r0, =_start
+	ldr	r0, =reset_vect_table
 	write_vbar r0
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -253,7 +254,8 @@ UNWIND(	.cantunwind)
 	b	reset_secondary
 #endif
 UNWIND(	.fnend)
-END_FUNC reset
+END_FUNC _start
+KEEP_INIT _start
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
@@ -506,7 +508,7 @@ UNWIND(	.cantunwind)
 	set_sctlr
 	isb
 
-	ldr	r0, =_start
+	ldr	r0, =reset_vect_table
 	write_vbar r0
 
 	mov	r4, lr
