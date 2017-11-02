@@ -73,7 +73,6 @@
 		msr	sctlr_el1, x0
 	.endm
 
-.section .text.boot
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
 	mov	x20, x2		/* Save DT address */
@@ -187,7 +186,6 @@ END_FUNC _start
 KEEP_INIT _start
 
 
-.section .text.cpu_on_handler
 FUNC cpu_on_handler , :
 	mov	x19, x0
 	mov	x20, x1
@@ -216,6 +214,7 @@ FUNC cpu_on_handler , :
 	mov	x30, x21
 	b	generic_boot_cpu_on_handler
 END_FUNC cpu_on_handler
+KEEP_PAGER cpu_on_handler
 
 LOCAL_FUNC unhandled_cpu , :
 	wfi
@@ -234,6 +233,7 @@ END_FUNC unhandled_cpu
 	  .endif
 	.endm
 
+	.section .text.reset_vect_table
 	.align	11
 LOCAL_FUNC reset_vect_table , :
 	/* -----------------------------------------------------

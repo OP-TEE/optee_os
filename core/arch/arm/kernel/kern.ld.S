@@ -89,9 +89,10 @@ SECTIONS
 	__flatmap_unpg_rx_start = ROUNDDOWN(__text_start, SMALL_PAGE_SIZE);
 
 	.text : {
-		KEEP(*(.text.boot.vectab1))
-		KEEP(*(.text.boot.vectab2))
-		KEEP(*(.text.boot))
+		KEEP(*(.text._start))
+		KEEP(*(.text.init .text.plat_cpu_reset_early \
+		       .text.reset .text.reset_primary .text.unhandled_cpu \
+		       .text.__assert_flat_mapped_range))
 
 		. = ALIGN(8);
 		__initcall_start = .;

@@ -147,6 +147,20 @@ UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_resume
 
 /*
+ * The following will be located in text section whose attribute is
+ * marked as readonly, but we only need to read here
+ * _suspend_sp stores the offset between thread_core_local to _suspend_sp.
+ * _core_pos stores the offset between get_core_pos to _core_pos.
+ */
+.align 2
+.extern thread_core_local
+_suspend_sp:
+	.long	thread_core_local - .
+.extern get_core_pos
+_core_pos:
+	.long	get_core_pos - .
+
+/*
  * void sm_do_cpu_do_resume(paddr suspend_regs) __noreturn;
  * Restore the registers stored when sm_pm_cpu_do_suspend
  * r0 points to the physical base address of the suspend_regs
@@ -210,16 +224,3 @@ a7_resume:
 UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_do_resume
 
-/*
- * The following will be located in text section whose attribute is
- * marked as readonly, but we only need to read here
- * _suspend_sp stores the offset between thread_core_local to _suspend_sp.
- * _core_pos stores the offset between get_core_pos to _core_pos.
- */
-.align 2
-.extern thread_core_local
-_suspend_sp:
-	.long	thread_core_local - .
-.extern get_core_pos
-_core_pos:
-	.long	get_core_pos - .

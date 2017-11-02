@@ -189,6 +189,7 @@ UNWIND(	.cantunwind)
 	b	vector_system_reset_entry
 UNWIND(	.fnend)
 END_FUNC thread_vector_table
+KEEP_PAGER thread_vector_table
 
 FUNC thread_set_abt_sp , :
 UNWIND(	.fnstart)
@@ -440,6 +441,7 @@ UNWIND(	.save	{r0})
 	pop	{r4-r5, pc}
 UNWIND(	.fnend)
 END_FUNC thread_rpc
+KEEP_PAGER thread_rpc
 
 /* The handler of native interrupt. */
 .macro	native_intr_handler mode:req
@@ -817,6 +819,7 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC thread_svc_handler
 
+	.section .text.thread_vect_table
         .align	5
 LOCAL_FUNC thread_vect_table , :
 UNWIND(	.fnstart)
