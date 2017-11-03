@@ -55,11 +55,28 @@
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
+struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
+
+#ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
 static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
 static size_t tee_ta_single_instance_count;
-struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
+#endif
 
+#ifdef CFG_CONCURRENT_SINGLE_INSTANCE_TA
+static void lock_single_instance(void)
+{
+}
+
+static void unlock_single_instance(void)
+{
+}
+
+static bool has_single_instance_lock(void)
+{
+	return false;
+}
+#else
 static void lock_single_instance(void)
 {
 	/* Requires tee_ta_mutex to be held */
@@ -93,6 +110,7 @@ static bool has_single_instance_lock(void)
 	/* Requires tee_ta_mutex to be held */
 	return tee_ta_single_instance_thread == thread_get_id();
 }
+#endif
 
 static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 {
