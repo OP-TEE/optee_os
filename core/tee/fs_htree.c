@@ -474,7 +474,7 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 	}
 
 	if (mode == TEE_MODE_ENCRYPT) {
-		res = crypto_ops.prng.read(iv, TEE_FS_HTREE_IV_SIZE);
+		res = crypto_rng_read(iv, TEE_FS_HTREE_IV_SIZE);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -665,7 +665,7 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, const TEE_UUID *uuid,
 	if (create) {
 		const struct tee_fs_htree_image dummy_head = { .counter = 0 };
 
-		res = crypto_ops.prng.read(ht->fek, sizeof(ht->fek));
+		res = crypto_rng_read(ht->fek, sizeof(ht->fek));
 		if (res != TEE_SUCCESS)
 			goto out;
 

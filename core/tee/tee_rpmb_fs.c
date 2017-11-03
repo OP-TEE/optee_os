@@ -1005,7 +1005,7 @@ static TEE_Result tee_rpmb_init_read_wr_cnt(uint16_t dev_id,
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
-	res = crypto_ops.prng.read(nonce, RPMB_NONCE_SIZE);
+	res = crypto_rng_read(nonce, RPMB_NONCE_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -1132,7 +1132,7 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
 static bool have_crypto_ops(void)
 {
 	return (crypto_ops.mac.init && crypto_ops.mac.update &&
-		crypto_ops.mac.final && crypto_ops.prng.read);
+		crypto_ops.mac.final);
 }
 
 /* This function must never return TEE_SUCCESS if rpmb_ctx == NULL */
@@ -1270,7 +1270,7 @@ static TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
 		goto func_exit;
 
 	msg_type = RPMB_MSG_TYPE_REQ_AUTH_DATA_READ;
-	res = crypto_ops.prng.read(nonce, RPMB_NONCE_SIZE);
+	res = crypto_rng_read(nonce, RPMB_NONCE_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 

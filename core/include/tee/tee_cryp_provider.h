@@ -279,14 +279,6 @@ struct acipher_ops {
 
 };
 
-struct prng_ops {
-	/* add entropy to PRNG entropy pool */
-	TEE_Result (*add_entropy)(const uint8_t *inbuf, size_t len);
-
-	/* to read random data from PRNG implementation	 */
-	TEE_Result (*read)(void *buf, size_t blen);
-};
-
 /* Cryptographic Provider API */
 struct crypto_ops {
 	/* Human-readable provider name */
@@ -299,7 +291,6 @@ struct crypto_ops {
 	struct authenc_ops authenc;
 	struct acipher_ops acipher;
 	struct bignum_ops bignum;
-	struct prng_ops prng;
 };
 
 extern const struct crypto_ops crypto_ops;
@@ -313,6 +304,12 @@ extern const struct crypto_ops crypto_ops;
  */
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size);
+
+/* Add entropy to PRNG entropy pool. */
+TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len);
+
+/* To read random data from PRNG implementation.	*/
+TEE_Result crypto_rng_read(void *buf, size_t blen);
 
 TEE_Result rng_generate(void *buffer, size_t len);
 
