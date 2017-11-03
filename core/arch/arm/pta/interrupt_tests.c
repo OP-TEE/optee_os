@@ -122,7 +122,7 @@ static TEE_Result test_sgi(void)
 		return TEE_ERROR_GENERIC;
 
 	for (i = 0; i < TEST_TIMES; i++) {
-		res = crypto_ops.prng.read(&num, 1);
+		res = crypto_rng_read(&num, 1);
 		if (res != TEE_SUCCESS)
 			return TEE_ERROR_GENERIC;
 		num = num % CFG_TEE_CORE_NB_CORE;
@@ -151,7 +151,7 @@ static TEE_Result test_spi(void)
 	itr_enable(TEST_SPI_ID);
 
 	for (i = 0; i < TEST_TIMES; i++) {
-		res = crypto_ops.prng.read(&num, 1);
+		res = crypto_rng_read(&num, 1);
 		if (res != TEE_SUCCESS)
 			return TEE_ERROR_GENERIC;
 		num = num % CFG_TEE_CORE_NB_CORE;
@@ -189,8 +189,6 @@ static TEE_Result interrupt_tests(uint32_t nParamTypes __unused,
 			TEE_Param pParams[TEE_NUM_PARAMS]__unused)
 {
 	TEE_Result res;
-
-	assert(crypto_ops.prng.read);
 
 	res = test_sgi();
 	if (res != TEE_SUCCESS)

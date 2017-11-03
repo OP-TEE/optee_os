@@ -1785,7 +1785,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 			goto out;
 		}
 
-		res = crypto_ops.prng.read((void *)(key + 1), byte_size);
+		res = crypto_rng_read((void *)(key + 1), byte_size);
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -2912,7 +2912,7 @@ TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_ops.prng.read(buf, blen);
+	res = crypto_rng_read(buf, blen);
 	if (res != TEE_SUCCESS)
 		return res;
 

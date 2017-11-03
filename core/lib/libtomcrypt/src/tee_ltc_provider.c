@@ -638,7 +638,7 @@ static void tee_ltc_alloc_mpa(void)
 	mpa_init_scratch_mem_sync(pool, size_pool, LTC_MAX_BITS_PER_VARIABLE,
 				  get_pool, put_pool, &pool_sync);
 
-	mpa_set_random_generator(crypto_ops.prng.read);
+	mpa_set_random_generator(crypto_rng_read);
 }
 
 static size_t num_bytes(struct bignum *a)
@@ -2909,7 +2909,7 @@ static void authenc_final(void *ctx, uint32_t algo)
 /******************************************************************************
  * Pseudo Random Number Generator
  ******************************************************************************/
-static TEE_Result prng_read(void *buf, size_t blen)
+TEE_Result crypto_rng_read(void *buf, size_t blen)
 {
 	int err;
 	struct tee_ltc_prng *prng = tee_ltc_get_prng();
@@ -2950,7 +2950,7 @@ static TEE_Result _tee_ltc_prng_add_entropy(
 #endif
 }
 
-static TEE_Result prng_add_entropy(const uint8_t *inbuf, size_t len)
+TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len)
 {
 	int err;
 	struct tee_ltc_prng *prng = tee_ltc_get_prng();
@@ -3070,10 +3070,6 @@ const struct crypto_ops crypto_ops = {
 		.clear = bn_clear
 	},
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
-	.prng = {
-		.add_entropy = prng_add_entropy,
-		.read = prng_read,
-	}
 };
 
 #if defined(CFG_WITH_VFP)
