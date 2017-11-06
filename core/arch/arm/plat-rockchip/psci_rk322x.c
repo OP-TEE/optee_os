@@ -360,7 +360,8 @@ void psci_system_reset(void)
 }
 
 int psci_system_suspend(uintptr_t entry __unused,
-			uint32_t context_id __unused)
+			uint32_t context_id __unused,
+			struct sm_nsec_ctx *nsec __unused)
 {
 	DMSG("system suspend");
 

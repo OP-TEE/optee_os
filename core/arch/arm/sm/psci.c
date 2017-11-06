@@ -101,7 +101,8 @@ __weak int psci_node_hw_state(uint32_t cpu_id __unused,
 }
 
 __weak int psci_system_suspend(uintptr_t entry __unused,
-			       uint32_t context_id __unused)
+			       uint32_t context_id __unused,
+			       struct sm_nsec_ctx *nsec __unused)
 {
 	return PSCI_RET_NOT_SUPPORTED;
 }
@@ -167,7 +168,7 @@ void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		args->a0 = psci_node_hw_state(a1, a2);
 		break;
 	case PSCI_SYSTEM_SUSPEND:
-		args->a0 = psci_system_suspend(a1, a2);
+		args->a0 = psci_system_suspend(a1, a2, nsec);
 		break;
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
