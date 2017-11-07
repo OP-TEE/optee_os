@@ -2251,7 +2251,7 @@ static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
 	res = read_fat(fh_new, NULL);
 	if (res == TEE_SUCCESS) {
 		if (!overwrite) {
-			res = TEE_ERROR_BAD_PARAMETERS;
+			res = TEE_ERROR_ACCESS_CONFLICT;
 			goto out;
 		}
 
