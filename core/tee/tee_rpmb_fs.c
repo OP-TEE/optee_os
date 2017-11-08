@@ -2133,7 +2133,7 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 		DMSG("Need to re-allocate");
 		newsize = MAX(end, fh->fat_entry.data_size);
 		mm = tee_mm_alloc(&p, newsize);
-		newbuf = calloc(newsize, 1);
+		newbuf = calloc(1, newsize);
 		if (!mm || !newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
@@ -2330,7 +2330,7 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 			goto out;
 
 		mm = tee_mm_alloc(&p, newsize);
-		newbuf = calloc(newsize, 1);
+		newbuf = calloc(1, newsize);
 		if (!mm || !newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;

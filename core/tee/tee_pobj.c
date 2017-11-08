@@ -112,7 +112,7 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	}
 
 	/* new file */
-	o = calloc(sizeof(struct tee_pobj), 1);
+	o = calloc(1, sizeof(struct tee_pobj));
 	if (!o) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;

@@ -51,7 +51,7 @@ void *utee_realloc(void *buffer, size_t len)
 
 void *utee_calloc(size_t nb, size_t len)
 {
-	return calloc(len, nb);
+	return calloc(nb, len);
 }
 
 void utee_free(void *buffer)
