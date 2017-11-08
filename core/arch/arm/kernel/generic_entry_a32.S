@@ -535,6 +535,8 @@ KEEP_PAGER cpu_on_handler
 LOCAL_FUNC reset_secondary , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+	ldr	r0, =reset_vect_table
+	write_vbar r0
 
 	wait_primary
 
