@@ -13,6 +13,7 @@ for these platforms.
 | NXP LS1021A				|`Sumit Garg <sumit.garg@nxp.com>`|
 | NXP LS1043A-RDB			|`Sumit Garg <sumit.garg@nxp.com>`|
 | NXP LS1046A-RDB			|`Sumit Garg <sumit.garg@nxp.com>`|
+| NXP LS1012A-RDB			|`Pankaj Gupta <pankaj.gupta@nxp.com>`|
 | FSL i.MX6 Quad SABRE Lite Board	|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | FSL i.MX6 Quad SABRE SD Board		|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | FSL i.MX6 UltraLite EVK Board		|`Peng Fan <peng.fan@nxp.com>`|

@@ -20,6 +20,10 @@ CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
 
+ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+endif
+
 ifeq ($(PLATFORM_FLAVOR),ls1043ardb)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 endif

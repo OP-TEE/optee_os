@@ -226,6 +226,9 @@ script:
   # NXP LS1046A-RDB (ARMv8-A)
   - $make PLATFORM=ls-ls1046ardb CFG_ARM64_core=y
 
+  # NXP LS1012A-RDB (ARMv8-A)
+  - $make PLATFORM=ls-ls1012ardb CFG_ARM64_core=y
+
   # Xilinx Zynq7000 ZC702
   - $make PLATFORM=zynq7k-zc702
 
