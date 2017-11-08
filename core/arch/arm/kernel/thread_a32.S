@@ -210,7 +210,7 @@ UNWIND(	.cantunwind)
 	msr	cpsr, r1
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC thread_set_abt_sp
+END_FUNC thread_set_und_sp
 
 FUNC thread_set_irq_sp , :
 UNWIND(	.fnstart)
