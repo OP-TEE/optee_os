@@ -44,7 +44,7 @@ endef
 
 # Rename $1 to $2 only if file content differs. Otherwise just delete $1.
 define mv-if-changed
-	if [ -r $2 ] && cmp -s $2 $1; then			\
+	if cmp -s $2 $1; then					\
 		rm -f $1;					\
 	else							\
 		$(cmd-echo-silent) '  UPD     $2';		\
