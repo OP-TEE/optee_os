@@ -253,5 +253,5 @@ mem_usage: $(link-out-dir)/tee.mem_usage
 
 $(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -a -W $< | ${AWK} -f ./scripts/mem_usage.awk > $@
+	$(q)./scripts/mem_usage.py $< > $@
 endif
