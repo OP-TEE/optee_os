@@ -136,6 +136,7 @@ build:
     - _make PLATFORM=ls-ls1021aqds
     - _make PLATFORM=ls-ls1043ardb CFG_ARM64_core=y
     - _make PLATFORM=ls-ls1046ardb CFG_ARM64_core=y
+    - _make PLATFORM=ls-ls1012ardb CFG_ARM64_core=y
     - _make PLATFORM=zynq7k-zc702
     - _make PLATFORM=zynqmp-zcu102
     - _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
