@@ -136,7 +136,7 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 			return res;
 	}
 
-	res = crypto_ops.cipher.get_ctx_size(TEE_FS_KM_ENC_FEK_ALG, &ctx_size);
+	res = crypto_cipher_get_ctx_size(TEE_FS_KM_ENC_FEK_ALG, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -144,17 +144,17 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.cipher.init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
-				     sizeof(tsk), NULL, 0, NULL, 0);
+	res = crypto_cipher_init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
+				 sizeof(tsk), NULL, 0, NULL, 0);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_ops.cipher.update(ctx, TEE_FS_KM_ENC_FEK_ALG,
-			mode, true, in_key, size, dst_key);
+	res = crypto_cipher_update(ctx, TEE_FS_KM_ENC_FEK_ALG,
+				   mode, true, in_key, size, dst_key);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	crypto_ops.cipher.final(ctx, TEE_FS_KM_ENC_FEK_ALG);
+	crypto_cipher_final(ctx, TEE_FS_KM_ENC_FEK_ALG);
 
 	memcpy(out_key, dst_key, sizeof(dst_key));
 
@@ -253,7 +253,7 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 	size_t ctx_size;
 	uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
 
-	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
+	res = crypto_cipher_get_ctx_size(algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -261,17 +261,17 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.cipher.init(ctx, algo, TEE_MODE_ENCRYPT, key,
-				     key_size, NULL, 0, NULL, 0);
+	res = crypto_cipher_init(ctx, algo, TEE_MODE_ENCRYPT, key,
+				 key_size, NULL, 0, NULL, 0);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.cipher.update(ctx, algo, TEE_MODE_ENCRYPT, true, in,
-				       TEE_AES_BLOCK_SIZE, out);
+	res = crypto_cipher_update(ctx, algo, TEE_MODE_ENCRYPT, true, in,
+				   TEE_AES_BLOCK_SIZE, out);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	crypto_ops.cipher.final(ctx, algo);
+	crypto_cipher_final(ctx, algo);
 	res = TEE_SUCCESS;
 
 out:
@@ -325,22 +325,22 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	res = essiv(iv, fek, blk_idx);
 
 	/* Run AES CBC */
-	res = crypto_ops.cipher.get_ctx_size(algo, &ctx_size);
+	res = crypto_cipher_get_ctx_size(algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 	ctx = malloc(ctx_size);
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.cipher.init(ctx, algo, mode, fek, sizeof(fek), NULL,
-				     0, iv, TEE_AES_BLOCK_SIZE);
+	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
+				 0, iv, TEE_AES_BLOCK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto exit;
-	res = crypto_ops.cipher.update(ctx, algo, mode, true, in, size, out);
+	res = crypto_cipher_update(ctx, algo, mode, true, in, size, out);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	crypto_ops.cipher.final(ctx, algo);
+	crypto_cipher_final(ctx, algo);
 
 exit:
 	free(ctx);
