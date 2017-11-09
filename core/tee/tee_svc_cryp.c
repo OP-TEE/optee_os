@@ -2076,11 +2076,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		if (key1 != 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.hash.get_ctx_size)
-				res = crypto_ops.hash.get_ctx_size(algo,
-								&cs->ctx_size);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_hash_get_ctx_size(algo, &cs->ctx_size);
 			if (res != TEE_SUCCESS)
 				break;
 			cs->ctx = calloc(1, cs->ctx_size);
@@ -2195,9 +2191,7 @@ TEE_Result syscall_hash_init(unsigned long state,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
-		if (!crypto_ops.hash.init)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.hash.init(cs->ctx, cs->algo);
+		res = crypto_hash_init(cs->ctx, cs->algo);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -2263,10 +2257,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
-		if (!crypto_ops.hash.update)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.hash.update(cs->ctx, cs->algo, chunk,
-					     chunk_size);
+		res = crypto_hash_update(cs->ctx, cs->algo, chunk, chunk_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -2327,8 +2318,6 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
-		if (!crypto_ops.hash.update || !crypto_ops.hash.final)
-			return TEE_ERROR_NOT_IMPLEMENTED;
 		res = tee_hash_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
@@ -2338,14 +2327,13 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		}
 
 		if (chunk_size) {
-			res = crypto_ops.hash.update(cs->ctx, cs->algo, chunk,
-						     chunk_size);
+			res = crypto_hash_update(cs->ctx, cs->algo, chunk,
+						 chunk_size);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
-		res = crypto_ops.hash.final(cs->ctx, cs->algo, hash,
-					    hash_size);
+		res = crypto_hash_final(cs->ctx, cs->algo, hash, hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;

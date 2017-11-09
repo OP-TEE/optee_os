@@ -221,7 +221,7 @@ static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
 	size_t ctx_size;
 	uint32_t algo = TEE_ALG_SHA256;
 
-	res = crypto_ops.hash.get_ctx_size(algo, &ctx_size);
+	res = crypto_hash_get_ctx_size(algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -229,15 +229,15 @@ static TEE_Result sha256(uint8_t *out, size_t out_size, const uint8_t *in,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.hash.init(ctx, algo);
+	res = crypto_hash_init(ctx, algo);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.hash.update(ctx, algo, in, in_size);
+	res = crypto_hash_update(ctx, algo, in, in_size);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.hash.final(ctx, algo, out, out_size);
+	res = crypto_hash_final(ctx, algo, out, out_size);
 
 out:
 	free(ctx);

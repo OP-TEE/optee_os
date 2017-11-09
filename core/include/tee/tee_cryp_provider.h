@@ -47,16 +47,6 @@
 
 #include <tee_api_types.h>
 
-/* Message digest functions */
-struct hash_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
-	TEE_Result (*init)(void *ctx, uint32_t algo);
-	TEE_Result (*update)(void *ctx, uint32_t algo,
-			     const uint8_t *data, size_t len);
-	TEE_Result (*final)(void *ctx, uint32_t algo, uint8_t *digest,
-			    size_t len);
-};
-
 /* Symmetric ciphers */
 struct cipher_ops {
 	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
@@ -285,7 +275,6 @@ struct crypto_ops {
 	const char *name;
 
 	TEE_Result (*init)(void);
-	struct hash_ops hash;
 	struct cipher_ops cipher;
 	struct mac_ops mac;
 	struct authenc_ops authenc;
@@ -294,6 +283,15 @@ struct crypto_ops {
 };
 
 extern const struct crypto_ops crypto_ops;
+
+
+/* Message digest functions */
+TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_hash_init(void *ctx, uint32_t algo);
+TEE_Result crypto_hash_update(void *ctx, uint32_t algo, const uint8_t *data,
+			      size_t len);
+TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
+			     size_t len);
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in

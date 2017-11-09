@@ -427,31 +427,29 @@ static TEE_Result calc_node_hash(struct htree_node *node, void *ctx,
 	uint8_t *ndata = (uint8_t *)&node->node + sizeof(node->node.hash);
 	size_t nsize = sizeof(node->node) - sizeof(node->node.hash);
 
-	res = crypto_ops.hash.init(ctx, alg);
+	res = crypto_hash_init(ctx, alg);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_ops.hash.update(ctx, alg, ndata, nsize);
+	res = crypto_hash_update(ctx, alg, ndata, nsize);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (node->child[0]) {
-		res = crypto_ops.hash.update(ctx, alg,
-					     node->child[0]->node.hash,
-					     sizeof(node->child[0]->node.hash));
+		res = crypto_hash_update(ctx, alg, node->child[0]->node.hash,
+					 sizeof(node->child[0]->node.hash));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
 	if (node->child[1]) {
-		res = crypto_ops.hash.update(ctx, alg,
-					     node->child[1]->node.hash,
-					     sizeof(node->child[1]->node.hash));
+		res = crypto_hash_update(ctx, alg, node->child[1]->node.hash,
+					 sizeof(node->child[1]->node.hash));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
-	return crypto_ops.hash.final(ctx, alg, digest, TEE_FS_HTREE_HASH_SIZE);
+	return crypto_hash_final(ctx, alg, digest, TEE_FS_HTREE_HASH_SIZE);
 }
 
 static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
@@ -609,11 +607,7 @@ static TEE_Result verify_tree(struct tee_fs_htree *ht)
 	size_t size;
 	void *ctx;
 
-	if (!crypto_ops.hash.get_ctx_size || !crypto_ops.hash.init ||
-	    !crypto_ops.hash.update || !crypto_ops.hash.final)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	res = crypto_ops.hash.get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
+	res = crypto_hash_get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -633,7 +627,7 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	size_t size;
 	void *ctx;
 
-	res = crypto_ops.hash.get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
+	res = crypto_hash_get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 	ctx = malloc(size);
@@ -797,7 +791,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 	if (!ht->dirty)
 		return TEE_SUCCESS;
 
-	res = crypto_ops.hash.get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
+	res = crypto_hash_get_ctx_size(TEE_FS_HTREE_HASH_ALG, &size);
 	if (res != TEE_SUCCESS)
 		return res;
 	ctx = malloc(size);

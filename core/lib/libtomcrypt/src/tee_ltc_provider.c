@@ -369,8 +369,7 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
  ******************************************************************************/
 
 #if defined(_CFG_CRYPTO_WITH_HASH)
-
-static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
+TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_MD5)
@@ -400,7 +399,7 @@ static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result hash_init(void *ctx, uint32_t algo)
+TEE_Result crypto_hash_init(void *ctx, uint32_t algo)
 {
 	int ltc_res;
 	int ltc_hashindex;
@@ -415,7 +414,7 @@ static TEE_Result hash_init(void *ctx, uint32_t algo)
 		return TEE_ERROR_BAD_STATE;
 }
 
-static TEE_Result hash_update(void *ctx, uint32_t algo,
+TEE_Result crypto_hash_update(void *ctx, uint32_t algo,
 				      const uint8_t *data, size_t len)
 {
 	int ltc_res;
@@ -431,8 +430,8 @@ static TEE_Result hash_update(void *ctx, uint32_t algo,
 		return TEE_ERROR_BAD_STATE;
 }
 
-static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
-				     size_t len)
+TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
+			     size_t len)
 {
 	int ltc_res;
 	int ltc_hashindex;
@@ -465,8 +464,7 @@ static TEE_Result hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 
 	return TEE_SUCCESS;
 }
-
-#endif /* _CFG_CRYPTO_WITH_HASH */
+#endif /*_CFG_CRYPTO_WITH_HASH*/
 
 /******************************************************************************
  * Asymmetric algorithms
@@ -2982,14 +2980,6 @@ static TEE_Result tee_ltc_init(void)
 const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
-#if defined(_CFG_CRYPTO_WITH_HASH)
-	.hash = {
-		.get_ctx_size = hash_get_ctx_size,
-		.init = hash_init,
-		.update = hash_update,
-		.final = hash_final,
-	},
-#endif
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
 	.cipher = {
 		.final = cipher_final,

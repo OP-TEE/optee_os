@@ -97,13 +97,7 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 	void *ctx = NULL;
 	size_t ctxsize;
 
-	if (crypto_ops.hash.get_ctx_size == NULL ||
-	    crypto_ops.hash.init == NULL ||
-	    crypto_ops.hash.update == NULL ||
-	    crypto_ops.hash.final == NULL)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	if (crypto_ops.hash.get_ctx_size(algo, &ctxsize) != TEE_SUCCESS) {
+	if (crypto_hash_get_ctx_size(algo, &ctxsize) != TEE_SUCCESS) {
 		res = TEE_ERROR_NOT_SUPPORTED;
 		goto out;
 	}
@@ -114,16 +108,16 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 		goto out;
 	}
 
-	if (crypto_ops.hash.init(ctx, algo) != TEE_SUCCESS)
+	if (crypto_hash_init(ctx, algo) != TEE_SUCCESS)
 		goto out;
 
 	if (datalen != 0) {
-		if (crypto_ops.hash.update(ctx, algo, data, datalen)
+		if (crypto_hash_update(ctx, algo, data, datalen)
 		    != TEE_SUCCESS)
 			goto out;
 	}
 
-	if (crypto_ops.hash.final(ctx, algo, digest, digestlen) != TEE_SUCCESS)
+	if (crypto_hash_final(ctx, algo, digest, digestlen) != TEE_SUCCESS)
 		goto out;
 
 	res = TEE_SUCCESS;
