@@ -14,8 +14,6 @@
 #error "LPAE not supported for now"
 #endif
 
-#define CFG_TEE_CORE_NB_CORE		1
-
 #define DRAM0_SIZE		CFG_DDR_SIZE
 #define DDR_SIZE			DRAM0_SIZE
 #define DDR_PHYS_START			DRAM0_BASE
