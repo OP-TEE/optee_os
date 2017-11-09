@@ -12,10 +12,31 @@ import sys
 
 
 def get_args():
-    parser = argparse.ArgumentParser(
-        description='Shows the memory layout of the TEE ELF file. '
-        'Size is provided for each section.')
-    parser.add_argument('tee_elf', help='The OP-TEE ELF file (tee.elf)')
+    parser = argparse.ArgumentParser(description='Shows the memory usage '
+                                     'of an OP-TEE based on ELF sections')
+    parser.add_argument('tee_elf', help='the OP-TEE ELF file (tee.elf)')
+    parser.add_argument('-a', '--all', action='store_true',
+                        help=' same as -i -p -u -U')
+    parser.add_argument('-n', '--no-map', action='store_true',
+                        help=' do not show the detailed section mappings and '
+                        'RAM usage')
+    parser.add_argument('-i', '--init', action='store_true',
+                        help='report the total size of the .*_init sections')
+    parser.add_argument('-p', '--paged', action='store_true',
+                        help='report the total size of the .*_pageable '
+                        'sections')
+    parser.add_argument('-u', '--unpaged', action='store_true',
+                        help='report the total size of the unpaged sections, '
+                        'that is, all sections but the ones in --init or '
+                        '--paged')
+    parser.add_argument('-U', '--unpaged-no-heap', action='store_true',
+                        help='report the size of all unpaged sections '
+                        'excluding heap space. Reflects the size of unpaged '
+                        'code and data (.text, .rodata, .data, .bss, .nozi '
+                        'and possibly unwind tables)')
+    parser.add_argument('-r', '--raw', action='store_true',
+                        help='when processing -i, -p, -u, or -U, show only '
+                        'the size (in decimal) and no other text')
     return parser.parse_args()
 
 
@@ -24,6 +45,8 @@ def printf(format, *args):
 
 
 def print_sect(name, addr, size, round_up=False, print_num_pages=False):
+    if args.no_map:
+        return
     if size == 0:
         size_kib = 0
         num_pages = 0
@@ -41,13 +64,27 @@ def print_sect(name, addr, size, round_up=False, print_num_pages=False):
     printf('\n')
 
 
+def print_pager_stat(name, size):
+    size_kib = size / 1024
+    if args.raw:
+        printf('%d ', size)
+    else:
+        printf('%-36s size %.8X %3d KiB\n', name, size, size_kib)
+
+
 def readelf_cmd():
     return os.getenv('CROSS_COMPILE', '') + 'readelf'
 
 
 def main():
+    global args
+
     in_shdr = False
     sects = []
+    init_size = 0
+    paged_size = 0
+    unpaged_size = 0
+    unpaged_no_heap_size = 0
 
     args = get_args()
     env = os.environ.copy()
@@ -96,8 +133,29 @@ def main():
             print_sect('*hole*', last_addr + last_size,
                        addr - (last_addr + last_size))
         print_sect(name, addr, size)
+        if name.endswith('_init'):
+            init_size += size
+        elif name.endswith('_pageable'):
+            paged_size += size
+        else:
+            if not name.startswith('.heap'):
+                unpaged_no_heap_size += size
+            unpaged_size += size
         last_addr = addr
         last_size = size
+
+    if args.all or args.init:
+        print_pager_stat('Init sections (.*_init)', init_size)
+    if args.all or args.paged:
+        print_pager_stat('Paged sections (.*_pageable)', paged_size)
+    if args.all or args.unpaged:
+        print_pager_stat('Unpaged sections ', unpaged_size)
+    if args.all or args.unpaged_no_heap:
+        print_pager_stat('Unpaged sections (heap excluded)',
+                         unpaged_no_heap_size)
+    if (args.raw and (args.all or args.init or args.paged or
+                      args.unpaged or args.unpaged_no_heap)):
+        printf('\n')
 
 
 if __name__ == "__main__":
