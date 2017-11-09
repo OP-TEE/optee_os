@@ -44,12 +44,6 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 	void *ctx = NULL;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = (TEE_OPERATION_MAC << 28) | hash_id;
-	const struct mac_ops *m = &crypto_ops.mac;
-
-	if (!m->get_ctx_size || !m->init || !m->update) {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
-		goto out;
-	}
 
 	if (!salt || !salt_len) {
 		/*
@@ -63,7 +57,7 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 			goto out;
 	}
 
-	res = m->get_ctx_size(hmac_algo, &ctx_size);
+	res = crypto_mac_get_ctx_size(hmac_algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -79,15 +73,15 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 	 * Therefore, salt is the HMAC key in the formula from section 2.2:
 	 * "PRK = HMAC-Hash(salt, IKM)"
 	 */
-	res = m->init(ctx, hmac_algo, salt, salt_len);
+	res = crypto_mac_init(ctx, hmac_algo, salt, salt_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = m->update(ctx, hmac_algo, ikm, ikm_len);
+	res = crypto_mac_update(ctx, hmac_algo, ikm, ikm_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = m->final(ctx, hmac_algo, prk, *prk_len);
+	res = crypto_mac_final(ctx, hmac_algo, prk, *prk_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -105,14 +99,8 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	size_t tn_len, hash_len, i, n, where, ctx_size;
 	TEE_Result res = TEE_SUCCESS;
 	void *ctx = NULL;
-	const struct mac_ops *m = &crypto_ops.mac;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = TEE_ALG_HMAC_ALGO(hash_id);
-
-	if (!m->get_ctx_size || !m->init || !m->update || !m->final) {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
-		goto out;
-	}
 
 	res = tee_hash_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
@@ -126,7 +114,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	if (!info)
 		info_len = 0;
 
-	res = m->get_ctx_size(hmac_algo, &ctx_size);
+	res = crypto_mac_get_ctx_size(hmac_algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -162,19 +150,19 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	for (i = 1; i <= n; i++) {
 		uint8_t c = i;
 
-		res = m->init(ctx, hmac_algo, prk, prk_len);
+		res = crypto_mac_init(ctx, hmac_algo, prk, prk_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = m->update(ctx, hmac_algo, tn, tn_len);
+		res = crypto_mac_update(ctx, hmac_algo, tn, tn_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = m->update(ctx, hmac_algo, info, info_len);
+		res = crypto_mac_update(ctx, hmac_algo, info, info_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = m->update(ctx, hmac_algo, &c, 1);
+		res = crypto_mac_update(ctx, hmac_algo, &c, 1);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = m->final(ctx, hmac_algo, tn, sizeof(tn));
+		res = crypto_mac_final(ctx, hmac_algo, tn, sizeof(tn));
 		if (res != TEE_SUCCESS)
 			goto out;
 

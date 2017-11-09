@@ -53,36 +53,37 @@ static TEE_Result pbkdf2_f(uint8_t *out, size_t len, uint32_t idx,
 	uint8_t u[TEE_MAX_HASH_SIZE];
 	uint32_t be_index;
 	size_t i, j;
-	const struct mac_ops *mac = &crypto_ops.mac;
 
 	memset(out, 0, len);
 	for (i = 1; i <= p->iteration_count; i++) {
-		res = mac->init(h->ctx, h->algo, p->password, p->password_len);
+		res = crypto_mac_init(h->ctx, h->algo, p->password,
+				      p->password_len);
 		if (res != TEE_SUCCESS)
 			return res;
 
 		if (i == 1) {
 			if (p->salt && p->salt_len) {
-				res = mac->update(h->ctx, h->algo, p->salt,
-						  p->salt_len);
+				res = crypto_mac_update(h->ctx, h->algo,
+							p->salt, p->salt_len);
 				if (res != TEE_SUCCESS)
 					return res;
 			}
 
 			be_index = TEE_U32_TO_BIG_ENDIAN(idx);
 
-			res = mac->update(h->ctx, h->algo,
-					  (uint8_t *)&be_index,
-					  sizeof(be_index));
+			res = crypto_mac_update(h->ctx, h->algo,
+						(uint8_t *)&be_index,
+						sizeof(be_index));
 			if (res != TEE_SUCCESS)
 				return res;
 		} else {
-			res = mac->update(h->ctx, h->algo, u, h->hash_len);
+			res = crypto_mac_update(h->ctx, h->algo, u,
+						h->hash_len);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
-		res = mac->final(h->ctx, h->algo, u, sizeof(u));
+		res = crypto_mac_final(h->ctx, h->algo, u, sizeof(u));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -102,11 +103,6 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 	uint8_t *out = derived_key;
 	struct pbkdf2_parms pbkdf2_parms;
 	struct hmac_parms hmac_parms = {0, };
-	const struct mac_ops *mac = &crypto_ops.mac;
-
-	if (!mac->get_ctx_size || !mac->init || !mac->update ||
-	    !mac->final)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	hmac_parms.algo = TEE_ALG_HMAC_ALGO(hash_id);
 
@@ -114,7 +110,7 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = mac->get_ctx_size(hmac_parms.algo, &ctx_size);
+	res = crypto_mac_get_ctx_size(hmac_parms.algo, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 

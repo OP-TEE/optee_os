@@ -2056,11 +2056,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		if (key1 == 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.mac.get_ctx_size)
-				res = crypto_ops.mac.get_ctx_size(algo,
-								&cs->ctx_size);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_mac_get_ctx_size(algo, &cs->ctx_size);
 			if (res != TEE_SUCCESS)
 				break;
 			cs->ctx = calloc(1, cs->ctx_size);
@@ -2205,11 +2201,8 @@ TEE_Result syscall_hash_init(unsigned long state,
 				return TEE_ERROR_BAD_PARAMETERS;
 
 			key = (struct tee_cryp_obj_secret *)o->attr;
-			if (!crypto_ops.mac.init)
-				return TEE_ERROR_NOT_IMPLEMENTED;
-			res = crypto_ops.mac.init(cs->ctx, cs->algo,
-						  (void *)(key + 1),
-						  key->key_size);
+			res = crypto_mac_init(cs->ctx, cs->algo,
+					      (void *)(key + 1), key->key_size);
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
@@ -2258,10 +2251,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 			return res;
 		break;
 	case TEE_OPERATION_MAC:
-		if (!crypto_ops.mac.update)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.mac.update(cs->ctx, cs->algo, chunk,
-					    chunk_size);
+		res = crypto_mac_update(cs->ctx, cs->algo, chunk, chunk_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -2335,8 +2325,6 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		break;
 
 	case TEE_OPERATION_MAC:
-		if (!crypto_ops.mac.update || !crypto_ops.mac.final)
-			return TEE_ERROR_NOT_IMPLEMENTED;
 		res = tee_mac_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
@@ -2346,13 +2334,13 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		}
 
 		if (chunk_size) {
-			res = crypto_ops.mac.update(cs->ctx, cs->algo, chunk,
-						    chunk_size);
+			res = crypto_mac_update(cs->ctx, cs->algo, chunk,
+						chunk_size);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
-		res = crypto_ops.mac.final(cs->ctx, cs->algo, hash, hash_size);
+		res = crypto_mac_final(cs->ctx, cs->algo, hash, hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
