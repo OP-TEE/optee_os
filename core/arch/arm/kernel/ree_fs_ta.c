@@ -187,11 +187,6 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	uint64_t cookie = 0;
 	TEE_Result res;
 
-	if (!crypto_ops.hash.get_ctx_size ||
-	    !crypto_ops.hash.init ||
-	    !crypto_ops.hash.update)
-		return TEE_ERROR_NOT_SUPPORTED;
-
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -216,7 +211,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	 * header (less the final file hash and its signature of course)
 	 */
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_ops.hash.get_ctx_size(hash_algo, &hash_ctx_size);
+	res = crypto_hash_get_ctx_size(hash_algo, &hash_ctx_size);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
 	hash_ctx = malloc(hash_ctx_size);
@@ -224,10 +219,10 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto error_free_payload;
 	}
-	res = crypto_ops.hash.init(hash_ctx, hash_algo);
+	res = crypto_hash_init(hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	res = crypto_ops.hash.update(hash_ctx, hash_algo, (uint8_t *)shdr,
+	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)shdr,
 				     sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
@@ -269,12 +264,10 @@ static TEE_Result check_digest(struct user_ta_store_handle *h)
 	void *digest = NULL;
 	TEE_Result res;
 
-	if (!crypto_ops.hash.final)
-		return TEE_ERROR_NOT_SUPPORTED;
 	digest = malloc(h->shdr->hash_size);
 	if (!digest)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = crypto_ops.hash.final(h->hash_ctx, h->hash_algo, digest,
+	res = crypto_hash_final(h->hash_ctx, h->hash_algo, digest,
 				    h->shdr->hash_size);
 	if (res != TEE_SUCCESS) {
 		res = TEE_ERROR_SECURITY;
@@ -300,7 +293,7 @@ static TEE_Result ta_read(struct user_ta_store_handle *h, void *data,
 		dst = data; /* Hash secure buffer (shm might be modified) */
 		memcpy(dst, src, len);
 	}
-	res = crypto_ops.hash.update(h->hash_ctx, h->hash_algo, dst, len);
+	res = crypto_hash_update(h->hash_ctx, h->hash_algo, dst, len);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 	h->offs += len;
