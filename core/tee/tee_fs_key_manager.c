@@ -70,7 +70,7 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 	if (!out_key || !in_key || !message)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = crypto_ops.mac.get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
+	res = crypto_mac_get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -78,17 +78,15 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.mac.init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
+	res = crypto_mac_init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_ops.mac.update(ctx, TEE_FS_KM_HMAC_ALG,
-			message, message_size);
+	res = crypto_mac_update(ctx, TEE_FS_KM_HMAC_ALG, message, message_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_ops.mac.final(ctx, TEE_FS_KM_HMAC_ALG, out_key,
-				   out_key_size);
+	res = crypto_mac_final(ctx, TEE_FS_KM_HMAC_ALG, out_key, out_key_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

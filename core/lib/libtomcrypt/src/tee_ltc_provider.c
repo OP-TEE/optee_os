@@ -2254,7 +2254,7 @@ struct cbc_state {
 };
 #endif
 
-static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
+TEE_Result crypto_mac_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -2289,7 +2289,7 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
+TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			   size_t len)
 {
 	TEE_Result res;
@@ -2373,7 +2373,7 @@ static TEE_Result mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result mac_update(void *ctx, uint32_t algo, const uint8_t *data,
+TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			     size_t len)
 {
 #if defined(CFG_CRYPTO_CBC_MAC)
@@ -2448,7 +2448,7 @@ static TEE_Result mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
+TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			    size_t digest_len)
 {
 #if defined(CFG_CRYPTO_CBC_MAC)
@@ -2493,8 +2493,9 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			memset(cbc->block+cbc->current_block_len,
 			       pad_len, pad_len);
 			cbc->current_block_len = 0;
-			if (TEE_SUCCESS != mac_update(
-				ctx, algo, cbc->block, cbc->block_len))
+			if (TEE_SUCCESS != crypto_mac_update(ctx, algo,
+							     cbc->block,
+							     cbc->block_len))
 					return TEE_ERROR_BAD_STATE;
 			break;
 		default:
@@ -2978,14 +2979,6 @@ static TEE_Result tee_ltc_init(void)
 const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
-#if defined(_CFG_CRYPTO_WITH_MAC)
-	.mac = {
-		.get_ctx_size = mac_get_ctx_size,
-		.init = mac_init,
-		.update = mac_update,
-		.final = mac_final,
-	},
-#endif
 #if defined(_CFG_CRYPTO_WITH_AUTHENC)
 	.authenc = {
 		.dec_final = authenc_dec_final,

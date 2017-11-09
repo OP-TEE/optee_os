@@ -47,17 +47,6 @@
 
 #include <tee_api_types.h>
 
-/* Message Authentication Code functions */
-struct mac_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
-	TEE_Result (*init)(void *ctx, uint32_t algo,
-			   const uint8_t *key, size_t len);
-	TEE_Result (*update)(void *ctx, uint32_t algo,
-			     const uint8_t *data, size_t len);
-	TEE_Result (*final)(void *ctx, uint32_t algo,
-			    uint8_t *digest, size_t digest_len);
-};
-
 /* Authenticated encryption */
 struct authenc_ops {
 	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
@@ -259,7 +248,6 @@ struct crypto_ops {
 	const char *name;
 
 	TEE_Result (*init)(void);
-	struct mac_ops mac;
 	struct authenc_ops authenc;
 	struct acipher_ops acipher;
 	struct bignum_ops bignum;
@@ -287,6 +275,15 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 				const uint8_t *data, size_t len, uint8_t *dst);
 void crypto_cipher_final(void *ctx, uint32_t algo);
 TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size);
+
+/* Message Authentication Code functions */
+TEE_Result crypto_mac_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
+			   size_t len);
+TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
+			     size_t len);
+TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
+			    size_t digest_len);
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in

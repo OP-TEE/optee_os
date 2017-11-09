@@ -353,18 +353,18 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
 	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
 	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
-	res = crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, hwkey.data,
-				  HW_UNIQUE_KEY_LENGTH);
+	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, hwkey.data,
+			      HW_UNIQUE_KEY_LENGTH);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
+	res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
 				    message,
 				    RPMB_EMMC_CID_SIZE);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.mac.final(ctx, TEE_ALG_HMAC_SHA256, key, len);
+	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, key, len);
 
 out:
 	free(ctx);
@@ -415,19 +415,19 @@ static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
+	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	for (i = 0; i < blkcnt; i++) {
-		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-					  datafrms[i].data,
-					  RPMB_MAC_PROTECT_DATA_SIZE);
+		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
+					datafrms[i].data,
+					RPMB_MAC_PROTECT_DATA_SIZE);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 	}
 
-	res = crypto_ops.mac.final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
+	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -741,8 +741,8 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 		goto func_exit;
 	}
 
-	res = crypto_ops.mac.init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
-				  RPMB_KEY_MAC_SIZE);
+	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
+			      RPMB_KEY_MAC_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -762,9 +762,8 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 		 */
 		memcpy(&localfrm, &datafrm[i], RPMB_DATA_FRAME_SIZE);
 
-		res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256,
-					    localfrm.data,
-					    RPMB_MAC_PROTECT_DATA_SIZE);
+		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256, localfrm.data,
+					RPMB_MAC_PROTECT_DATA_SIZE);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
@@ -796,13 +795,13 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 		goto func_exit;
 
 	/* Update MAC against the last block */
-	res = crypto_ops.mac.update(ctx, TEE_ALG_HMAC_SHA256, lastfrm->data,
-				    RPMB_MAC_PROTECT_DATA_SIZE);
+	res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256, lastfrm->data,
+				RPMB_MAC_PROTECT_DATA_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
-	res = crypto_ops.mac.final(ctx, TEE_ALG_HMAC_SHA256, rawdata->key_mac,
-				   RPMB_KEY_MAC_SIZE);
+	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, rawdata->key_mac,
+			       RPMB_KEY_MAC_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -1128,21 +1127,11 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
 }
 #endif
 
-/* True when all the required crypto functions are available */
-static bool have_crypto_ops(void)
-{
-	return (crypto_ops.mac.init && crypto_ops.mac.update &&
-		crypto_ops.mac.final);
-}
-
 /* This function must never return TEE_SUCCESS if rpmb_ctx == NULL */
 static TEE_Result tee_rpmb_init(uint16_t dev_id)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info;
-
-	if (!have_crypto_ops())
-		return TEE_ERROR_NOT_SUPPORTED;
 
 	if (!rpmb_ctx) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
@@ -1178,9 +1167,8 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
 
 		if ((rpmb_ctx->hash_ctx_size == 0) &&
-		    (crypto_ops.mac.get_ctx_size(
-			    TEE_ALG_HMAC_SHA256,
-			    &rpmb_ctx->hash_ctx_size))) {
+		    crypto_mac_get_ctx_size(TEE_ALG_HMAC_SHA256,
+					    &rpmb_ctx->hash_ctx_size)) {
 			rpmb_ctx->hash_ctx_size = 0;
 			res = TEE_ERROR_GENERIC;
 			goto func_exit;
