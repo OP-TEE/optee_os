@@ -47,22 +47,6 @@
 
 #include <tee_api_types.h>
 
-/* Symmetric ciphers */
-struct cipher_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
-	TEE_Result (*init)(void *ctx, uint32_t algo,
-			    TEE_OperationMode mode,
-			    const uint8_t *key1, size_t key1_len,
-			    const uint8_t *key2, size_t key2_len,
-			    const uint8_t *iv, size_t iv_len);
-	TEE_Result (*update)(void *ctx, uint32_t algo,
-			     TEE_OperationMode mode,
-			     bool last_block, const uint8_t *data,
-			     size_t len, uint8_t *dst);
-	void       (*final)(void *ctx, uint32_t algo);
-	TEE_Result (*get_block_size)(uint32_t algo, size_t *size);
-};
-
 /* Message Authentication Code functions */
 struct mac_ops {
 	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
@@ -275,7 +259,6 @@ struct crypto_ops {
 	const char *name;
 
 	TEE_Result (*init)(void);
-	struct cipher_ops cipher;
 	struct mac_ops mac;
 	struct authenc_ops authenc;
 	struct acipher_ops acipher;
@@ -292,6 +275,18 @@ TEE_Result crypto_hash_update(void *ctx, uint32_t algo, const uint8_t *data,
 			      size_t len);
 TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 			     size_t len);
+
+/* Symmetric ciphers */
+TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
+			      const uint8_t *key1, size_t key1_len,
+			      const uint8_t *key2, size_t key2_len,
+			      const uint8_t *iv, size_t iv_len);
+TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
+				TEE_OperationMode mode, bool last_block,
+				const uint8_t *data, size_t len, uint8_t *dst);
+void crypto_cipher_final(void *ctx, uint32_t algo);
+TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size);
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in

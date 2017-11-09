@@ -2028,11 +2028,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.cipher.get_ctx_size)
-				res = crypto_ops.cipher.get_ctx_size(algo,
-								&cs->ctx_size);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_cipher_get_ctx_size(algo, &cs->ctx_size);
 			if (res != TEE_SUCCESS)
 				break;
 			cs->ctx = calloc(1, cs->ctx_size);
@@ -2406,33 +2402,25 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 
 	key1 = o->attr;
 
-	if (!crypto_ops.cipher.init)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
 	if (tee_obj_get(utc, cs->key2, &o) == TEE_SUCCESS) {
 		struct tee_cryp_obj_secret *key2 = o->attr;
 
 		if ((o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		res = crypto_ops.cipher.init(cs->ctx, cs->algo, cs->mode,
-					     (uint8_t *)(key1 + 1),
-					     key1->key_size,
-					     (uint8_t *)(key2 + 1),
-					     key2->key_size,
-					     iv, iv_len);
+		res = crypto_cipher_init(cs->ctx, cs->algo, cs->mode,
+					 (uint8_t *)(key1 + 1), key1->key_size,
+					 (uint8_t *)(key2 + 1), key2->key_size,
+					 iv, iv_len);
 	} else {
-		res = crypto_ops.cipher.init(cs->ctx, cs->algo, cs->mode,
-					     (uint8_t *)(key1 + 1),
-					     key1->key_size,
-					     NULL,
-					     0,
-					     iv, iv_len);
+		res = crypto_cipher_init(cs->ctx, cs->algo, cs->mode,
+					 (uint8_t *)(key1 + 1), key1->key_size,
+					 NULL, 0, iv, iv_len);
 	}
 	if (res != TEE_SUCCESS)
 		return res;
 
-	cs->ctx_finalize = crypto_ops.cipher.final;
+	cs->ctx_finalize = crypto_cipher_final;
 	return TEE_SUCCESS;
 }
 

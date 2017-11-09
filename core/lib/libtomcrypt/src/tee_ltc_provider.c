@@ -1922,7 +1922,7 @@ static TEE_Result cipher_get_block_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
+TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_AES)
@@ -1999,7 +1999,7 @@ static void get_des2_key(const uint8_t *key, size_t key_len,
 	}
 }
 
-static TEE_Result cipher_init(void *ctx, uint32_t algo,
+TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
 			      TEE_OperationMode mode __maybe_unused,
 			      const uint8_t *key1, size_t key1_len,
 			      const uint8_t *key2 __maybe_unused,
@@ -2076,16 +2076,14 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo,
 #if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
 		cts = ctx;
-		res = cipher_init((void *)(&(cts->ecb)),
-					  TEE_ALG_AES_ECB_NOPAD, mode, key1,
-					  key1_len, key2, key2_len, iv,
-					  iv_len);
+		res = crypto_cipher_init((void *)(&(cts->ecb)),
+					 TEE_ALG_AES_ECB_NOPAD, mode, key1,
+					 key1_len, key2, key2_len, iv, iv_len);
 		if (res != TEE_SUCCESS)
 			return res;
-		res = cipher_init((void *)(&(cts->cbc)),
-					  TEE_ALG_AES_CBC_NOPAD, mode, key1,
-					  key1_len, key2, key2_len, iv,
-					  iv_len);
+		res = crypto_cipher_init((void *)(&(cts->cbc)),
+					 TEE_ALG_AES_CBC_NOPAD, mode, key1,
+					 key1_len, key2, key2_len, iv, iv_len);
 		if (res != TEE_SUCCESS)
 			return res;
 		ltc_res = CRYPT_OK;
@@ -2118,7 +2116,7 @@ static TEE_Result cipher_init(void *ctx, uint32_t algo,
 		return TEE_ERROR_BAD_STATE;
 }
 
-static TEE_Result cipher_update(void *ctx, uint32_t algo,
+TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 				TEE_OperationMode mode,
 				bool last_block __maybe_unused,
 				const uint8_t *data, size_t len, uint8_t *dst)
@@ -2187,7 +2185,7 @@ static TEE_Result cipher_update(void *ctx, uint32_t algo,
 		return TEE_ERROR_BAD_STATE;
 }
 
-static void cipher_final(void *ctx, uint32_t algo)
+void crypto_cipher_final(void *ctx, uint32_t algo)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_ECB)
@@ -2509,7 +2507,7 @@ static TEE_Result mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 
 		memcpy(digest, cbc->digest, MIN(ltc_digest_len,
 						cbc->block_len));
-		cipher_final(&cbc->cbc, algo);
+		crypto_cipher_final(&cbc->cbc, algo);
 		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
@@ -2980,15 +2978,6 @@ static TEE_Result tee_ltc_init(void)
 const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
-#if defined(_CFG_CRYPTO_WITH_CIPHER)
-	.cipher = {
-		.final = cipher_final,
-		.get_block_size = cipher_get_block_size,
-		.get_ctx_size = cipher_get_ctx_size,
-		.init = cipher_init,
-		.update = cipher_update,
-	},
-#endif
 #if defined(_CFG_CRYPTO_WITH_MAC)
 	.mac = {
 		.get_ctx_size = mac_get_ctx_size,

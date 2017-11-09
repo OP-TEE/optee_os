@@ -199,8 +199,6 @@ TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 	if (mode != TEE_MODE_ENCRYPT && mode != TEE_MODE_DECRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (crypto_ops.cipher.update == NULL)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 	/*
 	 * Check that the block contains the correct number of data, apart
 	 * for the last block in some XTS / CTR / XTS mode
@@ -242,8 +240,8 @@ TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 		}
 	}
 
-	return crypto_ops.cipher.update(ctx, algo, mode, last_block, data, len,
-					dst);
+	return crypto_cipher_update(ctx, algo, mode, last_block, data, len,
+				    dst);
 }
 
 /*
