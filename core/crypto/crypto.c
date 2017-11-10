@@ -6,6 +6,7 @@
  */
 
 #include <compiler.h>
+#include <kernel/panic.h>
 #include <tee/tee_cryp_provider.h>
 
 #if !defined(_CFG_CRYPTO_WITH_HASH)
@@ -161,3 +162,73 @@ void crypto_authenc_final(void *ctx __unused, uint32_t algo __unused)
 {
 }
 #endif /*_CFG_CRYPTO_WITH_AUTHENC*/
+
+#if !defined(_CFG_CRYPTO_WITH_ACIPHER)
+struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
+{
+	return NULL;
+}
+
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from __unused,
+				size_t fromsize __unused,
+				struct bignum *to __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+size_t crypto_bignum_num_bytes(struct bignum *a __unused)
+{
+	return 0;
+}
+
+size_t crypto_bignum_num_bits(struct bignum *a __unused)
+{
+	return 0;
+}
+
+/*
+ * crypto_bignum_allocate() and crypto_bignum_bin2bn() failing should be
+ * enough to guarantee that the functions calling this function aren't
+ * called, but just in case add a panic() here to avoid unexpected
+ * behavoir.
+ */
+static void bignum_cant_happen(void)
+{
+	volatile bool b = true;
+
+	/* Avoid warning about function does not return */
+	if (b)
+		panic();
+}
+
+void crypto_bignum_bn2bin(const struct bignum *from __unused,
+			  uint8_t *to __unused)
+{
+	bignum_cant_happen();
+}
+
+void crypto_bignum_copy(struct bignum *to __unused,
+			const struct bignum *from __unused)
+{
+	bignum_cant_happen();
+}
+
+void crypto_bignum_free(struct bignum *a)
+{
+	if (a)
+		panic();
+}
+
+void crypto_bignum_clear(struct bignum *a __unused)
+{
+	bignum_cant_happen();
+}
+
+/* return -1 if a<b, 0 if a==b, +1 if a>b */
+int32_t crypto_bignum_compare(struct bignum *a __unused,
+			      struct bignum *b __unused)
+{
+	bignum_cant_happen();
+	return -1;
+}
+#endif /*!_CFG_CRYPTO_WITH_ACIPHER*/

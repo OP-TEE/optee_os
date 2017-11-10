@@ -100,19 +100,18 @@ static TEE_Result check_shdr(struct shdr *shdr)
 
 	if (!crypto_ops.acipher.alloc_rsa_public_key ||
 	    !crypto_ops.acipher.free_rsa_public_key ||
-	    !crypto_ops.acipher.rsassa_verify ||
-	    !crypto_ops.bignum.bin2bn)
+	    !crypto_ops.acipher.rsassa_verify)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_ops.bignum.bin2bn((uint8_t *)&e, sizeof(e), key.e);
+	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
 	if (res != TEE_SUCCESS)
 		goto out;
-	res = crypto_ops.bignum.bin2bn(ta_pub_key_modulus,
-				       ta_pub_key_modulus_size, key.n);
+	res = crypto_bignum_bin2bn(ta_pub_key_modulus, ta_pub_key_modulus_size,
+				   key.n);
 	if (res != TEE_SUCCESS)
 		goto out;
 

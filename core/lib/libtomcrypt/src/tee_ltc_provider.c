@@ -639,27 +639,27 @@ static void tee_ltc_alloc_mpa(void)
 	mpa_set_random_generator(crypto_rng_read);
 }
 
-static size_t num_bytes(struct bignum *a)
+size_t crypto_bignum_num_bytes(struct bignum *a)
 {
 	return mp_unsigned_bin_size(a);
 }
 
-static size_t num_bits(struct bignum *a)
+size_t crypto_bignum_num_bits(struct bignum *a)
 {
 	return mp_count_bits(a);
 }
 
-static int32_t compare(struct bignum *a, struct bignum *b)
+int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
 {
 	return mp_cmp(a, b);
 }
 
-static void bn2bin(const struct bignum *from, uint8_t *to)
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
 {
 	mp_to_unsigned_bin((struct bignum *)from, to);
 }
 
-static TEE_Result bin2bn(const uint8_t *from, size_t fromsize,
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
 			 struct bignum *to)
 {
 	if (mp_read_unsigned_bin(to, (uint8_t *)from, fromsize) != CRYPT_OK)
@@ -667,12 +667,12 @@ static TEE_Result bin2bn(const uint8_t *from, size_t fromsize,
 	return TEE_SUCCESS;
 }
 
-static void copy(struct bignum *to, const struct bignum *from)
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
 {
 	mp_copy((void *)from, to);
 }
 
-static struct bignum *bn_allocate(size_t size_bits)
+struct bignum *crypto_bignum_allocate(size_t size_bits)
 {
 	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
 	struct mpa_numbase_struct *bn = calloc(1, sz);
@@ -683,12 +683,12 @@ static struct bignum *bn_allocate(size_t size_bits)
 	return (struct bignum *)bn;
 }
 
-static void bn_free(struct bignum *s)
+void crypto_bignum_free(struct bignum *s)
 {
 	free(s);
 }
 
-static void bn_clear(struct bignum *s)
+void crypto_bignum_clear(struct bignum *s)
 {
 	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
 
@@ -701,7 +701,7 @@ static bool bn_alloc_max(struct bignum **s)
 	size_t sz = mpa_StaticVarSizeInU32(LTC_MAX_BITS_PER_VARIABLE) *
 			sizeof(uint32_t) * 8;
 
-	*s = bn_allocate(sz);
+	*s = crypto_bignum_allocate(sz);
 	return !!(*s);
 }
 
@@ -731,13 +731,13 @@ static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
 
 	return TEE_SUCCESS;
 err:
-	bn_free(s->e);
-	bn_free(s->d);
-	bn_free(s->n);
-	bn_free(s->p);
-	bn_free(s->q);
-	bn_free(s->qp);
-	bn_free(s->dp);
+	crypto_bignum_free(s->e);
+	crypto_bignum_free(s->d);
+	crypto_bignum_free(s->n);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
+	crypto_bignum_free(s->qp);
+	crypto_bignum_free(s->dp);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -753,7 +753,7 @@ static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->e);
+	crypto_bignum_free(s->e);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -761,8 +761,8 @@ static void free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
-	bn_free(s->n);
-	bn_free(s->e);
+	crypto_bignum_free(s->n);
+	crypto_bignum_free(s->e);
 }
 
 static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
@@ -892,7 +892,7 @@ static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 	ltc_key.e = key->e;
 	ltc_key.N = key->n;
 	ltc_key.d = key->d;
-	if (key->p && num_bytes(key->p)) {
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
 		ltc_key.p = key->p;
 		ltc_key.q = key->q;
 		ltc_key.qP = key->qp;
@@ -920,7 +920,7 @@ static TEE_Result rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	ltc_key.e = key->e;
 	ltc_key.d = key->d;
 	ltc_key.N = key->n;
-	if (key->p && num_bytes(key->p)) {
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
 		ltc_key.p = key->p;
 		ltc_key.q = key->q;
 		ltc_key.qP = key->qp;
@@ -1073,7 +1073,7 @@ static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	ltc_key.e = key->e;
 	ltc_key.N = key->n;
 	ltc_key.d = key->d;
-	if (key->p && num_bytes(key->p)) {
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
 		ltc_key.p = key->p;
 		ltc_key.q = key->q;
 		ltc_key.qP = key->qp;
@@ -1235,10 +1235,10 @@ static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->q);
-	bn_free(s->y);
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
+	crypto_bignum_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1258,9 +1258,9 @@ static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->q);
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1438,10 +1438,10 @@ static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->g);
-	bn_free(s->p);
-	bn_free(s->y);
-	bn_free(s->x);
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->y);
+	crypto_bignum_free(s->x);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1504,9 +1504,9 @@ static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->d);
-	bn_free(s->x);
-	bn_free(s->y);
+	crypto_bignum_free(s->d);
+	crypto_bignum_free(s->x);
+	crypto_bignum_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1520,8 +1520,8 @@ static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	bn_free(s->x);
-	bn_free(s->y);
+	crypto_bignum_free(s->x);
+	crypto_bignum_free(s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -1530,8 +1530,8 @@ static void free_ecc_public_key(struct ecc_public_key *s)
 	if (!s)
 		return;
 
-	bn_free(s->x);
-	bn_free(s->y);
+	crypto_bignum_free(s->x);
+	crypto_bignum_free(s->y);
 }
 
 /*
@@ -3020,17 +3020,6 @@ const struct crypto_ops crypto_ops = {
 		/* ECDH only */
 		.ecc_shared_secret = do_ecc_shared_secret,
 #endif
-	},
-	.bignum = {
-		.allocate = bn_allocate,
-		.num_bytes = num_bytes,
-		.num_bits = num_bits,
-		.compare = compare,
-		.bn2bin = bn2bin,
-		.bin2bn = bin2bn,
-		.copy = copy,
-		.free = bn_free,
-		.clear = bn_clear
 	},
 #endif /* _CFG_CRYPTO_WITH_ACIPHER */
 };
