@@ -2040,11 +2040,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		if (key1 == 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			if (crypto_ops.authenc.get_ctx_size)
-				res = crypto_ops.authenc.get_ctx_size(algo,
-								&cs->ctx_size);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_authenc_get_ctx_size(algo, &cs->ctx_size);
 			if (res != TEE_SUCCESS)
 				break;
 			cs->ctx = calloc(1, cs->ctx_size);
@@ -2935,18 +2931,15 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!crypto_ops.authenc.init)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 	key = o->attr;
-	res = crypto_ops.authenc.init(cs->ctx, cs->algo, cs->mode,
-				      (uint8_t *)(key + 1), key->key_size,
-				      nonce, nonce_len, tag_len, aad_len,
-				      payload_len);
+	res = crypto_authenc_init(cs->ctx, cs->algo, cs->mode,
+				  (uint8_t *)(key + 1), key->key_size,
+				  nonce, nonce_len, tag_len, aad_len,
+				  payload_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	cs->ctx_finalize = (tee_cryp_ctx_finalize_func_t)
-				crypto_ops.authenc.final;
+	cs->ctx_finalize = (tee_cryp_ctx_finalize_func_t)crypto_authenc_final;
 	return TEE_SUCCESS;
 }
 
@@ -2973,10 +2966,8 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (!crypto_ops.authenc.update_aad)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	res = crypto_ops.authenc.update_aad(cs->ctx, cs->algo, cs->mode,
-					    aad_data, aad_data_len);
+	res = crypto_authenc_update_aad(cs->ctx, cs->algo, cs->mode,
+					aad_data, aad_data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3025,12 +3016,10 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 		goto out;
 	}
 
-	if (!crypto_ops.authenc.update_payload)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 	tmp_dlen = dlen;
-	res = crypto_ops.authenc.update_payload(cs->ctx, cs->algo, cs->mode,
-						src_data, src_len, dst_data,
-						&tmp_dlen);
+	res = crypto_authenc_update_payload(cs->ctx, cs->algo, cs->mode,
+					    src_data, src_len, dst_data,
+					    &tmp_dlen);
 	dlen = tmp_dlen;
 
 out:
@@ -3107,13 +3096,11 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (!crypto_ops.authenc.enc_final)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 	tmp_dlen = dlen;
 	tmp_tlen = tlen;
-	res = crypto_ops.authenc.enc_final(cs->ctx, cs->algo, src_data,
-					   src_len, dst_data, &tmp_dlen, tag,
-					   &tmp_tlen);
+	res = crypto_authenc_enc_final(cs->ctx, cs->algo, src_data,
+				       src_len, dst_data, &tmp_dlen, tag,
+				       &tmp_tlen);
 	dlen = tmp_dlen;
 	tlen = tmp_tlen;
 
@@ -3192,12 +3179,9 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (!crypto_ops.authenc.dec_final)
-		return TEE_ERROR_NOT_IMPLEMENTED;
 	tmp_dlen = dlen;
-	res = crypto_ops.authenc.dec_final(cs->ctx, cs->algo, src_data,
-					   src_len, dst_data, &tmp_dlen, tag,
-					   tag_len);
+	res = crypto_authenc_dec_final(cs->ctx, cs->algo, src_data, src_len,
+				       dst_data, &tmp_dlen, tag, tag_len);
 	dlen = tmp_dlen;
 
 out:

@@ -2552,7 +2552,7 @@ struct tee_gcm_state {
 };
 #endif
 
-static TEE_Result authenc_get_ctx_size(uint32_t algo, size_t *size)
+TEE_Result crypto_authenc_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_CCM)
@@ -2571,7 +2571,7 @@ static TEE_Result authenc_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result authenc_init(void *ctx, uint32_t algo,
+TEE_Result crypto_authenc_init(void *ctx, uint32_t algo,
 			       TEE_OperationMode mode __unused,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
@@ -2648,7 +2648,7 @@ static TEE_Result authenc_init(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result authenc_update_aad(void *ctx, uint32_t algo,
+TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo,
 				     TEE_OperationMode mode __unused,
 				     const uint8_t *data, size_t len)
 {
@@ -2686,7 +2686,7 @@ static TEE_Result authenc_update_aad(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
+TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo,
 					 TEE_OperationMode mode,
 					 const uint8_t *src_data,
 					 size_t src_len,
@@ -2729,7 +2729,7 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 		/* aad is optional ==> add one without length */
 		gcm = ctx;
 		if (gcm->ctx.mode == LTC_GCM_MODE_IV) {
-			res = authenc_update_aad(gcm, algo, mode, 0, 0);
+			res = crypto_authenc_update_aad(gcm, algo, mode, 0, 0);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
@@ -2749,7 +2749,7 @@ static TEE_Result authenc_update_payload(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
+TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo,
 				    const uint8_t *src_data,
 				    size_t src_len, uint8_t *dst_data,
 				    size_t *dst_len, uint8_t *dst_tag,
@@ -2771,8 +2771,9 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 		return res;
 
 	/* Finalize the remaining buffer */
-	res = authenc_update_payload(ctx, algo, TEE_MODE_ENCRYPT, src_data,
-				     src_len, dst_data, dst_len);
+	res = crypto_authenc_update_payload(ctx, algo, TEE_MODE_ENCRYPT,
+					    src_data, src_len, dst_data,
+					    dst_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2818,7 +2819,7 @@ static TEE_Result authenc_enc_final(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
+TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
 				    const uint8_t *src_data, size_t src_len,
 				    uint8_t *dst_data, size_t *dst_len,
 				    const uint8_t *tag, size_t tag_len)
@@ -2840,8 +2841,9 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 		return TEE_ERROR_BAD_STATE;
 
 	/* Process the last buffer, if any */
-	res = authenc_update_payload(ctx, algo, TEE_MODE_DECRYPT, src_data,
-				     src_len, dst_data, dst_len);
+	res = crypto_authenc_update_payload(ctx, algo, TEE_MODE_DECRYPT,
+					    src_data, src_len, dst_data,
+					    dst_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2875,7 +2877,7 @@ static TEE_Result authenc_dec_final(void *ctx, uint32_t algo,
 	return res;
 }
 
-static void authenc_final(void *ctx, uint32_t algo)
+void crypto_authenc_final(void *ctx, uint32_t algo)
 {
 #if defined(CFG_CRYPTO_CCM)
 	struct tee_ccm_state *ccm;
@@ -2979,17 +2981,6 @@ static TEE_Result tee_ltc_init(void)
 const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
-#if defined(_CFG_CRYPTO_WITH_AUTHENC)
-	.authenc = {
-		.dec_final = authenc_dec_final,
-		.enc_final = authenc_enc_final,
-		.final = authenc_final,
-		.get_ctx_size = authenc_get_ctx_size,
-		.init = authenc_init,
-		.update_aad = authenc_update_aad,
-		.update_payload = authenc_update_payload,
-	},
-#endif
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 	.acipher = {
 #if defined(CFG_CRYPTO_RSA)
