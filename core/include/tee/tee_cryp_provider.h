@@ -48,16 +48,7 @@
 #include <tee_api_types.h>
 
 
-/* Cryptographic Provider API */
-struct crypto_ops {
-	/* Human-readable provider name */
-	const char *name;
-
-	TEE_Result (*init)(void);
-};
-
-extern const struct crypto_ops crypto_ops;
-
+TEE_Result crypto_init(void);
 
 /* Message digest functions */
 TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size);
@@ -272,7 +263,7 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					    unsigned long *secret_len);
 
 /*
- * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in
+ * Verifies a SHA-256 hash, doesn't require crypto_init() to be called in
  * advance and has as few dependencies as possible.
  *
  * This function is primarily used by pager and early initialization code
