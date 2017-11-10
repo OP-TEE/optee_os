@@ -47,38 +47,6 @@
 
 #include <tee_api_types.h>
 
-/* Authenticated encryption */
-struct authenc_ops {
-	TEE_Result (*get_ctx_size)(uint32_t algo, size_t *size);
-	TEE_Result (*init)(void *ctx, uint32_t algo,
-			   TEE_OperationMode mode,
-			   const uint8_t *key, size_t key_len,
-			   const uint8_t *nonce, size_t nonce_len,
-			   size_t tag_len, size_t aad_len,
-			   size_t payload_len);
-	TEE_Result (*update_aad)(void *ctx, uint32_t algo,
-				 TEE_OperationMode mode,
-				 const uint8_t *data, size_t len);
-	TEE_Result (*update_payload)(void *ctx, uint32_t algo,
-				     TEE_OperationMode mode,
-				     const uint8_t *src_data,
-				     size_t src_len,
-				     uint8_t *dst_data,
-				     size_t *dst_len);
-	TEE_Result (*enc_final)(void *ctx, uint32_t algo,
-				const uint8_t *src_data,
-				size_t src_len, uint8_t *dst_data,
-				size_t *dst_len, uint8_t *dst_tag,
-				size_t *dst_tag_len);
-	TEE_Result (*dec_final)(void *ctx, uint32_t algo,
-				const uint8_t *src_data,
-				size_t src_len, uint8_t *dst_data,
-				size_t *dst_len, const uint8_t *tag,
-				size_t tag_len);
-
-	void       (*final)(void *ctx, uint32_t algo);
-};
-
 /* Implementation-defined big numbers */
 struct bignum_ops {
 	/*
@@ -248,7 +216,6 @@ struct crypto_ops {
 	const char *name;
 
 	TEE_Result (*init)(void);
-	struct authenc_ops authenc;
 	struct acipher_ops acipher;
 	struct bignum_ops bignum;
 };
@@ -284,6 +251,32 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			     size_t len);
 TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			    size_t digest_len);
+
+/* Authenticated encryption */
+TEE_Result crypto_authenc_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_authenc_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
+			       const uint8_t *key, size_t key_len,
+			       const uint8_t *nonce, size_t nonce_len,
+			       size_t tag_len, size_t aad_len,
+			       size_t payload_len);
+TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo,
+				     TEE_OperationMode mode,
+				     const uint8_t *data, size_t len);
+TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo,
+					 TEE_OperationMode mode,
+					 const uint8_t *src_data,
+					 size_t src_len, uint8_t *dst_data,
+					 size_t *dst_len);
+TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo,
+				    const uint8_t *src_data, size_t src_len,
+				    uint8_t *dst_data, size_t *dst_len,
+				    uint8_t *dst_tag, size_t *dst_tag_len);
+TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
+				    const uint8_t *src_data, size_t src_len,
+				    uint8_t *dst_data, size_t *dst_len,
+				    const uint8_t *tag, size_t tag_len);
+void crypto_authenc_final(void *ctx, uint32_t algo);
+
 
 /*
  * Verifies a SHA-256 hash, doesn't require tee_cryp_init() to be called in

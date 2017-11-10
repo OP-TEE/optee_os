@@ -477,7 +477,7 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 			return res;
 	}
 
-	res = crypto_ops.authenc.get_ctx_size(alg, &ctx_size);
+	res = crypto_authenc_get_ctx_size(alg, &ctx_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -487,35 +487,34 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	res = crypto_ops.authenc.init(ctx, alg, mode,
-				      ht->fek, TEE_FS_HTREE_FEK_SIZE,
-				      iv, TEE_FS_HTREE_IV_SIZE,
-				      TEE_FS_HTREE_TAG_SIZE, aad_len,
-				      payload_len);
+	res = crypto_authenc_init(ctx, alg, mode, ht->fek,
+				  TEE_FS_HTREE_FEK_SIZE, iv,
+				  TEE_FS_HTREE_IV_SIZE, TEE_FS_HTREE_TAG_SIZE,
+				  aad_len, payload_len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	if (!ni) {
-		res = crypto_ops.authenc.update_aad(ctx, alg, mode,
-						    ht->root.node.hash,
-						    TEE_FS_HTREE_FEK_SIZE);
+		res = crypto_authenc_update_aad(ctx, alg, mode,
+						ht->root.node.hash,
+						TEE_FS_HTREE_FEK_SIZE);
 		if (res != TEE_SUCCESS)
 			goto exit;
 
-		res = crypto_ops.authenc.update_aad(ctx, alg, mode,
-						    (void *)&ht->head.counter,
-						    sizeof(ht->head.counter));
+		res = crypto_authenc_update_aad(ctx, alg, mode,
+						(void *)&ht->head.counter,
+						sizeof(ht->head.counter));
 		if (res != TEE_SUCCESS)
 			goto exit;
 	}
 
-	res = crypto_ops.authenc.update_aad(ctx, alg, mode, ht->head.enc_fek,
-					    TEE_FS_HTREE_FEK_SIZE);
+	res = crypto_authenc_update_aad(ctx, alg, mode, ht->head.enc_fek,
+					TEE_FS_HTREE_FEK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_ops.authenc.update_aad(ctx, alg, mode, iv,
-					    TEE_FS_HTREE_IV_SIZE);
+	res = crypto_authenc_update_aad(ctx, alg, mode, iv,
+					TEE_FS_HTREE_IV_SIZE);
 
 exit:
 	if (res == TEE_SUCCESS)
@@ -533,10 +532,10 @@ static TEE_Result authenc_decrypt_final(void *ctx, const uint8_t *tag,
 	TEE_Result res;
 	size_t out_size = len;
 
-	res = crypto_ops.authenc.dec_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG,
-					   crypt, len, plain, &out_size,
-					   tag, TEE_FS_HTREE_TAG_SIZE);
-	crypto_ops.authenc.final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
+	res = crypto_authenc_dec_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG, crypt,
+				       len, plain, &out_size, tag,
+				       TEE_FS_HTREE_TAG_SIZE);
+	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
 	free(ctx);
 
 	if (res == TEE_SUCCESS && out_size != len)
@@ -555,10 +554,10 @@ static TEE_Result authenc_encrypt_final(void *ctx, uint8_t *tag,
 	size_t out_size = len;
 	size_t out_tag_size = TEE_FS_HTREE_TAG_SIZE;
 
-	res = crypto_ops.authenc.enc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG,
-					   plain, len, crypt, &out_size,
-					   tag, &out_tag_size);
-	crypto_ops.authenc.final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
+	res = crypto_authenc_enc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG, plain,
+				       len, crypt, &out_size, tag,
+				       &out_tag_size);
+	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
 	free(ctx);
 
 	if (res == TEE_SUCCESS &&

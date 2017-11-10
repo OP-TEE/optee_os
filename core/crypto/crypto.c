@@ -96,3 +96,68 @@ TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
 }
 #endif /*_CFG_CRYPTO_WITH_MAC*/
 
+#if !defined(_CFG_CRYPTO_WITH_AUTHENC)
+TEE_Result crypto_authenc_get_ctx_size(uint32_t algo __unused,
+				       size_t *size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_authenc_init(void *ctx __unused, uint32_t algo __unused,
+			       TEE_OperationMode mode __unused,
+			       const uint8_t *key __unused,
+			       size_t key_len __unused,
+			       const uint8_t *nonce __unused,
+			       size_t nonce_len __unused,
+			       size_t tag_len __unused,
+			       size_t aad_len __unused,
+			       size_t payload_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_authenc_update_aad(void *ctx __unused, uint32_t algo __unused,
+				     TEE_OperationMode mode __unused,
+				     const uint8_t *data __unused,
+				     size_t len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_authenc_update_payload(void *ctx __unused,
+					 uint32_t algo __unused,
+					 TEE_OperationMode mode __unused,
+					 const uint8_t *src_data __unused,
+					 size_t src_len __unused,
+					 uint8_t *dst_data __unused,
+					 size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_authenc_enc_final(void *ctx __unused, uint32_t algo __unused,
+				    const uint8_t *src_data __unused,
+				    size_t src_len __unused,
+				    uint8_t *dst_data __unused,
+				    size_t *dst_len __unused,
+				    uint8_t *dst_tag __unused,
+				    size_t *dst_tag_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_authenc_dec_final(void *ctx __unused, uint32_t algo __unused,
+				    const uint8_t *src_data __unused,
+				    size_t src_len __unused,
+				    uint8_t *dst_data __unused,
+				    size_t *dst_len __unused,
+				    const uint8_t *tag __unused,
+				    size_t tag_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+void crypto_authenc_final(void *ctx __unused, uint32_t algo __unused)
+{
+}
+#endif /*_CFG_CRYPTO_WITH_AUTHENC*/
