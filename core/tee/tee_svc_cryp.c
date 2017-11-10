@@ -650,9 +650,7 @@ static TEE_Result op_attr_bignum_from_user(void *attr, const void *buffer,
 {
 	struct bignum **bn = attr;
 
-	if (!crypto_ops.bignum.bin2bn)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	return crypto_ops.bignum.bin2bn(buffer, size, *bn);
+	return crypto_bignum_bin2bn(buffer, size, *bn);
 }
 
 static TEE_Result op_attr_bignum_to_user(void *attr,
@@ -668,7 +666,7 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	req_size = crypto_ops.bignum.num_bytes(*bn);
+	req_size = crypto_bignum_num_bytes(*bn);
 	res = tee_svc_copy_to_user(size, &req_size, sizeof(req_size));
 	if (res != TEE_SUCCESS)
 		return res;
@@ -689,7 +687,7 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	* Write the bignum (wich raw data points to) into an array of
 	* bytes (stored in buffer)
 	*/
-	crypto_ops.bignum.bn2bin(*bn, buffer);
+	crypto_bignum_bn2bin(*bn, buffer);
 	return TEE_SUCCESS;
 }
 
@@ -698,7 +696,7 @@ static TEE_Result op_attr_bignum_to_binary(void *attr, void *data,
 {
 	TEE_Result res;
 	struct bignum **bn = attr;
-	uint32_t n = crypto_ops.bignum.num_bytes(*bn);
+	uint32_t n = crypto_bignum_num_bytes(*bn);
 	size_t next_offs;
 
 	res = op_u32_to_binary_helper(n, data, data_len, offs);
@@ -709,7 +707,7 @@ static TEE_Result op_attr_bignum_to_binary(void *attr, void *data,
 		return TEE_ERROR_OVERFLOW;
 
 	if (data && next_offs <= data_len)
-		crypto_ops.bignum.bn2bin(*bn, (uint8_t *)data + *offs);
+		crypto_bignum_bn2bin(*bn, (uint8_t *)data + *offs);
 	(*offs) = next_offs;
 
 	return TEE_SUCCESS;
@@ -726,8 +724,7 @@ static bool op_attr_bignum_from_binary(void *attr, const void *data,
 
 	if ((*offs + n) > data_len)
 		return false;
-	if (crypto_ops.bignum.bin2bn((const uint8_t *)data + *offs,
-				     n, *bn) != TEE_SUCCESS)
+	if (crypto_bignum_bin2bn((const uint8_t *)data + *offs, n, *bn))
 		return false;
 	(*offs) += n;
 	return true;
@@ -738,7 +735,7 @@ static TEE_Result op_attr_bignum_from_obj(void *attr, void *src_attr)
 	struct bignum **bn = attr;
 	struct bignum **src_bn = src_attr;
 
-	crypto_ops.bignum.copy(*bn, *src_bn);
+	crypto_bignum_copy(*bn, *src_bn);
 	return TEE_SUCCESS;
 }
 
@@ -746,14 +743,14 @@ static void op_attr_bignum_clear(void *attr)
 {
 	struct bignum **bn = attr;
 
-	crypto_ops.bignum.clear(*bn);
+	crypto_bignum_clear(*bn);
 }
 
 static void op_attr_bignum_free(void *attr)
 {
 	struct bignum **bn = attr;
 
-	crypto_ops.bignum.free(*bn);
+	crypto_bignum_free(*bn);
 	*bn = NULL;
 }
 
@@ -1626,7 +1623,7 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	struct rsa_keypair *key = o->attr;
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(65537);
 
-	if (!crypto_ops.acipher.gen_rsa_key || !crypto_ops.bignum.bin2bn)
+	if (!crypto_ops.acipher.gen_rsa_key)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	/* Copy the present attributes into the obj before starting */
@@ -1635,8 +1632,7 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	if (res != TEE_SUCCESS)
 		return res;
 	if (!get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
-		crypto_ops.bignum.bin2bn((const uint8_t *)&e, sizeof(e),
-					 key->e);
+		crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key->e);
 	res = crypto_ops.acipher.gen_rsa_key(key, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2684,12 +2680,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		struct bignum *pub;
 		struct bignum *ss;
 
-		if (!crypto_ops.bignum.allocate ||
-		    !crypto_ops.bignum.free ||
-		    !crypto_ops.bignum.bin2bn ||
-		    !crypto_ops.bignum.bn2bin ||
-		    !crypto_ops.bignum.num_bytes ||
-		    !crypto_ops.acipher.dh_shared_secret) {
+		if (!crypto_ops.acipher.dh_shared_secret) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
 			goto out;
 		}
@@ -2700,17 +2691,16 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 
 		alloc_size = params[0].content.ref.length * 8;
-		pub = crypto_ops.bignum.allocate(alloc_size);
-		ss = crypto_ops.bignum.allocate(alloc_size);
+		pub = crypto_bignum_allocate(alloc_size);
+		ss = crypto_bignum_allocate(alloc_size);
 		if (pub && ss) {
-			crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
-					params[0].content.ref.length, pub);
+			crypto_bignum_bin2bn(params[0].content.ref.buffer,
+					     params[0].content.ref.length, pub);
 			res = crypto_ops.acipher.dh_shared_secret(ko->attr,
 								  pub, ss);
 			if (res == TEE_SUCCESS) {
-				sk->key_size = crypto_ops.bignum.num_bytes(ss);
-				crypto_ops.bignum.bn2bin(ss,
-							 (uint8_t *)(sk + 1));
+				sk->key_size = crypto_bignum_num_bytes(ss);
+				crypto_bignum_bn2bin(ss, (uint8_t *)(sk + 1));
 				so->info.handleFlags |=
 						TEE_HANDLE_FLAG_INITIALIZED;
 				set_attribute(so, type_props,
@@ -2719,16 +2709,15 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		} else {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 		}
-		crypto_ops.bignum.free(pub);
-		crypto_ops.bignum.free(ss);
+		crypto_bignum_free(pub);
+		crypto_bignum_free(ss);
 	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
 		size_t alloc_size;
 		struct ecc_public_key key_public;
 		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
 
-		if (!crypto_ops.bignum.bin2bn ||
-		    !crypto_ops.acipher.alloc_ecc_public_key ||
+		if (!crypto_ops.acipher.alloc_ecc_public_key ||
 		    !crypto_ops.acipher.free_ecc_public_key ||
 		    !crypto_ops.acipher.ecc_shared_secret) {
 			res = TEE_ERROR_NOT_IMPLEMENTED;
@@ -2768,12 +2757,12 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (res != TEE_SUCCESS)
 			goto out;
 		key_public.curve = ((struct ecc_keypair *)ko->attr)->curve;
-		crypto_ops.bignum.bin2bn(params[0].content.ref.buffer,
-					 params[0].content.ref.length,
-					 key_public.x);
-		crypto_ops.bignum.bin2bn(params[1].content.ref.buffer,
-					 params[1].content.ref.length,
-					 key_public.y);
+		crypto_bignum_bin2bn(params[0].content.ref.buffer,
+				     params[0].content.ref.length,
+				     key_public.x);
+		crypto_bignum_bin2bn(params[1].content.ref.buffer,
+				     params[1].content.ref.length,
+				     key_public.y);
 
 		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;

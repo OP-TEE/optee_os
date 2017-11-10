@@ -47,26 +47,6 @@
 
 #include <tee_api_types.h>
 
-/* Implementation-defined big numbers */
-struct bignum_ops {
-	/*
-	 * Allocate a bignum capable of holding an unsigned integer value of
-	 * up to bitsize bits
-	 */
-	struct bignum *(*allocate)(size_t size_bits);
-	TEE_Result (*bin2bn)(const uint8_t *from, size_t fromsize,
-			     struct bignum *to);
-	size_t (*num_bytes)(struct bignum *a);
-	size_t (*num_bits)(struct bignum *a);
-	void (*bn2bin)(const struct bignum *from, uint8_t *to);
-	void (*copy)(struct bignum *to, const struct bignum *from);
-	void (*free)(struct bignum *a);
-	void (*clear)(struct bignum *a);
-
-	/* return -1 if a<b, 0 if a==b, +1 if a>b */
-	int32_t (*compare)(struct bignum *a, struct bignum *b);
-};
-
 /* Asymmetric algorithms */
 
 struct rsa_keypair {
@@ -217,7 +197,6 @@ struct crypto_ops {
 
 	TEE_Result (*init)(void);
 	struct acipher_ops acipher;
-	struct bignum_ops bignum;
 };
 
 extern const struct crypto_ops crypto_ops;
@@ -276,6 +255,25 @@ TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
 				    uint8_t *dst_data, size_t *dst_len,
 				    const uint8_t *tag, size_t tag_len);
 void crypto_authenc_final(void *ctx, uint32_t algo);
+
+/* Implementation-defined big numbers */
+
+/*
+ * Allocate a bignum capable of holding an unsigned integer value of
+ * up to bitsize bits
+ */
+struct bignum *crypto_bignum_allocate(size_t size_bits);
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
+				struct bignum *to);
+size_t crypto_bignum_num_bytes(struct bignum *a);
+size_t crypto_bignum_num_bits(struct bignum *a);
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to);
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from);
+void crypto_bignum_free(struct bignum *a);
+void crypto_bignum_clear(struct bignum *a);
+
+/* return -1 if a<b, 0 if a==b, +1 if a>b */
+int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b);
 
 
 /*
