@@ -707,8 +707,8 @@ static bool bn_alloc_max(struct bignum **s)
 
 #if defined(CFG_CRYPTO_RSA)
 
-static TEE_Result alloc_rsa_keypair(struct rsa_keypair *s,
-				    size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+					    size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e)) {
@@ -742,8 +742,8 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result alloc_rsa_public_key(struct rsa_public_key *s,
-				       size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+					       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e)) {
@@ -757,7 +757,7 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static void free_rsa_public_key(struct rsa_public_key *s)
+void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
@@ -765,7 +765,7 @@ static void free_rsa_public_key(struct rsa_public_key *s)
 	crypto_bignum_free(s->e);
 }
 
-static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
+TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
 	TEE_Result res;
 	rsa_key ltc_tmp_key;
@@ -802,7 +802,6 @@ static TEE_Result gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 
 	return res;
 }
-
 
 static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 			   size_t src_len, uint8_t *dst, size_t *dst_len)
@@ -866,9 +865,9 @@ out:
 	return res;
 }
 
-static TEE_Result rsanopad_encrypt(struct rsa_public_key *key,
-				   const uint8_t *src, size_t src_len,
-				   uint8_t *dst, size_t *dst_len)
+TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+					   const uint8_t *src, size_t src_len,
+					   uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -881,9 +880,9 @@ static TEE_Result rsanopad_encrypt(struct rsa_public_key *key,
 	return res;
 }
 
-static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
-				   const uint8_t *src, size_t src_len,
-				   uint8_t *dst, size_t *dst_len)
+TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+					   const uint8_t *src, size_t src_len,
+					   uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -904,10 +903,10 @@ static TEE_Result rsanopad_decrypt(struct rsa_keypair *key,
 	return res;
 }
 
-static TEE_Result rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
-				    const uint8_t *label, size_t label_len,
-				    const uint8_t *src, size_t src_len,
-				    uint8_t *dst, size_t *dst_len)
+TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
+					const uint8_t *label, size_t label_len,
+					const uint8_t *src, size_t src_len,
+					uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
@@ -1000,7 +999,8 @@ out:
 	return res;
 }
 
-static TEE_Result rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
+TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
+					struct rsa_public_key *key,
 					const uint8_t *label, size_t label_len,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len)
@@ -1057,10 +1057,10 @@ out:
 	return res;
 }
 
-static TEE_Result rsassa_sign(uint32_t algo, struct rsa_keypair *key,
-			      int salt_len, const uint8_t *msg,
-			      size_t msg_len, uint8_t *sig,
-			      size_t *sig_len)
+TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+				      int salt_len, const uint8_t *msg,
+				      size_t msg_len, uint8_t *sig,
+				      size_t *sig_len)
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
@@ -1144,10 +1144,11 @@ err:
 	return res;
 }
 
-static TEE_Result rsassa_verify(uint32_t algo, struct rsa_public_key *key,
-				int salt_len, const uint8_t *msg,
-				size_t msg_len, const uint8_t *sig,
-				size_t sig_len)
+TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
+					struct rsa_public_key *key,
+					int salt_len, const uint8_t *msg,
+					size_t msg_len, const uint8_t *sig,
+					size_t sig_len)
 {
 	TEE_Result res;
 	uint32_t bigint_size;
@@ -1217,8 +1218,8 @@ err:
 
 #if defined(CFG_CRYPTO_DSA)
 
-static TEE_Result alloc_dsa_keypair(struct dsa_keypair *s,
-				    size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s,
+					    size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
@@ -1242,8 +1243,8 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result alloc_dsa_public_key(struct dsa_public_key *s,
-				       size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s,
+					       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
@@ -1264,7 +1265,7 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
+TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 {
 	TEE_Result res;
 	dsa_key ltc_tmp_key;
@@ -1304,9 +1305,9 @@ static TEE_Result gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 	return res;
 }
 
-static TEE_Result dsa_sign(uint32_t algo, struct dsa_keypair *key,
-			   const uint8_t *msg, size_t msg_len, uint8_t *sig,
-			   size_t *sig_len)
+TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
+				   const uint8_t *msg, size_t msg_len,
+				   uint8_t *sig, size_t *sig_len)
 {
 	TEE_Result res;
 	size_t hash_size;
@@ -1374,9 +1375,9 @@ err:
 	return res;
 }
 
-static TEE_Result dsa_verify(uint32_t algo, struct dsa_public_key *key,
-			     const uint8_t *msg, size_t msg_len,
-			     const uint8_t *sig, size_t sig_len)
+TEE_Result crypto_acipher_dsa_verify(uint32_t algo, struct dsa_public_key *key,
+				     const uint8_t *msg, size_t msg_len,
+				     const uint8_t *sig, size_t sig_len)
 {
 	TEE_Result res;
 	int ltc_stat, ltc_res;
@@ -1420,8 +1421,8 @@ err:
 
 #if defined(CFG_CRYPTO_DH)
 
-static TEE_Result alloc_dh_keypair(struct dh_keypair *s,
-				   size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
+					   size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->g)) {
@@ -1445,8 +1446,8 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
-			     size_t xbits)
+TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
+				     size_t xbits)
 {
 	TEE_Result res;
 	dh_key ltc_tmp_key;
@@ -1471,9 +1472,9 @@ static TEE_Result gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	return res;
 }
 
-static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
-				      struct bignum *public_key,
-				      struct bignum *secret)
+TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
+					   struct bignum *public_key,
+					   struct bignum *secret)
 {
 	int err;
 	dh_key pk = {
@@ -1492,8 +1493,8 @@ static TEE_Result do_dh_shared_secret(struct dh_keypair *private_key,
 
 #if defined(CFG_CRYPTO_ECC)
 
-static TEE_Result alloc_ecc_keypair(struct ecc_keypair *s,
-				   size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s,
+					    size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->d))
@@ -1510,8 +1511,8 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result alloc_ecc_public_key(struct ecc_public_key *s,
-				   size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s,
+					       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->x))
@@ -1525,7 +1526,7 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static void free_ecc_public_key(struct ecc_public_key *s)
+void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s)
 {
 	if (!s)
 		return;
@@ -1604,7 +1605,7 @@ static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result gen_ecc_key(struct ecc_keypair *key)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 {
 	TEE_Result res;
 	ecc_key ltc_tmp_key;
@@ -1726,9 +1727,9 @@ static TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 	return ecc_compute_key_idx(ltc_key, *key_size_bytes);
 }
 
-static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
-			   const uint8_t *msg, size_t msg_len, uint8_t *sig,
-			   size_t *sig_len)
+TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
+				   const uint8_t *msg, size_t msg_len,
+				   uint8_t *sig, size_t *sig_len)
 {
 	TEE_Result res;
 	int ltc_res;
@@ -1780,9 +1781,9 @@ err:
 	return res;
 }
 
-static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
-			     const uint8_t *msg, size_t msg_len,
-			     const uint8_t *sig, size_t sig_len)
+TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
+				     const uint8_t *msg, size_t msg_len,
+				     const uint8_t *sig, size_t sig_len)
 {
 	TEE_Result res;
 	int ltc_stat;
@@ -1827,9 +1828,10 @@ out:
 	return res;
 }
 
-static TEE_Result do_ecc_shared_secret(struct ecc_keypair *private_key,
-				       struct ecc_public_key *public_key,
-				       void *secret, unsigned long *secret_len)
+TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
+					    struct ecc_public_key *public_key,
+					    void *secret,
+					    unsigned long *secret_len)
 {
 	TEE_Result res;
 	int ltc_res;
@@ -2981,47 +2983,6 @@ static TEE_Result tee_ltc_init(void)
 const struct crypto_ops crypto_ops = {
 	.name = "LibTomCrypt provider",
 	.init = tee_ltc_init,
-#if defined(_CFG_CRYPTO_WITH_ACIPHER)
-	.acipher = {
-#if defined(CFG_CRYPTO_RSA)
-		.alloc_rsa_keypair = alloc_rsa_keypair,
-		.alloc_rsa_public_key = alloc_rsa_public_key,
-		.free_rsa_public_key = free_rsa_public_key,
-		.gen_rsa_key = gen_rsa_key,
-		.rsaes_decrypt = rsaes_decrypt,
-		.rsaes_encrypt = rsaes_encrypt,
-		.rsanopad_decrypt = rsanopad_decrypt,
-		.rsanopad_encrypt = rsanopad_encrypt,
-		.rsassa_sign = rsassa_sign,
-		.rsassa_verify = rsassa_verify,
-#endif
-#if defined(CFG_CRYPTO_DH)
-		.alloc_dh_keypair = alloc_dh_keypair,
-		.gen_dh_key = gen_dh_key,
-		.dh_shared_secret = do_dh_shared_secret,
-#endif
-#if defined(CFG_CRYPTO_DSA)
-		.alloc_dsa_keypair = alloc_dsa_keypair,
-		.alloc_dsa_public_key = alloc_dsa_public_key,
-		.gen_dsa_key = gen_dsa_key,
-		.dsa_sign = dsa_sign,
-		.dsa_verify = dsa_verify,
-#endif
-#if defined(CFG_CRYPTO_ECC)
-		/* ECDSA and ECDH */
-		.alloc_ecc_keypair = alloc_ecc_keypair,
-		.alloc_ecc_public_key = alloc_ecc_public_key,
-		.gen_ecc_key = gen_ecc_key,
-		.free_ecc_public_key = free_ecc_public_key,
-
-		/* ECDSA only */
-		.ecc_sign = ecc_sign,
-		.ecc_verify = ecc_verify,
-		/* ECDH only */
-		.ecc_shared_secret = do_ecc_shared_secret,
-#endif
-	},
-#endif /* _CFG_CRYPTO_WITH_ACIPHER */
 };
 
 #if defined(CFG_WITH_VFP)

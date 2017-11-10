@@ -232,3 +232,209 @@ int32_t crypto_bignum_compare(struct bignum *a __unused,
 	return -1;
 }
 #endif /*!_CFG_CRYPTO_WITH_ACIPHER*/
+
+#if !defined(CFG_CRYPTO_RSA) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s __unused,
+					    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result
+crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s __unused,
+				    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s __unused)
+{
+}
+
+TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key __unused,
+				      size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key __unused,
+					   const uint8_t *src __unused,
+					   size_t src_len __unused,
+					   uint8_t *dst __unused,
+					   size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key __unused,
+					   const uint8_t *src __unused,
+					   size_t src_len __unused,
+					   uint8_t *dst __unused,
+					   size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo __unused,
+					struct rsa_keypair *key __unused,
+					const uint8_t *label __unused,
+					size_t label_len __unused,
+					const uint8_t *src __unused,
+					size_t src_len __unused,
+					uint8_t *dst __unused,
+					size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo __unused,
+					struct rsa_public_key *key __unused,
+					const uint8_t *label __unused,
+					size_t label_len __unused,
+					const uint8_t *src __unused,
+					size_t src_len __unused,
+					uint8_t *dst __unused,
+					size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsassa_sign(uint32_t algo __unused,
+				      struct rsa_keypair *key __unused,
+				      int salt_len __unused,
+				      const uint8_t *msg __unused,
+				      size_t msg_len __unused,
+				      uint8_t *sig __unused,
+				      size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_rsassa_verify(uint32_t algo __unused,
+					struct rsa_public_key *key __unused,
+					int salt_len __unused,
+					const uint8_t *msg __unused,
+					size_t msg_len __unused,
+					const uint8_t *sig __unused,
+					size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /*!CFG_CRYPTO_RSA || !_CFG_CRYPTO_WITH_ACIPHER*/
+
+#if !defined(CFG_CRYPTO_DSA) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s __unused,
+					    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result
+crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s __unused,
+				    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key __unused,
+				      size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_dsa_sign(uint32_t algo __unused,
+				   struct dsa_keypair *key __unused,
+				   const uint8_t *msg __unused,
+				   size_t msg_len __unused,
+				   uint8_t *sig __unused,
+				   size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
+				     struct dsa_public_key *key __unused,
+				     const uint8_t *msg __unused,
+				     size_t msg_len __unused,
+				     const uint8_t *sig __unused,
+				     size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /*!CFG_CRYPTO_DSA || !_CFG_CRYPTO_WITH_ACIPHER*/
+
+#if !defined(CFG_CRYPTO_DH) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
+					   size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key __unused,
+				     struct bignum *q __unused,
+				     size_t xbits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result
+crypto_acipher_dh_shared_secret(struct dh_keypair *private_key __unused,
+				struct bignum *public_key __unused,
+				struct bignum *secret __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /*!CFG_CRYPTO_DH || !_CFG_CRYPTO_WITH_ACIPHER*/
+
+#if !defined(CFG_CRYPTO_ECC) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+TEE_Result
+crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s __unused,
+				    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s __unused,
+					    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s __unused)
+{
+}
+
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ecc_sign(uint32_t algo __unused,
+				   struct ecc_keypair *key __unused,
+				   const uint8_t *msg __unused,
+				   size_t msg_len __unused,
+				   uint8_t *sig __unused,
+				   size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ecc_verify(uint32_t algo __unused,
+				     struct ecc_public_key *key __unused,
+				     const uint8_t *msg __unused,
+				     size_t msg_len __unused,
+				     const uint8_t *sig __unused,
+				     size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result
+crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
+				 struct ecc_public_key *public_key __unused,
+				 void *secret __unused,
+				 unsigned long *secret_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /*!CFG_CRYPTO_ECC || !_CFG_CRYPTO_WITH_ACIPHER*/

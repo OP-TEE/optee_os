@@ -1197,48 +1197,30 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	/* If we have a key structure, pre-allocate the bignums inside */
 	switch (obj_type) {
 	case TEE_TYPE_RSA_PUBLIC_KEY:
-		if (!crypto_ops.acipher.alloc_rsa_public_key)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_rsa_public_key(o->attr,
-							      max_key_size);
+		res = crypto_acipher_alloc_rsa_public_key(o->attr,
+							  max_key_size);
 		break;
 	case TEE_TYPE_RSA_KEYPAIR:
-		if (!crypto_ops.acipher.alloc_rsa_keypair)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_rsa_keypair(o->attr,
-							   max_key_size);
+		res = crypto_acipher_alloc_rsa_keypair(o->attr, max_key_size);
 		break;
 	case TEE_TYPE_DSA_PUBLIC_KEY:
-		if (!crypto_ops.acipher.alloc_dsa_public_key)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_dsa_public_key(o->attr,
-							      max_key_size);
+		res = crypto_acipher_alloc_dsa_public_key(o->attr,
+							  max_key_size);
 		break;
 	case TEE_TYPE_DSA_KEYPAIR:
-		if (!crypto_ops.acipher.alloc_dsa_keypair)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_dsa_keypair(o->attr,
-							   max_key_size);
+		res = crypto_acipher_alloc_dsa_keypair(o->attr, max_key_size);
 		break;
 	case TEE_TYPE_DH_KEYPAIR:
-		if (!crypto_ops.acipher.alloc_dh_keypair)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_dh_keypair(o->attr,
-							  max_key_size);
+		res = crypto_acipher_alloc_dh_keypair(o->attr, max_key_size);
 		break;
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
-		if (!crypto_ops.acipher.alloc_ecc_public_key)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_ecc_public_key(o->attr,
-							      max_key_size);
+		res = crypto_acipher_alloc_ecc_public_key(o->attr,
+							  max_key_size);
 		break;
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
-		if (!crypto_ops.acipher.alloc_ecc_keypair)
-			return TEE_ERROR_NOT_IMPLEMENTED;
-		res = crypto_ops.acipher.alloc_ecc_keypair(o->attr,
-							   max_key_size);
+		res = crypto_acipher_alloc_ecc_keypair(o->attr, max_key_size);
 		break;
 	default:
 		if (obj_type != TEE_TYPE_DATA) {
@@ -1623,9 +1605,6 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 	struct rsa_keypair *key = o->attr;
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(65537);
 
-	if (!crypto_ops.acipher.gen_rsa_key)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
 	/* Copy the present attributes into the obj before starting */
 	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
 					     param_count);
@@ -1633,7 +1612,7 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 		return res;
 	if (!get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
 		crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key->e);
-	res = crypto_ops.acipher.gen_rsa_key(key, key_size);
+	res = crypto_acipher_gen_rsa_key(key, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1649,9 +1628,7 @@ static TEE_Result tee_svc_obj_generate_key_dsa(
 {
 	TEE_Result res;
 
-	if (!crypto_ops.acipher.gen_dsa_key)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	res = crypto_ops.acipher.gen_dsa_key(o->attr, key_size);
+	res = crypto_acipher_gen_dsa_key(o->attr, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1683,9 +1660,7 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 		dh_q = tee_dh_key->q;
 	if (get_attribute(o, type_props, TEE_ATTR_DH_X_BITS))
 		dh_xbits = tee_dh_key->xbits;
-	if (!crypto_ops.acipher.gen_dh_key)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	res = crypto_ops.acipher.gen_dh_key(tee_dh_key, dh_q, dh_xbits);
+	res = crypto_acipher_gen_dh_key(tee_dh_key, dh_q, dh_xbits);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1712,9 +1687,7 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 
 	tee_ecc_key = (struct ecc_keypair *)o->attr;
 
-	if (!crypto_ops.acipher.gen_ecc_key)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	res = crypto_ops.acipher.gen_ecc_key(tee_ecc_key);
+	res = crypto_acipher_gen_ecc_key(tee_ecc_key);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2680,10 +2653,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		struct bignum *pub;
 		struct bignum *ss;
 
-		if (!crypto_ops.acipher.dh_shared_secret) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			goto out;
-		}
 		if (param_count != 1 ||
 		    params[0].attributeID != TEE_ATTR_DH_PUBLIC_VALUE) {
 			res = TEE_ERROR_BAD_PARAMETERS;
@@ -2696,8 +2665,8 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		if (pub && ss) {
 			crypto_bignum_bin2bn(params[0].content.ref.buffer,
 					     params[0].content.ref.length, pub);
-			res = crypto_ops.acipher.dh_shared_secret(ko->attr,
-								  pub, ss);
+			res = crypto_acipher_dh_shared_secret(ko->attr,
+							      pub, ss);
 			if (res == TEE_SUCCESS) {
 				sk->key_size = crypto_bignum_num_bytes(ss);
 				crypto_bignum_bn2bin(ss, (uint8_t *)(sk + 1));
@@ -2717,12 +2686,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
 
-		if (!crypto_ops.acipher.alloc_ecc_public_key ||
-		    !crypto_ops.acipher.free_ecc_public_key ||
-		    !crypto_ops.acipher.ecc_shared_secret) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			goto out;
-		}
 		if (param_count != 2 ||
 		    params[0].attributeID != TEE_ATTR_ECC_PUBLIC_VALUE_X ||
 		    params[1].attributeID != TEE_ATTR_ECC_PUBLIC_VALUE_Y) {
@@ -2752,8 +2715,8 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 
 		/* Create the public key */
-		res = crypto_ops.acipher.alloc_ecc_public_key(&key_public,
-							      alloc_size);
+		res = crypto_acipher_alloc_ecc_public_key(&key_public,
+							  alloc_size);
 		if (res != TEE_SUCCESS)
 			goto out;
 		key_public.curve = ((struct ecc_keypair *)ko->attr)->curve;
@@ -2766,8 +2729,9 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 
 		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;
-		res = crypto_ops.acipher.ecc_shared_secret(ko->attr,
-				&key_public, pt_secret, &pt_secret_len);
+		res = crypto_acipher_ecc_shared_secret(ko->attr, &key_public,
+						       pt_secret,
+						       &pt_secret_len);
 
 		if (res == TEE_SUCCESS) {
 			sk->key_size = pt_secret_len;
@@ -2776,7 +2740,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 
 		/* free the public key */
-		crypto_ops.acipher.free_ecc_public_key(&key_public);
+		crypto_acipher_free_ecc_public_key(&key_public);
 	}
 #if defined(CFG_CRYPTO_HKDF)
 	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_HKDF) {
@@ -3272,19 +3236,13 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			if (crypto_ops.acipher.rsanopad_encrypt)
-				res = crypto_ops.acipher.rsanopad_encrypt(
-					o->attr, src_data, src_len,
-					dst_data, &dlen);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_acipher_rsanopad_encrypt(o->attr, src_data,
+							      src_len, dst_data,
+							      &dlen);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			if (crypto_ops.acipher.rsanopad_decrypt)
-				res = crypto_ops.acipher.rsanopad_decrypt(
-					o->attr, src_data, src_len, dst_data,
-					&dlen);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
+			res = crypto_acipher_rsanopad_decrypt(o->attr, src_data,
+							      src_len, dst_data,
+							      &dlen);
 		} else {
 			/*
 			 * We will panic because "the mode is not compatible
@@ -3309,20 +3267,14 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			if (crypto_ops.acipher.rsaes_encrypt)
-				res = crypto_ops.acipher.rsaes_encrypt(
+			res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
+							   label, label_len,
+							   src_data, src_len,
+							   dst_data, &dlen);
+		} else if (cs->mode == TEE_MODE_DECRYPT) {
+			res = crypto_acipher_rsaes_decrypt(
 					cs->algo, o->attr, label, label_len,
 					src_data, src_len, dst_data, &dlen);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
-		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			if (crypto_ops.acipher.rsaes_decrypt)
-				res = crypto_ops.acipher.rsaes_decrypt(
-					cs->algo, o->attr,
-					label, label_len,
-					src_data, src_len, dst_data, &dlen);
-			else
-				res = TEE_ERROR_NOT_IMPLEMENTED;
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -3344,36 +3296,24 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			break;
 		}
 		salt_len = pkcs1_get_salt_len(params, num_params, src_len);
-		if (!crypto_ops.acipher.rsassa_sign) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.rsassa_sign(cs->algo, o->attr,
-						     salt_len, src_data,
-						     src_len, dst_data, &dlen);
+		res = crypto_acipher_rsassa_sign(cs->algo, o->attr, salt_len,
+						 src_data, src_len, dst_data,
+						 &dlen);
 		break;
 
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
-		if (!crypto_ops.acipher.dsa_sign) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.dsa_sign(cs->algo, o->attr, src_data,
-						  src_len, dst_data, &dlen);
+		res = crypto_acipher_dsa_sign(cs->algo, o->attr, src_data,
+					      src_len, dst_data, &dlen);
 		break;
 	case TEE_ALG_ECDSA_P192:
 	case TEE_ALG_ECDSA_P224:
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDSA_P384:
 	case TEE_ALG_ECDSA_P521:
-		if (!crypto_ops.acipher.ecc_sign) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.ecc_sign(cs->algo, o->attr, src_data,
-						  src_len, dst_data, &dlen);
+		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
+					      src_len, dst_data, &dlen);
 		break;
 
 	default:
@@ -3463,13 +3403,9 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 			break;
 		}
 		salt_len = pkcs1_get_salt_len(params, num_params, hash_size);
-		if (!crypto_ops.acipher.rsassa_verify) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.rsassa_verify(cs->algo, o->attr,
-						       salt_len, data,
-						       data_len, sig, sig_len);
+		res = crypto_acipher_rsassa_verify(cs->algo, o->attr, salt_len,
+						   data, data_len, sig,
+						   sig_len);
 		break;
 
 	case TEE_MAIN_ALGO_DSA:
@@ -3487,21 +3423,13 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 			res = TEE_ERROR_BAD_PARAMETERS;
 			break;
 		}
-		if (!crypto_ops.acipher.dsa_verify) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.dsa_verify(cs->algo, o->attr, data,
-						    data_len, sig, sig_len);
+		res = crypto_acipher_dsa_verify(cs->algo, o->attr, data,
+						data_len, sig, sig_len);
 		break;
 
 	case TEE_MAIN_ALGO_ECDSA:
-		if (!crypto_ops.acipher.ecc_verify) {
-			res = TEE_ERROR_NOT_IMPLEMENTED;
-			break;
-		}
-		res = crypto_ops.acipher.ecc_verify(cs->algo, o->attr, data,
-						    data_len, sig, sig_len);
+		res = crypto_acipher_ecc_verify(cs->algo, o->attr, data,
+						data_len, sig, sig_len);
 		break;
 
 	default:

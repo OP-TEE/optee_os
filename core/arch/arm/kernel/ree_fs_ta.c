@@ -98,12 +98,7 @@ static TEE_Result check_shdr(struct shdr *shdr)
 	if (hash_size != shdr->hash_size)
 		return TEE_ERROR_SECURITY;
 
-	if (!crypto_ops.acipher.alloc_rsa_public_key ||
-	    !crypto_ops.acipher.free_rsa_public_key ||
-	    !crypto_ops.acipher.rsassa_verify)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	res = crypto_ops.acipher.alloc_rsa_public_key(&key, shdr->sig_size);
+	res = crypto_acipher_alloc_rsa_public_key(&key, shdr->sig_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -115,11 +110,11 @@ static TEE_Result check_shdr(struct shdr *shdr)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_ops.acipher.rsassa_verify(shdr->algo, &key, -1,
-				SHDR_GET_HASH(shdr), shdr->hash_size,
-				SHDR_GET_SIG(shdr), shdr->sig_size);
+	res = crypto_acipher_rsassa_verify(shdr->algo, &key, -1,
+					   SHDR_GET_HASH(shdr), shdr->hash_size,
+					   SHDR_GET_SIG(shdr), shdr->sig_size);
 out:
-	crypto_ops.acipher.free_rsa_public_key(&key);
+	crypto_acipher_free_rsa_public_key(&key);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 	return TEE_SUCCESS;
