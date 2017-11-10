@@ -2970,7 +2970,7 @@ TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ltc_init(void)
+TEE_Result crypto_init(void)
 {
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 	tee_ltc_alloc_mpa();
@@ -2979,11 +2979,6 @@ static TEE_Result tee_ltc_init(void)
 
 	return tee_ltc_prng_init(tee_ltc_get_prng());
 }
-
-const struct crypto_ops crypto_ops = {
-	.name = "LibTomCrypt provider",
-	.init = tee_ltc_init,
-};
 
 #if defined(CFG_WITH_VFP)
 void tomcrypt_arm_neon_enable(struct tomcrypt_arm_neon_state *state)
