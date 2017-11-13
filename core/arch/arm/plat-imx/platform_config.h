@@ -31,7 +31,7 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#include <imx-regs.h>
+#include <registers/imx-regs.h>
 
 #define STACK_ALIGNMENT			64
 

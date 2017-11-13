@@ -140,7 +140,7 @@ static uint32_t get_online_cpus(void)
 					     MEM_AREA_IO_SEC);
 	uint32_t val = read32(src_a7rcr1);
 
-	return (val & (1 << SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET)) ? 2 : 1;
+	return (val & (1 << BP_SRC_A7RCR1_A7_CORE1_ENABLE)) ? 2 : 1;
 }
 
 int imx7d_lowpower_idle(uint32_t power_state __unused,

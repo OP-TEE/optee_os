@@ -53,7 +53,7 @@ void plat_cpu_reset_late(void)
 		write32(pa, SRC_BASE + SRC_GPR1 + 16);
 		write32(pa, SRC_BASE + SRC_GPR1 + 24);
 
-		write32(SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
+		write32(BM_SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
 #endif
 
 		/* SCU config */
