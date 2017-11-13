@@ -25,12 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_cryp_concat_kdf.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_cryp_utl.h>
-#include <utee_defines.h>
+#include <crypto/crypto.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tee/tee_cryp_concat_kdf.h>
+#include <tee/tee_cryp_utl.h>
+#include <utee_defines.h>
 
 TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 			       size_t shared_secret_len,

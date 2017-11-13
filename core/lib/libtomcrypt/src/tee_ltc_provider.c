@@ -26,7 +26,7 @@
  */
 
 #include <assert.h>
-#include <tee/tee_cryp_provider.h>
+#include <crypto/crypto.h>
 #include <tee/tee_cryp_utl.h>
 
 #include <tomcrypt.h>

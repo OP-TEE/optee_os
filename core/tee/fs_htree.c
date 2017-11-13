@@ -26,6 +26,7 @@
  */
 
 #include <assert.h>
+#include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/tee_common_otp.h>
 #include <optee_msg_supplicant.h>
@@ -33,7 +34,6 @@
 #include <string_ext.h>
 #include <string.h>
 #include <tee/fs_htree.h>
-#include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs_key_manager.h>
 #include <tee/tee_fs_rpc.h>
 #include <utee_defines.h>

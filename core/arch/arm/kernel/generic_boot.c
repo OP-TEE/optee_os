@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <console.h>
+#include <crypto/crypto.h>
 #include <inttypes.h>
 #include <keep.h>
 #include <kernel/asan.h>
@@ -47,7 +48,6 @@
 #include <sm/psci.h>
 #include <sm/tee_mon.h>
 #include <stdio.h>
-#include <tee/tee_cryp_provider.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>

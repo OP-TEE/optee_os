@@ -25,11 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <tee/tee_cryp_hkdf.h>
-#include <tee/tee_cryp_provider.h>
-#include <tee/tee_cryp_utl.h>
+#include <crypto/crypto.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tee/tee_cryp_hkdf.h>
+#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 

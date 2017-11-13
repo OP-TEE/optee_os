@@ -25,15 +25,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <string_ext.h>
-#include <utee_defines.h>
-#include <tee/tee_cryp_utl.h>
-#include <tee/tee_cryp_provider.h>
+#include <crypto/crypto.h>
+#include <initcall.h>
 #include <kernel/tee_time.h>
 #include <rng_support.h>
-#include <initcall.h>
+#include <stdlib.h>
+#include <string_ext.h>
+#include <string.h>
+#include <tee/tee_cryp_utl.h>
+#include <utee_defines.h>
 
 #if !defined(CFG_WITH_SOFTWARE_PRNG)
 TEE_Result get_rng_array(void *buffer, int len)

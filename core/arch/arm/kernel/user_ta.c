@@ -45,7 +45,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <ta_pub_key.h>
-#include <tee/tee_cryp_provider.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_cryp.h>

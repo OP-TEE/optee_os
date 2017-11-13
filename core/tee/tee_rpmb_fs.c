@@ -26,6 +26,7 @@
  */
 
 #include <assert.h>
+#include <crypto/crypto.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/mutex.h>
@@ -42,7 +43,6 @@
 #include <string_ext.h>
 #include <string.h>
 #include <sys/queue.h>
-#include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_key_manager.h>
 #include <tee/tee_pobj.h>

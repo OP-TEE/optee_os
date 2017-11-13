@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <crypto/crypto.h>
 #include <keep.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -32,7 +33,6 @@
 #include <kernel/thread.h>
 #include <platform_config.h>
 #include <string.h>
-#include <tee/tee_cryp_provider.h>
 #include <trace.h>
 
 #define TA_NAME		"interrupt_tests.ta"
