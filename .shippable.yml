@@ -14,7 +14,9 @@ build:
     - export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
     - export CCACHE_DIR=${SHIPPABLE_BUILD_DIR}/.ccache
-    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s $* && ccache -s && ccache -z; }
+    # No parallel build ('make -j$(getconf _NPROCESSORS_ONLN)') due to:
+    # https://github.com/Shippable/support/issues/3953
+    - function _make() { make -s $* && ccache -s && ccache -z; }
     - ccache -z
 
     #
