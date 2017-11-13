@@ -6,6 +6,8 @@
  */
 
 #include <compiler.h>
+#include <crypto/aes-ccm.h>
+#include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
 
@@ -97,71 +99,183 @@ TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
 }
 #endif /*_CFG_CRYPTO_WITH_MAC*/
 
-#if !defined(_CFG_CRYPTO_WITH_AUTHENC)
-TEE_Result crypto_authenc_get_ctx_size(uint32_t algo __unused,
-				       size_t *size __unused)
+TEE_Result crypto_authenc_get_ctx_size(uint32_t algo __maybe_unused,
+				       size_t *size __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		*size = crypto_aes_ccm_get_ctx_size();
+		return TEE_SUCCESS;
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		*size = crypto_aes_gcm_get_ctx_size();
+		return TEE_SUCCESS;
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-TEE_Result crypto_authenc_init(void *ctx __unused, uint32_t algo __unused,
-			       TEE_OperationMode mode __unused,
-			       const uint8_t *key __unused,
-			       size_t key_len __unused,
-			       const uint8_t *nonce __unused,
-			       size_t nonce_len __unused,
-			       size_t tag_len __unused,
-			       size_t aad_len __unused,
-			       size_t payload_len __unused)
+TEE_Result crypto_authenc_init(void *ctx __maybe_unused,
+			       uint32_t algo __maybe_unused,
+			       TEE_OperationMode mode __maybe_unused,
+			       const uint8_t *key __maybe_unused,
+			       size_t key_len __maybe_unused,
+			       const uint8_t *nonce __maybe_unused,
+			       size_t nonce_len __maybe_unused,
+			       size_t tag_len __maybe_unused,
+			       size_t aad_len __maybe_unused,
+			       size_t payload_len __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		return crypto_aes_ccm_init(ctx, mode, key, key_len, nonce,
+					   nonce_len, tag_len, aad_len,
+					   payload_len);
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		return crypto_aes_gcm_init(ctx, mode, key, key_len, nonce,
+					   nonce_len, tag_len);
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-TEE_Result crypto_authenc_update_aad(void *ctx __unused, uint32_t algo __unused,
+TEE_Result crypto_authenc_update_aad(void *ctx __maybe_unused,
+				     uint32_t algo __maybe_unused,
 				     TEE_OperationMode mode __unused,
-				     const uint8_t *data __unused,
-				     size_t len __unused)
+				     const uint8_t *data __maybe_unused,
+				     size_t len __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		return crypto_aes_ccm_update_aad(ctx, data, len);
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		return crypto_aes_gcm_update_aad(ctx, data, len);
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-TEE_Result crypto_authenc_update_payload(void *ctx __unused,
-					 uint32_t algo __unused,
-					 TEE_OperationMode mode __unused,
-					 const uint8_t *src_data __unused,
-					 size_t src_len __unused,
-					 uint8_t *dst_data __unused,
-					 size_t *dst_len __unused)
+TEE_Result crypto_authenc_update_payload(void *ctx __maybe_unused,
+					 uint32_t algo __maybe_unused,
+					 TEE_OperationMode mode __maybe_unused,
+					 const uint8_t *src_data __maybe_unused,
+					 size_t src_len __maybe_unused,
+					 uint8_t *dst_data __maybe_unused,
+					 size_t *dst_len __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	size_t dl = *dst_len;
+
+	*dst_len = src_len;
+	if (dl < src_len)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		return crypto_aes_ccm_update_payload(ctx, mode, src_data,
+						     src_len, dst_data);
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		return crypto_aes_gcm_update_payload(ctx, mode, src_data,
+						     src_len, dst_data);
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-TEE_Result crypto_authenc_enc_final(void *ctx __unused, uint32_t algo __unused,
-				    const uint8_t *src_data __unused,
-				    size_t src_len __unused,
-				    uint8_t *dst_data __unused,
-				    size_t *dst_len __unused,
-				    uint8_t *dst_tag __unused,
-				    size_t *dst_tag_len __unused)
+TEE_Result crypto_authenc_enc_final(void *ctx __maybe_unused,
+				    uint32_t algo __maybe_unused,
+				    const uint8_t *src_data __maybe_unused,
+				    size_t src_len __maybe_unused,
+				    uint8_t *dst_data __maybe_unused,
+				    size_t *dst_len __maybe_unused,
+				    uint8_t *dst_tag __maybe_unused,
+				    size_t *dst_tag_len __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	size_t dl = *dst_len;
+
+	*dst_len = src_len;
+	if (dl < src_len)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		return crypto_aes_ccm_enc_final(ctx, src_data, src_len,
+						dst_data, dst_tag, dst_tag_len);
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		return crypto_aes_gcm_enc_final(ctx, src_data, src_len,
+						dst_data, dst_tag, dst_tag_len);
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-TEE_Result crypto_authenc_dec_final(void *ctx __unused, uint32_t algo __unused,
-				    const uint8_t *src_data __unused,
-				    size_t src_len __unused,
-				    uint8_t *dst_data __unused,
-				    size_t *dst_len __unused,
-				    const uint8_t *tag __unused,
-				    size_t tag_len __unused)
+TEE_Result crypto_authenc_dec_final(void *ctx __maybe_unused,
+				    uint32_t algo __maybe_unused,
+				    const uint8_t *src_data __maybe_unused,
+				    size_t src_len __maybe_unused,
+				    uint8_t *dst_data __maybe_unused,
+				    size_t *dst_len __maybe_unused,
+				    const uint8_t *tag __maybe_unused,
+				    size_t tag_len __maybe_unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	size_t dl = *dst_len;
+
+	*dst_len = src_len;
+	if (dl < src_len)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		return crypto_aes_ccm_dec_final(ctx, src_data, src_len,
+						dst_data, tag, tag_len);
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		return crypto_aes_gcm_dec_final(ctx, src_data, src_len,
+						dst_data, tag, tag_len);
+#endif
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 }
 
-void crypto_authenc_final(void *ctx __unused, uint32_t algo __unused)
+void crypto_authenc_final(void *ctx __maybe_unused,
+			  uint32_t algo __maybe_unused)
 {
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		crypto_aes_ccm_final(ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		crypto_aes_gcm_final(ctx);
+		break;
+#endif
+	default:
+		break;
+	}
 }
-#endif /*_CFG_CRYPTO_WITH_AUTHENC*/
 
 #if !defined(_CFG_CRYPTO_WITH_ACIPHER)
 struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
