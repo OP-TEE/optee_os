@@ -26,20 +26,21 @@
  */
 
 #include <assert.h>
+#include <crypto/aes-ccm.h>
+#include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
-#include <tee/tee_cryp_utl.h>
-
-#include <tomcrypt.h>
+#include <kernel/panic.h>
 #include <mpalib.h>
 #include <stdlib.h>
-#include <string.h>
-#include <utee_defines.h>
-#include <trace.h>
-#include <tee_api_types.h>
 #include <string_ext.h>
-#include <util.h>
-#include <kernel/panic.h>
+#include <string.h>
+#include <tee_api_types.h>
+#include <tee/tee_cryp_utl.h>
+#include <tomcrypt.h>
 #include "tomcrypt_mpa.h"
+#include <trace.h>
+#include <utee_defines.h>
+#include <util.h>
 
 #if defined(CFG_WITH_VFP)
 #include <tomcrypt_arm_neon.h>
@@ -1911,19 +1912,6 @@ struct tee_symmetric_xts {
 };
 #endif
 
-static TEE_Result cipher_get_block_size(uint32_t algo, size_t *size)
-{
-	TEE_Result res;
-	int ltc_cipherindex;
-
-	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
-	if (res != TEE_SUCCESS)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	*size = cipher_descriptor[ltc_cipherindex]->block_length;
-	return TEE_SUCCESS;
-}
-
 TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
@@ -2532,345 +2520,159 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
  * Authenticated encryption
  ******************************************************************************/
 
-#if defined(_CFG_CRYPTO_WITH_AUTHENC)
-
 #define TEE_CCM_KEY_MAX_LENGTH		32
 #define TEE_CCM_NONCE_MAX_LENGTH	13
 #define TEE_CCM_TAG_MAX_LENGTH		16
 #define TEE_GCM_TAG_MAX_LENGTH		16
-#define TEE_xCM_TAG_MAX_LENGTH		16
 
 #if defined(CFG_CRYPTO_CCM)
 struct tee_ccm_state {
 	ccm_state ctx;			/* the ccm state as defined by LTC */
 	size_t tag_len;			/* tag length */
 };
-#endif
 
-#if defined(CFG_CRYPTO_GCM)
-struct tee_gcm_state {
-	gcm_state ctx;			/* the gcm state as defined by LTC */
-	size_t tag_len;			/* tag length */
-};
-#endif
-
-TEE_Result crypto_authenc_get_ctx_size(uint32_t algo, size_t *size)
+size_t crypto_aes_ccm_get_ctx_size(void)
 {
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		*size = sizeof(struct tee_ccm_state);
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		*size = sizeof(struct tee_gcm_state);
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-	return TEE_SUCCESS;
+	return sizeof(struct tee_ccm_state);
 }
 
-TEE_Result crypto_authenc_init(void *ctx, uint32_t algo,
-			       TEE_OperationMode mode __unused,
+TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode __unused,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len, size_t aad_len __maybe_unused,
-			       size_t payload_len __maybe_unused)
+			       size_t tag_len, size_t aad_len,
+			       size_t payload_len)
 {
 	TEE_Result res;
 	int ltc_res;
 	int ltc_cipherindex;
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
+	struct tee_ccm_state *ccm = ctx;
 
-	res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
+	res = tee_algo_to_ltc_cipherindex(TEE_ALG_AES_CCM, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		/* reset the state */
-		ccm = ctx;
-		memset(ccm, 0, sizeof(struct tee_ccm_state));
-		ccm->tag_len = tag_len;
 
-		/* Check the key length */
-		if ((!key) || (key_len > TEE_CCM_KEY_MAX_LENGTH))
-			return TEE_ERROR_BAD_PARAMETERS;
+	/* reset the state */
+	memset(ccm, 0, sizeof(struct tee_ccm_state));
+	ccm->tag_len = tag_len;
 
-		/* check the nonce */
-		if (nonce_len > TEE_CCM_NONCE_MAX_LENGTH)
-			return TEE_ERROR_BAD_PARAMETERS;
+	/* Check the key length */
+	if ((!key) || (key_len > TEE_CCM_KEY_MAX_LENGTH))
+		return TEE_ERROR_BAD_PARAMETERS;
 
-		/* check the tag len */
-		if ((tag_len < 4) ||
-		    (tag_len > TEE_CCM_TAG_MAX_LENGTH) ||
-		    (tag_len % 2 != 0))
-			return TEE_ERROR_NOT_SUPPORTED;
+	/* check the nonce */
+	if (nonce_len > TEE_CCM_NONCE_MAX_LENGTH)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-		ltc_res = ccm_init(&ccm->ctx, ltc_cipherindex, key, key_len,
-				   payload_len, tag_len, aad_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-
-		/* Add the IV */
-		ltc_res = ccm_add_nonce(&ccm->ctx, nonce, nonce_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		/* reset the state */
-		gcm = ctx;
-		memset(gcm, 0, sizeof(struct tee_gcm_state));
-		gcm->tag_len = tag_len;
-
-		ltc_res = gcm_init(&gcm->ctx, ltc_cipherindex, key, key_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-
-		/* Add the IV */
-		ltc_res = gcm_add_iv(&gcm->ctx, nonce, nonce_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
+	/* check the tag len */
+	if ((tag_len < 4) || (tag_len > TEE_CCM_TAG_MAX_LENGTH) ||
+	    (tag_len % 2 != 0))
 		return TEE_ERROR_NOT_SUPPORTED;
-	}
+
+	ltc_res = ccm_init(&ccm->ctx, ltc_cipherindex, key, key_len,
+			   payload_len, tag_len, aad_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	/* Add the IV */
+	ltc_res = ccm_add_nonce(&ccm->ctx, nonce, nonce_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo,
-				     TEE_OperationMode mode __unused,
-				     const uint8_t *data, size_t len)
+TEE_Result crypto_aes_ccm_update_aad(void *ctx, const uint8_t *data, size_t len)
 {
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
+	struct tee_ccm_state *ccm = ctx;
 	int ltc_res;
 
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		/* Add the AAD (note: aad can be NULL if aadlen == 0) */
-		ccm = ctx;
-		ltc_res = ccm_add_aad(&ccm->ctx, data, len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		/* Add the AAD (note: aad can be NULL if aadlen == 0) */
-		gcm = ctx;
-		ltc_res = gcm_add_aad(&gcm->ctx, data, len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	/* Add the AAD (note: aad can be NULL if aadlen == 0) */
+	ltc_res = ccm_add_aad(&ccm->ctx, data, len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo,
-					 TEE_OperationMode mode,
+TEE_Result crypto_aes_ccm_update_payload(void *ctx, TEE_OperationMode mode,
 					 const uint8_t *src_data,
-					 size_t src_len,
-					 uint8_t *dst_data,
-					 size_t *dst_len)
+					 size_t len, uint8_t *dst_data)
 {
-#if defined(CFG_CRYPTO_GCM)
-	TEE_Result res;
-#endif
 	int ltc_res, dir;
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
+	struct tee_ccm_state *ccm = ctx;
 	unsigned char *pt, *ct;	/* the plain and the cipher text */
 
 	if (mode == TEE_MODE_ENCRYPT) {
 		pt = (unsigned char *)src_data;
 		ct = dst_data;
+		dir = CCM_ENCRYPT;
 	} else {
 		pt = dst_data;
 		ct = (unsigned char *)src_data;
+		dir = CCM_DECRYPT;
 	}
-
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		ccm = ctx;
-		dir = (mode == TEE_MODE_ENCRYPT ? CCM_ENCRYPT : CCM_DECRYPT);
-		ltc_res = ccm_process(&ccm->ctx, pt, src_len, ct, dir);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		*dst_len = src_len;
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		/* aad is optional ==> add one without length */
-		gcm = ctx;
-		if (gcm->ctx.mode == LTC_GCM_MODE_IV) {
-			res = crypto_authenc_update_aad(gcm, algo, mode, 0, 0);
-			if (res != TEE_SUCCESS)
-				return res;
-		}
-
-		/* process the data */
-		dir = (mode == TEE_MODE_ENCRYPT ? GCM_ENCRYPT : GCM_DECRYPT);
-		ltc_res = gcm_process(&gcm->ctx, pt, src_len, ct, dir);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		*dst_len = src_len;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	ltc_res = ccm_process(&ccm->ctx, pt, len, ct, dir);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo,
-				    const uint8_t *src_data,
-				    size_t src_len, uint8_t *dst_data,
-				    size_t *dst_len, uint8_t *dst_tag,
-				    size_t *dst_tag_len)
+TEE_Result crypto_aes_ccm_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
+				    uint8_t *dst_tag, size_t *dst_tag_len)
 {
 	TEE_Result res;
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
-	size_t digest_size;
+	struct tee_ccm_state *ccm = ctx;
 	int ltc_res;
 
-	/* Check the resulting buffer is not too short */
-	res = cipher_get_block_size(algo, &digest_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
 	/* Finalize the remaining buffer */
-	res = crypto_authenc_update_payload(ctx, algo, TEE_MODE_ENCRYPT,
-					    src_data, src_len, dst_data,
-					    dst_len);
+	res = crypto_aes_ccm_update_payload(ctx, TEE_MODE_ENCRYPT, src_data,
+					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		/* Check the tag length */
-		ccm = ctx;
-		if (*dst_tag_len < ccm->tag_len) {
-			*dst_tag_len = ccm->tag_len;
-			return TEE_ERROR_SHORT_BUFFER;
-		}
+	/* Check the tag length */
+	if (*dst_tag_len < ccm->tag_len) {
 		*dst_tag_len = ccm->tag_len;
-
-		/* Compute the tag */
-		ltc_res = ccm_done(&ccm->ctx, dst_tag,
-				   (unsigned long *)dst_tag_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		/* Check the tag length */
-		gcm = ctx;
-		if (*dst_tag_len < gcm->tag_len) {
-			*dst_tag_len = gcm->tag_len;
-			return TEE_ERROR_SHORT_BUFFER;
-		}
-		*dst_tag_len = gcm->tag_len;
-
-		/* Compute the tag */
-		ltc_res = gcm_done(&gcm->ctx, dst_tag,
-				   (unsigned long *)dst_tag_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
+		return TEE_ERROR_SHORT_BUFFER;
 	}
+	*dst_tag_len = ccm->tag_len;
+
+	/* Compute the tag */
+	ltc_res = ccm_done(&ccm->ctx, dst_tag,
+			   (unsigned long *)dst_tag_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
+TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
 				    const uint8_t *tag, size_t tag_len)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
+	struct tee_ccm_state *ccm = ctx;
 	int ltc_res;
-	uint8_t dst_tag[TEE_xCM_TAG_MAX_LENGTH];
+	uint8_t dst_tag[TEE_CCM_TAG_MAX_LENGTH];
 	unsigned long ltc_tag_len = tag_len;
 
 	if (tag_len == 0)
 		return TEE_ERROR_SHORT_BUFFER;
-	if (tag_len > TEE_xCM_TAG_MAX_LENGTH)
+	if (tag_len > TEE_CCM_TAG_MAX_LENGTH)
 		return TEE_ERROR_BAD_STATE;
 
 	/* Process the last buffer, if any */
-	res = crypto_authenc_update_payload(ctx, algo, TEE_MODE_DECRYPT,
-					    src_data, src_len, dst_data,
-					    dst_len);
+	res = crypto_aes_ccm_update_payload(ctx, TEE_MODE_DECRYPT, src_data,
+					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		/* Finalize the authentication */
-		ccm = ctx;
-		ltc_res = ccm_done(&ccm->ctx, dst_tag, &ltc_tag_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		/* Finalize the authentication */
-		gcm = ctx;
-		ltc_res = gcm_done(&gcm->ctx, dst_tag, &ltc_tag_len);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
+	/* Finalize the authentication */
+	ltc_res = ccm_done(&ccm->ctx, dst_tag, &ltc_tag_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
 
 	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
 		res = TEE_ERROR_MAC_INVALID;
@@ -2879,33 +2681,171 @@ TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
 	return res;
 }
 
-void crypto_authenc_final(void *ctx, uint32_t algo)
+void crypto_aes_ccm_final(void *ctx)
 {
-#if defined(CFG_CRYPTO_CCM)
-	struct tee_ccm_state *ccm;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	struct tee_gcm_state *gcm;
-#endif
+	struct tee_ccm_state *ccm = ctx;
 
-	switch (algo) {
-#if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		ccm = ctx;
-		ccm_reset(&ccm->ctx);
-		break;
-#endif
-#if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		gcm = ctx;
-		gcm_reset(&gcm->ctx);
-		break;
-#endif
-	default:
-		break;
-	}
+	ccm_reset(&ccm->ctx);
 }
-#endif /* _CFG_CRYPTO_WITH_AUTHENC */
+#endif /*CFG_CRYPTO_CCM*/
+
+#if defined(CFG_CRYPTO_GCM)
+struct tee_gcm_state {
+	gcm_state ctx;			/* the gcm state as defined by LTC */
+	size_t tag_len;			/* tag length */
+};
+
+size_t crypto_aes_gcm_get_ctx_size(void)
+{
+	return sizeof(struct tee_gcm_state);
+}
+
+TEE_Result crypto_aes_gcm_init(void *ctx, TEE_OperationMode mode __unused,
+			       const uint8_t *key, size_t key_len,
+			       const uint8_t *nonce, size_t nonce_len,
+			       size_t tag_len)
+{
+	TEE_Result res;
+	int ltc_res;
+	int ltc_cipherindex;
+	struct tee_gcm_state *gcm = ctx;
+
+	res = tee_algo_to_ltc_cipherindex(TEE_ALG_AES_GCM, &ltc_cipherindex);
+	if (res != TEE_SUCCESS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	/* reset the state */
+	memset(gcm, 0, sizeof(struct tee_gcm_state));
+	gcm->tag_len = tag_len;
+
+	ltc_res = gcm_init(&gcm->ctx, ltc_cipherindex, key, key_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	/* Add the IV */
+	ltc_res = gcm_add_iv(&gcm->ctx, nonce, nonce_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_aes_gcm_update_aad(void *ctx, const uint8_t *data, size_t len)
+{
+	struct tee_gcm_state *gcm = ctx;
+	int ltc_res;
+
+	/* Add the AAD (note: aad can be NULL if aadlen == 0) */
+	ltc_res = gcm_add_aad(&gcm->ctx, data, len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_aes_gcm_update_payload(void *ctx, TEE_OperationMode mode,
+					 const uint8_t *src_data,
+					 size_t len, uint8_t *dst_data)
+{
+	TEE_Result res;
+	int ltc_res, dir;
+	struct tee_gcm_state *gcm = ctx;
+	unsigned char *pt, *ct;	/* the plain and the cipher text */
+
+	if (mode == TEE_MODE_ENCRYPT) {
+		pt = (unsigned char *)src_data;
+		ct = dst_data;
+		dir = GCM_ENCRYPT;
+	} else {
+		pt = dst_data;
+		ct = (unsigned char *)src_data;
+		dir = GCM_DECRYPT;
+	}
+
+	/* aad is optional ==> add one without length */
+	if (gcm->ctx.mode == LTC_GCM_MODE_IV) {
+		res = crypto_aes_gcm_update_aad(gcm, NULL, 0);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	/* process the data */
+	ltc_res = gcm_process(&gcm->ctx, pt, len, ct, dir);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_aes_gcm_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
+				    uint8_t *dst_tag, size_t *dst_tag_len)
+{
+	TEE_Result res;
+	struct tee_gcm_state *gcm = ctx;
+	int ltc_res;
+
+	/* Finalize the remaining buffer */
+	res = crypto_aes_gcm_update_payload(ctx, TEE_MODE_ENCRYPT, src_data,
+					    len, dst_data);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Check the tag length */
+	if (*dst_tag_len < gcm->tag_len) {
+		*dst_tag_len = gcm->tag_len;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*dst_tag_len = gcm->tag_len;
+
+	/* Compute the tag */
+	ltc_res = gcm_done(&gcm->ctx, dst_tag, (unsigned long *)dst_tag_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
+				    const uint8_t *tag, size_t tag_len)
+{
+	TEE_Result res = TEE_ERROR_BAD_STATE;
+	struct tee_gcm_state *gcm = ctx;
+	int ltc_res;
+	uint8_t dst_tag[TEE_GCM_TAG_MAX_LENGTH];
+	unsigned long ltc_tag_len = tag_len;
+
+	if (tag_len == 0)
+		return TEE_ERROR_SHORT_BUFFER;
+	if (tag_len > TEE_GCM_TAG_MAX_LENGTH)
+		return TEE_ERROR_BAD_STATE;
+
+	/* Process the last buffer, if any */
+	res = crypto_aes_gcm_update_payload(ctx, TEE_MODE_DECRYPT, src_data,
+					    len, dst_data);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Finalize the authentication */
+	ltc_res = gcm_done(&gcm->ctx, dst_tag, &ltc_tag_len);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
+		res = TEE_ERROR_MAC_INVALID;
+	else
+		res = TEE_SUCCESS;
+	return res;
+}
+
+void crypto_aes_gcm_final(void *ctx)
+{
+	struct tee_gcm_state *gcm = ctx;
+
+	gcm_reset(&gcm->ctx);
+}
+#endif /*CFG_CRYPTO_GCM*/
 
 /******************************************************************************
  * Pseudo Random Number Generator
