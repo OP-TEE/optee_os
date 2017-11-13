@@ -306,13 +306,14 @@ have the ability to enable Crypto Extensions that were introduced with ARMv8-A
 have hardware crypto IP's, but due to NDA's etc it has not been possible to
 enable it. If you have a device capable of doing crypto operations on a
 dedicated crypto block and you prefer to use that in favor for the software
-implementation, then you will need to implement a new `crypto_ops` structure and
-write the low level driver that communicates with the device. Our [crypto.md]
-file describes how to add and implement a new `struct crypto_ops`. Since the
-communication with crypto blocks tends to be quite different depending on what
-kind of crypto block you have, we have not written how that should be done. It
-might be that we do that in the future when get hold of a device where we can
-use the crypto block.
+implementation, then you will need to implement relevant functions defined in
+`core/include/crypto/crypto.h`, the Crypto API, and write the low level
+driver that communicates with the device. Our [crypto.md] file describes
+how the Crypto API is integrated. Since the communication with crypto
+blocks tends to be quite different depending on what kind of crypto block
+you have, we have not written how that should be done. It might be that we
+do that in the future when get hold of a device where we can use the crypto
+block.
 
 ## 7. Power Management / PSCI
 In section 2 when we talked about the file `main.c`, we added a couple of
