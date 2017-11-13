@@ -55,31 +55,32 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
+#ifdef CFG_MX7
 	if (soc_is_imx7ds()) {
-		write32(val, va + SRC_GPR1_MX7 + core_idx * 8);
+		write32(val, va + SRC_GPR1 + core_idx * 8);
 
 		imx_gpcv2_set_core1_pup_by_software();
 
 		/* release secondary core */
 		val = read32(va + SRC_A7RCR1);
-		val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
+		val |=  BIT32(BP_SRC_A7RCR1_A7_CORE1_ENABLE +
 			      (core_idx - 1));
 		write32(val, va + SRC_A7RCR1);
 
 		return PSCI_RET_SUCCESS;
 	}
-
+#else
 	/* boot secondary cores from OP-TEE load address */
 	write32(val, va + SRC_GPR1 + core_idx * 8);
 
 	/* release secondary core */
 	val = read32(va + SRC_SCR);
-	val |=  BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + (core_idx - 1));
-	val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + (core_idx - 1));
+	val |=  BIT32(BP_SRC_SCR_CORE1_ENABLE + (core_idx - 1));
+	val |=  BIT32(BP_SRC_SCR_CORE1_RST + (core_idx - 1));
 	write32(val, va + SRC_SCR);
 
 	imx_set_src_gpr(core_idx, 0);
-
+#endif
 	return PSCI_RET_SUCCESS;
 }
 
@@ -127,23 +128,25 @@ int psci_affinity_info(uint32_t affinity,
 	 * Wait secondary cpus ready to be killed
 	 * TODO: Change to non dead loop
 	 */
+#ifdef CFG_MX7
 	if (soc_is_imx7ds()) {
-		while (read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
+		while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT_MAX)
 			;
 
 		val = read32(va + SRC_A7RCR1);
-		val &=  ~BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET + (cpu - 1));
+		val &=  ~BIT32(BP_SRC_A7RCR1_A7_CORE1_ENABLE + (cpu - 1));
 		write32(val, va + SRC_A7RCR1);
-	} else {
-		while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
-			;
-
-		/* Kill cpu */
-		val = read32(va + SRC_SCR);
-		val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
-		val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
-		write32(val, va + SRC_SCR);
 	}
+#else
+	while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
+		;
+
+	/* Kill cpu */
+	val = read32(va + SRC_SCR);
+	val &= ~BIT32(BP_SRC_SCR_CORE1_ENABLE + cpu - 1);
+	val |=  BIT32(BP_SRC_SCR_CORE1_RST + cpu - 1);
+	write32(val, va + SRC_SCR);
+#endif
 
 	/* Clean arg */
 	imx_set_src_gpr(cpu, 0);

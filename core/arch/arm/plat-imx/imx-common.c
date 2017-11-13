@@ -23,9 +23,9 @@ static uint32_t imx_digproc(void)
 
 		/* TODO: Handle SL here */
 #ifdef CFG_MX7
-		reg = read32(anatop_addr + OFFSET_DIGPROG_IMX7D);
+		reg = read32(anatop_addr + HW_ANADIG_DIGPROG_IMX7D);
 #else
-		reg = read32(anatop_addr + OFFSET_DIGPROG);
+		reg = read32(anatop_addr + HW_ANADIG_DIGPROG);
 #endif
 	}
 
@@ -37,7 +37,7 @@ static uint32_t imx_soc_rev_major(void)
 	return ((imx_digproc() & 0xff00) >> 8) + 1;
 }
 
-uint32_t imx_soc_type(void)
+static uint32_t imx_soc_type(void)
 {
 	return (imx_digproc() >> 16) & 0xff;
 }
@@ -59,12 +59,14 @@ bool soc_is_imx6sdl(void)
 
 bool soc_is_imx6dq(void)
 {
-	return (imx_soc_type() == SOC_MX6Q) && (imx_soc_rev_major() == 1);
+	return (imx_soc_type() == SOC_MX6Q) &&
+		(imx_soc_rev_major() == 1);
 }
 
 bool soc_is_imx6dqp(void)
 {
-	return (imx_soc_type() == SOC_MX6Q) && (imx_soc_rev_major() == 2);
+	return (imx_soc_type() == SOC_MX6Q) &&
+		(imx_soc_rev_major() == 2);
 }
 
 bool soc_is_imx7ds(void)
@@ -76,18 +78,12 @@ uint32_t imx_get_src_gpr(int cpu)
 {
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-	if (soc_is_imx7ds())
-		return read32(va + SRC_GPR1_MX7 + cpu * 8 + 4);
-	else
-		return read32(va + SRC_GPR1 + cpu * 8 + 4);
+	return read32(va + SRC_GPR1 + cpu * 8 + 4);
 }
 
 void imx_set_src_gpr(int cpu, uint32_t val)
 {
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
-	if (soc_is_imx7ds())
-		write32(val, va + SRC_GPR1_MX7 + cpu * 8 + 4);
-	else
-		write32(val, va + SRC_GPR1 + cpu * 8 + 4);
+	write32(val, va + SRC_GPR1 + cpu * 8 + 4);
 }

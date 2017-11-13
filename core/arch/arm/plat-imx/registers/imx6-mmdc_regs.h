@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright 2017-2018 NXP
+ *
+ */
+#ifndef __MMDC_REGS__
+#define __MMDC_REGS__
+
+#if defined(CFG_MX6) || defined(CFG_MX6UL)
+#define MX6_MMDC1_OFFSET	0x0000
+#define MX6_MMDC2_OFFSET	0x4000
+
+#define MX6_MMDC_MDCTL		0x000
+#define MX6_MMDC_MDPDC		0x004
+#define MX6_MMDC_MDCFG0		0x00C
+#define MX6_MMDC_MDCFG1		0x010
+#define MX6_MMDC_MDCFG2		0x014
+#define MX6_MMDC_MDMISC		0x018
+#define MX6_MMDC_MDSCR		0x01C
+#define MX6_MMDC_MDCFG3LP   0x038
+#define MX6_MMDC_MAARCR		0x400
+#define MX6_MMDC_MAPSR		0x404
+#define MX6_MMDC_MADPCR0	0x410
+#define MX6_MMDC_MPZQHWCTRL 0x800
+#define MX6_MMDC_MPODTCTRL  0x818
+#define MX6_MMDC_MPDGCTRL0	0x83c
+#define MX6_MMDC_MPDGCTRL1	0x840
+#define MX6_MMDC_MPRDDLCTL	0x848
+#define MX6_MMDC_MPWRDLCTL	0x850
+#define MX6_MMDC_MPMUR0		0x8B8
+
+#define BM_MMDC_MDMISC_DDR_TYPE			(0x18)
+#define BP_MMDC_MDMISC_DDR_TYPE_SHIFT   (3)
+#define IMX_DDR_TYPE_DDR3				(0)
+#define IMX_DDR_TYPE_LPDDR2				(1)
+#define IMX_DDR_TYPE_LPDDR3				(2)
+
+#define BP_MX6_MMDC_MPMUR0_MU_UNIT_DEL_NUM	(16)
+/* For iMX6SLL */
+#define IMX_MMDC_DDR_TYPE_LPDDR3 3
+
+#endif
+
+#endif /* __MMDC_REGS__ */

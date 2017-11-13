@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2018 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -29,8 +29,6 @@ bool soc_is_imx6sdl(void);
 bool soc_is_imx6dq(void);
 bool soc_is_imx6dqp(void);
 bool soc_is_imx7ds(void);
-uint32_t imx_soc_type(void);
 void imx_gpcv2_set_core1_pdn_by_software(void);
 void imx_gpcv2_set_core1_pup_by_software(void);
-void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
 #endif

@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright 2017-2018 NXP
+ *
+ */
+
+#ifndef __DDRC_REGS__
+#define __DDRC_REGS__
+
+#if defined(CFG_MX7)
+
+/* DDR Controller */
+#define MX7_DDRC_MSTR			0x000
+#define MX7_DDRC_STAT			0x004
+#define MX7_DDRC_MRCTRL0		0x010
+#define MX7_DDRC_MRCTRL1		0x014
+#define MX7_DDRC_MRSTAT			0x018
+#define MX7_DDRC_PWRCTL			0x030
+#define MX7_DDRC_RFSHCTL3		0x060
+#define MX7_DDRC_ZQCTL0			0x180
+#define MX7_DDRC_DFIMISC		0x1B0
+#define MX7_DDRC_DBG1			0x304
+#define MX7_DDRC_DBGCAM			0x308
+#define MX7_DDRC_SWCTL			0x320
+#define MX7_DDRC_SWSTAT			0x324
+
+/* DDR Multi Port Controller */
+#define MX7_DDRC_MP_PSTAT		0x3FC
+#define MX7_DDRC_MP_PCTRL0		0x490
+
+/* DDR PHY */
+#define MX7_DDRPHY_PHY_CON1			0x04
+#define MX7_DDRPHY_LP_CON0			0x18
+#define MX7_DDRPHY_OFFSETD_CON0		0x50
+#define MX7_DDRPHY_OFFSETR_CON0		0x20
+#define MX7_DDRPHY_OFFSETR_CON1		0x24
+#define MX7_DDRPHY_OFFSETR_CON2		0x28
+#define MX7_DDRPHY_OFFSETW_CON0		0x30
+#define MX7_DDRPHY_OFFSETW_CON1		0x34
+#define MX7_DDRPHY_OFFSETW_CON2		0x38
+#define MX7_DDRPHY_RFSHTMG			0x64
+#define MX7_DDRPHY_CA_WLDSKEW_CON0	0x6C
+#define MX7_DDRPHY_CA_DSKEW_CON0	0x7C
+#define MX7_DDRPHY_CA_DSKEW_CON1	0x80
+#define MX7_DDRPHY_CA_DSKEW_CON2	0x84
+#define MX7_DDRPHY_MDLL_CON0		0xB0
+#define MX7_DDRPHY_MDLL_CON1		0xB4
+
+
+#define BM_DDRC_MSTR_DDR_TYPE		 (0xF)
+#define BP_DDRC_MSTR_DDR_TYPE_SHIFT   (0)
+#define IMX_DDR_TYPE_DDR3	   (1 << 0)
+#define IMX_DDR_TYPE_LPDDR2	 (1 << 2)
+#define IMX_DDR_TYPE_LPDDR3	 (1 << 3)
+#endif /* CFG_MX7 */
+
+#endif /* __DDRC_REGS__ */
