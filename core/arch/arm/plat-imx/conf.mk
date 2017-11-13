@@ -16,38 +16,47 @@ mx7-flavorlist = mx7dsabresd mx7swarp7
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6UL,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 1
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ull-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6ULL,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 1
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6Q,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6qp-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6QP,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6d-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6D,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6dl-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6DL,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6S,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 1
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6SX,y)
 $(call force,CFG_IMX_UART,y)
+CFG_IMX_CAAM ?= y
 CFG_TEE_CORE_NB_CORE ?= 1
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7-flavorlist)))
 $(call force,CFG_MX7,y)
+CFG_IMX_CAAM ?= y
 #Note: This is not correct 7s is a single core
 # but it should work as well
 CFG_TEE_CORE_NB_CORE ?= 2
