@@ -28,6 +28,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <crypto/crypto.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
@@ -44,7 +45,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <tee_api_defines.h>
-#include <tee/tee_cryp_provider.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_defines.h>

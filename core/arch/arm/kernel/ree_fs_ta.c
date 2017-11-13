@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <assert.h>
+#include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/msg_param.h>
 #include <kernel/thread.h>
@@ -36,10 +37,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ta_pub_key.h>
-#include <tee/tee_cryp_provider.h>
+#include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_svc_cryp.h>
-#include <tee_api_types.h>
 #include <tee/uuid.h>
 #include <utee_defines.h>
 

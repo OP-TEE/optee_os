@@ -6,8 +6,8 @@
  */
 
 #include <compiler.h>
+#include <crypto/crypto.h>
 #include <kernel/panic.h>
-#include <tee/tee_cryp_provider.h>
 
 #if !defined(_CFG_CRYPTO_WITH_HASH)
 TEE_Result crypto_hash_get_ctx_size(uint32_t algo __unused,

@@ -26,19 +26,19 @@
  */
 
 #include <assert.h>
-#include <tee_api_types.h>
+#include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
-#include <utee_defines.h>
 #include <mm/tee_mmu.h>
-#include <tee/tee_svc.h>
-#include <tee/tee_svc_cryp.h>
-#include <tee/tee_cryp_utl.h>
-#include <sys/queue.h>
-#include <tee/tee_obj.h>
-#include <tee/tee_cryp_provider.h>
-#include <trace.h>
 #include <string_ext.h>
 #include <string.h>
+#include <sys/queue.h>
+#include <tee_api_types.h>
+#include <tee/tee_cryp_utl.h>
+#include <tee/tee_obj.h>
+#include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc.h>
+#include <trace.h>
+#include <utee_defines.h>
 #include <util.h>
 #if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF) || \
 	defined(CFG_CRYPTO_PBKDF2)

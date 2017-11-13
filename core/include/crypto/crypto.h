@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,10 @@
  * @algo: algorithm identifier (TEE_ALG_*)
  */
 
-
-#ifndef TEE_CRYP_PROVIDER_H
-#define TEE_CRYP_PROVIDER_H
+#ifndef __CRYPTO_CRYPTO_H
+#define __CRYPTO_CRYPTO_H
 
 #include <tee_api_types.h>
-
 
 TEE_Result crypto_init(void);
 
@@ -280,4 +278,4 @@ TEE_Result crypto_rng_read(void *buf, size_t blen);
 
 TEE_Result rng_generate(void *buffer, size_t len);
 
-#endif /* TEE_CRYP_PROVIDER_H */
+#endif /* __CRYPTO_CRYPTO_H */

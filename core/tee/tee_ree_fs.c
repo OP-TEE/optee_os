@@ -38,7 +38,6 @@
 #include <sys/queue.h>
 #include <tee/fs_dirfile.h>
 #include <tee/fs_htree.h>
-#include <tee/tee_cryp_provider.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
 #include <tee/tee_pobj.h>
