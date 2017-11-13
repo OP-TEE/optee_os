@@ -180,7 +180,7 @@ build:
       unset CC &&
       make -k clean 2>&1 >/dev/null &&
       ccache -z &&
-      make -s -j$(getconf _NPROCESSORS_ONLN) check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1 &&
+      make -s -j$(getconf _NPROCESSORS_ONLN) check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1 CFG_RPMB_FS=y CFG_RPMB_WRITE_KEY=y &&
       ccache -s &&
       make -k clean 2>&1 >/dev/null;
 
