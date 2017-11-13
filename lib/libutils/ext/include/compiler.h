@@ -55,6 +55,7 @@
 #define __rodata_unpaged __section(".rodata.__unpaged")
 #define __early_ta	__section(".rodata.early_ta")
 #define __noprof	__attribute__((no_instrument_function))
+#define __coherent	__section(".coherent_ram")
 
 #define __compiler_bswap64(x)	__builtin_bswap64((x))
 #define __compiler_bswap32(x)	__builtin_bswap32((x))

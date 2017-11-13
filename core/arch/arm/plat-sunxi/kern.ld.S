@@ -55,12 +55,31 @@
 #define SMALL_PAGE_SIZE		4096
 #endif
 
+#define  LINK_COHERENT_FLATMAP_RAM \
+                . = COHERENT_FLATMAP_BASE; \
+                .coherent (NOLOAD) : { \
+                        ASSERT(!(. & (SMALL_PAGE_SIZE - 1)), \
+                                "Coherent memory start is not aligned"); \
+                        __coherent_start = .; \
+                        KEEP(*(.coherent_ram)); \
+                        . = ALIGN(SMALL_PAGE_SIZE); \
+                        __coherent_end = .; \
+                        ASSERT(COHERENT_FLATMAP_SIZE >= \
+				(. - __coherent_start), \
+                                "Coherent memory is undersized"); \
+                }
+
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 
 ENTRY(_start)
 SECTIONS
 {
+#if defined(COHERENT_FLATMAP_BASE) && COHERENT_FLATMAP_BASE < CFG_TEE_RAM_START
+	LINK_COHERENT_FLATMAP_RAM
+	ASSERT(. <= TEE_RAM_START, "Coherent memory is oversized")
+#endif
+
 	. = TEE_RAM_START;
 	__flatmap_unpg_rx_start = .;
 
@@ -223,6 +242,11 @@ SECTIONS
 	_end_of_ram = .;
 
 	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
+
+#if defined(COHERENT_FLATMAP_BASE) && COHERENT_FLATMAP_BASE > CFG_TEE_RAM_START
+	ASSERT(. <= COHERENT_FLATMAP_BASE, "Coherent memory does not fit")
+	LINK_COHERENT_FLATMAP_RAM
+#endif
 
 	/* Strip unnecessary stuff */
 	/DISCARD/ : { *(.comment .note .eh_frame) }

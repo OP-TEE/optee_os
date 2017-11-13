@@ -90,6 +90,11 @@ static struct memaccess_area nsec_shared[] = {
 register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
 #endif
 
+#if defined COHERENT_FLATMAP_BASE && COHERENT_FLATMAP_SIZE
+register_phys_mem(MEM_AREA_COHERENT_FLAT, COHERENT_FLATMAP_BASE,
+					  COHERENT_FLATMAP_SIZE);
+#endif
+
 #ifdef CFG_CORE_RWDATA_NOEXEC
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, CFG_TEE_RAM_START,
 		     VCORE_UNPG_RX_PA - CFG_TEE_RAM_START);
