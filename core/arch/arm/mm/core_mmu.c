@@ -654,38 +654,12 @@ static bool __maybe_unused map_is_secure(const struct tee_mmap_region *mm)
 	return !!(core_mmu_type_to_attr(mm->type) & TEE_MATTR_SECURE);
 }
 
-static bool __maybe_unused map_is_pgdir(const struct tee_mmap_region *mm)
-{
-	return mm->region_size == CORE_MMU_PGDIR_SIZE;
-}
-
 static int cmp_mmap_by_lower_va(const void *a, const void *b)
 {
 	const struct tee_mmap_region *mm_a = a;
 	const struct tee_mmap_region *mm_b = b;
 
 	return CMP_TRILEAN(mm_a->va, mm_b->va);
-}
-
-static int __maybe_unused cmp_mmap_by_secure_attr(const void *a, const void *b)
-{
-	const struct tee_mmap_region *mm_a = a;
-	const struct tee_mmap_region *mm_b = b;
-
-	/* unmapped areas are special */
-	if (!core_mmu_type_to_attr(mm_a->type) ||
-	    !core_mmu_type_to_attr(mm_b->type))
-		return 0;
-
-	return map_is_secure(mm_b) - map_is_secure(mm_a);
-}
-
-static int cmp_mmap_by_bigger_region_size(const void *a, const void *b)
-{
-	const struct tee_mmap_region *mm_a = a;
-	const struct tee_mmap_region *mm_b = b;
-
-	return mm_b->region_size - mm_a->region_size;
 }
 
 static void dump_mmap_table(struct tee_mmap_region *memory_map)
@@ -738,6 +712,42 @@ static void add_pager_vaspace(struct tee_mmap_region *mmap, size_t num_elems,
 	*end += size;
 }
 
+/*
+ * Assign a virtual address to memory map areas that fit in the
+ * given range [@start @end]. Return the address right above last
+ * assigned location. @end == ~0 means to upper bound.
+ * nsec_flag allows non-lpae to split secure and non-secure entries.
+ */
+static vaddr_t init_smallpage_map(struct tee_mmap_region *memory_map,
+				  vaddr_t start, vaddr_t end,
+				  bool __maybe_unused nsec_flag)
+{
+	struct tee_mmap_region *map;
+	vaddr_t vstart = start;
+
+	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
+		if (map->va || map->region_size != SMALL_PAGE_SIZE)
+			continue;
+#if !defined(CFG_WITH_LPAE)
+		if (!nsec_flag && !map_is_secure(map))
+			continue;
+		if (nsec_flag && map_is_secure(map))
+			continue;
+#endif
+		assert(vstart + map->size > vstart);
+		assert(!(map->size & SMALL_PAGE_MASK));
+
+		if (vstart + map->size < end) {
+			map->attr = core_mmu_type_to_attr(map->type);
+			map->va = vstart;
+			vstart += map->size;
+		}
+	}
+	return vstart;
+
+}
+
+
 static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 {
 	const struct core_mmu_phys_mem *mem;
@@ -746,7 +756,10 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	size_t __maybe_unused count = 0;
 	vaddr_t va;
 	vaddr_t end;
-	bool __maybe_unused va_is_secure = true; /* any init value fits */
+	size_t __maybe_unused max_size;
+	vaddr_t vaspace_start;
+	vaddr_t vaspace_size;
+	vaddr_t vstart;
 
 	for (mem = &__start_phys_mem_map_section;
 	     mem < &__end_phys_mem_map_section; mem++) {
@@ -808,26 +821,6 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	}
 
 	/*
-	 * To ease mapping and lower use of xlat tables, sort mapping
-	 * description moving small-page regions after the pgdir regions.
-	 */
-	qsort(memory_map, last, sizeof(struct tee_mmap_region),
-		cmp_mmap_by_bigger_region_size);
-
-#if !defined(CFG_WITH_LPAE)
-	/*
-	 * 32bit MMU descriptors cannot mix secure and non-secure mapping in
-	 * the same level2 table. Hence sort secure mapping from non-secure
-	 * mapping.
-	 */
-	for (count = 0, map = memory_map; map_is_pgdir(map); count++, map++)
-		;
-
-	qsort(memory_map + count, last - count, sizeof(struct tee_mmap_region),
-		cmp_mmap_by_secure_attr);
-#endif
-
-	/*
 	 * Map flat mapped addresses first.
 	 * 'va' (resp. 'end') will store the lower (reps. higher) address of
 	 * the flat-mapped areas to later setup the virtual mapping of the non
@@ -851,49 +844,75 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 
 	assert(!((va | end) & SMALL_PAGE_MASK));
 
-	if (core_mmu_place_tee_ram_at_top(va)) {
-		/* Map non-flat mapped addresses below flat mapped addresses */
-		for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
-			if (map->va)
-				continue;
+	/*
+	 * If memory is constrained, flat map and vaspace are small page
+	 * mapped. First use xlat entries from already allocated page
+	 * table for other small-page mapped areas before allocating
+	 * other page tables.
+	 *
+	 * Note that non-LPAE cannot reuse secure xlat table for non secure
+	 * mapping entries. The non-LPAE will assign non secure entries with
+	 * small page region size after the vaspace.
+	 */
+
+	/* Flat map and vaspace have defined a reserved virtual range */
+	vaspace_start = va;
+	vaspace_size = end - va;
+
+	/* Resuse xlat entries before vaspace */
+	vstart = ROUNDDOWN(vaspace_start, CORE_MMU_PGDIR_SIZE);
+	init_smallpage_map(memory_map, vstart, vaspace_start, false);
+
+	/* Resuse xlat entries after vaspace */
+	vstart = vaspace_start + vaspace_size;
+	assert(!(vstart & SMALL_PAGE_MASK));
+	vstart = init_smallpage_map(memory_map, vstart, ~0, false);
 
 #if !defined(CFG_WITH_LPAE)
-			if (va_is_secure != map_is_secure(map)) {
-				va_is_secure = !va_is_secure;
-				va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
-			}
+	/* 2nd level xlat for non-secure small page mapping */
+	vstart = ROUNDUP(vstart, CORE_MMU_PGDIR_SIZE);
+	vstart = init_smallpage_map(memory_map, vstart, ~0, true);
 #endif
-			map->attr = core_mmu_type_to_attr(map->type);
-			va -= map->size;
-			va = ROUNDDOWN(va, map->region_size);
-#if !defined(CFG_WITH_LPAE)
-			/* Mapping does not yet support sharing L2 tables */
-			va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
-#endif
-			map->va = va;
-		}
-	} else {
-		/* Map non-flat mapped addresses above flat mapped addresses */
-		va = end;
-		for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
-			if (map->va)
-				continue;
 
-#if !defined(CFG_WITH_LPAE)
-			if (va_is_secure != map_is_secure(map)) {
-				va_is_secure = !va_is_secure;
-				va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
-			}
+	/* Vaspace now covers the whole range of assigned virtual ranges */
+	vaspace_start = ROUNDDOWN(vaspace_start, CORE_MMU_PGDIR_SIZE);
+	vaspace_size = ROUNDUP(vstart, CORE_MMU_PGDIR_SIZE) - vaspace_start;
+
+#ifdef CFG_WITH_LPAE
+	/* LPAE: use the 1GB around flat map. 1 pgdir protection if 1st GB */
+	va = ROUNDDOWN(vaspace_start, BIT64(30));
+#else
+	/* Non LPAE: must locate user memory below the core mapping (TTBR0) */
+	core_mmu_get_user_va_range(&va, &max_size);
+	va += max_size;
 #endif
-			map->attr = core_mmu_type_to_attr(map->type);
-			va = ROUNDUP(va, map->region_size);
-#if !defined(CFG_WITH_LPAE)
-			/* Mapping does not yet support sharing L2 tables */
-			va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
-#endif
-			map->va = va;
-			va += map->size;
+	if (!va)
+		va = CORE_MMU_PGDIR_SIZE;
+
+	/* Assign virtual locations to remaining areas */
+	map = memory_map;
+	while (!core_mmap_is_end_of_table(map)) {
+		if (map->va) {
+			map++;
+			continue;
 		}
+
+		va = ROUNDUP(va, map->region_size);
+
+		assert(map->region_size == CORE_MMU_PGDIR_SIZE);
+		assert(va + map->size > va);
+
+		/* Skip vaspace range that holds some virtual locations */
+		if (core_is_buffer_intersect(va, map->size,
+					     vaspace_start, vaspace_size)) {
+			va = vaspace_start + vaspace_size;
+			continue;
+		}
+
+		map->attr = core_mmu_type_to_attr(map->type);
+		map->va = va;
+		va += map->size;
+		map++;
 	}
 
 	qsort(memory_map, last, sizeof(struct tee_mmap_region),
