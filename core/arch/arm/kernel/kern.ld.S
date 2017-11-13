@@ -489,8 +489,10 @@ PROVIDE(__vcore_init_ro_size = 0);
 #endif /* CFG_CORE_RODATA_NOEXEC */
 #endif /* CFG_WITH_PAGER */
 
+#ifdef CFG_CORE_SANITIZE_KADDRESS
 PROVIDE(__asan_map_start = (__asan_shadow_start / SMALL_PAGE_SIZE) *
 			   SMALL_PAGE_SIZE);
 PROVIDE(__asan_map_end = ((__asan_shadow_end - 1) / SMALL_PAGE_SIZE) *
 			 SMALL_PAGE_SIZE + SMALL_PAGE_SIZE);
 PROVIDE(__asan_map_size = __asan_map_end - __asan_map_start);
+#endif /*CFG_CORE_SANITIZE_KADDRESS*/
