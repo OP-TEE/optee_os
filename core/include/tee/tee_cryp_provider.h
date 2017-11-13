@@ -308,7 +308,7 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 /* Add entropy to PRNG entropy pool. */
 TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len);
 
-/* To read random data from PRNG implementation.	*/
+/* To read random data from PRNG implementation. */
 TEE_Result crypto_rng_read(void *buf, size_t blen);
 
 TEE_Result rng_generate(void *buffer, size_t len);
