@@ -443,7 +443,7 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 {
 	struct mobj_reg_shm *mobj_reg_shm;
 	size_t i;
-	unsigned int exceptions;
+	uint32_t exceptions;
 
 	if (!num_pages)
 		return NULL;
@@ -484,7 +484,7 @@ err:
 struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie)
 {
 	struct mobj_reg_shm *mobj_reg_shm;
-	unsigned int exceptions;
+	uint32_t exceptions;
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	SLIST_FOREACH(mobj_reg_shm, &reg_shm_list, next) {
