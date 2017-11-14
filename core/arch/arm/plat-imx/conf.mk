@@ -192,6 +192,7 @@ $(call force,CFG_PL310,y)
 
 CFG_PL310_LOCKED ?= y
 CFG_ENABLE_SCTLR_RR ?= y
+CFG_SCU ?= y
 endif
 
 ifeq ($(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)), y)
