@@ -116,6 +116,9 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 {
 	bool rc = true;
 
+	if (ctx->flags & TA_FLAG_CONCURRENT)
+		return true;
+
 	mutex_lock(&tee_ta_mutex);
 
 	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
@@ -156,6 +159,9 @@ static void tee_ta_set_busy(struct tee_ta_ctx *ctx)
 
 static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 {
+	if (ctx->flags & TA_FLAG_CONCURRENT)
+		return;
+
 	mutex_lock(&tee_ta_mutex);
 
 	assert(ctx->busy);
