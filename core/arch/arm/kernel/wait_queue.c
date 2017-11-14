@@ -86,12 +86,13 @@ static void slist_add_tail(struct wait_queue *wq, struct wait_queue_elem *wqe)
 }
 
 void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
-		struct condvar *cv)
+		struct condvar *cv, bool wait_read)
 {
 	uint32_t old_itr_status;
 
 	wqe->handle = thread_get_id();
 	wqe->done = false;
+	wqe->wait_read = wait_read;
 	wqe->cv = cv;
 
 	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
@@ -122,30 +123,55 @@ void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
 	} while (!done);
 }
 
-void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
+void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
 			const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem *wqe;
 	int handle = -1;
 	bool do_wakeup = false;
+	bool wake_type_assigned = false;
+	bool wake_read;
 
-	old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
+	/*
+	 * If next type is wait_read wakeup all wqe with wait_read true.
+	 * If next type isn't wait_read wakeup only the first wqe which isn't
+	 * done.
+	 */
 
-	SLIST_FOREACH(wqe, wq, link) {
-		if (!wqe->cv) {
-			do_wakeup = !wqe->done;
+	while (true) {
+		old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
+
+		SLIST_FOREACH(wqe, wq, link) {
+			if (wqe->cv)
+				continue;
+			if (wqe->done)
+				continue;
+			if (!wake_type_assigned) {
+				wake_read = wqe->wait_read;
+				wake_type_assigned = true;
+			}
+
+			if (wqe->wait_read != wake_read)
+				continue;
+
 			wqe->done = true;
 			handle = wqe->handle;
+			do_wakeup = true;
 			break;
 		}
+
+		cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
+
+		if (do_wakeup)
+			__wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
+				 sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK,
+				 fname, lineno);
+
+		if (!do_wakeup || !wake_read)
+			break;
+		do_wakeup = false;
 	}
-
-	cpu_spin_unlock_xrestore(&wq_spin_lock, old_itr_status);
-
-	if (do_wakeup)
-		__wq_rpc(OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP, handle,
-			 sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK, fname, lineno);
 }
 
 void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,

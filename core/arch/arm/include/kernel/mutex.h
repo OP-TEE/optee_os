@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,6 @@
 #include <sys/queue.h>
 #include <kernel/wait_queue.h>
 
-enum mutex_value {
-	MUTEX_VALUE_UNLOCKED,
-	MUTEX_VALUE_LOCKED,
-};
-
 /*
  * Positive owner ids signifies actual threads, negative ids has special
  * meanings according to the defines below. Note that only the first of the
@@ -46,15 +41,14 @@ enum mutex_value {
 #define MUTEX_OWNER_ID_MUTEX_UNLOCK	-3
 
 struct mutex {
-	enum mutex_value value;
 	unsigned spin_lock;	/* used when operating on this struct */
 	struct wait_queue wq;
-	int owner_id;
+	short state;		/* -1: write, 0: unlocked, > 0: readers */
+	short owner_id;		/* Only valid for state == -1 (write lock) */
 	TAILQ_ENTRY(mutex) link;
 };
 #define MUTEX_INITIALIZER \
-	{ .value = MUTEX_VALUE_UNLOCKED, .owner_id = MUTEX_OWNER_ID_NONE, \
-	  .wq = WAIT_QUEUE_INITIALIZER, }
+	{ .owner_id = MUTEX_OWNER_ID_NONE, .wq = WAIT_QUEUE_INITIALIZER, }
 
 TAILQ_HEAD(mutex_head, mutex);
 
@@ -71,12 +65,23 @@ void mutex_lock_debug(struct mutex *m, const char *fname, int lineno);
 bool mutex_trylock_debug(struct mutex *m, const char *fname, int lineno);
 #define mutex_trylock(m) mutex_trylock_debug((m), __FILE__, __LINE__)
 
+void mutex_read_unlock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_read_unlock(m) mutex_read_unlock_debug((m), __FILE__, __LINE__)
+
+void mutex_read_lock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_read_lock(m) mutex_read_lock_debug((m), __FILE__, __LINE__)
+
+bool mutex_read_trylock_debug(struct mutex *m, const char *fname, int lineno);
+#define mutex_read_trylock(m) mutex_read_trylock_debug((m), __FILE__, __LINE__)
+
 #else
 void mutex_unlock(struct mutex *m);
 void mutex_lock(struct mutex *m);
 bool mutex_trylock(struct mutex *m);
+void mutex_read_unlock(struct mutex *m);
+void mutex_read_lock(struct mutex *m);
+bool mutex_read_trylock(struct mutex *m);
 #endif
-
 
 struct condvar {
 	unsigned spin_lock;

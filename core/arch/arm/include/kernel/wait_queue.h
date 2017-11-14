@@ -39,6 +39,7 @@ struct condvar;
 struct wait_queue_elem {
 	short handle;
 	bool done;
+	bool wait_read;
 	struct condvar *cv;
 	SLIST_ENTRY(wait_queue_elem) link;
 };
@@ -57,12 +58,12 @@ void wq_init(struct wait_queue *wq);
  * on the same wait queue element.
  */
 void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
-			struct condvar *cv);
+			struct condvar *cv, bool wait_read);
 
 static inline void wq_wait_init(struct wait_queue *wq,
-			struct wait_queue_elem *wqe)
+			struct wait_queue_elem *wqe, bool wait_read)
 {
-	wq_wait_init_condvar(wq, wqe, NULL);
+	wq_wait_init_condvar(wq, wqe, NULL, wait_read);
 }
 
 /* Waits for the wait queue element to the awakened. */
@@ -71,7 +72,7 @@ void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
 		   int lineno);
 
 /* Wakes up the first wait queue element in the wait queue, if there is one */
-void wq_wake_one(struct wait_queue *wq, const void *sync_obj,
+void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
 		const char *fname, int lineno);
 
 /* Returns true if the wait queue doesn't contain any elements */
