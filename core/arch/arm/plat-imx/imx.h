@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -23,6 +23,8 @@
 uint32_t imx_get_src_gpr(int cpu);
 void imx_set_src_gpr(int cpu, uint32_t val);
 
+bool soc_is_imx6(void);
+bool soc_is_imx6sx(void);
 bool soc_is_imx6ul(void);
 bool soc_is_imx6ull(void);
 bool soc_is_imx6sdl(void);

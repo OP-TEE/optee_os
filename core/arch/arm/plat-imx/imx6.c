@@ -27,14 +27,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <imx.h>
 
-#include <compiler.h>
-#include <drivers/gic.h>
+#include <imx.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
-#include <kernel/tz_ssvce_pl310.h>
+#include <kernel/tz_ssvce_def.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -43,7 +41,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_PGDIR_SIZE);
 
 void plat_cpu_reset_late(void)
 {
-	uintptr_t addr;
 	uint32_t pa __maybe_unused;
 
 	if (!get_core_pos()) {
@@ -66,19 +63,6 @@ void plat_cpu_reset_late(void)
 		/* SCU enable */
 		io_setbits32(SCU_BASE + SCU_CTRL, 0x1);
 
-		/* configure imx6 CSU */
-
-		/* first grant all peripherals */
-		for (addr = CSU_BASE + CSU_CSL_START;
-			 addr != CSU_BASE + CSU_CSL_END;
-			 addr += 4)
-			io_write32(addr, CSU_ACCESS_ALL);
-
-		/* lock the settings */
-		for (addr = CSU_BASE + CSU_CSL_START;
-		     addr != CSU_BASE + CSU_CSL_END;
-		     addr += 4)
-			io_setbits32(addr, CSU_SETTING_LOCK);
 		imx_configure_tzasc();
 	}
 }
