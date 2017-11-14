@@ -78,5 +78,17 @@
  */
 #define PTA_INVOKE_TESTS_CMD_FS_HTREE		6
 
+/*
+ * Tests mutex
+ *
+ * [in]  value[0].a	Test function PTA_MUTEX_TEST_*
+ * [in]  value[0].b	delay number
+ * [out] value[1].a	before lock concurency
+ * [out] value[1].b	during lock concurency
+ */
+#define PTA_MUTEX_TEST_WRITER			0
+#define PTA_MUTEX_TEST_READER			1
+#define PTA_INVOKE_TESTS_CMD_MUTEX		7
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 
