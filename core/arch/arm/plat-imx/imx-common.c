@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -42,6 +42,11 @@ uint32_t imx_soc_type(void)
 	return (imx_digproc() >> 16) & 0xff;
 }
 
+bool soc_is_imx6sx(void)
+{
+	return imx_soc_type() == SOC_MX6SX;
+}
+
 bool soc_is_imx6ul(void)
 {
 	return imx_soc_type() == SOC_MX6UL;
@@ -65,6 +70,15 @@ bool soc_is_imx6dq(void)
 bool soc_is_imx6dqp(void)
 {
 	return (imx_soc_type() == SOC_MX6Q) && (imx_soc_rev_major() == 2);
+}
+
+bool soc_is_imx6(void)
+{
+	return ((imx_soc_type() == SOC_MX6SX) ||
+			(imx_soc_type() == SOC_MX6UL) ||
+			(imx_soc_type() == SOC_MX6ULL) ||
+			(imx_soc_type() == SOC_MX6DL) ||
+			(imx_soc_type() == SOC_MX6Q));
 }
 
 bool soc_is_imx7ds(void)

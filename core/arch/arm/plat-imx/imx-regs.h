@@ -3,6 +3,7 @@
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * Copyright (c) 2016, Wind River Systems.
  * All rights reserved.
+ * Copyright 2019 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,6 +45,7 @@
 #define GPC_BASE			0x020DC000
 #define GPC_SIZE			0x4000
 #define WDOG_BASE			0x020BC000
+#define CSU_BASE			0x021C0000
 #define SEMA4_BASE			0x02290000
 #define SEMA4_SIZE			0x4000
 #define MMDC_P0_BASE			0x021B0000
@@ -86,12 +88,8 @@
 #define GIC_DIST_BASE			(GIC_BASE + GICD_OFFSET)
 
 /* Central Security Unit register values */
-#define CSU_BASE			0x021C0000
 #define CSU_CSL_START			0x0
 #define CSU_CSL_END			0xA0
-#define CSU_CSL5			0x14
-#define CSU_CSL15			0x3C
-#define CSU_CSL16			0x40
 #define	CSU_ACCESS_ALL			0x00FF00FF
 #define CSU_SETTING_LOCK		0x01000100
 
@@ -168,6 +166,7 @@
 #define CCM_BASE		0x30380000
 #define SRC_BASE		0x30390000
 #define GPC_BASE		0x303A0000
+#define CSU_BASE		0x303E0000
 #define TZASC_BASE		0x30780000
 #define DDRC_PHY_BASE		0x30790000
 #define MMDC_P0_BASE		0x307A0000
@@ -175,12 +174,8 @@
 #define IRAM_BASE		0x00900000
 #define IRAM_S_BASE		0x00180000
 
-#define CSU_CSL_START		0x303E0000
-#define CSU_CSL_END		0x303E0100
-#define CSU_CSL_59		(0x303E0000 + 59 * 4)
-#define CSU_CSL_28		(0x303E0000 + 28 * 4)
-#define CSU_CSL_15		(0x303E0000 + 15 * 4)
-#define CSU_CSL_12		(0x303E0000 + 12 * 4)
+#define CSU_CSL_START		0x0
+#define CSU_CSL_END		0x100
 #define	CSU_ACCESS_ALL		0x00FF00FF
 #define CSU_SETTING_LOCK	0x01000100
 
