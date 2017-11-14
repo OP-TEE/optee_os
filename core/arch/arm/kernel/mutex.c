@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2017, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 
 	while (true) {
 		uint32_t old_itr_status;
-		enum mutex_value old_value;
+		bool can_lock;
 		struct wait_queue_elem wqe;
 		int owner = MUTEX_OWNER_ID_NONE;
 
@@ -59,19 +59,19 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 
 		old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
-		old_value = m->value;
-		if (old_value == MUTEX_VALUE_LOCKED) {
-			wq_wait_init(&m->wq, &wqe);
+		can_lock = !m->state;
+		if (!can_lock) {
+			wq_wait_init(&m->wq, &wqe, false /* wait_read */);
 			owner = m->owner_id;
 			assert(owner != thread_get_id_may_fail());
 		} else {
-			m->value = MUTEX_VALUE_LOCKED;
+			m->state = -1; /* write locked */
 			thread_add_mutex(m);
 		}
 
 		cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
-		if (old_value == MUTEX_VALUE_LOCKED) {
+		if (!can_lock) {
 			/*
 			 * Someone else is holding the lock, wait in normal
 			 * world for the lock to become available.
@@ -91,37 +91,125 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
-	if (m->value != MUTEX_VALUE_LOCKED)
+	if (!m->state)
 		panic();
 
 	thread_rem_mutex(m);
-	m->value = MUTEX_VALUE_UNLOCKED;
+	m->state = 0;
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
-	wq_wake_one(&m->wq, m, fname, lineno);
+	wq_wake_next(&m->wq, m, fname, lineno);
 }
 
 static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 			int lineno __unused)
 {
 	uint32_t old_itr_status;
-	enum mutex_value old_value;
+	bool can_lock_write;
 
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
-	old_value = m->value;
-	if (old_value == MUTEX_VALUE_UNLOCKED) {
-		m->value = MUTEX_VALUE_LOCKED;
+	can_lock_write = !m->state;
+	if (can_lock_write) {
+		m->state = -1;
 		thread_add_mutex(m);
 	}
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
-	return old_value == MUTEX_VALUE_UNLOCKED;
+	return can_lock_write;
+}
+
+static void __mutex_read_unlock(struct mutex *m, const char *fname, int lineno)
+{
+	uint32_t old_itr_status;
+	short new_state;
+
+	assert_have_no_spinlock();
+	assert(thread_get_id_may_fail() != -1);
+
+	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
+
+	if (m->state <= 0)
+		panic();
+	m->state--;
+	new_state = m->state;
+
+	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
+
+	/* Wake eventual waiters if the mutex was unlocked */
+	if (!new_state)
+		wq_wake_next(&m->wq, m, fname, lineno);
+}
+
+static void __mutex_read_lock(struct mutex *m, const char *fname, int lineno)
+{
+	assert_have_no_spinlock();
+	assert(thread_get_id_may_fail() != -1);
+	assert(thread_is_in_normal_mode());
+
+	while (true) {
+		uint32_t old_itr_status;
+		bool can_lock;
+		struct wait_queue_elem wqe;
+		int owner = MUTEX_OWNER_ID_NONE;
+
+		/*
+		 * If the mutex is locked we need to initialize the wqe
+		 * before releasing the spinlock to guarantee that we don't
+		 * miss the wakeup from mutex_unlock().
+		 *
+		 * If the mutex is unlocked we don't need to use the wqe at
+		 * all.
+		 */
+
+		old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
+
+		can_lock = m->state != -1;
+		if (!can_lock) {
+			wq_wait_init(&m->wq, &wqe, true /* wait_read */);
+			owner = m->owner_id;
+			assert(owner != thread_get_id_may_fail());
+		} else {
+			m->state++; /* read_locked */
+		}
+
+		cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
+
+		if (!can_lock) {
+			/*
+			 * Someone else is holding the lock, wait in normal
+			 * world for the lock to become available.
+			 */
+			wq_wait_final(&m->wq, &wqe, m, owner, fname, lineno);
+		} else
+			return;
+	}
+}
+
+static bool __mutex_read_trylock(struct mutex *m, const char *fname __unused,
+				 int lineno __unused)
+{
+	uint32_t old_itr_status;
+	bool can_lock;
+
+	assert_have_no_spinlock();
+	assert(thread_get_id_may_fail() != -1);
+	assert(thread_is_in_normal_mode());
+
+	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
+
+	can_lock = m->state != -1;
+	if (can_lock)
+		m->state++;
+
+	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
+
+	return can_lock;
 }
 
 #ifdef CFG_MUTEX_DEBUG
@@ -139,6 +227,21 @@ bool mutex_trylock_debug(struct mutex *m, const char *fname, int lineno)
 {
 	return __mutex_trylock(m, fname, lineno);
 }
+
+void mutex_read_unlock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	__mutex_read_unlock(m, fname, lineno);
+}
+
+void mutex_read_lock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	__mutex_read_lock(m, fname, lineno);
+}
+
+bool mutex_read_trylock_debug(struct mutex *m, const char *fname, int lineno)
+{
+	return __mutex_read_trylock(m, fname, lineno);
+}
 #else
 void mutex_unlock(struct mutex *m)
 {
@@ -154,9 +257,22 @@ bool mutex_trylock(struct mutex *m)
 {
 	return __mutex_trylock(m, NULL, -1);
 }
+
+void mutex_read_unlock(struct mutex *m)
+{
+	__mutex_read_unlock(m, NULL, -1);
+}
+
+void mutex_read_lock(struct mutex *m)
+{
+	__mutex_read_lock(m, NULL, -1);
+}
+
+bool mutex_read_trylock(struct mutex *m)
+{
+	return __mutex_read_trylock(m, NULL, -1);
+}
 #endif
-
-
 
 void mutex_destroy(struct mutex *m)
 {
@@ -164,7 +280,7 @@ void mutex_destroy(struct mutex *m)
 	 * Caller guarantees that no one will try to take the mutex so
 	 * there's no need to take the spinlock before accessing it.
 	 */
-	if (m->value != MUTEX_VALUE_UNLOCKED)
+	if (!m->state)
 		panic();
 	if (!wq_is_empty(&m->wq))
 		panic("waitqueue not empty");
@@ -226,6 +342,8 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem wqe;
+	short old_state;
+	short new_state;
 
 	/* Link this condvar to this mutex until reinitialized */
 	old_itr_status = cpu_spin_lock_xsave(&cv->spin_lock);
@@ -237,25 +355,35 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 
 	cpu_spin_lock(&m->spin_lock);
 
-	/* Add to mutex wait queue as a condvar waiter */
-	wq_wait_init_condvar(&m->wq, &wqe, cv);
-
-	/* Unlock the mutex */
-	if (m->value != MUTEX_VALUE_LOCKED)
+	if (!m->state)
 		panic();
+	old_state = m->state;
+	/* Add to mutex wait queue as a condvar waiter */
+	wq_wait_init_condvar(&m->wq, &wqe, cv, m->state > 0);
 
-	thread_rem_mutex(m);
-	m->value = MUTEX_VALUE_UNLOCKED;
+	if (m->state > 1) {
+		/* Multiple read locks, remove one */
+		m->state--;
+	} else {
+		/* Only one lock (read or write), unlock the mutex */
+		thread_rem_mutex(m);
+		m->state = 0;
+	}
+	new_state = m->state;
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
-	/* Wake eventual waiters */
-	wq_wake_one(&m->wq, m, fname, lineno);
+	/* Wake eventual waiters if the mutex was unlocked */
+	if (!new_state)
+		wq_wake_next(&m->wq, m, fname, lineno);
 
 	wq_wait_final(&m->wq, &wqe,
 		      m, MUTEX_OWNER_ID_CONDVAR_SLEEP, fname, lineno);
 
-	mutex_lock(m);
+	if (old_state > 0)
+		mutex_read_lock(m);
+	else
+		mutex_lock(m);
 }
 
 #ifdef CFG_MUTEX_DEBUG
