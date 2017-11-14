@@ -54,15 +54,6 @@ void plat_cpu_reset_late(void)
 
 		io_write32(SRC_BASE + SRC_SCR, SRC_SCR_CPU_ENABLE_ALL);
 #endif
-
-		/* SCU config */
-		io_write32(SCU_BASE + SCU_INV_SEC, SCU_INV_CTRL_INIT);
-		io_write32(SCU_BASE + SCU_SAC, SCU_SAC_CTRL_INIT);
-		io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_CTRL_INIT);
-
-		/* SCU enable */
-		io_setbits32(SCU_BASE + SCU_CTRL, 0x1);
-
 		imx_configure_tzasc();
 	}
 }
