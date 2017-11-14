@@ -52,11 +52,6 @@
 #define CSU_ACCESS_ALL		0x00FF00FF
 #define CSU_SETTING_LOCK	0x01000100
 
-#define CSU_CSL_59		(0x303E0000 + 59 * 4)
-#define CSU_CSL_28		(0x303E0000 + 28 * 4)
-#define CSU_CSL_15		(0x303E0000 + 15 * 4)
-#define CSU_CSL_12		(0x303E0000 + 12 * 4)
-
 #define TRUSTZONE_OCRAM_START	0x180000
 
 #endif /* __IMX7_REGS_H__ */

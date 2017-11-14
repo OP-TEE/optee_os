@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <tee_api_types.h>
 
 #define SOC_MX6SL	0x60
 #define SOC_MX6DL	0x61
@@ -35,4 +36,7 @@ bool soc_is_imx6dqp(void);
 bool soc_is_imx7ds(void);
 void imx_gpcv2_set_core1_pdn_by_software(void);
 void imx_gpcv2_set_core1_pup_by_software(void);
+#ifdef CFG_CSU
+TEE_Result csu_init(void);
+#endif
 #endif

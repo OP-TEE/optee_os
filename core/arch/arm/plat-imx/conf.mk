@@ -23,7 +23,6 @@ $(call force,CFG_MX6DL,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6S,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
-$(call force,CFG_MX6,y)
 $(call force,CFG_MX6SX,y)
 $(call force,CFG_IMX_UART,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7-flavorlist)))
@@ -54,7 +53,7 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_IMX_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
-
+CFG_CSU ?= y
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
 

@@ -25,3 +25,4 @@ srcs-y += imx6ul.c
 endif
 
 srcs-$(CFG_MX7) += imx7.c a7_plat_init.S
+srcs-$(CFG_CSU) += imx_csu.c
