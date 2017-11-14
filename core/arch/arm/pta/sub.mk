@@ -1,6 +1,7 @@
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += pta_invoke_tests.c
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += core_self_tests.c
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += interrupt_tests.c
+srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += core_mutex_tests.c
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += core_fs_htree_tests.c
 endif

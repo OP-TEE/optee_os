@@ -428,6 +428,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	case PTA_INVOKE_TESTS_CMD_FS_HTREE:
 		return core_fs_htree_tests(nParamTypes, pParams);
 #endif
+	case PTA_INVOKE_TESTS_CMD_MUTEX:
+		return core_mutex_tests(nParamTypes, pParams);
 	default:
 		break;
 	}
@@ -435,7 +437,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 }
 
 pseudo_ta_register(.uuid = PTA_INVOKE_TESTS_UUID, .name = TA_NAME,
-		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_SECURE_DATA_PATH,
+		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_SECURE_DATA_PATH |
+			    TA_FLAG_CONCURRENT,
 		   .create_entry_point = create_ta,
 		   .destroy_entry_point = destroy_ta,
 		   .open_session_entry_point = open_session,
