@@ -32,14 +32,9 @@ void plat_cpu_reset_late(void)
 		write32(BM_SRC_SCR_CPU_ENABLE_ALL, SRC_BASE + SRC_SCR);
 #endif
 
-		/* SCU config */
-		write32(SCU_INV_CTRL_INIT, SCU_BASE + SCU_INV_SEC);
-		write32(SCU_SAC_CTRL_INIT, SCU_BASE + SCU_SAC);
-		write32(SCU_NSAC_CTRL_INIT, SCU_BASE + SCU_NSAC);
-
-		/* SCU enable */
-		write32(read32(SCU_BASE + SCU_CTRL) | 0x1,
-			SCU_BASE + SCU_CTRL);
+#ifdef CFG_SCU
+		scu_init();
+#endif
 
 #ifdef CFG_CSU
 		/* configure imx6 CSU */

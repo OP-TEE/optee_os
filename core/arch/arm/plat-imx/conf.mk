@@ -76,7 +76,7 @@ $(call force,CFG_MX6,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
-
+CFG_SCU ?= y
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_ENABLE_SCTLR_RR ?= y

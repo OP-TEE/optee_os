@@ -39,4 +39,7 @@ void imx_gpcv2_set_core1_pup_by_software(void);
 #ifdef CFG_CSU
 TEE_Result csu_init(void);
 #endif
+#ifdef CFG_SCU
+void scu_init(void);
+#endif
 #endif
