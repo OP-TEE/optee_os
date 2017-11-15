@@ -217,7 +217,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id __unused)
 	ns_entry_addrs[pos] = entry;
 	dsb_ishst();
 
-	sec_entry_addrs[pos] = CFG_TEE_RAM_START;
+	sec_entry_addrs[pos] = CFG_TEE_LOAD_ADDR;
 	dsb_ishst();
 	sev();
 

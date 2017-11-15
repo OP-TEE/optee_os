@@ -397,13 +397,11 @@ static void init_runtime(unsigned long pageable_part)
 	tee_pager_init(mm);
 
 	/*
-	 * Claim virtual memory which isn't paged, note that there migth be
-	 * a gap between tee_mm_vcore.lo and TEE_RAM_START which is also
-	 * claimed to avoid later allocations to get that memory.
+	 * Claim virtual memory which isn't paged.
 	 * Linear memory (flat map core memory) ends there.
 	 */
-	mm = tee_mm_alloc2(&tee_mm_vcore, tee_mm_vcore.lo,
-			(vaddr_t)(__pageable_start - tee_mm_vcore.lo));
+	mm = tee_mm_alloc2(&tee_mm_vcore, VCORE_UNPG_RX_PA,
+			   (vaddr_t)(__pageable_start - VCORE_UNPG_RX_PA));
 	assert(mm);
 
 	/*
@@ -421,6 +419,15 @@ static void init_runtime(unsigned long pageable_part)
 	tee_pager_add_pages((vaddr_t)__pageable_start + init_size,
 			(pageable_size - init_size) / SMALL_PAGE_SIZE, true);
 
+	/*
+	 * There may be physical pages in TZSRAM before the core load address.
+	 * These pages can be added to the physical pages pool of the pager.
+	 * This setup may happen when a the secure bootloader runs in TZRAM
+	 * and its memory can be reused by OP-TEE once boot stages complete.
+	 */
+	tee_pager_add_pages(tee_mm_vcore.lo,
+			(VCORE_UNPG_RX_PA - tee_mm_vcore.lo) / SMALL_PAGE_SIZE,
+			true);
 }
 #else
 
