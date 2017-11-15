@@ -114,6 +114,7 @@
  * MEM_AREA_TEE_RAM_RO:  core private read-only/non-executable memory (secure)
  * MEM_AREA_TEE_RAM_RW:  core private read/write/non-executable memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
+ * MEM_AREA_COHERENT_FLAT: flat mapped uncached RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
  * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
@@ -133,6 +134,7 @@ enum teecore_memtypes {
 	MEM_AREA_TEE_RAM_RO,
 	MEM_AREA_TEE_RAM_RW,
 	MEM_AREA_TEE_COHERENT,
+	MEM_AREA_COHERENT_FLAT,
 	MEM_AREA_TEE_ASAN,
 	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
@@ -158,6 +160,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TEE_RAM_RW] = "TEE_RAM_RW",
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
+		[MEM_AREA_COHERENT_FLAT] = "COHERENT_FLAT",
 		[MEM_AREA_TA_RAM] = "TA_RAM",
 		[MEM_AREA_NSEC_SHM] = "NSEC_SHM",
 		[MEM_AREA_RAM_NSEC] = "RAM_NSEC",
