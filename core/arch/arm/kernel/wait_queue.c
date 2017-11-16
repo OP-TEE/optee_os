@@ -131,7 +131,7 @@ void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
 	int handle = -1;
 	bool do_wakeup = false;
 	bool wake_type_assigned = false;
-	bool wake_read;
+	bool wake_read = false; /* avoid gcc warning */
 
 	/*
 	 * If next type is wait_read wakeup all wqe with wait_read true.
