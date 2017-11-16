@@ -29,6 +29,7 @@
 
 #include <stdint.h>
 #include <types_ext.h>
+#include <utee_defines.h>
 
 static inline void write8(uint8_t val, vaddr_t addr)
 {
@@ -73,6 +74,36 @@ static inline void io_mask16(vaddr_t addr, uint16_t val, uint16_t mask)
 static inline void io_mask32(vaddr_t addr, uint32_t val, uint32_t mask)
 {
 	write32((read32(addr) & ~mask) | (val & mask), addr);
+}
+
+static inline uint64_t get_be64(const void *p)
+{
+	return TEE_U64_FROM_BIG_ENDIAN(*(const uint64_t *)p);
+}
+
+static inline void put_be64(void *p, uint64_t val)
+{
+	*(uint64_t *)p = TEE_U64_TO_BIG_ENDIAN(val);
+}
+
+static inline uint32_t get_be32(const void *p)
+{
+	return TEE_U32_FROM_BIG_ENDIAN(*(const uint32_t *)p);
+}
+
+static inline void put_be32(void *p, uint32_t val)
+{
+	*(uint32_t *)p = TEE_U32_TO_BIG_ENDIAN(val);
+}
+
+static inline uint16_t get_be16(const void *p)
+{
+	return TEE_U16_FROM_BIG_ENDIAN(*(const uint16_t *)p);
+}
+
+static inline void put_be16(void *p, uint16_t val)
+{
+	*(uint16_t *)p = TEE_U16_TO_BIG_ENDIAN(val);
 }
 
 #endif /*IO_H*/
