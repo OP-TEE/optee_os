@@ -50,6 +50,7 @@ CFG_WITH_STATS ?= y
 
 ifeq ($(PLATFORM_FLAVOR),juno)
 CFG_CRYPTO_WITH_CE ?= y
+CFG_HWSUPP_PMULL ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
