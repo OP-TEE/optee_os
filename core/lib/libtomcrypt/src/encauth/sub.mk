@@ -1,2 +1,2 @@
 subdirs-$(CFG_CRYPTO_CCM) += ccm
-subdirs-$(CFG_CRYPTO_GCM) += gcm
+subdirs-$(CFG_LTC_CRYPTO_GCM) += gcm
