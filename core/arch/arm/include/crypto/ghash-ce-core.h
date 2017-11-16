@@ -19,12 +19,12 @@ void pmull_gcm_load_round_keys(uint64_t rk[30], int rounds);
 
 void pmull_gcm_encrypt(int blocks, uint64_t dg[2], uint8_t dst[],
 		       const uint8_t src[], const uint64_t k[2],
-		       const uint8_t ctr[], int rounds, uint8_t ks[]);
+		       uint64_t ctr[], int rounds, uint8_t ks[]);
 
 
 void pmull_gcm_decrypt(int blocks, uint64_t dg[2], uint8_t dst[],
 		       const uint8_t src[], const uint64_t k[2],
-		       const uint8_t ctr[], int rounds);
+		       uint64_t ctr[], int rounds);
 
 void pmull_gcm_encrypt_block(uint8_t dst[], const uint8_t src[], int rounds);
 

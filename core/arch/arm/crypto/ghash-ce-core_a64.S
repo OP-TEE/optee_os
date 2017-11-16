@@ -315,11 +315,11 @@ ENDPROC(pmull_ghash_update_p8)
 	.macro		pmull_gcm_do_crypt, enc
 	ld1		{SHASH.2d}, [x4]
 	ld1		{XL.2d}, [x1]
-	ldr		x8, [x5, #8]			// load lower counter
+	ldp		x8, x9, [x5]			// load counter
 
 	movi		MASK.16b, #0xe1
 	ext		SHASH2.16b, SHASH.16b, SHASH.16b, #8
-CPU_LE(	rev		x8, x8		)
+
 	shl		MASK.2d, MASK.2d, #57
 	eor		SHASH2.16b, SHASH2.16b, SHASH.16b
 
@@ -327,12 +327,17 @@ CPU_LE(	rev		x8, x8		)
 	ld1		{KS.16b}, [x7]
 	.endif
 
-0:	ld1		{CTR.8b}, [x5]			// load upper counter
-	ld1		{INP.16b}, [x3], #16
-	rev		x9, x8
-	add		x8, x8, #1
+0:	ins		CTR.d[1], x8			// set counter
+	ins		CTR.d[0], x9
+CPU_LE(	rev64		CTR.16b, CTR.16b)
+
+	add		x8, x8, #1			// increase counter
+	cmp		x8, #0
+	b.ne		1f
+	add		x9, x9, #1
+
+1:	ld1		{INP.16b}, [x3], #16
 	sub		w0, w0, #1
-	ins		CTR.d[1], x9			// set lower counter
 
 	.if		\enc == 1
 	eor		INP.16b, INP.16b, KS.16b	// encrypt input
@@ -342,9 +347,9 @@ CPU_LE(	rev		x8, x8		)
 	rev64		T1.16b, INP.16b
 
 	cmp		w6, #12
-	b.ge		2f				// AES-192/256?
+	b.ge		3f				// AES-192/256?
 
-1:	enc_round	CTR, v21
+2:	enc_round	CTR, v21
 
 	ext		T2.16b, XL.16b, XL.16b, #8
 	ext		IN1.16b, T1.16b, T1.16b, #8
@@ -404,9 +409,8 @@ CPU_LE(	rev		x8, x8		)
 
 	cbnz		w0, 0b
 
-CPU_LE(	rev		x8, x8		)
 	st1		{XL.2d}, [x1]
-	str		x8, [x5, #8]			// store lower counter
+	stp		x8, x9, [x5]			// store counter
 
 	.if		\enc == 1
 	st1		{KS.16b}, [x7]
@@ -414,18 +418,18 @@ CPU_LE(	rev		x8, x8		)
 
 	ret
 
-2:	b.eq		3f				// AES-192?
+3:	b.eq		4f				// AES-192?
 	enc_round	CTR, v17
 	enc_round	CTR, v18
-3:	enc_round	CTR, v19
+4:	enc_round	CTR, v19
 	enc_round	CTR, v20
-	b		1b
+	b		2b
 	.endm
 
 	/*
 	 * void pmull_gcm_encrypt(int blocks, u64 dg[], u8 dst[],
 	 *			  const u8 src[], struct ghash_key const *k,
-	 *			  u8 ctr[], int rounds, u8 ks[])
+	 *			  u64 ctr[2], int rounds, u8 ks[])
 	 */
 	.section .text.pmull_gcm_encrypt
 ENTRY(pmull_gcm_encrypt)
@@ -435,7 +439,7 @@ ENDPROC(pmull_gcm_encrypt)
 	/*
 	 * void pmull_gcm_decrypt(int blocks, u64 dg[], u8 dst[],
 	 *			  const u8 src[], struct ghash_key const *k,
-	 *			  u8 ctr[], int rounds)
+	 *			  u64 ctr[2], int rounds)
 	 */
 	.section .text.pmull_gcm_decrypt
 ENTRY(pmull_gcm_decrypt)
