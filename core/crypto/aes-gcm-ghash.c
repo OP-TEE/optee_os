@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <crypto/aes-gcm_ext.h>
+#include <crypto/aes-gcm.h>
 #include <kernel/panic.h>
 #include <string.h>
 #include <tee_api_types.h>

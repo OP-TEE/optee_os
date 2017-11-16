@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <crypto/aes-gcm_ext.h>
+#include <crypto/aes-gcm.h>
 #include <crypto/ghash-ce-core.h>
 #include <io.h>
 #include <kernel/panic.h>

@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <crypto/aes-gcm_ext.h>
+#include <crypto/aes-gcm.h>
 #include <io.h>
 #include <string_ext.h>
 #include <string.h>
@@ -13,11 +13,6 @@
 #include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
-
-size_t crypto_aes_gcm_get_ctx_size(void)
-{
-	return sizeof(struct crypto_aes_gcm_ctx);
-}
 
 static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 {
@@ -74,12 +69,11 @@ static void ghash_update_lengths(struct crypto_aes_gcm_ctx *ctx, uint32_t l1,
 	crypto_aes_gcm_ghash_update(ctx, (uint8_t *)len_fields, NULL, 0);
 }
 
-TEE_Result crypto_aes_gcm_init(void *c, TEE_OperationMode mode,
-			       const uint8_t *key, size_t key_len,
-			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len)
+TEE_Result crypto_aes_gcm_init(struct crypto_aes_gcm_ctx *ctx,
+			       TEE_OperationMode mode, const void *key,
+			       size_t key_len, const void *nonce,
+			       size_t nonce_len, size_t tag_len)
 {
-	struct crypto_aes_gcm_ctx *ctx = c;
 	TEE_Result res;
 
 	COMPILE_TIME_ASSERT(sizeof(ctx->ctr) == TEE_AES_BLOCK_SIZE);
@@ -132,10 +126,9 @@ TEE_Result crypto_aes_gcm_init(void *c, TEE_OperationMode mode,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_update_aad(void *c,
-				     const uint8_t *data, size_t len)
+TEE_Result crypto_aes_gcm_update_aad(struct crypto_aes_gcm_ctx *ctx,
+				     const void *data, size_t len)
 {
-	struct crypto_aes_gcm_ctx *ctx = c;
 	const uint8_t *d = data;
 	size_t l = len;
 	const uint8_t *head = NULL;
@@ -175,11 +168,10 @@ TEE_Result crypto_aes_gcm_update_aad(void *c,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_update_payload(void *c, TEE_OperationMode m,
-					 const uint8_t *src, size_t len,
-					 uint8_t *dst)
+TEE_Result crypto_aes_gcm_update_payload(struct crypto_aes_gcm_ctx *ctx,
+					 TEE_OperationMode mode,
+					 const void *src, size_t len, void *dst)
 {
-	struct crypto_aes_gcm_ctx *ctx = c;
 	size_t n;
 	const uint8_t *s = src;
 	uint8_t *d = dst;
@@ -200,14 +192,14 @@ TEE_Result crypto_aes_gcm_update_payload(void *c, TEE_OperationMode m,
 		    !ptr_is_block_aligned(d) || l < TEE_AES_BLOCK_SIZE) {
 			n = MIN(TEE_AES_BLOCK_SIZE - ctx->buf_pos, l);
 
-			if (!ctx->buf_pos && m == TEE_MODE_DECRYPT) {
+			if (!ctx->buf_pos && mode == TEE_MODE_DECRYPT) {
 				crypto_aes_gcm_encrypt_block(ctx, ctx->ctr,
 							     ctx->buf_cryp);
 			}
 
 			xor_buf(ctx->buf_cryp + ctx->buf_pos, s, n);
 			memcpy(d, ctx->buf_cryp + ctx->buf_pos, n);
-			if (m == TEE_MODE_ENCRYPT)
+			if (mode == TEE_MODE_ENCRYPT)
 				memcpy(ctx->buf_hash + ctx->buf_pos,
 				       ctx->buf_cryp + ctx->buf_pos, n);
 			else
@@ -224,14 +216,14 @@ TEE_Result crypto_aes_gcm_update_payload(void *c, TEE_OperationMode m,
 			s += n;
 			l -= n;
 
-			if (m == TEE_MODE_ENCRYPT)
+			if (mode == TEE_MODE_ENCRYPT)
 				crypto_aes_gcm_encrypt_block(ctx, ctx->ctr,
 							     ctx->buf_cryp);
 			crypto_aes_gcm_inc_ctr(ctx);
 		} else {
 			n = l / TEE_AES_BLOCK_SIZE;
-			crypto_aes_gcm_update_payload_block_aligned(ctx, m, s,
-								    n, d);
+			crypto_aes_gcm_update_payload_block_aligned(ctx, mode,
+								    s, n, d);
 			s += n * TEE_AES_BLOCK_SIZE;
 			d += n * TEE_AES_BLOCK_SIZE;
 			l -= n * TEE_AES_BLOCK_SIZE;
@@ -264,10 +256,10 @@ static TEE_Result operation_final(struct crypto_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_enc_final(void *c, const uint8_t *src, size_t len,
-				    uint8_t *dst, uint8_t *tag, size_t *tag_len)
+TEE_Result crypto_aes_gcm_enc_final(struct crypto_aes_gcm_ctx *ctx,
+				    const void *src, size_t len, void *dst,
+				    void *tag, size_t *tag_len)
 {
-	struct crypto_aes_gcm_ctx *ctx = c;
 	TEE_Result res;
 
 	if (*tag_len < ctx->tag_len)
@@ -283,11 +275,10 @@ TEE_Result crypto_aes_gcm_enc_final(void *c, const uint8_t *src, size_t len,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_dec_final(void *c, const uint8_t *src, size_t len,
-				    uint8_t *dst, const uint8_t *tag,
-				    size_t tag_len)
+TEE_Result crypto_aes_gcm_dec_final(struct crypto_aes_gcm_ctx *ctx,
+				    const void *src, size_t len, void *dst,
+				    const void *tag, size_t tag_len)
 {
-	struct crypto_aes_gcm_ctx *ctx = c;
 	TEE_Result res;
 
 	if (tag_len != ctx->tag_len)
@@ -315,6 +306,6 @@ void crypto_aes_gcm_inc_ctr(struct crypto_aes_gcm_ctx *ctx)
 	}
 }
 
-void crypto_aes_gcm_final(void *c __unused)
+void crypto_aes_gcm_final(struct crypto_aes_gcm_ctx *ctx __unused)
 {
 }
