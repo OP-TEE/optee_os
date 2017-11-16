@@ -256,7 +256,10 @@ script:
   - $make PLATFORM=sam
 
   # Marvell ARMADA 7K 8K
-  - $make PLATFORM=marvell-armada7k8k CFG_ARM64_core=y
+  - $make PLATFORM=marvell-armada7k8k
+
+  # Marvell ARMADA 3700
+  - $make PLATFORM=marvell-armada3700
 
   # Run regression tests (xtest in QEMU)
   - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)

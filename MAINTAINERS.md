@@ -25,6 +25,7 @@ for these platforms.
 | HiSilicon D02				|`Linaro <op-tee@linaro.org>`|
 | Marvell Armada 70x0		|`Kevin Peng <kevinp@marvell.com>`|
 | Marvell Armada 80x0		|`Kevin Peng <kevinp@marvell.com>`|
+| Marvell Armada 3700		|`Kevin Peng <kevinp@marvell.com>`|
 | MediaTek MT8173 EVB Board		|`Linaro <op-tee@linaro.org>`|
 | QEMU					|`Linaro <op-tee@linaro.org>`|
 | Raspberry Pi3				|`Linaro <op-tee@linaro.org>`|

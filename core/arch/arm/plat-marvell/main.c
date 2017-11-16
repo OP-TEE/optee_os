@@ -28,7 +28,11 @@
 #include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
+#if defined(PLATFORM_FLAVOR_armada7k8k)
 #include <drivers/serial8250_uart.h>
+#elif defined(PLATFORM_FLAVOR_armada3700)
+#include <drivers/mvebu_uart.h>
+#endif
 #include <keep.h>
 #include <kernel/generic_boot.h>
 #include <kernel/pm_stubs.h>
@@ -58,7 +62,11 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
+#if defined(PLATFORM_FLAVOR_armada7k8k)
 static struct serial8250_uart_data console_data;
+#elif defined(PLATFORM_FLAVOR_armada3700)
+static struct mvebu_uart_data console_data;
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
@@ -96,7 +104,12 @@ static void main_fiq(void)
 
 void console_init(void)
 {
+#if defined(PLATFORM_FLAVOR_armada7k8k)
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
 		CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+#elif defined(PLATFORM_FLAVOR_armada3700)
+	mvebu_uart_init(&console_data, CONSOLE_UART_BASE,
+		CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+#endif
 	register_serial_console(&console_data.chip);
 }

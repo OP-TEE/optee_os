@@ -154,7 +154,8 @@ build:
     - _make PLATFORM=rockchip-rk322x
     - _make PLATFORM=rockchip-rk322x CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
     - _make PLATFORM=sam
-    - _make PLATFORM=marvell-armada7k8k CFG_ARM64_core=y
+    - _make PLATFORM=marvell-armada7k8k
+    - _make PLATFORM=marvell-armada3700
 
     #
     # Regressions tests (QEMU)

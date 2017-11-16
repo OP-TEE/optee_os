@@ -59,8 +59,9 @@ platforms have different sub-maintainers, please refer to the file
 | [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No |
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/product/hikey)|`PLATFORM=hikey` or `PLATFORM=hikey-hikey`| Yes |
 | [HiKey960 Board (HiSilicon Kirin 960)](https://www.96boards.org/product/hikey960)|`PLATFORM=hikey-hikey960`| Yes |
-| [Marvell ARMADA 7K Family](http://www.marvell.com/embedded-processors/armada-70xx/)|`PLATFORM=marvell-armada7k8k`| No |
-| [Marvell ARMADA 8K Family](http://www.marvell.com/embedded-processors/armada-80xx/)|`PLATFORM=marvell-armada7k8k`| No |
+| [Marvell ARMADA 7K Family](http://www.marvell.com/embedded-processors/armada-70xx/)|`PLATFORM=marvell-armada7k8k`| Yes |
+| [Marvell ARMADA 8K Family](http://www.marvell.com/embedded-processors/armada-80xx/)|`PLATFORM=marvell-armada7k8k`| Yes |
+| [Marvell ARMADA 3700 Family](http://www.marvell.com/embedded-processors/armada-3700/)|`PLATFORM=marvell-armada3700`| Yes |
 | [MediaTek MT8173 EVB Board](https://www.mediatek.com/products/tablets/mt8173)|`PLATFORM=mediatek-mt8173`| No |
 | [QEMU](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_virt`| Yes |
 | [QEMUv8](http://wiki.qemu.org/Main_Page) |`PLATFORM=vexpress-qemu_armv8a`| Yes |
