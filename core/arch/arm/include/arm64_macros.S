@@ -123,3 +123,17 @@
 	ldp     \r1, \r2, [sp], #16
 	.endm
 
+	.macro mov_imm _reg, _val
+	.if (((\_val) >> 31) == 0 || ((\_val) >> 31) == 0x1ffffffff)
+		movz    \_reg, :abs_g1_s:\_val
+	.else
+		.if (((\_val) >> 47) == 0 || ((\_val) >> 47) == 0x1ffff)
+			movz    \_reg, :abs_g2_s:\_val
+		.else
+			movz    \_reg, :abs_g3:\_val
+			movk    \_reg, :abs_g2_nc:\_val
+		.endif
+		movk    \_reg, :abs_g1_nc:\_val
+	.endif
+		movk    \_reg, :abs_g0_nc:\_val
+	.endm
