@@ -13,6 +13,22 @@
 #include <tomcrypt.h>
 #include <types_ext.h>
 
+static void get_be_block(void *dst, const void *src)
+{
+	uint64_t *d = dst;
+
+	d[1] = get_be64(src);
+	d[0] = get_be64((const uint8_t *)src + 8);
+}
+
+static void put_be_block(void *dst, const void *src)
+{
+	const uint64_t *s = src;
+
+	put_be64(dst, s[1]);
+	put_be64((uint8_t *)dst + 8, s[0]);
+}
+
 TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
 				    const void *key, size_t key_len)
 {
@@ -37,18 +53,6 @@ TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-static void get_dg(uint64_t dg[2], struct internal_aes_gcm_ctx *ctx)
-{
-	dg[1] = get_be64(ctx->hash_state);
-	dg[0] = get_be64(ctx->hash_state + 8);
-}
-
-static void put_dg(struct internal_aes_gcm_ctx *ctx, uint64_t dg[2])
-{
-	put_be64(ctx->hash_state, dg[1]);
-	put_be64(ctx->hash_state + 8, dg[0]);
-}
-
 void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
 				   const void *head, const void *data,
 				 size_t num_blocks)
@@ -57,7 +61,7 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
 	uint64_t dg[2];
 	uint64_t *k;
 
-	get_dg(dg, ctx);
+	get_be_block(dg, ctx->hash_state);
 
 	k = (void *)ctx->hash_subkey;
 
@@ -70,7 +74,7 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
 #endif
 	thread_kernel_disable_vfp(vfp_state);
 
-	put_dg(ctx, dg);
+	put_be_block(ctx->hash_state, dg);
 }
 
 #ifdef ARM64
@@ -97,12 +101,14 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 {
 	uint32_t vfp_state;
 	uint64_t dg[2];
+	uint64_t ctr[2];
 	uint64_t *k;
-	void *ctr = ctx->ctr;
 	void *enc_key = ctx->skey.rijndael.eK;
 	size_t rounds = ctx->skey.rijndael.Nr;
 
-	get_dg(dg, ctx);
+	get_be_block(dg, ctx->hash_state);
+	get_be_block(ctr, ctx->ctr);
+
 	k = (void *)ctx->hash_subkey;
 
 	vfp_state = thread_kernel_enable_vfp();
@@ -117,6 +123,7 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 
 	thread_kernel_disable_vfp(vfp_state);
 
-	put_dg(ctx, dg);
+	put_be_block(ctx->ctr, ctr);
+	put_be_block(ctx->hash_state, dg);
 }
 #endif /*ARM64*/
