@@ -211,7 +211,7 @@
 #ifdef CFG_CRYPTO_CCM
    #define LTC_CCM_MODE
 #endif
-#ifdef CFG_CRYPTO_GCM
+#ifdef CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB
    #define LTC_GCM_MODE
 #endif
 
