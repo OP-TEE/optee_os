@@ -36,6 +36,7 @@ CFG_CRYPTO_ECC ?= y
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
 CFG_CRYPTO_GCM ?= y
+CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB = $(CFG_CRYPTO_GCM)
 
 endif
 

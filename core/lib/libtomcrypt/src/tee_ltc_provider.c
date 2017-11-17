@@ -2689,7 +2689,7 @@ void crypto_aes_ccm_final(void *ctx)
 }
 #endif /*CFG_CRYPTO_CCM*/
 
-#if defined(CFG_CRYPTO_GCM)
+#if defined(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB)
 struct tee_gcm_state {
 	gcm_state ctx;			/* the gcm state as defined by LTC */
 	size_t tag_len;			/* tag length */
@@ -2845,7 +2845,7 @@ void crypto_aes_gcm_final(void *ctx)
 
 	gcm_reset(&gcm->ctx);
 }
-#endif /*CFG_CRYPTO_GCM*/
+#endif /*CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
 
 /******************************************************************************
  * Pseudo Random Number Generator
