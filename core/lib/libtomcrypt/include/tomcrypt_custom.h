@@ -211,9 +211,6 @@
 #ifdef CFG_CRYPTO_CCM
    #define LTC_CCM_MODE
 #endif
-#ifdef CFG_CRYPTO_GCM
-   #define LTC_GCM_MODE
-#endif
 
 #define LTC_NO_PK
 

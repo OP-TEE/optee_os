@@ -44,6 +44,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <io.h>
 #include "pager_private.h"
 #include <tomcrypt.h>
 #include <trace.h>
@@ -58,21 +59,6 @@
  */
 
 #define BLOCK_ALIGNMENT	sizeof(uint64_t)
-
-static uint32_t get_be32(const void *a)
-{
-	return TEE_U32_FROM_BIG_ENDIAN(*(const uint32_t *)a);
-}
-
-static void put_be32(void *a, uint32_t val)
-{
-	*(uint32_t *)a = TEE_U32_TO_BIG_ENDIAN(val);
-}
-
-static void put_be64(void *a, uint64_t val)
-{
-	*(uint64_t *)a = TEE_U64_TO_BIG_ENDIAN(val);
-}
 
 static void aes_encrypt(symmetric_key *skey, const uint8_t *plain,
 			uint8_t *crypt)
