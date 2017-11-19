@@ -318,7 +318,7 @@ static TEE_Result pta_socket_invoke_command(void *sess_ctx, uint32_t cmd_id,
 }
 
 pseudo_ta_register(.uuid = PTA_SOCKET_UUID, .name = "socket",
-		   .flags = PTA_DEFAULT_FLAGS,
+		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_CONCURRENT,
 		   .open_session_entry_point = pta_socket_open_session,
 		   .close_session_entry_point = pta_socket_close_session,
 		   .invoke_command_entry_point = pta_socket_invoke_command);
