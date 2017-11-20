@@ -92,8 +92,17 @@ CFG_TEE_API_VERSION ?= GPD-1.1-dev
 # Implementation description (implementation-dependent)
 CFG_TEE_IMPL_DESCR ?= OPTEE
 
+# Should OPTEE_SMC_CALL_GET_OS_REVISION return a build identifier to Normal
+# World?
+CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
+
 # Trusted OS implementation version
 TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
+ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
+TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=8 HEAD 2>/dev/null || echo 0)
+else
+TEE_IMPL_GIT_SHA1 := 0x0
+endif
 # The following values are not extracted from the "git describe" output because
 # we might be outside of a Git environment, or the tree may have been cloned
 # with limited depth not including any tag, so there is really no guarantee
