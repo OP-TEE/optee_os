@@ -242,4 +242,5 @@ void __weak tee_entry_get_os_revision(struct thread_smc_args *args)
 {
 	args->a0 = CFG_OPTEE_REVISION_MAJOR;
 	args->a1 = CFG_OPTEE_REVISION_MINOR;
+	args->a2 = TEE_IMPL_GIT_SHA1;
 }
