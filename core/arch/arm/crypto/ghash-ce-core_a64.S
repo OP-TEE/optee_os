@@ -464,3 +464,17 @@ ENTRY(pmull_gcm_load_round_keys)
 	load_round_keys	w1, x0
 	ret
 ENDPROC(pmull_gcm_load_round_keys)
+
+	/*
+	 * uint32_t pmull_gcm_aes_sub(uint32_t input)
+	 *
+	 * use the aese instruction to perform the AES sbox substitution
+	 * on each byte in 'input'
+	 */
+ENTRY(pmull_gcm_aes_sub)
+	dup	v1.4s, w0
+	movi	v0.16b, #0
+	aese	v0.16b, v1.16b
+	umov	w0, v0.4s[0]
+	ret
+ENDPROC(pmull_gcm_aes_sub)
