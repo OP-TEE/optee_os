@@ -9,9 +9,7 @@
 #define __CRYPTO_INTERNAL_AES_GCM_H
 
 #include <tee_api_types.h>
-#include <tee_api_types.h>
 #include <utee_defines.h>
-#include <tomcrypt.h>
 
 struct internal_aes_gcm_ctx {
 	uint64_t ctr[2];
@@ -28,7 +26,9 @@ struct internal_aes_gcm_ctx {
 	uint8_t buf_hash[TEE_AES_BLOCK_SIZE];
 	uint8_t buf_cryp[TEE_AES_BLOCK_SIZE];
 
-	symmetric_key skey;
+	/* AES (CTR) encryption key and number of rounds */
+	uint64_t enc_key[30];
+	unsigned int rounds;
 
 	unsigned int tag_len;
 	unsigned int aad_bytes;
@@ -59,9 +59,6 @@ void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_ctx *ctx);
  * Internal weak functions that can be overridden with hardware specific
  * implementations.
  */
-void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
-				    const void *src, void *dst);
-
 TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
 				    const void *key, size_t key_len);
 
@@ -74,4 +71,13 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 					      TEE_OperationMode mode,
 					      const void *src,
 					      size_t num_blocks, void *dst);
+
+
+TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
+					   uint64_t *enc_key,
+					   unsigned int *rounds);
+
+void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
+				    const void *src, void *dst);
+
 #endif /*__CRYPTO_INTERNAL_AES_GCM_H*/
