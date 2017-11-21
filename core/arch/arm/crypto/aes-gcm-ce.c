@@ -81,6 +81,67 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
 }
 
 #ifdef ARM64
+static uint32_t ror32(uint32_t word, unsigned int shift)
+{
+	return (word >> shift) | (word << (32 - shift));
+}
+
+TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
+					   uint64_t *enc_key,
+					   unsigned int *rounds)
+{
+	/* The AES key schedule round constants */
+	static uint8_t const rcon[] = {
+		0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
+	};
+	uint32_t vfp_state;
+	uint32_t kwords = key_len / sizeof(uint32_t);
+	uint32_t *ek = (uint32_t *)enc_key;
+	unsigned int i;
+
+	if (key_len != 16 && keylen != 24 && keylen != 32)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	memcpy(enc_key, key, key_len);
+	/*
+	 * # of rounds specified by AES:
+	 * 128 bit key          10 rounds
+	 * 192 bit key          12 rounds
+	 * 256 bit key          14 rounds
+	 * => n byte key        => 6 + (n/4) rounds
+	 */
+	*rounds = 6 + key_len / 4;
+
+	vfp_state = thread_kernel_enable_vfp();
+	for (i = 0; i < sizeof(rcon); i++) {
+		uint32_t *rki = ek + (i * kwords);
+		uint32_t *rko = rki + kwords;
+
+		rko[0] = ror32(pmull_gcm_aes_sub(rki[kwords - 1]), 8) ^
+			 rcon[i] ^ rki[0];
+		rko[1] = rko[0] ^ rki[1];
+		rko[2] = rko[1] ^ rki[2];
+		rko[3] = rko[2] ^ rki[3];
+
+		if (key_len == 24) {
+			if (i >= 7)
+				break;
+			rko[4] = rko[3] ^ rki[4];
+			rko[5] = rko[4] ^ rki[5];
+		} else if (key_len == 32) {
+			if (i >= 6)
+				break;
+			rko[4] = pmull_gcm_aes_sub(rko[3]) ^ rki[4];
+			rko[5] = rko[4] ^ rki[5];
+			rko[6] = rko[5] ^ rki[6];
+			rko[7] = rko[6] ^ rki[7];
+		}
+	}
+
+	thread_kernel_disable_vfp(vfp_state);
+	return TEE_SUCCESS;
+}
+
 void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
 				    const void *src, void *dst)
 {
