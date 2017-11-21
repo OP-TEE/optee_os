@@ -135,10 +135,9 @@ TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
 			  tag_len);
 }
 
-TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
-				       const void *data, size_t len)
+static TEE_Result __gcm_update_aad(struct internal_aes_gcm_state *state,
+				   const void *data, size_t len)
 {
-	struct internal_aes_gcm_state *state = &ctx->state;
 	const uint8_t *d = data;
 	size_t l = len;
 	const uint8_t *head = NULL;
@@ -179,13 +178,18 @@ TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result internal_aes_gcm_update_payload(struct internal_aes_gcm_ctx *ctx,
-					   TEE_OperationMode mode,
-					   const void *src, size_t len,
-					   void *dst)
+TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
+				       const void *data, size_t len)
 {
-	struct internal_aes_gcm_state *state = &ctx->state;
-	struct internal_aes_gcm_key *ek = &ctx->key;
+	return __gcm_update_aad(&ctx->state, data, len);
+}
+
+static TEE_Result
+__gcm_update_payload(struct internal_aes_gcm_state *state,
+		     const struct internal_aes_gcm_key *ek,
+		     TEE_OperationMode mode, const void *src,
+		     size_t len, void *dst)
+{
 	size_t n;
 	const uint8_t *s = src;
 	uint8_t *d = dst;
@@ -251,14 +255,23 @@ TEE_Result internal_aes_gcm_update_payload(struct internal_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result operation_final(struct internal_aes_gcm_ctx *ctx,
+TEE_Result internal_aes_gcm_update_payload(struct internal_aes_gcm_ctx *ctx,
+					   TEE_OperationMode mode,
+					   const void *src, size_t len,
+					   void *dst)
+{
+	return __gcm_update_payload(&ctx->state, &ctx->key, mode, src, len,
+				    dst);
+}
+
+static TEE_Result operation_final(struct internal_aes_gcm_state *state,
+				  const struct internal_aes_gcm_key *enc_key,
 				  TEE_OperationMode m, const uint8_t *src,
 				  size_t len, uint8_t *dst)
 {
-	struct internal_aes_gcm_state *state = &ctx->state;
 	TEE_Result res;
 
-	res = internal_aes_gcm_update_payload(ctx, m, src, len, dst);
+	res = __gcm_update_payload(state, enc_key, m, src, len, dst);
 	if (res)
 		return res;
 
@@ -275,17 +288,17 @@ static TEE_Result operation_final(struct internal_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result internal_aes_gcm_enc_final(struct internal_aes_gcm_ctx *ctx,
-				      const void *src, size_t len, void *dst,
-				      void *tag, size_t *tag_len)
+static TEE_Result __gcm_enc_final(struct internal_aes_gcm_state *state,
+				  const struct internal_aes_gcm_key *enc_key,
+				  const void *src, size_t len, void *dst,
+				  void *tag, size_t *tag_len)
 {
-	struct internal_aes_gcm_state *state = &ctx->state;
 	TEE_Result res;
 
 	if (*tag_len < state->tag_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	res = operation_final(ctx, TEE_MODE_ENCRYPT, src, len, dst);
+	res = operation_final(state, enc_key, TEE_MODE_ENCRYPT, src, len, dst);
 	if (res)
 		return res;
 
@@ -295,17 +308,25 @@ TEE_Result internal_aes_gcm_enc_final(struct internal_aes_gcm_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
+TEE_Result internal_aes_gcm_enc_final(struct internal_aes_gcm_ctx *ctx,
 				      const void *src, size_t len, void *dst,
-				      const void *tag, size_t tag_len)
+				      void *tag, size_t *tag_len)
 {
-	struct internal_aes_gcm_state *state = &ctx->state;
+	return __gcm_enc_final(&ctx->state, &ctx->key, src, len, dst, tag,
+			       tag_len);
+}
+
+static TEE_Result __gcm_dec_final(struct internal_aes_gcm_state *state,
+				  const struct internal_aes_gcm_key *enc_key,
+				  const void *src, size_t len, void *dst,
+				  const void *tag, size_t tag_len)
+{
 	TEE_Result res;
 
 	if (tag_len != state->tag_len)
 		return TEE_ERROR_MAC_INVALID;
 
-	res = operation_final(ctx, TEE_MODE_DECRYPT, src, len, dst);
+	res = operation_final(state, enc_key, TEE_MODE_DECRYPT, src, len, dst);
 	if (res)
 		return res;
 
@@ -313,6 +334,14 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 		return TEE_ERROR_MAC_INVALID;
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
+				      const void *src, size_t len, void *dst,
+				      const void *tag, size_t tag_len)
+{
+	return __gcm_dec_final(&ctx->state, &ctx->key, src, len, dst, tag,
+			       tag_len);
 }
 
 void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state)
@@ -326,6 +355,53 @@ void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state)
 		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
 	}
 }
+
+TEE_Result internal_aes_gcm_enc(const struct internal_aes_gcm_key *enc_key,
+				const void *nonce, size_t nonce_len,
+				const void *aad, size_t aad_len,
+				const void *src, size_t len, void *dst,
+				void *tag, size_t *tag_len)
+{
+	TEE_Result res;
+	struct internal_aes_gcm_state state;
+
+	res = __gcm_init(&state, enc_key, TEE_MODE_ENCRYPT, nonce, nonce_len,
+			 *tag_len);
+	if (res)
+		return res;
+
+	if (aad) {
+		res = __gcm_update_aad(&state, aad, aad_len);
+		if (res)
+			return res;
+	}
+
+	return __gcm_enc_final(&state, enc_key, src, len, dst, tag, tag_len);
+}
+
+TEE_Result internal_aes_gcm_dec(const struct internal_aes_gcm_key *enc_key,
+				const void *nonce, size_t nonce_len,
+				const void *aad, size_t aad_len,
+				const void *src, size_t len, void *dst,
+				const void *tag, size_t tag_len)
+{
+	TEE_Result res;
+	struct internal_aes_gcm_state state;
+
+	res = __gcm_init(&state, enc_key, TEE_MODE_DECRYPT, nonce, nonce_len,
+			 tag_len);
+	if (res)
+		return res;
+
+	if (aad) {
+		res = __gcm_update_aad(&state, aad, aad_len);
+		if (res)
+			return res;
+	}
+
+	return __gcm_dec_final(&state, enc_key, src, len, dst, tag, tag_len);
+}
+
 
 #ifndef CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB
 #include <crypto/aes-gcm.h>
