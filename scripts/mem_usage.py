@@ -89,7 +89,8 @@ def main():
     args = get_args()
     env = os.environ.copy()
     env['LC_ALL'] = 'C'
-    readelf = subprocess.Popen([readelf_cmd(), '-S', '-W', args.tee_elf],
+    readelf = subprocess.Popen(str.split(readelf_cmd()) + ['-S', '-W',
+                               args.tee_elf],
                                stdout=subprocess.PIPE, env=env,
                                universal_newlines=True)
     for line in iter(readelf.stdout.readline, ''):
