@@ -62,6 +62,18 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 
 void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state);
 
+TEE_Result internal_aes_gcm_enc(const struct internal_aes_gcm_key *enc_key,
+				const void *nonce, size_t nonce_len,
+				const void *aad, size_t aad_len,
+				const void *src, size_t len, void *dst,
+				void *tag, size_t *tag_len);
+
+TEE_Result internal_aes_gcm_dec(const struct internal_aes_gcm_key *enc_key,
+				const void *nonce, size_t nonce_len,
+				const void *aad, size_t aad_len,
+				const void *src, size_t len, void *dst,
+				const void *tag, size_t tag_len);
+
 TEE_Result
 internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 				struct internal_aes_gcm_key *enc_key);
