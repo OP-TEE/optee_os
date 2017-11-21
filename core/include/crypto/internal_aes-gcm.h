@@ -16,7 +16,12 @@
 struct internal_aes_gcm_ctx {
 	uint64_t ctr[2];
 
+#ifdef CFG_AES_GCM_TABLE_BASED
+	uint64_t HL[16];
+	uint64_t HH[16];
+#else
 	uint8_t hash_subkey[TEE_AES_BLOCK_SIZE];
+#endif
 	uint8_t hash_state[TEE_AES_BLOCK_SIZE];
 
 	uint8_t buf_tag[TEE_AES_BLOCK_SIZE];
