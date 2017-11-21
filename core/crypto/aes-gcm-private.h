@@ -23,6 +23,7 @@ static inline bool internal_aes_gcm_ptr_is_block_aligned(const void *p)
 	return !((vaddr_t)p & (TEE_AES_BLOCK_SIZE - 1));
 }
 
-void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_ctx *ctx);
-void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *enc_key);
+void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_state *state,
 					 const void *data);

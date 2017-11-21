@@ -11,7 +11,13 @@
 #include <tee_api_types.h>
 #include <utee_defines.h>
 
-struct internal_aes_gcm_ctx {
+struct internal_aes_gcm_key {
+	/* AES (CTR) encryption key and number of rounds */
+	uint64_t data[30];
+	unsigned int rounds;
+};
+
+struct internal_aes_gcm_state {
 	uint64_t ctr[2];
 
 #ifdef CFG_AES_GCM_TABLE_BASED
@@ -26,14 +32,15 @@ struct internal_aes_gcm_ctx {
 	uint8_t buf_hash[TEE_AES_BLOCK_SIZE];
 	uint8_t buf_cryp[TEE_AES_BLOCK_SIZE];
 
-	/* AES (CTR) encryption key and number of rounds */
-	uint64_t enc_key[30];
-	unsigned int rounds;
-
 	unsigned int tag_len;
 	unsigned int aad_bytes;
 	unsigned int payload_bytes;
 	unsigned int buf_pos;
+};
+
+struct internal_aes_gcm_ctx {
+	struct internal_aes_gcm_state state;
+	struct internal_aes_gcm_key key;
 };
 
 TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
@@ -53,31 +60,31 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 				      const void *src, size_t len, void *dst,
 				      const void *tag, size_t tag_len);
 
-void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_ctx *ctx);
+void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state);
+
+TEE_Result
+internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
+				struct internal_aes_gcm_key *enc_key);
 
 /*
  * Internal weak functions that can be overridden with hardware specific
  * implementations.
  */
-TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
-				    const void *key, size_t key_len);
+void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
+			      const struct internal_aes_gcm_key *enc_key);
 
-void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 				   const void *head, const void *data,
 				   size_t num_blocks);
 
-void
-internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
-					      TEE_OperationMode mode,
-					      const void *src,
-					      size_t num_blocks, void *dst);
+void internal_aes_gcm_update_payload_block_aligned(
+				struct internal_aes_gcm_state *state,
+				const struct internal_aes_gcm_key *enc_key,
+				TEE_OperationMode mode, const void *src,
+				size_t num_blocks, void *dst);
 
 
-TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
-					   uint64_t *enc_key,
-					   unsigned int *rounds);
 
-void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *enc_key,
 				    const void *src, void *dst);
-
 #endif /*__CRYPTO_INTERNAL_AES_GCM_H*/

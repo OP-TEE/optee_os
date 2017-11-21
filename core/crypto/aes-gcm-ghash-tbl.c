@@ -45,25 +45,26 @@ gcm-revised-spec.pdf
  * is the high-order bit of HH corresponds to P^0 and the low-order bit of HL
  * corresponds to P^127.
  */
-void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_ctx *ctx)
+void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *ek)
 {
 	int i, j;
 	uint64_t vl, vh;
 	unsigned char h[16];
 
 	memset(h, 0, 16);
-	internal_aes_gcm_encrypt_block(ctx, h, h);
+	internal_aes_gcm_encrypt_block(ek, h, h);
 
 	vh = get_be64(h);
 	vl = get_be64(h + 8);
 
 	/* 8 = 1000 corresponds to 1 in GF(2^128) */
-	ctx->HL[8] = vl;
-	ctx->HH[8] = vh;
+	state->HL[8] = vl;
+	state->HH[8] = vh;
 
 	/* 0 corresponds to 0 in GF(2^128) */
-	ctx->HH[0] = 0;
-	ctx->HL[0] = 0;
+	state->HH[0] = 0;
+	state->HL[0] = 0;
 
 	for (i = 4; i > 0; i >>= 1) {
 		uint32_t T = (vl & 1) * 0xe1000000U;
@@ -71,21 +72,20 @@ void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_ctx *ctx)
 		vl  = (vh << 63) | (vl >> 1);
 		vh  = (vh >> 1) ^ ((uint64_t)T << 32);
 
-		ctx->HL[i] = vl;
-		ctx->HH[i] = vh;
+		state->HL[i] = vl;
+		state->HH[i] = vh;
 	}
 
 	for (i = 2; i <= 8; i *= 2) {
-		uint64_t *HiL = ctx->HL + i, *HiH = ctx->HH + i;
+		uint64_t *HiL = state->HL + i, *HiH = state->HH + i;
 
 		vh = *HiH;
 		vl = *HiL;
 		for (j = 1; j < i; j++) {
-			HiH[j] = vh ^ ctx->HH[j];
-			HiL[j] = vl ^ ctx->HL[j];
+			HiH[j] = vh ^ state->HH[j];
+			HiL[j] = vl ^ state->HL[j];
 		}
 	}
-
 }
 
 /*
@@ -104,7 +104,7 @@ static const uint64_t last4[16] = {
  * Sets output to x times H using the precomputed tables.
  * x and output are seen as elements of GF(2^128) as in [MGV].
  */
-static void gcm_mult(struct internal_aes_gcm_ctx *ctx,
+static void gcm_mult(struct internal_aes_gcm_state *state,
 		     const unsigned char x[16], unsigned char output[16])
 {
 	int i = 0;
@@ -113,8 +113,8 @@ static void gcm_mult(struct internal_aes_gcm_ctx *ctx,
 
 	lo = x[15] & 0xf;
 
-	zh = ctx->HH[lo];
-	zl = ctx->HL[lo];
+	zh = state->HH[lo];
+	zl = state->HL[lo];
 
 	for (i = 15; i >= 0; i--) {
 		lo = x[i] & 0xf;
@@ -125,27 +125,27 @@ static void gcm_mult(struct internal_aes_gcm_ctx *ctx,
 			zl = (zh << 60) | (zl >> 4);
 			zh = (zh >> 4);
 			zh ^= (uint64_t)last4[rem] << 48;
-			zh ^= ctx->HH[lo];
-			zl ^= ctx->HL[lo];
+			zh ^= state->HH[lo];
+			zl ^= state->HL[lo];
 		}
 
 		rem = (unsigned char)zl & 0xf;
 		zl = (zh << 60) | (zl >> 4);
 		zh = (zh >> 4);
 		zh ^= (uint64_t)last4[rem] << 48;
-		zh ^= ctx->HH[hi];
-		zl ^= ctx->HL[hi];
+		zh ^= state->HH[hi];
+		zl ^= state->HL[hi];
 	}
 
 	put_be64(output, zh);
 	put_be64(output + 8, zl);
 }
 
-void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_state *state,
 					 const void *data)
 {
-	void *y = ctx->hash_state;
+	void *y = state->hash_state;
 
 	internal_aes_gcm_xor_block(y, data);
-	gcm_mult(ctx, y, y);
+	gcm_mult(state, y, y);
 }
