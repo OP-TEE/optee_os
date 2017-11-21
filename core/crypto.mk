@@ -49,17 +49,27 @@ endif
 endif
 
 ifeq ($(CFG_CRYPTO_WITH_CE),y)
+
+$(call force,CFG_AES_GCM_TABLE_BASED,n,conflicts with CFG_CRYPTO_WITH_CE)
+
 ifeq ($(CFG_ARM32_core),y)
 CFG_CRYPTO_AES_ARM32_CE ?= $(CFG_CRYPTO_AES)
 CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_CRYPTO_SHA1)
 CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_CRYPTO_SHA256)
 endif
+
 ifeq ($(CFG_ARM64_core),y)
 CFG_CRYPTO_AES_ARM64_CE ?= $(CFG_CRYPTO_AES)
 CFG_CRYPTO_SHA1_ARM64_CE ?= $(CFG_CRYPTO_SHA1)
 CFG_CRYPTO_SHA256_ARM64_CE ?= $(CFG_CRYPTO_SHA256)
 endif
-endif
+
+else #CFG_CRYPTO_WITH_CE
+
+CFG_AES_GCM_TABLE_BASED ?= y
+
+endif #!CFG_CRYPTO_WITH_CE
+
 
 # Cryptographic extensions can only be used safely when OP-TEE knows how to
 # preserve the VFP context

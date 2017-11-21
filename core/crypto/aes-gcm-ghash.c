@@ -21,14 +21,7 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
-static void xor_block(void *dst, const void *src)
-{
-	uint64_t *d = dst;
-	const uint64_t *s = src;
-
-	d[0] ^= s[0];
-	d[1] ^= s[1];
-}
+#include "aes-gcm-private.h"
 
 /*
  * gfmul() is based on ghash_gfmul() from
@@ -48,7 +41,7 @@ static void gfmul(const uint64_t X[2], const uint64_t Y[2], uint64_t product[2])
 	for (n = 0; n < TEE_AES_BLOCK_SIZE * 8; n++) {
 		/* update Z */
 		if (x[n >> 3] & (1 << (~n & 7)))
-			xor_block(z, y);
+			internal_aes_gcm_xor_block(z, y);
 
 		/* update Y */
 		mul = y[1] & 1;
@@ -60,20 +53,11 @@ static void gfmul(const uint64_t X[2], const uint64_t Y[2], uint64_t product[2])
 	product[1] = TEE_U64_TO_BIG_ENDIAN(z[1]);
 }
 
-void __weak internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
-					  const void *head, const void *data,
-					size_t num_blocks)
+void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_ctx *ctx,
+					 const void *data)
 {
-	const uint64_t *x = (const void *)data;
 	void *y = ctx->hash_state;
-	size_t n;
 
-	if (head) {
-		xor_block(y, head);
-		gfmul((void *)ctx->hash_subkey, y, y);
-	}
-	for (n = 0; n < num_blocks; n++) {
-		xor_block(y, x + n * 2);
-		gfmul((void *)ctx->hash_subkey, y, y);
-	}
+	internal_aes_gcm_xor_block(y, data);
+	gfmul((void *)ctx->hash_subkey, y, y);
 }

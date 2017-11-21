@@ -14,6 +14,8 @@
 #include <utee_defines.h>
 #include <util.h>
 
+#include "aes-gcm-private.h"
+
 static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 {
 	size_t n;
@@ -22,10 +24,6 @@ static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 		dst[n] ^= src[n];
 }
 
-static bool ptr_is_block_aligned(const void *p)
-{
-	return !((vaddr_t)p & (TEE_AES_BLOCK_SIZE - 1));
-}
 
 static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
 				  const uint8_t *data, size_t len)
@@ -34,7 +32,7 @@ static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
 	uint64_t block[2];
 
 	if (n) {
-		if (ptr_is_block_aligned(data)) {
+		if (internal_aes_gcm_ptr_is_block_aligned(data)) {
 			internal_aes_gcm_ghash_update(ctx, NULL, data, n);
 		} else {
 			size_t m;
@@ -140,7 +138,7 @@ TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
 	ctx->aad_bytes += len;
 
 	while (l) {
-		if (ctx->buf_pos || !ptr_is_block_aligned(d) ||
+		if (ctx->buf_pos || !internal_aes_gcm_ptr_is_block_aligned(d) ||
 		    l < TEE_AES_BLOCK_SIZE) {
 			n = MIN(TEE_AES_BLOCK_SIZE - ctx->buf_pos, l);
 			memcpy(ctx->buf_hash + ctx->buf_pos, d, n);
@@ -155,7 +153,7 @@ TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
 			l -= n;
 		}
 
-		if (ptr_is_block_aligned(d))
+		if (internal_aes_gcm_ptr_is_block_aligned(d))
 			n = l / TEE_AES_BLOCK_SIZE;
 		else
 			n = 0;
@@ -189,8 +187,9 @@ TEE_Result internal_aes_gcm_update_payload(struct internal_aes_gcm_ctx *ctx,
 	ctx->payload_bytes += len;
 
 	while (l) {
-		if (ctx->buf_pos || !ptr_is_block_aligned(s) ||
-		    !ptr_is_block_aligned(d) || l < TEE_AES_BLOCK_SIZE) {
+		if (ctx->buf_pos || !internal_aes_gcm_ptr_is_block_aligned(s) ||
+		    !internal_aes_gcm_ptr_is_block_aligned(d) ||
+		    l < TEE_AES_BLOCK_SIZE) {
 			n = MIN(TEE_AES_BLOCK_SIZE - ctx->buf_pos, l);
 
 			if (!ctx->buf_pos && mode == TEE_MODE_DECRYPT) {
