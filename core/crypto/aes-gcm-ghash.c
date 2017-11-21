@@ -53,11 +53,11 @@ static void gfmul(const uint64_t X[2], const uint64_t Y[2], uint64_t product[2])
 	product[1] = TEE_U64_TO_BIG_ENDIAN(z[1]);
 }
 
-void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_state *state,
 					 const void *data)
 {
-	void *y = ctx->hash_state;
+	void *y = state->hash_state;
 
 	internal_aes_gcm_xor_block(y, data);
-	gfmul((void *)ctx->hash_subkey, y, y);
+	gfmul((void *)state->hash_subkey, y, y);
 }

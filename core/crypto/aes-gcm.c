@@ -26,7 +26,7 @@ static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 }
 
 
-static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
+static void ghash_update_pad_zero(struct internal_aes_gcm_state *state,
 				  const uint8_t *data, size_t len)
 {
 	size_t n = len / TEE_AES_BLOCK_SIZE;
@@ -34,7 +34,7 @@ static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
 
 	if (n) {
 		if (internal_aes_gcm_ptr_is_block_aligned(data)) {
-			internal_aes_gcm_ghash_update(ctx, NULL, data, n);
+			internal_aes_gcm_ghash_update(state, NULL, data, n);
 		} else {
 			size_t m;
 
@@ -42,7 +42,7 @@ static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
 
 				memcpy(block, data + m * sizeof(block),
 				       sizeof(block));
-				internal_aes_gcm_ghash_update(ctx, NULL,
+				internal_aes_gcm_ghash_update(state, NULL,
 							      (void *)block, 1);
 			}
 		}
@@ -52,12 +52,12 @@ static void ghash_update_pad_zero(struct internal_aes_gcm_ctx *ctx,
 		memset(block, 0, sizeof(block));
 		memcpy(block, data + n * TEE_AES_BLOCK_SIZE,
 		       len - n * TEE_AES_BLOCK_SIZE);
-		internal_aes_gcm_ghash_update(ctx, block, NULL, 0);
+		internal_aes_gcm_ghash_update(state, block, NULL, 0);
 	}
 }
 
-static void ghash_update_lengths(struct internal_aes_gcm_ctx *ctx, uint32_t l1,
-				 uint32_t l2)
+static void ghash_update_lengths(struct internal_aes_gcm_state *state,
+				 uint32_t l1, uint32_t l2)
 {
 	uint64_t len_fields[2] = {
 		TEE_U64_TO_BIG_ENDIAN(l1 * 8),
@@ -65,41 +65,37 @@ static void ghash_update_lengths(struct internal_aes_gcm_ctx *ctx, uint32_t l1,
 	};
 
 	COMPILE_TIME_ASSERT(sizeof(len_fields) == TEE_AES_BLOCK_SIZE);
-	internal_aes_gcm_ghash_update(ctx, (uint8_t *)len_fields, NULL, 0);
+	internal_aes_gcm_ghash_update(state, (uint8_t *)len_fields, NULL, 0);
 }
 
-TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
-				 TEE_OperationMode mode, const void *key,
-				 size_t key_len, const void *nonce,
-				 size_t nonce_len, size_t tag_len)
+static TEE_Result __gcm_init(struct internal_aes_gcm_state *state,
+			     const struct internal_aes_gcm_key *ek,
+			     TEE_OperationMode mode, const void *nonce,
+			     size_t nonce_len, size_t tag_len)
 {
-	TEE_Result res;
+	COMPILE_TIME_ASSERT(sizeof(state->ctr) == TEE_AES_BLOCK_SIZE);
 
-	COMPILE_TIME_ASSERT(sizeof(ctx->ctr) == TEE_AES_BLOCK_SIZE);
-
-	if (tag_len > sizeof(ctx->buf_tag))
+	if (tag_len > sizeof(state->buf_tag))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memset(ctx, 0, sizeof(*ctx));
+	memset(state, 0, sizeof(*state));
 
-	ctx->tag_len = tag_len;
-	res = internal_aes_gcm_set_key(ctx, key, key_len);
-	if (res)
-		return res;
+	state->tag_len = tag_len;
+	internal_aes_gcm_set_key(state, ek);
 
 	if (nonce_len == (96 / 8)) {
-		memcpy(ctx->ctr, nonce, nonce_len);
-		internal_aes_gcm_inc_ctr(ctx);
+		memcpy(state->ctr, nonce, nonce_len);
+		internal_aes_gcm_inc_ctr(state);
 	} else {
-		ghash_update_pad_zero(ctx, nonce, nonce_len);
-		ghash_update_lengths(ctx, 0, nonce_len);
+		ghash_update_pad_zero(state, nonce, nonce_len);
+		ghash_update_lengths(state, 0, nonce_len);
 
-		memcpy(ctx->ctr, ctx->hash_state, sizeof(ctx->ctr));
-		memset(ctx->hash_state, 0, sizeof(ctx->hash_state));
+		memcpy(state->ctr, state->hash_state, sizeof(state->ctr));
+		memset(state->hash_state, 0, sizeof(state->hash_state));
 	}
 
-	internal_aes_gcm_encrypt_block(ctx, ctx->ctr, ctx->buf_tag);
-	internal_aes_gcm_inc_ctr(ctx);
+	internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_tag);
+	internal_aes_gcm_inc_ctr(state);
 	if (mode == TEE_MODE_ENCRYPT) {
 		/*
 		 * Encryption uses the pre-encrypted xor-buffer to encrypt
@@ -118,38 +114,54 @@ TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
 		 * accelerated routines it's more convenient to always have
 		 * this optimization activated.
 		 */
-		internal_aes_gcm_encrypt_block(ctx, ctx->ctr, ctx->buf_cryp);
-		internal_aes_gcm_inc_ctr(ctx);
+		internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_cryp);
+		internal_aes_gcm_inc_ctr(state);
 	}
 
 	return TEE_SUCCESS;
 }
 
+TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
+				 TEE_OperationMode mode, const void *key,
+				 size_t key_len, const void *nonce,
+				 size_t nonce_len, size_t tag_len)
+{
+	TEE_Result res = internal_aes_gcm_expand_enc_key(key, key_len,
+							 &ctx->key);
+	if (res)
+		return res;
+
+	return __gcm_init(&ctx->state, &ctx->key, mode, nonce, nonce_len,
+			  tag_len);
+}
+
 TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
 				       const void *data, size_t len)
 {
+	struct internal_aes_gcm_state *state = &ctx->state;
 	const uint8_t *d = data;
 	size_t l = len;
 	const uint8_t *head = NULL;
 	size_t n;
 
-	if (ctx->payload_bytes)
+	if (state->payload_bytes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ctx->aad_bytes += len;
+	state->aad_bytes += len;
 
 	while (l) {
-		if (ctx->buf_pos || !internal_aes_gcm_ptr_is_block_aligned(d) ||
+		if (state->buf_pos ||
+		    !internal_aes_gcm_ptr_is_block_aligned(d) ||
 		    l < TEE_AES_BLOCK_SIZE) {
-			n = MIN(TEE_AES_BLOCK_SIZE - ctx->buf_pos, l);
-			memcpy(ctx->buf_hash + ctx->buf_pos, d, n);
-			ctx->buf_pos += n;
+			n = MIN(TEE_AES_BLOCK_SIZE - state->buf_pos, l);
+			memcpy(state->buf_hash + state->buf_pos, d, n);
+			state->buf_pos += n;
 
-			if (ctx->buf_pos != TEE_AES_BLOCK_SIZE)
+			if (state->buf_pos != TEE_AES_BLOCK_SIZE)
 				return TEE_SUCCESS;
 
-			ctx->buf_pos = 0;
-			head = ctx->buf_hash;
+			state->buf_pos = 0;
+			head = state->buf_hash;
 			d += n;
 			l -= n;
 		}
@@ -159,7 +171,7 @@ TEE_Result internal_aes_gcm_update_aad(struct internal_aes_gcm_ctx *ctx,
 		else
 			n = 0;
 
-		internal_aes_gcm_ghash_update(ctx, head, d, n);
+		internal_aes_gcm_ghash_update(state, head, d, n);
 		l -= n * TEE_AES_BLOCK_SIZE;
 		d += n * TEE_AES_BLOCK_SIZE;
 	}
@@ -172,59 +184,63 @@ TEE_Result internal_aes_gcm_update_payload(struct internal_aes_gcm_ctx *ctx,
 					   const void *src, size_t len,
 					   void *dst)
 {
+	struct internal_aes_gcm_state *state = &ctx->state;
+	struct internal_aes_gcm_key *ek = &ctx->key;
 	size_t n;
 	const uint8_t *s = src;
 	uint8_t *d = dst;
 	size_t l = len;
 
-	if (!ctx->payload_bytes && ctx->buf_pos) {
+	if (!state->payload_bytes && state->buf_pos) {
 		/* AAD part done, finish up the last bits. */
-		memset(ctx->buf_hash + ctx->buf_pos, 0,
-		       TEE_AES_BLOCK_SIZE - ctx->buf_pos);
-		internal_aes_gcm_ghash_update(ctx, ctx->buf_hash, NULL, 0);
-		ctx->buf_pos = 0;
+		memset(state->buf_hash + state->buf_pos, 0,
+		       TEE_AES_BLOCK_SIZE - state->buf_pos);
+		internal_aes_gcm_ghash_update(state, state->buf_hash, NULL, 0);
+		state->buf_pos = 0;
 	}
 
-	ctx->payload_bytes += len;
+	state->payload_bytes += len;
 
 	while (l) {
-		if (ctx->buf_pos || !internal_aes_gcm_ptr_is_block_aligned(s) ||
+		if (state->buf_pos ||
+		    !internal_aes_gcm_ptr_is_block_aligned(s) ||
 		    !internal_aes_gcm_ptr_is_block_aligned(d) ||
 		    l < TEE_AES_BLOCK_SIZE) {
-			n = MIN(TEE_AES_BLOCK_SIZE - ctx->buf_pos, l);
+			n = MIN(TEE_AES_BLOCK_SIZE - state->buf_pos, l);
 
-			if (!ctx->buf_pos && mode == TEE_MODE_DECRYPT) {
-				internal_aes_gcm_encrypt_block(ctx, ctx->ctr,
-							       ctx->buf_cryp);
+			if (!state->buf_pos && mode == TEE_MODE_DECRYPT) {
+				internal_aes_gcm_encrypt_block(ek, state->ctr,
+							       state->buf_cryp);
 			}
 
-			xor_buf(ctx->buf_cryp + ctx->buf_pos, s, n);
-			memcpy(d, ctx->buf_cryp + ctx->buf_pos, n);
+			xor_buf(state->buf_cryp + state->buf_pos, s, n);
+			memcpy(d, state->buf_cryp + state->buf_pos, n);
 			if (mode == TEE_MODE_ENCRYPT)
-				memcpy(ctx->buf_hash + ctx->buf_pos,
-				       ctx->buf_cryp + ctx->buf_pos, n);
+				memcpy(state->buf_hash + state->buf_pos,
+				       state->buf_cryp + state->buf_pos, n);
 			else
-				memcpy(ctx->buf_hash + ctx->buf_pos, s, n);
+				memcpy(state->buf_hash + state->buf_pos, s, n);
 
-			ctx->buf_pos += n;
+			state->buf_pos += n;
 
-			if (ctx->buf_pos != TEE_AES_BLOCK_SIZE)
+			if (state->buf_pos != TEE_AES_BLOCK_SIZE)
 				return TEE_SUCCESS;
 
-			internal_aes_gcm_ghash_update(ctx, ctx->buf_hash,
+			internal_aes_gcm_ghash_update(state, state->buf_hash,
 						      NULL, 0);
-			ctx->buf_pos = 0;
+			state->buf_pos = 0;
 			d += n;
 			s += n;
 			l -= n;
 
 			if (mode == TEE_MODE_ENCRYPT)
-				internal_aes_gcm_encrypt_block(ctx, ctx->ctr,
-							       ctx->buf_cryp);
-			internal_aes_gcm_inc_ctr(ctx);
+				internal_aes_gcm_encrypt_block(ek, state->ctr,
+							       state->buf_cryp);
+			internal_aes_gcm_inc_ctr(state);
 		} else {
 			n = l / TEE_AES_BLOCK_SIZE;
-			internal_aes_gcm_update_payload_block_aligned(ctx, mode,
+			internal_aes_gcm_update_payload_block_aligned(state, ek,
+								      mode,
 								      s, n, d);
 			s += n * TEE_AES_BLOCK_SIZE;
 			d += n * TEE_AES_BLOCK_SIZE;
@@ -239,21 +255,22 @@ static TEE_Result operation_final(struct internal_aes_gcm_ctx *ctx,
 				  TEE_OperationMode m, const uint8_t *src,
 				  size_t len, uint8_t *dst)
 {
+	struct internal_aes_gcm_state *state = &ctx->state;
 	TEE_Result res;
 
 	res = internal_aes_gcm_update_payload(ctx, m, src, len, dst);
 	if (res)
 		return res;
 
-	if (ctx->buf_pos) {
-		memset(ctx->buf_hash + ctx->buf_pos, 0,
-		       sizeof(ctx->buf_hash) - ctx->buf_pos);
-		internal_aes_gcm_ghash_update(ctx, ctx->buf_hash, NULL, 0);
+	if (state->buf_pos) {
+		memset(state->buf_hash + state->buf_pos, 0,
+		       sizeof(state->buf_hash) - state->buf_pos);
+		internal_aes_gcm_ghash_update(state, state->buf_hash, NULL, 0);
 	}
 
-	ghash_update_lengths(ctx, ctx->aad_bytes, ctx->payload_bytes);
+	ghash_update_lengths(state, state->aad_bytes, state->payload_bytes);
 	/* buf_tag was filled in with the first counter block aes_gcm_init() */
-	xor_buf(ctx->buf_tag, ctx->hash_state, ctx->tag_len);
+	xor_buf(state->buf_tag, state->hash_state, state->tag_len);
 
 	return TEE_SUCCESS;
 }
@@ -262,17 +279,18 @@ TEE_Result internal_aes_gcm_enc_final(struct internal_aes_gcm_ctx *ctx,
 				      const void *src, size_t len, void *dst,
 				      void *tag, size_t *tag_len)
 {
+	struct internal_aes_gcm_state *state = &ctx->state;
 	TEE_Result res;
 
-	if (*tag_len < ctx->tag_len)
+	if (*tag_len < state->tag_len)
 		return TEE_ERROR_SHORT_BUFFER;
 
 	res = operation_final(ctx, TEE_MODE_ENCRYPT, src, len, dst);
 	if (res)
 		return res;
 
-	memcpy(tag, ctx->buf_tag, ctx->tag_len);
-	*tag_len = ctx->tag_len;
+	memcpy(tag, state->buf_tag, state->tag_len);
+	*tag_len = state->tag_len;
 
 	return TEE_SUCCESS;
 }
@@ -281,30 +299,31 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 				      const void *src, size_t len, void *dst,
 				      const void *tag, size_t tag_len)
 {
+	struct internal_aes_gcm_state *state = &ctx->state;
 	TEE_Result res;
 
-	if (tag_len != ctx->tag_len)
+	if (tag_len != state->tag_len)
 		return TEE_ERROR_MAC_INVALID;
 
 	res = operation_final(ctx, TEE_MODE_DECRYPT, src, len, dst);
 	if (res)
 		return res;
 
-	if (buf_compare_ct(ctx->buf_tag, tag, tag_len))
+	if (buf_compare_ct(state->buf_tag, tag, tag_len))
 		return TEE_ERROR_MAC_INVALID;
 
 	return TEE_SUCCESS;
 }
 
-void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_ctx *ctx)
+void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state)
 {
 	uint64_t c;
 
-	c = TEE_U64_FROM_BIG_ENDIAN(ctx->ctr[1]) + 1;
-	ctx->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
+	c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[1]) + 1;
+	state->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
 	if (!c) {
-		c = TEE_U64_FROM_BIG_ENDIAN(ctx->ctr[0]) + 1;
-		ctx->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
+		c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[0]) + 1;
+		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
 	}
 }
 

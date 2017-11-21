@@ -29,44 +29,37 @@ static void put_be_block(void *dst, const void *src)
 	put_be64((uint8_t *)dst + 8, s[0]);
 }
 
-TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
-				    const void *key, size_t key_len)
+void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
+			      const struct internal_aes_gcm_key *enc_key)
 {
-	TEE_Result res;
 	uint64_t k[2];
 	uint64_t a;
 	uint64_t b;
 
-	res = internal_aes_gcm_expand_enc_key(key, key_len, ctx->enc_key,
-					      &ctx->rounds);
-	if (res)
-		return res;
-
-	internal_aes_gcm_encrypt_block(ctx, ctx->ctr, ctx->hash_subkey);
+	internal_aes_gcm_encrypt_block(enc_key, state->ctr, state->hash_subkey);
 
 	/* Store hash key in little endian and multiply by 'x' */
-	b = get_be64(ctx->hash_subkey);
-	a = get_be64(ctx->hash_subkey + 8);
+	b = get_be64(state->hash_subkey);
+	a = get_be64(state->hash_subkey + 8);
 	k[0] = (a << 1) | (b >> 63);
 	k[1] = (b << 1) | (a >> 63);
 	if (b >> 63)
 		k[1] ^= 0xc200000000000000UL;
 
-	memcpy(ctx->hash_subkey, k, TEE_AES_BLOCK_SIZE);
-	return TEE_SUCCESS;
+	memcpy(state->hash_subkey, k, TEE_AES_BLOCK_SIZE);
 }
 
-void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 				   const void *head, const void *data,
-				 size_t num_blocks)
+				   size_t num_blocks)
 {
 	uint32_t vfp_state;
 	uint64_t dg[2];
 	uint64_t *k;
 
-	get_be_block(dg, ctx->hash_state);
+	get_be_block(dg, state->hash_state);
 
-	k = (void *)ctx->hash_subkey;
+	k = (void *)state->hash_subkey;
 
 	vfp_state = thread_kernel_enable_vfp();
 
@@ -77,7 +70,7 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
 #endif
 	thread_kernel_disable_vfp(vfp_state);
 
-	put_be_block(ctx->hash_state, dg);
+	put_be_block(state->hash_state, dg);
 }
 
 #ifdef ARM64
@@ -87,8 +80,7 @@ static uint32_t ror32(uint32_t word, unsigned int shift)
 }
 
 TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
-					   uint64_t *enc_key,
-					   unsigned int *rounds)
+					   struct internal_aes_gcm_key *enc_key)
 {
 	/* The AES key schedule round constants */
 	static uint8_t const rcon[] = {
@@ -96,13 +88,14 @@ TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 	};
 	uint32_t vfp_state;
 	uint32_t kwords = key_len / sizeof(uint32_t);
-	uint32_t *ek = (uint32_t *)enc_key;
+	void *p = enc_key->data;
+	uint32_t *k = p;
 	unsigned int i;
 
-	if (key_len != 16 && keylen != 24 && keylen != 32)
+	if (key_len != 16 && key_len != 24 && key_len != 32)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memcpy(enc_key, key, key_len);
+	memcpy(k, key, key_len);
 	/*
 	 * # of rounds specified by AES:
 	 * 128 bit key          10 rounds
@@ -110,11 +103,11 @@ TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 	 * 256 bit key          14 rounds
 	 * => n byte key        => 6 + (n/4) rounds
 	 */
-	*rounds = 6 + key_len / 4;
+	enc_key->rounds = 6 + key_len / 4;
 
 	vfp_state = thread_kernel_enable_vfp();
 	for (i = 0; i < sizeof(rcon); i++) {
-		uint32_t *rki = ek + (i * kwords);
+		uint32_t *rki = k + (i * kwords);
 		uint32_t *rko = rki + kwords;
 
 		rko[0] = ror32(pmull_gcm_aes_sub(rki[kwords - 1]), 8) ^
@@ -142,49 +135,48 @@ TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 	return TEE_SUCCESS;
 }
 
-void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
+void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
 				    const void *src, void *dst)
 {
 	uint32_t vfp_state;
 
 	vfp_state = thread_kernel_enable_vfp();
 
-	pmull_gcm_load_round_keys(ctx->enc_key, ctx->rounds);
-	pmull_gcm_encrypt_block(dst, src, ctx->rounds);
+	pmull_gcm_load_round_keys(ek->data, ek->rounds);
+	pmull_gcm_encrypt_block(dst, src, ek->rounds);
 
 	thread_kernel_disable_vfp(vfp_state);
 }
 
-void
-internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
-					      TEE_OperationMode m,
-					      const void *src,
-					      size_t num_blocks, void *dst)
+void internal_aes_gcm_update_payload_block_aligned(
+				struct internal_aes_gcm_state *state,
+				const struct internal_aes_gcm_key *ek,
+				TEE_OperationMode mode, const void *src,
+				size_t num_blocks, void *dst)
 {
 	uint32_t vfp_state;
 	uint64_t dg[2];
 	uint64_t ctr[2];
 	uint64_t *k;
 
-	get_be_block(dg, ctx->hash_state);
-	get_be_block(ctr, ctx->ctr);
+	get_be_block(dg, state->hash_state);
+	get_be_block(ctr, state->ctr);
 
-	k = (void *)ctx->hash_subkey;
+	k = (void *)state->hash_subkey;
 
 	vfp_state = thread_kernel_enable_vfp();
 
-	pmull_gcm_load_round_keys(ctx->enc_key, ctx->rounds);
+	pmull_gcm_load_round_keys(ek->data, ek->rounds);
 
-	if (m == TEE_MODE_ENCRYPT)
-		pmull_gcm_encrypt(num_blocks, dg, dst, src, k, ctr, ctx->rounds,
-				  ctx->buf_cryp);
+	if (mode == TEE_MODE_ENCRYPT)
+		pmull_gcm_encrypt(num_blocks, dg, dst, src, k, ctr, ek->rounds,
+				  state->buf_cryp);
 	else
-		pmull_gcm_decrypt(num_blocks, dg, dst, src, k, ctr,
-				  ctx->rounds);
+		pmull_gcm_decrypt(num_blocks, dg, dst, src, k, ctr, ek->rounds);
 
 	thread_kernel_disable_vfp(vfp_state);
 
-	put_be_block(ctx->ctr, ctr);
-	put_be_block(ctx->hash_state, dg);
+	put_be_block(state->ctr, ctr);
+	put_be_block(state->hash_state, dg);
 }
 #endif /*ARM64*/

@@ -14,87 +14,79 @@
 
 #include "aes-gcm-private.h"
 
-TEE_Result __weak internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
-					   const void *key, size_t key_len)
+void __weak internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
+				     const struct internal_aes_gcm_key *ek)
 {
-	TEE_Result res = internal_aes_gcm_expand_enc_key(key, key_len,
-							 ctx->enc_key,
-							 &ctx->rounds);
-
-	if (res)
-		return res;
-
 #ifdef CFG_AES_GCM_TABLE_BASED
-	internal_aes_gcm_ghash_gen_tbl(ctx);
+	internal_aes_gcm_ghash_gen_tbl(state, ek);
 #else
-	internal_aes_gcm_encrypt_block(ctx, ctx->ctr, ctx->hash_subkey);
+	internal_aes_gcm_encrypt_block(ek, state->ctr, state->hash_subkey);
 #endif
-
-	return TEE_SUCCESS;
 }
 
-void __weak internal_aes_gcm_ghash_update(struct internal_aes_gcm_ctx *ctx,
+void __weak internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 					  const void *head, const void *data,
 					  size_t num_blocks)
 {
 	size_t n;
 
 	if (head)
-		internal_aes_gcm_ghash_update_block(ctx, head);
+		internal_aes_gcm_ghash_update_block(state, head);
 
 	for (n = 0; n < num_blocks; n++)
-		internal_aes_gcm_ghash_update_block(ctx, (uint8_t *)data +
+		internal_aes_gcm_ghash_update_block(state, (uint8_t *)data +
 						    n * TEE_AES_BLOCK_SIZE);
 }
 
 void __weak
-internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
-					      TEE_OperationMode m,
-					      const void *src,
-					      size_t num_blocks, void *dst)
+internal_aes_gcm_update_payload_block_aligned(
+				struct internal_aes_gcm_state *state,
+				const struct internal_aes_gcm_key *ek,
+				TEE_OperationMode m, const void *src,
+				size_t num_blocks, void *dst)
 {
 	size_t n;
 	const uint8_t *s = src;
 	uint8_t *d = dst;
+	void *ctr = state->ctr;
+	void *buf_cryp = state->buf_cryp;
 
-	assert(!ctx->buf_pos && num_blocks &&
+	assert(!state->buf_pos && num_blocks &&
 	       internal_aes_gcm_ptr_is_block_aligned(s) &&
 	       internal_aes_gcm_ptr_is_block_aligned(d));
 
 	for (n = 0; n < num_blocks; n++) {
 		if (m == TEE_MODE_ENCRYPT) {
-			internal_aes_gcm_xor_block(ctx->buf_cryp, s);
-			internal_aes_gcm_ghash_update(ctx, ctx->buf_cryp,
-						      NULL, 0);
-			memcpy(d, ctx->buf_cryp, sizeof(ctx->buf_cryp));
-			internal_aes_gcm_encrypt_block(ctx, ctx->ctr,
-						       ctx->buf_cryp);
-			internal_aes_gcm_inc_ctr(ctx);
+			internal_aes_gcm_xor_block(buf_cryp, s);
+			internal_aes_gcm_ghash_update(state, buf_cryp, NULL, 0);
+			memcpy(d, buf_cryp, sizeof(state->buf_cryp));
+
+			internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
+			internal_aes_gcm_inc_ctr(state);
 		} else {
-			internal_aes_gcm_encrypt_block(ctx, ctx->ctr,
-						       ctx->buf_cryp);
+			internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
 
-			internal_aes_gcm_xor_block(ctx->buf_cryp, s);
-			internal_aes_gcm_ghash_update(ctx, s, NULL, 0);
-			memcpy(d, ctx->buf_cryp, sizeof(ctx->buf_cryp));
+			internal_aes_gcm_xor_block(buf_cryp, s);
+			internal_aes_gcm_ghash_update(state, s, NULL, 0);
+			memcpy(d, buf_cryp, sizeof(state->buf_cryp));
 
-			internal_aes_gcm_inc_ctr(ctx);
+			internal_aes_gcm_inc_ctr(state);
 		}
 		s += TEE_AES_BLOCK_SIZE;
 		d += TEE_AES_BLOCK_SIZE;
 	}
 }
 
-void __weak internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
-					   const void *src, void *dst)
+void __weak
+internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
+			       const void *src, void *dst)
 {
-	crypto_aes_enc_block(ctx->enc_key, ctx->rounds, src, dst);
+	crypto_aes_enc_block(ek->data, ek->rounds, src, dst);
 }
 
-TEE_Result __weak internal_aes_gcm_expand_enc_key(const void *key,
-						  size_t key_len,
-						  uint64_t *enc_key,
-						  unsigned int *rounds)
+TEE_Result __weak
+internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
+				struct internal_aes_gcm_key *ek)
 {
-	return crypto_aes_expand_enc_key(key, key_len, enc_key, rounds);
+	return crypto_aes_expand_enc_key(key, key_len, ek->data, &ek->rounds);
 }
