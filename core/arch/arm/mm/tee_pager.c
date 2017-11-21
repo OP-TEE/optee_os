@@ -29,6 +29,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <crypto/crypto.h>
+#include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
@@ -50,9 +51,13 @@
 #include <utee_defines.h>
 #include <util.h>
 
-#include "pager_private.h"
-
 #define PAGER_AE_KEY_BITS	256
+
+struct pager_aes_gcm_iv {
+	uint32_t iv[3];
+};
+
+#define PAGER_AES_GCM_TAG_LEN	16
 
 struct pager_rw_pstate {
 	uint64_t iv;
@@ -111,7 +116,7 @@ static struct tee_pager_pmem_head tee_pager_pmem_head =
 static struct tee_pager_pmem_head tee_pager_lock_pmem_head =
 	TAILQ_HEAD_INITIALIZER(tee_pager_lock_pmem_head);
 
-static uint8_t pager_ae_key[PAGER_AE_KEY_BITS / 8];
+static struct internal_aes_gcm_key pager_ae_key;
 
 /* number of pages hidden */
 #define TEE_PAGER_NHIDE (tee_pager_npages / 3)
@@ -386,8 +391,13 @@ out:
 
 static void generate_ae_key(void)
 {
-	if (rng_generate(pager_ae_key, sizeof(pager_ae_key)) != TEE_SUCCESS)
+	uint8_t key[PAGER_AE_KEY_BITS / 8];
+
+	if (rng_generate(key, sizeof(key)) != TEE_SUCCESS)
 		panic("failed to generate random");
+	if (internal_aes_gcm_expand_enc_key(key, sizeof(key),
+					    &pager_ae_key))
+		panic("failed to expand key");
 }
 
 static size_t tbl_usage_count(struct core_mmu_table_info *ti)
@@ -641,14 +651,17 @@ static bool decrypt_page(struct pager_rw_pstate *rwp, const void *src,
 	struct pager_aes_gcm_iv iv = {
 		{ (vaddr_t)rwp, rwp->iv >> 32, rwp->iv }
 	};
+	size_t tag_len = sizeof(rwp->tag);
 
-	return pager_aes_gcm_decrypt(pager_ae_key, sizeof(pager_ae_key),
-				     &iv, rwp->tag, src, dst, SMALL_PAGE_SIZE);
+	return !internal_aes_gcm_dec(&pager_ae_key, &iv, sizeof(iv),
+				     NULL, 0, src, SMALL_PAGE_SIZE, dst,
+				     rwp->tag, tag_len);
 }
 
 static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 {
 	struct pager_aes_gcm_iv iv;
+	size_t tag_len = sizeof(rwp->tag);
 
 	assert((rwp->iv + 1) > rwp->iv);
 	rwp->iv++;
@@ -662,9 +675,8 @@ static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
 	iv.iv[1] = rwp->iv >> 32;
 	iv.iv[2] = rwp->iv;
 
-	if (!pager_aes_gcm_encrypt(pager_ae_key, sizeof(pager_ae_key),
-				   &iv, rwp->tag,
-				   src, dst, SMALL_PAGE_SIZE))
+	if (internal_aes_gcm_enc(&pager_ae_key, &iv, sizeof(iv), NULL, 0,
+				 src, SMALL_PAGE_SIZE, dst, rwp->tag, &tag_len))
 		panic("gcm failed");
 }
 
