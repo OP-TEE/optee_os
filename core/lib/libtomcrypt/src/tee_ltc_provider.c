@@ -2983,3 +2983,27 @@ TEE_Result rng_generate(void *buffer, size_t len)
 	return get_rng_array(buffer, len);
 #endif
 }
+
+TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
+				     void *enc_key, unsigned int *rounds)
+{
+	symmetric_key skey;
+
+	if (aes_setup(key, key_len, 0, &skey))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	memcpy(enc_key, skey.rijndael.eK, sizeof(skey.rijndael.eK));
+	*rounds = skey.rijndael.Nr;
+	return TEE_SUCCESS;
+}
+
+void crypto_aes_enc_block(const void *enc_key, unsigned int rounds,
+			  const void *src, void *dst)
+{
+	symmetric_key skey;
+
+	memcpy(skey.rijndael.eK, enc_key, sizeof(skey.rijndael.eK));
+	skey.rijndael.Nr = rounds;
+	if (aes_ecb_encrypt(src, dst, &skey))
+		panic();
+}
