@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <assert.h>
 #include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <string_ext.h>

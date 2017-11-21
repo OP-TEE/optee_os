@@ -32,12 +32,15 @@ static void put_be_block(void *dst, const void *src)
 TEE_Result internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
 				    const void *key, size_t key_len)
 {
+	TEE_Result res;
 	uint64_t k[2];
 	uint64_t a;
 	uint64_t b;
 
-	if (aes_setup(key, key_len, 0, &ctx->skey))
-		return TEE_ERROR_BAD_PARAMETERS;
+	res = internal_aes_gcm_expand_enc_key(key, key_len, ctx->enc_key,
+					      &ctx->rounds);
+	if (res)
+		return res;
 
 	internal_aes_gcm_encrypt_block(ctx, ctx->ctr, ctx->hash_subkey);
 
@@ -82,13 +85,11 @@ void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
 				    const void *src, void *dst)
 {
 	uint32_t vfp_state;
-	void *enc_key = ctx->skey.rijndael.eK;
-	size_t rounds = ctx->skey.rijndael.Nr;
 
 	vfp_state = thread_kernel_enable_vfp();
 
-	pmull_gcm_load_round_keys(enc_key, rounds);
-	pmull_gcm_encrypt_block(dst, src, rounds);
+	pmull_gcm_load_round_keys(ctx->enc_key, ctx->rounds);
+	pmull_gcm_encrypt_block(dst, src, ctx->rounds);
 
 	thread_kernel_disable_vfp(vfp_state);
 }
@@ -103,8 +104,6 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 	uint64_t dg[2];
 	uint64_t ctr[2];
 	uint64_t *k;
-	void *enc_key = ctx->skey.rijndael.eK;
-	size_t rounds = ctx->skey.rijndael.Nr;
 
 	get_be_block(dg, ctx->hash_state);
 	get_be_block(ctr, ctx->ctr);
@@ -113,13 +112,14 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 
 	vfp_state = thread_kernel_enable_vfp();
 
-	pmull_gcm_load_round_keys(enc_key, rounds);
+	pmull_gcm_load_round_keys(ctx->enc_key, ctx->rounds);
 
 	if (m == TEE_MODE_ENCRYPT)
-		pmull_gcm_encrypt(num_blocks, dg, dst, src, k, ctr, rounds,
+		pmull_gcm_encrypt(num_blocks, dg, dst, src, k, ctr, ctx->rounds,
 				  ctx->buf_cryp);
 	else
-		pmull_gcm_decrypt(num_blocks, dg, dst, src, k, ctr, rounds);
+		pmull_gcm_decrypt(num_blocks, dg, dst, src, k, ctr,
+				  ctx->rounds);
 
 	thread_kernel_disable_vfp(vfp_state);
 

@@ -5,11 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <assert.h>
+#include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
-#include <kernel/panic.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
 #include <types_ext.h>
 
 #include "aes-gcm-private.h"
@@ -17,8 +17,12 @@
 TEE_Result __weak internal_aes_gcm_set_key(struct internal_aes_gcm_ctx *ctx,
 					   const void *key, size_t key_len)
 {
-	if (aes_setup(key, key_len, 0, &ctx->skey))
-		return TEE_ERROR_BAD_PARAMETERS;
+	TEE_Result res = internal_aes_gcm_expand_enc_key(key, key_len,
+							 ctx->enc_key,
+							 &ctx->rounds);
+
+	if (res)
+		return res;
 
 #ifdef CFG_AES_GCM_TABLE_BASED
 	internal_aes_gcm_ghash_gen_tbl(ctx);
@@ -84,6 +88,13 @@ internal_aes_gcm_update_payload_block_aligned(struct internal_aes_gcm_ctx *ctx,
 void __weak internal_aes_gcm_encrypt_block(struct internal_aes_gcm_ctx *ctx,
 					   const void *src, void *dst)
 {
-	if (aes_ecb_encrypt(src, dst, &ctx->skey))
-		panic();
+	crypto_aes_enc_block(ctx->enc_key, ctx->rounds, src, dst);
+}
+
+TEE_Result __weak internal_aes_gcm_expand_enc_key(const void *key,
+						  size_t key_len,
+						  uint64_t *enc_key,
+						  unsigned int *rounds)
+{
+	return crypto_aes_expand_enc_key(key, key_len, enc_key, rounds);
 }
