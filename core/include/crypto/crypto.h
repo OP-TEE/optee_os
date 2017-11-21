@@ -278,4 +278,9 @@ TEE_Result crypto_rng_read(void *buf, size_t blen);
 
 TEE_Result rng_generate(void *buffer, size_t len);
 
+TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
+				     void *enc_key, unsigned int *rounds);
+void crypto_aes_enc_block(const void *enc_key, unsigned int rounds,
+			  const void *src, void *dst);
+
 #endif /* __CRYPTO_CRYPTO_H */
