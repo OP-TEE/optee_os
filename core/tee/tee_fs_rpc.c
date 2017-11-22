@@ -376,12 +376,14 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 	op.params[0].u.value.a = OPTEE_MRF_OPENDIR;
 
 	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     cookie, MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
+				     cookie, MSG_PARAM_MEM_DIR_IN)) {
+		res = TEE_ERROR_BAD_STATE;
+		goto err_exit;
+	}
 
 	res = tee_svc_storage_create_dirname(va, TEE_FS_NAME_MAX, uuid);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto err_exit;
 
 	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
 
