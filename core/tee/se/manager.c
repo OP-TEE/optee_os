@@ -75,10 +75,10 @@ TEE_Result tee_se_manager_register_reader(struct tee_se_reader *r)
 TEE_Result tee_se_manager_unregister_reader(struct tee_se_reader *r)
 {
 	struct tee_se_manager_ctx *ctx = &se_manager_ctx;
-	struct tee_se_reader_proxy *proxy;
+	struct tee_se_reader_proxy *proxy, *next_proxy;
 
 	mutex_lock(&ctx->mutex);
-	TAILQ_FOREACH(proxy, &ctx->reader_proxies, link)
+	TAILQ_FOREACH_SAFE(proxy, &ctx->reader_proxies, link, next_proxy)
 	{
 		if (proxy->reader == r)
 			TAILQ_REMOVE(&ctx->reader_proxies, proxy, link);
