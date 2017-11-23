@@ -54,46 +54,17 @@ core/arch/arm/plat-gendev
 
 ##### conf.mk
 This is the device specific makefile where you define configurations unique to
-your platform. Add good start for a new platform would be:
-```Makefile
-PLATFORM_FLAVOR ?= gendev-flav
-PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
+your platform. This mainly comprises two things:
+- OP-TEE configuration variables (`CFG_`), which may be assigned values in two
+ways. `CFG_FOO ?= bar` should be used to provide a default value that may be
+modified at compile time. On the other hand, variables that must be set to some
+value and cannot be modified should be set by: `$(call force,CFG_FOO,bar)`.
+- Compiler flags for the TEE core, the user mode libraries and the Trusted
+Applications, which may be added to macros used by the build system. Please see
+[Platform-specific configuration and flags] in the build system documentation.
 
-# 32-bit flags
-arm32-platform-cpuarch := cortex-a15
-arm32-platform-cflags += -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags += -mcpu=$(arm32-platform-cpuarch)
-arm32-platform-aflags += -mfpu=neon
-
-# Running 32-bit core?
-CFG_ARM32_core ?= y
-ta-targets = ta_arm32
-
-# How many threads are enabled in TEE core
-CFG_NUM_THREADS ?= 4
-
-# What kind of UART should be used?
-CFG_8250_UART ?= y
-#CFG_PL011 ?= y
-
-# Enable power management stubs
-CFG_PM_STUBS := y
-
-# Use the generic boot
-CFG_GENERIC_BOOT := y
-
-# Enable internal tests by default
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
-
-# User software random number generator
-CFG_WITH_SOFTWARE_PRNG ?= y
-
-# Does the device support crypto extensions?
-CFG_CRYPTO_WITH_CE ?= n
-```
-There are probably quite a few other flags that could be useful or even
-necessary. Please refer to the other `conf.mk` file in the already existing
-platforms.
+It is recommended to use a existing platform configuration file as a starting
+point. For instance, [core/arch/arm/plat-hikey/conf.mk].
 
 ##### main.c
 This platform specific file will contain power management handlers and code
@@ -377,3 +348,5 @@ happen has not been decided yet.
 [TZC-380]: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0431c/index.html
 [TZC-400]: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.100325_0001_02_en/index.html
 [travis]: ../.travis.yml
+[Platform-specific configuration and flags]: build_system.md#platform-specific-configuration-and-flags
+[core/arch/arm/plat-hikey/conf.mk]: ../core/arch/arm/plat-hikey/conf.mk
