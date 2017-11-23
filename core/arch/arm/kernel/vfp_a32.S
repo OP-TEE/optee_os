@@ -28,8 +28,6 @@
 #include <asm.S>
 #include <kernel/unwind.h>
 
-	.section .text.vfp_asm
-
 /* void vfp_save_extension_regs(uint64_t regs[VFP_NUM_REGS]); */
 FUNC vfp_save_extension_regs , :
 UNWIND(	.fnstart)
