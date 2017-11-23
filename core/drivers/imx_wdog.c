@@ -60,9 +60,9 @@ void imx_wdog_restart(void)
 	write16(val, wdog_base + WCR_OFF);
 	dsb();
 
-	if (read32(wdog_base + WDT_WCR) & WDT_WCR_WDE) {
-		write32(WDT_SEQ1, wdog_base + WDT_WSR);
-		write32(WDT_SEQ2, wdog_base + WDT_WSR);
+	if (read16(wdog_base + WDT_WCR) & WDT_WCR_WDE) {
+		write16(WDT_SEQ1, wdog_base + WDT_WSR);
+		write16(WDT_SEQ2, wdog_base + WDT_WSR);
 	}
 
 	write16(val, wdog_base + WCR_OFF);
