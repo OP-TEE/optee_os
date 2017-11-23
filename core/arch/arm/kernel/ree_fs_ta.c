@@ -56,10 +56,11 @@ struct user_ta_store_handle {
 	uint32_t hash_algo;
 };
 
-static TEE_Result alloc_and_copy_shdr(struct shdr **shdr,
+static TEE_Result alloc_and_copy_shdr(struct shdr **shdr_ret,
 				      const struct shdr *nw_ta,
 				      size_t ta_size)
 {
+	struct shdr *shdr;
 	size_t shdr_size;
 
 	if (ta_size < sizeof(struct shdr))
@@ -67,14 +68,15 @@ static TEE_Result alloc_and_copy_shdr(struct shdr **shdr,
 	shdr_size = SHDR_GET_SIZE(nw_ta);
 	if (ta_size < shdr_size)
 		return TEE_ERROR_SECURITY;
-	*shdr = malloc(shdr_size);
-	if (!*shdr)
+	shdr = malloc(shdr_size);
+	if (!shdr)
 		return TEE_ERROR_SECURITY;
-	memcpy(*shdr, nw_ta, shdr_size);
-	if (shdr_size != SHDR_GET_SIZE(*shdr)) {
-		free(*shdr);
+	memcpy(shdr, nw_ta, shdr_size);
+	if (shdr_size != SHDR_GET_SIZE(shdr)) {
+		free(shdr);
 		return TEE_ERROR_SECURITY;
 	}
+	*shdr_ret = shdr;
 	return TEE_SUCCESS;
 }
 
