@@ -1,8 +1,5 @@
 PLATFORM_FLAVOR ?= armada7k8k
 
-# 32-bit flags
-core_arm32-platform-aflags	+= -mfpu=neon
-
 ifeq ($(PLATFORM_FLAVOR),armada7k8k)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1

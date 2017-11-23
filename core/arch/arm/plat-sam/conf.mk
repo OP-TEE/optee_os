@@ -1,7 +1,6 @@
 PLATFORM_FLAVOR ?= sama5d2xult
 
 include core/arch/arm/cpu/cortex-a5.mk
-core_arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_ATMEL_UART,y)

@@ -17,9 +17,6 @@ $(call force,CFG_HI16XX_RNG,y)
 endif
 $(call force,CFG_WITH_LPAE,y)
 
-# 32-bit flags
-core_arm32-platform-aflags	+= -mfpu=neon
-
 ta-targets = ta_arm32
 
 ifeq ($(CFG_ARM64_core),y)

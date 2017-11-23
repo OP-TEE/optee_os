@@ -2,8 +2,6 @@ PLATFORM_FLAVOR ?= b2260
 
 include core/arch/arm/cpu/cortex-a9.mk
 
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 $(call force,CFG_PL310,y)

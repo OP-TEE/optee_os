@@ -1,7 +1,5 @@
 PLATFORM_FLAVOR ?= ls1021atwr
 
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_GIC,y)

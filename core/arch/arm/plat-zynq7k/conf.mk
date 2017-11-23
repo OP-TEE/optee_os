@@ -2,8 +2,6 @@ PLATFORM_FLAVOR ?= zc702
 
 include core/arch/arm/cpu/cortex-a9.mk
 
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
