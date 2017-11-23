@@ -3,7 +3,7 @@ PLATFORM_FLAVOR ?= mt8173
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 # 32-bit flags
-arm32-platform-aflags	+= -mfpu=neon
+core_arm32-platform-aflags	+= -mfpu=neon
 
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_GENERIC_BOOT,y)

@@ -3,7 +3,7 @@ PLATFORM_FLAVOR ?= sc9860
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 # 32-bit flags
-arm32-platform-aflags		+= -mfpu=neon
+core_arm32-platform-aflags		+= -mfpu=neon
 
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
