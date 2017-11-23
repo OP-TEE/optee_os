@@ -34,7 +34,4 @@ ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 $(call force,CFG_DRA7_RNG,y)
 endif
 
-# 32-bit flags
-core_arm32-platform-aflags	+= -mfpu=neon
-
 ta-targets = ta_arm32

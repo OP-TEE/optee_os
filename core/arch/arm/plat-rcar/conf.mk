@@ -2,9 +2,6 @@ PLATFORM_FLAVOR ?= salvator_h3
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
-# 32-bit flags
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)

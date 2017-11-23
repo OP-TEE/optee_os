@@ -4,8 +4,6 @@ ifeq ($(PLATFORM_FLAVOR),rk322x)
 include ./core/arch/arm/cpu/cortex-a7.mk
 endif
 
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)

@@ -1,7 +1,5 @@
 include core/arch/arm/cpu/cortex-a15.mk
 
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SUNXI_UART,y)

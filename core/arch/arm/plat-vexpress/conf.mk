@@ -1,8 +1,5 @@
 PLATFORM_FLAVOR ?= qemu_virt
 
-# 32-bit flags
-core_arm32-platform-aflags	+= -mfpu=neon
-
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 include core/arch/arm/cpu/cortex-a15.mk
 endif

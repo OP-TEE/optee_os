@@ -36,8 +36,6 @@ CFG_TEE_CORE_NB_CORE ?= 2
 endif
 
 # Common i.MX6 config
-core_arm32-platform-aflags	+= -mfpu=neon
-
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_IMX_UART,y)
