@@ -231,7 +231,7 @@ static TEE_Result read_block(struct tee_fs_htree **ht, size_t bn, uint8_t salt)
 			DMSG("Unpected b[%zu] %#" PRIx32
 			     "(expected %#" PRIx32 ")",
 			     n, b[n], val_from_bn_n_salt(bn, n, salt));
-			return TEE_ERROR_SECURITY;
+			return TEE_ERROR_TIME_NOT_SET;
 		}
 	}
 
@@ -409,35 +409,63 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 
 out:
 	tee_fs_htree_close(&ht);
+	/*
+	 * read_block() returns TEE_ERROR_TIME_NOT_SET in case unexpected
+	 * data is read.
+	 */
+	if (res == TEE_ERROR_TIME_NOT_SET)
+		res = TEE_ERROR_SECURITY;
 	return res;
 }
 
-TEE_Result core_fs_htree_tests(uint32_t nParamTypes,
-			       TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+static void aux_free(struct test_aux *aux)
 {
-	TEE_Result res;
-	struct test_aux aux;
-	size_t num_blocks = 10;
-	size_t offs;
+	if (aux) {
+		free(aux->data);
+		free(aux->block);
+		free(aux);
+	}
+}
+
+static struct test_aux *aux_alloc(size_t num_blocks)
+{
+	struct test_aux *aux;
+	size_t o;
 	size_t sz;
+
+	if (test_get_offs_size(TEE_FS_HTREE_TYPE_BLOCK, num_blocks, 1, &o, &sz))
+		return NULL;
+
+	aux = calloc(1, sizeof(*aux));
+	if (!aux)
+		return NULL;
+
+	aux->data_alloced = o + sz;
+	aux->data = malloc(aux->data_alloced);
+	if (!aux->data)
+		goto err;
+
+	aux->block = malloc(TEST_BLOCK_SIZE);
+	if (!aux->block)
+		goto err;
+
+	return aux;
+err:
+	aux_free(aux);
+	return NULL;
+
+}
+
+static TEE_Result test_write_read(size_t num_blocks)
+{
+	struct test_aux *aux = aux_alloc(num_blocks);
+	TEE_Result res;
 	size_t n;
 	size_t m;
 	size_t o;
 
-	if (nParamTypes)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = test_get_offs_size(TEE_FS_HTREE_TYPE_BLOCK, num_blocks, 1,
-				 &offs, &sz);
-	CHECK_RES(res, return res);
-
-	aux.data_alloced = offs + sz;
-	aux.data = malloc(aux.data_alloced);
-	aux.block = malloc(TEST_BLOCK_SIZE);
-	if (!aux.data || !aux.block) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
+	if (!aux)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	/*
 	 * n is the number of block we're going to initialize/use.
@@ -449,17 +477,178 @@ TEE_Result core_fs_htree_tests(uint32_t nParamTypes,
 	for (n = 0; n < num_blocks; n += 3) {
 		for (m = 0; m < n; m += 3) {
 			for (o = 0; o < (n - m); o++) {
-				res = htree_test_rewrite(&aux, n, m, o);
+				res = htree_test_rewrite(aux, n, m, o);
 				CHECK_RES(res, goto out);
 				o += 2;
 			}
 		}
 	}
 
-
 out:
-	free(aux.data);
-	free(aux.block);
+	aux_free(aux);
 	return res;
 }
 
+static TEE_Result test_corrupt_type(const TEE_UUID *uuid, uint8_t *hash,
+				    size_t num_blocks, struct test_aux *aux,
+				    enum tee_fs_htree_type type, size_t idx)
+{
+	TEE_Result res;
+	struct test_aux aux2 = *aux;
+	struct tee_fs_htree *ht = NULL;
+	size_t offs;
+	size_t size;
+	size_t size0;
+	size_t n;
+
+	res = test_get_offs_size(type, idx, 0, &offs, &size0);
+	CHECK_RES(res, return res);
+
+	aux2.data = malloc(aux->data_alloced);
+	if (!aux2.data)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	n = 0;
+	while (true) {
+		memcpy(aux2.data, aux->data, aux->data_len);
+
+		res = test_get_offs_size(type, idx, 0, &offs, &size);
+		CHECK_RES(res, goto out);
+		aux2.data[offs + n]++;
+		res = test_get_offs_size(type, idx, 1, &offs, &size);
+		CHECK_RES(res, goto out);
+		aux2.data[offs + n]++;
+
+		/*
+		 * Errors in head or node is detected by
+		 * tee_fs_htree_open() errors in block is detected when
+		 * actually read by do_range(read_block)
+		 */
+		res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops,
+					&aux2, &ht);
+		if (!res) {
+			res = do_range(read_block, &ht, 0, num_blocks, 1);
+			/*
+			 * do_range(read_block,) is supposed to detect the
+			 * error. If TEE_ERROR_TIME_NOT_SET is returned
+			 * read_block() was acutally able to get some data,
+			 * but the data was incorrect.
+			 *
+			 * If res == TEE_SUCCESS or
+			 *    res == TEE_ERROR_TIME_NOT_SET
+			 * there's some problem with the htree
+			 * implementation.
+			 */
+			if (res == TEE_ERROR_TIME_NOT_SET) {
+				EMSG("error: data silently corrupted");
+				res = TEE_ERROR_SECURITY;
+				goto out;
+			}
+			if (!res)
+				break;
+			tee_fs_htree_close(&ht);
+		}
+
+		/* We've tested the last byte, let's get out of here */
+		if (n == size0 - 1)
+			break;
+
+		/* Increase n exponentionally after 1 to skip some testing */
+		if (n)
+			n += n;
+		else
+			n = 1;
+
+		/* Make sure we test the last byte too */
+		if (n >= size0)
+			n = size0 - 1;
+	}
+
+	if (res) {
+		res = TEE_SUCCESS;
+	} else {
+		EMSG("error: data corruption undetected");
+		res = TEE_ERROR_SECURITY;
+	}
+out:
+	free(aux2.data);
+	tee_fs_htree_close(&ht);
+	return res;
+}
+
+
+
+static TEE_Result test_corrupt(size_t num_blocks)
+{
+	TEE_Result res;
+	struct tee_fs_htree *ht = NULL;
+	struct tee_ta_session *sess;
+	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
+	const TEE_UUID *uuid;
+	struct test_aux *aux;
+	size_t n;
+
+	res = tee_ta_get_current_session(&sess);
+	if (res)
+		return res;
+	uuid = &sess->ctx->uuid;
+
+	aux = aux_alloc(num_blocks);
+	if (!aux) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	aux->data_len = 0;
+	memset(aux->data, 0xce, aux->data_alloced);
+
+	/* Write the object and close it */
+	res = tee_fs_htree_open(true, hash, uuid, &test_htree_ops, aux, &ht);
+	CHECK_RES(res, goto out);
+	res = do_range(write_block, &ht, 0, num_blocks, 1);
+	CHECK_RES(res, goto out);
+	res = tee_fs_htree_sync_to_storage(&ht, hash);
+	CHECK_RES(res, goto out);
+	tee_fs_htree_close(&ht);
+
+	/* Verify that the object can be read correctly */
+	res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops, aux, &ht);
+	CHECK_RES(res, goto out);
+	res = do_range(read_block, &ht, 0, num_blocks, 1);
+	CHECK_RES(res, goto out);
+	tee_fs_htree_close(&ht);
+
+	res = test_corrupt_type(uuid, hash, num_blocks, aux,
+				TEE_FS_HTREE_TYPE_HEAD, 0);
+	CHECK_RES(res, goto out);
+	for (n = 0; n < num_blocks; n++) {
+		res = test_corrupt_type(uuid, hash, num_blocks, aux,
+					TEE_FS_HTREE_TYPE_NODE, n);
+		CHECK_RES(res, goto out);
+	}
+	for (n = 0; n < num_blocks; n++) {
+		res = test_corrupt_type(uuid, hash, num_blocks, aux,
+					TEE_FS_HTREE_TYPE_BLOCK, n);
+		CHECK_RES(res, goto out);
+	}
+
+out:
+	tee_fs_htree_close(&ht);
+	aux_free(aux);
+	return res;
+}
+
+TEE_Result core_fs_htree_tests(uint32_t nParamTypes,
+			       TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+{
+	TEE_Result res;
+
+	if (nParamTypes)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = test_write_read(10);
+	if (res)
+		return res;
+
+	return test_corrupt(5);
+}
