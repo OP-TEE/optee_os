@@ -51,9 +51,10 @@ build:
         done;
       fi;
       if [ "$IS_PULL_REQUEST" == "true" ]; then
-        if [ "$(git rev-list --count ${SHIPPABLE_COMMIT_RANGE})" -gt 1 ]; then
-          echo "Running checkpatch on gobal diff (squashed commits):";
-          checkdiff $(git rev-list ${SHIPPABLE_COMMIT_RANGE} | tail -1) $(git rev-list ${SHIPPABLE_COMMIT_RANGE} | head -1) || export checkpatch_failed=1;
+        read first last <<<$(echo ${SHIPPABLE_COMMIT_RANGE} | sed 's/\.\.\./ /');
+        if [ "$(git rev-list --count ${first}..${last})" -gt 1 ]; then
+          echo "Running checkpatch on gobal diff (squashed commits ${first}..${last}):";
+          checkdiff ${first} ${last} || export checkpatch_failed=1;
         fi;
       fi;
 
