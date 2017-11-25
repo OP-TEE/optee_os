@@ -18,6 +18,7 @@ for these platforms.
 | FSL i.MX6 Quad SABRE SD Board		|`Yan Yan <yan.yan@windriver.com>`,`Feng Yu <Yu.Feng@windriver.com>`|
 | FSL i.MX6 UltraLite EVK Board		|`Peng Fan <peng.fan@nxp.com>`|
 | NXP i.MX6 ULL EVK Board		|`Peng Fan <peng.fan@nxp.com>`|
+| NXP i.MX6 SX Sabreauto Board		|`Peng Fan <peng.fan@nxp.com>`|
 | NXP i.MX7 Dual SabreSD Board		|`Peng Fan <peng.fan@nxp.com>`|
 | ARM Foundation FVP			|`Linaro <op-tee@linaro.org>`|
 | HiKey Board (HiSilicon Kirin 620)	|`Linaro <op-tee@linaro.org>`|
