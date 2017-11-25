@@ -4,6 +4,7 @@ PLATFORM_FLAVOR ?= mx6ulevk
 mx6ul-flavorlist = mx6ulevk
 mx6ull-flavorlist = mx6ullevk
 mx6q-flavorlist = mx6qsabrelite mx6qsabresd
+mx6sx-flavorlist = mx6sxsabreauto
 mx6d-flavorlist =
 mx6dl-flavorlist = mx6dlsabresd
 mx6s-flavorlist =
@@ -21,6 +22,10 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6dl-flavorlist)))
 $(call force,CFG_MX6DL,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6S,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
+$(call force,CFG_MX6,y)
+$(call force,CFG_MX6SX,y)
+$(call force,CFG_IMX_UART,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7-flavorlist)))
 $(call force,CFG_MX7,y)
 else
@@ -56,7 +61,8 @@ endif
 
 
 # i.MX6 Solo/DualLite/Dual/Quad specific config
-ifeq ($(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)), y)
+ifeq ($(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S) \
+      $(CFG_MX6SX)), y)
 include core/arch/arm/cpu/cortex-a9.mk
 
 $(call force,CFG_MX6,y)
@@ -74,6 +80,17 @@ include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 CFG_BOOT_SECONDARY_REQUEST ?= y
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabreauto))
+CFG_PAGEABLE_ADDR ?= 0
+CFG_DDR_SIZE ?= 0x80000000
+CFG_DT ?= y
+CFG_NS_ENTRY_ADDR ?= 0x80800000
+CFG_PSCI_ARM32 ?= y
+CFG_BOOT_SYNC_CPU = n
+CFG_BOOT_SECONDARY_REQUEST = n
+CFG_TEE_CORE_NB_CORE ?= 1
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)

@@ -56,6 +56,7 @@ build:
     - _make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
     - _make PLATFORM=imx-mx6ulevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT_ADDR=0x83000000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
     - _make PLATFORM=imx-mx6ullevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
+    - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6qsabrelite
     - _make PLATFORM=imx-mx6qsabresd
     - _make PLATFORM=imx-mx6dlsabresd
