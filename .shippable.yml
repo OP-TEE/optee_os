@@ -16,13 +16,7 @@ build:
     - ccache -z
 
     - _make
-    - _make CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=3 DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=2 DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=n DEBUG=0
-    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=y DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n DEBUG=0
+    - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
     - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
     - _make CFG_TEE_CORE_MALLOC_DEBUG=y
     - _make CFG_CORE_SANITIZE_UNDEFINED=y
@@ -34,9 +28,7 @@ build:
     - _make CFG_CRYPTO_{H,C,CBC_}MAC=n
     - _make CFG_CRYPTO_{G,C}CM=n
     - _make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512}}=n
-    - _make CFG_CRYPTO=n CFG_CRYPTO_ECC=y
     - _make CFG_WITH_PAGER=y
-    - _make CFG_WITH_PAGER=y CFG_TEE_CORE_DEBUG=y
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
     - _make CFG_WITH_LPAE=y
     - _make CFG_WITH_STATS=y
@@ -51,31 +43,16 @@ build:
     - _make CFG_SECURE_DATA_PATH=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_RPMB_FS=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
     - _make PLATFORM=stm-b2260
-    - _make PLATFORM=stm-b2260 CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make PLATFORM=stm-b2260 CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
     - _make PLATFORM=stm-cannes
-    - _make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make PLATFORM=stm-cannes CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
-    - _make PLATFORM=vexpress-fvp CFG_ARM32_core=y
-    - _make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TZC400=y
-    - _make PLATFORM=vexpress-fvp CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0 CFG_TZC400=y
+    - _make PLATFORM=vexpress-fvp
     - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
-    - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1 CFG_TZC400=y
-    - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0 CFG_TZC400=y
     - _make PLATFORM=vexpress-juno
-    - _make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make PLATFORM=vexpress-juno CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
     - _make PLATFORM=vexpress-juno CFG_ARM64_core=y
-    - _make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make PLATFORM=vexpress-juno CFG_ARM64_core=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
-    - _make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
-    - _make PLATFORM=sunxi CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
+    - _make PLATFORM=sunxi
     - _make PLATFORM=hikey
     - _make PLATFORM=hikey CFG_ARM64_core=y
-    - _make PLATFORM=hikey CFG_ARM64_core=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
     - _make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
     - _make PLATFORM=imx-mx6ulevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT_ADDR=0x83000000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
     - _make PLATFORM=imx-mx6ullevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
@@ -104,9 +81,7 @@ build:
     - _make PLATFORM=rpi3 CFG_ARM64_core=y
     - _make PLATFORM=hikey-hikey960
     - _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y
-    - _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
     - _make PLATFORM=rockchip-rk322x
-    - _make PLATFORM=rockchip-rk322x CFG_TEE_CORE_LOG_LEVEL=4 DEBUG=1
     - _make PLATFORM=sam
     - _make PLATFORM=marvell-armada7k8k
     - _make PLATFORM=marvell-armada3700
