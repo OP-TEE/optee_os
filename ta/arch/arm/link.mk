@@ -58,4 +58,5 @@ $(link-out-dir)/$(binary).stripped.elf: $(link-out-dir)/$(binary).elf
 $(link-out-dir)/$(binary).ta: $(link-out-dir)/$(binary).stripped.elf \
 				$(TA_SIGN_KEY)
 	@echo '  SIGN    $@'
-	$(q)$(SIGN) --key $(TA_SIGN_KEY) --in $< --out $@
+	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(binary) --version 0 \
+		--in $< --out $@
