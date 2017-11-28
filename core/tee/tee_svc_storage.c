@@ -41,12 +41,7 @@
 #include <tee/tee_svc_storage.h>
 #include <trace.h>
 
-/*
- * Returns the appropriate tee_file_operations for the specified storage ID.
- * The value TEE_STORAGE_PRIVATE will select the REE FS if available, otherwise
- * RPMB.
- */
-static const struct tee_file_operations *file_ops(uint32_t storage_id)
+const struct tee_file_operations *tee_svc_storage_file_ops(uint32_t storage_id)
 {
 
 	switch (storage_id) {
@@ -276,8 +271,9 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	char *file = NULL;
 	struct tee_pobj *po = NULL;
 	struct user_ta_ctx *utc;
-	const struct tee_file_operations *fops = file_ops(storage_id);
 	size_t attr_size;
+	const struct tee_file_operations *fops =
+			tee_svc_storage_file_ops(storage_id);
 
 	if (!fops) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -425,7 +421,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	struct tee_obj *attr_o = NULL;
 	struct tee_pobj *po = NULL;
 	struct user_ta_ctx *utc;
-	const struct tee_file_operations *fops = file_ops(storage_id);
+	const struct tee_file_operations *fops =
+			tee_svc_storage_file_ops(storage_id);
 
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -705,7 +702,8 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	struct tee_storage_enum *e;
 	TEE_Result res;
 	struct tee_ta_session *sess;
-	const struct tee_file_operations *fops = file_ops(storage_id);
+	const struct tee_file_operations *fops =
+			tee_svc_storage_file_ops(storage_id);
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
