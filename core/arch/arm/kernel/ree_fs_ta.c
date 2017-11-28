@@ -36,10 +36,7 @@
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ta_pub_key.h>
 #include <tee_api_types.h>
-#include <tee/tee_cryp_utl.h>
-#include <tee/tee_svc_cryp.h>
 #include <tee/uuid.h>
 #include <utee_defines.h>
 
@@ -56,71 +53,6 @@ struct user_ta_store_handle {
 	uint32_t hash_algo;
 };
 
-static TEE_Result alloc_and_copy_shdr(struct shdr **shdr_ret,
-				      const struct shdr *nw_ta,
-				      size_t ta_size)
-{
-	struct shdr *shdr;
-	size_t shdr_size;
-
-	if (ta_size < sizeof(struct shdr))
-		return TEE_ERROR_SECURITY;
-	shdr_size = SHDR_GET_SIZE(nw_ta);
-	if (ta_size < shdr_size)
-		return TEE_ERROR_SECURITY;
-	shdr = malloc(shdr_size);
-	if (!shdr)
-		return TEE_ERROR_SECURITY;
-	memcpy(shdr, nw_ta, shdr_size);
-	if (shdr_size != SHDR_GET_SIZE(shdr)) {
-		free(shdr);
-		return TEE_ERROR_SECURITY;
-	}
-	*shdr_ret = shdr;
-	return TEE_SUCCESS;
-}
-
-static TEE_Result check_shdr(struct shdr *shdr)
-{
-	struct rsa_public_key key;
-	TEE_Result res;
-	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
-	size_t hash_size;
-
-	if (shdr->magic != SHDR_MAGIC || shdr->img_type != SHDR_TA)
-		return TEE_ERROR_SECURITY;
-
-	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
-		return TEE_ERROR_SECURITY;
-
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
-				       &hash_size);
-	if (res != TEE_SUCCESS)
-		return res;
-	if (hash_size != shdr->hash_size)
-		return TEE_ERROR_SECURITY;
-
-	res = crypto_acipher_alloc_rsa_public_key(&key, shdr->sig_size);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
-	if (res != TEE_SUCCESS)
-		goto out;
-	res = crypto_bignum_bin2bn(ta_pub_key_modulus, ta_pub_key_modulus_size,
-				   key.n);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = crypto_acipher_rsassa_verify(shdr->algo, &key, -1,
-					   SHDR_GET_HASH(shdr), shdr->hash_size,
-					   SHDR_GET_SIG(shdr), shdr->sig_size);
-out:
-	crypto_acipher_free_rsa_public_key(&key);
-	if (res != TEE_SUCCESS)
-		return TEE_ERROR_SECURITY;
-	return TEE_SUCCESS;
-}
 /*
  * Load a TA via RPC with UUID defined by input param @uuid. The virtual
  * address of the raw TA binary is received in out parameter @ta.
@@ -193,14 +125,20 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 		goto error;
 
 	/* Make secure copy of signed header */
-	res = alloc_and_copy_shdr(&shdr, ta, ta_size);
-	if (res != TEE_SUCCESS)
+	shdr = shdr_alloc_and_copy(ta, ta_size);
+	if (!shdr) {
+		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
+	}
 
 	/* Validate header signature */
-	res = check_shdr(shdr);
+	res = shdr_verify_signature(shdr);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
+	if (shdr->img_type != SHDR_TA) {
+		res = TEE_ERROR_SECURITY;
+		goto error_free_payload;
+	}
 
 	/*
 	 * Initialize a hash context and run the algorithm over the signed
@@ -243,7 +181,7 @@ error_free_payload:
 	thread_rpc_free_payload(cookie, mobj);
 error:
 	free(hash_ctx);
-	free(shdr);
+	shdr_free(shdr);
 	free(handle);
 	return res;
 }
