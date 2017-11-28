@@ -277,10 +277,9 @@ CFG_SECURE_DATA_PATH ?= n
 CFG_SECSTOR_TA ?= $(call cfg-all-enabled,CFG_REE_FS CFG_WITH_USER_TA)
 $(eval $(call cfg-depends-all,CFG_SECSTOR_TA,CFG_REE_FS CFG_WITH_USER_TA))
 
-# Enable storage for TAs in secure storage, depends on CFG_REE_FS=y
-# TA binaries are stored encrypted in the REE FS and are protected by
-# metadata in secure storage.
-CFG_SECSTOR_TA ?= y
+# Enable the pseudo TA that managages TA storage in secure storage
+CFG_SECSTOR_TA_MGMT_PTA ?= $(call cfg-all-enabled,CFG_SECSTOR_TA)
+$(eval $(call cfg-depends-all,CFG_SECSTOR_TA_MGMT_PTA,CFG_SECSTOR_TA))
 
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
