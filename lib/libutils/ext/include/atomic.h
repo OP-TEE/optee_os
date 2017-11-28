@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2016, Linaro Limited
- * All rights reserved.
+ * Copyright (c) 2016-2017, Linaro Limited
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,9 +29,41 @@
 #ifndef __ATOMIC_H
 #define __ATOMIC_H
 
+#include <compiler.h>
 #include <types_ext.h>
 
 uint32_t atomic_inc32(volatile uint32_t *v);
 uint32_t atomic_dec32(volatile uint32_t *v);
+
+static inline bool atomic_cas_uint(unsigned int *p, unsigned int *oval,
+				   unsigned int nval)
+{
+	return __compiler_compare_and_swap(p, oval, nval);
+}
+
+static inline bool atomic_cas_u32(uint32_t *p, uint32_t *oval, uint32_t nval)
+{
+	return __compiler_compare_and_swap(p, oval, nval);
+}
+
+static inline unsigned int atomic_load_uint(unsigned int *p)
+{
+	return __compiler_atomic_load(p);
+}
+
+static inline unsigned int atomic_load_u32(unsigned int *p)
+{
+	return __compiler_atomic_load(p);
+}
+
+static inline void atomic_store_uint(unsigned int *p, unsigned int val)
+{
+	__compiler_atomic_store(p, val);
+}
+
+static inline void atomic_store_u32(uint32_t *p, uint32_t val)
+{
+	__compiler_atomic_store(p, val);
+}
 
 #endif /*__ATOMIC_H*/
