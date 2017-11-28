@@ -1,6 +1,8 @@
 language: c
 build:
   cache: true
+  cache_dir_list:
+    - /root/.ccache
   pre_ci_boot:
     image_name: jforissier/optee_os_ci
     image_tag: latest
