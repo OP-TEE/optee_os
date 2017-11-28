@@ -114,6 +114,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	size_t ta_size = 0;
 	uint64_t cookie = 0;
 	TEE_Result res;
+	size_t offs;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
@@ -135,7 +136,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	res = shdr_verify_signature(shdr);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	if (shdr->img_type != SHDR_TA) {
+	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
 	}
@@ -160,8 +161,37 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 				     sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
+	offs = SHDR_GET_SIZE(shdr);
 
-	if (ta_size != SHDR_GET_SIZE(shdr) + shdr->img_size) {
+	if (shdr->img_type == SHDR_BOOTSTRAP_TA) {
+		TEE_UUID bs_uuid;
+		struct shdr_bootstrap_ta bs_hdr;
+
+		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr))
+			return TEE_ERROR_SECURITY;
+
+		memcpy(&bs_hdr, ((uint8_t *)ta + offs), sizeof(bs_hdr));
+
+		/*
+		 * There's a check later that the UUID embedded inside the
+		 * ELF is matching, but since we now have easy access to
+		 * the expected uuid of the TA we check it a bit earlier
+		 * here.
+		 */
+		tee_uuid_from_octets(&bs_uuid, bs_hdr.uuid);
+		if (memcmp(&bs_uuid, uuid, sizeof(TEE_UUID))) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
+
+		res = crypto_hash_update(hash_ctx, hash_algo,
+					 (uint8_t *)&bs_hdr, sizeof(bs_hdr));
+		if (res != TEE_SUCCESS)
+			goto error_free_payload;
+		offs += sizeof(bs_hdr);
+	}
+
+	if (ta_size != offs + shdr->img_size) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
 	}
@@ -169,7 +199,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	handle->nw_ta = ta;
 	handle->nw_ta_size = ta_size;
 	handle->cookie = cookie;
-	handle->offs = SHDR_GET_SIZE(shdr);
+	handle->offs = offs;
 	handle->hash_algo = hash_algo;
 	handle->hash_ctx = hash_ctx;
 	handle->shdr = shdr;
