@@ -28,9 +28,11 @@
 #define SIGNED_HDR_H
 
 #include <inttypes.h>
+#include <tee_api_types.h>
 
 enum shdr_img_type {
 	SHDR_TA = 0,
+	SHDR_BOOTSTRAP_TA = 1,
 };
 
 #define SHDR_MAGIC	0x4f545348
@@ -70,6 +72,11 @@ struct shdr {
 				 (x)->sig_size)
 #define SHDR_GET_HASH(x)	(uint8_t *)(((struct shdr *)(x)) + 1)
 #define SHDR_GET_SIG(x)		(SHDR_GET_HASH(x) + (x)->hash_size)
+
+struct shdr_bootstrap_ta {
+	uint8_t uuid[sizeof(TEE_UUID)];
+	uint32_t version;
+};
 
 #endif /*SIGNED_HDR_H*/
 
