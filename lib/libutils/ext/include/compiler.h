@@ -185,4 +185,12 @@
 
 #endif /*!__HAVE_BUILTIN_OVERFLOW*/
 
+#define __compiler_compare_and_swap(p, oval, nval) \
+	__atomic_compare_exchange_n((p), (oval), (nval), true, \
+				    __ATOMIC_ACQUIRE, __ATOMIC_RELAXED) \
+
+#define __compiler_atomic_load(p) __atomic_load_n((p), __ATOMIC_RELAXED)
+#define __compiler_atomic_store(p, val) \
+	__atomic_store_n((p), (val), __ATOMIC_RELAXED)
+
 #endif /*COMPILER_H*/
