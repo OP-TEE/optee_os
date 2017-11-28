@@ -29,6 +29,7 @@
 
 #include <inttypes.h>
 #include <tee_api_types.h>
+#include <stdlib.h>
 
 enum shdr_img_type {
 	SHDR_TA = 0,
@@ -78,5 +79,26 @@ struct shdr_bootstrap_ta {
 	uint32_t version;
 };
 
-#endif /*SIGNED_HDR_H*/
+/*
+ * Allocates a struct shdr large enough to hold the entire header,
+ * excluding a subheader like struct shdr_bootstrap_ta.
+ */
+struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size);
 
+/* Frees a previously allocated struct shdr */
+static inline void shdr_free(struct shdr *shdr)
+{
+	free(shdr);
+}
+
+/*
+ * Verifies the signature in the @shdr.
+ *
+ * Note that the static part of struct shdr and payload still need to be
+ * checked against the hash contained in the header.
+ *
+ * Returns TEE_SUCCESS on success or TEE_ERROR_SECURITY on failure
+ */
+TEE_Result shdr_verify_signature(const struct shdr *shdr);
+
+#endif /*SIGNED_HDR_H*/
