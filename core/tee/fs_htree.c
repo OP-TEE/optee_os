@@ -634,6 +634,7 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	ht->root.id = 1;
+	ht->root.dirty = true;
 
 	res = calc_node_hash(&ht->root, ctx, ht->root.node.hash);
 	free(ctx);
