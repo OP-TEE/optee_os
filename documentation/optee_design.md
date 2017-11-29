@@ -609,8 +609,9 @@ to as 'Trusted Applications'. For most cases, user mode TAs are preferred.
 
 ### Pseudo Trusted Applications
 
-These are added directly to the OP-TEE core tree in, eg, `core/arch/arm/pta`,
-and are built along with and statically built into the OP-TEE core blob.
+These are implemented directly to the OP-TEE core tree in, eg,
+`core/arch/arm/pta`, and are built along with and statically built into the
+OP-TEE core blob.
 
 The pseudo Trusted Applications included in OP-TEE already are OP-TEE
 secure privileged level services hidden behind a "GlobalPlatform TA Client" API.
