@@ -645,9 +645,25 @@ they execute in Secure World.
 Trusted Application benefit from the GlobalPlatform Core Internal API as
 specified by the GlobalPlatform TEE specifications.
 
-There are two types of user mode TAs, which differ by the way they are stored.
+There are several types of user mode TAs, which differ by the way they are
+stored.
 
-#### "Normal" or REE FS Trusted Applications
+#### "Normal" or Secure Storage Trusted Applications
+
+These are stored in secure storage. The meta data is stored in a database
+of all installed TAs and the actual binary is stored encrypted as a
+separate file in the untrusted REE filesystem.
+
+Before these TAs can be loaded they have to be installed first, this is
+something that can be done during initial deployment or at a later stage.
+
+For test purposes the test program xtest can install a TA into secure
+storage with the command:
+```
+xtest --install-ta
+```
+
+#### "Legacy" or REE FS Trusted Applications
 
 They consist of a cleartext signed ELF file, named from the UUID
 of the TA and the suffix ".ta".
