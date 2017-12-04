@@ -48,6 +48,11 @@ bool soc_is_imx6sl(void)
 	return imx_soc_type() == SOC_MX6SL;
 }
 
+bool soc_is_imx6sll(void)
+{
+	return imx_soc_type() == SOC_MX6SLL;
+}
+
 bool soc_is_imx6sx(void)
 {
 	return imx_soc_type() == SOC_MX6SX;
