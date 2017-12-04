@@ -17,9 +17,6 @@
 #if defined(CFG_MX7)
 #include <config/config_imx7.h>
 
-#elif defined(CFG_MX6SX)
-#include <config/config_imx6sx.h>
-
 /* For i.MX 6UltraLite and 6ULL EVK board */
 #elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #include <config/config_imx6ul.h>
@@ -30,6 +27,11 @@
 /* For i.MX 6SL */
 #elif defined(CFG_MX6SL)
 #include <config/config_imx6sl.h>
+/* For i.MX 6SLL */
+#elif defined(CFG_MX6SLL)
+#include <config/config_imx6sll.h>
+#elif defined(CFG_MX6SX)
+#include <config/config_imx6sx.h>
 #else
 #error "Unknown platform flavor"
 #endif
