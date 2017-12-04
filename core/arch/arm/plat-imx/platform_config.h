@@ -60,6 +60,9 @@
 /* For i.MX 6SL */
 #elif defined(CFG_MX6SL)
 #include <config/imx6sl.h>
+/* For i.MX 6SLL */
+#elif defined(CFG_MX6SLL)
+#include <config/imx6sll.h>
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/

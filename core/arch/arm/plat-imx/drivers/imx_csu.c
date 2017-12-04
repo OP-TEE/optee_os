@@ -66,7 +66,7 @@ static TEE_Result csu_init(void)
 		csu_setting = csu_setting_imx6sx;
 	else if (soc_is_imx6ul() || soc_is_imx6ull())
 		csu_setting = csu_setting_imx6ul;
-	else if (soc_is_imx6sl())
+	else if (soc_is_imx6sll() || soc_is_imx6sl())
 		csu_setting = csu_setting_imx6sl;
 	else if (soc_is_imx6())
 		csu_setting = csu_setting_imx6;
