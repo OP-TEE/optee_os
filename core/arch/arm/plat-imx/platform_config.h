@@ -57,6 +57,9 @@
 #ifdef CFG_WITH_LPAE
 #error "LPAE not supported for now"
 #endif
+/* For i.MX 6SL */
+#elif defined(CFG_MX6SL)
+#include <config/imx6sl.h>
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/

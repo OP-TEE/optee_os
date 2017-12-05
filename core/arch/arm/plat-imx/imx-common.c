@@ -21,9 +21,10 @@ static uint32_t imx_digproc(void)
 	if (!reg) {
 		anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
 
-		/* TODO: Handle SL here */
-#ifdef CFG_MX7
+#if defined(CFG_MX7)
 		reg = io_read32(anatop_addr + OFFSET_DIGPROG_IMX7D);
+#elif defined(CFG_MX6SL)
+		reg = io_read32(anatop_addr + OFFSET_DIGPROG_IMX6SL);
 #else
 		reg = io_read32(anatop_addr + OFFSET_DIGPROG);
 #endif
@@ -40,6 +41,11 @@ static uint32_t imx_soc_rev_major(void)
 uint32_t imx_soc_type(void)
 {
 	return (imx_digproc() >> 16) & 0xff;
+}
+
+bool soc_is_imx6sl(void)
+{
+	return imx_soc_type() == SOC_MX6SL;
 }
 
 bool soc_is_imx6sx(void)

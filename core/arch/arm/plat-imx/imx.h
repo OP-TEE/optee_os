@@ -22,9 +22,9 @@
 
 uint32_t imx_get_src_gpr(int cpu);
 void imx_set_src_gpr(int cpu, uint32_t val);
-
 bool soc_is_imx6(void);
 bool soc_is_imx6sx(void);
+bool soc_is_imx6sl(void);
 bool soc_is_imx6ul(void);
 bool soc_is_imx6ull(void);
 bool soc_is_imx6sdl(void);
