@@ -27,6 +27,9 @@
 #elif defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
 	defined(CFG_MX6DL) || defined(CFG_MX6S)
 #include <config/config_imx6q.h>
+/* For i.MX 6SL */
+#elif defined(CFG_MX6SL)
+#include <config/config_imx6sl.h>
 #else
 #error "Unknown platform flavor"
 #endif

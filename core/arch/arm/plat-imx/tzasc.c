@@ -204,6 +204,28 @@ static int board_imx_tzasc_configure(vaddr_t addr)
 
 	return 0;
 }
+#elif defined(PLATFORM_FLAVOR_mx6slevk)
+static int board_imx_tzasc_configure(vaddr_t addr)
+{
+	tzc_init(addr);
+
+	tzc_configure_region(0, 0x00000000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_4G) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_ALL);
+	tzc_configure_region(1, 0x80000000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_2G) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_NS_RW);
+	tzc_configure_region(2, 0x9e000000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_32M) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_S_RW);
+	tzc_configure_region(3, 0x9fe00000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_2M) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_ALL);
+
+	tzc_dump_state();
+
+	return 0;
+}
 #elif defined(PLATFORM_FLAVOR_mx7dsabresd)
 static int board_imx_tzasc_configure(vaddr_t addr)
 {

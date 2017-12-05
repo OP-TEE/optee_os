@@ -30,6 +30,14 @@ const struct csu_setting csu_setting_imx6ul[] = {
 	{(-1), 0},
 };
 
+const struct csu_setting csu_setting_imx6sl[] = {
+	{13, 0xFF0033},		/* Protect ROMCP */
+	{14, 0x3F00FF},		/* Protect OCOTP */
+	{16, 0xFF0033},		/* Protect TZASC */
+	{26, 0xFF0033},		/* Protect OCRAM */
+	{(-1), 0},
+};
+
 const struct csu_setting csu_setting_imx6sx[] = {
 	{13, 0xFF0033},		/* Protect ROMCP */
 	{14, 0x3F00FF},		/* Protect OCOTP */
@@ -56,6 +64,8 @@ TEE_Result csu_init(void)
 		csu_setting = csu_setting_imx6sx;
 	} else if (soc_is_imx6ul() || soc_is_imx6ull()) {
 		csu_setting = csu_setting_imx6ul;
+	} else if (soc_is_imx6sl()) {
+		csu_setting = csu_setting_imx6sl;
 	} else if (soc_is_imx6()) {
 		csu_setting = csu_setting_imx6;
 	} else if (soc_is_imx7ds()) {

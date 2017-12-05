@@ -16,7 +16,7 @@ endif
 cflags-pm/psci.c-y += -Wno-suggest-attribute=noreturn
 
 ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6QP) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S) \
-       $(CFG_MX6SX)))
+ 	$(CFG_MX6SL) $(CFG_MX6SX)))
 srcs-y += a9_plat_init.S
 endif
 
