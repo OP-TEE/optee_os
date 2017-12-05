@@ -19,6 +19,9 @@ mx6qp-flavorlist = \
 	mx6qpsabreauto \
 	mx6qpsabresd \
 
+mx6sl-flavorlist = \
+	mx6slevk
+
 mx6sx-flavorlist = \
 	mx6sxsabreauto \
 	mx6sxsabresd \
@@ -83,6 +86,11 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6S,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sl-flavorlist)))
+$(call force,CFG_MX6,y)
+$(call force,CFG_MX6SL,y)
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_IMX_CAAM,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6SX,y)
@@ -174,6 +182,11 @@ CFG_NS_ENTRY_ADDR ?= 0x12000000
 CFG_UART_BASE ?= UART2_BASE
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6slevk))
+CFG_NS_ENTRY_ADDR ?= 0x80800000
+CFG_DDR_SIZE ?= 0x40000000
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabreauto))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
@@ -215,9 +228,9 @@ CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
 endif
 
-# i.MX6 Solo/SoloX/DualLite/Dual/Quad specific config
+# i.MX6 Solo/SL/SoloX/DualLite/Dual/Quad specific config
 ifeq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S) \
-      $(CFG_MX6SX)), y)
+      $(CFG_MX6SL) $(CFG_MX6SX)), y)
 include core/arch/arm/cpu/cortex-a9.mk
 
 $(call force,CFG_PL310,y)
@@ -231,7 +244,7 @@ ifeq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S))
 CFG_DRAM_BASE ?= 0x10000000
 endif
 
-ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL) $(CFG_MX6SX)))
+ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL) $(CFG_MX6SL) $(CFG_MX6SX)))
 CFG_DRAM_BASE ?= 0x80000000
 endif
 
