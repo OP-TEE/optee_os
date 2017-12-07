@@ -13,8 +13,11 @@
 
 #define STACK_ALIGNMENT			64
 
+#if defined(CFG_MX8M)
+#include <config/config_imx8m.h>
+
 /* For i.MX7D/S platforms */
-#if defined(CFG_MX7)
+#elif defined(CFG_MX7)
 #include <config/config_imx7.h>
 /* For i.MX7ULP platforms */
 #elif defined(CFG_MX7ULP)

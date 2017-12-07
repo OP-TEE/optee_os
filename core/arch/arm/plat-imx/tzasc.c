@@ -295,6 +295,31 @@ static int board_imx_tzasc_configure(vaddr_t addr)
 
 	return 0;
 }
+#elif defined(PLATFORM_FLAVOR_mx8mqevk)
+static int board_imx_tzasc_configure(vaddr_t addr)
+{
+	tzc_init(addr);
+
+	tzc_configure_region(0, 0x00000000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_4G) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_ALL);
+	tzc_configure_region(1, 0xbe000000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_32M) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_S_RW);
+	tzc_configure_region(2, 0xbfe00000,
+		TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_2M) |
+		TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_ALL);
+
+	tzc_set_action(3);
+
+	tzc_region_enable(2);
+	tzc_region_enable(1);
+	tzc_region_enable(0);
+
+	tzc_dump_state();
+
+	return 0;
+}
 #else
 #error "No tzasc defined"
 #endif
@@ -423,6 +448,19 @@ TEE_Result tzasc_init(void)
 
 	return TEE_SUCCESS;
 }
+#elif defined(CFG_MX8M)
+register_phys_mem(MEM_AREA_IO_SEC, TZASC_BASE, CORE_MMU_DEVICE_SIZE);
+TEE_Result tzasc_init(void)
+{
+	vaddr_t addr;
+
+	addr = core_mmu_get_va(TZASC_BASE, MEM_AREA_IO_SEC);
+
+	board_imx_tzasc_configure(addr);
+
+	return TEE_SUCCESS;
+}
+driver_init(tzasc_init);
 #else
 #error "CFG_MX6/7 not defined"
 #endif

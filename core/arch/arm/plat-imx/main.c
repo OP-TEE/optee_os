@@ -36,12 +36,21 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
 	.cpu_resume = pm_panic,
 	.system_off = pm_panic,
 	.system_reset = pm_panic,
+#endif
 };
 
 #ifdef CFG_IMX_LPUART
@@ -61,6 +70,9 @@ register_phys_mem(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_DEVICE_SIZE);
 #endif
 #ifdef GICD_BASE
 register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, 0x10000);
+#endif
+#ifdef GICR_BASE
+register_phys_mem(MEM_AREA_IO_SEC, GICR_BASE, 0xC0000);
 #endif
 #ifdef AIPS1_BASE
 register_phys_mem(MEM_AREA_IO_SEC, AIPS1_BASE,
@@ -116,6 +128,18 @@ void console_init(void)
 
 void main_init_gic(void)
 {
+#ifdef CFG_ARM_GICV3
+	vaddr_t gicd_base;
+
+	gicd_base = core_mmu_get_va(GICD_BASE, MEM_AREA_IO_SEC);
+
+	if (!gicd_base)
+		panic();
+
+	/* Initialize GIC */
+	gic_init(&gic_data, 0, gicd_base);
+	itr_init(&gic_data.chip);
+#else
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
@@ -128,10 +152,11 @@ void main_init_gic(void)
 	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);
+#endif
 }
 
 #if defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
-	defined(CFG_MX6DL) || defined(CFG_MX7)
+	defined(CFG_MX6DL) || defined(CFG_MX7) || defined(CFG_MX8M)
 void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
