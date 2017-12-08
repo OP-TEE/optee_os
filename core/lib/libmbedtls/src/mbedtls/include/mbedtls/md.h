@@ -60,6 +60,63 @@ typedef enum {
  */
 typedef struct mbedtls_md_info_t mbedtls_md_info_t;
 
+#if defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
+
+#if defined(MBEDTLS_MD2_C)
+#include "mbedtls/md2.h"
+#endif
+
+#if defined(MBEDTLS_MD4_C)
+#include "mbedtls/md4.h"
+#endif
+
+#if defined(MBEDTLS_MD5_C)
+#include "mbedtls/md5.h"
+#endif
+
+#if defined(MBEDTLS_RIPEMD160_C)
+#include "mbedtls/ripemd160.h"
+#endif
+
+#if defined(MBEDTLS_SHA1_C)
+#include "mbedtls/sha1.h"
+#endif
+
+#if defined(MBEDTLS_SHA256_C)
+#include "mbedtls/sha256.h"
+#endif
+
+#if defined(MBEDTLS_SHA512_C)
+#include "mbedtls/sha512.h"
+#endif
+
+typedef union {
+	char dummy[1];
+#if defined(MBEDTLS_MD2_C)
+	mbedtls_md2_context md2;
+#endif
+#if defined(MBEDTLS_MD4_C)
+	mbedtls_md4_context md4;
+#endif
+#if defined(MBEDTLS_MD5_C)
+	mbedtls_md5_context md5;
+#endif
+#if defined(MBEDTLS_RIPEMD160_C)
+	mbedtls_ripemd160_context ripemd160;
+#endif
+#if defined(MBEDTLS_SHA1_C)
+	mbedtls_sha1_context sha1;
+#endif
+#if defined(MBEDTLS_SHA256_C)
+	mbedtls_sha256_context sha256;
+#endif
+#if defined(MBEDTLS_SHA512_C)
+	mbedtls_sha512_context sha512;
+#endif
+	void *data;
+} mbedtls_md_context;
+#endif
+
 /**
  * Generic message digest context.
  */
@@ -67,11 +124,19 @@ typedef struct {
     /** Information about the associated message digest */
     const mbedtls_md_info_t *md_info;
 
+#if defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
+	/** Digest-specific context */
+	mbedtls_md_context md_ctx;
+
+	/** HMAC part of the context */
+	unsigned char hmac_ctx[256];
+#else
     /** Digest-specific context */
     void *md_ctx;
 
     /** HMAC part of the context */
     void *hmac_ctx;
+#endif
 } mbedtls_md_context_t;
 
 /**

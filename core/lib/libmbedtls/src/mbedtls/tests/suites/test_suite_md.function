@@ -211,7 +211,11 @@ void md_text_multi( char *text_md_name, char *text_src_string,
     TEST_ASSERT ( 0 == mbedtls_md_setup( &ctx_copy, md_info, 0 ) );
 
     TEST_ASSERT ( 0 == mbedtls_md_starts( &ctx ) );
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     TEST_ASSERT ( ctx.md_ctx != NULL );
+#else
+    TEST_ASSERT ( &ctx.md_ctx != NULL );
+#endif
     TEST_ASSERT ( 0 == mbedtls_md_update( &ctx, src_str, halfway ) );
     TEST_ASSERT ( 0 == mbedtls_md_clone( &ctx_copy, &ctx ) );
 
@@ -265,7 +269,11 @@ void md_hex_multi( char *text_md_name, char *hex_src_string,
     halfway = src_len / 2;
 
     TEST_ASSERT ( 0 == mbedtls_md_starts( &ctx ) );
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     TEST_ASSERT ( ctx.md_ctx != NULL );
+#else
+    TEST_ASSERT ( &ctx.md_ctx != NULL );
+#endif
     TEST_ASSERT ( 0 == mbedtls_md_update( &ctx, src_str, halfway ) );
     TEST_ASSERT ( 0 == mbedtls_md_clone( &ctx_copy, &ctx ) );
 
@@ -352,7 +360,11 @@ void md_hmac_multi( char *text_md_name, int trunc_size, char *hex_key_string,
     halfway = src_len / 2;
 
     TEST_ASSERT ( 0 == mbedtls_md_hmac_starts( &ctx, key_str, key_len ) );
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     TEST_ASSERT ( ctx.md_ctx != NULL );
+#else
+    TEST_ASSERT ( &ctx.md_ctx != NULL );
+#endif
     TEST_ASSERT ( 0 == mbedtls_md_hmac_update( &ctx, src_str, halfway ) );
     TEST_ASSERT ( 0 == mbedtls_md_hmac_update( &ctx, src_str + halfway, src_len - halfway ) );
     TEST_ASSERT ( 0 == mbedtls_md_hmac_finish( &ctx, output ) );
