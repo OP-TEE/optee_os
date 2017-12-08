@@ -107,7 +107,7 @@ static int gcm_gen_table( mbedtls_gcm_context *ctx )
     size_t olen = 0;
 
     memset( h, 0, 16 );
-    if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, h, 16, h, &olen ) ) != 0 )
+    if( ( ret = mbedtls_cipher_update( (void *)&ctx->cipher_ctx, h, 16, h, &olen ) ) != 0 )
         return( ret );
 
     /* pack h as two 64-bits ints, big-endian */
@@ -173,12 +173,12 @@ int mbedtls_gcm_setkey( mbedtls_gcm_context *ctx,
     if( cipher_info->block_size != 16 )
         return( MBEDTLS_ERR_GCM_BAD_INPUT );
 
-    mbedtls_cipher_free( &ctx->cipher_ctx );
+    mbedtls_cipher_free( (void *)&ctx->cipher_ctx );
 
-    if( ( ret = mbedtls_cipher_setup( &ctx->cipher_ctx, cipher_info ) ) != 0 )
+    if( ( ret = mbedtls_cipher_setup( (void *)&ctx->cipher_ctx, cipher_info ) ) != 0 )
         return( ret );
 
-    if( ( ret = mbedtls_cipher_setkey( &ctx->cipher_ctx, key, keybits,
+    if( ( ret = mbedtls_cipher_setkey( (void *)&ctx->cipher_ctx, key, keybits,
                                MBEDTLS_ENCRYPT ) ) != 0 )
     {
         return( ret );
@@ -322,7 +322,7 @@ int mbedtls_gcm_starts( mbedtls_gcm_context *ctx,
         gcm_mult( ctx, ctx->y, ctx->y );
     }
 
-    if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, ctx->y, 16, ctx->base_ectr,
+    if( ( ret = mbedtls_cipher_update( (void *)&ctx->cipher_ctx, ctx->y, 16, ctx->base_ectr,
                              &olen ) ) != 0 )
     {
         return( ret );
@@ -380,7 +380,7 @@ int mbedtls_gcm_update( mbedtls_gcm_context *ctx,
             if( ++ctx->y[i - 1] != 0 )
                 break;
 
-        if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, ctx->y, 16, ectr,
+        if( ( ret = mbedtls_cipher_update( (void *)&ctx->cipher_ctx, ctx->y, 16, ectr,
                                    &olen ) ) != 0 )
         {
             return( ret );
@@ -504,7 +504,7 @@ int mbedtls_gcm_auth_decrypt( mbedtls_gcm_context *ctx,
 
 void mbedtls_gcm_free( mbedtls_gcm_context *ctx )
 {
-    mbedtls_cipher_free( &ctx->cipher_ctx );
+    mbedtls_cipher_free( (void *)&ctx->cipher_ctx );
     mbedtls_zeroize( ctx, sizeof( mbedtls_gcm_context ) );
 }
 

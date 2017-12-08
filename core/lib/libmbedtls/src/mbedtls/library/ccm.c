@@ -80,12 +80,12 @@ int mbedtls_ccm_setkey( mbedtls_ccm_context *ctx,
     if( cipher_info->block_size != 16 )
         return( MBEDTLS_ERR_CCM_BAD_INPUT );
 
-    mbedtls_cipher_free( &ctx->cipher_ctx );
+    mbedtls_cipher_free( (void *)&ctx->cipher_ctx );
 
-    if( ( ret = mbedtls_cipher_setup( &ctx->cipher_ctx, cipher_info ) ) != 0 )
+    if( ( ret = mbedtls_cipher_setup( (void *)&ctx->cipher_ctx, cipher_info ) ) != 0 )
         return( ret );
 
-    if( ( ret = mbedtls_cipher_setkey( &ctx->cipher_ctx, key, keybits,
+    if( ( ret = mbedtls_cipher_setkey( (void *)&ctx->cipher_ctx, key, keybits,
                                MBEDTLS_ENCRYPT ) ) != 0 )
     {
         return( ret );
@@ -99,7 +99,7 @@ int mbedtls_ccm_setkey( mbedtls_ccm_context *ctx,
  */
 void mbedtls_ccm_free( mbedtls_ccm_context *ctx )
 {
-    mbedtls_cipher_free( &ctx->cipher_ctx );
+    mbedtls_cipher_free( (void *)&ctx->cipher_ctx );
     mbedtls_zeroize( ctx, sizeof( mbedtls_ccm_context ) );
 }
 
@@ -116,7 +116,7 @@ void mbedtls_ccm_free( mbedtls_ccm_context *ctx )
     for( i = 0; i < 16; i++ )                                               \
         y[i] ^= b[i];                                                       \
                                                                             \
-    if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, y, 16, y, &olen ) ) != 0 ) \
+    if( ( ret = mbedtls_cipher_update( (void *)&ctx->cipher_ctx, y, 16, y, &olen ) ) != 0 ) \
         return( ret );
 
 /*
@@ -125,7 +125,7 @@ void mbedtls_ccm_free( mbedtls_ccm_context *ctx )
  * This avoids allocating one more 16 bytes buffer while allowing src == dst.
  */
 #define CTR_CRYPT( dst, src, len  )                                            \
-    if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, ctr, 16, b, &olen ) ) != 0 )  \
+    if( ( ret = mbedtls_cipher_update( (void *)&ctx->cipher_ctx, ctr, 16, b, &olen ) ) != 0 )  \
         return( ret );                                                         \
                                                                                \
     for( i = 0; i < len; i++ )                                                 \

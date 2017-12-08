@@ -37,6 +37,7 @@
 extern "C" {
 #endif
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
 /**
  * \brief          GCM context structure
  */
@@ -50,8 +51,8 @@ typedef struct {
     unsigned char y[16];        /*!< Y working value */
     unsigned char buf[16];      /*!< buf working value */
     int mode;                   /*!< Encrypt or Decrypt */
-}
-mbedtls_gcm_context;
+} mbedtls_gcm_context;
+#endif
 
 /**
  * \brief           Initialize GCM context (just makes references valid)

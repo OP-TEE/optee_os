@@ -32,6 +32,7 @@
 extern "C" {
 #endif
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
 /**
  * \brief          CCM context structure
  */
@@ -39,7 +40,7 @@ typedef struct {
     mbedtls_cipher_context_t cipher_ctx;    /*!< cipher context used */
 }
 mbedtls_ccm_context;
-
+#endif
 /**
  * \brief           Initialize CCM context (just makes references valid)
  *                  Makes the context ready for mbedtls_ccm_setkey() or

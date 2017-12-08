@@ -213,6 +213,133 @@ typedef struct {
 
 } mbedtls_cipher_info_t;
 
+#if defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
+
+#if defined(MBEDTLS_DES_C)
+#include "mbedtls/des.h"
+#endif
+#if defined(MBEDTLS_AES_C)
+#include "mbedtls/aes.h"
+#endif
+#if defined(MBEDTLS_ARC4_C)
+#include "mbedtls/arc4.h"
+#endif
+#if defined(MBEDTLS_BLOWFISH_C)
+#include "mbedtls/blowfish.h"
+#endif
+#if defined(MBEDTLS_CAMELLIA_C)
+#include "mbedtls/camellia.h"
+#endif
+
+#if defined(MBEDTLS_GCM_C)
+typedef union {
+#if defined(MBEDTLS_DES_C)
+	mbedtls_des_context des;
+	mbedtls_des3_context des3;
+#endif
+#if defined(MBEDTLS_AES_C)
+	mbedtls_aes_context aes;
+#endif
+#if defined(MBEDTLS_ARC4_C)
+	mbedtls_arc4_context arc4;
+#endif
+#if defined(MBEDTLS_BLOWFISH_C)
+	mbedtls_blowfish_context blowfish;
+#endif
+#if defined(MBEDTLS_CAMELLIA_C)
+	mbedtls_camellia_context camellia;
+#endif
+
+} mbedtls_cipher_context_2;
+
+typedef struct {
+    /** Information about the associated cipher */
+    const mbedtls_cipher_info_t *cipher_info;
+
+    /** Key length to use */
+    int key_bitlen;
+
+    /** Operation that the context's key has been initialised for */
+    mbedtls_operation_t operation;
+
+#if defined(MBEDTLS_CIPHER_MODE_WITH_PADDING)
+    /** Padding functions to use, if relevant for cipher mode */
+    void (*add_padding)( unsigned char *output, size_t olen, size_t data_len );
+    int (*get_padding)( unsigned char *input, size_t ilen, size_t *data_len );
+#endif
+
+    /** Buffer for data that hasn't been encrypted yet */
+    unsigned char unprocessed_data[MBEDTLS_MAX_BLOCK_LENGTH];
+
+    /** Number of bytes that still need processing */
+    size_t unprocessed_len;
+
+    /** Current IV or NONCE_COUNTER for CTR-mode */
+    unsigned char iv[MBEDTLS_MAX_IV_LENGTH];
+
+    /** IV size in bytes (for ciphers with variable-length IVs) */
+    size_t iv_size;
+
+    /** Cipher-specific context */
+    mbedtls_cipher_context_2 cipher_ctx;
+
+#if defined(MBEDTLS_CMAC_C)
+    /** CMAC Specific context */
+    mbedtls_cmac_context_t cmac_ctx;
+#endif
+} mbedtls_cipher_context_t_2;
+#endif
+
+/**
+ * \brief          GCM context structure
+ */
+typedef struct {
+    mbedtls_cipher_context_t_2 cipher_ctx;
+    uint64_t HL[16];            /*!< Precalculated HTable */
+    uint64_t HH[16];            /*!< Precalculated HTable */
+    uint64_t len;               /*!< Total data length */
+    uint64_t add_len;           /*!< Total add length */
+    unsigned char base_ectr[16];/*!< First ECTR for tag */
+    unsigned char y[16];        /*!< Y working value */
+    unsigned char buf[16];      /*!< buf working value */
+    int mode;                   /*!< Encrypt or Decrypt */
+} mbedtls_gcm_context;
+
+/**
+ * \brief          CCM context structure
+ */
+typedef struct {
+    mbedtls_cipher_context_t_2 cipher_ctx;    /*!< cipher context used */
+}
+mbedtls_ccm_context;
+
+
+typedef union {
+#if defined(MBEDTLS_DES_C)
+	mbedtls_des_context des;
+	mbedtls_des3_context des3;
+#endif
+#if defined(MBEDTLS_AES_C)
+	mbedtls_aes_context aes;
+#endif
+#if defined(MBEDTLS_GCM_C)
+	mbedtls_gcm_context gcm;
+#endif
+#if defined(MBEDTLS_CCM_C)
+	mbedtls_ccm_context ccm;
+#endif
+#if defined(MBEDTLS_ARC4_C)
+	mbedtls_arc4_context arc4;
+#endif
+#if defined(MBEDTLS_BLOWFISH_C)
+	mbedtls_blowfish_context blowfish;
+#endif
+#if defined(MBEDTLS_CAMELLIA_C)
+	mbedtls_camellia_context camellia;
+#endif
+} mbedtls_cipher_context;
+#endif
+
 /**
  * Generic cipher context.
  */
@@ -244,6 +371,7 @@ typedef struct {
     /** IV size in bytes (for ciphers with variable-length IVs) */
     size_t iv_size;
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     /** Cipher-specific context */
     void *cipher_ctx;
 
@@ -251,6 +379,15 @@ typedef struct {
     /** CMAC Specific context */
     mbedtls_cmac_context_t *cmac_ctx;
 #endif
+#else
+    /** Cipher-specific context */
+    mbedtls_cipher_context cipher_ctx;
+
+#if defined(MBEDTLS_CMAC_C)
+    /** CMAC Specific context */
+    mbedtls_cmac_context_t cmac_ctx;
+#endif
+#endif /* MBEDTLS_EXTERNAL_CTX_MANAGE */
 } mbedtls_cipher_context_t;
 
 /**
