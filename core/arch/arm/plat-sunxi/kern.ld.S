@@ -1,4 +1,7 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+/*
  * Copyright (c) 2014, Allwinner Technology Co., Ltd.
  * All rights reserved.
  *

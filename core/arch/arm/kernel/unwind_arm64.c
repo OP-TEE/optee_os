@@ -2,6 +2,7 @@
  * Copyright (c) 2015 Linaro Limited
  * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * This software was developed by Semihalf under
  * the sponsorship of the FreeBSD Foundation.

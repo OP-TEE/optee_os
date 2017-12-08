@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2010 Mike Belopuhov
  * Copyright (c) 2017, Linaro Limited
+ * SPDX-License-Identifier: ISC
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

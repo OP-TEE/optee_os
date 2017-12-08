@@ -5,6 +5,7 @@ This C source file is part of the SoftFloat IEEE Floating-Point Arithmetic
 Package, Release 3a, by John R. Hauser.
 
 Copyright 2011, 2012, 2013, 2014 The Regents of the University of California.
+SPDX-License-Identifier: BSD-3-Clause
 All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without

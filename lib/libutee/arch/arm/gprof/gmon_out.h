@@ -1,4 +1,7 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+/*
  * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *

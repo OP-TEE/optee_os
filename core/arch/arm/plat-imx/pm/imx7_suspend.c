@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 NXP
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Peng Fan <peng.fan@nxp.com>
  *
