@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2014, Linaro Limited
- * All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #include <string_ext.h>

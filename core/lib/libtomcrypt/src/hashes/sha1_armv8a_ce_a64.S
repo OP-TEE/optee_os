@@ -3,7 +3,6 @@
  */
 /*
  * Copyright (c) 2014-2015, Linaro Limited
- * All rights reserved.
  */
 
  /*

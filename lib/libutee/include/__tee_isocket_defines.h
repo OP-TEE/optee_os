@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2017, Linaro Limited
- * All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #ifndef ____TEE_ISOCKET_DEFINES_H

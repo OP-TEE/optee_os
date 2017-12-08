@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2015-2016, Linaro Limited
- * All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #ifndef CORE_MMU_PRIVATE_H
