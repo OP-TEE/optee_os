@@ -590,7 +590,7 @@ err:
 
 TEE_Result tee_tadb_ta_delete(const TEE_UUID *uuid)
 {
-	const struct tadb_entry null_entry = { 0 };
+	const struct tadb_entry null_entry = { { { 0 } } };
 	struct tee_tadb_dir *db;
 	struct tadb_entry entry;
 	size_t idx;
