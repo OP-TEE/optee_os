@@ -9,7 +9,11 @@
 #include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
+#ifdef CFG_IMX_LPUART
+#include <drivers/imx_lpuart.h>
+#else
 #include <drivers/imx_uart.h>
+#endif
 #include <io.h>
 #include <imx.h>
 #include <kernel/generic_boot.h>
@@ -40,7 +44,11 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
+#ifdef CFG_IMX_LPUART
+static struct imx_lpuart_data console_data;
+#else
 static struct imx_uart_data console_data;
+#endif
 
 #ifdef CONSOLE_UART_BASE
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
@@ -71,6 +79,9 @@ register_phys_mem(MEM_AREA_TEE_COHERENT,
 		  ROUNDDOWN(IRAM_BASE, CORE_MMU_DEVICE_SIZE),
 		  CORE_MMU_DEVICE_SIZE);
 #endif
+#ifdef M4_AIPS_BASE
+register_phys_mem(MEM_AREA_IO_SEC, M4_AIPS_BASE, M4_AIPS_SIZE);
+#endif
 #ifdef IRAM_S_BASE
 register_phys_mem(MEM_AREA_TEE_COHERENT,
 		  ROUNDDOWN(IRAM_S_BASE, CORE_MMU_DEVICE_SIZE),
@@ -95,7 +106,11 @@ static void main_fiq(void)
 
 void console_init(void)
 {
+#ifdef CFG_IMX_LPUART
+	imx_lpuart_init(&console_data, CONSOLE_UART_BASE);
+#else
 	imx_uart_init(&console_data, CONSOLE_UART_BASE);
+#endif
 	register_serial_console(&console_data.chip);
 }
 

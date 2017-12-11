@@ -1,8 +1,8 @@
 global-incdirs-y += .
 global-incdirs-y += registers
-srcs-y += main.c imx-common.c
 
-srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c
+srcs-y += main.c
+srcs-$(CFG_MX6)$(CFG_MX7) += imx-common.c mmdc.c
 srcs-$(CFG_MX7) += gpcv2.c
 
 srcs-$(CFG_PL310) += imx_pl310.c
@@ -20,11 +20,10 @@ ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6QP) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S
 srcs-y += a9_plat_init.S
 endif
 
-ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL)))
+ifneq (,$(filter y, $(CFG_MX7) $(CFG_MX7ULP) $(CFG_MX6UL) $(CFG_MX6ULL)))
 srcs-y += a7_plat_init.S
 endif
 
-srcs-$(CFG_MX7) += a7_plat_init.S
 srcs-$(CFG_TZC380) += tzasc.c
 srcs-$(CFG_CSU) += imx_csu.c
 srcs-$(CFG_SCU) += imx_scu.c

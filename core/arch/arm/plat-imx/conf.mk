@@ -12,6 +12,7 @@ mx6sx-flavorlist = mx6sxsabresd mx6sxsabreauto
 mx6ul-flavorlist = mx6ulevk mx6ul9x9evk
 mx6ull-flavorlist = mx6ullevk
 mx7-flavorlist = mx7dsabresd mx7swarp7
+mx7ulp-flavorlist = mx7ulpevk
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -70,6 +71,15 @@ CFG_IMX_CAAM ?= y
 #Note: This is not correct 7s is a single core
 # but it should work as well
 CFG_TEE_CORE_NB_CORE ?= 2
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7ulp-flavorlist)))
+$(call force,CFG_MX7ULP,y)
+$(call force,CFG_IMX_LPUART,y)
+CFG_IMX_CAAM ?= y
+$(call force,CFG_TZC380,n)
+$(call force,CFG_CSU,n)
+$(call force,CFG_PSCI_ARM32,n)
+$(call force,CFG_BOOT_SECONDARY_REQUEST,n)
+CFG_TEE_CORE_NB_CORE ?= 1
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -108,6 +118,11 @@ ifeq ($(filter y, $(CFG_MX7)), y)
 include core/arch/arm/cpu/cortex-a7.mk
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_INIT_CNTVOFF ?= y
+endif
+
+# i.MX7ulp specific config
+ifeq ($(filter y, $(CFG_MX7ULP)), y)
+include core/arch/arm/cpu/cortex-a7.mk
 endif
 
 # Add some default Config
@@ -272,6 +287,16 @@ CFG_DDR_SIZE ?= 0x20000000
 CFG_PSCI_ARM32 ?= y
 # TZASC config is not defined for the warp board
 CFG_TZC380 = n
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx7ulpevk))
+CFG_DT ?= y
+CFG_NS_ENTRY_ADDR ?= 0x60800000
+CFG_DT_ADDR ?= 0x63000000
+CFG_DDR_SIZE ?= 0x40000000
+CFG_PSCI_ARM32 ?= n
+CFG_BOOT_SYNC_CPU = n
+CFG_BOOT_SECONDARY_REQUEST = n
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
