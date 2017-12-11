@@ -28,12 +28,10 @@
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_common.h>
-#include <util.h>
-#include <trace.h>
-
-#include <mm/tee_mm.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
+#include <trace.h>
+#include <util.h>
 
 bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		 uint32_t flags)
