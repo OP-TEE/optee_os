@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  *
@@ -53,6 +53,17 @@ void imx_wdog_restart(void)
 		panic();
 	}
 
+#ifdef CFG_MX7ULP
+	val = io_read32(wdog_base + WDOG_CS);
+
+	io_write32(wdog_base + WDOG_CNT, UNLOCK);
+	/* Enable wdog */
+	io_write32(wdog_base + WDOG_CS, val | WDOG_CS_EN);
+
+	io_write32(wdog_base + WDOG_CNT, UNLOCK);
+	io_write32(wdog_base + WDOG_TOVAL, 1000);
+	io_write32(wdog_base + WDOG_CNT, REFRESH);
+#else
 	if (ext_reset)
 		val = 0x14;
 	else
@@ -70,6 +81,7 @@ void imx_wdog_restart(void)
 
 	io_write16(wdog_base + WDT_WCR, val);
 	io_write16(wdog_base + WDT_WCR, val);
+#endif
 
 	while (1)
 		;
@@ -94,6 +106,11 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 		"/soc/aips-bus@30000000/wdog@30290000",
 		"/soc/aips-bus@30000000/wdog@302a0000",
 		"/soc/aips-bus@30000000/wdog@302b0000",
+	};
+#elif defined CFG_MX7ULP
+	static const char * const wdog_path[] = {
+		"/ahb-bridge0@40000000/wdog@403D0000",
+		"/ahb-bridge0@40000000/wdog@40430000",
 	};
 #else
 	static const char * const wdog_path[] = {
