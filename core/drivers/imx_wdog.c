@@ -1,30 +1,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2018 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <assert.h>
@@ -51,6 +29,17 @@ void imx_wdog_restart(void)
 		panic();
 	}
 
+#ifdef CFG_MX7ULP
+	val = read32(wdog_base + WDOG_CS);
+
+	write32(UNLOCK, wdog_base + WDOG_CNT);
+	/* Enable wdog */
+	write32(val | WDOG_CS_EN, wdog_base + WDOG_CS);
+
+	write32(UNLOCK, wdog_base + WDOG_CNT);
+	write32(1000, wdog_base + WDOG_TOVAL);
+	write32(REFRESH, wdog_base + WDOG_CNT);
+#else
 	if (ext_reset)
 		val = 0x14;
 	else
@@ -68,7 +57,7 @@ void imx_wdog_restart(void)
 
 	write16(val, wdog_base + WDT_WCR);
 	write16(val, wdog_base + WDT_WCR);
-
+#endif
 	while (1)
 		;
 }
@@ -91,6 +80,17 @@ static TEE_Result imx_wdog_init(void)
 		"/soc/aips-bus@30000000/wdog@30290000",
 		"/soc/aips-bus@30000000/wdog@302a0000",
 		"/soc/aips-bus@30000000/wdog@302b0000",
+	};
+#elif defined CFG_MX7ULP
+	static const char * const wdog_path[] = {
+		"/ahb-bridge0@40000000/wdog@403D0000",
+		"/ahb-bridge0@40000000/wdog@40430000",
+	};
+#elif defined CFG_MX6SX
+	static const char * const wdog_path[] = {
+		"/soc/aips-bus@02000000/wdog@020bc000",
+		"/soc/aips-bus@02000000/wdog@020c0000",
+		"/soc/aips-bus@02200000/wdog@02288000",
 	};
 #else
 	static const char * const wdog_path[] = {
