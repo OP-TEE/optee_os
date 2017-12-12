@@ -878,6 +878,10 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 	case ESR_EC_IABT_EL1:
 	case ESR_EC_DABT_EL1:
 		switch (fault_descr & ESR_FSC_MASK) {
+		case ESR_FSC_SIZE_L0:
+		case ESR_FSC_SIZE_L1:
+		case ESR_FSC_SIZE_L2:
+		case ESR_FSC_SIZE_L3:
 		case ESR_FSC_TRANS_L0:
 		case ESR_FSC_TRANS_L1:
 		case ESR_FSC_TRANS_L2:
