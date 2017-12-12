@@ -179,6 +179,10 @@
 
 /* Combined defines for DFSC and IFSC */
 #define ESR_FSC_MASK		0x3f
+#define ESR_FSC_SIZE_L0		0x00
+#define ESR_FSC_SIZE_L1		0x01
+#define ESR_FSC_SIZE_L2		0x02
+#define ESR_FSC_SIZE_L3		0x03
 #define ESR_FSC_TRANS_L0	0x04
 #define ESR_FSC_TRANS_L1	0x05
 #define ESR_FSC_TRANS_L2	0x06
