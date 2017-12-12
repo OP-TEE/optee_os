@@ -292,6 +292,7 @@ static struct pgt *pop_from_some_list(vaddr_t vabase, void *ctx)
 		if (!p)
 			return NULL;
 		tee_pager_pgt_save_and_release_entries(p);
+		memset(p->tbl, 0, PGT_SIZE);
 	}
 	assert(!p->num_used_entries);
 	p->ctx = ctx;
