@@ -40,8 +40,6 @@
 
 #include "thread_private.h"
 
-	.section .text.thread_asm
-
 LOCAL_FUNC vector_std_smc_entry , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
