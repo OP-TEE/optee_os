@@ -16,10 +16,13 @@ git:
   depth: 1000000
 
 before_install:
-  # Install the 32-bit cross compiler
-  - wget http://releases.linaro.org/components/toolchain/binaries/5.3-2016.02/arm-linux-gnueabihf/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
-  - tar xf gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
-  - export PATH=${PWD}/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin:${PATH}
+  # Install the 32-bit cross compiler. We're using an older version here (4.9)
+  # because some Android setups still use this version which can cause build
+  # errors not caught by later GCC versions, see
+  # https://github.com/OP-TEE/optee_os/issues/1998.
+  - wget http://releases.linaro.org/archive/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
+  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf/bin:${PATH}
   - arm-linux-gnueabihf-gcc --version
 
 before_script:
