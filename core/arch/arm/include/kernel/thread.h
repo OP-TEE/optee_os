@@ -53,21 +53,21 @@
  */
 #define THREAD_CORE_LOCAL_ALIGNED __aligned(16)
 #else
-#define THREAD_CORE_LOCAL_ALIGNED
+#define THREAD_CORE_LOCAL_ALIGNED __aligned(8)
 #endif
 
 struct thread_core_local {
-	vaddr_t tmp_stack_va_end;
-	int curr_thread;
-	uint32_t flags;
-	vaddr_t abt_stack_va_end;
 #ifdef ARM32
-	paddr_t sm_pm_ctx_phys;
 	uint32_t r[2];
+	paddr_t sm_pm_ctx_phys;
 #endif
 #ifdef ARM64
 	uint64_t x[4];
 #endif
+	vaddr_t tmp_stack_va_end;
+	int curr_thread;
+	uint32_t flags;
+	vaddr_t abt_stack_va_end;
 #ifdef CFG_TEE_CORE_DEBUG
 	unsigned int locked_count; /* Number of spinlocks held */
 #endif
