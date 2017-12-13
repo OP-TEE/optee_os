@@ -178,8 +178,19 @@
 #define MAX_XLAT_TABLES		5
 #endif
 
-/* MMU L1 table, one for each core */
-static uint64_t l1_xlation_table[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
+/*
+ * MMU L1 table, one for each core
+ *
+ * With CFG_CORE_UNMAP_CORE_AT_EL0, each core has one table to be used
+ * while in kernel mode and one to be used while in user mode. These are
+ * not static as the symbols are accessed directly from assembly.
+ */
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+#define NUM_L1_TABLES	2
+#else
+#define NUM_L1_TABLES	1
+#endif
+uint64_t l1_xlation_table[NUM_L1_TABLES][CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES]
 	__aligned(NUM_L1_ENTRIES * XLAT_ENTRY_SIZE) __section(".nozi.mmu.l1");
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
@@ -473,6 +484,12 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	uint64_t max_va = 0;
 	size_t n;
 
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	COMPILE_TIME_ASSERT(CORE_MMU_L1_TBL_OFFSET ==
+			   sizeof(l1_xlation_table) / 2);
+#endif
+
+
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
 		paddr_t pa_end;
 		vaddr_t va_end;
@@ -493,13 +510,13 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 
 	/* Clear table before use */
 	memset(l1_xlation_table[0], 0, NUM_L1_ENTRIES * XLAT_ENTRY_SIZE);
-	init_xlation_table(mm, 0, l1_xlation_table[0], 1);
+	init_xlation_table(mm, 0, l1_xlation_table[0][0], 1);
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
-		memcpy(l1_xlation_table[n], l1_xlation_table[0],
+		memcpy(l1_xlation_table[0][n], l1_xlation_table[0][0],
 			XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
 
 	for (n = 1; n < NUM_L1_ENTRIES; n++) {
-		if (!l1_xlation_table[0][n]) {
+		if (!l1_xlation_table[0][0][n]) {
 			user_va_idx = n;
 			break;
 		}
@@ -526,7 +543,7 @@ void core_init_mmu_regs(void)
 	uint32_t mair;
 	paddr_t ttbr0;
 
-	ttbr0 = virt_to_phys(l1_xlation_table[get_core_pos()]);
+	ttbr0 = virt_to_phys(l1_xlation_table[0][get_core_pos()]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -554,7 +571,7 @@ void core_init_mmu_regs(void)
 	uint64_t tcr;
 	paddr_t ttbr0;
 
-	ttbr0 = virt_to_phys(l1_xlation_table[get_core_pos()]);
+	ttbr0 = virt_to_phys(l1_xlation_table[0][get_core_pos()]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -624,7 +641,7 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info)
 {
-	uint64_t *tbl = l1_xlation_table[get_core_pos()];
+	uint64_t *tbl = l1_xlation_table[0][get_core_pos()];
 	uintptr_t ntbl;
 	unsigned level = 1;
 	vaddr_t va_base = 0;
@@ -743,7 +760,7 @@ bool core_mmu_user_mapping_is_active(void)
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	assert(user_va_idx != -1);
-	ret = l1_xlation_table[get_core_pos()][user_va_idx];
+	ret = l1_xlation_table[0][get_core_pos()][user_va_idx];
 	thread_unmask_exceptions(exceptions);
 
 	return ret;
@@ -754,7 +771,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
 	assert(user_va_idx != -1);
 
-	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
+	map->user_map = l1_xlation_table[0][get_core_pos()][user_va_idx];
 	if (map->user_map) {
 		map->asid = (read_ttbr0_64bit() >> TTBR_ASID_SHIFT) &
 			    TTBR_ASID_MASK;
@@ -778,13 +795,21 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	/* Set the new map */
 	if (map && map->user_map) {
-		l1_xlation_table[get_core_pos()][user_va_idx] = map->user_map;
+		l1_xlation_table[0][get_core_pos()][user_va_idx] =
+			map->user_map;
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+		l1_xlation_table[1][get_core_pos()][user_va_idx] =
+			map->user_map;
+#endif
 		dsb();	/* Make sure the write above is visible */
 		ttbr |= ((uint64_t)map->asid << TTBR_ASID_SHIFT);
 		write_ttbr0_64bit(ttbr);
 		isb();
 	} else {
-		l1_xlation_table[get_core_pos()][user_va_idx] = 0;
+		l1_xlation_table[0][get_core_pos()][user_va_idx] = 0;
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+		l1_xlation_table[1][get_core_pos()][user_va_idx] = 0;
+#endif
 		dsb();	/* Make sure the write above is visible */
 	}
 
@@ -828,7 +853,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
 	assert(user_va_idx != -1);
 
-	map->user_map = l1_xlation_table[get_core_pos()][user_va_idx];
+	map->user_map = l1_xlation_table[0][get_core_pos()][user_va_idx];
 	if (map->user_map) {
 		map->asid = (read_ttbr0_el1() >> TTBR_ASID_SHIFT) &
 			    TTBR_ASID_MASK;
@@ -852,13 +877,21 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	/* Set the new map */
 	if (map && map->user_map) {
-		l1_xlation_table[get_core_pos()][user_va_idx] = map->user_map;
+		l1_xlation_table[0][get_core_pos()][user_va_idx] =
+			map->user_map;
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+		l1_xlation_table[1][get_core_pos()][user_va_idx] =
+			map->user_map;
+#endif
 		dsb();	/* Make sure the write above is visible */
 		ttbr |= ((uint64_t)map->asid << TTBR_ASID_SHIFT);
 		write_ttbr0_el1(ttbr);
 		isb();
 	} else {
-		l1_xlation_table[get_core_pos()][user_va_idx] = 0;
+		l1_xlation_table[0][get_core_pos()][user_va_idx] = 0;
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+		l1_xlation_table[1][get_core_pos()][user_va_idx] = 0;
+#endif
 		dsb();	/* Make sure the write above is visible */
 	}
 

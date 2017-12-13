@@ -199,8 +199,19 @@ enum desc_type {
 	DESC_TYPE_INVALID,
 };
 
-/* Main MMU L1 table for teecore */
-static uint32_t main_mmu_l1_ttb[NUM_L1_ENTRIES]
+/*
+ * Main MMU L1 table for teecore
+ *
+ * With CFG_CORE_UNMAP_CORE_AT_EL0, one table to be used while in kernel
+ * mode and one to be used while in user mode. These are not static as the
+ * symbols are accessed directly from assembly.
+ */
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+#define NUM_L1_TABLES	2
+#else
+#define NUM_L1_TABLES	1
+#endif
+uint32_t main_mmu_l1_ttb[NUM_L1_TABLES][NUM_L1_ENTRIES]
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
 /* L2 MMU tables */
@@ -213,7 +224,7 @@ static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][NUM_UL1_ENTRIES]
 
 static vaddr_t core_mmu_get_main_ttb_va(void)
 {
-	return (vaddr_t)main_mmu_l1_ttb;
+	return (vaddr_t)main_mmu_l1_ttb[0];
 }
 
 static paddr_t core_mmu_get_main_ttb_pa(void)
@@ -803,8 +814,16 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va();
 	size_t n;
 
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	COMPILE_TIME_ASSERT(CORE_MMU_L1_TBL_OFFSET ==
+			   sizeof(main_mmu_l1_ttb) / 2);
+#endif
+
 	/* reset L1 table */
 	memset(ttb1, 0, L1_TBL_SIZE);
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	memset(main_mmu_l1_ttb[1], 0, sizeof(main_mmu_l1_ttb[1]));
+#endif
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
