@@ -28,13 +28,16 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
+#ifndef ASM
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
-#include <platform_config.h>
 #include <types_ext.h>
 #include <util.h>
+#endif
+
+#include <platform_config.h>
 
 /* A small page is the smallest unit of memory that can be mapped */
 #define SMALL_PAGE_SHIFT	12
@@ -90,6 +93,7 @@
 #define STACK_ALIGNMENT			(sizeof(long) * 2)
 #endif
 
+#ifndef ASM
 /*
  * Memory area type:
  * MEM_AREA_END:      Reserved, marks the end of a table of mapping areas.
@@ -555,5 +559,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);
 #endif
+
+#endif /*ASM*/
 
 #endif /* CORE_MMU_H */
