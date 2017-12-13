@@ -31,6 +31,7 @@
 #include <asm.S>
 #include <keep.h>
 #include <kernel/thread_defs.h>
+#include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
@@ -43,6 +44,12 @@
 		adr	x\res, threads
 		mov	x\tmp1, #THREAD_CTX_SIZE
 		madd	x\res, x\tmp0, x\tmp1, x\res
+	.endm
+
+	.macro b_if_spsr_is_el0 reg, label
+		tbnz	\reg, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT), \label
+		tst	\reg, #(SPSR_64_MODE_EL_MASK << SPSR_64_MODE_EL_SHIFT)
+		b.eq	\label
 	.endm
 
 LOCAL_FUNC vector_std_smc_entry , :
@@ -170,12 +177,23 @@ KEEP_PAGER thread_vector_table
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 	load_xregs x0, THREAD_CTX_REGS_SP, 1, 3
+	load_xregs x0, THREAD_CTX_REGS_X4, 4, 30
 	mov	sp, x1
 	msr	elr_el1, x2
 	msr	spsr_el1, x3
-	load_xregs x0, THREAD_CTX_REGS_X1, 1, 30
+
+	b_if_spsr_is_el0 w3, 1f
+
+	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 	eret
+
+1:	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
+	ldr	x0, [x0, THREAD_CTX_REGS_X0]
+
+	msr	spsel, #1
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
+	b	eret_to_el0
 END_FUNC thread_resume
 
 FUNC thread_std_smc_entry , :
@@ -313,7 +331,8 @@ FUNC __thread_enter_user_mode , :
 	mov x29, #0
 
 	/* Jump into user mode */
-	eret
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
+	b eret_to_el0
 END_FUNC __thread_enter_user_mode
 
 /*
@@ -345,6 +364,41 @@ END_FUNC thread_unwind_user_mode
 	  .endif
 	.endm
 
+	.macro restore_mapping
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+		/* Temporarily save x0 */
+		msr	tpidr_el1, x0
+
+		/* Update the mapping to use the full kernel mapping */
+		mrs	x0, ttbr0_el1
+		sub	x0, x0, #CORE_MMU_L1_TBL_OFFSET
+		/* switch to kernel mode ASID */
+		bic	x0, x0, #BIT(TTBR_ASID_SHIFT)
+		msr	ttbr0_el1, x0
+		isb
+
+		/* Jump into the full mapping and continue execution */
+		ldr	x0, =1f
+		br	x0
+	1:
+
+		/* Point to the vector into the full mapping */
+		adr	x0, thread_vect_table
+		msr	vbar_el1, x0
+		isb
+
+		/* Restore x1 */
+		mrs	x0, tpidr_el1
+		store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+#else
+		store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+		mrs	x0, ttbr0_el1
+		/* switch to kernel mode ASID */
+		bic	x0, x0, #BIT(TTBR_ASID_SHIFT)
+		msr	ttbr0_el1, x0
+		isb
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+	.endm
 
 	.section .text.thread_vect_table
 	.align	11
@@ -406,7 +460,8 @@ SErrorSPx:
 	 */
 	.align	7
 el0_sync_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	mrs	x2, esr_el1
 	mrs	x3, sp_el0
 	lsr	x2, x2, #ESR_EC_SHIFT
@@ -417,13 +472,15 @@ el0_sync_a64:
 
 	.align	7
 el0_irq_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	b	elx_irq
 	check_vector_size el0_irq_a64
 
 	.align	7
 el0_fiq_a64:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	b	elx_fiq
 	check_vector_size el0_fiq_a64
 
@@ -438,7 +495,8 @@ SErrorA64:
 	 */
 	.align	7
 el0_sync_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	mrs	x2, esr_el1
 	mrs	x3, sp_el0
 	lsr	x2, x2, #ESR_EC_SHIFT
@@ -449,13 +507,15 @@ el0_sync_a32:
 
 	.align	7
 el0_irq_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	b	elx_irq
 	check_vector_size el0_irq_a32
 
 	.align	7
 el0_fiq_a32:
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	restore_mapping
+
 	b	elx_fiq
 	check_vector_size el0_fiq_a32
 
@@ -463,6 +523,48 @@ el0_fiq_a32:
 SErrorA32:
 	b	SErrorA32
 	check_vector_size SErrorA32
+
+/*
+ * We're keeping this code in the same section as the vector to make sure
+ * that it's always available.
+ */
+eret_to_el0:
+
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	/* Point to the vector into the reduced mapping */
+	adr	x0, thread_user_kcode_offset
+	ldr	x0, [x0]
+	adr	x1, thread_vect_table
+	sub	x1, x1, x0
+	msr	vbar_el1, x1
+	isb
+
+	/* Jump into the reduced mapping and continue execution */
+	ldr	x1, =1f
+	sub	x1, x1, x0
+	br	x1
+1:
+
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
+	msr	tpidr_el1, x0
+
+	/* Update the mapping to exclude the full kernel mapping */
+	mrs	x0, ttbr0_el1
+	add	x0, x0, #CORE_MMU_L1_TBL_OFFSET
+	orr	x0, x0, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
+	msr	ttbr0_el1, x0
+	isb
+
+	mrs	x0, tpidr_el1
+#else
+	mrs	x0, ttbr0_el1
+	orr	x0, x0, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
+	msr	ttbr0_el1, x0
+	isb
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+
+	eret
 
 END_FUNC thread_vect_table
 
@@ -526,14 +628,22 @@ LOCAL_FUNC el0_svc , :
 	load_xregs sp, THREAD_SVC_REG_ELR, 0, 1
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
-	load_xregs sp, THREAD_SVC_REG_X0, 0, 14
+	load_xregs sp, THREAD_SVC_REG_X2, 2, 14
 	mov	x30, sp
 	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0]
 	mov	sp, x0
-	ldr	x0, [x30, THREAD_SVC_REG_X0]
+	b_if_spsr_is_el0 w1, 1f
+	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
 
 	eret
+
+1:	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
+	ldr	x30, [x30, #THREAD_SVC_REG_X30]
+
+	msr	spsel, #1
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
+	b	eret_to_el0
 END_FUNC el0_svc
 
 LOCAL_FUNC el1_sync_abort , :
@@ -680,12 +790,17 @@ LOCAL_FUNC el0_sync_abort , :
 	msr	sp_el0, x1
 
 	/* Update core local flags */
-	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
-	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
-	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsr	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
-	/* Restore x0 to x3 */
-	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	/* Restore x2 to x3 */
+	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
+
+	b_if_spsr_is_el0 w0, eret_to_el0
+
+	/* Restore x0 to x1 */
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
 	eret
@@ -829,8 +944,13 @@ END_FUNC el0_sync_abort
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
 	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
-	/* Restore x0..x3 */
-	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+	mrs	x0, spsr_el1
+	/* Restore x2..x3 */
+	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
+	b_if_spsr_is_el0 w0, eret_to_el0
+
+	/* Restore x0..x1 */
+	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
 	eret

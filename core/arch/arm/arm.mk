@@ -49,6 +49,12 @@ ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
 endif
 
+# Unmaps all kernel mode code except the code needed to take exceptions
+# from user space and restore kernel mode mapping again. This gives more
+# strict control over what is accessible while in user mode.
+# Addresses CVE-2017-5715 (aka Meltdown) known to affect Arm Cortex-A75
+CFG_CORE_UNMAP_CORE_AT_EL0 ?= y
+
 ifeq ($(CFG_ARM32_core),y)
 # Configration directive related to ARMv7 optee boot arguments.
 # CFG_PAGEABLE_ADDR: if defined, forces pageable data physical address.
