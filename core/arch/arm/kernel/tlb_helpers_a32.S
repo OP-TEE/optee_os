@@ -57,8 +57,9 @@ END_FUNC tlbi_mva_allasid
 /* void tlbi_asid(unsigned long asid); */
 FUNC tlbi_asid , :
 UNWIND(	.fnstart)
-	and     r0, r0, #0xff	/* Get ASID */
 	dsb	ishst		/* Sync with table update */
+	write_tlbiasidis r0	/* Inval unified TLB by ASID Inner Sharable */
+	orr	r0, r0, #1	/* Select the kernel ASID */
 	write_tlbiasidis r0	/* Inval unified TLB by ASID Inner Sharable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
