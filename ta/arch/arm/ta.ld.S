@@ -29,7 +29,7 @@ PHDRS {
 }
 
 SECTIONS {
-	.ta_head : {*(.ta_head)} :exec
+	.ta_head : {KEEP(*(.ta_head))} :exec
 
 	.text : {
 		__text_start = .;
