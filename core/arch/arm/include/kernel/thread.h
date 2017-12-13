@@ -518,6 +518,13 @@ vaddr_t thread_get_saved_thread_sp(void);
 #endif /*ARM64*/
 
 /*
+ * Provides addresses and size of kernel code that must be mapped while in
+ * user mode.
+ */
+void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
+			  vaddr_t *va, size_t *sz);
+
+/*
  * Returns the start address (bottom) of the stack for the current thread,
  * zero if there is no current thread.
  */

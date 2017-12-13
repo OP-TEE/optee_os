@@ -348,7 +348,7 @@ END_FUNC thread_unwind_user_mode
 
 	.section .text.thread_vect_table
 	.align	11
-LOCAL_FUNC thread_vect_table , :
+FUNC thread_vect_table , :
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------

@@ -155,6 +155,17 @@ extern thread_pm_handler_t thread_cpu_resume_handler_ptr;
 extern thread_pm_handler_t thread_system_off_handler_ptr;
 extern thread_pm_handler_t thread_system_reset_handler_ptr;
 
+
+/*
+ * During boot note the part of code and data that needs to be mapped while
+ * in user mode. The provided address and size have to be page aligned.
+ * Note that the code and data will be mapped at the lowest possible
+ * addresses available for user space (see core_mmu_get_user_va_range()).
+ */
+extern long thread_user_kcode_offset;
+
+void thread_vect_table(void);
+
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
