@@ -68,6 +68,7 @@ DEFINES
 	DEFINE(THREAD_SMC_ARGS_SIZE, sizeof(struct thread_smc_args));
 
 	DEFINE(THREAD_SVC_REG_X0, offsetof(struct thread_svc_regs, x0));
+	DEFINE(THREAD_SVC_REG_X2, offsetof(struct thread_svc_regs, x2));
 	DEFINE(THREAD_SVC_REG_X5, offsetof(struct thread_svc_regs, x5));
 	DEFINE(THREAD_SVC_REG_X6, offsetof(struct thread_svc_regs, x6));
 	DEFINE(THREAD_SVC_REG_X30, offsetof(struct thread_svc_regs, x30));
