@@ -35,6 +35,7 @@
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
+#include <util.h>
 
 	.section .text.sm_asm
 
@@ -249,6 +250,47 @@ END_FUNC sm_fiq_entry
 LOCAL_FUNC sm_vect_table , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
+	/*
+	 * This depends on SP being 8 byte aligned, that is, the lowest
+	 * three bits in SP are zero.
+	 *
+	 * The idea is to form a specific bit pattern in the lowest three
+	 * bits of SP depending on which entry in the vector we enter via.
+	 * This is done by adding 1 to SP in each entry but the last.
+	 */
+	add	sp, sp, #1	/* 7:111 Reset			*/
+	add	sp, sp, #1	/* 6:110 Undefined instruction	*/
+	add	sp, sp, #1	/* 5:101 Secure monitor call	*/
+	add	sp, sp, #1	/* 4:100 Prefetch abort		*/
+	add	sp, sp, #1	/* 3:011 Data abort		*/
+	add	sp, sp, #1	/* 2:010 Reserved		*/
+	add	sp, sp, #1	/* 1:001 IRQ			*/
+	nop			/* 0:000 FIQ			*/
+
+	/* Invalidate the branch predictor for the current processor. */
+	write_bpiall
+	isb
+
+	/*
+	 * Only two exception does normally occur, smc and fiq. With all
+	 * other exceptions it's good enough to just spinn, the lowest bits
+	 * still tells which exception we're stuck with when attaching a
+	 * debugger.
+	 */
+
+	/* Test for FIQ, all the lowest bits of SP are supposed to be 0 */
+	tst	sp, #(BIT(0) | BIT(1) | BIT(2))
+	beq	sm_fiq_entry
+
+	/* Test for SMC, xor the lowest bits of SP to be 0 */
+	eor	sp, sp, #(BIT(0) | BIT(2))
+	tst	sp, #(BIT(0) | BIT(1) | BIT(2))
+	beq	sm_smc_entry
+
+	/* unhandled exception */
+	b	.
+#else /*!CFG_CORE_WORKAROUND_SPECTRE_BP*/
 	b	.		/* Reset			*/
 	b	.		/* Undefined instruction	*/
 	b	sm_smc_entry	/* Secure monitor call		*/
@@ -257,6 +299,7 @@ UNWIND(	.cantunwind)
 	b	.		/* Reserved			*/
 	b	.		/* IRQ				*/
 	b	sm_fiq_entry	/* FIQ				*/
+#endif /*!CFG_CORE_WORKAROUND_SPECTRE_BP*/
 UNWIND(	.fnend)
 END_FUNC sm_vect_table
 
