@@ -83,8 +83,16 @@
 	mcr	p15, 0, \reg, c2, c0, 0
 	.endm
 
+	.macro write_ttbr0_64bit reg0, reg1
+	mcrr	p15, 0, \reg0, \reg1, cr2
+	.endm
+
 	.macro read_ttbr0 reg
 	mrc	p15, 0, \reg, c2, c0, 0
+	.endm
+
+	.macro read_ttbr0_64bit reg0, reg1
+	mrrc	p15, 0, \reg0, \reg1, cr2
 	.endm
 
 	.macro write_ttbr1 reg
