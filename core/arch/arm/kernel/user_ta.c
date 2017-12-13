@@ -501,7 +501,7 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
-	char flags[4] = { '\0', };
+	char flags[7] = { '\0', };
 	size_t n;
 
 	EMSG_RAW(" arch: %s  load address: 0x%x  ctx-idr: %d",
@@ -517,8 +517,8 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 			mobj_get_pa(utc->mmu->regions[n].mobj,
 				    utc->mmu->regions[n].offset, 0, &pa);
 
-		mattr_uflags_to_str(flags, sizeof(flags),
-				    utc->mmu->regions[n].attr);
+		mattr_perm_to_str(flags, sizeof(flags),
+				  utc->mmu->regions[n].attr);
 		EMSG_RAW(" region %zu: va %#" PRIxVA " pa %#" PRIxPA
 			 " size %#zx flags %s",
 			 n, utc->mmu->regions[n].va, pa,
