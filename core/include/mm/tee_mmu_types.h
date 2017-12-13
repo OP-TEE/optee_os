@@ -95,15 +95,18 @@ struct tee_mmu_info {
 	unsigned int asid;
 };
 
-static inline void mattr_uflags_to_str(char *str, size_t size, uint32_t attr)
+static inline void mattr_perm_to_str(char *str, size_t size, uint32_t attr)
 {
-	if (size < 4)
+	if (size < 7)
 		return;
 
 	str[0] = (attr & TEE_MATTR_UR) ? 'r' : '-';
 	str[1] = (attr & TEE_MATTR_UW) ? 'w' : '-';
 	str[2] = (attr & TEE_MATTR_UX) ? 'x' : '-';
-	str[3] = '\0';
+	str[3] = (attr & TEE_MATTR_PR) ? 'R' : '-';
+	str[4] = (attr & TEE_MATTR_PW) ? 'W' : '-';
+	str[5] = (attr & TEE_MATTR_PX) ? 'X' : '-';
+	str[6] = '\0';
 }
 
 #endif
