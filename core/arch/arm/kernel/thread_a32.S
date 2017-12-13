@@ -530,28 +530,6 @@ KEEP_PAGER thread_rpc
 	b	.	/* SMC should not return */
 .endm
 
-LOCAL_FUNC thread_fiq_handler , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
-#if defined(CFG_ARM_GICV3)
-	foreign_intr_handler	fiq
-#else
-	native_intr_handler	fiq
-#endif
-UNWIND(	.fnend)
-END_FUNC thread_fiq_handler
-
-LOCAL_FUNC thread_irq_handler , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
-#if defined(CFG_ARM_GICV3)
-	native_intr_handler	irq
-#else
-	foreign_intr_handler	irq
-#endif
-UNWIND(	.fnend)
-END_FUNC thread_irq_handler
-
 FUNC thread_init_vbar , :
 UNWIND(	.fnstart)
 	/* Set vector (VBAR) */
@@ -668,10 +646,21 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
 
-LOCAL_FUNC thread_abort_handler , :
-thread_und_handler:
+	.section .text.thread_vect_table
+        .align	5
+FUNC thread_vect_table , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
+	b	.			/* Reset			*/
+	b	thread_und_handler	/* Undefined instruction	*/
+	b	thread_svc_handler	/* System call			*/
+	b	thread_pabort_handler	/* Prefetch abort		*/
+	b	thread_dabort_handler	/* Data abort			*/
+	b	.			/* Reserved			*/
+	b	thread_irq_handler	/* IRQ				*/
+	b	thread_fiq_handler	/* FIQ				*/
+
+thread_und_handler:
 	/*
 	 * Disable both foreign and native interrupts in the thread handlers.
 	 * The tee handlers can decide when the native interrupts should
@@ -684,7 +673,7 @@ UNWIND(	.cantunwind)
 	subne	lr, lr, #2
 	subeq	lr, lr, #4
 	mov	r0, #ABORT_TYPE_UNDEF
-	b	.thread_abort_generic
+	b	thread_abort_common
 
 thread_dabort_handler:
 	/*
@@ -696,7 +685,7 @@ thread_dabort_handler:
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #8
 	mov	r0, #ABORT_TYPE_DATA
-	b	.thread_abort_generic
+	b	thread_abort_common
 
 thread_pabort_handler:
 	/*
@@ -709,7 +698,7 @@ thread_pabort_handler:
 	sub	lr, lr, #4
 	mov	r0, #ABORT_TYPE_PREFETCH
 
-.thread_abort_generic:
+thread_abort_common:
 	/*
 	 * At this label:
 	 * cpsr is in mode undef or abort
@@ -793,12 +782,9 @@ thread_pabort_handler:
 	ldm	ip, {r0-r11, ip}
 
 	movs	pc, lr
-UNWIND(	.fnend)
-END_FUNC thread_abort_handler
+	/* end thread_abort_common */
 
-LOCAL_FUNC thread_svc_handler , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
+thread_svc_handler:
 	/*
 	 * Disable both foreign and native interrupts in the thread handlers.
 	 * The tee handlers can decide when the native interrupts should
@@ -814,21 +800,22 @@ UNWIND(	.cantunwind)
 	msr	spsr_fsxc, r0
 	pop	{r0-r7, lr}
 	movs	pc, lr
-UNWIND(	.fnend)
-END_FUNC thread_svc_handler
+	/* end thread_svc_handler */
 
-	.section .text.thread_vect_table
-        .align	5
-FUNC thread_vect_table , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
-	b	.			/* Reset			*/
-	b	thread_und_handler	/* Undefined instruction	*/
-	b	thread_svc_handler	/* System call			*/
-	b	thread_pabort_handler	/* Prefetch abort		*/
-	b	thread_dabort_handler	/* Data abort			*/
-	b	.			/* Reserved			*/
-	b	thread_irq_handler	/* IRQ				*/
-	b	thread_fiq_handler	/* FIQ				*/
+thread_fiq_handler:
+#if defined(CFG_ARM_GICV3)
+	foreign_intr_handler	fiq
+#else
+	native_intr_handler	fiq
+#endif
+	/* end thread_fiq_handler */
+
+thread_irq_handler:
+#if defined(CFG_ARM_GICV3)
+	native_intr_handler	irq
+#else
+	foreign_intr_handler	irq
+#endif
+	/* end thread_irq_handler */
 UNWIND(	.fnend)
 END_FUNC thread_vect_table
