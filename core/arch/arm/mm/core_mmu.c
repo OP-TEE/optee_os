@@ -590,7 +590,7 @@ static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
 
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 {
-	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL;
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK;
 	const uint32_t cached = TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
 	const uint32_t noncache = TEE_MATTR_CACHE_NONCACHE <<
 				  TEE_MATTR_CACHE_SHIFT;

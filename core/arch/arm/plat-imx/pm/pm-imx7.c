@@ -134,7 +134,7 @@ int pm_imx7_iram_tbl_init(void)
 		map.size = AIPS1_SIZE; /* 4M for AIPS1/2/3 */
 		map.type = MEM_AREA_IO_SEC;
 		map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW |
-			   TEE_MATTR_GLOBAL | TEE_MATTR_SECURE |
+			   TEE_MATTR_SECURE |
 			   (TEE_MATTR_CACHE_NONCACHE << TEE_MATTR_CACHE_SHIFT);
 		map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
 	}
@@ -145,8 +145,7 @@ int pm_imx7_iram_tbl_init(void)
 	map.region_size = CORE_MMU_PGDIR_SIZE;
 	map.size = CORE_MMU_DEVICE_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
-	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRWX | TEE_MATTR_GLOBAL |
-		TEE_MATTR_SECURE;
+	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRWX | TEE_MATTR_SECURE;
 	map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
 
 	map.pa = GIC_BASE;
@@ -154,8 +153,7 @@ int pm_imx7_iram_tbl_init(void)
 	map.region_size = CORE_MMU_PGDIR_SIZE;
 	map.size = CORE_MMU_DEVICE_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
-	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW | TEE_MATTR_GLOBAL |
-		TEE_MATTR_SECURE;
+	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW | TEE_MATTR_SECURE;
 	map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
 
 	return 0;
