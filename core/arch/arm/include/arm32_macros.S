@@ -253,6 +253,14 @@
 	mrc	p15, 0, \reg, c13, c0, 3
 	.endm
 
+	.macro write_tpidrprw reg
+	mcr	p15, 0, \reg, c13, c0, 4
+	.endm
+
+	.macro read_tpidrprw reg
+	mrc	p15, 0, \reg, c13, c0, 4
+	.endm
+
 	.macro read_clidr reg
 	/* Cache Level ID Register */
 	mrc	p15, 1, \reg, c0, c0, 1
