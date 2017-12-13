@@ -476,7 +476,7 @@ static void *pager_add_alias_page(paddr_t pa)
 	unsigned idx;
 	struct core_mmu_table_info *ti;
 	/* Alias pages mapped without write permission: runtime will care */
-	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_GLOBAL |
+	uint32_t attr = TEE_MATTR_VALID_BLOCK |
 			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
 			TEE_MATTR_SECURE | TEE_MATTR_PR;
 
@@ -626,9 +626,6 @@ static uint32_t get_area_mattr(uint32_t area_flags)
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
 			(area_flags & (TEE_MATTR_PRWX | TEE_MATTR_URWX));
-
-	if (!(area_flags & (TEE_MATTR_UR | TEE_MATTR_UX | TEE_MATTR_UW)))
-		attr |= TEE_MATTR_GLOBAL;
 
 	return attr;
 }
