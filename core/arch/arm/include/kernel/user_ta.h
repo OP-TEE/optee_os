@@ -55,7 +55,6 @@ struct user_ta_ctx {
 	struct mobj *mobj_code; /* secure world memory */
 	struct mobj *mobj_stack; /* stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
-	uint32_t context;	/* Context ID of the process */
 	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
 	void *ta_time_offs;	/* Time reference used by the TA */
 	struct tee_pager_area_head *areas;

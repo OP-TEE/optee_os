@@ -28,17 +28,18 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <bitstring.h>
 #include <kernel/panic.h>
-#include <kernel/tlb_helpers.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
-#include <mm/tee_mmu.h>
-#include <mm/tee_mmu_types.h>
-#include <mm/pgt_cache.h>
-#include <mm/tee_mm.h>
+#include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
+#include <mm/pgt_cache.h>
+#include <mm/tee_mm.h>
+#include <mm/tee_mmu.h>
+#include <mm/tee_mmu_types.h>
 #include <mm/tee_pager.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
@@ -63,8 +64,16 @@
 #define TEE_MMU_UCACHE_DEFAULT_ATTR	(TEE_MATTR_CACHE_CACHED << \
 					 TEE_MATTR_CACHE_SHIFT)
 
-/* Support for 31 concurrent sessions */
-static uint32_t g_asid = 0xffffffff;
+/*
+ * Two ASIDs per context, one for kernel mode and one for user mode. ASID 0
+ * and 1 are reserved and not used. This means a maximum of 31 loaded user
+ * mode contexts. This value can be increased but not beyond the maximum
+ * ASID, which is architecture dependent (max 255 for ARMv7-A and ARMv8-A
+ * Aarch32).
+ */
+#define MMU_NUM_ASIDS		64
+
+static bitstr_t bit_decl(g_asid, MMU_NUM_ASIDS);
 
 static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
 					 struct param_mem *mem)
@@ -215,34 +224,46 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 	return TEE_SUCCESS;
 }
 
+static unsigned int asid_alloc(void)
+{
+	int i;
+
+	bit_ffc(g_asid, MMU_NUM_ASIDS, &i);
+	if (i == -1)
+		return 0;
+	bit_set(g_asid, i);
+
+	return (i + 1) * 2;
+}
+
+static void asid_free(unsigned int asid)
+{
+	/* Only even ASIDs are supposed to be allocated */
+	assert(!(asid & 1));
+
+	if (asid) {
+		int i = (asid - 1) / 2;
+
+		assert(i < MMU_NUM_ASIDS && bit_test(g_asid, i));
+		bit_clear(g_asid, i);
+	}
+}
+
 TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
 {
-	uint32_t asid = 1;
-	bool asid_allocated = false;
+	uint32_t asid = asid_alloc();
 
-	if (!utc->context) {
-		utc->context = 1;
-
-		/* Find available ASID */
-		while (!(asid & g_asid) && (asid != 0)) {
-			utc->context++;
-			asid = asid << 1;
-		}
-
-		if (asid == 0) {
-			DMSG("Failed to allocate ASID");
-			return TEE_ERROR_GENERIC;
-		}
-		g_asid &= ~asid;
-		asid_allocated = true;
+	if (!asid) {
+		DMSG("Failed to allocate ASID");
+		return TEE_ERROR_GENERIC;
 	}
 
 	utc->mmu = calloc(1, sizeof(struct tee_mmu_info));
 	if (!utc->mmu) {
-		if (asid_allocated)
-			g_asid |= asid;
+		asid_free(asid);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
+	utc->mmu->asid = asid;
 	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }
@@ -624,15 +645,10 @@ void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
  */
 void tee_mmu_final(struct user_ta_ctx *utc)
 {
-	uint32_t asid = 1 << ((utc->context - 1) & 0xff);
-
-	/* return ASID */
-	g_asid |= asid;
-
 	/* clear MMU entries to avoid clash when asid is reused */
-	tlbi_asid(utc->context & 0xff);
-	utc->context = 0;
+	tlbi_asid(utc->mmu->asid);
 
+	asid_free(utc->mmu->asid);
 	free(utc->mmu);
 	utc->mmu = NULL;
 }

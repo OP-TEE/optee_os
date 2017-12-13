@@ -87,6 +87,7 @@ struct tee_mmu_info {
 	struct tee_ta_region regions[TEE_MMU_UMAP_MAX_ENTRIES];
 	vaddr_t ta_private_vmem_start;
 	vaddr_t ta_private_vmem_end;
+	unsigned int asid;
 };
 
 static inline void mattr_uflags_to_str(char *str, size_t size, uint32_t attr)
