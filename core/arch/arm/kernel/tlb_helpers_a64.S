@@ -27,6 +27,7 @@
 
 #include <arm64.h>
 #include <asm.S>
+#include <util.h>
 
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
@@ -49,9 +50,10 @@ END_FUNC tlbi_mva_allasid
 
 /* void tlbi_asid(unsigned int asid); */
 FUNC tlbi_asid , :
-	and	x0, x0, #TLBI_ASID_MASK
 	lsl	x0, x0, #TLBI_ASID_SHIFT
 	dsb	ishst		/* Sync with table update */
+	tlbi	aside1is, x0	/* Invalidate tlb by asid in inner shareable */
+	orr	x0, x0, #BIT(TLBI_ASID_SHIFT) /* Select the kernel ASID */
 	tlbi	aside1is, x0	/* Invalidate tlb by asid in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
