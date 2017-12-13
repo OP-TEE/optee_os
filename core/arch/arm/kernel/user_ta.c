@@ -506,7 +506,7 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 
 	EMSG_RAW(" arch: %s  load address: 0x%x  ctx-idr: %d",
 		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
-		 utc->context);
+		 utc->mmu->asid);
 	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
 		 utc->mmu->regions[TEE_MMU_UMAP_STACK_IDX].va,
 		 utc->mobj_stack->size);
@@ -584,7 +584,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 static uint32_t user_ta_get_instance_id(struct tee_ta_ctx *ctx)
 {
-	return to_user_ta_ctx(ctx)->context;
+	return to_user_ta_ctx(ctx)->mmu->asid;
 }
 
 static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
