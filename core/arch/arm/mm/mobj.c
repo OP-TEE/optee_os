@@ -44,6 +44,7 @@
 #include <util.h>
 
 struct mobj *mobj_sec_ddr;
+struct mobj *mobj_tee_ram;
 
 /*
  * mobj_phys implementation

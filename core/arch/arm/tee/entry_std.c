@@ -31,9 +31,10 @@
 #include <bench.h>
 #include <compiler.h>
 #include <initcall.h>
+#include <kernel/linker.h>
+#include <kernel/msg_param.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
-#include <kernel/msg_param.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -591,6 +592,14 @@ static TEE_Result default_mobj_init(void)
 				       SHM_CACHE_ATTRS, CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
+
+	mobj_tee_ram = mobj_phys_alloc(CFG_TEE_RAM_START,
+				       VCORE_UNPG_RW_PA + VCORE_UNPG_RW_SZ -
+						CFG_TEE_RAM_START,
+				       TEE_MATTR_CACHE_CACHED,
+				       CORE_MEM_TEE_RAM);
+	if (!mobj_tee_ram)
+		panic("Failed to register tee ram");
 
 #ifdef CFG_SECURE_DATA_PATH
 	sdp_mem_mobjs = core_sdp_mem_create_mobjs();
