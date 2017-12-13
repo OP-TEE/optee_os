@@ -819,7 +819,7 @@ END_FUNC thread_svc_handler
 
 	.section .text.thread_vect_table
         .align	5
-LOCAL_FUNC thread_vect_table , :
+FUNC thread_vect_table , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
