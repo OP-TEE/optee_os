@@ -441,95 +441,6 @@ UNWIND(	.fnend)
 END_FUNC thread_rpc
 KEEP_PAGER thread_rpc
 
-/* The handler of native interrupt. */
-.macro	native_intr_handler mode:req
-	.ifc	\mode\(),irq
-	/*
-	 * Foreign interrupts should be masked.
-	 * For GICv2, IRQ is for foreign interrupt and already masked by
-	 * hardware in FIQ mode which is used for native interrupt.
-	 * For GICv3, FIQ is for foreign interrupt. It's not masked by hardware
-	 * in IRQ mode which is used for natvie interrupt.
-	 */
-	cpsid	f
-	.endif
-	/*
-	 * FIQ and IRQ have a +4 offset for lr compared to preferred return
-	 * address
-	 */
-	sub     lr, lr, #4
-
-	/*
-	 * We're always saving {r0-r3}. In IRQ mode we're saving r12 also.
-	 * In FIQ mode we're saving the banked fiq registers {r8-r12} FIQ
-	 * because the secure monitor doesn't save those. The treatment of
-	 * the banked fiq registers is somewhat analogous to the lazy save
-	 * of VFP registers.
-	 */
-	.ifc	\mode\(),fiq
-	push	{r0-r3, r8-r12, lr}
-	.else
-	push	{r0-r3, r12, lr}
-	.endif
-	bl	thread_check_canaries
-	ldr	lr, =thread_nintr_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
-	.ifc	\mode\(),fiq
-	pop	{r0-r3, r8-r12, lr}
-	.else
-	pop	{r0-r3, r12, lr}
-	.endif
-	movs	pc, lr
-.endm
-
-/* The handler of foreign interrupt. */
-.macro foreign_intr_handler mode:req
-	.ifc	\mode\(),irq
-	/*
-	 * Disable FIQ if the foreign interrupt is sent as IRQ.
-	 * IRQ mode is set up to use tmp stack so FIQ has to be
-	 * disabled before touching the stack. We can also assign
-	 * SVC sp from IRQ sp to get SVC mode into the state we
-	 * need when doing the SMC below.
-	 * If it is sent as FIQ, the IRQ has already been masked by hardware
-	 */
-	cpsid	f
-	.endif
-	sub	lr, lr, #4
-	push	{lr}
-	push	{r12}
-
-	.ifc	\mode\(),fiq
-	bl	thread_save_state_fiq
-	.else
-	bl	thread_save_state
-	.endif
-
-	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
-	mrs	r1, spsr
-	pop	{r12}
-	pop	{r2}
-	blx	thread_state_suspend
-	mov	r4, r0		/* Supply thread index */
-
-	/*
-	 * Switch to SVC mode and copy current stack pointer as it already
-	 * is the tmp stack.
-	 */
-	mov	r0, sp
-	cps	#CPSR_MODE_SVC
-	mov	sp, r0
-
-	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	ldr	r1, =OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
-	mov	r2, #0
-	mov	r3, #0
-	/* r4 is already filled in above */
-	smc	#0
-	b	.	/* SMC should not return */
-.endm
-
 FUNC thread_init_vbar , :
 UNWIND(	.fnstart)
 	/* Set vector (VBAR) */
@@ -645,6 +556,95 @@ UNWIND(	.cantunwind)
 	pop     {r4-r12,pc}	/* Match the push in thread_enter_user_mode()*/
 UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
+
+/* The handler of native interrupt. */
+.macro	native_intr_handler mode:req
+	.ifc	\mode\(),irq
+	/*
+	 * Foreign interrupts should be masked.
+	 * For GICv2, IRQ is for foreign interrupt and already masked by
+	 * hardware in FIQ mode which is used for native interrupt.
+	 * For GICv3, FIQ is for foreign interrupt. It's not masked by hardware
+	 * in IRQ mode which is used for natvie interrupt.
+	 */
+	cpsid	f
+	.endif
+	/*
+	 * FIQ and IRQ have a +4 offset for lr compared to preferred return
+	 * address
+	 */
+	sub     lr, lr, #4
+
+	/*
+	 * We're always saving {r0-r3}. In IRQ mode we're saving r12 also.
+	 * In FIQ mode we're saving the banked fiq registers {r8-r12} FIQ
+	 * because the secure monitor doesn't save those. The treatment of
+	 * the banked fiq registers is somewhat analogous to the lazy save
+	 * of VFP registers.
+	 */
+	.ifc	\mode\(),fiq
+	push	{r0-r3, r8-r12, lr}
+	.else
+	push	{r0-r3, r12, lr}
+	.endif
+	bl	thread_check_canaries
+	ldr	lr, =thread_nintr_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	.ifc	\mode\(),fiq
+	pop	{r0-r3, r8-r12, lr}
+	.else
+	pop	{r0-r3, r12, lr}
+	.endif
+	movs	pc, lr
+.endm
+
+/* The handler of foreign interrupt. */
+.macro foreign_intr_handler mode:req
+	.ifc	\mode\(),irq
+	/*
+	 * Disable FIQ if the foreign interrupt is sent as IRQ.
+	 * IRQ mode is set up to use tmp stack so FIQ has to be
+	 * disabled before touching the stack. We can also assign
+	 * SVC sp from IRQ sp to get SVC mode into the state we
+	 * need when doing the SMC below.
+	 * If it is sent as FIQ, the IRQ has already been masked by hardware
+	 */
+	cpsid	f
+	.endif
+	sub	lr, lr, #4
+	push	{lr}
+	push	{r12}
+
+	.ifc	\mode\(),fiq
+	bl	thread_save_state_fiq
+	.else
+	bl	thread_save_state
+	.endif
+
+	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
+	mrs	r1, spsr
+	pop	{r12}
+	pop	{r2}
+	blx	thread_state_suspend
+	mov	r4, r0		/* Supply thread index */
+
+	/*
+	 * Switch to SVC mode and copy current stack pointer as it already
+	 * is the tmp stack.
+	 */
+	mov	r0, sp
+	cps	#CPSR_MODE_SVC
+	mov	sp, r0
+
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
+	ldr	r1, =OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
+	mov	r2, #0
+	mov	r3, #0
+	/* r4 is already filled in above */
+	smc	#0
+	b	.	/* SMC should not return */
+.endm
 
 	.section .text.thread_vect_table
         .align	5
