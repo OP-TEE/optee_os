@@ -31,6 +31,12 @@ platform-hard-float-enabled := y
 endif
 endif
 
+# Adds protection against CVE-2017-5715 also know as Spectre
+# (https://spectreattack.com)
+# See also https://developer.arm.com/-/media/Files/pdf/Cache_Speculation_Side-channels.pdf
+# Variant 2
+CFG_CORE_WORKAROUND_SPECTRE_BP ?= y
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
