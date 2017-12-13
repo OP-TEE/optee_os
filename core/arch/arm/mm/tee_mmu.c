@@ -306,6 +306,18 @@ static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
 }
 
+static vaddr_t get_stack_va(struct user_ta_ctx *utc)
+{
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	struct tee_ta_region *r = utc->mmu->regions +
+				  TEE_MMU_UMAP_STACK_IDX - 1;
+
+	return r->va + r->size;
+#else
+	return utc->mmu->ta_private_vmem_start;
+#endif
+}
+
 void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 {
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
@@ -314,7 +326,7 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj)
 
 	region->mobj = mobj;
 	region->offset = 0;
-	region->va = utc->mmu->ta_private_vmem_start;
+	region->va = get_stack_va(utc);
 	region->size = ROUNDUP(utc->mobj_stack->size, granule);
 	region->attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 		       TEE_MATTR_URW | TEE_MATTR_PRW |
@@ -413,10 +425,28 @@ set_entry:
 			 utc->mmu->ta_private_vmem_end);
 }
 
-void tee_mmu_map_clear(struct user_ta_ctx *utc)
+static void map_kinit(struct user_ta_ctx *utc __maybe_unused)
+{
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	struct tee_ta_region *regions = utc->mmu->regions;
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+	unsigned int idx;
+
+	/* Add an entry for kernel code being mapped while in user mode */
+	idx = TEE_MMU_UMAP_KCODE_IDX;
+	thread_get_user_kcode(&regions[idx].mobj, &regions[idx].offset,
+			      &regions[idx].va, &regions[idx].size);
+	regions[idx].attr = attr | TEE_MATTR_PRX;
+	assert(regions[idx].va == utc->mmu->ta_private_vmem_start);
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+}
+
+void tee_mmu_map_init(struct user_ta_ctx *utc)
 {
 	utc->mmu->ta_private_vmem_end = 0;
 	memset(utc->mmu->regions, 0, sizeof(utc->mmu->regions));
+	map_kinit(utc);
 }
 
 static void clear_param_map(struct user_ta_ctx *utc)

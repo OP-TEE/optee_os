@@ -136,7 +136,7 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 	uint32_t mattr;
 	size_t idx = 0;
 
-	tee_mmu_map_clear(utc);
+	tee_mmu_map_init(utc);
 
 	/*
 	 * Add stack segment
