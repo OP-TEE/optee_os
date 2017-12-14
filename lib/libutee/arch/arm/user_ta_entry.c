@@ -66,7 +66,6 @@ static bool init_done;
 /* From user_ta_header.c, built within TA */
 extern uint8_t ta_heap[];
 extern const size_t ta_heap_size;
-extern struct ta_head ta_head;
 
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
@@ -110,14 +109,11 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 			__utee_gprof_init();
 			malloc_add_pool(ta_heap, ta_heap_size);
 			_TEE_MathAPI_Init();
-		}
-		if (!(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE) ||
-		    !init_done) {
 			res = TA_CreateEntryPoint();
 			if (res != TEE_SUCCESS)
 				return res;
+			init_done = true;
 		}
-		init_done = true;
 	}
 
 	itr = TEE_Malloc(sizeof(struct ta_session),
