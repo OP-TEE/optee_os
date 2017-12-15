@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
- * All rights reserved.
  */
 
 #ifndef TEE_FS_KEY_MANAGER_H

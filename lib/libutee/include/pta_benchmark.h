@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2017, Linaro Limited
- * All rights reserved.
  */
 
 #ifndef __PTA_BENCHMARK_H

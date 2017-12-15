@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
- * All rights reserved.
  */
 #ifndef KERNEL_PSEUDO_TA_H
 #define KERNEL_PSEUDO_TA_H

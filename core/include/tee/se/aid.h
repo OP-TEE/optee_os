@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
- * All rights reserved.
  */
 #ifndef TEE_SE_AID
 #define TEE_SE_AID

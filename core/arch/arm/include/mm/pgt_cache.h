@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2016, Linaro Limited
- * All rights reserved.
  */
 #ifndef MM_PGT_CACHE_H
 #define MM_PGT_CACHE_H
