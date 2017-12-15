@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Zlib */
 /* zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.2.12, March 11th, 2022
 
