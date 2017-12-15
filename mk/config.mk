@@ -437,6 +437,10 @@ CFG_TA_MBEDTLS_SELF_TEST ?= y
 # for the API in <crypto/crypto.h>
 # CFG_CRYPTOLIB_NAME is used as libname and
 # CFG_CRYPTOLIB_DIR is used as libdir when compiling the library
+#
+# It's also possible to configure to use mbedtls instead of tomcrypt.
+# Then the variables should be assigned as "CFG_CRYPTOLIB_NAME=mbedtls" and
+# "CFG_CRYPTOLIB_DIR=lib/libmbedtls" respectively.
 CFG_CRYPTOLIB_NAME ?= tomcrypt
 CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 
