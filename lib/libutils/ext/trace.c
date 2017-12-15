@@ -51,20 +51,39 @@ int trace_get_level(void)
 	return trace_level;
 }
 
-static const char *trace_level_to_string(int level, bool level_ok)
+static char trace_level_to_string(int level, bool level_ok)
 {
-	static const char lvl_strs[][9] = {
-		"UNKNOWN:", "ERROR:  ", "INFO:   ", "DEBUG:  ",
-		"FLOW:   " };
+	/*
+	 * U = Unused
+	 * E = Error
+	 * I = Information
+	 * D = Debug
+	 * F = Flow
+	 */
+	static const char lvl_strs[] = { 'U', 'E', 'I', 'D', 'F' };
 	int l = 0;
 
 	if (!level_ok)
-		return "MESSAGE:";
+		return 'M';
 
 	if ((level >= TRACE_MIN) && (level <= TRACE_MAX))
 		l = level;
 
 	return lvl_strs[l];
+}
+
+static int print_thread_id(char *buf, size_t bs, int thread_id)
+{
+#if CFG_NUM_THREADS > 9
+	int num_thread_digits = 2;
+#else
+	int num_thread_digits = 1;
+#endif
+
+	if (thread_id >= 0)
+		return snprintk(buf, bs, "%0*d ", num_thread_digits, thread_id);
+	else
+		return snprintk(buf, bs, "%*s ", num_thread_digits, "");
 }
 
 /* Format trace of user ta. Inline with kernel ta */
@@ -80,46 +99,43 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	if (level_ok && level > trace_level)
 		return;
 
-	res = snprintk(buf, sizeof(buf), "%s ",
+	/* Print the type of message */
+	res = snprintk(buf, sizeof(buf), "%c/",
 		       trace_level_to_string(level, level_ok));
 	if (res < 0)
 		return;
 	boffs += res;
 
-	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
-		thread_id = -1;
-	else
-		thread_id = trace_ext_get_thread_id();
-
-	if (thread_id >= 0) {
-		res = snprintk(buf + boffs, sizeof(buf) - boffs, "[0x%x] ",
-			       thread_id);
-		if (res < 0)
-			return;
-		boffs += res;
-	}
-
+	/* Print the location, i.e., TEE core or TA */
 	res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:",
 		       trace_ext_prefix);
 	if (res < 0)
 		return;
 	boffs += res;
 
+	/* Print the Thread ID */
+	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
+		thread_id = -1;
+	else
+		thread_id = trace_ext_get_thread_id();
+
+	res = print_thread_id(buf + boffs, sizeof(buf) - boffs, thread_id);
+
+	if (res < 0)
+		return;
+	boffs += res;
+
+	/* Print the function and line */
 	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
 		function = NULL;
 
 	if (function) {
-		res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d:",
+		res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d ",
 			       function, line);
 		if (res < 0)
 			return;
 		boffs += res;
 	}
-
-	res = snprintk(buf + boffs, sizeof(buf) - boffs, " ");
-	if (res < 0)
-		return;
-	boffs += res;
 
 	va_start(ap, fmt);
 	res = vsnprintk(buf + boffs, sizeof(buf) - boffs, fmt, ap);
