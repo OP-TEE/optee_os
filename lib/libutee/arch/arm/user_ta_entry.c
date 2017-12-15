@@ -60,15 +60,30 @@ struct ta_session {
 static TAILQ_HEAD(ta_sessions, ta_session) ta_sessions =
 		TAILQ_HEAD_INITIALIZER(ta_sessions);
 
-static uint32_t ta_ref_count;
-static bool context_init;
+static bool init_done;
 
 /* From user_ta_header.c, built within TA */
 extern uint8_t ta_heap[];
 extern const size_t ta_heap_size;
+extern struct ta_head ta_head;
 
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
+
+static TEE_Result init_instance(void)
+{
+	trace_set_level(tahead_get_trace_level());
+	__utee_gprof_init();
+	malloc_add_pool(ta_heap, ta_heap_size);
+	_TEE_MathAPI_Init();
+	return TA_CreateEntryPoint();
+}
+
+static void uninit_instance(void)
+{
+	__utee_gprof_fini();
+	TA_DestroyEntryPoint();
+}
 
 static void ta_header_save_params(uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS])
@@ -95,25 +110,15 @@ static struct ta_session *ta_header_get_session(uint32_t session_id)
 static TEE_Result ta_header_add_session(uint32_t session_id)
 {
 	struct ta_session *itr = ta_header_get_session(session_id);
+	TEE_Result res;
 
 	if (itr)
 		return TEE_SUCCESS;
 
-	ta_ref_count++;
-
-	if (ta_ref_count == 1) {
-		TEE_Result res;
-
-		if (!context_init) {
-			trace_set_level(tahead_get_trace_level());
-			__utee_gprof_init();
-			malloc_add_pool(ta_heap, ta_heap_size);
-			_TEE_MathAPI_Init();
-			context_init = true;
-		}
-
-		res = TA_CreateEntryPoint();
-		if (res != TEE_SUCCESS)
+	if (!init_done) {
+		init_done = true;
+		res = init_instance();
+		if (res)
 			return res;
 	}
 
@@ -137,11 +142,9 @@ static void ta_header_remove_session(uint32_t session_id)
 			TAILQ_REMOVE(&ta_sessions, itr, link);
 			TEE_Free(itr);
 
-			ta_ref_count--;
-			if (ta_ref_count == 0) {
-				__utee_gprof_fini();
-				TA_DestroyEntryPoint();
-			}
+			if (TAILQ_EMPTY(&ta_sessions) &&
+			    !(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE))
+				uninit_instance();
 
 			return;
 		}
