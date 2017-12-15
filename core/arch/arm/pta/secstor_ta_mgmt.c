@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017, Linaro Limited
- *
- * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <kernel/pseudo_ta.h>

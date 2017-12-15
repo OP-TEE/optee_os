@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
  * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <arm64_macros.S>
