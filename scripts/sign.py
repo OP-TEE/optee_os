@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 #
 # Copyright (c) 2015, 2017, Linaro Limited
-# All rights reserved.
 #
 # SPDX-License-Identifier: BSD-2-Clause
 

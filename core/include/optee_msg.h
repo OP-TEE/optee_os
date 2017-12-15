@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015-2017, Linaro Limited
- * All rights reserved.
  */
 #ifndef _OPTEE_MSG_H
 #define _OPTEE_MSG_H

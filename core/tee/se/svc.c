@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, Linaro Limited
- * All rights reserved.
  */
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>

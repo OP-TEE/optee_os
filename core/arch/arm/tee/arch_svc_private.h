@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
- * All rights reserved.
  */
 #ifndef ARCH_SVC_PRIVATE_H
 #define ARCH_SVC_PRIVATE_H
