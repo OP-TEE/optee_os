@@ -31,7 +31,7 @@
 #include <kernel/thread.h>
 #include <mm/core_mmu.h>
 
-const char trace_ext_prefix[] = "TEE-CORE";
+const char trace_ext_prefix[] = "TC";
 int trace_level = TRACE_LEVEL;
 static unsigned int puts_lock = SPINLOCK_UNLOCK;
 
