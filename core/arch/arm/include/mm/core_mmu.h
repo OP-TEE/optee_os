@@ -234,9 +234,13 @@ struct core_mmu_phys_mem {
 		__register_memory1_ul(#addr, (type), (addr), (size), \
 				   phys_mem_map_section, __COUNTER__)
 
+#ifdef CFG_SECURE_DATA_PATH
 #define register_sdp_mem(addr, size) \
 		__register_memory1(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
 				   phys_sdp_mem_section, __COUNTER__)
+#else
+#define register_sdp_mem(addr, size)
+#endif
 
 #define register_nsec_ddr(addr, size) \
 		__register_memory1(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
