@@ -100,6 +100,10 @@ include mk/lib.mk
 endif
 endif #tomcrypt
 
+ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
+$(call force,CFG_CRYPTO_RSASSA_NA1,n,not supported by mbedtls)
+endif
+
 ifeq ($(firstword $(subst /, ,$(CFG_CRYPTOLIB_DIR))),core)
 # If a library can be compiled for both core and user space a base-prefix
 # is needed in order to avoid conflicts in the output. However, if the
