@@ -35,10 +35,13 @@ import subprocess
 import sys
 
 TA_UUID_RE = re.compile(r'Status of TA (?P<uuid>[0-9a-f\-]+)')
-TA_INFO_RE = re.compile(':  arch: (?P<arch>\w+)  '
+TA_INFO_RE = re.compile('  arch: (?P<arch>\w+)  '
                         'load address: (?P<load_addr>0x[0-9a-f]+)')
 CALL_STACK_RE = re.compile('Call stack:')
-STACK_ADDR_RE = re.compile(r':  (?P<addr>0x[0-9a-f]+)')
+
+# This gets the address from lines looking like this:
+# E/TC:0  0x001044a8
+STACK_ADDR_RE = re.compile(r'[UEIDFM]/T[AC]:.*(?P<addr>0x[0-9a-f]+)')
 ABORT_ADDR_RE = re.compile('-abort at address (?P<addr>0x[0-9a-f]+)')
 REGION_RE = re.compile('region [0-9]+: va (?P<addr>0x[0-9a-f]+) '
                        'pa 0x[0-9a-f]+ size (?P<size>0x[0-9a-f]+)')
