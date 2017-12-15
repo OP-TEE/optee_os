@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright 2015 Linaro Limited
  * Copyright 2013-2014 Andrew Turner.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
  * All rights reserved.

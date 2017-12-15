@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2017 Timesys Corporation
  * All rights reserved.

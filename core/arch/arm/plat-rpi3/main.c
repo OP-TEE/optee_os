@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2016, Sequitur Labs Inc. All rights reserved.
  * All rights reserved.

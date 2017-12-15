@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2016, Linaro Ltd and Contributors. All rights reserved.
  * Copyright (c) 2016, Hisilicon Ltd and Contributors. All rights reserved.
