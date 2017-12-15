@@ -1493,7 +1493,10 @@ int mbedtls_rsa_rsaes_oaep_decrypt(mbedtls_rsa_context *ctx,
     /*
      * RSA operation
      */
-    ret = mbedtls_rsa_private(ctx, f_rng, p_rng, input, buf);
+    if( ctx->P.n == 0 )
+        ret = mbedtls_rsa_private( ctx, NULL, NULL, input, buf );
+    else
+        ret = mbedtls_rsa_private(ctx, f_rng, p_rng, input, buf);
 
     if (ret != 0) {
         goto cleanup;
@@ -1755,6 +1758,9 @@ static int rsa_rsassa_pss_sign(mbedtls_rsa_context *ctx,
 
     p += hlen;
     *p++ = 0xBC;
+
+    if (ctx->P.n == 0)
+        return mbedtls_rsa_private(ctx, NULL, NULL, sig, sig);
 
     return mbedtls_rsa_private(ctx, f_rng, p_rng, sig, sig);
 }
