@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
  * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Peng Fan <peng.fan@nxp.com>
  *

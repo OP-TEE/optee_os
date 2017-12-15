@@ -1,5 +1,6 @@
 /* inflate.c -- zlib decompression
  * Copyright (C) 1995-2016 Mark Adler
+ * SPDX-License-Identifier: Zlib
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 

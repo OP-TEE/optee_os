@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * This code is derived from software contributed to Berkeley by
  * Paul Vixie.

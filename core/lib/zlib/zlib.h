@@ -2,6 +2,7 @@
   version 1.2.11, January 15th, 2017
 
   Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+  SPDX-License-Identifier: Zlib
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
