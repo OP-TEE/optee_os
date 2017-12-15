@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright 2017 NXP
  * Copyright (c) 2014, 2015 Linaro Limited

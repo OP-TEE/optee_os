@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-Source-Code
 /*
  * Copyright (c) 2013, Atmel Corporation
  * Copyright (c) 2017, Timesys Corporation

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (BSD-2-Clause AND MIT) */
 /*
  * Copyright (c) 2014, Linaro Limited
  * All rights reserved.

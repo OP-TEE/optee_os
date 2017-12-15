@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2016, ARM Limited and Contributors. All rights reserved.

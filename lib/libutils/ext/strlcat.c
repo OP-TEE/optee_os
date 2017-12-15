@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /* This file is copied from newlib-1.19 */
 
 /*      $OpenBSD: strlcat.c,v 1.8 2001/05/13 15:40:15 deraadt Exp $        */

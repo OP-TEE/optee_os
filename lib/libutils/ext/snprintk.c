@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (BSD-2-Clause AND BSD-3-Clause)
 /*
  * Imported from NetBSD 5.1 with modifications to make it a vsnprintf(3)
  * function

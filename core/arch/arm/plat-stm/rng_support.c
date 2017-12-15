@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014-2016, STMicroelectronics International N.V.
  * All rights reserved.
