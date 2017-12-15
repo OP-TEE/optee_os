@@ -1401,9 +1401,14 @@ int mbedtls_rsa_rsaes_oaep_decrypt( mbedtls_rsa_context *ctx,
     /*
      * RSA operation
      */
-    ret = ( mode == MBEDTLS_RSA_PUBLIC )
-          ? mbedtls_rsa_public(  ctx, input, buf )
-          : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );
+    if( ctx->P.n == 0 )
+        ret = ( mode == MBEDTLS_RSA_PUBLIC )
+              ? mbedtls_rsa_public(  ctx, input, buf )
+              : mbedtls_rsa_private( ctx, NULL, NULL, input, buf );
+    else
+        ret = ( mode == MBEDTLS_RSA_PUBLIC )
+              ? mbedtls_rsa_public(  ctx, input, buf )
+              : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );
 
     if( ret != 0 )
         goto cleanup;
@@ -1923,9 +1928,14 @@ exit:
     if( ret != 0 )
         return( ret );
 
-    return( ( mode == MBEDTLS_RSA_PUBLIC )
-            ? mbedtls_rsa_public(  ctx, sig, sig )
-            : mbedtls_rsa_private( ctx, f_rng, p_rng, sig, sig ) );
+    if( ctx->P.n == 0)
+        return( ( mode == MBEDTLS_RSA_PUBLIC )
+                ? mbedtls_rsa_public(  ctx, sig, sig )
+                : mbedtls_rsa_private( ctx, NULL, NULL, sig, sig ) );
+    else
+        return( ( mode == MBEDTLS_RSA_PUBLIC )
+                ? mbedtls_rsa_public(  ctx, sig, sig )
+                : mbedtls_rsa_private( ctx, f_rng, p_rng, sig, sig ) );
 }
 
 /*
