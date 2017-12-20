@@ -126,6 +126,7 @@ enum tzc_action {
 #define TZC_SP_S_R		BIT(3)
 
 #define TZC_ATTR_SP_SHIFT	28
+#define TZC_ATTR_SP_MASK	GENMASK_32(31, 28)
 #define TZC_ATTR_SP_ALL		((TZC_SP_S_W | TZC_SP_S_R | TZC_SP_NS_W | \
 				TZC_SP_NS_R) << TZC_ATTR_SP_SHIFT)
 #define TZC_ATTR_SP_S_RW	((TZC_SP_S_W | TZC_SP_S_R) << \
