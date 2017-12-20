@@ -118,9 +118,20 @@ void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr)
 
 	assert(region < tzc.num_regions);
 
-	tzc_write_region_base_low(tzc.base, region, addr_low(region_base));
-	tzc_write_region_base_high(tzc.base, region, addr_high(region_base));
-	tzc_write_region_attributes(tzc.base, region, attr);
+	/*
+	 * For region 0, this high/low/size/en field is Read Only (RO).
+	 * So should not configure those field for region 0.
+	 */
+	if (region) {
+		tzc_write_region_base_low(tzc.base, region,
+					  addr_low(region_base));
+		tzc_write_region_base_high(tzc.base, region,
+					   addr_high(region_base));
+		tzc_write_region_attributes(tzc.base, region, attr);
+	} else {
+		tzc_write_region_attributes(tzc.base, region,
+					    attr & TZC_ATTR_SP_MASK);
+	}
 }
 
 void tzc_set_action(enum tzc_action action)
