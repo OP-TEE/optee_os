@@ -62,7 +62,6 @@ struct tee_cryp_state {
 	uint32_t mode;
 	vaddr_t key1;
 	vaddr_t key2;
-	size_t ctx_size;
 	void *ctx;
 	tee_cryp_ctx_finalize_func_t ctx_finalize;
 };
@@ -1878,7 +1877,7 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 		crypto_mac_free_ctx(cs->ctx, cs->algo);
 		break;
 	default:
-		free(cs->ctx);
+		assert(!cs->ctx);
 	}
 
 	free(cs);
@@ -2103,9 +2102,6 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		return res;
 	if (cs_dst->algo != cs_src->algo || cs_dst->mode != cs_src->mode)
 		return TEE_ERROR_BAD_PARAMETERS;
-	/* "Can't happen" */
-	if (cs_dst->ctx_size != cs_src->ctx_size)
-		return TEE_ERROR_BAD_STATE;
 
 	switch (TEE_ALG_GET_CLASS(cs_src->algo)) {
 	case TEE_OPERATION_CIPHER:
@@ -2123,7 +2119,7 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		crypto_mac_copy_state(cs_dst->ctx, cs_src->ctx, cs_src->algo);
 		break;
 	default:
-		memcpy(cs_dst->ctx, cs_src->ctx, cs_src->ctx_size);
+		return TEE_ERROR_BAD_STATE;
 	}
 
 	return TEE_SUCCESS;
