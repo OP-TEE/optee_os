@@ -2263,7 +2263,7 @@ struct cbc_state {
 };
 #endif
 
-TEE_Result crypto_mac_get_ctx_size(uint32_t algo, size_t *size)
+static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -2296,6 +2296,46 @@ TEE_Result crypto_mac_get_ctx_size(uint32_t algo, size_t *size)
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
+{
+	TEE_Result res;
+	size_t ctx_size;
+	void *ctx;
+
+	res = mac_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+{
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_mac_alloc_ctx()
+	 * could never have succeded above.
+	 */
+	assert(!mac_get_ctx_size(algo, &ctx_size));
+	free(ctx);
+}
+
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
+{
+	TEE_Result res __maybe_unused;
+	size_t ctx_size = 0;
+
+	res = mac_get_ctx_size(algo, &ctx_size);
+	assert(!res);
+	memcpy(dst_ctx, src_ctx, ctx_size);
 }
 
 TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,

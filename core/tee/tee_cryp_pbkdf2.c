@@ -77,7 +77,7 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 			   uint8_t *derived_key, size_t derived_key_len)
 {
 	TEE_Result res;
-	size_t ctx_size, i, l, r;
+	size_t i, l, r;
 	uint8_t *out = derived_key;
 	struct pbkdf2_parms pbkdf2_parms;
 	struct hmac_parms hmac_parms = {0, };
@@ -88,13 +88,9 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_mac_get_ctx_size(hmac_parms.algo, &ctx_size);
+	res = crypto_mac_alloc_ctx(&hmac_parms.ctx, hmac_parms.algo);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	hmac_parms.ctx = malloc(ctx_size);
-	if (!hmac_parms.ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	pbkdf2_parms.password = password;
 	pbkdf2_parms.password_len = password_len;
@@ -116,6 +112,6 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 		res = pbkdf2_f(out, r, i, &hmac_parms, &pbkdf2_parms);
 
 out:
-	free(hmac_parms.ctx);
+	crypto_mac_free_ctx(hmac_parms.ctx, hmac_parms.algo);
 	return res;
 }

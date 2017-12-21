@@ -41,20 +41,15 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 			  const void *in_key, size_t in_key_size,
 			  const void *message, size_t message_size)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint8_t *ctx = NULL;
-	size_t hash_ctx_size = 0;
+	TEE_Result res;
+	void *ctx = NULL;
 
 	if (!out_key || !in_key || !message)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = crypto_mac_get_ctx_size(TEE_FS_KM_HMAC_ALG, &hash_ctx_size);
+	res = crypto_mac_alloc_ctx(&ctx, TEE_FS_KM_HMAC_ALG);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(hash_ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_mac_init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
 	if (res != TEE_SUCCESS)
@@ -71,7 +66,7 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 	res = TEE_SUCCESS;
 
 exit:
-	free(ctx);
+	crypto_mac_free_ctx(ctx, TEE_FS_KM_HMAC_ALG);
 	return res;
 }
 

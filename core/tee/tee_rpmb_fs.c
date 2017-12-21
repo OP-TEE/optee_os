@@ -232,7 +232,6 @@ struct rpmb_dev_info {
  *
  * @key              RPMB key.
  * @cid              eMMC card ID.
- * @hash_ctx_size    Hash context size
  * @wr_cnt           Current write counter.
  * @max_blk_idx      The highest block index supported by current device.
  * @rel_wr_blkcnt    Max number of data blocks for each reliable write.
@@ -245,7 +244,6 @@ struct rpmb_dev_info {
 struct tee_rpmb_ctx {
 	uint8_t key[RPMB_KEY_MAC_SIZE];
 	uint8_t cid[RPMB_EMMC_CID_SIZE];
-	size_t hash_ctx_size;
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
@@ -325,7 +323,7 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	TEE_Result res;
 	struct tee_hw_unique_key hwkey;
 	uint8_t message[RPMB_EMMC_CID_SIZE];
-	uint8_t *ctx = NULL;
+	void *ctx = NULL;
 
 	if (!key || RPMB_KEY_MAC_SIZE != len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -337,11 +335,9 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	ctx = malloc(rpmb_ctx->hash_ctx_size);
-	if (!ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
+	if (res)
 		goto out;
-	}
 
 	/*
 	 * PRV/CRC would be changed when doing eMMC FFU
@@ -368,7 +364,7 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, key, len);
 
 out:
-	free(ctx);
+	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
 	return res;
 }
 
@@ -407,14 +403,14 @@ static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
-	uint8_t *ctx = NULL;
+	void *ctx = NULL;
 
 	if (!mac || !key || !datafrms)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ctx = malloc(rpmb_ctx->hash_ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
+	if (res)
+		return res;
 
 	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
 	if (res != TEE_SUCCESS)
@@ -435,7 +431,7 @@ static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 	res = TEE_SUCCESS;
 
 func_exit:
-	free(ctx);
+	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
 	return res;
 }
 
@@ -719,7 +715,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int i;
-	uint8_t *ctx = NULL;
+	void *ctx = NULL;
 	uint16_t offset;
 	uint32_t size;
 	uint8_t *data;
@@ -736,11 +732,9 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 
 	data = rawdata->data;
 
-	ctx = malloc(rpmb_ctx->hash_ctx_size);
-	if (!ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
+	if (res)
 		goto func_exit;
-	}
 
 	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
 			      RPMB_KEY_MAC_SIZE);
@@ -809,7 +803,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	res = TEE_SUCCESS;
 
 func_exit:
-	free(ctx);
+	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
 	return res;
 }
 
@@ -1166,14 +1160,6 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 					 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE) - 1;
 
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
-
-		if ((rpmb_ctx->hash_ctx_size == 0) &&
-		    crypto_mac_get_ctx_size(TEE_ALG_HMAC_SHA256,
-					    &rpmb_ctx->hash_ctx_size)) {
-			rpmb_ctx->hash_ctx_size = 0;
-			res = TEE_ERROR_GENERIC;
-			goto func_exit;
-		}
 
 #ifdef RPMB_DRIVER_MULTIPLE_WRITE_FIXED
 		rpmb_ctx->rel_wr_blkcnt = dev_info.rel_wr_sec_c * 2;

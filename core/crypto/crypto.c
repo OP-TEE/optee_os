@@ -82,10 +82,20 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo __unused,
 #endif /*_CFG_CRYPTO_WITH_CIPHER*/
 
 #if !defined(_CFG_CRYPTO_WITH_MAC)
-TEE_Result crypto_mac_get_ctx_size(uint32_t algo __unused,
-				   size_t *size __unused)
+TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+void crypto_mac_free_ctx(void *ctx __unused, uint32_t algo __unused)
+{
+	assert(0);
+}
+
+void crypto_mac_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
+			   uint32_t algo __unused)
+{
+	assert(0);
 }
 
 TEE_Result crypto_mac_init(void *ctx __unused, uint32_t algo __unused,
