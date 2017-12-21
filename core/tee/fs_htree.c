@@ -437,8 +437,7 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 {
 	TEE_Result res = TEE_SUCCESS;
 	const uint32_t alg = TEE_FS_HTREE_AUTH_ENC_ALG;
-	uint8_t *ctx;
-	size_t ctx_size;
+	void *ctx;
 	size_t aad_len = TEE_FS_HTREE_FEK_SIZE + TEE_FS_HTREE_IV_SIZE;
 	uint8_t *iv;
 
@@ -455,15 +454,9 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 			return res;
 	}
 
-	res = crypto_authenc_get_ctx_size(alg, &ctx_size);
+	res = crypto_authenc_alloc_ctx(&ctx, alg);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		EMSG("request memory size %zu failed", ctx_size);
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
 
 	res = crypto_authenc_init(ctx, alg, mode, ht->fek,
 				  TEE_FS_HTREE_FEK_SIZE, iv,
@@ -498,7 +491,7 @@ exit:
 	if (res == TEE_SUCCESS)
 		*ctx_ret = ctx;
 	else
-		free(ctx);
+		crypto_authenc_final(ctx, alg);
 
 	return res;
 }
@@ -514,7 +507,7 @@ static TEE_Result authenc_decrypt_final(void *ctx, const uint8_t *tag,
 				       len, plain, &out_size, tag,
 				       TEE_FS_HTREE_TAG_SIZE);
 	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
-	free(ctx);
+	crypto_authenc_free_ctx(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
 
 	if (res == TEE_SUCCESS && out_size != len)
 		return TEE_ERROR_GENERIC;
@@ -536,7 +529,7 @@ static TEE_Result authenc_encrypt_final(void *ctx, uint8_t *tag,
 				       len, crypt, &out_size, tag,
 				       &out_tag_size);
 	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
-	free(ctx);
+	crypto_authenc_free_ctx(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
 
 	if (res == TEE_SUCCESS &&
 	    (out_size != len || out_tag_size != TEE_FS_HTREE_TAG_SIZE))

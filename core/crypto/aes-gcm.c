@@ -403,10 +403,27 @@ TEE_Result internal_aes_gcm_dec(const struct internal_aes_gcm_key *enc_key,
 
 #ifndef CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB
 #include <crypto/aes-gcm.h>
+#include <stdlib.h>
 
-size_t crypto_aes_gcm_get_ctx_size(void)
+TEE_Result crypto_aes_gcm_alloc_ctx(void **ctx_ret)
 {
-	return sizeof(struct internal_aes_gcm_ctx);
+	struct internal_aes_gcm_ctx *ctx = calloc(1, sizeof(*ctx));
+
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_aes_gcm_free_ctx(void *ctx)
+{
+	free(ctx);
+}
+
+void crypto_aes_gcm_copy_state(void *dst_ctx, void *src_ctx)
+{
+	memcpy(dst_ctx, src_ctx, sizeof(struct internal_aes_gcm_ctx));
 }
 
 TEE_Result crypto_aes_gcm_init(void *c, TEE_OperationMode mode,

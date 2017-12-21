@@ -62,7 +62,7 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo);
 void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
 
 /* Authenticated encryption */
-TEE_Result crypto_authenc_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_authenc_alloc_ctx(void **ctx, uint32_t algo);
 TEE_Result crypto_authenc_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
@@ -85,6 +85,8 @@ TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
 				    uint8_t *dst_data, size_t *dst_len,
 				    const uint8_t *tag, size_t tag_len);
 void crypto_authenc_final(void *ctx, uint32_t algo);
+void crypto_authenc_free_ctx(void *ctx, uint32_t algo);
+void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
 
 /* Implementation-defined big numbers */
 

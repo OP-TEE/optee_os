@@ -267,23 +267,18 @@ static TEE_Result tadb_authenc_init(TEE_OperationMode mode,
 {
 	TEE_Result res;
 	void *ctx;
-	size_t sz;
 	const size_t enc_size = entry->prop.custom_size + entry->prop.bin_size;
 
-	res = crypto_authenc_get_ctx_size(TADB_AUTH_ENC_ALG, &sz);
+	res = crypto_authenc_alloc_ctx(&ctx, TADB_AUTH_ENC_ALG);
 	if (res)
 		return res;
-
-	ctx = malloc(sz);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_authenc_init(ctx, TADB_AUTH_ENC_ALG, mode,
 				  entry->key, sizeof(entry->key),
 				  entry->iv, sizeof(entry->iv),
 				  sizeof(entry->tag), 0, enc_size);
 	if (res)
-		free(ctx);
+		crypto_authenc_free_ctx(ctx, TADB_AUTH_ENC_ALG);
 	else
 		*ctx_ret = ctx;
 
@@ -472,7 +467,7 @@ TEE_Result tee_tadb_ta_write(struct tee_tadb_ta_write *ta, const void *buf,
 void tee_tadb_ta_close_and_delete(struct tee_tadb_ta_write *ta)
 {
 	crypto_authenc_final(ta->ctx, TADB_AUTH_ENC_ALG);
-	free(ta->ctx);
+	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
 	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
 	ta_operation_remove(ta->entry.file_number);
 
@@ -573,7 +568,7 @@ TEE_Result tee_tadb_ta_close_and_commit(struct tee_tadb_ta_write *ta)
 	mutex_unlock(&tadb_mutex);
 
 	crypto_authenc_final(ta->ctx, TADB_AUTH_ENC_ALG);
-	free(ta->ctx);
+	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
 	tadb_put(ta->db);
 	free(ta);
 	if (have_old_ent)
@@ -754,7 +749,7 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 void tee_tadb_ta_close(struct tee_tadb_ta_read *ta)
 {
 	crypto_authenc_final(ta->ctx, TADB_AUTH_ENC_ALG);
-	free(ta->ctx);
+	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
 	if (ta->ta_mobj)
 		thread_rpc_free_payload(ta->ta_cookie, ta->ta_mobj);
 	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
