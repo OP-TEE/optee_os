@@ -348,7 +348,8 @@ static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
  ******************************************************************************/
 
 #if defined(_CFG_CRYPTO_WITH_HASH)
-TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size)
+
+static TEE_Result hash_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_MD5)
@@ -376,6 +377,46 @@ TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size)
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_hash_alloc_ctx(void **ctx_ret, uint32_t algo)
+{
+	TEE_Result res;
+	size_t ctx_size;
+	void *ctx;
+
+	res = hash_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
+{
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_hash_alloc_ctx()
+	 * could never have succeded above.
+	 */
+	assert(!hash_get_ctx_size(algo, &ctx_size));
+	free(ctx);
+}
+
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
+{
+	TEE_Result res __maybe_unused;
+	size_t ctx_size = 0;
+
+	res = hash_get_ctx_size(algo, &ctx_size);
+	assert(!res);
+	memcpy(dst_ctx, src_ctx, ctx_size);
 }
 
 TEE_Result crypto_hash_init(void *ctx, uint32_t algo)

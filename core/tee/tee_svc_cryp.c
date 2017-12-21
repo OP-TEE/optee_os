@@ -1863,7 +1863,10 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 	TAILQ_REMOVE(&utc->cryp_states, cs, link);
 	if (cs->ctx_finalize != NULL)
 		cs->ctx_finalize(cs->ctx, cs->algo);
-	free(cs->ctx);
+	if (TEE_ALG_GET_CLASS(cs->algo) == TEE_OPERATION_DIGEST)
+		crypto_hash_free_ctx(cs->ctx, cs->algo);
+	else
+		free(cs->ctx);
 	free(cs);
 }
 
@@ -2034,12 +2037,9 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		if (key1 != 0 || key2 != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			res = crypto_hash_get_ctx_size(algo, &cs->ctx_size);
+			res = crypto_hash_alloc_ctx(&cs->ctx, algo);
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
@@ -2102,7 +2102,11 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 	if (cs_dst->ctx_size != cs_src->ctx_size)
 		return TEE_ERROR_BAD_STATE;
 
-	memcpy(cs_dst->ctx, cs_src->ctx, cs_src->ctx_size);
+	if (TEE_ALG_GET_CLASS(cs_src->algo) == TEE_OPERATION_DIGEST)
+		crypto_hash_copy_state(cs_dst->ctx, cs_src->ctx, cs_src->algo);
+	else
+		memcpy(cs_dst->ctx, cs_src->ctx, cs_src->ctx_size);
+
 	return TEE_SUCCESS;
 }
 
