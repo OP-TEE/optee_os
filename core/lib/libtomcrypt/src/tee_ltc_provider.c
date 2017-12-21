@@ -2630,9 +2630,25 @@ struct tee_ccm_state {
 	size_t tag_len;			/* tag length */
 };
 
-size_t crypto_aes_ccm_get_ctx_size(void)
+TEE_Result crypto_aes_ccm_alloc_ctx(void **ctx_ret)
 {
-	return sizeof(struct tee_ccm_state);
+	struct tee_ccm_state *ctx = calloc(1, sizeof(*ctx));
+
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_aes_ccm_free_ctx(void *ctx)
+{
+	free(ctx);
+}
+
+void crypto_aes_ccm_copy_state(void *dst_ctx, void *src_ctx)
+{
+	memcpy(dst_ctx, src_ctx, sizeof(struct tee_ccm_state));
 }
 
 TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode __unused,
@@ -2794,9 +2810,25 @@ struct tee_gcm_state {
 	size_t tag_len;			/* tag length */
 };
 
-size_t crypto_aes_gcm_get_ctx_size(void)
+TEE_Result crypto_aes_gcm_alloc_ctx(void **ctx_ret)
 {
-	return sizeof(struct tee_gcm_state);
+	struct tee_gcm_state *ctx = calloc(1, sizeof(*ctx));
+
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_aes_gcm_free_ctx(void *ctx)
+{
+	free(ctx);
+}
+
+void crypto_aes_gcm_copy_state(void *dst_ctx, void *src_ctx)
+{
+	memcpy(dst_ctx, src_ctx, sizeof(struct tee_gcm_state));
 }
 
 TEE_Result crypto_aes_gcm_init(void *ctx, TEE_OperationMode mode __unused,

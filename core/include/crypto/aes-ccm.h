@@ -8,7 +8,7 @@
 
 #include <tee_api_types.h>
 
-size_t crypto_aes_ccm_get_ctx_size(void);
+TEE_Result crypto_aes_ccm_alloc_ctx(void **ctx);
 TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
@@ -26,6 +26,8 @@ TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
 				    size_t len, uint8_t *dst_data,
 				    const uint8_t *tag, size_t tag_len);
 void crypto_aes_ccm_final(void *ctx);
+void crypto_aes_ccm_free_ctx(void *ctx);
+void crypto_aes_ccm_copy_state(void *dst_ctx, void *src_ctx);
 
 #endif /*__CRYPTO_AES_CCM_H*/
 

@@ -3,11 +3,14 @@
  * Copyright (c) 2017, Linaro Limited
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include <crypto/aes-ccm.h>
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if !defined(_CFG_CRYPTO_WITH_HASH)
 TEE_Result crypto_hash_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
@@ -128,22 +131,55 @@ TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
 }
 #endif /*_CFG_CRYPTO_WITH_MAC*/
 
-TEE_Result crypto_authenc_get_ctx_size(uint32_t algo __maybe_unused,
-				       size_t *size __maybe_unused)
+TEE_Result crypto_authenc_alloc_ctx(void **ctx, uint32_t algo)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_CCM)
 	case TEE_ALG_AES_CCM:
-		*size = crypto_aes_ccm_get_ctx_size();
-		return TEE_SUCCESS;
+		return crypto_aes_ccm_alloc_ctx(ctx);
 #endif
 #if defined(CFG_CRYPTO_GCM)
 	case TEE_ALG_AES_GCM:
-		*size = crypto_aes_gcm_get_ctx_size();
-		return TEE_SUCCESS;
+		return crypto_aes_gcm_alloc_ctx(ctx);
 #endif
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+}
+
+void crypto_authenc_free_ctx(void *ctx, uint32_t algo)
+{
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		crypto_aes_ccm_free_ctx(ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		crypto_aes_gcm_free_ctx(ctx);
+		break;
+#endif
+	default:
+		assert(0);
+	}
+}
+
+void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
+{
+	switch (algo) {
+#if defined(CFG_CRYPTO_CCM)
+	case TEE_ALG_AES_CCM:
+		crypto_aes_ccm_copy_state(dst_ctx, src_ctx);
+		break;
+#endif
+#if defined(CFG_CRYPTO_GCM)
+	case TEE_ALG_AES_GCM:
+		crypto_aes_gcm_copy_state(dst_ctx, src_ctx);
+		break;
+#endif
+	default:
+		assert(0);
 	}
 }
 
