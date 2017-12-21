@@ -37,7 +37,7 @@ void crypto_hash_free_ctx(void *ctx, uint32_t algo);
 void crypto_hash_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
 
 /* Symmetric ciphers */
-TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size);
+TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo);
 TEE_Result crypto_cipher_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
 			      const uint8_t *key1, size_t key1_len,
 			      const uint8_t *key2, size_t key2_len,
@@ -47,6 +47,8 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 				const uint8_t *data, size_t len, uint8_t *dst);
 void crypto_cipher_final(void *ctx, uint32_t algo);
 TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size);
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo);
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
 
 /* Message Authentication Code functions */
 TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo);

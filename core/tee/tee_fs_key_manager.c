@@ -75,8 +75,7 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 			    uint8_t *out_key)
 {
 	TEE_Result res;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
+	void *ctx = NULL;
 	uint8_t tsk[TEE_FS_KM_TSK_SIZE];
 	uint8_t dst_key[size];
 
@@ -107,13 +106,9 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 			return res;
 	}
 
-	res = crypto_cipher_get_ctx_size(TEE_FS_KM_ENC_FEK_ALG, &ctx_size);
+	res = crypto_cipher_alloc_ctx(&ctx, TEE_FS_KM_ENC_FEK_ALG);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_cipher_init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
 				 sizeof(tsk), NULL, 0, NULL, 0);
@@ -130,7 +125,7 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 	memcpy(out_key, dst_key, sizeof(dst_key));
 
 exit:
-	free(ctx);
+	crypto_cipher_free_ctx(ctx, TEE_FS_KM_ENC_FEK_ALG);
 
 	return res;
 }
@@ -196,17 +191,12 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 			  const uint8_t *key, size_t key_size)
 {
 	TEE_Result res;
-	uint8_t *ctx = NULL;
-	size_t ctx_size;
-	uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
+	void *ctx = NULL;
+	const uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
 
-	res = crypto_cipher_get_ctx_size(algo, &ctx_size);
+	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_cipher_init(ctx, algo, TEE_MODE_ENCRYPT, key,
 				 key_size, NULL, 0, NULL, 0);
@@ -222,7 +212,7 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 	res = TEE_SUCCESS;
 
 out:
-	free(ctx);
+	crypto_cipher_free_ctx(ctx, algo);
 	return res;
 }
 
@@ -255,9 +245,8 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	TEE_Result res;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	uint8_t iv[TEE_AES_BLOCK_SIZE];
-	uint8_t *ctx;
-	size_t ctx_size;
-	uint32_t algo = TEE_ALG_AES_CBC_NOPAD;
+	void *ctx;
+	const uint32_t algo = TEE_ALG_AES_CBC_NOPAD;
 
 	DMSG("%scrypt block #%u", (mode == TEE_MODE_ENCRYPT) ? "En" : "De",
 	     blk_idx);
@@ -272,12 +261,9 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	res = essiv(iv, fek, blk_idx);
 
 	/* Run AES CBC */
-	res = crypto_cipher_get_ctx_size(algo, &ctx_size);
+	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
 		return res;
-	ctx = malloc(ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
 				 0, iv, TEE_AES_BLOCK_SIZE);
@@ -290,7 +276,7 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	crypto_cipher_final(ctx, algo);
 
 exit:
-	free(ctx);
+	crypto_cipher_free_ctx(ctx, algo);
 	return res;
 }
 
