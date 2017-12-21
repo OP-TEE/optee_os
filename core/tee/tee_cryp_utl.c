@@ -71,38 +71,26 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 				 size_t datalen, uint8_t *digest,
 				 size_t digestlen)
 {
-	TEE_Result res = TEE_ERROR_BAD_STATE;
+	TEE_Result res;
 	void *ctx = NULL;
-	size_t ctxsize;
 
-	if (crypto_hash_get_ctx_size(algo, &ctxsize) != TEE_SUCCESS) {
-		res = TEE_ERROR_NOT_SUPPORTED;
-		goto out;
-	}
+	res = crypto_hash_alloc_ctx(&ctx, algo);
+	if (res)
+		return res;
 
-	ctx = malloc(ctxsize);
-	if (ctx == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	if (crypto_hash_init(ctx, algo) != TEE_SUCCESS)
+	res = crypto_hash_init(ctx, algo);
+	if (res)
 		goto out;
 
 	if (datalen != 0) {
-		if (crypto_hash_update(ctx, algo, data, datalen)
-		    != TEE_SUCCESS)
+		res = crypto_hash_update(ctx, algo, data, datalen);
+		if (res)
 			goto out;
 	}
 
-	if (crypto_hash_final(ctx, algo, digest, digestlen) != TEE_SUCCESS)
-		goto out;
-
-	res = TEE_SUCCESS;
-
+	res = crypto_hash_final(ctx, algo, digest, digestlen);
 out:
-	if (ctx)
-		free(ctx);
+	crypto_hash_free_ctx(ctx, algo);
 
 	return res;
 }

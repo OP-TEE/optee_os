@@ -42,9 +42,8 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 {
 	TEE_Result res;
 	struct tee_tadb_ta_write *ta;
-	uint32_t hash_algo;
+	uint32_t hash_algo = 0;
 	void *hash_ctx = NULL;
-	size_t hash_ctx_size;
 	size_t offs;
 	const size_t buf_size = 2 * 4096;
 	void *buf;
@@ -69,14 +68,9 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	 * header (less the final file hash and its signature of course)
 	 */
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_hash_get_ctx_size(hash_algo, &hash_ctx_size);
+	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res)
 		goto err;
-	hash_ctx = malloc(hash_ctx_size);
-	if (!hash_ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
 	res = crypto_hash_init(hash_ctx, hash_algo);
 	if (res)
 		goto err_free_hash_ctx;
@@ -132,14 +126,14 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		goto err_free_hash_ctx;
 	}
 
-	free(hash_ctx);
+	crypto_hash_free_ctx(hash_ctx, hash_algo);
 	free(buf);
 	return tee_tadb_ta_close_and_commit(ta);
 
 err_ta_finalize:
 	tee_tadb_ta_close_and_delete(ta);
 err_free_hash_ctx:
-	free(hash_ctx);
+	crypto_hash_free_ctx(hash_ctx, hash_algo);
 err:
 	free(buf);
 	return res;

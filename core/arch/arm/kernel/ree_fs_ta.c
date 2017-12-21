@@ -86,8 +86,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
-	size_t hash_ctx_size;
-	uint32_t hash_algo;
+	uint32_t hash_algo = 0;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
 	uint64_t cookie = 0;
@@ -124,21 +123,16 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	 * header (less the final file hash and its signature of course)
 	 */
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_hash_get_ctx_size(hash_algo, &hash_ctx_size);
+	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	hash_ctx = malloc(hash_ctx_size);
-	if (!hash_ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto error_free_payload;
-	}
 	res = crypto_hash_init(hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
-		goto error_free_payload;
+		goto error_free_hash;
 	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)shdr,
 				     sizeof(*shdr));
 	if (res != TEE_SUCCESS)
-		goto error_free_payload;
+		goto error_free_hash;
 	offs = SHDR_GET_SIZE(shdr);
 
 	if (shdr->img_type == SHDR_BOOTSTRAP_TA) {
@@ -159,19 +153,19 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 		tee_uuid_from_octets(&bs_uuid, bs_hdr.uuid);
 		if (memcmp(&bs_uuid, uuid, sizeof(TEE_UUID))) {
 			res = TEE_ERROR_SECURITY;
-			goto error_free_payload;
+			goto error_free_hash;
 		}
 
 		res = crypto_hash_update(hash_ctx, hash_algo,
 					 (uint8_t *)&bs_hdr, sizeof(bs_hdr));
 		if (res != TEE_SUCCESS)
-			goto error_free_payload;
+			goto error_free_hash;
 		offs += sizeof(bs_hdr);
 	}
 
 	if (ta_size != offs + shdr->img_size) {
 		res = TEE_ERROR_SECURITY;
-		goto error_free_payload;
+		goto error_free_hash;
 	}
 
 	handle->nw_ta = ta;
@@ -185,10 +179,11 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	*h = handle;
 	return TEE_SUCCESS;
 
+error_free_hash:
+	crypto_hash_free_ctx(hash_ctx, hash_algo);
 error_free_payload:
 	thread_rpc_free_payload(cookie, mobj);
 error:
-	free(hash_ctx);
 	shdr_free(shdr);
 	free(handle);
 	return res;

@@ -10,10 +10,20 @@
 #include <kernel/panic.h>
 
 #if !defined(_CFG_CRYPTO_WITH_HASH)
-TEE_Result crypto_hash_get_ctx_size(uint32_t algo __unused,
-				    size_t *size __unused)
+TEE_Result crypto_hash_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+void crypto_hash_free_ctx(void *ctx __unused, uint32_t algo __unused)
+{
+	assert(0);
+}
+
+void crypto_hash_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
+			    uint32_t algo __unused)
+{
+	assert(0);
 }
 
 TEE_Result crypto_hash_init(void *ctx __unused, uint32_t algo __unused)
