@@ -1931,7 +1931,7 @@ struct tee_symmetric_xts {
 };
 #endif
 
-TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size)
+static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_AES)
@@ -1984,6 +1984,46 @@ TEE_Result crypto_cipher_get_ctx_size(uint32_t algo, size_t *size)
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
+{
+	TEE_Result res;
+	size_t ctx_size;
+	void *ctx;
+
+	res = cipher_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
+}
+
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+{
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_cipher_alloc_ctx()
+	 * could never have succeded above.
+	 */
+	assert(!cipher_get_ctx_size(algo, &ctx_size));
+	free(ctx);
+}
+
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
+{
+	TEE_Result res __maybe_unused;
+	size_t ctx_size = 0;
+
+	res = cipher_get_ctx_size(algo, &ctx_size);
+	assert(!res);
+	memcpy(dst_ctx, src_ctx, ctx_size);
 }
 
 static void get_des2_key(const uint8_t *key, size_t key_len,

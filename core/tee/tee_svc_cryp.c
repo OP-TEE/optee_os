@@ -1865,6 +1865,9 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 		cs->ctx_finalize(cs->ctx, cs->algo);
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
+	case TEE_OPERATION_CIPHER:
+		crypto_cipher_free_ctx(cs->ctx, cs->algo);
+		break;
 	case TEE_OPERATION_DIGEST:
 		crypto_hash_free_ctx(cs->ctx, cs->algo);
 		break;
@@ -2009,12 +2012,9 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
-			res = crypto_cipher_get_ctx_size(algo, &cs->ctx_size);
+			res = crypto_cipher_alloc_ctx(&cs->ctx, algo);
 			if (res != TEE_SUCCESS)
 				break;
-			cs->ctx = calloc(1, cs->ctx_size);
-			if (!cs->ctx)
-				res = TEE_ERROR_OUT_OF_MEMORY;
 		}
 		break;
 	case TEE_OPERATION_AE:
@@ -2108,6 +2108,10 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		return TEE_ERROR_BAD_STATE;
 
 	switch (TEE_ALG_GET_CLASS(cs_src->algo)) {
+	case TEE_OPERATION_CIPHER:
+		crypto_cipher_copy_state(cs_dst->ctx, cs_src->ctx,
+					 cs_src->algo);
+		break;
 	case TEE_OPERATION_DIGEST:
 		crypto_hash_copy_state(cs_dst->ctx, cs_src->ctx, cs_src->algo);
 		break;
