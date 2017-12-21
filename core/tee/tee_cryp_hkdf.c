@@ -18,7 +18,6 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 			       size_t salt_len, uint8_t *prk, size_t *prk_len)
 {
 	TEE_Result res;
-	size_t ctx_size;
 	void *ctx = NULL;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = (TEE_OPERATION_MAC << 28) | hash_id;
@@ -35,15 +34,9 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 			goto out;
 	}
 
-	res = crypto_mac_get_ctx_size(hmac_algo, &ctx_size);
-	if (res != TEE_SUCCESS)
+	res = crypto_mac_alloc_ctx(&ctx, hmac_algo);
+	if (res)
 		goto out;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
 
 	/*
 	 * RFC 5869 section 2.1: "Note that in the extract step, 'IKM' is used
@@ -65,7 +58,7 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 
 	res = tee_hash_get_digest_size(hash_algo, prk_len);
 out:
-	free(ctx);
+	crypto_mac_free_ctx(ctx, hmac_algo);
 	return res;
 }
 
@@ -74,7 +67,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 			      size_t info_len, uint8_t *okm, size_t okm_len)
 {
 	uint8_t tn[TEE_MAX_HASH_SIZE];
-	size_t tn_len, hash_len, i, n, where, ctx_size;
+	size_t tn_len, hash_len, i, n, where;
 	TEE_Result res = TEE_SUCCESS;
 	void *ctx = NULL;
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
@@ -92,15 +85,9 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	if (!info)
 		info_len = 0;
 
-	res = crypto_mac_get_ctx_size(hmac_algo, &ctx_size);
-	if (res != TEE_SUCCESS)
+	res = crypto_mac_alloc_ctx(&ctx, hmac_algo);
+	if (res)
 		goto out;
-
-	ctx = malloc(ctx_size);
-	if (!ctx) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
 
 	/* N = ceil(L/HashLen) */
 	n = okm_len / hash_len;
