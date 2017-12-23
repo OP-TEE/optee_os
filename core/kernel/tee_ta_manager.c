@@ -473,13 +473,9 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 
 	/*
 	 * The TA is single instance, if it isn't multi session we
-	 * can't create another session unless it's the first
-	 * new session towards a keepAlive TA.
+	 * can't create another session unless its reference is zero
 	 */
-
-	if (((ctx->flags & TA_FLAG_MULTI_SESSION) == 0) &&
-	    !(((ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) != 0) &&
-	      (ctx->ref_count == 0)))
+	if (!(ctx->flags & TA_FLAG_MULTI_SESSION) && ctx->ref_count)
 		return TEE_ERROR_BUSY;
 
 	DMSG("Re-open TA %pUl", (void *)&ctx->uuid);
