@@ -4,7 +4,8 @@ cflags-tee_lmd_provider.c-y += -Wno-unused-parameter
 # For mbedtls
 cflags-y += -Icore/lib/libmbedtls/src/mbedtls/include
 cflags-y += -D'MBEDTLS_CONFIG_FILE="mbedtls_config.h"'
-cflags-y += -D_FILE_OFFSET_BITS=64 -Wno-old-style-definition -Wno-redundant-decls
+cflags-y += -D_FILE_OFFSET_BITS=64 -Wno-old-style-definition \
+	-Wno-unused-parameter
 
 # Hashes
 srcs-$(CFG_CRYPTO_MD5) += mbedtls/library/md5.c
