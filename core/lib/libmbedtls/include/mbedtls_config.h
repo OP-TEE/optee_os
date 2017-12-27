@@ -54,6 +54,23 @@
 #undef MBEDTLS_HAVE_TIME_DATE
 #endif
 
+/**
+ * \def MBEDTLS_CMAC_C
+ *
+ * Enable the CMAC (Cipher-based Message Authentication Code) mode for block
+ * ciphers.
+ *
+ * Module:  library/cmac.c
+ *
+ * Requires: MBEDTLS_AES_C or MBEDTLS_DES_C
+ *
+ */
+#ifndef MBEDTLS_CMAC_C
+#define MBEDTLS_CMAC_C
+#endif
+
+#define MBEDTLS_PLATFORM_PRINTF_MACRO	(void)
+
 #define MBEDTLS_EXTERNAL_CTX_MANAGE
 
 #ifdef MBEDTLS_CIPHER_PADDING_PKCS7

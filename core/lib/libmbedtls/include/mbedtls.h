@@ -23,4 +23,8 @@
 #include "mbedtls_cipher.h"
 #endif
 
+#if defined(_CFG_CRYPTO_WITH_MAC)
+#include "mbedtls_mac.h"
+#endif
+
 #endif /* LIBMBEDTLS_H */
