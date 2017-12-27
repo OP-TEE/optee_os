@@ -20,3 +20,4 @@ srcs-$(CFG_CRYPTO_CBC) += des3_cbc.c
 endif
 
 srcs-$(CFG_CRYPTO_HMAC) += hmac.c
+srcs-$(CFG_CRYPTO_CMAC) += aes_cmac.c
