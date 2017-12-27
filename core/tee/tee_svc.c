@@ -92,9 +92,9 @@ static const uint32_t ta_time_prot_lvl = 100;
 
 /* Elliptic Curve Cryptographic support */
 #ifdef CFG_CRYPTO_ECC
-static const uint32_t crypto_ecc_en = 1;
+static const bool crypto_ecc_en = 1;
 #else
-static const uint32_t crypto_ecc_en;
+static const bool crypto_ecc_en;
 #endif
 
 /*
