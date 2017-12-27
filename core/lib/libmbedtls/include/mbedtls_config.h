@@ -29,6 +29,10 @@
 #define MBEDTLS_MD_C
 #endif
 
+#if defined(CFG_CRYPTO_CMAC)
+#define MBEDTLS_CMAC_C
+#endif
+
 #if defined(CFG_CRYPTO_AES) || defined(CFG_MBEDTLS_CTR_PRNG)
 #define MBEDTLS_AES_C
 #endif

@@ -27,3 +27,6 @@ srcs-y += mbedtls/library/aes.c \
 srcs-y += mbedtls/library/entropy.c \
 		mbedtls/library/ctr_drbg.c \
 		mbedtls/library/hmac_drbg.c
+
+# MAC
+srcs-y += mbedtls/library/cmac.c

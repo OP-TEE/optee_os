@@ -24,6 +24,9 @@
 #include "mbedtls/cipher.h"
 #include "mbedtls/cipher_internal.h"
 #endif
+#if defined(CFG_CRYPTO_CMAC)
+#include "mbedtls/cmac.h"
+#endif
 #if defined(CFG_MBEDTLS_CTR_PRNG)
 #include "mbedtls/ctr_drbg.h"
 #endif
@@ -1079,7 +1082,8 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		return TEE_ERROR_NOT_SUPPORTED;
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
 #endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -1092,6 +1096,7 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 {
 	const mbedtls_md_info_t *md_info __maybe_unused;
 	int lmd_res __maybe_unused;
+	const mbedtls_cipher_info_t *cipher_info __maybe_unused;
 	TEE_Result res = TEE_SUCCESS;
 	size_t ctx_size;
 	void *ctx;
@@ -1138,8 +1143,22 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		res = TEE_ERROR_NOT_SUPPORTED;
-		break;
+		cipher_info = get_cipher_info(TEE_ALG_AES_ECB_NOPAD, 128);
+		if (!cipher_info) {
+			res =  TEE_ERROR_NOT_SUPPORTED;
+			break;
+		}
+		mbedtls_cipher_init(ctx);
+		lmd_res = mbedtls_cipher_setup(ctx, cipher_info);
+		if (lmd_res != 0) {
+			EMSG("cipher setup failed, res is 0x%x", -lmd_res);
+			res = TEE_ERROR_GENERIC;
+		}
+		lmd_res = mbedtls_cipher_cmac_setup(ctx);
+		if (lmd_res != 0) {
+			EMSG("cmac setup failed, res is 0x%x", -lmd_res);
+			res = TEE_ERROR_GENERIC;
+		}
 		break;
 #endif
 	default:
@@ -1177,6 +1196,7 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
+		mbedtls_cipher_free(ctx);
 		break;
 #endif
 	default:
@@ -1187,9 +1207,7 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 
 void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 {
-#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
-	int lmd_res;
-#endif
+	int lmd_res __maybe_unused;
 
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -1215,6 +1233,9 @@ void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
+		lmd_res = mbedtls_cipher_clone(dst_ctx, src_ctx);
+		if (lmd_res != 0)
+			EMSG("cmac clone failed, res is 0x%x", -lmd_res);
 		break;
 #endif
 	default:
@@ -1226,6 +1247,7 @@ TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			   size_t len)
 {
 	int lmd_res __maybe_unused;
+	const mbedtls_cipher_info_t *cipher_info __maybe_unused;
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1257,12 +1279,33 @@ TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		return TEE_ERROR_NOT_SUPPORTED;
+		cipher_info = get_cipher_info(TEE_ALG_AES_ECB_NOPAD, len * 8);
+		if (!cipher_info)
+			return TEE_ERROR_NOT_SUPPORTED;
+
+		lmd_res = mbedtls_cipher_setup_info(ctx, cipher_info);
+		if (lmd_res != 0) {
+			EMSG("setup info failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_BAD_STATE;
+		}
+
+		lmd_res = mbedtls_cipher_cmac_reset(ctx);
+		if (lmd_res != 0) {
+			EMSG("cmac reset failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_GENERIC;
+		}
+
+		lmd_res = mbedtls_cipher_cmac_starts(ctx, key, len * 8);
+		if (lmd_res != 0) {
+			EMSG("cmac starts failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_GENERIC;
+		}
+		break;
 #endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
-return TEE_SUCCESS;
+	return TEE_SUCCESS;
 }
 
 TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
@@ -1299,7 +1342,12 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		return TEE_ERROR_NOT_SUPPORTED;
+		lmd_res = mbedtls_cipher_cmac_update(ctx, data, len);
+		if (lmd_res != 0) {
+			EMSG("cmac update failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_GENERIC;
+		}
+		break;
 #endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -1344,7 +1392,16 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
-		return TEE_ERROR_NOT_SUPPORTED;
+		block_size = mbedtls_cipher_get_block_size(ctx);
+		if (block_size > digest_len)
+			return TEE_ERROR_SHORT_BUFFER;
+
+		lmd_res = mbedtls_cipher_cmac_finish(ctx, digest);
+		if (lmd_res != 0) {
+			EMSG("cmac finish failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_GENERIC;
+		}
+		break;
 #endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
