@@ -33,7 +33,7 @@
 #define MBEDTLS_DES_C
 #endif
 
-#if defined(_CFG_CRYPTO_WITH_CIPHER)
+#if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(CFG_CRYPTO_CMAC)
 #define MBEDTLS_CIPHER_C
 #endif
 
@@ -43,6 +43,10 @@
 
 #if defined(CFG_CRYPTO_CTR)
 #define MBEDTLS_CIPHER_MODE_CTR
+#endif
+
+#if defined(CFG_CRYPTO_CMAC)
+#define MBEDTLS_CMAC_C
 #endif
 
 #include <mbedtls/check_config.h>
