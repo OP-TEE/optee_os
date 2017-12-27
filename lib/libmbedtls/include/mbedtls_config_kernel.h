@@ -58,6 +58,11 @@
 #define MBEDTLS_CIPHER_MODE_CTR
 #endif
 
+#if defined(CFG_CRYPTO_CMAC)
+#define MBEDTLS_CMAC_C
+#define MBEDTLS_CIPHER_C
+#endif
+
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
 #include <mbedtls/check_config.h>

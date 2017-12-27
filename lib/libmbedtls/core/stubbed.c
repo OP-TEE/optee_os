@@ -283,9 +283,6 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 	crypto_##name##_alloc_ctx(struct crypto_##type##_ctx **ctx __unused) \
 	{ return TEE_ERROR_NOT_IMPLEMENTED; }
 
-#if defined(CFG_CRYPTO_CMAC)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
-#endif
 #if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_XTS)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_xts, cipher)
 #endif
