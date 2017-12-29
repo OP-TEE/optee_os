@@ -4,7 +4,7 @@ PLATFORM_FLAVOR ?= mx6ulevk
 mx6ul-flavorlist = mx6ulevk
 mx6ull-flavorlist = mx6ullevk
 mx6q-flavorlist = mx6qsabrelite mx6qsabresd
-mx6sx-flavorlist = mx6sxsabreauto
+mx6sx-flavorlist = mx6sxsabreauto mx6sxsabresd
 mx6d-flavorlist =
 mx6dl-flavorlist = mx6dlsabresd
 mx6s-flavorlist =
@@ -82,15 +82,24 @@ $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabreauto))
+# For i.MX6SX and Boards
+ifeq ($(filter y, $(CFG_MX6SX)), y)
 CFG_PAGEABLE_ADDR ?= 0
-CFG_DDR_SIZE ?= 0x80000000
 CFG_DT ?= y
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_PSCI_ARM32 ?= y
 CFG_BOOT_SECONDARY_REQUEST = n
 CFG_TEE_CORE_NB_CORE ?= 1
 endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabresd))
+CFG_DDR_SIZE ?= 0x40000000
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabreauto))
+CFG_DDR_SIZE ?= 0x80000000
+endif
+# End
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
 CFG_HWSUPP_MEM_PERM_WXN = n
