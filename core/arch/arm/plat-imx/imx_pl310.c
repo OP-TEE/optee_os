@@ -40,6 +40,7 @@ register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_DEVICE_SIZE);
 
 void arm_cl2_config(vaddr_t pl310_base)
 {
+#ifdef CFG_PL310_ENABLE_BY_OPTEE
 	/* Disable PL310 */
 	write32(0, pl310_base + PL310_CTRL);
 
@@ -51,10 +52,14 @@ void arm_cl2_config(vaddr_t pl310_base)
 
 	/* invalidate all cache ways */
 	arm_cl2_invbyway(pl310_base);
+#else
+	(void)pl310_base;
+#endif
 }
 
 void arm_cl2_enable(vaddr_t pl310_base)
 {
+#ifdef CFG_PL310_ENABLE_BY_OPTEE
 	uint32_t val;
 
 	/* Enable PL310 ctrl -> only set lsb bit */
@@ -64,6 +69,9 @@ void arm_cl2_enable(vaddr_t pl310_base)
 	val = read32(pl310_base + PL310_AUX_CTRL);
 	if (val & 1)
 		write_actlr(read_actlr() | (1 << 3));
+#else
+	(void)pl310_base;
+#endif
 }
 
 vaddr_t pl310_base(void)

@@ -101,6 +101,7 @@ endif
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
 CFG_HWSUPP_MEM_PERM_WXN = n
 CFG_IMX_WDOG ?= y
+CFG_SM_PLATFORM_HANDLER ?= y
 endif
 
 CFG_MMAP_REGIONS ?= 24

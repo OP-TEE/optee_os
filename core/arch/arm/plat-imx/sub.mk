@@ -7,6 +7,7 @@ srcs-$(CFG_PL310) += imx_pl310.c
 ifeq ($(CFG_PSCI_ARM32),y)
 srcs-y += pm/psci.c pm/gpcv2.c
 srcs-$(CFG_MX7) += pm/pm-imx7.c pm/psci-suspend-imx7.S pm/imx7_suspend.c
+srcs-$(CFG_SM_PLATFORM_HANDLER) += sm_platform_handler.c
 $(call force,CFG_PM_ARM32,y)
 endif
 
