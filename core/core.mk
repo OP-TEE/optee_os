@@ -23,6 +23,9 @@ include mk/$(COMPILER_$(sm)).mk
 
 cppflags$(sm)	+= -D__KERNEL__
 
+# Possible values: tomcrypt, mbedtls
+WITH_CRYPTO ?= tomcrypt
+
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include/generated
@@ -85,9 +88,17 @@ libdir = lib/libmpa
 include mk/lib.mk
 base-prefix :=
 
+ifeq ($(WITH_CRYPTO), tomcrypt)
 libname = tomcrypt
 libdir = core/lib/libtomcrypt
 include mk/lib.mk
+else ifeq ($(WITH_CRYPTO), mbedtls)
+libname = mbedtls
+libdir = core/lib/libmbedtls
+include mk/lib.mk
+else
+$(error Error: $(WITH_CRYPTO) is not supported.)
+endif
 
 ifeq ($(CFG_DT),y)
 libname = fdt
