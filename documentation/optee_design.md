@@ -648,7 +648,7 @@ specified by the GlobalPlatform TEE specifications.
 There are several types of user mode TAs, which differ by the way they are
 stored.
 
-#### "Normal" or Secure Storage Trusted Applications
+#### "Normal" (Bootstrap) or Secure Storage Trusted Applications
 
 These are stored in secure storage. The meta data is stored in a database
 of all installed TAs and the actual binary is stored encrypted as a
@@ -659,9 +659,39 @@ something that can be done during initial deployment or at a later stage.
 
 For test purposes the test program xtest can install a TA into secure
 storage with the command:
-```
+```bash
 xtest --install-ta
 ```
+
+
+#### File format of a Bootstrap Trusted Application
+
+![Bootstrap TA](/documentation/images/bootstrap_ta.png)
+
+#### Signature verification of Bootstrap Trusted Applications
+
+
+1. When opening a session, TEE core will do a `RPC` to `tee-supplicant` asking
+   for the TA (binary) with a certain `UUID`.
+2. When returning to TEE core the **signed header** part of the TA will be
+   copied to secure memory.
+3. TEE core verifies the signature, where the input data is `H(Signed Header ||
+   Bootstrap Header || img (ELF))` and the signature provided in the TA binary
+   itself. The default signature algorithm in use in OP-TEE is
+   `RSASSA_PKCS1_V1_5_SHA256`, i.e., by this it is clear that the hash in use is
+   `SHA-256`.
+4. After successful verification, TEE core will continue loading the executable
+   code in form of an `ELF` file. That part is still in shared memory so while
+   loading this, TEE core continuously hashes everything while loading various
+   intermediate parts of the TA binary before doing a doing a final check to
+   ensure that all data still has not been tampered with. I.e., it will
+	* Hash the "**Signed Header**" (`h = H(Signed Header)`)
+	* Hash the "**Bootstrap Header**" (`h += H(Bootstrap Header)`)
+	* Hash the "**ELF image**" (`h += H(img)`). This is done in several
+	  steps, starting with the ELF header and then working through
+          remaining ELF sections etc.
+	* And finally check that the running hash **still** matches the hash
+          TEE core saved in **secure memory** after verifying the signature.
 
 #### "Legacy" or REE FS Trusted Applications
 
@@ -679,10 +709,11 @@ and loaded by the Secure World OP-TEE core.
 #### Early Trusted Applications
 
 The so-called early TAs are virtually identical to the normal (REE FS) TAs,
-but insted of being loaded from the Normal World file system, they are linked
+but instead of being loaded from the Normal World file system, they are linked
 into a special data section in the TEE core blob. Therefore, they are available
 even before `tee-supplicant` and the Normal World filesystems have come up.
 More details in commit [early_tas].
+
 
 ## Special treatment of Trusted Applications
 
@@ -746,27 +777,6 @@ However for TAs, the individual TA TEE_Malloc() heap size is defined by
 `TA_DATA_SIZE` in `user_ta_header_defines.h`.  Likewise the TA stack size is
 set in the same file, in `TA_STACK_SIZE`.
 
-## File format of a Dynamic Trusted Application
-
-The format a TA is:
-```
-<Signed header>
-<ELF>
-```
-
-Where `<ELF>` is the content of a standard ELF file and `<Signed header>`
-consists of:
-
-| Type | Name | Comment |
-|------|------|---------|
-| `uint32_t` | magic | Holds the magic number `0x4f545348` |
-| `uint32_t` | img_type | image type, values defined by enum shdr_img_type |
-| `uint32_t` | img_size | image size in bytes |
-| `uint32_t` | algo | algorithm, defined by public key algorithms `TEE_ALG_*` from TEE Internal API specification |
-| `uint16_t` | hash_size | size of the signed hash |
-| `uint16_t` | sig_size | size of the signature |
-| `uint8_t[hash_size]` | hash | Hash of the fields above and the `<ELF>` above |
-| `uint8_t[sig_size]` | signature | Signature of hash |
 
 [crypto.md]: crypto.md
 [early_tas]: https://github.com/OP-TEE/optee_os/commit/d0c636148b3a
