@@ -9,8 +9,10 @@
 #include <kernel/pseudo_ta.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
+#include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
+#include <mm/tee_mmu.h>
 #include <pta_benchmark.h>
 #include <string.h>
 #include <string_ext.h>
@@ -18,9 +20,14 @@
 #include <trace.h>
 
 #define TA_NAME		"benchmark.ta"
+#define TA_PRINT_PREFIX	"Benchmark: "
 
-struct tee_ts_global *bench_ts_global;
+static struct tee_ts_global *bench_ts_global;
+static size_t bench_ts_size;
+
 static struct mutex bench_reg_mu = MUTEX_INITIALIZER;
+static struct mobj *bench_mobj;
+static uint64_t bench_cookie;
 
 static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
 {
@@ -35,48 +42,70 @@ static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
 	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_BENCH_REG, 1, &rpc_params);
 }
 
-static TEE_Result register_benchmark_memref(uint32_t type,
+static TEE_Result alloc_benchmark_buffer(uint32_t type,
 				TEE_Param p[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
 
-	if ((TEE_PARAM_TYPE_GET(type, 0) != TEE_PARAM_TYPE_MEMREF_INOUT) ||
-		(TEE_PARAM_TYPE_GET(type, 1) != TEE_PARAM_TYPE_NONE) ||
+	if ((TEE_PARAM_TYPE_GET(type, 0) != TEE_PARAM_TYPE_VALUE_INOUT) ||
+		(TEE_PARAM_TYPE_GET(type, 1) != TEE_PARAM_TYPE_VALUE_INPUT) ||
 		(TEE_PARAM_TYPE_GET(type, 2) != TEE_PARAM_TYPE_NONE) ||
 		(TEE_PARAM_TYPE_GET(type, 3) != TEE_PARAM_TYPE_NONE)) {
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/*
-	 * We accept only non-secure buffers, as we later perform
-	 * registration of this buffer in NS layers
-	 * (optee linux kmod/optee client)
-	 */
-	if (!tee_vbuf_is_non_sec(p[0].memref.buffer, p[0].memref.size))
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	mutex_lock(&bench_reg_mu);
 
 	/* Check if we have already registered buffer */
 	if (bench_ts_global) {
-		EMSG("Timestamp buffer was already registered\n");
+		EMSG(TA_PRINT_PREFIX
+			"timestamp buffer was already registered");
 		mutex_unlock(&bench_reg_mu);
 		return TEE_ERROR_BAD_STATE;
 	}
 
-	DMSG("Registering timestamp buffer, addr = %p, paddr = %" PRIxPA "\n",
-			p[0].memref.buffer,
-			virt_to_phys(p[0].memref.buffer));
-	bench_ts_global = p[0].memref.buffer;
+	bench_ts_size = sizeof(struct tee_ts_global) +
+		p[1].value.a * sizeof(struct tee_ts_cpu_buf);
+	if (!bench_ts_size) {
+		EMSG(TA_PRINT_PREFIX
+			"invalid timestamp buffer size");
+		mutex_unlock(&bench_reg_mu);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	bench_mobj = thread_rpc_alloc_global_payload(bench_ts_size,
+						     &bench_cookie);
+	if (!bench_mobj) {
+		EMSG(TA_PRINT_PREFIX
+			"can't create mobj for timestamp buffer");
+		mutex_unlock(&bench_reg_mu);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	bench_ts_global = (struct tee_ts_global *)mobj_get_va(bench_mobj, 0);
+	if (!bench_ts_global) {
+		thread_rpc_free_global_payload(bench_cookie, bench_mobj);
+
+		mutex_unlock(&bench_reg_mu);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	memset((void *)bench_ts_global, 0, bench_ts_size);
+	bench_ts_global->cores = p[1].value.a;
+
+	DMSG(TA_PRINT_PREFIX
+		"allocated timestamp buffer, addr = %p",
+		(void *)bench_ts_global);
 
 	mutex_unlock(&bench_reg_mu);
 
 	/* Send back to the optee linux kernel module */
 	res = rpc_reg_global_buf(OPTEE_MSG_RPC_CMD_BENCH_REG_NEW,
 			virt_to_phys((void *)bench_ts_global),
-			sizeof(struct tee_ts_global) +
-			sizeof(struct tee_ts_cpu_buf) *
-			bench_ts_global->cores);
+			bench_ts_size);
+
+	p[0].value.a = virt_to_phys((void *)bench_ts_global);
+	p[0].value.b = bench_ts_size;
 
 	return res;
 }
@@ -93,13 +122,12 @@ static TEE_Result get_benchmark_memref(uint32_t type,
 
 	mutex_lock(&bench_reg_mu);
 
-	DMSG("Sending back timestamp buffer paddr = %p\n",
-		(void *)virt_to_phys(bench_ts_global));
+	DMSG(TA_PRINT_PREFIX "Sending back timestamp buffer paddr = %p",
+		(void *)virt_to_phys((void *)bench_ts_global));
 
 	if (bench_ts_global) {
-		p[0].value.a = virt_to_phys(bench_ts_global);
-		p[0].value.b = sizeof(struct tee_ts_global) +
-			sizeof(struct tee_ts_cpu_buf) * bench_ts_global->cores;
+		p[0].value.a = virt_to_phys((void *)bench_ts_global);
+		p[0].value.b = bench_ts_size;
 	} else {
 		p[0].value.a = 0;
 		p[0].value.b = 0;
@@ -123,14 +151,15 @@ static TEE_Result unregister_benchmark(uint32_t type,
 	}
 	mutex_lock(&bench_reg_mu);
 
-	DMSG("Unregistering benchmark, timestamp buffer paddr = %p\n",
-		(void *)virt_to_phys(bench_ts_global));
+	DMSG(TA_PRINT_PREFIX "Unregister benchmark ts buffer paddr = %p",
+		(void *)virt_to_phys((void *)bench_ts_global));
 	bench_ts_global = NULL;
 
 	mutex_unlock(&bench_reg_mu);
 
 	res = rpc_reg_global_buf(OPTEE_MSG_RPC_CMD_BENCH_REG_DEL, 0, 0);
 
+	thread_rpc_free_global_payload(bench_cookie, bench_mobj);
 	return res;
 }
 
@@ -139,8 +168,8 @@ static TEE_Result invoke_command(void *session_ctx __unused,
 		TEE_Param params[TEE_NUM_PARAMS])
 {
 	switch (cmd_id) {
-	case BENCHMARK_CMD_REGISTER_MEMREF:
-		return register_benchmark_memref(param_types, params);
+	case BENCHMARK_CMD_ALLOCATE_BUF:
+		return alloc_benchmark_buffer(param_types, params);
 	case BENCHMARK_CMD_GET_MEMREF:
 		return get_benchmark_memref(param_types, params);
 	case BENCHMARK_CMD_UNREGISTER:
