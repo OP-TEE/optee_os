@@ -2985,7 +2985,8 @@ TEE_Result rng_generate(void *buffer, size_t len)
 }
 
 TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
-				     void *enc_key, unsigned int *rounds)
+				     void *enc_key, size_t enc_keylen __unused,
+				     unsigned int *rounds)
 {
 	symmetric_key skey;
 
@@ -2997,8 +2998,8 @@ TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 	return TEE_SUCCESS;
 }
 
-void crypto_aes_enc_block(const void *enc_key, unsigned int rounds,
-			  const void *src, void *dst)
+void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __unused,
+			  unsigned int rounds, const void *src, void *dst)
 {
 	symmetric_key skey;
 
