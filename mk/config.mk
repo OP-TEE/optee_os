@@ -44,16 +44,14 @@ WARNS ?= 3
 # so assertions are disabled.
 CFG_TEE_CORE_DEBUG ?= y
 
-# Max level of the tee core traces. 0 means disable, 4 is max.
-# Supported values: 0 (no traces) to 4 (all traces)
-# If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
-# dynamically changes via debugfs in the range 1 => CFG_TEE_CORE_LOG_LEVEL
+# Log levels for the TEE core and user-mode TAs
+# Defines which messages are displayed on the secure console
+# 0: none
+# 1: error
+# 2: error + warning
+# 3: error + warning + debug
+# 4: error + warning + debug + flow
 CFG_TEE_CORE_LOG_LEVEL ?= 1
-
-# TA and TEECore log level
-# Supported values: 0 (no traces) to 4 (all traces)
-# If CFG_TEE_DRV_DEBUGFS is set, the level of traces to print can be
-# dynamically changes via debugfs in the range 1 => CFG_TEE_TA_LOG_LEVEL
 CFG_TEE_TA_LOG_LEVEL ?= 1
 
 # TA enablement
