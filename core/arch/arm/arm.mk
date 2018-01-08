@@ -36,6 +36,9 @@ endif
 # See also https://developer.arm.com/-/media/Files/pdf/Cache_Speculation_Side-channels.pdf
 # Variant 2
 CFG_CORE_WORKAROUND_SPECTRE_BP ?= y
+# Same as CFG_CORE_WORKAROUND_SPECTRE_BP but targeting exceptions from
+# secure EL0 instead of non-secure world.
+CFG_CORE_WORKAROUND_SPECTRE_BP_SEC ?= $(CFG_CORE_WORKAROUND_SPECTRE_BP)
 
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n

@@ -460,8 +460,44 @@ KEEP_PAGER thread_rpc
 FUNC thread_init_vbar , :
 UNWIND(	.fnstart)
 	/* Set vector (VBAR) */
-	ldr	r0, =thread_vect_table
-	write_vbar r0
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	/*
+	 * For unrecognized CPUs we fall back to the vector used for
+	 * unaffected CPUs. Cortex A-15 has special treatment compared to
+	 * the other affected Cortex CPUs.
+	 */
+	read_midr r1
+	ubfx	r2, r1, #MIDR_IMPLEMENTER_SHIFT, #MIDR_IMPLEMENTER_WIDTH
+	cmp	r2, #MIDR_IMPLEMENTER_ARM
+	bne	1f
+
+	ubfx	r2, r1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
+			#MIDR_PRIMARY_PART_NUM_WIDTH
+
+	movw	r3, #CORTEX_A8_PART_NUM
+	cmp	r2, r3
+	movwne	r3, #CORTEX_A9_PART_NUM
+	cmpne	r2, r3
+	movwne	r3, #CORTEX_A17_PART_NUM
+	cmpne	r2, r3
+	movwne	r3, #CORTEX_A57_PART_NUM
+	cmpne	r2, r3
+	movwne	r3, #CORTEX_A72_PART_NUM
+	cmpne	r2, r3
+	movwne	r3, #CORTEX_A73_PART_NUM
+	cmpne	r2, r3
+	movwne	r3, #CORTEX_A75_PART_NUM
+	cmpne	r2, r3
+	ldreq	r0, =exception_vector_bpiall
+	beq	2f
+
+	movw	r3, #CORTEX_A15_PART_NUM
+	cmp	r2, r3
+	ldreq	r0, =exception_vector_a15
+	beq	2f
+#endif
+1:	ldr	r0, =thread_vect_table
+2:	write_vbar r0
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_init_vbar
@@ -742,6 +778,83 @@ UNWIND(	.cantunwind)
 	b	.			/* Reserved			*/
 	b	thread_irq_handler	/* IRQ				*/
 	b	thread_fiq_handler	/* FIQ				*/
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	.macro vector_prologue_spectre
+		/*
+		 * This depends on SP being 8 byte aligned, that is, the
+		 * lowest three bits in SP are zero.
+		 *
+		 * To avoid unexpected speculation we need to invalidate
+		 * the branch predictor before we do the first branch. It
+		 * doesn't matter if it's a conditional or an unconditional
+		 * branch speculation can still occur.
+		 *
+		 * The idea is to form a specific bit pattern in the lowest
+		 * three bits of SP depending on which entry in the vector
+		 * we enter via.  This is done by adding 1 to SP in each
+		 * entry but the last.
+		 */
+		add	sp, sp, #1	/* 7:111 Reset			*/
+		add	sp, sp, #1	/* 6:110 Undefined instruction	*/
+		add	sp, sp, #1	/* 5:101 Secure monitor call	*/
+		add	sp, sp, #1	/* 4:100 Prefetch abort		*/
+		add	sp, sp, #1	/* 3:011 Data abort		*/
+		add	sp, sp, #1	/* 2:010 Reserved		*/
+		add	sp, sp, #1	/* 1:001 IRQ			*/
+		write_tpidrprw r0	/* 0:000 FIQ			*/
+	.endm
+
+        .align	5
+exception_vector_a15:
+	vector_prologue_spectre
+	mrs	r0, spsr
+	cmp_spsr_user_mode r0
+	bne	1f
+	/*
+	 * Invalidate the branch predictor for the current processor.
+	 * Note that the BPIALL instruction is not effective in
+	 * invalidating the branch predictor on Cortex-A15. For that CPU,
+	 * set ACTLR[0] to 1 during early processor initialisation, and
+	 * invalidate the branch predictor by performing an ICIALLU
+	 * instruction. See also:
+	 * https://github.com/ARM-software/arm-trusted-firmware/wiki/Arm-Trusted-Firmware-Security-Advisory-TFV-6#variant-2-cve-2017-5715
+	 */
+	write_iciallu
+	isb
+	b	1f
+
+        .align	5
+exception_vector_bpiall:
+	vector_prologue_spectre
+	mrs	r0, spsr
+	cmp_spsr_user_mode r0
+	bne	1f
+	/* Invalidate the branch predictor for the current processor. */
+	write_bpiall
+	isb
+
+1:	and	r0, sp, #(BIT(0) | BIT(1) | BIT(2))
+	bic	sp, sp, #(BIT(0) | BIT(1) | BIT(2))
+	add	pc, pc, r0, LSL #3
+	nop
+
+	read_tpidrprw r0
+	b	thread_fiq_handler	/* FIQ				*/
+	read_tpidrprw r0
+	b	thread_irq_handler	/* IRQ				*/
+	read_tpidrprw r0
+	b	.			/* Reserved			*/
+	read_tpidrprw r0
+	b	thread_dabort_handler	/* Data abort			*/
+	read_tpidrprw r0
+	b	thread_pabort_handler	/* Prefetch abort		*/
+	read_tpidrprw r0
+	b	thread_svc_handler	/* System call			*/
+	read_tpidrprw r0
+	b	thread_und_handler	/* Undefined instruction	*/
+	read_tpidrprw r0
+	b	.			/* Reset			*/
+#endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
 thread_und_handler:
 	cpsid	aif
