@@ -21,6 +21,26 @@
 #define MBEDTLS_SHA512_C
 #endif
 
+#if defined(CFG_CRYPTO_AES)
+#define MBEDTLS_AES_C
+#endif
+
+#if defined(CFG_CRYPTO_DES)
+#define MBEDTLS_DES_C
+#endif
+
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
+#define MBEDTLS_CIPHER_C
+#endif
+
+#if defined(CFG_CRYPTO_CBC)
+#define MBEDTLS_CIPHER_MODE_CBC
+#endif
+
+#if defined(CFG_CRYPTO_CTR)
+#define MBEDTLS_CIPHER_MODE_CTR
+#endif
+
 #include <mbedtls/check_config.h>
 
 #endif /* __MBEDTLS_CONFIG_KERNEL_H */
