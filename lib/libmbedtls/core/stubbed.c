@@ -311,31 +311,8 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
 #if defined(CFG_CRYPTO_CMAC)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
 #endif
-
-#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_ECB)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_ecb, cipher)
-#endif
-
-#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_CBC)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cbc, cipher)
-#endif
-
-#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_CTR)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_ctr, cipher)
-#endif
-
 #if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_XTS)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_xts, cipher)
-#endif
-
-#if defined(CFG_CRYPTO_DES) && defined(CFG_CRYPTO_ECB)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_ecb, cipher)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_ecb, cipher)
-#endif
-
-#if defined(CFG_CRYPTO_DES) && defined(CFG_CRYPTO_CBC)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc, cipher)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc, cipher)
 #endif
 
 #if defined(CFG_CRYPTO_CCM)

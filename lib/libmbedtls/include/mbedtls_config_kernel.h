@@ -37,6 +37,23 @@
 #define MBEDTLS_MD_C
 #endif
 
+#if defined(CFG_CRYPTO_AES)
+#define MBEDTLS_AES_C
+#define MBEDTLS_AES_ROM_TABLES
+#endif
+
+#if defined(CFG_CRYPTO_DES)
+#define MBEDTLS_DES_C
+#endif
+
+#if defined(CFG_CRYPTO_CBC)
+#define MBEDTLS_CIPHER_MODE_CBC
+#endif
+
+#if defined(CFG_CRYPTO_CTR)
+#define MBEDTLS_CIPHER_MODE_CTR
+#endif
+
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
 #include <mbedtls/check_config.h>
