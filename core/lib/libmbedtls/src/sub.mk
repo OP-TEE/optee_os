@@ -18,7 +18,10 @@ srcs-y += mbedtls/library/md5.c \
 		mbedtls/library/md.c
 
 # Cipher
-srcs-y += mbedtls/library/aes.c
+srcs-y += mbedtls/library/aes.c \
+		mbedtls/library/des.c \
+		mbedtls/library/cipher.c \
+		mbedtls/library/cipher_wrap.c
 
 # DRBG
 srcs-y += mbedtls/library/entropy.c \

@@ -14,6 +14,16 @@
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
+#if defined(CFG_CRYPTO_AES)
+#include "mbedtls/aes.h"
+#endif
+#if defined(CFG_CRYPTO_DES)
+#include "mbedtls/des.h"
+#endif
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
+#include "mbedtls/cipher.h"
+#include "mbedtls/cipher_internal.h"
+#endif
 #if defined(CFG_MBEDTLS_CTR_PRNG)
 #include "mbedtls/ctr_drbg.h"
 #endif
@@ -74,6 +84,110 @@ static int mbd_rand(void *rng_state, unsigned char *output, size_t len)
 #endif /* defined(CFG_MBEDTLS_CTR_PRNG) ||
 	* defined(CFG_MBEDTLS_HMAC_PRNG)
 	*/
+
+#if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(_CFG_CRYPTO_WITH_MAC) || \
+	defined(_CFG_CRYPTO_WITH_AUTHENC)
+/*
+ * Get the Mbedtls chipher info given a TEE Algorithm "algo"
+ * Return
+ * - TEE_SUCCESS in case of success,
+ * - NULL in case of error
+ */
+static const mbedtls_cipher_info_t *get_cipher_info(uint32_t algo,
+						size_t key_len)
+{
+	/* Only support key_length is 128 bits of AES in Optee_os */
+	switch (algo) {
+#if defined(CFG_CRYPTO_AES)
+	case TEE_ALG_AES_ECB_NOPAD:
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_128_ECB);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_192_ECB);
+		else if (key_len == 256)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_256_ECB);
+		else
+			return NULL;
+	case TEE_ALG_AES_CBC_NOPAD:
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_128_CBC);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_192_CBC);
+		else if (key_len == 256)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_256_CBC);
+		else
+			return NULL;
+	case TEE_ALG_AES_CTR:
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_128_CTR);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_192_CTR);
+		else if (key_len == 256)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_256_CTR);
+		else
+			return NULL;
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+	case TEE_ALG_AES_CCM:
+	case TEE_ALG_AES_GCM:
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+		return NULL;
+#endif
+#if defined(CFG_CRYPTO_DES)
+	case TEE_ALG_DES_ECB_NOPAD:
+		if (key_len == 64)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_ECB);
+		else
+			return NULL;
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+		return NULL;
+	case TEE_ALG_DES_CBC_NOPAD:
+		if (key_len == 64)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_CBC);
+		else
+			return NULL;
+	case TEE_ALG_DES3_ECB_NOPAD:
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_EDE_ECB);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_EDE3_ECB);
+		else
+			return NULL;
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return NULL;
+	case TEE_ALG_DES3_CBC_NOPAD:
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_EDE_CBC);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_EDE3_CBC);
+		else
+			return NULL;
+#endif
+	default:
+		return NULL;
+	}
+}
+#endif	/* defined(_CFG_CRYPTO_WITH_CIPHER) ||
+	 * defined(_CFG_CRYPTO_WITH_MAC) || defined(_CFG_CRYPTO_WITH_AUTHENC)
+	 */
 
 /******************************************************************************
  * Message digest functions
@@ -581,53 +695,289 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
  * Symmetric ciphers
  ******************************************************************************/
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
-TEE_Result crypto_cipher_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+
+static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
+	case TEE_ALG_AES_ECB_NOPAD:
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
+#if defined(CFG_CRYPTO_CBC)
+#endif
+	case TEE_ALG_AES_CBC_NOPAD:
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CTR)
+	case TEE_ALG_AES_CTR:
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
+#endif
+#if defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_XTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CTS)
+	case TEE_ALG_AES_CTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_ECB)
+	case TEE_ALG_DES_ECB_NOPAD:
+	case TEE_ALG_DES3_ECB_NOPAD:
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
+	case TEE_ALG_DES_CBC_NOPAD:
+	case TEE_ALG_DES3_CBC_NOPAD:
+		*size = sizeof(mbedtls_cipher_context_t);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
+TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 {
-	if (ctx)
-		assert(0);
+	const mbedtls_cipher_info_t *cipher_info = NULL;
+	int lmd_res;
+	TEE_Result res;
+	size_t ctx_size;
+	void *ctx;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
+	case TEE_ALG_AES_ECB_NOPAD:
+		cipher_info = get_cipher_info(algo, 128);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
+	case TEE_ALG_AES_CBC_NOPAD:
+		cipher_info = get_cipher_info(algo, 128);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CTR)
+	case TEE_ALG_AES_CTR:
+		cipher_info = get_cipher_info(algo, 128);
+		break;
+#endif
+#if defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_XTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CTS)
+	case TEE_ALG_AES_CTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_ECB)
+	case TEE_ALG_DES_ECB_NOPAD:
+		cipher_info = get_cipher_info(algo, MBEDTLS_KEY_LENGTH_DES);
+		break;
+	case TEE_ALG_DES3_ECB_NOPAD:
+		cipher_info = get_cipher_info(algo,
+					MBEDTLS_KEY_LENGTH_DES_EDE);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
+	case TEE_ALG_DES_CBC_NOPAD:
+		cipher_info = get_cipher_info(algo, MBEDTLS_KEY_LENGTH_DES);
+		break;
+	case TEE_ALG_DES3_CBC_NOPAD:
+		cipher_info = get_cipher_info(algo,
+					MBEDTLS_KEY_LENGTH_DES_EDE);
+		break;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	if (!cipher_info)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	res = cipher_get_ctx_size(algo, &ctx_size);
+	if (res)
+		return res;
+
+	ctx = calloc(1, ctx_size);
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	mbedtls_cipher_init(ctx);
+
+	lmd_res = mbedtls_cipher_setup(ctx, cipher_info);
+	if (lmd_res != 0) {
+		crypto_cipher_free_ctx(ctx, algo);
+		EMSG("mbedtls_cipher_setup failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	*ctx_ret = ctx;
+	return TEE_SUCCESS;
 }
 
-void crypto_cipher_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			      uint32_t algo __unused)
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 {
+	size_t ctx_size __maybe_unused;
+
+	/*
+	 * Check that it's a supported algo, or crypto_cipher_alloc_ctx()
+	 * could never have succeded above.
+	 */
+	assert(!cipher_get_ctx_size(algo, &ctx_size));
+	mbedtls_cipher_free(ctx);
+	free(ctx);
 }
 
-TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
-			      TEE_OperationMode mode __unused,
-			      const uint8_t *key1 __unused,
-			      size_t key1_len __unused,
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
+				uint32_t algo __unused)
+{
+	mbedtls_cipher_clone(dst_ctx, src_ctx);
+}
+
+TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
+			      TEE_OperationMode mode,
+			      const uint8_t *key1, size_t key1_len,
 			      const uint8_t *key2 __unused,
 			      size_t key2_len __unused,
-			      const uint8_t *iv __unused,
-			      size_t iv_len __unused)
+			      const uint8_t *iv,
+			      size_t iv_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	const mbedtls_cipher_info_t *cipher_info = NULL;
+	int lmd_res;
+	int lmd_mode;
+
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	cipher_info = get_cipher_info(algo, key1_len * 8);
+	if (cipher_info == NULL)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	lmd_res = mbedtls_cipher_setup_info(ctx, cipher_info);
+	if (lmd_res != 0) {
+		EMSG("setup info failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	if (mode == TEE_MODE_ENCRYPT)
+		lmd_mode = MBEDTLS_ENCRYPT;
+	else
+		lmd_mode = MBEDTLS_DECRYPT;
+	lmd_res = mbedtls_cipher_setkey(ctx, key1, key1_len * 8, lmd_mode);
+	if (lmd_res != 0) {
+		EMSG("setkey failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	if (iv) {
+		lmd_res = mbedtls_cipher_set_iv(ctx, iv, iv_len);
+		if (lmd_res != 0) {
+			EMSG("set iv failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_BAD_STATE;
+		}
+	}
+
+	lmd_res = mbedtls_cipher_reset(ctx);
+	if (lmd_res != 0) {
+		EMSG("mbedtls_cipher_reset failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_cipher_update(void *ctx __unused, uint32_t algo __unused,
+TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 				TEE_OperationMode mode __unused,
 				bool last_block __unused,
-				const uint8_t *data __unused,
-				size_t len __unused, uint8_t *dst __unused)
+				const uint8_t *data, size_t len, uint8_t *dst)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	size_t blk_size __maybe_unused;
+	int lmd_res;
+	size_t olen;
+	size_t finish_olen;
+
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_DES_ECB_NOPAD:
+	case TEE_ALG_DES3_ECB_NOPAD:
+		blk_size = mbedtls_cipher_get_block_size(ctx);
+		if (len % blk_size != 0)
+			return TEE_ERROR_BAD_PARAMETERS;
+		while (len) {
+			lmd_res = mbedtls_cipher_update(ctx, data,
+					blk_size, dst, &olen);
+			if (lmd_res != 0) {
+				EMSG("update failed, res is 0x%x", -lmd_res);
+				return TEE_ERROR_BAD_STATE;
+			}
+			data += olen;
+			dst += olen;
+			len -= olen;
+		}
+		break;
+#endif
+#if defined(CFG_CRYPTO_CBC)
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_DES_CBC_NOPAD:
+	case TEE_ALG_DES3_CBC_NOPAD:
+		lmd_res = mbedtls_cipher_reset(ctx);
+		if (lmd_res != 0) {
+			EMSG("mbedtls_cipher_reset failed, res is 0x%x",
+			     -lmd_res);
+			return TEE_ERROR_BAD_STATE;
+		}
+
+		lmd_res = mbedtls_cipher_update(ctx, data, len, dst, &olen);
+		if (lmd_res != 0) {
+			EMSG("update failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_BAD_STATE;
+		}
+		lmd_res = mbedtls_cipher_finish(ctx, dst + olen, &finish_olen);
+		break;
+#endif
+#if defined(CFG_CRYPTO_CTR)
+	case TEE_ALG_AES_CTR:
+		lmd_res = mbedtls_cipher_update(ctx, data, len, dst, &olen);
+		if (lmd_res != 0) {
+			EMSG("update failed, res is 0x%x", -lmd_res);
+			return TEE_ERROR_BAD_STATE;
+		}
+
+		lmd_res = mbedtls_cipher_finish(ctx, dst + olen, &finish_olen);
+		break;
+#endif
+#if defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_XTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+#if defined(CFG_CRYPTO_CTS)
+	case TEE_ALG_AES_CTS:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	if (lmd_res != 0) {
+		EMSG("mbedtls_cipher_update failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	return TEE_SUCCESS;
 }
 
 void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
 {
 }
-
-TEE_Result crypto_cipher_get_block_size(uint32_t algo __unused,
-					size_t *size __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-#endif /*_CFG_CRYPTO_WITH_CIPHER*/
+#endif /* _CFG_CRYPTO_WITH_CIPHER */
 
 /*****************************************************************************
  * Message Authentication Code functions
