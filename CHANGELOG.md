@@ -1,3 +1,120 @@
+# OP-TEE - version 3.0.0
+
+[Link][github_commits_3_0_0] to a list of all commits between this release and
+the previous one (2.6.0).
+
+About backwards compatibility: Trusted Applications built with OP-TEE 2.5.0 or
+earlier will not run properly with a *debug* build of this release due
+to commit [0e1c6e8e][commit_0e1c6e8e] ("Dump call stack on TA panic").
+Non-debug builds are not affected.
+
+## New features
+
+* New supported platforms: Armada 3700 ([#1946]), Poplar ([#1999]), 64-bit
+  support for FSL ls1012ardb ([#1941]), i.MX6SX Sabreauto ([#1974]).
+* arm32: sm: init CNTVOFF ([#2052])
+* Debug/info/error traces: make output more compact ([#2011])
+* tzc380: implement new functions ([#1994])
+* Secure Data Path: add pseudo-TA to convert VA to PA (#1993])
+* Pager: use NEON AES GCM implementation ([#1959])
+* Crypto: add optimized AES GCM implementation using NEON ([#1949])
+* Add support for using secure storage for TA anti-rollback ([#1928])
+* Crypto: replace struct crypto_ops with function interface ([#1923],
+  [#1931])
+* aosp_optee.mk: define OPTEE_BIN ([#1922])
+* Add build option to allow concurrent execution of single-instance TAs
+  ([#1915])
+* Pager: support for address sanitizer ([#1856])
+* Pager: make memory between CFG_TEE_RAM_START and TEE load address usable by
+  pager ([#1826])
+
+## Bug fixes
+
+* Fix crash in tee_mmu_final() on TA loading error ([#2092])
+* LibTomCrypt: fix issue causing invalid output when using AES CTR with
+hardware acceleration (CFG_CRYPTO_WITH_CE) ([#2086])
+* pl310: fix cache sync ([#2035])
+* tzc380: do not write reserved bits ([#1994])
+* Fix potential double free in ta_open() ([#1970])
+* libfdt: fix undefined behaviour in fdt_offset_ptr() ([#1969])
+* imx_wdog: fix register access ([#1966])
+* Secure storage: fix potential memory leak after early return ([#1961])
+* LibTomCrypt: fix double free in dsa_import() ([#1963])
+* RPMB: fix TA independance issue in secure storage ([#1921])
+* RPMB: return TEE_ERROR_ACCESS_CONFLICT instead of panicking when a TA
+  attempts to create an existing persistent object without the overwrite flag
+  ([#1919])
+* PSCI: pass non-secure context to psci_system_suspend() ([#1916])
+* Fix "Argument list too long" during "make clean" ([#1897])
+
+## Security fixes
+
+* Mitigations and hardening against the Spectre and Meltdown vulnerabilities
+  (CVE-2017-5753, CVE-2017-5715, CVE-2017-5754).
+
+## Known issues
+
+* Secure storage (REE FS): storage size not updated after
+TEE_TruncateObjectData() ([#2094])
+* Possible deadlock with CFG_WITH_PAGER=y when loading a TA and not enough
+page tables are available in pgt_cache ([#2080])
+
+## Tested on
+
+The release was tested successfully on the platforms listed below.
+
+<!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
+* d02
+* hikey
+* hikey-hikey960
+* imx-mx6ulevk
+* imx-mx7dsabresd
+* marvell-armada7k8k
+* marvell-armada3700
+* mediatek-mt8173
+* rcar-salvator_m3
+* rockchip-rk322x
+* rpi3
+* sam
+* ti
+* vexpress-juno
+* vexpress-qemu_armv8a
+* vexpress-qemu_virt
+
+[commit_0e1c6e8e]: https://github.com/OP-TEE/optee_os/commit/0e1c6e8e
+[github_commits_3_0_0]: https://github.com/OP-TEE/optee_os/compare/2.6.0...3.0.0
+[#2092]: https://github.com/OP-TEE/optee_os/pull/2092
+[#2086]: https://github.com/OP-TEE/optee_os/pull/2086
+[#2094]: https://github.com/OP-TEE/optee_os/issues/2094
+[#2080]: https://github.com/OP-TEE/optee_os/issues/2080
+[#2052]: https://github.com/OP-TEE/optee_os/pull/2052
+[#2035]: https://github.com/OP-TEE/optee_os/pull/2035
+[#2011]: https://github.com/OP-TEE/optee_os/pull/2011
+[#1999]: https://github.com/OP-TEE/optee_os/pull/1999
+[#1994]: https://github.com/OP-TEE/optee_os/pull/1994
+[#1993]: https://github.com/OP-TEE/optee_os/pull/1993
+[#1974]: https://github.com/OP-TEE/optee_os/pull/1974
+[#1970]: https://github.com/OP-TEE/optee_os/pull/1970
+[#1969]: https://github.com/OP-TEE/optee_os/pull/1969
+[#1966]: https://github.com/OP-TEE/optee_os/pull/1966
+[#1963]: https://github.com/OP-TEE/optee_os/pull/1963
+[#1961]: https://github.com/OP-TEE/optee_os/pull/1961
+[#1959]: https://github.com/OP-TEE/optee_os/pull/1959
+[#1949]: https://github.com/OP-TEE/optee_os/pull/1949
+[#1946]: https://github.com/OP-TEE/optee_os/pull/1946
+[#1941]: https://github.com/OP-TEE/optee_os/pull/1941
+[#1931]: https://github.com/OP-TEE/optee_os/pull/1931
+[#1928]: https://github.com/OP-TEE/optee_os/pull/1928
+[#1923]: https://github.com/OP-TEE/optee_os/pull/1923
+[#1922]: https://github.com/OP-TEE/optee_os/pull/1922
+[#1921]: https://github.com/OP-TEE/optee_os/pull/1921
+[#1919]: https://github.com/OP-TEE/optee_os/pull/1919
+[#1916]: https://github.com/OP-TEE/optee_os/pull/1916
+[#1915]: https://github.com/OP-TEE/optee_os/pull/1915
+[#1897]: https://github.com/OP-TEE/optee_os/pull/1897
+[#1856]: https://github.com/OP-TEE/optee_os/pull/1856
+[#1826]: https://github.com/OP-TEE/optee_os/pull/1826
+
 # OP-TEE - version 2.6.0
 
 [Link][github_commits_2_6_0] to a list of all commits between this release and
@@ -49,7 +166,7 @@ the previous one (2.5.0).
 
 ## Tested on
 
-The release was tested successfuly on the platforms listed below.
+The release was tested successfully on the platforms listed below.
 If a platform is not listed, it means the release was not tested on this
 platform.
 
@@ -75,7 +192,7 @@ platform.
 * vexpress-qemu_armv8a
 * vexpress-qemu_virt
 
-[github_commits_2_6_0]: https://github.com/OP-TEE/optee_os/compare/2.5.0...HEAD
+[github_commits_2_6_0]: https://github.com/OP-TEE/optee_os/compare/2.5.0...2.6.0
 [#1858]: https://github.com/OP-TEE/optee_os/issues/1858
 [#1849]: https://github.com/OP-TEE/optee_os/issues/1849
 [#1843]: https://github.com/OP-TEE/optee_os/issues/1843
