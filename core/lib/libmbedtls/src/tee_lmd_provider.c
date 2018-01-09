@@ -471,7 +471,6 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	mbedtls_rsa_init(&rsa, 0, 0);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 	lmd_res = mbedtls_ctr_drbg_seed(&ctr_drbg, mbd_rand, NULL, NULL, 0);
-
 	if (lmd_res != 0) {
 		EMSG(" failed\n  ! mbedtls_ctr_drbg_seed ret is 0x%x\n",
 			-lmd_res);
@@ -481,11 +480,11 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 
 	/* get the public exponent */
 	mbedtls_mpi_write_binary((mbedtls_mpi *)key->e,
-			(unsigned char *)&e, sizeof(uint32_t));
+				(unsigned char *)&e, sizeof(uint32_t));
 
 	e = TEE_U32_FROM_BIG_ENDIAN(e);
 	lmd_res = mbedtls_rsa_gen_key(&rsa, mbedtls_ctr_drbg_random,
-					&ctr_drbg, key_size, (int)e);
+				      &ctr_drbg, key_size, (int)e);
 	if (lmd_res != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else if ((size_t)mbedtls_mpi_bitlen(&rsa.N) != key_size) {
@@ -523,8 +522,8 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.N = *(mbedtls_mpi *)key->n;
 
 	rsa.len = crypto_bignum_num_bytes((void *)&rsa.N);
 
@@ -563,6 +562,9 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 out:
 	if (buf)
 		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.N);
 	mbedtls_rsa_free(&rsa);
 
 	return res;
@@ -580,15 +582,15 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.D, key->d);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.D = *(mbedtls_mpi *)key->d;
+	rsa.N = *(mbedtls_mpi *)key->n;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		crypto_bignum_copy((void *)&rsa.P, key->p);
-		crypto_bignum_copy((void *)&rsa.Q, key->q);
-		crypto_bignum_copy((void *)&rsa.QP, key->qp);
-		crypto_bignum_copy((void *)&rsa.DP, key->dp);
-		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+		rsa.P = *(mbedtls_mpi *)key->p;
+		rsa.Q = *(mbedtls_mpi *)key->q;
+		rsa.QP = *(mbedtls_mpi *)key->qp;
+		rsa.DP = *(mbedtls_mpi *)key->dp;
+		rsa.DQ = *(mbedtls_mpi *)key->dq;
 	}
 
 	rsa.len = mbedtls_mpi_size(&rsa.N);
@@ -628,6 +630,17 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 out:
 	if (buf)
 		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.D);
+	mbedtls_mpi_init(&rsa.N);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		mbedtls_mpi_init(&rsa.P);
+		mbedtls_mpi_init(&rsa.Q);
+		mbedtls_mpi_init(&rsa.QP);
+		mbedtls_mpi_init(&rsa.DP);
+		mbedtls_mpi_init(&rsa.DQ);
+	}
 	mbedtls_rsa_free(&rsa);
 
 	return res;
@@ -650,15 +663,15 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.D, key->d);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.D = *(mbedtls_mpi *)key->d;
+	rsa.N = *(mbedtls_mpi *)key->n;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		crypto_bignum_copy((void *)&rsa.P, key->p);
-		crypto_bignum_copy((void *)&rsa.Q, key->q);
-		crypto_bignum_copy((void *)&rsa.QP, key->qp);
-		crypto_bignum_copy((void *)&rsa.DP, key->dp);
-		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+		rsa.P = *(mbedtls_mpi *)key->p;
+		rsa.Q = *(mbedtls_mpi *)key->q;
+		rsa.QP = *(mbedtls_mpi *)key->qp;
+		rsa.DP = *(mbedtls_mpi *)key->dp;
+		rsa.DQ = *(mbedtls_mpi *)key->dq;
 	}
 
 	/*
@@ -667,7 +680,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	 * decrypt. We know the upper bound though.
 	 */
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
-		mod_size =  crypto_bignum_num_bytes(key->n);
+		mod_size = crypto_bignum_num_bytes(key->n);
 		blen = mod_size - 11;
 		lmd_padding = MBEDTLS_RSA_PKCS_V15;
 	} else {
@@ -720,7 +733,6 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		lmd_res = pk_info->decrypt_func(&rsa, src, src_len, buf, &blen,
 						blen, mbedtls_ctr_drbg_random,
 						&ctr_drbg);
-
 	switch (lmd_res) {
 	case MBEDTLS_ERR_RSA_INVALID_PADDING:
 	case MBEDTLS_ERR_PK_TYPE_MISMATCH:
@@ -750,6 +762,17 @@ out:
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	if (buf)
 		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.D);
+	mbedtls_mpi_init(&rsa.N);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		mbedtls_mpi_init(&rsa.P);
+		mbedtls_mpi_init(&rsa.Q);
+		mbedtls_mpi_init(&rsa.QP);
+		mbedtls_mpi_init(&rsa.DP);
+		mbedtls_mpi_init(&rsa.DQ);
+	}
 	mbedtls_rsa_free(&rsa);
 	return res;
 }
@@ -770,8 +793,8 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.N = *(mbedtls_mpi *)key->n;
 
 	mod_size = crypto_bignum_num_bytes(key->n);
 	if (*dst_len < mod_size) {
@@ -816,9 +839,9 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		goto out;
 	}
 
-	lmd_res = pk_info->encrypt_func(&rsa, src, src_len, dst,
-			dst_len, *dst_len,
-			mbedtls_ctr_drbg_random, &ctr_drbg);
+	lmd_res = pk_info->encrypt_func(&rsa, src, src_len, dst, dst_len,
+					*dst_len, mbedtls_ctr_drbg_random,
+					&ctr_drbg);
 
 	switch (lmd_res) {
 	case MBEDTLS_ERR_RSA_INVALID_PADDING:
@@ -837,6 +860,9 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 	res = TEE_SUCCESS;
 out:
 	mbedtls_ctr_drbg_free(&ctr_drbg);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.N);
 	mbedtls_rsa_free(&rsa);
 	return res;
 }
@@ -856,15 +882,15 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.D, key->d);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.D = *(mbedtls_mpi *)key->d;
+	rsa.N = *(mbedtls_mpi *)key->n;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		crypto_bignum_copy((void *)&rsa.P, key->p);
-		crypto_bignum_copy((void *)&rsa.Q, key->q);
-		crypto_bignum_copy((void *)&rsa.QP, key->qp);
-		crypto_bignum_copy((void *)&rsa.DP, key->dp);
-		crypto_bignum_copy((void *)&rsa.DQ, key->dq);
+		rsa.P = *(mbedtls_mpi *)key->p;
+		rsa.Q = *(mbedtls_mpi *)key->q;
+		rsa.QP = *(mbedtls_mpi *)key->qp;
+		rsa.DP = *(mbedtls_mpi *)key->dp;
+		rsa.DQ = *(mbedtls_mpi *)key->dq;
 	}
 
 	switch (algo) {
@@ -899,7 +925,6 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	}
 
 	mod_size = crypto_bignum_num_bytes(key->n);
-
 	if (*sig_len < mod_size) {
 		*sig_len = mod_size;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -933,12 +958,11 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 
 	if (lmd_padding == MBEDTLS_RSA_PKCS_V15)
 		lmd_res = pk_info->sign_func(&rsa, md_algo, msg, msg_len, sig,
-					sig_len, NULL, NULL);
+					     sig_len, NULL, NULL);
 	else
 		lmd_res = pk_info->sign_func(&rsa, md_algo, msg, msg_len, sig,
-					sig_len, mbedtls_ctr_drbg_random,
-					&ctr_drbg);
-
+					     sig_len, mbedtls_ctr_drbg_random,
+					     &ctr_drbg);
 	if (lmd_res != 0) {
 		EMSG("sign_func failed, returned 0x%x\n", -lmd_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -947,6 +971,17 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	res = TEE_SUCCESS;
 err:
 	mbedtls_ctr_drbg_free(&ctr_drbg);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.D);
+	mbedtls_mpi_init(&rsa.N);
+	if (key->p && crypto_bignum_num_bytes(key->p)) {
+		mbedtls_mpi_init(&rsa.P);
+		mbedtls_mpi_init(&rsa.Q);
+		mbedtls_mpi_init(&rsa.QP);
+		mbedtls_mpi_init(&rsa.DP);
+		mbedtls_mpi_init(&rsa.DQ);
+	}
 	mbedtls_rsa_free(&rsa);
 	return res;
 }
@@ -966,8 +1001,8 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	mbedtls_rsa_init(&rsa, 0, 0);
 
-	crypto_bignum_copy((void *)&rsa.E, key->e);
-	crypto_bignum_copy((void *)&rsa.N, key->n);
+	rsa.E = *(mbedtls_mpi *)key->e;
+	rsa.N = *(mbedtls_mpi *)key->n;
 
 	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
 		&hash_size);
@@ -1023,7 +1058,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
 
 	lmd_res = pk_info->verify_func(&rsa, md_algo, msg, msg_len,
-		sig, sig_len);
+				       sig, sig_len);
 	if (lmd_res != 0) {
 		EMSG("verify_func failed, returned 0x%x\n", -lmd_res);
 		res = TEE_ERROR_SIGNATURE_INVALID;
@@ -1031,6 +1066,9 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	}
 	res = TEE_SUCCESS;
 err:
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&rsa.E);
+	mbedtls_mpi_init(&rsa.N);
 	mbedtls_rsa_free(&rsa);
 	return res;
 }
@@ -1113,8 +1151,8 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 
 	mbedtls_dhm_init(&dhm);
 
-	crypto_bignum_copy((void *)&dhm.G, key->g);
-	crypto_bignum_copy((void *)&dhm.P, key->p);
+	dhm.G = *(mbedtls_mpi *)key->g;
+	dhm.P = *(mbedtls_mpi *)key->p;
 
 	dhm.len = crypto_bignum_num_bytes(key->p);
 
@@ -1129,7 +1167,7 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 		goto out;
 	}
 	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbits, buf,
-			dhm.len, mbd_rand, NULL);
+					  dhm.len, mbd_rand, NULL);
 	if (lmd_res != 0) {
 		EMSG("mbedtls_dhm_make_public err, return is 0x%x\n", -lmd_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1141,8 +1179,10 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 out:
 	if (buf)
 		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&dhm.G);
+	mbedtls_mpi_init(&dhm.P);
 	mbedtls_dhm_free(&dhm);
-
 	return res;
 }
 
@@ -1158,11 +1198,11 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 
 	mbedtls_dhm_init(&dhm);
 
-	crypto_bignum_copy((void *)&dhm.G, private_key->g);
-	crypto_bignum_copy((void *)&dhm.P, private_key->p);
-	crypto_bignum_copy((void *)&dhm.GX, private_key->y);
-	crypto_bignum_copy((void *)&dhm.X, private_key->x);
-	crypto_bignum_copy((void *)&dhm.GY, public_key);
+	dhm.G = *(mbedtls_mpi *)private_key->g;
+	dhm.P = *(mbedtls_mpi *)private_key->p;
+	dhm.GX = *(mbedtls_mpi *)private_key->y;
+	dhm.X = *(mbedtls_mpi *)private_key->x;
+	dhm.GY = *(mbedtls_mpi *)public_key;
 
 	dhm.len = crypto_bignum_num_bytes(private_key->p);
 
@@ -1173,7 +1213,7 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 	}
 
 	lmd_res = mbedtls_dhm_calc_secret(&dhm, buf, dhm.len,
-			&olen, mbd_rand, NULL);
+					  &olen, mbd_rand, NULL);
 	if (lmd_res != 0) {
 		EMSG("mbedtls_dhm_calc_secret failed, ret is 0x%x\n", -lmd_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1184,6 +1224,12 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 out:
 	if (buf)
 		free(buf);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&dhm.G);
+	mbedtls_mpi_init(&dhm.P);
+	mbedtls_mpi_init(&dhm.GX);
+	mbedtls_mpi_init(&dhm.X);
+	mbedtls_mpi_init(&dhm.GY);
 	mbedtls_dhm_free(&dhm);
 	return res;
 }
@@ -1387,7 +1433,7 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 		goto err;
 	}
 
-	crypto_bignum_copy((void *)&ecdsa.d, key->d);
+	ecdsa.d = *(mbedtls_mpi *)key->d;
 
 	res = ecc_get_keysize(key->curve, algo, &key_size_bytes,
 			&key_size_bits);
@@ -1410,16 +1456,18 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	}
 
 	lmd_res = mbedtls_ecdsa_sign(&ecdsa.grp, &r, &s, &ecdsa.d, msg,
-		msg_len, mbedtls_ctr_drbg_random, &ctr_drbg);
+				msg_len, mbedtls_ctr_drbg_random, &ctr_drbg);
 
 	if (lmd_res == 0) {
 		*sig_len = 2 * key_size_bytes;
 		memset(sig, 0, *sig_len);
 		mbedtls_mpi_write_binary(&r, sig + *sig_len/2 -
-			mbedtls_mpi_size(&r), mbedtls_mpi_size(&r));
+					mbedtls_mpi_size(&r),
+					mbedtls_mpi_size(&r));
 
 		mbedtls_mpi_write_binary(&s, sig + *sig_len -
-			mbedtls_mpi_size(&s), mbedtls_mpi_size(&s));
+					mbedtls_mpi_size(&s),
+					mbedtls_mpi_size(&s));
 		res = TEE_SUCCESS;
 	} else {
 		EMSG("mbedtls_ecdsa_sign failed, returned 0x%x\n", -lmd_res);
@@ -1429,6 +1477,8 @@ err:
 	mbedtls_mpi_free(&r);
 	mbedtls_mpi_free(&s);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&ecdsa.d);
 	mbedtls_ecdsa_free(&ecdsa);
 	return res;
 }
@@ -1458,12 +1508,12 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 		goto err;
 	}
 
-	crypto_bignum_copy((void *)&ecdsa.Q.X, key->x);
-	crypto_bignum_copy((void *)&ecdsa.Q.Y, key->y);
+	ecdsa.Q.X = *(mbedtls_mpi *)key->x;
+	ecdsa.Q.Y = *(mbedtls_mpi *)key->y;
 	mbedtls_mpi_read_binary(&ecdsa.Q.Z, one, sizeof(one));
 
 	res = ecc_get_keysize(key->curve, algo,
-			&key_size_bytes, &key_size_bits);
+			      &key_size_bytes, &key_size_bits);
 	if (res != TEE_SUCCESS) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
@@ -1479,7 +1529,7 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	mbedtls_mpi_read_binary(&s, sig + sig_len / 2, sig_len / 2);
 
 	lmd_res = mbedtls_ecdsa_verify(&ecdsa.grp, msg, msg_len, &ecdsa.Q,
-		&r, &s);
+				       &r, &s);
 	if (lmd_res != 0) {
 		EMSG("mbedtls_ecdsa_verify failed, returned 0x%x\n", -lmd_res);
 		res = TEE_ERROR_GENERIC;
@@ -1488,6 +1538,9 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 err:
 	mbedtls_mpi_free(&r);
 	mbedtls_mpi_free(&s);
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&ecdsa.Q.X);
+	mbedtls_mpi_init(&ecdsa.Q.Y);
 	mbedtls_ecdsa_free(&ecdsa);
 	return res;
 }
@@ -1510,9 +1563,9 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 		goto out;
 	}
 
-	crypto_bignum_copy((void *)&ecdh.d, private_key->d);
-	crypto_bignum_copy((void *)&ecdh.Qp.X, public_key->x);
-	crypto_bignum_copy((void *)&ecdh.Qp.Y, public_key->y);
+	ecdh.d = *(mbedtls_mpi *)private_key->d;
+	ecdh.Qp.X = *(mbedtls_mpi *)public_key->x;
+	ecdh.Qp.Y = *(mbedtls_mpi *)public_key->y;
 	mbedtls_mpi_read_binary(&ecdh.Qp.Z, one, sizeof(one));
 
 	lmd_res = mbedtls_ecdh_calc_secret(&ecdh, &out_len, secret,
@@ -1523,6 +1576,10 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 	}
 	*secret_len = out_len;
 out:
+	/* Reset mpi to skip freeing here, those mpis will be freed with key */
+	mbedtls_mpi_init(&ecdh.d);
+	mbedtls_mpi_init(&ecdh.Qp.X);
+	mbedtls_mpi_init(&ecdh.Qp.Y);
 	mbedtls_ecdh_free(&ecdh);
 	return res;
 }
