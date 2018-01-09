@@ -19,4 +19,8 @@
 #include "mbedtls_hash.h"
 #endif
 
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
+#include "mbedtls_cipher.h"
+#endif
+
 #endif /* LIBMBEDTLS_H */
