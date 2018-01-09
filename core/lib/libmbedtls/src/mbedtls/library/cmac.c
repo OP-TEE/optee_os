@@ -203,7 +203,9 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
                                 const unsigned char *key, size_t keybits )
 {
     mbedtls_cipher_type_t type;
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     mbedtls_cmac_context_t *cmac_ctx;
+#endif
     int retval;
 
     if( ctx == NULL || ctx->cipher_info == NULL || key == NULL )
@@ -226,6 +228,7 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
             return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
     }
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     /* Allocated and initialise in the cipher context memory for the CMAC
      * context */
     cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
@@ -235,7 +238,7 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
     ctx->cmac_ctx = cmac_ctx;
 
     mbedtls_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
-
+#endif
     return 0;
 }
 
@@ -247,14 +250,24 @@ int mbedtls_cipher_cmac_update( mbedtls_cipher_context_t *ctx,
     int ret = 0;
     size_t n, j, olen, block_size;
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     if( ctx == NULL || ctx->cipher_info == NULL || input == NULL ||
         ctx->cmac_ctx == NULL )
         return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+#else
+    if( ctx == NULL || ctx->cipher_info == NULL || input == NULL)
+        return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+#endif
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     cmac_ctx = ctx->cmac_ctx;
     block_size = ctx->cipher_info->block_size;
     state = ctx->cmac_ctx->state;
-
+#else
+    cmac_ctx = &(ctx->cmac_ctx);
+    block_size = ctx->cipher_info->block_size;
+    state = ctx->cmac_ctx.state;
+#endif
     /* Is there data still to process from the last call, that's greater in
      * size than a block? */
     if( cmac_ctx->unprocessed_len > 0 &&
@@ -318,11 +331,20 @@ int mbedtls_cipher_cmac_finish( mbedtls_cipher_context_t *ctx,
     int ret;
     size_t olen, block_size;
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     if( ctx == NULL || ctx->cipher_info == NULL || ctx->cmac_ctx == NULL ||
         output == NULL )
         return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+#else
+    if( ctx == NULL || ctx->cipher_info == NULL || output == NULL )
+        return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+#endif
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     cmac_ctx = ctx->cmac_ctx;
+#else
+    cmac_ctx = &(ctx->cmac_ctx);
+#endif
     block_size = ctx->cipher_info->block_size;
     state = cmac_ctx->state;
 
@@ -372,10 +394,17 @@ int mbedtls_cipher_cmac_reset( mbedtls_cipher_context_t *ctx )
 {
     mbedtls_cmac_context_t* cmac_ctx;
 
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
     if( ctx == NULL || ctx->cipher_info == NULL || ctx->cmac_ctx == NULL )
         return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
 
     cmac_ctx = ctx->cmac_ctx;
+#else
+    if( ctx == NULL || ctx->cipher_info == NULL )
+        return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+
+    cmac_ctx = &(ctx->cmac_ctx);
+#endif
 
     /* Reset the internal state */
     cmac_ctx->unprocessed_len = 0;

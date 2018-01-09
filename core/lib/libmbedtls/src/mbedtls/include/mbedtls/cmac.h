@@ -42,6 +42,7 @@ extern "C" {
 /**
  * CMAC context structure - Contains internal state information only
  */
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
 struct mbedtls_cmac_context_t
 {
     /** Internal state of the CMAC algorithm  */
@@ -54,6 +55,7 @@ struct mbedtls_cmac_context_t
     /** Length of data pending to be processed */
     size_t              unprocessed_len;
 };
+#endif
 
 /**
  * \brief               Set the CMAC key and prepare to authenticate the input

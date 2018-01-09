@@ -179,7 +179,29 @@ typedef struct mbedtls_cipher_base_t mbedtls_cipher_base_t;
 /**
  * CMAC context (opaque struct).
  */
+#if !defined(MBEDTLS_EXTERNAL_CTX_MANAGE)
 typedef struct mbedtls_cmac_context_t mbedtls_cmac_context_t;
+#else
+
+#if defined(MBEDTLS_AES_C)
+#define MBEDTLS_CIPHER_BLKSIZE_MAX      16  /* longest used by CMAC is AES */
+#else
+#define MBEDTLS_CIPHER_BLKSIZE_MAX      8   /* longest used by CMAC is 3DES */
+#endif
+
+typedef struct mbedtls_cmac_context_t
+{
+    /** Internal state of the CMAC algorithm  */
+    unsigned char       state[MBEDTLS_CIPHER_BLKSIZE_MAX];
+
+    /** Unprocessed data - either data that was not block aligned and is still
+     *  pending to be processed, or the final block */
+    unsigned char       unprocessed_block[MBEDTLS_CIPHER_BLKSIZE_MAX];
+
+    /** Length of data pending to be processed */
+    size_t              unprocessed_len;
+} mbedtls_cmac_context_t;
+#endif
 
 /**
  * Cipher information. Allows cipher functions to be called in a generic way.
@@ -285,7 +307,7 @@ typedef struct {
 
 #if defined(MBEDTLS_CMAC_C)
     /** CMAC Specific context */
-    mbedtls_cmac_context_t cmac_ctx;
+    struct mbedtls_cmac_context_t cmac_ctx;
 #endif
 } mbedtls_cipher_context_t_2;
 #endif
@@ -385,7 +407,7 @@ typedef struct {
 
 #if defined(MBEDTLS_CMAC_C)
     /** CMAC Specific context */
-    mbedtls_cmac_context_t cmac_ctx;
+    struct mbedtls_cmac_context_t cmac_ctx;
 #endif
 #endif /* MBEDTLS_EXTERNAL_CTX_MANAGE */
 } mbedtls_cipher_context_t;
