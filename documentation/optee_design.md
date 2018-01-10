@@ -671,7 +671,7 @@ xtest --install-ta
 
 #### File format of a Bootstrap Trusted Application
 
-![Bootstrap TA](/documentation/images/bootstrap_ta.png)
+![Bootstrap TA](/documentation/images/bootstrap_ta.svg)
 
 #### Signature verification of Bootstrap Trusted Applications
 
@@ -688,8 +688,8 @@ xtest --install-ta
 4. After successful verification, TEE core will continue loading the executable
    code in form of an `ELF` file. That part is still in shared memory so while
    loading this, TEE core continuously hashes everything while loading various
-   intermediate parts of the TA binary before doing a doing a final check to
-   ensure that all data still has not been tampered with. I.e., it will
+   intermediate parts of the TA binary before doing a final check to ensure
+   that all data still has not been tampered with. I.e., it will
 	* Hash the "**Signed Header**" (`h = H(Signed Header)`)
 	* Hash the "**Bootstrap Header**" (`h += H(Bootstrap Header)`)
 	* Hash the "**ELF image**" (`h += H(img)`). This is done in several
