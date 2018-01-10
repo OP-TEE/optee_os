@@ -509,7 +509,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	}
 
 	/* Clear table before use */
-	memset(l1_xlation_table[0], 0, NUM_L1_ENTRIES * XLAT_ENTRY_SIZE);
+	memset(l1_xlation_table, 0, sizeof(l1_xlation_table));
 	init_xlation_table(mm, 0, l1_xlation_table[0][0], 1);
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
 		memcpy(l1_xlation_table[0][n], l1_xlation_table[0][0],
