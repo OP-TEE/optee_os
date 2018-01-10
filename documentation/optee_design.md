@@ -150,6 +150,15 @@ table when the TA context is activated.
 
 ![Select xlation table](images/xlat_table.png "Select xlation table")
 
+## Translation tables and switching to user mode
+This section only applies with `CFG_WITH_LPAE=n` and
+`CFG_CORE_UNMAP_CORE_AT_EL0=y`.
+
+When switching to user mode only a minimal kernel mode mapping is kept.
+This is achieved by selecting a zeroed out big L1 translation in TTBR1 when
+transitioning to user mode. When returning back to kernel mode the original
+L1 translation table is restored in TTBR1.
+
 ## Translation tables and switching to normal world
 When switching to normal world either via a foreign interrupt or RPC there
 is a chance that secure world will resume execution on a different CPU.
