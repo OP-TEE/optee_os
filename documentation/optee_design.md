@@ -206,7 +206,7 @@ empty thread slot is selected and the CPU switches to that stack.
 
 ## Normal exit
 Normal exit occurs when a thread has finished its task and the thread is freed.
-When the main thread function, `tee_entry_std(),` returns interrupts are
+When the main thread function, `tee_entry_std()`, returns interrupts are
 disabled and the CPU switches to the temp stack instead. The thread is freed
 and OP-TEE exits to normal world.
 
