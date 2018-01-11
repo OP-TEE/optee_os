@@ -61,7 +61,7 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 
 	vfp_state = thread_kernel_enable_vfp();
 
-#ifdef CFG_HWSUPP_PMULL
+#ifdef CFG_HWSUPP_PMULT_64
 	pmull_ghash_update_p64(num_blocks, dg, data, k, head);
 #else
 	pmull_ghash_update_p8(num_blocks, dg, data, k, head);
