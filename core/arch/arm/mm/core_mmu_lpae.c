@@ -884,9 +884,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
 	uint64_t ttbr;
-	uint32_t daif = read_daif();
-
-	write_daif(daif | DAIF_AIF);
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	ttbr = read_ttbr0_el1();
 	/* Clear ASID */
@@ -916,7 +914,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	tlbi_all();
 
-	write_daif(daif);
+	thread_unmask_exceptions(exceptions);
 }
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
