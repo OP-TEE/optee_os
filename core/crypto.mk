@@ -52,6 +52,12 @@ ifeq ($(CFG_CRYPTO_WITH_CE),y)
 
 $(call force,CFG_AES_GCM_TABLE_BASED,n,conflicts with CFG_CRYPTO_WITH_CE)
 
+# CFG_HWSUPP_PMULT_64 defines whether the CPU supports polynomial multiplies
+# of 64-bit values (Aarch64: PMULL/PMULL2 with the 1Q specifier; Aarch32:
+# VMULL.P64). These operations are part of the Cryptographic Extensions, so
+# assume they are implicitly contained in CFG_CRYPTO_WITH_CE=y.
+CFG_HWSUPP_PMULT_64 ?= y
+
 ifeq ($(CFG_ARM32_core),y)
 CFG_CRYPTO_AES_ARM32_CE ?= $(CFG_CRYPTO_AES)
 CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_CRYPTO_SHA1)
