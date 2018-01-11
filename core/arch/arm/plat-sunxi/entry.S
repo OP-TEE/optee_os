@@ -64,7 +64,7 @@ UNWIND(	.cantunwind)
 	write_vbar r0
 	
 	mov	r4, r1
-	bl	get_core_pos
+	bl	__get_core_pos
 	ldr	r1, =stack_tmp_stride
 	ldr	r1, [r1]
 	mul	r1, r0, r1

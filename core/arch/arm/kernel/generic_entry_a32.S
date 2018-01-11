@@ -88,7 +88,7 @@ END_FUNC reset_vect_table
 
 	.macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
-	bl	get_core_pos
+	bl	__get_core_pos
 	lsl	r0, r0, #2
 	ldr	r1,=sem_cpu_sync
 	ldr	r2, =SEM_CPU_READY
@@ -226,7 +226,7 @@ UNWIND(	.cantunwind)
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	b	reset_primary
 #else
-	bl	get_core_pos
+	bl	__get_core_pos
 	cmp	r0, #0
 	beq	reset_primary
 	b	reset_secondary
@@ -240,7 +240,7 @@ KEEP_INIT _start
 	 * sp is assigned stack_tmp_export + cpu_id * stack_tmp_stride
 	 */
 	.macro set_sp
-		bl	get_core_pos
+		bl	__get_core_pos
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu

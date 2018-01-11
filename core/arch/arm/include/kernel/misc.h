@@ -29,11 +29,23 @@
 #ifndef KERNEL_MISC_H
 #define KERNEL_MISC_H
 
-#include <types_ext.h>
 #include <arm.h>
+#include <assert.h>
 #include <kernel/thread.h>
+#include <types_ext.h>
 
-size_t get_core_pos(void);
+size_t __get_core_pos(void);
+
+static inline size_t get_core_pos(void)
+{
+	/*
+	 * Foreign interrupts must be disabled before playing with current
+	 * core since we otherwise may be rescheduled to a different core.
+	 */
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	return __get_core_pos();
+}
+
 size_t get_core_pos_mpidr(uint32_t mpidr);
 
 uint32_t read_mode_sp(int cpu_mode);

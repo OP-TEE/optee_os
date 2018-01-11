@@ -76,7 +76,7 @@ UNWIND(	.cantunwind)
 	mov	r3, r5
 
 	/* Setup tmp stack */
-	bl	get_core_pos
+	bl	__get_core_pos
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
 	/* Unsupported CPU, park it before it breaks something */
 unhandled_cpu:

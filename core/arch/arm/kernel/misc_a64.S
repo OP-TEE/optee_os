@@ -10,11 +10,11 @@
 /* Let platforms override this if needed */
 .weak get_core_pos_mpidr
 
-/* size_t get_core_pos(void); */
-FUNC get_core_pos , :
+/* size_t __get_core_pos(void); */
+FUNC __get_core_pos , :
 	mrs	x0, mpidr_el1
 	b get_core_pos_mpidr
-END_FUNC get_core_pos
+END_FUNC __get_core_pos
 
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 FUNC get_core_pos_mpidr , :
