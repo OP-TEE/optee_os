@@ -35,13 +35,13 @@
 /* Let platforms override this if needed */
 .weak get_core_pos_mpidr
 
-/* size_t get_core_pos(void); */
-FUNC get_core_pos , :
+/* size_t __get_core_pos(void); */
+FUNC __get_core_pos , :
 UNWIND(	.fnstart)
 	read_mpidr r0
 	b get_core_pos_mpidr
 UNWIND(	.fnend)
-END_FUNC get_core_pos
+END_FUNC __get_core_pos
 
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 FUNC get_core_pos_mpidr , :

@@ -18,7 +18,7 @@
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
-		bl	get_core_pos
+		bl	__get_core_pos
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
