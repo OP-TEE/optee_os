@@ -251,28 +251,60 @@ END_FUNC sm_fiq_entry
 LOCAL_FUNC sm_vect_table , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
-	/*
-	 * This depends on SP being 8 byte aligned, that is, the lowest
-	 * three bits in SP are zero.
-	 *
-	 * The idea is to form a specific bit pattern in the lowest three
-	 * bits of SP depending on which entry in the vector we enter via.
-	 * This is done by adding 1 to SP in each entry but the last.
-	 */
-	add	sp, sp, #1	/* 7:111 Reset			*/
-	add	sp, sp, #1	/* 6:110 Undefined instruction	*/
-	add	sp, sp, #1	/* 5:101 Secure monitor call	*/
-	add	sp, sp, #1	/* 4:100 Prefetch abort		*/
-	add	sp, sp, #1	/* 3:011 Data abort		*/
-	add	sp, sp, #1	/* 2:010 Reserved		*/
-	add	sp, sp, #1	/* 1:001 IRQ			*/
-	nop			/* 0:000 FIQ			*/
+	b	.		/* Reset			*/
+	b	.		/* Undefined instruction	*/
+	b	sm_smc_entry	/* Secure monitor call		*/
+	b	.		/* Prefetch abort		*/
+	b	.		/* Data abort			*/
+	b	.		/* Reserved			*/
+	b	.		/* IRQ				*/
+	b	sm_fiq_entry	/* FIQ				*/
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
+	.macro vector_prologue_spectre
+		/*
+		 * This depends on SP being 8 byte aligned, that is, the
+		 * lowest three bits in SP are zero.
+		 *
+		 * The idea is to form a specific bit pattern in the lowest
+		 * three bits of SP depending on which entry in the vector
+		 * we enter via.  This is done by adding 1 to SP in each
+		 * entry but the last.
+		 */
+		add	sp, sp, #1	/* 7:111 Reset			*/
+		add	sp, sp, #1	/* 6:110 Undefined instruction	*/
+		add	sp, sp, #1	/* 5:101 Secure monitor call	*/
+		add	sp, sp, #1	/* 4:100 Prefetch abort		*/
+		add	sp, sp, #1	/* 3:011 Data abort		*/
+		add	sp, sp, #1	/* 2:010 Reserved		*/
+		add	sp, sp, #1	/* 1:001 IRQ			*/
+		nop			/* 0:000 FIQ			*/
+	.endm
+
+	.align 5
+sm_vect_table_a15:
+	vector_prologue_spectre
+	/*
+	 * Invalidate the branch predictor for the current processor.
+	 * Note that the BPIALL instruction is not effective in
+	 * invalidating the branch predictor on Cortex-A15. For that CPU,
+	 * set ACTLR[0] to 1 during early processor initialisation, and
+	 * invalidate the branch predictor by performing an ICIALLU
+	 * instruction. See also:
+	 * https://github.com/ARM-software/arm-trusted-firmware/wiki/Arm-Trusted-Firmware-Security-Advisory-TFV-6#variant-2-cve-2017-5715
+	 */
+	write_iciallu
+	isb
+	b	1f
+
+	.align 5
+sm_vect_table_bpiall:
+	vector_prologue_spectre
 	/* Invalidate the branch predictor for the current processor. */
 	write_bpiall
 	isb
 
+1:
 	/*
 	 * Only two exception does normally occur, smc and fiq. With all
 	 * other exceptions it's good enough to just spinn, the lowest bits
@@ -291,15 +323,6 @@ UNWIND(	.cantunwind)
 
 	/* unhandled exception */
 	b	.
-#else /*!CFG_CORE_WORKAROUND_SPECTRE_BP*/
-	b	.		/* Reset			*/
-	b	.		/* Undefined instruction	*/
-	b	sm_smc_entry	/* Secure monitor call		*/
-	b	.		/* Prefetch abort		*/
-	b	.		/* Data abort			*/
-	b	.		/* Reserved			*/
-	b	.		/* IRQ				*/
-	b	sm_fiq_entry	/* FIQ				*/
 #endif /*!CFG_CORE_WORKAROUND_SPECTRE_BP*/
 UNWIND(	.fnend)
 END_FUNC sm_vect_table
@@ -314,9 +337,37 @@ UNWIND(	.fnstart)
 	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_NSEC)
 	msr	cpsr, r1
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
+	/*
+	 * For unrecognized CPUs we fall back to the vector used for
+	 * unaffected CPUs. Cortex A-15 has special treatment compared to
+	 * the other affected Cortex CPUs.
+	 */
+	read_midr r1
+	ubfx	r2, r1, #MIDR_IMPLEMENTER_SHIFT, #MIDR_IMPLEMENTER_WIDTH
+	cmp	r2, #MIDR_IMPLEMENTER_ARM
+	bne	1f
+
+	ubfx	r2, r1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
+			#MIDR_PRIMARY_PART_NUM_WIDTH
+
+	mov	r3, #CORTEX_A8_PART_NUM
+	cmp	r2, r3
+	movne	r3, #CORTEX_A9_PART_NUM
+	cmpne	r2, r3
+	movne	r3, #CORTEX_A17_PART_NUM
+	cmpne	r2, r3
+	ldreq	r0, =sm_vect_table_bpiall
+	beq	2f
+
+	mov	r3, #CORTEX_A15_PART_NUM
+	cmp	r2, r3
+	ldreq	r0, =sm_vect_table_a15
+	beq	2f
+#endif
 	/* Set monitor vector (MVBAR) */
-	ldr	r0, =sm_vect_table
-	write_mvbar r0
+1:	ldr	r0, =sm_vect_table
+2:	write_mvbar r0
 
 	bx	lr
 END_FUNC sm_init
