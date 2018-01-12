@@ -642,12 +642,15 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info)
 {
-	uint64_t *tbl = l1_xlation_table[0][get_core_pos()];
-	uintptr_t ntbl;
-	unsigned level = 1;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	unsigned int num_entries = NUM_L1_ENTRIES;
+	unsigned int level = 1;
 	vaddr_t va_base = 0;
-	unsigned num_entries = NUM_L1_ENTRIES;
+	bool ret = false;
+	uintptr_t ntbl;
+	uint64_t *tbl;
 
+	tbl = l1_xlation_table[0][get_core_pos()];
 	while (true) {
 		unsigned level_size_shift =
 			L1_XLAT_ADDRESS_SHIFT - (level - 1) *
@@ -655,7 +658,7 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		unsigned n = (va - va_base) >> level_size_shift;
 
 		if (n >= num_entries)
-			return false;
+			goto out;
 
 		if (level == max_level || level == 3 ||
 			(tbl[n] & TABLE_DESC) != TABLE_DESC) {
@@ -663,12 +666,24 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 			 * We've either reached max_level, level 3, a block
 			 * mapping entry or an "invalid" mapping entry.
 			 */
+
+			/*
+			 * Level 1 is the CPU specific translation table.
+			 * It doesn't make sense to return anything based
+			 * on that unless foreign interrupts already are
+			 * masked.
+			 */
+			if (level == 1 &&
+			    !(exceptions & THREAD_EXCP_FOREIGN_INTR))
+				goto out;
+
 			tbl_info->table = tbl;
 			tbl_info->va_base = va_base;
 			tbl_info->level = level;
 			tbl_info->shift = level_size_shift;
 			tbl_info->num_entries = num_entries;
-			return true;
+			ret = true;
+			goto out;
 		}
 
 		/* Copy bits 39:12 from tbl[n] to ntbl */
@@ -676,12 +691,15 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 
 		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
 		if (!tbl)
-			return false;
+			goto out;
 
 		va_base += (vaddr_t)n << level_size_shift;
 		level++;
 		num_entries = XLAT_TABLE_ENTRIES;
 	}
+out:
+	thread_unmask_exceptions(exceptions);
+	return ret;
 }
 
 bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
