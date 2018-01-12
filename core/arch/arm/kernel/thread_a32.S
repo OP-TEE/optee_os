@@ -584,10 +584,11 @@ END_FUNC thread_unwind_user_mode
 		 * LPAE TPIDRURO to store r1 too.
 		 */
 		write_tpidrprw r0
+#if defined(CFG_CORE_UNMAP_CORE_AT_EL0) || defined(CFG_WITH_LPAE)
+		write_tpidruro r1
+#endif
 
 #ifdef CFG_WITH_LPAE
-		write_tpidruro r1
-
 		read_ttbr0_64bit r0, r1
 		tst	r1, #BIT(TTBR_ASID_SHIFT - 32)
 		beq	11f
@@ -624,8 +625,11 @@ END_FUNC thread_unwind_user_mode
 #endif /*!CFG_WITH_LPAE*/
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		ldr	r0, =thread_vect_table
-		write_vbar r0
+		ldr	r0, =thread_user_kcode_offset
+		ldr	r0, [r0]
+		read_vbar r1
+		add	r1, r1, r0
+		write_vbar r1
 		isb
 
 	11:	/*
@@ -639,7 +643,7 @@ END_FUNC thread_unwind_user_mode
 	11:
 #endif
 		read_tpidrprw r0
-#ifdef CFG_WITH_LPAE
+#if defined(CFG_CORE_UNMAP_CORE_AT_EL0) || defined(CFG_WITH_LPAE)
 		read_tpidruro r1
 #endif
 	.endm
@@ -902,7 +906,7 @@ eret_to_user_mode:
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	ldr	r0, =thread_user_kcode_offset
 	ldr	r0, [r0]
-	adr	r1, thread_vect_table
+	read_vbar r1
 	sub	r1, r1, r0
 	write_vbar r1
 	isb
