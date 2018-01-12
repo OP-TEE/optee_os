@@ -536,7 +536,6 @@ UNWIND(	.cantunwind)
 
 	/* Prepare user mode entry via eret_to_user_mode */
 	cpsid	aif
-	cps	#CPSR_MODE_ABT
 	msr     spsr_fsxc, r6
 	mov	lr, r5
 
@@ -663,11 +662,10 @@ END_FUNC thread_unwind_user_mode
 	 * the banked fiq registers is somewhat analogous to the lazy save
 	 * of VFP registers.
 	 */
-	push	{r0-r3}
 	.ifc	\mode\(),fiq
-	push	{r8-r12, lr}
+	push	{r0-r3, r8-r12, lr}
 	.else
-	push	{r12, lr}
+	push	{r0-r3, r12, lr}
 	.endif
 
 	bl	thread_check_canaries
@@ -675,21 +673,15 @@ END_FUNC thread_unwind_user_mode
 	ldr	lr, [lr]
 	blx	lr
 
+	mrs	r0, spsr
+	cmp_spsr_user_mode r0
+
 	.ifc	\mode\(),fiq
-	pop	{r8-r12, lr}
+	pop	{r0-r3, r8-r12, lr}
 	.else
-	pop	{r12, lr}
+	pop	{r0-r3, r12, lr}
 	.endif
 
-	mov	r0, sp
-	mrs	r1, spsr
-	mov	r2, lr
-	add	sp, sp, #(4 * 4)
-	cps	#CPSR_MODE_ABT
-	cmp_spsr_user_mode r1
-	msr	spsr_fsxc, r1
-	mov	lr, r2
-	ldm	r0, {r0-r3}
 	movnes	pc, lr
 	b	eret_to_user_mode
 .endm
@@ -871,14 +863,10 @@ thread_svc_handler:
 	mov	r0, sp
 	bl	tee_svc_handler
 	cpsid	aif	/* In case something was unmasked */
-	/* Use ip instead of stack pointer as we need to switch mode. */
-	mov	ip, sp
-	add	sp, #(4 * 10)
-	cps	#CPSR_MODE_ABT
-	ldr	r0, [ip], #4
+	pop	{r0}
 	msr	spsr_fsxc, r0
 	cmp_spsr_user_mode r0
-	ldm	ip, {r0-r7, lr}
+	pop	{r0-r7, lr}
 	movnes	pc, lr
 	b	eret_to_user_mode
 	/* end thread_svc_handler */
