@@ -91,13 +91,18 @@ loop_cli_way_done:
 
 	/* Cache Sync */
 
-	/* Wait for writing cache sync */
+	/*
+	 * Wait for writing cache sync
+	 * To PL310, Cache sync is atomic opertion, no need to check
+	 * the status. For PL220, this check is needed. Keeping the loop
+	 * for PL310 is no harm for PL310.
+	 */
 loop_cli_sync:
 	ldr	r1, [r0, #PL310_SYNC]
 	cmp	r1, #0
 	bne	loop_cli_sync
 
-	mov	r1, #1
+	mov	r1, #0
 	str	r1, [r0, #PL310_SYNC]
 
 loop_cli_sync_done:
@@ -127,7 +132,7 @@ loop_inv_way_sync:
 	cmp	r1, #0
 	bne	loop_inv_way_sync
 
-	mov	r1, #1
+	mov	r1, #0
 	str	r1, [r0, #PL310_SYNC]
 
 loop_inv_way_sync_done:
@@ -157,7 +162,7 @@ loop_cl_way_sync:
 	cmp	r1, #0
 	bne	loop_cl_way_sync
 
-	mov	r1, #1
+	mov	r1, #0
 	str	r1, [r0, #PL310_SYNC]
 
 loop_cl_way_sync_done:
@@ -212,7 +217,7 @@ loop_xxx_pa_sync:
 	cmp	r12, #0
 	bne	loop_xxx_pa_sync
 
-	mov	r12, #1
+	mov	r12, #0
 	str	r12, [r0, #PL310_SYNC]
 
 loop_xxx_pa_sync_done:
