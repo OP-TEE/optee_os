@@ -3,7 +3,7 @@
  * Copyright (c) 2015-2017, Linaro Limited
  */
 
-#include <arm64.h>
+#include <arm.h>
 #include <arm64_macros.S>
 #include <asm-defines.h>
 #include <asm.S>
@@ -254,8 +254,30 @@ END_FUNC thread_rpc
 KEEP_PAGER thread_rpc
 
 FUNC thread_init_vbar , :
-	adr	x0, thread_vect_table
-	msr	vbar_el1, x0
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	/*
+	 * For unrecognized CPUs we fall back to the vector used for
+	 * unaffected CPUs.
+	 */
+	mrs	x1, midr_el1
+	ubfx	x2, x1, #MIDR_IMPLEMENTER_SHIFT, #MIDR_IMPLEMENTER_WIDTH
+	cmp	x2, #MIDR_IMPLEMENTER_ARM
+	b.ne	1f
+
+	adr	x0, workaround_vect_table
+	ubfx	x2, x1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
+			#MIDR_PRIMARY_PART_NUM_WIDTH
+	cmp	x2, #CORTEX_A57_PART_NUM
+	b.eq	2f
+	cmp	x2, #CORTEX_A72_PART_NUM
+	b.eq	2f
+	cmp	x2, #CORTEX_A73_PART_NUM
+	b.eq	2f
+	cmp	x2, #CORTEX_A75_PART_NUM
+	b.eq	2f
+#endif
+1:	adr	x0, thread_vect_table
+2:	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
 KEEP_PAGER thread_init_vbar
@@ -507,6 +529,117 @@ el0_fiq_a32:
 el0_serror_a32:
 	b	el0_serror_a32
 	check_vector_size el0_serror_a32
+
+#if defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC)
+	.macro invalidate_branch_predictor
+	ic	iallu
+	isb
+	.endm
+
+	.align	11, INV_INSN
+workaround_vect_table:
+	/* -----------------------------------------------------
+	 * EL1 with SP0 : 0x0 - 0x180
+	 * -----------------------------------------------------
+	 */
+	.align	7, INV_INSN
+workaround_el1_sync_sp0:
+	b	el1_sync_sp0
+	check_vector_size workaround_el1_sync_sp0
+
+	.align	7, INV_INSN
+workaround_el1_irq_sp0:
+	b	el1_irq_sp0
+	check_vector_size workaround_el1_irq_sp0
+
+	.align	7, INV_INSN
+workaround_el1_fiq_sp0:
+	b	el1_fiq_sp0
+	check_vector_size workaround_el1_fiq_sp0
+
+	.align	7, INV_INSN
+workaround_el1_serror_sp0:
+	b	el1_serror_sp0
+	check_vector_size workaround_el1_serror_sp0
+
+	/* -----------------------------------------------------
+	 * Current EL with SP1: 0x200 - 0x380
+	 * -----------------------------------------------------
+	 */
+	.align	7, INV_INSN
+workaround_el1_sync_sp1:
+	b	workaround_el1_sync_sp1
+	check_vector_size workaround_el1_sync_sp1
+
+	.align	7, INV_INSN
+workaround_el1_irq_sp1:
+	b	workaround_el1_irq_sp1
+	check_vector_size workaround_el1_irq_sp1
+
+	.align	7, INV_INSN
+workaround_el1_fiq_sp1:
+	b	workaround_el1_fiq_sp1
+	check_vector_size workaround_el1_fiq_sp1
+
+	.align	7, INV_INSN
+workaround_el1_serror_sp1:
+	b	workaround_el1_serror_sp1
+	check_vector_size workaround_el1_serror_sp1
+
+	/* -----------------------------------------------------
+	 * Lower EL using AArch64 : 0x400 - 0x580
+	 * -----------------------------------------------------
+	 */
+	.align	7, INV_INSN
+workaround_el0_sync_a64:
+	invalidate_branch_predictor
+	b	el0_sync_a64
+	check_vector_size workaround_el0_sync_a64
+
+	.align	7, INV_INSN
+workaround_el0_irq_a64:
+	invalidate_branch_predictor
+	b	el0_irq_a64
+	check_vector_size workaround_el0_irq_a64
+
+	.align	7, INV_INSN
+workaround_el0_fiq_a64:
+	invalidate_branch_predictor
+	b	el0_fiq_a64
+	check_vector_size workaround_el0_fiq_a64
+
+	.align	7, INV_INSN
+workaround_el0_serror_a64:
+	b   	workaround_el0_serror_a64
+	check_vector_size workaround_el0_serror_a64
+
+	/* -----------------------------------------------------
+	 * Lower EL using AArch32 : 0x0 - 0x180
+	 * -----------------------------------------------------
+	 */
+	.align	7, INV_INSN
+workaround_el0_sync_a32:
+	invalidate_branch_predictor
+	b	el0_sync_a32
+	check_vector_size workaround_el0_sync_a32
+
+	.align	7, INV_INSN
+workaround_el0_irq_a32:
+	invalidate_branch_predictor
+	b	el0_irq_a32
+	check_vector_size workaround_el0_irq_a32
+
+	.align	7, INV_INSN
+workaround_el0_fiq_a32:
+	invalidate_branch_predictor
+	b	el0_fiq_a32
+	check_vector_size workaround_el0_fiq_a32
+
+	.align	7, INV_INSN
+workaround_el0_serror_a32:
+	b	workaround_el0_serror_a32
+	check_vector_size workaround_el0_serror_a32
+#endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
 /*
  * We're keeping this code in the same section as the vector to make sure
