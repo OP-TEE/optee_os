@@ -170,6 +170,12 @@
 /* Valid if FSR.LPAE is 0 */
 #define FSR_FS_MASK		(BIT32(10) | (BIT32(4) - 1))
 
+/* ID_PFR1 bit fields */
+#define IDPFR1_VIRT_SHIFT            12
+#define IDPFR1_VIRT_MASK             (0xF << IDPFR1_VIRT_SHIFT)
+#define IDPFR1_GENTIMER_SHIFT        16
+#define IDPFR1_GENTIMER_MASK         (0xF << IDPFR1_GENTIMER_SHIFT)
+
 #ifndef ASM
 static inline uint32_t read_mpidr(void)
 {
