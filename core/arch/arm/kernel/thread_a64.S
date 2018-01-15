@@ -344,8 +344,9 @@ END_FUNC thread_unwind_user_mode
 
 	.macro restore_mapping
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		/* Temporarily save x0 */
+		/* Temporarily save x0, x1 */
 		msr	tpidr_el1, x0
+		msr	tpidrro_el0, x1
 
 		/* Update the mapping to use the full kernel mapping */
 		mrs	x0, ttbr0_el1
@@ -361,12 +362,16 @@ END_FUNC thread_unwind_user_mode
 	1:
 
 		/* Point to the vector into the full mapping */
-		adr	x0, thread_vect_table
-		msr	vbar_el1, x0
+		adr	x0, thread_user_kcode_offset
+		ldr	x0, [x0]
+		mrs	x1, vbar_el1
+		add	x1, x1, x0
+		msr	vbar_el1, x1
 		isb
 
-		/* Restore x1 */
+		/* Restore x0, x1 */
 		mrs	x0, tpidr_el1
+		mrs	x1, tpidrro_el0
 		store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 #else
 		store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
@@ -513,7 +518,7 @@ eret_to_el0:
 	/* Point to the vector into the reduced mapping */
 	adr	x0, thread_user_kcode_offset
 	ldr	x0, [x0]
-	adr	x1, thread_vect_table
+	mrs	x1, vbar_el1
 	sub	x1, x1, x0
 	msr	vbar_el1, x1
 	isb
