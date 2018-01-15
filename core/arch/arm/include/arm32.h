@@ -102,6 +102,9 @@
 #define SCTLR_AFE	BIT32(29)
 #define SCTLR_TE	BIT32(30)
 
+/* Only valid for Cortex-A15 */
+#define ACTLR_CA15_ENABLE_INVALIDATE_BTB	BIT(0)
+
 #define ACTLR_SMP	BIT32(6)
 
 #define NSACR_CP10	BIT32(10)
