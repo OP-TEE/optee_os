@@ -82,6 +82,10 @@ UNWIND(	.cantunwind)
 	/* Enable SMP bit */
 	read_actlr  r0
 	orr     r0, r0, #ACTLR_SMP
+#if defined(CFG_CORE_WORKAROUND_SPECTRE_BP) || \
+    defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC)
+	orr     r0, r0, #ACTLR_CA15_ENABLE_INVALIDATE_BTB
+#endif
 	write_actlr  r0
 
 	/* init BSS section */
