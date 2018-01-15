@@ -386,51 +386,51 @@ FUNC thread_vect_table , :
 	 * -----------------------------------------------------
 	 */
 	.align	7
-sync_el1_sp0:
+el1_sync_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	el1_sync_abort
-	check_vector_size sync_el1_sp0
+	check_vector_size el1_sync_sp0
 
 	.align	7
-irq_el1_sp0:
+el1_irq_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
-	check_vector_size irq_el1_sp0
+	check_vector_size el1_irq_sp0
 
 	.align	7
-fiq_el1_sp0:
+el1_fiq_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_fiq
-	check_vector_size fiq_el1_sp0
+	check_vector_size el1_fiq_sp0
 
 	.align	7
-SErrorSP0:
-	b	SErrorSP0
-	check_vector_size SErrorSP0
+el1_serror_sp0:
+	b	el1_serror_sp0
+	check_vector_size el1_serror_sp0
 
 	/* -----------------------------------------------------
-	 * Current EL with SPx: 0x200 - 0x380
+	 * Current EL with SP1: 0x200 - 0x380
 	 * -----------------------------------------------------
 	 */
 	.align	7
-SynchronousExceptionSPx:
-	b	SynchronousExceptionSPx
-	check_vector_size SynchronousExceptionSPx
+el1_sync_sp1:
+	b	el1_sync_sp1
+	check_vector_size el1_sync_sp1
 
 	.align	7
-IrqSPx:
-	b	IrqSPx
-	check_vector_size IrqSPx
+el1_irq_sp1:
+	b	el1_irq_sp1
+	check_vector_size el1_irq_sp1
 
 	.align	7
-FiqSPx:
-	b	FiqSPx
-	check_vector_size FiqSPx
+el1_fiq_sp1:
+	b	el1_fiq_sp1
+	check_vector_size el1_fiq_sp1
 
 	.align	7
-SErrorSPx:
-	b	SErrorSPx
-	check_vector_size SErrorSPx
+el1_serror_sp1:
+	b	el1_serror_sp1
+	check_vector_size el1_serror_sp1
 
 	/* -----------------------------------------------------
 	 * Lower EL using AArch64 : 0x400 - 0x580
@@ -463,9 +463,9 @@ el0_fiq_a64:
 	check_vector_size el0_fiq_a64
 
 	.align	7
-SErrorA64:
-	b   	SErrorA64
-	check_vector_size SErrorA64
+el0_serror_a64:
+	b   	el0_serror_a64
+	check_vector_size el0_serror_a64
 
 	/* -----------------------------------------------------
 	 * Lower EL using AArch32 : 0x0 - 0x180
@@ -498,9 +498,9 @@ el0_fiq_a32:
 	check_vector_size el0_fiq_a32
 
 	.align	7
-SErrorA32:
-	b	SErrorA32
-	check_vector_size SErrorA32
+el0_serror_a32:
+	b	el0_serror_a32
+	check_vector_size el0_serror_a32
 
 /*
  * We're keeping this code in the same section as the vector to make sure
