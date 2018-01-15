@@ -40,6 +40,10 @@
 	mrc	p15, 0, \reg, c0, c0, 5
 	.endm
 
+	.macro read_idpfr1 reg
+	mrc	p15, 0, \reg, c0, c1, 1
+	.endm
+
 	.macro read_sctlr reg
 	mrc	p15, 0, \reg, c1, c0, 0
 	.endm
@@ -268,6 +272,10 @@
 
 	.macro read_tpidrprw reg
 	mrc	p15, 0, \reg, c13, c0, 4
+	.endm
+
+	.macro write_cntvoff reg0, reg1
+	mcrr  p15, 4, \reg0, \reg1, c14
 	.endm
 
 	.macro read_clidr reg

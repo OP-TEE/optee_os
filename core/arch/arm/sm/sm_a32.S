@@ -335,6 +335,38 @@ UNWIND(	.fnstart)
 	cps	#CPSR_MODE_MON
 	/* Point just beyond sm_ctx.sec */
 	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_NSEC)
+
+#ifdef CFG_INIT_CNTVOFF
+	read_scr r0
+	orr	r0, r0, #SCR_NS /* Set NS bit in SCR */
+	write_scr r0
+	isb
+
+	/*
+	 * Accessing CNTVOFF:
+	 * If the implementation includes the Virtualization Extensions
+	 * this is a RW register, accessible from Hyp mode, and
+	 * from Monitor mode when SCR.NS is set to 1.
+	 * If the implementation includes the Security Extensions
+	 * but not the Virtualization Extensions, an MCRR or MRRC to
+	 * the CNTVOFF encoding is UNPREDICTABLE if executed in Monitor
+	 * mode, regardless of the value of SCR.NS.
+	 */
+	read_idpfr1 r2
+	mov	r3, r2
+	ands    r3, r3, #IDPFR1_GENTIMER_MASK
+	beq	.no_gentimer
+	ands    r2, r2, #IDPFR1_VIRT_MASK
+	beq	.no_gentimer
+	mov	r2, #0
+	write_cntvoff r2, r2
+
+.no_gentimer:
+	bic	r0, r0, #SCR_NS /* Clr NS bit in SCR */
+	write_scr r0
+	isb
+#endif
+
 	msr	cpsr, r1
 
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
