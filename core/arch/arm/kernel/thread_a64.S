@@ -775,13 +775,14 @@ LOCAL_FUNC el0_sync_abort , :
 	/* Restore x2 to x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
 
-	b_if_spsr_is_el0 w0, eret_to_el0
+	b_if_spsr_is_el0 w0, 1f
 
 	/* Restore x0 to x1 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
 	eret
+1:	b	eret_to_el0
 END_FUNC el0_sync_abort
 
 /* The handler of foreign interrupt. */
@@ -925,13 +926,14 @@ END_FUNC el0_sync_abort
 	mrs	x0, spsr_el1
 	/* Restore x2..x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
-	b_if_spsr_is_el0 w0, eret_to_el0
+	b_if_spsr_is_el0 w0, 1f
 
 	/* Restore x0..x1 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
 	eret
+1:	b	eret_to_el0
 .endm
 
 LOCAL_FUNC elx_irq , :
