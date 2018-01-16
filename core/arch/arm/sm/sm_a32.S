@@ -351,16 +351,16 @@ UNWIND(	.fnstart)
 	ubfx	r2, r1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
 			#MIDR_PRIMARY_PART_NUM_WIDTH
 
-	mov	r3, #CORTEX_A8_PART_NUM
+	movw	r3, #CORTEX_A8_PART_NUM
 	cmp	r2, r3
-	movne	r3, #CORTEX_A9_PART_NUM
+	movwne	r3, #CORTEX_A9_PART_NUM
 	cmpne	r2, r3
-	movne	r3, #CORTEX_A17_PART_NUM
+	movwne	r3, #CORTEX_A17_PART_NUM
 	cmpne	r2, r3
 	ldreq	r0, =sm_vect_table_bpiall
 	beq	2f
 
-	mov	r3, #CORTEX_A15_PART_NUM
+	movw	r3, #CORTEX_A15_PART_NUM
 	cmp	r2, r3
 	ldreq	r0, =sm_vect_table_a15
 	beq	2f
