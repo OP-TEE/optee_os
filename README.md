@@ -51,7 +51,6 @@ The `Maintained` column shows:
 <!-- Please keep this list sorted in alphabetic order -->
 | Platform | Composite PLATFORM flag | Publicly available? | Maintained? |
 |----------|-------------------------|---------------------|-------------|
-| [Allwinner A80 Board](http://linux-sunxi.org/A80)|`PLATFORM=sunxi`| No | ![Not maintained](documentation/images/red.svg) v0.1.0 |
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Atmel ATSAMA5D2-XULT Board](http://www.atmel.com/tools/atsama5d2-xult.aspx)|`PLATFORM=sam`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes | ![Actively maintained](documentation/images/green.svg) |
