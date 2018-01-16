@@ -52,7 +52,6 @@ build:
     - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
     - _make PLATFORM=vexpress-juno
     - _make PLATFORM=vexpress-juno CFG_ARM64_core=y
-    - _make PLATFORM=sunxi
     - _make PLATFORM=hikey
     - _make PLATFORM=hikey CFG_ARM64_core=y
     - _make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y

@@ -7,7 +7,6 @@ for these platforms.
      this is to diff against sections 3 in README.md  -->
 | Platform | Maintainer |
 |----------|------------|
-| Allwinner A80 Board			|`Sun Yangbang <sunny@allwinnertech.com>`|
 | ARM Juno Board			|`Linaro <op-tee@linaro.org>`|
 | Atmel ATSAMA5D2-XULT Board		|`Akshay Bhat <akshay.bhat@timesys.com>`|
 | NXP LS1021A				|`Sumit Garg <sumit.garg@nxp.com>`|
