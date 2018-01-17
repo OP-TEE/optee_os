@@ -25,3 +25,13 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+
+GlobalPlatform API license
+
+Since OP-TEE is a TEE implementing GlobalPlatform APIs, users of OP-TEE should
+get the license for the GlobalPlatform TEE API either by joining GlobalPlatform
+as a member or, they can get it for free by going to and download the
+specifications at:
+https://www.globalplatform.org/specificationsdevice.asp
