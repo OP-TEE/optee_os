@@ -198,7 +198,11 @@ enum tzc_action {
 
 void tzc_init(vaddr_t base);
 void tzc_configure_region(uint8_t region, vaddr_t region_base, size_t size);
+void tzc_region_enable(uint8_t region);
+void tzc_security_inversion_en(vaddr_t base);
 void tzc_set_action(enum tzc_action action);
+void tzc_fail_dump(void);
+void tzc_int_clear(void);
 
 #if TRACE_LEVEL >= TRACE_DEBUG
 void tzc_dump_state(void);
