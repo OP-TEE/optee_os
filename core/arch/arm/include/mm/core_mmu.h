@@ -239,7 +239,9 @@ struct core_mmu_phys_mem {
 		__register_memory1(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
 				   phys_sdp_mem_section, __COUNTER__)
 #else
-#define register_sdp_mem(addr, size)
+#define register_sdp_mem(addr, size) \
+		static int CONCAT(__register_sdp_mem_unused, __COUNTER__) \
+			__unused
 #endif
 
 #define register_nsec_ddr(addr, size) \
