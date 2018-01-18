@@ -279,12 +279,8 @@ err:
 
 service_init(verify_pseudo_tas_conformance);
 
-/*-----------------------------------------------------------------------------
- * Initialises a session based on the UUID or ptr to the ta
- * Returns ptr to the session (ta_session) and a TEE_Result
- *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
-			struct tee_ta_session *s)
+/* Initializes and returns a TA context based on the UUID of a pseudo TA. */
+TEE_Result pseudo_ta_get_ctx(const TEE_UUID *uuid, struct tee_ta_ctx **ctx_ret)
 {
 	struct pseudo_ta_ctx *stc = NULL;
 	struct tee_ta_ctx *ctx;
@@ -309,13 +305,13 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	ctx = &stc->ctx;
 
 	ctx->ref_count = 1;
-	s->ctx = ctx;
 	ctx->flags = ta->flags;
 	stc->pseudo_ta = ta;
 	ctx->uuid = ta->uuid;
 	ctx->ops = &pseudo_ta_ops;
-	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
+	tee_ta_register_ctx(ctx);
 
+	*ctx_ret = ctx;
 	DMSG("%s : %pUl", stc->pseudo_ta->name, (void *)&ctx->uuid);
 
 	return TEE_SUCCESS;
