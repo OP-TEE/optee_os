@@ -551,13 +551,11 @@ static TEE_Result alloc_temp_sec_mem(size_t size, struct mobj **mobj,
 				     uint8_t **va)
 {
 	/* Allocate section in secure DDR */
-	mutex_lock(&tee_ta_mutex);
 #ifdef CFG_PAGED_USER_TA
 	*mobj = mobj_seccpy_shm_alloc(size);
 #else
 	*mobj = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
 #endif
-	mutex_unlock(&tee_ta_mutex);
 	if (!*mobj)
 		return TEE_ERROR_GENERIC;
 
@@ -819,11 +817,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
 
 function_exit:
-	if (mobj_param) {
-		mutex_lock(&tee_ta_mutex);
-		mobj_free(mobj_param);
-		mutex_unlock(&tee_ta_mutex);
-	}
+	mobj_free(mobj_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_kaddr_to_uref(ta_sess, s);
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
@@ -911,11 +905,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 function_exit:
 	tee_ta_put_session(called_sess);
-	if (mobj_param) {
-		mutex_lock(&tee_ta_mutex);
-		mobj_free(mobj_param);
-		mutex_unlock(&tee_ta_mutex);
-	}
+	mobj_free(mobj_param);
 	if (ret_orig)
 		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;
