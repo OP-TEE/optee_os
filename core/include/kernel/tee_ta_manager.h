@@ -129,10 +129,7 @@ struct tee_ta_session {
 #endif
 };
 
-/* Registered contexts */
-extern struct tee_ta_ctx_head tee_ctxes;
-
-extern struct mutex tee_ta_mutex;
+void tee_ta_register_ctx(struct tee_ta_ctx *ctx);
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,

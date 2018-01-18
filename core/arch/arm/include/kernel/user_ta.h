@@ -60,13 +60,11 @@ static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 struct user_ta_store_ops;
 
 #ifdef CFG_WITH_USER_TA
-TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
-			struct tee_ta_session *s);
+TEE_Result user_ta_get_ctx(const TEE_UUID *uuid, struct tee_ta_ctx **ctx);
 TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops);
 #else
-static inline TEE_Result tee_ta_init_user_ta_session(
-			const TEE_UUID *uuid __unused,
-			struct tee_ta_session *s __unused)
+static inline TEE_Result user_ta_get_ctx(const TEE_UUID *uuid __unused,
+					 struct tee_ta_ctx **ctx __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }

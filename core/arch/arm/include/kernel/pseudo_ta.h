@@ -58,8 +58,7 @@ static inline struct pseudo_ta_ctx *to_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
 	return container_of(ctx, struct pseudo_ta_ctx, ctx);
 }
 
-TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
-			struct tee_ta_session *s);
+TEE_Result pseudo_ta_get_ctx(const TEE_UUID *uuid, struct tee_ta_ctx **ctx);
 
 #endif /* KERNEL_PSEUDO_TA_H */
 
