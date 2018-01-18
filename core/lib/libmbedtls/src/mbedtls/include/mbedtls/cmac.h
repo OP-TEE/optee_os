@@ -56,6 +56,8 @@ struct mbedtls_cmac_context_t
     size_t              unprocessed_len;
 };
 
+int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx);
+
 /**
  * \brief               Set the CMAC key and prepare to authenticate the input
  *                      data.
