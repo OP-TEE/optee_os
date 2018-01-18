@@ -73,6 +73,9 @@
 #define TO_STR(x) _TO_STR(x)
 #define _TO_STR(x) #x
 
+#define CONCAT(x, y) _CONCAT(x, y)
+#define _CONCAT(x, y) x##y
+
 #define container_of(ptr, type, member) \
 	(__extension__({ \
 		const typeof(((type *)0)->member) *__ptr = (ptr); \
