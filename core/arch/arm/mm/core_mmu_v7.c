@@ -695,68 +695,6 @@ static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
 				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
 }
 
-static paddr_t map_page_memarea(const struct tee_mmap_region *mm, uint32_t xlat)
-{
-	uint32_t *l2;
-	size_t pg_idx;
-	uint32_t attr;
-
-	if (!xlat)
-		l2 = core_mmu_alloc_l2(mm->size);
-	else
-		l2 = phys_to_virt(xlat & SECTION_PT_ATTR_MASK,
-				  MEM_AREA_TEE_RAM_RW_DATA);
-
-	/*
-	 * If allocation above failed, it panicked.
-	 * If xlat was non null, it is expected already a valid entry.
-	 */
-	assert(l2);
-
-	attr = mattr_to_desc(2, mm->attr);
-
-	pg_idx = (mm->va & SECTION_MASK) >> SMALL_PAGE_SHIFT;
-	while ((pg_idx * SMALL_PAGE_SIZE) <
-	       (mm->size + (mm->va & SECTION_MASK))) {
-		uint32_t desc = attr;
-
-		if (attr != INVALID_DESC)
-			desc |= ((mm->pa & ~SECTION_MASK) +
-				pg_idx * SMALL_PAGE_SIZE);
-
-		assert(!desc || !l2[pg_idx] || l2[pg_idx] == desc);
-		l2[pg_idx] = desc;
-		pg_idx++;
-	}
-
-	return virt_to_phys(l2);
-}
-
-static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
-					uint32_t *ttb)
-{
-	uint32_t attr = INVALID_DESC;
-	size_t idx = mm->va >> SECTION_SHIFT;
-	paddr_t pa = 0;
-	size_t n;
-
-	if (core_mmap_is_end_of_table(mm))
-		return;
-
-	print_mmap_area(mm, "4k page map");
-
-	attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
-	pa = map_page_memarea(mm, ttb[idx]);
-
-	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
-	while (n--) {
-		assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
-		ttb[idx] = pa | attr;
-		idx++;
-		pa += SECTION_SIZE;
-	}
-}
-
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
 {
 	uint32_t attr = mattr_to_desc(1, mm->attr);
@@ -783,45 +721,6 @@ void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
 	}
 }
 
-/*
-* map_memarea - load mapping in target L1 table
-* A finer mapping must be supported. Currently section mapping only!
-*/
-static void map_memarea(const struct tee_mmap_region *mm, uint32_t *ttb)
-{
-	struct tee_mmap_region mm2;
-	size_t size;
-
-	assert(mm && ttb);
-
-	/*
-	 * If mm->va is smaller than 32M, then mm->va will conflict with
-	 * user TA address space. This mapping will be overridden/hidden
-	 * later when a user TA is loaded since these low addresses are
-	 * used as TA virtual address space.
-	 */
-	if (mm->va < (NUM_UL1_ENTRIES * SECTION_SIZE))
-		panic("va conflicts with user ta address");
-
-	if (!((mm->va | mm->pa | mm->size | mm->region_size) & SECTION_MASK)) {
-		map_memarea_sections(mm, ttb);
-		return;
-	}
-	if ((mm->va | mm->pa | mm->size | mm->region_size) & SMALL_PAGE_MASK)
-		panic("memarea can't be mapped");
-
-	mm2 = *mm;
-	size = mm->size;
-	while (size) {
-		mm2.size = MIN(size, SECTION_SIZE -
-				(mm2.va - ROUNDDOWN(mm2.va, SECTION_SIZE)));
-		map_page_memarea_in_pgdirs(&mm2, ttb);
-		size -= mm2.size;
-		mm2.pa += mm2.size;
-		mm2.va += mm2.size;
-	}
-}
-
 void core_init_mmu_tables(struct tee_mmap_region *mm)
 {
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va();
@@ -840,7 +739,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			map_memarea(mm + n, ttb1);
+			core_mmu_map_region(mm + n);
 }
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)

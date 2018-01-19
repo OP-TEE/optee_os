@@ -328,117 +328,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static int mmap_region_attr(struct tee_mmap_region *mm, uint64_t base_va,
-					uint64_t size)
-{
-	uint32_t attr = mm->attr;
-
-	for (;;) {
-		mm++;
-
-		if (core_mmap_is_end_of_table(mm))
-			return attr; /* Reached end of list */
-
-		if (mm->va >= base_va + size)
-			return attr; /* Next region is after area so end */
-
-		if (mm->va + mm->size <= base_va)
-			continue; /* Next region has already been overtaken */
-
-		if (mm->attr == attr)
-			continue; /* Region doesn't override attribs so skip */
-
-		if (mm->va > base_va ||
-			mm->va + mm->size < base_va + size)
-			return -1; /* Region doesn't fully cover our area */
-	}
-}
-
-static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
-			uint64_t base_va, uint64_t *table, unsigned level)
-{
-	unsigned int level_size_shift = L1_XLAT_ADDRESS_SHIFT - (level - 1) *
-						XLAT_TABLE_ENTRIES_SHIFT;
-	unsigned int level_size = BIT32(level_size_shift);
-	uint64_t level_index_msk = SHIFT_U64(XLAT_TABLE_ENTRIES_MASK,
-					     level_size_shift);
-
-	assert(level <= 3);
-
-	debug_print("New xlat table (level %u):", level);
-
-	do  {
-		uint64_t desc = UNSET_DESC;
-
-		/* Skip unmapped entries */
-		while (!core_mmap_is_end_of_table(mm) &&
-		       core_mmu_is_dynamic_vaspace(mm))
-			mm++;
-		if (core_mmap_is_end_of_table(mm))
-			break;
-
-		if (mm->va + mm->size <= base_va) {
-			/* Area now after the region so skip it */
-			mm++;
-			continue;
-		}
-
-		if (mm->va >= base_va + level_size) {
-			/* Next region is after area so nothing to map yet */
-			desc = INVALID_DESC;
-			debug_print("%*s%010" PRIx64 " %8x",
-					level * 2, "", base_va, level_size);
-		} else if (mm->va <= base_va &&
-			   mm->va + mm->size >= base_va + level_size &&
-			   !((mm->pa | mm->region_size) & (level_size - 1))) {
-			/* Next region covers all of area */
-			int attr = mmap_region_attr(mm, base_va, level_size);
-
-			if (attr >= 0) {
-				desc = mattr_to_desc(level, attr);
-				if (desc)
-					desc |= base_va - mm->va + mm->pa;
-			}
-
-			if (desc != UNSET_DESC && desc)
-				debug_print("%*s%010" PRIx64 " %8x %s-%s-%s-%s",
-					level * 2, "", base_va, level_size,
-					attr & (TEE_MATTR_CACHE_CACHED <<
-						TEE_MATTR_CACHE_SHIFT) ?
-						"MEM" : "DEV",
-					attr & TEE_MATTR_PW ? "RW" : "RO",
-					attr & TEE_MATTR_PX ? "X" : "XN",
-					attr & TEE_MATTR_SECURE ? "S" : "NS");
-			else
-				debug_print("%*s%010" PRIx64 " %8x",
-					level * 2, "", base_va, level_size);
-		}
-		/* else Next region only partially covers area, so need */
-
-		if (desc == UNSET_DESC) {
-			/* Area not covered by a region so need finer table */
-			uint64_t *new_table = xlat_tables[next_xlat++];
-
-			/* Clear table before use */
-			DMSG("xlat used: %d/%d", next_xlat, MAX_XLAT_TABLES);
-			if (next_xlat > MAX_XLAT_TABLES)
-				panic("running out of xlat tables");
-			memset(new_table, 0, XLAT_TABLE_SIZE);
-
-			desc = TABLE_DESC | virt_to_phys(new_table);
-
-			/* Recurse to fill in new table */
-			mm = init_xlation_table(mm, base_va, new_table,
-					   level + 1);
-		}
-
-		*table++ = desc;
-		base_va += level_size;
-	} while (!core_mmap_is_end_of_table(mm) && (base_va & level_index_msk));
-
-	return mm;
-}
-
 static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 {
 	/* Physical address can't exceed 48 bits */
@@ -511,7 +400,11 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 
 	/* Clear table before use */
 	memset(l1_xlation_table, 0, sizeof(l1_xlation_table));
-	init_xlation_table(mm, 0, l1_xlation_table[0][0], 1);
+
+	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
+		if (!core_mmu_is_dynamic_vaspace(mm + n))
+			core_mmu_map_region(mm + n);
+
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
 		memcpy(l1_xlation_table[0][n], l1_xlation_table[0][0],
 			XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
