@@ -105,8 +105,8 @@ endif
 # we might be outside of a Git environment, or the tree may have been cloned
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
-CFG_OPTEE_REVISION_MAJOR ?= 2
-CFG_OPTEE_REVISION_MINOR ?= 6
+CFG_OPTEE_REVISION_MAJOR ?= 3
+CFG_OPTEE_REVISION_MINOR ?= 0
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
