@@ -354,6 +354,21 @@ static int mmap_region_attr(struct tee_mmap_region *mm, uint64_t base_va,
 	}
 }
 
+static paddr_t region_sz_on_lvl(int lvl)
+{
+	switch (lvl) {
+	case 1:
+		return 1 << L1_XLAT_ADDRESS_SHIFT;
+	case 2:
+		return 1 << L2_XLAT_ADDRESS_SHIFT;
+	case 3:
+		return 1 << L3_XLAT_ADDRESS_SHIFT;
+	default:
+		assert(false);
+		return ~0;
+	}
+}
+
 static struct tee_mmap_region *init_xlation_table(struct tee_mmap_region *mm,
 			uint64_t base_va, uint64_t *table, unsigned level)
 {
@@ -702,37 +717,43 @@ out:
 	return ret;
 }
 
-bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
-					 unsigned int idx, bool __unused secure)
+bool core_mmu_shatter_superpage(struct core_mmu_table_info *tbl_info,
+				unsigned int idx, bool secure __maybe_unused)
 {
 	uint64_t *new_table;
 	uint64_t *entry;
+	int i;
+	paddr_t pa;
+	uint64_t attr;
 
 	if (tbl_info->level >= 3)
 		return false;
 
-	if (next_xlat >= MAX_XLAT_TABLES)
-		return false;
-
-	if (tbl_info->level == 1 && idx >= NUM_L1_ENTRIES)
-		return false;
-
-	if (tbl_info->level > 1 && idx >= XLAT_TABLE_ENTRIES)
-		return false;
+	assert(idx < tbl_info->num_entries);
 
 	entry = (uint64_t *)tbl_info->table + idx;
 
-	if ((*entry & DESC_ENTRY_TYPE_MASK) == BLOCK_DESC)
+	if ((*entry & DESC_ENTRY_TYPE_MASK) == TABLE_DESC)
 		return true;
-	if (*entry)
+
+	if (next_xlat >= MAX_XLAT_TABLES)
 		return false;
 
 	new_table = xlat_tables[next_xlat++];
-	if (next_xlat > MAX_XLAT_TABLES)
-		panic("running out of xlat tables");
-	memset(new_table, 0, XLAT_TABLE_SIZE);
 
-	*entry = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
+	DMSG("xlat tables used %d / %d\n", next_xlat, MAX_XLAT_TABLES);
+
+	if (*entry) {
+		pa = *entry & OUTPUT_ADDRESS_MASK;
+		attr = *entry & ~(OUTPUT_ADDRESS_MASK | DESC_ENTRY_TYPE_MASK);
+		for (i = 0; i < XLAT_TABLE_ENTRIES; i++) {
+			new_table[i] = pa | attr | TABLE_DESC;
+			pa += region_sz_on_lvl(tbl_info->level + 1);
+		}
+	} else
+		memset(new_table, 0, XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE);
+
+	*entry = virt_to_phys(new_table) | TABLE_DESC;
 
 	return true;
 }
