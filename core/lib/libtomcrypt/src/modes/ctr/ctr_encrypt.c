@@ -83,6 +83,8 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
       if ((err = cipher_descriptor[ctr->cipher]->accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
          return err;
       }
+      pt += (len / ctr->blocklen) * ctr->blocklen;
+      ct += (len / ctr->blocklen) * ctr->blocklen;
       len %= ctr->blocklen;
    }
 
