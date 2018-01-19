@@ -62,6 +62,11 @@ mbedtls_gcm_context;
  */
 void mbedtls_gcm_init( mbedtls_gcm_context *ctx );
 
+int mbedtls_gcm_clone( mbedtls_gcm_context *dst,
+			const mbedtls_gcm_context *src );
+
+int gcm_gen_table( mbedtls_gcm_context *ctx );
+
 /**
  * \brief           GCM initialization (encryption)
  *
