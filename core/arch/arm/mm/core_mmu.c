@@ -1302,6 +1302,85 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 	}
 }
 
+static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
+			     size_t size_left, paddr_t block_size,
+			     struct tee_mmap_region *mm __maybe_unused)
+{
+
+	/* VA and PA are aligned to block size at current level */
+	if ((vaddr | paddr) & (block_size - 1))
+		return false;
+
+	/* Remainder fits into block at current level */
+	if (size_left < block_size)
+		return false;
+
+#ifdef CFG_WITH_PAGER
+	/*
+	 * If pager is enabled, we need to map tee ram
+	 * regions with small pages only
+	 */
+	if (map_is_tee_ram(mm) && block_size != SMALL_PAGE_SIZE)
+		return false;
+#endif
+
+	return true;
+}
+
+void core_mmu_map_region(struct tee_mmap_region *mm)
+{
+	struct core_mmu_table_info tbl_info;
+	unsigned int idx;
+	vaddr_t vaddr = mm->va;
+	paddr_t paddr = mm->pa;
+	ssize_t size_left = mm->size;
+	int level;
+	bool table_found;
+	uint32_t old_attr;
+
+	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
+
+	while (size_left > 0) {
+		level = 1;
+
+		while (true) {
+			assert(level <= CORE_MMU_PGDIR_LEVEL);
+
+			table_found = core_mmu_find_table(vaddr, level,
+							  &tbl_info);
+			if (!table_found)
+				panic("can't find table for mapping");
+
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
+
+			if (!can_map_at_level(paddr, vaddr, size_left,
+					      1 << tbl_info.shift, mm)) {
+				/*
+				 * This part of the region can't be mapped at
+				 * this level. Need to go deeper.
+				 */
+				if (!core_mmu_entry_to_finer_grained(&tbl_info,
+					      idx, mm->attr & TEE_MATTR_SECURE))
+					panic("Can't divide MMU entry");
+				level++;
+				continue;
+			}
+
+			/* We can map part of the region at current level */
+			core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
+			if (old_attr)
+				panic("Page is already mapped");
+
+			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
+			paddr += 1 << tbl_info.shift;
+			vaddr += 1 << tbl_info.shift;
+			size_left -= 1 << tbl_info.shift;
+
+			break;
+		}
+	}
+}
+
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			      enum teecore_memtypes memtype)
 {
