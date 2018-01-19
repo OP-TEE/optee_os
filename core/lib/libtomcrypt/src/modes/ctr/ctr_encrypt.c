@@ -65,7 +65,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
    if ((err = cipher_is_valid(ctr->cipher)) != CRYPT_OK) {
        return err;
    }
-   
+
    /* is blocklen/padlen valid? */
    if (ctr->blocklen < 1 || ctr->blocklen > (int)sizeof(ctr->ctr) ||
        ctr->padlen   < 0 || ctr->padlen   > (int)sizeof(ctr->pad)) {
@@ -77,7 +77,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
       return CRYPT_INVALID_ARG;
    }
 #endif
-   
+
    /* handle acceleration only if pad is empty, accelerator is present and length is >= a block size */
    if ((ctr->padlen == ctr->blocklen) && cipher_descriptor[ctr->cipher]->accel_ctr_encrypt != NULL && (len >= (unsigned long)ctr->blocklen)) {
       if ((err = cipher_descriptor[ctr->cipher]->accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
@@ -128,7 +128,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
        ctr->padlen = ctr->blocklen;
        continue;
       }
-#endif    
+#endif
       *ct++ = *pt++ ^ ctr->pad[ctr->padlen++];
       --len;
    }
