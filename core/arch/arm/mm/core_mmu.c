@@ -913,6 +913,14 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			map->attr = core_mmu_type_to_attr(map->type);
 			va -= map->size;
 			va = ROUNDDOWN(va, map->region_size);
+			/*
+			 * Make sure that va is aligned with pa for
+			 * efficient pgdir mapping. Basically pa &
+			 * pgdir_mask should be == va & pgdir_mask
+			 */
+			if (map->size > 2 * CORE_MMU_PGDIR_SIZE)
+				va -= CORE_MMU_PGDIR_SIZE -
+					((map->pa - va) & CORE_MMU_PGDIR_MASK);
 			map->va = va;
 		}
 	} else {
@@ -930,6 +938,14 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 #endif
 			map->attr = core_mmu_type_to_attr(map->type);
 			va = ROUNDUP(va, map->region_size);
+			/*
+			 * Make sure that va is aligned with pa for
+			 * efficient pgdir mapping. Basically pa &
+			 * pgdir_mask should be == va & pgdir_mask
+			 */
+			if (map->size > 2 * CORE_MMU_PGDIR_SIZE)
+				va += (map->pa - va) & CORE_MMU_PGDIR_MASK;
+
 			map->va = va;
 			va += map->size;
 		}
