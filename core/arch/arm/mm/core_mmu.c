@@ -52,6 +52,10 @@
 
 #include "core_mmu_private.h"
 
+#ifndef DEBUG_XLAT_TABLE
+#define DEBUG_XLAT_TABLE 0
+#endif
+
 #define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
@@ -705,6 +709,59 @@ static void dump_mmap_table(struct tee_mmap_region *memory_map)
 	}
 }
 
+#if DEBUG_XLAT_TABLE
+
+static void dump_xlat_table(vaddr_t va, int level)
+{
+	struct core_mmu_table_info tbl_info;
+	unsigned int idx = 0;
+	paddr_t pa;
+	uint32_t attr;
+
+	core_mmu_find_table(va, level, &tbl_info);
+	va = tbl_info.va_base;
+	for (idx = 0; idx < tbl_info.num_entries; idx++) {
+		core_mmu_get_entry(&tbl_info, idx, &pa, &attr);
+		if (attr || level > 1) {
+			if (attr & TEE_MATTR_TABLE) {
+#ifdef CFG_WITH_LPAE
+				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
+					" TBL:0x%010" PRIxPA "\n",
+					level * 2, "", level, va, pa);
+#else
+				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
+					" TBL:0x%010" PRIxPA " %s\n",
+					level * 2, "", level, va, pa,
+					attr & TEE_MATTR_SECURE ? " S" : "NS");
+#endif
+				dump_xlat_table(va, level + 1);
+			} else if (attr) {
+				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
+					" PA:0x%010" PRIxPA " %s-%s-%s-%s",
+					level * 2, "", level, va, pa,
+					attr & (TEE_MATTR_CACHE_CACHED <<
+					TEE_MATTR_CACHE_SHIFT) ? "MEM" : "DEV",
+					attr & TEE_MATTR_PW ? "RW" : "RO",
+					attr & TEE_MATTR_PX ? "X " : "XN",
+					attr & TEE_MATTR_SECURE ? " S" : "NS");
+			} else {
+				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
+					    " INVALID\n",
+					    level * 2, "", level, va);
+			}
+		}
+		va += 1 << tbl_info.shift;
+	}
+}
+
+#else
+
+static void dump_xlat_table(vaddr_t va __unused, int level __unused)
+{
+}
+
+#endif
+
 static void add_pager_vaspace(struct tee_mmap_region *mmap, size_t num_elems,
 			      vaddr_t begin, vaddr_t *end, size_t *last)
 {
@@ -959,6 +1016,7 @@ void core_init_mmu_map(void)
 	}
 
 	core_init_mmu_tables(static_memory_map);
+	dump_xlat_table(0x0, 1);
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
