@@ -1380,7 +1380,8 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 				panic("can't find table for mapping");
 
 			idx = core_mmu_va2idx(&tbl_info, vaddr);
-			if ((vaddr | paddr) & ((1 << tbl_info.shift) - 1)) {
+			if (((vaddr | paddr) & ((1 << tbl_info.shift) - 1)) ||
+				size_left < (1 << tbl_info.shift)) {
 				/*
 				 * This part of the region can't be mapped at
 				 * this level. Need to go deeper.
