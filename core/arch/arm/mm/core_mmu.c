@@ -1302,6 +1302,59 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 	}
 }
 
+
+void core_mmu_map_region(struct tee_mmap_region *mm)
+{
+	struct core_mmu_table_info tbl_info;
+	unsigned int idx = 0;
+	vaddr_t vaddr = mm->va;
+	paddr_t paddr = mm->pa;
+	ssize_t size_left = mm->size;
+	int level;
+	bool table_found;
+	uint32_t old_attr;
+
+	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
+
+	while (size_left > 0) {
+		level = 1;
+
+		while (true) {
+			assert(level <= 3);
+
+			table_found = core_mmu_find_table(vaddr, level,
+							  &tbl_info);
+			if (!table_found)
+				panic("can't find table for mapping");
+
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
+			if ((vaddr | paddr) & ((1 << tbl_info.shift) - 1)) {
+				/*
+				 * This part of the region can't be mapped at
+				 * this level. Need to go deeper.
+				 */
+				if (!core_mmu_shatter_superpage(&tbl_info, idx,
+						  mm->attr & TEE_MATTR_SECURE))
+					panic("Can't shatter superpage");
+				level++;
+				continue;
+			}
+
+			/* We can map part of the region at current level */
+			core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
+			if (old_attr)
+				panic("Page is already mapped");
+
+			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
+			paddr += 1 << tbl_info.shift;
+			vaddr += 1 << tbl_info.shift;
+			size_left -= 1 << tbl_info.shift;
+
+			break;
+		}
+	}
+}
+
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			      enum teecore_memtypes memtype)
 {
