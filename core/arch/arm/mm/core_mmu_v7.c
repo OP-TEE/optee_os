@@ -520,48 +520,6 @@ bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 	return true;
 }
 
-bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
-					 unsigned int idx, bool secure)
-{
-	uint32_t *new_table;
-	uint32_t *entry;
-	uint32_t new_table_desc;
-	uint32_t attr;
-
-	if (tbl_info->level != 1)
-		return false;
-
-	if (idx >= NUM_L1_ENTRIES)
-		return false;
-
-	entry = (uint32_t *)tbl_info->table + idx;
-	if (*entry && get_desc_type(1, *entry) != DESC_TYPE_SECTION)
-		return false;
-
-	attr = desc_to_mattr(1, *entry);
-
-	if (attr) {
-		/* If pgdir maps something, check the secure attribute fits */
-		return secure == (attr & TEE_MATTR_SECURE);
-	}
-
-	if (secure)
-		attr = TEE_MATTR_SECURE;
-
-	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
-	if (!new_table)
-		return false;
-
-	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
-	if (!secure)
-		new_table_desc |= SECTION_PT_NOTSECURE;
-
-	/* Update descriptor at current level */
-	*entry = new_table_desc;
-
-	return true;
-}
-
 void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 				  paddr_t pa, uint32_t attr)
 {
@@ -597,6 +555,60 @@ static paddr_t desc_to_pa(unsigned level, uint32_t desc)
 	}
 
 	return desc & ~((1 << shift_mask) - 1);
+}
+
+bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
+				     unsigned int idx, bool secure)
+{
+	uint32_t *new_table;
+	uint32_t *entry;
+	uint32_t new_table_desc;
+	uint32_t attr;
+	uint32_t desc;
+	paddr_t pa;
+	int i;
+
+	if (tbl_info->level != 1)
+		return false;
+
+	if (idx >= NUM_L1_ENTRIES)
+		return false;
+
+	entry = (uint32_t *)tbl_info->table + idx;
+	attr = desc_to_mattr(1, *entry);
+
+	if (*entry && get_desc_type(1, *entry) == DESC_TYPE_PAGE_TABLE) {
+		/*
+		 * If there is page table already,
+		 * check the secure attribute fits
+		 */
+		return secure == (bool)(attr & TEE_MATTR_SECURE);
+	}
+
+	/* If there is something mapped, check the secure access flag */
+	if (attr && secure != (bool)(attr & TEE_MATTR_SECURE))
+		return false;
+
+	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	if (!new_table)
+		return false;
+
+	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
+
+	if (!secure)
+		new_table_desc |= SECTION_PT_NOTSECURE;
+
+	if (*entry) {
+		pa = desc_to_pa(1, *entry);
+		desc = mattr_to_desc(2, attr);
+		for (i = 0; i < NUM_L2_ENTRIES; i++, pa += SMALL_PAGE_SIZE)
+			new_table[i] = desc | pa;
+	}
+
+	/* Update descriptor at current level */
+	*entry = new_table_desc;
+
+	return true;
 }
 
 void core_mmu_get_entry_primitive(const void *table, size_t level,

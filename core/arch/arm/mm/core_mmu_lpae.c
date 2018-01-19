@@ -702,37 +702,44 @@ out:
 	return ret;
 }
 
-bool core_mmu_prepare_small_page_mapping(struct core_mmu_table_info *tbl_info,
-					 unsigned int idx, bool __unused secure)
+bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
+				     unsigned int idx, bool secure __unused)
 {
 	uint64_t *new_table;
 	uint64_t *entry;
+	int i;
+	paddr_t pa;
+	uint64_t attr;
+	paddr_t block_size_on_next_lvl = L1_XLAT_ADDRESS_SHIFT -
+		tbl_info->level * XLAT_TABLE_ENTRIES_SHIFT;
 
-	if (tbl_info->level >= 3)
-		return false;
-
-	if (next_xlat >= MAX_XLAT_TABLES)
-		return false;
-
-	if (tbl_info->level == 1 && idx >= NUM_L1_ENTRIES)
-		return false;
-
-	if (tbl_info->level > 1 && idx >= XLAT_TABLE_ENTRIES)
+	if (tbl_info->level >= 3 || idx > tbl_info->num_entries)
 		return false;
 
 	entry = (uint64_t *)tbl_info->table + idx;
 
-	if ((*entry & DESC_ENTRY_TYPE_MASK) == BLOCK_DESC)
+	if ((*entry & DESC_ENTRY_TYPE_MASK) == TABLE_DESC)
 		return true;
-	if (*entry)
+
+	if (next_xlat >= MAX_XLAT_TABLES)
 		return false;
 
 	new_table = xlat_tables[next_xlat++];
-	if (next_xlat > MAX_XLAT_TABLES)
-		panic("running out of xlat tables");
-	memset(new_table, 0, XLAT_TABLE_SIZE);
 
-	*entry = TABLE_DESC | (uint64_t)(uintptr_t)new_table;
+	DMSG("xlat tables used %d / %d\n", next_xlat, MAX_XLAT_TABLES);
+
+	if (*entry) {
+		pa = *entry & OUTPUT_ADDRESS_MASK;
+		attr = *entry & ~(OUTPUT_ADDRESS_MASK | DESC_ENTRY_TYPE_MASK);
+		for (i = 0; i < XLAT_TABLE_ENTRIES; i++) {
+			new_table[i] = pa | attr | TABLE_DESC;
+			pa += block_size_on_next_lvl;
+		}
+	} else {
+		memset(new_table, 0, XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE);
+	}
+
+	*entry = virt_to_phys(new_table) | TABLE_DESC;
 
 	return true;
 }
