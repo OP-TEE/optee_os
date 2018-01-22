@@ -230,9 +230,27 @@ static TEE_Result tee_tadb_open(struct tee_tadb_dir **db)
 		TEE_Result res;
 
 		mutex_lock(&tadb_mutex);
-		res = tadb_open(&tadb_db);
-		if (!res)
-			refcount_set(&tadb_db_refc, 1);
+		if (!tadb_db) {
+			res = tadb_open(&tadb_db);
+			if (!res)
+				refcount_set(&tadb_db_refc, 1);
+		} else {
+			/*
+			 * This case is handling the small window where the
+			 * reference counter was decreased to 0 but before
+			 * the mutex was acquired by tadb_put() this thread
+			 * acquired the mutex instead.
+			 *
+			 * Since tadb_db isn't NULL it's enough to increase
+			 * the reference counter. If the value of the
+			 * counter is 0 refcount_inc() will fail and we'll
+			 * have to set it directly with refcount_set()
+			 * instead.
+			 */
+			if (!refcount_inc(&tadb_db_refc))
+				refcount_set(&tadb_db_refc, 1);
+			res = TEE_SUCCESS;
+		}
 		mutex_unlock(&tadb_mutex);
 		if (res)
 			return res;
