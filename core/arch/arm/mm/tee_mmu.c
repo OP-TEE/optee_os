@@ -676,6 +676,9 @@ void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
  */
 void tee_mmu_final(struct user_ta_ctx *utc)
 {
+	if (!utc->mmu)
+		return;
+
 	/* clear MMU entries to avoid clash when asid is reused */
 	tlbi_asid(utc->mmu->asid);
 
