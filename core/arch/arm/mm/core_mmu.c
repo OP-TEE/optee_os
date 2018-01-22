@@ -1364,6 +1364,7 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 	ssize_t size_left = mm->size;
 	int level;
 	bool table_found;
+	bool level_ok;
 	uint32_t old_attr;
 
 	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
@@ -1380,8 +1381,26 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 				panic("can't find table for mapping");
 
 			idx = core_mmu_va2idx(&tbl_info, vaddr);
-			if (((vaddr | paddr) & ((1 << tbl_info.shift) - 1)) ||
-				size_left < (1 << tbl_info.shift)) {
+
+			/* VA / PA are aligned to block size at current level */
+			level_ok = !((vaddr | paddr)
+				     & ((1 << tbl_info.shift) - 1));
+			/* Remainder fits into block at current level */
+			level_ok &= size_left >= (1 << tbl_info.shift);
+#ifdef CFG_WITH_PAGER
+			/*
+			 * If pager is enabled, we need to map certain
+			 * regions with small pages only
+			 */
+			if ((mm->type == MEM_AREA_TEE_RAM ||
+			     mm->type == MEM_AREA_TEE_RAM_RX ||
+			     mm->type == MEM_AREA_TEE_RAM_RO ||
+			     mm->type == MEM_AREA_TEE_RAM_RW ||
+			     mm->type == MEM_AREA_PAGER_VASPACE) &&
+			    tbl_info.shift != SMALL_PAGE_SHIFT)
+				level_ok = false;
+#endif
+			if (!level_ok) {
 				/*
 				 * This part of the region can't be mapped at
 				 * this level. Need to go deeper.
