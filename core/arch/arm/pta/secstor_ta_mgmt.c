@@ -120,10 +120,10 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 
 	res = crypto_hash_final(hash_ctx, hash_algo, buf, shdr->hash_size);
 	if (res)
-		goto err_free_hash_ctx;
+		goto err_ta_finalize;
 	if (buf_compare_ct(buf, SHDR_GET_HASH(shdr), shdr->hash_size)) {
 		res = TEE_ERROR_SECURITY;
-		goto err_free_hash_ctx;
+		goto err_ta_finalize;
 	}
 
 	crypto_hash_free_ctx(hash_ctx, hash_algo);
