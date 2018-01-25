@@ -99,8 +99,10 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 		pos += size_to_write;
 	}
 
-	if (pos > meta->length)
+	if (pos > meta->length) {
 		meta->length = pos;
+		tee_fs_htree_meta_set_dirty(fdp->ht);
+	}
 
 exit:
 	free(block);
@@ -267,6 +269,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 			return res;
 
 		meta->length = new_file_len;
+		tee_fs_htree_meta_set_dirty(fdp->ht);
 	}
 
 	return TEE_SUCCESS;

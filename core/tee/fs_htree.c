@@ -667,6 +667,11 @@ struct tee_fs_htree_meta *tee_fs_htree_get_meta(struct tee_fs_htree *ht)
 	return &ht->imeta.meta;
 }
 
+void tee_fs_htree_meta_set_dirty(struct tee_fs_htree *ht)
+{
+	ht->dirty = true;
+}
+
 static TEE_Result free_node(struct traverse_arg *targ __unused,
 			    struct htree_node *node)
 {

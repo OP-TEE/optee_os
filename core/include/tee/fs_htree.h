@@ -126,6 +126,11 @@ void tee_fs_htree_close(struct tee_fs_htree **ht);
 struct tee_fs_htree_meta *tee_fs_htree_get_meta(struct tee_fs_htree *ht);
 
 /**
+ * tee_fs_htree_meta_set_dirty() - tell hash tree that meta were modified
+ */
+void tee_fs_htree_meta_set_dirty(struct tee_fs_htree *ht);
+
+/**
  * tee_fs_htree_sync_to_storage() - synchronize hash tree to storage
  * @ht:		hash tree
  * @hash:	hash of root node is copied to this if not NULL
