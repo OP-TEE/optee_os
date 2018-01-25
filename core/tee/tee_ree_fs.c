@@ -849,15 +849,15 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	mutex_lock(&ree_fs_mutex);
 
 	res = get_dirh(&dirh);
-	if (res != TEE_SUCCESS)
+	if (res)
 		goto out;
 
 	res = ree_fs_ftruncate_internal(fdp, len);
-	if (!res)
+	if (res)
 		goto out;
 
 	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash);
-	if (!res)
+	if (res)
 		goto out;
 
 	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
