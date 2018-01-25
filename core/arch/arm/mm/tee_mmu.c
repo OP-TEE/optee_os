@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <bitstring.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
@@ -75,6 +76,7 @@
 #define MMU_NUM_ASIDS		64
 
 static bitstr_t bit_decl(g_asid, MMU_NUM_ASIDS);
+static unsigned int g_asid_spinlock = SPINLOCK_UNLOCK;
 
 static TEE_Result tee_mmu_umap_add_param(struct tee_mmu_info *mmu,
 					 struct param_mem *mem)
@@ -227,18 +229,26 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 
 static unsigned int asid_alloc(void)
 {
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+	unsigned int r;
 	int i;
 
 	bit_ffc(g_asid, MMU_NUM_ASIDS, &i);
-	if (i == -1)
-		return 0;
-	bit_set(g_asid, i);
+	if (i == -1) {
+		r = 0;
+	} else {
+		bit_set(g_asid, i);
+		r = (i + 1) * 2;
+	}
 
-	return (i + 1) * 2;
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
+	return r;
 }
 
 static void asid_free(unsigned int asid)
 {
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+
 	/* Only even ASIDs are supposed to be allocated */
 	assert(!(asid & 1));
 
@@ -248,6 +258,8 @@ static void asid_free(unsigned int asid)
 		assert(i < MMU_NUM_ASIDS && bit_test(g_asid, i));
 		bit_clear(g_asid, i);
 	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
 }
 
 TEE_Result tee_mmu_init(struct user_ta_ctx *utc)
