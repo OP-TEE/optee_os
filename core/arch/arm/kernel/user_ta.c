@@ -320,7 +320,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 	utc->entry_func = ta_head->entry.ptr64;
 	utc->ctx.ref_count = 1;
 	condvar_init(&utc->ctx.busy_cv);
-	tee_ta_register_ctx(&utc->ctx);
+	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
 	*ta_ctx = &utc->ctx;
 
 	tee_mmu_set_ctx(NULL);
@@ -626,7 +626,8 @@ TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
 	return TEE_SUCCESS;
 }
 
-TEE_Result user_ta_get_ctx(const TEE_UUID *uuid, struct tee_ta_ctx **ctx)
+TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
+			struct tee_ta_session *s)
 {
 	const struct user_ta_store_ops *store;
 	TEE_Result res;
@@ -634,11 +635,11 @@ TEE_Result user_ta_get_ctx(const TEE_UUID *uuid, struct tee_ta_ctx **ctx)
 	SLIST_FOREACH(store, &uta_store_list, link) {
 		DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
 		     store->description);
-		res = ta_load(uuid, store, ctx);
+		res = ta_load(uuid, store, &s->ctx);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
 		if (res == TEE_SUCCESS)
-			(*ctx)->ops = &user_ta_ops;
+			s->ctx->ops = &user_ta_ops;
 		else
 			DMSG("res=0x%x", res);
 		return res;

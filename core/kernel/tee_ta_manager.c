@@ -55,8 +55,8 @@
 #include <util.h>
 
 /* This mutex protects the critical section in tee_ta_init_session */
-static struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
-static struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
+struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
+struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
@@ -460,11 +460,9 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result get_ctx(struct tee_ta_ctx *ctx)
+static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
+			struct tee_ta_session *s)
 {
-	if (!ctx)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
 	/*
 	 * If TA isn't single instance it should be loaded as new
 	 * instance instead of doing anything with this instance.
@@ -484,15 +482,10 @@ static TEE_Result get_ctx(struct tee_ta_ctx *ctx)
 	DMSG("Re-open TA %pUl", (void *)&ctx->uuid);
 
 	ctx->ref_count++;
+	s->ctx = ctx;
 	return TEE_SUCCESS;
 }
 
-void tee_ta_register_ctx(struct tee_ta_ctx *ctx)
-{
-	mutex_lock(&tee_ta_mutex);
-	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
-	mutex_unlock(&tee_ta_mutex);
-}
 
 static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 				struct tee_ta_session_head *open_sessions,
@@ -507,43 +500,48 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	if (!s)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-
-	/* Look for already loaded TA */
-	mutex_lock(&tee_ta_mutex);
-	ctx = tee_ta_context_find(uuid);
-	res = get_ctx(ctx);
-	mutex_unlock(&tee_ta_mutex);
-	if (res != TEE_ERROR_ITEM_NOT_FOUND)
-		goto out;
-
-	/* Look for static TA */
-	res = pseudo_ta_get_ctx(uuid, &ctx);
-	if (res != TEE_ERROR_ITEM_NOT_FOUND)
-		goto out;
-
-	/* Look for user TA */
-	res = user_ta_get_ctx(uuid, &ctx);
-out:
-	if (res) {
-		free(s);
-		return res;
-	}
-
-	/*
-	 * We have a context, let's finish initialization of the session
-	 */
 	s->cancel_mask = true;
 	condvar_init(&s->refc_cv);
 	condvar_init(&s->lock_cv);
 	s->lock_thread = THREAD_ID_INVALID;
 	s->ref_count = 1;
-	s->ctx = ctx;
+
+
+	/*
+	 * We take the global TA mutex here and hold it while doing
+	 * RPC to load the TA. This big critical section should be broken
+	 * down into smaller pieces.
+	 */
+
+
 	mutex_lock(&tee_ta_mutex);
 	TAILQ_INSERT_TAIL(open_sessions, s, link);
-	mutex_unlock(&tee_ta_mutex);
-	*sess = s;
 
-	return TEE_SUCCESS;
+	/* Look for already loaded TA */
+	ctx = tee_ta_context_find(uuid);
+	if (ctx) {
+		res = tee_ta_init_session_with_context(ctx, s);
+		if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+			goto out;
+	}
+
+	/* Look for static TA */
+	res = tee_ta_init_pseudo_ta_session(uuid, s);
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
+
+	/* Look for user TA */
+	res = tee_ta_init_user_ta_session(uuid, s);
+
+out:
+	if (res == TEE_SUCCESS) {
+		*sess = s;
+	} else {
+		TAILQ_REMOVE(open_sessions, s, link);
+		free(s);
+	}
+	mutex_unlock(&tee_ta_mutex);
+	return res;
 }
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
