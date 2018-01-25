@@ -134,7 +134,17 @@ static void push_to_free_list(struct pgt *p)
 {
 	SLIST_INSERT_HEAD(&pgt_free_list, p, link);
 #if defined(CFG_WITH_PAGER)
-	tee_pager_release_phys(p->tbl, PGT_SIZE);
+	/*
+	 * Temporarily disable releasing the physical page which is used to
+	 * hold the translation table. There's some race where a released
+	 * page is reused using the old physical page which may already
+	 * have been reused for something else. One of the symptoms is that
+	 * a translation table suddenly holds something looking like code
+	 * instead of translation data. Obviously things can go wrong in
+	 * different ways with different symptoms too.
+	 *
+	 * tee_pager_release_phys(p->tbl, PGT_SIZE);
+	 */
 #endif
 }
 #else
@@ -160,11 +170,21 @@ static void push_to_free_list(struct pgt *p)
 	SLIST_INSERT_HEAD(&p->parent->pgt_cache, p, link);
 	assert(p->parent->num_used > 0);
 	p->parent->num_used--;
-	if (!p->parent->num_used) {
-		vaddr_t va = (vaddr_t)p->tbl & ~SMALL_PAGE_MASK;
-
-		tee_pager_release_phys((void *)va, SMALL_PAGE_SIZE);
-	}
+	/*
+	 * Temporarily disable releasing the physical page which is
+	 * used to hold the translation table. There's some race
+	 * where a released page is reused using the old physical
+	 * page which may already have been reused for something
+	 * else. One of the symptoms is that a translation table
+	 * suddenly holds something looking like code instead of
+	 * translation data. Obviously things can go wrong in
+	 * different ways with different symptoms too.
+	 *
+	 * if (!p->parent->num_used) {
+	 *	vaddr_t va = (vaddr_t)p->tbl & ~SMALL_PAGE_MASK;
+	 *	tee_pager_release_phys((void *)va, SMALL_PAGE_SIZE);
+	 * }
+	 */
 }
 #endif
 
