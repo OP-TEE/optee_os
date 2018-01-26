@@ -107,6 +107,10 @@
 #define MBEDTLS_ECDH_C
 #endif
 
+#if defined(CFG_CRYPTO_CCM)
+#define MBEDTLS_CCM_C
+#endif
+
 #include "mbedtls/check_config.h"
 
 #endif /* MBEDTLS_FEATURE_CONFIG_H */

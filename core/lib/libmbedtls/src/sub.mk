@@ -44,3 +44,6 @@ srcs-y += mbedtls/library/bignum.c \
 		mbedtls/library/ecdsa.c \
 		mbedtls/library/ecdh.c \
 		mbedtls/library/dhm.c
+
+# Authenc
+srcs-y += mbedtls/library/ccm.c

@@ -26,6 +26,9 @@
 #include "mbedtls/pk_internal.h"
 #endif
 #endif
+#if defined(CFG_CRYPTO_CCM)
+#include "mbedtls/ccm.h"
+#endif
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
 #include "mbedtls/cipher.h"
 #include "mbedtls/cipher_internal.h"
@@ -2516,72 +2519,261 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 /******************************************************************************
  * Authenticated encryption
  ******************************************************************************/
+#define MBEDTLS_CCM_ENCRYPT		0
+#define MBEDTLS_CCM_DECRYPT		1
+#define TEE_CCM_KEY_MAX_LENGTH		32
+#define TEE_CCM_NONCE_MAX_LENGTH	13
+#define TEE_CCM_TAG_MAX_LENGTH		16
+#define TEE_xCM_TAG_MAX_LENGTH		16
+
 #if defined(CFG_CRYPTO_CCM)
-TEE_Result crypto_aes_ccm_alloc_ctx(void **ctx_ret __unused)
+struct tee_ccm_state {
+	mbedtls_ccm_context ctx;	/* the ccm state as defined by LMD */
+	size_t tag_len;			/* tag length */
+	unsigned char iv[16];		/* IV */
+	size_t iv_size;			/*
+					 * IV size in bytes (for ciphers with
+					 * variable-length IVs)
+					 */
+	bool iv_flag;			/* whether IV has been set */
+	unsigned char *aad;		/* AAD */
+	size_t aad_len;			/* AAD size in bytes */
+	size_t aad_totallen;		/*total aad length */
+	size_t payload_len;		/*src_len*/
+};
+
+TEE_Result crypto_aes_ccm_alloc_ctx(void **ctx_ret)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res = 0;
+	struct tee_ccm_state *ccm;
+	const mbedtls_cipher_info_t *cipher_info = NULL;
+
+	cipher_info = mbedtls_cipher_info_from_values(MBEDTLS_CIPHER_ID_AES,
+						128, MBEDTLS_MODE_ECB);
+	if (!cipher_info)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (cipher_info->block_size != 16)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ccm = calloc(1, sizeof(*ccm));
+	if (!ccm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	lmd_res = mbedtls_cipher_setup(&ccm->ctx.cipher_ctx, cipher_info);
+	if (lmd_res != 0) {
+		crypto_aes_ccm_free_ctx(ccm);
+		EMSG("cipher setup failed, res is 0x%x", -lmd_res);
+		return TEE_ERROR_GENERIC;
+	}
+
+	*ctx_ret = ccm;
+	return TEE_SUCCESS;
 }
 
-void crypto_aes_ccm_free_ctx(void *ctx __unused)
+void crypto_aes_ccm_free_ctx(void *ctx)
 {
-	if (ctx)
-		assert(0);
+	struct tee_ccm_state *ccm = ctx;
+
+	if (ccm != NULL) {
+		mbedtls_ccm_free(&ccm->ctx);
+		free(ccm->aad);
+	}
+	free(ccm);
 }
 
-void crypto_aes_ccm_copy_state(void *dst_ctx __unused, void *src_ctx __unused)
+void crypto_aes_ccm_copy_state(void *dst_ctx, void *src_ctx)
 {
+	int lmd_res = 0;
+	struct tee_ccm_state *dst_ccm = dst_ctx;
+	struct tee_ccm_state *src_ccm = src_ctx;
+
+	dst_ccm->aad_len = src_ccm->aad_len;
+	dst_ccm->tag_len = src_ccm->tag_len;
+	dst_ccm->iv_size = src_ccm->iv_size;
+	dst_ccm->payload_len = src_ccm->payload_len;
+	dst_ccm->iv_flag = src_ccm->iv_flag;
+	dst_ccm->aad_totallen = src_ccm->aad_totallen;
+	memcpy(dst_ccm->iv, src_ccm->iv, sizeof(src_ccm->iv));
+	memcpy(dst_ccm->aad, src_ccm->aad, src_ccm->aad_totallen);
+
+	lmd_res = mbedtls_ccm_clone(&dst_ccm->ctx, &src_ccm->ctx);
+	if (lmd_res != 0)
+		EMSG("ccm clone failed, res is 0x%x", -lmd_res);
 }
 
-TEE_Result crypto_aes_ccm_init(void *ctx __unused,
-			       TEE_OperationMode mode __unused,
-			       const uint8_t *key __unused,
-			       size_t key_len __unused,
-			       const uint8_t *nonce __unused,
-			       size_t nonce_len __unused,
-			       size_t tag_len __unused,
-			       size_t aad_len __unused,
-			       size_t payload_len __unused)
+TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode,
+			       const uint8_t *key, size_t key_len,
+			       const uint8_t *nonce, size_t nonce_len,
+			       size_t tag_len, size_t aad_len,
+			       size_t payload_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res = 0;
+	struct tee_ccm_state *ccm = ctx;
+	const mbedtls_cipher_info_t *cipher_info = NULL;
+
+	/* Check the key length */
+	if ((!key) || (key_len > TEE_CCM_KEY_MAX_LENGTH))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* check the nonce */
+	if ((nonce_len > TEE_CCM_NONCE_MAX_LENGTH) ||
+		(nonce_len > sizeof(ccm->iv))) {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+	/* check the tag len */
+	if ((tag_len < 4) || (tag_len > TEE_CCM_TAG_MAX_LENGTH) ||
+		(tag_len % 2 != 0)) {
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	cipher_info = mbedtls_cipher_info_from_values(MBEDTLS_CIPHER_ID_AES,
+						key_len * 8, MBEDTLS_MODE_ECB);
+	if (cipher_info == NULL)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (cipher_info->block_size != 16)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	lmd_res = mbedtls_cipher_setup_info(&ccm->ctx.cipher_ctx, cipher_info);
+	if (lmd_res != 0)
+		return TEE_ERROR_BAD_STATE;
+
+	lmd_res = mbedtls_cipher_setkey(&ccm->ctx.cipher_ctx, key,
+					key_len * 8, MBEDTLS_ENCRYPT);
+	if (lmd_res != 0)
+		return TEE_ERROR_BAD_STATE;
+
+	ccm->tag_len = tag_len;
+	ccm->payload_len = payload_len;
+	ccm->aad_totallen = aad_len;
+	ccm->iv_size = nonce_len;
+	memcpy(ccm->iv, nonce, nonce_len);
+
+	if ((aad_len != 0) && (ccm->aad == NULL)) {
+		ccm->aad = calloc(1, aad_len);
+		if (ccm->aad == NULL)
+			return TEE_ERROR_OUT_OF_MEMORY;
+	}
+	ccm->ctx.mode = (mode == TEE_MODE_ENCRYPT ?
+			MBEDTLS_CCM_ENCRYPT : MBEDTLS_CCM_DECRYPT);
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_update_aad(void *ctx __unused,
-			const uint8_t *data __unused, size_t len __unused)
+TEE_Result crypto_aes_ccm_update_aad(void *ctx, const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res = 0;
+	struct tee_ccm_state *ccm = ctx;
+	const uint8_t *temp_data = data;
+
+	if (len + ccm->aad_len > ccm->aad_totallen)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (len != ccm->aad_totallen) {
+		memcpy(ccm->aad + ccm->aad_len, data, len);
+		ccm->aad_len += len;
+	}
+	if (ccm->aad_len == ccm->aad_totallen)
+		temp_data = ccm->aad;
+
+	if (len == ccm->aad_totallen || ccm->aad_len == ccm->aad_totallen) {
+		lmd_res = mbedtls_ccm_starts(&ccm->ctx, ccm->ctx.mode,
+					     ccm->payload_len, ccm->iv,
+					     ccm->iv_size, temp_data,
+					     ccm->aad_totallen, ccm->tag_len);
+		if (lmd_res != 0)
+			return TEE_ERROR_BAD_STATE;
+		ccm->iv_flag = true;
+	}
+
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_update_payload(void *ctx __unused,
+TEE_Result crypto_aes_ccm_update_payload(void *ctx,
 					 TEE_OperationMode mode __unused,
-					 const uint8_t *src_data __unused,
-					 size_t len __unused,
-					 uint8_t *dst_data __unused)
+					 const uint8_t *src_data,
+					 size_t len, uint8_t *dst_data)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	int lmd_res = 0;
+	struct tee_ccm_state *ccm = ctx;
+
+	if (ccm->iv_flag == false)
+		crypto_aes_ccm_update_aad(ccm, NULL, 0);
+
+	/* process the data */
+	lmd_res = mbedtls_ccm_update(&ccm->ctx, len, src_data, dst_data);
+	if (lmd_res != 0)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_enc_final(void *ctx __unused,
-				    const uint8_t *src_data __unused,
-				    size_t len __unused,
-				    uint8_t *dst_data __unused,
-				    uint8_t *dst_tag __unused,
-				    size_t *dst_tag_len __unused)
+TEE_Result crypto_aes_ccm_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
+				    uint8_t *dst_tag, size_t *dst_tag_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	struct tee_ccm_state *ccm = ctx;
+
+	res = crypto_aes_ccm_update_payload(ccm, TEE_MODE_ENCRYPT,
+					    src_data, len, dst_data);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Check the tag length */
+	if (*dst_tag_len < ccm->tag_len) {
+		*dst_tag_len = ccm->tag_len;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*dst_tag_len = ccm->tag_len;
+
+	/* Compute the tag */
+	if (mbedtls_ccm_finish(&ccm->ctx, dst_tag, *dst_tag_len) != 0)
+		return TEE_ERROR_BAD_STATE;
+	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_dec_final(void *ctx __unused,
-				    const uint8_t *src_data __unused,
-				    size_t len __unused,
-				    uint8_t *dst_data __unused,
-				    const uint8_t *tag __unused,
-				    size_t tag_len __unused)
+TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t len, uint8_t *dst_data,
+				    const uint8_t *tag, size_t tag_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	struct tee_ccm_state *ccm = ctx;
+	uint8_t dst_tag[TEE_xCM_TAG_MAX_LENGTH];
+	unsigned long lmd_tag_len = tag_len;
+
+	if (tag_len == 0)
+		return TEE_ERROR_SHORT_BUFFER;
+	if (tag_len > TEE_xCM_TAG_MAX_LENGTH)
+		return TEE_ERROR_BAD_STATE;
+
+	res = crypto_aes_ccm_update_payload(ccm, TEE_MODE_DECRYPT,
+					    src_data, len, dst_data);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Finalize the authentication */
+	if (mbedtls_ccm_finish(&ccm->ctx, dst_tag, lmd_tag_len) != 0)
+		return TEE_ERROR_BAD_STATE;
+
+	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
+		return TEE_ERROR_MAC_INVALID;
+	return TEE_SUCCESS;
 }
 
-void crypto_aes_ccm_final(void *ctx __unused)
+void crypto_aes_ccm_final(void *ctx)
 {
+	struct tee_ccm_state *ccm = ctx;
+
+	ccm->aad_len = 0;
+	ccm->tag_len = 0;
+	ccm->iv_size = 0;
+	ccm->payload_len = 0;
+	ccm->aad_totallen = 0;
+	ccm->iv_flag = 0;
+	memset(ccm->iv, 0, sizeof(ccm->iv));
+	memset(ccm->aad, 0, ccm->aad_totallen);
+	mbedtls_cipher_reset(&ccm->ctx.cipher_ctx);
 }
 #endif /*CFG_CRYPTO_CCM*/
 
