@@ -26,18 +26,23 @@
 #endif
 
 typedef long bufsize;
-void	bpool	    _((void *buffer, bufsize len));
-void   *bget	    _((bufsize size));
-void   *bgetz	    _((bufsize size));
-void   *bgetr	    _((void *buffer, bufsize newsize));
-void	brel	    _((void *buf));
+struct bpoolset;
+
+void	bpool	    _((void *buffer, bufsize len, struct bpoolset *poolset));
+void   *bget	    _((bufsize size, struct bpoolset *poolset));
+void   *bgetz	    _((bufsize size, struct bpoolset *poolset));
+void   *bgetr	    _((void *buffer, bufsize newsize,
+		       struct bpoolset *poolset));
+void	brel	    _((void *buf, struct bpoolset *poolset));
 void	bectl	    _((int (*compact)(bufsize sizereq, int sequence),
 		       void *(*acquire)(bufsize size),
-		       void (*release)(void *buf), bufsize pool_incr));
+		       void (*release)(void *buf), bufsize pool_incr,
+		       struct bpoolset *poolset));
 void	bstats	    _((bufsize *curalloc, bufsize *totfree, bufsize *maxfree,
-		       long *nget, long *nrel));
+		       long *nget, long *nrel, struct bpoolset *poolset));
 void	bstatse     _((bufsize *pool_incr, long *npool, long *npget,
-		       long *nprel, long *ndget, long *ndrel));
-void	bufdump     _((void *buf));
+		       long *nprel, long *ndget, long *ndrel,
+		       struct bpoolset *poolset));
+void	bufdump     _((void *buf, struct bpoolset *poolset));
 void	bpoold	    _((void *pool, int dumpalloc, int dumpfree));
 int	bpoolv	    _((void *pool));

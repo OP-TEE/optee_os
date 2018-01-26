@@ -522,38 +522,38 @@ struct bfhead {
 };
 #define BFH(p)	((struct bfhead *) (p))
 
-static struct bfhead freelist = {     /* List of free buffers */
-    {0, 0},
-    {&freelist, &freelist}
-};
-
-
+/* Poolset definition */
+struct bpoolset {
+    struct bfhead freelist;
 #ifdef BufStats
-static bufsize totalloc = 0;	      /* Total space currently allocated */
-static long numget = 0, numrel = 0;   /* Number of bget() and brel() calls */
+    bufsize totalloc;		      /* Total space currently allocated */
+    long numget;		      /* Number of bget() calls */
+    long numrel;		      /* Number of brel() calls */
 #ifdef BECtl
-static long numpblk = 0;	      /* Number of pool blocks */
-static long numpget = 0, numprel = 0; /* Number of block gets and rels */
-static long numdget = 0, numdrel = 0; /* Number of direct gets and rels */
+    long numpblk;		      /* Number of pool blocks */
+    long numpget;		      /* Number of block gets and rels */
+    long numprel;
+    long numdget;		      /* Number of direct gets and rels */
+    long numdrel;
 #endif /* BECtl */
 #endif /* BufStats */
 
 #ifdef BECtl
+    /* Automatic expansion block management functions */
 
-/* Automatic expansion block management functions */
+    int (*compfcn) _((bufsize sizereq, int sequence));
+    void *(*acqfcn) _((bufsize size));
+    void (*relfcn) _((void *buf));
 
-static int (*compfcn) _((bufsize sizereq, int sequence)) = NULL;
-static void *(*acqfcn) _((bufsize size)) = NULL;
-static void (*relfcn) _((void *buf)) = NULL;
-
-static bufsize exp_incr = 0;	      /* Expansion block size */
-static bufsize pool_len = 0;	      /* 0: no bpool calls have been made
+    bufsize exp_incr;		      /* Expansion block size */
+    bufsize pool_len;		      /* 0: no bpool calls have been made
 					 -1: not all pool blocks are
 					     the same size
 					 >0: (common) block size for all
 					     bpool calls made so far
 				      */
 #endif
+};
 
 /*  Minimum allocation quantum: */
 
@@ -570,8 +570,9 @@ static bufsize pool_len = 0;	      /* 0: no bpool calls have been made
 
 /*  BGET  --  Allocate a buffer.  */
 
-void *bget(requested_size)
+void *bget(requested_size, poolset)
   bufsize requested_size;
+  struct bpoolset *poolset;
 {
     bufsize size = requested_size;
     struct bfhead *b;
@@ -604,9 +605,9 @@ void *bget(requested_size)
 
     while (1) {
 #endif
-	b = freelist.ql.flink;
+	b = poolset->freelist.ql.flink;
 #ifdef BestFit
-	best = &freelist;
+	best = &poolset->freelist;
 #endif
 
 
@@ -614,9 +615,10 @@ void *bget(requested_size)
 	   to hold the requested size buffer. */
 
 #ifdef BestFit
-	while (b != &freelist) {
+	while (b != &poolset->freelist) {
 	    if (b->bh.bsize >= size) {
-		if ((best == &freelist) || (b->bh.bsize < best->bh.bsize)) {
+		if ((best == &poolset->freelist) ||
+		    (b->bh.bsize < best->bh.bsize)) {
 		    best = b;
 		}
 	    }
@@ -625,7 +627,7 @@ void *bget(requested_size)
 	b = best;
 #endif /* BestFit */
 
-	while (b != &freelist) {
+	while (b != &poolset->freelist) {
 	    if ((bufsize) b->bh.bsize >= size) {
 
 		/* Buffer  is big enough to satisfy  the request.  Allocate it
@@ -653,8 +655,8 @@ void *bget(requested_size)
 		    bn->prevfree = 0;
 
 #ifdef BufStats
-		    totalloc += size;
-		    numget++;		  /* Increment number of bget() calls */
+		    poolset->totalloc += size;
+		    poolset->numget++;		  /* Increment number of bget() calls */
 #endif
 		    buf = (void *) ((((char *) ba) + sizeof(struct bhead)));
 		    tag_asan_alloced(buf, size);
@@ -674,8 +676,8 @@ void *bget(requested_size)
 		    b->ql.flink->ql.blink = b->ql.blink;
 
 #ifdef BufStats
-		    totalloc += b->bh.bsize;
-		    numget++;		  /* Increment number of bget() calls */
+		    poolset->totalloc += b->bh.bsize;
+		    poolset->numget++;		  /* Increment number of bget() calls */
 #endif
 		    /* Negate size to mark buffer allocated. */
 		    b->bh.bsize = -(b->bh.bsize);
@@ -698,7 +700,8 @@ void *bget(requested_size)
 	   defined,  notify  it  of the size requested.  If it returns
 	   TRUE, try the allocation again. */
 
-	if ((compfcn == NULL) || (!(*compfcn)(size, ++compactseq))) {
+	if ((poolset->compfcn == NULL) ||
+	    (!(poolset->compfcn)(size, ++compactseq))) {
 	    break;
 	}
     }
@@ -707,7 +710,7 @@ void *bget(requested_size)
 
     /* Don't give up yet -- look in the reserve supply. */
 
-    if (acqfcn != NULL) {
+    if (poolset->acqfcn != NULL) {
 	if (size > exp_incr - sizeof(struct bhead)) {
 
 	    /* Request	is  too  large	to  fit in a single expansion
@@ -724,9 +727,9 @@ void *bget(requested_size)
 		bdh->bh.prevfree = 0;
 		bdh->tsize = size;
 #ifdef BufStats
-		totalloc += size;
-		numget++;	      /* Increment number of bget() calls */
-		numdget++;	      /* Direct bget() call count */
+		poolset->totalloc += size;
+		poolset->numget++;	  /* Increment number of bget() calls */
+		poolset->numdget++;	  /* Direct bget() call count */
 #endif
 		buf =  (void *) (bdh + 1);
 		tag_asan_alloced(buf, size);
@@ -739,10 +742,10 @@ void *bget(requested_size)
 
 	    void *newpool;
 
-	    if ((newpool = (*acqfcn)((bufsize) exp_incr)) != NULL) {
-		bpool(newpool, exp_incr);
-                buf =  bget(requested_size);  /* This can't, I say, can't
-						 get into a loop. */
+	    if ((newpool = poolset->acqfcn((bufsize) exp_incr)) != NULL) {
+		bpool(newpool, exp_incr, poolset);
+                buf =  bget(requested_size, pool);  /* This can't, I say, can't
+						       get into a loop. */
 		return buf;
 	    }
 	}
@@ -759,10 +762,11 @@ void *bget(requested_size)
 	       the  entire  contents  of  the buffer to zero, not just the
 	       region requested by the caller. */
 
-void *bgetz(size)
+void *bgetz(size, poolset)
   bufsize size;
+  struct bpoolset *poolset;
 {
-    char *buf = (char *) bget(size);
+    char *buf = (char *) bget(size, poolset);
 
     if (buf != NULL) {
 	struct bhead *b;
@@ -789,15 +793,16 @@ void *bgetz(size)
 	       enhanced to allow the buffer to grow into adjacent free
 	       blocks and to avoid moving data unnecessarily.  */
 
-void *bgetr(buf, size)
+void *bgetr(buf, size, poolset)
   void *buf;
   bufsize size;
+  struct bpoolset *poolset;
 {
     void *nbuf;
     bufsize osize;		      /* Old size of buffer */
     struct bhead *b;
 
-    if ((nbuf = bget(size)) == NULL) { /* Acquire new buffer */
+    if ((nbuf = bget(size, poolset)) == NULL) { /* Acquire new buffer */
 	return NULL;
     }
     if (buf == NULL) {
@@ -818,21 +823,22 @@ void *bgetr(buf, size)
     assert(osize > 0);
     V memcpy((char *) nbuf, (char *) buf, /* Copy the data */
 	     (MemSize) ((size < osize) ? size : osize));
-    brel(buf);
+    brel(buf, poolset);
     return nbuf;
 }
 
 /*  BREL  --  Release a buffer.  */
 
-void brel(buf)
+void brel(buf, poolset)
   void *buf;
+  struct bpoolset *poolset;
 {
     struct bfhead *b, *bn;
     bufsize bs;
 
     b = BFH(((char *) buf) - sizeof(struct bhead));
 #ifdef BufStats
-    numrel++;			      /* Increment number of brel() calls */
+    poolset->numrel++;		      /* Increment number of brel() calls */
 #endif
     assert(buf != NULL);
 
@@ -843,17 +849,17 @@ void brel(buf)
 	bdh = BDH(((char *) buf) - sizeof(struct bdhead));
 	assert(b->bh.prevfree == 0);
 #ifdef BufStats
-	totalloc -= bdh->tsize;
-	assert(totalloc >= 0);
-	numdrel++;		      /* Number of direct releases */
+	poolset->totalloc -= bdh->tsize;
+	assert(poolset->totalloc >= 0);
+	poolset->numdrel++;	       /* Number of direct releases */
 #endif /* BufStats */
 #ifdef FreeWipe
 	V memset_unchecked((char *) buf, 0x55,
 			   (MemSize) (bdh->tsize - sizeof(struct bdhead)));
 #endif /* FreeWipe */
 	bs = bdh->tsize - sizeof(struct bdhead);
-	assert(relfcn != NULL);
-	(*relfcn)((void *) bdh);      /* Release it directly. */
+	assert(poolset->relfcn != NULL);
+	poolset->relfcn((void *) bdh);      /* Release it directly. */
 	tag_asan_free(buf, bs);
 	return;
     }
@@ -874,8 +880,8 @@ void brel(buf)
     assert(BH((char *) b - b->bh.bsize)->prevfree == 0);
 
 #ifdef BufStats
-    totalloc += b->bh.bsize;
-    assert(totalloc >= 0);
+    poolset->totalloc += b->bh.bsize;
+    assert(poolset->totalloc >= 0);
 #endif
 
     /* If the back link is nonzero, the previous buffer is free.  */
@@ -899,11 +905,11 @@ void brel(buf)
         /* The previous buffer isn't allocated.  Insert this buffer
 	   on the free list as an isolated free block. */
 
-	assert(freelist.ql.blink->ql.flink == &freelist);
-	assert(freelist.ql.flink->ql.blink == &freelist);
-	b->ql.flink = &freelist;
-	b->ql.blink = freelist.ql.blink;
-	freelist.ql.blink = b;
+	assert(poolset->freelist.ql.blink->ql.flink == &poolset->freelist);
+	assert(poolset->freelist.ql.flink->ql.blink == &poolset->freelist);
+	b->ql.flink = &poolset->freelist;
+	b->ql.blink = poolset->freelist.ql.blink;
+	poolset->freelist.ql.blink = b;
 	b->ql.blink->ql.flink = b;
 	b->bh.bsize = -b->bh.bsize;
     }
@@ -953,7 +959,7 @@ void brel(buf)
 	is  defined  in  such a way that the test will fail unless all
 	pool blocks are the same size.	*/
 
-    if (relfcn != NULL &&
+    if (poolset->relfcn != NULL &&
 	((bufsize) b->bh.bsize) == (pool_len - sizeof(struct bhead))) {
 
 	assert(b->bh.prevfree == 0);
@@ -963,10 +969,10 @@ void brel(buf)
 	b->ql.blink->ql.flink = b->ql.flink;
 	b->ql.flink->ql.blink = b->ql.blink;
 
-	(*relfcn)(b);
+	poolset->relfcn(b);
 #ifdef BufStats
-	numprel++;		      /* Nr of expansion block releases */
-	numpblk--;		      /* Total number of blocks */
+	poolset->numprel++;	       /* Nr of expansion block releases */
+	poolset->numpblk--;	       /* Total number of blocks */
 	assert(numpblk == numpget - numprel);
 #endif /* BufStats */
     }
@@ -978,24 +984,26 @@ void brel(buf)
 
 /*  BECTL  --  Establish automatic pool expansion control  */
 
-void bectl(compact, acquire, release, pool_incr)
+void bectl(compact, acquire, release, pool_incr, poolset)
   int (*compact) _((bufsize sizereq, int sequence));
   void *(*acquire) _((bufsize size));
   void (*release) _((void *buf));
   bufsize pool_incr;
+  struct bpoolset *poolset;
 {
-    compfcn = compact;
-    acqfcn = acquire;
-    relfcn = release;
-    exp_incr = pool_incr;
+    poolset->compfcn = compact;
+    poolset->acqfcn = acquire;
+    poolset->relfcn = release;
+    poolset->exp_incr = pool_incr;
 }
 #endif
 
 /*  BPOOL  --  Add a region of memory to the buffer pool.  */
 
-void bpool(buf, len)
+void bpool(buf, len, poolset)
   void *buf;
   bufsize len;
+  struct bpoolset *poolset;
 {
     struct bfhead *b = BFH(buf);
     struct bhead *bn;
@@ -1004,15 +1012,15 @@ void bpool(buf, len)
     len &= ~(SizeQuant - 1);
 #endif
 #ifdef BECtl
-    if (pool_len == 0) {
+    if (poolset->pool_len == 0) {
 	pool_len = len;
-    } else if (len != pool_len) {
-	pool_len = -1;
+    } else if (len != poolset->pool_len) {
+	poolset->pool_len = -1;
     }
 #ifdef BufStats
-    numpget++;			      /* Number of block acquisitions */
-    numpblk++;			      /* Number of blocks total */
-    assert(numpblk == numpget - numprel);
+    poolset->numpget++;		       /* Number of block acquisitions */
+    poolset->numpblk++;		       /* Number of blocks total */
+    assert(poolset->numpblk == poolset->numpget - poolset->numprel);
 #endif /* BufStats */
 #endif /* BECtl */
 
@@ -1030,11 +1038,11 @@ void bpool(buf, len)
 
     /* Chain the new block to the free list. */
 
-    assert(freelist.ql.blink->ql.flink == &freelist);
-    assert(freelist.ql.flink->ql.blink == &freelist);
-    b->ql.flink = &freelist;
-    b->ql.blink = freelist.ql.blink;
-    freelist.ql.blink = b;
+    assert(poolset->freelist.ql.blink->ql.flink == &poolset->freelist);
+    assert(poolset->freelist.ql.flink->ql.blink == &poolset->freelist);
+    b->ql.flink = &poolset->freelist;
+    b->ql.blink = poolset->freelist.ql.blink;
+    poolset->freelist.ql.blink = b;
     b->ql.blink->ql.flink = b;
 
     /* Create a dummy allocated buffer at the end of the pool.	This dummy
@@ -1062,18 +1070,19 @@ void bpool(buf, len)
 
 /*  BSTATS  --	Return buffer allocation free space statistics.  */
 
-void bstats(curalloc, totfree, maxfree, nget, nrel)
+void bstats(curalloc, totfree, maxfree, nget, nrel, poolset)
   bufsize *curalloc, *totfree, *maxfree;
   long *nget, *nrel;
+  struct bpoolset *poolset;
 {
-    struct bfhead *b = freelist.ql.flink;
+    struct bfhead *b = poolset->freelist.ql.flink;
 
-    *nget = numget;
-    *nrel = numrel;
-    *curalloc = totalloc;
+    *nget = poolset->numget;
+    *nrel = poolset->numrel;
+    *curalloc = poolset->totalloc;
     *totfree = 0;
     *maxfree = -1;
-    while (b != &freelist) {
+    while (b != &poolset->freelist) {
 	assert(b->bh.bsize > 0);
 	*totfree += b->bh.bsize;
 	if (b->bh.bsize > *maxfree) {
@@ -1087,16 +1096,18 @@ void bstats(curalloc, totfree, maxfree, nget, nrel)
 
 /*  BSTATSE  --  Return extended statistics  */
 
-void bstatse(pool_incr, npool, npget, nprel, ndget, ndrel)
+void bstatse(pool_incr, npool, npget, nprel, ndget, ndrel, poolset)
   bufsize *pool_incr;
   long *npool, *npget, *nprel, *ndget, *ndrel;
+  struct bpoolset *poolset;
 {
-    *pool_incr = (pool_len < 0) ? -exp_incr : exp_incr;
-    *npool = numpblk;
-    *npget = numpget;
-    *nprel = numprel;
-    *ndget = numdget;
-    *ndrel = numdrel;
+    *pool_incr = (poolset->pool_len < 0) ?
+	    -poolset->exp_incr : poolset->exp_incr;
+    *npool = poolset->numpblk;
+    *npget = poolset->numpget;
+    *nprel = poolset->numprel;
+    *ndget = poolset->numdget;
+    *ndrel = poolset->numdrel;
 }
 #endif /* BECtl */
 #endif /* BufStats */
