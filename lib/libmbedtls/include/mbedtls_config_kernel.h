@@ -42,7 +42,8 @@
 #define MBEDTLS_DES_C
 #endif
 
-#if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(CFG_CRYPTO_CMAC)
+#if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(CFG_CRYPTO_CMAC) \
+	|| defined(CFG_CRYPTO_CCM)
 #define MBEDTLS_CIPHER_C
 #endif
 
@@ -98,6 +99,10 @@
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ECDH_C
+#endif
+
+#if defined(CFG_CRYPTO_CCM)
+#define MBEDTLS_CCM_C
 #endif
 
 #include <mbedtls/check_config.h>
