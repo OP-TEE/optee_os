@@ -622,7 +622,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 			va = (void *)param->u[n].mem.offs;
 			s = param->u[n].mem.size;
 			if (!va) {
-				if (!s)
+				if (s)
 					return TEE_ERROR_BAD_PARAMETERS;
 				break;
 			}
