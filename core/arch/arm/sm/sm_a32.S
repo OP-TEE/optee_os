@@ -286,6 +286,8 @@ sm_vect_table_a15:
 	vector_prologue_spectre
 	/*
 	 * Invalidate the branch predictor for the current processor.
+	 * For Cortex-A8 ACTLR[6] has to be set to 1 for BPIALL to be
+	 * effective.
 	 * Note that the BPIALL instruction is not effective in
 	 * invalidating the branch predictor on Cortex-A15. For that CPU,
 	 * set ACTLR[0] to 1 during early processor initialisation, and
