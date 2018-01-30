@@ -208,7 +208,7 @@ END_FUNC reset_vect_table
 	mov	r7, r1
 	.endm
 
-	.macro maybe_init_ca15_spectre_workaround
+	.macro maybe_init_spectre_workaround
 #if !defined(CFG_WITH_ARM_TRUSTED_FW) && \
     (defined(CFG_CORE_WORKAROUND_SPECTRE_BP) || \
      defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC))
@@ -218,11 +218,19 @@ END_FUNC reset_vect_table
 	bne	1f
 	ubfx	r1, r0, #MIDR_PRIMARY_PART_NUM_SHIFT, \
 			#MIDR_PRIMARY_PART_NUM_WIDTH
+
+	movw	r2, #CORTEX_A8_PART_NUM
+	cmp	r1, r2
+	moveq	r2, #ACTLR_CA8_ENABLE_INVALIDATE_BTB
+	beq	2f
+
 	movw	r2, #CORTEX_A15_PART_NUM
 	cmp	r1, r2
-	bne	1f
+	moveq	r2, #ACTLR_CA15_ENABLE_INVALIDATE_BTB
+	bne	1f	/* Skip it for all other CPUs */
+2:
 	read_actlr r0
-	orr	r0, r0, #ACTLR_CA15_ENABLE_INVALIDATE_BTB
+	orr	r0, r0, r2
 	write_actlr r0
 	isb
 1:
@@ -237,7 +245,7 @@ UNWIND(	.cantunwind)
 
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
-	maybe_init_ca15_spectre_workaround
+	maybe_init_spectre_workaround
 
 	set_sctlr
 	isb

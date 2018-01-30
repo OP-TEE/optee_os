@@ -87,6 +87,8 @@
 
 /* Only valid for Cortex-A15 */
 #define ACTLR_CA15_ENABLE_INVALIDATE_BTB	BIT(0)
+/* Only valid for Cortex-A8 */
+#define ACTLR_CA8_ENABLE_INVALIDATE_BTB		BIT(6)
 
 #define ACTLR_SMP	BIT32(6)
 
