@@ -40,6 +40,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
+#include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -575,6 +576,12 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
+
+#ifdef CFG_VIRTUALIZATION
+	if (!check_client(args->a7))
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+#endif
+
 	thread_fast_smc_handler_ptr(args);
 	/* Fast handlers must not unmask any exceptions */
 	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
@@ -583,6 +590,11 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
+
+#ifdef CFG_VIRTUALIZATION
+	if (!check_client(args->a7))
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+#endif
 
 	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC)
 		thread_resume_from_rpc(args);

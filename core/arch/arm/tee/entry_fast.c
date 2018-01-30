@@ -33,6 +33,7 @@
 #include <sm/optee_smc.h>
 #include <kernel/generic_boot.h>
 #include <kernel/tee_l2cc_mutex.h>
+#include <kernel/virtualization.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
 
@@ -155,6 +156,33 @@ static void tee_entry_boot_secondary(struct thread_smc_args *args)
 #endif
 }
 
+#if defined(CFG_VIRTUALIZATION)
+static void tee_entry_vm_created(struct thread_smc_args *args)
+{
+	uint16_t client_id = args->a1;
+
+	/* Only hypervisor can issue this request */
+	if (args->a7 != 0) {
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+		return;
+	}
+
+	args->a0 = client_created(client_id);
+}
+
+static void tee_entry_vm_destroyed(struct thread_smc_args *args)
+{
+	uint16_t client_id = args->a1;
+
+	/* Only hypervisor can issue this request */
+	if (args->a7 != 0)
+		return;
+
+	client_destroyed(client_id);
+	args->a0 = OPTEE_SMC_RETURN_OK;
+}
+#endif
+
 void tee_entry_fast(struct thread_smc_args *args)
 {
 	switch (args->a0) {
@@ -196,6 +224,15 @@ void tee_entry_fast(struct thread_smc_args *args)
 		tee_entry_boot_secondary(args);
 		break;
 
+#if defined(CFG_VIRTUALIZATION)
+	case OPTEE_SMC_VM_CREATED:
+		tee_entry_vm_created(args);
+		break;
+	case OPTEE_SMC_VM_DESTROYED:
+		tee_entry_vm_destroyed(args);
+		break;
+#endif
+
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
@@ -209,7 +246,13 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 * target has additional calls it will call this function and
 	 * add the number of calls the target has added.
 	 */
-	return 9;
+	size_t ret = 9;
+
+#if defined(CFG_VIRTUALIZATION)
+	ret += 2;
+#endif
+
+	return ret;
 }
 
 void __weak tee_entry_get_api_call_count(struct thread_smc_args *args)
