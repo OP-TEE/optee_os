@@ -8,7 +8,15 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#include "handle.h"
 #include "sks_helpers.h"
+
+/* Client session context: currently only use the alloced address */
+struct tee_session {
+	int foo;
+};
+
+static struct handle_db sks_session_db = HANDLE_DB_INITIALIZER;
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -25,15 +33,21 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 				    TEE_Param __unused params[4],
 				    void **session)
 {
-	// TODO: get a identifier for the client session
-	*session = NULL;
+	struct tee_session *sess = TEE_Malloc(sizeof(*sess), 0);
+
+	if (!sess)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*session = (void *)handle_get(&sks_session_db, sess);
 
 	return TEE_SUCCESS;
 }
 
 void TA_CloseSessionEntryPoint(void *session __unused)
 {
-	// TODO: release identifier of the client session
+	struct tee_session *sess = handle_put(&sks_session_db, (int)session);
+
+	TEE_Free(sess);
 }
 
 /*
