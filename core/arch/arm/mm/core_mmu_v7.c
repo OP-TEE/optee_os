@@ -557,8 +557,8 @@ static paddr_t desc_to_pa(unsigned level, uint32_t desc)
 	return desc & ~((1 << shift_mask) - 1);
 }
 
-bool core_mmu_shatter_superpage(struct core_mmu_table_info *tbl_info,
-				unsigned int idx, bool secure)
+bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
+				     unsigned int idx, bool secure)
 {
 	uint32_t *new_table;
 	uint32_t *entry;

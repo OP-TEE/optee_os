@@ -328,21 +328,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static paddr_t region_sz_on_lvl(int lvl)
-{
-	switch (lvl) {
-	case 1:
-		return 1 << L1_XLAT_ADDRESS_SHIFT;
-	case 2:
-		return 1 << L2_XLAT_ADDRESS_SHIFT;
-	case 3:
-		return 1 << L3_XLAT_ADDRESS_SHIFT;
-	default:
-		assert(false);
-		return ~0;
-	}
-}
-
 static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 {
 	/* Physical address can't exceed 48 bits */
@@ -610,19 +595,20 @@ out:
 	return ret;
 }
 
-bool core_mmu_shatter_superpage(struct core_mmu_table_info *tbl_info,
-				unsigned int idx, bool secure __maybe_unused)
+bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
+				     unsigned int idx, bool secure __unused)
 {
 	uint64_t *new_table;
 	uint64_t *entry;
 	int i;
 	paddr_t pa;
 	uint64_t attr;
+	paddr_t block_size_on_next_lvl =
+		L1_XLAT_ADDRESS_SHIFT - (tbl_info->level) *
+		XLAT_TABLE_ENTRIES_SHIFT;
 
-	if (tbl_info->level >= 3)
+	if (tbl_info->level >= 3 || idx > tbl_info->num_entries)
 		return false;
-
-	assert(idx < tbl_info->num_entries);
 
 	entry = (uint64_t *)tbl_info->table + idx;
 
@@ -641,7 +627,7 @@ bool core_mmu_shatter_superpage(struct core_mmu_table_info *tbl_info,
 		attr = *entry & ~(OUTPUT_ADDRESS_MASK | DESC_ENTRY_TYPE_MASK);
 		for (i = 0; i < XLAT_TABLE_ENTRIES; i++) {
 			new_table[i] = pa | attr | TABLE_DESC;
-			pa += region_sz_on_lvl(tbl_info->level + 1);
+			pa += block_size_on_next_lvl;
 		}
 	} else
 		memset(new_table, 0, XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE);

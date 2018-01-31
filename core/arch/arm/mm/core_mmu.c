@@ -1468,7 +1468,8 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 				break;
 
 			/* This is supertable. Need to divide it. */
-			if (!core_mmu_shatter_superpage(&tbl_info, idx, secure))
+			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
+							     secure))
 				panic("Failed to spread pgdir on small tables");
 		}
 
