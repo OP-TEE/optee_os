@@ -1354,6 +1354,34 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 	}
 }
 
+static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
+			     size_t size_left, paddr_t block_size,
+			     struct tee_mmap_region *mm __maybe_unused)
+{
+	bool ret;
+
+	/* VA / PA are aligned to block size at current level */
+	ret = !((vaddr | paddr) & (block_size - 1));
+
+	/* Remainder fits into block at current level */
+	ret &= size_left >= block_size;
+
+#ifdef CFG_WITH_PAGER
+	/*
+	 * If pager is enabled, we need to map certain
+	 * regions with small pages only
+	 */
+	if ((mm->type == MEM_AREA_TEE_RAM ||
+	     mm->type == MEM_AREA_TEE_RAM_RX ||
+	     mm->type == MEM_AREA_TEE_RAM_RO ||
+	     mm->type == MEM_AREA_TEE_RAM_RW ||
+	     mm->type == MEM_AREA_PAGER_VASPACE) &&
+	    block_size != SMALL_PAGE_SIZE)
+		ret = false;
+#endif
+
+	return ret;
+}
 
 void core_mmu_map_region(struct tee_mmap_region *mm)
 {
@@ -1364,7 +1392,6 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 	ssize_t size_left = mm->size;
 	int level;
 	bool table_found;
-	bool level_ok;
 	uint32_t old_attr;
 
 	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
@@ -1373,7 +1400,7 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 		level = 1;
 
 		while (true) {
-			assert(level <= 3);
+			assert(level <= CORE_MMU_PGDIR_LEVEL);
 
 			table_found = core_mmu_find_table(vaddr, level,
 							  &tbl_info);
@@ -1382,32 +1409,15 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 
 			idx = core_mmu_va2idx(&tbl_info, vaddr);
 
-			/* VA / PA are aligned to block size at current level */
-			level_ok = !((vaddr | paddr)
-				     & ((1 << tbl_info.shift) - 1));
-			/* Remainder fits into block at current level */
-			level_ok &= size_left >= (1 << tbl_info.shift);
-#ifdef CFG_WITH_PAGER
-			/*
-			 * If pager is enabled, we need to map certain
-			 * regions with small pages only
-			 */
-			if ((mm->type == MEM_AREA_TEE_RAM ||
-			     mm->type == MEM_AREA_TEE_RAM_RX ||
-			     mm->type == MEM_AREA_TEE_RAM_RO ||
-			     mm->type == MEM_AREA_TEE_RAM_RW ||
-			     mm->type == MEM_AREA_PAGER_VASPACE) &&
-			    tbl_info.shift != SMALL_PAGE_SHIFT)
-				level_ok = false;
-#endif
-			if (!level_ok) {
+			if (!can_map_at_level(paddr, vaddr, size_left,
+					      1 << tbl_info.shift, mm)) {
 				/*
 				 * This part of the region can't be mapped at
 				 * this level. Need to go deeper.
 				 */
-				if (!core_mmu_shatter_superpage(&tbl_info, idx,
-						  mm->attr & TEE_MATTR_SECURE))
-					panic("Can't shatter superpage");
+				if (!core_mmu_entry_to_finer_grained(&tbl_info,
+					      idx, mm->attr & TEE_MATTR_SECURE))
+					panic("Can't divide MMU entry");
 				level++;
 				continue;
 			}
