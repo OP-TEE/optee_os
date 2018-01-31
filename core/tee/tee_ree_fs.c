@@ -864,7 +864,9 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 		goto out;
 
 	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
-
+	if (res)
+		goto out;
+	res = commit_dirh_writes(dirh);
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
