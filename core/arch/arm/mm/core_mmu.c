@@ -934,7 +934,9 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			 * efficient pgdir mapping. Basically pa &
 			 * pgdir_mask should be == va & pgdir_mask
 			 */
-			va += ((map->pa - va) & CORE_MMU_PGDIR_MASK);
+			if (map->size > CORE_MMU_PGDIR_SIZE)
+				va -= CORE_MMU_PGDIR_SIZE -
+					((map->pa - va) & CORE_MMU_PGDIR_MASK);
 			map->va = va;
 		}
 	} else {
@@ -957,7 +959,8 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			 * efficient pgdir mapping. Basically pa &
 			 * pgdir_mask should be == va & pgdir_mask
 			 */
-			va += (map->pa - va) & CORE_MMU_PGDIR_MASK;
+			if (map->size > CORE_MMU_PGDIR_SIZE)
+				va += (map->pa - va) & CORE_MMU_PGDIR_MASK;
 			map->va = va;
 			va += map->size;
 		}
