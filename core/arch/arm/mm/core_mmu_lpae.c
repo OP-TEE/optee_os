@@ -603,9 +603,8 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	int i;
 	paddr_t pa;
 	uint64_t attr;
-	paddr_t block_size_on_next_lvl =
-		L1_XLAT_ADDRESS_SHIFT - (tbl_info->level) *
-		XLAT_TABLE_ENTRIES_SHIFT;
+	paddr_t block_size_on_next_lvl = L1_XLAT_ADDRESS_SHIFT -
+		tbl_info->level * XLAT_TABLE_ENTRIES_SHIFT;
 
 	if (tbl_info->level >= 3 || idx > tbl_info->num_entries)
 		return false;
