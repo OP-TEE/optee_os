@@ -715,6 +715,8 @@ static void dump_mmap_table(struct tee_mmap_region *memory_map)
 	}
 }
 
+#if DEBUG_XLAT_TABLE
+
 static void dump_xlat_table(vaddr_t va, int level)
 {
 	struct core_mmu_table_info tbl_info;
@@ -728,10 +730,16 @@ static void dump_xlat_table(vaddr_t va, int level)
 		core_mmu_get_entry(&tbl_info, idx, &pa, &attr);
 		if (attr || level > 1) {
 			if (attr & TEE_MATTR_TABLE) {
+#ifdef CFG_WITH_LPAE
+				debug_print("%*s [LVL%d] VA:0x%010" PRIxVA
+					" TBL:0x%010" PRIxPA "\n",
+					level * 2, "", level, va, pa);
+#else
 				debug_print("%*s [LVL%d] VA:0x%010" PRIxVA
 					" TBL:0x%010" PRIxPA " %s\n",
 					level * 2, "", level, va, pa,
 					attr & TEE_MATTR_SECURE ? " S" : "NS");
+#endif
 				dump_xlat_table(va, level + 1);
 			} else if (attr) {
 				debug_print("%*s [LVL%d] VA:0x%010" PRIxVA
@@ -751,6 +759,14 @@ static void dump_xlat_table(vaddr_t va, int level)
 		va += 1 << tbl_info.shift;
 	}
 }
+
+#else
+
+static void dump_xlat_table(vaddr_t va __unused, int level __unused)
+{
+}
+
+#endif
 
 static void add_pager_vaspace(struct tee_mmap_region *mmap, size_t num_elems,
 			      vaddr_t begin, vaddr_t *end, size_t *last)
