@@ -82,9 +82,9 @@ register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_COHERENT_SIZE);
 #endif
 register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
-register_nsec_ddr(DRAM0_BASE, DRAM0_SIZE);
+register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE);
 #ifdef DRAM1_BASE
-register_nsec_ddr(DRAM1_BASE, DRAM1_SIZE);
+register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)

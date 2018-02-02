@@ -244,7 +244,7 @@ struct core_mmu_phys_mem {
 			__unused
 #endif
 
-#define register_nsec_ddr(addr, size) \
+#define register_dynamic_shm(addr, size) \
 		__register_memory1(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
 				   phys_nsec_ddr_section, __COUNTER__)
 
