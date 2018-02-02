@@ -124,6 +124,7 @@
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
+ * MEM_AREA_DDR_OVERALL: Overall DDR address range, candidate to dynamic shm.
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
@@ -145,6 +146,7 @@ enum teecore_memtypes {
 	MEM_AREA_TA_VASPACE,
 	MEM_AREA_PAGER_VASPACE,
 	MEM_AREA_SDP_MEM,
+	MEM_AREA_DDR_OVERALL,
 	MEM_AREA_MAXTYPE
 };
 
@@ -169,6 +171,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
 		[MEM_AREA_PAGER_VASPACE] = "PAGER_VASPACE",
 		[MEM_AREA_SDP_MEM] = "SDP_MEM",
+		[MEM_AREA_DDR_OVERALL] = "DDR_OVERALL"
 	};
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(names) == MEM_AREA_MAXTYPE);
@@ -247,6 +250,11 @@ struct core_mmu_phys_mem {
 #define register_dynamic_shm(addr, size) \
 		__register_memory1(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
 				   phys_nsec_ddr_section, __COUNTER__)
+
+#define register_ddr(addr, size) \
+		__register_memory1(#addr, MEM_AREA_DDR_OVERALL, (addr), \
+				   (size), phys_ddr_overall_section,\
+				   __COUNTER__)
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
@@ -568,10 +576,8 @@ void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
  */
 bool core_mmu_nsec_ddr_is_defined(void);
 
-#ifdef CFG_DT
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems);
-#endif
 
 #ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */

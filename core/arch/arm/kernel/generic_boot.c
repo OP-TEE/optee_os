@@ -716,18 +716,10 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 	return mem;
 }
 
-static int config_nsmem(void *fdt)
+static int mark_static_shm_as_reserved(void *fdt)
 {
-	struct core_mmu_phys_mem *mem;
-	size_t nelems;
 	vaddr_t shm_start;
 	vaddr_t shm_end;
-
-	mem = get_memory(fdt, &nelems);
-	if (mem)
-		core_mmu_set_discovered_nsec_ddr(mem, nelems);
-	else
-		DMSG("No non-secure memory found in FDT");
 
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_start, &shm_end);
 	if (shm_start != shm_end)
@@ -771,23 +763,32 @@ static void init_fdt(unsigned long phys_fdt)
 		panic();
 	}
 
+	dt_blob_addr = fdt;
+}
+
+static void update_fdt(void)
+{
+	void *fdt = get_dt_blob();
+	int ret;
+
+	if (!fdt)
+		return;
+
 	if (add_optee_dt_node(fdt))
 		panic("Failed to add OP-TEE Device Tree node");
 
 	if (config_psci(fdt))
 		panic("Failed to config PSCI");
 
-	if (config_nsmem(fdt))
+	if (mark_static_shm_as_reserved(fdt))
 		panic("Failed to config non-secure memory");
 
 	ret = fdt_pack(fdt);
 	if (ret < 0) {
 		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
-		     phys_fdt, ret);
+		     virt_to_phys(fdt), ret);
 		panic();
 	}
-
-	dt_blob_addr = fdt;
 }
 
 #else
@@ -795,11 +796,58 @@ static void init_fdt(unsigned long phys_fdt __unused)
 {
 }
 
+static void update_fdt(void)
+{
+}
+
 static void reset_dt_references(void)
 {
 }
 
+void *get_dt_blob(void)
+{
+	return NULL;
+}
+
+static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
+					     size_t *nelems __unused)
+{
+	return NULL;
+}
+
 #endif /*!CFG_DT*/
+
+static void discover_nsec_memory(void)
+{
+	struct core_mmu_phys_mem *mem;
+	size_t nelems;
+	void *fdt = get_dt_blob();
+
+	if (fdt) {
+		mem = get_memory(fdt, &nelems);
+		if (mem) {
+			core_mmu_set_discovered_nsec_ddr(mem, nelems);
+			return;
+		}
+
+		DMSG("No non-secure memory found in FDT");
+	}
+
+	nelems = (&__end_phys_ddr_overall_section -
+		  &__start_phys_ddr_overall_section) / sizeof(*mem);
+	if (!nelems)
+		return;
+
+	/* Platform cannot define nsec_ddr && overall_ddr */
+	assert(&__start_phys_nsec_ddr_section == &__end_phys_nsec_ddr_section);
+
+	mem = calloc(nelems, sizeof(*mem));
+	if (!mem)
+		panic();
+
+	memcpy(mem, &__start_phys_ddr_overall_section, sizeof(*mem) * nelems);
+	core_mmu_set_discovered_nsec_ddr(mem, nelems);
+}
 
 static void init_primary_helper(unsigned long pageable_part,
 				unsigned long nsec_entry, unsigned long fdt)
@@ -819,7 +867,9 @@ static void init_primary_helper(unsigned long pageable_part,
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 	init_fdt(fdt);
-	configure_console_from_dt(fdt);
+	update_fdt();
+	configure_console_from_dt();
+	discover_nsec_memory();
 
 	IMSG("OP-TEE version: %s", core_v_str);
 
