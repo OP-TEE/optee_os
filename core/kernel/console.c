@@ -6,6 +6,7 @@
 #include <console.h>
 #include <compiler.h>
 #include <drivers/serial.h>
+#include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +48,7 @@ void register_serial_console(struct serial_chip *chip)
  * for which we have a compatible driver. If so, switch the console to
  * this device.
  */
-void configure_console_from_dt(unsigned long phys_fdt)
+void configure_console_from_dt(void)
 {
 	const struct dt_driver *dt_drv;
 	const struct serial_driver *sdrv;
@@ -56,15 +57,12 @@ void configure_console_from_dt(unsigned long phys_fdt)
 	char *stdout_data;
 	const char *uart;
 	const char *parms = NULL;
-	void *fdt;
+	void *fdt = get_dt_blob();
 	int offs;
 	char *p;
 
-	if (!phys_fdt)
-		return;
-	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
 	if (!fdt)
-		panic();
+		return;
 
 	offs = fdt_path_offset(fdt, "/secure-chosen");
 	if (offs < 0)

@@ -163,6 +163,10 @@ SECTIONS
 		__start_phys_nsec_ddr_section = . ;
 		KEEP(*(phys_nsec_ddr_section))
 		__end_phys_nsec_ddr_section = . ;
+		. = ALIGN(8);
+		__start_phys_ddr_overall_section = . ;
+		KEEP(*(phys_ddr_overall_section))
+		__end_phys_ddr_overall_section = . ;
 #endif
 		. = ALIGN(8);
 		__rodata_end = .;
@@ -337,6 +341,10 @@ SECTIONS
 		__start_phys_nsec_ddr_section = . ;
 		KEEP(*(phys_nsec_ddr_section))
 		__end_phys_nsec_ddr_section = . ;
+		. = ALIGN(8);
+		__start_phys_ddr_overall_section = . ;
+		KEEP(*(phys_ddr_overall_section))
+		__end_phys_ddr_overall_section = . ;
 		. = ALIGN(8);
 		__rodata_init_end = .;
 	}

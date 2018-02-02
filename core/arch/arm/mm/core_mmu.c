@@ -226,7 +226,6 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 	return false;
 }
 
-#ifdef CFG_DT
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 			       paddr_t pa, size_t size)
 {
@@ -354,14 +353,6 @@ static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,
 
 	return true;
 }
-#else /*!CFG_DT*/
-static bool
-get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start __unused,
-			const struct core_mmu_phys_mem **end __unused)
-{
-	return false;
-}
-#endif /*!CFG_DT*/
 
 static bool pbuf_is_nsec_ddr(paddr_t pbuf, size_t len)
 {
