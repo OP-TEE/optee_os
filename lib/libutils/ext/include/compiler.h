@@ -32,20 +32,32 @@
 /*
  * Macros that should be used instead of using __attribute__ directly to
  * ease portability and make the code easier to read.
+ *
+ * Some of the defines below is known to sometimes cause conflicts when
+ * this file is included from xtest in normal world. It is assumed that
+ * the conflicting defines has the same meaning in that environment.
+ * Surrounding the troublesome defines with #ifndef should be enough.
  */
-
 #define __deprecated	__attribute__((deprecated))
+#ifndef __packed
 #define __packed	__attribute__((packed))
+#endif
 #define __weak		__attribute__((weak))
+#ifndef __noreturn
 #define __noreturn	__attribute__((noreturn))
+#endif
 #define __pure		__attribute__((pure))
 #define __aligned(x)	__attribute__((aligned(x)))
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 #define __noinline	__attribute__((noinline))
 #define __attr_const	__attribute__((__const__))
+#ifndef __unused
 #define __unused	__attribute__((unused))
+#endif
 #define __maybe_unused	__attribute__((unused))
+#ifndef __used
 #define __used		__attribute__((__used__))
+#endif
 #define __must_check	__attribute__((warn_unused_result))
 #define __cold		__attribute__((__cold__))
 #define __section(x)	__attribute__((section(x)))
