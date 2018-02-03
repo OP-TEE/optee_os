@@ -6,7 +6,6 @@ sm-$(sm) := y
 
 arch-dir	:= core/arch/$(ARCH)
 platform-dir	:= $(arch-dir)/plat-$(PLATFORM)
-include mk/checkconf.mk
 include $(platform-dir)/conf.mk
 include mk/config.mk
 include core/arch/$(ARCH)/$(ARCH).mk
