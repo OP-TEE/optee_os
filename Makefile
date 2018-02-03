@@ -14,6 +14,8 @@ SHELL = /bin/bash
 # (we include many *.cmd and *.d files).
 unexport MAKEFILE_LIST
 
+include mk/checkconf.mk
+
 .PHONY: all
 all:
 
@@ -35,7 +37,7 @@ $(foreach op,$(ops),$(eval override $(op)))
 endif
 
 # Make these default for now
-ARCH            ?= arm
+$(call force,ARCH,arm)
 PLATFORM        ?= vexpress
 # Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
 ifeq ($O,)
