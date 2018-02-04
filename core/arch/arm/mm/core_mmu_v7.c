@@ -720,13 +720,12 @@ static paddr_t map_page_memarea(const struct tee_mmap_region *mm, uint32_t xlat)
 	return virt_to_phys(l2);
 }
 
-static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
+static void map_page_memarea_in_pgdir(const struct tee_mmap_region *mm,
 					uint32_t *ttb)
 {
-	uint32_t attr = INVALID_DESC;
+	uint32_t attr;
 	size_t idx = mm->va >> SECTION_SHIFT;
-	paddr_t pa = 0;
-	size_t n;
+	paddr_t pa;
 
 	if (core_mmap_is_end_of_table(mm))
 		return;
@@ -734,15 +733,10 @@ static void map_page_memarea_in_pgdirs(const struct tee_mmap_region *mm,
 	print_mmap_area(mm, "4k page map");
 
 	attr = mattr_to_desc(1, mm->attr | TEE_MATTR_TABLE);
+	assert(mm->size && idx == ((mm->va + mm->size - 1) >> SECTION_SHIFT));
 	pa = map_page_memarea(mm, ttb[idx]);
-
-	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
-	while (n--) {
-		assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
-		ttb[idx] = pa | attr;
-		idx++;
-		pa += SECTION_SIZE;
-	}
+	assert(!ttb[idx] || ttb[idx] == (pa | attr));
+	ttb[idx] = pa | attr;
 }
 
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
@@ -803,7 +797,7 @@ static void map_memarea(const struct tee_mmap_region *mm, uint32_t *ttb)
 	while (size) {
 		mm2.size = MIN(size, SECTION_SIZE -
 				(mm2.va - ROUNDDOWN(mm2.va, SECTION_SIZE)));
-		map_page_memarea_in_pgdirs(&mm2, ttb);
+		map_page_memarea_in_pgdir(&mm2, ttb);
 		size -= mm2.size;
 		mm2.pa += mm2.size;
 		mm2.va += mm2.size;
