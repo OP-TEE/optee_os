@@ -8,8 +8,6 @@
 #include <stddef.h>
 #include <types_ext.h>
 
-extern unsigned int __malloc_spinlock;
-
 void free(void *ptr);
 
 #ifdef ENABLE_MDBG

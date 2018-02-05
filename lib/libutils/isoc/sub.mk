@@ -8,7 +8,6 @@ cflags-remove-bget_malloc.c-y += $(cflags_kasan)
 endif
 srcs-y += isdigit.c
 srcs-y += isxdigit.c
-srcs-y += malloc_lock.c
 srcs-y += qsort.c
 cflags-qsort.c-y += -Wno-inline
 cflags-remove-qsort.c-y += -Wcast-align
