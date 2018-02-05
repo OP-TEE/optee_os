@@ -21,7 +21,8 @@ static struct handle_db sks_session_db = HANDLE_DB_INITIALIZER;
 
 TEE_Result TA_CreateEntryPoint(void)
 {
-	// TODO: intialize the token
+	if (pkcs11_init())
+		return TEE_ERROR_SECURITY;
 
 	return TEE_SUCCESS;
 }

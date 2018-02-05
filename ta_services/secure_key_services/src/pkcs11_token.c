@@ -44,28 +44,13 @@ unsigned int get_token_id(struct ck_token *token)
 
 static int pkcs11_token_init(unsigned int id)
 {
-	struct ck_token *token = get_token(id);
+	struct ck_token *token = init_token_db(id);
 
 	if (!token)
 		return 1;
 
 	if (token->login_state != PKCS11_TOKEN_STATE_INVALID)
 		return 0;
-
-	TEE_MemFill(token->label, '*', SKS_TOKEN_LABEL_SIZE);
-
-	/*
-	 * Not supported:
-	 *   SKS_TOKEN_FULLY_RESTORABLE
-	 * TODO: check these:
-	 *   SKS_TOKEN_HAS_CLOCK => related to TEE time secure level
-	 */
-	token->flags = SKS_TOKEN_SO_PIN_TO_CHANGE | \
-			 SKS_TOKEN_USR_PIN_TO_CHANGE | \
-			 SKS_TOKEN_HAS_RNG | \
-			 SKS_TOKEN_IS_READ_ONLY | \
-			 SKS_TOKEN_REQUIRE_LOGIN | \
-			 SKS_TOKEN_CAN_DUAL_PROC;
 
 	/* Initialize the token runtime state */
 	token->login_state = PKCS11_TOKEN_STATE_PUBLIC_SESSIONS;
@@ -186,12 +171,12 @@ uint32_t ck_token_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 
 	TEE_MemFill(&info, 0, sizeof(info));
 
-	PADDED_STRING_COPY(info.label, token->label);
+	PADDED_STRING_COPY(info.label, token->db_main->label);
 	PADDED_STRING_COPY(info.manufacturerID, manuf);
 	PADDED_STRING_COPY(info.model, model);
 	PADDED_STRING_COPY(info.serialNumber, sernu);
 
-	info.flags = token->flags;
+	info.flags = token->db_main->flags;
 
 	/* TODO */
 	info.ulMaxSessionCount = ~0;

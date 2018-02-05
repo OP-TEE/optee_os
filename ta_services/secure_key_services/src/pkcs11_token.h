@@ -50,19 +50,57 @@ enum pkcs11_token_session_state {
 #define SKS_TOKEN_USER_PIN_SIZE		128
 
 /*
- * Runtime state of the token, complies with pkcs11
+ * Persistent state of the token
  *
+ * @version - currently unused...
  * @label - pkcs11 formatted token label, set by client
  * @flags - pkcs11 token flags
+ * @so_pin_count - counter on security officer loggin failure
+ * @so_pin_size - byte size of the provisionned SO PIN
+ * @so_pin - stores the SO PIN (TODO: store in an encrypted way)
+ * @user_pin_count - counter on user loggin failure
+ * @user_pin_size - byte size of the provisionned user PIN
+ * @user_pin - stores the user PIN (TODO: store in an encrypted way)
+ */
+struct token_persistent_main {
+	uint32_t version;
+
+	uint8_t label[SKS_TOKEN_LABEL_SIZE];
+	uint32_t flags;
+
+	uint32_t so_pin_count;
+	uint32_t so_pin_size;
+	uint8_t so_pin[SKS_TOKEN_SO_PIN_SIZE];	/* TODO: encrypted */
+
+	uint32_t user_pin_count;
+	uint32_t user_pin_size;
+	uint8_t user_pin[SKS_TOKEN_USER_PIN_SIZE]; /* TODO: encrypted */
+};
+
+/*
+ * Persistent objects in the token
+ *
+ * @count - number of object stored in the token
+ * @uudis - start of object references/UUIDs (@count items)
+ */
+struct token_persistent_objs {
+	uint32_t count;
+	TEE_UUID uuids[];
+};
+
+/*
+ * Runtime state of the token, complies with pkcs11
+ *
  * @login_state - pkcs11 login
  * @session_state - pkcs11 read/write state
  */
 struct ck_token {
-	uint8_t label[SKS_TOKEN_LABEL_SIZE];
-	uint32_t flags;
-
 	enum pkcs11_token_login_state login_state;
 	enum pkcs11_token_session_state	session_state;
+
+	TEE_ObjectHandle db_hdl;	/* Opened handle to persistent database */
+	struct token_persistent_main *db_main;		/* Copy persistent database */
+	struct token_persistent_objs *db_objs;		/* Copy persistent database */
 };
 
 /* pkcs11 token Apis */
