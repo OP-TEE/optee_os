@@ -397,6 +397,11 @@ struct optee_msg_arg {
 #define OPTEE_MSG_RPC_SHM_TYPE_APPL	0
 /* Memory only shared with non-secure kernel */
 #define OPTEE_MSG_RPC_SHM_TYPE_KERNEL	1
+/*
+ * Memory shared with non-secure kernel and exported to a non-secure user
+ * space application
+ */
+#define OPTEE_MSG_RPC_SHM_TYPE_GLOBAL	2
 
 /*
  * Free shared memory previously allocated with OPTEE_MSG_RPC_CMD_SHM_ALLOC

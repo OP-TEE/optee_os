@@ -628,6 +628,26 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
 
+/**
+ * Allocate data for payload buffers.
+ * Buffer is exported to user mode applications.
+ *
+ * @size:	size in bytes of payload buffer
+ * @cookie:	returned cookie used when freeing the buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_global_payload(size_t size, uint64_t *cookie);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_global_payload()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_global_payload(uint64_t cookie, struct mobj *mobj);
+
 #endif /*ASM*/
 
 #endif /*KERNEL_THREAD_H*/
