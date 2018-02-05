@@ -1573,3 +1573,13 @@ void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj)
 {
 	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie, mobj);
 }
+
+struct mobj *thread_rpc_alloc_global_payload(size_t size, uint64_t *cookie)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, cookie);
+}
+
+void thread_rpc_free_global_payload(uint64_t cookie, struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, cookie, mobj);
+}
