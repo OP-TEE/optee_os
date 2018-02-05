@@ -167,7 +167,7 @@ static void tee_entry_vm_created(struct thread_smc_args *args)
 		return;
 	}
 
-	args->a0 = client_created(client_id);
+	args->a0 = virt_guest_created(client_id);
 }
 
 static void tee_entry_vm_destroyed(struct thread_smc_args *args)
@@ -178,7 +178,7 @@ static void tee_entry_vm_destroyed(struct thread_smc_args *args)
 	if (args->a7 != 0)
 		return;
 
-	client_destroyed(client_id);
+	virt_guest_destroyed(client_id);
 	args->a0 = OPTEE_SMC_RETURN_OK;
 }
 #endif

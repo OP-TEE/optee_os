@@ -578,7 +578,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
-	if (!check_client(args->a7))
+	if (!check_virt_guest(args->a7))
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 #endif
 
@@ -592,7 +592,7 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
-	if (!check_client(args->a7))
+	if (!check_virt_guest(args->a7))
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 #endif
 
