@@ -11,6 +11,7 @@
 #include <tee_internal_api.h>
 
 #include "handle.h"
+#include "object.h"
 
 /* Hard coded description */
 #define SKS_CRYPTOKI_TOKEN_LABEL		"op-tee pkcs#11 token (dev...)"
@@ -135,15 +136,6 @@ enum pkcs11_session_processing {
 	PKCS11_SESSION_VERIFYING_RECOVER,
 };
 
-/* Temporary structure to define object */
-struct sks_object {
-	LIST_ENTRY(sks_object) link;
-};
-LIST_HEAD(object_list, sks_object);
-static inline void destroy_object(struct pkcs11_session *session __unused,
-				  struct sks_object *obj __unused,
-				  bool session_only __unused) { }
-
 /*
  * Structure tracing the PKCS#11 sessions
  *
@@ -202,6 +194,12 @@ struct ck_token *pkcs11_session2token(struct pkcs11_session *session)
 struct ck_token *get_token(unsigned int token_id);
 unsigned int get_token_id(struct ck_token *token);
 struct ck_token *init_token_db(unsigned int token_id);
+
+/* Token persistent objects */
+uint32_t create_object_uuid(struct ck_token *token, struct sks_object *obj);
+void destroy_object_uuid(struct ck_token *token, struct sks_object *obj);
+uint32_t unregister_persistent_object(struct ck_token *token, TEE_UUID *uuid);
+uint32_t register_persistent_object(struct ck_token *token, TEE_UUID *uuid);
 
 /* Handler for most PKCS#11 API functions */
 uint32_t ck_slot_list(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);

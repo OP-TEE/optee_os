@@ -9,7 +9,9 @@
 #include <tee_internal_api_extensions.h>
 
 #include "handle.h"
+#include "object.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 #include "sks_helpers.h"
 
 /* Client session context: currently only use the alloced address */
@@ -135,6 +137,13 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 		break;
 	case SKS_CMD_CK_CLOSE_ALL_SESSIONS:
 		rc = ck_token_close_all(teesess, ctrl, in, out);
+		break;
+
+	case SKS_CMD_IMPORT_OBJECT:
+		rc = entry_import_object(teesess, ctrl, in, out);
+		break;
+	case SKS_CMD_DESTROY_OBJECT:
+		rc = entry_destroy_object(teesess, ctrl, in, out);
 		break;
 
 	default:

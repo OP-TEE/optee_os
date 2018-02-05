@@ -40,6 +40,8 @@ static bool consistent_class_and_type(uint32_t object, uint32_t type)
 		switch (type) {
 		SKS_PROCESSING_IDS
 			return true;
+		case SKS_PROC_RAW_IMPORT:	/* not exported to client API */
+		case SKS_PROC_RAW_COPY:		/* not exported to client API */
 		default:
 			return false;
 		}

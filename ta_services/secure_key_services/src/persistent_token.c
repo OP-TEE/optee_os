@@ -27,6 +27,137 @@
 /* 'X' will be replaced by the token decimal id (up to 9!) */
 #define TOKEN_DB_FILE_BASE		"token.db.X"
 
+/* UUID for persistent object */
+uint32_t create_object_uuid(struct ck_token *token __unused,
+			    struct sks_object *obj)
+{
+	assert(!obj->uuid);
+
+	obj->uuid = TEE_Malloc(sizeof(TEE_UUID), 0);
+	if (!obj->uuid)
+		return SKS_MEMORY;
+
+	TEE_GenerateRandom(obj->uuid, sizeof(TEE_UUID));
+
+	/*
+	 * TODO: check uuid against already registered one (in persistent
+	 * database) and the pending created uuids (not already registered
+	 * if any).
+	 */
+	return SKS_OK;
+}
+
+void destroy_object_uuid(struct ck_token *token __unused,
+			 struct sks_object *obj)
+{
+	if (!obj->uuid)
+		return;
+
+	/* TODO: check uuid is not still registered in persistent db ? */
+
+	TEE_Free(obj->uuid);
+	obj->uuid = NULL;
+}
+
+uint32_t unregister_persistent_object(struct ck_token *token, TEE_UUID *uuid)
+{
+	int index;
+	int count;
+	void *ptr;
+	TEE_Result res;
+
+	if (!uuid)
+		return SKS_OK;
+
+	for (index = (int)(token->db_objs->count) - 1; index >= 0; index--)
+		if (!TEE_MemCompare(token->db_objs->uuids + index,
+				    uuid, sizeof(TEE_UUID)))
+			break;
+
+	if (index < 0)
+		return SKS_NOT_FOUND;
+
+	count = token->db_objs->count - index;
+
+	res = TEE_SeekObjectData(token->db_hdl,
+				 sizeof(struct token_persistent_main) +
+				 sizeof(struct token_persistent_objs) +
+				 index * sizeof(TEE_UUID),
+				 TEE_DATA_SEEK_SET);
+	if (res)
+		tee2sks_error(res);
+
+	res = TEE_WriteObjectData(token->db_hdl,
+				  token->db_objs->uuids + index + 1,
+				  (count - 1) * sizeof(TEE_UUID));
+	if (res)
+		tee2sks_error(res);
+
+	/* Below sequence must not fail as persistent database is updated */
+
+	TEE_MemMove(token->db_objs->uuids + index,
+		    token->db_objs->uuids + index + 1,
+		    (count - 1) * sizeof(TEE_UUID));
+
+	/* Now we can decrease the uuid counter */
+	token->db_objs->count--;
+
+	ptr = TEE_Realloc(token->db_objs,
+			  sizeof(struct token_persistent_objs) +
+			  (token->db_objs->count * sizeof(TEE_UUID)));
+
+	/* If realloc fails, just keep current buffer */
+	if (ptr)
+		token->db_objs = ptr;
+
+	return SKS_OK;
+}
+
+uint32_t register_persistent_object(struct ck_token *token, TEE_UUID *uuid)
+{
+	int count;
+	void *ptr;
+	size_t size __maybe_unused;
+	TEE_Result res = 0;
+
+	for (count = (int)token->db_objs->count - 1; count >= 0; count--)
+		if (!TEE_MemCompare(token->db_objs->uuids + count, uuid,
+				    sizeof(TEE_UUID)))
+			TEE_Panic(0);
+
+	count = token->db_objs->count;
+	ptr = TEE_Realloc(token->db_objs,
+			  sizeof(struct token_persistent_objs) +
+			  ((count + 1) * sizeof(TEE_UUID)));
+	if (!ptr)
+		return SKS_MEMORY;
+
+	token->db_objs = ptr;
+	TEE_MemMove(token->db_objs->uuids + count, uuid, sizeof(TEE_UUID));
+
+	size = sizeof(struct token_persistent_main) +
+		sizeof(struct token_persistent_objs) +
+		(count * sizeof(TEE_UUID));
+
+	res = TEE_TruncateObjectData(token->db_hdl, size + sizeof(TEE_UUID));
+	if (res)
+		tee2sks_error(res);
+
+	res = TEE_SeekObjectData(token->db_hdl, size, TEE_DATA_SEEK_SET);
+	if (res)
+		tee2sks_error(res);
+
+	res = TEE_WriteObjectData(token->db_hdl, token->db_objs->uuids + count,
+				  sizeof(TEE_UUID));
+	if (res)
+		tee2sks_error(res);
+
+	/* Now we can increase the uuid counter */
+	token->db_objs->count++;
+
+	return SKS_OK;
+}
+
 /*
  * Return the token instance, either initialized from reset or initialized
  * from the token persistent state if found.
