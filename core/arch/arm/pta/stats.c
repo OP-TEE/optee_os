@@ -22,7 +22,7 @@
 #define STATS_CMD_ALLOC_STATS		1
 #define STATS_CMD_MEMLEAK_STATS		2
 
-#define STATS_NB_POOLS			3
+#define STATS_NB_POOLS			4
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
@@ -82,6 +82,14 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			break;
 
+#ifdef CFG_VIRTUALIZATION
+		case 4:
+			nex_malloc_get_stats(stats);
+			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));
+			if (p[0].value.b)
+				nex_malloc_reset_stats();
+			break;
+#endif
 		default:
 			EMSG("Wrong pool id");
 			break;
