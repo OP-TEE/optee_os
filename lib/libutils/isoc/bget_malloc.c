@@ -177,6 +177,10 @@ static void malloc_unlock(struct malloc_ctx *ctx __unused,
 
 static DEFINE_CTX(malloc_ctx);
 
+#ifdef CFG_VIRTUALIZATION
+static DEFINE_CTX(nex_malloc_ctx);
+#endif
+
 #ifdef BufStats
 
 static void raw_malloc_return_hook(void *p, size_t requested_size,
@@ -214,7 +218,7 @@ void malloc_reset_stats(void)
 static void gen_malloc_get_stats(struct malloc_ctx *ctx,
 				 struct malloc_stats *stats)
 {
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
+	uint32_t exceptions = malloc_lock(ctx);
 
 	memcpy(stats, &ctx->mstats, sizeof(*stats));
 	stats->allocated = ctx->poolset.totalloc;
@@ -1055,3 +1059,120 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 {
 	return gen_malloc_buffer_overlaps_heap(&malloc_ctx, buf, len);
 }
+
+#ifdef CFG_VIRTUALIZATION
+
+#ifndef ENABLE_MDBG
+
+void *nex_malloc(size_t size)
+{
+	void *p;
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	p = raw_malloc(0, 0, size, &nex_malloc_ctx);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+	return p;
+}
+
+void *nex_calloc(size_t nmemb, size_t size)
+{
+	void *p;
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	p = raw_calloc(0, 0, nmemb, size, &nex_malloc_ctx);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+	return p;
+}
+
+void *nex_realloc(void *ptr, size_t size)
+{
+	void *p;
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	p = realloc_unlocked(&nex_malloc_ctx, ptr, size);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+	return p;
+}
+
+void *nex_memalign(size_t alignment, size_t size)
+{
+	void *p;
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	p = raw_memalign(0, 0, alignment, size, &nex_malloc_ctx);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+	return p;
+}
+
+void nex_free(void *ptr)
+{
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	raw_free(ptr, &nex_malloc_ctx);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+}
+
+#else  /* ENABLE_MDBG */
+
+void *nex_mdbg_malloc(const char *fname, int lineno, size_t size)
+{
+	return gen_mdbg_malloc(&nex_malloc_ctx, fname, lineno, size);
+}
+
+void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
+{
+	return gen_mdbg_calloc(&nex_malloc_ctx, fname, lineno, nmemb, size);
+}
+
+void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
+{
+	return gen_mdbg_realloc(&nex_malloc_ctx, fname, lineno, ptr, size);
+}
+
+void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
+		size_t size)
+{
+	return gen_mdbg_memalign(&nex_malloc_ctx, fname, lineno, alignment, size);
+}
+
+void nex_mdbg_check(int bufdump)
+{
+	gen_mdbg_check(&nex_malloc_ctx, bufdump);
+}
+
+void nex_free(void *ptr)
+{
+	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
+
+	gen_mdbg_free(&nex_malloc_ctx, ptr);
+	malloc_unlock(&nex_malloc_ctx, exceptions);
+}
+
+#endif	/* ENABLE_MDBG */
+
+void nex_malloc_add_pool(void *buf, size_t len)
+{
+	gen_malloc_add_pool(&nex_malloc_ctx, buf, len);
+}
+
+bool nex_malloc_buffer_is_within_alloced(void *buf, size_t len)
+{
+	return gen_malloc_buffer_is_within_alloced(&nex_malloc_ctx, buf, len);
+}
+
+bool nex_malloc_buffer_overlaps_heap(void *buf, size_t len)
+{
+	return gen_malloc_buffer_overlaps_heap(&nex_malloc_ctx, buf, len);
+}
+
+void nex_malloc_reset_stats(void)
+{
+	gen_malloc_reset_stats(&nex_malloc_ctx);
+}
+
+void nex_malloc_get_stats(struct malloc_stats *stats)
+{
+	gen_malloc_get_stats(&nex_malloc_ctx, stats);
+}
+
+#endif

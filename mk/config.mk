@@ -317,6 +317,10 @@ CFG_BOOT_SECONDARY_REQUEST ?= n
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
 
+# Default size of nexus heap. 16 kB. Used only if CFG_VIRTUALIZATION
+# is enabled
+CFG_CORE_NEX_HEAP_SIZE ?= 16384
+
 # TA profiling.
 # When this option is enabled, OP-TEE can execute Trusted Applications
 # instrumented with GCC's -pg flag and will output profiling information

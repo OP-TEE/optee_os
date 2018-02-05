@@ -225,10 +225,20 @@ SECTIONS
 #ifndef CFG_WITH_PAGER
 		. += CFG_CORE_HEAP_SIZE;
 #endif
+#ifndef CFG_VIRTUALIZATION
 		. = ALIGN(16 * 1024);
+#endif
 		__heap1_end = .;
 	}
 
+#ifdef CFG_VIRTUALIZATION
+	.nex_heap (NOLOAD) : {
+		__nex_heap_start = . ;
+		. += CFG_CORE_NEX_HEAP_SIZE;
+		. = ALIGN(16 * 1024);
+		__nex_heap_end = . ;
+	}
+#endif
 	/*
 	 * Uninitialized data that shouldn't be zero initialized at
 	 * runtime.

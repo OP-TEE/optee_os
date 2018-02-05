@@ -81,4 +81,61 @@ void malloc_get_stats(struct malloc_stats *stats);
 void malloc_reset_stats(void);
 #endif /* CFG_WITH_STATS */
 
+
+#ifdef CFG_VIRTUALIZATION
+
+void nex_free(void *ptr);
+
+#ifdef ENABLE_MDBG
+
+void *nex_mdbg_malloc(const char *fname, int lineno, size_t size);
+void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
+void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
+void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
+		size_t size);
+
+void nex_mdbg_check(int bufdump);
+
+#define nex_malloc(size)	nex_mdbg_malloc(__FILE__, __LINE__, (size))
+#define nex_calloc(nmemb, size) \
+		nex_mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
+#define nex_realloc(ptr, size) \
+		nex_mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
+#define nex_memalign(alignment, size) \
+		nex_mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
+
+#else /* ENABLE_MDBG */
+
+void *nex_malloc(size_t size);
+void *nex_calloc(size_t nmemb, size_t size);
+void *nex_realloc(void *ptr, size_t size);
+void *nex_memalign(size_t alignment, size_t size);
+
+#define nex_mdbg_check(x)        do { } while (0)
+
+#endif /* ENABLE_MDBG */
+
+bool nex_malloc_buffer_is_within_alloced(void *buf, size_t len);
+bool nex_malloc_buffer_overlaps_heap(void *buf, size_t len);
+void nex_malloc_add_pool(void *buf, size_t len);
+
+#ifdef CFG_WITH_STATS
+/*
+ * Get/reset allocation statistics
+ */
+
+void nex_malloc_get_stats(struct malloc_stats *stats);
+void nex_malloc_reset_stats(void);
+
+#endif	/* CFG_WITH_STATS */
+#else  /* CFG_VIRTUALIZATION */
+
+#define nex_free(ptr) free(ptr)
+#define nex_malloc(size) malloc(size)
+#define nex_calloc(nmemb, size) calloc(nmemb, size)
+#define nex_realloc(ptr, size) realloc(ptr, size)
+#define nex_memalign(alignment, size) memalign(alignment, size)
+
+#endif	/* CFG_VIRTUALIZATION */
+
 #endif /* MALLOC_H */
