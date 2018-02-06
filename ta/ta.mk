@@ -82,7 +82,8 @@ $(foreach f, $(libfiles), \
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/cleandirs.mk \
-	ta/arch/$(ARCH)/link.mk ta/mk/ta_dev_kit.mk
+	ta/arch/$(ARCH)/link.mk ta/arch/$(ARCH)/link_shlib.mk \
+	ta/mk/ta_dev_kit.mk
 
 $(foreach f, $(ta-mkfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/mk)))
