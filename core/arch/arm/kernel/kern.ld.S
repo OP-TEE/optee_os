@@ -179,6 +179,51 @@ SECTIONS
 	. = ALIGN(SMALL_PAGE_SIZE);
 #endif
 	__flatmap_unpg_ro_size = . - __flatmap_unpg_ro_start;
+
+#ifdef CFG_VIRTUALIZATION
+	__flatmap_nex_rw_start = . ;
+	.nex_data : ALIGN(8) {
+		*(.nex_data .nex_data.*)
+	}
+
+	.nex_bss : ALIGN(8) {
+		__nex_bss_start = .;
+		*(.nex_bss .nex_bss.*)
+		__nex_bss_end = .;
+	}
+
+	/*
+	 * We want to keep all nexus memory in one place, because
+	 * it should be always mapped and it is easier to map one
+	 * memory region than two.
+	 * Next section are NOLOAD ones, but they are followed
+	 * by sections with data. Thus, this NOLOAD section will
+	 * be included in the resulting binary, filled with zeroes
+	 */
+	.nex_stack (NOLOAD) : {
+		__nozi_stack_start = .;
+		KEEP(*(.nozi_stack.stack_tmp .nozi_stack.stack_abt))
+		. = ALIGN(8);
+		__nozi_stack_end = .;
+	}
+
+	.nex_heap (NOLOAD) : {
+		__nex_heap_start = .;
+		. += CFG_CORE_NEX_HEAP_SIZE;
+		. = ALIGN(16 * 1024);
+		__nex_heap_end = .;
+	}
+	.nex_nozi (NOLOAD) : {
+		ASSERT(!( . & (16 * 1024 - 1)), "align nozi to 16kB");
+		KEEP(*(.nozi.mmu.l1 .nozi.mmu.l2))
+	}
+
+	. = ALIGN(SMALL_PAGE_SIZE);
+
+	__flatmap_nex_rw_size = . - __flatmap_nex_rw_start;
+	__flatmap_nex_rw_end = .;
+#endif
+
 	__flatmap_unpg_rw_start = .;
 
 	.data : ALIGN(8) {
@@ -225,20 +270,9 @@ SECTIONS
 #ifndef CFG_WITH_PAGER
 		. += CFG_CORE_HEAP_SIZE;
 #endif
-#ifndef CFG_VIRTUALIZATION
 		. = ALIGN(16 * 1024);
-#endif
 		__heap1_end = .;
 	}
-
-#ifdef CFG_VIRTUALIZATION
-	.nex_heap (NOLOAD) : {
-		__nex_heap_start = . ;
-		. += CFG_CORE_NEX_HEAP_SIZE;
-		. = ALIGN(16 * 1024);
-		__nex_heap_end = . ;
-	}
-#endif
 	/*
 	 * Uninitialized data that shouldn't be zero initialized at
 	 * runtime.
@@ -252,6 +286,10 @@ SECTIONS
 		KEEP(*(.nozi .nozi.*))
 		. = ALIGN(16);
 		__nozi_end = .;
+		/*
+		 * If virtualization is enabled, abt and tmp stacks will placed
+		 * at above .nex_stack section and thread stacks will go there
+		 */
 		__nozi_stack_start = .;
 		KEEP(*(.nozi_stack .nozi_stack.*))
 		. = ALIGN(8);
@@ -422,6 +460,12 @@ __vcore_unpg_ro_size = 0;
 /* Unpaged read-write memory */
 __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
+
+#ifdef CFG_VIRTUALIZATION
+/* Nexus read-write memory */
+PROVIDE(__vcore_nex_rw_start = __flatmap_nex_rw_start);
+PROVIDE(__vcore_nex_rw_size = __flatmap_nex_rw_size);
+#endif
 
 #ifdef CFG_WITH_PAGER
 /*
