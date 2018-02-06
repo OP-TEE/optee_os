@@ -16,7 +16,7 @@
 #include <libfdt.h>
 #endif
 
-static struct serial_chip *serial_console;
+static struct serial_chip *serial_console __nex_bss;
 
 void __weak console_putc(int ch)
 {
