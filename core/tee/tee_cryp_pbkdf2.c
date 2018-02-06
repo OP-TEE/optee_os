@@ -90,7 +90,7 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 
 	res = crypto_mac_alloc_ctx(&hmac_parms.ctx, hmac_parms.algo);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	pbkdf2_parms.password = password;
 	pbkdf2_parms.password_len = password_len;

@@ -284,12 +284,14 @@ static TEE_Result tadb_authenc_init(TEE_OperationMode mode,
 				    void **ctx_ret)
 {
 	TEE_Result res;
-	void *ctx;
+	void *ctx = NULL;
 	const size_t enc_size = entry->prop.custom_size + entry->prop.bin_size;
 
 	res = crypto_authenc_alloc_ctx(&ctx, TADB_AUTH_ENC_ALG);
-	if (res)
+	if (res) {
+		crypto_authenc_free_ctx(ctx, TADB_AUTH_ENC_ALG);
 		return res;
+	}
 
 	res = crypto_authenc_init(ctx, TADB_AUTH_ENC_ALG, mode,
 				  entry->key, sizeof(entry->key),

@@ -410,7 +410,7 @@ static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 
 	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
 	if (res)
-		return res;
+		goto func_exit;
 
 	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
 	if (res != TEE_SUCCESS)

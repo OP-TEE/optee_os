@@ -125,7 +125,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
 	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
-		goto error_free_payload;
+		goto error_free_hash;
 	res = crypto_hash_init(hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;

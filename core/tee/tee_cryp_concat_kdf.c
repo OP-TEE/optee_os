@@ -26,7 +26,7 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 
 	res = crypto_hash_alloc_ctx(&ctx, hash_algo);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	res = tee_hash_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
