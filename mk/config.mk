@@ -404,3 +404,13 @@ CFG_TA_MBEDTLS_SELF_TEST ?= y
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
 # # without ASN.1 around the hash.
 CFG_CRYPTO_RSASSA_NA1 ?= y
+
+# Enable virtualization support. OP-TEE will not work without compatible
+# hypervisor if this option is enabled.
+CFG_VIRTUALIZATION ?= n
+
+ifeq ($(CFG_VIRTUALIZATION),y)
+$(call force,CFG_CORE_RODATA_NOEXEC,y)
+$(call force,CFG_CORE_RWDATA_NOEXEC,y)
+endif
+

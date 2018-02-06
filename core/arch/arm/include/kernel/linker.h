@@ -29,6 +29,8 @@ extern const uint8_t __extab_end[];
 #define VCORE_UNPG_RO_SZ	((size_t)__vcore_unpg_ro_size)
 #define VCORE_UNPG_RW_PA	((unsigned long)__vcore_unpg_rw_start)
 #define VCORE_UNPG_RW_SZ	((size_t)__vcore_unpg_rw_size)
+#define VCORE_NEX_RW_PA	((unsigned long)__vcore_nex_rw_start)
+#define VCORE_NEX_RW_SZ	((size_t)__vcore_nex_rw_size)
 #define VCORE_INIT_RX_PA	((unsigned long)__vcore_init_rx_start)
 #define VCORE_INIT_RX_SZ	((size_t)__vcore_init_rx_size)
 #define VCORE_INIT_RO_PA	((unsigned long)__vcore_init_ro_start)
@@ -39,6 +41,8 @@ extern const uint8_t __vcore_unpg_ro_start[];
 extern const uint8_t __vcore_unpg_ro_size[];
 extern const uint8_t __vcore_unpg_rw_start[];
 extern const uint8_t __vcore_unpg_rw_size[];
+extern const uint8_t __vcore_nex_rw_start[];
+extern const uint8_t __vcore_nex_rw_size[];
 extern const uint8_t __vcore_init_rx_start[];
 extern const uint8_t __vcore_init_rx_size[];
 extern const uint8_t __vcore_init_ro_start[];

@@ -50,6 +50,13 @@
 #define __SECTION_FLAGS_RODATA ",\"a\",%progbits //"
 #define __rodata	__section(".rodata" __SECTION_FLAGS_RODATA)
 #define __rodata_unpaged __section(".rodata.__unpaged" __SECTION_FLAGS_RODATA)
+#ifdef CFG_VIRTUALIZATION
+#define __nex_bss		__section(".nex_bss")
+#define __nex_data		__section(".nex_data")
+#else  /* CFG_VIRTUALIZATION */
+#define __nex_bss		__bss
+#define __nex_data		__data
+#endif	/* CFG_VIRTUALIZATION */
 #define __noprof	__attribute__((no_instrument_function))
 
 #define __compiler_bswap64(x)	__builtin_bswap64((x))
