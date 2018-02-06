@@ -71,7 +71,7 @@
 
 struct thread_ctx threads[CFG_NUM_THREADS];
 
-struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
+struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 
 #ifdef CFG_WITH_STACK_CANARIES
 #ifdef ARM32
@@ -118,31 +118,36 @@ const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
 KEEP_PAGER(stack_tmp_export);
 KEEP_PAGER(stack_tmp_stride);
 
-thread_smc_handler_t thread_std_smc_handler_ptr;
-static thread_smc_handler_t thread_fast_smc_handler_ptr;
-thread_nintr_handler_t thread_nintr_handler_ptr;
-thread_pm_handler_t thread_cpu_on_handler_ptr;
-thread_pm_handler_t thread_cpu_off_handler_ptr;
-thread_pm_handler_t thread_cpu_suspend_handler_ptr;
-thread_pm_handler_t thread_cpu_resume_handler_ptr;
-thread_pm_handler_t thread_system_off_handler_ptr;
-thread_pm_handler_t thread_system_reset_handler_ptr;
+thread_smc_handler_t thread_std_smc_handler_ptr __nex_bss;
+static thread_smc_handler_t thread_fast_smc_handler_ptr __nex_bss;
+thread_nintr_handler_t thread_nintr_handler_ptr __nex_bss;
+thread_pm_handler_t thread_cpu_on_handler_ptr __nex_bss;
+thread_pm_handler_t thread_cpu_off_handler_ptr __nex_bss;
+thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_bss;
+thread_pm_handler_t thread_cpu_resume_handler_ptr __nex_bss;
+thread_pm_handler_t thread_system_off_handler_ptr __nex_bss;
+thread_pm_handler_t thread_system_reset_handler_ptr __nex_bss;
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-static vaddr_t thread_user_kcode_va;
-long thread_user_kcode_offset;
-static size_t thread_user_kcode_size;
+static vaddr_t thread_user_kcode_va __nex_bss;
+long thread_user_kcode_offset __nex_bss;
+static size_t thread_user_kcode_size __nex_bss;
 #endif
 
 #if defined(CFG_CORE_UNMAP_CORE_AT_EL0) && \
 	defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
-long thread_user_kdata_sp_offset;
+long thread_user_kdata_sp_offset __nex_bss;
 static uint8_t thread_user_kdata_page[
 	ROUNDUP(sizeof(thread_core_local), SMALL_PAGE_SIZE)]
-	__aligned(SMALL_PAGE_SIZE) __section(".nozi.kdata_page");
+	__aligned(SMALL_PAGE_SIZE)
+#ifndef CFG_VIRTUALIZATION
+	__section(".nozi.kdata_page");
+#else
+	__section(".nex_nozi.kdata_page");
+#endif
 #endif
 
-static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
+static unsigned int thread_global_lock __nex_bss = SPINLOCK_UNLOCK;
 static bool thread_prealloc_rpc_cache;
 
 static unsigned int thread_rpc_pnum;

@@ -10,8 +10,8 @@
 #include <mm/core_mmu.h>
 
 const char trace_ext_prefix[] = "TC";
-int trace_level = TRACE_LEVEL;
-static unsigned int puts_lock = SPINLOCK_UNLOCK;
+int trace_level __nex_data = TRACE_LEVEL;
+static unsigned int puts_lock __nex_bss = SPINLOCK_UNLOCK;
 
 void trace_ext_puts(const char *str)
 {

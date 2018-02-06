@@ -79,7 +79,7 @@ struct dt_descriptor {
 	int frag_id;
 };
 
-static struct dt_descriptor external_dt;
+static struct dt_descriptor external_dt __nex_bss;
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ

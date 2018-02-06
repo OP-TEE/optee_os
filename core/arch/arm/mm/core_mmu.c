@@ -44,11 +44,11 @@
  */
 
 /* Default NSec shared memory allocated from NSec world */
-unsigned long default_nsec_shm_size;
-unsigned long default_nsec_shm_paddr;
+unsigned long default_nsec_shm_size __nex_bss;
+unsigned long default_nsec_shm_paddr __nex_bss;
 
 static struct tee_mmap_region
-	static_memory_map[CFG_MMAP_REGIONS + 1];
+	static_memory_map[CFG_MMAP_REGIONS + 1] __nex_bss;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -57,14 +57,14 @@ struct memaccess_area {
 };
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
 
-static struct memaccess_area secure_only[] = {
+static struct memaccess_area secure_only[] __nex_data = {
 #ifdef TZSRAM_BASE
 	MEMACCESS_AREA(TZSRAM_BASE, TZSRAM_SIZE),
 #endif
 	MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE),
 };
 
-static struct memaccess_area nsec_shared[] = {
+static struct memaccess_area nsec_shared[] __nex_data = {
 	MEMACCESS_AREA(TEE_SHMEM_START, TEE_SHMEM_SIZE),
 };
 
@@ -111,8 +111,8 @@ register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
  */
 #define MMU_NUM_ASID_PAIRS		64
 
-static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS);
-static unsigned int g_asid_spinlock = SPINLOCK_UNLOCK;
+static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS) __nex_bss;
+static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
 static unsigned int mmu_spinlock;
 
@@ -299,8 +299,8 @@ static void check_phys_mem_is_outside(struct core_mmu_phys_mem *start,
 	}
 }
 
-static const struct core_mmu_phys_mem *discovered_nsec_ddr_start;
-static size_t discovered_nsec_ddr_nelems;
+static const struct core_mmu_phys_mem *discovered_nsec_ddr_start __nex_bss;
+static size_t discovered_nsec_ddr_nelems __nex_bss;
 
 static int cmp_pmem_by_addr(const void *a, const void *b)
 {

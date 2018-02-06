@@ -201,10 +201,9 @@ static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
-
-static unsigned int next_xlat;
-static paddr_t max_pa;
-static int user_va_idx = -1;
+static unsigned int next_xlat __nex_bss;
+static paddr_t max_pa __nex_bss;
+static int user_va_idx __nex_data = -1;
 
 static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 {
