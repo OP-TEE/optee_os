@@ -7,12 +7,14 @@ all:
 
 include $(ta-dev-kit-dir)/mk/conf.mk
 
-ifneq (1, $(word $(BINARY) $(LIBNAME)))
-$(error You must specify exactly one of BINARY or LIBNAME)
+ifneq (1, $(words $(BINARY) $(LIBNAME) $(SHLIBNAME)))
+$(error You must specify exactly one of BINARY, LIBNAME or SHLIBNAME)
 endif
 
 binary := $(BINARY)
 libname := $(LIBNAME)
+shlibname := $(SHLIBNAME)
+shlibuuid := $(SHLIBUUID)
 
 ifneq ($O,)
 out-dir := $O
@@ -83,6 +85,7 @@ endif
 
 include  $(ta-dev-kit-dir)/mk/gcc.mk
 include  $(ta-dev-kit-dir)/mk/compile.mk
+
 ifneq ($(binary),)
 include  $(ta-dev-kit-dir)/mk/link.mk
 endif
@@ -95,4 +98,8 @@ cleanfiles += $(libname).a
 $(libname).a: $(objs)
 	@echo '  AR      $@'
 	$(q)rm -f $@ && $(AR$(sm)) rcs -o $@ $^
+endif
+
+ifneq (,$(shlibname))
+include $(ta-dev-kit-dir)/mk/link_shlib.mk
 endif
