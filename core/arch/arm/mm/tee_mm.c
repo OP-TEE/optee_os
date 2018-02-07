@@ -11,6 +11,30 @@
 #include <trace.h>
 #include <util.h>
 
+static void *pmalloc(tee_mm_pool_t *pool, size_t size)
+{
+	if (pool->flags & TEE_MM_POOL_NEX_MALLOC)
+		return nex_malloc(size);
+	else
+		return malloc(size);
+}
+
+static void *pcalloc(tee_mm_pool_t *pool, size_t num_el, size_t size)
+{
+	if (pool->flags & TEE_MM_POOL_NEX_MALLOC)
+		return nex_calloc(num_el, size);
+	else
+		return calloc(num_el, size);
+}
+
+static void pfree(tee_mm_pool_t *pool, void *ptr)
+{
+	if (pool->flags & TEE_MM_POOL_NEX_MALLOC)
+		nex_free(ptr);
+	else
+		free(ptr);
+}
+
 bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		 uint32_t flags)
 {
@@ -26,7 +50,7 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 	pool->hi = hi;
 	pool->shift = shift;
 	pool->flags = flags;
-	pool->entry = calloc(1, sizeof(tee_mm_entry_t));
+	pool->entry = pcalloc(pool, 1, sizeof(tee_mm_entry_t));
 
 	if (pool->entry == NULL)
 		return false;
@@ -46,7 +70,7 @@ void tee_mm_final(tee_mm_pool_t *pool)
 
 	while (pool->entry->next != NULL)
 		tee_mm_free(pool->entry->next);
-	free(pool->entry);
+	pfree(pool, pool->entry);
 	pool->entry = NULL;
 }
 
@@ -121,7 +145,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 	if (!pool || !pool->entry)
 		return NULL;
 
-	nn = malloc(sizeof(tee_mm_entry_t));
+	nn = pmalloc(pool, sizeof(tee_mm_entry_t));
 	if (!nn)
 		return NULL;
 
@@ -191,7 +215,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 	return nn;
 err:
 	cpu_spin_unlock_xrestore(&pool->lock, exceptions);
-	free(nn);
+	pfree(pool, nn);
 	return NULL;
 }
 
@@ -232,7 +256,7 @@ tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
 	if ((base + size) < base || base < pool->lo)
 		return NULL;
 
-	mm = malloc(sizeof(tee_mm_entry_t));
+	mm = pmalloc(pool, sizeof(tee_mm_entry_t));
 	if (!mm)
 		return NULL;
 
@@ -267,7 +291,7 @@ tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
 	return mm;
 err:
 	cpu_spin_unlock_xrestore(&pool->lock, exceptions);
-	free(mm);
+	pfree(pool, mm);
 	return NULL;
 }
 
@@ -292,7 +316,7 @@ void tee_mm_free(tee_mm_entry_t *p)
 	entry->next = entry->next->next;
 	cpu_spin_unlock_xrestore(&p->pool->lock, exceptions);
 
-	free(p);
+	pfree(p->pool, p);
 }
 
 size_t tee_mm_get_bytes(const tee_mm_entry_t *mm)
