@@ -13,6 +13,8 @@
 #define TEE_MM_POOL_NO_FLAGS            0
 /* Flag to indicate that memory is allocated from hi address to low address */
 #define TEE_MM_POOL_HI_ALLOC            (1u << 0)
+/* Flag to indicate that pool should use nex_malloc instead of malloc */
+#define TEE_MM_POOL_NEX_MALLOC             (1u << 1)
 
 struct _tee_mm_entry_t {
 	struct _tee_mm_pool_t *pool;
