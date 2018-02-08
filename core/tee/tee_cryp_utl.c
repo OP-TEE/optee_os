@@ -76,7 +76,7 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 
 	res = crypto_hash_alloc_ctx(&ctx, algo);
 	if (res)
-		goto out;
+		return res;
 
 	res = crypto_hash_init(ctx, algo);
 	if (res)

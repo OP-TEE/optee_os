@@ -70,7 +70,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
 	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res)
-		goto err_free_hash_ctx;
+		goto err;
 	res = crypto_hash_init(hash_ctx, hash_algo);
 	if (res)
 		goto err_free_hash_ctx;
@@ -134,6 +134,7 @@ err_ta_finalize:
 	tee_tadb_ta_close_and_delete(ta);
 err_free_hash_ctx:
 	crypto_hash_free_ctx(hash_ctx, hash_algo);
+err:
 	free(buf);
 	return res;
 }

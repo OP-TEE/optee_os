@@ -49,7 +49,7 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 
 	res = crypto_mac_alloc_ctx(&ctx, TEE_FS_KM_HMAC_ALG);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
 	res = crypto_mac_init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
 	if (res != TEE_SUCCESS)
@@ -108,7 +108,7 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 
 	res = crypto_cipher_alloc_ctx(&ctx, TEE_FS_KM_ENC_FEK_ALG);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
 	res = crypto_cipher_init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
 				 sizeof(tsk), NULL, 0, NULL, 0);
@@ -196,7 +196,7 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 
 	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
-		goto out;
+		return res;
 
 	res = crypto_cipher_init(ctx, algo, TEE_MODE_ENCRYPT, key,
 				 key_size, NULL, 0, NULL, 0);
@@ -263,7 +263,7 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	/* Run AES CBC */
 	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		return res;
 
 	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
 				 0, iv, TEE_AES_BLOCK_SIZE);

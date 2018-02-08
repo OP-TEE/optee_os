@@ -137,7 +137,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	}
 
 out:
-	crypto_mac_free_ctx(ctx, hmac_algo);
+	free(ctx);
 	return res;
 }
 

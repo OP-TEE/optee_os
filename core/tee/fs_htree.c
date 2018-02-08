@@ -462,10 +462,8 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 	}
 
 	res = crypto_authenc_alloc_ctx(&ctx, alg);
-	if (res != TEE_SUCCESS) {
-		crypto_authenc_free_ctx(ctx, alg);
+	if (res != TEE_SUCCESS)
 		return res;
-	}
 
 	res = crypto_authenc_init(ctx, alg, mode, ht->fek,
 				  TEE_FS_HTREE_FEK_SIZE, iv,
@@ -587,12 +585,13 @@ static TEE_Result verify_node(struct traverse_arg *targ,
 static TEE_Result verify_tree(struct tee_fs_htree *ht)
 {
 	TEE_Result res;
-	void *ctx = NULL;
+	void *ctx;
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
-	if (res == TEE_SUCCESS)
-		res = htree_traverse_post_order(ht, verify_node, ctx);
+	if (res != TEE_SUCCESS)
+		return res;
 
+	res = htree_traverse_post_order(ht, verify_node, ctx);
 	crypto_hash_free_ctx(ctx, TEE_FS_HTREE_HASH_ALG);
 
 	return res;
@@ -601,15 +600,17 @@ static TEE_Result verify_tree(struct tee_fs_htree *ht)
 static TEE_Result init_root_node(struct tee_fs_htree *ht)
 {
 	TEE_Result res;
-	void *ctx = NULL;
+	void *ctx;
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
-	if (res == TEE_SUCCESS) {
-		ht->root.id = 1;
-		ht->root.dirty = true;
-		res = calc_node_hash(&ht->root, &ht->imeta.meta, ctx,
-				     ht->root.node.hash);
-	}
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ht->root.id = 1;
+	ht->root.dirty = true;
+
+	res = calc_node_hash(&ht->root, &ht->imeta.meta, ctx,
+			     ht->root.node.hash);
 	crypto_hash_free_ctx(ctx, TEE_FS_HTREE_HASH_ALG);
 
 	return res;
@@ -763,7 +764,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 {
 	TEE_Result res;
 	struct tee_fs_htree *ht = *ht_arg;
-	void *ctx = NULL;
+	void *ctx;
 
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
@@ -773,7 +774,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
 	if (res != TEE_SUCCESS)
-		goto out;
+		return res;
 
 	res = htree_traverse_post_order(ht, htree_sync_node_to_storage, ctx);
 	if (res != TEE_SUCCESS)
