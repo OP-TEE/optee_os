@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
+/* Copyright (c) 2018 EPAM Systems. All rights reserved. */
 
 #ifndef KERNEL_VIRTUALIZATION_H
 #define KERNEL_VIRTUALIZATION_H
