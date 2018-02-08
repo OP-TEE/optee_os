@@ -642,8 +642,11 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	}
 
 	tee_ta_clear_busy(sess->ctx);
-	if (res != TEE_SUCCESS)
+
+	/* Short buffer is not an effective error case */
+	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
 		DMSG("Error: %x of %d\n", res, *err);
+
 	return res;
 }
 
