@@ -57,6 +57,7 @@ cppflags$(sm)	+= -Ilib/libutee/include
 
 conf-file := $(out-dir)/include/generated/conf.h
 conf-mk-file := $(out-dir)/conf.mk
+conf-cmake-file := $(out-dir)/conf.cmake
 $(conf-file): $(conf-mk-file)
 
 cleanfiles += $(conf-file)
@@ -67,6 +68,9 @@ $(conf-file): FORCE
 
 $(conf-mk-file):  FORCE
 	$(call check-conf-mk)
+
+$(conf-cmake-file):  FORCE
+	$(call check-conf-cmake)
 
 #
 # Do libraries

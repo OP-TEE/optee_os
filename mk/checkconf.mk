@@ -26,6 +26,20 @@ define check-conf-h
 	$(call mv-if-changed,$@.tmp,$@)
 endef
 
+define check-conf-cmake
+	$(q)set -e;						\
+	$(cmd-echo-silent) '  CHK     $@';			\
+	cnf='$(strip $(foreach var,				\
+		$(call cfg-vars-by-prefix,$1),			\
+		$(call cfg-cmake-set,$(var))))';		\
+	guard="_`echo $@ | tr -- -/. ___`_";			\
+	mkdir -p $(dir $@);					\
+	echo "# auto-generated TEE configuration file" >$@.tmp; \
+	echo "# TEE version ${TEE_IMPL_VERSION}" >>$@.tmp; \
+	echo -n "$${cnf}" | sed 's/_nl_ */\n/g' >>$@.tmp;	\
+	$(call mv-if-changed,$@.tmp,$@)
+endef
+
 define check-conf-mk
 	$(q)set -e;						\
 	$(cmd-echo-silent) '  CHK     $@';			\
@@ -71,6 +85,15 @@ define cfg-make-define
 		     $(if $(filter xn x,x$($1)),
 			  /* $1 is not set */_nl_,
 			  #define $1 $($1)_nl_)))
+endef
+
+# Convert a makefile variable to a cmake set statement
+# <undefined>, n => <undefined>
+# <other value>  => <other value>
+define cfg-cmake-set
+	$(strip $(if $(filter xn x,x$($1)),
+		  # $1 is not set _nl_,
+		  set($1 $($1))_nl_))
 endef
 
 # Returns 'y' if at least one variable is 'y', empty otherwise
