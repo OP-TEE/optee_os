@@ -405,7 +405,8 @@ void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
 	 * Check that it's a supported algo, or crypto_hash_alloc_ctx()
 	 * could never have succeded above.
 	 */
-	assert(!hash_get_ctx_size(algo, &ctx_size));
+	if (ctx)
+		assert(!hash_get_ctx_size(algo, &ctx_size));
 	free(ctx);
 }
 
@@ -2012,7 +2013,8 @@ void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	 * Check that it's a supported algo, or crypto_cipher_alloc_ctx()
 	 * could never have succeded above.
 	 */
-	assert(!cipher_get_ctx_size(algo, &ctx_size));
+	if (ctx)
+		assert(!cipher_get_ctx_size(algo, &ctx_size));
 	free(ctx);
 }
 
@@ -2364,7 +2366,8 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	 * Check that it's a supported algo, or crypto_mac_alloc_ctx()
 	 * could never have succeded above.
 	 */
-	assert(!mac_get_ctx_size(algo, &ctx_size));
+	if (ctx)
+		assert(!mac_get_ctx_size(algo, &ctx_size));
 	free(ctx);
 }
 
