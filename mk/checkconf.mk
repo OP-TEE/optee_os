@@ -17,7 +17,7 @@ define check-conf-h
 	cnf='$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,$1),			\
 		$(call cfg-make-define,$(var))))';		\
-	guard="_`echo $@ | tr -- -/. ___`_";			\
+	guard="_`echo $@ | tr -- -/.+ _`_";			\
 	mkdir -p $(dir $@);					\
 	echo "#ifndef $${guard}" >$@.tmp;			\
 	echo "#define $${guard}" >>$@.tmp;			\
