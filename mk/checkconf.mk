@@ -32,7 +32,6 @@ define check-conf-cmake
 	cnf='$(strip $(foreach var,				\
 		$(call cfg-vars-by-prefix,$1),			\
 		$(call cfg-cmake-set,$(var))))';		\
-	guard="_`echo $@ | tr -- -/. ___`_";			\
 	mkdir -p $(dir $@);					\
 	echo "# auto-generated TEE configuration file" >$@.tmp; \
 	echo "# TEE version ${TEE_IMPL_VERSION}" >>$@.tmp; \
