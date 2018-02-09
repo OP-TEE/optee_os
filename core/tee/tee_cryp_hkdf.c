@@ -31,12 +31,12 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 		salt = zero_salt;
 		res = tee_hash_get_digest_size(hash_algo, &salt_len);
 		if (res != TEE_SUCCESS)
-			goto out;
+			return res;
 	}
 
 	res = crypto_mac_alloc_ctx(&ctx, hmac_algo);
 	if (res)
-		goto out;
+		return res;
 
 	/*
 	 * RFC 5869 section 2.1: "Note that in the extract step, 'IKM' is used
@@ -75,19 +75,17 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 
 	res = tee_hash_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
-		goto out;
+		return res;
 
-	if (!okm || prk_len < hash_len) {
-		res = TEE_ERROR_BAD_STATE;
-		goto out;
-	}
+	if (!okm || prk_len < hash_len)
+		return TEE_ERROR_BAD_STATE;
 
 	if (!info)
 		info_len = 0;
 
 	res = crypto_mac_alloc_ctx(&ctx, hmac_algo);
 	if (res)
-		goto out;
+		return res;
 
 	/* N = ceil(L/HashLen) */
 	n = okm_len / hash_len;

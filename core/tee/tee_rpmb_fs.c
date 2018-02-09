@@ -325,19 +325,17 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	uint8_t message[RPMB_EMMC_CID_SIZE];
 	void *ctx = NULL;
 
-	if (!key || RPMB_KEY_MAC_SIZE != len) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (!key || RPMB_KEY_MAC_SIZE != len)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	IMSG("RPMB: Using generated key");
 	res = tee_get_hw_unique_key(&hwkey);
 	if (res != TEE_SUCCESS)
-		goto out;
+		return res;
 
 	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
 	if (res)
-		goto out;
+		return res;
 
 	/*
 	 * PRV/CRC would be changed when doing eMMC FFU
@@ -734,7 +732,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 
 	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
 	if (res)
-		goto func_exit;
+		return res;
 
 	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
 			      RPMB_KEY_MAC_SIZE);
