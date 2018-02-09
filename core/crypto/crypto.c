@@ -18,9 +18,10 @@ TEE_Result crypto_hash_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-void crypto_hash_free_ctx(void *ctx __unused, uint32_t algo __unused)
+void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
 {
-	assert(0);
+	if (ctx)
+		assert(0);
 }
 
 void crypto_hash_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
@@ -51,9 +52,10 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-void crypto_cipher_free_ctx(void *ctx __unused, uint32_t algo __unused)
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
 {
-	assert(0);
+	if (ctx)
+		assert(0);
 }
 
 void crypto_cipher_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
@@ -100,9 +102,10 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-void crypto_mac_free_ctx(void *ctx __unused, uint32_t algo __unused)
+void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
 {
-	assert(0);
+	if (ctx)
+		assert(0);
 }
 
 void crypto_mac_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
@@ -161,7 +164,8 @@ void crypto_authenc_free_ctx(void *ctx, uint32_t algo)
 		break;
 #endif
 	default:
-		assert(0);
+		if (ctx)
+			assert(0);
 	}
 }
 
