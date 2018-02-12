@@ -1585,6 +1585,11 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	granule = 1 << tbl_info.shift;
 	p = ROUNDDOWN(addr, granule);
 	l = ROUNDUP(len + addr - p, granule);
+
+	/* Ban overflowing virtual addresses */
+	if (map->size < l)
+		return false;
+
 	/*
 	 * Something is wrong, we can't fit the va range into the selected
 	 * table. The reserved va range is possibly missaligned with
