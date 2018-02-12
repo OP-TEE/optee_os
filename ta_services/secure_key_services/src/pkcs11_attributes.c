@@ -544,6 +544,32 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 
 		return SKS_OK;
 
+	case SKS_PROC_GENERIC_GENERATE:
+		if (serial_get_type(head) != SKS_GENERIC_SECRET)
+			return SKS_INVALID_ATTRIBUTES;
+
+		/* sanity: these can be asserted */
+		if (serial_get_attribute(head, SKS_LOCALLY_GENERATED,
+					 &bbool, NULL) || !bbool) {
+			DMSG_BAD_BBOOL(SKS_LOCALLY_GENERATED, proc_id, head);
+			return SKS_INVALID_ATTRIBUTES;
+		}
+
+		return SKS_OK;
+
+	case SKS_PROC_AES_GENERATE:
+		if (serial_get_type(head) != SKS_KEY_AES)
+			return SKS_INVALID_ATTRIBUTES;
+
+		/* sanity: these can be asserted */
+		if (serial_get_attribute(head, SKS_LOCALLY_GENERATED,
+					 &bbool, NULL) || !bbool) {
+			DMSG_BAD_BBOOL(SKS_LOCALLY_GENERATED, proc_id, head);
+			return SKS_INVALID_ATTRIBUTES;
+		}
+
+		return SKS_OK;
+
 	default:
 		DMSG("Processing %s not supported", sks2str_proc(proc_id));
 		return SKS_INVALID_PROC;

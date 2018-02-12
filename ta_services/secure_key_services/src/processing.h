@@ -27,4 +27,7 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 			    TEE_Param *in, TEE_Param *out, int enc);
 
+uint32_t entry_generate_object(int teesess,
+			       TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
+
 #endif /*__SKS_TA_PROCESSING_H*/

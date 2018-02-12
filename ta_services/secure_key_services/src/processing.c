@@ -544,3 +544,156 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 
 	return tee2sks_error(res);
 }
+
+static uint32_t generate_random_key_value(struct sks_sobj_head **head)
+{
+	uint32_t rv;
+	void *data;
+	size_t data_size;
+	uint32_t value_len;
+	void *value;
+
+	if (!*head)
+		return SKS_INVALID_ATTRIBUTES;
+
+	rv = serial_get_attribute_ptr(*head, SKS_VALUE_LEN, &data, &data_size);
+	if (rv || data_size != sizeof(uint32_t)) {
+		DMSG("%s", rv ? "No attribute value_len found" :
+			"Invalid size for attribute VALUE_LEN");
+		return SKS_INVALID_VALUE;
+	}
+
+	TEE_MemMove(&value_len, data, data_size);
+	value = TEE_Malloc(value_len, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!value)
+		return SKS_MEMORY;
+
+	TEE_GenerateRandom(value, value_len);
+
+	rv = serial_add_attribute(head, SKS_VALUE, value, value_len);
+	if (rv)
+		return rv;
+
+	return rv;
+}
+
+uint32_t entry_generate_object(int teesess,
+			       TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
+{
+	uint32_t rv;
+	struct serialargs ctrlargs;
+	uint32_t session_handle;
+	struct pkcs11_session *session;
+	struct sks_reference *proc_params = NULL;
+	struct sks_sobj_head *head = NULL;
+	struct sks_object_head *template = NULL;
+	size_t template_size;
+	uint32_t obj_handle;
+
+	/*
+	 * Collect the arguments
+	 */
+
+	if (!ctrl || in || !out)
+		return SKS_BAD_PARAM;
+
+	if (out->memref.size < sizeof(uint32_t))
+		return SKS_BAD_PARAM;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	if (serialargs_get_next(&ctrlargs, &session_handle, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	if (serialargs_get_sks_reference(&ctrlargs, &proc_params))
+		return SKS_BAD_PARAM;
+
+	if (serialargs_get_sks_attributes(&ctrlargs, &template))
+		return SKS_BAD_PARAM;
+
+	template_size = sizeof(*template) + template->blobs_size;
+
+	/*
+	 * Check arguments
+	 */
+
+	session = get_pkcs_session(session_handle);
+	if (!session || session->tee_session != teesess) {
+		rv = SKS_INVALID_SESSION;
+		goto bail;
+	}
+
+	if (check_pkcs_session_processing_state(session,
+						PKCS11_SESSION_READY)) {
+		rv = SKS_PROCESSING_ACTIVE;
+		goto bail;
+	}
+
+	/*
+	 * Prepare a clean initial state for the requested object attributes.
+	 * Free temorary template once done.
+	 */
+	rv = create_attributes_from_template(&head, template, template_size,
+					     SKS_FUNCTION_GENERATE);
+	TEE_Free(template);
+	template = NULL;
+	if (rv)
+		goto bail;
+
+	/*
+	 * Check created object against processing and token state.
+	 */
+	rv = check_created_attrs_against_processing(proc_params->id, head);
+	if (rv)
+		goto bail;
+
+	rv = check_created_attrs_against_token(session, head);
+	if (rv)
+		goto bail;
+
+	/*
+	 * Execute the target processing and add value as attribute SKS_VALUE.
+	 * Symm key generation: depens on target processing to be used.
+	 */
+	switch (proc_params->id) {
+	case SKS_PROC_GENERIC_GENERATE:
+	case SKS_PROC_AES_GENERATE:
+		/* Generate random of size specified by attribute VALUE_LEN */
+		rv = generate_random_key_value(&head);
+		if (rv)
+			goto bail;
+		break;
+
+	default:
+		rv = SKS_INVALID_PROC;
+		goto bail;
+	}
+
+	TEE_Free(proc_params);
+	proc_params = NULL;
+
+	/*
+	 * Object is ready, register it and return a handle.
+	 */
+	rv = create_object(session, (void *)head, &obj_handle);
+	if (rv)
+		goto bail;
+
+	/*
+	 * Now obj_handle (through the related struct sks_object instance)
+	 * owns the serialised buffer that holds the object attributes.
+	 * We reset attrs->buffer to NULL as serializer object is no more
+	 * the attributes buffer owner.
+	 */
+	head = NULL;
+
+	TEE_MemMove(out->memref.buffer, &obj_handle, sizeof(uint32_t));
+	out->memref.size = sizeof(uint32_t);
+
+bail:
+	TEE_Free(proc_params);
+	TEE_Free(template);
+	TEE_Free(head);
+
+	return rv;
+}

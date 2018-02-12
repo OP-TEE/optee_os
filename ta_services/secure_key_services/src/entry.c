@@ -162,6 +162,10 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 					cmd == SKS_CMD_DECRYPT_FINAL);
 		break;
 
+	case SKS_CMD_GENERATE_SYMM_KEY:
+		rc = entry_generate_object(teesess, ctrl, in, out);
+		break;
+
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
