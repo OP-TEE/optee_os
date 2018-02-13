@@ -495,11 +495,12 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 					TEE_FS_HTREE_IV_SIZE);
 
 exit:
-	if (res == TEE_SUCCESS)
+	if (res == TEE_SUCCESS) {
 		*ctx_ret = ctx;
-	else
+	} else {
 		crypto_authenc_final(ctx, alg);
-
+		crypto_authenc_free_ctx(ctx, alg);
+	}
 	return res;
 }
 
