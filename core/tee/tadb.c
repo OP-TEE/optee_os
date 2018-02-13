@@ -748,7 +748,8 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 			size_t n = MIN(b_size, l - num_bytes);
 
 			res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
-						  ta->ta_buf + ta->pos, n, b);
+						  ta->ta_buf + ta->pos +
+							num_bytes, n, b);
 			if (res)
 				break;
 			num_bytes += n;
@@ -760,6 +761,15 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 	}
 
 	ta->pos += l;
+	if (ta->pos == sz) {
+		size_t dl = 0;
+
+		res = crypto_authenc_dec_final(ta->ctx, TADB_AUTH_ENC_ALG,
+					       NULL, 0, NULL, &dl,
+					       ta->entry.tag, TADB_TAG_SIZE);
+		if (res)
+			return res;
+	}
 	*len = l;
 	return TEE_SUCCESS;
 }
