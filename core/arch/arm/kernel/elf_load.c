@@ -16,8 +16,12 @@
 #include "elf32.h"
 #include "elf64.h"
 
+struct user_ta_elf_head;
+
 struct elf_load_state {
 	bool is_32bit;
+	bool is_main; /* false when loading a library */
+	struct user_ta_elf_head *elfs; /* All ELFs starting with main */
 
 	struct user_ta_store_handle *ta_handle;
 	const struct user_ta_store_ops *ta_store;
@@ -25,6 +29,7 @@ struct elf_load_state {
 
 	size_t next_offs;
 
+	/* TA header info (is_main == true only) */
 	void *ta_head;
 	size_t ta_head_size;
 
@@ -33,6 +38,21 @@ struct elf_load_state {
 
 	size_t vasize;
 	void *shdr;
+
+	/* .dynamic section */
+	void *dyn;
+	size_t dyn_size;
+
+	/* .dynstr section */
+	char *dynstr;
+	size_t dynstr_size;
+
+	/* .dynsym section */
+	void *dynsym;
+	size_t dynsym_size;
+
+	TEE_Result (*resolve_sym)(struct user_ta_elf_head *elfs,
+				  const char *name, uintptr_t *val);
 };
 
 /* Replicates the fields we need from Elf{32,64}_Ehdr */
@@ -172,6 +192,10 @@ static TEE_Result alloc_and_copy_to(void **p, struct elf_load_state *state,
 
 TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 			 struct user_ta_store_handle *ta_handle,
+			 bool is_main,
+			 struct user_ta_elf_head *elfs,
+			 TEE_Result (*resolve_sym)(struct user_ta_elf_head *elfs,
+						   const char *name, uintptr_t *val),
 			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
@@ -181,6 +205,9 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 	if (!state)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	state->is_main = is_main;
+	state->elfs = elfs;
+	state->resolve_sym = resolve_sym;
 	state->ta_store = ta_store;
 	state->ta_handle = ta_handle;
 	res = ta_store->get_size(ta_handle, &state->data_len);
@@ -255,13 +282,40 @@ static TEE_Result e64_load_ehdr(struct elf_load_state *state __unused,
 }
 #endif /*ARM64*/
 
+/*
+ * Find the max address used by a PT_LOAD program header.
+ * Eventual holes in the memory will also be allocated.
+ */
+static TEE_Result get_max_va(struct elf_load_state *state, size_t *ret_vasize)
+{
+	struct elf_ehdr ehdr;
+	struct elf_phdr phdr;
+	size_t vasize = 0;
+	size_t tmpsize;
+	size_t n;
+
+	copy_ehdr(&ehdr, state);
+
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		copy_phdr(&phdr, state, n);
+		if (phdr.p_type == PT_LOAD) {
+			if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &tmpsize))
+				return TEE_ERROR_SECURITY;
+			if (tmpsize > vasize)
+				vasize = tmpsize;
+		}
+	};
+	*ret_vasize = vasize;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 {
 	TEE_Result res;
 	size_t n;
 	void *p;
 	struct elf_ehdr ehdr;
-	struct elf_phdr phdr;
 	struct elf_phdr ptload0;
 	size_t phsize;
 
@@ -269,21 +323,23 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	/*
 	 * Program headers:
 	 * We're expecting at least one header of PT_LOAD type.
-	 * .ta_head must be located first in the first PT_LOAD header, which
-	 * must start at virtual address 0. Other types of headers may appear
-	 * before the first PT_LOAD (for example, GNU ld will typically insert
-	 * a PT_ARM_EXIDX segment first when it encounters a .ARM.exidx section
-	 * i.e., unwind tables for 32-bit binaries).
-	 * The last PT_LOAD header gives the maximum VA.
-	 * A PT_DYNAMIC segment may appear, but is ignored.
-	 * All sections not included by a PT_LOAD segment are ignored.
+	 * For the main executable, the .ta_head section must be located first
+	 * in the first PT_LOAD segment, which must start at virtual address 0.
+	 * Dynamic libraries have no .ta_head.
+	 * Other types of headers may appear before the first PT_LOAD (for
+	 * example, GNU ld will typically insert a PT_ARM_EXIDX segment first
+	 * when it encounters a .ARM.exidx section i.e., unwind tables for
+	 * 32-bit binaries).
+	 * The PT_DYNAMIC segment is ignored unless support for dynamically
+	 * linked TAs is enabled.
+	 * All sections not included by a PT_LOAD (or PT_DYNAMIC) segment are
+	 * ignored.
 	 */
 	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
 
 	if (MUL_OVERFLOW(ehdr.e_phnum, ehdr.e_phentsize, &phsize))
 		return TEE_ERROR_SECURITY;
-
 	res = alloc_and_copy_to(&p, state, ehdr.e_phoff, phsize);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -302,38 +358,32 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 		return TEE_ERROR_BAD_FORMAT;
 
 	/*
-	 * Calculate amount of required virtual memory for TA. Find the max
-	 * address used by a PT_LOAD type. Note that last PT_LOAD type
-	 * dictates the total amount of needed memory. Eventual holes in
-	 * the memory will also be allocated.
-	 *
-	 * Note that this loop will terminate at n = 0 if not earlier
-	 * as we already know from above that we have at least one PT_LOAD
-	 */
-	n = ehdr.e_phnum;
-	do {
-		n--;
-		copy_phdr(&phdr, state, n);
-	} while (phdr.p_type != PT_LOAD);
+	 * Calculate amount of required virtual memory for the ELF file */
+	res = get_max_va(state, &state->vasize);
+	if (res)
+		return res;
 
-	if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &state->vasize))
-		return TEE_ERROR_SECURITY;
-
-	/*
-	 * Read .ta_head from first segment, make sure the segment is large
-	 * enough. We're only interested in seeing that the
-	 * TA_FLAG_EXEC_DDR flag is set. If that's true we set that flag in
-	 * the TA context to enable mapping the TA. Later when this
-	 * function has returned and the hash has been verified the flags
-	 * field will be updated with eventual other flags.
-	 */
-	if (ptload0.p_filesz < head_size)
-		return TEE_ERROR_BAD_FORMAT;
-	res = alloc_and_copy_to(&p, state, ptload0.p_offset, head_size);
-	if (res == TEE_SUCCESS) {
-		state->ta_head = p;
-		state->ta_head_size = head_size;
+	if (state->is_main) {
+		/*
+		 * Read .ta_head from first segment, make sure the segment is
+		 * large enough. We're only interested in seeing that the
+		 * TA_FLAG_EXEC_DDR flag is set. If that's true we set that
+		 * flag in the TA context to enable mapping the TA. Later when
+		 * this function has returned and the hash has been verified
+		 * the flags field will be updated with eventual other flags.
+		 */
+		if (ptload0.p_filesz < head_size)
+			return TEE_ERROR_BAD_FORMAT;
+		res = alloc_and_copy_to(&p, state, ptload0.p_offset, head_size);
+		if (res == TEE_SUCCESS) {
+			state->ta_head = p;
+			state->ta_head_size = head_size;
+		}
+	} else {
+		state->ta_head = NULL;
+		state->ta_head_size = 0;
 	}
+
 	return res;
 }
 
@@ -344,13 +394,12 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	Elf32_Ehdr ehdr;
 
 	/*
-	 * The ELF resides in shared memory, to avoid attacks based on
-	 * modifying the ELF while we're parsing it here we only read each
+	 * The ELF potentially resides in shared memory, to avoid attacks based
+	 * on modifying the ELF while we're parsing it here we only read each
 	 * byte from the ELF once. We're also hashing the ELF while reading
 	 * so we're limited to only read the ELF sequentially from start to
 	 * end.
 	 */
-
 	res = copy_to(state, &ehdr, sizeof(ehdr), 0, 0, sizeof(Elf32_Ehdr));
 	if (res != TEE_SUCCESS)
 		return res;
@@ -365,9 +414,11 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 
 	res = load_head(state, head_size);
 	if (res == TEE_SUCCESS) {
-		*head = state->ta_head;
 		*vasize = state->vasize;
-		*is_32bit = state->is_32bit;
+		if (head_size) {
+			*is_32bit = state->is_32bit;
+			*head = state->ta_head;
+		}
 	}
 	return res;
 }
@@ -394,6 +445,38 @@ TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
 			*type = phdr.p_type;
 		return TEE_SUCCESS;
 	}
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static TEE_Result e32_resolve_symbol(struct elf_load_state *state,
+				     const char *name,
+				     uintptr_t *val)
+{
+	Elf32_Sym *sym_start;
+	Elf32_Sym *sym_end;
+	Elf32_Sym *sym;
+
+	sym_start = (Elf32_Sym *)state->dynsym;
+	if (!sym_start)
+		return TEE_ERROR_BAD_FORMAT;
+	sym_end = sym_start + state->dynsym_size / sizeof(Elf32_Sym);
+
+	for (sym = sym_start; sym < sym_end; sym++) {
+		if (sym->st_shndx == SHN_UNDEF)
+			continue;
+		if (!strcmp(name, &state->dynstr[sym->st_name])) {
+			*val = sym->st_value;
+			return TEE_SUCCESS;
+		}
+	}
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+TEE_Result elf_resolve_symbol(struct elf_load_state *state,
+			      const char *name, uintptr_t *val)
+{
+	if (state->is_32bit)
+		return e32_resolve_symbol(state, name, val);
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
@@ -438,6 +521,7 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	/* Check the address is inside TA memory */
 	if (shdr[rel_sidx].sh_addr >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
+
 	rel = (Elf32_Rel *)(vabase + shdr[rel_sidx].sh_addr);
 	if (!ALIGNMENT_IS_OK(rel, Elf32_Rel))
 		return TEE_ERROR_BAD_FORMAT;
@@ -449,6 +533,11 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	for (; rel < rel_end; rel++) {
 		Elf32_Addr *where;
 		size_t sym_idx;
+		char *name;
+		uint8_t bind;
+		uintptr_t val;
+		size_t name_idx;
+		TEE_Result res;
 
 		/* Check the address is inside TA memory */
 		if (rel->r_offset >= state->vasize)
@@ -468,6 +557,23 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			break;
 		case R_ARM_RELATIVE:
 			*where += vabase;
+			break;
+		case R_ARM_GLOB_DAT:
+		case R_ARM_JUMP_SLOT:
+			sym_idx = ELF32_R_SYM(rel->r_info);
+			if (sym_idx >= num_syms)
+				return TEE_ERROR_BAD_FORMAT;
+			name_idx = sym_tab[sym_idx].st_name;
+			if (name_idx >= state->dynstr_size)
+				return TEE_ERROR_BAD_FORMAT;
+			name = &state->dynstr[name_idx];
+			bind = ELF32_ST_BIND(sym_tab[sym_idx].st_info);
+			if (bind != STB_GLOBAL && bind != STB_WEAK)
+				return TEE_ERROR_BAD_FORMAT;
+			res = state->resolve_sym(state->elfs, name, &val);
+			if (res)
+				return res;
+			*where = vabase + (Elf32_Addr)val;
 			break;
 		default:
 			EMSG("Unknown relocation type %d",
@@ -574,9 +680,12 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	void *p;
 	uint8_t *dst = (uint8_t *)vabase;
 	struct elf_ehdr ehdr;
-	size_t offs;
+	size_t offs = 0;
+	size_t e_p_hdr_sz;
 
 	copy_ehdr(&ehdr, state);
+
+	e_p_hdr_sz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
 
 	/*
 	 * Zero initialize everything to make sure that all memory not
@@ -587,15 +696,29 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	/*
 	 * Copy the segments
 	 */
-	memcpy(dst, state->ta_head, state->ta_head_size);
-	offs = state->ta_head_size;
+	if (state->ta_head_size) {
+		memcpy(dst, state->ta_head, state->ta_head_size);
+		offs = state->ta_head_size;
+	}
 	for (n = 0; n < ehdr.e_phnum; n++) {
 		struct elf_phdr phdr;
 
 		copy_phdr(&phdr, state, n);
+		/*
+		 * The PT_DYNAMIC segment is always included in a PT_LOAD
+		 * segment so it can be ignored here.
+		 */
 		if (phdr.p_type != PT_LOAD)
 			continue;
 
+		if (phdr.p_offset < e_p_hdr_sz) {
+			/*
+			 * The first loadable segment contains the ELF and
+			 * program headers. We can ignore them.
+			 */
+			offs += e_p_hdr_sz;
+			e_p_hdr_sz = 0;
+		}
 		res = copy_to(state, dst, state->vasize,
 			      phdr.p_vaddr + offs,
 			      phdr.p_offset + offs,
@@ -626,24 +749,177 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (state->shdr) {
-		TEE_Result (*process_rel)(struct elf_load_state *state,
-					size_t rel_sidx, vaddr_t vabase);
+	return TEE_SUCCESS;
+}
 
-		if (state->is_32bit)
-			process_rel = e32_process_rel;
-		else
-			process_rel = e64_process_rel;
+TEE_Result elf_process_rel(struct elf_load_state *state, vaddr_t vabase)
+{
+	TEE_Result (*process_rel)(struct elf_load_state *state,
+				  size_t rel_sidx, vaddr_t vabase);
+	struct elf_ehdr ehdr;
+	TEE_Result res;
+	size_t n;
 
-		/* Process relocation */
-		for (n = 0; n < ehdr.e_shnum; n++) {
-			uint32_t sh_type = get_shdr_type(state, n);
+	copy_ehdr(&ehdr, state);
 
-			if (sh_type == SHT_REL || sh_type == SHT_RELA) {
-				res = process_rel(state, n, vabase);
-				if (res != TEE_SUCCESS)
-					return res;
-			}
+	if (state->is_32bit)
+		process_rel = e32_process_rel;
+	else
+		process_rel = e64_process_rel;
+
+	for (n = 0; n < ehdr.e_shnum; n++) {
+		uint32_t sh_type = get_shdr_type(state, n);
+
+		if (sh_type == SHT_REL || sh_type == SHT_RELA) {
+			res = process_rel(state, n, vabase);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+/* Check the dynamic segment and save info for later */
+static TEE_Result e32_read_dynamic(struct elf_load_state *state, vaddr_t vabase)
+{
+	Elf32_Shdr *shdr = state->shdr;
+	struct elf_ehdr ehdr;
+	Elf32_Dyn *dyn_start;
+	Elf32_Dyn *dyn_end;
+	Elf32_Dyn *dyn;
+	vaddr_t dynstr = 0;
+	size_t dynstr_size = 0;
+	vaddr_t dynsym = 0;
+	size_t n;
+
+	copy_ehdr(&ehdr, state);
+
+	dyn_start = (Elf32_Dyn *)state->dyn;
+	if (!ALIGNMENT_IS_OK(dyn_start, Elf32_Dyn))
+		return TEE_ERROR_BAD_FORMAT;
+	dyn_end = dyn_start + state->dyn_size / sizeof(Elf32_Dyn);
+
+	/*
+	 * Find the address and size of the string table (.strtab)
+	 */
+	for (dyn = dyn_start; dyn < dyn_end; dyn++) {
+		if (dyn->d_tag == DT_STRTAB)
+			dynstr = dyn->d_un.d_ptr;
+		else if (dyn->d_tag == DT_STRSZ)
+			dynstr_size = dyn->d_un.d_val;
+	}
+	if (!dynstr || dynstr >= state->vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	if (!dynstr_size || (dynstr + dynstr_size) > state->vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	state->dynstr = (char *)(vabase + dynstr);
+	state->dynstr_size = dynstr_size;
+
+	/*
+	 * Find the .dynsym section (contains the global symbols).
+	 * TODO: FIXME: There is an entry for it in the .dynamic section
+	 * (DT_SYMTAB), so we could in principle use the above loop to find
+	 * the section address. But where is the size information?
+	 * By parsing the section headers instead we find both the address
+	 * and the size of .dynsym.
+	 */
+	for (n = 0; n < ehdr.e_shnum; n++)
+		if (shdr[n].sh_type == SHT_DYNSYM)
+			break;
+	if (n == ehdr.e_shnum)
+		return TEE_ERROR_BAD_FORMAT;
+	dynsym = shdr[n].sh_addr;
+	if (!dynsym || dynsym >= state->vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	state->dynsym = (void *)(vabase + dynsym);
+	state->dynsym_size = shdr[n].sh_size;
+
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result e32_get_needed(struct elf_load_state *state,
+				 vaddr_t vabase, char ***libname)
+{
+	size_t n = 0;
+	Elf32_Dyn *dyn_start;
+	Elf32_Dyn *dyn_end;
+	Elf32_Dyn *dyn;
+	Elf32_Word offs;
+	char **names;
+	TEE_Result res;
+
+	res = e32_read_dynamic(state, vabase);
+	if (res)
+		return res;
+
+	dyn_start = (Elf32_Dyn *)state->dyn;
+	dyn_end = dyn_start + state->dyn_size / sizeof(Elf32_Dyn);
+
+	/* Cound DT_NEEDED entries and allocate output array */
+	for (dyn = dyn_start; dyn < dyn_end; dyn++)
+		if (dyn->d_tag != DT_NEEDED)
+			n++;
+	names = malloc((n + 1)* sizeof(char *));
+	if (!names)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	/* Now look for needed libraries and fill output array */
+	n = 0;
+	for (dyn = dyn_start; dyn < dyn_end; dyn++) {
+		if (dyn->d_tag != DT_NEEDED)
+			continue;
+		if (!state->dynstr) {
+			free(names);
+			return TEE_ERROR_BAD_FORMAT;
+		}
+		offs = dyn->d_un.d_val;
+		names[n++] = (char *)state->dynstr + offs;
+	}
+
+	names[n] = NULL;
+	*libname = names;
+	return TEE_SUCCESS;
+}
+
+/*
+ * Returns the names of all the libraries needed by the ELF file described
+ * by @state. @needed is allocated by the function. On output *needed is either
+ * NULL, or it points to an NULL-terminated array of (char *), in which case
+ * it is the caller's responsibility to eventually free the array. The strings
+ * point to the string table in the TA memory.
+ */
+TEE_Result elf_get_needed(struct elf_load_state *state, vaddr_t vabase,
+			  char ***needed)
+{
+	struct elf_ehdr ehdr;
+	size_t n;
+	vaddr_t dyn_addr;
+	size_t dyn_sz;
+
+	if (!state->is_32bit)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	/*
+	 * Find the dynamic section from the program headers, then call the
+	 * proper parsing function.
+	 */
+	copy_ehdr(&ehdr, state);
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		struct elf_phdr phdr;
+
+		copy_phdr(&phdr, state, n);
+		if (phdr.p_type == PT_DYNAMIC) {
+			dyn_addr = phdr.p_vaddr;
+			dyn_sz = phdr.p_memsz;
+			if (dyn_addr > state->vasize)
+				return TEE_ERROR_BAD_FORMAT;
+			if (dyn_addr + dyn_sz > state->vasize)
+				return TEE_ERROR_BAD_FORMAT;
+			state->dyn = (void *)(vabase + dyn_addr);
+			state->dyn_size = dyn_sz;
+			return e32_get_needed(state, vabase, needed);
 		}
 	}
 

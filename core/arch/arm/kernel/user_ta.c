@@ -60,6 +60,59 @@
 #include "elf_load.h"
 #include "elf_common.h"
 
+
+/* ELF file used by a TA (main executable or dynamic library) */
+struct user_ta_elf {
+	TEE_UUID uuid;
+	bool is_main; /* false for a library */
+	struct elf_load_state *elf_state;
+	struct mobj *mobj_code;
+	uaddr_t exidx_start; /* Exception index table (32-bit only) */
+	size_t exidx_size;
+	TAILQ_ENTRY(user_ta_elf) link;
+};
+
+static void free_elfs(struct user_ta_elf_head *elfs)
+{
+	struct user_ta_elf *elf;
+	struct user_ta_elf *next;
+
+	TAILQ_FOREACH_SAFE(elf, elfs, link, next) {
+		TAILQ_REMOVE(elfs, elf, link);
+		mobj_free(elf->mobj_code);
+		free(elf);
+	}
+}
+
+static struct user_ta_elf *find_ta_elf(const TEE_UUID *uuid,
+				       struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *elf;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link)
+		if (!memcmp(&elf->uuid, uuid, sizeof(*uuid)))
+			return elf;
+	return NULL;
+}
+
+static struct user_ta_elf *ta_elf(const TEE_UUID *uuid,
+				  struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *elf;
+
+	elf = find_ta_elf(uuid, utc);
+	if (elf)
+		goto out;
+	elf = calloc(1, sizeof(*elf));
+	if (!elf)
+		goto out;
+	elf->uuid = *uuid;
+
+	TAILQ_INSERT_TAIL(&utc->elfs, elf, link);
+out:
+	return elf;
+}
+
 static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 {
 	uint32_t mattr = 0;
@@ -131,29 +184,29 @@ static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 #endif /*!CFG_PAGED_USER_TA*/
 
 static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
-			struct elf_load_state *elf_state, bool init_attrs)
+				    struct user_ta_elf *elf,
+				    bool init_attrs)
 {
+	struct elf_load_state *elf_state = elf->elf_state;
 	TEE_Result res;
 	uint32_t mattr;
 	size_t idx = 0;
 
-	tee_mmu_map_init(utc);
-
-	/*
-	 * Add stack segment
-	 */
-	tee_mmu_map_stack(utc, utc->mobj_stack);
+	if (elf->is_main) {
+		tee_mmu_map_init(utc);
+		tee_mmu_map_stack(utc, utc->mobj_stack);
+	}
 
 	/*
 	 * Add code segment
 	 */
 	while (true) {
-		vaddr_t offs;
+		vaddr_t vaddr;
 		size_t size;
 		uint32_t flags;
 		uint32_t type;
 
-		res = elf_load_get_next_segment(elf_state, &idx, &offs, &size,
+		res = elf_load_get_next_segment(elf_state, &idx, &vaddr, &size,
 						&flags, &type);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			break;
@@ -161,16 +214,29 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			return res;
 
 		if (type == PT_LOAD) {
+			if (!elf->is_main) {
+				/* TODO */
+				continue;
+			}
 			mattr = elf_flags_to_mattr(flags, init_attrs);
-			res = tee_mmu_map_add_segment(utc, utc->mobj_code,
-						      offs, size, mattr);
+			res = tee_mmu_map_add_segment(utc, elf->mobj_code,
+						      vaddr, size, mattr);
 			if (res != TEE_SUCCESS)
 				return res;
 		} else if (type == PT_ARM_EXIDX) {
-			utc->exidx_start = offs;
-			utc->exidx_size = size;
+			elf->exidx_start = vaddr;
+			elf->exidx_size = size;
+			if (elf->is_main) {
+				/* TODO */
+				utc->exidx_start = vaddr;
+				utc->exidx_size = size;
+			}
 		}
 	}
+
+	/* TODO */
+	if (!elf->is_main)
+		return TEE_SUCCESS;
 
 	if (init_attrs)
 		return config_initial_paging(utc);
@@ -185,160 +251,6 @@ static struct mobj *alloc_ta_mem(size_t size)
 #else
 	return mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
 #endif
-}
-
-static TEE_Result load_elf(struct user_ta_ctx *utc,
-			   const struct user_ta_store_ops *ta_store,
-			   struct user_ta_store_handle *ta_handle)
-{
-	TEE_Result res;
-	struct elf_load_state *elf_state = NULL;
-	struct ta_head *ta_head;
-	void *p;
-	size_t vasize;
-
-	res = elf_load_init(ta_store, ta_handle, &elf_state);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = elf_load_head(elf_state, sizeof(struct ta_head), &p, &vasize,
-			    &utc->is_32bit);
-	if (res != TEE_SUCCESS)
-		goto out;
-	ta_head = p;
-
-	utc->mobj_code = alloc_ta_mem(vasize);
-	if (!utc->mobj_code) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	/* Currently all TA must execute from DDR */
-	if (!(ta_head->flags & TA_FLAG_EXEC_DDR)) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-	/* Temporary assignment to setup memory mapping */
-	utc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
-
-	/* Ensure proper aligment of stack */
-	utc->mobj_stack = alloc_ta_mem(ROUNDUP(ta_head->stack_size,
-					       STACK_ALIGNMENT));
-	if (!utc->mobj_stack) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	/*
-	 * Map physical memory into TA virtual memory
-	 */
-
-	res = tee_mmu_init(utc);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = load_elf_segments(utc, elf_state, true /* init attrs */);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	tee_mmu_set_ctx(&utc->ctx);
-
-	res = elf_load_body(elf_state, tee_mmu_get_load_addr(&utc->ctx));
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	/*
-	 * Replace the init attributes with attributes used when the TA is
-	 * running.
-	 */
-	res = load_elf_segments(utc, elf_state, false /* final attrs */);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-out:
-	elf_load_final(elf_state);
-	return res;
-}
-
-/*-----------------------------------------------------------------------------
- * Loads TA header and hashes.
- * Verifies the TA signature.
- * Returns context ptr and TEE_Result.
- *---------------------------------------------------------------------------*/
-static TEE_Result ta_load(const TEE_UUID *uuid,
-			  const struct user_ta_store_ops *ta_store,
-			  struct tee_ta_ctx **ta_ctx)
-{
-	TEE_Result res;
-	uint32_t mandatory_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
-	uint32_t optional_flags = mandatory_flags | TA_FLAG_SINGLE_INSTANCE |
-	    TA_FLAG_MULTI_SESSION | TA_FLAG_SECURE_DATA_PATH |
-	    TA_FLAG_INSTANCE_KEEP_ALIVE | TA_FLAG_CACHE_MAINTENANCE;
-	struct user_ta_ctx *utc = NULL;
-	struct ta_head *ta_head;
-	struct user_ta_store_handle *ta_handle = NULL;
-
-	res = ta_store->open(uuid, &ta_handle);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	/* Register context */
-	utc = calloc(1, sizeof(struct user_ta_ctx));
-	if (!utc) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto error_return;
-	}
-	TAILQ_INIT(&utc->open_sessions);
-	TAILQ_INIT(&utc->cryp_states);
-	TAILQ_INIT(&utc->objects);
-	TAILQ_INIT(&utc->storage_enums);
-
-	res = load_elf(utc, ta_store, ta_handle);
-	if (res != TEE_SUCCESS)
-		goto error_return;
-
-	utc->load_addr = tee_mmu_get_load_addr(&utc->ctx);
-	ta_head = (struct ta_head *)(vaddr_t)utc->load_addr;
-
-	if (memcmp(&ta_head->uuid, uuid, sizeof(TEE_UUID)) != 0) {
-		res = TEE_ERROR_SECURITY;
-		goto error_return;
-	}
-
-	/* check input flags bitmask consistency and save flags */
-	if ((ta_head->flags & optional_flags) != ta_head->flags ||
-	    (ta_head->flags & mandatory_flags) != mandatory_flags) {
-		EMSG("TA flag issue: flags=%x optional=%x mandatory=%x",
-		     ta_head->flags, optional_flags, mandatory_flags);
-		res = TEE_ERROR_BAD_FORMAT;
-		goto error_return;
-	}
-
-	DMSG("ELF load address 0x%x", utc->load_addr);
-	utc->ctx.flags = ta_head->flags;
-	utc->ctx.uuid = ta_head->uuid;
-	utc->entry_func = ta_head->entry.ptr64;
-	utc->ctx.ref_count = 1;
-	condvar_init(&utc->ctx.busy_cv);
-	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
-	*ta_ctx = &utc->ctx;
-
-	tee_mmu_set_ctx(NULL);
-	ta_store->close(ta_handle);
-	return TEE_SUCCESS;
-
-error_return:
-	ta_store->close(ta_handle);
-	tee_mmu_set_ctx(NULL);
-	if (utc) {
-		pgt_flush_ctx(&utc->ctx);
-		tee_pager_rem_uta_areas(utc);
-		tee_mmu_final(utc);
-		mobj_free(utc->mobj_code);
-		mobj_free(utc->mobj_stack);
-		free(utc);
-	}
-	return res;
 }
 
 static void init_utee_param(struct utee_params *up,
@@ -531,6 +443,7 @@ KEEP_PAGER(user_ta_dump_state);
 static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+	struct user_ta_elf *elf;
 
 	tee_pager_rem_uta_areas(utc);
 
@@ -541,12 +454,12 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	if (ctx->flags & TA_FLAG_EXEC_DDR) {
 		void *va;
 
-		if (utc->mobj_code) {
-			va = mobj_get_va(utc->mobj_code, 0);
+		TAILQ_FOREACH(elf, &utc->elfs, link) {
+			va = mobj_get_va(elf->mobj_code, 0);
 			if (va) {
-				memset(va, 0, utc->mobj_code->size);
+				memset(va, 0, elf->mobj_code->size);
 				cache_op_inner(DCACHE_AREA_CLEAN, va,
-						utc->mobj_code->size);
+					       elf->mobj_code->size);
 			}
 		}
 
@@ -571,8 +484,8 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	}
 
 	tee_mmu_final(utc);
-	mobj_free(utc->mobj_code);
 	mobj_free(utc->mobj_stack);
+	free_elfs(&utc->elfs);
 
 	/* Free cryp states created by this TA */
 	tee_svc_cryp_free_states(utc);
@@ -626,23 +539,377 @@ TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
-			struct tee_ta_session *s)
+static char tolowercase(char c)
+{
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + 'a';
+	return c;
+}
+
+static int8_t hex(char c)
+{
+	char lc = tolowercase(c);
+
+	if (lc >= '0' && lc <= '9')
+		return (int8_t)(lc - '0');
+	if (lc >= 'a' && lc <= 'f')
+		return (int8_t)(lc - 'a' + 10);
+	return -1;
+}
+
+static uint32_t parse_hex(const char *s, size_t nchars, uint32_t *res)
+{
+	uint32_t v = 0;
+	size_t n;
+	char c;
+
+	for (n = 0; n < nchars; n++) {
+		c = hex(s[n]);
+		if (c == (char)-1) {
+			*res = TEE_ERROR_BAD_FORMAT;
+			goto out;
+		}
+		v = (v << 4) + c;
+	}
+	*res = TEE_SUCCESS;
+out:
+	return v;
+}
+
+/*
+ * Convert a UUID string @s into a TEE_UUID @uuid
+ * Expected format for @s is: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * 'x' being any hexadecimal digit (0-9a-fA-F)
+ */
+static TEE_Result parse_uuid(const char *s, TEE_UUID *uuid)
+{
+	TEE_Result res = TEE_SUCCESS;
+	TEE_UUID u = { 0 };
+	const char *p = s;
+	size_t i;
+
+	if (strlen(p) != 36)
+		return TEE_ERROR_BAD_FORMAT;
+	if (p[8] != '-' || p[13] != '-' || p[18] != '-' || p[23] != '-')
+		return TEE_ERROR_BAD_FORMAT;
+
+	u.timeLow = parse_hex(p, 8, &res);
+	if (res)
+		goto out;
+	p += 9;
+	u.timeMid = parse_hex(p, 4, &res);
+	if (res)
+		goto out;
+	p += 5;
+	u.timeHiAndVersion = parse_hex(p, 4, &res);
+	if (res)
+		goto out;
+	p += 5;
+	for (i = 0; i < 8; i++) {
+		u.clockSeqAndNode[i] = parse_hex(p, 2, &res);
+		if (res)
+			goto out;
+		if (i == 1)
+			p += 3;
+		else
+			p += 2;
+	}
+	*uuid = u;
+out:
+	return res;
+}
+
+static TEE_Result add_elf_deps(struct user_ta_ctx *utc, char **deps)
+{
+	struct user_ta_elf *libelf;
+	TEE_Result res = TEE_SUCCESS;
+	TEE_UUID u;
+	char **s;
+
+	for (s = deps; s && *s; s++) {
+		res = parse_uuid(*s, &u);
+		if (res) {
+			EMSG("Invalid dependency (not a UUID): %s", *s);
+			goto out;
+		}
+		DMSG("Library needed: %pUl", (void *)&u);
+		libelf = ta_elf(&u, utc);
+		if (!libelf) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
+	}
+out:
+	return res;
+}
+
+static TEE_Result resolve_symbol(struct user_ta_elf_head *elfs,
+				 const char *name, uintptr_t *val)
+{
+	struct user_ta_elf *elf;
+	TEE_Result res;
+
+	/*
+	 * The loop naturally implements a breadth first search due to the
+	 * order in which the libraries were added.
+	 */
+	TAILQ_FOREACH(elf, elfs, link) {
+		res = elf_resolve_symbol(elf->elf_state, name, val);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			continue;
+		if (res)
+			return res;
+		FMSG("%pUl/0x%" PRIxPTR " %s", (void *)&elf->uuid, *val, name);
+		return TEE_SUCCESS;
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
+				      const struct user_ta_store_ops *ta_store,
+				      struct user_ta_ctx *utc)
+{
+	struct user_ta_store_handle *handle = NULL;
+	struct elf_load_state *elf_state = NULL;
+	struct ta_head *ta_head;
+	struct user_ta_elf *elf;
+	char **deps = NULL;
+	uintptr_t vabase;
+	TEE_Result res;
+	size_t vasize;
+	void *p;
+
+	res = ta_store->open(uuid, &handle);
+	if (res)
+		return res;
+
+	elf = ta_elf(uuid, utc);
+	if (!elf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	res = elf_load_init(ta_store, handle, elf->is_main, &utc->elfs,
+			    resolve_symbol, &elf_state);
+	if (res)
+		goto out;
+	elf->elf_state = elf_state;
+
+	res = elf_load_head(elf_state, elf->is_main ? sizeof(struct ta_head)
+			    : 0, &p, &vasize, &utc->is_32bit);
+	if (res)
+		goto out;
+	ta_head = p;
+
+	elf->mobj_code = alloc_ta_mem(vasize);
+	if (!elf->mobj_code) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	if (elf->is_main) {
+		/*
+		 * Add stack segment.
+		 */
+
+		/* Ensure proper aligment of stack */
+		utc->mobj_stack = alloc_ta_mem(ROUNDUP(ta_head->stack_size,
+						       STACK_ALIGNMENT));
+		if (!utc->mobj_stack) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
+	}
+
+	res = load_elf_segments(utc, elf, true /* init attrs */);
+	if (res)
+		goto out;
+
+	/* TODO: FIXME */
+	if (elf->is_main) {
+		tee_mmu_set_ctx(&utc->ctx);
+		vabase = tee_mmu_get_load_addr(&utc->ctx);
+	} else {
+		vabase = (vaddr_t)mobj_get_va(elf->mobj_code, 0);
+	}
+
+	res = elf_load_body(elf_state, vabase);
+	if (res)
+		goto out;
+
+	/* Find any external dependency (dynamically linked libraries) */
+	res = elf_get_needed(elf_state, vabase, &deps);
+	if (res)
+		goto out;
+
+	res = add_elf_deps(utc, deps);
+
+out:
+	ta_store->close(handle);
+	free(deps);
+	/* utc is cleaned by caller on error */
+	return res;
+}
+
+/* Loads a single ELF file (main executable or library) */
+static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 {
 	const struct user_ta_store_ops *store;
 	TEE_Result res;
 
 	SLIST_FOREACH(store, &uta_store_list, link) {
-		DMSG("Lookup user TA %pUl (%s)", (void *)uuid,
+		DMSG("Lookup user TA ELF %pUl (%s)", (void *)uuid,
 		     store->description);
-		res = ta_load(uuid, store, &s->ctx);
+		res = load_elf_from_store(uuid, store, utc);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
-		if (res == TEE_SUCCESS)
-			s->ctx->ops = &user_ta_ops;
-		else
+		if (res)
 			DMSG("res=0x%x", res);
 		return res;
 	}
 	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static void free_elf_states(struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *elf;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link)
+		elf_load_final(elf->elf_state);
+}
+
+/*
+ * Loads a TA (statically or dynamically linked)
+ */
+static TEE_Result ta_load(const TEE_UUID *uuid, struct tee_ta_ctx **ta_ctx)
+{
+	uint32_t mandatory_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
+	uint32_t optional_flags = mandatory_flags | TA_FLAG_SINGLE_INSTANCE |
+	    TA_FLAG_MULTI_SESSION | TA_FLAG_SECURE_DATA_PATH |
+	    TA_FLAG_INSTANCE_KEEP_ALIVE | TA_FLAG_CACHE_MAINTENANCE;
+	struct ta_head *ta_head;
+	struct user_ta_ctx *utc;
+	struct user_ta_elf *exe;
+	struct user_ta_elf *elf;
+	uintptr_t vabase;
+	TEE_Result res;
+
+	/*
+	 * Create context
+	 */
+	utc = calloc(1, sizeof(*utc));
+	if (!utc) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	TAILQ_INIT(&utc->open_sessions);
+	TAILQ_INIT(&utc->cryp_states);
+	TAILQ_INIT(&utc->objects);
+	TAILQ_INIT(&utc->storage_enums);
+	TAILQ_INIT(&utc->elfs);
+
+	/*
+	 * Create entry for the main executable
+	 */
+	exe = ta_elf(uuid, utc);
+	if (!exe) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	exe->is_main = true;
+
+	/*
+	 * Prepare VA space for TA
+	 */
+
+	res = tee_mmu_init(utc);
+	if (res)
+		goto err;
+
+	/* Temporary assignment to setup memory mapping */
+	utc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
+
+	/*
+	 * Load binaries and map them into the TA virtual memory. load_elf()
+	 * may add external libraries to the list, so the loop will end when
+	 * all the dependencies are satisfied or an error occurs.
+	 * TODO: only the main executable is mapped currently
+	 */
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		res = load_elf(&elf->uuid, utc);
+		if (res)
+			goto err;
+	}
+
+	/*
+	 * Perform relocations and apply final memory attributes
+	 */
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+
+		/* FIXME */
+		if (elf->is_main) {
+			vabase = tee_mmu_get_load_addr(&utc->ctx);
+		} else {
+			vabase = (vaddr_t)mobj_get_va(elf->mobj_code, 0);
+		}
+
+		DMSG("Processing relocations in %pUl", (void *)&elf->uuid);
+		res = elf_process_rel(elf->elf_state, vabase);
+		if (res)
+			goto err;
+
+		res = load_elf_segments(utc, elf, false /* final attrs */);
+		if (res)
+			goto err;
+	}
+
+	utc->load_addr = tee_mmu_get_load_addr(&utc->ctx);
+	ta_head = (struct ta_head *)(vaddr_t)utc->load_addr;
+
+	if (memcmp(&ta_head->uuid, uuid, sizeof(TEE_UUID)) != 0) {
+		res = TEE_ERROR_SECURITY;
+		goto err;
+	}
+
+	/* check input flags bitmask consistency and save flags */
+	if ((ta_head->flags & optional_flags) != ta_head->flags ||
+	    (ta_head->flags & mandatory_flags) != mandatory_flags) {
+		EMSG("TA flag issue: flags=%x optional=%x mandatory=%x",
+		     ta_head->flags, optional_flags, mandatory_flags);
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err;
+	}
+
+	DMSG("ELF load address 0x%x", utc->load_addr);
+	utc->ctx.ops = &user_ta_ops;
+	utc->ctx.flags = ta_head->flags;
+	utc->ctx.uuid = ta_head->uuid;
+	utc->entry_func = ta_head->entry.ptr64;
+	utc->ctx.ref_count = 1;
+	condvar_init(&utc->ctx.busy_cv);
+	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
+	*ta_ctx = &utc->ctx;
+
+	free_elf_states(utc);
+	tee_mmu_set_ctx(NULL);
+	return TEE_SUCCESS;
+err:
+	tee_mmu_set_ctx(NULL);
+	if (utc) {
+		pgt_flush_ctx(&utc->ctx);
+		tee_pager_rem_uta_areas(utc);
+		tee_mmu_final(utc);
+		mobj_free(utc->mobj_stack);
+		free_elf_states(utc);
+		free_elfs(&utc->elfs);
+		free(utc);
+	}
+	return res;
+}
+
+TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
+			struct tee_ta_session *s)
+{
+	return ta_load(uuid, &s->ctx);
 }

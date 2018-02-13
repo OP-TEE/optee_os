@@ -16,6 +16,7 @@
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
+TAILQ_HEAD(user_ta_elf_head, user_ta_elf);
 
 struct user_ta_ctx {
 	uaddr_t entry_func;
@@ -30,7 +31,8 @@ struct user_ta_ctx {
 	struct tee_obj_head objects;
 	/* List of storage enumerators opened by this TA */
 	struct tee_storage_enum_head storage_enums;
-	struct mobj *mobj_code; /* secure world memory */
+	/* List of ELF files loaded by this TA */
+	struct user_ta_elf_head elfs; /* code */
 	struct mobj *mobj_stack; /* stack */
 	uint32_t load_addr;	/* elf load addr (from TAs address space) */
 	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
