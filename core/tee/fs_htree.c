@@ -470,36 +470,39 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 				  TEE_FS_HTREE_IV_SIZE, TEE_FS_HTREE_TAG_SIZE,
 				  aad_len, payload_len);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		goto err_free;
 
 	if (!ni) {
 		res = crypto_authenc_update_aad(ctx, alg, mode,
 						ht->root.node.hash,
 						TEE_FS_HTREE_FEK_SIZE);
 		if (res != TEE_SUCCESS)
-			goto exit;
+			goto err;
 
 		res = crypto_authenc_update_aad(ctx, alg, mode,
 						(void *)&ht->head.counter,
 						sizeof(ht->head.counter));
 		if (res != TEE_SUCCESS)
-			goto exit;
+			goto err;
 	}
 
 	res = crypto_authenc_update_aad(ctx, alg, mode, ht->head.enc_fek,
 					TEE_FS_HTREE_FEK_SIZE);
 	if (res != TEE_SUCCESS)
-		goto exit;
+		goto err;
 
 	res = crypto_authenc_update_aad(ctx, alg, mode, iv,
 					TEE_FS_HTREE_IV_SIZE);
+	if (res != TEE_SUCCESS)
+		goto err;
 
-exit:
-	if (res == TEE_SUCCESS)
-		*ctx_ret = ctx;
-	else
-		crypto_authenc_final(ctx, alg);
+	*ctx_ret = ctx;
 
+	return TEE_SUCCESS;
+err:
+	crypto_authenc_final(ctx, alg);
+err_free:
+	crypto_authenc_free_ctx(ctx, alg);
 	return res;
 }
 
