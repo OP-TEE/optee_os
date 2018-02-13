@@ -56,7 +56,6 @@
 #define DEBUG_XLAT_TABLE 0
 #endif
 
-#define RES_VASPACE_SIZE	(CORE_MMU_PGDIR_SIZE * 10)
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
 /*
@@ -828,7 +827,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 				 &__end_phys_nsec_ddr_section, "NSEC DDR");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
-		     RES_VASPACE_SIZE, &last);
+		     CFG_RESERVED_VASPACE_SIZE, &last);
 
 	add_va_space(memory_map, num_elems, MEM_AREA_SHM_VASPACE,
 		     SHM_VASPACE_SIZE, &last);
