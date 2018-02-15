@@ -61,8 +61,10 @@ def get_args():
              'a TEE Core or pseudo-TA abort, while <TA_uuid>.elf is required '
              'if a user-mode TA has crashed. For convenience, ELF files '
              'may also be given.')
-    parser.add_argument('-s', '--strip_path',
-        help='Strip STRIP_PATH from file paths')
+    parser.add_argument('-s', '--strip_path', nargs='?',
+        help='Strip STRIP_PATH from file paths (default: current directory, '
+             'use -s with no argument to show full paths)',
+        default=os.getcwd())
 
     return parser.parse_args()
 
