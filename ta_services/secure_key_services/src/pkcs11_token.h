@@ -116,6 +116,8 @@ uint32_t ck_slot_list(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 uint32_t ck_slot_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 uint32_t ck_token_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 
+uint32_t ck_token_initialize(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
+
 uint32_t ck_token_mecha_ids(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 uint32_t ck_token_mecha_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 

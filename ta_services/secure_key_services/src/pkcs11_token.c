@@ -13,6 +13,7 @@
 
 #include "handle.h"
 #include "pkcs11_token.h"
+#include "serializer.h"
 #include "sks_helpers.h"
 
 /* Provide 3 slots/tokens */
@@ -71,6 +72,101 @@ int pkcs11_init(void)
 			return 1;
 
 	return 0;
+}
+
+/* ctrl=[slot-id][pin-size][pin][label], in=unused, out=unused */
+uint32_t ck_token_initialize(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
+{
+	struct serialargs ctrlargs;
+	uint32_t token_id;
+	struct ck_token *token;
+	uint32_t pin_size;
+	uint32_t test_size;
+	void *pin;
+	char label[32 + 1];
+	int pin_rc;
+
+	if (!ctrl || in || out)
+		return SKS_BAD_PARAM;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	if (serialargs_get_next(&ctrlargs, &token_id, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	if (serialargs_get_next(&ctrlargs, &pin_size, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	pin = serialargs_get_next_ptr(&ctrlargs, pin_size);
+	if (!pin)
+		return SKS_BAD_PARAM;
+
+	if (serialargs_get_next(&ctrlargs, &label, SKS_TOKEN_LABEL_SIZE))
+		return SKS_BAD_PARAM;
+
+	// TODO: check label against already registered tokens.
+	// 2 tokens can have the same label!
+
+	if (pin_size > SKS_TOKEN_SO_PIN_SIZE)
+		return SKS_FAILED;	//FIXME: errno
+
+	token = get_token(token_id);
+	if (!token)
+		return SKS_INVALID_SLOT;
+
+	if (token->db_main->flags & SKS_TOKEN_SO_PIN_LOCKED) {
+		IMSG("Token SO PIN is locked");
+		return SKS_PIN_LOCKED;
+	}
+
+	if (!LIST_EMPTY(&token->session_list)) {
+		IMSG("SO cannot log in, pending session(s)");
+		return SKS_CK_SESSION_PENDING;
+	}
+
+	if (!token->db_main->so_pin_size) {
+		token->db_main->so_pin_size = pin_size;
+		TEE_MemMove(token->db_main->so_pin, pin, pin_size);
+		goto done;
+	}
+
+	/*
+	 * TODO: store an encrypted version of the PINs
+	 */
+	pin_rc = pin_size - token->db_main->so_pin_size;
+	while (pin_size) {
+		test_size = MIN(token->db_main->so_pin_size, pin_size);
+
+		if (buf_compare_ct(token->db_main->so_pin, pin, test_size))
+			pin_rc = 1;
+
+		pin_size -= test_size;
+	}
+
+	if (pin_rc) {
+		token->db_main->flags |= SKS_TOKEN_SO_PIN_FAILURE;
+		token->db_main->so_pin_count++;
+
+		if (token->db_main->so_pin_count == 6)
+			token->db_main->flags |= SKS_TOKEN_SO_PIN_LAST;
+		if (token->db_main->so_pin_count == 7)
+			token->db_main->flags |= SKS_TOKEN_SO_PIN_LOCKED;
+
+		return SKS_PIN_INCORRECT;
+	} else {
+		token->db_main->flags &= SKS_TOKEN_SO_PIN_FAILURE |
+					 SKS_TOKEN_SO_PIN_LAST;
+		token->db_main->so_pin_count = 0;
+	}
+
+done:
+	TEE_MemMove(token->db_main->label, label, SKS_TOKEN_LABEL_SIZE);
+	token->db_main->flags |= SKS_TOKEN_INITED;
+
+	label[32] = '\0';
+	IMSG("Token \"%s\" is happy to be initilialized", label);
+
+	return SKS_OK;
 }
 
 uint32_t ck_slot_list(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
