@@ -7,6 +7,7 @@
 #ifndef __SERIALIZER_H
 #define __SERIALIZER_H
 
+#include <sks_internal_abi.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -29,6 +30,12 @@ void *serialargs_get_next_ptr(struct serialargs *args, size_t size);
 
 /* Return the byte size of the remaning argument buffer */
 size_t serialargs_remaining_size(struct serialargs *args);
+
+int serialargs_get_sks_reference(struct serialargs *args,
+				 struct sks_reference **out);
+
+int serialargs_get_sks_attributes(struct serialargs *args,
+				  struct sks_object_head **out);
 
 /*
  * Trace content of the serialized object
