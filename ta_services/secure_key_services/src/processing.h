@@ -18,4 +18,13 @@ struct pkcs11_session;
 uint32_t entry_import_object(int teesess, TEE_Param *ctrl,
 			     TEE_Param *in, TEE_Param *out);
 
+uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
+			   TEE_Param *in, TEE_Param *out, int enc);
+
+uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
+			     TEE_Param *in, TEE_Param *out, int enc);
+
+uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
+			    TEE_Param *in, TEE_Param *out, int enc);
+
 #endif /*__SKS_TA_PROCESSING_H*/

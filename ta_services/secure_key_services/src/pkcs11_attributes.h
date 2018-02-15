@@ -176,4 +176,11 @@ uint32_t check_created_attrs_against_parent_key(uint32_t proc_id,
 uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 						struct sks_sobj_head *head);
 
+uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
+					       enum processing_func func,
+					       struct sks_sobj_head *head);
+
+uint32_t check_parent_attrs_against_token(struct pkcs11_session *session,
+					  struct sks_sobj_head *head);
+
 #endif /*__PKCS11_ATTRIBUTE_H*/

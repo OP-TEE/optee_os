@@ -146,6 +146,22 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 		rc = entry_destroy_object(teesess, ctrl, in, out);
 		break;
 
+	case SKS_CMD_ENCRYPT_INIT:
+	case SKS_CMD_DECRYPT_INIT:
+		rc = entry_cipher_init(teesess, ctrl, in, out,
+					cmd == SKS_CMD_DECRYPT_INIT);
+		break;
+	case SKS_CMD_ENCRYPT_UPDATE:
+	case SKS_CMD_DECRYPT_UPDATE:
+		rc = entry_cipher_update(teesess, ctrl, in, out,
+					 cmd == SKS_CMD_DECRYPT_UPDATE);
+		break;
+	case SKS_CMD_ENCRYPT_FINAL:
+	case SKS_CMD_DECRYPT_FINAL:
+		rc = entry_cipher_final(teesess, ctrl, in, out,
+					cmd == SKS_CMD_DECRYPT_FINAL);
+		break;
+
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

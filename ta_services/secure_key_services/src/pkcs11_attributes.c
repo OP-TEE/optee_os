@@ -485,6 +485,24 @@ uint32_t check_created_attrs_against_token(struct pkcs11_session *session,
 	return SKS_OK;
 }
 
+/*
+ * Check the attributes of new secret match the requirements of the parent key.
+ */
+uint32_t check_created_attrs_against_parent_key(
+					uint32_t proc_id __unused,
+					struct sks_sobj_head *parent __unused,
+					struct sks_sobj_head *head __unused)
+{
+	/*
+	 * TODO
+	 * Depends on the processing§/mechanism used.
+	 * Wrapping: check head vs parent key WRAP_TEMPLATE attribute.
+	 * Unwrapping: check head vs parent key UNWRAP_TEMPLATE attribute.
+	 * Derive: check head vs parent key DERIVE_TEMPLATE attribute (late comer?).
+	 */
+	return SKS_OK;
+}
+
 #define DMSG_BAD_BBOOL(attr, proc, head) \
 	do {	\
 		uint8_t bvalue __maybe_unused;			\
@@ -530,5 +548,160 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 		DMSG("Processing %s not supported", sks2str_proc(proc_id));
 		return SKS_INVALID_PROC;
 	}
+}
+
+/* Check processing ID against attributre ALLOWED_PROCESSINGS if any */
+static bool parent_key_complies_allowed_processings(uint32_t proc_id,
+						    struct sks_sobj_head *head)
+{
+	char *attr;
+	size_t size;
+	uint32_t proc;
+	size_t count;
+
+	/*
+	 * If key does not specify the allowed processing, assume it is
+	 * allowed.
+	 */
+	if (serial_get_attribute_ptr(head, SKS_ALLOWED_PROCESSINGS,
+				     (void **)&attr, &size))
+			return true;
+
+	for (count = size / sizeof(uint32_t); count; count--) {
+		TEE_MemMove(&proc, attr, sizeof(uint32_t));
+		attr += sizeof(uint32_t);
+
+		if (proc == proc_id)
+			return true;
+	}
+
+	DMSG("can't find %s in allowed list", sks2str_proc(proc_id));
+	return false;
+}
+
+/*
+ * Check the attributes of the parent secret (key) used in the processing
+ * do match the target processing.
+ *
+ * @proc_id - SKS_PROC_xxx
+ * @subproc_id - boolean attribute encrypt or decrypt or sign or verify, if
+ *		 applicable to proc_id.
+ * @head - head of the attributes of parent object.
+ */
+uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
+					       enum processing_func func,
+					       struct sks_sobj_head *head)
+{
+	uint32_t rc __maybe_unused;
+	uint8_t bbool;
+	size_t size = sizeof(uint8_t);
+	uint32_t key_class = serial_get_class(head);
+	uint32_t key_type = serial_get_type(head);
+
+	/* Check encrypt/decrypt/sign/verify against target processing */
+	if (func == SKS_FUNCTION_ENCRYPT) {
+		rc = serial_get_attribute(head, SKS_ENCRYPT, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("encrypt not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_DECRYPT) {
+		rc = serial_get_attribute(head, SKS_DECRYPT, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("decrypt not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_SIGN) {
+		rc = serial_get_attribute(head, SKS_SIGN, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("sign not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_VERIFY) {
+		rc = serial_get_attribute(head, SKS_VERIFY, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("verify not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_WRAP) {
+		rc = serial_get_attribute(head, SKS_WRAP, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("wrap not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_UNWRAP) {
+		rc = serial_get_attribute(head, SKS_UNWRAP, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("unwrap not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+	if (func == SKS_FUNCTION_DERIVE) {
+		rc = serial_get_attribute(head, SKS_DERIVE, &bbool, &size);
+		assert(rc == SKS_OK);
+		if (!bbool) {
+			DMSG("derive not permitted");
+			return SKS_CK_NOT_PERMITTED;
+		}
+	}
+
+	/* Check processing complies for parent key family */
+	switch (proc_id) {
+	case SKS_PROC_AES_ECB_NOPAD:
+	case SKS_PROC_AES_CBC_NOPAD:
+	case SKS_PROC_AES_CBC_PAD:
+	case SKS_PROC_AES_CTS:
+	case SKS_PROC_AES_CTR:
+	case SKS_PROC_AES_GCM:
+	case SKS_PROC_AES_CCM:
+		if (key_class == SKS_OBJ_SYM_KEY && key_type == SKS_KEY_AES)
+			break;
+
+		DMSG("%s expect an aes key only", sks2str_proc(proc_id));
+		return SKS_CK_NOT_PERMITTED;
+
+	default:
+		DMSG("Processing not supported 0x%" PRIx32 " (%s)", proc_id,
+			sks2str_proc(proc_id));
+		return SKS_INVALID_PROC;
+	}
+
+	if (!parent_key_complies_allowed_processings(proc_id, head))
+		return SKS_CK_NOT_PERMITTED;
+
+	return SKS_OK;
+}
+
+/*
+ * Check the attributes of a new secret match the token/session state
+ *
+ * @session - session reference
+ * @head - head of the attributes of the to-be-created object
+ * Return SKS_OK on compliance or an error code.
+ */
+uint32_t check_parent_attrs_against_token(struct pkcs11_session *session __unused,
+					  struct sks_sobj_head *head)
+{
+	if (get_bool(head, SKS_NEED_AUTHEN)) {
+		/* TODO: add some user authentication means */
+		return SKS_CK_NOT_PERMITTED;	// FIXME: SKS_NOT_AUTHENTIFIED
+	}
+
+	/*
+	 * TODO: ACTIVATION_DATE and REVOKATION_DATE
+	 */
+
+	return SKS_OK;
 }
 
