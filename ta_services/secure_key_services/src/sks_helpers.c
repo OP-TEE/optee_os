@@ -4,11 +4,71 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <sks_internal_abi.h>
 #include <sks_ta.h>
 #include <string.h>
 #include <tee_internal_api.h>
 
 #include "sks_helpers.h"
+
+/*
+ * Helper functions to analyse SKS identifiers
+ */
+
+size_t sks_attr_is_class(uint32_t attribute_id)
+{
+	if (attribute_id == SKS_CLASS)
+		return sizeof(uint32_t);
+	else
+		return 0;
+}
+
+size_t sks_attr_is_type(uint32_t attribute_id)
+{
+	switch (attribute_id) {
+	case SKS_TYPE:
+	case SKS_PROCESSING_ID:
+		return sizeof(uint32_t);
+	default:
+		return 0;
+	}
+}
+
+bool sks_class_has_type(uint32_t class)
+{
+	switch (class) {
+	case SKS_OBJ_CERTIFICATE:
+	case SKS_OBJ_PUB_KEY:
+	case SKS_OBJ_PRIV_KEY:
+	case SKS_OBJ_SYM_KEY:
+	case SKS_OBJ_CK_MECHANISM:
+	case SKS_OBJ_CK_HW_FEATURES:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+bool sks_attr_class_is_key(uint32_t class)
+{
+	switch (class) {
+	case SKS_OBJ_SYM_KEY:
+	case SKS_OBJ_PUB_KEY:
+	case SKS_OBJ_PRIV_KEY:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/* Returns shift position or -1 on error */
+int sks_attr2boolprop_shift(uint32_t attr)
+{
+	if (attr < SKS_BOOLPROPS_BASE || attr > SKS_BOOLPROPS_LAST)
+		return -1;
+
+	return attr - SKS_BOOLPROPS_BASE;
+}
 
 /*
  * Conversion between SKS and GPD TEE return codes
@@ -71,6 +131,21 @@ uint32_t tee2sks_error(TEE_Result res)
 
 	default:
 		return SKS_ERROR;
+	}
+}
+
+#undef SKS_ID
+#define SKS_ID(sks)		case sks:
+
+/* This is a bit ugly... */
+bool valid_sks_attribute_id(uint32_t id)
+{
+	switch (id) {
+	/* Below are all SKS attributes IDs relted to a Cryptoki ID */
+	SKS_ATTRIBS_IDS
+		return true;
+	default:
+		return false;
 	}
 }
 

@@ -10,6 +10,19 @@
 #include <sks_ta.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <tee_internal_api.h>
+
+/*
+ * Helper functions to analyse CK fields
+ */
+bool valid_sks_attribute_id(uint32_t id);
+
+size_t sks_attr_is_class(uint32_t attribute_id);
+size_t sks_attr_is_type(uint32_t attribute_id);
+bool sks_class_has_boolprop(uint32_t class);
+bool sks_class_has_type(uint32_t class);
+bool sks_attr_class_is_key(uint32_t class);
+int sks_attr2boolprop_shift(uint32_t attr);
 
 #define SKS_COMMAND_IDS \
 	SKS_ID(SKS_CMD_PING) \

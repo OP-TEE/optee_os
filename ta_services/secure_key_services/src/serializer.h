@@ -30,5 +30,10 @@ void *serialargs_get_next_ptr(struct serialargs *args, size_t size);
 /* Return the byte size of the remaning argument buffer */
 size_t serialargs_remaining_size(struct serialargs *args);
 
+/*
+ * Trace content of the serialized object
+ */
+uint32_t trace_attributes_from_sobj_head(const char *prefix, void *ref);
+
 #endif /*__SERIALIZER_H*/
 
