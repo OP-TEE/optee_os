@@ -22,6 +22,9 @@
 /* Static allocation of tokens runtime instances (reset to 0 at load) */
 struct ck_token ck_token[TOKEN_COUNT];
 
+// TODO: move session_handle_db into struct ck_token
+static struct handle_db session_handle_db = HANDLE_DB_INITIALIZER;
+
 /* Static allocation of tokens runtime instances */
 struct ck_token *get_token(unsigned int token_id)
 {
@@ -56,6 +59,9 @@ static int pkcs11_token_init(unsigned int id)
 	/* Initialize the token runtime state */
 	token->login_state = PKCS11_TOKEN_STATE_PUBLIC_SESSIONS;
 	token->session_state = PKCS11_TOKEN_STATE_SESSION_NONE;
+	LIST_INIT(&token->session_list);
+	TEE_MemFill(&token->session_handle_db, 0,
+		    sizeof(token->session_handle_db));
 
 	return 0;
 }
@@ -72,6 +78,106 @@ int pkcs11_init(void)
 			return 1;
 
 	return 0;
+}
+
+bool pkcs11_session_is_read_write(struct pkcs11_session *session)
+{
+	if (!session->readwrite)
+		return false;
+
+	if (session->token->session_state ==
+	    PKCS11_TOKEN_STATE_SESSION_READ_ONLY)
+		return false;
+
+	switch (session->token->login_state) {
+	case PKCS11_TOKEN_STATE_INVALID:
+	case PKCS11_TOKEN_STATE_SECURITY_OFFICER:
+		return false;
+	case PKCS11_TOKEN_STATE_PUBLIC_SESSIONS:
+	case PKCS11_TOKEN_STATE_USER_SESSIONS:
+	case PKCS11_TOKEN_STATE_CONTEXT_SPECIFIC:
+		break;
+	default:
+		TEE_Panic(0);
+	}
+
+	return true;
+}
+
+struct pkcs11_session *get_pkcs_session(uint32_t ck_handle)
+{
+	return handle_lookup(&session_handle_db, (int)ck_handle);
+}
+
+/*
+ * PKCS#11 expects an session must finalize (or cancel) an operation
+ * before starting a new one.
+ *
+ * enum pkcs11_session_processing provides the valid operation states for a
+ * PKCS#11 session.
+ *
+ * set_pkcs_session_processing_state() changes the session operation state.
+ *
+ * check_pkcs_session_processing_state() checks the session is in the expected
+ * operation state.
+ */
+int set_pkcs_session_processing_state(struct pkcs11_session *pkcs_session,
+				      enum pkcs11_session_processing state)
+{
+	if (!pkcs_session)
+		return 1;
+
+	if (pkcs_session->processing == PKCS11_SESSION_READY ||
+	    state == PKCS11_SESSION_READY) {
+		pkcs_session->processing = state;
+		return 0;
+	}
+
+	/* Allowed transitions on dual disgest/cipher or authen/cipher */
+	switch (state) {
+	case PKCS11_SESSION_DIGESTING_ENCRYPTING:
+		if (pkcs_session->processing == PKCS11_SESSION_ENCRYPTING ||
+		    pkcs_session->processing == PKCS11_SESSION_DIGESTING) {
+			pkcs_session->processing = state;
+			return 0;
+		}
+		break;
+	case PKCS11_SESSION_DECRYPTING_DIGESTING:
+		if (pkcs_session->processing == PKCS11_SESSION_DECRYPTING ||
+		    pkcs_session->processing == PKCS11_SESSION_DIGESTING) {
+			pkcs_session->processing = state;
+			return 0;
+		}
+		break;
+	case PKCS11_SESSION_SIGNING_ENCRYPTING:
+		if (pkcs_session->processing == PKCS11_SESSION_ENCRYPTING ||
+		    pkcs_session->processing == PKCS11_SESSION_SIGNING) {
+			pkcs_session->processing = state;
+			return 0;
+		}
+		break;
+	case PKCS11_SESSION_DECRYPTING_VERIFYING:
+		if (pkcs_session->processing == PKCS11_SESSION_DECRYPTING ||
+		    pkcs_session->processing == PKCS11_SESSION_VERIFYING) {
+			pkcs_session->processing = state;
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Transition not allowed */
+	return 1;
+}
+
+int check_pkcs_session_processing_state(struct pkcs11_session *pkcs_session,
+					enum pkcs11_session_processing state)
+{
+	if (!pkcs_session)
+		return 1;
+
+	return (pkcs_session->processing == state) ? 0 : 1;
 }
 
 /* ctrl=[slot-id][pin-size][pin][label], in=unused, out=unused */
@@ -393,4 +499,175 @@ uint32_t ck_token_mecha_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
 
 	return SKS_OK;
+}
+
+/* ctrl=[slot-id], in=unused, out=[session-handle] */
+static uint32_t ck_token_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out, bool ro)
+{
+	struct pkcs11_session *session;
+	uint32_t token_id;
+	struct ck_token *token;
+
+	if (!ctrl || in || !out)
+		return SKS_BAD_PARAM;
+
+	if (out->memref.size < sizeof(uint32_t))
+		return SKS_BAD_PARAM;
+
+	if (ctrl->memref.size != sizeof(uint32_t))
+		return SKS_BAD_PARAM;
+
+	TEE_MemMove(&token_id, ctrl->memref.buffer, sizeof(uint32_t));
+	token = get_token(token_id);
+	if (!token)
+		return SKS_INVALID_SLOT;
+
+	if (ro &&
+	    token->login_state == PKCS11_TOKEN_STATE_SECURITY_OFFICER &&
+	    token->session_state == PKCS11_TOKEN_STATE_SESSION_READ_WRITE)
+		return SKS_CK_SO_IS_LOGGED_READ_WRITE;
+
+	session = TEE_Malloc(sizeof(*session), 0);
+	if (!session)
+		return SKS_MEMORY;
+
+	session->handle = handle_get(&session_handle_db, session);
+	session->tee_session = teesess;
+	session->processing = PKCS11_SESSION_READY;
+	session->tee_op_handle = TEE_HANDLE_NULL;
+	session->readwrite = !ro;
+	session->token = token;
+	LIST_INIT(&session->object_list);
+
+	if (ro)
+	    token->session_state = PKCS11_TOKEN_STATE_SESSION_READ_ONLY;
+
+	LIST_INSERT_HEAD(&token->session_list, session, link);
+
+	*(uint32_t *)out->memref.buffer = session->handle;
+	out->memref.size = sizeof(uint32_t);
+
+	return SKS_OK;
+}
+
+/* ctrl=[slot-id], in=unused, out=[session-handle] */
+uint32_t ck_token_ro_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out)
+{
+	return ck_token_session(teesess, ctrl, in, out, true);
+}
+
+/* ctrl=[slot-id], in=unused, out=[session-handle] */
+uint32_t ck_token_rw_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out)
+{
+	return ck_token_session(teesess, ctrl, in, out, false);
+}
+
+static void close_ck_session(struct pkcs11_session *session)
+{
+	(void)handle_put(&session_handle_db, session->handle);
+
+	if (session->tee_op_handle != TEE_HANDLE_NULL)
+		TEE_FreeOperation(session->tee_op_handle);
+
+	while (!LIST_EMPTY(&session->object_list))
+		destroy_object(session, LIST_FIRST(&session->object_list),
+				true);
+
+	LIST_REMOVE(session, link);
+
+	/* Closing last read-only session switches token to read/write state */
+	if (!session->readwrite) {
+		struct pkcs11_session *sess;
+		bool last_ro = true;
+		bool last = true;
+
+		LIST_FOREACH(sess, &session->token->session_list, link) {
+			last = false;
+
+			if (sess->readwrite)
+				continue;
+
+			last_ro = false;
+		}
+
+		if (last)
+		    session->token->session_state =
+					PKCS11_TOKEN_STATE_SESSION_NONE;
+		else if (last_ro)
+		    session->token->session_state =
+					PKCS11_TOKEN_STATE_SESSION_READ_WRITE;
+	}
+
+	if (LIST_EMPTY(&session->token->session_list)) {
+		// TODO: if last session closed, token moves to Public state
+	}
+
+	TEE_Free(session);
+}
+
+/* ctrl=[session-handle], in=unused, out=unused */
+uint32_t ck_token_close_session(int teesess, TEE_Param *ctrl,
+				  TEE_Param *in, TEE_Param *out)
+{
+	struct pkcs11_session *session;
+	uint32_t handle;
+
+	if (!ctrl || in || out || ctrl->memref.size < sizeof(uint32_t))
+		return SKS_BAD_PARAM;
+
+	TEE_MemMove(&handle, ctrl->memref.buffer, sizeof(uint32_t));
+	session = get_pkcs_session(handle);
+	if (!session || session->tee_session != teesess)
+		return SKS_INVALID_SESSION;
+
+	close_ck_session(session);
+
+	return SKS_OK;
+}
+
+uint32_t ck_token_close_all(int teesess __unused, TEE_Param *ctrl,
+			      TEE_Param *in, TEE_Param *out)
+{
+	uint32_t token_id;
+	struct ck_token *token;
+
+	if (!ctrl || in || out)
+		return SKS_BAD_PARAM;
+
+	if (ctrl->memref.size != sizeof(uint32_t))
+		return SKS_BAD_PARAM;
+
+	TEE_MemMove(&token_id, ctrl->memref.buffer, sizeof(uint32_t));
+	token = get_token(token_id);
+	if (!token)
+		return SKS_INVALID_SLOT;
+
+	while (!LIST_EMPTY(&token->session_list))
+		close_ck_session(LIST_FIRST(&token->session_list));
+
+	return SKS_OK;
+}
+
+/*
+ * Parse all tokens and all sessions. Close all sessions that are relying
+ * on the target TEE session ID which is being closed by caller.
+ */
+void ck_token_close_tee_session(int tee_session __unused)
+{
+	struct ck_token *token;
+	int n;
+
+	// FIXME: this is buggy!!!
+	// This will close all sessions to all tokens...
+	for (n = 0; n < TOKEN_COUNT; n++) {
+		token = get_token(n);
+		if (!token)
+			continue;
+
+		while (!LIST_EMPTY(&token->session_list))
+			close_ck_session(LIST_FIRST(&token->session_list));
+	}
 }

@@ -46,6 +46,9 @@ enum pkcs11_token_session_state {
 	PKCS11_TOKEN_STATE_SESSION_READ_ONLY,
 };
 
+/* List of toen sessions */
+LIST_HEAD(session_list, pkcs11_session);
+
 #define SKS_TOKEN_SO_PIN_SIZE		128
 #define SKS_TOKEN_USER_PIN_SIZE		128
 
@@ -95,16 +98,105 @@ struct token_persistent_objs {
  * @session_state - pkcs11 read/write state
  */
 struct ck_token {
+	uint32_t session_counter;
+	uint32_t rw_session_counter;
+	uint32_t user_type;			/* SecurityOfficer, User or Public */
+
 	enum pkcs11_token_login_state login_state;
 	enum pkcs11_token_session_state	session_state;
+
+	struct session_list session_list;
+	struct handle_db session_handle_db;
 
 	TEE_ObjectHandle db_hdl;	/* Opened handle to persistent database */
 	struct token_persistent_main *db_main;		/* Copy persistent database */
 	struct token_persistent_objs *db_objs;		/* Copy persistent database */
+
+};
+
+/*
+ * A session can enter a processing state (encrypt, decrypt, disgest, ...
+ * ony from  the inited state. A sesion must return the the inited
+ * state (from a processing finalization request) before entering another
+ * processing state.
+ */
+enum pkcs11_session_processing {
+	PKCS11_SESSION_READY = 0,		/* session default state */
+	PKCS11_SESSION_ENCRYPTING,
+	PKCS11_SESSION_DECRYPTING,
+	PKCS11_SESSION_DIGESTING,
+	PKCS11_SESSION_DIGESTING_ENCRYPTING,	/* case C_DigestEncryptUpdate */
+	PKCS11_SESSION_DECRYPTING_DIGESTING,	/* case C_DecryptDigestUpdate */
+	PKCS11_SESSION_SIGNING,
+	PKCS11_SESSION_SIGNING_ENCRYPTING,	/* case C_SignEncryptUpdate */
+	PKCS11_SESSION_VERIFYING,
+	PKCS11_SESSION_DECRYPTING_VERIFYING,	/* case C_DecryptVerifyUpdate */
+	PKCS11_SESSION_SIGNING_RECOVER,
+	PKCS11_SESSION_VERIFYING_RECOVER,
+};
+
+/* Temporary structure to define object */
+struct sks_object {
+	LIST_ENTRY(sks_object) link;
+};
+LIST_HEAD(object_list, sks_object);
+static inline void destroy_object(struct pkcs11_session *session __unused,
+				  struct sks_object *obj __unused,
+				  bool session_only __unused) { }
+
+/*
+ * Structure tracing the PKCS#11 sessions
+ *
+ * @link - session litsing
+ * @token - token/slot this session belongs to
+ * @tee_session - TEE session use to create the PLCS session
+ * @handle - identifier of the session
+ * @read_only - true if the session is read-only, false if read/write
+ * @state - R/W SO, R/W user, RO user, R/W public, RO public. See PKCS11.
+ */
+struct pkcs11_session {
+	LIST_ENTRY(pkcs11_session) link;
+	struct ck_token *token;
+	int tee_session;
+	int handle;
+	bool readwrite;
+	uint32_t state;
+	enum pkcs11_session_processing processing;
+	TEE_OperationHandle tee_op_handle;	// HANDLE_NULL or on-going operation
+	struct object_list object_list;
 };
 
 /* pkcs11 token Apis */
 int pkcs11_init(void);
+
+struct pkcs11_session *get_pkcs_session(uint32_t ck_handle);
+
+int set_pkcs_session_processing_state(struct pkcs11_session *session,
+				      enum pkcs11_session_processing state);
+
+int check_pkcs_session_processing_state(struct pkcs11_session *session,
+					enum pkcs11_session_processing state);
+
+bool pkcs11_session_is_read_write(struct pkcs11_session *session);
+
+static inline
+struct object_list *pkcs11_get_session_objects(struct pkcs11_session *session)
+{
+	return &session->object_list;
+}
+
+static inline
+bool pkcs11_session_is_security_officer(struct pkcs11_session *session)
+{
+	return session->token->login_state ==
+		PKCS11_TOKEN_STATE_SECURITY_OFFICER;
+}
+
+static inline
+struct ck_token *pkcs11_session2token(struct pkcs11_session *session)
+{
+	return session->token;
+}
 
 /* Token instances */
 struct ck_token *get_token(unsigned int token_id);
@@ -120,5 +212,15 @@ uint32_t ck_token_initialize(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 
 uint32_t ck_token_mecha_ids(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
 uint32_t ck_token_mecha_info(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out);
+
+TEE_Result ck_token_ro_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out);
+TEE_Result ck_token_rw_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out);
+TEE_Result ck_token_close_session(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out);
+TEE_Result ck_token_close_all(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out);
+void ck_token_close_tee_session(int tee_session);
 
 #endif /*__SKS_TA_PKCS11_TOKEN_H*/

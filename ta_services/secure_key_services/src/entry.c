@@ -45,11 +45,10 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 	return TEE_SUCCESS;
 }
 
-void TA_CloseSessionEntryPoint(void *session __unused)
+void TA_CloseSessionEntryPoint(void *session)
 {
-	struct tee_session *sess = handle_put(&sks_session_db, (int)session);
-
-	TEE_Free(sess);
+	ck_token_close_tee_session((int)session);
+	TEE_Free(handle_put(&sks_session_db, (int)session));
 }
 
 /*
@@ -65,11 +64,12 @@ void TA_CloseSessionEntryPoint(void *session __unused)
  * will be force to TEE_SUCCESS. Note that some Cryptoki error status are
  * send straight through TEE result code. See sks2tee_noerr().
  */
-TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
+TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 				      uint32_t ptypes,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t rc;
+	int teesess = (int)session;
 	TEE_Param *ctrl = NULL;
 	TEE_Param *in = NULL;
 	TEE_Param *out = NULL;
@@ -122,6 +122,19 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
 		break;
 	case SKS_CMD_CK_MECHANISM_INFO:
 		rc = ck_token_mecha_info(ctrl, in, out);
+		break;
+
+	case SKS_CMD_CK_OPEN_RO_SESSION:
+		rc = ck_token_ro_session(teesess, ctrl, in, out);
+		break;
+	case SKS_CMD_CK_OPEN_RW_SESSION:
+		rc = ck_token_rw_session(teesess, ctrl, in, out);
+		break;
+	case SKS_CMD_CK_CLOSE_SESSION:
+		rc = ck_token_close_session(teesess, ctrl, in, out);
+		break;
+	case SKS_CMD_CK_CLOSE_ALL_SESSIONS:
+		rc = ck_token_close_all(teesess, ctrl, in, out);
 		break;
 
 	default:
