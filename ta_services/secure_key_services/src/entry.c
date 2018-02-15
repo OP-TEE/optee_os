@@ -9,6 +9,7 @@
 #include <tee_internal_api_extensions.h>
 
 #include "handle.h"
+#include "pkcs11_token.h"
 #include "sks_helpers.h"
 
 /* Client session context: currently only use the alloced address */
@@ -101,6 +102,23 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
 	switch (cmd) {
 	case SKS_CMD_PING:
 		return TEE_SUCCESS;
+
+	case SKS_CMD_CK_SLOT_LIST:
+		rc = ck_slot_list(ctrl, in, out);
+		break;
+	case SKS_CMD_CK_SLOT_INFO:
+		rc = ck_slot_info(ctrl, in, out);
+		break;
+	case SKS_CMD_CK_TOKEN_INFO:
+		rc = ck_token_info(ctrl, in, out);
+		break;
+
+	case SKS_CMD_CK_MECHANISM_IDS:
+		rc = ck_token_mecha_ids(ctrl, in, out);
+		break;
+	case SKS_CMD_CK_MECHANISM_INFO:
+		rc = ck_token_mecha_info(ctrl, in, out);
+		break;
 
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
