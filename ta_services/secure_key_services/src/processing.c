@@ -211,6 +211,50 @@ secret:
 	return SKS_OK;
 }
 
+static uint32_t load_key(struct sks_object *obj)
+{
+	uint32_t tee_obj_type;
+	uint32_t tee_obj_attr;
+	TEE_Attribute tee_key_attr;
+	void *value;
+	uint32_t value_size;
+	uint32_t rv;
+	TEE_Result res;
+
+	/* Key already loaded, we have a handle */
+	if (obj->key_handle != TEE_HANDLE_NULL)
+		return SKS_OK;
+
+	rv = get_tee_object_info(&tee_obj_type, &tee_obj_attr,
+				 obj->attributes);
+	if (rv) {
+		EMSG("get_tee_object_info failed, %s", sks2str_rc(rv));
+		return rv;
+	}
+
+	if (get_attribute_ptr(obj->attributes, SKS_VALUE, &value, &value_size))
+		TEE_Panic(0);
+
+	res = TEE_AllocateTransientObject(tee_obj_type, value_size * 8,
+					  &obj->key_handle);
+	if (res) {
+		EMSG("TEE_AllocateTransientObject failed, %" PRIx32, res);
+		return rv;;
+	}
+
+	TEE_InitRefAttribute(&tee_key_attr, tee_obj_attr, value, value_size);
+
+	res = TEE_PopulateTransientObject(obj->key_handle, &tee_key_attr, 1);
+	if (res) {
+		EMSG("TEE_PopulateTransientObject failed, %" PRIx32, res);
+		TEE_FreeTransientObject(obj->key_handle);
+		obj->key_handle = TEE_HANDLE_NULL;
+		return tee2sks_error(res);
+	}
+
+	return rv;
+}
+
 /*
  * ctrl = [session-handle][key-handle][mechanism-parameters]
  * in = none
@@ -226,12 +270,6 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	struct sks_object *obj;
 	struct sks_reference *proc_params = NULL;
 	struct pkcs11_session *pkcs_session = NULL;
-	struct tee_operation_params tee_op_params;
-	uint32_t tee_obj_type;
-	uint32_t tee_obj_attr;
-	TEE_Attribute tee_key_attr;
-	void *value;
-	uint32_t value_size;
 	struct serialargs ctrlargs;
 	void *init_params;
 	size_t init_size;
@@ -315,40 +353,10 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	 */
 	switch (get_class(obj->attributes)) {
 	case SKS_OBJ_SYM_KEY:
-		if (obj->key_handle != TEE_HANDLE_NULL)
-			break;
-
-		rv = get_tee_object_info(&tee_obj_type, &tee_obj_attr,
-					 obj->attributes);
-		if (rv) {
-			EMSG("get_tee_object_info failed, %s", sks2str_rc(rv));
+		rv = load_key(obj);
+		if (rv)
 			goto error;
-		}
 
-		if (get_attribute_ptr(obj->attributes, SKS_VALUE,
-					     &value, &value_size))
-			TEE_Panic(0);
-
-		res = TEE_AllocateTransientObject(tee_obj_type, value_size * 8,
-						  &obj->key_handle);
-		if (res) {
-			EMSG("TEE_AllocateTransientObject failed, %" PRIx32,
-				res);
-			goto error;
-		}
-
-		TEE_InitRefAttribute(&tee_key_attr, tee_obj_attr,
-				     value, value_size);
-
-		res = TEE_PopulateTransientObject(obj->key_handle,
-						  &tee_key_attr, 1);
-		if (res) {
-			EMSG("TEE_PopulateTransientObject failed, %" PRIx32,
-				res);
-			TEE_FreeTransientObject(obj->key_handle);
-			obj->key_handle = TEE_HANDLE_NULL;
-			goto error;
-		}
 		break;
 
 	default:
@@ -356,8 +364,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 		goto error;
 	}
 
-	res = TEE_SetOperationKey(pkcs_session->tee_op_handle,
-				  obj->key_handle);
+	res = TEE_SetOperationKey(pkcs_session->tee_op_handle, obj->key_handle);
 	if (res) {
 		EMSG("TEE_SetOperationKey failed %x", res);
 		rv = tee2sks_error(res);
