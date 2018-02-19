@@ -233,7 +233,7 @@ uint32_t ck_token_initialize(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 	if (!token->db_main->so_pin_size) {
 		token->db_main->so_pin_size = pin_size;
 		TEE_MemMove(token->db_main->so_pin, pin, pin_size);
-		goto done;
+		goto inited;
 	}
 
 	/*
@@ -258,16 +258,20 @@ uint32_t ck_token_initialize(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 		if (token->db_main->so_pin_count == 7)
 			token->db_main->flags |= SKS_TOKEN_SO_PIN_LOCKED;
 
+		// TODO: save in token state in persistent storage
+
 		return SKS_PIN_INCORRECT;
 	} else {
-		token->db_main->flags &= SKS_TOKEN_SO_PIN_FAILURE |
-					 SKS_TOKEN_SO_PIN_LAST;
+		token->db_main->flags &= ~(SKS_TOKEN_SO_PIN_FAILURE |
+					SKS_TOKEN_SO_PIN_LAST);
 		token->db_main->so_pin_count = 0;
 	}
 
-done:
+inited:
 	TEE_MemMove(token->db_main->label, label, SKS_TOKEN_LABEL_SIZE);
 	token->db_main->flags |= SKS_TOKEN_INITED;
+
+	// TODO: save in token state in persistent storage
 
 	label[32] = '\0';
 	IMSG("Token \"%s\" is happy to be initilialized", label);
