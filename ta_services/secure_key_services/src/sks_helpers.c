@@ -134,16 +134,17 @@ uint32_t tee2sks_error(TEE_Result res)
 	}
 }
 
-#undef SKS_ID
-#define SKS_ID(sks)		case sks:
+#undef SKS_ID_SZ
+#define SKS_ID_SZ(_sks, _size)		\
+	case _sks: \
+		return !_size || size == _size;
 
 /* This is a bit ugly... */
-bool valid_sks_attribute_id(uint32_t id)
+bool valid_sks_attribute_id(uint32_t id, uint32_t size)
 {
 	switch (id) {
 	/* Below are all SKS attributes IDs relted to a Cryptoki ID */
 	SKS_ATTRIBS_IDS
-		return true;
 	default:
 		return false;
 	}
@@ -161,6 +162,9 @@ static const char unknown[] = "<unknown-identifier>";
 /*
  * Convert a SKS ID into its label string
  */
+#undef SKS_ID_SZ
+#define SKS_ID_SZ(sks, size)		{ .id = sks, .string = #sks },
+
 #undef SKS_ID
 #define SKS_ID(sks)		{ .id = sks, .string = #sks },
 

@@ -327,8 +327,7 @@ uint32_t sanitize_client_object(struct sks_attrs_head **dst,
 		if (rc != SKS_NOT_FOUND)
 			goto bail;
 
-		/* It is a known attribute reference, serialize it */
-		if (!valid_sks_attribute_id(cli_ref.id)) {
+		if (!valid_sks_attribute_id(cli_ref.id, cli_ref.size)) {
 			EMSG("Invalid attribute id %" PRIx32, cli_ref.id);
 			rc = SKS_INVALID_ATTRIBUTES;
 			goto bail;
