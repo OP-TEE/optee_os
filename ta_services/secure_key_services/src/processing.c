@@ -130,50 +130,63 @@ bail:
  * Get the GPD TEE cipher operation parameters (mode, key size, algo)
  * from and SKS cipher operation.
  */
-struct tee_operation_params {
+static uint32_t tee_operarion_params(struct pkcs11_session *session,
+					struct sks_reference *proc_params,
+					struct sks_object *sks_key,
+					uint32_t function)
+{
+	uint32_t key_type;
 	uint32_t algo;
 	uint32_t mode;
 	uint32_t size;
-};
-
-static uint32_t tee_operarion_params(struct tee_operation_params *params,
-					struct sks_reference *proc_params,
-					struct sks_object *sks_key,
-					bool decrypt)
-{
-	uint32_t key_type;
+	TEE_Result res;
 
 	if (get_attribute(sks_key->attributes, SKS_TYPE, &key_type, NULL))
 		return SKS_ERROR;
 
 	switch (key_type) {
 	case SKS_KEY_AES:
-		params->mode = decrypt ? TEE_MODE_DECRYPT : TEE_MODE_ENCRYPT;
-		params->size = 16; // TODO: get size from the key attributes
 
-		switch (proc_params->id) {
-		case SKS_PROC_AES_ECB_NOPAD:
-			params->algo = TEE_ALG_AES_ECB_NOPAD;
-			break;
-		case SKS_PROC_AES_CBC_NOPAD:
-			params->algo = TEE_ALG_AES_CBC_NOPAD;
-			break;
-		case SKS_PROC_AES_CTR:
-			params->algo = TEE_ALG_AES_CTR;
-			break;
-		case SKS_PROC_AES_CTS:
-			params->algo = TEE_ALG_AES_CTS;
-			break;
-		default:
-			EMSG("Operation not supported for process %s",
-				sks2str_proc(proc_params->id));
-			return SKS_INVALID_TYPE;
+		if (function == SKS_FUNCTION_ENCRYPT ||
+		    function == SKS_FUNCTION_DECRYPT) {
+			mode = (function == SKS_FUNCTION_DECRYPT) ?
+					TEE_MODE_DECRYPT : TEE_MODE_ENCRYPT;
+			size = 16; // TODO: get size from the key attributes
+
+			switch (proc_params->id) {
+			case SKS_PROC_AES_ECB_NOPAD:
+				algo = TEE_ALG_AES_ECB_NOPAD;
+				break;
+			case SKS_PROC_AES_CBC_NOPAD:
+				algo = TEE_ALG_AES_CBC_NOPAD;
+				break;
+			case SKS_PROC_AES_CTR:
+				algo = TEE_ALG_AES_CTR;
+				break;
+			case SKS_PROC_AES_CTS:
+				algo = TEE_ALG_AES_CTS;
+				break;
+			default:
+				EMSG("Operation not supported for process %s",
+					sks2str_proc(proc_params->id));
+				return SKS_INVALID_TYPE;
+			}
 		}
 		break;
 	default:
 		EMSG("Operation not supported for object type %s",
 			sks2str_key_type(key_type));
 		return SKS_FAILED;
+	}
+
+	if (session->tee_op_handle != TEE_HANDLE_NULL)
+		TEE_Panic(0);
+
+	res = TEE_AllocateOperation(&session->tee_op_handle, algo, mode,
+					size * 8);
+	if (res) {
+		EMSG("Failed to allocateoperation");
+		return tee2sks_error(res);
 	}
 
 	return SKS_OK;
@@ -291,22 +304,10 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	 * Allocate a TEE operation for the target processing and
 	 * fill it with the expected operation parameters.
 	 */
-	rv = tee_operarion_params(&tee_op_params, proc_params, obj,
-				   decrypt);
+	rv = tee_operarion_params(pkcs_session, proc_params, obj, decrypt ?
+				  SKS_FUNCTION_DECRYPT : SKS_FUNCTION_ENCRYPT);
 	if (rv)
 		goto error;
-
-	if (pkcs_session->tee_op_handle != TEE_HANDLE_NULL)
-		TEE_Panic(0);
-
-	res = TEE_AllocateOperation(&pkcs_session->tee_op_handle,
-				    tee_op_params.algo, tee_op_params.mode,
-				    tee_op_params.size * 8);
-	if (res) {
-		EMSG("Failed to allocateoperation");
-		rv = tee2sks_error(res);
-		goto error;
-	}
 
 
 	/*
