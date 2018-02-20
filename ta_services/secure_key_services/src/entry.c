@@ -71,6 +71,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t rc;
+	TEE_Result res;
 	int teesess = (int)session;
 	TEE_Param *ctrl = NULL;
 	TEE_Param *in = NULL;
@@ -177,10 +178,15 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 		TEE_MemMove(ctrl->memref.buffer, &rc, sizeof(uint32_t));
 		ctrl->memref.size = sizeof(uint32_t);
 
-		return sks2tee_noerr(rc);
+		res = sks2tee_noerr(rc);
+	} else {
+		res = sks2tee_error(rc);
 	}
 
-	return sks2tee_error(rc);
+	DMSG("SKS TA exit: %s rc 0x%08" PRIu32 "/%s",
+		sks2str_skscmd(cmd), rc, sks2str_rc(rc));
+
+	return res;
 
 bad_types:
 	DMSG("Bad parameter types used at SKS TA entry:");
