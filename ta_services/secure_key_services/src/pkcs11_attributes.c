@@ -635,6 +635,49 @@ uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
 		DMSG("%s invalid key", sks2str_proc(proc_id));
 		return SKS_CK_NOT_PERMITTED;
 
+	case SKS_PROC_HMAC_MD5:
+	case SKS_PROC_HMAC_SHA1:
+	case SKS_PROC_HMAC_SHA224:
+	case SKS_PROC_HMAC_SHA256:
+	case SKS_PROC_HMAC_SHA384:
+	case SKS_PROC_HMAC_SHA512:
+		if (key_class != SKS_OBJ_SYM_KEY)
+			return SKS_CK_NOT_PERMITTED;
+
+		if (key_type == SKS_GENERIC_SECRET)
+			break;
+
+		switch (proc_id) {
+		case SKS_PROC_HMAC_MD5:
+			if (key_type == SKS_KEY_HMAC_MD5)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+
+		case SKS_PROC_HMAC_SHA1:
+			if (key_type == SKS_KEY_HMAC_SHA1)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+		case SKS_PROC_HMAC_SHA224:
+			if (key_type == SKS_KEY_HMAC_SHA224)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+		case SKS_PROC_HMAC_SHA256:
+			if (key_type == SKS_KEY_HMAC_SHA256)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+		case SKS_PROC_HMAC_SHA384:
+			if (key_type == SKS_KEY_HMAC_SHA384)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+		case SKS_PROC_HMAC_SHA512:
+			if (key_type == SKS_KEY_HMAC_SHA512)
+				break;
+			return SKS_CK_NOT_PERMITTED;
+		default:
+			return SKS_CK_NOT_PERMITTED;
+		}
+		break;
+
 	default:
 		DMSG("Processing not supported 0x%" PRIx32 " (%s)", proc_id,
 			sks2str_proc(proc_id));

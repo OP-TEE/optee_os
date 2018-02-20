@@ -600,6 +600,12 @@ struct sks_reference {
  */
 #define SKS_KEY_AES				0
 #define SKS_GENERIC_SECRET			1
+#define SKS_KEY_HMAC_MD5			2
+#define SKS_KEY_HMAC_SHA1			3
+#define SKS_KEY_HMAC_SHA224			4
+#define SKS_KEY_HMAC_SHA256			5
+#define SKS_KEY_HMAC_SHA384			6
+#define SKS_KEY_HMAC_SHA512			7
 
 /*
  * SKS supported type for SKS_OBJ_CK_MECHANISM
@@ -621,6 +627,13 @@ struct sks_reference {
 #define SKS_PROC_GENERIC_GENERATE		13	/* CKM_GENERIC_SECRET_KEY_GEN */
 #define SKS_PROC_RAW_IMPORT			14	/* Not exported to TA API */
 #define SKS_PROC_RAW_COPY			15	/* Not exported to TA API */
+
+#define SKS_PROC_HMAC_MD5			20	/*  */
+#define SKS_PROC_HMAC_SHA1			21	/*  */
+#define SKS_PROC_HMAC_SHA224			22	/*  */
+#define SKS_PROC_HMAC_SHA256			23	/*  */
+#define SKS_PROC_HMAC_SHA384			24	/*  */
+#define SKS_PROC_HMAC_SHA512			25	/*  */
 
 /*
  * Processing parameters
