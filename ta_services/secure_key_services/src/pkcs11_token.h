@@ -143,8 +143,11 @@ enum pkcs11_session_processing {
  * @token - token/slot this session belongs to
  * @tee_session - TEE session use to create the PLCS session
  * @handle - identifier of the session
- * @read_only - true if the session is read-only, false if read/write
+ * @readwrite - true if the session is read/write, false if read-only
  * @state - R/W SO, R/W user, RO user, R/W public, RO public. See PKCS11.
+ * @processing - ongoing active processing function
+ * @tee_op_handle - halde on active crypto operation
+ * @sks_proc - SKS ID of the active processing (TODO: args used at final)
  */
 struct pkcs11_session {
 	LIST_ENTRY(pkcs11_session) link;
@@ -155,6 +158,7 @@ struct pkcs11_session {
 	uint32_t state;
 	enum pkcs11_session_processing processing;
 	TEE_OperationHandle tee_op_handle;	// HANDLE_NULL or on-going operation
+	uint32_t sks_proc;
 	struct object_list object_list;
 };
 

@@ -140,6 +140,11 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 	uint32_t mode;
 	uint32_t size;
 	TEE_Result res;
+	void *value;
+	size_t value_size;
+
+	if (get_attribute_ptr(sks_key->attributes, SKS_VALUE, &value, &value_size))
+		TEE_Panic(0);
 
 	if (get_attribute(sks_key->attributes, SKS_TYPE, &key_type, NULL))
 		return SKS_ERROR;
@@ -151,7 +156,7 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 		    function == SKS_FUNCTION_DECRYPT) {
 			mode = (function == SKS_FUNCTION_DECRYPT) ?
 					TEE_MODE_DECRYPT : TEE_MODE_ENCRYPT;
-			size = 16; // TODO: get size from the key attributes
+			size = value_size * 8;
 
 			switch (proc_params->id) {
 			case SKS_PROC_AES_ECB_NOPAD:
@@ -171,8 +176,29 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 					sks2str_proc(proc_params->id));
 				return SKS_INVALID_TYPE;
 			}
+			break;
 		}
-		break;
+
+		if (function == SKS_FUNCTION_SIGN ||
+		    function == SKS_FUNCTION_VERIFY) {
+
+			switch (proc_params->id) {
+			case SKS_PROC_AES_CMAC:
+			case SKS_PROC_AES_CMAC_GENERAL:
+				algo = TEE_ALG_AES_CMAC;
+				mode = TEE_MODE_MAC;
+				size = value_size * 8;
+				break;
+				EMSG("Operation not supported for process %s",
+					sks2str_proc(proc_params->id));
+				return SKS_INVALID_TYPE;
+			}
+			break;
+		}
+
+		EMSG("Operation not supported for object type %s",
+			sks2str_key_type(key_type));
+		return SKS_FAILED;
 	default:
 		EMSG("Operation not supported for object type %s",
 			sks2str_key_type(key_type));
@@ -182,8 +208,7 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 	if (session->tee_op_handle != TEE_HANDLE_NULL)
 		TEE_Panic(0);
 
-	res = TEE_AllocateOperation(&session->tee_op_handle, algo, mode,
-					size * 8);
+	res = TEE_AllocateOperation(&session->tee_op_handle, algo, mode, size);
 	if (res) {
 		EMSG("Failed to allocateoperation");
 		return tee2sks_error(res);
@@ -433,6 +458,8 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 
 	TEE_CipherInit(pkcs_session->tee_op_handle, init_params, init_size);
 
+	pkcs_session->sks_proc = proc_params->id;
+
 	TEE_Free(proc_params);
 
 	return SKS_OK;
@@ -495,6 +522,7 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 
 		TEE_FreeOperation(pkcs_session->tee_op_handle);
 		pkcs_session->tee_op_handle = TEE_HANDLE_NULL;
+		pkcs_session->sks_proc = SKS_UNDEFINED_ID;
 	} else {
 		if (out)
 			out->memref.size = out_size;
@@ -543,12 +571,17 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 	if (out && (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER))
 		out->memref.size = out_size;
 
+	/* Only a short buffer error can leave the operation active */
+	if (res == TEE_ERROR_SHORT_BUFFER)
+		return SKS_SHORT_BUFFER;
+
 	if (set_pkcs_session_processing_state(pkcs_session,
 					      PKCS11_SESSION_READY))
 		TEE_Panic(0);
 
 	TEE_FreeOperation(pkcs_session->tee_op_handle);
 	pkcs_session->tee_op_handle = TEE_HANDLE_NULL;
+	pkcs_session->sks_proc = SKS_UNDEFINED_ID;
 
 	return tee2sks_error(res);
 }
@@ -704,4 +737,264 @@ bail:
 	TEE_Free(head);
 
 	return rv;
+}
+
+/*
+ * ctrl = [session-handle][key-handle][mechanism-parameters]
+ * in = none
+ * out = none
+ */
+uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out, int sign)
+{
+	uint32_t rv;
+	TEE_Result res;
+	struct serialargs ctrlargs;
+	uint32_t session_handle;
+	struct pkcs11_session *session;
+	struct sks_reference *proc_params = NULL;
+	uint32_t key_handle;
+	struct sks_object *obj;
+
+	/*
+	 * Collect the arguments
+	 */
+
+	if (!ctrl || in || out)
+		return SKS_BAD_PARAM;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	if (serialargs_get_next(&ctrlargs, &session_handle, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	if (serialargs_get_next(&ctrlargs, &key_handle, sizeof(uint32_t))) {
+		rv = SKS_BAD_PARAM;
+		goto error;
+	}
+
+	if (serialargs_get_sks_reference(&ctrlargs, &proc_params)) {
+		rv = SKS_BAD_PARAM;
+		goto error;
+	}
+
+	/*
+	 * Check arguments
+	 */
+
+	session = get_pkcs_session(session_handle);
+	if (!session || session->tee_session != teesess) {
+		rv = SKS_INVALID_SESSION;
+		goto error;
+	}
+
+	if (check_pkcs_session_processing_state(session,
+						PKCS11_SESSION_READY)) {
+		rv = SKS_PROCESSING_ACTIVE;
+		goto error;
+	}
+
+	if (set_pkcs_session_processing_state(session, sign ?
+					      PKCS11_SESSION_SIGNING :
+					      PKCS11_SESSION_VERIFYING)) {
+		rv = SKS_PROCESSING_ACTIVE;
+		goto error;
+	}
+
+	obj = object_get_tee_handle(key_handle, session);
+	if (!obj) {
+		DMSG("Invalid key handle");
+		rv = SKS_INVALID_KEY;
+		goto error;
+	}
+
+	/*
+	 * Check created object against processing and token state.
+	 */
+	rv = check_parent_attrs_against_processing(proc_params->id, sign ?
+						   SKS_FUNCTION_SIGN :
+						   SKS_FUNCTION_VERIFY,
+						   obj->attributes);
+	if (rv)
+		goto error;
+
+	rv = check_parent_attrs_against_token(session, obj->attributes);
+	if (rv)
+		goto error;
+
+	/*
+	 * Allocate a TEE operation for the target processing and
+	 * fill it with the expected operation parameters.
+	 */
+	rv = tee_operarion_params(session, proc_params, obj, sign ?
+				  SKS_FUNCTION_SIGN : SKS_FUNCTION_VERIFY);
+	if (rv)
+		goto error;
+
+	/*
+	 * Execute the target processing and add value as attribute SKS_VALUE.
+	 * Symm key generation: depens on target processing to be used.
+	 */
+	switch (proc_params->id) {
+	case SKS_PROC_AES_CMAC:
+	case SKS_PROC_AES_CMAC_GENERAL:
+		rv = load_key(obj);
+		if (rv)
+			goto error;
+
+		break;
+
+	default:
+		rv = SKS_INVALID_PROC;
+		goto error;
+	}
+
+	res = TEE_SetOperationKey(session->tee_op_handle, obj->key_handle);
+	if (res) {
+		EMSG("TEE_SetOperationKey failed %x", res);
+		rv = tee2sks_error(res);
+		goto error;
+	}
+
+	/*
+	 * Specifc cipher initialization if any
+	 */
+	switch (proc_params->id) {
+	case SKS_PROC_AES_CMAC_GENERAL:
+	case SKS_PROC_AES_CMAC:
+		// TODO: get the desired output size
+		TEE_MACInit(session->tee_op_handle, NULL, 0);
+		break;
+
+	default:
+		TEE_Panic(TEE_ERROR_NOT_IMPLEMENTED);
+	}
+
+	session->sks_proc = proc_params->id;
+
+	TEE_Free(proc_params);
+
+	return SKS_OK;
+
+error:
+	if (set_pkcs_session_processing_state(session,
+					      PKCS11_SESSION_READY))
+		TEE_Panic(0);
+
+	if (session->tee_op_handle != TEE_HANDLE_NULL) {
+		TEE_FreeOperation(session->tee_op_handle);
+		session->tee_op_handle = TEE_HANDLE_NULL;
+	}
+
+	TEE_Free(proc_params);
+
+	return rv;
+}
+
+/*
+ * ctrl = [session-handle]
+ * in = input data
+ * out = none
+ */
+uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
+				 TEE_Param *in, TEE_Param *out, int sign)
+{
+	struct serialargs ctrlargs;
+	uint32_t ck_session;
+	struct pkcs11_session *session;
+
+	if (!ctrl || !in || out)
+		return SKS_BAD_PARAM;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	if (serialargs_get_next(&ctrlargs, &ck_session, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	session = get_pkcs_session(ck_session);
+	if (!session || session->tee_session != teesess)
+		return SKS_INVALID_SESSION;
+
+	if (check_pkcs_session_processing_state(session, sign ?
+						PKCS11_SESSION_SIGNING :
+						PKCS11_SESSION_VERIFYING))
+		return SKS_PROCESSING_INACTIVE;
+
+	switch (session->sks_proc) {
+	case SKS_PROC_AES_CMAC_GENERAL:
+	case SKS_PROC_AES_CMAC:
+		TEE_MACUpdate(session->tee_op_handle,
+				in->memref.buffer, in->memref.size);
+		break;
+
+	default:
+		TEE_Panic(0);
+	}
+
+	return SKS_OK;
+}
+
+/*
+ * ctrl = [session-handle]
+ * in = none
+ * out = data buffer
+ */
+uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
+				TEE_Param *in, TEE_Param *out, int sign)
+{
+	TEE_Result res;
+	struct serialargs ctrlargs;
+	uint32_t ck_session;
+	struct pkcs11_session *session;
+	uint32_t out_size = out->memref.size;
+
+	if (!ctrl || in || !out)
+		return SKS_BAD_PARAM;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	if (serialargs_get_next(&ctrlargs, &ck_session, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
+
+	session = get_pkcs_session(ck_session);
+	if (!session || session->tee_session != teesess)
+		return SKS_INVALID_SESSION;
+
+	if (check_pkcs_session_processing_state(session, sign ?
+						PKCS11_SESSION_SIGNING :
+						PKCS11_SESSION_VERIFYING))
+		return SKS_PROCESSING_INACTIVE;
+
+	switch (session->sks_proc) {
+	case SKS_PROC_AES_CMAC_GENERAL:
+	case SKS_PROC_AES_CMAC:
+		if (sign)
+			res = TEE_MACComputeFinal(session->tee_op_handle,
+						  NULL, 0, out->memref.buffer,
+						  &out_size);
+		else
+			res = TEE_MACCompareFinal(session->tee_op_handle,
+						  NULL, 0, out->memref.buffer,
+						  out_size);
+		break;
+	default:
+		TEE_Panic(0);
+	}
+
+	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER)
+		out->memref.size = out_size;
+
+	/* Only a short buffer error can leave the operation active */
+	if (res == TEE_ERROR_SHORT_BUFFER)
+		return SKS_SHORT_BUFFER;
+
+	if (set_pkcs_session_processing_state(session,
+					      PKCS11_SESSION_READY))
+		TEE_Panic(0);
+
+	TEE_FreeOperation(session->tee_op_handle);
+	session->tee_op_handle = TEE_HANDLE_NULL;
+	session->sks_proc = SKS_UNDEFINED_ID;
+
+	return tee2sks_error(res);
 }

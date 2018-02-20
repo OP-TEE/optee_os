@@ -167,6 +167,22 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session, uint32_t cmd,
 		rc = entry_generate_object(teesess, ctrl, in, out);
 		break;
 
+	case SKS_CMD_SIGN_INIT:
+	case SKS_CMD_VERIFY_INIT:
+		rc = entry_signverify_init(teesess, ctrl, in, out,
+						cmd == SKS_CMD_SIGN_INIT);
+		break;
+	case SKS_CMD_SIGN_UPDATE:
+	case SKS_CMD_VERIFY_UPDATE:
+		rc = entry_signverify_update(teesess, ctrl, in, out,
+						cmd == SKS_CMD_SIGN_UPDATE);
+		break;
+	case SKS_CMD_SIGN_FINAL:
+	case SKS_CMD_VERIFY_FINAL:
+		rc = entry_signverify_final(teesess, ctrl, in, out,
+						cmd == SKS_CMD_SIGN_FINAL);
+		break;
+
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

@@ -626,10 +626,13 @@ uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
 	case SKS_PROC_AES_CTR:
 	case SKS_PROC_AES_GCM:
 	case SKS_PROC_AES_CCM:
-		if (key_class == SKS_OBJ_SYM_KEY && key_type == SKS_KEY_AES)
+	case SKS_PROC_AES_CMAC:
+	case SKS_PROC_AES_CMAC_GENERAL:
+		if (key_class == SKS_OBJ_SYM_KEY &&
+		    key_type == SKS_KEY_AES)
 			break;
 
-		DMSG("%s expect an aes key only", sks2str_proc(proc_id));
+		DMSG("%s invalid key", sks2str_proc(proc_id));
 		return SKS_CK_NOT_PERMITTED;
 
 	default:

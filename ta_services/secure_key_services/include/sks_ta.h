@@ -401,6 +401,44 @@ struct sks_reference {
 #define SKS_CMD_GENERATE_SYMM_KEY	0x00000016
 
 /*
+ * SKS_CMD_SIGN_INIT - Initialize a signature computation processing
+ * SKS_CMD_VERIFY_INIT - Initialize a signature verification processing
+ *
+ * param#0: in(*)-memref : [uint32_t session_handle]
+ *			   [uint32_t key_handle]
+ *			   [struct sks_reference proc + proc parameters data]
+ * param#1: none
+ * param#2: none
+ * param#3: none
+ */
+#define SKS_CMD_SIGN_INIT		0x00000017
+#define SKS_CMD_VERIFY_INIT		0x00000018
+
+/*
+ * SKS_CMD_SIGN_UPDATE - Initialize a signature computation processing
+ * SKS_CMD_VERIFY_UPDATE - Initialize a signature verification processing
+ *
+ * param#0: in(*)-memref : [uint32_t session_handle]
+ * param#1: in-memref : [input-data]
+ * param#2: none
+ * param#3: none
+ */
+#define SKS_CMD_SIGN_UPDATE		0x00000019
+#define SKS_CMD_VERIFY_UPDATE		0x0000001a
+
+/*
+ * SKS_CMD_SIGN_FINAL - Initialize a signature computation processing
+ * SKS_CMD_VERIFY_FINAL - Initialize a signature verification processing
+ *
+ * param#0: in(*)-memref : [uint32_t session_handle]
+ * param#1: none
+ * param#2: out-memref : [output-data]
+ * param#3: none
+ */
+#define SKS_CMD_SIGN_FINAL		0x0000001b
+#define SKS_CMD_VERIFY_FINAL		0x0000001c
+
+/*
  * Return codes
  */
 #define SKS_OK				0x00000000	/* Success */
@@ -420,6 +458,7 @@ struct sks_reference {
 #define SKS_INVALID_SESSION		0x00000106	/* session handle */
 #define SKS_INVALID_SLOT		0x00000107	/* slot id */
 #define SKS_INVALID_PROC_PARAM		0x00000108	/* processing parameters */
+#define SKS_NOT_IMPLEMENTED		0x00000109	/* */
 
 /* Report on Pin management */
 #define SKS_PIN_INCORRECT		0x00000200
