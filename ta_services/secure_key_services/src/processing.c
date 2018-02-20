@@ -143,7 +143,8 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 	void *value;
 	size_t value_size;
 
-	if (get_attribute_ptr(sks_key->attributes, SKS_VALUE, &value, &value_size))
+	if (get_attribute_ptr(sks_key->attributes, SKS_VALUE,
+				&value, &value_size))
 		TEE_Panic(0);
 
 	if (get_attribute(sks_key->attributes, SKS_TYPE, &key_type, NULL))
@@ -186,6 +187,12 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 			case SKS_PROC_AES_CMAC:
 			case SKS_PROC_AES_CMAC_GENERAL:
 				algo = TEE_ALG_AES_CMAC;
+				mode = TEE_MODE_MAC;
+				size = value_size * 8;
+				break;
+
+			case SKS_PROC_AES_CBC_MAC:
+				algo = TEE_ALG_AES_CBC_MAC_NOPAD;
 				mode = TEE_MODE_MAC;
 				size = value_size * 8;
 				break;
@@ -933,6 +940,7 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	case SKS_PROC_HMAC_SHA256:
 	case SKS_PROC_HMAC_SHA384:
 	case SKS_PROC_HMAC_SHA512:
+	case SKS_PROC_AES_CBC_MAC:
 		rv = load_key(obj);
 		if (rv)
 			goto error;
@@ -963,6 +971,7 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	case SKS_PROC_HMAC_SHA256:
 	case SKS_PROC_HMAC_SHA384:
 	case SKS_PROC_HMAC_SHA512:
+	case SKS_PROC_AES_CBC_MAC:
 		// TODO: get the desired output size
 		TEE_MACInit(session->tee_op_handle, NULL, 0);
 		break;
@@ -1030,6 +1039,7 @@ uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
 	case SKS_PROC_HMAC_SHA256:
 	case SKS_PROC_HMAC_SHA384:
 	case SKS_PROC_HMAC_SHA512:
+	case SKS_PROC_AES_CBC_MAC:
 		TEE_MACUpdate(session->tee_op_handle,
 				in->memref.buffer, in->memref.size);
 		break;
@@ -1081,6 +1091,7 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 	case SKS_PROC_HMAC_SHA256:
 	case SKS_PROC_HMAC_SHA384:
 	case SKS_PROC_HMAC_SHA512:
+	case SKS_PROC_AES_CBC_MAC:
 		if (sign)
 			res = TEE_MACComputeFinal(session->tee_op_handle,
 						  NULL, 0, out->memref.buffer,

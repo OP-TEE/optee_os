@@ -628,6 +628,7 @@ uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
 	case SKS_PROC_AES_CCM:
 	case SKS_PROC_AES_CMAC:
 	case SKS_PROC_AES_CMAC_GENERAL:
+	case SKS_PROC_AES_CBC_MAC:
 		if (key_class == SKS_OBJ_SYM_KEY &&
 		    key_type == SKS_KEY_AES)
 			break;

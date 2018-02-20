@@ -246,6 +246,7 @@ int sks_attr2boolprop_shift(uint32_t attr);
 	SKS_ID(SKS_PROC_HMAC_SHA256) \
 	SKS_ID(SKS_PROC_HMAC_SHA384) \
 	SKS_ID(SKS_PROC_HMAC_SHA512) \
+	SKS_ID(SKS_PROC_AES_CBC_MAC) \
 	SKS_ID(SKS_UNDEFINED_ID)
 	/* the end */
 

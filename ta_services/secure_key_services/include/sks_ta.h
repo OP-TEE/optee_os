@@ -634,6 +634,7 @@ struct sks_reference {
 #define SKS_PROC_HMAC_SHA256			23	/*  */
 #define SKS_PROC_HMAC_SHA384			24	/*  */
 #define SKS_PROC_HMAC_SHA512			25	/*  */
+#define SKS_PROC_AES_CBC_MAC			26	/*  */
 
 /*
  * Processing parameters
