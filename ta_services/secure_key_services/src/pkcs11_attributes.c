@@ -13,6 +13,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "attributes.h"
 #include "handle.h"
 #include "object.h"
 #include "pkcs11_attributes.h"
@@ -21,40 +22,6 @@
 #include "sanitize_object.h"
 #include "serializer.h"
 #include "sks_helpers.h"
-
-static uint32_t set_object_boolprop(struct serializer *obj,
-				    uint32_t attribute, uint8_t value)
-{
-	uint8_t val = value;
-
-	return serializer_add_attribute(obj, attribute, &val, sizeof(uint8_t));
-}
-
-static uint8_t *get_object_boolprop_ptr(void *head, uint32_t attribute)
-{
-	uint32_t rv;
-	size_t attr_size;
-	void *attr;
-
-	rv = serial_get_attribute_ptr(head, attribute, &attr, &attr_size);
-
-	if (rv || attr_size != sizeof(uint8_t))
-		return NULL;
-
-	return attr;
-}
-
-static bool get_bool(struct sks_sobj_head *head, uint32_t attr)
-{
-	uint32_t rc __maybe_unused;
-	uint8_t bbool;
-
-	/* Would quicker reading from a bit field */
-	rc = serial_get_attribute(head, attr, &bbool, NULL);
-	assert(rc == SKS_OK);
-
-	return !!bbool;
-}
 
 /* Currently handle pkcs11 sessions and tokens */
 
@@ -119,25 +86,35 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
  * or to a validate client configuration value. This function append the input
  * attrubute (id/size/value) in the serailzed object.
  */
-static uint32_t pkcs11_import_object_boolprop(struct serializer *obj, void *head,
-					   uint32_t attribute)
+static uint32_t pkcs11_import_object_boolprop(struct sks_attrs_head **out,
+					      struct sks_attrs_head *template,
+					      uint32_t attribute)
 {
-	uint8_t *attr = get_object_boolprop_ptr(head, attribute);
+	uint8_t bbool;
+	size_t size = sizeof(uint8_t);
+	uint32_t rv = get_attribute(template, attribute, &bbool, &size);
+	void *attr;
 
-	if (!attr)
+	if (rv || !bbool)
 		attr = pkcs11_object_default_boolprop(attribute);
+	else
+		attr = &bbool;
 
 	/* Boolean attributes are 1byte in the ABI, no alignment issue */
-	return serializer_add_attribute(obj, attribute, attr, sizeof(uint8_t));
+	return add_attribute(out, attribute, attr, sizeof(uint8_t));
 }
 
-uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head)
+uint32_t create_pkcs11_storage_attributes(struct sks_attrs_head **obj,
+					  struct sks_attrs_head *head)
 {
 	/* Mandated attributes from template or a know default value */
 	uint32_t class;
 	const uint32_t boolprops[] = {
-		SKS_PERSISTENT, SKS_NEED_AUTHEN, SKS_MODIFIABLE,
-		SKS_COPYABLE, SKS_DESTROYABLE,
+		SKS_PERSISTENT,
+		SKS_NEED_AUTHEN,
+		SKS_MODIFIABLE,
+		SKS_COPYABLE,
+		SKS_DESTROYABLE,
 	};
 	/* Optional attributes set if template defines it */
 	const uint32_t opt_attrs[] = {
@@ -146,15 +123,15 @@ uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head)
 	size_t n;
 	uint32_t rv;
 
-	serializer_init(obj);
+	init_attributes_head(obj);
 
 	/* Object class is mandatory */
-	class = serial_get_class(head);
+	class = get_class(head);
 	if (class == SKS_UNDEFINED_ID) {
 		DMSG("No object class found");
 		return SKS_INVALID_ATTRIBUTES;
 	}
-	rv = serializer_add_attribute(obj, SKS_CLASS, &class, sizeof(uint32_t));
+	rv = add_attribute(obj, SKS_CLASS, &class, sizeof(uint32_t));
 	if (rv)
 		return rv;
 
@@ -170,13 +147,13 @@ uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head)
 
 	/* Following attributes may be defined */
 	for (n = 0; n < ARRAY_SIZE(opt_attrs); n++) {
-		uint32_t size;
+		size_t size;
 		void *value;
 
-		if (serial_get_attribute_ptr(head, opt_attrs[n], &value, &size))
+		if (get_attribute_ptr(head, opt_attrs[n], &value, &size))
 			continue;
 
-		rv = serializer_add_attribute(obj, opt_attrs[n], value, size);
+		rv = add_attribute(obj, opt_attrs[n], value, size);
 		if (rv)
 			return rv;
 	}
@@ -184,16 +161,20 @@ uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head)
 	return rv;
 }
 
-uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head)
+uint32_t create_pkcs11_genkey_attributes(struct sks_attrs_head **obj,
+					 struct sks_attrs_head *template)
 {
 	/* Mandated attributes from template or a know default value */
+	struct sks_attrs_head *head = template;
 	uint32_t type;
 	const uint32_t boolprops[] = {
 		SKS_DERIVE,
 	};
 	/* Optional attributes set if template defines it */
 	const uint32_t opt_attrs[] = {
-		SKS_KEY_ID, SKS_ACTIVATION_DATE, SKS_REVOKATION_DATE,
+		SKS_KEY_ID,
+		SKS_ACTIVATION_DATE,
+		SKS_REVOKATION_DATE,
 		SKS_ALLOWED_PROCESSINGS,
 	};
 	size_t n;
@@ -204,12 +185,12 @@ uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head)
 		return rv;
 
 	/* Object type-in-class is mandatory */
-	type = serial_get_type(head);
+	type = get_type(head);
 	if (type == SKS_UNDEFINED_ID) {
 		DMSG("No object type found");
 		return SKS_INVALID_ATTRIBUTES;
 	}
-	rv = serializer_add_attribute(obj, SKS_TYPE, &type, sizeof(uint32_t));
+	rv = add_attribute(obj, SKS_TYPE, &type, sizeof(uint32_t));
 	if (rv)
 		return rv;
 
@@ -228,10 +209,10 @@ uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head)
 		uint32_t size;
 		void *value;
 
-		if (serial_get_attribute_ptr(head, opt_attrs[n], &value, &size))
+		if (get_attribute_ptr(head, opt_attrs[n], &value, &size))
 			continue;
 
-		rv = serializer_add_attribute(obj, opt_attrs[n], value, size);
+		rv = add_attribute(obj, opt_attrs[n], value, size);
 		if (rv)
 			return rv;
 	}
@@ -239,23 +220,33 @@ uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head)
 	return rv;
 }
 
-uint32_t create_pkcs11_symkey_attributes(struct serializer *obj, void *head)
+uint32_t create_pkcs11_symkey_attributes(struct sks_attrs_head **obj,
+					 struct sks_attrs_head *head)
 {
 	/* Mandated attributes from template or a know default value */
 	const uint32_t boolprops[] = {
-		SKS_SENSITIVE, SKS_ENCRYPT, SKS_DECRYPT, SKS_SIGN, SKS_VERIFY,
-		SKS_WRAP, SKS_UNWRAP, SKS_EXTRACTABLE, SKS_WRAP_FROM_TRUSTED,
+		SKS_SENSITIVE,
+		SKS_ENCRYPT,
+		SKS_DECRYPT,
+		SKS_SIGN,
+		SKS_VERIFY,
+		SKS_WRAP,
+		SKS_UNWRAP,
+		SKS_EXTRACTABLE,
+		SKS_WRAP_FROM_TRUSTED,
 		SKS_TRUSTED,
 	};
 	/* Optional attributes set if template defines it */
 	const uint32_t opt_attrs[] = {
-		SKS_WRAP_ATTRIBS, SKS_UNWRAP_ATTRIBS, SKS_DERIVE_ATTRIBS,
-		SKS_VALUE, SKS_VALUE_LEN,
+		SKS_WRAP_ATTRIBS,
+		SKS_UNWRAP_ATTRIBS,
+		SKS_DERIVE_ATTRIBS,
+		SKS_VALUE,
+		SKS_VALUE_LEN,
 	};
 	size_t n;
 	uint32_t rv;
 	uint8_t bbool;
-	uint32_t class;
 
 	rv = create_pkcs11_genkey_attributes(obj, head);
 	if (rv)
@@ -276,54 +267,43 @@ uint32_t create_pkcs11_symkey_attributes(struct serializer *obj, void *head)
 		uint32_t size;
 		void *value;
 
-		if (serial_get_attribute_ptr(head, opt_attrs[n], &value, &size))
+		if (get_attribute_ptr(head, opt_attrs[n], &value, &size))
 			continue;
 
-		rv = serializer_add_attribute(obj, opt_attrs[n], value, size);
+		rv = add_attribute(obj, opt_attrs[n], value, size);
 		if (rv)
 			return rv;
 	}
 
-	/* Set the state attributes according to attributes settigns */
-	rv = serializer_sync_head(obj);
+	bbool = get_bool(*obj, SKS_SENSITIVE) ? SKS_TRUE : SKS_FALSE;
+	rv = add_attribute(obj, SKS_ALWAYS_SENSITIVE,
+				&bbool, sizeof(uint8_t));
 	if (rv)
 		return rv;
 
-	bbool = *get_object_boolprop_ptr(obj->buffer, SKS_SENSITIVE);
-	rv = serializer_add_attribute(obj, SKS_ALWAYS_SENSITIVE,
-				      &bbool, sizeof(uint8_t));
+	bbool = get_bool(*obj, SKS_EXTRACTABLE) ? SKS_FALSE : SKS_TRUE;
+	rv = add_attribute(obj, SKS_NEVER_EXTRACTABLE,
+				&bbool, sizeof(uint8_t));
 	if (rv)
 		return rv;
 
-	bbool = !*get_object_boolprop_ptr(obj->buffer, SKS_EXTRACTABLE);
-	rv = serializer_add_attribute(obj, SKS_NEVER_EXTRACTABLE,
-				      &bbool, sizeof(uint8_t));
-	if (rv)
-		return rv;
-
-	rv = serializer_sync_head(obj);
-	if (rv)
-		return rv;
-
-	// TOdo: Sanity to remove
-	if (serial_get_attribute((void *)obj->buffer, SKS_CLASS, &class, NULL) ||
-	    class != SKS_OBJ_SYM_KEY)
-		return SKS_INVALID_ATTRIBUTES;
+	assert(get_class(*obj) == SKS_OBJ_SYM_KEY);
 
 	return rv;
 }
 
-uint32_t create_pkcs11_data_attributes(struct serializer *obj, void *head)
+uint32_t create_pkcs11_data_attributes(struct sks_attrs_head **obj,
+					struct sks_attrs_head *template)
 {
+	struct sks_attrs_head *head = template;
 	/* Optional attributes set if template defines it */
 	const uint32_t opt_attrs[] = {
 		SKS_OBJECT_ID, SKS_APPLICATION_ID, SKS_VALUE,
 	};
 	size_t n;
 	uint32_t rv;
-	uint32_t class;
 
-	serializer_init(obj);
+	init_attributes_head(obj);
 
 	rv = create_pkcs11_storage_attributes(obj, head);
 	if (rv)
@@ -334,34 +314,26 @@ uint32_t create_pkcs11_data_attributes(struct serializer *obj, void *head)
 		uint32_t size;
 		void *value;
 
-		if (serial_get_attribute_ptr(head, opt_attrs[n], &value, &size))
+		if (get_attribute_ptr(head, opt_attrs[n], &value, &size))
 			continue;
 
-		rv = serializer_add_attribute(obj, opt_attrs[n], value, size);
+		rv = add_attribute(obj, opt_attrs[n], value, size);
 		if (rv)
 			return rv;
 	}
 
-	rv = serializer_sync_head(obj);
-	if (rv)
-		return rv;
-
-	// TOdo: Sanity to remove
-	if (serial_get_attribute((void *)obj->buffer, SKS_CLASS, &class, NULL) ||
-	    class != SKS_OBJ_RAW_DATA)
-		return SKS_INVALID_ATTRIBUTES;
+	assert(get_class(*obj) == SKS_OBJ_RAW_DATA);
 
 	return rv;
 }
 
 /* Create an attribute list for a new object */
-uint32_t create_attributes_from_template(struct sks_sobj_head **out,
+uint32_t create_attributes_from_template(struct sks_attrs_head **out,
 					 void *template, size_t template_size,
 					 enum processing_func func)
 {
-	struct serializer temp;
-	struct serializer attrs;
-	struct sks_sobj_head *head;
+	struct sks_attrs_head *temp = NULL;
+	struct sks_attrs_head *attrs = NULL;
 	uint32_t rv;
 	uint8_t bbool;
 
@@ -372,24 +344,21 @@ uint32_t create_attributes_from_template(struct sks_sobj_head **out,
 	rv = sanitize_client_object(&temp, template, template_size);
 
 #ifdef DEBUG
-	trace_attributes_from_sobj_head("sanitized", (void *)temp.buffer);
 #endif
+	trace_attributes("sanitized", temp);
 	if (rv)
-		return rv;
+		goto bail;
 
-	head = (struct sks_sobj_head *)(void *)temp.buffer;
-
-	switch (serial_get_class(head)) {
+	switch (get_class(temp)) {
 	case SKS_OBJ_RAW_DATA:
-		rv = create_pkcs11_data_attributes(&attrs, head);
+		rv = create_pkcs11_data_attributes(&attrs, temp);
 		break;
 	case SKS_OBJ_SYM_KEY:
-		rv = create_pkcs11_symkey_attributes(&attrs, head);
+		rv = create_pkcs11_symkey_attributes(&attrs, temp);
 		break;
 	default:
 		DMSG("Invalid object class 0x%" PRIx32 "/%s",
-			serial_get_class(head),
-			sks2str_class(serial_get_class(head)));
+			get_class(temp), sks2str_class(get_class(temp)));
 		rv = SKS_INVALID_ATTRIBUTES;
 		break;
 	}
@@ -405,34 +374,31 @@ uint32_t create_attributes_from_template(struct sks_sobj_head **out,
 		bbool = SKS_TRUE;
 		break;
 	case SKS_FUNCTION_COPY:
-		bbool = get_bool(head, SKS_LOCALLY_GENERATED);
+		bbool = get_bool(temp, SKS_LOCALLY_GENERATED);
 		break;
 	default:
 		TEE_Panic(func);
 	}
 
-	rv = set_object_boolprop(&attrs, SKS_LOCALLY_GENERATED, bbool);
+	rv = add_attribute(&attrs, SKS_LOCALLY_GENERATED, &bbool, sizeof(bbool));
 	if (rv)
 		goto bail;
 
-	rv = serializer_sync_head(&attrs);
-	if (rv)
-		goto bail;
+	*out = attrs;
 
-	*out = (void *)attrs.buffer;
 #ifdef DEBUG
-	trace_attributes_from_sobj_head("object", (void *)attrs.buffer);
+	trace_attributes("object", attrs);
 #endif
 
 bail:
-	serializer_release_buffer(&temp);
+	TEE_Free(temp);
 	if (rv)
-		serializer_release_buffer(&attrs);
+		TEE_Free(attrs);
 
 	return rv;
 }
 
-static uint32_t check_attrs_misc_integrity(struct sks_sobj_head *head)
+static uint32_t check_attrs_misc_integrity(struct sks_attrs_head *head)
 {
 	/* FIXME: is it useful? */
 	if (get_bool(head, SKS_NEVER_EXTRACTABLE) &&
@@ -458,7 +424,7 @@ static uint32_t check_attrs_misc_integrity(struct sks_sobj_head *head)
  * Check the attributes of a to-be-created object matches the token state
  */
 uint32_t check_created_attrs_against_token(struct pkcs11_session *session,
-					   struct sks_sobj_head *head)
+					   struct sks_attrs_head *head)
 {
 	uint32_t rc;
 
@@ -490,8 +456,8 @@ uint32_t check_created_attrs_against_token(struct pkcs11_session *session,
  */
 uint32_t check_created_attrs_against_parent_key(
 					uint32_t proc_id __unused,
-					struct sks_sobj_head *parent __unused,
-					struct sks_sobj_head *head __unused)
+					struct sks_attrs_head *parent __unused,
+					struct sks_attrs_head *head __unused)
 {
 	/*
 	 * TODO
@@ -500,7 +466,7 @@ uint32_t check_created_attrs_against_parent_key(
 	 * Unwrapping: check head vs parent key UNWRAP_TEMPLATE attribute.
 	 * Derive: check head vs parent key DERIVE_TEMPLATE attribute (late comer?).
 	 */
-	return SKS_OK;
+	return SKS_ERROR;
 }
 
 #define DMSG_BAD_BBOOL(attr, proc, head) \
@@ -510,7 +476,7 @@ uint32_t check_created_attrs_against_parent_key(
 		DMSG("%s issue for %s: %sfound, value %d",	\
 			sks2str_attr(attr),			\
 			sks2str_proc(proc),			\
-			serial_get_attribute(head, attr, &bvalue, NULL) ? \
+			get_attribute(head, attr, &bvalue, NULL) ? \
 			"not " : "",				\
 			bvalue);				\
 	} while (0)
@@ -525,7 +491,7 @@ uint32_t check_created_attrs_against_parent_key(
  * @head - head of the attributes of the to-be-created object.
  */
 uint32_t check_created_attrs_against_processing(uint32_t proc_id,
-						struct sks_sobj_head *head)
+						struct sks_attrs_head *head)
 {
 	uint8_t bbool;
 
@@ -536,8 +502,8 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 	switch (proc_id) {
 	case SKS_PROC_RAW_IMPORT:
 		/* sanity: these can be asserted */
-		if (serial_get_attribute(head, SKS_LOCALLY_GENERATED,
-					 &bbool, NULL) || bbool) {
+		if (get_attribute(head, SKS_LOCALLY_GENERATED,
+					&bbool, NULL) || bbool) {
 			DMSG_BAD_BBOOL(SKS_LOCALLY_GENERATED, proc_id, head);
 			return SKS_INVALID_ATTRIBUTES;
 		}
@@ -545,12 +511,12 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 		return SKS_OK;
 
 	case SKS_PROC_GENERIC_GENERATE:
-		if (serial_get_type(head) != SKS_GENERIC_SECRET)
+		if (get_type(head) != SKS_GENERIC_SECRET)
 			return SKS_INVALID_ATTRIBUTES;
 
 		/* sanity: these can be asserted */
-		if (serial_get_attribute(head, SKS_LOCALLY_GENERATED,
-					 &bbool, NULL) || !bbool) {
+		if (get_attribute(head, SKS_LOCALLY_GENERATED,
+					&bbool, NULL) || !bbool) {
 			DMSG_BAD_BBOOL(SKS_LOCALLY_GENERATED, proc_id, head);
 			return SKS_INVALID_ATTRIBUTES;
 		}
@@ -558,12 +524,12 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 		return SKS_OK;
 
 	case SKS_PROC_AES_GENERATE:
-		if (serial_get_type(head) != SKS_KEY_AES)
+		if (get_type(head) != SKS_KEY_AES)
 			return SKS_INVALID_ATTRIBUTES;
 
 		/* sanity: these can be asserted */
-		if (serial_get_attribute(head, SKS_LOCALLY_GENERATED,
-					 &bbool, NULL) || !bbool) {
+		if (get_attribute(head, SKS_LOCALLY_GENERATED,
+					&bbool, NULL) || !bbool) {
 			DMSG_BAD_BBOOL(SKS_LOCALLY_GENERATED, proc_id, head);
 			return SKS_INVALID_ATTRIBUTES;
 		}
@@ -578,7 +544,7 @@ uint32_t check_created_attrs_against_processing(uint32_t proc_id,
 
 /* Check processing ID against attributre ALLOWED_PROCESSINGS if any */
 static bool parent_key_complies_allowed_processings(uint32_t proc_id,
-						    struct sks_sobj_head *head)
+						    struct sks_attrs_head *head)
 {
 	char *attr;
 	size_t size;
@@ -589,7 +555,7 @@ static bool parent_key_complies_allowed_processings(uint32_t proc_id,
 	 * If key does not specify the allowed processing, assume it is
 	 * allowed.
 	 */
-	if (serial_get_attribute_ptr(head, SKS_ALLOWED_PROCESSINGS,
+	if (get_attribute_ptr(head, SKS_ALLOWED_PROCESSINGS,
 				     (void **)&attr, &size))
 			return true;
 
@@ -616,70 +582,39 @@ static bool parent_key_complies_allowed_processings(uint32_t proc_id,
  */
 uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
 					       enum processing_func func,
-					       struct sks_sobj_head *head)
+					       struct sks_attrs_head *head)
 {
 	uint32_t rc __maybe_unused;
-	uint8_t bbool;
-	size_t size = sizeof(uint8_t);
-	uint32_t key_class = serial_get_class(head);
-	uint32_t key_type = serial_get_type(head);
+	uint32_t key_class = get_class(head);
+	uint32_t key_type = get_type(head);
 
-	/* Check encrypt/decrypt/sign/verify against target processing */
-	if (func == SKS_FUNCTION_ENCRYPT) {
-		rc = serial_get_attribute(head, SKS_ENCRYPT, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("encrypt not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_ENCRYPT && !get_bool(head, SKS_ENCRYPT)) {
+		DMSG("encrypt not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_DECRYPT) {
-		rc = serial_get_attribute(head, SKS_DECRYPT, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("decrypt not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_DECRYPT && !get_bool(head, SKS_DECRYPT)) {
+		DMSG("decrypt not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_SIGN) {
-		rc = serial_get_attribute(head, SKS_SIGN, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("sign not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_SIGN && !get_bool(head, SKS_SIGN)) {
+		DMSG("sign not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_VERIFY) {
-		rc = serial_get_attribute(head, SKS_VERIFY, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("verify not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_VERIFY && get_bool(head, SKS_VERIFY)) {
+		DMSG("verify not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_WRAP) {
-		rc = serial_get_attribute(head, SKS_WRAP, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("wrap not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_WRAP && !get_bool(head, SKS_WRAP)) {
+		DMSG("wrap not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_UNWRAP) {
-		rc = serial_get_attribute(head, SKS_UNWRAP, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("unwrap not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_UNWRAP && !get_bool(head, SKS_UNWRAP)) {
+		DMSG("unwrap not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
-	if (func == SKS_FUNCTION_DERIVE) {
-		rc = serial_get_attribute(head, SKS_DERIVE, &bbool, &size);
-		assert(rc == SKS_OK);
-		if (!bbool) {
-			DMSG("derive not permitted");
-			return SKS_CK_NOT_PERMITTED;
-		}
+	if (func == SKS_FUNCTION_DERIVE && !get_bool(head, SKS_DERIVE)) {
+		DMSG("derive not permitted");
+		return SKS_CK_NOT_PERMITTED;
 	}
 
 	/* Check processing complies for parent key family */
@@ -717,7 +652,7 @@ uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
  * Return SKS_OK on compliance or an error code.
  */
 uint32_t check_parent_attrs_against_token(struct pkcs11_session *session __unused,
-					  struct sks_sobj_head *head)
+					  struct sks_attrs_head *head)
 {
 	if (get_bool(head, SKS_NEED_AUTHEN)) {
 		/* TODO: add some user authentication means */

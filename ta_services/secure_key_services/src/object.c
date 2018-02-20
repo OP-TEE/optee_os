@@ -10,6 +10,7 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#include "attributes.h"
 #include "handle.h"
 #include "object.h"
 #include "pkcs11_attributes.h"
@@ -101,10 +102,8 @@ uint32_t destroy_object(struct pkcs11_session *session,
 			  struct sks_object *obj,
 			  bool session_only)
 {
-	uint8_t is_persistent = 0;
-
 #ifdef DEBUG
-	trace_attributes_from_sobj_head("[destroy]", obj->attributes);
+	trace_attributes("[destroy]", obj->attributes);
 #endif
 
 	/*
@@ -128,14 +127,7 @@ uint32_t destroy_object(struct pkcs11_session *session,
 	}
 
 	/* Destroy target object (persistent or not) */
-	if (obj->attributes) {
-		if (serial_get_attribute(obj->attributes,
-					 SKS_PERSISTENT,
-					 &is_persistent, NULL))
-			TEE_Panic(0);
-	}
-
-	if (is_persistent) {
+	if (get_bool(obj->attributes, SKS_PERSISTENT)) {
 		if (unregister_persistent_object(get_object_token(obj),
 						  obj->uuid))
 			TEE_Panic(0);
@@ -153,17 +145,16 @@ uint32_t destroy_object(struct pkcs11_session *session,
  * - Allocate and fill a 'struct sks_object' instance
  * - Output a sks object handle
  */
-uint32_t create_object(void *session, struct sks_sobj_head *head,
+uint32_t create_object(void *session, struct sks_attrs_head *head,
 		       uint32_t *out_handle)
 {
 	uint32_t rv;
 	TEE_Result res = TEE_SUCCESS;
 	struct sks_object *obj;
-	uint8_t is_persistent;
 	int obj_handle;
 
 #ifdef DEBUG
-	trace_attributes_from_sobj_head("[create]", head);
+	trace_attributes("[create]", head);
 #endif
 
 	/*
@@ -187,19 +178,14 @@ uint32_t create_object(void *session, struct sks_sobj_head *head,
 	obj->ck_handle = (uint32_t)obj_handle;
 	obj->session_owner = session;
 
-	/* Session bound or persistent object? */
-	rv = serial_get_attribute(head, SKS_PERSISTENT, &is_persistent, NULL);
-	if (rv)
-		TEE_Panic(0);
-
-	if (is_persistent) {
+	if (get_bool(obj->attributes, SKS_PERSISTENT)) {
 		/*
 		 * Get an ID for the persistent object
 		 * Create the file
 		 * Register the object in the persistent database
 		 * (move the full sequence to persisent_db.c?)
 		 */
-		size_t size = serial_get_size(obj->attributes);
+		size_t size = attributes_size(obj->attributes);
 
 		rv = create_object_uuid(get_session_token(session), obj);
 		if (rv)
@@ -223,6 +209,8 @@ uint32_t create_object(void *session, struct sks_sobj_head *head,
 						obj->uuid);
 		if (rv)
 			goto bail;
+	} else {
+		rv = SKS_OK;
 	}
 
 	LIST_INSERT_HEAD(get_session_objects(session), obj, link);
@@ -230,7 +218,7 @@ uint32_t create_object(void *session, struct sks_sobj_head *head,
 
 bail:
 	if (rv) {
-		if (is_persistent)
+		if (get_bool(obj->attributes, SKS_PERSISTENT))
 			cleanup_persistent_object(obj);
 		else
 			cleanup_volatile_object(obj);

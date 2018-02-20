@@ -44,11 +44,11 @@ struct sks_ref {
  * @boolproph - 32bit bitmask storing boolean properties #32 to #64.
  * @blobs - then starts the blob binary data
  */
-struct sks_sobj_head {
+struct sks_attrs_head {
 	uint32_t blobs_size;
 	uint32_t blobs_count;
 #ifdef SKS_SHEAD_WITH_TYPE
-	uint32_t object;
+	uint32_t class;
 	uint32_t type;
 #endif
 #ifdef SKS_SHEAD_WITH_BOOLPROPS

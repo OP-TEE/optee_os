@@ -55,7 +55,8 @@ enum processing_func {
  * Attributes are read from input template (head) or set to the default
  * value defined by the PKCS#11.
  */
-uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head);
+uint32_t create_pkcs11_storage_attributes(struct sks_attrs_head **obj,
+					  struct sks_attrs_head *template);
 
 /*
  * create_pkcs11_genkey_attributes - Setup attribute list for a key object
@@ -69,7 +70,8 @@ uint32_t create_pkcs11_storage_attributes(struct serializer *obj, void *head);
  *
  * This function relies on create_pkcs11_storage_attributes().
  */
-uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head);
+uint32_t create_pkcs11_genkey_attributes(struct sks_attrs_head **obj,
+					 struct sks_attrs_head *template);
 
 /*
  * create_pkcs11_symkey_attributes - Setup attribute list for a symmetric key
@@ -83,7 +85,8 @@ uint32_t create_pkcs11_genkey_attributes(struct serializer *obj, void *head);
  *
  * This function relies on create_pkcs11_genkey_attributes().
  */
-uint32_t create_pkcs11_symkey_attributes(struct serializer *obj, void *head);
+uint32_t create_pkcs11_symkey_attributes(struct sks_attrs_head **obj,
+					 struct sks_attrs_head *template);
 
 /*
  * create_pkcs11_data_attributes - Setup the attribute list for a data object
@@ -97,7 +100,8 @@ uint32_t create_pkcs11_symkey_attributes(struct serializer *obj, void *head);
  *
  * This function relies on create_pkcs11_storage_attributes().
  */
-uint32_t create_pkcs11_data_attributes(struct serializer *obj, void *head);
+uint32_t create_pkcs11_data_attributes(struct sks_attrs_head **obj,
+				       struct sks_attrs_head *template);
 
 /*
  * Utils to check compliance of attributes at various processing steps.
@@ -156,7 +160,7 @@ uint32_t create_pkcs11_data_attributes(struct serializer *obj, void *head);
  */
 
 /* Create an attribute list for a new object (TODO: add parent attribs) */
-uint32_t create_attributes_from_template(struct sks_sobj_head **out,
+uint32_t create_attributes_from_template(struct sks_attrs_head **out,
 					 void *template, size_t template_size,
 					 enum processing_func func);
 
@@ -167,20 +171,20 @@ uint32_t create_attributes_from_template(struct sks_sobj_head **out,
  * - use a mechanism with provided configuration
  */
 uint32_t check_created_attrs_against_token(struct pkcs11_session *session,
-					   struct sks_sobj_head *head);
+					   struct sks_attrs_head *head);
 
 uint32_t check_created_attrs_against_parent_key(uint32_t proc_id,
-						struct sks_sobj_head *parent,
-						struct sks_sobj_head *head);
+						struct sks_attrs_head *parent,
+						struct sks_attrs_head *head);
 
 uint32_t check_created_attrs_against_processing(uint32_t proc_id,
-						struct sks_sobj_head *head);
+						struct sks_attrs_head *head);
 
 uint32_t check_parent_attrs_against_processing(uint32_t proc_id,
 					       enum processing_func func,
-					       struct sks_sobj_head *head);
+					       struct sks_attrs_head *head);
 
 uint32_t check_parent_attrs_against_token(struct pkcs11_session *session,
-					  struct sks_sobj_head *head);
+					  struct sks_attrs_head *head);
 
 #endif /*__PKCS11_ATTRIBUTE_H*/

@@ -12,6 +12,7 @@
 #include <tee_internal_api_extensions.h>
 #include <trace.h>
 
+#include "attributes.h"
 #include "sanitize_object.h"
 #include "serializer.h"
 #include "sks_helpers.h"
@@ -20,7 +21,6 @@
  * Functions to generate a serialized object.
  * References are pointers to struct serializer.
  */
-
 #define SKS_ID(sks)			case sks:
 
 static bool consistent_class_and_type(uint32_t object, uint32_t type)
@@ -60,23 +60,23 @@ static bool consistent_class_and_type(uint32_t object, uint32_t type)
 }
 
 /* Sanitize class/type in a client attribute list */
-static uint32_t sanitize_class_and_type(struct serializer *dst,
+static uint32_t sanitize_class_and_type(struct sks_attrs_head **dst,
 				     void *src)
 {
 	struct sks_object_head head;
 	char *cur;
 	char *end;
 	size_t len;
-	uint32_t class;
-	uint32_t type;
+	uint32_t class_found;
+	uint32_t type_found;
 	struct sks_reference cli_ref;
 	uint32_t __maybe_unused rc;
 
 	TEE_MemMove(&head, src, sizeof(struct sks_object_head));
 
-	/* No attribute read from head */
-	dst->class = SKS_UNDEFINED_ID; // head.object;
-	dst->type = SKS_UNDEFINED_ID; //head.type;
+	class_found = SKS_UNDEFINED_ID;
+	type_found = SKS_UNDEFINED_ID;
+
 	cur = (char *)src + sizeof(struct sks_object_head);
 	end = cur + head.blobs_size;
 
@@ -87,36 +87,39 @@ static uint32_t sanitize_class_and_type(struct serializer *dst,
 
 
 		if (sks_attr_is_class(cli_ref.id)) {
+			uint32_t class;
 
 			if (cli_ref.size != sks_attr_is_class(cli_ref.id))
 				return SKS_INVALID_ATTRIBUTES;
 
 			TEE_MemMove(&class, cur + sizeof(cli_ref), cli_ref.size);
 
-			if (dst->class != SKS_UNDEFINED_ID &&
-			    dst->class != class) {
+			if (class_found != SKS_UNDEFINED_ID &&
+			    class_found != class) {
 				EMSG("Conflicting class value");
 				return SKS_INVALID_ATTRIBUTES;
 			}
 
-			dst->class = class;
+			class_found = class;
 			continue;
 		}
 
 		/* The attribute is a type-in-class */
 		if (sks_attr_is_type(cli_ref.id)) {
+			uint32_t type;
+
 			if (cli_ref.size != sks_attr_is_type(cli_ref.id))
 				return SKS_INVALID_ATTRIBUTES;
 
 			TEE_MemMove(&type, cur + sizeof(cli_ref), cli_ref.size);
 
-			if (dst->type != SKS_UNDEFINED_ID &&
-			    dst->type != type) {
+			if (type_found != SKS_UNDEFINED_ID &&
+			    type_found != type) {
 				EMSG("Conflicting type-in-class value");
 				return SKS_INVALID_ATTRIBUTES;
 			}
 
-			dst->type = type;
+			type_found = type;
 		}
 	}
 
@@ -126,17 +129,20 @@ static uint32_t sanitize_class_and_type(struct serializer *dst,
 		return SKS_FAILED;
 	}
 
-	if (!consistent_class_and_type(dst->class, dst->type)) {
+	if (!consistent_class_and_type(class_found, type_found)) {
 		MSG("inconsistent class/type");
 		return SKS_INVALID_ATTRIBUTES;
 	}
 
-#ifndef SKS_SHEAD_WITH_TYPE
-	rc = serialize_sks_ref(dst, SKS_CLASS, &dst->class, sizeof(uint32_t));
+#ifdef SKS_SHEAD_WITH_TYPE
+	(*dst)->class = class_found;
+	(*dst)->type = type_found;
+#else
+	rc = add_attribute(dst, SKS_CLASS, &class_found, sizeof(uint32_t));
 	if (rc)
 		return rc;
 
-	rc = serialize_sks_ref(dst, SKS_TYPE, &dst->type, sizeof(uint32_t));
+	rc = add_attribute(dst, SKS_TYPE, &type_found, sizeof(uint32_t));
 	if (rc)
 		return rc;
 #endif
@@ -144,9 +150,9 @@ static uint32_t sanitize_class_and_type(struct serializer *dst,
 	return SKS_OK;
 }
 
-static uint32_t sanitize_boolprop(struct serializer *dst,
+static uint32_t sanitize_boolprop(struct sks_attrs_head __maybe_unused **dst,
 				struct sks_reference *cli_ref,
-				char *cur,
+				char *cur, uint32_t *boolprop_base,
 				uint32_t *sanity)
 {
 	int shift;
@@ -170,7 +176,7 @@ static uint32_t sanitize_boolprop(struct serializer *dst,
 		value = 0;
 
 	/* Locate the current config value for the boolean property */
-	boolprop_ptr = dst->boolprop + (shift / 32);
+	boolprop_ptr = boolprop_base + (shift / 32);
 	sanity_ptr = sanity + (shift / 32);
 
 	/* Error if already set to a different boolean value */
@@ -188,8 +194,8 @@ static uint32_t sanitize_boolprop(struct serializer *dst,
 		uint32_t rc;
 		uint8_t sks_bool = !!value;
 
-		rc = serialize_sks_ref(dst, SKS_BOOLPROPS_BASE + shift,
-					&sks_bool, sizeof(uint8_t));
+		rc = add_attribute(dst, SKS_BOOLPROPS_BASE + shift,
+				   &sks_bool, sizeof(uint8_t));
 		if (rc)
 			return rc;
 	}
@@ -200,7 +206,7 @@ static uint32_t sanitize_boolprop(struct serializer *dst,
 	return SKS_OK;
 }
 
-static uint32_t sanitize_boolprops(struct serializer *dst, void *src)
+static uint32_t sanitize_boolprops(struct sks_attrs_head **dst, void *src)
 {
 	struct sks_object_head head;
 	char *cur;
@@ -208,12 +214,10 @@ static uint32_t sanitize_boolprops(struct serializer *dst, void *src)
 	size_t len;
 	struct sks_reference cli_ref;
 	uint32_t sanity[SKS_MAX_BOOLPROP_ARRAY] = { 0 };
+	uint32_t boolprops[SKS_MAX_BOOLPROP_ARRAY] = { 0 };
 	uint32_t rc;
 
 	TEE_MemMove(&head, src, sizeof(struct sks_object_head));
-
-	dst->class = SKS_UNDEFINED_ID;
-	dst->type = SKS_UNDEFINED_ID;
 
 	cur = (char *)src + sizeof(struct sks_object_head);
 	end = cur + head.blobs_size;
@@ -223,20 +227,30 @@ static uint32_t sanitize_boolprops(struct serializer *dst, void *src)
 		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
 		len = sizeof(cli_ref) + cli_ref.size;
 
-		rc = sanitize_boolprop(dst, &cli_ref, cur, sanity);
+		rc = sanitize_boolprop(dst, &cli_ref, cur, boolprops, sanity);
 		if (rc != SKS_OK && rc != SKS_NOT_FOUND)
 			return rc;
 	}
+
+#ifdef SKS_SHEAD_WITH_BOOLPROPS
+	(*dst)->boolpropl = boolprops[0];
+	(*dst)->boolproph = boolprops[1];
+#endif
 
 	return SKS_OK;
 }
 
 /* Counterpart of serialize_indirect_attribute() */
-static uint32_t sanitize_indirect_attr(struct serializer *dst, uint32_t object,
-				    struct sks_reference *cli_ref, char *cur)
+static uint32_t sanitize_indirect_attr(struct sks_attrs_head **dst,
+					struct sks_reference *cli_ref,
+					char *cur)
 {
-	struct serializer obj2;
+	struct sks_attrs_head *obj2;
 	uint32_t rc;
+	uint32_t class = get_class(*dst);
+
+	if (class == SKS_UNDEFINED_ID)
+		return SKS_ERROR;
 
 	/*
 	 * Serialized subblobs: current applicable only the key templates which
@@ -251,8 +265,10 @@ static uint32_t sanitize_indirect_attr(struct serializer *dst, uint32_t object,
 		return SKS_NOT_FOUND;
 	}
 	/* Such attributes are expected only for keys (and vendor defined) */
-	if (sks_attr_class_is_key(object))
+	if (sks_attr_class_is_key(class))
 		return SKS_INVALID_ATTRIBUTES;
+
+	init_attributes_head(&obj2);
 
 	/* Build a new serial object while sanitizing the attributes list */
 	rc = sanitize_client_object(&obj2, cur + sizeof(*cli_ref),
@@ -260,24 +276,12 @@ static uint32_t sanitize_indirect_attr(struct serializer *dst, uint32_t object,
 	if (rc)
 		return rc;
 
-	rc = serialize_32b(dst, cli_ref->id);
-	if (rc)
-		return rc;
-
-	rc = serialize_32b(dst, cli_ref->size);
-	if (rc)
-		return rc;
-
-	rc = serialize_buffer(dst, obj2.buffer, obj2.size);
-	if (rc)
-		return rc;
-
-	dst->item_count++;
-
-	return rc;
+	return add_attribute(dst, cli_ref->id, obj2,
+			     sizeof(struct sks_attrs_head) + obj2->blobs_size);
 }
 
-uint32_t sanitize_client_object(struct serializer *dst, void *src, size_t size)
+uint32_t sanitize_client_object(struct sks_attrs_head **dst,
+				void *src, size_t size)
 {
 	struct sks_object_head head;
 	uint32_t rc;
@@ -293,7 +297,7 @@ uint32_t sanitize_client_object(struct serializer *dst, void *src, size_t size)
 	if (size < (sizeof(struct sks_object_head) + head.blobs_size))
 		return SKS_BAD_PARAM;
 
-	serializer_init(dst);
+	init_attributes_head(dst);
 
 	rc = sanitize_class_and_type(dst, src);
 	if (rc)
@@ -317,7 +321,7 @@ uint32_t sanitize_client_object(struct serializer *dst, void *src, size_t size)
 		    sks_attr2boolprop_shift(cli_ref.id) >= 0)
 			continue;
 
-		rc = sanitize_indirect_attr(dst, dst->class, &cli_ref, cur);
+		rc = sanitize_indirect_attr(dst, &cli_ref, cur);
 		if (rc == SKS_OK)
 			continue;
 		if (rc != SKS_NOT_FOUND)
@@ -330,11 +334,10 @@ uint32_t sanitize_client_object(struct serializer *dst, void *src, size_t size)
 			goto bail;
 		}
 
-		rc = serialize_buffer(dst, cur, next);
+		rc = add_attribute(dst, cli_ref.id, cur + sizeof(cli_ref),
+				   cli_ref.size);
 		if (rc)
 			goto bail;
-
-		dst->item_count++;
 	}
 
 	/* sanity */
@@ -344,8 +347,6 @@ uint32_t sanitize_client_object(struct serializer *dst, void *src, size_t size)
 		goto bail;
 	}
 
-	rc = serializer_sync_head(dst);
-
 bail:
 	return rc;
 }
@@ -354,12 +355,13 @@ bail:
  * Debug: dump object attribute array to output trace
  */
 
-static uint32_t trace_attributes(char *prefix, void *src, void *end)
+static uint32_t __trace_attributes(char *prefix, void *src, void *end)
 {
 	size_t next = 0;
 	char *prefix2;
 	size_t prefix_len = strlen(prefix);
 	char *cur = src;
+	uint32_t rc;
 
 	/* append 4 spaces to the prefix plus terminal '\0' */
 	prefix2 = TEE_Malloc(prefix_len + 1 + 4, TEE_MALLOC_FILL_ZERO);
@@ -388,8 +390,10 @@ static uint32_t trace_attributes(char *prefix, void *src, void *end)
 		case SKS_WRAP_ATTRIBS:
 		case SKS_UNWRAP_ATTRIBS:
 		case SKS_DERIVE_ATTRIBS:
-			trace_attributes_from_sobj_head(prefix2,
+			rc = trace_attributes_from_api_head(prefix2,
 							cur + sizeof(sks_ref));
+			if (rc)
+				return rc;
 			break;
 		default:
 			break;
@@ -428,7 +432,7 @@ uint32_t trace_attributes_from_api_head(const char *prefix, void *ref)
 
 	offset = sizeof(head);
 	pre[prefix ? strlen(prefix) : 0] = '|';
-	rc = trace_attributes(pre, (char *)ref + offset,
+	rc = __trace_attributes(pre, (char *)ref + offset,
 			      (char *)ref + offset + head.blobs_size);
 	if (rc)
 		goto bail;

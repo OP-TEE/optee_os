@@ -38,7 +38,7 @@ struct sks_object *object_get_tee_handle(uint32_t ck_handle,
  * @attributes - reference to serialized attributes
  * @handle - generated handle for the created object
  */
-uint32_t create_object(void *session, struct sks_sobj_head *attributes,
+uint32_t create_object(void *session, struct sks_attrs_head *attributes,
 			uint32_t *handle);
 
 /*

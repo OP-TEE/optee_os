@@ -8,3 +8,4 @@ srcs-y += sanitize_object.c
 srcs-y += object.c
 srcs-y += processing.c
 srcs-y += pkcs11_attributes.c
+srcs-y += attributes.c

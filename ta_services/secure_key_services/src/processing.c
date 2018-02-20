@@ -12,6 +12,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "attributes.h"
 #include "object.h"
 #include "pkcs11_token.h"
 #include "pkcs11_attributes.h"
@@ -26,7 +27,7 @@ uint32_t entry_import_object(int teesess,
 	struct serialargs ctrlargs;
 	uint32_t session_handle;
 	struct pkcs11_session *session;
-	struct sks_sobj_head *head;
+	struct sks_attrs_head *head = NULL;
 	struct sks_object_head *template = NULL;
 	size_t template_size;
 	uint32_t obj_handle;
@@ -94,7 +95,7 @@ uint32_t entry_import_object(int teesess,
 	 * Here we only check attribute that attribute SKS_VALUE is defined.
 	 * TODO: check value size? check SKS_VALUE_LEN? check SKS_CHECKSUM.
 	 */
-	rv = serial_get_attribute_ptr(head, SKS_VALUE, NULL, NULL);
+	rv = get_attribute_ptr(head, SKS_VALUE, NULL, NULL);
 	if (rv)
 		goto bail;
 
@@ -142,8 +143,7 @@ static uint32_t tee_operarion_params(struct tee_operation_params *params,
 {
 	uint32_t key_type;
 
-	if (serial_get_attribute(sks_key->attributes, SKS_TYPE,
-				  &key_type, NULL))
+	if (get_attribute(sks_key->attributes, SKS_TYPE, &key_type, NULL))
 		return SKS_ERROR;
 
 	switch (key_type) {
@@ -181,15 +181,15 @@ static uint32_t tee_operarion_params(struct tee_operation_params *params,
 
 /* Convert SKS_KEY_xxx into GPD TEE_ATTR_xxx */
 static uint32_t get_tee_object_info(uint32_t *type, uint32_t *attr,
-				    struct sks_sobj_head *head)
+				    struct sks_attrs_head *head)
 {
-	switch (serial_get_type(head)) {
+	switch (get_type(head)) {
 	case SKS_KEY_AES:
 		*type = TEE_TYPE_AES;
 		goto secret;
 	default:
 		EMSG("Operation not supported for object type %s",
-			sks2str_key_type(serial_get_type(head)));
+			sks2str_key_type(get_type(head)));
 		return SKS_INVALID_TYPE;
 	}
 
@@ -312,7 +312,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	/*
 	 * Create a TEE object from the target key, if not yet done
 	 */
-	switch (serial_get_class(obj->attributes)) {
+	switch (get_class(obj->attributes)) {
 	case SKS_OBJ_SYM_KEY:
 		if (obj->key_handle != TEE_HANDLE_NULL)
 			break;
@@ -324,7 +324,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 			goto error;
 		}
 
-		if (serial_get_attribute_ptr(obj->attributes, SKS_VALUE,
+		if (get_attribute_ptr(obj->attributes, SKS_VALUE,
 					     &value, &value_size))
 			TEE_Panic(0);
 
@@ -545,7 +545,7 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 	return tee2sks_error(res);
 }
 
-static uint32_t generate_random_key_value(struct sks_sobj_head **head)
+static uint32_t generate_random_key_value(struct sks_attrs_head **head)
 {
 	uint32_t rv;
 	void *data;
@@ -556,7 +556,7 @@ static uint32_t generate_random_key_value(struct sks_sobj_head **head)
 	if (!*head)
 		return SKS_INVALID_ATTRIBUTES;
 
-	rv = serial_get_attribute_ptr(*head, SKS_VALUE_LEN, &data, &data_size);
+	rv = get_attribute_ptr(*head, SKS_VALUE_LEN, &data, &data_size);
 	if (rv || data_size != sizeof(uint32_t)) {
 		DMSG("%s", rv ? "No attribute value_len found" :
 			"Invalid size for attribute VALUE_LEN");
@@ -570,7 +570,7 @@ static uint32_t generate_random_key_value(struct sks_sobj_head **head)
 
 	TEE_GenerateRandom(value, value_len);
 
-	rv = serial_add_attribute(head, SKS_VALUE, value, value_len);
+	rv = add_attribute(head, SKS_VALUE, value, value_len);
 	if (rv)
 		return rv;
 
@@ -585,7 +585,7 @@ uint32_t entry_generate_object(int teesess,
 	uint32_t session_handle;
 	struct pkcs11_session *session;
 	struct sks_reference *proc_params = NULL;
-	struct sks_sobj_head *head = NULL;
+	struct sks_attrs_head *head = NULL;
 	struct sks_object_head *template = NULL;
 	size_t template_size;
 	uint32_t obj_handle;
@@ -675,13 +675,13 @@ uint32_t entry_generate_object(int teesess,
 	/*
 	 * Object is ready, register it and return a handle.
 	 */
-	rv = create_object(session, (void *)head, &obj_handle);
+	rv = create_object(session, head, &obj_handle);
 	if (rv)
 		goto bail;
 
 	/*
 	 * Now obj_handle (through the related struct sks_object instance)
-	 * owns the serialised buffer that holds the object attributes.
+	 * owns the serialized buffer that holds the object attributes.
 	 * We reset attrs->buffer to NULL as serializer object is no more
 	 * the attributes buffer owner.
 	 */

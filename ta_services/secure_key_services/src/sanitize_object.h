@@ -25,7 +25,8 @@
  * This function allocates, fill and returns a serialized attribute list
  * into a serializer container.
  */
-uint32_t sanitize_client_object(struct serializer *dst, void *head, size_t size);
+uint32_t sanitize_client_object(struct sks_attrs_head **dst,
+				void *head, size_t size);
 
 /* Debug: dump attribute content as debug traces */
 uint32_t trace_attributes_from_api_head(const char *prefix, void *ref);
