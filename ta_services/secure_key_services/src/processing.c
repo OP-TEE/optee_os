@@ -554,7 +554,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 
 	TEE_CipherInit(pkcs_session->tee_op_handle, init_params, init_size);
 
-	pkcs_session->sks_proc = proc_params->id;
+	pkcs_session->proc_id = proc_params->id;
 
 	TEE_Free(proc_params);
 
@@ -618,7 +618,7 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 
 		TEE_FreeOperation(pkcs_session->tee_op_handle);
 		pkcs_session->tee_op_handle = TEE_HANDLE_NULL;
-		pkcs_session->sks_proc = SKS_UNDEFINED_ID;
+		pkcs_session->proc_id = SKS_UNDEFINED_ID;
 	} else {
 		if (out)
 			out->memref.size = out_size;
@@ -677,7 +677,7 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 
 	TEE_FreeOperation(pkcs_session->tee_op_handle);
 	pkcs_session->tee_op_handle = TEE_HANDLE_NULL;
-	pkcs_session->sks_proc = SKS_UNDEFINED_ID;
+	pkcs_session->proc_id = SKS_UNDEFINED_ID;
 
 	return tee2sks_error(res);
 }
@@ -980,7 +980,7 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 		TEE_Panic(TEE_ERROR_NOT_IMPLEMENTED);
 	}
 
-	session->sks_proc = proc_params->id;
+	session->proc_id = proc_params->id;
 
 	TEE_Free(proc_params);
 
@@ -1030,7 +1030,7 @@ uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_VERIFYING))
 		return SKS_PROCESSING_INACTIVE;
 
-	switch (session->sks_proc) {
+	switch (session->proc_id) {
 	case SKS_PROC_AES_CMAC_GENERAL:
 	case SKS_PROC_AES_CMAC:
 	case SKS_PROC_HMAC_MD5:
@@ -1082,7 +1082,7 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_VERIFYING))
 		return SKS_PROCESSING_INACTIVE;
 
-	switch (session->sks_proc) {
+	switch (session->proc_id) {
 	case SKS_PROC_AES_CMAC_GENERAL:
 	case SKS_PROC_AES_CMAC:
 	case SKS_PROC_HMAC_MD5:
@@ -1118,7 +1118,7 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 
 	TEE_FreeOperation(session->tee_op_handle);
 	session->tee_op_handle = TEE_HANDLE_NULL;
-	session->sks_proc = SKS_UNDEFINED_ID;
+	session->proc_id = SKS_UNDEFINED_ID;
 
 	return tee2sks_error(res);
 }

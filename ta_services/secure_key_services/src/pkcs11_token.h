@@ -147,10 +147,11 @@ enum pkcs11_session_processing {
  * @state - R/W SO, R/W user, RO user, R/W public, RO public. See PKCS11.
  * @processing - ongoing active processing function
  * @tee_op_handle - halde on active crypto operation
- * @sks_proc - SKS ID of the active processing (TODO: args used at final)
+ * @proc_id - SKS ID of the active processing (TODO: args used at final)
  */
 struct pkcs11_session {
 	LIST_ENTRY(pkcs11_session) link;
+	struct object_list object_list;
 	struct ck_token *token;
 	int tee_session;
 	int handle;
@@ -158,8 +159,7 @@ struct pkcs11_session {
 	uint32_t state;
 	enum pkcs11_session_processing processing;
 	TEE_OperationHandle tee_op_handle;	// HANDLE_NULL or on-going operation
-	uint32_t sks_proc;
-	struct object_list object_list;
+	uint32_t proc_id;
 };
 
 /* pkcs11 token Apis */
