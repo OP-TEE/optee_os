@@ -19,6 +19,8 @@ cppflags$(sm)	+= -include $(conf-file)
 # Config flags from mk/config.mk
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
+# Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
+# mdbg_check(), etc.).
 cppflags$(sm) += -DENABLE_MDBG=1
 endif
 

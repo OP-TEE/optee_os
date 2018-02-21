@@ -64,7 +64,16 @@ CFG_TEE_CORE_TA_TRACE ?= y
 # feature.
 CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
 
-# If y, enable memory leak detection feature in bget memory allocator.
+# If y, enable the memory leak detection feature in the bget memory allocator.
+# When this feature is enabled, calling mdbg_check(1) will print a list of all
+# the currently allocated buffers and the location of the allocation (file and
+# line number).
+# Note: make sure the log level is high enough for the messages to show up on
+# the secure console! For instance:
+# - To debug user-mode (TA) allocations: build OP-TEE *and* the TA with:
+#   $ make CFG_TEE_TA_MALLOC_DEBUG=y CFG_TEE_TA_LOG_LEVEL=3
+# - To debug TEE core allocations: build OP-TEE with:
+#   $ make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_CORE_LOG_LEVEL=3
 CFG_TEE_CORE_MALLOC_DEBUG ?= n
 CFG_TEE_TA_MALLOC_DEBUG ?= n
 
