@@ -19,14 +19,17 @@ CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
+CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1043ardb)
+CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1046ardb)
+CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 endif
 
