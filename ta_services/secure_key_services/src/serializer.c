@@ -35,9 +35,33 @@ int serialargs_get_next(struct serialargs *args, void *out, size_t size)
 	}
 
 	TEE_MemMove(out, args->next, size);
+
 	args->next += size;
 
 	return 0;
+}
+
+uint32_t serialargs_alloc_and_get(struct serialargs *args,
+				  void **out, size_t size)
+{
+	void *ptr;
+
+	if (args->next + size > args->start + args->size) {
+		EMSG("arg too short: full %zd, remain %zd, expect %zd",
+		     args->size, args->size - (args->next - args->start), size);
+		return SKS_BAD_PARAM;
+	}
+
+	ptr = TEE_Malloc(size, 0);
+	if (!ptr)
+		return SKS_MEMORY;
+
+	TEE_MemMove(ptr, args->next, size);
+
+	args->next += size;
+	*out = ptr;
+
+	return SKS_OK;
 }
 
 void *serialargs_get_next_ptr(struct serialargs *args, size_t size)
