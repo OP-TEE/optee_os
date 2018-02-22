@@ -448,6 +448,7 @@ struct sks_reference {
 #define SKS_SHORT_BUFFER		0x00000004	/* Give a bigger buf */
 #define SKS_FAILED			0x00000005	/* Nicely failed */
 #define SKS_NOT_FOUND			0x00000006	/* Item not found */
+#define SKS_VERIFY_FAILED		0x00000007	/* CKR_ENCRYPTED_DATA_INVALID */
 /* Errors returned when provided invalid identifiers */
 #define SKS_INVALID_ATTRIBUTES		0x00000100	/* Attr do not match */
 #define SKS_INVALID_TYPE		0x00000101	/* type identifier */
@@ -459,7 +460,6 @@ struct sks_reference {
 #define SKS_INVALID_SLOT		0x00000107	/* slot id */
 #define SKS_INVALID_PROC_PARAM		0x00000108	/* processing parameters */
 #define SKS_NOT_IMPLEMENTED		0x00000109	/* */
-
 /* Report on Pin management */
 #define SKS_PIN_INCORRECT		0x00000200
 #define SKS_PIN_LOCKED			0x00000201
@@ -472,6 +472,7 @@ struct sks_reference {
 #define SKS_PROCESSING_ACTIVE		0x00001003
 #define SKS_CK_NOT_PERMITTED		0x00001004	/* SKS_NOT_PERMITED? */
 #define SKS_PROCESSING_INACTIVE		0x00001005
+
 /* Attribute specifc values */
 #define SKS_UNDEFINED_ID			((uint32_t)0xFFFFFFFF)
 #define SKS_FALSE				0

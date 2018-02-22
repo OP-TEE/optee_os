@@ -26,6 +26,12 @@ static void release_active_processing(struct pkcs11_session *session)
 	case SKS_PROC_AES_CTR:
 		tee_release_ctr_operation(session);
 		break;
+	case SKS_PROC_AES_GCM:
+		tee_release_gcm_operation(session);
+		break;
+	case SKS_PROC_AES_CCM:
+		tee_release_ccm_operation(session);
+		break;
 	default:
 		break;
 	}
@@ -192,6 +198,12 @@ static uint32_t tee_operarion_params(struct pkcs11_session *session,
 				break;
 			case SKS_PROC_AES_CTS:
 				algo = TEE_ALG_AES_CTS;
+				break;
+			case SKS_PROC_AES_CCM:
+				algo = TEE_ALG_AES_CCM;
+				break;
+			case SKS_PROC_AES_GCM:
+				algo = TEE_ALG_AES_GCM;
 				break;
 			default:
 				EMSG("Operation not supported for process %s",
@@ -545,6 +557,22 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 			goto error;
 		break;
 
+	case SKS_PROC_AES_CCM:
+		rv = tee_init_ccm_operation(session,
+					    proc_params->data,
+					    proc_params->size);
+		if (rv)
+			goto error;
+		break;
+
+	case SKS_PROC_AES_GCM:
+		rv = tee_init_gcm_operation(session,
+					    proc_params->data,
+					    proc_params->size);
+		if (rv)
+			goto error;
+		break;
+
 	default:
 		TEE_Panic(TEE_ERROR_NOT_IMPLEMENTED);
 	}
@@ -596,7 +624,23 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 		return SKS_PROCESSING_INACTIVE;
 
 	switch (session->proc_id) {
+	case SKS_PROC_AES_CCM:
+	case SKS_PROC_AES_GCM:
+		if (decrypt) {
+			rv = tee_ae_decrypt_update(session, in ?
+						   in->memref.buffer :
+						   NULL, in_size);
+			/* Keep decrypted data in secure memory until final */
+			out_size = 0;
+			break;
+		}
 
+		res = TEE_AEUpdate(session->tee_op_handle,
+				   in ? in->memref.buffer : NULL, in_size,
+				   out ? out->memref.buffer : NULL, &out_size);
+
+		rv = tee2sks_error(res);
+		break;
 
 	default:
 		res = TEE_CipherUpdate(session->tee_op_handle,
@@ -653,6 +697,28 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 		return SKS_PROCESSING_INACTIVE;
 
 	switch (session->proc_id) {
+	case SKS_PROC_AES_CCM:
+	case SKS_PROC_AES_GCM:
+		if (in_size) {
+			/*
+			 * Pkcs11 EncryptFinal and DecryptFinal to do provide
+			 * input data reference, only an output buffer which
+			 * is mandatory to produce the tag (encryption) or
+			 * reveale the output data (decryption).
+			 */
+			rv = SKS_BAD_PARAM;
+			break;
+		}
+
+		if (decrypt)
+			rv = tee_ae_decrypt_final(session, out ?
+						  out->memref.buffer : NULL,
+						  &out_size);
+		else
+			rv = tee_ae_encrypt_final(session, out ?
+						  out->memref.buffer : NULL,
+						  &out_size);
+		break;
 
 	default:
 		res = TEE_CipherDoFinal(session->tee_op_handle,

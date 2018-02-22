@@ -129,6 +129,8 @@ uint32_t tee2sks_error(TEE_Result res)
 	case TEE_ERROR_SHORT_BUFFER:
 		return SKS_SHORT_BUFFER;
 
+	case TEE_ERROR_MAC_INVALID:
+		return SKS_VERIFY_FAILED;
 	default:
 		return SKS_ERROR;
 	}
