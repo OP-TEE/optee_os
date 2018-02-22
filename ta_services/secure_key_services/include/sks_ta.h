@@ -650,34 +650,33 @@ struct sks_reference {
  *
  * AES ECB
  *   head:	32bit type = SKS_PROC_AES_ECB_NOPAD
- *		32bit size = 0
+ *		32bit params byte size = 0
  *
  * AES CBC, CBC_NOPAD and CTS
  *   head:	32bit type = SKS_PROC_AES_CBC
  *			  or SKS_PROC_AES_CBC_NOPAD
  *			  or SKS_PROC_AES_CTS
- *		32bit size = 16
+ *		32bit params byte size = 16
  *  params:	16byte inivial vector
  *
  * AES CTR
  *   head:	32bit type = SKS_PROC_AES_CTR
- *		32bit size = 20
+ *		32bit params byte size = 20
  *  params:	32bit counter bit increment
  *		16byte inivial vector
  *
  * AES GCM
  *   head:	32bit type = SKS_PROC_AES_GCM
- *		32bit size
+ *		32bit params byte size
  *  params:	32bit IV_byte_size
  *		byte array: IV data (IV_byte_size bytes)
- *		32bit IV_bit_size
- *		32bit AAD_byte_size
+  *		32bit AAD_byte_size
  *		byte array: AAD data (AAD_byte_size bytes)
  *		32bit tag byte size
  *
  * AES CCM
  *   head:	32bit type = SKS_PROC_AES_CCM
- *		32bit size
+ *		32bit params byte size
  *  params:	32bit data_byte_size
  *		32bit nonce_byte_size
  *		byte array: nonce data (nonce_byte_size bytes)
@@ -687,12 +686,12 @@ struct sks_reference {
  *
  * AES GMAC
  *   head:	32bit type = SKS_PROC_AES_GMAC
- *		32bit size = 12
+ *		32bit params byte size = 12
  *  params:	12byte initial vector
 
  * AES CMAC with general length
  *   head:	32bit type = SKS_PROC_AES_CMAC_GENERAL
- *		32bit size = 12
+ *		32bit params byte size = 12
  *  params:	32bit byte size of the output CMAC data
  *
  * AES CMAC fixed size (16byte CMAC)
@@ -701,13 +700,13 @@ struct sks_reference {
  *
  * AES derive by ECB
  *   head:	32bit type = SKS_PROC_AES_DERIVE_BY_ECB
- *		32bit size
+ *		32bit params byte size
  *  params:	32bit byte size of the data to encrypt
  *		byte array: data to encrypt
  *
  * AES derive by CBC
  *   head:	32bit type = SKS_PROC_AES_DERIVE_BY_CBC
- *		32bit size
+ *		32bit params byte size
  *  params:	16byte inivial vector
  *		32bit byte size of the data to encrypt
  *		byte array: data to encrypt

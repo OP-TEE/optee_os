@@ -22,6 +22,14 @@
 
 static void release_active_processing(struct pkcs11_session *session)
 {
+	switch (session->proc_id) {
+	case SKS_PROC_AES_CTR:
+		tee_release_ctr_operation(session);
+		break;
+	default:
+		break;
+	}
+
 	session->proc_id = SKS_UNDEFINED_ID;
 
 	if (session->tee_op_handle != TEE_HANDLE_NULL) {
@@ -405,9 +413,6 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	struct sks_reference *proc_params = NULL;
 	struct pkcs11_session *session = NULL;
 	struct serialargs ctrlargs;
-	void *init_params;
-	size_t init_size;
-
 
 	/*
 	 * Arguments: ctrl=[32b-session-hld][32b-key-hdl][proc-parameters]
@@ -516,8 +521,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 			goto error;
 		}
 
-		init_params = NULL;
-		init_size = 0;
+		TEE_CipherInit(session->tee_op_handle, NULL, 0);
 		break;
 
 	case SKS_PROC_AES_CBC_NOPAD:
@@ -529,43 +533,21 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 			goto error;
 		}
 
-		init_params = (void *)proc_params->data;
-		init_size = 16;
+		TEE_CipherInit(session->tee_op_handle,
+				(void *)proc_params->data, 16);
 		break;
 
 	case SKS_PROC_AES_CTR:
-	{
-		struct sks_aes_ctr_params {
-			uint32_t incr_counter;
-			char counter_bits[16];
-		} *params = (void *)proc_params->data;
-
-		if (!ALIGNMENT_IS_OK(params, struct sks_aes_ctr_params)) {
-			DMSG("Bad alignment of params");
-			rv = SKS_INVALID_PROC_PARAM;
+		rv = tee_init_ctr_operation(session,
+					    proc_params->data,
+					    proc_params->size);
+		if (rv)
 			goto error;
-		}
-		if (proc_params->size != sizeof(struct sks_aes_ctr_params)) {
-			DMSG("Invalid AES CTR params: %d", proc_params->size);
-			rv = SKS_INVALID_PROC_PARAM;
-			goto error;
-		}
-		if (params->incr_counter != 1) {
-			DMSG("Supports only 1 bit increment counter: %d",
-							params->incr_counter);
-			rv = SKS_INVALID_PROC_PARAM;
-			goto error;
-		}
-
-		init_params = (void *)&params->counter_bits;
-		init_size = 16;
 		break;
-	}
+
 	default:
 		TEE_Panic(TEE_ERROR_NOT_IMPLEMENTED);
 	}
-
-	TEE_CipherInit(session->tee_op_handle, init_params, init_size);
 
 	session->proc_id = proc_params->id;
 
@@ -594,6 +576,7 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 	struct pkcs11_session *session;
 	size_t in_size = in ? in->memref.size : 0;
 	size_t out_size = out ? out->memref.size : 0;
+	uint32_t rv;
 
 	if (!ctrl)
 		return SKS_BAD_PARAM;
@@ -612,19 +595,28 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_ENCRYPTING))
 		return SKS_PROCESSING_INACTIVE;
 
-	res = TEE_CipherUpdate(session->tee_op_handle,
-				in ? in->memref.buffer : NULL, in_size,
-				out ? out->memref.buffer : NULL, &out_size);
+	switch (session->proc_id) {
 
 
-	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
+	default:
+		res = TEE_CipherUpdate(session->tee_op_handle,
+					in ? in->memref.buffer : NULL,
+					in_size,
+					out ? out->memref.buffer : NULL,
+					&out_size);
+
+		rv = tee2sks_error(res);
+		break;
+	}
+
+	if (rv == SKS_OK || rv == SKS_SHORT_BUFFER) {
 		if (out)
 			out->memref.size = out_size;
 	} else {
 		release_active_processing(session);
 	}
 
-	return tee2sks_error(res);
+	return rv;
 }
 
 /*
@@ -636,6 +628,7 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 			    TEE_Param *in, TEE_Param *out, int decrypt)
 {
 	TEE_Result res;
+	uint32_t rv;
 	struct serialargs ctrlargs;
 	uint32_t ck_session;
 	struct pkcs11_session *session;
@@ -659,21 +652,27 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_ENCRYPTING))
 		return SKS_PROCESSING_INACTIVE;
 
-	res = TEE_CipherDoFinal(session->tee_op_handle,
-				in ? in->memref.buffer : NULL, in_size,
-				out ? out->memref.buffer : NULL, &out_size);
+	switch (session->proc_id) {
 
+	default:
+		res = TEE_CipherDoFinal(session->tee_op_handle,
+					in ? in->memref.buffer : NULL,
+					in_size,
+					out ? out->memref.buffer : NULL,
+					&out_size);
 
-	if (out && (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER))
+		rv = tee2sks_error(res);
+		break;
+	}
+
+	if (out && (rv == SKS_OK || rv == SKS_SHORT_BUFFER))
 		out->memref.size = out_size;
 
 	/* Only a short buffer error can leave the operation active */
-	if (res == TEE_ERROR_SHORT_BUFFER)
-		return SKS_SHORT_BUFFER;
+	if (rv != SKS_SHORT_BUFFER)
+		release_active_processing(session);
 
-	release_active_processing(session);
-
-	return tee2sks_error(res);
+	return rv;
 }
 
 static uint32_t generate_random_key_value(struct sks_attrs_head **head)

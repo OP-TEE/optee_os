@@ -148,6 +148,7 @@ enum pkcs11_session_processing {
  * @processing - ongoing active processing function
  * @tee_op_handle - halde on active crypto operation
  * @proc_id - SKS ID of the active processing (TODO: args used at final)
+ * @proc_params - parameters saved in memory for the active processing
  */
 struct pkcs11_session {
 	LIST_ENTRY(pkcs11_session) link;
@@ -160,6 +161,7 @@ struct pkcs11_session {
 	enum pkcs11_session_processing processing;
 	TEE_OperationHandle tee_op_handle;	// HANDLE_NULL or on-going operation
 	uint32_t proc_id;
+	void *proc_params;
 };
 
 /* pkcs11 token Apis */
