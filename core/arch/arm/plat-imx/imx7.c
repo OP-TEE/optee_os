@@ -27,11 +27,17 @@
 
 void plat_cpu_reset_late(void)
 {
+	static uint32_t cntfrq;
 	uintptr_t addr;
 	uint32_t val;
 
-	if (get_core_pos() != 0)
+	if (get_core_pos() != 0) {
+		/*  Ensure the counter frequency is consistent across cores */
+		write_cntfrq(cntfrq);
 		return;
+	}
+
+	cntfrq = read_cntfrq();
 
 	/*
 	 * Configure imx7 CSU, first grant all peripherals
