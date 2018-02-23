@@ -19,6 +19,8 @@ New source files
 - (Rule 1.2.4) Python, shell: # SPDX-License-Identifier: <expression>
 - (Rule 1.3) Shall contain at least one copyright line
 - (Rule 1.4) Shall not contain the mention 'All rights reserved'
+- (Rule 1.5) Shall not contain any license notice other than the SPDX license
+  identifier
 
 Note that files imported from external projects are not new files. The rules
 for pre-existing files (below) apply.
