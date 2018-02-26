@@ -636,7 +636,8 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 
 		res = TEE_AEUpdate(session->tee_op_handle,
 				   in ? in->memref.buffer : NULL, in_size,
-				   out ? out->memref.buffer : NULL, &out_size);
+				   out ? out->memref.buffer : NULL,
+				   &out_size);
 
 		rv = tee2sks_error(res);
 		break;
