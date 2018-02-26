@@ -126,6 +126,9 @@ uint32_t tee_ae_decrypt_update(struct pkcs11_session *session,
 	if (!in_size)
 		return SKS_OK;
 
+	if (!in)
+		return SKS_BAD_PARAM;
+
 	/*
 	 * Save the last input bytes in case they are the tag
 	 * instead of ciphered data
