@@ -254,21 +254,57 @@ bail:
 	return rv;
 }
 
+static uint32_t reveale_ae_data(struct ae_aes_context *ctx,
+				void *out, size_t *out_size)
+{
+	size_t n;
+	size_t req_size;
+	char *out_ptr = out;
+
+	for (req_size = 0, n = 0; n < ctx->out_count; n++)
+		req_size += ctx->out_data[n].size;
+
+	if (*out_size < req_size) {
+		*out_size = req_size;
+		return SKS_SHORT_BUFFER;
+	}
+
+	if (!out_ptr)
+		return SKS_BAD_PARAM;
+
+	for (n = 0; n < ctx->out_count; n++) {
+		TEE_MemMove(out_ptr,
+			    ctx->out_data[n].data, ctx->out_data[n].size);
+
+		TEE_Free(ctx->out_data[n].data);
+		out_ptr += ctx->out_data[n].size;
+	}
+
+	TEE_Free(ctx->out_data);
+	ctx->out_count = 0;
+
+	*out_size = req_size;
+
+	return SKS_OK;
+}
+
 uint32_t tee_ae_decrypt_final(struct pkcs11_session *session,
 			      void *out, size_t *out_size)
 {
 	struct ae_aes_context *ctx = (struct ae_aes_context *)session->proc_params;
 	uint32_t rv;
 	TEE_Result res;
-	size_t n;
-	size_t size;
-	void *ptr = NULL;
-	size_t out_offs = 0;
+	size_t data_size;
+	void *data_ptr = NULL;
 
-	if (!out) {
+	if (!out_size) {
 		DMSG("Expect at least a buffer for the output data");
 		return SKS_BAD_PARAM;
 	}
+
+	/* Final is already completed, only need to output the data */
+	if (!ctx->pending_tag)
+		return reveale_ae_data(ctx, out, out_size);
 
 	if (ctx->pending_size != ctx->tag_byte_len) {
 		DMSG("Not enougth samples: %u/%u",
@@ -276,20 +312,20 @@ uint32_t tee_ae_decrypt_final(struct pkcs11_session *session,
 		return SKS_FAILED;	// FIXME: CKR_ENCRYPTED_DATA_LEN_RANGE
 	}
 
-	size = 0;
+	data_size = 0;
 	res = TEE_AEDecryptFinal(session->tee_op_handle,
-				 NULL, 0, NULL, &size,
+				 NULL, 0, NULL, &data_size,
 				 ctx->pending_tag, ctx->tag_byte_len);
 
-	if (res == TEE_ERROR_SHORT_BUFFER && size) {
-		ptr = TEE_Malloc(size, 0);
-		if (!ptr) {
+	if (res == TEE_ERROR_SHORT_BUFFER) {
+		data_ptr = TEE_Malloc(data_size, 0);
+		if (!data_ptr) {
 			rv = SKS_MEMORY;
 			goto bail;
 		}
 
 		res = TEE_AEDecryptFinal(session->tee_op_handle,
-					 NULL, 0, ptr, &size,
+					 NULL, 0, data_ptr, &data_size,
 					 ctx->pending_tag, ctx->tag_byte_len);
 	}
 
@@ -297,19 +333,28 @@ uint32_t tee_ae_decrypt_final(struct pkcs11_session *session,
 	if (rv)
 		goto bail;
 
-	for (n = 0; n < ctx->out_count; n++) {
-		TEE_MemMove((char *)out + out_offs,
-			    ctx->out_data[n].data, ctx->out_data[n].size);
+	if (data_ptr) {
+		void *tmp_ptr;
 
-		out_offs += ctx->out_data[n].size;
+		tmp_ptr = TEE_Realloc(ctx->out_data,
+					(ctx->out_count + 1) *
+					sizeof(struct out_data_ref));
+		if (!tmp_ptr) {
+			rv = SKS_MEMORY;
+			goto bail;
+		}
+		ctx->out_data = tmp_ptr;
+		ctx->out_data[ctx->out_count].size = data_size;
+		ctx->out_data[ctx->out_count].data = data_ptr;
+		ctx->out_count++;
+
+		data_ptr = NULL;
 	}
-	TEE_MemMove((char *)out + out_offs, ptr, size);
-	out_offs += size;
 
-	*out_size = out_offs;
+	rv = reveale_ae_data(ctx, out, out_size);
 
 bail:
-	TEE_Free(ptr);
+	TEE_Free(data_ptr);
 
 	return rv;
 }
