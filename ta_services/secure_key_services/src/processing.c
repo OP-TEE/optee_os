@@ -910,7 +910,7 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	TEE_Result res;
 	struct serialargs ctrlargs;
 	uint32_t session_handle;
-	struct pkcs11_session *session;
+	struct pkcs11_session *session = NULL;
 	struct sks_reference *proc_params = NULL;
 	uint32_t key_handle;
 	struct sks_object *obj;
@@ -927,14 +927,12 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	if (serialargs_get_next(&ctrlargs, &session_handle, sizeof(uint32_t)))
 		return SKS_BAD_PARAM;
 
-	if (serialargs_get_next(&ctrlargs, &key_handle, sizeof(uint32_t))) {
-		rv = SKS_BAD_PARAM;
-		goto error;
-	}
+	if (serialargs_get_next(&ctrlargs, &key_handle, sizeof(uint32_t)))
+		return SKS_BAD_PARAM;
 
 	if (serialargs_get_sks_reference(&ctrlargs, &proc_params)) {
 		rv = SKS_BAD_PARAM;
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -944,27 +942,27 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	session = get_pkcs_session(session_handle);
 	if (!session || session->tee_session != teesess) {
 		rv = SKS_INVALID_SESSION;
-		goto error;
+		goto bail;
 	}
 
 	if (check_pkcs_session_processing_state(session,
 						PKCS11_SESSION_READY)) {
 		rv = SKS_PROCESSING_ACTIVE;
-		goto error;
+		goto bail;
 	}
 
 	if (set_pkcs_session_processing_state(session, sign ?
 					      PKCS11_SESSION_SIGNING :
 					      PKCS11_SESSION_VERIFYING)) {
 		rv = SKS_PROCESSING_ACTIVE;
-		goto error;
+		goto bail;
 	}
 
 	obj = object_get_tee_handle(key_handle, session);
 	if (!obj) {
 		DMSG("Invalid key handle");
 		rv = SKS_INVALID_KEY;
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -975,11 +973,11 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 						   SKS_FUNCTION_VERIFY,
 						   obj->attributes);
 	if (rv)
-		goto error;
+		goto bail;
 
 	rv = check_parent_attrs_against_token(session, obj->attributes);
 	if (rv)
-		goto error;
+		goto bail;
 
 	/*
 	 * Allocate a TEE operation for the target processing and
@@ -988,7 +986,7 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	rv = tee_operarion_params(session, proc_params, obj, sign ?
 				  SKS_FUNCTION_SIGN : SKS_FUNCTION_VERIFY);
 	if (rv)
-		goto error;
+		goto bail;
 
 	/*
 	 * Execute the target processing and add value as attribute SKS_VALUE.
@@ -1006,20 +1004,20 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 	case SKS_PROC_AES_CBC_MAC:
 		rv = load_key(obj);
 		if (rv)
-			goto error;
+			goto bail;
 
 		break;
 
 	default:
 		rv = SKS_INVALID_PROC;
-		goto error;
+		goto bail;
 	}
 
 	res = TEE_SetOperationKey(session->tee_op_handle, obj->key_handle);
 	if (res) {
 		EMSG("TEE_SetOperationKey failed %x", res);
 		rv = tee2sks_error(res);
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -1040,17 +1038,17 @@ uint32_t entry_signverify_init(int teesess, TEE_Param *ctrl,
 		break;
 
 	default:
-		TEE_Panic(TEE_ERROR_NOT_IMPLEMENTED);
+		rv = SKS_INVALID_PROC;
+		goto bail;
 	}
 
 	session->proc_id = proc_params->id;
+	rv = SKS_OK;
 
-	TEE_Free(proc_params);
+bail:
+	if (rv && session)
+		release_active_processing(session);
 
-	return SKS_OK;
-
-error:
-	release_active_processing(session);
 	TEE_Free(proc_params);
 
 	return rv;
@@ -1067,8 +1065,9 @@ uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
 	struct serialargs ctrlargs;
 	uint32_t ck_session;
 	struct pkcs11_session *session;
+	uint32_t rv;
 
-	if (!ctrl || !in || out)
+	if (!ctrl)
 		return SKS_BAD_PARAM;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
@@ -1084,6 +1083,11 @@ uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_SIGNING :
 						PKCS11_SESSION_VERIFYING))
 		return SKS_PROCESSING_INACTIVE;
+
+	if (!in || out) {
+		rv = SKS_BAD_PARAM;
+		goto bail;
+	}
 
 	switch (session->proc_id) {
 	case SKS_PROC_AES_CMAC_GENERAL:
@@ -1100,10 +1104,17 @@ uint32_t entry_signverify_update(int teesess, TEE_Param *ctrl,
 		break;
 
 	default:
-		TEE_Panic(0);
+		rv = SKS_INVALID_PROC;
+		goto bail;
 	}
 
-	return SKS_OK;
+	rv = SKS_OK;
+
+bail:
+	if (rv)
+		release_active_processing(session);
+
+	return rv;
 }
 
 /*
@@ -1115,12 +1126,13 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 				TEE_Param *in, TEE_Param *out, int sign)
 {
 	TEE_Result res;
+	uint32_t rv;
 	struct serialargs ctrlargs;
 	uint32_t ck_session;
 	struct pkcs11_session *session;
-	uint32_t out_size = out->memref.size;
+	uint32_t out_size = out ? out->memref.size : 0;
 
-	if (!ctrl || in || !out)
+	if (!ctrl)
 		return SKS_BAD_PARAM;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
@@ -1136,6 +1148,11 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 						PKCS11_SESSION_SIGNING :
 						PKCS11_SESSION_VERIFYING))
 		return SKS_PROCESSING_INACTIVE;
+
+	if (in || !out) {
+		rv = SKS_BAD_PARAM;
+		goto bail;
+	}
 
 	switch (session->proc_id) {
 	case SKS_PROC_AES_CMAC_GENERAL:
@@ -1155,19 +1172,21 @@ uint32_t entry_signverify_final(int teesess, TEE_Param *ctrl,
 			res = TEE_MACCompareFinal(session->tee_op_handle,
 						  NULL, 0, out->memref.buffer,
 						  out_size);
+
+		rv = tee2sks_error(res);
 		break;
+
 	default:
-		TEE_Panic(0);
+		rv = SKS_INVALID_PROC;
+		goto bail;
 	}
 
-	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER)
+bail:
+	if (sign && (rv == SKS_OK || rv == SKS_SHORT_BUFFER))
 		out->memref.size = out_size;
 
-	/* Only a short buffer error can leave the operation active */
-	if (res == TEE_ERROR_SHORT_BUFFER)
-		return SKS_SHORT_BUFFER;
+	if (rv != SKS_SHORT_BUFFER)
+		release_active_processing(session);
 
-	release_active_processing(session);
-
-	return tee2sks_error(res);
+	return rv;
 }
