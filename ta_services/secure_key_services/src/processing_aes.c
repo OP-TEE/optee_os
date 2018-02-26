@@ -329,6 +329,10 @@ uint32_t tee_ae_decrypt_final(struct pkcs11_session *session,
 					 ctx->pending_tag, ctx->tag_byte_len);
 	}
 
+	/* AE decyrption is completed */
+	TEE_Free(ctx->pending_tag);
+	ctx->pending_tag = NULL;
+
 	rv = tee2sks_error(res);
 	if (rv)
 		goto bail;
@@ -364,8 +368,8 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 {
 	struct ae_aes_context *ctx = (struct ae_aes_context *)session->proc_params;
 	TEE_Result res;
+	uint8_t *tag;
 	size_t tag_len = 0;
-	uint8_t *tag = out;
 	size_t size = 0;
 
 	if (!out_size)
@@ -374,7 +378,7 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 	/* Check the required sizes (warning: 2 output len: data + tag) */
 	res = TEE_AEEncryptFinal(session->tee_op_handle,
 				 NULL, 0, NULL, &size,
-				 tag, &tag_len);
+				 &tag, &tag_len);
 
 	if (tag_len != ctx->tag_byte_len ||
 	    (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)) {
@@ -387,6 +391,9 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 		*out_size = size + tag_len;
 		return SKS_SHORT_BUFFER;
 	}
+
+	if (!out)
+		return SKS_BAD_PARAM;
 
 	/* Process data and tag input the client output buffer */
 	tag = (uint8_t *)out + size;
