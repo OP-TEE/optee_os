@@ -923,10 +923,6 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			map->attr = core_mmu_type_to_attr(map->type);
 			va -= map->size;
 			va = ROUNDDOWN(va, map->region_size);
-#if !defined(CFG_WITH_LPAE)
-			/* Mapping does not yet support sharing L2 tables */
-			va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
-#endif
 			map->va = va;
 		}
 	} else {
@@ -944,10 +940,6 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 #endif
 			map->attr = core_mmu_type_to_attr(map->type);
 			va = ROUNDUP(va, map->region_size);
-#if !defined(CFG_WITH_LPAE)
-			/* Mapping does not yet support sharing L2 tables */
-			va = ROUNDUP(va, CORE_MMU_PGDIR_SIZE);
-#endif
 			map->va = va;
 			va += map->size;
 		}
