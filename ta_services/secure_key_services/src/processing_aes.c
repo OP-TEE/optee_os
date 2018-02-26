@@ -23,6 +23,9 @@ uint32_t tee_init_ctr_operation(struct pkcs11_session *session,
 	uint32_t incr_counter;
 	void *counter_bits;
 
+	if (!proc_params)
+		return SKS_BAD_PARAM;
+
 	serialargs_init(&args, proc_params, params_size);
 
 	rv = serialargs_get(&args, &incr_counter, sizeof(uint32_t));
@@ -151,8 +154,11 @@ uint32_t tee_ae_decrypt_update(struct pkcs11_session *session,
 		res = TEE_AEUpdate(session->tee_op_handle,
 				   ctx->pending_tag, len, NULL, &ct_size);
 
-		assert(res == TEE_ERROR_SHORT_BUFFER ||
-		       (res == TEE_SUCCESS && !ct_size));
+		if (res != TEE_ERROR_SHORT_BUFFER &&
+		    (res != TEE_SUCCESS || ct_size)) {
+			rv = SKS_ERROR;
+			goto bail;
+		}
 
 		if (ct_size) {
 			ct = TEE_Malloc(ct_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
@@ -181,8 +187,12 @@ uint32_t tee_ae_decrypt_update(struct pkcs11_session *session,
 		size = 0;
 		res = TEE_AEUpdate(session->tee_op_handle,
 				   in, data_len, NULL, &size);
-		assert(res == TEE_ERROR_SHORT_BUFFER ||
-		       (res == TEE_SUCCESS && !size));
+
+		if (res != TEE_ERROR_SHORT_BUFFER &&
+		    (res != TEE_SUCCESS || size)) {
+			rv = SKS_ERROR;
+			goto bail;
+		}
 
 		if (size) {
 			ptr = TEE_Realloc(ct, ct_size + size);
@@ -205,7 +215,11 @@ uint32_t tee_ae_decrypt_update(struct pkcs11_session *session,
 
 	/* Update pending tag in context if any */
 	data_len = in_size - data_len;
-	assert(data_len <= (ctx->tag_byte_len - ctx->pending_size));
+	if (data_len > (ctx->tag_byte_len - ctx->pending_size)) {
+		/* This could be asserted */
+		rv = SKS_ERROR;
+		goto bail;
+	}
 
 	if (data_len) {
 		TEE_MemMove(ctx->pending_tag + ctx->pending_size,
@@ -306,19 +320,18 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 	uint8_t *tag = out;
 	size_t size = 0;
 
-	assert(out && out_size);
 	if (!out || !out_size)
-		TEE_Panic(0);
+		return SKS_BAD_PARAM;
 
 	/* Check the required sizes (warning: 2 output len: data + tag) */
 	res = TEE_AEEncryptFinal(session->tee_op_handle,
 				 NULL, 0, NULL, &size,
 				 tag, &tag_len);
 
-	if (res != TEE_ERROR_SHORT_BUFFER)
-		TEE_Panic(0);
-
-	assert(tag_len == ctx->tag_byte_len);
+	if (res != TEE_ERROR_SHORT_BUFFER || tag_len != ctx->tag_byte_len) {
+		EMSG("Unexpected tag length or result %" PRIx32, res);
+		return SKS_ERROR;
+	}
 
 	if (!out && size)
 		return SKS_BAD_PARAM;
@@ -334,8 +347,10 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 	res = TEE_AEEncryptFinal(session->tee_op_handle,
 				 NULL, 0, out, &size, tag, &tag_len);
 
-	if (tag_len != ctx->tag_byte_len)
-		TEE_Panic(0);
+	if (tag_len != ctx->tag_byte_len) {
+		EMSG("Unexpected tag length");
+		return SKS_ERROR;
+	}
 
 	if (!res)
 		*out_size = size + tag_len;
@@ -356,6 +371,9 @@ uint32_t tee_init_ccm_operation(struct pkcs11_session *session,
 	uint32_t aad_len;
 	void *aad = NULL;
 	uint32_t mac_len;
+
+	if (!proc_params)
+		return SKS_BAD_PARAM;
 
 	serialargs_init(&args, proc_params, params_size);
 
@@ -385,17 +403,25 @@ uint32_t tee_init_ccm_operation(struct pkcs11_session *session,
 	if (rv)
 		goto bail;
 
+	/* As per pkcs#11 mechanism specification */
+	if (data_len > 28 ||
+	    !nonce_len || nonce_len > 15 ||
+	    aad_len > 256 ||
+	    mac_len < 4 || mac_len > 16 || mac_len & 1) {
+		DMSG("Invalid parameters: data_len %" PRIu32
+			", nonce_len %" PRIu32 ", aad_len %" PRIu32
+			", mac_len %" PRIu32, data_len, nonce_len,
+			aad_len, mac_len);
+		rv = SKS_INVALID_PROC_PARAM;
+		goto bail;
+	}
+
 	params = TEE_Malloc(sizeof(struct ae_aes_context),
 			    TEE_USER_MEM_HINT_NO_FILL_ZERO);
 	if (!params) {
 		rv = SKS_MEMORY;
 		goto bail;
 	}
-
-	/* TODO: check data_len in [0 28] */
-	/* TODO: check nonce_len in [1 15-L ???] */
-	/* TODO: check aad_len: can be null [1 256] */
-	/* TODO: check mac_len in {4, 6, 8, 10, 12, 14, 16} */
 
 	params->tag_byte_len = mac_len;
 	params->out_data = NULL;
@@ -455,6 +481,9 @@ uint32_t tee_init_gcm_operation(struct pkcs11_session *session,
 	void *aad = NULL;
 	uint32_t tag_bitlen;
 
+	if (!proc_params)
+		return SKS_BAD_PARAM;
+
 	serialargs_init(&args, proc_params, params_size);
 
 	rv = serialargs_get(&args, &iv_len, sizeof(uint32_t));
@@ -481,15 +510,21 @@ uint32_t tee_init_gcm_operation(struct pkcs11_session *session,
 
 	tag_len = ROUNDUP(tag_bitlen, 8) / 8;
 
+	/* As per pkcs#11 mechanism specification */
+	if (tag_bitlen > 128 ||
+	    !iv_len || iv_len > 256) {
+		DMSG("Invalid parameters: tag_bit_len %" PRIu32
+			", iv_len %" PRIu32, tag_bitlen, iv_len);
+		rv = SKS_INVALID_PROC_PARAM;
+		goto bail;
+	}
+
 	params = TEE_Malloc(sizeof(struct ae_aes_context),
 			    TEE_USER_MEM_HINT_NO_FILL_ZERO);
 	if (!params) {
 		rv = SKS_MEMORY;
 		goto bail;
 	}
-
-	/* TODO: check tag_bitlen in [0 128] */
-	/* TODO: check iv_len in [1 256] */
 
 	/* Store the byte round up byte length for the tag */
 	params->tag_byte_len = tag_len;
