@@ -46,6 +46,11 @@ uint32_t serialargs_alloc_and_get(struct serialargs *args,
 {
 	void *ptr;
 
+	if (!size) {
+		*out = NULL;
+		return SKS_OK;
+	}
+
 	if (args->next + size > args->start + args->size) {
 		EMSG("arg too short: full %zd, remain %zd, expect %zd",
 		     args->size, args->size - (args->next - args->start), size);
@@ -67,6 +72,9 @@ uint32_t serialargs_alloc_and_get(struct serialargs *args,
 void *serialargs_get_next_ptr(struct serialargs *args, size_t size)
 {
 	void *ptr = args->next;
+
+	if (!size)
+		return NULL;
 
 	if (args->next + size > args->start + args->size) {
 		EMSG("arg too short: full %zd, remain %zd, expect %zd",
