@@ -8,10 +8,9 @@
 #include <kernel/spinlock.h>
 #include <sm/optee_smc.h>
 
-#define INVALID_CLIENT_ID		0xFFFF
-
-static uint16_t current_client_id = 0;
+static uint16_t current_client_id = INVALID_CLIENT_ID;
 static unsigned int client_id_lock = SPINLOCK_UNLOCK;
+static bool client_registered = false;
 
 uint32_t virt_guest_created(uint16_t client_id)
 {
@@ -20,12 +19,14 @@ uint32_t virt_guest_created(uint16_t client_id)
 
 	cpu_spin_lock(&client_id_lock);
 
-	if (current_client_id != 0) {
+	if (client_registered) {
 		cpu_spin_unlock(&client_id_lock);
 		return OPTEE_SMC_RETURN_ENOTAVAIL;
 	}
 
 	current_client_id = client_id;
+	client_registered = true;
+
 	cpu_spin_unlock(&client_id_lock);
 
 	return OPTEE_SMC_RETURN_OK;
@@ -47,5 +48,5 @@ uint32_t virt_guest_destroyed(uint16_t client_id)
 
 bool check_virt_guest(uint16_t client_id)
 {
-	return client_id == 0 || client_id == current_client_id;
+	return client_id == HYP_CLIENT_ID || client_id == current_client_id;
 }

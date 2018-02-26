@@ -162,7 +162,7 @@ static void tee_entry_vm_created(struct thread_smc_args *args)
 	uint16_t client_id = args->a1;
 
 	/* Only hypervisor can issue this request */
-	if (args->a7 != 0) {
+	if (args->a7 != HYP_CLIENT_ID) {
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		return;
 	}
@@ -175,7 +175,7 @@ static void tee_entry_vm_destroyed(struct thread_smc_args *args)
 	uint16_t client_id = args->a1;
 
 	/* Only hypervisor can issue this request */
-	if (args->a7 != 0)
+	if (args->a7 != HYP_CLIENT_ID)
 		return;
 
 	virt_guest_destroyed(client_id);
