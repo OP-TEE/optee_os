@@ -449,20 +449,20 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	session = get_pkcs_session(ck_session);
 	if (!session || session->tee_session != teesess) {
 		rv = SKS_INVALID_SESSION;
-		goto error;
+		goto bail;
 	}
 
 	if (check_pkcs_session_processing_state(session,
 						PKCS11_SESSION_READY)) {
 		rv = SKS_PROCESSING_ACTIVE;
-		goto error;
+		goto bail;
 	}
 
 	if (set_pkcs_session_processing_state(session, decrypt ?
 					      PKCS11_SESSION_DECRYPTING :
 					      PKCS11_SESSION_ENCRYPTING)) {
 		rv = SKS_PROCESSING_ACTIVE;
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -472,7 +472,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	if (!obj) {
 		DMSG("Invalid key handle");
 		rv = SKS_INVALID_KEY;
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -483,11 +483,11 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 						   SKS_FUNCTION_ENCRYPT,
 						   obj->attributes);
 	if (rv)
-		goto error;
+		goto bail;
 
 	rv = check_parent_attrs_against_token(session, obj->attributes);
 	if (rv)
-		goto error;
+		goto bail;
 
 	/*
 	 * Allocate a TEE operation for the target processing and
@@ -496,7 +496,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	rv = tee_operarion_params(session, proc_params, obj, decrypt ?
 				  SKS_FUNCTION_DECRYPT : SKS_FUNCTION_ENCRYPT);
 	if (rv)
-		goto error;
+		goto bail;
 
 
 	/*
@@ -506,20 +506,20 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	case SKS_OBJ_SYM_KEY:
 		rv = load_key(obj);
 		if (rv)
-			goto error;
+			goto bail;
 
 		break;
 
 	default:
 		rv = SKS_FAILED;		// FIXME: errno
-		goto error;
+		goto bail;
 	}
 
 	res = TEE_SetOperationKey(session->tee_op_handle, obj->key_handle);
 	if (res) {
 		EMSG("TEE_SetOperationKey failed %x", res);
 		rv = tee2sks_error(res);
-		goto error;
+		goto bail;
 	}
 
 	/*
@@ -530,7 +530,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 		if (proc_params->size) {
 			DMSG("Bad params for %s", sks2str_proc(proc_params->id));
 			rv = SKS_INVALID_PROC_PARAM;
-			goto error;
+			goto bail;
 		}
 
 		TEE_CipherInit(session->tee_op_handle, NULL, 0);
@@ -542,7 +542,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 		if (proc_params->size != 16) {
 			DMSG("Expects 16 byte IV, not %d", proc_params->size);
 			rv = SKS_INVALID_PROC_PARAM;
-			goto error;
+			goto bail;
 		}
 
 		TEE_CipherInit(session->tee_op_handle,
@@ -554,7 +554,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 					    proc_params->data,
 					    proc_params->size);
 		if (rv)
-			goto error;
+			goto bail;
 		break;
 
 	case SKS_PROC_AES_CCM:
@@ -562,7 +562,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 					    proc_params->data,
 					    proc_params->size);
 		if (rv)
-			goto error;
+			goto bail;
 		break;
 
 	case SKS_PROC_AES_GCM:
@@ -570,7 +570,7 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 					    proc_params->data,
 					    proc_params->size);
 		if (rv)
-			goto error;
+			goto bail;
 		break;
 
 	default:
@@ -578,13 +578,12 @@ uint32_t entry_cipher_init(int teesess, TEE_Param *ctrl,
 	}
 
 	session->proc_id = proc_params->id;
+	rv = SKS_OK;
 
-	TEE_Free(proc_params);
+bail:
+	if (rv)
+		release_active_processing(session);
 
-	return SKS_OK;
-
-error:
-	release_active_processing(session);
 	TEE_Free(proc_params);
 
 	return rv;
@@ -653,12 +652,14 @@ uint32_t entry_cipher_update(int teesess, TEE_Param *ctrl,
 		break;
 	}
 
-	if (rv == SKS_OK || rv == SKS_SHORT_BUFFER) {
+	if (!out && rv == SKS_SHORT_BUFFER)
+		rv = SKS_BAD_PARAM;
+
+	if (rv != SKS_OK && rv != SKS_SHORT_BUFFER)
+		release_active_processing(session);
+	else
 		if (out)
 			out->memref.size = out_size;
-	} else {
-		release_active_processing(session);
-	}
 
 	return rv;
 }
@@ -730,6 +731,9 @@ uint32_t entry_cipher_final(int teesess, TEE_Param *ctrl,
 		rv = tee2sks_error(res);
 		break;
 	}
+
+	if (!out && rv == SKS_SHORT_BUFFER)
+		rv = SKS_BAD_PARAM;
 
 	if (out && (rv == SKS_OK || rv == SKS_SHORT_BUFFER))
 		out->memref.size = out_size;
