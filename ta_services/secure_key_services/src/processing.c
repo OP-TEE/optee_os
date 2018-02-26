@@ -798,7 +798,7 @@ uint32_t entry_generate_object(int teesess,
 		return SKS_BAD_PARAM;
 
 	if (out->memref.size < sizeof(uint32_t))
-		return SKS_BAD_PARAM;
+		return SKS_SHORT_BUFFER;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
