@@ -472,12 +472,13 @@ uint32_t tee_init_ccm_operation(struct pkcs11_session *session,
 	}
 
 	params->tag_byte_len = mac_len;
-	params->out_data = NULL;
 	params->out_count = 0;
 	params->pending_size = 0;
+	params->out_data = TEE_Malloc(sizeof(struct out_data_ref),
+				      TEE_MALLOC_FILL_ZERO);
 	params->pending_tag = TEE_Malloc(mac_len,
 					 TEE_USER_MEM_HINT_NO_FILL_ZERO);
-	if (!params->pending_tag) {
+	if (!params->out_data || !params->pending_tag) {
 		rv = SKS_MEMORY;
 		goto bail;
 	}
@@ -576,12 +577,14 @@ uint32_t tee_init_gcm_operation(struct pkcs11_session *session,
 
 	/* Store the byte round up byte length for the tag */
 	params->tag_byte_len = tag_len;
-	params->out_data = NULL;
 	params->out_count = 0;
 	params->pending_size = 0;
+	params->out_data = TEE_Malloc(sizeof(struct out_data_ref),
+				      TEE_MALLOC_FILL_ZERO);
 	params->pending_tag = TEE_Malloc(tag_len,
 					 TEE_USER_MEM_HINT_NO_FILL_ZERO);
-	if (!params->pending_tag) {
+
+	if (!params->out_data || !params->pending_tag) {
 		rv = SKS_MEMORY;
 		goto bail;
 	}
