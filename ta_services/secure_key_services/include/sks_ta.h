@@ -673,7 +673,7 @@ struct sks_reference {
  *		byte array: IV data (IV_byte_size bytes)
   *		32bit AAD_byte_size
  *		byte array: AAD data (AAD_byte_size bytes)
- *		32bit tag byte size
+ *		32bit tag bit size
  *
  * AES CCM
  *   head:	32bit type = SKS_PROC_AES_CCM
