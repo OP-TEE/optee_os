@@ -368,7 +368,7 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 	uint8_t *tag = out;
 	size_t size = 0;
 
-	if (!out || !out_size)
+	if (!out_size)
 		return SKS_BAD_PARAM;
 
 	/* Check the required sizes (warning: 2 output len: data + tag) */
@@ -376,15 +376,14 @@ uint32_t tee_ae_encrypt_final(struct pkcs11_session *session,
 				 NULL, 0, NULL, &size,
 				 tag, &tag_len);
 
-	if (res != TEE_ERROR_SHORT_BUFFER || tag_len != ctx->tag_byte_len) {
-		EMSG("Unexpected tag length or result %" PRIx32, res);
+	if (tag_len != ctx->tag_byte_len ||
+	    (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)) {
+		EMSG("Unexpected tag length %u/%u or rc 0x%" PRIx32,
+			tag_len, ctx->tag_byte_len, res);
 		return SKS_ERROR;
 	}
 
-	if (!out && size)
-		return SKS_BAD_PARAM;
-
-	if (out && *out_size < (size + tag_len)) {
+	if (*out_size < size + tag_len) {
 		*out_size = size + tag_len;
 		return SKS_SHORT_BUFFER;
 	}
