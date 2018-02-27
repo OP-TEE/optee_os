@@ -450,20 +450,19 @@ SECTIONS
 }
 
 /* Unpaged read-only memories */
-PROVIDE(__vcore_unpg_rx_start = __flatmap_unpg_rx_start);
-PROVIDE(__vcore_unpg_ro_start = __flatmap_unpg_ro_start);
+__vcore_unpg_rx_start = __flatmap_unpg_rx_start;
+__vcore_unpg_ro_start = __flatmap_unpg_ro_start;
 #ifdef CFG_CORE_RODATA_NOEXEC
-PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size);
-PROVIDE(__vcore_unpg_ro_size = __flatmap_unpg_ro_size);
+__vcore_unpg_rx_size = __flatmap_unpg_rx_size;
+__vcore_unpg_ro_size = __flatmap_unpg_ro_size;
 #else
-PROVIDE(__vcore_unpg_rx_size = __flatmap_unpg_rx_size +
-				__flatmap_unpg_ro_size);
-PROVIDE(__vcore_unpg_ro_size = 0);
+__vcore_unpg_rx_size = __flatmap_unpg_rx_size + __flatmap_unpg_ro_size;
+__vcore_unpg_ro_size = 0;
 #endif
 
 /* Unpaged read-write memory */
-PROVIDE(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
-PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
+__vcore_unpg_rw_start = __flatmap_unpg_rw_start;
+__vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 
 #ifdef CFG_WITH_PAGER
 /*
@@ -476,24 +475,22 @@ PROVIDE(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
 		(__flatmap_init_ro_start + __flatmap_init_ro_size))
 
 /* Paged/init read-only memories */
-PROVIDE(__vcore_init_rx_start = __flatmap_init_rx_start);
-PROVIDE(__vcore_init_ro_start = __flatmap_init_ro_start);
+__vcore_init_rx_start = __flatmap_init_rx_start;
+__vcore_init_ro_start = __flatmap_init_ro_start;
 #ifdef CFG_CORE_RODATA_NOEXEC
-PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size);
-PROVIDE(__vcore_init_ro_size = __flatmap_init_ro_size +
-				__FLATMAP_PAGER_TRAILING_SPACE);
+__vcore_init_rx_size = __flatmap_init_rx_size;
+__vcore_init_ro_size = __flatmap_init_ro_size + __FLATMAP_PAGER_TRAILING_SPACE;
 #else
-PROVIDE(__vcore_init_rx_size = __flatmap_init_rx_size +
-				__flatmap_init_ro_size +
-				__FLATMAP_PAGER_TRAILING_SPACE);
-PROVIDE(__vcore_init_ro_size = 0);
+__vcore_init_rx_size = __flatmap_init_rx_size + __flatmap_init_ro_size +
+		       __FLATMAP_PAGER_TRAILING_SPACE;
+__vcore_init_ro_size = 0;
 #endif /* CFG_CORE_RODATA_NOEXEC */
 #endif /* CFG_WITH_PAGER */
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-PROVIDE(__asan_map_start = (__asan_shadow_start / SMALL_PAGE_SIZE) *
-			   SMALL_PAGE_SIZE);
-PROVIDE(__asan_map_end = ((__asan_shadow_end - 1) / SMALL_PAGE_SIZE) *
-			 SMALL_PAGE_SIZE + SMALL_PAGE_SIZE);
-PROVIDE(__asan_map_size = __asan_map_end - __asan_map_start);
+__asan_map_start = (__asan_shadow_start / SMALL_PAGE_SIZE) *
+		   SMALL_PAGE_SIZE;
+__asan_map_end = ((__asan_shadow_end - 1) / SMALL_PAGE_SIZE) *
+		 SMALL_PAGE_SIZE + SMALL_PAGE_SIZE;
+__asan_map_size = __asan_map_end - __asan_map_start;
 #endif /*CFG_CORE_SANITIZE_KADDRESS*/
