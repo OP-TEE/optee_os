@@ -774,6 +774,12 @@ void core_init_mmu_regs(void)
 		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
 
 	/*
+	 * The value of CONTEXTIDR is initially undefined, set it 0 since
+	 * we don't have a user mode context to activate yet.
+	 */
+	write_contextidr(0);
+
+	/*
 	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses
 	 * defined by TEE_MMU_TTBCR_N_VALUE.
 	 */
