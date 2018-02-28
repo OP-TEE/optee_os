@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file sha512.h
  * \brief This file contains SHA-384 and SHA-512 definitions and functions.
@@ -7,7 +8,6 @@
  */
 /*
  *  Copyright (C) 2006-2018, Arm Limited (or its affiliates), All Rights Reserved
- *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
