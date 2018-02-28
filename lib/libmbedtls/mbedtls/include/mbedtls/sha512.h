@@ -1,10 +1,10 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file sha512.h
  *
  * \brief SHA-384 and SHA-512 cryptographic hash function
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
- *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
