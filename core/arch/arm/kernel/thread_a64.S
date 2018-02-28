@@ -264,7 +264,7 @@ FUNC thread_init_vbar , :
 	cmp	x2, #MIDR_IMPLEMENTER_ARM
 	b.ne	1f
 
-	adr	x0, workaround_vect_table
+	adr	x0, thread_excp_vect_workaround
 	ubfx	x2, x1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
 			#MIDR_PRIMARY_PART_NUM_WIDTH
 	cmp	x2, #CORTEX_A57_PART_NUM
@@ -276,7 +276,7 @@ FUNC thread_init_vbar , :
 	cmp	x2, #CORTEX_A75_PART_NUM
 	b.eq	2f
 #endif
-1:	adr	x0, thread_vect_table
+1:	adr	x0, thread_excp_vect
 2:	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
@@ -406,9 +406,9 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 #define INV_INSN	0
-	.section .text.thread_vect_table
+	.section .text.thread_excp_vect
 	.align	11, INV_INSN
-FUNC thread_vect_table , :
+FUNC thread_excp_vect , :
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
@@ -537,7 +537,8 @@ el0_serror_a32:
 	.endm
 
 	.align	11, INV_INSN
-workaround_vect_table:
+	.global thread_excp_vect_workaround
+thread_excp_vect_workaround:
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
@@ -683,7 +684,7 @@ eret_to_el0:
 
 	eret
 
-END_FUNC thread_vect_table
+END_FUNC thread_excp_vect
 
 LOCAL_FUNC el0_svc , :
 	/* get pointer to current thread context in x0 */

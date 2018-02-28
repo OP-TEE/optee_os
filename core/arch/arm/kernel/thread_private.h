@@ -165,12 +165,14 @@ extern thread_pm_handler_t thread_system_reset_handler_ptr;
  */
 extern long thread_user_kcode_offset;
 
-void thread_vect_table(void);
-
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
 void thread_init_vbar(void);
+
+void thread_excp_vect(void);
+void thread_excp_vect_workaround(void);
+void thread_excp_vect_workaround_a15(void);
 
 /* Handles a stdcall, r0-r7 holds the parameters */
 void thread_std_smc_entry(void);
