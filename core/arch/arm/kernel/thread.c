@@ -894,7 +894,7 @@ static void init_user_kcode(void)
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	vaddr_t v;
 
-	v = (vaddr_t)thread_vect_table;
+	v = (vaddr_t)thread_excp_vect;
 	thread_user_kcode_va = ROUNDDOWN(v, CORE_MMU_USER_CODE_SIZE);
 	/*
 	 * The maximum size of the exception vector and associated code is
