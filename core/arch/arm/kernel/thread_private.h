@@ -168,7 +168,7 @@ extern long thread_user_kcode_offset;
 /*
  * Initializes VBAR for current CPU (called by thread_init_per_cpu()
  */
-void thread_init_vbar(void);
+void thread_init_vbar(vaddr_t addr);
 
 void thread_excp_vect(void);
 void thread_excp_vect_workaround(void);

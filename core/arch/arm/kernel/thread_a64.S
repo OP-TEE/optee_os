@@ -254,30 +254,7 @@ END_FUNC thread_rpc
 KEEP_PAGER thread_rpc
 
 FUNC thread_init_vbar , :
-#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
-	/*
-	 * For unrecognized CPUs we fall back to the vector used for
-	 * unaffected CPUs.
-	 */
-	mrs	x1, midr_el1
-	ubfx	x2, x1, #MIDR_IMPLEMENTER_SHIFT, #MIDR_IMPLEMENTER_WIDTH
-	cmp	x2, #MIDR_IMPLEMENTER_ARM
-	b.ne	1f
-
-	adr	x0, thread_excp_vect_workaround
-	ubfx	x2, x1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
-			#MIDR_PRIMARY_PART_NUM_WIDTH
-	cmp	x2, #CORTEX_A57_PART_NUM
-	b.eq	2f
-	cmp	x2, #CORTEX_A72_PART_NUM
-	b.eq	2f
-	cmp	x2, #CORTEX_A73_PART_NUM
-	b.eq	2f
-	cmp	x2, #CORTEX_A75_PART_NUM
-	b.eq	2f
-#endif
-1:	adr	x0, thread_excp_vect
-2:	msr	vbar_el1, x0
+	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
 KEEP_PAGER thread_init_vbar

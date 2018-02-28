@@ -929,6 +929,48 @@ static void init_sec_mon(size_t pos __maybe_unused)
 #endif
 }
 
+static uint32_t __maybe_unused get_midr_implementer(uint32_t midr)
+{
+	return (midr >> MIDR_IMPLEMENTER_SHIFT) & MIDR_IMPLEMENTER_MASK;
+}
+
+static uint32_t __maybe_unused get_midr_primary_part(uint32_t midr)
+{
+	return (midr >> MIDR_PRIMARY_PART_NUM_SHIFT) &
+	       MIDR_PRIMARY_PART_NUM_MASK;
+}
+
+static vaddr_t get_excp_vect(void)
+{
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	uint32_t midr = read_midr();
+
+	if (get_midr_implementer(midr) != MIDR_IMPLEMENTER_ARM)
+		return (vaddr_t)thread_excp_vect;
+
+	switch (get_midr_primary_part(midr)) {
+#ifdef ARM32
+	case CORTEX_A8_PART_NUM:
+	case CORTEX_A9_PART_NUM:
+	case CORTEX_A17_PART_NUM:
+#endif
+	case CORTEX_A57_PART_NUM:
+	case CORTEX_A72_PART_NUM:
+	case CORTEX_A73_PART_NUM:
+	case CORTEX_A75_PART_NUM:
+		return (vaddr_t)thread_excp_vect_workaround;
+#ifdef ARM32
+	case CORTEX_A15_PART_NUM:
+		return (vaddr_t)thread_excp_vect_workaround_a15;
+#endif
+	default:
+		return (vaddr_t)thread_excp_vect;
+	}
+#endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
+
+	return (vaddr_t)thread_excp_vect;
+}
+
 void thread_init_per_cpu(void)
 {
 	size_t pos = get_core_pos();
@@ -939,7 +981,7 @@ void thread_init_per_cpu(void)
 	set_tmp_stack(l, GET_STACK(stack_tmp[pos]) - STACK_TMP_OFFS);
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 
-	thread_init_vbar();
+	thread_init_vbar(get_excp_vect());
 }
 
 struct thread_specific_data *thread_get_tsd(void)
