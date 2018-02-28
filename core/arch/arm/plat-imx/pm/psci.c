@@ -47,6 +47,19 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
+int psci_features(uint32_t psci_fid)
+{
+	switch (psci_fid) {
+#ifdef CFG_BOOT_SECONDARY_REQUEST
+	case PSCI_CPU_ON:
+		return 0;
+#endif
+
+	default:
+		return PSCI_RET_NOT_SUPPORTED;
+	}
+}
+
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id)
