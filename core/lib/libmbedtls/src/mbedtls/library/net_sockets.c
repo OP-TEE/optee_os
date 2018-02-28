@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  TCP/IP or UDP/IP networking functions
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  PKCS#12 Personal Information Exchange Syntax
  *

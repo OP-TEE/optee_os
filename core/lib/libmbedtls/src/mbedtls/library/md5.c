@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  RFC 1321 compliant MD5 implementation
  *

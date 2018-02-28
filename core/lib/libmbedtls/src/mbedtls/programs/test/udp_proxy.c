@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  UDP proxy: emulate an unreliable UDP connexion for DTLS testing
  *

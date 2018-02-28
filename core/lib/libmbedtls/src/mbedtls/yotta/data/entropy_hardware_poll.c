@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  Hardware entropy collector for the K64F, using Freescale's RNGA
  *

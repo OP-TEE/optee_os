@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  FIPS-180-1 compliant SHA-1 implementation
  *

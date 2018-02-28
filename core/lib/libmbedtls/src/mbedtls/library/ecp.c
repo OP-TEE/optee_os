@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  Elliptic curves over GF(p): generic functions
  *

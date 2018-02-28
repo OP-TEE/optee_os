@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  *  Temporary target-specific config.h for entropy collection
  *

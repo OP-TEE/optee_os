@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  An implementation of the ARCFOUR algorithm
  *

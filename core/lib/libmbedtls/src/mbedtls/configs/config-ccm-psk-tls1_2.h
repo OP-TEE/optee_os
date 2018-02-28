@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  *  Minimal configuration for TLS 1.2 with PSK and AES-CCM ciphersuites
  *

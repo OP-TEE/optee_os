@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /**
  *  Minimal configuration of features that do not require an entropy source
  *

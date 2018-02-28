@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  HMAC_DRBG implementation (NIST SP 800-90)
  *

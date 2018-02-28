@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  *  \brief Use and generate random data into a file via the CTR_DBRG based on AES
  *

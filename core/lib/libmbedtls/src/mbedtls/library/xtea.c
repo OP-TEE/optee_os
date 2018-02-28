@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  An 32-bit implementation of the XTEA algorithm
  *

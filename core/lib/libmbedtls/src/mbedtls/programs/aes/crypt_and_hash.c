@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  \brief  Generic file encryption program using generic wrappers for configured
  *          security.

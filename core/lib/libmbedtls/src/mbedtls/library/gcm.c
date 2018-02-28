@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  NIST SP800-38D compliant GCM implementation
  *

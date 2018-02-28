@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  *  Minimal configuration for using TLS as part of Thread
  *

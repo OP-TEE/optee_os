@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  *  \brief Use and generate multiple entropies calls into a file
  *

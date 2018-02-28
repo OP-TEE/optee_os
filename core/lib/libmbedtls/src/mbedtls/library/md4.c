@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  RFC 1186/1320 compliant MD4 implementation
  *

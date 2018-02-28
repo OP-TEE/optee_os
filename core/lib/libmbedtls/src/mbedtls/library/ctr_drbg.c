@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  CTR_DRBG implementation based on AES-256 (NIST SP 800-90)
  *

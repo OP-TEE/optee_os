@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  SSLv3/TLSv1 shared functions
  *

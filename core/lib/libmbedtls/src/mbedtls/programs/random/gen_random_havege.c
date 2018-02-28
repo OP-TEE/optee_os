@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  *  \brief Generate random data into a file
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  *  RFC 1521 base64 encoding/decoding
  *
