@@ -460,44 +460,7 @@ KEEP_PAGER thread_rpc
 FUNC thread_init_vbar , :
 UNWIND(	.fnstart)
 	/* Set vector (VBAR) */
-#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
-	/*
-	 * For unrecognized CPUs we fall back to the vector used for
-	 * unaffected CPUs. Cortex A-15 has special treatment compared to
-	 * the other affected Cortex CPUs.
-	 */
-	read_midr r1
-	ubfx	r2, r1, #MIDR_IMPLEMENTER_SHIFT, #MIDR_IMPLEMENTER_WIDTH
-	cmp	r2, #MIDR_IMPLEMENTER_ARM
-	bne	1f
-
-	ubfx	r2, r1, #MIDR_PRIMARY_PART_NUM_SHIFT, \
-			#MIDR_PRIMARY_PART_NUM_WIDTH
-
-	movw	r3, #CORTEX_A8_PART_NUM
-	cmp	r2, r3
-	movwne	r3, #CORTEX_A9_PART_NUM
-	cmpne	r2, r3
-	movwne	r3, #CORTEX_A17_PART_NUM
-	cmpne	r2, r3
-	movwne	r3, #CORTEX_A57_PART_NUM
-	cmpne	r2, r3
-	movwne	r3, #CORTEX_A72_PART_NUM
-	cmpne	r2, r3
-	movwne	r3, #CORTEX_A73_PART_NUM
-	cmpne	r2, r3
-	movwne	r3, #CORTEX_A75_PART_NUM
-	cmpne	r2, r3
-	ldreq	r0, =thread_excp_vect_workaround
-	beq	2f
-
-	movw	r3, #CORTEX_A15_PART_NUM
-	cmp	r2, r3
-	ldreq	r0, =thread_excp_vect_workaround_a15
-	beq	2f
-#endif
-1:	ldr	r0, =thread_excp_vect
-2:	write_vbar r0
+	write_vbar r0
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_init_vbar
