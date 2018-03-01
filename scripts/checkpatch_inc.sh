@@ -4,6 +4,7 @@ CHECKPATCH="${CHECKPATCH:-checkpatch.pl}"
 # checkpatch.pl will ignore the following paths
 CHECKPATCH_IGNORE=$(echo core/lib/lib{fdt,tomcrypt} core/lib/zlib \
 		lib/lib{png,utils,zlib} \
+		core/arch/arm/include/arm{32,64}.h \
 		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h)
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
