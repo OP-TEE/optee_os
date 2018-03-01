@@ -8,7 +8,7 @@
 #include <io.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
-#include <tomcrypt.h>
+#include <string.h>
 #include <types_ext.h>
 
 static void get_be_block(void *dst, const void *src)
