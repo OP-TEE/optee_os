@@ -134,8 +134,7 @@ S:	Maintained
 F:	core/arch/arm/plat-zynq7k/
 
 Xilinx Zynq UltraScale+ MPSOC
-R:	Sören Brinkmann <soren.brinkmann@xilinx.com>
-S:	Maintained
+S:	Orphan
 F:	core/arch/arm/plat-zynqmp/
 
 THE REST
