@@ -22,6 +22,10 @@ request.
 2. Bug reports and questions should be posted to the GitHub project as well
 (use the "Issues" tab).
 
+3. The last entry ("THE REST") lists the overall maintainers (M:) and the
+members of the Linaro Security Working Group who provide reviews on a regular
+basis (R:).
+
 [1] https://www.kernel.org/doc/linux/MAINTAINERS
 [2] https://github.com/OP-TEE/optee_os
 
@@ -133,3 +137,16 @@ Xilinx Zynq UltraScale+ MPSOC
 R:	Sören Brinkmann <soren.brinkmann@xilinx.com>
 S:	Maintained
 F:	core/arch/arm/plat-zynqmp/
+
+THE REST
+M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
+M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
+M:	Linaro <op-tee@linaro.org>
+R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
+R:	Igor Opaniuk <igor.opaniuk@linaro.org> [@igoropaniuk]
+R:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
+R:	Victor Chong <victor.chong@linaro.org> [@vchong]
+L:	tee-dev@lists.linaro.org
+S:	Maintained
+F:	*
+F:	*/
