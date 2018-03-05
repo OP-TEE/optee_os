@@ -215,9 +215,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	core_is_released[pos] = true;
 
 	/* set NS entry addresses of core */
-	ns_entry_contexts[pos].entry_point = entry;
-	ns_entry_contexts[pos].context_id = context_id;
-	dsb_ishst();
+	generic_boot_set_core_ns_entry(pos, entry, context_id);
 
 	sec_entry_addrs[pos] = CFG_TEE_LOAD_ADDR;
 	dsb_ishst();

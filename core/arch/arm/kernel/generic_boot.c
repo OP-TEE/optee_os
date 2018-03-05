@@ -55,6 +55,10 @@
 #define PADDR_INVALID		ULONG_MAX
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
+struct ns_entry_context {
+	uintptr_t entry_point;
+	uintptr_t context_id;
+};
 struct ns_entry_context ns_entry_contexts[CFG_TEE_CORE_NB_CORE];
 static uint32_t spin_table[CFG_TEE_CORE_NB_CORE];
 #endif
@@ -934,6 +938,14 @@ void generic_boot_init_secondary(unsigned long nsec_entry)
 #endif
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
+void generic_boot_set_core_ns_entry(size_t core_idx, uintptr_t entry,
+				    uintptr_t context_id)
+{
+	ns_entry_contexts[core_idx].entry_point = entry;
+	ns_entry_contexts[core_idx].context_id = context_id;
+	dsb_ishst();
+}
+
 int generic_boot_core_release(size_t core_idx, paddr_t entry)
 {
 	if (!core_idx || core_idx >= CFG_TEE_CORE_NB_CORE)
