@@ -275,8 +275,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	DMSG("core_id: %" PRIu32, core_idx);
 
 	/* set secondary cores' NS entry addresses */
-	ns_entry_contexts[core_idx].entry_point = entry;
-	ns_entry_contexts[core_idx].context_id = context_id;
+	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	/* wait */
 	if (!core_held_in_reset(core_idx)) {
