@@ -63,6 +63,10 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 
 	if (abort_is_user_exception(ai)) {
 		get_current_ta_exidx(&exidx, &exidx_sz);
+		if (!exidx) {
+			EMSG_RAW("Call stack not available");
+			return;
+		}
 	} else {
 		exidx = (vaddr_t)__exidx_start;
 		exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
