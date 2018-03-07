@@ -30,7 +30,6 @@ PHDRS {
 
 SECTIONS {
 	.ta_head : {*(.ta_head)} :exec
-
 	.text : {
 		__text_start = .;
 		*(.text .text.*)
@@ -43,6 +42,8 @@ SECTIONS {
 		PROVIDE(MCOUNT_SYM = __utee_mcount);
 		__text_end = .;
 	}
+        .plt : { *(.plt) }
+
 	.eh_frame : { *(.eh_frame) } :rodata
 	.rodata : {
 		*(.gnu.linkonce.r.*)
@@ -50,12 +51,9 @@ SECTIONS {
 	}
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
-
         .ctors : { *(.ctors) }
         .dtors : { *(.dtors) }
-        .plt : { *(.plt) }
 	.got : { *(.got.plt) *(.got) }
-
 	.rel.text : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
 	.rela.text : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
 	.rel.data : { *(.rel.data) *(.rel.gnu.linkonce.d*) }
@@ -77,7 +75,6 @@ SECTIONS {
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-
 	.dynamic : { *(.dynamic) } :dyn :rodata
 	.dynsym : { *(.dynsym) } :rodata
 	.dynstr : { *(.dynstr) }
@@ -87,7 +84,6 @@ SECTIONS {
 	. = ALIGN(4096);
 
 	.data : { *(.data .data.* .gnu.linkonce.d.*) } :rwdata
-
 	.bss : {
 		*(.bss .bss.* .gnu.linkonce.b.* COMMON)
 
