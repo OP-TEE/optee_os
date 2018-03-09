@@ -738,7 +738,7 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 			return res;
 	} else {
 		size_t num_bytes = 0;
-		size_t b_size = MIN(SIZE_4K, l);
+		size_t b_size = MIN(256U, l);
 		uint8_t *b = malloc(b_size);
 
 		if (!b)
