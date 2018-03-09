@@ -110,7 +110,16 @@ void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
  *
  * Return true on success of false if the area can't be added
  */
+#ifdef CFG_PAGED_USER_TA
 bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
+#else
+static inline bool tee_pager_add_uta_area(struct user_ta_ctx *utc __unused,
+					  vaddr_t base __unused,
+					  size_t size __unused)
+{
+	return false;
+}
+#endif
 
 /*
  * tee_pager_set_uta_area_attr() - Set attributes of a initialized memory area
@@ -121,8 +130,18 @@ bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
  *
  * Return true on success of false if the area can't be updated
  */
+#ifdef CFG_PAGED_USER_TA
 bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				 size_t size, uint32_t flags);
+#else
+static inline bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc __unused,
+					       vaddr_t base __unused,
+					       size_t size __unused,
+					       uint32_t flags __unused)
+{
+	return false;
+}
+#endif
 
 void tee_pager_transfer_uta_region(struct user_ta_ctx *src_utc,
 				   vaddr_t src_base,
