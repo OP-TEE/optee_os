@@ -56,6 +56,9 @@ void vm_info_get_user_range(struct user_ta_ctx *utc, vaddr_t *vstart,
 TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 		  uint32_t prot, struct mobj *mobj, size_t offs);
 
+TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+		       uint32_t prot);
+
 /* Map stack of a user TA.  */
 TEE_Result tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj);
 
