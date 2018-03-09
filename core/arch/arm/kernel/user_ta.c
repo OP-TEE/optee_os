@@ -75,56 +75,6 @@ static uint32_t elf_flags_to_mattr(uint32_t flags)
 	return mattr;
 }
 
-#ifdef CFG_PAGED_USER_TA
-static TEE_Result config_initial_paging(struct user_ta_ctx *utc)
-{
-	struct vm_region *r;
-
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
-		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
-			continue;
-		if (!tee_pager_add_uta_area(utc, r->va, r->size))
-			return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result config_final_paging(struct user_ta_ctx *utc)
-{
-	struct vm_region *r;
-	uint32_t flags;
-
-	tee_pager_assign_uta_tables(utc);
-
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
-		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
-			continue;
-		flags = r->attr & TEE_MATTR_PROT_MASK;
-		if (!tee_pager_set_uta_area_attr(utc, r->va, r->size, flags))
-			return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
-}
-#else /*!CFG_PAGED_USER_TA*/
-static TEE_Result config_initial_paging(struct user_ta_ctx *utc __unused)
-{
-	return TEE_SUCCESS;
-}
-
-static TEE_Result config_final_paging(struct user_ta_ctx *utc)
-{
-	vaddr_t vstart;
-	vaddr_t vend;
-
-	vm_info_get_user_range(utc, &vstart, &vend);
-	cache_op_inner(DCACHE_AREA_CLEAN, (void *)vstart, vend - vstart);
-	cache_op_inner(ICACHE_AREA_INVALIDATE, (void *)vstart, vend - vstart);
-	return TEE_SUCCESS;
-}
-#endif /*!CFG_PAGED_USER_TA*/
-
 struct load_seg {
 	vaddr_t offs;
 	uint32_t flags;
@@ -294,10 +244,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 			utc->load_addr = segs[0].va;
 	}
 
-	res = config_initial_paging(utc);
-	if (res)
-		goto out;
-
 	tee_mmu_set_ctx(&utc->ctx);
 
 	res = elf_load_body(elf_state, utc->load_addr);
@@ -315,7 +261,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 			goto out;
 	}
 
-	res = config_final_paging(utc);
 out:
 	free(segs);
 	elf_load_final(elf_state);
