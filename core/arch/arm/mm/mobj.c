@@ -793,7 +793,7 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_seccpy_shm_ops;
 
-	if (tee_mmu_add_rwmem(utc, &m->mobj, -1, &va) != TEE_SUCCESS)
+	if (tee_mmu_add_rwmem(utc, &m->mobj, &va) != TEE_SUCCESS)
 		goto bad;
 
 	if (!tee_pager_add_uta_area(utc, va, size))

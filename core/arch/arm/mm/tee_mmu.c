@@ -573,15 +573,13 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 }
 
 TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
-			     int pgdir_offset, vaddr_t *va)
+			     vaddr_t *va)
 {
 	struct tee_ta_region *reg = NULL;
 	struct tee_ta_region *last_reg;
 	vaddr_t v;
 	vaddr_t end_v;
 	size_t n;
-
-	assert(pgdir_offset < CORE_MMU_PGDIR_SIZE);
 
 	/*
 	 * Avoid the corner case when no regions are assigned, currently
@@ -608,22 +606,6 @@ TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
 			    mobj_is_secure(mobj))
 				v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
 #endif
-
-			/*
-			 * If mobj needs to span several page directories
-			 * the offset into the first pgdir need to match
-			 * the supplied offset or some area used by the
-			 * pager may not fit into a single pgdir.
-			 */
-			if (pgdir_offset >= 0 &&
-			    mobj->size > CORE_MMU_PGDIR_SIZE) {
-				if ((v & CORE_MMU_PGDIR_MASK) <
-				    (size_t)pgdir_offset)
-					v = ROUNDDOWN(v, CORE_MMU_PGDIR_SIZE);
-				else
-					v = ROUNDUP(v, CORE_MMU_PGDIR_SIZE);
-				v += pgdir_offset;
-			}
 			end_v = ROUNDUP(v + mobj->size, SMALL_PAGE_SIZE);
 			continue;
 		}
