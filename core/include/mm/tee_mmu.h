@@ -57,12 +57,8 @@ void tee_mmu_map_init(struct user_ta_ctx *utc);
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		struct tee_ta_param *param, void *param_va[TEE_NUM_PARAMS]);
 
-/*
- * If the rwmem area covers more than one page directory @pgdir_offset has
- * to be honoured unless it's -1.
- */
 TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
-			     int pgdir_offset, vaddr_t *va);
+			     vaddr_t *va);
 void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va);
 
 /*
