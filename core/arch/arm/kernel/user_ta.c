@@ -31,6 +31,7 @@
 #include <compiler.h>
 #include <keep.h>
 #include <kernel/panic.h>
+#include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/user_ta.h>
@@ -65,15 +66,13 @@ static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 	uint32_t mattr = 0;
 
 	if (init_attrs)
-		mattr = TEE_MATTR_PRW;
-	else {
-		if (flags & PF_X)
-			mattr |= TEE_MATTR_UX;
-		if (flags & PF_W)
-			mattr |= TEE_MATTR_UW;
-		if (flags & PF_R)
-			mattr |= TEE_MATTR_UR;
-	}
+		mattr |= TEE_MATTR_PRW;
+	if (flags & PF_X)
+		mattr |= TEE_MATTR_UX;
+	if (flags & PF_W)
+		mattr |= TEE_MATTR_UW;
+	if (flags & PF_R)
+		mattr |= TEE_MATTR_UR;
 
 	return mattr;
 }
@@ -81,35 +80,33 @@ static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 #ifdef CFG_PAGED_USER_TA
 static TEE_Result config_initial_paging(struct user_ta_ctx *utc)
 {
-	size_t n;
+	struct vm_region *r;
 
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (!utc->mmu->regions[n].size)
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
 			continue;
-		if (!tee_pager_add_uta_area(utc, utc->mmu->regions[n].va,
-					    utc->mmu->regions[n].size))
+		if (!tee_pager_add_uta_area(utc, r->va, r->size))
 			return TEE_ERROR_GENERIC;
 	}
+
 	return TEE_SUCCESS;
 }
 
 static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 {
-	size_t n;
+	struct vm_region *r;
 	uint32_t flags;
 
 	tee_pager_assign_uta_tables(utc);
 
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (!utc->mmu->regions[n].size)
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
 			continue;
-		flags = utc->mmu->regions[n].attr &
-			(TEE_MATTR_PRW | TEE_MATTR_URWX);
-		if (!tee_pager_set_uta_area_attr(utc, utc->mmu->regions[n].va,
-						 utc->mmu->regions[n].size,
-						 flags))
+		flags = r->attr & TEE_MATTR_PROT_MASK;
+		if (!tee_pager_set_uta_area_attr(utc, r->va, r->size, flags))
 			return TEE_ERROR_GENERIC;
 	}
+
 	return TEE_SUCCESS;
 }
 #else /*!CFG_PAGED_USER_TA*/
@@ -120,29 +117,50 @@ static TEE_Result config_initial_paging(struct user_ta_ctx *utc __unused)
 
 static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 {
-	void *va = (void *)utc->mmu->ta_private_vmem_start;
-	size_t vasize = utc->mmu->ta_private_vmem_end -
-			utc->mmu->ta_private_vmem_start;
+	vaddr_t vstart;
+	vaddr_t vend;
 
-	cache_op_inner(DCACHE_AREA_CLEAN, va, vasize);
-	cache_op_inner(ICACHE_AREA_INVALIDATE, va, vasize);
+	vm_info_get_user_range(utc, &vstart, &vend);
+	cache_op_inner(DCACHE_AREA_CLEAN, (void *)vstart, vend - vstart);
+	cache_op_inner(ICACHE_AREA_INVALIDATE, (void *)vstart, vend - vstart);
 	return TEE_SUCCESS;
 }
 #endif /*!CFG_PAGED_USER_TA*/
+
+struct load_seg {
+	vaddr_t offs;
+	uint32_t prot;
+	vaddr_t oend;
+};
+
+static int cmp_load_seg(const void *a0, const void *a1)
+{
+	const struct load_seg *s0 = a0;
+	const struct load_seg *s1 = a1;
+
+	return CMP_TRILEAN(s0->offs, s1->offs);
+}
 
 static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			struct elf_load_state *elf_state, bool init_attrs)
 {
 	TEE_Result res;
-	uint32_t mattr;
 	size_t idx = 0;
+	size_t num_segs = 0;
+	struct load_seg *segs = NULL;
 
-	tee_mmu_map_init(utc);
+	res = tee_mmu_map_init(utc);
+	if (res)
+		return res;
 
 	/*
 	 * Add stack segment
 	 */
-	tee_mmu_map_stack(utc, utc->mobj_stack);
+	utc->stack_addr = 0;
+	res = vm_map(utc, &utc->stack_addr, utc->mobj_stack->size,
+		     TEE_MATTR_URW | TEE_MATTR_PRW, utc->mobj_stack, 0);
+	if (res)
+		return res;
 
 	/*
 	 * Add code segment
@@ -161,16 +179,63 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			return res;
 
 		if (type == PT_LOAD) {
-			mattr = elf_flags_to_mattr(flags, init_attrs);
-			res = tee_mmu_map_add_segment(utc, utc->mobj_code,
-						      offs, size, mattr);
-			if (res != TEE_SUCCESS)
-				return res;
+			void *p = realloc(segs, (num_segs + 1) * sizeof(*segs));
+
+			if (!p) {
+				free(segs);
+				return TEE_ERROR_OUT_OF_MEMORY;
+			}
+			segs = p;
+			segs[num_segs].offs = ROUNDDOWN(offs, SMALL_PAGE_SIZE);
+			segs[num_segs].oend = ROUNDUP(offs + size,
+						      SMALL_PAGE_SIZE);
+			segs[num_segs].prot = elf_flags_to_mattr(flags,
+								 init_attrs);
+			num_segs++;
 		} else if (type == PT_ARM_EXIDX) {
 			utc->exidx_start = offs;
 			utc->exidx_size = size;
 		}
 	}
+
+	/* Sort in case load sections aren't in order */
+	qsort(segs, num_segs, sizeof(*segs), cmp_load_seg);
+
+	idx = 1;
+	while (idx < num_segs) {
+		size_t this_size = segs[idx].oend - segs[idx].offs;
+		size_t prev_size = segs[idx - 1].oend - segs[idx - 1].offs;
+
+		if (core_is_buffer_intersect(segs[idx].offs, this_size,
+					     segs[idx - 1].offs, prev_size)) {
+			/* Merge the segments and their attributes */
+			segs[idx - 1].oend = MAX(segs[idx - 1].oend,
+						 segs[idx].oend);
+			segs[idx - 1].prot |= segs[idx].prot;
+
+			/* Remove this index */
+			memcpy(segs + idx, segs + idx + 1,
+			       (num_segs - idx - 1) * sizeof(*segs));
+			num_segs--;
+		} else {
+			idx++;
+		}
+	}
+
+	utc->load_addr = 0;
+	for (idx = 0; idx < num_segs; idx++) {
+		vaddr_t va = utc->load_addr - segs[0].offs + segs[idx].offs;
+
+		res = vm_map(utc, &va, segs[idx].oend - segs[idx].offs,
+			     segs[idx].prot, utc->mobj_code, segs[idx].offs);
+		if (res)
+			break;
+		if (!idx)
+			utc->load_addr = va;
+	}
+	free(segs);
+	if (res)
+		return res;
 
 	if (init_attrs)
 		return config_initial_paging(utc);
@@ -233,7 +298,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	 * Map physical memory into TA virtual memory
 	 */
 
-	res = tee_mmu_init(utc);
+	res = vm_info_init(utc);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -243,7 +308,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 
 	tee_mmu_set_ctx(&utc->ctx);
 
-	res = elf_load_body(elf_state, tee_mmu_get_load_addr(&utc->ctx));
+	res = elf_load_body(elf_state, utc->load_addr);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -297,7 +362,6 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 	if (res != TEE_SUCCESS)
 		goto error_return;
 
-	utc->load_addr = tee_mmu_get_load_addr(&utc->ctx);
 	ta_head = (struct ta_head *)(vaddr_t)utc->load_addr;
 
 	if (memcmp(&ta_head->uuid, uuid, sizeof(TEE_UUID)) != 0) {
@@ -314,7 +378,7 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 		goto error_return;
 	}
 
-	DMSG("ELF load address 0x%x", utc->load_addr);
+	DMSG("ELF load address %#" PRIxVA, utc->load_addr);
 	utc->ctx.flags = ta_head->flags;
 	utc->ctx.uuid = ta_head->uuid;
 	utc->entry_func = ta_head->entry.ptr64;
@@ -333,7 +397,7 @@ error_return:
 	if (utc) {
 		pgt_flush_ctx(&utc->ctx);
 		tee_pager_rem_uta_areas(utc);
-		tee_mmu_final(utc);
+		vm_info_final(utc);
 		mobj_free(utc->mobj_code);
 		mobj_free(utc->mobj_stack);
 		free(utc);
@@ -430,8 +494,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	tee_ta_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = (uaddr_t)utc->mmu->regions[TEE_MMU_UMAP_STACK_IDX].va +
-		utc->mobj_stack->size;
+	usr_stack = utc->stack_addr + utc->mobj_stack->size;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param, param_va);
@@ -502,28 +565,26 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
+	struct vm_region *r;
 	char flags[7] = { '\0', };
-	size_t n;
+	size_t n = 0;
 
-	EMSG_RAW(" arch: %s  load address: 0x%x  ctx-idr: %d",
+	EMSG_RAW(" arch: %s  load address: %#" PRIxVA " ctx-idr: %d",
 		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
-		 utc->mmu->asid);
+		 utc->vm_info->asid);
 	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
-		 utc->mmu->regions[TEE_MMU_UMAP_STACK_IDX].va,
-		 utc->mobj_stack->size);
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
+		 utc->stack_addr, utc->mobj_stack->size);
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
 		paddr_t pa = 0;
 
-		if (utc->mmu->regions[n].mobj)
-			mobj_get_pa(utc->mmu->regions[n].mobj,
-				    utc->mmu->regions[n].offset, 0, &pa);
+		if (r->mobj)
+			mobj_get_pa(r->mobj, r->offset, 0, &pa);
 
-		mattr_perm_to_str(flags, sizeof(flags),
-				  utc->mmu->regions[n].attr);
+		mattr_perm_to_str(flags, sizeof(flags), r->attr);
 		EMSG_RAW(" region %zu: va %#" PRIxVA " pa %#" PRIxPA
 			 " size %#zx flags %s",
-			 n, utc->mmu->regions[n].va, pa,
-			 utc->mmu->regions[n].size, flags);
+			 n, r->va, pa, r->size, flags);
+		n++;
 	}
 }
 KEEP_PAGER(user_ta_dump_state);
@@ -570,7 +631,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 				     &utc->open_sessions, KERN_IDENTITY);
 	}
 
-	tee_mmu_final(utc);
+	vm_info_final(utc);
 	mobj_free(utc->mobj_code);
 	mobj_free(utc->mobj_stack);
 
@@ -585,7 +646,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 static uint32_t user_ta_get_instance_id(struct tee_ta_ctx *ctx)
 {
-	return to_user_ta_ctx(ctx)->mmu->asid;
+	return to_user_ta_ctx(ctx)->vm_info->asid;
 }
 
 static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {

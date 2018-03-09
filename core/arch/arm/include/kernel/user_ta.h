@@ -32,8 +32,9 @@ struct user_ta_ctx {
 	struct tee_storage_enum_head storage_enums;
 	struct mobj *mobj_code; /* secure world memory */
 	struct mobj *mobj_stack; /* stack */
-	uint32_t load_addr;	/* elf load addr (from TAs address space) */
-	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
+	vaddr_t stack_addr;	/* Virtual address of stack */
+	vaddr_t load_addr;	/* elf load addr (from TAs address space) */
+	struct vm_info *vm_info;/* Virtual memory map of this context */
 	void *ta_time_offs;	/* Time reference used by the TA */
 	struct tee_pager_area_head *areas;
 #if defined(CFG_SE_API)

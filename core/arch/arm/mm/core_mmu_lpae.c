@@ -529,7 +529,7 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	memset(dir_info.table, 0, PGT_SIZE);
 	core_mmu_populate_user_map(&dir_info, utc);
 	map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
-	map->asid = utc->mmu->asid;
+	map->asid = utc->vm_info->asid;
 }
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,

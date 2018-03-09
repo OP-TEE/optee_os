@@ -146,7 +146,7 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 
 		utc = to_user_ta_ctx(s->ctx);
 		/* User stack */
-		stack = (uaddr_t)utc->mmu->regions[0].va;
+		stack = utc->stack_addr;
 		stack_size = utc->mobj_stack->size;
 	} else {
 		/* Kernel stack */

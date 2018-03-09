@@ -1285,7 +1285,7 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 }
 
 static void set_pg_region(struct core_mmu_table_info *dir_info,
-			struct tee_ta_region *region, struct pgt **pgt,
+			struct vm_region *region, struct pgt **pgt,
 			struct core_mmu_table_info *pg_info)
 {
 	struct tee_mmap_region r = {
@@ -1524,36 +1524,29 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	struct core_mmu_table_info pg_info;
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
 	struct pgt *pgt;
-	size_t n;
+	struct vm_region *r;
+	struct vm_region *r_last;
 
-	/* Find the last valid entry */
-	n = ARRAY_SIZE(utc->mmu->regions);
-	while (true) {
-		n--;
-		if (utc->mmu->regions[n].size)
-			break;
-		if (!n)
-			return;	/* Nothing to map */
-	}
+	/* Find the first and last valid entry */
+	r = TAILQ_FIRST(&utc->vm_info->regions);
+	if (!r)
+		return; /* Nothing to map */
+	r_last = TAILQ_LAST(&utc->vm_info->regions, vm_region_head);
 
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->regions[0].va,
-		  utc->mmu->regions[n].va + utc->mmu->regions[n].size - 1);
+	pgt_alloc(pgt_cache, &utc->ctx, r->va,
+		  r_last->va + r_last->size - 1);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++)
-		mobj_update_mapping(utc->mmu->regions[n].mobj, utc,
-				    utc->mmu->regions[n].va);
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
+		mobj_update_mapping(r->mobj, utc, r->va);
 
-	for (n = 0; n < ARRAY_SIZE(utc->mmu->regions); n++) {
-		if (!utc->mmu->regions[n].size)
-			continue;
-		set_pg_region(dir_info, utc->mmu->regions + n, &pgt, &pg_info);
-	}
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
+		set_pg_region(dir_info, r, &pgt, &pg_info);
 }
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)

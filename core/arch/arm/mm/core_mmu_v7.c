@@ -497,7 +497,7 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
 	core_mmu_populate_user_map(&dir_info, utc);
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
-	map->ctxid = utc->mmu->asid;
+	map->ctxid = utc->vm_info->asid;
 }
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
