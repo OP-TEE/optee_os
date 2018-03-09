@@ -8,6 +8,7 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
+#include <mm/tee_pager.h>
 #include <optee_msg_supplicant.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +49,41 @@ static int pos_to_block_num(int position)
 
 static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 
+#ifdef CFG_WITH_PAGER
+static void *ree_fs_tmp_block;
+static bool ree_fs_tmp_block_busy;
 
+static void *get_tmp_block(void)
+{
+	assert(!ree_fs_tmp_block_busy);
+	if (!ree_fs_tmp_block)
+		ree_fs_tmp_block = tee_pager_alloc(BLOCK_SIZE,
+						   TEE_MATTR_LOCKED);
+
+	if (ree_fs_tmp_block)
+		ree_fs_tmp_block_busy = true;
+
+	return ree_fs_tmp_block;
+}
+
+static void put_tmp_block(void *tmp_block)
+{
+	assert(ree_fs_tmp_block_busy);
+	assert(tmp_block == ree_fs_tmp_block);
+	tee_pager_release_phys(tmp_block, BLOCK_SIZE);
+	ree_fs_tmp_block_busy = false;
+}
+#else
+static void *get_tmp_block(void)
+{
+	return malloc(BLOCK_SIZE);
+}
+
+static void put_tmp_block(void *tmp_block)
+{
+	free(tmp_block);
+}
+#endif
 
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 				     const void *buf, size_t len)
@@ -61,7 +96,7 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 	uint8_t *block;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
-	block = malloc(BLOCK_SIZE);
+	block = get_tmp_block();
 	if (!block)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -105,7 +140,8 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 	}
 
 exit:
-	free(block);
+	if (block)
+		put_tmp_block(block);
 	return res;
 }
 
@@ -303,7 +339,7 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 	start_block_num = pos_to_block_num(pos);
 	end_block_num = pos_to_block_num(pos + remain_bytes - 1);
 
-	block = malloc(BLOCK_SIZE);
+	block = get_tmp_block();
 	if (!block) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
@@ -330,7 +366,8 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 	}
 	res = TEE_SUCCESS;
 exit:
-	free(block);
+	if (block)
+		put_tmp_block(block);
 	return res;
 }
 
