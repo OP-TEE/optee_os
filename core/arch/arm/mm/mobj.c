@@ -705,7 +705,6 @@ struct mobj *mobj_paged_alloc(size_t size)
 struct mobj_seccpy_shm {
 	struct user_ta_ctx *utc;
 	vaddr_t va;
-	size_t pgdir_offset;
 	struct mobj mobj;
 };
 
@@ -800,7 +799,6 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 		goto bad;
 
 	m->va = va;
-	m->pgdir_offset = va & CORE_MMU_PGDIR_MASK;
 	m->utc = to_user_ta_ctx(tsd->ctx);
 	return &m->mobj;
 bad:
