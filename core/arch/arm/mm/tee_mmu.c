@@ -236,6 +236,28 @@ TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 	return res;
 }
 
+TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+		       uint32_t prot)
+{
+	struct vm_region *r;
+
+	/*
+	 * To keep thing simple: specified va and len has to match exactly
+	 * with an already registered region.
+	 */
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		if (core_is_buffer_intersect(r->va, r->size, va, len)) {
+			if (r->va != va || r->size != len)
+				return TEE_ERROR_BAD_PARAMETERS;
+			r->attr &= ~TEE_MATTR_PROT_MASK;
+			r->attr |= prot & TEE_MATTR_PROT_MASK;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 static unsigned int asid_alloc(void)
 {
 	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
