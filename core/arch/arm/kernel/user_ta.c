@@ -266,10 +266,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_mmu_map_init(utc);
-	if (res)
-		goto out;
-
 	/*
 	 * Add stack segment
 	 */
