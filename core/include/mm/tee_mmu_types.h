@@ -47,6 +47,7 @@
 #define TEE_MATTR_URW			(TEE_MATTR_UR | TEE_MATTR_UW)
 #define TEE_MATTR_URX			(TEE_MATTR_UR | TEE_MATTR_UX)
 #define TEE_MATTR_URWX			(TEE_MATTR_URW | TEE_MATTR_UX)
+#define TEE_MATTR_PROT_MASK		(TEE_MATTR_PRWX | TEE_MATTR_URWX)
 
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)
@@ -58,6 +59,16 @@
 #define TEE_MATTR_CACHE_CACHED	1
 
 #define TEE_MATTR_LOCKED		BIT(15)
+/*
+ * Tags TA mappings which are only used during a single call (open session
+ * or invoke command parameters).
+ */
+#define TEE_MATTR_EPHEMERAL		BIT(16)
+/*
+ * Tags TA mappings that must not be removed (kernel mappings while in user
+ * mode).
+ */
+#define TEE_MATTR_PERMANENT		BIT(17)
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 #define TEE_MMU_UMAP_KCODE_IDX	0
