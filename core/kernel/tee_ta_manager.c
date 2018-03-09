@@ -710,7 +710,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
 	if (((ctx && is_user_ta_ctx(ctx) ?
-			to_user_ta_ctx(ctx)->mmu : NULL) == NULL) ==
+			to_user_ta_ctx(ctx)->vm_info : NULL) == NULL) ==
 					core_mmu_user_mapping_is_active())
 		panic("unexpected active mapping");
 }

@@ -29,6 +29,7 @@
 #define TEE_MMU_TYPES_H
 
 #include <stdint.h>
+#include <sys/queue.h>
 #include <util.h>
 
 #define TEE_MATTR_VALID_BLOCK		BIT(0)
@@ -93,18 +94,19 @@ struct tee_mmap_region {
 	uint32_t attr; /* TEE_MATTR_* above */
 };
 
-struct tee_ta_region {
+struct vm_region {
 	struct mobj *mobj;
 	size_t offset;
 	vaddr_t va;
 	size_t size;
 	uint32_t attr; /* TEE_MATTR_* above */
+	TAILQ_ENTRY(vm_region) link;
 };
 
-struct tee_mmu_info {
-	struct tee_ta_region regions[TEE_MMU_UMAP_MAX_ENTRIES];
-	vaddr_t ta_private_vmem_start;
-	vaddr_t ta_private_vmem_end;
+TAILQ_HEAD(vm_region_head, vm_region);
+
+struct vm_info {
+	struct vm_region_head regions;
 	unsigned int asid;
 };
 

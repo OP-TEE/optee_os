@@ -35,23 +35,39 @@
 /*-----------------------------------------------------------------------------
  * Allocate context resources like ASID and MMU table information
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_init(struct user_ta_ctx *utc);
+TEE_Result vm_info_init(struct user_ta_ctx *utc);
 
 /*-----------------------------------------------------------------------------
- * tee_mmu_final - Release context resources like ASID
+ * Release context resources like ASID
  *---------------------------------------------------------------------------*/
-void tee_mmu_final(struct user_ta_ctx *utc);
+void vm_info_final(struct user_ta_ctx *utc);
+
+/*
+ * Returns range of user mapping (excluding eventual permanent kernel mapping).
+ */
+void vm_info_get_user_range(struct user_ta_ctx *utc, vaddr_t *vstart,
+			    vaddr_t *vend);
+
+/*
+ * Creates a memory map of a mobj.
+ * Desired virtual address can be specified in @va otherwise @va must be
+ * initialized to 0 if the next available can be chosen.
+ */
+TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
+		  uint32_t prot, struct mobj *mobj, size_t offs);
 
 /* Map stack of a user TA.  */
-void tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj);
+TEE_Result tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj);
+
 /*
  * Map a code segment of a user TA, this function may be called multiple
  * times if there's several segments.
  */
 TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, struct mobj *mobj,
-				   size_t offs, size_t size, uint32_t prot);
+				   size_t offs, size_t size, uint32_t prot,
+				   vaddr_t *va);
 
-void tee_mmu_map_init(struct user_ta_ctx *utc);
+TEE_Result tee_mmu_map_init(struct user_ta_ctx *utc);
 
 /* Map parameters for a user TA */
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
