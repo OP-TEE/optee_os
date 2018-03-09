@@ -61,12 +61,10 @@
 #include "elf_load.h"
 #include "elf_common.h"
 
-static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
+static uint32_t elf_flags_to_mattr(uint32_t flags)
 {
 	uint32_t mattr = 0;
 
-	if (init_attrs)
-		mattr |= TEE_MATTR_PRW;
 	if (flags & PF_X)
 		mattr |= TEE_MATTR_UX;
 	if (flags & PF_W)
@@ -129,38 +127,21 @@ static TEE_Result config_final_paging(struct user_ta_ctx *utc)
 
 struct load_seg {
 	vaddr_t offs;
-	uint32_t prot;
+	uint32_t flags;
 	vaddr_t oend;
+	vaddr_t va;
+	size_t size;
 };
 
-static int cmp_load_seg(const void *a0, const void *a1)
-{
-	const struct load_seg *s0 = a0;
-	const struct load_seg *s1 = a1;
-
-	return CMP_TRILEAN(s0->offs, s1->offs);
-}
-
-static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
-			struct elf_load_state *elf_state, bool init_attrs)
+static TEE_Result get_elf_segments(struct user_ta_ctx *utc,
+				   struct elf_load_state *elf_state,
+				   struct load_seg **segs_ret,
+				   size_t *num_segs_ret)
 {
 	TEE_Result res;
 	size_t idx = 0;
 	size_t num_segs = 0;
 	struct load_seg *segs = NULL;
-
-	res = tee_mmu_map_init(utc);
-	if (res)
-		return res;
-
-	/*
-	 * Add stack segment
-	 */
-	utc->stack_addr = 0;
-	res = vm_map(utc, &utc->stack_addr, utc->mobj_stack->size,
-		     TEE_MATTR_URW | TEE_MATTR_PRW, utc->mobj_stack, 0);
-	if (res)
-		return res;
 
 	/*
 	 * Add code segment
@@ -189,17 +170,13 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			segs[num_segs].offs = ROUNDDOWN(offs, SMALL_PAGE_SIZE);
 			segs[num_segs].oend = ROUNDUP(offs + size,
 						      SMALL_PAGE_SIZE);
-			segs[num_segs].prot = elf_flags_to_mattr(flags,
-								 init_attrs);
+			segs[num_segs].flags = flags;
 			num_segs++;
 		} else if (type == PT_ARM_EXIDX) {
 			utc->exidx_start = offs;
 			utc->exidx_size = size;
 		}
 	}
-
-	/* Sort in case load sections aren't in order */
-	qsort(segs, num_segs, sizeof(*segs), cmp_load_seg);
 
 	idx = 1;
 	while (idx < num_segs) {
@@ -211,7 +188,7 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 			/* Merge the segments and their attributes */
 			segs[idx - 1].oend = MAX(segs[idx - 1].oend,
 						 segs[idx].oend);
-			segs[idx - 1].prot |= segs[idx].prot;
+			segs[idx - 1].flags |= segs[idx].flags;
 
 			/* Remove this index */
 			memcpy(segs + idx, segs + idx + 1,
@@ -222,25 +199,9 @@ static TEE_Result load_elf_segments(struct user_ta_ctx *utc,
 		}
 	}
 
-	utc->load_addr = 0;
-	for (idx = 0; idx < num_segs; idx++) {
-		vaddr_t va = utc->load_addr - segs[0].offs + segs[idx].offs;
-
-		res = vm_map(utc, &va, segs[idx].oend - segs[idx].offs,
-			     segs[idx].prot, utc->mobj_code, segs[idx].offs);
-		if (res)
-			break;
-		if (!idx)
-			utc->load_addr = va;
-	}
-	free(segs);
-	if (res)
-		return res;
-
-	if (init_attrs)
-		return config_initial_paging(utc);
-	else
-		return config_final_paging(utc);
+	*segs_ret = segs;
+	*num_segs_ret = num_segs;
+	return TEE_SUCCESS;
 }
 
 static struct mobj *alloc_ta_mem(size_t size)
@@ -261,6 +222,9 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	struct ta_head *ta_head;
 	void *p;
 	size_t vasize;
+	size_t n;
+	size_t num_segs = 0;
+	struct load_seg *segs = NULL;
 
 	res = elf_load_init(ta_store, ta_handle, &elf_state);
 	if (res != TEE_SUCCESS)
@@ -302,8 +266,40 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = load_elf_segments(utc, elf_state, true /* init attrs */);
+	res = tee_mmu_map_init(utc);
+	if (res)
+		goto out;
+
+	/*
+	 * Add stack segment
+	 */
+	utc->stack_addr = 0;
+	res = vm_map(utc, &utc->stack_addr, utc->mobj_stack->size,
+		     TEE_MATTR_URW | TEE_MATTR_PRW, utc->mobj_stack, 0);
+	if (res)
+		goto out;
+
+	res = get_elf_segments(utc, elf_state, &segs, &num_segs);
 	if (res != TEE_SUCCESS)
+		goto out;
+
+	utc->load_addr = 0;
+	for (n = 0; n < num_segs; n++) {
+		uint32_t prot = elf_flags_to_mattr(segs[n].flags) |
+				TEE_MATTR_PRW;
+
+		segs[n].va = utc->load_addr - segs[0].offs + segs[n].offs;
+		segs[n].size = segs[n].oend - segs[n].offs;
+		res = vm_map(utc, &segs[n].va, segs[n].size, prot,
+			     utc->mobj_code, segs[n].offs);
+		if (res)
+			goto out;
+		if (!n)
+			utc->load_addr = segs[0].va;
+	}
+
+	res = config_initial_paging(utc);
+	if (res)
 		goto out;
 
 	tee_mmu_set_ctx(&utc->ctx);
@@ -316,11 +312,16 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 	 * Replace the init attributes with attributes used when the TA is
 	 * running.
 	 */
-	res = load_elf_segments(utc, elf_state, false /* final attrs */);
-	if (res != TEE_SUCCESS)
-		goto out;
+	for (n = 0; n < num_segs; n++) {
+		res = vm_set_prot(utc, segs[n].va, segs[n].size,
+				  elf_flags_to_mattr(segs[n].flags));
+		if (res)
+			goto out;
+	}
 
+	res = config_final_paging(utc);
 out:
+	free(segs);
 	elf_load_final(elf_state);
 	return res;
 }
