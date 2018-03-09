@@ -70,8 +70,6 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, struct mobj *mobj,
 				   size_t offs, size_t size, uint32_t prot,
 				   vaddr_t *va);
 
-TEE_Result tee_mmu_map_init(struct user_ta_ctx *utc);
-
 /* Map parameters for a user TA */
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		struct tee_ta_param *param, void *param_va[TEE_NUM_PARAMS]);

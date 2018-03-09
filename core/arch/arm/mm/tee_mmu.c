@@ -293,8 +293,25 @@ static void asid_free(unsigned int asid)
 	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
 }
 
+static TEE_Result map_kinit(struct user_ta_ctx *utc __maybe_unused)
+{
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	struct mobj *mobj;
+	size_t offs;
+	vaddr_t va;
+	size_t sz;
+
+	thread_get_user_kcode(&mobj, &offs, &va, &sz);
+	return vm_map(utc, &va, sz, TEE_MATTR_PRX | TEE_MATTR_PERMANENT,
+		      mobj, offs);
+#else
+	return TEE_SUCCESS;
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+}
+
 TEE_Result vm_info_init(struct user_ta_ctx *utc)
 {
+	TEE_Result res;
 	uint32_t asid = asid_alloc();
 
 	if (!asid) {
@@ -309,7 +326,11 @@ TEE_Result vm_info_init(struct user_ta_ctx *utc)
 	}
 	TAILQ_INIT(&utc->vm_info->regions);
 	utc->vm_info->asid = asid;
-	return TEE_SUCCESS;
+
+	res = map_kinit(utc);
+	if (res)
+		vm_info_final(utc);
+	return res;
 }
 
 static bool get_ta_private_range(const struct user_ta_ctx *utc, vaddr_t *start,
@@ -387,35 +408,6 @@ static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 		pgt_cache = &tsd->pgt_cache;
 
 	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
-}
-
-static TEE_Result map_kinit(struct user_ta_ctx *utc __maybe_unused)
-{
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	struct mobj *mobj;
-	size_t offs;
-	vaddr_t va;
-	size_t sz;
-
-	thread_get_user_kcode(&mobj, &offs, &va, &sz);
-	return vm_map(utc, &va, sz, TEE_MATTR_PRX | TEE_MATTR_PERMANENT,
-		      mobj, offs);
-#else
-	return TEE_SUCCESS;
-#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
-}
-
-TEE_Result tee_mmu_map_init(struct user_ta_ctx *utc)
-{
-	while (true) {
-		struct vm_region *r = TAILQ_FIRST(&utc->vm_info->regions);
-
-		if (!r)
-			break;
-		TAILQ_REMOVE(&utc->vm_info->regions, r, link);
-		free(r);
-	}
-	return map_kinit(utc);
 }
 
 static void clear_param_map(struct user_ta_ctx *utc)
