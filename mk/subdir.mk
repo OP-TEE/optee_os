@@ -17,6 +17,7 @@
 
 srcs :=
 gen-srcs :=
+asm-defines-files :=
 
 define process-subdir-srcs-y
 ifeq ($$(sub-dir),.)
@@ -107,6 +108,10 @@ define process-subdir-gensrcs-y
 $$(eval $$(call process-subdir-gensrcs-helper,$1,$(sub-dir-out)/$$(produce-$1),$(sub-dir-out)/$(basename $(produce-$1)).o,$(sub-dir-out)))
 endef #process-subdir-gensrcs-y
 
+define process-subdir-asm-defines-y
+asm-defines-files += $(sub-dir)/$1
+endef #process-subdir-asm-defines-y
+
 define process-subdir
 sub-dir := $1
 ifeq ($1,.)
@@ -128,6 +133,7 @@ endif
 # Process files in current directory
 $$(foreach g, $$(gensrcs-y), $$(eval $$(call process-subdir-gensrcs-y,$$(g))))
 $$(foreach s, $$(srcs-y), $$(eval $$(call process-subdir-srcs-y,$$(s))))
+$$(foreach a, $$(asm-defines-y), $$(eval $$(call process-subdir-asm-defines-y,$$(a))))
 # Clear flags used when processing current directory
 srcs-y :=
 cflags-y :=
@@ -142,6 +148,7 @@ incdirs-lib-y :=
 incdirs-y :=
 gensrcs-y :=
 this-out-dir :=
+asm-defines-y :=
 
 # Process subdirectories in current directory
 $$(foreach sd, $$(sub-subdirs), $$(eval $$(call process-subdir,$$(sd))))
