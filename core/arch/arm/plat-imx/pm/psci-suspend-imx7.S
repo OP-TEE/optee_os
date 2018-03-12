@@ -6,7 +6,7 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <asm.S>
-#include <imx_pm.h>
+#include <generated/imx_pm_asm_defines.h>
 #include <imx-regs.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/tz_proc_def.h>

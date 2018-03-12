@@ -8,6 +8,7 @@ ifeq ($(CFG_PSCI_ARM32),y)
 srcs-y += pm/psci.c pm/gpcv2.c
 srcs-$(CFG_MX7) += pm/pm-imx7.c pm/psci-suspend-imx7.S pm/imx7_suspend.c
 $(call force,CFG_PM_ARM32,y)
+asm-defines-y += imx_pm_asm_defines.c
 endif
 
 cflags-pm/psci.c-y += -Wno-suggest-attribute=noreturn
