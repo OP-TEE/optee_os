@@ -5,11 +5,11 @@
  * Peng Fan <peng.fan@nxp.com>
  */
 
-#include <arm.h>
-#include <arm32_macros.S>
 #include <arm32_macros_cortex_a9.S>
+#include <arm32_macros.S>
+#include <arm.h>
 #include <asm.S>
-#include <asm-defines.h>
+#include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/unwind.h>

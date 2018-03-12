@@ -4,12 +4,12 @@
  */
 #include "tee_syscall_numbers.h"
 #include "trace_levels.h"
-#include <asm.S>
-#include <arm64_macros.S>
 #include <arm64.h>
-#include <tee_api_defines.h>
+#include <arm64_macros.S>
+#include <asm.S>
+#include <generated/asm-defines.h>
 #include <kernel/thread.h>
-#include <asm-defines.h>
+#include <tee_api_defines.h>
 
 	.section .text.arch_svc_asm
 
