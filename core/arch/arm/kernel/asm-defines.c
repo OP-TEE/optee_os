@@ -3,16 +3,12 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
+#include <gen-asm-defines.h>
 #include <kernel/thread.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
 #include <types_ext.h>
 #include "thread_private.h"
-
-#define DEFINES void __defines(void); void __defines(void)
-
-#define DEFINE(def, val) \
-	asm volatile("\n==>" #def " %0 " #val : : "i" (val))
 
 DEFINES
 {

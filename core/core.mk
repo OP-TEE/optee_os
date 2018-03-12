@@ -111,7 +111,6 @@ endif
 subdirs = $(core-platform-subdirs) core
 include mk/subdir.mk
 
-asm-defines-file := core/arch/$(ARCH)/kernel/asm-defines.c
 include mk/compile.mk
 
 include $(if $(wildcard $(platform-dir)/link.mk), \

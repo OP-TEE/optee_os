@@ -223,8 +223,4 @@ define gen-asm-defines-file
 $(call _gen-asm-defines-file,$1,$2,$(dir $2).$(notdir $(2:.h=.s)))
 endef
 
-ifneq ($(asm-defines-file),)
-h-file-$(asm-defines-file) := $(out-dir)/$(sm)/include/generated/$(basename $(notdir $(asm-defines-file))).h
-$(eval $(call gen-asm-defines-file,$(asm-defines-file),$(h-file-$(asm-defines-file))))
-asm-defines-file :=
-endif
+$(foreach f,$(asm-defines-files),$(eval $(call gen-asm-defines-file,$(f),$(out-dir)/$(sm)/include/generated/$(basename $(notdir $(f))).h)))

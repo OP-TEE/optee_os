@@ -54,3 +54,5 @@ srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 
 srcs-y += link_dummies.c
+
+asm-defines-y += asm-defines.c
