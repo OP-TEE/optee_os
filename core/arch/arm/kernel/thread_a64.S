@@ -3,10 +3,10 @@
  * Copyright (c) 2015-2017, Linaro Limited
  */
 
-#include <arm.h>
 #include <arm64_macros.S>
-#include <asm-defines.h>
+#include <arm.h>
 #include <asm.S>
+#include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread_defs.h>
 #include <mm/core_mmu.h>

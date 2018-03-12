@@ -24,7 +24,7 @@ cppflags$(sm)	+= -D__KERNEL__
 
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)
-cppflags$(sm)	+= -I$(out-dir)/core/include/generated
+cppflags$(sm)	+= -I$(out-dir)/core/include
 cppflags$(sm)	+= $(core-platform-cppflags)
 cflags$(sm)	+= $(core-platform-cflags)
 ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)

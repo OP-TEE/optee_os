@@ -29,8 +29,8 @@
 
 #include <arm32_macros.S>
 #include <arm.h>
-#include <asm-defines.h>
 #include <asm.S>
+#include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/unwind.h>
 #include <sm/optee_smc.h>
