@@ -79,9 +79,13 @@ before_script:
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
   - export PATH=$HOME/bin:$PATH
   - mkdir $HOME/optee_repo
-  - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git -m travis.xml </dev/null && repo sync --no-clone-bundle --no-tags --quiet -j 2)
+  - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git -m default_stable.xml -b refs/tags/3.0.0 </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
   - (cd $HOME/optee_repo/qemu && git submodule update --init dtc)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
+  - (cd $HOME/optee_repo/optee_benchmark && git fetch linaro-swg master && git checkout linaro-swg/master)
+  - (cd $HOME/optee_repo/optee_examples && git fetch linaro-swg master && git checkout linaro-swg/master)
+  - (cd $HOME/optee_repo/optee_test && git fetch optee master && git checkout optee/master)
+  - (cd $HOME/optee_repo/optee_client && git fetch optee master && git checkout optee/master)
   - cd $MYHOME
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
