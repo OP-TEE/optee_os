@@ -110,6 +110,7 @@
  */
 #define GIC_DIST_ISR0	0x080
 #define GIC_DIST_ISR1	0x084
+#define GIC_DIST_IPRIO	0x400
 
 /*
  * CPU iomem
