@@ -92,6 +92,12 @@ R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
 
+NXP (Freescale) i.MX7 WaRP7
+R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
+R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org> [@bryanodonoghue]
+S:	Maintained
+F:	core/arch/arm/plat-imx/conf.mk
+
 QEMU (32 and 64 bits)
 R:	Linaro <op-tee@linaro.org>
 S:	Maintained
