@@ -15,16 +15,6 @@ cache:
 git:
   depth: 1000000
 
-before_install:
-  # Install the 32-bit cross compiler. We're using an older version here (4.9)
-  # because some Android setups still use this version which can cause build
-  # errors not caught by later GCC versions, see
-  # https://github.com/OP-TEE/optee_os/issues/1998.
-  - wget http://releases.linaro.org/archive/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
-  - tar xf gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
-  - export PATH=${PWD}/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf/bin:${PATH}
-  - arm-linux-gnueabihf-gcc --version
-
 before_script:
   # Store the home repository
   - export MYHOME=$PWD
@@ -79,13 +69,8 @@ before_script:
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
   - export PATH=$HOME/bin:$PATH
   - mkdir $HOME/optee_repo
-  - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git -m default_stable.xml -b refs/tags/3.0.0 </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
-  - (cd $HOME/optee_repo/qemu && git submodule update --init dtc)
+  - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
-  - (cd $HOME/optee_repo/optee_benchmark && git fetch linaro-swg master && git checkout linaro-swg/master)
-  - (cd $HOME/optee_repo/optee_examples && git fetch linaro-swg master && git checkout linaro-swg/master)
-  - (cd $HOME/optee_repo/optee_test && git fetch optee master && git checkout optee/master)
-  - (cd $HOME/optee_repo/optee_client && git fetch optee master && git checkout optee/master)
   - cd $MYHOME
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
@@ -108,7 +93,8 @@ script:
   - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
   # Run regression tests (xtest in QEMU)
-  - (cd ${HOME}/optee_repo/build && $make check CROSS_COMPILE="ccache arm-linux-gnueabihf-" AARCH32_CROSS_COMPILE=arm-linux-gnueabihf- CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && make toolchains COMPILE_LEGACY=y)
+  - (cd ${HOME}/optee_repo/build && $make check COMPILE_LEGACY=y CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
 
 env:
   global:
