@@ -67,8 +67,7 @@ S:	Maintained
 F:	core/arch/arm/plat-marvell/
 
 MediaTek MT8173 EVB
-R:	Linaro <op-tee@linaro.org>
-S:	Maintained
+S:	Orphan
 F:	core/arch/arm/plat-mediatek/
 
 NXP LS1021A, LS1043A-RDB, LS1046A-RDB
