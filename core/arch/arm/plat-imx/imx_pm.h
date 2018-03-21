@@ -20,10 +20,12 @@
 #ifndef ASM
 #include <sm/sm.h>
 
+/* The structure is used for suspend and low power idle */
 struct imx7_pm_info {
 	uint32_t	m4_reserve0;
 	uint32_t	m4_reserve1;
 	uint32_t	m4_reserve2;
+	vaddr_t		va_base;	/* va of pm_info */
 	paddr_t		pa_base;	/* pa of pm_info */
 	uintptr_t	entry;
 	paddr_t		tee_resume;
@@ -51,6 +53,11 @@ struct imx7_pm_info {
 	vaddr_t		gic_va_base;
 	uint32_t	ttbr0;
 	uint32_t	ttbr1;
+	uint32_t	num_online_cpus;
+	uint32_t	num_lpi_cpus;
+	uint32_t	val;
+	uint32_t	flag0;
+	uint32_t	flag1;
 	uint32_t	ddrc_num;
 	uint32_t	ddrc_val[MX7_DDRC_NUM][2];
 	uint32_t	ddrc_phy_num;
@@ -80,6 +87,11 @@ int imx7_suspend_init(void);
 int pm_imx7_iram_tbl_init(void);
 int imx7_cpu_suspend(uint32_t power_state, uintptr_t entry,
 		     uint32_t context_id, struct sm_nsec_ctx *nsec);
+int imx7d_lowpower_idle(uint32_t power_state, uintptr_t entry,
+			uint32_t context_id, struct sm_nsec_ctx *nsec);
+void imx7d_low_power_idle(struct imx7_pm_info *info);
+int imx7d_cpuidle_init(void);
+void v7_cpu_resume(void);
 #endif
 
 #endif

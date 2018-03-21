@@ -14,6 +14,7 @@ DEFINES
 	       offsetof(struct imx7_pm_info, m4_reserve1));
 	DEFINE(PM_INFO_MX7_M4_RESERVE2_OFF,
 	       offsetof(struct imx7_pm_info, m4_reserve2));
+	DEFINE(PM_INFO_MX7_VBASE_OFF, offsetof(struct imx7_pm_info, va_base));
 	DEFINE(PM_INFO_MX7_PBASE_OFF, offsetof(struct imx7_pm_info, pa_base));
 	DEFINE(PM_INFO_MX7_ENTRY_OFF, offsetof(struct imx7_pm_info, entry));
 	DEFINE(PM_INFO_MX7_RESUME_ADDR_OFF,
@@ -64,6 +65,13 @@ DEFINES
 	       offsetof(struct imx7_pm_info, gic_va_base));
 	DEFINE(PM_INFO_MX7_TTBR0_OFF, offsetof(struct imx7_pm_info, ttbr0));
 	DEFINE(PM_INFO_MX7_TTBR1_OFF, offsetof(struct imx7_pm_info, ttbr1));
+	DEFINE(PM_INFO_MX7_NUM_ONLINE_CPUS_OFF,
+	       offsetof(struct imx7_pm_info, num_online_cpus));
+	DEFINE(PM_INFO_MX7_NUM_LPI_CPUS_OFF,
+	       offsetof(struct imx7_pm_info, num_lpi_cpus));
+	DEFINE(PM_INFO_MX7_VAL_OFF, offsetof(struct imx7_pm_info, val));
+	DEFINE(PM_INFO_MX7_FLAG0_OFF, offsetof(struct imx7_pm_info, flag0));
+	DEFINE(PM_INFO_MX7_FLAG1_OFF, offsetof(struct imx7_pm_info, flag1));
 	DEFINE(PM_INFO_MX7_DDRC_REG_NUM_OFF,
 	       offsetof(struct imx7_pm_info, ddrc_num));
 	DEFINE(PM_INFO_MX7_DDRC_REG_OFF,
