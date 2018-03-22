@@ -17,25 +17,42 @@ TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 
+/*
+ * struct user_ta_ctx - user TA context
+ * @entry_func:		Entry address in TA
+ * @exidx_start:	32-bit TA: start of exception handling index table
+ * @exidx_size:		32-bit TA: size of of exception handling index table
+ * @is_32bit:		True if 32-bit TA, false if 64-bit TA
+ * @open_sessions:	List of sessions opened by this TA
+ * @cryp_states:	List of cryp states created by this TA
+ * @objects:		List of storage objects opened by this TA
+ * @storage_enums:	List of storage enumerators opened by this TA
+ * @mobj_code:		Secure world memory for code and data
+ * @mobj_stack:		Secure world memory for stack
+ * @stack_addr:		Virtual address of stack
+ * @load_addr:		ELF load addr (from TA address space)
+ * @vm_info:		Virtual memory map of this context
+ * @ta_time_offs:	Time reference used by the TA
+ * @areas:		Memory areas registered by pager
+ * @se_service:		Secure element services state
+ * @vfp:		State of VFP registers
+ * @ctx:		Generic TA context
+ */
 struct user_ta_ctx {
 	uaddr_t entry_func;
-	uaddr_t exidx_start;	/* 32-bit TA: exception handling index table */
+	uaddr_t exidx_start;
 	size_t exidx_size;
-	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
-	/* list of sessions opened by this TA */
+	bool is_32bit;
 	struct tee_ta_session_head open_sessions;
-	/* List of cryp states created by this TA */
 	struct tee_cryp_state_head cryp_states;
-	/* List of storage objects opened by this TA */
 	struct tee_obj_head objects;
-	/* List of storage enumerators opened by this TA */
 	struct tee_storage_enum_head storage_enums;
-	struct mobj *mobj_code; /* secure world memory */
-	struct mobj *mobj_stack; /* stack */
-	vaddr_t stack_addr;	/* Virtual address of stack */
-	vaddr_t load_addr;	/* elf load addr (from TAs address space) */
-	struct vm_info *vm_info;/* Virtual memory map of this context */
-	void *ta_time_offs;	/* Time reference used by the TA */
+	struct mobj *mobj_code;
+	struct mobj *mobj_stack;
+	vaddr_t stack_addr;
+	vaddr_t load_addr;
+	struct vm_info *vm_info;
+	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
 #if defined(CFG_SE_API)
 	struct tee_se_service *se_service;
