@@ -463,11 +463,11 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_pbkdf2_passwd_attrs),
 #endif
-	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, 2048,
+	PROP(TEE_TYPE_RSA_PUBLIC_KEY, 1, 256, CFG_CORE_BIGNUM_MAX_BITS,
 		sizeof(struct rsa_public_key),
 		tee_cryp_obj_rsa_pub_key_attrs),
 
-	PROP(TEE_TYPE_RSA_KEYPAIR, 1, 256, 2048,
+	PROP(TEE_TYPE_RSA_KEYPAIR, 1, 256, CFG_CORE_BIGNUM_MAX_BITS,
 		sizeof(struct rsa_keypair),
 		tee_cryp_obj_rsa_keypair_attrs),
 
