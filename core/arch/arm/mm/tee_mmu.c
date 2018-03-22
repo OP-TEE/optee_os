@@ -410,17 +410,20 @@ static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
 	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
 }
 
+static void umap_remove_region(struct vm_info *vmi, struct vm_region *reg)
+{
+	TAILQ_REMOVE(&vmi->regions, reg, link);
+	free(reg);
+}
+
 static void clear_param_map(struct user_ta_ctx *utc)
 {
 	struct vm_region *next_r;
 	struct vm_region *r;
 
-	TAILQ_FOREACH_SAFE(r, &utc->vm_info->regions, link, next_r) {
-		if (r->attr & TEE_MATTR_EPHEMERAL) {
-			TAILQ_REMOVE(&utc->vm_info->regions, r, link);
-			free(r);
-		}
-	}
+	TAILQ_FOREACH_SAFE(r, &utc->vm_info->regions, link, next_r)
+		if (r->attr & TEE_MATTR_EPHEMERAL)
+			umap_remove_region(utc->vm_info, r);
 }
 
 static TEE_Result param_mem_to_user_va(struct user_ta_ctx *utc,
@@ -592,12 +595,10 @@ TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
 	}
 
 	res = alloc_pgt(utc);
-	if (res) {
-		TAILQ_REMOVE(&utc->vm_info->regions, reg, link);
-		free(reg);
-	} else {
+	if (res)
+		umap_remove_region(utc->vm_info, reg);
+	else
 		*va = reg->va;
-	}
 
 	return res;
 }
@@ -609,8 +610,7 @@ void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
 	TAILQ_FOREACH(reg, &utc->vm_info->regions, link) {
 		if (reg->mobj == mobj && reg->va == va) {
 			free_pgt(utc, reg->va, reg->size);
-			TAILQ_REMOVE(&utc->vm_info->regions, reg, link);
-			free(reg);
+			umap_remove_region(utc->vm_info, reg);
 			return;
 		}
 	}
@@ -625,12 +625,9 @@ void vm_info_final(struct user_ta_ctx *utc)
 	tlbi_asid(utc->vm_info->asid);
 
 	asid_free(utc->vm_info->asid);
-	while (!TAILQ_EMPTY(&utc->vm_info->regions)) {
-		struct vm_region *r = TAILQ_FIRST(&utc->vm_info->regions);
-
-		TAILQ_REMOVE(&utc->vm_info->regions, r, link);
-		free(r);
-	}
+	while (!TAILQ_EMPTY(&utc->vm_info->regions))
+		umap_remove_region(utc->vm_info,
+				   TAILQ_FIRST(&utc->vm_info->regions));
 	free(utc->vm_info);
 	utc->vm_info = NULL;
 }
