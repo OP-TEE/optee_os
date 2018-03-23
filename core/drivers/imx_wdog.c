@@ -58,7 +58,7 @@ void imx_wdog_restart(void)
 
 	DMSG("val %x\n", val);
 
-	write16(val, wdog_base + WCR_OFF);
+	write16(val, wdog_base + WDT_WCR);
 	dsb();
 
 	if (read16(wdog_base + WDT_WCR) & WDT_WCR_WDE) {
@@ -66,8 +66,8 @@ void imx_wdog_restart(void)
 		write16(WDT_SEQ2, wdog_base + WDT_WSR);
 	}
 
-	write16(val, wdog_base + WCR_OFF);
-	write16(val, wdog_base + WCR_OFF);
+	write16(val, wdog_base + WDT_WCR);
+	write16(val, wdog_base + WDT_WCR);
 
 	while (1)
 		;
