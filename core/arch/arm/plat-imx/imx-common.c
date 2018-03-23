@@ -42,6 +42,21 @@ static uint32_t imx_soc_type(void)
 	return (imx_digproc() >> 16) & 0xff;
 }
 
+bool soc_is_imx6sll(void)
+{
+	return imx_soc_type() == SOC_MX6SLL;
+}
+
+bool soc_is_imx6sl(void)
+{
+	return imx_soc_type() == SOC_MX6SL;
+}
+
+bool soc_is_imx6sx(void)
+{
+	return imx_soc_type() == SOC_MX6SX;
+}
+
 bool soc_is_imx6ul(void)
 {
 	return imx_soc_type() == SOC_MX6UL;
@@ -67,6 +82,17 @@ bool soc_is_imx6dqp(void)
 {
 	return (imx_soc_type() == SOC_MX6Q) &&
 		(imx_soc_rev_major() == 2);
+}
+
+bool soc_is_imx6(void)
+{
+	return ((imx_soc_type() == SOC_MX6SLL) ||
+			(imx_soc_type() == SOC_MX6SL) ||
+			(imx_soc_type() == SOC_MX6SX) ||
+			(imx_soc_type() == SOC_MX6UL) ||
+			(imx_soc_type() == SOC_MX6ULL) ||
+			(imx_soc_type() == SOC_MX6DL) ||
+			(imx_soc_type() == SOC_MX6Q));
 }
 
 bool soc_is_imx7ds(void)
