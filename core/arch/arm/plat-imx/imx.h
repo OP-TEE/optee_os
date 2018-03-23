@@ -42,4 +42,8 @@ TEE_Result csu_init(void);
 #ifdef CFG_SCU
 void scu_init(void);
 #endif
+
+#if defined(CFG_BOOT_SYNC_CPU)
+void psci_boot_allcpus(void);
+#endif
 #endif
