@@ -3,10 +3,11 @@ global-incdirs-y += registers
 srcs-y += main.c imx-common.c
 
 srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c
+srcs-$(CFG_MX7) += gpcv2.c
 
 srcs-$(CFG_PL310) += imx_pl310.c
 ifeq ($(CFG_PSCI_ARM32),y)
-srcs-y += pm/psci.c pm/gpcv2.c
+srcs-y += pm/psci.c
 srcs-$(CFG_MX7) += pm/pm-imx7.c pm/psci-suspend-imx7.S pm/imx7_suspend.c
 $(call force,CFG_PM_ARM32,y)
 asm-defines-y += imx_pm_asm_defines.c

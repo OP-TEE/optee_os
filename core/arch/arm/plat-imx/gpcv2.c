@@ -2,7 +2,6 @@
 /*
  * Copyright 2017-2018 NXP
  *
- * Peng Fan <peng.fan@nxp.com>
  */
 
 #include <imx.h>
@@ -11,7 +10,6 @@
 #include <platform_config.h>
 #include <stdint.h>
 
-#ifdef CFG_MX7
 static vaddr_t gpc_base(void)
 {
 	return core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC);
@@ -45,4 +43,3 @@ void imx_gpcv2_set_core1_pup_by_software(void)
 	imx_gpcv2_set_core_pgc(false, GPC_PGC_A7CORE1_CTRL);
 }
 
-#endif
