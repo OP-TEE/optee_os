@@ -115,8 +115,8 @@ void main_init_gic(void)
 	itr_init(&gic_data.chip);
 }
 
-#if defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
-	defined(CFG_MX7)
+#if defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
+	defined(CFG_MX6DL) || defined(CFG_MX7)
 void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
