@@ -43,12 +43,6 @@ TEE_Result vm_info_init(struct user_ta_ctx *utc);
 void vm_info_final(struct user_ta_ctx *utc);
 
 /*
- * Returns range of user mapping (excluding eventual permanent kernel mapping).
- */
-void vm_info_get_user_range(struct user_ta_ctx *utc, vaddr_t *vstart,
-			    vaddr_t *vend);
-
-/*
  * Creates a memory map of a mobj.
  * Desired virtual address can be specified in @va otherwise @va must be
  * initialized to 0 if the next available can be chosen.
