@@ -39,13 +39,6 @@
 
 #define MPA_INTERNAL_MEM_POOL_SIZE 12
 
-/*
- * THIS IS THE MAXIMUM NUMBER OF BITS THAT THE LIBRARY SUPPORTS.
- * It defines the size of the scratch memory pool for the underlying
- * mpa library.
- */
-#define TEE_MAX_NUMBER_OF_SUPPORTED_BITS 2048
-
 static uint32_t mempool_u32[mpa_scratch_mem_size_in_U32(
 					    MPA_INTERNAL_MEM_POOL_SIZE,
 					    TEE_MAX_NUMBER_OF_SUPPORTED_BITS)];
