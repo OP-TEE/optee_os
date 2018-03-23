@@ -398,26 +398,6 @@ TEE_Result vm_info_init(struct user_ta_ctx *utc)
 	return res;
 }
 
-void vm_info_get_user_range(struct user_ta_ctx *utc, vaddr_t *vstart,
-			    vaddr_t *vend)
-{
-	struct vm_region *r;
-
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
-		if (!(r->attr & TEE_MATTR_PERMANENT))
-			break;
-
-	if (!r) {
-		core_mmu_get_user_va_range(vstart, NULL);
-		*vend = *vstart;
-		return;
-	}
-
-	*vstart = r->va;
-	r = TAILQ_LAST(&utc->vm_info->regions, vm_region_head);
-	*vend = r->va + r->size;
-}
-
 static TEE_Result alloc_pgt(struct user_ta_ctx *utc)
 {
 	struct thread_specific_data *tsd __maybe_unused;
