@@ -304,3 +304,9 @@ CFG_DYN_SHM_CAP ?= y
 # Enables support for larger physical addresses, that is, it will define
 # paddr_t as a 64-bit type.
 CFG_CORE_LARGE_PHYS_ADDR ?= n
+
+# Define the maximum size, in bits, for big numbers in the Internal Core API
+# Arithmetical functions. This does *not* influence the key size that may be
+# manipulated through the Cryptographic API.
+# Set this to a lower value to reduce the TA memory footprint.
+CFG_TA_BIGNUM_MAX_BITS ?= 2048

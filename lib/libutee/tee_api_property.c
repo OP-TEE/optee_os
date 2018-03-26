@@ -56,7 +56,7 @@ const struct user_ta_property tee_props[] = {
 	{
 		"gpd.tee.arith.maxBigIntSize",
 		USER_TA_PROP_TYPE_U32,
-		&(const uint32_t){TEE_MAX_NUMBER_OF_SUPPORTED_BITS}
+		&(const uint32_t){CFG_TA_BIGNUM_MAX_BITS}
 	},
 	{
 		"gpd.tee.sockets.version",
