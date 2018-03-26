@@ -310,3 +310,10 @@ CFG_CORE_LARGE_PHYS_ADDR ?= n
 # manipulated through the Cryptographic API.
 # Set this to a lower value to reduce the TA memory footprint.
 CFG_TA_BIGNUM_MAX_BITS ?= 2048
+
+# Define the maximum size, in bits, for big numbers in the TEE core (privileged
+# layer).
+# This value is an upper limit for the key size in any cryptographic algorithm
+# implemented by the TEE core.
+# Set this to a lower value to reduce the memory footprint.
+CFG_CORE_BIGNUM_MAX_BITS ?= 4096
