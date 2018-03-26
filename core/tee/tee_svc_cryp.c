@@ -3014,7 +3014,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	struct tee_cryp_state *cs;
 	struct tee_ta_session *sess;
 	uint64_t dlen;
-	uint64_t tlen;
+	uint64_t tlen = 0;
 	size_t tmp_dlen;
 	size_t tmp_tlen;
 
