@@ -41,7 +41,7 @@
 
 static uint32_t mempool_u32[mpa_scratch_mem_size_in_U32(
 					    MPA_INTERNAL_MEM_POOL_SIZE,
-					    TEE_MAX_NUMBER_OF_SUPPORTED_BITS)];
+					    CFG_TA_BIGNUM_MAX_BITS)];
 static mpa_scratch_mem mempool = (void *)mempool_u32;
 
 /*************************************************************
@@ -71,7 +71,7 @@ static void __attribute__ ((noreturn)) TEE_BigInt_Panic(const char *msg)
 void _TEE_MathAPI_Init(void)
 {
 	mpa_init_scratch_mem(mempool, sizeof(mempool_u32),
-			     TEE_MAX_NUMBER_OF_SUPPORTED_BITS);
+			     CFG_TA_BIGNUM_MAX_BITS);
 	mpa_set_random_generator(get_rng_array);
 }
 

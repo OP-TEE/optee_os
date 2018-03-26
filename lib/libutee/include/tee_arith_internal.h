@@ -68,13 +68,6 @@
  *
  *************************************************************/
 
-/*
- * THIS IS THE MAXIMUM NUMBER OF BITS THAT THE LIBRARY SUPPORTS.
- * It defines the size of the scratch memory pool for the underlying
- * mpa library.
- */
-#define TEE_MAX_NUMBER_OF_SUPPORTED_BITS 2048
-
 /*************************************************************
  *
  * INITIALIZATION FUNCTIONS
