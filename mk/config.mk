@@ -304,3 +304,7 @@ CFG_DYN_SHM_CAP ?= y
 # Enables support for larger physical addresses, that is, it will define
 # paddr_t as a 64-bit type.
 CFG_CORE_LARGE_PHYS_ADDR ?= n
+
+# Enable virtualization support. OP-TEE will not work without compatible
+# hypervisor if this option is enabled.
+CFG_VIRTUALIZATION ?= n
