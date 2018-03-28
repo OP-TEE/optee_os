@@ -286,6 +286,11 @@ you have, we have not written how that should be done. It might be that we
 do that in the future when get hold of a device where we can use the crypto
 block.
 
+By default OP-TEE is configured with a software PRNG. The entropy is added
+to software PRNG at various places, but unfortunately it is still quite
+easy to predict the data added as entropy. As a consequence, unless the RNG
+is based on hardware the generated random will be quite weak.
+
 ## 7. Power Management / PSCI
 In section 2 when we talked about the file `main.c`, we added a couple of
 handlers related to power management, we are talking about the following lines:
