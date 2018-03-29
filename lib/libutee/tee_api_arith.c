@@ -29,6 +29,7 @@
 #include <tee_api.h>
 #include <tee_arith_internal.h>
 #include <mpalib.h>
+#include <mempool.h>
 
 /*
  * The mem pool.
@@ -42,7 +43,7 @@
 static uint32_t mempool_u32[mpa_scratch_mem_size_in_U32(
 					    MPA_INTERNAL_MEM_POOL_SIZE,
 					    CFG_TA_BIGNUM_MAX_BITS)];
-static mpa_scratch_mem mempool = (void *)mempool_u32;
+static mpa_scratch_mem mempool;
 
 /*************************************************************
  * PANIC
@@ -70,8 +71,18 @@ static void __attribute__ ((noreturn)) TEE_BigInt_Panic(const char *msg)
  */
 void _TEE_MathAPI_Init(void)
 {
-	mpa_init_scratch_mem(mempool, sizeof(mempool_u32),
-			     CFG_TA_BIGNUM_MAX_BITS);
+	static mpa_scratch_mem_base mem;
+
+	mem.pool = mempool_alloc_pool(mempool_u32, sizeof(mempool_u32), NULL);
+	if (!mem.pool)
+		TEE_Panic(0);
+	/*
+	 * The default size (bits) of a big number that will be required is
+	 * equal to the max size of the computation (for example 4096
+	 * bits), multiplied by 2 to allow overflow in computation
+	 */
+	mem.bn_bits = CFG_TA_BIGNUM_MAX_BITS * 2;
+	mempool = &mem;
 	mpa_set_random_generator(get_rng_array);
 }
 

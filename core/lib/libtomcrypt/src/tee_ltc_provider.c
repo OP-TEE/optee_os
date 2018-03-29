@@ -504,158 +504,43 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #include <util.h>
 #include <mm/core_mmu.h>
 
-static uint32_t *_ltc_mempool_u32;
-
 /* allocate pageable_zi vmem for mpa scratch memory pool */
-static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
+static struct mempool *get_mpa_scratch_memory_pool(void)
 {
-	void *pool;
+	size_t size;
+	void *data;
 
-	*size_pool = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
-			     SMALL_PAGE_SIZE);
-	_ltc_mempool_u32 = tee_pager_alloc(*size_pool, 0);
-	if (!_ltc_mempool_u32)
+	size = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
+		        SMALL_PAGE_SIZE);
+	data = tee_pager_alloc(size, 0);
+	if (!data)
 		panic();
-	pool = (void *)_ltc_mempool_u32;
-	return (mpa_scratch_mem)pool;
-}
 
-/* release unused pageable_zi vmem */
-static void release_unused_mpa_scratch_memory(void)
-{
-	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
-	struct mpa_scratch_item *item;
-	vaddr_t start;
-	vaddr_t end;
-
-	/* we never free the header */
-	if (pool->last_offset) {
-		item = (struct mpa_scratch_item *)
-				((vaddr_t)pool + pool->last_offset);
-		start = (vaddr_t)item + item->size;
-	} else {
-		start = (vaddr_t)pool + sizeof(struct mpa_scratch_mem_struct);
-	}
-	end = (vaddr_t)pool + pool->size;
-	start = ROUNDUP(start, SMALL_PAGE_SIZE);
-	end = ROUNDDOWN(end, SMALL_PAGE_SIZE);
-
-	if (start < end)
-		tee_pager_release_phys((void *)start, end - start);
+	return mempool_alloc_pool(data, size, tee_pager_release_phys);
 }
 #else /* CFG_WITH_PAGER */
-
-static uint32_t _ltc_mempool_u32[LTC_MEMPOOL_U32_SIZE]
-	__aligned(__alignof__(mpa_scratch_mem_base));
-
-static mpa_scratch_mem get_mpa_scratch_memory_pool(size_t *size_pool)
+static struct mempool *get_mpa_scratch_memory_pool(void)
 {
-	void *pool = (void *)_ltc_mempool_u32;
+	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(__alignof__(long));
 
-	*size_pool = sizeof(_ltc_mempool_u32);
-	return (mpa_scratch_mem)pool;
-}
-
-static void release_unused_mpa_scratch_memory(void)
-{
-	/* nothing to do in non-pager mode */
-}
-
-#endif
-
-static void pool_postactions(void)
-{
-	mpa_scratch_mem pool = (void *)_ltc_mempool_u32;
-
-	if (pool->last_offset)
-		panic("release issue in mpa scratch memory");
-	release_unused_mpa_scratch_memory();
-}
-
-#if defined(CFG_LTC_OPTEE_THREAD)
-#include <kernel/thread.h>
-static struct mpa_scratch_mem_sync {
-	struct mutex mu;
-	struct condvar cv;
-	size_t count;
-	int owner;
-} pool_sync = {
-	.mu = MUTEX_INITIALIZER,
-	.cv = CONDVAR_INITIALIZER,
-	.owner = THREAD_ID_INVALID,
-};
-#elif defined(LTC_PTHREAD)
-#error NOT SUPPORTED
-#else
-static struct mpa_scratch_mem_sync {
-	size_t count;
-} pool_sync;
-#endif
-
-/* Get exclusive access to scratch memory pool */
-#if defined(CFG_LTC_OPTEE_THREAD)
-static void get_pool(struct mpa_scratch_mem_sync *sync)
-{
-	mutex_lock(&sync->mu);
-
-	if (sync->owner != thread_get_id()) {
-		/* Wait until the pool is available */
-		while (sync->owner != THREAD_ID_INVALID)
-			condvar_wait(&sync->cv, &sync->mu);
-
-		sync->owner = thread_get_id();
-		assert(sync->count == 0);
-	}
-
-	sync->count++;
-
-	mutex_unlock(&sync->mu);
-}
-
-/* Put (release) exclusive access to scratch memory pool */
-static void put_pool(struct mpa_scratch_mem_sync *sync)
-{
-	mutex_lock(&sync->mu);
-
-	assert(sync->owner == thread_get_id());
-	assert(sync->count > 0);
-
-	sync->count--;
-	if (!sync->count) {
-		sync->owner = THREAD_ID_INVALID;
-		condvar_signal(&sync->cv);
-		pool_postactions();
-	}
-
-	mutex_unlock(&sync->mu);
-}
-#elif defined(LTC_PTHREAD)
-#error NOT SUPPORTED
-#else
-static void get_pool(struct mpa_scratch_mem_sync *sync)
-{
-	sync->count++;
-}
-
-/* Put (release) exclusive access to scratch memory pool */
-static void put_pool(struct mpa_scratch_mem_sync *sync)
-{
-	sync->count--;
-	if (!sync->count)
-		pool_postactions();
+	return mempool_alloc_pool(data, sizeof(data), NULL);
 }
 #endif
 
 static void tee_ltc_alloc_mpa(void)
 {
-	mpa_scratch_mem pool;
-	size_t size_pool;
+	static mpa_scratch_mem_base mem;
 
-	pool = get_mpa_scratch_memory_pool(&size_pool);
-	init_mpa_tomcrypt(pool);
-	mpa_init_scratch_mem_sync(pool, size_pool, CFG_CORE_BIGNUM_MAX_BITS,
-				  get_pool, put_pool, &pool_sync);
-
+	/*
+	 * The default size (bits) of a big number that will be required it
+	 * equals the max size of the computation (for example 4096 bits),
+	 * multiplied by 2 to allow overflow in computation
+	 */
+	mem.bn_bits = CFG_CORE_BIGNUM_MAX_BITS * 2;
+	mem.pool = get_mpa_scratch_memory_pool();
+	if (!mem.pool)
+		panic();
+	init_mpa_tomcrypt(&mem);
 	mpa_set_random_generator(crypto_rng_read);
 }
 
