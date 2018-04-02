@@ -74,10 +74,12 @@ UNWIND(	.fnstart)
 	 * SCTLR = 0x00004000
 	 * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
 	 *
-	 * ACTRL = 0x00000041
-	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
+	 * ACTRL = 0x000000[46(i.MX6SLL),47]
+	 * - core always in full SMP (FW bit0=[0(i.MX6SLL),1], SMP bit6=1)
 	 * - L2 write full line of zero disabled (bit3=0)
 	 *   (keep WFLZ low. Will be set once outer L2 is ready)
+	 * - L1 Prefetch enable (bit2=1)
+	 * - L2 Prefetch hint enable (bit1=1)
 	 *
 	 * NSACR = 0x00020C00
 	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
@@ -91,7 +93,11 @@ UNWIND(	.fnstart)
 	mov_imm r0, 0x00004000
 	write_sctlr r0
 
-	mov_imm r0, 0x00000041
+#ifdef CFG_MX6SLL
+	mov_imm r0, 0x00000046
+#else
+	mov_imm r0, 0x00000047
+#endif
 	write_actlr r0
 
 	mov_imm r0, 0x00020C00
