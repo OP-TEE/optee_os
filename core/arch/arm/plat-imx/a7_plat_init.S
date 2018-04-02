@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2017, NXP
+ * Copyright 2017-2019 NXP
  *
  * Peng Fan  <peng.fan@nxp.com>
  */
@@ -34,7 +34,16 @@
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
-	mov_imm r0, 0x00000040
+	/*
+	 * DDI: Disable dual issue [bit28=0]
+	 * DDVM: Disable Distributed Virtual Memory transactions [bit15=0]
+	 * L1PCTL: L1 Data prefetch control [bit14:13=2b11]
+	 * L1RADIS: L1 Data Cache read-allocate mode disable [bit12=0]
+	 * L2RADIS: L2 Data Cache read-allocate mode disable [bit11=0]
+	 * DODMBS: Disable optimized data memory barrier behavior [bit10=0]
+	 * SMP: Enables coherent requests to the processor [bit6=0]
+	 */
+	mov_imm r0, 0x00006040
 	write_actlr r0
 
 	mov_imm r0, 0x00040C00
