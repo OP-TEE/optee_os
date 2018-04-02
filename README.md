@@ -39,7 +39,7 @@ by adding a dash in-between the names. The composite form is shown below
 for the different boards. For more specific details about build flags etc,
 please read the file [build_system.md](documentation/build_system.md). Some
 platforms have different sub-maintainers, please refer to the file
-[MAINTAINERS.md](MAINTAINERS.md) for contact details for various platforms.
+[MAINTAINERS](MAINTAINERS) for contact details for various platforms.
 
 The `Maintained` column shows:
 
