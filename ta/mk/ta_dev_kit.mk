@@ -7,18 +7,14 @@ all:
 
 include $(ta-dev-kit-dir)/mk/conf.mk
 
+ifneq (1, $(words $(BINARY) $(LIBNAME) $(SHLIBNAME)))
+$(error You must specify exactly one of BINARY, LIBNAME or SHLIBNAME)
+endif
+
 binary := $(BINARY)
 libname := $(LIBNAME)
-
-ifneq ($(BINARY),)
-ifneq ($(LIBNAME),)
-$(error You can only specify one of BINARY or LIBNAME)
-endif
-else
-ifeq ($(LIBNAME),)
-$(error You must specify one of BINARY or LIBNAME)
-endif
-endif
+shlibname := $(SHLIBNAME)
+shlibuuid := $(SHLIBUUID)
 
 ifneq ($O,)
 out-dir := $O
@@ -81,18 +77,21 @@ clean:
 subdirs = .
 include  $(ta-dev-kit-dir)/mk/subdir.mk
 
-#the build target is ta
 ifneq ($(binary),)
+# Build target is TA
 vpath %.c $(ta-dev-kit-dir)/src
 srcs += user_ta_header.c
 endif
 
 include  $(ta-dev-kit-dir)/mk/gcc.mk
 include  $(ta-dev-kit-dir)/mk/compile.mk
+
 ifneq ($(binary),)
 include  $(ta-dev-kit-dir)/mk/link.mk
-else
+endif
+
 ifneq ($(libname),)
+# Build target is static library
 all: $(libname).a
 cleanfiles += $(libname).a
 
@@ -100,4 +99,7 @@ $(libname).a: $(objs)
 	@echo '  AR      $@'
 	$(q)rm -f $@ && $(AR$(sm)) rcs -o $@ $^
 endif
+
+ifneq (,$(shlibname))
+include $(ta-dev-kit-dir)/mk/link_shlib.mk
 endif
