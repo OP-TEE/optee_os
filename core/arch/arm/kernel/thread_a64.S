@@ -253,6 +253,11 @@ FUNC thread_rpc , :
 END_FUNC thread_rpc
 KEEP_PAGER thread_rpc
 
+FUNC thread_smc , :
+	smc	#0
+	ret
+END_FUNC thread_smc
+
 FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
