@@ -618,6 +618,9 @@ void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj);
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct optee_msg_param *params);
 
+unsigned long thread_smc(unsigned long func_id, unsigned long a1,
+			 unsigned long a2, unsigned long a3);
+
 #endif /*ASM*/
 
 #endif /*KERNEL_THREAD_H*/
