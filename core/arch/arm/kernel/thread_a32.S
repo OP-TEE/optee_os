@@ -1038,4 +1038,6 @@ eret_to_user_mode:
 
 	movs	pc, lr
 UNWIND(	.fnend)
+	.global thread_excp_vect_end
+thread_excp_vect_end:
 END_FUNC thread_excp_vect
