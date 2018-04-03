@@ -46,6 +46,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <optee_msg.h>
+#include <smccc.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <tee/tee_cryp_utl.h>
@@ -958,6 +959,43 @@ static uint32_t __maybe_unused get_midr_primary_part(uint32_t midr)
 	       MIDR_PRIMARY_PART_NUM_MASK;
 }
 
+#ifdef ARM64
+static bool probe_workaround_available(void)
+{
+	int32_t r;
+
+	r = thread_smc(SMCCC_VERSION, 0, 0, 0);
+	if (r < 0)
+		return false;
+	if (r < 0x10001)	/* compare with version 1.1 */
+		return false;
+
+	/* Version >= 1.1, so SMCCC_ARCH_FEATURES is available */
+	r = thread_smc(SMCCC_ARCH_FEATURES, SMCCC_ARCH_WORKAROUND_1, 0, 0);
+	return r >= 0;
+}
+
+static vaddr_t select_vector(vaddr_t a)
+{
+	if (probe_workaround_available()) {
+		DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") available",
+		     SMCCC_ARCH_WORKAROUND_1);
+		DMSG("SMC Workaround for CVE-2017-5715 used");
+		return a;
+	}
+
+	DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") unavailable",
+	     SMCCC_ARCH_WORKAROUND_1);
+	DMSG("SMC Workaround for CVE-2017-5715 not needed (if ARM-TF is up to date)");
+	return (vaddr_t)thread_excp_vect;
+}
+#else
+static vaddr_t select_vector(vaddr_t a)
+{
+	return a;
+}
+#endif
+
 static vaddr_t get_excp_vect(void)
 {
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
@@ -976,10 +1014,10 @@ static vaddr_t get_excp_vect(void)
 	case CORTEX_A72_PART_NUM:
 	case CORTEX_A73_PART_NUM:
 	case CORTEX_A75_PART_NUM:
-		return (vaddr_t)thread_excp_vect_workaround;
+		return select_vector((vaddr_t)thread_excp_vect_workaround);
 #ifdef ARM32
 	case CORTEX_A15_PART_NUM:
-		return (vaddr_t)thread_excp_vect_workaround_a15;
+		return select_vector((vaddr_t)thread_excp_vect_workaround_a15);
 #endif
 	default:
 		return (vaddr_t)thread_excp_vect;

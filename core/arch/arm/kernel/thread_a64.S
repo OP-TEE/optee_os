@@ -3,13 +3,14 @@
  * Copyright (c) 2015-2017, Linaro Limited
  */
 
-#include <arm64_macros.S>
 #include <arm.h>
+#include <arm64_macros.S>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread_defs.h>
 #include <mm/core_mmu.h>
+#include <smccc.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
@@ -524,8 +525,10 @@ el0_serror_a32:
 
 #if defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC)
 	.macro invalidate_branch_predictor
-	ic	iallu
-	isb
+		store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
+		mov_imm	x0, SMCCC_ARCH_WORKAROUND_1
+		smc	#0
+		load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	.endm
 
 	.align	11, INV_INSN
