@@ -901,16 +901,12 @@ static void init_thread_stacks(void)
 static void init_user_kcode(void)
 {
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	vaddr_t v;
+	vaddr_t v = (vaddr_t)thread_excp_vect;
+	vaddr_t ve = (vaddr_t)thread_excp_vect_end;
 
-	v = (vaddr_t)thread_excp_vect;
 	thread_user_kcode_va = ROUNDDOWN(v, CORE_MMU_USER_CODE_SIZE);
-	/*
-	 * The maximum size of the exception vector and associated code is
-	 * something slightly larger than 2 KiB. Worst case the exception
-	 * vector can span two pages.
-	 */
-	thread_user_kcode_size = CORE_MMU_USER_CODE_SIZE * 2;
+	ve = ROUNDUP(ve, CORE_MMU_USER_CODE_SIZE);
+	thread_user_kcode_size = ve - thread_user_kcode_va;
 
 	core_mmu_get_user_va_range(&v, NULL);
 	thread_user_kcode_offset = thread_user_kcode_va - v;

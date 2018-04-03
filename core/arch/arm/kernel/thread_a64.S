@@ -695,6 +695,8 @@ eret_to_el0:
 
 	eret
 
+	.global thread_excp_vect_end
+thread_excp_vect_end:
 END_FUNC thread_excp_vect
 
 LOCAL_FUNC el0_svc , :
