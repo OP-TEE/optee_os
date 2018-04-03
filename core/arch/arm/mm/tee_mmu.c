@@ -360,18 +360,26 @@ static void asid_free(unsigned int asid)
 
 static TEE_Result map_kinit(struct user_ta_ctx *utc __maybe_unused)
 {
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	TEE_Result res;
 	struct mobj *mobj;
 	size_t offs;
 	vaddr_t va;
 	size_t sz;
 
 	thread_get_user_kcode(&mobj, &offs, &va, &sz);
-	return vm_map(utc, &va, sz, TEE_MATTR_PRX | TEE_MATTR_PERMANENT,
-		      mobj, offs);
-#else
+	if (sz) {
+		res = vm_map(utc, &va, sz, TEE_MATTR_PRX | TEE_MATTR_PERMANENT,
+			     mobj, offs);
+		if (res)
+			return res;
+	}
+
+	thread_get_user_kdata(&mobj, &offs, &va, &sz);
+	if (sz)
+		return vm_map(utc, &va, sz, TEE_MATTR_PRW | TEE_MATTR_PERMANENT,
+			      mobj, offs);
+
 	return TEE_SUCCESS;
-#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 }
 
 TEE_Result vm_info_init(struct user_ta_ctx *utc)

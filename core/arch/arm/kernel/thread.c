@@ -152,7 +152,15 @@ thread_pm_handler_t thread_system_reset_handler_ptr;
 static vaddr_t thread_user_kcode_va;
 long thread_user_kcode_offset;
 static size_t thread_user_kcode_size;
-#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+#endif
+
+#if defined(CFG_CORE_UNMAP_CORE_AT_EL0) && \
+	defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
+long thread_user_kdata_sp_offset;
+static uint8_t thread_user_kdata_page[
+	ROUNDUP(sizeof(thread_core_local), SMALL_PAGE_SIZE)]
+	__aligned(SMALL_PAGE_SIZE) __section(".nozi.kdata_page");
+#endif
 
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 static bool thread_prealloc_rpc_cache;
@@ -905,6 +913,16 @@ static void init_user_kcode(void)
 
 	core_mmu_get_user_va_range(&v, NULL);
 	thread_user_kcode_offset = thread_user_kcode_va - v;
+
+#if defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
+	/*
+	 * When transitioning to EL0 subtract SP with this much to point to
+	 * this special kdata page instead. SP is restored by add this much
+	 * while transitioning back to EL1.
+	 */
+	v += thread_user_kcode_size;
+	thread_user_kdata_sp_offset = (vaddr_t)thread_core_local - v;
+#endif
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 }
 
@@ -1222,7 +1240,22 @@ void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
 	*offset = thread_user_kcode_va - CFG_TEE_RAM_START;
 	*sz = thread_user_kcode_size;
 }
-#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+#endif
+
+#if defined(CFG_CORE_UNMAP_CORE_AT_EL0) && \
+	defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
+void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
+			   vaddr_t *va, size_t *sz)
+{
+	vaddr_t v;
+
+	core_mmu_get_user_va_range(&v, NULL);
+	*va = v + thread_user_kcode_size;
+	*mobj = mobj_tee_ram;
+	*offset = (vaddr_t)thread_user_kdata_page - CFG_TEE_RAM_START;
+	*sz = sizeof(thread_user_kdata_page);
+}
+#endif
 
 void thread_add_mutex(struct mutex *m)
 {

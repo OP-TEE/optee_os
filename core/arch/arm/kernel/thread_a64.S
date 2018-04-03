@@ -373,6 +373,16 @@ END_FUNC thread_unwind_user_mode
 		msr	vbar_el1, x1
 		isb
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+		/*
+		 * Update the SP with thread_user_kdata_sp_offset as
+		 * described in init_user_kcode().
+		 */
+		adr	x0, thread_user_kdata_sp_offset
+		ldr	x0, [x0]
+		add	sp, sp, x0
+#endif
+
 		/* Restore x0, x1 */
 		mrs	x0, tpidr_el1
 		mrs	x1, tpidrro_el0
@@ -639,6 +649,13 @@ eret_to_el0:
 	msr	vbar_el1, x1
 	isb
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	/* Store the SP offset in tpidr_el1 to be used below to update SP */
+	adr	x1, thread_user_kdata_sp_offset
+	ldr	x1, [x1]
+	msr	tpidr_el1, x1
+#endif
+
 	/* Jump into the reduced mapping and continue execution */
 	ldr	x1, =1f
 	sub	x1, x1, x0
@@ -646,7 +663,7 @@ eret_to_el0:
 1:
 
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
-	msr	tpidr_el1, x0
+	msr	tpidrro_el0, x0
 
 	/* Update the mapping to exclude the full kernel mapping */
 	mrs	x0, ttbr0_el1
@@ -655,7 +672,16 @@ eret_to_el0:
 	msr	ttbr0_el1, x0
 	isb
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	/*
+	 * Update the SP with thread_user_kdata_sp_offset as described in
+	 * init_user_kcode().
+	 */
 	mrs	x0, tpidr_el1
+	sub	sp, sp, x0
+#endif
+
+	mrs	x0, tpidrro_el0
 #else
 	mrs	x0, ttbr0_el1
 	orr	x0, x0, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
