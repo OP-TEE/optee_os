@@ -72,7 +72,7 @@ const struct ta_head ta_head __section(".ta_head") = {
 	 * must be enlarged
 	 */
 	.stack_size = TA_STACK_SIZE + TA_FRAMEWORK_STACK_SIZE,
-	.flags = TA_FLAG_USER_MODE | TA_FLAGS,
+	.flags = TA_FLAGS,
 #ifdef __ILP32__
 	/*
 	 * This workaround is neded on 32-bit because it seems we can't
