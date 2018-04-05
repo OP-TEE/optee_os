@@ -64,10 +64,14 @@ struct user_ta_ctx {
 
 };
 
-static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
+#ifdef CFG_WITH_USER_TA
+bool is_user_ta_ctx(struct tee_ta_ctx *ctx);
+#else
+static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx __unused)
 {
-	return !!(ctx->flags & TA_FLAG_USER_MODE);
+	return false;
 }
+#endif
 
 static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 {

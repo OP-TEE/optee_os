@@ -61,6 +61,8 @@
 #include "elf_load.h"
 #include "elf_common.h"
 
+static void set_ta_ctx_ops(struct tee_ta_ctx *ctx);
+
 static uint32_t elf_flags_to_mattr(uint32_t flags)
 {
 	uint32_t mattr = 0;
@@ -198,7 +200,7 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 		goto out;
 	}
 	/* Temporary assignment to setup memory mapping */
-	utc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
+	utc->ctx.flags = TA_FLAG_EXEC_DDR;
 
 	/* Ensure proper aligment of stack */
 	utc->mobj_stack = alloc_ta_mem(ROUNDUP(ta_head->stack_size,
@@ -299,6 +301,12 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
 	TAILQ_INIT(&utc->storage_enums);
+
+	/*
+	 * Set context TA operation structure. It is required by generic
+	 * implementation to identify userland TA versus pseudo TA contexts.
+	 */
+	set_ta_ctx_ops(&utc->ctx);
 
 	res = load_elf(utc, ta_store, ta_handle);
 	if (res != TEE_SUCCESS)
@@ -603,6 +611,16 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 static SLIST_HEAD(uta_stores_head, user_ta_store_ops) uta_store_list =
 		SLIST_HEAD_INITIALIZER(uta_stores_head);
 
+static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
+{
+	ctx->ops = &user_ta_ops;
+}
+
+bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
+{
+	return ctx->ops == &user_ta_ops;
+}
+
 TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
 {
 	struct user_ta_store_ops *p = NULL;
@@ -641,9 +659,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 		res = ta_load(uuid, store, &s->ctx);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
-		if (res == TEE_SUCCESS)
-			s->ctx->ops = &user_ta_ops;
-		else
+		if (res != TEE_SUCCESS)
 			DMSG("res=0x%x", res);
 		return res;
 	}
