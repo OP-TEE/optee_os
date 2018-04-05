@@ -70,7 +70,7 @@ static bool validate_in_param(struct tee_ta_session *s __unused,
 }
 #endif
 
-/* Maps static TA params */
+/* Maps pseudo TA params */
 static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 				struct tee_ta_param *param,
 				TEE_Param tee_param[TEE_NUM_PARAMS],

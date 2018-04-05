@@ -460,7 +460,7 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		uint32_t nCommandID, uint32_t nParamTypes,
 		TEE_Param pParams[TEE_NUM_PARAMS])
 {
-	DMSG("command entry point for static ta \"%s\"", TA_NAME);
+	DMSG("command entry point for pseudo TA \"%s\"", TA_NAME);
 
 	switch (nCommandID) {
 	case CMD_SELF_TESTS:
