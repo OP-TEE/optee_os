@@ -1,6 +1,7 @@
-# General Extensions to the GlobalPlatform TEE Internal API
+# General Extensions to the GlobalPlatform TEE Internal Core API
 
-This document describes the OP-TEE extensions introduced with respect to the GlobalPlatform TEE API Specifications v1.0.
+This document describes the OP-TEE extensions introduced with respect to the
+GlobalPlatform TEE Internal Core API Specifications v1.1.
 
 Specific extensions documentation are part of:
 * Cryptographic Extensions

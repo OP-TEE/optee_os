@@ -13,8 +13,7 @@ identify, develop and publish specifications which facilitate the secure and
 interoperable deployment and management of multiple embedded applications on
 secure chip technology. OP-TEE has support for GlobalPlatform [TEE Client API
 Specification v1.0](http://www.globalplatform.org/specificationsdevice.asp) and
-[TEE Internal API Specification
-v1.0](http://www.globalplatform.org/specificationsdevice.asp).
+[TEE Internal Core API Specification v1.1](http://www.globalplatform.org/specificationsdevice.asp).
 
 # 2. TEE Client API
 The TEE Client API describes and defines how a client running in a rich
@@ -45,8 +44,7 @@ are used in the communication between the client and the TEE.
 #### TEE Functions
 ``` c
 TEEC_Result TEEC_InitializeContext(
-	const char*
-	name,
+	const char* name,
 	TEEC_Context* context)
 
 void TEEC_FinalizeContext(
@@ -97,10 +95,11 @@ in the secure world. The TEE Internal API consists of four major parts:
 4. **Arithmetical API**
 
 ### Examples / usage
-Calling the Internal API is done in the same way as described above using Client API.
+Calling the Internal Core API is done in the same way as described above using Client API.
 The best place to find information how this should be done is in the
-[TEE Internal API Specification
-v1.0](http://www.globalplatform.org/specificationsdevice.asp) which contains a
+[TEE Internal Core API Specification
+v1.1](http://www.globalplatform.org/specificationsdevice.asp) which contains a
 lot of examples of how to call the various APIs.
 
-
+One can also have a look at the OP-TEE examples git repository
+[optee_examples](https://github.com/linaro-swg/optee_examples) documentation.
