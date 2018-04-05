@@ -319,14 +319,7 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &state->vasize))
 		return TEE_ERROR_SECURITY;
 
-	/*
-	 * Read .ta_head from first segment, make sure the segment is large
-	 * enough. We're only interested in seeing that the
-	 * TA_FLAG_EXEC_DDR flag is set. If that's true we set that flag in
-	 * the TA context to enable mapping the TA. Later when this
-	 * function has returned and the hash has been verified the flags
-	 * field will be updated with eventual other flags.
-	 */
+	/* Read .ta_head from first segment if the segment is large enough */
 	if (ptload0.p_filesz < head_size)
 		return TEE_ERROR_BAD_FORMAT;
 	res = alloc_and_copy_to(&p, state, ptload0.p_offset, head_size);

@@ -194,14 +194,6 @@ static TEE_Result load_elf(struct user_ta_ctx *utc,
 		goto out;
 	}
 
-	/* Currently all TA must execute from DDR */
-	if (!(ta_head->flags & TA_FLAG_EXEC_DDR)) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-	/* Temporary assignment to setup memory mapping */
-	utc->ctx.flags = TA_FLAG_EXEC_DDR;
-
 	/* Ensure proper aligment of stack */
 	utc->mobj_stack = alloc_ta_mem(ROUNDUP(ta_head->stack_size,
 					       STACK_ALIGNMENT));
@@ -279,10 +271,6 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 			  struct tee_ta_ctx **ta_ctx)
 {
 	TEE_Result res;
-	uint32_t mandatory_flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
-	uint32_t optional_flags = mandatory_flags | TA_FLAG_SINGLE_INSTANCE |
-	    TA_FLAG_MULTI_SESSION | TA_FLAG_SECURE_DATA_PATH |
-	    TA_FLAG_INSTANCE_KEEP_ALIVE | TA_FLAG_CACHE_MAINTENANCE;
 	struct user_ta_ctx *utc = NULL;
 	struct ta_head *ta_head;
 	struct user_ta_store_handle *ta_handle = NULL;
@@ -319,11 +307,9 @@ static TEE_Result ta_load(const TEE_UUID *uuid,
 		goto error_return;
 	}
 
-	/* check input flags bitmask consistency and save flags */
-	if ((ta_head->flags & optional_flags) != ta_head->flags ||
-	    (ta_head->flags & mandatory_flags) != mandatory_flags) {
-		EMSG("TA flag issue: flags=%x optional=%x mandatory=%x",
-		     ta_head->flags, optional_flags, mandatory_flags);
+	if (ta_head->flags & ~TA_FLAGS_MASK) {
+		EMSG("Invalid TA flag(s) 0x%" PRIx32,
+			ta_head->flags & ~TA_FLAGS_MASK);
 		res = TEE_ERROR_BAD_FORMAT;
 		goto error_return;
 	}
@@ -432,9 +418,6 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	struct tee_ta_session *s __maybe_unused;
 	void *param_va[TEE_NUM_PARAMS] = { NULL };
 
-	if (!(utc->ctx.flags & TA_FLAG_EXEC_DDR))
-		panic("TA does not exec in DDR");
-
 	/* Map user space memory */
 	res = tee_mmu_map_param(utc, param, param_va);
 	if (res != TEE_SUCCESS)
@@ -539,37 +522,28 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 }
 KEEP_PAGER(user_ta_dump_state);
 
+static void release_ta_memory_by_mobj(struct mobj *mobj)
+{
+	void *va;
+
+	if (!mobj)
+		return;
+
+	va = mobj_get_va(mobj, 0);
+	if (!va)
+		return;
+
+	memset(va, 0, mobj->size);
+	cache_op_inner(DCACHE_AREA_CLEAN, va, mobj->size);
+}
+
 static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 {
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
 	tee_pager_rem_uta_areas(utc);
-
-	/*
-	 * Clean all traces of the TA, both RO and RW data.
-	 * No L2 cache maintenance to avoid sync problems
-	 */
-	if (ctx->flags & TA_FLAG_EXEC_DDR) {
-		void *va;
-
-		if (utc->mobj_code) {
-			va = mobj_get_va(utc->mobj_code, 0);
-			if (va) {
-				memset(va, 0, utc->mobj_code->size);
-				cache_op_inner(DCACHE_AREA_CLEAN, va,
-						utc->mobj_code->size);
-			}
-		}
-
-		if (utc->mobj_stack) {
-			va = mobj_get_va(utc->mobj_stack, 0);
-			if (va) {
-				memset(va, 0, utc->mobj_stack->size);
-				cache_op_inner(DCACHE_AREA_CLEAN, va,
-						utc->mobj_stack->size);
-			}
-		}
-	}
+	release_ta_memory_by_mobj(utc->mobj_code);
+	release_ta_memory_by_mobj(utc->mobj_stack);
 
 	/*
 	 * Close sessions opened by this TA
