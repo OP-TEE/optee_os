@@ -5,13 +5,17 @@
 3. [Platforms supported](#3-platforms-supported)
 4. [Get and build OP-TEE software](#4-get-and-build-op-tee-software)
 5. [Coding standards](#5-coding-standards)
-    5. [checkpatch](#51-checkpatch)
 
 ## 1. Introduction
-The `optee_os git`, contains the source code for the TEE in Linux using the
-ARM&reg; TrustZone&reg; technology. This component meets the GlobalPlatform
-TEE System Architecture specification. It also provides the TEE Internal core API
-v1.1 as defined by the GlobalPlatform TEE Standard for the development of
+The `optee_os` git repository contains the source code of a Trusted Execution
+Environment (TEE) as companion to a non-secure OS on ARM&reg;
+Cortex-A cores using the TrustZone&reg; technology. This component meets the
+[TEE System Architecture specifications](http://www.globalplatform.org/specificationsdevice.asp)
+and provides the
+[TEE Internal Core API v1.1](http://www.globalplatform.org/specificationsdevice.asp)
+as defined by the
+[GlobalPlatform Device technology TEE specifications](http://www.globalplatform.org/specificationsdevice.asp)
+for the development of
 Trusted Applications. For a general overview of OP-TEE and to find out how to
 contribute, please see the [Notice.md](Notice.md) file.
 
@@ -41,7 +45,7 @@ please read the file [build_system.md](documentation/build_system.md). Some
 platforms have different sub-maintainers, please refer to the file
 [MAINTAINERS](MAINTAINERS) for contact details for various platforms.
 
-The `Maintained` column shows:
+The **Maintained?** column shows:
 
 - A green image if the platform is actively maintained: either tested successfully
   with the latest release (N), or is a newly supported platform.
@@ -91,26 +95,27 @@ Please see [build] for instructions how to run OP-TEE on various devices.
 ---
 ## 5. Coding standards
 In this project we are trying to adhere to the same coding convention as used in
-the Linux kernel (see
-[CodingStyle](https://www.kernel.org/doc/Documentation/process/coding-style.rst)). We achieve this by running
-[checkpatch](http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/scripts/checkpatch.pl)
+the Linux kernel (see [CodingStyle]). We achieve this by running [checkpatch]
 from Linux kernel. However there are a few exceptions that we had to make since
 the code also follows GlobalPlatform standards. The exceptions are as follows:
 
-- CamelCase for GlobalPlatform types are allowed.
-- And we also exclude checking third party code that we might use in this
-  project, such as LibTomCrypt, MPA, newlib (not in this particular git, but
-  those are also part of the complete TEE solution). The reason for excluding
-  and not fixing third party code is because we would probably deviate too much
-  from upstream and therefore it would be hard to rebase against those projects
-  later on (and we don't expect that it is easy to convince other software
-  projects to change coding style).
+-	CamelCase for GlobalPlatform types are allowed.
+-	And we also exclude checking third party code that we might use in this
+	project, such as LibTomCrypt, MPA, newlib (not in this particular git, but
+	those are also part of the complete TEE solution, see
+	[Notice.md](Notice.md#repository-structure). The reason for
+	excluding and not fixing third party code is because we would probably
+	deviate too much from upstream and therefore it would be hard to rebase
+	against those projects later on and we don't expect that it is easy to
+	convince other software projects to change coding style.
 
-### 5.1 checkpatch
-Since checkpatch is licensed under the terms of GNU GPL License Version 2, we
+Regarding the checkpatch tool, since it is licensed under the terms of GNU GPL
+License Version 2, we
 cannot include this script directly into this project. Please use checkpatch
 directly from the Linux kernel git in combination with the local [checkpatch
 script].
 
 [build]: https://github.com/OP-TEE/build
 [checkpatch script]: scripts/checkpatch.sh
+[checkpatch]: http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/scripts/checkpatch.pl
+[CodingStyle]: https://www.kernel.org/doc/Documentation/process/coding-style.rst

@@ -26,8 +26,8 @@ is desired.
 
 ## API extension
 
-To support the Concat KDF, the *GlobalPlatform TEE Internal API Specification
-v1.0* was extended with new algorithm descriptors, new object types, and new
+To support the Concat KDF, the *GlobalPlatform TEE Internal Core API Specification
+v1.1* was extended with new algorithm descriptors, new object types, and new
 object attributes as described below.
 
 ### p.95 Add new object type to TEE_PopulateTransientObject

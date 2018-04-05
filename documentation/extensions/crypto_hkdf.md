@@ -2,8 +2,8 @@
 
 OP-TEE implements the *HMAC-based Extract-and-Expand Key Derivation Function
 (HKDF)* specified in [RFC 5869](http://tools.ietf.org/html/rfc5869). This
-file documents the extensions to the *GlobalPlatform TEE Internal API
-Specification v1.0* that were implemented to support this algorithm. Trusted
+file documents the extensions to the *GlobalPlatform TEE Internal Core API
+Specification v1.1* that were implemented to support this algorithm. Trusted
 Applications should include `<tee_api_defines_extensions.h>` to import the
 definitions.
 

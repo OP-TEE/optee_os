@@ -6,50 +6,79 @@ the open-source TEE maintained by Linaro, with initial contributions from
 STMicroelectronics, Ericsson and Linaro Limited.
 
 What OP-TEE is
-------
+-------
 
-OP-TEE is designed primarily to rely on the ARM TrustZone(R) technology as the
-underlying hardware isolation mechanism. However, it has been structured to be
-compatible with any isolation technology suitable for the TEE concept and goals,
-such as running as a virtual machine or on a dedicated CPU.
+OP-TEE is a Trusted Execution Environment designed as companion to a non-secure
+Linux kernel running on ARM&reg; Cortex-A cores using the TrustZone&reg;
+technology. OP-TEE meets the TEE System Architecture and provides the TEE
+Internal Core API v1.1 to Trusted Applications and the TEE Client API
+v1.0, all as defined by the [GlobalPlatform TEE specifications].
+
+The non-secure OS is referred to as the Rich Execution Environment (REE) in TEE
+specifications. It is typically a Linux OS flavor as a GNU/Linux distribution
+or the AOSP.
+
+OP-TEE is designed primarily to rely on the ARM TrustZone technology as
+the underlying hardware isolation mechanism. However, it has been structured
+to be compatible with any isolation technology suitable for the TEE concept and
+goals, such as running as a virtual machine or on a dedicated CPU.
 
 The main design goals for OP-TEE are:
--	Isolation - the TEE provides isolation from the Rich OS (typically,
-	Linux/Android) and it protects the Trusted Applications (TAs) it
-	executes from each other, using underlying HW support,
--	Small footprint - the TEE should remain small enough so that the TEE
-	core, including all the code and data required to provide isolation, can
-	reside in a reasonable amount of on-chip memory,
--	Portability - the TEE must be easily pluggable to different
-	architectures and available HW, and it has to support various setups
-	such as multiple TEEs or multiple client OSes.
+-	Isolation - the TEE provides isolation from the non-secure OS and
+	protects the loaded Trusted Applications (TAs) from each other using
+	underlying HW support,
+-	Small footprint - the TEE should remain small enough to
+	reside in a reasonable amount of on-chip memory as found on ARM
+	based systems,
+-	Portability - the TEE aims at being easily pluggable to different
+	architectures and available HW and has to support various setups
+	such as multiple client OSes or multiple TEEs.
+
 
 Repository structure
 ------
 
-OP-TEE is composed of three gits:
--	The optee-client git, containing the source code for the TEE client
-	library in Linux. This component provides the TEE Client API as defined
-	by the <a href="https://www.globalplatform.org/specificationsdevice.asp">GlobalPlatform
-	TEE standard</a>. It is distributed under the BSD 2-clause open-source license.
--	The optee_os git, containing the source code for the TEE OS itself. This
-	component provides the TEE Internal APIs as defined by the
-	GlobalPlatform  TEE standard to the Trusted Applications that it
-	executes. It is distributed mostly under the BSD 2-clause open-source
-	license. It includes few external files under BSD 3-clause license or
-	other free software licenses.
--	The optee_linuxdriver git, containing the source code for the TEE driver
-	in Linux. This component implements a generic TEE driver, designed
-	primarily for TEE implementations that rely on the ARM
-	TrustZone(R)technology. It is distributed under the GPLv2 open-source
-	license. Please note that re-distribution under other versions of the
-	GPL license is not allowed. The rationale behind this limitation is to
-	ensure that this code may be used on products which have security
-	devices which prevent reloading the code. Such security devices would be
-	incompatible with some licenses such as GPLv3 and so distribution under
-	those licenses would be inconsistent with this goal. Therefore it is
-	recommended that care be taken before redistributing any of the
-	components under other license terms than those provided here.
+OP-TEE comes with several components:
+-	a secure privileged layer, executing at ARM secure PL-1 level,
+-	a set of secure userland libraries designed for Trusted Applications
+	needs,
+-	a Linux kernel driver merged since v4.12,
+-	a Linux userland library designed upon the GPD TEE Client API
+	specifications
+-	a Linux userland supplicant application for remote services expected by
+	the TEE OS,
+-	and some build scripts, debugging tools and examples to ease its
+	integration and the development of trusted applications and secure
+	services.
+
+These components are available from several git repositories. The main ones are
+the [optee_os], the [optee_client] and the [Linux kernel] since v4.12.
+
+The [optee_os] git repository contains the source code for the TEE OS itself.
+It includes the secure privileged layer hosting the Trusted Applications and
+libraries complying with the TEE Internal Core API v1.1. It is distributed mostly
+under the [BSD 2-Clause] open-source license. It includes few external files under
+[BSD 3-Clause] license or other free software licenses.
+
+The [optee_client] git repository contains the source code for the TEE client
+library in a Linux OS providing the TEE Client API v1.0. It is distributed under
+the [BSD 2-Clause] open-source license.
+
+The [Linux kernel] contains the source code for the OP-TEE Linux driver. It is
+distributed under the [GPLv2] open-source license.
+
+There are other OP-TEE components one might be interested in. The OP-TEE release tag
+references several git repositories enabling OP-TEE build and test for various
+platforms. Refer to the [build documentation] for information. The [optee_test] git
+repository proposes test materials through the `xtest` tool and dedicated trusted
+applications. The [optee_examples] git repository contains examples of TEE client
+and trusted applications and some documentation to get hands on trusted
+application development.
+
+Documentation
+------
+Documentation on design, implementation and tools can be found in
+[optee_os/documentation](optee_os/documentation).
 
 Contributions
 ------
@@ -111,3 +140,18 @@ To sign-off a patch, just add a line saying:
     Signed-off-by: Random J Developer <random@developer.example.org>
 ```
 using your real name (sorry, no pseudonyms or anonymous contributions.)
+
+Refer also to [github.md](documentation/github.md) to setup a github accournt
+in order to contribute to the project through issues reporting and pull
+requests.
+
+[BSD 2-Clause]: http://opensource.org/licenses/BSD-2-Clause
+[BSD 3-Clause]: http://opensource.org/licenses/BSD-3-Clause
+[GPLv2]: https://opensource.org/licenses/gpl-2.0
+[build documentation]: documentation/build_system.md
+[GlobalPlatform TEE specifications]: https://www.globalplatform.org/specificationsdevice.asp
+[Linux kernel]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+[optee_client]: https://github.com/OP-TEE/optee_client
+[optee_examples]: https://github.com/OP-TEE/optee_examples
+[optee_os]: https://github.com/OP-TEE/optee_os
+[optee_test]: https://github.com/OP-TEE/optee_test
