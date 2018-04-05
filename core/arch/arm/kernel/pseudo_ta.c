@@ -249,6 +249,10 @@ static const struct tee_ta_ops pseudo_ta_ops = {
 	.destroy = pseudo_ta_destroy,
 };
 
+bool is_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
+{
+	return ctx->ops == &pseudo_ta_ops;
+}
 
 /* Insures declared pseudo TAs conforms with core expectations */
 static TEE_Result verify_pseudo_tas_conformance(void)

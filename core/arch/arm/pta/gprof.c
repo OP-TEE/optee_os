@@ -165,7 +165,7 @@ static TEE_Result open_session(uint32_t param_types __unused,
 	s = tee_ta_get_calling_session();
 	if (!s)
 		return TEE_ERROR_ACCESS_DENIED;
-	if (is_pseudo_ta_ctx(s->ctx))
+	if (!is_user_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	return TEE_SUCCESS;

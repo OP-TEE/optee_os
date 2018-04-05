@@ -47,10 +47,7 @@ struct pseudo_ta_ctx {
 	struct tee_ta_ctx ctx;
 };
 
-static inline bool is_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
-{
-	return !(ctx->flags & TA_FLAG_USER_MODE);
-}
+bool is_pseudo_ta_ctx(struct tee_ta_ctx *ctx);
 
 static inline struct pseudo_ta_ctx *to_pseudo_ta_ctx(struct tee_ta_ctx *ctx)
 {
