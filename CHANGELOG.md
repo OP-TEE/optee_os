@@ -1,4 +1,14 @@
-# OP-TEE - version 3.0.0
+# OP-TEE - version 3.1.0 (2018-04-13)
+
+- Link to the GitHub [release page][github_release_3_1_0].
+- Links to the [commits][github_commits_3_1_0] and
+[pull requests][github_pr_3_1_0] merged into this release.
+
+[github_commits_3_1_0]: https://github.com/OP-TEE/optee_os/compare/3.0.0...3.1.0
+[github_pr_3_1_0]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2018-01-26..2018-04-13
+[github_release_3_1_0]: https://github.com/OP-TEE/optee_os/releases/tag/3.1.0
+
+# OP-TEE - version 3.0.0 (2018-01-26)
 
 [Link][github_commits_3_0_0] to a list of all commits between this release and
 the previous one (2.6.0).
