@@ -602,10 +602,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 	}
 
 	if (called_sess && is_pseudo_ta_ctx(called_sess->ctx)) {
-		/*
-		 * static TA, borrow the mapping of the calling
-		 * during this call.
-		 */
+		/* pseudo TA borrows the mapping of the calling TA */
 		return TEE_SUCCESS;
 	}
 
@@ -805,9 +802,9 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 		goto function_exit;
 
 	/*
-	 * Find session of a multi session TA or a static TA
+	 * Find session of a multi session TA or a pseudo TA.
 	 * In such a case, there is no need to ask the supplicant for the TA
-	 * code
+	 * code.
 	 */
 	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);

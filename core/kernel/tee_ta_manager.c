@@ -525,7 +525,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 			goto out;
 	}
 
-	/* Look for static TA */
+	/* Look for pseudo TA */
 	res = tee_ta_init_pseudo_ta_session(uuid, s);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;

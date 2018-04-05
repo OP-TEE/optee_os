@@ -242,7 +242,7 @@ CFG_DT ?= n
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
 
-# Enable static TA and core self tests
+# Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
