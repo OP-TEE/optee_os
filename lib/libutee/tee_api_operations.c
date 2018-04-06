@@ -1472,23 +1472,25 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 	 * Check that required destLen is big enough before starting to feed
 	 * data to the algorithm. Errors during feeding of data are fatal as we
 	 * can't restore sync with this API.
+	 *
+	 * Need to check this before update_payload since sync would be lost if
+	 * we return short buffer after that.
 	 */
+	res = TEE_ERROR_GENERIC;
+
 	req_dlen = operation->buffer_offs + srcLen;
 	if (*destLen < req_dlen) {
 		*destLen = req_dlen;
 		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
 	}
 
-	/*
-	 * Need to check this before update_payload since sync would be lost if
-	 * we return short buffer after that.
-	 */
 	if (*tagLen < operation->ae_tag_len) {
 		*tagLen = operation->ae_tag_len;
 		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
 	}
+
+	if (res == TEE_ERROR_SHORT_BUFFER)
+		goto out;
 
 	tl = *tagLen;
 	tmp_dlen = *destLen - acc_dlen;
