@@ -296,6 +296,7 @@ ce_aes_ctr_encrypt:
 .Lctrloop3x:
 	subs		r4, r4, #3
 	bmi		.Lctr1x
+	add		r6, r6, #1
 	vmov		q0, q6
 	vmov		q1, q6
 	rev		ip, r6
