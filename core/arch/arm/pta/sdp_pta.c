@@ -66,7 +66,7 @@ static TEE_Result open_session(uint32_t nParamTypes __unused,
 	}
 
 	DMSG("TA %pUl is unauthorised access to pseudo-TA \"%s\"",
-	     s->ctx->uuid, PTA_NAME);
+	     (void *)&s->ctx->uuid, PTA_NAME);
 
 	return TEE_ERROR_ACCESS_DENIED;
 }
