@@ -4,6 +4,7 @@
  */
 
 #include <crypto/crypto.h>
+#include <crypto/crypto_lite.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
@@ -369,6 +370,11 @@ static TEE_Result tee_cryp_init(void)
 	res = crypto_init();
 	if (res) {
 		EMSG("Failed to initialize crypto API: %#" PRIx32, res);
+		panic();
+	}
+	res = crypto_lite_init();
+	if (res) {
+		EMSG("Failed to initialize lite crypto API: %#" PRIx32, res);
 		panic();
 	}
 	plat_rng_init();

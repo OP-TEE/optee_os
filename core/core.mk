@@ -90,9 +90,22 @@ base-prefix :=
 
 CFG_CRYPTOLIB_NAME ?= tomcrypt
 CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+
+ifeq ($(CFG_CRYPTOLIB_NAME), tomcrypt)
+CFG_CRYPTO_TOMCRYPT := y
+else ifeq ($(CFG_CRYPTOLIB_NAME), mbedtls)
+CFG_CRYPTO_MBEDTLS := y
+endif
+
 libname = $(CFG_CRYPTOLIB_NAME)
 libdir = $(CFG_CRYPTOLIB_DIR)
 include mk/lib.mk
+
+ifeq ($(CFG_CRYPTOLIB_NAME),$(filter $(CFG_CRYPTOLIB_NAME),tomcrypt mbedtls))
+libname = tomcrypt_lite
+libdir = core/lib/libtomcrypt_lite
+include mk/lib.mk
+endif
 
 ifeq ($(CFG_DT),y)
 libname = fdt

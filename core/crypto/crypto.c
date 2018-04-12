@@ -8,6 +8,7 @@
 #include <crypto/aes-ccm.h>
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_lite.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,47 +47,123 @@ TEE_Result crypto_hash_final(void *ctx __unused, uint32_t algo __unused,
 }
 #endif /*_CFG_CRYPTO_WITH_HASH*/
 
-#if !defined(_CFG_CRYPTO_WITH_CIPHER)
-TEE_Result crypto_cipher_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+#if defined(_CFG_CRYPTO_WITH_CIPHER)
+TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		return crypto_cipher_lite_alloc_ctx(ctx, algo);
+#endif
+	default:
+		return _crypto_cipher_alloc_ctx(ctx, algo);
+	}
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo)
 {
-	if (ctx)
-		assert(0);
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		crypto_cipher_lite_free_ctx(ctx, algo);
+		return;
+#endif
+	default:
+		_crypto_cipher_free_ctx(ctx, algo);
+		return;
+	}
 }
 
-void crypto_cipher_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			      uint32_t algo __unused)
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
+			      uint32_t algo)
 {
-	assert(0);
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		crypto_cipher_lite_copy_state(dst_ctx, src_ctx, algo);
+		return;
+#endif
+	default:
+		_crypto_cipher_copy_state(dst_ctx, src_ctx, algo);
+		return;
+	}
 }
 
-TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
-			      TEE_OperationMode mode __unused,
-			      const uint8_t *key1 __unused,
-			      size_t key1_len __unused,
-			      const uint8_t *key2 __unused,
-			      size_t key2_len __unused,
-			      const uint8_t *iv __unused,
-			      size_t iv_len __unused)
+TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
+			      TEE_OperationMode mode,
+			      const uint8_t *key1,
+			      size_t key1_len,
+			      const uint8_t *key2,
+			      size_t key2_len,
+			      const uint8_t *iv,
+			      size_t iv_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		return crypto_cipher_lite_init(ctx, algo, mode, key1, key1_len,
+					      key2, key2_len, iv, iv_len);
+#endif
+	default:
+		return _crypto_cipher_init(ctx, algo, mode, key1, key1_len,
+				      key2, key2_len, iv, iv_len);
+	}
 }
 
-TEE_Result crypto_cipher_update(void *ctx __unused, uint32_t algo __unused,
-				TEE_OperationMode mode __unused,
-				bool last_block __unused,
-				const uint8_t *data __unused,
-				size_t len __unused, uint8_t *dst __unused)
+TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
+				TEE_OperationMode mode,
+				bool last_block,
+				const uint8_t *data,
+				size_t len, uint8_t *dst)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		return crypto_cipher_lite_update(ctx, algo, mode, last_block,
+						data, len, dst);
+#endif
+	default:
+		return _crypto_cipher_update(ctx, algo, mode, last_block,
+				     data, len, dst);
+	}
 }
 
-void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
+void crypto_cipher_final(void *ctx, uint32_t algo)
 {
+	switch (algo) {
+#if defined(CFG_CRYPTO_ECB) || defined(CFG_CRYPTO_CBC) || \
+	defined(CFG_CRYPTO_CTS) || defined(CFG_CRYPTO_XTS)
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		crypto_cipher_lite_final(ctx, algo);
+		return;
+#endif
+	default:
+		_crypto_cipher_final(ctx, algo);
+		return;
+	}
 }
 
 TEE_Result crypto_cipher_get_block_size(uint32_t algo __unused,
@@ -96,41 +173,176 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo __unused,
 }
 #endif /*_CFG_CRYPTO_WITH_CIPHER*/
 
-#if !defined(_CFG_CRYPTO_WITH_MAC)
-TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+#if defined(_CFG_CRYPTO_WITH_MAC)
+TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return crypto_cbc_mac_alloc_ctx(ctx, algo);
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		return _crypto_mac_alloc_ctx(ctx, algo);
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 }
 
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_mac_free_ctx(void *ctx, uint32_t algo)
 {
-	if (ctx)
-		assert(0);
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		crypto_cbc_mac_free_ctx(ctx, algo);
+		break;
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		_crypto_mac_free_ctx(ctx, algo);
+		break;
+#endif
+	default:
+		return;
+	}
 }
 
-void crypto_mac_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			   uint32_t algo __unused)
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx,
+			   uint32_t algo)
 {
-	assert(0);
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		crypto_cbc_mac_copy_state(dst_ctx, src_ctx, algo);
+		break;
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		_crypto_mac_copy_state(dst_ctx, src_ctx, algo);
+		break;
+#endif
+	default:
+		break;
+	}
 }
 
-TEE_Result crypto_mac_init(void *ctx __unused, uint32_t algo __unused,
-			   const uint8_t *key __unused, size_t len __unused)
+TEE_Result crypto_mac_init(void *ctx, uint32_t algo,
+			   const uint8_t *key, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return crypto_cbc_mac_init(ctx, algo, key, len);
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		return _crypto_mac_init(ctx, algo, key, len);
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 }
 
-TEE_Result crypto_mac_update(void *ctx __unused, uint32_t algo __unused,
-			     const uint8_t *data __unused, size_t len __unused)
+TEE_Result crypto_mac_update(void *ctx, uint32_t algo,
+			     const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return crypto_cbc_mac_update(ctx, algo, data, len);
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		return _crypto_mac_update(ctx, algo, data, len);
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 }
 
-TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
-			    uint8_t *digest __unused,
-			    size_t digest_len __unused)
+TEE_Result crypto_mac_final(void *ctx, uint32_t algo,
+			    uint8_t *digest,
+			    size_t digest_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (algo) {
+#if defined(CFG_CRYPTO_CBC_MAC)
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return crypto_cbc_mac_final(ctx, algo, digest, digest_len);
+#endif
+#if defined(CFG_CRYPTO_HMAC) || defined(CFG_CRYPTO_CMAC)
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_AES_CMAC:
+		return _crypto_mac_final(ctx, algo, digest, digest_len);
+#endif
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 }
 #endif /*_CFG_CRYPTO_WITH_MAC*/
 
