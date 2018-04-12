@@ -104,6 +104,8 @@ after_resume:
 	mov	r0, r4
 	bl	init_sec_mon
 
+	bl	main_init_gic
+
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	mov	r1, #0
 	mov	r2, #0
