@@ -8,6 +8,7 @@
 #include <crypto/aes-ccm.h>
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_lite.h>
 #include <kernel/panic.h>
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
@@ -1356,47 +1357,6 @@ err:
 
 #endif /* CFG_CRYPTO_RSA */
 
-#if defined(CFG_CRYPTO_DSA)
-TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s __unused,
-					    size_t key_size_bits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result
-crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s __unused,
-				    size_t key_size_bits __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key __unused,
-				      size_t key_size __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_dsa_sign(uint32_t algo __unused,
-				   struct dsa_keypair *key __unused,
-				   const uint8_t *msg __unused,
-				   size_t msg_len __unused,
-				   uint8_t *sig __unused,
-				   size_t *sig_len __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
-				     struct dsa_public_key *key __unused,
-				     const uint8_t *msg __unused,
-				     size_t msg_len __unused,
-				     const uint8_t *sig __unused,
-				     size_t sig_len __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-#endif /* CFG_CRYPTO_DSA */
-
 #if defined(CFG_CRYPTO_DH)
 
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
@@ -1922,7 +1882,7 @@ static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
+TEE_Result _crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 {
 	const mbedtls_cipher_info_t *cipher_info = NULL;
 	int lmd_res;
@@ -2000,7 +1960,7 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 	return TEE_SUCCESS;
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+void _crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 {
 	size_t ctx_size __maybe_unused;
 
@@ -2013,13 +1973,13 @@ void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	free(ctx);
 }
 
-void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
+void _crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
 				uint32_t algo __unused)
 {
 	mbedtls_cipher_clone(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
+TEE_Result _crypto_cipher_init(void *ctx, uint32_t algo,
 			      TEE_OperationMode mode,
 			      const uint8_t *key1, size_t key1_len,
 			      const uint8_t *key2 __unused,
@@ -2071,7 +2031,7 @@ TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
+TEE_Result _crypto_cipher_update(void *ctx, uint32_t algo,
 				TEE_OperationMode mode __unused,
 				bool last_block __unused,
 				const uint8_t *data, size_t len, uint8_t *dst)
@@ -2155,7 +2115,7 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
+void _crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
 {
 }
 #endif /* _CFG_CRYPTO_WITH_CIPHER */
@@ -2198,7 +2158,7 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
+TEE_Result _crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 {
 	const mbedtls_md_info_t *md_info __maybe_unused;
 	int lmd_res __maybe_unused;
@@ -2278,7 +2238,7 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 	return res;
 }
 
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+void _crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 {
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -2311,7 +2271,7 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	free(ctx);
 }
 
-void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
+void _crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 {
 	int lmd_res __maybe_unused;
 
@@ -2349,7 +2309,7 @@ void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 	}
 }
 
-TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
+TEE_Result _crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 			   size_t len)
 {
 	int lmd_res __maybe_unused;
@@ -2414,7 +2374,7 @@ TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
+TEE_Result _crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			     size_t len)
 {
 	int lmd_res __maybe_unused;
@@ -2462,7 +2422,7 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
+TEE_Result _crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 			    size_t digest_len)
 {
 	int lmd_res __maybe_unused;
