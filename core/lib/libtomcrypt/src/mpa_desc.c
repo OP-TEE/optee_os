@@ -564,6 +564,7 @@ static int exptmod(void *a, void *b, void *c, void *d)
 	 */
 	if (memguard) {
 		if (init(&d_tmp) != CRYPT_OK) {
+			montgomery_deinit(c_mont);
 			return CRYPT_MEM;
 		}
 	} else {
