@@ -405,9 +405,18 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
 			core_mmu_map_region(mm + n);
 
-	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++)
-		memcpy(l1_xlation_table[0][n], l1_xlation_table[0][0],
-			XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
+	/*
+	 * Primary mapping table is ready at index `get_core_pos()`
+	 * whose value may not be ZERO. Take this index as copy source.
+	 */
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		if (n == get_core_pos())
+			continue;
+
+		memcpy(l1_xlation_table[0][n],
+		       l1_xlation_table[0][get_core_pos()],
+		       XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
+	}
 
 	for (n = 1; n < NUM_L1_ENTRIES; n++) {
 		if (!l1_xlation_table[0][0][n]) {
