@@ -100,6 +100,32 @@
 #define DRAM0_BASE		0x00000000
 #define DRAM0_SIZE		0x3F000000
 #define DRAM0_SIZE_NSEC		0x3E000000
+#define DRAM1_BASE		0x40000000
+
+#if defined(PLATFORM_FLAVOR_hikey)
+
+#if (CFG_DRAM_SIZE_GB == 2)
+#define DRAM1_SIZE_NSEC		0x40000000
+#elif (CFG_DRAM_SIZE_GB == 1)
+/* do nothing */
+#else
+#error Unknown DRAM size
+#endif
+
+#elif defined(PLATFORM_FLAVOR_hikey960)
+
+#if (CFG_DRAM_SIZE_GB == 3)
+#define DRAM1_SIZE_NSEC		0x80000000
+#elif (CFG_DRAM_SIZE_GB == 4)
+#define DRAM1_SIZE_NSEC		0xC0000000
+#else
+#error Unknown DRAM size
+#endif
+
+#else /* PLATFORM_FLAVOR_hikey */
+#error Unknown HiKey PLATFORM_FLAVOR
+#endif /* PLATFORM_FLAVOR_hikey */
+
 
 #ifdef CFG_WITH_PAGER
 
