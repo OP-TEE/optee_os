@@ -52,6 +52,9 @@ register_phys_mem(MEM_AREA_IO_NSEC, GPIO6_BASE, PL061_REG_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, SPI_BASE, PL022_REG_SIZE);
 #endif
 register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE_NSEC);
+#ifdef DRAM1_SIZE_NSEC
+register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE_NSEC);
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
