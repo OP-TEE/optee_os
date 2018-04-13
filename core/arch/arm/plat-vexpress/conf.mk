@@ -76,3 +76,10 @@ ifeq ($(PLATFORM_FLAVOR),juno)
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 endif
+
+ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+CFG_SECURE_DATA_PATH ?= y
+endif
+ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
+CFG_SECURE_DATA_PATH ?= y
+endif
