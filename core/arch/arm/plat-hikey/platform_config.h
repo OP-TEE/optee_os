@@ -35,7 +35,7 @@
 #endif
 
 #else /* PLATFORM_FLAVOR_hikey */
-#error Unknown console UART
+#error Unknown HiKey PLATFORM_FLAVOR
 #endif /* PLATFORM_FLAVOR_hikey */
 
 #define CONSOLE_BAUDRATE	115200
