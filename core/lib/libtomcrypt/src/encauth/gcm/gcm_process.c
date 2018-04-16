@@ -77,6 +77,11 @@ int gcm_process(gcm_state *gcm,
       return err;
    }
 
+   /* 0xFFFFFFFE0 = ((2^39)-256)/8 */
+   if (gcm->pttotlen / 8 + (ulong64)gcm->buflen + (ulong64)ptlen >= CONST64(0xFFFFFFFE0)) {
+      return CRYPT_INVALID_ARG;
+   }
+
    /* in AAD mode? */
    if (gcm->mode == LTC_GCM_MODE_AAD) {
       /* let's process the AAD */
