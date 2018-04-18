@@ -211,6 +211,9 @@ ifeq ($(CFG_EARLY_TA),y)
 $(call force,CFG_ZLIB,y)
 endif
 
+# Support for dynamically linked user TAs
+CFG_TA_DYNLINK ?= y
+
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 
