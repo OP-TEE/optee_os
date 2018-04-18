@@ -11,100 +11,12 @@
 #include <string.h>
 #include <util.h>
 #include <trace.h>
-#include "elf_load.h"
 #include "elf_common.h"
+#include "elf_load.h"
+#include "elf_load_dyn.h"
+#include "elf_load_private.h"
 #include "elf32.h"
 #include "elf64.h"
-
-struct elf_load_state {
-	bool is_32bit;
-
-	struct user_ta_store_handle *ta_handle;
-	const struct user_ta_store_ops *ta_store;
-	size_t data_len;
-
-	size_t next_offs;
-
-	void *ta_head;
-	size_t ta_head_size;
-
-	void *ehdr;
-	void *phdr;
-
-	size_t vasize;
-	void *shdr;
-};
-
-/* Replicates the fields we need from Elf{32,64}_Ehdr */
-struct elf_ehdr {
-	size_t e_phoff;
-	size_t e_shoff;
-	uint32_t e_phentsize;
-	uint32_t e_phnum;
-	uint32_t e_shentsize;
-	uint32_t e_shnum;
-};
-
-/* Replicates the fields we need from Elf{32,64}_Phdr */
-struct elf_phdr {
-	uint32_t p_type;
-	uint32_t p_flags;
-	uintptr_t p_vaddr;
-	size_t p_filesz;
-	size_t p_memsz;
-	size_t p_offset;
-};
-
-#ifdef ARM64
-#define DO_ACTION(state, is_32bit_action, is_64bit_action) \
-	do { \
-		if ((state)->is_32bit) { \
-			is_32bit_action; \
-		} else { \
-			is_64bit_action; \
-		} \
-	} while (0)
-#else
-/* No need to assert state->is_32bit since that is caught before this is used */
-#define DO_ACTION(state, is_32bit_action, is_64bit_action) is_32bit_action
-#endif
-
-#define COPY_EHDR(dst, src) \
-	do { \
-		(dst)->e_phoff = (src)->e_phoff; \
-		(dst)->e_shoff = (src)->e_shoff; \
-		(dst)->e_phentsize = (src)->e_phentsize; \
-		(dst)->e_phnum = (src)->e_phnum; \
-		(dst)->e_shentsize = (src)->e_shentsize; \
-		(dst)->e_shnum = (src)->e_shnum; \
-	} while (0)
-static void copy_ehdr(struct elf_ehdr *ehdr, struct elf_load_state *state)
-{
-	DO_ACTION(state, COPY_EHDR(ehdr, ((Elf32_Ehdr *)state->ehdr)),
-			 COPY_EHDR(ehdr, ((Elf64_Ehdr *)state->ehdr)));
-}
-
-static uint32_t get_shdr_type(struct elf_load_state *state, size_t idx)
-{
-	DO_ACTION(state, return ((Elf32_Shdr *)state->shdr + idx)->sh_type,
-			 return ((Elf64_Shdr *)state->shdr + idx)->sh_type);
-}
-
-#define COPY_PHDR(dst, src) \
-	do { \
-		(dst)->p_type = (src)->p_type; \
-		(dst)->p_vaddr = (src)->p_vaddr; \
-		(dst)->p_filesz = (src)->p_filesz; \
-		(dst)->p_memsz = (src)->p_memsz; \
-		(dst)->p_offset = (src)->p_offset; \
-		(dst)->p_flags = (src)->p_flags; \
-	} while (0)
-static void copy_phdr(struct elf_phdr *phdr, struct elf_load_state *state,
-			size_t idx)
-{
-	DO_ACTION(state, COPY_PHDR(phdr, ((Elf32_Phdr *)state->phdr + idx)),
-			 COPY_PHDR(phdr, ((Elf64_Phdr *)state->phdr + idx)));
-}
 
 static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 {
@@ -172,6 +84,11 @@ static TEE_Result alloc_and_copy_to(void **p, struct elf_load_state *state,
 
 TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 			 struct user_ta_store_handle *ta_handle,
+			 bool is_main,
+			 struct user_ta_elf_head *elfs,
+			 TEE_Result (*resolve_sym)(
+				struct user_ta_elf_head *elfs,
+				const char *name, uintptr_t *val),
 			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
@@ -181,6 +98,9 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 	if (!state)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	state->is_main = is_main;
+	state->elfs = elfs;
+	state->resolve_sym = resolve_sym;
 	state->ta_store = ta_store;
 	state->ta_handle = ta_handle;
 	res = ta_store->get_size(ta_handle, &state->data_len);
@@ -255,13 +175,36 @@ static TEE_Result e64_load_ehdr(struct elf_load_state *state __unused,
 }
 #endif /*ARM64*/
 
+static TEE_Result get_max_va(struct elf_load_state *state, size_t *ret_vasize)
+{
+	struct elf_ehdr ehdr;
+	struct elf_phdr phdr;
+	size_t vasize = 0;
+	size_t tmpsize;
+	size_t n;
+
+	copy_ehdr(&ehdr, state);
+
+	for (n = 0; n < ehdr.e_phnum; n++) {
+		copy_phdr(&phdr, state, n);
+		if (phdr.p_type == PT_LOAD) {
+			if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &tmpsize))
+				return TEE_ERROR_SECURITY;
+			if (tmpsize > vasize)
+				vasize = tmpsize;
+		}
+	}
+	*ret_vasize = vasize;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 {
 	TEE_Result res;
 	size_t n;
 	void *p;
 	struct elf_ehdr ehdr;
-	struct elf_phdr phdr;
 	struct elf_phdr ptload0;
 	size_t phsize;
 
@@ -269,14 +212,17 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	/*
 	 * Program headers:
 	 * We're expecting at least one header of PT_LOAD type.
-	 * .ta_head must be located first in the first PT_LOAD header, which
-	 * must start at virtual address 0. Other types of headers may appear
-	 * before the first PT_LOAD (for example, GNU ld will typically insert
-	 * a PT_ARM_EXIDX segment first when it encounters a .ARM.exidx section
-	 * i.e., unwind tables for 32-bit binaries).
-	 * The last PT_LOAD header gives the maximum VA.
-	 * A PT_DYNAMIC segment may appear, but is ignored.
-	 * All sections not included by a PT_LOAD segment are ignored.
+	 * For the main executable, the .ta_head section must be located first
+	 * in the first PT_LOAD segment, which must start at virtual address 0.
+	 * Dynamic libraries have no .ta_head.
+	 * Other types of headers may appear before the first PT_LOAD (for
+	 * example, GNU ld will typically insert a PT_ARM_EXIDX segment first
+	 * when it encounters a .ARM.exidx section i.e., unwind tables for
+	 * 32-bit binaries).
+	 * The PT_DYNAMIC segment is ignored unless support for dynamically
+	 * linked TAs is enabled.
+	 * All sections not included by a PT_LOAD (or PT_DYNAMIC) segment are
+	 * ignored.
 	 */
 	if (ehdr.e_phnum < 1)
 		return TEE_ERROR_BAD_FORMAT;
@@ -301,23 +247,16 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 	if (ptload0.p_type != PT_LOAD || ptload0.p_vaddr != 0)
 		return TEE_ERROR_BAD_FORMAT;
 
-	/*
-	 * Calculate amount of required virtual memory for TA. Find the max
-	 * address used by a PT_LOAD type. Note that last PT_LOAD type
-	 * dictates the total amount of needed memory. Eventual holes in
-	 * the memory will also be allocated.
-	 *
-	 * Note that this loop will terminate at n = 0 if not earlier
-	 * as we already know from above that we have at least one PT_LOAD
-	 */
-	n = ehdr.e_phnum;
-	do {
-		n--;
-		copy_phdr(&phdr, state, n);
-	} while (phdr.p_type != PT_LOAD);
+	/* Calculate amount of required virtual memory for the ELF file */
+	res = get_max_va(state, &state->vasize);
+	if (res)
+		return res;
 
-	if (ADD_OVERFLOW(phdr.p_vaddr, phdr.p_memsz, &state->vasize))
-		return TEE_ERROR_SECURITY;
+	if (!state->is_main) {
+		state->ta_head = NULL;
+		state->ta_head_size = 0;
+		return TEE_SUCCESS;
+	}
 
 	/* Read .ta_head from first segment if the segment is large enough */
 	if (ptload0.p_filesz < head_size)
@@ -337,8 +276,8 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 	Elf32_Ehdr ehdr;
 
 	/*
-	 * The ELF resides in shared memory, to avoid attacks based on
-	 * modifying the ELF while we're parsing it here we only read each
+	 * The ELF potentially resides in shared memory, to avoid attacks based
+	 * on modifying the ELF while we're parsing it here we only read each
 	 * byte from the ELF once. We're also hashing the ELF while reading
 	 * so we're limited to only read the ELF sequentially from start to
 	 * end.
@@ -358,9 +297,11 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 
 	res = load_head(state, head_size);
 	if (res == TEE_SUCCESS) {
-		*head = state->ta_head;
 		*vasize = state->vasize;
-		*is_32bit = state->is_32bit;
+		if (head_size) {
+			*head = state->ta_head;
+			*is_32bit = state->is_32bit;
+		}
 	}
 	return res;
 }
@@ -442,6 +383,7 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	for (; rel < rel_end; rel++) {
 		Elf32_Addr *where;
 		size_t sym_idx;
+		TEE_Result res;
 
 		/* Check the address is inside TA memory */
 		if (rel->r_offset >= state->vasize)
@@ -461,6 +403,12 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			break;
 		case R_ARM_RELATIVE:
 			*where += vabase;
+			break;
+		case R_ARM_GLOB_DAT:
+		case R_ARM_JUMP_SLOT:
+			res = e32_process_dyn_rel(state, rel, where);
+			if (res)
+				return res;
 			break;
 		default:
 			EMSG("Unknown relocation type %d",
@@ -567,28 +515,45 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	void *p;
 	uint8_t *dst = (uint8_t *)vabase;
 	struct elf_ehdr ehdr;
-	size_t offs;
+	size_t offs = 0;
+	size_t e_p_hdr_sz;
 
 	copy_ehdr(&ehdr, state);
-
-	/*
-	 * Zero initialize everything to make sure that all memory not
-	 * updated from the ELF is zero (covering .bss and eventual gaps).
-	 */
-	memset(dst, 0, state->vasize);
+	e_p_hdr_sz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
 
 	/*
 	 * Copy the segments
 	 */
-	memcpy(dst, state->ta_head, state->ta_head_size);
-	offs = state->ta_head_size;
+	if (state->ta_head_size) {
+		memcpy(dst, state->ta_head, state->ta_head_size);
+		offs = state->ta_head_size;
+	}
 	for (n = 0; n < ehdr.e_phnum; n++) {
 		struct elf_phdr phdr;
 
 		copy_phdr(&phdr, state, n);
+		/*
+		 * The PT_DYNAMIC segment is always included in a PT_LOAD
+		 * segment so it can be ignored here.
+		 */
 		if (phdr.p_type != PT_LOAD)
 			continue;
 
+		if (phdr.p_offset < e_p_hdr_sz) {
+			/*
+			 * The first loadable segment contains the ELF and
+			 * program headers, which have been read already.
+			 * Make sure we don't try to read them again, thus
+			 * going backwards in the data stream which is not
+			 * supported by the TA store interface.
+			 * We do not even need to copy the data from those
+			 * headers because they are useless at this point.
+			 * We can ignore them and leave zeroes at the beginning
+			 * of the segment.
+			 */
+			offs += e_p_hdr_sz;
+			e_p_hdr_sz = 0;
+		}
 		res = copy_to(state, dst, state->vasize,
 			      phdr.p_vaddr + offs,
 			      phdr.p_offset + offs,
@@ -619,24 +584,31 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (state->shdr) {
-		TEE_Result (*process_rel)(struct elf_load_state *state,
-					size_t rel_sidx, vaddr_t vabase);
+	return TEE_SUCCESS;
+}
 
-		if (state->is_32bit)
-			process_rel = e32_process_rel;
-		else
-			process_rel = e64_process_rel;
+TEE_Result elf_process_rel(struct elf_load_state *state, vaddr_t vabase)
+{
+	TEE_Result (*process_rel)(struct elf_load_state *state,
+				  size_t rel_sidx, vaddr_t vabase);
+	struct elf_ehdr ehdr;
+	TEE_Result res;
+	size_t n;
 
-		/* Process relocation */
-		for (n = 0; n < ehdr.e_shnum; n++) {
-			uint32_t sh_type = get_shdr_type(state, n);
+	copy_ehdr(&ehdr, state);
 
-			if (sh_type == SHT_REL || sh_type == SHT_RELA) {
-				res = process_rel(state, n, vabase);
-				if (res != TEE_SUCCESS)
-					return res;
-			}
+	if (state->is_32bit)
+		process_rel = e32_process_rel;
+	else
+		process_rel = e64_process_rel;
+
+	for (n = 0; n < ehdr.e_shnum; n++) {
+		uint32_t sh_type = get_shdr_type(state, n);
+
+		if (sh_type == SHT_REL || sh_type == SHT_RELA) {
+			res = process_rel(state, n, vabase);
+			if (res != TEE_SUCCESS)
+				return res;
 		}
 	}
 

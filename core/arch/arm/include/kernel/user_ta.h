@@ -16,6 +16,7 @@
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
+TAILQ_HEAD(user_ta_elf_head, user_ta_elf);
 
 /*
  * struct user_ta_ctx - user TA context
@@ -47,7 +48,7 @@ struct user_ta_ctx {
 	struct tee_cryp_state_head cryp_states;
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
-	struct mobj *mobj_code;
+	struct user_ta_elf_head elfs;
 	struct mobj *mobj_stack;
 	vaddr_t stack_addr;
 	vaddr_t load_addr;
