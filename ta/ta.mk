@@ -111,14 +111,16 @@ $(foreach f, $(ta-scripts), \
 conf-mk-file-export := $(out-dir)/export-$(sm)/mk/conf.mk
 sm-$(conf-mk-file-export) := $(sm)
 define mk-file-export
-$(conf-mk-file-export): $(conf-mk-file)
-	@$$(cmd-echo-silent) '  GEN    ' $$@
-	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@
-	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@
-	$(q)echo CFG_TA_FLOAT_SUPPORT := $$(CFG_TA_FLOAT_SUPPORT) >> $$@
+.PHONY: $(conf-mk-file-export)
+$(conf-mk-file-export):
+	@$$(cmd-echo-silent) '  CHK    ' $$@
+	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@.tmp
+	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@.tmp
+	$(q)echo CFG_TA_FLOAT_SUPPORT := $$(CFG_TA_FLOAT_SUPPORT) >> $$@.tmp
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \
-		echo $$(v) := $$($$(v));)) >> $$@
-	$(q)echo '$$(ta-mk-file-export-add-$$(sm-$(conf-mk-file-export)))' | sed 's/_nl_ */\n/g' >> $$@
+		echo $$(v) := $$($$(v));)) >> $$@.tmp
+	$(q)echo '$$(ta-mk-file-export-add-$$(sm-$(conf-mk-file-export)))' | sed 's/_nl_ */\n/g' >> $$@.tmp
+	$(q)$(call mv-if-changed,$$@.tmp,$$@)
 endef
 $(eval $(mk-file-export))
 
