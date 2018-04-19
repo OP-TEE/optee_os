@@ -88,8 +88,10 @@ libdir = lib/libmpa
 include mk/lib.mk
 base-prefix :=
 
-libname = tomcrypt
-libdir = core/lib/libtomcrypt
+CFG_CRYPTOLIB_NAME ?= tomcrypt
+CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+libname = $(CFG_CRYPTOLIB_NAME)
+libdir = $(CFG_CRYPTOLIB_DIR)
 include mk/lib.mk
 
 ifeq ($(CFG_DT),y)
