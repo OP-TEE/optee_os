@@ -5,6 +5,7 @@
 
 #include <platform_config.h>
 
+#include <arm64_macros.S>
 #include <arm.h>
 #include <asm.S>
 #include <keep.h>
@@ -92,8 +93,8 @@ copy_init:
 	 * Clear .bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
 	 */
-	adr	x0, __bss_start
-	adr	x1, __bss_end
+	adr_l	x0, __bss_start
+	adr_l	x1, __bss_end
 clear_bss:
 	str	xzr, [x0], #8
 	cmp	x0, x1
@@ -105,7 +106,7 @@ clear_bss:
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
 
-	adr	x0, __text_start
+	adr_l	x0, __text_start
 #ifdef CFG_WITH_PAGER
 	adrp	x1, __tmp_hashes_end
 	add	x1, x1, :lo12:__tmp_hashes_end
@@ -136,7 +137,7 @@ clear_bss:
 	 * D-cache before exiting to normal world.
 	 */
 	mov	x19, x0
-	adr	x0, __text_start
+	adr_l	x0, __text_start
 #ifdef CFG_WITH_PAGER
 	adrp	x1, __tmp_hashes_end
 	add	x1, x1, :lo12:__tmp_hashes_end
