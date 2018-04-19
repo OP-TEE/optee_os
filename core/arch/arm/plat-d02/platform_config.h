@@ -41,7 +41,7 @@
  *    TA RAM: 16 MiB                             |
  *  0x5080_0000                                  | TZDRAM
  *    TEE RAM: 4 MiB (CFG_TEE_RAM_VA_SIZE)       |
- *  0x5040_0000 [TZDRAM_BASE, CFG_TEE_LOAD_ADDR] -
+ *  0x5040_0000 [CFG_TZDRAM_BASE, CFG_TEE_LOAD_ADDR] -
  *    Shared memory: 4 MiB                       | SHMEM
  *  0x5000_0000                                  -
  *    Linux/other                                | DRAM0
@@ -52,7 +52,7 @@
  *  0x7FC0_0000                                  -
  *    Linux/other                                | DRAM1
  *  0x5180_0000                                  -
- *    TA RAM: 20096 KiB (TZDRAM_SIZE)            | TZDRAM
+ *    TA RAM: 20096 KiB (CFG_TZDRAM_SIZE)        | TZDRAM
  *  0x5046_0000                                  -
  *    TEE RAM: 384 KiB (TZSRAM_SIZE)             | TZSRAM
  *  0x5040_0000 [TZSRAM_BASE, CFG_TEE_LOAD_ADDR] -
@@ -73,26 +73,28 @@
 #define TZSRAM_BASE		0x50400000
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		0x50460000
-#define TZDRAM_SIZE		(20096 * 1024)
+#define CFG_TZDRAM_BASE		0x50460000
+#define CFG_TZDRAM_SIZE		(20096 * 1024)
 
 #define CFG_TEE_RAM_START	TZSRAM_BASE
 #define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
-#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE, CORE_MMU_DEVICE_SIZE)
+#define TA_RAM_START		ROUNDUP(CFG_TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
+#define TA_RAM_SIZE		ROUNDDOWN(CFG_TZDRAM_SIZE, CORE_MMU_DEVICE_SIZE)
 
 #define CFG_TEE_RAM_VA_SIZE	(2 * 1024 * 1024)
 
 #else /* CFG_WITH_PAGER */
 
-#define TZDRAM_BASE		0x50400000
-#define TZDRAM_SIZE		(20 * 1024 * 1024)
+#define CFG_TZDRAM_BASE		0x50400000
+#define CFG_TZDRAM_SIZE		(20 * 1024 * 1024)
 
-#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TEE_RAM_START	CFG_TZDRAM_BASE
 #define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((CFG_TZDRAM_BASE + \
+					TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE),\
+#define TA_RAM_SIZE		ROUNDDOWN((CFG_TZDRAM_SIZE - \
+					  CFG_TEE_RAM_VA_SIZE),\
 					  CORE_MMU_DEVICE_SIZE)
 
 #define CFG_TEE_RAM_VA_SIZE	(4 * 1024 * 1024)

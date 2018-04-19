@@ -82,7 +82,7 @@ static struct memaccess_area secure_only[] = {
 #ifdef TZSRAM_BASE
 	MEMACCESS_AREA(TZSRAM_BASE, TZSRAM_SIZE),
 #endif
-	MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE),
+	MEMACCESS_AREA(CFG_TZDRAM_BASE, CFG_TZDRAM_SIZE),
 };
 
 static struct memaccess_area nsec_shared[] = {
@@ -112,7 +112,7 @@ register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
 register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 #endif
 
-register_phys_mem(MEM_AREA_TA_RAM, CFG_TA_RAM_START, CFG_TA_RAM_SIZE);
+register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, CFG_SHMEM_START, CFG_SHMEM_SIZE);
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
@@ -1041,8 +1041,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return core_is_buffer_inside(pbuf, len, CFG_TEE_RAM_START,
 							CFG_TEE_RAM_PH_SIZE);
 	case CORE_MEM_TA_RAM:
-		return core_is_buffer_inside(pbuf, len, CFG_TA_RAM_START,
-							CFG_TA_RAM_SIZE);
+		return core_is_buffer_inside(pbuf, len, TA_RAM_START,
+							TA_RAM_SIZE);
 	case CORE_MEM_NSEC_SHM:
 		return core_is_buffer_inside(pbuf, len, CFG_SHMEM_START,
 							CFG_SHMEM_SIZE);

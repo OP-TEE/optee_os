@@ -58,8 +58,8 @@
 #error "no reserved secure memory defined."
 #endif
 
-#define RA_ADDR	TZDRAM_BASE
-#define RA_SIZE	TZDRAM_SIZE
+#define RA_ADDR	CFG_TZDRAM_BASE
+#define RA_SIZE	CFG_TZDRAM_SIZE
 #define RA_PERM	ABORT_PERM
 
 #define TZ_IS_VALID(data)		((data) & (0x1))
