@@ -53,13 +53,6 @@ cflags$(sm)    := $($(sm)-platform-cflags) $(CFLAGS_$(sm))
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 
-ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
-# TAs will automatically use debug versions of the malloc() functions
-# in libutils (malloc() will be re-defined as mdbg_malloc() etc.).
-# mdbg_check() will also be visible.
-cppflags$(sm) += -DENABLE_MDBG=1
-endif
-
 cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
 
 libdirs += $(ta-dev-kit-dir)/lib

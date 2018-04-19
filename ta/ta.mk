@@ -8,21 +8,26 @@ sm-$(sm) := y
 COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
+#
+# Config flags from mk/config.mk
+#
+
+ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
+# Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
+# mdbg_check(), etc.).
+$(sm)-platform-cppflags += -DENABLE_MDBG=1
+endif
+
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
 cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
 cflags$(sm)	:= $(platform-cflags) $($(sm)-platform-cflags)
 aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 
+# Changes to cppflags$(sm) will only affect how TA dev kit libraries are
+# compiled, these flags are not propagated to the TA
 cppflags$(sm)	+= -include $(conf-file)
-
-# Config flags from mk/config.mk
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
-ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
-# Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
-# mdbg_check(), etc.).
-cppflags$(sm) += -DENABLE_MDBG=1
-endif
 
 base-prefix := $(sm)-
 
