@@ -18,6 +18,8 @@ ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 $(sm)-platform-cppflags += -DENABLE_MDBG=1
 endif
 
+ta-mk-file-export-vars-$(sm) += CFG_TA_FLOAT_SUPPORT
+
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
 cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
@@ -121,7 +123,6 @@ $(conf-mk-file-export):
 	@$$(cmd-echo-silent) '  CHK    ' $$@
 	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@.tmp
 	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@.tmp
-	$(q)echo CFG_TA_FLOAT_SUPPORT := $$(CFG_TA_FLOAT_SUPPORT) >> $$@.tmp
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \
 		echo $$(v) := $$($$(v));)) >> $$@.tmp
 	$(q)echo '$$(ta-mk-file-export-add-$$(sm-$(conf-mk-file-export)))' | sed 's/_nl_ */\n/g' >> $$@.tmp
