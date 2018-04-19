@@ -115,3 +115,12 @@
 	.endif
 		movk    \_reg, :abs_g0_nc:\_val
 	.endm
+
+	/*
+	 * Load address of <sym> into <reg>, <sym> being in the range
+	 * +/- 4GB of the PC (note that 'adr reg, sym' is limited to +/- 1MB).
+	 */
+	.macro adr_l reg, sym
+	adrp	\reg, \sym
+	add	\reg, \reg, :lo12:\sym
+	.endm
