@@ -56,7 +56,7 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # This is unfortunately currently not possible to do in make so we have to
 # calculate it offline, there's some asserts in
 # core/arch/arm/kernel/generic_boot.c to check that we got it right
-CFG_ASAN_SHADOW_OFFSET = 0xc5c7fc0
+CFG_ASAN_SHADOW_OFFSET = 0xc6a71c0
 endif
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_PSCI_ARM32,y)
