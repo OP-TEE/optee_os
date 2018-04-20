@@ -124,7 +124,7 @@ $(conf-mk-file-export):
 	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@.tmp
 	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@.tmp
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \
-		echo $$(v) := $$($$(v));)) >> $$@.tmp
+		$$(if $$($$(v)),echo $$(v) := $$($$(v));,))) >> $$@.tmp
 	$(q)echo '$$(ta-mk-file-export-add-$$(sm-$(conf-mk-file-export)))' | sed 's/_nl_ */\n/g' >> $$@.tmp
 	$(q)$(call mv-if-changed,$$@.tmp,$$@)
 endef
