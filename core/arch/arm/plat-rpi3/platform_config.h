@@ -55,7 +55,7 @@
  *  0x0842_0000                               | TZDRAM
  *    TEE RAM: 4 MiB (CFG_TEE_RAM_VA_SIZE)    |
  *  0x0840_0000 [ARM Trusted Firmware       ] -
- *  0x0840_0000 [TZDRAM_BASE, BL32_LOAD_ADDR] -
+ *  0x0840_0000 [CFG_TZDRAM_BASE, BL32_LOAD_ADDR] -
  *    Shared memory: 4 MiB                    |
  *  0x0800_0000                               | DRAM0
  *    Available to Linux                      |
@@ -70,21 +70,22 @@
 #define CFG_SHMEM_START		(0x08000000)
 #define CFG_SHMEM_SIZE		(4 * 1024 * 1024)
 
-#define TZDRAM_BASE		(CFG_SHMEM_START + CFG_SHMEM_SIZE)
-#define TZDRAM_SIZE		(32 * 1024 * 1024)
+#define CFG_TZDRAM_BASE		(CFG_SHMEM_START + CFG_SHMEM_SIZE)
+#define CFG_TZDRAM_SIZE		(32 * 1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE	4
 
 #define CFG_TEE_RAM_VA_SIZE	(4 * 1024 * 1024)
 
-#define CFG_TEE_LOAD_ADDR	(TZDRAM_BASE + 0x20000)
+#define CFG_TEE_LOAD_ADDR	(CFG_TZDRAM_BASE + 0x20000)
 
 #define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TEE_RAM_START	CFG_TZDRAM_BASE
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((CFG_TZDRAM_BASE + \
+					CFG_TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
 
-# define CFG_TA_RAM_SIZE        (16 * 1024 * 1024)
+# define TA_RAM_SIZE        (16 * 1024 * 1024)
 
 #endif /* PLATFORM_CONFIG_H */

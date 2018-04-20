@@ -155,21 +155,21 @@ could look like this:
 #define TZSRAM_SIZE		(200 * 1024)
 
 /* Otherwise or in addition, use DDR */
-#define TZDRAM_BASE		0x60000000
-#define TZDRAM_SIZE		(32 * 1024 * 1024)
+#define CFG_TZDRAM_BASE		0x60000000
+#define CFG_TZDRAM_SIZE		(32 * 1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE	4
 
 #define CFG_TEE_RAM_VA_SIZE	(4 * 1024 * 1024)
 
-#define CFG_TEE_LOAD_ADDR	(TZDRAM_BASE + 0x20000)
+#define CFG_TEE_LOAD_ADDR	(CFG_TZDRAM_BASE + 0x20000)
 
 #define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	TZDRAM_BASE
+#define CFG_TEE_RAM_START	CFG_TZDRAM_BASE
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((CFG_TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE        (16 * 1024 * 1024)
+#define TA_RAM_SIZE             (16 * 1024 * 1024)
 #endif /* PLATFORM_CONFIG_H */
 ```
 This is minimal amount of information in the `platform_config.h` file. I.e, the

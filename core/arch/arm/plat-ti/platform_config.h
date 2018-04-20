@@ -12,8 +12,8 @@
 #if defined(PLATFORM_FLAVOR_dra7xx) || defined(PLATFORM_FLAVOR_am57xx)
 
 /* Location of protected DDR on the DRA7xx platform */
-#define TZDRAM_BASE     0xbdb00000
-#define TZDRAM_SIZE     0x01c00000
+#define CFG_TZDRAM_BASE     0xbdb00000
+#define CFG_TZDRAM_SIZE     0x01c00000
 
 #ifdef CFG_WITH_PAGER
 #define TZSRAM_BASE     0x40300000
@@ -54,8 +54,8 @@
 #elif defined(PLATFORM_FLAVOR_am43xx)
 
 /* Location of protected DDR on the AM43xx platform */
-#define TZDRAM_BASE     0xbdb00000
-#define TZDRAM_SIZE     0x01c00000
+#define CFG_TZDRAM_BASE     0xbdb00000
+#define CFG_TZDRAM_SIZE     0x01c00000
 
 #define CFG_TEE_CORE_NB_CORE	1
 
@@ -126,27 +126,29 @@
  */
 #define CFG_TEE_RAM_VA_SIZE     (1 * 1024 * 1024)
 #define CFG_TEE_RAM_PH_SIZE     CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START       TZDRAM_BASE
+#define CFG_TEE_RAM_START       CFG_TZDRAM_BASE
 #define CFG_TEE_LOAD_ADDR       CFG_TEE_RAM_START
 
 #endif /* CFG_WITH_PAGER */
 
 #if defined(CFG_SECURE_DATA_PATH)
 /* Locate SDP memory at the end of TZDRAM */
-#define CFG_TEE_SDP_MEM_BASE	(TZDRAM_BASE + \
-				TZDRAM_SIZE - \
+#define CFG_TEE_SDP_MEM_BASE	(CFG_TZDRAM_BASE + \
+				CFG_TZDRAM_SIZE - \
 				CFG_TEE_SDP_MEM_SIZE)
 #endif
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((CFG_TZDRAM_BASE + \
+					CFG_TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
 
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE) - \
+#define TA_RAM_SIZE		ROUNDDOWN((CFG_TZDRAM_SIZE - \
+					  CFG_TEE_RAM_VA_SIZE) - \
 					  CFG_TEE_SDP_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
 /* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)
+#define CFG_SHMEM_START         (CFG_TZDRAM_BASE + CFG_TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE          (4 * 1024 * 1024)
 
 #endif /*PLATFORM_CONFIG_H*/
