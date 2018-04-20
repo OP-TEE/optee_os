@@ -18,7 +18,10 @@ ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 $(sm)-platform-cppflags += -DENABLE_MDBG=1
 endif
 
+# Config variables to be explicitly exported to the dev kit conf.mk
 ta-mk-file-export-vars-$(sm) += CFG_TA_FLOAT_SUPPORT
+ta-mk-file-export-vars-$(sm) += CFG_CACHE_API
+ta-mk-file-export-vars-$(sm) += CFG_SECURE_DATA_PATH
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
