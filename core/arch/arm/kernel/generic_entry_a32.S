@@ -243,6 +243,12 @@ UNWIND(	.cantunwind)
 
 	bootargs_entry
 
+	/*
+	 * 32bit entry is expected to execute Supervisor mode,
+	 * some bootloader may enter in Supervisor or Monitor
+	 */
+	cps	#CPSR_MODE_SVC
+
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 	maybe_init_spectre_workaround
