@@ -61,6 +61,13 @@ libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a
 
+# Pass config variable (CFG_) from conf.mk on the command line
+cppflags$(sm) += $(strip \
+	$(foreach var, $(filter CFG_%,$(.VARIABLES)), \
+		$(if $(filter y,$($(var))), \
+			-D$(var)=1, \
+			$(if $(filter xn x,x$($(var))),,-D$(var)='$($(var))'))))
+
 include $(ta-dev-kit-dir)/mk/cleandirs.mk
 
 .PHONY: clean
