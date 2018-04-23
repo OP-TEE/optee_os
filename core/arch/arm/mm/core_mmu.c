@@ -89,8 +89,13 @@ static struct memaccess_area nsec_shared[] = {
 	MEMACCESS_AREA(CFG_SHMEM_START, CFG_SHMEM_SIZE),
 };
 
+#if defined(CFG_SECURE_DATA_PATH)
 #ifdef CFG_TEE_SDP_MEM_BASE
 register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
+#endif
+#ifdef TEE_SDP_TEST_MEM_BASE
+register_sdp_mem(TEE_SDP_TEST_MEM_BASE, TEE_SDP_TEST_MEM_SIZE);
+#endif
 #endif
 
 #ifdef CFG_CORE_RWDATA_NOEXEC

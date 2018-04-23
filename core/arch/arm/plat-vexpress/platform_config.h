@@ -11,13 +11,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-/* SDP enable but no pool defined: reserve 4MB for SDP tests */
-#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0x00400000
-#else
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0
-#endif
-
 #if defined(PLATFORM_FLAVOR_fvp)
 
 #define GIC_BASE		0x2c000000
@@ -290,14 +283,21 @@
 
 #define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \
 					  (CFG_TA_RAM_START - TZDRAM_BASE) - \
-					  CFG_TEE_SDP_MEM_TEST_SIZE, \
+					  TEE_SDP_TEST_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
-/* Secure data path test memory pool: located at end of TA RAM */
-#if CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_SIZE		CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_BASE		(TZDRAM_BASE + TZDRAM_SIZE - \
-						CFG_TEE_SDP_MEM_SIZE)
+/* SDP enable but no pool defined: reserve 4MB for SDP tests */
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
+#ifdef CFG_TEE_SDP_TEST_MEM_SIZE
+#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_TEST_MEM_SIZE
+#else
+#define TEE_SDP_TEST_MEM_SIZE	0x00400000
+#endif
+#define TEE_SDP_TEST_MEM_BASE	(TZDRAM_BASE + TZDRAM_SIZE - \
+					TEE_SDP_TEST_MEM_SIZE)
+#endif
+#ifndef TEE_SDP_TEST_MEM_SIZE
+#define TEE_SDP_TEST_MEM_SIZE	0
 #endif
 
 #ifdef GIC_BASE
