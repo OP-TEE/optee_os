@@ -194,14 +194,32 @@ service_init(init_tzc400);
 #endif /*CFG_TZC400*/
 
 #if defined(PLATFORM_FLAVOR_qemu_virt)
+static void release_secondary_early_hpen(size_t pos)
+{
+	struct mailbox {
+		uint64_t ep;
+		uint64_t hpen[];
+	} *mailbox;
+
+	if (cpu_mmu_enabled())
+		mailbox = phys_to_virt(SECRAM_BASE, MEM_AREA_IO_SEC);
+	else
+		mailbox = (void *)SECRAM_BASE;
+
+	if (!mailbox)
+		panic();
+
+	mailbox->ep = CFG_TEE_LOAD_ADDR;
+	dsb_ishst();
+	mailbox->hpen[pos] = 1;
+	dsb_ishst();
+	sev();
+}
+
 int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 {
 	size_t pos = get_core_pos_mpidr(core_id);
-	uint32_t *sec_entry_addrs = phys_to_virt(SECRAM_BASE, MEM_AREA_IO_SEC);
 	static bool core_is_released[CFG_TEE_CORE_NB_CORE];
-
-	if (!sec_entry_addrs)
-		panic();
 
 	if (!pos || pos >= CFG_TEE_CORE_NB_CORE)
 		return PSCI_RET_INVALID_PARAMETERS;
@@ -214,12 +232,8 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	}
 	core_is_released[pos] = true;
 
-	/* set NS entry addresses of core */
 	generic_boot_set_core_ns_entry(pos, entry, context_id);
-
-	sec_entry_addrs[pos] = CFG_TEE_LOAD_ADDR;
-	dsb_ishst();
-	sev();
+	release_secondary_early_hpen(pos);
 
 	return PSCI_RET_SUCCESS;
 }
