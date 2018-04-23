@@ -40,8 +40,6 @@
 
 #define CONSOLE_UART_BASE     AT91C_BASE_UART1
 
-#define CFG_TEE_CORE_NB_CORE  1
-
 /*
  * Everything is in DDR memory
  * +-----------------------+ 0x4000_0000

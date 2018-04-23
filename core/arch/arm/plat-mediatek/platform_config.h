@@ -37,8 +37,6 @@
 #define TZDRAM_BASE		0xBE000000
 #define TZDRAM_SIZE		0x02000000
 
-#define CFG_TEE_CORE_NB_CORE	4
-
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
 #define TEE_SHMEM_START		(TZDRAM_BASE - 0x200000)
 #define TEE_SHMEM_SIZE		0x200000
