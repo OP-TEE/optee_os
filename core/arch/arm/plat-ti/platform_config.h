@@ -20,7 +20,6 @@
 #define TZSRAM_SIZE     (256 * 1024)
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_TEE_CORE_NB_CORE	2
 
 #define UART1_BASE      0x4806A000
 #define UART2_BASE      0x4806C000
@@ -56,8 +55,6 @@
 /* Location of protected DDR on the AM43xx platform */
 #define TZDRAM_BASE     0xbdb00000
 #define TZDRAM_SIZE     0x01c00000
-
-#define CFG_TEE_CORE_NB_CORE	1
 
 #define UART0_BASE      0x44E09000
 #define UART1_BASE      0x48022000
