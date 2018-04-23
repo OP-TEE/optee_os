@@ -610,6 +610,22 @@ static bool bn_alloc_max(struct bignum **s)
 	return !!(*s);
 }
 
+static TEE_Result __maybe_unused convert_ltc_verify_status(int ltc_res,
+							   int ltc_stat)
+{
+	switch (ltc_res) {
+	case CRYPT_OK:
+		if (ltc_stat == 1)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_SIGNATURE_INVALID;
+	case CRYPT_INVALID_PACKET:
+		return TEE_ERROR_SIGNATURE_INVALID;
+	default:
+		return TEE_ERROR_GENERIC;
+	}
+}
+
 #if defined(CFG_CRYPTO_RSA)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
@@ -1109,12 +1125,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	ltc_res = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
 				     ltc_hashindex, salt_len, &stat, &ltc_key);
-	if ((ltc_res != CRYPT_OK) || (stat != 1)) {
-		res = TEE_ERROR_SIGNATURE_INVALID;
-		goto err;
-	}
-	res = TEE_SUCCESS;
-
+	res = convert_ltc_verify_status(ltc_res, stat);
 err:
 	return res;
 }
