@@ -1734,11 +1734,7 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
 
 	ltc_res = ecc_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
-	if ((ltc_res == CRYPT_OK) && (ltc_stat == 1))
-		res = TEE_SUCCESS;
-	else
-		res = TEE_ERROR_GENERIC;
-
+	res = convert_ltc_verify_status(ltc_res, ltc_stat);
 out:
 	mp_clear_multi(key_z, r, s, NULL);
 	return res;
