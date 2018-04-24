@@ -50,10 +50,10 @@ register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
 
 #ifdef DRAM0_BASE
-register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE);
+register_ddr(DRAM0_BASE, DRAM0_SIZE);
 #endif
 #ifdef DRAM1_BASE
-register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE);
+register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 static struct gic_data gic_data;
