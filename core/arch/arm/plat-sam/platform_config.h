@@ -50,7 +50,7 @@
  * |      SHMEM 4MiB       |
  * +-----------------------+ 0x3080_0000 [CFG_SHMEM_START]
  * |        | TA_RAM 7MiB  |
- * + TZDRAM +--------------+ 0x3010_0000 [CFG_TA_RAM_START]
+ * + TZDRAM +--------------+ 0x3010_0000 [TA_RAM_START]
  * |        | TEE_RAM 1MiB |
  * +-----------------------+ 0x3000_0000 [TEE_RAM_START/CFG_TEE_LOAD_ADDR]
  * |      Linux memory     |
@@ -71,9 +71,9 @@
 #define CFG_TEE_LOAD_ADDR	TEE_RAM_START
 #endif
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
+#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
 
 #define PL310_BASE          (AT91C_BASE_L2CC)
