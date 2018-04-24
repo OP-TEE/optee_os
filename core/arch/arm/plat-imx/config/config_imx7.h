@@ -5,6 +5,11 @@
  * Peng Fan <peng.fan@nxp.com>
  */
 
+#ifndef __CONFIG_IMX7_H
+#define __CONFIG_IMX7_H
+
+#include <imx-regs.h>
+
 #ifndef CFG_UART_BASE
 #define CFG_UART_BASE	(UART1_BASE)
 #endif
@@ -46,3 +51,5 @@
 #endif
 
 #define CONSOLE_UART_BASE	(CFG_UART_BASE)
+
+#endif /*__CONFIG_IMX7_H*/

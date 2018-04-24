@@ -8,6 +8,8 @@
 #ifndef __CONFIG_IMX6SX_H
 #define __CONFIG_IMX6SX_H
 
+#include <imx-regs.h>
+
 #ifndef CFG_UART_BASE
 #define CFG_UART_BASE	(UART1_BASE)
 #endif
