@@ -1799,7 +1799,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 #ifdef CFG_WITH_PAGER
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
-	if (pa >= CFG_TEE_LOAD_ADDR && pa < get_linear_map_end())
+	if (pa >= TEE_LOAD_ADDR && pa < get_linear_map_end())
 		return (void *)(vaddr_t)pa;
 	return tee_pager_phys_to_virt(pa);
 }

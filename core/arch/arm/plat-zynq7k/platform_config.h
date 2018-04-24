@@ -223,8 +223,10 @@
 
 #define TEE_RAM_START			TZSRAM_BASE
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		TZSRAM_BASE
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #else /* CFG_WITH_PAGER */
@@ -268,8 +270,10 @@
 
 #define TEE_RAM_START			TZDRAM_BASE
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		TZDRAM_BASE
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #endif /* CFG_WITH_PAGER */

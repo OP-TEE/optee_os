@@ -149,7 +149,7 @@
 
 #define TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
 
-#define CFG_TEE_LOAD_ADDR	0x3F000000
+#define TEE_LOAD_ADDR		0x3F000000
 
 #ifdef CFG_WITH_PAGER
 

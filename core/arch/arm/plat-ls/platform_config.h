@@ -154,8 +154,11 @@
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
 #define TEE_RAM_START			TZDRAM_BASE
 #define TA_RAM_START			(TEE_RAM_START + TEE_RAM_PH_SIZE)
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		TEE_RAM_START
+
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
