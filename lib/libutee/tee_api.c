@@ -315,7 +315,7 @@ void *TEE_Malloc(uint32_t len, uint32_t hint)
 	return tee_user_mem_alloc(len, hint);
 }
 
-void *TEE_Realloc(const void *buffer, uint32_t newSize)
+void *TEE_Realloc(void *buffer, uint32_t newSize)
 {
 	/*
 	 * GP TEE Internal API specifies newSize as 'uint32_t'.

@@ -112,7 +112,7 @@ const void *TEE_GetInstanceData(void);
 
 void *TEE_Malloc(uint32_t size, uint32_t hint);
 
-void *TEE_Realloc(const void *buffer, uint32_t newSize);
+void *TEE_Realloc(void *buffer, uint32_t newSize);
 
 void TEE_Free(void *buffer);
 
