@@ -1271,7 +1271,7 @@ void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
 {
 	core_mmu_get_user_va_range(va, NULL);
 	*mobj = mobj_tee_ram;
-	*offset = thread_user_kcode_va - CFG_TEE_RAM_START;
+	*offset = thread_user_kcode_va - TEE_RAM_START;
 	*sz = thread_user_kcode_size;
 }
 #endif
@@ -1286,7 +1286,7 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 	core_mmu_get_user_va_range(&v, NULL);
 	*va = v + thread_user_kcode_size;
 	*mobj = mobj_tee_ram;
-	*offset = (vaddr_t)thread_user_kdata_page - CFG_TEE_RAM_START;
+	*offset = (vaddr_t)thread_user_kdata_page - TEE_RAM_START;
 	*sz = sizeof(thread_user_kdata_page);
 }
 #endif

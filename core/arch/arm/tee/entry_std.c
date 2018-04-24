@@ -594,9 +594,9 @@ static TEE_Result default_mobj_init(void)
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
 
-	mobj_tee_ram = mobj_phys_alloc(CFG_TEE_RAM_START,
+	mobj_tee_ram = mobj_phys_alloc(TEE_RAM_START,
 				       VCORE_UNPG_RW_PA + VCORE_UNPG_RW_SZ -
-						CFG_TEE_RAM_START,
+						TEE_RAM_START,
 				       TEE_MATTR_CACHE_CACHED,
 				       CORE_MEM_TEE_RAM);
 	if (!mobj_tee_ram)

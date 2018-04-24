@@ -66,7 +66,7 @@
 
 /* Location of trusted dram */
 #define CFG_TZDRAM_RSV_START	0x68400000
-#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+#define TEE_RAM_VA_SIZE		(1024 * 1024)
 
 /*
  * Rockchip memory map
@@ -79,18 +79,18 @@
  * | SHMEM  |         |  1 MiB |
  * +---------------------------+
  */
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	CFG_TZDRAM_RSV_START
-#define CFG_TEE_RAM_SIZE	CFG_TEE_RAM_VA_SIZE
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		CFG_TZDRAM_RSV_START
+#define TEE_RAM_SIZE		TEE_RAM_VA_SIZE
 
-#define CFG_TA_RAM_START	(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
+#define CFG_TA_RAM_START	(TEE_RAM_START + TEE_RAM_SIZE)
 #define CFG_TA_RAM_SIZE		(1024 * 1024)
 #define CFG_SHMEM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
 #define CFG_SHMEM_SIZE		(1024 * 1024)
 
 /* Location of trusted dram */
 #define TZDRAM_BASE		CFG_TZDRAM_RSV_START
-#define TZDRAM_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_SIZE		(TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
 
 #define CFG_TEE_LOAD_ADDR	CFG_TZDRAM_RSV_START
 

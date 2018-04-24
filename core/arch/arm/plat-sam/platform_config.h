@@ -52,7 +52,7 @@
  * |        | TA_RAM 7MiB  |
  * + TZDRAM +--------------+ 0x3010_0000 [CFG_TA_RAM_START]
  * |        | TEE_RAM 1MiB |
- * +-----------------------+ 0x3000_0000 [CFG_TEE_RAM_START/LOAD_ADDR]
+ * +-----------------------+ 0x3000_0000 [TEE_RAM_START/CFG_TEE_LOAD_ADDR]
  * |      Linux memory     |
  * +-----------------------+ 0x2000_0000 [DRAM0_BASE]
  */
@@ -63,18 +63,18 @@
 #define CFG_SHMEM_START     (TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE      (4 * 1024 * 1024)
 
-#define CFG_TEE_RAM_START   TZDRAM_BASE
-#define CFG_TEE_RAM_VA_SIZE (1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE CFG_TEE_RAM_VA_SIZE
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
 
 #ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR   CFG_TEE_RAM_START
+#define CFG_TEE_LOAD_ADDR	TEE_RAM_START
 #endif
 
-#define CFG_TA_RAM_START    ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
-				     CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE     ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
-				     CORE_MMU_DEVICE_SIZE)
+#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
+					CORE_MMU_DEVICE_SIZE)
+#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
+					CORE_MMU_DEVICE_SIZE)
 
 #define PL310_BASE          (AT91C_BASE_L2CC)
 #define SFR_BASE            (AT91C_BASE_SFR)

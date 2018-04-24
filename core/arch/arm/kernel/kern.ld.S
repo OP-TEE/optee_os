@@ -63,9 +63,9 @@
  * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
  * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
  */
-#define TEE_RAM_VA_START                CFG_TEE_RAM_START
-#define TEE_TEXT_VA_START               (TEE_RAM_VA_START + \
-			(CFG_TEE_LOAD_ADDR - CFG_TEE_RAM_START))
+#define TEE_RAM_VA_START        TEE_RAM_START
+#define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
+					(CFG_TEE_LOAD_ADDR - TEE_RAM_START))
 
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
@@ -405,24 +405,24 @@ SECTIONS
 
 	__init_mem_usage = __tmp_hashes_end - TEE_TEXT_VA_START;
 
-	ASSERT(CFG_TEE_LOAD_ADDR >= CFG_TEE_RAM_START,
+	ASSERT(CFG_TEE_LOAD_ADDR >= TEE_RAM_START,
 		"Load address before start of physical memory")
-	ASSERT(CFG_TEE_LOAD_ADDR < (CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE),
+	ASSERT(CFG_TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
-	ASSERT(__tmp_hashes_end < (TEE_RAM_VA_START + CFG_TEE_RAM_PH_SIZE),
+	ASSERT(__tmp_hashes_end < (TEE_RAM_VA_START + TEE_RAM_PH_SIZE),
 		"OP-TEE can't fit init part into available physical memory")
-	ASSERT((TEE_RAM_VA_START + CFG_TEE_RAM_PH_SIZE - __init_end) >
+	ASSERT((TEE_RAM_VA_START + TEE_RAM_PH_SIZE - __init_end) >
 		SMALL_PAGE_SIZE, "Too few free pages to initialize paging")
 
 
 #endif /*CFG_WITH_PAGER*/
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-	. = TEE_RAM_VA_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8;
+	. = TEE_RAM_VA_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
 	. = ALIGN(8);
 	.asan_shadow : {
 		__asan_shadow_start = .;
-		. += CFG_TEE_RAM_VA_SIZE / 9;
+		. += TEE_RAM_VA_SIZE / 9;
 		__asan_shadow_end = .;
 		__asan_shadow_size = __asan_shadow_end - __asan_shadow_start;
 	}
@@ -438,9 +438,9 @@ SECTIONS
 	 * Guard against moving the location counter backwards in the assignment
 	 * below.
 	 */
-	ASSERT(. <= (TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE),
-		"CFG_TEE_RAM_VA_SIZE is too small")
-	. = TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE;
+	ASSERT(. <= (TEE_RAM_VA_START + TEE_RAM_VA_SIZE),
+		"TEE_RAM_VA_SIZE is too small")
+	. = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
 
 	_end_of_ram = .;
 
@@ -479,7 +479,7 @@ __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
  * binary data after the firmware build sequence.
  */
 #define __FLATMAP_PAGER_TRAILING_SPACE	\
-	(CFG_TEE_RAM_START + CFG_TEE_RAM_PH_SIZE - \
+	(TEE_RAM_START + TEE_RAM_PH_SIZE - \
 		(__flatmap_init_ro_start + __flatmap_init_ro_size))
 
 /* Paged/init read-only memories */
