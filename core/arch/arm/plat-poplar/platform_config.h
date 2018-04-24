@@ -56,15 +56,15 @@
  *
  * CFG_WITH_PAGER=n                              -
  *    TEE RAM: 2 MiB (TEE_RAM_VA_SIZE)           | TZDRAM
- *  0x0300_0000 [TZDRAM_BASE, CFG_TEE_LOAD_ADDR] -
+ *  0x0300_0000 [TZDRAM_BASE, TEE_LOAD_ADDR]     -
  *
  * CFG_WITH_PAGER=y
  *    Unused
  *  0x030A_0000                                  -
  *    TEE RAM: 640 KiB (TZSRAM_SIZE)             | TZSRAM
- *  0x0300_0000 [TZSRAM_BASE, CFG_TEE_LOAD_ADDR] -
+ *  0x0300_0000 [TZSRAM_BASE, TEE_LOAD_ADDR]     -
  *
- *  0x0300_0000 [TZDRAM_BASE, TZSRAM_BASE, CFG_TEE_LOAD_ADDR]
+ *  0x0300_0000 [TZDRAM_BASE, TZSRAM_BASE, TEE_LOAD_ADDR]
  *    OP-TEE Future Use: 4 MiB
  *  0x02C0_0000
  *
@@ -146,6 +146,6 @@
 
 #define TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
 
-#define CFG_TEE_LOAD_ADDR	0x03000000 /* BL32_BASE */
+#define TEE_LOAD_ADDR		0x03000000 /* BL32_BASE */
 
 #endif /* PLATFORM_CONFIG_H */

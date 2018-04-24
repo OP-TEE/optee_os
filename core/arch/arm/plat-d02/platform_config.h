@@ -41,7 +41,7 @@
  *    TA RAM: 16 MiB                             |
  *  0x5080_0000                                  | TZDRAM
  *    TEE RAM: 4 MiB (TEE_RAM_VA_SIZE)		 |
- *  0x5040_0000 [TZDRAM_BASE, CFG_TEE_LOAD_ADDR] -
+ *  0x5040_0000 [TZDRAM_BASE, TEE_LOAD_ADDR]     -
  *    Shared memory: 4 MiB                       | SHMEM
  *  0x5000_0000                                  -
  *    Linux/other                                | DRAM0
@@ -55,7 +55,7 @@
  *    TA RAM: 20096 KiB (TZDRAM_SIZE)            | TZDRAM
  *  0x5046_0000                                  -
  *    TEE RAM: 384 KiB (TZSRAM_SIZE)             | TZSRAM
- *  0x5040_0000 [TZSRAM_BASE, CFG_TEE_LOAD_ADDR] -
+ *  0x5040_0000 [TZSRAM_BASE, TEE_LOAD_ADDR]     -
  *    Shared memory: 4 MiB                       | SHMEM
  *  0x5000_0000                                  -
  *    Linux/other                                | DRAM0
@@ -104,6 +104,6 @@
 
 #define CFG_TEE_CORE_NB_CORE	16
 
-#define CFG_TEE_LOAD_ADDR	0x50400000
+#define TEE_LOAD_ADDR		0x50400000
 
 #endif /* PLATFORM_CONFIG_H */

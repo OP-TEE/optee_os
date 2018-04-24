@@ -65,7 +65,7 @@
  */
 #define TEE_RAM_VA_START        TEE_RAM_START
 #define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
-					(CFG_TEE_LOAD_ADDR - TEE_RAM_START))
+					(TEE_LOAD_ADDR - TEE_RAM_START))
 
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
@@ -405,9 +405,9 @@ SECTIONS
 
 	__init_mem_usage = __tmp_hashes_end - TEE_TEXT_VA_START;
 
-	ASSERT(CFG_TEE_LOAD_ADDR >= TEE_RAM_START,
+	ASSERT(TEE_LOAD_ADDR >= TEE_RAM_START,
 		"Load address before start of physical memory")
-	ASSERT(CFG_TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
+	ASSERT(TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
 	ASSERT(__tmp_hashes_end < (TEE_RAM_VA_START + TEE_RAM_PH_SIZE),
 		"OP-TEE can't fit init part into available physical memory")

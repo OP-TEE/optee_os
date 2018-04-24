@@ -209,7 +209,7 @@ static void release_secondary_early_hpen(size_t pos)
 	if (!mailbox)
 		panic();
 
-	mailbox->ep = CFG_TEE_LOAD_ADDR;
+	mailbox->ep = TEE_LOAD_ADDR;
 	dsb_ishst();
 	mailbox->hpen[pos] = 1;
 	dsb_ishst();

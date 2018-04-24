@@ -52,7 +52,7 @@
  * |        | TA_RAM 7MiB  |
  * + TZDRAM +--------------+ 0x3010_0000 [TA_RAM_START]
  * |        | TEE_RAM 1MiB |
- * +-----------------------+ 0x3000_0000 [TEE_RAM_START/CFG_TEE_LOAD_ADDR]
+ * +-----------------------+ 0x3000_0000 [TEE_RAM_START/TEE_LOAD_ADDR]
  * |      Linux memory     |
  * +-----------------------+ 0x2000_0000 [DRAM0_BASE]
  */
@@ -67,8 +67,10 @@
 #define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)
 #define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR	TEE_RAM_START
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
