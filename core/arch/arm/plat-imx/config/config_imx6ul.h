@@ -17,30 +17,14 @@
 #error "LPAE not supported for now"
 #endif
 
-#define CFG_TEE_CORE_NB_CORE		1
-
-#define DDR_PHYS_START			DRAM0_BASE
-#define DDR_SIZE			DRAM0_SIZE
-
-#define CFG_DDR_START			DDR_PHYS_START
-#define CFG_DDR_SIZE			DDR_SIZE
-
-#ifndef CFG_DDR_TEETZ_RESERVED_START
-#define CFG_DDR_TEETZ_RESERVED_START	0x9E000000
-#endif
-
-#define CFG_DDR_TEETZ_RESERVED_SIZE	0x02000000
-
-#define CFG_PUB_RAM_SIZE	(2 * 1024 * 1024)
+#define CONSOLE_UART_BASE	UART1_BASE
 
 #define TZDRAM_BASE		(CFG_DDR_TEETZ_RESERVED_START)
 #define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
-				 CFG_PUB_RAM_SIZE)
+					TEE_SHMEM_SIZE)
 
-#define TEE_SHMEM_START		(CFG_DDR_TEETZ_RESERVED_START + \
-				 TZDRAM_SIZE)
-/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
-#define TEE_SHMEM_SIZE		CFG_PUB_RAM_SIZE
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		0x00200000
 
 /*
  * Everything is in TZDRAM.
@@ -62,8 +46,6 @@
 #else
 #define TEE_LOAD_ADDR		TEE_RAM_START
 #endif
-
-#define CONSOLE_UART_BASE	UART1_BASE
 
 #endif /*__CONFIG_IMX6UL_H*/
 
