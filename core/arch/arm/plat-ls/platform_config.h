@@ -148,8 +148,8 @@
 #define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
 #define TZDRAM_SIZE			(TEE_RAM_PH_SIZE + TA_RAM_SIZE)
 
-#define CFG_SHMEM_START			(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE			 CFG_PUB_RAM_SIZE
+#define TEE_SHMEM_START			(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE			 CFG_PUB_RAM_SIZE
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
 #define TEE_RAM_START			TZDRAM_BASE
