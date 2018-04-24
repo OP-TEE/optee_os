@@ -242,8 +242,10 @@
 
 #define TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR	TEE_RAM_START
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #ifdef CFG_WITH_PAGER
