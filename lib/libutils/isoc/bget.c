@@ -823,6 +823,11 @@ void *bgetr(buf, size, poolset)
     assert(osize > 0);
     V memcpy((char *) nbuf, (char *) buf, /* Copy the data */
 	     (MemSize) ((size < osize) ? size : osize));
+#ifndef __KERNEL__
+    /* User space reallocations are always zeroed */
+    if (size > osize)
+         V memset((char *) nbuf + osize, 0, size - osize);
+#endif
     brel(buf, poolset);
     return nbuf;
 }
