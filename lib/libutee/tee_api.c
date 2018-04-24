@@ -29,9 +29,9 @@
 #include <string.h>
 
 #include <tee_api.h>
-#include <utee_syscalls.h>
+#include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
-#include "tee_user_mem.h"
+#include <utee_syscalls.h>
 #include "tee_api_private.h"
 
 static const void *tee_api_instance_data;
@@ -312,21 +312,24 @@ void TEE_GetREETime(TEE_Time *time)
 
 void *TEE_Malloc(uint32_t len, uint32_t hint)
 {
-	return tee_user_mem_alloc(len, hint);
+	if (hint == TEE_MALLOC_FILL_ZERO)
+		return calloc(1, len);
+	else if (hint == TEE_USER_MEM_HINT_NO_FILL_ZERO)
+		return malloc(len);
+
+	EMSG("Invalid hint %#" PRIx32, hint);
+
+	return NULL;
 }
 
 void *TEE_Realloc(void *buffer, uint32_t newSize)
 {
-	/*
-	 * GP TEE Internal API specifies newSize as 'uint32_t'.
-	 * use unsigned 'size_t' type. it is at least 32bit!
-	 */
-	return tee_user_mem_realloc((void *)buffer, (size_t) newSize);
+	return realloc(buffer, newSize);
 }
 
 void TEE_Free(void *buffer)
 {
-	tee_user_mem_free(buffer);
+	free(buffer);
 }
 
 /* Cache maintenance support (TA requires the CACHE_MAINTENANCE property) */

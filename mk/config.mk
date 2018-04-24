@@ -59,11 +59,6 @@ CFG_TEE_TA_LOG_LEVEL ?= 1
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
 CFG_TEE_CORE_TA_TRACE ?= y
 
-# If 1, enable debug features in TA memory allocation.
-# Debug features include check of buffer overflow, statistics, mark/check heap
-# feature.
-CFG_TEE_CORE_USER_MEM_DEBUG ?= 1
-
 # If y, enable the memory leak detection feature in the bget memory allocator.
 # When this feature is enabled, calling mdbg_check(1) will print a list of all
 # the currently allocated buffers and the location of the allocation (file and
