@@ -39,27 +39,6 @@ unsigned int utee_get_ta_exec_id(void)
 	return 0;
 }
 
-/* utee_malloc/realloc/free - call malloc lib support */
-void *utee_malloc(size_t len)
-{
-	return malloc(len);
-}
-
-void *utee_realloc(void *buffer, size_t len)
-{
-	return realloc(buffer, len);
-}
-
-void *utee_calloc(size_t nb, size_t len)
-{
-	return calloc(nb, len);
-}
-
-void utee_free(void *buffer)
-{
-	free(buffer);
-}
-
 /*
  * This version of get_rng_array() is used by the libmpa, when used on user side
  * This is why this function is not implemented in libutee for targets with
