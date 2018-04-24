@@ -30,10 +30,4 @@
 
 unsigned int utee_get_ta_exec_id(void);
 
-/* platform wrapper for the malloc library */
-void *utee_malloc(size_t len);
-void *utee_realloc(void *buffer, size_t len);
-void *utee_calloc(size_t nb, size_t len);
-void utee_free(void *buffer);
-
 #endif

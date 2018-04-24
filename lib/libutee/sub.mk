@@ -1,7 +1,6 @@
 global-incdirs-y += include
 
 srcs-y += tee_api_property.c
-srcs-y += tee_user_mem.c
 srcs-y += abort.c
 srcs-y += trace_ext.c
 srcs-y += assert.c
