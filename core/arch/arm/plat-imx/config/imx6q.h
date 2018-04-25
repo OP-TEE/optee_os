@@ -76,7 +76,6 @@
 #define DDR_PHYS_START			DRAM0_BASE
 #define DDR_SIZE			DRAM0_SIZE
 
-#define CFG_DDR_START			DDR_PHYS_START
 #ifndef CFG_DDR_SIZE
 #define CFG_DDR_SIZE			DDR_SIZE
 #endif
@@ -156,7 +155,7 @@
  *
  * Invalidate all registers
  */
-#define	SCU_INV_CTRL_INIT		0xFFFFFFFF
+#define SCU_INV_CTRL_INIT		0xFFFFFFFF
 
 /*
  * SCU Access Register
