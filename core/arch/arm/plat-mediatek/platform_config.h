@@ -39,9 +39,9 @@
 
 #define CFG_TEE_CORE_NB_CORE	4
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START		(TZDRAM_BASE - 0x200000)
-#define CFG_SHMEM_SIZE		0x200000
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START		(TZDRAM_BASE - 0x200000)
+#define TEE_SHMEM_SIZE		0x200000
 
 #else
 #error "Unknown platform flavor"

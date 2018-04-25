@@ -108,8 +108,8 @@
 
 #define CFG_TEE_CORE_NB_CORE	8
 
-#define CFG_SHMEM_START		(DRAM0_BASE + 0x3000000)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + 0x3000000)
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
@@ -151,8 +151,8 @@
 
 #define CFG_TEE_CORE_NB_CORE	6
 
-#define CFG_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - CFG_SHMEM_SIZE)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - TEE_SHMEM_SIZE)
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICC_OFFSET		0x1f000
 #define GICD_OFFSET		0
@@ -163,10 +163,10 @@
  */
 
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		(UINTPTR_C(0x42100000) - CFG_SHMEM_SIZE)
+#define DRAM0_SIZE		(UINTPTR_C(0x42100000) - TEE_SHMEM_SIZE)
 
 #define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
-#define DRAM0_TEERES_SIZE	CFG_SHMEM_SIZE
+#define DRAM0_TEERES_SIZE	TEE_SHMEM_SIZE
 
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
@@ -192,9 +192,9 @@
 
 #define CFG_TEE_CORE_NB_CORE	4
 
-#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
-					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_TEERES_BASE + \
+					(DRAM0_TEERES_SIZE - TEE_SHMEM_SIZE))
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
@@ -203,7 +203,7 @@
 #elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		(UINTPTR_C(0x40000000) - CFG_SHMEM_SIZE)
+#define DRAM0_SIZE		(UINTPTR_C(0x40000000) - TEE_SHMEM_SIZE)
 
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
@@ -230,11 +230,11 @@
 #define CFG_TEE_CORE_NB_CORE	2
 
 /*
- * CFG_SHMEM_START chosen arbitrary, in a way that it does not interfere
+ * TEE_SHMEM_START chosen arbitrary, in a way that it does not interfere
  * with initial location of linux kernel, dtb and initrd
  */
-#define CFG_SHMEM_START	(DRAM0_BASE + 0x2000000)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + 0x2000000)
+#define TEE_SHMEM_SIZE		0x200000
 
 #else
 #error "Unknown platform flavor"

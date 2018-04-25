@@ -73,10 +73,10 @@
 #define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
 				 CFG_PUB_RAM_SIZE)
 
-#define CFG_SHMEM_START		(CFG_DDR_TEETZ_RESERVED_START + \
+#define TEE_SHMEM_START		(CFG_DDR_TEETZ_RESERVED_START + \
 				 TZDRAM_SIZE)
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_SIZE		CFG_PUB_RAM_SIZE
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_SIZE		CFG_PUB_RAM_SIZE
 
 /*
  * Everything is in TZDRAM.
@@ -318,9 +318,9 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_SHMEM_START			(CFG_DDR_TEETZ_RESERVED_START + \
+#define TEE_SHMEM_START			(CFG_DDR_TEETZ_RESERVED_START + \
 					 TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE			CFG_PUB_RAM_SIZE
+#define TEE_SHMEM_SIZE			CFG_PUB_RAM_SIZE
 
 #define TEE_RAM_START			TZDRAM_BASE
 
