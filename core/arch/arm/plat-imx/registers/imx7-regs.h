@@ -3,7 +3,6 @@
  * Copyright 2017-2018 NXP
  *
  */
-
 #ifndef __IMX7_REGS_H__
 #define __IMX7_REGS_H__
 #include <registers/imx7-gpc_regs.h>

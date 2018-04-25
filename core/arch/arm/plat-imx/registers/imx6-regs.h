@@ -3,7 +3,6 @@
  * Copyright 2017-2018 NXP
  *
  */
-
 #ifndef __IMX6_REGS_H__
 #define __IMX6_REGS_H__
 #include <registers/imx6-src_regs.h>
@@ -30,7 +29,7 @@
 #define CSU_BASE		0x021C0000
 #define CSU_CSL_START		0x0
 #define CSU_CSL_END		0xA0
-#define	CSU_ACCESS_ALL		0x00FF00FF
+#define CSU_ACCESS_ALL		0x00FF00FF
 #define CSU_SETTING_LOCK	0x01000100
 
 #if defined(CFG_MX6UL) || defined(CFG_MX6ULL) || defined(CFG_MX6SX)
