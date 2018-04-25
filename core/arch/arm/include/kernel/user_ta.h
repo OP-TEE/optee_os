@@ -23,6 +23,7 @@ TAILQ_HEAD(user_ta_elf_head, user_ta_elf);
  * @entry_func:		Entry address in TA
  * @exidx_start:	32-bit TA: start of exception handling index table
  * @exidx_size:		32-bit TA: size of of exception handling index table
+ * @mobj_exidx:         32-bit TA: consolidated EXIDX table (if several ELFs)
  * @is_32bit:		True if 32-bit TA, false if 64-bit TA
  * @open_sessions:	List of sessions opened by this TA
  * @cryp_states:	List of cryp states created by this TA
@@ -43,6 +44,7 @@ struct user_ta_ctx {
 	uaddr_t entry_func;
 	uaddr_t exidx_start;
 	size_t exidx_size;
+	struct mobj *mobj_exidx;
 	bool is_32bit;
 	struct tee_ta_session_head open_sessions;
 	struct tee_cryp_state_head cryp_states;

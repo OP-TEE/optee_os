@@ -35,6 +35,7 @@
 
 #ifndef ASM
 #include <compiler.h>
+#include <tee_api_types.h>
 #include <types_ext.h>
 
 /* The state of the unwind process (32-bit mode) */
@@ -102,6 +103,17 @@ static inline void print_kernel_stack(int level __unused)
 }
 
 #endif /* defined(CFG_UNWIND) && (TRACE_LEVEL > 0) */
+
+#ifdef CFG_UNWIND
+TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset);
+#else
+static inline TEE_Result relocate_exidx(void *exidx __unused,
+					size_t exidx_sz __unused,
+					int32_t offset __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /* CFG_UNWIND  */
 
 #endif /*ASM*/
 

@@ -433,6 +433,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	TAILQ_FOREACH(elf, &utc->elfs, link)
 		release_ta_memory_by_mobj(elf->mobj_code);
 	release_ta_memory_by_mobj(utc->mobj_stack);
+	release_ta_memory_by_mobj(utc->mobj_exidx);
 
 	/*
 	 * Close sessions opened by this TA
@@ -446,6 +447,7 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 
 	vm_info_final(utc);
 	mobj_free(utc->mobj_stack);
+	mobj_free(utc->mobj_exidx);
 	free_elfs(&utc->elfs);
 
 	/* Free cryp states created by this TA */
@@ -824,6 +826,94 @@ static TEE_Result set_seg_prot(struct user_ta_ctx *utc,
 	return res;
 }
 
+#ifdef CFG_UNWIND
+
+/*
+ * 32-bit TAs: set the address and size of the exception index table (EXIDX).
+ * If the TA contains only one ELF, we point to its table. Otherwise, a
+ * consolidated table is made by concatenating the tables found in each ELF and
+ * adjusting their content to account for the offset relative to the original
+ * location.
+ */
+static TEE_Result set_exidx(struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *exe;
+	struct user_ta_elf *elf;
+	vaddr_t exidx;
+	size_t exidx_sz = 0;
+	TEE_Result res;
+	uint8_t *p;
+
+	if (!utc->is_32bit)
+		return TEE_SUCCESS;
+
+	exe = TAILQ_FIRST(&utc->elfs);
+	if (!TAILQ_NEXT(exe, link)) {
+		/* We have a single ELF: simply reference its table */
+		utc->exidx_start = exe->exidx_start;
+		utc->exidx_size = exe->exidx_size;
+		return TEE_SUCCESS;
+	}
+
+	TAILQ_FOREACH(elf, &utc->elfs, link)
+		exidx_sz += elf->exidx_size;
+
+	utc->mobj_exidx = alloc_ta_mem(exidx_sz);
+	if (!utc->mobj_exidx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	exidx = 0;
+	res = vm_map(utc, &exidx, exidx_sz, TEE_MATTR_UR | TEE_MATTR_PRW,
+		     utc->mobj_exidx, 0);
+	if (res)
+		goto err;
+	DMSG("New EXIDX table mapped at 0x%" PRIxVA " size %zu",
+	     exidx, exidx_sz);
+
+	p = (void *)exidx;
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		void *e_exidx = (void *)(elf->exidx_start + elf->load_addr);
+		size_t e_exidx_sz = elf->exidx_size;
+		int32_t offs = (int32_t)((vaddr_t)e_exidx - (vaddr_t)p);
+
+		memcpy(p, e_exidx, e_exidx_sz);
+		res = relocate_exidx(p, e_exidx_sz, offs);
+		if (res)
+			goto err;
+		p += e_exidx_sz;
+	}
+
+	/*
+	 * Drop privileged mode permissions. Normally we should keep
+	 * TEE_MATTR_PR because the code that accesses this table runs in
+	 * privileged mode. However, privileged read is always enabled if
+	 * unprivileged read is enabled, so it doesn't matter. For consistency
+	 * with other ELF section mappings, let's clear all the privileged
+	 * permission bits.
+	 */
+	res = vm_set_prot(utc, exidx,
+			  ROUNDUP(exidx_sz, SMALL_PAGE_SIZE),
+			  TEE_MATTR_UR);
+	if (res)
+		goto err;
+
+	utc->exidx_start = exidx - utc->load_addr;
+	utc->exidx_size = exidx_sz;
+
+	return TEE_SUCCESS;
+err:
+	mobj_free(utc->mobj_exidx);
+	return res;
+}
+
+#else /* CFG_UNWIND */
+
+static TEE_Result set_exidx(struct user_ta_ctx *utc __unused)
+{
+	return TEE_SUCCESS;
+}
+
+#endif /* CFG_UNWIND */
+
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 				       struct tee_ta_session *s)
 {
@@ -886,8 +976,9 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	}
 
 	utc->load_addr = exe->load_addr;
-	utc->exidx_start = exe->exidx_start;
-	utc->exidx_size = exe->exidx_size;
+	res = set_exidx(utc);
+	if (res)
+		goto err;
 
 	ta_head = (struct ta_head *)(vaddr_t)utc->load_addr;
 
