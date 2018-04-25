@@ -42,13 +42,6 @@
 #error "32 bit mode not supported yet"
 #endif /*ARM64*/
 
-/* SDP enable but no pool defined: reserve 4MB for SDP tests */
-#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0x00400000
-#else
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0
-#endif
-
 #if defined(PLATFORM_FLAVOR_armada7k8k)
 /*
  * armada7k8k specifics.
@@ -154,14 +147,28 @@
 
 #define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \
 					  (CFG_TA_RAM_START - TZDRAM_BASE) - \
-					  CFG_TEE_SDP_MEM_TEST_SIZE, \
+					  TEE_SDP_TEST_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
-/* Secure data path test memory pool: located at end of TA RAM */
-#if CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_SIZE		CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_BASE		(TZDRAM_BASE + TZDRAM_SIZE - \
-						CFG_TEE_SDP_MEM_SIZE)
+/*
+ * Secure data path test memory pool
+ * - If no SDP, no SDP test memory.
+ * - Can be provided by configuration directives CFG_TEE_SDP_MEM_BASE
+ *   and CFG_TEE_SDP_MEM_TEST_SIZE.
+ * - If only the size is defined by CFG_TEE_SDP_MEM_TEST_SIZE, default
+ *   locate a SDP test memory and the end of the TA RAM.
+ */
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
+#if defined(CFG_TEE_SDP_MEM_TEST_SIZE)
+#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_MEM_TEST_SIZE
+#else
+#define TEE_SDP_TEST_MEM_SIZE	0x00400000
+#endif
+#define TEE_SDP_TEST_MEM_BASE	(TZDRAM_BASE + TZDRAM_SIZE - \
+					TEE_SDP_TEST_MEM_SIZE)
+#endif
+#ifndef TEE_SDP_TEST_MEM_SIZE
+#define TEE_SDP_TEST_MEM_SIZE	0
 #endif
 
 #ifdef GIC_BASE
