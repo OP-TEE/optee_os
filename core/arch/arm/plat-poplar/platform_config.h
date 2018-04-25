@@ -29,7 +29,7 @@
  *  0xFF00_0000 [DRAM2_LIMIT]
  *    other (devmem)
  *  0xF000_0000 [DRAM2_BASE]
-
+ *
  *  0x8000_0000 (0x4000_0000 for 1GB board) [DRAM0_LIMIT]
  *    u-boot + ree memory: 1144 MiB (144 MiB for 1GB board)
  *  0x3700_0000 CONFIG_SYS_TEXT_BASE (u-boot)
@@ -49,11 +49,11 @@
  *  0x0408_0000 KERNEL_TEXT_OFFSET (defined in u-boot)
  *    unused: 512 KiB
  *  0x0400_0000
-
+ *
  *  0x0400_0000                                  -
  *    TA RAM: 14 MiB                             | TZDRAM
  *  0x0320_0000                                  -
-
+ *
  * CFG_WITH_PAGER=n                              -
  *    TEE RAM: 2 MiB (CFG_TEE_RAM_VA_SIZE)       | TZDRAM
  *  0x0300_0000 [TZDRAM_BASE, CFG_TEE_LOAD_ADDR] -
@@ -63,11 +63,11 @@
  *  0x030A_0000                                  -
  *    TEE RAM: 640 KiB (TZSRAM_SIZE)             | TZSRAM
  *  0x0300_0000 [TZSRAM_BASE, CFG_TEE_LOAD_ADDR] -
-
+ *
  *  0x0300_0000 [TZDRAM_BASE, TZSRAM_BASE, CFG_TEE_LOAD_ADDR]
  *    OP-TEE Future Use: 4 MiB
  *  0x02C0_0000
-
+ *
  *  0x02C0_0000
  *    Secure Data Path buffers: 4 MiB
  *  0x0280_0000 [CFG_TEE_SDP_MEM_BASE]
@@ -75,7 +75,7 @@
  *  0x0240_0000
  *    OP-TEE Future Use: 2 MiB
  *  0x0220_0000
-
+ *
  *  0x0220_0000
  *    unused: 64 KiB
  *  0x021F_0000 l-loader limit (len/size set by poplar-l-loader.git)
