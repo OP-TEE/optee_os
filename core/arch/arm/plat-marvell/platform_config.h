@@ -124,10 +124,10 @@
 #error "Unknown platform flavor"
 #endif
 
-#define CFG_TEE_RAM_VA_SIZE	SIZE_4M
+#define TEE_RAM_VA_SIZE		SIZE_4M
 
 #ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#define CFG_TEE_LOAD_ADDR	TEE_RAM_START
 #endif
 
 /*
@@ -140,9 +140,9 @@
  * |        | SDP RAM | (test pool, optional)
  * +--------+---------+
  */
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	TZDRAM_BASE
-#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE, \
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		TZDRAM_BASE
+#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE + TEE_RAM_VA_SIZE, \
 					CORE_MMU_DEVICE_SIZE)
 
 #define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \

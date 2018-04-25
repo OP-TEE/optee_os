@@ -71,7 +71,7 @@
 #define DRAM0_SIZE			0x80000000
 #define CFG_DDR_TEETZ_RESERVED_START	0xFC000000
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x03F00000
-#define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
+#define TEE_RAM_VA_SIZE			(1024 * 1024)
 #define CFG_PUB_RAM_SIZE		(1024 * 1024)
 #define CFG_TEE_CORE_NB_CORE		2
 #endif
@@ -80,7 +80,7 @@
 #define DRAM0_SIZE			0x40000000
 #define CFG_DDR_TEETZ_RESERVED_START	0xBC000000
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x03F00000
-#define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
+#define TEE_RAM_VA_SIZE			(1024 * 1024)
 #define CFG_PUB_RAM_SIZE		(1024 * 1024)
 #define CFG_TEE_CORE_NB_CORE		2
 #endif
@@ -89,7 +89,7 @@
 #define DRAM0_SIZE			0x80000000
 #define CFG_DDR_TEETZ_RESERVED_START	0xFC000000
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x04000000
-#define CFG_TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
+#define TEE_RAM_VA_SIZE			(2 * 1024 * 1024)
 #define CFG_PUB_RAM_SIZE		(2 * 1024 * 1024)
 #define CFG_TEE_CORE_NB_CORE		4
 #endif
@@ -98,7 +98,7 @@
 #define DRAM0_SIZE			0x40000000
 #define CFG_DDR_TEETZ_RESERVED_START	0xBC000000
 #define CFG_DDR_TEETZ_RESERVED_SIZE	0x04000000
-#define CFG_TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
+#define TEE_RAM_VA_SIZE			(2 * 1024 * 1024)
 #define CFG_PUB_RAM_SIZE		(2 * 1024 * 1024)
 #define CFG_TEE_CORE_NB_CORE		1
 #endif
@@ -139,24 +139,23 @@
 #error "Invalid CFG_DDR_TEETZ_RESERVED_SIZE: at least 4MB expected"
 #endif
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_TEE_RAM_PH_SIZE		CFG_TEE_RAM_VA_SIZE
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_RAM_PH_SIZE			TEE_RAM_VA_SIZE
 #define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-					 CFG_TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
+					 TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
 
 /* define the secure/unsecure memory areas */
 #define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE			(CFG_TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_SIZE			(TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
 
 #define CFG_SHMEM_START			(TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE			 CFG_PUB_RAM_SIZE
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
-#define CFG_TEE_RAM_START		TZDRAM_BASE
-#define CFG_TA_RAM_START		(CFG_TEE_RAM_START + \
-					 CFG_TEE_RAM_PH_SIZE)
+#define TEE_RAM_START			TZDRAM_BASE
+#define CFG_TA_RAM_START		(TEE_RAM_START + TEE_RAM_PH_SIZE)
 #ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		CFG_TEE_RAM_START
+#define CFG_TEE_LOAD_ADDR		TEE_RAM_START
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
