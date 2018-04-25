@@ -82,9 +82,9 @@
  * Shared attribute internally ignored (bit22=1, bit13=0)
  * Parity disabled (bit21=0)
  * Event monitor disabled (bit20=0)
- * Platform fmavor specific way config (dual / quad):
+ * Platform flavor specific way config:
  * - 16kb way size (bit19:17=3b001)
- * - 16-way associciativity (bit16=1)
+ * - 16-way associativity (bit16=1)
  * Store buffer device limitation enabled (bit11=1)
  * Cacheable accesses have high prio (bit10=0)
  * Full Line Zero (FLZ) disabled (bit0=0)

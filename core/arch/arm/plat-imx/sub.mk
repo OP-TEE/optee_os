@@ -1,4 +1,5 @@
 global-incdirs-y += .
+
 srcs-y += main.c imx-common.c
 
 srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c

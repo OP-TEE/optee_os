@@ -8,7 +8,6 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <generated/imx_pm_asm_defines.h>
-#include <imx-regs.h>
 #include <platform_config.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/tz_ssvce_def.h>

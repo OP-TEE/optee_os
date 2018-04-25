@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * All rights reserved.
  * Copyright (c) 2016, Wind River Systems.
  * All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2017-2018 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,30 +28,32 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef PLAT_IMX_IMX_REGS_H
+#define PLAT_IMX_IMX_REGS_H
 
-#ifndef PLATFORM_CONFIG_H
-#define PLATFORM_CONFIG_H
-
-#include <registers/imx-regs.h>
-
-#define STACK_ALIGNMENT			64
-
-/* For i.MX7D/S platforms */
-#if defined(CFG_MX7)
-#include <config/imx7.h>
-
-#elif defined(CFG_MX6SX)
-#include <config/imx6sx.h>
-
-/* For i.MX 6UltraLite and 6ULL EVK board */
-#elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
-#include <config/imx6ul.h>
-/* For i.MX6 Quad SABRE Lite and Smart Device board */
-#elif defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
-	defined(CFG_MX6DL) || defined(CFG_MX6S)
-#include <config/imx6q.h>
+#ifdef CFG_MX6
+#include <registers/imx6-regs.h>
+#elif defined(CFG_MX7)
+#include <registers/imx7-regs.h>
 #else
-#error "Unknown platform flavor"
+#error "PLATFORM not defined"
 #endif
 
-#endif /*PLATFORM_CONFIG_H*/
+/* Register offset used to get the CPU Type and Revision */
+#define HW_ANADIG_DIGPROG		0x260
+#define HW_ANADIG_DIGPROG_IMX6SL	0x280
+#define HW_ANADIG_DIGPROG_IMX7D		0x800
+
+#define SNVS_LPCR_OFF			0x38
+#define SNVS_LPCR_TOP_MASK		BIT(6)
+#define SNVS_LPCR_DP_EN_MASK		BIT(5)
+#define SNVS_LPCR_SRTC_ENV_MASK		1
+
+
+#define IOMUXC_GPR4_OFFSET	0x10
+#define IOMUXC_GPR5_OFFSET	0x14
+#define ARM_WFI_STAT_MASK(n)	BIT(n)
+
+#define ARM_WFI_STAT_MASK_7D(n)	BIT(25 + ((n) & 1))
+
+#endif
