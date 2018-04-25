@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2017-2018 NXP
- *
  */
 #ifndef __IMX7_DDRC_REGS__
 #define __IMX7_DDRC_REGS__

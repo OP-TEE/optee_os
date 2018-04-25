@@ -55,19 +55,15 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 #ifdef CFG_MX7
-	if (soc_is_imx7ds()) {
-		write32(val, va + SRC_GPR1 + core_idx * 8);
+	write32(val, va + SRC_GPR1 + core_idx * 8);
 
-		imx_gpcv2_set_core1_pup_by_software();
+	imx_gpcv2_set_core1_pup_by_software();
 
-		/* release secondary core */
-		val = read32(va + SRC_A7RCR1);
-		val |=  BIT32(BP_SRC_A7RCR1_A7_CORE1_ENABLE +
-			      (core_idx - 1));
-		write32(val, va + SRC_A7RCR1);
-
-		return PSCI_RET_SUCCESS;
-	}
+	/* release secondary core */
+	val = read32(va + SRC_A7RCR1);
+	val |=  BIT32(BP_SRC_A7RCR1_A7_CORE1_ENABLE +
+			     (core_idx - 1));
+	write32(val, va + SRC_A7RCR1);
 #else
 	/* boot secondary cores from OP-TEE load address */
 	write32(val, va + SRC_GPR1 + core_idx * 8);

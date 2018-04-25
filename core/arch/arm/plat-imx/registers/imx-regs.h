@@ -40,9 +40,9 @@
 #endif
 
 /* Register offset used to get the CPU Type and Revision */
-#define HW_ANADIG_DIGPROG			(0x260)
-#define HW_ANADIG_DIGPROG_IMX6SL	(0x280)
-#define HW_ANADIG_DIGPROG_IMX7D		(0x800)
+#define HW_ANADIG_DIGPROG		0x260
+#define HW_ANADIG_DIGPROG_IMX6SL	0x280
+#define HW_ANADIG_DIGPROG_IMX7D		0x800
 
 #define SNVS_LPCR_OFF			0x38
 #define SNVS_LPCR_TOP_MASK		BIT(6)
