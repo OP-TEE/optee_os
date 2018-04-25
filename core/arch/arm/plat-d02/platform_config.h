@@ -99,8 +99,8 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_SHMEM_START		0x50000000
-#define CFG_SHMEM_SIZE		(4 * 1024 * 1024)
+#define TEE_SHMEM_START		0x50000000
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
 #define CFG_TEE_CORE_NB_CORE	16
 

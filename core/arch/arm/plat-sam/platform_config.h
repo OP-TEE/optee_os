@@ -48,7 +48,7 @@
  * |      Linux memory     |
  * +-----------------------+ 0x30C0_0000
  * |      SHMEM 4MiB       |
- * +-----------------------+ 0x3080_0000 [CFG_SHMEM_START]
+ * +-----------------------+ 0x3080_0000 [TEE_SHMEM_START]
  * |        | TA_RAM 7MiB  |
  * + TZDRAM +--------------+ 0x3010_0000 [TA_RAM_START]
  * |        | TEE_RAM 1MiB |
@@ -60,8 +60,8 @@
 #define TZDRAM_BASE         0x30000000
 #define TZDRAM_SIZE         (8 * 1024 * 1024)
 
-#define CFG_SHMEM_START     (TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE      (4 * 1024 * 1024)
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
 #define TEE_RAM_START		TZDRAM_BASE
 #define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)

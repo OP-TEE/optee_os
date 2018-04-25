@@ -68,9 +68,9 @@
 
 #endif
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x100000
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		0x100000
 
 #define TEE_RAM_VA_SIZE		(1024 * 1024)
 

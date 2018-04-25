@@ -147,8 +147,8 @@
 					  TEE_SDP_TEST_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE          (4 * 1024 * 1024)
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE          (4 * 1024 * 1024)
 
 #endif /*PLATFORM_CONFIG_H*/

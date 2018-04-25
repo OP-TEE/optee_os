@@ -147,8 +147,8 @@ could look like this:
 #define DRAM0_SIZE		0x40000000
 
 /* Below ARM-TF */
-#define CFG_SHMEM_START		0x08000000
-#define CFG_SHMEM_SIZE		(4 * 1024 * 1024)
+#define TEE_SHMEM_START		0x08000000
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
 /* If your device has SRAM */
 #define TZSRAM_BASE		0x3F000000

@@ -22,9 +22,9 @@
 #define TZDRAM_BASE		(DRAM0_BASE - 32 * 1024 * 1024 + CFG_DDR_SIZE)
 #define TZDRAM_SIZE		(30 * 1024 * 1024)
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x200000
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		0x200000
 
 #define TEE_RAM_VA_SIZE		(1024 * 1024)
 

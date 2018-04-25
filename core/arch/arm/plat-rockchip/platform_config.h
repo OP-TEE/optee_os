@@ -85,8 +85,8 @@
 
 #define TA_RAM_START		(TEE_RAM_START + TEE_RAM_SIZE)
 #define TA_RAM_SIZE		(1024 * 1024)
-#define CFG_SHMEM_START		(TA_RAM_START + TA_RAM_SIZE)
-#define CFG_SHMEM_SIZE		(1024 * 1024)
+#define TEE_SHMEM_START		(TA_RAM_START + TA_RAM_SIZE)
+#define TEE_SHMEM_SIZE		(1024 * 1024)
 
 /* Location of trusted dram */
 #define TZDRAM_BASE		CFG_TZDRAM_RSV_START
