@@ -99,8 +99,8 @@ register_sdp_mem(TEE_SDP_TEST_MEM_BASE, TEE_SDP_TEST_MEM_SIZE);
 #endif
 
 #ifdef CFG_CORE_RWDATA_NOEXEC
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, CFG_TEE_RAM_START,
-		     VCORE_UNPG_RX_PA - CFG_TEE_RAM_START);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
+		     VCORE_UNPG_RX_PA - TEE_RAM_START);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA, VCORE_UNPG_RX_SZ);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA, VCORE_UNPG_RO_SZ);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
@@ -109,7 +109,7 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA, VCORE_INIT_RX_SZ);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
 #endif /*CFG_WITH_PAGER*/
 #else /*!CFG_CORE_RWDATA_NOEXEC*/
-register_phys_mem(MEM_AREA_TEE_RAM, CFG_TEE_RAM_START, CFG_TEE_RAM_PH_SIZE);
+register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
 #endif /*!CFG_CORE_RWDATA_NOEXEC*/
 
 #if defined(CFG_CORE_SANITIZE_KADDRESS) && defined(CFG_WITH_PAGER)
@@ -760,7 +760,7 @@ static void dump_xlat_table(vaddr_t va __unused, int level __unused)
 static void add_pager_vaspace(struct tee_mmap_region *mmap, size_t num_elems,
 			      vaddr_t begin, vaddr_t *end, size_t *last)
 {
-	size_t size = CFG_TEE_RAM_VA_SIZE - (*end - begin);
+	size_t size = TEE_RAM_VA_SIZE - (*end - begin);
 	size_t n;
 	size_t pos = 0;
 
@@ -897,7 +897,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		end = MAX(end, ROUNDUP(map->va + map->size, map->region_size));
 	}
 	assert(va >= TEE_RAM_VA_START);
-	assert(end <= TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE);
+	assert(end <= TEE_RAM_VA_START + TEE_RAM_VA_SIZE);
 
 	add_pager_vaspace(memory_map, num_elems, va, &end, &last);
 
@@ -1043,8 +1043,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return pbuf_is_inside(nsec_shared, pbuf, len) ||
 			pbuf_is_nsec_ddr(pbuf, len);
 	case CORE_MEM_TEE_RAM:
-		return core_is_buffer_inside(pbuf, len, CFG_TEE_RAM_START,
-							CFG_TEE_RAM_PH_SIZE);
+		return core_is_buffer_inside(pbuf, len, TEE_RAM_START,
+							TEE_RAM_PH_SIZE);
 	case CORE_MEM_TA_RAM:
 		return core_is_buffer_inside(pbuf, len, CFG_TA_RAM_START,
 							CFG_TA_RAM_SIZE);

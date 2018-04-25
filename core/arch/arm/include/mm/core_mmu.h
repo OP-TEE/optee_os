@@ -74,8 +74,8 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
-#ifndef CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_VA_SIZE		CORE_MMU_PGDIR_SIZE
+#ifndef TEE_RAM_VA_SIZE
+#define TEE_RAM_VA_SIZE			CORE_MMU_PGDIR_SIZE
 #endif
 
 /*
@@ -97,9 +97,9 @@
 /*
  * Identify mapping constraint: virtual base address is the physical start addr.
  */
-#define TEE_RAM_VA_START		CFG_TEE_RAM_START
+#define TEE_RAM_VA_START		TEE_RAM_START
 #define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
-				(CFG_TEE_LOAD_ADDR - CFG_TEE_RAM_START))
+					(CFG_TEE_LOAD_ADDR - TEE_RAM_START))
 
 #ifndef STACK_ALIGNMENT
 #define STACK_ALIGNMENT			(sizeof(long) * 2)
