@@ -55,7 +55,6 @@
 #define PERIPH_BASE		0x10100000
 #define PERIPH_SIZE		0x22000000
 
-#define CFG_TEE_CORE_NB_CORE	4
 #else
 #error "Unknown platform flavor"
 #endif
@@ -63,10 +62,6 @@
 #define CONSOLE_UART_BASE	UART2_BASE
 #define CONSOLE_BAUDRATE	1500000
 #define CONSOLE_UART_CLK_IN_HZ	24000000
-
-/* Location of trusted dram */
-#define CFG_TZDRAM_RSV_START	0x68400000
-#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
 
 /*
  * Rockchip memory map
@@ -79,20 +74,21 @@
  * | SHMEM  |         |  1 MiB |
  * +---------------------------+
  */
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	CFG_TZDRAM_RSV_START
-#define CFG_TEE_RAM_SIZE	CFG_TEE_RAM_VA_SIZE
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_RAM_VA_SIZE		(1024 * 1024)
+#define TEE_RAM_SIZE		TEE_RAM_VA_SIZE
 
-#define CFG_TA_RAM_START	(CFG_TEE_RAM_START + CFG_TEE_RAM_SIZE)
-#define CFG_TA_RAM_SIZE		(1024 * 1024)
-#define CFG_SHMEM_START		(CFG_TA_RAM_START + CFG_TA_RAM_SIZE)
-#define CFG_SHMEM_SIZE		(1024 * 1024)
+#define TA_RAM_START		(TEE_RAM_START + TEE_RAM_SIZE)
+#define TA_RAM_SIZE		(1024 * 1024)
+#define TEE_SHMEM_START		(TA_RAM_START + TA_RAM_SIZE)
+#define TEE_SHMEM_SIZE		(1024 * 1024)
 
 /* Location of trusted dram */
-#define TZDRAM_BASE		CFG_TZDRAM_RSV_START
-#define TZDRAM_SIZE		(CFG_TEE_RAM_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_BASE		0x68400000
+#define TZDRAM_SIZE		(TEE_RAM_SIZE + TA_RAM_SIZE)
 
-#define CFG_TEE_LOAD_ADDR	CFG_TZDRAM_RSV_START
+#define TEE_LOAD_ADDR		TZDRAM_BASE
 
 #ifdef CFG_WITH_LPAE
 #define MAX_XLAT_TABLES		5

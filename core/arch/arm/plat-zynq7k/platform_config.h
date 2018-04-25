@@ -66,18 +66,7 @@
 
 #define CONSOLE_UART_BASE		UART1_BASE
 
-#define DRAM0_BASE			0x00100000
-#define DRAM0_SIZE			0x3FF00000
-
-#define CFG_TEE_RAM_VA_SIZE		(1024 * 1024)
-
-#define CFG_TEE_CORE_NB_CORE		2
-
-#define DDR_PHYS_START			DRAM0_BASE
-#define DDR_SIZE			DRAM0_SIZE
-
-#define CFG_DDR_START			DDR_PHYS_START
-#define CFG_DDR_SIZE			DDR_SIZE
+#define TEE_RAM_VA_SIZE			(1024 * 1024)
 
 /*
  * PL310 TAG RAM Control Register
@@ -182,12 +171,12 @@
  *  |   secure memory    |                  |   | CFG_CORE_TZSRAM_EMUL_SIZE
  *  +---------------------------------------+   v
  *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEE private secure |  TA_RAM          |   ^
- *  |   external memory  |                  |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  +---------------------------------------+  <- TZDRAM_BASE
+ *  | TEE private secure |  TA_RAM          |   ^  + TZDRAM_SIZE
+ *  |   external memory  |                  |   v
+ *  +---------------------------------------+  <- TEE_SHMEM_START
  *  |     Non secure     |  SHM             |   |
- *  |   shared memory    |                  |   |
+ *  |   shared memory    |                  |   |  + TEE_SHMEM_SIZE
  *  +---------------------------------------+   v
  *
  *  TEE_RAM : default 256kByte
@@ -197,34 +186,27 @@
 
 /* emulated SRAM, 256K at start of secure DDR */
 
-#define CFG_CORE_TZSRAM_EMUL_START	0x3E000000
-
-#define TZSRAM_BASE			CFG_CORE_TZSRAM_EMUL_START
+#define TZSRAM_BASE			0x3E000000
 #define TZSRAM_SIZE			CFG_CORE_TZSRAM_EMUL_SIZE
 
 /* Location of trusted dram */
 
-#define CFG_DDR_TEETZ_RESERVED_START	0x3E100000
-#define CFG_DDR_TEETZ_RESERVED_SIZE	0x01F00000
+#define TEE_RAM_START			TZSRAM_BASE
+#define TEE_RAM_PH_SIZE			TZSRAM_SIZE
 
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE		TZSRAM_SIZE
+#define TZDRAM_BASE			0x3e100000
+#define TZDRAM_SIZE			0x01e00000
 
-#define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE				(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						CFG_PUB_RAM_SIZE)
+#define TEE_SHMEM_START			0x3ff00000
+#define TEE_SHMEM_SIZE			0x00100000
 
-#define CFG_SHMEM_START			(CFG_DDR_TEETZ_RESERVED_START + \
-						TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE			CFG_PUB_RAM_SIZE
+#define TA_RAM_START			TZDRAM_BASE
+#define TA_RAM_SIZE			TZDRAM_SIZE
 
-#define CFG_TA_RAM_START		TZDRAM_BASE
-#define CFG_TA_RAM_SIZE			TZDRAM_SIZE
-
-#define CFG_TEE_RAM_START		TZSRAM_BASE
-
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		TZSRAM_BASE
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #else /* CFG_WITH_PAGER */
@@ -232,11 +214,11 @@
 /*
  * TEE/TZ RAM layout:
  *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
+ *  +---------------------------------------+  <- TZDRAM_BASE
  *  | TEE private secure |  TEE_RAM         |   ^
  *  |   external memory  +------------------+   |
  *  |                    |  TA_RAM          |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
+ *  +---------------------------------------+   | TZDRAM_SIZE
  *  |     Non secure     |  SHM             |   |
  *  |   shared memory    |                  |   |
  *  +---------------------------------------+   v
@@ -246,30 +228,22 @@
  *  TA_RAM  : all what is left (at least 2MByte !)
  */
 
-#define CFG_DDR_TEETZ_RESERVED_START	0x3E000000
-#define CFG_DDR_TEETZ_RESERVED_SIZE	0x02000000
+#define TZDRAM_BASE			0x3E000000
+#define TZDRAM_SIZE			(0x02000000 - TEE_SHMEM_SIZE)
 
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE		(1 * 1024 * 1024)
+#define TEE_RAM_START			TZDRAM_BASE
+#define TEE_RAM_PH_SIZE			(1 * 1024 * 1024)
 
-#define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						CFG_PUB_RAM_SIZE)
+#define TA_RAM_START			(TZDRAM_BASE + TEE_RAM_PH_SIZE)
+#define TA_RAM_SIZE			(TZDRAM_SIZE - TEE_RAM_PH_SIZE)
 
-#define CFG_TA_RAM_START		(CFG_DDR_TEETZ_RESERVED_START + \
-						CFG_TEE_RAM_PH_SIZE)
-#define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						CFG_TEE_RAM_PH_SIZE - \
-						CFG_PUB_RAM_SIZE)
+#define TEE_SHMEM_START			(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE			0x00100000
 
-#define CFG_SHMEM_START			(CFG_DDR_TEETZ_RESERVED_START + \
-						TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE			CFG_PUB_RAM_SIZE
-
-#define CFG_TEE_RAM_START		TZDRAM_BASE
-
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR		TZDRAM_BASE
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #endif /* CFG_WITH_PAGER */

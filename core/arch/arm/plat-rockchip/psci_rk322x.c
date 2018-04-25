@@ -305,7 +305,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	}
 
 	/* set secondary secure entry address and lock tag */
-	write32(CFG_TEE_LOAD_ADDR, isram_base + BOOT_ADDR_OFFSET);
+	write32(TEE_LOAD_ADDR, isram_base + BOOT_ADDR_OFFSET);
 	write32(LOCK_TAG, isram_base + LOCK_ADDR_OFFSET);
 	dsb();
 

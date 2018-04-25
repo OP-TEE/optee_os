@@ -187,7 +187,7 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 #define TBL_SHIFT	SMALL_PAGE_SHIFT
 
 #define EFFECTIVE_VA_SIZE \
-	(ROUNDUP(TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE, \
+	(ROUNDUP(TEE_RAM_VA_START + TEE_RAM_VA_SIZE, \
 		 CORE_MMU_PGDIR_SIZE) - \
 	 ROUNDDOWN(TEE_RAM_VA_START, CORE_MMU_PGDIR_SIZE))
 
@@ -291,7 +291,7 @@ void *tee_pager_phys_to_virt(paddr_t pa)
 	while (true) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pager_tables[n].tbl_info, idx);
-			if (v >= (TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE))
+			if (v >= (TEE_RAM_VA_START + TEE_RAM_VA_SIZE))
 				return NULL;
 
 			core_mmu_get_entry(&pager_tables[n].tbl_info,

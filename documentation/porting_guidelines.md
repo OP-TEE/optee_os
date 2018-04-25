@@ -143,33 +143,28 @@ could look like this:
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	19200000
 
-#define DRAM0_BASE		0x00000000
-#define DRAM0_SIZE		0x40000000
-
-/* Below ARM-TF */
-#define CFG_SHMEM_START		0x08000000
-#define CFG_SHMEM_SIZE		(4 * 1024 * 1024)
-
-/* If your device has SRAM */
+/* Optional: When used with CFG_WTI_PAGER, define the device SRAM */
 #define TZSRAM_BASE		0x3F000000
 #define TZSRAM_SIZE		(200 * 1024)
 
-/* Otherwise or in addition, use DDR */
+/* Mandatory main secure RAM usually DDR */
 #define TZDRAM_BASE		0x60000000
 #define TZDRAM_SIZE		(32 * 1024 * 1024)
 
-#define CFG_TEE_CORE_NB_CORE	4
+/* Mandatory TEE RAM location and core load address */
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_VA_SIZE		(4 * 1024 * 1024)
+#define TEE_LOAD_ADDR		(TZDRAM_BASE + 0x20000)
 
-#define CFG_TEE_RAM_VA_SIZE	(4 * 1024 * 1024)
+/* Mandatory TA RAM (external less secure RAM) */
+#define TA_RAM_START		(TZDRAM_BASE + TEE_RAM_VA_SIZE)
+#define TA_RAM_SIZE		(TZDRAM_SIZE - TEE_RAM_VA_SIZE)
 
-#define CFG_TEE_LOAD_ADDR	(TZDRAM_BASE + 0x20000)
+/* Mandatory: for static SHM, need a hardcoded physical address */
+#define TEE_SHMEM_START		0x08000000
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	TZDRAM_BASE
-
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
-					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE        (16 * 1024 * 1024)
 #endif /* PLATFORM_CONFIG_H */
 ```
 This is minimal amount of information in the `platform_config.h` file. I.e, the

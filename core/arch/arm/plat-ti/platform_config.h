@@ -20,7 +20,6 @@
 #define TZSRAM_SIZE     (256 * 1024)
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_TEE_CORE_NB_CORE	2
 
 #define UART1_BASE      0x4806A000
 #define UART2_BASE      0x4806C000
@@ -56,8 +55,6 @@
 /* Location of protected DDR on the AM43xx platform */
 #define TZDRAM_BASE     0xbdb00000
 #define TZDRAM_SIZE     0x01c00000
-
-#define CFG_TEE_CORE_NB_CORE	1
 
 #define UART0_BASE      0x44E09000
 #define UART1_BASE      0x48022000
@@ -107,10 +104,10 @@
  * | TZSRAM | TEE_RAM  |
  * +--------+----------+
  */
-#define CFG_TEE_RAM_VA_SIZE     (1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE     TZSRAM_SIZE
-#define CFG_TEE_RAM_START       TZSRAM_BASE
-#define CFG_TEE_LOAD_ADDR       (CFG_TEE_RAM_START + 0x1000)
+#define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)
+#define TEE_RAM_PH_SIZE		TZSRAM_SIZE
+#define TEE_RAM_START		TZSRAM_BASE
+#define TEE_LOAD_ADDR		(TEE_RAM_START + 0x1000)
 
 #else /* CFG_WITH_PAGER */
 /*
@@ -124,29 +121,35 @@
  * |        | TEE_RAM |
  * +--------+---------+
  */
-#define CFG_TEE_RAM_VA_SIZE     (1 * 1024 * 1024)
-#define CFG_TEE_RAM_PH_SIZE     CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START       TZDRAM_BASE
-#define CFG_TEE_LOAD_ADDR       CFG_TEE_RAM_START
+#define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		TZDRAM_BASE
+#define TEE_LOAD_ADDR		TEE_RAM_START
 
 #endif /* CFG_WITH_PAGER */
 
-#if defined(CFG_SECURE_DATA_PATH)
-/* Locate SDP memory at the end of TZDRAM */
-#define CFG_TEE_SDP_MEM_BASE	(TZDRAM_BASE + \
-				TZDRAM_SIZE - \
-				CFG_TEE_SDP_MEM_SIZE)
+/* Locate SDP memory at the end of TZDRAM: caller sets CFG_TEE_SDP_MEM_SIZE */
+#ifndef CFG_TEE_SDP_MEM_SIZE
+#error "Requires CFG_TEE_SDP_MEM_SIZE"
 #endif
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#if defined(CFG_SECURE_DATA_PATH)
+#define TEE_SDP_TEST_MEM_BASE	(TZDRAM_BASE + TZDRAM_SIZE - \
+					CFG_TEE_SDP_MEM_SIZE)
+#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_MEM_SIZE
+#else
+#define TEE_SDP_TEST_MEM_SIZE	0
+#endif
+
+#define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
 
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE) - \
-					  CFG_TEE_SDP_MEM_SIZE, \
+#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE) - \
+					  TEE_SDP_TEST_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE          (4 * 1024 * 1024)
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE          (4 * 1024 * 1024)
 
 #endif /*PLATFORM_CONFIG_H*/

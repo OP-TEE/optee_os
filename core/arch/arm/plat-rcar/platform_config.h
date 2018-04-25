@@ -49,7 +49,6 @@
 #define TZDRAM_SIZE		0x03E00000
 
 #if defined(PLATFORM_FLAVOR_salvator_h3)
-#define CFG_TEE_CORE_NB_CORE	8
 #define NSEC_DDR_0_BASE		0x47E00000
 #define NSEC_DDR_0_SIZE		0x38200000
 #define NSEC_DDR_1_BASE		0x500000000U
@@ -60,7 +59,6 @@
 #define NSEC_DDR_3_SIZE		0x40000000
 
 #elif defined(PLATFORM_FLAVOR_salvator_m3)
-#define CFG_TEE_CORE_NB_CORE	4
 #define NSEC_DDR_0_BASE		0x47E00000
 #define NSEC_DDR_0_SIZE		0x78200000
 #define NSEC_DDR_1_BASE		0x600000000U
@@ -68,14 +66,16 @@
 
 #endif
 
-/* Full GlobalPlatform test suite requires CFG_SHMEM_SIZE to be at least 2MB */
-#define CFG_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define CFG_SHMEM_SIZE		0x100000
+/* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		0x100000
 
-#define CFG_TEE_RAM_VA_SIZE	(1024 * 1024)
+#define TEE_RAM_VA_SIZE		(1024 * 1024)
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 /*
@@ -86,12 +86,11 @@
  * |        | TA_RAM  |
  * +--------+---------+
  */
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	(TZDRAM_BASE + 0x00100000)
-#define CFG_TA_RAM_START	ROUNDUP((CFG_TEE_RAM_START + \
-					CFG_TEE_RAM_VA_SIZE), \
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		(TZDRAM_BASE + 0x00100000)
+#define TA_RAM_START		ROUNDUP((TEE_RAM_START + TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
 					  CORE_MMU_DEVICE_SIZE)
 
 #endif /*PLATFORM_CONFIG_H*/

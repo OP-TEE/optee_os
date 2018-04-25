@@ -189,7 +189,7 @@ static void init_asan(void)
 	 */
 
 #define __ASAN_SHADOW_START \
-	ROUNDUP(TEE_RAM_VA_START + (CFG_TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
+	ROUNDUP(TEE_RAM_VA_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
 	assert(__ASAN_SHADOW_START == (vaddr_t)&__asan_shadow_start);
 #define __CFG_ASAN_SHADOW_OFFSET \
 	(__ASAN_SHADOW_START - (TEE_RAM_VA_START / 8))
@@ -270,7 +270,7 @@ static void carve_out_asan_mem(tee_mm_pool_t *pool __unused)
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
 	const vaddr_t begin = TEE_RAM_VA_START;
-	vaddr_t end = TEE_RAM_VA_START + CFG_TEE_RAM_VA_SIZE;
+	vaddr_t end = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/* Carve out asan memory, flat maped after core memory */

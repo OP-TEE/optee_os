@@ -11,13 +11,6 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-/* SDP enable but no pool defined: reserve 4MB for SDP tests */
-#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0x00400000
-#else
-#define CFG_TEE_SDP_MEM_TEST_SIZE	0
-#endif
-
 #if defined(PLATFORM_FLAVOR_fvp)
 
 #define GIC_BASE		0x2c000000
@@ -102,8 +95,8 @@
 #define TZSRAM_BASE		(0x06000000)
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
-#define TZDRAM_SIZE		(0x02000000 - CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_BASE		(TZSRAM_BASE + TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x02000000 - TEE_RAM_VA_SIZE)
 
 #else /*CFG_WITH_PAGER*/
 
@@ -113,10 +106,8 @@
 
 #endif /*CFG_WITH_PAGER*/
 
-#define CFG_TEE_CORE_NB_CORE	8
-
-#define CFG_SHMEM_START		(DRAM0_BASE + 0x3000000)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + 0x3000000)
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
@@ -138,8 +129,8 @@
 #define TZSRAM_BASE		0xFF000000
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
-#define TZDRAM_SIZE		(0x00E00000 - CFG_TEE_RAM_VA_SIZE)
+#define TZDRAM_BASE		(TZSRAM_BASE + TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(0x00E00000 - TEE_RAM_VA_SIZE)
 
 #else /*CFG_WITH_PAGER*/
 /*
@@ -156,10 +147,8 @@
 #define TZDRAM_SIZE		0x00E00000
 #endif /*CFG_WITH_PAGER*/
 
-#define CFG_TEE_CORE_NB_CORE	6
-
-#define CFG_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - CFG_SHMEM_SIZE)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - TEE_SHMEM_SIZE)
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICC_OFFSET		0x1f000
 #define GICD_OFFSET		0
@@ -170,10 +159,10 @@
  */
 
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		(UINTPTR_C(0x42100000) - CFG_SHMEM_SIZE)
+#define DRAM0_SIZE		(UINTPTR_C(0x42100000) - TEE_SHMEM_SIZE)
 
 #define DRAM0_TEERES_BASE	(DRAM0_BASE + DRAM0_SIZE)
-#define DRAM0_TEERES_SIZE	CFG_SHMEM_SIZE
+#define DRAM0_TEERES_SIZE	TEE_SHMEM_SIZE
 
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
@@ -186,8 +175,8 @@
 #define TZSRAM_BASE		(SECRAM_BASE + 0x00100000)
 #define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
 
-#define TZDRAM_BASE		(TZSRAM_BASE + CFG_TEE_RAM_VA_SIZE)
-#define TZDRAM_SIZE		(SECRAM_SIZE - CFG_TEE_RAM_VA_SIZE - \
+#define TZDRAM_BASE		(TZSRAM_BASE + TEE_RAM_VA_SIZE)
+#define TZDRAM_SIZE		(SECRAM_SIZE - TEE_RAM_VA_SIZE - \
 					TZSRAM_SIZE - 0x00100000)
 
 #else /* CFG_WITH_PAGER */
@@ -197,11 +186,9 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_TEE_CORE_NB_CORE	4
-
-#define CFG_SHMEM_START		(DRAM0_TEERES_BASE + \
-					(DRAM0_TEERES_SIZE - CFG_SHMEM_SIZE))
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_TEERES_BASE + \
+					(DRAM0_TEERES_SIZE - TEE_SHMEM_SIZE))
+#define TEE_SHMEM_SIZE		0x200000
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
@@ -210,11 +197,10 @@
 #elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
 #define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		(UINTPTR_C(0x40000000) - CFG_SHMEM_SIZE)
+#define DRAM0_SIZE		(UINTPTR_C(0x40000000) - TEE_SHMEM_SIZE)
 
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
-
 
 #ifdef CFG_WITH_PAGER
 
@@ -234,23 +220,23 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_TEE_CORE_NB_CORE	2
-
 /*
- * CFG_SHMEM_START chosen arbitrary, in a way that it does not interfere
+ * TEE_SHMEM_START chosen arbitrary, in a way that it does not interfere
  * with initial location of linux kernel, dtb and initrd
  */
-#define CFG_SHMEM_START	(DRAM0_BASE + 0x2000000)
-#define CFG_SHMEM_SIZE		0x200000
+#define TEE_SHMEM_START		(DRAM0_BASE + 0x2000000)
+#define TEE_SHMEM_SIZE		0x200000
 
 #else
 #error "Unknown platform flavor"
 #endif
 
-#define CFG_TEE_RAM_VA_SIZE	(2 * 1024 * 1024)
+#define TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
 
-#ifndef CFG_TEE_LOAD_ADDR
-#define CFG_TEE_LOAD_ADDR	CFG_TEE_RAM_START
+#ifdef CFG_TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
+#else
+#define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
 #ifdef CFG_WITH_PAGER
@@ -266,9 +252,9 @@
  * |        | SDP RAM | (SDP test pool, optional)
  * +--------+---------+
  */
-#define CFG_TEE_RAM_PH_SIZE	TZSRAM_SIZE
-#define CFG_TEE_RAM_START	TZSRAM_BASE
-#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
+#define TEE_RAM_PH_SIZE		TZSRAM_SIZE
+#define TEE_RAM_START		TZSRAM_BASE
+#define TA_RAM_START		ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
 
 #else
 /*
@@ -282,22 +268,29 @@
  * |        | SDP RAM | (test pool, optional)
  * +--------+---------+
  */
-#define CFG_TEE_RAM_PH_SIZE	CFG_TEE_RAM_VA_SIZE
-#define CFG_TEE_RAM_START	TZDRAM_BASE
-#define CFG_TA_RAM_START	ROUNDUP(TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE, \
+#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
+#define TEE_RAM_START		TZDRAM_BASE
+#define TA_RAM_START		ROUNDUP(TZDRAM_BASE + TEE_RAM_VA_SIZE, \
 					CORE_MMU_DEVICE_SIZE)
 #endif
 
-#define CFG_TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \
-					  (CFG_TA_RAM_START - TZDRAM_BASE) - \
-					  CFG_TEE_SDP_MEM_TEST_SIZE, \
+#define TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE - \
+					  (TA_RAM_START - TZDRAM_BASE) - \
+					  TEE_SDP_TEST_MEM_SIZE, \
 					  CORE_MMU_DEVICE_SIZE)
 
-/* Secure data path test memory pool: located at end of TA RAM */
-#if CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_SIZE		CFG_TEE_SDP_MEM_TEST_SIZE
-#define CFG_TEE_SDP_MEM_BASE		(TZDRAM_BASE + TZDRAM_SIZE - \
-						CFG_TEE_SDP_MEM_SIZE)
+/* SDP enable but no pool defined: reserve 4MB for SDP tests */
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
+#ifdef CFG_TEE_SDP_TEST_MEM_SIZE
+#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_TEST_MEM_SIZE
+#else
+#define TEE_SDP_TEST_MEM_SIZE	0x00400000
+#endif
+#define TEE_SDP_TEST_MEM_BASE	(TZDRAM_BASE + TZDRAM_SIZE - \
+					TEE_SDP_TEST_MEM_SIZE)
+#endif
+#ifndef TEE_SDP_TEST_MEM_SIZE
+#define TEE_SDP_TEST_MEM_SIZE	0
 #endif
 
 #ifdef GIC_BASE
