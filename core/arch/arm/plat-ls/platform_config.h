@@ -141,19 +141,19 @@
 
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
 #define TEE_RAM_PH_SIZE			TEE_RAM_VA_SIZE
-#define CFG_TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
+#define TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
 					 TEE_RAM_PH_SIZE - CFG_PUB_RAM_SIZE)
 
 /* define the secure/unsecure memory areas */
 #define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE			(TEE_RAM_PH_SIZE + CFG_TA_RAM_SIZE)
+#define TZDRAM_SIZE			(TEE_RAM_PH_SIZE + TA_RAM_SIZE)
 
 #define CFG_SHMEM_START			(TZDRAM_BASE + TZDRAM_SIZE)
 #define CFG_SHMEM_SIZE			 CFG_PUB_RAM_SIZE
 
 /* define the memory areas (TEE_RAM must start at reserved DDR start addr */
 #define TEE_RAM_START			TZDRAM_BASE
-#define CFG_TA_RAM_START		(TEE_RAM_START + TEE_RAM_PH_SIZE)
+#define TA_RAM_START			(TEE_RAM_START + TEE_RAM_PH_SIZE)
 #ifndef CFG_TEE_LOAD_ADDR
 #define CFG_TEE_LOAD_ADDR		TEE_RAM_START
 #endif

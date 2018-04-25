@@ -167,9 +167,10 @@ could look like this:
 #define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
 #define TEE_RAM_START		TZDRAM_BASE
 
-#define CFG_TA_RAM_START	ROUNDUP((TZDRAM_BASE + CFG_TEE_RAM_VA_SIZE), \
+#define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
 					CORE_MMU_DEVICE_SIZE)
-#define CFG_TA_RAM_SIZE        (16 * 1024 * 1024)
+#define TA_RAM_SIZE		(16 * 1024 * 1024)
+
 #endif /* PLATFORM_CONFIG_H */
 ```
 This is minimal amount of information in the `platform_config.h` file. I.e, the
