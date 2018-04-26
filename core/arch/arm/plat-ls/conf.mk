@@ -8,12 +8,14 @@ $(call force,CFG_PM_STUBS,y)
 
 ifeq ($(PLATFORM_FLAVOR),ls1021atwr)
 include core/arch/arm/cpu/cortex-a7.mk
+CFG_TEE_CORE_NB_CORE = 2
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1021aqds)
 include core/arch/arm/cpu/cortex-a7.mk
+CFG_TEE_CORE_NB_CORE = 2
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
@@ -21,16 +23,19 @@ endif
 ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_TEE_CORE_NB_CORE = 1
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1043ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_TEE_CORE_NB_CORE = 4
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1046ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_TEE_CORE_NB_CORE = 4
 endif
 
 ifeq ($(platform-flavor-armv8),1)
