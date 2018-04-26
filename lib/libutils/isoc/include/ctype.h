@@ -1,31 +1,23 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, STMicroelectronics International N.V.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (c) 2018, Linaro Limited
  */
-#ifndef CTYPE_H
-#define CTYPE_H
+#ifndef __CTYPE_H
+#define __CTYPE_H
 
-#endif /*CTYPE_H*/
+#define isalpha(__c)	__builtin_isalpha(__c)
+#define isupper(__c)	__builtin_isupper(__c)
+#define islower(__c)	__builtin_islower(__c)
+#define isdigit(__c)	__builtin_isdigit(__c)
+#define isxdigit(__c)	__builtin_isxdigit(__c)
+#define isspace(__c)	__builtin_isspace(__c)
+#define ispunct(__c)	__builtin_ispunct(__c)
+#define isalnum(__c)	__builtin_isalnum(__c)
+#define isprint(__c)	__builtin_isprint(__c)
+#define isgraph(__c)	__builtin_isgraph(__c)
+#define iscntrl(__c)	__builtin_iscntrl(__c)
+
+#define toupper(__c)	__builtin_toupper(__c)
+#define tolower(__c)	__builtin_tolower(__c)
+
+#endif /*__CTYPE_H*/
