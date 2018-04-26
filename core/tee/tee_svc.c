@@ -801,13 +801,9 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	/*
-	 * Find session of a multi session TA or a pseudo TA.
-	 * In such a case, there is no need to ask the supplicant for the TA
-	 * code.
-	 */
 	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);
+	tee_mmu_set_ctx(&utc->ctx);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
