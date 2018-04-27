@@ -25,6 +25,7 @@
   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
   DEALINGS IN THE SOFTWARE.  */
 
+
 #ifdef __HAVE_LOAD_NO_SPECULATE
 #define load_no_speculate(__ptr, __low, __high) 			\
 (__extension__ ({							\
@@ -44,6 +45,13 @@
   (__builtin_load_no_speculate (__ptr, __low, __high, __failval, __cmpptr))
 
 #else
+
+#ifdef __GNUC__
+#define __UNUSED __attribute__((unused))
+#else
+#define __UNUSED
+#endif
+
 #ifdef __aarch64__
 
 #define __load_no_speculate1(__ptr, __low, __high, __failval,		\
@@ -135,7 +143,7 @@
     default:								\
       {									\
         char __static_assert_no_speculate_load_size_too_big 		\
-		[sizeof (__nl_val) > 8 ? -1 : 1];			\
+		[sizeof (__nl_val) > 8 ? -1 : 1] __UNUSED;		\
         break;								\
       }									\
  }									\
@@ -246,7 +254,6 @@
      unsigned long before handing it to __builtin_constant_p to	\
      ensure that clang/llvm correctly detects NULL as a constant if it	\
      is defined as (void*) 0.  */					\
-   __typeof__ (__ptr) __tmp_ptr;					\
   if (__builtin_constant_p ((unsigned long)__high)			\
       && __high == ((void *)0))						\
     {									\
@@ -470,7 +477,7 @@
     default:								\
       {									\
         char __static_assert_no_speculate_load_size_too_big 		\
-		[sizeof (__nl_val) > 8 ? -1 : 1];			\
+		[sizeof (__nl_val) > 8 ? -1 : 1] __UNUSED;		\
         break;								\
       }									\
  }									\
