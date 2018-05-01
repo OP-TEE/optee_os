@@ -12,6 +12,7 @@ endif
 ifneq (,$(filter y, $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S) \
        $(CFG_MX6SX)))
 srcs-y += a9_plat_init.S imx6.c
+srcs-$(CFG_SM_PLATFORM_HANDLER) += sm_platform_handler.c
 endif
 
 ifneq (,$(filter y, $(CFG_MX6UL) $(CFG_MX6ULL)))
