@@ -106,8 +106,6 @@
 
 #endif /*CFG_WITH_PAGER*/
 
-#define CFG_TEE_CORE_NB_CORE	8
-
 #define TEE_SHMEM_START		(DRAM0_BASE + 0x3000000)
 #define TEE_SHMEM_SIZE		0x200000
 
@@ -149,8 +147,6 @@
 #define TZDRAM_SIZE		0x00E00000
 #endif /*CFG_WITH_PAGER*/
 
-#define CFG_TEE_CORE_NB_CORE	6
-
 #define TEE_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - TEE_SHMEM_SIZE)
 #define TEE_SHMEM_SIZE		0x200000
 
@@ -190,8 +186,6 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#define CFG_TEE_CORE_NB_CORE	4
-
 #define TEE_SHMEM_START		(DRAM0_TEERES_BASE + \
 					(DRAM0_TEERES_SIZE - TEE_SHMEM_SIZE))
 #define TEE_SHMEM_SIZE		0x200000
@@ -207,7 +201,6 @@
 
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_SIZE		0x01000000
-
 
 #ifdef CFG_WITH_PAGER
 
@@ -226,8 +219,6 @@
 #define TZDRAM_SIZE		(SECRAM_SIZE - 0x00100000)
 
 #endif /* CFG_WITH_PAGER */
-
-#define CFG_TEE_CORE_NB_CORE	2
 
 /*
  * TEE_SHMEM_START chosen arbitrary, in a way that it does not interfere
