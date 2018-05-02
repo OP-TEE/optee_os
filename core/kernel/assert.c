@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <assert.h>
+include <assert.h>
 #include <compiler.h>
 #include <trace.h>
 #include <kernel/panic.h>
