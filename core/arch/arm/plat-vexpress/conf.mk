@@ -13,7 +13,6 @@ platform-debugger-arm := 1
 endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 include core/arch/arm/cpu/cortex-armv8-0.mk
-$(call force,CFG_DT,y)
 endif
 
 
@@ -45,11 +44,21 @@ endif
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
 
+ifeq ($(PLATFORM_FLAVOR),fvp)
+CFG_TEE_CORE_NB_CORE = 8
+# DRAM1 is defined above 4G
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+endif
+
 ifeq ($(PLATFORM_FLAVOR),juno)
+CFG_TEE_CORE_NB_CORE = 6
+# DRAM1 is defined above 4G
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 CFG_CRYPTO_WITH_CE ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+CFG_TEE_CORE_NB_CORE = 4
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # CFG_ASAN_SHADOW_OFFSET is calculated as:
 # (&__asan_shadow_start - (TEE_RAM_VA_START / 8)
@@ -67,12 +76,7 @@ CFG_SE_API_SELF_TEST ?= y
 CFG_PCSC_PASSTHRU_READER_DRV ?= n
 endif
 
-ifeq ($(PLATFORM_FLAVOR),fvp)
-# DRAM1 is defined above 4G
-$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
-endif
-
-ifeq ($(PLATFORM_FLAVOR),juno)
-# DRAM1 is defined above 4G
-$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
+CFG_TEE_CORE_NB_CORE = 2
+$(call force,CFG_DT,y)
 endif
