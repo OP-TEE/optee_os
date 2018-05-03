@@ -33,7 +33,6 @@ build:
     - _make CFG_WITH_PAGER=y
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
     - _make CFG_WITH_LPAE=y
-    - _make CFG_WITH_STATS=y
     - _make CFG_RPMB_FS=y
     - _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
     - _make CFG_REE_FS=n CFG_RPMB_FS=y
