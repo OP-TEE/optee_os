@@ -64,7 +64,7 @@ $(call force,CFG_DT,y)
 # SE API is only supported by QEMU Virt platform
 CFG_SE_API ?= y
 CFG_SE_API_SELF_TEST ?= y
-CFG_PCSC_PASSTHRU_READER_DRV ?= y
+CFG_PCSC_PASSTHRU_READER_DRV ?= n
 endif
 
 ifeq ($(PLATFORM_FLAVOR),fvp)
