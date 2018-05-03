@@ -22,6 +22,7 @@
 #include <mm/tee_pager.h>
 #include <optee_msg_supplicant.h>
 #include <signed_hdr.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <ta_pub_key.h>
@@ -358,11 +359,54 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 	user_ta_enter(&eo, s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0, &param);
 }
 
+static int elf_idx(struct user_ta_ctx *utc, vaddr_t r_va, size_t r_size)
+{
+	struct user_ta_elf *elf;
+	int idx = 0;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		size_t n;
+
+		for (n = 0; n < elf->num_segs; n++)
+			if (elf->segs[n].va == r_va &&
+			    elf->segs[n].size == r_size)
+				return idx;
+		idx++;
+	}
+	return -1;
+}
+
+static void describe_region(struct user_ta_ctx *utc, vaddr_t va, size_t size,
+			    char *desc, size_t desc_size)
+{
+	int idx;
+
+	if (!desc_size)
+		return;
+	idx = elf_idx(utc, va, size);
+	if (idx != -1)
+		snprintf(desc, desc_size, "[%d]", idx);
+	else
+		desc[0] = '\0';
+	desc[desc_size - 1] = '\0';
+}
+
+static void show_elfs(struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *elf;
+	size_t __maybe_unused idx = 0;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link)
+		EMSG_RAW(" [%zu] %pUl @ %#" PRIxVA, idx++,
+			 (void *)&elf->uuid, elf->load_addr);
+}
+
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 {
-	struct user_ta_ctx *utc __maybe_unused = to_user_ta_ctx(ctx);
+	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct vm_region *r;
 	char flags[7] = { '\0', };
+	char desc[8];
 	size_t n = 0;
 
 	EMSG_RAW(" arch: %s  load address: %#" PRIxVA " ctx-idr: %d",
@@ -377,11 +421,13 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 			mobj_get_pa(r->mobj, r->offset, 0, &pa);
 
 		mattr_perm_to_str(flags, sizeof(flags), r->attr);
+		describe_region(utc, r->va, r->size, desc, sizeof(desc));
 		EMSG_RAW(" region %zu: va %#" PRIxVA " pa %#" PRIxPA
-			 " size %#zx flags %s",
-			 n, r->va, pa, r->size, flags);
+			 " size %#zx flags %s %s",
+			 n, r->va, pa, r->size, flags, desc);
 		n++;
 	}
+	show_elfs(utc);
 }
 KEEP_PAGER(user_ta_dump_state);
 
