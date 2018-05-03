@@ -2,6 +2,8 @@ PLATFORM_FLAVOR ?= hikey
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_TEE_CORE_NB_CORE = 8
+
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)

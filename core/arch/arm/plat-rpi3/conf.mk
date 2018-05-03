@@ -1,5 +1,7 @@
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_TEE_CORE_NB_CORE = 4
+
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PM_STUBS,y)

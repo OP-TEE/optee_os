@@ -2,12 +2,14 @@ PLATFORM_FLAVOR ?= armada7k8k
 
 ifeq ($(PLATFORM_FLAVOR),armada7k8k)
 include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_TEE_CORE_NB_CORE = 4
 platform-debugger-arm := 1
 $(call force,CFG_8250_UART,y)
 endif
 
 ifeq ($(PLATFORM_FLAVOR),armada3700)
 include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_TEE_CORE_NB_CORE = 2
 platform-debugger-arm := 1
 $(call force,CFG_MVEBU_UART,y)
 $(call force,CFG_ARM_GICV3,y)

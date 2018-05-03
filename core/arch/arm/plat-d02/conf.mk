@@ -1,5 +1,6 @@
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_TEE_CORE_NB_CORE = 16
 CFG_NUM_THREADS ?= 16
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y

@@ -2,6 +2,8 @@ PLATFORM_FLAVOR ?= sc9860
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_TEE_CORE_NB_CORE = 8
+
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
 ta-targets = ta_arm32
