@@ -89,13 +89,9 @@ static void main_fiq(void)
 #ifdef CFG_ARM32_core
 void plat_cpu_reset_late(void)
 {
-	static uint32_t cntfrq;
 	vaddr_t addr;
 
 	if (!get_core_pos()) {
-		/* read cnt freq */
-		cntfrq = read_cntfrq();
-
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
 		/* set secondary entry address */
 		write32(__compiler_bswap32(TEE_LOAD_ADDR),
@@ -129,9 +125,6 @@ void plat_cpu_reset_late(void)
 			write32(read32(addr) |
 				__compiler_bswap32(CSU_SETTING_LOCK),
 				addr);
-	} else {
-		/* program the cntfrq, the cntfrq is banked for each core */
-		write_cntfrq(cntfrq);
 	}
 }
 #endif
