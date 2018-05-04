@@ -312,7 +312,7 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 			struct bpoolset *poolset)
 {
 	void *ptr = NULL;
-	size_t s = hdr_size + ftr_size + pl_size;
+	bufsize s;
 
 	/*
 	 * Make sure that malloc has correct alignment of returned buffers.
@@ -323,8 +323,10 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 
 	raw_malloc_validate_pools();
 
-	/* Check wrapping */
-	if (s < pl_size)
+	/* Compute total size */
+	if (ADD_OVERFLOW(pl_size, hdr_size, &s))
+		goto out;
+	if (ADD_OVERFLOW(s, ftr_size, &s))
 		goto out;
 
 	/* BGET doesn't like 0 sized allocations */
@@ -349,13 +351,17 @@ static void raw_free(void *ptr, struct bpoolset *poolset)
 static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 			size_t pl_size, struct bpoolset *poolset)
 {
-	size_t s = hdr_size + ftr_size + pl_nmemb * pl_size;
 	void *ptr = NULL;
+	bufsize s;
 
 	raw_malloc_validate_pools();
 
-	/* Check wrapping */
-	if (s < pl_nmemb || s < pl_size)
+	/* Compute total size */
+	if (MUL_OVERFLOW(pl_nmemb, pl_size, &s))
+		goto out;
+	if (ADD_OVERFLOW(s, hdr_size, &s))
+		goto out;
+	if (ADD_OVERFLOW(s, ftr_size, &s))
 		goto out;
 
 	/* BGET doesn't like 0 sized allocations */
@@ -372,11 +378,13 @@ out:
 static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 			 size_t pl_size, struct bpoolset *poolset)
 {
-	size_t s = hdr_size + ftr_size + pl_size;
 	void *p = NULL;
+	bufsize s;
 
-	/* Check wrapping */
-	if (s < pl_size)
+	/* Compute total size */
+	if (ADD_OVERFLOW(pl_size, hdr_size, &s))
+		goto out;
+	if (ADD_OVERFLOW(s, ftr_size, &s))
 		goto out;
 
 	raw_malloc_validate_pools();
