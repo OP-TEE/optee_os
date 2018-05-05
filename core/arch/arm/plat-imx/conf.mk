@@ -14,6 +14,7 @@ mx6q-flavorlist = \
 
 mx6sx-flavorlist = \
 	mx6sxsabreauto \
+	mx6sxudooneofull \
 
 mx6d-flavorlist = \
 	mx6dhmbedge \
@@ -100,6 +101,11 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6sxsabreauto))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
+endif
+
+ifeq ($(PLATFORM_FLAVOR), mx6sxudooneofull)
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART1_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk))
