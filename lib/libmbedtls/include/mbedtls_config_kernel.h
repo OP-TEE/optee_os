@@ -131,6 +131,4 @@
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
-#include <mbedtls/check_config.h>
-
 #endif /* __MBEDTLS_CONFIG_KERNEL_H */
