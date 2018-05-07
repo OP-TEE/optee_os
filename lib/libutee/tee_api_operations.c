@@ -1791,3 +1791,16 @@ void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 }
+
+int rand(void)
+{
+	int rc;
+
+	TEE_GenerateRandom(&rc, sizeof(rc));
+
+	/*
+	 * RAND_MAX is the larges int, INT_MAX which is all bits but the
+	 * highest bit set.
+	 */
+	return rc & RAND_MAX;
+}
