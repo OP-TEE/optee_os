@@ -27,6 +27,8 @@ char *strdup(const char *s);
 char *strndup(const char *s, size_t n);
 char *strchr(const char *s, int c);
 char *strstr(const char *big, const char *little);
+char *strcpy(char *dest, const char *src);
+char *strncpy(char *dest, const char *src, size_t n);
 
 void *memchr(const void *buf, int c, size_t length);
 
