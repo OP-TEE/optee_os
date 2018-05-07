@@ -3,6 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#include <limits.h>
+
 /*
  * This file provides what C99 standard requires in
  * 7.18 interger types <stdint.h>
