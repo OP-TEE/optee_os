@@ -112,9 +112,17 @@
 #define __INTOF_ADD(c, a, b) (__extension__({ \
 	typeof(a) __intofa_a = (a); \
 	typeof(b) __intofa_b = (b); \
+	int __infoa_b_signed = !!__INTOF_MIN(typeof(b)); \
+	int __infoa_c_signed = !!__INTOF_MIN(typeof(c)); \
 	\
 	__intofa_b < 1 ? \
-		((__INTOF_MIN(typeof(c)) - __intofa_b <= __intofa_a) ? \
+		/* \
+		 * First deal with special case where c is signed and b is \
+		 * unsigned and has the value 0 to avoid a problem due to \
+		 * integer promotion. \
+		 */ \
+		(((__infoa_c_signed && !__infoa_b_signed) || \
+		 (__INTOF_MIN(typeof(c)) - __intofa_b <= __intofa_a)) ? \
 			__INTOF_ASSIGN((c), __intofa_a + __intofa_b) : 1) : \
 		((__INTOF_MAX(typeof(c)) - __intofa_b >= __intofa_a) ? \
 			__INTOF_ASSIGN((c), __intofa_a + __intofa_b) : 1); \
