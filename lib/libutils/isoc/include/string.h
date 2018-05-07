@@ -26,6 +26,7 @@ size_t strnlen(const char *s, size_t n);
 char *strdup(const char *s);
 char *strndup(const char *s, size_t n);
 char *strchr(const char *s, int c);
+char *strstr(const char *big, const char *little);
 
 void *memchr(const void *buf, int c, size_t length);
 
