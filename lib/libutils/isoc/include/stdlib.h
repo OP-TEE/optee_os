@@ -22,4 +22,8 @@ void abort(void) __noreturn;
 
 int abs(int i);
 
+/* The largest number returned by rand() */
+#define	RAND_MAX	__INT_MAX__
+int rand(void);
+
 #endif /* STDLIB_H */
