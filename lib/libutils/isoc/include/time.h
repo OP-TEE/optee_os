@@ -6,5 +6,8 @@
 #define TIME_H
 
 #include <stddef.h>
+#include <stdint.h>
+
+typedef int64_t time_t;
 
 #endif /*TIME_H*/
