@@ -13,3 +13,4 @@ srcs-y += strlen.c
 srcs-y += strnlen.c
 srcs-y += abs.c
 srcs-y += strchr.c
+srcs-y += strstr.c
