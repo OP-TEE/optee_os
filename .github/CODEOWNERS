@@ -1,0 +1,28 @@
+# This file should stay in somewhat sync with the MAINTAINERS file, since there
+# is some kind of relation between the two. Preferably use GitHub alias here
+# instead of email addresses.
+
+# Everything not uniquely specified should land at the core team
+* @OP-TEE/linaro
+
+# Platform specific code
+/core/arch/arm/plat-d02/ @OP-TEE/plat-d02
+/core/arch/arm/plat-hikey/ @OP-TEE/plat-hikey
+/core/arch/arm/plat-imx/ @OP-TEE/plat-imx @MrVan yan.yan@windriver.com Yu.Feng@windriver.com @bryanodonoghue
+/core/arch/arm/plat-ls/ @OP-TEE/plat-ls @b49020 pankaj.gupta@nxp.com
+/core/arch/arm/plat-marvell/ @OP-TEE/plat-marvell @kevin-peng-hao
+/core/arch/arm/plat-mediatek/ @OP-TEE/plat-mediatek
+/core/arch/arm/plat-poplar/ @OP-TEE/plat-poplar
+/core/arch/arm/plat-rcar/ @OP-TEE/plat-rcar
+/core/arch/arm/plat-rockchip/ @OP-TEE/plat-rockchip op-tee@rock-chips.com
+/core/arch/arm/plat-rpi3/ @OP-TEE/plat-rpi3
+/core/arch/arm/plat-sam/ @OP-TEE/plat-sam @nodeax
+/core/arch/arm/plat-sprd/ @OP-TEE/plat-sprd @aijunsun
+/core/arch/arm/plat-stm/ @OP-TEE/plat-stm
+/core/arch/arm/plat-ti/ @OP-TEE/plat-ti @glneo
+/core/arch/arm/plat-vexpress/ @OP-TEE/plat-vexpress
+/core/arch/arm/plat-zynq7k/ @OP-TEE/plat-zynq7k yan.yan@windriver.com Yu.Feng@windriver.com
+/core/arch/arm/plat-zynqmp/ @OP-TEE/plat-zynqmp
+
+/MAINTAINERS @OP-TEE/approvers
+/.github/ @OP-TEE/approvers
