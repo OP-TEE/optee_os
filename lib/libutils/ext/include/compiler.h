@@ -131,11 +131,22 @@
 #define __INTOF_SUB(c, a, b) (__extension__({ \
 	typeof(a) __intofs_a = a; \
 	typeof(b) __intofs_b = b; \
+	int __infos_b_signed = !!__INTOF_MIN(typeof(b)); \
+	int __infos_c_signed = !!__INTOF_MIN(typeof(c)); \
 	\
 	__intofs_b < 1 ? \
 		((__INTOF_MAX(typeof(c)) + __intofs_b >= __intofs_a) ? \
 			__INTOF_ASSIGN((c), __intofs_a - __intofs_b) : 1) : \
-		((__INTOF_MIN(typeof(c)) + __intofs_b <= __intofs_a) ? \
+		/* \
+		 * First deal with special case where c is signed and b is \
+		 * unsigned, and __INTOF_MIN(typeof(c)) + __intofs_b would \
+		 * have been a negative number if the expression wasn't \
+		 * promoted to an unsigned type. \
+		 */ \
+		(((__infos_c_signed && !__infos_b_signed && \
+			  ((uintmax_t)__INTOF_MAX_SIGNED(typeof(c)) >= \
+			   (uintmax_t)__intofs_b)) || \
+		(__INTOF_MIN(typeof(c)) + __intofs_b <= __intofs_a)) ? \
 			__INTOF_ASSIGN((c), __intofs_a - __intofs_b) : 1); \
 }))
 
