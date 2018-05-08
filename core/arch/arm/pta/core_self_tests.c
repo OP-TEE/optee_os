@@ -92,6 +92,10 @@ static int self_test_sub_overflow(void)
 	uint32_t r_u32;
 	int32_t r_s32;
 
+	if (SUB_OVERFLOW(8U, 1U, &r_s32))
+		return -1;
+	if (r_s32 != 7)
+		return -1;
 	if (SUB_OVERFLOW(32U, 30U, &r_u32))
 		return -1;
 	if (r_u32 != 2)
