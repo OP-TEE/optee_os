@@ -45,6 +45,8 @@ static int self_test_add_overflow(void)
 {
 	uint32_t r_u32;
 	int32_t r_s32;
+	uintmax_t r_um;
+	intmax_t r_sm;
 
 	if (ADD_OVERFLOW(8U, 0U, &r_s32))
 		return -1;
@@ -63,10 +65,19 @@ static int self_test_add_overflow(void)
 	if (r_u32 != UINT32_MAX)
 		return -1;
 
-	if (ADD_OVERFLOW(30, -31, &r_s32))
+	if (ADD_OVERFLOW((uint32_t)30, (int32_t)-31, &r_s32))
 		return -1;
 	if (r_s32 != -1)
 		return -1;
+	if (ADD_OVERFLOW((int32_t)30, (int32_t)-31, &r_s32))
+		return -1;
+	if (r_s32 != -1)
+		return -1;
+	if (ADD_OVERFLOW((int32_t)-31, (uint32_t)30, &r_s32))
+		return -1;
+	if (r_s32 != -1)
+		return -1;
+
 	if (ADD_OVERFLOW(INT32_MIN + 1, -1, &r_s32))
 		return -1;
 	if (r_s32 != INT32_MIN)
@@ -76,6 +87,12 @@ static int self_test_add_overflow(void)
 	if (!ADD_OVERFLOW(INT32_MIN + 1, -2, &r_s32))
 		return -1;
 	if (!ADD_OVERFLOW(INT32_MAX, INT32_MAX, &r_s32))
+		return -1;
+	if (ADD_OVERFLOW(INT32_MAX, INT32_MAX, &r_u32))
+		return -1;
+	if (!ADD_OVERFLOW(INTMAX_MAX, INTMAX_MAX, &r_sm))
+		return -1;
+	if (ADD_OVERFLOW(INTMAX_MAX, INTMAX_MAX, &r_um))
 		return -1;
 	if (!ADD_OVERFLOW(INT32_MAX / 2 + 1, INT32_MAX / 2 + 1, &r_s32))
 		return -1;
