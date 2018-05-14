@@ -39,6 +39,7 @@
 #define SIZE_2G	UINTPTR_C(0x80000000)
 
 #ifndef MAX
+#ifndef ASM
 #define MAX(a, b) \
 	(__extension__({ __typeof__(a) _a = (a); \
 	   __typeof__(b) _b = (b); \
@@ -48,6 +49,10 @@
 	(__extension__({ __typeof__(a) _a = (a); \
 	   __typeof__(b) _b = (b); \
 	 _a < _b ? _a : _b; }))
+#else
+#define MAX(a, b)	(((a) > (b)) ? (a) : (b))
+#define MIN(a, b)	(((a) < (b)) ? (a) : (b))
+#endif
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
