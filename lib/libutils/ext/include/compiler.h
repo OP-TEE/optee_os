@@ -150,23 +150,35 @@
 #define __INTOF_SUB(c, a, b) (__extension__({ \
 	typeof(a) __intofs_a = a; \
 	typeof(b) __intofs_b = b; \
-	int __infos_b_signed = !!__INTOF_MIN(typeof(b)); \
-	int __infos_c_signed = !!__INTOF_MIN(typeof(c)); \
+	intmax_t __intofs_a_signed = __intofs_a; \
+	uintmax_t __intofs_a_unsigned = __intofs_a; \
+	intmax_t __intofs_b_signed = __intofs_b; \
+	uintmax_t __intofs_b_unsigned = __intofs_b; \
 	\
 	__intofs_b < 1 ? \
-		((__INTOF_MAX(typeof(c)) + __intofs_b >= __intofs_a) ? \
-			__INTOF_ASSIGN((c), __intofs_a - __intofs_b) : 1) : \
-		/* \
-		 * First deal with special case where c is signed and b is \
-		 * unsigned, and __INTOF_MIN(typeof(c)) + __intofs_b would \
-		 * have been a negative number if the expression wasn't \
-		 * promoted to an unsigned type. \
-		 */ \
-		(((__infos_c_signed && !__infos_b_signed && \
-			  ((uintmax_t)__INTOF_MAX_SIGNED(typeof(c)) >= \
-			   (uintmax_t)__intofs_b)) || \
-		(__INTOF_MIN(typeof(c)) + __intofs_b <= __intofs_a)) ? \
-			__INTOF_ASSIGN((c), __intofs_a - __intofs_b) : 1); \
+		__intofs_a < 1 ? \
+			((INTMAX_MAX + __intofs_b >= __intofs_a) ? \
+				__INTOF_ASSIGN((c), __intofs_a_signed - \
+						    __intofs_b_signed) : 1) \
+		: \
+			(((uintmax_t)(UINTMAX_MAX + __intofs_b_signed) >= \
+			  __intofs_a_unsigned) ? \
+				__INTOF_ASSIGN((c), __intofs_a - \
+						    __intofs_b) : 1) \
+	: \
+		__intofs_a < 1 ? \
+			(((INTMAX_MIN + __intofs_b <= __intofs_a)) ? \
+				__INTOF_ASSIGN((c), \
+					(intmax_t)(__intofs_a_signed - \
+						   __intofs_b_unsigned)) : 1) \
+		: \
+			((__intofs_b_unsigned <= __intofs_a_unsigned) ? \
+				__INTOF_ASSIGN((c), __intofs_a_unsigned - \
+						    __intofs_b_unsigned) \
+			: \
+				__INTOF_ASSIGN((c), \
+					(intmax_t)(__intofs_a_unsigned - \
+						   __intofs_b_unsigned))); \
 }))
 
 /*
