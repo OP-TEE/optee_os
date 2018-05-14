@@ -3,6 +3,10 @@ PLATFORM_FLAVOR ?= mt8173
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 CFG_TEE_CORE_NB_CORE = 4
+CFG_TZDRAM_START ?= 0xbe000000
+CFG_TZDRAM_SIZE ?= 0x01e00000
+CFG_SHMEM_START ?= 0xbfe00000
+CFG_SHMEM_SIZE ?= 0x00200000
 
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_GENERIC_BOOT,y)
