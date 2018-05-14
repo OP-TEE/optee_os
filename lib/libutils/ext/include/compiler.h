@@ -112,20 +112,39 @@
 #define __INTOF_ADD(c, a, b) (__extension__({ \
 	typeof(a) __intofa_a = (a); \
 	typeof(b) __intofa_b = (b); \
-	int __infoa_b_signed = !!__INTOF_MIN(typeof(b)); \
-	int __infoa_c_signed = !!__INTOF_MIN(typeof(c)); \
+	intmax_t __intofa_a_signed = __intofa_a; \
+	uintmax_t __intofa_a_unsigned = __intofa_a; \
+	intmax_t __intofa_b_signed = __intofa_b; \
+	uintmax_t __intofa_b_unsigned = __intofa_b; \
 	\
 	__intofa_b < 1 ? \
-		/* \
-		 * First deal with special case where c is signed and b is \
-		 * unsigned and has the value 0 to avoid a problem due to \
-		 * integer promotion. \
-		 */ \
-		(((__infoa_c_signed && !__infoa_b_signed) || \
-		 (__INTOF_MIN(typeof(c)) - __intofa_b <= __intofa_a)) ? \
-			__INTOF_ASSIGN((c), __intofa_a + __intofa_b) : 1) : \
-		((__INTOF_MAX(typeof(c)) - __intofa_b >= __intofa_a) ? \
-			__INTOF_ASSIGN((c), __intofa_a + __intofa_b) : 1); \
+		__intofa_a < 1 ? \
+			((INTMAX_MIN - __intofa_b_signed <= \
+			  __intofa_a_signed)) ? \
+				__INTOF_ASSIGN((c), __intofa_a_signed + \
+						    __intofa_b_signed) : 1 \
+		: \
+			((__intofa_a_unsigned >= (uintmax_t)-__intofa_b) ? \
+				__INTOF_ASSIGN((c), __intofa_a_unsigned + \
+						    __intofa_b_signed) \
+			: \
+				__INTOF_ASSIGN((c), \
+					(intmax_t)(__intofa_a_unsigned + \
+						   __intofa_b_signed))) \
+	: \
+		__intofa_a < 1 ? \
+			((__intofa_b_unsigned >= (uintmax_t)-__intofa_a) ? \
+				__INTOF_ASSIGN((c), __intofa_a_signed + \
+						    __intofa_b_unsigned) \
+			: \
+				__INTOF_ASSIGN((c), \
+					(intmax_t)(__intofa_a_signed + \
+						   __intofa_b_unsigned))) \
+		: \
+			((UINTMAX_MAX - __intofa_b_unsigned >= \
+			  __intofa_a_unsigned) ? \
+				__INTOF_ASSIGN((c), __intofa_a_unsigned + \
+						    __intofa_b_unsigned) : 1); \
 }))
 
 #define __INTOF_SUB(c, a, b) (__extension__({ \
