@@ -108,6 +108,7 @@ static int self_test_sub_overflow(void)
 {
 	uint32_t r_u32;
 	int32_t r_s32;
+	intmax_t r_sm;
 
 	if (SUB_OVERFLOW(8U, 1U, &r_s32))
 		return -1;
@@ -129,6 +130,28 @@ static int self_test_sub_overflow(void)
 	if (r_s32 != INT32_MIN)
 		return -1;
 	if (!SUB_OVERFLOW(-2, INT32_MAX, &r_s32))
+		return -1;
+
+	if (SUB_OVERFLOW((uint32_t)30, (int32_t)-31, &r_s32))
+		return -1;
+	if (r_s32 != 61)
+		return -1;
+	if (SUB_OVERFLOW((int32_t)30, (int32_t)-31, &r_s32))
+		return -1;
+	if (r_s32 != 61)
+		return -1;
+	if (SUB_OVERFLOW((int32_t)-31, (uint32_t)30, &r_s32))
+		return -1;
+	if (r_s32 != -61)
+		return -1;
+	if (SUB_OVERFLOW((int32_t)-31, (int32_t)-30, &r_s32))
+		return -1;
+	if (r_s32 != -1)
+		return -1;
+
+	if (SUB_OVERFLOW((int32_t)31, -(INTMAX_MIN + 1), &r_sm))
+		return -1;
+	if (r_sm != (INTMAX_MIN + 32))
 		return -1;
 
 	return 0;
