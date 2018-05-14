@@ -240,10 +240,12 @@ static TEE_Result tee_svc_storage_read_head(struct tee_obj *o)
 		bytes = head.attr_size;
 		res = fops->read(o->fh, sizeof(struct tee_svc_storage_head),
 				 attr, &bytes);
-		if (res != TEE_SUCCESS || bytes != head.attr_size) {
-			res = TEE_ERROR_CORRUPT_OBJECT;
+		if (res == TEE_ERROR_OUT_OF_MEMORY)
 			goto exit;
-		}
+		if (res != TEE_SUCCESS || bytes != head.attr_size)
+			res = TEE_ERROR_CORRUPT_OBJECT;
+		if (res)
+			goto exit;
 	}
 
 	res = tee_obj_attr_from_binary(o, attr, head.attr_size);
