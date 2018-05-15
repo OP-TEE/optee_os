@@ -6,21 +6,13 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <util.h>
+#include <mm/generic_ram_layout.h>
+
 /* Below are platform/SoC settings specific to stm platform flavors */
 
 #if defined(PLATFORM_FLAVOR_b2260)
 
-#ifdef CFG_DDR_SECURE_BASE
-/* Non-secure external RAM: DDR eventually split in 2 by TZ reserved DDR */
-#define DRAM0_BASE		CFG_DDR_START
-#define DRAM0_SIZE		(CFG_DDR_SECURE_BASE - CFG_DDR_START)
-#if ((CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE) < 0x80000000ULL)
-#define DRAM1_BASE		(CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE)
-#define DRAM1_SIZE		((CFG_DDR_START - DRAM1_BASE) + CFG_DDR_SIZE)
-#endif
-#endif
-
-/* IOmem */
 #define CPU_IOMEM_BASE		0x08760000
 #define CPU_IOMEM_SIZE		0x000a0000
 #define CPU_PORT_FILT_START	0x40000000
@@ -34,20 +26,6 @@
 
 #elif defined(PLATFORM_FLAVOR_cannes)
 
-#ifdef CFG_DDR_SECURE_BASE
-/*
- * Non-secure external RAM: DDR eventually split in 2 by TZ reserved DDR.
- * The 32 first MBytes of the DDR are not eligible to REE/TEE SHM.
- */
-#define DRAM0_BASE		(CFG_DDR_START + 0x02000000)
-#define DRAM0_SIZE		(CFG_DDR_SECURE_BASE - CFG_DDR_START)
-#if ((CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE) < 0x80000000ULL)
-#define DRAM1_BASE		(CFG_DDR_SECURE_BASE + CFG_DDR_SECURE_SIZE)
-#define DRAM1_SIZE		(CFG_DDR_START + CFG_DDR_SIZE - DRAM1_BASE)
-#endif
-#endif
-
-/* IOmem */
 #define CPU_IOMEM_BASE		0x08760000
 #define CPU_IOMEM_SIZE		0x000a0000
 #define CPU_PORT_FILT_START	0x40000000
@@ -65,7 +43,17 @@
 
 #endif /* defined(PLATFORM_FLAVOR_xxx) */
 
+#define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
+#define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)
+#define SCU_BASE		(CPU_IOMEM_BASE + 0x0000)
+#define GIC_CPU_BASE		(CPU_IOMEM_BASE + 0x0100)
+#define ST_ASC20_REGS_BASE	(STXHXXX_LPM_PERIPH_BASE + 0x00130000)
+#define ST_ASC21_REGS_BASE	(STXHXXX_LPM_PERIPH_BASE + 0x00131000)
+
 /* Below are settings common to stm platform flavors */
+
+/* Make stacks aligned to data cache line length */
+#define STACK_ALIGNMENT		32
 
 /*
  * CP15 Secure ConTroL Register (SCTLR
@@ -81,7 +69,6 @@
  * - L2 write full line of zero disabled (bit3=0)
  *   (keep WFLZ low. Will be set once outer L2 is ready)
  */
-
 #define CPU_ACTLR_INIT			0x00000041
 
 /*
@@ -190,132 +177,34 @@
 #define SCU_CTRL_INIT			0x00000065
 
 /*
- * TEE RAM layout without CFG_WITH_PAGER:
- *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEE private secure |  TEE_RAM         |   ^
- *  |   external memory  +------------------+   |
- *  |                    |  TA_RAM          |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  | Secure Data Path test memory (opt.)   |   |
- *  +---------------------------------------+   |
- *  |     Non secure     |  SHM             |   |
- *  |   shared memory    |                  |   |
- *  +---------------------------------------+   v
- *
- *  TEE_RAM : default 1MByte
- *  TA_RAM  : all what is left
- *  SDP_RAM : optional default SDP test memory 8MByte
- *  PUB_RAM : default 2MByte
- *
- * ----------------------------------------------------------------------------
- * TEE RAM layout with CFG_WITH_PAGER=y:
- *
- *  +---------------------------------------+  <- CFG_CORE_TZSRAM_EMUL_START
- *  | TEE private highly | TEE_RAM          |   ^
- *  |   secure memory    |                  |   | CFG_CORE_TZSRAM_EMUL_SIZE
- *  +---------------------------------------+   v
- *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEE private secure |  TA_RAM          |   ^
- *  |   external memory  |                  |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  | Secure Data Path test memory (opt.)   |   |
- *  +---------------------------------------+   |
- *  |     Non secure     |  SHM             |   |
- *  |   shared memory    |                  |   |
- *  +---------------------------------------+   v
- *
- *  TEE_RAM : default 256kByte
- *  TA_RAM  : all what is left in DDR TEE reserved area
- *  SDP_RAM : optional default SDP test memory 8MByte
- *  PUB_RAM : default 2MByte
+ * Register non-secure DDR chunks for dynamic shared memory: these are
+ * DDR ranges that do not include OP-TEE secure memory.
+ * Some Stm platforms may reserve beginning of the DDR for non REE memory.
  */
 
-/* default locate shared memory at the end of the TEE reserved DDR */
-#ifdef CFG_SHMEM_SIZE
-#define TEE_SHMEM_SIZE		CFG_SHMEM_SIZE
-#else
-#define TEE_SHMEM_SIZE		(2 * 1024 * 1024)
+#ifdef CFG_DDR_START
+/* Carvout out secure RAM range (emulated SRAM is expected near DRAM) */
+#if defined(CFG_WITH_PAGER) && defined(TZSRAM_BASE)
+#if TZSRAM_BASE >= CFG_DDR_START
+#define STM_SECDDR_BASE		MIN(TZSRAM_BASE, TZDRAM_BASE)
+#define STM_SECDDR_END		MAX(TZSRAM_BASE + TZSRAM_SIZE, \
+				     TZDRAM_BASE + TZDRAM_SIZE)
+#endif
 #endif
 
-#ifdef CFG_SHMEM_START
-#define TEE_SHMEM_START		CFG_SHMEM_START
-#else
-#define TEE_SHMEM_START		(CFG_DDR_TEETZ_RESERVED_START + \
-					CFG_DDR_TEETZ_RESERVED_SIZE - \
-					TEE_SHMEM_SIZE)
+#ifndef STM_SECDDR_BASE
+#define STM_SECDDR_BASE		TZDRAM_BASE
+#define STM_SECDDR_END		(TZDRAM_BASE + TZDRAM_SIZE)
 #endif
 
-/*
- * Secure data path test memory pool
- * - If no SDP, no SDP test memory.
- * - Can be provided by configuration directives CFG_TEE_SDP_MEM_BASE
- *   and CFG_TEE_SDP_MEM_TEST_SIZE.
- * - If only the size is defined by CFG_TEE_SDP_MEM_TEST_SIZE, default
- *   locate a SDP test memory and the end of the TA RAM.
- */
-#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_TEE_SDP_MEM_BASE)
-#if defined(CFG_TEE_SDP_MEM_TEST_SIZE)
-#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_MEM_TEST_SIZE
-#else
-#define TEE_SDP_TEST_MEM_SIZE	0x00300000
+#define STM_SECDDR_SIZE		(STM_SECDDR_END - STM_SECDDR_BASE)
+/* Register the DDR chunks that do not intersect the secure DDR single area */
+#define DRAM0_BASE		(CFG_DDR_START + CFG_STM_RSV_DRAM_STARTBYTES)
+#define DRAM0_SIZE		(STM_SECDDR_BASE - DRAM0_BASE)
+#if (STM_SECDDR_END < 0x80000000ULL)
+#define DRAM1_BASE		STM_SECDDR_END
+#define DRAM1_SIZE		((CFG_DDR_START - DRAM1_BASE) + CFG_DDR_SIZE)
 #endif
-#define TEE_SDP_TEST_MEM_BASE	(CFG_DDR_TEETZ_RESERVED_START + \
-					CFG_DDR_TEETZ_RESERVED_SIZE - \
-					TEE_SHMEM_SIZE - TEE_SDP_TEST_MEM_SIZE)
-#endif
-#ifndef TEE_SDP_TEST_MEM_SIZE
-#define TEE_SDP_TEST_MEM_SIZE	0
-#endif
-
-#if defined(CFG_WITH_PAGER)
-
-#define TZSRAM_BASE		CFG_CORE_TZSRAM_EMUL_START
-#define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
-
-#define TZDRAM_BASE		CFG_DDR_TEETZ_RESERVED_START
-#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
-					TEE_SHMEM_SIZE - \
-					TEE_SDP_TEST_MEM_SIZE)
-
-#define TEE_RAM_START		TZSRAM_BASE
-#define TEE_RAM_PH_SIZE		TZSRAM_SIZE
-
-#define TA_RAM_START		TZDRAM_BASE
-#define TA_RAM_SIZE		TZDRAM_SIZE
-
-#else  /* CFG_WITH_PAGER */
-
-#define TZDRAM_BASE		CFG_DDR_TEETZ_RESERVED_START
-#define TZDRAM_SIZE		(CFG_DDR_TEETZ_RESERVED_SIZE - \
-					TEE_SHMEM_SIZE - \
-					TEE_SDP_TEST_MEM_SIZE)
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_PH_SIZE		(1 * 1024 * 1024)
-
-#define TA_RAM_START		(TZDRAM_BASE + TEE_RAM_PH_SIZE)
-#define TA_RAM_SIZE		(TZDRAM_SIZE - TEE_RAM_PH_SIZE)
-
-#endif /* !CFG_WITH_PAGER */
-
-#define TEE_RAM_VA_SIZE		(1024 * 1024)
-
-#ifdef CFG_TEE_LOAD_ADDR
-#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
-#else
-#define TEE_LOAD_ADDR			TEE_RAM_START
-#endif
-
-#define PL310_BASE		(CPU_IOMEM_BASE + 0x2000)
-#define GIC_DIST_BASE		(CPU_IOMEM_BASE + 0x1000)
-#define SCU_BASE		(CPU_IOMEM_BASE + 0x0000)
-#define GIC_CPU_BASE		(CPU_IOMEM_BASE + 0x0100)
-#define ST_ASC20_REGS_BASE	(STXHXXX_LPM_PERIPH_BASE + 0x00130000)
-#define ST_ASC21_REGS_BASE	(STXHXXX_LPM_PERIPH_BASE + 0x00131000)
-
-/* Make stacks aligned to data cache line length */
-#define STACK_ALIGNMENT		32
+#endif /*CFG_DDR_START*/
 
 #endif /* PLATFORM_CONFIG_H */
