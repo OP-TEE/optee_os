@@ -93,92 +93,79 @@
 /*
  * Copied/inspired from https://www.fefe.de/intof.html
  */
-#define __INTOF_HALF_MAX_SIGNED(type) ((type)1 << (sizeof(type)*8-2))
-#define __INTOF_MAX_SIGNED(type) (__INTOF_HALF_MAX_SIGNED(type) - 1 + \
-			    __INTOF_HALF_MAX_SIGNED(type))
-#define __INTOF_MIN_SIGNED(type) (-1 - __INTOF_MAX_SIGNED(type))
 
-#define __INTOF_MIN(type) ((type)-1 < 1?__INTOF_MIN_SIGNED(type):(type)0)
-#define __INTOF_MAX(type) ((type)~__INTOF_MIN(type))
-
-#define __INTOF_ASSIGN(dest, src) (__extension__({ \
-	typeof(src) __intof_x = (src); \
-	typeof(dest) __intof_y = __intof_x; \
-	(((uintmax_t)__intof_x == (uintmax_t)__intof_y) && \
-	 ((__intof_x < 1) == (__intof_y < 1)) ? \
-		(void)((dest) = __intof_y) , 0 : 1); \
+#define __ASSIGN_OF(dest, src) (__extension__({				    \
+	typeof(src) __x = (src);					    \
+	typeof(dest) __y = __x;						    \
+	uintmax_t __xu = __x;						    \
+	uintmax_t __yu = __y;						    \
+									    \
+	(__xu == __yu) && ((__x < 1) == (__y < 1)) ? ((dest) = __y, 0) : 1; \
 }))
 
-#define __INTOF_ADD(c, a, b) (__extension__({ \
-	typeof(a) __intofa_a = (a); \
-	typeof(b) __intofa_b = (b); \
-	intmax_t __intofa_a_signed = __intofa_a; \
-	uintmax_t __intofa_a_unsigned = __intofa_a; \
-	intmax_t __intofa_b_signed = __intofa_b; \
-	uintmax_t __intofa_b_unsigned = __intofa_b; \
-	\
-	__intofa_b < 1 ? \
-		__intofa_a < 1 ? \
-			((INTMAX_MIN - __intofa_b_signed <= \
-			  __intofa_a_signed)) ? \
-				__INTOF_ASSIGN((c), __intofa_a_signed + \
-						    __intofa_b_signed) : 1 \
-		: \
-			((__intofa_a_unsigned >= (uintmax_t)-__intofa_b) ? \
-				__INTOF_ASSIGN((c), __intofa_a_unsigned + \
-						    __intofa_b_signed) \
-			: \
-				__INTOF_ASSIGN((c), \
-					(intmax_t)(__intofa_a_unsigned + \
-						   __intofa_b_signed))) \
-	: \
-		__intofa_a < 1 ? \
-			((__intofa_b_unsigned >= (uintmax_t)-__intofa_a) ? \
-				__INTOF_ASSIGN((c), __intofa_a_signed + \
-						    __intofa_b_unsigned) \
-			: \
-				__INTOF_ASSIGN((c), \
-					(intmax_t)(__intofa_a_signed + \
-						   __intofa_b_unsigned))) \
-		: \
-			((UINTMAX_MAX - __intofa_b_unsigned >= \
-			  __intofa_a_unsigned) ? \
-				__INTOF_ASSIGN((c), __intofa_a_unsigned + \
-						    __intofa_b_unsigned) : 1); \
+#define __ADD_OF(c, a, b) (__extension__({				      \
+	typeof(a) __a_a = (a);						      \
+	typeof(b) __a_b = (b);						      \
+	intmax_t __a_as = __a_a;					      \
+	uintmax_t __a_au = __a_a;					      \
+	intmax_t __a_bs = __a_b;					      \
+	uintmax_t __a_bu = __a_b;					      \
+									      \
+	__a_b < 1 ?							      \
+		__a_a < 1 ?						      \
+			INTMAX_MIN - __a_bs <= __a_as ?			      \
+				__ASSIGN_OF((c), __a_as + __a_bs)	      \
+			:						      \
+				1					      \
+		:							      \
+			__a_au >= (uintmax_t)-__a_b ?			      \
+				__ASSIGN_OF((c), __a_au + __a_bs)	      \
+			:						      \
+				__ASSIGN_OF((c), (intmax_t)(__a_au + __a_bs)) \
+	:								      \
+		__a_a < 1 ?						      \
+			__a_bu >= (uintmax_t)-__a_a ?			      \
+				__ASSIGN_OF((c), __a_as + __a_bu)	      \
+			:						      \
+				__ASSIGN_OF((c), (intmax_t)(__a_as + __a_bu)) \
+		:							      \
+			UINTMAX_MAX - __a_bu >= __a_au ?		      \
+				__ASSIGN_OF((c), __a_au + __a_bu)	      \
+			:						      \
+				1;					      \
 }))
 
-#define __INTOF_SUB(c, a, b) (__extension__({ \
-	typeof(a) __intofs_a = a; \
-	typeof(b) __intofs_b = b; \
-	intmax_t __intofs_a_signed = __intofs_a; \
-	uintmax_t __intofs_a_unsigned = __intofs_a; \
-	intmax_t __intofs_b_signed = __intofs_b; \
-	uintmax_t __intofs_b_unsigned = __intofs_b; \
-	\
-	__intofs_b < 1 ? \
-		__intofs_a < 1 ? \
-			((INTMAX_MAX + __intofs_b >= __intofs_a) ? \
-				__INTOF_ASSIGN((c), __intofs_a_signed - \
-						    __intofs_b_signed) : 1) \
-		: \
-			(((uintmax_t)(UINTMAX_MAX + __intofs_b_signed) >= \
-			  __intofs_a_unsigned) ? \
-				__INTOF_ASSIGN((c), __intofs_a - \
-						    __intofs_b) : 1) \
-	: \
-		__intofs_a < 1 ? \
-			(((INTMAX_MIN + __intofs_b <= __intofs_a)) ? \
-				__INTOF_ASSIGN((c), \
-					(intmax_t)(__intofs_a_signed - \
-						   __intofs_b_unsigned)) : 1) \
-		: \
-			((__intofs_b_unsigned <= __intofs_a_unsigned) ? \
-				__INTOF_ASSIGN((c), __intofs_a_unsigned - \
-						    __intofs_b_unsigned) \
-			: \
-				__INTOF_ASSIGN((c), \
-					(intmax_t)(__intofs_a_unsigned - \
-						   __intofs_b_unsigned))); \
+#define __SUB_OF(c, a, b) (__extension__({				      \
+	typeof(a) __s_a = a;						      \
+	typeof(b) __s_b = b;						      \
+	intmax_t __s_as = __s_a;					      \
+	uintmax_t __s_au = __s_a;					      \
+	intmax_t __s_bs = __s_b;					      \
+	uintmax_t __s_bu = __s_b;					      \
+									      \
+	__s_b < 1 ?							      \
+		__s_a < 1 ?						      \
+			INTMAX_MAX + __s_b >= __s_a ?			      \
+				__ASSIGN_OF((c), __s_as - __s_bs)	      \
+			:						      \
+				1					      \
+		:							      \
+			(uintmax_t)(UINTMAX_MAX + __s_bs) >= __s_au ?	      \
+				__ASSIGN_OF((c), __s_a - __s_b)		      \
+			:						      \
+				1					      \
+	:								      \
+		__s_a < 1 ?						      \
+			INTMAX_MIN + __s_b <= __s_a ?			      \
+				__ASSIGN_OF((c), (intmax_t)(__s_as - __s_bu)) \
+			:						      \
+				1					      \
+		:							      \
+			__s_bu <= __s_au ?				      \
+				__ASSIGN_OF((c), __s_au - __s_bu)	      \
+			:						      \
+				__ASSIGN_OF((c), (intmax_t)(__s_au - __s_bu)) \
+	;								      \
 }))
 
 /*
@@ -207,44 +194,48 @@
  * isn't an addition as one of the terms will be 0.
  *
  * Since each factor in: (a0 * b0)
- * only uses half the capicity of the underlaying type it can't overflow
+ * only uses half the capacity of the underlying type it can't overflow
  *
- * The addition of T2 and T3 can overflow so we use __INTOF_ADD() to
+ * The addition of T2 and T3 can overflow so we use __ADD_OF() to
  * perform that addition. If the addition succeeds without overflow the
  * result is assigned the required sign and checked for overflow again.
  */
 
-#define __intof_mul_negate	((__intof_oa < 1) != (__intof_ob < 1))
-#define __intof_mul_hshift	(sizeof(uintmax_t) * 8 / 2)
-#define __intof_mul_hmask	(UINTMAX_MAX >> __intof_mul_hshift)
-#define __intof_mul_a0		((uintmax_t)(__intof_a) >> __intof_mul_hshift)
-#define __intof_mul_b0		((uintmax_t)(__intof_b) >> __intof_mul_hshift)
-#define __intof_mul_a1		((uintmax_t)(__intof_a) & __intof_mul_hmask)
-#define __intof_mul_b1		((uintmax_t)(__intof_b) & __intof_mul_hmask)
-#define __intof_mul_t		(__intof_mul_a1 * __intof_mul_b0 + \
-				 __intof_mul_a0 * __intof_mul_b1)
+#define __m_negate	((__m_oa < 1) != (__m_ob < 1))
+#define __m_hshift	(sizeof(uintmax_t) * 8 / 2)
+#define __m_hmask	(UINTMAX_MAX >> __m_hshift)
+#define __m_a0		((uintmax_t)__m_a >> __m_hshift)
+#define __m_b0		((uintmax_t)__m_b >> __m_hshift)
+#define __m_a1		((uintmax_t)__m_a & __m_hmask)
+#define __m_b1		((uintmax_t)__m_b & __m_hmask)
+#define __m_t		(__m_a1 * __m_b0 + __m_a0 * __m_b1)
 
-#define __INTOF_MUL(c, a, b) (__extension__({ \
-	typeof(a) __intof_oa = (a); \
-	typeof(a) __intof_a = __intof_oa < 1 ? -__intof_oa : __intof_oa; \
-	typeof(b) __intof_ob = (b); \
-	typeof(b) __intof_b = __intof_ob < 1 ? -__intof_ob : __intof_ob; \
-	typeof(c) __intof_c; \
-	\
-	__intof_oa == 0 || __intof_ob == 0 || \
-	__intof_oa == 1 || __intof_ob == 1 ? \
-		__INTOF_ASSIGN((c), __intof_oa * __intof_ob) : \
-	(__intof_mul_a0 && __intof_mul_b0) || \
-	 __intof_mul_t > __intof_mul_hmask ?  1 : \
-	__INTOF_ADD((__intof_c), __intof_mul_t << __intof_mul_hshift, \
-				 __intof_mul_a1 * __intof_mul_b1) ? 1 : \
-	__intof_mul_negate ? __INTOF_ASSIGN((c), -__intof_c) : \
-			     __INTOF_ASSIGN((c), __intof_c); \
+#define __MUL_OF(c, a, b) (__extension__({			      \
+	typeof(a) __m_oa = (a);					      \
+	typeof(a) __m_a = __m_oa < 1 ? -__m_oa : __m_oa;	      \
+	typeof(b) __m_ob = (b);					      \
+	typeof(b) __m_b = __m_ob < 1 ? -__m_ob : __m_ob;	      \
+	typeof(c) __m_c;					      \
+								      \
+	__m_oa == 0 || __m_ob == 0 || __m_oa == 1 || __m_ob == 1 ?    \
+		__ASSIGN_OF((c), __m_oa * __m_ob)		      \
+	:							      \
+		(__m_a0 && __m_b0) || __m_t > __m_hmask ?	      \
+			1					      \
+		:						      \
+			__ADD_OF(__m_c, __m_t << __m_hshift,	      \
+				 __m_a1 * __m_b1) ?		      \
+				1				      \
+			:					      \
+				__m_negate ?			      \
+					__ASSIGN_OF((c), -__m_c)      \
+				:				      \
+					__ASSIGN_OF((c), __m_c);      \
 }))
 
-#define __compiler_add_overflow(a, b, res) __INTOF_ADD(*(res), (a), (b))
-#define __compiler_sub_overflow(a, b, res) __INTOF_SUB(*(res), (a), (b))
-#define __compiler_mul_overflow(a, b, res) __INTOF_MUL(*(res), (a), (b))
+#define __compiler_add_overflow(a, b, res) __ADD_OF(*(res), (a), (b))
+#define __compiler_sub_overflow(a, b, res) __SUB_OF(*(res), (a), (b))
+#define __compiler_mul_overflow(a, b, res) __MUL_OF(*(res), (a), (b))
 
 #endif /*!__HAVE_BUILTIN_OVERFLOW*/
 
