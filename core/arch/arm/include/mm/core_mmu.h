@@ -74,10 +74,6 @@
 #define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
-#ifndef TEE_RAM_VA_SIZE
-#define TEE_RAM_VA_SIZE			CORE_MMU_PGDIR_SIZE
-#endif
-
 /*
  * CORE_MMU_L1_TBL_OFFSET is used when switching to/from reduced kernel
  * mapping. The actual value depends on internals in core_mmu_lpae.c and
@@ -96,7 +92,16 @@
 
 /*
  * Identify mapping constraint: virtual base address is the physical start addr.
+ * If platform did not set some macros, some get default value.
  */
+#ifndef TEE_RAM_VA_SIZE
+#define TEE_RAM_VA_SIZE			CORE_MMU_PGDIR_SIZE
+#endif
+
+#ifndef TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			TEE_RAM_START
+#endif
+
 #define TEE_RAM_VA_START		TEE_RAM_START
 #define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
 					 (TEE_LOAD_ADDR - TEE_RAM_START))
