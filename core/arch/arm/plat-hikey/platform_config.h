@@ -6,6 +6,8 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <mm/generic_ram_layout.h>
+
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
@@ -43,6 +45,8 @@
 
 /*
  * HiKey and HiKey960 memory map
+ *
+ * Refer to the default configuration from conf.mk for description below.
  *
  * TZDRAM is secured (firewalled) by the DDR controller, see ARM-TF, but note
  * that security of this type of memory is weak for two reasons:
@@ -125,47 +129,5 @@
 #else /* PLATFORM_FLAVOR_hikey */
 #error Unknown HiKey PLATFORM_FLAVOR
 #endif /* PLATFORM_FLAVOR_hikey */
-
-
-#ifdef CFG_WITH_PAGER
-
-#define TZSRAM_BASE		0x3F000000
-#define TZSRAM_SIZE		CFG_CORE_TZSRAM_EMUL_SIZE
-
-#define TZDRAM_BASE		0x3F200000
-#define TZDRAM_SIZE		(14 * 1024 * 1024)
-
-#else /* CFG_WITH_PAGER */
-
-#define TZDRAM_BASE		0x3F000000
-#define TZDRAM_SIZE		(16 * 1024 * 1024)
-
-#endif /* CFG_WITH_PAGER */
-
-#define TEE_SHMEM_START		0x3EE00000
-#define TEE_SHMEM_SIZE		(2 * 1024 * 1024)
-
-#define TEE_RAM_VA_SIZE		(2 * 1024 * 1024)
-
-#define TEE_LOAD_ADDR		0x3F000000
-
-#ifdef CFG_WITH_PAGER
-
-#define TEE_RAM_START		TZSRAM_BASE
-#define TEE_RAM_PH_SIZE		TZSRAM_SIZE
-#define TA_RAM_START		ROUNDUP(TZDRAM_BASE, CORE_MMU_DEVICE_SIZE)
-#define TA_RAM_SIZE		ROUNDDOWN(TZDRAM_SIZE, CORE_MMU_DEVICE_SIZE)
-
-#else /* CFG_WITH_PAGER */
-
-#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
-#define TEE_RAM_START		TZDRAM_BASE
-#define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
-					CORE_MMU_DEVICE_SIZE)
-
-#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE),\
-					  CORE_MMU_DEVICE_SIZE)
-
-#endif /* CFG_WITH_PAGER */
 
 #endif /* PLATFORM_CONFIG_H */
