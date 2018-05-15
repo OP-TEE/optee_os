@@ -93,13 +93,6 @@
 /*
  * Copied/inspired from https://www.fefe.de/intof.html
  */
-#define __INTOF_HALF_MAX_SIGNED(type) ((type)1 << (sizeof(type)*8-2))
-#define __INTOF_MAX_SIGNED(type) (__INTOF_HALF_MAX_SIGNED(type) - 1 + \
-			    __INTOF_HALF_MAX_SIGNED(type))
-#define __INTOF_MIN_SIGNED(type) (-1 - __INTOF_MAX_SIGNED(type))
-
-#define __INTOF_MIN(type) ((type)-1 < 1?__INTOF_MIN_SIGNED(type):(type)0)
-#define __INTOF_MAX(type) ((type)~__INTOF_MIN(type))
 
 #define __INTOF_ASSIGN(dest, src) (__extension__({ \
 	typeof(src) __intof_x = (src); \
