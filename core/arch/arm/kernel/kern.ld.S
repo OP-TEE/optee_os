@@ -49,15 +49,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <mm/core_mmu.h>
 #include <platform_config.h>
-
-#ifndef SMALL_PAGE_SIZE
-#define SMALL_PAGE_SIZE		4096
-#endif
-#ifndef ROUNDUP
-#define ROUNDUP(x, y)		((((x) + (y) - 1) / (y)) * (y))
-#define ROUNDDOWN(x, y)		(((x) / (y)) * (y))
-#endif
+#include <util.h>
 
 /*
  * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
