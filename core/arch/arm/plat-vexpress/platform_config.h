@@ -112,9 +112,6 @@
  * QEMU virt specifics.
  */
 
-#define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		UINTPTR_C(0x40000000)
-
 #define SECRAM_BASE		0x0e000000
 #define SECRAM_COHERENT_SIZE	4096
 
@@ -122,9 +119,6 @@
 #define GICC_OFFSET		0x10000
 
 #elif defined(PLATFORM_FLAVOR_qemu_armv8a)
-
-#define DRAM0_BASE		UINTPTR_C(0x40000000)
-#define DRAM0_SIZE		UINTPTR_C(0x40000000)
 
 #else
 #error "Unknown platform flavor"
