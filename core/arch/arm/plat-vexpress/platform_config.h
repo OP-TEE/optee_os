@@ -134,17 +134,12 @@
 
 #else /*CFG_WITH_PAGER*/
 /*
- * Last part of DRAM is reserved as secure dram, note that the last 2MiB
- * of DRAM0 is used by SCP dor DDR retraining.
+ * Last part of DRAM is reserved as secure dram, note that the last 32KiB
+ * of DRAM0 is used by SCP for DDR retraining.
  */
 #define TZDRAM_BASE		0xFF000000
-/*
- * Should be
- * #define TZDRAM_SIZE		0x00FF8000
- * but is smaller due to SECTION_SIZE alignment, can be fixed once
- * OP-TEE OS is mapped using small pages instead.
- */
-#define TZDRAM_SIZE		0x00E00000
+#define TZDRAM_SIZE		0x00FF8000
+
 #endif /*CFG_WITH_PAGER*/
 
 #define TEE_SHMEM_START		(DRAM0_BASE + DRAM0_SIZE - TEE_SHMEM_SIZE)
