@@ -83,6 +83,52 @@ TEE_Result e32_process_dyn_rel(struct elf_load_state *state, Elf32_Rel *rel,
 	return TEE_SUCCESS;
 }
 
+#ifdef ARM64
+static size_t e64_name_idx_nospec(Elf64_Sym *sym_tab, size_t num_syms,
+				  size_t sym_idx)
+{
+	Elf64_Sym *s_upper = sym_tab + num_syms;
+	Elf64_Sym *s_item = sym_tab + sym_idx;
+	Elf64_Word *lower = &sym_tab->st_name;
+	Elf64_Word *upper = &s_upper->st_name;
+	Elf64_Word *item = &s_item->st_name;
+
+	return load_no_speculate_fail(item, lower, upper, SIZE_MAX);
+}
+
+TEE_Result e64_process_dyn_rela(struct elf_load_state *state, Elf64_Rela *rel,
+				Elf64_Addr *where)
+{
+	size_t sym_idx;
+	char *name;
+	uint8_t bind;
+	uintptr_t val;
+	size_t name_idx;
+	TEE_Result res;
+	Elf64_Sym *sym_tab = (Elf64_Sym *)state->dynsym;
+
+	sym_idx = ELF64_R_SYM(rel->r_info);
+	name_idx = e64_name_idx_nospec(sym_tab,
+				       state->dynsym_size / sizeof(Elf64_Sym),
+				       sym_idx);
+	if (name_idx == SIZE_MAX)
+		return TEE_ERROR_BAD_FORMAT;
+	name = name_nospec(state->dynstr, state->dynstr_size,
+			name_idx);
+	if (!name)
+		return TEE_ERROR_BAD_FORMAT;
+	bind = ELF64_ST_BIND(sym_tab[sym_idx].st_info);
+	if (bind != STB_GLOBAL && bind != STB_WEAK)
+		return TEE_ERROR_BAD_FORMAT;
+	res = state->resolve_sym(state->elfs, name, &val);
+	if (res)
+		return res;
+	*where = val;
+
+	return TEE_SUCCESS;
+}
+#endif
+
 /* Check the dynamic segment and save info for later */
 static TEE_Result read_dyn_segment(struct elf_load_state *state,
 				   vaddr_t vabase)
