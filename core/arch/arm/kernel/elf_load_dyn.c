@@ -13,40 +13,25 @@
 #include "elf_load_dyn.h"
 #include "elf_load_private.h"
 
-static TEE_Result e32_resolve_symbol(struct elf_load_state *state,
-				     const char *name,
-				     uintptr_t *val)
+TEE_Result elf_resolve_symbol(struct elf_load_state *state,
+			      const char *name, uintptr_t *val)
 {
-	Elf32_Sym *sym_start;
-	Elf32_Sym *sym_end;
-	Elf32_Sym *sym;
+	struct elf_sym sym;
+	size_t n;
 
-	sym_start = (Elf32_Sym *)state->dynsym;
-	if (!sym_start)
-		return TEE_ERROR_BAD_FORMAT;
-	sym_end = sym_start + state->dynsym_size / sizeof(Elf32_Sym);
-
-	for (sym = sym_start; sym < sym_end; sym++) {
-		if (sym->st_shndx == SHN_UNDEF)
+	for (n = 0; copy_sym(&sym, n, state); n++) {
+		if (sym.st_shndx == SHN_UNDEF)
 			continue;
-		if (!strcmp(name, &state->dynstr[sym->st_name])) {
-			*val = sym->st_value;
+		if (!strcmp(name, &state->dynstr[sym.st_name])) {
+			*val = sym.st_value;
 			return TEE_SUCCESS;
 		}
 	}
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
-TEE_Result elf_resolve_symbol(struct elf_load_state *state,
-			      const char *name, uintptr_t *val)
-{
-	if (state->is_32bit)
-		return e32_resolve_symbol(state, name, val);
-	return TEE_ERROR_ITEM_NOT_FOUND;
-}
-
-static size_t name_idx_nospec(Elf32_Sym *sym_tab, size_t num_syms,
-			      size_t sym_idx)
+static size_t e32_name_idx_nospec(Elf32_Sym *sym_tab, size_t num_syms,
+				  size_t sym_idx)
 {
 	Elf32_Sym *s_upper = sym_tab + num_syms;
 	Elf32_Sym *s_item = sym_tab + sym_idx;
@@ -78,9 +63,9 @@ TEE_Result e32_process_dyn_rel(struct elf_load_state *state, Elf32_Rel *rel,
 	Elf32_Sym *sym_tab = (Elf32_Sym *)state->dynsym;
 
 	sym_idx = ELF32_R_SYM(rel->r_info);
-	name_idx = name_idx_nospec(sym_tab,
-				   state->dynsym_size / sizeof(Elf32_Sym),
-				   sym_idx);
+	name_idx = e32_name_idx_nospec(sym_tab,
+				       state->dynsym_size / sizeof(Elf32_Sym),
+				       sym_idx);
 	if (name_idx == SIZE_MAX)
 		return TEE_ERROR_BAD_FORMAT;
 	name = name_nospec(state->dynstr, state->dynstr_size,
@@ -99,36 +84,27 @@ TEE_Result e32_process_dyn_rel(struct elf_load_state *state, Elf32_Rel *rel,
 }
 
 /* Check the dynamic segment and save info for later */
-static TEE_Result e32_read_dynamic(struct elf_load_state *state,
+static TEE_Result read_dyn_segment(struct elf_load_state *state,
 				   vaddr_t vabase)
 {
-	Elf32_Shdr *shdr = state->shdr;
 	struct elf_ehdr ehdr;
-	Elf32_Dyn *dyn_start;
-	Elf32_Dyn *dyn_end;
-	Elf32_Dyn *dyn;
+	struct elf_shdr shdr = { 0, };
+	struct elf_dyn dyn;
 	vaddr_t dynstr = 0;
 	size_t dynstr_size = 0;
-	vaddr_t max;
 	vaddr_t dynsym = 0;
 	size_t dynsym_size;
+	vaddr_t max;
 	size_t n;
-
-	copy_ehdr(&ehdr, state);
-
-	dyn_start = (Elf32_Dyn *)state->dyn;
-	if (!ALIGNMENT_IS_OK(dyn_start, Elf32_Dyn))
-		return TEE_ERROR_BAD_FORMAT;
-	dyn_end = dyn_start + state->dyn_size / sizeof(Elf32_Dyn);
 
 	/*
 	 * Find the address and size of the string table (.strtab)
 	 */
-	for (dyn = dyn_start; dyn < dyn_end; dyn++) {
-		if (dyn->d_tag == DT_STRTAB)
-			dynstr = dyn->d_un.d_ptr;
-		else if (dyn->d_tag == DT_STRSZ)
-			dynstr_size = dyn->d_un.d_val;
+	for (n = 0; copy_dyn(&dyn, n, state); n++) {
+		if (dyn.d_tag == DT_STRTAB)
+			dynstr = dyn.d_un.d_ptr;
+		else if (dyn.d_tag == DT_STRSZ)
+			dynstr_size = dyn.d_un.d_val;
 	}
 	if (!dynstr || dynstr >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
@@ -145,13 +121,17 @@ static TEE_Result e32_read_dynamic(struct elf_load_state *state,
 	 * the size information is not present. So, we have to parse the
 	 * section headers instead.
 	 */
-	for (n = 0; n < ehdr.e_shnum; n++)
-		if (shdr[n].sh_type == SHT_DYNSYM)
+
+	copy_ehdr(&ehdr, state);
+	for (n = 0; n < ehdr.e_shnum; n++) {
+		copy_shdr(&shdr, n, state);
+		if (shdr.sh_type == SHT_DYNSYM)
 			break;
+	}
 	if (n == ehdr.e_shnum)
 		return TEE_ERROR_BAD_FORMAT;
-	dynsym = shdr[n].sh_addr;
-	dynsym_size = shdr[n].sh_size;
+	dynsym = shdr.sh_addr;
+	dynsym_size = shdr.sh_size;
 	if (!dynsym || dynsym >= state->vasize ||
 			ADD_OVERFLOW(dynsym, dynsym_size, &max) ||
 			max > state->vasize)
@@ -162,31 +142,27 @@ static TEE_Result e32_read_dynamic(struct elf_load_state *state,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result e32_get_needed(struct elf_load_state *state,
-				 vaddr_t vabase, char ***names_ret,
-				 size_t *num_names_ret)
+static TEE_Result get_needed(struct elf_load_state *state,
+			     vaddr_t vabase, char ***names_ret,
+			     size_t *num_names_ret)
 
 {
-	Elf32_Dyn *dyn_start;
-	Elf32_Dyn *dyn_end;
-	Elf32_Dyn *dyn;
-	Elf32_Word offs;
+	struct elf_dyn dyn;
+	size_t offs;
 	TEE_Result res;
 	size_t num_names = 0;
 	char **names = NULL;
+	size_t n;
 
-	res = e32_read_dynamic(state, vabase);
+	res = read_dyn_segment(state, vabase);
 	if (res)
 		return res;
 
-	dyn_start = (Elf32_Dyn *)state->dyn;
-	dyn_end = dyn_start + state->dyn_size / sizeof(Elf32_Dyn);
-
 	/* Now look for needed libraries and fill output array */
-	for (dyn = dyn_start; dyn < dyn_end; dyn++) {
+	for (n = 0; copy_dyn(&dyn, n, state); n++) {
 		void *p;
 
-		if (dyn->d_tag != DT_NEEDED)
+		if (dyn.d_tag != DT_NEEDED)
 			continue;
 		if (!state->dynstr) {
 			free(names);
@@ -198,7 +174,7 @@ static TEE_Result e32_get_needed(struct elf_load_state *state,
 			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 		names = p;
-		offs = dyn->d_un.d_val;
+		offs = dyn.d_un.d_val;
 		names[num_names] = (char *)state->dynstr + offs;
 		num_names++;
 	}
@@ -221,12 +197,6 @@ TEE_Result elf_get_needed(struct elf_load_state *state, vaddr_t vabase,
 	vaddr_t dyn_addr;
 	size_t dyn_sz;
 
-	if (!state->is_32bit) {
-		*needed = NULL;
-		*num_needed = 0;
-		return TEE_SUCCESS;
-	}
-
 	/*
 	 * Find the dynamic section from the program headers, then call the
 	 * proper parsing function.
@@ -245,8 +215,7 @@ TEE_Result elf_get_needed(struct elf_load_state *state, vaddr_t vabase,
 				return TEE_ERROR_BAD_FORMAT;
 			state->dyn = (void *)(vabase + dyn_addr);
 			state->dyn_size = dyn_sz;
-			return e32_get_needed(state, vabase, needed,
-					      num_needed);
+			return get_needed(state, vabase, needed, num_needed);
 		}
 	}
 
