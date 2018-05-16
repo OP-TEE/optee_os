@@ -472,6 +472,7 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 	for (; rela < rela_end; rela++) {
 		Elf64_Addr *where;
 		size_t sym_idx;
+		TEE_Result res;
 
 		/* Check the address is inside TA memory */
 		if (rela->r_offset >= state->vasize)
@@ -491,6 +492,12 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 			break;
 		case R_AARCH64_RELATIVE:
 			*where = rela->r_addend + vabase;
+			break;
+		case R_AARCH64_GLOB_DAT:
+		case R_AARCH64_JUMP_SLOT:
+			res = e64_process_dyn_rela(state, rela, where);
+			if (res)
+				return res;
 			break;
 		default:
 			EMSG("Unknown relocation type %zd",

@@ -648,6 +648,8 @@ typedef struct {
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
 #define	R_AARCH64_ABS64		257
+#define	R_AARCH64_GLOB_DAT	1025	/* Set GOT entry to data address. */
+#define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address. */
 #define	R_AARCH64_RELATIVE 	1027
 
 #define	R_ARM_NONE		0	/* No relocation. */
