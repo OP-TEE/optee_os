@@ -825,6 +825,7 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 {
 	struct user_ta_elf *exe;
 	struct user_ta_elf *elf;
+	struct user_ta_elf *last_elf;
 	vaddr_t exidx;
 	size_t exidx_sz = 0;
 	TEE_Result res;
@@ -840,6 +841,7 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 		utc->exidx_size = exe->exidx_size;
 		return TEE_SUCCESS;
 	}
+	last_elf = TAILQ_LAST(&utc->elfs, user_ta_elf_head);
 
 	TAILQ_FOREACH(elf, &utc->elfs, link)
 		exidx_sz += elf->exidx_size;
@@ -847,7 +849,8 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 	utc->mobj_exidx = alloc_ta_mem(exidx_sz);
 	if (!utc->mobj_exidx)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	exidx = 0;
+	exidx = ROUNDUP(last_elf->load_addr + last_elf->mobj_code->size,
+			CORE_MMU_USER_CODE_SIZE);
 	res = vm_map(utc, &exidx, exidx_sz, TEE_MATTR_UR | TEE_MATTR_PRW,
 		     utc->mobj_exidx, 0);
 	if (res)
