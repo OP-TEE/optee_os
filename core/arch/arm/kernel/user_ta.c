@@ -652,6 +652,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	struct ta_head *ta_head;
 	struct user_ta_elf *exe;
 	struct user_ta_elf *elf;
+	struct user_ta_elf *prev;
 	TEE_Result res;
 	size_t vasize;
 	void *p;
@@ -670,6 +671,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	}
 
 	exe = TAILQ_FIRST(&utc->elfs);
+	prev = TAILQ_PREV(elf, user_ta_elf_head, link);
 
 	res = elf_load_init(ta_store, handle, elf == exe, &utc->elfs,
 			    resolve_symbol, &elf_state);
@@ -724,7 +726,12 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	elf->load_addr = 0;
+	if (prev) {
+		elf->load_addr = prev->load_addr + prev->mobj_code->size;
+		elf->load_addr = ROUNDUP(elf->load_addr,
+					 CORE_MMU_USER_CODE_SIZE);
+	}
+
 	for (n = 0; n < num_segs; n++) {
 		uint32_t prot = elf_flags_to_mattr(segs[n].flags) |
 				TEE_MATTR_PRW;
