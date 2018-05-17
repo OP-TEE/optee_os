@@ -10,6 +10,7 @@
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
@@ -96,6 +97,18 @@ register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
+
+static unsigned int mmu_spinlock;
+
+static uint32_t mmu_lock(void)
+{
+	return cpu_spin_lock_xsave(&mmu_spinlock);
+}
+
+static void mmu_unlock(uint32_t exceptions)
+{
+	cpu_spin_unlock_xrestore(&mmu_spinlock, exceptions);
+}
 
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)
@@ -1411,6 +1424,7 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 	struct tee_mmap_region *mm;
 	unsigned int idx;
 	uint32_t old_attr;
+	uint32_t exceptions;
 	vaddr_t vaddr = vstart;
 	size_t i;
 	bool secure;
@@ -1421,6 +1435,8 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 
 	if (vaddr & SMALL_PAGE_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	exceptions = mmu_lock();
 
 	mm = find_map_by_va((void *)vaddr);
 	if (!mm || !va_is_in_map(mm, vaddr + num_pages * SMALL_PAGE_SIZE - 1))
@@ -1464,9 +1480,12 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 	 * guaranteed that there's no valid mapping in this range.
 	 */
 	dsb_ishst();
+	mmu_unlock(exceptions);
 
 	return TEE_SUCCESS;
 err:
+	mmu_unlock(exceptions);
+
 	if (i)
 		core_mmu_unmap_pages(vstart, i);
 
@@ -1479,6 +1498,9 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 	struct tee_mmap_region *mm;
 	size_t i;
 	unsigned int idx;
+	uint32_t exceptions;
+
+	exceptions = mmu_lock();
 
 	mm = find_map_by_va((void *)vstart);
 	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
@@ -1498,6 +1520,8 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 		core_mmu_set_entry(&tbl_info, idx, 0, 0);
 	}
 	tlbi_all();
+
+	mmu_unlock(exceptions);
 }
 
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
