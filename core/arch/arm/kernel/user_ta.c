@@ -43,7 +43,6 @@
 /* ELF file used by a TA (main executable or dynamic library) */
 struct user_ta_elf {
 	TEE_UUID uuid;
-	bool is_main; /* false for a library */
 	struct elf_load_state *elf_state;
 	struct mobj *mobj_code;
 	vaddr_t load_addr;
@@ -651,6 +650,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	struct user_ta_store_handle *handle = NULL;
 	struct elf_load_state *elf_state = NULL;
 	struct ta_head *ta_head;
+	struct user_ta_elf *exe;
 	struct user_ta_elf *elf;
 	TEE_Result res;
 	size_t vasize;
@@ -669,14 +669,16 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		goto out;
 	}
 
-	res = elf_load_init(ta_store, handle, elf->is_main, &utc->elfs,
+	exe = TAILQ_FIRST(&utc->elfs);
+
+	res = elf_load_init(ta_store, handle, elf == exe, &utc->elfs,
 			    resolve_symbol, &elf_state);
 	if (res)
 		goto out;
 	elf->elf_state = elf_state;
 
 	res = elf_load_head(elf_state,
-			    elf->is_main ? sizeof(struct ta_head) : 0,
+			    elf == exe ? sizeof(struct ta_head) : 0,
 			    &p, &vasize, &utc->is_32bit);
 	if (res)
 		goto out;
@@ -689,7 +691,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		goto out;
 	}
 
-	if (elf->is_main) {
+	if (elf == exe) {
 		/* Ensure proper alignment of stack */
 		size_t stack_sz = ROUNDUP(ta_head->stack_size,
 					  STACK_ALIGNMENT);
@@ -703,7 +705,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	/*
 	 * Map physical memory into TA virtual memory
 	 */
-	if (elf->is_main) {
+	if (elf == exe) {
 
 		res = vm_info_init(utc);
 		if (res != TEE_SUCCESS)
@@ -926,7 +928,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
-	exe->is_main = true;
 
 	/*
 	 * Load binaries and map them into the TA virtual memory. load_elf()
