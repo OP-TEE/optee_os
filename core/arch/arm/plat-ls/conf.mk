@@ -9,6 +9,10 @@ $(call force,CFG_PM_STUBS,y)
 ifeq ($(PLATFORM_FLAVOR),ls1021atwr)
 include core/arch/arm/cpu/cortex-a7.mk
 CFG_TEE_CORE_NB_CORE = 2
+CFG_TZDRAM_START ?= 0xbc000000
+CFG_TZDRAM_SIZE ?= 0x03e00000
+CFG_SHMEM_START ?= 0xbfe00000
+CFG_SHMEM_SIZE ?= 0x00100000
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
@@ -16,6 +20,10 @@ endif
 ifeq ($(PLATFORM_FLAVOR),ls1021aqds)
 include core/arch/arm/cpu/cortex-a7.mk
 CFG_TEE_CORE_NB_CORE = 2
+CFG_TZDRAM_START ?= 0xfc000000
+CFG_TZDRAM_SIZE ?= 0x03e00000
+CFG_SHMEM_START ?= 0xffe00000
+CFG_SHMEM_SIZE ?= 0x00100000
 CFG_BOOT_SYNC_CPU ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 endif
@@ -24,18 +32,30 @@ ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_TEE_CORE_NB_CORE = 1
+CFG_TZDRAM_START ?= 0xbc000000
+CFG_TZDRAM_SIZE ?= 0x03e00000
+CFG_SHMEM_START ?= 0xbfe00000
+CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1043ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_TEE_CORE_NB_CORE = 4
+CFG_TZDRAM_START ?= 0xfc000000
+CFG_TZDRAM_SIZE ?= 0x03e00000
+CFG_SHMEM_START ?= 0xbfe00000
+CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1046ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_TEE_CORE_NB_CORE = 4
+CFG_TZDRAM_START ?= 0xfc000000
+CFG_TZDRAM_SIZE ?= 0x03e00000
+CFG_SHMEM_START ?= 0xbfe00000
+CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
 ifeq ($(platform-flavor-armv8),1)
