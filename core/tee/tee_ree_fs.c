@@ -685,10 +685,10 @@ static void ree_fs_close(struct tee_file_handle **fh)
 	if (*fh) {
 		mutex_lock(&ree_fs_mutex);
 		put_dirh_primitive(false);
-		mutex_unlock(&ree_fs_mutex);
-
 		ree_fs_close_primitive(*fh);
 		*fh = NULL;
+		mutex_unlock(&ree_fs_mutex);
+
 	}
 }
 
