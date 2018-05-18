@@ -406,7 +406,7 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct vm_region *r;
 	char flags[7] = { '\0', };
-	char desc[8];
+	char desc[13];
 	size_t n = 0;
 
 	EMSG_RAW(" arch: %s  load address: %#" PRIxVA " ctx-idr: %d",
