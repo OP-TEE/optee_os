@@ -41,6 +41,11 @@ R:	Linaro <op-tee@linaro.org>
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
+AllWinner sun8i H2+
+R:	Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org> [@grandpaul]
+S:	Maintained
+F:	core/arch/arm/plat-sunxi/
+
 Atmel ATSAMA5D2-XULT
 R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
 S:	Maintained
