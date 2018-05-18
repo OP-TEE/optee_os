@@ -415,7 +415,7 @@ static TEE_Result calc_node_hash(struct htree_node *node,
 		return res;
 
 	if (meta) {
-		res = crypto_hash_update(ctx, alg, (void *)meta, sizeof(meta));
+		res = crypto_hash_update(ctx, alg, (void *)meta, sizeof(*meta));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
