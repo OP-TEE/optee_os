@@ -315,3 +315,10 @@ CFG_TA_BIGNUM_MAX_BITS ?= 2048
 # implemented by the TEE core.
 # Set this to a lower value to reduce the memory footprint.
 CFG_CORE_BIGNUM_MAX_BITS ?= 4096
+
+# Compiles mbedTLS for TA usage
+CFG_TA_MBEDTLS ?= y
+
+# Compile the TA library mbedTLS with self test functions, the functions
+# need to be called to test anything
+CFG_TA_MBEDTLS_SELF_TEST ?= y
