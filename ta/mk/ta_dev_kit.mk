@@ -56,6 +56,10 @@ libnames += utils utee mpa
 libdeps += $(ta-dev-kit-dir)/lib/libutils.a
 libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
 libdeps += $(ta-dev-kit-dir)/lib/libutee.a
+ifeq ($(CFG_TA_MBEDTLS),y)
+libnames += mbedtls
+libdeps += $(ta-dev-kit-dir)/lib/libmbedtls.a
+endif
 
 # Pass config variable (CFG_) from conf.mk on the command line
 cppflags$(sm) += $(strip \

@@ -12,6 +12,10 @@ include mk/$(COMPILER_$(sm)).mk
 # Config flags from mk/config.mk
 #
 
+ifeq ($(CFG_TA_MBEDTLS_SELF_TEST),y)
+$(sm)-platform-cppflags += -DMBEDTLS_SELF_TEST
+endif
+
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
 # Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
 # mdbg_check(), etc.).
@@ -22,6 +26,8 @@ endif
 ta-mk-file-export-vars-$(sm) += CFG_TA_FLOAT_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_CACHE_API
 ta-mk-file-export-vars-$(sm) += CFG_SECURE_DATA_PATH
+ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_SELF_TEST
+ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -47,6 +53,13 @@ include mk/lib.mk
 libname = utee
 libdir = lib/libutee
 include mk/lib.mk
+
+ifeq ($(CFG_TA_MBEDTLS),y)
+libname = mbedtls
+libdir = lib/libmbedtls
+include mk/lib.mk
+ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
+endif
 
 base-prefix :=
 
