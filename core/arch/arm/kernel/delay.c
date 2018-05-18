@@ -39,3 +39,8 @@ void udelay(uint32_t us)
 	while (read_cntpct() - start <= target)
 		;
 }
+
+void mdelay(uint32_t ms)
+{
+	udelay(1000 * ms);
+}
