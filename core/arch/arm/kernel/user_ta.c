@@ -446,9 +446,8 @@ static void release_ta_memory_by_mobj(struct mobj *mobj)
 	cache_op_inner(DCACHE_AREA_CLEAN, va, mobj->size);
 }
 
-static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
+static void free_utc(struct user_ta_ctx *utc)
 {
-	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct user_ta_elf *elf;
 
 	tee_pager_rem_uta_areas(utc);
@@ -479,6 +478,11 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	/* Free emums created by this TA */
 	tee_svc_storage_close_all_enum(utc);
 	free(utc);
+}
+
+static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
+{
+	free_utc(to_user_ta_ctx(ctx));
 }
 
 static uint32_t user_ta_get_instance_id(struct tee_ta_ctx *ctx)
@@ -1040,16 +1044,8 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 
 err:
+	free_elf_states(utc);
 	tee_mmu_set_ctx(NULL);
-	if (utc) {
-		pgt_flush_ctx(&utc->ctx);
-		tee_pager_rem_uta_areas(utc);
-		vm_info_final(utc);
-		free_elf_states(utc);
-		mobj_free(utc->mobj_stack);
-		mobj_free(utc->mobj_exidx);
-		free_elfs(utc);
-		free(utc);
-	}
+	free_utc(utc);
 	return res;
 }
