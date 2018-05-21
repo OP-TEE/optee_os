@@ -1048,6 +1048,7 @@ err:
 		vm_info_final(utc);
 		free_elf_states(utc);
 		mobj_free(utc->mobj_stack);
+		free_elfs(utc);
 		free(utc);
 	}
 	return res;
