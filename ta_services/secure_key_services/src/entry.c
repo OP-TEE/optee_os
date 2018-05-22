@@ -114,7 +114,16 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	res = sks2tee_error(rc);
+	if (TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT &&
+	    ctrl->memref.size >= sizeof(uint32_t)) {
+
+		TEE_MemMove(ctrl->memref.buffer, &rc, sizeof(uint32_t));
+		ctrl->memref.size = sizeof(uint32_t);
+
+		res = sks2tee_noerr(rc);
+	} else {
+		res = sks2tee_error(rc);
+	}
 
 	DMSG("SKS TA exit: %s rc 0x%08" PRIu32 "/%s",
 		sks2str_skscmd(cmd), rc, sks2str_rc(rc));
