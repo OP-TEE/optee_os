@@ -94,7 +94,7 @@ CFG_PCSC_PASSTHRU_READER_DRV ?= n
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
-CFG_TEE_CORE_NB_CORE = 2
+CFG_TEE_CORE_NB_CORE = 4
 # [0e00.0000 0e0f.ffff] is reserved to early boot
 CFG_TZDRAM_START ?= 0x0e100000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
