@@ -3,6 +3,11 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#if defined(__KERNEL__)
+#include <platform_config.h>
+#include <kernel/misc.h>
+#endif
+
 #include <printk.h>
 #include <stdarg.h>
 #include <string.h>
@@ -64,6 +69,27 @@ static int print_thread_id(char *buf, size_t bs, int thread_id)
 		return snprintk(buf, bs, "%*s ", num_thread_digits, "");
 }
 
+#if defined(__KERNEL__)
+static int print_core_id(char *buf, size_t bs)
+{
+#if CFG_TEE_CORE_NB_CORE > 9
+	const int num_digits = 2;
+#else
+	const int num_digits = 1;
+#endif
+
+	if (thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR)
+		return snprintk(buf, bs, "%0*zu ", num_digits, get_core_pos());
+	else
+		return snprintk(buf, bs, "%*s ", num_digits, "?");
+}
+#else  /* defined(__KERNEL__) */
+static int print_core_id(char *buf __unused, size_t bs __unused)
+{
+	return 0;
+}
+#endif
+
 /* Format trace of user ta. Inline with kernel ta */
 void trace_printf(const char *function, int line, int level, bool level_ok,
 		  const char *fmt, ...)
@@ -87,6 +113,15 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	/* Print the location, i.e., TEE core or TA */
 	res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:",
 		       trace_ext_prefix);
+	if (res < 0)
+		return;
+	boffs += res;
+
+	/* Print the core ID if in atomic context  */
+	if (level_ok && (BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
+		res = print_core_id(buf + boffs, sizeof(buf) - boffs);
+	else
+		res = 0;
 	if (res < 0)
 		return;
 	boffs += res;
