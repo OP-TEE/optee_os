@@ -30,6 +30,7 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <mm/generic_ram_layout.h>
 #include <imx-regs.h>
 
 #define STACK_ALIGNMENT			64
@@ -43,7 +44,6 @@
 
 /* For i.MX 6UltraLite and 6ULL EVK board */
 #elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
-#include <imx-regs.h>
 
 #ifdef CFG_WITH_PAGER
 #error "Pager not supported for platform mx6ulevk"
@@ -107,7 +107,6 @@
 #elif defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
 	defined(CFG_MX6S)
 
-#include <imx-regs.h>
 
 /* Board specific console UART */
 #if defined(PLATFORM_FLAVOR_mx6qsabrelite)
@@ -139,8 +138,6 @@
 #endif
 
 /* Common RAM and cache controller configuration */
-#define TEE_RAM_VA_SIZE			(1024 * 1024)
-
 #define DDR_PHYS_START			DRAM0_BASE
 #define DDR_SIZE			DRAM0_SIZE
 
@@ -235,102 +232,6 @@
  * - both nonsec cpu access SCU, private and global timer
  */
 #define SCU_NSAC_CTRL_INIT		0x00000FFF
-
-/* define the memory areas */
-
-#ifdef CFG_WITH_PAGER
-
-/*
- * TEE/TZ RAM layout:
- *
- *  +---------------------------------------+  <- CFG_CORE_TZSRAM_EMUL_START
- *  | TEE private highly | TEE_RAM          |   ^
- *  |   secure memory    |                  |   | CFG_CORE_TZSRAM_EMUL_SIZE
- *  +---------------------------------------+   v
- *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEE private secure |  TA_RAM          |   ^
- *  |   external memory  |                  |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  |     Non secure     |  SHM             |   |
- *  |   shared memory    |                  |   |
- *  +---------------------------------------+   v
- *
- *  TEE_RAM : default 256kByte
- *  TA_RAM  : all what is left in DDR TEE reserved area
- *  PUB_RAM : default 2MByte
- */
-
-/* emulated SRAM, at start of secure DDR */
-
-#define CFG_CORE_TZSRAM_EMUL_START	0x4E000000
-
-#define TZSRAM_BASE			CFG_CORE_TZSRAM_EMUL_START
-#define TZSRAM_SIZE			CFG_CORE_TZSRAM_EMUL_SIZE
-
-/* Location of trusted dram */
-
-#define CFG_DDR_TEETZ_RESERVED_START	0x4E100000
-#define CFG_DDR_TEETZ_RESERVED_SIZE	0x01F00000
-
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define TEE_RAM_PH_SIZE			TZSRAM_SIZE
-
-#define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						CFG_PUB_RAM_SIZE)
-
-#define TA_RAM_START			TZDRAM_BASE
-#define TA_RAM_SIZE			TZDRAM_SIZE
-
-#else /* CFG_WITH_PAGER */
-
-/*
- * TEE/TZ RAM layout:
- *
- *  +---------------------------------------+  <- CFG_DDR_TEETZ_RESERVED_START
- *  | TEE private secure |  TEE_RAM         |   ^
- *  |   external memory  +------------------+   |
- *  |                    |  TA_RAM          |   |
- *  +---------------------------------------+   | CFG_DDR_TEETZ_RESERVED_SIZE
- *  |     Non secure     |  SHM             |   |
- *  |   shared memory    |                  |   |
- *  +---------------------------------------+   v
- *
- *  TEE_RAM : default 1MByte
- *  PUB_RAM : default 2MByte
- *  TA_RAM  : all what is left
- */
-
-#define CFG_DDR_TEETZ_RESERVED_START	0x4E000000
-#define CFG_DDR_TEETZ_RESERVED_SIZE	0x02000000
-
-#define CFG_PUB_RAM_SIZE		(1 * 1024 * 1024)
-#define TEE_RAM_PH_SIZE			(1 * 1024 * 1024)
-
-#define TZDRAM_BASE			(CFG_DDR_TEETZ_RESERVED_START)
-#define TZDRAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						CFG_PUB_RAM_SIZE)
-
-#define TA_RAM_START			(CFG_DDR_TEETZ_RESERVED_START +	\
-						TEE_RAM_PH_SIZE)
-#define TA_RAM_SIZE			(CFG_DDR_TEETZ_RESERVED_SIZE - \
-						TEE_RAM_PH_SIZE - \
-						CFG_PUB_RAM_SIZE)
-
-#endif /* CFG_WITH_PAGER */
-
-#define TEE_SHMEM_START			(CFG_DDR_TEETZ_RESERVED_START + \
-					 TZDRAM_SIZE)
-#define TEE_SHMEM_SIZE			CFG_PUB_RAM_SIZE
-
-#define TEE_RAM_START			TZDRAM_BASE
-
-#ifdef CFG_TEE_LOAD_ADDR
-#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
-#else
-#define TEE_LOAD_ADDR			TEE_RAM_START
-#endif
 
 #else
 #error "Unknown platform flavor"
