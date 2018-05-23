@@ -70,8 +70,8 @@ CFG_TEE_CORE_MALLOC_DEBUG ?= n
 CFG_TEE_TA_MALLOC_DEBUG ?= n
 
 # Mask to select which messages are prefixed with long debugging information
-# (severity, thread ID, component name, function name, line number) based on
-# the message level. If BIT(level) is set, the long prefix is shown.
+# (severity, core ID, thread ID, component name, function name, line number)
+# based on the message level. If BIT(level) is set, the long prefix is shown.
 # Otherwise a short prefix is used (severity and component name only).
 # Levels: 0=none 1=error 2=info 3=debug 4=flow
 CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
