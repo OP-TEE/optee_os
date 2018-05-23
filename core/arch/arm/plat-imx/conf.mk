@@ -97,6 +97,14 @@ CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00100000
 endif
 
+# i.MX6 SoloX specific config
+ifeq ($(filter y, $(CFG_MX6SX)), y)
+CFG_TZDRAM_START ?= (0x80000000 + $(CFG_DDR_SIZE) - 0x02000000)
+CFG_TZDRAM_SIZE ?= 0x01e00000
+CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
+CFG_SHMEM_SIZE ?= 0x00200000
+endif
+
 ifeq ($(filter y, $(CFG_MX7)), y)
 include core/arch/arm/cpu/cortex-a7.mk
 
