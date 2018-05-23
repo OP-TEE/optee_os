@@ -4,6 +4,7 @@
  */
 
 #include <crypto/crypto.h>
+#include <crypto/crypto_lite.h>
 #include <initcall.h>
 #include <kernel/tee_time.h>
 #include <rng_support.h>
@@ -356,7 +357,13 @@ __weak void plat_prng_add_jitter_entropy_norpc(void)
 
 static TEE_Result tee_cryp_init(void)
 {
-	return crypto_init();
+	TEE_Result res;
+
+	res = crypto_init();
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return crypto_lite_init();
 }
 
 service_init(tee_cryp_init);
