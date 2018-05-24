@@ -117,37 +117,33 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		return;
 	boffs += res;
 
-	/* Print the core ID if in atomic context  */
-	if (level_ok && (BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
+	if (level_ok && (BIT(level) & CFG_MSG_LONG_PREFIX_MASK)) {
+		/* Print the core ID if in atomic context  */
 		res = print_core_id(buf + boffs, sizeof(buf) - boffs);
-	else
-		res = 0;
-	if (res < 0)
-		return;
-	boffs += res;
-
-	/* Print the Thread ID */
-	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
-		thread_id = -1;
-	else
-		thread_id = trace_ext_get_thread_id();
-
-	res = print_thread_id(buf + boffs, sizeof(buf) - boffs, thread_id);
-
-	if (res < 0)
-		return;
-	boffs += res;
-
-	/* Print the function and line */
-	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
-		function = NULL;
-
-	if (function) {
-		res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d ",
-			       function, line);
 		if (res < 0)
 			return;
 		boffs += res;
+
+		/* Print the Thread ID */
+		thread_id = trace_ext_get_thread_id();
+		res = print_thread_id(buf + boffs, sizeof(buf) - boffs, thread_id);
+		if (res < 0)
+			return;
+		boffs += res;
+
+		if (function) {
+			res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d ",
+				       function, line);
+			if (res < 0)
+				return;
+			boffs += res;
+		}
+	} else {
+		/* Add space after location info */
+		if (boffs >= sizeof(buf) - 1)
+		    return;
+		buf[boffs++] = ' ';
+		buf[boffs] = 0;
 	}
 
 	va_start(ap, fmt);
