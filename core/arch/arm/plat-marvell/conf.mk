@@ -2,14 +2,28 @@ PLATFORM_FLAVOR ?= armada7k8k
 
 ifeq ($(PLATFORM_FLAVOR),armada7k8k)
 include core/arch/arm/cpu/cortex-armv8-0.mk
-CFG_TEE_CORE_NB_CORE = 4
+$(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_TZDRAM_START,0x04400000)
+$(call force,CFG_TZDRAM_SIZE,0x00C00000)
+$(call force,CFG_SHMEM_START,0x05000000)
+$(call force,CFG_SHMEM_SIZE,0x00400000)
+$(call force,CFG_TEE_RAM_VA_SIZE,0x00400000)
+# If Secure Data Path is enabled, uses the TZDRAM last 4MByte
+$(call force,CFG_TEE_SDP_MEM_SIZE,0x00400000)
 platform-debugger-arm := 1
 $(call force,CFG_8250_UART,y)
 endif
 
 ifeq ($(PLATFORM_FLAVOR),armada3700)
 include core/arch/arm/cpu/cortex-armv8-0.mk
-CFG_TEE_CORE_NB_CORE = 2
+$(call force,CFG_TEE_CORE_NB_CORE,2)
+$(call force,CFG_TZDRAM_START,0x04400000)
+$(call force,CFG_TZDRAM_SIZE,0x00C00000)
+$(call force,CFG_SHMEM_START,0x05000000)
+$(call force,CFG_SHMEM_SIZE,0x00400000)
+$(call force,CFG_TEE_RAM_VA_SIZE,0x00400000)
+# If Secure Data Path is enabled, uses the TZDRAM last 4MByte
+$(call force,CFG_TEE_SDP_MEM_SIZE,0x00400000)
 platform-debugger-arm := 1
 $(call force,CFG_MVEBU_UART,y)
 $(call force,CFG_ARM_GICV3,y)
