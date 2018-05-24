@@ -55,13 +55,14 @@ static char trace_level_to_string(int level, bool level_ok)
 	return lvl_strs[l];
 }
 
-static int print_thread_id(char *buf, size_t bs, int thread_id)
+static int print_thread_id(char *buf, size_t bs)
 {
 #if CFG_NUM_THREADS > 9
 	int num_thread_digits = 2;
 #else
 	int num_thread_digits = 1;
 #endif
+	int thread_id = trace_ext_get_thread_id();
 
 	if (thread_id >= 0)
 		return snprintk(buf, bs, "%0*d ", num_thread_digits, thread_id);
@@ -98,7 +99,6 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	char buf[MAX_PRINT_SIZE];
 	size_t boffs = 0;
 	int res;
-	int thread_id;
 
 	if (level_ok && level > trace_level)
 		return;
@@ -125,8 +125,7 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		boffs += res;
 
 		/* Print the Thread ID */
-		thread_id = trace_ext_get_thread_id();
-		res = print_thread_id(buf + boffs, sizeof(buf) - boffs, thread_id);
+		res = print_thread_id(buf + boffs, sizeof(buf) - boffs);
 		if (res < 0)
 			return;
 		boffs += res;
