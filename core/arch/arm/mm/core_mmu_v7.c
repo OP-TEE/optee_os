@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <keep.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/thread.h>
@@ -23,6 +24,10 @@
 
 #ifdef CFG_WITH_LPAE
 #error This file is not to be used with LPAE
+#endif
+
+#ifdef CFG_VIRTUALIZATION
+#error Currently V7 MMU code does not support virtualization
 #endif
 
 #ifndef DEBUG_XLAT_TABLE
@@ -189,60 +194,91 @@ enum desc_type {
 #else
 #define NUM_L1_TABLES	1
 #endif
-uint32_t main_mmu_l1_ttb[NUM_L1_TABLES][NUM_L1_ENTRIES]
+
+typedef uint32_t l1_xlat_tbl_t[NUM_L1_ENTRIES];
+typedef uint32_t l2_xlat_tbl_t[NUM_L2_ENTRIES];
+typedef uint32_t ul1_xlat_tbl_t[NUM_UL1_ENTRIES];
+
+l1_xlat_tbl_t main_mmu_l1_ttb[NUM_L1_TABLES]
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
 /* L2 MMU tables */
-static uint32_t main_mmu_l2_ttb[MAX_XLAT_TABLES][NUM_L2_ENTRIES]
+static l2_xlat_tbl_t main_mmu_l2_ttb[MAX_XLAT_TABLES]
 		__aligned(L2_ALIGNMENT) __section(".nozi.mmu.l2");
 
 /* MMU L1 table for TAs, one for each thread */
-static uint32_t main_mmu_ul1_ttb[CFG_NUM_THREADS][NUM_UL1_ENTRIES]
+static ul1_xlat_tbl_t main_mmu_ul1_ttb[CFG_NUM_THREADS]
 		__aligned(UL1_ALIGNMENT) __section(".nozi.mmu.ul1");
 
-static vaddr_t core_mmu_get_main_ttb_va(void)
+struct mmu_partition {
+	l1_xlat_tbl_t *l1_tables;
+	l2_xlat_tbl_t *l2_tables;
+	ul1_xlat_tbl_t *ul1_tables;
+	uint32_t tables_used;
+};
+
+static struct mmu_partition default_partition = {
+	.l1_tables = main_mmu_l1_ttb,
+	.l2_tables = main_mmu_l2_ttb,
+	.ul1_tables = main_mmu_ul1_ttb,
+	.tables_used = 0,
+};
+
+#ifdef CFG_VIRTUALIZATION
+static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE];
+#endif
+
+static struct mmu_partition *get_prtn(void)
 {
-	return (vaddr_t)main_mmu_l1_ttb[0];
+#ifdef CFG_VIRTUALIZATION
+	return current_prtn[get_core_pos()];
+#else
+	return &default_partition;
+#endif
 }
 
-static paddr_t core_mmu_get_main_ttb_pa(void)
+static vaddr_t core_mmu_get_main_ttb_va(struct mmu_partition *prtn)
 {
-	paddr_t pa = virt_to_phys((void *)core_mmu_get_main_ttb_va());
+	return (vaddr_t)prtn->l1_tables[0];
+}
+
+static paddr_t core_mmu_get_main_ttb_pa(struct mmu_partition *prtn)
+{
+	paddr_t pa = virt_to_phys((void *)core_mmu_get_main_ttb_va(prtn));
 
 	if (pa & ~TTB_L1_MASK)
 		panic("invalid core l1 table");
 	return pa;
 }
 
-static vaddr_t core_mmu_get_ul1_ttb_va(void)
+static vaddr_t core_mmu_get_ul1_ttb_va(struct mmu_partition *prtn)
 {
-	return (vaddr_t)main_mmu_ul1_ttb[thread_get_id()];
+	return (vaddr_t)prtn->ul1_tables[thread_get_id()];
 }
 
-static paddr_t core_mmu_get_ul1_ttb_pa(void)
+static paddr_t core_mmu_get_ul1_ttb_pa(struct mmu_partition *prtn)
 {
-	paddr_t pa = virt_to_phys((void *)core_mmu_get_ul1_ttb_va());
+	paddr_t pa = virt_to_phys((void *)core_mmu_get_ul1_ttb_va(prtn));
 
 	if (pa & ~TTB_UL1_MASK)
 		panic("invalid user l1 table");
 	return pa;
 }
 
-static void *core_mmu_alloc_l2(size_t size)
+static void *core_mmu_alloc_l2(struct mmu_partition *prtn, size_t size)
 {
-	/* Can't have this in .bss since it's not initialized yet */
-	static uint32_t tables_used;
 	uint32_t to_alloc = ROUNDUP(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE) /
 		(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
 
-	DMSG("L2 table used: %d/%d", tables_used + to_alloc, MAX_XLAT_TABLES);
-	if (tables_used + to_alloc > MAX_XLAT_TABLES)
+	DMSG("L2 table used: %d/%d", prtn->tables_used + to_alloc,
+	     MAX_XLAT_TABLES);
+	if (prtn->tables_used + to_alloc > MAX_XLAT_TABLES)
 		return NULL;
 
-	memset(main_mmu_l2_ttb[tables_used], 0,
-		sizeof(main_mmu_l2_ttb[0]) * to_alloc);
-	tables_used += to_alloc;
-	return main_mmu_l2_ttb[tables_used - to_alloc];
+	memset(prtn->l2_tables[prtn->tables_used], 0,
+		sizeof(l2_xlat_tbl_t) * to_alloc);
+	prtn->tables_used += to_alloc;
+	return prtn->l2_tables[prtn->tables_used - to_alloc];
 }
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
@@ -457,7 +493,7 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 
 void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 {
-	void *tbl = (void *)core_mmu_get_ul1_ttb_va();
+	void *tbl = (void *)core_mmu_get_ul1_ttb_va(get_prtn());
 
 	core_mmu_set_info_table(pgd_info, 1, 0, tbl);
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
@@ -473,15 +509,21 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	core_mmu_get_user_pgdir(&dir_info);
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
 	core_mmu_populate_user_map(&dir_info, utc);
-	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
+	map->ttbr0 = core_mmu_get_ul1_ttb_pa(get_prtn()) |
+		     TEE_MMU_DEFAULT_ATTRS;
 	map->ctxid = utc->vm_info->asid;
 }
 
-bool core_mmu_find_table(vaddr_t va, unsigned max_level,
-		struct core_mmu_table_info *tbl_info)
+bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
+			 unsigned max_level,
+			 struct core_mmu_table_info *tbl_info)
 {
-	uint32_t *tbl = (uint32_t *)core_mmu_get_main_ttb_va();
+	uint32_t *tbl;
 	unsigned n = va >> SECTION_SHIFT;
+
+	if (!prtn)
+		prtn = get_prtn();
+	tbl = (uint32_t *)core_mmu_get_main_ttb_va(prtn);
 
 	if (max_level == 1 || (tbl[n] & 0x3) != 0x1) {
 		core_mmu_set_info_table(tbl_info, 1, 0, tbl);
@@ -566,7 +608,9 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	if (attr && secure != (bool)(attr & TEE_MATTR_SECURE))
 		return false;
 
-	new_table = core_mmu_alloc_l2(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	new_table = core_mmu_alloc_l2(get_prtn(),
+				      NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+
 	if (!new_table)
 		return false;
 
@@ -698,9 +742,9 @@ void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
 	}
 }
 
-void core_init_mmu_tables(struct tee_mmap_region *mm)
+void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
-	void *ttb1 = (void *)core_mmu_get_main_ttb_va();
+	void *ttb1 = (void *)core_mmu_get_main_ttb_va(prtn);
 	size_t n;
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
@@ -716,7 +760,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			core_mmu_map_region(mm + n);
+			core_mmu_map_region(prtn, mm + n);
 }
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
@@ -724,11 +768,24 @@ bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
 	return paddr > 0x80000000;
 }
 
+void core_init_mmu(struct tee_mmap_region *mm)
+{
+#ifdef CFG_VIRTUALIZATION
+	size_t n;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		current_prtn[n] = &default_partition;
+#endif
+
+	/* Initialize default pagetables */
+	core_init_mmu_prtn(&default_partition, mm);
+}
+
 void core_init_mmu_regs(void)
 {
 	uint32_t prrr;
 	uint32_t nmrr;
-	paddr_t ttb_pa = core_mmu_get_main_ttb_pa();
+	paddr_t ttb_pa = core_mmu_get_main_ttb_pa(&default_partition);
 
 	/* Enable Access flag (simplified access permissions) and TEX remap */
 	write_sctlr(read_sctlr() | SCTLR_AFE | SCTLR_TRE);

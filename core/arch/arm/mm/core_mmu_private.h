@@ -9,13 +9,14 @@
 #include <mm/tee_mmu_types.h>
 
 
-void core_init_mmu_tables(struct tee_mmap_region *mm);
+void core_init_mmu(struct tee_mmap_region *mm);
 
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 			     unsigned level, vaddr_t va_base, void *table);
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_ta_ctx *utc);
-void core_mmu_map_region(struct tee_mmap_region *mm);
+void core_mmu_map_region(struct mmu_partition *prtn,
+			 struct tee_mmap_region *mm);
 
 static inline bool core_mmap_is_end_of_table(const struct tee_mmap_region *mm)
 {
