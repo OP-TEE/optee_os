@@ -6,6 +6,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <bitstring.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
@@ -97,6 +98,18 @@ register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
+
+/*
+ * Two ASIDs per context, one for kernel mode and one for user mode. ASID 0
+ * and 1 are reserved and not used. This means a maximum of 126 loaded user
+ * mode contexts. This value can be increased but not beyond the maximum
+ * ASID, which is architecture dependent (max 255 for ARMv7-A and ARMv8-A
+ * Aarch32). This constant defines number of ASID pairs.
+ */
+#define MMU_NUM_ASID_PAIRS		64
+
+static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS);
+static unsigned int g_asid_spinlock = SPINLOCK_UNLOCK;
 
 static unsigned int mmu_spinlock;
 
@@ -1648,6 +1661,41 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	dsb_ishst();
 
 	return true;
+}
+
+unsigned int asid_alloc(void)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+	unsigned int r;
+	int i;
+
+	bit_ffc(g_asid, MMU_NUM_ASID_PAIRS, &i);
+	if (i == -1) {
+		r = 0;
+	} else {
+		bit_set(g_asid, i);
+		r = (i + 1) * 2;
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
+	return r;
+}
+
+void asid_free(unsigned int asid)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+
+	/* Only even ASIDs are supposed to be allocated */
+	assert(!(asid & 1));
+
+	if (asid) {
+		int i = (asid - 1) / 2;
+
+		assert(i < MMU_NUM_ASID_PAIRS && bit_test(g_asid, i));
+		bit_clear(g_asid, i);
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
 }
 
 static bool arm_va2pa_helper(void *va, paddr_t *pa)
