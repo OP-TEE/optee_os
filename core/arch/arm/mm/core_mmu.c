@@ -728,7 +728,7 @@ static void dump_xlat_table(vaddr_t va, int level)
 	paddr_t pa;
 	uint32_t attr;
 
-	core_mmu_find_table(va, level, &tbl_info);
+	core_mmu_find_table(NULL, va, level, &tbl_info);
 	va = tbl_info.va_base;
 	for (idx = 0; idx < tbl_info.num_entries; idx++) {
 		core_mmu_get_entry(&tbl_info, idx, &pa, &attr);
@@ -1032,7 +1032,7 @@ void core_init_mmu_map(void)
 		map++;
 	}
 
-	core_init_mmu_tables(static_memory_map);
+	core_init_mmu(static_memory_map);
 	dump_xlat_table(0x0, 1);
 }
 
@@ -1402,7 +1402,7 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 	return true;
 }
 
-void core_mmu_map_region(struct tee_mmap_region *mm)
+void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
 	struct core_mmu_table_info tbl_info;
 	unsigned int idx;
@@ -1421,7 +1421,7 @@ void core_mmu_map_region(struct tee_mmap_region *mm)
 		while (true) {
 			assert(level <= CORE_MMU_PGDIR_LEVEL);
 
-			table_found = core_mmu_find_table(vaddr, level,
+			table_found = core_mmu_find_table(prtn, vaddr, level,
 							  &tbl_info);
 			if (!table_found)
 				panic("can't find table for mapping");
@@ -1492,7 +1492,8 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 		}
 
 		while (true) {
-			if (!core_mmu_find_table(vaddr, UINT_MAX, &tbl_info))
+			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
+						 &tbl_info))
 				panic("Can't find pagetable for vaddr ");
 
 			idx = core_mmu_va2idx(&tbl_info, vaddr);
@@ -1550,7 +1551,7 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 		panic("Trying to unmap static region");
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
-		if (!core_mmu_find_table(vstart, UINT_MAX, &tbl_info))
+		if (!core_mmu_find_table(NULL, vstart, UINT_MAX, &tbl_info))
 			panic("Can't find pagetable");
 
 		if (tbl_info.shift != SMALL_PAGE_SHIFT)
@@ -1617,7 +1618,7 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (!map)
 		return false;
 
-	if (!core_mmu_find_table(map->va, UINT_MAX, &tbl_info))
+	if (!core_mmu_find_table(NULL, map->va, UINT_MAX, &tbl_info))
 		return false;
 
 	granule = 1 << tbl_info.shift;
