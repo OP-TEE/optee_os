@@ -94,6 +94,10 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
 register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
 #endif /*!CFG_CORE_RWDATA_NOEXEC*/
 
+#ifdef CFG_VIRTUALIZATION
+register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TZDRAM_BASE, TZDRAM_SIZE);
+#endif
+
 #if defined(CFG_CORE_SANITIZE_KADDRESS) && defined(CFG_WITH_PAGER)
 /* Asan ram is part of MEM_AREA_TEE_RAM_RW when pager is disabled */
 register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
@@ -627,6 +631,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RAM_NSEC:
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RAM_SEC:
+	case MEM_AREA_SEC_RAM_OVERALL:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RES_VASPACE:
 	case MEM_AREA_SHM_VASPACE:
@@ -1009,6 +1014,7 @@ void core_init_mmu_map(void)
 			if (!pbuf_is_inside(nsec_shared, map->pa, map->size))
 				panic("NS_SHM can't fit in nsec_shared");
 			break;
+		case MEM_AREA_SEC_RAM_OVERALL:
 		case MEM_AREA_TEE_COHERENT:
 		case MEM_AREA_TEE_ASAN:
 		case MEM_AREA_IO_SEC:
@@ -1914,7 +1920,8 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	default:
 		va = map_pa2va(find_map_by_type_and_pa(m, pa), pa);
 	}
-	check_va_matches_pa(pa, va);
+	if (m != MEM_AREA_SEC_RAM_OVERALL)
+		check_va_matches_pa(pa, va);
 	return va;
 }
 

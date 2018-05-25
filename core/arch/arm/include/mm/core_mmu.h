@@ -108,6 +108,7 @@
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
  * MEM_AREA_DDR_OVERALL: Overall DDR address range, candidate to dynamic shm.
+ * MEM_AREA_SEC_RAM_OVERALL: Whole secure RAM
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
@@ -131,6 +132,7 @@ enum teecore_memtypes {
 	MEM_AREA_PAGER_VASPACE,
 	MEM_AREA_SDP_MEM,
 	MEM_AREA_DDR_OVERALL,
+	MEM_AREA_SEC_RAM_OVERALL,
 	MEM_AREA_MAXTYPE
 };
 
@@ -156,7 +158,8 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
 		[MEM_AREA_PAGER_VASPACE] = "PAGER_VASPACE",
 		[MEM_AREA_SDP_MEM] = "SDP_MEM",
-		[MEM_AREA_DDR_OVERALL] = "DDR_OVERALL"
+		[MEM_AREA_DDR_OVERALL] = "DDR_OVERALL",
+		[MEM_AREA_SEC_RAM_OVERALL] = "SEC_RAM_OVERALL",
 	};
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(names) == MEM_AREA_MAXTYPE);
