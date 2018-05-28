@@ -89,3 +89,4 @@ build:
     - _make PLATFORM=sam
     - _make PLATFORM=marvell-armada7k8k
     - _make PLATFORM=marvell-armada3700
+    - _make PLATFORM=synquacer
