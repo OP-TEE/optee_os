@@ -57,6 +57,7 @@ The **Maintained?** column shows:
 |----------|-------------------------|---------------------|-------------|
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Atmel ATSAMA5D2-XULT Board](http://www.atmel.com/tools/atsama5d2-xult.aspx)|`PLATFORM=sam`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [DeveloperBox (Socionext Synquacer SC2A11)](https://www.96boards.org/product/developerbox/)|`PLATFORM=synquacer`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [NXP ls1043ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1043a-reference-design-board:LS1043A-RDB)|`PLATFORM=ls-ls1043ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [NXP ls1046ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1046a-reference-design-board:LS1046A-RDB)|`PLATFORM=ls-ls1046ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
