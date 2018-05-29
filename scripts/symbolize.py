@@ -329,6 +329,13 @@ class Symbolizer(object):
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
 
+
+    def pretty_print_path(self, path):
+        if self._strip_path:
+            return re.sub(re.escape(self._strip_path) + '/*', '', path)
+        return path
+
+
     def write(self, line):
             if self._call_stack_found:
                 match = re.search(STACK_ADDR_RE, line)
@@ -339,9 +346,7 @@ class Symbolizer(object):
                     self._out.write(line[:pre])
                     self._out.write(addr)
                     res = self.resolve(addr)
-                    if self._strip_path:
-                        res = re.sub(re.escape(self._strip_path) + '/*', '',
-                                     res)
+                    res = self.pretty_print_path(res)
                     self._out.write(' ' + res)
                     self._out.write(line[post:])
                     return
@@ -385,7 +390,13 @@ class Symbolizer(object):
                     for k in self._elfs:
                         e = self._elfs[k]
                         if (len(e) >= 3):
-                            self._out.write(e[2])
+                            self._out.write(e[2].strip())
+                        elf = self.get_elf(e[0])
+                        if elf:
+                            rpath = os.path.realpath(elf)
+                            path = self.pretty_print_path(rpath)
+                            self._out.write(' (' + path + ')')
+                        self._out.write('\n')
                 # Here is a good place to resolve the abort address because we
                 # have all the information we need
                 if self._saved_abort_line:
