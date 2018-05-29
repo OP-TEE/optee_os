@@ -48,27 +48,36 @@ base-prefix := $(sm)-
 
 libname = utils
 libdir = lib/libutils
+libuuid = 71855bba-6055-4293-a63f-b0963a737360
 include mk/lib.mk
 
 CFG_TA_MBEDTLS_MPI ?= y
 ifeq ($(CFG_TA_MBEDTLS_MPI),y)
+mplib-for-utee = mbedtls
 $(call force,CFG_TA_MBEDTLS,y)
 else
+mplib-for-utee = mpa
 libname = mpa
 libdir = lib/libmpa
+libuuid = 39b498d9-1e1f-4ae0-a9e1-6d1caf8ec731
+libl = utils
 include mk/lib.mk
 endif
-
-libname = utee
-libdir = lib/libutee
-include mk/lib.mk
 
 ifeq ($(CFG_TA_MBEDTLS),y)
 libname = mbedtls
 libdir = lib/libmbedtls
+libuuid = 87bb6ae8-4b1d-49fe-9986-2b966132c309
+libl = utils
 include mk/lib.mk
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 endif
+
+libname = utee
+libdir = lib/libutee
+libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
+libl = $(mplib-for-utee) utils
+include mk/lib.mk
 
 base-prefix :=
 
@@ -92,7 +101,7 @@ $2/$$(notdir $1): $1
 	@set -e; \
 	mkdir -p $$(dir $$@) ; \
 	$(cmd-echo-silent) '  INSTALL $$@' ; \
-	cp $$< $$@
+	cp -P $$< $$@
 
 cleanfiles += $2/$$(notdir $1)
 ta_dev_kit: $2/$$(notdir $1)
