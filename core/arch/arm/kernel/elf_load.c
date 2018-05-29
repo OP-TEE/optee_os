@@ -401,6 +401,12 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 
 			*where += vabase + sym_tab[sym_idx].st_value;
 			break;
+		case R_ARM_REL32:
+			sym_idx = ELF32_R_SYM(rel->r_info);
+			if (sym_idx >= num_syms)
+				return TEE_ERROR_BAD_FORMAT;
+			*where += sym_tab[sym_idx].st_value - rel->r_offset;
+			break;
 		case R_ARM_RELATIVE:
 			*where += vabase;
 			break;
