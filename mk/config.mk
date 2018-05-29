@@ -346,6 +346,16 @@ $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif
 
+# Build libutee, libutils, libmpa/libmbedtls as shared libraries.
+# - Static libraries are still generated when this is enabled, but TAs will use
+# the shared libraries unless explicitly linked with the -static flag.
+# - Shared libraries are made of two files: for example, libutee is
+#   libutee.so and 527f1a47-b92c-4a74-95bd-72f19f4a6f74.ta. The '.so' file
+#   is a totally standard shared object, and should be used to link against.
+#   The '.ta' file is a signed version of the '.so' and should be installed
+#   in the same way as TAs so that they can be found at runtime.
+CFG_ULIBS_SHARED ?= n
+
 # CFG_GP_SOCKETS
 # Enable Global Platform Sockets support
 CFG_GP_SOCKETS ?= y
