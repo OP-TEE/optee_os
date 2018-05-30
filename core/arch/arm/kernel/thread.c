@@ -18,6 +18,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
+#include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -170,7 +171,7 @@ static void init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#ifndef CFG_WITH_PAGER
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
 	INIT_CANARY(stack_thread);
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -201,7 +202,7 @@ void thread_check_canaries(void)
 			CANARY_DIED(stack_abt, end, n);
 
 	}
-#ifndef CFG_WITH_PAGER
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
 		if (GET_START_CANARY(stack_thread, n) != START_CANARY_VALUE)
 			CANARY_DIED(stack_thread, start, n);
@@ -553,8 +554,22 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
+
+#ifdef CFG_VIRTUALIZATION
+	if (!virt_set_guest(args->a7)) {
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+		goto out;
+	}
+#endif
+
 	thread_fast_smc_handler_ptr(args);
+
+#ifdef CFG_VIRTUALIZATION
+	virt_unset_guest();
+#endif
 	/* Fast handlers must not unmask any exceptions */
+out:
+	__maybe_unused;
 	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
@@ -562,10 +577,22 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
+#ifdef CFG_VIRTUALIZATION
+	if (!virt_set_guest(args->a7)) {
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+		return;
+	}
+#endif
+
 	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC)
 		thread_resume_from_rpc(args);
 	else
 		thread_alloc_and_run(args);
+
+#ifdef CFG_VIRTUALIZATION
+	virt_unset_guest();
+#endif
+
 }
 
 /**
@@ -593,6 +620,9 @@ static void thread_rpc_free_arg(uint64_t cookie)
  */
 void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 {
+#ifdef CFG_VIRTUALIZATION
+	virt_on_stdcall();
+#endif
 	thread_std_smc_handler_ptr(args);
 
 	if (args->a0 == OPTEE_SMC_RETURN_OK) {
@@ -691,6 +721,9 @@ void thread_state_free(void)
 	threads[ct].flags = 0;
 	l->curr_thread = -1;
 
+#ifdef CFG_VIRTUALIZATION
+	virt_unset_guest();
+#endif
 	unlock_global();
 }
 
@@ -754,6 +787,10 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	}
 
 	l->curr_thread = -1;
+
+#ifdef CFG_VIRTUALIZATION
+	virt_unset_guest();
+#endif
 
 	unlock_global();
 
