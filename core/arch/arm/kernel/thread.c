@@ -91,7 +91,7 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 linkage uint32_t name[num_stacks] \
 		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
 		sizeof(uint32_t)] \
-		__attribute__((section(".nozi_stack"), \
+		__attribute__((section(".nozi_stack." # name), \
 			       aligned(STACK_ALIGNMENT)))
 
 #define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)
