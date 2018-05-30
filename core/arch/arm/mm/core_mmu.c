@@ -11,6 +11,7 @@
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
+#include <kernel/virtualization.h>
 #include <kernel/spinlock.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/tee_l2cc_mutex.h>
@@ -1985,5 +1986,12 @@ bool is_unpaged(void *va)
 bool is_unpaged(void *va __unused)
 {
 	return true;
+}
+#endif
+
+#ifdef CFG_VIRTUALIZATION
+void core_mmu_init_virtualization(void)
+{
+	virt_init_memory(static_memory_map);
 }
 #endif
