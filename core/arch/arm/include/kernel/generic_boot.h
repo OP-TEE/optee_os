@@ -26,6 +26,7 @@ void main_init_gic(void);
 void main_secondary_init_gic(void);
 
 void init_sec_mon(unsigned long nsec_entry);
+void init_tee_runtime(void);
 
 const struct thread_handlers *generic_boot_get_handlers(void);
 
