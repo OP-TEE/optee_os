@@ -347,8 +347,6 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	tee_pager_early_init();
 
-	thread_init_boot_thread();
-
 	init_asan();
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
@@ -461,14 +459,20 @@ static void init_runtime(unsigned long pageable_part)
 
 static void init_runtime(unsigned long pageable_part __unused)
 {
-	thread_init_boot_thread();
-
 	init_asan();
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 
+	/*
+	 * By default whole OP-TEE uses malloc, so we need to initialize
+	 * it early. But, when virtualization is enabled, malloc is used
+	 * only by TEE runtime, so malloc should be initialized later, for
+	 * every virtual partition separately. Core code uses nex_malloc
+	 * instead.
+	 */
 #ifdef CFG_VIRTUALIZATION
 	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
 					      __nex_heap_start);
+#else
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 #endif
 
 	IMSG_RAW("\n");
@@ -1002,6 +1006,11 @@ static void discover_nsec_memory(void)
 
 void init_tee_runtime(void)
 {
+#ifdef CFG_VIRTUALIZATION
+	/* We need to initialize pool for every virtual guest partition */
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+#endif
+
 #ifndef CFG_WITH_PAGER
 	/* Pager initializes TA RAM early */
 	teecore_init_ta_ram();
@@ -1025,6 +1034,9 @@ static void init_primary_helper(unsigned long pageable_part,
 	init_vfp_sec();
 	init_runtime(pageable_part);
 
+#ifndef CFG_VIRTUALIZATION
+	thread_init_boot_thread();
+#endif
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
@@ -1037,8 +1049,14 @@ static void init_primary_helper(unsigned long pageable_part,
 
 	main_init_gic();
 	init_vfp_nsec();
+#ifndef CFG_VIRTUALIZATION
 	init_tee_runtime();
+#endif
 	release_external_dt();
+#ifdef CFG_VIRTUALIZATION
+	IMSG("Initializing virtualization support\n");
+	core_mmu_init_virtualization();
+#endif
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 
