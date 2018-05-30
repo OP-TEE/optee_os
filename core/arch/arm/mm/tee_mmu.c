@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <kernel/virtualization.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
@@ -841,7 +842,11 @@ void teecore_init_ta_ram(void)
 
 	/* get virtual addr/size of RAM where TA are loaded/executedNSec
 	 * shared mem allcated from teecore */
+#ifndef CFG_VIRTUALIZATION
 	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
+#else
+	virt_get_ta_ram(&s, &e);
+#endif
 	ps = virt_to_phys((void *)s);
 	pe = virt_to_phys((void *)(e - 1)) + 1;
 
