@@ -167,7 +167,9 @@ clear_nex_bss:
 	 * next entry. Matches the thread_init_boot_thread in
 	 * generic_boot.c.
 	 */
+#ifndef CFG_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
+#endif
 
 	/* Pass the vector address returned from main_init */
 	mov	x1, x19
