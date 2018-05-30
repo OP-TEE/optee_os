@@ -412,5 +412,8 @@ CFG_VIRTUALIZATION ?= n
 ifeq ($(CFG_VIRTUALIZATION),y)
 $(call force,CFG_CORE_RODATA_NOEXEC,y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
+
+# Default number of virtual guests
+CFG_VIRT_GUEST_COUNT ?= 2
 endif
 

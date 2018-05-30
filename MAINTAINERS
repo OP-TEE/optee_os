@@ -157,6 +157,11 @@ Xilinx Zynq UltraScale+ MPSOC
 S:	Orphan
 F:	core/arch/arm/plat-zynqmp/
 
+Virtualization support
+R:	Volodymyr Babchuk <vlad.babchuk@gmail.com>
+S:	Maintained
+F:	core/arch/arm/kernel/virtualization.c
+
 THE REST
 M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
