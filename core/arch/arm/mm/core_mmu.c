@@ -83,10 +83,14 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
 		     VCORE_UNPG_RX_PA - TEE_RAM_START);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA, VCORE_UNPG_RX_SZ);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA, VCORE_UNPG_RO_SZ);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
+
 #ifdef CFG_VIRTUALIZATION
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
 register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA, VCORE_NEX_RW_SZ);
+#else
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
 #endif
+
 #ifdef CFG_WITH_PAGER
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA, VCORE_INIT_RX_SZ);
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
@@ -104,7 +108,10 @@ register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TZDRAM_BASE, TZDRAM_SIZE);
 register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 #endif
 
+#ifndef CFG_VIRTUALIZATION
+/* Every guest will have own TA RAM if virtualization support is enabled */
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
+#endif
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
 
 /*
@@ -1821,6 +1828,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		return;
 	}
 #endif
+
+#ifndef CFG_VIRTUALIZATION
 	if (!core_va2pa_helper(va, &p)) {
 		/* Verfiy only the static mapping (case non null phys addr) */
 		if (p && pa != p) {
@@ -1834,6 +1843,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			panic();
 		}
 	}
+#endif
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
