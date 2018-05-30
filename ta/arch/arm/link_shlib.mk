@@ -38,7 +38,7 @@ $(link-out-dir)/$(shlibname).stripped.so: $(link-out-dir)/$(shlibname).so
 
 $(link-out-dir)/$(shlibuuid).elf: $(link-out-dir)/$(shlibname).so
 	@$(cmd-echo-silent) '  LN      $@'
-	$(q)ln -s $< $@
+	$(q)ln -sf $< $@
 
 $(link-out-dir)/$(shlibuuid).ta: $(link-out-dir)/$(shlibname).stripped.so \
 				$(TA_SIGN_KEY)
