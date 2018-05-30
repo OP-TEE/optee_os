@@ -130,6 +130,18 @@ static void mmu_unlock(uint32_t exceptions)
 	cpu_spin_unlock_xrestore(&mmu_spinlock, exceptions);
 }
 
+static struct tee_mmap_region *get_memory_map(void)
+{
+#ifdef CFG_VIRTUALIZATION
+	struct tee_mmap_region *map = virt_get_memory_map();
+
+	if (map)
+		return map;
+#endif
+	return static_memory_map;
+
+}
+
 static bool _pbuf_intersects(struct memaccess_area *a, size_t alen,
 			     paddr_t pa, size_t size)
 {
@@ -181,7 +193,7 @@ static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
 {
 	struct tee_mmap_region *map;
 
-	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++)
+	for (map = get_memory_map(); !core_mmap_is_end_of_table(map); map++)
 		if (map->type == type)
 			return map;
 	return NULL;
@@ -192,7 +204,7 @@ static struct tee_mmap_region *find_map_by_type_and_pa(
 {
 	struct tee_mmap_region *map;
 
-	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
+	for (map = get_memory_map(); !core_mmap_is_end_of_table(map); map++) {
 		if (map->type != type)
 			continue;
 		if (pa_is_in_map(map, pa))
@@ -203,7 +215,7 @@ static struct tee_mmap_region *find_map_by_type_and_pa(
 
 static struct tee_mmap_region *find_map_by_va(void *va)
 {
-	struct tee_mmap_region *map = static_memory_map;
+	struct tee_mmap_region *map = get_memory_map();
 	unsigned long a = (unsigned long)va;
 
 	while (!core_mmap_is_end_of_table(map)) {
@@ -216,7 +228,7 @@ static struct tee_mmap_region *find_map_by_va(void *va)
 
 static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 {
-	struct tee_mmap_region *map = static_memory_map;
+	struct tee_mmap_region *map = get_memory_map();
 
 	while (!core_mmap_is_end_of_table(map)) {
 		if ((pa >= map->pa) && (pa < (map->pa + map->size)))
