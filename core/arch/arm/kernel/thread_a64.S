@@ -20,7 +20,7 @@
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
 		ldr	w\tmp0, [\core_local, \
 				#THREAD_CORE_LOCAL_CURR_THREAD]
-		adr	x\res, threads
+		ldr	x\res, =threads
 		mov	x\tmp1, #THREAD_CTX_SIZE
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
@@ -229,13 +229,21 @@ FUNC thread_rpc , :
 	str	x2, [x19, #THREAD_CTX_REGS_SP]
 	ldr	x20, [sp]	/* Get pointer to rv[] */
 	mov	sp, x0		/* Switch to tmp stack */
+	/*
+	 * We need to read rv[] early, because thread_state_suspend
+	 * can invoke virt_unset_guest() which will unmap pages,
+	 * where rv[] resides
+	 */
+	load_wregs x20, 0, 21, 23	/* Load rv[] into w20-w22 */
 
 	adr	x2, .thread_rpc_return
 	mov	w0, #THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	bl	thread_state_suspend
 	mov	x4, x0		/* Supply thread index */
 	ldr	w0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	load_wregs x20, 0, 1, 3	/* Load rv[] into w0-w2 */
+	mov	x1, x21
+	mov	x2, x22
+	mov	x3, x23
 	smc	#0
 	b	.		/* SMC should not return */
 
