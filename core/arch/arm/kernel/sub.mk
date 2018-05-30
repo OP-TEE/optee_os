@@ -56,6 +56,8 @@ srcs-y += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 
+srcs-$(CFG_VIRTUALIZATION) += virtualization.c
+
 srcs-y += link_dummies.c
 
 asm-defines-y += asm-defines.c
