@@ -471,11 +471,6 @@ static void init_runtime(unsigned long pageable_part __unused)
 					      __nex_heap_start);
 #endif
 
-	/*
-	 * Initialized at this stage in the pager version of this function
-	 * above
-	 */
-	teecore_init_ta_ram();
 	IMSG_RAW("\n");
 }
 #endif
@@ -1005,6 +1000,16 @@ static void discover_nsec_memory(void)
 	core_mmu_set_discovered_nsec_ddr(mem, nelems);
 }
 
+void init_tee_runtime(void)
+{
+#ifndef CFG_WITH_PAGER
+	/* Pager initializes TA RAM early */
+	teecore_init_ta_ram();
+#endif
+	if (init_teecore() != TEE_SUCCESS)
+		panic();
+}
+
 static void init_primary_helper(unsigned long pageable_part,
 				unsigned long nsec_entry, unsigned long fdt)
 {
@@ -1032,8 +1037,7 @@ static void init_primary_helper(unsigned long pageable_part,
 
 	main_init_gic();
 	init_vfp_nsec();
-	if (init_teecore() != TEE_SUCCESS)
-		panic();
+	init_tee_runtime();
 	release_external_dt();
 	DMSG("Primary CPU switching to normal world boot\n");
 }
