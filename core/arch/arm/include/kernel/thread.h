@@ -267,6 +267,13 @@ struct thread_core_local *thread_get_core_local(void);
 bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
 
 /*
+ * Initializes thread contexts. Called in thread_init_boot_thread() if
+ * virtualization is disabled. Virtualization subsystem calls it for
+ * every new guest otherwise.
+ */
+void thread_init_threads(void);
+
+/*
  * Initializes a thread to be used during boot
  */
 void thread_init_boot_thread(void);

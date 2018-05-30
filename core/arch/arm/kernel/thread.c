@@ -393,17 +393,8 @@ static void init_regs(struct thread_ctx *thread,
 void thread_init_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
-	size_t n;
 
-	mutex_lockdep_init();
-
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		TAILQ_INIT(&threads[n].tsd.sess_stack);
-		SLIST_INIT(&threads[n].tsd.pgt_cache);
-	}
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		thread_core_local[n].curr_thread = -1;
+	thread_init_threads();
 
 	l->curr_thread = 0;
 	threads[0].state = THREAD_STATE_ACTIVE;
@@ -916,15 +907,30 @@ static void init_user_kcode(void)
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 }
 
+void thread_init_threads(void)
+{
+	size_t n;
+
+	init_thread_stacks();
+	pgt_init();
+
+	mutex_lockdep_init();
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		TAILQ_INIT(&threads[n].tsd.sess_stack);
+		SLIST_INIT(&threads[n].tsd.pgt_cache);
+	}
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		thread_core_local[n].curr_thread = -1;
+}
+
 void thread_init_primary(const struct thread_handlers *handlers)
 {
 	init_handlers(handlers);
 
 	/* Initialize canaries around the stacks */
 	init_canaries();
-
-	init_thread_stacks();
-	pgt_init();
 
 	init_user_kcode();
 }
