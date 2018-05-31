@@ -29,6 +29,7 @@ ta-mk-file-export-vars-$(sm) += CFG_SECURE_DATA_PATH
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_SELF_TEST
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
+ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
