@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <ctype.h>
+#include <initcall.h>
 #include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -96,8 +97,6 @@ static struct user_ta_elf *ta_elf(const TEE_UUID *uuid,
 out:
 	return elf;
 }
-
-static void set_ta_ctx_ops(struct tee_ta_ctx *ctx);
 
 static uint32_t elf_flags_to_mattr(uint32_t flags)
 {
@@ -502,14 +501,28 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 static SLIST_HEAD(uta_stores_head, user_ta_store_ops) uta_store_list =
 		SLIST_HEAD_INITIALIZER(uta_stores_head);
 
+/*
+ * Break unpaged attribute dependency propagation to user_ta_ops structure
+ * content thanks to a runtime initialization of the ops reference.
+ */
+static struct tee_ta_ops const *_user_ta_ops;
+
+static TEE_Result init_user_ta(void)
+{
+	_user_ta_ops = &user_ta_ops;
+
+	return TEE_SUCCESS;
+}
+service_init(init_user_ta);
+
 static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 {
-	ctx->ops = &user_ta_ops;
+	ctx->ops = _user_ta_ops;
 }
 
 bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	return ctx->ops == &user_ta_ops;
+	return ctx->ops == _user_ta_ops;
 }
 
 TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
