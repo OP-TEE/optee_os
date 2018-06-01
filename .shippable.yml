@@ -15,7 +15,7 @@ build:
     - export CFG_DEBUG_INFO=n; export CCACHE_UNIFY=true
     # No parallel build ('make -j$(getconf _NPROCESSORS_ONLN)') due to:
     # https://github.com/Shippable/support/issues/3953
-    - function _make() { make -s $* && ccache -s && ccache -z; }
+    - function _make() { make -s O=out $* && ccache -s && ccache -z; }
     - ccache -z
 
     - _make
