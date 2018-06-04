@@ -13,22 +13,21 @@ endif
 
 ifeq ($(PLATFORM_FLAVOR),dra7xx)
 include core/arch/arm/cpu/cortex-a15.mk
-CFG_TEE_CORE_NB_CORE = 2
+$(call force,CFG_TEE_CORE_NB_CORE,2)
 CFG_OTP_SUPPORT ?= y
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 endif #dra7xx
 
 ifeq ($(PLATFORM_FLAVOR),am57xx)
 include core/arch/arm/cpu/cortex-a15.mk
-CFG_TEE_CORE_NB_CORE = 2
+$(call force,CFG_TEE_CORE_NB_CORE,2)
 CFG_OTP_SUPPORT ?= y
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 endif #am57xx
 
 ifeq ($(PLATFORM_FLAVOR),am43xx)
 include core/arch/arm/cpu/cortex-a9.mk
-CFG_TEE_CORE_NB_CORE = 1
-
+$(call force, CFG_TEE_CORE_NB_CORE,1)
 CFG_WITH_SOFTWARE_PRNG = y
 $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)

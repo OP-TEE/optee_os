@@ -2,7 +2,7 @@ PLATFORM_FLAVOR ?= rk322x
 
 ifeq ($(PLATFORM_FLAVOR),rk322x)
 include ./core/arch/arm/cpu/cortex-a7.mk
-CFG_TEE_CORE_NB_CORE = 4
+$(call force,CFG_TEE_CORE_NB_CORE,4)
 endif
 
 $(call force,CFG_GENERIC_BOOT,y)

@@ -37,7 +37,7 @@ CFG_DDR_SIZE ?= 0x40000000
 CFG_DT ?= y
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_PSCI_ARM32 ?= y
-CFG_TEE_CORE_NB_CORE ?= 2
+$(call force,CFG_TEE_CORE_NB_CORE,2)
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx7swarp7))
@@ -45,7 +45,7 @@ CFG_DDR_SIZE ?= 0x20000000
 CFG_DT ?= y
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_PSCI_ARM32 ?= y
-CFG_TEE_CORE_NB_CORE ?= 1
+$(call force,CFG_TEE_CORE_NB_CORE,1)
 endif
 
 # Common i.MX6 config
@@ -126,7 +126,7 @@ CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_PSCI_ARM32 ?= y
 CFG_BOOT_SYNC_CPU = n
 CFG_BOOT_SECONDARY_REQUEST = n
-CFG_TEE_CORE_NB_CORE ?= 1
+$(call force,CFG_TEE_CORE_NB_CORE,1)
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)

@@ -2,8 +2,7 @@ PLATFORM_FLAVOR ?= zc702
 
 include core/arch/arm/cpu/cortex-a9.mk
 
-CFG_TEE_CORE_NB_CORE = 2
-
+$(call force,CFG_TEE_CORE_NB_CORE,2)
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
