@@ -731,22 +731,6 @@ struct tee_ta_session *tee_ta_get_calling_session(void)
 	return s;
 }
 
-TEE_Result tee_ta_get_client_id(TEE_Identity *id)
-{
-	TEE_Result res;
-	struct tee_ta_session *sess;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	if (id == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	*id = sess->clnt_id;
-	return TEE_SUCCESS;
-}
-
 /*
  * dump_state - Display TA state as an error log.
  */

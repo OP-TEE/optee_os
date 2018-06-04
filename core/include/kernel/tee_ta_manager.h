@@ -149,8 +149,6 @@ struct tee_ta_session *tee_ta_pop_current_session(void);
 
 struct tee_ta_session *tee_ta_get_calling_session(void);
 
-TEE_Result tee_ta_get_client_id(TEE_Identity *id);
-
 struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 			struct tee_ta_session_head *open_sessions);
 
