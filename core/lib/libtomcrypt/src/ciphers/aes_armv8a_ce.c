@@ -279,18 +279,6 @@ static int aes_cbc_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 	return CRYPT_OK;
 }
 
-/* Increment 128-bit counter */
-static void increment_ctr(unsigned char *val)
-{
-	int i;
-
-	for (i = 15; i >= 0; i--) {
-		val[i] = (val[i] + 1) & 0xff;
-		if (val[i])
-			break;
-	}
-}
-
 static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 				   unsigned long blocks, unsigned char *IV,
 				   int mode, symmetric_key *skey)
@@ -312,7 +300,6 @@ static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 	Nr = skey->rijndael.Nr;
 	rk = (u8 *)skey->rijndael.eK;
 
-	increment_ctr(IV);
 	tomcrypt_arm_neon_enable(&state);
 	ce_aes_ctr_encrypt(ct, pt, rk, Nr, blocks, IV, 1);
 	tomcrypt_arm_neon_disable(&state);

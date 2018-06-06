@@ -276,11 +276,6 @@ ce_aes_cbc_decrypt:
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		   int blocks, u8 ctr[])
 	 */
-	/*
-	 * Note: ctr is not incremented before first block is encrypted. It is
-	 * not incremented either after the last block is done. The value used
-	 * for the last block is copied on return.
-	 */
 	.global		ce_aes_ctr_encrypt
 	.type		ce_aes_ctr_encrypt, %function
 ce_aes_ctr_encrypt:
@@ -290,8 +285,7 @@ ce_aes_ctr_encrypt:
 	prepare_key	r2, r3
 	vmov		r6, s27			@ keep swabbed ctr in r6
 	rev		r6, r6
-	sub		r7, r4, #1		@ times ctr will be incremented
-	cmn		r6, r7			@ 32 bit overflow?
+	cmn		r6, r4			@ 32 bit overflow?
 	bcs		.Lctrloop
 .Lctrloop3x:
 	subs		r4, r4, #3
@@ -324,11 +318,10 @@ ce_aes_ctr_encrypt:
 	vmov		q0, q6
 	bl		aes_encrypt
 	subs		r4, r4, #1
-	bmi		.Lctrhalfblock		@ blocks < 0 means 1/2 block
+	bmi		.Lctrtailblock		@ blocks < 0 means tail block
 	vld1.8		{q3}, [r1]!
 	veor		q3, q0, q3
 	vst1.8		{q3}, [r0]!
-	beq		.Lctrout
 
 	adds		r6, r6, #1		@ increment BE ctr
 	rev		ip, r6
@@ -340,10 +333,8 @@ ce_aes_ctr_encrypt:
 	vst1.8		{q6}, [r5]
 	pop		{r4-r6, pc}
 
-.Lctrhalfblock:
-	vld1.8		{d1}, [r1]
-	veor		d0, d0, d1
-	vst1.8		{d0}, [r0]
+.Lctrtailblock:
+	vst1.8		{q0}, [r0, :64]		@ return just the key stream
 	pop		{r4-r6, pc}
 
 .Lctrcarry:
