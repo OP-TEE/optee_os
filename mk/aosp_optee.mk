@@ -86,6 +86,11 @@ $(LOCAL_PREBUILT_MODULE_FILE): $(TA_TMP_FILE)
 	@mkdir -p $(dir $@)
 	cp -uvf $< $@
 
+TA_TMP_FILE_DEPS :=
+ifneq ($(local_module_deps), )
+$(foreach dep,$(local_module_deps), $(eval TA_TMP_FILE_DEPS += $(TARGET_OUT)/lib/optee_armtz/$(dep)))
+endif
+$(TA_TMP_FILE): $(TA_TMP_FILE_DEPS)
 $(TA_TMP_FILE): PRIVATE_TA_SRC_DIR := $(LOCAL_PATH)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_FILE := $(TA_TMP_FILE)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_DIR := $(TA_TMP_DIR)
@@ -97,4 +102,5 @@ $(TA_TMP_FILE): BUILD_OPTEE_OS
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 
 include $(BUILD_PREBUILT)
+local_module_deps :=
 endif
