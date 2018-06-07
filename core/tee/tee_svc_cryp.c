@@ -553,7 +553,7 @@ static TEE_Result op_attr_secret_value_to_user(void *attr,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (s < key->key_size)
+	if (s < key->key_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
 	return tee_svc_copy_to_user(buffer, key + 1, key->key_size);
@@ -649,7 +649,7 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 		return res;
 	if (!req_size)
 		return TEE_SUCCESS;
-	if (s < req_size)
+	if (s < req_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
 	/* Check we can access data using supplied user mode pointer */
@@ -758,7 +758,7 @@ static TEE_Result op_attr_value_to_user(void *attr,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (s < req_size)
+	if (s < req_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
 	return tee_svc_copy_to_user(buffer, value, req_size);
