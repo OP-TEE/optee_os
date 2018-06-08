@@ -96,7 +96,7 @@ script:
   - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
   # Run regression tests (xtest in QEMU)
-  - (cd ${HOME}/optee_repo/build && $make check COMPILE_LEGACY=y AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- LEGACY_AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && $make check COMPILE_LEGACY=y AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- LEGACY_AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
 
 env:
   global:
