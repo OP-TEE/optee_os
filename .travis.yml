@@ -35,35 +35,18 @@ before_script:
   # https://docs.travis-ci.com/user/ci-environment/
   - export make="make -j3 -s"
 
-  # Download  and build Git to be used by the checkpatch step
-  # The Travis container-based infrastructure runs Ubuntu 12.04 (Precise) which
-  # comes with git 1.8.5.6. The path exclusion syntax ':(exclude)' used below
-  # requires a more recent version.
-  - cd $HOME
-  - _download https://github.com/git/git/archive/v2.9.3.tar.gz git-2.9.3.tar.gz
-  - tar xf $DL_DIR/git-2.9.3.tar.gz
-  - $make -C git-2.9.3 CC="ccache gcc" NO_CURL=1
-
   # Tools required for QEMU tests
   # 'apt-get install' cannot be used in the new container-based infrastructure
   # (which is the only allowing caching), so we just build from sources
-  # bc is used during kernel configuration
-  - cd $HOME
-  - download http://ftp.gnu.org/gnu/bc/bc-1.06.tar.gz
-  - tar xf $DL_DIR/bc-1.06.tar.gz
-  - (cd bc-1.06 && CC="ccache gcc" ./configure --quiet && $make)
-  - export PATH=${HOME}/bc-1.06/bc:$PATH
-  # Tcl/Expect
-  - download http://prdownloads.sourceforge.net/tcl/tcl8.6.4-src.tar.gz
-  - tar xf $DL_DIR/tcl8.6.4-src.tar.gz
-  - (cd tcl8.6.4/unix && ./configure --quiet --prefix=${HOME}/inst CC="ccache gcc" && $make install)
+  # Expect
   - _download http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download expect5.45.tar.gz
   - tar xf $DL_DIR/expect5.45.tar.gz
-  - (cd expect5.45 && ./configure --quiet --with-tcl=${HOME}/inst/lib --prefix=${HOME}/inst CC="ccache gcc" && $make expect && $make install)
-  - export PATH=$HOME/inst/bin:$PATH
+  - (cd expect5.45 && ./configure --prefix=$HOME/inst --exec-prefix=$HOME/inst CC="ccache gcc" && make && $make install)
+  # Create a wrapper script, so that expect finds its shared library, without setting LD_LIBRARY_PATH globally (buildroot doesn't like it)
+  - mv $HOME/inst/bin/expect $HOME/inst/bin/expect.bin && printf '#!/bin/bash\nexport LD_LIBRARY_PATH=$HOME/inst/lib/expect5.45\n$HOME/inst/bin/expect.bin $*' >$HOME/inst/bin/expect && chmod +x $HOME/inst/bin/expect
+  - export PATH=$HOME/inst/bin:$PATH;
   # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
   - pip install --upgrade --user pycrypto
-  - pip install --upgrade --user wand
   # Clone repositories for the QEMU test environment
   - mkdir -p $HOME/bin
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
