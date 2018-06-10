@@ -85,6 +85,31 @@ static void tzc_write_region_attributes(vaddr_t base, uint32_t region,
 	write32(val, base + REGION_ATTRIBUTES_OFF(region));
 }
 
+void tzc_set_region_size(uint8_t region, uint32_t size)
+{
+	uint32_t val;
+
+	val = tzc_read_region_attributes(tzc.base, region);
+	val &= ~(TZC_REGION_SIZE_MASK);
+	val |= TZC_ATTR_REGION_SIZE(size);
+	tzc_write_region_attributes(tzc.base, region, val);
+}
+
+void tzc_set_region_attr(uint8_t region, uint16_t attr)
+{
+	uint32_t val;
+
+	val = tzc_read_region_attributes(tzc.base, region);
+	val &= ~(TZC_ATTR_SP_MASK);
+
+	if (attr == (TZC_SP_NS_W | TZC_SP_NS_R | TZC_SP_S_W | TZC_SP_S_R))
+		val |= TZC_ATTR_SP_ALL;
+	if (attr == (TZC_SP_S_W | TZC_SP_S_R))
+		val |=  TZC_ATTR_SP_S_RW;
+
+	tzc_write_region_attributes(tzc.base, region, val);
+}
+
 void tzc_init(vaddr_t base)
 {
 	uint32_t tzc_build;
@@ -170,7 +195,8 @@ static uint32_t addr_high(vaddr_t addr __maybe_unused)
  * `tzc_configure_region` is used to program regions into the TrustZone
  * controller.
  */
-void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr)
+void tzc_configure_region(uint8_t region, vaddr_t region_base,
+			  uint16_t attr, uint32_t size)
 {
 	assert(tzc.base);
 
@@ -185,10 +211,10 @@ void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr)
 					  addr_low(region_base));
 		tzc_write_region_base_high(tzc.base, region,
 					   addr_high(region_base));
-		tzc_write_region_attributes(tzc.base, region, attr);
+		tzc_set_region_size(region, size);
+		tzc_set_region_attr(region, attr);
 	} else {
-		tzc_write_region_attributes(tzc.base, region,
-					    attr & TZC_ATTR_SP_MASK);
+		tzc_set_region_attr(region, attr);
 	}
 }
 
