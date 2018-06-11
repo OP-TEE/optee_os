@@ -700,6 +700,7 @@ platform.
 <!-- ${PLATFORM}-${PLATFORM_FLAVOR}, ordered alphabetically -->
 * d02: extended
 * hikey: extended
+* imx-mx6qnitrogen6x: standard
 * imx-mx6qsabrelite: standard
 * imx-mx6qsabresd: standard
 * rcar-h3: standard, pass except issues [#1092][issue1092] and [#1093][issue1093]

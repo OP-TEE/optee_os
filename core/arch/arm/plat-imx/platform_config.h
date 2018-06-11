@@ -63,7 +63,8 @@
 
 
 /* Board specific console UART */
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite)
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
+	defined(PLATFORM_FLAVOR_mx6qnitrogen6x)
 #define CONSOLE_UART_BASE		UART2_BASE
 #endif
 #if defined(PLATFORM_FLAVOR_mx6qsabresd)
@@ -74,9 +75,10 @@
 #endif
 
 /* Board specific RAM size */
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
-	defined(PLATFORM_FLAVOR_mx6qsabresd) || \
-	defined(PLATFORM_FLAVOR_mx6dlsabresd)
+#if defined(PLATFORM_FLAVOR_mx6qsabrelite)    || \
+	defined(PLATFORM_FLAVOR_mx6qsabresd)  || \
+	defined(PLATFORM_FLAVOR_mx6dlsabresd) || \
+	defined(PLATFORM_FLAVOR_mx6qnitrogen6x)
 #define DRAM0_SIZE			0x40000000
 #endif
 

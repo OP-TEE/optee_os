@@ -91,6 +91,12 @@ R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
 
+NXP (Freescale) i.MX6 Quad Nitrogen6X
+R:	Amit Singh Tomar <amittomer25@gmail.com>
+S:	Maintained
+F:	core/arch/arm/plat-imx/
+
+
 NXP (Freescale) i.MX7 WaRP7
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org> [@bryanodonoghue]

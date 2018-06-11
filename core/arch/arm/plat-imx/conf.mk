@@ -3,7 +3,7 @@ PLATFORM_FLAVOR ?= mx6ulevk
 # Get SoC associated with the PLATFORM_FLAVOR
 mx6ul-flavorlist = mx6ulevk
 mx6ull-flavorlist = mx6ullevk
-mx6q-flavorlist = mx6qsabrelite mx6qsabresd
+mx6q-flavorlist = mx6qsabrelite mx6qsabresd mx6qnitrogen6x
 mx6sx-flavorlist = mx6sxsabreauto
 mx6d-flavorlist =
 mx6dl-flavorlist = mx6dlsabresd

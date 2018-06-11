@@ -59,6 +59,7 @@ build:
     - _make PLATFORM=imx-mx6qsabrelite
     - _make PLATFORM=imx-mx6qsabresd
     - _make PLATFORM=imx-mx6dlsabresd
+    - _make PLATFORM=imx-mx6qnitrogen6x
     - _make PLATFORM=imx-mx7dsabresd
     - _make PLATFORM=ti-dra7xx
     - _make PLATFORM=ti-am57xx
