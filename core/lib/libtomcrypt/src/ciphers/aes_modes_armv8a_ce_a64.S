@@ -329,55 +329,61 @@ ENDPROC(ce_aes_ecb_decrypt)
 
 	/*
 	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[], int first)
+	 *		   int blocks, u8 iv[])
 	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[], int first)
+	 *		   int blocks, u8 iv[])
 	 */
 
 ENTRY(ce_aes_cbc_encrypt)
-	cbz		w6, .Lcbcencloop
+	ld1		{v4.16b}, [x5]			/* get iv */
+	enc_prepare	w3, x2, x6
 
-	ld1		{v0.16b}, [x5]			/* get iv */
-	enc_prepare	w3, x2, x5
-
+.Lcbcencloop4x:
+	subs		w4, w4, #4
+	bmi		.Lcbcenc1x
+	ld1		{v0.16b-v3.16b}, [x1], #64	/* get 4 pt blocks */
+	eor		v0.16b, v0.16b, v4.16b		/* ..and xor with iv */
+	encrypt_block	v0, w3, x2, x6, w7
+	eor		v1.16b, v1.16b, v0.16b
+	encrypt_block	v1, w3, x2, x6, w7
+	eor		v2.16b, v2.16b, v1.16b
+	encrypt_block	v2, w3, x2, x6, w7
+	eor		v3.16b, v3.16b, v2.16b
+	encrypt_block	v3, w3, x2, x6, w7
+	st1		{v0.16b-v3.16b}, [x0], #64
+	mov		v4.16b, v3.16b
+	b		.Lcbcencloop4x
+.Lcbcenc1x:
+	adds		w4, w4, #4
+	beq		.Lcbcencout
 .Lcbcencloop:
-	ld1		{v1.16b}, [x1], #16		/* get next pt block */
-	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with iv */
-	encrypt_block	v0, w3, x2, x5, w6
-	st1		{v0.16b}, [x0], #16
+	ld1		{v0.16b}, [x1], #16		/* get next pt block */
+	eor		v4.16b, v4.16b, v0.16b		/* ..and xor with iv */
+	encrypt_block	v4, w3, x2, x6, w7
+	st1		{v4.16b}, [x0], #16
 	subs		w4, w4, #1
 	bne		.Lcbcencloop
-	st1		{v0.16b}, [x5]			/* save iv for later */
+.Lcbcencout:
+	st1		{v4.16b}, [x5]			/* return iv */
 	ret
 ENDPROC(ce_aes_cbc_encrypt)
 
 
 ENTRY(ce_aes_cbc_decrypt)
-	FRAME_PUSH
-	cbz		w6, .LcbcdecloopNx
+	stp		x29, x30, [sp, #-16]!
+	mov		x29, sp
 
 	ld1		{v7.16b}, [x5]			/* get iv */
-	dec_prepare	w3, x2, x5
+	dec_prepare	w3, x2, x6
 
 .LcbcdecloopNx:
-#if INTERLEAVE >= 2
-	subs		w4, w4, #INTERLEAVE
+	subs		w4, w4, #4
 	bmi		.Lcbcdec1x
-#if INTERLEAVE == 2
-	ld1		{v0.16b-v1.16b}, [x1], #32	/* get 2 ct blocks */
-	mov		v2.16b, v0.16b
-	mov		v3.16b, v1.16b
-	do_decrypt_block2x
-	eor		v0.16b, v0.16b, v7.16b
-	eor		v1.16b, v1.16b, v2.16b
-	mov		v7.16b, v3.16b
-	st1		{v0.16b-v1.16b}, [x0], #32
-#else
 	ld1		{v0.16b-v3.16b}, [x1], #64	/* get 4 ct blocks */
 	mov		v4.16b, v0.16b
 	mov		v5.16b, v1.16b
 	mov		v6.16b, v2.16b
-	do_decrypt_block4x
+	bl		aes_decrypt_block4x
 	sub		x1, x1, #16
 	eor		v0.16b, v0.16b, v7.16b
 	eor		v1.16b, v1.16b, v4.16b
@@ -385,24 +391,22 @@ ENTRY(ce_aes_cbc_decrypt)
 	eor		v2.16b, v2.16b, v5.16b
 	eor		v3.16b, v3.16b, v6.16b
 	st1		{v0.16b-v3.16b}, [x0], #64
-#endif
 	b		.LcbcdecloopNx
 .Lcbcdec1x:
-	adds		w4, w4, #INTERLEAVE
+	adds		w4, w4, #4
 	beq		.Lcbcdecout
-#endif
 .Lcbcdecloop:
 	ld1		{v1.16b}, [x1], #16		/* get next ct block */
 	mov		v0.16b, v1.16b			/* ...and copy to v0 */
-	decrypt_block	v0, w3, x2, x5, w6
+	decrypt_block	v0, w3, x2, x6, w7
 	eor		v0.16b, v0.16b, v7.16b		/* xor with iv => pt */
 	mov		v7.16b, v1.16b			/* ct is next iv */
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
 	bne		.Lcbcdecloop
 .Lcbcdecout:
-	st1		{v1.16b}, [x5]			/* save iv for later */
-	FRAME_POP
+	st1		{v7.16b}, [x5]			/* return iv */
+	ldp		x29, x30, [sp], #16
 	ret
 ENDPROC(ce_aes_cbc_decrypt)
 
