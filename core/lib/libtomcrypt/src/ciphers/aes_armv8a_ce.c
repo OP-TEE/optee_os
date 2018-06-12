@@ -59,9 +59,9 @@ void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 void ce_aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, int first);
 void ce_aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-			int blocks, u8 iv[], int first);
+			int blocks, u8 iv[]);
 void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-			int blocks, u8 iv[], int first);
+			int blocks, u8 iv[]);
 void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, u8 ctr[], int first);
 void ce_aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
@@ -250,7 +250,7 @@ static int aes_cbc_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 	rk = (u8 *)skey->rijndael.eK;
 
 	tomcrypt_arm_neon_enable(&state);
-	ce_aes_cbc_encrypt(ct, pt, rk, Nr, blocks, IV, 1);
+	ce_aes_cbc_encrypt(ct, pt, rk, Nr, blocks, IV);
 	tomcrypt_arm_neon_disable(&state);
 
 	return CRYPT_OK;
@@ -273,7 +273,7 @@ static int aes_cbc_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 	rk = (u8 *)skey->rijndael.dK;
 
 	tomcrypt_arm_neon_enable(&state);
-	ce_aes_cbc_decrypt(pt, ct, rk, Nr, blocks, IV, 1);
+	ce_aes_cbc_decrypt(pt, ct, rk, Nr, blocks, IV);
 	tomcrypt_arm_neon_disable(&state);
 
 	return CRYPT_OK;
