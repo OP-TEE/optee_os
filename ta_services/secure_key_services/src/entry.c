@@ -8,6 +8,8 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#include "sks_helpers.h"
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	// TODO: initialize the token
@@ -34,6 +36,26 @@ void TA_CloseSessionEntryPoint(void *session __unused)
 	// TODO: release identifier of the client session
 }
 
+static uint32_t entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
+{
+	uint32_t *ver;
+
+	if (ctrl || in)
+		return SKS_BAD_PARAM;
+
+	if (!out)
+		return SKS_OK;
+
+	if (out->memref.size < 2 * sizeof(uint32_t))
+		return SKS_SHORT_BUFFER;
+
+	ver = (uint32_t *)out->memref.buffer;
+	*ver = SKS_VERSION_ID0;
+	*(ver + 1) = SKS_VERSION_ID1;
+
+	return SKS_OK;
+}
+
 /*
  * Entry point for SKS TA commands
  *
@@ -51,10 +73,11 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
 				      uint32_t ptypes,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
-	TEE_Param *ctrl __maybe_unused = NULL;
-	TEE_Param *in __maybe_unused = NULL;
-	TEE_Param *out __maybe_unused = NULL;
+	TEE_Param *ctrl = NULL;
+	TEE_Param *in = NULL;
+	TEE_Param *out = NULL;
 	TEE_Result res;
+	uint32_t rc;
 
 	if (TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INPUT ||
 	    TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT)
@@ -83,13 +106,18 @@ TEE_Result TA_InvokeCommandEntryPoint(void *session __unused, uint32_t cmd,
 
 	switch (cmd) {
 	case SKS_CMD_PING:
-		res = TEE_SUCCESS;
+		rc = entry_ping(ctrl, in, out);
 		break;
 
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
+
+	res = sks2tee_error(rc);
+
+	DMSG("SKS TA exit: %s rc 0x%08" PRIu32 "/%s",
+		sks2str_skscmd(cmd), rc, sks2str_rc(rc));
 
 	return res;
 
