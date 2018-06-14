@@ -217,6 +217,52 @@ static const struct string_id __maybe_unused string_key_type[] = {
 	SKS_ID(SKS_UNDEFINED_ID)
 };
 
+static const struct string_id __maybe_unused string_processing[] = {
+	SKS_ID(SKS_PROC_AES_ECB_NOPAD),
+	SKS_ID(SKS_PROC_AES_CBC_NOPAD),
+	SKS_ID(SKS_PROC_AES_CBC_PAD),
+	SKS_ID(SKS_PROC_AES_CTR),
+	SKS_ID(SKS_PROC_AES_GCM),
+	SKS_ID(SKS_PROC_AES_CCM),
+	SKS_ID(SKS_PROC_AES_CTS),
+	SKS_ID(SKS_PROC_AES_GMAC),
+	SKS_ID(SKS_PROC_AES_CMAC),
+	SKS_ID(SKS_PROC_AES_CMAC_GENERAL),
+	SKS_ID(SKS_PROC_AES_DERIVE_BY_ECB),
+	SKS_ID(SKS_PROC_AES_DERIVE_BY_CBC),
+	SKS_ID(SKS_PROC_AES_GENERATE),
+	SKS_ID(SKS_PROC_GENERIC_GENERATE),
+	SKS_ID(SKS_PROC_HMAC_MD5),
+	SKS_ID(SKS_PROC_HMAC_SHA1),
+	SKS_ID(SKS_PROC_HMAC_SHA224),
+	SKS_ID(SKS_PROC_HMAC_SHA256),
+	SKS_ID(SKS_PROC_HMAC_SHA384),
+	SKS_ID(SKS_PROC_HMAC_SHA512),
+	SKS_ID(SKS_PROC_AES_CBC_MAC),
+	SKS_ID(SKS_UNDEFINED_ID)
+};
+
+/* Processing IDs not exported in the TA API */
+static const struct string_id __maybe_unused string_internal_processing[] = {
+	SKS_ID(SKS_PROC_RAW_IMPORT),
+	SKS_ID(SKS_PROC_RAW_COPY),
+};
+
+static const struct string_id __maybe_unused string_proc_flags[] = {
+	SKS_ID(SKS_PROC_HW),
+	SKS_ID(SKS_PROC_ENCRYPT),
+	SKS_ID(SKS_PROC_DECRYPT),
+	SKS_ID(SKS_PROC_DIGEST),
+	SKS_ID(SKS_PROC_SIGN),
+	SKS_ID(SKS_PROC_SIGN_RECOVER),
+	SKS_ID(SKS_PROC_VERIFY),
+	SKS_ID(SKS_PROC_VERFIY_RECOVER),
+	SKS_ID(SKS_PROC_GENERATE),
+	SKS_ID(SKS_PROC_GENERATE_PAIR),
+	SKS_ID(SKS_PROC_WRAP),
+	SKS_ID(SKS_PROC_UNWRAP),
+	SKS_ID(SKS_PROC_DERIVE),
+};
 #endif /*CFG_TEE_TA_LOG_LEVEL*/
 
 /*
@@ -427,6 +473,21 @@ const char *sks2str_key_type(uint32_t id)
 const char *sks2str_boolprop(uint32_t id)
 {
 	return ID2STR(id, string_boolprop, "SKS_BP_");
+}
+
+const char *sks2str_proc(uint32_t id)
+{
+	const char *str = ID2STR(id, string_internal_processing, "SKS_PROC_");
+
+	if (str != unknown)
+		return str;
+
+	return ID2STR(id, string_processing, "SKS_PROC_");
+}
+
+const char *sks2str_proc_flag(uint32_t id)
+{
+	return ID2STR(id, string_proc_flags, "SKS_PROC_");
 }
 
 const char *sks2str_rc(uint32_t id)

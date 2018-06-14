@@ -754,4 +754,115 @@ struct sks_reference {
 #define SKS_KEY_HMAC_SHA384			6
 #define SKS_KEY_HMAC_SHA512			7
 
+/*
+ * SKS supported type for SKS_OBJ_CK_MECHANISM
+ */
+#define SKS_PROC_AES_ECB_NOPAD			0	/* NIST AES ECB */
+#define SKS_PROC_AES_CBC_NOPAD			1	/* NIST AES CBC */
+#define SKS_PROC_AES_CBC_PAD			2	/* AES CBC/PKCS#7 */
+#define SKS_PROC_AES_CTS			3	/* NIST AES CBC/CTS */
+#define SKS_PROC_AES_CTR			4	/* NIST AES CTR */
+#define SKS_PROC_AES_GCM			5	/* NIST AES GCM */
+#define SKS_PROC_AES_CCM			6	/* NIST AES CCM  */
+#define SKS_PROC_AES_GMAC			7	/* NIST AES GCM/AAD */
+#define SKS_PROC_AES_CMAC			8	/* AES Block CMAC */
+#define SKS_PROC_AES_CMAC_GENERAL		9	/* Sized AES CMAC */
+#define SKS_PROC_AES_DERIVE_BY_ECB		10	/* NIST AES ECB */
+#define SKS_PROC_AES_DERIVE_BY_CBC		11	/* NIST AES CBC */
+#define SKS_PROC_AES_GENERATE			12	/* Generate key */
+
+#define SKS_PROC_GENERIC_GENERATE		13	/* Generic secret */
+
+#define SKS_PROC_RAW_IMPORT			14	/* Importing key */
+#define SKS_PROC_RAW_COPY			15	/* Copying key */
+
+#define SKS_PROC_HMAC_MD5			20
+#define SKS_PROC_HMAC_SHA1			21
+#define SKS_PROC_HMAC_SHA224			22
+#define SKS_PROC_HMAC_SHA256			23
+#define SKS_PROC_HMAC_SHA384			24
+#define SKS_PROC_HMAC_SHA512			25
+#define SKS_PROC_AES_CBC_MAC			26
+
+/*
+ * Processing parameters
+ *
+ * These can hardly be described by ANSI-C structures since some field of the
+ * structure have a size specify by a previous field. Therefore the format of
+ * the parameter binary data for each supported processing is define here from
+ * this comment rather than using C structures. Processing parameters are used
+ * as argument the C_EncryptInit and friends using the struct sks_reference
+ * format where field 'type' is the SKS processing ID and field 'size' is the
+ * parameter byte size. Below is shown the head struct sks_reference fields
+ * and the trailling data (the effective parameters binary blob).
+ *
+ * AES ECB
+ *   head:	32bit type = SKS_PROC_AES_ECB_NOPAD
+ *		32bit params byte size = 0
+ *
+ * AES CBC, CBC_NOPAD and CTS
+ *   head:	32bit type = SKS_PROC_AES_CBC
+ *			  or SKS_PROC_AES_CBC_NOPAD
+ *			  or SKS_PROC_AES_CTS
+ *		32bit params byte size = 16
+ *  params:	16byte inivial vector
+ *
+ * AES CTR
+ *   head:	32bit type = SKS_PROC_AES_CTR
+ *		32bit params byte size = 20
+ *  params:	32bit counter bit increment
+ *		16byte inivial vector
+ *
+ * AES GCM
+ *   head:	32bit type = SKS_PROC_AES_GCM
+ *		32bit params byte size
+ *  params:	32bit IV_byte_size
+ *		byte array: IV data (IV_byte_size bytes)
+ *		32bit AAD_byte_size
+ *		byte array: AAD data (AAD_byte_size bytes)
+ *		32bit tag bit size
+ *
+ * AES CCM
+ *   head:	32bit type = SKS_PROC_AES_CCM
+ *		32bit params byte size
+ *  params:	32bit data_byte_size
+ *		32bit nonce_byte_size
+ *		byte array: nonce data (nonce_byte_size bytes)
+ *		32bit AAD_byte_size
+ *		byte array: AAD data (AAD_byte_size bytes)
+ *		32bit MAC byte size
+ *
+ * AES GMAC
+ *   head:	32bit type = SKS_PROC_AES_GMAC
+ *		32bit params byte size = 12
+ *  params:	12byte initial vector
+
+ * AES CMAC with general length
+ *   head:	32bit type = SKS_PROC_AES_CMAC_GENERAL
+ *		32bit params byte size = 12
+ *  params:	32bit byte size of the output CMAC data
+ *
+ * AES CMAC fixed size (16byte CMAC)
+ *   head:	32bit type = SKS_PROC_AES_CMAC_GENERAL
+ *		32bit size = 0
+ *
+ * AES derive by ECB
+ *   head:	32bit type = SKS_PROC_AES_DERIVE_BY_ECB
+ *		32bit params byte size
+ *  params:	32bit byte size of the data to encrypt
+ *		byte array: data to encrypt
+ *
+ * AES derive by CBC
+ *   head:	32bit type = SKS_PROC_AES_DERIVE_BY_CBC
+ *		32bit params byte size
+ *  params:	16byte inivial vector
+ *		32bit byte size of the data to encrypt
+ *		byte array: data to encrypt
+ *
+ * AES and generic secret generation
+ *   head:	32bit type = SKS_PROC_AES_GENERATE
+ *			  or SKS_PROC_GENERIC_GENERATE
+ *		32bit size = 0
+ */
+
 #endif /*__SKS_TA_H__*/

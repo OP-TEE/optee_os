@@ -37,6 +37,8 @@ const char *sks2str_class(uint32_t id);
 const char *sks2str_type(uint32_t id, uint32_t class);
 const char *sks2str_key_type(uint32_t id);
 const char *sks2str_boolprop(uint32_t id);
+const char *sks2str_proc(uint32_t id);
+const char *sks2str_proc_flag(uint32_t id);
 const char *sks2str_slot_flag(uint32_t id);
 const char *sks2str_token_flag(uint32_t id);
 const char *sks2str_rc(uint32_t id);
