@@ -5,12 +5,25 @@
 #include "mpa.h"
 #include <tee_api_types.h>
 
-static random_generator_cb get_rng_array;
+/*
+ * This code is compiled for both kernel and user mode. How to obtain
+ * random differs since the RNG resides in kernel mode.
+ */
+#ifdef __KERNEL__
+#include <crypto/crypto.h>
 
-void mpa_set_random_generator(random_generator_cb callback)
+static TEE_Result get_rng_array(void *buf, size_t blen)
 {
-	get_rng_array = callback;
+	return crypto_rng_read(buf, blen);
 }
+#else
+#include "utee_syscalls.h"
+
+static TEE_Result get_rng_array(void *buf, size_t blen)
+{
+	return utee_cryp_random_number_generate(buf, blen);
+}
+#endif
 
 static uint8_t get_random_byte(void)
 {

@@ -60,7 +60,6 @@ void _TEE_MathAPI_Init(void)
 	 */
 	mem.bn_bits = CFG_TA_BIGNUM_MAX_BITS * 2;
 	mempool = &mem;
-	mpa_set_random_generator(get_rng_array);
 }
 
 /*

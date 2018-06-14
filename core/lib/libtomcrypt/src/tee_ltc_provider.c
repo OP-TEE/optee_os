@@ -467,7 +467,6 @@ static void tee_ltc_alloc_mpa(void)
 	if (!mem.pool)
 		panic();
 	init_mpa_tomcrypt(&mem);
-	mpa_set_random_generator(crypto_rng_read);
 }
 
 size_t crypto_bignum_num_bytes(struct bignum *a)
