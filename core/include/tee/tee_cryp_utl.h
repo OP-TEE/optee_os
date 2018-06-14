@@ -9,10 +9,6 @@
 #include <tee_api_types.h>
 #include <crypto/crypto.h>
 
-#if !defined(CFG_WITH_SOFTWARE_PRNG)
-TEE_Result get_rng_array(void *buffer, int len);
-#endif
-
 TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size);
 TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 				 size_t datalen, uint8_t *digest,

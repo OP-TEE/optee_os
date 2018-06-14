@@ -15,23 +15,6 @@
 #include <trace.h>
 #include <utee_defines.h>
 
-#if !defined(CFG_WITH_SOFTWARE_PRNG)
-TEE_Result get_rng_array(void *buffer, int len)
-{
-	char *buf_char = buffer;
-	int i;
-
-
-	if (buf_char == NULL)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	for (i = 0; i < len; i++)
-		buf_char[i] = hw_get_random_byte();
-
-	return TEE_SUCCESS;
-}
-#endif
-
 TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {

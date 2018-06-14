@@ -3,6 +3,7 @@
 
 #include <compiler.h>
 #include <crypto/crypto.h>
+#include <rng_support.h>
 #include <tee/tee_cryp_utl.h>
 #include <types_ext.h>
 
@@ -21,6 +22,15 @@ void __weak crypto_rng_add_event(enum crypto_rng_src sid __unused,
 
 TEE_Result __weak crypto_rng_read(void *buf, size_t blen)
 {
-	return get_rng_array(buf, blen);
+	uint8_t *b = buf;
+	size_t n;
+
+	if (!b)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (n = 0; n < blen; n++)
+		b[n] = hw_get_random_byte();
+
+	return TEE_SUCCESS;
 }
 
