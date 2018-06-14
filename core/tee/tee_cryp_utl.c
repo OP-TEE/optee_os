@@ -5,12 +5,14 @@
 
 #include <crypto/crypto.h>
 #include <initcall.h>
+#include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <rng_support.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
+#include <trace.h>
 #include <utee_defines.h>
 
 #if !defined(CFG_WITH_SOFTWARE_PRNG)
@@ -329,34 +331,65 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len)
-{
-	return crypto_rng_add_entropy(in, len);
-}
-
 /*
  * Override this in your platform code to feed the PRNG platform-specific
  * jitter entropy. This implementation does not efficiently deliver entropy
  * and is here for backwards-compatibility.
  */
-__weak void plat_prng_add_jitter_entropy(void)
+__weak void plat_prng_add_jitter_entropy(enum crypto_rng_src sid,
+					 unsigned int *pnum)
 {
 	TEE_Time current;
 
+#ifdef CFG_SECURE_TIME_SOURCE_REE
+	if (CRYPTO_RNG_SRC_IS_QUICK(sid))
+		return; /* Can't read REE time here */
+#endif
+
 	if (tee_time_get_sys_time(&current) == TEE_SUCCESS)
-		tee_prng_add_entropy((uint8_t *)&current, sizeof(current));
+		crypto_rng_add_event(sid, pnum, &current, sizeof(current));
 }
 
-__weak void plat_prng_add_jitter_entropy_norpc(void)
+__weak void plat_rng_init(void)
 {
+	TEE_Result res = TEE_SUCCESS;
+	TEE_Time t;
+
 #ifndef CFG_SECURE_TIME_SOURCE_REE
-	plat_prng_add_jitter_entropy();
+	/*
+	 * This isn't much of a seed. Ideally we should either get a seed from
+	 * a hardware RNG or from a previously saved seed.
+	 *
+	 * Seeding with hardware RNG is currently up to the platform to
+	 * override this function.
+	 *
+	 * Seeding with a saved seed will require cooperation from normal
+	 * world, this is still TODO.
+	 */
+	res = tee_time_get_sys_time(&t);
+#else
+	EMSG("Warning: seeding RNG with zeroes");
+	memset(&t, 0, sizeof(t));
 #endif
+	if (!res)
+		res = crypto_rng_init(&t, sizeof(t));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
 }
 
 static TEE_Result tee_cryp_init(void)
 {
-	return crypto_init();
-}
+	TEE_Result res = crypto_init();
 
+	res = crypto_init();
+	if (res) {
+		EMSG("Failed to initialize crypto API: %#" PRIx32, res);
+		panic();
+	}
+	plat_rng_init();
+
+	return TEE_SUCCESS;
+}
 service_init(tee_cryp_init);

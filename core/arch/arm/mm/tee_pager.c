@@ -371,7 +371,7 @@ void tee_pager_generate_authenc_key(void)
 {
 	uint8_t key[PAGER_AE_KEY_BITS / 8];
 
-	if (rng_generate(key, sizeof(key)) != TEE_SUCCESS)
+	if (crypto_rng_read(key, sizeof(key)) != TEE_SUCCESS)
 		panic("failed to generate random");
 	if (internal_aes_gcm_expand_enc_key(key, sizeof(key),
 					    &pager_ae_key))

@@ -25,8 +25,6 @@
 #include <kernel/thread.h>
 #endif
 
-#if !defined(CFG_WITH_SOFTWARE_PRNG)
-
 /* Random generator */
 static int prng_mpa_start(union Prng_state *prng __unused)
 {
@@ -49,10 +47,10 @@ static int prng_mpa_ready(union Prng_state *prng __unused)
 static unsigned long prng_mpa_read(unsigned char *out, unsigned long outlen,
 				   union Prng_state *prng __unused)
 {
-	if (TEE_SUCCESS == get_rng_array(out, outlen))
-		return outlen;
-	else
+	if (crypto_rng_read(out, outlen))
 		return 0;
+
+	return outlen;
 }
 
 static int prng_mpa_done(union Prng_state *prng __unused)
@@ -92,69 +90,6 @@ static const struct ltc_prng_descriptor prng_mpa_desc = {
 	.test = &prng_mpa_test,
 };
 
-#endif /* !CFG_WITH_SOFTWARE_PRNG */
-
-struct tee_ltc_prng {
-	int index;
-	const char *name;
-	prng_state state;
-	bool inited;
-};
-
-static struct tee_ltc_prng _tee_ltc_prng =
-#if defined(CFG_WITH_SOFTWARE_PRNG)
-	{
-#if defined(_CFG_CRYPTO_WITH_FORTUNA_PRNG)
-		.name = "fortuna",
-#else
-		/*
-		 * we need AES and SHA256 for fortuna PRNG,
-		 * if the system configuration can't provide those,
-		 * fallback to RC4
-		 */
-		.name = "rc4",
-#endif
-	};
-#else
-	{
-		.name = "prng_mpa",
-	};
-#endif
-
-static struct tee_ltc_prng *tee_ltc_get_prng(void)
-{
-	return &_tee_ltc_prng;
-}
-
-static TEE_Result tee_ltc_prng_init(struct tee_ltc_prng *prng)
-{
-	int res;
-	int prng_index;
-
-	assert(prng);
-
-	prng_index = find_prng(prng->name);
-	if (prng_index == -1)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (!prng->inited) {
-		res = prng_descriptor[prng_index]->start(&prng->state);
-		if (res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-
-		plat_prng_add_jitter_entropy_norpc();
-
-		res = prng_descriptor[prng_index]->ready(&prng->state);
-		if (res != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-
-		prng->index = prng_index;
-		prng->inited = true;
-	}
-
-	return TEE_SUCCESS;
-}
-
 /*
  * tee_ltc_reg_algs(): Registers
  *	- algorithms
@@ -189,16 +124,7 @@ static void tee_ltc_reg_algs(void)
 #if defined(CFG_CRYPTO_SHA512)
 	register_hash(&sha512_desc);
 #endif
-
-#if defined(CFG_WITH_SOFTWARE_PRNG)
-#if defined(_CFG_CRYPTO_WITH_FORTUNA_PRNG)
-	register_prng(&fortuna_desc);
-#else
-	register_prng(&rc4_desc);
-#endif
-#else
 	register_prng(&prng_mpa_desc);
-#endif
 }
 
 
@@ -692,13 +618,12 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	rsa_key ltc_tmp_key;
 	int ltc_res;
 	long e;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	/* get the public exponent */
 	e = mp_get_int(key->e);
 
 	/* Generate a temporary RSA key */
-	ltc_res = rsa_make_key(&prng->state, prng->index, key_size/8, e,
+	ltc_res = rsa_make_key(NULL, find_prng("prng_mpa"), key_size / 8, e,
 			       &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -934,7 +859,6 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		.e = key->e,
 		.N = key->n
 	};
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	mod_size =  ltc_mp.unsigned_size((void *)(ltc_key.N));
 	if (*dst_len < mod_size) {
@@ -956,7 +880,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
-				     label_len, &prng->state, prng->index,
+				     label_len, NULL, find_prng("prng_mpa"),
 				     ltc_hashindex, ltc_rsa_algo, &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
@@ -988,7 +912,6 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	int ltc_res, ltc_rsa_algo, ltc_hashindex;
 	unsigned long ltc_sig_len;
 	rsa_key ltc_key = { 0, };
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	ltc_key.type = PK_PRIVATE;
 	ltc_key.e = key->e;
@@ -1050,7 +973,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	ltc_sig_len = mod_size;
 
 	ltc_res = rsa_sign_hash_ex(msg, msg_len, sig, &ltc_sig_len,
-				   ltc_rsa_algo, &prng->state, prng->index,
+				   ltc_rsa_algo, NULL, find_prng("prng_mpa"),
 				   ltc_hashindex, salt_len, &ltc_key);
 
 	*sig_len = ltc_sig_len;
@@ -1187,7 +1110,6 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 	dsa_key ltc_tmp_key;
 	size_t group_size, modulus_size = key_size/8;
 	int ltc_res;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	if (modulus_size <= 128)
 		group_size = 20;
@@ -1199,7 +1121,7 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 		group_size = 40;
 
 	/* Generate the DSA key */
-	ltc_res = dsa_make_key(&prng->state, prng->index, group_size,
+	ltc_res = dsa_make_key(NULL, find_prng("prng_mpa"), group_size,
 			       modulus_size, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1238,7 +1160,6 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 		.y = key->y,
 		.x = key->x,
 	};
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	if (algo != TEE_ALG_DSA_SHA1 &&
 	    algo != TEE_ALG_DSA_SHA224 &&
@@ -1270,8 +1191,8 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 		goto err;
 	}
 
-	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, &prng->state,
-				    prng->index, &ltc_key);
+	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, NULL,
+				    find_prng("prng_mpa"), &ltc_key);
 
 	if (ltc_res == CRYPT_OK) {
 		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
@@ -1363,12 +1284,11 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	TEE_Result res;
 	dh_key ltc_tmp_key;
 	int ltc_res;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	/* Generate the DH key */
 	ltc_tmp_key.g = key->g;
 	ltc_tmp_key.p = key->p;
-	ltc_res = dh_make_key(&prng->state, prng->index, q, xbits,
+	ltc_res = dh_make_key(NULL, find_prng("prng_mpa"), q, xbits,
 			      &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1521,7 +1441,6 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 	TEE_Result res;
 	ecc_key ltc_tmp_key;
 	int ltc_res;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 	size_t key_size_bytes = 0;
 	size_t key_size_bits = 0;
 
@@ -1531,7 +1450,7 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 	}
 
 	/* Generate the ECC key */
-	ltc_res = ecc_make_key(&prng->state, prng->index,
+	ltc_res = ecc_make_key(NULL, find_prng("prng_mpa"),
 			       key_size_bytes, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1647,7 +1566,6 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	void *r, *s;
 	size_t key_size_bytes;
 	ecc_key ltc_key;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
 
 	if (algo == 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1672,7 +1590,7 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	}
 
 	ltc_res = ecc_sign_hash_raw(msg, msg_len, r, s,
-				    &prng->state, prng->index, &ltc_key);
+				    NULL, find_prng("prng_mpa"), &ltc_key);
 
 	if (ltc_res == CRYPT_OK) {
 		*sig_len = 2 * key_size_bytes;
@@ -2867,69 +2785,6 @@ void crypto_aes_gcm_final(void *ctx)
 }
 #endif /*CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
 
-/******************************************************************************
- * Pseudo Random Number Generator
- ******************************************************************************/
-TEE_Result crypto_rng_read(void *buf, size_t blen)
-{
-	int err;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
-
-	err = prng_is_valid(prng->index);
-
-	if (err != CRYPT_OK)
-		return TEE_ERROR_BAD_STATE;
-
-	if (prng_descriptor[prng->index]->read(buf, blen, &prng->state) !=
-			(unsigned long)blen)
-		return TEE_ERROR_BAD_STATE;
-
-	return TEE_SUCCESS;
-}
-
-/* Called as a result of rng_generate() below */
-static TEE_Result _tee_ltc_prng_add_entropy(
-	const uint8_t *inbuf __maybe_unused, size_t len __maybe_unused)
-{
-#if defined(CFG_WITH_SOFTWARE_PRNG)
-	int err;
-#ifdef _CFG_CRYPTO_WITH_FORTUNA_PRNG
-        int (*add_entropy)(const unsigned char *, unsigned long,
-                           prng_state *) = fortuna_add_entropy;
-#else
-        int (*add_entropy)(const unsigned char *, unsigned long,
-                           prng_state *) = rc4_add_entropy;
-#endif
-
-	err = add_entropy(inbuf, len, &_tee_ltc_prng.state);
-	if (err != CRYPT_OK)
-		return TEE_ERROR_BAD_STATE;
-
-	return TEE_SUCCESS;
-#else
-	return TEE_ERROR_BAD_STATE;
-#endif
-}
-
-TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len)
-{
-	int err;
-	struct tee_ltc_prng *prng = tee_ltc_get_prng();
-
-	err = prng_is_valid(prng->index);
-
-	if (err != CRYPT_OK)
-		return _tee_ltc_prng_add_entropy(inbuf, len);
-
-	err = prng_descriptor[prng->index]->add_entropy(
-			inbuf, len, &prng->state);
-
-	if (err != CRYPT_OK)
-		return TEE_ERROR_BAD_STATE;
-
-	return TEE_SUCCESS;
-}
-
 TEE_Result crypto_init(void)
 {
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
@@ -2937,7 +2792,7 @@ TEE_Result crypto_init(void)
 #endif
 	tee_ltc_reg_algs();
 
-	return tee_ltc_prng_init(tee_ltc_get_prng());
+	return TEE_SUCCESS;
 }
 
 #if defined(CFG_WITH_VFP)
@@ -2970,39 +2825,6 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 	return TEE_SUCCESS;
 }
 #endif
-
-TEE_Result rng_generate(void *buffer, size_t len)
-{
-#if defined(CFG_WITH_SOFTWARE_PRNG)
-#ifdef _CFG_CRYPTO_WITH_FORTUNA_PRNG
-	int (*start)(prng_state *) = fortuna_start;
-	int (*ready)(prng_state *) = fortuna_ready;
-	unsigned long (*read)(unsigned char *, unsigned long, prng_state *) =
-		fortuna_read;
-#else
-	int (*start)(prng_state *) = rc4_start;
-	int (*ready)(prng_state *) = rc4_ready;
-	unsigned long (*read)(unsigned char *, unsigned long, prng_state *) =
-		rc4_read;
-#endif
-
-	if (!_tee_ltc_prng.inited) {
-		if (start(&_tee_ltc_prng.state) != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		plat_prng_add_jitter_entropy_norpc();
-		if (ready(&_tee_ltc_prng.state) != CRYPT_OK)
-			return TEE_ERROR_BAD_STATE;
-		_tee_ltc_prng.inited = true;
-	}
-	if (read(buffer, len, &_tee_ltc_prng.state) != len)
-		return TEE_ERROR_BAD_STATE;
-	return TEE_SUCCESS;
-
-
-#else
-	return get_rng_array(buffer, len);
-#endif
-}
 
 TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 				     void *enc_key, unsigned int *rounds)

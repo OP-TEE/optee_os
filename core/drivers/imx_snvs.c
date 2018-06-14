@@ -157,7 +157,7 @@ TEE_Result snvs_srtc_enable(void)
 }
 
 /* Reused from tee_time_arm_cntpct.c */
-void plat_prng_add_jitter_entropy(void)
+void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum)
 {
 	uint64_t tsc = snvs_srtc_read_lp_counter();
 	int bytes = 0, n;
@@ -181,6 +181,6 @@ void plat_prng_add_jitter_entropy(void)
 	if (bytes) {
 		FMSG("%s: 0x%02" PRIX16, __func__,
 		     acc & GENMASK_32(bytes * 8, 0));
-		tee_prng_add_entropy((uint8_t *)&acc, bytes);
+		crypto_rng_add_event(sid, pnum, (uint8_t *)&acc, bytes);
 	}
 }

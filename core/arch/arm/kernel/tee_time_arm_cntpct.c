@@ -3,18 +3,17 @@
  * Copyright (c) 2014, 2015 Linaro Limited
  */
 
+#include <arm.h>
+#include <crypto/crypto.h>
 #include <kernel/misc.h>
 #include <kernel/tee_time.h>
-#include <trace.h>
 #include <kernel/time_source.h>
 #include <mm/core_mmu.h>
-#include <utee_defines.h>
-
-#include <tee/tee_cryp_utl.h>
-
-#include <stdint.h>
 #include <mpa.h>
-#include <arm.h>
+#include <stdint.h>
+#include <tee/tee_cryp_utl.h>
+#include <trace.h>
+#include <utee_defines.h>
 
 static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 {
@@ -49,7 +48,7 @@ REGISTER_TIME_SOURCE(arm_cntpct_time_source)
  * and adding one byte of entropy when we reach 8 rotated bits.
  */
 
-void plat_prng_add_jitter_entropy(void)
+void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum)
 {
 	uint64_t tsc = read_cntpct();
 	int bytes = 0, n;
@@ -73,6 +72,6 @@ void plat_prng_add_jitter_entropy(void)
 	if (bytes) {
 		FMSG("%s: 0x%02X\n", __func__,
 		     (int)acc & ((1 << (bytes * 8)) - 1));
-		tee_prng_add_entropy((uint8_t *)&acc, bytes);
+		crypto_rng_add_event(sid, pnum, (uint8_t *)&acc, bytes);
 	}
 }
