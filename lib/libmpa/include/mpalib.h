@@ -336,10 +336,6 @@ MPALIB_EXPORT mpanum mpa_constant_one(void);
  * From mpa_Random.c
  */
 
-typedef uint32_t (*random_generator_cb)(void *buf, size_t blen);
-
-MPALIB_EXPORT void mpa_set_random_generator(random_generator_cb callback);
-
 MPALIB_EXPORT void mpa_get_random(mpanum dest, mpanum limit);
 
 /*
