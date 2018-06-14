@@ -143,6 +143,8 @@ static uint8_t thread_user_kdata_page[
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 static bool thread_prealloc_rpc_cache;
 
+static unsigned int thread_rpc_pnum;
+
 static void init_canaries(void)
 {
 #ifdef CFG_WITH_STACK_CANARIES
@@ -1442,13 +1444,9 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	uint64_t carg;
 	size_t n;
 
-	/*
-	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
-	 * sleeps on a mutex or unlocks a mutex with a sleeper (contended
-	 * mutex).
-	 */
-	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
-		plat_prng_add_jitter_entropy_norpc();
+	/* The source CRYPTO_RNG_SRC_JITTER_RPC is safe to use here */
+	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_RPC,
+				     &thread_rpc_pnum);
 
 	if (!get_rpc_arg(cmd, num_params, &arg, &carg))
 		return TEE_ERROR_OUT_OF_MEMORY;

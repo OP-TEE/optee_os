@@ -35,6 +35,8 @@ static struct mobj *shm_mobj;
 static struct mobj **sdp_mem_mobjs;
 #endif
 
+static unsigned int session_pnum;
+
 static bool param_mem_from_mobj(struct param_mem *mem, struct mobj *mobj,
 				const paddr_t pa, const size_t sz)
 {
@@ -295,7 +297,8 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	 * un-predictable, using this property to increase randomness
 	 * of prng
 	 */
-	plat_prng_add_jitter_entropy();
+	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_SESSION,
+				     &session_pnum);
 
 cleanup_params:
 	cleanup_params(arg->params + num_meta, saved_attr,
@@ -322,7 +325,8 @@ static void entry_close_session(struct thread_smc_args *smc_args,
 		goto out;
 	}
 
-	plat_prng_add_jitter_entropy();
+	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_SESSION,
+				     &session_pnum);
 
 	s = (struct tee_ta_session *)(vaddr_t)arg->session;
 	res = tee_ta_close_session(s, &tee_open_sessions, NSAPP_IDENTITY);

@@ -6,10 +6,12 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <pta_system.h>
-#include <tee/tee_cryp_utl.h>
+#include <crypto/crypto.h>
 #include <util.h>
 
 #define MAX_ENTROPY_IN			32u
+
+static unsigned int system_pnum;
 
 static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 				uint32_t param_types,
@@ -33,7 +35,9 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 
 	entropy_sz = MIN(entropy_sz, MAX_ENTROPY_IN);
 
-	return tee_prng_add_entropy(entropy_input, entropy_sz);
+	crypto_rng_add_event(CRYPTO_RNG_SRC_NONSECURE, &system_pnum,
+			     entropy_input, entropy_sz);
+	return TEE_SUCCESS;
 }
 
 static TEE_Result open_session(uint32_t param_types __unused,

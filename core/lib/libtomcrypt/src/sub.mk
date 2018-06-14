@@ -16,4 +16,3 @@ subdirs-$(_CFG_CRYPTO_WITH_ACIPHER) += math
 subdirs-y += misc
 subdirs-y += modes
 subdirs-$(_CFG_CRYPTO_WITH_ACIPHER) += pk
-subdirs-$(CFG_WITH_SOFTWARE_PRNG) += prngs
