@@ -332,7 +332,7 @@ static struct pgt *find_core_pgt(vaddr_t va)
 	return &find_pager_table(va)->pgt;
 }
 
-static void set_alias_area(tee_mm_entry_t *mm)
+void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 {
 	struct pager_table *pt;
 	unsigned idx;
@@ -367,7 +367,7 @@ out:
 	tlbi_mva_range(smem, nbytes, SMALL_PAGE_SIZE);
 }
 
-static void generate_ae_key(void)
+void tee_pager_generate_authenc_key(void)
 {
 	uint8_t key[PAGER_AE_KEY_BITS / 8];
 
@@ -441,12 +441,6 @@ void tee_pager_early_init(void)
 		pgt_set_used_entries(&pager_tables[n].pgt,
 				tbl_usage_count(&pager_tables[n].tbl_info));
 	}
-}
-
-void tee_pager_init(tee_mm_entry_t *mm_alias)
-{
-	set_alias_area(mm_alias);
-	generate_ae_key();
 }
 
 static void *pager_add_alias_page(paddr_t pa)
