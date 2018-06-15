@@ -11,6 +11,14 @@
 #include <stddef.h>
 #include <tee_internal_api.h>
 
+/* Short aliases for return code */
+#define SKS_OK				SKS_CKR_OK
+#define SKS_ERROR			SKS_CKR_GENERAL_ERROR
+#define SKS_MEMORY			SKS_CKR_DEVICE_MEMORY
+#define SKS_BAD_PARAM			SKS_CKR_ARGUMENT_BAD
+#define SKS_SHORT_BUFFER		SKS_CKR_BUFFER_TOO_SMALL
+#define SKS_FAILED			SKS_CKR_FUNCTION_FAILED
+
 /*
  * Helper functions to analyse CK fields
  */
