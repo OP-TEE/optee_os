@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2018, Linaro Limited
  */
 
+#include <assert.h>
 #include <sks_ta.h>
 #include <string.h>
 
@@ -13,6 +14,8 @@ struct string_id {
 	const char *string;
 };
 
+#define SKS_ID(_id)		{ .id = _id, .string = #_id }
+
 struct attr_size {
 	uint32_t id;
 	uint32_t size;
@@ -21,51 +24,50 @@ struct attr_size {
 
 #if CFG_TEE_TA_LOG_LEVEL > 0
 #define SKS_ID_SZ(_id, _size)	{ .id = _id, .string = #_id, .size = _size }
-#define SKS_ID(_id)		{ .id = _id, .string = #_id }
 #else
 #define SKS_ID_SZ(_id, _size)	{ .id = _id, .size = _size }
 #endif
 
 static const struct attr_size attr_ids[] = {
-	SKS_ID_SZ(SKS_CLASS,		4),
-	SKS_ID_SZ(SKS_TYPE,		4),
-	SKS_ID_SZ(SKS_VALUE,		0),
-	SKS_ID_SZ(SKS_VALUE_LEN,	4),
-	SKS_ID_SZ(SKS_WRAP_ATTRIBS,	0),
-	SKS_ID_SZ(SKS_UNWRAP_ATTRIBS,	0),
-	SKS_ID_SZ(SKS_DERIVE_ATTRIBS,	0),
-	SKS_ID_SZ(SKS_ACTIVATION_DATE,	4),
-	SKS_ID_SZ(SKS_REVOKATION_DATE,	4),
-	SKS_ID_SZ(SKS_OBJECT_ID,	0),
-	SKS_ID_SZ(SKS_APPLICATION_ID,	0),
-	SKS_ID_SZ(SKS_PROCESSING_ID,	4),
-	SKS_ID_SZ(SKS_KEY_ID,		0),
-	SKS_ID_SZ(SKS_ALLOWED_PROCESSINGS, 0),
+	SKS_ID_SZ(SKS_CKA_CLASS, 4),
+	SKS_ID_SZ(SKS_CKA_KEY_TYPE, 4),
+	SKS_ID_SZ(SKS_CKA_VALUE, 0),
+	SKS_ID_SZ(SKS_CKA_VALUE_LEN, 4),
+	SKS_ID_SZ(SKS_CKA_WRAP_TEMPLATE, 0),
+	SKS_ID_SZ(SKS_CKA_UNWRAP_TEMPLATE, 0),
+	SKS_ID_SZ(SKS_CKA_DERIVE_TEMPLATE, 0),
+	SKS_ID_SZ(SKS_CKA_START_DATE, 4),
+	SKS_ID_SZ(SKS_CKA_END_DATE, 4),
+	SKS_ID_SZ(SKS_CKA_OBJECT_ID, 0),
+	SKS_ID_SZ(SKS_CKA_APPLICATION, 0),
+	SKS_ID_SZ(SKS_CKA_MECHANISM_TYPE, 4),
+	SKS_ID_SZ(SKS_CKA_ID, 0),
+	SKS_ID_SZ(SKS_CKA_ALLOWED_MECHANISMS, 0),
 	/* Below are boolean attribs */
-	SKS_ID_SZ(SKS_PERSISTENT,	1),
-	SKS_ID_SZ(SKS_NEED_AUTHEN,	1),
-	SKS_ID_SZ(SKS_TRUSTED,		1),
-	SKS_ID_SZ(SKS_SENSITIVE,	1),
-	SKS_ID_SZ(SKS_ENCRYPT,		1),
-	SKS_ID_SZ(SKS_DECRYPT,		1),
-	SKS_ID_SZ(SKS_WRAP,		1),
-	SKS_ID_SZ(SKS_UNWRAP,		1),
-	SKS_ID_SZ(SKS_SIGN,		1),
-	SKS_ID_SZ(SKS_SIGN_RECOVER,	1),
-	SKS_ID_SZ(SKS_VERIFY,		1),
-	SKS_ID_SZ(SKS_VERIFY_RECOVER,	1),
-	SKS_ID_SZ(SKS_DERIVE,		1),
-	SKS_ID_SZ(SKS_EXTRACTABLE,	1),
-	SKS_ID_SZ(SKS_LOCALLY_GENERATED, 1),
-	SKS_ID_SZ(SKS_NEVER_EXTRACTABLE, 1),
-	SKS_ID_SZ(SKS_ALWAYS_SENSITIVE, 1),
-	SKS_ID_SZ(SKS_MODIFIABLE,	1),
-	SKS_ID_SZ(SKS_COPYABLE,		1),
-	SKS_ID_SZ(SKS_DESTROYABLE,	1),
-	SKS_ID_SZ(SKS_ALWAYS_AUTHEN,	1),
-	SKS_ID_SZ(SKS_WRAP_FROM_TRUSTED, 1),
+	SKS_ID_SZ(SKS_CKA_TOKEN, 1),
+	SKS_ID_SZ(SKS_CKA_PRIVATE, 1),
+	SKS_ID_SZ(SKS_CKA_TRUSTED, 1),
+	SKS_ID_SZ(SKS_CKA_SENSITIVE, 1),
+	SKS_ID_SZ(SKS_CKA_ENCRYPT, 1),
+	SKS_ID_SZ(SKS_CKA_DECRYPT, 1),
+	SKS_ID_SZ(SKS_CKA_WRAP, 1),
+	SKS_ID_SZ(SKS_CKA_UNWRAP, 1),
+	SKS_ID_SZ(SKS_CKA_SIGN, 1),
+	SKS_ID_SZ(SKS_CKA_SIGN_RECOVER, 1),
+	SKS_ID_SZ(SKS_CKA_VERIFY, 1),
+	SKS_ID_SZ(SKS_CKA_VERIFY_RECOVER, 1),
+	SKS_ID_SZ(SKS_CKA_DERIVE, 1),
+	SKS_ID_SZ(SKS_CKA_EXTRACTABLE, 1),
+	SKS_ID_SZ(SKS_CKA_LOCAL, 1),
+	SKS_ID_SZ(SKS_CKA_NEVER_EXTRACTABLE, 1),
+	SKS_ID_SZ(SKS_CKA_ALWAYS_SENSITIVE, 1),
+	SKS_ID_SZ(SKS_CKA_MODIFIABLE, 1),
+	SKS_ID_SZ(SKS_CKA_COPYABLE, 1),
+	SKS_ID_SZ(SKS_CKA_DESTROYABLE, 1),
+	SKS_ID_SZ(SKS_CKA_ALWAYS_AUTHENTICATE, 1),
+	SKS_ID_SZ(SKS_CKA_WRAP_WITH_TRUSTED, 1),
 	/* Specific SKS attribute IDs */
-	SKS_ID_SZ(SKS_UNDEFINED_ID,	0),
+	SKS_ID_SZ(SKS_UNDEFINED_ID, 0),
 };
 
 #if CFG_TEE_TA_LOG_LEVEL > 0
@@ -168,103 +170,77 @@ static const struct string_id __maybe_unused string_token_flags[] = {
 	SKS_ID(SKS_CKFT_SO_PIN_TO_BE_CHANGED),
 	SKS_ID(SKS_CKFT_ERROR_STATE),
 };
-#endif /*CFG_TEE_TA_LOG_LEVEL*/
-
-static const struct string_id __maybe_unused string_boolprop[] = {
-	SKS_ID(SKS_BP_PERSISTENT),
-	SKS_ID(SKS_BP_NEED_AUTHEN),
-	SKS_ID(SKS_BP_TRUSTED),
-	SKS_ID(SKS_BP_SENSITIVE),
-	SKS_ID(SKS_BP_ENCRYPT),
-	SKS_ID(SKS_BP_DECRYPT),
-	SKS_ID(SKS_BP_WRAP),
-	SKS_ID(SKS_BP_UNWRAP),
-	SKS_ID(SKS_BP_SIGN),
-	SKS_ID(SKS_BP_SIGN_RECOVER),
-	SKS_ID(SKS_BP_VERIFY),
-	SKS_ID(SKS_BP_VERIFY_RECOVER),
-	SKS_ID(SKS_BP_DERIVE),
-	SKS_ID(SKS_BP_EXTRACTABLE),
-	SKS_ID(SKS_BP_LOCALLY_GENERATED),
-	SKS_ID(SKS_BP_NEVER_EXTRACTABLE),
-	SKS_ID(SKS_BP_ALWAYS_SENSITIVE),
-	SKS_ID(SKS_BP_MODIFIABLE),
-	SKS_ID(SKS_BP_COPYABLE),
-	SKS_ID(SKS_BP_DESTROYABLE),
-	SKS_ID(SKS_BP_ALWAYS_AUTHEN),
-	SKS_ID(SKS_BP_WRAP_FROM_TRUSTED)
-};
 
 static const struct string_id __maybe_unused string_class[] = {
-	SKS_ID(SKS_OBJ_SYM_KEY),
-	SKS_ID(SKS_OBJ_PUB_KEY),
-	SKS_ID(SKS_OBJ_PRIV_KEY),
-	SKS_ID(SKS_OBJ_OTP_KEY),
-	SKS_ID(SKS_OBJ_CERTIFICATE),
-	SKS_ID(SKS_OBJ_RAW_DATA),
-	SKS_ID(SKS_OBJ_CK_DOMAIN_PARAMS),
-	SKS_ID(SKS_OBJ_CK_HW_FEATURES),
-	SKS_ID(SKS_OBJ_CK_MECHANISM),
+	SKS_ID(SKS_CKO_SECRET_KEY),
+	SKS_ID(SKS_CKO_PUBLIC_KEY),
+	SKS_ID(SKS_CKO_PRIVATE_KEY),
+	SKS_ID(SKS_CKO_OTP_KEY),
+	SKS_ID(SKS_CKO_CERTIFICATE),
+	SKS_ID(SKS_CKO_DATA),
+	SKS_ID(SKS_CKO_DOMAIN_PARAMETERS),
+	SKS_ID(SKS_CKO_HW_FEATURE),
+	SKS_ID(SKS_CKO_MECHANISM),
 	SKS_ID(SKS_UNDEFINED_ID)
 };
 
 static const struct string_id __maybe_unused string_key_type[] = {
-	SKS_ID(SKS_KEY_AES),
-	SKS_ID(SKS_GENERIC_SECRET),
-	SKS_ID(SKS_KEY_HMAC_MD5),
-	SKS_ID(SKS_KEY_HMAC_SHA1),
-	SKS_ID(SKS_KEY_HMAC_SHA224),
-	SKS_ID(SKS_KEY_HMAC_SHA256),
-	SKS_ID(SKS_KEY_HMAC_SHA384),
-	SKS_ID(SKS_KEY_HMAC_SHA512),
+	SKS_ID(SKS_CKK_AES),
+	SKS_ID(SKS_CKK_GENERIC_SECRET),
+	SKS_ID(SKS_CKK_MD5_HMAC),
+	SKS_ID(SKS_CKK_SHA_1_HMAC),
+	SKS_ID(SKS_CKK_SHA224_HMAC),
+	SKS_ID(SKS_CKK_SHA256_HMAC),
+	SKS_ID(SKS_CKK_SHA384_HMAC),
+	SKS_ID(SKS_CKK_SHA512_HMAC),
 	SKS_ID(SKS_UNDEFINED_ID)
 };
 
 static const struct string_id __maybe_unused string_processing[] = {
-	SKS_ID(SKS_PROC_AES_ECB_NOPAD),
-	SKS_ID(SKS_PROC_AES_CBC_NOPAD),
-	SKS_ID(SKS_PROC_AES_CBC_PAD),
-	SKS_ID(SKS_PROC_AES_CTR),
-	SKS_ID(SKS_PROC_AES_GCM),
-	SKS_ID(SKS_PROC_AES_CCM),
-	SKS_ID(SKS_PROC_AES_CTS),
-	SKS_ID(SKS_PROC_AES_GMAC),
-	SKS_ID(SKS_PROC_AES_CMAC),
-	SKS_ID(SKS_PROC_AES_CMAC_GENERAL),
-	SKS_ID(SKS_PROC_AES_DERIVE_BY_ECB),
-	SKS_ID(SKS_PROC_AES_DERIVE_BY_CBC),
-	SKS_ID(SKS_PROC_AES_GENERATE),
-	SKS_ID(SKS_PROC_GENERIC_GENERATE),
-	SKS_ID(SKS_PROC_HMAC_MD5),
-	SKS_ID(SKS_PROC_HMAC_SHA1),
-	SKS_ID(SKS_PROC_HMAC_SHA224),
-	SKS_ID(SKS_PROC_HMAC_SHA256),
-	SKS_ID(SKS_PROC_HMAC_SHA384),
-	SKS_ID(SKS_PROC_HMAC_SHA512),
-	SKS_ID(SKS_PROC_AES_CBC_MAC),
+	SKS_ID(SKS_CKM_AES_ECB),
+	SKS_ID(SKS_CKM_AES_CBC),
+	SKS_ID(SKS_CKM_AES_CBC_PAD),
+	SKS_ID(SKS_CKM_AES_CTR),
+	SKS_ID(SKS_CKM_AES_GCM),
+	SKS_ID(SKS_CKM_AES_CCM),
+	SKS_ID(SKS_CKM_AES_CTS),
+	SKS_ID(SKS_CKM_AES_GMAC),
+	SKS_ID(SKS_CKM_AES_CMAC),
+	SKS_ID(SKS_CKM_AES_CMAC_GENERAL),
+	SKS_ID(SKS_CKM_AES_ECB_ENCRYPT_DATA),
+	SKS_ID(SKS_CKM_AES_CBC_ENCRYPT_DATA),
+	SKS_ID(SKS_CKM_AES_KEY_GEN),
+	SKS_ID(SKS_CKM_GENERIC_SECRET_KEY_GEN),
+	SKS_ID(SKS_CKM_MD5_HMAC),
+	SKS_ID(SKS_CKM_SHA_1_HMAC),
+	SKS_ID(SKS_CKM_SHA224_HMAC),
+	SKS_ID(SKS_CKM_SHA256_HMAC),
+	SKS_ID(SKS_CKM_SHA384_HMAC),
+	SKS_ID(SKS_CKM_SHA512_HMAC),
+	SKS_ID(SKS_CKM_AES_XCBC_MAC),
 	SKS_ID(SKS_UNDEFINED_ID)
 };
 
 /* Processing IDs not exported in the TA API */
 static const struct string_id __maybe_unused string_internal_processing[] = {
-	SKS_ID(SKS_PROC_RAW_IMPORT),
-	SKS_ID(SKS_PROC_RAW_COPY),
+	SKS_ID(SKS_PROCESSING_IMPORT),
+	SKS_ID(SKS_PROCESSING_COPY),
 };
 
 static const struct string_id __maybe_unused string_proc_flags[] = {
-	SKS_ID(SKS_PROC_HW),
-	SKS_ID(SKS_PROC_ENCRYPT),
-	SKS_ID(SKS_PROC_DECRYPT),
-	SKS_ID(SKS_PROC_DIGEST),
-	SKS_ID(SKS_PROC_SIGN),
-	SKS_ID(SKS_PROC_SIGN_RECOVER),
-	SKS_ID(SKS_PROC_VERIFY),
-	SKS_ID(SKS_PROC_VERFIY_RECOVER),
-	SKS_ID(SKS_PROC_GENERATE),
-	SKS_ID(SKS_PROC_GENERATE_PAIR),
-	SKS_ID(SKS_PROC_WRAP),
-	SKS_ID(SKS_PROC_UNWRAP),
-	SKS_ID(SKS_PROC_DERIVE),
+	SKS_ID(SKS_CKFM_HW),
+	SKS_ID(SKS_CKFM_ENCRYPT),
+	SKS_ID(SKS_CKFM_DECRYPT),
+	SKS_ID(SKS_CKFM_DIGEST),
+	SKS_ID(SKS_CKFM_SIGN),
+	SKS_ID(SKS_CKFM_SIGN_RECOVER),
+	SKS_ID(SKS_CKFM_VERIFY),
+	SKS_ID(SKS_CKFM_VERIFY_RECOVER),
+	SKS_ID(SKS_CKFM_GENERATE),
+	SKS_ID(SKS_CKFM_GENERATE_PAIR),
+	SKS_ID(SKS_CKFM_WRAP),
+	SKS_ID(SKS_CKFM_UNWRAP),
+	SKS_ID(SKS_CKFM_DERIVE),
 };
 #endif /*CFG_TEE_TA_LOG_LEVEL*/
 
@@ -274,7 +250,7 @@ static const struct string_id __maybe_unused string_proc_flags[] = {
 
 size_t sks_attr_is_class(uint32_t attribute_id)
 {
-	if (attribute_id == SKS_CLASS)
+	if (attribute_id == SKS_CKA_CLASS)
 		return sizeof(uint32_t);
 	else
 		return 0;
@@ -283,8 +259,8 @@ size_t sks_attr_is_class(uint32_t attribute_id)
 size_t sks_attr_is_type(uint32_t attribute_id)
 {
 	switch (attribute_id) {
-	case SKS_TYPE:
-	case SKS_PROCESSING_ID:
+	case SKS_CKA_KEY_TYPE:
+	case SKS_CKA_MECHANISM_TYPE:
 		return sizeof(uint32_t);
 	default:
 		return 0;
@@ -294,12 +270,12 @@ size_t sks_attr_is_type(uint32_t attribute_id)
 bool sks_class_has_type(uint32_t class)
 {
 	switch (class) {
-	case SKS_OBJ_CERTIFICATE:
-	case SKS_OBJ_PUB_KEY:
-	case SKS_OBJ_PRIV_KEY:
-	case SKS_OBJ_SYM_KEY:
-	case SKS_OBJ_CK_MECHANISM:
-	case SKS_OBJ_CK_HW_FEATURES:
+	case SKS_CKO_CERTIFICATE:
+	case SKS_CKO_PUBLIC_KEY:
+	case SKS_CKO_PRIVATE_KEY:
+	case SKS_CKO_SECRET_KEY:
+	case SKS_CKO_MECHANISM:
+	case SKS_CKO_HW_FEATURE:
 		return 1;
 	default:
 		return 0;
@@ -309,9 +285,9 @@ bool sks_class_has_type(uint32_t class)
 bool sks_attr_class_is_key(uint32_t class)
 {
 	switch (class) {
-	case SKS_OBJ_SYM_KEY:
-	case SKS_OBJ_PUB_KEY:
-	case SKS_OBJ_PRIV_KEY:
+	case SKS_CKO_SECRET_KEY:
+	case SKS_CKO_PUBLIC_KEY:
+	case SKS_CKO_PRIVATE_KEY:
 		return 1;
 	default:
 		return 0;
@@ -321,10 +297,12 @@ bool sks_attr_class_is_key(uint32_t class)
 /* Returns shift position or -1 on error */
 int sks_attr2boolprop_shift(uint32_t attr)
 {
-	if (attr < SKS_BOOLPROPS_BASE || attr > SKS_BOOLPROPS_LAST)
+	COMPILE_TIME_ASSERT(SKS_BOOLPROPS_BASE == 0);
+
+	if (attr > SKS_BOOLPROPS_LAST)
 		return -1;
 
-	return attr - SKS_BOOLPROPS_BASE;
+	return attr;
 }
 
 /*
@@ -409,10 +387,10 @@ bool valid_sks_attribute_id(uint32_t id, uint32_t size)
 	return false;
 }
 
+#if CFG_TEE_TA_LOG_LEVEL > 0
 /*
  * Convert a SKS ID into its label string
  */
-#if CFG_TEE_TA_LOG_LEVEL > 0
 const char *sks2str_attr(uint32_t id)
 {
 	size_t n;
@@ -422,7 +400,7 @@ const char *sks2str_attr(uint32_t id)
 			continue;
 
 		/* Skip SKS_ prefix */
-		return (char *)attr_ids[n].string + strlen("SKS_");
+		return (char *)attr_ids[n].string + strlen("SKS_CKA_");
 	}
 
 	return unknown;
@@ -455,15 +433,15 @@ static const char *id2str(uint32_t id, const struct string_id *table,
 
 const char *sks2str_class(uint32_t id)
 {
-	return ID2STR(id, string_class, "SKS_OBJ_");
+	return ID2STR(id, string_class, "SKS_CKO_");
 }
 
 const char *sks2str_type(uint32_t id, uint32_t class)
 {
 	switch (class) {
-	case SKS_OBJ_SYM_KEY:
-	case SKS_OBJ_PUB_KEY:
-	case SKS_OBJ_PRIV_KEY:
+	case SKS_CKO_SECRET_KEY:
+	case SKS_CKO_PUBLIC_KEY:
+	case SKS_CKO_PRIVATE_KEY:
 		return sks2str_key_type(id);
 	default:
 		return unknown;
@@ -471,12 +449,15 @@ const char *sks2str_type(uint32_t id, uint32_t class)
 }
 const char *sks2str_key_type(uint32_t id)
 {
-	return ID2STR(id, string_key_type, "SKS_");
+	return ID2STR(id, string_key_type, "SKS_CKK_");
 }
 
 const char *sks2str_boolprop(uint32_t id)
 {
-	return ID2STR(id, string_boolprop, "SKS_BP_");
+	if (id < 64)
+		return sks2str_attr(id);
+
+	return unknown;
 }
 
 const char *sks2str_proc(uint32_t id)
@@ -486,12 +467,12 @@ const char *sks2str_proc(uint32_t id)
 	if (str != unknown)
 		return str;
 
-	return ID2STR(id, string_processing, "SKS_PROC_");
+	return ID2STR(id, string_processing, "SKS_CKM_");
 }
 
 const char *sks2str_proc_flag(uint32_t id)
 {
-	return ID2STR(id, string_proc_flags, "SKS_PROC_");
+	return ID2STR(id, string_proc_flags, "SKS_CKFM_");
 }
 
 const char *sks2str_rc(uint32_t id)
