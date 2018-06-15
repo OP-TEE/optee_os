@@ -12,8 +12,6 @@
 
 TEE_Result TA_CreateEntryPoint(void)
 {
-	// TODO: initialize the token
-
 	return TEE_SUCCESS;
 }
 
@@ -25,7 +23,6 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 				    TEE_Param __unused params[4],
 				    void **session)
 {
-	// TODO: get a identifier for the client session
 	*session = NULL;
 
 	return TEE_SUCCESS;
@@ -33,7 +30,6 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 
 void TA_CloseSessionEntryPoint(void *session __unused)
 {
-	// TODO: release identifier of the client session
 }
 
 static uint32_t entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)

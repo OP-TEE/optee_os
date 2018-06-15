@@ -46,13 +46,14 @@
  */
 
 /*
- * SKS_CMD_PING		Acknowledge TA presence and return TA versioning info
+ * SKS_CMD_PING		Acknowledge TA presence and return TA version info
  *
- * param#0: none
- * param#1: none
- * param#2: none | out-memref : [uint32_t version1]
- *				[uint32_t version2]
- * param#3: none
+ * Optinal invocation parameter:
+ *
+ * [out]        memref[2] = [
+ *                      32bit version0 value,
+ *                      32bit version1 value
+ *              ]
  */
 #define SKS_CMD_PING			0x00000000
 
