@@ -843,8 +843,7 @@ static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 		res = load_elf_from_store(uuid, store, utc);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
-		if (res)
-		{
+		if (res) {
 			DMSG("res=0x%x", res);
 			continue;
 		}
