@@ -36,7 +36,7 @@
  *
  * The TA instance may represent several PKCS#11 slots and associated tokens.
  * This command relates the PKCS#11 API function C_GetSlotList and return the
- * valid IDs recognized by the trsuted application.
+ * valid IDs recognized by the trusted application.
  */
 #define SKS_CMD_CK_SLOT_LIST		0x00000001
 
@@ -49,16 +49,20 @@
  *
  * The TA instance may represent several PKCS#11 slots and associated tokens.
  * This command relates the PKCS#11 API function C_GetSlotInfo and return the
- * information abut the target slot.
+ * information about the target slot.
  */
 #define SKS_CMD_CK_SLOT_INFO		0x00000002
 
+#define SKS_SLOT_DESC_SIZE		64
+#define SKS_SLOT_MANUFACTURER_SIZE	32
+#define SKS_SLOT_VERSION_SIZE		2
+
 struct sks_slot_info {
-	uint8_t slotDescription[64];
-	uint8_t manufacturerID[32];
+	uint8_t slotDescription[SKS_SLOT_DESC_SIZE];
+	uint8_t manufacturerID[SKS_SLOT_MANUFACTURER_SIZE];
 	uint32_t flags;
-	uint8_t hardwareVersion[2];
-	uint8_t firmwareVersion[2];
+	uint8_t hardwareVersion[SKS_SLOT_VERSION_SIZE];
+	uint8_t firmwareVersion[SKS_SLOT_VERSION_SIZE];
 };
 
 /*
@@ -78,7 +82,7 @@ struct sks_slot_info {
  *
  * The TA instance may represent several PKCS#11 slots and associated tokens.
  * This command relates the PKCS#11 API function C_GetTokenInfo and return the
- * information abut the target represented token.
+ * information about the target represented token.
  */
 #define SKS_CMD_CK_TOKEN_INFO		0x00000003
 
@@ -181,7 +185,7 @@ struct sks_mechanism_info {
 #define SKS_CKFM_DERIVE			(1U << 19)
 
 /*
- * SKS_CMD_CK_INIT_TOKEN - Initialiaze PKCS#11 token
+ * SKS_CMD_CK_INIT_TOKEN - Initialize PKCS#11 token
  *
  * [in]		memref[0] = [
  *			32bit slot ID,
@@ -196,7 +200,7 @@ struct sks_mechanism_info {
 #define SKS_CMD_CK_INIT_TOKEN		0x00000006
 
 /*
- * SKS_CMD_CK_INIT_PIN - Initialiaze PKCS#11 token PIN
+ * SKS_CMD_CK_INIT_PIN - Initialize PKCS#11 token PIN
  *
  * [in]		memref[0] = [
  *			32bit session handle,
@@ -278,7 +282,7 @@ struct sks_session_info {
 };
 
 /*
- * SKS_CMD_CK_CLOSE_ALL_SESSIONS - Close all slot's pending sessions
+ * SKS_CMD_CK_CLOSE_ALL_SESSIONS - Close all client sessions on slot/token
  *
  * [in]		memref[0] = 32bit slot
  * [out]	memref[0] = 32bit fine grain retrun code
@@ -297,7 +301,7 @@ struct sks_session_info {
  * [out]	memref[0] = 32bit fine grain retrun code
  * [out]	memref[2] = 32bit object handle
  *
- * This commands relates to the PKCS#11 API function C_ImportObject().
+ * This commands relates to the PKCS#11 API function C_CreateObject().
  */
 #define SKS_CMD_IMPORT_OBJECT		0x0000000e
 
@@ -352,8 +356,8 @@ struct sks_attr_head {
 #define SKS_CMD_DESTROY_OBJECT		0x0000000f
 
 /*
- * SKS_CMD_ENCRYPT_INIT - Initialize decryption processing
- * SKS_CMD_DECRYPT_INIT - Initialize encryption processing
+ * SKS_CMD_ENCRYPT_INIT - Initialize enryption processing
+ * SKS_CMD_DECRYPT_INIT - Initialize decryption processing
  *
  * [in]		memref[0] = [
  *			32bit session handle,
@@ -408,8 +412,7 @@ struct sks_attr_head {
  * [out]	memref[0] = 32bit fine grain retrun code
  * [out]	memref[2] = 32bit key handle
  *
- * This command relates to the PKCS#11 API functions C_GenerateKey() and
- * C_DecryptInit.
+ * This command relates to the PKCS#11 API functions C_GenerateKey().
  */
 #define SKS_CMD_GENERATE_SYMM_KEY	0x00000016
 
@@ -431,8 +434,8 @@ struct sks_attr_head {
 #define SKS_CMD_VERIFY_INIT		0x00000018
 
 /*
- * SKS_CMD_SIGN_UPDATE - Initialize a signature computation processing
- * SKS_CMD_VERIFY_UPDATE - Initialize a signature verification processing
+ * SKS_CMD_SIGN_UPDATE - Update a signature computation processing
+ * SKS_CMD_VERIFY_UPDATE - Update a signature verification processing
  *
  * [in]		memref[0] = 32bit session handle
  * [in]		memref[1] = input data to be processed
@@ -445,15 +448,15 @@ struct sks_attr_head {
 #define SKS_CMD_VERIFY_UPDATE		0x0000001a
 
 /*
- * SKS_CMD_SIGN_FINAL - Initialize a signature computation processing
- * SKS_CMD_VERIFY_FINAL - Initialize a signature verification processing
+ * SKS_CMD_SIGN_FINAL - Finalize a signature computation processing
+ * SKS_CMD_VERIFY_FINAL - Finalize a signature verification processing
  *
  * [in]		memref[0] = 32bit session handle
  * [out]	memref[0] = 32bit fine grain retrun code
  * [out]	memref[2] = output processed data
  *
  * These commands relate to the PKCS#11 API functions C_SignFinal() and
- * C_SignFinal.
+ * C_VerifyFinal.
  */
 #define SKS_CMD_SIGN_FINAL		0x0000001b
 #define SKS_CMD_VERIFY_FINAL		0x0000001c
@@ -507,7 +510,7 @@ struct sks_attr_head {
 #define SKS_CMD_GET_OBJECT_SIZE		0x00000020
 
 /*
- * SKS_CMD_GET_ATTRIBUTE_VALUE - Get the value of object attrbiute(s)
+ * SKS_CMD_GET_ATTRIBUTE_VALUE - Get the value of object attribute(s)
  *
  * [in]		memref[0] = [
  *			32bit session handle,
@@ -520,7 +523,7 @@ struct sks_attr_head {
 #define SKS_CMD_GET_ATTRIBUTE_VALUE	0x00000021
 
 /*
- * SKS_CMD_SET_ATTRIBUTE_VALUE - Set the value for object attrbiute(s)
+ * SKS_CMD_SET_ATTRIBUTE_VALUE - Set the value for object attribute(s)
  *
  * [in]		memref[0] = [
  *			32bit session handle,
@@ -533,7 +536,7 @@ struct sks_attr_head {
 #define SKS_CMD_SET_ATTRIBUTE_VALUE	0x00000022
 
 /*
- * SKS_CMD_DERIVE_KEY - Create a key by derivation of a provisionned parent key
+ * SKS_CMD_DERIVE_KEY - Derive a key from already provisioned parent key
  *
  * [in]		memref[0] = [
  *			32bit session handle,
