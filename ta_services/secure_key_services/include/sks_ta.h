@@ -313,18 +313,19 @@ struct sks_session_info {
  * sks_object_head - Header of object whose data are serialized in memory
  *
  * An object in made of several attributes. Attributes are store one next to
- * the other with byte alignment as serialized blobs. Attributes data are
- * prepend with this header structure that defines the number of blobs
- * (of attributes) and the overall byte size of the serialized blobs.
+ * the other with byte alignment as serialized byte arrays. Appended
+ * attributes byte arrays are prepend with this header structure that
+ * defines the number of attribute items and the overall byte size of the
+ * attrs byte array.
  *
- * @blobs_size - byte size of whole byte array blobs[]
- * @blobs_count - number of attribute items stored in blobs[]
- * @blobs - then starts the blobs binary data starting with first attribute
+ * @attrs_size - byte size of whole byte array attrs[]
+ * @attrs_count - number of attribute items stored in attrs[]
+ * @attrs - then starts the attributes data
  */
 struct sks_object_head {
-	uint32_t blobs_size;
-	uint32_t blobs_count;
-	uint8_t blobs[];
+	uint32_t attrs_size;
+	uint32_t attrs_count;
+	uint8_t attrs[];
 };
 
 /*
