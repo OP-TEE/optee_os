@@ -715,19 +715,19 @@ struct sks_attr_head {
  *			  or SKS_CKM_AES_CBC_PAD
  *			  or SKS_CKM_AES_CTS
  *		32bit params byte size = 16
- *  params:	16byte inivial vector
+ *  params:	16byte IV
  *
  * AES CTR
  *   head:	32bit type = SKS_CKM_AES_CTR
  *		32bit params byte size = 20
  *  params:	32bit counter bit increment
- *		16byte inivial vector
+ *		16byte IV
  *
  * AES GCM
  *   head:	32bit type = SKS_CKM_AES_GCM
  *		32bit params byte size
  *  params:	32bit IV_byte_size
- *		byte array: IV data (IV_byte_size bytes)
+ *		byte array: IV (IV_byte_size bytes)
  *		32bit AAD_byte_size
  *		byte array: AAD data (AAD_byte_size bytes)
  *		32bit tag bit size
@@ -745,7 +745,7 @@ struct sks_attr_head {
  * AES GMAC
  *   head:	32bit type = SKS_CKM_AES_GMAC
  *		32bit params byte size = 12
- *  params:	12byte initial vector
+ *  params:	12byte IV
 
  * AES CMAC with general length
  *   head:	32bit type = SKS_CKM_AES_CMAC_GENERAL
@@ -765,7 +765,7 @@ struct sks_attr_head {
  * AES derive by CBC
  *   head:	32bit type = SKS_CKM_AES_CBC_ENCRYPT_DATA
  *		32bit params byte size
- *  params:	16byte inivial vector
+ *  params:	16byte IV
  *		32bit byte size of the data to encrypt
  *		byte array: data to encrypt
  *
