@@ -55,7 +55,7 @@ static uint32_t entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 /*
  * Entry point for SKS TA commands
  *
- * ABI: param#0 is control buffer with serialazed arguments.
+ * ABI: param#0 is control buffer with serialized arguments.
  *	param#1 is the input data buffer
  *	param#2 is the output data buffer (also used to return handles)
  *	param#3 is not used
