@@ -869,7 +869,7 @@ static void discover_nsec_memory(void)
 	}
 
 	nelems = (&__end_phys_ddr_overall_section -
-		  &__start_phys_ddr_overall_section) / sizeof(*mem);
+		  &__start_phys_ddr_overall_section);
 	if (!nelems)
 		return;
 
