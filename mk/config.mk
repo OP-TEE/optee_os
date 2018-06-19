@@ -1030,3 +1030,15 @@ CFG_FAULT_MITIGATION ?= y
 # compatibility with version v1.1 as the value of this variable is not
 # preserved in the TA dev-kit.
 CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n
+
+# Change supported HMAC key size range, from 64 to 1024.
+# This is needed to pass AOSP Keymaster VTS tests:
+#   Link to tests : https://android.googlesource.com/platform/hardware/interfaces/+/master/keymaster/3.0/vts/functional/keymaster_hidl_hal_test.cpp
+#   Module: VtsHalKeymasterV3_0TargetTest
+#   Testcases: - PerInstance/SigningOperationsTest#
+#              - PerInstance/NewKeyGenerationTest#
+#              - PerInstance/ImportKeyTest#
+#              - PerInstance/EncryptionOperationsTest#
+#              - PerInstance/AttestationTest#
+# Note that this violates GP requirements of HMAC size range.
+CFG_HMAC_64_1024_RANGE ?= n
