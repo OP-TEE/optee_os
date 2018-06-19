@@ -178,9 +178,9 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_RSA_NOPAD:
-		if (mode == TEE_MODE_ENCRYPT) {
+		if (mode == TEE_MODE_ENCRYPT || mode == TEE_MODE_VERIFY) {
 			req_key_usage = TEE_USAGE_ENCRYPT | TEE_USAGE_VERIFY;
-		} else if (mode == TEE_MODE_DECRYPT) {
+		} else if (mode == TEE_MODE_DECRYPT || mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_DECRYPT | TEE_USAGE_SIGN;
 		} else {
