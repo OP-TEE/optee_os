@@ -67,7 +67,7 @@ int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
 {
    unsigned char *DB, *seed, *mask;
    unsigned long hLen, x, y, modulus_len;
-   int           err;
+   int           err, mgf1_hash;
 
    LTC_ARGCHK(msg    != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -80,6 +80,11 @@ int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
 
    /* valid prng */
    if ((err = prng_is_valid(prng_idx)) != CRYPT_OK) {
+      return err;
+   }
+
+   mgf1_hash = find_hash("sha1");
+   if ((err = hash_is_valid(mgf1_hash)) != CRYPT_OK) {
       return err;
    }
 
@@ -142,7 +147,7 @@ int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* compute MGF1 of seed (k - hlen - 1) */
-   if ((err = pkcs_1_mgf1(hash_idx, seed, hLen, mask, modulus_len - hLen - 1)) != CRYPT_OK) {
+   if ((err = pkcs_1_mgf1(mgf1_hash, seed, hLen, mask, modulus_len - hLen - 1)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
@@ -152,7 +157,7 @@ int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* compute MGF1 of maskedDB (hLen) */ 
-   if ((err = pkcs_1_mgf1(hash_idx, DB, modulus_len - hLen - 1, mask, hLen)) != CRYPT_OK) {
+   if ((err = pkcs_1_mgf1(mgf1_hash, DB, modulus_len - hLen - 1, mask, hLen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
