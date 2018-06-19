@@ -16,3 +16,7 @@ ifeq ($(CFG_SE_API),y)
 srcs-$(CFG_SE_API_SELF_TEST) += se_api_self_tests.c
 cppflags-se_api_self_tests.c-y += -Icore/tee/se
 endif
+
+srcs-$(CFG_ASN1_PARSER) += asn1_parser.c
+srcs-$(CFG_ASN1_PARSER) += attestations.c
+srcs-$(CFG_ASN1_PARSER) += encoders.c

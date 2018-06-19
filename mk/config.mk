@@ -296,6 +296,9 @@ $(eval $(call cfg-depends-all,CFG_SECSTOR_TA_MGMT_PTA,CFG_SECSTOR_TA))
 # GlobalPlatform Core API (for example, re-seeding RNG entropy pool etc.)
 CFG_SYSTEM_PTA ?= y
 
+# Expose ASN1 parser high-level functionality for parsing x509 certificates.
+CFG_ASN1_PARSER ?= y
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
