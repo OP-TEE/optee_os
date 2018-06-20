@@ -27,8 +27,8 @@ bool sm_from_nsec(struct sm_ctx *ctx)
 	}
 #endif
 
-	sm_save_modes_regs(&ctx->nsec.mode_regs);
-	sm_restore_modes_regs(&ctx->sec.mode_regs);
+	sm_save_unbanked_regs(&ctx->nsec.ub_regs);
+	sm_restore_unbanked_regs(&ctx->sec.ub_regs);
 
 	memcpy(&ctx->sec.r0, nsec_r0, sizeof(uint32_t) * 8);
 	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))

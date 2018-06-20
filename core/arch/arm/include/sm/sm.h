@@ -10,7 +10,7 @@
 #include <compiler.h>
 #include <types_ext.h>
 
-struct sm_mode_regs {
+struct sm_unbanked_regs {
 	uint32_t usr_sp;
 	uint32_t usr_lr;
 	uint32_t irq_spsr;
@@ -35,7 +35,7 @@ struct sm_mode_regs {
 };
 
 struct sm_nsec_ctx {
-	struct sm_mode_regs mode_regs;
+	struct sm_unbanked_regs ub_regs;
 
 	uint32_t r8;
 	uint32_t r9;
@@ -58,7 +58,7 @@ struct sm_nsec_ctx {
 };
 
 struct sm_sec_ctx {
-	struct sm_mode_regs mode_regs;
+	struct sm_unbanked_regs ub_regs;
 
 	uint32_t r0;
 	uint32_t r1;
@@ -112,6 +112,6 @@ static inline bool sm_platform_handler(__unused struct sm_ctx *ctx)
 bool sm_platform_handler(struct sm_ctx *ctx);
 #endif
 
-void sm_save_modes_regs(struct sm_mode_regs *regs);
-void sm_restore_modes_regs(struct sm_mode_regs *regs);
+void sm_save_unbanked_regs(struct sm_unbanked_regs *regs);
+void sm_restore_unbanked_regs(struct sm_unbanked_regs *regs);
 #endif /*SM_SM_H*/
