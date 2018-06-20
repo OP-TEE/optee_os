@@ -75,7 +75,7 @@ static TEE_Result assign_mobj_to_param_mem(const paddr_t pa, const size_t sz,
 							  false);
 		if (!mem->mobj)
 			return TEE_ERROR_BAD_PARAMETERS;
-		mem->offs = pa & SMALL_PAGE_MASK;
+		mem->offs = 0;
 		mem->size = sz;
 		return TEE_SUCCESS;
 	}
