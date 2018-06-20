@@ -6,7 +6,7 @@
 #define UTIL_H
 
 #include <compiler.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #define SIZE_4K	UINTPTR_C(0x1000)
 #define SIZE_1M	UINTPTR_C(0x100000)

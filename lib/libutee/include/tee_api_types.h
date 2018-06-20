@@ -8,7 +8,7 @@
 #define TEE_API_TYPES_H
 
 #include <compiler.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <tee_api_defines.h>
