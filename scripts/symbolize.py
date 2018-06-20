@@ -200,8 +200,12 @@ class Symbolizer(object):
                 addr, size, _, name = line.split()
             except:
                 # Size is missing
-                addr, _, name = line.split()
-                size = '0'
+                try:
+                    addr, _, name = line.split()
+                    size = '0'
+                except:
+                    # E.g., undefined (external) symbols (line = "U symbol")
+                    continue
             iaddr = int(addr, 16)
             isize = int(size, 16)
             if iaddr == ireladdr:
