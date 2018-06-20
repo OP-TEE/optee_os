@@ -31,6 +31,8 @@
 #define CPSR_IT_MASK1	ARM32_CPSR_IT_MASK1
 #define CPSR_IT_MASK2	ARM32_CPSR_IT_MASK2
 
+#define PMCR_DP		BIT32(5)
+
 #define SCR_NS		BIT32(0)
 #define SCR_IRQ		BIT32(1)
 #define SCR_FIQ		BIT32(2)
