@@ -17,7 +17,7 @@
 
 	.section .text.sm_asm
 
-FUNC sm_save_modes_regs , :
+FUNC sm_save_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -47,10 +47,10 @@ UNWIND(	.cantunwind)
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC sm_save_modes_regs
+END_FUNC sm_save_unbanked_regs
 
 /* Restores the mode specific registers */
-FUNC sm_restore_modes_regs , :
+FUNC sm_restore_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -80,7 +80,7 @@ UNWIND(	.cantunwind)
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC sm_restore_modes_regs
+END_FUNC sm_restore_unbanked_regs
 
 /*
  * stack_tmp is used as stack, the top of the stack is reserved to hold
@@ -111,7 +111,7 @@ UNWIND(	.cantunwind)
 
 	/* Save secure context */
 	add	r0, sp, #SM_CTX_SEC
-	bl	sm_save_modes_regs
+	bl	sm_save_unbanked_regs
 
 	/*
 	 * On FIQ exit we're restoring the non-secure context unchanged, on
@@ -127,7 +127,7 @@ UNWIND(	.cantunwind)
 
 	/* Restore non-secure context */
 	add	r0, sp, #SM_CTX_NSEC
-	bl	sm_restore_modes_regs
+	bl	sm_restore_unbanked_regs
 
 .sm_ret_to_nsec:
 	/*
@@ -212,7 +212,7 @@ UNWIND(	.cantunwind)
 
 	/* Save non-secure context */
 	add	r0, sp, #SM_CTX_NSEC
-	bl	sm_save_modes_regs
+	bl	sm_save_unbanked_regs
 	stm	r0!, {r8-r12}
 
 	/* Set FIQ entry */
@@ -221,7 +221,7 @@ UNWIND(	.cantunwind)
 
 	/* Restore secure context */
 	add	r0, sp, #SM_CTX_SEC
-	bl	sm_restore_modes_regs
+	bl	sm_restore_unbanked_regs
 
 	add	sp, sp, #(SM_CTX_SEC + SM_SEC_CTX_MON_LR)
 
