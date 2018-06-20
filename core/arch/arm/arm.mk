@@ -59,6 +59,10 @@ endif
 # Addresses CVE-2017-5715 (aka Meltdown) known to affect Arm Cortex-A75
 CFG_CORE_UNMAP_CORE_AT_EL0 ?= y
 
+# Initialize PMCR.DP to 1 to prohibit cycle counting in secure state, and
+# save/restore PMCR during world switch.
+CFG_SM_NO_CYCLE_COUNTING ?= y
+
 ifeq ($(CFG_ARM32_core),y)
 # Configration directive related to ARMv7 optee boot arguments.
 # CFG_PAGEABLE_ADDR: if defined, forces pageable data physical address.

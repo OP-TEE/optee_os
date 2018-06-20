@@ -187,6 +187,14 @@
 	mcr	p15, 0, \reg, c8, c3, 3
 	.endm
 
+	.macro read_pmcr reg
+	mrc	p15, 0, \reg, c9, c12, 0
+	.endm
+
+	.macro write_pmcr reg
+	mcr	p15, 0, \reg, c9, c12, 0
+	.endm
+
 	.macro write_prrr reg
 	mcr	p15, 0, \reg, c10, c2, 0
 	.endm

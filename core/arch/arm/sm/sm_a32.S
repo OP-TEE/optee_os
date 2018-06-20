@@ -44,6 +44,10 @@ UNWIND(	.cantunwind)
 	mrs	r2, spsr
 	stm	r0!, {r2, sp, lr}
 
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	read_pmcr r2
+	stm	r0!, {r2}
+#endif
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
@@ -77,6 +81,10 @@ UNWIND(	.cantunwind)
 	ldm	r0!, {r2, sp, lr}
 	msr	spsr_fsxc, r2
 
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	ldm	r0!, {r2}
+	write_pmcr r2
+#endif
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
@@ -351,7 +359,11 @@ UNWIND(	.fnstart)
 	write_scr r0
 	isb
 #endif
-
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	read_pmcr r0
+	orr	r0, #PMCR_DP
+	write_pmcr r0
+#endif
 	msr	cpsr, r1
 
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
