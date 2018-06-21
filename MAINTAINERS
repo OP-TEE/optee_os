@@ -46,6 +46,11 @@ R:	Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org> [@grandpaul]
 S:	Maintained
 F:	core/arch/arm/plat-sunxi/
 
+AllWinner sun50i A64
+R:	Amit Singh Tomar <amittomer25@gmail.com> [@Amit-Radur]
+S:	Maintained
+F:	core/arch/arm/plat-sunxi/
+
 Atmel ATSAMA5D2-XULT
 R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
 S:	Maintained
