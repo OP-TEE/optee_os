@@ -1,5 +1,5 @@
 global-incdirs-y += .
 srcs-y += main.c
-srcs-y += plat_init.S
-srcs-y += psci.c
+srcs-$(CFG_ARM32_core) += plat_init.S
+srcs-$(CFG_ARM32_core) += psci.c
 cflags-psci.c-y += -Wno-suggest-attribute=noreturn

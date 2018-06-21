@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, Allwinner Technology Co., Ltd.
  * Copyright (c) 2018, Linaro Limited
+ * Copyright (c) 2018, Amit Singh Tomar <amittomer25@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 #include <stdint.h>
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
+#include <drivers/tzc380.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -45,7 +47,6 @@
 #include <sm/optee_smc.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
-#include <arm32.h>
 
 #ifdef GIC_BASE
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
@@ -77,8 +78,19 @@ register_phys_mem(MEM_AREA_IO_SEC, SUNXI_CPUCFG_BASE, SUNXI_CPUCFG_REG_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, SUNXI_PRCM_BASE, SUNXI_PRCM_REG_SIZE);
 #endif
 
+#ifdef CFG_TZC380
+vaddr_t smc_base(void);
+register_phys_mem(MEM_AREA_IO_SEC, SUNXI_SMC_BASE, TZC400_REG_SIZE);
+#define SMC_MASTER_BYPASS 0x18
+#define SMC_MASTER_BYPASS_EN_MASK 0x1
+#endif
+
+#ifdef GIC_BASE
 static struct gic_data gic_data;
+#endif
+#ifdef SUNXI_TZPC_BASE
 static void tzpc_init(void);
+#endif
 
 static void main_fiq(void)
 {
@@ -89,12 +101,21 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
 	.cpu_resume = pm_panic,
 	.system_off = pm_panic,
 	.system_reset = pm_panic,
+#endif
 };
 
 static struct serial8250_uart_data console_data;
@@ -106,13 +127,11 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 
 void console_init(void)
 {
-#ifdef CFG_SUN8I_H2_PLUS
 	serial8250_uart_init(&console_data,
 			     CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ,
 			     CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
-#endif
 }
 
 #ifdef SUNXI_TZPC_BASE
@@ -141,6 +160,7 @@ static inline void tzpc_init(void)
 }
 #endif /* SUNXI_TZPC_BASE */
 
+#ifndef CFG_WITH_ARM_TRUSTED_FW
 void main_init_gic(void)
 {
 	vaddr_t gicc_base;
@@ -161,7 +181,9 @@ void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
 }
+#endif
 
+#ifdef ARM32
 void plat_cpu_reset_late(void)
 {
 	assert(!cpu_mmu_enabled());
@@ -171,3 +193,42 @@ void plat_cpu_reset_late(void)
 
 	tzpc_init();
 }
+#endif
+
+/*
+ * Allwinner's A64 has TZC380 like controller called SMC that can
+ * be programmed to protect parts of DRAM from non-secure world.
+ */
+#ifdef CFG_TZC380
+vaddr_t smc_base(void)
+{
+	return (vaddr_t)phys_to_virt(SUNXI_SMC_BASE, MEM_AREA_IO_SEC);
+}
+
+static TEE_Result smc_init(void)
+{
+	uint32_t val = 0;
+	vaddr_t base = smc_base();
+
+	if (!base) {
+		EMSG("smc not mapped");
+		panic();
+	}
+
+	tzc_init(base);
+	tzc_configure_region(0, 0x0, TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_1G) |
+			     TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_ALL);
+	tzc_configure_region(1, 0x0, TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_32M) |
+			     TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_S_RW);
+
+
+	/* SoC specific bits */
+	val = read32(base + SMC_MASTER_BYPASS);
+	val = val & ~(SMC_MASTER_BYPASS_EN_MASK);
+	write32(val, base + SMC_MASTER_BYPASS);
+
+	return TEE_SUCCESS;
+}
+
+driver_init(smc_init);
+#endif /* CFG_TZC380 */

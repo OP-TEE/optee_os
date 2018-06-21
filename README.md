@@ -87,6 +87,7 @@ The **Maintained?** column shows:
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No | ![Actively maintained](documentation/images/green.svg) |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No | ![Actively maintained](documentation/images/green.svg) |
 | STMicroelectronics stm32mp1 |`PLATFORM=stm32mp1`| No | ![Actively maintained](documentation/images/green.svg) |
+| [Allwinner A64 Pine64 Board](https://www.pine64.org/) |`PLATFORM=sunxi-sun50i_a64`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Texas Instruments AM65x](http://www.ti.com/lit/ug/spruid7/spruid7.pdf)|`PLATFORM=k3-am65x`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [Texas Instruments DRA7xx](http://www.ti.com/processors/automotive-processors/drax-infotainment-socs/overview.html)|`PLATFORM=ti-dra7xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [Texas Instruments AM57xx](http://www.ti.com/processors/sitara/arm-cortex-a15/am57x/overview.html)|`PLATFORM=ti-am57xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
