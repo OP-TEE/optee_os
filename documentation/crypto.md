@@ -52,7 +52,7 @@ All cryptography-related system calls are declared in
 In addition to dealing with the usual work required at the user/kernel interface
 (checking parameters and copying memory buffers between user and kernel space),
 the system calls invoke a private abstraction layer: the **Crypto API**,
-which is declared in [crypto.h](core/include/crypto/crypto.h).
+which is declared in [crypto.h](../core/include/crypto/crypto.h).
 It serves two main purposes:
 
 1. Allow for alternative implementations, such as hardware-accelerated versions.
@@ -62,7 +62,7 @@ It serves two main purposes:
 ## crypto_*() [3]
 
 The **crypto_*()** functions implement the actual algorithms and helper
-functions. The TEE Core has one global active implementeation of this interface.
+functions. The TEE Core has one global active implementation of this interface.
 The default implementation, mostly based on
 [LibTomCrypt](https://github.com/libtom/libtomcrypt), is as follows:
 
@@ -96,7 +96,7 @@ TEE_Result crypto_hash_get_ctx_size(uint32_t algo, size_t *size)
 ```
 
 As shown above, families of algorithms can be disabled and
-[crypto.c]((core/include/crypto/crypto.h)) will provide default null
+[crypto.c](../core/crypto/crypto.c) will provide default null
 implementations that will return **TEE_ERROR_NOT_IMPLEMENTED**.
 
 ## Public/private key format
@@ -106,7 +106,7 @@ for asymmetric algorithms. For instance, here is how a public RSA key is
 represented:
 
 ```c
-/* core/include/crypt/crypt.h */
+/* core/include/crypto/crypto.h */
 
 struct rsa_public_key {
 	struct bignum *e;	/* Public exponent */
@@ -124,7 +124,7 @@ conversion to or from the big endian binary format.
 
 
 ```c
-/*  core/include/core/core.h */
+/*  core/include/crypto/crypto.h */
 
 struct bignum *crypto_bignum_allocate(size_t size_bits);
 TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
