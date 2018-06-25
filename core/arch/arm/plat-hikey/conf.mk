@@ -21,6 +21,8 @@ endif
 CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
+# Overrides default 64 kB in mk/config.mk with 192 kB
+CFG_CORE_HEAP_SIZE ?= 196608
 
 ifeq ($(PLATFORM_FLAVOR),hikey)
 CFG_PL061 ?= y
