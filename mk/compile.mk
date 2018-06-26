@@ -20,7 +20,7 @@ comp-cflags$(sm) = -std=gnu99
 comp-aflags$(sm) =
 comp-cppflags$(sm) =
 
-ifndef NOWERROR
+ifeq ($(CFG_WERROR),y)
 comp-cflags$(sm)	+= -Werror
 endif
 comp-cflags$(sm)  	+= -fdiagnostics-show-option
