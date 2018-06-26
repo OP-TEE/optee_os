@@ -301,6 +301,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	size_t num_elems = nelems;
 	struct tee_mmap_region *map = static_memory_map;
 	const struct core_mmu_phys_mem __maybe_unused *pmem;
+	paddr_t pa;
 
 	assert(!discovered_nsec_ddr_start);
 	assert(m && num_elems);
@@ -334,6 +335,10 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 
 	discovered_nsec_ddr_start = m;
 	discovered_nsec_ddr_nelems = num_elems;
+
+	if (ADD_OVERFLOW(m[num_elems - 1].addr, m[num_elems - 1].size - 1, &pa))
+		panic();
+	core_mmu_set_max_pa(pa);
 }
 
 static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,

@@ -203,7 +203,7 @@ static uint64_t xlat_tables_ul1[CFG_NUM_THREADS][XLAT_TABLE_ENTRIES]
 
 
 static unsigned int next_xlat;
-static uint64_t tcr_ps_bits;
+static paddr_t max_pa;
 static int user_va_idx = -1;
 
 static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
@@ -328,49 +328,20 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
-{
-	/* Physical address can't exceed 48 bits */
-	assert(!(max_addr & ADDR_MASK_48_TO_63));
-
-	/* 48 bits address */
-	if (max_addr & ADDR_MASK_44_TO_47)
-		return TCR_PS_BITS_256TB;
-
-	/* 44 bits address */
-	if (max_addr & ADDR_MASK_42_TO_43)
-		return TCR_PS_BITS_16TB;
-
-	/* 42 bits address */
-	if (max_addr & ADDR_MASK_40_TO_41)
-		return TCR_PS_BITS_4TB;
-
-	/* 40 bits address */
-	if (max_addr & ADDR_MASK_36_TO_39)
-		return TCR_PS_BITS_1TB;
-
-	/* 36 bits address */
-	if (max_addr & ADDR_MASK_32_TO_35)
-		return TCR_PS_BITS_64GB;
-
-	return TCR_PS_BITS_4GB;
-}
-
 static paddr_t get_nsec_ddr_max_pa(void)
 {
-	paddr_t max_pa = 0;
+	paddr_t pa = 0;
 	const struct core_mmu_phys_mem *mem;
 
 	for (mem = &__start_phys_nsec_ddr_section;
 	     mem < &__end_phys_nsec_ddr_section; mem++)
-		max_pa = MAX(max_pa, mem->addr + mem->size);
+		pa = MAX(pa, mem->addr + mem->size);
 
-	return max_pa;
+	return pa;
 }
 
 void core_init_mmu_tables(struct tee_mmap_region *mm)
 {
-	paddr_t max_pa = get_nsec_ddr_max_pa();
 	uint64_t max_va = 0;
 	size_t n;
 
@@ -378,7 +349,7 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	COMPILE_TIME_ASSERT(CORE_MMU_L1_TBL_OFFSET ==
 			   sizeof(l1_xlation_table) / 2);
 #endif
-
+	max_pa = get_nsec_ddr_max_pa();
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
 		paddr_t pa_end;
@@ -426,7 +397,6 @@ void core_init_mmu_tables(struct tee_mmap_region *mm)
 	}
 	assert(user_va_idx != -1);
 
-	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
 	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_SIZE > 0);
 	assert(max_va < CFG_LPAE_ADDR_SPACE_SIZE);
 }
@@ -468,11 +438,41 @@ void core_init_mmu_regs(void)
 #endif /*ARM32*/
 
 #ifdef ARM64
+static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
+{
+	/* Physical address can't exceed 48 bits */
+	if (max_addr & ADDR_MASK_48_TO_63)
+		panic();
+
+	/* 48 bits address */
+	if (max_addr & ADDR_MASK_44_TO_47)
+		return TCR_PS_BITS_256TB;
+
+	/* 44 bits address */
+	if (max_addr & ADDR_MASK_42_TO_43)
+		return TCR_PS_BITS_16TB;
+
+	/* 42 bits address */
+	if (max_addr & ADDR_MASK_40_TO_41)
+		return TCR_PS_BITS_4TB;
+
+	/* 40 bits address */
+	if (max_addr & ADDR_MASK_36_TO_39)
+		return TCR_PS_BITS_1TB;
+
+	/* 36 bits address */
+	if (max_addr & ADDR_MASK_32_TO_35)
+		return TCR_PS_BITS_64GB;
+
+	return TCR_PS_BITS_4GB;
+}
+
 void core_init_mmu_regs(void)
 {
 	uint64_t mair;
 	uint64_t tcr;
 	paddr_t ttbr0;
+	uint64_t ips = calc_physical_addr_size_bits(max_pa);
 
 	ttbr0 = virt_to_phys(l1_xlation_table[0][get_core_pos()]);
 
@@ -484,7 +484,7 @@ void core_init_mmu_regs(void)
 	tcr |= TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT;
 	tcr |= TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT;
 	tcr |= TCR_SHX_ISH << TCR_SH0_SHIFT;
-	tcr |= tcr_ps_bits << TCR_EL1_IPS_SHIFT;
+	tcr |= ips << TCR_EL1_IPS_SHIFT;
 	tcr |= 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
 
 	/* Disable the use of TTBR1 */
@@ -498,6 +498,28 @@ void core_init_mmu_regs(void)
 	write_tcr_el1(tcr);
 	write_ttbr0_el1(ttbr0);
 	write_ttbr1_el1(0);
+}
+
+void core_mmu_set_max_pa(paddr_t pa)
+{
+	uint64_t tcr;
+	uint64_t ips;
+
+	if (pa <= max_pa)
+		return;
+
+	max_pa = pa;
+	ips = calc_physical_addr_size_bits(max_pa);
+	tcr = read_tcr_el1();
+	tcr &= ~(TCR_EL1_IPS_MASK << TCR_EL1_IPS_SHIFT);
+	tcr |= ips << TCR_EL1_IPS_SHIFT;
+	write_tcr_el1(tcr);
+	/*
+	 * MMU is already enabled at this stage and TCR state may be cached
+	 * in TLB.
+	 */
+	isb();
+	tlbi_all();
 }
 #endif /*ARM64*/
 

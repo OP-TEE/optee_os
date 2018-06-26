@@ -22,5 +22,13 @@ static inline bool core_mmap_is_end_of_table(const struct tee_mmap_region *mm)
 	return mm->type == MEM_AREA_END;
 }
 
+#ifdef ARM64
+void core_mmu_set_max_pa(paddr_t pa);
+#else
+static inline void core_mmu_set_max_pa(paddr_t pa __unused)
+{
+}
+#endif
+
 #endif /*CORE_MMU_PRIVATE_H*/
 
