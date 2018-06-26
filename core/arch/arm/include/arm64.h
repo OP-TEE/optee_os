@@ -101,6 +101,7 @@
 #define TCR_ORGN1_SHIFT		26
 #define TCR_SH1_SHIFT		28
 #define TCR_EL1_IPS_SHIFT	32
+#define TCR_EL1_IPS_MASK	UINT64_C(0x7)
 #define TCR_TG1_4KB		SHIFT_U32(2, 30)
 #define TCR_RES1		BIT32(31)
 
