@@ -32,6 +32,14 @@
 #endif
 #endif
 
+/*
+ * In some particular conditions MAX and MIN macros fail to
+ * build from C source file implmentation. In such case one
+ * need to use MAX_UNSAFE/MIN_UNSAFE instead.
+ */
+#define MAX_UNSAFE(a, b)	(((a) > (b)) ? (a) : (b))
+#define MIN_UNSAFE(a, b)	(((a) < (b)) ? (a) : (b))
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 #ifndef ASM
