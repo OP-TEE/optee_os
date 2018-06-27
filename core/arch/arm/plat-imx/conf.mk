@@ -1,14 +1,29 @@
 PLATFORM_FLAVOR ?= mx6ulevk
 
 # Get SoC associated with the PLATFORM_FLAVOR
-mx6ul-flavorlist = mx6ulevk
-mx6ull-flavorlist = mx6ullevk
-mx6q-flavorlist = mx6qsabrelite mx6qsabresd
-mx6sx-flavorlist = mx6sxsabreauto
-mx6d-flavorlist =
-mx6dl-flavorlist = mx6dlsabresd
-mx6s-flavorlist =
-mx7-flavorlist = mx7dsabresd mx7swarp7
+mx6ul-flavorlist = \
+	mx6ulevk \
+
+mx6ull-flavorlist = \
+	mx6ullevk \
+
+mx6q-flavorlist = \
+	mx6qsabrelite \
+	mx6qsabresd \
+
+mx6sx-flavorlist = \
+	mx6sxsabreauto \
+
+mx6d-flavorlist = \
+
+mx6dl-flavorlist = \
+	mx6dlsabresd \
+
+mx6s-flavorlist = \
+
+mx7-flavorlist = \
+	mx7dsabresd \
+	mx7swarp7 \
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6UL,y)
