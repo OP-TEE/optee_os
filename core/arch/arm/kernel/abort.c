@@ -28,7 +28,8 @@ enum fault_type {
 
 #ifdef CFG_UNWIND
 
-static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
+static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
+				       vaddr_t *stack, size_t *stack_size)
 {
 	struct tee_ta_session *s;
 	struct user_ta_ctx *utc;
@@ -45,6 +46,9 @@ static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
 	if (*exidx)
 		*exidx += utc->load_addr;
 	*exidx_sz = utc->exidx_size;
+
+	*stack = utc->stack_addr;
+	*stack_size = utc->mobj_stack->size;
 }
 
 #ifdef ARM32
@@ -55,21 +59,30 @@ static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
 static void __print_stack_unwind_arm32(struct abort_info *ai)
 {
 	struct unwind_state_arm32 state;
-	uaddr_t exidx;
+	vaddr_t exidx;
 	size_t exidx_sz;
 	uint32_t mode = ai->regs->spsr & CPSR_MODE_MASK;
 	uint32_t sp;
 	uint32_t lr;
+	vaddr_t stack;
+	size_t stack_size;
+	bool kernel_stack;
 
 	if (abort_is_user_exception(ai)) {
-		get_current_ta_exidx(&exidx, &exidx_sz);
+		get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack,
+					   &stack_size);
 		if (!exidx) {
 			EMSG_RAW("Call stack not available");
 			return;
 		}
+		kernel_stack = false;
 	} else {
 		exidx = (vaddr_t)__exidx_start;
 		exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
+		/* Kernel stack */
+		stack = thread_stack_start();
+		stack_size = thread_stack_size();
+		kernel_stack = true;
 	}
 
 	if (mode == CPSR_MODE_USR || mode == CPSR_MODE_SYS) {
@@ -97,20 +110,23 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz, kernel_stack,
+			  stack, stack_size);
 }
 #else /* ARM32 */
 
 static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 {
 	struct unwind_state_arm32 state;
-	uaddr_t exidx;
+	vaddr_t exidx;
 	size_t exidx_sz;
+	vaddr_t stack;
+	size_t stack_size;
 
 	/* 64-bit kernel, hence 32-bit unwind must be for user mode */
 	assert(abort_is_user_exception(ai));
 
-	get_current_ta_exidx(&exidx, &exidx_sz);
+	get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack, &stack_size);
 
 	memset(&state, 0, sizeof(state));
 	state.registers[0] = ai->regs->x0;
@@ -130,7 +146,8 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 	state.registers[14] = ai->regs->x14;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz,
+			  false /*!kernel_stack*/, stack, stack_size);
 }
 #endif /* ARM32 */
 #ifdef ARM64
@@ -138,6 +155,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 static void __print_stack_unwind_arm64(struct abort_info *ai)
 {
 	struct unwind_state_arm64 state;
+	bool kernel_stack;
 	uaddr_t stack;
 	size_t stack_size;
 
@@ -152,17 +170,19 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 		/* User stack */
 		stack = utc->stack_addr;
 		stack_size = utc->mobj_stack->size;
+		kernel_stack = false;
 	} else {
 		/* Kernel stack */
 		stack = thread_stack_start();
 		stack_size = thread_stack_size();
+		kernel_stack = true;
 	}
 
 	memset(&state, 0, sizeof(state));
 	state.pc = ai->regs->elr;
 	state.fp = ai->regs->x29;
 
-	print_stack_arm64(TRACE_ERROR, &state, stack, stack_size);
+	print_stack_arm64(TRACE_ERROR, &state, kernel_stack, stack, stack_size);
 }
 #else
 static void __print_stack_unwind_arm64(struct abort_info *ai __unused)
