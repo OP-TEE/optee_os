@@ -10,16 +10,20 @@ mx6ull-flavorlist = \
 mx6q-flavorlist = \
 	mx6qsabrelite \
 	mx6qsabresd \
+	mx6qhmbedge \
 
 mx6sx-flavorlist = \
 	mx6sxsabreauto \
 
 mx6d-flavorlist = \
+	mx6dhmbedge \
 
 mx6dl-flavorlist = \
 	mx6dlsabresd \
+	mx6dlhmbedge \
 
 mx6s-flavorlist = \
+	mx6shmbedge \
 
 mx7-flavorlist = \
 	mx7dsabresd \
