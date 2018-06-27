@@ -60,10 +60,10 @@ register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_COHERENT_SIZE);
 #endif
 #ifdef DRAM0_BASE
-register_ddr(DRAM0_BASE, DRAM0_SIZE);
+register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE);
 #endif
 #ifdef DRAM1_BASE
-register_ddr(DRAM1_BASE, DRAM1_SIZE);
+register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
