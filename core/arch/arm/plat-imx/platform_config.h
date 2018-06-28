@@ -54,31 +54,12 @@
 
 #define CFG_TEE_CORE_NB_CORE		1
 
-#define CONSOLE_UART_BASE	(UART1_BASE)
+#define CONSOLE_UART_BASE	CFG_UART_BASE
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
 #elif defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
 	defined(CFG_MX6S)
-
-
-/* Board specific console UART */
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite)
-#define CONSOLE_UART_BASE		UART2_BASE
-#endif
-#if defined(PLATFORM_FLAVOR_mx6qsabresd)
-#define CONSOLE_UART_BASE		UART1_BASE
-#endif
-#if defined(PLATFORM_FLAVOR_mx6dlsabresd)
-#define CONSOLE_UART_BASE		UART1_BASE
-#endif
-
-/* Board specific RAM size */
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
-	defined(PLATFORM_FLAVOR_mx6qsabresd) || \
-	defined(PLATFORM_FLAVOR_mx6dlsabresd)
-#define DRAM0_SIZE			0x40000000
-#endif
 
 /* Core number depends of SoC version. */
 #if defined(CFG_MX6Q)
@@ -91,12 +72,10 @@
 #define CFG_TEE_CORE_NB_CORE		1
 #endif
 
-/* Common RAM and cache controller configuration */
-#define DDR_PHYS_START			DRAM0_BASE
-#define DDR_SIZE			DRAM0_SIZE
+#define CONSOLE_UART_BASE	CFG_UART_BASE
 
-#define CFG_DDR_START			DDR_PHYS_START
-#define CFG_DDR_SIZE			DDR_SIZE
+/* Common RAM and cache controller configuration */
+#define CFG_DDR_START			DRAM0_BASE
 
 /*
  * PL310 TAG RAM Control Register
