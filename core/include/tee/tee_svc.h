@@ -65,7 +65,17 @@ TEE_Result syscall_invoke_ta_command(unsigned long sess,
 TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 				       size_t len);
 
+#ifdef CFG_WITH_USER_TA
 TEE_Result tee_svc_copy_from_user(void *kaddr, const void *uaddr, size_t len);
+#else
+static inline TEE_Result tee_svc_copy_from_user(void *kaddr __unused,
+						const void *uaddr __unused,
+						size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
 TEE_Result tee_svc_copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
 TEE_Result tee_svc_copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
