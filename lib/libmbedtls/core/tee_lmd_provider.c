@@ -1184,17 +1184,35 @@ TEE_Result hash_sha256_check(const uint8_t *hash,
 }
 #endif
 
-TEE_Result crypto_aes_expand_enc_key(const void *key __unused,
-				     size_t key_len __unused,
-				     void *enc_key __unused,
-				     unsigned int *rounds __unused)
+TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
+				     void *enc_key, size_t enc_keylen,
+				     unsigned int *rounds)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	mbedtls_aes_context ctx;
+
+	mbedtls_aes_init(&ctx);
+	if (mbedtls_aes_setkey_enc(&ctx, key, key_len * 8) != 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (enc_keylen > sizeof(ctx.buf))
+		return TEE_ERROR_BAD_PARAMETERS;
+	memcpy(enc_key, ctx.buf, enc_keylen);
+	*rounds = ctx.nr;
+	mbedtls_aes_free(&ctx);
+	return TEE_SUCCESS;
 }
 
-void crypto_aes_enc_block(const void *enc_key __unused,
-			  unsigned int rounds __unused,
-			  const void *src __unused,
-			  void *dst __unused)
+void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen,
+			  unsigned int rounds, const void *src, void *dst)
 {
+	mbedtls_aes_context ctx;
+
+	mbedtls_aes_init(&ctx);
+	if (enc_keylen > sizeof(ctx.buf))
+		panic();
+	memcpy(ctx.buf, enc_key, enc_keylen);
+	ctx.rk = ctx.buf;
+	ctx.nr = rounds;
+	mbedtls_aes_encrypt(&ctx, src, dst);
+	mbedtls_aes_free(&ctx);
 }
