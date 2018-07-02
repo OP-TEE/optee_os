@@ -1184,17 +1184,14 @@ TEE_Result hash_sha256_check(const uint8_t *hash,
 }
 #endif
 
-TEE_Result crypto_aes_expand_enc_key(const void *key __unused,
-				     size_t key_len __unused,
-				     void *enc_key __unused,
-				     unsigned int *rounds __unused)
+TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
+				      void *enc_key, size_t enc_keylen __unused,
+				      unsigned int *rounds)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-void crypto_aes_enc_block(const void *enc_key __unused,
-			  unsigned int rounds __unused,
-			  const void *src __unused,
-			  void *dst __unused)
+void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __unused,
+			   unsigned int rounds, const void *src, void *dst)
 {
 }

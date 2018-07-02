@@ -79,12 +79,17 @@ void __weak
 internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
 			       const void *src, void *dst)
 {
-	crypto_aes_enc_block(ek->data, ek->rounds, src, dst);
+	size_t ek_len = sizeof(ek->data);
+
+	crypto_aes_enc_block(ek->data, ek_len, ek->rounds, src, dst);
 }
 
 TEE_Result __weak
 internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 				struct internal_aes_gcm_key *ek)
 {
-	return crypto_aes_expand_enc_key(key, key_len, ek->data, &ek->rounds);
+	size_t ek_len = sizeof(ek->data);
+
+	return crypto_aes_expand_enc_key(key, key_len, ek->data, ek_len,
+					&ek->rounds);
 }
