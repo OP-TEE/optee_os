@@ -275,22 +275,6 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 #endif /* CFG_CRYPTO_ECC */
 
 
-TEE_Result crypto_aes_expand_enc_key(const void *key __unused,
-				     size_t key_len __unused,
-				     void *enc_key __unused,
-				     size_t enc_keylen __unused,
-				     unsigned int *rounds __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-void crypto_aes_enc_block(const void *enc_key __unused,
-			  size_t enc_keylen __unused,
-			  unsigned int rounds __unused,
-			  const void *src __unused, void *dst __unused)
-{
-}
-
 /* Stubs for the crypto alloc ctx functions matching crypto_impl.h */
 #undef CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED
 

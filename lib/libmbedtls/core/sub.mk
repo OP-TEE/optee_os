@@ -7,6 +7,7 @@ srcs-$(call cfg-one-enabled, CFG_CRYPTO_MD5 CFG_CRYPTO_SHA1 CFG_CRYPTO_SHA224 \
 			     CFG_CRYPTO_SHA512) += hash.c
 
 ifeq ($(CFG_CRYPTO_AES),y)
+srcs-y += aes.c
 srcs-$(CFG_CRYPTO_ECB) += aes_ecb.c
 srcs-$(CFG_CRYPTO_CBC) += aes_cbc.c
 srcs-$(CFG_CRYPTO_CTR) += aes_ctr.c
