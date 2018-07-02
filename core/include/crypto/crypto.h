@@ -306,8 +306,9 @@ void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
 TEE_Result crypto_rng_read(void *buf, size_t len);
 
 TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
-				     void *enc_key, unsigned int *rounds);
-void crypto_aes_enc_block(const void *enc_key, unsigned int rounds,
-			  const void *src, void *dst);
+				     void *enc_key, size_t enc_keylen,
+				     unsigned int *rounds);
+void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen,
+			  unsigned int rounds, const void *src, void *dst);
 
 #endif /* __CRYPTO_CRYPTO_H */
