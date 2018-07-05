@@ -32,9 +32,6 @@ endif
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
 
-# Define NOWERROR=1 so that warnings are not treated as errors
-# NOWERROR=1
-
 # Define DEBUG=1 to compile without optimization (forces -O0)
 # DEBUG=1
 
