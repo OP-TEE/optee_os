@@ -208,7 +208,7 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 	}
 
 	if (scn > TEE_SCN_MAX)
-		scf = syscall_not_supported;
+		scf = (syscall_t)syscall_not_supported;
 	else
 		scf = tee_svc_syscall_table[scn].fn;
 
