@@ -67,7 +67,7 @@ S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Marvell Armada 70x0, Armada 80x0, Armada 3700
-R:	Kevin Peng <kevinp@marvell.com> [@kevin-peng-hao]
+R:	Tao Lu <taolu@marvell.com> [@taovcu]
 S:	Maintained
 F:	core/arch/arm/plat-marvell/
 
