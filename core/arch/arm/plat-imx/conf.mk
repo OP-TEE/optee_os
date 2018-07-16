@@ -28,6 +28,9 @@ $(call force,CFG_MX6SX,y)
 $(call force,CFG_IMX_UART,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7-flavorlist)))
 $(call force,CFG_MX7,y)
+else ifeq ($(PLATFORM_FLAVOR),generic)
+# Must set CFG_DDR_SIZE, CFG_UART_BASE, and SOC flavor (CFG_MX6Q, CFG_MX7, ...)
+# via config option
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -127,6 +130,25 @@ CFG_PSCI_ARM32 ?= y
 CFG_BOOT_SYNC_CPU = n
 CFG_BOOT_SECONDARY_REQUEST = n
 $(call force,CFG_TEE_CORE_NB_CORE,1)
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qsabrelite))
+CFG_UART_BASE = UART2_BASE
+CFG_DDR_SIZE = 0x40000000
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qsabresd))
+CFG_UART_BASE = UART1_BASE
+CFG_DDR_SIZE = 0x40000000
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6dlsabresd))
+CFG_UART_BASE = UART1_BASE
+CFG_DDR_SIZE = 0x40000000
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk))
+CFG_UART_BASE = UART1_BASE
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
