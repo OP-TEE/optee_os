@@ -19,7 +19,8 @@ endif
 link-out-dir := $(out-dir)	# backward compat
 link-out-dir$(sm) := $(out-dir)
 
-binary := $(BINARY)
+user-ta-uuid := $(BINARY)
+user-ta-ldadd := $(LDADD)
 libname := $(LIBNAME)
 shlibname := $(SHLIBNAME)
 shlibuuid := $(SHLIBUUID)
@@ -84,7 +85,7 @@ clean:
 subdirs = .
 include  $(ta-dev-kit-dir$(sm))/mk/subdir.mk
 
-ifneq ($(binary),)
+ifneq ($(user-ta-uuid),)
 # Build target is TA
 vpath %.c $(ta-dev-kit-dir$(sm))/src
 srcs += user_ta_header.c
@@ -93,7 +94,7 @@ endif
 include  $(ta-dev-kit-dir$(sm))/mk/gcc.mk
 include  $(ta-dev-kit-dir$(sm))/mk/compile.mk
 
-ifneq ($(binary),)
+ifneq ($(user-ta-uuid),)
 include  $(ta-dev-kit-dir$(sm))/mk/link.mk
 endif
 
