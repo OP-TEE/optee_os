@@ -5,24 +5,24 @@ link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 SIGN = $(ta-dev-kit-dir$(sm))/scripts/sign.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 
-all: $(link-out-dir$(sm))/$(binary).dmp \
-	$(link-out-dir$(sm))/$(binary).stripped.elf \
-	$(link-out-dir$(sm))/$(binary).ta
-cleanfiles += $(link-out-dir$(sm))/$(binary).elf
-cleanfiles += $(link-out-dir$(sm))/$(binary).dmp
-cleanfiles += $(link-out-dir$(sm))/$(binary).map
-cleanfiles += $(link-out-dir$(sm))/$(binary).stripped.elf
-cleanfiles += $(link-out-dir$(sm))/$(binary).ta
+all: $(link-out-dir$(sm))/$(user-ta-uuid).dmp \
+	$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
+	$(link-out-dir$(sm))/$(user-ta-uuid).ta
+cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).elf
+cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).dmp
+cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).map
+cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf
+cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).ta
 cleanfiles += $(link-script-pp$(sm)) $(link-script-dep$(sm))
 
 link-ldflags  = -pie
 link-ldflags += -T $(link-script-pp$(sm))
-link-ldflags += -Map=$(link-out-dir$(sm))/$(binary).map
+link-ldflags += -Map=$(link-out-dir$(sm))/$(user-ta-uuid).map
 link-ldflags += --sort-section=alignment
 
 link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
 link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd)
+ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd)
 
 
 link-script-cppflags-$(sm) := -DASM=1 \
@@ -39,24 +39,24 @@ $(link-script-pp$(sm)): $(link-script$(sm)) $(MAKEFILE_LIST)
 	$(q)$(CPP$(sm)) -Wp,-P,-MT,$@,-MD,$(link-script-dep$(sm)) \
 		$(link-script-cppflags-$(sm)) $< > $@
 
-$(link-out-dir$(sm))/$(binary).elf: $(objs) $(libdeps) \
+$(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
 					  $(link-script-pp$(sm))
 	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LD$(sm)) $(ldargs-$(binary).elf) -o $@
+	$(q)$(LD$(sm)) $(ldargs-$(user-ta-uuid).elf) -o $@
 
-$(link-out-dir$(sm))/$(binary).dmp: \
-			$(link-out-dir$(sm))/$(binary).elf
+$(link-out-dir$(sm))/$(user-ta-uuid).dmp: \
+			$(link-out-dir$(sm))/$(user-ta-uuid).elf
 	@$(cmd-echo-silent) '  OBJDUMP $@'
 	$(q)$(OBJDUMP$(sm)) -l -x -d $< > $@
 
-$(link-out-dir$(sm))/$(binary).stripped.elf: \
-			$(link-out-dir$(sm))/$(binary).elf
+$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf: \
+			$(link-out-dir$(sm))/$(user-ta-uuid).elf
 	@$(cmd-echo-silent) '  OBJCOPY $@'
 	$(q)$(OBJCOPY$(sm)) --strip-unneeded $< $@
 
-$(link-out-dir$(sm))/$(binary).ta: \
-			$(link-out-dir$(sm))/$(binary).stripped.elf \
+$(link-out-dir$(sm))/$(user-ta-uuid).ta: \
+			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY)
 	@echo '  SIGN    $@'
-	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(binary) --version 0 \
+	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(user-ta-uuid) --version 0 \
 		--in $< --out $@
