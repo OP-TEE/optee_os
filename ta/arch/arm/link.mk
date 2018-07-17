@@ -15,8 +15,7 @@ cleanfiles += $(link-out-dir)/$(binary).stripped.elf
 cleanfiles += $(link-out-dir)/$(binary).ta
 cleanfiles += $(link-script-pp) $(link-script-dep)
 
-link-ldflags  = $(LDFLAGS)
-link-ldflags += -pie
+link-ldflags  = -pie
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/$(binary).map
 link-ldflags += --sort-section=alignment
 
