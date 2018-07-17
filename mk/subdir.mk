@@ -67,7 +67,7 @@ define process-subdir-gensrcs-helper
 gen-srcs			+= $2
 oname				:= $3
 
-FORCE-GENSRC: $2
+FORCE-GENSRC$(sm): $2
 
 $$(addprefix $4,$$(produce-additional-$1)): $2
 
