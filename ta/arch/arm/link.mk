@@ -20,12 +20,9 @@ link-ldflags += -pie
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/$(binary).map
 link-ldflags += --sort-section=alignment
 
-# Macro to reverse a list
-reverse = $(if $(wordlist 2,2,$(1)),$(call reverse,$(wordlist 2,$(words $(1)),$(1))) $(firstword $(1)),$(1))
-
 link-ldadd  = $(LDADD)
 link-ldadd += $(addprefix -L,$(libdirs))
-link-ldadd += --start-group $(addprefix -l,$(call reverse,$(libnames))) --end-group
+link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
 ldargs-$(binary).elf := $(link-ldflags) $(objs) $(link-ldadd)
 
 
