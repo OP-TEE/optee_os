@@ -23,4 +23,6 @@ recipe-early-ta-$1 = scripts/ta_bin_to_c.py --compress --ta $1 \
 cleanfiles += $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
 endef
 $(foreach f, $(EARLY_TA_PATHS), $(eval $(call process_early_ta,$(f))))
+$(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
+	process_early_ta,$(out-dir)/ta/$(f).stripped.elf)))
 endif
