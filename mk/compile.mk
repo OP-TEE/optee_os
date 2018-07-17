@@ -149,6 +149,11 @@ $(foreach f, $(srcs), $(eval $(call \
 # Handle generated source files, that is, files that are compiled from out-dir
 $(foreach f, $(gen-srcs), $(eval $(call process_srcs,$(f),$$(basename $f).o)))
 
+# Handle specified source files, that is, files that have a specified path
+# but where the object file should go into a specified out directory
+$(foreach f, $(spec-srcs), $(eval $(call \
+	process_srcs,$(f),$(spec-out-dir)/$$(notdir $$(basename $f)).o)))
+
 $(objs): $(conf-file)
 
 define _gen-asm-defines-file
