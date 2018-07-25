@@ -97,8 +97,8 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	};
 #else
 	static const char * const wdog_path[] = {
-		"/soc/aips-bus@02000000/wdog@020bc000",
-		"/soc/aips-bus@02000000/wdog@020c0000",
+		"/soc/aips-bus@2000000/wdog@20bc000",
+		"/soc/aips-bus@2000000/wdog@20c0000",
 	};
 #endif
 
