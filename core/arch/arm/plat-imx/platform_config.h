@@ -33,14 +33,15 @@
 #include <mm/generic_ram_layout.h>
 #include <imx-regs.h>
 
+#ifndef CFG_DDR_SIZE
+#error "CFG_DDR_SIZE not defined"
+#endif
+
 #define STACK_ALIGNMENT			64
+#define CONSOLE_UART_BASE		(CFG_UART_BASE)
 
-/* For i.MX7D/S platforms */
-#if defined(CFG_MX7)
-#include <config/config_imx7.h>
-
-#elif defined(CFG_MX6SX)
-#include <config/config_imx6sx.h>
+#if defined(CFG_MX6SX)
+#include <config/imx6sx.h>
 
 /* For i.MX 6UltraLite and 6ULL EVK board */
 #elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
@@ -52,67 +53,10 @@
 #error "LPAE not supported for now"
 #endif
 
-#define CFG_TEE_CORE_NB_CORE		1
-
-#define CONSOLE_UART_BASE	(UART1_BASE)
-
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
 #elif defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
 	defined(CFG_MX6S)
-
-
-/* Board specific console UART */
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite)
-#define CONSOLE_UART_BASE		UART2_BASE
-#endif
-#if defined(PLATFORM_FLAVOR_mx6qsabresd)
-#define CONSOLE_UART_BASE		UART1_BASE
-#endif
-#if defined(PLATFORM_FLAVOR_mx6dlsabresd)
-#define CONSOLE_UART_BASE		UART1_BASE
-#endif
-#if defined(PLATFORM_FLAVOR_mx6qhmbedge) || \
-	defined(PLATFORM_FLAVOR_mx6dhmbedge) || \
-	defined(PLATFORM_FLAVOR_mx6dlhmbedge) || \
-	defined(PLATFORM_FLAVOR_mx6shmbedge)
-#define CONSOLE_UART_BASE		UART1_BASE
-#endif
-
-
-/* Board specific RAM size */
-#if defined(PLATFORM_FLAVOR_mx6qhmbedge)
-#define DRAM0_SIZE                      0x80000000
-#endif
-#if defined(PLATFORM_FLAVOR_mx6qsabrelite) || \
-	defined(PLATFORM_FLAVOR_mx6qsabresd) || \
-	defined(PLATFORM_FLAVOR_mx6dlsabresd) || \
-	defined(PLATFORM_FLAVOR_mx6dhmbedge) || \
-	defined(PLATFORM_FLAVOR_mx6dlhmbedge)
-#define DRAM0_SIZE			0x40000000
-#endif
-#if defined(PLATFORM_FLAVOR_mx6shmbedge)
-#define DRAM0_SIZE                      0x20000000
-#endif
-
-/* Core number depends of SoC version. */
-#if defined(CFG_MX6Q)
-#define CFG_TEE_CORE_NB_CORE		4
-#endif
-#if defined(CFG_MX6D) || defined(CFG_MX6DL)
-#define CFG_TEE_CORE_NB_CORE		2
-#endif
-#if defined(CFG_MX6S)
-#define CFG_TEE_CORE_NB_CORE		1
-#endif
-
-/* Common RAM and cache controller configuration */
-#define DDR_PHYS_START			DRAM0_BASE
-#define DDR_SIZE			DRAM0_SIZE
-
-#define CFG_DDR_START			DDR_PHYS_START
-#define CFG_DDR_SIZE			DDR_SIZE
-
 /*
  * PL310 TAG RAM Control Register
  *
@@ -202,8 +146,6 @@
  */
 #define SCU_NSAC_CTRL_INIT		0x00000FFF
 
-#else
-#error "Unknown platform flavor"
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
