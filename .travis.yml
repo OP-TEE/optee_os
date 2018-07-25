@@ -54,9 +54,6 @@ before_script:
   - mkdir $HOME/optee_repo
   - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
   - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
-  - download https://releases.linaro.org/archive/15.02/components/toolchain/binaries/arm-linux-gnueabihf/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz
-  - mkdir -p $HOME/optee_repo/toolchains
-  - (cd $HOME/optee_repo/toolchains && tar xf $DL_DIR/gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf.tar.xz && mv gcc-linaro-4.9-2015.02-3-x86_64_arm-linux-gnueabihf aarch32-legacy)
   - cd $MYHOME
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
@@ -80,7 +77,7 @@ script:
 
   # Run regression tests (xtest in QEMU)
   - export CFG_WERROR=y
-  - (cd ${HOME}/optee_repo/build && $make check COMPILE_LEGACY=y AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- LEGACY_AARCH32_CROSS_COMPILE=$HOME/optee_repo/toolchains/aarch32-legacy/bin/arm-linux-gnueabihf- BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && $make toolchains && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
 
 env:
   global:
