@@ -19,7 +19,7 @@
 ##########################################################
 ## define common variables, like TA_DEV_KIT_DIR         ##
 ##########################################################
-OPTEE_OUT_DIR ?= $(PRODUCT_OUT)/optee
+OPTEE_OUT_DIR ?= $(realpath $(PRODUCT_OUT))/optee
 OPTEE_TA_OUT_DIR ?= $(OPTEE_OUT_DIR)/ta
 # Set so that OP-TEE clients can find the installed dev-kit, which
 # depends on platform and its OP-TEE word-size.
@@ -54,7 +54,7 @@ BUILD_OPTEE_OS_DEFINED := true
 BUILD_OPTEE_OS:
 	@echo "Start building optee_os..."
 	$(MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
-		O=$(TOP_ROOT_ABS)/$(OPTEE_OS_OUT_DIR) \
+		O=$(OPTEE_OS_OUT_DIR) \
 		ta-targets=$(OPTEE_TA_TARGETS) \
 		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
 		PLATFORM=$(OPTEE_PLATFORM) \
@@ -96,8 +96,8 @@ $(TA_TMP_FILE): PRIVATE_TA_TMP_FILE := $(TA_TMP_FILE)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_DIR := $(TA_TMP_DIR)
 $(TA_TMP_FILE): BUILD_OPTEE_OS
 	@echo "Start building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
-	$(MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(TOP_ROOT_ABS)/$(OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
-		TA_DEV_KIT_DIR=$(TOP_ROOT_ABS)/$(TA_DEV_KIT_DIR) \
+	$(MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
+		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
 		$(CROSS_COMPILE_LINE)
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 
