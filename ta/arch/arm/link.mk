@@ -2,7 +2,7 @@ link-script$(sm) = $(ta-dev-kit-dir$(sm))/src/ta.ld.S
 link-script-pp$(sm) = $(link-out-dir$(sm))/ta.lds
 link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 
-SIGN = $(ta-dev-kit-dir$(sm))/scripts/sign.py
+SIGN ?= $(ta-dev-kit-dir$(sm))/scripts/sign.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 
 all: $(link-out-dir$(sm))/$(user-ta-uuid).dmp \
