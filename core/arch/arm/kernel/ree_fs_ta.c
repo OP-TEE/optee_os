@@ -249,7 +249,7 @@ static void ta_close(struct user_ta_store_handle *h)
 	if (!h)
 		return;
 	thread_rpc_free_payload(h->cookie, h->mobj);
-	free(h->hash_ctx);
+	crypto_hash_free_ctx(h->hash_ctx, h->hash_algo);
 	free(h->shdr);
 	free(h);
 }
