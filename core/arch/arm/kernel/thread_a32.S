@@ -19,6 +19,8 @@
 
 #include "thread_private.h"
 
+	.arch_extension sec
+
 	.macro cmp_spsr_user_mode reg:req
 		/*
 		 * We're only testing the lower 4 bits as bit 5 (0x10)
