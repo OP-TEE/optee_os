@@ -31,7 +31,7 @@ libnames += mbedtls
 endif
 libdeps = $(addsuffix .a, $(addprefix $(libdirs)/lib, $(libnames)))
 
-subdirs = $(dir $(ta-mk-file))
+subdirs = $(patsubst %/,%,$(dir $(ta-mk-file)))
 include mk/subdir.mk
 
 spec-out-dir := $(link-out-dir$(sm))
