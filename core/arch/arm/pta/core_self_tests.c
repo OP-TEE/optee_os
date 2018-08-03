@@ -331,24 +331,28 @@ static int self_test_malloc(void)
 	LOG("");
 
 	/* test realloc */
-	p1 = realloc(p1, 3 * 1024);
-	LOG("- p1 = realloc(p1, 3*1024)");
+	p3 = realloc(p1, 3 * 1024);
+	if (p3)
+		p1 = NULL;
+	LOG("- p3 = realloc(p1, 3*1024)");
 	LOG("- free p2");
 	free(p2);
 	p2 = malloc(1024);
 	LOG("- p2 = malloc(1024)");
 	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
 	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
-	r = (p1 && p2);
+	r = (p2 && p3);
 	if (!r)
 		ret = -1;
 	LOG("  => test %s", r ? "ok" : "FAILED");
 	LOG("");
-	LOG("- free p1, p2");
+	LOG("- free p1, p2, p3");
 	free(p1);
 	free(p2);
+	free(p3);
 	p1 = NULL;
 	p2 = NULL;
+	p3 = NULL;
 
 	/* test calloc */
 	p3 = calloc(4, 1024);
