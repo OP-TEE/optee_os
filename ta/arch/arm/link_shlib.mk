@@ -42,6 +42,6 @@ $(link-out-dir)/$(shlibuuid).elf: $(link-out-dir)/$(shlibname).so
 
 $(link-out-dir)/$(shlibuuid).ta: $(link-out-dir)/$(shlibname).stripped.so \
 				$(TA_SIGN_KEY)
-	@echo '  SIGN    $@'
+	@$(cmd-echo-silent) '  SIGN    $@'
 	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(shlibuuid) --version 0 \
 		--in $< --out $@
