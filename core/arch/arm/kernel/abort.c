@@ -680,9 +680,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #endif
 	case FAULT_TYPE_PAGEABLE:
 	default:
-		thread_kernel_save_vfp();
+		if (!thread_foreign_intr_disabled())
+			thread_kernel_save_vfp();
 		handled = tee_pager_handle_fault(&ai);
-		thread_kernel_restore_vfp();
+		if (!thread_foreign_intr_disabled())
+			thread_kernel_restore_vfp();
 		if (!handled) {
 			abort_print_error(&ai);
 			if (!abort_is_user_exception(&ai))
