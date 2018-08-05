@@ -1,8 +1,11 @@
 subdirs-y += bit
 subdirs-y += boolean
 subdirs-y += choice
+subdirs-y += exp_tag
+subdirs-y += generalizedtime
 subdirs-y += ia5
 subdirs-y += integer
+subdirs-y += long_integer
 subdirs-y += object_identifier
 subdirs-y += octet
 subdirs-y += printable_string
