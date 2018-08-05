@@ -55,9 +55,15 @@
 int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                         unsigned long *outlen)
 {
+   return der_length_sequence_ex(list, inlen, outlen, NULL);
+}
+
+int der_length_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
+                           unsigned long *outlen, unsigned long *payloadlen)
+{
    int           err;
    ltc_asn1_type type;
-   unsigned long size, x, y, i;
+   unsigned long size, x, y, i, z;
    void          *data;
 
    LTC_ARGCHK(list    != NULL);
@@ -91,6 +97,13 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
 
            case LTC_ASN1_SHORT_INTEGER:
                if ((err = der_length_short_integer(*((unsigned long *)data), &x)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
+
+           case LTC_ASN1_LONG_INTEGER:
+               if ((err = der_length_long_integer(*((unsigned long *)data), &x)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
                y += x;
@@ -150,6 +163,13 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                y += x;
                break;
 
+           case LTC_ASN1_GENERALIZEDTIME:
+               if ((err = der_length_generalizedtime(data, &x)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
+
            case LTC_ASN1_UTF8_STRING:
                if ((err = der_length_utf8_string(data, size, &x)) != CRYPT_OK) {
                   goto LBL_ERR;
@@ -166,13 +186,23 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                y += x;
                break;
 
+           case LTC_ASN1_EXP_TAG:
+               if ((err = der_length_exp_tag(data, &x, NULL)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
+           case LTC_ASN1_ENUMERATED:
+               if ((err = der_length_short_integer(*((unsigned long *)data), &x)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
 
            case LTC_ASN1_CHOICE:
            case LTC_ASN1_CONSTRUCTED:
            case LTC_ASN1_CONTEXT_SPECIFIC:
            case LTC_ASN1_EOL:
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
            default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
@@ -180,6 +210,7 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
    }
 
    /* calc header size */
+   z = y;
    if (y < 128) {
       y += 2;
    } else if (y < 256) {
@@ -197,6 +228,7 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
    }
 
    /* store size */
+   if (payloadlen) *payloadlen = z;
    *outlen = y;
    err     = CRYPT_OK;
 

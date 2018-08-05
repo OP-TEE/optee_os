@@ -96,6 +96,10 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_SET:
            case LTC_ASN1_SETOF:
            case LTC_ASN1_RAW_BIT_STRING:
+           case LTC_ASN1_GENERALIZEDTIME:
+           case LTC_ASN1_EXP_TAG:
+           case LTC_ASN1_ENUMERATED:
+           case LTC_ASN1_LONG_INTEGER:
                 ++x;
                 break;
 
@@ -104,8 +108,6 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_CONTEXT_SPECIFIC:
            case LTC_ASN1_EOL:
            case LTC_ASN1_TELETEX_STRING:
-               va_end(args);
-               return CRYPT_INVALID_ARG;
            default:
                va_end(args);
                return CRYPT_INVALID_ARG;
@@ -151,6 +153,10 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_SET:
            case LTC_ASN1_SETOF:
            case LTC_ASN1_RAW_BIT_STRING:
+           case LTC_ASN1_GENERALIZEDTIME:
+           case LTC_ASN1_EXP_TAG:
+           case LTC_ASN1_ENUMERATED:
+           case LTC_ASN1_LONG_INTEGER:
                 LTC_SET_ASN1(list, x++, type, data, size);
                 break;
 
@@ -159,9 +165,6 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_CONTEXT_SPECIFIC:
            case LTC_ASN1_EOL:
            case LTC_ASN1_TELETEX_STRING:
-               va_end(args);
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
            default:
                va_end(args);
                err = CRYPT_INVALID_ARG;
