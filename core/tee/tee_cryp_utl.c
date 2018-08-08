@@ -366,7 +366,6 @@ static TEE_Result tee_cryp_init(void)
 {
 	TEE_Result res = crypto_init();
 
-	res = crypto_init();
 	if (res) {
 		EMSG("Failed to initialize crypto API: %#" PRIx32, res);
 		panic();
