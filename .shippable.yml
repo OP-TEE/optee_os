@@ -77,6 +77,7 @@ build:
     - _make PLATFORM=ls-ls1012ardb
     - _make PLATFORM=ls-ls1012afrwy
     - _make PLATFORM=ls-ls1088ardb
+    - _make PLATFORM=ls-ls2088ardb
     - _make PLATFORM=zynq7k-zc702
     - _make PLATFORM=zynqmp-zcu102
     - _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
