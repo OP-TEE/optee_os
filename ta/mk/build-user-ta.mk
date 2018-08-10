@@ -37,5 +37,6 @@ include mk/subdir.mk
 spec-out-dir := $(link-out-dir$(sm))
 spec-srcs += $(ta-dev-kit-dir$(sm))/src/user_ta_header.c
 
+additional-compile-deps := ta_dev_kit # TA dev kit should be built before in-tree TAs
 include mk/compile.mk
 include  ta/arch/$(ARCH)/link.mk

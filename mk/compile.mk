@@ -3,6 +3,7 @@
 # The output from mk/sub.mk
 # base-prefix
 # conf-file [optional] if set, all objects will depend on $(conf-file)
+# additional-compile-deps [optional] additional dependencies
 #
 # Output
 #
@@ -154,7 +155,7 @@ $(foreach f, $(gen-srcs), $(eval $(call process_srcs,$(f),$$(basename $f).o)))
 $(foreach f, $(spec-srcs), $(eval $(call \
 	process_srcs,$(f),$(spec-out-dir)/$$(notdir $$(basename $f)).o)))
 
-$(objs): $(conf-file)
+$(objs): $(conf-file) $(additional-compile-deps)
 
 define _gen-asm-defines-file
 # c-filename in $1
@@ -229,3 +230,5 @@ $(call _gen-asm-defines-file,$1,$2,$(dir $2).$(notdir $(2:.h=.s)))
 endef
 
 $(foreach f,$(asm-defines-files),$(eval $(call gen-asm-defines-file,$(f),$(out-dir)/$(sm)/include/generated/$(basename $(notdir $(f))).h)))
+
+additional-compile-deps :=
