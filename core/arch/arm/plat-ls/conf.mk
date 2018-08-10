@@ -38,6 +38,15 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,2)
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),ls1012afrwy)
+CFG_HW_UNQ_KEY_REQUEST ?= y
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_CORE_CLUSTER_SHIFT,2)
+CFG_DRAM0_SIZE ?= 0x20000000
+CFG_SHMEM_SIZE ?= 0x00200000
+endif
+
 ifeq ($(PLATFORM_FLAVOR),ls1043ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
