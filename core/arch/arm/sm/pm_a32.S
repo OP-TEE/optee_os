@@ -140,7 +140,7 @@ _core_pos:
 	.long	__get_core_pos - .
 
 /*
- * void sm_do_cpu_do_resume(paddr suspend_regs) __noreturn;
+ * void sm_pm_cpu_do_resume(paddr suspend_regs) __noreturn;
  * Restore the registers stored when sm_pm_cpu_do_suspend
  * r0 points to the physical base address of the suspend_regs
  * field of struct sm_pm_ctx.
