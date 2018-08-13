@@ -89,6 +89,7 @@ $2/$$(notdir $1): $1
 
 cleanfiles += $2/$$(notdir $1)
 ta_dev_kit: $2/$$(notdir $1)
+ta_dev_kit-files += $2/$$(notdir $1)
 endef
 
 # Copy the .a files
