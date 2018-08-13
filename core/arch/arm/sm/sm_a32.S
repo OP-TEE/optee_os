@@ -221,6 +221,7 @@ UNWIND(	.cantunwind)
 	/* Save non-secure context */
 	add	r0, sp, #SM_CTX_NSEC
 	bl	sm_save_unbanked_regs
+	add     r0, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R8)
 	stm	r0!, {r8-r12}
 
 	/* Set FIQ entry */
