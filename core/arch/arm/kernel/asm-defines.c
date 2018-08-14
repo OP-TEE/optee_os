@@ -17,6 +17,7 @@ DEFINES
 	DEFINE(SM_NSEC_CTX_R8, offsetof(struct sm_nsec_ctx, r8));
 	DEFINE(SM_SEC_CTX_R0, offsetof(struct sm_sec_ctx, r0));
 	DEFINE(SM_SEC_CTX_MON_LR, offsetof(struct sm_sec_ctx, mon_lr));
+	DEFINE(SM_CTX_SEC_SIZE, sizeof(struct sm_sec_ctx));
 	DEFINE(SM_CTX_SIZE, sizeof(struct sm_ctx));
 	DEFINE(SM_CTX_NSEC, offsetof(struct sm_ctx, nsec));
 	DEFINE(SM_CTX_SEC, offsetof(struct sm_ctx, sec));

@@ -34,7 +34,6 @@ struct sm_unbanked_regs {
 	uint32_t und_lr;
 #ifdef CFG_SM_NO_CYCLE_COUNTING
 	uint32_t pmcr;
-	uint32_t pad;
 #endif
 };
 
@@ -79,8 +78,13 @@ struct sm_sec_ctx {
 };
 
 struct sm_ctx {
+#ifndef CFG_SM_NO_CYCLE_COUNTING
 	uint32_t pad;
+#endif
 	struct sm_sec_ctx sec;
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	uint32_t pad;
+#endif
 	struct sm_nsec_ctx nsec;
 };
 

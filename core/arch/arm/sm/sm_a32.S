@@ -15,6 +15,8 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <util.h>
 
+#define SM_CTX_SEC_END	(SM_CTX_SEC + SM_CTX_SEC_SIZE)
+
 	.section .text.sm_asm
 
 FUNC sm_save_unbanked_regs , :
@@ -328,7 +330,7 @@ UNWIND(	.fnstart)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_MON
 	/* Point just beyond sm_ctx.sec */
-	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_NSEC)
+	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_SEC_END)
 
 #ifdef CFG_INIT_CNTVOFF
 	read_scr r0
@@ -408,12 +410,12 @@ KEEP_PAGER sm_init
 FUNC sm_get_nsec_ctx , :
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_MON
-	mov	r0, sp
+	/*
+	 * As we're in secure mode mon_sp points just beyond sm_ctx.sec,
+	 * which allows us to calculate the address of sm_ctx.nsec.
+	 */
+	add	r0, sp, #(SM_CTX_NSEC - SM_CTX_SEC_END)
 	msr	cpsr, r1
 
-	/*
-	 * As we're in secure mode mon_sp points just beyond sm_ctx.sec
-	 * which is sm_ctx.nsec
-	 */
 	bx	lr
 END_FUNC sm_get_nsec_ctx
