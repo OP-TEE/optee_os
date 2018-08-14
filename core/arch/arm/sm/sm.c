@@ -17,6 +17,15 @@ bool sm_from_nsec(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
 
+	/*
+	 * Check that struct sm_ctx has the different parts properly
+	 * aligned since the stack pointer will be updated to point at
+	 * different parts of this struct.
+	 */
+	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, sec.r0) % 8));
+	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
+	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
+
 	if (!sm_platform_handler(ctx))
 		return false;
 
