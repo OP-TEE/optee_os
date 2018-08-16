@@ -202,3 +202,31 @@ endif
 
 # Set cross compiler prefix for each submodule
 $(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+
+arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
+arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
+arm32-sysregs-$(arm32-sysreg-txt)-s := arm32_sysreg.S
+arm32-sysregs += $(arm32-sysreg-txt)
+
+arm32-sysregs-out := $(out-dir)/$(sm)/include/generated
+
+define process-arm32-sysreg
+FORCE-GENSRC$(sm): $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h)
+cleanfiles := $$(cleanfiles) $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h)
+
+$$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h): $(1) scripts/arm32_sysreg.py
+	@$(cmd-echo-silent) '  GEN     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)scripts/arm32_sysreg.py --guard __$$(arm32-sysregs-$(1)-h) \
+		< $$< > $$@
+
+FORCE-GENSRC$(sm): $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s)
+cleanfiles := $$(cleanfiles) $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s)
+
+$$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s): $(1) scripts/arm32_sysreg.py
+	@$(cmd-echo-silent) '  GEN     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)scripts/arm32_sysreg.py --s_file < $$< > $$@
+endef #process-arm32-sysreg
+
+$(foreach sr, $(arm32-sysregs), $(eval $(call process-arm32-sysreg,$(sr))))
