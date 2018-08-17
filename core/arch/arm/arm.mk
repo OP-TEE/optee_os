@@ -208,6 +208,13 @@ arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
 arm32-sysregs-$(arm32-sysreg-txt)-s := arm32_sysreg.S
 arm32-sysregs += $(arm32-sysreg-txt)
 
+ifeq ($(CFG_ARM_GICV3),y)
+arm32-gicv3-sysreg-txt = core/arch/arm/kernel/arm32_gicv3_sysreg.txt
+arm32-sysregs-$(arm32-gicv3-sysreg-txt)-h := arm32_gicv3_sysreg.h
+arm32-sysregs-$(arm32-gicv3-sysreg-txt)-s := arm32_gicv3_sysreg.S
+arm32-sysregs += $(arm32-gicv3-sysreg-txt)
+endif
+
 arm32-sysregs-out := $(out-dir)/$(sm)/include/generated
 
 define process-arm32-sysreg
