@@ -209,7 +209,7 @@ void bm_timestamp(void)
 
 	cpu_buf = &bench_ts_global->cpu_buf[cur_cpu];
 	ts_i = cpu_buf->head++;
-	ts_data.cnt = read_pmu_ccnt() * TEE_BENCH_DIVIDER;
+	ts_data.cnt = read_pmccntr() * TEE_BENCH_DIVIDER;
 	ts_data.addr = (uintptr_t)ret_addr;
 	ts_data.src = TEE_BENCH_CORE;
 	cpu_buf->stamps[ts_i & TEE_BENCH_MAX_MASK] = ts_data;
