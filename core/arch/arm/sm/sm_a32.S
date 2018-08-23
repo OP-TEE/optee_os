@@ -348,7 +348,7 @@ UNWIND(	.fnstart)
 	 * the CNTVOFF encoding is UNPREDICTABLE if executed in Monitor
 	 * mode, regardless of the value of SCR.NS.
 	 */
-	read_idpfr1 r2
+	read_id_pfr1 r2
 	mov	r3, r2
 	ands    r3, r3, #IDPFR1_GENTIMER_MASK
 	beq	.no_gentimer
