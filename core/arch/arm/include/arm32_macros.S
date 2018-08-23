@@ -17,7 +17,7 @@
 	mrc	p15, 0, \reg, c0, c0, 5
 	.endm
 
-	.macro read_idpfr1 reg
+	.macro read_id_pfr1 reg
 	mrc	p15, 0, \reg, c0, c1, 1
 	.endm
 
