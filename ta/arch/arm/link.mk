@@ -33,7 +33,8 @@ link-script-cppflags-$(sm) := -DASM=1 \
 
 -include $(link-script-dep$(sm))
 
-$(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(MAKEFILE_LIST)
+link-script-pp-makefiles$(sm) = $(filter-out %.d %.cmd,$(MAKEFILE_LIST))
+$(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefiles$(sm))
 	@$(cmd-echo-silent) '  CPP     $@'
 	$(q)mkdir -p $(dir $@)
 	$(q)$(CPP$(sm)) -Wp,-P,-MT,$@,-MD,$(link-script-dep$(sm)) \
