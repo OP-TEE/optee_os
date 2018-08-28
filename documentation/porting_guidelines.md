@@ -290,7 +290,7 @@ manufacturers all tend to do this in their own unique way and they are not very
 keen on sharing their low level boot details and security implementation with
 the rest of the world. This is especially true on ARMv7-A. For ARMv8-A it looks
 bit better, since ARM in ARM Trusted Firmware have implemented and defined how a
-abstract the chain of trust (see [auth-framework.md]). We have successfully
+abstract the chain of trust (see [auth-framework.rst]). We have successfully
 verified OP-TEE by using the authentication framework from ARM Trusted Firmware
 (see [optee_with_auth_framework.md] for the details).
 
@@ -366,7 +366,7 @@ plans on extending this to make it a bit more flexible. Exactly when that will
 happen has not been decided yet.
 
 [3. Platforms Supported]: ../README.md#3-platforms-supported
-[auth-framework.md]: https://github.com/ARM-software/arm-trusted-firmware/blob/master/docs/auth-framework.md
+[auth-framework.rst]: https://github.com/ARM-software/arm-trusted-firmware/blob/master/docs/auth-framework.rst
 [crypto.md]: crypto.md
 [HSM]: https://en.wikipedia.org/wiki/Hardware_security_module
 [manifest]: https://github.com/OP-TEE/build#6-manifests
