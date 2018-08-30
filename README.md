@@ -121,11 +121,9 @@ the code also follows GlobalPlatform standards. The exceptions are as follows:
 	against those projects later on and we don't expect that it is easy to
 	convince other software projects to change coding style.
 
-Regarding the checkpatch tool, since it is licensed under the terms of GNU GPL
-License Version 2, we
-cannot include this script directly into this project. Please use checkpatch
-directly from the Linux kernel git in combination with the local [checkpatch
-script].
+Regarding the checkpatch tool, it is not included directly into this project.
+Please use checkpatch.pl from the Linux kernel git in combination with the
+local [checkpatch script].
 
 [build]: https://github.com/OP-TEE/build
 [checkpatch script]: scripts/checkpatch.sh
