@@ -32,7 +32,13 @@ environment or make variables (**VAR=value make** or **make VAR=value**).
 ### ARCH (CPU architecture)
 
 **$(ARCH)** is the CPU architecture to be built. Currently, the only supported
-value is **arm** for 32-bit ARMv7.
+value is **arm** for 32-bit or 64-bit Armv7-A or Armv8-A. Please note that
+contrary to the Linux kernel, **$(ARCH)** should **not** be set to **arm64** for
+64-bit builds. The **ARCH** variable does not need to be set explicitly before
+building either, because the proper instruction set is selected from the
+**$(PLATFORM)** value. For platforms that support both 32-bit and 64-bit
+builds, **CFG_ARM64_core=y** should be set to select 64-bit and not set (or set
+to **n**) to select 32-bit.
 
 Architecture-specific source code belongs to sub-directories that follow the
 `arch/$(ARCH)` pattern, such as:
