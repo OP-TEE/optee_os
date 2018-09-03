@@ -8,6 +8,7 @@
 #include <bench.h>
 #include <compiler.h>
 #include <initcall.h>
+#include <io.h>
 #include <kernel/linker.h>
 #include <kernel/msg_param.h>
 #include <kernel/panic.h>
@@ -122,7 +123,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 
 	for (n = 0; n < num_params; n++) {
 		uint32_t attr;
-		saved_attr[n] = params[n].attr;
+		saved_attr[n] = READ_ONCE(params[n].attr);
 
 		if (saved_attr[n] & OPTEE_MSG_ATTR_META)
 			return TEE_ERROR_BAD_PARAMETERS;
@@ -464,7 +465,7 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 		return NULL;
 	}
 
-	*num_params = arg->num_params;
+	*num_params = READ_ONCE(arg->num_params);
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 	if (args_size > SMALL_PAGE_SIZE) {
 		EMSG("Command buffer spans across page boundary");
@@ -484,7 +485,7 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	if (!arg)
 		return NULL;
 
-	*num_params = arg->num_params;
+	*num_params = READ_ONCE(arg->num_params);
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 
 	return mobj_shm_alloc(parg, args_size);
