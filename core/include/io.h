@@ -5,9 +5,19 @@
 #ifndef IO_H
 #define IO_H
 
+#include <compiler.h>
 #include <stdint.h>
 #include <types_ext.h>
 #include <utee_defines.h>
+
+/*
+ * Make sure that compiler reads given variable only once. This is needed
+ * in cases when we have normal shared memory, and this memory can be changed
+ * at any moment. Compiler does not knows about this, so it can optimize memory
+ * access in any way, including repeated read from the same address. This macro
+ * enforces compiler to access memory only once.
+ */
+#define READ_ONCE(p) __compiler_atomic_load(&(p))
 
 static inline void write8(uint8_t val, vaddr_t addr)
 {
