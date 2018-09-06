@@ -113,7 +113,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 {
 	TEE_Result res;
 	size_t n;
-	uint8_t pt[TEE_NUM_PARAMS];
+	uint8_t pt[TEE_NUM_PARAMS] = { 0 };
 
 	if (num_params > TEE_NUM_PARAMS)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -131,7 +131,6 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 		switch (attr) {
 		case OPTEE_MSG_ATTR_TYPE_NONE:
 			pt[n] = TEE_PARAM_TYPE_NONE;
-			memset(&ta_param->u[n], 0, sizeof(ta_param->u[n]));
 			break;
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
