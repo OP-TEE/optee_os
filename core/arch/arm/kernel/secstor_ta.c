@@ -25,8 +25,10 @@ static TEE_Result secstor_ta_open(const TEE_UUID *uuid,
 	res = tee_tadb_ta_read(ta, NULL, &l);
 	if (res)
 		goto err;
-	if (l != prop->custom_size)
+	if (l != prop->custom_size) {
+		res = TEE_ERROR_CORRUPT_OBJECT;
 		goto err;
+	}
 
 	*handle = (struct user_ta_store_handle *)ta;
 
