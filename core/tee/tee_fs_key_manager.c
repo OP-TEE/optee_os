@@ -259,6 +259,8 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 
 	/* Compute initialization vector for this block */
 	res = essiv(iv, fek, blk_idx);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	/* Run AES CBC */
 	res = crypto_cipher_alloc_ctx(&ctx, algo);
