@@ -81,6 +81,16 @@ class Symbolizer(object):
         self._addr2line = None
         self.reset()
 
+    def my_Popen(self, cmd):
+        try:
+            return subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == os.errno.ENOENT:
+                print >> sys.stderr, "*** Error:", cmd[0] + \
+                    ": command not found"
+                sys.exit(1)
+
     def get_elf(self, elf_or_uuid):
         if not elf_or_uuid.endswith('.elf'):
             elf_or_uuid += '.elf'
@@ -126,9 +136,7 @@ class Symbolizer(object):
         cmd = self.arch_prefix('addr2line')
         if not cmd:
             return
-        self._addr2line = subprocess.Popen([cmd, '-f', '-p', '-e', elf],
-                                           stdin=subprocess.PIPE,
-                                           stdout=subprocess.PIPE)
+        self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
         self._addr2line_elf_name = elf_name
 
     # If addr falls into a region that maps a TA ELF file, return the load
@@ -193,9 +201,7 @@ class Symbolizer(object):
         if not reladdr or not elf or not cmd:
             return ''
         ireladdr = int(reladdr, 16)
-        nm = subprocess.Popen([cmd, '--numeric-sort', '--print-size', elf],
-                              stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE)
+        nm = self.my_Popen([cmd, '--numeric-sort', '--print-size', elf])
         for line in iter(nm.stdout.readline, ''):
             try:
                 addr, size, _, name = line.split()
@@ -236,9 +242,7 @@ class Symbolizer(object):
         if not reladdr or not elf or not cmd:
             return ''
         iaddr = int(reladdr, 16)
-        objdump = subprocess.Popen([cmd, '--section-headers', elf],
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE)
+        objdump = self.my_Popen([cmd, '--section-headers', elf])
         for line in iter(objdump.stdout.readline, ''):
             try:
                 idx, name, size, vma, lma, offs, algn = line.split()
@@ -285,9 +289,7 @@ class Symbolizer(object):
         if not elf or not cmd:
             return
         self._sections[elf_name] = []
-        objdump = subprocess.Popen([cmd, '--section-headers', elf],
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE)
+        objdump = self.my_Popen([cmd, '--section-headers', elf])
         for line in iter(objdump.stdout.readline, ''):
             try:
                 _, name, size, vma, _, _, _ = line.split()
