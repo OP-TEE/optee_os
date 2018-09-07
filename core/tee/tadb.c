@@ -391,7 +391,7 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 	res = tee_tadb_open(&ta->db);
 	if (res)
-		goto err;
+		goto err_free;
 
 	mutex_lock(&tadb_mutex);
 
@@ -420,20 +420,20 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 	res = crypto_rng_read(ta->entry.iv, sizeof(ta->entry.iv));
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = crypto_rng_read(ta->entry.key, sizeof(ta->entry.key));
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = ta_operation_open(OPTEE_MRF_CREATE, ta->entry.file_number,
 				&ta->fd);
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = tadb_authenc_init(TEE_MODE_ENCRYPT, &ta->entry, &ta->ctx);
 	if (res)
-		goto err;
+		goto err_put;
 
 	*ta_ret = ta;
 
@@ -441,8 +441,9 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 err_mutex:
 	mutex_unlock(&tadb_mutex);
-err:
+err_put:
 	tadb_put(ta->db);
+err_free:
 	free(ta);
 
 	return res;
