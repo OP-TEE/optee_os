@@ -289,7 +289,7 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 	TEE_UUID uuid;
 	struct tee_ta_param param;
 	size_t num_meta;
-	uint64_t saved_attr[TEE_NUM_PARAMS];
+	uint64_t saved_attr[TEE_NUM_PARAMS] = { 0 };
 
 	res = get_open_session_meta(num_params, arg->params, &num_meta, &uuid,
 				    &clnt_id);
