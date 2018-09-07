@@ -60,14 +60,15 @@ def get_args():
                 description='Symbolizes OP-TEE abort dumps',
                 epilog=epilog)
     parser.add_argument('-d', '--dir', action='append', nargs='+',
-        help='Search for ELF file in DIR. tee.elf is needed to decode '
-             'a TEE Core or pseudo-TA abort, while <TA_uuid>.elf is required '
-             'if a user-mode TA has crashed. For convenience, ELF files '
-             'may also be given.')
+                        help='Search for ELF file in DIR. tee.elf is needed '
+                        'to decode a TEE Core or pseudo-TA abort, while '
+                        '<TA_uuid>.elf is required if a user-mode TA has '
+                        'crashed. For convenience, ELF files may also be '
+                        'given.')
     parser.add_argument('-s', '--strip_path', nargs='?',
-        help='Strip STRIP_PATH from file paths (default: current directory, '
-             'use -s with no argument to show full paths)',
-        default=os.getcwd())
+                        help='Strip STRIP_PATH from file paths (default: '
+                        'current directory, use -s with no argument to show '
+                        'full paths)', default=os.getcwd())
 
     return parser.parse_args()
 
@@ -198,12 +199,12 @@ class Symbolizer(object):
         for line in iter(nm.stdout.readline, ''):
             try:
                 addr, size, _, name = line.split()
-            except:
+            except ValueError:
                 # Size is missing
                 try:
                     addr, _, name = line.split()
                     size = '0'
-                except:
+                except ValueError:
                     # E.g., undefined (external) symbols (line = "U symbol")
                     continue
             iaddr = int(addr, 16)
@@ -241,7 +242,7 @@ class Symbolizer(object):
         for line in iter(objdump.stdout.readline, ''):
             try:
                 idx, name, size, vma, lma, offs, algn = line.split()
-            except:
+            except ValueError:
                 continue
             ivma = int(vma, 16)
             isize = int(size, 16)
@@ -290,7 +291,7 @@ class Symbolizer(object):
         for line in iter(objdump.stdout.readline, ''):
             try:
                 _, name, size, vma, _, _, _ = line.split()
-            except:
+            except ValueError:
                 if 'ALLOC' in line:
                     self._sections[elf_name].append([name, int(vma, 16),
                                                      int(size, 16)])
@@ -333,12 +334,10 @@ class Symbolizer(object):
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
 
-
     def pretty_print_path(self, path):
         if self._strip_path:
             return re.sub(re.escape(self._strip_path) + '/*', '', path)
         return path
-
 
     def write(self, line):
             if self._call_stack_found:
@@ -431,6 +430,7 @@ def main():
     for line in sys.stdin:
         symbolizer.write(line)
     symbolizer.flush()
+
 
 if __name__ == "__main__":
     main()
