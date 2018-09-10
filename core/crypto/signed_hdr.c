@@ -18,10 +18,11 @@ struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size)
 	struct shdr *shdr;
 
 	if (img_size < sizeof(struct shdr))
-		NULL;
+		return NULL;
+
 	shdr_size = SHDR_GET_SIZE(img);
 	if (img_size < shdr_size)
-		NULL;
+		return NULL;
 
 	shdr = malloc(shdr_size);
 	if (!shdr)
