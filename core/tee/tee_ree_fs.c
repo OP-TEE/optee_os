@@ -96,6 +96,14 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 	uint8_t *block;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
+	/*
+	 * It doesn't make sense to call this function if nothing is to be
+	 * written. This also guards against end_block_num getting an
+	 * unexpected value when pos == 0 and len == 0.
+	 */
+	if (!len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	block = get_tmp_block();
 	if (!block)
 		return TEE_ERROR_OUT_OF_MEMORY;
