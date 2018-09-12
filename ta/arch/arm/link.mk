@@ -34,30 +34,35 @@ link-script-cppflags-$(sm) := -DASM=1 \
 -include $(link-script-dep$(sm))
 
 link-script-pp-makefiles$(sm) = $(filter-out %.d %.cmd,$(MAKEFILE_LIST))
+
+define gen-link-t
 $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefiles$(sm))
-	@$(cmd-echo-silent) '  CPP     $@'
-	$(q)mkdir -p $(dir $@)
-	$(q)$(CPP$(sm)) -Wp,-P,-MT,$@,-MD,$(link-script-dep$(sm)) \
-		$(link-script-cppflags-$(sm)) $< > $@
+	@$(cmd-echo-silent) '  CPP     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)$(CPP$(sm)) -Wp,-P,-MT,$$@,-MD,$(link-script-dep$(sm)) \
+		$(link-script-cppflags-$(sm)) $$< > $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
 					  $(link-script-pp$(sm))
-	@$(cmd-echo-silent) '  LD      $@'
-	$(q)$(LD$(sm)) $(ldargs-$(user-ta-uuid).elf) -o $@
+	@$(cmd-echo-silent) '  LD      $$@'
+	$(q)$(LD$(sm)) $(ldargs-$(user-ta-uuid).elf) -o $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).dmp: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).elf
-	@$(cmd-echo-silent) '  OBJDUMP $@'
-	$(q)$(OBJDUMP$(sm)) -l -x -d $< > $@
+	@$(cmd-echo-silent) '  OBJDUMP $$@'
+	$(q)$(OBJDUMP$(sm)) -l -x -d $$< > $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).elf
-	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)$(OBJCOPY$(sm)) --strip-unneeded $< $@
+	@$(cmd-echo-silent) '  OBJCOPY $$@'
+	$(q)$(OBJCOPY$(sm)) --strip-unneeded $$< $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY)
-	@$(cmd-echo-silent) '  SIGN    $@'
+	@$(cmd-echo-silent) '  SIGN    $$@'
 	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(user-ta-uuid) --version 0 \
-		--in $< --out $@
+		--in $$< --out $$@
+endef
+
+$(eval $(call gen-link-t))
