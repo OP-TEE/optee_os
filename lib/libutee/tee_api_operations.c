@@ -143,6 +143,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
@@ -167,6 +168,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
 		if (mode == TEE_MODE_ENCRYPT) {
 			req_key_usage = TEE_USAGE_ENCRYPT;
 		} else if (mode == TEE_MODE_DECRYPT) {
@@ -178,9 +180,9 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_RSA_NOPAD:
-		if (mode == TEE_MODE_ENCRYPT) {
+		if (mode == TEE_MODE_ENCRYPT || mode == TEE_MODE_VERIFY) {
 			req_key_usage = TEE_USAGE_ENCRYPT | TEE_USAGE_VERIFY;
-		} else if (mode == TEE_MODE_DECRYPT) {
+		} else if (mode == TEE_MODE_DECRYPT || mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_DECRYPT | TEE_USAGE_SIGN;
 		} else {

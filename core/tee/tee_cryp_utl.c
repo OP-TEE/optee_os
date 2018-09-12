@@ -52,6 +52,31 @@ TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size)
 	return TEE_SUCCESS;
 }
 
+TEE_Result tee_ec_get_curve_size(uint32_t algo, size_t *size)
+{
+	switch (algo) {
+	case TEE_ALG_ECDSA_P192:
+		*size = TEE_CURVE_SIZE_192;
+		break;
+	case TEE_ALG_ECDSA_P224:
+		*size = TEE_CURVE_SIZE_224;
+		break;
+	case TEE_ALG_ECDSA_P256:
+		*size = TEE_CURVE_SIZE_256;
+		break;
+	case TEE_ALG_ECDSA_P384:
+		*size = TEE_CURVE_SIZE_384;
+		break;
+	case TEE_ALG_ECDSA_P521:
+		*size = TEE_CURVE_SIZE_521;
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 				 size_t datalen, uint8_t *digest,
 				 size_t digestlen)

@@ -3292,6 +3292,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
 		for (n = 0; n < num_params; n++) {
 			if (params[n].attributeID == TEE_ATTR_RSA_OAEP_LABEL) {
 				label = params[n].content.ref.buffer;
@@ -3325,6 +3326,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 		if (cs->mode != TEE_MODE_SIGN) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			break;

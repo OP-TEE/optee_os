@@ -97,6 +97,14 @@ typedef enum {
 } t_hash_size;
 #endif
 
+typedef enum {
+	TEE_CURVE_SIZE_192 = 20,
+	TEE_CURVE_SIZE_224 = 28,
+	TEE_CURVE_SIZE_256 = 32,
+	TEE_CURVE_SIZE_384 = 48,
+	TEE_CURVE_SIZE_521 = 66,
+} t_curve_size;
+
 #define TEE_MAC_SIZE_AES_CBC_MAC_NOPAD
 #define TEE_MAC_SIZE_AES_CBC_MAC_PKCS5
 #define TEE_MAC_SIZE_AES_CMAC
