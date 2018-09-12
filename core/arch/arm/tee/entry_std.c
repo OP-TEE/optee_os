@@ -105,7 +105,7 @@ static TEE_Result set_rmem_param(const struct optee_msg_param_rmem *rmem,
 {
 	uint64_t shm_ref = READ_ONCE(rmem->shm_ref);
 
-	mem->mobj = mobj_reg_shm_find_by_cookie(shm_ref);
+	mem->mobj = mobj_reg_shm_get_by_cookie(shm_ref);
 	if (!mem->mobj)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -188,11 +188,24 @@ static void cleanup_shm_refs(const uint64_t *saved_attr,
 {
 	size_t n;
 
-	for (n = 0; n < num_params; n++)
-		if (msg_param_attr_is_tmem(saved_attr[n]) &&
-		    saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
-			mobj_free(mobj_reg_shm_find_by_cookie(
-					saved_shm_ref[n]));
+	for (n = 0; n < num_params; n++) {
+		switch (saved_attr[n]) {
+		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
+			if (saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
+				mobj_reg_shm_free_by_cookie(saved_shm_ref[n]);
+			break;
+
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+			mobj_reg_shm_put_by_cookie(saved_shm_ref[n]);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void copy_out_param(struct tee_ta_param *ta_param, uint32_t num_params,
@@ -437,16 +450,12 @@ static void unregister_shm(struct thread_smc_args *smc_args,
 			   struct optee_msg_arg *arg, uint32_t num_params)
 {
 	if (num_params == 1) {
-		struct mobj *mobj;
 		uint64_t cookie = arg->params[0].u.rmem.shm_ref;
-		mobj = mobj_reg_shm_find_by_cookie(cookie);
-		if (mobj) {
-			mobj_free(mobj);
-			arg->ret = TEE_SUCCESS;
-		} else {
+		TEE_Result res = mobj_reg_shm_release_by_cookie(cookie);
+
+		if (res)
 			EMSG("Can't find mapping with given cookie");
-			arg->ret = TEE_ERROR_BAD_PARAMETERS;
-		}
+		arg->ret = res;
 	} else {
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		arg->ret_origin = TEE_ORIGIN_TEE;
