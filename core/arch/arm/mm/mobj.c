@@ -8,6 +8,7 @@
 #include <initcall.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
@@ -35,6 +36,10 @@ struct mobj_phys {
 	vaddr_t va;
 	paddr_t pa;
 };
+
+static struct mutex shm_mu = MUTEX_INITIALIZER;
+static struct condvar shm_cv = CONDVAR_INITIALIZER;
+static size_t shm_release_waiters;
 
 static struct mobj_phys *to_mobj_phys(struct mobj *mobj);
 
@@ -304,6 +309,7 @@ struct mobj_reg_shm {
 	uint64_t cookie;
 	tee_mm_entry_t *mm;
 	paddr_t page_offset;
+	struct refcount refcount;
 	int num_pages;
 	paddr_t pages[];
 };
@@ -368,18 +374,37 @@ static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
 				 mrs->page_offset);
 }
 
-static void mobj_reg_shm_free(struct mobj *mobj)
+static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm,
+				bool unlocked)
 {
-	struct mobj_reg_shm *mobj_reg_shm = to_mobj_reg_shm(mobj);
 	uint32_t exceptions;
 
-	mobj_reg_shm_unmap(mobj);
+	/*
+	 * Counter is supposed to be 1 by decreasing it reaches 0 and
+	 * refcount_dec() should return true, at the same time the counter
+	 * is locked at 0 so it can't be increased any longer. If
+	 * refcount_dec() returns false something is off and we have
+	 * internal inconsistency.
+	 */
+	if (!refcount_dec(&mobj_reg_shm->refcount))
+		panic();
 
-	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm,
-		     mobj_reg_shm, next);
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	mobj_reg_shm_unmap(&mobj_reg_shm->mobj);
+
+	if (!unlocked)
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm, mobj_reg_shm, next);
+
+	if (!unlocked)
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
 	free(mobj_reg_shm);
+}
+
+static void mobj_reg_shm_free(struct mobj *mobj)
+{
+	reg_shm_free_helper(to_mobj_reg_shm(mobj), false /*!unlocked*/);
 }
 
 static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
@@ -439,6 +464,7 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	mobj_reg_shm->num_pages = num_pages;
 	mobj_reg_shm->page_offset = page_offset;
 	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
+	refcount_set(&mobj_reg_shm->refcount, 1);
 
 	/* Insure loaded references match format and security constraints */
 	for (i = 0; i < num_pages; i++) {
@@ -461,21 +487,126 @@ err:
 	return NULL;
 }
 
-struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie)
+static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 {
 	struct mobj_reg_shm *mobj_reg_shm;
-	uint32_t exceptions;
 
-	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	SLIST_FOREACH(mobj_reg_shm, &reg_shm_list, next) {
-		if (mobj_reg_shm->cookie == cookie) {
-			cpu_spin_unlock_xrestore(&reg_shm_slist_lock,
-						 exceptions);
-			return &mobj_reg_shm->mobj;
-		}
-	}
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	SLIST_FOREACH(mobj_reg_shm, &reg_shm_list, next)
+		if (mobj_reg_shm->cookie == cookie)
+			return mobj_reg_shm;
+
 	return NULL;
+}
+
+void mobj_reg_shm_free_by_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
+
+	if (r)
+		reg_shm_free_helper(r, true /*unlocked*/);
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+}
+
+struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
+
+	if (r) {
+		/*
+		 * Counter is supposed to be larger than 0, if it isn't
+		 * we're in trouble.
+		 */
+		if (!refcount_inc(&r->refcount))
+			panic();
+	}
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	if (r)
+		return &r->mobj;
+
+	return NULL;
+}
+
+void mobj_reg_shm_put_by_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
+
+	/*
+	 * A put is supposed to match a get, if the object isn't found
+	 * it's out of sync somehow. The counter is supposed to be larger
+	 * than 1, if it isn't we're in trouble.
+	 *
+	 * Note that if Normal World supplies an invalid shm_ref it will
+	 * fail in the call of mobj_reg_shm_get_by_cookie() before this
+	 * function even will be called. Normal world can not cause a panic
+	 * with an invalid shm_ref.
+	 */
+	if (!r || refcount_dec(&r->refcount))
+		panic();
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	/*
+	 * Note that we're reading this mutex protected variable without the
+	 * mutex acquired. This isn't a problem since an eventually missed
+	 * waiter who is waiting for this MOBJ will try again before hanging
+	 * in condvar_wait().
+	 */
+	if (shm_release_waiters) {
+		mutex_lock(&shm_mu);
+		condvar_broadcast(&shm_cv);
+		mutex_unlock(&shm_mu);
+	}
+}
+
+static TEE_Result try_release_reg_shm(uint64_t cookie)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
+
+	if (!r)
+		goto out;
+
+	res = TEE_ERROR_BUSY;
+	if (refcount_val(&r->refcount) == 1) {
+		reg_shm_free_helper(r, true /*unlocked*/);
+		res = TEE_SUCCESS;
+	}
+out:
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	return res;
+}
+
+TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
+{
+	TEE_Result res = try_release_reg_shm(cookie);
+
+	if (res != TEE_ERROR_BUSY)
+		return res;
+
+	mutex_lock(&shm_mu);
+	shm_release_waiters++;
+	assert(shm_release_waiters);
+
+	while (true) {
+		res = try_release_reg_shm(cookie);
+		if (res != TEE_ERROR_BUSY)
+			break;
+		condvar_wait(&shm_cv, &shm_mu);
+	}
+
+	assert(shm_release_waiters);
+	shm_release_waiters--;
+	mutex_unlock(&shm_mu);
+
+	return res;
 }
 
 TEE_Result mobj_reg_shm_map(struct mobj *mobj)
