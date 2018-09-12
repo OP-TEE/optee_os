@@ -472,6 +472,11 @@ typedef enum ltc_asn1_type_ {
  LTC_ASN1_TELETEX_STRING,
  LTC_ASN1_CONSTRUCTED,
  LTC_ASN1_CONTEXT_SPECIFIC,
+ /* 20 */
+ LTC_ASN1_GENERALIZEDTIME,
+ LTC_ASN1_EXP_TAG,
+ LTC_ASN1_ENUMERATED,
+ LTC_ASN1_LONG_INTEGER,
 } ltc_asn1_type;
 
 /** A LTC ASN.1 list type */
@@ -501,17 +506,20 @@ typedef struct ltc_asn1_list_ {
 /* SEQUENCE */
 int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                            unsigned char *out,  unsigned long *outlen, int type_of);
-                          
+
 #define der_encode_sequence(list, inlen, out, outlen) der_encode_sequence_ex(list, inlen, out, outlen, LTC_ASN1_SEQUENCE)
 
 int der_decode_sequence_ex(const unsigned char *in, unsigned long  inlen,
                            ltc_asn1_list *list,     unsigned long  outlen, int ordered);
-                              
+
 #define der_decode_sequence(in, inlen, list, outlen) der_decode_sequence_ex(in, inlen, list, outlen, 1)
 
 int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                         unsigned long *outlen);
 
+/* internal helper functions */
+int der_length_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
+                           unsigned long *outlen, unsigned long *payloadlen);
 /* SUBJECT PUBLIC KEY INFO */
 int der_encode_subject_public_key_info(unsigned char *out, unsigned long *outlen,
         unsigned int algorithm, void* public_key, unsigned long public_key_len,
@@ -529,7 +537,7 @@ int der_encode_set(ltc_asn1_list *list, unsigned long inlen,
 
 int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
                      unsigned char *out,  unsigned long *outlen);
-                        
+
 /* VA list handy helpers with triplets of <type, size, data> */
 int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...);
 int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...);
@@ -554,6 +562,10 @@ int der_length_integer(void *num, unsigned long *len);
 int der_decode_short_integer(const unsigned char *in, unsigned long inlen, unsigned long *num);
 int der_encode_short_integer(unsigned long num, unsigned char *out, unsigned long *outlen);
 int der_length_short_integer(unsigned long num, unsigned long *outlen);
+
+/* INTEGER -- handy for 0..2^64-1 values */
+int der_encode_long_integer(unsigned long num, unsigned char *out, unsigned long *outlen);
+int der_length_long_integer(unsigned long num, unsigned long *outlen);
 
 /* BIT STRING */
 int der_encode_bit_string(const unsigned char *in, unsigned long inlen,
@@ -642,7 +654,7 @@ typedef struct {
             off_mm; /* timezone offset minutes */
 } ltc_utctime;
 
-int der_encode_utctime(ltc_utctime *utctime, 
+int der_encode_utctime(ltc_utctime *utctime,
                        unsigned char *out,   unsigned long *outlen);
 
 int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
@@ -650,6 +662,41 @@ int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
 
 int der_length_utctime(ltc_utctime *utctime, unsigned long *outlen);
 
+/* GeneralizedTime */
+typedef struct {
+   unsigned YYYY, /* year */
+            MM, /* month */
+            DD, /* day */
+            hh, /* hour */
+            mm, /* minute */
+            ss, /* second */
+            fs, /* fractional seconds */
+            off_dir, /* timezone offset direction 0 == +, 1 == - */
+            off_hh, /* timezone offset hours */
+            off_mm; /* timezone offset minutes */
+} ltc_generalizedtime;
+
+int der_encode_generalizedtime(ltc_generalizedtime *gtime,
+                               unsigned char       *out, unsigned long *outlen);
+
+int der_decode_generalizedtime(const unsigned char *in, unsigned long *inlen,
+                               ltc_generalizedtime *out);
+
+int der_length_generalizedtime(ltc_generalizedtime *gtime, unsigned long *outlen);
+
+/* Explicit TAG */
+typedef struct {
+	unsigned long tag; /* tag value */
+	ltc_asn1_list *list; /* asn1 encoded type */
+} ltc_exp_tag;
+
+
+int der_encode_exp_tag(ltc_exp_tag *tag_st, unsigned char *out, unsigned long *outlen);
+
+int der_length_exp_tag(ltc_exp_tag *tag, unsigned long *outlen, unsigned long *payloadlen);
+
+/* Enumerated */
+int der_encode_enumerated(unsigned long num, unsigned char *out, unsigned long *outlen);
 
 #endif
 

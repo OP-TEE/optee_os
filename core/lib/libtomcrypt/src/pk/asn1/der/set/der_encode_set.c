@@ -62,11 +62,14 @@ static int ltc_to_asn1(ltc_asn1_type v)
       case LTC_ASN1_TELETEX_STRING:          return 0x14;
       case LTC_ASN1_IA5_STRING:              return 0x16;
       case LTC_ASN1_UTCTIME:                 return 0x17;
+      case LTC_ASN1_GENERALIZEDTIME:         return 0x18;
       case LTC_ASN1_SEQUENCE:                return 0x30;
       case LTC_ASN1_SET:
       case LTC_ASN1_SETOF:                   return 0x31;
       case LTC_ASN1_CHOICE:
       case LTC_ASN1_CONSTRUCTED:
+      case LTC_ASN1_EXP_TAG:
+      case LTC_ASN1_ENUMERATED:
       case LTC_ASN1_CONTEXT_SPECIFIC:
       case LTC_ASN1_EOL:                     return -1;
       default:                               return -1;
