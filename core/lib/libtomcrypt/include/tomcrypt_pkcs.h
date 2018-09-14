@@ -39,9 +39,10 @@ enum ltc_pkcs_1_v1_5_blocks
 
 enum ltc_pkcs_1_paddings
 {
-  LTC_PKCS_1_V1_5   = 1,        /* PKCS #1 v1.5 padding (\sa ltc_pkcs_1_v1_5_blocks) */
-  LTC_PKCS_1_OAEP   = 2,        /* PKCS #1 v2.0 encryption padding */
-  LTC_PKCS_1_PSS    = 3         /* PKCS #1 v2.1 signature padding */
+  LTC_PKCS_1_V1_5      = 1,        /* PKCS #1 v1.5 padding (\sa ltc_pkcs_1_v1_5_blocks) */
+  LTC_PKCS_1_OAEP      = 2,        /* PKCS #1 v2.0 encryption padding */
+  LTC_PKCS_1_PSS       = 3,        /* PKCS #1 v2.1 signature padding */
+  LTC_PKCS_1_V1_5_NA1  = 4,        /* PKSC #1 v1.5 no ASN.1 */
 };
 
 int pkcs_1_mgf1(      int            hash_idx,
