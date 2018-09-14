@@ -18,10 +18,7 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#if defined(CFG_CRYPTO_HKDF) || defined(CFG_CRYPTO_CONCAT_KDF) || \
-	defined(CFG_CRYPTO_PBKDF2)
 #include <tee_api_defines_extensions.h>
-#endif
 #if defined(CFG_CRYPTO_HKDF)
 #include <tee/tee_cryp_hkdf.h>
 #endif
@@ -2023,6 +2020,13 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	cs->mode = mode;
 
 	switch (TEE_ALG_GET_CLASS(algo)) {
+	case TEE_OPERATION_EXTENSION:
+#ifdef CFG_CRYPTO_RSASSA_NA1
+		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
+			goto rsassa_na1;
+#endif
+		res = TEE_ERROR_NOT_SUPPORTED;
+		break;
 	case TEE_OPERATION_CIPHER:
 		if ((algo == TEE_ALG_AES_XTS && (key1 == 0 || key2 == 0)) ||
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
@@ -2062,6 +2066,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
 	case TEE_OPERATION_ASYMMETRIC_SIGNATURE:
+rsassa_na1: __maybe_unused
 		if (key1 == 0 || key2 != 0)
 			res = TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -3314,6 +3319,9 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		}
 		break;
 
+#if defined(CFG_CRYPTO_RSASSA_NA1)
+	case TEE_ALG_RSASSA_PKCS1_V1_5:
+#endif
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
@@ -3380,7 +3388,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 	size_t hash_size;
-	int salt_len;
+	int salt_len = 0;
 	TEE_Attribute *params = NULL;
 	uint32_t hash_algo;
 	struct user_ta_ctx *utc;
@@ -3428,15 +3436,18 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {
 	case TEE_MAIN_ALGO_RSA:
-		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-		res = tee_hash_get_digest_size(hash_algo, &hash_size);
-		if (res != TEE_SUCCESS)
-			break;
-		if (data_len != hash_size) {
-			res = TEE_ERROR_BAD_PARAMETERS;
-			break;
+		if (cs->algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
+			hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
+			res = tee_hash_get_digest_size(hash_algo, &hash_size);
+			if (res != TEE_SUCCESS)
+				break;
+			if (data_len != hash_size) {
+				res = TEE_ERROR_BAD_PARAMETERS;
+				break;
+			}
+			salt_len = pkcs1_get_salt_len(params, num_params,
+						      hash_size);
 		}
-		salt_len = pkcs1_get_salt_len(params, num_params, hash_size);
 		res = crypto_acipher_rsassa_verify(cs->algo, o->attr, salt_len,
 						   data, data_len, sig,
 						   sig_len);
