@@ -408,6 +408,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 #endif
 	case PTA_INVOKE_TESTS_CMD_MUTEX:
 		return core_mutex_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_LOCKDEP:
+		return core_lockdep_tests(nParamTypes, pParams);
 	default:
 		break;
 	}
