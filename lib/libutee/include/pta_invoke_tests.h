@@ -68,5 +68,10 @@
 #define PTA_MUTEX_TEST_READER			1
 #define PTA_INVOKE_TESTS_CMD_MUTEX		7
 
+/*
+ * Tests lock dependency checking algorithm
+ */
+#define PTA_INVOKE_TESTS_CMD_LOCKDEP		8
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 

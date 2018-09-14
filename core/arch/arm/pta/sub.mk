@@ -4,6 +4,7 @@ srcs-y += core_self_tests.c
 srcs-y += interrupt_tests.c
 srcs-y += core_mutex_tests.c
 srcs-$(CFG_WITH_USER_TA) += core_fs_htree_tests.c
+srcs-$(CFG_LOCKDEP) += core_lockdep_tests.c
 endif
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-$(CFG_SECSTOR_TA_MGMT_PTA) += secstor_ta_mgmt.c
