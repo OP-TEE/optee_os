@@ -132,6 +132,9 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
+#if defined(CFG_CRYPTO_RSASSA_NA1)
+	case TEE_ALG_RSASSA_PKCS1_V1_5:
+#endif
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
@@ -253,6 +256,10 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 	op->info.algorithm = algorithm;
 	op->info.operationClass = TEE_ALG_GET_CLASS(algorithm);
+#ifdef CFG_CRYPTO_RSASSA_NA1
+	if (algorithm == TEE_ALG_RSASSA_PKCS1_V1_5)
+		op->info.operationClass = TEE_OPERATION_ASYMMETRIC_SIGNATURE;
+#endif
 	op->info.mode = mode;
 	op->info.maxKeySize = maxKeySize;
 	op->info.requiredKeyUsage = req_key_usage;
