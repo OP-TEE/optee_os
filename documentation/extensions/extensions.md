@@ -8,6 +8,7 @@ Specific extensions documentation are part of:
   * [Concatenation Key Derivation](crypto_concat_kdf.md)
   * [HMAC Key Derivation](crypto_hkdf.md)
   * [Public-Key Key Derivation](crypto_pbkdf2.md)
+  * [PKCS#1 v1.5 RSA sign/verify without the hash OID](crypto_rsassa_pkcs1_v1_5.md)
 
 
 # Cache Maintenance Support
