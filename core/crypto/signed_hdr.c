@@ -64,7 +64,8 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (hash_size != shdr->hash_size)
 		return TEE_ERROR_SECURITY;
 
-	res = crypto_acipher_alloc_rsa_public_key(&key, shdr->sig_size);
+	res = crypto_acipher_alloc_rsa_public_key(&key,
+						  ta_pub_key_modulus_size * 8);
 	if (res)
 		return TEE_ERROR_SECURITY;
 
