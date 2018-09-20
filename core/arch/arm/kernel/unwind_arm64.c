@@ -36,6 +36,9 @@
 #include <string.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
+#include <util.h>
+
+#include "unwind_private.h"
 
 static bool copy_in_reg(uint64_t *reg, vaddr_t addr, bool kernel_data)
 {
@@ -96,3 +99,41 @@ void print_kernel_stack(int level)
 }
 
 #endif
+
+vaddr_t *unw_get_kernel_stack(void)
+{
+	size_t n = 0;
+	size_t size = 0;
+	vaddr_t *tmp = NULL;
+	vaddr_t *addr = NULL;
+	struct unwind_state_arm64 state = { 0 };
+	uaddr_t stack = thread_stack_start();
+	size_t stack_size = thread_stack_size();
+
+	state.pc = read_pc();
+	state.fp = read_fp();
+
+	while (unwind_stack_arm64(&state, true /*kernel stack*/,
+				  stack, stack_size)) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = state.pc;
+		n++;
+	}
+
+	if (addr) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = 0;
+	}
+
+	return addr;
+err:
+	EMSG("Out of memory");
+	free(addr);
+	return NULL;
+}
