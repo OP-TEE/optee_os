@@ -39,6 +39,9 @@
 #include <tee_api_types.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
+#include <util.h>
+
+#include "unwind_private.h"
 
 /* The register names */
 #define	FP	11
@@ -482,4 +485,55 @@ void print_kernel_stack(int level)
 			  true /*kernel_stack*/, stack, stack_size);
 }
 
+#endif
+
+#if defined(ARM32)
+vaddr_t *unw_get_kernel_stack(void)
+{
+	size_t n = 0;
+	size_t size = 0;
+	size_t exidx_sz = 0;
+	vaddr_t *tmp = NULL;
+	vaddr_t *addr = NULL;
+	struct unwind_state_arm32 state = { 0 };
+	uaddr_t exidx = (vaddr_t)__exidx_start;
+	vaddr_t stack = thread_stack_start();
+	size_t stack_size = thread_stack_size();
+
+	if (SUB_OVERFLOW((vaddr_t)__exidx_end, (vaddr_t)__exidx_start,
+			 &exidx_sz))
+		return NULL;
+
+	/* r7: Thumb-style frame pointer */
+	state.registers[7] = read_r7();
+	/* r11: ARM-style frame pointer */
+	state.registers[FP] = read_fp();
+	state.registers[SP] = read_sp();
+	state.registers[LR] = read_lr();
+	state.registers[PC] = (uint32_t)unw_get_kernel_stack;
+
+	while (unwind_stack_arm32(&state, exidx, exidx_sz,
+				  true /*kernel stack*/, stack, stack_size)) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = state.registers[PC];
+		n++;
+	}
+
+	if (addr) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = 0;
+	}
+
+	return addr;
+err:
+	EMSG("Out of memory");
+	free(addr);
+	return NULL;
+}
 #endif
