@@ -578,6 +578,23 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_alloc_and_run(args);
 }
 
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc_arg()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ */
+static void thread_rpc_free_arg(uint64_t cookie)
+{
+	if (cookie) {
+		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+			OPTEE_SMC_RETURN_RPC_FREE
+		};
+
+		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
+		thread_rpc(rpc_args);
+	}
+}
+
 /*
  * Helper routine for the assembly function thread_std_smc_entry()
  *
@@ -1353,19 +1370,15 @@ out:
 	return rv;
 }
 
-void thread_rpc_free_arg(uint64_t cookie)
-{
-	if (cookie) {
-		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-			OPTEE_SMC_RETURN_RPC_FREE
-		};
-
-		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
-		thread_rpc(rpc_args);
-	}
-}
-
-struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
+/**
+ * Allocates data for struct optee_msg_arg.
+ *
+ * @size:	size in bytes of struct optee_msg_arg
+ * @cookie:	returned cookie used when freeing the buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+static struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
 {
 	paddr_t pa;
 	uint64_t co;

@@ -581,23 +581,6 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
 bool thread_enable_prealloc_rpc_cache(void);
 
 /**
- * Allocates data for struct optee_msg_arg.
- *
- * @size:	size in bytes of struct optee_msg_arg
- * @cookie:	returned cookie used when freeing the buffer
- *
- * @returns	mobj that describes allocated buffer or NULL on error
- */
-struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie);
-
-/**
- * Free physical memory previously allocated with thread_rpc_alloc_arg()
- *
- * @cookie:	cookie received when allocating the buffer
- */
-void thread_rpc_free_arg(uint64_t cookie);
-
-/**
  * Allocates data for payload buffers.
  *
  * @size:	size in bytes of payload buffer
