@@ -28,6 +28,7 @@ mx6s-flavorlist = \
 mx7-flavorlist = \
 	mx7dsabresd \
 	mx7swarp7 \
+	mx7dclsom \
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -71,6 +72,11 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dsabresd))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 $(call force,CFG_TEE_CORE_NB_CORE,2)
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dclsom))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART1_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx7swarp7))

@@ -173,7 +173,9 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 
 static TEE_Result imx_wdog_init(void)
 {
-#ifdef PLATFORM_FLAVOR_mx7dsabresd
+#if defined(PLATFORM_FLAVOR_mx7dsabresd) || \
+	defined(PLATFORM_FLAVOR_mx7dclsom)
+
 	ext_reset = true;
 #endif
 	return imx_wdog_base(&wdog_base);
