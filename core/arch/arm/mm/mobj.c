@@ -498,17 +498,6 @@ static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 	return NULL;
 }
 
-void mobj_reg_shm_free_by_cookie(uint64_t cookie)
-{
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
-
-	if (r)
-		reg_shm_free_helper(r, true /*unlocked*/);
-
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-}
-
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 {
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
@@ -541,39 +530,6 @@ void mobj_reg_shm_put(struct mobj *mobj)
 	 * larger than 1, if it isn't we're in trouble.
 	 */
 	if (refcount_dec(&r->refcount))
-		panic();
-
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-
-	/*
-	 * Note that we're reading this mutex protected variable without the
-	 * mutex acquired. This isn't a problem since an eventually missed
-	 * waiter who is waiting for this MOBJ will try again before hanging
-	 * in condvar_wait().
-	 */
-	if (shm_release_waiters) {
-		mutex_lock(&shm_mu);
-		condvar_broadcast(&shm_cv);
-		mutex_unlock(&shm_mu);
-	}
-}
-
-void mobj_reg_shm_put_by_cookie(uint64_t cookie)
-{
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
-
-	/*
-	 * A put is supposed to match a get, if the object isn't found
-	 * it's out of sync somehow. The counter is supposed to be larger
-	 * than 1, if it isn't we're in trouble.
-	 *
-	 * Note that if Normal World supplies an invalid shm_ref it will
-	 * fail in the call of mobj_reg_shm_get_by_cookie() before this
-	 * function even will be called. Normal world can not cause a panic
-	 * with an invalid shm_ref.
-	 */
-	if (!r || refcount_dec(&r->refcount))
 		panic();
 
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
