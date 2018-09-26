@@ -531,6 +531,33 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 	return NULL;
 }
 
+void mobj_reg_shm_put(struct mobj *mobj)
+{
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	/*
+	 * A put is supposed to match a get. The counter is supposed to be
+	 * larger than 1, if it isn't we're in trouble.
+	 */
+	if (refcount_dec(&r->refcount))
+		panic();
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	/*
+	 * Note that we're reading this mutex protected variable without the
+	 * mutex acquired. This isn't a problem since an eventually missed
+	 * waiter who is waiting for this MOBJ will try again before hanging
+	 * in condvar_wait().
+	 */
+	if (shm_release_waiters) {
+		mutex_lock(&shm_mu);
+		condvar_broadcast(&shm_cv);
+		mutex_unlock(&shm_mu);
+	}
+}
+
 void mobj_reg_shm_put_by_cookie(uint64_t cookie)
 {
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
