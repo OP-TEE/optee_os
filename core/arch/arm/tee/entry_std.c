@@ -464,8 +464,8 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	size_t args_size;
 
 	assert(!(parg & SMALL_PAGE_MASK));
-	/* mobj_mapped_shm_alloc checks if parg resides in nonsec ddr */
-	mobj = mobj_mapped_shm_alloc(&parg, 1, 0, 0);
+	/* mobj_anon_shm_alloc() checks if parg resides in nonsec ddr */
+	mobj = mobj_anon_shm_alloc(&parg, 1, 0);
 	if (!mobj)
 		return NULL;
 
