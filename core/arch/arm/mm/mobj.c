@@ -705,6 +705,104 @@ TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 	return TEE_SUCCESS;
 }
 
+/*
+ * mobj_anon_shm implementation. Describes shared memory that doesn't need
+ * a cookie in normal world and thus cannot be unregistered by normal world.
+ */
+
+struct mobj_anon_shm {
+	struct mobj mobj;
+	struct dyn_shm dyn_shm;
+	paddr_t dyn_shm_pages[];
+};
+
+#define MOBJ_ANON_SHM_SIZE(nr_pages) \
+	(sizeof(struct mobj_anon_shm) + sizeof(paddr_t) * (nr_pages))
+
+/* Forward declaration, another declaration with initialization follows below */
+static const struct mobj_ops mobj_anon_shm_ops;
+
+static struct mobj_anon_shm *to_mobj_anon_shm(struct mobj *mobj)
+{
+	assert(mobj->ops == &mobj_anon_shm_ops);
+	return container_of(mobj, struct mobj_anon_shm, mobj);
+}
+
+static TEE_Result mobj_anon_shm_get_pa(struct mobj *mobj, size_t offst,
+				       size_t granule, paddr_t *pa)
+{
+	struct mobj_anon_shm *a = to_mobj_anon_shm(mobj);
+
+	return dyn_shm_get_pa(&a->dyn_shm, a->dyn_shm_pages, offst, granule,
+			      pa);
+}
+KEEP_PAGER(mobj_anon_shm_get_pa);
+
+static size_t mobj_anon_shm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	return dyn_shm_get_phys_offs(&to_mobj_anon_shm(mobj)->dyn_shm,
+				     mobj, granule);
+}
+
+static void *mobj_anon_shm_get_va(struct mobj *mobj, size_t offst)
+{
+	return dyn_shm_get_va(&to_mobj_anon_shm(mobj)->dyn_shm, offst);
+}
+
+static void mobj_anon_shm_free(struct mobj *mobj)
+{
+	struct mobj_anon_shm *a = to_mobj_anon_shm(mobj);
+
+	dyn_shm_unmap(&a->dyn_shm);
+	free(a);
+}
+
+static TEE_Result mobj_anon_shm_get_cattr(struct mobj *mobj, uint32_t *cattr)
+{
+	assert(mobj->ops == &mobj_anon_shm_ops);
+
+	return dyn_shm_get_cattr(cattr);
+}
+
+static bool mobj_anon_shm_matches(struct mobj *mobj __maybe_unused,
+				   enum buf_is_attr attr)
+{
+	assert(mobj->ops == &mobj_anon_shm_ops);
+
+	/* TODO should we match with CORE_MEM_REG_SHM here? */
+	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+}
+
+static const struct mobj_ops mobj_anon_shm_ops __rodata_unpaged = {
+	.get_pa = mobj_anon_shm_get_pa,
+	.get_phys_offs = mobj_anon_shm_get_phys_offs,
+	.get_va = mobj_anon_shm_get_va,
+	.get_cattr = mobj_anon_shm_get_cattr,
+	.matches = mobj_anon_shm_matches,
+	.free = mobj_anon_shm_free,
+};
+
+struct mobj *mobj_anon_shm_alloc(paddr_t *pages, size_t num_pages,
+				 paddr_t page_offset)
+{
+	struct mobj_anon_shm *a;
+
+	if (!num_pages)
+		return NULL;
+
+	a = calloc(1, MOBJ_ANON_SHM_SIZE(num_pages));
+	if (!a)
+		return NULL;
+
+	if (!dyn_shm_init(&a->dyn_shm, a->dyn_shm_pages, &a->mobj,
+			  &mobj_anon_shm_ops, pages, num_pages, page_offset) ||
+	    dyn_shm_map(&a->dyn_shm, a->dyn_shm_pages)) {
+		free(a);
+		return NULL;
+	}
+
+	return &a->mobj;
+}
 
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				  paddr_t page_offset, uint64_t cookie)

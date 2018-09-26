@@ -175,6 +175,22 @@ TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj);
  */
 void mobj_reg_shm_unguard(struct mobj *mobj);
 
+/**
+ * mobj_anon_shm_alloc() - anonymous mapping of shared memory
+ * @pages:		array of physical pages of the shared memory
+ * @num_pages:		number of elements in @pages
+ * @page_offset:	shared memory starts at @page_offset at the first
+ *			page of the shared memory.
+ *
+ * Maps a shared memory into OP-TEE va space. It is anonymous in the sense
+ * that it's only identifiable via the returned mobj in comparison with
+ * a registered shared memory which can be found via a cookie.
+ *
+ * Returns valid pointer on success or NULL on failure.
+ */
+struct mobj *mobj_anon_shm_alloc(paddr_t *pages, size_t num_pages,
+				 paddr_t page_offset);
+
 /*
  * mapped_shm represents registered shared buffer
  * which is mapped into OPTEE va space
