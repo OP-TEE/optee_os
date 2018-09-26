@@ -419,23 +419,24 @@ out:
 static void register_shm(struct thread_smc_args *smc_args,
 			 struct optee_msg_arg *arg, uint32_t num_params)
 {
+	arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+
 	if (num_params != 1 ||
 	    (arg->params[0].attr !=
-	     (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT | OPTEE_MSG_ATTR_NONCONTIG))) {
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	     (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT | OPTEE_MSG_ATTR_NONCONTIG)))
 		return;
-	}
 
-	/* We don't need mobj pointer there, we only care if it was created */
-	if (!msg_param_mobj_from_noncontig(arg->params[0].u.tmem.buf_ptr,
-					   arg->params[0].u.tmem.size,
-					   arg->params[0].u.tmem.shm_ref,
-					   false))
-		arg->ret = TEE_ERROR_BAD_PARAMETERS;
-	else
-		arg->ret = TEE_SUCCESS;
+	struct optee_msg_param_tmem *tmem = &arg->params[0].u.tmem;
+	struct mobj *mobj = msg_param_mobj_from_noncontig(tmem->buf_ptr,
+							  tmem->size,
+							  tmem->shm_ref, false);
 
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+	if (!mobj)
+		return;
+
+	mobj_reg_shm_unguard(mobj);
+	arg->ret = TEE_SUCCESS;
 }
 
 static void unregister_shm(struct thread_smc_args *smc_args,

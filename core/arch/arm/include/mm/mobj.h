@@ -164,6 +164,17 @@ TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj);
  */
 TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj);
 
+/**
+ * mobj_reg_shm_unguard() - unguards a reg_shm
+ * @mobj:	pointer to a registered shared memory mobj
+ *
+ * A registered shared memory mobj is normally guarded against being
+ * released with mobj_reg_shm_try_release_by_cookie(). After this function
+ * has returned the mobj can be released by a call to
+ * mobj_reg_shm_try_release_by_cookie() if the reference counter allows it.
+ */
+void mobj_reg_shm_unguard(struct mobj *mobj);
+
 /*
  * mapped_shm represents registered shared buffer
  * which is mapped into OPTEE va space
