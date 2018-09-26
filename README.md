@@ -120,6 +120,9 @@ the code also follows GlobalPlatform standards. The exceptions are as follows:
 	deviate too much from upstream and therefore it would be hard to rebase
 	against those projects later on and we don't expect that it is easy to
 	convince other software projects to change coding style.
+	Automatic variables should always be initialized. Mixed declarations
+	and statements are allowed, and may be used to avoid assigning useless
+	values. Please leave one blank line before and after such declarations.
 
 Regarding the checkpatch tool, it is not included directly into this project.
 Please use checkpatch.pl from the Linux kernel git in combination with the

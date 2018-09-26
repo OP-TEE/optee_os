@@ -9,7 +9,6 @@ cflags-remove-mpa_misc.c-y += -pedantic
 cflags-mpa_misc.c-y += -Wno-sign-compare
 
 srcs-y += mpa_montgomery.c
-cflags-remove-mpa_montgomery.c-y += -Wdeclaration-after-statement
 
 srcs-y += mpa_primetest.c
 cflags-remove-mpa_primetest.c-y += -pedantic
