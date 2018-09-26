@@ -616,53 +616,6 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	return res;
 }
 
-TEE_Result mobj_reg_shm_map(struct mobj *mobj)
-{
-	TEE_Result res;
-	struct mobj_reg_shm *mrs;
-
-	if (mobj->ops != &mobj_reg_shm_ops)
-		return TEE_ERROR_GENERIC;
-
-	mrs = to_mobj_reg_shm(mobj);
-
-	if (mrs->mm)	/* Guard against mapping twice */
-		return TEE_ERROR_ACCESS_CONFLICT;
-
-	mrs->mm = tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * mrs->num_pages);
-	if (!mrs->mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = core_mmu_map_pages(tee_mm_get_smem(mrs->mm), mrs->pages,
-				  mrs->num_pages, MEM_AREA_NSEC_SHM);
-	if (res) {
-		tee_mm_free(mrs->mm);
-		mrs->mm = NULL;
-		return res;
-	}
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result mobj_reg_shm_unmap(struct mobj *mobj)
-{
-	struct mobj_reg_shm *mrs;
-
-	if (mobj->ops != &mobj_reg_shm_ops)
-		return TEE_ERROR_GENERIC;
-
-	mrs = to_mobj_reg_shm(mobj);
-	if (!mrs->mm)
-		return TEE_ERROR_BAD_STATE;
-
-	core_mmu_unmap_pages(tee_mm_get_smem(mrs->mm),
-			     mobj->size / SMALL_PAGE_SIZE);
-	tee_mm_free(mrs->mm);
-	mrs->mm = NULL;
-
-	return TEE_SUCCESS;
-}
-
 TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -734,7 +687,7 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 	if (!mobj)
 		return NULL;
 
-	if (mobj_reg_shm_map(mobj)) {
+	if (mobj_reg_shm_inc_map(mobj)) {
 		mobj_free(mobj);
 		return NULL;
 	}
