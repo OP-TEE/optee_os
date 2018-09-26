@@ -77,7 +77,7 @@ script:
 
   # Run regression tests (xtest in QEMU)
   - export CFG_WERROR=y
-  - (cd ${HOME}/optee_repo/build && $make toolchains && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
+  - (cd ${HOME}/optee_repo/build && $make toolchains && rm -f ${HOME}/optee_repo/toolchains/gcc-*.tar.xz && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
 
 env:
   global:
