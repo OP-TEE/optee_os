@@ -143,6 +143,30 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
 TEE_Result mobj_reg_shm_map(struct mobj *mobj);
 TEE_Result mobj_reg_shm_unmap(struct mobj *mobj);
 
+/**
+ * mobj_reg_shm_inc_map() - increase map count
+ * @mobj:	pointer to a registered shared memory MOBJ
+ *
+ * Maps the MOBJ if it isn't mapped already and increaes the map count
+ * Each call to mobj_reg_shm_inc_map() is supposed to be matches by a call
+ * to mobj_reg_shm_dec_map().
+ *
+ * Returns TEE_SUCCESS on success or an error code on failure
+ */
+TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj);
+
+/**
+ * mobj_reg_shm_dec_map() - decrease map count
+ * @mobj:	pointer to a registered shared memory MOBJ
+ *
+ * Decreases the map count and also unmaps the MOBJ if the map count
+ * reaches 0.  Each call to mobj_reg_shm_inc_map() is supposed to be
+ * matched by a call to mobj_reg_shm_dec_map().
+ *
+ * Returns TEE_SUCCESS on success or an error code on failure
+ */
+TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj);
+
 /*
  * mapped_shm represents registered shared buffer
  * which is mapped into OPTEE va space
