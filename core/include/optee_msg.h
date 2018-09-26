@@ -181,14 +181,6 @@ struct optee_msg_param {
  * information than what these fields hold it can be passed as a parameter
  * tagged as meta (setting the OPTEE_MSG_ATTR_META bit in corresponding
  * attrs field). All parameters tagged as meta have to come first.
- *
- * Temp memref parameters can be fragmented if supported by the Trusted OS
- * (when optee_smc.h is bearer of this protocol this is indicated with
- * OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM). If a logical memref parameter is
- * fragmented then all but the last fragment have the
- * OPTEE_MSG_ATTR_FRAGMENT bit set in attrs. Even if a memref is fragmented
- * it will still be presented as a single logical memref to the Trusted
- * Application.
  */
 struct optee_msg_arg {
 	uint32_t cmd;
@@ -293,13 +285,10 @@ struct optee_msg_arg {
  * OPTEE_MSG_CMD_REGISTER_SHM registers a shared memory reference. The
  * information is passed as:
  * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_TMEM_INPUT
- *					[| OPTEE_MSG_ATTR_FRAGMENT]
+ *					[| OPTEE_MSG_ATTR_NONCONTIG]
  * [in] param[0].u.tmem.buf_ptr		physical address (of first fragment)
  * [in] param[0].u.tmem.size		size (of first fragment)
  * [in] param[0].u.tmem.shm_ref		holds shared memory reference
- * ...
- * The shared memory can optionally be fragmented, temp memrefs can follow
- * each other with all but the last with the OPTEE_MSG_ATTR_FRAGMENT bit set.
  *
  * OPTEE_MSG_CMD_UNREGISTER_SHM unregisteres a previously registered shared
  * memory reference. The information is passed as:
@@ -372,25 +361,18 @@ struct optee_msg_arg {
 /*
  * Allocate a piece of shared memory
  *
- * Shared memory can optionally be fragmented, to support that additional
- * spare param entries are allocated to make room for eventual fragments.
- * The spare param entries has .attr = OPTEE_MSG_ATTR_TYPE_NONE when
- * unused. All returned temp memrefs except the last should have the
- * OPTEE_MSG_ATTR_FRAGMENT bit set in the attr field.
+ * Shared memory can optionally be physically non-contiguous.
+ * OPTEE_MSG_ATTR_NONCONTIG is used to indicate that a list of pages is
+ * used to describe the memory.
  *
  * [in]  param[0].u.value.a		type of memory one of
  *					OPTEE_MSG_RPC_SHM_TYPE_* below
  * [in]  param[0].u.value.b		requested size
  * [in]  param[0].u.value.c		required alignment
  *
- * [out] param[0].u.tmem.buf_ptr	physical address (of first fragment)
- * [out] param[0].u.tmem.size		size (of first fragment)
+ * [out] param[0].u.tmem.buf_ptr	physical address
+ * [out] param[0].u.tmem.size		size
  * [out] param[0].u.tmem.shm_ref	shared memory reference
- * ...
- * [out] param[n].u.tmem.buf_ptr	physical address
- * [out] param[n].u.tmem.size		size
- * [out] param[n].u.tmem.shm_ref	shared memory reference (same value
- *					as in param[n-1].u.tmem.shm_ref)
  */
 #define OPTEE_MSG_RPC_CMD_SHM_ALLOC	6
 /* Memory that can be shared with a non-secure user space application */
