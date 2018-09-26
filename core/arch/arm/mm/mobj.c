@@ -312,6 +312,7 @@ struct mobj_reg_shm {
 	struct refcount refcount;
 	struct refcount mapcount;
 	int num_pages;
+	bool guarded;
 	paddr_t pages[];
 };
 
@@ -464,6 +465,7 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	mobj_reg_shm->mobj.size =  num_pages * SMALL_PAGE_SIZE;
 	mobj_reg_shm->mobj.phys_granule = SMALL_PAGE_SIZE;
 	mobj_reg_shm->cookie = cookie;
+	mobj_reg_shm->guarded = true;
 	mobj_reg_shm->num_pages = num_pages;
 	mobj_reg_shm->page_offset = page_offset;
 	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
@@ -488,6 +490,14 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 err:
 	free(mobj_reg_shm);
 	return NULL;
+}
+
+void mobj_reg_shm_unguard(struct mobj *mobj)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	return NULL;
+	to_mobj_reg_shm(mobj)->guarded = false;
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 }
 
 static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
@@ -557,7 +567,7 @@ static TEE_Result try_release_reg_shm(uint64_t cookie)
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
 
-	if (!r)
+	if (!r || r->guarded)
 		goto out;
 
 	res = TEE_ERROR_BUSY;
