@@ -390,37 +390,16 @@ static void reg_shm_unmap_helper(struct mobj_reg_shm *r)
 	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
 }
 
-static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm,
-				bool unlocked)
+static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm)
 {
-	uint32_t exceptions;
-
-	/*
-	 * Counter is supposed to be 1 by decreasing it reaches 0 and
-	 * refcount_dec() should return true, at the same time the counter
-	 * is locked at 0 so it can't be increased any longer. If
-	 * refcount_dec() returns false something is off and we have
-	 * internal inconsistency.
-	 */
-	if (!refcount_dec(&mobj_reg_shm->refcount))
-		panic();
-
 	reg_shm_unmap_helper(mobj_reg_shm);
-
-	if (!unlocked)
-		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-
 	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm, mobj_reg_shm, next);
-
-	if (!unlocked)
-		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-
 	free(mobj_reg_shm);
 }
 
 static void mobj_reg_shm_free(struct mobj *mobj)
 {
-	reg_shm_free_helper(to_mobj_reg_shm(mobj), false /*!unlocked*/);
+	mobj_reg_shm_put(mobj);
 }
 
 static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
@@ -550,11 +529,12 @@ void mobj_reg_shm_put(struct mobj *mobj)
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 
 	/*
-	 * A put is supposed to match a get. The counter is supposed to be
-	 * larger than 1, if it isn't we're in trouble.
+	 * A put is supposed to match a get or the initial alloc, once
+	 * we're at zero there's no more user and the original allocator is
+	 * done too.
 	 */
 	if (refcount_dec(&r->refcount))
-		panic();
+		reg_shm_free_helper(r);
 
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 
@@ -582,7 +562,7 @@ static TEE_Result try_release_reg_shm(uint64_t cookie)
 
 	res = TEE_ERROR_BUSY;
 	if (refcount_val(&r->refcount) == 1) {
-		reg_shm_free_helper(r, true /*unlocked*/);
+		reg_shm_free_helper(r);
 		res = TEE_SUCCESS;
 	}
 out:
