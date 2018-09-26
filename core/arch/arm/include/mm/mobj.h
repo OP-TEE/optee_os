@@ -119,7 +119,26 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 
 void mobj_reg_shm_free_by_cookie(uint64_t cookie);
 
+/**
+ * mobj_reg_shm_get_by_cookie() - get a MOBJ based on cookie
+ * @cookie:	Cookie used by normal world when suppling the shared memory
+ *
+ * Searches for a registered shared memory MOBJ and if one with a matching
+ * @cookie is found it's reference counter is increased before returning
+ * the MOBJ.
+ *
+ * Returns a valid pointer on success or NULL on failure.
+ */
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie);
+
+/**
+ * mobj_reg_shm_put() - put a MOBJ
+ * @mobj:	Pointer to a registered shared memory MOBJ
+ *
+ * Decreases reference counter of the @mobj and frees it if the counter
+ * reaches 0.
+ */
+void mobj_reg_shm_put(struct mobj *mobj);
 void mobj_reg_shm_put_by_cookie(uint64_t cookie);
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
