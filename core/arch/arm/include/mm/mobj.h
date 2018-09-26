@@ -140,9 +140,6 @@ void mobj_reg_shm_put(struct mobj *mobj);
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
 
-TEE_Result mobj_reg_shm_map(struct mobj *mobj);
-TEE_Result mobj_reg_shm_unmap(struct mobj *mobj);
-
 /**
  * mobj_reg_shm_inc_map() - increase map count
  * @mobj:	pointer to a registered shared memory MOBJ
