@@ -41,7 +41,7 @@ before_script:
   # Expect
   - _download http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download expect5.45.tar.gz
   - tar xf $DL_DIR/expect5.45.tar.gz
-  - (cd expect5.45 && ./configure --prefix=$HOME/inst --exec-prefix=$HOME/inst CC="ccache gcc" && make && $make install)
+  - (cd expect5.45 && ./configure --prefix=$HOME/inst --exec-prefix=$HOME/inst CC="ccache gcc" && make && $make install) && rm -rf expect5.45
   # Create a wrapper script, so that expect finds its shared library, without setting LD_LIBRARY_PATH globally (buildroot doesn't like it)
   - mv $HOME/inst/bin/expect $HOME/inst/bin/expect.bin && printf '#!/bin/bash\nexport LD_LIBRARY_PATH=$HOME/inst/lib/expect5.45\n$HOME/inst/bin/expect.bin $*' >$HOME/inst/bin/expect && chmod +x $HOME/inst/bin/expect
   - export PATH=$HOME/inst/bin:$PATH;
