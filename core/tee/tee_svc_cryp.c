@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <compiler.h>
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
@@ -1547,9 +1548,15 @@ TEE_Result syscall_cryp_obj_populate(unsigned long obj,
 	if (!type_props)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
-	attrs = malloc(sizeof(TEE_Attribute) * attr_count);
+	size_t alloc_size = 0;
+
+	if (MUL_OVERFLOW(sizeof(TEE_Attribute), attr_count, &alloc_size))
+		return TEE_ERROR_OVERFLOW;
+
+	attrs = malloc(alloc_size);
 	if (!attrs)
 		return TEE_ERROR_OUT_OF_MEMORY;
+
 	res = copy_in_attrs(to_user_ta_ctx(sess->ctx), usr_attrs, attr_count,
 			    attrs);
 	if (res != TEE_SUCCESS)
