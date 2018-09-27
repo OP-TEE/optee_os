@@ -53,7 +53,7 @@ before_script:
   - export PATH=$HOME/bin:$PATH
   - mkdir $HOME/optee_repo
   - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
-  - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
+  - (cd $HOME/optee_repo && rm -rf optee_os && ln -s $MYHOME optee_os)
   - cd $MYHOME
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
