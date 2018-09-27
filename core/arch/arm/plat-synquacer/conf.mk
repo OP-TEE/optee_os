@@ -8,6 +8,7 @@ $(call force,CFG_PM_STUBS,y)
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,24)
+CFG_NUM_THREADS ?= 8
 CFG_TZDRAM_START ?= 0xfc000000
 CFG_TZDRAM_SIZE ?= 0x03c00000
 CFG_SHMEM_START ?= 0xffc00000
