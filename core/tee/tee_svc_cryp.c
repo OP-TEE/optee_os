@@ -2705,7 +2705,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	}
 
 	if (cs->algo == TEE_ALG_DH_DERIVE_SHARED_SECRET) {
-		size_t alloc_size;
 		struct bignum *pub;
 		struct bignum *ss;
 
@@ -2715,12 +2714,18 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		alloc_size = params[0].content.ref.length * 8;
+		size_t bin_size = params[0].content.ref.length;
+
+		if (MUL_OVERFLOW(bin_size, 8, &alloc_size)) {
+			res = TEE_ERROR_OVERFLOW;
+			goto out;
+		}
+
 		pub = crypto_bignum_allocate(alloc_size);
 		ss = crypto_bignum_allocate(alloc_size);
 		if (pub && ss) {
 			crypto_bignum_bin2bn(params[0].content.ref.buffer,
-					     params[0].content.ref.length, pub);
+					     bin_size, pub);
 			res = crypto_acipher_dh_shared_secret(ko->attr,
 							      pub, ss);
 			if (res == TEE_SUCCESS) {
@@ -2737,7 +2742,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		crypto_bignum_free(pub);
 		crypto_bignum_free(ss);
 	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
-		size_t alloc_size;
 		struct ecc_public_key key_public;
 		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
