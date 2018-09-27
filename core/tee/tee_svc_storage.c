@@ -777,7 +777,8 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 exit:
 	if (o) {
 		if (o->pobj) {
-			o->pobj->fops->close(&o->fh);
+			if (o->pobj->fops)
+				o->pobj->fops->close(&o->fh);
 			free(o->pobj->obj_id);
 		}
 		free(o->pobj);
