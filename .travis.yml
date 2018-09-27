@@ -16,6 +16,7 @@ git:
   depth: 1000000
 
 before_script:
+  - df -h
   # Store the home repository
   - export MYHOME=$PWD
 
@@ -67,6 +68,8 @@ script:
       travis_terminate 0;
     fi
 
+  - ccache -s
+  - df -h
   # Run checkpatch.pl on:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
@@ -78,6 +81,8 @@ script:
   # Run regression tests (xtest in QEMU)
   - export CFG_WERROR=y
   - (cd ${HOME}/optee_repo/build && $make aarch32 && rm -f ${HOME}/optee_repo/toolchains/gcc-*.tar.xz && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
+  - ccache -s
+  - df -h
 
 env:
   global:
