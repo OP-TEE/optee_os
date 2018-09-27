@@ -3274,7 +3274,12 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	params = malloc(sizeof(TEE_Attribute) * num_params);
+	size_t alloc_size = 0;
+
+	if (MUL_OVERFLOW(sizeof(TEE_Attribute), num_params, &alloc_size))
+		return TEE_ERROR_OVERFLOW;
+
+	params = malloc(alloc_size);
 	if (!params)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = copy_in_attrs(utc, usr_params, num_params, params);
@@ -3436,7 +3441,12 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	params = malloc(sizeof(TEE_Attribute) * num_params);
+	size_t alloc_size = 0;
+
+	if (MUL_OVERFLOW(sizeof(TEE_Attribute), num_params, &alloc_size))
+		return TEE_ERROR_OVERFLOW;
+
+	params = malloc(alloc_size);
 	if (!params)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = copy_in_attrs(utc, usr_params, num_params, params);
