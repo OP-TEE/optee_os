@@ -2283,7 +2283,6 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 {
 	TEE_Result res, res2;
 	size_t hash_size;
-	uint64_t hlen;
 	struct tee_cryp_state *cs;
 	struct tee_ta_session *sess;
 
@@ -2302,6 +2301,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	uint64_t hlen = 0;
 	res = tee_svc_copy_from_user(&hlen, hash_len, sizeof(hlen));
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2323,7 +2323,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		res = tee_hash_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
-		if (*hash_len < hash_size) {
+		if (hlen < hash_size) {
 			res = TEE_ERROR_SHORT_BUFFER;
 			goto out;
 		}
@@ -2344,7 +2344,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		res = tee_mac_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
-		if (*hash_len < hash_size) {
+		if (hlen < hash_size) {
 			res = TEE_ERROR_SHORT_BUFFER;
 			goto out;
 		}
