@@ -7,6 +7,7 @@
 #ifndef ARM32_H
 #define ARM32_H
 
+#include <arm.h>
 #include <sys/cdefs.h>
 #include <stdint.h>
 #include <util.h>
