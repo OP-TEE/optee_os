@@ -72,9 +72,9 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 
 	/*
 	 * There we map first page of array.
-	 * mobj_mapped_shm_alloc() will check if page resides in nonsec ddr
+	 * mobj_anon_shm_alloc() will check if page resides in nonsec ddr
 	 */
-	mobj = mobj_mapped_shm_alloc(&buffer, 1, 0, 0);
+	mobj = mobj_anon_shm_alloc(&buffer, 1, 0);
 	if (!mobj)
 		return false;
 
@@ -93,7 +93,7 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 				goto out;
 
 			mobj_free(mobj);
-			mobj = mobj_mapped_shm_alloc(&page, 1, 0, 0);
+			mobj = mobj_anon_shm_alloc(&page, 1, 0);
 			if (!mobj)
 				goto out;
 

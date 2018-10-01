@@ -300,115 +300,90 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 }
 
 /*
- * mobj_reg_shm implementation. Describes shared memory provided by normal world
+ * dyn_shm - helpers to handle physically noncontiguos shared memory
+ * provided by normal world.
  */
 
-struct mobj_reg_shm {
-	struct mobj mobj;
-	SLIST_ENTRY(mobj_reg_shm) next;
-	uint64_t cookie;
+struct dyn_shm {
 	tee_mm_entry_t *mm;
-	paddr_t page_offset;
-	struct refcount refcount;
-	int num_pages;
-	paddr_t pages[];
+	unsigned int page_offset;
+	unsigned int num_pages;
+	/*
+	 * At the end of the struct embedding this struct there should be a
+	 * paddr_t pages[];
+	 * with room for num_pages entries.
+	 */
 };
 
-#define MOBJ_REG_SHM_SIZE(nr_pages) \
-	(sizeof(struct mobj_reg_shm) + sizeof(paddr_t) * (nr_pages))
-
-static SLIST_HEAD(reg_shm_head, mobj_reg_shm) reg_shm_list =
-	SLIST_HEAD_INITIALIZER(reg_shm_head);
-
-static unsigned int reg_shm_slist_lock = SPINLOCK_UNLOCK;
-
-static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj);
-
-static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
-				      size_t granule, paddr_t *pa)
+static TEE_Result dyn_shm_get_pa(struct dyn_shm *d, paddr_t *pages,
+				 size_t offst, size_t granule, paddr_t *pa)
 {
-	struct mobj_reg_shm *mobj_reg_shm = to_mobj_reg_shm(mobj);
-	size_t full_offset;
-	paddr_t p;
-
 	if (!pa)
 		return TEE_ERROR_GENERIC;
 
-	full_offset = offst + mobj_reg_shm->page_offset;
-	if (full_offset >= mobj->size)
+	size_t full_offset = offst + d->page_offset;
+
+	if (full_offset >= d->num_pages * SMALL_PAGE_SIZE)
 		return TEE_ERROR_GENERIC;
 
 	switch (granule) {
 	case 0:
-		p = mobj_reg_shm->pages[full_offset / SMALL_PAGE_SIZE] +
-			(full_offset & SMALL_PAGE_MASK);
-		break;
+		*pa = pages[full_offset / SMALL_PAGE_SIZE] +
+		    (full_offset & SMALL_PAGE_MASK);
+		return TEE_SUCCESS;
 	case SMALL_PAGE_SIZE:
-		p = mobj_reg_shm->pages[full_offset / SMALL_PAGE_SIZE];
-		break;
+		*pa = pages[full_offset / SMALL_PAGE_SIZE];
+		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_GENERIC;
 
 	}
-	*pa = p;
-
-	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_reg_shm_get_pa);
 
-static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
-					 size_t granule __maybe_unused)
+static size_t dyn_shm_get_phys_offs(struct dyn_shm *d,
+				    struct mobj *mobj __maybe_unused,
+				    size_t granule)
 {
 	assert(granule >= mobj->phys_granule);
-	return to_mobj_reg_shm(mobj)->page_offset;
+	return d->page_offset;
 }
 
-static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
+static void *dyn_shm_get_va(struct dyn_shm *d, size_t offst)
 {
-	struct mobj_reg_shm *mrs = to_mobj_reg_shm(mobj);
-
-	if (!mrs->mm)
+	if (!d->mm)
 		return NULL;
 
-	return (void *)(vaddr_t)(tee_mm_get_smem(mrs->mm) + offst +
-				 mrs->page_offset);
+	return (void *)(vaddr_t)(tee_mm_get_smem(d->mm) + offst +
+				 d->page_offset);
 }
 
-static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm,
-				bool unlocked)
+static void dyn_shm_unmap(struct dyn_shm *d)
 {
-	uint32_t exceptions;
-
-	/*
-	 * Counter is supposed to be 1 by decreasing it reaches 0 and
-	 * refcount_dec() should return true, at the same time the counter
-	 * is locked at 0 so it can't be increased any longer. If
-	 * refcount_dec() returns false something is off and we have
-	 * internal inconsistency.
-	 */
-	if (!refcount_dec(&mobj_reg_shm->refcount))
-		panic();
-
-	mobj_reg_shm_unmap(&mobj_reg_shm->mobj);
-
-	if (!unlocked)
-		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-
-	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm, mobj_reg_shm, next);
-
-	if (!unlocked)
-		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-
-	free(mobj_reg_shm);
+	if (d->mm) {
+		core_mmu_unmap_pages(tee_mm_get_smem(d->mm), d->num_pages);
+		tee_mm_free(d->mm);
+		d->mm = NULL;
+	}
 }
 
-static void mobj_reg_shm_free(struct mobj *mobj)
+static TEE_Result dyn_shm_map(struct dyn_shm *d, paddr_t *pages)
 {
-	reg_shm_free_helper(to_mobj_reg_shm(mobj), false /*!unlocked*/);
+	assert(!d->mm);
+	d->mm = tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * d->num_pages);
+	if (!d->mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	TEE_Result res = core_mmu_map_pages(tee_mm_get_smem(d->mm), pages,
+					    d->num_pages, MEM_AREA_NSEC_SHM);
+	if (res) {
+		tee_mm_free(d->mm);
+		d->mm = NULL;
+	}
+
+	return res;
 }
 
-static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
-					 uint32_t *cattr)
+static TEE_Result dyn_shm_get_cattr(uint32_t *cattr)
 {
 	if (!cattr)
 		return TEE_ERROR_GENERIC;
@@ -418,7 +393,114 @@ static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
 	return TEE_SUCCESS;
 }
 
-static bool mobj_reg_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
+static TEE_Result dyn_shm_init(struct dyn_shm *d, paddr_t *pages,
+			       struct mobj *mobj, const struct mobj_ops *ops,
+			       const paddr_t *in_pages, size_t num_pages,
+			       paddr_t page_offset)
+{
+	mobj->ops = ops;
+	mobj->size =  num_pages * SMALL_PAGE_SIZE;
+	mobj->phys_granule = SMALL_PAGE_SIZE;
+	d->num_pages = num_pages;
+	d->page_offset = page_offset;
+	memcpy(pages, in_pages, sizeof(*pages) * num_pages);
+
+	/* Ensure loaded references match format and security constraints */
+	for (size_t n = 0; n < num_pages; n++) {
+		if (pages[n] & SMALL_PAGE_MASK)
+			return false;
+
+		/* Only Non-secure memory can be mapped there */
+		if (!core_pbuf_is(CORE_MEM_NON_SEC, pages[n], SMALL_PAGE_SIZE))
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * mobj_reg_shm implementation. Describes shared memory provided by normal world
+ */
+
+struct mobj_reg_shm {
+	struct mobj mobj;
+	SLIST_ENTRY(mobj_reg_shm) link;
+	uint64_t cookie;
+	bool guarded;
+	struct refcount refcount;
+	struct refcount mapcount;
+	struct dyn_shm dyn_shm;
+	paddr_t dyn_shm_pages[];
+};
+
+#define MOBJ_REG_SHM_SIZE(nr_pages) \
+	(sizeof(struct mobj_reg_shm) + sizeof(paddr_t) * (nr_pages))
+
+static SLIST_HEAD(reg_shm_head, mobj_reg_shm) reg_shm_list =
+	SLIST_HEAD_INITIALIZER(reg_shm_head);
+
+static unsigned int reg_shm_slist_lock = SPINLOCK_UNLOCK;
+static unsigned int reg_shm_map_lock = SPINLOCK_UNLOCK;
+
+/* Forward declaration, another declaration with initialization follows below */
+static const struct mobj_ops mobj_reg_shm_ops;
+
+static struct mobj_reg_shm *to_mobj_reg_shm_may_fail(struct mobj *mobj)
+{
+	if (mobj->ops != &mobj_reg_shm_ops)
+		return NULL;
+
+	return container_of(mobj, struct mobj_reg_shm, mobj);
+}
+
+static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
+{
+	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
+
+	assert(r);
+	return r;
+}
+
+static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
+				      size_t granule, paddr_t *pa)
+{
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
+
+	return dyn_shm_get_pa(&r->dyn_shm, r->dyn_shm_pages, offst, granule,
+			      pa);
+}
+KEEP_PAGER(mobj_reg_shm_get_pa);
+
+static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	return dyn_shm_get_phys_offs(&to_mobj_reg_shm(mobj)->dyn_shm,
+				     mobj, granule);
+}
+
+static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
+{
+	return dyn_shm_get_va(&to_mobj_reg_shm(mobj)->dyn_shm, offst);
+}
+
+static void mobj_reg_shm_free(struct mobj *mobj)
+{
+	mobj_reg_shm_put(mobj);
+}
+
+static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj, uint32_t *cattr)
+{
+	assert(mobj->ops == &mobj_reg_shm_ops);
+
+	return dyn_shm_get_cattr(cattr);
+}
+
+static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
+				   enum buf_is_attr attr)
+{
+	assert(mobj->ops == &mobj_reg_shm_ops);
+
+	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+}
 
 static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.get_pa = mobj_reg_shm_get_pa,
@@ -429,84 +511,51 @@ static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.free = mobj_reg_shm_free,
 };
 
-static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
-				   enum buf_is_attr attr)
-{
-	assert(mobj->ops == &mobj_reg_shm_ops);
-
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
-}
-
-static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
-{
-	assert(mobj->ops == &mobj_reg_shm_ops);
-	return container_of(mobj, struct mobj_reg_shm, mobj);
-}
-
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie)
 {
-	struct mobj_reg_shm *mobj_reg_shm;
-	size_t i;
-	uint32_t exceptions;
-
 	if (!num_pages)
 		return NULL;
 
-	mobj_reg_shm = calloc(1, MOBJ_REG_SHM_SIZE(num_pages));
-	if (!mobj_reg_shm)
+	struct mobj_reg_shm *r = calloc(1, MOBJ_REG_SHM_SIZE(num_pages));
+
+	if (!r)
 		return NULL;
 
-	mobj_reg_shm->mobj.ops = &mobj_reg_shm_ops;
-	mobj_reg_shm->mobj.size =  num_pages * SMALL_PAGE_SIZE;
-	mobj_reg_shm->mobj.phys_granule = SMALL_PAGE_SIZE;
-	mobj_reg_shm->cookie = cookie;
-	mobj_reg_shm->num_pages = num_pages;
-	mobj_reg_shm->page_offset = page_offset;
-	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
-	refcount_set(&mobj_reg_shm->refcount, 1);
-
-	/* Insure loaded references match format and security constraints */
-	for (i = 0; i < num_pages; i++) {
-		if (mobj_reg_shm->pages[i] & SMALL_PAGE_MASK)
-			goto err;
-
-		/* Only Non-secure memory can be mapped there */
-		if (!core_pbuf_is(CORE_MEM_NON_SEC, mobj_reg_shm->pages[i],
-					SMALL_PAGE_SIZE))
-			goto err;
+	if (!dyn_shm_init(&r->dyn_shm, r->dyn_shm_pages, &r->mobj,
+			  &mobj_reg_shm_ops, pages, num_pages, page_offset)) {
+		free(r);
+		return NULL;
 	}
+	r->cookie = cookie;
+	r->guarded = true;
+	refcount_set(&r->refcount, 1);
 
-	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	SLIST_INSERT_HEAD(&reg_shm_list, mobj_reg_shm, next);
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	SLIST_INSERT_HEAD(&reg_shm_list, r, link);
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 
-	return &mobj_reg_shm->mobj;
-err:
-	free(mobj_reg_shm);
-	return NULL;
+	return &r->mobj;
+}
+
+void mobj_reg_shm_unguard(struct mobj *mobj)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	to_mobj_reg_shm(mobj)->guarded = false;
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 }
 
 static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 {
 	struct mobj_reg_shm *mobj_reg_shm;
 
-	SLIST_FOREACH(mobj_reg_shm, &reg_shm_list, next)
+	SLIST_FOREACH(mobj_reg_shm, &reg_shm_list, link)
 		if (mobj_reg_shm->cookie == cookie)
 			return mobj_reg_shm;
 
 	return NULL;
-}
-
-void mobj_reg_shm_free_by_cookie(uint64_t cookie)
-{
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
-
-	if (r)
-		reg_shm_free_helper(r, true /*unlocked*/);
-
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 }
 
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
@@ -531,23 +580,21 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 	return NULL;
 }
 
-void mobj_reg_shm_put_by_cookie(uint64_t cookie)
+void mobj_reg_shm_put(struct mobj *mobj)
 {
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
 
 	/*
-	 * A put is supposed to match a get, if the object isn't found
-	 * it's out of sync somehow. The counter is supposed to be larger
-	 * than 1, if it isn't we're in trouble.
-	 *
-	 * Note that if Normal World supplies an invalid shm_ref it will
-	 * fail in the call of mobj_reg_shm_get_by_cookie() before this
-	 * function even will be called. Normal world can not cause a panic
-	 * with an invalid shm_ref.
+	 * A put is supposed to match a get or the initial alloc, once
+	 * we're at zero there's no more user and the original allocator is
+	 * done too.
 	 */
-	if (!r || refcount_dec(&r->refcount))
-		panic();
+	if (refcount_dec(&r->refcount)) {
+		dyn_shm_unmap(&r->dyn_shm);
+		SLIST_REMOVE(&reg_shm_list, r, mobj_reg_shm, link);
+		free(r);
+	}
 
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 
@@ -570,12 +617,14 @@ static TEE_Result try_release_reg_shm(uint64_t cookie)
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
 
-	if (!r)
+	if (!r || r->guarded)
 		goto out;
 
 	res = TEE_ERROR_BUSY;
 	if (refcount_val(&r->refcount) == 1) {
-		reg_shm_free_helper(r, true /*unlocked*/);
+		dyn_shm_unmap(&r->dyn_shm);
+		SLIST_REMOVE(&reg_shm_list, r, mobj_reg_shm, link);
+		free(r);
 		res = TEE_SUCCESS;
 	}
 out:
@@ -609,51 +658,150 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	return res;
 }
 
-TEE_Result mobj_reg_shm_map(struct mobj *mobj)
+TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 {
-	TEE_Result res;
-	struct mobj_reg_shm *mrs;
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
 
-	if (mobj->ops != &mobj_reg_shm_ops)
+	if (!r)
 		return TEE_ERROR_GENERIC;
 
-	mrs = to_mobj_reg_shm(mobj);
+	if (refcount_inc(&r->mapcount))
+		return TEE_SUCCESS;
 
-	if (mrs->mm)	/* Guard against mapping twice */
-		return TEE_ERROR_ACCESS_CONFLICT;
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
 
-	mrs->mm = tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * mrs->num_pages);
-	if (!mrs->mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (refcount_val(&r->mapcount))
+		goto out;
 
-	res = core_mmu_map_pages(tee_mm_get_smem(mrs->mm), mrs->pages,
-				  mrs->num_pages, MEM_AREA_NSEC_SHM);
-	if (res) {
-		tee_mm_free(mrs->mm);
-		mrs->mm = NULL;
-		return res;
-	}
+	res = dyn_shm_map(&r->dyn_shm, r->dyn_shm_pages);
+	if (res)
+		goto out;
+
+	refcount_set(&r->mapcount, 1);
+out:
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+
+	return res;
+}
+
+TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
+{
+	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
+
+	if (!r)
+		return TEE_ERROR_GENERIC;
+
+	if (!refcount_dec(&r->mapcount))
+		return TEE_SUCCESS;
+
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	if (!refcount_val(&r->mapcount))
+		dyn_shm_unmap(&r->dyn_shm);
+
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result mobj_reg_shm_unmap(struct mobj *mobj)
+/*
+ * mobj_anon_shm implementation. Describes shared memory that doesn't need
+ * a cookie in normal world and thus cannot be unregistered by normal world.
+ */
+
+struct mobj_anon_shm {
+	struct mobj mobj;
+	struct dyn_shm dyn_shm;
+	paddr_t dyn_shm_pages[];
+};
+
+#define MOBJ_ANON_SHM_SIZE(nr_pages) \
+	(sizeof(struct mobj_anon_shm) + sizeof(paddr_t) * (nr_pages))
+
+/* Forward declaration, another declaration with initialization follows below */
+static const struct mobj_ops mobj_anon_shm_ops;
+
+static struct mobj_anon_shm *to_mobj_anon_shm(struct mobj *mobj)
 {
-	struct mobj_reg_shm *mrs;
+	assert(mobj->ops == &mobj_anon_shm_ops);
+	return container_of(mobj, struct mobj_anon_shm, mobj);
+}
 
-	if (mobj->ops != &mobj_reg_shm_ops)
-		return TEE_ERROR_GENERIC;
+static TEE_Result mobj_anon_shm_get_pa(struct mobj *mobj, size_t offst,
+				       size_t granule, paddr_t *pa)
+{
+	struct mobj_anon_shm *a = to_mobj_anon_shm(mobj);
 
-	mrs = to_mobj_reg_shm(mobj);
-	if (!mrs->mm)
-		return TEE_ERROR_BAD_STATE;
+	return dyn_shm_get_pa(&a->dyn_shm, a->dyn_shm_pages, offst, granule,
+			      pa);
+}
+KEEP_PAGER(mobj_anon_shm_get_pa);
 
-	core_mmu_unmap_pages(tee_mm_get_smem(mrs->mm),
-			     mobj->size / SMALL_PAGE_SIZE);
-	tee_mm_free(mrs->mm);
-	mrs->mm = NULL;
+static size_t mobj_anon_shm_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	return dyn_shm_get_phys_offs(&to_mobj_anon_shm(mobj)->dyn_shm,
+				     mobj, granule);
+}
 
-	return TEE_SUCCESS;
+static void *mobj_anon_shm_get_va(struct mobj *mobj, size_t offst)
+{
+	return dyn_shm_get_va(&to_mobj_anon_shm(mobj)->dyn_shm, offst);
+}
+
+static void mobj_anon_shm_free(struct mobj *mobj)
+{
+	struct mobj_anon_shm *a = to_mobj_anon_shm(mobj);
+
+	dyn_shm_unmap(&a->dyn_shm);
+	free(a);
+}
+
+static TEE_Result mobj_anon_shm_get_cattr(struct mobj *mobj, uint32_t *cattr)
+{
+	assert(mobj->ops == &mobj_anon_shm_ops);
+
+	return dyn_shm_get_cattr(cattr);
+}
+
+static bool mobj_anon_shm_matches(struct mobj *mobj __maybe_unused,
+				   enum buf_is_attr attr)
+{
+	assert(mobj->ops == &mobj_anon_shm_ops);
+
+	/* TODO should we match with CORE_MEM_REG_SHM here? */
+	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+}
+
+static const struct mobj_ops mobj_anon_shm_ops __rodata_unpaged = {
+	.get_pa = mobj_anon_shm_get_pa,
+	.get_phys_offs = mobj_anon_shm_get_phys_offs,
+	.get_va = mobj_anon_shm_get_va,
+	.get_cattr = mobj_anon_shm_get_cattr,
+	.matches = mobj_anon_shm_matches,
+	.free = mobj_anon_shm_free,
+};
+
+struct mobj *mobj_anon_shm_alloc(paddr_t *pages, size_t num_pages,
+				 paddr_t page_offset)
+{
+	struct mobj_anon_shm *a;
+
+	if (!num_pages)
+		return NULL;
+
+	a = calloc(1, MOBJ_ANON_SHM_SIZE(num_pages));
+	if (!a)
+		return NULL;
+
+	if (!dyn_shm_init(&a->dyn_shm, a->dyn_shm_pages, &a->mobj,
+			  &mobj_anon_shm_ops, pages, num_pages, page_offset) ||
+	    dyn_shm_map(&a->dyn_shm, a->dyn_shm_pages)) {
+		free(a);
+		return NULL;
+	}
+
+	return &a->mobj;
 }
 
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
@@ -665,7 +813,7 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 	if (!mobj)
 		return NULL;
 
-	if (mobj_reg_shm_map(mobj)) {
+	if (mobj_reg_shm_inc_map(mobj)) {
 		mobj_free(mobj);
 		return NULL;
 	}
