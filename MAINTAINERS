@@ -170,6 +170,12 @@ R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-synquacer/
 
+Socionext UniPhier
+R:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+R:	[@96boards-akebi96/optee]
+S:	Maintained
+F:	core/arch/arm/plat-uniphier/
+
 Spreadtrum SC9860
 R:	Aijun Sun <aijun.sun@unisoc.com>
 R:	[@OP-TEE/plat-sprd]
