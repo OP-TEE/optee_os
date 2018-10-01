@@ -17,11 +17,17 @@ const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
 	const struct dt_device_match *dm;
 	const struct dt_driver *drv;
 
-	for_each_dt_driver(drv)
-		for (dm = drv->match_table; dm; dm++)
+	for_each_dt_driver(drv) {
+		for (dm = drv->match_table; dm; dm++) {
+			if (!dm->compatible) {
+				break;
+			}
 			if (!fdt_node_check_compatible(fdt, offs,
-						       dm->compatible))
+						       dm->compatible)) {
 				return drv;
+			}
+		}
+	}
 
 	return NULL;
 }
