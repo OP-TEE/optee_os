@@ -956,6 +956,7 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 	return TEE_SUCCESS;
 err:
 	mobj_free(utc->mobj_exidx);
+	utc->mobj_exidx = NULL;
 	return res;
 }
 
