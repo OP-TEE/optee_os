@@ -104,6 +104,9 @@ class Symbolizer(object):
     def set_arch(self):
         if self._arch:
             return
+        self._arch = os.getenv('CROSS_COMPILE');
+        if self._arch:
+            return
         elf = self.get_elf(self._elfs[0][0])
         if elf is None:
             return
