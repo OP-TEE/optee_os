@@ -393,8 +393,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 }
 
 #define MSG_MEM_INSTERSECT(pa1, sz1, pa2, sz2) \
-	EMSG("[%" PRIxPA " %" PRIxPA "] intersecs [%" PRIxPA " %" PRIxPA "]", \
-			pa1, pa1 + sz1, pa2, pa2 + sz2)
+	EMSG("[%" PRIxPA " %" PRIx64 "] intersects [%" PRIxPA " %" PRIx64 "]", \
+			pa1, (uint64_t)pa1 + sz1, pa2, (uint64_t)pa2 + sz2)
 
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
@@ -479,8 +479,8 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	}
 
 	for (mem = start; mem < end; mem++)
-		DMSG("%s memory [%" PRIxPA " %" PRIxPA "]",
-		     area_name, mem->addr, mem->addr + mem->size);
+		DMSG("%s memory [%" PRIxPA " %" PRIx64 "]",
+		     area_name, mem->addr, (uint64_t)mem->addr + mem->size);
 
 	/* Check memories do not intersect each other */
 	for (mem = start; mem < end - 1; mem++) {
