@@ -31,7 +31,12 @@ call stack can in principle be processed by this script. This currently
 includes aborts and panics from the TEE core as well as from any TA.
 The paths provided on the command line are used to locate the appropriate ELF
 binary (tee.elf or Trusted Application). The GNU binutils (addr2line, objdump,
-nm) are used to extract the debug info.
+nm) are used to extract the debug info. If the CROSS_COMPILE environment
+variable is set, it is used as a prefix to the binutils tools. That is, the
+script will invoke $(CROSS_COMPILE)addr2line etc. If it is not set however,
+the prefix will be determined automatically for each ELF file based on its
+architecture (arm-linux-gnueabihf-, aarch64-linux-gnu-). The resulting command
+is then expected to be found in the user's PATH.
 
 OP-TEE abort and panic messages are sent to the secure console. They look like
 the following:
