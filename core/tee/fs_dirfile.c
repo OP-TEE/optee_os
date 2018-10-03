@@ -10,6 +10,7 @@
 #include <string.h>
 #include <tee/fs_dirfile.h>
 #include <types_ext.h>
+#include <util.h>
 
 struct tee_fs_dirfile_dirh {
 	const struct tee_fs_dirfile_operations *fops;
@@ -39,16 +40,18 @@ struct dirfile_entry {
 
 static TEE_Result maybe_grow_files(struct tee_fs_dirfile_dirh *dirh, int idx)
 {
-	void *p;
+	/* bit_nclear and friends operates native int sized operands */
+	size_t size = ROUNDUP(bitstr_size(idx + 1), sizeof(unsigned int));
 
 	if (idx < dirh->nbits)
 		return TEE_SUCCESS;
 
-	p = realloc(dirh->files, bitstr_size(idx + 1));
+	void *p = realloc(dirh->files, size);
+
 	if (!p)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	dirh->files = p;
 
+	dirh->files = p;
 	bit_nclear(dirh->files, dirh->nbits, idx);
 	dirh->nbits = idx + 1;
 

@@ -18,6 +18,7 @@
 #include <tee/tee_pobj.h>
 #include <tee/tee_svc_storage.h>
 #include <utee_defines.h>
+#include <util.h>
 
 #define TADB_MAX_BUFFER_SIZE	(64U * 1024)
 
@@ -137,16 +138,19 @@ static TEE_Result ta_operation_remove(uint32_t file_number)
 
 static TEE_Result maybe_grow_files(struct tee_tadb_dir *db, int idx)
 {
-	void *p;
+	/* bit_nclear and friends operates native int sized operands */
+	size_t size = ROUNDUP(bitstr_size(idx + 1), sizeof(unsigned int));
 
 	if (idx < db->nbits)
 		return TEE_SUCCESS;
 
-	p = realloc(db->files, bitstr_size(idx + 1));
+	/* bit_nclear and friends operates native int sized operands */
+	void *p = realloc(db->files, size);
+
 	if (!p)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	db->files = p;
 
+	db->files = p;
 	bit_nclear(db->files, db->nbits, idx);
 	db->nbits = idx + 1;
 
