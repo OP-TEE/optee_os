@@ -328,7 +328,7 @@ static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
 static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 {
 #if defined(CFG_ARM_GICV3)
-	return read_icc_iar0();
+	return read_icc_iar1();
 #else
 	return read32(gd->gicc_base + GICC_IAR);
 #endif
@@ -337,7 +337,7 @@ static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 static void gic_write_eoir(struct gic_data *gd __maybe_unused, uint32_t eoir)
 {
 #if defined(CFG_ARM_GICV3)
-	write_icc_eoir0(eoir);
+	write_icc_eoir1(eoir);
 #else
 	write32(eoir, gd->gicc_base + GICC_EOIR);
 #endif
