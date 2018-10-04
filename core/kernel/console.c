@@ -65,13 +65,17 @@ void configure_console_from_dt(void)
 		return;
 
 	offs = fdt_path_offset(fdt, "/secure-chosen");
-	if (offs < 0)
-		return;
+	if (offs < 0) {
+		/* Fallback to node /chosen */
+		offs = fdt_path_offset(fdt, "/chosen");
+		if (offs < 0)
+			return;
+	}
 	prop = fdt_get_property(fdt, offs, "stdout-path", NULL);
 	if (!prop) {
 		/*
-		 * /secure-chosen node present but no stdout-path property
-		 * means we don't want any console output
+		 * /secure-chosen or /chosen node present but no stdout-path
+		 * property means we don't want any console output.
 		 */
 		IMSG("Switching off console");
 		register_serial_console(NULL);
