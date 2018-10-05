@@ -510,70 +510,17 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 #ifdef ARM32
-
-#define T32_INSTR(w1, w0) \
-	((((uint32_t)(w0) & 0xffff) << 16) | ((uint32_t)(w1) & 0xffff))
-
-#define T32_VTRANS32_MASK	T32_INSTR(0xff << 8, (7 << 9) | 1 << 4)
-#define T32_VTRANS32_VAL	T32_INSTR(0xee << 8, (5 << 9) | 1 << 4)
-
-#define T32_VTRANS64_MASK	T32_INSTR((0xff << 8) | (7 << 5), 7 << 9)
-#define T32_VTRANS64_VAL	T32_INSTR((0xec << 8) | (2 << 5), 5 << 9)
-
-#define T32_VLDST_MASK		T32_INSTR((0xff << 8) | (1 << 4), 0)
-#define T32_VLDST_VAL		T32_INSTR( 0xf9 << 8            , 0)
-
-#define T32_VXLDST_MASK		T32_INSTR(0xfc << 8, 7 << 9)
-#define T32_VXLDST_VAL		T32_INSTR(0xec << 8, 5 << 9)
-
-#define T32_VPROC_MASK		T32_INSTR(0xef << 8, 0)
-#define T32_VPROC_VAL		T32_VPROC_MASK
-
-#define A32_INSTR(x)		((uint32_t)(x))
-
-#define A32_VTRANS32_MASK	A32_INSTR(SHIFT_U32(0xf, 24) | \
-					  SHIFT_U32(7, 9) | BIT32(4))
-#define A32_VTRANS32_VAL	A32_INSTR(SHIFT_U32(0xe, 24) | \
-					  SHIFT_U32(5, 9) | BIT32(4))
-
-#define A32_VTRANS64_MASK	A32_INSTR(SHIFT_U32(0x7f, 21) | SHIFT_U32(7, 9))
-#define A32_VTRANS64_VAL	A32_INSTR(SHIFT_U32(0x62, 21) | SHIFT_U32(5, 9))
-
-#define A32_VLDST_MASK		A32_INSTR(SHIFT_U32(0xff, 24) | BIT32(20))
-#define A32_VLDST_VAL		A32_INSTR(SHIFT_U32(0xf4, 24))
-#define A32_VXLDST_MASK		A32_INSTR(SHIFT_U32(7, 25) | SHIFT_U32(7, 9))
-#define A32_VXLDST_VAL		A32_INSTR(SHIFT_U32(6, 25) | SHIFT_U32(5, 9))
-
-#define A32_VPROC_MASK		A32_INSTR(SHIFT_U32(0x7f, 25))
-#define A32_VPROC_VAL		A32_INSTR(SHIFT_U32(0x79, 25))
-
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	TEE_Result res;
-	uint32_t instr;
-
 	if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
 		return false;
 
-	res = tee_svc_copy_from_user(&instr, (void *)ai->pc, sizeof(instr));
-	if (res != TEE_SUCCESS)
-		return false;
-
-	if (ai->regs->spsr & CPSR_T) {
-		/* Thumb mode */
-		return ((instr & T32_VTRANS32_MASK) == T32_VTRANS32_VAL) ||
-		       ((instr & T32_VTRANS64_MASK) == T32_VTRANS64_VAL) ||
-		       ((instr & T32_VLDST_MASK) == T32_VLDST_VAL) ||
-		       ((instr & T32_VXLDST_MASK) == T32_VXLDST_VAL) ||
-		       ((instr & T32_VPROC_MASK) == T32_VPROC_VAL);
-	} else {
-		/* ARM mode */
-		return ((instr & A32_VTRANS32_MASK) == A32_VTRANS32_VAL) ||
-		       ((instr & A32_VTRANS64_MASK) == A32_VTRANS64_VAL) ||
-		       ((instr & A32_VLDST_MASK) == A32_VLDST_VAL) ||
-		       ((instr & A32_VXLDST_MASK) == A32_VXLDST_VAL) ||
-		       ((instr & A32_VPROC_MASK) == A32_VPROC_VAL);
-	}
+	/*
+	 * Not entirely accurate, but if it's a truly undefined instruction
+	 * we'll end up in this function again, except this time
+	 * vfp_is_enabled() so we'll return false.
+	 */
+	return true;
 }
 #endif /*ARM32*/
 
