@@ -10,6 +10,9 @@ endif
 ifeq ($(PLATFORM_FLAVOR),juno)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
+# Workaround 808870: Unconditional VLDM instructions might cause an
+# alignment fault even though the address is aligned
+$(call force,CFG_TA_ARM32_NO_HARD_FLOAT_SUPPORT,y)
 endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 include core/arch/arm/cpu/cortex-armv8-0.mk
