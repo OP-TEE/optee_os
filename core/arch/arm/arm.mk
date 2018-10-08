@@ -28,7 +28,10 @@ ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_VFP,y)
 endif
 ifeq ($(CFG_WITH_VFP),y)
-platform-hard-float-enabled := y
+arm64-platform-hard-float-enabled := y
+ifneq ($(CFG_TA_ARM32_NO_HARD_FLOAT_SUPPORT),y)
+arm32-platform-hard-float-enabled := y
+endif
 endif
 endif
 
@@ -150,7 +153,7 @@ ta_arm32-platform-cflags += $(platform-cflags-optimization)
 ta_arm32-platform-cflags += $(platform-cflags-debug-info)
 ta_arm32-platform-cflags += -fpie
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic)
-ifeq ($(platform-hard-float-enabled),y)
+ifeq ($(arm32-platform-hard-float-enabled),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
@@ -182,7 +185,7 @@ ta_arm64-platform-cflags += $(platform-cflags-optimization)
 ta_arm64-platform-cflags += $(platform-cflags-debug-info)
 ta_arm64-platform-cflags += -fpie
 ta_arm64-platform-cflags += $(arm64-platform-cflags-generic)
-ifeq ($(platform-hard-float-enabled),y)
+ifeq ($(arm64-platform-hard-float-enabled),y)
 ta_arm64-platform-cflags += $(arm64-platform-cflags-hard-float)
 else
 ta_arm64-platform-cflags += $(arm64-platform-cflags-no-hard-float)
