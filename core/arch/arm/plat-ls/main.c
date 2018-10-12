@@ -177,17 +177,23 @@ int get_hw_unique_key(uint64_t smc_func_id, uint64_t in_key, uint64_t size);
 			   OPTEE_SMC_OWNER_SIP, \
 			   OPTEE_SMC_FUNCID_SIP_LS_HW_UNQ_KEY)
 
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
+	TEE_Result res;
 	int ret = 0;
 	uint8_t hw_unq_key[sizeof(hwkey->data)] __aligned(64);
 
 	ret = get_hw_unique_key(OPTEE_SMC_FAST_CALL_SIP_LS_HW_UNQ_KEY,
 			virt_to_phys(hw_unq_key), sizeof(hwkey->data));
 
-	if (ret < 0)
+	if (ret < 0) {
 		EMSG("\nH/W Unique key is not fetched from the platform.");
-	else
+		res = TEE_ERROR_SECURITY;
+	} else {
 		memcpy(&hwkey->data[0], hw_unq_key, sizeof(hwkey->data));
+		res = TEE_SUCCESS;
+	}
+
+	return res;
 }
 #endif

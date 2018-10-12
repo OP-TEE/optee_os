@@ -222,7 +222,7 @@ To allow Secure Storage to operate securely on your platform, you must define
 implementations in your platform code for:
 
 ``` c
- void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
+ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
  int tee_otp_get_die_id(uint8_t *buffer, size_t len);
 ```
 

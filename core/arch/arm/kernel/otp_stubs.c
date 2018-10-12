@@ -13,9 +13,10 @@
  * The default implementation just sets it to a constant.
  */
 
-__weak void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+__weak TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
+	return TEE_SUCCESS;
 }
 
 __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
