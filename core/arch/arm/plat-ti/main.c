@@ -154,9 +154,10 @@ void console_init(void)
 
 #if defined(CFG_OTP_SUPPORT)
 
-void tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	memcpy(&hwkey->data[0], &plat_huk[0], sizeof(hwkey->data));
+	return TEE_SUCCESS;
 }
 
 #endif
