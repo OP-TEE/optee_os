@@ -679,42 +679,30 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
  * - or it was the original TA memref: update only the size value.
  */
 static TEE_Result tee_svc_update_out_param(
-		struct tee_ta_session *sess,
-		struct tee_ta_session *called_sess,
 		struct tee_ta_param *param,
 		void *tmp_buf_va[TEE_NUM_PARAMS],
 		struct utee_params *usr_param)
 {
 	size_t n;
-	void *p;
-	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
-	bool have_private_mem_map = is_user_ta_ctx(called_sess->ctx);
+	uint64_t *vals = usr_param->vals;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			p = (void *)(uintptr_t)usr_param->vals[n * 2];
-
-			/* outside TA private => memref is valid, update size */
-			if (!tee_mmu_is_vbuf_inside_ta_private(utc, p,
-					param->u[n].mem.size)) {
-				usr_param->vals[n * 2 + 1] =
-					param->u[n].mem.size;
-				break;
-			}
-
 			/*
-			 * If we called a kernel TA the parameters are in shared
-			 * memory and no copy is needed.
+			 * Memory copy is only needed if there's a temporary
+			 * buffer involved, tmp_buf_va[n] is only update if
+			 * a temporary buffer is used. Otherwise only the
+			 * size needs to be updated.
 			 */
-			if (have_private_mem_map &&
-			    param->u[n].mem.size <=
-			    usr_param->vals[n * 2 + 1]) {
-				uint8_t *src = tmp_buf_va[n];
+			if (tmp_buf_va[n] &&
+			    param->u[n].mem.size <= vals[n * 2 + 1]) {
+				void *src = tmp_buf_va[n];
+				void *dst = (void *)(uintptr_t)vals[n * 2];
 				TEE_Result res;
 
-				res = tee_svc_copy_to_user(p, src,
+				res = tee_svc_copy_to_user(dst, src,
 						 param->u[n].mem.size);
 				if (res != TEE_SUCCESS)
 					return res;
@@ -725,8 +713,8 @@ static TEE_Result tee_svc_update_out_param(
 
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			usr_param->vals[n * 2] = param->u[n].val.a;
-			usr_param->vals[n * 2 + 1] = param->u[n].val.b;
+			vals[n * 2] = param->u[n].val.a;
+			vals[n * 2 + 1] = param->u[n].val.b;
 			break;
 
 		default:
@@ -751,7 +739,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	TEE_UUID *uuid = malloc(sizeof(TEE_UUID));
 	struct tee_ta_param *param = malloc(sizeof(struct tee_ta_param));
 	TEE_Identity *clnt_id = malloc(sizeof(TEE_Identity));
-	void *tmp_buf_va[TEE_NUM_PARAMS];
+	void *tmp_buf_va[TEE_NUM_PARAMS] = { NULL };
 	struct user_ta_ctx *utc;
 
 	if (uuid == NULL || param == NULL || clnt_id == NULL) {
@@ -784,7 +772,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = tee_svc_update_out_param(sess, s, param, tmp_buf_va, usr_param);
+	res = tee_svc_update_out_param(param, tmp_buf_va, usr_param);
 
 function_exit:
 	mobj_free(mobj_param);
@@ -830,7 +818,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	struct tee_ta_session *sess;
 	struct tee_ta_session *called_sess;
 	struct mobj *mobj_param = NULL;
-	void *tmp_buf_va[TEE_NUM_PARAMS];
+	void *tmp_buf_va[TEE_NUM_PARAMS] = { NULL };
 	struct user_ta_ctx *utc;
 
 	res = tee_ta_get_current_session(&sess);
@@ -855,8 +843,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
 				    cancel_req_to, cmd_id, &param);
 
-	res2 = tee_svc_update_out_param(sess, called_sess, &param, tmp_buf_va,
-					usr_param);
+	res2 = tee_svc_update_out_param(&param, tmp_buf_va, usr_param);
 	if (res2 != TEE_SUCCESS) {
 		/*
 		 * Spec for TEE_InvokeTACommand() says:
