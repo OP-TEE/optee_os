@@ -185,7 +185,7 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 * target has additional calls it will call this function and
 	 * add the number of calls the target has added.
 	 */
-	return 9;
+	return 11;
 }
 
 void __weak tee_entry_get_api_call_count(struct thread_smc_args *args)
