@@ -9,6 +9,8 @@
 #include <kernel/thread.h>
 #include <trace.h>
 
+#include "mutex_lockdep.h"
+
 void mutex_init(struct mutex *m)
 {
 	*m = (struct mutex)MUTEX_INITIALIZER;
@@ -19,6 +21,8 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 	assert(thread_is_in_normal_mode());
+
+	mutex_lock_check(m);
 
 	while (true) {
 		uint32_t old_itr_status;
@@ -66,6 +70,8 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
+
+	mutex_unlock_check(m);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
@@ -322,6 +328,8 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 	struct wait_queue_elem wqe;
 	short old_state;
 	short new_state;
+
+	mutex_unlock_check(m);
 
 	/* Link this condvar to this mutex until reinitialized */
 	old_itr_status = cpu_spin_lock_xsave(&cv->spin_lock);
