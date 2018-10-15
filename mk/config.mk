@@ -219,9 +219,17 @@ CFG_TA_DYNLINK ?= y
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 
+# Runtime lock dependency checker: ensures that a proper locking hierarchy is
+# used in the TEE core when acquiring and releasing mutexes. Any violation will
+# cause a panic as soon as the invalid locking condition is detected. If
+# CFG_UNWIND is enabled, the algorithm records the call stacks when locks are
+# taken, and prints them when a potential deadlock is found.
+# Expect a significant performance impact when enabling this.
+CFG_LOCKDEP ?= n
+
 # BestFit algorithm in bget reduces the fragmentation of the heap when running
-# with the pager enabled.
-CFG_CORE_BGET_BESTFIT ?= $(CFG_WITH_PAGER)
+# with the pager enabled or lockdep
+CFG_CORE_BGET_BESTFIT ?= $(call cfg-one-enabled, CFG_WITH_PAGER CFG_LOCKDEP)
 
 # Use the pager for user TAs
 CFG_PAGED_USER_TA ?= $(CFG_WITH_PAGER)

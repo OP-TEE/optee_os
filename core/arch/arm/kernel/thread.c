@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/lockdep.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/panic.h>
@@ -395,6 +396,8 @@ void thread_init_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 	size_t n;
+
+	mutex_lockdep_init();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		TAILQ_INIT(&threads[n].mutexes);
