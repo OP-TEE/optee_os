@@ -183,10 +183,9 @@ static bool unwind_exec_read_byte(struct unwind_state_arm32 *state,
 static bool pop_vsp(uint32_t *reg, vaddr_t *vsp, bool kernel_stack,
 		    vaddr_t stack, size_t stack_size)
 {
-	if (!core_is_buffer_inside(*vsp, sizeof(*reg), stack, stack_size)) {
-		DMSG("vsp out of bounds %#" PRIxVA, *vsp);
+	if (!core_is_buffer_inside(*vsp, sizeof(*reg), stack, stack_size))
 		return false;
-	}
+
 	if (!copy_in(reg, (void *)*vsp, sizeof(*reg), kernel_stack))
 		return false;
 	(*vsp) += sizeof(*reg);

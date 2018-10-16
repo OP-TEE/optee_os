@@ -55,10 +55,8 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
 	vaddr_t fp = frame->fp;
 
 	if (!core_is_buffer_inside(fp, sizeof(uint64_t) * 3,
-				   stack, stack_size)) {
-		DMSG("FP out of bounds %#" PRIxVA, fp);
+				   stack, stack_size))
 		return false;
-	}
 
 	frame->sp = fp + 0x10;
 	/* FP to previous frame (X29) */
