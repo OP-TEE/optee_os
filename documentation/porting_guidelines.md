@@ -16,8 +16,8 @@ Porting guidelines for OP-TEE
 This document serves a dual purpose:
 * Serve as a base for getting OP-TEE up and running on a new device with initial
   xtest validation passing. This is the first part of this document (section 2).
-* Highlight the missing pieces if you intend to make intend to make a real
-  secure product, that is what the second part of this document is about.
+* Highlight the missing pieces if you intend to make a real secure product,
+  that is what the second part of this document is about.
 
 We are trying our best to implement full end to end security in OP-TEE in a
 generic way, but due to the nature of devices being different, NDA etc, it is
@@ -214,13 +214,13 @@ supported in OP-TEE, that is where you also shall list your device. It should
 contain the name of the platform, then composite `PLATFORM` flag and whether the
 device is publicly available or not.
 
-#### 2.2.2 Update travis.xml
-Since we are using Travis to test pull request etc, we would like that you also
-all your device to the [travis] file, so that it will at least be built when
-someone is doing a pull request. Add a line saying:
+#### 2.2.2 Update .shippable.yml
+Since we are using Shippable to test pull requests etc, we would like that you also
+add your device to the [.shippable.yml](../.shippable.yml) file, so that it will at least be built when
+someone is doing a pull request. Add a line at the end of file:
 
 ```
-- PLATFORM=gendev  PLATFORM_FLAVOR=gendev-flav  make -j8 all -s
+ - _make PLATFORM=<platform-name>_
 ```
 #### 2.2.3 Maintainer
 If you are submitting the board support upstream and cannot give Linaro
