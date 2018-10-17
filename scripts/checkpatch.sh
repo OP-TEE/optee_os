@@ -2,6 +2,20 @@
 
 DIR="${BASH_SOURCE%/*}"
 
+# if no CHECKPATCH is explicitly given by the environment, try to
+# locate checkpatch.pl: first take the one from the path, then check
+# for a local copy of the linux headers, finally try sources downloaded
+# with OP-TEE (for QEMU)
+if [ -z "$CHECKPATCH" ]; then
+  CHECKPATCH=$(command -v checkpatch.pl)
+fi
+if [ -z "$CHECKPATCH" ]; then
+  CHECKPATCH=$(find /usr/src/linux-headers* -name checkpatch.pl -print -quit)
+fi
+if [ -z "$CHECKPATCH" ]; then
+  CHECKPATCH=$(find "$PWD/../linux" -name checkpatch.pl -print -quit)
+fi
+
 source "$DIR/checkpatch_inc.sh"
 
 hash $CHECKPATCH 2>/dev/null ||
