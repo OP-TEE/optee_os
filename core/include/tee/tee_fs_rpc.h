@@ -18,7 +18,7 @@
 
 struct tee_fs_rpc_operation {
 	uint32_t id;
-	struct optee_msg_param params[THREAD_RPC_MAX_NUM_PARAMS];
+	struct thread_param params[THREAD_RPC_MAX_NUM_PARAMS];
 	size_t num_params;
 };
 

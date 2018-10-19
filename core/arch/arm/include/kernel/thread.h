@@ -11,7 +11,6 @@
 #include <arm.h>
 #include <types_ext.h>
 #include <compiler.h>
-#include <optee_msg.h>
 #include <kernel/mutex.h>
 #include <kernel/vfp.h>
 #include <mm/pgt_cache.h>
@@ -583,15 +582,62 @@ struct mobj *thread_rpc_alloc_payload(size_t size);
  */
 void thread_rpc_free_payload(struct mobj *mobj);
 
+
+struct thread_param_memref {
+	size_t offs;
+	size_t size;
+	struct mobj *mobj;
+};
+
+struct thread_param_value {
+	uint64_t a;
+	uint64_t b;
+	uint64_t c;
+};
+
+/*
+ * Note that there's some arithmetics done on the value so it's important
+ * to keep in IN, OUT, INOUT order.
+ */
+enum thread_param_attr {
+	THREAD_PARAM_ATTR_NONE = 0,
+	THREAD_PARAM_ATTR_VALUE_IN,
+	THREAD_PARAM_ATTR_VALUE_OUT,
+	THREAD_PARAM_ATTR_VALUE_INOUT,
+	THREAD_PARAM_ATTR_MEMREF_IN,
+	THREAD_PARAM_ATTR_MEMREF_OUT,
+	THREAD_PARAM_ATTR_MEMREF_INOUT,
+};
+
+struct thread_param {
+	enum thread_param_attr attr;
+	union {
+		struct thread_param_memref memref;
+		struct thread_param_value value;
+	} u;
+};
+
+#define THREAD_PARAM_MEMREF(_direction, _mobj, _offs, _size) \
+	(struct thread_param){ \
+		.attr = THREAD_PARAM_ATTR_MEMREF_ ## _direction, .u.memref = { \
+		.mobj = (_mobj), .offs = (_offs), .size = (_size) } \
+	}
+
+#define THREAD_PARAM_VALUE(_direction, _a, _b, _c) \
+	(struct thread_param){ \
+		.attr = THREAD_PARAM_ATTR_VALUE_ ## _direction, .u.value = { \
+		.a = (_a), .b = (_b), .c = (_c) } \
+	}
+
 /**
  * Does an RPC using a preallocated argument buffer
  * @cmd: RPC cmd
- * @num_params: number of parameters (max 2)
+ * @num_params: number of parameters
  * @params: RPC parameters
  * @returns RPC return value
  */
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-		struct optee_msg_param *params);
+		struct thread_param *params);
 
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);

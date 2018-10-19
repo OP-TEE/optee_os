@@ -8,7 +8,6 @@
 
 #include <compiler.h>
 #include <mm/core_memprot.h>
-#include <optee_msg.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>

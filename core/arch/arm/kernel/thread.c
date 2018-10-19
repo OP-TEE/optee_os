@@ -1386,26 +1386,69 @@ err:
 	return NULL;
 }
 
-static bool get_rpc_arg(uint32_t cmd, size_t num_params,
-			struct optee_msg_arg **arg_ret, uint64_t *carg_ret)
+static bool set_rmem(struct optee_msg_param *param,
+		     struct thread_param *tpm)
+{
+	param->attr = tpm->attr - THREAD_PARAM_ATTR_MEMREF_IN +
+		      OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
+	param->u.rmem.offs = tpm->u.memref.offs;
+	param->u.rmem.size = tpm->u.memref.size;
+	if (tpm->u.memref.mobj) {
+		param->u.rmem.shm_ref = mobj_get_cookie(tpm->u.memref.mobj);
+		if (param->u.rmem.shm_ref == MOBJ_INVALID_COOKIE)
+			return false;
+	} else {
+		param->u.rmem.shm_ref = 0;
+	}
+
+	return true;
+}
+
+static bool set_tmem(struct optee_msg_param *param,
+		     struct thread_param *tpm)
+{
+	paddr_t pa = 0;
+	uint64_t shm_ref = 0;
+	struct mobj *mobj = tpm->u.memref.mobj;
+
+	param->attr = tpm->attr - THREAD_PARAM_ATTR_MEMREF_IN +
+		      OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
+	if (mobj) {
+		shm_ref = mobj_get_cookie(mobj);
+		if (shm_ref == MOBJ_INVALID_COOKIE)
+			return false;
+		if (mobj_get_pa(mobj, tpm->u.memref.offs, 0, &pa))
+			return false;
+	}
+
+	param->u.tmem.size = tpm->u.memref.size;
+	param->u.tmem.buf_ptr = pa;
+	param->u.tmem.shm_ref = shm_ref;
+
+	return true;
+}
+
+static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
+			    struct thread_param *params, void **arg_ret,
+			    uint64_t *carg_ret)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct optee_msg_arg *arg = thr->rpc_arg;
-	struct mobj *mobj;
 	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
 
 	if (num_params > THREAD_RPC_MAX_NUM_PARAMS)
-		return false;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!arg) {
-		mobj = thread_rpc_alloc_arg(sz);
+		struct mobj *mobj = thread_rpc_alloc_arg(sz);
+
 		if (!mobj)
-			return false;
+			return TEE_ERROR_OUT_OF_MEMORY;
 
 		arg = mobj_get_va(mobj, 0);
 		if (!arg) {
 			thread_rpc_free_arg(mobj_get_cookie(mobj));
-			return false;
+			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 
 		thr->rpc_arg = arg;
@@ -1417,45 +1460,95 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	arg->num_params = num_params;
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 
+	for (size_t n = 0; n < num_params; n++) {
+		switch (params[n].attr) {
+		case THREAD_PARAM_ATTR_NONE:
+			arg->params[n].attr = OPTEE_MSG_ATTR_TYPE_NONE;
+			break;
+		case THREAD_PARAM_ATTR_VALUE_IN:
+		case THREAD_PARAM_ATTR_VALUE_OUT:
+		case THREAD_PARAM_ATTR_VALUE_INOUT:
+			arg->params[n].attr = params[n].attr -
+					      THREAD_PARAM_ATTR_VALUE_IN +
+					      OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+			arg->params[n].u.value.a = params[n].u.value.a;
+			arg->params[n].u.value.b = params[n].u.value.b;
+			arg->params[n].u.value.c = params[n].u.value.c;
+			break;
+		case THREAD_PARAM_ATTR_MEMREF_IN:
+		case THREAD_PARAM_ATTR_MEMREF_OUT:
+		case THREAD_PARAM_ATTR_MEMREF_INOUT:
+			if (!params[n].u.memref.mobj ||
+			    mobj_matches(params[n].u.memref.mobj,
+					 CORE_MEM_NSEC_SHM)) {
+				if (!set_tmem(arg->params + n, params + n))
+					return TEE_ERROR_BAD_PARAMETERS;
+			} else  if (mobj_matches(params[n].u.memref.mobj,
+						 CORE_MEM_REG_SHM)) {
+				if (!set_rmem(arg->params + n, params + n))
+					return TEE_ERROR_BAD_PARAMETERS;
+			} else {
+				return TEE_ERROR_BAD_PARAMETERS;
+			}
+			break;
+		default:
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+
 	*arg_ret = arg;
 	*carg_ret = mobj_get_cookie(thr->rpc_mobj);
-	return true;
+
+	return TEE_SUCCESS;
 }
 
-uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-			struct optee_msg_param *params)
+static uint32_t get_rpc_arg_res(struct optee_msg_arg *arg, size_t num_params,
+				struct thread_param *params)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct optee_msg_arg *arg;
-	uint64_t carg;
-	size_t n;
-
-	/* The source CRYPTO_RNG_SRC_JITTER_RPC is safe to use here */
-	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_RPC,
-				     &thread_rpc_pnum);
-
-	if (!get_rpc_arg(cmd, num_params, &arg, &carg))
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	memcpy(arg->params, params, sizeof(*params) * num_params);
-
-	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	thread_rpc(rpc_args);
-	for (n = 0; n < num_params; n++) {
-		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
-		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
-		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			params[n] = arg->params[n];
+	for (size_t n = 0; n < num_params; n++) {
+		switch (params[n].attr) {
+		case THREAD_PARAM_ATTR_VALUE_OUT:
+		case THREAD_PARAM_ATTR_VALUE_INOUT:
+			params[n].u.value.a = arg->params[n].u.value.a;
+			params[n].u.value.b = arg->params[n].u.value.b;
+			params[n].u.value.c = arg->params[n].u.value.c;
+			break;
+		case THREAD_PARAM_ATTR_MEMREF_OUT:
+		case THREAD_PARAM_ATTR_MEMREF_INOUT:
+			/*
+			 * rmem.size and tmem.size is the same type and
+			 * location.
+			 */
+			params[n].u.memref.size = arg->params[n].u.rmem.size;
 			break;
 		default:
 			break;
 		}
 	}
+
 	return arg->ret;
+}
+
+uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
+			struct thread_param *params)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	void *arg = NULL;
+	uint64_t carg = 0;
+	uint32_t ret = 0;
+
+	/* The source CRYPTO_RNG_SRC_JITTER_RPC is safe to use here */
+	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_RPC,
+				     &thread_rpc_pnum);
+
+	ret = get_rpc_arg(cmd, num_params, params, &arg, &carg);
+	if (ret)
+		return ret;
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	thread_rpc(rpc_args);
+
+	return get_rpc_arg_res(arg, num_params, params);
 }
 
 /**
@@ -1470,56 +1563,27 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct optee_msg_arg *arg;
-	uint64_t carg;
-
-	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &arg, &carg))
-		return;
-
-	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	arg->params[0].u.value.a = bt;
-	arg->params[0].u.value.b = cookie;
-	arg->params[0].u.value.c = 0;
+	void *arg = NULL;
+	uint64_t carg = 0;
+	struct thread_param param = THREAD_PARAM_VALUE(IN, bt, cookie, 0);
+	uint32_t ret = get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &param,
+				   &arg, &carg);
 
 	mobj_free(mobj);
 
-	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	thread_rpc(rpc_args);
+	if (!ret) {
+		reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+		thread_rpc(rpc_args);
+	}
 }
 
-/**
- * Allocates shared memory buffer via RPC
- *
- * @size:	size in bytes of shared memory buffer
- * @align:	required alignment of buffer
- * @bt:		buffer type OPTEE_MSG_RPC_SHM_TYPE_*
- * @payload:	returned physical pointer to buffer, 0 if allocation
- *		failed.
- * @cookie:	returned cookie used when freeing the buffer
- */
-static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
+static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
+				      unsigned int bt)
 {
-	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
-	struct optee_msg_arg *arg;
-	uint64_t carg;
 	struct mobj *mobj = NULL;
-	uint64_t cookie;
+	uint64_t cookie = 0;
 
-	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg))
-		return NULL;
-
-	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	arg->params[0].u.value.a = bt;
-	arg->params[0].u.value.b = size;
-	arg->params[0].u.value.c = align;
-
-	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	thread_rpc(rpc_args);
-
-	if (arg->ret != TEE_SUCCESS)
-		return NULL;
-
-	if (arg->num_params != 1)
+	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
@@ -1547,6 +1611,33 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 	assert(mobj_is_nonsec(mobj));
 
 	return mobj;
+}
+
+/**
+ * Allocates shared memory buffer via RPC
+ *
+ * @size:	size in bytes of shared memory buffer
+ * @align:	required alignment of buffer
+ * @bt:		buffer type OPTEE_MSG_RPC_SHM_TYPE_*
+ *
+ * Returns a pointer to MOBJ for the memory on success, or NULL on failure.
+ */
+static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
+	void *arg = NULL;
+	uint64_t carg = 0;
+	struct thread_param param = THREAD_PARAM_VALUE(IN, bt, size, align);
+	uint32_t ret = get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &param,
+				   &arg, &carg);
+
+	if (ret)
+		return NULL;
+
+	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	thread_rpc(rpc_args);
+
+	return get_rpc_alloc_res(arg, bt);
 }
 
 struct mobj *thread_rpc_alloc_payload(size_t size)

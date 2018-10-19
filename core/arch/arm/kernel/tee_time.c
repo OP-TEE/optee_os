@@ -27,11 +27,9 @@ uint32_t tee_time_get_sys_time_protection_level(void)
 
 void tee_time_wait(uint32_t milliseconds_delay)
 {
-	struct optee_msg_param params;
+	struct thread_param params =
+		THREAD_PARAM_VALUE(IN, milliseconds_delay, 0, 0);
 
-	memset(&params, 0, sizeof(params));
-	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params.u.value.a = milliseconds_delay;
 	thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SUSPEND, 1, &params);
 }
 
@@ -44,13 +42,12 @@ void tee_time_wait(uint32_t milliseconds_delay)
 TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
 	TEE_Result res;
-	struct optee_msg_param params;
 
 	if (!time)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memset(&params, 0, sizeof(params));
-	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+	struct thread_param params = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
+
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GET_TIME, 1, &params);
 	if (res == TEE_SUCCESS) {
 		time->seconds = params.u.value.a;
