@@ -414,9 +414,7 @@ func_exit:
 
 struct tee_rpmb_mem {
 	struct mobj *phreq_mobj;
-	uint64_t phreq_cookie;
 	struct mobj *phresp_mobj;
-	uint64_t phresp_cookie;
 	size_t req_size;
 	size_t resp_size;
 };
@@ -427,13 +425,11 @@ static void tee_rpmb_free(struct tee_rpmb_mem *mem)
 		return;
 
 	if (mem->phreq_mobj) {
-		thread_rpc_free_payload(mem->phreq_cookie, mem->phreq_mobj);
-		mem->phreq_cookie = 0;
+		thread_rpc_free_payload(mem->phreq_mobj);
 		mem->phreq_mobj = NULL;
 	}
 	if (mem->phresp_mobj) {
-		thread_rpc_free_payload(mem->phresp_cookie, mem->phresp_mobj);
-		mem->phresp_cookie = 0;
+		thread_rpc_free_payload(mem->phresp_mobj);
 		mem->phresp_mobj = NULL;
 	}
 }
@@ -451,9 +447,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 
 	memset(mem, 0, sizeof(*mem));
 
-	mem->phreq_mobj = thread_rpc_alloc_payload(req_s, &mem->phreq_cookie);
-	mem->phresp_mobj =
-		thread_rpc_alloc_payload(resp_s, &mem->phresp_cookie);
+	mem->phreq_mobj = thread_rpc_alloc_payload(req_s);
+	mem->phresp_mobj = thread_rpc_alloc_payload(resp_s);
 
 	if (!mem->phreq_mobj || !mem->phresp_mobj) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -483,13 +478,11 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 	memset(params, 0, sizeof(params));
 
 	if (!msg_param_init_memparam(params + 0, mem->phreq_mobj, 0,
-				     mem->req_size, mem->phreq_cookie,
-				     MSG_PARAM_MEM_DIR_IN))
+				     mem->req_size, MSG_PARAM_MEM_DIR_IN))
 		return TEE_ERROR_BAD_STATE;
 
 	if (!msg_param_init_memparam(params + 1, mem->phresp_mobj, 0,
-				     mem->resp_size, mem->phresp_cookie,
-				     MSG_PARAM_MEM_DIR_OUT))
+				     mem->resp_size, MSG_PARAM_MEM_DIR_OUT))
 		return TEE_ERROR_BAD_STATE;
 
 	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_RPMB, 2, params);

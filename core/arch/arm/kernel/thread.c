@@ -610,9 +610,8 @@ void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 
 		tee_fs_rpc_cache_clear(&thr->tsd);
 		if (!thread_prealloc_rpc_cache) {
-			thread_rpc_free_arg(thr->rpc_carg);
+			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
 			mobj_free(thr->rpc_mobj);
-			thr->rpc_carg = 0;
 			thr->rpc_arg = 0;
 			thr->rpc_mobj = NULL;
 		}
@@ -1331,9 +1330,8 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 	rv = true;
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].rpc_arg) {
+			*cookie = mobj_get_cookie(threads[n].rpc_mobj);
 			mobj_free(threads[n].rpc_mobj);
-			*cookie = threads[n].rpc_carg;
-			threads[n].rpc_carg = 0;
 			threads[n].rpc_arg = NULL;
 			goto out;
 		}
@@ -1374,11 +1372,10 @@ out:
  * Allocates data for struct optee_msg_arg.
  *
  * @size:	size in bytes of struct optee_msg_arg
- * @cookie:	returned cookie used when freeing the buffer
  *
  * @returns	mobj that describes allocated buffer or NULL on error
  */
-static struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
+static struct mobj *thread_rpc_alloc_arg(size_t size)
 {
 	paddr_t pa;
 	uint64_t co;
@@ -1397,19 +1394,17 @@ static struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
 
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
-		mobj = mobj_shm_alloc(pa, size);
+		mobj = mobj_shm_alloc(pa, size, co);
 	else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
 		mobj = mobj_mapped_shm_alloc(&pa, 1, 0, co);
 
 	if (!mobj)
 		goto err;
 
-	*cookie = co;
 	return mobj;
 err:
 	thread_rpc_free_arg(co);
 	mobj_free(mobj);
-	*cookie = 0;
 	return NULL;
 }
 
@@ -1420,22 +1415,22 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	struct optee_msg_arg *arg = thr->rpc_arg;
 	struct mobj *mobj;
 	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
-	uint64_t c;
 
 	if (num_params > THREAD_RPC_MAX_NUM_PARAMS)
 		return false;
 
 	if (!arg) {
-		mobj = thread_rpc_alloc_arg(sz, &c);
+		mobj = thread_rpc_alloc_arg(sz);
 		if (!mobj)
 			return false;
 
 		arg = mobj_get_va(mobj, 0);
-		if (!arg)
-			goto bad;
+		if (!arg) {
+			thread_rpc_free_arg(mobj_get_cookie(mobj));
+			return false;
+		}
 
 		thr->rpc_arg = arg;
-		thr->rpc_carg = c;
 		thr->rpc_mobj = mobj;
 	}
 
@@ -1445,12 +1440,8 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 
 	*arg_ret = arg;
-	*carg_ret = thr->rpc_carg;
+	*carg_ret = mobj_get_cookie(thr->rpc_mobj);
 	return true;
-
-bad:
-	thread_rpc_free_arg(c);
-	return false;
 }
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
@@ -1528,16 +1519,16 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
  *		failed.
  * @cookie:	returned cookie used when freeing the buffer
  */
-static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
-				     uint64_t *cookie)
+static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct optee_msg_arg *arg;
 	uint64_t carg;
 	struct mobj *mobj = NULL;
+	uint64_t cookie;
 
 	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg))
-		goto fail;
+		return NULL;
 
 	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	arg->params[0].u.value.a = bt;
@@ -1548,55 +1539,56 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	thread_rpc(rpc_args);
 
 	if (arg->ret != TEE_SUCCESS)
-		goto fail;
+		return NULL;
 
 	if (arg->num_params != 1)
-		goto fail;
+		return NULL;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
-		*cookie = arg->params[0].u.tmem.shm_ref;
+		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size);
+				      arg->params[0].u.tmem.size,
+				      cookie);
 	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 					   OPTEE_MSG_ATTR_NONCONTIG)) {
-		*cookie = arg->params[0].u.tmem.shm_ref;
+		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
 			arg->params[0].u.tmem.size,
-			*cookie,
+			cookie,
 			true);
-	} else
-		goto fail;
+	} else {
+		return NULL;
+	}
 
-	if (!mobj)
-		goto free_first;
+	if (!mobj) {
+		thread_rpc_free(bt, cookie, mobj);
+		return NULL;
+	}
 
 	assert(mobj_is_nonsec(mobj));
+
 	return mobj;
-
-free_first:
-	thread_rpc_free(bt, *cookie, mobj);
-fail:
-	*cookie = 0;
-	return NULL;
 }
 
-struct mobj *thread_rpc_alloc_payload(size_t size, uint64_t *cookie)
+struct mobj *thread_rpc_alloc_payload(size_t size)
 {
-	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie);
+	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL);
 }
 
-void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj)
+void thread_rpc_free_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie, mobj);
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
+			mobj);
 }
 
-struct mobj *thread_rpc_alloc_global_payload(size_t size, uint64_t *cookie)
+struct mobj *thread_rpc_alloc_global_payload(size_t size)
 {
-	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, cookie);
+	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_GLOBAL);
 }
 
-void thread_rpc_free_global_payload(uint64_t cookie, struct mobj *mobj)
+void thread_rpc_free_global_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, cookie, mobj);
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
+			mobj);
 }

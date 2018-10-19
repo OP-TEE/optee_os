@@ -23,7 +23,6 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 {
 	struct mobj *mobj;
 	TEE_Result res;
-	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[4];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -39,7 +38,7 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -54,7 +53,7 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 
 	/* server address */
 	if (!msg_param_init_memparam(msg_params + 2, mobj, 0,
-				     params[1].memref.size, cookie,
+				     params[1].memref.size,
 				     MSG_PARAM_MEM_DIR_IN))
 		return TEE_ERROR_BAD_STATE;
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
@@ -100,7 +99,6 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 {
 	struct mobj *mobj;
 	TEE_Result res;
-	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -116,7 +114,7 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -127,7 +125,7 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 
 	/* buffer */
 	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size, cookie,
+				     params[1].memref.size,
 				     MSG_PARAM_MEM_DIR_IN))
 		return TEE_ERROR_BAD_STATE;
 
@@ -147,7 +145,6 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 {
 	struct mobj *mobj;
 	TEE_Result res;
-	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -163,7 +160,7 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -174,7 +171,7 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 
 	/* buffer */
 	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size, cookie,
+				     params[1].memref.size,
 				     MSG_PARAM_MEM_DIR_OUT))
 		return TEE_ERROR_BAD_STATE;
 
@@ -194,7 +191,6 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 {
 	struct mobj *mobj;
 	TEE_Result res;
-	uint64_t cookie;
 	void *va;
 	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -210,7 +206,7 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 
 	memset(msg_params, 0, sizeof(msg_params));
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -221,7 +217,7 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 
 	/* buffer */
 	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size, cookie,
+				     params[1].memref.size,
 				     MSG_PARAM_MEM_DIR_INOUT))
 		return TEE_ERROR_BAD_STATE;
 

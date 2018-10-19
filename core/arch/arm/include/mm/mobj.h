@@ -13,6 +13,7 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
+#define MOBJ_INVALID_COOKIE	0xffffffffffffffff
 
 struct mobj {
 	const struct mobj_ops *ops;
@@ -30,6 +31,7 @@ struct mobj_ops {
 	void (*free)(struct mobj *mobj);
 	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
 			       vaddr_t va);
+	uint64_t (*get_cookie)(struct mobj *mobj);
 };
 
 extern struct mobj mobj_virt;
@@ -83,6 +85,14 @@ static inline void mobj_update_mapping(struct mobj *mobj,
 {
 	if (mobj && mobj->ops && mobj->ops->update_mapping)
 		mobj->ops->update_mapping(mobj, utc, va);
+}
+
+static inline uint64_t mobj_get_cookie(struct mobj *mobj)
+{
+	if (mobj && mobj->ops && mobj->ops->get_cookie)
+		return mobj->ops->get_cookie(mobj);
+
+	return MOBJ_INVALID_COOKIE;
 }
 
 static inline bool mobj_is_nonsec(struct mobj *mobj)
@@ -182,7 +192,7 @@ void mobj_reg_shm_unguard(struct mobj *mobj);
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
 
-struct mobj *mobj_shm_alloc(paddr_t pa, size_t size);
+struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
 
 struct mobj *mobj_paged_alloc(size_t size);
 
