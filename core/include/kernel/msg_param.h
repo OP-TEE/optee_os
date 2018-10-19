@@ -35,16 +35,6 @@
 #include <kernel/msg_param.h>
 #include <mm/mobj.h>
 
-/*
- * This enum is used in tee_fill_memparam(). It describes direction of memory
- * parameter.
- */
-enum msg_param_mem_dir {
-	MSG_PARAM_MEM_DIR_IN = 0,
-	MSG_PARAM_MEM_DIR_OUT,
-	MSG_PARAM_MEM_DIR_INOUT,
-};
-
 /**
  * msg_param_mobj_from_noncontig() - construct mobj from non-contiguous
  * list of pages.
@@ -59,52 +49,6 @@ enum msg_param_mem_dir {
  */
 struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 					   uint64_t shm_ref, bool map_buffer);
-
-/**
- * msg_param_init_memparam() - fill memory reference parameter for RPC call
- * @param	- parameter to fill
- * @mobj	- mobj describing the shared memory buffer
- * @offset	- offset of the buffer
- * @size	- size of the buffer
- * @dir		- data direction
- *
- * Idea behind this function is that thread_rpc_alloc() can return
- * either buffer from preallocated memory pool, of buffer constructed
- * from supplicant's memory. In first case parameter will have type
- * OPTEE_MSG_ATTR_TYPE_TMEM_* and OPTEE_MSG_ATTR_TYPE_RMEM_ in second case.
- * This function will fill parameter structure with right type, depending on
- * the passed mobj.
- *
- * return:
- *	true on success, false on failure
- */
-bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
-			     size_t offset, size_t size,
-			     enum msg_param_mem_dir dir);
-/**
- * msg_param_get_buf_size() - helper functions that reads [T/R]MEM
- *			      parameter size
- *
- * @param - struct optee_msg_param to read size from
- *
- * return:
- *	corresponding size field
- */
-static inline size_t msg_param_get_buf_size(const struct optee_msg_param *param)
-{
-	switch (param->attr & OPTEE_MSG_ATTR_TYPE_MASK) {
-	case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
-	case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
-	case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-		return param->u.tmem.size;
-	case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
-	case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
-	case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
-		return param->u.rmem.size;
-	default:
-		return 0;
-	}
-}
 
 /**
  * msg_param_attr_is_tmem - helper functions that cheks if attribute is tmem
