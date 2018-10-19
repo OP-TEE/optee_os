@@ -469,17 +469,12 @@ out:
 
 static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 {
-	struct optee_msg_param params[2];
-
-	memset(params, 0, sizeof(params));
-
-	if (!msg_param_init_memparam(params + 0, mem->phreq_mobj, 0,
-				     mem->req_size, MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
-	if (!msg_param_init_memparam(params + 1, mem->phresp_mobj, 0,
-				     mem->resp_size, MSG_PARAM_MEM_DIR_OUT))
-		return TEE_ERROR_BAD_STATE;
+	struct thread_param params[2] = {
+		[0] = THREAD_PARAM_MEMREF(IN, mem->phreq_mobj, 0,
+					  mem->req_size),
+		[1] = THREAD_PARAM_MEMREF(OUT, mem->phresp_mobj, 0,
+					  mem->resp_size),
+	};
 
 	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_RPMB, 2, params);
 }

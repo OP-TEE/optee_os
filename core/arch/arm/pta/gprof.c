@@ -16,10 +16,17 @@
 #include <pta_gprof.h>
 #include <string.h>
 
+static void init_memparam(struct thread_param *param, struct mobj *mobj,
+			  size_t offs, size_t size, enum thread_param_attr attr)
+{
+	*param = (struct thread_param){ .attr = attr, .u = { .memref = {
+			.offs = offs, .size = size, .mobj = mobj } } };
+}
+
 static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
 {
-	struct optee_msg_param params[3];
+	struct thread_param params[3];
 	struct mobj *mobj;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	char *va;
@@ -36,13 +43,13 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	memcpy(va + sizeof(*uuid), buf, len);
 
 	memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
+	params[0].attr = THREAD_PARAM_ATTR_VALUE_INOUT;
 	params[0].u.value.a = *id;
 
-	msg_param_init_memparam(params + 1, mobj, 0, sizeof(*uuid),
-				MSG_PARAM_MEM_DIR_IN);
-	msg_param_init_memparam(params + 2, mobj, sizeof(*uuid), len,
-				MSG_PARAM_MEM_DIR_IN);
+	init_memparam(params + 1, mobj, 0, sizeof(*uuid),
+		      THREAD_PARAM_ATTR_MEMREF_IN);
+	init_memparam(params + 2, mobj, sizeof(*uuid), len,
+		      THREAD_PARAM_ATTR_MEMREF_IN);
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GPROF, 3, params);
 	if (res != TEE_SUCCESS)

@@ -29,7 +29,6 @@ void __weak __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 		     int lineno __maybe_unused)
 {
 	uint32_t ret;
-	struct optee_msg_param params;
 	const char *cmd_str __maybe_unused =
 	     func == OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ";
 
@@ -39,10 +38,7 @@ void __weak __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 	else
 		DMSG("%s thread %u %p %d", cmd_str, id, sync_obj, owner);
 
-	memset(&params, 0, sizeof(params));
-	params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params.u.value.a = func;
-	params.u.value.b = id;
+	struct thread_param params = THREAD_PARAM_VALUE(IN, func, id, 0);
 
 	ret = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_WAIT_QUEUE, 1, &params);
 	if (ret != TEE_SUCCESS)

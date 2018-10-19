@@ -13,6 +13,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <mm/tee_mmu.h>
+#include <optee_rpc_cmd.h>
 #include <pta_benchmark.h>
 #include <string.h>
 #include <string_ext.h>
@@ -30,15 +31,9 @@ static struct mobj *bench_mobj;
 
 static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
 {
-	struct optee_msg_param rpc_params;
+	struct thread_param tpm = THREAD_PARAM_VALUE(IN, type, phta, size);
 
-	memset(&rpc_params, 0, sizeof(rpc_params));
-	rpc_params.attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	rpc_params.u.value.a = type;
-	rpc_params.u.value.b = (uint64_t)phta;
-	rpc_params.u.value.c = size;
-
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_BENCH_REG, 1, &rpc_params);
+	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_BENCH_REG, 1, &tpm);
 }
 
 static TEE_Result alloc_benchmark_buffer(uint32_t type,
