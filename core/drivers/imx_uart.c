@@ -92,8 +92,10 @@ static void imx_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
+
 	while (!(read32(base + UTS) & UTS_TXEMPTY))
-		;
+		if (!(read32(base + UCR1) & UCR1_UARTEN))
+			return;
 }
 
 static int imx_uart_getchar(struct serial_chip *chip)
@@ -112,7 +114,8 @@ static void imx_uart_putc(struct serial_chip *chip, int ch)
 
 	/* Wait until there's space in the TX FIFO */
 	while (read32(base + UTS) & UTS_TXFULL)
-		;
+		if (!(read32(base + UCR1) & UCR1_UARTEN))
+			return;
 
 	write32(ch, base + UTXD);
 }
