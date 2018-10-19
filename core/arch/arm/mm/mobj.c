@@ -416,6 +416,11 @@ static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
 
 static bool mobj_reg_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
 
+static uint64_t mobj_reg_shm_get_cookie(struct mobj *mobj)
+{
+	return to_mobj_reg_shm(mobj)->cookie;
+}
+
 static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.get_pa = mobj_reg_shm_get_pa,
 	.get_phys_offs = mobj_reg_shm_get_phys_offs,
@@ -423,6 +428,7 @@ static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.get_cattr = mobj_reg_shm_get_cattr,
 	.matches = mobj_reg_shm_matches,
 	.free = mobj_reg_shm_free,
+	.get_cookie = mobj_reg_shm_get_cookie,
 };
 
 static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
@@ -716,6 +722,7 @@ service_init(mobj_mapped_shm_init);
 struct mobj_shm {
 	struct mobj mobj;
 	paddr_t pa;
+	uint64_t cookie;
 };
 
 static struct mobj_shm *to_mobj_shm(struct mobj *mobj);
@@ -771,12 +778,18 @@ static void mobj_shm_free(struct mobj *mobj)
 	free(m);
 }
 
+static uint64_t mobj_shm_get_cookie(struct mobj *mobj)
+{
+	return to_mobj_shm(mobj)->cookie;
+}
+
 static const struct mobj_ops mobj_shm_ops __rodata_unpaged = {
 	.get_va = mobj_shm_get_va,
 	.get_pa = mobj_shm_get_pa,
 	.get_phys_offs = mobj_shm_get_phys_offs,
 	.matches = mobj_shm_matches,
 	.free = mobj_shm_free,
+	.get_cookie = mobj_shm_get_cookie,
 };
 
 static struct mobj_shm *to_mobj_shm(struct mobj *mobj)
@@ -785,7 +798,7 @@ static struct mobj_shm *to_mobj_shm(struct mobj *mobj)
 	return container_of(mobj, struct mobj_shm, mobj);
 }
 
-struct mobj *mobj_shm_alloc(paddr_t pa, size_t size)
+struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie)
 {
 	struct mobj_shm *m;
 
@@ -799,6 +812,7 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size)
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_shm_ops;
 	m->pa = pa;
+	m->cookie = cookie;
 
 	return &m->mobj;
 }

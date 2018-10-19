@@ -143,7 +143,7 @@ out:
 
 bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
 			     size_t offset, size_t size,
-			     uint64_t cookie, enum msg_param_mem_dir dir)
+			     enum msg_param_mem_dir dir)
 {
 	if (mobj_matches(mobj, CORE_MEM_REG_SHM)) {
 		/* Registered SHM mobj */
@@ -163,7 +163,7 @@ bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
 
 		param->u.rmem.size = size;
 		param->u.rmem.offs = offset;
-		param->u.rmem.shm_ref = cookie;
+		param->u.rmem.shm_ref = mobj_get_cookie(mobj);
 	} else if (mobj_matches(mobj, CORE_MEM_NSEC_SHM)) {
 		/* MOBJ from from predefined pool */
 		paddr_t pa;
@@ -186,7 +186,7 @@ bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
 		}
 
 		param->u.tmem.buf_ptr = pa + offset;
-		param->u.tmem.shm_ref = cookie;
+		param->u.tmem.shm_ref = mobj_get_cookie(mobj);
 		param->u.tmem.size = size;
 	} else
 		return false;

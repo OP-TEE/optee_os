@@ -66,7 +66,6 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
  * @mobj	- mobj describing the shared memory buffer
  * @offset	- offset of the buffer
  * @size	- size of the buffer
- * @cookie	- NW cookie of the shared buffer
  * @dir		- data direction
  *
  * Idea behind this function is that thread_rpc_alloc() can return
@@ -81,7 +80,7 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
  */
 bool msg_param_init_memparam(struct optee_msg_param *param, struct mobj *mobj,
 			     size_t offset, size_t size,
-			     uint64_t cookie, enum msg_param_mem_dir dir);
+			     enum msg_param_mem_dir dir);
 /**
  * msg_param_get_buf_size() - helper functions that reads [T/R]MEM
  *			      parameter size

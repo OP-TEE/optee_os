@@ -70,7 +70,6 @@ struct thread_specific_data {
 	struct pgt_cache pgt_cache;
 	void *rpc_fs_payload;
 	struct mobj *rpc_fs_payload_mobj;
-	uint64_t rpc_fs_payload_cookie;
 	size_t rpc_fs_payload_size;
 };
 
@@ -584,19 +583,17 @@ bool thread_enable_prealloc_rpc_cache(void);
  * Allocates data for payload buffers.
  *
  * @size:	size in bytes of payload buffer
- * @cookie:	returned cookie used when freeing the buffer
  *
  * @returns	mobj that describes allocated buffer or NULL on error
  */
-struct mobj *thread_rpc_alloc_payload(size_t size, uint64_t *cookie);
+struct mobj *thread_rpc_alloc_payload(size_t size);
 
 /**
  * Free physical memory previously allocated with thread_rpc_alloc_payload()
  *
- * @cookie:	cookie received when allocating the buffer
  * @mobj:	mobj that describes the buffer
  */
-void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj);
+void thread_rpc_free_payload(struct mobj *mobj);
 
 /**
  * Does an RPC using a preallocated argument buffer
@@ -616,20 +613,18 @@ unsigned long thread_smc(unsigned long func_id, unsigned long a1,
  * Buffer is exported to user mode applications.
  *
  * @size:	size in bytes of payload buffer
- * @cookie:	returned cookie used when freeing the buffer
  *
  * @returns	mobj that describes allocated buffer or NULL on error
  */
-struct mobj *thread_rpc_alloc_global_payload(size_t size, uint64_t *cookie);
+struct mobj *thread_rpc_alloc_global_payload(size_t size);
 
 /**
  * Free physical memory previously allocated with
  * thread_rpc_alloc_global_payload()
  *
- * @cookie:	cookie received when allocating the buffer
  * @mobj:	mobj that describes the buffer
  */
-void thread_rpc_free_global_payload(uint64_t cookie, struct mobj *mobj);
+void thread_rpc_free_global_payload(struct mobj *mobj);
 
 #endif /*ASM*/
 
