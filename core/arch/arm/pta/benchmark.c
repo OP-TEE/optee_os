@@ -33,7 +33,7 @@ static TEE_Result rpc_reg_global_buf(uint64_t type, paddr_t phta, size_t size)
 {
 	struct thread_param tpm = THREAD_PARAM_VALUE(IN, type, phta, size);
 
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_BENCH_REG, 1, &tpm);
+	return thread_rpc_cmd(OPTEE_RPC_CMD_BENCH_REG, 1, &tpm);
 }
 
 static TEE_Result alloc_benchmark_buffer(uint32_t type,

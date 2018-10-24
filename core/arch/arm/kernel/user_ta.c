@@ -21,7 +21,6 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
-#include <optee_msg_supplicant.h>
 #include <signed_hdr.h>
 #include <stdio.h>
 #include <stdlib.h>

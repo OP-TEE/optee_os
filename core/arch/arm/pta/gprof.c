@@ -12,7 +12,7 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mmu.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <pta_gprof.h>
 #include <string.h>
 
@@ -40,7 +40,7 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 		[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(*uuid), len),
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GPROF, 3, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_GPROF, 3, params);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

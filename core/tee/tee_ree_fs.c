@@ -9,7 +9,7 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string_ext.h>
@@ -242,7 +242,7 @@ static TEE_Result ree_fs_rpc_read_init(void *aux,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_fs_rpc_read_init(op, OPTEE_MSG_RPC_CMD_FS, fdp->fd,
+	return tee_fs_rpc_read_init(op, OPTEE_RPC_CMD_FS, fdp->fd,
 				    offs, size, data);
 }
 
@@ -260,7 +260,7 @@ static TEE_Result ree_fs_rpc_write_init(void *aux,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_fs_rpc_write_init(op, OPTEE_MSG_RPC_CMD_FS, fdp->fd,
+	return tee_fs_rpc_write_init(op, OPTEE_RPC_CMD_FS, fdp->fd,
 				     offs, size, data);
 }
 
@@ -299,7 +299,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_fs_rpc_truncate(OPTEE_MSG_RPC_CMD_FS, fdp->fd,
+		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
 					  offs + sz);
 		if (res != TEE_SUCCESS)
 			return res;
@@ -422,10 +422,10 @@ static TEE_Result ree_fs_open_primitive(bool create, uint8_t *hash,
 	fdp->uuid = uuid;
 
 	if (create)
-		res = tee_fs_rpc_create_dfh(OPTEE_MSG_RPC_CMD_FS,
+		res = tee_fs_rpc_create_dfh(OPTEE_RPC_CMD_FS,
 					    dfh, &fdp->fd);
 	else
-		res = tee_fs_rpc_open_dfh(OPTEE_MSG_RPC_CMD_FS, dfh, &fdp->fd);
+		res = tee_fs_rpc_open_dfh(OPTEE_RPC_CMD_FS, dfh, &fdp->fd);
 
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -441,9 +441,9 @@ out:
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
 		if (fdp->fd != -1)
-			tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
+			tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		if (create)
-			tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, dfh);
+			tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, dfh);
 		free(fdp);
 	}
 
@@ -456,7 +456,7 @@ static void ree_fs_close_primitive(struct tee_file_handle *fh)
 
 	if (fdp) {
 		tee_fs_htree_close(&fdp->ht);
-		tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, fdp->fd);
+		tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		free(fdp);
 	}
 }
@@ -675,7 +675,7 @@ static TEE_Result set_name(struct tee_fs_dirfile_dirh *dirh,
 		return res;
 
 	if (have_old_dfh)
-		tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &old_dfh);
+		tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, &old_dfh);
 
 	return TEE_SUCCESS;
 }
@@ -751,7 +751,7 @@ out:
 		if (*fh) {
 			ree_fs_close_primitive(*fh);
 			*fh = NULL;
-			tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &dfh);
+			tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, &dfh);
 		}
 	}
 	mutex_unlock(&ree_fs_mutex);
@@ -835,7 +835,7 @@ static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 		goto out;
 
 	if (remove_dfh.idx != -1)
-		tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &remove_dfh);
+		tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, &remove_dfh);
 
 out:
 	put_dirh(dirh, res);
@@ -869,7 +869,7 @@ static TEE_Result ree_fs_remove(struct tee_pobj *po)
 	if (res)
 		goto out;
 
-	tee_fs_rpc_remove_dfh(OPTEE_MSG_RPC_CMD_FS, &dfh);
+	tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, &dfh);
 
 	assert(tee_fs_dirfile_find(dirh, &po->uuid, po->obj_id, po->obj_id_len,
 				   &dfh));

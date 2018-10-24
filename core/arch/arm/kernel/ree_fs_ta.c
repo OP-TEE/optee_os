@@ -8,7 +8,7 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +46,7 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
 	params[1].attr = THREAD_PARAM_ATTR_MEMREF_OUT;
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -65,7 +65,7 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	params[1].u.memref.offs = 0;
 	params[1].u.memref.mobj = *mobj;
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS)
 		thread_rpc_free_payload(*mobj);
 	return res;
