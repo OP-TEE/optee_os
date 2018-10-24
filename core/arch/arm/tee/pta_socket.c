@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <mm/mobj.h>
 #include <kernel/pseudo_ta.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <pta_socket.h>
 #include <string.h>
 #include <tee/tee_fs_rpc.h>
@@ -40,7 +40,7 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	struct thread_param tpm[4] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRC_SOCKET_OPEN,
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_OPEN,
 					 instance_id, 0),
 		[1] = THREAD_PARAM_VALUE(IN,
 				params[0].value.b, /* server port number */
@@ -50,7 +50,7 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 		[3] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 4, tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 4, tpm);
 	if (res == TEE_SUCCESS)
 		params[3].value.a = tpm[3].u.value.a;
 
@@ -71,11 +71,11 @@ static TEE_Result socket_close(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	struct thread_param tpm = THREAD_PARAM_VALUE(IN, OPTEE_MRC_SOCKET_CLOSE,
+	struct thread_param tpm = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_CLOSE,
 						     instance_id,
 						     params[0].value.a);
 
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, &tpm);
+	return thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 1, &tpm);
 }
 
 static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
@@ -102,14 +102,14 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	struct thread_param tpm[3] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRC_SOCKET_SEND, instance_id,
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_SEND, instance_id,
 					 params[0].value.a /* handle */),
 		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, params[1].memref.size),
 		[2] = THREAD_PARAM_VALUE(INOUT, params[0].value.b, /* timeout */
 					 0, 0),
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
 	params[2].value.a = tpm[2].u.value.b; /* transmitted bytes */
 
 	return res;
@@ -137,14 +137,14 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	struct thread_param tpm[3] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRC_SOCKET_RECV, instance_id,
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_RECV, instance_id,
 					 params[0].value.a /* handle */),
 		[1] = THREAD_PARAM_MEMREF(OUT, mobj, 0, params[1].memref.size),
 		[2] = THREAD_PARAM_VALUE(IN, params[0].value.b /* timeout */,
 					 0, 0),
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
 
 	if (tpm[1].u.memref.size > params[1].memref.size)
 		return TEE_ERROR_GENERIC;
@@ -179,7 +179,7 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
 	struct thread_param tpm[3] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRC_SOCKET_IOCTL,
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_IOCTL,
 					 instance_id,
 					 params[0].value.a /* handle */),
 		[1] = THREAD_PARAM_MEMREF(INOUT, mobj, 0,
@@ -189,7 +189,7 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 					 0, 0),
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
 	if (tpm[1].u.memref.size <= params[1].memref.size)
 		memcpy(params[1].memref.buffer, va, tpm[1].u.memref.size);
 
@@ -234,13 +234,13 @@ static void pta_socket_close_session(void *sess_ctx)
 	TEE_Result res;
 	struct thread_param tpm = {
 		.attr = THREAD_PARAM_ATTR_VALUE_IN, .u.value = {
-			.a = OPTEE_MRC_SOCKET_CLOSE_ALL, .b = (vaddr_t)sess_ctx,
+			.a = OPTEE_RPC_SOCKET_CLOSE_ALL, .b = (vaddr_t)sess_ctx,
 		},
 	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, &tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 1, &tpm);
 	if (res != TEE_SUCCESS)
-		DMSG("OPTEE_MRC_SOCKET_CLOSE_ALL failed: %#" PRIx32, res);
+		DMSG("OPTEE_RPC_SOCKET_CLOSE_ALL failed: %#" PRIx32, res);
 }
 
 static TEE_Result pta_socket_invoke_command(void *sess_ctx, uint32_t cmd_id,

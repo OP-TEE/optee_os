@@ -10,7 +10,7 @@
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
 #include <kernel/thread.h>
-#include <optee_msg.h>
+#include <optee_rpc_cmd.h>
 #include <mm/core_mmu.h>
 
 struct time_source _time_source;
@@ -30,7 +30,7 @@ void tee_time_wait(uint32_t milliseconds_delay)
 	struct thread_param params =
 		THREAD_PARAM_VALUE(IN, milliseconds_delay, 0, 0);
 
-	thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SUSPEND, 1, &params);
+	thread_rpc_cmd(OPTEE_RPC_CMD_SUSPEND, 1, &params);
 }
 
 /*
@@ -48,7 +48,7 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 
 	struct thread_param params = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GET_TIME, 1, &params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_GET_TIME, 1, &params);
 	if (res == TEE_SUCCESS) {
 		time->seconds = params.u.value.a;
 		time->millis = params.u.value.b / 1000000;

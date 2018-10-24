@@ -7,7 +7,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -60,12 +60,12 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 
 TEE_Result tee_fs_rpc_open(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_OPEN, po, fd);
+	return operation_open(id, OPTEE_RPC_FS_OPEN, po, fd);
 }
 
 TEE_Result tee_fs_rpc_create(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_CREATE, po, fd);
+	return operation_open(id, OPTEE_RPC_FS_CREATE, po, fd);
 }
 
 static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
@@ -103,21 +103,21 @@ static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 TEE_Result tee_fs_rpc_open_dfh(uint32_t id,
 			       const struct tee_fs_dirfile_fileh *dfh, int *fd)
 {
-	return operation_open_dfh(id, OPTEE_MRF_OPEN, dfh, fd);
+	return operation_open_dfh(id, OPTEE_RPC_FS_OPEN, dfh, fd);
 }
 
 TEE_Result tee_fs_rpc_create_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh,
 				 int *fd)
 {
-	return operation_open_dfh(id, OPTEE_MRF_CREATE, dfh, fd);
+	return operation_open_dfh(id, OPTEE_RPC_FS_CREATE, dfh, fd);
 }
 
 TEE_Result tee_fs_rpc_close(uint32_t id, int fd)
 {
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 1, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_CLOSE, fd, 0),
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_CLOSE, fd, 0),
 		},
 	};
 
@@ -140,7 +140,7 @@ TEE_Result tee_fs_rpc_read_init(struct tee_fs_rpc_operation *op,
 
 	*op = (struct tee_fs_rpc_operation){
 		.id = id, .num_params = 2, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_READ, fd,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, fd,
 						 offset),
 			[1] = THREAD_PARAM_MEMREF(OUT, mobj, 0, data_len),
 		},
@@ -177,7 +177,7 @@ TEE_Result tee_fs_rpc_write_init(struct tee_fs_rpc_operation *op,
 
 	*op = (struct tee_fs_rpc_operation){
 		.id = id, .num_params = 2, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_WRITE, fd,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_WRITE, fd,
 						 offset),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, data_len),
 		},
@@ -197,7 +197,7 @@ TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 {
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 1, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_TRUNCATE, fd,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_TRUNCATE, fd,
 						 len),
 		}
 	};
@@ -222,7 +222,7 @@ TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 2, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_REMOVE, 0, 0),
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
 		},
 	};
@@ -248,7 +248,7 @@ TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 2, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_REMOVE, 0, 0),
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
 		}
 	};
@@ -292,7 +292,7 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 3, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_RENAME,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_RENAME,
 						 overwrite, 0),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
 			[2] = THREAD_PARAM_MEMREF(IN, mobj, TEE_FS_NAME_MAX,
@@ -327,7 +327,8 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 3, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_OPENDIR, 0, 0),
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_OPENDIR,
+						 0, 0),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
 			[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
 		}
@@ -352,7 +353,7 @@ TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d)
 {
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 1, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_CLOSEDIR,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_CLOSEDIR,
 						 d->nw_dir, 0),
 		}
 	};
@@ -378,7 +379,7 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 2, .params = {
-			[0] = THREAD_PARAM_VALUE(IN, OPTEE_MRF_READDIR,
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READDIR,
 						 d->nw_dir, 0),
 			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, max_name_len),
 		}

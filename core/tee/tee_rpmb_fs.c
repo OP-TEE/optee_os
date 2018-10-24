@@ -16,7 +16,7 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -476,7 +476,7 @@ static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 					  mem->resp_size),
 	};
 
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_RPMB, 2, params);
+	return thread_rpc_cmd(OPTEE_RPC_CMD_RPMB, 2, params);
 }
 
 static bool is_zero(const uint8_t *buf, size_t size)

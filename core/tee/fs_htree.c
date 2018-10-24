@@ -7,7 +7,6 @@
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/tee_common_otp.h>
-#include <optee_msg_supplicant.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
