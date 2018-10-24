@@ -4,8 +4,8 @@
  */
 
 #include <assert.h>
-#include <keep.h>
 #include <initcall.h>
+#include <keep.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
