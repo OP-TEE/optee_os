@@ -107,3 +107,12 @@ cscope:
 	${q}rm -f cscope.*
 	${q}find $(PWD) -name "*.[chSs]" | grep -v "$(PWD)/out" > cscope.files
 	${q}cscope -b -q -k
+
+.PHONY: checkpatch checkpatch-staging checkpatch-working
+checkpatch: checkpatch-staging checkpatch-working
+
+checkpatch-working:
+	${q}./scripts/checkpatch.sh
+
+checkpatch-staging:
+	${q}./scripts/checkpatch.sh --cached

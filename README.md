@@ -132,6 +132,14 @@ Regarding the checkpatch tool, it is not included directly into this project.
 Please use checkpatch.pl from the Linux kernel git in combination with the
 local [checkpatch script].
 
+There are also targets for common use cases in the [Makefile](Makefile):
+
+```
+make checkpatch			#check staging and working area
+make checkpatch-staging #check staging area (added, but not committed files)
+make checkpatch-working #check working area (modified, but not added files)
+```
+
 [build]: https://github.com/OP-TEE/build
 [checkpatch script]: scripts/checkpatch.sh
 [checkpatch]: http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/scripts/checkpatch.pl
