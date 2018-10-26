@@ -579,20 +579,6 @@ static TEE_Result default_mobj_init(void)
 	if (!shm_mobj)
 		panic("Failed to register shared memory");
 
-	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
-				       tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo,
-				       SHM_CACHE_ATTRS, CORE_MEM_TA_RAM);
-	if (!mobj_sec_ddr)
-		panic("Failed to register secure ta ram");
-
-	mobj_tee_ram = mobj_phys_alloc(TEE_RAM_START,
-				       VCORE_UNPG_RW_PA + VCORE_UNPG_RW_SZ -
-						TEE_RAM_START,
-				       TEE_MATTR_CACHE_CACHED,
-				       CORE_MEM_TEE_RAM);
-	if (!mobj_tee_ram)
-		panic("Failed to register tee ram");
-
 #ifdef CFG_SECURE_DATA_PATH
 	sdp_mem_mobjs = core_sdp_mem_create_mobjs();
 	if (!sdp_mem_mobjs)
