@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <initcall.h>
 #include <keep.h>
+#include <kernel/linker.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
@@ -971,3 +972,24 @@ bool mobj_is_paged(struct mobj *mobj)
 	       mobj->ops == &mobj_seccpy_shm_ops;
 }
 #endif /*CFG_PAGED_USER_TA*/
+
+static TEE_Result mobj_init(void)
+{
+	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
+				       tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo,
+				       OPTEE_SMC_SHM_CACHED, CORE_MEM_TA_RAM);
+	if (!mobj_sec_ddr)
+		panic("Failed to register secure ta ram");
+
+	mobj_tee_ram = mobj_phys_alloc(TEE_RAM_START,
+				       VCORE_UNPG_RW_PA + VCORE_UNPG_RW_SZ -
+						TEE_RAM_START,
+				       TEE_MATTR_CACHE_CACHED,
+				       CORE_MEM_TEE_RAM);
+	if (!mobj_tee_ram)
+		panic("Failed to register tee ram");
+
+	return TEE_SUCCESS;
+}
+
+driver_init_late(mobj_init);
