@@ -21,6 +21,29 @@
 ##########################################################
 TOP_ROOT_ABS := $(realpath $(TOP))
 
+PREBUILT_MAKE ?= prebuilts/build-tools/linux-x86/bin/make
+# we need this check because the Pie build does not have
+# this prebuilt make tool
+ifneq (,$(wildcard $(PREBUILT_MAKE)))
+# for master and versions which has prebuilt make
+HOST_MAKE := $(PREBUILT_MAKE)
+
+# The AOSP build tool is not the regular make,
+# that it adds -jN to $(MAKE), and that we should preserve
+# the flag or we would lose parallel build
+# The MAKE is redefined here in AOSP ckati:
+#   https://android.googlesource.com/platform/build/kati/+/master/main.cc#100
+ifneq (,$(filter -j%, $(MAKE)))
+HOST_MAKE += $(filter -j%, $(MAKE))
+endif
+
+else
+# For P and old versions which does not have prebuilt make,
+# let's use MAKE as what we did before
+HOST_MAKE := $(MAKE)
+endif
+
+
 # OPTEE_OUT_DIR could be exported explicitly
 # if PRODUCT_OUT is not the default out directory in aosp workspace
 OPTEE_OUT_DIR ?= $(PRODUCT_OUT)/optee
@@ -58,7 +81,7 @@ ifneq (true,$(BUILD_OPTEE_OS_DEFINED))
 BUILD_OPTEE_OS_DEFINED := true
 $(OPTEE_BIN):
 	@echo "Start building optee_os..."
-	$(MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
+	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
 		O=$(ABS_OPTEE_OS_OUT_DIR) \
 		ta-targets=$(OPTEE_TA_TARGETS) \
 		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
@@ -101,7 +124,7 @@ $(TA_TMP_FILE): PRIVATE_TA_TMP_FILE := $(TA_TMP_FILE)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_DIR := $(TA_TMP_DIR)
 $(TA_TMP_FILE): $(OPTEE_BIN)
 	@echo "Start building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
-	$(MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(ABS_OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
+	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(ABS_OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
 		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
 		$(CROSS_COMPILE_LINE)
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
