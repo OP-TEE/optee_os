@@ -15,7 +15,7 @@
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <tomcrypt.h>
-#include "tomcrypt_mpa.h"
+#include "tomcrypt_mp.h"
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -2736,7 +2736,7 @@ void crypto_aes_gcm_final(void *ctx)
 
 TEE_Result crypto_init(void)
 {
-	init_mpa_tomcrypt();
+	init_mp_tomcrypt();
 	tee_ltc_reg_algs();
 
 	return TEE_SUCCESS;
