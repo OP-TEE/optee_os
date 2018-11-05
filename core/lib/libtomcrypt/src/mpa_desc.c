@@ -3,8 +3,10 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#include <crypto/crypto.h>
 #include <kernel/panic.h>
 #include <mpa.h>
+#include <mpalib.h>
 #include <tomcrypt.h>
 #include "tomcrypt_mp.h"
 
@@ -713,3 +715,60 @@ ltc_math_descriptor ltc_mp = {
 	.rand = &mpa_rand,
 
 };
+
+size_t crypto_bignum_num_bytes(struct bignum *a)
+{
+	return mp_unsigned_bin_size(a);
+}
+
+size_t crypto_bignum_num_bits(struct bignum *a)
+{
+	return mp_count_bits(a);
+}
+
+int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
+{
+	return mp_cmp(a, b);
+}
+
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
+{
+	mp_to_unsigned_bin((struct bignum *)from, to);
+}
+
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
+			 struct bignum *to)
+{
+	if (mp_read_unsigned_bin(to, (uint8_t *)from, fromsize) != CRYPT_OK)
+		return TEE_ERROR_BAD_PARAMETERS;
+	return TEE_SUCCESS;
+}
+
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
+{
+	mp_copy((void *)from, to);
+}
+
+struct bignum *crypto_bignum_allocate(size_t size_bits)
+{
+	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
+	struct mpa_numbase_struct *bn = calloc(1, sz);
+
+	if (!bn)
+		return NULL;
+	bn->alloc = sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
+	return (struct bignum *)bn;
+}
+
+void crypto_bignum_free(struct bignum *s)
+{
+	free(s);
+}
+
+void crypto_bignum_clear(struct bignum *s)
+{
+	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
+
+	/* despite mpa_numbase_struct description, 'alloc' field a byte size */
+	memset(bn->d, 0, bn->alloc);
+}
