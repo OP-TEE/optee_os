@@ -3,14 +3,61 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include "tomcrypt_mpa.h"
+#include <kernel/panic.h>
 #include <mpa.h>
+#include <tomcrypt.h>
+#include "tomcrypt_mpa.h"
 
-mpa_scratch_mem external_mem_pool;
+static mpa_scratch_mem external_mem_pool;
 
-void init_mpa_tomcrypt(const mpa_scratch_mem pool)
+#define LTC_VARIABLE_NUMBER         (50)
+
+#define LTC_MEMPOOL_U32_SIZE \
+	mpa_scratch_mem_size_in_U32(LTC_VARIABLE_NUMBER, \
+				    CFG_CORE_BIGNUM_MAX_BITS)
+
+#if defined(CFG_WITH_PAGER)
+#include <mm/tee_pager.h>
+#include <util.h>
+#include <mm/core_mmu.h>
+
+/* allocate pageable_zi vmem for mpa scratch memory pool */
+static struct mempool *get_mpa_scratch_memory_pool(void)
 {
-	external_mem_pool = pool;
+	size_t size;
+	void *data;
+
+	size = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
+		        SMALL_PAGE_SIZE);
+	data = tee_pager_alloc(size, 0);
+	if (!data)
+		panic();
+
+	return mempool_alloc_pool(data, size, tee_pager_release_phys);
+}
+#else /* CFG_WITH_PAGER */
+static struct mempool *get_mpa_scratch_memory_pool(void)
+{
+	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(__alignof__(long));
+
+	return mempool_alloc_pool(data, sizeof(data), NULL);
+}
+#endif
+
+void init_mpa_tomcrypt(void)
+{
+	static mpa_scratch_mem_base mem;
+
+	/*
+	 * The default size (bits) of a big number that will be required it
+	 * equals the max size of the computation (for example 4096 bits),
+	 * multiplied by 2 to allow overflow in computation
+	 */
+	mem.bn_bits = CFG_CORE_BIGNUM_MAX_BITS * 2;
+	mem.pool = get_mpa_scratch_memory_pool();
+	if (!mem.pool)
+		panic();
+	external_mem_pool = &mem;
 }
 
 static int init_mpanum(mpanum *a)
