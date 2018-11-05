@@ -9,7 +9,6 @@
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
 #include <mm/core_mmu.h>
-#include <mpa.h>
 #include <stdint.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
