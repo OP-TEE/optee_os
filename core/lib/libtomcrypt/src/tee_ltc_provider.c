@@ -8,7 +8,6 @@
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
-#include <mpalib.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -419,70 +418,11 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
-size_t crypto_bignum_num_bytes(struct bignum *a)
-{
-	return mp_unsigned_bin_size(a);
-}
-
-size_t crypto_bignum_num_bits(struct bignum *a)
-{
-	return mp_count_bits(a);
-}
-
-int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
-{
-	return mp_cmp(a, b);
-}
-
-void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
-{
-	mp_to_unsigned_bin((struct bignum *)from, to);
-}
-
-TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
-			 struct bignum *to)
-{
-	if (mp_read_unsigned_bin(to, (uint8_t *)from, fromsize) != CRYPT_OK)
-		return TEE_ERROR_BAD_PARAMETERS;
-	return TEE_SUCCESS;
-}
-
-void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
-{
-	mp_copy((void *)from, to);
-}
-
-struct bignum *crypto_bignum_allocate(size_t size_bits)
-{
-	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
-	struct mpa_numbase_struct *bn = calloc(1, sz);
-
-	if (!bn)
-		return NULL;
-	bn->alloc = sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
-	return (struct bignum *)bn;
-}
-
-void crypto_bignum_free(struct bignum *s)
-{
-	free(s);
-}
-
-void crypto_bignum_clear(struct bignum *s)
-{
-	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
-
-	/* despite mpa_numbase_struct description, 'alloc' field a byte size */
-	memset(bn->d, 0, bn->alloc);
-}
-
 static bool bn_alloc_max(struct bignum **s)
 {
-	size_t sz = mpa_StaticVarSizeInU32(CFG_CORE_BIGNUM_MAX_BITS) *
-			sizeof(uint32_t) * 8;
+	*s = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 
-	*s = crypto_bignum_allocate(sz);
-	return !!(*s);
+	return *s;
 }
 
 static TEE_Result __maybe_unused convert_ltc_verify_status(int ltc_res,
@@ -611,8 +551,7 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	 * required size of the out buffer without doing a partial decrypt.
 	 * We know the upper bound though.
 	 */
-	blen = (mpa_StaticTempVarSizeInU32(CFG_CORE_BIGNUM_MAX_BITS)) *
-	       sizeof(uint32_t);
+	blen = CFG_CORE_BIGNUM_MAX_BITS / sizeof(uint8_t);
 	buf = malloc(blen);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
