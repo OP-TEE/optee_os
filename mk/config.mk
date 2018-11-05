@@ -41,14 +41,20 @@ WARNS ?= 3
 # so assertions are disabled.
 CFG_TEE_CORE_DEBUG ?= y
 
-# Log levels for the TEE core and user-mode TAs
-# Defines which messages are displayed on the secure console
+# Log levels for the TEE core. Defines which core messages are displayed
+# on the secure console. Disabling core log (level set to 0) also disables
+# logs from the TAs.
 # 0: none
 # 1: error
 # 2: error + warning
 # 3: error + warning + debug
 # 4: error + warning + debug + flow
 CFG_TEE_CORE_LOG_LEVEL ?= 1
+
+# TA log level
+# If user-mode library libutils.a is built with CFG_TEE_TA_LOG_LEVEL=0,
+# TA tracing is disabled regardless of the value of CFG_TEE_TA_LOG_LEVEL
+# when the TA is built.
 CFG_TEE_TA_LOG_LEVEL ?= 1
 
 # TA enablement
