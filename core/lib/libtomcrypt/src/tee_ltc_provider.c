@@ -419,56 +419,6 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
 
-#define LTC_VARIABLE_NUMBER         (50)
-
-#define LTC_MEMPOOL_U32_SIZE \
-	mpa_scratch_mem_size_in_U32(LTC_VARIABLE_NUMBER, \
-				    CFG_CORE_BIGNUM_MAX_BITS)
-
-#if defined(CFG_WITH_PAGER)
-#include <mm/tee_pager.h>
-#include <util.h>
-#include <mm/core_mmu.h>
-
-/* allocate pageable_zi vmem for mpa scratch memory pool */
-static struct mempool *get_mpa_scratch_memory_pool(void)
-{
-	size_t size;
-	void *data;
-
-	size = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
-		        SMALL_PAGE_SIZE);
-	data = tee_pager_alloc(size, 0);
-	if (!data)
-		panic();
-
-	return mempool_alloc_pool(data, size, tee_pager_release_phys);
-}
-#else /* CFG_WITH_PAGER */
-static struct mempool *get_mpa_scratch_memory_pool(void)
-{
-	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(__alignof__(long));
-
-	return mempool_alloc_pool(data, sizeof(data), NULL);
-}
-#endif
-
-static void tee_ltc_alloc_mpa(void)
-{
-	static mpa_scratch_mem_base mem;
-
-	/*
-	 * The default size (bits) of a big number that will be required it
-	 * equals the max size of the computation (for example 4096 bits),
-	 * multiplied by 2 to allow overflow in computation
-	 */
-	mem.bn_bits = CFG_CORE_BIGNUM_MAX_BITS * 2;
-	mem.pool = get_mpa_scratch_memory_pool();
-	if (!mem.pool)
-		panic();
-	init_mpa_tomcrypt(&mem);
-}
-
 size_t crypto_bignum_num_bytes(struct bignum *a)
 {
 	return mp_unsigned_bin_size(a);
@@ -2786,9 +2736,7 @@ void crypto_aes_gcm_final(void *ctx)
 
 TEE_Result crypto_init(void)
 {
-#if defined(_CFG_CRYPTO_WITH_ACIPHER)
-	tee_ltc_alloc_mpa();
-#endif
+	init_mpa_tomcrypt();
 	tee_ltc_reg_algs();
 
 	return TEE_SUCCESS;

@@ -6,11 +6,10 @@
 #ifndef TOMCRYPT_MPA_H_
 #define TOMCRYPT_MPA_H_
 
-#include <mpalib.h>
-#include "tomcrypt.h"
-
-extern mpa_scratch_mem external_mem_pool;
-
-void init_mpa_tomcrypt(mpa_scratch_mem pool);
+#if defined(_CFG_CRYPTO_WITH_ACIPHER)
+void init_mpa_tomcrypt(void);
+#else
+static inline void init_mpa_tomcrypt(void) { }
+#endif
 
 #endif /* TOMCRYPT_MPA_H_ */
