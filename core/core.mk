@@ -83,13 +83,24 @@ libname = utils
 libdir = lib/libutils
 include mk/lib.mk
 
+CFG_CRYPTOLIB_NAME ?= tomcrypt
+CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+
+CFG_CORE_MBEDTLS_MPI ?= y
+ifeq ($(CFG_CORE_MBEDTLS_MPI)_$(CFG_CRYPTOLIB_NAME),y_tomcrypt)
+# We're compiling mbedtls too, but with a limited configuration which only
+# provides the MPI routines
+libname = mbedtls
+libdir = lib/libmbedtls
+include mk/lib.mk
+else
 libname = mpa
 libdir = lib/libmpa
 include mk/lib.mk
+endif
+
 base-prefix :=
 
-CFG_CRYPTOLIB_NAME ?= tomcrypt
-CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 libname = $(CFG_CRYPTOLIB_NAME)
 libdir = $(CFG_CRYPTOLIB_DIR)
 include mk/lib.mk
