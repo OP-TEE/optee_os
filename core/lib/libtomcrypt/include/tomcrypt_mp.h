@@ -3,13 +3,13 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TOMCRYPT_MPA_H_
-#define TOMCRYPT_MPA_H_
+#ifndef TOMCRYPT_MP_H_
+#define TOMCRYPT_MP_H_
 
 #if defined(_CFG_CRYPTO_WITH_ACIPHER)
-void init_mpa_tomcrypt(void);
+void init_mp_tomcrypt(void);
 #else
-static inline void init_mpa_tomcrypt(void) { }
+static inline void init_mp_tomcrypt(void) { }
 #endif
 
-#endif /* TOMCRYPT_MPA_H_ */
+#endif /* TOMCRYPT_MP_H_ */

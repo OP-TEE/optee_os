@@ -6,7 +6,7 @@
 #include <kernel/panic.h>
 #include <mpa.h>
 #include <tomcrypt.h>
-#include "tomcrypt_mpa.h"
+#include "tomcrypt_mp.h"
 
 static mpa_scratch_mem external_mem_pool;
 
@@ -44,7 +44,7 @@ static struct mempool *get_mpa_scratch_memory_pool(void)
 }
 #endif
 
-void init_mpa_tomcrypt(void)
+void init_mp_tomcrypt(void)
 {
 	static mpa_scratch_mem_base mem;
 
