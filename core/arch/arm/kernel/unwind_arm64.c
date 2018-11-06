@@ -70,7 +70,7 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
 	return true;
 }
 
-#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
+#if (TRACE_LEVEL > 0)
 
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       bool kernel_stack, vaddr_t stack, size_t stack_size)
