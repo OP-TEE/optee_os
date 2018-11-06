@@ -966,7 +966,7 @@ static bool probe_workaround_available(void)
 	return r >= 0;
 }
 
-static vaddr_t select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector(vaddr_t a)
 {
 	if (probe_workaround_available()) {
 		DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") available",
@@ -981,7 +981,7 @@ static vaddr_t select_vector(vaddr_t a)
 	return (vaddr_t)thread_excp_vect;
 }
 #else
-static vaddr_t select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector(vaddr_t a)
 {
 	return a;
 }
