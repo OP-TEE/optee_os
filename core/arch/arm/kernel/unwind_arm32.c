@@ -445,7 +445,7 @@ TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset)
 	return TEE_SUCCESS;
 }
 
-#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
+#if (TRACE_LEVEL > 0)
 
 void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 		       vaddr_t exidx, size_t exidx_sz, bool kernel_stack,
@@ -461,7 +461,7 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 
 #endif
 
-#if defined(CFG_UNWIND) && defined(ARM32) && (TRACE_LEVEL > 0)
+#if defined(ARM32) && (TRACE_LEVEL > 0)
 
 void print_kernel_stack(int level)
 {
