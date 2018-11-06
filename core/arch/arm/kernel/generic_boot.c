@@ -777,7 +777,7 @@ static int mark_static_shm_as_reserved(void *fdt)
 	return -1;
 }
 
-static void init_fdt(unsigned long phys_fdt)
+void init_fdt(unsigned long phys_fdt)
 {
 	void *fdt;
 	int ret;
@@ -812,7 +812,7 @@ static void init_fdt(unsigned long phys_fdt)
 	dt_blob_addr = fdt;
 }
 
-static void update_fdt(void)
+void update_fdt(void)
 {
 	void *fdt = get_dt_blob();
 	int ret;
@@ -838,11 +838,11 @@ static void update_fdt(void)
 }
 
 #else
-static void init_fdt(unsigned long phys_fdt __unused)
+void init_fdt(unsigned long phys_fdt __unused)
 {
 }
 
-static void update_fdt(void)
+void update_fdt(void)
 {
 }
 

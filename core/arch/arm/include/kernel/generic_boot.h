@@ -41,6 +41,8 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry);
 struct ns_entry_context *generic_boot_core_hpen(void);
 #endif
 
+void init_fdt(unsigned long phys_fdt);
+void update_fdt(void);
 void *get_dt_blob(void);
 
 #endif /* KERNEL_GENERIC_BOOT_H */
