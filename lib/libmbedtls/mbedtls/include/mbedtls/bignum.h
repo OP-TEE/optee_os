@@ -1037,6 +1037,36 @@ int mbedtls_mpi_gen_prime( mbedtls_mpi *X, size_t nbits, int flags,
                    int (*f_rng)(void *, unsigned char *, size_t),
                    void *p_rng );
 
+/**
+ * \brief          Montgomery initialization
+ *
+ * \param mm       The -1/m mod N result
+ * \param N        The modulus
+ */
+void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
+
+/**
+ * \brief          Montgomery multiplication: A = A * B * R^-1 mod N
+ * \A              Parameter and result
+ * \B              Parameter
+ * \N              Modulus
+ * \mm             Parameter from mbedtls_mpi_montg_init()
+ * \T              Temporary variable, should be as twice as big as N + 2
+ */
+void mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B,
+                          const mbedtls_mpi *N, mbedtls_mpi_uint mm,
+                          const mbedtls_mpi *T );
+
+/**
+ * \brief          Montgomery reduction: A = A * R^-1 mod N
+ * \A              Parameter and result
+ * \N              Modulus
+ * \mm             Parameter from mbedtls_mpi_montg_init()
+ * \T              Temporary variable, should be as twice as big as N + 2
+ */
+void mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
+                          mbedtls_mpi_uint mm, const mbedtls_mpi *T );
+
 #if defined(MBEDTLS_SELF_TEST)
 
 /**
