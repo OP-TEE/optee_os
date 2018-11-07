@@ -2141,6 +2141,11 @@ static void mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N )
     *mm = ~x + 1;
 }
 
+void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N )
+{
+	mpi_montg_init( mm, N );
+}
+
 /** Montgomery multiplication: A = A * B * R^-1 mod N  (HAC 14.36)
  *
  * \param[in,out]   A   One of the numbers to multiply.
@@ -2210,6 +2215,12 @@ static void mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B, const mbedtls_mpi
     mpi_safe_cond_assign( n, A->p, d, (unsigned char) d[n] );
 }
 
+void mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B, const mbedtls_mpi *N, mbedtls_mpi_uint mm,
+                          const mbedtls_mpi *T )
+{
+    mpi_montmul( A, B, N, mm, T);
+}
+
 /*
  * Montgomery reduction: A = A * R^-1 mod N
  *
@@ -2225,6 +2236,12 @@ static void mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
     U.p = &z;
 
     mpi_montmul( A, &U, N, mm, T );
+}
+
+void mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
+                          mbedtls_mpi_uint mm, const mbedtls_mpi *T )
+{
+    mpi_montred( A, N, mm, T );
 }
 
 /*
