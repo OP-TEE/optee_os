@@ -3,9 +3,11 @@
  * Copyright (c) Microsoft Corporation. All rights reserved.
  */
 
+#include <kernel/generic_boot.h>
 #include <kernel/thread.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
+#include <sm/mbed_linux.h>
 #include <trace.h>
 #include "imx_sip.h"
 #include "imx_pl310.h"
@@ -41,6 +43,38 @@ static bool imx_sip_handler(struct thread_smc_args *smc_args)
 	return false;
 }
 
+#ifdef CFG_SM_PLATFORM_MBED_LINUX
+static void imx_oem_populate_fdt(struct thread_smc_args *smc_args)
+{
+	/* Populate with generic_boot provided parameters */
+	init_fdt(smc_args->a1);
+	update_fdt();
+
+	/* Set result code and clear input parameter */
+	smc_args->a0 = 0;
+	smc_args->a1 = 0;
+}
+#endif
+
+static bool imx_oem_handler(struct thread_smc_args *smc_args)
+{
+	uint16_t oem_func = OPTEE_SMC_FUNC_NUM(smc_args->a0);
+
+	switch (oem_func) {
+#ifdef CFG_SM_PLATFORM_MBED_LINUX
+	case MBED_LINUX_POPULATE_DTB:
+		imx_oem_populate_fdt(smc_args);
+		break;
+#endif
+	default:
+		EMSG("Invalid OEM function code: 0x%x", oem_func);
+		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+		break;
+	}
+
+	return false;
+}
+
 bool sm_platform_handler(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
@@ -49,6 +83,8 @@ bool sm_platform_handler(struct sm_ctx *ctx)
 	switch (smc_owner) {
 	case OPTEE_SMC_OWNER_SIP:
 		return imx_sip_handler((struct thread_smc_args *)nsec_r0);
+	case OPTEE_SMC_OWNER_OEM:
+		return imx_oem_handler((struct thread_smc_args *)nsec_r0);
 	default:
 		return true;
 	}
