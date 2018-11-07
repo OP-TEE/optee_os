@@ -1610,6 +1610,68 @@ int mbedtls_mpi_mod_int(mbedtls_mpi_uint *r, const mbedtls_mpi *A, mbedtls_mpi_s
     return 0;
 }
 
+/**
+ * \remark Replaced by our own because the original has been removed since
+ *         mbedtls v3.6.0.
+*/
+void mbedtls_mpi_montg_init(mbedtls_mpi_uint *mm, const mbedtls_mpi *N)
+{
+    *mm = mbedtls_mpi_core_montmul_init(N->p);
+}
+
+/** Montgomery multiplication: A = A * B * R^-1 mod N  (HAC 14.36)
+ * 
+ * \param[in,out]   A   One of the numbers to multiply.
+ *                      It must have at least as many limbs as N
+ *                      (A->n >= N->n), and any limbs beyond n are ignored.
+ *                      On successful completion, A contains the result of
+ *                      the multiplication A * B * R^-1 mod N where
+ *                      R = (2^ciL)^n.
+ * \param[in]       B   One of the numbers to multiply.
+ *                      It must be nonzero and must not have more limbs than N
+ *                      (B->n <= N->n).
+ * \param[in]       N   The modulus. \p N must be odd.
+ * \param           mm  The value calculated by `mpi_montg_init(&mm, N)`.
+ *                      This is -N^-1 mod 2^ciL.
+ * \param[in,out]   T   A bignum for temporary storage.
+ *                      It must be at least twice the limb size of N plus 1
+ *                      (T->n >= 2 * N->n + 1).
+ *                      Its initial content is unused and
+ *                      its final content is indeterminate.
+ *                      It does not get reallocated.
+ * \remark Replaced by our own because the original has been removed since
+ *         mbedtls v3.6.0.
+ */
+void mbedtls_mpi_montmul(mbedtls_mpi *A, const mbedtls_mpi *B,
+                        const mbedtls_mpi *N, mbedtls_mpi_uint mm,
+                        mbedtls_mpi *T)
+{
+    mbedtls_mpi_core_montmul(A->p, A->p, B->p, B->n, N->p, N->n, mm, T->p);
+}
+
+/**
+ * Montgomery reduction: A = A * R^-1 mod N
+ *
+ * See mbedtls_mpi_montmul() regarding constraints and guarantees on the parameters.
+ * 
+ * \remark Replaced by our own because the original has been removed since
+ *         mbedtls v3.6.0.
+ */
+void mbedtls_mpi_montred(mbedtls_mpi *A, const mbedtls_mpi *N,
+                        mbedtls_mpi_uint mm, mbedtls_mpi *T)
+{
+    mbedtls_mpi_uint z = 1;
+    mbedtls_mpi U;
+
+    U.n = U.s = (int) z;
+    U.p = &z;
+
+    mbedtls_mpi_montmul(A, &U, N, mm, T);
+}
+
+/*
+ * Sliding-window exponentiation: X = A^E mod N  (HAC 14.85)
+ */
 int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
                         const mbedtls_mpi *E, const mbedtls_mpi *N,
                         mbedtls_mpi *prec_RR)
