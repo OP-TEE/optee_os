@@ -235,8 +235,13 @@ typedef struct mbedtls_mpi {
 #if MBEDTLS_MPI_MAX_LIMBS > 65535
 #error "MBEDTLS_MPI_MAX_LIMBS > 65535 is not supported"
 #endif
+
+    short use_mempool;
+
 }
 mbedtls_mpi;
+
+extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize an MPI context.
@@ -247,6 +252,7 @@ mbedtls_mpi;
  * \param X         The MPI context to initialize. This must not be \c NULL.
  */
 void mbedtls_mpi_init(mbedtls_mpi *X);
+void mbedtls_mpi_init_mempool(mbedtls_mpi *X);
 
 /**
  * \brief          This function frees the components of an MPI context.
