@@ -179,11 +179,14 @@ extern "C" {
  */
 typedef struct mbedtls_mpi
 {
-    int s;              /*!<  integer sign      */
+    short s;              /*!<  integer sign      */
+    short use_mempool;
     size_t n;           /*!<  total # of limbs  */
     mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
+
+extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize an MPI context.
@@ -194,6 +197,7 @@ mbedtls_mpi;
  * \param X         The MPI context to initialize. This must not be \c NULL.
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
+void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
 
 /**
  * \brief          This function frees the components of an MPI context.
