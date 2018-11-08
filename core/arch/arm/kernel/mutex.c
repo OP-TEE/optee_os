@@ -48,7 +48,6 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 			assert(owner != thread_get_id_may_fail());
 		} else {
 			m->state = -1; /* write locked */
-			thread_add_mutex(m);
 		}
 
 		cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
@@ -78,7 +77,6 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 	if (!m->state)
 		panic();
 
-	thread_rem_mutex(m);
 	m->state = 0;
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
@@ -98,10 +96,8 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
 	can_lock_write = !m->state;
-	if (can_lock_write) {
+	if (can_lock_write)
 		m->state = -1;
-		thread_add_mutex(m);
-	}
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
@@ -352,7 +348,6 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 		m->state--;
 	} else {
 		/* Only one lock (read or write), unlock the mutex */
-		thread_rem_mutex(m);
 		m->state = 0;
 	}
 	new_state = m->state;
