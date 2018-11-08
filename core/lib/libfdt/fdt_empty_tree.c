@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0+)
 /*
  * libfdt - Flat Device Tree manipulation
  * Copyright (C) 2012 David Gibson, IBM Corporation.
@@ -82,4 +81,3 @@ int fdt_create_empty_tree(void *buf, int bufsize)
 
 	return fdt_open_into(buf, buf, bufsize);
 }
-
