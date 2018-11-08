@@ -58,6 +58,9 @@ struct mempool {
 	size_t size;  /* size of the memory pool, in bytes */
 	ssize_t last_offset;   /* offset to the last one */
 	vaddr_t data;
+#ifdef CFG_MEMPOOL_REPORT_LAST_OFFSET
+	ssize_t max_last_offset;
+#endif
 #if defined(__KERNEL__)
 	void (*release_mem)(void *ptr, size_t size);
 	struct mutex mu;
@@ -167,6 +170,13 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 		last_item->next_item_offset = offset;
 	new_item->next_item_offset = -1;
 	pool->last_offset = offset;
+#ifdef CFG_MEMPOOL_REPORT_LAST_OFFSET
+	if (pool->last_offset > pool->max_last_offset) {
+		pool->max_last_offset = pool->last_offset;
+		DMSG("Max memory usage increased to %zu",
+		     (size_t)pool->max_last_offset);
+	}
+#endif
 
 	return new_item + 1;
 
