@@ -15,6 +15,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <kernel/refcount.h>
 #endif
 
 /*
@@ -61,7 +62,7 @@ struct mempool {
 	void (*release_mem)(void *ptr, size_t size);
 	struct mutex mu;
 	struct condvar cv;
-	size_t count;
+	struct refcount refc;
 	int owner;
 #endif
 };
@@ -69,18 +70,20 @@ struct mempool {
 static void get_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
-	mutex_lock(&pool->mu);
-
-	if (pool->owner != thread_get_id()) {
-		/* Wait until the pool is available */
-		while (pool->owner != THREAD_ID_INVALID)
-			condvar_wait(&pool->cv, &pool->mu);
-
-		pool->owner = thread_get_id();
-		assert(pool->count == 0);
+	if (refcount_inc(&pool->refc)) {
+		if (pool->owner == thread_get_id())
+			return;
+		refcount_dec(&pool->refc);
 	}
 
-	pool->count++;
+	mutex_lock(&pool->mu);
+
+	/* Wait until the pool is available */
+	while (pool->owner != THREAD_ID_INVALID)
+		condvar_wait(&pool->cv, &pool->mu);
+
+	pool->owner = thread_get_id();
+	refcount_set(&pool->refc, 1);
 
 	mutex_unlock(&pool->mu);
 #endif
@@ -89,23 +92,22 @@ static void get_pool(struct mempool *pool __maybe_unused)
 static void put_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
-	mutex_lock(&pool->mu);
-
 	assert(pool->owner == thread_get_id());
-	assert(pool->count > 0);
 
-	pool->count--;
-	if (!pool->count) {
+	if (refcount_dec(&pool->refc)) {
+		mutex_lock(&pool->mu);
+
 		pool->owner = THREAD_ID_INVALID;
 		condvar_signal(&pool->cv);
+
 		/* As the refcount is 0 there should be no items left */
 		if (pool->last_offset >= 0)
 			panic();
 		if (pool->release_mem)
 			pool->release_mem((void *)pool->data, pool->size);
-	}
 
-	mutex_unlock(&pool->mu);
+		mutex_unlock(&pool->mu);
+	}
 #endif
 }
 
