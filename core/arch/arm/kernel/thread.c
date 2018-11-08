@@ -400,7 +400,6 @@ void thread_init_boot_thread(void)
 	mutex_lockdep_init();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		TAILQ_INIT(&threads[n].mutexes);
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 		SLIST_INIT(&threads[n].tsd.pgt_cache);
 	}
@@ -418,7 +417,6 @@ void thread_clr_boot_thread(void)
 
 	assert(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
 	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	assert(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
 	l->curr_thread = -1;
 }
@@ -691,7 +689,6 @@ void thread_state_free(void)
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
-	assert(TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
@@ -1292,28 +1289,6 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 	*sz = sizeof(thread_user_kdata_page);
 }
 #endif
-
-void thread_add_mutex(struct mutex *m)
-{
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == MUTEX_OWNER_ID_NONE);
-	m->owner_id = ct;
-	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
-}
-
-void thread_rem_mutex(struct mutex *m)
-{
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == ct);
-	m->owner_id = MUTEX_OWNER_ID_NONE;
-	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
-}
 
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 {

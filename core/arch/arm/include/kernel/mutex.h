@@ -23,7 +23,6 @@ struct mutex {
 	struct wait_queue wq;
 	short state;		/* -1: write, 0: unlocked, > 0: readers */
 	short owner_id;		/* Only valid for state == -1 (write lock) */
-	TAILQ_ENTRY(mutex) link;
 };
 #define MUTEX_INITIALIZER \
 	{ .owner_id = MUTEX_OWNER_ID_NONE, .wq = WAIT_QUEUE_INITIALIZER, }

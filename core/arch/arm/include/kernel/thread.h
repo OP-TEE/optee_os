@@ -552,18 +552,6 @@ bool thread_is_in_normal_mode(void);
 bool thread_is_from_abort_mode(void);
 
 /*
- * Adds a mutex to the list of held mutexes for current thread
- * Requires foreign interrupts to be disabled.
- */
-void thread_add_mutex(struct mutex *m);
-
-/*
- * Removes a mutex from the list of held mutexes for current thread
- * Requires foreign interrupts to be disabled.
- */
-void thread_rem_mutex(struct mutex *m);
-
-/*
  * Disables and empties the prealloc RPC cache one reference at a time. If
  * all threads are idle this function returns true and a cookie of one shm
  * object which was removed from the cache. When the cache is empty *cookie

@@ -92,7 +92,6 @@ struct thread_ctx {
 #endif
 	void *rpc_arg;
 	struct mobj *rpc_mobj;
-	struct mutex_head mutexes;
 	struct thread_specific_data tsd;
 };
 #endif /*ASM*/
