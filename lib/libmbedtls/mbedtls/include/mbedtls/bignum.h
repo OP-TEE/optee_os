@@ -178,11 +178,14 @@ extern "C" {
  */
 typedef struct
 {
-    int s;              /*!<  integer sign      */
+    short s;              /*!<  integer sign      */
+    short use_mempool;
     size_t n;           /*!<  total # of limbs  */
     mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
+
+extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize one MPI (make internal references valid)
@@ -192,6 +195,7 @@ mbedtls_mpi;
  * \param X         One MPI to initialize.
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
+void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
 
 /**
  * \brief          Unallocate one MPI
