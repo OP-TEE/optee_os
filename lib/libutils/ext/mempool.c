@@ -169,6 +169,7 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 	return new_item + 1;
 
 error:
+	EMSG("Failed to allocate %zu bytes, please tune the pool size", size);
 	put_pool(pool);
 	return NULL;
 }
