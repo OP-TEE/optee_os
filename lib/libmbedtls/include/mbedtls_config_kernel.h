@@ -4,6 +4,12 @@
 #define __MBEDTLS_CONFIG_KERNEL_H
 
 #ifdef CFG_CORE_MBEDTLS_MPI
+#ifdef ARM32
+#define MBEDTLS_HAVE_INT32
+#endif
+#ifdef ARM64
+#define MBEDTLS_HAVE_INT64
+#endif
 #define MBEDTLS_BIGNUM_C
 #define MBEDTLS_GENPRIME
 #endif
