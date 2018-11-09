@@ -18,3 +18,4 @@ srcs-y += strstr.c
 srcs-y += strcpy.c
 srcs-y += strncpy.c
 srcs-y += strrchr.c
+srcs-y += strtoul.c

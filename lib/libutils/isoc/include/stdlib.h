@@ -26,4 +26,7 @@ int abs(int i);
 #define	RAND_MAX	__INT_MAX__
 int rand(void);
 
+unsigned long
+strtoul (const char *__restrict s, char **__restrict ptr, int base);
+
 #endif /* STDLIB_H */
