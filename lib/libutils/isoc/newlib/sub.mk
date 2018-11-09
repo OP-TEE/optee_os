@@ -17,3 +17,4 @@ srcs-y += strchr.c
 srcs-y += strstr.c
 srcs-y += strcpy.c
 srcs-y += strncpy.c
+srcs-y += strrchr.c
