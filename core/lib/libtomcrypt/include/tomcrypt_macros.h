@@ -29,6 +29,7 @@
 #ifndef TOMCRYPT_MACROS_H_
 #define TOMCRYPT_MACROS_H_
 
+#ifndef LTC_ULONGXX_DEFINED
 /* fix for MSVC ...evil! */
 #ifdef _MSC_VER
    #define CONST64(n) n ## ui64
@@ -46,6 +47,7 @@
    typedef unsigned ulong32;
 #else
    typedef unsigned long ulong32;
+#endif
 #endif
 
 #ifdef ENDIAN_64BITWORD
