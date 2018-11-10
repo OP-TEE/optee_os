@@ -17,6 +17,9 @@ srcs-y += stack_check.c
 srcs-y += strdup.c
 srcs-y += strndup.c
 srcs-y += tolower.c
+srcs-y += isalpha.c
+srcs-y += isspace.c
+srcs-y += isupper.c
 
 subdirs-y += newlib
 subdirs-$(arch_arm) += arch/$(ARCH)
