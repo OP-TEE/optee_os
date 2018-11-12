@@ -35,7 +35,7 @@ struct dt_driver {
 	const void *driver;
 };
 
-#define __dt_driver __section(".rodata.dtdrv")
+#define __dt_driver __section(".rodata.dtdrv" __SECTION_FLAGS_RODATA)
 
 /*
  * Find a driver that is suitable for the given DT node, that is, with
