@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <malloc.h>
 #include <mempool.h>
+#include <string.h>
 #include <util.h>
 
 #if defined(__KERNEL__)
@@ -184,6 +185,21 @@ error:
 	EMSG("Failed to allocate %zu bytes, please tune the pool size", size);
 	put_pool(pool);
 	return NULL;
+}
+
+void *mempool_calloc(struct mempool *pool, size_t nmemb, size_t size)
+{
+	size_t sz;
+	void *p;
+
+	if (MUL_OVERFLOW(nmemb, size, &sz))
+		return NULL;
+
+	p = mempool_alloc(pool, sz);
+	if (p)
+		memset(p, 0, sz);
+
+	return p;
 }
 
 void mempool_free(struct mempool *pool, void *ptr)

@@ -39,6 +39,16 @@ struct mempool *mempool_alloc_pool(void *data, size_t size,
 void *mempool_alloc(struct mempool *pool, size_t size);
 
 /*
+ * mempool_calloc() - Allocate and zero initialize an array of elements from a
+ *		      memory pool
+ * @pool:		A memory pool created with mempool_alloc_pool()
+ * @nmemb:		Number of elements in the array
+ * @size:		Size in bytes of each element in the array
+ * return a valid pointer on success or NULL on failure.
+ */
+void *mempool_calloc(struct mempool *pool, size_t nmemb, size_t size);
+
+/*
  * mempool_free() - Frees a previously allocated item
  * @pool:		A memory pool create with mempool_alloc_pool()
  * @ptr:		A pointer to a previously allocated item
