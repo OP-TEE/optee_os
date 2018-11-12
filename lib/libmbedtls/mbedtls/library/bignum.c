@@ -83,25 +83,37 @@ void *mbedtls_mpi_mempool;
 /*
  * Initialize one MPI
  */
-static void mpi_init( mbedtls_mpi *X, short use_mempool)
+static void mpi_init( mbedtls_mpi *X, enum mbedtls_mpi_alloc_type alloc_type,
+		      mbedtls_mpi_uint *p, int sign, size_t alloc_size,
+                      size_t nblimbs)
 {
     if( X == NULL )
         return;
 
-    X->s = 1;
-    X->use_mempool = use_mempool;
-    X->n = 0;
-    X->p = NULL;
+    X->s = sign;
+    X->alloc_type = alloc_type;
+    X->alloc_size = alloc_size;
+    X->n = nblimbs;
+    X->p = p;
 }
 
 void mbedtls_mpi_init( mbedtls_mpi *X )
 {
-    mpi_init( X, 0 /*use_mempool*/ );
+    mpi_init(X, MBEDTLS_MPI_ALLOC_TYPE_MALLOC, NULL, 1, 0, 0);
 }
 
 void mbedtls_mpi_init_mempool( mbedtls_mpi *X )
 {
-    mpi_init( X, !!mbedtls_mpi_mempool /*use_mempool*/ );
+    if( mbedtls_mpi_mempool )
+        mpi_init(X, MBEDTLS_MPI_ALLOC_TYPE_MEMPOOL, NULL, 1, 0, 0);
+    else
+        mbedtls_mpi_init( X );
+}
+
+void mbedtls_mpi_init_static( mbedtls_mpi *X , mbedtls_mpi_uint *p,
+                              int sign, size_t alloc_size, size_t nblimbs)
+{
+    mpi_init(X, MBEDTLS_MPI_ALLOC_TYPE_STATIC, p, sign, alloc_size, nblimbs);
 }
 
 /*
@@ -115,15 +127,22 @@ void mbedtls_mpi_free( mbedtls_mpi *X )
     if( X->p != NULL )
     {
         mbedtls_mpi_zeroize( X->p, X->n );
-        if( X->use_mempool )
-            mempool_free( mbedtls_mpi_mempool, X->p );
-        else
+        switch (X->alloc_type) {
+        case MBEDTLS_MPI_ALLOC_TYPE_MALLOC:
             mbedtls_free( X->p );
+            X->p = NULL;
+            break;
+        case MBEDTLS_MPI_ALLOC_TYPE_MEMPOOL:
+            mempool_free( mbedtls_mpi_mempool, X->p );
+            X->p = NULL;
+            break;
+        default:
+            break;
+        }
     }
 
     X->s = 1;
     X->n = 0;
-    X->p = NULL;
 }
 
 /*
@@ -136,35 +155,42 @@ int mbedtls_mpi_grow( mbedtls_mpi *X, size_t nblimbs )
     if( nblimbs > MBEDTLS_MPI_MAX_LIMBS )
         return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
 
-    if( X->n < nblimbs )
-    {
-        if( X->use_mempool )
-	{
-            p = mempool_alloc( mbedtls_mpi_mempool, nblimbs * ciL );
-            if( p == NULL )
-                return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-            memset( p, 0, nblimbs * ciL );
-        }
-        else
-        {
-            p = (mbedtls_mpi_uint*)mbedtls_calloc( nblimbs, ciL );
-            if( p == NULL )
-                return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-        }
+    if( X->n >= nblimbs )
+        return( 0 );
 
-        if( X->p != NULL )
-        {
-            memcpy( p, X->p, X->n * ciL );
-            mbedtls_mpi_zeroize( X->p, X->n );
-            if( X->use_mempool )
-                mempool_free( mbedtls_mpi_mempool, X->p);
-            else
-                mbedtls_free( X->p );
-        }
-
-        X->n = nblimbs;
-        X->p = p;
+    switch( X->alloc_type ) {
+    case MBEDTLS_MPI_ALLOC_TYPE_MALLOC:
+        p = (mbedtls_mpi_uint*)mbedtls_calloc( nblimbs, ciL );
+        break;
+    case MBEDTLS_MPI_ALLOC_TYPE_MEMPOOL:
+        p = mempool_calloc( mbedtls_mpi_mempool, nblimbs, ciL );
+        break;
+    case MBEDTLS_MPI_ALLOC_TYPE_STATIC:
+        if( nblimbs > X->alloc_size )
+            return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
+        memset( X->p + X->n, 0, (nblimbs - X->n) * ciL );
+	goto out;
+    default:
+        return( MBEDTLS_ERR_MPI_BAD_INPUT_DATA );
     }
+
+    if( p == NULL )
+        return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
+
+    if( X->p != NULL ) {
+        memcpy( p, X->p, X->n * ciL );
+        mbedtls_mpi_zeroize( X->p, X->n );
+    }
+
+
+    if( X->alloc_type == MBEDTLS_MPI_ALLOC_TYPE_MALLOC)
+        mbedtls_free( X->p );
+    else
+        mempool_free( mbedtls_mpi_mempool, X->p );
+
+    X->p = p;
+out:
+    X->n = nblimbs;
 
     return( 0 );
 }
@@ -190,32 +216,37 @@ int mbedtls_mpi_shrink( mbedtls_mpi *X, size_t nblimbs )
     if( i < nblimbs )
         i = nblimbs;
 
-    if( X->use_mempool )
-    {
-        p = mempool_alloc( mbedtls_mpi_mempool, nblimbs * ciL );
-        if( p == NULL )
+    switch (X->alloc_type) {
+    case MBEDTLS_MPI_ALLOC_TYPE_MALLOC:
+            p = (mbedtls_mpi_uint*)mbedtls_calloc( nblimbs, ciL );
+            break;
+    case MBEDTLS_MPI_ALLOC_TYPE_MEMPOOL:
+            p = mempool_calloc(mbedtls_mpi_mempool, nblimbs, ciL);
+            break;
+    case MBEDTLS_MPI_ALLOC_TYPE_STATIC:
+        if (nblimbs > X->alloc_size)
             return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-        memset(p, 0, nblimbs * ciL);
+        mbedtls_mpi_zeroize(X->p + i, X->n - i);
+        goto out;
+
+    default:
+        return( MBEDTLS_ERR_MPI_BAD_INPUT_DATA );
     }
-    else
-    {
-        p = (mbedtls_mpi_uint*)mbedtls_calloc( nblimbs, ciL );
-        if( p == NULL )
-            return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-    }
+
 
     if( X->p != NULL )
     {
         memcpy( p, X->p, i * ciL );
         mbedtls_mpi_zeroize( X->p, X->n );
-        if( X->use_mempool )
-            mempool_free( mbedtls_mpi_mempool, X->p );
-        else
+        if (X->alloc_type == MBEDTLS_MPI_ALLOC_TYPE_MALLOC)
             mbedtls_free( X->p );
+        else
+            mempool_free( mbedtls_mpi_mempool, X->p );
     }
 
-    X->n = i;
     X->p = p;
+out:
+    X->n = i;
 
     return( 0 );
 }

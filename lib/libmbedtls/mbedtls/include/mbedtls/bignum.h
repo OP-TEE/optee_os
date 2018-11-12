@@ -173,15 +173,22 @@
 extern "C" {
 #endif
 
+enum mbedtls_mpi_alloc_type {
+    MBEDTLS_MPI_ALLOC_TYPE_MALLOC,
+    MBEDTLS_MPI_ALLOC_TYPE_MEMPOOL,
+    MBEDTLS_MPI_ALLOC_TYPE_STATIC,
+};
+
 /**
  * \brief          MPI structure
  */
 typedef struct
 {
-    short s;              /*!<  integer sign      */
-    short use_mempool;
-    size_t n;           /*!<  total # of limbs  */
-    mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
+    int8_t s;              /*!<  integer sign      */
+    uint8_t alloc_type;
+    uint16_t alloc_size;
+    uint16_t n;             /*!<  total # of limbs  */
+    mbedtls_mpi_uint *p;    /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
 
@@ -196,6 +203,18 @@ extern void *mbedtls_mpi_mempool;
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
 void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
+
+/**
+ * \brief           Initialize one MPI with supplied value. The size of
+ *		    the MPI is limited to max @alloc_size.
+ *		    It's valid to call free on @X, but no memory is
+ *		    leaked if not. Calling free on @X will not affect the
+ *		    content of the @p array.
+ *
+ * \param X         One MPI to initialize.
+ */
+void mbedtls_mpi_init_static( mbedtls_mpi *X , mbedtls_mpi_uint *p,
+                              int sign, size_t alloc_size, size_t nblimbs);
 
 /**
  * \brief          Unallocate one MPI
