@@ -28,14 +28,25 @@
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case PSCI_PSCI_FEATURES:
+	case PSCI_VERSION:
+	case PSCI_CPU_SUSPEND:
+	case PSCI_CPU_OFF:
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 	case PSCI_CPU_ON:
-		return 0;
 #endif
-
+	case PSCI_AFFINITY_INFO:
+	case PSCI_SYSTEM_OFF:
+	case PSCI_SYSTEM_RESET:
+		return PSCI_RET_SUCCESS;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
 	}
+}
+
+uint32_t psci_version(void)
+{
+	return PSCI_VERSION_1_0;
 }
 
 #ifdef CFG_BOOT_SECONDARY_REQUEST

@@ -9,6 +9,8 @@
 #include <kernel/thread.h>
 #include <trace.h>
 
+#include "mutex_lockdep.h"
+
 void mutex_init(struct mutex *m)
 {
 	*m = (struct mutex)MUTEX_INITIALIZER;
@@ -19,6 +21,8 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 	assert(thread_is_in_normal_mode());
+
+	mutex_lock_check(m);
 
 	while (true) {
 		uint32_t old_itr_status;
@@ -44,7 +48,6 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 			assert(owner != thread_get_id_may_fail());
 		} else {
 			m->state = -1; /* write locked */
-			thread_add_mutex(m);
 		}
 
 		cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
@@ -67,12 +70,13 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 
+	mutex_unlock_check(m);
+
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
 	if (!m->state)
 		panic();
 
-	thread_rem_mutex(m);
 	m->state = 0;
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
@@ -92,10 +96,8 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
 	can_lock_write = !m->state;
-	if (can_lock_write) {
+	if (can_lock_write)
 		m->state = -1;
-		thread_add_mutex(m);
-	}
 
 	cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
 
@@ -323,6 +325,8 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 	short old_state;
 	short new_state;
 
+	mutex_unlock_check(m);
+
 	/* Link this condvar to this mutex until reinitialized */
 	old_itr_status = cpu_spin_lock_xsave(&cv->spin_lock);
 	if (cv->m && cv->m != m)
@@ -344,7 +348,6 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 		m->state--;
 	} else {
 		/* Only one lock (read or write), unlock the mutex */
-		thread_rem_mutex(m);
 		m->state = 0;
 	}
 	new_state = m->state;

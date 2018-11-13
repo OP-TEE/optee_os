@@ -6,6 +6,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <bitstring.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
@@ -97,6 +98,18 @@ register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
+
+/*
+ * Two ASIDs per context, one for kernel mode and one for user mode. ASID 0
+ * and 1 are reserved and not used. This means a maximum of 126 loaded user
+ * mode contexts. This value can be increased but not beyond the maximum
+ * ASID, which is architecture dependent (max 255 for ARMv7-A and ARMv8-A
+ * Aarch32). This constant defines number of ASID pairs.
+ */
+#define MMU_NUM_ASID_PAIRS		64
+
+static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS);
+static unsigned int g_asid_spinlock = SPINLOCK_UNLOCK;
 
 static unsigned int mmu_spinlock;
 
@@ -301,6 +314,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	size_t num_elems = nelems;
 	struct tee_mmap_region *map = static_memory_map;
 	const struct core_mmu_phys_mem __maybe_unused *pmem;
+	paddr_t pa;
 
 	assert(!discovered_nsec_ddr_start);
 	assert(m && num_elems);
@@ -334,6 +348,10 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 
 	discovered_nsec_ddr_start = m;
 	discovered_nsec_ddr_nelems = num_elems;
+
+	if (ADD_OVERFLOW(m[num_elems - 1].addr, m[num_elems - 1].size - 1, &pa))
+		panic();
+	core_mmu_set_max_pa(pa);
 }
 
 static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,
@@ -375,8 +393,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 }
 
 #define MSG_MEM_INSTERSECT(pa1, sz1, pa2, sz2) \
-	EMSG("[%" PRIxPA " %" PRIxPA "] intersecs [%" PRIxPA " %" PRIxPA "]", \
-			pa1, pa1 + sz1, pa2, pa2 + sz2)
+	EMSG("[%" PRIxPA " %" PRIx64 "] intersects [%" PRIxPA " %" PRIx64 "]", \
+			pa1, (uint64_t)pa1 + sz1, pa2, (uint64_t)pa2 + sz2)
 
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
@@ -461,8 +479,8 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	}
 
 	for (mem = start; mem < end; mem++)
-		DMSG("%s memory [%" PRIxPA " %" PRIxPA "]",
-		     area_name, mem->addr, mem->addr + mem->size);
+		DMSG("%s memory [%" PRIxPA " %" PRIx64 "]",
+		     area_name, mem->addr, (uint64_t)mem->addr + mem->size);
 
 	/* Check memories do not intersect each other */
 	for (mem = start; mem < end - 1; mem++) {
@@ -908,6 +926,14 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 			map->attr = core_mmu_type_to_attr(map->type);
 			va -= map->size;
 			va = ROUNDDOWN(va, map->region_size);
+			/*
+			 * Make sure that va is aligned with pa for
+			 * efficient pgdir mapping. Basically pa &
+			 * pgdir_mask should be == va & pgdir_mask
+			 */
+			if (map->size > 2 * CORE_MMU_PGDIR_SIZE)
+				va -= CORE_MMU_PGDIR_SIZE -
+					((map->pa - va) & CORE_MMU_PGDIR_MASK);
 			map->va = va;
 		}
 	} else {
@@ -925,6 +951,14 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 #endif
 			map->attr = core_mmu_type_to_attr(map->type);
 			va = ROUNDUP(va, map->region_size);
+			/*
+			 * Make sure that va is aligned with pa for
+			 * efficient pgdir mapping. Basically pa &
+			 * pgdir_mask should be == va & pgdir_mask
+			 */
+			if (map->size > 2 * CORE_MMU_PGDIR_SIZE)
+				va += (map->pa - va) & CORE_MMU_PGDIR_MASK;
+
 			map->va = va;
 			va += map->size;
 		}
@@ -1627,6 +1661,41 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	dsb_ishst();
 
 	return true;
+}
+
+unsigned int asid_alloc(void)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+	unsigned int r;
+	int i;
+
+	bit_ffc(g_asid, MMU_NUM_ASID_PAIRS, &i);
+	if (i == -1) {
+		r = 0;
+	} else {
+		bit_set(g_asid, i);
+		r = (i + 1) * 2;
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
+	return r;
+}
+
+void asid_free(unsigned int asid)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+
+	/* Only even ASIDs are supposed to be allocated */
+	assert(!(asid & 1));
+
+	if (asid) {
+		int i = (asid - 1) / 2;
+
+		assert(i < MMU_NUM_ASID_PAIRS && bit_test(g_asid, i));
+		bit_clear(g_asid, i);
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
 }
 
 static bool arm_va2pa_helper(void *va, paddr_t *pa)

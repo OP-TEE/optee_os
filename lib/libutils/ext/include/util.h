@@ -6,7 +6,7 @@
 #define UTIL_H
 
 #include <compiler.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #define SIZE_4K	UINTPTR_C(0x1000)
 #define SIZE_1M	UINTPTR_C(0x100000)
@@ -31,6 +31,14 @@
 #define MIN(a, b)	(((a) < (b)) ? (a) : (b))
 #endif
 #endif
+
+/*
+ * In some particular conditions MAX and MIN macros fail to
+ * build from C source file implmentation. In such case one
+ * need to use MAX_UNSAFE/MIN_UNSAFE instead.
+ */
+#define MAX_UNSAFE(a, b)	(((a) > (b)) ? (a) : (b))
+#define MIN_UNSAFE(a, b)	(((a) < (b)) ? (a) : (b))
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

@@ -1,26 +1,30 @@
 # Get the dir of the ta-dev-kit, requires make version 3.81 or later
 ta-dev-kit-dir := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))..))
 
-
 .PHONY: all
 all:
 
 include $(ta-dev-kit-dir)/mk/conf.mk
+ta-dev-kit-dir$(sm) := $(ta-dev-kit-dir)
 
 ifneq (1, $(words $(BINARY) $(LIBNAME) $(SHLIBNAME)))
 $(error You must specify exactly one of BINARY, LIBNAME or SHLIBNAME)
 endif
-
-binary := $(BINARY)
-libname := $(LIBNAME)
-shlibname := $(SHLIBNAME)
-shlibuuid := $(SHLIBUUID)
 
 ifneq ($O,)
 out-dir := $O
 else
 out-dir := .
 endif
+link-out-dir := $(out-dir)	# backward compat
+link-out-dir$(sm) := $(out-dir)
+
+user-ta-uuid := $(BINARY)
+user-ta-ldadd := $(LDADD)
+libname := $(LIBNAME)
+shlibname := $(SHLIBNAME)
+shlibuuid := $(SHLIBUUID)
+
 
 ifneq ($V,1)
 q := @
@@ -49,13 +53,17 @@ cflags$(sm)    := $($(sm)-platform-cflags) $(CFLAGS_$(sm))
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 
-cppflags$(sm) += -I. -I$(ta-dev-kit-dir)/include
+cppflags$(sm) += -I. -I$(ta-dev-kit-dir$(sm))/include
 
-libdirs += $(ta-dev-kit-dir)/lib
+libdirs += $(ta-dev-kit-dir$(sm))/lib
 libnames += utils utee mpa
-libdeps += $(ta-dev-kit-dir)/lib/libutils.a
-libdeps += $(ta-dev-kit-dir)/lib/libmpa.a
-libdeps += $(ta-dev-kit-dir)/lib/libutee.a
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libutils.a
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libmpa.a
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libutee.a
+ifeq ($(CFG_TA_MBEDTLS),y)
+libnames += mbedtls
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libmbedtls.a
+endif
 
 # Pass config variable (CFG_) from conf.mk on the command line
 cppflags$(sm) += $(strip \
@@ -64,7 +72,7 @@ cppflags$(sm) += $(strip \
 			-D$(var)=1, \
 			$(if $(filter xn x,x$($(var))),,-D$(var)='$($(var))'))))
 
-include $(ta-dev-kit-dir)/mk/cleandirs.mk
+include $(ta-dev-kit-dir$(sm))/mk/cleandirs.mk
 
 .PHONY: clean
 clean:
@@ -75,19 +83,19 @@ clean:
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
 
 subdirs = .
-include  $(ta-dev-kit-dir)/mk/subdir.mk
+include  $(ta-dev-kit-dir$(sm))/mk/subdir.mk
 
-ifneq ($(binary),)
+ifneq ($(user-ta-uuid),)
 # Build target is TA
-vpath %.c $(ta-dev-kit-dir)/src
+vpath %.c $(ta-dev-kit-dir$(sm))/src
 srcs += user_ta_header.c
 endif
 
-include  $(ta-dev-kit-dir)/mk/gcc.mk
-include  $(ta-dev-kit-dir)/mk/compile.mk
+include  $(ta-dev-kit-dir$(sm))/mk/gcc.mk
+include  $(ta-dev-kit-dir$(sm))/mk/compile.mk
 
-ifneq ($(binary),)
-include  $(ta-dev-kit-dir)/mk/link.mk
+ifneq ($(user-ta-uuid),)
+include  $(ta-dev-kit-dir$(sm))/mk/link.mk
 endif
 
 ifneq ($(libname),)
@@ -101,5 +109,5 @@ $(libname).a: $(objs)
 endif
 
 ifneq (,$(shlibname))
-include $(ta-dev-kit-dir)/mk/link_shlib.mk
+include $(ta-dev-kit-dir$(sm))/mk/link_shlib.mk
 endif

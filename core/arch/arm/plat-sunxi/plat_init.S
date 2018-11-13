@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2017 NXP
+ * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2018, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,9 +29,25 @@
 
 #include <asm.S>
 #include <arm.h>
+#include <arm32_macros.S>
+#include <kernel/unwind.h>
 
-/* Layerscape platform specific function to calculate core position. */
-FUNC get_core_pos_mpidr , :
-	and	x0, x0, #MPIDR_CPU_MASK
-	ret
-END_FUNC get_core_pos_mpidr
+FUNC plat_cpu_reset_early , :
+UNWIND(	.fnstart)
+
+        /* NSACR configuration */
+	read_nsacr  r0
+	orr     r0, r0, #NSACR_CP10
+	orr     r0, r0, #NSACR_CP11
+	orr     r0, r0, #NSACR_NS_SMP
+	write_nsacr r0
+
+	/* Enable SMP bit */
+        read_actlr  r0
+	orr     r0, r0, #ACTLR_SMP
+	write_actlr  r0
+
+	bx	lr
+
+UNWIND(	.fnend)
+END_FUNC plat_cpu_reset_early

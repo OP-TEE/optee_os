@@ -22,10 +22,9 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	struct optee_msg_param params[3];
 	struct mobj *mobj;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint64_t c = 0;
 	char *va;
 
-	mobj = thread_rpc_alloc_payload(sizeof(*uuid) + len, &c);
+	mobj = thread_rpc_alloc_payload(sizeof(*uuid) + len);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -40,9 +39,9 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 	params[0].u.value.a = *id;
 
-	msg_param_init_memparam(params + 1, mobj, 0, sizeof(*uuid), c,
+	msg_param_init_memparam(params + 1, mobj, 0, sizeof(*uuid),
 				MSG_PARAM_MEM_DIR_IN);
-	msg_param_init_memparam(params + 2, mobj, sizeof(*uuid), len, c,
+	msg_param_init_memparam(params + 2, mobj, sizeof(*uuid), len,
 				MSG_PARAM_MEM_DIR_IN);
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GPROF, 3, params);
@@ -51,7 +50,7 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 
 	*id = (uint32_t)params[0].u.value.a;
 exit:
-	thread_rpc_free_payload(c, mobj);
+	thread_rpc_free_payload(mobj);
 	return res;
 }
 

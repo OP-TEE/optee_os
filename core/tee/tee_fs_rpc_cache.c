@@ -12,20 +12,17 @@
 void tee_fs_rpc_cache_clear(struct thread_specific_data *tsd)
 {
 	if (tsd->rpc_fs_payload) {
-		thread_rpc_free_payload(tsd->rpc_fs_payload_cookie,
-					tsd->rpc_fs_payload_mobj);
+		thread_rpc_free_payload(tsd->rpc_fs_payload_mobj);
 		tsd->rpc_fs_payload = NULL;
-		tsd->rpc_fs_payload_cookie = 0;
 		tsd->rpc_fs_payload_size = 0;
 		tsd->rpc_fs_payload_mobj = NULL;
 	}
 }
 
-void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj, uint64_t *cookie)
+void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	size_t sz = size;
-	uint64_t c = 0;
 	paddr_t p;
 	void *va;
 
@@ -41,7 +38,7 @@ void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj, uint64_t *cookie)
 	if (sz > tsd->rpc_fs_payload_size) {
 		tee_fs_rpc_cache_clear(tsd);
 
-		*mobj = thread_rpc_alloc_payload(sz,  &c);
+		*mobj = thread_rpc_alloc_payload(sz);
 		if (!*mobj)
 			return NULL;
 
@@ -57,14 +54,12 @@ void *tee_fs_rpc_cache_alloc(size_t size, struct mobj **mobj, uint64_t *cookie)
 
 		tsd->rpc_fs_payload = va;
 		tsd->rpc_fs_payload_mobj = *mobj;
-		tsd->rpc_fs_payload_cookie = c;
 		tsd->rpc_fs_payload_size = sz;
 	} else
 		*mobj = tsd->rpc_fs_payload_mobj;
 
-	*cookie = tsd->rpc_fs_payload_cookie;
 	return tsd->rpc_fs_payload;
 err:
-	thread_rpc_free_payload(c, *mobj);
+	thread_rpc_free_payload(*mobj);
 	return NULL;
 }

@@ -99,7 +99,7 @@ bool _core_is_buffer_outside(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
 		return false;
 
-	if ((b + bl <= a) || (b >= a + al))
+	if ((b + bl - 1 < a) || (b > a + al - 1))
 		return true;
 	return false;
 }
@@ -111,7 +111,7 @@ bool _core_is_buffer_intersect(vaddr_t b, size_t bl, vaddr_t a, size_t al)
 	if (!is_valid_conf_and_notnull_size(b, bl, a, al))
 		return false;
 
-	if ((b + bl <= a) || (b >= a + al))
+	if ((b + bl - 1 < a) || (b > a + al - 1))
 		return false;
 	return true;
 }

@@ -561,6 +561,9 @@ bool core_mmu_nsec_ddr_is_defined(void);
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems);
 
+unsigned int asid_alloc(void);
+void asid_free(unsigned int asid);
+
 #ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);

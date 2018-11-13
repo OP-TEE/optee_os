@@ -42,7 +42,7 @@
 struct unwind_state_arm32 {
 	uint32_t registers[16];
 	uint32_t start_pc;
-	uint32_t *insn;
+	vaddr_t insn;
 	unsigned entries;
 	unsigned byte;
 	uint16_t update_mask;
@@ -52,9 +52,11 @@ struct unwind_state_arm32 {
  * Unwind a 32-bit user or kernel stack.
  * @exidx, @exidx_sz: address and size of the binary search index table
  * (.ARM.exidx section).
+ * @stack, @stack_size: the bottom of the stack and its size, respectively.
  */
-bool unwind_stack_arm32(struct unwind_state_arm32 *state, uaddr_t exidx,
-			size_t exidx_sz);
+bool unwind_stack_arm32(struct unwind_state_arm32 *state, vaddr_t exidx,
+			size_t exidx_sz, bool kernel_stack, vaddr_t stack,
+			size_t stack_size);
 
 #ifdef ARM64
 /* The state of the unwind process (64-bit mode) */
@@ -68,18 +70,19 @@ struct unwind_state_arm64 {
  * Unwind a 64-bit user or kernel stack.
  * @stack, @stack_size: the bottom of the stack and its size, respectively.
  */
-bool unwind_stack_arm64(struct unwind_state_arm64 *state, uaddr_t stack,
-			size_t stack_size);
+bool unwind_stack_arm64(struct unwind_state_arm64 *state, bool kernel_stack,
+			vaddr_t stack, size_t stack_size);
 #endif /*ARM64*/
 
 #if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
 
 #ifdef ARM64
-void print_stack_arm64(int level, struct unwind_state_arm64 *state, uaddr_t exidx,
-		       size_t exidx_sz);
+void print_stack_arm64(int level, struct unwind_state_arm64 *state,
+		       bool kernel_stack, vaddr_t stack, size_t stack_size);
 #endif
-void print_stack_arm32(int level, struct unwind_state_arm32 *state, uaddr_t exidx,
-		       size_t exidx_sz);
+void print_stack_arm32(int level, struct unwind_state_arm32 *state,
+		       vaddr_t exidx, size_t exidx_sz, bool kernel_stack,
+		       vaddr_t stack, size_t stack_size);
 void print_kernel_stack(int level);
 
 #else /* defined(CFG_UNWIND) && (TRACE_LEVEL > 0) */
@@ -87,15 +90,19 @@ void print_kernel_stack(int level);
 #ifdef ARM64
 static inline void print_stack_arm64(int level __unused,
 				     struct unwind_state_arm64 *state __unused,
-				     uaddr_t exidx __unused,
-				     size_t exidx_sz __unused)
+				     bool kernel_stack __unused,
+				     vaddr_t stack __unused,
+				     size_t stack_size __unused)
 {
 }
 #endif
 static inline void print_stack_arm32(int level __unused,
 				     struct unwind_state_arm32 *state __unused,
 				     uaddr_t exidx __unused,
-				     size_t exidx_sz __unused)
+				     size_t exidx_sz __unused,
+				     bool kernel_stack __unused,
+				     vaddr_t stack __unused,
+				     size_t stack_size __unused)
 {
 }
 static inline void print_kernel_stack(int level __unused)
@@ -106,12 +113,18 @@ static inline void print_kernel_stack(int level __unused)
 
 #ifdef CFG_UNWIND
 TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset);
+/* Get current call stack as an array allocated on the heap */
+vaddr_t *unw_get_kernel_stack(void);
 #else
 static inline TEE_Result relocate_exidx(void *exidx __unused,
 					size_t exidx_sz __unused,
 					int32_t offset __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
+}
+static inline void *unw_get_kernel_stack(void)
+{
+	return NULL;
 }
 #endif /* CFG_UNWIND  */
 

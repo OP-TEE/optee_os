@@ -74,6 +74,7 @@ include core/core.mk
 
 # Platform config is supposed to assign the targets
 ta-targets ?= user_ta
+default-user-ta-target ?= $(firstword $(ta-targets))
 
 ifeq ($(CFG_WITH_USER_TA),y)
 define build-ta-target
@@ -81,6 +82,13 @@ ta-target := $(1)
 include ta/ta.mk
 endef
 $(foreach t, $(ta-targets), $(eval $(call build-ta-target, $(t))))
+
+# Build user TAs included in this git
+define build-user-ta
+ta-mk-file := $(1)
+include ta/mk/build-user-ta.mk
+endef
+$(foreach t, $(wildcard ta/*/user_ta.mk), $(eval $(call build-user-ta,$(t))))
 endif
 
 include mk/cleandirs.mk

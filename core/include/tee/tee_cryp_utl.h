@@ -7,10 +7,7 @@
 #define TEE_CRYP_UTL_H
 
 #include <tee_api_types.h>
-
-#if !defined(CFG_WITH_SOFTWARE_PRNG)
-TEE_Result get_rng_array(void *buffer, int len);
-#endif
+#include <crypto/crypto.h>
 
 TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size);
 TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
@@ -26,12 +23,17 @@ TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 				  const uint8_t *data, size_t len,
 				  uint8_t *dst);
 
-TEE_Result tee_prng_add_entropy(const uint8_t *in, size_t len);
-void plat_prng_add_jitter_entropy(void);
 /*
- * The _norpc version must not invoke Normal World, or infinite recursion
- * may occur. As an exception however, using mutexes is allowed.
+ * plat_prng_add_jitter_entropy() - Adds jitter to RNG entropy pool
+ * @sid:	source ID, normally unique per location of the call
+ * @pnum:	pointer where the pool number for this @sid is stored
+ *
+ * Note that the supplied @sid controls (CRYPTO_RNG_SRC_IS_QUICK()) whether
+ * RPC is allowed to be performed or the event just will be queued for later
+ * consumption.
  */
-void plat_prng_add_jitter_entropy_norpc(void);
+void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum);
+
+void plat_rng_init(void);
 
 #endif

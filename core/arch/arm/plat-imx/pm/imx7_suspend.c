@@ -39,8 +39,7 @@ int imx7_cpu_suspend(uint32_t power_state __unused, uintptr_t entry,
 		suspended_init = 1;
 	}
 
-	/* Store non-sec ctx regs */
-	sm_save_modes_regs(&nsec->mode_regs);
+	sm_save_unbanked_regs(&nsec->ub_regs);
 
 	ret = sm_pm_cpu_suspend((uint32_t)p, (int (*)(uint32_t))
 				(suspend_ocram_base + sizeof(*p)));
@@ -55,8 +54,7 @@ int imx7_cpu_suspend(uint32_t power_state __unused, uintptr_t entry,
 
 	plat_cpu_reset_late();
 
-	/* Restore register of different mode in secure world */
-	sm_restore_modes_regs(&nsec->mode_regs);
+	sm_restore_unbanked_regs(&nsec->ub_regs);
 
 	/* Set entry for back to Linux */
 	nsec->mon_lr = (uint32_t)entry;

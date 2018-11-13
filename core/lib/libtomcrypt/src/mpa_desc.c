@@ -3,14 +3,63 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include "tomcrypt_mpa.h"
+#include <crypto/crypto.h>
+#include <kernel/panic.h>
 #include <mpa.h>
+#include <mpalib.h>
+#include <tomcrypt.h>
+#include "tomcrypt_mp.h"
 
-mpa_scratch_mem external_mem_pool;
+static mpa_scratch_mem external_mem_pool;
 
-void init_mpa_tomcrypt(const mpa_scratch_mem pool)
+#define LTC_VARIABLE_NUMBER         (50)
+
+#define LTC_MEMPOOL_U32_SIZE \
+	mpa_scratch_mem_size_in_U32(LTC_VARIABLE_NUMBER, \
+				    CFG_CORE_BIGNUM_MAX_BITS)
+
+#if defined(CFG_WITH_PAGER)
+#include <mm/tee_pager.h>
+#include <util.h>
+#include <mm/core_mmu.h>
+
+/* allocate pageable_zi vmem for mpa scratch memory pool */
+static struct mempool *get_mpa_scratch_memory_pool(void)
 {
-	external_mem_pool = pool;
+	size_t size;
+	void *data;
+
+	size = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
+		        SMALL_PAGE_SIZE);
+	data = tee_pager_alloc(size, 0);
+	if (!data)
+		panic();
+
+	return mempool_alloc_pool(data, size, tee_pager_release_phys);
+}
+#else /* CFG_WITH_PAGER */
+static struct mempool *get_mpa_scratch_memory_pool(void)
+{
+	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(__alignof__(long));
+
+	return mempool_alloc_pool(data, sizeof(data), NULL);
+}
+#endif
+
+void init_mp_tomcrypt(void)
+{
+	static mpa_scratch_mem_base mem;
+
+	/*
+	 * The default size (bits) of a big number that will be required it
+	 * equals the max size of the computation (for example 4096 bits),
+	 * multiplied by 2 to allow overflow in computation
+	 */
+	mem.bn_bits = CFG_CORE_BIGNUM_MAX_BITS * 2;
+	mem.pool = get_mpa_scratch_memory_pool();
+	if (!mem.pool)
+		panic();
+	external_mem_pool = &mem;
 }
 
 static int init_mpanum(mpanum *a)
@@ -581,7 +630,7 @@ static int isprime(void *a, int b, int *c)
 	return CRYPT_OK;
 }
 
-static int rand(void *a, int size)
+static int mpa_rand(void *a, int size)
 {
 	return mpa_get_random_digits(a, size) != size ?
 					CRYPT_ERROR_READPRNG : CRYPT_OK;
@@ -663,6 +712,63 @@ ltc_math_descriptor ltc_mp = {
 	.rsa_keygen = &rsa_make_key,
 	.rsa_me = &rsa_exptmod,
 #endif
-	.rand = &rand,
+	.rand = &mpa_rand,
 
 };
+
+size_t crypto_bignum_num_bytes(struct bignum *a)
+{
+	return mp_unsigned_bin_size(a);
+}
+
+size_t crypto_bignum_num_bits(struct bignum *a)
+{
+	return mp_count_bits(a);
+}
+
+int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
+{
+	return mp_cmp(a, b);
+}
+
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
+{
+	mp_to_unsigned_bin((struct bignum *)from, to);
+}
+
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
+			 struct bignum *to)
+{
+	if (mp_read_unsigned_bin(to, (uint8_t *)from, fromsize) != CRYPT_OK)
+		return TEE_ERROR_BAD_PARAMETERS;
+	return TEE_SUCCESS;
+}
+
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
+{
+	mp_copy((void *)from, to);
+}
+
+struct bignum *crypto_bignum_allocate(size_t size_bits)
+{
+	size_t sz = mpa_StaticVarSizeInU32(size_bits) *	sizeof(uint32_t);
+	struct mpa_numbase_struct *bn = calloc(1, sz);
+
+	if (!bn)
+		return NULL;
+	bn->alloc = sz - MPA_NUMBASE_METADATA_SIZE_IN_U32 * sizeof(uint32_t);
+	return (struct bignum *)bn;
+}
+
+void crypto_bignum_free(struct bignum *s)
+{
+	free(s);
+}
+
+void crypto_bignum_clear(struct bignum *s)
+{
+	struct mpa_numbase_struct *bn = (struct mpa_numbase_struct *)s;
+
+	/* despite mpa_numbase_struct description, 'alloc' field a byte size */
+	memset(bn->d, 0, bn->alloc);
+}

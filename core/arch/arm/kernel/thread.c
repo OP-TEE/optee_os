@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/lockdep.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/panic.h>
@@ -91,7 +92,7 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 linkage uint32_t name[num_stacks] \
 		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
 		sizeof(uint32_t)] \
-		__attribute__((section(".nozi_stack"), \
+		__attribute__((section(".nozi_stack." # name), \
 			       aligned(STACK_ALIGNMENT)))
 
 #define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)
@@ -142,6 +143,8 @@ static uint8_t thread_user_kdata_page[
 
 static unsigned int thread_global_lock = SPINLOCK_UNLOCK;
 static bool thread_prealloc_rpc_cache;
+
+static unsigned int thread_rpc_pnum;
 
 static void init_canaries(void)
 {
@@ -292,13 +295,13 @@ static void thread_lazy_save_ns_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 
 	thr->vfp_state.ns_saved = false;
-#if defined(ARM64) && defined(CFG_WITH_ARM_TRUSTED_FW)
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/*
 	 * ARM TF saves and restores CPACR_EL1, so we must assume NS world
 	 * uses VFP and always preserve the register file when secure world
 	 * is about to use it
 	 */
-	thr->vfp_state.ns.force_save = true;
+	thr->vfp_state.ns_force_save = true;
 #endif
 	vfp_lazy_save_state_init(&thr->vfp_state.ns);
 #endif /*CFG_WITH_VFP*/
@@ -313,7 +316,7 @@ static void thread_lazy_restore_ns_vfp(void)
 	assert(!thr->vfp_state.sec_lazy_saved && !thr->vfp_state.sec_saved);
 
 	if (tuv && tuv->lazy_saved && !tuv->saved) {
-		vfp_lazy_save_state_final(&tuv->vfp);
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
 		tuv->saved = true;
 	}
 
@@ -394,8 +397,9 @@ void thread_init_boot_thread(void)
 	struct thread_core_local *l = thread_get_core_local();
 	size_t n;
 
+	mutex_lockdep_init();
+
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		TAILQ_INIT(&threads[n].mutexes);
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 		SLIST_INIT(&threads[n].tsd.pgt_cache);
 	}
@@ -413,7 +417,6 @@ void thread_clr_boot_thread(void)
 
 	assert(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
 	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	assert(TAILQ_EMPTY(&threads[l->curr_thread].mutexes));
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
 	l->curr_thread = -1;
 }
@@ -576,6 +579,23 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_alloc_and_run(args);
 }
 
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc_arg()
+ *
+ * @cookie:	cookie received when allocating the buffer
+ */
+static void thread_rpc_free_arg(uint64_t cookie)
+{
+	if (cookie) {
+		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+			OPTEE_SMC_RETURN_RPC_FREE
+		};
+
+		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
+		thread_rpc(rpc_args);
+	}
+}
+
 /*
  * Helper routine for the assembly function thread_std_smc_entry()
  *
@@ -591,9 +611,8 @@ void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 
 		tee_fs_rpc_cache_clear(&thr->tsd);
 		if (!thread_prealloc_rpc_cache) {
-			thread_rpc_free_arg(thr->rpc_carg);
+			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
 			mobj_free(thr->rpc_mobj);
-			thr->rpc_carg = 0;
 			thr->rpc_arg = 0;
 			thr->rpc_mobj = NULL;
 		}
@@ -670,7 +689,6 @@ void thread_state_free(void)
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
-	assert(TAILQ_EMPTY(&threads[ct].mutexes));
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
@@ -948,7 +966,7 @@ static bool probe_workaround_available(void)
 	return r >= 0;
 }
 
-static vaddr_t select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector(vaddr_t a)
 {
 	if (probe_workaround_available()) {
 		DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") available",
@@ -963,7 +981,7 @@ static vaddr_t select_vector(vaddr_t a)
 	return (vaddr_t)thread_excp_vect;
 }
 #else
-static vaddr_t select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector(vaddr_t a)
 {
 	return a;
 }
@@ -1074,7 +1092,8 @@ uint32_t thread_kernel_enable_vfp(void)
 	assert(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns);
+		vfp_lazy_save_state_final(&thr->vfp_state.ns,
+					  thr->vfp_state.ns_force_save);
 		thr->vfp_state.ns_saved = true;
 	} else if (thr->vfp_state.sec_lazy_saved &&
 		   !thr->vfp_state.sec_saved) {
@@ -1082,14 +1101,15 @@ uint32_t thread_kernel_enable_vfp(void)
 		 * This happens when we're handling an abort while the
 		 * thread was using the VFP state.
 		 */
-		vfp_lazy_save_state_final(&thr->vfp_state.sec);
+		vfp_lazy_save_state_final(&thr->vfp_state.sec,
+					  false /*!force_save*/);
 		thr->vfp_state.sec_saved = true;
 	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
 		/*
 		 * This can happen either during syscall or abort
 		 * processing (while processing a syscall).
 		 */
-		vfp_lazy_save_state_final(&tuv->vfp);
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
 		tuv->saved = true;
 	}
 
@@ -1145,11 +1165,13 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 	assert(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns);
+		vfp_lazy_save_state_final(&thr->vfp_state.ns,
+					  thr->vfp_state.ns_force_save);
 		thr->vfp_state.ns_saved = true;
 	} else if (tuv && uvfp != tuv) {
 		if (tuv->lazy_saved && !tuv->saved) {
-			vfp_lazy_save_state_final(&tuv->vfp);
+			vfp_lazy_save_state_final(&tuv->vfp,
+						  false /*!force_save*/);
 			tuv->saved = true;
 		}
 	}
@@ -1268,28 +1290,6 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 }
 #endif
 
-void thread_add_mutex(struct mutex *m)
-{
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == MUTEX_OWNER_ID_NONE);
-	m->owner_id = ct;
-	TAILQ_INSERT_TAIL(&threads[ct].mutexes, m, link);
-}
-
-void thread_rem_mutex(struct mutex *m)
-{
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	assert(ct != -1 && threads[ct].state == THREAD_STATE_ACTIVE);
-	assert(m->owner_id == ct);
-	m->owner_id = MUTEX_OWNER_ID_NONE;
-	TAILQ_REMOVE(&threads[ct].mutexes, m, link);
-}
-
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 {
 	bool rv;
@@ -1308,9 +1308,8 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 	rv = true;
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].rpc_arg) {
+			*cookie = mobj_get_cookie(threads[n].rpc_mobj);
 			mobj_free(threads[n].rpc_mobj);
-			*cookie = threads[n].rpc_carg;
-			threads[n].rpc_carg = 0;
 			threads[n].rpc_arg = NULL;
 			goto out;
 		}
@@ -1347,19 +1346,14 @@ out:
 	return rv;
 }
 
-void thread_rpc_free_arg(uint64_t cookie)
-{
-	if (cookie) {
-		uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
-			OPTEE_SMC_RETURN_RPC_FREE
-		};
-
-		reg_pair_from_64(cookie, rpc_args + 1, rpc_args + 2);
-		thread_rpc(rpc_args);
-	}
-}
-
-struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
+/**
+ * Allocates data for struct optee_msg_arg.
+ *
+ * @size:	size in bytes of struct optee_msg_arg
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+static struct mobj *thread_rpc_alloc_arg(size_t size)
 {
 	paddr_t pa;
 	uint64_t co;
@@ -1378,19 +1372,17 @@ struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie)
 
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
-		mobj = mobj_shm_alloc(pa, size);
+		mobj = mobj_shm_alloc(pa, size, co);
 	else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
 		mobj = mobj_mapped_shm_alloc(&pa, 1, 0, co);
 
 	if (!mobj)
 		goto err;
 
-	*cookie = co;
 	return mobj;
 err:
 	thread_rpc_free_arg(co);
 	mobj_free(mobj);
-	*cookie = 0;
 	return NULL;
 }
 
@@ -1401,22 +1393,22 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	struct optee_msg_arg *arg = thr->rpc_arg;
 	struct mobj *mobj;
 	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
-	uint64_t c;
 
 	if (num_params > THREAD_RPC_MAX_NUM_PARAMS)
 		return false;
 
 	if (!arg) {
-		mobj = thread_rpc_alloc_arg(sz, &c);
+		mobj = thread_rpc_alloc_arg(sz);
 		if (!mobj)
 			return false;
 
 		arg = mobj_get_va(mobj, 0);
-		if (!arg)
-			goto bad;
+		if (!arg) {
+			thread_rpc_free_arg(mobj_get_cookie(mobj));
+			return false;
+		}
 
 		thr->rpc_arg = arg;
-		thr->rpc_carg = c;
 		thr->rpc_mobj = mobj;
 	}
 
@@ -1426,12 +1418,8 @@ static bool get_rpc_arg(uint32_t cmd, size_t num_params,
 	arg->ret = TEE_ERROR_GENERIC; /* in case value isn't updated */
 
 	*arg_ret = arg;
-	*carg_ret = thr->rpc_carg;
+	*carg_ret = mobj_get_cookie(thr->rpc_mobj);
 	return true;
-
-bad:
-	thread_rpc_free_arg(c);
-	return false;
 }
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
@@ -1442,13 +1430,9 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	uint64_t carg;
 	size_t n;
 
-	/*
-	 * Break recursion in case plat_prng_add_jitter_entropy_norpc()
-	 * sleeps on a mutex or unlocks a mutex with a sleeper (contended
-	 * mutex).
-	 */
-	if (cmd != OPTEE_MSG_RPC_CMD_WAIT_QUEUE)
-		plat_prng_add_jitter_entropy_norpc();
+	/* The source CRYPTO_RNG_SRC_JITTER_RPC is safe to use here */
+	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_RPC,
+				     &thread_rpc_pnum);
 
 	if (!get_rpc_arg(cmd, num_params, &arg, &carg))
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -1513,16 +1497,16 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
  *		failed.
  * @cookie:	returned cookie used when freeing the buffer
  */
-static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
-				     uint64_t *cookie)
+static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct optee_msg_arg *arg;
 	uint64_t carg;
 	struct mobj *mobj = NULL;
+	uint64_t cookie;
 
 	if (!get_rpc_arg(OPTEE_MSG_RPC_CMD_SHM_ALLOC, 1, &arg, &carg))
-		goto fail;
+		return NULL;
 
 	arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	arg->params[0].u.value.a = bt;
@@ -1533,45 +1517,56 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	thread_rpc(rpc_args);
 
 	if (arg->ret != TEE_SUCCESS)
-		goto fail;
+		return NULL;
 
 	if (arg->num_params != 1)
-		goto fail;
+		return NULL;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
-		*cookie = arg->params[0].u.tmem.shm_ref;
+		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size);
+				      arg->params[0].u.tmem.size,
+				      cookie);
 	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 					   OPTEE_MSG_ATTR_NONCONTIG)) {
-		*cookie = arg->params[0].u.tmem.shm_ref;
+		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
 			arg->params[0].u.tmem.size,
-			*cookie,
+			cookie,
 			true);
-	} else
-		goto fail;
+	} else {
+		return NULL;
+	}
 
-	if (!mobj)
-		goto free_first;
+	if (!mobj) {
+		thread_rpc_free(bt, cookie, mobj);
+		return NULL;
+	}
 
 	assert(mobj_is_nonsec(mobj));
+
 	return mobj;
-
-free_first:
-	thread_rpc_free(bt, *cookie, mobj);
-fail:
-	*cookie = 0;
-	return NULL;
 }
 
-struct mobj *thread_rpc_alloc_payload(size_t size, uint64_t *cookie)
+struct mobj *thread_rpc_alloc_payload(size_t size)
 {
-	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie);
+	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_APPL);
 }
 
-void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj)
+void thread_rpc_free_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, cookie, mobj);
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
+			mobj);
+}
+
+struct mobj *thread_rpc_alloc_global_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_MSG_RPC_SHM_TYPE_GLOBAL);
+}
+
+void thread_rpc_free_global_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_MSG_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
+			mobj);
 }

@@ -16,8 +16,8 @@ Porting guidelines for OP-TEE
 This document serves a dual purpose:
 * Serve as a base for getting OP-TEE up and running on a new device with initial
   xtest validation passing. This is the first part of this document (section 2).
-* Highlight the missing pieces if you intend to make intend to make a real
-  secure product, that is what the second part of this document is about.
+* Highlight the missing pieces if you intend to make a real secure product,
+  that is what the second part of this document is about.
 
 We are trying our best to implement full end to end security in OP-TEE in a
 generic way, but due to the nature of devices being different, NDA etc, it is
@@ -214,13 +214,13 @@ supported in OP-TEE, that is where you also shall list your device. It should
 contain the name of the platform, then composite `PLATFORM` flag and whether the
 device is publicly available or not.
 
-#### 2.2.2 Update travis.xml
-Since we are using Travis to test pull request etc, we would like that you also
-all your device to the [travis] file, so that it will at least be built when
-someone is doing a pull request. Add a line saying:
+#### 2.2.2 Update .shippable.yml
+Since we are using Shippable to test pull requests etc, we would like that you also
+add your device to the [.shippable.yml](../.shippable.yml) file, so that it will at least be built when
+someone is doing a pull request. Add a line at the end of file:
 
 ```
-- PLATFORM=gendev  PLATFORM_FLAVOR=gendev-flav  make -j8 all -s
+ - _make PLATFORM=<platform-name>_
 ```
 #### 2.2.3 Maintainer
 If you are submitting the board support upstream and cannot give Linaro
@@ -290,7 +290,7 @@ manufacturers all tend to do this in their own unique way and they are not very
 keen on sharing their low level boot details and security implementation with
 the rest of the world. This is especially true on ARMv7-A. For ARMv8-A it looks
 bit better, since ARM in ARM Trusted Firmware have implemented and defined how a
-abstract the chain of trust (see [auth-framework.md]). We have successfully
+abstract the chain of trust (see [auth-framework.rst]). We have successfully
 verified OP-TEE by using the authentication framework from ARM Trusted Firmware
 (see [optee_with_auth_framework.md] for the details).
 
@@ -366,7 +366,7 @@ plans on extending this to make it a bit more flexible. Exactly when that will
 happen has not been decided yet.
 
 [3. Platforms Supported]: ../README.md#3-platforms-supported
-[auth-framework.md]: https://github.com/ARM-software/arm-trusted-firmware/blob/master/docs/auth-framework.md
+[auth-framework.rst]: https://github.com/ARM-software/arm-trusted-firmware/blob/master/docs/auth-framework.rst
 [crypto.md]: crypto.md
 [HSM]: https://en.wikipedia.org/wiki/Hardware_security_module
 [manifest]: https://github.com/OP-TEE/build#6-manifests

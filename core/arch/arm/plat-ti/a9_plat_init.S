@@ -40,6 +40,8 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
+.arch_extension sec
+
 .section .text
 .balign 4
 .code 32

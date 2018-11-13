@@ -101,6 +101,7 @@
 #define TCR_ORGN1_SHIFT		26
 #define TCR_SH1_SHIFT		28
 #define TCR_EL1_IPS_SHIFT	32
+#define TCR_EL1_IPS_MASK	UINT64_C(0x7)
 #define TCR_TG1_4KB		SHIFT_U32(2, 30)
 #define TCR_RES1		BIT32(31)
 
@@ -305,6 +306,8 @@ DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
 DEFINE_REG_READ_FUNC_(cntkctl, uint32_t, cntkctl_el1)
 DEFINE_REG_WRITE_FUNC_(cntkctl, uint32_t, cntkctl_el1)
 
+DEFINE_REG_READ_FUNC_(pmccntr, uint64_t, pmccntr_el0)
+
 DEFINE_U64_REG_READWRITE_FUNCS(ttbr0_el1)
 DEFINE_U64_REG_READWRITE_FUNCS(ttbr1_el1)
 DEFINE_U64_REG_READWRITE_FUNCS(tcr_el1)
@@ -324,7 +327,9 @@ DEFINE_REG_READ_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
 DEFINE_REG_WRITE_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
 DEFINE_REG_WRITE_FUNC_(icc_pmr, uint32_t, S3_0_C4_C6_0)
 DEFINE_REG_READ_FUNC_(icc_iar0, uint32_t, S3_0_c12_c8_0)
+DEFINE_REG_READ_FUNC_(icc_iar1, uint32_t, S3_0_c12_c12_0)
 DEFINE_REG_WRITE_FUNC_(icc_eoir0, uint32_t, S3_0_c12_c8_1)
+DEFINE_REG_WRITE_FUNC_(icc_eoir1, uint32_t, S3_0_c12_c12_1)
 #endif /*ASM*/
 
 #endif /*ARM64_H*/

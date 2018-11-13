@@ -13,6 +13,7 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
+#define MOBJ_INVALID_COOKIE	0xffffffffffffffff
 
 struct mobj {
 	const struct mobj_ops *ops;
@@ -30,6 +31,7 @@ struct mobj_ops {
 	void (*free)(struct mobj *mobj);
 	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
 			       vaddr_t va);
+	uint64_t (*get_cookie)(struct mobj *mobj);
 };
 
 extern struct mobj mobj_virt;
@@ -85,6 +87,14 @@ static inline void mobj_update_mapping(struct mobj *mobj,
 		mobj->ops->update_mapping(mobj, utc, va);
 }
 
+static inline uint64_t mobj_get_cookie(struct mobj *mobj)
+{
+	if (mobj && mobj->ops && mobj->ops->get_cookie)
+		return mobj->ops->get_cookie(mobj);
+
+	return MOBJ_INVALID_COOKIE;
+}
+
 static inline bool mobj_is_nonsec(struct mobj *mobj)
 {
 	return mobj_matches(mobj, CORE_MEM_NON_SEC);
@@ -117,10 +127,63 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie);
 
-struct mobj *mobj_reg_shm_find_by_cookie(uint64_t cookie);
+/**
+ * mobj_reg_shm_get_by_cookie() - get a MOBJ based on cookie
+ * @cookie:	Cookie used by normal world when suppling the shared memory
+ *
+ * Searches for a registered shared memory MOBJ and if one with a matching
+ * @cookie is found its reference counter is increased before returning
+ * the MOBJ.
+ *
+ * Returns a valid pointer on success or NULL on failure.
+ */
+struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie);
 
-TEE_Result mobj_reg_shm_map(struct mobj *mobj);
-TEE_Result mobj_reg_shm_unmap(struct mobj *mobj);
+/**
+ * mobj_reg_shm_put() - put a MOBJ
+ * @mobj:	Pointer to a registered shared memory MOBJ
+ *
+ * Decreases reference counter of the @mobj and frees it if the counter
+ * reaches 0.
+ */
+void mobj_reg_shm_put(struct mobj *mobj);
+
+TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
+
+/**
+ * mobj_reg_shm_inc_map() - increase map count
+ * @mobj:	pointer to a registered shared memory MOBJ
+ *
+ * Maps the MOBJ if it isn't mapped already and increaes the map count
+ * Each call to mobj_reg_shm_inc_map() is supposed to be matches by a call
+ * to mobj_reg_shm_dec_map().
+ *
+ * Returns TEE_SUCCESS on success or an error code on failure
+ */
+TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj);
+
+/**
+ * mobj_reg_shm_dec_map() - decrease map count
+ * @mobj:	pointer to a registered shared memory MOBJ
+ *
+ * Decreases the map count and also unmaps the MOBJ if the map count
+ * reaches 0.  Each call to mobj_reg_shm_inc_map() is supposed to be
+ * matched by a call to mobj_reg_shm_dec_map().
+ *
+ * Returns TEE_SUCCESS on success or an error code on failure
+ */
+TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj);
+
+/**
+ * mobj_reg_shm_unguard() - unguards a reg_shm
+ * @mobj:	pointer to a registered shared memory mobj
+ *
+ * A registered shared memory mobj is normally guarded against being
+ * released with mobj_reg_shm_try_release_by_cookie(). After this function
+ * has returned the mobj can be released by a call to
+ * mobj_reg_shm_try_release_by_cookie() if the reference counter allows it.
+ */
+void mobj_reg_shm_unguard(struct mobj *mobj);
 
 /*
  * mapped_shm represents registered shared buffer
@@ -129,7 +192,7 @@ TEE_Result mobj_reg_shm_unmap(struct mobj *mobj);
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
 
-struct mobj *mobj_shm_alloc(paddr_t pa, size_t size);
+struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
 
 struct mobj *mobj_paged_alloc(size_t size);
 

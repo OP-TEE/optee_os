@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2018, Linaro Limited
  */
 
 #include <arm.h>
@@ -298,6 +298,15 @@ static void carve_out_asan_mem(tee_mm_pool_t *pool __unused)
 }
 #endif
 
+static void print_pager_pool_size(void)
+{
+	struct tee_pager_stats __maybe_unused stats;
+
+	tee_pager_get_stats(&stats);
+	IMSG("Pager pool size: %zukB",
+		stats.npages_all * SMALL_PAGE_SIZE / 1024);
+}
+
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
 	const vaddr_t begin = TEE_RAM_VA_START;
@@ -407,7 +416,7 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore,
 		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
 	assert(mm);
-	tee_pager_init(mm);
+	tee_pager_set_alias_area(mm);
 
 	/*
 	 * Claim virtual memory which isn't paged.
@@ -441,6 +450,8 @@ static void init_runtime(unsigned long pageable_part)
 	tee_pager_add_pages(tee_mm_vcore.lo,
 			(VCORE_UNPG_RX_PA - tee_mm_vcore.lo) / SMALL_PAGE_SIZE,
 			true);
+
+	print_pager_pool_size();
 }
 #else
 
@@ -869,7 +880,7 @@ static void discover_nsec_memory(void)
 	}
 
 	nelems = (&__end_phys_ddr_overall_section -
-		  &__start_phys_ddr_overall_section) / sizeof(*mem);
+		  &__start_phys_ddr_overall_section);
 	if (!nelems)
 		return;
 

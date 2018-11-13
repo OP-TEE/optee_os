@@ -60,7 +60,7 @@ void imx_wdog_restart(void)
 
 	DMSG("val %x\n", val);
 
-	write16(val, wdog_base + WCR_OFF);
+	write16(val, wdog_base + WDT_WCR);
 	dsb();
 
 	if (read16(wdog_base + WDT_WCR) & WDT_WCR_WDE) {
@@ -68,8 +68,8 @@ void imx_wdog_restart(void)
 		write16(WDT_SEQ2, wdog_base + WDT_WSR);
 	}
 
-	write16(val, wdog_base + WCR_OFF);
-	write16(val, wdog_base + WCR_OFF);
+	write16(val, wdog_base + WDT_WCR);
+	write16(val, wdog_base + WDT_WCR);
 
 	while (1)
 		;
@@ -97,8 +97,8 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	};
 #else
 	static const char * const wdog_path[] = {
-		"/soc/aips-bus@02000000/wdog@020bc000",
-		"/soc/aips-bus@02000000/wdog@020c0000",
+		"/soc/aips-bus@2000000/wdog@20bc000",
+		"/soc/aips-bus@2000000/wdog@20c0000",
 	};
 #endif
 
@@ -173,7 +173,9 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 
 static TEE_Result imx_wdog_init(void)
 {
-#ifdef PLATFORM_FLAVOR_mx7dsabresd
+#if defined(PLATFORM_FLAVOR_mx7dsabresd) || \
+	defined(PLATFORM_FLAVOR_mx7dclsom)
+
 	ext_reset = true;
 #endif
 	return imx_wdog_base(&wdog_base);

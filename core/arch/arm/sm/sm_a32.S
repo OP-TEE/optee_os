@@ -15,9 +15,11 @@
 #include <sm/teesmc_opteed_macros.h>
 #include <util.h>
 
+#define SM_CTX_SEC_END	(SM_CTX_SEC + SM_CTX_SEC_SIZE)
+
 	.section .text.sm_asm
 
-FUNC sm_save_modes_regs , :
+FUNC sm_save_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -44,13 +46,17 @@ UNWIND(	.cantunwind)
 	mrs	r2, spsr
 	stm	r0!, {r2, sp, lr}
 
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	read_pmcr r2
+	stm	r0!, {r2}
+#endif
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC sm_save_modes_regs
+END_FUNC sm_save_unbanked_regs
 
 /* Restores the mode specific registers */
-FUNC sm_restore_modes_regs , :
+FUNC sm_restore_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
@@ -77,10 +83,14 @@ UNWIND(	.cantunwind)
 	ldm	r0!, {r2, sp, lr}
 	msr	spsr_fsxc, r2
 
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	ldm	r0!, {r2}
+	write_pmcr r2
+#endif
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC sm_restore_modes_regs
+END_FUNC sm_restore_unbanked_regs
 
 /*
  * stack_tmp is used as stack, the top of the stack is reserved to hold
@@ -111,7 +121,7 @@ UNWIND(	.cantunwind)
 
 	/* Save secure context */
 	add	r0, sp, #SM_CTX_SEC
-	bl	sm_save_modes_regs
+	bl	sm_save_unbanked_regs
 
 	/*
 	 * On FIQ exit we're restoring the non-secure context unchanged, on
@@ -127,7 +137,7 @@ UNWIND(	.cantunwind)
 
 	/* Restore non-secure context */
 	add	r0, sp, #SM_CTX_NSEC
-	bl	sm_restore_modes_regs
+	bl	sm_restore_unbanked_regs
 
 .sm_ret_to_nsec:
 	/*
@@ -212,7 +222,8 @@ UNWIND(	.cantunwind)
 
 	/* Save non-secure context */
 	add	r0, sp, #SM_CTX_NSEC
-	bl	sm_save_modes_regs
+	bl	sm_save_unbanked_regs
+	add     r0, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R8)
 	stm	r0!, {r8-r12}
 
 	/* Set FIQ entry */
@@ -221,7 +232,7 @@ UNWIND(	.cantunwind)
 
 	/* Restore secure context */
 	add	r0, sp, #SM_CTX_SEC
-	bl	sm_restore_modes_regs
+	bl	sm_restore_unbanked_regs
 
 	add	sp, sp, #(SM_CTX_SEC + SM_SEC_CTX_MON_LR)
 
@@ -319,7 +330,7 @@ UNWIND(	.fnstart)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_MON
 	/* Point just beyond sm_ctx.sec */
-	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_NSEC)
+	sub	sp, r0, #(SM_CTX_SIZE - SM_CTX_SEC_END)
 
 #ifdef CFG_INIT_CNTVOFF
 	read_scr r0
@@ -337,7 +348,7 @@ UNWIND(	.fnstart)
 	 * the CNTVOFF encoding is UNPREDICTABLE if executed in Monitor
 	 * mode, regardless of the value of SCR.NS.
 	 */
-	read_idpfr1 r2
+	read_id_pfr1 r2
 	mov	r3, r2
 	ands    r3, r3, #IDPFR1_GENTIMER_MASK
 	beq	.no_gentimer
@@ -351,7 +362,11 @@ UNWIND(	.fnstart)
 	write_scr r0
 	isb
 #endif
-
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	read_pmcr r0
+	orr	r0, #PMCR_DP
+	write_pmcr r0
+#endif
 	msr	cpsr, r1
 
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
@@ -395,12 +410,12 @@ KEEP_PAGER sm_init
 FUNC sm_get_nsec_ctx , :
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_MON
-	mov	r0, sp
+	/*
+	 * As we're in secure mode mon_sp points just beyond sm_ctx.sec,
+	 * which allows us to calculate the address of sm_ctx.nsec.
+	 */
+	add	r0, sp, #(SM_CTX_NSEC - SM_CTX_SEC_END)
 	msr	cpsr, r1
 
-	/*
-	 * As we're in secure mode mon_sp points just beyond sm_ctx.sec
-	 * which is sm_ctx.nsec
-	 */
 	bx	lr
 END_FUNC sm_get_nsec_ctx

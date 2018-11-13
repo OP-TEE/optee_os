@@ -480,6 +480,12 @@ extern char *sprintf();               /* Sun includes don't define sprintf */
 #include <ctype.h>
 #endif
 
+#ifdef __KERNEL__
+#ifdef CFG_CORE_BGET_BESTFIT
+#define BestFit 1
+#endif
+#endif
+
 /*  Declare the interface, including the requested buffer size type,
     bufsize.  */
 

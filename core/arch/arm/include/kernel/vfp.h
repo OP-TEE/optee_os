@@ -50,7 +50,6 @@ struct vfp_state {
 	uint32_t fpsr;
 	uint32_t fpcr;
 	uint32_t cpacr_el1;
-	bool force_save; /* Save to reg even if VFP was not enabled */
 };
 #endif
 
@@ -87,11 +86,13 @@ void vfp_lazy_save_state_init(struct vfp_state *state);
 /*
  * vfp_lazy_save_state_final() - Saves rest of VFP state
  * @state:	VFP state to save to
+ * @force_save:	Forces saving of state regardless of previous state if true.
  *
- * If VFP was enabled when vfp_lazy_save_state_init() was called: save rest
- * of state and disable VFP. Otherwise, do nothing.
+ * If VFP was enabled when vfp_lazy_save_state_init() was called or
+ * @force_save is true: save rest of state and disable VFP. Otherwise, do
+ * nothing.
  */
-void vfp_lazy_save_state_final(struct vfp_state *state);
+void vfp_lazy_save_state_final(struct vfp_state *state, bool force_save);
 
 /*
  * vfp_lazy_restore_state() - Lazy restore VFP state

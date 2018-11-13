@@ -43,6 +43,6 @@ void	bstats	    _((bufsize *curalloc, bufsize *totfree, bufsize *maxfree,
 void	bstatse     _((bufsize *pool_incr, long *npool, long *npget,
 		       long *nprel, long *ndget, long *ndrel,
 		       struct bpoolset *poolset));
-void	bufdump     _((void *buf, struct bpoolset *poolset));
+void	bufdump     _((void *buf));
 void	bpoold	    _((void *pool, int dumpalloc, int dumpfree));
 int	bpoolv	    _((void *pool));

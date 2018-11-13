@@ -15,6 +15,8 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
+.arch_extension sec
+
 .section .data
 .balign 4
 

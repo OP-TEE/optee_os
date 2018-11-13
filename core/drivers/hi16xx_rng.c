@@ -7,7 +7,7 @@
 
 #include <initcall.h>
 #include <io.h>
-#include <kernel/mutex.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -35,7 +35,7 @@
 register_phys_mem(MEM_AREA_IO_SEC, ALG_SC_BASE, ALG_SC_REG_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 
-static struct mutex rng_mutex = MUTEX_INITIALIZER;
+static unsigned int rng_lock = SPINLOCK_UNLOCK;
 
 static TEE_Result hi16xx_rng_init(void)
 {
@@ -69,8 +69,9 @@ uint8_t hw_get_random_byte(void)
 		uint8_t byte[4];
 	} random;
 	uint8_t ret;
+	uint32_t exceptions;
 
-	mutex_lock(&rng_mutex);
+	exceptions = cpu_spin_lock_xsave(&rng_lock);
 
 	if (!r)
 		r = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC) + RNG_NUM;
@@ -83,7 +84,7 @@ uint8_t hw_get_random_byte(void)
 	if (pos == 4)
 		pos = 0;
 
-	mutex_unlock(&rng_mutex);
+	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
 
 	return ret;
 }

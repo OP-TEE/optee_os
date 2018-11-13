@@ -12,17 +12,19 @@ build:
     - export LC_ALL=C
     - export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
-    # No parallel build ('make -j$(getconf _NPROCESSORS_ONLN)') due to:
-    # https://github.com/Shippable/support/issues/3953
-    - function _make() { make -s $* && ccache -s && ccache -z; }
+    - export CFG_DEBUG_INFO=n; export CCACHE_UNIFY=true
+    - export CFG_WERROR=y
+    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z; }
     - ccache -z
 
     - _make
-    - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 DEBUG=1
-    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 DEBUG=0
+    - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPTIMIZE_FOR_SIZE=n CFG_DEBUG_INFO=y
+    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_CC_OPTIMIZE_FOR_SIZE=y CFG_DEBUG_INFO=n
+    - _make CFG_TEE_CORE_LOG_LEVEL=0
     - _make CFG_TEE_CORE_MALLOC_DEBUG=y
     - _make CFG_CORE_SANITIZE_UNDEFINED=y
     - _make CFG_CORE_SANITIZE_KADDRESS=y
+    - _make CFG_LOCKDEP=y
     - _make CFG_CRYPTO=n
     - _make CFG_CRYPTO_{AES,DES}=n
     - _make CFG_CRYPTO_{DSA,RSA,DH}=n
@@ -37,7 +39,7 @@ build:
     - _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
     - _make CFG_REE_FS=n CFG_RPMB_FS=y
     - _make CFG_WITH_USER_TA=n CFG_CRYPTO=n CFG_SE_API=n CFG_PCSC_PASSTHRU_READER_DRV=y
-    - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y DEBUG=1
+    - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y CFG_CC_OPTIMIZE_FOR_SIZE=n CFG_DEBUG_INFO=y
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n DEBUG=0
     - _make CFG_BUILT_IN_ARGS=y CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0 CFG_DT_ADDR=0 CFG_DT=y
     - _make CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
@@ -47,6 +49,7 @@ build:
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
     - _make PLATFORM=stm-b2260
     - _make PLATFORM=stm-cannes
+    - _make PLATFORM=stm32mp1
     - _make PLATFORM=vexpress-fvp
     - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
     - _make PLATFORM=vexpress-juno
@@ -54,13 +57,15 @@ build:
     - _make PLATFORM=hikey
     - _make PLATFORM=hikey CFG_ARM64_core=y
     - _make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
-    - _make PLATFORM=imx-mx6ulevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT_ADDR=0x83000000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
-    - _make PLATFORM=imx-mx6ullevk ARCH=arm CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0x80800000 CFG_DT=y DEBUG=y CFG_TEE_CORE_LOG_LEVEL=4
+    - _make PLATFORM=imx-mx6ulevk
+    - _make PLATFORM=imx-mx6ullevk
     - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6qsabrelite
     - _make PLATFORM=imx-mx6qsabresd
     - _make PLATFORM=imx-mx6dlsabresd
     - _make PLATFORM=imx-mx7dsabresd
+    - _make PLATFORM=k3-am65x
+    - _make PLATFORM=k3-am65x CFG_ARM64_core=y
     - _make PLATFORM=ti-dra7xx
     - _make PLATFORM=ti-am57xx
     - _make PLATFORM=ti-am43xx
@@ -68,9 +73,12 @@ build:
     - _make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
     - _make PLATFORM=ls-ls1021atwr
     - _make PLATFORM=ls-ls1021aqds
-    - _make PLATFORM=ls-ls1043ardb CFG_ARM64_core=y
-    - _make PLATFORM=ls-ls1046ardb CFG_ARM64_core=y
-    - _make PLATFORM=ls-ls1012ardb CFG_ARM64_core=y
+    - _make PLATFORM=ls-ls1043ardb
+    - _make PLATFORM=ls-ls1046ardb
+    - _make PLATFORM=ls-ls1012ardb
+    - _make PLATFORM=ls-ls1012afrwy
+    - _make PLATFORM=ls-ls1088ardb
+    - _make PLATFORM=ls-ls2088ardb
     - _make PLATFORM=zynq7k-zc702
     - _make PLATFORM=zynqmp-zcu102
     - _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
@@ -89,3 +97,6 @@ build:
     - _make PLATFORM=sam
     - _make PLATFORM=marvell-armada7k8k
     - _make PLATFORM=marvell-armada3700
+    - _make PLATFORM=synquacer
+    - _make PLATFORM=sunxi-bpi_zero
+    - _make PLATFORM=sunxi-sun50i_a64

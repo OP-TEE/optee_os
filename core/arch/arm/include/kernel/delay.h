@@ -30,5 +30,6 @@
 #define __KERNEL_DELAY_H
 
 void udelay(uint32_t us);
+void mdelay(uint32_t ms);
 
 #endif

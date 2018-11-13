@@ -23,7 +23,6 @@
 struct user_ta_store_handle {
 	struct shdr *nw_ta; /* Non-secure (shared memory) */
 	size_t nw_ta_size;
-	uint64_t cookie;
 	struct mobj *mobj;
 	size_t offs;
 	struct shdr *shdr; /* Verified secure copy of @nw_ta's signed header */
@@ -36,14 +35,12 @@ struct user_ta_store_handle {
  * address of the raw TA binary is received in out parameter @ta.
  */
 static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
-			   uint64_t *cookie_ta, size_t *ta_size,
-			   struct mobj **mobj)
+			   size_t *ta_size, struct mobj **mobj)
 {
 	TEE_Result res;
 	struct optee_msg_param params[2];
-	uint64_t cta = 0;
 
-	if (!uuid || !ta || !cookie_ta || !mobj || !ta_size)
+	if (!uuid || !ta || !mobj || !ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	memset(params, 0, sizeof(params));
@@ -58,24 +55,23 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	*mobj = thread_rpc_alloc_payload(params[1].u.tmem.size, &cta);
+	*mobj = thread_rpc_alloc_payload(params[1].u.tmem.size);
 	if (!*mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	*ta = mobj_get_va(*mobj, 0);
 	/* We don't expect NULL as thread_rpc_alloc_payload() was successful */
 	assert(*ta);
-	*cookie_ta = cta;
 	*ta_size = params[1].u.tmem.size;
 
 	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
 	msg_param_init_memparam(params + 1, *mobj, 0, params[1].u.tmem.size,
-				cta, MSG_PARAM_MEM_DIR_OUT);
+				MSG_PARAM_MEM_DIR_OUT);
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS)
-		thread_rpc_free_payload(cta, *mobj);
+		thread_rpc_free_payload(*mobj);
 	return res;
 }
 
@@ -89,7 +85,6 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	uint32_t hash_algo = 0;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
-	uint64_t cookie = 0;
 	TEE_Result res;
 	size_t offs;
 
@@ -98,7 +93,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	/* Request TA from tee-supplicant */
-	res = rpc_load(uuid, &ta, &cookie, &ta_size, &mobj);
+	res = rpc_load(uuid, &ta, &ta_size, &mobj);
 	if (res != TEE_SUCCESS)
 		goto error;
 
@@ -170,7 +165,6 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 
 	handle->nw_ta = ta;
 	handle->nw_ta_size = ta_size;
-	handle->cookie = cookie;
 	handle->offs = offs;
 	handle->hash_algo = hash_algo;
 	handle->hash_ctx = hash_ctx;
@@ -182,7 +176,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 error_free_hash:
 	crypto_hash_free_ctx(hash_ctx, hash_algo);
 error_free_payload:
-	thread_rpc_free_payload(cookie, mobj);
+	thread_rpc_free_payload(mobj);
 error:
 	shdr_free(shdr);
 	free(handle);
@@ -248,8 +242,8 @@ static void ta_close(struct user_ta_store_handle *h)
 {
 	if (!h)
 		return;
-	thread_rpc_free_payload(h->cookie, h->mobj);
-	free(h->hash_ctx);
+	thread_rpc_free_payload(h->mobj);
+	crypto_hash_free_ctx(h->hash_ctx, h->hash_algo);
 	free(h->shdr);
 	free(h);
 }

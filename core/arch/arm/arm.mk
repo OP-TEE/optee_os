@@ -28,7 +28,10 @@ ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_VFP,y)
 endif
 ifeq ($(CFG_WITH_VFP),y)
-platform-hard-float-enabled := y
+arm64-platform-hard-float-enabled := y
+ifneq ($(CFG_TA_ARM32_NO_HARD_FLOAT_SUPPORT),y)
+arm32-platform-hard-float-enabled := y
+endif
 endif
 endif
 
@@ -59,6 +62,10 @@ endif
 # Addresses CVE-2017-5715 (aka Meltdown) known to affect Arm Cortex-A75
 CFG_CORE_UNMAP_CORE_AT_EL0 ?= y
 
+# Initialize PMCR.DP to 1 to prohibit cycle counting in secure state, and
+# save/restore PMCR during world switch.
+CFG_SM_NO_CYCLE_COUNTING ?= y
+
 ifeq ($(CFG_ARM32_core),y)
 # Configration directive related to ARMv7 optee boot arguments.
 # CFG_PAGEABLE_ADDR: if defined, forces pageable data physical address.
@@ -77,8 +84,8 @@ endif
 arm64-platform-cppflags += -DARM64=1 -D__LP64__=1
 arm32-platform-cppflags += -DARM32=1 -D__ILP32__=1
 
-platform-cflags-generic ?= -g -ffunction-sections -fdata-sections -pipe
-platform-aflags-generic ?= -g -pipe
+platform-cflags-generic ?= -ffunction-sections -fdata-sections -pipe
+platform-aflags-generic ?= -pipe
 
 arm32-platform-cflags-no-hard-float ?= -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
@@ -91,13 +98,23 @@ arm64-platform-cflags-hard-float ?=
 arm64-platform-cflags-generic ?= -mstrict-align
 
 ifeq ($(DEBUG),1)
-platform-cflags-optimization ?=  -O0
-else
-platform-cflags-optimization ?=  -Os
+# For backwards compatibility
+$(call force,CFG_CC_OPTIMIZE_FOR_SIZE,n)
+$(call force,CFG_DEBUG_INFO,y)
 endif
 
+CFG_CC_OPTIMIZE_FOR_SIZE ?= y
+ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),y)
+platform-cflags-optimization ?= -Os
+else
+platform-cflags-optimization ?= -O0
+endif
+
+CFG_DEBUG_INFO ?= y
+ifeq ($(CFG_DEBUG_INFO),y)
 platform-cflags-debug-info ?= -g3
-platform-aflags-debug-info ?=
+platform-aflags-debug-info ?= -g
+endif
 
 core-platform-cflags += $(platform-cflags-optimization)
 core-platform-cflags += $(platform-cflags-generic)
@@ -136,7 +153,7 @@ ta_arm32-platform-cflags += $(platform-cflags-optimization)
 ta_arm32-platform-cflags += $(platform-cflags-debug-info)
 ta_arm32-platform-cflags += -fpie
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic)
-ifeq ($(platform-hard-float-enabled),y)
+ifeq ($(arm32-platform-hard-float-enabled),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
@@ -168,7 +185,7 @@ ta_arm64-platform-cflags += $(platform-cflags-optimization)
 ta_arm64-platform-cflags += $(platform-cflags-debug-info)
 ta_arm64-platform-cflags += -fpie
 ta_arm64-platform-cflags += $(arm64-platform-cflags-generic)
-ifeq ($(platform-hard-float-enabled),y)
+ifeq ($(arm64-platform-hard-float-enabled),y)
 ta_arm64-platform-cflags += $(arm64-platform-cflags-hard-float)
 else
 ta_arm64-platform-cflags += $(arm64-platform-cflags-no-hard-float)
@@ -188,3 +205,38 @@ endif
 
 # Set cross compiler prefix for each submodule
 $(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+
+arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
+arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
+arm32-sysregs-$(arm32-sysreg-txt)-s := arm32_sysreg.S
+arm32-sysregs += $(arm32-sysreg-txt)
+
+ifeq ($(CFG_ARM_GICV3),y)
+arm32-gicv3-sysreg-txt = core/arch/arm/kernel/arm32_gicv3_sysreg.txt
+arm32-sysregs-$(arm32-gicv3-sysreg-txt)-h := arm32_gicv3_sysreg.h
+arm32-sysregs-$(arm32-gicv3-sysreg-txt)-s := arm32_gicv3_sysreg.S
+arm32-sysregs += $(arm32-gicv3-sysreg-txt)
+endif
+
+arm32-sysregs-out := $(out-dir)/$(sm)/include/generated
+
+define process-arm32-sysreg
+FORCE-GENSRC$(sm): $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h)
+cleanfiles := $$(cleanfiles) $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h)
+
+$$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-h): $(1) scripts/arm32_sysreg.py
+	@$(cmd-echo-silent) '  GEN     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)scripts/arm32_sysreg.py --guard __$$(arm32-sysregs-$(1)-h) \
+		< $$< > $$@
+
+FORCE-GENSRC$(sm): $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s)
+cleanfiles := $$(cleanfiles) $$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s)
+
+$$(arm32-sysregs-out)/$$(arm32-sysregs-$(1)-s): $(1) scripts/arm32_sysreg.py
+	@$(cmd-echo-silent) '  GEN     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)scripts/arm32_sysreg.py --s_file < $$< > $$@
+endef #process-arm32-sysreg
+
+$(foreach sr, $(arm32-sysregs), $(eval $(call process-arm32-sysreg,$(sr))))

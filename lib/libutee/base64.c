@@ -16,7 +16,7 @@ bool base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
 {
 	size_t n;
 	size_t boffs = 0;
-	const char *d = data;
+	const unsigned char *d = data;
 
 	n = base64_enc_len(dlen);
 	if (*blen < n) {

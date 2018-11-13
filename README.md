@@ -57,14 +57,23 @@ The **Maintained?** column shows:
 |----------|-------------------------|---------------------|-------------|
 | [ARM Juno Board](http://www.arm.com/products/tools/development-boards/versatile-express/juno-arm-development-platform.php) |`PLATFORM=vexpress-juno`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [Atmel ATSAMA5D2-XULT Board](http://www.atmel.com/tools/atsama5d2-xult.aspx)|`PLATFORM=sam`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [DeveloperBox (Socionext Synquacer SC2A11)](https://www.96boards.org/product/developerbox/)|`PLATFORM=synquacer`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [FSL ls1021a](http://www.freescale.com/tools/embedded-software-and-tools/hardware-development-tools/tower-development-boards/mcu-and-processor-modules/powerquicc-and-qoriq-modules/qoriq-ls1021a-tower-system-module:TWR-LS1021A?lang_cd=en)|`PLATFORM=ls-ls1021atwr`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [NXP ls1043ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1043a-reference-design-board:LS1043A-RDB)|`PLATFORM=ls-ls1043ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [NXP ls1046ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1046a-reference-design-board:LS1046A-RDB)|`PLATFORM=ls-ls1046ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
-| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx-mx6qsabrelite`| Yes | ![Not maintained](documentation/images/red.svg) v2.2.0 |
-| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx-mx6qsabresd`| Yes | ![Not maintained](documentation/images/red.svg) v2.2.0 |
+| [NXP ls1012ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1012a-reference-design-board:LS1012A-RDB)|`PLATFORM=ls-ls1012ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP ls1088ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls1088a-reference-design-board:LS1088A-RDB)|`PLATFORM=ls-ls1088ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP ls2088ardb](http://www.nxp.com/products/microcontrollers-and-processors/power-architecture-processors/qoriq-platforms/developer-resources/qoriq-ls2088a-reference-design-board:LS2088A-RDB)|`PLATFORM=ls-ls2088ardb`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP ls1012afrwy](https://www.nxp.com/support/developer-resources/software-development-tools/qoriq-developer-resources/layerscape-frwy-ls1012a-board:FRWY-LS1012A)|`PLATFORM=ls-ls1012afrwy`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [FSL i.MX6 Quad SABRE Lite Board](https://boundarydevices.com/product/sabre-lite-imx6-sbc/) |`PLATFORM=imx-mx6qsabrelite`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [FSL i.MX6 Quad SABRE SD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-6quad-applications-processors:RD-IMX6Q-SABRE) |`PLATFORM=imx-mx6qsabresd`| Yes | ![Actively maintained](documentation/images/green.svg) |
+| [SolidRun i.MX6 Quad Hummingboard Edge](https://www.solid-run.com/product/hummingboard-edge-imx6q-wa-h/) |`PLATFORM=imx-mx6qhmbedge`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [SolidRun i.MX6 Dual Hummingboard Edge](https://www.solid-run.com/product/hummingboard-edge-imx6d-wa-h/) |`PLATFORM=imx-mx6dhmbedge`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [SolidRun i.MX6 Dual Lite Hummingboard Edge](https://www.solid-run.com/product/hummingboard-edge-imx6dl-0c-h/) |`PLATFORM=imx-mx6dlhmbedge`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [SolidRun i.MX6 Solo Hummingboard Edge](https://www.solid-run.com/product/hummingboard-edge-imx6s-wa-h/) |`PLATFORM=imx-mx6shmbedge`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [FSL i.MX6 UltraLite EVK Board](http://www.freescale.com/products/arm-processors/i.mx-applications-processors-based-on-arm-cores/i.mx-6-processors/i.mx6qp/i.mx6ultralite-evaluation-kit:MCIMX6UL-EVK) |`PLATFORM=imx-mx6ulevk`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [NXP i.MX7Dual SabreSD Board](http://www.nxp.com/products/software-and-tools/hardware-development-tools/sabre-development-system/sabre-board-for-smart-devices-based-on-the-i.mx-7dual-applications-processors:MCIMX7SABRE) |`PLATFORM=imx-mx7dsabresd`| Yes | ![Actively Maintained](documentation/images/green.svg) |
-| [NXP i.MX7Solo WaRP7 Board](http://www.nxp.com/products/developer-resources/reference-designs/warp7-next-generation-iot-and-wearable-development-platform:WARP7) |`PLATFORM=imx-mx7warp7`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [NXP i.MX7Solo WaRP7 Board](http://www.nxp.com/products/developer-resources/reference-designs/warp7-next-generation-iot-and-wearable-development-platform:WARP7) |`PLATFORM=imx-mx7swarp7`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [ARM Foundation FVP](https://developer.arm.com/products/system-design/fixed-virtual-platforms) |`PLATFORM=vexpress-fvp`| Yes | ![Actively Maintained](documentation/images/green.svg) |
 | [HiSilicon D02](http://open-estuary.org/d02-2)|`PLATFORM=d02`| No | ![Actively Maintained](documentation/images/green.svg) |
 | [HiKey Board (HiSilicon Kirin 620)](https://www.96boards.org/product/hikey)|`PLATFORM=hikey` or `PLATFORM=hikey-hikey`| Yes | ![Actively Maintained](documentation/images/green.svg) |
@@ -81,6 +90,9 @@ The **Maintained?** column shows:
 | [Rockchip RK322X](http://www.rock-chips.com/a/en/products/RK32_Series/2016/1109/799.html) |`PLATFORM=rockchip-rk322x`| No | ![Actively maintained](documentation/images/green.svg) |
 | [STMicroelectronics b2260 - h410 (96boards fmt)](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-b2260`| No | ![Actively maintained](documentation/images/green.svg) |
 | [STMicroelectronics b2120 - h310 / h410](http://www.st.com/web/en/catalog/mmc/FM131/SC999/SS1628/PF258776) |`PLATFORM=stm-cannes`| No | ![Actively maintained](documentation/images/green.svg) |
+| STMicroelectronics stm32mp1 |`PLATFORM=stm32mp1`| No | ![Actively maintained](documentation/images/green.svg) |
+| [Allwinner A64 Pine64 Board](https://www.pine64.org/) |`PLATFORM=sunxi-sun50i_a64`| Yes | ![Actively Maintained](documentation/images/green.svg) |
+| [Texas Instruments AM65x](http://www.ti.com/lit/ug/spruid7/spruid7.pdf)|`PLATFORM=k3-am65x`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [Texas Instruments DRA7xx](http://www.ti.com/processors/automotive-processors/drax-infotainment-socs/overview.html)|`PLATFORM=ti-dra7xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [Texas Instruments AM57xx](http://www.ti.com/processors/sitara/arm-cortex-a15/am57x/overview.html)|`PLATFORM=ti-am57xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
 | [Texas Instruments AM43xx](http://www.ti.com/processors/sitara/arm-cortex-a9/am438x/overview.html)|`PLATFORM=ti-am43xx`| Yes | ![Actively maintained](documentation/images/green.svg) |
@@ -108,12 +120,13 @@ the code also follows GlobalPlatform standards. The exceptions are as follows:
 	deviate too much from upstream and therefore it would be hard to rebase
 	against those projects later on and we don't expect that it is easy to
 	convince other software projects to change coding style.
+	Automatic variables should always be initialized. Mixed declarations
+	and statements are allowed, and may be used to avoid assigning useless
+	values. Please leave one blank line before and after such declarations.
 
-Regarding the checkpatch tool, since it is licensed under the terms of GNU GPL
-License Version 2, we
-cannot include this script directly into this project. Please use checkpatch
-directly from the Linux kernel git in combination with the local [checkpatch
-script].
+Regarding the checkpatch tool, it is not included directly into this project.
+Please use checkpatch.pl from the Linux kernel git in combination with the
+local [checkpatch script].
 
 [build]: https://github.com/OP-TEE/build
 [checkpatch script]: scripts/checkpatch.sh

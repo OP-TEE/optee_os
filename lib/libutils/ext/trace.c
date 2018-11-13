@@ -3,6 +3,11 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#if defined(__KERNEL__)
+#include <platform_config.h>
+#include <kernel/misc.h>
+#endif
+
 #include <printk.h>
 #include <stdarg.h>
 #include <string.h>
@@ -50,19 +55,41 @@ static char trace_level_to_string(int level, bool level_ok)
 	return lvl_strs[l];
 }
 
-static int print_thread_id(char *buf, size_t bs, int thread_id)
+static int print_thread_id(char *buf, size_t bs)
 {
 #if CFG_NUM_THREADS > 9
 	int num_thread_digits = 2;
 #else
 	int num_thread_digits = 1;
 #endif
+	int thread_id = trace_ext_get_thread_id();
 
 	if (thread_id >= 0)
 		return snprintk(buf, bs, "%0*d ", num_thread_digits, thread_id);
 	else
 		return snprintk(buf, bs, "%*s ", num_thread_digits, "");
 }
+
+#if defined(__KERNEL__)
+static int print_core_id(char *buf, size_t bs)
+{
+#if CFG_TEE_CORE_NB_CORE > 9
+	const int num_digits = 2;
+#else
+	const int num_digits = 1;
+#endif
+
+	if (thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR)
+		return snprintk(buf, bs, "%0*zu ", num_digits, get_core_pos());
+	else
+		return snprintk(buf, bs, "%*s ", num_digits, "?");
+}
+#else  /* defined(__KERNEL__) */
+static int print_core_id(char *buf __unused, size_t bs __unused)
+{
+	return 0;
+}
+#endif
 
 /* Format trace of user ta. Inline with kernel ta */
 void trace_printf(const char *function, int line, int level, bool level_ok,
@@ -72,7 +99,6 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 	char buf[MAX_PRINT_SIZE];
 	size_t boffs = 0;
 	int res;
-	int thread_id;
 
 	if (level_ok && level > trace_level)
 		return;
@@ -91,28 +117,32 @@ void trace_printf(const char *function, int line, int level, bool level_ok,
 		return;
 	boffs += res;
 
-	/* Print the Thread ID */
-	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
-		thread_id = -1;
-	else
-		thread_id = trace_ext_get_thread_id();
-
-	res = print_thread_id(buf + boffs, sizeof(buf) - boffs, thread_id);
-
-	if (res < 0)
-		return;
-	boffs += res;
-
-	/* Print the function and line */
-	if (level_ok && !(BIT(level) & CFG_MSG_LONG_PREFIX_MASK))
-		function = NULL;
-
-	if (function) {
-		res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d ",
-			       function, line);
+	if (level_ok && (BIT(level) & CFG_MSG_LONG_PREFIX_MASK)) {
+		/* Print the core ID if in atomic context  */
+		res = print_core_id(buf + boffs, sizeof(buf) - boffs);
 		if (res < 0)
 			return;
 		boffs += res;
+
+		/* Print the Thread ID */
+		res = print_thread_id(buf + boffs, sizeof(buf) - boffs);
+		if (res < 0)
+			return;
+		boffs += res;
+
+		if (function) {
+			res = snprintk(buf + boffs, sizeof(buf) - boffs, "%s:%d ",
+				       function, line);
+			if (res < 0)
+				return;
+			boffs += res;
+		}
+	} else {
+		/* Add space after location info */
+		if (boffs >= sizeof(buf) - 1)
+		    return;
+		buf[boffs++] = ' ';
+		buf[boffs] = 0;
 	}
 
 	va_start(ap, fmt);

@@ -44,13 +44,26 @@ bool tee_pager_get_table_info(vaddr_t va, struct core_mmu_table_info *ti);
 void *tee_pager_phys_to_virt(paddr_t pa);
 
 /*
- * tee_pager_init() - Initialized the pager
+ * tee_pager_set_alias_area() - Initialize pager alias area
  * @mm_alias:	The alias area where all physical pages managed by the
  *		pager are aliased
  *
  * Panics if called twice or some other error occurs.
  */
-void tee_pager_init(tee_mm_entry_t *mm_alias);
+void tee_pager_set_alias_area(tee_mm_entry_t *mm_alias);
+
+/*
+ * tee_pager_generate_authenc_key() - Generates authenc key for r/w paging
+ *
+ * Needs to draw random from RNG, panics if some error occurs.
+ */
+#ifdef CFG_WITH_PAGER
+void tee_pager_generate_authenc_key(void);
+#else
+static inline void tee_pager_generate_authenc_key(void)
+{
+}
+#endif
 
 /*
  * tee_pager_add_core_area() - Adds a pageable core area

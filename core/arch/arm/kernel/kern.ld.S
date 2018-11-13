@@ -275,7 +275,7 @@ SECTIONS
 		. = ALIGN(16);
 		__nozi_end = .;
 		__nozi_stack_start = .;
-		KEEP(*(.nozi_stack))
+		KEEP(*(.nozi_stack .nozi_stack.*))
 		. = ALIGN(8);
 		__nozi_stack_end = .;
 	}

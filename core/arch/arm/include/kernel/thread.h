@@ -70,7 +70,6 @@ struct thread_specific_data {
 	struct pgt_cache pgt_cache;
 	void *rpc_fs_payload;
 	struct mobj *rpc_fs_payload_mobj;
-	uint64_t rpc_fs_payload_cookie;
 	size_t rpc_fs_payload_size;
 };
 
@@ -553,18 +552,6 @@ bool thread_is_in_normal_mode(void);
 bool thread_is_from_abort_mode(void);
 
 /*
- * Adds a mutex to the list of held mutexes for current thread
- * Requires foreign interrupts to be disabled.
- */
-void thread_add_mutex(struct mutex *m);
-
-/*
- * Removes a mutex from the list of held mutexes for current thread
- * Requires foreign interrupts to be disabled.
- */
-void thread_rem_mutex(struct mutex *m);
-
-/*
  * Disables and empties the prealloc RPC cache one reference at a time. If
  * all threads are idle this function returns true and a cookie of one shm
  * object which was removed from the cache. When the cache is empty *cookie
@@ -581,39 +568,20 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
 bool thread_enable_prealloc_rpc_cache(void);
 
 /**
- * Allocates data for struct optee_msg_arg.
- *
- * @size:	size in bytes of struct optee_msg_arg
- * @cookie:	returned cookie used when freeing the buffer
- *
- * @returns	mobj that describes allocated buffer or NULL on error
- */
-struct mobj *thread_rpc_alloc_arg(size_t size, uint64_t *cookie);
-
-/**
- * Free physical memory previously allocated with thread_rpc_alloc_arg()
- *
- * @cookie:	cookie received when allocating the buffer
- */
-void thread_rpc_free_arg(uint64_t cookie);
-
-/**
  * Allocates data for payload buffers.
  *
  * @size:	size in bytes of payload buffer
- * @cookie:	returned cookie used when freeing the buffer
  *
  * @returns	mobj that describes allocated buffer or NULL on error
  */
-struct mobj *thread_rpc_alloc_payload(size_t size, uint64_t *cookie);
+struct mobj *thread_rpc_alloc_payload(size_t size);
 
 /**
  * Free physical memory previously allocated with thread_rpc_alloc_payload()
  *
- * @cookie:	cookie received when allocating the buffer
  * @mobj:	mobj that describes the buffer
  */
-void thread_rpc_free_payload(uint64_t cookie, struct mobj *mobj);
+void thread_rpc_free_payload(struct mobj *mobj);
 
 /**
  * Does an RPC using a preallocated argument buffer
@@ -627,6 +595,24 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
+
+/**
+ * Allocate data for payload buffers.
+ * Buffer is exported to user mode applications.
+ *
+ * @size:	size in bytes of payload buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_global_payload(size_t size);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_global_payload()
+ *
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_global_payload(struct mobj *mobj);
 
 #endif /*ASM*/
 

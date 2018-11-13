@@ -60,7 +60,6 @@ struct tee_tadb_ta_read {
 	struct tadb_entry entry;
 	size_t pos;
 	void *ctx;
-	uint64_t ta_cookie;
 	struct mobj *ta_mobj;
 	uint8_t *ta_buf;
 };
@@ -88,19 +87,18 @@ static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	uint64_t cookie;
 	struct optee_msg_param params[] = {
 		[0] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT,
 			.u.value.a = cmd },
 		[2] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT }
 	};
 
-	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	if (!msg_param_init_memparam(params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     cookie, MSG_PARAM_MEM_DIR_IN))
+				     MSG_PARAM_MEM_DIR_IN))
 		return TEE_ERROR_BAD_STATE;
 
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
@@ -116,18 +114,17 @@ static TEE_Result ta_operation_remove(uint32_t file_number)
 {
 	struct mobj *mobj;
 	void *va;
-	uint64_t cookie;
 	struct optee_msg_param params[2] = {
 		[0] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT,
 			.u.value.a = OPTEE_MRF_REMOVE },
 	};
 
-	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj, &cookie);
+	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	if (!msg_param_init_memparam(params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     cookie, MSG_PARAM_MEM_DIR_IN))
+				     MSG_PARAM_MEM_DIR_IN))
 		return TEE_ERROR_BAD_STATE;
 
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
@@ -391,7 +388,7 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 	res = tee_tadb_open(&ta->db);
 	if (res)
-		goto err;
+		goto err_free;
 
 	mutex_lock(&tadb_mutex);
 
@@ -420,20 +417,20 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 	res = crypto_rng_read(ta->entry.iv, sizeof(ta->entry.iv));
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = crypto_rng_read(ta->entry.key, sizeof(ta->entry.key));
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = ta_operation_open(OPTEE_MRF_CREATE, ta->entry.file_number,
 				&ta->fd);
 	if (res)
-		goto err;
+		goto err_put;
 
 	res = tadb_authenc_init(TEE_MODE_ENCRYPT, &ta->entry, &ta->ctx);
 	if (res)
-		goto err;
+		goto err_put;
 
 	*ta_ret = ta;
 
@@ -441,8 +438,9 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 
 err_mutex:
 	mutex_unlock(&tadb_mutex);
-err:
+err_put:
 	tadb_put(ta->db);
+err_free:
 	free(ta);
 
 	return res;
@@ -702,7 +700,7 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	if (ta->ta_mobj)
 		return TEE_SUCCESS;
 
-	ta->ta_mobj = thread_rpc_alloc_payload(sz, &ta->ta_cookie);
+	ta->ta_mobj = thread_rpc_alloc_payload(sz);
 	if (!ta->ta_mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -710,12 +708,12 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	assert(ta->ta_buf);
 
 	if (!msg_param_init_memparam(params + 1, ta->ta_mobj, 0, sz,
-				     ta->ta_cookie, MSG_PARAM_MEM_DIR_OUT))
+				     MSG_PARAM_MEM_DIR_OUT))
 		return TEE_ERROR_BAD_STATE;
 
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, ARRAY_SIZE(params), params);
 	if (res) {
-		thread_rpc_free_payload(ta->ta_cookie, ta->ta_mobj);
+		thread_rpc_free_payload(ta->ta_mobj);
 		ta->ta_mobj = NULL;
 	}
 	return res;
@@ -779,7 +777,7 @@ void tee_tadb_ta_close(struct tee_tadb_ta_read *ta)
 	crypto_authenc_final(ta->ctx, TADB_AUTH_ENC_ALG);
 	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
 	if (ta->ta_mobj)
-		thread_rpc_free_payload(ta->ta_cookie, ta->ta_mobj);
+		thread_rpc_free_payload(ta->ta_mobj);
 	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
 	tadb_put(ta->db);
 	free(ta);

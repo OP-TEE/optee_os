@@ -34,8 +34,13 @@ void udelay(uint32_t us)
 	uint64_t start, target;
 
 	start = read_cntpct();
-	target = read_cntfrq() / 1000000ULL * us;
+	target = ((uint64_t)read_cntfrq() * us) / 1000000ULL;
 
 	while (read_cntpct() - start <= target)
 		;
+}
+
+void mdelay(uint32_t ms)
+{
+	udelay(1000 * ms);
 }

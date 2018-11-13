@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <ctype.h>
+#include <initcall.h>
 #include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -96,8 +97,6 @@ static struct user_ta_elf *ta_elf(const TEE_UUID *uuid,
 out:
 	return elf;
 }
-
-static void set_ta_ctx_ops(struct tee_ta_ctx *ctx);
 
 static uint32_t elf_flags_to_mattr(uint32_t flags)
 {
@@ -446,9 +445,8 @@ static void release_ta_memory_by_mobj(struct mobj *mobj)
 	cache_op_inner(DCACHE_AREA_CLEAN, va, mobj->size);
 }
 
-static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
+static void free_utc(struct user_ta_ctx *utc)
 {
-	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct user_ta_elf *elf;
 
 	tee_pager_rem_uta_areas(utc);
@@ -481,6 +479,11 @@ static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
 	free(utc);
 }
 
+static void user_ta_ctx_destroy(struct tee_ta_ctx *ctx)
+{
+	free_utc(to_user_ta_ctx(ctx));
+}
+
 static uint32_t user_ta_get_instance_id(struct tee_ta_ctx *ctx)
 {
 	return to_user_ta_ctx(ctx)->vm_info->asid;
@@ -498,14 +501,28 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 static SLIST_HEAD(uta_stores_head, user_ta_store_ops) uta_store_list =
 		SLIST_HEAD_INITIALIZER(uta_stores_head);
 
+/*
+ * Break unpaged attribute dependency propagation to user_ta_ops structure
+ * content thanks to a runtime initialization of the ops reference.
+ */
+static struct tee_ta_ops const *_user_ta_ops;
+
+static TEE_Result init_user_ta(void)
+{
+	_user_ta_ops = &user_ta_ops;
+
+	return TEE_SUCCESS;
+}
+service_init(init_user_ta);
+
 static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 {
-	ctx->ops = &user_ta_ops;
+	ctx->ops = _user_ta_ops;
 }
 
 bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	return ctx->ops == &user_ta_ops;
+	return ctx->ops == _user_ta_ops;
 }
 
 TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
@@ -826,8 +843,10 @@ static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 		res = load_elf_from_store(uuid, store, utc);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
-		if (res)
+		if (res) {
 			DMSG("res=0x%x", res);
+			continue;
+		}
 		return res;
 	}
 	return TEE_ERROR_ITEM_NOT_FOUND;
@@ -892,6 +911,13 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 	TAILQ_FOREACH(elf, &utc->elfs, link)
 		exidx_sz += elf->exidx_size;
 
+	if (!exidx_sz) {
+		/* The empty table from first segment will fit */
+		utc->exidx_start = exe->exidx_start;
+		utc->exidx_size = exe->exidx_size;
+		return TEE_SUCCESS;
+	}
+
 	utc->mobj_exidx = alloc_ta_mem(exidx_sz);
 	if (!utc->mobj_exidx)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -937,6 +963,7 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 	return TEE_SUCCESS;
 err:
 	mobj_free(utc->mobj_exidx);
+	utc->mobj_exidx = NULL;
 	return res;
 }
 
@@ -960,10 +987,9 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	/* Register context */
 	utc = calloc(1, sizeof(struct user_ta_ctx));
-	if (!utc) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
+	if (!utc)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
 	TAILQ_INIT(&utc->open_sessions);
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
@@ -1041,14 +1067,8 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 
 err:
+	free_elf_states(utc);
 	tee_mmu_set_ctx(NULL);
-	if (utc) {
-		pgt_flush_ctx(&utc->ctx);
-		tee_pager_rem_uta_areas(utc);
-		vm_info_final(utc);
-		free_elf_states(utc);
-		mobj_free(utc->mobj_stack);
-		free(utc);
-	}
+	free_utc(utc);
 	return res;
 }

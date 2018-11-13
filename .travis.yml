@@ -16,6 +16,7 @@ git:
   depth: 1000000
 
 before_script:
+  - df -h
   # Store the home repository
   - export MYHOME=$PWD
 
@@ -35,42 +36,25 @@ before_script:
   # https://docs.travis-ci.com/user/ci-environment/
   - export make="make -j3 -s"
 
-  # Download  and build Git to be used by the checkpatch step
-  # The Travis container-based infrastructure runs Ubuntu 12.04 (Precise) which
-  # comes with git 1.8.5.6. The path exclusion syntax ':(exclude)' used below
-  # requires a more recent version.
-  - cd $HOME
-  - _download https://github.com/git/git/archive/v2.9.3.tar.gz git-2.9.3.tar.gz
-  - tar xf $DL_DIR/git-2.9.3.tar.gz
-  - $make -C git-2.9.3 CC="ccache gcc" NO_CURL=1
-
   # Tools required for QEMU tests
   # 'apt-get install' cannot be used in the new container-based infrastructure
   # (which is the only allowing caching), so we just build from sources
-  # bc is used during kernel configuration
-  - cd $HOME
-  - download http://ftp.gnu.org/gnu/bc/bc-1.06.tar.gz
-  - tar xf $DL_DIR/bc-1.06.tar.gz
-  - (cd bc-1.06 && CC="ccache gcc" ./configure --quiet && $make)
-  - export PATH=${HOME}/bc-1.06/bc:$PATH
-  # Tcl/Expect
-  - download http://prdownloads.sourceforge.net/tcl/tcl8.6.4-src.tar.gz
-  - tar xf $DL_DIR/tcl8.6.4-src.tar.gz
-  - (cd tcl8.6.4/unix && ./configure --quiet --prefix=${HOME}/inst CC="ccache gcc" && $make install)
+  # Expect
   - _download http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download expect5.45.tar.gz
   - tar xf $DL_DIR/expect5.45.tar.gz
-  - (cd expect5.45 && ./configure --quiet --with-tcl=${HOME}/inst/lib --prefix=${HOME}/inst CC="ccache gcc" && $make expect && $make install)
-  - export PATH=$HOME/inst/bin:$PATH
+  - (cd expect5.45 && ./configure --prefix=$HOME/inst --exec-prefix=$HOME/inst CC="ccache gcc" && make && $make install) && rm -rf expect5.45
+  # Create a wrapper script, so that expect finds its shared library, without setting LD_LIBRARY_PATH globally (buildroot doesn't like it)
+  - mv $HOME/inst/bin/expect $HOME/inst/bin/expect.bin && printf '#!/bin/bash\nexport LD_LIBRARY_PATH=$HOME/inst/lib/expect5.45\n$HOME/inst/bin/expect.bin $*' >$HOME/inst/bin/expect && chmod +x $HOME/inst/bin/expect
+  - export PATH=$HOME/inst/bin:$PATH;
   # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
   - pip install --upgrade --user pycrypto
-  - pip install --upgrade --user wand
   # Clone repositories for the QEMU test environment
   - mkdir -p $HOME/bin
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
   - export PATH=$HOME/bin:$PATH
   - mkdir $HOME/optee_repo
   - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
-  - (cd $HOME/optee_repo && mv optee_os optee_os_old && ln -s $MYHOME optee_os)
+  - (cd $HOME/optee_repo && rm -rf optee_os && ln -s $MYHOME optee_os)
   - cd $MYHOME
   - git fetch https://github.com/OP-TEE/optee_os --tags
   - unset CC
@@ -84,6 +68,8 @@ script:
       travis_terminate 0;
     fi
 
+  - ccache -s
+  - df -h
   # Run checkpatch.pl on:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
@@ -93,8 +79,10 @@ script:
   - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
   # Run regression tests (xtest in QEMU)
-  - (cd ${HOME}/optee_repo/build && make toolchains COMPILE_LEGACY=y)
-  - (cd ${HOME}/optee_repo/build && $make check COMPILE_LEGACY=y CFG_TEE_CORE_DEBUG=y DUMP_LOGS_ON_ERROR=1)
+  - export CFG_WERROR=y
+  - (cd ${HOME}/optee_repo/build && $make aarch32 && rm -f ${HOME}/optee_repo/toolchains/gcc-*.tar.xz && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
+  - ccache -s
+  - df -h
 
 env:
   global:

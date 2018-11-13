@@ -114,14 +114,17 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 static void ta_header_remove_session(uint32_t session_id)
 {
 	struct ta_session *itr;
+	bool keep_alive;
 
 	TAILQ_FOREACH(itr, &ta_sessions, link) {
 		if (itr->session_id == session_id) {
 			TAILQ_REMOVE(&ta_sessions, itr, link);
 			TEE_Free(itr);
 
-			if (TAILQ_EMPTY(&ta_sessions) &&
-			    !(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE))
+			keep_alive =
+				(ta_head.flags & TA_FLAG_SINGLE_INSTANCE) &&
+				(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE);
+			if (TAILQ_EMPTY(&ta_sessions) && !keep_alive)
 				uninit_instance();
 
 			return;

@@ -197,7 +197,7 @@ enum tzc_action {
 #define TZC_ATTR_REGION_DISABLE	0x0
 
 void tzc_init(vaddr_t base);
-void tzc_configure_region(uint8_t region, vaddr_t region_base, size_t size);
+void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr);
 void tzc_region_enable(uint8_t region);
 void tzc_security_inversion_en(vaddr_t base);
 void tzc_set_action(enum tzc_action action);

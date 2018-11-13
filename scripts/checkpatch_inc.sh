@@ -5,7 +5,7 @@ CHECKPATCH="${CHECKPATCH:-checkpatch.pl}"
 CHECKPATCH_IGNORE=$(echo \
 		core/include/gen-asm-defines.h \
 		core/lib/lib{fdt,tomcrypt} core/lib/zlib \
-		lib/lib{png,utils,zlib} \
+		lib/libutils lib/libmbedtls \
 		core/arch/arm/include/arm{32,64}.h \
 		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h)
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)

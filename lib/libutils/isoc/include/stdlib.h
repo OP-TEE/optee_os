@@ -22,4 +22,11 @@ void abort(void) __noreturn;
 
 int abs(int i);
 
+/* The largest number returned by rand() */
+#define	RAND_MAX	__INT_MAX__
+int rand(void);
+
+unsigned long _strtoul (const char *nptr, char **endptr, int base);
+unsigned long strtoul (const char *s, char **ptr, int base);
+
 #endif /* STDLIB_H */

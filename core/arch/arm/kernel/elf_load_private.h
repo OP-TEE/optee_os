@@ -5,6 +5,8 @@
 #ifndef _ELF_LOAD_PRIVATE_H_
 #define _ELF_LOAD_PRIVATE_H_
 
+#include <compiler.h>
+#include <speculation_barrier.h>
 #include <types_ext.h>
 #include <tee_api_types.h>
 #include "elf32.h"
@@ -69,6 +71,29 @@ struct elf_phdr {
 	size_t p_offset;
 };
 
+/* Replicates the fields we need from Elf{32,64}_Shdr */
+struct elf_shdr {
+	uint32_t sh_type;
+	uintptr_t sh_addr;
+	size_t sh_size;
+};
+
+/* Replicates the fields we need from Elf{32,64}_Dyn */
+struct elf_dyn {
+	int64_t d_tag;
+	union {
+		uint64_t d_val;
+		uint64_t d_ptr;
+	} d_un;
+};
+
+/* Replicates the fields we need from Elf{32,64}_Sym */
+struct elf_sym {
+	size_t st_name;
+	uintptr_t st_value;
+	uint16_t st_shndx;
+};
+
 #ifdef ARM64
 #define DO_ACTION(state, is_32bit_action, is_64bit_action) \
 	do { \
@@ -123,4 +148,79 @@ static inline void copy_phdr(struct elf_phdr *phdr,
 			 COPY_PHDR(phdr, ((Elf64_Phdr *)state->phdr + idx)));
 }
 
+#define COPY_SHDR(dst, src) \
+	do { \
+		(dst)->sh_type = (src)->sh_type; \
+		(dst)->sh_addr = (src)->sh_addr; \
+		(dst)->sh_size = (src)->sh_size; \
+	} while (0)
+
+static inline void copy_shdr(struct elf_shdr *shdr,
+			     size_t n,
+			     struct elf_load_state *state)
+{
+	DO_ACTION(state, COPY_SHDR(shdr, ((Elf32_Shdr *)state->shdr + n)),
+			 COPY_SHDR(shdr, ((Elf64_Shdr *)state->shdr + n)));
+}
+
+#define COPY_DYN(dst, src) \
+	do { \
+		(dst)->d_tag = (src)->d_tag; \
+		(dst)->d_un.d_val = (src)->d_un.d_val; \
+	} while (0)
+
+static inline bool copy_dyn(struct elf_dyn *dyn,
+				  size_t n,
+				  struct elf_load_state *state)
+{
+	Elf32_Dyn *lower32 = (Elf32_Dyn *)state->dyn;
+	Elf32_Dyn *dyn32 = (Elf32_Dyn *)state->dyn + n;
+	Elf32_Dyn *upper32 = (Elf32_Dyn *)state->dyn +
+			     state->dyn_size / sizeof(Elf32_Dyn);
+	Elf64_Dyn *lower64 __maybe_unused = (Elf64_Dyn *)state->dyn;
+	Elf64_Dyn *dyn64 __maybe_unused = (Elf64_Dyn *)state->dyn + n;
+	Elf64_Dyn *upper64 __maybe_unused = (Elf64_Dyn *)state->dyn +
+					state->dyn_size / sizeof(Elf64_Dyn);
+	void *p;
+
+	DO_ACTION(state, dyn32 = load_no_speculate_cmp(&dyn32, lower32, upper32,
+						       NULL, dyn32); p = dyn32,
+			 dyn64 = load_no_speculate_cmp(&dyn64, lower64, upper64,
+						       NULL, dyn64); p = dyn64);
+	if (!p)
+		return false;
+	DO_ACTION(state, COPY_DYN(dyn, dyn32), COPY_DYN(dyn, dyn64));
+	return true;
+}
+
+#define COPY_SYM(dst, src) \
+	do { \
+		(dst)->st_name = (src)->st_name; \
+		(dst)->st_value = (src)->st_value; \
+		(dst)->st_shndx = (src)->st_shndx; \
+	} while (0)
+
+static inline bool copy_sym(struct elf_sym *sym,
+			    size_t n,
+			    struct elf_load_state *state)
+{
+	Elf32_Sym *lower32 = (Elf32_Sym *)state->dynsym;
+	Elf32_Sym *sym32 = (Elf32_Sym *)state->dynsym + n;
+	Elf32_Sym *upper32 = (Elf32_Sym *)state->dynsym +
+			     state->dynsym_size / sizeof(Elf32_Sym);
+	Elf64_Sym *lower64 __maybe_unused = (Elf64_Sym *)state->dynsym;
+	Elf64_Sym *sym64 __maybe_unused = (Elf64_Sym *)state->dynsym + n;
+	Elf64_Sym *upper64 __maybe_unused = (Elf64_Sym *)state->dynsym +
+					state->dynsym_size / sizeof(Elf64_Sym);
+	void *p;
+
+	DO_ACTION(state, sym32 = load_no_speculate_cmp(&sym32, lower32, upper32,
+						       NULL, sym32); p = sym32,
+			 sym64 = load_no_speculate_cmp(&sym64, lower64, upper64,
+						       NULL, sym64); p = sym64);
+	if (!p)
+		return false;
+	DO_ACTION(state, COPY_SYM(sym, sym32), COPY_SYM(sym, sym64));
+	return true;
+}
 #endif /* _ELF_LOAD_PRIVATE_H_ */

@@ -33,10 +33,13 @@
 
 #define STACK_ALIGNMENT			64
 
-#define GIC_BASE			0x01400000
-#define GICC_OFFSET			0x2000
-#define GICD_OFFSET			0x1000
+/* console uart define */
+#define CONSOLE_UART_BASE		UART0_BASE
 
+/* Platform specific defines */
+#if defined(PLATFORM_FLAVOR_ls1021aqds) || defined(PLATFORM_FLAVOR_ls1021atwr)
+/*  DUART 1 */
+#define UART0_BASE			0x021C0500
 #define DCFG_BASE			0x01EE0000
 #define DCFG_CCSR_BRR			0xE4
 #define DCFG_SCRATCHRW1			0x200
@@ -52,36 +55,34 @@
 #define	CSU_ACCESS_SEC_ONLY		0x003F003F
 #define CSU_SETTING_LOCK		0x01000100
 
+#define GIC_BASE			0x01400000
+#define GICC_OFFSET			0x2000
+#define GICD_OFFSET			0x1000
+#endif
+
+#if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb) \
+|| defined(PLATFORM_FLAVOR_ls1012ardb) || defined(PLATFORM_FLAVOR_ls1012afrwy)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
-/*  DUART 2 */
-#define UART1_BASE			0x021D0500
-/*  LPUART 1 */
-#define UART2_BASE			0x02950000
-/*  LPUART 2 */
-#define UART3_BASE			0x02960000
-
-/* console uart define */
-#define CONSOLE_UART_BASE		UART0_BASE
-
-#define DRAM0_BASE			0x80000000
-
-/* Platform specific defines */
-
-#if defined(PLATFORM_FLAVOR_ls1021aqds)
-#define DRAM0_SIZE			0x80000000
+#define GIC_BASE			0x01400000
+#define GICC_OFFSET			0x2000
+#define GICD_OFFSET			0x1000
 #endif
 
-#if defined(PLATFORM_FLAVOR_ls1021atwr)
-#define DRAM0_SIZE			0x40000000
+#if defined(PLATFORM_FLAVOR_ls1088ardb)
+/*  DUART 1 */
+#define UART0_BASE			0x021C0500
+#define GIC_BASE			0x06000000
+#define GICC_OFFSET			0x0
+#define GICD_OFFSET			0x0
 #endif
 
-#if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb)
-#define DRAM0_SIZE			0x80000000
-#endif
-
-#if defined(PLATFORM_FLAVOR_ls1012ardb)
-#define DRAM0_SIZE			0x40000000
+#if defined(PLATFORM_FLAVOR_ls2088ardb)
+/*  DUART 1 */
+#define UART0_BASE			0x021C0600
+#define GIC_BASE			0x06000000
+#define GICC_OFFSET			0x0
+#define GICD_OFFSET			0x0
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/

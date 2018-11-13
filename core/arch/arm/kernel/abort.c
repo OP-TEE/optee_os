@@ -28,7 +28,8 @@ enum fault_type {
 
 #ifdef CFG_UNWIND
 
-static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
+static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
+				       vaddr_t *stack, size_t *stack_size)
 {
 	struct tee_ta_session *s;
 	struct user_ta_ctx *utc;
@@ -45,6 +46,9 @@ static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
 	if (*exidx)
 		*exidx += utc->load_addr;
 	*exidx_sz = utc->exidx_size;
+
+	*stack = utc->stack_addr;
+	*stack_size = utc->mobj_stack->size;
 }
 
 #ifdef ARM32
@@ -55,21 +59,30 @@ static void get_current_ta_exidx(uaddr_t *exidx, size_t *exidx_sz)
 static void __print_stack_unwind_arm32(struct abort_info *ai)
 {
 	struct unwind_state_arm32 state;
-	uaddr_t exidx;
+	vaddr_t exidx;
 	size_t exidx_sz;
 	uint32_t mode = ai->regs->spsr & CPSR_MODE_MASK;
 	uint32_t sp;
 	uint32_t lr;
+	vaddr_t stack;
+	size_t stack_size;
+	bool kernel_stack;
 
 	if (abort_is_user_exception(ai)) {
-		get_current_ta_exidx(&exidx, &exidx_sz);
+		get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack,
+					   &stack_size);
 		if (!exidx) {
 			EMSG_RAW("Call stack not available");
 			return;
 		}
+		kernel_stack = false;
 	} else {
 		exidx = (vaddr_t)__exidx_start;
 		exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
+		/* Kernel stack */
+		stack = thread_stack_start();
+		stack_size = thread_stack_size();
+		kernel_stack = true;
 	}
 
 	if (mode == CPSR_MODE_USR || mode == CPSR_MODE_SYS) {
@@ -97,20 +110,23 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz, kernel_stack,
+			  stack, stack_size);
 }
 #else /* ARM32 */
 
 static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 {
 	struct unwind_state_arm32 state;
-	uaddr_t exidx;
+	vaddr_t exidx;
 	size_t exidx_sz;
+	vaddr_t stack;
+	size_t stack_size;
 
 	/* 64-bit kernel, hence 32-bit unwind must be for user mode */
 	assert(abort_is_user_exception(ai));
 
-	get_current_ta_exidx(&exidx, &exidx_sz);
+	get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack, &stack_size);
 
 	memset(&state, 0, sizeof(state));
 	state.registers[0] = ai->regs->x0;
@@ -130,7 +146,8 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 	state.registers[14] = ai->regs->x14;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz);
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz,
+			  false /*!kernel_stack*/, stack, stack_size);
 }
 #endif /* ARM32 */
 #ifdef ARM64
@@ -138,6 +155,7 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 static void __print_stack_unwind_arm64(struct abort_info *ai)
 {
 	struct unwind_state_arm64 state;
+	bool kernel_stack;
 	uaddr_t stack;
 	size_t stack_size;
 
@@ -152,17 +170,19 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 		/* User stack */
 		stack = utc->stack_addr;
 		stack_size = utc->mobj_stack->size;
+		kernel_stack = false;
 	} else {
 		/* Kernel stack */
 		stack = thread_stack_start();
 		stack_size = thread_stack_size();
+		kernel_stack = true;
 	}
 
 	memset(&state, 0, sizeof(state));
 	state.pc = ai->regs->elr;
 	state.fp = ai->regs->x29;
 
-	print_stack_arm64(TRACE_ERROR, &state, stack, stack_size);
+	print_stack_arm64(TRACE_ERROR, &state, kernel_stack, stack, stack_size);
 }
 #else
 static void __print_stack_unwind_arm64(struct abort_info *ai __unused)
@@ -490,70 +510,17 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 #ifdef ARM32
-
-#define T32_INSTR(w1, w0) \
-	((((uint32_t)(w0) & 0xffff) << 16) | ((uint32_t)(w1) & 0xffff))
-
-#define T32_VTRANS32_MASK	T32_INSTR(0xff << 8, (7 << 9) | 1 << 4)
-#define T32_VTRANS32_VAL	T32_INSTR(0xee << 8, (5 << 9) | 1 << 4)
-
-#define T32_VTRANS64_MASK	T32_INSTR((0xff << 8) | (7 << 5), 7 << 9)
-#define T32_VTRANS64_VAL	T32_INSTR((0xec << 8) | (2 << 5), 5 << 9)
-
-#define T32_VLDST_MASK		T32_INSTR((0xff << 8) | (1 << 4), 0)
-#define T32_VLDST_VAL		T32_INSTR( 0xf9 << 8            , 0)
-
-#define T32_VXLDST_MASK		T32_INSTR(0xfc << 8, 7 << 9)
-#define T32_VXLDST_VAL		T32_INSTR(0xec << 8, 5 << 9)
-
-#define T32_VPROC_MASK		T32_INSTR(0xef << 8, 0)
-#define T32_VPROC_VAL		T32_VPROC_MASK
-
-#define A32_INSTR(x)		((uint32_t)(x))
-
-#define A32_VTRANS32_MASK	A32_INSTR(SHIFT_U32(0xf, 24) | \
-					  SHIFT_U32(7, 9) | BIT32(4))
-#define A32_VTRANS32_VAL	A32_INSTR(SHIFT_U32(0xe, 24) | \
-					  SHIFT_U32(5, 9) | BIT32(4))
-
-#define A32_VTRANS64_MASK	A32_INSTR(SHIFT_U32(0x7f, 21) | SHIFT_U32(7, 9))
-#define A32_VTRANS64_VAL	A32_INSTR(SHIFT_U32(0x62, 21) | SHIFT_U32(5, 9))
-
-#define A32_VLDST_MASK		A32_INSTR(SHIFT_U32(0xff, 24) | BIT32(20))
-#define A32_VLDST_VAL		A32_INSTR(SHIFT_U32(0xf4, 24))
-#define A32_VXLDST_MASK		A32_INSTR(SHIFT_U32(7, 25) | SHIFT_U32(7, 9))
-#define A32_VXLDST_VAL		A32_INSTR(SHIFT_U32(6, 25) | SHIFT_U32(5, 9))
-
-#define A32_VPROC_MASK		A32_INSTR(SHIFT_U32(0x7f, 25))
-#define A32_VPROC_VAL		A32_INSTR(SHIFT_U32(0x79, 25))
-
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	TEE_Result res;
-	uint32_t instr;
-
 	if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
 		return false;
 
-	res = tee_svc_copy_from_user(&instr, (void *)ai->pc, sizeof(instr));
-	if (res != TEE_SUCCESS)
-		return false;
-
-	if (ai->regs->spsr & CPSR_T) {
-		/* Thumb mode */
-		return ((instr & T32_VTRANS32_MASK) == T32_VTRANS32_VAL) ||
-		       ((instr & T32_VTRANS64_MASK) == T32_VTRANS64_VAL) ||
-		       ((instr & T32_VLDST_MASK) == T32_VLDST_VAL) ||
-		       ((instr & T32_VXLDST_MASK) == T32_VXLDST_VAL) ||
-		       ((instr & T32_VPROC_MASK) == T32_VPROC_VAL);
-	} else {
-		/* ARM mode */
-		return ((instr & A32_VTRANS32_MASK) == A32_VTRANS32_VAL) ||
-		       ((instr & A32_VTRANS64_MASK) == A32_VTRANS64_VAL) ||
-		       ((instr & A32_VLDST_MASK) == A32_VLDST_VAL) ||
-		       ((instr & A32_VXLDST_MASK) == A32_VXLDST_VAL) ||
-		       ((instr & A32_VPROC_MASK) == A32_VPROC_VAL);
-	}
+	/*
+	 * Not entirely accurate, but if it's a truly undefined instruction
+	 * we'll end up in this function again, except this time
+	 * vfp_is_enabled() so we'll return false.
+	 */
+	return true;
 }
 #endif /*ARM32*/
 
@@ -660,6 +627,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #endif
 	case FAULT_TYPE_PAGEABLE:
 	default:
+		if (thread_get_id_may_fail() < 0) {
+			abort_print_error(&ai);
+			panic("abort outside thread context");
+		}
 		thread_kernel_save_vfp();
 		handled = tee_pager_handle_fault(&ai);
 		thread_kernel_restore_vfp();

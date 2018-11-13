@@ -256,13 +256,54 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size);
 
-/* Add entropy to PRNG entropy pool. */
-TEE_Result crypto_rng_add_entropy(const uint8_t *inbuf, size_t len);
+#define CRYPTO_RNG_SRC_IS_QUICK(sid) (!!((sid) & 1))
 
-/* To read random data from PRNG implementation. */
-TEE_Result crypto_rng_read(void *buf, size_t blen);
+/*
+ * enum crypto_rng_src - RNG entropy source
+ *
+ * Identifiers for different RNG entropy sources. The lowest bit indicates
+ * if the source is to be merely queued (bit is 1) or if it's delivered
+ * directly to the pool. The difference is that in the latter case RPC to
+ * normal world can be performed and in the former it must not.
+ */
+enum crypto_rng_src {
+	CRYPTO_RNG_SRC_JITTER_SESSION	= (0 << 1 | 0),
+	CRYPTO_RNG_SRC_JITTER_RPC	= (1 << 1 | 1),
+	CRYPTO_RNG_SRC_NONSECURE	= (1 << 1 | 0),
+};
 
-TEE_Result rng_generate(void *buffer, size_t len);
+/*
+ * crypto_rng_init() - initialize the RNG
+ * @data:	buffer with initial seed
+ * @dlen:	length of @data
+ */
+TEE_Result crypto_rng_init(const void *data, size_t dlen);
+
+/*
+ * crypto_rng_add_event() - supply entropy to RNG from a source
+ * @sid:	Source identifier, should be unique for a specific source
+ * @pnum:	Pool number, acquired using crypto_rng_get_next_pool_num()
+ * @data:	Data associated with the event
+ * @dlen:	Length of @data
+ *
+ * @sid controls whether the event is merly queued in a ring buffer or if
+ * it's added to one of the pools directly. If CRYPTO_RNG_SRC_IS_QUICK() is
+ * true (lowest bit set) events are queue otherwise added to corresponding
+ * pool. If CRYPTO_RNG_SRC_IS_QUICK() is false, eventual queued events are
+ * added to their queues too.
+ */
+void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
+			  const void *data, size_t dlen);
+
+/*
+ * crypto_rng_read() - read cryptograhically secure RNG
+ * @buf:	Buffer to hold the data
+ * @len:	Length of buffer.
+ *
+ * Eventual queued events are also added to their pools during this
+ * function call.
+ */
+TEE_Result crypto_rng_read(void *buf, size_t len);
 
 TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 				     void *enc_key, unsigned int *rounds);
