@@ -28,6 +28,7 @@ ta-mk-file-export-vars-$(sm) += CFG_CACHE_API
 ta-mk-file-export-vars-$(sm) += CFG_SECURE_DATA_PATH
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_SELF_TEST
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
+ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_MPI
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
 ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
@@ -49,9 +50,14 @@ libname = utils
 libdir = lib/libutils
 include mk/lib.mk
 
+CFG_TA_MBEDTLS_MPI ?= y
+ifeq ($(CFG_TA_MBEDTLS_MPI),y)
+$(call force,CFG_TA_MBEDTLS,y)
+else
 libname = mpa
 libdir = lib/libmpa
 include mk/lib.mk
+endif
 
 libname = utee
 libdir = lib/libutee
