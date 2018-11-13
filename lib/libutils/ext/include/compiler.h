@@ -50,7 +50,6 @@
 #define __SECTION_FLAGS_RODATA ",\"a\",%progbits //"
 #define __rodata	__section(".rodata" __SECTION_FLAGS_RODATA)
 #define __rodata_unpaged __section(".rodata.__unpaged" __SECTION_FLAGS_RODATA)
-#define __early_ta	__section(".rodata.early_ta" __SECTION_FLAGS_RODATA)
 #define __noprof	__attribute__((no_instrument_function))
 
 #define __compiler_bswap64(x)	__builtin_bswap64((x))
