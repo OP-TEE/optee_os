@@ -3,6 +3,12 @@
 #ifndef __MBEDTLS_CONFIG_UTA_H
 #define __MBEDTLS_CONFIG_UTA_H
 
+/*
+ * When wrapping using TEE_BigInt to represent a mbedtls_mpi we can only
+ * use 32-bit arithmetics.
+ */
+#define MBEDTLS_HAVE_INT32
+
 #define MBEDTLS_CIPHER_MODE_CBC
 #define MBEDTLS_PKCS1_V15
 
@@ -20,6 +26,7 @@
 #define MBEDTLS_NO_PLATFORM_ENTROPY
 
 #define MBEDTLS_BIGNUM_C
+#define MBEDTLS_GENPRIME
 #define MBEDTLS_RSA_C
 #define MBEDTLS_ECDH_C
 #define MBEDTLS_ECDSA_C

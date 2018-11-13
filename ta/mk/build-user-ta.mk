@@ -25,7 +25,10 @@ cflags$(sm)	:= $(cflags$(ta-target))
 aflags$(sm)	:= $(aflags$(ta-target))
 
 libdirs  = $(ta-dev-kit-dir$(sm))/lib
-libnames = utils utee mpa
+libnames = utils utee
+ifneq ($(CFG_TA_MBEDTLS_MPI),y)
+libnames += mpa
+endif
 ifeq ($(CFG_TA_MBEDTLS),y)
 libnames += mbedtls
 endif
