@@ -48,6 +48,7 @@ before_script:
   - export PATH=$HOME/inst/bin:$PATH;
   # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
   - pip install --upgrade --user pycrypto
+  - pip install --upgrade --user pycodestyle
   # Clone repositories for the QEMU test environment
   - mkdir -p $HOME/bin
   - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
@@ -78,6 +79,8 @@ script:
   # Useful to check if fix-up commits do indeed solve previous checkpatch errors
   - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
+  # Check Python style
+  - (cd ${HOME}/optee_repo/optee_os; pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py)
   # Run regression tests (xtest in QEMU)
   - export CFG_WERROR=y
   - (cd ${HOME}/optee_repo/build && $make aarch32 && rm -f ${HOME}/optee_repo/toolchains/gcc-*.tar.xz && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
