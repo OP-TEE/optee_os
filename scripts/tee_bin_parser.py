@@ -4,8 +4,9 @@
 # Copyright (c) 2016, Linaro Limited
 import struct
 
+
 def main():
-    with open ("../out/arm/core/tee.bin", "rb") as f:
+    with open("../out/arm/core/tee.bin", "rb") as f:
         data = f.read(4)
         magic = struct.unpack('<I', data)
         print("Magic: \t\t0x%08x" % magic)
@@ -42,5 +43,6 @@ def main():
         pgd_size = struct.unpack('<I', data)
         print("Pages size: \t0x%04x" % pgd_size)
 
+
 if __name__ == "__main__":
-        main()
+    main()
