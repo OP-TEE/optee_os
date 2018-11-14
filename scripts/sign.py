@@ -4,6 +4,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
+
 def uuid_parse(s):
     from uuid import UUID
     return UUID(s)
