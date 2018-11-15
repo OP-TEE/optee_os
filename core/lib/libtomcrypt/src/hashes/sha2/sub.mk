@@ -15,3 +15,4 @@ endif
 
 srcs-$(CFG_CRYPTO_SHA384) += sha384.c
 srcs-$(CFG_CRYPTO_SHA512) += sha512.c
+srcs-$(CFG_CRYPTO_SHA512_256) += sha512_256.c

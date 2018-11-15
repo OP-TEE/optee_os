@@ -256,6 +256,17 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		size_t data_size);
 
+/*
+ * Computes a SHA-512/256 hash, vetted conditioner as per NIST.SP.800-90B.
+ * It doesn't require crypto_init() to be called in advance and has as few
+ * dependencies as possible.
+ *
+ * This function could be used inside interrupt context where the crypto
+ * library can't be used due to mutex handling.
+ */
+TEE_Result hash_sha512_256_compute(uint8_t *digest, const uint8_t *data,
+		size_t data_size);
+
 #define CRYPTO_RNG_SRC_IS_QUICK(sid) (!!((sid) & 1))
 
 /*
