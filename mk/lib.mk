@@ -13,6 +13,11 @@
 
 subdirs = $(libdir)
 include mk/subdir.mk
+ifneq ($(sm),core) # User-mode
+ifeq ($(CFG_ULIBS_GPROF),y)
+cflags-lib$(libname)-$(sm) += -pg
+endif
+endif
 include mk/compile.mk
 
 lib-libfile	 = $(out-dir)/$(base-prefix)$(libdir)/lib$(libname).a
