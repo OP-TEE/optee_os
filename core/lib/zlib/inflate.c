@@ -840,6 +840,7 @@ int flush;
             strm->adler = state->check = ZSWAP32(hold);
             INITBITS();
             state->mode = DICT;
+            /* Fall through */
         case DICT:
             if (state->havedict == 0) {
                 RESTORE();
@@ -847,8 +848,10 @@ int flush;
             }
             strm->adler = state->check = adler32(0L, Z_NULL, 0);
             state->mode = TYPE;
+            /* Fall through */
         case TYPE:
             if (flush == Z_BLOCK || flush == Z_TREES) goto inf_leave;
+            /* Fall through */
         case TYPEDO:
             if (state->last) {
                 BYTEBITS();
@@ -899,8 +902,10 @@ int flush;
             INITBITS();
             state->mode = COPY_;
             if (flush == Z_TREES) goto inf_leave;
+            /* Fall through */
         case COPY_:
             state->mode = COPY;
+            /* Fall through */
         case COPY:
             copy = state->length;
             if (copy) {
@@ -1040,8 +1045,10 @@ int flush;
             Tracev((stderr, "inflate:       codes ok\n"));
             state->mode = LEN_;
             if (flush == Z_TREES) goto inf_leave;
+            /* Fall through */
         case LEN_:
             state->mode = LEN;
+            /* Fall through */
         case LEN:
             if (have >= 6 && left >= 258) {
                 RESTORE();
@@ -1091,6 +1098,7 @@ int flush;
             }
             state->extra = (unsigned)(here.op) & 15;
             state->mode = LENEXT;
+            /* Fall through */
         case LENEXT:
             if (state->extra) {
                 NEEDBITS(state->extra);
@@ -1101,6 +1109,7 @@ int flush;
             Tracevv((stderr, "inflate:         length %u\n", state->length));
             state->was = state->length;
             state->mode = DIST;
+            /* Fall through */
         case DIST:
             for (;;) {
                 here = state->distcode[BITS(state->distbits)];
@@ -1128,6 +1137,7 @@ int flush;
             state->offset = (unsigned)here.val;
             state->extra = (unsigned)(here.op) & 15;
             state->mode = DISTEXT;
+            /* Fall through */
         case DISTEXT:
             if (state->extra) {
                 NEEDBITS(state->extra);
@@ -1144,6 +1154,7 @@ int flush;
 #endif
             Tracevv((stderr, "inflate:         distance %u\n", state->offset));
             state->mode = MATCH;
+            /* Fall through */
         case MATCH:
             if (left == 0) goto inf_leave;
             copy = out - left;
@@ -1232,6 +1243,7 @@ int flush;
             }
 #endif
             state->mode = DONE;
+            /* Fall through */
         case DONE:
             ret = Z_STREAM_END;
             goto inf_leave;
