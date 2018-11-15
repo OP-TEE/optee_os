@@ -255,6 +255,17 @@ int sha384_test(void);
 extern const struct ltc_hash_descriptor sha384_desc;
 #endif
 
+#ifdef LTC_SHA512_256
+#ifndef LTC_SHA512
+   #error LTC_SHA512 is required for LTC_SHA512_256
+#endif
+int sha512_256_init(hash_state * md);
+#define sha512_256_process sha512_process
+int sha512_256_done(hash_state * md, unsigned char *hash);
+int sha512_256_test(void);
+extern const struct ltc_hash_descriptor sha512_256_desc;
+#endif
+
 #if defined(LTC_SHA256) || defined(LTC_SHA256_ARM32_CE)
 int sha256_init(hash_state * md);
 int sha256_process(hash_state * md, const unsigned char *in, unsigned long inlen);

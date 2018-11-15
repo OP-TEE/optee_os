@@ -200,6 +200,9 @@
 #ifdef CFG_CRYPTO_SHA512
 #define LTC_SHA512
 #endif
+#ifdef CFG_CRYPTO_SHA512_256
+#define LTC_SHA512_256
+#endif
 
 #define LTC_NO_MACS
 
