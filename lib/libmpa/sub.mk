@@ -1,9 +1,5 @@
 global-incdirs-y += include
 
-ifneq ($(sm),core) # User-mode
-cflags-lib-$(CFG_ULIBS_GPROF) += -pg
-endif
-
 srcs-y += mpa_misc.c
 cflags-remove-mpa_misc.c-y += -pedantic
 cflags-mpa_misc.c-y += -Wno-sign-compare

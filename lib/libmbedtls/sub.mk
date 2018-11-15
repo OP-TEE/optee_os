@@ -87,6 +87,3 @@ srcs-$(sm-$(ta-target)) += $(addprefix mbedtls/library/, $(SRCS_TLS))
 
 cflags-lib-y += -Wno-redundant-decls
 cflags-lib-y += -Wno-switch-default
-ifneq ($(sm),core) # User-mode
-cflags-lib-$(CFG_ULIBS_GPROF) += -pg
-endif
