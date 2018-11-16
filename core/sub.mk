@@ -26,3 +26,17 @@ $(foreach f, $(EARLY_TA_PATHS), $(eval $(call process_early_ta,$(f))))
 $(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
 	process_early_ta,$(out-dir)/ta/$(f).stripped.elf)))
 endif
+
+ifeq ($(CFG_EMBEDDED_SECURE_DT),y)
+ifneq ( $(firstword $(core-secure-dtb)),$(core-secure-dtb))
+$(error CFG_EMBEDDED_SECURE_DT expects a single DTS from CFG_SECURE_DTS)
+endif
+gensrcs-y += embedded_secure_dtb
+produce-embedded_secure_dtb = fdts/embedded_secure_dtb.c
+depends-embedded_secure_dtb = $(core-secure-dtb) scripts/ta_bin_to_c.py
+recipe-embedded_secure_dtb = scripts/bin_to_c.py \
+				--bin $(core-secure-dtb) \
+				--vname embedded_secure_dtb \
+				--out $(out-dir)/core/fdts/embedded_secure_dtb.c
+cleanfiles += $(out-dir)/core/fdts/embedded_secure_dtb.c
+endif

@@ -15,6 +15,7 @@ OP-TEE design
 10. [Cryptographic abstraction layer](#10-cryptographic-abstraction-layer)
 11. [libutee](#11-libutee)
 12. [Trusted Applications](#12-trusted-applications)
+13. [Device Tree support](#13-device-tree-support)
 
 # 1. Introduction
 OP-TEE is a so called Trusted Execution Environment, in short a TEE, for ARM
@@ -776,6 +777,62 @@ consists of:
 | `uint16_t` | sig_size | size of the signature |
 | `uint8_t[hash_size]` | hash | Hash of the fields above and the `<ELF>` above |
 | `uint8_t[sig_size]` | signature | Signature of hash |
+
+# 13. Device Tree support
+
+OP-TEE core can use the device tree format to inject platform configuration
+information during platform initialization and possibly some run time context.
+
+Device Tree technology allows to describe platforms from ASCII source files
+so-called DTS. These can be used to generate a platform description binary
+image, store it on the platform boot media and.
+
+This scheme releases design constrains on the OP-TEE core implementation as
+most of the platform specific HW can be tuned without modifying C source files
+or adding configuration directives in the build environments.
+
+## Secure and Non Secure Device Trees
+
+When OP-TEE is embedded into a platform, it is likely there exist a non secure
+world which has some platform hardware to handle. A non secure kernel as the
+Linux kernel can use device tree files to describe the hardware.
+
+OP-TEE can embed a device tree image for initializing platform drivers.
+
+Maybe the early bootloader loaded a device tree image, or several, for the
+benefit of OP-TEE secure OS and/or the non secure world.
+
+As one can see, there can be several device trees and some can be shared
+across the boot stages, the OP-TEE initialization being executed after
+early platform secure boot and before non secure companion execution.
+Obviously and the non secure world will not be able to access a device tree
+image located on a secure memory which non secure world as no access to.
+
+## Early boot device tree argument
+
+The OP-TEE core bootloader provides through arguments to OP-TEE core when it
+boots it. Among those, the physical memory base address of a device tree
+image accessible to OP-TEE core.
+
+When OP-TEE core is built with `CFG_DT=y`, this device tree is accessed by
+OP-TEE core to get some information: console configuration, the main memory
+size. OP-TEE will also try to add the description of the OP-TEE resources for
+the non secure world to properly communicate with OP-TEE. This assumes the
+image is located in non secure memory.
+
+Modifications made by OP-TEE core on the non secure device tree image provided
+by early boot and passed to non secure world are the following:
+- Add an OP-TEE node if none found with the related invocation parameters.
+- Add a reserved memory node for the few memory areas that shall be reserved
+  to the secure world and non accessed by the non secure world.
+- Add a PSCI description node if not found.
+
+## Embedded Secure Device Tree
+
+When OP-TEE core is built with `CFG_EMBEDDED_SECURE_DT=y` configuration
+directive `CFG_SECURE_DTS` shall provide a single DTS file name including
+the .dts extension, from which a device tree blob (DTB) image is generated
+and embedded in a read-only section of OP-TEE core.
 
 [crypto.md]: crypto.md
 [early_tas]: https://github.com/OP-TEE/optee_os/commit/d0c636148b3a
