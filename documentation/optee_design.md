@@ -784,12 +784,13 @@ OP-TEE core can use the device tree format to inject platform configuration
 information during platform initialization and possibly some run time context.
 
 Device Tree technology allows to describe platforms from ASCII source files
-so-called DTS. These can be used to generate a platform description binary
-image, store it on the platform boot media and.
+so-called DTS files. These can be used to generate a platform description
+binary image embedded in the platform boot media for applying expected
+configuration settings during the platform initializations.
 
-This scheme releases design constrains on the OP-TEE core implementation as
-most of the platform specific HW can be tuned without modifying C source files
-or adding configuration directives in the build environments.
+This scheme relaxes design constrains on the OP-TEE core implementation as
+most of the platform specific hardware can be tuned without modifying C
+source files or adding configuration directives in the build environments.
 
 ## Secure and Non Secure Device Trees
 
@@ -805,12 +806,12 @@ benefit of OP-TEE secure OS and/or the non secure world.
 As one can see, there can be several device trees and some can be shared
 across the boot stages, the OP-TEE initialization being executed after
 early platform secure boot and before non secure companion execution.
-Obviously and the non secure world will not be able to access a device tree
+Obviously the non secure world will not be able to access a device tree
 image located on a secure memory which non secure world as no access to.
 
 ## Early boot device tree argument
 
-The OP-TEE core bootloader provides through arguments to OP-TEE core when it
+The OP-TEE core bootloader provides arguments to the OP-TEE core when it
 boots it. Among those, the physical memory base address of a device tree
 image accessible to OP-TEE core.
 
@@ -833,6 +834,9 @@ When OP-TEE core is built with `CFG_EMBEDDED_SECURE_DT=y` configuration
 directive `CFG_SECURE_DTS` shall provide a single DTS file name including
 the .dts extension, from which a device tree blob (DTB) image is generated
 and embedded in a read-only section of OP-TEE core.
+
+In this case, the device tree address passed to the OP-TEE entry point
+by the bootloader is ignored, only the embedded device tree is accessible.
 
 [crypto.md]: crypto.md
 [early_tas]: https://github.com/OP-TEE/optee_os/commit/d0c636148b3a

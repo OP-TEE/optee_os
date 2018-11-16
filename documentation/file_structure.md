@@ -23,12 +23,8 @@ Directory | Description
 ## Structure of /core/include
 Directory | Description
 :---------|:------------
-/crypto	  | Include files expoising API for /core/crypto files
-/drivers  | Include files expoising API for /core/drivers files
+/drivers  | Include files exposing API for /core/drivers files
 /dt-bindings  | Include files for the device tree bindings
-/kernel	  | Include files expoising API for /core/kernel files
-/mm	  | Include files expoising memory management APIs for /core components
-/tee	  | Include files expoising API /core/tee files
 
 ## Structure of /core/arch
 Directory | Description
@@ -38,7 +34,7 @@ Directory | Description
 ## Structure of /core/arch/arm
 Directory | Description
 :---------|:------------
-/fdts	  | Device tree source files
+/dts	  | Device tree source files
 /include  | Include files used in rest of TEE core but not in any supporting libraries
 /kern	  | Low level and core parts of TEE Core
 /mm	  | Memory management
