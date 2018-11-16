@@ -28,7 +28,7 @@ $(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
 endif
 
 ifeq ($(CFG_EMBEDDED_SECURE_DT),y)
-ifneq ( $(firstword $(core-secure-dtb)),$(core-secure-dtb))
+ifneq ($(firstword $(core-secure-dtb)),$(strip $(core-secure-dtb)))
 $(error CFG_EMBEDDED_SECURE_DT expects a single DTS from CFG_SECURE_DTS)
 endif
 gensrcs-y += embedded_secure_dtb
