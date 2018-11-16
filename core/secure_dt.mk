@@ -6,7 +6,7 @@
 # Generating the DTB from the DTS and integrating into OP-TEE core.
 #
 # CFG_SECURE_DTS provides a list of device tree source name located
-# in directory core/arch/$(arch-dir)/fdts/.
+# in directory core/arch/$(ARCH)/dts/.
 #
 # This makefile generates a DTB file for each DTS file listed by
 # CFG_SECURE_DTS. Variable core-secure-dtb is filled with the list of
@@ -71,5 +71,5 @@ define MAKE_DTBS
         $(eval $(foreach obj,$(DTBOBJS),$(call MAKE_DTB,$(1),$(obj))))
 endef
 
-FDT_SOURCE := $(addprefix $(arch-dir)/fdts/,$(CFG_SECURE_DTS))
-$(eval $(call MAKE_DTBS,$(out-dir)/core/fdts,$(FDT_SOURCE)))
+FDT_SOURCE := $(addprefix $(arch-dir)/dts/,$(CFG_SECURE_DTS))
+$(eval $(call MAKE_DTBS,$(out-dir)/core/dts,$(FDT_SOURCE)))
