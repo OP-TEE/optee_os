@@ -106,6 +106,10 @@ libdir = core/lib/zlib
 include mk/lib.mk
 endif
 
+ifneq ($(CFG_SECURE_DTS),)
+include core/secure_dt.mk
+endif
+
 #
 # Do main source
 #
