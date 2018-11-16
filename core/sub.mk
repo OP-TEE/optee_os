@@ -27,16 +27,20 @@ $(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
 	process_early_ta,$(out-dir)/ta/$(f).stripped.elf)))
 endif
 
-ifeq ($(CFG_EMBEDDED_SECURE_DT),y)
-ifneq ($(firstword $(core-secure-dtb)),$(strip $(core-secure-dtb)))
-$(error CFG_EMBEDDED_SECURE_DT expects a single DTS from CFG_SECURE_DTS)
+ifneq ($(CFG_EMBEDDED_DTS),)
+ifneq ($(firstword $(CFG_EMBEDDED_DTS)),$(strip $(CFG_EMBEDDED_DTS)))
+$(error CFG_EMBEDDED_DTS shall define a single DTS file name)
 endif
+$(eval $(call MAKE_DTBS,$(out-dir)/core/dts, \
+			$(addprefix $(arch-dir)/dts/,$(CFG_EMBEDDED_DTS)), \
+			core-embedded-dtb))
+
 gensrcs-y += embedded_secure_dtb
+cleanfiles += $(out-dir)/core/dts/embedded_secure_dtb.c
 produce-embedded_secure_dtb = dts/embedded_secure_dtb.c
-depends-embedded_secure_dtb = $(core-secure-dtb) scripts/ta_bin_to_c.py
+depends-embedded_secure_dtb = $(core-embedded-dtb) scripts/ta_bin_to_c.py
 recipe-embedded_secure_dtb = scripts/bin_to_c.py \
-				--bin $(core-secure-dtb) \
+				--bin $(core-embedded-dtb) \
 				--vname embedded_secure_dtb \
 				--out $(out-dir)/core/dts/embedded_secure_dtb.c
-cleanfiles += $(out-dir)/core/dts/embedded_secure_dtb.c
 endif

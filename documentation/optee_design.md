@@ -830,9 +830,9 @@ by early boot and passed to non secure world are the following:
 
 ## Embedded Secure Device Tree
 
-When OP-TEE core is built with `CFG_EMBEDDED_SECURE_DT=y` configuration
-directive `CFG_SECURE_DTS` shall provide a single DTS file name including
-the .dts extension, from which a device tree blob (DTB) image is generated
+When OP-TEE core is built with configuration directive `CFG_EMBEDDED_DTS`
+defined, the directive shall provide a single DTS file name (including
+its .dts extension) from which a device tree blob (DTB) image is generated
 and embedded in a read-only section of OP-TEE core.
 
 In this case, the device tree address passed to the OP-TEE entry point
