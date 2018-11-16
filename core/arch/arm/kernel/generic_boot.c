@@ -73,10 +73,8 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 KEEP_PAGER(sem_cpu_sync);
 #endif
 
-#ifdef CFG_EMBEDDED_SECURE_DT
-extern uint8_t embedded_secure_dtb[];
-#endif
 #ifdef CFG_DT
+extern uint8_t embedded_secure_dtb[];
 static void *dt_blob_addr;
 #endif
 
@@ -474,7 +472,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 }
 #endif
 
-#if defined(CFG_DT) && !defined(CFG_EMBEDDED_SECURE_DT)
+#if defined(CFG_DT) && !defined(CFG_EMBEDDED_DTS)
 void *get_dt_blob(void)
 {
 	assert(cpu_mmu_enabled());
@@ -839,9 +837,9 @@ static void update_fdt(void)
 		panic();
 	}
 }
-#endif /*CFG_DT && !CFG_EMBEDDED_SECURE_DT*/
+#endif /*CFG_DT && !CFG_EMBEDDED_DTS*/
 
-#if defined(CFG_DT) && defined(CFG_EMBEDDED_SECURE_DT)
+#if defined(CFG_DT) && defined(CFG_EMBEDDED_DTS)
 void *get_dt_blob(void)
 {
 	assert(cpu_mmu_enabled());
@@ -864,7 +862,7 @@ void *get_dt_blob(void)
 }
 #endif
 
-#if !defined(CFG_DT) || defined(CFG_EMBEDDED_SECURE_DT)
+#if !defined(CFG_DT) || defined(CFG_EMBEDDED_DTS)
 static void reset_dt_references(void)
 {
 }
@@ -883,7 +881,7 @@ static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 	return NULL;
 }
 
-#endif /*!CFG_DT || CFG_EMBEDDED_SECURE_DT*/
+#endif /*!CFG_DT || CFG_EMBEDDED_DTS*/
 
 static void discover_nsec_memory(void)
 {
