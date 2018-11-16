@@ -3,16 +3,13 @@
 # Copyright (c) 2018, Linaro Limited
 # Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
 #
-# Generating the DTB from the DTS and integrating into OP-TEE core.
+# This makefile script proposes util MAKE_DTBS to generate DTB files from
+# the DTS files. Caller provides the DTS file list (including path and file
+# name extension .dts), the directory where to generate the DTB files and the
+# label of the make variable that will store the list of the generated DTB
+# files.
 #
-# CFG_SECURE_DTS provides a list of device tree source name located
-# in directory core/arch/$(ARCH)/dts/.
-#
-# This makefile generates a DTB file for each DTS file listed by
-# CFG_SECURE_DTS. Variable core-secure-dtb is filled with the list of
-# the paths of the generated DTB.
-#
-# Build precompiles the DTS files to resolve precompilation features
+# The sequence precompiles the DTS files to resolve precompilation features
 # (build directive, file inclusion, ...) then generates a DTB file of same
 # name as the input source file but with extension .dts replaced with .dtb.
 
@@ -20,9 +17,6 @@ DTC_FLAGS += -I dts -O dtb
 DTC_FLAGS += -Wno-unit_address_vs_reg
 
 DTC := dtc
-
-# Will get filled with generated DTB paths
-core-secure-dtb :=
 
 # Convert device tree source file names to matching blobs
 #   $(1) = input dts
@@ -33,6 +27,7 @@ endef
 # MAKE_DTB generate the Flattened device tree binary
 #   $(1) = output directory
 #   $(2) = input dts
+#   $(3) = variable used to store the list of the generated DTB files
 define MAKE_DTB
 
 # List of DTB file(s) to generate, based on DTS file basename list
@@ -56,20 +51,19 @@ $(DTBOBJ): $(2) $(DTBOBJ)_outdir $(filter-out %.d,$(MAKEFILE_LIST))
 	@$(cmd-echo-silent) "  DTC     $$<"
 	$(q)$(DTC) $$(DTC_FLAGS) -d $(DTBDEP) -o $$@ $(DTSPRE)
 
-core-secure-dtb += $(DTBOBJ)
+$(3) += $(DTBOBJ)
 -include $(DTBDEP)
 -include $(DTSDEP)
 endef
 
+# Main function exported by this makefile script
 # MAKE_DTBS builds flattened device tree sources
 #   $(1) = output directory
 #   $(2) = list of flattened device tree source files
+#   $(3) = variable used to store the list of the generated DTB files
 define MAKE_DTBS
         $(eval DTBOBJS := $(filter %.dts,$(2)))
         $(eval REMAIN := $(filter-out %.dts,$(2)))
         $(and $(REMAIN),$(error FDT_SOURCE contain non-DTS files: $(REMAIN)))
-        $(eval $(foreach obj,$(DTBOBJS),$(call MAKE_DTB,$(1),$(obj))))
+        $(eval $(foreach obj,$(DTBOBJS),$(call MAKE_DTB,$(1),$(obj),$(3))))
 endef
-
-FDT_SOURCE := $(addprefix $(arch-dir)/dts/,$(CFG_SECURE_DTS))
-$(eval $(call MAKE_DTBS,$(out-dir)/core/dts,$(FDT_SOURCE)))
