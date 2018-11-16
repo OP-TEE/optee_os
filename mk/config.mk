@@ -245,7 +245,7 @@ CFG_CORE_SANITIZE_KADDRESS ?= n
 
 # Device Tree support
 #
-# When CFG_DT is enabledn core embeds the FDT library (libfdt) allowing DTB
+# When CFG_DT is enabled core embeds the FDT library (libfdt) allowing DTB
 # image parsing from the core.
 #
 # When CFG_EMBEDDED_SECURE_DT is enabled, TEE core embeds a statically linked
