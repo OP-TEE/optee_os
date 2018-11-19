@@ -29,6 +29,7 @@ mx6s-flavorlist = \
 mx7-flavorlist = \
 	mx7dsabresd \
 	mx7swarp7 \
+	mx7swarp7_mbl \
 	mx7dclsom \
 
 imx8mq-flavorlist = \
@@ -102,6 +103,16 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),mx7swarp7))
 CFG_DDR_SIZE ?= 0x20000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_BOOT_SECONDARY_REQUEST ?= n
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx7swarp7_mbl))
+CFG_DDR_SIZE ?= 0x20000000
+CFG_NS_ENTRY_ADDR ?= 0x87800000
+CFG_DT_ADDR ?= 0x83100000
+CFG_BOOT_SECONDARY_REQUEST ?= n
+CFG_EXTERNAL_DTB_OVERLAY = y
+CFG_IMX_WDOG_EXT_RESET = y
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 endif
 
