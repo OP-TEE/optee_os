@@ -275,6 +275,16 @@ CFG_DT ?= n
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
 
+# Device Tree Overlay support.
+# This define enables support for an OP-TEE provided DTB overlay.
+# One of two modes is supported in this case:
+# 1. Append OP-TEE nodes to an existing DTB overlay located at CFG_DT_ADDR or
+#    passed in arg2
+# 2. Generate a new DTB overlay at CFG_DT_ADDR
+# A subsequent boot stage must then merge the generated overlay DTB into a main
+# DTB using the standard fdt_overlay_apply() method.
+CFG_EXTERNAL_DTB_OVERLAY ?= n
+
 # Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 
