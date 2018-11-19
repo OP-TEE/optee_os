@@ -521,6 +521,9 @@ static int add_dt_path_subnode(void *fdt, const char *path, const char *subnode)
 	offs = fdt_path_offset(fdt, path);
 	if (offs < 0)
 		return -1;
+	offs = add_dt_overlay_fragment(fdt, offs);
+	if (offs < 0)
+		return -1;
 	offs = fdt_add_subnode(fdt, offs, subnode);
 	if (offs < 0)
 		return -1;
