@@ -76,6 +76,9 @@ KEEP_PAGER(sem_cpu_sync);
 #ifdef CFG_DT
 extern uint8_t embedded_secure_dtb[];
 static void *dt_blob_addr;
+#ifdef CFG_EXTERNAL_DTB_OVERLAY
+static int __dt_frag_id;
+#endif
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -483,6 +486,33 @@ static void reset_dt_references(void)
 	/* dt no more reached, reset pointer to invalid */
 	dt_blob_addr = NULL;
 }
+
+#ifdef CFG_EXTERNAL_DTB_OVERLAY
+static int add_dt_overlay_fragment(void *fdt, int ioffs)
+{
+	char frag[32];
+	int offs;
+	int ret;
+
+	snprintf(frag, sizeof(frag), "fragment@%d", __dt_frag_id);
+	offs = fdt_add_subnode(fdt, ioffs, frag);
+	if (offs < 0)
+		return offs;
+
+	__dt_frag_id += 1;
+
+	ret = fdt_setprop_string(fdt, offs, "target-path", "/");
+	if (ret < 0)
+		return -1;
+
+	return fdt_add_subnode(fdt, offs, "__overlay__");
+}
+#else
+static int add_dt_overlay_fragment(void *fdt __unused, int offs)
+{
+	return offs;
+}
+#endif /* CFG_EXTERNAL_DTB_OVERLAY */
 
 static int add_dt_path_subnode(void *fdt, const char *path, const char *subnode)
 {
