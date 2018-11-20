@@ -609,10 +609,13 @@ void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 
 	if (args->a0 == OPTEE_SMC_RETURN_OK) {
 		struct thread_ctx *thr = threads + thread_get_id();
+		uint64_t cookie;
 
 		tee_fs_rpc_cache_clear(&thr->tsd);
 		if (!thread_prealloc_rpc_cache) {
-			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
+			cookie = mobj_get_cookie(thr->rpc_mobj);
+			if (cookie != MOBJ_INVALID_COOKIE)
+				thread_rpc_free_arg(cookie);
 			mobj_free(thr->rpc_mobj);
 			thr->rpc_arg = 0;
 			thr->rpc_mobj = NULL;
