@@ -498,7 +498,7 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	*num_params = READ_ONCE(arg->num_params);
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 
-	return mobj_shm_alloc(parg, args_size, MOBJ_INVALID_COOKIE);
+	return mobj_shm_alloc(parg, args_size, 0);
 }
 
 /*

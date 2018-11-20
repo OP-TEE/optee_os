@@ -1396,7 +1396,7 @@ static bool set_rmem(struct optee_msg_param *param,
 	param->u.rmem.size = tpm->u.memref.size;
 	if (tpm->u.memref.mobj) {
 		param->u.rmem.shm_ref = mobj_get_cookie(tpm->u.memref.mobj);
-		if (param->u.rmem.shm_ref == MOBJ_INVALID_COOKIE)
+		if (!param->u.rmem.shm_ref)
 			return false;
 	} else {
 		param->u.rmem.shm_ref = 0;
@@ -1416,7 +1416,7 @@ static bool set_tmem(struct optee_msg_param *param,
 		      OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 	if (mobj) {
 		shm_ref = mobj_get_cookie(mobj);
-		if (shm_ref == MOBJ_INVALID_COOKIE)
+		if (!shm_ref)
 			return false;
 		if (mobj_get_pa(mobj, tpm->u.memref.offs, 0, &pa))
 			return false;
