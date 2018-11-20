@@ -479,20 +479,23 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 		return NULL;
 
 	arg = mobj_get_va(mobj, 0);
-	if (!arg) {
-		mobj_free(mobj);
-		return NULL;
-	}
+	if (!arg)
+		goto err;
 
 	*num_params = READ_ONCE(arg->num_params);
+	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
+		goto err;
+
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 	if (args_size > SMALL_PAGE_SIZE) {
 		EMSG("Command buffer spans across page boundary");
-		mobj_free(mobj);
-		return NULL;
+		goto err;
 	}
 
 	return mobj;
+err:
+	mobj_free(mobj);
+	return NULL;
 }
 
 static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
@@ -505,6 +508,9 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 		return NULL;
 
 	*num_params = READ_ONCE(arg->num_params);
+	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
+		return NULL;
+
 	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
 
 	return mobj_shm_alloc(parg, args_size, 0);
