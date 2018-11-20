@@ -201,6 +201,15 @@ struct optee_msg_arg {
 #define OPTEE_MSG_GET_ARG_SIZE(num_params) \
 	(sizeof(struct optee_msg_arg) + \
 	 sizeof(struct optee_msg_param) * (num_params))
+
+/*
+ * Defines the maximum value of @num_params that can be passed to
+ * OPTEE_MSG_GET_ARG_SIZE without a risk of crossing page boundary.
+ */
+#define OPTEE_MSG_MAX_NUM_PARAMS	\
+	((OPTEE_MSG_NONCONTIG_PAGE_SIZE - sizeof(struct optee_msg_arg)) / \
+	 sizeof(struct optee_msg_param))
+
 #endif /*ASM*/
 
 /*****************************************************************************
