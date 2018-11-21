@@ -76,7 +76,7 @@ void imx_wdog_restart(void)
 }
 KEEP_PAGER(imx_wdog_restart);
 
-#ifdef CFG_DT
+#if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
 	enum teecore_memtypes mtype;
