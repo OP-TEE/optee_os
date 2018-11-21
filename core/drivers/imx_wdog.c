@@ -167,6 +167,9 @@ register_phys_mem(MEM_AREA_IO_SEC, WDOG_BASE, CORE_MMU_DEVICE_SIZE);
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
 	*wdog_vbase = (vaddr_t)phys_to_virt(WDOG_BASE, MEM_AREA_IO_SEC);
+#if defined(CFG_IMX_WDOG_EXT_RESET)
+	ext_reset = true;
+#endif
 	return TEE_SUCCESS;
 }
 #endif
