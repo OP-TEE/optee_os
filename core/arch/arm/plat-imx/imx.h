@@ -21,6 +21,7 @@
 #define SOC_MX7D	0x72
 #define SOC_MX7ULP	0xE1
 #define SOC_MX8QX	0xE2
+#define SOC_MX8QM	0xE3
 
 uint32_t imx_get_src_gpr(int cpu);
 void imx_set_src_gpr(int cpu, uint32_t val);
