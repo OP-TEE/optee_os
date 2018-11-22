@@ -161,6 +161,9 @@ SECTIONS
 		__start_phys_ddr_overall_section = . ;
 		KEEP(*(phys_ddr_overall_section))
 		__end_phys_ddr_overall_section = . ;
+
+		. = ALIGN(8);
+		KEEP(*(SORT(.scattered_array*)));
 #endif
 		. = ALIGN(8);
 		__rodata_end = .;
@@ -339,6 +342,10 @@ SECTIONS
 		__start_phys_ddr_overall_section = . ;
 		KEEP(*(phys_ddr_overall_section))
 		__end_phys_ddr_overall_section = . ;
+
+		. = ALIGN(8);
+		KEEP(*(SORT(.scattered_array*)));
+
 		. = ALIGN(8);
 		__rodata_init_end = .;
 	}
