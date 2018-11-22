@@ -485,6 +485,19 @@ static void reset_dt_references(void)
 	dt_blob_addr = NULL;
 }
 
+static int add_dt_path_subnode(void *fdt, const char *path, const char *subnode)
+{
+	int offs;
+
+	offs = fdt_path_offset(fdt, path);
+	if (offs < 0)
+		return -1;
+	offs = fdt_add_subnode(fdt, offs, subnode);
+	if (offs < 0)
+		return -1;
+	return offs;
+}
+
 static int add_optee_dt_node(void *fdt)
 {
 	int offs;
