@@ -334,8 +334,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	 */
 
 #ifdef CFG_SECURE_DATA_PATH
-	for (pmem = &__start_phys_sdp_mem_section;
-	     pmem < &__end_phys_sdp_mem_section; pmem++)
+	for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
 		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
 #endif
 
@@ -372,8 +371,8 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf, size_t len)
 	const struct core_mmu_phys_mem *end;
 
 	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = &__start_phys_nsec_ddr_section;
-		end = &__end_phys_nsec_ddr_section;
+		start = phys_nsec_ddr_begin;
+		end = phys_nsec_ddr_end;
 	}
 
 	return pbuf_is_special_mem(pbuf, len, start, end);
@@ -385,8 +384,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 	const struct core_mmu_phys_mem *end;
 
 	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = &__start_phys_nsec_ddr_section;
-		end = &__end_phys_nsec_ddr_section;
+		start = phys_nsec_ddr_begin;
+		end = phys_nsec_ddr_end;
 	}
 
 	return start != end;
@@ -399,8 +398,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	return pbuf_is_special_mem(pbuf, len, &__start_phys_sdp_mem_section,
-				    &__end_phys_sdp_mem_section);
+	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
+				   phys_sdp_mem_end);
 }
 
 struct mobj **core_sdp_mem_create_mobjs(void)
@@ -408,15 +407,15 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	const struct core_mmu_phys_mem *mem;
 	struct mobj **mobj_base;
 	struct mobj **mobj;
-	int cnt = &__end_phys_sdp_mem_section - &__start_phys_sdp_mem_section;
+	int cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
 
 	/* SDP mobjs table must end with a NULL entry */
 	mobj_base = calloc(cnt + 1, sizeof(struct mobj *));
 	if (!mobj_base)
 		panic("Out of memory");
 
-	for (mem = &__start_phys_sdp_mem_section, mobj = mobj_base;
-	     mem < &__end_phys_sdp_mem_section; mem++, mobj++) {
+	for (mem = phys_sdp_mem_begin, mobj = mobj_base;
+	     mem < phys_sdp_mem_end; mem++, mobj++) {
 		*mobj = mobj_phys_alloc(mem->addr, mem->size,
 					TEE_MATTR_CACHE_CACHED,
 					CORE_MEM_SDP_MEM);
@@ -428,12 +427,10 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 
 static void check_sdp_intersection_with_nsec_ddr(void)
 {
-	const struct core_mmu_phys_mem *sdp_start =
-		&__start_phys_sdp_mem_section;
-	const struct core_mmu_phys_mem *sdp_end = &__end_phys_sdp_mem_section;
-	const struct core_mmu_phys_mem *ddr_start =
-		&__start_phys_nsec_ddr_section;
-	const struct core_mmu_phys_mem *ddr_end = &__end_phys_nsec_ddr_section;
+	const struct core_mmu_phys_mem *sdp_start = phys_sdp_mem_begin;
+	const struct core_mmu_phys_mem *sdp_end = phys_sdp_mem_end;
+	const struct core_mmu_phys_mem *ddr_start = phys_nsec_ddr_begin;
+	const struct core_mmu_phys_mem *ddr_end = phys_nsec_ddr_end;
 	const struct core_mmu_phys_mem *sdp;
 	const struct core_mmu_phys_mem *nsec_ddr;
 
@@ -808,8 +805,7 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	vaddr_t end;
 	bool __maybe_unused va_is_secure = true; /* any init value fits */
 
-	for (mem = &__start_phys_mem_map_section;
-	     mem < &__end_phys_mem_map_section; mem++) {
+	for (mem = phys_mem_map_begin; mem < phys_mem_map_end; mem++) {
 		struct core_mmu_phys_mem m = *mem;
 
 		/* Discard null size entries */
@@ -828,16 +824,14 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	}
 
 #ifdef CFG_SECURE_DATA_PATH
-	verify_special_mem_areas(memory_map, num_elems,
-				 &__start_phys_sdp_mem_section,
-				 &__end_phys_sdp_mem_section, "SDP");
+	verify_special_mem_areas(memory_map, num_elems, phys_sdp_mem_begin,
+				 phys_sdp_mem_end, "SDP");
 
 	check_sdp_intersection_with_nsec_ddr();
 #endif
 
-	verify_special_mem_areas(memory_map, num_elems,
-				 &__start_phys_nsec_ddr_section,
-				 &__end_phys_nsec_ddr_section, "NSEC DDR");
+	verify_special_mem_areas(memory_map, num_elems, phys_nsec_ddr_begin,
+				 phys_nsec_ddr_end, "NSEC DDR");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     CFG_RESERVED_VASPACE_SIZE, &last);

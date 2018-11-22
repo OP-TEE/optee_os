@@ -898,19 +898,18 @@ static void discover_nsec_memory(void)
 		DMSG("No non-secure memory found in FDT");
 	}
 
-	nelems = (&__end_phys_ddr_overall_section -
-		  &__start_phys_ddr_overall_section);
+	nelems = phys_ddr_overall_end - phys_ddr_overall_begin;
 	if (!nelems)
 		return;
 
 	/* Platform cannot define nsec_ddr && overall_ddr */
-	assert(&__start_phys_nsec_ddr_section == &__end_phys_nsec_ddr_section);
+	assert(phys_nsec_ddr_begin == phys_nsec_ddr_end);
 
 	mem = calloc(nelems, sizeof(*mem));
 	if (!mem)
 		panic();
 
-	memcpy(mem, &__start_phys_ddr_overall_section, sizeof(*mem) * nelems);
+	memcpy(mem, phys_ddr_overall_begin, sizeof(*mem) * nelems);
 	core_mmu_set_discovered_nsec_ddr(mem, nelems);
 }
 

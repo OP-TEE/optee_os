@@ -7,7 +7,6 @@
 
 #include <kernel/dt.h>
 #include <kernel/early_ta.h>
-#include <mm/core_mmu.h>
 #include <types_ext.h>
 
 /*
@@ -23,15 +22,6 @@ extern const uint8_t __exidx_start[];
 extern const uint8_t __exidx_end[];
 extern const uint8_t __extab_start[];
 extern const uint8_t __extab_end[];
-
-extern const struct core_mmu_phys_mem __start_phys_sdp_mem_section;
-extern const struct core_mmu_phys_mem __end_phys_sdp_mem_section;
-extern const struct core_mmu_phys_mem __start_phys_mem_map_section;
-extern const struct core_mmu_phys_mem __end_phys_mem_map_section;
-extern const struct core_mmu_phys_mem __start_phys_nsec_ddr_section;
-extern const struct core_mmu_phys_mem __end_phys_nsec_ddr_section;
-extern const struct core_mmu_phys_mem __start_phys_ddr_overall_section;
-extern const struct core_mmu_phys_mem __end_phys_ddr_overall_section;
 
 #define VCORE_UNPG_RX_PA	((unsigned long)__vcore_unpg_rx_start)
 #define VCORE_UNPG_RX_SZ	((size_t)__vcore_unpg_rx_size)
