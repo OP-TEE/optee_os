@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/tee_ta_manager.h>
+#include <scattered_array.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
 #include <util.h>
@@ -38,9 +39,9 @@ struct pseudo_ta_head {
 			TEE_Param pParams[TEE_NUM_PARAMS]);
 };
 
-#define pseudo_ta_register(...) static const struct pseudo_ta_head __head \
-			__used __section("ta_head_section") = { __VA_ARGS__ }
-
+#define pseudo_ta_register(...)	\
+	SCATTERED_ARRAY_DEFINE_PG_ITEM(pseudo_tas, struct pseudo_ta_head) = \
+		{ __VA_ARGS__ }
 
 struct pseudo_ta_ctx {
 	const struct pseudo_ta_head *pseudo_ta;
