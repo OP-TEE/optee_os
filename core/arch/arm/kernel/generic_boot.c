@@ -238,7 +238,6 @@ static void init_asan(void)
 	 * Add access to areas that aren't opened automatically by a
 	 * constructor.
 	 */
-	asan_tag_access(&__initcall_start, &__initcall_end);
 	asan_tag_access(&__ctor_list, &__ctor_end);
 	asan_tag_access(__rodata_start, __rodata_end);
 #ifdef CFG_WITH_PAGER

@@ -89,14 +89,6 @@ SECTIONS
 		       .text.reset .text.reset_primary .text.unhandled_cpu \
 		       .text.__assert_flat_mapped_range))
 
-		. = ALIGN(8);
-		__initcall_start = .;
-		KEEP(*(.initcall1))
-		KEEP(*(.initcall2))
-		KEEP(*(.initcall3))
-		KEEP(*(.initcall4))
-		__initcall_end = .;
-
 #ifdef CFG_WITH_PAGER
 		*(.text)
 /* Include list of sections needed for paging */
