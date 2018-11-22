@@ -101,7 +101,8 @@ comp-cppflags-$2 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
 		      $$(addprefix -I,$$(incdirs-lib$$(comp-lib-$2))) \
 		      $$(addprefix -I,$$(incdirs-$2)) \
 		      $$(cppflags$$(comp-sm-$2)) \
-		      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2))
+		      $$(cppflags-lib$$(comp-lib-$2)) $$(cppflags-$2)) \
+		      -D__FILE_ID__=$$(subst -,_,$$(subst /,_,$$(subst .,_,$1)))
 
 comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@
 comp-flags-$2 += $$(comp-cppflags-$2)
