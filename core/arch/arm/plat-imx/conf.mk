@@ -61,6 +61,9 @@ imx8mq-flavorlist = \
 imx8mm-flavorlist = \
 	imx8mmevk
 
+imx8qx-flavorlist = \
+	imx8qxpmek \
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6UL,y)
@@ -130,6 +133,12 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mm-flavorlist)))
 $(call force,CFG_IMX8MM,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_UART ?= y
+CFG_DRAM_BASE ?= 0x40000000
+CFG_TEE_CORE_NB_CORE ?= 4
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8qx-flavorlist)))
+$(call force,CFG_IMX8QX,y)
+$(call force,CFG_ARM64_core,y)
+CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else
@@ -254,6 +263,11 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),imx8mmevk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),imx8qxpmek))
+CFG_DDR_SIZE ?= 0x80000000
+CFG_UART_BASE ?= UART0_BASE
 endif
 
 # i.MX6 Solo/SL/SoloX/DualLite/Dual/Quad specific config
