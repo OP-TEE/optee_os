@@ -5,7 +5,6 @@
 #ifndef __KERNEL_LINKER_H
 #define __KERNEL_LINKER_H
 
-#include <initcall.h>
 #include <kernel/dt.h>
 #include <kernel/early_ta.h>
 #include <kernel/pseudo_ta.h>
@@ -61,9 +60,6 @@ extern const uint8_t __vcore_init_ro_size[];
 
 extern const uint8_t __text_start[];
 extern const uint8_t __end[];
-
-extern const initcall_t __initcall_start;
-extern const initcall_t __initcall_end;
 
 extern uint8_t __data_start[];
 extern const uint8_t __data_end[];

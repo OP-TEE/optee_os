@@ -25,7 +25,7 @@ static void call_initcalls(void)
 {
 	const initcall_t *call;
 
-	for (call = &__initcall_start; call < &__initcall_end; call++) {
+	for (call = initcall_begin; call < initcall_end; call++) {
 		TEE_Result ret;
 		ret = (*call)();
 		if (ret != TEE_SUCCESS) {
