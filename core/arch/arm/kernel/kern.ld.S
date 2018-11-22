@@ -127,24 +127,6 @@ SECTIONS
 #endif
 
 		*(.rodata .rodata.*)
-
-		. = ALIGN(8);
-		__start_phys_mem_map_section = . ;
-		KEEP(*(phys_mem_map_section))
-		__end_phys_mem_map_section = . ;
-		. = ALIGN(8);
-		__start_phys_sdp_mem_section = . ;
-		KEEP(*(phys_sdp_mem_section))
-		__end_phys_sdp_mem_section = . ;
-		. = ALIGN(8);
-		__start_phys_nsec_ddr_section = . ;
-		KEEP(*(phys_nsec_ddr_section))
-		__end_phys_nsec_ddr_section = . ;
-		. = ALIGN(8);
-		__start_phys_ddr_overall_section = . ;
-		KEEP(*(phys_ddr_overall_section))
-		__end_phys_ddr_overall_section = . ;
-
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
 #endif
@@ -309,22 +291,6 @@ SECTIONS
 
 	.rodata_init : {
 #include <rodata_init.ld.S>
-		. = ALIGN(8);
-		__start_phys_mem_map_section = . ;
-		KEEP(*(phys_mem_map_section))
-		__end_phys_mem_map_section = . ;
-		. = ALIGN(8);
-		__start_phys_sdp_mem_section = . ;
-		KEEP(*(phys_sdp_mem_section))
-		__end_phys_sdp_mem_section = . ;
-		. = ALIGN(8);
-		__start_phys_nsec_ddr_section = . ;
-		KEEP(*(phys_nsec_ddr_section))
-		__end_phys_nsec_ddr_section = . ;
-		. = ALIGN(8);
-		__start_phys_ddr_overall_section = . ;
-		KEEP(*(phys_ddr_overall_section))
-		__end_phys_ddr_overall_section = . ;
 
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));

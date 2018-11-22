@@ -333,8 +333,7 @@ static paddr_t get_nsec_ddr_max_pa(void)
 	paddr_t pa = 0;
 	const struct core_mmu_phys_mem *mem;
 
-	for (mem = &__start_phys_nsec_ddr_section;
-	     mem < &__end_phys_nsec_ddr_section; mem++)
+	for (mem = phys_nsec_ddr_begin; mem < phys_nsec_ddr_end; mem++)
 		pa = MAX(pa, mem->addr + mem->size);
 
 	return pa;
