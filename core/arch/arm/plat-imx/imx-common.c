@@ -25,8 +25,10 @@ static void imx_digproc(void)
 	uint32_t digprog = 0;
 	vaddr_t __maybe_unused anatop_addr = 0;
 
-#ifdef CFG_MX7ULP
+#if defined(CFG_MX7ULP)
 	digprog = SOC_MX7ULP << 16;
+#elif defined(CFG_IMX8QX)
+	digprog = SOC_MX8QX << 16;
 #else
 	anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
 
