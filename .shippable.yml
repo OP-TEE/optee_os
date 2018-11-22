@@ -81,6 +81,7 @@ build:
     - _make PLATFORM=imx-imx8mmevk
     - _make PLATFORM=imx-imx8mqevk
     - _make PLATFORM=imx-imx8qxpmek
+    - _make PLATFORM=imx-imx8qmmek
     - _make PLATFORM=k3-j721e
     - _make PLATFORM=k3-j721e CFG_ARM64_core=y
     - _make PLATFORM=k3-am65x
