@@ -509,10 +509,7 @@ static int add_optee_dt_node(void *fdt)
 
 	offs = fdt_path_offset(fdt, "/firmware");
 	if (offs < 0) {
-		offs = fdt_path_offset(fdt, "/");
-		if (offs < 0)
-			return -1;
-		offs = fdt_add_subnode(fdt, offs, "firmware");
+		offs = add_dt_path_subnode(fdt, "/", "firmware");
 		if (offs < 0)
 			return -1;
 	}
@@ -545,10 +542,7 @@ static int dt_add_psci_node(void *fdt)
 		return 0;
 	}
 
-	offs = fdt_path_offset(fdt, "/");
-	if (offs < 0)
-		return -1;
-	offs = fdt_add_subnode(fdt, offs, "psci");
+	offs = add_dt_path_subnode(fdt, "/", "psci");
 	if (offs < 0)
 		return -1;
 	if (append_psci_compatible(fdt, offs, "arm,psci-1.0"))
@@ -681,10 +675,7 @@ static int add_res_mem_dt_node(void *fdt, const char *name, paddr_t pa,
 		if (len_size < 0)
 			return -1;
 	} else {
-		offs = fdt_path_offset(fdt, "/");
-		if (offs < 0)
-			return -1;
-		offs = fdt_add_subnode(fdt, offs, "reserved-memory");
+		offs = add_dt_path_subnode(fdt, "/", "reserved-memory");
 		if (offs < 0)
 			return -1;
 		ret = fdt_setprop_cell(fdt, offs, "#address-cells", addr_size);
