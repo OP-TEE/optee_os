@@ -28,6 +28,7 @@ Directory | Description
 ## Structure of /core/arch/arm
 Directory | Description
 :---------|:------------
+/dts	  | Device tree source files
 /include  | Include files used in rest of TEE core but not in any supporting libraries
 /kern	  | Low level and core parts of TEE Core
 /mm	  | Memory management
