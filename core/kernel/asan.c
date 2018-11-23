@@ -13,6 +13,12 @@
 #include <types_ext.h>
 #include <util.h>
 
+#if __GCC_VERSION >= 70000
+#define ASAN_ABI_VERSION 7
+#else
+#define ASAN_ABI_VERSION 6
+#endif
+
 struct asan_source_location {
 	const char *file_name;
 	int line_no;
@@ -27,6 +33,9 @@ struct asan_global {
 	const char *module_name;
 	uintptr_t has_dynamic_init;
 	struct asan_source_location *location;
+#if ASAN_ABI_VERSION >= 7
+	uintptr_t odr_indicator;
+#endif
 };
 
 static vaddr_t asan_va_base;
