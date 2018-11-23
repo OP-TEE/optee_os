@@ -201,13 +201,12 @@ static void early_ta_close(struct user_ta_store_handle *h)
 	free(h);
 }
 
-static struct user_ta_store_ops ops = {
+TEE_TA_REGISTER_TA_STORE(2) = {
 	.description = "early TA",
 	.open = early_ta_open,
 	.get_size = early_ta_get_size,
 	.read = early_ta_read,
 	.close = early_ta_close,
-	.priority = 5,
 };
 
 static TEE_Result early_ta_init(void)
@@ -226,7 +225,7 @@ static TEE_Result early_ta_init(void)
 		     msg);
 	}
 
-	return tee_ta_register_ta_store(&ops);
+	return TEE_SUCCESS;
 }
 
 service_init(early_ta_init);
