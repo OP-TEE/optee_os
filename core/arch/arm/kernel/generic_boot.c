@@ -74,6 +74,7 @@ KEEP_PAGER(sem_cpu_sync);
 #endif
 
 #ifdef CFG_DT
+extern uint8_t embedded_secure_dtb[];
 static void *dt_blob_addr;
 #endif
 
@@ -471,7 +472,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 }
 #endif
 
-#ifdef CFG_DT
+#if defined(CFG_DT) && !defined(CFG_EMBED_DTB)
 void *get_dt_blob(void)
 {
 	assert(cpu_mmu_enabled());
@@ -836,8 +837,36 @@ static void update_fdt(void)
 		panic();
 	}
 }
+#endif /*CFG_DT && !CFG_EMBED_DTB*/
 
-#else
+#if defined(CFG_DT) && defined(CFG_EMBED_DTB)
+void *get_dt_blob(void)
+{
+	assert(cpu_mmu_enabled());
+
+	if (!dt_blob_addr) {
+		if (fdt_check_header(embedded_secure_dtb))
+			panic("Invalid embedded DTB");
+
+		dt_blob_addr = embedded_secure_dtb;
+	}
+
+	return dt_blob_addr;
+}
+#endif
+
+#ifndef CFG_DT
+void *get_dt_blob(void)
+{
+	return NULL;
+}
+#endif
+
+#if !defined(CFG_DT) || defined(CFG_EMBED_DTB)
+static void reset_dt_references(void)
+{
+}
+
 static void init_fdt(unsigned long phys_fdt __unused)
 {
 }
@@ -846,22 +875,13 @@ static void update_fdt(void)
 {
 }
 
-static void reset_dt_references(void)
-{
-}
-
-void *get_dt_blob(void)
-{
-	return NULL;
-}
-
 static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 					     size_t *nelems __unused)
 {
 	return NULL;
 }
 
-#endif /*!CFG_DT*/
+#endif /*!CFG_DT || CFG_EMBED_DTB*/
 
 static void discover_nsec_memory(void)
 {
