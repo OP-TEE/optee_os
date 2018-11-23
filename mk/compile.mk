@@ -230,4 +230,58 @@ endef
 
 $(foreach f,$(asm-defines-files),$(eval $(call gen-asm-defines-file,$(f),$(out-dir)/$(sm)/include/generated/$(basename $(notdir $(f))).h)))
 
+# Device tree source file compilation
+DTC := dtc
+DTC_FLAGS += -I dts -O dtb
+DTC_FLAGS += -Wno-unit_address_vs_reg
+
+define gen-dtb-file
+# dts file path/name in $1
+# dtb file path/name in $2
+
+dtb-basename-$2	:= $$(basename $$(notdir $2))
+dtb-predts-$2   := $$(dir $2)$$(dtb-basename-$2).pre.dts
+dtb-predep-$2	:= $$(dir $2).$$(dtb-basename-$2).pre.dts.d
+dtb-dep-$2	:= $$(dir $2).$$(notdir $2).d
+dtb-cmd-file-$2	:= $$(dir $2).$$(notdir $2).cmd
+
+cleanfiles := $$(cleanfiles) $2 \
+		$$(dtb-predts-$2) $$(dtb-predep-$2) \
+		$$(dtb-dep-$2) $$(dtb-cmd-file-$2)
+
+dtb-cppflags-$2	:= -Icore/include/ -x assembler-with-cpp \
+		   -E -ffreestanding $$(CPPFLAGS) \
+		   -MD -MF $$(dtb-predep-$2) -MT $2
+
+dtb-dtcflags-$2	:= $$(DTC_FLAGS) -d $$(dtb-dep-$2)
+
+-include $$(dtb-dep-$2)
+-include $$(dtb-predep-$2)
+-include $$(dtb-cmd-file-$2)
+
+dtb-precmd-$2 = $$(CPP$(sm)) $$(dtb-cppflags-$2) -o $$(dtb-predts-$2) $$<
+dtb-cmd-$2 = $$(DTC) $$(dtb-dtcflags-$2) -o $$@ $$(dtb-predts-$2)
+
+$2: $1 FORCE
+# Check if any prerequisites are newer than the target and
+# check if command line has changed
+	$$(if $$(strip $$(filter-out FORCE, $$?) \
+	    $$(filter-out $$(dtb-precmd-$2), $$(dtb-old-precmd-$2)) 	\
+	    $$(filter-out $$(dtb-old-precmd-$2), $$(dtb-precmd-$2)) 	\
+	    $$(filter-out $$(dtb-cmd-$2), $$(dtb-old-cmd-$2)) 		\
+	    $$(filter-out $$(dtb-old-cmd-$2), $$(dtb-cmd-$2))),		\
+		@set -e; 						\
+		mkdir -p $$(dir $2); 					\
+		$(cmd-echo-silent) '  CPP     $$(dtb-predts-$2)'; 	\
+		$$(dtb-precmd-$2);					\
+		$(cmd-echo-silent) '  DTC     $$@'; 			\
+		$$(dtb-cmd-$2);						\
+		echo "dtb-old-precmd-$2 := $$(subst \",\\\",$$(dtb-precmd-$2))" > \
+			$$(dtb-cmd-file-$2) ;\
+		echo "dtb-old-cmd-$2 := $$(subst \",\\\",$$(dtb-cmd-$2))" >> \
+			$$(dtb-cmd-file-$2) ;\
+	)
+
+endef
+
 additional-compile-deps :=
