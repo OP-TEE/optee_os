@@ -47,13 +47,6 @@ struct user_ta_store_ops {
 	 * Close a TA handle. Do nothing if @h == NULL.
 	 */
 	void (*close)(struct user_ta_store_handle *h);
-	/*
-	 * user_ta_store_ops instances are kept in a list ordered by priority.
-	 * Higher priority instances are tried first when a TA is looked up.
-	 * @priority lower value means higher priority
-	 */
-	SLIST_ENTRY(user_ta_store_ops) link;
-	int priority;
 };
 
 TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
