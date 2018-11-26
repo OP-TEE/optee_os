@@ -839,6 +839,27 @@ by early boot and passed to non-secure world are the following:
 Early boot DTB located in non-secure memory can be accessed by OP-TEE core
 only during its initialization, before non-secure world boots.
 
+## Early boot device tree overlay
+
+There are two possibilities for OP-TEE core to provide a device tree
+overlay to the non-secure world.
+
+* Append OP-TEE nodes to an existing DTB overlay located at CFG_DT_ADDR or
+  passed in arg2
+
+* Generate a new DTB overlay at CFG_DT_ADDR if and only if CFG_DT_ADDR does
+  not point to a valid DTB.
+
+A subsequent boot stage should merge the OP-TEE DTB overlay into another
+DTB.
+
+A typical bootflow for this would be
+
+ATF -> OP-TEE -> u-boot with u-boot merging the OP-TEE DTB overlay located
+at CFG_DT_ADDR into a DTB u-boot has loaded from elsewhere.
+
+This functionality is enabled when `CFG_EXTERNAL_DTB_OVERLAY=y`.
+
 ## Embedded Secure Device Tree
 
 When OP-TEE core is built with configuration directive `CFG_EMBED_DTB=y`
