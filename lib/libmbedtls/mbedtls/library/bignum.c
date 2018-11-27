@@ -2506,7 +2506,7 @@ static int mpi_miller_rabin( const mbedtls_mpi *X, size_t rounds,
                 A.p[A.n - 1] &= ( (mbedtls_mpi_uint) 1 << ( k - ( A.n - 1 ) * biL - 1 ) ) - 1;
             }
 
-            if (count++ > 30) {
+            if (count++ > 300) {
                 ret = MBEDTLS_ERR_MPI_NOT_ACCEPTABLE;
                 goto cleanup;
             }
