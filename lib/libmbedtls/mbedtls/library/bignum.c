@@ -2179,7 +2179,7 @@ static int mpi_miller_rabin( const mbedtls_mpi *X,
                 MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( &A, j - k ) );
             }
 
-            if (count++ > 30) {
+            if (count++ > 300) {
                 return MBEDTLS_ERR_MPI_NOT_ACCEPTABLE;
             }
 
