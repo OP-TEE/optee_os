@@ -104,7 +104,7 @@ void serial8250_uart_init(struct serial8250_uart_data *pd, paddr_t base,
 
 static struct serial_chip *serial8250_uart_dev_alloc(void)
 {
-	struct serial8250_uart_data *pd = malloc(sizeof(*pd));
+	struct serial8250_uart_data *pd = calloc(1, sizeof(*pd));
 
 	if (!pd)
 		return NULL;
