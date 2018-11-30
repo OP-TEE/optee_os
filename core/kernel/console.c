@@ -42,6 +42,18 @@ void register_serial_console(struct serial_chip *chip)
 }
 
 #ifdef CFG_DT
+static int find_chosen_node(void *fdt)
+{
+	if (!fdt)
+		return -1;
+
+	int offset = fdt_path_offset(fdt, "/secure-chosen");
+
+	if (offset < 0)
+		offset = fdt_path_offset(fdt, "/chosen");
+
+	return offset;
+}
 
 /*
  * Check if the /secure-chosen node in the DT contains an stdout-path value
@@ -57,21 +69,27 @@ void configure_console_from_dt(void)
 	char *stdout_data;
 	const char *uart;
 	const char *parms = NULL;
-	void *fdt = get_dt();
+	void *fdt;
 	int offs;
 	char *p;
 
-	if (!fdt)
+	/* Probe console from secure DT and fallback to non-secure DT */
+	fdt = get_embedded_dt();
+	offs = find_chosen_node(fdt);
+	if (offs < 0) {
+		fdt = get_external_dt();
+		offs = find_chosen_node(fdt);
+	}
+	if (offs < 0) {
+		DMSG("No console directive from DTB");
 		return;
+	}
 
-	offs = fdt_path_offset(fdt, "/secure-chosen");
-	if (offs < 0)
-		return;
 	prop = fdt_get_property(fdt, offs, "stdout-path", NULL);
 	if (!prop) {
 		/*
-		 * /secure-chosen node present but no stdout-path property
-		 * means we don't want any console output
+		 * A secure-chosen or chosen node is present but defined
+		 * no stdout-path property: no console expected
 		 */
 		IMSG("Switching off console");
 		register_serial_console(NULL);
