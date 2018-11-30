@@ -80,7 +80,7 @@ struct dt_descriptor {
 	int frag_id;
 };
 
-static struct dt_descriptor dt_desc;
+static struct dt_descriptor external_dt;
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -480,13 +480,13 @@ static void init_runtime(unsigned long pageable_part __unused)
 void *get_dt(void)
 {
 	assert(cpu_mmu_enabled());
-	return dt_desc.blob;
+	return external_dt.blob;
 }
 
-static void reset_dt_references(void)
+static void release_external_dt(void)
 {
 	/* dt no more reached, reset pointer to invalid */
-	dt_desc.blob = NULL;
+	external_dt.blob = NULL;
 }
 
 #ifdef CFG_EXTERNAL_DTB_OVERLAY
@@ -510,7 +510,7 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 	return fdt_add_subnode(dt->blob, offs, "__overlay__");
 }
 
-static int init_dt_overlay(struct dt_descriptor *dt, int fdtsize)
+static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 {
 	int fragment;
 	int ret;
@@ -523,7 +523,7 @@ static int init_dt_overlay(struct dt_descriptor *dt, int fdtsize)
 	}
 
 #ifdef CFG_DT_ADDR
-	return fdt_create_empty_tree(dt->blob, fdtsize);
+	return fdt_create_empty_tree(dt->blob, dt_size);
 #else
 	return -1;
 #endif
@@ -535,7 +535,7 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
 }
 
 static int init_dt_overlay(struct dt_descriptor *dt __unused,
-			   int fdtsize __unused)
+			   int dt_size __unused)
 {
 	return 0;
 }
@@ -845,13 +845,13 @@ static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 	return -1;
 }
 
-static void init_fdt(unsigned long phys_fdt)
+static void init_external_dt(unsigned long phys_dt)
 {
-	struct dt_descriptor *dt = &dt_desc;
+	struct dt_descriptor *dt = &external_dt;
 	void *fdt;
 	int ret;
 
-	if (!phys_fdt) {
+	if (!phys_dt) {
 		EMSG("Device Tree missing");
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
@@ -864,10 +864,10 @@ static void init_fdt(unsigned long phys_fdt)
 		return;
 	}
 
-	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_fdt, CFG_DTB_MAX_SIZE))
-		panic("failed to map fdt");
+	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_dt, CFG_DTB_MAX_SIZE))
+		panic("Failed to map external DTB");
 
-	fdt = phys_to_virt(phys_fdt, MEM_AREA_IO_NSEC);
+	fdt = phys_to_virt(phys_dt, MEM_AREA_IO_NSEC);
 	if (!fdt)
 		panic();
 
@@ -876,21 +876,21 @@ static void init_fdt(unsigned long phys_fdt)
 	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
 		EMSG("Device Tree Overlay init fail @ 0x%" PRIxPA ": error %d",
-		     phys_fdt, ret);
+		     phys_dt, ret);
 		panic();
 	}
 
 	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
 		EMSG("Invalid Device Tree at 0x%" PRIxPA ": error %d",
-		     phys_fdt, ret);
+		     phys_dt, ret);
 		panic();
 	}
 }
 
-static void update_fdt(void)
+static void update_external_dt(void)
 {
-	struct dt_descriptor *dt = &dt_desc;
+	struct dt_descriptor *dt = &external_dt;
 	int ret;
 
 	if (!dt->blob)
@@ -919,14 +919,14 @@ void *get_dt(void)
 {
 	assert(cpu_mmu_enabled());
 
-	if (!dt_desc.blob) {
+	if (!external_dt.blob) {
 		if (fdt_check_header(embedded_secure_dtb))
 			panic("Invalid embedded DTB");
 
-		dt_desc.blob = embedded_secure_dtb;
+		external_dt.blob = embedded_secure_dtb;
 	}
 
-	return dt_desc.blob;
+	return external_dt.blob;
 }
 #endif
 
@@ -938,20 +938,20 @@ void *get_dt(void)
 #endif
 
 #if !defined(CFG_DT) || defined(CFG_EMBED_DTB)
-static void reset_dt_references(void)
+static void release_external_dt(void)
 {
 }
 
-static void init_fdt(unsigned long phys_fdt __unused)
+static void init_external_dt(unsigned long phys_dt __unused)
 {
 }
 
-static void update_fdt(void)
+static void update_external_dt(void)
 {
 }
 
 static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
-					     size_t *nelems __unused)
+					    size_t *nelems __unused)
 {
 	return NULL;
 }
@@ -1007,8 +1007,8 @@ static void init_primary_helper(unsigned long pageable_part,
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	init_fdt(fdt);
-	update_fdt();
+	init_external_dt(fdt);
+	update_external_dt();
 	configure_console_from_dt();
 	discover_nsec_memory();
 
@@ -1018,7 +1018,7 @@ static void init_primary_helper(unsigned long pageable_part,
 	init_vfp_nsec();
 	if (init_teecore() != TEE_SUCCESS)
 		panic();
-	reset_dt_references();
+	release_external_dt();
 	DMSG("Primary CPU switching to normal world boot\n");
 }
 
