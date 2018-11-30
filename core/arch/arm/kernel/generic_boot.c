@@ -1008,9 +1008,9 @@ static void init_primary_helper(unsigned long pageable_part,
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 	init_external_dt(fdt);
+	discover_nsec_memory();
 	update_external_dt();
 	configure_console_from_dt();
-	discover_nsec_memory();
 
 	IMSG("OP-TEE version: %s", core_v_str);
 
