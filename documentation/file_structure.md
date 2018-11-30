@@ -15,19 +15,26 @@ Directory | Description
 Directory | Description
 :---------|:------------
 /arch	  | Architecture and platform specific files
+/include  | Header files of resources exported by the core
 /lib	  | Generic libraries that are likely to be replaced in a final product
 /mm	  | Generic memory management, currently empty
 /tee	  | Generic TEE files
+
+## Structure of /core/include
+Directory | Description
+:---------|:------------
+/drivers  | Include files exposing API for /core/drivers files
+/dt-bindings  | Include files for the device tree bindings
 
 ## Structure of /core/arch
 Directory | Description
 :---------|:------------
 /arm	  | ARMv7 and Aarch32 specific architecture and platform specific files
-/user_mode| Linux used space specific files when debugging TEE Core as a user space process, only used for some development
 
 ## Structure of /core/arch/arm
 Directory | Description
 :---------|:------------
+/dts	  | Device tree source files
 /include  | Include files used in rest of TEE core but not in any supporting libraries
 /kern	  | Low level and core parts of TEE Core
 /mm	  | Memory management

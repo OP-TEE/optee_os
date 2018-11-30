@@ -74,7 +74,13 @@ KEEP_PAGER(sem_cpu_sync);
 #endif
 
 #ifdef CFG_DT
-static void *dt_blob_addr;
+extern uint8_t embedded_secure_dtb[];
+struct dt_descriptor {
+	void *blob;
+	int frag_id;
+};
+
+static struct dt_descriptor dt_desc;
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -238,7 +244,6 @@ static void init_asan(void)
 	 * Add access to areas that aren't opened automatically by a
 	 * constructor.
 	 */
-	asan_tag_access(&__initcall_start, &__initcall_end);
 	asan_tag_access(&__ctor_list, &__ctor_end);
 	asan_tag_access(__rodata_start, __rodata_end);
 #ifdef CFG_WITH_PAGER
@@ -471,47 +476,114 @@ static void init_runtime(unsigned long pageable_part __unused)
 }
 #endif
 
-#ifdef CFG_DT
+#if defined(CFG_DT) && !defined(CFG_EMBED_DTB)
 void *get_dt_blob(void)
 {
 	assert(cpu_mmu_enabled());
-	return dt_blob_addr;
+	return dt_desc.blob;
 }
 
 static void reset_dt_references(void)
 {
 	/* dt no more reached, reset pointer to invalid */
-	dt_blob_addr = NULL;
+	dt_desc.blob = NULL;
 }
 
-static int add_optee_dt_node(void *fdt)
+#ifdef CFG_EXTERNAL_DTB_OVERLAY
+static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
+{
+	char frag[32];
+	int offs;
+	int ret;
+
+	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	offs = fdt_add_subnode(dt->blob, ioffs, frag);
+	if (offs < 0)
+		return offs;
+
+	dt->frag_id += 1;
+
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
+	if (ret < 0)
+		return -1;
+
+	return fdt_add_subnode(dt->blob, offs, "__overlay__");
+}
+
+static int init_dt_overlay(struct dt_descriptor *dt, int fdtsize)
+{
+	int fragment;
+	int ret;
+
+	ret = fdt_check_header(dt->blob);
+	if (!ret) {
+		fdt_for_each_subnode(fragment, dt->blob, 0)
+			dt->frag_id += 1;
+		return ret;
+	}
+
+#ifdef CFG_DT_ADDR
+	return fdt_create_empty_tree(dt->blob, fdtsize);
+#else
+	return -1;
+#endif
+}
+#else
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
+{
+	return offs;
+}
+
+static int init_dt_overlay(struct dt_descriptor *dt __unused,
+			   int fdtsize __unused)
+{
+	return 0;
+}
+#endif /* CFG_EXTERNAL_DTB_OVERLAY */
+
+static int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
+			       const char *subnode)
+{
+	int offs;
+
+	offs = fdt_path_offset(dt->blob, path);
+	if (offs < 0)
+		return -1;
+	offs = add_dt_overlay_fragment(dt, offs);
+	if (offs < 0)
+		return -1;
+	offs = fdt_add_subnode(dt->blob, offs, subnode);
+	if (offs < 0)
+		return -1;
+	return offs;
+}
+
+static int add_optee_dt_node(struct dt_descriptor *dt)
 {
 	int offs;
 	int ret;
 
-	if (fdt_path_offset(fdt, "/firmware/optee") >= 0) {
+	if (fdt_path_offset(dt->blob, "/firmware/optee") >= 0) {
 		DMSG("OP-TEE Device Tree node already exists!\n");
 		return 0;
 	}
 
-	offs = fdt_path_offset(fdt, "/firmware");
+	offs = fdt_path_offset(dt->blob, "/firmware");
 	if (offs < 0) {
-		offs = fdt_path_offset(fdt, "/");
-		if (offs < 0)
-			return -1;
-		offs = fdt_add_subnode(fdt, offs, "firmware");
+		offs = add_dt_path_subnode(dt, "/", "firmware");
 		if (offs < 0)
 			return -1;
 	}
 
-	offs = fdt_add_subnode(fdt, offs, "optee");
+	offs = fdt_add_subnode(dt->blob, offs, "optee");
 	if (offs < 0)
 		return -1;
 
-	ret = fdt_setprop_string(fdt, offs, "compatible", "linaro,optee-tz");
+	ret = fdt_setprop_string(dt->blob, offs, "compatible",
+				 "linaro,optee-tz");
 	if (ret < 0)
 		return -1;
-	ret = fdt_setprop_string(fdt, offs, "method", "smc");
+	ret = fdt_setprop_string(dt->blob, offs, "method", "smc");
 	if (ret < 0)
 		return -1;
 	return 0;
@@ -523,50 +595,48 @@ static int append_psci_compatible(void *fdt, int offs, const char *str)
 	return fdt_appendprop(fdt, offs, "compatible", str, strlen(str) + 1);
 }
 
-static int dt_add_psci_node(void *fdt)
+static int dt_add_psci_node(struct dt_descriptor *dt)
 {
 	int offs;
 
-	if (fdt_path_offset(fdt, "/psci") >= 0) {
+	if (fdt_path_offset(dt->blob, "/psci") >= 0) {
 		DMSG("PSCI Device Tree node already exists!\n");
 		return 0;
 	}
 
-	offs = fdt_path_offset(fdt, "/");
+	offs = add_dt_path_subnode(dt, "/", "psci");
 	if (offs < 0)
 		return -1;
-	offs = fdt_add_subnode(fdt, offs, "psci");
-	if (offs < 0)
+	if (append_psci_compatible(dt->blob, offs, "arm,psci-1.0"))
 		return -1;
-	if (append_psci_compatible(fdt, offs, "arm,psci-1.0"))
+	if (append_psci_compatible(dt->blob, offs, "arm,psci-0.2"))
 		return -1;
-	if (append_psci_compatible(fdt, offs, "arm,psci-0.2"))
+	if (append_psci_compatible(dt->blob, offs, "arm,psci"))
 		return -1;
-	if (append_psci_compatible(fdt, offs, "arm,psci"))
+	if (fdt_setprop_string(dt->blob, offs, "method", "smc"))
 		return -1;
-	if (fdt_setprop_string(fdt, offs, "method", "smc"))
+	if (fdt_setprop_u32(dt->blob, offs, "cpu_suspend", PSCI_CPU_SUSPEND))
 		return -1;
-	if (fdt_setprop_u32(fdt, offs, "cpu_suspend", PSCI_CPU_SUSPEND))
+	if (fdt_setprop_u32(dt->blob, offs, "cpu_off", PSCI_CPU_OFF))
 		return -1;
-	if (fdt_setprop_u32(fdt, offs, "cpu_off", PSCI_CPU_OFF))
+	if (fdt_setprop_u32(dt->blob, offs, "cpu_on", PSCI_CPU_ON))
 		return -1;
-	if (fdt_setprop_u32(fdt, offs, "cpu_on", PSCI_CPU_ON))
+	if (fdt_setprop_u32(dt->blob, offs, "sys_poweroff", PSCI_SYSTEM_OFF))
 		return -1;
-	if (fdt_setprop_u32(fdt, offs, "sys_poweroff", PSCI_SYSTEM_OFF))
-		return -1;
-	if (fdt_setprop_u32(fdt, offs, "sys_reset", PSCI_SYSTEM_RESET))
+	if (fdt_setprop_u32(dt->blob, offs, "sys_reset", PSCI_SYSTEM_RESET))
 		return -1;
 	return 0;
 }
 
-static int check_node_compat_prefix(void *fdt, int offs, const char *prefix)
+static int check_node_compat_prefix(struct dt_descriptor *dt, int offs,
+				    const char *prefix)
 {
 	const size_t prefix_len = strlen(prefix);
 	size_t l;
 	int plen;
 	const char *prop;
 
-	prop = fdt_getprop(fdt, offs, "compatible", &plen);
+	prop = fdt_getprop(dt->blob, offs, "compatible", &plen);
 	if (!prop)
 		return -1;
 
@@ -582,19 +652,19 @@ static int check_node_compat_prefix(void *fdt, int offs, const char *prefix)
 	return -1;
 }
 
-static int dt_add_psci_cpu_enable_methods(void *fdt)
+static int dt_add_psci_cpu_enable_methods(struct dt_descriptor *dt)
 {
 	int offs = 0;
 
 	while (1) {
-		offs = fdt_next_node(fdt, offs, NULL);
+		offs = fdt_next_node(dt->blob, offs, NULL);
 		if (offs < 0)
 			break;
-		if (fdt_getprop(fdt, offs, "enable-method", NULL))
+		if (fdt_getprop(dt->blob, offs, "enable-method", NULL))
 			continue; /* already set */
-		if (check_node_compat_prefix(fdt, offs, "arm,cortex-a"))
+		if (check_node_compat_prefix(dt, offs, "arm,cortex-a"))
 			continue; /* no compatible */
-		if (fdt_setprop_string(fdt, offs, "enable-method", "psci"))
+		if (fdt_setprop_string(dt->blob, offs, "enable-method", "psci"))
 			return -1;
 		/* Need to restart scanning as offsets may have changed */
 		offs = 0;
@@ -602,14 +672,14 @@ static int dt_add_psci_cpu_enable_methods(void *fdt)
 	return 0;
 }
 
-static int config_psci(void *fdt)
+static int config_psci(struct dt_descriptor *dt)
 {
-	if (dt_add_psci_node(fdt))
+	if (dt_add_psci_node(dt))
 		return -1;
-	return dt_add_psci_cpu_enable_methods(fdt);
+	return dt_add_psci_cpu_enable_methods(dt);
 }
 #else
-static int config_psci(void *fdt __unused)
+static int config_psci(struct dt_descriptor *dt __unused)
 {
 	return 0;
 }
@@ -650,8 +720,8 @@ static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
 	return rv;
 }
 
-static int add_res_mem_dt_node(void *fdt, const char *name, paddr_t pa,
-			       size_t size)
+static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
+			       paddr_t pa, size_t size)
 {
 	int offs;
 	int ret;
@@ -659,45 +729,43 @@ static int add_res_mem_dt_node(void *fdt, const char *name, paddr_t pa,
 	int len_size = 2;
 	char subnode_name[80];
 
-	offs = fdt_path_offset(fdt, "/reserved-memory");
+	offs = fdt_path_offset(dt->blob, "/reserved-memory");
 	if (offs >= 0) {
-		addr_size = fdt_address_cells(fdt, offs);
+		addr_size = fdt_address_cells(dt->blob, offs);
 		if (addr_size < 0)
 			return -1;
-		len_size = fdt_size_cells(fdt, offs);
+		len_size = fdt_size_cells(dt->blob, offs);
 		if (len_size < 0)
 			return -1;
 	} else {
-		offs = fdt_path_offset(fdt, "/");
+		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
 		if (offs < 0)
 			return -1;
-		offs = fdt_add_subnode(fdt, offs, "reserved-memory");
-		if (offs < 0)
-			return -1;
-		ret = fdt_setprop_cell(fdt, offs, "#address-cells", addr_size);
+		ret = fdt_setprop_cell(dt->blob, offs, "#address-cells",
+				       addr_size);
 		if (ret < 0)
 			return -1;
-		ret = fdt_setprop_cell(fdt, offs, "#size-cells", len_size);
+		ret = fdt_setprop_cell(dt->blob, offs, "#size-cells", len_size);
 		if (ret < 0)
 			return -1;
-		ret = fdt_setprop(fdt, offs, "ranges", NULL, 0);
+		ret = fdt_setprop(dt->blob, offs, "ranges", NULL, 0);
 		if (ret < 0)
 			return -1;
 	}
 
 	snprintf(subnode_name, sizeof(subnode_name),
 		 "%s@0x%" PRIxPA, name, pa);
-	offs = fdt_add_subnode(fdt, offs, subnode_name);
+	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
 	if (offs >= 0) {
 		uint32_t data[FDT_MAX_NCELLS * 2];
 
 		set_dt_val(data, addr_size, pa);
 		set_dt_val(data + addr_size, len_size, size);
-		ret = fdt_setprop(fdt, offs, "reg", data,
+		ret = fdt_setprop(dt->blob, offs, "reg", data,
 				  sizeof(uint32_t) * (addr_size + len_size));
 		if (ret < 0)
 			return -1;
-		ret = fdt_setprop(fdt, offs, "no-map", NULL, 0);
+		ret = fdt_setprop(dt->blob, offs, "no-map", NULL, 0);
 		if (ret < 0)
 			return -1;
 	} else {
@@ -762,14 +830,14 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 	return mem;
 }
 
-static int mark_static_shm_as_reserved(void *fdt)
+static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 {
 	vaddr_t shm_start;
 	vaddr_t shm_end;
 
 	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &shm_start, &shm_end);
 	if (shm_start != shm_end)
-		return add_res_mem_dt_node(fdt, "optee",
+		return add_res_mem_dt_node(dt, "optee",
 					   virt_to_phys((void *)shm_start),
 					   shm_end - shm_start);
 
@@ -779,6 +847,7 @@ static int mark_static_shm_as_reserved(void *fdt)
 
 static void init_fdt(unsigned long phys_fdt)
 {
+	struct dt_descriptor *dt = &dt_desc;
 	void *fdt;
 	int ret;
 
@@ -802,42 +871,77 @@ static void init_fdt(unsigned long phys_fdt)
 	if (!fdt)
 		panic();
 
+	dt->blob = fdt;
+
+	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Device Tree Overlay init fail @ 0x%" PRIxPA ": error %d",
+		     phys_fdt, ret);
+		panic();
+	}
+
 	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
 		EMSG("Invalid Device Tree at 0x%" PRIxPA ": error %d",
 		     phys_fdt, ret);
 		panic();
 	}
-
-	dt_blob_addr = fdt;
 }
 
 static void update_fdt(void)
 {
-	void *fdt = get_dt_blob();
+	struct dt_descriptor *dt = &dt_desc;
 	int ret;
 
-	if (!fdt)
+	if (!dt->blob)
 		return;
 
-	if (add_optee_dt_node(fdt))
+	if (add_optee_dt_node(dt))
 		panic("Failed to add OP-TEE Device Tree node");
 
-	if (config_psci(fdt))
+	if (config_psci(dt))
 		panic("Failed to config PSCI");
 
-	if (mark_static_shm_as_reserved(fdt))
+	if (mark_static_shm_as_reserved(dt))
 		panic("Failed to config non-secure memory");
 
-	ret = fdt_pack(fdt);
+	ret = fdt_pack(dt->blob);
 	if (ret < 0) {
 		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
-		     virt_to_phys(fdt), ret);
+		     virt_to_phys(dt->blob), ret);
 		panic();
 	}
 }
+#endif /*CFG_DT && !CFG_EMBED_DTB*/
 
-#else
+#if defined(CFG_DT) && defined(CFG_EMBED_DTB)
+void *get_dt_blob(void)
+{
+	assert(cpu_mmu_enabled());
+
+	if (!dt_desc.blob) {
+		if (fdt_check_header(embedded_secure_dtb))
+			panic("Invalid embedded DTB");
+
+		dt_desc.blob = embedded_secure_dtb;
+	}
+
+	return dt_desc.blob;
+}
+#endif
+
+#ifndef CFG_DT
+void *get_dt_blob(void)
+{
+	return NULL;
+}
+#endif
+
+#if !defined(CFG_DT) || defined(CFG_EMBED_DTB)
+static void reset_dt_references(void)
+{
+}
+
 static void init_fdt(unsigned long phys_fdt __unused)
 {
 }
@@ -846,22 +950,13 @@ static void update_fdt(void)
 {
 }
 
-static void reset_dt_references(void)
-{
-}
-
-void *get_dt_blob(void)
-{
-	return NULL;
-}
-
 static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 					     size_t *nelems __unused)
 {
 	return NULL;
 }
 
-#endif /*!CFG_DT*/
+#endif /*!CFG_DT || CFG_EMBED_DTB*/
 
 static void discover_nsec_memory(void)
 {
@@ -879,19 +974,18 @@ static void discover_nsec_memory(void)
 		DMSG("No non-secure memory found in FDT");
 	}
 
-	nelems = (&__end_phys_ddr_overall_section -
-		  &__start_phys_ddr_overall_section);
+	nelems = phys_ddr_overall_end - phys_ddr_overall_begin;
 	if (!nelems)
 		return;
 
 	/* Platform cannot define nsec_ddr && overall_ddr */
-	assert(&__start_phys_nsec_ddr_section == &__end_phys_nsec_ddr_section);
+	assert(phys_nsec_ddr_begin == phys_nsec_ddr_end);
 
 	mem = calloc(nelems, sizeof(*mem));
 	if (!mem)
 		panic();
 
-	memcpy(mem, &__start_phys_ddr_overall_section, sizeof(*mem) * nelems);
+	memcpy(mem, phys_ddr_overall_begin, sizeof(*mem) * nelems);
 	core_mmu_set_discovered_nsec_ddr(mem, nelems);
 }
 

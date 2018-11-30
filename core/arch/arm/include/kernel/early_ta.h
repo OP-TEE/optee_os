@@ -16,5 +16,7 @@ struct early_ta {
 	const uint8_t ta[]; /* @size bytes */
 };
 
+#define __early_ta __section(".rodata.early_ta" __SECTION_FLAGS_RODATA)
+
 #endif /* KERNEL_EARLY_TA_H */
 

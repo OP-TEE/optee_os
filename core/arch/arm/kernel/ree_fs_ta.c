@@ -5,12 +5,10 @@
 #include <assert.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
-#include <kernel/msg_param.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
-#include <optee_msg.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,38 +36,36 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 			   size_t *ta_size, struct mobj **mobj)
 {
 	TEE_Result res;
-	struct optee_msg_param params[2];
+	struct thread_param params[2];
 
 	if (!uuid || !ta || !mobj || !ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[0].attr = THREAD_PARAM_ATTR_VALUE_IN;
 	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[1].u.tmem.buf_ptr = 0;
-	params[1].u.tmem.size = 0;
-	params[1].u.tmem.shm_ref = 0;
+	params[1].attr = THREAD_PARAM_ATTR_MEMREF_OUT;
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	*mobj = thread_rpc_alloc_payload(params[1].u.tmem.size);
+	*mobj = thread_rpc_alloc_payload(params[1].u.memref.size);
 	if (!*mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	*ta = mobj_get_va(*mobj, 0);
 	/* We don't expect NULL as thread_rpc_alloc_payload() was successful */
 	assert(*ta);
-	*ta_size = params[1].u.tmem.size;
+	*ta_size = params[1].u.memref.size;
 
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[0].attr = THREAD_PARAM_ATTR_VALUE_IN;
 	tee_uuid_to_octets((void *)&params[0].u.value, uuid);
-	msg_param_init_memparam(params + 1, *mobj, 0, params[1].u.tmem.size,
-				MSG_PARAM_MEM_DIR_OUT);
+	params[1].attr = THREAD_PARAM_ATTR_MEMREF_OUT;
+	params[1].u.memref.offs = 0;
+	params[1].u.memref.mobj = *mobj;
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_LOAD_TA, 2, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_LOAD_TA, 2, params);
 	if (res != TEE_SUCCESS)
 		thread_rpc_free_payload(*mobj);
 	return res;
@@ -248,18 +244,10 @@ static void ta_close(struct user_ta_store_handle *h)
 	free(h);
 }
 
-static struct user_ta_store_ops ops = {
+TEE_TA_REGISTER_TA_STORE(9) = {
 	.description = "REE",
 	.open = ta_open,
 	.get_size = ta_get_size,
 	.read = ta_read,
 	.close = ta_close,
-	.priority = 10,
 };
-
-static TEE_Result register_supplicant_user_ta(void)
-{
-	return tee_ta_register_ta_store(&ops);
-}
-
-service_init(register_supplicant_user_ta);

@@ -15,5 +15,3 @@ srcs-y += tee_tcpudp_socket.c
 srcs-y += tee_socket_pta.c
 
 subdirs-y += arch/$(ARCH)
-
-cflags-lib-$(CFG_ULIBS_GPROF) += -pg

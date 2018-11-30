@@ -12,12 +12,6 @@
 /*
  * This file defines the OP-TEE message protocol used to communicate
  * with an instance of OP-TEE running in secure world.
- *
- * This file is divided into three sections.
- * 1. Formatting of messages.
- * 2. Requests from normal world
- * 3. Requests from secure world, Remote Procedure Call (RPC), handled by
- *    tee-supplicant.
  */
 
 /*****************************************************************************
@@ -304,105 +298,5 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_REGISTER_SHM	4
 #define OPTEE_MSG_CMD_UNREGISTER_SHM	5
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	0x0004
-
-/*****************************************************************************
- * Part 3 - Requests from secure world, RPC
- *****************************************************************************/
-
-/*
- * All RPC is done with a struct optee_msg_arg as bearer of information,
- * struct optee_msg_arg::arg holds values defined by OPTEE_MSG_RPC_CMD_* below.
- * Only the commands handled by the kernel driver are defined here.
- *
- * RPC communication with tee-supplicant is reversed compared to normal
- * client communication described above. The supplicant receives requests
- * and sends responses. The command codes and exact protocol are defined in an
- * external header file.
- */
-
-/*
- * Get time
- *
- * Returns number of seconds and nano seconds since the Epoch,
- * 1970-01-01 00:00:00 +0000 (UTC).
- *
- * [out] param[0].u.value.a	Number of seconds
- * [out] param[0].u.value.b	Number of nano seconds.
- */
-#define OPTEE_MSG_RPC_CMD_GET_TIME	3
-
-/*
- * Wait queue primitive, helper for secure world to implement a wait queue.
- *
- * If secure world needs to wait for a secure world mutex it issues a sleep
- * request instead of spinning in secure world. Conversely is a wakeup
- * request issued when a secure world mutex with a thread waiting thread is
- * unlocked.
- *
- * Waiting on a key
- * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP
- * [in] param[0].u.value.b wait key
- *
- * Waking up a key
- * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP
- * [in] param[0].u.value.b wakeup key
- */
-#define OPTEE_MSG_RPC_CMD_WAIT_QUEUE	4
-#define OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP	0
-#define OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP	1
-
-/*
- * Suspend execution
- *
- * [in] param[0].value	.a number of milliseconds to suspend
- */
-#define OPTEE_MSG_RPC_CMD_SUSPEND	5
-
-/*
- * Allocate a piece of shared memory
- *
- * Shared memory can optionally be physically non-contiguous.
- * OPTEE_MSG_ATTR_NONCONTIG is used to indicate that a list of pages is
- * used to describe the memory.
- *
- * [in]  param[0].u.value.a		type of memory one of
- *					OPTEE_MSG_RPC_SHM_TYPE_* below
- * [in]  param[0].u.value.b		requested size
- * [in]  param[0].u.value.c		required alignment
- *
- * [out] param[0].u.tmem.buf_ptr	physical address
- * [out] param[0].u.tmem.size		size
- * [out] param[0].u.tmem.shm_ref	shared memory reference
- */
-#define OPTEE_MSG_RPC_CMD_SHM_ALLOC	6
-/* Memory that can be shared with a non-secure user space application */
-#define OPTEE_MSG_RPC_SHM_TYPE_APPL	0
-/* Memory only shared with non-secure kernel */
-#define OPTEE_MSG_RPC_SHM_TYPE_KERNEL	1
-/*
- * Memory shared with non-secure kernel and exported to a non-secure user
- * space application
- */
-#define OPTEE_MSG_RPC_SHM_TYPE_GLOBAL	2
-
-/*
- * Free shared memory previously allocated with OPTEE_MSG_RPC_CMD_SHM_ALLOC
- *
- * [in]  param[0].u.value.a		type of memory one of
- *					OPTEE_MSG_RPC_SHM_TYPE_* above
- * [in]  param[0].u.value.b		value of shared memory reference
- *					returned in param[0].u.tmem.shm_ref
- *					above
- */
-#define OPTEE_MSG_RPC_CMD_SHM_FREE	7
-
-/*
- * Register timestamp buffer in the linux kernel optee driver
- *
- * [in] param[0].u.value.a	Subcommand (register buffer, unregister buffer)
- * [in] param[0].u.value.b	Physical address of timestamp buffer
- * [in] param[0].u.value.c	Size of buffer
- */
-#define OPTEE_MSG_RPC_CMD_BENCH_REG	20
 
 #endif /* _OPTEE_MSG_H */

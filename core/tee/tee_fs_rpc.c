@@ -4,11 +4,10 @@
  */
 
 #include <assert.h>
-#include <kernel/msg_param.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -32,7 +31,6 @@ static TEE_Result operation_commit(struct tee_fs_rpc_operation *op)
 static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 				 struct tee_pobj *po, int *fd)
 {
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
@@ -41,19 +39,17 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = cmd;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
 					      po, po->temporary);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 3, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, cmd, 0, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+			[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
+	} };
 
 	res = operation_commit(&op);
 	if (res == TEE_SUCCESS)
@@ -64,19 +60,18 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 
 TEE_Result tee_fs_rpc_open(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_OPEN, po, fd);
+	return operation_open(id, OPTEE_RPC_FS_OPEN, po, fd);
 }
 
 TEE_Result tee_fs_rpc_create(uint32_t id, struct tee_pobj *po, int *fd)
 {
-	return operation_open(id, OPTEE_MRF_CREATE, po, fd);
+	return operation_open(id, OPTEE_RPC_FS_CREATE, po, fd);
 }
 
 static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 				 const struct tee_fs_dirfile_fileh *dfh,
 				 int *fd)
 {
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
@@ -85,18 +80,16 @@ static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = cmd;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 3, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, cmd, 0, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+			[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
+	} };
 
 	res = operation_commit(&op);
 	if (res == TEE_SUCCESS)
@@ -110,23 +103,23 @@ static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 TEE_Result tee_fs_rpc_open_dfh(uint32_t id,
 			       const struct tee_fs_dirfile_fileh *dfh, int *fd)
 {
-	return operation_open_dfh(id, OPTEE_MRF_OPEN, dfh, fd);
+	return operation_open_dfh(id, OPTEE_RPC_FS_OPEN, dfh, fd);
 }
 
 TEE_Result tee_fs_rpc_create_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh,
 				 int *fd)
 {
-	return operation_open_dfh(id, OPTEE_MRF_CREATE, dfh, fd);
+	return operation_open_dfh(id, OPTEE_RPC_FS_CREATE, dfh, fd);
 }
 
 TEE_Result tee_fs_rpc_close(uint32_t id, int fd)
 {
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
-
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_CLOSE;
-	op.params[0].u.value.b = fd;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 1, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_CLOSE, fd, 0),
+		},
+	};
 
 	return operation_commit(&op);
 }
@@ -145,18 +138,13 @@ TEE_Result tee_fs_rpc_read_init(struct tee_fs_rpc_operation *op,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memset(op, 0, sizeof(*op));
-	op->id = id;
-	op->num_params = 2;
-
-	op->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op->params[0].u.value.a = OPTEE_MRF_READ;
-	op->params[0].u.value.b = fd;
-	op->params[0].u.value.c = offset;
-
-	if (!msg_param_init_memparam(op->params + 1, mobj, 0, data_len,
-				     MSG_PARAM_MEM_DIR_OUT))
-		return TEE_ERROR_BAD_STATE;
+	*op = (struct tee_fs_rpc_operation){
+		.id = id, .num_params = 2, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, fd,
+						 offset),
+			[1] = THREAD_PARAM_MEMREF(OUT, mobj, 0, data_len),
+		},
+	};
 
 	*out_data = va;
 
@@ -169,7 +157,7 @@ TEE_Result tee_fs_rpc_read_final(struct tee_fs_rpc_operation *op,
 	TEE_Result res = operation_commit(op);
 
 	if (res == TEE_SUCCESS)
-		*data_len = msg_param_get_buf_size(op->params + 1);
+		*data_len = op->params[1].u.memref.size;
 	return res;
 }
 
@@ -187,18 +175,13 @@ TEE_Result tee_fs_rpc_write_init(struct tee_fs_rpc_operation *op,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memset(op, 0, sizeof(*op));
-	op->id = id;
-	op->num_params = 2;
-
-	op->params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op->params[0].u.value.a = OPTEE_MRF_WRITE;
-	op->params[0].u.value.b = fd;
-	op->params[0].u.value.c = offset;
-
-	if (!msg_param_init_memparam(op->params + 1, mobj, 0, data_len,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
+	*op = (struct tee_fs_rpc_operation){
+		.id = id, .num_params = 2, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_WRITE, fd,
+						 offset),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, data_len),
+		},
+	};
 
 	*data = va;
 
@@ -212,12 +195,12 @@ TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op)
 
 TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 {
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
-
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_TRUNCATE;
-	op.params[0].u.value.b = fd;
-	op.params[0].u.value.c = len;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 1, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_TRUNCATE, fd,
+						 len),
+		}
+	};
 
 	return operation_commit(&op);
 }
@@ -225,7 +208,6 @@ TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 {
 	TEE_Result res;
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
 	struct mobj *mobj;
 	void *va;
 
@@ -233,17 +215,17 @@ TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_REMOVE;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	res = tee_svc_storage_create_filename(va, TEE_FS_NAME_MAX,
 					      po, po->temporary);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 2, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+		},
+	};
 
 	return operation_commit(&op);
 }
@@ -252,7 +234,6 @@ TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh)
 {
 	TEE_Result res;
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
 	struct mobj *mobj;
 	void *va;
 
@@ -260,16 +241,17 @@ TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_REMOVE;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
 
 	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 2, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+		}
+	};
 
 	return operation_commit(&op);
 }
@@ -278,7 +260,6 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 			     struct tee_pobj *new, bool overwrite)
 {
 	TEE_Result res;
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	struct mobj *mobj;
 	char *va;
 	bool temp;
@@ -287,13 +268,6 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_RENAME;
-	op.params[0].u.value.b = overwrite;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
 
 	if (new)
 		temp = old->temporary;
@@ -303,10 +277,6 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 					      old, temp);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	if (!msg_param_init_memparam(op.params + 2, mobj, TEE_FS_NAME_MAX,
-				     TEE_FS_NAME_MAX, MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
 
 	if (new) {
 		res = tee_svc_storage_create_filename(va + TEE_FS_NAME_MAX,
@@ -320,6 +290,16 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 3, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_RENAME,
+						 overwrite, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+			[2] = THREAD_PARAM_MEMREF(IN, mobj, TEE_FS_NAME_MAX,
+						  TEE_FS_NAME_MAX),
+		}
+	};
+
 	return operation_commit(&op);
 }
 
@@ -327,7 +307,6 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 			      struct tee_fs_dir **d)
 {
 	TEE_Result res;
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 3 };
 	struct mobj *mobj;
 	void *va;
 	struct tee_fs_dir *dir = calloc(1, sizeof(*dir));
@@ -341,20 +320,19 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 		goto err_exit;
 	}
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_OPENDIR;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN)) {
-		res = TEE_ERROR_BAD_STATE;
-		goto err_exit;
-	}
 
 	res = tee_svc_storage_create_dirname(va, TEE_FS_NAME_MAX, uuid);
 	if (res != TEE_SUCCESS)
 		goto err_exit;
 
-	op.params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 3, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_OPENDIR,
+						 0, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+			[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
+		}
+	};
 
 	res = operation_commit(&op);
 
@@ -373,11 +351,12 @@ err_exit:
 
 TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d)
 {
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 1 };
-
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_CLOSEDIR;
-	op.params[0].u.value.b = d->nw_dir;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 1, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_CLOSEDIR,
+						 d->nw_dir, 0),
+		}
+	};
 
 	free(d);
 	return operation_commit(&op);
@@ -387,7 +366,6 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 			      struct tee_fs_dirent **ent)
 {
 	TEE_Result res;
-	struct tee_fs_rpc_operation op = { .id = id, .num_params = 2 };
 	struct mobj *mobj;
 	void *va;
 	const size_t max_name_len = TEE_FS_NAME_MAX + 1;
@@ -399,13 +377,13 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	op.params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	op.params[0].u.value.a = OPTEE_MRF_READDIR;
-	op.params[0].u.value.b = d->nw_dir;
-
-	if (!msg_param_init_memparam(op.params + 1, mobj, 0, max_name_len,
-				     MSG_PARAM_MEM_DIR_OUT))
-		return TEE_ERROR_BAD_STATE;
+	struct tee_fs_rpc_operation op = {
+		.id = id, .num_params = 2, .params = {
+			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READDIR,
+						 d->nw_dir, 0),
+			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, max_name_len),
+		}
+	};
 
 	res = operation_commit(&op);
 	if (res != TEE_SUCCESS)

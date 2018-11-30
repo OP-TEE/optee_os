@@ -15,13 +15,14 @@ import sys
 CALL_STACK_RE = re.compile('Call stack:')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
-STACK_ADDR_RE = re.compile(r'[UEIDFM]/T[AC]:(\?|[0-9]+) [0-9]* +(?P<addr>0x[0-9a-f]+)')
-ABORT_ADDR_RE = re.compile('-abort at address (?P<addr>0x[0-9a-f]+)')
-REGION_RE = re.compile('region [0-9]+: va (?P<addr>0x[0-9a-f]+) '
-                       'pa 0x[0-9a-f]+ size (?P<size>0x[0-9a-f]+)'
-                       '( flags .{6} (\[(?P<elf_idx>[0-9]+)\])?)?')
+STACK_ADDR_RE = re.compile(
+    r'[UEIDFM]/T[AC]:(\?|[0-9]+) [0-9]* +(?P<addr>0x[0-9a-f]+)')
+ABORT_ADDR_RE = re.compile(r'-abort at address (?P<addr>0x[0-9a-f]+)')
+REGION_RE = re.compile(r'region [0-9]+: va (?P<addr>0x[0-9a-f]+) '
+                       r'pa 0x[0-9a-f]+ size (?P<size>0x[0-9a-f]+)'
+                       r'( flags .{6} (\[(?P<elf_idx>[0-9]+)\])?)?')
 ELF_LIST_RE = re.compile(r'\[(?P<idx>[0-9]+)\] (?P<uuid>[0-9a-f\-]+)'
-                         ' @ (?P<load_addr>0x[0-9a-f\-]+)')
+                         r' @ (?P<load_addr>0x[0-9a-f\-]+)')
 
 epilog = '''
 This scripts reads an OP-TEE abort or panic message from stdin and adds debug
@@ -61,9 +62,9 @@ Sample usage:
 
 def get_args():
     parser = argparse.ArgumentParser(
-                formatter_class=argparse.RawDescriptionHelpFormatter,
-                description='Symbolizes OP-TEE abort dumps',
-                epilog=epilog)
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='Symbolizes OP-TEE abort dumps',
+        epilog=epilog)
     parser.add_argument('-d', '--dir', action='append', nargs='+',
                         help='Search for ELF file in DIR. tee.elf is needed '
                         'to decode a TEE Core or pseudo-TA abort, while '
@@ -109,7 +110,7 @@ class Symbolizer(object):
     def set_arch(self):
         if self._arch:
             return
-        self._arch = os.getenv('CROSS_COMPILE');
+        self._arch = os.getenv('CROSS_COMPILE')
         if self._arch:
             return
         elf = self.get_elf(self._elfs[0][0])
@@ -350,78 +351,78 @@ class Symbolizer(object):
         return path
 
     def write(self, line):
-            if self._call_stack_found:
-                match = re.search(STACK_ADDR_RE, line)
-                if match:
-                    addr = match.group('addr')
-                    pre = match.start('addr')
-                    post = match.end('addr')
-                    self._out.write(line[:pre])
-                    self._out.write(addr)
-                    res = self.resolve(addr)
-                    res = self.pretty_print_path(res)
-                    self._out.write(' ' + res)
-                    self._out.write(line[post:])
-                    return
-                else:
-                    self.reset()
-            match = re.search(REGION_RE, line)
+        if self._call_stack_found:
+            match = re.search(STACK_ADDR_RE, line)
             if match:
-                # Region table: save info for later processing once
-                # we know which UUID corresponds to which ELF index
                 addr = match.group('addr')
-                size = match.group('size')
-                elf_idx = match.group('elf_idx')
-                self._regions.append([addr, size, elf_idx, line])
+                pre = match.start('addr')
+                post = match.end('addr')
+                self._out.write(line[:pre])
+                self._out.write(addr)
+                res = self.resolve(addr)
+                res = self.pretty_print_path(res)
+                self._out.write(' ' + res)
+                self._out.write(line[post:])
                 return
-            match = re.search(ELF_LIST_RE, line)
-            if match:
-                # ELF list: save info for later. Region table and ELF list
-                # will be displayed when the call stack is reached
-                i = int(match.group('idx'))
-                self._elfs[i] = [match.group('uuid'), match.group('load_addr'),
-                                 line]
-                return
-            match = re.search(CALL_STACK_RE, line)
-            if match:
-                self._call_stack_found = True
-                if self._regions:
-                    for r in self._regions:
-                        r_addr = r[0]
-                        r_size = r[1]
-                        elf_idx = r[2]
-                        saved_line = r[3]
-                        if elf_idx is None:
-                            self._out.write(saved_line)
-                        else:
-                            self._out.write(saved_line.strip() +
-                                            self.sections_in_region(r_addr,
-                                                                    r_size,
-                                                                    elf_idx) +
-                                            '\n')
-                if self._elfs:
-                    for k in self._elfs:
-                        e = self._elfs[k]
-                        if (len(e) >= 3):
-                            # TA executable or library
-                            self._out.write(e[2].strip())
-                            elf = self.get_elf(e[0])
-                            if elf:
-                                rpath = os.path.realpath(elf)
-                                path = self.pretty_print_path(rpath)
-                                self._out.write(' (' + path + ')')
-                            self._out.write('\n')
-                # Here is a good place to resolve the abort address because we
-                # have all the information we need
-                if self._saved_abort_line:
-                    self._out.write(self.process_abort(self._saved_abort_line))
-            match = re.search(ABORT_ADDR_RE, line)
-            if match:
+            else:
                 self.reset()
-                # At this point the arch and TA load address are unknown.
-                # Save the line so We can translate the abort address later.
-                self._saved_abort_line = line
-            self._out.write(line)
+        match = re.search(REGION_RE, line)
+        if match:
+            # Region table: save info for later processing once
+            # we know which UUID corresponds to which ELF index
+            addr = match.group('addr')
+            size = match.group('size')
+            elf_idx = match.group('elf_idx')
+            self._regions.append([addr, size, elf_idx, line])
+            return
+        match = re.search(ELF_LIST_RE, line)
+        if match:
+            # ELF list: save info for later. Region table and ELF list
+            # will be displayed when the call stack is reached
+            i = int(match.group('idx'))
+            self._elfs[i] = [match.group('uuid'), match.group('load_addr'),
+                             line]
+            return
+        match = re.search(CALL_STACK_RE, line)
+        if match:
+            self._call_stack_found = True
+            if self._regions:
+                for r in self._regions:
+                    r_addr = r[0]
+                    r_size = r[1]
+                    elf_idx = r[2]
+                    saved_line = r[3]
+                    if elf_idx is None:
+                        self._out.write(saved_line)
+                    else:
+                        self._out.write(saved_line.strip() +
+                                        self.sections_in_region(r_addr,
+                                                                r_size,
+                                                                elf_idx) +
+                                        '\n')
+            if self._elfs:
+                for k in self._elfs:
+                    e = self._elfs[k]
+                    if (len(e) >= 3):
+                        # TA executable or library
+                        self._out.write(e[2].strip())
+                        elf = self.get_elf(e[0])
+                        if elf:
+                            rpath = os.path.realpath(elf)
+                            path = self.pretty_print_path(rpath)
+                            self._out.write(' (' + path + ')')
+                        self._out.write('\n')
+            # Here is a good place to resolve the abort address because we
+            # have all the information we need
+            if self._saved_abort_line:
+                self._out.write(self.process_abort(self._saved_abort_line))
+        match = re.search(ABORT_ADDR_RE, line)
+        if match:
+            self.reset()
+            # At this point the arch and TA load address are unknown.
+            # Save the line so We can translate the abort address later.
+            self._saved_abort_line = line
+        self._out.write(line)
 
     def flush(self):
         self._out.flush()

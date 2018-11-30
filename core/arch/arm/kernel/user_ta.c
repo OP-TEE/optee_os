@@ -21,7 +21,6 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
-#include <optee_msg_supplicant.h>
 #include <signed_hdr.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -498,9 +497,6 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.get_instance_id = user_ta_get_instance_id,
 };
 
-static SLIST_HEAD(uta_stores_head, user_ta_store_ops) uta_store_list =
-		SLIST_HEAD_INITIALIZER(uta_stores_head);
-
 /*
  * Break unpaged attribute dependency propagation to user_ta_ops structure
  * content thanks to a runtime initialization of the ops reference.
@@ -525,31 +521,16 @@ bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 	return ctx->ops == _user_ta_ops;
 }
 
-TEE_Result tee_ta_register_ta_store(struct user_ta_store_ops *ops)
+static TEE_Result check_ta_store(void)
 {
-	struct user_ta_store_ops *p = NULL;
-	struct user_ta_store_ops *e;
+	const struct user_ta_store_ops *op = NULL;
 
-	DMSG("Registering TA store: '%s' (priority %d)", ops->description,
-	     ops->priority);
-
-	SLIST_FOREACH(e, &uta_store_list, link) {
-		/*
-		 * Do not allow equal priorities to avoid any dependency on
-		 * registration order.
-		 */
-		assert(e->priority != ops->priority);
-		if (e->priority > ops->priority)
-			break;
-		p = e;
-	}
-	if (p)
-		SLIST_INSERT_AFTER(p, ops, link);
-	else
-		SLIST_INSERT_HEAD(&uta_store_list, ops, link);
+	SCATTERED_ARRAY_FOREACH(op, ta_stores, struct user_ta_store_ops)
+		DMSG("TA store: \"%s\"", op->description);
 
 	return TEE_SUCCESS;
 }
+service_init(check_ta_store);
 
 #ifdef CFG_TA_DYNLINK
 
@@ -834,21 +815,24 @@ out:
 /* Loads a single ELF file (main executable or library) */
 static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 {
-	const struct user_ta_store_ops *store;
 	TEE_Result res;
+	const struct user_ta_store_ops *op = NULL;
 
-	SLIST_FOREACH(store, &uta_store_list, link) {
+	SCATTERED_ARRAY_FOREACH(op, ta_stores, struct user_ta_store_ops) {
 		DMSG("Lookup user TA ELF %pUl (%s)", (void *)uuid,
-		     store->description);
-		res = load_elf_from_store(uuid, store, utc);
+		     op->description);
+
+		res = load_elf_from_store(uuid, op, utc);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			continue;
 		if (res) {
 			DMSG("res=0x%x", res);
 			continue;
 		}
+
 		return res;
 	}
+
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 

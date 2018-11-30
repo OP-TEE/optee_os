@@ -3,13 +3,15 @@
  * Copyright (c) 2017, Linaro Limited
  */
 
+#include <assert.h>
 #include <bitstring.h>
 #include <crypto/crypto.h>
-#include <kernel/msg_param.h>
 #include <kernel/mutex.h>
 #include <kernel/refcount.h>
 #include <kernel/thread.h>
-#include <optee_msg_supplicant.h>
+#include <mm/mobj.h>
+#include <optee_rpc_cmd.h>
+#include <stdio.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tadb.h>
@@ -87,23 +89,20 @@ static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	struct optee_msg_param params[] = {
-		[0] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT,
-			.u.value.a = cmd },
-		[2] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT }
-	};
 
 	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if (!msg_param_init_memparam(params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, ARRAY_SIZE(params), params);
+	struct thread_param params[] = {
+		[0] = THREAD_PARAM_VALUE(IN, cmd, 0, 0),
+		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+		[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
+	};
+
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 	if (!res)
 		*fd = params[2].u.value.a;
 
@@ -114,22 +113,19 @@ static TEE_Result ta_operation_remove(uint32_t file_number)
 {
 	struct mobj *mobj;
 	void *va;
-	struct optee_msg_param params[2] = {
-		[0] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT,
-			.u.value.a = OPTEE_MRF_REMOVE },
-	};
 
 	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if (!msg_param_init_memparam(params + 1, mobj, 0, TEE_FS_NAME_MAX,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
 
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, ARRAY_SIZE(params), params);
+	struct thread_param params[] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
+		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
+	};
+
+	return thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 }
 
 static TEE_Result maybe_grow_files(struct tee_tadb_dir *db, int idx)
@@ -423,7 +419,7 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 	if (res)
 		goto err_put;
 
-	res = ta_operation_open(OPTEE_MRF_CREATE, ta->entry.file_number,
+	res = ta_operation_open(OPTEE_RPC_FS_CREATE, ta->entry.file_number,
 				&ta->fd);
 	if (res)
 		goto err_put;
@@ -458,7 +454,7 @@ TEE_Result tee_tadb_ta_write(struct tee_tadb_ta_write *ta, const void *buf,
 		size_t wl = MIN(rl, TADB_MAX_BUFFER_SIZE);
 		void *wb;
 
-		res = tee_fs_rpc_write_init(&op, OPTEE_MSG_RPC_CMD_FS, ta->fd,
+		res = tee_fs_rpc_write_init(&op, OPTEE_RPC_CMD_FS, ta->fd,
 					    ta->pos, wl, &wb);
 		if (res)
 			return res;
@@ -484,7 +480,7 @@ void tee_tadb_ta_close_and_delete(struct tee_tadb_ta_write *ta)
 {
 	crypto_authenc_final(ta->ctx, TADB_AUTH_ENC_ALG);
 	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
+	tee_fs_rpc_close(OPTEE_RPC_CMD_FS, ta->fd);
 	ta_operation_remove(ta->entry.file_number);
 
 	mutex_lock(&tadb_mutex);
@@ -558,7 +554,7 @@ TEE_Result tee_tadb_ta_close_and_commit(struct tee_tadb_ta_write *ta)
 	if (res)
 		goto err;
 
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
+	tee_fs_rpc_close(OPTEE_RPC_CMD_FS, ta->fd);
 
 	mutex_lock(&tadb_mutex);
 	/*
@@ -662,7 +658,8 @@ TEE_Result tee_tadb_ta_open(const TEE_UUID *uuid,
 			goto err;
 	}
 
-	res = ta_operation_open(OPTEE_MRF_OPEN, ta->entry.file_number, &ta->fd);
+	res = ta_operation_open(OPTEE_RPC_FS_OPEN, ta->entry.file_number,
+				&ta->fd);
 	if (res)
 		goto err;
 
@@ -690,12 +687,6 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 {
 	TEE_Result res;
 	const size_t sz = ta->entry.prop.custom_size + ta->entry.prop.bin_size;
-	struct optee_msg_param params[2] = {
-		[0] = { .attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT,
-			.u.value.a = OPTEE_MRF_READ,
-			.u.value.b = ta->fd,
-			.u.value.c = 0 },
-	};
 
 	if (ta->ta_mobj)
 		return TEE_SUCCESS;
@@ -707,11 +698,12 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	ta->ta_buf = mobj_get_va(ta->ta_mobj, 0);
 	assert(ta->ta_buf);
 
-	if (!msg_param_init_memparam(params + 1, ta->ta_mobj, 0, sz,
-				     MSG_PARAM_MEM_DIR_OUT))
-		return TEE_ERROR_BAD_STATE;
+	struct thread_param params[] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, ta->fd, 0),
+		[1] = THREAD_PARAM_MEMREF(OUT, ta->ta_mobj, 0, sz),
+	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_FS, ARRAY_SIZE(params), params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 	if (res) {
 		thread_rpc_free_payload(ta->ta_mobj);
 		ta->ta_mobj = NULL;
@@ -778,7 +770,7 @@ void tee_tadb_ta_close(struct tee_tadb_ta_read *ta)
 	crypto_authenc_free_ctx(ta->ctx, TADB_AUTH_ENC_ALG);
 	if (ta->ta_mobj)
 		thread_rpc_free_payload(ta->ta_mobj);
-	tee_fs_rpc_close(OPTEE_MSG_RPC_CMD_FS, ta->fd);
+	tee_fs_rpc_close(OPTEE_RPC_CMD_FS, ta->fd);
 	tadb_put(ta->db);
 	free(ta);
 }

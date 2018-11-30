@@ -89,14 +89,6 @@ SECTIONS
 		       .text.reset .text.reset_primary .text.unhandled_cpu \
 		       .text.__assert_flat_mapped_range))
 
-		. = ALIGN(8);
-		__initcall_start = .;
-		KEEP(*(.initcall1))
-		KEEP(*(.initcall2))
-		KEEP(*(.initcall3))
-		KEEP(*(.initcall4))
-		__initcall_end = .;
-
 #ifdef CFG_WITH_PAGER
 		*(.text)
 /* Include list of sections needed for paging */
@@ -135,32 +127,8 @@ SECTIONS
 #endif
 
 		*(.rodata .rodata.*)
-
-		/*
-		 * 8 to avoid unwanted padding between __start_ta_head_section
-		 * and the first structure in ta_head_section, in 64-bit
-		 * builds
-		 */
 		. = ALIGN(8);
-		__start_ta_head_section = . ;
-		KEEP(*(ta_head_section))
-		__stop_ta_head_section = . ;
-		. = ALIGN(8);
-		__start_phys_mem_map_section = . ;
-		KEEP(*(phys_mem_map_section))
-		__end_phys_mem_map_section = . ;
-		. = ALIGN(8);
-		__start_phys_sdp_mem_section = . ;
-		KEEP(*(phys_sdp_mem_section))
-		__end_phys_sdp_mem_section = . ;
-		. = ALIGN(8);
-		__start_phys_nsec_ddr_section = . ;
-		KEEP(*(phys_nsec_ddr_section))
-		__end_phys_nsec_ddr_section = . ;
-		. = ALIGN(8);
-		__start_phys_ddr_overall_section = . ;
-		KEEP(*(phys_ddr_overall_section))
-		__end_phys_ddr_overall_section = . ;
+		KEEP(*(SORT(.scattered_array*)));
 #endif
 		. = ALIGN(8);
 		__rodata_end = .;
@@ -323,22 +291,10 @@ SECTIONS
 
 	.rodata_init : {
 #include <rodata_init.ld.S>
+
 		. = ALIGN(8);
-		__start_phys_mem_map_section = . ;
-		KEEP(*(phys_mem_map_section))
-		__end_phys_mem_map_section = . ;
-		. = ALIGN(8);
-		__start_phys_sdp_mem_section = . ;
-		KEEP(*(phys_sdp_mem_section))
-		__end_phys_sdp_mem_section = . ;
-		. = ALIGN(8);
-		__start_phys_nsec_ddr_section = . ;
-		KEEP(*(phys_nsec_ddr_section))
-		__end_phys_nsec_ddr_section = . ;
-		. = ALIGN(8);
-		__start_phys_ddr_overall_section = . ;
-		KEEP(*(phys_ddr_overall_section))
-		__end_phys_ddr_overall_section = . ;
+		KEEP(*(SORT(.scattered_array*)));
+
 		. = ALIGN(8);
 		__rodata_init_end = .;
 	}
@@ -363,15 +319,6 @@ SECTIONS
 		__rodata_early_ta_end = .;
 #endif
 		*(.rodata*)
-		/*
-		 * 8 to avoid unwanted padding between __start_ta_head_section
-		 * and the first structure in ta_head_section, in 64-bit
-		 * builds
-		 */
-		. = ALIGN(8);
-		__start_ta_head_section = . ;
-		KEEP(*(ta_head_section))
-		__stop_ta_head_section = . ;
 	}
 
 #ifdef CFG_CORE_RODATA_NOEXEC

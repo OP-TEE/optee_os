@@ -15,11 +15,11 @@
 #include <util.h>
 #include <types_ext.h>
 
-#if (TRACE_LEVEL > 0)
-
 #if (TRACE_LEVEL < TRACE_MIN) || (TRACE_LEVEL > TRACE_MAX)
 #error "Invalid value of TRACE_LEVEL"
 #endif
+
+#if (TRACE_LEVEL >= TRACE_ERROR)
 
 void trace_set_level(int level)
 {

@@ -89,7 +89,7 @@ def main():
     env = os.environ.copy()
     env['LC_ALL'] = 'C'
     readelf = subprocess.Popen(str.split(readelf_cmd()) + ['-S', '-W',
-                               args.tee_elf],
+                                                           args.tee_elf],
                                stdout=subprocess.PIPE, env=env,
                                universal_newlines=True)
     for line in iter(readelf.stdout.readline, ''):
@@ -106,7 +106,7 @@ def main():
             try:
                 (_, name, _, addr, offs, size, _,
                  flags) = words[:8]
-            except:
+            except BaseException:
                 continue
             if (flags == 'AX' or flags == 'WA' or flags == 'A' or
                     flags == 'AL'):

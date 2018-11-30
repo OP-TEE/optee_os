@@ -172,7 +172,7 @@ void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 
 static struct serial_chip *pl011_dev_alloc(void)
 {
-	struct pl011_data *pd = malloc(sizeof(*pd));
+	struct pl011_data *pd = calloc(1, sizeof(*pd));
 
 	if (!pd)
 		return NULL;

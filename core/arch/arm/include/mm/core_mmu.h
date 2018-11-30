@@ -189,40 +189,33 @@ struct core_mmu_phys_mem {
 	};
 };
 
-#define __register_memory2(_name, _type, _addr, _size, _section, _id) \
-	static const struct core_mmu_phys_mem __phys_mem_ ## _id \
-		__used __section(_section) = \
-		{ .name = _name, .type = _type, .addr = _addr, .size = _size }
+#define __register_memory(_name, _type, _addr, _size, _section) \
+	SCATTERED_ARRAY_DEFINE_ITEM(_section, struct core_mmu_phys_mem) = \
+		{ .name = (_name), .type = (_type), .addr = (_addr), \
+		  .size = (_size) }
 
 #if __SIZEOF_LONG__ != __SIZEOF_PADDR__
-#define __register_memory2_ul(_name, _type, _addr, _size, _section, _id) \
-	static const struct core_mmu_phys_mem __phys_mem_ ## _id \
-		__used __section(_section) = \
-		{ .name = _name, .type = _type, .lo_addr = _addr, \
-		  .lo_size = _size }
+#define __register_memory_ul(_name, _type, _addr, _size, _section) \
+	SCATTERED_ARRAY_DEFINE_ITEM(_section, struct core_mmu_phys_mem) = \
+		{ .name = (_name), .type = (_type), .lo_addr = (_addr), \
+		  .lo_size = (_size) }
 #else
-#define __register_memory2_ul(_name, _type, _addr, _size, _section, _id) \
-		__register_memory2(_name, _type, _addr, _size, _section, _id)
+#define __register_memory_ul(_name, _type, _addr, _size, _section) \
+		__register_memory(_name, _type, _addr, _size, _section)
 #endif
 
-#define __register_memory1(name, type, addr, size, section, id) \
-		__register_memory2(name, type, addr, size, #section, id)
-
-#define __register_memory1_ul(name, type, addr, size, section, id) \
-		__register_memory2_ul(name, type, addr, size, #section, id)
-
 #define register_phys_mem(type, addr, size) \
-		__register_memory1(#addr, (type), (addr), (size), \
-				   phys_mem_map_section, __COUNTER__)
+		__register_memory(#addr, (type), (addr), (size), \
+				  phys_mem_map)
 
 #define register_phys_mem_ul(type, addr, size) \
-		__register_memory1_ul(#addr, (type), (addr), (size), \
-				   phys_mem_map_section, __COUNTER__)
+		__register_memory_ul(#addr, (type), (addr), (size), \
+				     phys_mem_map)
 
 #ifdef CFG_SECURE_DATA_PATH
 #define register_sdp_mem(addr, size) \
-		__register_memory1(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
-				   phys_sdp_mem_section, __COUNTER__)
+		__register_memory(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
+				  phys_sdp_mem)
 #else
 #define register_sdp_mem(addr, size) \
 		static int CONCAT(__register_sdp_mem_unused, __COUNTER__) \
@@ -230,13 +223,36 @@ struct core_mmu_phys_mem {
 #endif
 
 #define register_dynamic_shm(addr, size) \
-		__register_memory1(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
-				   phys_nsec_ddr_section, __COUNTER__)
+		__register_memory(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
+				  phys_nsec_ddr)
 
 #define register_ddr(addr, size) \
-		__register_memory1(#addr, MEM_AREA_DDR_OVERALL, (addr), \
-				   (size), phys_ddr_overall_section,\
-				   __COUNTER__)
+		__register_memory(#addr, MEM_AREA_DDR_OVERALL, (addr), \
+				  (size), phys_ddr_overall)
+
+#define phys_ddr_overall_begin \
+	SCATTERED_ARRAY_BEGIN(phys_ddr_overall, struct core_mmu_phys_mem)
+
+#define phys_ddr_overall_end \
+	SCATTERED_ARRAY_END(phys_ddr_overall, struct core_mmu_phys_mem)
+
+#define phys_nsec_ddr_begin \
+	SCATTERED_ARRAY_BEGIN(phys_nsec_ddr, struct core_mmu_phys_mem)
+
+#define phys_nsec_ddr_end \
+	SCATTERED_ARRAY_END(phys_nsec_ddr, struct core_mmu_phys_mem)
+
+#define phys_sdp_mem_begin \
+	SCATTERED_ARRAY_BEGIN(phys_sdp_mem, struct core_mmu_phys_mem)
+
+#define phys_sdp_mem_end \
+	SCATTERED_ARRAY_END(phys_sdp_mem, struct core_mmu_phys_mem)
+
+#define phys_mem_map_begin \
+	SCATTERED_ARRAY_BEGIN(phys_mem_map, struct core_mmu_phys_mem)
+
+#define phys_mem_map_end \
+	SCATTERED_ARRAY_END(phys_mem_map, struct core_mmu_phys_mem)
 
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;

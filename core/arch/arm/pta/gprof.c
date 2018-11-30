@@ -12,14 +12,13 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mmu.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <pta_gprof.h>
 #include <string.h>
 
 static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
 {
-	struct optee_msg_param params[3];
 	struct mobj *mobj;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	char *va;
@@ -35,16 +34,13 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	memcpy(va, uuid, sizeof(*uuid));
 	memcpy(va + sizeof(*uuid), buf, len);
 
-	memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
-	params[0].u.value.a = *id;
+	struct thread_param params[3] = {
+		[0] = THREAD_PARAM_VALUE(INOUT, *id, 0, 0),
+		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(*uuid)),
+		[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(*uuid), len),
+	};
 
-	msg_param_init_memparam(params + 1, mobj, 0, sizeof(*uuid),
-				MSG_PARAM_MEM_DIR_IN);
-	msg_param_init_memparam(params + 2, mobj, sizeof(*uuid), len,
-				MSG_PARAM_MEM_DIR_IN);
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GPROF, 3, params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_GPROF, 3, params);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

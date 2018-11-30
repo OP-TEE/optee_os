@@ -8,12 +8,9 @@
 
 #include <compiler.h>
 #include <mm/core_memprot.h>
-#include <optee_msg.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
-
-#define MOBJ_INVALID_COOKIE	0xffffffffffffffff
 
 struct mobj {
 	const struct mobj_ops *ops;
@@ -92,7 +89,7 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 	if (mobj && mobj->ops && mobj->ops->get_cookie)
 		return mobj->ops->get_cookie(mobj);
 
-	return MOBJ_INVALID_COOKIE;
+	return 0;
 }
 
 static inline bool mobj_is_nonsec(struct mobj *mobj)

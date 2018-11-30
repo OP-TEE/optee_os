@@ -6,9 +6,7 @@
 #include <assert.h>
 #include <mm/mobj.h>
 #include <kernel/pseudo_ta.h>
-#include <kernel/msg_param.h>
-#include <optee_msg.h>
-#include <optee_msg_supplicant.h>
+#include <optee_rpc_cmd.h>
 #include <pta_socket.h>
 #include <string.h>
 #include <tee/tee_fs_rpc.h>
@@ -24,7 +22,6 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	struct optee_msg_param msg_params[4];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
@@ -36,35 +33,26 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	memset(msg_params, 0, sizeof(msg_params));
-
 	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_OPEN;
-	msg_params[0].u.value.b = instance_id;
-
-	msg_params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[1].u.value.a = params[0].value.b; /* server port number */
-	msg_params[1].u.value.b = params[2].value.a; /* protocol */
-	msg_params[1].u.value.c = params[0].value.a; /* ip version */
-
-	/* server address */
-	if (!msg_param_init_memparam(msg_params + 2, mobj, 0,
-				     params[1].memref.size,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
-	/* socket handle */
-	msg_params[3].attr = OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT;
+	struct thread_param tpm[4] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_OPEN,
+					 instance_id, 0),
+		[1] = THREAD_PARAM_VALUE(IN,
+				params[0].value.b, /* server port number */
+				params[2].value.a, /* protocol */
+				params[0].value.a  /* ip version */),
+		[2] = THREAD_PARAM_MEMREF(IN, mobj, 0, params[1].memref.size),
+		[3] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
+	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 4, msg_params);
-
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 4, tpm);
 	if (res == TEE_SUCCESS)
-		params[3].value.a = msg_params[3].u.value.a;
+		params[3].value.a = tpm[3].u.value.a;
 
 	return res;
 }
@@ -72,7 +60,6 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 static TEE_Result socket_close(uint32_t instance_id, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
-	struct optee_msg_param msg_params[1];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE,
@@ -84,14 +71,11 @@ static TEE_Result socket_close(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	memset(msg_params, 0, sizeof(msg_params));
+	struct thread_param tpm = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_CLOSE,
+						     instance_id,
+						     params[0].value.a);
 
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_CLOSE;
-	msg_params[0].u.value.b = instance_id;
-	msg_params[0].u.value.c = params[0].value.a;
-
-	return thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, msg_params);
+	return thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 1, &tpm);
 }
 
 static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
@@ -100,7 +84,6 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT,
@@ -112,31 +95,23 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	memset(msg_params, 0, sizeof(msg_params));
-
 	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_SEND;
-	msg_params[0].u.value.b = instance_id;
-	msg_params[0].u.value.c = params[0].value.a; /* handle */
-
-	/* buffer */
-	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size,
-				     MSG_PARAM_MEM_DIR_IN))
-		return TEE_ERROR_BAD_STATE;
-
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
-	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
-	msg_params[2].u.value.a = params[0].value.b /* timeout */;
+	struct thread_param tpm[3] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_SEND, instance_id,
+					 params[0].value.a /* handle */),
+		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, params[1].memref.size),
+		[2] = THREAD_PARAM_VALUE(INOUT, params[0].value.b, /* timeout */
+					 0, 0),
+	};
 
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
+	params[2].value.a = tpm[2].u.value.b; /* transmitted bytes */
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, msg_params);
-	params[2].value.a = msg_params[2].u.value.b; /* transmitted bytes */
 	return res;
 }
 
@@ -146,7 +121,6 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
@@ -158,31 +132,26 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	memset(msg_params, 0, sizeof(msg_params));
-
 	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_RECV;
-	msg_params[0].u.value.b = instance_id;
-	msg_params[0].u.value.c = params[0].value.a; /* handle */
+	struct thread_param tpm[3] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_RECV, instance_id,
+					 params[0].value.a /* handle */),
+		[1] = THREAD_PARAM_MEMREF(OUT, mobj, 0, params[1].memref.size),
+		[2] = THREAD_PARAM_VALUE(IN, params[0].value.b /* timeout */,
+					 0, 0),
+	};
 
-	/* buffer */
-	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size,
-				     MSG_PARAM_MEM_DIR_OUT))
-		return TEE_ERROR_BAD_STATE;
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
 
-	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[2].u.value.a = params[0].value.b /* timeout */;
-
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, msg_params);
-	params[1].memref.size = msg_param_get_buf_size(msg_params + 1);
+	if (tpm[1].u.memref.size > params[1].memref.size)
+		return TEE_ERROR_GENERIC;
+	params[1].memref.size = tpm[1].u.memref.size;
 	if (params[1].memref.size)
 		memcpy(params[1].memref.buffer, va, params[1].memref.size);
+
 	return res;
 }
 
@@ -192,7 +161,6 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 	struct mobj *mobj;
 	TEE_Result res;
 	void *va;
-	struct optee_msg_param msg_params[3];
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_INOUT,
 					  TEE_PARAM_TYPE_NONE,
@@ -204,34 +172,29 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	memset(msg_params, 0, sizeof(msg_params));
-
 	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_IOCTL;
-	msg_params[0].u.value.b = instance_id;
-	msg_params[0].u.value.c = params[0].value.a; /* handle */
-
-	/* buffer */
-	if (!msg_param_init_memparam(msg_params + 1, mobj, 0,
-				     params[1].memref.size,
-				     MSG_PARAM_MEM_DIR_INOUT))
-		return TEE_ERROR_BAD_STATE;
-
 	memcpy(va, params[1].memref.buffer, params[1].memref.size);
 
-	msg_params[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[2].u.value.a = params[0].value.b; /* ioctl command */
+	struct thread_param tpm[3] = {
+		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_IOCTL,
+					 instance_id,
+					 params[0].value.a /* handle */),
+		[1] = THREAD_PARAM_MEMREF(INOUT, mobj, 0,
+					  params[1].memref.size),
+		[2] = THREAD_PARAM_VALUE(IN,
+					 params[0].value.b /* ioctl command */,
+					 0, 0),
+	};
 
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 3, msg_params);
-	if (msg_param_get_buf_size(msg_params + 1) <= params[1].memref.size)
-		memcpy(params[1].memref.buffer, va,
-		       msg_param_get_buf_size(msg_params + 1));
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
+	if (tpm[1].u.memref.size <= params[1].memref.size)
+		memcpy(params[1].memref.buffer, va, tpm[1].u.memref.size);
 
-	params[1].memref.size = msg_param_get_buf_size(msg_params + 1);
+	params[1].memref.size = tpm[1].u.memref.size;
+
 	return res;
 }
 
@@ -269,17 +232,15 @@ static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 static void pta_socket_close_session(void *sess_ctx)
 {
 	TEE_Result res;
-	struct optee_msg_param msg_params[1];
+	struct thread_param tpm = {
+		.attr = THREAD_PARAM_ATTR_VALUE_IN, .u.value = {
+			.a = OPTEE_RPC_SOCKET_CLOSE_ALL, .b = (vaddr_t)sess_ctx,
+		},
+	};
 
-	memset(msg_params, 0, sizeof(msg_params));
-
-	msg_params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	msg_params[0].u.value.a = OPTEE_MRC_SOCKET_CLOSE_ALL;
-	msg_params[0].u.value.b = (vaddr_t)sess_ctx;
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_SOCKET, 1, msg_params);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 1, &tpm);
 	if (res != TEE_SUCCESS)
-		DMSG("OPTEE_MRC_SOCKET_CLOSE_ALL failed: %#" PRIx32, res);
+		DMSG("OPTEE_RPC_SOCKET_CLOSE_ALL failed: %#" PRIx32, res);
 }
 
 static TEE_Result pta_socket_invoke_command(void *sess_ctx, uint32_t cmd_id,

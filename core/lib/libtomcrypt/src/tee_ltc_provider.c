@@ -12,6 +12,7 @@
 #include <string_ext.h>
 #include <string.h>
 #include <tee_api_types.h>
+#include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <tomcrypt.h>
 #include "tomcrypt_mp.h"
@@ -196,6 +197,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		*ltc_hashindex = find_hash("sha512");
 		break;
 #endif
+	case TEE_ALG_RSASSA_PKCS1_V1_5:
 	case TEE_ALG_RSAES_PKCS1_V1_5:
 		/* invalid one. but it should not be used anyway */
 		*ltc_hashindex = -1;
@@ -814,6 +816,9 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	}
 
 	switch (algo) {
+	case TEE_ALG_RSASSA_PKCS1_V1_5:
+		ltc_rsa_algo = LTC_PKCS_1_V1_5_NA1;
+		break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
@@ -834,20 +839,22 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		goto err;
 	}
 
-	ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+	if (ltc_rsa_algo != LTC_PKCS_1_V1_5_NA1) {
+		ltc_res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+		if (ltc_res != CRYPT_OK) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto err;
+		}
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
-	if (res != TEE_SUCCESS)
-		goto err;
+		res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+					       &hash_size);
+		if (res != TEE_SUCCESS)
+			goto err;
 
-	if (msg_len != hash_size) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
+		if (msg_len != hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto err;
+		}
 	}
 
 	mod_size = ltc_mp.unsigned_size((void *)(ltc_key.N));
@@ -892,14 +899,16 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		.N = key->n
 	};
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
-	if (res != TEE_SUCCESS)
-		goto err;
+	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
+		res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+					       &hash_size);
+		if (res != TEE_SUCCESS)
+			goto err;
 
-	if (msg_len != hash_size) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
+		if (msg_len != hash_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto err;
+		}
 	}
 
 	bigint_size = ltc_mp.unsigned_size(ltc_key.N);
@@ -909,11 +918,16 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	}
 
 	/* Get the algorithm */
-	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-	if (res != TEE_SUCCESS)
-		goto err;
+	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
+		res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
+		if (res != TEE_SUCCESS)
+			goto err;
+	}
 
 	switch (algo) {
+	case TEE_ALG_RSASSA_PKCS1_V1_5:
+		ltc_rsa_algo = LTC_PKCS_1_V1_5_NA1;
+		break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:

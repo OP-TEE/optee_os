@@ -41,14 +41,20 @@ WARNS ?= 3
 # so assertions are disabled.
 CFG_TEE_CORE_DEBUG ?= y
 
-# Log levels for the TEE core and user-mode TAs
-# Defines which messages are displayed on the secure console
+# Log levels for the TEE core. Defines which core messages are displayed
+# on the secure console. Disabling core log (level set to 0) also disables
+# logs from the TAs.
 # 0: none
 # 1: error
 # 2: error + warning
 # 3: error + warning + debug
 # 4: error + warning + debug + flow
 CFG_TEE_CORE_LOG_LEVEL ?= 1
+
+# TA log level
+# If user-mode library libutils.a is built with CFG_TEE_TA_LOG_LEVEL=0,
+# TA tracing is disabled regardless of the value of CFG_TEE_TA_LOG_LEVEL
+# when the TA is built.
 CFG_TEE_TA_LOG_LEVEL ?= 1
 
 # TA enablement
@@ -244,15 +250,40 @@ CFG_CORE_SANITIZE_UNDEFINED ?= n
 CFG_CORE_SANITIZE_KADDRESS ?= n
 
 # Device Tree support
-# When enabled, the TEE _start function expects to find the address of a
-# Device Tree Blob (DTB) in register r2. The DT parsing code relies on
-# libfdt.  Currently only used to add the optee node and a reserved-memory
-# node for shared memory.
+#
+# When CFG_DT is enabled core embeds the FDT library (libfdt) allowing
+# device tree blob (DTB) parsing from the core.
+#
+# When CFG_DT is enabled, the TEE _start function expects to find
+# the address of a DTB in register X2/R2 provided by the early boot stage
+# or value 0 if boot stage provides no DTB.
+#
+# When CFG_EMBED_DTB is enabled, CFG_EMBED_DTB_SOURCE_FILE shall define the
+# relative path of a DTS file located in core/arch/$(ARCH)/dts.
+# The DTS file is compiled into a DTB file which content is embedded in a
+# read-only section of the core.
+ifneq ($(strip $(CFG_EMBED_DTB_SOURCE_FILE)),)
+CFG_EMBED_DTB ?= y
+endif
+ifeq ($(CFG_EMBED_DTB),y)
+$(call force,CFG_DT,y)
+endif
+CFG_EMBED_DTB ?= n
 CFG_DT ?= n
 
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
+
+# Device Tree Overlay support.
+# This define enables support for an OP-TEE provided DTB overlay.
+# One of two modes is supported in this case:
+# 1. Append OP-TEE nodes to an existing DTB overlay located at CFG_DT_ADDR or
+#    passed in arg2
+# 2. Generate a new DTB overlay at CFG_DT_ADDR
+# A subsequent boot stage must then merge the generated overlay DTB into a main
+# DTB using the standard fdt_overlay_apply() method.
+CFG_EXTERNAL_DTB_OVERLAY ?= n
 
 # Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
@@ -340,3 +371,7 @@ CFG_TA_MBEDTLS ?= y
 # Compile the TA library mbedTLS with self test functions, the functions
 # need to be called to test anything
 CFG_TA_MBEDTLS_SELF_TEST ?= y
+
+# Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
+# # without ASN.1 around the hash.
+CFG_CRYPTO_RSASSA_NA1 ?= y

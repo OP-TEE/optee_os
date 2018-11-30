@@ -57,6 +57,12 @@
 #define TEE_ATTR_PBKDF2_DKM_LENGTH          0xF00004C2
 
 /*
+ * PKCS#1 v1.5 RSASSA pre-hashed sign/verify
+ */
+
+#define TEE_ALG_RSASSA_PKCS1_V1_5	0xF0000830
+
+/*
  * Implementation-specific object storage constants
  */
 
