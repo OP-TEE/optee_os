@@ -477,7 +477,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 #endif
 
 #if defined(CFG_DT) && !defined(CFG_EMBED_DTB)
-void *get_dt_blob(void)
+void *get_dt(void)
 {
 	assert(cpu_mmu_enabled());
 	return dt_desc.blob;
@@ -915,7 +915,7 @@ static void update_fdt(void)
 #endif /*CFG_DT && !CFG_EMBED_DTB*/
 
 #if defined(CFG_DT) && defined(CFG_EMBED_DTB)
-void *get_dt_blob(void)
+void *get_dt(void)
 {
 	assert(cpu_mmu_enabled());
 
@@ -931,7 +931,7 @@ void *get_dt_blob(void)
 #endif
 
 #ifndef CFG_DT
-void *get_dt_blob(void)
+void *get_dt(void)
 {
 	return NULL;
 }
@@ -962,7 +962,7 @@ static void discover_nsec_memory(void)
 {
 	struct core_mmu_phys_mem *mem;
 	size_t nelems;
-	void *fdt = get_dt_blob();
+	void *fdt = get_dt();
 
 	if (fdt) {
 		mem = get_memory(fdt, &nelems);
