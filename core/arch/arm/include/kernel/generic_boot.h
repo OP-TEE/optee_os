@@ -8,6 +8,8 @@
 #include <initcall.h>
 #include <types_ext.h>
 
+extern uint8_t embedded_secure_dtb[];
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);
 struct thread_vector_table *
@@ -41,6 +43,10 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry);
 struct ns_entry_context *generic_boot_core_hpen(void);
 #endif
 
+/* Returns DTB location: embedded DTB if enabled, otherwise external DTB */
 void *get_dt(void);
+
+/* Returns embedded DTB location if present, otherwise NULL */
+void *get_embedded_dt(void);
 
 #endif /* KERNEL_GENERIC_BOOT_H */

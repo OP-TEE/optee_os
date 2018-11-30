@@ -74,7 +74,6 @@ KEEP_PAGER(sem_cpu_sync);
 #endif
 
 #ifdef CFG_DT
-extern uint8_t embedded_secure_dtb[];
 struct dt_descriptor {
 	void *blob;
 	int frag_id;
@@ -475,6 +474,29 @@ static void init_runtime(unsigned long pageable_part __unused)
 	IMSG_RAW("\n");
 }
 #endif
+
+#if defined(CFG_EMBED_DTB)
+void *get_embedded_dt(void)
+{
+	static bool checked;
+
+	assert(cpu_mmu_enabled());
+
+	if (!checked) {
+		if (fdt_check_header(embedded_secure_dtb))
+			panic("Invalid embedded DTB");
+
+		checked = true;
+	}
+
+	return embedded_secure_dtb;
+}
+#else
+void *get_embedded_dt(void)
+{
+	return NULL;
+}
+#endif /*CFG_EMBED_DTB*/
 
 #if defined(CFG_DT) && !defined(CFG_EMBED_DTB)
 void *get_dt(void)
@@ -917,16 +939,7 @@ static void update_external_dt(void)
 #if defined(CFG_DT) && defined(CFG_EMBED_DTB)
 void *get_dt(void)
 {
-	assert(cpu_mmu_enabled());
-
-	if (!external_dt.blob) {
-		if (fdt_check_header(embedded_secure_dtb))
-			panic("Invalid embedded DTB");
-
-		external_dt.blob = embedded_secure_dtb;
-	}
-
-	return external_dt.blob;
+	return get_embedded_dt();
 }
 #endif
 
