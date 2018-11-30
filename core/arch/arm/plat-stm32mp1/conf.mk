@@ -1,4 +1,9 @@
-PLATFORM_FLAVOR ?= stm32mp157c
+PLATFORM_FLAVOR ?= stm32mp157
+
+# 1GB and 512MB DDR target do not locate secure DDR at the same place.
+#
+flavorlist-1G = stm32mp157c-ev1.dts stm32mp157c-ed1.dts
+flavorlist-512M = stm32mp157c-dk2.dts
 
 include core/arch/arm/cpu/cortex-a7.mk
 ta-targets = ta_arm32
@@ -14,6 +19,11 @@ $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
+CFG_TZDRAM_START ?= 0xde000000
+CFG_SHMEM_START  ?= 0xdfe00000
+endif
 
 CFG_TZSRAM_START ?= 0x2ffc0000
 CFG_TZSRAM_SIZE  ?= 0x00040000
