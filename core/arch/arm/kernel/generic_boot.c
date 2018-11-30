@@ -475,6 +475,16 @@ static void init_runtime(unsigned long pageable_part __unused)
 }
 #endif
 
+void *get_dt(void)
+{
+	void *fdt = get_embedded_dt();
+
+	if (!fdt)
+		fdt = get_external_dt();
+
+	return fdt;
+}
+
 #if defined(CFG_EMBED_DTB)
 void *get_embedded_dt(void)
 {
@@ -498,8 +508,8 @@ void *get_embedded_dt(void)
 }
 #endif /*CFG_EMBED_DTB*/
 
-#if defined(CFG_DT) && !defined(CFG_EMBED_DTB)
-void *get_dt(void)
+#if defined(CFG_DT)
+void *get_external_dt(void)
 {
 	assert(cpu_mmu_enabled());
 	return external_dt.blob;
@@ -507,7 +517,7 @@ void *get_dt(void)
 
 static void release_external_dt(void)
 {
-	/* dt no more reached, reset pointer to invalid */
+	/* External DTB no more reached, reset pointer to invalid */
 	external_dt.blob = NULL;
 }
 
@@ -934,23 +944,12 @@ static void update_external_dt(void)
 		panic();
 	}
 }
-#endif /*CFG_DT && !CFG_EMBED_DTB*/
-
-#if defined(CFG_DT) && defined(CFG_EMBED_DTB)
-void *get_dt(void)
-{
-	return get_embedded_dt();
-}
-#endif
-
-#ifndef CFG_DT
-void *get_dt(void)
+#else /*CFG_DT*/
+void *get_external_dt(void)
 {
 	return NULL;
 }
-#endif
 
-#if !defined(CFG_DT) || defined(CFG_EMBED_DTB)
 static void release_external_dt(void)
 {
 }
@@ -968,8 +967,7 @@ static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 {
 	return NULL;
 }
-
-#endif /*!CFG_DT || CFG_EMBED_DTB*/
+#endif /*!CFG_DT*/
 
 static void discover_nsec_memory(void)
 {
