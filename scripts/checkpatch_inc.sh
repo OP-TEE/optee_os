@@ -7,7 +7,8 @@ CHECKPATCH_IGNORE=$(echo \
 		core/lib/lib{fdt,tomcrypt} core/lib/zlib \
 		lib/libutils lib/libmbedtls \
 		core/arch/arm/include/arm{32,64}.h \
-		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h)
+		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h \
+		core/arch/arm/dts)
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {
