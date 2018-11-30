@@ -57,7 +57,7 @@ void configure_console_from_dt(void)
 	char *stdout_data;
 	const char *uart;
 	const char *parms = NULL;
-	void *fdt = get_dt_blob();
+	void *fdt = get_dt();
 	int offs;
 	char *p;
 

@@ -102,7 +102,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	};
 #endif
 
-	fdt = get_dt_blob();
+	fdt = get_dt();
 	if (!fdt) {
 		EMSG("No DTB\n");
 		return TEE_ERROR_NOT_SUPPORTED;
