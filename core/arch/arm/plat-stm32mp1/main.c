@@ -17,6 +17,7 @@
 #include <sm/psci.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
+#include <trace.h>
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CONSOLE_UART_SIZE);
 
@@ -47,6 +48,24 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
 }
+
+#define _ID2STR(id)		(#id)
+#define ID2STR(id)		_ID2STR(id)
+
+static TEE_Result platform_banner(void)
+{
+#ifdef CFG_EMBED_DTB
+	IMSG("Platform stm32mp1: flavor %s - DT %s",
+		ID2STR(PLATFORM_FLAVOR),
+		ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
+#else
+	IMSG("Platform stm32mp1: flavor %s - no device tree",
+		ID2STR(PLATFORM_FLAVOR));
+#endif
+
+	return TEE_SUCCESS;
+}
+service_init(platform_banner);
 
 void console_init(void)
 {
