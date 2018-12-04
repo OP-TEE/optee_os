@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
 
 #include <console.h>
-#include <drivers/imx_uart.h>
+#include <drivers/driver.h>
 #include <drivers/imx_wdog.h>
 #include <io.h>
 #include <imx.h>
@@ -198,6 +199,7 @@ int psci_cpu_suspend(uint32_t power_state,
 {
 	uint32_t id, type;
 	int ret = PSCI_RET_INVALID_PARAMETERS;
+	TEE_Result retstatus;
 
 	id = power_state & PSCI_POWER_STATE_ID_MASK;
 	type = (power_state & PSCI_POWER_STATE_TYPE_MASK) >>
@@ -222,8 +224,17 @@ int psci_cpu_suspend(uint32_t power_state,
 		return ret;
 	} else if (id == 0) {
 		if (soc_is_imx7ds()) {
-			return imx7_cpu_suspend(power_state, entry,
+			retstatus = drivers_pm_enter(STATE_SUSPEND, true);
+			if (retstatus != TEE_SUCCESS) {
+				EMSG("Drivers suspend preparation ret 0x%"PRIx32"", retstatus);
+				drivers_pm_resume();
+				return PSCI_RET_DENIED;
+			}
+
+			ret = imx7_cpu_suspend(power_state, entry,
 						context_id, nsec);
+
+			drivers_pm_resume();
 		}
 		return ret;
 	}
