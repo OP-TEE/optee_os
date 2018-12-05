@@ -58,9 +58,6 @@ struct user_ta_ctx {
 	struct vm_info *vm_info;
 	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
-#if defined(CFG_SE_API)
-	struct tee_se_service *se_service;
-#endif
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif
