@@ -18,7 +18,6 @@
 #include <tee/arch_svc.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
-#include <tee/se/svc.h>
 #include <tee/svc_cache.h>
 #include <tee_syscall_numbers.h>
 #include <trace.h>
@@ -102,21 +101,21 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_storage_obj_trunc),
 	SYSCALL_ENTRY(syscall_storage_obj_seek),
 	SYSCALL_ENTRY(syscall_obj_generate_key),
-	SYSCALL_ENTRY(syscall_se_service_open),
-	SYSCALL_ENTRY(syscall_se_service_close),
-	SYSCALL_ENTRY(syscall_se_service_get_readers),
-	SYSCALL_ENTRY(syscall_se_reader_get_prop),
-	SYSCALL_ENTRY(syscall_se_reader_get_name),
-	SYSCALL_ENTRY(syscall_se_reader_open_session),
-	SYSCALL_ENTRY(syscall_se_reader_close_sessions),
-	SYSCALL_ENTRY(syscall_se_session_is_closed),
-	SYSCALL_ENTRY(syscall_se_session_get_atr),
-	SYSCALL_ENTRY(syscall_se_session_open_channel),
-	SYSCALL_ENTRY(syscall_se_session_close),
-	SYSCALL_ENTRY(syscall_se_channel_select_next),
-	SYSCALL_ENTRY(syscall_se_channel_get_select_resp),
-	SYSCALL_ENTRY(syscall_se_channel_transmit),
-	SYSCALL_ENTRY(syscall_se_channel_close),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
+	SYSCALL_ENTRY(syscall_not_supported),
 	SYSCALL_ENTRY(syscall_cache_operation),
 };
 

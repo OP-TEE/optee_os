@@ -45,6 +45,3 @@ srcs-$(CFG_SECSTOR_TA) += tadb.c
 endif #CFG_WITH_USER_TA,y
 
 srcs-y += uuid.c
-
-subdirs-$(CFG_SE_API) += se
-

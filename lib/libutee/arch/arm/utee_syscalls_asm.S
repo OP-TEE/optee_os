@@ -121,47 +121,4 @@
         UTEE_SYSCALL utee_cryp_obj_generate_key, \
                      TEE_SCN_CRYP_OBJ_GENERATE_KEY, 4
 
-        UTEE_SYSCALL utee_se_service_open, TEE_SCN_SE_SERVICE_OPEN, 1
-
-        UTEE_SYSCALL utee_se_service_close, TEE_SCN_SE_SERVICE_CLOSE, 1
-
-        UTEE_SYSCALL utee_se_service_get_readers, \
-                TEE_SCN_SE_SERVICE_GET_READERS, 3
-
-        UTEE_SYSCALL utee_se_reader_get_prop, \
-                TEE_SCN_SE_READER_GET_PROP, 2
-
-        UTEE_SYSCALL utee_se_reader_get_name, \
-                TEE_SCN_SE_READER_GET_NAME, 3
-
-        UTEE_SYSCALL utee_se_reader_open_session, \
-                TEE_SCN_SE_READER_OPEN_SESSION, 2
-
-        UTEE_SYSCALL utee_se_reader_close_sessions, \
-                TEE_SCN_SE_READER_CLOSE_SESSIONS, 1
-
-        UTEE_SYSCALL utee_se_session_is_closed, \
-                TEE_SCN_SE_SESSION_IS_CLOSED, 1
-
-        UTEE_SYSCALL utee_se_session_get_atr, \
-                TEE_SCN_SE_SESSION_GET_ATR, 3
-
-        UTEE_SYSCALL utee_se_session_open_channel, \
-                TEE_SCN_SE_SESSION_OPEN_CHANNEL, 5
-
-        UTEE_SYSCALL utee_se_session_close, \
-                TEE_SCN_SE_SESSION_CLOSE, 1
-
-        UTEE_SYSCALL utee_se_channel_select_next, \
-                TEE_SCN_SE_CHANNEL_SELECT_NEXT, 1
-
-        UTEE_SYSCALL utee_se_channel_get_select_resp, \
-                TEE_SCN_SE_CHANNEL_GET_SELECT_RESP, 3
-
-        UTEE_SYSCALL utee_se_channel_transmit, \
-                TEE_SCN_SE_CHANNEL_TRANSMIT, 5
-
-        UTEE_SYSCALL utee_se_channel_close, \
-                TEE_SCN_SE_CHANNEL_CLOSE, 1
-
         UTEE_SYSCALL utee_cache_operation, TEE_SCN_CACHE_OPERATION, 3
