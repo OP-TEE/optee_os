@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm32.h>
+#include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/imx_uart.h>
@@ -52,12 +52,21 @@ static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
 	.cpu_resume = pm_panic,
 	.system_off = pm_panic,
 	.system_reset = pm_panic,
+#endif
 };
 
 static struct imx_uart_data console_data;
@@ -121,6 +130,18 @@ void console_init(void)
 
 void main_init_gic(void)
 {
+#ifdef CFG_ARM_GICV3
+	vaddr_t gicd_base;
+
+	gicd_base = core_mmu_get_va(GICD_BASE, MEM_AREA_IO_SEC);
+
+	if (!gicd_base)
+		panic();
+
+	/* Initialize GIC */
+	gic_init(&gic_data, 0, gicd_base);
+	itr_init(&gic_data.chip);
+#else
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
@@ -133,6 +154,7 @@ void main_init_gic(void)
 	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);
+#endif
 }
 
 #if defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
