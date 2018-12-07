@@ -19,6 +19,9 @@
 #define CONSOLE_UART_CLK_IN_HZ		62500000
 #define CONSOLE_BAUDRATE		115200
 
+#define IT_SEC_TIMER			29
+#define TIMER_PERIOD_MS			2
+
 #define DRAM0_BASE			0x80000000
 
 /* Platform specific defines */
