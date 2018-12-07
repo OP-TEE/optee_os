@@ -13,6 +13,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <kernel/thread.h>
+#include <kernel/timer.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
@@ -46,7 +47,7 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 
 static void main_fiq(void)
 {
-	panic();
+	gic_it_handle(&gic_data);
 }
 
 void console_init(void)
@@ -66,12 +67,31 @@ void main_init_gic(void)
 	if (!gicd_base)
 		panic();
 
-	/* Initialize GIC */
-	gic_init(&gic_data, 0, gicd_base);
+	/* On ARMv8-A, GIC configuration is initialized in TF-A */
+	gic_init_base_addr(&gic_data, 0, gicd_base);
+
 	itr_init(&gic_data.chip);
 }
 
-void main_secondary_init_gic(void)
+static enum itr_return timer_itr_cb(struct itr_handler *h __unused)
 {
-	gic_cpu_init(&gic_data);
+	/* Reset timer for next FIQ */
+	generic_timer_handler(TIMER_PERIOD_MS);
+
+	return ITRR_HANDLED;
 }
+
+static struct itr_handler timer_itr = {
+	.it = IT_SEC_TIMER,
+	.flags = ITRF_TRIGGER_LEVEL,
+	.handler = timer_itr_cb,
+};
+
+static TEE_Result init_timer_itr(void)
+{
+	itr_add(&timer_itr);
+	itr_enable(IT_SEC_TIMER);
+
+	return TEE_SUCCESS;
+}
+driver_init(init_timer_itr);
