@@ -19,6 +19,7 @@
 #include <sm/optee_smc.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
+#include <rng_pta.h>
 
 static void main_fiq(void);
 
@@ -39,6 +40,7 @@ static struct pl011_data console_data;
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, THERMAL_SENSOR_BASE, CORE_MMU_DEVICE_SIZE);
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
@@ -78,6 +80,9 @@ static enum itr_return timer_itr_cb(struct itr_handler *h __unused)
 	/* Reset timer for next FIQ */
 	generic_timer_handler(TIMER_PERIOD_MS);
 
+	/* Collect entropy on each timer FIQ */
+	rng_collect_entropy();
+
 	return ITRR_HANDLED;
 }
 
@@ -91,6 +96,9 @@ static TEE_Result init_timer_itr(void)
 {
 	itr_add(&timer_itr);
 	itr_enable(IT_SEC_TIMER);
+
+	/* Enable timer FIQ to fetch entropy required during boot */
+	generic_timer_start(TIMER_PERIOD_MS);
 
 	return TEE_SUCCESS;
 }
