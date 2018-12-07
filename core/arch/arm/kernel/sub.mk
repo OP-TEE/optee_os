@@ -13,6 +13,7 @@ srcs-y += delay.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
+srcs-$(CFG_ARM64_core) += timer_a64.c
 
 srcs-$(CFG_ARM32_core) += proc_a32.S
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S
