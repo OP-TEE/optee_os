@@ -81,8 +81,7 @@ S:	Orphan
 F:	core/arch/arm/plat-mediatek/
 
 NXP LS1021A, LS1043A-RDB, LS1046A-RDB, LS1012A-RDB, LS1012A-FRWY, LS1088A-RDB, LS2088A-RDB
-R:	Vinitha V Pillai <vinitha.pillai@nxp.com> [@nxa27423]
-R:	Pankaj Gupta <pankaj.gupta@nxp.com>
+R:	Pankaj Gupta <pankaj.gupta@nxp.com> [@pangupta]
 S:	Maintained
 F:	core/arch/arm/plat-ls/
 
