@@ -32,7 +32,11 @@
 #include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
+#ifdef CFG_PL011
+#include <drivers/pl011.h>
+#else
 #include <drivers/ns16550.h>
+#endif
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
@@ -71,7 +75,11 @@ static const struct thread_handlers handlers = {
 };
 
 static struct gic_data gic_data;
+#ifdef CFG_PL011
+static struct pl011_data console_data;
+#else
 static struct ns16550_data console_data;
+#endif
 
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
@@ -131,7 +139,12 @@ void plat_cpu_reset_late(void)
 
 void console_init(void)
 {
+#ifdef CFG_PL011
+	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
+		   CONSOLE_BAUDRATE);
+#else
 	ns16550_init(&console_data, CONSOLE_UART_BASE);
+#endif
 	register_serial_console(&console_data.chip);
 }
 
