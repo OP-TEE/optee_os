@@ -317,6 +317,7 @@ FUNC __thread_enter_user_mode , :
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 	b eret_to_el0
 END_FUNC __thread_enter_user_mode
+KEEP_PAGER __thread_enter_user_mode
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
