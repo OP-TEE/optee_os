@@ -35,7 +35,7 @@ def stm32image_checksum(dest_fd, sizedest):
         return csum
 
 
-def stm32image_set_header(dest_fd, load, entry):
+def stm32image_set_header(dest_fd, load, entry, bintype):
         sizedest = get_size(dest_fd)
 
         checksum = stm32image_checksum(dest_fd, sizedest)
@@ -68,11 +68,12 @@ def stm32image_set_header(dest_fd, load, entry):
         dest_fd.write(b'\x00' * 64)
 
         # Padding
-        dest_fd.write(b'\x00' * 84)
+        dest_fd.write(b'\x00' * 83)
+        dest_fd.write(struct.pack('<B', bintype))
         dest_fd.close()
 
 
-def stm32image_create_header_file(source, dest, load, entry):
+def stm32image_create_header_file(source, dest, load, entry, bintype):
         dest_fd = open(dest, 'w+b')
         src_fd = open(source, 'rb')
 
@@ -86,7 +87,7 @@ def stm32image_create_header_file(source, dest, load, entry):
 
         src_fd.close()
 
-        stm32image_set_header(dest_fd, load, entry)
+        stm32image_set_header(dest_fd, load, entry, bintype)
 
         dest_fd.close()
 
@@ -113,6 +114,10 @@ def get_args():
                             required=True, type=int_parse,
                             help='Entry point')
 
+        parser.add_argument('--bintype',
+                            required=True, type=int_parse,
+                            help='Binary identification')
+
         return parser.parse_args()
 
 
@@ -122,11 +127,13 @@ def main():
         destination_file = args.dest
         load_address = args.load
         entry_point = args.entry
+        binary_type = args.bintype
 
         stm32image_create_header_file(source_file,
                                       destination_file,
                                       load_address,
-                                      entry_point)
+                                      entry_point,
+                                      binary_type)
 
 
 if __name__ == "__main__":

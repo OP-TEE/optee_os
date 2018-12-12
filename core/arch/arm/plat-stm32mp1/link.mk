@@ -11,14 +11,14 @@ endef
 all: $(link-out-dir)/tee-header_v2.stm32
 cleanfiles += $(link-out-dir)/tee-header_v2.stm32
 $(link-out-dir)/tee-header_v2.stm32: $(link-out-dir)/tee-header_v2.bin
-	$(stm32image_cmd) --source $< --dest $@
+	$(stm32image_cmd) --source $< --dest $@ --bintype 0x20
 
 all: $(link-out-dir)/tee-pager_v2.stm32
 cleanfiles += $(link-out-dir)/tee-pager_v2.stm32
 $(link-out-dir)/tee-pager_v2.stm32: $(link-out-dir)/tee-pager_v2.bin
-	$(stm32image_cmd) --source $< --dest $@
+	$(stm32image_cmd) --source $< --dest $@ --bintype 0x21
 
 all: $(link-out-dir)/tee-pageable_v2.stm32
 cleanfiles += $(link-out-dir)/tee-pageable_v2.stm32
 $(link-out-dir)/tee-pageable_v2.stm32: $(link-out-dir)/tee-pageable_v2.bin
-	$(stm32image_cmd) --source $< --dest $@
+	$(stm32image_cmd) --source $< --dest $@ --bintype 0x22
