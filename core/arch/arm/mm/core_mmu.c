@@ -1767,7 +1767,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		}
 	}
 #ifdef CFG_WITH_PAGER
-	if (v >= TEE_TEXT_VA_START && v < get_linear_map_end()) {
+	if (is_unpaged(va)) {
 		if (v != pa)
 			panic("issue in linear address space");
 		return;
@@ -1944,3 +1944,17 @@ vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type)
 
 	return (vaddr_t)pa;
 }
+
+#ifdef CFG_WITH_PAGER
+bool is_unpaged(void *va)
+{
+	vaddr_t v = (vaddr_t)va;
+
+	return v >= TEE_TEXT_VA_START && v < get_linear_map_end();
+}
+#else
+bool is_unpaged(void *va __unused)
+{
+	return true;
+}
+#endif

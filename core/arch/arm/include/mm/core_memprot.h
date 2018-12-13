@@ -91,4 +91,7 @@ paddr_t virt_to_phys(void *va);
  */
 vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type);
 
+/* Return true if @va relates to a unpaged section else false */
+bool is_unpaged(void *va);
+
 #endif /* CORE_MEMPROT_H */
