@@ -296,14 +296,6 @@ static void thread_lazy_save_ns_vfp(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 
 	thr->vfp_state.ns_saved = false;
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-	/*
-	 * ARM TF saves and restores CPACR_EL1, so we must assume NS world
-	 * uses VFP and always preserve the register file when secure world
-	 * is about to use it
-	 */
-	thr->vfp_state.ns_force_save = true;
-#endif
 	vfp_lazy_save_state_init(&thr->vfp_state.ns);
 #endif /*CFG_WITH_VFP*/
 }
@@ -1094,7 +1086,7 @@ uint32_t thread_kernel_enable_vfp(void)
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  thr->vfp_state.ns_force_save);
+					  true /*force_save*/);
 		thr->vfp_state.ns_saved = true;
 	} else if (thr->vfp_state.sec_lazy_saved &&
 		   !thr->vfp_state.sec_saved) {
@@ -1167,7 +1159,7 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 
 	if (!thr->vfp_state.ns_saved) {
 		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  thr->vfp_state.ns_force_save);
+					  true /*force_save*/);
 		thr->vfp_state.ns_saved = true;
 	} else if (tuv && uvfp != tuv) {
 		if (tuv->lazy_saved && !tuv->saved) {
