@@ -184,6 +184,13 @@ endif
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
 
+# CFG_USER_TA_TARGETS may be defined to the list of the TA targets to be built.
+# Supported TA targets are ta_arm32 and ta_arm64.
+
+# CFG_USER_TA_TARGET_<ta-name> if defined selects the unqiue TA architecture
+# mode for building the target intree TA <ta-name>. Can be either ta_arm32 or
+# ta_arm64.
+
 # Load user TAs from the REE filesystem via tee-supplicant
 # There is currently no other alternative, but you may want to disable this in
 # case you implement your own TA store

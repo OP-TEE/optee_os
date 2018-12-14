@@ -72,16 +72,22 @@ endif
 
 include core/core.mk
 
-# Platform config is supposed to assign the targets
+# Platform config lists the supported targets through ta-targets.
+# CFG_USER_TA_TARGETS, if defined, gives the effective TA targets
+# unless what build for all targets supported by the platform.
 ta-targets ?= user_ta
-default-user-ta-target ?= $(firstword $(ta-targets))
+CFG_USER_TA_TARGETS ?= $(ta-targets)
+default-user-ta-target ?= $(firstword $(CFG_USER_TA_TARGETS))
 
 ifeq ($(CFG_WITH_USER_TA),y)
 define build-ta-target
+ifeq ($(filter $(1),$(ta-targets)),)
+$$(error Target $(1) is not part of platform supported targets ($(ta-targets)))
+endif
 ta-target := $(1)
 include ta/ta.mk
 endef
-$(foreach t, $(ta-targets), $(eval $(call build-ta-target, $(t))))
+$(foreach t, $(CFG_USER_TA_TARGETS), $(eval $(call build-ta-target,$(t))))
 
 # Build user TAs included in this git
 define build-user-ta
@@ -89,7 +95,7 @@ ta-mk-file := $(1)
 include ta/mk/build-user-ta.mk
 endef
 $(foreach t, $(wildcard ta/*/user_ta.mk), $(eval $(call build-user-ta,$(t))))
-endif
+endif # CFG_WITH_USER_TA
 
 include mk/cleandirs.mk
 

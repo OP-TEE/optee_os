@@ -4,7 +4,7 @@ sm-$(sm) := y
 
 # Select TA target (aka TA dev kit, when delivered)
 ta-target := $(strip $(if $(CFG_USER_TA_TARGET_$(sm)), \
-		$(filter $(CFG_USER_TA_TARGET_$(sm)), $(ta-targets)), \
+		$(filter $(CFG_USER_TA_TARGET_$(sm)), $(CFG_USER_TA_TARGETS)), \
 		$(default-user-ta-target)))
 
 ta-dev-kit-dir$(sm) := $(out-dir)/export-$(ta-target)

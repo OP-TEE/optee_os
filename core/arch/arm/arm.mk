@@ -143,7 +143,7 @@ core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
 
-ifneq ($(filter ta_arm32,$(ta-targets)),)
+ifneq ($(filter ta_arm32,$(CFG_USER_TA_TARGETS)),)
 # Variables for ta-target/sm "ta_arm32"
 CFG_ARM32_ta_arm32 := y
 arch-bits-ta_arm32 := 32
@@ -175,7 +175,7 @@ ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE_ta_arm32 ?= $$(CROSS_COMPILE32)_nl_
 endif
 
-ifneq ($(filter ta_arm64,$(ta-targets)),)
+ifneq ($(filter ta_arm64,$(CFG_USER_TA_TARGETS)),)
 # Variables for ta-target/sm "ta_arm64"
 CFG_ARM64_ta_arm64 := y
 arch-bits-ta_arm64 := 64
@@ -204,7 +204,7 @@ ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_
 endif
 
 # Set cross compiler prefix for each submodule
-$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+$(foreach sm, core $(CFG_USER_TA_TARGETS), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
 
 arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
 arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
