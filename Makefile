@@ -72,8 +72,8 @@ endif
 
 include core/core.mk
 
-# Platform config is supposed to assign the targets
-ta-targets ?= user_ta
+# Platform/arch config is supposed to assign the targets
+ta-targets ?= invalid
 default-user-ta-target ?= $(firstword $(ta-targets))
 
 ifeq ($(CFG_WITH_USER_TA),y)
