@@ -151,7 +151,11 @@ supported-ta-targets += ta_arm64
 endif
 endif
 
-ta-targets := $(supported-ta-targets)
+ta-targets := $(if $(CFG_USER_TA_TARGETS),$(filter $(supported-ta-targets),$(CFG_USER_TA_TARGETS)),$(supported-ta-targets))
+unsup-targets := $(filter-out $(ta-targets),$(CFG_USER_TA_TARGETS))
+ifneq (,$(unsup-targets))
+$(error CFG_USER_TA_TARGETS contains unsupported value(s): $(unsup-targets). Valid values: $(supported-ta-targets))
+endif
 
 ifneq ($(filter ta_arm32,$(ta-targets)),)
 # Variables for ta-target/sm "ta_arm32"
