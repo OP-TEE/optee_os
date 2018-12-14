@@ -69,13 +69,42 @@
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 #include <util.h>
-#if defined(CFG_CRYPTO_DSA)
+#if defined(CFG_CRYPTO_DSA) || defined(CFG_CRYPTO_XTS) || \
+	defined(CFG_CRYPTO_CTS)
 #include <tomcrypt.h>
 #if defined(CFG_WITH_VFP)
 #include <tomcrypt_arm_neon.h>
 #include <kernel/thread.h>
 #endif
 #endif
+
+#if defined(CFG_CRYPTO_XTS) || defined(CFG_CRYPTO_CTS)
+/*
+ * Compute the LibTomCrypt "cipherindex" given a TEE Algorithm "algo"
+ * Return
+ * - TEE_SUCCESS in case of success,
+ * - TEE_ERROR_BAD_PARAMETERS in case algo is not a valid algo
+ * - TEE_ERROR_NOT_SUPPORTED in case algo is not supported by LTC
+ * Return -1 in case of error
+ */
+static TEE_Result tee_algo_to_ltc_cipherindex(uint32_t algo,
+					      int *ltc_cipherindex)
+{
+	switch (algo) {
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+		*ltc_cipherindex = find_cipher("aes");
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (*ltc_cipherindex < 0)
+		return TEE_ERROR_NOT_SUPPORTED;
+	else
+		return TEE_SUCCESS;
+}
+#endif /* defined(CFG_CRYPTO_XTS) || defined(CFG_CRYPTO_CTS) */
 
 #if defined(CFG_CRYPTO_AES) || defined(_CFG_CRYPTO_WITH_MAC) \
 	|| defined(_CFG_CRYPTO_WITH_ACIPHER) || defined(CFG_CRYPTO_ECC)
@@ -1913,6 +1942,37 @@ out:
  * Symmetric ciphers
  ******************************************************************************/
 #if defined(_CFG_CRYPTO_WITH_CIPHER)
+/* From libtomcrypt doc:
+ *	Ciphertext stealing is a method of dealing with messages
+ *	in CBC mode which are not a multiple of the block
+ *	length.  This is accomplished by encrypting the last
+ *	ciphertext block in ECB mode, and XOR'ing the output
+ *	against the last partial block of plaintext. LibTomCrypt
+ *	does not support this mode directly but it is fairly
+ *	easy to emulate with a call to the cipher's
+ *	ecb encrypt() callback function.
+ *	The more sane way to deal with partial blocks is to pad
+ *	them with zeroes, and then use CBC normally
+ */
+
+/*
+ * From Global Platform: CTS = CBC-CS3
+ */
+
+#if defined(CFG_CRYPTO_CTS)
+struct tee_symmetric_cts {
+	symmetric_ECB ecb;
+	symmetric_CBC cbc;
+};
+#endif
+
+#if defined(CFG_CRYPTO_XTS)
+#define XTS_TWEAK_SIZE 16
+struct tee_symmetric_xts {
+	symmetric_xts ctx;
+	uint8_t tweak[XTS_TWEAK_SIZE];
+};
+#endif
 
 static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 {
@@ -1934,11 +1994,13 @@ static TEE_Result cipher_get_ctx_size(uint32_t algo, size_t *size)
 #endif
 #if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		*size = sizeof(struct tee_symmetric_xts);
+		break;
 #endif
 #if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		*size = sizeof(struct tee_symmetric_cts);
+		break;
 #endif
 #if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_DES_ECB_NOPAD:
@@ -1991,11 +2053,11 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 #endif
 #if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		break;
 #endif
 #if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		break;
 #endif
 #if defined(CFG_CRYPTO_ECB)
 	case TEE_ALG_DES_ECB_NOPAD:
@@ -2019,7 +2081,7 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	if (!cipher_info)
+	if (algo != TEE_ALG_AES_XTS && algo != TEE_ALG_AES_CTS && !cipher_info)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	res = cipher_get_ctx_size(algo, &ctx_size);
@@ -2030,6 +2092,10 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+#if defined(CFG_CRYPTO_XTS) || defined(CFG_CRYPTO_CTS)
+	if (algo == TEE_ALG_AES_XTS || algo == TEE_ALG_AES_CTS)
+		return TEE_SUCCESS;
+#endif
 	mbedtls_cipher_init(ctx);
 
 	lmd_res = mbedtls_cipher_setup(ctx, cipher_info);
@@ -2043,7 +2109,7 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx_ret, uint32_t algo)
 	return TEE_SUCCESS;
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
+void crypto_cipher_free_ctx(void *ctx, uint32_t algo)
 {
 	size_t ctx_size __maybe_unused;
 
@@ -2052,13 +2118,25 @@ void crypto_cipher_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	 * could never have succeded above.
 	 */
 	assert(!cipher_get_ctx_size(algo, &ctx_size));
-	mbedtls_cipher_free(ctx);
+	if (algo != TEE_ALG_AES_XTS && algo != TEE_ALG_AES_CTS)
+		mbedtls_cipher_free(ctx);
 	free(ctx);
 }
 
 void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
 				uint32_t algo __unused)
 {
+	TEE_Result res __maybe_unused;
+	size_t ctx_size __maybe_unused;
+
+#if defined(CFG_CRYPTO_XTS) || defined(CFG_CRYPTO_CTS)
+	if (algo == TEE_ALG_AES_XTS || algo == TEE_ALG_AES_CTS) {
+		res = cipher_get_ctx_size(algo, &ctx_size);
+		assert(!res);
+		memcpy(dst_ctx, src_ctx, ctx_size);
+		return;
+	}
+#endif
 	if (mbedtls_cipher_clone(dst_ctx, src_ctx) != 0)
 		panic();
 }
@@ -2074,6 +2152,50 @@ TEE_Result crypto_cipher_init(void *ctx, uint32_t algo,
 	const mbedtls_cipher_info_t *cipher_info = NULL;
 	int lmd_res;
 	int lmd_mode;
+	TEE_Result res __maybe_unused;
+	int ltc_res __maybe_unused;
+	int ltc_cipherindex __maybe_unused;
+
+#if defined(CFG_CRYPTO_CTS)
+	if (algo == TEE_ALG_AES_CTS) {
+		struct tee_symmetric_cts *cts = ctx;
+
+		res = crypto_cipher_init((void *)(&(cts->ecb)),
+					 TEE_ALG_AES_ECB_NOPAD, mode, key1,
+					 key1_len, key2, key2_len, iv, iv_len);
+		if (res != TEE_SUCCESS)
+			return res;
+		res = crypto_cipher_init((void *)(&(cts->cbc)),
+					 TEE_ALG_AES_CBC_NOPAD, mode, key1,
+					 key1_len, key2, key2_len, iv, iv_len);
+		return res;
+	}
+#endif
+#if defined(CFG_CRYPTO_XTS)
+	if (algo == TEE_ALG_AES_XTS) {
+		struct tee_symmetric_xts *xts = ctx;
+
+		res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
+		if (res != TEE_SUCCESS)
+			return TEE_ERROR_NOT_SUPPORTED;
+
+		if (key1_len != key2_len)
+			return TEE_ERROR_BAD_PARAMETERS;
+		if (iv) {
+			if (iv_len != XTS_TWEAK_SIZE)
+				return TEE_ERROR_BAD_PARAMETERS;
+			memcpy(xts->tweak, iv, iv_len);
+		} else {
+			memset(xts->tweak, 0, XTS_TWEAK_SIZE);
+		}
+		ltc_res = xts_start(ltc_cipherindex, key1, key2, key1_len,
+				    0, &xts->ctx);
+		if (ltc_res == CRYPT_OK)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_BAD_STATE;
+	}
+#endif
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -2130,6 +2252,9 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 	int lmd_res;
 	size_t olen;
 	size_t finish_olen;
+	struct tee_symmetric_xts *xts __maybe_unused;
+	struct tee_symmetric_cts *cts __maybe_unused;
+	int ltc_res __maybe_unused;
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -2195,11 +2320,25 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 #endif
 #if defined(CFG_CRYPTO_XTS)
 	case TEE_ALG_AES_XTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		xts = ctx;
+
+		if (mode == TEE_MODE_ENCRYPT)
+			ltc_res = xts_encrypt(data, len, dst, xts->tweak,
+					      &xts->ctx);
+		else
+			ltc_res = xts_decrypt(data, len, dst, xts->tweak,
+					      &xts->ctx);
+		if (ltc_res == CRYPT_OK)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_BAD_STATE;
 #endif
 #if defined(CFG_CRYPTO_CTS)
 	case TEE_ALG_AES_CTS:
-		return TEE_ERROR_NOT_SUPPORTED;
+		cts = ctx;
+
+		return tee_aes_cbc_cts_update(&cts->cbc, &cts->ecb, mode,
+					      last_block, data, len, dst);
 #endif
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -2215,6 +2354,19 @@ TEE_Result crypto_cipher_update(void *ctx, uint32_t algo,
 
 void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
 {
+#if defined(CFG_CRYPTO_XTS)
+	if (algo == TEE_ALG_AES_XTS) {
+		xts_done(&(((struct tee_symmetric_xts *)ctx)->ctx));
+		return;
+	}
+#endif
+#if defined(CFG_CRYPTO_CTS)
+	if (algo == TEE_ALG_AES_CTS) {
+		cbc_done(&(((struct tee_symmetric_cts *)ctx)->cbc));
+		ecb_done(&(((struct tee_symmetric_cts *)ctx)->ecb));
+		return;
+	}
+#endif
 }
 #endif /* _CFG_CRYPTO_WITH_CIPHER */
 
