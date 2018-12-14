@@ -69,6 +69,13 @@
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 #include <util.h>
+#if defined(CFG_CRYPTO_DSA)
+#include <tomcrypt.h>
+#if defined(CFG_WITH_VFP)
+#include <tomcrypt_arm_neon.h>
+#include <kernel/thread.h>
+#endif
+#endif
 
 #if defined(CFG_CRYPTO_AES) || defined(_CFG_CRYPTO_WITH_MAC) \
 	|| defined(_CFG_CRYPTO_WITH_ACIPHER) || defined(CFG_CRYPTO_ECC)
@@ -578,6 +585,7 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
 #define biL		(ciL << 3)			/* bits  in limb  */
 #define BITS_TO_LIMBS(i) ((i) / biL + ((i) % biL != 0))
 
+#if !defined(CFG_MBEDTLS_WITH_TOMCRYPT)
 size_t crypto_bignum_num_bytes(struct bignum *a)
 {
 	assert(a != NULL);
@@ -660,6 +668,7 @@ void crypto_bignum_clear(struct bignum *s)
 
 	memset(bn->p, 0, mbedtls_mpi_size((const mbedtls_mpi *)bn));
 }
+#endif
 
 #if defined(CFG_CRYPTO_RSA)
 static void rsa_init_from_key_pair(mbedtls_rsa_context *rsa,
@@ -680,7 +689,7 @@ static void rsa_init_from_key_pair(mbedtls_rsa_context *rsa,
 	rsa->len = mbedtls_mpi_size(&rsa->N);
 }
 
-static void rsa_free(mbedtls_rsa_context *rsa)
+static void mbd_rsa_free(mbedtls_rsa_context *rsa)
 {
 	/* Reset mpi to skip freeing here, those mpis will be freed with key */
 	mbedtls_mpi_init(&rsa->E);
@@ -892,7 +901,7 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 out:
 	if (buf)
 		free(buf);
-	rsa_free(&rsa);
+	mbd_rsa_free(&rsa);
 	return res;
 }
 
@@ -978,7 +987,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 out:
 	if (buf)
 		free(buf);
-	rsa_free(&rsa);
+	mbd_rsa_free(&rsa);
 	return res;
 }
 
@@ -1131,7 +1140,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	}
 	res = TEE_SUCCESS;
 err:
-	rsa_free(&rsa);
+	mbd_rsa_free(&rsa);
 	return res;
 }
 
@@ -1226,43 +1235,214 @@ err:
 #endif /* CFG_CRYPTO_RSA */
 
 #if defined(CFG_CRYPTO_DSA)
-TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s __unused,
-					    size_t key_size_bits __unused)
+
+static TEE_Result __maybe_unused convert_ltc_verify_status(int ltc_res,
+							   int ltc_stat)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (ltc_res) {
+	case CRYPT_OK:
+		if (ltc_stat == 1)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_SIGNATURE_INVALID;
+	case CRYPT_INVALID_PACKET:
+		return TEE_ERROR_SIGNATURE_INVALID;
+	default:
+		return TEE_ERROR_GENERIC;
+	}
 }
 
-TEE_Result
-crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s __unused,
-				    size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s,
+					    size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->g = crypto_bignum_allocate(key_size_bits);
+	if (!s->g)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->p = crypto_bignum_allocate(key_size_bits);
+	if (!s->p)
+		goto err;
+	s->q = crypto_bignum_allocate(key_size_bits);
+	if (!s->q)
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!s->y)
+		goto err;
+	s->x = crypto_bignum_allocate(key_size_bits);
+	if (!s->x)
+		goto err;
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
+	crypto_bignum_free(s->y);
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key __unused,
-				      size_t key_size __unused)
+TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s,
+					       size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	memset(s, 0, sizeof(*s));
+	s->g = crypto_bignum_allocate(key_size_bits);
+	if (!s->g)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	s->p = crypto_bignum_allocate(key_size_bits);
+	if (!s->p)
+		goto err;
+	s->q = crypto_bignum_allocate(key_size_bits);
+	if (!s->q)
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!s->y)
+		goto err;
+	return TEE_SUCCESS;
+err:
+	crypto_bignum_free(s->g);
+	crypto_bignum_free(s->p);
+	crypto_bignum_free(s->q);
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-TEE_Result crypto_acipher_dsa_sign(uint32_t algo __unused,
-				   struct dsa_keypair *key __unused,
-				   const uint8_t *msg __unused,
-				   size_t msg_len __unused,
-				   uint8_t *sig __unused,
-				   size_t *sig_len __unused)
+TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	dsa_key ltc_tmp_key;
+	size_t group_size, modulus_size = key_size / 8;
+	int ltc_res;
+
+	if (modulus_size <= 128)
+		group_size = 20;
+	else if (modulus_size <= 256)
+		group_size = 30;
+	else if (modulus_size <= 384)
+		group_size = 35;
+	else
+		group_size = 40;
+
+	/* Generate the DSA key */
+	ltc_res = dsa_make_key(NULL, find_prng("prng_mpa"), group_size,
+			       modulus_size, &ltc_tmp_key);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else if ((size_t)mp_count_bits(ltc_tmp_key.p) != key_size) {
+		dsa_free(&ltc_tmp_key);
+		res = TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		/* Copy the key */
+		ltc_mp.copy(ltc_tmp_key.g, key->g);
+		ltc_mp.copy(ltc_tmp_key.p, key->p);
+		ltc_mp.copy(ltc_tmp_key.q, key->q);
+		ltc_mp.copy(ltc_tmp_key.y, key->y);
+		ltc_mp.copy(ltc_tmp_key.x, key->x);
+		res = TEE_SUCCESS;
+		/* Free the tempory key */
+		dsa_free(&ltc_tmp_key);
+		res = TEE_SUCCESS;
+	}
+	return res;
 }
 
-TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
-				     struct dsa_public_key *key __unused,
-				     const uint8_t *msg __unused,
-				     size_t msg_len __unused,
-				     const uint8_t *sig __unused,
-				     size_t sig_len __unused)
+TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
+				   const uint8_t *msg, size_t msg_len,
+				   uint8_t *sig, size_t *sig_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res;
+	size_t hash_size;
+	int ltc_res;
+	void *r, *s;
+	dsa_key ltc_key = {
+		.type = PK_PRIVATE,
+		.qord = mp_unsigned_bin_size(key->g),
+		.g = key->g,
+		.p = key->p,
+		.q = key->q,
+		.y = key->y,
+		.x = key->x,
+	};
+
+	if (algo != TEE_ALG_DSA_SHA1 &&
+	    algo != TEE_ALG_DSA_SHA224 &&
+	    algo != TEE_ALG_DSA_SHA256) {
+		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto err;
+	}
+
+	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				       &hash_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+	if (mp_unsigned_bin_size(ltc_key.q) < hash_size)
+		hash_size = mp_unsigned_bin_size(ltc_key.q);
+	if (msg_len != hash_size) {
+		res = TEE_ERROR_SECURITY;
+		goto err;
+	}
+
+	if (*sig_len < 2 * mp_unsigned_bin_size(ltc_key.q)) {
+		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto err;
+	}
+
+	ltc_res = mp_init_multi(&r, &s, NULL);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, NULL,
+				    find_prng("prng_mpa"), &ltc_key);
+	if (ltc_res == CRYPT_OK) {
+		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
+		memset(sig, 0, *sig_len);
+		mp_to_unsigned_bin(r, (uint8_t *)sig + *sig_len/2 -
+				   mp_unsigned_bin_size(r));
+		mp_to_unsigned_bin(s, (uint8_t *)sig + *sig_len -
+				   mp_unsigned_bin_size(s));
+		res = TEE_SUCCESS;
+	} else {
+		res = TEE_ERROR_GENERIC;
+	}
+	mp_clear_multi(r, s, NULL);
+ err:
+	return res;
+}
+
+TEE_Result crypto_acipher_dsa_verify(uint32_t algo, struct dsa_public_key *key,
+				     const uint8_t *msg, size_t msg_len,
+				     const uint8_t *sig, size_t sig_len)
+{
+	TEE_Result res;
+	int ltc_stat, ltc_res;
+	void *r, *s;
+	dsa_key ltc_key = {
+		.type = PK_PUBLIC,
+		.qord = mp_unsigned_bin_size(key->g),
+		.g = key->g,
+		.p = key->p,
+		.q = key->q,
+		.y = key->y
+	};
+
+	if (algo != TEE_ALG_DSA_SHA1 &&
+	    algo != TEE_ALG_DSA_SHA224 &&
+	    algo != TEE_ALG_DSA_SHA256) {
+		res = TEE_ERROR_NOT_IMPLEMENTED;
+		goto err;
+	}
+
+	ltc_res = mp_init_multi(&r, &s, NULL);
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	mp_read_unsigned_bin(r, (uint8_t *)sig, sig_len/2);
+	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
+	ltc_res = dsa_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
+	mp_clear_multi(r, s, NULL);
+	res = convert_ltc_verify_status(ltc_res, ltc_stat);
+err:
+	return res;
 }
 #endif /* CFG_CRYPTO_DSA */
 
@@ -2787,6 +2967,20 @@ TEE_Result crypto_init(void)
 {
 	return TEE_SUCCESS;
 }
+
+#if defined(CFG_CRYPTO_DSA)
+#if defined(CFG_WITH_VFP)
+void tomcrypt_arm_neon_enable(struct tomcrypt_arm_neon_state *state)
+{
+	state->state = thread_kernel_enable_vfp();
+}
+
+void tomcrypt_arm_neon_disable(struct tomcrypt_arm_neon_state *state)
+{
+	thread_kernel_disable_vfp(state->state);
+}
+#endif
+#endif
 
 #if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash,
