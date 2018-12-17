@@ -12,11 +12,8 @@
 #define STACK_ALIGNMENT			32
 
 #define GIC_BASE			0xa0021000ul
-
-#define BKP_REGS_BASE			0x5C00A000
-#define BKP_REGISTER_OFF		0x100
-
 #define RCC_BASE			0x50000000
+#define TAMP_BASE			0x5c00a000
 
 #define UART4_BASE			0x40010000
 #define STM32MP1_DEBUG_USART_BASE	UART4_BASE
@@ -29,5 +26,8 @@
 #define GIC_SIZE			0x2000
 #define GICC_OFFSET			0x1000
 #define GICD_OFFSET			0x0000
+
+/* TAMP resources */
+#define TAMP_BKP_REGISTER_OFF		0x100
 
 #endif /*PLATFORM_CONFIG_H*/
