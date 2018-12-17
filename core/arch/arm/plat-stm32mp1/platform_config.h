@@ -11,10 +11,7 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			32
 
-#define GIC_BASE			0xA0021000ul
-#define GIC_SIZE			0x2000
-#define GICC_OFFSET			0x1000
-#define GICD_OFFSET			0x0000
+#define GIC_BASE			0xa0021000ul
 
 #define BKP_REGS_BASE			0x5C00A000
 #define BKP_REGISTER_OFF		0x100
@@ -27,5 +24,10 @@
 
 #define CONSOLE_UART_BASE		STM32MP1_DEBUG_USART_BASE
 #define CONSOLE_UART_SIZE		1024
+
+/* GIC resources */
+#define GIC_SIZE			0x2000
+#define GICC_OFFSET			0x1000
+#define GICD_OFFSET			0x0000
 
 #endif /*PLATFORM_CONFIG_H*/
