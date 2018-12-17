@@ -12,4 +12,20 @@
 uintptr_t get_gicc_base(void);
 uintptr_t get_gicd_base(void);
 
+/* Power management service */
+#ifdef CFG_PSCI_ARM32
+void stm32mp_register_online_cpu(void);
+#else
+static inline void stm32mp_register_online_cpu(void)
+{
+}
+#endif
+
+/*
+ * Generic spinlock function that bypass spinlock if MMU is disabled or
+ * lock is NULL.
+ */
+uint32_t may_spin_lock(unsigned int *lock);
+void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
+
 #endif /*__STM32_UTIL_H__*/
