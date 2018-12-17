@@ -15,6 +15,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
+#include <stm32_util.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 #include <trace.h>
@@ -24,13 +25,9 @@ register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CONSOLE_UART_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, BKP_REGS_BASE, SMALL_PAGE_SIZE);
 
-static struct gic_data gic_data;
 static struct console_pdata console_data;
 
-static void main_fiq(void)
-{
-	gic_it_handle(&gic_data);
-}
+static void main_fiq(void);
 
 static const struct thread_handlers handlers = {
 	.std_smc = tee_entry_std,
@@ -73,21 +70,45 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
+/*
+ * GIC init, used also for primary/secondary boot core wake completion
+ */
+static struct gic_data gic_data;
+
+static void main_fiq(void)
+{
+	gic_it_handle(&gic_data);
+}
+
 void main_init_gic(void)
 {
-	void *gicc_base;
-	void *gicd_base;
+	assert(cpu_mmu_enabled());
 
-	gicc_base = phys_to_virt(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC);
-	gicd_base = phys_to_virt(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC);
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, (vaddr_t)gicc_base, (vaddr_t)gicd_base);
+	gic_init(&gic_data, get_gicc_base(), get_gicd_base());
 	itr_init(&gic_data.chip);
 }
 
 void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
+}
+
+uintptr_t get_gicc_base(void)
+{
+	uintptr_t pbase = GIC_BASE + GICC_OFFSET;
+
+	if (cpu_mmu_enabled())
+		return (uintptr_t)phys_to_virt_io(pbase);
+
+	return pbase;
+}
+
+uintptr_t get_gicd_base(void)
+{
+	uintptr_t pbase = GIC_BASE + GICD_OFFSET;
+
+	if (cpu_mmu_enabled())
+		return (uintptr_t)phys_to_virt_io(pbase);
+
+	return pbase;
 }
