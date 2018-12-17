@@ -12,6 +12,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
+#include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
@@ -86,11 +87,15 @@ void main_init_gic(void)
 
 	gic_init(&gic_data, get_gicc_base(), get_gicd_base());
 	itr_init(&gic_data.chip);
+
+	stm32mp_register_online_cpu();
 }
 
 void main_secondary_init_gic(void)
 {
 	gic_cpu_init(&gic_data);
+
+	stm32mp_register_online_cpu();
 }
 
 uintptr_t get_gicc_base(void)
@@ -111,4 +116,20 @@ uintptr_t get_gicd_base(void)
 		return (uintptr_t)phys_to_virt_io(pbase);
 
 	return pbase;
+}
+
+uint32_t may_spin_lock(unsigned int *lock)
+{
+	if (!lock || !cpu_mmu_enabled())
+		return 0;
+
+	return cpu_spin_lock_xsave(lock);
+}
+
+void may_spin_unlock(unsigned int *lock, uint32_t exceptions)
+{
+	if (!lock || !cpu_mmu_enabled())
+		return;
+
+	cpu_spin_unlock_xrestore(lock, exceptions);
 }
