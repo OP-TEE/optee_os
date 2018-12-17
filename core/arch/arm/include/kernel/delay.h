@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright (c) 2018, Linaro Limited
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
  * All rights reserved.
  *
@@ -29,7 +30,26 @@
 #ifndef __KERNEL_DELAY_H
 #define __KERNEL_DELAY_H
 
+#include <arm.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 void udelay(uint32_t us);
 void mdelay(uint32_t ms);
+
+static inline uint64_t arm_cnt_us2cnt(uint32_t us)
+{
+	return ((uint64_t)us * (uint64_t)read_cntfrq()) / 1000000ULL;
+}
+
+static inline uint64_t timeout_init_us(uint32_t us)
+{
+	return read_cntpct() + arm_cnt_us2cnt(us);
+}
+
+static inline bool timeout_elapsed(uint64_t expire)
+{
+	return read_cntpct() > expire;
+}
 
 #endif

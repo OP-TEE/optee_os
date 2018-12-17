@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (c) 2018, Linaro Limited
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
  * All rights reserved.
  *
@@ -26,17 +27,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arm.h>
 #include <kernel/delay.h>
 
 void udelay(uint32_t us)
 {
-	uint64_t start, target;
+	uint64_t target = timeout_init_us(us);
 
-	start = read_cntpct();
-	target = ((uint64_t)read_cntfrq() * us) / 1000000ULL;
-
-	while (read_cntpct() - start <= target)
+	while (!timeout_elapsed(target))
 		;
 }
 
