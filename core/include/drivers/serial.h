@@ -41,25 +41,4 @@ struct serial_driver {
 	void (*dev_free)(struct serial_chip *dev);
 };
 
-struct io_pa_va {
-	paddr_t pa;
-	vaddr_t va;
-};
-
-/*
- * Helper function to return a physical or virtual address for a device,
- * depending on whether the MMU is enabled or not
- */
-static inline vaddr_t io_pa_or_va(struct io_pa_va *p)
-{
-	assert(p->pa);
-	if (cpu_mmu_enabled()) {
-		if (!p->va)
-			p->va = (vaddr_t)phys_to_virt_io(p->pa);
-		assert(p->va);
-		return p->va;
-	}
-	return p->pa;
-}
-
 #endif /*__DRIVERS_SERIASERIAL_H*/
