@@ -8,6 +8,7 @@
 #include <drivers/stm32mp1_rcc.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/delay.h>
 #include <kernel/generic_boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -110,19 +111,27 @@ void stm32mp_register_online_cpu(void)
 	unlock_state_access(excep);
 }
 
-#define GIC_SEC_SGI_0		8
+#define GICD_SGIR		0xF00
+static void raise_sgi0_as_secure(void)
+{
+	dsb_ishst();
+	write32(GIC_NON_SEC_SGI_0 | SHIFT_U32(TARGET_CPU1_GIC_MASK, 16),
+		get_gicd_base() + GICD_SGIR);
+}
 
 static void release_secondary_early_hpen(size_t __unused pos)
 {
+	/* Need to send SIG#0 over Group0 after individual core 1 reset */
+	raise_sgi0_as_secure();
+	udelay(20);
 
 	write32(TEE_LOAD_ADDR,
 		stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS));
 	write32(BOOT_API_A7_CORE1_MAGIC_NUMBER,
 		stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER));
 
-	dmb();
-	isb();
-	itr_raise_sgi(GIC_SEC_SGI_0, BIT(pos));
+	dsb_ishst();
+	itr_raise_sgi(GIC_SEC_SGI_0, TARGET_CPU1_GIC_MASK);
 }
 
 /* Override default psci_cpu_on() with platform specific sequence */
@@ -166,6 +175,31 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	}
 
 	return rc;
+}
+
+/* Override default psci_cpu_off() with platform specific sequence */
+int psci_cpu_off(void)
+{
+	unsigned int pos = get_core_pos();
+	uint32_t excep;
+
+	if (pos == 0) {
+		EMSG("PSCI_CPU_OFF not supported for core #0");
+		return PSCI_RET_INTERNAL_FAILURE;
+	}
+
+	DMSG("core %u", pos);
+
+	excep = lock_state_access();
+
+	assert(core_state[pos] == CORE_ON);
+	core_state[pos] = CORE_OFF;
+
+	unlock_state_access(excep);
+
+	thread_mask_exceptions(THREAD_EXCP_ALL);
+	stm32_pm_cpu_power_down_wfi();
+	panic();
 }
 #endif
 
