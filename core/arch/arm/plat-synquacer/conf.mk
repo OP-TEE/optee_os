@@ -18,7 +18,7 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
 $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_ARM64_core,y)
-ta-targets = ta_arm64
+supported-ta-targets = ta_arm64
 
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y

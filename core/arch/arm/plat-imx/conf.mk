@@ -221,7 +221,7 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 CFG_CRYPTO_WITH_CE ?= y
 CFG_PM_STUBS ?= y
 
-ta-targets = ta_arm64
+supported-ta-targets = ta_arm64
 endif
 
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - 0x02000000 + $(CFG_DDR_SIZE))
