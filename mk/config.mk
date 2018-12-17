@@ -184,6 +184,27 @@ endif
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
 
+# Choosing the architecture(s) of user-mode libraries (used by TAs)
+#
+# Platforms may define a list of supported architectures for user-mode code
+# by setting $(supported-ta-targets). Valid values are "ta_arm32", "ta_arm64",
+# "ta_arm32 ta_arm64" and "ta_arm64 ta_arm32".
+# $(supported-ta-targets) defaults to "ta_arm32" when the TEE core is 32-bits,
+# and "ta_arm32 ta_arm64" when it is 64-bits (that is, when CFG_ARM64_core=y).
+# The first entry in $(supported-ta-targets) has a special role, see
+# CFG_USER_TA_TARGET_<ta-name> below.
+#
+# CFG_USER_TA_TARGETS may be defined to restrict $(supported-ta-targets) or
+# change the order of the values.
+#
+# The list of TA architectures is ultimately stored in $(ta-targets).
+
+# CFG_USER_TA_TARGET_<ta-name> (for example, CFG_USER_TA_TARGET_avb), if
+# defined, selects the unique TA architecture mode for building the in-tree TA
+# <ta-name>. Can be either ta_arm32 or ta_arm64.
+# By default, in-tree TAs are built using the first architecture specified in
+# $(ta-targets).
+
 # Load user TAs from the REE filesystem via tee-supplicant
 # There is currently no other alternative, but you may want to disable this in
 # case you implement your own TA store
