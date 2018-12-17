@@ -18,15 +18,13 @@ $(call force,CFG_HI16XX_RNG,y)
 endif
 $(call force,CFG_WITH_LPAE,y)
 
-ta-targets = ta_arm32
-
 ifeq ($(CFG_ARM64_core),y)
-ta-targets += ta_arm64
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 655360
 else
 $(call force,CFG_ARM32_core,y)
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 524288
 endif
+
 # 20MB-384kB of secure RAM
 ifeq ($(CFG_WITH_PAGER),y)
 CFG_TEE_RAM_VA_SIZE ?= 0x00400000

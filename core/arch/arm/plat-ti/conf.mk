@@ -45,5 +45,3 @@ $(call force,CFG_GIC,y)
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 $(call force,CFG_DRA7_RNG,y)
 endif
-
-ta-targets = ta_arm32

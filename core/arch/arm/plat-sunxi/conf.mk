@@ -29,13 +29,10 @@ CFG_SHMEM_START ?= 0x5fe00000
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
-ta-targets = ta_arm32
-
 ifeq ($(PLATFORM_FLAVOR),sun50i_a64)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_LPAE,y)
-ta-targets += ta_arm64
 
 CFG_TZDRAM_START ?= 0x40000000
 CFG_TZDRAM_SIZE  ?= 0x2000000

@@ -143,6 +143,14 @@ core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
 
+# Provide default ta-targets if not set by the platform config
+ifeq (,$(ta-targets))
+ta-targets = ta_arm32
+ifeq ($(CFG_ARM64_core),y)
+ta-targets += ta_arm64
+endif
+endif
+
 ifneq ($(filter ta_arm32,$(ta-targets)),)
 # Variables for ta-target/sm "ta_arm32"
 CFG_ARM32_ta_arm32 := y

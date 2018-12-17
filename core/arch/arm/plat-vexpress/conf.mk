@@ -35,11 +35,8 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
-ta-targets = ta_arm32
-
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_LPAE,y)
-ta-targets += ta_arm64
 else
 $(call force,CFG_ARM32_core,y)
 endif

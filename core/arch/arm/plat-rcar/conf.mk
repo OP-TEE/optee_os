@@ -18,13 +18,9 @@ endif
 
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_LPAE,y)
-ta-targets += ta_arm64
+ta-targets = ta_arm64
 else
 $(call force,CFG_ARM32_core,y)
-endif
-
-ifeq ($(CFG_ARM32_core),y)
-ta-targets = ta_arm32
 endif
 
 CFG_WITH_STACK_CANARIES ?= y
