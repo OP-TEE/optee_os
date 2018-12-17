@@ -10,6 +10,7 @@
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 
 #ifdef CFG_DT
 #include <kernel/dt.h>
@@ -91,7 +92,7 @@ TEE_Result get_console_node_from_dt(void **fdt_out, int *offs_out,
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	stdout_data = strdup(prop->data);
+	stdout_data = nex_strdup(prop->data);
 	if (!stdout_data)
 		panic();
 	p = strchr(stdout_data, ':');
@@ -120,7 +121,7 @@ TEE_Result get_console_node_from_dt(void **fdt_out, int *offs_out,
 		rc = TEE_SUCCESS;
 	}
 
-	free(stdout_data);
+	nex_free(stdout_data);
 
 	return rc;
 }
