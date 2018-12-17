@@ -94,4 +94,30 @@ static inline void put_be16(void *p, uint16_t val)
 	*(uint16_t *)p = TEE_U16_TO_BIG_ENDIAN(val);
 }
 
+/*
+ * Set and clear bits helpers.
+ *
+ * @addr is the address of the memory cell accessed
+ * @set_mask represents the bit mask of the bit(s) to set, aka set to 1
+ * @clear_mask represents the bit mask of the bit(s) to clear, aka reset to 0
+ *
+ * io_clrsetbits32() clears then sets the target bits in this order. If a bit
+ * position is defined by both @set_mask and @clear_mask, the bit will be set.
+ */
+static inline void io_setbits32(uintptr_t addr, uint32_t set_mask)
+{
+	write32(read32(addr) | set_mask, addr);
+}
+
+static inline void io_clrbits32(uintptr_t addr, uint32_t clear_mask)
+{
+	write32(read32(addr) & ~clear_mask, addr);
+}
+
+static inline void io_clrsetbits32(uintptr_t addr, uint32_t clear_mask,
+				   uint32_t set_mask)
+{
+	write32((read32(addr) & ~clear_mask) | set_mask, addr);
+}
+
 #endif /*IO_H*/
