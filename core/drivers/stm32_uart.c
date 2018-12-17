@@ -8,6 +8,7 @@
 #include <drivers/stm32_uart.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/delay.h>
 #include <util.h>
 
 #define UART_REG_CR1			0x00	/* Control register 1 */
@@ -20,6 +21,9 @@
 #define UART_REG_RDR			0x24	/* Receive data register */
 #define UART_REG_TDR			0x28	/* Transmit data register */
 #define UART_REG_PRESC			0x2c	/* Prescaler register */
+
+#define PUTC_TIMEOUT_US			1000
+#define FLUSH_TIMEOUT_US		16000
 
 /*
  * Uart Interrupt & status register bits
@@ -45,17 +49,21 @@ static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 static void loc_flush(struct serial_chip *chip)
 {
 	vaddr_t base = loc_chip_to_base(chip);
+	uint64_t timeout = timeout_init_us(FLUSH_TIMEOUT_US);
 
 	while (!(read32(base + UART_REG_ISR) & USART_ISR_TXFE))
-		;
+		if (timeout_elapsed(timeout))
+			return;
 }
 
 static void loc_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = loc_chip_to_base(chip);
+	uint64_t timeout = timeout_init_us(PUTC_TIMEOUT_US);
 
 	while (!(read32(base + UART_REG_ISR) & USART_ISR_TXE_TXFNF))
-		;
+		if (timeout_elapsed(timeout))
+			return;
 
 	write32(ch, base + UART_REG_TDR);
 }
