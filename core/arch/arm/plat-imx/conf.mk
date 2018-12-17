@@ -201,8 +201,6 @@ CFG_PAGEABLE_ADDR ?= 0
 CFG_PSCI_ARM32 ?= y
 CFG_SECURE_TIME_SOURCE_REE ?= y
 CFG_UART_BASE ?= UART1_BASE
-
-ta-targets = ta_arm32
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)

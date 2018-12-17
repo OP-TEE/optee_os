@@ -85,9 +85,6 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
 
-ta-targets = ta_arm32
-ta-targets += ta_arm64
-
 CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y

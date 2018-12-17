@@ -6,7 +6,6 @@ flavorlist-1G = stm32mp157c-ev1.dts stm32mp157c-ed1.dts
 flavorlist-512M = stm32mp157c-dk2.dts
 
 include core/arch/arm/cpu/cortex-a7.mk
-ta-targets = ta_arm32
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_GENERIC_BOOT,y)

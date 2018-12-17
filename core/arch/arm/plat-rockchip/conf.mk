@@ -14,7 +14,5 @@ $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_8250_UART,y)
 
-ta-targets = ta_arm32
-
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
