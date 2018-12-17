@@ -112,32 +112,13 @@ void stm32mp_register_online_cpu(void)
 
 #define GIC_SEC_SGI_0		8
 
-static vaddr_t bckreg_base(void)
-{
-	static void *va;
-
-	if (!cpu_mmu_enabled())
-		return BKP_REGS_BASE + BKP_REGISTER_OFF;
-
-	if (!va)
-		va = phys_to_virt(BKP_REGS_BASE + BKP_REGISTER_OFF,
-				  MEM_AREA_IO_SEC);
-
-	return (vaddr_t)va;
-}
-
-static uint32_t *bckreg_address(unsigned int idx)
-{
-	return (uint32_t *)bckreg_base() + idx;
-}
-
 static void release_secondary_early_hpen(size_t __unused pos)
 {
-	uint32_t *p_entry = bckreg_address(BCKR_CORE1_BRANCH_ADDRESS);
-	uint32_t *p_magic = bckreg_address(BCKR_CORE1_MAGIC_NUMBER);
 
-	*p_entry = TEE_LOAD_ADDR;
-	*p_magic = BOOT_API_A7_CORE1_MAGIC_NUMBER;
+	write32(TEE_LOAD_ADDR,
+		stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS));
+	write32(BOOT_API_A7_CORE1_MAGIC_NUMBER,
+		stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER));
 
 	dmb();
 	isb();

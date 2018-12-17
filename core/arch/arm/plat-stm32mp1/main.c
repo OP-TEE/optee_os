@@ -24,7 +24,7 @@
 register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CONSOLE_UART_SIZE);
 
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, BKP_REGS_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 
 static struct console_pdata console_data;
 
@@ -132,4 +132,21 @@ void may_spin_unlock(unsigned int *lock, uint32_t exceptions)
 		return;
 
 	cpu_spin_unlock_xrestore(lock, exceptions);
+}
+
+static uintptr_t stm32_tamp_base(void)
+{
+	static struct io_pa_va base = { .pa = TAMP_BASE };
+
+	return io_pa_or_va(&base);
+}
+
+static uintptr_t bkpreg_base(void)
+{
+	return stm32_tamp_base() + TAMP_BKP_REGISTER_OFF;
+}
+
+uintptr_t stm32mp_bkpreg(unsigned int idx)
+{
+	return bkpreg_base() + (idx * sizeof(uint32_t));
 }
