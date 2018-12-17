@@ -2,7 +2,7 @@ cflags-lib-$(CFG_CRYPTO_SIZE_OPTIMIZATION) += -Os
 
 srcs-y += tee_lmd_provider.c
 
-ifneq (,$(filter y, $(CFG_CRYPTO_DSA) $(CFG_CRYPTO_CTR) $(CFG_CRYPTO_XTS)))
+ifneq (,$(filter y, $(CFG_CRYPTO_DSA) $(CFG_CRYPTO_CTR) $(CFG_CRYPTO_XTS) $(CFG_CRYPTO_CBC_MAC)))
 
 ifeq ($(CFG_CRYPTO_DSA),y)
 CFG_MBEDTLS_WITH_TOMCRYPT := y

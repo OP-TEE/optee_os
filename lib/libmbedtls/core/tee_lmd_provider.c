@@ -217,9 +217,20 @@ static const mbedtls_cipher_info_t *get_cipher_info(uint32_t algo,
 	case TEE_ALG_AES_XTS:
 	case TEE_ALG_AES_CCM:
 	case TEE_ALG_AES_GCM:
+		return NULL;
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
-		return NULL;
+		if (key_len == 128)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_128_CBC);
+		else if (key_len == 192)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_192_CBC);
+		else if (key_len == 256)
+			return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_AES_256_CBC);
+		else
+			return NULL;
 #endif
 #if defined(CFG_CRYPTO_DES)
 	case TEE_ALG_DES_ECB_NOPAD:
@@ -230,7 +241,8 @@ static const mbedtls_cipher_info_t *get_cipher_info(uint32_t algo,
 			return NULL;
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
-		return NULL;
+		return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_CBC);
 	case TEE_ALG_DES_CBC_NOPAD:
 		if (key_len == 64)
 			return mbedtls_cipher_info_from_type(
@@ -248,7 +260,8 @@ static const mbedtls_cipher_info_t *get_cipher_info(uint32_t algo,
 			return NULL;
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		return NULL;
+		return mbedtls_cipher_info_from_type(
+						MBEDTLS_CIPHER_DES_EDE3_CBC);
 	case TEE_ALG_DES3_CBC_NOPAD:
 		if (key_len == 128)
 			return mbedtls_cipher_info_from_type(
@@ -2374,6 +2387,46 @@ void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
  * Message Authentication Code functions
  *****************************************************************************/
 #if defined(_CFG_CRYPTO_WITH_MAC)
+
+#if defined(CFG_CRYPTO_CBC_MAC)
+/*
+ * CBC-MAC is not implemented in mbedtls
+ * This is implemented here as being the plain text which is encoded with IV=0.
+ * Result of the CBC-MAC is the last 16-bytes cipher.
+ */
+
+#define CBCMAC_MAX_BLOCK_LEN 16
+struct cbc_state {
+	mbedtls_cipher_context_t ctx;
+	uint8_t block[CBCMAC_MAX_BLOCK_LEN];
+	uint8_t digest[CBCMAC_MAX_BLOCK_LEN];
+	size_t current_block_len, block_len;
+	int is_computed;
+};
+
+static void get_des2_key(const uint8_t *key, size_t key_len,
+			 uint8_t *key_intermediate,
+			 uint8_t **real_key, size_t *real_key_len)
+{
+	if (key_len == 16) {
+		/*
+		 * This corresponds to a 2DES key. The 2DES encryption
+		 * algorithm is similar to 3DES. Both perform and
+		 * encryption step, then a decryption step, followed
+		 * by another encryption step (EDE). However 2DES uses
+		 * the same key for both of the encryption (E) steps.
+		 */
+		memcpy(key_intermediate, key, 16);
+		memcpy(key_intermediate+16, key, 8);
+		*real_key = key_intermediate;
+		*real_key_len = 24;
+	} else {
+		*real_key = (uint8_t *)key;
+		*real_key_len = key_len;
+	}
+}
+#endif
+
 static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
@@ -2394,7 +2447,8 @@ static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		return TEE_ERROR_NOT_SUPPORTED;
+		*size = sizeof(struct cbc_state);
+		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
@@ -2456,8 +2510,19 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		res = TEE_ERROR_NOT_SUPPORTED;
-		goto err;
+		cipher_info = get_cipher_info(algo, 128);
+		if (!cipher_info) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto err;
+		}
+		mbedtls_cipher_init(ctx);
+		lmd_res = mbedtls_cipher_setup(ctx, cipher_info);
+		if (lmd_res != 0) {
+			FMSG("cipher setup failed, res is 0x%x", -lmd_res);
+			res = get_tee_result(lmd_res);
+			goto err;
+		}
+		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
@@ -2529,6 +2594,7 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		mbedtls_cipher_free(ctx);
 		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
@@ -2545,6 +2611,8 @@ void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
 void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 {
 	int lmd_res __maybe_unused;
+	struct cbc_state *dst_cbc __maybe_unused;
+	struct cbc_state *src_cbc __maybe_unused;
 
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -2568,6 +2636,18 @@ void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		dst_cbc = dst_ctx;
+		src_cbc = src_ctx;
+		memcpy(dst_cbc->block, src_cbc->block, CBCMAC_MAX_BLOCK_LEN);
+		memcpy(dst_cbc->digest, src_cbc->digest, CBCMAC_MAX_BLOCK_LEN);
+		dst_cbc->current_block_len = src_cbc->current_block_len;
+		dst_cbc->block_len = src_cbc->block_len;
+		dst_cbc->is_computed = src_cbc->is_computed;
+		lmd_res = mbedtls_cipher_clone(&dst_cbc->ctx, &src_cbc->ctx);
+		if (lmd_res != 0) {
+			FMSG("cmac clone failed, res is 0x%x", -lmd_res);
+			panic();
+		}
 		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
@@ -2589,6 +2669,10 @@ TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 {
 	int lmd_res __maybe_unused;
 	const mbedtls_cipher_info_t *cipher_info __maybe_unused;
+	uint8_t *real_key __maybe_unused;
+	uint8_t key_array[24] __maybe_unused;
+	size_t real_key_len __maybe_unused;
+	struct cbc_state *cbc __maybe_unused;
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -2620,7 +2704,48 @@ TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		return TEE_ERROR_NOT_SUPPORTED;
+		cbc = (struct cbc_state *)ctx;
+
+		/* Re-set the cipher info according the really key length. */
+		cipher_info = get_cipher_info(algo, len * 8);
+		if (!cipher_info)
+			return TEE_ERROR_NOT_SUPPORTED;
+
+		lmd_res = mbedtls_cipher_setup_info(&cbc->ctx, cipher_info);
+		if (lmd_res != 0) {
+			FMSG("setup info failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+
+		cbc->block_len = mbedtls_cipher_get_block_size(&cbc->ctx);
+		if (CBCMAC_MAX_BLOCK_LEN < cbc->block_len)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		if (algo == TEE_ALG_DES3_CBC_MAC_NOPAD ||
+		    algo == TEE_ALG_DES3_CBC_MAC_PKCS5) {
+			get_des2_key(key, len, key_array,
+				     &real_key, &real_key_len);
+			key = real_key;
+			len = real_key_len;
+		}
+
+		lmd_res = mbedtls_cipher_setkey(&cbc->ctx, key, len * 8,
+						MBEDTLS_ENCRYPT);
+		if (lmd_res != 0) {
+			FMSG("setkey failed, res is 0x%x", -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+
+		lmd_res = mbedtls_cipher_reset(&cbc->ctx);
+		if (lmd_res != 0) {
+			FMSG("mbedtls_cipher_reset failed, res is 0x%x",
+			     -lmd_res);
+			return get_tee_result(lmd_res);
+		}
+
+		cbc->is_computed = 0;
+		cbc->current_block_len = 0;
+		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
@@ -2658,6 +2783,9 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			     size_t len)
 {
 	int lmd_res __maybe_unused;
+	struct cbc_state *cbc __maybe_unused;
+	size_t pad_len __maybe_unused;
+	size_t olen __maybe_unused;
 
 	if (!data || !len)
 		return TEE_SUCCESS;
@@ -2684,7 +2812,42 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		return TEE_ERROR_NOT_SUPPORTED;
+		cbc = ctx;
+
+		if ((cbc->current_block_len > 0) &&
+		    (len + cbc->current_block_len >= cbc->block_len)) {
+			pad_len = cbc->block_len - cbc->current_block_len;
+			memcpy(cbc->block + cbc->current_block_len,
+			       data, pad_len);
+			data += pad_len;
+			len -= pad_len;
+			lmd_res = mbedtls_cipher_update(&cbc->ctx, cbc->block,
+							cbc->block_len,
+							cbc->digest, &olen);
+			if (lmd_res != 0) {
+				FMSG("update failed, res is 0x%x", -lmd_res);
+				return get_tee_result(lmd_res);
+			}
+			cbc->is_computed = 1;
+		}
+
+		while (len >= cbc->block_len) {
+			lmd_res = mbedtls_cipher_update(&cbc->ctx, cbc->block,
+							cbc->block_len,
+							cbc->digest, &olen);
+			if (lmd_res != 0) {
+				FMSG("update failed, res is 0x%x", -lmd_res);
+				return get_tee_result(lmd_res);
+			}
+			cbc->is_computed = 1;
+			data += cbc->block_len;
+			len -= cbc->block_len;
+		}
+
+		if (len > 0)
+			memcpy(cbc->block, data, len);
+		cbc->current_block_len = len;
+		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
@@ -2708,6 +2871,9 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 	int lmd_res __maybe_unused;
 	size_t block_size __maybe_unused;
 	mbedtls_md_context_t *md_ctx __maybe_unused;
+	struct cbc_state *cbc __maybe_unused;
+	size_t pad_len __maybe_unused;
+	size_t olen __maybe_unused;
 
 	switch (algo) {
 #if defined(CFG_CRYPTO_HMAC)
@@ -2735,7 +2901,37 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		return TEE_ERROR_NOT_SUPPORTED;
+		cbc = (struct cbc_state *)ctx;
+
+		/* Padding is required */
+		switch (algo) {
+		case TEE_ALG_AES_CBC_MAC_PKCS5:
+		case TEE_ALG_DES_CBC_MAC_PKCS5:
+		case TEE_ALG_DES3_CBC_MAC_PKCS5:
+			/*
+			 * Padding is in whole bytes. The value of each added
+			 * byte is the number of bytes that are added, i.e. N
+			 * bytes, each of value N are added
+			 */
+			pad_len = cbc->block_len - cbc->current_block_len;
+			memset(cbc->block + cbc->current_block_len,
+			       pad_len, pad_len);
+			cbc->current_block_len = 0;
+			if (TEE_SUCCESS != crypto_mac_update(ctx, algo,
+							     cbc->block,
+							     cbc->block_len))
+				return TEE_ERROR_BAD_STATE;
+			break;
+		default:
+			/* nothing to do */
+			break;
+		}
+
+		if ((!cbc->is_computed) || (cbc->current_block_len != 0))
+			return TEE_ERROR_BAD_STATE;
+
+		memcpy(digest, cbc->digest, MIN(digest_len, cbc->block_len));
+		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
 	case TEE_ALG_AES_CMAC:
