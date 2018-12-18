@@ -31,4 +31,7 @@ size_t strlcat(char *dst, const char *src, size_t size);
  */
 int buf_compare_ct(const void *s1, const void *s2, size_t n);
 
+/* Variant of strdup() that uses nex_malloc() instead of malloc() */
+char *nex_strdup(const char *s);
+
 #endif /* STRING_EXT_H */
