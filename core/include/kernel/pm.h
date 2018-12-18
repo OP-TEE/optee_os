@@ -134,6 +134,24 @@ static inline void register_pm_driver_cb(
 }
 
 /*
+ * Register a core service callback for generic suspend/resume.
+ * Refer to struct pm_callback_handle for description of the callbacks
+ * API.
+ *
+ * @callback: Registered callback function
+ * @handle: Registered private handle argument for the callback
+ */
+static inline void register_pm_core_service_cb(
+		TEE_Result (*callback)(
+				enum pm_op op, uint32_t pm_hint,
+				const struct pm_callback_handle *pm_handle),
+		void *handle)
+{
+	register_pm_cb(&PM_CALLBACK_HANDLE_INITIALIZER(callback, handle,
+						PM_CB_ORDER_CORE_SERVICE));
+}
+
+/*
  * Request call to registered PM callbacks
  *
  * @op: Either PM_OP_SUSPEND or PM_OP_RESUME
