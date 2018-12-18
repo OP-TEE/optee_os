@@ -569,7 +569,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 
 	/* move */
 	res = fops->rename(o->pobj, po, false /* no overwrite */);
-	if (res == TEE_ERROR_GENERIC)
+	if (res)
 		goto exit;
 
 	res = tee_pobj_rename(o->pobj, object_id, object_id_len);
