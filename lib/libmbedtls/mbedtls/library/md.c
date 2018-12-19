@@ -393,6 +393,9 @@ int mbedtls_md_clone( mbedtls_md_context_t *dst,
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
 
+    if( dst->hmac_ctx != NULL && src->hmac_ctx != NULL )
+        memcpy( dst->hmac_ctx, src->hmac_ctx, 2 * src->md_info->block_size );
+
     return( 0 );
 }
 
