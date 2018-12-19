@@ -312,6 +312,21 @@ void mbedtls_cipher_init( mbedtls_cipher_context_t *ctx );
 void mbedtls_cipher_free( mbedtls_cipher_context_t *ctx );
 
 /**
+ * \brief           Clone the state of an cipher context
+ *
+ * \note            The two contexts must have been setup to the same type
+ *                  (cloning from AES to DES make no sense).
+ *
+ * \param dst       The destination context
+ * \param src       The context to be cloned
+ *
+ * \return          \c 0 on success,
+ *                  \c MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure.
+ */
+int mbedtls_cipher_clone( mbedtls_cipher_context_t *dst,
+                          const mbedtls_cipher_context_t *src );
+
+/**
  * \brief               Initialises and fills the cipher context structure with
  *                      the appropriate values.
  *
@@ -328,6 +343,17 @@ void mbedtls_cipher_free( mbedtls_cipher_context_t *ctx );
  *                      cipher-specific context failed.
  */
 int mbedtls_cipher_setup( mbedtls_cipher_context_t *ctx, const mbedtls_cipher_info_t *cipher_info );
+
+/**
+ * \brief               setup the cipher info structure.
+ *
+ * \param ctx           cipher's context. Must have been initialised.
+ * \param cipher_info   cipher to use.
+ *
+ * \return              0 on success,
+ *                      MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure
+ */
+int mbedtls_cipher_setup_info( mbedtls_cipher_context_t *ctx, const mbedtls_cipher_info_t *cipher_info );
 
 /**
  * \brief               Returns the block size of the given cipher.
