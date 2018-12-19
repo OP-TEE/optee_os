@@ -197,6 +197,10 @@ world (SCR_NS is set) or in secure world (SCR_NS is cleared). When the
 secure monitor is active (ARMv8 EL3 or ARMv7 Monitor mode) FIQ is masked.
 FIQ reception in the two different states is described below.
 
+ GIC driver registers to the PM suspend/resume framework when
+`CFG_ARM_GIC_PM=y`. This allows to preserve secure interrupts configuration
+across platform power transitions.
+
 ## 4.1. Deliver FIQ to secure world when SCR_NS is set
 
 When the monitor gets an FIQ exception it:

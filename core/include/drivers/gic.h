@@ -12,11 +12,25 @@
 #define GIC_DIST_REG_SIZE	0x10000
 #define GIC_CPU_REG_SIZE	0x10000
 
+/*
+ * Save and restore some interrupts configuration during low power sequences.
+ * This is used on platforms using OP-TEE secure monitor.
+ */
+struct gic_it_pm;
+
+struct gic_pm {
+	struct gic_it_pm *pm_cfg;
+	size_t count;
+};
+
 struct gic_data {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 	size_t max_it;
 	struct itr_chip chip;
+#if defined(CFG_ARM_GIC_PM)
+	struct gic_pm pm;
+#endif
 };
 
 /*
