@@ -53,6 +53,11 @@ typedef struct {
 }
 mbedtls_gcm_context;
 
+int mbedtls_gcm_clone( mbedtls_gcm_context *dst,
+                       const mbedtls_gcm_context *src );
+
+int mbedtls_gcm_gen_table( mbedtls_gcm_context *ctx );
+
 /**
  * \brief           Initialize GCM context (just makes references valid)
  *                  Makes the context ready for mbedtls_gcm_setkey() or

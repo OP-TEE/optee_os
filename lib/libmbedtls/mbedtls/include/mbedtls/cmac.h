@@ -56,7 +56,7 @@ struct mbedtls_cmac_context_t
 };
 
 /**
- * \brief               Initialises and allocat cmac context memory
+ * \brief               Initialises and allocat CMAC context memory
  *                      Must be called with an initialized cipher context.
  *
  * \param ctx           The cipher context used for the CMAC operation, initialized

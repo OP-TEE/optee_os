@@ -202,15 +202,17 @@ int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx)
 {
     mbedtls_cmac_context_t *cmac_ctx;
 
-    /* Allocated and initialise in the cipher context memory for the CMAC
-     * context */
+    /*
+     * Allocate and initialise a CMAC context memory in the cipher
+     * context memory
+     */
     cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
     if( cmac_ctx == NULL )
         return( MBEDTLS_ERR_CIPHER_ALLOC_FAILED );
 
     ctx->cmac_ctx = cmac_ctx;
 
-    mbedtls_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
+    mbedtls_platform_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
     return 0;
 }
 
@@ -240,8 +242,8 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
             return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
     }
 
-    /*check if cmac ctx had been allocated by mbedtls_cipher_cmac_setup()*/
-     if (ctx->cmac_ctx != NULL)
+    /* Check if CMAC ctx had been allocated by mbedtls_cipher_cmac_setup() */
+     if ( ctx->cmac_ctx != NULL )
 	 return 0;
 
      return mbedtls_cipher_cmac_setup( ctx );
