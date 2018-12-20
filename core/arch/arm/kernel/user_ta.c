@@ -400,8 +400,8 @@ static void show_elfs(struct user_ta_ctx *utc)
 	size_t __maybe_unused idx = 0;
 
 	TAILQ_FOREACH(elf, &utc->elfs, link)
-		EMSG_RAW(" [%zu] %pUl @ %#" PRIxVA, idx++,
-			 (void *)&elf->uuid, elf->load_addr);
+		EMSG_RAW(" [%zu] %pUl @ 0x%0*" PRIxVA, idx++,
+			 (void *)&elf->uuid, PRIxVA_WIDTH, elf->load_addr);
 }
 
 static void user_ta_dump_state(struct tee_ta_ctx *ctx)
@@ -412,11 +412,11 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	char desc[13];
 	size_t n = 0;
 
-	EMSG_RAW(" arch: %s  load address: %#" PRIxVA " ctx-idr: %d",
-		 utc->is_32bit ? "arm" : "aarch64", utc->load_addr,
-		 utc->vm_info->asid);
-	EMSG_RAW(" stack: 0x%" PRIxVA " %zu",
-		 utc->stack_addr, utc->mobj_stack->size);
+	EMSG_RAW(" arch: %s  load address: 0x%0*" PRIxVA " ctx-idr: %d",
+		 utc->is_32bit ? "arm" : "aarch64", PRIxVA_WIDTH,
+		 utc->load_addr, utc->vm_info->asid);
+	EMSG_RAW(" stack: 0x%0*" PRIxVA " %zu",
+		 PRIxVA_WIDTH, utc->stack_addr, utc->mobj_stack->size);
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
 		paddr_t pa = 0;
 
@@ -425,9 +425,10 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 
 		mattr_perm_to_str(flags, sizeof(flags), r->attr);
 		describe_region(utc, r->va, r->size, desc, sizeof(desc));
-		EMSG_RAW(" region %2zu: va %#" PRIxVA " pa %#" PRIxPA
+		EMSG_RAW(" region %2zu: va 0x%0*" PRIxVA " pa 0x%0*" PRIxPA
 			 " size 0x%06zx flags %s %s",
-			 n, r->va, pa, r->size, flags, desc);
+			 n, PRIxVA_WIDTH, r->va, PRIxPA_WIDTH, pa, r->size,
+			 flags, desc);
 		n++;
 	}
 	show_elfs(utc);
