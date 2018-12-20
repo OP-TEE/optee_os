@@ -218,8 +218,6 @@ static int __printf(2, 3) append(struct strbuf *sbuf, const char *fmt, ...)
 	return 1;
 }
 
-#define PRIxVA_WIDTH ((int)(sizeof(vaddr_t)*2))
-
 void dhex_dump(const char *function, int line, int level,
 	       const void *buf, int len)
 {
