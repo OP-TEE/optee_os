@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <crypto/crypto.h>
 #include <ctype.h>
 #include <initcall.h>
 #include <keep.h>
@@ -688,6 +689,32 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 
 #endif
 
+#ifdef CFG_TA_ASLR
+static size_t aslr_offset(size_t min, size_t max)
+{
+	uint32_t rnd = 0;
+
+	if (crypto_rng_read(&rnd, sizeof(rnd)))
+		return 0;
+	return (min + rnd % max) * CORE_MMU_USER_CODE_SIZE;
+}
+#else
+static size_t aslr_offset(size_t min, size_t max)
+{
+	return 0;
+}
+#endif
+
+static vaddr_t get_stack_va_hint(void)
+{
+	vaddr_t base = 0;
+
+	core_mmu_get_user_va_range(&base, NULL);
+
+	/* 1 spare page for the ---R-X page + 1 guard page */
+	return base + aslr_offset(2, 2 + CFG_TA_ASLR_MAX_OFFSET_PAGES);
+}
+
 static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 				      const struct user_ta_store_ops *ta_store,
 				      struct user_ta_ctx *utc)
@@ -759,7 +786,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 			goto out;
 
 		/* Add stack segment */
-		utc->stack_addr = 0;
+		utc->stack_addr = get_stack_va_hint();
 		res = vm_map(utc, &utc->stack_addr, utc->mobj_stack->size,
 			     TEE_MATTR_URW | TEE_MATTR_PRW, utc->mobj_stack,
 			     0);
@@ -771,11 +798,14 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (prev) {
+	if (prev)
 		elf->load_addr = prev->load_addr + prev->mobj_code->size;
-		elf->load_addr = ROUNDUP(elf->load_addr,
-					 CORE_MMU_USER_CODE_SIZE);
-	}
+	else
+		elf->load_addr = utc->stack_addr + utc->mobj_stack->size;
+
+	elf->load_addr += aslr_offset(0, CFG_TA_ASLR_MAX_OFFSET_PAGES);
+	elf->load_addr = ROUNDUP(elf->load_addr,
+				 CORE_MMU_USER_CODE_SIZE);
 
 	for (n = 0; n < num_segs; n++) {
 		uint32_t prot = elf_flags_to_mattr(segs[n].flags) |
