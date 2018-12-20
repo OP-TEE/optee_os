@@ -205,6 +205,20 @@ CFG_WITH_USER_TA ?= y
 # By default, in-tree TAs are built using the first architecture specified in
 # $(ta-targets).
 
+# Address Space Layout Randomization for user-mode Trusted Applications
+#
+# When this flag is enabled, the ELF loader will introduce a random offset
+# when mapping the application in user space. ASLR makes the exploitation of
+# memory corruption vulnerabilities more difficult.
+CFG_TA_ASLR ?= n
+
+# How much ASLR may shift the base address (in pages). The base address is
+# randomly shifted by an integer number of pages comprised between these two
+# values. Bigger ranges are more secure because they make the addresses harder
+# to guess at the expense of using more memory for the page tables.
+CFG_TA_ASLR_MIN_OFFSET_PAGES ?= 0
+CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 128
+
 # Load user TAs from the REE filesystem via tee-supplicant
 CFG_REE_FS_TA ?= y
 
