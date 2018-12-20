@@ -27,4 +27,19 @@
  */
 #define PTA_CMD_GET_ENTROPY		0x0
 
+/*
+ * PTA_CMD_GET_RNG_INFO - Get RNG information
+ *
+ * param[0] (out value) - value.a: RNG data-rate in bytes per second
+ *                        value.b: Quality/Entropy per 1024 bit of data
+ * param[1] unused
+ * param[2] unused
+ * param[3] unused
+ *
+ * Result:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_GET_RNG_INFO		0x1
+
 #endif /* __RNG_PTA_CLIENT_H */

@@ -62,7 +62,7 @@
  * Limitations
  * ===========
  *
- * Output rate is limited to approx. 128 bytes per second.
+ * Output rate is limited to approx. 125 bytes per second.
  *
  * Our entropy estimation was not reached using any approved or
  * published estimation framework such as NIST.SP.800-90B and was tested
@@ -309,6 +309,31 @@ exit:
 	return res;
 }
 
+static TEE_Result rng_get_info(uint32_t types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	if (types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+				     TEE_PARAM_TYPE_NONE,
+				     TEE_PARAM_TYPE_NONE,
+				     TEE_PARAM_TYPE_NONE)) {
+		EMSG("bad parameters types: 0x%" PRIx32, types);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Output RNG rate (per second) */
+	params[0].value.a = 125;
+
+	/*
+	 * Quality/entropy per 1024 bit of output data. As we have used
+	 * a vetted conditioner as per NIST.SP.800-90B to provide full
+	 * entropy given our assumption of entropy estimate for raw sensor
+	 * data.
+	 */
+	params[0].value.b = 1024;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result invoke_command(void *pSessionContext __unused,
 				 uint32_t nCommandID, uint32_t nParamTypes,
 				 TEE_Param pParams[TEE_NUM_PARAMS])
@@ -318,6 +343,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 	switch (nCommandID) {
 	case PTA_CMD_GET_ENTROPY:
 		return rng_get_entropy(nParamTypes, pParams);
+	case PTA_CMD_GET_RNG_INFO:
+		return rng_get_info(nParamTypes, pParams);
 	default:
 		break;
 	}
