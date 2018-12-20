@@ -8,6 +8,8 @@
 #include <compiler.h>
 #include <tee_internal_api.h>
 #include <stdint.h>
+#include <util.h>
+#include <utee_defines.h>
 
 /*
  * Please keep password_handle_t structure consistent with its counterpart
@@ -42,7 +44,7 @@ struct __packed password_handle {
 	secure_id_t user_id;
 	uint64_t flags;
 	salt_t salt;
-	uint8_t signature[32];
+	uint8_t signature[TEE_SHA256_HASH_SIZE];
 	bool hardware_backed;
 };
 
@@ -52,10 +54,10 @@ struct __packed password_handle {
  */
 enum hw_authenticator {
 	HW_AUTH_NONE = 0,
-	HW_AUTH_PASSWORD = 1 << 0,
-	HW_AUTH_FINGERPRINT = 1 << 1,
+	HW_AUTH_PASSWORD = BIT(0),
+	HW_AUTH_FINGERPRINT = BIT(1),
 	/* Additional entries should be powers of 2. */
-	HW_AUTH_ANY = (int)((uint32_t) ~0U)
+	HW_AUTH_ANY = INT_MAX
 };
 /*
  * Data format for an authentication record used
@@ -68,7 +70,7 @@ struct __packed hw_auth_token {
 	uint64_t authenticator_id;    /* secure authenticator ID */
 	uint32_t authenticator_type;  /* hw_authenticator_type_t */
 	uint64_t timestamp;
-	uint8_t hmac[32];
+	uint8_t hmac[TEE_SHA256_HASH_SIZE];
 };
 
 

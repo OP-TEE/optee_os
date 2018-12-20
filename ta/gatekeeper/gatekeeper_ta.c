@@ -10,7 +10,7 @@
 #include "gatekeeper_ipc.h"
 #include "ta_gatekeeper.h"
 
-static const uint8_t secret_id[] = {0xB1, 0x6B, 0x00, 0xB5};
+static const uint8_t secret_id[] = { 0xB1, 0x6B, 0x00, 0xB5 };
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -34,8 +34,6 @@ TEE_Result TA_CreateEntryPoint(void)
 		return res;
 	}
 
-	DMSG("Create master key secret");
-
 	TEE_GenerateRandom(secret_data, sizeof(secret_data));
 
 	res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
@@ -49,7 +47,7 @@ TEE_Result TA_CreateEntryPoint(void)
 		return res;
 	}
 
-	res = TEE_WriteObjectData(secret_obj, (void *) secret_data,
+	res = TEE_WriteObjectData(secret_obj, (void *)secret_data,
 			sizeof(secret_data));
 	if (res)
 		EMSG("Failed to write secret data");
@@ -176,14 +174,24 @@ static TEE_Result TA_ComputePasswordSignature(uint8_t *signature,
 					      size_t password_length,
 					      salt_t salt)
 {
-	uint8_t salted_password[password_length + sizeof(salt)];
+	uint8_t *salted_password = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	salted_password = TEE_Malloc(password_length + sizeof(salt),
+				     TEE_MALLOC_FILL_ZERO);
+	if (!salted_password)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memcpy(salted_password, &salt, sizeof(salt));
 	memcpy(salted_password + sizeof(salt), password, password_length);
 
-	return TA_ComputeSignature(signature, signature_length,
-				   key, salted_password,
-				   sizeof(salted_password));
+	res = TA_ComputeSignature(signature, signature_length,
+				  key, salted_password,
+				  sizeof(salted_password));
+
+	TEE_Free(salted_password);
+
+	return res;
 }
 
 static TEE_Result TA_CreatePasswordHandle(struct password_handle
@@ -198,17 +206,25 @@ static TEE_Result TA_CreatePasswordHandle(struct password_handle
 	const uint32_t metadata_length = sizeof(pw_handle.user_id) +
 					 sizeof(pw_handle.flags) +
 					 sizeof(pw_handle.version);
-	uint8_t to_sign[password_length + metadata_length];
+	uint8_t *to_sign = NULL;
 
 	TEE_ObjectHandle master_key = TEE_HANDLE_NULL;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+
+	to_sign = TEE_Malloc(password_length + metadata_length,
+			 TEE_MALLOC_FILL_ZERO);
+	if (!to_sign) {
+		EMSG("Failed to allocate buffer for source data to sign");
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
 
 	res = TEE_AllocateTransientObject(TEE_TYPE_HMAC_SHA256,
 					  TEE_SHA256_HASH_SIZE * 8,
 					  &master_key);
 	if (res) {
 		EMSG("Failed to allocate password key");
-		goto exit;
+		goto free_sign;
 	}
 
 	pw_handle.version = handle_version;
@@ -239,6 +255,8 @@ static TEE_Result TA_CreatePasswordHandle(struct password_handle
 
 free_key:
 	TEE_FreeTransientObject(master_key);
+free_sign:
+	TEE_Free(to_sign);
 exit:
 	return res;
 }
@@ -290,7 +308,7 @@ static TEE_Result TA_GetAuthTokenKey(TEE_ObjectHandle key)
 				  KM_GET_AUTHTOKEN_KEY,
 				  param_types, params, &return_origin);
 	if (res) {
-		EMSG("Failed in keymaster");
+		EMSG("Failed to get authentication token key from Keymaster");
 		goto close_sess;
 	}
 
@@ -369,13 +387,11 @@ static TEE_Result TA_DoVerify(const struct password_handle *expected_handle,
 			      const uint8_t *password,
 			      uint32_t password_length)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct password_handle password_handle;
 
-	if (!password_length) {
-		res = TEE_ERROR_BAD_PARAMETERS;
+	if (!password_length || !expected_handle)
 		goto exit;
-	}
 
 	res = TA_CreatePasswordHandle(&password_handle, expected_handle->salt,
 				      expected_handle->user_id,

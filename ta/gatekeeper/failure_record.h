@@ -24,6 +24,7 @@ struct failure_recordable_t {
 	uint32_t size;
 	struct failure_record records[MAX_FAILURE_RECORDS];
 };
+
 /*
  * Initialize failure record table
  */

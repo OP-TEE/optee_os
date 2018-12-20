@@ -16,14 +16,12 @@ void init_failure_record(void)
 	memset(&frecord_table, 0, sizeof(frecord_table));
 }
 
-
 void get_failure_record(secure_id_t user_id, struct failure_record *record)
 {
 	uint32_t i;
 	struct failure_record *records = frecord_table.records;
-	uint32_t table_sz = frecord_table.size;
 
-	for (i = 0; i < table_sz; i++) {
+	for (i = 0; i < frecord_table.size; i++) {
 		if (records[i].secure_user_id == user_id) {
 			*record = records[i];
 			return;
@@ -34,7 +32,6 @@ void get_failure_record(secure_id_t user_id, struct failure_record *record)
 	record->failure_counter = 0;
 	record->last_checked_timestamp = 0;
 }
-
 
 void write_failure_record(const struct failure_record *record)
 {
@@ -61,7 +58,6 @@ void write_failure_record(const struct failure_record *record)
 
 	records[i] = *record;
 }
-
 
 void inc_failure_record(struct failure_record *record,
 			uint64_t timestamp)
@@ -121,19 +117,14 @@ bool throttle_request(struct failure_record *record, uint64_t timestamp,
 		      uint32_t *response_timeout)
 {
 	uint64_t last_checked = record->last_checked_timestamp;
-	uint32_t timeout;
+	uint64_t timeout;
 
 	timeout = compute_retry_timeout(record);
-	if (timeout <= 0)
-		return false;
 
 	/* we have a pending timeout */
 	if (timestamp < last_checked + timeout &&
 			timestamp > last_checked) {
-		/*
-		 * attempt before timeout expired,
-		 * return remaining time
-		 */
+		/* attempt before timeout expired, return remaining time */
 		*response_timeout = timeout - (timestamp-last_checked);
 
 		return true;

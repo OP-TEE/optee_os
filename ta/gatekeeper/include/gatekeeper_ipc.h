@@ -16,12 +16,12 @@
 		{ 0xac, 0x6f, 0x24, 0x25, 0xaf, 0x9e, 0xf9, 0xbb} }
 
 /*
- * GateKeeper message size
+ * Gatekeeper message size
  */
-#define RECV_BUF_SIZE		8192
+#define RECV_BUF_SIZE 8192
 
 /*
- * GateKeeper command identifier
+ * Gatekeeper command identifier
  */
 enum gatekeeper_command {
 	GK_ENROLL,
@@ -29,7 +29,7 @@ enum gatekeeper_command {
 };
 
 /*
- * GateKeeper messages error codes
+ * Gatekeeper messages error codes
  */
 enum gatekeeper_error {
 	GK_ERROR_NONE = 0,
