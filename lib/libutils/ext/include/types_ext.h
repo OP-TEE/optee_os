@@ -31,4 +31,7 @@ typedef uintptr_t paddr_size_t;
 #define __SIZEOF_PADDR__	__SIZEOF_POINTER__
 #endif
 
+#define PRIxVA_WIDTH	((int)(sizeof(vaddr_t) * 2))
+#define PRIxPA_WIDTH	((int)(sizeof(paddr_t) * 2))
+
 #endif /* TYPES_EXT_H */
