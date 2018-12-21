@@ -12,6 +12,7 @@
 
 static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
 static const char rb_obj_name[] = "rb_state";
+static const char pkey_obj_name[] = "pkey";
 static const char *named_value_prefix = "named_value_";
 
 static TEE_Result get_slot_offset(size_t slot, size_t *offset)
@@ -337,6 +338,69 @@ out:
 	return res;
 }
 
+static TEE_Result validate_public_key(uint32_t pt,
+				      TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
+			 TEE_DATA_FLAG_ACCESS_WRITE;
+	TEE_Result res = TEE_SUCCESS;
+	TEE_ObjectHandle h = TEE_HANDLE_NULL;
+	TEE_ObjectInfo obj_info;
+
+	char *pkey_trusted = NULL;
+	uint32_t pkey_trusted_sz;
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	char *pkey_to_validate = params[0].memref.buffer;
+	uint32_t pkey_to_validate_sz = params[0].memref.size;
+
+	res = TEE_OpenPersistentObject(storageid, pkey_obj_name,
+				       sizeof(pkey_obj_name), flags, &h);
+	if (res) {
+		EMSG("Can't open public key data object, res = 0x%x", res);
+		return res;
+	}
+
+	res = TEE_GetObjectInfo1(h, &obj_info);
+	if (res) {
+		EMSG("Can't get public key data object info, res = 0x%x", res);
+		return res;
+	}
+
+	if (obj_info.dataSize != pkey_to_validate_sz)
+		return TEE_ERROR_SECURITY;
+
+	pkey_trusted_sz = obj_info.dataSize;
+
+	pkey_trusted = TEE_Malloc(pkey_trusted_sz, TEE_MALLOC_FILL_ZERO);
+	if (!pkey_trusted)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res =  TEE_ReadObjectData(h, pkey_trusted, pkey_trusted_sz,
+				  &pkey_trusted_sz);
+	if (res) {
+		EMSG("Can't read public key data object, res = 0x%x", res);
+		goto out;
+	}
+
+	if (TEE_MemCompare(pkey_trusted, pkey_to_validate, pkey_trusted_sz)) {
+		EMSG("Public key validation failed, keys are not identical");
+		res = TEE_ERROR_SECURITY;
+	}
+
+
+out:
+	TEE_CloseObject(h);
+
+	return res;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -374,6 +438,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 		return read_persist_value(pt, params);
 	case TA_AVB_CMD_WRITE_PERSIST_VALUE:
 		return write_persist_value(pt, params);
+	case TA_AVB_CMD_VALIDATE_PUBLIC_KEY:
+		return validate_public_key(pt, params);
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

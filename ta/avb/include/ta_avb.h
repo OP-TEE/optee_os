@@ -61,4 +61,26 @@
  */
 #define TA_AVB_CMD_WRITE_PERSIST_VALUE	5
 
+/*
+ * Validates a public key data.
+ *
+ * A key data provided from NW is serialized in this sequence:
+ * +--------------+----------------------------+
+ * | Name         | Number of bytes            |
+ * +--------------+----------------------------+
+ * | key_num_bits | 4 ("modulus size in bits") |
+ * | n0inv        | 4 ("-1/n[0] (mod 2^32)")   |
+ * | n            | key_num_bits / 8 (modulus) |
+ * | rr           | key_num_bits / 8 (R^2)     |
+ * +--------------+----------------------------+
+ *
+ * Public exponent is assumed to always be 65537.
+ *
+ * So, for example, for 4096 bit(default one) key representation we
+ * need 1032 bytes (4 + 4 + 512 + 512) to store these values.
+ *
+ * in	params[0].memref:	serialized RSA public key data
+ */
+#define TA_AVB_CMD_VALIDATE_PUBLIC_KEY	6
+
 #endif /*__TA_AVB_H*/
