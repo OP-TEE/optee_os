@@ -695,18 +695,14 @@ static size_t aslr_offset(size_t min, size_t max)
 	uint32_t rnd32 = 0;
 	size_t rnd = 0;
 
-	if (crypto_rng_read(&rnd32, sizeof(rnd)))
-		return 0;
-	if (max > min)
+	assert(min <= max);
+	if (max > min) {
+		if (crypto_rng_read(&rnd32, sizeof(rnd32)))
+			return 0;
 		rnd = rnd32 % (max - min);
+	}
 	return (min + rnd) * CORE_MMU_USER_CODE_SIZE;
 }
-#else
-static size_t aslr_offset(size_t min, size_t max)
-{
-	return 0;
-}
-#endif
 
 static vaddr_t get_stack_va_hint(void)
 {
@@ -717,6 +713,18 @@ static vaddr_t get_stack_va_hint(void)
 	/* 1 spare page for the ---R-X page + 1 guard page */
 	return base + aslr_offset(2, 2 + CFG_TA_ASLR_MAX_OFFSET_PAGES);
 }
+#else
+static size_t aslr_offset(size_t min __unused, size_t max __unused)
+{
+	return 0;
+}
+
+static vaddr_t get_stack_va_hint(void)
+{
+	return 0;
+}
+#endif
+
 
 static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 				      const struct user_ta_store_ops *ta_store,
