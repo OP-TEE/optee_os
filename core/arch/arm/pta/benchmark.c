@@ -78,6 +78,7 @@ static TEE_Result alloc_benchmark_buffer(uint32_t type,
 	bench_ts_global = (struct tee_ts_global *)mobj_get_va(bench_mobj, 0);
 	if (!bench_ts_global) {
 		thread_rpc_free_global_payload(bench_mobj);
+		bench_mobj = NULL;
 
 		mutex_unlock(&bench_reg_mu);
 		return TEE_ERROR_BAD_STATE;
@@ -153,6 +154,8 @@ static TEE_Result unregister_benchmark(uint32_t type,
 	res = rpc_reg_global_buf(OPTEE_MSG_RPC_CMD_BENCH_REG_DEL, 0, 0);
 
 	thread_rpc_free_global_payload(bench_mobj);
+	bench_mobj = NULL;
+
 	return res;
 }
 
