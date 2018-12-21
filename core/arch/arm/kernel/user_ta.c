@@ -692,11 +692,14 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 #ifdef CFG_TA_ASLR
 static size_t aslr_offset(size_t min, size_t max)
 {
-	uint32_t rnd = 0;
+	uint32_t rnd32 = 0;
+	size_t rnd = 0;
 
-	if (crypto_rng_read(&rnd, sizeof(rnd)))
+	if (crypto_rng_read(&rnd32, sizeof(rnd)))
 		return 0;
-	return (min + rnd % max) * CORE_MMU_USER_CODE_SIZE;
+	if (max > min)
+		rnd = rnd32 % (max - min);
+	return (min + rnd) * CORE_MMU_USER_CODE_SIZE;
 }
 #else
 static size_t aslr_offset(size_t min, size_t max)
