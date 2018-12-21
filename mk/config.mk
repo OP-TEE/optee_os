@@ -214,10 +214,10 @@ CFG_WITH_USER_TA ?= y
 # ASLR makes the exploitation of memory corruption vulnerabilities more
 # difficult.
 CFG_TA_ASLR ?= y
-# How much ASLR may shift each region (in pages). Each region is randomly shifted
-# by an integer number of pages comprised between 0 and this value. Bigger
-# values result in more VA space being consummed, but also require more physical
-# memory for the page tables.
+# How much ASLR may shift each region (in pages). Each region is randomly
+# shifted by an integer number of pages comprised between 0 and this value.
+# Bigger values result in more VA space being consumed and also require more
+# physical memory for the page tables.
 CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 32
 
 # Load user TAs from the REE filesystem via tee-supplicant
