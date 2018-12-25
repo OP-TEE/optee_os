@@ -745,6 +745,7 @@ static void set_chars(der_attestExtension *attest, int hw_flag,
 
 			switch (key_chr->params[j].tag) {
 			case KM_TAG_ACTIVE_DATETIME:
+			case KM_TAG_CREATION_DATETIME:
 			case KM_TAG_ORIGINATION_EXPIRE_DATETIME:
 			case KM_TAG_USAGE_EXPIRE_DATETIME:
 				_int =
@@ -759,7 +760,6 @@ static void set_chars(der_attestExtension *attest, int hw_flag,
 			case KM_TAG_RSA_PUBLIC_EXPONENT:
 			case KM_TAG_USER_AUTH_TYPE:
 			case KM_TAG_AUTH_TIMEOUT:
-			case KM_TAG_CREATION_DATETIME:
 			case KM_TAG_ORIGIN:
 			case KM_TAG_OS_VERSION:
 			case KM_TAG_OS_PATCHLEVEL:
