@@ -110,7 +110,7 @@ static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 		old_reg = read32(gicd_base + GICD_ISENABLER(i));
 		write32(0xffffffff, gicd_base + GICD_ISENABLER(i));
 		reg = read32(gicd_base + GICD_ISENABLER(i));
-		write32(old_reg, gicd_base + GICD_ICENABLER(i));
+		write32(~old_reg, gicd_base + GICD_ICENABLER(i));
 		for (b = NUM_INTS_PER_REG - 1; b >= 0; b--) {
 			if (BIT32(b) & reg) {
 				ret = i * NUM_INTS_PER_REG + b;
