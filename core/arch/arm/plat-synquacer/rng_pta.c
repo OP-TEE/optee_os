@@ -353,5 +353,5 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 }
 
 pseudo_ta_register(.uuid = PTA_RNG_UUID, .name = PTA_NAME,
-		   .flags = PTA_DEFAULT_FLAGS,
+		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_DEVICE_ENUM,
 		   .invoke_command_entry_point = invoke_command);
