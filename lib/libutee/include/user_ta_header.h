@@ -21,8 +21,9 @@
 	 * (pseudo-TAs only).
 	 */
 #define TA_FLAG_CONCURRENT		(1 << 8)
+#define TA_FLAG_DEVICE_ENUM		(1 << 9) /* device enumeration */
 
-#define TA_FLAGS_MASK			GENMASK_32(8, 2)
+#define TA_FLAGS_MASK			GENMASK_32(9, 2)
 
 /* Deprecated macros that will be removed in the 3.2 release */
 #define TA_FLAG_USER_MODE		0
