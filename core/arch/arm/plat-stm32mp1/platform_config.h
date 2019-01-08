@@ -15,7 +15,14 @@
 #define GIC_BASE			0xa0021000ul
 #define RCC_BASE			0x50000000
 #define TAMP_BASE			0x5c00a000
+#define UART1_BASE			0x5c000000
+#define UART2_BASE			0x4000e000
+#define UART3_BASE			0x4000f000
 #define UART4_BASE			0x40010000
+#define UART5_BASE			0x40011000
+#define UART6_BASE			0x44003000
+#define UART7_BASE			0x40018000
+#define UART8_BASE			0x40019000
 
 /* Console configuration */
 #define STM32MP1_DEBUG_USART_BASE	UART4_BASE
@@ -39,5 +46,11 @@
 
 /* TAMP resources */
 #define TAMP_BKP_REGISTER_OFF		0x100
+
+/* USART/UART resources */
+#define USART1_BASE			UART1_BASE
+#define USART2_BASE			UART2_BASE
+#define USART3_BASE			UART3_BASE
+#define USART6_BASE			UART6_BASE
 
 #endif /*PLATFORM_CONFIG_H*/
