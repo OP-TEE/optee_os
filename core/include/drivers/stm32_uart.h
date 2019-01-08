@@ -8,11 +8,12 @@
 
 #include <drivers/serial.h>
 
-struct console_pdata {
+struct stm32_uart_pdata {
 	struct io_pa_va base;
 	struct serial_chip chip;
+	bool secure;
 };
 
-void stm32_uart_init(struct console_pdata *pd, vaddr_t base);
+void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base);
 
 #endif /*__STM32_UART_H__*/

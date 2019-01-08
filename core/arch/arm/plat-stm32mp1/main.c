@@ -26,7 +26,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CONSOLE_UART_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 
-static struct console_pdata console_data;
+static struct stm32_uart_pdata console_data;
 
 static void main_fiq(void);
 
