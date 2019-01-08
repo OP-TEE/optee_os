@@ -11,11 +11,13 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			32
 
+/* SoC interface registers base address */
 #define GIC_BASE			0xa0021000ul
 #define RCC_BASE			0x50000000
 #define TAMP_BASE			0x5c00a000
-
 #define UART4_BASE			0x40010000
+
+/* Console configuration */
 #define STM32MP1_DEBUG_USART_BASE	UART4_BASE
 #define GIC_SPI_UART4			84
 
