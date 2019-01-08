@@ -105,7 +105,7 @@ clean:
 cscope:
 	@echo '  CSCOPE  .'
 	${q}rm -f cscope.*
-	${q}find $(PWD) -name "*.[chSs]" | grep -v "$(PWD)/out" > cscope.files
+	${q}find $(PWD) -name "*.[chSs]" | grep -v export-ta_ > cscope.files
 	${q}cscope -b -q -k
 
 .PHONY: checkpatch checkpatch-staging checkpatch-working
