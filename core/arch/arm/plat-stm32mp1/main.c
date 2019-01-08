@@ -21,12 +21,20 @@
 #include <tee/entry_fast.h>
 #include <trace.h>
 
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CONSOLE_UART_SIZE);
+#ifdef CFG_WITH_NSEC_UARTS
+register_phys_mem(MEM_AREA_IO_NSEC, USART1_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, USART2_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, USART3_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, UART4_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, UART5_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, USART6_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, UART7_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
+#endif
 
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
-
-static struct stm32_uart_pdata console_data;
+register_phys_mem(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
 static void main_fiq(void);
 
@@ -65,10 +73,44 @@ static TEE_Result platform_banner(void)
 }
 service_init(platform_banner);
 
+/*
+ * Console
+ *
+ * CFG_STM32_EARLY_CONSOLE_UART specifies the ID of the UART used for
+ * trace console. Value 0 disables the early console.
+ */
+static struct stm32_uart_pdata console_data;
+
 void console_init(void)
 {
-	stm32_uart_init(&console_data, CONSOLE_UART_BASE);
+	/* Early console initialization before MMU setup */
+	struct uart {
+		uintptr_t pa;
+		bool secure;
+	} uarts[] = {
+		[0] = { .pa = 0 },
+		[1] = { .pa = USART1_BASE, .secure = true, },
+		[2] = { .pa = USART2_BASE, .secure = false, },
+		[3] = { .pa = USART3_BASE, .secure = false, },
+		[4] = { .pa = UART4_BASE, .secure = false, },
+		[5] = { .pa = UART5_BASE, .secure = false, },
+		[6] = { .pa = USART6_BASE, .secure = false, },
+		[7] = { .pa = UART7_BASE, .secure = false, },
+		[8] = { .pa = UART8_BASE, .secure = false, },
+	};
+
+	COMPILE_TIME_ASSERT(ARRAY_SIZE(uarts) > CFG_STM32_EARLY_CONSOLE_UART);
+	assert(!cpu_mmu_enabled());
+
+	if (!uarts[CFG_STM32_EARLY_CONSOLE_UART].pa)
+		return;
+
+	console_data.secure = uarts[CFG_STM32_EARLY_CONSOLE_UART].secure;
+	stm32_uart_init(&console_data, uarts[CFG_STM32_EARLY_CONSOLE_UART].pa);
+
 	register_serial_console(&console_data.chip);
+
+	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
 
 /*
