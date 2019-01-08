@@ -7,6 +7,7 @@
 #define KERNEL_DT_H
 
 #include <compiler.h>
+#include <kernel/panic.h>
 #include <stdint.h>
 #include <types_ext.h>
 #include <util.h>
@@ -15,9 +16,25 @@
  * Bitfield to reflect status and secure-status values ("okay", "disabled"
  * or not present)
  */
-#define DT_STATUS_DISABLED 0
-#define DT_STATUS_OK_NSEC  BIT(0)
-#define DT_STATUS_OK_SEC   BIT(1)
+#define DT_STATUS_DISABLED		0
+#define DT_STATUS_OK_NSEC		BIT(0)
+#define DT_STATUS_OK_SEC		BIT(1)
+
+#define DT_INFO_INVALID_REG		((paddr_t)-1)
+#define DT_INFO_INVALID_CLOCK		-1
+#define DT_INFO_INVALID_RESET		-1
+/*
+ * @status: Bit mask for DT_STATUS_*
+ * @reg: Device register physical base address or DT_INFO_INVALID_REG
+ * @clock: Device identifier (positive value) or DT_INFO_INVALID_CLOCK
+ * @reset: Device reset identifier (positive value) or DT_INFO_INVALID_CLOCK
+ */
+struct dt_node_info {
+	unsigned int status;
+	paddr_t reg;
+	int clock;
+	int reset;
+};
 
 #if defined(CFG_DT)
 
@@ -100,6 +117,16 @@ ssize_t _fdt_reg_size(const void *fdt, int offs);
  */
 int _fdt_get_status(const void *fdt, int offs);
 
+/*
+ * fdt_fill_device_info - Get generic device info from a node
+ *
+ * This function fills the generic information from a given node.
+ * Currently supports a single base register, a single clock,
+ * a single reset ID line and a single interrupt ID.
+ * Default DT_INFO_* macros are used when the relate property is not found.
+ */
+void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int node);
+
 #else /* !CFG_DT */
 
 static inline const struct dt_driver *__dt_driver_start(void)
@@ -142,6 +169,12 @@ static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
 	return -1;
 }
 
+static inline void _fdt_fill_device_info(void *fdt __unused,
+					 struct dt_node_info *info __unused,
+					 int node __unused)
+{
+	panic();
+}
 #endif /* !CFG_DT */
 
 #define for_each_dt_driver(drv) \
