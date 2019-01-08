@@ -72,7 +72,7 @@ static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 			if (!validate_in_param(s, mem->mobj))
 				return TEE_ERROR_BAD_PARAMETERS;
 			va = mobj_get_va(mem->mobj, mem->offs);
-			if (!va) {
+			if (!va && mem->size) {
 				TEE_Result res;
 
 				res = mobj_reg_shm_inc_map(mem->mobj);
