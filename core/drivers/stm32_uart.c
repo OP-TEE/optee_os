@@ -10,6 +10,8 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
+#include <kernel/panic.h>
 #include <util.h>
 
 #define UART_REG_CR1			0x00	/* Control register 1 */
@@ -101,3 +103,35 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 	pd->base.pa = base;
 	pd->chip.ops = &stm32_uart_serial_ops;
 }
+
+#ifdef CFG_DT
+struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
+{
+	struct stm32_uart_pdata *pd;
+	struct dt_node_info info;
+
+	_fdt_fill_device_info(fdt, &info, node);
+
+	if (info.status == DT_STATUS_DISABLED)
+		return NULL;
+
+	if (info.clock < 0)
+		panic();
+
+	pd = calloc(1, sizeof(*pd));
+	if (!pd)
+		panic();
+
+	pd->chip.ops = &stm32_uart_serial_ops;
+	pd->base.pa = info.reg;
+	pd->secure = (info.status == DT_STATUS_OK_SEC);
+	pd->clock = (unsigned int)info.clock;
+
+	assert(cpu_mmu_enabled());
+	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
+					    pd->secure ? MEM_AREA_IO_SEC :
+					    MEM_AREA_IO_NSEC);
+
+	return pd;
+}
+#endif /*CFG_DT*/
