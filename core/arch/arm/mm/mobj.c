@@ -448,7 +448,7 @@ static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
 
 static struct mobj_reg_shm *to_mobj_reg_shm_may_fail(struct mobj *mobj)
 {
-	if (mobj->ops != &mobj_reg_shm_ops)
+	if (mobj && mobj->ops != &mobj_reg_shm_ops)
 		return NULL;
 
 	return container_of(mobj, struct mobj_reg_shm, mobj);
