@@ -4,6 +4,7 @@
  */
 
 #include <compiler.h>
+#include <console.h>
 #include <drivers/serial.h>
 #include <drivers/stm32_uart.h>
 #include <io.h>
@@ -40,8 +41,9 @@
 
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
-	struct console_pdata *pd =
-		container_of(chip, struct console_pdata, chip);
+	struct stm32_uart_pdata *pd;
+
+	pd = container_of(chip, struct stm32_uart_pdata, chip);
 
 	return io_pa_or_va(&pd->base);
 }
@@ -85,17 +87,17 @@ static int loc_getchar(struct serial_chip *chip)
 	return read32(base + UART_REG_RDR) & 0xff;
 }
 
-static const struct serial_ops serial_ops = {
+static const struct serial_ops stm32_uart_serial_ops = {
 	.flush = loc_flush,
 	.putc = loc_putc,
 	.have_rx_data = loc_have_rx_data,
 	.getchar = loc_getchar,
 
 };
-KEEP_PAGER(serial_ops);
+KEEP_PAGER(stm32_uart_serial_ops);
 
-void stm32_uart_init(struct console_pdata *pd, vaddr_t base)
+void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 {
 	pd->base.pa = base;
-	pd->chip.ops = &serial_ops;
+	pd->chip.ops = &stm32_uart_serial_ops;
 }
