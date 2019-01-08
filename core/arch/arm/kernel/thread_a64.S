@@ -695,7 +695,11 @@ eret_to_el0:
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 
 	eret
-
+	/*
+	 * Make sure that literals are placed before the
+	 * thread_excp_vect_end label.
+	 */
+	.pool
 	.global thread_excp_vect_end
 thread_excp_vect_end:
 END_FUNC thread_excp_vect
