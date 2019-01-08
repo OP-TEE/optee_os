@@ -1016,6 +1016,11 @@ eret_to_user_mode:
 #endif
 
 	movs	pc, lr
+	/*
+	 * Make sure that literals are placed before the
+	 * thread_excp_vect_end label.
+	 */
+	.pool
 UNWIND(	.fnend)
 	.global thread_excp_vect_end
 thread_excp_vect_end:
