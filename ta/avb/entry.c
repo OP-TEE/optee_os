@@ -337,6 +337,33 @@ out:
 
 	return res;
 }
+static TEE_Result provision_public_key(uint32_t pt,
+				       TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_SUCCESS;
+	TEE_ObjectHandle h = TEE_HANDLE_NULL;
+	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
+			 TEE_DATA_FLAG_ACCESS_WRITE;
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	char *pkey_to_provision = params[0].memref.buffer;
+	uint32_t pkey_to_provision_sz = params[0].memref.size;
+
+	res = TEE_CreatePersistentObject(storageid, pkey_obj_name,
+					 sizeof(pkey_obj_name), flags, NULL,
+					 pkey_to_provision,
+					 pkey_to_provision_sz, &h);
+
+	TEE_CloseObject(h);
+
+	return res;
+}
 
 static TEE_Result validate_public_key(uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
@@ -345,8 +372,7 @@ static TEE_Result validate_public_key(uint32_t pt,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
-	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
-			 TEE_DATA_FLAG_ACCESS_WRITE;
+	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
 	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectHandle h = TEE_HANDLE_NULL;
 	TEE_ObjectInfo obj_info;
@@ -370,23 +396,27 @@ static TEE_Result validate_public_key(uint32_t pt,
 	res = TEE_GetObjectInfo1(h, &obj_info);
 	if (res) {
 		EMSG("Can't get public key data object info, res = 0x%x", res);
-		return res;
+		goto out;
 	}
 
-	if (obj_info.dataSize != pkey_to_validate_sz)
-		return TEE_ERROR_SECURITY;
+	if (obj_info.dataSize != pkey_to_validate_sz) {
+		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
 
 	pkey_trusted_sz = obj_info.dataSize;
 
 	pkey_trusted = TEE_Malloc(pkey_trusted_sz, TEE_MALLOC_FILL_ZERO);
-	if (!pkey_trusted)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!pkey_trusted) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
 	res =  TEE_ReadObjectData(h, pkey_trusted, pkey_trusted_sz,
 				  &pkey_trusted_sz);
 	if (res) {
 		EMSG("Can't read public key data object, res = 0x%x", res);
-		goto out;
+		goto out2;
 	}
 
 	if (TEE_MemCompare(pkey_trusted, pkey_to_validate, pkey_trusted_sz)) {
@@ -394,7 +424,8 @@ static TEE_Result validate_public_key(uint32_t pt,
 		res = TEE_ERROR_SECURITY;
 	}
 
-
+out2:
+	TEE_Free(pkey_trusted);
 out:
 	TEE_CloseObject(h);
 
@@ -440,6 +471,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 		return write_persist_value(pt, params);
 	case TA_AVB_CMD_VALIDATE_PUBLIC_KEY:
 		return validate_public_key(pt, params);
+	case TA_AVB_CMD_PROVISION_PUBLIC_KEY:
+		return provision_public_key(pt, params);
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

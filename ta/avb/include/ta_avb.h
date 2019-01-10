@@ -62,7 +62,9 @@
 #define TA_AVB_CMD_WRITE_PERSIST_VALUE	5
 
 /*
- * Validates a public key data.
+ * Provision public key data.
+ *
+ * The key can be provisioned only once.
  *
  * A key data provided from NW is serialized in this sequence:
  * +--------------+----------------------------+
@@ -81,6 +83,15 @@
  *
  * in	params[0].memref:	serialized RSA public key data
  */
-#define TA_AVB_CMD_VALIDATE_PUBLIC_KEY	6
+
+#define TA_AVB_CMD_PROVISION_PUBLIC_KEY	6
+/*
+ * Validates a public key data.
+ *
+ * For key data format check TA_AVB_CMD_PROVISION_PUBLIC_KEY
+ *
+ * in	params[0].memref:	serialized RSA public key data
+ */
+#define TA_AVB_CMD_VALIDATE_PUBLIC_KEY	7
 
 #endif /*__TA_AVB_H*/
