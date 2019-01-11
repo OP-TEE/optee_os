@@ -67,7 +67,7 @@ def append_to(outf, start_offs, in_fname, max_bytes=0xffffffff):
 def append_hashes(outf, in_fname):
     page_size = 4 * 1024
 
-    inf = open(in_fname, 'r')
+    inf = open(in_fname, 'rb')
     while True:
         page = inf.read(page_size)
         if len(page) == page_size:
