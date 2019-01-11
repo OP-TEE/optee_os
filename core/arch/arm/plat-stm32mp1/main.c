@@ -9,6 +9,7 @@
 #include <drivers/gic.h>
 #include <drivers/stm32_uart.h>
 #include <kernel/generic_boot.h>
+#include <kernel/dt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -78,6 +79,10 @@ service_init(platform_banner);
  *
  * CFG_STM32_EARLY_CONSOLE_UART specifies the ID of the UART used for
  * trace console. Value 0 disables the early console.
+ *
+ * We cannot use the generic serial_console support since probing
+ * the console requires the platform clock driver to be already
+ * up and ready which is done only once service_init are completed.
  */
 static struct stm32_uart_pdata console_data;
 
@@ -105,6 +110,9 @@ void console_init(void)
 	if (!uarts[CFG_STM32_EARLY_CONSOLE_UART].pa)
 		return;
 
+	/* No clock yet bound to the UART console */
+	console_data.clock = DT_INFO_INVALID_CLOCK;
+
 	console_data.secure = uarts[CFG_STM32_EARLY_CONSOLE_UART].secure;
 	stm32_uart_init(&console_data, uarts[CFG_STM32_EARLY_CONSOLE_UART].pa);
 
@@ -112,6 +120,37 @@ void console_init(void)
 
 	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
+
+#ifdef CFG_DT
+static TEE_Result init_console_from_dt(void)
+{
+	struct stm32_uart_pdata *pd;
+	void *fdt;
+	int node;
+
+	if (get_console_node_from_dt(&fdt, &node, NULL, NULL))
+		return TEE_SUCCESS;
+
+	pd = stm32_uart_init_from_dt_node(fdt, node);
+	if (!pd) {
+		IMSG("DTB disables console");
+		register_serial_console(NULL);
+		return TEE_SUCCESS;
+	}
+
+	/* Replace early console with the new one */
+	console_flush();
+	console_data = *pd;
+	free(pd);
+	register_serial_console(&console_data.chip);
+	IMSG("DTB enables console (%ssecure)", pd->secure ? "" : "non-");
+
+	return TEE_SUCCESS;
+}
+
+/* Probe console from DT once clock inits (service init level) are completed */
+service_init_late(init_console_from_dt);
+#endif
 
 /*
  * GIC init, used also for primary/secondary boot core wake completion
