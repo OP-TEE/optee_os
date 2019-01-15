@@ -71,7 +71,7 @@ There are other OP-TEE components one might be interested in. The OP-TEE release
 references several git repositories enabling OP-TEE build and test for various
 platforms. Refer to the [build documentation] for information. The [optee_test] git
 repository proposes test materials through the `xtest` tool and dedicated trusted
-applications. The [optee_examples] git repository contains examples of TEE client
+applications. The [optee_examples](https://github.com/linaro-swg/optee_examples) git repository contains examples of TEE client
 and trusted applications and some documentation to get hands on trusted
 application development.
 
