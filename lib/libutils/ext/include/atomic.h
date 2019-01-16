@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2019, Linaro Limited
  */
 
 #ifndef __ATOMIC_H
@@ -23,6 +23,11 @@ static inline bool atomic_cas_u32(uint32_t *p, uint32_t *oval, uint32_t nval)
 	return __compiler_compare_and_swap(p, oval, nval);
 }
 
+static inline int atomic_load_int(int *p)
+{
+	return __compiler_atomic_load(p);
+}
+
 static inline unsigned int atomic_load_uint(unsigned int *p)
 {
 	return __compiler_atomic_load(p);
@@ -31,6 +36,11 @@ static inline unsigned int atomic_load_uint(unsigned int *p)
 static inline unsigned int atomic_load_u32(unsigned int *p)
 {
 	return __compiler_atomic_load(p);
+}
+
+static inline void atomic_store_int(int *p, int val)
+{
+	__compiler_atomic_store(p, val);
 }
 
 static inline void atomic_store_uint(unsigned int *p, unsigned int val)
