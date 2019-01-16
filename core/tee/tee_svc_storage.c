@@ -447,6 +447,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	    TEE_HANDLE_FLAG_PERSISTENT | TEE_HANDLE_FLAG_INITIALIZED;
 	o->flags = flags;
 	o->pobj = po;
+	o->attr = 0;
 
 	if (attr != TEE_HANDLE_NULL) {
 		res = tee_obj_get(utc, tee_svc_uref_to_vaddr(attr),
@@ -481,7 +482,7 @@ err:
 		fops->close(&o->fh);
 	if (po)
 		tee_pobj_release(po);
-	free(o);
+	tee_obj_free(o);
 
 	return res;
 }
