@@ -477,11 +477,12 @@ err:
 		res = TEE_ERROR_CORRUPT_OBJECT;
 	if (res == TEE_ERROR_CORRUPT_OBJECT && po)
 		fops->remove(po);
-	if (o)
+	if (o) {
 		fops->close(&o->fh);
+		tee_obj_free(o);
+	}
 	if (po)
 		tee_pobj_release(po);
-	free(o);
 
 	return res;
 }
