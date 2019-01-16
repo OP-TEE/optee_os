@@ -9,23 +9,12 @@
 #include <sys/queue.h>
 #include <kernel/wait_queue.h>
 
-/*
- * Positive owner ids signifies actual threads, negative ids has special
- * meanings according to the defines below. Note that only the first of the
- * defines is allowed in struct mutex::owener_id.
- */
-#define MUTEX_OWNER_ID_NONE		-1
-#define MUTEX_OWNER_ID_CONDVAR_SLEEP	-2
-#define MUTEX_OWNER_ID_MUTEX_UNLOCK	-3
-
 struct mutex {
 	unsigned spin_lock;	/* used when operating on this struct */
 	struct wait_queue wq;
 	short state;		/* -1: write, 0: unlocked, > 0: readers */
-	short owner_id;		/* Only valid for state == -1 (write lock) */
 };
-#define MUTEX_INITIALIZER \
-	{ .owner_id = MUTEX_OWNER_ID_NONE, .wq = WAIT_QUEUE_INITIALIZER, }
+#define MUTEX_INITIALIZER { .wq = WAIT_QUEUE_INITIALIZER }
 
 TAILQ_HEAD(mutex_head, mutex);
 

@@ -33,7 +33,7 @@ __thread_std_smc_entry(struct thread_smc_args *args __unused)
 }
 void __section(".text.dummy.__wq_rpc")
 __wq_rpc(uint32_t func __unused, int id __unused,
-	 const void *sync_obj __unused, int owner __unused,
-	 const char *fname __unused, int lineno  __unused)
+	 const void *sync_obj __unused, const char *fname __unused,
+	 int lineno  __unused)
 {
 }
