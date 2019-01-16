@@ -46,8 +46,7 @@ static inline void wq_wait_init(struct wait_queue *wq,
 
 /* Waits for the wait queue element to the awakened. */
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
-		   const void *sync_obj, int owner, const char *fname,
-		   int lineno);
+		   const void *sync_obj, const char *fname, int lineno);
 
 /* Wakes up the first wait queue element in the wait queue, if there is one */
 void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
@@ -61,8 +60,8 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 			int lineno);
 bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv);
 
-void __wq_rpc(uint32_t func, int id, const void *sync_obj, int owner,
-	      const char *fname, int lineno);
+void __wq_rpc(uint32_t func, int id, const void *sync_obj, const char *fname,
+	      int lineno);
 
 #endif /*KERNEL_WAIT_QUEUE_H*/
 
