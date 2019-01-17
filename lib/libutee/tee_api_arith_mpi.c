@@ -443,7 +443,24 @@ void TEE_BigIntNeg(TEE_BigInt *dest, const TEE_BigInt *src)
 void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
 		   const TEE_BigInt *op2)
 {
-	bigint_binary(dest, op1, op2, mbedtls_mpi_mul_mpi);
+	size_t bs1 = TEE_BigIntGetBitCount(op1);
+	size_t bs2 = TEE_BigIntGetBitCount(op2);
+	size_t s = TEE_BigIntSizeInU32(bs1) + TEE_BigIntSizeInU32(bs2);
+	TEE_BigInt zero[TEE_BigIntSizeInU32(1)] = { 0 };
+	TEE_BigInt *tmp = NULL;
+
+	tmp = mempool_alloc(mbedtls_mpi_mempool, sizeof(uint32_t) * s);
+	if (!tmp)
+		TEE_Panic(TEE_ERROR_OUT_OF_MEMORY);
+
+	TEE_BigIntInit(tmp, s);
+	TEE_BigIntInit(zero, TEE_BigIntSizeInU32(1));
+
+	bigint_binary(tmp, op1, op2, mbedtls_mpi_mul_mpi);
+
+	TEE_BigIntAdd(dest, tmp, zero);
+
+	mempool_free(mbedtls_mpi_mempool, tmp);
 }
 
 void TEE_BigIntSquare(TEE_BigInt *dest, const TEE_BigInt *op)
