@@ -73,7 +73,7 @@ static int print_thread_id(char *buf, size_t bs)
 #if defined(__KERNEL__)
 static int print_core_id(char *buf, size_t bs)
 {
-#if CFG_TEE_CORE_NB_CORE > 9
+#if CFG_TEE_CORE_NB_CORE > 10
 	const int num_digits = 2;
 #else
 	const int num_digits = 1;
@@ -82,7 +82,7 @@ static int print_core_id(char *buf, size_t bs)
 	if (thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR)
 		return snprintk(buf, bs, "%0*zu ", num_digits, get_core_pos());
 	else
-		return snprintk(buf, bs, "%*s ", num_digits, "?");
+		return snprintk(buf, bs, "%s ", num_digits > 1 ? "??" : "?");
 }
 #else  /* defined(__KERNEL__) */
 static int print_core_id(char *buf __unused, size_t bs __unused)
