@@ -67,8 +67,10 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 	paddr_t pa = READ_ONCE(tmem->buf_ptr);
 	size_t sz = READ_ONCE(tmem->size);
 
-	/* Handle NULL memory reference */
-	if (!pa && !sz) {
+	/*
+	 * Handle NULL memory reference
+	 */
+	if (!pa) {
 		mem->mobj = NULL;
 		mem->offs = 0;
 		mem->size = 0;
