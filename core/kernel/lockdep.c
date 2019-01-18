@@ -43,19 +43,21 @@ static struct lockdep_node *lockdep_add_to_graph(
 
 static vaddr_t *dup_call_stack(vaddr_t *stack)
 {
+	vaddr_t *nstack = NULL;
+	int n = 0;
+
 	if (!stack)
 		return NULL;
-
-	int n = 0;
 
 	while (stack[n])
 		n++;
 
-	vaddr_t *nstack = malloc(n * sizeof(vaddr_t));
-
+	nstack = malloc((n + 1) * sizeof(vaddr_t));
 	if (!nstack)
 		return NULL;
-	memcpy(nstack, stack, n * sizeof(vaddr_t));
+
+	memcpy(nstack, stack, (n + 1) * sizeof(vaddr_t));
+
 	return nstack;
 }
 
