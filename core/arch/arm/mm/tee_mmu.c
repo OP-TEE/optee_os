@@ -852,11 +852,11 @@ static int cmp_param_mem(const void *a0, const void *a1)
 	int ret;
 
 	/* Make sure that invalid param_mem are placed last in the array */
-	if (!m0->size && !m1->size)
+	if (!m0->mobj && !m1->mobj)
 		return 0;
-	if (!m0->size)
+	if (!m0->mobj)
 		return 1;
-	if (!m1->size)
+	if (!m1->mobj)
 		return -1;
 
 	ret = CMP_TRILEAN(mobj_is_secure(m0->mobj), mobj_is_secure(m1->mobj));
@@ -900,10 +900,16 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 		mem[n].size = ROUNDUP(phys_offs + param->u[n].mem.offs -
 				      mem[n].offs + param->u[n].mem.size,
 				      CORE_MMU_USER_PARAM_SIZE);
+		/*
+		 * For size 0 (raw pointer parameter), add minimum size
+		 * value to allow address to be mapped
+		 */
+		if (!mem[n].size)
+			mem[n].size = CORE_MMU_USER_PARAM_SIZE;
 	}
 
 	/*
-	 * Sort arguments so size = 0 is last, secure mobjs first, then by
+	 * Sort arguments so NULL mobj is last, secure mobjs first, then by
 	 * mobj pointer value since those entries can't be merged either,
 	 * finally by offset.
 	 *
@@ -912,7 +918,7 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 	 */
 	qsort(mem, TEE_NUM_PARAMS, sizeof(struct param_mem), cmp_param_mem);
 
-	for (n = 1, m = 0; n < TEE_NUM_PARAMS && mem[n].size; n++) {
+	for (n = 1, m = 0; n < TEE_NUM_PARAMS && mem[n].mobj; n++) {
 		if (mem[n].mobj == mem[m].mobj &&
 		    (mem[n].offs == (mem[m].offs + mem[m].size) ||
 		     core_is_buffer_intersect(mem[m].offs, mem[m].size,
@@ -929,7 +935,7 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 	 * index of the last valid entry if the first entry is valid, else
 	 * 0.
 	 */
-	if (mem[0].size)
+	if (mem[0].mobj)
 		m++;
 
 	check_param_map_empty(uctx);
@@ -952,7 +958,7 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 		    param_type != TEE_PARAM_TYPE_MEMREF_OUTPUT &&
 		    param_type != TEE_PARAM_TYPE_MEMREF_INOUT)
 			continue;
-		if (param->u[n].mem.size == 0)
+		if (!param->u[n].mem.mobj)
 			continue;
 
 		res = param_mem_to_user_va(uctx, &param->u[n].mem,
