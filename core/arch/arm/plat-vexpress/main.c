@@ -119,7 +119,16 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#ifdef IT_CONSOLE_UART
+#if defined(IT_CONSOLE_UART) && \
+	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV3))
+/*
+ * This cannot be enabled with TF-A and GICv3 because TF-A then need to
+ * assign the interrupt number of the UART to OP-TEE (S-EL1). Currently
+ * there's no way of TF-A to know which interrupts that OP-TEE will serve.
+ * If TF-A doesn't assign the interrupt we're enabling below to OP-TEE it
+ * will hang in EL3 since the interrupt will just be delivered again and
+ * again.
+ */
 static enum itr_return console_itr_cb(struct itr_handler *h __unused)
 {
 	struct serial_chip *cons = &console_data.chip;
