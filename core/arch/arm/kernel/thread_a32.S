@@ -685,8 +685,40 @@ END_FUNC thread_unwind_user_mode
 	maybe_restore_mapping
 
 	sub	lr, lr, #4
-	push	{lr}
 	push	{r12}
+
+	.ifc	\mode\(),fiq
+	/*
+	 * If a foreign (non-secure) interrupt is received as a FIQ we need
+	 * to check that we're in a saveable state or if we need to mask
+	 * the interrupt to be handled later.
+	 *
+	 * The window when this is needed is quite narrow, it's between
+	 * entering the exception vector and until the "cpsid" instruction
+	 * of the handler has been executed.
+	 *
+	 * Currently we can save the state properly if the FIQ is received
+	 * while in user or svc (kernel) mode.
+	 *
+	 * If we're returning to abort, undef or irq mode we're returning
+	 * with the mapping restored. This is OK since before the handler
+	 * we're returning to eventually returns to user mode the reduced
+	 * mapping will be restored.
+	 */
+	mrs	r12, spsr
+	and	r12, r12, #ARM32_CPSR_MODE_MASK
+	cmp	r12, #ARM32_CPSR_MODE_USR
+	cmpne	r12, #ARM32_CPSR_MODE_SVC
+	beq	1f
+	mrs	r12, spsr
+	orr	r12, r12, #ARM32_CPSR_F
+	msr	spsr_fsxc, r12
+	pop	{r12}
+	movs	pc, lr
+1:
+	.endif
+
+	push	{lr}
 
 	.ifc	\mode\(),fiq
 	bl	thread_save_state_fiq
@@ -696,8 +728,8 @@ END_FUNC thread_unwind_user_mode
 
 	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
 	mrs	r1, spsr
-	pop	{r12}
 	pop	{r2}
+	pop	{r12}
 	blx	thread_state_suspend
 	mov	r4, r0		/* Supply thread index */
 
