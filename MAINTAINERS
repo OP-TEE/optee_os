@@ -56,6 +56,11 @@ R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
 S:	Maintained
 F:	core/arch/arm/plat-sam/
 
+Broadcom ns3
+R:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com> [@sandeepbrcm]
+S:	Maintained
+F:	core/arch/arm/plat-bcm/
+
 HiSilicon D02
 R:	Linaro <op-tee@linaro.org>
 S:	Maintained
