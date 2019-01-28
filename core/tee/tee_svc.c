@@ -854,6 +854,8 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
 				    cancel_req_to, cmd_id, &param);
+	if (res == TEE_ERROR_TARGET_DEAD)
+		goto function_exit;
 
 	res2 = tee_svc_update_out_param(&param, tmp_buf_va, usr_param);
 	if (res2 != TEE_SUCCESS) {
