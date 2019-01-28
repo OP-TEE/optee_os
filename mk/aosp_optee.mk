@@ -112,7 +112,7 @@ TA_TMP_DIR := $(subst /,_,$(LOCAL_PATH))
 TA_TMP_FILE := $(OPTEE_TA_OUT_DIR)/$(TA_TMP_DIR)/$(LOCAL_MODULE)
 $(LOCAL_PREBUILT_MODULE_FILE): $(TA_TMP_FILE)
 	@mkdir -p $(dir $@)
-	cp -uvf $< $@
+	cp -vf $< $@
 
 TA_TMP_FILE_DEPS :=
 ifneq ($(local_module_deps), )
