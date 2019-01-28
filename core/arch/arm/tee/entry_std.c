@@ -529,6 +529,11 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	return mobj_shm_alloc(parg, args_size, 0);
 }
 
+void nsec_sessions_list_head(struct tee_ta_session_head **open_sessions)
+{
+	*open_sessions = &tee_open_sessions;
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
