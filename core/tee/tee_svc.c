@@ -2,25 +2,25 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#include <util.h>
-#include <kernel/tee_common_otp.h>
-#include <kernel/tee_common.h>
-#include <tee_api_types.h>
-#include <kernel/tee_ta_manager.h>
-#include <utee_types.h>
-#include <tee/tee_svc.h>
-#include <tee/tee_cryp_utl.h>
-#include <mm/tee_mmu.h>
-#include <mm/tee_mm.h>
-#include <mm/core_memprot.h>
-#include <kernel/tee_time.h>
-
-#include <user_ta_header.h>
-#include <trace.h>
-#include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/tee_common.h>
+#include <kernel/tee_common_otp.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/tee_time.h>
+#include <kernel/trace_ta.h>
+#include <mm/core_memprot.h>
 #include <mm/mobj.h>
+#include <mm/tee_mm.h>
+#include <mm/tee_mmu.h>
+#include <stdlib_ext.h>
+#include <tee_api_types.h>
+#include <tee/tee_cryp_utl.h>
+#include <tee/tee_svc.h>
+#include <trace.h>
+#include <user_ta_header.h>
+#include <utee_types.h>
+#include <util.h>
 
 vaddr_t tee_svc_uref_base;
 
@@ -41,7 +41,7 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 		trace_ext_puts(kbuf);
 	}
 
-	free(kbuf);
+	free_wipe(kbuf);
 #endif
 }
 
@@ -490,7 +490,7 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 	}
 
 out:
-	free(kname);
+	free_wipe(kname);
 	return res;
 }
 
@@ -793,9 +793,9 @@ function_exit:
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
-	free(param);
-	free(uuid);
-	free(clnt_id);
+	free_wipe(param);
+	free_wipe(uuid);
+	free_wipe(clnt_id);
 	return res;
 }
 
