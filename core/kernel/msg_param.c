@@ -26,11 +26,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <kernel/msg_param.h>
+#include <mm/mobj.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <types_ext.h>
-#include <kernel/msg_param.h>
-#include <mm/mobj.h>
+#include <util.h>
 
 /**
  * msg_param_extract_pages() - extract list of pages from
@@ -115,14 +116,20 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 					   uint64_t shm_ref, bool map_buffer)
 {
 	struct mobj *mobj = NULL;
-	paddr_t *pages;
-	paddr_t page_offset;
-	size_t num_pages;
+	paddr_t *pages = NULL;
+	paddr_t page_offset = 0;
+	size_t num_pages = 0;
+	size_t size_plus_offs = 0;
+	size_t msize = 0;
 
 	page_offset = buf_ptr & SMALL_PAGE_MASK;
-	num_pages = (size + page_offset - 1) / SMALL_PAGE_SIZE + 1;
+	if (ADD_OVERFLOW(size, page_offset, &size_plus_offs))
+		return NULL;
+	num_pages = (size_plus_offs - 1) / SMALL_PAGE_SIZE + 1;
+	if (MUL_OVERFLOW(num_pages, sizeof(paddr_t), &msize))
+		return NULL;
 
-	pages = malloc(num_pages * sizeof(paddr_t));
+	pages = malloc(msize);
 	if (!pages)
 		return NULL;
 
