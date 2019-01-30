@@ -137,8 +137,10 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 		TEE_UUID bs_uuid;
 		struct shdr_bootstrap_ta bs_hdr;
 
-		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr))
-			return TEE_ERROR_SECURITY;
+		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr)) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_hash;
+		}
 
 		memcpy(&bs_hdr, ((uint8_t *)ta + offs), sizeof(bs_hdr));
 
