@@ -88,21 +88,20 @@ static void put_tmp_block(void *tmp_block)
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 				     const void *buf, size_t len)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t start_block_num = pos_to_block_num(pos);
 	size_t end_block_num = pos_to_block_num(pos + len - 1);
 	size_t remain_bytes = len;
 	uint8_t *data_ptr = (uint8_t *)buf;
-	uint8_t *block;
+	uint8_t *block = NULL;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
-	/*
-	 * It doesn't make sense to call this function if nothing is to be
-	 * written. This also guards against end_block_num getting an
-	 * unexpected value when pos == 0 and len == 0.
-	 */
 	if (!len)
 		return TEE_ERROR_BAD_PARAMETERS;
+	if (pos + len - 1 < pos)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	assert(start_block_num <= end_block_num);
 
 	block = get_tmp_block();
 	if (!block)
