@@ -153,10 +153,11 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 				return TEE_ERROR_OUT_OF_MEMORY;
 			}
 			segs = p;
-			segs[num_segs].offs = ROUNDDOWN(va, SMALL_PAGE_SIZE);
-			segs[num_segs].oend = ROUNDUP(va + size,
-						      SMALL_PAGE_SIZE);
-			segs[num_segs].flags = flags;
+			segs[num_segs] = (struct load_seg) {
+				.offs = ROUNDDOWN(va, SMALL_PAGE_SIZE),
+				.oend = ROUNDUP(va + size, SMALL_PAGE_SIZE),
+				.flags = flags,
+			};
 			num_segs++;
 		} else if (type == PT_ARM_EXIDX) {
 			elf->exidx_start = va;
