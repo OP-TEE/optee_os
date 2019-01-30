@@ -76,6 +76,12 @@ R:	Linaro <op-tee@linaro.org>
 S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
+Hisilicon Hi3519AV100 family
+R:	Tao Zeng <prime.zeng@hisilicon.com>
+R:	Jerome FORISSIER <jerome.forissier@huawei.com>
+S:	Maintained
+F:	core/arch/arm/plat-hisilicon
+
 Marvell Armada 70x0, Armada 80x0, Armada 3700
 R:	Tao Lu <taolu@marvell.com> [@taovcu]
 S:	Maintained

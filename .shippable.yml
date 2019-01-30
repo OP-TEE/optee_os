@@ -103,3 +103,4 @@ build:
     - _make PLATFORM=sunxi-bpi_zero
     - _make PLATFORM=sunxi-sun50i_a64
     - _make PLATFORM=bcm-ns3 CFG_ARM64_core=y
+    - _make PLATFORM=hisilicon-hi3519av100_demo
