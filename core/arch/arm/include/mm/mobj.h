@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <mm/core_memprot.h>
 #include <mm/fobj.h>
+#include <string_ext.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -75,6 +76,15 @@ static inline void mobj_free(struct mobj *mobj)
 {
 	if (mobj && mobj->ops && mobj->ops->free)
 		mobj->ops->free(mobj);
+}
+
+static inline void mobj_free_wipe(struct mobj *mobj)
+{
+	void *buf = mobj_get_va(mobj, 0);
+
+	if (buf)
+		memzero_explicit(buf, mobj->size);
+	mobj_free(mobj);
 }
 
 static inline uint64_t mobj_get_cookie(struct mobj *mobj)
