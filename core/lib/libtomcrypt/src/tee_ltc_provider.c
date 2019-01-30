@@ -2216,6 +2216,7 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			if (CRYPT_OK != ltc_res)
 				return TEE_ERROR_BAD_STATE;
 			cbc->is_computed = 1;
+			cbc->current_block_len = 0;
 		}
 
 		while (len >= cbc->block_len) {
@@ -2228,9 +2229,11 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
 			len -= cbc->block_len;
 		}
 
-		if (len > 0)
-			memcpy(cbc->block, data, len);
-		cbc->current_block_len = len;
+		if (len > 0) {
+			assert(cbc->current_block_len + len < cbc->block_len);
+			memcpy(cbc->block + cbc->current_block_len, data, len);
+			cbc->current_block_len += len;
+		}
 		break;
 #endif
 #if defined(CFG_CRYPTO_CMAC)
