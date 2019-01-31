@@ -597,12 +597,16 @@ void *bget(requested_size, poolset)
     }
 #ifdef SizeQuant
 #if SizeQuant > 1
-    size = (size + (SizeQuant - 1)) & (~(SizeQuant - 1));
+    if (ADD_OVERFLOW(size, SizeQuant - 1, &size))
+        return NULL;
+
+    size = ROUNDDOWN(size, SizeQuant);
 #endif
 #endif
 
-    size += sizeof(struct bhead);     /* Add overhead in allocated buffer
-					 to size required. */
+    /* Add overhead in allocated buffer to size required. */
+    if (ADD_OVERFLOW(size, sizeof(struct bhead), &size))
+        return NULL;
 
 #ifdef BECtl
     /* If a compact function was provided in the call to bectl(), wrap
