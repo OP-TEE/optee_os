@@ -20,6 +20,7 @@
 
 #define STATS_CMD_PAGER_STATS		0
 #define STATS_CMD_ALLOC_STATS		1
+#define STATS_CMD_MEMLEAK_STATS		2
 
 #define STATS_NB_POOLS			3
 
@@ -115,6 +116,19 @@ static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_memleak_stats(uint32_t type,
+				    TEE_Param p[TEE_NUM_PARAMS] __unused)
+{
+
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE, TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE, TEE_PARAM_TYPE_NONE) != type)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mdbg_check(1);
+
+	return TEE_SUCCESS;
+}
+
 /*
  * Trusted Application Entry Points
  */
@@ -128,6 +142,8 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_pager_stats(ptypes, params);
 	case STATS_CMD_ALLOC_STATS:
 		return get_alloc_stats(ptypes, params);
+	case STATS_CMD_MEMLEAK_STATS:
+		return get_memleak_stats(ptypes, params);
 	default:
 		break;
 	}
