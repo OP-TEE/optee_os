@@ -585,8 +585,11 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	 */
 	if (ehdr.e_shoff) {
 		/* We have section headers */
-		res = alloc_and_copy_to(&p, state, ehdr.e_shoff,
-					ehdr.e_shnum * ehdr.e_shentsize);
+		size_t sz = 0;
+
+		if (MUL_OVERFLOW(ehdr.e_shnum, ehdr.e_shentsize, &sz))
+			return TEE_ERROR_OUT_OF_MEMORY;
+		res = alloc_and_copy_to(&p, state, ehdr.e_shoff, sz);
 		if (res != TEE_SUCCESS)
 			return res;
 		state->shdr = p;
