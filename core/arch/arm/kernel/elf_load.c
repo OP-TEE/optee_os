@@ -341,6 +341,7 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 	size_t sym_tab_idx;
 	Elf32_Sym *sym_tab = NULL;
 	size_t num_syms = 0;
+	size_t sh_end = 0;
 
 	if (shdr[rel_sidx].sh_type != SHT_REL)
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -357,9 +358,10 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			return TEE_ERROR_BAD_FORMAT;
 
 		/* Check the address is inside TA memory */
-		if (shdr[sym_tab_idx].sh_addr > state->vasize ||
-		    (shdr[sym_tab_idx].sh_addr +
-				shdr[sym_tab_idx].sh_size) > state->vasize)
+		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
+				 shdr[sym_tab_idx].sh_size, &sh_end))
+			return TEE_ERROR_BAD_FORMAT;
+		if (sh_end >= state->vasize)
 			return TEE_ERROR_BAD_FORMAT;
 
 		sym_tab = (Elf32_Sym *)(vabase + shdr[sym_tab_idx].sh_addr);
@@ -377,7 +379,10 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 		return TEE_ERROR_BAD_FORMAT;
 
 	/* Check the address is inside TA memory */
-	if ((shdr[rel_sidx].sh_addr + shdr[rel_sidx].sh_size) >= state->vasize)
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
+			 &sh_end))
+		return TEE_ERROR_BAD_FORMAT;
+	if (sh_end >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
 	rel_end = rel + shdr[rel_sidx].sh_size / sizeof(Elf32_Rel);
 	for (; rel < rel_end; rel++) {
@@ -436,6 +441,7 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 	size_t sym_tab_idx;
 	Elf64_Sym *sym_tab = NULL;
 	size_t num_syms = 0;
+	size_t sh_end = 0;
 
 	if (shdr[rel_sidx].sh_type != SHT_RELA)
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -452,9 +458,10 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 			return TEE_ERROR_BAD_FORMAT;
 
 		/* Check the address is inside TA memory */
-		if (shdr[sym_tab_idx].sh_addr > state->vasize ||
-		    (shdr[sym_tab_idx].sh_addr +
-				shdr[sym_tab_idx].sh_size) > state->vasize)
+		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
+				 shdr[sym_tab_idx].sh_size, &sh_end))
+			return TEE_ERROR_BAD_FORMAT;
+		if (sh_end >= state->vasize)
 			return TEE_ERROR_BAD_FORMAT;
 
 		sym_tab = (Elf64_Sym *)(vabase + shdr[sym_tab_idx].sh_addr);
@@ -472,7 +479,10 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 		return TEE_ERROR_BAD_FORMAT;
 
 	/* Check the address is inside TA memory */
-	if ((shdr[rel_sidx].sh_addr + shdr[rel_sidx].sh_size) >= state->vasize)
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
+			 &sh_end))
+		return TEE_ERROR_BAD_FORMAT;
+	if (sh_end >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
 	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf64_Rela);
 	for (; rela < rela_end; rela++) {
