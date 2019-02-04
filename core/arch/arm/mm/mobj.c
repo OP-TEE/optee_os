@@ -317,8 +317,16 @@ struct mobj_reg_shm {
 	paddr_t pages[];
 };
 
-#define MOBJ_REG_SHM_SIZE(nr_pages) \
-	(sizeof(struct mobj_reg_shm) + sizeof(paddr_t) * (nr_pages))
+static size_t mobj_reg_shm_size(size_t nr_pages)
+{
+	size_t s = 0;
+
+	if (MUL_OVERFLOW(sizeof(paddr_t), nr_pages, &s))
+		return 0;
+	if (ADD_OVERFLOW(sizeof(struct mobj_reg_shm), s, &s))
+		return 0;
+	return s;
+}
 
 static SLIST_HEAD(reg_shm_head, mobj_reg_shm) reg_shm_list =
 	SLIST_HEAD_INITIALIZER(reg_shm_head);
@@ -460,11 +468,15 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	struct mobj_reg_shm *mobj_reg_shm;
 	size_t i;
 	uint32_t exceptions;
+	size_t s;
 
 	if (!num_pages)
 		return NULL;
 
-	mobj_reg_shm = calloc(1, MOBJ_REG_SHM_SIZE(num_pages));
+	s = mobj_reg_shm_size(num_pages);
+	if (!s)
+		return NULL;
+	mobj_reg_shm = calloc(1, s);
 	if (!mobj_reg_shm)
 		return NULL;
 
