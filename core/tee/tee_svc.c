@@ -789,7 +789,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 function_exit:
 	mobj_free(mobj_param);
 	if (res == TEE_SUCCESS)
-		tee_svc_copy_kaddr_to_uref(ta_sess, s);
+		tee_svc_copy_to_user(ta_sess, &s->id, sizeof(s->id));
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
@@ -804,13 +804,14 @@ TEE_Result syscall_close_ta_session(unsigned long ta_sess)
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	TEE_Identity clnt_id;
-	struct tee_ta_session *s = tee_svc_uref_to_kaddr(ta_sess);
+	struct tee_ta_session *s = NULL;
 	struct user_ta_ctx *utc;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
+	s = tee_ta_find_session(ta_sess, &utc->open_sessions);
 
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
@@ -838,8 +839,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	called_sess = tee_ta_get_session(
-				(vaddr_t)tee_svc_uref_to_kaddr(ta_sess), true,
+	called_sess = tee_ta_get_session((uint32_t)ta_sess, true,
 				&utc->open_sessions);
 	if (!called_sess)
 		return TEE_ERROR_BAD_PARAMETERS;
