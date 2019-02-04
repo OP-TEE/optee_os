@@ -28,6 +28,10 @@ static bool client_is_secure(struct tee_ta_session *s)
 
 static bool validate_in_param(struct tee_ta_session *s, struct mobj *mobj)
 {
+	/* Supplying NULL to query buffer size is OK */
+	if (!mobj)
+		return true;
+
 	/* for secure clients, core entry always holds valid memref objects */
 	if (client_is_secure(s))
 		return true;
