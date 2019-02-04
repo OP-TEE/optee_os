@@ -173,16 +173,34 @@ void tee_ta_put_session(struct tee_ta_session *s)
 	mutex_unlock(&tee_ta_mutex);
 }
 
-static struct tee_ta_session *find_session(uint32_t id,
+static struct tee_ta_session *tee_ta_find_session_nolock(uint32_t id,
 			struct tee_ta_session_head *open_sessions)
 {
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
+	struct tee_ta_session *found = NULL;
 
 	TAILQ_FOREACH(s, open_sessions, link) {
-		if ((vaddr_t)s == id)
-			return s;
+		if (s->id == id) {
+			found = s;
+			break;
+		}
 	}
-	return NULL;
+
+	return found;
+}
+
+struct tee_ta_session *tee_ta_find_session(uint32_t id,
+			struct tee_ta_session_head *open_sessions)
+{
+	struct tee_ta_session *s = NULL;
+
+	mutex_lock(&tee_ta_mutex);
+
+	s = tee_ta_find_session_nolock(id, open_sessions);
+
+	mutex_unlock(&tee_ta_mutex);
+
+	return s;
 }
 
 struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
@@ -193,7 +211,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 	mutex_lock(&tee_ta_mutex);
 
 	while (true) {
-		s = find_session(id, open_sessions);
+		s = tee_ta_find_session_nolock(id, open_sessions);
 		if (!s)
 			break;
 		if (s->unlink) {
@@ -377,12 +395,12 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	struct tee_ta_ctx *ctx;
 	bool keep_alive;
 
-	DMSG("tee_ta_close_session(0x%" PRIxVA ")",  (vaddr_t)csess);
+	DMSG("csess 0x%" PRIxVA " id %u", (vaddr_t)csess, csess->id);
 
 	if (!csess)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	sess = tee_ta_get_session((vaddr_t)csess, true, open_sessions);
+	sess = tee_ta_get_session(csess->id, true, open_sessions);
 
 	if (!sess) {
 		EMSG("session 0x%" PRIxVA " to be removed is not found",
@@ -463,6 +481,31 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
+static uint32_t new_session_id(struct tee_ta_session_head *open_sessions)
+{
+	struct tee_ta_session *last = NULL;
+	uint32_t saved = 0;
+	uint32_t id = 1;
+
+	last = TAILQ_LAST(open_sessions, tee_ta_session_head);
+	if (last) {
+		/* This value is less likely to be already used */
+		id = last->id + 1;
+		if (!id)
+			id++; /* 0 is not valid */
+	}
+
+	saved = id;
+	do {
+		if (!tee_ta_find_session_nolock(id, open_sessions))
+			return id;
+		id++;
+		if (!id)
+			id++;
+	} while (id != saved);
+
+	return 0;
+}
 
 static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 				struct tee_ta_session_head *open_sessions,
@@ -492,6 +535,11 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 
 
 	mutex_lock(&tee_ta_mutex);
+	s->id = new_session_id(open_sessions);
+	if (!s->id) {
+		res = TEE_ERROR_OVERFLOW;
+		goto out;
+	}
 	TAILQ_INSERT_TAIL(open_sessions, s, link);
 
 	/* Look for already loaded TA */

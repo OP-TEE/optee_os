@@ -330,7 +330,7 @@ cleanup_shm_refs:
 
 out:
 	if (s)
-		arg->session = (vaddr_t)s;
+		arg->session = s->id;
 	else
 		arg->session = 0;
 	arg->ret = res;
@@ -352,7 +352,7 @@ static void entry_close_session(struct thread_smc_args *smc_args,
 	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_SESSION,
 				     &session_pnum);
 
-	s = (struct tee_ta_session *)(vaddr_t)arg->session;
+	s = tee_ta_find_session(arg->session, &tee_open_sessions);
 	res = tee_ta_close_session(s, &tee_open_sessions, NSAPP_IDENTITY);
 out:
 	arg->ret = res;

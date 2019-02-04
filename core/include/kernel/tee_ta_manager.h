@@ -90,6 +90,7 @@ struct tee_ta_ctx {
 struct tee_ta_session {
 	TAILQ_ENTRY(tee_ta_session) link;
 	TAILQ_ENTRY(tee_ta_session) link_tsd;
+	uint32_t id;		/* Session handle (0 is invalid) */
 	struct tee_ta_ctx *ctx;	/* TA context */
 	TEE_Identity clnt_id;	/* Identify of client */
 	bool cancel;		/* True if TAF is cancelled */
@@ -148,6 +149,9 @@ void tee_ta_push_current_session(struct tee_ta_session *sess);
 struct tee_ta_session *tee_ta_pop_current_session(void);
 
 struct tee_ta_session *tee_ta_get_calling_session(void);
+
+struct tee_ta_session *tee_ta_find_session(uint32_t id,
+			struct tee_ta_session_head *open_sessions);
 
 struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 			struct tee_ta_session_head *open_sessions);
