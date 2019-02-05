@@ -38,7 +38,7 @@ static struct mempool *get_mp_scratch_memory_pool(void)
 #else /* CFG_WITH_PAGER */
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
-	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(__alignof__(long));
+	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
 
 	return mempool_alloc_pool(data, sizeof(data), NULL);
 }

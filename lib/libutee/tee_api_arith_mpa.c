@@ -19,7 +19,8 @@
 
 static uint32_t mempool_u32[mpa_scratch_mem_size_in_U32(
 					    MPA_INTERNAL_MEM_POOL_SIZE,
-					    CFG_TA_BIGNUM_MAX_BITS)];
+					    CFG_TA_BIGNUM_MAX_BITS)]
+						__aligned(MEMPOOL_ALIGN);
 static mpa_scratch_mem mempool;
 
 /*************************************************************

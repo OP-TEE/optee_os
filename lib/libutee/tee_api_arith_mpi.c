@@ -42,8 +42,7 @@ static void __noreturn mpi_panic(const char *func, int line, int rc)
 
 void _TEE_MathAPI_Init(void)
 {
-	static uint8_t data[MPI_MEMPOOL_SIZE]
-		__aligned(__alignof__(mbedtls_mpi_uint));
+	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
 
 	mbedtls_mpi_mempool = mempool_alloc_pool(data, sizeof(data), NULL);
 	if (!mbedtls_mpi_mempool)
