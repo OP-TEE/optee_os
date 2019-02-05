@@ -2957,6 +2957,13 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
+					  TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)nonce, nonce_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
