@@ -178,8 +178,8 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 			segs[idx - 1].flags |= segs[idx].flags;
 
 			/* Remove this index */
-			memcpy(segs + idx, segs + idx + 1,
-			       (num_segs - idx - 1) * sizeof(*segs));
+			memmove(segs + idx, segs + idx + 1,
+				(num_segs - idx - 1) * sizeof(*segs));
 			num_segs--;
 		} else {
 			idx++;
