@@ -40,7 +40,7 @@ static struct mempool *get_mpa_scratch_memory_pool(void)
 #else /* CFG_WITH_PAGER */
 static struct mempool *get_mpa_scratch_memory_pool(void)
 {
-	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(__alignof__(long));
+	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(MEMPOOL_ALIGN);
 
 	return mempool_alloc_pool(data, sizeof(data), NULL);
 }

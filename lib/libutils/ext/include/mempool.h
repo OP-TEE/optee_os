@@ -19,9 +19,12 @@ struct mempool_item {
 
 struct mempool;
 
+#define MEMPOOL_ALIGN	__alignof__(long)
+
 /*
  * mempool_alloc_pool() - Allocate a new memory pool
- * @data:		a block of memory to carve out items from
+ * @data:		a block of memory to carve out items from, must
+ *			have an alignment of MEMPOOL_ALIGN.
  * @size:		size fo the block of memory
  * @release_mem:	function to call when the pool has been emptied,
  *			ignored if NULL.

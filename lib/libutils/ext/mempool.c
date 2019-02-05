@@ -53,7 +53,6 @@
  *   So the potential fragmentation is mitigated.
  */
 
-#define POOL_ALIGN	__alignof__(long)
 
 struct mempool {
 	size_t size;  /* size of the memory pool, in bytes */
@@ -130,8 +129,8 @@ mempool_alloc_pool(void *data, size_t size,
 {
 	struct mempool *pool = calloc(1, sizeof(*pool));
 
-	COMPILE_TIME_ASSERT(POOL_ALIGN >= __alignof__(struct mempool_item));
-	assert(!((vaddr_t)data & (POOL_ALIGN - 1)));
+	COMPILE_TIME_ASSERT(MEMPOOL_ALIGN >= __alignof__(struct mempool_item));
+	assert(!((vaddr_t)data & (MEMPOOL_ALIGN - 1)));
 
 	if (pool) {
 		pool->size = size;
@@ -163,13 +162,13 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 						    pool->last_offset);
 		offset = pool->last_offset + last_item->size;
 
-		offset = ROUNDUP(offset, POOL_ALIGN);
+		offset = ROUNDUP(offset, MEMPOOL_ALIGN);
 		if (offset > pool->size)
 			goto error;
 	}
 
 	size = sizeof(struct mempool_item) + size;
-	size = ROUNDUP(size, POOL_ALIGN);
+	size = ROUNDUP(size, MEMPOOL_ALIGN);
 	if (offset + size > pool->size)
 		goto error;
 
