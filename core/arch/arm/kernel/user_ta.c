@@ -746,6 +746,11 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		/* Ensure proper alignment of stack */
 		size_t stack_sz = ROUNDUP(ta_head->stack_size,
 					  STACK_ALIGNMENT);
+
+		if (!stack_sz) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
 		utc->mobj_stack = alloc_ta_mem(stack_sz);
 		if (!utc->mobj_stack) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
