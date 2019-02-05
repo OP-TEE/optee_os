@@ -1332,11 +1332,14 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 {
 	TEE_Result res;
 	uint32_t n;
+	size_t size = 0;
+
+	if (MUL_OVERFLOW(sizeof(struct utee_attribute), attr_count, &size))
+		return TEE_ERROR_OVERFLOW;
 
 	res = tee_mmu_check_access_rights(utc,
 			TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER,
-			(uaddr_t)usr_attrs,
-			attr_count * sizeof(struct utee_attribute));
+			(uaddr_t)usr_attrs, size);
 	if (res != TEE_SUCCESS)
 		return res;
 
