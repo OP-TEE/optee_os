@@ -902,6 +902,8 @@ bool nex_malloc_buffer_overlaps_heap(void *buf, size_t len)
 	return gen_malloc_buffer_overlaps_heap(&nex_malloc_ctx, buf, len);
 }
 
+#ifdef BufStats
+
 void nex_malloc_reset_stats(void)
 {
 	gen_malloc_reset_stats(&nex_malloc_ctx);
@@ -911,5 +913,7 @@ void nex_malloc_get_stats(struct malloc_stats *stats)
 {
 	gen_malloc_get_stats(&nex_malloc_ctx, stats);
 }
+
+#endif
 
 #endif
