@@ -414,220 +414,6 @@ out:
 	return p;
 }
 
-static void create_free_block(struct bfhead *bf, bufsize size, struct bhead *bn,
-			      struct bpoolset *poolset)
-{
-	assert(BH((char *)bf + size) == bn);
-	assert(bn->bsize < 0); /* Next block should be allocated */
-	/* Next block shouldn't already have free block in front */
-	assert(bn->prevfree == 0);
-
-	/* Create the free buf header */
-	bf->bh.bsize = size;
-	bf->bh.prevfree = 0;
-
-	/* Update next block to point to the new free buf header */
-	bn->prevfree = size;
-
-	/* Insert the free buffer on the free list */
-	assert(poolset->freelist.ql.blink->ql.flink == &poolset->freelist);
-	assert(poolset->freelist.ql.flink->ql.blink == &poolset->freelist);
-	bf->ql.flink = &poolset->freelist;
-	bf->ql.blink = poolset->freelist.ql.blink;
-	poolset->freelist.ql.blink = bf;
-	bf->ql.blink->ql.flink = bf;
-}
-
-static void brel_before(char *orig_buf, char *new_buf, struct bpoolset *poolset)
-{
-	struct bfhead *bf;
-	struct bhead *b;
-	bufsize size;
-	bufsize orig_size;
-
-	assert(orig_buf < new_buf);
-	/* There has to be room for the freebuf header */
-	size = (bufsize)(new_buf - orig_buf);
-	assert(size >= (SizeQ + sizeof(struct bhead)));
-
-	/* Point to head of original buffer */
-	bf = BFH(orig_buf - sizeof(struct bhead));
-	orig_size = -bf->bh.bsize; /* negative since it's an allocated buffer */
-
-	/* Point to head of the becoming new allocated buffer */
-	b = BH(new_buf - sizeof(struct bhead));
-
-	if (bf->bh.prevfree != 0) {
-		/* Previous buffer is free, consolidate with that buffer */
-		struct bfhead *bfp;
-
-		/* Update the previous free buffer */
-		bfp = BFH((char *)bf - bf->bh.prevfree);
-		assert(bfp->bh.bsize == bf->bh.prevfree);
-		bfp->bh.bsize += size;
-
-		/* Make a new allocated buffer header */
-		b->prevfree = bfp->bh.bsize;
-		/* Make it negative since it's an allocated buffer */
-		b->bsize = -(orig_size - size);
-	} else {
-		/*
-		 * Previous buffer is allocated, create a new buffer and
-		 * insert on the free list.
-		 */
-
-		/* Make it negative since it's an allocated buffer */
-		b->bsize = -(orig_size - size);
-
-		create_free_block(bf, size, b, poolset);
-	}
-
-#ifdef BufStats
-	poolset->totalloc -= size;
-	assert(poolset->totalloc >= 0);
-#endif
-}
-
-static void brel_after(char *buf, bufsize size, struct bpoolset *poolset)
-{
-	struct bhead *b = BH(buf - sizeof(struct bhead));
-	struct bhead *bn;
-	bufsize new_size = size;
-	bufsize free_size;
-
-	/* Select the size in the same way as in bget() */
-	if (new_size < SizeQ)
-		new_size = SizeQ;
-#ifdef SizeQuant
-#if SizeQuant > 1
-	new_size = (new_size + (SizeQuant - 1)) & (~(SizeQuant - 1));
-#endif
-#endif
-	new_size += sizeof(struct bhead);
-	assert(new_size <= -b->bsize);
-
-	/*
-	 * Check if there's enough space at the end of the buffer to be
-	 * able to free anything.
-	 */
-	free_size = -b->bsize - new_size;
-	if (free_size < SizeQ + sizeof(struct bhead))
-		return;
-
-	bn = BH((char *)b - b->bsize);
-	/*
-	 * Set the new size of the buffer;
-	 */
-	b->bsize = -new_size;
-	if (bn->bsize > 0) {
-		/* Next buffer is free, consolidate with that buffer */
-		struct bfhead *bfn = BFH(bn);
-		struct bfhead *nbf = BFH((char *)b + new_size);
-		struct bhead *bnn = BH((char *)bn + bn->bsize);
-
-		assert(bfn->bh.prevfree == 0);
-		assert(bnn->prevfree == bfn->bh.bsize);
-
-		/* Construct the new free header */
-		nbf->bh.prevfree = 0;
-		nbf->bh.bsize = bfn->bh.bsize + free_size;
-
-		/* Update the buffer after this to point to this header */
-		bnn->prevfree += free_size;
-
-		/*
-		 * Unlink the previous free buffer and link the new free
-		 * buffer.
-		 */
-		assert(bfn->ql.blink->ql.flink == bfn);
-		assert(bfn->ql.flink->ql.blink == bfn);
-
-		/* Assing blink and flink from old free buffer */
-		nbf->ql.blink = bfn->ql.blink;
-		nbf->ql.flink = bfn->ql.flink;
-
-		/* Replace the old free buffer with the new one */
-		nbf->ql.blink->ql.flink = nbf;
-		nbf->ql.flink->ql.blink = nbf;
-	} else {
-		/* New buffer is allocated, create a new free buffer */
-		create_free_block(BFH((char *)b + new_size), free_size, bn, poolset);
-	}
-
-#ifdef BufStats
-	poolset->totalloc -= free_size;
-	assert(poolset->totalloc >= 0);
-#endif
-
-}
-
-static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
-			  size_t size, struct malloc_ctx *ctx)
-{
-	size_t s;
-	uintptr_t b;
-
-	raw_malloc_validate_pools(ctx);
-
-	if (!IS_POWER_OF_TWO(alignment))
-		return NULL;
-
-	/*
-	 * Normal malloc with headers always returns something SizeQuant
-	 * aligned.
-	 */
-	if (alignment <= SizeQuant)
-		return raw_malloc(hdr_size, ftr_size, size, ctx);
-
-	s = hdr_size + ftr_size + alignment + size +
-	    SizeQ + sizeof(struct bhead);
-
-	/* Check wapping */
-	if (s < alignment || s < size)
-		return NULL;
-
-	b = (uintptr_t)bget(s, &ctx->poolset);
-	if (!b)
-		goto out;
-
-	if ((b + hdr_size) & (alignment - 1)) {
-		/*
-		 * Returned buffer is not aligned as requested if the
-		 * hdr_size is added. Find an offset into the buffer
-		 * that is far enough in to the buffer to be able to free
-		 * what's in front.
-		 */
-		uintptr_t p;
-
-		/*
-		 * Find the point where the buffer including supplied
-		 * header size should start.
-		 */
-		p = b + hdr_size + alignment;
-		p &= ~(alignment - 1);
-		p -= hdr_size;
-		if ((p - b) < (SizeQ + sizeof(struct bhead)))
-			p += alignment;
-		assert((p + hdr_size + ftr_size + size) <= (b + s));
-
-		/* Free the front part of the buffer */
-		brel_before((void *)b, (void *)p, &ctx->poolset);
-
-		/* Set the new start of the buffer */
-		b = p;
-	}
-
-	/*
-	 * Since b is now aligned, release what we don't need at the end of
-	 * the buffer.
-	 */
-	brel_after((void *)b, hdr_size + ftr_size + size, &ctx->poolset);
-out:
-	raw_malloc_return_hook((void *)b, size, ctx);
-
-	return (void *)b;
-}
-
 /* Most of the stuff in this function is copied from bgetr() in bget.c */
 static __maybe_unused bufsize bget_buf_size(void *buf)
 {
@@ -798,23 +584,6 @@ static void *gen_mdbg_realloc(struct malloc_ctx *ctx, const char *fname,
 #define realloc_unlocked(ctx, ptr, size)					\
 		gen_mdbg_realloc_unlocked(ctx, __FILE__, __LINE__, (ptr), (size))
 
-static void *gen_mdbg_memalign(struct malloc_ctx *ctx, const char *fname,
-			       int lineno, size_t alignment, size_t size)
-{
-	struct mdbg_hdr *hdr;
-	uint32_t exceptions = malloc_lock(ctx);
-
-	hdr = raw_memalign(sizeof(struct mdbg_hdr), mdbg_get_ftr_size(size),
-			   alignment, size, ctx);
-	if (hdr) {
-		mdbg_update_hdr(hdr, fname, lineno, size);
-		hdr++;
-	}
-	malloc_unlock(ctx, exceptions);
-	return hdr;
-}
-
-
 static void *get_payload_start_size(void *raw_buf, size_t *size)
 {
 	struct mdbg_hdr *hdr = raw_buf;
@@ -866,12 +635,6 @@ void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
 	return gen_mdbg_realloc(&malloc_ctx, fname, lineno, ptr, size);
 }
 
-void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
-		    size_t size)
-{
-	return gen_mdbg_memalign(&malloc_ctx, fname, lineno, alignment, size);
-}
-
 void mdbg_check(int bufdump)
 {
 	gen_mdbg_check(&malloc_ctx, bufdump);
@@ -918,16 +681,6 @@ void *realloc(void *ptr, size_t size)
 	uint32_t exceptions = malloc_lock(&malloc_ctx);
 
 	p = realloc_unlocked(&malloc_ctx, ptr, size);
-	malloc_unlock(&malloc_ctx, exceptions);
-	return p;
-}
-
-void *memalign(size_t alignment, size_t size)
-{
-	void *p;
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	p = raw_memalign(0, 0, alignment, size, &malloc_ctx);
 	malloc_unlock(&malloc_ctx, exceptions);
 	return p;
 }
@@ -1094,16 +847,6 @@ void *nex_realloc(void *ptr, size_t size)
 	return p;
 }
 
-void *nex_memalign(size_t alignment, size_t size)
-{
-	void *p;
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	p = raw_memalign(0, 0, alignment, size, &nex_malloc_ctx);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
-	return p;
-}
-
 void nex_free(void *ptr)
 {
 	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
@@ -1127,12 +870,6 @@ void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
 void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
 {
 	return gen_mdbg_realloc(&nex_malloc_ctx, fname, lineno, ptr, size);
-}
-
-void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
-		size_t size)
-{
-	return gen_mdbg_memalign(&nex_malloc_ctx, fname, lineno, alignment, size);
 }
 
 void nex_mdbg_check(int bufdump)
