@@ -206,8 +206,6 @@ CFG_WITH_USER_TA ?= y
 # $(ta-targets).
 
 # Load user TAs from the REE filesystem via tee-supplicant
-# There is currently no other alternative, but you may want to disable this in
-# case you implement your own TA store
 CFG_REE_FS_TA ?= y
 
 # Support for loading user TAs from a special section in the TEE binary.
