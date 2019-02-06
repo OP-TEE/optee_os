@@ -4,6 +4,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 
 #include <tee_api.h>
 #include <tee_internal_api_extensions.h>
@@ -216,7 +217,7 @@ void *TEE_MemMove(void *dest, const void *src, uint32_t size)
 
 int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size)
 {
-	return memcmp(buffer1, buffer2, size);
+	return consttime_memcmp(buffer1, buffer2, size);
 }
 
 void *TEE_MemFill(void *buff, uint32_t x, uint32_t size)
