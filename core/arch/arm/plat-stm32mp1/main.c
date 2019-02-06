@@ -34,6 +34,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
 #endif
 
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, RCC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, PWR_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
