@@ -46,6 +46,7 @@ build:
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_VIRTUALIZATION=y
     - _make PLATFORM=stm-b2260
     - _make PLATFORM=stm-cannes
     - _make PLATFORM=stm32mp1
