@@ -444,6 +444,7 @@ void core_mmu_set_prtn(struct mmu_partition *prtn)
 
 	write_ttbr0_el1(ttbr | ((paddr_t)prtn->asid << TTBR_ASID_SHIFT));
 	isb();
+	tlbi_all();
 }
 
 void core_mmu_set_default_prtn(void)
