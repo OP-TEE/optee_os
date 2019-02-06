@@ -12,6 +12,9 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 ifeq ($(PLATFORM_FLAVOR),salvator_h3)
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 endif
+ifeq ($(PLATFORM_FLAVOR),salvator_h3_4x2g)
+$(call force,CFG_TEE_CORE_NB_CORE,8)
+endif
 ifeq ($(PLATFORM_FLAVOR),salvator_m3)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 endif
