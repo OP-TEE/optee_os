@@ -53,7 +53,7 @@ register_dynamic_shm(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 
 static void main_fiq(void);
 
-static const struct thread_handlers handlers = {
+static const struct thread_handlers handlers __nex_data = {
 	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
@@ -65,7 +65,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
-static struct scif_uart_data console_data;
+static struct scif_uart_data console_data __nex_bss;
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
