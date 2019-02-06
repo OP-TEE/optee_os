@@ -13,6 +13,7 @@
 
 /* SoC interface registers base address */
 #define GIC_BASE			0xa0021000ul
+#define PWR_BASE			0x50001000
 #define RCC_BASE			0x50000000
 #define TAMP_BASE			0x5c00a000
 #define UART1_BASE			0x5c000000
