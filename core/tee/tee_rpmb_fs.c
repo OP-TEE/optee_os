@@ -1117,8 +1117,13 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 			goto func_exit;
 		}
 
-		rpmb_ctx->max_blk_idx = (dev_info.rpmb_size_mult *
-					 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE) - 1;
+		if (MUL_OVERFLOW(dev_info.rpmb_size_mult,
+				 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE,
+				 &rpmb_ctx->max_blk_idx)) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto func_exit;
+		}
+		rpmb_ctx->max_blk_idx--;
 
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
 
@@ -1192,6 +1197,10 @@ static TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
 
+	if (len + byte_offset + RPMB_DATA_SIZE < RPMB_DATA_SIZE) {
+		/* Overflow */
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
 	blkcnt =
 	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
 	res = tee_rpmb_init(dev_id);
@@ -2049,8 +2058,14 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 	if (fh->fat_entry.flags & FILE_IS_LAST_ENTRY)
 		panic("invalid last entry flag");
 
-	end = pos + size;
-	start_addr = fh->fat_entry.start_address + pos;
+	if (ADD_OVERFLOW(pos, size, &end)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+	if (ADD_OVERFLOW(fh->fat_entry.start_address, pos, &start_addr)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	if (end <= fh->fat_entry.data_size &&
 	    tee_rpmb_write_is_atomic(CFG_RPMB_FS_DEV_ID, start_addr, size)) {
