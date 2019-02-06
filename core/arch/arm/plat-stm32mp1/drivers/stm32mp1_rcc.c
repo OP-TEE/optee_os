@@ -4,7 +4,6 @@
  */
 
 #include <drivers/stm32mp1_rcc.h>
-#include <io.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 

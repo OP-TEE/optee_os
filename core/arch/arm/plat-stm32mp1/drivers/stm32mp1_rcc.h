@@ -6,6 +6,7 @@
 #ifndef __STM32MP1_RCC_H__
 #define __STM32MP1_RCC_H__
 
+#include <io.h>
 #include <stdbool.h>
 #include <util.h>
 
@@ -240,7 +241,7 @@
 #define RCC_TZCR_TZEN			BIT(0)
 #define RCC_TZCR_MCKPROT		BIT(1)
 
-/* used for most of SELR registers */
+/* Used for most of RCC_<x>SELR registers */
 #define RCC_SELR_SRC_MASK		GENMASK_32(2, 0)
 #define RCC_SELR_REFCLK_SRC_MASK	GENMASK_32(1, 0)
 #define RCC_SELR_SRCRDY			BIT(31)
@@ -267,7 +268,7 @@
 #define RCC_CPERCKSELR_CSI		0x00000001
 #define RCC_CPERCKSELR_HSE		0x00000002
 
-/* used for most of DIVR register : max div for RTC */
+/* used for most of RCC_<x>DIVR registers: max div for RTC */
 #define RCC_DIVR_DIV_MASK		GENMASK_32(5, 0)
 #define RCC_DIVR_DIVRDY			BIT(31)
 
@@ -276,6 +277,9 @@
 #define RCC_MPUDIV_MASK			GENMASK_32(2, 0)
 #define RCC_AXIDIV_MASK			GENMASK_32(2, 0)
 #define RCC_MCUDIV_MASK			GENMASK_32(3, 0)
+
+/* Used for TIMER Prescaler */
+#define RCC_TIMGXPRER_TIMGXPRE		BIT(0)
 
 /* Offset between RCC_MP_xxxENSETR and RCC_MP_xxxENCLRR registers */
 #define RCC_MP_ENCLRR_OFFSET		4u
@@ -297,7 +301,7 @@
 #define RCC_RDLSICR_LSION		BIT(0)
 #define RCC_RDLSICR_LSIRDY		BIT(1)
 
-/* used for ALL PLLNCR registers */
+/* Used for all RCC_PLL<n>CR registers */
 #define RCC_PLLNCR_PLLON		BIT(0)
 #define RCC_PLLNCR_PLLRDY		BIT(1)
 #define RCC_PLLNCR_SSCG_CTRL		BIT(2)
@@ -306,16 +310,16 @@
 #define RCC_PLLNCR_DIVREN		BIT(6)
 #define RCC_PLLNCR_DIVEN_SHIFT		4
 
-/* used for ALL PLLNCFGR1 registers */
+/* Used for all RCC_PLL<n>CFGR1 registers */
 #define RCC_PLLNCFGR1_DIVM_SHIFT	16
 #define RCC_PLLNCFGR1_DIVM_MASK		GENMASK_32(21, 16)
 #define RCC_PLLNCFGR1_DIVN_SHIFT	0
 #define RCC_PLLNCFGR1_DIVN_MASK		GENMASK_32(8, 0)
-/* only for PLL3 and PLL4 */
+/* Only for PLL3 and PLL4 */
 #define RCC_PLLNCFGR1_IFRGE_SHIFT	24
 #define RCC_PLLNCFGR1_IFRGE_MASK	GENMASK_32(25, 24)
 
-/* used for ALL PLLNCFGR2 registers */
+/* Used for all RCC_PLL<n>CFGR2 registers */
 #define RCC_PLLNCFGR2_DIVX_MASK		GENMASK_32(6, 0)
 #define RCC_PLLNCFGR2_DIVP_SHIFT	0
 #define RCC_PLLNCFGR2_DIVP_MASK		GENMASK_32(6, 0)
@@ -324,12 +328,12 @@
 #define RCC_PLLNCFGR2_DIVR_SHIFT	16
 #define RCC_PLLNCFGR2_DIVR_MASK		GENMASK_32(22, 16)
 
-/* used for ALL PLLNFRACR registers */
+/* Used for all RCC_PLL<n>FRACR registers */
 #define RCC_PLLNFRACR_FRACV_SHIFT	3
 #define RCC_PLLNFRACR_FRACV_MASK	GENMASK_32(15, 3)
 #define RCC_PLLNFRACR_FRACLE		BIT(16)
 
-/* used for ALL PLLNCSGR registers */
+/* Used for all RCC_PLL<n>CSGR registers */
 #define RCC_PLLNCSGR_INC_STEP_SHIFT	16
 #define RCC_PLLNCSGR_INC_STEP_MASK	GENMASK_32(30, 16)
 #define RCC_PLLNCSGR_MOD_PER_SHIFT	0
@@ -337,7 +341,7 @@
 #define RCC_PLLNCSGR_SSCG_MODE_SHIFT	15
 #define RCC_PLLNCSGR_SSCG_MODE_MASK	BIT(15)
 
-/* used for RCC_OCENSETR and RCC_OCENCLRR registers */
+/* Used for RCC_OCENSETR and RCC_OCENCLRR registers */
 #define RCC_OCENR_HSION			BIT(0)
 #define RCC_OCENR_HSIKERON		BIT(1)
 #define RCC_OCENR_CSION			BIT(4)
@@ -354,7 +358,7 @@
 #define RCC_OCRDYR_CSIRDY		BIT(4)
 #define RCC_OCRDYR_HSERDY		BIT(8)
 
-/* Fields of DDRITFCR register */
+/* Fields of RCC_DDRITFCR register */
 #define RCC_DDRITFCR_DDRC1EN		BIT(0)
 #define RCC_DDRITFCR_DDRC1LPEN		BIT(1)
 #define RCC_DDRITFCR_DDRC2EN		BIT(2)
@@ -381,8 +385,18 @@
 
 /* Fields of RCC_HSICFGR register */
 #define RCC_HSICFGR_HSIDIV_MASK		GENMASK_32(1, 0)
+#define RCC_HSICFGR_HSITRIM_SHIFT	8
+#define RCC_HSICFGR_HSITRIM_MASK	GENMASK_32(14, 8)
+#define RCC_HSICFGR_HSICAL_SHIFT	16
+#define RCC_HSICFGR_HSICAL_MASK		GENMASK_32(27, 16)
 
-/* used for MCO related operations */
+/* Fields of RCC_CSICFGR register */
+#define RCC_CSICFGR_CSITRIM_SHIFT	8
+#define RCC_CSICFGR_CSITRIM_MASK	GENMASK_32(12, 8)
+#define RCC_CSICFGR_CSICAL_SHIFT	16
+#define RCC_CSICFGR_CSICAL_MASK		GENMASK_32(23, 16)
+
+/* Used for RCC_MCO related operations */
 #define RCC_MCOCFG_MCOON		BIT(12)
 #define RCC_MCOCFG_MCODIV_MASK		GENMASK_32(7, 4)
 #define RCC_MCOCFG_MCODIV_SHIFT		4
@@ -411,8 +425,6 @@
 #define RCC_MP_GRSTCSETR_MPUP1RST	BIT(5)
 
 /* Clock Source Interrupt Flag Register */
-#define RCC_MP_CIFR_MASK		(BIT(20) | BIT(16) | \
-					 GENMASK_32(11, 8) | GENMASK_32(4, 0))
 #define RCC_MP_CIFR_LSIRDYF		BIT(0)
 #define RCC_MP_CIFR_LSERDYF		BIT(1)
 #define RCC_MP_CIFR_HSIRDYF		BIT(2)
@@ -424,6 +436,12 @@
 #define RCC_MP_CIFR_PLL4DYF		BIT(11)
 #define RCC_MP_CIFR_LSECSSF		BIT(16)
 #define RCC_MP_CIFR_WKUPF		BIT(20)
+#define RCC_MP_CIFR_MASK	(RCC_MP_CIFR_LSIRDYF | RCC_MP_CIFR_LSERDYF | \
+				 RCC_MP_CIFR_HSIRDYF | RCC_MP_CIFR_HSERDYF | \
+				 RCC_MP_CIFR_CSIRDYF | RCC_MP_CIFR_PLL1DYF | \
+				 RCC_MP_CIFR_PLL2DYF | RCC_MP_CIFR_PLL3DYF | \
+				 RCC_MP_CIFR_PLL4DYF | RCC_MP_CIFR_LSECSSF | \
+				 RCC_MP_CIFR_WKUPF)
 
 /* Stop Request Set Register */
 #define RCC_MP_SREQSETR_STPREQ_P0	BIT(0)
@@ -514,8 +532,16 @@
 
 #ifndef ASM
 uintptr_t stm32_rcc_base(void);
-void stm32_rcc_secure(int enable);
-bool stm32_rcc_is_secure(void);
-#endif
+
+static inline bool stm32_rcc_is_secure(void)
+{
+	return read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_TZEN;
+}
+
+static inline bool stm32_rcc_is_mckprot(void)
+{
+	return read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
+}
+#endif /*ASM*/
 
 #endif /*__STM32MP1_RCC_H__*/
