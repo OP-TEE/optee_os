@@ -213,8 +213,6 @@ static inline TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj __unused)
 
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
 
-struct mobj *mobj_paged_alloc(size_t size);
-
 #ifdef CFG_PAGED_USER_TA
 bool mobj_is_paged(struct mobj *mobj);
 #else
