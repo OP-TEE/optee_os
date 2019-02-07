@@ -276,7 +276,7 @@ TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 			goto err_rem_reg;
 		}
 
-		res = tee_pager_add_uta_area(utc, reg->va, fobj);
+		res = tee_pager_add_uta_area(utc, reg->va, fobj, prot);
 		fobj_put(fobj);
 		if (res)
 			goto err_rem_reg;

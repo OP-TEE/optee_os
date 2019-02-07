@@ -108,11 +108,11 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
  */
 #ifdef CFG_PAGED_USER_TA
 TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-				  struct fobj *fobj);
+				  struct fobj *fobj, uint32_t prot);
 #else
 static inline TEE_Result
 tee_pager_add_uta_area(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
-		       struct fobj *fobj __unused)
+		       struct fobj *fobj __unused, uint32_t prot __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
