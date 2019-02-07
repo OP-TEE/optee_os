@@ -69,7 +69,7 @@ void pgt_init(void)
 	for (n = 0; n < PGT_CACHE_SIZE; n++) {
 		struct pgt *p = pgt_entries + n;
 
-		p->tbl = tee_pager_alloc(PGT_SIZE, TEE_MATTR_LOCKED);
+		p->tbl = tee_pager_alloc(PGT_SIZE);
 		SLIST_INSERT_HEAD(&pgt_free_list, p, link);
 	}
 }
@@ -83,8 +83,7 @@ void pgt_init(void)
 	COMPILE_TIME_ASSERT(PGT_SIZE * PGT_NUM_PGT_PER_PAGE == SMALL_PAGE_SIZE);
 
 	for (n = 0; n < ARRAY_SIZE(pgt_parents); n++) {
-		uint8_t *tbl = tee_pager_alloc(SMALL_PAGE_SIZE,
-					       TEE_MATTR_LOCKED);
+		uint8_t *tbl = tee_pager_alloc(SMALL_PAGE_SIZE);
 
 		SLIST_INIT(&pgt_parents[n].pgt_cache);
 		for (m = 0; m < PGT_NUM_PGT_PER_PAGE; m++) {

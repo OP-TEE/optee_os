@@ -57,8 +57,7 @@ static void *get_tmp_block(void)
 {
 	assert(!ree_fs_tmp_block_busy);
 	if (!ree_fs_tmp_block)
-		ree_fs_tmp_block = tee_pager_alloc(BLOCK_SIZE,
-						   TEE_MATTR_LOCKED);
+		ree_fs_tmp_block = tee_pager_alloc(BLOCK_SIZE);
 
 	if (ree_fs_tmp_block)
 		ree_fs_tmp_block_busy = true;
