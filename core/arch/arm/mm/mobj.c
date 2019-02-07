@@ -453,23 +453,6 @@ static void mobj_seccpy_shm_free(struct mobj *mobj)
 	free(m);
 }
 
-static void mobj_seccpy_shm_update_mapping(struct mobj *mobj,
-					struct user_ta_ctx *utc, vaddr_t va)
-{
-	struct thread_specific_data *tsd = thread_get_tsd();
-	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
-	size_t s;
-
-	if (utc == m->utc && va == m->va)
-		return;
-
-	s = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
-	pgt_transfer(&tsd->pgt_cache, &m->utc->ctx, m->va, &utc->ctx, va, s);
-
-	m->va = va;
-	m->utc = utc;
-}
-
 static struct fobj *mobj_seccpy_shm_get_fobj(struct mobj *mobj)
 {
 	return fobj_get(to_mobj_seccpy_shm(mobj)->fobj);
@@ -479,7 +462,6 @@ static const struct mobj_ops mobj_seccpy_shm_ops __rodata_unpaged = {
 	.get_va = mobj_seccpy_shm_get_va,
 	.matches = mobj_seccpy_shm_matches,
 	.free = mobj_seccpy_shm_free,
-	.update_mapping = mobj_seccpy_shm_update_mapping,
 	.get_fobj = mobj_seccpy_shm_get_fobj,
 };
 

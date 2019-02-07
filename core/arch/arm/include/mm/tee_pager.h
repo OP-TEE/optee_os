@@ -145,8 +145,17 @@ void tee_pager_transfer_uta_region(struct user_ta_ctx *src_utc,
 				   struct user_ta_ctx *dst_utc,
 				   vaddr_t dst_base, struct pgt **dst_pgt,
 				   size_t size);
+
+#ifdef CFG_PAGED_USER_TA
 void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
 			      size_t size);
+#else
+static inline void tee_pager_rem_uta_region(struct user_ta_ctx *utc __unused,
+					    vaddr_t base __unused,
+					    size_t size __unused)
+{
+}
+#endif
 
 /*
  * tee_pager_rem_uta_areas() - Remove all user ta areas

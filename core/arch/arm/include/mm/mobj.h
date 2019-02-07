@@ -27,8 +27,6 @@ struct mobj_ops {
 	TEE_Result (*get_cattr)(struct mobj *mobj, uint32_t *cattr);
 	bool (*matches)(struct mobj *mobj, enum buf_is_attr attr);
 	void (*free)(struct mobj *mobj);
-	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
-			       vaddr_t va);
 	uint64_t (*get_cookie)(struct mobj *mobj);
 	struct fobj *(*get_fobj)(struct mobj *mobj);
 };
@@ -77,13 +75,6 @@ static inline void mobj_free(struct mobj *mobj)
 {
 	if (mobj && mobj->ops && mobj->ops->free)
 		mobj->ops->free(mobj);
-}
-
-static inline void mobj_update_mapping(struct mobj *mobj,
-				       struct user_ta_ctx *utc, vaddr_t va)
-{
-	if (mobj && mobj->ops && mobj->ops->update_mapping)
-		mobj->ops->update_mapping(mobj, utc, va);
 }
 
 static inline uint64_t mobj_get_cookie(struct mobj *mobj)
