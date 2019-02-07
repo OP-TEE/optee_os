@@ -875,14 +875,16 @@ static void init_handlers(const struct thread_handlers *handlers)
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)
 {
-	size_t n;
+	size_t n = 0;
 
 	/*
 	 * Allocate virtual memory for thread stacks.
 	 */
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		tee_mm_entry_t *mm;
-		vaddr_t sp;
+		tee_mm_entry_t *mm = NULL;
+		vaddr_t sp = 0;
+		size_t num_pages = 0;
+		struct fobj *fobj = NULL;
 
 		/* Find vmem for thread stack and its protection gap */
 		mm = tee_mm_alloc(&tee_mm_vcore,
@@ -893,11 +895,13 @@ static void init_thread_stacks(void)
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
 				    true);
 
+		num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE - 1;
+		fobj = fobj_locked_paged_alloc(num_pages);
+
 		/* Add the area to the pager */
 		tee_pager_add_core_area(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
-					tee_mm_get_bytes(mm) - SMALL_PAGE_SIZE,
-					TEE_MATTR_PRW | TEE_MATTR_LOCKED,
-					NULL, NULL);
+					PAGER_AREA_TYPE_LOCK, fobj);
+		fobj_put(fobj);
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);

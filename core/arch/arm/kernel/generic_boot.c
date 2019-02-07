@@ -20,6 +20,7 @@
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/fobj.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
@@ -334,9 +335,10 @@ static void init_runtime(unsigned long pageable_part)
 	size_t pageable_size = __pageable_end - __pageable_start;
 	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
-	tee_mm_entry_t *mm;
-	uint8_t *paged_store;
-	uint8_t *hashes;
+	tee_mm_entry_t *mm = NULL;
+	struct fobj *fobj = NULL;
+	uint8_t *paged_store = NULL;
+	uint8_t *hashes = NULL;
 
 	assert(pageable_size % SMALL_PAGE_SIZE == 0);
 	assert(hash_size == (size_t)__tmp_hashes_size);
@@ -435,8 +437,11 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
 	assert(mm);
-	tee_pager_add_core_area(tee_mm_get_smem(mm), tee_mm_get_bytes(mm),
-				TEE_MATTR_PRX, paged_store, hashes);
+	fobj = fobj_ro_paged_alloc(tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE,
+				   hashes, paged_store);
+	assert(fobj);
+	tee_pager_add_core_area(tee_mm_get_smem(mm), PAGER_AREA_TYPE_RO, fobj);
+	fobj_put(fobj);
 
 	tee_pager_add_pages((vaddr_t)__pageable_start,
 			init_size / SMALL_PAGE_SIZE, false);
