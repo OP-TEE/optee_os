@@ -49,6 +49,12 @@ static TEE_Result secstor_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result secstor_ta_get_tag(const struct user_ta_store_handle *h,
+				     uint8_t *tag, unsigned int *tag_len)
+{
+	return tee_tadb_get_tag((struct tee_tadb_ta_read *)h, tag, tag_len);
+}
+
 static TEE_Result secstor_ta_read(struct user_ta_store_handle *h, void *data,
 				  size_t len)
 {
@@ -75,6 +81,7 @@ TEE_TA_REGISTER_TA_STORE(4) = {
 	.description = "Secure Storage TA",
 	.open = secstor_ta_open,
 	.get_size = secstor_ta_get_size,
+	.get_tag = secstor_ta_get_tag,
 	.read = secstor_ta_read,
 	.close = secstor_ta_close,
 };

@@ -198,6 +198,22 @@ static TEE_Result ree_fs_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result ree_fs_ta_get_tag(const struct user_ta_store_handle *h,
+				    uint8_t *tag, unsigned int *tag_len)
+{
+	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
+
+	if (!tag || *tag_len < handle->shdr->hash_size) {
+		*tag_len = handle->shdr->hash_size;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*tag_len = handle->shdr->hash_size;
+
+	memcpy(tag, SHDR_GET_HASH(handle->shdr), handle->shdr->hash_size);
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 {
 	void *digest = NULL;
@@ -265,6 +281,7 @@ TEE_TA_REGISTER_TA_STORE(9) = {
 	.description = "REE",
 	.open = ree_fs_ta_open,
 	.get_size = ree_fs_ta_get_size,
+	.get_tag = ta_get_tag,
 	.read = ree_fs_ta_read,
 	.close = ree_fs_ta_close,
 };
@@ -285,6 +302,8 @@ struct buf_ree_fs_ta_handle {
 	tee_mm_entry_t *mm;
 	uint8_t *buf;
 	size_t offs;
+	uint8_t *tag;
+	unsigned int tag_len;
 };
 
 static TEE_Result buf_ta_open(const TEE_UUID *uuid,
@@ -302,6 +321,21 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	res = ree_fs_ta_get_size(handle->h, &handle->ta_size);
 	if (res)
 		goto err;
+
+	res = ree_fs_ta_get_tag(handle->h, NULL, &handle->tag_len);
+	if (res != TEE_ERROR_SHORT_BUFFER) {
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+	handle->tag = malloc(handle->tag_len);
+	if (!handle->tag) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	res = ree_fs_ta_get_tag(handle->h, handle->tag, &handle->tag_len);
+	if (res)
+		goto err;
+
 	handle->mm = tee_mm_alloc(&tee_mm_sec_ddr, handle->ta_size);
 	if (!handle->mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -322,6 +356,7 @@ err:
 err2:
 	if (res) {
 		tee_mm_free(handle->mm);
+		free(handle->tag);
 		free(handle);
 	}
 	return res;
@@ -350,6 +385,20 @@ static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result buf_ta_get_tag(const struct user_ta_store_handle *h,
+				 uint8_t *tag, unsigned int *tag_len)
+{
+	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
+
+	*tag_len = handle->tag_len;
+	if (!tag || *tag_len < handle->tag_len)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	memcpy(tag, handle->tag, handle->tag_len);
+
+	return TEE_SUCCESS;
+}
+
 static void buf_ta_close(struct user_ta_store_handle *h)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
@@ -357,6 +406,7 @@ static void buf_ta_close(struct user_ta_store_handle *h)
 	if (!handle)
 		return;
 	tee_mm_free(handle->mm);
+	free(handle->tag);
 	free(handle);
 }
 
@@ -364,6 +414,7 @@ TEE_TA_REGISTER_TA_STORE(9) = {
 	.description = "REE [buffered]",
 	.open = buf_ta_open,
 	.get_size = buf_ta_get_size,
+	.get_tag = buf_ta_get_tag,
 	.read = buf_ta_read,
 	.close = buf_ta_close,
 };
