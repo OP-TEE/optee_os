@@ -2,15 +2,18 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#include <types_ext.h>
-#include <tee_api_types.h>
-#include <tee_api_defines.h>
 #include <kernel/tee_misc.h>
 #include <kernel/user_ta.h>
+#include <mm/core_mmu.h>
+#include <mm/file.h>
+#include <mm/fobj.h>
 #include <stdlib.h>
 #include <string.h>
-#include <util.h>
+#include <tee_api_defines.h>
+#include <tee_api_types.h>
 #include <trace.h>
+#include <types_ext.h>
+#include <util.h>
 #include "elf_common.h"
 #include "elf_load.h"
 #include "elf_load_dyn.h"
@@ -92,6 +95,8 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
+	uint8_t tag[FILE_TAG_SIZE] = { 0 };
+	unsigned int tag_size = sizeof(tag);
 	TEE_Result res;
 
 	state = calloc(1, sizeof(*state));
@@ -104,13 +109,24 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 	state->ta_store = ta_store;
 	state->ta_handle = ta_handle;
 	res = ta_store->get_size(ta_handle, &state->data_len);
-	if (res != TEE_SUCCESS) {
-		free(state);
-		return res;
-	}
+	if (res)
+		goto err;
+
+	res = ta_store->get_tag(ta_handle, tag, &tag_size);
+	if (res)
+		goto err;
+	state->file = file_get_by_tag(tag, tag_size);
 
 	*ret_state = state;
+	return TEE_SUCCESS;
+err:
+	free(state);
 	return res;
+}
+
+struct file *elf_load_get_file(struct elf_load_state *state)
+{
+	return file_get(state->file);
 }
 
 static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr,
@@ -567,11 +583,12 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 	/*
 	 * Copy the segments
 	 */
-	if (state->ta_head_size) {
+	if (state->ta_head_size && !file_find_slice(state->file, 0)) {
 		memcpy(dst, state->ta_head, state->ta_head_size);
 		offs = state->ta_head_size;
 	}
 	for (n = 0; n < ehdr.e_phnum; n++) {
+		struct file_slice *fs = NULL;
 		struct elf_phdr phdr;
 
 		copy_phdr(&phdr, state, n);
@@ -597,12 +614,27 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 			offs += e_p_hdr_sz;
 			e_p_hdr_sz = 0;
 		}
-		res = copy_to(state, dst, state->vasize,
-			      phdr.p_vaddr + offs,
-			      phdr.p_offset + offs,
-			      phdr.p_filesz - offs);
-		if (res != TEE_SUCCESS)
-			return res;
+
+		fs = file_find_slice(state->file,
+				     phdr.p_vaddr / SMALL_PAGE_SIZE);
+		if (fs) {
+			/*
+			 * If we've found a fobj in state->file it has to
+			 * cover the segment we would have loaded.
+			 */
+			unsigned int remain_pages = fs->fobj->num_pages;
+
+			remain_pages -= phdr.p_vaddr / SMALL_PAGE_SIZE;
+			remain_pages += fs->page_offset;
+			assert(remain_pages >= phdr.p_filesz / SMALL_PAGE_SIZE);
+		} else {
+			res = copy_to(state, dst, state->vasize,
+				      phdr.p_vaddr + offs,
+				      phdr.p_offset + offs,
+				      phdr.p_filesz - offs);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
 		offs = 0;
 	}
 
@@ -664,6 +696,7 @@ TEE_Result elf_process_rel(struct elf_load_state *state, vaddr_t vabase)
 void elf_load_final(struct elf_load_state *state)
 {
 	if (state) {
+		file_put(state->file);
 		free(state->ta_head);
 		free(state->ehdr);
 		free(state->phdr);

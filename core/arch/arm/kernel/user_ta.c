@@ -17,6 +17,7 @@
 #include <kernel/user_ta.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/file.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
@@ -59,6 +60,7 @@ struct user_ta_elf {
 	size_t exidx_size;
 	struct load_seg *segs;
 	size_t num_segs;
+	struct file *file;
 
 	TAILQ_ENTRY(user_ta_elf) link;
 };
@@ -80,6 +82,7 @@ static void free_elfs(struct user_ta_elf_head *elfs)
 	TAILQ_FOREACH_SAFE(elf, elfs, link, next) {
 		TAILQ_REMOVE(elfs, elf, link);
 		free_segs(elf->segs, elf->num_segs);
+		file_put(elf->file);
 		free(elf);
 	}
 }
@@ -217,6 +220,39 @@ static struct mobj *alloc_ta_mem(size_t size)
 
 	fobj_put(fobj);
 	return mobj;
+}
+
+static TEE_Result find_ta_mem(struct file *file, unsigned int page_offset,
+			      struct mobj **mobj)
+{
+	/*
+	 * Note that we're not calling fobj_get() or fobj_put() directly in
+	 * this function. Since file currently exists all its fobjs are
+	 * also guaranteed to exist here.
+	 *
+	 * If mobj_with_fobj_alloc() succeeds it will call fobj_get()
+	 * internally to guarantee that the fobj is available during the
+	 * life time of the mobj.
+	 */
+	struct file_slice *fs = file_find_slice(file, page_offset);
+
+	*mobj = NULL;
+	/* Not finding a fobj is OK, the caller will allocate a new instead */
+	if (!fs)
+		return TEE_SUCCESS;
+	/*
+	 * If a fobj is found it has to match with the start or something is
+	 * wrong, besides we wouldn't be able to map it properly either.
+	 */
+	assert(fs->page_offset == page_offset); /* in case we're debugging */
+	if (fs->page_offset != page_offset)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*mobj = mobj_with_fobj_alloc(fs->fobj);
+	if (!*mobj)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	return TEE_SUCCESS;
 }
 
 static void init_utee_param(struct utee_params *up,
@@ -712,6 +748,65 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 
 #endif
 
+static TEE_Result register_ro_slices(struct user_ta_ctx *utc,
+				     struct file **file,
+				     const struct user_ta_store_ops *ta_store,
+				     struct user_ta_store_handle *handle,
+				     struct load_seg *segs, size_t num_segs)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct file *f = NULL;
+	struct file_slice *fs = NULL;
+	size_t num_slices = 0;
+	size_t n = 0;
+	uint8_t tag[FILE_TAG_SIZE] = { 0 };
+	unsigned int tag_len = sizeof(tag);
+
+	assert(!*file);
+
+	res = ta_store->get_tag(handle, tag, &tag_len);
+	if (res)
+		return res;
+
+	for (n = 0; n < num_segs; n++) {
+		if (!(segs[n].flags & PF_W)) {
+			res = vm_set_prot(utc, segs[n].va, segs[n].size,
+					  elf_flags_to_mattr(segs[n].flags));
+			if (res)
+				return res;
+			num_slices++;
+		}
+	}
+
+	fs = calloc(num_slices, sizeof(*fs));
+	if (!fs)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	num_slices = 0;
+	for (n = 0; n < num_segs; n++) {
+		if (!(segs[n].flags & PF_W)) {
+			fs[num_slices].fobj = mobj_get_fobj(segs[n].mobj);
+			fs[num_slices].page_offset = (segs[n].va - segs[0].va) /
+						     SMALL_PAGE_SIZE;
+			/*
+			 * The fobjs is guaranteed to exist now, and
+			 * file_new() will call fobj_get() on all supplied
+			 * fobjs later.
+			 */
+			fobj_put(fs[num_slices].fobj);
+			num_slices++;
+		}
+	}
+
+	f = file_new(tag, tag_len, fs, num_slices);
+	free(fs);
+	if (!f)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*file = f;
+	return TEE_SUCCESS;
+}
+
 #ifdef CFG_TA_ASLR
 static size_t aslr_offset(size_t min, size_t max)
 {
@@ -762,6 +857,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 {
 	struct user_ta_store_handle *handle = NULL;
 	struct elf_load_state *elf_state = NULL;
+	struct file *file = NULL;
 	struct ta_head *ta_head;
 	struct user_ta_elf *exe;
 	struct user_ta_elf *elf;
@@ -772,6 +868,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	size_t n;
 	size_t num_segs = 0;
 	struct load_seg *segs = NULL;
+	unsigned int next_page_offset = 0;
 
 	res = ta_store->open(uuid, &handle);
 	if (res)
@@ -802,6 +899,8 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	if (ta_head->depr_entry != UINT64_MAX) {
 		DMSG("Using decprecated TA entry via ta_head");
 		utc->entry_func = ta_head->depr_entry;
+	} else {
+		file = elf_load_get_file(elf_state);
 	}
 
 	if (elf == exe) {
@@ -848,8 +947,8 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	elf->load_addr = ROUNDUP(elf->load_addr, CORE_MMU_USER_CODE_SIZE);
 
 	for (n = 0; n < num_segs; n++) {
-		uint32_t prot = elf_flags_to_mattr(segs[n].flags) |
-				TEE_MATTR_PRW;
+		uint32_t prot = elf_flags_to_mattr(segs[n].flags);
+		size_t end_va = 0;
 
 		/*
 		 * The first segment has va == 0 and if elf->load_addr
@@ -858,10 +957,23 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		 * vm_map().
 		 */
 		segs[n].va += elf->load_addr;
-		segs[n].mobj = alloc_ta_mem(segs[n].size);
+		if (file) {
+			res = find_ta_mem(file, next_page_offset,
+					  &segs[n].mobj);
+			if (res)
+				goto out;
+			/*
+			 * Note that segs[n].mobj can still be NULL if
+			 * corresponding fobj isn't found.
+			 */
+		}
 		if (!segs[n].mobj) {
-			res = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+			segs[n].mobj = alloc_ta_mem(segs[n].size);
+			if (!segs[n].mobj) {
+				res = TEE_ERROR_OUT_OF_MEMORY;
+				goto out;
+			}
+			prot |= TEE_MATTR_PRW;
 		}
 		res = vm_map(utc, &segs[n].va, segs[n].size, prot,
 			     segs[n].mobj, 0);
@@ -871,6 +983,11 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 			elf->load_addr = segs[0].va;
 			DMSG("ELF load address %#" PRIxVA, elf->load_addr);
 		}
+
+		if (ADD_OVERFLOW(segs[n].va, segs[n].size, &end_va) ||
+		    end_va < elf->load_addr)
+			panic();
+		next_page_offset = (end_va - elf->load_addr) / SMALL_PAGE_SIZE;
 	}
 
 	tee_mmu_set_ctx(&utc->ctx);
@@ -879,12 +996,25 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	if (res)
 		goto out;
 
+	/*
+	 * Legacy TAs can't share read-only memory due to the way
+	 * relocation is updated.
+	 */
+	if (!file && ta_head->depr_entry == UINT64_MAX) {
+		res = register_ro_slices(utc, &file, ta_store, handle,
+					 segs, num_segs);
+		if (res)
+			goto out;
+	}
+
 	/* Find any external dependency (dynamically linked libraries) */
 	res = add_deps(utc, elf_state, elf->load_addr);
 out:
 	if (res) {
+		file_put(file);
 		free_segs(segs, num_segs);
 	} else {
+		elf->file = file;
 		elf->segs = segs;
 		elf->num_segs = num_segs;
 	}
