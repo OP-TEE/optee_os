@@ -7,6 +7,7 @@
 #include <initcall.h>
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
+#include <mm/tee_mm.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
@@ -18,7 +19,7 @@
 
 #include "elf_load.h"
 
-struct user_ta_store_handle {
+struct ree_fs_ta_handle {
 	struct shdr *nw_ta; /* Non-secure (shared memory) */
 	size_t nw_ta_size;
 	struct mobj *mobj;
@@ -78,10 +79,10 @@ exit:
 	return res;
 }
 
-static TEE_Result ta_open(const TEE_UUID *uuid,
-			  struct user_ta_store_handle **h)
+static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
+				 struct user_ta_store_handle **h)
 {
-	struct user_ta_store_handle *handle;
+	struct ree_fs_ta_handle *handle;
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
@@ -175,7 +176,7 @@ static TEE_Result ta_open(const TEE_UUID *uuid,
 	handle->hash_ctx = hash_ctx;
 	handle->shdr = shdr;
 	handle->mobj = mobj;
-	*h = handle;
+	*h = (struct user_ta_store_handle *)handle;
 	return TEE_SUCCESS;
 
 error_free_hash:
@@ -188,14 +189,16 @@ error:
 	return res;
 }
 
-static TEE_Result ta_get_size(const struct user_ta_store_handle *h,
-			      size_t *size)
+static TEE_Result ree_fs_ta_get_size(const struct user_ta_store_handle *h,
+				     size_t *size)
 {
-	*size = h->shdr->img_size;
+	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
+
+	*size = handle->shdr->img_size;
 	return TEE_SUCCESS;
 }
 
-static TEE_Result check_digest(struct user_ta_store_handle *h)
+static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 {
 	void *digest = NULL;
 	TEE_Result res;
@@ -204,7 +207,7 @@ static TEE_Result check_digest(struct user_ta_store_handle *h)
 	if (!digest)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = crypto_hash_final(h->hash_ctx, h->hash_algo, digest,
-				    h->shdr->hash_size);
+				h->shdr->hash_size);
 	if (res != TEE_SUCCESS) {
 		res = TEE_ERROR_SECURITY;
 		goto out;
@@ -216,47 +219,153 @@ out:
 	return res;
 }
 
-static TEE_Result ta_read(struct user_ta_store_handle *h, void *data,
-			  size_t len)
+static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
+				 size_t len)
 {
-	uint8_t *src = (uint8_t *)h->nw_ta + h->offs;
+	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
+
+	uint8_t *src = (uint8_t *)handle->nw_ta + handle->offs;
 	uint8_t *dst = src;
 	TEE_Result res;
 
-	if (h->offs + len > h->nw_ta_size)
+	if (handle->offs + len > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 	if (data) {
 		dst = data; /* Hash secure buffer (shm might be modified) */
 		memcpy(dst, src, len);
 	}
-	res = crypto_hash_update(h->hash_ctx, h->hash_algo, dst, len);
+	res = crypto_hash_update(handle->hash_ctx, handle->hash_algo, dst, len);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
-	h->offs += len;
-	if (h->offs == h->nw_ta_size) {
+	handle->offs += len;
+	if (handle->offs == handle->nw_ta_size) {
 		/*
 		 * Last read: time to check if our digest matches the expected
 		 * one (from the signed header)
 		 */
-		res = check_digest(h);
+		res = check_digest(handle);
 	}
 	return res;
 }
 
-static void ta_close(struct user_ta_store_handle *h)
+static void ree_fs_ta_close(struct user_ta_store_handle *h)
 {
-	if (!h)
+	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
+
+	if (!handle)
 		return;
-	thread_rpc_free_payload(h->mobj);
-	crypto_hash_free_ctx(h->hash_ctx, h->hash_algo);
-	free(h->shdr);
-	free(h);
+	thread_rpc_free_payload(handle->mobj);
+	crypto_hash_free_ctx(handle->hash_ctx, handle->hash_algo);
+	free(handle->shdr);
+	free(handle);
+}
+
+#ifndef CFG_REE_FS_TA_BUFFERED
+TEE_TA_REGISTER_TA_STORE(9) = {
+	.description = "REE",
+	.open = ree_fs_ta_open,
+	.get_size = ree_fs_ta_get_size,
+	.read = ree_fs_ta_read,
+	.close = ree_fs_ta_close,
+};
+#endif
+
+#ifdef CFG_REE_FS_TA_BUFFERED
+
+/*
+ * This is a wrapper around the "REE FS" TA store.
+ * The whole TA/library is read into a temporary buffer during .open(). This
+ * allows the binary to be authenticated before any data is read and processed
+ * by the upper layer (ELF loader).
+ */
+
+struct buf_ree_fs_ta_handle {
+	struct user_ta_store_handle *h; /* Note: a REE FS TA store handle */
+	size_t ta_size;
+	tee_mm_entry_t *mm;
+	uint8_t *buf;
+	size_t offs;
+};
+
+static TEE_Result buf_ta_open(const TEE_UUID *uuid,
+			      struct user_ta_store_handle **h)
+{
+	struct buf_ree_fs_ta_handle *handle = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	handle = calloc(1, sizeof(*handle));
+	if (!handle)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = ree_fs_ta_open(uuid, &handle->h);
+	if (res)
+		goto err2;
+	res = ree_fs_ta_get_size(handle->h, &handle->ta_size);
+	if (res)
+		goto err;
+	handle->mm = tee_mm_alloc(&tee_mm_sec_ddr, handle->ta_size);
+	if (!handle->mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	handle->buf = phys_to_virt(tee_mm_get_smem(handle->mm),
+				   MEM_AREA_TA_RAM);
+	if (!handle->buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	res = ree_fs_ta_read(handle->h, handle->buf, handle->ta_size);
+	if (res)
+		goto err;
+	*h = (struct user_ta_store_handle *)handle;
+err:
+	ree_fs_ta_close(handle->h);
+err2:
+	if (res) {
+		tee_mm_free(handle->mm);
+		free(handle);
+	}
+	return res;
+}
+
+static TEE_Result buf_ta_get_size(const struct user_ta_store_handle *h,
+				  size_t *size)
+{
+	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
+
+	*size = handle->ta_size;
+	return TEE_SUCCESS;
+}
+
+static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
+			      size_t len)
+{
+	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
+	uint8_t *src = handle->buf + handle->offs;
+
+	if (handle->offs + len > handle->ta_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (data)
+		memcpy(data, src, len);
+	handle->offs += len;
+	return TEE_SUCCESS;
+}
+
+static void buf_ta_close(struct user_ta_store_handle *h)
+{
+	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
+
+	if (!handle)
+		return;
+	tee_mm_free(handle->mm);
+	free(handle);
 }
 
 TEE_TA_REGISTER_TA_STORE(9) = {
-	.description = "REE",
-	.open = ta_open,
-	.get_size = ta_get_size,
-	.read = ta_read,
-	.close = ta_close,
+	.description = "REE [buffered]",
+	.open = buf_ta_open,
+	.get_size = buf_ta_get_size,
+	.read = buf_ta_read,
+	.close = buf_ta_close,
 };
+
+#endif /* CFG_REE_FS_TA_BUFFERED */
