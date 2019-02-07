@@ -208,6 +208,16 @@ CFG_WITH_USER_TA ?= y
 # Load user TAs from the REE filesystem via tee-supplicant
 CFG_REE_FS_TA ?= y
 
+# Pre-authentication of TA binaries loaded from the REE filesystem
+#
+# - If CFG_REE_FS_TA_BUFFERED=y: load TA binary into a temporary buffer in the
+#   "Secure DDR" pool, check the signature, then process the file only if it is
+#   valid.
+# - If disabled: hash the binaries as they are being processed and verify the
+#   signature as a last step.
+CFG_REE_FS_TA_BUFFERED ?= $(CFG_REE_FS_TA)
+$(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
+
 # Support for loading user TAs from a special section in the TEE binary.
 # Such TAs are available even before tee-supplicant is available (hence their
 # name), but note that many services exported to TAs may need tee-supplicant,
