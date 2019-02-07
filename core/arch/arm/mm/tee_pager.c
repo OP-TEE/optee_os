@@ -992,9 +992,6 @@ static bool tee_pager_unhide_page(vaddr_t page_va)
 			else
 				FMSG("Unhide %#" PRIxVA, page_va);
 
-			if (page_va == 0x8000a000)
-				FMSG("unhide %#" PRIxVA " a %#" PRIX32,
-					page_va, a);
 			area_set_entry(pmem->area, pmem->pgidx, pa, a);
 			/*
 			 * Note that TLB invalidation isn't needed since
