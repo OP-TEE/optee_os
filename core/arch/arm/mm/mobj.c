@@ -560,7 +560,13 @@ static bool mobj_with_fobj_matches(struct mobj *mobj __maybe_unused,
 {
 	assert(to_mobj_with_fobj(mobj));
 
-	return attr == CORE_MEM_SEC || attr == CORE_MEM_TEE_RAM;
+	/*
+	 * All fobjs are supposed to be mapped secure so classify it as
+	 * CORE_MEM_SEC. Stay out of CORE_MEM_TEE_RAM etc, if that information
+	 * needed it can probably be carried in another way than to put the
+	 * burden directly on fobj.
+	 */
+	return attr == CORE_MEM_SEC;
 }
 
 static void mobj_with_fobj_free(struct mobj *mobj)
@@ -576,17 +582,61 @@ static struct fobj *mobj_with_fobj_get_fobj(struct mobj *mobj)
 	return fobj_get(to_mobj_with_fobj(mobj)->fobj);
 }
 
+static TEE_Result mobj_with_fobj_get_cattr(struct mobj *mobj __unused,
+					   uint32_t *cattr)
+{
+	if (!cattr)
+		return TEE_ERROR_GENERIC;
+
+	/* All fobjs are mapped as normal cached memory */
+	*cattr = TEE_MATTR_CACHE_CACHED;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result mobj_with_fobj_get_pa(struct mobj *mobj, size_t offs,
+					size_t granule, paddr_t *pa)
+{
+	struct mobj_with_fobj *f = to_mobj_with_fobj(mobj);
+	paddr_t p = 0;
+
+	if (!f->fobj->ops->get_pa)
+		return TEE_ERROR_GENERIC;
+
+	p = f->fobj->ops->get_pa(f->fobj, offs / SMALL_PAGE_SIZE) +
+	    offs % SMALL_PAGE_SIZE;
+
+	if (granule) {
+		if (granule != SMALL_PAGE_SIZE &&
+		    granule != CORE_MMU_PGDIR_SIZE)
+			return TEE_ERROR_GENERIC;
+		p &= ~(granule - 1);
+	}
+
+	*pa = p;
+
+	return TEE_SUCCESS;
+}
+
 static const struct mobj_ops mobj_with_fobj_ops __rodata_unpaged = {
 	.matches = mobj_with_fobj_matches,
 	.free = mobj_with_fobj_free,
 	.get_fobj = mobj_with_fobj_get_fobj,
+	.get_cattr = mobj_with_fobj_get_cattr,
+	.get_pa = mobj_with_fobj_get_pa,
 };
 
 #ifdef CFG_PAGED_USER_TA
 bool mobj_is_paged(struct mobj *mobj)
 {
-	return mobj->ops == &mobj_seccpy_shm_ops ||
-	       mobj->ops == &mobj_with_fobj_ops;
+	if (mobj->ops == &mobj_seccpy_shm_ops)
+		return true;
+
+	if (mobj->ops == &mobj_with_fobj_ops &&
+	    !to_mobj_with_fobj(mobj)->fobj->ops->get_pa)
+		return true;
+
+	return false;
 }
 #endif /*CFG_PAGED_USER_TA*/
 
