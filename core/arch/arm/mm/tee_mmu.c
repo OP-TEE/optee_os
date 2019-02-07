@@ -270,10 +270,17 @@ TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 
 	if (!(reg->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT)) &&
 	    mobj_is_paged(mobj)) {
-		if (!tee_pager_add_uta_area(utc, reg->va, reg->size)) {
+		struct fobj *fobj = mobj_get_fobj(mobj);
+
+		if (!fobj) {
 			res = TEE_ERROR_GENERIC;
 			goto err_rem_reg;
 		}
+
+		res = tee_pager_add_uta_area(utc, reg->va, fobj);
+		fobj_put(fobj);
+		if (res)
+			goto err_rem_reg;
 	}
 
 	/*

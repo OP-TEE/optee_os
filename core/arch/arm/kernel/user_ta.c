@@ -17,6 +17,7 @@
 #include <kernel/user_ta.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mm.h>
@@ -211,7 +212,12 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 static struct mobj *alloc_ta_mem(size_t size)
 {
 #ifdef CFG_PAGED_USER_TA
-	return mobj_paged_alloc(size);
+	size_t num_pgs = ROUNDUP(size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	struct fobj *fobj = fobj_rw_paged_alloc(num_pgs);
+	struct mobj *mobj = mobj_with_fobj_alloc(fobj);
+
+	fobj_put(fobj);
+	return mobj;
 #else
 	struct mobj *mobj = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
 

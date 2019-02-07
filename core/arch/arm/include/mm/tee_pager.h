@@ -87,22 +87,23 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
  * tee_pager_add_uta_area() - Adds a pageable user ta area
  * @utc:	user ta context of the area
  * @base:	base of covered memory area
- * @size:	size of covered memory area
+ * @fobj:	fobj of the store backing the memory area
  *
  * The mapping is created suitable to initialize the memory content while
  * loading the TA. Once the TA is properly loaded the areas should be
  * finalized with tee_pager_set_uta_area_attr() to get more strict settings.
  *
- * Return true on success of false if the area can't be added
+ * Return TEE_SUCCESS on success, anything else if the area can't be added
  */
 #ifdef CFG_PAGED_USER_TA
-bool tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base, size_t size);
+TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
+				  struct fobj *fobj);
 #else
-static inline bool tee_pager_add_uta_area(struct user_ta_ctx *utc __unused,
-					  vaddr_t base __unused,
-					  size_t size __unused)
+static inline TEE_Result
+tee_pager_add_uta_area(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
+		       struct fobj *fobj __unused)
 {
-	return false;
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
 
