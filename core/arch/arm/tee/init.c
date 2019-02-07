@@ -9,8 +9,8 @@
 #include <kernel/time_source.h>
 #include <malloc.h>		/* required for inits */
 #include <mm/core_memprot.h>
+#include <mm/fobj.h>
 #include <mm/tee_mmu.h>
-#include <mm/tee_pager.h>
 #include <sm/tee_mon.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_svc.h>
@@ -67,7 +67,7 @@ TEE_Result __weak init_teecore(void)
 	 * Now that RNG is initialized generate the key needed for r/w
 	 * paging.
 	 */
-	tee_pager_generate_authenc_key();
+	fobj_generate_authenc_key();
 
 	IMSG("Initialized");
 	return TEE_SUCCESS;

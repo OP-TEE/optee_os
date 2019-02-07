@@ -1,4 +1,5 @@
 subdirs-y += kernel
+subdirs-y += mm
 subdirs-y += crypto
 subdirs-y += tee
 subdirs-y += drivers
