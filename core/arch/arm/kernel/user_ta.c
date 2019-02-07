@@ -332,6 +332,12 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	/* Copy out value results */
 	update_from_utee_param(param, usr_params);
 
+	/*
+	 * Clear out the parameter mappings added with tee_mmu_map_param()
+	 * above.
+	 */
+	tee_mmu_clean_param(utc);
+
 	s = tee_ta_pop_current_session();
 	assert(s == session);
 cleanup_return:
