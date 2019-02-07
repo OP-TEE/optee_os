@@ -10,8 +10,6 @@
 #include <util.h>
 
 #define TEE_MATTR_VALID_BLOCK		BIT(0)
-#define TEE_MATTR_HIDDEN_BLOCK		BIT(1)
-#define TEE_MATTR_HIDDEN_DIRTY_BLOCK	BIT(2)
 #define TEE_MATTR_TABLE			BIT(3)
 #define TEE_MATTR_PR			BIT(4)
 #define TEE_MATTR_PW			BIT(5)
