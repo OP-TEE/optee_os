@@ -28,6 +28,7 @@ struct fobj {
  * @free:	Frees the @fobj
  * @load_page:	Loads page with index @page_idx at address @va
  * @save_page:	Saves page with index @page_idx from address @va
+ * @get_pa:	Returns physical address of page at @page_idx if not paged
  */
 struct fobj_ops {
 	void (*free)(struct fobj *fobj);
@@ -37,6 +38,7 @@ struct fobj_ops {
 	TEE_Result (*save_page)(struct fobj *fobj, unsigned int page_idx,
 				const void *va);
 #endif
+	paddr_t (*get_pa)(struct fobj *fobj, unsigned int page_idx);
 };
 
 #ifdef CFG_WITH_PAGER
@@ -110,6 +112,29 @@ static inline TEE_Result fobj_save_page(struct fobj *fobj,
 
 	return TEE_ERROR_GENERIC;
 }
+#endif
+
+/*
+ * fobj_ta_mem_alloc() - Allocates TA memory
+ * @num_pages:	Number of pages
+ *
+ * If paging of user TAs read/write paged fobj is allocated otherwise a
+ * fobj which uses unpaged secure memory directly.
+ *
+ * Returns a valid pointer on success or NULL on failure.
+ */
+#ifdef CFG_PAGED_USER_TA
+#define fobj_ta_mem_alloc(num_pages)	fobj_rw_paged_alloc(num_pages)
+#else
+/*
+ * fobj_sec_mem_alloc() - Allocates storage directly in secure memory
+ * @num_pages:	Number of pages
+ *
+ * Returns a valid pointer on success or NULL on failure.
+ */
+struct fobj *fobj_sec_mem_alloc(unsigned int num_pages);
+
+#define fobj_ta_mem_alloc(num_pages)	fobj_sec_mem_alloc(num_pages)
 #endif
 
 /*

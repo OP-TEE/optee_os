@@ -309,3 +309,78 @@ static struct fobj_ops ops_locked_paged __rodata_unpaged = {
 	.save_page = lop_save_page,
 };
 #endif /*CFG_WITH_PAGER*/
+
+#ifndef CFG_PAGED_USER_TA
+
+struct fobj_sec_mem {
+	tee_mm_entry_t *mm;
+	struct fobj fobj;
+};
+
+static struct fobj_ops ops_sec_mem;
+
+struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
+{
+	struct fobj_sec_mem *f = calloc(1, sizeof(*f));
+	size_t size = 0;
+	void *va = NULL;
+
+	if (!f)
+		return NULL;
+
+	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
+		goto err;
+
+	f->mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	if (!f->mm)
+		goto err;
+
+	va = phys_to_virt(tee_mm_get_smem(f->mm), MEM_AREA_TA_RAM);
+	if (!va)
+		goto err;
+
+	memset(va, 0, size);
+	f->fobj.ops = &ops_sec_mem;
+	f->fobj.num_pages = num_pages;
+	refcount_set(&f->fobj.refc, 1);
+
+	return &f->fobj;
+err:
+	tee_mm_free(f->mm);
+	free(f);
+
+	return NULL;
+}
+
+static struct fobj_sec_mem *to_sec_mem(struct fobj *fobj)
+{
+	assert(fobj->ops == &ops_sec_mem);
+
+	return container_of(fobj, struct fobj_sec_mem, fobj);
+}
+
+static void sec_mem_free(struct fobj *fobj)
+{
+	struct fobj_sec_mem *f = to_sec_mem(fobj);
+
+	assert(!refcount_val(&fobj->refc));
+	tee_mm_free(f->mm);
+	free(f);
+}
+
+static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
+{
+	struct fobj_sec_mem *f = to_sec_mem(fobj);
+
+	assert(refcount_val(&fobj->refc));
+	assert(page_idx < fobj->num_pages);
+
+	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
+}
+
+static struct fobj_ops ops_sec_mem __rodata_unpaged = {
+	.free = sec_mem_free,
+	.get_pa = sec_mem_get_pa,
+};
+
+#endif /*PAGED_USER_TA*/
