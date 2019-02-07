@@ -776,11 +776,15 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 
 	res = elf_load_head(elf_state,
 			    elf == exe ? sizeof(struct ta_head) : 0,
-			    &p, &vasize, &utc->is_32bit);
+			    &p, &vasize, &utc->is_32bit,
+			    elf == exe ? &utc->entry_func : NULL);
 	if (res)
 		goto out;
 	ta_head = p;
-
+	if (ta_head->depr_entry != UINT64_MAX) {
+		DMSG("Using decprecated TA entry via ta_head");
+		utc->entry_func = ta_head->depr_entry;
+	}
 
 	elf->mobj_code = alloc_ta_mem(vasize);
 	if (!elf->mobj_code) {
@@ -1094,7 +1098,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	utc->ctx.flags = ta_head->flags;
 	utc->ctx.uuid = ta_head->uuid;
-	utc->entry_func = ta_head->entry.ptr64;
+	utc->entry_func += utc->load_addr;
 	utc->ctx.ref_count = 1;
 	condvar_init(&utc->ctx.busy_cv);
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
