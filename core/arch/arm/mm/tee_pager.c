@@ -6,8 +6,6 @@
 
 #include <arm.h>
 #include <assert.h>
-#include <crypto/crypto.h>
-#include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
@@ -19,6 +17,7 @@
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
+#include <mm/fobj.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <stdlib.h>
@@ -29,19 +28,6 @@
 #include <utee_defines.h>
 #include <util.h>
 
-#define PAGER_AE_KEY_BITS	256
-
-struct pager_aes_gcm_iv {
-	uint32_t iv[3];
-};
-
-#define PAGER_AES_GCM_TAG_LEN	16
-
-struct pager_rw_pstate {
-	uint64_t iv;
-	uint8_t tag[PAGER_AES_GCM_TAG_LEN];
-};
-
 enum area_type {
 	AREA_TYPE_RO,
 	AREA_TYPE_RW,
@@ -49,11 +35,7 @@ enum area_type {
 };
 
 struct tee_pager_area {
-	union {
-		const uint8_t *hashes;
-		struct pager_rw_pstate *rwp;
-	} u;
-	uint8_t *store;
+	struct fobj *fobj;
 	enum area_type type;
 	uint32_t flags;
 	vaddr_t base;
@@ -93,8 +75,6 @@ static struct tee_pager_pmem_head tee_pager_pmem_head =
 
 static struct tee_pager_pmem_head tee_pager_lock_pmem_head =
 	TAILQ_HEAD_INITIALIZER(tee_pager_lock_pmem_head);
-
-static struct internal_aes_gcm_key pager_ae_key;
 
 /* number of pages hidden */
 #define TEE_PAGER_NHIDE (tee_pager_npages / 3)
@@ -367,17 +347,6 @@ out:
 	tlbi_mva_range(smem, nbytes, SMALL_PAGE_SIZE);
 }
 
-void tee_pager_generate_authenc_key(void)
-{
-	uint8_t key[PAGER_AE_KEY_BITS / 8];
-
-	if (crypto_rng_read(key, sizeof(key)) != TEE_SUCCESS)
-		panic("failed to generate random");
-	if (internal_aes_gcm_expand_enc_key(key, sizeof(key),
-					    &pager_ae_key))
-		panic("failed to expand key");
-}
-
 static size_t tbl_usage_count(struct core_mmu_table_info *ti)
 {
 	size_t n;
@@ -467,50 +436,39 @@ static void *pager_add_alias_page(paddr_t pa)
 
 static struct tee_pager_area *alloc_area(struct pgt *pgt,
 					 vaddr_t base, size_t size,
-					 uint32_t flags, const void *store,
-					 const void *hashes)
+					 uint32_t flags, void *store,
+					 void *hashes)
 {
 	struct tee_pager_area *area = calloc(1, sizeof(*area));
-	enum area_type at;
-	tee_mm_entry_t *mm_store = NULL;
+	size_t num_pages = size / SMALL_PAGE_SIZE;
 
 	if (!area)
 		return NULL;
 
 	if (flags & (TEE_MATTR_PW | TEE_MATTR_UW)) {
 		if (flags & TEE_MATTR_LOCKED) {
-			at = AREA_TYPE_LOCK;
+			area->type = AREA_TYPE_LOCK;
+			area->fobj = fobj_locked_paged_alloc(num_pages);
 			goto out;
 		}
-		mm_store = tee_mm_alloc(&tee_mm_sec_ddr, size);
-		if (!mm_store)
-			goto bad;
-		area->store = phys_to_virt(tee_mm_get_smem(mm_store),
-					   MEM_AREA_TA_RAM);
-		if (!area->store)
-			goto bad;
-		area->u.rwp = calloc(size / SMALL_PAGE_SIZE,
-				     sizeof(struct pager_rw_pstate));
-		if (!area->u.rwp)
-			goto bad;
-		at = AREA_TYPE_RW;
+		area->fobj = fobj_rw_paged_alloc(num_pages);
+		area->type = AREA_TYPE_RW;
 	} else {
-		area->store = (void *)store;
-		area->u.hashes = hashes;
-		at = AREA_TYPE_RO;
+		area->fobj = fobj_ro_paged_alloc(num_pages, hashes, store);
+		area->type = AREA_TYPE_RO;
 	}
+
 out:
+	if (!area->fobj) {
+		free(area);
+		return NULL;
+	}
+
 	area->pgt = pgt;
 	area->base = base;
 	area->size = size;
 	area->flags = flags;
-	area->type = at;
 	return area;
-bad:
-	tee_mm_free(mm_store);
-	free(area->u.rwp);
-	free(area);
-	return NULL;
 }
 
 static void area_insert_tail(struct tee_pager_area *area)
@@ -524,7 +482,7 @@ static void area_insert_tail(struct tee_pager_area *area)
 KEEP_PAGER(area_insert_tail);
 
 void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
-			     const void *store, const void *hashes)
+			     void *store, void *hashes)
 {
 	struct tee_pager_area *area;
 	vaddr_t b = base;
@@ -549,8 +507,8 @@ void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
 		area = alloc_area(find_core_pgt(b), b, s2, flags,
-				  (const uint8_t *)store + b - base,
-				  (const uint8_t *)hashes + (b - base) /
+				  (uint8_t *)store + b - base,
+				  (uint8_t *)hashes + (b - base) /
 							SMALL_PAGE_SIZE *
 							TEE_SHA256_HASH_SIZE);
 		if (!area)
@@ -614,46 +572,10 @@ static paddr_t get_pmem_pa(struct tee_pager_pmem *pmem)
 	return pa;
 }
 
-static bool decrypt_page(struct pager_rw_pstate *rwp, const void *src,
-			void *dst)
-{
-	struct pager_aes_gcm_iv iv = {
-		{ (vaddr_t)rwp, rwp->iv >> 32, rwp->iv }
-	};
-	size_t tag_len = sizeof(rwp->tag);
-
-	return !internal_aes_gcm_dec(&pager_ae_key, &iv, sizeof(iv),
-				     NULL, 0, src, SMALL_PAGE_SIZE, dst,
-				     rwp->tag, tag_len);
-}
-
-static void encrypt_page(struct pager_rw_pstate *rwp, void *src, void *dst)
-{
-	struct pager_aes_gcm_iv iv;
-	size_t tag_len = sizeof(rwp->tag);
-
-	assert((rwp->iv + 1) > rwp->iv);
-	rwp->iv++;
-	/*
-	 * IV is constructed as recommended in section "8.2.1 Deterministic
-	 * Construction" of "Recommendation for Block Cipher Modes of
-	 * Operation: Galois/Counter Mode (GCM) and GMAC",
-	 * http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf
-	 */
-	iv.iv[0] = (vaddr_t)rwp;
-	iv.iv[1] = rwp->iv >> 32;
-	iv.iv[2] = rwp->iv;
-
-	if (internal_aes_gcm_enc(&pager_ae_key, &iv, sizeof(iv), NULL, 0,
-				 src, SMALL_PAGE_SIZE, dst, rwp->tag, &tag_len))
-		panic("gcm failed");
-}
-
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 			void *va_alias)
 {
 	size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
-	const void *stored_page = area->store + idx * SMALL_PAGE_SIZE;
 	struct core_mmu_table_info *ti;
 	uint32_t attr_alias;
 	paddr_t pa_alias;
@@ -670,41 +592,22 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 	}
 
 	asan_tag_access(va_alias, (uint8_t *)va_alias + SMALL_PAGE_SIZE);
+	if (fobj_load_page(area->fobj, idx, va_alias)) {
+		EMSG("PH 0x%" PRIxVA " failed", page_va);
+		panic();
+	}
 	switch (area->type) {
 	case AREA_TYPE_RO:
-		{
-			const void *hash = area->u.hashes +
-					   idx * TEE_SHA256_HASH_SIZE;
-
-			memcpy(va_alias, stored_page, SMALL_PAGE_SIZE);
-			incr_ro_hits();
-
-			if (hash_sha256_check(hash, va_alias,
-					      SMALL_PAGE_SIZE) != TEE_SUCCESS) {
-				EMSG("PH 0x%" PRIxVA " failed", page_va);
-				panic();
-			}
-		}
+		incr_ro_hits();
 		/* Forbid write to aliases for read-only (maybe exec) pages */
 		attr_alias &= ~TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
 		tlbi_mva_allasid((vaddr_t)va_alias);
 		break;
 	case AREA_TYPE_RW:
-		FMSG("Restore %p %#" PRIxVA " iv %#" PRIx64,
-			va_alias, page_va, area->u.rwp[idx].iv);
-		if (!area->u.rwp[idx].iv)
-			memset(va_alias, 0, SMALL_PAGE_SIZE);
-		else if (!decrypt_page(&area->u.rwp[idx], stored_page,
-				       va_alias)) {
-			EMSG("PH 0x%" PRIxVA " failed", page_va);
-			panic();
-		}
 		incr_rw_hits();
 		break;
 	case AREA_TYPE_LOCK:
-		FMSG("Zero init %p %#" PRIxVA, va_alias, page_va);
-		memset(va_alias, 0, SMALL_PAGE_SIZE);
 		break;
 	default:
 		panic();
@@ -720,28 +623,21 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 	if (pmem->area->type == AREA_TYPE_RW && (attr & dirty_bits)) {
 		size_t offs = pmem->area->base & CORE_MMU_PGDIR_MASK;
 		size_t idx = pmem->pgidx - (offs >> SMALL_PAGE_SHIFT);
-		void *stored_page = pmem->area->store + idx * SMALL_PAGE_SIZE;
 
 		assert(pmem->area->flags & (TEE_MATTR_PW | TEE_MATTR_UW));
 		asan_tag_access(pmem->va_alias,
 				(uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
-		encrypt_page(&pmem->area->u.rwp[idx], pmem->va_alias,
-			     stored_page);
+		if (fobj_save_page(pmem->area->fobj, idx, pmem->va_alias))
+			panic("fobj_save_page");
 		asan_tag_no_access(pmem->va_alias,
 				   (uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
-		FMSG("Saved %#" PRIxVA " iv %#" PRIx64,
-			pmem->area->base + idx * SMALL_PAGE_SIZE,
-			pmem->area->u.rwp[idx].iv);
 	}
 }
 
 #ifdef CFG_PAGED_USER_TA
 static void free_area(struct tee_pager_area *area)
 {
-	tee_mm_free(tee_mm_find(&tee_mm_sec_ddr,
-				virt_to_phys(area->store)));
-	if (area->type == AREA_TYPE_RW)
-		free(area->u.rwp);
+	fobj_put(area->fobj);
 	free(area);
 }
 

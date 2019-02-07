@@ -86,7 +86,7 @@ static inline void tee_pager_generate_authenc_key(void)
  * cause a panic.
  */
 void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
-			     const void *store, const void *hashes);
+			     void *store, void *hashes);
 
 /*
  * tee_pager_add_uta_area() - Adds a pageable user ta area
