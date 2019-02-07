@@ -56,7 +56,8 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 						   const char *, uintptr_t *),
 			 struct elf_load_state **state);
 TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
-			void **head, size_t *vasize, bool *is_32bit);
+			void **head, size_t *vasize, bool *is_32bit,
+			vaddr_t *entry);
 TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase);
 TEE_Result elf_load_get_next_segment(struct elf_load_state *state, size_t *idx,
 			vaddr_t *vaddr, size_t *size, uint32_t *flags,
