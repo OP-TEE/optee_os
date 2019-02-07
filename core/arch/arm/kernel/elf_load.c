@@ -113,7 +113,8 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 	return res;
 }
 
-static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
+static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr,
+				vaddr_t *entry)
 {
 	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 	    ehdr->e_ident[EI_CLASS] != ELFCLASS32 ||
@@ -133,11 +134,14 @@ static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	memcpy(state->ehdr, ehdr, sizeof(*ehdr));
 	state->is_32bit = true;
+	if (entry)
+		*entry = ehdr->e_entry;
 	return TEE_SUCCESS;
 }
 
 #ifdef ARM64
-static TEE_Result e64_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *eh32)
+static TEE_Result e64_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *eh32,
+				vaddr_t *entry)
 {
 	TEE_Result res;
 	Elf64_Ehdr *ehdr = NULL;
@@ -165,11 +169,13 @@ static TEE_Result e64_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *eh32)
 
 	state->ehdr = ehdr;
 	state->is_32bit = false;
+	if (entry)
+		*entry = ehdr->e_entry;
 	return TEE_SUCCESS;
 }
 #else /*ARM64*/
 static TEE_Result e64_load_ehdr(struct elf_load_state *state __unused,
-			Elf32_Ehdr *eh32 __unused)
+			Elf32_Ehdr *eh32 __unused, vaddr_t *entry __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
@@ -270,7 +276,8 @@ static TEE_Result load_head(struct elf_load_state *state, size_t head_size)
 }
 
 TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
-			void **head, size_t *vasize, bool *is_32bit)
+			void **head, size_t *vasize, bool *is_32bit,
+			vaddr_t *entry)
 {
 	TEE_Result res;
 	Elf32_Ehdr ehdr;
@@ -289,9 +296,9 @@ TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 
 	if (!IS_ELF(ehdr))
 		return TEE_ERROR_BAD_FORMAT;
-	res = e32_load_ehdr(state, &ehdr);
+	res = e32_load_ehdr(state, &ehdr, entry);
 	if (res == TEE_ERROR_BAD_FORMAT)
-		res = e64_load_ehdr(state, &ehdr);
+		res = e64_load_ehdr(state, &ehdr, entry);
 	if (res != TEE_SUCCESS)
 		return res;
 

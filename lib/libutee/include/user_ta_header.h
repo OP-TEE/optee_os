@@ -27,19 +27,11 @@
 
 #define TA_FLAGS_MASK			GENMASK_32(9, 0)
 
-union ta_head_func_ptr {
-	uint64_t ptr64;
-	struct ta_head_func_ptr32 {
-		uint32_t lo;
-		uint32_t hi;
-	} ptr32;
-};
-
 struct ta_head {
 	TEE_UUID uuid;
 	uint32_t stack_size;
 	uint32_t flags;
-	union ta_head_func_ptr entry;
+	uint64_t depr_entry;
 };
 
 #define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"
