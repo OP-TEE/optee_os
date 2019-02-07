@@ -13,6 +13,7 @@
 #define PGT_NUM_PGT_PER_PAGE	4
 #endif
 
+#include <assert.h>
 #include <kernel/tee_ta_manager.h>
 #include <sys/queue.h>
 #include <types_ext.h>
@@ -76,10 +77,12 @@ void pgt_flush_ctx(struct tee_ta_ctx *ctx);
 static inline void pgt_inc_used_entries(struct pgt *pgt)
 {
 	pgt->num_used_entries++;
+	assert(pgt->num_used_entries);
 }
 
 static inline void pgt_dec_used_entries(struct pgt *pgt)
 {
+	assert(pgt->num_used_entries);
 	pgt->num_used_entries--;
 }
 
