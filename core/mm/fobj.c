@@ -57,11 +57,14 @@ static void fobj_init(struct fobj *fobj, const struct fobj_ops *ops,
 	fobj->ops = ops;
 	fobj->num_pages = num_pages;
 	refcount_set(&fobj->refc, 1);
+	TAILQ_INIT(&fobj->areas);
 }
 
 static void fobj_uninit(struct fobj *fobj)
 {
 	assert(!refcount_val(&fobj->refc));
+	assert(TAILQ_EMPTY(&fobj->areas));
+	tee_pager_invalidate_fobj(fobj);
 }
 
 struct fobj *fobj_rw_paged_alloc(unsigned int num_pages)
@@ -157,7 +160,16 @@ static TEE_Result rwp_save_page(struct fobj *fobj, unsigned int page_idx,
 	struct rwp_aes_gcm_iv iv;
 
 	memset(&iv, 0, sizeof(iv));
-	assert(refcount_val(&fobj->refc));
+
+	if (!refcount_val(&fobj->refc)) {
+		/*
+		 * This fobj is being teared down, it just hasn't had the time
+		 * to call tee_pager_invalidate_fobj() yet.
+		 */
+		assert(TAILQ_EMPTY(&fobj->areas));
+		return TEE_SUCCESS;
+	}
+
 	assert(page_idx < fobj->num_pages);
 	assert(state->iv + 1 > state->iv);
 
