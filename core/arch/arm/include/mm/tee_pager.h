@@ -10,10 +10,17 @@
 #include <kernel/abort.h>
 #include <kernel/panic.h>
 #include <kernel/user_ta.h>
-#include <mm/tee_mm.h>
 #include <mm/core_mmu.h>
+#include <mm/fobj.h>
+#include <mm/tee_mm.h>
 #include <string.h>
 #include <trace.h>
+
+enum tee_pager_area_type {
+	PAGER_AREA_TYPE_RO,
+	PAGER_AREA_TYPE_RW,
+	PAGER_AREA_TYPE_LOCK,
+};
 
 struct tee_pager_area_head;
 
@@ -68,25 +75,13 @@ static inline void tee_pager_generate_authenc_key(void)
 /*
  * tee_pager_add_core_area() - Adds a pageable core area
  * @base:	base of covered memory area
- * @size:	size of covered memory area
- * @flags:	describes attributes of mapping
- * @store:	backing store for the memory area
- * @hashes:	hashes of the pages in the backing store
+ * @type:	type of memory area
+ * @fobj:	fobj backing the area
  *
- * TEE_MATTR_PW		- read-write mapping else read-only mapping
- * TEE_MATTR_PX		- executable mapping
- * TEE_MATTR_LOCKED	- on demand locked mapping, requires TEE_MATTR_PW,
- *			  will only be unmapped by a call to
- *			  tee_pager_release_phys()
- *
- * !TEE_MATTR_PW requires store and hashes to be !NULL while
- * TEE_MATTR_PW requires store and hashes to be NULL.
- *
- * Invalid use of flags or non-page aligned base or size or size == 0 will
- * cause a panic.
+ * Non-page aligned base or size will cause a panic.
  */
-void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
-			     void *store, void *hashes);
+void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
+			     struct fobj *fobj);
 
 /*
  * tee_pager_add_uta_area() - Adds a pageable user ta area
