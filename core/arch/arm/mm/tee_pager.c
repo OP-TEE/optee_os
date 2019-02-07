@@ -1547,10 +1547,10 @@ void tee_pager_release_phys(void *addr, size_t size)
 }
 KEEP_PAGER(tee_pager_release_phys);
 
-void *tee_pager_alloc(size_t size, uint32_t flags)
+void *tee_pager_alloc(size_t size)
 {
 	tee_mm_entry_t *mm;
-	uint32_t f = TEE_MATTR_PW | TEE_MATTR_PR | (flags & TEE_MATTR_LOCKED);
+	uint32_t f = TEE_MATTR_PW | TEE_MATTR_PR | TEE_MATTR_LOCKED;
 	uint8_t *smem;
 	size_t bytes;
 
