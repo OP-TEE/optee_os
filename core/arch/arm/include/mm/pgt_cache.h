@@ -66,9 +66,6 @@ static inline void pgt_flush_ctx_range(struct pgt_cache *pgt_cache __unused,
 }
 #endif
 
-void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
-		  void *new_ctx, vaddr_t new_va, size_t size);
-
 void pgt_init(void);
 
 #if defined(CFG_PAGED_USER_TA)
