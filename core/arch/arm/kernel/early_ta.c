@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2017, Linaro Limited
  */
+#include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/early_ta.h>
 #include <kernel/linker.h>
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <trace.h>
+#include <utee_defines.h>
 #include <util.h>
 #include <zlib.h>
 
@@ -105,6 +107,34 @@ static TEE_Result early_ta_get_size(const struct user_ta_store_handle *h,
 		*size = ta->size;
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result early_ta_get_tag(const struct user_ta_store_handle *h,
+				   uint8_t *tag, unsigned int *tag_len)
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+
+	if (!tag || *tag_len < TEE_SHA256_HASH_SIZE) {
+		*tag_len = TEE_SHA256_HASH_SIZE;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*tag_len = TEE_SHA256_HASH_SIZE;
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res)
+		return res;
+	res = crypto_hash_init(ctx, TEE_ALG_SHA256);
+	if (res)
+		goto out;
+	res = crypto_hash_update(ctx, TEE_ALG_SHA256, h->early_ta->ta + h->offs,
+				 h->early_ta->size);
+	if (res)
+		goto out;
+	res = crypto_hash_final(ctx, TEE_ALG_SHA256, tag, h->early_ta->size);
+out:
+	crypto_hash_free_ctx(ctx, TEE_ALG_SHA256);
+	return res;
 }
 
 static TEE_Result read_uncompressed(struct user_ta_store_handle *h, void *data,
@@ -205,6 +235,7 @@ TEE_TA_REGISTER_TA_STORE(2) = {
 	.description = "early TA",
 	.open = early_ta_open,
 	.get_size = early_ta_get_size,
+	.get_tag = early_ta_get_tag,
 	.read = early_ta_read,
 	.close = early_ta_close,
 };
