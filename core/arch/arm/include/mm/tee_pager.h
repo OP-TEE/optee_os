@@ -140,12 +140,6 @@ static inline bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc __unused,
 }
 #endif
 
-void tee_pager_transfer_uta_region(struct user_ta_ctx *src_utc,
-				   vaddr_t src_base,
-				   struct user_ta_ctx *dst_utc,
-				   vaddr_t dst_base, struct pgt **dst_pgt,
-				   size_t size);
-
 #ifdef CFG_PAGED_USER_TA
 void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
 			      size_t size);
