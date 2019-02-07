@@ -982,50 +982,38 @@ static struct tee_pager_pmem *pmem_find(struct tee_pager_area *area,
 	return NULL;
 }
 
-static bool tee_pager_unhide_page(vaddr_t page_va)
+static bool tee_pager_unhide_page(struct tee_pager_area *area,
+				  unsigned int pgidx)
 {
-	struct tee_pager_pmem *pmem;
+	struct tee_pager_pmem *pmem = pmem_find(area, pgidx);
+	uint32_t a = get_area_mattr(area->flags);
+	paddr_t pa = 0;
 
-	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
-		if (pmem->pgidx == INVALID_PGIDX)
-			continue;
+	if (!pmem || pmem->pgidx == INVALID_PGIDX || !pmem_is_hidden(pmem))
+		return false;
 
-		if (!pmem_is_hidden(pmem))
-			continue;
+	/* page is hidden, show and move to back */
 
-		if (area_va2idx(pmem->area, page_va) == pmem->pgidx) {
-			paddr_t pa = 0;
-			uint32_t a = get_area_mattr(pmem->area->flags);
+	/* If it's not a dirty block, then it should be read only. */
+	if (!pmem_is_dirty(pmem))
+		a &= ~(TEE_MATTR_PW | TEE_MATTR_UW);
 
-			/* page is hidden, show and move to back */
+	pmem->flags &= ~PMEM_FLAG_HIDDEN;
+	area_get_entry(pmem->area, pmem->pgidx, &pa, NULL);
+	assert(pa == get_pmem_pa(pmem));
+	area_set_entry(pmem->area, pmem->pgidx, pa, a);
+	/*
+	 * Note that TLB invalidation isn't needed since
+	 * there wasn't a valid mapping before. We should
+	 * use a barrier though, to make sure that the
+	 * change is visible.
+	 */
+	dsb_ishst();
 
-			/*
-			 * If it's not a dirty block, then it should be
-			 * read only.
-			 */
-			if (!pmem_is_dirty(pmem))
-				a &= ~(TEE_MATTR_PW | TEE_MATTR_UW);
-
-			pmem->flags &= ~PMEM_FLAG_HIDDEN;
-			area_get_entry(pmem->area, pmem->pgidx, &pa, NULL);
-			assert(pa == get_pmem_pa(pmem));
-			area_set_entry(pmem->area, pmem->pgidx, pa, a);
-			/*
-			 * Note that TLB invalidation isn't needed since
-			 * there wasn't a valid mapping before. We should
-			 * use a barrier though, to make sure that the
-			 * change is visible.
-			 */
-			dsb_ishst();
-
-			TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
-			TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
-			incr_hidden_hits();
-			return true;
-		}
-	}
-
-	return false;
+	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
+	TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
+	incr_hidden_hits();
+	return true;
 }
 
 static void tee_pager_hide_pages(void)
@@ -1280,7 +1268,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		goto out;
 	}
 
-	if (!tee_pager_unhide_page(page_va)) {
+	if (!tee_pager_unhide_page(area, area_va2idx(area, page_va))) {
 		struct tee_pager_pmem *pmem = NULL;
 		uint32_t attr;
 		paddr_t pa;
