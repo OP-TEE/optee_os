@@ -57,11 +57,14 @@ static void fobj_init(struct fobj *fobj, const struct fobj_ops *ops,
 	fobj->ops = ops;
 	fobj->num_pages = num_pages;
 	refcount_set(&fobj->refc, 1);
+	TAILQ_INIT(&fobj->areas);
 }
 
 static void fobj_uninit(struct fobj *fobj)
 {
 	assert(!refcount_val(&fobj->refc));
+	assert(TAILQ_EMPTY(&fobj->areas));
+	tee_pager_invalidate_fobj(fobj);
 }
 
 struct fobj *fobj_rw_paged_alloc(unsigned int num_pages)

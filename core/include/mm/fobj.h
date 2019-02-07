@@ -6,8 +6,10 @@
 #ifndef __MM_FOBJ_H
 #define __MM_FOBJ_H
 
-#include <kernel/refcount.h>
 #include <kernel/panic.h>
+#include <kernel/refcount.h>
+#include <mm/tee_pager.h>
+#include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 
@@ -21,6 +23,9 @@ struct fobj {
 	const struct fobj_ops *ops;
 	unsigned int num_pages;
 	struct refcount refc;
+#ifdef CFG_WITH_PAGER
+	struct tee_pager_area_head areas;
+#endif
 };
 
 /*

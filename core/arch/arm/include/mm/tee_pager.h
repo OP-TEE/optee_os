@@ -11,7 +11,6 @@
 #include <kernel/panic.h>
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
-#include <mm/fobj.h>
 #include <mm/tee_mm.h>
 #include <string.h>
 #include <trace.h>
@@ -22,7 +21,19 @@ enum tee_pager_area_type {
 	PAGER_AREA_TYPE_LOCK,
 };
 
-struct tee_pager_area_head;
+struct tee_pager_area {
+	struct fobj *fobj;
+	size_t fobj_pgoffs;
+	enum tee_pager_area_type type;
+	uint32_t flags;
+	vaddr_t base;
+	size_t size;
+	struct pgt *pgt;
+	TAILQ_ENTRY(tee_pager_area) link;
+	TAILQ_ENTRY(tee_pager_area) fobj_link;
+};
+
+TAILQ_HEAD(tee_pager_area_head, tee_pager_area);
 
 /*
  * tee_pager_early_init() - Perform early initialization of pager
@@ -243,5 +254,7 @@ static inline void tee_pager_get_stats(struct tee_pager_stats *stats)
 	memset(stats, 0, sizeof(struct tee_pager_stats));
 }
 #endif /*CFG_WITH_PAGER*/
+
+void tee_pager_invalidate_fobj(struct fobj *fobj);
 
 #endif /*MM_TEE_PAGER_H*/
