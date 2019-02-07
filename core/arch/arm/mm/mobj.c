@@ -449,6 +449,7 @@ struct mobj_seccpy_shm {
 	struct user_ta_ctx *utc;
 	vaddr_t va;
 	struct mobj mobj;
+	struct fobj *fobj;
 };
 
 static bool __maybe_unused mobj_is_seccpy_shm(struct mobj *mobj);
@@ -485,6 +486,7 @@ static void mobj_seccpy_shm_free(struct mobj *mobj)
 
 	tee_pager_rem_uta_region(m->utc, m->va, mobj->size);
 	tee_mmu_rem_rwmem(m->utc, mobj, m->va);
+	fobj_put(m->fobj);
 	free(m);
 }
 
@@ -538,7 +540,9 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 	if (tee_mmu_add_rwmem(utc, &m->mobj, &va) != TEE_SUCCESS)
 		goto bad;
 
-	if (!tee_pager_add_uta_area(utc, va, size))
+	m->fobj = fobj_rw_paged_alloc(ROUNDUP(size, SMALL_PAGE_SIZE) /
+				      SMALL_PAGE_SIZE);
+	if (tee_pager_add_uta_area(utc, va, m->fobj))
 		goto bad;
 
 	m->va = va;
@@ -547,6 +551,7 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 bad:
 	if (va)
 		tee_mmu_rem_rwmem(utc, &m->mobj, va);
+	fobj_put(m->fobj);
 	free(m);
 	return NULL;
 }
