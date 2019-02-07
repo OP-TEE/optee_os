@@ -686,13 +686,13 @@ tee_tadb_ta_get_property(struct tee_tadb_ta_read *ta)
 TEE_Result tee_tadb_get_tag(struct tee_tadb_ta_read *ta, uint8_t *tag,
 			    unsigned int *tag_len)
 {
-	if (*tag_len < sizeof(ta->entry.tag)) {
+	if (!tag || *tag_len < sizeof(ta->entry.tag)) {
 		*tag_len = sizeof(ta->entry.tag);
 		return TEE_ERROR_SHORT_BUFFER;
 	}
+	*tag_len = sizeof(ta->entry.tag);
 
 	memcpy(tag, ta->entry.tag, sizeof(ta->entry.tag));
-	*tag_len = sizeof(ta->entry.tag);
 
 	return TEE_SUCCESS;
 }
