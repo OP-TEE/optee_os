@@ -36,6 +36,7 @@ enum area_type {
 
 struct tee_pager_area {
 	struct fobj *fobj;
+	size_t fobj_pgidx;
 	enum area_type type;
 	uint32_t flags;
 	vaddr_t base;
@@ -434,43 +435,6 @@ static void *pager_add_alias_page(paddr_t pa)
 	return (void *)core_mmu_idx2va(ti, idx);
 }
 
-static struct tee_pager_area *alloc_area(struct pgt *pgt,
-					 vaddr_t base, size_t size,
-					 uint32_t flags, void *store,
-					 void *hashes)
-{
-	struct tee_pager_area *area = calloc(1, sizeof(*area));
-	size_t num_pages = size / SMALL_PAGE_SIZE;
-
-	if (!area)
-		return NULL;
-
-	if (flags & (TEE_MATTR_PW | TEE_MATTR_UW)) {
-		if (flags & TEE_MATTR_LOCKED) {
-			area->type = AREA_TYPE_LOCK;
-			area->fobj = fobj_locked_paged_alloc(num_pages);
-			goto out;
-		}
-		area->fobj = fobj_rw_paged_alloc(num_pages);
-		area->type = AREA_TYPE_RW;
-	} else {
-		area->fobj = fobj_ro_paged_alloc(num_pages, hashes, store);
-		area->type = AREA_TYPE_RO;
-	}
-
-out:
-	if (!area->fobj) {
-		free(area);
-		return NULL;
-	}
-
-	area->pgt = pgt;
-	area->base = base;
-	area->size = size;
-	area->flags = flags;
-	return area;
-}
-
 static void area_insert_tail(struct tee_pager_area *area)
 {
 	uint32_t exceptions = pager_lock_check_stack(8);
@@ -484,11 +448,14 @@ KEEP_PAGER(area_insert_tail);
 void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 			     void *store, void *hashes)
 {
-	struct tee_pager_area *area;
+	size_t num_pages = size / SMALL_PAGE_SIZE;
+	struct tee_pager_area *area = NULL;
+	enum area_type at = AREA_TYPE_RO;
+	struct fobj *fobj = NULL;
+	size_t fobj_pgidx = 0;
 	vaddr_t b = base;
 	size_t s = size;
-	size_t s2;
-
+	size_t s2 = 0;
 
 	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : flags 0x%x, store %p, hashes %p",
 		base, base + size, flags, store, hashes);
@@ -504,18 +471,43 @@ void tee_pager_add_core_area(vaddr_t base, size_t size, uint32_t flags,
 	if ((flags & TEE_MATTR_PW) && (store || hashes))
 		panic("non-write pages must provide store and hashes");
 
+	if (flags & (TEE_MATTR_PW | TEE_MATTR_UW)) {
+		if (flags & TEE_MATTR_LOCKED) {
+			at = AREA_TYPE_LOCK;
+			fobj = fobj_locked_paged_alloc(num_pages);
+		} else {
+			at = AREA_TYPE_RW;
+			fobj = fobj_rw_paged_alloc(num_pages);
+		}
+	} else {
+		at = AREA_TYPE_RO;
+		fobj = fobj_ro_paged_alloc(num_pages, hashes, store);
+	}
+
+	if (!fobj)
+		panic();
+
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
-		area = alloc_area(find_core_pgt(b), b, s2, flags,
-				  (uint8_t *)store + b - base,
-				  (uint8_t *)hashes + (b - base) /
-							SMALL_PAGE_SIZE *
-							TEE_SHA256_HASH_SIZE);
+		area = calloc(1, sizeof(*area));
 		if (!area)
 			panic("alloc_area");
+
+		if (b != base)
+			fobj_get(fobj);
+
+		area->fobj = fobj;
+		area->fobj_pgidx = fobj_pgidx;
+		area->type = at;
+		area->pgt = find_core_pgt(b);
+		area->base = b;
+		area->size = s2;
+		area->flags = flags;
 		area_insert_tail(area);
+
 		b += s2;
 		s -= s2;
+		fobj_pgidx += s2 / SMALL_PAGE_SIZE;
 	}
 }
 
@@ -575,7 +567,8 @@ static paddr_t get_pmem_pa(struct tee_pager_pmem *pmem)
 static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 			void *va_alias)
 {
-	size_t idx = (page_va - area->base) >> SMALL_PAGE_SHIFT;
+	size_t fobj_pgidx = ((page_va - area->base) >> SMALL_PAGE_SHIFT) +
+			    area->fobj_pgidx;
 	struct core_mmu_table_info *ti;
 	uint32_t attr_alias;
 	paddr_t pa_alias;
@@ -592,7 +585,7 @@ static void tee_pager_load_page(struct tee_pager_area *area, vaddr_t page_va,
 	}
 
 	asan_tag_access(va_alias, (uint8_t *)va_alias + SMALL_PAGE_SIZE);
-	if (fobj_load_page(area->fobj, idx, va_alias)) {
+	if (fobj_load_page(area->fobj, fobj_pgidx, va_alias)) {
 		EMSG("PH 0x%" PRIxVA " failed", page_va);
 		panic();
 	}
@@ -622,12 +615,14 @@ static void tee_pager_save_page(struct tee_pager_pmem *pmem, uint32_t attr)
 
 	if (pmem->area->type == AREA_TYPE_RW && (attr & dirty_bits)) {
 		size_t offs = pmem->area->base & CORE_MMU_PGDIR_MASK;
-		size_t idx = pmem->pgidx - (offs >> SMALL_PAGE_SHIFT);
+		size_t fobj_pgidx = (pmem->pgidx - (offs >> SMALL_PAGE_SHIFT)) +
+				    pmem->area->fobj_pgidx;
 
 		assert(pmem->area->flags & (TEE_MATTR_PW | TEE_MATTR_UW));
 		asan_tag_access(pmem->va_alias,
 				(uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
-		if (fobj_save_page(pmem->area->fobj, idx, pmem->va_alias))
+		if (fobj_save_page(pmem->area->fobj, fobj_pgidx,
+				   pmem->va_alias))
 			panic("fobj_save_page");
 		asan_tag_no_access(pmem->va_alias,
 				   (uint8_t *)pmem->va_alias + SMALL_PAGE_SIZE);
@@ -644,9 +639,10 @@ static void free_area(struct tee_pager_area *area)
 static bool pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 			       size_t size)
 {
-	struct tee_pager_area *area;
-	uint32_t flags;
+	struct tee_pager_area *area = NULL;
 	vaddr_t b = base;
+	struct fobj *fobj = NULL;
+	size_t fobj_pgidx = 0;
 	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
 
 	if (!utc->areas) {
@@ -656,23 +652,41 @@ static bool pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 		TAILQ_INIT(utc->areas);
 	}
 
-	flags = TEE_MATTR_PRW | TEE_MATTR_URWX;
+	fobj = fobj_rw_paged_alloc(s / SMALL_PAGE_SIZE);
+	if (!fobj)
+		return false;
 
 	while (s) {
 		size_t s2;
 
-		if (find_area(utc->areas, b))
+		if (find_area(utc->areas, b)) {
+			fobj_put(fobj);
 			return false;
+		}
 
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
+		area = calloc(1, sizeof(*area));
+		if (!area) {
+			fobj_put(fobj);
+			return false;
+		}
+
+		if (b != base)
+			fobj_get(fobj);
 
 		/* Table info will be set when the context is activated. */
-		area = alloc_area(NULL, b, s2, flags, NULL, NULL);
-		if (!area)
-			return false;
+
+		area->fobj = fobj;
+		area->fobj_pgidx = fobj_pgidx;
+		area->type = AREA_TYPE_RW;
+		area->base = b;
+		area->size = s2;
+		area->flags = TEE_MATTR_PRW | TEE_MATTR_URWX;
+
 		TAILQ_INSERT_TAIL(utc->areas, area, link);
 		b += s2;
 		s -= s2;
+		fobj_pgidx += s2 / SMALL_PAGE_SIZE;
 	}
 
 	return true;
