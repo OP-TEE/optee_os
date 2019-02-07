@@ -897,11 +897,17 @@ static void mobj_seccpy_shm_update_mapping(struct mobj *mobj,
 	m->utc = utc;
 }
 
+static struct fobj *mobj_seccpy_shm_get_fobj(struct mobj *mobj)
+{
+	return fobj_get(to_mobj_seccpy_shm(mobj)->fobj);
+}
+
 static const struct mobj_ops mobj_seccpy_shm_ops __rodata_unpaged = {
 	.get_va = mobj_seccpy_shm_get_va,
 	.matches = mobj_seccpy_shm_matches,
 	.free = mobj_seccpy_shm_free,
 	.update_mapping = mobj_seccpy_shm_update_mapping,
+	.get_fobj = mobj_seccpy_shm_get_fobj,
 };
 
 static bool mobj_is_seccpy_shm(struct mobj *mobj)
