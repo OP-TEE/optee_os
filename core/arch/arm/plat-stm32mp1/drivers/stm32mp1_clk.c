@@ -9,11 +9,19 @@
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/dt.h>
+#include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <platform_config.h>
 #include <stm32_util.h>
+#include <stdio.h>
 #include <trace.h>
 #include <util.h>
+
+#ifdef CFG_DT
+#include <libfdt.h>
+#endif
 
 /* Identifiers for root oscillators */
 enum stm32mp_osc_id {
@@ -928,3 +936,126 @@ unsigned long stm32_clock_get_rate(unsigned long id)
 
 	return rate;
 }
+
+#ifdef CFG_EMBED_DTB
+#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
+
+static const char *stm32mp_osc_node_label[NB_OSC] = {
+	[_LSI] = "clk-lsi",
+	[_LSE] = "clk-lse",
+	[_HSI] = "clk-hsi",
+	[_HSE] = "clk-hse",
+	[_CSI] = "clk-csi",
+	[_I2S_CKIN] = "i2s_ckin",
+	[_USB_PHY_48] = "ck_usbo_48m"
+};
+
+static unsigned int clk_freq_prop(void *fdt, int node)
+{
+	int ret;
+	const fdt32_t *cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);
+
+	if (!cuint)
+		panic();
+
+	return fdt32_to_cpu(*cuint);
+}
+
+static void get_osc_freq_from_dt(void *fdt)
+{
+	enum stm32mp_osc_id idx;
+	int clk_node = fdt_path_offset(fdt, "/clocks");
+
+	if (clk_node < 0)
+		panic();
+
+	for (idx = (enum stm32mp_osc_id)0 ; idx < NB_OSC; idx++) {
+		const char *name = stm32mp_osc_node_label[idx];
+		int subnode;
+
+		fdt_for_each_subnode(subnode, fdt, clk_node) {
+			const char *cchar;
+			int ret;
+
+			cchar = fdt_get_name(fdt, subnode, &ret);
+			if (!cchar)
+				panic();
+
+			if (strncmp(cchar, name, (size_t)ret) == 0) {
+				stm32mp1_osc[idx] = clk_freq_prop(fdt, subnode);
+
+				DMSG("Osc %s: %lu Hz", name, stm32mp1_osc[idx]);
+				break;
+			}
+		}
+
+		if (!stm32mp1_osc[idx])
+			DMSG("Osc %s: no frequency info", name);
+	}
+}
+
+static TEE_Result stm32mp1_clk_early_init(void)
+{
+	void *fdt;
+	int node;
+	unsigned int i;
+	int len;
+	int ignored = 0;
+
+	fdt = get_embedded_dt();
+	node = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_CLK_COMPAT);
+
+	if (node < 0 || _fdt_reg_base_address(fdt, node) != RCC_BASE)
+		panic();
+
+	if (_fdt_get_status(fdt, node) & DT_STATUS_OK_SEC) {
+		io_setbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
+	} else {
+		io_clrbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
+		IMSG("RCC is non-secure");
+	}
+
+	get_osc_freq_from_dt(fdt);
+
+	/*
+	 * OP-TEE core is not in charge of configuring clock parenthood.
+	 * This is expected from an earlier boot stage. Modifying the clock
+	 * tree parenthood here may jeopardize already configured clocks.
+	 * The sequence below ignores such DT directives with a friendly
+	 * debug trace.
+	 */
+	if (fdt_getprop(fdt, node, "st,clksrc", &len)) {
+		DMSG("Ignore source clocks configuration from DT");
+		ignored++;
+	}
+	if (fdt_getprop(fdt, node, "st,clkdiv", &len)) {
+		DMSG("Ignore clock divisors configuration from DT");
+		ignored++;
+	}
+	if (fdt_getprop(fdt, node, "st,pkcs", &len)) {
+		DMSG("Ignore peripheral clocks tree configuration from DT");
+		ignored++;
+	}
+	for (i = (enum stm32mp1_pll_id)0; i < _PLL_NB; i++) {
+		char name[] = "st,pll@X";
+
+		snprintf(name, sizeof(name), "st,pll@%d", i);
+		node = fdt_subnode_offset(fdt, node, name);
+		if (node < 0)
+			continue;
+
+		if (fdt_getprop(fdt, node, "cfg", &len) ||
+		    fdt_getprop(fdt, node, "frac", &len)) {
+			DMSG("Ignore PLL%u configurations from DT", i);
+			ignored++;
+		}
+	}
+
+	if (ignored != 0)
+		IMSG("DT clock tree configurations were ignored");
+
+	return TEE_SUCCESS;
+}
+
+service_init(stm32mp1_clk_early_init);
+#endif /*CFG_EMBED_DTB*/
