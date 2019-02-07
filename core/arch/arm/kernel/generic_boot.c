@@ -332,7 +332,10 @@ static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)__init_size;
-	size_t pageable_size = __pageable_end - __pageable_start;
+	size_t pageable_start = (size_t)__pageable_start;
+	size_t pageable_end = (size_t)__pageable_end;
+	size_t pageable_size = pageable_end - pageable_start;
+	size_t tzsram_end = TZSRAM_BASE + TZSRAM_SIZE;
 	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
 	tee_mm_entry_t *mm = NULL;
@@ -443,10 +446,13 @@ static void init_runtime(unsigned long pageable_part)
 	tee_pager_add_core_area(tee_mm_get_smem(mm), PAGER_AREA_TYPE_RO, fobj);
 	fobj_put(fobj);
 
-	tee_pager_add_pages((vaddr_t)__pageable_start,
-			init_size / SMALL_PAGE_SIZE, false);
-	tee_pager_add_pages((vaddr_t)__pageable_start + init_size,
-			(pageable_size - init_size) / SMALL_PAGE_SIZE, true);
+	tee_pager_add_pages(pageable_start, init_size / SMALL_PAGE_SIZE, false);
+	tee_pager_add_pages(pageable_start + init_size,
+			    (pageable_size - init_size) / SMALL_PAGE_SIZE,
+			    true);
+	if (pageable_end < tzsram_end)
+		tee_pager_add_pages(pageable_end, (tzsram_end - pageable_end) /
+						   SMALL_PAGE_SIZE, true);
 
 	/*
 	 * There may be physical pages in TZSRAM before the core load address.
