@@ -56,6 +56,8 @@ TEE_Result tee_tadb_ta_delete(const TEE_UUID *uuid);
 TEE_Result tee_tadb_ta_open(const TEE_UUID *uuid, struct tee_tadb_ta_read **ta);
 const struct tee_tadb_property *
 tee_tadb_ta_get_property(struct tee_tadb_ta_read *ta);
+TEE_Result tee_tadb_get_tag(struct tee_tadb_ta_read *ta, uint8_t *tag,
+			    unsigned int *tag_len);
 TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf,
 			    size_t *len);
 void tee_tadb_ta_close(struct tee_tadb_ta_read *ta);
