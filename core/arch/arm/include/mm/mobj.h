@@ -8,6 +8,7 @@
 
 #include <compiler.h>
 #include <mm/core_memprot.h>
+#include <mm/fobj.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -29,6 +30,7 @@ struct mobj_ops {
 	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
 			       vaddr_t va);
 	uint64_t (*get_cookie)(struct mobj *mobj);
+	struct fobj *(*get_fobj)(struct mobj *mobj);
 };
 
 extern struct mobj mobj_virt;
@@ -90,6 +92,14 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 		return mobj->ops->get_cookie(mobj);
 
 	return 0;
+}
+
+static inline struct fobj *mobj_get_fobj(struct mobj *mobj)
+{
+	if (mobj && mobj->ops && mobj->ops->get_fobj)
+		return mobj->ops->get_fobj(mobj);
+
+	return NULL;
 }
 
 static inline bool mobj_is_nonsec(struct mobj *mobj)
@@ -215,5 +225,7 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 #endif
 
 struct mobj *mobj_seccpy_shm_alloc(size_t size);
+
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj);
 
 #endif /*__MM_MOBJ_H*/

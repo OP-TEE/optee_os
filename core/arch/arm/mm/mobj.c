@@ -551,10 +551,75 @@ bad:
 	return NULL;
 }
 
+
+#endif /*CFG_PAGED_USER_TA*/
+
+struct mobj_with_fobj {
+	struct fobj *fobj;
+	struct mobj mobj;
+};
+
+static const struct mobj_ops mobj_with_fobj_ops;
+
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj)
+{
+	struct mobj_with_fobj *m = NULL;
+
+	if (!fobj)
+		return NULL;
+
+	m = calloc(1, sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->mobj.ops = &mobj_with_fobj_ops;
+	m->mobj.size = fobj->num_pages * SMALL_PAGE_SIZE;
+	m->mobj.phys_granule = SMALL_PAGE_SIZE;
+	m->fobj = fobj_get(fobj);
+
+	return &m->mobj;
+}
+
+static struct mobj_with_fobj *to_mobj_with_fobj(struct mobj *mobj)
+{
+	assert(mobj && mobj->ops == &mobj_with_fobj_ops);
+
+	return container_of(mobj, struct mobj_with_fobj, mobj);
+}
+
+static bool mobj_with_fobj_matches(struct mobj *mobj __maybe_unused,
+				 enum buf_is_attr attr)
+{
+	assert(to_mobj_with_fobj(mobj));
+
+	return attr == CORE_MEM_SEC || attr == CORE_MEM_TEE_RAM;
+}
+
+static void mobj_with_fobj_free(struct mobj *mobj)
+{
+	struct mobj_with_fobj *m = to_mobj_with_fobj(mobj);
+
+	fobj_put(m->fobj);
+	free(m);
+}
+
+static struct fobj *mobj_with_fobj_get_fobj(struct mobj *mobj)
+{
+	return fobj_get(to_mobj_with_fobj(mobj)->fobj);
+}
+
+static const struct mobj_ops mobj_with_fobj_ops __rodata_unpaged = {
+	.matches = mobj_with_fobj_matches,
+	.free = mobj_with_fobj_free,
+	.get_fobj = mobj_with_fobj_get_fobj,
+};
+
+#ifdef CFG_PAGED_USER_TA
 bool mobj_is_paged(struct mobj *mobj)
 {
 	return mobj->ops == &mobj_paged_ops ||
-	       mobj->ops == &mobj_seccpy_shm_ops;
+	       mobj->ops == &mobj_seccpy_shm_ops ||
+	       mobj->ops == &mobj_with_fobj_ops;
 }
 #endif /*CFG_PAGED_USER_TA*/
 
