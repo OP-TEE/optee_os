@@ -211,24 +211,12 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 
 static struct mobj *alloc_ta_mem(size_t size)
 {
-#ifdef CFG_PAGED_USER_TA
 	size_t num_pgs = ROUNDUP(size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
-	struct fobj *fobj = fobj_rw_paged_alloc(num_pgs);
+	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
 	struct mobj *mobj = mobj_with_fobj_alloc(fobj);
 
 	fobj_put(fobj);
 	return mobj;
-#else
-	struct mobj *mobj = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
-
-	if (mobj) {
-		size_t granularity = BIT(tee_mm_sec_ddr.shift);
-
-		/* Round up to allocation granularity size */
-		memset(mobj_get_va(mobj, 0), 0, ROUNDUP(size, granularity));
-	}
-	return mobj;
-#endif
 }
 
 static void init_utee_param(struct utee_params *up,
