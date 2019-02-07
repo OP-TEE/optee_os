@@ -1618,9 +1618,6 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
-		mobj_update_mapping(r->mobj, utc, r->va);
-
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
 		set_pg_region(dir_info, r, &pgt, &pg_info);
 }
 

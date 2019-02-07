@@ -268,8 +268,7 @@ TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 	if (res)
 		goto err_rem_reg;
 
-	if (!(reg->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT)) &&
-	    mobj_is_paged(mobj)) {
+	if (!(reg->attr & TEE_MATTR_PERMANENT) && mobj_is_paged(mobj)) {
 		struct fobj *fobj = mobj_get_fobj(mobj);
 
 		if (!fobj) {
@@ -389,14 +388,28 @@ static void umap_remove_region(struct vm_info *vmi, struct vm_region *reg)
 	free(reg);
 }
 
-static void clear_param_map(struct user_ta_ctx *utc)
+void tee_mmu_clean_param(struct user_ta_ctx *utc)
 {
 	struct vm_region *next_r;
 	struct vm_region *r;
 
-	TAILQ_FOREACH_SAFE(r, &utc->vm_info->regions, link, next_r)
-		if (r->attr & TEE_MATTR_EPHEMERAL)
+	TAILQ_FOREACH_SAFE(r, &utc->vm_info->regions, link, next_r) {
+		if (r->attr & TEE_MATTR_EPHEMERAL) {
+			if (mobj_is_paged(r->mobj)) {
+				tee_pager_rem_uta_region(utc, r->va, r->size);
+				free_pgt(utc, r->va, r->size);
+			}
 			umap_remove_region(utc->vm_info, r);
+		}
+	}
+}
+
+static void check_param_map_empty(struct user_ta_ctx *utc __maybe_unused)
+{
+	struct vm_region *r = NULL;
+
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
+		assert(!(r->attr & TEE_MATTR_EPHEMERAL));
 }
 
 static TEE_Result param_mem_to_user_va(struct user_ta_ctx *utc,
@@ -511,8 +524,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 	if (mem[0].size)
 		m++;
 
-	/* Clear all the param entries as they can hold old information */
-	clear_param_map(utc);
+	check_param_map_empty(utc);
 
 	for (n = 0; n < m; n++) {
 		vaddr_t va = 0;
