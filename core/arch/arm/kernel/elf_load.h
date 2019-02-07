@@ -63,6 +63,8 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 						   const char *, uintptr_t *),
 			 struct elf_load_state **state);
 
+struct file *elf_load_get_file(struct elf_load_state *state);
+
 TEE_Result elf_load_head(struct elf_load_state *state, size_t head_size,
 			void **head, size_t *vasize, bool *is_32bit,
 			vaddr_t *entry);
