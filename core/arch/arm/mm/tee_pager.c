@@ -678,7 +678,7 @@ static void free_area(struct tee_pager_area *area)
 }
 
 static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-				     struct fobj *fobj)
+				     struct fobj *fobj, uint32_t prot)
 {
 	struct tee_pager_area *area;
 	vaddr_t b = base;
@@ -709,7 +709,7 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 		area->type = PAGER_AREA_TYPE_RW;
 		area->base = b;
 		area->size = s2;
-		area->flags = TEE_MATTR_PRW | TEE_MATTR_URWX;
+		area->flags = prot;
 
 		TAILQ_INSERT_TAIL(utc->areas, area, link);
 		TAILQ_INSERT_TAIL(&fobj->areas, area, fobj_link);
@@ -722,7 +722,7 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 }
 
 TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-			    struct fobj *fobj)
+			    struct fobj *fobj, uint32_t prot)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_specific_data *tsd = thread_get_tsd();
@@ -734,7 +734,7 @@ TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 		 * Changes are to an utc that isn't active. Just add the
 		 * areas page tables will be dealt with later.
 		 */
-		return pager_add_uta_area(utc, base, fobj);
+		return pager_add_uta_area(utc, base, fobj, prot);
 	}
 
 	/*
@@ -742,7 +742,7 @@ TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	 * are newly added and should be removed in case of failure.
 	 */
 	tee_pager_assign_uta_tables(utc);
-	res = pager_add_uta_area(utc, base, fobj);
+	res = pager_add_uta_area(utc, base, fobj, prot);
 	if (res) {
 		struct tee_pager_area *next_a;
 

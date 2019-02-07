@@ -920,7 +920,8 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 
 	m->fobj = fobj_rw_paged_alloc(ROUNDUP(size, SMALL_PAGE_SIZE) /
 				      SMALL_PAGE_SIZE);
-	if (tee_pager_add_uta_area(utc, va, m->fobj))
+	if (tee_pager_add_uta_area(utc, va, m->fobj,
+				   TEE_MATTR_PRW | TEE_MATTR_URW))
 		goto bad;
 
 	m->va = va;
