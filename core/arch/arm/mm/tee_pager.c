@@ -359,12 +359,12 @@ out:
 static size_t tbl_usage_count(struct core_mmu_table_info *ti)
 {
 	size_t n;
-	paddr_t pa;
+	uint32_t a = 0;
 	size_t usage = 0;
 
 	for (n = 0; n < ti->num_entries; n++) {
-		core_mmu_get_entry(ti, n, &pa, NULL);
-		if (pa)
+		core_mmu_get_entry(ti, n, NULL, &a);
+		if (a & TEE_MATTR_VALID_BLOCK)
 			usage++;
 	}
 	return usage;
