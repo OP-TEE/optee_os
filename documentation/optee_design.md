@@ -420,6 +420,13 @@ link script. The process is repeated for init text and rodata.  What is not
 "unpaged" or "init" becomes "paged".
 
 ## Partitioning of the binary
+
+*Note: the struct definitions provided in this section are explicitly covered
+by the following dual license:*
+```
+SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
+```
+
 The binary is partitioned into four parts as:
 ```
 +----------+
