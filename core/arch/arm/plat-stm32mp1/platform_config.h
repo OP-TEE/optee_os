@@ -12,6 +12,7 @@
 #define STACK_ALIGNMENT			32
 
 /* SoC interface registers base address */
+#define ETZPC_BASE			0x5c007000
 #define GIC_BASE			0xa0021000ul
 #define PWR_BASE			0x50001000
 #define RCC_BASE			0x50000000
