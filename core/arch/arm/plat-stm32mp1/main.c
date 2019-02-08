@@ -7,7 +7,9 @@
 #include <boot_api.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_uart.h>
+#include <drivers/stm32mp1_etzpc.h>
 #include <kernel/generic_boot.h>
 #include <kernel/dt.h>
 #include <kernel/misc.h>
@@ -180,6 +182,51 @@ void main_secondary_init_gic(void)
 
 	stm32mp_register_online_cpu();
 }
+
+#ifndef CFG_EMBED_DTB
+static TEE_Result init_stm32mp1_drivers(void)
+{
+	/* Without secure DTB support, some drivers must be inited */
+	stm32_etzpc_init(ETZPC_BASE);
+
+	return TEE_SUCCESS;
+}
+driver_init(init_stm32mp1_drivers);
+#endif /*!CFG_EMBED_DTB*/
+
+/* Platform initializations once all drivers are ready */
+static TEE_Result init_late_stm32mp1_drivers(void)
+{
+	/* Secure internal memories for the platform, once ETZPC is ready */
+	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
+	etzpc_lock_tzma(0);
+	etzpc_configure_tzma(1, ETZPC_TZMA_ALL_SECURE);
+	etzpc_lock_tzma(1);
+
+	/* Static secure DECPROT configuration */
+	etzpc_configure_decprot(STM32MP1_ETZPC_STGENC_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_BKPSRAM_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_IWDG1_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_DDRCTRL_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_DDRPHYC_ID, ETZPC_DECPROT_S_RW);
+	etzpc_lock_decprot(STM32MP1_ETZPC_STGENC_ID);
+	etzpc_lock_decprot(STM32MP1_ETZPC_BKPSRAM_ID);
+	etzpc_lock_decprot(STM32MP1_ETZPC_IWDG1_ID);
+	etzpc_lock_decprot(STM32MP1_ETZPC_DDRCTRL_ID);
+	etzpc_lock_decprot(STM32MP1_ETZPC_DDRPHYC_ID);
+	/* Static non-secure DECPROT configuration */
+	etzpc_configure_decprot(STM32MP1_ETZPC_I2C4_ID, ETZPC_DECPROT_NS_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_RNG1_ID, ETZPC_DECPROT_NS_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_HASH1_ID, ETZPC_DECPROT_NS_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_CRYP1_ID, ETZPC_DECPROT_NS_RW);
+	/* Release few resource to the non-secure world */
+	etzpc_configure_decprot(STM32MP1_ETZPC_USART1_ID, ETZPC_DECPROT_NS_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_SPI6_ID, ETZPC_DECPROT_NS_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_I2C6_ID, ETZPC_DECPROT_NS_RW);
+
+	return TEE_SUCCESS;
+}
+driver_init_late(init_late_stm32mp1_drivers);
 
 uintptr_t get_gicc_base(void)
 {
