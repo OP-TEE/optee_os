@@ -31,6 +31,13 @@ size_t strlcat(char *dst, const char *src, size_t size);
  */
 int buf_compare_ct(const void *s1, const void *s2, size_t n);
 
+/*
+ * A constant-time version of memcmp(). Might be slightly slower than
+ * buf_compare_ct(), but complies with the memcmp() specification which
+ * requires three possible outcomes for the comparison (< 0, 0 and > 0).
+ */
+int consttime_memcmp(const void *p1, const void *p2, size_t nb);
+
 /* Variant of strdup() that uses nex_malloc() instead of malloc() */
 char *nex_strdup(const char *s);
 
