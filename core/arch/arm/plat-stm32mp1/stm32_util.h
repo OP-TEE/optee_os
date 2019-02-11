@@ -15,6 +15,23 @@ uintptr_t stm32mp_bkpreg(unsigned int idx);
 uintptr_t get_gicc_base(void);
 uintptr_t get_gicd_base(void);
 
+/*
+ * Platform util functions for the GPIO driver
+ * @bank: Target GPIO bank ID as per DT bindings
+ *
+ * Platform shall implement these functions to provide to stm32_gpio
+ * driver the resource reference for a target GPIO bank. That are
+ * memory mapped interface base address, interface offset (see below)
+ * and clock identifier.
+ *
+ * stm32_get_gpio_bank_offset() returns a bank offset that is used to
+ * check DT configuration matches platform implementation of the banks
+ * description.
+ */
+uintptr_t stm32_get_gpio_bank_base(unsigned int bank);
+unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
+unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
+
 /* Power management service */
 #ifdef CFG_PSCI_ARM32
 void stm32mp_register_online_cpu(void);
