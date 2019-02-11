@@ -38,8 +38,8 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 
-register_phys_mem(MEM_AREA_IO_NSEC,
-		  CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
+			CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
 
 static void main_fiq(void)
 {

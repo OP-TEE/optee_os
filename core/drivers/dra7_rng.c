@@ -68,7 +68,7 @@
 
 #define RNG_REG_SIZE    0x2000
 
-register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 
 static unsigned int rng_lock = SPINLOCK_UNLOCK;
 

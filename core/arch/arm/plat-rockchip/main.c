@@ -42,8 +42,8 @@
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
 
-register_phys_mem(MEM_AREA_IO_SEC, PERIPH_BASE, PERIPH_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, ISRAM_BASE, ISRAM_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, PERIPH_BASE, PERIPH_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, ISRAM_BASE, ISRAM_SIZE);
 
 static void main_fiq(void)
 {

@@ -34,7 +34,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, PL310_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, PL310_SIZE);
 
 vaddr_t pl310_base(void)
 {

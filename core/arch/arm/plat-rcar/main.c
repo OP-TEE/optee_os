@@ -38,9 +38,9 @@
 #include <drivers/scif.h>
 #include <drivers/gic.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
 register_dynamic_shm(NSEC_DDR_0_BASE, NSEC_DDR_0_SIZE);
 register_dynamic_shm(NSEC_DDR_1_BASE, NSEC_DDR_1_SIZE);

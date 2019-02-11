@@ -163,7 +163,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	return TEE_SUCCESS;
 }
 #else
-register_phys_mem(MEM_AREA_IO_SEC, WDOG_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, WDOG_BASE, CORE_MMU_PGDIR_SIZE);
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
 	*wdog_vbase = (vaddr_t)phys_to_virt(WDOG_BASE, MEM_AREA_IO_SEC);

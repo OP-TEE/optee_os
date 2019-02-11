@@ -37,7 +37,7 @@
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SRC_BASE, CORE_MMU_PGDIR_SIZE);
 
 void plat_cpu_reset_late(void)
 {

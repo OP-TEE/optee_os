@@ -32,8 +32,8 @@
 #define RNG_NUM		0x10	/* Random number output */
 #define RNG_PHY_SEED	0x14	/* Ring oscillator output */
 
-register_phys_mem(MEM_AREA_IO_SEC, ALG_SC_BASE, ALG_SC_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, ALG_SC_BASE, ALG_SC_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 
 static unsigned int rng_lock = SPINLOCK_UNLOCK;
 

@@ -138,11 +138,11 @@
 #endif /*CFG_SECURE_DATA_PATH*/
 
 #define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
-					CORE_MMU_DEVICE_SIZE)
+					CORE_MMU_PGDIR_SIZE)
 
 #define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE) - \
 					  TEE_SDP_TEST_MEM_SIZE, \
-					  CORE_MMU_DEVICE_SIZE)
+					  CORE_MMU_PGDIR_SIZE)
 
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
 #define TEE_SHMEM_START         (TZDRAM_BASE + TZDRAM_SIZE)

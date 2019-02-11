@@ -33,10 +33,10 @@ static struct serial8250_uart_data console_data;
 static uint8_t plat_huk[PLAT_HW_UNIQUE_KEY_LENGTH];
 
 register_phys_mem(MEM_AREA_RAM_SEC, TZDRAM_BASE, TEE_RAM_VA_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SECRAM_BASE, SECRAM_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 		  SERIAL8250_UART_REG_SIZE);
 
 void main_init_gic(void)

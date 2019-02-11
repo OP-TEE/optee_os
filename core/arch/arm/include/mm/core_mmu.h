@@ -36,11 +36,6 @@
 #define CORE_MMU_PGDIR_SIZE		(1 << CORE_MMU_PGDIR_SHIFT)
 #define CORE_MMU_PGDIR_MASK		(CORE_MMU_PGDIR_SIZE - 1)
 
-/* Devices are mapped using this granularity */
-#define CORE_MMU_DEVICE_SHIFT		CORE_MMU_PGDIR_SHIFT
-#define CORE_MMU_DEVICE_SIZE		(1 << CORE_MMU_DEVICE_SHIFT)
-#define CORE_MMU_DEVICE_MASK		(CORE_MMU_DEVICE_SIZE - 1)
-
 /* TA user space code, data, stack and heap are mapped using this granularity */
 #define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
 #define CORE_MMU_USER_CODE_SIZE		(1 << CORE_MMU_USER_CODE_SHIFT)
@@ -217,6 +212,12 @@ struct core_mmu_phys_mem {
 #define register_phys_mem_ul(type, addr, size) \
 		__register_memory_ul(#addr, (type), (addr), (size), \
 				     phys_mem_map)
+
+/* Same as register_phys_mem() but with PGDIR_SIZE granularity */
+#define register_phys_mem_pgdir(type, addr, size) \
+	register_phys_mem(type, ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+		ROUNDUP(size + addr - ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+			CORE_MMU_PGDIR_SIZE))
 
 #ifdef CFG_SECURE_DATA_PATH
 #define register_sdp_mem(addr, size) \

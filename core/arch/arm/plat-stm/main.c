@@ -22,9 +22,9 @@
 #include <trace.h>
 #include <util.h>
 
-register_phys_mem(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CPU_IOMEM_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CPU_IOMEM_BASE, CPU_IOMEM_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART_CONSOLE_BASE, STIH_ASC_REG_SIZE);
 
 #ifdef DRAM0_BASE
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
