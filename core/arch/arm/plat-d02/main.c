@@ -31,7 +31,8 @@ static const struct thread_handlers handlers = {
 
 static struct hi16xx_uart_data console_data;
 
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, HI16XX_UART_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
+			HI16XX_UART_REG_SIZE);
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {

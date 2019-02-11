@@ -40,16 +40,16 @@ static const struct thread_handlers handlers = {
 
 static struct pl011_data console_data;
 
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 #if defined(PLATFORM_FLAVOR_hikey)
-register_phys_mem(MEM_AREA_IO_NSEC, PMUSSI_BASE, PMUSSI_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, PMUSSI_BASE, PMUSSI_REG_SIZE);
 #endif
 #if defined(CFG_SPI) && defined(PLATFORM_FLAVOR_hikey)
-register_phys_mem(MEM_AREA_IO_NSEC, PERI_BASE, PERI_BASE_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, PMX0_BASE, PMX0_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, PMX1_BASE, PMX1_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, GPIO6_BASE, PL061_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, SPI_BASE, PL022_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, PERI_BASE, PERI_BASE_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, PMX0_BASE, PMX0_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, PMX1_BASE, PMX1_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GPIO6_BASE, PL061_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, SPI_BASE, PL022_REG_SIZE);
 #endif
 register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE_NSEC);
 #ifdef DRAM1_SIZE_NSEC

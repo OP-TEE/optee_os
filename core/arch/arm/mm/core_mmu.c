@@ -845,11 +845,6 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 		/* Only unmapped virtual range may have a null phys addr */
 		assert(m.addr || !core_mmu_type_to_attr(m.type));
 
-		if (m.type == MEM_AREA_IO_NSEC || m.type == MEM_AREA_IO_SEC) {
-			m.addr = ROUNDDOWN(m.addr, CORE_MMU_PGDIR_SIZE);
-			m.size = ROUNDUP(m.size + (mem->addr - m.addr),
-					 CORE_MMU_PGDIR_SIZE);
-		}
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
 

@@ -34,10 +34,10 @@ static struct gic_data gic_data;
 struct serial8250_uart_data console_data;
 
 #ifdef BCM_DEVICE0_BASE
-register_phys_mem(MEM_AREA_IO_SEC, BCM_DEVICE0_BASE, BCM_DEVICE0_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, BCM_DEVICE0_BASE, BCM_DEVICE0_SIZE);
 #endif
 #ifdef BCM_DEVICE1_BASE
-register_phys_mem(MEM_AREA_IO_SEC, BCM_DEVICE1_BASE, BCM_DEVICE1_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, BCM_DEVICE1_BASE, BCM_DEVICE1_SIZE);
 #endif
 #ifdef BCM_DRAM0_NS_BASE
 register_dynamic_shm(MEM_AREA_RAM_NSEC, BCM_DRAM0_NS_BASE, BCM_DRAM0_NS_SIZE);

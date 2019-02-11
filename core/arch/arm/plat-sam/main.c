@@ -70,7 +70,8 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 }
 
 static struct atmel_uart_data console_data;
-register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
+			CORE_MMU_PGDIR_SIZE);
 
 void console_init(void)
 {
@@ -78,8 +79,8 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, SFR_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SFR_BASE, CORE_MMU_PGDIR_SIZE);
 
 static vaddr_t sfr_base(void)
 {
@@ -133,8 +134,10 @@ void arm_cl2_enable(vaddr_t pl310_base)
 	write32(1, pl310_base + PL310_CTRL);
 }
 
-register_phys_mem(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX32, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX64, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX32,
+			CORE_MMU_PGDIR_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX64,
+			CORE_MMU_PGDIR_SIZE);
 
 vaddr_t matrix32_base(void)
 {

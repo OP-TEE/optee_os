@@ -122,7 +122,7 @@ int pm_imx7_iram_tbl_init(void)
 	map.pa = ROUNDDOWN(IRAM_S_BASE, CORE_MMU_PGDIR_SIZE);
 	map.va = (vaddr_t)phys_to_virt(map.pa, MEM_AREA_TEE_COHERENT);
 	map.region_size = CORE_MMU_PGDIR_SIZE;
-	map.size = CORE_MMU_DEVICE_SIZE;
+	map.size = CORE_MMU_PGDIR_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
 	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRWX | TEE_MATTR_SECURE;
 	map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
@@ -130,7 +130,7 @@ int pm_imx7_iram_tbl_init(void)
 	map.pa = GIC_BASE;
 	map.va = (vaddr_t)phys_to_virt((paddr_t)GIC_BASE, MEM_AREA_IO_SEC);
 	map.region_size = CORE_MMU_PGDIR_SIZE;
-	map.size = CORE_MMU_DEVICE_SIZE;
+	map.size = CORE_MMU_PGDIR_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
 	map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW | TEE_MATTR_SECURE;
 	map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);

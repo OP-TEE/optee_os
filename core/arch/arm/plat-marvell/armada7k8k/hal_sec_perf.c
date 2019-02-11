@@ -135,8 +135,8 @@
 
 #define _IS_ALIGNED(_addr, _algn)	(!((_addr) & ((_algn) - 1)))
 
-register_phys_mem(MEM_AREA_IO_SEC, MCU_BASE, CORE_MMU_DEVICE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, MC_SCR_REGISTER, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, MCU_BASE, CORE_MMU_PGDIR_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, MC_SCR_REGISTER, CORE_MMU_PGDIR_SIZE);
 
 static int32_t _find_valid_range(void)
 {

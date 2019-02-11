@@ -21,7 +21,7 @@
 #define PL310_DEBUG_CTRL_DISABLE_WRITEBACK	BIT(1)
 #define PL310_DEBUG_CTRL_DISABLE_LINEFILL	BIT(0)
 
-register_phys_mem(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
 
 void arm_cl2_config(vaddr_t pl310_base)
 {

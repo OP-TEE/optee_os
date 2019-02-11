@@ -49,16 +49,16 @@
 #include <tee/entry_std.h>
 
 #ifdef GIC_BASE
-register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 
 #ifdef CONSOLE_UART_BASE
-register_phys_mem(MEM_AREA_IO_NSEC,
-		  CONSOLE_UART_BASE, SUNXI_UART_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
+			CONSOLE_UART_BASE, SUNXI_UART_REG_SIZE);
 #endif
 
 #ifdef SUNXI_TZPC_BASE
-register_phys_mem(MEM_AREA_IO_SEC, SUNXI_TZPC_BASE, SUNXI_TZPC_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_TZPC_BASE, SUNXI_TZPC_REG_SIZE);
 #define REG_TZPC_SMTA_DECPORT0_STA_REG      (0x0004)
 #define REG_TZPC_SMTA_DECPORT0_SET_REG      (0x0008)
 #define REG_TZPC_SMTA_DECPORT0_CLR_REG      (0x000C)
@@ -71,16 +71,17 @@ register_phys_mem(MEM_AREA_IO_SEC, SUNXI_TZPC_BASE, SUNXI_TZPC_REG_SIZE);
 #endif
 
 #ifdef SUNXI_CPUCFG_BASE
-register_phys_mem(MEM_AREA_IO_SEC, SUNXI_CPUCFG_BASE, SUNXI_CPUCFG_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_CPUCFG_BASE,
+			SUNXI_CPUCFG_REG_SIZE);
 #endif
 
 #ifdef SUNXI_PRCM_BASE
-register_phys_mem(MEM_AREA_IO_SEC, SUNXI_PRCM_BASE, SUNXI_PRCM_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_PRCM_BASE, SUNXI_PRCM_REG_SIZE);
 #endif
 
 #ifdef CFG_TZC380
 vaddr_t smc_base(void);
-register_phys_mem(MEM_AREA_IO_SEC, SUNXI_SMC_BASE, TZC400_REG_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_SMC_BASE, TZC400_REG_SIZE);
 #define SMC_MASTER_BYPASS 0x18
 #define SMC_MASTER_BYPASS_EN_MASK 0x1
 #endif

@@ -72,44 +72,45 @@ static const struct thread_handlers handlers = {
 static struct imx_uart_data console_data;
 
 #ifdef CONSOLE_UART_BASE
-register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
+			CORE_MMU_PGDIR_SIZE);
 #endif
 #ifdef GIC_BASE
-register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 #ifdef ANATOP_BASE
-register_phys_mem(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 #ifdef GICD_BASE
-register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, 0x10000);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, 0x10000);
 #endif
 #ifdef AIPS1_BASE
-register_phys_mem(MEM_AREA_IO_SEC, AIPS1_BASE,
-		  ROUNDUP(AIPS1_SIZE, CORE_MMU_DEVICE_SIZE));
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS1_BASE,
+			ROUNDUP(AIPS1_SIZE, CORE_MMU_PGDIR_SIZE));
 #endif
 #ifdef AIPS2_BASE
-register_phys_mem(MEM_AREA_IO_SEC, AIPS2_BASE,
-		  ROUNDUP(AIPS2_SIZE, CORE_MMU_DEVICE_SIZE));
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS2_BASE,
+			ROUNDUP(AIPS2_SIZE, CORE_MMU_PGDIR_SIZE));
 #endif
 #ifdef AIPS3_BASE
-register_phys_mem(MEM_AREA_IO_SEC, AIPS3_BASE,
-		  ROUNDUP(AIPS3_SIZE, CORE_MMU_DEVICE_SIZE));
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS3_BASE,
+			ROUNDUP(AIPS3_SIZE, CORE_MMU_PGDIR_SIZE));
 #endif
 #ifdef IRAM_BASE
 register_phys_mem(MEM_AREA_TEE_COHERENT,
-		  ROUNDDOWN(IRAM_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
+		  ROUNDDOWN(IRAM_BASE, CORE_MMU_PGDIR_SIZE),
+		  CORE_MMU_PGDIR_SIZE);
 #endif
 #ifdef IRAM_S_BASE
 register_phys_mem(MEM_AREA_TEE_COHERENT,
-		  ROUNDDOWN(IRAM_S_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
+		  ROUNDDOWN(IRAM_S_BASE, CORE_MMU_PGDIR_SIZE),
+		  CORE_MMU_PGDIR_SIZE);
 #endif
 
 #if defined(CFG_PL310)
-register_phys_mem(MEM_AREA_IO_SEC,
-		  ROUNDDOWN(PL310_BASE, CORE_MMU_DEVICE_SIZE),
-		  CORE_MMU_DEVICE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC,
+			ROUNDDOWN(PL310_BASE, CORE_MMU_PGDIR_SIZE),
+			CORE_MMU_PGDIR_SIZE);
 #endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)

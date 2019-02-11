@@ -26,25 +26,25 @@
 #include <trace.h>
 
 #ifdef CFG_WITH_NSEC_GPIOS
-register_phys_mem(MEM_AREA_IO_NSEC, GPIOS_NSEC_BASE, GPIOS_NSEC_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GPIOS_NSEC_BASE, GPIOS_NSEC_SIZE);
 #endif
 #ifdef CFG_WITH_NSEC_UARTS
-register_phys_mem(MEM_AREA_IO_NSEC, USART1_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, USART2_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, USART3_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART4_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART5_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, USART6_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART7_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART1_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART2_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART3_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART4_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART5_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART6_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART7_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
 #endif
 
-register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, GPIOZ_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, RCC_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, PWR_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GPIOZ_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, RCC_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, PWR_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
 static void main_fiq(void);
 
