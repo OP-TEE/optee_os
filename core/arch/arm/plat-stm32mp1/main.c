@@ -10,6 +10,7 @@
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp1_etzpc.h>
+#include <dt-bindings/clock/stm32mp1-clks.h>
 #include <kernel/generic_boot.h>
 #include <kernel/dt.h>
 #include <kernel/misc.h>
@@ -24,6 +25,9 @@
 #include <tee/entry_fast.h>
 #include <trace.h>
 
+#ifdef CFG_WITH_NSEC_GPIOS
+register_phys_mem(MEM_AREA_IO_NSEC, GPIOS_NSEC_BASE, GPIOS_NSEC_SIZE);
+#endif
 #ifdef CFG_WITH_NSEC_UARTS
 register_phys_mem(MEM_AREA_IO_NSEC, USART1_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, USART2_BASE, SMALL_PAGE_SIZE);
@@ -36,6 +40,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
 #endif
 
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GPIOZ_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, RCC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, PWR_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
@@ -279,4 +284,36 @@ static uintptr_t bkpreg_base(void)
 uintptr_t stm32mp_bkpreg(unsigned int idx)
 {
 	return bkpreg_base() + (idx * sizeof(uint32_t));
+}
+
+uintptr_t stm32_get_gpio_bank_base(unsigned int bank)
+{
+	static struct io_pa_va gpios_nsec_base = { .pa = GPIOS_NSEC_BASE };
+	static struct io_pa_va gpioz_base = { .pa = GPIOZ_BASE };
+
+	if (bank == GPIO_BANK_Z)
+		return io_pa_or_va(&gpioz_base);
+
+	COMPILE_TIME_ASSERT(GPIO_BANK_A == 0);
+	assert(bank <= GPIO_BANK_K);
+
+	return io_pa_or_va(&gpios_nsec_base) + (bank * GPIO_BANK_OFFSET);
+}
+
+unsigned int stm32_get_gpio_bank_offset(unsigned int bank)
+{
+	if (bank == GPIO_BANK_Z)
+		return 0;
+
+	assert(bank <= GPIO_BANK_K);
+	return bank * GPIO_BANK_OFFSET;
+}
+
+unsigned int stm32_get_gpio_bank_clock(unsigned int bank)
+{
+	if (bank == GPIO_BANK_Z)
+		return GPIOZ;
+
+	assert(bank <= GPIO_BANK_K);
+	return GPIOA + bank;
 }
