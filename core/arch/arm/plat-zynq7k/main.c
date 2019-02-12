@@ -86,37 +86,36 @@ void plat_cpu_reset_late(void)
 		/* primary core */
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
 		/* set secondary entry address and release core */
-		write32(TEE_LOAD_ADDR, SECONDARY_ENTRY_DROP);
+		io_write32(SECONDARY_ENTRY_DROP, TEE_LOAD_ADDR);
 		dsb();
 		sev();
 #endif
 
 		/* SCU config */
-		write32(SCU_INV_CTRL_INIT, SCU_BASE + SCU_INV_SEC);
-		write32(SCU_SAC_CTRL_INIT, SCU_BASE + SCU_SAC);
-		write32(SCU_NSAC_CTRL_INIT, SCU_BASE + SCU_NSAC);
+		io_write32(SCU_BASE + SCU_INV_SEC, SCU_INV_CTRL_INIT);
+		io_write32(SCU_BASE + SCU_SAC, SCU_SAC_CTRL_INIT);
+		io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_CTRL_INIT);
 
 		/* SCU enable */
-		write32(read32(SCU_BASE + SCU_CTRL) | 0x1,
-			SCU_BASE + SCU_CTRL);
+		io_setbits32(SCU_BASE + SCU_CTRL, 0x1);
 
 		/* NS Access control */
-		write32(ACCESS_BITS_ALL, SECURITY2_SDIO0);
-		write32(ACCESS_BITS_ALL, SECURITY3_SDIO1);
-		write32(ACCESS_BITS_ALL, SECURITY4_QSPI);
-		write32(ACCESS_BITS_ALL, SECURITY6_APB_SLAVES);
+		io_write32(SECURITY2_SDIO0, ACCESS_BITS_ALL);
+		io_write32(SECURITY3_SDIO1, ACCESS_BITS_ALL);
+		io_write32(SECURITY4_QSPI, ACCESS_BITS_ALL);
+		io_write32(SECURITY6_APB_SLAVES, ACCESS_BITS_ALL);
 
-		write32(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK);
+		io_write32(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK);
 
-		write32(ACCESS_BITS_ALL, SLCR_TZ_DDR_RAM);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_DMA_NS);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_DMA_IRQ_NS);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_DMA_PERIPH_NS);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_GEM);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_SDIO);
-		write32(ACCESS_BITS_ALL, SLCR_TZ_USB);
+		io_write32(SLCR_TZ_DDR_RAM, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_DMA_NS, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_DMA_IRQ_NS, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_DMA_PERIPH_NS, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_GEM, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_SDIO, ACCESS_BITS_ALL);
+		io_write32(SLCR_TZ_USB, ACCESS_BITS_ALL);
 
-		write32(SLCR_LOCK_MAGIC, SLCR_LOCK);
+		io_write32(SLCR_LOCK, SLCR_LOCK_MAGIC);
 	}
 }
 
@@ -141,19 +140,19 @@ vaddr_t pl310_base(void)
 void arm_cl2_config(vaddr_t pl310_base)
 {
 	/* Disable PL310 */
-	write32(0, pl310_base + PL310_CTRL);
+	io_write32(pl310_base + PL310_CTRL, 0);
 
 	/*
 	 * Xilinx AR#54190 recommends setting L2C RAM in SLCR
 	 * to 0x00020202 for proper cache operations.
 	 */
-	write32(SLCR_L2C_RAM_VALUE, SLCR_L2C_RAM);
+	io_write32(SLCR_L2C_RAM, SLCR_L2C_RAM_VALUE);
 
-	write32(PL310_TAG_RAM_CTRL_INIT, pl310_base + PL310_TAG_RAM_CTRL);
-	write32(PL310_DATA_RAM_CTRL_INIT, pl310_base + PL310_DATA_RAM_CTRL);
-	write32(PL310_AUX_CTRL_INIT, pl310_base + PL310_AUX_CTRL);
-	write32(PL310_PREFETCH_CTRL_INIT, pl310_base + PL310_PREFETCH_CTRL);
-	write32(PL310_POWER_CTRL_INIT, pl310_base + PL310_POWER_CTRL);
+	io_write32(pl310_base + PL310_TAG_RAM_CTRL, PL310_TAG_RAM_CTRL_INIT);
+	io_write32(pl310_base + PL310_DATA_RAM_CTRL, PL310_DATA_RAM_CTRL_INIT);
+	io_write32(pl310_base + PL310_AUX_CTRL, PL310_AUX_CTRL_INIT);
+	io_write32(pl310_base + PL310_PREFETCH_CTRL, PL310_PREFETCH_CTRL_INIT);
+	io_write32(pl310_base + PL310_POWER_CTRL, PL310_POWER_CTRL_INIT);
 
 	/* invalidate all cache ways */
 	arm_cl2_invbyway(pl310_base);
@@ -164,10 +163,10 @@ void arm_cl2_enable(vaddr_t pl310_base)
 	uint32_t val;
 
 	/* Enable PL310 ctrl -> only set lsb bit */
-	write32(1, pl310_base + PL310_CTRL);
+	io_write32(pl310_base + PL310_CTRL, 1);
 
 	/* if L2 FLZW enable, enable in L1 */
-	val = read32(pl310_base + PL310_AUX_CTRL);
+	val = io_read32(pl310_base + PL310_AUX_CTRL);
 	if (val & 1)
 		write_actlr(read_actlr() | (1 << 3));
 }
@@ -214,7 +213,7 @@ static uint32_t write_slcr(uint32_t addr, uint32_t val)
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,
 							   MEM_AREA_IO_SEC);
-			write32(val, va + addr);
+			io_write32(va + addr, val);
 			return OPTEE_SMC_RETURN_OK;
 		}
 	}
@@ -233,7 +232,7 @@ static uint32_t read_slcr(uint32_t addr, uint32_t *val)
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,
 							   MEM_AREA_IO_SEC);
-			*val = read32(va + addr);
+			*val = io_read32(va + addr);
 			return OPTEE_SMC_RETURN_OK;
 		}
 	}
