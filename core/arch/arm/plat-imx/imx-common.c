@@ -23,9 +23,9 @@ static uint32_t imx_digproc(void)
 
 		/* TODO: Handle SL here */
 #ifdef CFG_MX7
-		reg = read32(anatop_addr + OFFSET_DIGPROG_IMX7D);
+		reg = io_read32(anatop_addr + OFFSET_DIGPROG_IMX7D);
 #else
-		reg = read32(anatop_addr + OFFSET_DIGPROG);
+		reg = io_read32(anatop_addr + OFFSET_DIGPROG);
 #endif
 	}
 
@@ -77,9 +77,9 @@ uint32_t imx_get_src_gpr(int cpu)
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
 	if (soc_is_imx7ds())
-		return read32(va + SRC_GPR1_MX7 + cpu * 8 + 4);
+		return io_read32(va + SRC_GPR1_MX7 + cpu * 8 + 4);
 	else
-		return read32(va + SRC_GPR1 + cpu * 8 + 4);
+		return io_read32(va + SRC_GPR1 + cpu * 8 + 4);
 }
 
 void imx_set_src_gpr(int cpu, uint32_t val)
@@ -87,7 +87,7 @@ void imx_set_src_gpr(int cpu, uint32_t val)
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
 
 	if (soc_is_imx7ds())
-		write32(val, va + SRC_GPR1_MX7 + cpu * 8 + 4);
+		io_write32(va + SRC_GPR1_MX7 + cpu * 8 + 4, val);
 	else
-		write32(val, va + SRC_GPR1 + cpu * 8 + 4);
+		io_write32(va + SRC_GPR1 + cpu * 8 + 4, val);
 }

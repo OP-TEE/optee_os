@@ -179,7 +179,7 @@ int imx7_suspend_init(void)
 	p->gic_pa_base = GIC_BASE;
 
 	/* TODO:lpsr disabled now */
-	write32(0, p->lpsr_va_base);
+	io_write32(p->lpsr_va_base, 0);
 
 	p->ddr_type = imx_get_ddr_type();
 	switch (p->ddr_type) {
@@ -199,8 +199,8 @@ int imx7_suspend_init(void)
 	for (i = 0; i < p->ddrc_num; i++) {
 		p->ddrc_val[i][0] = ddrc_offset_array[i][0];
 		if (ddrc_offset_array[i][1] == READ_DATA_FROM_HARDWARE)
-			p->ddrc_val[i][1] = read32(p->ddrc_va_base +
-						   ddrc_offset_array[i][0]);
+			p->ddrc_val[i][1] = io_read32(p->ddrc_va_base +
+						      ddrc_offset_array[i][0]);
 		else
 			p->ddrc_val[i][1] = ddrc_offset_array[i][1];
 
@@ -213,8 +213,8 @@ int imx7_suspend_init(void)
 		p->ddrc_phy_val[i][0] = ddrc_phy_offset_array[i][0];
 		if (ddrc_phy_offset_array[i][1] == READ_DATA_FROM_HARDWARE)
 			p->ddrc_phy_val[i][1] =
-				read32(p->ddrc_phy_va_base +
-				       ddrc_phy_offset_array[i][0]);
+				io_read32(p->ddrc_phy_va_base +
+					  ddrc_phy_offset_array[i][0]);
 		else
 			p->ddrc_phy_val[i][1] = ddrc_phy_offset_array[i][1];
 	}
