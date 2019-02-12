@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2019, Linaro Limited
  */
 #ifndef IO_H
 #define IO_H
@@ -19,49 +19,49 @@
  */
 #define READ_ONCE(p) __compiler_atomic_load(&(p))
 
-static inline void write8(uint8_t val, vaddr_t addr)
+static inline void io_write8(vaddr_t addr, uint8_t val)
 {
 	*(volatile uint8_t *)addr = val;
 }
 
-static inline void write16(uint16_t val, vaddr_t addr)
+static inline void io_write16(vaddr_t addr, uint16_t val)
 {
 	*(volatile uint16_t *)addr = val;
 }
 
-static inline void write32(uint32_t val, vaddr_t addr)
+static inline void io_write32(vaddr_t addr, uint32_t val)
 {
 	*(volatile uint32_t *)addr = val;
 }
 
-static inline uint8_t read8(vaddr_t addr)
+static inline uint8_t io_read8(vaddr_t addr)
 {
 	return *(volatile uint8_t *)addr;
 }
 
-static inline uint16_t read16(vaddr_t addr)
+static inline uint16_t io_read16(vaddr_t addr)
 {
 	return *(volatile uint16_t *)addr;
 }
 
-static inline uint32_t read32(vaddr_t addr)
+static inline uint32_t io_read32(vaddr_t addr)
 {
 	return *(volatile uint32_t *)addr;
 }
 
 static inline void io_mask8(vaddr_t addr, uint8_t val, uint8_t mask)
 {
-	write8((read8(addr) & ~mask) | (val & mask), addr);
+	io_write8(addr, (io_read8(addr) & ~mask) | (val & mask));
 }
 
 static inline void io_mask16(vaddr_t addr, uint16_t val, uint16_t mask)
 {
-	write16((read16(addr) & ~mask) | (val & mask), addr);
+	io_write16(addr, (io_read16(addr) & ~mask) | (val & mask));
 }
 
 static inline void io_mask32(vaddr_t addr, uint32_t val, uint32_t mask)
 {
-	write32((read32(addr) & ~mask) | (val & mask), addr);
+	io_write32(addr, (io_read32(addr) & ~mask) | (val & mask));
 }
 
 static inline uint64_t get_be64(const void *p)
@@ -106,18 +106,56 @@ static inline void put_be16(void *p, uint16_t val)
  */
 static inline void io_setbits32(vaddr_t addr, uint32_t set_mask)
 {
-	write32(read32(addr) | set_mask, addr);
+	io_write32(addr, io_read32(addr) | set_mask);
 }
 
 static inline void io_clrbits32(vaddr_t addr, uint32_t clear_mask)
 {
-	write32(read32(addr) & ~clear_mask, addr);
+	io_write32(addr, io_read32(addr) & ~clear_mask);
 }
 
 static inline void io_clrsetbits32(vaddr_t addr, uint32_t clear_mask,
 				   uint32_t set_mask)
 {
-	write32((read32(addr) & ~clear_mask) | set_mask, addr);
+	io_write32(addr, (io_read32(addr) & ~clear_mask) | set_mask);
+}
+
+/*
+ * Functions write8(), write16(), write32(), read8(), read16() and read32()
+ * will be deprecated in OP-TEE release 3.5.0.
+ *
+ * Main issue is the swapping position of address and value arguments
+ * of write{8|16|32}() regarding other util functions io_mask*(),
+ * io_*bits32() and put_be*().
+ */
+static inline void write8(uint8_t val, vaddr_t addr)
+{
+	io_write8(addr, val);
+}
+
+static inline void write16(uint16_t val, vaddr_t addr)
+{
+	io_write16(addr, val);
+}
+
+static inline void write32(uint32_t val, vaddr_t addr)
+{
+	io_write32(addr, val);
+}
+
+static inline uint8_t read8(vaddr_t addr)
+{
+	return io_read8(addr);
+}
+
+static inline uint16_t read16(vaddr_t addr)
+{
+	return io_read16(addr);
+}
+
+static inline uint32_t read32(vaddr_t addr)
+{
+	return io_read32(addr);
 }
 
 #endif /*IO_H*/
