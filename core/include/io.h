@@ -120,6 +120,38 @@ static inline void io_clrsetbits32(vaddr_t addr, uint32_t clear_mask,
 	io_write32(addr, (io_read32(addr) & ~clear_mask) | set_mask);
 }
 
+static inline void io_setbits16(vaddr_t addr, uint16_t set_mask)
+{
+	io_write16(addr, io_read16(addr) | set_mask);
+}
+
+static inline void io_clrbits16(vaddr_t addr, uint16_t clear_mask)
+{
+	io_write16(addr, io_read16(addr) & ~clear_mask);
+}
+
+static inline void io_clrsetbits16(vaddr_t addr, uint16_t clear_mask,
+				   uint16_t set_mask)
+{
+	io_write16(addr, (io_read16(addr) & ~clear_mask) | set_mask);
+}
+
+static inline void io_setbits8(vaddr_t addr, uint8_t set_mask)
+{
+	io_write8(addr, io_read8(addr) | set_mask);
+}
+
+static inline void io_clrbits8(vaddr_t addr, uint8_t clear_mask)
+{
+	io_write8(addr, io_read8(addr) & ~clear_mask);
+}
+
+static inline void io_clrsetbits8(vaddr_t addr, uint8_t clear_mask,
+				  uint8_t set_mask)
+{
+	io_write8(addr, (io_read8(addr) & ~clear_mask) | set_mask);
+}
+
 /*
  * Functions write8(), write16(), write32(), read8(), read16() and read32()
  * will be deprecated in OP-TEE release 3.5.0.
