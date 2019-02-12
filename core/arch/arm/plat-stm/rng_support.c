@@ -37,7 +37,7 @@ static inline int hwrng_waithost_fifo_full(void)
 	uint32_t status;
 
 	do {
-		status = read32(rng_base() + RNG_STATUS_OFFSET);
+		status = io_read32(rng_base() + RNG_STATUS_OFFSET);
 	} while (!(status & RNG_STATUS_FULL));
 
 	if (status & (RNG_STATUS_ERR0 | RNG_STATUS_ERR1))
@@ -109,7 +109,7 @@ uint8_t hw_get_random_byte(void)
 
 	/* Read the FIFO according the number of expected element */
 	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++)
-		tmpval[i] = read32(rng_base() + RNG_VAL_OFFSET) & 0xFFFF;
+		tmpval[i] = io_read32(rng_base() + RNG_VAL_OFFSET) & 0xFFFF;
 
 	/* Update the local SW fifo for next request */
 	pos = 0;
