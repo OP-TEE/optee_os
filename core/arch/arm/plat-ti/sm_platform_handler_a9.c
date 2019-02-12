@@ -63,29 +63,29 @@ bool sm_platform_handler(struct sm_ctx *ctx)
 		}
 		break;
 	case API_MONITOR_L2CACHE_SETDEBUG_INDEX:
-		write32(ctx->nsec.r0, pl310_base() + PL310_DEBUG_CTRL);
+		io_write32(pl310_base() + PL310_DEBUG_CTRL, ctx->nsec.r0);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	case API_MONITOR_L2CACHE_CLEANINVBYPA_INDEX:
 		arm_cl2_cleaninvbypa(pl310_base(), ctx->nsec.r0,
-				     (ctx->nsec.r0 + ctx->nsec.r1));
+				     ctx->nsec.r0 + ctx->nsec.r1);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETCONTROL_INDEX:
-		write32(ctx->nsec.r0, pl310_base() + PL310_CTRL);
+		io_write32(pl310_base() + PL310_CTRL, ctx->nsec.r0);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETAUXILIARYCONTROL_INDEX:
-		write32(ctx->nsec.r0, pl310_base() + PL310_AUX_CTRL);
+		io_write32(pl310_base() + PL310_AUX_CTRL, ctx->nsec.r0);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETLATENCY_INDEX:
-		write32(ctx->nsec.r0, pl310_base() + PL310_TAG_RAM_CTRL);
-		write32(ctx->nsec.r1, pl310_base() + PL310_DATA_RAM_CTRL);
+		io_write32(pl310_base() + PL310_TAG_RAM_CTRL, ctx->nsec.r0);
+		io_write32(pl310_base() + PL310_DATA_RAM_CTRL, ctx->nsec.r1);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETPREFETCHCONTROL_INDEX:
-		write32(ctx->nsec.r0, pl310_base() + PL310_PREFETCH_CTRL);
+		io_write32(pl310_base() + PL310_PREFETCH_CTRL, ctx->nsec.r0);
 		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
 		break;
 	default:
