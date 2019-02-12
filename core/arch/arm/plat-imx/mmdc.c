@@ -26,7 +26,7 @@ int imx_get_ddr_type(void)
 	else
 		off = MMDC_MDMISC;
 
-	val =  read32(mmdc_base + off);
+	val =  io_read32(mmdc_base + off);
 
 	if (is_mx7) {
 		if (val & MSTR_DDR3)

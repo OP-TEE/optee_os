@@ -67,27 +67,27 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 	if (soc_is_imx7ds()) {
-		write32(val, va + SRC_GPR1_MX7 + core_idx * 8);
+		io_write32(va + SRC_GPR1_MX7 + core_idx * 8, val);
 
 		imx_gpcv2_set_core1_pup_by_software();
 
 		/* release secondary core */
-		val = read32(va + SRC_A7RCR1);
+		val = io_read32(va + SRC_A7RCR1);
 		val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
 			      (core_idx - 1));
-		write32(val, va + SRC_A7RCR1);
+		io_write32(va + SRC_A7RCR1, val);
 
 		return PSCI_RET_SUCCESS;
 	}
 
 	/* boot secondary cores from OP-TEE load address */
-	write32(val, va + SRC_GPR1 + core_idx * 8);
+	io_write32(va + SRC_GPR1 + core_idx * 8, val);
 
 	/* release secondary core */
-	val = read32(va + SRC_SCR);
+	val = io_read32(va + SRC_SCR);
 	val |=  BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + (core_idx - 1));
 	val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + (core_idx - 1));
-	write32(val, va + SRC_SCR);
+	io_write32(va + SRC_SCR, val);
 
 	imx_set_src_gpr(core_idx, 0);
 
@@ -128,7 +128,7 @@ int psci_affinity_info(uint32_t affinity,
 	if (soc_is_imx7ds())
 		wfi = true;
 	else
-		wfi = read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
+		wfi = io_read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
 
 	if ((imx_get_src_gpr(cpu) == 0) || !wfi)
 		return PSCI_AFFINITY_LEVEL_ON;
@@ -139,21 +139,21 @@ int psci_affinity_info(uint32_t affinity,
 	 * TODO: Change to non dead loop
 	 */
 	if (soc_is_imx7ds()) {
-		while (read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
+		while (io_read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
 			;
 
-		val = read32(va + SRC_A7RCR1);
+		val = io_read32(va + SRC_A7RCR1);
 		val &=  ~BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET + (cpu - 1));
-		write32(val, va + SRC_A7RCR1);
+		io_write32(va + SRC_A7RCR1, val);
 	} else {
-		while (read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
+		while (io_read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
 			;
 
 		/* Kill cpu */
-		val = read32(va + SRC_SCR);
+		val = io_read32(va + SRC_SCR);
 		val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
 		val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
-		write32(val, va + SRC_SCR);
+		io_write32(va + SRC_SCR, val);
 	}
 
 	/* Clean arg */
@@ -167,9 +167,10 @@ void __noreturn psci_system_off(void)
 {
 	vaddr_t snvs_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
 
-	write32(SNVS_LPCR_TOP_MASK |
-		SNVS_LPCR_DP_EN_MASK |
-		SNVS_LPCR_SRTC_ENV_MASK, snvs_base + SNVS_LPCR_OFF);
+	io_write32(snvs_base + SNVS_LPCR_OFF,
+		   SNVS_LPCR_TOP_MASK |
+		   SNVS_LPCR_DP_EN_MASK |
+		   SNVS_LPCR_SRTC_ENV_MASK);
 	dsb();
 
 	while (1)

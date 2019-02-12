@@ -19,13 +19,13 @@ static void init_csu(void)
 	for (addr = CSU_BASE + CSU_CSL_START;
 	     addr != CSU_BASE + CSU_CSL_END;
 	     addr += 4)
-		write32(CSU_ACCESS_ALL, addr);
+		io_write32(addr, CSU_ACCESS_ALL);
 
 	/* lock the settings */
 	for (addr = CSU_BASE + CSU_CSL_START;
 	     addr != CSU_BASE + CSU_CSL_END;
 	     addr += 4)
-		write32(read32(addr) | CSU_SETTING_LOCK, addr);
+		io_setbits32(addr, CSU_SETTING_LOCK);
 }
 
 /* MMU not enabled now */
