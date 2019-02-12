@@ -128,9 +128,9 @@
 
 #define TZ_LOCK_MC(x)		\
 	do {	\
-		(x) = read32(MCU_MC_CONTROL_0_REG);	\
+		(x) = io_read32(MCU_MC_CONTROL_0_REG);	\
 		(x) |= (TRUSTZONE_LOCK);	\
-		 write32((x), MCU_MC_CONTROL_0_REG);	\
+		 io_write32(MCU_MC_CONTROL_0_REG, (x));	\
 	} while (0)
 
 #define _IS_ALIGNED(_addr, _algn)	(!((_addr) & ((_algn) - 1)))
@@ -144,7 +144,7 @@ static int32_t _find_valid_range(void)
 	uint32_t tmp;
 
 	for (i = 0; i < MAX_RANGE_NUM; i++) {
-		tmp = read32(MCU_TZ_RANGE_LOW_REG(i));
+		tmp = io_read32(MCU_TZ_RANGE_LOW_REG(i));
 		if (!TZ_IS_VALID(tmp))
 			return i;
 	}
@@ -189,7 +189,7 @@ static int32_t set_range(uint32_t addr, uint32_t size, uint32_t perm)
 		return -1;
 	}
 
-	data = read32(MCU_TZ_RANGE_LOW_REG(valid_range));
+	data = io_read32(MCU_TZ_RANGE_LOW_REG(valid_range));
 
 	TZ_SET_VALID(data);
 	TZ_SET_PERM(data, perm);
@@ -202,7 +202,7 @@ static int32_t set_range(uint32_t addr, uint32_t size, uint32_t perm)
 		TZ_SET_UR_RZ_EN(data, 0);
 	}
 
-	write32(data, MCU_TZ_RANGE_LOW_REG(valid_range));
+	io_write32(MCU_TZ_RANGE_LOW_REG(valid_range), data);
 
 	return 0;
 }
@@ -218,7 +218,7 @@ static void  _dump_range(void)
 	uint32_t __maybe_unused perm_read;
 
 	for (i = 0; i < MAX_RANGE_NUM; i++) {
-		tmp = read32(MCU_TZ_RANGE_LOW_REG(i));
+		tmp = io_read32(MCU_TZ_RANGE_LOW_REG(i));
 
 		if (TZ_IS_VALID(tmp)) {
 			TZ_GET_PERM(tmp, perm_read);
@@ -277,9 +277,9 @@ static TEE_Result init_sec_perf(void)
 	uint32_t tmp;
 
 	/* MC_SCR config: deny NS access to MC registers */
-	tmp = read32(PHY_2_VIR(MC_SCR_REGISTER));
+	tmp = io_read32(PHY_2_VIR(MC_SCR_REGISTER));
 	tmp |= 0x1;
-	write32(tmp, PHY_2_VIR(MC_SCR_REGISTER));
+	io_write32(PHY_2_VIR(MC_SCR_REGISTER), tmp);
 
 	/* Set Secure Memory Region */
 	DMSG("sec-rgn size: ra = 0x%08" PRIx32 ", size = 0x%" PRIx32,
