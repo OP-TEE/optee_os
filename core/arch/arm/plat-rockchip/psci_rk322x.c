@@ -85,9 +85,9 @@ static void clks_disable(void)
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
 	for (i = 0; i < CRU_CLKGATE_CON_CNT; i++) {
-		dram_d.cru_clkgate[i] = read32(va_base + CRU_CLKGATE_CON(i));
-		write32(BITS_WITH_WMASK(clks_gating_table[i], 0xffff, 0),
-			va_base + CRU_CLKGATE_CON(i));
+		dram_d.cru_clkgate[i] = io_read32(va_base + CRU_CLKGATE_CON(i));
+		io_write32(va_base + CRU_CLKGATE_CON(i),
+			   BITS_WITH_WMASK(clks_gating_table[i], 0xffff, 0));
 	}
 }
 
@@ -97,23 +97,23 @@ static void clks_restore(void)
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
 	for (i = 0; i < CRU_CLKGATE_CON_CNT; i++)
-		write32(BITS_WITH_WMASK(dram_d.cru_clkgate[i], 0xffff, 0),
-			va_base + CRU_CLKGATE_CON(i));
+		io_write32(va_base + CRU_CLKGATE_CON(i),
+			   BITS_WITH_WMASK(dram_d.cru_clkgate[i], 0xffff, 0));
 }
 
 static void pll_power_down(uint32_t pll)
 {
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	write32(PLL_SLOW_MODE(pll), va_base + CRU_MODE_CON);
-	write32(PLL_POWER_DOWN, va_base + CRU_PLL_CON1(pll));
+	io_write32(va_base + CRU_MODE_CON, PLL_SLOW_MODE(pll));
+	io_write32(va_base + CRU_PLL_CON1(pll), PLL_POWER_DOWN);
 }
 
 static void pll_power_up(uint32_t pll)
 {
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	write32(PLL_POWER_UP, va_base + CRU_PLL_CON1(pll));
+	io_write32(va_base + CRU_PLL_CON1(pll), PLL_POWER_UP);
 }
 
 static void pll_wait_lock(uint32_t pll)
@@ -121,13 +121,13 @@ static void pll_wait_lock(uint32_t pll)
 	uint32_t loop = 0;
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	while (!(read32(va_base + CRU_PLL_CON1(pll)) & PLL_LOCK) &&
+	while (!(io_read32(va_base + CRU_PLL_CON1(pll)) & PLL_LOCK) &&
 	       (loop < 500)) {
 		udelay(2);
 		loop++;
 	}
 
-	if (!(read32(va_base + CRU_PLL_CON1(pll)) & PLL_LOCK)) {
+	if (!(io_read32(va_base + CRU_PLL_CON1(pll)) & PLL_LOCK)) {
 		EMSG("PLL can't lock, index = %" PRIu32, pll);
 		panic();
 	}
@@ -141,34 +141,35 @@ static void plls_power_down(void)
 {
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	dram_d.cru_clksel0 = read32(va_base + CRU_CLKSEL_CON(0));
-	dram_d.cru_clksel1 = read32(va_base + CRU_CLKSEL_CON(1));
-	dram_d.cru_clksel10 = read32(va_base + CRU_CLKSEL_CON(10));
-	dram_d.cru_clksel21 = read32(va_base + CRU_CLKSEL_CON(21));
-	dram_d.cru_mode_con = read32(va_base + CRU_MODE_CON);
+	dram_d.cru_clksel0 = io_read32(va_base + CRU_CLKSEL_CON(0));
+	dram_d.cru_clksel1 = io_read32(va_base + CRU_CLKSEL_CON(1));
+	dram_d.cru_clksel10 = io_read32(va_base + CRU_CLKSEL_CON(10));
+	dram_d.cru_clksel21 = io_read32(va_base + CRU_CLKSEL_CON(21));
+	dram_d.cru_mode_con = io_read32(va_base + CRU_MODE_CON);
 
 	pll_power_down(GPLL_ID);
 	pll_power_down(CPLL_ID);
 	pll_power_down(APLL_ID);
 
 	/* core */
-	write32(BITS_WITH_WMASK(0, 0x1f, 0), va_base + CRU_CLKSEL_CON(0));
-	write32(BITS_WITH_WMASK(0, 0xf, 0) | BITS_WITH_WMASK(0, 0x7, 4),
-		va_base + CRU_CLKSEL_CON(1));
+	io_write32(va_base + CRU_CLKSEL_CON(0), BITS_WITH_WMASK(0, 0x1f, 0));
+	io_write32(va_base + CRU_CLKSEL_CON(1),
+		   BITS_WITH_WMASK(0, 0xf, 0) | BITS_WITH_WMASK(0, 0x7, 4));
 
 	/* peri aclk, hclk, pclk */
-	write32(BITS_WITH_WMASK(0, 0x1f, 0) | BITS_WITH_WMASK(0, 0x3, 8) |
-		BITS_WITH_WMASK(0, 0x7, 12),
-		va_base + CRU_CLKSEL_CON(10));
+	io_write32(va_base + CRU_CLKSEL_CON(10),
+		   BITS_WITH_WMASK(0, 0x1f, 0) | BITS_WITH_WMASK(0, 0x3, 8) |
+		   BITS_WITH_WMASK(0, 0x7, 12));
 
 	/* pdbus */
-	write32(BITS_WITH_WMASK(0, 0x1f, 8), va_base + CRU_CLKSEL_CON(0));
-	write32(BITS_WITH_WMASK(0, 0x3, 8) | BITS_WITH_WMASK(0, 0x7, 12),
-		va_base + CRU_CLKSEL_CON(1));
+	io_write32(va_base + CRU_CLKSEL_CON(0), BITS_WITH_WMASK(0, 0x1f, 8));
+	io_write32(va_base + CRU_CLKSEL_CON(1),
+		   BITS_WITH_WMASK(0, 0x3, 8) | BITS_WITH_WMASK(0, 0x7, 12));
 
 	/* hdmi cec 32k */
-	write32(BITS_WITH_WMASK(732, 0x3fff, 0) | BITS_WITH_WMASK(2, 0x3, 14),
-		va_base + CRU_CLKSEL_CON(21));
+	io_write32(va_base + CRU_CLKSEL_CON(21),
+		   BITS_WITH_WMASK(732, 0x3fff, 0) |
+		   BITS_WITH_WMASK(2, 0x3, 14));
 }
 
 static void plls_restore(void)
@@ -188,33 +189,34 @@ static void plls_restore(void)
 	pll_wait_lock(CPLL_ID);
 
 	/* hdmi cec 32k */
-	write32(dram_d.cru_clksel21 | BITS_WMSK(0x3fff, 0) | BITS_WMSK(0x3, 14),
-		va_base + CRU_CLKSEL_CON(21));
+	io_write32(va_base + CRU_CLKSEL_CON(21),
+		   dram_d.cru_clksel21 | BITS_WMSK(0x3fff, 0) |
+		   BITS_WMSK(0x3, 14));
 
 	/* pdbus */
-	write32(dram_d.cru_clksel0 | BITS_WMSK(0x1f, 8),
-		va_base + CRU_CLKSEL_CON(0));
-	write32(dram_d.cru_clksel1 | BITS_WMSK(0x3, 8) | BITS_WMSK(0x7, 12),
-		va_base + CRU_CLKSEL_CON(1));
+	io_write32(va_base + CRU_CLKSEL_CON(0),
+		   dram_d.cru_clksel0 | BITS_WMSK(0x1f, 8));
+	io_write32(va_base + CRU_CLKSEL_CON(1),
+		   dram_d.cru_clksel1 | BITS_WMSK(0x3, 8) | BITS_WMSK(0x7, 12));
 
 	/* peri aclk, hclk, pclk */
-	write32(dram_d.cru_clksel10 | BITS_WMSK(0x1f, 0) | BITS_WMSK(0x3, 8) |
-		BITS_WMSK(0x7, 12),
-		va_base + CRU_CLKSEL_CON(10));
+	io_write32(va_base + CRU_CLKSEL_CON(10),
+		   dram_d.cru_clksel10 | BITS_WMSK(0x1f, 0) |
+		   BITS_WMSK(0x3, 8) | BITS_WMSK(0x7, 12));
 
 	/* core */
-	write32(dram_d.cru_clksel0 | BITS_WMSK(0x1f, 0),
-		va_base + CRU_CLKSEL_CON(0));
-	write32(dram_d.cru_clksel1 | BITS_WMSK(0xf, 0) | BITS_WMSK(0x7, 4),
-		va_base + CRU_CLKSEL_CON(1));
+	io_write32(va_base + CRU_CLKSEL_CON(0),
+		   dram_d.cru_clksel0 | BITS_WMSK(0x1f, 0));
+	io_write32(va_base + CRU_CLKSEL_CON(1),
+		   dram_d.cru_clksel1 | BITS_WMSK(0xf, 0) | BITS_WMSK(0x7, 4));
 
 	/* resume plls mode */
-	write32(dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(APLL_ID)),
-		va_base + CRU_MODE_CON);
-	write32(dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(CPLL_ID)),
-		va_base + CRU_MODE_CON);
-	write32(dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(GPLL_ID)),
-		va_base + CRU_MODE_CON);
+	io_write32(va_base + CRU_MODE_CON,
+		   dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(APLL_ID)));
+	io_write32(va_base + CRU_MODE_CON,
+		   dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(CPLL_ID)));
+	io_write32(va_base + CRU_MODE_CON,
+		   dram_d.cru_mode_con | BITS_WMSK(0x1, PLL_MODE_BIT(GPLL_ID)));
 }
 
 static bool wait_core_wfe_i(uint32_t core)
@@ -223,12 +225,13 @@ static bool wait_core_wfe_i(uint32_t core)
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE);
 
 	wfei_mask = CORE_WFE_I_MASK(core);
-	while (!(read32(va_base + GRF_CPU_STATUS1) & wfei_mask) && loop < 500) {
+	while (!(io_read32(va_base + GRF_CPU_STATUS1) & wfei_mask) &&
+	       loop < 500) {
 		udelay(2);
 		loop++;
 	}
 
-	return read32(va_base + GRF_CPU_STATUS1) & wfei_mask;
+	return io_read32(va_base + GRF_CPU_STATUS1) & wfei_mask;
 }
 
 static bool core_held_in_reset(uint32_t core)
@@ -236,7 +239,7 @@ static bool core_held_in_reset(uint32_t core)
 	uint32_t val;
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	val = read32(va_base + CRU_SOFTRST_CON(0));
+	val = io_read32(va_base + CRU_SOFTRST_CON(0));
 
 	return val & CORE_HELD_IN_RESET(core);
 }
@@ -288,13 +291,13 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	}
 
 	/* soft reset core */
-	write32(CORE_SOFT_RESET(core_idx), cru_base + CRU_SOFTRST_CON(0));
+	io_write32(cru_base + CRU_SOFTRST_CON(0), CORE_SOFT_RESET(core_idx));
 	dsb();
 
 	udelay(2);
 
 	/* soft release core */
-	write32(CORE_SOFT_RELEASE(core_idx), cru_base + CRU_SOFTRST_CON(0));
+	io_write32(cru_base + CRU_SOFTRST_CON(0), CORE_SOFT_RELEASE(core_idx));
 	dsb();
 
 	/* wait */
@@ -305,8 +308,8 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	}
 
 	/* set secondary secure entry address and lock tag */
-	write32(TEE_LOAD_ADDR, isram_base + BOOT_ADDR_OFFSET);
-	write32(LOCK_TAG, isram_base + LOCK_ADDR_OFFSET);
+	io_write32(isram_base + BOOT_ADDR_OFFSET, TEE_LOAD_ADDR);
+	io_write32(isram_base + LOCK_ADDR_OFFSET, LOCK_TAG);
 	dsb();
 
 	sev();
@@ -341,9 +344,9 @@ int psci_affinity_info(uint32_t affinity,
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE);
 
 	DMSG("core_id: %" PRIu32 " STATUS: %" PRIx32 " MASK: %" PRIx32,
-	     core_idx, read32(va_base + GRF_CPU_STATUS1), wfi_mask);
+	     core_idx, io_read32(va_base + GRF_CPU_STATUS1), wfi_mask);
 
-	return (read32(va_base + GRF_CPU_STATUS1) & wfi_mask) ?
+	return (io_read32(va_base + GRF_CPU_STATUS1) & wfi_mask) ?
 		PSCI_AFFINITY_LEVEL_OFF : PSCI_AFFINITY_LEVEL_ON;
 }
 
@@ -352,11 +355,11 @@ void psci_system_reset(void)
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
 	/* PLLs enter slow mode */
-	write32(PLLS_SLOW_MODE, va_base + CRU_MODE_CON);
+	io_write32(va_base + CRU_MODE_CON, PLLS_SLOW_MODE);
 	dsb();
 
 	/* Global second reset */
-	write32(CRU_SNDRST_VAL, va_base + CRU_SNDRST_VAL_BASE);
+	io_write32(va_base + CRU_SNDRST_VAL_BASE, CRU_SNDRST_VAL);
 	dsb();
 }
 
@@ -384,7 +387,7 @@ static TEE_Result reset_nonboot_cores(void)
 {
 	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
 
-	write32(NONBOOT_CORES_SOFT_RESET, va_base + CRU_SOFTRST_CON(0));
+	io_write32(va_base + CRU_SOFTRST_CON(0), NONBOOT_CORES_SOFT_RESET);
 
 	return TEE_SUCCESS;
 }

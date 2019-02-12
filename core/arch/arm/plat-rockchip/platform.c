@@ -45,13 +45,13 @@ static TEE_Result platform_init(void)
 	vaddr_t ddrsgrf_base = (vaddr_t)phys_to_virt_io(DDRSGRF_BASE);
 
 	/* Set rgn0 non-secure */
-	write32(DDR_RGN0_NS, ddrsgrf_base + DDR_SGRF_DDR_CON(0));
+	io_write32(ddrsgrf_base + DDR_SGRF_DDR_CON(0), DDR_RGN0_NS);
 
 	/* Initialize all slave non-secure */
-	write32(SLAVE_ALL_NS, sgrf_base + SGRF_SOC_CON(7));
-	write32(SLAVE_ALL_NS, sgrf_base + SGRF_SOC_CON(8));
-	write32(SLAVE_ALL_NS, sgrf_base + SGRF_SOC_CON(9));
-	write32(SLAVE_ALL_NS, sgrf_base + SGRF_SOC_CON(10));
+	io_write32(sgrf_base + SGRF_SOC_CON(7), SLAVE_ALL_NS);
+	io_write32(sgrf_base + SGRF_SOC_CON(8), SLAVE_ALL_NS);
+	io_write32(sgrf_base + SGRF_SOC_CON(9), SLAVE_ALL_NS);
+	io_write32(sgrf_base + SGRF_SOC_CON(10), SLAVE_ALL_NS);
 
 	return TEE_SUCCESS;
 }
