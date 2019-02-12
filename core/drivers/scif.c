@@ -57,7 +57,7 @@ static void scif_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read16(base + SCIF_SCFSR) & SCFSR_TEND))
+	while (!(io_read16(base + SCIF_SCFSR) & SCFSR_TEND))
 		;
 }
 
@@ -66,12 +66,11 @@ static void scif_uart_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = chip_to_base(chip);
 
 	/* Wait until there is space in the FIFO */
-	while ((read16(base + SCIF_SCFDR) >> SCFDR_T_SHIFT) >=
+	while ((io_read16(base + SCIF_SCFDR) >> SCFDR_T_SHIFT) >=
 		SCIF_TX_FIFO_SIZE)
 		;
-	write8(ch, base + SCIF_SCFTDR);
-	write16(read16(base + SCIF_SCFSR) & ~(SCFSR_TEND | SCFSR_TDFE),
-		base + SCIF_SCFSR);
+	io_write8(base + SCIF_SCFTDR, ch);
+	io_clrbits16(base + SCIF_SCFSR, SCFSR_TEND | SCFSR_TDFE);
 }
 
 static const struct serial_ops scif_uart_ops = {
@@ -86,7 +85,7 @@ void scif_uart_init(struct scif_uart_data *pd, paddr_t base)
 	pd->chip.ops = &scif_uart_ops;
 
 	/* Set Transmit Enable in Control register */
-	write16(read16(base + SCIF_SCSCR) | SCSCR_TE, base + SCIF_SCSCR);
+	io_setbits16(base + SCIF_SCSCR, SCSCR_TE);
 
 	scif_uart_flush(&pd->chip);
 }

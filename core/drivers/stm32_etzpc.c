@@ -133,7 +133,7 @@ enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 
 	assert(valid_decprot_id(decprot_id));
 
-	value = (read32(base + ETZPC_DECPROT0 + offset) >> shift) &
+	value = (io_read32(base + ETZPC_DECPROT0 + offset) >> shift) &
 		ETZPC_DECPROT0_MASK;
 
 	return (enum etzpc_decprot_attributes)value;
@@ -147,7 +147,7 @@ void etzpc_lock_decprot(uint32_t decprot_id)
 
 	assert(valid_decprot_id(decprot_id));
 
-	write32(mask, base + offset + ETZPC_DECPROT_LOCK0);
+	io_write32(base + offset + ETZPC_DECPROT_LOCK0, mask);
 
 	/* Save for PM */
 	etzpc_dev.periph_cfg[decprot_id] |= PERIPH_PM_LOCK_BIT;
@@ -161,7 +161,7 @@ bool etzpc_get_lock_decprot(uint32_t decprot_id)
 
 	assert(valid_decprot_id(decprot_id));
 
-	return read32(base + offset + ETZPC_DECPROT_LOCK0) & mask;
+	return io_read32(base + offset + ETZPC_DECPROT_LOCK0) & mask;
 }
 
 void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
@@ -171,7 +171,7 @@ void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
 
 	assert(valid_tzma_id(tzma_id));
 
-	write32(tzma_value, base + ETZPC_TZMA0_SIZE + offset);
+	io_write32(base + ETZPC_TZMA0_SIZE + offset, tzma_value);
 
 	/* Save for PM */
 	assert((tzma_value & ~TZMA_PM_VALUE_MASK) == 0);
@@ -186,7 +186,7 @@ uint16_t etzpc_get_tzma(uint32_t tzma_id)
 
 	assert(valid_tzma_id(tzma_id));
 
-	return read32(base + ETZPC_TZMA0_SIZE + offset);
+	return io_read32(base + ETZPC_TZMA0_SIZE + offset);
 }
 
 void etzpc_lock_tzma(uint32_t tzma_id)
@@ -209,7 +209,8 @@ bool etzpc_get_lock_tzma(uint32_t tzma_id)
 
 	assert(valid_tzma_id(tzma_id));
 
-	return read32(base + ETZPC_TZMA0_SIZE + offset) & ETZPC_TZMA0_SIZE_LOCK;
+	return io_read32(base + ETZPC_TZMA0_SIZE + offset) &
+	       ETZPC_TZMA0_SIZE_LOCK;
 }
 
 static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
@@ -278,7 +279,7 @@ struct etzpc_hwcfg {
 
 static void get_hwcfg(struct etzpc_hwcfg *hwcfg)
 {
-	uint32_t reg = read32(etzpc_base() + ETZPC_HWCFGR);
+	uint32_t reg = io_read32(etzpc_base() + ETZPC_HWCFGR);
 
 	hwcfg->num_tzma = (reg & ETZPC_HWCFGR_NUM_TZMA_MASK) >>
 			  ETZPC_HWCFGR_NUM_TZMA_SHIFT;
@@ -306,7 +307,7 @@ static void init_devive_from_hw_config(struct etzpc_instance *dev,
 	dev->num_ahb_sec = hwcfg.num_ahb_sec;
 
 	DMSG("ETZPC revison 0x02%" PRIu8 ", per_sec %u, ahb_sec %u, tzma %u",
-	     read8(etzpc_base() + ETZPC_VERR),
+	     io_read8(etzpc_base() + ETZPC_VERR),
 	     hwcfg.num_per_sec, hwcfg.num_ahb_sec, hwcfg.num_tzma);
 
 	init_pm(dev);

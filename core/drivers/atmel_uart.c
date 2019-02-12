@@ -61,7 +61,7 @@ static void atmel_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + ATMEL_UART_SR) & ATMEL_SR_TXEMPTY))
+	while (!(io_read32(base + ATMEL_UART_SR) & ATMEL_SR_TXEMPTY))
 		;
 }
 
@@ -69,20 +69,20 @@ static int atmel_uart_getchar(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (read32(base + ATMEL_UART_SR) & ATMEL_SR_RXRDY)
+	while (io_read32(base + ATMEL_UART_SR) & ATMEL_SR_RXRDY)
 		;
 
-	return read32(base + ATMEL_UART_RHR);
+	return io_read32(base + ATMEL_UART_RHR);
 }
 
 static void atmel_uart_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + ATMEL_UART_SR) & ATMEL_SR_TXRDY))
+	while (!(io_read32(base + ATMEL_UART_SR) & ATMEL_SR_TXRDY))
 		;
 
-	write32(ch, base + ATMEL_UART_THR);
+	io_write32(base + ATMEL_UART_THR, ch);
 }
 
 static const struct serial_ops atmel_uart_ops = {

@@ -52,7 +52,7 @@ static void sprd_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (read32(base + UART_STS1) & STS1_TXF_CNT_MASK)
+	while (io_read32(base + UART_STS1) & STS1_TXF_CNT_MASK)
 		;
 }
 
@@ -60,7 +60,7 @@ static bool sprd_uart_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return !!(read32(base + UART_STS1) & STS1_RXF_CNT_MASK);
+	return !!(io_read32(base + UART_STS1) & STS1_RXF_CNT_MASK);
 }
 
 static void sprd_uart_putc(struct serial_chip *chip, int ch)
@@ -68,7 +68,7 @@ static void sprd_uart_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = chip_to_base(chip);
 
 	sprd_uart_flush(chip);
-	write32(base + UART_TXD, ch);
+	io_write32(base + UART_TXD, ch);
 }
 
 static int sprd_uart_getchar(struct serial_chip *chip)
@@ -78,7 +78,7 @@ static int sprd_uart_getchar(struct serial_chip *chip)
 	while (!sprd_uart_have_rx_data(chip))
 		;
 
-	return read32(base + UART_RXD) & 0xff;
+	return io_read32(base + UART_RXD) & 0xff;
 }
 
 static const struct serial_ops sprd_uart_ops = {

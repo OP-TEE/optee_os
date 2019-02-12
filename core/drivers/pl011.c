@@ -93,8 +93,8 @@ static void pl011_flush(struct serial_chip *chip)
 	 * enabled flag. Checking it in the loop makes the code safe against
 	 * asynchronous disable.
 	 */
-	while ((read32(base + UART_CR) & UART_CR_UARTEN) &&
-	       !(read32(base + UART_FR) & UART_FR_TXFE))
+	while ((io_read32(base + UART_CR) & UART_CR_UARTEN) &&
+	       !(io_read32(base + UART_FR) & UART_FR_TXFE))
 		;
 }
 
@@ -102,7 +102,7 @@ static bool pl011_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return !(read32(base + UART_FR) & UART_FR_RXFE);
+	return !(io_read32(base + UART_FR) & UART_FR_RXFE);
 }
 
 static int pl011_getchar(struct serial_chip *chip)
@@ -111,7 +111,7 @@ static int pl011_getchar(struct serial_chip *chip)
 
 	while (!pl011_have_rx_data(chip))
 		;
-	return read32(base + UART_DR) & 0xff;
+	return io_read32(base + UART_DR) & 0xff;
 }
 
 static void pl011_putc(struct serial_chip *chip, int ch)
@@ -119,11 +119,11 @@ static void pl011_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = chip_to_base(chip);
 
 	/* Wait until there is space in the FIFO or device is disabled */
-	while (read32(base + UART_FR) & UART_FR_TXFF)
+	while (io_read32(base + UART_FR) & UART_FR_TXFF)
 		;
 
 	/* Send the character */
-	write32(ch, base + UART_DR);
+	io_write32(base + UART_DR, ch);
 }
 
 static const struct serial_ops pl011_ops = {
@@ -145,25 +145,25 @@ void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 	base = io_pa_or_va(&pd->base);
 
 	/* Clear all errors */
-	write32(0, base + UART_RSR_ECR);
+	io_write32(base + UART_RSR_ECR, 0);
 	/* Disable everything */
-	write32(0, base + UART_CR);
+	io_write32(base + UART_CR, 0);
 
 	if (baud_rate) {
 		uint32_t divisor = (uart_clk * 4) / baud_rate;
 
-		write32(divisor >> 6, base + UART_IBRD);
-		write32(divisor & 0x3f, base + UART_FBRD);
+		io_write32(base + UART_IBRD, divisor >> 6);
+		io_write32(base + UART_FBRD, divisor & 0x3f);
 	}
 
 	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo disabled. */
-	write32(UART_LCRH_WLEN_8, base + UART_LCR_H);
+	io_write32(base + UART_LCR_H, UART_LCRH_WLEN_8);
 
 	/* Enable interrupts for receive and receive timeout */
-	write32(UART_IMSC_RXIM | UART_IMSC_RTIM, base + UART_IMSC);
+	io_write32(base + UART_IMSC, UART_IMSC_RXIM | UART_IMSC_RTIM);
 
 	/* Enable UART and RX/TX */
-	write32(UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE, base + UART_CR);
+	io_write32(base + UART_CR, UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE);
 
 	pl011_flush(&pd->chip);
 }

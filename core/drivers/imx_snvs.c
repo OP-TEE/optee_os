@@ -93,16 +93,16 @@ static uint64_t snvs_srtc_read_lp_counter(void)
 	uint32_t val;
 
 	do {
-		val = read32(snvs + SNVS_LPSRTCMR);
+		val = io_read32(snvs + SNVS_LPSRTCMR);
 		val1 = val;
 		val1 <<= 32;
-		val = read32(snvs + SNVS_LPSRTCLR);
+		val = io_read32(snvs + SNVS_LPSRTCLR);
 		val1 |= val;
 
-		val = read32(snvs + SNVS_LPSRTCMR);
+		val = io_read32(snvs + SNVS_LPSRTCMR);
 		val2 = val;
 		val2 <<= 32;
-		val = read32(snvs + SNVS_LPSRTCLR);
+		val = io_read32(snvs + SNVS_LPSRTCLR);
 		val2 |= val;
 
 	/*
@@ -140,12 +140,12 @@ TEE_Result snvs_srtc_enable(void)
 	int timeout = 2000;
 	uint32_t val;
 
-	val = read32(snvs + SNVS_LPCR);
+	val = io_read32(snvs + SNVS_LPCR);
 	val |= SNVS_LPCR_SRTC_ENV_MASK;
-	write32(val, snvs + SNVS_LPCR);
+	io_write32(snvs + SNVS_LPCR, val);
 
 	do {
-		val = read32(snvs + SNVS_LPCR);
+		val = io_read32(snvs + SNVS_LPCR);
 		if (val & SNVS_LPCR_SRTC_ENV_MASK)
 			break;
 	} while (--timeout);

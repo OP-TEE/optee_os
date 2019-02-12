@@ -72,7 +72,7 @@ static void mvebu_uart_flush(struct serial_chip *chip)
 	 * enabled flag. Checking it in the loop makes the code safe against
 	 * asynchronous disable.
 	 */
-	while (!(read32(base + UART_STATUS_REG) & UARTLSR_TXFIFOEMPTY))
+	while (!(io_read32(base + UART_STATUS_REG) & UARTLSR_TXFIFOEMPTY))
 		;
 }
 
@@ -80,7 +80,7 @@ static bool mvebu_uart_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return (read32(base + UART_STATUS_REG) & UART_RX_READY);
+	return (io_read32(base + UART_STATUS_REG) & UART_RX_READY);
 }
 
 static int mvebu_uart_getchar(struct serial_chip *chip)
@@ -89,7 +89,7 @@ static int mvebu_uart_getchar(struct serial_chip *chip)
 
 	while (!mvebu_uart_have_rx_data(chip))
 		;
-	return read32(base + UART_RX_REG) & 0xff;
+	return io_read32(base + UART_RX_REG) & 0xff;
 }
 
 static void mvebu_uart_putc(struct serial_chip *chip, int ch)
@@ -99,11 +99,11 @@ static void mvebu_uart_putc(struct serial_chip *chip, int ch)
 	uint32_t tmp;
 	/* wait for space in tx FIFO */
 	do {
-		tmp = read32(base + UART_STATUS_REG);
+		tmp = io_read32(base + UART_STATUS_REG);
 		tmp &= UARTLSR_TXFIFOFULL;
 	} while (tmp == UARTLSR_TXFIFOFULL);
 
-	write32(ch, base + UART_TX_REG);
+	io_write32(base + UART_TX_REG, ch);
 }
 
 static const struct serial_ops mvebu_uart_ops = {
@@ -118,7 +118,6 @@ void mvebu_uart_init(struct mvebu_uart_data *pd, paddr_t pbase,
 		uint32_t uart_clk, uint32_t baud_rate)
 {
 	vaddr_t base;
-	uint32_t tmp = 0;
 	uint32_t dll = 0;
 
 	pd->base.pa = pbase;
@@ -129,20 +128,17 @@ void mvebu_uart_init(struct mvebu_uart_data *pd, paddr_t pbase,
 	dll = (uart_clk / (baud_rate << 4)) & 0x3FF;
 
 	/* init UART  */
-	tmp = read32(base + UART_BAUD_REG);
-	tmp &= ~0x3FF;
-	tmp |= dll;
-	write32(tmp, base + UART_BAUD_REG);   /* set baud rate divisor */
+	io_clrsetbits32(base + UART_BAUD_REG, 0x3FF, dll);
 
 	/* set UART to default 16x scheme */
-	write32(0, base + UART_POSSR_REG);
+	io_write32(base + UART_POSSR_REG, 0);
 
 	/* reset FIFO */
-	write32((UART_CTRL_RXFIFO_RESET | UART_CTRL_TXFIFO_RESET),
-		base + UART_CTRL_REG);
+	io_write32(base + UART_CTRL_REG,
+		   UART_CTRL_RXFIFO_RESET | UART_CTRL_TXFIFO_RESET);
 
 	/* No Parity, 1 stop */
-	write32(0, base + UART_CTRL_REG);
+	io_write32(base + UART_CTRL_REG, 0);
 
 	mvebu_uart_flush(&pd->chip);
 }
