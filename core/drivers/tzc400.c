@@ -81,74 +81,68 @@ static struct tzc_instance tzc;
 
 static uint32_t tzc_read_build_config(vaddr_t base)
 {
-	return read32(base + BUILD_CONFIG_OFF);
+	return io_read32(base + BUILD_CONFIG_OFF);
 }
 
 static uint32_t tzc_read_gate_keeper(vaddr_t base)
 {
-	return read32(base + GATE_KEEPER_OFF);
+	return io_read32(base + GATE_KEEPER_OFF);
 }
 
 static void tzc_write_gate_keeper(vaddr_t base, uint32_t val)
 {
-	write32(val, base + GATE_KEEPER_OFF);
+	io_write32(base + GATE_KEEPER_OFF, val);
 }
 
 static void tzc_write_action(vaddr_t base, enum tzc_action action)
 {
-	write32(action, base + ACTION_OFF);
+	io_write32(base + ACTION_OFF, action);
 }
 
 static void tzc_write_region_base_low(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
-	write32(val, base + REGION_BASE_LOW_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region), val);
 }
 
 static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
 				       uint32_t val)
 {
-	write32(val, base + REGION_BASE_HIGH_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region), val);
 }
 
 static void tzc_write_region_top_low(vaddr_t base, uint32_t region,
 				     uint32_t val)
 {
-	write32(val, base + REGION_TOP_LOW_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region), val);
 }
 
 static void tzc_write_region_top_high(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
-	write32(val, base + REGION_TOP_HIGH_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_TOP_HIGH_OFF +	REGION_NUM_OFF(region), val);
 }
 
 static void tzc_write_region_attributes(vaddr_t base, uint32_t region,
 					uint32_t val)
 {
-	write32(val, base + REGION_ATTRIBUTES_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region), val);
 }
 
 static void tzc_write_region_id_access(vaddr_t base, uint32_t region,
 				       uint32_t val)
 {
-	write32(val, base + REGION_ID_ACCESS_OFF +
-		REGION_NUM_OFF(region));
+	io_write32(base + REGION_ID_ACCESS_OFF + REGION_NUM_OFF(region), val);
 }
 
 static uint32_t tzc_read_component_id(vaddr_t base)
 {
 	uint32_t id;
 
-	id = read8(base + CID0_OFF);
-	id |= SHIFT_U32(read8(base + CID1_OFF), 8);
-	id |= SHIFT_U32(read8(base + CID2_OFF), 16);
-	id |= SHIFT_U32(read8(base + CID3_OFF), 24);
+	id = io_read8(base + CID0_OFF);
+	id |= SHIFT_U32(io_read8(base + CID1_OFF), 8);
+	id |= SHIFT_U32(io_read8(base + CID2_OFF), 16);
+	id |= SHIFT_U32(io_read8(base + CID3_OFF), 24);
 
 	return id;
 }
@@ -350,27 +344,27 @@ void tzc_disable_filters(void)
 
 static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
+	return io_read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
 }
 
 static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
+	return io_read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
 }
 
 static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
+	return io_read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 static uint32_t tzc_read_region_top_low(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
+	return io_read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
 }
 
 static uint32_t tzc_read_region_top_high(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
+	return io_read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 #define	REGION_MAX		8

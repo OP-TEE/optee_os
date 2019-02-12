@@ -232,8 +232,8 @@ static uint32_t pager_lock_check_stack(size_t stack_size)
 		 * the thread.
 		 */
 		for (n = 0; n < stack_size; n += SMALL_PAGE_SIZE)
-			write8(1, (vaddr_t)buf + n);
-		write8(1, (vaddr_t)buf + stack_size - 1);
+			io_write8((vaddr_t)buf + n, 1);
+		io_write8((vaddr_t)buf + stack_size - 1, 1);
 	}
 
 	return pager_lock(NULL);

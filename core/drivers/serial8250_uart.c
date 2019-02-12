@@ -42,7 +42,7 @@ static void serial8250_uart_flush(struct serial_chip *chip)
 	vaddr_t base = chip_to_base(chip);
 
 	while (1) {
-		uint32_t state = read32(base + UART_LSR);
+		uint32_t state = io_read32(base + UART_LSR);
 
 		/* Wait until transmit FIFO is empty */
 		if ((state & LSR_EMPTY) == LSR_EMPTY)
@@ -54,7 +54,7 @@ static bool serial8250_uart_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return (read32(base + UART_LSR) & LSR_DR);
+	return (io_read32(base + UART_LSR) & LSR_DR);
 }
 
 static int serial8250_uart_getchar(struct serial_chip *chip)
@@ -65,7 +65,7 @@ static int serial8250_uart_getchar(struct serial_chip *chip)
 		/* Transmit FIFO is empty, waiting again */
 		;
 	}
-	return read32(base + UART_RHR) & 0xff;
+	return io_read32(base + UART_RHR) & 0xff;
 }
 
 static void serial8250_uart_putc(struct serial_chip *chip, int ch)
@@ -75,7 +75,7 @@ static void serial8250_uart_putc(struct serial_chip *chip, int ch)
 	serial8250_uart_flush(chip);
 
 	/* Write out character to transmit FIFO */
-	write32(ch, base + UART_THR);
+	io_write32(base + UART_THR, ch);
 }
 
 static const struct serial_ops serial8250_uart_ops = {

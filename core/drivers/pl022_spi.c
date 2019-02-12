@@ -151,25 +151,25 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 
 	if (wdat)
 		while (i < num_pkts) {
-			if (read8(pd->base + SSPSR) & SSPSR_TNF) {
+			if (io_read8(pd->base + SSPSR) & SSPSR_TNF) {
 				/* tx 1 packet */
-				write8(wdat[i++], pd->base + SSPDR);
+				io_write8(pd->base + SSPDR, wdat[i++]);
 			}
 
 			if (rdat)
-				if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 					/* rx 1 packet */
-					rdat[j++] = read8(pd->base + SSPDR);
+					rdat[j++] = io_read8(pd->base + SSPDR);
 				}
 		}
 
 	/* Capture remaining rdat not read above */
 	if (rdat) {
 		while ((j < num_pkts) &&
-			(read8(pd->base + SSPSR) & SSPSR_BSY))
-			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+			(io_read8(pd->base + SSPSR) & SSPSR_BSY))
+			if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 				/* rx 1 packet */
-				rdat[j++] = read8(pd->base + SSPDR);
+				rdat[j++] = io_read8(pd->base + SSPDR);
 			}
 
 		if (j < num_pkts) {
@@ -197,25 +197,25 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 
 	if (wdat)
 		while (i < num_pkts) {
-			if (read8(pd->base + SSPSR) & SSPSR_TNF) {
+			if (io_read8(pd->base + SSPSR) & SSPSR_TNF) {
 				/* tx 1 packet */
-				write16(wdat[i++], pd->base + SSPDR);
+				io_write16(pd->base + SSPDR, wdat[i++]);
 			}
 
 			if (rdat)
-				if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 					/* rx 1 packet */
-					rdat[j++] = read16(pd->base + SSPDR);
+					rdat[j++] = io_read8(pd->base + SSPDR);
 				}
 		}
 
 	/* Capture remaining rdat not read above */
 	if (rdat) {
 		while ((j < num_pkts) &&
-			(read8(pd->base + SSPSR) & SSPSR_BSY))
-			if (read8(pd->base + SSPSR) & SSPSR_RNE) {
+			(io_read8(pd->base + SSPSR) & SSPSR_BSY))
+			if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 				/* rx 1 packet */
-				rdat[j++] = read16(pd->base + SSPDR);
+				rdat[j++] = io_read8(pd->base + SSPDR);
 			}
 
 		if (j < num_pkts) {
@@ -232,20 +232,20 @@ static void pl022_print_peri_id(struct pl022_data *pd __maybe_unused)
 {
 	DMSG("Expected: 0x 22 10 ?4 00");
 	DMSG("Read: 0x %02x %02x %02x %02x",
-		read32(pd->base + SSPPeriphID0),
-		read32(pd->base + SSPPeriphID1),
-		read32(pd->base + SSPPeriphID2),
-		read32(pd->base + SSPPeriphID3));
+		io_read8(pd->base + SSPPeriphID0),
+		io_read8(pd->base + SSPPeriphID1),
+		io_read8(pd->base + SSPPeriphID2),
+		io_read8(pd->base + SSPPeriphID3));
 }
 
 static void pl022_print_cell_id(struct pl022_data *pd __maybe_unused)
 {
 	DMSG("Expected: 0x 0d f0 05 b1");
 	DMSG("Read: 0x %02x %02x %02x %02x",
-		read32(pd->base + SSPPCellID0),
-		read32(pd->base + SSPPCellID1),
-		read32(pd->base + SSPPCellID2),
-		read32(pd->base + SSPPCellID3));
+		io_read8(pd->base + SSPPCellID0),
+		io_read8(pd->base + SSPPCellID1),
+		io_read8(pd->base + SSPPCellID2),
+		io_read8(pd->base + SSPPCellID3));
 }
 
 static void pl022_sanity_check(struct pl022_data *pd)
@@ -271,7 +271,7 @@ static void pl022_sanity_check(struct pl022_data *pd)
 
 	#ifdef PLATFORM_hikey
 	DMSG("SSPB2BTRANS: Expected: 0x2. Read: 0x%x",
-		read32(pd->base + SSPB2BTRANS));
+		io_read8(pd->base + SSPB2BTRANS));
 	#endif
 	pl022_print_peri_id(pd);
 	pl022_print_cell_id(pd);
@@ -289,9 +289,9 @@ static void pl022_control_cs(struct spi_chip *chip, enum gpio_level value)
 
 	switch (pd->cs_control) {
 	case PL022_CS_CTRL_AUTO_GPIO:
-		if (read8(pd->base + SSPSR) & SSPSR_BSY)
+		if (io_read8(pd->base + SSPSR) & SSPSR_BSY)
 			DMSG("pl022 busy - do NOT set CS!");
-		while (read8(pd->base + SSPSR) & SSPSR_BSY)
+		while (io_read8(pd->base + SSPSR) & SSPSR_BSY)
 			;
 		DMSG("pl022 done - set CS!");
 
@@ -359,11 +359,11 @@ static void pl022_flush_fifo(struct pl022_data *pd)
 	uint32_t __maybe_unused rdat;
 
 	do {
-		while (read32(pd->base + SSPSR) & SSPSR_RNE) {
-			rdat = read32(pd->base + SSPDR);
+		while (io_read32(pd->base + SSPSR) & SSPSR_RNE) {
+			rdat = io_read32(pd->base + SSPDR);
 			DMSG("rdat: 0x%x", rdat);
 		}
-	} while (read32(pd->base + SSPSR) & SSPSR_BSY);
+	} while (io_read32(pd->base + SSPSR) & SSPSR_BSY);
 }
 
 static void pl022_configure(struct spi_chip *chip)

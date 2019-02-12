@@ -58,7 +58,7 @@ static void ns16550_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while ((read8(base + UART_LSR) & UART_LSR_THRE) == 0)
+	while ((io_read8(base + UART_LSR) & UART_LSR_THRE) == 0)
 		;
 }
 
@@ -69,7 +69,7 @@ static void ns16550_putc(struct serial_chip *chip, int ch)
 	ns16550_flush(chip);
 
 	/* write out charset to Transmit-hold-register */
-	write8(ch, base + UART_THR);
+	io_write8(base + UART_THR, ch);
 }
 
 static const struct serial_ops ns16550_ops = {

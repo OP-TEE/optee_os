@@ -44,17 +44,17 @@ static TEE_Result hi16xx_rng_init(void)
 	TEE_Time time;
 
 	/* ALG sub-controller must allow RNG out of reset */
-	write32(ALG_SC_SRST_DREQ_RNG, alg + ALG_SC_RNG_RESET_DREQ);
+	io_write32(alg + ALG_SC_RNG_RESET_DREQ, ALG_SC_SRST_DREQ_RNG);
 
 	/* Set initial seed */
 	tee_time_get_sys_time(&time);
-	write32(time.seconds * 1000 + time.millis, rng + RNG_SEED);
+	io_write32(rng + RNG_SEED, time.seconds * 1000 + time.millis);
 
 	/*
 	 * Enable RNG and configure it to re-seed automatically from the
 	 * internal ring oscillator
 	 */
-	write32(RNG_EN | RNG_RING_EN | RNG_SEED_SEL, rng + RNG_CTRL);
+	io_write32(rng + RNG_CTRL, RNG_EN | RNG_RING_EN | RNG_SEED_SEL);
 
 	IMSG("Hi16xx RNG initialized");
 	return TEE_SUCCESS;
@@ -77,7 +77,7 @@ uint8_t hw_get_random_byte(void)
 		r = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC) + RNG_NUM;
 
 	if (!pos)
-		random.val = read32(r);
+		random.val = io_read32(r);
 
 	ret = random.byte[pos++];
 

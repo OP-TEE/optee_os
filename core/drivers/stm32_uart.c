@@ -55,7 +55,7 @@ static void loc_flush(struct serial_chip *chip)
 	vaddr_t base = loc_chip_to_base(chip);
 	uint64_t timeout = timeout_init_us(FLUSH_TIMEOUT_US);
 
-	while (!(read32(base + UART_REG_ISR) & USART_ISR_TXFE))
+	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TXFE))
 		if (timeout_elapsed(timeout))
 			return;
 }
@@ -65,18 +65,18 @@ static void loc_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = loc_chip_to_base(chip);
 	uint64_t timeout = timeout_init_us(PUTC_TIMEOUT_US);
 
-	while (!(read32(base + UART_REG_ISR) & USART_ISR_TXE_TXFNF))
+	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TXE_TXFNF))
 		if (timeout_elapsed(timeout))
 			return;
 
-	write32(ch, base + UART_REG_TDR);
+	io_write32(base + UART_REG_TDR, ch);
 }
 
 static bool loc_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = loc_chip_to_base(chip);
 
-	return read32(base + UART_REG_ISR) & USART_ISR_RXNE_RXFNE;
+	return io_read32(base + UART_REG_ISR) & USART_ISR_RXNE_RXFNE;
 }
 
 static int loc_getchar(struct serial_chip *chip)
@@ -86,7 +86,7 @@ static int loc_getchar(struct serial_chip *chip)
 	while (!loc_have_rx_data(chip))
 		;
 
-	return read32(base + UART_REG_RDR) & 0xff;
+	return io_read32(base + UART_REG_RDR) & 0xff;
 }
 
 static const struct serial_ops stm32_uart_serial_ops = {

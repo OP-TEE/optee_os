@@ -26,7 +26,7 @@ static void stih_asc_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + ASC_STATUS) & ASC_STATUS_TX_EMPTY))
+	while (!(io_read32(base + ASC_STATUS) & ASC_STATUS_TX_EMPTY))
 		;
 }
 
@@ -34,10 +34,10 @@ static void stih_asc_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + ASC_STATUS) & ASC_STATUS_TX_HALF_EMPTY))
+	while (!(io_read32(base + ASC_STATUS) & ASC_STATUS_TX_HALF_EMPTY))
 		;
 
-	write32(ch, base + ASC_TXBUFFER);
+	io_write32(base + ASC_TXBUFFER, ch);
 }
 
 static const struct serial_ops stih_asc_ops = {

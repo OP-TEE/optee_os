@@ -99,18 +99,18 @@ static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 	old_ctlr = read_icc_ctlr();
 	write_icc_ctlr(0);
 #else
-	old_ctlr = read32(gicc_base + GICC_CTLR);
-	write32(0, gicc_base + GICC_CTLR);
+	old_ctlr = io_read32(gicc_base + GICC_CTLR);
+	io_write32(gicc_base + GICC_CTLR, 0);
 #endif
 	for (i = max_regs; i >= 0; i--) {
 		uint32_t old_reg;
 		uint32_t reg;
 		int b;
 
-		old_reg = read32(gicd_base + GICD_ISENABLER(i));
-		write32(0xffffffff, gicd_base + GICD_ISENABLER(i));
-		reg = read32(gicd_base + GICD_ISENABLER(i));
-		write32(~old_reg, gicd_base + GICD_ICENABLER(i));
+		old_reg = io_read32(gicd_base + GICD_ISENABLER(i));
+		io_write32(gicd_base + GICD_ISENABLER(i), 0xffffffff);
+		reg = io_read32(gicd_base + GICD_ISENABLER(i));
+		io_write32(gicd_base + GICD_ICENABLER(i), ~old_reg);
 		for (b = NUM_INTS_PER_REG - 1; b >= 0; b--) {
 			if (BIT32(b) & reg) {
 				ret = i * NUM_INTS_PER_REG + b;
@@ -122,7 +122,7 @@ out:
 #if defined(CFG_ARM_GICV3)
 	write_icc_ctlr(old_ctlr);
 #else
-	write32(old_ctlr, gicc_base + GICC_CTLR);
+	io_write32(gicc_base + GICC_CTLR, old_ctlr);
 #endif
 	return ret;
 }
@@ -140,7 +140,7 @@ void gic_cpu_init(struct gic_data *gd)
 	 * ID8-ID15(SGI)  for Secure interrupts.
 	 * All PPI config as Non-secure interrupts.
 	 */
-	write32(0xffff00ff, gd->gicd_base + GICD_IGROUPR(0));
+	io_write32(gd->gicd_base + GICD_IGROUPR(0), 0xffff00ff);
 
 	/* Set the priority mask to permit Non-secure interrupts, and to
 	 * allow the Non-secure world to adjust the priority mask itself
@@ -150,11 +150,12 @@ void gic_cpu_init(struct gic_data *gd)
 	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
 		       GICC_CTLR_FIQEN);
 #else
-	write32(0x80, gd->gicc_base + GICC_PMR);
+	io_write32(gd->gicc_base + GICC_PMR, 0x80);
 
 	/* Enable GIC */
-	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
-		gd->gicc_base + GICC_CTLR);
+	io_write32(gd->gicc_base + GICC_CTLR,
+		   GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
+		   GICC_CTLR_FIQEN);
 #endif
 }
 
@@ -167,10 +168,10 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 
 	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
-		write32(0xffffffff, gd->gicd_base + GICD_ICENABLER(n));
+		io_write32(gd->gicd_base + GICD_ICENABLER(n), 0xffffffff);
 
 		/* Make interrupts non-pending */
-		write32(0xffffffff, gd->gicd_base + GICD_ICPENDR(n));
+		io_write32(gd->gicd_base + GICD_ICPENDR(n), 0xffffffff);
 
 		/* Mark interrupts non-secure */
 		if (n == 0) {
@@ -179,9 +180,9 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
                          * ID8-ID15(SGI)  for Secure interrupts.
                          * All PPI config as Non-secure interrupts.
 			 */
-			write32(0xffff00ff, gd->gicd_base + GICD_IGROUPR(n));
+			io_write32(gd->gicd_base + GICD_IGROUPR(n), 0xffff00ff);
 		} else {
-			write32(0xffffffff, gd->gicd_base + GICD_IGROUPR(n));
+			io_write32(gd->gicd_base + GICD_IGROUPR(n), 0xffffffff);
 		}
 	}
 
@@ -193,14 +194,14 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
 		       GICC_CTLR_FIQEN);
 #else
-	write32(0x80, gd->gicc_base + GICC_PMR);
+	io_write32(gd->gicc_base + GICC_PMR, 0x80);
 
 	/* Enable GIC */
-	write32(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 | GICC_CTLR_FIQEN,
-		gd->gicc_base + GICC_CTLR);
+	io_write32(gd->gicc_base + GICC_CTLR, GICC_CTLR_FIQEN |
+		   GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1);
 #endif
-	write32(read32(gd->gicd_base + GICD_CTLR) | GICD_CTLR_ENABLEGRP0 |
-		GICD_CTLR_ENABLEGRP1, gd->gicd_base + GICD_CTLR);
+	io_setbits32(gd->gicd_base + GICD_CTLR,
+		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1);
 }
 
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
@@ -218,12 +219,11 @@ static void gic_it_add(struct gic_data *gd, size_t it)
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	/* Disable the interrupt */
-	write32(mask, gd->gicd_base + GICD_ICENABLER(idx));
+	io_write32(gd->gicd_base + GICD_ICENABLER(idx), mask);
 	/* Make it non-pending */
-	write32(mask, gd->gicd_base + GICD_ICPENDR(idx));
+	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
 	/* Assign it to group0 */
-	write32(read32(gd->gicd_base + GICD_IGROUPR(idx)) & ~mask,
-			gd->gicd_base + GICD_IGROUPR(idx));
+	io_clrbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
 }
 
 static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
@@ -232,22 +232,20 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
 	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
 	uint32_t target, target_shift;
+	vaddr_t itargetsr = gd->gicd_base +
+			    GICD_ITARGETSR(it / NUM_TARGETS_PER_REG);
 
 	/* Assigned to group0 */
-	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Route it to selected CPUs */
-	target = read32(gd->gicd_base +
-			GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
+	target = io_read32(itargetsr);
 	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
 	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
 	target |= cpu_mask << target_shift;
-	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA,
-	     target, gd->gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
-	write32(target,
-		gd->gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG));
-	DMSG("cpu_mask: 0x%x\n",
-	     read32(gd->gicd_base + GICD_ITARGETSR(it / NUM_TARGETS_PER_REG)));
+	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA, target, itargetsr);
+	io_write32(itargetsr, target);
+	DMSG("cpu_mask: 0x%x", io_read32(itargetsr));
 }
 
 static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
@@ -256,31 +254,32 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
 
 	/* Assigned to group0 */
-	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Set prio it to selected CPUs */
 	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
 		prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
-	write8(prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
+	io_write8(gd->gicd_base + GICD_IPRIORITYR(0) + it, prio);
 }
 
 static void gic_it_enable(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+	vaddr_t base = gd->gicd_base;
 
 	/* Assigned to group0 */
-	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	assert(!(io_read32(base + GICD_IGROUPR(idx)) & mask));
 	if (it >= NUM_SGI) {
 		/*
 		 * Not enabled yet, except Software Generated Interrupt
 		 * which is implementation defined
 		 */
-		assert(!(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask));
+		assert(!(io_read32(base + GICD_ISENABLER(idx)) & mask));
 	}
 
 	/* Enable the interrupt */
-	write32(mask, gd->gicd_base + GICD_ISENABLER(idx));
+	io_write32(base + GICD_ISENABLER(idx), mask);
 }
 
 static void gic_it_disable(struct gic_data *gd, size_t it)
@@ -289,10 +288,10 @@ static void gic_it_disable(struct gic_data *gd, size_t it)
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
 	/* Assigned to group0 */
-	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Disable the interrupt */
-	write32(mask, gd->gicd_base + GICD_ICENABLER(idx));
+	io_write32(gd->gicd_base + GICD_ICENABLER(idx), mask);
 }
 
 static void gic_it_set_pending(struct gic_data *gd, size_t it)
@@ -303,10 +302,10 @@ static void gic_it_set_pending(struct gic_data *gd, size_t it)
 	/* Should be Peripheral Interrupt */
 	assert(it >= NUM_SGI);
 	/* Assigned to group0 */
-	assert(!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Raise the interrupt */
-	write32(mask, gd->gicd_base + GICD_ISPENDR(idx));
+	io_write32(gd->gicd_base + GICD_ISPENDR(idx), mask);
 }
 
 static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
@@ -322,7 +321,7 @@ static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
 	assert(it < NUM_SGI);
 
 	/* Raise the interrupt */
-	write32(mask, gd->gicd_base + GICD_SGIR);
+	io_write32(gd->gicd_base + GICD_SGIR, mask);
 }
 
 static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
@@ -330,7 +329,7 @@ static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 #if defined(CFG_ARM_GICV3)
 	return read_icc_iar1();
 #else
-	return read32(gd->gicc_base + GICC_IAR);
+	return io_read32(gd->gicc_base + GICC_IAR);
 #endif
 }
 
@@ -339,7 +338,7 @@ static void gic_write_eoir(struct gic_data *gd __maybe_unused, uint32_t eoir)
 #if defined(CFG_ARM_GICV3)
 	write_icc_eoir1(eoir);
 #else
-	write32(eoir, gd->gicc_base + GICC_EOIR);
+	io_write32(gd->gicc_base + GICC_EOIR, eoir);
 #endif
 }
 
@@ -347,14 +346,14 @@ static bool gic_it_is_enabled(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
-	return !!(read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask);
+	return !!(io_read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask);
 }
 
 static bool __maybe_unused gic_it_get_group(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
-	return !!(read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
+	return !!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
 }
 
 static uint32_t __maybe_unused gic_it_get_target(struct gic_data *gd, size_t it)
@@ -363,11 +362,9 @@ static uint32_t __maybe_unused gic_it_get_target(struct gic_data *gd, size_t it)
 	uint32_t target_shift = (it % NUM_TARGETS_PER_REG) *
 				ITARGETSR_FIELD_BITS;
 	uint32_t target_mask = ITARGETSR_FIELD_MASK << target_shift;
-	uint32_t target =
-		read32(gd->gicd_base + GICD_ITARGETSR(reg_idx)) & target_mask;
+	uint32_t target = io_read32(gd->gicd_base + GICD_ITARGETSR(reg_idx));
 
-	target = target >> target_shift;
-	return target;
+	return (target & target_mask) >> target_shift;
 }
 
 void gic_dump_state(struct gic_data *gd)
@@ -377,9 +374,9 @@ void gic_dump_state(struct gic_data *gd)
 #if defined(CFG_ARM_GICV3)
 	DMSG("GICC_CTLR: 0x%x", read_icc_ctlr());
 #else
-	DMSG("GICC_CTLR: 0x%x", read32(gd->gicc_base + GICC_CTLR));
+	DMSG("GICC_CTLR: 0x%x", io_read32(gd->gicc_base + GICC_CTLR));
 #endif
-	DMSG("GICD_CTLR: 0x%x", read32(gd->gicd_base + GICD_CTLR));
+	DMSG("GICD_CTLR: 0x%x", io_read32(gd->gicd_base + GICD_CTLR));
 
 	for (i = 0; i < (int)gd->max_it; i++) {
 		if (gic_it_is_enabled(gd, i)) {

@@ -54,35 +54,35 @@ static struct tzc_instance tzc;
 
 static uint32_t tzc_read_build_config(vaddr_t base)
 {
-	return read32(base + BUILD_CONFIG_OFF);
+	return io_read32(base + BUILD_CONFIG_OFF);
 }
 
 static void tzc_write_action(vaddr_t base, enum tzc_action action)
 {
-	write32(action, base + ACTION_OFF);
+	io_write32(base + ACTION_OFF, action);
 }
 
 static void tzc_write_region_base_low(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
-	write32(val, base + REGION_SETUP_LOW_OFF(region));
+	io_write32(base + REGION_SETUP_LOW_OFF(region), val);
 }
 
 static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
 				       uint32_t val)
 {
-	write32(val, base + REGION_SETUP_HIGH_OFF(region));
+	io_write32(base + REGION_SETUP_HIGH_OFF(region), val);
 }
 
 static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_ATTRIBUTES_OFF(region));
+	return io_read32(base + REGION_ATTRIBUTES_OFF(region));
 }
 
 static void tzc_write_region_attributes(vaddr_t base, uint32_t region,
 					uint32_t val)
 {
-	write32(val, base + REGION_ATTRIBUTES_OFF(region));
+	io_write32(base + REGION_ATTRIBUTES_OFF(region), val);
 }
 
 void tzc_init(vaddr_t base)
@@ -108,7 +108,7 @@ void tzc_init(vaddr_t base)
  */
 void tzc_security_inversion_en(vaddr_t base)
 {
-	write32(1, base + SECURITY_INV_EN_OFF);
+	io_write32(base + SECURITY_INV_EN_OFF, 1);
 }
 
 /*
@@ -137,18 +137,18 @@ void tzc_fail_dump(void)
 						      MEM_AREA_IO_SEC);
 
 	EMSG("Fail address Low 0x%" PRIx32,
-	     read32(base + FAIL_ADDRESS_LOW_OFF));
+	     io_read32(base + FAIL_ADDRESS_LOW_OFF));
 	EMSG("Fail address High 0x%" PRIx32,
-	     read32(base + FAIL_ADDRESS_HIGH_OFF));
-	EMSG("Fail Control 0x%" PRIx32, read32(base + FAIL_CONTROL_OFF));
-	EMSG("Fail Id 0x%" PRIx32, read32(base + FAIL_ID));
+	     io_read32(base + FAIL_ADDRESS_HIGH_OFF));
+	EMSG("Fail Control 0x%" PRIx32, io_read32(base + FAIL_CONTROL_OFF));
+	EMSG("Fail Id 0x%" PRIx32, io_read32(base + FAIL_ID));
 }
 
 void tzc_int_clear(void)
 {
 	vaddr_t base = core_mmu_get_va(tzc.base, MEM_AREA_IO_SEC);
 
-	write32(0, base + INT_CLEAR);
+	io_write32(base + INT_CLEAR, 0);
 }
 
 static uint32_t addr_low(vaddr_t addr)
@@ -208,12 +208,12 @@ void tzc_set_action(enum tzc_action action)
 
 static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_SETUP_LOW_OFF(region));
+	return io_read32(base + REGION_SETUP_LOW_OFF(region));
 }
 
 static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
 {
-	return read32(base + REGION_SETUP_HIGH_OFF(region));
+	return io_read32(base + REGION_SETUP_HIGH_OFF(region));
 }
 
 #define	REGION_MAX	16
@@ -224,7 +224,7 @@ void tzc_dump_state(void)
 
 	DMSG("enter");
 	DMSG("security_inversion_en %x\n",
-	     read32(tzc.base + SECURITY_INV_EN_OFF));
+	     io_read32(tzc.base + SECURITY_INV_EN_OFF));
 	for (n = 0; n <= REGION_MAX; n++) {
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		if (!(temp_32reg & TZC_ATTR_REGION_EN_MASK))

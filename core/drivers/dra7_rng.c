@@ -87,29 +87,30 @@ uint8_t hw_get_random_byte(void)
 
 	if (!pos) {
 		/* Is the result ready (available)? */
-		while (!(read32(rng + RNG_STATUS) & RNG_READY)) {
+		while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
 			/* Is the shutdown threshold reached? */
-			if (read32(rng + RNG_STATUS) & SHUTDOWN_OFLO) {
-				uint32_t alarm = read32(rng + RNG_ALARMSTOP);
-				uint32_t tuning = read32(rng + RNG_FRODETUNE);
+			if (io_read32(rng + RNG_STATUS) & SHUTDOWN_OFLO) {
+				uint32_t alarm = io_read32(rng + RNG_ALARMSTOP);
+				uint32_t tune = io_read32(rng + RNG_FRODETUNE);
+
 				/* Clear the alarm events */
-				write32(0x0, rng + RNG_ALARMMASK);
-				write32(0x0, rng + RNG_ALARMSTOP);
+				io_write32(rng + RNG_ALARMMASK, 0x0);
+				io_write32(rng + RNG_ALARMSTOP, 0x0);
 				/* De-tune offending FROs */
-				write32(tuning ^ alarm, rng + RNG_FRODETUNE);
+				io_write32(rng + RNG_FRODETUNE, tune ^ alarm);
 				/* Re-enable the shut down FROs */
-				write32(RNG_FRO_MASK, rng + RNG_FROENABLE);
+				io_write32(rng + RNG_FROENABLE, RNG_FRO_MASK);
 				/* Clear the shutdown overflow event */
-				write32(SHUTDOWN_OFLO, rng + RNG_INTACK);
+				io_write32(rng + RNG_INTACK, SHUTDOWN_OFLO);
 
 				DMSG("Fixed FRO shutdown\n");
 			}
 		}
 		/* Read random value */
-		random.val[0] = read32(rng + RNG_OUTPUT_L);
-		random.val[1] = read32(rng + RNG_OUTPUT_H);
+		random.val[0] = io_read32(rng + RNG_OUTPUT_L);
+		random.val[1] = io_read32(rng + RNG_OUTPUT_H);
 		/* Acknowledge read complete */
-		write32(RNG_READY, rng + RNG_INTACK);
+		io_write32(rng + RNG_INTACK, RNG_READY);
 	}
 
 	ret = random.byte[pos];
@@ -128,14 +129,14 @@ static TEE_Result dra7_rng_init(void)
 	uint32_t val;
 
 	/* Execute a software reset */
-	write32(RNG_SOFT_RESET, rng + RNG_SOFT_RESET_REG);
+	io_write32(rng + RNG_SOFT_RESET_REG, RNG_SOFT_RESET);
 
 	/* Wait for the software reset completion by polling */
-	while (read32(rng + RNG_SOFT_RESET_REG) & RNG_SOFT_RESET)
+	while (io_read32(rng + RNG_SOFT_RESET_REG) & RNG_SOFT_RESET)
 		;
 
 	/* Switch to low-power operating mode */
-	write32(RNG_AUTOIDLE, rng + RNG_SYS_CONFIG_REG);
+	io_write32(rng + RNG_SYS_CONFIG_REG, RNG_AUTOIDLE);
 
 	/*
 	 * Select the number of clock input cycles to the
@@ -148,13 +149,13 @@ static TEE_Result dra7_rng_init(void)
 			RNG_CONFIG_MIN_REFIL_CYCLES_SHIFT;
 	val |= RNG_CONFIG_MAX_REFIL_CYCLES <<
 			RNG_CONFIG_MAX_REFIL_CYCLES_SHIFT;
-	write32(val, rng + RNG_CONFIG);
+	io_write32(rng + RNG_CONFIG, val);
 
 	/* Configure the desired FROs */
-	write32(0x0, rng + RNG_FRODETUNE);
+	io_write32(rng + RNG_FRODETUNE, 0x0);
 
 	/* Enable all FROs */
-	write32(0xffffff, rng + RNG_FROENABLE);
+	io_write32(rng + RNG_FROENABLE, 0xffffff);
 
 	/*
 	 * Select the maximum number of samples after
@@ -168,12 +169,12 @@ static TEE_Result dra7_rng_init(void)
 	 * allowed to be shut downed
 	 */
 	val |= RNG_SHUTDOWN_THRESHOLD << RNG_ALARMCNT_SHUTDOWN_TH_SHIFT;
-	write32(val, rng + RNG_ALARMCNT);
+	io_write32(rng + RNG_ALARMCNT, val);
 
 	/* Enable the RNG module */
 	val = RNG_CONTROL_STARTUP_CYCLES << RNG_CONTROL_STARTUP_CYCLES_SHIFT;
 	val |= ENABLE_TRNG;
-	write32(val, rng + RNG_CONTROL);
+	io_write32(rng + RNG_CONTROL, val);
 
 	IMSG("DRA7x TRNG initialized");
 

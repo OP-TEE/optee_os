@@ -66,24 +66,24 @@ static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 	 * 4bit fields are accessed at bit position being fourth the pin index
 	 * but accessed from 2 32bit registers at incremental addresses.
 	 */
-	cfg->mode = (read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
+	cfg->mode = (io_read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
 		     GPIO_MODE_MASK;
 
-	cfg->otype = (read32(base + GPIO_OTYPER_OFFSET) >> pin) & 1;
+	cfg->otype = (io_read32(base + GPIO_OTYPER_OFFSET) >> pin) & 1;
 
-	cfg->ospeed = (read32(base +  GPIO_OSPEEDR_OFFSET) >> (pin << 1)) &
+	cfg->ospeed = (io_read32(base +  GPIO_OSPEEDR_OFFSET) >> (pin << 1)) &
 		       GPIO_OSPEED_MASK;
 
-	cfg->pupd = (read32(base +  GPIO_PUPDR_OFFSET) >> (pin << 1)) &
+	cfg->pupd = (io_read32(base +  GPIO_PUPDR_OFFSET) >> (pin << 1)) &
 		     GPIO_PUPD_PULL_MASK;
 
-	cfg->od = (read32(base + GPIO_ODR_OFFSET) >> (pin << 1)) & 1;
+	cfg->od = (io_read32(base + GPIO_ODR_OFFSET) >> (pin << 1)) & 1;
 
 	if (pin < GPIO_ALT_LOWER_LIMIT)
-		cfg->af = (read32(base + GPIO_AFRL_OFFSET) >> (pin << 2)) &
+		cfg->af = (io_read32(base + GPIO_AFRL_OFFSET) >> (pin << 2)) &
 			   GPIO_ALTERNATE_MASK;
 	else
-		cfg->af = (read32(base + GPIO_AFRH_OFFSET) >>
+		cfg->af = (io_read32(base + GPIO_AFRH_OFFSET) >>
 			    ((pin - GPIO_ALT_LOWER_LIMIT) << 2)) &
 			   GPIO_ALTERNATE_MASK;
 
@@ -354,7 +354,7 @@ static __maybe_unused bool valid_gpio_config(unsigned int bank,
 					     unsigned int pin, bool input)
 {
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	uint32_t mode = (read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
+	uint32_t mode = (io_read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
 			GPIO_MODE_MASK;
 
 	if (pin > GPIO_PIN_MAX)
@@ -376,7 +376,7 @@ int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
 
 	stm32_clock_enable(clock);
 
-	if (read32(base + GPIO_IDR_OFFSET) == BIT(pin))
+	if (io_read32(base + GPIO_IDR_OFFSET) == BIT(pin))
 		rc = 1;
 
 	stm32_clock_disable(clock);
@@ -394,9 +394,9 @@ void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
 	stm32_clock_enable(clock);
 
 	if (level)
-		write32(BIT(pin), base + GPIO_BSRR_OFFSET);
+		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin));
 	else
-		write32(BIT(pin + 16), base + GPIO_BSRR_OFFSET);
+		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin + 16));
 
 	stm32_clock_disable(clock);
 }

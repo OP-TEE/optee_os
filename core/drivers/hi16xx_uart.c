@@ -70,7 +70,7 @@ static void hi16xx_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
+	while (!(io_read32(base + UART_USR) & UART_USR_TFE_BIT))
 		;
 }
 
@@ -79,18 +79,18 @@ static void hi16xx_uart_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = chip_to_base(chip);
 
 	/* Wait until TX FIFO is empty */
-	while (!(read32(base + UART_USR) & UART_USR_TFE_BIT))
+	while (!(io_read32(base + UART_USR) & UART_USR_TFE_BIT))
 		;
 
 	/* Put character into TX FIFO */
-	write32(ch & 0xFF, base + UART_THR);
+	io_write32(base + UART_THR, ch & 0xFF);
 }
 
 static bool hi16xx_uart_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return (read32(base + UART_USR) & UART_USR_RFNE_BIT);
+	return (io_read32(base + UART_USR) & UART_USR_RFNE_BIT);
 }
 
 static int hi16xx_uart_getchar(struct serial_chip *chip)
@@ -99,7 +99,7 @@ static int hi16xx_uart_getchar(struct serial_chip *chip)
 
 	while (!hi16xx_uart_have_rx_data(chip))
 		;
-	return read32(base + UART_RBR) & 0xFF;
+	return io_read32(base + UART_RBR) & 0xFF;
 }
 
 static const struct serial_ops hi16xx_uart_ops = {
@@ -119,22 +119,22 @@ void hi16xx_uart_init(struct hi16xx_uart_data *pd, paddr_t base,
 	pd->chip.ops = &hi16xx_uart_ops;
 
 	/* Enable (and clear) FIFOs */
-	write32(UART_FCR_FIFO_EN, base + UART_FCR);
+	io_write32(base + UART_FCR, UART_FCR_FIFO_EN);
 
 	/* Enable access to _DLL and _DLH */
-	write32(UART_LCR_DLAB, base + UART_LCR);
+	io_write32(base + UART_LCR, UART_LCR_DLAB);
 
 	/* Calculate and set UART_DLL */
-	write32(freq_div & 0xFF, base + UART_DLL);
+	io_write32(base + UART_DLL, freq_div & 0xFF);
 
 	/* Calculate and set UART_DLH */
-	write32((freq_div >> 8) & 0xFF, base + UART_DLH);
+	io_write32(base + UART_DLH, (freq_div >> 8) & 0xFF);
 
 	/* Clear _DLL/_DLH access bit, set data size (8 bits), parity etc. */
-	write32(UART_LCR_DLS8, base + UART_LCR);
+	io_write32(base + UART_LCR, UART_LCR_DLS8);
 
 	/* Disable interrupt mode */
-	write32(0, base + UART_IEL);
+	io_write32(base + UART_IEL, 0);
 
 	hi16xx_uart_flush(&pd->chip);
 }

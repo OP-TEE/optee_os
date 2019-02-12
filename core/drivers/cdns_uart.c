@@ -67,7 +67,7 @@ static void cdns_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(read32(base + CDNS_UART_CHANNEL_STATUS) &
+	while (!(io_read32(base + CDNS_UART_CHANNEL_STATUS) &
 		 CDNS_UART_CHANNEL_STATUS_TEMPTY))
 		;
 }
@@ -76,8 +76,8 @@ static bool cdns_uart_have_rx_data(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	return !(read32(base + CDNS_UART_CHANNEL_STATUS) &
-			CDNS_UART_CHANNEL_STATUS_REMPTY);
+	return !(io_read32(base + CDNS_UART_CHANNEL_STATUS) &
+		 CDNS_UART_CHANNEL_STATUS_REMPTY);
 }
 
 static int cdns_uart_getchar(struct serial_chip *chip)
@@ -86,7 +86,7 @@ static int cdns_uart_getchar(struct serial_chip *chip)
 
 	while (!cdns_uart_have_rx_data(chip))
 		;
-	return read32(base + CDNS_UART_FIFO) & 0xff;
+	return io_read32(base + CDNS_UART_FIFO) & 0xff;
 }
 
 static void cdns_uart_putc(struct serial_chip *chip, int ch)
@@ -94,12 +94,12 @@ static void cdns_uart_putc(struct serial_chip *chip, int ch)
 	vaddr_t base = chip_to_base(chip);
 
 	/* Wait until there is space in the FIFO */
-	while (read32(base + CDNS_UART_CHANNEL_STATUS) &
-			CDNS_UART_CHANNEL_STATUS_TFUL)
+	while (io_read32(base + CDNS_UART_CHANNEL_STATUS) &
+	       CDNS_UART_CHANNEL_STATUS_TFUL)
 		;
 
 	/* Send the character */
-	write32(ch, base + CDNS_UART_FIFO);
+	io_write32(base + CDNS_UART_FIFO, ch);
 }
 
 
@@ -125,8 +125,8 @@ void cdns_uart_init(struct cdns_uart_data *pd, paddr_t base, uint32_t uart_clk,
 		return;
 
 	/* Enable UART and RX/TX */
-	write32(CDNS_UART_CONTROL_RXEN | CDNS_UART_CONTROL_TXEN,
-		base + CDNS_UART_CONTROL);
+	io_write32(base + CDNS_UART_CONTROL,
+		   CDNS_UART_CONTROL_RXEN | CDNS_UART_CONTROL_TXEN);
 
 	cdns_uart_flush(&pd->chip);
 }
