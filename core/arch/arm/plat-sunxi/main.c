@@ -138,22 +138,20 @@ void console_init(void)
 #ifdef SUNXI_TZPC_BASE
 static void tzpc_init(void)
 {
-	vaddr_t tzpc;
+	vaddr_t v = (vaddr_t)phys_to_virt(SUNXI_TZPC_BASE, MEM_AREA_IO_SEC);
 
-	tzpc = (vaddr_t)phys_to_virt(SUNXI_TZPC_BASE, MEM_AREA_IO_SEC);
-
-	DMSG("SMTA_DECPORT0=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT0_STA_REG));
-	DMSG("SMTA_DECPORT1=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT1_STA_REG));
-	DMSG("SMTA_DECPORT2=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT2_STA_REG));
+	DMSG("SMTA_DECPORT0=%x", io_read32(v + REG_TZPC_SMTA_DECPORT0_STA_REG));
+	DMSG("SMTA_DECPORT1=%x", io_read32(v + REG_TZPC_SMTA_DECPORT1_STA_REG));
+	DMSG("SMTA_DECPORT2=%x", io_read32(v + REG_TZPC_SMTA_DECPORT2_STA_REG));
 
 	/* Allow all peripherals for normal world */
-	write32(0xbe, tzpc + REG_TZPC_SMTA_DECPORT0_SET_REG);
-	write32(0xff, tzpc + REG_TZPC_SMTA_DECPORT1_SET_REG);
-	write32(0x7f, tzpc + REG_TZPC_SMTA_DECPORT2_SET_REG);
+	io_write32(v + REG_TZPC_SMTA_DECPORT0_SET_REG, 0xbe);
+	io_write32(v + REG_TZPC_SMTA_DECPORT1_SET_REG, 0xff);
+	io_write32(v + REG_TZPC_SMTA_DECPORT2_SET_REG, 0x7f);
 
-	DMSG("SMTA_DECPORT0=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT0_STA_REG));
-	DMSG("SMTA_DECPORT1=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT1_STA_REG));
-	DMSG("SMTA_DECPORT2=%x", read32(tzpc + REG_TZPC_SMTA_DECPORT2_STA_REG));
+	DMSG("SMTA_DECPORT0=%x", io_read32(v + REG_TZPC_SMTA_DECPORT0_STA_REG));
+	DMSG("SMTA_DECPORT1=%x", io_read32(v + REG_TZPC_SMTA_DECPORT1_STA_REG));
+	DMSG("SMTA_DECPORT2=%x", io_read32(v + REG_TZPC_SMTA_DECPORT2_STA_REG));
 }
 #else
 static inline void tzpc_init(void)
@@ -208,7 +206,6 @@ vaddr_t smc_base(void)
 
 static TEE_Result smc_init(void)
 {
-	uint32_t val = 0;
 	vaddr_t base = smc_base();
 
 	if (!base) {
@@ -222,11 +219,8 @@ static TEE_Result smc_init(void)
 	tzc_configure_region(1, 0x0, TZC_ATTR_REGION_SIZE(TZC_REGION_SIZE_32M) |
 			     TZC_ATTR_REGION_EN_MASK | TZC_ATTR_SP_S_RW);
 
-
 	/* SoC specific bits */
-	val = read32(base + SMC_MASTER_BYPASS);
-	val = val & ~(SMC_MASTER_BYPASS_EN_MASK);
-	write32(val, base + SMC_MASTER_BYPASS);
+	io_clrbits32(base + SMC_MASTER_BYPASS, SMC_MASTER_BYPASS_EN_MASK);
 
 	return TEE_SUCCESS;
 }
