@@ -429,12 +429,12 @@ static void matrix_write(unsigned int base,
 			 unsigned int offset,
 			 const unsigned int value)
 {
-	write32(value, offset + base);
+	io_write32(offset + base, value);
 }
 
 static unsigned int matrix_read(int base, unsigned int offset)
 {
-	return read32(offset + base);
+	return io_read32(offset + base);
 }
 
 void matrix_write_protect_enable(unsigned int matrix_base)

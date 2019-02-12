@@ -99,9 +99,9 @@ enum ram_config {RAMC_SRAM = 0, RAMC_L2CC};
 static void l2_sram_config(enum ram_config setting)
 {
 	if (setting == RAMC_L2CC)
-		write32(0x1, sfr_base() + SFR_L2CC_HRAMC);
+		io_write32(sfr_base() + SFR_L2CC_HRAMC, 0x1);
 	else
-		write32(0x0, sfr_base() + SFR_L2CC_HRAMC);
+		io_write32(sfr_base() + SFR_L2CC_HRAMC, 0x0);
 }
 
 vaddr_t pl310_base(void)
@@ -118,11 +118,11 @@ vaddr_t pl310_base(void)
 
 void arm_cl2_config(vaddr_t pl310_base)
 {
-	write32(0, pl310_base + PL310_CTRL);
+	io_write32(pl310_base + PL310_CTRL, 0);
 	l2_sram_config(RAMC_L2CC);
-	write32(PL310_AUX_CTRL_INIT, pl310_base + PL310_AUX_CTRL);
-	write32(PL310_PREFETCH_CTRL_INIT, pl310_base + PL310_PREFETCH_CTRL);
-	write32(PL310_POWER_CTRL_INIT, pl310_base + PL310_POWER_CTRL);
+	io_write32(pl310_base + PL310_AUX_CTRL, PL310_AUX_CTRL_INIT);
+	io_write32(pl310_base + PL310_PREFETCH_CTRL, PL310_PREFETCH_CTRL_INIT);
+	io_write32(pl310_base + PL310_POWER_CTRL, PL310_POWER_CTRL_INIT);
 
 	/* invalidate all cache ways */
 	arm_cl2_invbyway(pl310_base);
@@ -131,7 +131,7 @@ void arm_cl2_config(vaddr_t pl310_base)
 void arm_cl2_enable(vaddr_t pl310_base)
 {
 	/* Enable PL310 ctrl -> only set lsb bit */
-	write32(1, pl310_base + PL310_CTRL);
+	io_write32(pl310_base + PL310_CTRL, 1);
 }
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX32,
