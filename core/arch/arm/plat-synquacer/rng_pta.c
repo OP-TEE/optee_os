@@ -232,7 +232,7 @@ void rng_collect_entropy(void)
 					(THERMAL_SENSOR_OFFSET * i) +
 					TEMP_DATA_REG_OFFSET);
 		sensors_data[sensors_data_slot_idx + i][sensors_data_idx] =
-					(uint8_t)read32((vaddr_t)vaddr);
+					(uint8_t)io_read32((vaddr_t)vaddr);
 	}
 
 	sensors_data_idx++;
