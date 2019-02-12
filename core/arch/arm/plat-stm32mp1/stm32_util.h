@@ -28,7 +28,7 @@ uintptr_t get_gicd_base(void);
  * check DT configuration matches platform implementation of the banks
  * description.
  */
-uintptr_t stm32_get_gpio_bank_base(unsigned int bank);
+vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
 
