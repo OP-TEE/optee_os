@@ -116,14 +116,14 @@ vaddr_t pl310_base(void)
 void arm_cl2_config(vaddr_t pl310)
 {
 	/* pl310 off */
-	write32(0, pl310 + PL310_CTRL);
+	io_write32(pl310 + PL310_CTRL, 0);
 
 	/* config PL310 */
-	write32(PL310_TAG_RAM_CTRL_INIT, pl310 + PL310_TAG_RAM_CTRL);
-	write32(PL310_DATA_RAM_CTRL_INIT, pl310 + PL310_DATA_RAM_CTRL);
-	write32(PL310_AUX_CTRL_INIT, pl310 + PL310_AUX_CTRL);
-	write32(PL310_PREFETCH_CTRL_INIT, pl310 + PL310_PREFETCH_CTRL);
-	write32(PL310_POWER_CTRL_INIT, pl310 + PL310_POWER_CTRL);
+	io_write32(pl310 + PL310_TAG_RAM_CTRL, PL310_TAG_RAM_CTRL_INIT);
+	io_write32(pl310 + PL310_DATA_RAM_CTRL, PL310_DATA_RAM_CTRL_INIT);
+	io_write32(pl310 + PL310_AUX_CTRL, PL310_AUX_CTRL_INIT);
+	io_write32(pl310 + PL310_PREFETCH_CTRL, PL310_PREFETCH_CTRL_INIT);
+	io_write32(pl310 + PL310_POWER_CTRL, PL310_POWER_CTRL_INIT);
 
 	/* invalidate all pl310 cache ways */
 	arm_cl2_invbyway(pl310);
@@ -141,19 +141,19 @@ void plat_cpu_reset_late(void)
 	if (get_core_pos())
 		return;
 
-	write32(SCU_SAC_INIT, SCU_BASE + SCU_SAC);
-	write32(SCU_NSAC_INIT, SCU_BASE + SCU_NSAC);
-	write32(CPU_PORT_FILT_END, SCU_BASE + SCU_FILT_EA);
-	write32(CPU_PORT_FILT_START, SCU_BASE + SCU_FILT_SA);
-	write32(SCU_CTRL_INIT, SCU_BASE + SCU_CTRL);
+	io_write32(SCU_BASE + SCU_SAC, SCU_SAC_INIT);
+	io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_INIT);
+	io_write32(SCU_BASE + SCU_FILT_EA, CPU_PORT_FILT_END);
+	io_write32(SCU_BASE + SCU_FILT_SA, CPU_PORT_FILT_START);
+	io_write32(SCU_BASE + SCU_CTRL, SCU_CTRL_INIT);
 
-	write32(CPU_PORT_FILT_END, pl310_base() + PL310_ADDR_FILT_END);
-	write32(CPU_PORT_FILT_START | PL310_CTRL_ENABLE_BIT,
-				   pl310_base() + PL310_ADDR_FILT_START);
+	io_write32(pl310_base() + PL310_ADDR_FILT_END, CPU_PORT_FILT_END);
+	io_write32(pl310_base() + PL310_ADDR_FILT_START,
+		CPU_PORT_FILT_START | PL310_CTRL_ENABLE_BIT);
 
 	/* TODO: gic_init scan fails, pre-init all SPIs are nonsecure */
 	for (i = 0; i < (31 * 4); i += 4)
-		write32(0xFFFFFFFF, GIC_DIST_BASE + GIC_DIST_ISR1 + i);
+		io_write32(GIC_DIST_BASE + GIC_DIST_ISR1 + i, 0xFFFFFFFF);
 }
 
 void main_init_gic(void)
