@@ -506,7 +506,7 @@ static int stm32mp1_clk_get_parent(unsigned long id)
 	int i;
 	enum stm32mp1_parent_id p;
 	enum stm32mp1_parent_sel s;
-	uintptr_t rcc_base = stm32_rcc_base();
+	vaddr_t rcc_base = stm32_rcc_base();
 
 	for (j = 0U; j < ARRAY_SIZE(stm32mp1_clks); j++)
 		if (stm32mp1_clks[j][0] == id)
@@ -608,7 +608,7 @@ static unsigned long get_clock_rate(int p)
 	uint32_t reg;
 	uint32_t clkdiv;
 	unsigned long clock = 0;
-	uintptr_t rcc_base = stm32_rcc_base();
+	vaddr_t rcc_base = stm32_rcc_base();
 
 	switch (p) {
 	case _CK_MPU:
@@ -806,7 +806,7 @@ static unsigned long get_clock_rate(int p)
 
 static void __clk_enable(struct stm32mp1_clk_gate const *gate)
 {
-	uintptr_t base = stm32_rcc_base();
+	vaddr_t base = stm32_rcc_base();
 	uint32_t bit = BIT(gate->bit);
 
 	if (gate->set_clr)
@@ -819,7 +819,7 @@ static void __clk_enable(struct stm32mp1_clk_gate const *gate)
 
 static void __clk_disable(struct stm32mp1_clk_gate const *gate)
 {
-	uintptr_t base = stm32_rcc_base();
+	vaddr_t base = stm32_rcc_base();
 	uint32_t bit = BIT(gate->bit);
 
 	if (gate->set_clr)
@@ -832,7 +832,7 @@ static void __clk_disable(struct stm32mp1_clk_gate const *gate)
 
 static bool __clk_is_enabled(struct stm32mp1_clk_gate const *gate)
 {
-	uintptr_t base = stm32_rcc_base();
+	vaddr_t base = stm32_rcc_base();
 
 	return read32(base + gate->offset) & BIT(gate->bit);
 }
@@ -891,7 +891,7 @@ static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 {
 	uint32_t timgxpre;
 	uint32_t apbxdiv;
-	uintptr_t rcc_base = stm32_rcc_base();
+	vaddr_t rcc_base = stm32_rcc_base();
 
 	switch (apb_bus) {
 	case 1:

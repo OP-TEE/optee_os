@@ -87,7 +87,7 @@ struct etzpc_instance {
 /* Only 1 instance of the ETZPC is expected per platform */
 static struct etzpc_instance etzpc_dev;
 
-static uintptr_t etzpc_base(void)
+static vaddr_t etzpc_base(void)
 {
 	return io_pa_or_va(&etzpc_dev.base);
 }
@@ -105,10 +105,10 @@ static bool valid_tzma_id(unsigned int id)
 void etzpc_configure_decprot(uint32_t decprot_id,
 			     enum etzpc_decprot_attributes decprot_attr)
 {
-	uintptr_t offset = 4U * (decprot_id / IDS_PER_DECPROT_REGS);
+	size_t offset = 4U * (decprot_id / IDS_PER_DECPROT_REGS);
 	uint32_t shift = (decprot_id % IDS_PER_DECPROT_REGS) << DECPROT_SHIFT;
 	uint32_t masked_decprot = (uint32_t)decprot_attr & ETZPC_DECPROT0_MASK;
-	uintptr_t base = etzpc_base();
+	vaddr_t base = etzpc_base();
 
 	assert(valid_decprot_id(decprot_id));
 
@@ -126,9 +126,9 @@ void etzpc_configure_decprot(uint32_t decprot_id,
 
 enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 {
-	uintptr_t offset = 4U * (decprot_id / IDS_PER_DECPROT_REGS);
+	size_t offset = 4U * (decprot_id / IDS_PER_DECPROT_REGS);
 	uint32_t shift = (decprot_id % IDS_PER_DECPROT_REGS) << DECPROT_SHIFT;
-	uintptr_t base = etzpc_base();
+	vaddr_t base = etzpc_base();
 	uint32_t value;
 
 	assert(valid_decprot_id(decprot_id));
@@ -141,9 +141,9 @@ enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 
 void etzpc_lock_decprot(uint32_t decprot_id)
 {
-	uintptr_t offset = 4U * (decprot_id / IDS_PER_DECPROT_LOCK_REGS);
+	size_t offset = 4U * (decprot_id / IDS_PER_DECPROT_LOCK_REGS);
 	uint32_t mask = BIT(decprot_id % IDS_PER_DECPROT_LOCK_REGS);
-	uintptr_t base = etzpc_base();
+	vaddr_t base = etzpc_base();
 
 	assert(valid_decprot_id(decprot_id));
 
@@ -155,9 +155,9 @@ void etzpc_lock_decprot(uint32_t decprot_id)
 
 bool etzpc_get_lock_decprot(uint32_t decprot_id)
 {
-	uintptr_t offset = 4U * (decprot_id / IDS_PER_DECPROT_LOCK_REGS);
+	size_t offset = 4U * (decprot_id / IDS_PER_DECPROT_LOCK_REGS);
 	uint32_t mask = BIT(decprot_id % IDS_PER_DECPROT_LOCK_REGS);
-	uintptr_t base = etzpc_base();
+	vaddr_t base = etzpc_base();
 
 	assert(valid_decprot_id(decprot_id));
 
@@ -166,8 +166,8 @@ bool etzpc_get_lock_decprot(uint32_t decprot_id)
 
 void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
 {
-	uintptr_t offset = sizeof(uint32_t) * tzma_id;
-	uintptr_t base = etzpc_base();
+	size_t offset = sizeof(uint32_t) * tzma_id;
+	vaddr_t base = etzpc_base();
 
 	assert(valid_tzma_id(tzma_id));
 
@@ -181,8 +181,8 @@ void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
 
 uint16_t etzpc_get_tzma(uint32_t tzma_id)
 {
-	uintptr_t offset = sizeof(uint32_t) * tzma_id;
-	uintptr_t base = etzpc_base();
+	size_t offset = sizeof(uint32_t) * tzma_id;
+	vaddr_t base = etzpc_base();
 
 	assert(valid_tzma_id(tzma_id));
 
@@ -191,8 +191,8 @@ uint16_t etzpc_get_tzma(uint32_t tzma_id)
 
 void etzpc_lock_tzma(uint32_t tzma_id)
 {
-	uintptr_t offset = sizeof(uint32_t) * tzma_id;
-	uintptr_t base = etzpc_base();
+	size_t offset = sizeof(uint32_t) * tzma_id;
+	vaddr_t base = etzpc_base();
 
 	assert(valid_tzma_id(tzma_id));
 
@@ -204,8 +204,8 @@ void etzpc_lock_tzma(uint32_t tzma_id)
 
 bool etzpc_get_lock_tzma(uint32_t tzma_id)
 {
-	uintptr_t offset = sizeof(uint32_t) * tzma_id;
-	uintptr_t base = etzpc_base();
+	size_t offset = sizeof(uint32_t) * tzma_id;
+	vaddr_t base = etzpc_base();
 
 	assert(valid_tzma_id(tzma_id));
 
@@ -297,7 +297,7 @@ static void init_devive_from_hw_config(struct etzpc_instance *dev,
 
 	assert(!dev->base.pa && cpu_mmu_enabled());
 	dev->base.pa = pbase;
-	dev->base.va = (uintptr_t)phys_to_virt(dev->base.pa, MEM_AREA_IO_SEC);
+	dev->base.va = (vaddr_t)phys_to_virt(dev->base.pa, MEM_AREA_IO_SEC);
 	assert(etzpc_base());
 
 	get_hwcfg(&hwcfg);

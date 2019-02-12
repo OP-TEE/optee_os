@@ -531,7 +531,7 @@
 #define RCC_MP_IWDGFZSETR_IWDG2			BIT(1)
 
 #ifndef ASM
-uintptr_t stm32_rcc_base(void);
+vaddr_t stm32_rcc_base(void);
 
 static inline bool stm32_rcc_is_secure(void)
 {

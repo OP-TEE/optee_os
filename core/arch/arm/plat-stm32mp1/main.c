@@ -286,7 +286,7 @@ uintptr_t stm32mp_bkpreg(unsigned int idx)
 	return bkpreg_base() + (idx * sizeof(uint32_t));
 }
 
-uintptr_t stm32_get_gpio_bank_base(unsigned int bank)
+vaddr_t stm32_get_gpio_bank_base(unsigned int bank)
 {
 	static struct io_pa_va gpios_nsec_base = { .pa = GPIOS_NSEC_BASE };
 	static struct io_pa_va gpioz_base = { .pa = GPIOZ_BASE };

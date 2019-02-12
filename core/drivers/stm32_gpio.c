@@ -54,7 +54,7 @@ static unsigned int gpio_lock;
 /* Save to output @cfg the current GPIO (@bank/@pin) configuration */
 static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
 
 	stm32_clock_enable(clock);
@@ -93,7 +93,7 @@ static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 /* Apply GPIO (@bank/@pin) configuration described by @cfg */
 static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
 	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
 
@@ -353,7 +353,7 @@ int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int device_node,
 static __maybe_unused bool valid_gpio_config(unsigned int bank,
 					     unsigned int pin, bool input)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	uint32_t mode = (read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
 			GPIO_MODE_MASK;
 
@@ -368,7 +368,7 @@ static __maybe_unused bool valid_gpio_config(unsigned int bank,
 
 int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
 	int rc = 0;
 
@@ -386,7 +386,7 @@ int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
 
 void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
 
 	assert(valid_gpio_config(bank, pin, false));
@@ -403,7 +403,7 @@ void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
 
 void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 {
-	uintptr_t base = stm32_get_gpio_bank_base(bank);
+	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
 	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
 
