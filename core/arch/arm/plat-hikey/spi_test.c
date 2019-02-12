@@ -32,9 +32,9 @@ static void spi_cs_callback(enum gpio_level value)
 		inited = true;
 	}
 
-	if (read8(spi_base + PL022_STAT) & PL022_STAT_BSY)
+	if (io_read8(spi_base + PL022_STAT) & PL022_STAT_BSY)
 		DMSG("pl022 busy - do NOT set CS!");
-	while (read8(spi_base + PL022_STAT) & PL022_STAT_BSY)
+	while (io_read8(spi_base + PL022_STAT) & PL022_STAT_BSY)
 		;
 	DMSG("pl022 done - set CS!");
 
@@ -48,13 +48,13 @@ static void spi_set_cs_mux(uint32_t val)
 
 	if (val == PINMUX_SPI) {
 		DMSG("Configure gpio6 pin2 as SPI");
-		write32(PINMUX_SPI, pmx0_base + PMX0_IOMG106);
+		io_write32(pmx0_base + PMX0_IOMG106, PINMUX_SPI);
 	} else {
 		DMSG("Configure gpio6 pin2 as GPIO");
-		write32(PINMUX_GPIO, pmx0_base + PMX0_IOMG106);
+		io_write32(pmx0_base + PMX0_IOMG106, PINMUX_GPIO);
 	}
 
-	data = read32(pmx0_base + PMX0_IOMG106);
+	data = io_read32(pmx0_base + PMX0_IOMG106);
 	if (data)
 		DMSG("gpio6 pin2 is SPI");
 	else

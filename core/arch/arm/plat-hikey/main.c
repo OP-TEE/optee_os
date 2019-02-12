@@ -88,16 +88,16 @@ void spi_init(void)
 	 * no need to read PERI_SC_PERIPH_RSTDIS3 first
 	 * as all the bits are processed and cleared after writing
 	 */
-	write32(shifted_val, peri_base + PERI_SC_PERIPH_RSTDIS3);
+	io_write32(peri_base + PERI_SC_PERIPH_RSTDIS3, shifted_val);
 	DMSG("PERI_SC_PERIPH_RSTDIS3: 0x%x\n",
-		read32(peri_base + PERI_SC_PERIPH_RSTDIS3));
+		io_read32(peri_base + PERI_SC_PERIPH_RSTDIS3));
 
 	/*
 	 * wait until the requested device is out of reset
 	 * and ready to be used
 	 */
 	do {
-		read_val = read32(peri_base + PERI_SC_PERIPH_RSTSTAT3);
+		read_val = io_read32(peri_base + PERI_SC_PERIPH_RSTSTAT3);
 	} while (read_val & shifted_val);
 	DMSG("PERI_SC_PERIPH_RSTSTAT3: 0x%x\n", read_val);
 
@@ -107,12 +107,12 @@ void spi_init(void)
 	 * as all the bits are processed and cleared after writing
 	 */
 	shifted_val = PERI_CLK3_SSP;
-	write32(shifted_val, peri_base + PERI_SC_PERIPH_CLKEN3);
+	io_write32(peri_base + PERI_SC_PERIPH_CLKEN3, shifted_val);
 	DMSG("PERI_SC_PERIPH_CLKEN3: 0x%x\n",
-		read32(peri_base + PERI_SC_PERIPH_CLKEN3));
+		io_read32(peri_base + PERI_SC_PERIPH_CLKEN3));
 
 	DMSG("PERI_SC_PERIPH_CLKSTAT3: 0x%x\n",
-		read32(peri_base + PERI_SC_PERIPH_CLKSTAT3));
+		io_read32(peri_base + PERI_SC_PERIPH_CLKSTAT3));
 
 	/*
 	 * GPIO6_2 can be configured as PINMUX_GPIO, but as PINMUX_SPI, HW IP
@@ -124,16 +124,16 @@ void spi_init(void)
 	 * ref: http://infocenter.arm.com/help/topic/com.arm.doc.ddi0194h/CJACFAFG.html
 	 */
 	DMSG("configure gpio6 pins 0-3 as SPI\n");
-	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG104);
-	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG105);
-	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG106);
-	write32(PINMUX_SPI, pmx0_base + PMX0_IOMG107);
+	io_write32(pmx0_base + PMX0_IOMG104, PINMUX_SPI);
+	io_write32(pmx0_base + PMX0_IOMG105, PINMUX_SPI);
+	io_write32(pmx0_base + PMX0_IOMG106, PINMUX_SPI);
+	io_write32(pmx0_base + PMX0_IOMG107, PINMUX_SPI);
 
 	DMSG("configure gpio6 pins 0-3 as nopull\n");
-	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG104);
-	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG105);
-	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG106);
-	write32(PINCFG_NOPULL, pmx1_base + PMX1_IOCG107);
+	io_write32(pmx1_base + PMX1_IOCG104, PINCFG_NOPULL);
+	io_write32(pmx1_base + PMX1_IOCG105, PINCFG_NOPULL);
+	io_write32(pmx1_base + PMX1_IOCG106, PINCFG_NOPULL);
+	io_write32(pmx1_base + PMX1_IOCG107, PINCFG_NOPULL);
 
 #ifdef CFG_SPI_TEST
 	spi_test();
@@ -153,8 +153,8 @@ static TEE_Result peripherals_init(void)
 	 * until linux is booted.
 	 */
 	io_mask8(pmussi_base + PMUSSI_LDO21_REG_ADJ, PMUSSI_LDO21_REG_VL_1V8,
-		PMUSSI_LDO21_REG_VL_MASK);
-	write8(PMUSSI_ENA_LDO21, pmussi_base + PMUSSI_ENA_LDO17_22);
+		 PMUSSI_LDO21_REG_VL_MASK);
+	io_write8(pmussi_base + PMUSSI_ENA_LDO17_22, PMUSSI_ENA_LDO21);
 
 #ifdef CFG_SPI
 	spi_init();
