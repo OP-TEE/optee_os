@@ -89,45 +89,41 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 
 	/* set entry address */
 	DMSG("set entry address for CPU %d", core_idx);
-	write32(val, cpucfg + REG_CPUCFG_PRIV0);
+	io_write32(cpucfg + REG_CPUCFG_PRIV0, val);
 
 	/* assert reset on target CPU */
 	DMSG("assert reset on target CPU %d", core_idx);
-	write32(0, cpucfg + REG_CPUCFG_CPU_RST(core_idx));
+	io_write32(cpucfg + REG_CPUCFG_CPU_RST(core_idx), 0);
 
 	/* invalidate L1 cache */
 	DMSG("invalidate L1 cache for CPU %d", core_idx);
-	write32(read32(cpucfg + REG_CPUCFG_GEN_CTRL) & (~(BIT32(core_idx))),
-		cpucfg + REG_CPUCFG_GEN_CTRL);
+	io_clrbits32(cpucfg + REG_CPUCFG_GEN_CTRL, BIT32(core_idx));
 
 	/* lock CPU (Disable external debug access) */
 	DMSG("lock CPU %d", core_idx);
-	write32(read32(cpucfg + REG_CPUCFG_DBG_CTRL1) & (~(BIT32(core_idx))),
-		cpucfg + REG_CPUCFG_DBG_CTRL1);
+	io_clrbits32(cpucfg + REG_CPUCFG_DBG_CTRL1, BIT32(core_idx));
 
 	/* release clamp */
 	DMSG("release clamp for CPU %d", core_idx);
 	tmpff = 0x1ff;
 	do {
 		tmpff >>= 1;
-		write32(tmpff, base + REG_PRCM_CPU_PWR_CLAMP(core_idx));
+		io_write32(base + REG_PRCM_CPU_PWR_CLAMP(core_idx), tmpff);
 	} while (tmpff);
 	mdelay(10);
 
 	/* clear power gating */
 	DMSG("clear power gating for CPU %d", core_idx);
-	write32(read32(base + REG_PRCM_CPU_PWROFF) & (~(BIT32(core_idx))),
-		base + REG_PRCM_CPU_PWROFF);
+	io_clrbits32(base + REG_PRCM_CPU_PWROFF, BIT32(core_idx));
 	udelay(1000);
 
 	/* de-assert reset on target CPU */
 	DMSG("de-assert reset on target CPU %d", core_idx);
-	write32(0x03, cpucfg + REG_CPUCFG_CPU_RST(core_idx));
+	io_write32(cpucfg + REG_CPUCFG_CPU_RST(core_idx), 0x03);
 
 	/* unlock CPU (enable external debug access) */
 	DMSG("unlock CPU %d", core_idx);
-	write32(read32(cpucfg + REG_CPUCFG_DBG_CTRL1) | (BIT32(core_idx)),
-		cpucfg + REG_CPUCFG_DBG_CTRL1);
+	io_setbits32(cpucfg + REG_CPUCFG_DBG_CTRL1, BIT32(core_idx));
 
 	return PSCI_RET_SUCCESS;
 }
@@ -152,12 +148,11 @@ int psci_cpu_off(void)
 
 	/* set power gating */
 	DMSG("set power gating for cpu %d", core_id);
-	write32(read32(base + REG_PRCM_CPU_PWROFF) | (BIT32(core_id)),
-		base + REG_PRCM_CPU_PWROFF);
+	io_setbits32(base + REG_PRCM_CPU_PWROFF, BIT32(core_id));
 
 	/* Activate power clamp */
 	DMSG("Activate power clamp for cpu %d", core_id);
-	write32(0xff, base + REG_PRCM_CPU_PWR_CLAMP(core_id));
+	io_write32(base + REG_PRCM_CPU_PWR_CLAMP(core_id), 0xff);
 
 	while (true)
 		wfi();
