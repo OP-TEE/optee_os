@@ -77,7 +77,6 @@ static TEE_Result gprof_start_pc_sampling(struct tee_ta_session *s,
 	struct sample_buf *sbuf;
 	uint32_t offset;
 	uint32_t scale;
-	TEE_Result res;
 	uint32_t len;
 	uaddr_t buf;
 
@@ -89,12 +88,6 @@ static TEE_Result gprof_start_pc_sampling(struct tee_ta_session *s,
 	offset = params[1].value.a;
 	scale = params[1].value.b;
 
-	res = tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  buf, len);
-	if (res != TEE_SUCCESS)
-		return res;
 	sbuf = calloc(1, sizeof(*sbuf));
 	if (!sbuf)
 		return TEE_ERROR_OUT_OF_MEMORY;
