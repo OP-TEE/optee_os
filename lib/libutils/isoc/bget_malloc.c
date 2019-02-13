@@ -82,6 +82,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <trace.h>
 #include <util.h>
@@ -364,12 +365,12 @@ out:
 	return ptr;
 }
 
-static void raw_free(void *ptr, struct malloc_ctx *ctx)
+static void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 {
 	raw_malloc_validate_pools(ctx);
 
 	if (ptr)
-		brel(ptr, &ctx->poolset);
+		brel(ptr, &ctx->poolset, wipe);
 }
 
 static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
@@ -524,7 +525,7 @@ static void assert_header(struct mdbg_hdr *hdr __maybe_unused)
 	assert(*mdbg_get_footer(hdr) == MDBG_FOOTER_MAGIC);
 }
 
-static void gen_mdbg_free(struct malloc_ctx *ctx, void *ptr)
+static void gen_mdbg_free(struct malloc_ctx *ctx, void *ptr, bool wipe)
 {
 	struct mdbg_hdr *hdr = ptr;
 
@@ -533,15 +534,15 @@ static void gen_mdbg_free(struct malloc_ctx *ctx, void *ptr)
 		assert_header(hdr);
 		hdr->magic = 0;
 		*mdbg_get_footer(hdr) = 0;
-		raw_free(hdr, ctx);
+		raw_free(hdr, ctx, wipe);
 	}
 }
 
-void free(void *ptr)
+static void free_helper(void *ptr, bool wipe)
 {
 	uint32_t exceptions = malloc_lock(&malloc_ctx);
 
-	gen_mdbg_free(&malloc_ctx, ptr);
+	gen_mdbg_free(&malloc_ctx, ptr, wipe);
 	malloc_unlock(&malloc_ctx, exceptions);
 }
 
@@ -661,11 +662,11 @@ void *malloc(size_t size)
 	return p;
 }
 
-void free(void *ptr)
+static void free_helper(void *ptr, bool wipe)
 {
 	uint32_t exceptions = malloc_lock(&malloc_ctx);
 
-	raw_free(ptr, &malloc_ctx);
+	raw_free(ptr, &malloc_ctx, wipe);
 	malloc_unlock(&malloc_ctx, exceptions);
 }
 
@@ -702,6 +703,16 @@ static void *get_payload_start_size(void *ptr, size_t *size)
 }
 
 #endif
+
+void free(void *ptr)
+{
+	free_helper(ptr, false);
+}
+
+void free_wipe(void *ptr)
+{
+	free_helper(ptr, true);
+}
 
 static void gen_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 {
@@ -861,7 +872,7 @@ void nex_free(void *ptr)
 {
 	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
 
-	raw_free(ptr, &nex_malloc_ctx);
+	raw_free(ptr, &nex_malloc_ctx, false /* !wipe */);
 	malloc_unlock(&nex_malloc_ctx, exceptions);
 }
 
@@ -891,7 +902,7 @@ void nex_free(void *ptr)
 {
 	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
 
-	gen_mdbg_free(&nex_malloc_ctx, ptr);
+	gen_mdbg_free(&nex_malloc_ctx, ptr, false /* !wipe */);
 	malloc_unlock(&nex_malloc_ctx, exceptions);
 }
 
