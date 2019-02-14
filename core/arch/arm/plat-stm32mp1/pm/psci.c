@@ -83,7 +83,8 @@ static void __noreturn stm32_pm_cpu_power_down_wfi(void)
 {
 	dcache_op_level1(DCACHE_OP_CLEAN);
 
-	write32(RCC_MP_GRSTCSETR_MPUP1RST, stm32_rcc_base() + RCC_MP_GRSTCSETR);
+	io_write32(stm32_rcc_base() + RCC_MP_GRSTCSETR,
+		   RCC_MP_GRSTCSETR_MPUP1RST);
 
 	dsb();
 	isb();
@@ -115,8 +116,8 @@ void stm32mp_register_online_cpu(void)
 static void raise_sgi0_as_secure(void)
 {
 	dsb_ishst();
-	write32(GIC_NON_SEC_SGI_0 | SHIFT_U32(TARGET_CPU1_GIC_MASK, 16),
-		get_gicd_base() + GICD_SGIR);
+	io_write32(get_gicd_base() + GICD_SGIR,
+		   GIC_NON_SEC_SGI_0 | SHIFT_U32(TARGET_CPU1_GIC_MASK, 16));
 }
 
 static void release_secondary_early_hpen(size_t __unused pos)
@@ -125,10 +126,10 @@ static void release_secondary_early_hpen(size_t __unused pos)
 	raise_sgi0_as_secure();
 	udelay(20);
 
-	write32(TEE_LOAD_ADDR,
-		stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS));
-	write32(BOOT_API_A7_CORE1_MAGIC_NUMBER,
-		stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER));
+	io_write32(stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS),
+		   TEE_LOAD_ADDR);
+	io_write32(stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER),
+		   BOOT_API_A7_CORE1_MAGIC_NUMBER);
 
 	dsb_ishst();
 	itr_raise_sgi(GIC_SEC_SGI_0, TARGET_CPU1_GIC_MASK);

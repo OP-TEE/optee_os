@@ -538,12 +538,12 @@ vaddr_t stm32_rcc_base(void);
 
 static inline bool stm32_rcc_is_secure(void)
 {
-	return read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_TZEN;
+	return io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_TZEN;
 }
 
 static inline bool stm32_rcc_is_mckprot(void)
 {
-	return read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
+	return io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
 }
 #endif /*ASM*/
 

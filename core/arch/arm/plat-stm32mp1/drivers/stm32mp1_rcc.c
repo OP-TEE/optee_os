@@ -28,7 +28,7 @@
 			panic(); \
 	} while (!(_condition))
 
-uintptr_t stm32_rcc_base(void)
+vaddr_t stm32_rcc_base(void)
 {
 	static struct io_pa_va base = { .pa = RCC_BASE };
 
@@ -50,11 +50,11 @@ void stm32_reset_assert(unsigned int id)
 	size_t offset = reset_id2reg_offset(id);
 	uint32_t bitmsk = BIT(reset_id2reg_bit_pos(id));
 	uint64_t timeout_ref = timeout_init_us(RESET_TIMEOUT_US);
-	uintptr_t rcc_base = stm32_rcc_base();
+	vaddr_t rcc_base = stm32_rcc_base();
 
-	write32(bitmsk, rcc_base + offset);
+	io_write32(rcc_base + offset, bitmsk);
 
-	WAIT_COND_OR_PANIC(read32(rcc_base + offset) & bitmsk,
+	WAIT_COND_OR_PANIC(io_read32(rcc_base + offset) & bitmsk,
 			   timeout_ref);
 }
 
@@ -63,10 +63,10 @@ void stm32_reset_deassert(unsigned int id)
 	size_t offset = reset_id2reg_offset(id) + RCC_MP_RSTCLRR_OFFSET;
 	uint32_t bitmsk = BIT(reset_id2reg_bit_pos(id));
 	uint64_t timeout_ref = timeout_init_us(RESET_TIMEOUT_US);
-	uintptr_t rcc_base = stm32_rcc_base();
+	vaddr_t rcc_base = stm32_rcc_base();
 
-	write32(bitmsk, rcc_base + offset);
+	io_write32(rcc_base + offset, bitmsk);
 
-	WAIT_COND_OR_PANIC(!(read32(rcc_base + offset) & bitmsk),
+	WAIT_COND_OR_PANIC(!(io_read32(rcc_base + offset) & bitmsk),
 			   timeout_ref);
 }
