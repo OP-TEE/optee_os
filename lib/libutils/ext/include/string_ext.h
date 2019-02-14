@@ -21,22 +21,14 @@
 size_t strlcpy(char *dst, const char *src, size_t size);
 size_t strlcat(char *dst, const char *src, size_t size);
 
-/*
- * This memory compare function will compare two buffers in a constant time.
- *
- * Note that this function will not have same kind of return values as the
- * traditional libc memcmp which return either less than or greater than zero
- * depending on which string that is lexically greater. This function will
- * return 0 if it is a match, otherwise it will return a non-zero value.
- */
-int buf_compare_ct(const void *s1, const void *s2, size_t n);
-
-/*
- * A constant-time version of memcmp(). Might be slightly slower than
- * buf_compare_ct(), but complies with the memcmp() specification which
- * requires three possible outcomes for the comparison (< 0, 0 and > 0).
- */
+/* A constant-time version of memcmp() */
 int consttime_memcmp(const void *p1, const void *p2, size_t nb);
+
+/* Deprecated. For backward compatibility. */
+static inline int buf_compare_ct(const void *s1, const void *s2, size_t n)
+{
+	return consttime_memcmp(s1, s2, n);
+}
 
 /* Variant of strdup() that uses nex_malloc() instead of malloc() */
 char *nex_strdup(const char *s);

@@ -328,7 +328,7 @@ static TEE_Result __gcm_dec_final(struct internal_aes_gcm_state *state,
 	if (res)
 		return res;
 
-	if (buf_compare_ct(state->buf_tag, tag, tag_len))
+	if (consttime_memcmp(state->buf_tag, tag, tag_len))
 		return TEE_ERROR_MAC_INVALID;
 
 	return TEE_SUCCESS;

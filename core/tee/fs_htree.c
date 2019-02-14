@@ -577,7 +577,7 @@ static TEE_Result verify_node(struct traverse_arg *targ,
 	else
 		res = calc_node_hash(node, &targ->ht->imeta.meta, ctx, digest);
 	if (res == TEE_SUCCESS &&
-	    buf_compare_ct(digest, node->node.hash, sizeof(digest)))
+	    consttime_memcmp(digest, node->node.hash, sizeof(digest)))
 		return TEE_ERROR_CORRUPT_OBJECT;
 
 	return res;

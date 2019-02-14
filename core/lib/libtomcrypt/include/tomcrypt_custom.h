@@ -83,7 +83,7 @@
 #endif
 #ifndef XMEM_NEQ
 #include <string_ext.h>
-#define XMEM_NEQ  buf_compare_ct
+#define XMEM_NEQ consttime_memcmp
 #endif
 #ifndef XSTRCMP
    #ifdef strcmp

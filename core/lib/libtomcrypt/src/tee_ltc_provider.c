@@ -2501,7 +2501,7 @@ TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
-	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
+	if (consttime_memcmp(dst_tag, tag, tag_len) != 0)
 		res = TEE_ERROR_MAC_INVALID;
 	else
 		res = TEE_SUCCESS;
@@ -2675,7 +2675,7 @@ TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_BAD_STATE;
 
-	if (buf_compare_ct(dst_tag, tag, tag_len) != 0)
+	if (consttime_memcmp(dst_tag, tag, tag_len) != 0)
 		res = TEE_ERROR_MAC_INVALID;
 	else
 		res = TEE_SUCCESS;
@@ -2723,7 +2723,7 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		return TEE_ERROR_GENERIC;
 	if (sha256_done(&hs, digest) != CRYPT_OK)
 		return TEE_ERROR_GENERIC;
-	if (buf_compare_ct(digest, hash, sizeof(digest)) != 0)
+	if (consttime_memcmp(digest, hash, sizeof(digest)) != 0)
 		return TEE_ERROR_SECURITY;
 	return TEE_SUCCESS;
 }
