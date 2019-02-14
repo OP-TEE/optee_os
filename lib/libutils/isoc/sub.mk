@@ -19,6 +19,13 @@ srcs-y += tolower.c
 srcs-y += isalpha.c
 srcs-y += isspace.c
 srcs-y += isupper.c
+srcs-y += isalnum.c
+srcs-y += iscntrl.c
+srcs-y += isgraph.c
+srcs-y += islower.c
+srcs-y += isprint.c
+srcs-y += ispunct.c
+srcs-y += toupper.c
 
 subdirs-y += newlib
 subdirs-$(arch_arm) += arch/$(ARCH)
