@@ -870,9 +870,9 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 		}
 
 #ifndef CFG_RPMB_FS_NO_MAC
-		if (buf_compare_ct(rawdata->key_mac,
-				   (datafrm + nbr_frms - 1)->key_mac,
-				   RPMB_KEY_MAC_SIZE) != 0) {
+		if (consttime_memcmp(rawdata->key_mac,
+				     (datafrm + nbr_frms - 1)->key_mac,
+				     RPMB_KEY_MAC_SIZE) != 0) {
 			DMSG("MAC mismatched:");
 #ifdef CFG_RPMB_FS_DEBUG_DATA
 			DHEXDUMP((uint8_t *)rawdata->key_mac, 32);

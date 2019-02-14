@@ -1250,7 +1250,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	if (buf_compare_ct(mac, computed_mac, computed_mac_size) != 0) {
+	if (consttime_memcmp(mac, computed_mac, computed_mac_size) != 0) {
 		res = TEE_ERROR_MAC_INVALID;
 		goto out;
 	}
