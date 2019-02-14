@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2018, STMicroelectronics
+ * Copyright (c) 2018-2019, STMicroelectronics
  */
 
 #ifndef __STM32_UTIL_H__
@@ -39,5 +39,12 @@ void stm32_clock_enable(unsigned long id);
 void stm32_clock_disable(unsigned long id);
 unsigned long stm32_clock_get_rate(unsigned long id);
 bool stm32_clock_is_enabled(unsigned long id);
+
+/*
+ * Util for reset signal assertion/desassertion for stm32 and platform drivers
+ * @id: Target peripheral ID, ID used in reset DT bindings
+ */
+void stm32_reset_assert(unsigned int id);
+void stm32_reset_deassert(unsigned int id);
 
 #endif /*__STM32_UTIL_H__*/

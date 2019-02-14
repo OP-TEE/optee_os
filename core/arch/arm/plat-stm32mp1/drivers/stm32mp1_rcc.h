@@ -284,6 +284,9 @@
 /* Offset between RCC_MP_xxxENSETR and RCC_MP_xxxENCLRR registers */
 #define RCC_MP_ENCLRR_OFFSET		4u
 
+/* Offset between RCC_MP_xxxRSTSETR and RCC_MP_xxxRSTCLRR registers */
+#define RCC_MP_RSTCLRR_OFFSET		4u
+
 /* Fields of RCC_BDCR register */
 #define RCC_BDCR_LSEON			BIT(0)
 #define RCC_BDCR_LSEBYP			BIT(1)
