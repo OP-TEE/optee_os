@@ -527,7 +527,7 @@ static int stm32mp1_clk_get_parent(unsigned long id)
 		panic();
 
 	sel = clk_sel_ref(s);
-	p_sel = (read32(rcc_base + sel->offset) >> sel->src) & sel->msk;
+	p_sel = (io_read32(rcc_base + sel->offset) >> sel->src) & sel->msk;
 	if (p_sel < sel->nb_parent)
 		return (int)sel->parent[p_sel];
 
@@ -537,7 +537,7 @@ static int stm32mp1_clk_get_parent(unsigned long id)
 
 static unsigned long stm32mp1_pll_get_fref(const struct stm32mp1_clk_pll *pll)
 {
-	uint32_t selr = read32(stm32_rcc_base() + pll->rckxselr);
+	uint32_t selr = io_read32(stm32_rcc_base() + pll->rckxselr);
 	uint32_t src = selr & RCC_SELR_REFCLK_SRC_MASK;
 
 	return osc_frequency(pll->refclk[src]);
@@ -554,8 +554,8 @@ static unsigned long stm32mp1_pll_get_fvco(const struct stm32mp1_clk_pll *pll)
 	unsigned long refclk, fvco;
 	uint32_t cfgr1, fracr, divm, divn;
 
-	cfgr1 = read32(stm32_rcc_base() + pll->pllxcfgr1);
-	fracr = read32(stm32_rcc_base() + pll->pllxfracr);
+	cfgr1 = io_read32(stm32_rcc_base() + pll->pllxcfgr1);
+	fracr = io_read32(stm32_rcc_base() + pll->pllxfracr);
 
 	divm = (cfgr1 & (RCC_PLLNCFGR1_DIVM_MASK)) >> RCC_PLLNCFGR1_DIVM_SHIFT;
 	divn = cfgr1 & RCC_PLLNCFGR1_DIVN_MASK;
@@ -595,7 +595,7 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 	if (div_id >= _DIV_NB)
 		return 0;
 
-	cfgr2 = read32(stm32_rcc_base() + pll->pllxcfgr2);
+	cfgr2 = io_read32(stm32_rcc_base() + pll->pllxcfgr2);
 	divy = (cfgr2 >> pllncfgr2[div_id]) & RCC_PLLNCFGR2_DIVX_MASK;
 
 	dfout = stm32mp1_pll_get_fvco(pll) / (divy + 1U);
@@ -613,7 +613,7 @@ static unsigned long get_clock_rate(int p)
 	switch (p) {
 	case _CK_MPU:
 	/* MPU sub system */
-		reg = read32(rcc_base + RCC_MPCKSELR);
+		reg = io_read32(rcc_base + RCC_MPCKSELR);
 		switch (reg & RCC_SELR_SRC_MASK) {
 		case RCC_MPCKSELR_HSI:
 			clock = osc_frequency(_HSI);
@@ -627,7 +627,7 @@ static unsigned long get_clock_rate(int p)
 		case RCC_MPCKSELR_PLL_MPUDIV:
 			clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P);
 
-			reg = read32(rcc_base + RCC_MPCKDIVR);
+			reg = io_read32(rcc_base + RCC_MPCKDIVR);
 			clkdiv = reg & RCC_MPUDIV_MASK;
 			if (clkdiv)
 				clock /= stm32mp1_mpu_div[clkdiv];
@@ -642,7 +642,7 @@ static unsigned long get_clock_rate(int p)
 	case _HCLK6:
 	case _PCLK4:
 	case _PCLK5:
-		reg = read32(rcc_base + RCC_ASSCKSELR);
+		reg = io_read32(rcc_base + RCC_ASSCKSELR);
 		switch (reg & RCC_SELR_SRC_MASK) {
 		case RCC_ASSCKSELR_HSI:
 			clock = osc_frequency(_HSI);
@@ -658,16 +658,16 @@ static unsigned long get_clock_rate(int p)
 		}
 
 		/* System clock divider */
-		reg = read32(rcc_base + RCC_AXIDIVR);
+		reg = io_read32(rcc_base + RCC_AXIDIVR);
 		clock /= stm32mp1_axi_div[reg & RCC_AXIDIV_MASK];
 
 		switch (p) {
 		case _PCLK4:
-			reg = read32(rcc_base + RCC_APB4DIVR);
+			reg = io_read32(rcc_base + RCC_APB4DIVR);
 			clock >>= stm32mp1_apbx_div[reg & RCC_APBXDIV_MASK];
 			break;
 		case _PCLK5:
-			reg = read32(rcc_base + RCC_APB5DIVR);
+			reg = io_read32(rcc_base + RCC_APB5DIVR);
 			clock >>= stm32mp1_apbx_div[reg & RCC_APBXDIV_MASK];
 			break;
 		default:
@@ -679,7 +679,7 @@ static unsigned long get_clock_rate(int p)
 	case _PCLK1:
 	case _PCLK2:
 	case _PCLK3:
-		reg = read32(rcc_base + RCC_MSSCKSELR);
+		reg = io_read32(rcc_base + RCC_MSSCKSELR);
 		switch (reg & RCC_SELR_SRC_MASK) {
 		case RCC_MSSCKSELR_HSI:
 			clock = osc_frequency(_HSI);
@@ -698,20 +698,20 @@ static unsigned long get_clock_rate(int p)
 		}
 
 		/* MCU clock divider */
-		reg = read32(rcc_base + RCC_MCUDIVR);
+		reg = io_read32(rcc_base + RCC_MCUDIVR);
 		clock >>= stm32mp1_mcu_div[reg & RCC_MCUDIV_MASK];
 
 		switch (p) {
 		case _PCLK1:
-			reg = read32(rcc_base + RCC_APB1DIVR);
+			reg = io_read32(rcc_base + RCC_APB1DIVR);
 			clock >>= stm32mp1_apbx_div[reg & RCC_APBXDIV_MASK];
 			break;
 		case _PCLK2:
-			reg = read32(rcc_base + RCC_APB2DIVR);
+			reg = io_read32(rcc_base + RCC_APB2DIVR);
 			clock >>= stm32mp1_apbx_div[reg & RCC_APBXDIV_MASK];
 			break;
 		case _PCLK3:
-			reg = read32(rcc_base + RCC_APB3DIVR);
+			reg = io_read32(rcc_base + RCC_APB3DIVR);
 			clock >>= stm32mp1_apbx_div[reg & RCC_APBXDIV_MASK];
 			break;
 		case _CK_MCU:
@@ -720,7 +720,7 @@ static unsigned long get_clock_rate(int p)
 		}
 		break;
 	case _CK_PER:
-		reg = read32(rcc_base + RCC_CPERCKSELR);
+		reg = io_read32(rcc_base + RCC_CPERCKSELR);
 		switch (reg & RCC_SELR_SRC_MASK) {
 		case RCC_CPERCKSELR_HSI:
 			clock = osc_frequency(_HSI);
@@ -810,7 +810,7 @@ static void __clk_enable(struct stm32mp1_clk_gate const *gate)
 	uint32_t bit = BIT(gate->bit);
 
 	if (gate->set_clr)
-		write32(bit, base + gate->offset);
+		io_write32(base + gate->offset, bit);
 	else
 		io_setbits32(base + gate->offset, bit);
 
@@ -823,7 +823,7 @@ static void __clk_disable(struct stm32mp1_clk_gate const *gate)
 	uint32_t bit = BIT(gate->bit);
 
 	if (gate->set_clr)
-		write32(bit, base + gate->offset + RCC_MP_ENCLRR_OFFSET);
+		io_write32(base + gate->offset + RCC_MP_ENCLRR_OFFSET, bit);
 	else
 		io_clrbits32(base + gate->offset, bit);
 
@@ -834,7 +834,7 @@ static bool __clk_is_enabled(struct stm32mp1_clk_gate const *gate)
 {
 	vaddr_t base = stm32_rcc_base();
 
-	return read32(base + gate->offset) & BIT(gate->bit);
+	return io_read32(base + gate->offset) & BIT(gate->bit);
 }
 
 bool stm32_clock_is_enabled(unsigned long id)
@@ -895,15 +895,15 @@ static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 
 	switch (apb_bus) {
 	case 1:
-		apbxdiv = read32(rcc_base + RCC_APB1DIVR) &
+		apbxdiv = io_read32(rcc_base + RCC_APB1DIVR) &
 			  RCC_APBXDIV_MASK;
-		timgxpre = read32(rcc_base + RCC_TIMG1PRER) &
+		timgxpre = io_read32(rcc_base + RCC_TIMG1PRER) &
 			   RCC_TIMGXPRER_TIMGXPRE;
 		break;
 	case 2:
-		apbxdiv = read32(rcc_base + RCC_APB2DIVR) &
+		apbxdiv = io_read32(rcc_base + RCC_APB2DIVR) &
 			  RCC_APBXDIV_MASK;
-		timgxpre = read32(rcc_base + RCC_TIMG2PRER) &
+		timgxpre = io_read32(rcc_base + RCC_TIMG2PRER) &
 			   RCC_TIMGXPRER_TIMGXPRE;
 		break;
 	default:
