@@ -478,7 +478,7 @@ static const struct stm32mp1_clk_pll *pll_ref(unsigned int idx)
 
 static int stm32mp1_clk_get_gated_id(unsigned long id)
 {
-	unsigned int i;
+	unsigned int i = 0;
 
 	for (i = 0; i < NB_GATES; i++)
 		if (gate_ref(i)->clock_id == id)
@@ -500,12 +500,12 @@ static enum stm32mp1_parent_id stm32mp1_clk_get_fixed_parent(int i)
 
 static int stm32mp1_clk_get_parent(unsigned long id)
 {
-	const struct stm32mp1_clk_sel *sel;
-	unsigned int j;
-	uint32_t p_sel;
-	int i;
-	enum stm32mp1_parent_id p;
-	enum stm32mp1_parent_sel s;
+	const struct stm32mp1_clk_sel *sel = NULL;
+	unsigned int j = 0;
+	uint32_t p_sel = 0;
+	int i = 0;
+	enum stm32mp1_parent_id p = _UNKNOWN_ID;
+	enum stm32mp1_parent_sel s = _UNKNOWN_SEL;
 	vaddr_t rcc_base = stm32_rcc_base();
 
 	for (j = 0U; j < ARRAY_SIZE(stm32mp1_clks); j++)
@@ -551,13 +551,17 @@ static unsigned long stm32mp1_pll_get_fref(const struct stm32mp1_clk_pll *pll)
  */
 static unsigned long stm32mp1_pll_get_fvco(const struct stm32mp1_clk_pll *pll)
 {
-	unsigned long refclk, fvco;
-	uint32_t cfgr1, fracr, divm, divn;
+	unsigned long refclk = 0;
+	unsigned long fvco = 0;
+	uint32_t cfgr1 = 0;
+	uint32_t fracr = 0;
+	uint32_t divm = 0;
+	uint32_t divn = 0;
 
 	cfgr1 = io_read32(stm32_rcc_base() + pll->pllxcfgr1);
 	fracr = io_read32(stm32_rcc_base() + pll->pllxfracr);
 
-	divm = (cfgr1 & (RCC_PLLNCFGR1_DIVM_MASK)) >> RCC_PLLNCFGR1_DIVM_SHIFT;
+	divm = (cfgr1 & RCC_PLLNCFGR1_DIVM_MASK) >> RCC_PLLNCFGR1_DIVM_SHIFT;
 	divn = cfgr1 & RCC_PLLNCFGR1_DIVN_MASK;
 
 	refclk = stm32mp1_pll_get_fref(pll);
@@ -569,8 +573,8 @@ static unsigned long stm32mp1_pll_get_fvco(const struct stm32mp1_clk_pll *pll)
 	 *   Fvco = Fck_ref * ((DIVN + 1) / (DIVM + 1)
 	 */
 	if (fracr & RCC_PLLNFRACR_FRACLE) {
-		unsigned long long numerator;
-		unsigned long long denominator;
+		unsigned long long numerator = 0;
+		unsigned long long denominator = 0;
 		uint32_t fracv = (fracr & RCC_PLLNFRACR_FRACV_MASK) >>
 				 RCC_PLLNFRACR_FRACV_SHIFT;
 
@@ -589,8 +593,9 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 					    enum stm32mp1_div_id div_id)
 {
 	const struct stm32mp1_clk_pll *pll = pll_ref(pll_id);
-	unsigned long dfout;
-	uint32_t cfgr2, divy;
+	unsigned long dfout = 0;
+	uint32_t cfgr2 = 0;
+	uint32_t divy = 0;
 
 	if (div_id >= _DIV_NB)
 		return 0;
@@ -605,8 +610,8 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 
 static unsigned long get_clock_rate(int p)
 {
-	uint32_t reg;
-	uint32_t clkdiv;
+	uint32_t reg = 0;
+	uint32_t clkdiv = 0;
 	unsigned long clock = 0;
 	vaddr_t rcc_base = stm32_rcc_base();
 
@@ -850,7 +855,7 @@ bool stm32_clock_is_enabled(unsigned long id)
 void stm32_clock_enable(unsigned long id)
 {
 	int i = stm32mp1_clk_get_gated_id(id);
-	uint32_t exceptions;
+	uint32_t exceptions = 0;
 
 	if (i < 0) {
 		DMSG("Invalid clock %lu: %d", id, i);
@@ -870,7 +875,7 @@ void stm32_clock_enable(unsigned long id)
 void stm32_clock_disable(unsigned long id)
 {
 	int i = stm32mp1_clk_get_gated_id(id);
-	uint32_t exceptions;
+	uint32_t exceptions = 0;
 
 	if (i < 0) {
 		DMSG("Invalid clock %lu: %d", id, i);
@@ -889,8 +894,8 @@ void stm32_clock_disable(unsigned long id)
 
 static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 {
-	uint32_t timgxpre;
-	uint32_t apbxdiv;
+	uint32_t timgxpre = 0;
+	uint32_t apbxdiv = 0;
 	vaddr_t rcc_base = stm32_rcc_base();
 
 	switch (apb_bus) {
@@ -919,8 +924,8 @@ static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 
 unsigned long stm32_clock_get_rate(unsigned long id)
 {
-	int p;
-	unsigned long rate;
+	int p = 0;
+	unsigned long rate = 0;
 
 	p = stm32mp1_clk_get_parent(id);
 	if (p < 0)
@@ -952,7 +957,7 @@ static const char *stm32mp_osc_node_label[NB_OSC] = {
 
 static unsigned int clk_freq_prop(void *fdt, int node)
 {
-	int ret;
+	int ret = 0;
 	const fdt32_t *cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);
 
 	if (!cuint)
@@ -963,19 +968,20 @@ static unsigned int clk_freq_prop(void *fdt, int node)
 
 static void get_osc_freq_from_dt(void *fdt)
 {
-	enum stm32mp_osc_id idx;
+	enum stm32mp_osc_id idx = _UNKNOWN_OSC_ID;
 	int clk_node = fdt_path_offset(fdt, "/clocks");
 
 	if (clk_node < 0)
 		panic();
 
-	for (idx = (enum stm32mp_osc_id)0 ; idx < NB_OSC; idx++) {
+	COMPILE_TIME_ASSERT((int)_HSI == 0);
+	for (idx = _HSI; idx < NB_OSC; idx++) {
 		const char *name = stm32mp_osc_node_label[idx];
-		int subnode;
+		int subnode = 0;
 
 		fdt_for_each_subnode(subnode, fdt, clk_node) {
-			const char *cchar;
-			int ret;
+			const char *cchar = NULL;
+			int ret = 0;
 
 			cchar = fdt_get_name(fdt, subnode, &ret);
 			if (!cchar)
@@ -996,10 +1002,10 @@ static void get_osc_freq_from_dt(void *fdt)
 
 static TEE_Result stm32mp1_clk_early_init(void)
 {
-	void *fdt;
-	int node;
-	unsigned int i;
-	int len;
+	void *fdt = NULL;
+	int node = 0;
+	unsigned int i = 0;
+	int len = 0;
 	int ignored = 0;
 
 	fdt = get_embedded_dt();

@@ -136,9 +136,9 @@ void console_init(void)
 #ifdef CFG_DT
 static TEE_Result init_console_from_dt(void)
 {
-	struct stm32_uart_pdata *pd;
-	void *fdt;
-	int node;
+	struct stm32_uart_pdata *pd = NULL;
+	void *fdt = NULL;
+	int node = 0;
 
 	if (get_console_node_from_dt(&fdt, &node, NULL, NULL))
 		return TEE_SUCCESS;
