@@ -95,7 +95,7 @@ static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 {
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
-	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	stm32_clock_enable(clock);
 
@@ -133,7 +133,7 @@ static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 	io_clrsetbits32(base + GPIO_ODR_OFFSET, BIT(pin), cfg->od << pin);
 
 	stm32_clock_disable(clock);
-	cpu_spin_unlock_xrestore(&gpio_lock, excep);
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
 
 void stm32_pinctrl_load_active_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
@@ -405,7 +405,7 @@ void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 {
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
-	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	stm32_clock_enable(clock);
 
@@ -415,5 +415,5 @@ void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 		io_clrbits32(base + GPIO_SECR_OFFSET, BIT(pin));
 
 	stm32_clock_disable(clock);
-	cpu_spin_unlock_xrestore(&gpio_lock, excep);
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
