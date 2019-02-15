@@ -129,7 +129,7 @@ enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 	size_t offset = 4U * (decprot_id / IDS_PER_DECPROT_REGS);
 	uint32_t shift = (decprot_id % IDS_PER_DECPROT_REGS) << DECPROT_SHIFT;
 	vaddr_t base = etzpc_base();
-	uint32_t value;
+	uint32_t value = 0;
 
 	assert(valid_decprot_id(decprot_id));
 
@@ -216,8 +216,8 @@ bool etzpc_get_lock_tzma(uint32_t tzma_id)
 static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 			  const struct pm_callback_handle *pm_handle)
 {
-	struct etzpc_instance *dev;
-	unsigned int n;
+	struct etzpc_instance *dev = NULL;
+	unsigned int n = 0;
 
 	if (op != PM_OP_RESUME)
 		return TEE_SUCCESS;
@@ -248,7 +248,7 @@ KEEP_PAGER(etzpc_pm);
 
 static void init_pm(struct etzpc_instance *dev)
 {
-	unsigned int n;
+	unsigned int n = 0;
 
 	dev->periph_cfg = calloc(dev->num_per_sec, sizeof(*dev->periph_cfg));
 	dev->tzma_cfg = calloc(dev->num_tzma, sizeof(*dev->tzma_cfg));
@@ -294,7 +294,7 @@ static void get_hwcfg(struct etzpc_hwcfg *hwcfg)
 static void init_devive_from_hw_config(struct etzpc_instance *dev,
 					      paddr_t pbase)
 {
-	struct etzpc_hwcfg hwcfg;
+	struct etzpc_hwcfg hwcfg = { };
 
 	assert(!dev->base.pa && cpu_mmu_enabled());
 	dev->base.pa = pbase;
@@ -323,8 +323,8 @@ static TEE_Result init_etzpc_from_dt(void)
 {
 	void *fdt = get_embedded_dt();
 	int node = fdt_node_offset_by_compatible(fdt, -1, ETZPC_COMPAT);
-	int status;
-	paddr_t pbase;
+	int status = 0;
+	paddr_t pbase = 0;
 
 	/* When using DT, expect one and only one instance, secure enabled */
 
