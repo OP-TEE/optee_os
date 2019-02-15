@@ -1946,22 +1946,12 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 
 void *phys_to_virt_io(paddr_t pa)
 {
-	struct tee_mmap_region *map = NULL;
-	struct tee_mmap_region *smap = NULL;
-	struct tee_mmap_region *nsmap = NULL;
-	void *va = NULL;
+	struct tee_mmap_region *map;
+	void *va;
 
-	smap = find_map_by_type_and_pa(MEM_AREA_IO_SEC, pa);
-	nsmap = find_map_by_type_and_pa(MEM_AREA_IO_NSEC, pa);
-	if (smap && nsmap) {
-		EMSG("pa %" PRIxPA " mapped IO_SEC and IO_NSEC!", pa);
-		map = smap;
-	} else {
-		if (smap)
-			map = smap;
-		else
-			map = nsmap;
-	}
+	map = find_map_by_type_and_pa(MEM_AREA_IO_SEC, pa);
+	if (!map)
+		map = find_map_by_type_and_pa(MEM_AREA_IO_NSEC, pa);
 	if (!map)
 		return NULL;
 	va = map_pa2va(map, pa);
