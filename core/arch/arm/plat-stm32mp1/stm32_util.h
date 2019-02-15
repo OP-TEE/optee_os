@@ -12,11 +12,11 @@
 #include <stdint.h>
 
 /* Backup registers and RAM utils */
-uintptr_t stm32mp_bkpreg(unsigned int idx);
+vaddr_t stm32mp_bkpreg(unsigned int idx);
 
 /* Platform util for the GIC */
-uintptr_t get_gicc_base(void);
-uintptr_t get_gicd_base(void);
+vaddr_t get_gicc_base(void);
+vaddr_t get_gicd_base(void);
 
 /*
  * Platform util functions for the GPIO driver

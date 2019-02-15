@@ -7,15 +7,9 @@
 #include <platform_config.h>
 #include <drivers/stm32mp1_pwr.h>
 
-uintptr_t stm32_pwr_base(void)
+vaddr_t stm32_pwr_base(void)
 {
-	static void *va;
+	static struct io_pa_va base = { .pa = PWR_BASE };
 
-	if (!cpu_mmu_enabled())
-		return PWR_BASE;
-
-	if (!va)
-		va = phys_to_virt(PWR_BASE, MEM_AREA_IO_SEC);
-
-	return (uintptr_t)va;
+	return io_pa_or_va(&base);
 }
