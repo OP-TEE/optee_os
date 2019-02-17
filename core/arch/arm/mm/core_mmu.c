@@ -571,8 +571,8 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 		pa = memory_map[n].pa;
 		size = memory_map[n].size;
 		if (mem->type == memory_map[n].type &&
-		    ((mem->addr >= pa && mem->addr <= (pa + (size - 1))) ||
-		    (pa >= mem->addr && pa <= (mem->addr + (mem->size - 1))))) {
+		    ((pa <= (mem->addr + (mem->size - 1))) &&
+		    (mem->addr <= (pa + (size - 1))))) {
 			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem->addr);
 			memory_map[n].pa = MIN(pa, mem->addr);
 			memory_map[n].size = MAX(size, mem->size) +
