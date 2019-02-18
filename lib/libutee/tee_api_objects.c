@@ -418,6 +418,9 @@ out:
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
+	if (res != TEE_SUCCESS && object)
+		*object = TEE_HANDLE_NULL;
+
 	return res;
 }
 
