@@ -132,6 +132,12 @@ static void tee_entry_boot_secondary(struct thread_smc_args *args)
 #endif
 }
 
+static void tee_entry_get_thread_count(struct thread_smc_args *args)
+{
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = CFG_NUM_THREADS;
+}
+
 #if defined(CFG_VIRTUALIZATION)
 static void tee_entry_vm_created(struct thread_smc_args *args)
 {
@@ -200,6 +206,9 @@ void tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_BOOT_SECONDARY:
 		tee_entry_boot_secondary(args);
 		break;
+	case OPTEE_SMC_GET_THREAD_COUNT:
+		tee_entry_get_thread_count(args);
+		break;
 
 #if defined(CFG_VIRTUALIZATION)
 	case OPTEE_SMC_VM_CREATED:
@@ -223,7 +232,7 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 * target has additional calls it will call this function and
 	 * add the number of calls the target has added.
 	 */
-	size_t ret = 11;
+	size_t ret = 12;
 
 #if defined(CFG_VIRTUALIZATION)
 	ret += 2;
