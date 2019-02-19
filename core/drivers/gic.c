@@ -22,6 +22,7 @@
 
 #define GICC_CTLR_ENABLEGRP0	(1 << 0)
 #define GICC_CTLR_ENABLEGRP1	(1 << 1)
+#define GICD_CTLR_ENABLEGRP1S	(1 << 2)
 #define GICC_CTLR_FIQEN		(1 << 3)
 
 /* Offsets from gic.gicd_base */
@@ -34,6 +35,7 @@
 #define GICD_ICPENDR(n)		(0x280 + (n) * 4)
 #define GICD_IPRIORITYR(n)	(0x400 + (n) * 4)
 #define GICD_ITARGETSR(n)	(0x800 + (n) * 4)
+#define GICD_IGROUPMODR(n)	(0xd00 + (n) * 4)
 #define GICD_SGIR		(0xF00)
 
 #define GICD_CTLR_ENABLEGRP0	(1 << 0)
@@ -147,8 +149,7 @@ void gic_cpu_init(struct gic_data *gd)
 	 */
 #if defined(CFG_ARM_GICV3)
 	write_icc_pmr(0x80);
-	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
-		       GICC_CTLR_FIQEN);
+	write_icc_igrpen1(1);
 #else
 	io_write32(gd->gicc_base + GICC_PMR, 0x80);
 
@@ -191,17 +192,17 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 	 */
 #if defined(CFG_ARM_GICV3)
 	write_icc_pmr(0x80);
-	write_icc_ctlr(GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
-		       GICC_CTLR_FIQEN);
+	write_icc_igrpen1(1);
+	io_setbits32(gd->gicd_base + GICD_CTLR, GICD_CTLR_ENABLEGRP1S);
 #else
 	io_write32(gd->gicc_base + GICC_PMR, 0x80);
 
 	/* Enable GIC */
 	io_write32(gd->gicc_base + GICC_CTLR, GICC_CTLR_FIQEN |
 		   GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1);
-#endif
 	io_setbits32(gd->gicd_base + GICD_CTLR,
 		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1);
+#endif
 }
 
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
@@ -224,6 +225,10 @@ static void gic_it_add(struct gic_data *gd, size_t it)
 	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
 	/* Assign it to group0 */
 	io_clrbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
+#if defined(CFG_ARM_GICV3)
+	/* Assign it to group1S */
+	io_setbits32(gd->gicd_base + GICD_IGROUPMODR(idx), mask);
+#endif
 }
 
 static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
