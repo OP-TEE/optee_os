@@ -1,76 +1,27 @@
-# One may have a look at http://docs.travis-ci.com/user/installing-dependencies/
-
 language: c
 
 notifications:
   - email: true
 
-sudo: false
-
-cache:
-  ccache: true
-  directories:
-    - $HOME/downloads
-
 git:
   depth: 1000000
 
 before_script:
-  - df -h
-  # Store the home repository
-  - export MYHOME=$PWD
+  - export OPTEE_OS=$PWD
 
   # Download checkpatch.pl
-  - export DST_KERNEL=$PWD/linux && mkdir -p $DST_KERNEL/scripts && cd $DST_KERNEL/scripts
+  - export KERNEL=$HOME/linux && mkdir -p $KERNEL/scripts && cd $KERNEL/scripts
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x checkpatch.pl
   - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt
   - echo "invalid.struct.name" >const_structs.checkpatch
-  - cd $MYHOME
+  - export PATH=$KERNEL/scripts/:$PATH
+  - cd $OPTEE_OS
+  - source scripts/checkpatch_inc.sh
 
-  - export DL_DIR=$HOME/downloads
-  - function _download() { url="$1"; f="${2:-$(basename $url)}"; if [ ! -e $DL_DIR/$f ] ; then mkdir -p $DL_DIR ; wget $url -O $DL_DIR/$f ; fi }
-  - function download() { _download "$1" "" ; }
-
-  # Travis assigns 2 CPU cores to the container-based environment, so -j3 is
-  # a good concurrency level
-  # https://docs.travis-ci.com/user/ci-environment/
-  - export make="make -j3 -s"
-
-  # Tools required for QEMU tests
-  # 'apt-get install' cannot be used in the new container-based infrastructure
-  # (which is the only allowing caching), so we just build from sources
-  # Expect
-  - _download http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download expect5.45.tar.gz
-  - tar xf $DL_DIR/expect5.45.tar.gz
-  - (cd expect5.45 && ./configure --prefix=$HOME/inst --exec-prefix=$HOME/inst CC="ccache gcc" && make && $make install) && rm -rf expect5.45
-  # Create a wrapper script, so that expect finds its shared library, without setting LD_LIBRARY_PATH globally (buildroot doesn't like it)
-  - mv $HOME/inst/bin/expect $HOME/inst/bin/expect.bin && printf '#!/bin/bash\nexport LD_LIBRARY_PATH=$HOME/inst/lib/expect5.45\n$HOME/inst/bin/expect.bin $*' >$HOME/inst/bin/expect && chmod +x $HOME/inst/bin/expect
-  - export PATH=$HOME/inst/bin:$PATH;
-  # pycrypto 2.6.1 or later has Crypto.Signature, 2.4.1 does not. It is needed to sign the test TAs.
-  - pip install --upgrade --user pycrypto
+  # Install pycodestyle
   - pip install --upgrade --user pycodestyle
-  # Clone repositories for the QEMU test environment
-  - mkdir -p $HOME/bin
-  - (cd $HOME/bin && wget https://storage.googleapis.com/git-repo-downloads/repo && chmod +x repo)
-  - export PATH=$HOME/bin:$PATH
-  - mkdir $HOME/optee_repo
-  - (cd $HOME/optee_repo && repo init -u https://github.com/OP-TEE/manifest.git </dev/null && repo sync --no-clone-bundle --no-tags -j 20)
-  - (cd $HOME/optee_repo && rm -rf optee_os && ln -s $MYHOME optee_os)
-  - cd $MYHOME
-  - git fetch https://github.com/OP-TEE/optee_os --tags
-  - unset CC
-
-  - export PATH=$HOME/git-2.9.3/:$DST_KERNEL/scripts/:$PATH
-  - source ${HOME}/optee_repo/optee_os/scripts/checkpatch_inc.sh
 
 script:
-  - if [ "${COVERITY_SCAN_BRANCH}" == 1 ]; then
-      echo "Skip script for Coverity";
-      travis_terminate 0;
-    fi
-
-  - ccache -s
-  - df -h
   # Run checkpatch.pl on:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
@@ -80,23 +31,4 @@ script:
   - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2); fi; fi
 
   # Check Python style
-  - (cd ${HOME}/optee_repo/optee_os; pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py)
-  # Run regression tests (xtest in QEMU)
-  - export CFG_WERROR=y
-  - (cd ${HOME}/optee_repo/build && $make aarch32 && rm -f ${HOME}/optee_repo/toolchains/gcc-*.tar.xz && $make check BR2_CCACHE_DIR=~/.ccache DUMP_LOGS_ON_ERROR=1)
-  - ccache -s
-  - df -h
-
-env:
-  global:
-    secure: "k30FG3hL6dQywtvMeEjSM0FQ7A0r+AQriUkGSFv7bmwD3EX2H17tJsfZt/h3dj+Pj6lQPdhVg3YO6O6pksJLqBLyz86bN15JEik0e1zftZplzK00oT89eoQr+qgqyrbs6CZBRvS98EAneCNbvgJto9sIPJs0SGu0u31Pr06bTAg="
-
-addons:
-  coverity_scan:
-    project:
-      name: "OP-TEE/optee_os"
-      description: "Build submitted via Travis CI"
-    notification_email: op-tee@linaro.org
-    build_command_prepend: "cov-configure --comptype gcc --compiler arm-linux-gnueabihf-gcc --template"
-    build_command: "make"
-    branch_pattern: coverity_scan
+  - pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
