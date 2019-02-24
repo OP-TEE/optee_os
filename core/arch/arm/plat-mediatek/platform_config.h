@@ -35,6 +35,20 @@
 #define DRAM0_BASE		0x40000000
 #define DRAM0_SIZE		0x80000000
 
+#elif defined(PLATFORM_FLAVOR_mt8516)
+
+#define GIC_BASE		0x10310000
+#define GICC_OFFSET		0x10000
+#define GICD_OFFSET		0x00000
+
+#define UART0_BASE		0x11005000
+#define UART1_BASE		0x11106000
+#define UART2_BASE		0x11107000
+
+#define CONSOLE_UART_BASE	UART0_BASE
+#define CONSOLE_BAUDRATE	921600
+#define CONSOLE_UART_CLK_IN_HZ	26000000
+
 #else
 #error "Unknown platform flavor"
 #endif

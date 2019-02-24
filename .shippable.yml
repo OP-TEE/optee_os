@@ -73,6 +73,7 @@ build:
     - _make PLATFORM=hikey
     - _make PLATFORM=hikey CFG_ARM64_core=y
     - _make PLATFORM=mediatek-mt8173
+    - _make PLATFORM=mediatek-mt8516
     - _make PLATFORM=imx-mx6ulevk
     - _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y
     - _make PLATFORM=imx-mx6ul9x9evk
