@@ -25,7 +25,7 @@
 #define PTA_INVOKE_TESTS_CMD_SELF_TESTS		2
 
 /*
- * Secure data path: check that pTA can copy data from non-secure shared memory
+ * Secure data path: check that PTA can copy data from non-secure shared memory
  * to SDP secure memory
  *
  * [in]     memref[0]        source (non-secure shared memory)
@@ -34,7 +34,7 @@
 #define PTA_INVOKE_TESTS_CMD_COPY_NSEC_TO_SEC	3
 
 /*
- * Secure data path: check that pTA can read data from SDP secure memory and
+ * Secure data path: check that PTA can read data from SDP secure memory and
  * write it back. Data are processed so that client check the expected
  * read/write sequence succeed.
  *
@@ -43,7 +43,7 @@
 #define PTA_INVOKE_TESTS_CMD_READ_MODIFY_SEC	4
 
 /*
- * Secure data path: check that pTA can copy data from SDP secure memory to
+ * Secure data path: check that PTA can copy data from SDP secure memory to
  * non-secure shared memory
  *
  * [in]     memref[0]        source (SDP secure memory)
