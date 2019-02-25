@@ -1119,6 +1119,15 @@
 			status = "disabled";
 		};
 
+		bsec: nvmem@5c005000 {
+			compatible = "st,stm32mp15-bsec";
+			reg = <0x5c005000 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "okay";
+			secure-status = "okay";
+		};
+
 		etzpc: etzpc@5c007000 {
 			compatible = "st,stm32-etzpc";
 			reg = <0x5c007000 0x400>;
