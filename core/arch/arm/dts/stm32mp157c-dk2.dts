@@ -97,3 +97,10 @@
 	status = "okay";
 	secure-status = "disable";
 };
+
+&bsec {
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		st,non-secure-otp;
+	};
+};
