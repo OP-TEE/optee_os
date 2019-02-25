@@ -1247,11 +1247,58 @@
 			reg = <0x5c005000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ts_cal1: calib@5c {
+			/* Lower OTPs: implicitly non-secure in BSEC */
+			otp_cfg: cfg {
+				reg = <0x0 0x34>;
+			};
+			otp_id: id {
+				reg = <0x34 0xc>;
+			};
+			otp_hw: hw {
+				reg = <0x40 0x1c>;
+			};
+			otp_ts_cal1: calib@5c {
 				reg = <0x5c 0x2>;
 			};
-			ts_cal2: calib@5e {
+			otp_ts_cal2: calib@5e {
 				reg = <0x5e 0x2>;
+			};
+			otp_pkh: pkh {
+				reg = <0x60 0x20>;
+			};
+			/*
+			 * Upper OTPs: secure but may be accessed by non-secure
+			 * through BSEC SiP SMC service.
+			 *
+			 * NVMEM locations defined in BSEC DT node are
+			 * accessible to the non-secure world unless the node
+			 * explicity states:
+			 *	status = "disabled";
+			 *
+			 * NVMEM words not defined in BSEC DT node are
+			 * implicilty not accessible non-secure world.
+			 *
+			 * BSEC words have a 32bit access granularity.
+			 */
+			otp_ecdsa_for_ssp: ecdsa_for_ssp {
+				reg = <0x80 0x60>;
+				status = "disabled";
+				secure-status = "okay";
+			};
+			otp_rma: rma {
+				reg = <0xe0 0x4>;
+				status = "disabled";
+				secure-status = "okay";
+			};
+			/*
+			 * MAC access can be access from non-secure.
+			 * Enable access for the 2 32bit BSEC words (8 NVMEM bytes).
+			 * MAC address occupies the 6 first bytes.
+			 */
+			mac_addr: mac_addr@e4 {
+				reg = <0xe4 0x8>;
+				status = "okay";
+				secure-status = "okay";
 			};
 		};
 

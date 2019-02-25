@@ -253,3 +253,16 @@
 	status = "okay";
 	secure-status = "disable";
 };
+
+&bsec {
+	/*
+	 * Board ID occupies 4 bytes in BSEC upper secure words.
+	 * status = "okay" states non-secure can access the fuse
+	 * through BSEC service.
+	 */
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		status = "okay";
+		secure-status = "okay";
+	};
+};
