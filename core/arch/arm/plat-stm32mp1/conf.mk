@@ -38,6 +38,7 @@ CFG_MMAP_REGIONS ?= 23
 CFG_STM32_BSEC ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
+CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
