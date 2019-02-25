@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/tee_common_otp.h>
+#include <string_ext.h>
 #include <tee/tee_fs_key_manager.h>
 
 static TEE_Result mac_usage(void *ctx, uint32_t usage)
@@ -100,8 +101,8 @@ TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, subkey, subkey_len);
 out:
 	if (res)
-		memset(subkey, 0, subkey_len);
-	memset(&huk, 0, sizeof(huk));
+		memzero_explicit(subkey, subkey_len);
+	memzero_explicit(&huk, sizeof(huk));
 	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
 	return res;
 }
