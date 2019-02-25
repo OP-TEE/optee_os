@@ -63,7 +63,7 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 	paddr_t pa = READ_ONCE(tmem->buf_ptr);
 	size_t sz = READ_ONCE(tmem->size);
 
-	/* NULL Memory Rerefence? */
+	/* Handle NULL memory reference */
 	if (!pa && !sz) {
 		mem->mobj = NULL;
 		mem->offs = 0;
@@ -71,7 +71,7 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 		return TEE_SUCCESS;
 	}
 
-	/* Non-contigous buffer from non sec DDR? */
+	/* Handle non-contiguous reference from a shared memory area */
 	if (attr & OPTEE_MSG_ATTR_NONCONTIG) {
 		uint64_t shm_ref = READ_ONCE(tmem->shm_ref);
 
@@ -84,12 +84,12 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 		return TEE_SUCCESS;
 	}
 
-	/* Belongs to nonsecure shared memory? */
+	/* Handle memory reference in the contiguous shared memory */
 	if (param_mem_from_mobj(mem, shm_mobj, pa, sz))
 		return TEE_SUCCESS;
 
 #ifdef CFG_SECURE_DATA_PATH
-	/* Belongs to SDP memories? */
+	/* Handle memory reference to Secure Data Path memory areas */
 	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
 		if (param_mem_from_mobj(mem, *mobj, pa, sz))
 			return TEE_SUCCESS;
