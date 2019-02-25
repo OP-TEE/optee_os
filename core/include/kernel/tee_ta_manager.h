@@ -92,9 +92,9 @@ struct tee_ta_session {
 	TAILQ_ENTRY(tee_ta_session) link_tsd;
 	struct tee_ta_ctx *ctx;	/* TA context */
 	TEE_Identity clnt_id;	/* Identify of client */
-	bool cancel;		/* True if TAF is cancelled */
+	bool cancel;		/* True if TA invocation is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
-	TEE_Time cancel_time;	/* Time when to cancel the TAF */
+	TEE_Time cancel_time;	/* Time when to cancel the TA invocation */
 	void *user_ctx;		/* Opaque session handle assigned by PTA */
 	uint32_t ref_count;	/* reference counter */
 	struct condvar refc_cv;	/* CV used to wait for ref_count to be 0 */
