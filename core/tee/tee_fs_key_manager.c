@@ -25,6 +25,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_fs_key_manager.h>
 #include <trace.h>
@@ -126,6 +127,8 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 
 exit:
 	crypto_cipher_free_ctx(ctx, TEE_FS_KM_ENC_FEK_ALG);
+	memzero_explicit(tsk, sizeof(tsk));
+	memzero_explicit(dst_key, sizeof(dst_key));
 
 	return res;
 }
@@ -145,6 +148,8 @@ static TEE_Result tee_fs_init_key_manager(void)
 				tee_fs_ssk.key, sizeof(tee_fs_ssk.key));
 	if (res == TEE_SUCCESS)
 		tee_fs_ssk.is_init = 1;
+	else
+		memzero_explicit(&tee_fs_ssk, sizeof(tee_fs_ssk));
 
 	return res;
 }
@@ -216,7 +221,10 @@ static TEE_Result essiv(uint8_t iv[TEE_AES_BLOCK_SIZE],
 	pad_blkid[0] = (blk_idx & 0xFF);
 	pad_blkid[1] = (blk_idx & 0xFF00) >> 8;
 
-	return aes_ecb(iv, pad_blkid, sha, 16);
+	res = aes_ecb(iv, pad_blkid, sha, 16);
+
+	memzero_explicit(sha, sizeof(sha));
+	return res;
 }
 
 /*
@@ -240,17 +248,17 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	res = tee_fs_fek_crypt(uuid, TEE_MODE_DECRYPT, encrypted_fek,
 			       TEE_FS_KM_FEK_SIZE, fek);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	/* Compute initialization vector for this block */
 	res = essiv(iv, fek, blk_idx);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	/* Run AES CBC */
 	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
 				 0, iv, TEE_AES_BLOCK_SIZE);
@@ -264,6 +272,9 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 
 exit:
 	crypto_cipher_free_ctx(ctx, algo);
+wipe:
+	memzero_explicit(fek, sizeof(fek));
+	memzero_explicit(iv, sizeof(iv));
 	return res;
 }
 
