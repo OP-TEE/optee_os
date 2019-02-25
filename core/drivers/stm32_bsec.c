@@ -7,14 +7,20 @@
 #include <drivers/stm32_bsec.h>
 #include <io.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/spinlock.h>
 #include <limits.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
+#include <speculation_barrier.h>
 #include <stm32_util.h>
 #include <types_ext.h>
 #include <util.h>
+
+#ifdef CFG_DT
+#include <libfdt.h>
+#endif
 
 #define BSEC_OTP_MASK			GENMASK_32(4, 0)
 #define BSEC_OTP_BANK_SHIFT		5
@@ -108,7 +114,11 @@ struct bsec_dev {
 	unsigned int upper_base;
 	unsigned int max_id;
 	bool closed_device;
+	uint32_t *nsec_access;
 };
+
+#define BSEC_COMPAT	"st,stm32mp15-bsec"
+#define BITS_PER_WORD	(CHAR_BIT * sizeof(uint32_t))
 
 /* Only 1 instance of BSEC is expected per platform */
 static struct bsec_dev bsec_dev;
@@ -129,6 +139,11 @@ static void bsec_unlock(uint32_t exceptions)
 static uint32_t otp_max_id(void)
 {
 	return bsec_dev.max_id;
+}
+
+static uint32_t otp_upper_base(void)
+{
+	return bsec_dev.upper_base;
 }
 
 static uint32_t otp_bank_offset(uint32_t otp_id)
@@ -307,7 +322,7 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 {
 	TEE_Result result = 0;
 	uint32_t exceptions = 0;
-	uint64_t timeout_ref;
+	uint64_t timeout_ref = 0;
 
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -352,12 +367,12 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 	uint32_t addr = 0;
 	uint32_t exceptions = 0;
 	vaddr_t base = bsec_base();
-	uint64_t timeout_ref;
+	uint64_t timeout_ref = 0;
 
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (otp_id < bsec_dev.upper_base) {
+	if (otp_id < otp_upper_base()) {
 		addr = otp_id >> ADDR_LOWER_OTP_PERLOCK_SHIFT;
 		data = DATA_LOWER_OTP_PERLOCK_BIT <<
 		       ((otp_id & DATA_LOWER_OTP_PERLOCK_MASK) << 1U);
@@ -403,7 +418,7 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 
 	io_write32(bsec_base() + BSEC_DEN_OFF, value);
 
-	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ masked_val) == 0U)
+	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ masked_val) == 0)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
@@ -523,17 +538,121 @@ uint32_t stm32_bsec_otp_lock(uint32_t service, uint32_t value)
 
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 {
+	size_t access_id = 0;
+	size_t access_max = 0;
+	uint32_t *lower = NULL;
+	uint32_t *upper = NULL;
+	uint32_t *cell = NULL;
+
 	if (otp_id > otp_max_id())
 		return false;
 
-	return otp_id < bsec_dev.upper_base || !bsec_dev.closed_device;
+	if (otp_id < otp_upper_base())
+		return true;
+
+	if (!bsec_dev.nsec_access)
+		return false;
+
+	access_id = otp_id - otp_upper_base();
+	access_max = otp_max_id() - otp_upper_base();
+	lower = bsec_dev.nsec_access;
+	upper = &bsec_dev.nsec_access[access_max / BITS_PER_WORD];
+	cell = &bsec_dev.nsec_access[access_id / BITS_PER_WORD];
+
+	return load_no_speculate_fail(cell, lower, upper, 0) &
+	       BIT(otp_id % BITS_PER_WORD);
 }
+
+#ifdef CFG_EMBED_DTB
+static void enable_nsec_access(uint32_t otp_id)
+{
+	uint32_t idx = (otp_id - otp_upper_base()) / BITS_PER_WORD;
+
+	if (otp_id < otp_upper_base())
+		return;
+	if (otp_id >= otp_max_id())
+		panic();
+
+	bsec_dev.nsec_access[idx] |= BIT(otp_id % BITS_PER_WORD);
+
+	if (stm32_bsec_shadow_register(otp_id))
+		panic();
+}
+
+static void alloc_nsec_access(void)
+{
+	size_t upper_count = bsec_dev.max_id - otp_upper_base();
+	size_t access_size = ROUNDUP(upper_count, BITS_PER_WORD) /
+			     BITS_PER_WORD;
+
+	bsec_dev.nsec_access = calloc(access_size, sizeof(uint32_t));
+	assert(bsec_dev.nsec_access);
+}
+
+static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
+{
+	int bsec_subnode = 0;
+
+	alloc_nsec_access();
+
+	fdt_for_each_subnode(bsec_subnode, fdt, bsec_node) {
+		const fdt32_t *cuint = NULL;
+		uint32_t reg = 0;
+		uint32_t i = 0;
+		uint32_t size = 0;
+		uint8_t status = 0;
+
+		cuint = fdt_getprop(fdt, bsec_subnode, "reg", NULL);
+		if (!cuint)
+			panic();
+
+		reg = fdt32_to_cpu(*cuint) / sizeof(uint32_t);
+		if (reg < STM32MP1_UPPER_OTP_START)
+			continue;
+
+		status = _fdt_get_status(fdt, bsec_subnode);
+		if (!(status & DT_STATUS_OK_NSEC))
+			continue;
+
+		size = fdt32_to_cpu(*(cuint + 1)) / sizeof(uint32_t);
+		if (fdt32_to_cpu(*(cuint + 1)) % sizeof(uint32_t))
+			size++;
+
+		for (i = reg; i < (reg + size); i++)
+			enable_nsec_access(i);
+	}
+}
+
+static void initialize_bsec_from_dt(void)
+{
+	void *fdt = NULL;
+	int node = 0;
+	struct dt_node_info bsec_info = { };
+
+	fdt = get_embedded_dt();
+	node = fdt_node_offset_by_compatible(fdt, 0, BSEC_COMPAT);
+	if (node < 0)
+		panic();
+
+	_fdt_fill_device_info(fdt, &bsec_info, node);
+
+	if (bsec_info.reg != bsec_dev.base.pa ||
+	    !(bsec_info.status & DT_STATUS_OK_SEC))
+		panic();
+
+	bsec_dt_otp_nsec_access(fdt, node);
+}
+#else
+static void initialize_bsec_from_dt(void)
+{
+}
+#endif
 
 static TEE_Result initialize_bsec(void)
 {
-	struct stm32_bsec_static_cfg cfg = { 0 };
+	struct stm32_bsec_static_cfg cfg = { };
 	uint32_t otp = 0;
-	TEE_Result result = 0;
+	TEE_Result result = TEE_ERROR_GENERIC;
 
 	stm32mp_get_bsec_static_cfg(&cfg);
 
@@ -546,6 +665,8 @@ static TEE_Result initialize_bsec(void)
 	result = stm32_bsec_shadow_read_otp(&otp, cfg.closed_device_id);
 	if (!result && !(otp & BIT(cfg.closed_device_position)))
 		bsec_dev.closed_device = false;
+
+	initialize_bsec_from_dt();
 
 	return TEE_SUCCESS;
 }
