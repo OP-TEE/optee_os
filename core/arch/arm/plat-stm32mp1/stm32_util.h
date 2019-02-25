@@ -6,6 +6,9 @@
 #ifndef __STM32_UTIL_H__
 #define __STM32_UTIL_H__
 
+#include <assert.h>
+#include <drivers/stm32_bsec.h>
+#include <kernel/panic.h>
 #include <stdint.h>
 
 /* Backup registers and RAM utils */
@@ -63,5 +66,24 @@ bool stm32_clock_is_enabled(unsigned long id);
  */
 void stm32_reset_assert(unsigned int id);
 void stm32_reset_deassert(unsigned int id);
+
+/*
+ * Structure and API function for BSEC driver to get some platform data.
+ *
+ * @base: BSEC interface registers physical base address
+ * @upper_start: Base ID for the BSEC upper words in the platform
+ * @max_id: Max value for BSEC word ID for the platform
+ * @closed_device_id: BSEC word ID storing the "closed_device" OTP bit
+ * @closed_device_position: Bit position of "closed_device" bit in the OTP word
+ */
+struct stm32_bsec_static_cfg {
+	paddr_t base;
+	unsigned int upper_start;
+	unsigned int max_id;
+	unsigned int closed_device_id;
+	unsigned int closed_device_position;
+};
+
+void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 #endif /*__STM32_UTIL_H__*/
