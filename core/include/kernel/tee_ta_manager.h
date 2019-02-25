@@ -96,7 +96,7 @@ struct tee_ta_session {
 	bool cancel;		/* True if TAF is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
 	TEE_Time cancel_time;	/* Time when to cancel the TAF */
-	void *user_ctx;		/* ??? */
+	void *user_ctx;		/* Opaque session handle assigned by pTA */
 	uint32_t ref_count;	/* reference counter */
 	struct condvar refc_cv;	/* CV used to wait for ref_count to be 0 */
 	struct condvar lock_cv;	/* CV used to wait for lock */
