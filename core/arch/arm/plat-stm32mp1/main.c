@@ -39,6 +39,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART7_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
 #endif
 
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, BSEC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, ETZPC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GPIOZ_BASE, SMALL_PAGE_SIZE);
@@ -252,6 +253,15 @@ uintptr_t get_gicd_base(void)
 		return (uintptr_t)phys_to_virt_io(pbase);
 
 	return pbase;
+}
+
+void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
+{
+	cfg->base = BSEC_BASE;
+	cfg->upper_start = STM32MP1_UPPER_OTP_START;
+	cfg->max_id = STM32MP1_OTP_MAX_ID;
+	cfg->closed_device_id = DATA0_OTP;
+	cfg->closed_device_position = DATA0_OTP_SECURED_POS;
 }
 
 uint32_t may_spin_lock(unsigned int *lock)
