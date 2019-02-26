@@ -869,7 +869,7 @@ out:
 /* Loads a single ELF file (main executable or library) */
 static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
 	const struct user_ta_store_ops *op = NULL;
 
 	SCATTERED_ARRAY_FOREACH(op, ta_stores, struct user_ta_store_ops) {
@@ -877,13 +877,10 @@ static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 		     op->description);
 
 		res = load_elf_from_store(uuid, op, utc);
-		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		DMSG("res=0x%x", res);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND ||
+		    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
 			continue;
-		if (res) {
-			DMSG("res=0x%x", res);
-			continue;
-		}
-
 		return res;
 	}
 
