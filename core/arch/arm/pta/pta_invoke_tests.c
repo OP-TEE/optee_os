@@ -370,46 +370,46 @@ static void destroy_ta(void)
 	DMSG("destroy entry point for pseudo ta \"%s\"", TA_NAME);
 }
 
-static TEE_Result open_session(uint32_t nParamTypes __unused,
-		TEE_Param pParams[TEE_NUM_PARAMS] __unused,
-		void **ppSessionContext __unused)
+static TEE_Result open_session(uint32_t param_type __unused,
+			       TEE_Param params[TEE_NUM_PARAMS] __unused,
+			       void **session __unused)
 {
 	DMSG("open entry point for pseudo ta \"%s\"", TA_NAME);
 	return TEE_SUCCESS;
 }
 
-static void close_session(void *pSessionContext __unused)
+static void close_session(void *session __unused)
 {
 	DMSG("close entry point for pseudo ta \"%s\"", TA_NAME);
 }
 
-static TEE_Result invoke_command(void *pSessionContext __unused,
-		uint32_t nCommandID, uint32_t nParamTypes,
-		TEE_Param pParams[TEE_NUM_PARAMS])
+static TEE_Result invoke_command(void *session __unused,
+				 uint32_t command_id, uint32_t params_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	FMSG("command entry point for pseudo ta \"%s\"", TA_NAME);
 
-	switch (nCommandID) {
+	switch (command_id) {
 	case PTA_INVOKE_TESTS_CMD_TRACE:
-		return test_trace(nParamTypes, pParams);
+		return test_trace(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_PARAMS:
-		return test_entry_params(nParamTypes, pParams);
+		return test_entry_params(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_COPY_NSEC_TO_SEC:
-		return test_inject_sdp(nParamTypes, pParams);
+		return test_inject_sdp(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_READ_MODIFY_SEC:
-		return test_transform_sdp(nParamTypes, pParams);
+		return test_transform_sdp(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_COPY_SEC_TO_NSEC:
-		return test_dump_sdp(nParamTypes, pParams);
+		return test_dump_sdp(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_SELF_TESTS:
-		return core_self_tests(nParamTypes, pParams);
+		return core_self_tests(params_types, params);
 #if defined(CFG_WITH_USER_TA)
 	case PTA_INVOKE_TESTS_CMD_FS_HTREE:
-		return core_fs_htree_tests(nParamTypes, pParams);
+		return core_fs_htree_tests(params_types, params);
 #endif
 	case PTA_INVOKE_TESTS_CMD_MUTEX:
-		return core_mutex_tests(nParamTypes, pParams);
+		return core_mutex_tests(params_types, params);
 	case PTA_INVOKE_TESTS_CMD_LOCKDEP:
-		return core_lockdep_tests(nParamTypes, pParams);
+		return core_lockdep_tests(params_types, params);
 	default:
 		break;
 	}
