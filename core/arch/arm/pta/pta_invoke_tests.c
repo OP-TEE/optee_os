@@ -4,10 +4,12 @@
  */
 
 #include <compiler.h>
+#include <kernel/mutex.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <pta_invoke_tests.h>
+#include <sys/queue.h>
 #include <string.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
@@ -357,37 +359,128 @@ static TEE_Result test_dump_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 /*
  * Trusted Application Entry Points
+ *
+ * For test purpose, each session allocates a structure a saves the session ID
+ * in. At each PTA invocation we check the session ID is a legitimate one.
+ * The client context is currently an empty structure, only the queue elements
+ * reference @link is stored.
  */
+
+struct client_context {
+	TAILQ_ENTRY(client_context) link;
+};
+
+static TAILQ_HEAD(client_list, client_context) client_list =
+	TAILQ_HEAD_INITIALIZER(client_list);
+
+static struct mutex client_list_mutex = MUTEX_INITIALIZER;
+
+static void add_client(struct client_context *client)
+{
+	mutex_lock(&client_list_mutex);
+	TAILQ_INSERT_TAIL(&client_list, client, link);
+	mutex_unlock(&client_list_mutex);
+}
+
+static void remove_client(void *session)
+{
+	struct client_context *cur = NULL;
+	struct client_context *next = NULL;
+
+	mutex_lock(&client_list_mutex);
+	TAILQ_FOREACH_SAFE(cur, &client_list, link, next) {
+		if ((void *)cur == session) {
+			TAILQ_REMOVE(&client_list, cur, link);
+			free(cur);
+			break;
+		}
+	}
+	mutex_unlock(&client_list_mutex);
+}
+
+static bool client_id_is_valid(void *session)
+{
+	struct client_context *cur = NULL;
+	bool rc = false;
+
+	mutex_lock(&client_list_mutex);
+	TAILQ_FOREACH(cur, &client_list, link) {
+		if ((void *)cur == session) {
+			rc = true;
+			break;
+		}
+	}
+	mutex_unlock(&client_list_mutex);
+
+	return rc;
+}
+
+static bool client_list_empty(void)
+{
+	return TAILQ_EMPTY(&client_list);
+}
 
 static TEE_Result create_ta(void)
 {
 	DMSG("create entry point for pseudo TA \"%s\"", TA_NAME);
+
+	if (!client_list_empty())
+		return TEE_ERROR_GENERIC;
+
 	return TEE_SUCCESS;
 }
 
 static void destroy_ta(void)
 {
+	if (!client_list_empty())
+		panic("pta_invoke_test: bad state");
+
 	DMSG("destroy entry point for pseudo ta \"%s\"", TA_NAME);
 }
 
+
 static TEE_Result open_session(uint32_t param_type __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
-			       void **session __unused)
+			       void **session)
 {
+	/* Safely return a memory reference, OP-TEE will hide it in a handle */
+	struct client_context *ctx = calloc(1, sizeof(*ctx));
+	struct tee_ta_session *s = NULL;
+
 	DMSG("open entry point for pseudo ta \"%s\"", TA_NAME);
+
+	if (tee_ta_get_current_session(&s))
+		return TEE_ERROR_BAD_STATE;
+
+	if (!ctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	add_client(session, ctx);
+	*session = (void *)ctx;
+
 	return TEE_SUCCESS;
 }
 
-static void close_session(void *session __unused)
+static void close_session(void *session)
 {
 	DMSG("close entry point for pseudo ta \"%s\"", TA_NAME);
+
+	if (!client_id_is_valid(session))
+		panic("invalid ID");
+
+	remove_client(session);
 }
 
-static TEE_Result invoke_command(void *session __unused,
+static TEE_Result invoke_command(void *session,
 				 uint32_t command_id, uint32_t params_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	FMSG("command entry point for pseudo ta \"%s\"", TA_NAME);
+
+	if (!client_id_is_valid(session)) {
+		EMSG("Invalid session ID %p", session);
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
 
 	switch (command_id) {
 	case PTA_INVOKE_TESTS_CMD_TRACE:
