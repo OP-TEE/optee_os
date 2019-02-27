@@ -425,8 +425,8 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 
 		mattr_perm_to_str(flags, sizeof(flags), r->attr);
 		describe_region(utc, r->va, r->size, desc, sizeof(desc));
-		EMSG_RAW(" region %zu: va %#" PRIxVA " pa %#" PRIxPA
-			 " size %#zx flags %s %s",
+		EMSG_RAW(" region %2zu: va %#" PRIxVA " pa %#" PRIxPA
+			 " size 0x%06zx flags %s %s",
 			 n, r->va, pa, r->size, flags, desc);
 		n++;
 	}
