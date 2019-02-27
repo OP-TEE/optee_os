@@ -466,8 +466,8 @@ static int self_test_nex_malloc(void)
 }
 #endif
 /* exported entry points for some basic test */
-TEE_Result core_self_tests(uint32_t nParamTypes __unused,
-		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+TEE_Result core_self_tests(uint32_t param_types __unused,
+			   TEE_Param params[TEE_NUM_PARAMS] __unused)
 {
 	if (self_test_mul_signed_overflow() || self_test_add_overflow() ||
 	    self_test_sub_overflow() || self_test_mul_unsigned_overflow() ||

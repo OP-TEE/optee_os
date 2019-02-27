@@ -163,8 +163,9 @@ static TEE_Result pseudo_ta_enter_open_session(struct tee_ta_session *s,
 		}
 
 		res = stc->pseudo_ta->open_session_entry_point(param->types,
-								tee_param,
-								&s->user_ctx);
+							       tee_param,
+							       s->id);
+
 		update_out_param(tee_param, param);
 		unmap_mapped_param(param, did_map);
 	}
@@ -192,7 +193,7 @@ static TEE_Result pseudo_ta_enter_invoke_cmd(struct tee_ta_session *s,
 	}
 
 	*eo = TEE_ORIGIN_TRUSTED_APP;
-	res = stc->pseudo_ta->invoke_command_entry_point(s->user_ctx, cmd,
+	res = stc->pseudo_ta->invoke_command_entry_point(s->id, cmd,
 							 param->types,
 							 tee_param);
 	update_out_param(tee_param, param);
@@ -209,7 +210,7 @@ static void pseudo_ta_enter_close_session(struct tee_ta_session *s)
 	tee_ta_push_current_session(s);
 
 	if (stc->pseudo_ta->close_session_entry_point)
-		stc->pseudo_ta->close_session_entry_point(s->user_ctx);
+		stc->pseudo_ta->close_session_entry_point(s->id);
 
 	if ((s->ctx->ref_count == 1) && stc->pseudo_ta->destroy_entry_point)
 		stc->pseudo_ta->destroy_entry_point();

@@ -54,9 +54,9 @@ static TEE_Result sdp_pa_cmd_virt_to_phys(uint32_t types,
 /*
  * Trusted Application Entry Points
  */
-static TEE_Result open_session(uint32_t nParamTypes __unused,
-			       TEE_Param pParams[TEE_NUM_PARAMS] __unused,
-			       void **ppSessionContext __unused)
+static TEE_Result open_session(uint32_t param_types __unused,
+			       TEE_Param params[TEE_NUM_PARAMS] __unused,
+			       uint32_t session_id __unused)
 {
 	struct tee_ta_session *s = tee_ta_get_calling_session();
 
@@ -71,15 +71,15 @@ static TEE_Result open_session(uint32_t nParamTypes __unused,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-static TEE_Result invoke_command(void *pSessionContext __unused,
-				 uint32_t nCommandID, uint32_t nParamTypes,
-				 TEE_Param pParams[TEE_NUM_PARAMS])
+static TEE_Result invoke_command(uint32_t session_id __unused,
+				 uint32_t command_id, uint32_t param_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	FMSG("command entry point for pseudo-TA \"%s\"", PTA_NAME);
 
-	switch (nCommandID) {
+	switch (command_id) {
 	case PTA_CMD_SDP_VIRT_TO_PHYS:
-		return sdp_pa_cmd_virt_to_phys(nParamTypes, pParams);
+		return sdp_pa_cmd_virt_to_phys(param_types, params);
 	default:
 		break;
 	}

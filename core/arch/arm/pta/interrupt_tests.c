@@ -183,9 +183,9 @@ static TEE_Result interrupt_tests(uint32_t nParamTypes __unused,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result invoke_command(void *psess __unused,
+static TEE_Result invoke_command(uint32_t session_id __unused,
 				 uint32_t cmd, uint32_t ptypes,
-				 TEE_Param params[4])
+				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
 	uint8_t i;

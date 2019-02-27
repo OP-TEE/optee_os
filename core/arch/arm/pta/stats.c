@@ -141,7 +141,7 @@ static TEE_Result get_memleak_stats(uint32_t type,
  * Trusted Application Entry Points
  */
 
-static TEE_Result invoke_command(void *psess __unused,
+static TEE_Result invoke_command(uint32_t client_id __unused,
 				 uint32_t cmd, uint32_t ptypes,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {

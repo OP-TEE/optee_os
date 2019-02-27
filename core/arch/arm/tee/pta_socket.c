@@ -215,7 +215,7 @@ static const ta_func ta_funcs[] = {
 
 static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 			TEE_Param pParams[TEE_NUM_PARAMS] __unused,
-			void **sess_ctx)
+			uint32_t session_id __unused)
 {
 	struct tee_ta_session *s;
 
@@ -224,17 +224,16 @@ static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 	if (!s)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	*sess_ctx = (void *)(vaddr_t)get_instance_id(s);
-
 	return TEE_SUCCESS;
 }
 
-static void pta_socket_close_session(void *sess_ctx)
+static void pta_socket_close_session(uint32_t session_id)
 {
 	TEE_Result res;
 	struct thread_param tpm = {
 		.attr = THREAD_PARAM_ATTR_VALUE_IN, .u.value = {
-			.a = OPTEE_RPC_SOCKET_CLOSE_ALL, .b = (vaddr_t)sess_ctx,
+			.a = OPTEE_RPC_SOCKET_CLOSE_ALL,
+			.b = session_id,
 		},
 	};
 
@@ -243,11 +242,13 @@ static void pta_socket_close_session(void *sess_ctx)
 		DMSG("OPTEE_RPC_SOCKET_CLOSE_ALL failed: %#" PRIx32, res);
 }
 
-static TEE_Result pta_socket_invoke_command(void *sess_ctx, uint32_t cmd_id,
-			uint32_t param_types, TEE_Param params[TEE_NUM_PARAMS])
+static TEE_Result pta_socket_invoke_command(uint32_t session_id,
+					    uint32_t cmd_id,
+					    uint32_t param_types,
+					    TEE_Param params[TEE_NUM_PARAMS])
 {
 	if (cmd_id < ARRAY_SIZE(ta_funcs) && ta_funcs[cmd_id])
-		return ta_funcs[cmd_id]((vaddr_t)sess_ctx, param_types, params);
+		return ta_funcs[cmd_id](session_id, param_types, params);
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

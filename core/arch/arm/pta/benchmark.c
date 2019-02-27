@@ -159,7 +159,7 @@ static TEE_Result unregister_benchmark(uint32_t type,
 	return res;
 }
 
-static TEE_Result invoke_command(void *session_ctx __unused,
+static TEE_Result invoke_command(uint32_t session_id __unused,
 		uint32_t cmd_id, uint32_t param_types,
 		TEE_Param params[TEE_NUM_PARAMS])
 {

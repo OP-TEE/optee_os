@@ -58,13 +58,14 @@ static TEE_Result get_devices(uint32_t types,
 	return res;
 }
 
-static TEE_Result invoke_command(void *pSessionContext __unused,
-				 uint32_t nCommandID, uint32_t nParamTypes,
-				 TEE_Param pParams[TEE_NUM_PARAMS])
+static TEE_Result invoke_command(uint32_t session_id __unused,
+				 uint32_t command_id,
+				 uint32_t param_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
 {
-	switch (nCommandID) {
+	switch (command_id) {
 	case PTA_CMD_GET_DEVICES:
-		return get_devices(nParamTypes, pParams);
+		return get_devices(param_types, params);
 	default:
 		break;
 	}

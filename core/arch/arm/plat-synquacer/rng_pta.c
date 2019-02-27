@@ -334,7 +334,7 @@ static TEE_Result rng_get_info(uint32_t types,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result invoke_command(void *pSessionContext __unused,
+static TEE_Result invoke_command(uint32_t session_id __unused,
 				 uint32_t nCommandID, uint32_t nParamTypes,
 				 TEE_Param pParams[TEE_NUM_PARAMS])
 {

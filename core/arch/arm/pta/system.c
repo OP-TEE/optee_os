@@ -42,7 +42,7 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
-			       void **sess_ctx __unused)
+			       uint32_t client_id __unused)
 {
 	struct tee_ta_session *s;
 
@@ -56,7 +56,7 @@ static TEE_Result open_session(uint32_t param_types __unused,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
+static TEE_Result invoke_command(uint32_t client_id __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
