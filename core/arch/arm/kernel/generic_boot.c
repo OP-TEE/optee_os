@@ -503,6 +503,7 @@ void *get_embedded_dt(void)
 		checked = true;
 	}
 
+	IMSG("Embedded DTB found");
 	return embedded_secure_dtb;
 }
 #else
@@ -896,7 +897,7 @@ static void init_external_dt(unsigned long phys_dt)
 		 * initialize devices based on DT we'll likely panic
 		 * instead of returning here.
 		 */
-		DMSG("No non-secure external DT");
+		IMSG("No non-secure external DT");
 		return;
 	}
 
@@ -922,6 +923,8 @@ static void init_external_dt(unsigned long phys_dt)
 		     phys_dt, ret);
 		panic();
 	}
+
+	IMSG("Non-secure external DT found");
 }
 
 static void update_external_dt(void)
