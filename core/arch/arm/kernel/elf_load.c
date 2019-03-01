@@ -403,8 +403,14 @@ static TEE_Result e32_process_rel(struct elf_load_state *state, size_t rel_sidx,
 			sym_idx = ELF32_R_SYM(rel->r_info);
 			if (sym_idx >= num_syms)
 				return TEE_ERROR_BAD_FORMAT;
-
-			*where += vabase + sym_tab[sym_idx].st_value;
+			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
+				/* Symbol is external */
+				res = e32_process_dyn_rel(state, rel, where);
+				if (res)
+					return res;
+			} else {
+				*where += vabase + sym_tab[sym_idx].st_value;
+			}
 			break;
 		case R_ARM_REL32:
 			sym_idx = ELF32_R_SYM(rel->r_info);
@@ -503,8 +509,15 @@ static TEE_Result e64_process_rel(struct elf_load_state *state,
 			sym_idx = ELF64_R_SYM(rela->r_info);
 			if (sym_idx > num_syms)
 				return TEE_ERROR_BAD_FORMAT;
-			*where = rela->r_addend + sym_tab[sym_idx].st_value +
-				 vabase;
+			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
+				/* Symbol is external */
+				res = e64_process_dyn_rela(state, rela, where);
+				if (res)
+					return res;
+			} else {
+				*where = rela->r_addend +
+					sym_tab[sym_idx].st_value + vabase;
+			}
 			break;
 		case R_AARCH64_RELATIVE:
 			*where = rela->r_addend + vabase;
