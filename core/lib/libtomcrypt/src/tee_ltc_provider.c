@@ -567,14 +567,14 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	case CRYPT_PK_INVALID_TYPE:
 	case CRYPT_PK_INVALID_SIZE:
 	case CRYPT_INVALID_PACKET:
-		EMSG("rsa_exptmod() returned %d\n", ltc_res);
+		EMSG("rsa_exptmod() returned %d", ltc_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	case CRYPT_OK:
 		break;
 	default:
 		/* This will result in a panic */
-		EMSG("rsa_exptmod() returned %d\n", ltc_res);
+		EMSG("rsa_exptmod() returned %d", ltc_res);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -666,7 +666,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
 	if (res != TEE_SUCCESS) {
-		EMSG("tee_algo_to_ltc_hashindex() returned %d\n", (int)res);
+		EMSG("tee_algo_to_ltc_hashindex() returned %d", (int)res);
 		goto out;
 	}
 
@@ -699,20 +699,20 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
 	case CRYPT_PK_INVALID_SIZE:
-		EMSG("rsa_decrypt_key_ex() returned %d\n", ltc_res);
+		EMSG("rsa_decrypt_key_ex() returned %d", ltc_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	case CRYPT_OK:
 		break;
 	default:
 		/* This will result in a panic */
-		EMSG("rsa_decrypt_key_ex() returned %d\n", ltc_res);
+		EMSG("rsa_decrypt_key_ex() returned %d", ltc_res);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 	if (ltc_stat != 1) {
 		/* This will result in a panic */
-		EMSG("rsa_decrypt_key_ex() returned %d and %d\n",
+		EMSG("rsa_decrypt_key_ex() returned %d and %d",
 		     ltc_res, ltc_stat);
 		res = TEE_ERROR_GENERIC;
 		goto out;
@@ -776,7 +776,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
 	case CRYPT_PK_INVALID_SIZE:
-		EMSG("rsa_encrypt_key_ex() returned %d\n", ltc_res);
+		EMSG("rsa_encrypt_key_ex() returned %d", ltc_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	case CRYPT_OK:

@@ -309,7 +309,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 
 	} else {
 		/* We hit a new instruction that needs to be implemented */
-		DMSG("Unhandled instruction %.2x\n", insn);
+		DMSG("Unhandled instruction %.2x", insn);
 		return false;
 	}
 
@@ -344,7 +344,7 @@ static bool unwind_tab(struct unwind_state_arm32 *state, bool kernel_stack,
 		state->byte = 1;
 		state->entries = ((insn >> 16) & 0xFF) + 1;
 	} else {
-		DMSG("Unknown entry: %x\n", entry);
+		DMSG("Unknown entry: %x", entry);
 		return true;
 	}
 

@@ -804,7 +804,8 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 
 	new_table = prtn->xlat_tables[prtn->xlat_tables_used++];
 
-	DMSG("xlat tables used %d / %d\n", prtn->xlat_tables_used, MAX_XLAT_TABLES);
+	DMSG("xlat tables used %d / %d",
+	     prtn->xlat_tables_used, MAX_XLAT_TABLES);
 
 	if (*entry) {
 		pa = *entry & OUTPUT_ADDRESS_MASK;

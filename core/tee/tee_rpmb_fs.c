@@ -1011,7 +1011,7 @@ static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
 		rpmb_ctx->wr_cnt_synced = true;
 	}
 
-	DMSG("Verify key returning 0x%x\n", res);
+	DMSG("Verify key returning 0x%x", res);
 	return res;
 }
 

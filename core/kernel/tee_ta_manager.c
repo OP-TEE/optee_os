@@ -622,7 +622,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	/* Short buffer is not an effective error case */
 	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
-		DMSG("Error: %x of %d\n", res, *err);
+		DMSG("Error: %x of %d", res, *err);
 
 	return res;
 }

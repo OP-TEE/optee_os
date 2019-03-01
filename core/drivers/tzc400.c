@@ -194,7 +194,7 @@ void tzc_init(vaddr_t base)
 	 */
 	tzc_id = tzc_read_component_id(tzc.base);
 	if (tzc_id != TZC400_COMPONENT_ID) {
-		EMSG("TZC : Wrong device ID (0x%x).\n", tzc_id);
+		EMSG("TZC : Wrong device ID (0x%" PRIx32 ")", tzc_id);
 		panic();
 	}
 
@@ -317,8 +317,8 @@ void tzc_enable_filters(void)
 			 * http://infocenter.arm.com/help/index.jsp?\
 			 * topic=/com.arm.doc.ddi0504c/CJHHECBF.html
 			 */
-			EMSG("TZC : Filter %d Gatekeeper already enabled.\n",
-				filter);
+			EMSG("TZC : Filter %d Gatekeeper already enabled",
+			     filter);
 			panic();
 		}
 		tzc_set_gate_keeper(tzc.base, filter, 1);
