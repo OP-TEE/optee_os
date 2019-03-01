@@ -64,7 +64,7 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 
 	res = fops->open(o->pobj, NULL, &fh);
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
-		EMSG("Object corrupt\n");
+		EMSG("Object corrupt");
 		fops->remove(o->pobj);
 		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 	}

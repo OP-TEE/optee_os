@@ -223,21 +223,21 @@ void tzc_dump_state(void)
 	uint32_t temp_32reg, temp_32reg_h;
 
 	DMSG("enter");
-	DMSG("security_inversion_en %x\n",
+	DMSG("security_inversion_en %x",
 	     io_read32(tzc.base + SECURITY_INV_EN_OFF));
 	for (n = 0; n <= REGION_MAX; n++) {
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		if (!(temp_32reg & TZC_ATTR_REGION_EN_MASK))
 			continue;
 
-		DMSG("\n");
+		DMSG("");
 		DMSG("region %d", n);
 		temp_32reg = tzc_read_region_base_low(tzc.base, n);
 		temp_32reg_h = tzc_read_region_base_high(tzc.base, n);
 		DMSG("region_base: 0x%08x%08x", temp_32reg_h, temp_32reg);
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		DMSG("region sp: %x", temp_32reg >> TZC_ATTR_SP_SHIFT);
-		DMSG("region size: %x\n", (temp_32reg & TZC_REGION_SIZE_MASK) >>
+		DMSG("region size: %x", (temp_32reg & TZC_REGION_SIZE_MASK) >>
 				TZC_REGION_SIZE_SHIFT);
 	}
 	DMSG("exit");

@@ -164,9 +164,9 @@ static void init_canaries(void)
 									\
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
-		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
+		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
 			#name, n, (void *)(end_canary - 1));		\
-		DMSG("watch *%p\n", (void *)end_canary);		\
+		DMSG("watch *%p", (void *)end_canary);			\
 	}
 
 	INIT_CANARY(stack_tmp);

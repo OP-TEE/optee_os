@@ -312,7 +312,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	serr = TEE_ORIGIN_TRUSTED_APP;
 
 	if (utc->ctx.panicked) {
-		DMSG("tee_user_ta_enter: TA panicked with code 0x%x\n",
+		DMSG("tee_user_ta_enter: TA panicked with code 0x%x",
 		     utc->ctx.panic_code);
 		serr = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_TARGET_DEAD;

@@ -529,7 +529,7 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
-		DMSG("Expected 0x%x\n", OPTEE_SMC_CALL_WITH_ARG);
+		DMSG("Expected 0x%x", OPTEE_SMC_CALL_WITH_ARG);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 		return;
 	}
@@ -580,7 +580,7 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 		break;
 
 	default:
-		EMSG("Unknown cmd 0x%x\n", arg->cmd);
+		EMSG("Unknown cmd 0x%x", arg->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
 	mobj_free(mobj);
