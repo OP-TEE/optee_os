@@ -28,13 +28,11 @@ TEE_Result crypto_init(void);
 
 /* Message digest functions */
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo);
-TEE_Result crypto_hash_init(void *ctx, uint32_t algo);
-TEE_Result crypto_hash_update(void *ctx, uint32_t algo, const uint8_t *data,
-			      size_t len);
-TEE_Result crypto_hash_final(void *ctx, uint32_t algo, uint8_t *digest,
-			     size_t len);
-void crypto_hash_free_ctx(void *ctx, uint32_t algo);
-void crypto_hash_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
+TEE_Result crypto_hash_init(void *ctx);
+TEE_Result crypto_hash_update(void *ctx, const uint8_t *data, size_t len);
+TEE_Result crypto_hash_final(void *ctx, uint8_t *digest, size_t len);
+void crypto_hash_free_ctx(void *ctx);
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx);
 
 /* Symmetric ciphers */
 TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo);

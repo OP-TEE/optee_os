@@ -123,16 +123,15 @@ static TEE_Result early_ta_get_tag(const struct user_ta_store_handle *h,
 	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
 	if (res)
 		return res;
-	res = crypto_hash_init(ctx, TEE_ALG_SHA256);
+	res = crypto_hash_init(ctx);
 	if (res)
 		goto out;
-	res = crypto_hash_update(ctx, TEE_ALG_SHA256, h->early_ta->ta,
-				 h->early_ta->size);
+	res = crypto_hash_update(ctx, h->early_ta->ta, h->early_ta->size);
 	if (res)
 		goto out;
-	res = crypto_hash_final(ctx, TEE_ALG_SHA256, tag, *tag_len);
+	res = crypto_hash_final(ctx, tag, *tag_len);
 out:
-	crypto_hash_free_ctx(ctx, TEE_ALG_SHA256);
+	crypto_hash_free_ctx(ctx);
 	return res;
 }
 

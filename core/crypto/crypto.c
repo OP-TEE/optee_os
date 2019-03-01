@@ -63,31 +63,28 @@ static const struct crypto_hash_ops *hash_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_hash_free_ctx(void *ctx)
 {
 	if (ctx)
 		hash_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_hash_copy_state(void *dst_ctx, void *src_ctx,
-			    uint32_t algo __unused)
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx)
 {
 	hash_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_hash_init(void *ctx, uint32_t algo __unused)
+TEE_Result crypto_hash_init(void *ctx)
 {
 	return hash_ops(ctx)->init(ctx);
 }
 
-TEE_Result crypto_hash_update(void *ctx, uint32_t algo __unused,
-			      const uint8_t *data, size_t len)
+TEE_Result crypto_hash_update(void *ctx, const uint8_t *data, size_t len)
 {
 	return hash_ops(ctx)->update(ctx, data, len);
 }
 
-TEE_Result crypto_hash_final(void *ctx, uint32_t algo __unused,
-			     uint8_t *digest, size_t len)
+TEE_Result crypto_hash_final(void *ctx, uint8_t *digest, size_t len)
 {
 	return hash_ops(ctx)->final(ctx, digest, len);
 }

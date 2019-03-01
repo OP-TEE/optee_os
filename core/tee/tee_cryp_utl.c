@@ -63,19 +63,19 @@ TEE_Result tee_hash_createdigest(uint32_t algo, const uint8_t *data,
 	if (res)
 		return res;
 
-	res = crypto_hash_init(ctx, algo);
+	res = crypto_hash_init(ctx);
 	if (res)
 		goto out;
 
 	if (datalen != 0) {
-		res = crypto_hash_update(ctx, algo, data, datalen);
+		res = crypto_hash_update(ctx, data, datalen);
 		if (res)
 			goto out;
 	}
 
-	res = crypto_hash_final(ctx, algo, digest, digestlen);
+	res = crypto_hash_final(ctx, digest, digestlen);
 out:
-	crypto_hash_free_ctx(ctx, algo);
+	crypto_hash_free_ctx(ctx);
 
 	return res;
 }
