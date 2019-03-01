@@ -42,7 +42,6 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 {
 	TEE_Result res;
 	struct tee_tadb_ta_write *ta;
-	uint32_t hash_algo = 0;
 	void *hash_ctx = NULL;
 	size_t offs;
 	const size_t buf_size = 2 * 4096;
@@ -67,15 +66,14 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	 * Initialize a hash context and run the algorithm over the signed
 	 * header (less the final file hash and its signature of course)
 	 */
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
+	res = crypto_hash_alloc_ctx(&hash_ctx,
+				    TEE_DIGEST_HASH_TO_ALGO(shdr->algo));
 	if (res)
 		goto err;
-	res = crypto_hash_init(hash_ctx, hash_algo);
+	res = crypto_hash_init(hash_ctx);
 	if (res)
 		goto err_free_hash_ctx;
-	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)shdr,
-				     sizeof(*shdr));
+	res = crypto_hash_update(hash_ctx, (uint8_t *)shdr, sizeof(*shdr));
 	if (res)
 		goto err_free_hash_ctx;
 
@@ -87,8 +85,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	if (res)
 		goto err_free_hash_ctx;
 
-	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)&bs_ta,
-				     sizeof(bs_ta));
+	res = crypto_hash_update(hash_ctx, (uint8_t *)&bs_ta, sizeof(bs_ta));
 	if (res)
 		goto err_free_hash_ctx;
 	offs += sizeof(bs_ta);
@@ -109,7 +106,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		size_t l = MIN(buf_size, nw_size - offs);
 
 		memcpy(buf, nw + offs, l);
-		res = crypto_hash_update(hash_ctx, hash_algo, buf, l);
+		res = crypto_hash_update(hash_ctx, buf, l);
 		if (res)
 			goto err_ta_finalize;
 		res = tee_tadb_ta_write(ta, buf, l);
@@ -118,7 +115,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		offs += l;
 	}
 
-	res = crypto_hash_final(hash_ctx, hash_algo, buf, shdr->hash_size);
+	res = crypto_hash_final(hash_ctx, buf, shdr->hash_size);
 	if (res)
 		goto err_ta_finalize;
 	if (consttime_memcmp(buf, SHDR_GET_HASH(shdr), shdr->hash_size)) {
@@ -126,14 +123,14 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		goto err_ta_finalize;
 	}
 
-	crypto_hash_free_ctx(hash_ctx, hash_algo);
+	crypto_hash_free_ctx(hash_ctx);
 	free(buf);
 	return tee_tadb_ta_close_and_commit(ta);
 
 err_ta_finalize:
 	tee_tadb_ta_close_and_delete(ta);
 err_free_hash_ctx:
-	crypto_hash_free_ctx(hash_ctx, hash_algo);
+	crypto_hash_free_ctx(hash_ctx);
 err:
 	free(buf);
 	return res;

@@ -37,24 +37,23 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	for (i = 1; i <= n + 1; i++) {
 		be_count = TEE_U32_TO_BIG_ENDIAN(i);
 
-		res = crypto_hash_init(ctx, hash_algo);
+		res = crypto_hash_init(ctx);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_hash_update(ctx, hash_algo, (uint8_t *)&be_count,
-				   sizeof(be_count));
+		res = crypto_hash_update(ctx, (uint8_t *)&be_count,
+					 sizeof(be_count));
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_hash_update(ctx, hash_algo, shared_secret,
-				   shared_secret_len);
+		res = crypto_hash_update(ctx, shared_secret, shared_secret_len);
 		if (res != TEE_SUCCESS)
 			goto out;
 		if (other_info && other_info_len) {
-			res = crypto_hash_update(ctx, hash_algo, other_info,
-					   other_info_len);
+			res = crypto_hash_update(ctx, other_info,
+						 other_info_len);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
-		res = crypto_hash_final(ctx, hash_algo, tmp, sizeof(tmp));
+		res = crypto_hash_final(ctx, tmp, sizeof(tmp));
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -65,6 +64,6 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	}
 	res = TEE_SUCCESS;
 out:
-	crypto_hash_free_ctx(ctx, hash_algo);
+	crypto_hash_free_ctx(ctx);
 	return res;
 }

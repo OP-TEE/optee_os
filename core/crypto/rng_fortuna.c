@@ -80,17 +80,17 @@ static void inc_counter(uint64_t counter[2])
 
 static TEE_Result hash_init(void *ctx)
 {
-	return crypto_hash_init(ctx, HASH_ALGO);
+	return crypto_hash_init(ctx);
 }
 
 static TEE_Result hash_update(void *ctx, const void *data, size_t dlen)
 {
-	return crypto_hash_update(ctx, HASH_ALGO, data, dlen);
+	return crypto_hash_update(ctx, data, dlen);
 }
 
 static TEE_Result hash_final(void *ctx, uint8_t digest[KEY_SIZE])
 {
-	return crypto_hash_final(ctx, HASH_ALGO, digest, KEY_SIZE);
+	return crypto_hash_final(ctx, digest, KEY_SIZE);
 }
 
 static TEE_Result key_from_data(void *ctx, const void *data, size_t dlen,
@@ -118,10 +118,10 @@ static void fortuna_done(void)
 	size_t n;
 
 	for (n = 0; n < NUM_POOLS; n++) {
-		crypto_hash_free_ctx(state.pool_ctx[n], HASH_ALGO);
+		crypto_hash_free_ctx(state.pool_ctx[n]);
 		state.pool_ctx[n] = NULL;
 	}
-	crypto_hash_free_ctx(state.reseed_ctx, HASH_ALGO);
+	crypto_hash_free_ctx(state.reseed_ctx);
 	state.reseed_ctx = NULL;
 	crypto_cipher_free_ctx(state.ctx, CIPHER_ALGO);
 	state.ctx = NULL;
@@ -145,7 +145,7 @@ TEE_Result crypto_rng_init(const void *data, size_t dlen)
 		res = crypto_hash_alloc_ctx(&state.pool_ctx[n], HASH_ALGO);
 		if (res)
 			goto err;
-		res = crypto_hash_init(state.pool_ctx[n], HASH_ALGO);
+		res = crypto_hash_init(state.pool_ctx[n]);
 		if (res)
 			goto err;
 	}

@@ -25,7 +25,6 @@ struct ree_fs_ta_handle {
 	size_t offs;
 	struct shdr *shdr; /* Verified secure copy of @nw_ta's signed header */
 	void *hash_ctx;
-	uint32_t hash_algo;
 };
 
 /*
@@ -85,7 +84,6 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
-	uint32_t hash_algo = 0;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
 	TEE_Result res;
@@ -120,15 +118,14 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	 * Initialize a hash context and run the algorithm over the signed
 	 * header (less the final file hash and its signature of course)
 	 */
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
+	res = crypto_hash_alloc_ctx(&hash_ctx,
+				    TEE_DIGEST_HASH_TO_ALGO(shdr->algo));
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	res = crypto_hash_init(hash_ctx, hash_algo);
+	res = crypto_hash_init(hash_ctx);
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
-	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)shdr,
-				     sizeof(*shdr));
+	res = crypto_hash_update(hash_ctx, (uint8_t *)shdr, sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
 	offs = SHDR_GET_SIZE(shdr);
@@ -156,8 +153,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 			goto error_free_hash;
 		}
 
-		res = crypto_hash_update(hash_ctx, hash_algo,
-					 (uint8_t *)&bs_hdr, sizeof(bs_hdr));
+		res = crypto_hash_update(hash_ctx, (uint8_t *)&bs_hdr,
+					 sizeof(bs_hdr));
 		if (res != TEE_SUCCESS)
 			goto error_free_hash;
 		offs += sizeof(bs_hdr);
@@ -171,7 +168,6 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	handle->nw_ta = ta;
 	handle->nw_ta_size = ta_size;
 	handle->offs = offs;
-	handle->hash_algo = hash_algo;
 	handle->hash_ctx = hash_ctx;
 	handle->shdr = shdr;
 	handle->mobj = mobj;
@@ -179,7 +175,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 
 error_free_hash:
-	crypto_hash_free_ctx(hash_ctx, hash_algo);
+	crypto_hash_free_ctx(hash_ctx);
 error_free_payload:
 	thread_rpc_free_payload(mobj);
 error:
@@ -221,8 +217,7 @@ static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 	digest = malloc(h->shdr->hash_size);
 	if (!digest)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = crypto_hash_final(h->hash_ctx, h->hash_algo, digest,
-				h->shdr->hash_size);
+	res = crypto_hash_final(h->hash_ctx, digest, h->shdr->hash_size);
 	if (res != TEE_SUCCESS) {
 		res = TEE_ERROR_SECURITY;
 		goto out;
@@ -249,7 +244,7 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 		dst = data; /* Hash secure buffer (shm might be modified) */
 		memcpy(dst, src, len);
 	}
-	res = crypto_hash_update(handle->hash_ctx, handle->hash_algo, dst, len);
+	res = crypto_hash_update(handle->hash_ctx, dst, len);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 	handle->offs += len;
@@ -270,7 +265,7 @@ static void ree_fs_ta_close(struct user_ta_store_handle *h)
 	if (!handle)
 		return;
 	thread_rpc_free_payload(handle->mobj);
-	crypto_hash_free_ctx(handle->hash_ctx, handle->hash_algo);
+	crypto_hash_free_ctx(handle->hash_ctx);
 	free(handle->shdr);
 	free(handle);
 }
