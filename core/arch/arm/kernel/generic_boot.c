@@ -888,7 +888,6 @@ static void init_external_dt(unsigned long phys_dt)
 	int ret;
 
 	if (!phys_dt) {
-		EMSG("Device Tree missing");
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
 		 * yet, we're only adding some nodes for normal world use.
@@ -897,6 +896,7 @@ static void init_external_dt(unsigned long phys_dt)
 		 * initialize devices based on DT we'll likely panic
 		 * instead of returning here.
 		 */
+		DMSG("No non-secure external DT");
 		return;
 	}
 
