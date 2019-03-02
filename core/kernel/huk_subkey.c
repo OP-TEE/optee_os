@@ -11,8 +11,7 @@
 
 static TEE_Result mac_usage(void *ctx, uint32_t usage)
 {
-	return crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
-				 (const void *)&usage, sizeof(usage));
+	return crypto_mac_update(ctx, (const void *)&usage, sizeof(usage));
 }
 
 #ifdef CFG_CORE_HUK_SUBKEY_COMPAT
@@ -44,12 +43,10 @@ static TEE_Result huk_compat(void *ctx, enum huk_subkey_usage usage)
 		return TEE_SUCCESS;
 	case HUK_SUBKEY_SSK:
 		get_dummy_die_id(chip_id, sizeof(chip_id));
-		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
-					chip_id, sizeof(chip_id));
+		res = crypto_mac_update(ctx, chip_id, sizeof(chip_id));
 		if (res)
 			return res;
-		return crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
-					 ssk_str, sizeof(ssk_str));
+		return crypto_mac_update(ctx, ssk_str, sizeof(ssk_str));
 	default:
 		return mac_usage(ctx, usage);
 	}
@@ -78,8 +75,7 @@ TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 	if (res)
 		goto out;
 
-	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, huk.data,
-			      sizeof(huk.data));
+	res = crypto_mac_init(ctx, huk.data, sizeof(huk.data));
 	if (res)
 		goto out;
 
@@ -92,17 +88,16 @@ TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 		goto out;
 
 	if (const_data) {
-		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256, const_data,
-					const_data_len);
+		res = crypto_mac_update(ctx, const_data, const_data_len);
 		if (res)
 			goto out;
 	}
 
-	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, subkey, subkey_len);
+	res = crypto_mac_final(ctx, subkey, subkey_len);
 out:
 	if (res)
 		memzero_explicit(subkey, subkey_len);
 	memzero_explicit(&huk, sizeof(huk));
-	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }

@@ -1929,7 +1929,7 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 		crypto_hash_free_ctx(cs->ctx);
 		break;
 	case TEE_OPERATION_MAC:
-		crypto_mac_free_ctx(cs->ctx, cs->algo);
+		crypto_mac_free_ctx(cs->ctx);
 		break;
 	default:
 		assert(!cs->ctx);
@@ -2179,7 +2179,7 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		crypto_hash_copy_state(cs_dst->ctx, cs_src->ctx);
 		break;
 	case TEE_OPERATION_MAC:
-		crypto_mac_copy_state(cs_dst->ctx, cs_src->ctx, cs_src->algo);
+		crypto_mac_copy_state(cs_dst->ctx, cs_src->ctx);
 		break;
 	default:
 		return TEE_ERROR_BAD_STATE;
@@ -2251,8 +2251,8 @@ TEE_Result syscall_hash_init(unsigned long state,
 				return TEE_ERROR_BAD_PARAMETERS;
 
 			key = (struct tee_cryp_obj_secret *)o->attr;
-			res = crypto_mac_init(cs->ctx, cs->algo,
-					      (void *)(key + 1), key->key_size);
+			res = crypto_mac_init(cs->ctx, (void *)(key + 1),
+					      key->key_size);
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
@@ -2306,7 +2306,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 			return res;
 		break;
 	case TEE_OPERATION_MAC:
-		res = crypto_mac_update(cs->ctx, cs->algo, chunk, chunk_size);
+		res = crypto_mac_update(cs->ctx, chunk, chunk_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -2391,13 +2391,12 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		}
 
 		if (chunk_size) {
-			res = crypto_mac_update(cs->ctx, cs->algo, chunk,
-						chunk_size);
+			res = crypto_mac_update(cs->ctx, chunk, chunk_size);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
-		res = crypto_mac_final(cs->ctx, cs->algo, hash, hash_size);
+		res = crypto_mac_final(cs->ctx, hash, hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		break;

@@ -261,25 +261,23 @@ static const struct crypto_mac_ops *mac_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_mac_free_ctx(void *ctx)
 {
 	if (ctx)
 		mac_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo __unused)
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx)
 {
 	mac_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_mac_init(void *ctx, uint32_t algo __unused,
-			   const uint8_t *key, size_t len)
+TEE_Result crypto_mac_init(void *ctx, const uint8_t *key, size_t len)
 {
 	return mac_ops(ctx)->init(ctx, key, len);
 }
 
-TEE_Result crypto_mac_update(void *ctx, uint32_t algo __unused,
-			     const uint8_t *data, size_t len)
+TEE_Result crypto_mac_update(void *ctx, const uint8_t *data, size_t len)
 {
 	if (!len)
 		return TEE_SUCCESS;
@@ -287,8 +285,7 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo __unused,
 	return mac_ops(ctx)->update(ctx, data, len);
 }
 
-TEE_Result crypto_mac_final(void *ctx, uint32_t algo __unused,
-			    uint8_t *digest, size_t digest_len)
+TEE_Result crypto_mac_final(void *ctx, uint8_t *digest, size_t digest_len)
 {
 	return mac_ops(ctx)->final(ctx, digest, digest_len);
 }

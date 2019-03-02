@@ -52,22 +52,22 @@ static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_mac_init(ctx, TEE_FS_KM_HMAC_ALG, in_key, in_key_size);
+	res = crypto_mac_init(ctx, in_key, in_key_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_mac_update(ctx, TEE_FS_KM_HMAC_ALG, message, message_size);
+	res = crypto_mac_update(ctx, message, message_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_mac_final(ctx, TEE_FS_KM_HMAC_ALG, out_key, out_key_size);
+	res = crypto_mac_final(ctx, out_key, out_key_size);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
 	res = TEE_SUCCESS;
 
 exit:
-	crypto_mac_free_ctx(ctx, TEE_FS_KM_HMAC_ALG);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }
 
