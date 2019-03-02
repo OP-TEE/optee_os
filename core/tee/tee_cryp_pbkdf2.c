@@ -34,34 +34,31 @@ static TEE_Result pbkdf2_f(uint8_t *out, size_t len, uint32_t idx,
 
 	memset(out, 0, len);
 	for (i = 1; i <= p->iteration_count; i++) {
-		res = crypto_mac_init(h->ctx, h->algo, p->password,
-				      p->password_len);
+		res = crypto_mac_init(h->ctx, p->password, p->password_len);
 		if (res != TEE_SUCCESS)
 			return res;
 
 		if (i == 1) {
 			if (p->salt && p->salt_len) {
-				res = crypto_mac_update(h->ctx, h->algo,
-							p->salt, p->salt_len);
+				res = crypto_mac_update(h->ctx, p->salt,
+							p->salt_len);
 				if (res != TEE_SUCCESS)
 					return res;
 			}
 
 			be_index = TEE_U32_TO_BIG_ENDIAN(idx);
 
-			res = crypto_mac_update(h->ctx, h->algo,
-						(uint8_t *)&be_index,
+			res = crypto_mac_update(h->ctx, (uint8_t *)&be_index,
 						sizeof(be_index));
 			if (res != TEE_SUCCESS)
 				return res;
 		} else {
-			res = crypto_mac_update(h->ctx, h->algo, u,
-						h->hash_len);
+			res = crypto_mac_update(h->ctx, u, h->hash_len);
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
-		res = crypto_mac_final(h->ctx, h->algo, u, sizeof(u));
+		res = crypto_mac_final(h->ctx, u, sizeof(u));
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -112,6 +109,6 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 		res = pbkdf2_f(out, r, i, &hmac_parms, &pbkdf2_parms);
 
 out:
-	crypto_mac_free_ctx(hmac_parms.ctx, hmac_parms.algo);
+	crypto_mac_free_ctx(hmac_parms.ctx);
 	return res;
 }
