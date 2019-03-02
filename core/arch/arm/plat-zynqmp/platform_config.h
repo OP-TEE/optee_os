@@ -66,6 +66,34 @@
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x20000
 
+#elif defined(PLATFORM_FLAVOR_ultra96)
+
+#define GIC_BASE		0xF9010000
+#define UART0_BASE		0xFF000000
+#define UART1_BASE		0xFF010000
+
+#define IT_UART0		53
+#define IT_UART1		54
+
+#define UART0_CLK_IN_HZ		100000000
+#define UART1_CLK_IN_HZ		100000000
+#define CONSOLE_UART_BASE	UART1_BASE
+#define IT_CONSOLE_UART		IT_UART1
+#define CONSOLE_UART_CLK_IN_HZ	UART1_CLK_IN_HZ
+
+#define DRAM0_BASE		0
+#define DRAM0_SIZE		0x80000000
+
+/* Location of trusted dram */
+#define TZDRAM_BASE		0x60000000
+#define TZDRAM_SIZE		0x10000000
+
+#define TEE_SHMEM_START		0x70000000
+#define TEE_SHMEM_SIZE		0x10000000
+
+#define GICD_OFFSET		0
+#define GICC_OFFSET		0x20000
+
 #else
 #error "Unknown platform flavor"
 #endif
