@@ -18,10 +18,6 @@ TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size);
 TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 				TEE_OperationMode mode, bool last_block,
 				const uint8_t *data, size_t len, uint8_t *dst);
-TEE_Result tee_aes_cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
-				  TEE_OperationMode mode, bool last_block,
-				  const uint8_t *data, size_t len,
-				  uint8_t *dst);
 
 /*
  * plat_prng_add_jitter_entropy() - Adds jitter to RNG entropy pool

@@ -141,22 +141,21 @@ static const struct crypto_cipher_ops *cipher_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_cipher_free_ctx(void *ctx)
 {
 	if (ctx)
 		cipher_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
-			      uint32_t algo __unused)
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	cipher_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
-			      TEE_OperationMode mode, const uint8_t *key1,
-			      size_t key1_len, const uint8_t *key2,
-			      size_t key2_len, const uint8_t *iv, size_t iv_len)
+TEE_Result crypto_cipher_init(void *ctx, TEE_OperationMode mode,
+			      const uint8_t *key1, size_t key1_len,
+			      const uint8_t *key2, size_t key2_len,
+			      const uint8_t *iv, size_t iv_len)
 {
 	if (mode != TEE_MODE_DECRYPT && mode != TEE_MODE_ENCRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -165,15 +164,14 @@ TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
 				     iv, iv_len);
 }
 
-TEE_Result crypto_cipher_update(void *ctx, uint32_t algo __unused,
-				TEE_OperationMode mode __unused,
+TEE_Result crypto_cipher_update(void *ctx, TEE_OperationMode mode __unused,
 				bool last_block, const uint8_t *data,
 				size_t len, uint8_t *dst)
 {
 	return cipher_ops(ctx)->update(ctx, last_block, data, len, dst);
 }
 
-void crypto_cipher_final(void *ctx, uint32_t algo __unused)
+void crypto_cipher_final(void *ctx)
 {
 	cipher_ops(ctx)->final(ctx);
 }
