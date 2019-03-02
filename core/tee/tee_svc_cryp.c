@@ -1920,7 +1920,7 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_CIPHER:
-		crypto_cipher_free_ctx(cs->ctx, cs->algo);
+		crypto_cipher_free_ctx(cs->ctx);
 		break;
 	case TEE_OPERATION_AE:
 		crypto_authenc_free_ctx(cs->ctx, cs->algo);
@@ -2169,8 +2169,7 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 
 	switch (TEE_ALG_GET_CLASS(cs_src->algo)) {
 	case TEE_OPERATION_CIPHER:
-		crypto_cipher_copy_state(cs_dst->ctx, cs_src->ctx,
-					 cs_src->algo);
+		crypto_cipher_copy_state(cs_dst->ctx, cs_src->ctx);
 		break;
 	case TEE_OPERATION_AE:
 		crypto_authenc_copy_state(cs_dst->ctx, cs_src->ctx,
@@ -2413,6 +2412,11 @@ out:
 	return res;
 }
 
+static void cipher_final_helper(void *ctx, uint32_t algo __unused)
+{
+	crypto_cipher_final(ctx);
+}
+
 TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 			size_t iv_len)
 {
@@ -2456,19 +2460,19 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 		if ((o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) == 0)
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		res = crypto_cipher_init(cs->ctx, cs->algo, cs->mode,
+		res = crypto_cipher_init(cs->ctx, cs->mode,
 					 (uint8_t *)(key1 + 1), key1->key_size,
 					 (uint8_t *)(key2 + 1), key2->key_size,
 					 iv, iv_len);
 	} else {
-		res = crypto_cipher_init(cs->ctx, cs->algo, cs->mode,
+		res = crypto_cipher_init(cs->ctx, cs->mode,
 					 (uint8_t *)(key1 + 1), key1->key_size,
 					 NULL, 0, iv, iv_len);
 	}
 	if (res != TEE_SUCCESS)
 		return res;
 
-	cs->ctx_finalize = crypto_cipher_final;
+	cs->ctx_finalize = cipher_final_helper;
 	cs->state = CRYP_STATE_INITIALIZED;
 
 	return TEE_SUCCESS;

@@ -109,7 +109,7 @@ static TEE_Result key_from_data(void *ctx, const void *data, size_t dlen,
 
 static TEE_Result cipher_init(void *ctx, uint8_t key[KEY_SIZE])
 {
-	return crypto_cipher_init(ctx, CIPHER_ALGO, TEE_MODE_ENCRYPT,
+	return crypto_cipher_init(ctx, TEE_MODE_ENCRYPT,
 				  key, KEY_SIZE, NULL, 0, NULL, 0);
 }
 
@@ -123,7 +123,7 @@ static void fortuna_done(void)
 	}
 	crypto_hash_free_ctx(state.reseed_ctx);
 	state.reseed_ctx = NULL;
-	crypto_cipher_free_ctx(state.ctx, CIPHER_ALGO);
+	crypto_cipher_free_ctx(state.ctx);
 	state.ctx = NULL;
 }
 
@@ -318,7 +318,7 @@ static TEE_Result generate_blocks(void *block, size_t nblocks)
 	size_t n;
 
 	for (n = 0; n < nblocks; n++) {
-		TEE_Result res = crypto_cipher_update(state.ctx, CIPHER_ALGO,
+		TEE_Result res = crypto_cipher_update(state.ctx,
 						      TEE_MODE_ENCRYPT, false,
 						      (void *)state.counter,
 						      BLOCK_SIZE,
@@ -463,8 +463,8 @@ static TEE_Result maybe_reseed(void)
 	if (res)
 		return res;
 
-	crypto_cipher_final(state.ctx, CIPHER_ALGO);
-	res = crypto_cipher_init(state.ctx, CIPHER_ALGO, TEE_MODE_ENCRYPT,
+	crypto_cipher_final(state.ctx);
+	res = crypto_cipher_init(state.ctx, TEE_MODE_ENCRYPT,
 				 pool_digest, KEY_SIZE, NULL, 0, NULL, 0);
 	if (res)
 		return res;
@@ -496,7 +496,7 @@ static TEE_Result fortuna_read(void *buf, size_t blen)
 		res = generate_blocks(new_key, KEY_SIZE / BLOCK_SIZE);
 		if (res)
 			goto out;
-		crypto_cipher_final(state.ctx, CIPHER_ALGO);
+		crypto_cipher_final(state.ctx);
 		res = cipher_init(state.ctx, new_key);
 		if (res)
 			goto out;

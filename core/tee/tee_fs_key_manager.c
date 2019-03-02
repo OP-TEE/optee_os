@@ -111,22 +111,20 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_cipher_init(ctx, TEE_FS_KM_ENC_FEK_ALG, mode, tsk,
-				 sizeof(tsk), NULL, 0, NULL, 0);
+	res = crypto_cipher_init(ctx, mode, tsk, sizeof(tsk), NULL, 0, NULL, 0);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = crypto_cipher_update(ctx, TEE_FS_KM_ENC_FEK_ALG,
-				   mode, true, in_key, size, dst_key);
+	res = crypto_cipher_update(ctx, mode, true, in_key, size, dst_key);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	crypto_cipher_final(ctx, TEE_FS_KM_ENC_FEK_ALG);
+	crypto_cipher_final(ctx);
 
 	memcpy(out_key, dst_key, sizeof(dst_key));
 
 exit:
-	crypto_cipher_free_ctx(ctx, TEE_FS_KM_ENC_FEK_ALG);
+	crypto_cipher_free_ctx(ctx);
 	memzero_explicit(tsk, sizeof(tsk));
 	memzero_explicit(dst_key, sizeof(dst_key));
 
@@ -182,27 +180,26 @@ static TEE_Result aes_ecb(uint8_t out[TEE_AES_BLOCK_SIZE],
 {
 	TEE_Result res;
 	void *ctx = NULL;
-	const uint32_t algo = TEE_ALG_AES_ECB_NOPAD;
 
-	res = crypto_cipher_alloc_ctx(&ctx, algo);
+	res = crypto_cipher_alloc_ctx(&ctx, TEE_ALG_AES_ECB_NOPAD);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_cipher_init(ctx, algo, TEE_MODE_ENCRYPT, key,
+	res = crypto_cipher_init(ctx, TEE_MODE_ENCRYPT, key,
 				 key_size, NULL, 0, NULL, 0);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_cipher_update(ctx, algo, TEE_MODE_ENCRYPT, true, in,
+	res = crypto_cipher_update(ctx, TEE_MODE_ENCRYPT, true, in,
 				   TEE_AES_BLOCK_SIZE, out);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	crypto_cipher_final(ctx, algo);
+	crypto_cipher_final(ctx);
 	res = TEE_SUCCESS;
 
 out:
-	crypto_cipher_free_ctx(ctx, algo);
+	crypto_cipher_free_ctx(ctx);
 	return res;
 }
 
@@ -239,7 +236,6 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	uint8_t iv[TEE_AES_BLOCK_SIZE];
 	void *ctx;
-	const uint32_t algo = TEE_ALG_AES_CBC_NOPAD;
 
 	DMSG("%scrypt block #%u", (mode == TEE_MODE_ENCRYPT) ? "En" : "De",
 	     blk_idx);
@@ -256,22 +252,22 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 		goto wipe;
 
 	/* Run AES CBC */
-	res = crypto_cipher_alloc_ctx(&ctx, algo);
+	res = crypto_cipher_alloc_ctx(&ctx, TEE_ALG_AES_CBC_NOPAD);
 	if (res != TEE_SUCCESS)
 		goto wipe;
 
-	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
+	res = crypto_cipher_init(ctx, mode, fek, sizeof(fek), NULL,
 				 0, iv, TEE_AES_BLOCK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto exit;
-	res = crypto_cipher_update(ctx, algo, mode, true, in, size, out);
+	res = crypto_cipher_update(ctx, mode, true, in, size, out);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	crypto_cipher_final(ctx, algo);
+	crypto_cipher_final(ctx);
 
 exit:
-	crypto_cipher_free_ctx(ctx, algo);
+	crypto_cipher_free_ctx(ctx);
 wipe:
 	memzero_explicit(fek, sizeof(fek));
 	memzero_explicit(iv, sizeof(iv));
