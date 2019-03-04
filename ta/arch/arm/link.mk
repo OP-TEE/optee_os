@@ -15,7 +15,7 @@ cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf
 cleanfiles += $(link-out-dir$(sm))/$(user-ta-uuid).ta
 cleanfiles += $(link-script-pp$(sm)) $(link-script-dep$(sm))
 
-link-ldflags  = -e__utee_entry -pie
+link-ldflags  = -e__ta_entry -pie
 link-ldflags += -T $(link-script-pp$(sm))
 link-ldflags += -Map=$(link-out-dir$(sm))/$(user-ta-uuid).map
 link-ldflags += --sort-section=alignment
