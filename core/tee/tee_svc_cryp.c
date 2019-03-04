@@ -36,7 +36,7 @@ enum cryp_state {
 	CRYP_STATE_UNINITIALIZED
 };
 
-typedef void (*tee_cryp_ctx_finalize_func_t) (void *ctx, uint32_t algo);
+typedef void (*tee_cryp_ctx_finalize_func_t) (void *ctx);
 struct tee_cryp_state {
 	TAILQ_ENTRY(tee_cryp_state) link;
 	uint32_t algo;
@@ -1916,14 +1916,14 @@ static void cryp_state_free(struct user_ta_ctx *utc, struct tee_cryp_state *cs)
 
 	TAILQ_REMOVE(&utc->cryp_states, cs, link);
 	if (cs->ctx_finalize != NULL)
-		cs->ctx_finalize(cs->ctx, cs->algo);
+		cs->ctx_finalize(cs->ctx);
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_CIPHER:
 		crypto_cipher_free_ctx(cs->ctx);
 		break;
 	case TEE_OPERATION_AE:
-		crypto_authenc_free_ctx(cs->ctx, cs->algo);
+		crypto_authenc_free_ctx(cs->ctx);
 		break;
 	case TEE_OPERATION_DIGEST:
 		crypto_hash_free_ctx(cs->ctx);
@@ -2172,8 +2172,7 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		crypto_cipher_copy_state(cs_dst->ctx, cs_src->ctx);
 		break;
 	case TEE_OPERATION_AE:
-		crypto_authenc_copy_state(cs_dst->ctx, cs_src->ctx,
-					  cs_src->algo);
+		crypto_authenc_copy_state(cs_dst->ctx, cs_src->ctx);
 		break;
 	case TEE_OPERATION_DIGEST:
 		crypto_hash_copy_state(cs_dst->ctx, cs_src->ctx);
@@ -2411,11 +2410,6 @@ out:
 	return res;
 }
 
-static void cipher_final_helper(void *ctx, uint32_t algo __unused)
-{
-	crypto_cipher_final(ctx);
-}
-
 TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 			size_t iv_len)
 {
@@ -2471,7 +2465,7 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	cs->ctx_finalize = cipher_final_helper;
+	cs->ctx_finalize = crypto_cipher_final;
 	cs->state = CRYP_STATE_INITIALIZED;
 
 	return TEE_SUCCESS;
@@ -2532,7 +2526,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	}
 
 	if (last_block && cs->ctx_finalize != NULL) {
-		cs->ctx_finalize(cs->ctx, cs->algo);
+		cs->ctx_finalize(cs->ctx);
 		cs->ctx_finalize = NULL;
 	}
 
@@ -3003,14 +2997,13 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	key = o->attr;
-	res = crypto_authenc_init(cs->ctx, cs->algo, cs->mode,
-				  (uint8_t *)(key + 1), key->key_size,
-				  nonce, nonce_len, tag_len, aad_len,
-				  payload_len);
+	res = crypto_authenc_init(cs->ctx, cs->mode, (uint8_t *)(key + 1),
+				  key->key_size, nonce, nonce_len, tag_len,
+				  aad_len, payload_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	cs->ctx_finalize = (tee_cryp_ctx_finalize_func_t)crypto_authenc_final;
+	cs->ctx_finalize = crypto_authenc_final;
 	cs->state = CRYP_STATE_INITIALIZED;
 
 	return TEE_SUCCESS;
@@ -3045,8 +3038,8 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
 
-	res = crypto_authenc_update_aad(cs->ctx, cs->algo, cs->mode,
-					aad_data, aad_data_len);
+	res = crypto_authenc_update_aad(cs->ctx, cs->mode, aad_data,
+					aad_data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3100,9 +3093,8 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 		goto out;
 	}
 
-	res = crypto_authenc_update_payload(cs->ctx, cs->algo, cs->mode,
-					    src_data, src_len, dst_data,
-					    &dlen);
+	res = crypto_authenc_update_payload(cs->ctx, cs->mode, src_data,
+					    src_len, dst_data, &dlen);
 out:
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
 		TEE_Result res2 = put_user_u64(dst_len, dlen);
@@ -3181,8 +3173,8 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_authenc_enc_final(cs->ctx, cs->algo, src_data,
-				       src_len, dst_data, &dlen, tag, &tlen);
+	res = crypto_authenc_enc_final(cs->ctx, src_data, src_len, dst_data,
+				       &dlen, tag, &tlen);
 
 out:
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
@@ -3263,8 +3255,8 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_authenc_dec_final(cs->ctx, cs->algo, src_data, src_len,
-				       dst_data, &dlen, tag, tag_len);
+	res = crypto_authenc_dec_final(cs->ctx, src_data, src_len, dst_data,
+				       &dlen, tag, tag_len);
 
 out:
 	if ((res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) &&

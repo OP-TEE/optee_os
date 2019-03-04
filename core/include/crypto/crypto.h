@@ -58,30 +58,28 @@ void crypto_mac_copy_state(void *dst_ctx, void *src_ctx);
 
 /* Authenticated encryption */
 TEE_Result crypto_authenc_alloc_ctx(void **ctx, uint32_t algo);
-TEE_Result crypto_authenc_init(void *ctx, uint32_t algo, TEE_OperationMode mode,
+TEE_Result crypto_authenc_init(void *ctx, TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
 			       size_t tag_len, size_t aad_len,
 			       size_t payload_len);
-TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo,
-				     TEE_OperationMode mode,
+TEE_Result crypto_authenc_update_aad(void *ctx, TEE_OperationMode mode,
 				     const uint8_t *data, size_t len);
-TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo,
-					 TEE_OperationMode mode,
+TEE_Result crypto_authenc_update_payload(void *ctx, TEE_OperationMode mode,
 					 const uint8_t *src_data,
 					 size_t src_len, uint8_t *dst_data,
 					 size_t *dst_len);
-TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    uint8_t *dst_tag, size_t *dst_tag_len);
-TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    const uint8_t *tag, size_t tag_len);
-void crypto_authenc_final(void *ctx, uint32_t algo);
-void crypto_authenc_free_ctx(void *ctx, uint32_t algo);
-void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo);
+TEE_Result crypto_authenc_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, uint8_t *dst_tag,
+				    size_t *dst_tag_len);
+TEE_Result crypto_authenc_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, const uint8_t *tag,
+				    size_t tag_len);
+void crypto_authenc_final(void *ctx);
+void crypto_authenc_free_ctx(void *ctx);
+void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx);
 
 /* Implementation-defined big numbers */
 
