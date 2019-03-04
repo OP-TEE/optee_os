@@ -28,6 +28,15 @@ void __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
 			__noreturn;
 
+void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
+			   struct utee_params *up, unsigned long cmd_id);
+
+void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
+			   struct utee_params *up, unsigned long cmd_id)
+{
+	__utee_entry(func, session_id, up, cmd_id);
+}
+
 /*
  * According to GP Internal API, TA_STACK_SIZE corresponds to the stack
  * size used by the TA code itself and does not include stack space
