@@ -325,8 +325,7 @@ static const struct crypto_authenc_ops *ae_ops(void *ctx)
 	return c->ops;
 }
 
-TEE_Result crypto_authenc_init(void *ctx, uint32_t algo __unused,
-			       TEE_OperationMode mode,
+TEE_Result crypto_authenc_init(void *ctx, TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
 			       size_t tag_len, size_t aad_len,
@@ -336,16 +335,14 @@ TEE_Result crypto_authenc_init(void *ctx, uint32_t algo __unused,
 				 tag_len, aad_len, payload_len);
 }
 
-TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo __unused,
-				     TEE_OperationMode mode __unused,
+TEE_Result crypto_authenc_update_aad(void *ctx, TEE_OperationMode mode __unused,
 				     const uint8_t *data, size_t len)
 {
 	return ae_ops(ctx)->update_aad(ctx, data, len);
 }
 
 
-TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo __unused,
-					 TEE_OperationMode mode,
+TEE_Result crypto_authenc_update_payload(void *ctx, TEE_OperationMode mode,
 					 const uint8_t *src_data,
 					 size_t src_len, uint8_t *dst_data,
 					 size_t *dst_len)
@@ -358,10 +355,10 @@ TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo __unused,
 					   dst_data);
 }
 
-TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo __unused,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    uint8_t *dst_tag, size_t *dst_tag_len)
+TEE_Result crypto_authenc_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, uint8_t *dst_tag,
+				    size_t *dst_tag_len)
 {
 	if (*dst_len < src_len)
 		return TEE_ERROR_SHORT_BUFFER;
@@ -371,10 +368,10 @@ TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo __unused,
 				      dst_tag, dst_tag_len);
 }
 
-TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo __unused,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    const uint8_t *tag, size_t tag_len)
+TEE_Result crypto_authenc_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, const uint8_t *tag,
+				    size_t tag_len)
 {
 	if (*dst_len < src_len)
 		return TEE_ERROR_SHORT_BUFFER;
@@ -384,19 +381,18 @@ TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo __unused,
 				      tag_len);
 }
 
-void crypto_authenc_final(void *ctx, uint32_t algo __unused)
+void crypto_authenc_final(void *ctx)
 {
 	ae_ops(ctx)->final(ctx);
 }
 
-void crypto_authenc_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_authenc_free_ctx(void *ctx)
 {
 	if (ctx)
 		ae_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx,
-			       uint32_t algo __unused)
+void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx)
 {
 	ae_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
