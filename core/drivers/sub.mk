@@ -22,3 +22,4 @@ srcs-$(CFG_MVEBU_UART) += mvebu_uart.c
 srcs-$(CFG_STM32_ETZPC) += stm32_etzpc.c
 srcs-$(CFG_STM32_GPIO) += stm32_gpio.c
 srcs-$(CFG_STM32_UART) += stm32_uart.c
+srcs-$(CFG_STM32_I2C) += stm32_i2c.c
