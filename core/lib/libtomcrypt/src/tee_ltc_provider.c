@@ -4,9 +4,8 @@
  */
 
 #include <assert.h>
-#include <crypto/aes-ccm.h>
-#include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string_ext.h>
@@ -2338,48 +2337,65 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 
 #if defined(CFG_CRYPTO_CCM)
 struct tee_ccm_state {
+	struct crypto_authenc_ctx aectx;
 	ccm_state ctx;			/* the ccm state as defined by LTC */
 	size_t tag_len;			/* tag length */
 };
 
-TEE_Result crypto_aes_ccm_alloc_ctx(void **ctx_ret)
+static const struct crypto_authenc_ops aes_ccm_ops;
+
+TEE_Result crypto_aes_ccm_alloc_ctx(struct crypto_authenc_ctx **ctx_ret)
 {
 	struct tee_ccm_state *ctx = calloc(1, sizeof(*ctx));
 
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	ctx->aectx.ops = &aes_ccm_ops;
 
-	*ctx_ret = ctx;
+	*ctx_ret = &ctx->aectx;
 	return TEE_SUCCESS;
 }
 
-void crypto_aes_ccm_free_ctx(void *ctx)
+static struct tee_ccm_state *to_tee_ccm_state(struct crypto_authenc_ctx *aectx)
 {
-	free(ctx);
+	assert(aectx->ops == &aes_ccm_ops);
+
+	return container_of(aectx, struct tee_ccm_state, aectx);
 }
 
-void crypto_aes_ccm_copy_state(void *dst_ctx, void *src_ctx)
+static void crypto_aes_ccm_free_ctx(struct crypto_authenc_ctx *aectx)
 {
-	memcpy(dst_ctx, src_ctx, sizeof(struct tee_ccm_state));
+	free(to_tee_ccm_state(aectx));
 }
 
-TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode __unused,
-			       const uint8_t *key, size_t key_len,
-			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len, size_t aad_len,
-			       size_t payload_len)
+static void crypto_aes_ccm_copy_state(struct crypto_authenc_ctx *dst_aectx,
+				      struct crypto_authenc_ctx *src_aectx)
 {
-	TEE_Result res;
-	int ltc_res;
-	int ltc_cipherindex;
-	struct tee_ccm_state *ccm = ctx;
+	struct tee_ccm_state *dst_ctx = to_tee_ccm_state(dst_aectx);
+	struct tee_ccm_state *src_ctx = to_tee_ccm_state(src_aectx);
+
+	dst_ctx->ctx = src_ctx->ctx;
+	dst_ctx->tag_len = src_ctx->tag_len;
+}
+
+static TEE_Result crypto_aes_ccm_init(struct crypto_authenc_ctx *aectx,
+				      TEE_OperationMode mode __unused,
+				      const uint8_t *key, size_t key_len,
+				      const uint8_t *nonce, size_t nonce_len,
+				      size_t tag_len, size_t aad_len,
+				      size_t payload_len)
+{
+	TEE_Result res = TEE_SUCCESS;
+	int ltc_res = 0;
+	int ltc_cipherindex = 0;
+	struct tee_ccm_state *ccm = to_tee_ccm_state(aectx);
 
 	res = tee_algo_to_ltc_cipherindex(TEE_ALG_AES_CCM, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	/* reset the state */
-	memset(ccm, 0, sizeof(struct tee_ccm_state));
+	memset(&ccm->ctx, 0, sizeof(ccm->ctx));
 	ccm->tag_len = tag_len;
 
 	/* Check the key length */
@@ -2408,10 +2424,11 @@ TEE_Result crypto_aes_ccm_init(void *ctx, TEE_OperationMode mode __unused,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_update_aad(void *ctx, const uint8_t *data, size_t len)
+static TEE_Result crypto_aes_ccm_update_aad(struct crypto_authenc_ctx *aectx,
+					    const uint8_t *data, size_t len)
 {
-	struct tee_ccm_state *ccm = ctx;
-	int ltc_res;
+	struct tee_ccm_state *ccm = to_tee_ccm_state(aectx);
+	int ltc_res = 0;
 
 	/* Add the AAD (note: aad can be NULL if aadlen == 0) */
 	ltc_res = ccm_add_aad(&ccm->ctx, data, len);
@@ -2421,13 +2438,16 @@ TEE_Result crypto_aes_ccm_update_aad(void *ctx, const uint8_t *data, size_t len)
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_update_payload(void *ctx, TEE_OperationMode mode,
-					 const uint8_t *src_data,
-					 size_t len, uint8_t *dst_data)
+static TEE_Result
+crypto_aes_ccm_update_payload(struct crypto_authenc_ctx *aectx,
+			      TEE_OperationMode mode, const uint8_t *src_data,
+			      size_t len, uint8_t *dst_data)
 {
-	int ltc_res, dir;
-	struct tee_ccm_state *ccm = ctx;
-	unsigned char *pt, *ct;	/* the plain and the cipher text */
+	int ltc_res = 0;
+	int dir = 0;
+	struct tee_ccm_state *ccm = to_tee_ccm_state(aectx);
+	unsigned char *pt = NULL;
+	unsigned char *ct = NULL;
 
 	if (mode == TEE_MODE_ENCRYPT) {
 		pt = (unsigned char *)src_data;
@@ -2445,16 +2465,18 @@ TEE_Result crypto_aes_ccm_update_payload(void *ctx, TEE_OperationMode mode,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_enc_final(void *ctx, const uint8_t *src_data,
-				    size_t len, uint8_t *dst_data,
-				    uint8_t *dst_tag, size_t *dst_tag_len)
+static TEE_Result crypto_aes_ccm_enc_final(struct crypto_authenc_ctx *aectx,
+					   const uint8_t *src_data,
+					   size_t len, uint8_t *dst_data,
+					   uint8_t *dst_tag,
+					   size_t *dst_tag_len)
 {
-	TEE_Result res;
-	struct tee_ccm_state *ccm = ctx;
-	int ltc_res;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ccm_state *ccm = to_tee_ccm_state(aectx);
+	int ltc_res = 0;
 
 	/* Finalize the remaining buffer */
-	res = crypto_aes_ccm_update_payload(ctx, TEE_MODE_ENCRYPT, src_data,
+	res = crypto_aes_ccm_update_payload(aectx, TEE_MODE_ENCRYPT, src_data,
 					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2475,14 +2497,15 @@ TEE_Result crypto_aes_ccm_enc_final(void *ctx, const uint8_t *src_data,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
-				    size_t len, uint8_t *dst_data,
-				    const uint8_t *tag, size_t tag_len)
+static TEE_Result crypto_aes_ccm_dec_final(struct crypto_authenc_ctx *aectx,
+					   const uint8_t *src_data, size_t len,
+					   uint8_t *dst_data,
+					   const uint8_t *tag, size_t tag_len)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
-	struct tee_ccm_state *ccm = ctx;
-	int ltc_res;
-	uint8_t dst_tag[TEE_CCM_TAG_MAX_LENGTH];
+	struct tee_ccm_state *ccm = to_tee_ccm_state(aectx);
+	int ltc_res = 0;
+	uint8_t dst_tag[TEE_CCM_TAG_MAX_LENGTH] = { 0 };
 	unsigned long ltc_tag_len = tag_len;
 
 	if (tag_len == 0)
@@ -2491,7 +2514,7 @@ TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
 		return TEE_ERROR_BAD_STATE;
 
 	/* Process the last buffer, if any */
-	res = crypto_aes_ccm_update_payload(ctx, TEE_MODE_DECRYPT, src_data,
+	res = crypto_aes_ccm_update_payload(aectx, TEE_MODE_DECRYPT, src_data,
 					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2508,57 +2531,85 @@ TEE_Result crypto_aes_ccm_dec_final(void *ctx, const uint8_t *src_data,
 	return res;
 }
 
-void crypto_aes_ccm_final(void *ctx)
+static void crypto_aes_ccm_final(struct crypto_authenc_ctx *aectx)
 {
-	struct tee_ccm_state *ccm = ctx;
-
-	ccm_reset(&ccm->ctx);
+	ccm_reset(&to_tee_ccm_state(aectx)->ctx);
 }
+
+static const struct crypto_authenc_ops aes_ccm_ops = {
+	.init = crypto_aes_ccm_init,
+	.update_aad = crypto_aes_ccm_update_aad,
+	.update_payload = crypto_aes_ccm_update_payload,
+	.enc_final = crypto_aes_ccm_enc_final,
+	.dec_final = crypto_aes_ccm_dec_final,
+	.final = crypto_aes_ccm_final,
+	.free_ctx = crypto_aes_ccm_free_ctx,
+	.copy_state = crypto_aes_ccm_copy_state,
+};
 #endif /*CFG_CRYPTO_CCM*/
 
 #if defined(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB)
 struct tee_gcm_state {
+	struct crypto_authenc_ctx aectx;
 	gcm_state ctx;			/* the gcm state as defined by LTC */
 	size_t tag_len;			/* tag length */
 };
 
-TEE_Result crypto_aes_gcm_alloc_ctx(void **ctx_ret)
+static const struct crypto_authenc_ops aes_gcm_ops;
+
+static struct tee_gcm_state *to_tee_gcm_state(struct crypto_authenc_ctx *aectx)
+{
+	assert(aectx->ops == &aes_gcm_ops);
+
+	return container_of(aectx, struct tee_gcm_state, aectx);
+}
+
+TEE_Result crypto_aes_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx_ret)
 {
 	struct tee_gcm_state *ctx = calloc(1, sizeof(*ctx));
 
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	ctx->aectx.ops = &aes_gcm_ops;
 
-	*ctx_ret = ctx;
+	*ctx_ret = &ctx->aectx;
+
 	return TEE_SUCCESS;
 }
 
-void crypto_aes_gcm_free_ctx(void *ctx)
+static void crypto_aes_gcm_free_ctx(struct crypto_authenc_ctx *aectx)
 {
-	free(ctx);
+	free(to_tee_gcm_state(aectx));
 }
 
-void crypto_aes_gcm_copy_state(void *dst_ctx, void *src_ctx)
+static void crypto_aes_gcm_copy_state(struct crypto_authenc_ctx *dst_aectx,
+				      struct crypto_authenc_ctx *src_aectx)
 {
-	memcpy(dst_ctx, src_ctx, sizeof(struct tee_gcm_state));
+	struct tee_gcm_state *dst_ctx = to_tee_gcm_state(dst_aectx);
+	struct tee_gcm_state *src_ctx = to_tee_gcm_state(src_aectx);
+
+	dst_ctx->ctx = src_ctx->ctx;
+	dst_ctx->tag_len = src_ctx->tag_len;
 }
 
-TEE_Result crypto_aes_gcm_init(void *ctx, TEE_OperationMode mode __unused,
-			       const uint8_t *key, size_t key_len,
-			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len)
+static TEE_Result crypto_aes_gcm_init(struct crypto_authenc_ctx *aectx,
+				      TEE_OperationMode mode __unused,
+				      const uint8_t *key, size_t key_len,
+				      const uint8_t *nonce, size_t nonce_len,
+				      size_t tag_len, size_t aad_len __unused,
+				      size_t payload_len __unused)
 {
-	TEE_Result res;
-	int ltc_res;
-	int ltc_cipherindex;
-	struct tee_gcm_state *gcm = ctx;
+	TEE_Result res = TEE_SUCCESS;
+	int ltc_res = 0;
+	int ltc_cipherindex = 0;
+	struct tee_gcm_state *gcm = to_tee_gcm_state(aectx);
 
 	res = tee_algo_to_ltc_cipherindex(TEE_ALG_AES_GCM, &ltc_cipherindex);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	/* reset the state */
-	memset(gcm, 0, sizeof(struct tee_gcm_state));
+	memset(&gcm->ctx, 0, sizeof(gcm->ctx));
 	gcm->tag_len = tag_len;
 
 	ltc_res = gcm_init(&gcm->ctx, ltc_cipherindex, key, key_len);
@@ -2573,10 +2624,11 @@ TEE_Result crypto_aes_gcm_init(void *ctx, TEE_OperationMode mode __unused,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_update_aad(void *ctx, const uint8_t *data, size_t len)
+static TEE_Result crypto_aes_gcm_update_aad(struct crypto_authenc_ctx *aectx,
+					    const uint8_t *data, size_t len)
 {
-	struct tee_gcm_state *gcm = ctx;
-	int ltc_res;
+	struct tee_gcm_state *gcm = to_tee_gcm_state(aectx);
+	int ltc_res = 0;
 
 	/* Add the AAD (note: aad can be NULL if aadlen == 0) */
 	ltc_res = gcm_add_aad(&gcm->ctx, data, len);
@@ -2586,14 +2638,17 @@ TEE_Result crypto_aes_gcm_update_aad(void *ctx, const uint8_t *data, size_t len)
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_update_payload(void *ctx, TEE_OperationMode mode,
-					 const uint8_t *src_data,
-					 size_t len, uint8_t *dst_data)
+static TEE_Result
+crypto_aes_gcm_update_payload(struct crypto_authenc_ctx *aectx,
+			      TEE_OperationMode mode, const uint8_t *src_data,
+			      size_t len, uint8_t *dst_data)
 {
-	TEE_Result res;
-	int ltc_res, dir;
-	struct tee_gcm_state *gcm = ctx;
-	unsigned char *pt, *ct;	/* the plain and the cipher text */
+	TEE_Result res = TEE_SUCCESS;
+	int ltc_res = 0;
+	int dir = 0;
+	struct tee_gcm_state *gcm = to_tee_gcm_state(aectx);
+	unsigned char *pt = NULL;
+	unsigned char *ct = NULL;
 
 	if (mode == TEE_MODE_ENCRYPT) {
 		pt = (unsigned char *)src_data;
@@ -2607,7 +2662,7 @@ TEE_Result crypto_aes_gcm_update_payload(void *ctx, TEE_OperationMode mode,
 
 	/* aad is optional ==> add one without length */
 	if (gcm->ctx.mode == LTC_GCM_MODE_IV) {
-		res = crypto_aes_gcm_update_aad(gcm, NULL, 0);
+		res = crypto_aes_gcm_update_aad(aectx, NULL, 0);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -2620,16 +2675,17 @@ TEE_Result crypto_aes_gcm_update_payload(void *ctx, TEE_OperationMode mode,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_enc_final(void *ctx, const uint8_t *src_data,
-				    size_t len, uint8_t *dst_data,
-				    uint8_t *dst_tag, size_t *dst_tag_len)
+static TEE_Result crypto_aes_gcm_enc_final(struct crypto_authenc_ctx *aectx,
+					   const uint8_t *src_data, size_t len,
+					   uint8_t *dst_data, uint8_t *dst_tag,
+					   size_t *dst_tag_len)
 {
-	TEE_Result res;
-	struct tee_gcm_state *gcm = ctx;
-	int ltc_res;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_gcm_state *gcm = to_tee_gcm_state(aectx);
+	int ltc_res = 0;
 
 	/* Finalize the remaining buffer */
-	res = crypto_aes_gcm_update_payload(ctx, TEE_MODE_ENCRYPT, src_data,
+	res = crypto_aes_gcm_update_payload(aectx, TEE_MODE_ENCRYPT, src_data,
 					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2649,14 +2705,15 @@ TEE_Result crypto_aes_gcm_enc_final(void *ctx, const uint8_t *src_data,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
-				    size_t len, uint8_t *dst_data,
-				    const uint8_t *tag, size_t tag_len)
+static TEE_Result crypto_aes_gcm_dec_final(struct crypto_authenc_ctx *aectx,
+					   const uint8_t *src_data, size_t len,
+					   uint8_t *dst_data,
+					   const uint8_t *tag, size_t tag_len)
 {
 	TEE_Result res = TEE_ERROR_BAD_STATE;
-	struct tee_gcm_state *gcm = ctx;
-	int ltc_res;
-	uint8_t dst_tag[TEE_GCM_TAG_MAX_LENGTH];
+	struct tee_gcm_state *gcm = to_tee_gcm_state(aectx);
+	int ltc_res = 0;
+	uint8_t dst_tag[TEE_GCM_TAG_MAX_LENGTH] = { 0 };
 	unsigned long ltc_tag_len = tag_len;
 
 	if (tag_len == 0)
@@ -2665,7 +2722,7 @@ TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
 		return TEE_ERROR_BAD_STATE;
 
 	/* Process the last buffer, if any */
-	res = crypto_aes_gcm_update_payload(ctx, TEE_MODE_DECRYPT, src_data,
+	res = crypto_aes_gcm_update_payload(aectx, TEE_MODE_DECRYPT, src_data,
 					    len, dst_data);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -2682,12 +2739,21 @@ TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
 	return res;
 }
 
-void crypto_aes_gcm_final(void *ctx)
+static void crypto_aes_gcm_final(struct crypto_authenc_ctx *aectx)
 {
-	struct tee_gcm_state *gcm = ctx;
-
-	gcm_reset(&gcm->ctx);
+	gcm_reset(&to_tee_gcm_state(aectx)->ctx);
 }
+
+static const struct crypto_authenc_ops aes_gcm_ops = {
+	.init = crypto_aes_gcm_init,
+	.update_aad = crypto_aes_gcm_update_aad,
+	.update_payload = crypto_aes_gcm_update_payload,
+	.enc_final = crypto_aes_gcm_enc_final,
+	.dec_final = crypto_aes_gcm_dec_final,
+	.final = crypto_aes_gcm_final,
+	.free_ctx = crypto_aes_gcm_free_ctx,
+	.copy_state = crypto_aes_gcm_copy_state,
+};
 #endif /*CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
 
 TEE_Result crypto_init(void)
