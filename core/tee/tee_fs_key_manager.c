@@ -148,6 +148,7 @@ static TEE_Result tee_fs_init_key_manager(void)
 	 *     message := concatenate(chip_id, static string)
 	 * */
 	tee_otp_get_hw_unique_key(&huk);
+	memset(chip_id, 0, sizeof(chip_id));
 	if (tee_otp_get_die_id(chip_id, sizeof(chip_id)))
 		return TEE_ERROR_BAD_STATE;
 
