@@ -17,7 +17,6 @@
  *  limitations under the License.
  */
 
-#include <crypto/aes-gcm.h>
 #include <io.h>
 #include <kernel/panic.h>
 #include <string.h>

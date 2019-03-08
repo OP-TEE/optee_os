@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <crypto/internal_aes-gcm.h>
+#include <crypto/crypto_impl.h>
 #include <io.h>
 #include <string_ext.h>
 #include <string.h>
@@ -402,65 +403,104 @@ TEE_Result internal_aes_gcm_dec(const struct internal_aes_gcm_key *enc_key,
 
 
 #ifndef CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB
-#include <crypto/aes-gcm.h>
 #include <stdlib.h>
+#include <crypto/crypto.h>
 
-TEE_Result crypto_aes_gcm_alloc_ctx(void **ctx_ret)
+struct aes_gcm_ctx {
+	struct crypto_authenc_ctx aec;
+	struct internal_aes_gcm_ctx ctx;
+};
+
+static const struct crypto_authenc_ops aes_gcm_ops;
+
+static struct aes_gcm_ctx *
+to_aes_gcm_ctx(struct crypto_authenc_ctx *aec)
 {
-	struct internal_aes_gcm_ctx *ctx = calloc(1, sizeof(*ctx));
+	assert(aec->ops == &aes_gcm_ops);
+
+	return container_of(aec, struct aes_gcm_ctx, aec);
+}
+
+TEE_Result crypto_aes_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx_ret)
+{
+	struct aes_gcm_ctx *ctx = calloc(1, sizeof(*ctx));
 
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	ctx->aec.ops = &aes_gcm_ops;
 
-	*ctx_ret = ctx;
+	*ctx_ret = &ctx->aec;
+
 	return TEE_SUCCESS;
 }
 
-void crypto_aes_gcm_free_ctx(void *ctx)
+static void aes_gcm_free_ctx(struct crypto_authenc_ctx *aec)
 {
-	free(ctx);
+	free(to_aes_gcm_ctx(aec));
 }
 
-void crypto_aes_gcm_copy_state(void *dst_ctx, void *src_ctx)
+static void aes_gcm_copy_state(struct crypto_authenc_ctx *dst_ctx,
+			       struct crypto_authenc_ctx *src_ctx)
 {
-	memcpy(dst_ctx, src_ctx, sizeof(struct internal_aes_gcm_ctx));
+	to_aes_gcm_ctx(dst_ctx)->ctx = to_aes_gcm_ctx(src_ctx)->ctx;
 }
 
-TEE_Result crypto_aes_gcm_init(void *c, TEE_OperationMode mode,
+static TEE_Result aes_gcm_init(struct crypto_authenc_ctx *aec,
+			       TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
-			       size_t tag_len)
+			       size_t tag_len, size_t aad_len __unused,
+			       size_t payload_len __unused)
 {
-	return internal_aes_gcm_init(c, mode, key, key_len, nonce, nonce_len,
-				     tag_len);
+	return internal_aes_gcm_init(&to_aes_gcm_ctx(aec)->ctx, mode, key,
+				     key_len, nonce, nonce_len, tag_len);
 }
 
-TEE_Result crypto_aes_gcm_update_aad(void *c, const uint8_t *data, size_t len)
+static TEE_Result aes_gcm_update_aad(struct crypto_authenc_ctx *aec,
+				     const uint8_t *data, size_t len)
 {
-	return internal_aes_gcm_update_aad(c, data, len);
+	return internal_aes_gcm_update_aad(&to_aes_gcm_ctx(aec)->ctx, data,
+					   len);
 }
 
-TEE_Result crypto_aes_gcm_update_payload(void *c, TEE_OperationMode m,
+static TEE_Result aes_gcm_update_payload(struct crypto_authenc_ctx *aec,
+					 TEE_OperationMode m,
 					 const uint8_t *src, size_t len,
 					 uint8_t *dst)
 {
-	return internal_aes_gcm_update_payload(c, m, src, len, dst);
+	return internal_aes_gcm_update_payload(&to_aes_gcm_ctx(aec)->ctx,
+					       m, src, len, dst);
 }
 
-TEE_Result crypto_aes_gcm_enc_final(void *c, const uint8_t *src, size_t len,
+static TEE_Result aes_gcm_enc_final(struct crypto_authenc_ctx *aec,
+				    const uint8_t *src, size_t len,
 				    uint8_t *dst, uint8_t *tag, size_t *tag_len)
 {
-	return internal_aes_gcm_enc_final(c, src, len, dst, tag, tag_len);
+	return internal_aes_gcm_enc_final(&to_aes_gcm_ctx(aec)->ctx, src, len,
+					  dst, tag, tag_len);
 }
 
-TEE_Result crypto_aes_gcm_dec_final(void *c, const uint8_t *src, size_t len,
+static TEE_Result aes_gcm_dec_final(struct crypto_authenc_ctx *aec,
+				    const uint8_t *src, size_t len,
 				    uint8_t *dst, const uint8_t *tag,
 				    size_t tag_len)
 {
-	return internal_aes_gcm_dec_final(c, src, len, dst, tag, tag_len);
+	return internal_aes_gcm_dec_final(&to_aes_gcm_ctx(aec)->ctx, src, len,
+					  dst, tag, tag_len);
 }
 
-void crypto_aes_gcm_final(void *c __unused)
+static void aes_gcm_final(struct crypto_authenc_ctx *aec __unused)
 {
 }
+
+static const struct crypto_authenc_ops aes_gcm_ops = {
+	.init = aes_gcm_init,
+	.update_aad = aes_gcm_update_aad,
+	.update_payload = aes_gcm_update_payload,
+	.enc_final = aes_gcm_enc_final,
+	.dec_final = aes_gcm_dec_final,
+	.final = aes_gcm_final,
+	.free_ctx = aes_gcm_free_ctx,
+	.copy_state = aes_gcm_copy_state,
+};
 #endif /*!CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
