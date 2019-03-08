@@ -164,7 +164,7 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 }
 
 #ifdef CFG_DT
-/* Return GPIO bank node if valid and a negative libfdt error othewise */
+/* Panic if GPIO bank information from platform do not match DTB description */
 static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 {
 	int pinctrl_subnode = 0;
