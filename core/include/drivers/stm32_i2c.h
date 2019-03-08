@@ -6,6 +6,7 @@
 #ifndef __STM32_I2C_H
 #define __STM32_I2C_H
 
+#include <drivers/stm32_gpio.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -89,6 +90,8 @@ struct i2c_cfg {
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
  * @sec_cfg: I2C regsiters configuration storage
+ * @pinctrl: PINCTRLs configuration for the I2C PINs
+ * @pinctrl_count: Number of PINCTRLs elements
  */
 struct i2c_handle_s {
 	struct io_pa_va base;
@@ -96,6 +99,8 @@ struct i2c_handle_s {
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
 	struct i2c_cfg sec_cfg;
+	struct stm32_pinctrl *pinctrl;
+	size_t pinctrl_count;
 };
 
 /* STM32 specific defines */
@@ -112,10 +117,14 @@ struct i2c_handle_s {
  * @fdt: Reference to DT
  * @node: Target I2C node in the DT
  * @init: Output stm32_i2c_init_s structure
+ * @pinctrl: Reference to output pinctrl array
+ * @pinctrl_count: Input @pinctrl array size, output expected size
  * Return 0 on success else a negative value
  */
 int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
-				 struct stm32_i2c_init_s *init);
+				 struct stm32_i2c_init_s *init,
+				 struct stm32_pinctrl **pinctrl,
+				 size_t *pinctrl_count);
 
 /*
  * Initialize I2C bus handle from input configuration directives
