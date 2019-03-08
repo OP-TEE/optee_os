@@ -16,7 +16,7 @@
 #define TA_FLAG_MULTI_SESSION		(1 << 3)
 #define TA_FLAG_INSTANCE_KEEP_ALIVE	(1 << 4) /* remains after last close */
 #define TA_FLAG_SECURE_DATA_PATH	(1 << 5) /* accesses SDP memory */
-#define TA_FLAG_REMAP_SUPPORT		(1 << 6) /* use map/unmap syscalls */
+#define TA_FLAG_REMAP_SUPPORT		0	 /* Deprecated, was (1 << 6) */
 #define TA_FLAG_CACHE_MAINTENANCE	(1 << 7) /* use cache flush syscall */
 	/*
 	 * TA instance can execute multiple sessions concurrently
