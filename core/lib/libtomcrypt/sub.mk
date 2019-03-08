@@ -5,3 +5,5 @@ cflags-lib-$(CFG_CRYPTO_SIZE_OPTIMIZATION) += -Os
 global-incdirs-y += include
 
 subdirs-y += src
+
+srcs-$(_CFG_CRYPTO_WITH_HASH) += hash.c
