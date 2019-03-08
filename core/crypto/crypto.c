@@ -86,49 +86,94 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo __unused,
 	return hash_ops(ctx)->final(ctx, digest, len);
 }
 
-#if !defined(_CFG_CRYPTO_WITH_CIPHER)
-TEE_Result crypto_cipher_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	struct crypto_cipher_ctx *c = NULL;
+
+	switch (algo) {
+	case TEE_ALG_AES_ECB_NOPAD:
+		res = crypto_aes_ecb_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CBC_NOPAD:
+		res = crypto_aes_cbc_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CTR:
+		res = crypto_aes_ctr_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CTS:
+		res = crypto_aes_cts_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_XTS:
+		res = crypto_aes_xts_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES_ECB_NOPAD:
+		res = crypto_des_ecb_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES3_ECB_NOPAD:
+		res = crypto_des3_ecb_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES_CBC_NOPAD:
+		res = crypto_des_cbc_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES3_CBC_NOPAD:
+		res = crypto_des3_cbc_alloc_ctx(&c);
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (!res)
+		*ctx = c;
+
+	return res;
+}
+
+static const struct crypto_cipher_ops *cipher_ops(void *ctx)
+{
+	struct crypto_cipher_ctx *c = ctx;
+
+	assert(c && c->ops);
+
+	return c->ops;
 }
 
 void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
 {
 	if (ctx)
-		assert(0);
+		cipher_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_cipher_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
 			      uint32_t algo __unused)
 {
-	assert(0);
+	cipher_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
 TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
-			      TEE_OperationMode mode __unused,
-			      const uint8_t *key1 __unused,
-			      size_t key1_len __unused,
-			      const uint8_t *key2 __unused,
-			      size_t key2_len __unused,
-			      const uint8_t *iv __unused,
-			      size_t iv_len __unused)
+			      TEE_OperationMode mode, const uint8_t *key1,
+			      size_t key1_len, const uint8_t *key2,
+			      size_t key2_len, const uint8_t *iv, size_t iv_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (mode != TEE_MODE_DECRYPT && mode != TEE_MODE_ENCRYPT)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return cipher_ops(ctx)->init(ctx, mode, key1, key1_len, key2, key2_len,
+				     iv, iv_len);
 }
 
-TEE_Result crypto_cipher_update(void *ctx __unused, uint32_t algo __unused,
+TEE_Result crypto_cipher_update(void *ctx, uint32_t algo __unused,
 				TEE_OperationMode mode __unused,
-				bool last_block __unused,
-				const uint8_t *data __unused,
-				size_t len __unused, uint8_t *dst __unused)
+				bool last_block, const uint8_t *data,
+				size_t len, uint8_t *dst)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return cipher_ops(ctx)->update(ctx, last_block, data, len, dst);
 }
 
-void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
+void crypto_cipher_final(void *ctx, uint32_t algo __unused)
 {
+	cipher_ops(ctx)->final(ctx);
 }
-#endif /*_CFG_CRYPTO_WITH_CIPHER*/
 
 TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 {
