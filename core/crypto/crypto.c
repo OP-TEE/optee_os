@@ -12,6 +12,7 @@
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utee_defines.h>
 
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 {
@@ -127,13 +128,28 @@ TEE_Result crypto_cipher_update(void *ctx __unused, uint32_t algo __unused,
 void crypto_cipher_final(void *ctx __unused, uint32_t algo __unused)
 {
 }
-
-TEE_Result crypto_cipher_get_block_size(uint32_t algo __unused,
-					size_t *size __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
 #endif /*_CFG_CRYPTO_WITH_CIPHER*/
+
+TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
+{
+	uint32_t class = TEE_ALG_GET_CLASS(algo);
+
+	if (class != TEE_OPERATION_CIPHER && class != TEE_OPERATION_MAC &&
+	    class != TEE_OPERATION_AE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (TEE_ALG_GET_MAIN_ALG(algo)) {
+	case TEE_MAIN_ALGO_AES:
+		*size = TEE_AES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	case TEE_MAIN_ALGO_DES:
+	case TEE_MAIN_ALGO_DES3:
+		*size = TEE_DES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+}
 
 #if !defined(_CFG_CRYPTO_WITH_MAC)
 TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
