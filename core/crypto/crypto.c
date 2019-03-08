@@ -8,43 +8,82 @@
 #include <crypto/aes-ccm.h>
 #include <crypto/aes-gcm.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(_CFG_CRYPTO_WITH_HASH)
-TEE_Result crypto_hash_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	struct crypto_hash_ctx *c = NULL;
+
+	switch (algo) {
+	case TEE_ALG_MD5:
+		res = crypto_md5_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SHA1:
+		res = crypto_sha1_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SHA224:
+		res = crypto_sha224_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SHA256:
+		res = crypto_sha256_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SHA384:
+		res = crypto_sha384_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SHA512:
+		res = crypto_sha512_alloc_ctx(&c);
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (!res)
+		*ctx = c;
+
+	return res;
+}
+
+static const struct crypto_hash_ops *hash_ops(void *ctx)
+{
+	struct crypto_hash_ctx *c = ctx;
+
+	assert(c && c->ops);
+
+	return c->ops;
 }
 
 void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
 {
 	if (ctx)
-		assert(0);
+		hash_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_hash_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx,
 			    uint32_t algo __unused)
 {
-	assert(0);
+	hash_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_hash_init(void *ctx __unused, uint32_t algo __unused)
+TEE_Result crypto_hash_init(void *ctx, uint32_t algo __unused)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return hash_ops(ctx)->init(ctx);
 }
-TEE_Result crypto_hash_update(void *ctx __unused, uint32_t algo __unused,
-			      const uint8_t *data __unused, size_t len __unused)
+
+TEE_Result crypto_hash_update(void *ctx, uint32_t algo __unused,
+			      const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return hash_ops(ctx)->update(ctx, data, len);
 }
-TEE_Result crypto_hash_final(void *ctx __unused, uint32_t algo __unused,
-			     uint8_t *digest __unused, size_t len __unused)
+
+TEE_Result crypto_hash_final(void *ctx, uint32_t algo __unused,
+			     uint8_t *digest, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return hash_ops(ctx)->final(ctx, digest, len);
 }
-#endif /*_CFG_CRYPTO_WITH_HASH*/
 
 #if !defined(_CFG_CRYPTO_WITH_CIPHER)
 TEE_Result crypto_cipher_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
