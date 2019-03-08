@@ -125,4 +125,73 @@ TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx);
 #else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
 #endif
+
+/*
+ * The crypto context used by the crypto_cipher_*() functions is defined by
+ * struct crypto_cipher_ctx.
+ */
+struct crypto_cipher_ctx {
+	const struct crypto_cipher_ops *ops;
+};
+
+struct crypto_cipher_ops {
+	TEE_Result (*init)(struct crypto_cipher_ctx *ctx,
+			   TEE_OperationMode mode,
+			   const uint8_t *key1, size_t key1_len,
+			   const uint8_t *key2, size_t key2_len,
+			   const uint8_t *iv, size_t iv_len);
+	TEE_Result (*update)(struct crypto_cipher_ctx *ctx, bool last_block,
+			     const uint8_t *data, size_t len, uint8_t *dst);
+	void (*final)(struct crypto_cipher_ctx *ctx);
+
+	void (*free_ctx)(struct crypto_cipher_ctx *ctx);
+	void (*copy_state)(struct crypto_cipher_ctx *dst_ctx,
+			   struct crypto_cipher_ctx *src_ctx);
+};
+
+#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_ECB)
+TEE_Result crypto_aes_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_ecb, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_CBC)
+TEE_Result crypto_aes_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cbc, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_CTR)
+TEE_Result crypto_aes_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_ctr, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_CTS)
+TEE_Result crypto_aes_cts_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cts, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_XTS)
+TEE_Result crypto_aes_xts_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_xts, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_DES) && defined(CFG_CRYPTO_ECB)
+TEE_Result crypto_des_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx);
+TEE_Result crypto_des3_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_ecb, cipher)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_ecb, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_DES) && defined(CFG_CRYPTO_CBC)
+TEE_Result crypto_des_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx);
+TEE_Result crypto_des3_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc, cipher)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc, cipher)
+#endif
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/
