@@ -7,3 +7,5 @@ global-incdirs-y += include
 subdirs-y += src
 
 srcs-$(_CFG_CRYPTO_WITH_HASH) += hash.c
+srcs-$(CFG_CRYPTO_HMAC) += hmac.c
+srcs-$(CFG_CRYPTO_CMAC) += cmac.c
