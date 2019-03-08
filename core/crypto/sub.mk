@@ -13,3 +13,7 @@ srcs-y += rng_fortuna.c
 else
 srcs-y += rng_hw.c
 endif
+
+ifneq ($(CFG_CRYPTO_CBC_MAC_FROM_CRYPTOLIB),y)
+srcs-$(CFG_CRYPTO_CBC_MAC) += cbc-mac.c
+endif

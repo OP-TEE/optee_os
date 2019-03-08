@@ -128,8 +128,7 @@ static void tee_ltc_reg_algs(void)
 }
 
 
-#if defined(_CFG_CRYPTO_WITH_HASH) || defined(CFG_CRYPTO_RSA) || \
-	defined(CFG_CRYPTO_HMAC)
+#if defined(CFG_CRYPTO_RSA)
 
 /*
  * Compute the LibTomCrypt "hashindex" given a TEE Algorithm "algo"
@@ -146,16 +145,11 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
-	case TEE_ALG_SHA1:
-	case TEE_ALG_DSA_SHA1:
-	case TEE_ALG_HMAC_SHA1:
 		*ltc_hashindex = find_hash("sha1");
 		break;
 #endif
 #if defined(CFG_CRYPTO_MD5)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
-	case TEE_ALG_MD5:
-	case TEE_ALG_HMAC_MD5:
 		*ltc_hashindex = find_hash("md5");
 		break;
 #endif
@@ -163,9 +157,6 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
-	case TEE_ALG_SHA224:
-	case TEE_ALG_DSA_SHA224:
-	case TEE_ALG_HMAC_SHA224:
 		*ltc_hashindex = find_hash("sha224");
 		break;
 #endif
@@ -173,9 +164,6 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
-	case TEE_ALG_SHA256:
-	case TEE_ALG_DSA_SHA256:
-	case TEE_ALG_HMAC_SHA256:
 		*ltc_hashindex = find_hash("sha256");
 		break;
 #endif
@@ -183,8 +171,6 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
-	case TEE_ALG_SHA384:
-	case TEE_ALG_HMAC_SHA384:
 		*ltc_hashindex = find_hash("sha384");
 		break;
 #endif
@@ -192,8 +178,6 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
-	case TEE_ALG_SHA512:
-	case TEE_ALG_HMAC_SHA512:
 		*ltc_hashindex = find_hash("sha512");
 		break;
 #endif
@@ -212,8 +196,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 	else
 		return TEE_SUCCESS;
 }
-#endif /* defined(_CFG_CRYPTO_WITH_HASH) ||
-	  defined(_CFG_CRYPTO_WITH_ACIPHER) || defined(_CFG_CRYPTO_WITH_MAC) */
+#endif /* defined(CFG_CRYPTO_RSA) */
 
 #if defined(_CFG_CRYPTO_WITH_CIPHER) || defined(_CFG_CRYPTO_WITH_MAC) || \
 	defined(_CFG_CRYPTO_WITH_AUTHENC)
@@ -1843,345 +1826,6 @@ void crypto_cipher_final(void *ctx, uint32_t algo)
 	}
 }
 #endif /* _CFG_CRYPTO_WITH_CIPHER */
-
-/*****************************************************************************
- * Message Authentication Code functions
- *****************************************************************************/
-
-#if defined(_CFG_CRYPTO_WITH_MAC)
-
-#if defined(CFG_CRYPTO_CBC_MAC)
-/*
- * CBC-MAC is not implemented in Libtomcrypt
- * This is implemented here as being the plain text which is encoded with IV=0.
- * Result of the CBC-MAC is the last 16-bytes cipher.
- */
-
-#define CBCMAC_MAX_BLOCK_LEN 16
-struct cbc_state {
-	symmetric_CBC cbc;
-	uint8_t block[CBCMAC_MAX_BLOCK_LEN];
-	uint8_t digest[CBCMAC_MAX_BLOCK_LEN];
-	size_t current_block_len, block_len;
-	int is_computed;
-};
-#endif
-
-static TEE_Result mac_get_ctx_size(uint32_t algo, size_t *size)
-{
-	switch (algo) {
-#if defined(CFG_CRYPTO_HMAC)
-	case TEE_ALG_HMAC_MD5:
-	case TEE_ALG_HMAC_SHA224:
-	case TEE_ALG_HMAC_SHA1:
-	case TEE_ALG_HMAC_SHA256:
-	case TEE_ALG_HMAC_SHA384:
-	case TEE_ALG_HMAC_SHA512:
-		*size = sizeof(hmac_state);
-		break;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC)
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		*size = sizeof(struct cbc_state);
-		break;
-#endif
-#if defined(CFG_CRYPTO_CMAC)
-	case TEE_ALG_AES_CMAC:
-		*size = sizeof(omac_state);
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result crypto_mac_alloc_ctx(void **ctx_ret, uint32_t algo)
-{
-	TEE_Result res;
-	size_t ctx_size;
-	void *ctx;
-
-	res = mac_get_ctx_size(algo, &ctx_size);
-	if (res)
-		return res;
-
-	ctx = calloc(1, ctx_size);
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	*ctx_ret = ctx;
-	return TEE_SUCCESS;
-}
-
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __maybe_unused)
-{
-	size_t ctx_size __maybe_unused;
-
-	/*
-	 * Check that it's a supported algo, or crypto_mac_alloc_ctx()
-	 * could never have succeded above.
-	 */
-	if (ctx)
-		assert(!mac_get_ctx_size(algo, &ctx_size));
-	free(ctx);
-}
-
-void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo)
-{
-	TEE_Result res __maybe_unused;
-	size_t ctx_size = 0;
-
-	res = mac_get_ctx_size(algo, &ctx_size);
-	assert(!res);
-	memcpy(dst_ctx, src_ctx, ctx_size);
-}
-
-TEE_Result crypto_mac_init(void *ctx, uint32_t algo, const uint8_t *key,
-			   size_t len)
-{
-	TEE_Result res;
-#if defined(CFG_CRYPTO_HMAC)
-	int ltc_hashindex;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC) || defined(CFG_CRYPTO_CMAC)
-	int ltc_cipherindex;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC)
-	uint8_t *real_key;
-	uint8_t key_array[24];
-	size_t real_key_len;
-	uint8_t iv[CBCMAC_MAX_BLOCK_LEN];
-	struct cbc_state *cbc;
-#endif
-
-	switch (algo) {
-#if defined(CFG_CRYPTO_HMAC)
-	case TEE_ALG_HMAC_MD5:
-	case TEE_ALG_HMAC_SHA224:
-	case TEE_ALG_HMAC_SHA1:
-	case TEE_ALG_HMAC_SHA256:
-	case TEE_ALG_HMAC_SHA384:
-	case TEE_ALG_HMAC_SHA512:
-		res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
-		if (res != TEE_SUCCESS)
-			return res;
-		if (CRYPT_OK !=
-		    hmac_init((hmac_state *)ctx, ltc_hashindex, key, len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC)
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		cbc = (struct cbc_state *)ctx;
-
-		res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
-		if (res != TEE_SUCCESS)
-			return res;
-
-		cbc->block_len =
-			cipher_descriptor[ltc_cipherindex]->block_length;
-		if (CBCMAC_MAX_BLOCK_LEN < cbc->block_len)
-			return TEE_ERROR_BAD_PARAMETERS;
-		memset(iv, 0, cbc->block_len);
-
-		if (algo == TEE_ALG_DES3_CBC_MAC_NOPAD ||
-		    algo == TEE_ALG_DES3_CBC_MAC_PKCS5) {
-			get_des2_key(key, len, key_array,
-				     &real_key, &real_key_len);
-			key = real_key;
-			len = real_key_len;
-		}
-		if (CRYPT_OK != cbc_start(
-			ltc_cipherindex, iv, key, len, 0, &cbc->cbc))
-				return TEE_ERROR_BAD_STATE;
-		cbc->is_computed = 0;
-		cbc->current_block_len = 0;
-		break;
-#endif
-#if defined(CFG_CRYPTO_CMAC)
-	case TEE_ALG_AES_CMAC:
-		res = tee_algo_to_ltc_cipherindex(algo, &ltc_cipherindex);
-		if (res != TEE_SUCCESS)
-			return res;
-		if (CRYPT_OK != omac_init((omac_state *)ctx, ltc_cipherindex,
-					  key, len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result crypto_mac_update(void *ctx, uint32_t algo, const uint8_t *data,
-			     size_t len)
-{
-#if defined(CFG_CRYPTO_CBC_MAC)
-	int ltc_res;
-	struct cbc_state *cbc;
-	size_t pad_len;
-#endif
-
-	if (!data || !len)
-		return TEE_SUCCESS;
-
-	switch (algo) {
-#if defined(CFG_CRYPTO_HMAC)
-	case TEE_ALG_HMAC_MD5:
-	case TEE_ALG_HMAC_SHA224:
-	case TEE_ALG_HMAC_SHA1:
-	case TEE_ALG_HMAC_SHA256:
-	case TEE_ALG_HMAC_SHA384:
-	case TEE_ALG_HMAC_SHA512:
-		if (CRYPT_OK != hmac_process((hmac_state *)ctx, data, len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC)
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		cbc = ctx;
-
-		if ((cbc->current_block_len > 0) &&
-		    (len + cbc->current_block_len >= cbc->block_len)) {
-			pad_len = cbc->block_len - cbc->current_block_len;
-			memcpy(cbc->block + cbc->current_block_len,
-			       data, pad_len);
-			data += pad_len;
-			len -= pad_len;
-			ltc_res = cbc_encrypt(cbc->block, cbc->digest,
-					      cbc->block_len, &cbc->cbc);
-			if (CRYPT_OK != ltc_res)
-				return TEE_ERROR_BAD_STATE;
-			cbc->is_computed = 1;
-			cbc->current_block_len = 0;
-		}
-
-		while (len >= cbc->block_len) {
-			ltc_res = cbc_encrypt(data, cbc->digest,
-					      cbc->block_len, &cbc->cbc);
-			if (CRYPT_OK != ltc_res)
-				return TEE_ERROR_BAD_STATE;
-			cbc->is_computed = 1;
-			data += cbc->block_len;
-			len -= cbc->block_len;
-		}
-
-		if (len > 0) {
-			assert(cbc->current_block_len + len < cbc->block_len);
-			memcpy(cbc->block + cbc->current_block_len, data, len);
-			cbc->current_block_len += len;
-		}
-		break;
-#endif
-#if defined(CFG_CRYPTO_CMAC)
-	case TEE_ALG_AES_CMAC:
-		if (CRYPT_OK != omac_process((omac_state *)ctx, data, len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
-			    size_t digest_len)
-{
-#if defined(CFG_CRYPTO_CBC_MAC)
-	struct cbc_state *cbc;
-	size_t pad_len;
-#endif
-	unsigned long ltc_digest_len = digest_len;
-
-	switch (algo) {
-#if defined(CFG_CRYPTO_HMAC)
-	case TEE_ALG_HMAC_MD5:
-	case TEE_ALG_HMAC_SHA224:
-	case TEE_ALG_HMAC_SHA1:
-	case TEE_ALG_HMAC_SHA256:
-	case TEE_ALG_HMAC_SHA384:
-	case TEE_ALG_HMAC_SHA512:
-		if (CRYPT_OK != hmac_done((hmac_state *)ctx, digest,
-					  &ltc_digest_len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-#if defined(CFG_CRYPTO_CBC_MAC)
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		cbc = (struct cbc_state *)ctx;
-
-		/* Padding is required */
-		switch (algo) {
-		case TEE_ALG_AES_CBC_MAC_PKCS5:
-		case TEE_ALG_DES_CBC_MAC_PKCS5:
-		case TEE_ALG_DES3_CBC_MAC_PKCS5:
-			/*
-			 * Padding is in whole bytes. The value of each added
-			 * byte is the number of bytes that are added, i.e. N
-			 * bytes, each of value N are added
-			 */
-			pad_len = cbc->block_len - cbc->current_block_len;
-			memset(cbc->block+cbc->current_block_len,
-			       pad_len, pad_len);
-			cbc->current_block_len = 0;
-			if (TEE_SUCCESS != crypto_mac_update(ctx, algo,
-							     cbc->block,
-							     cbc->block_len))
-					return TEE_ERROR_BAD_STATE;
-			break;
-		default:
-			/* nothing to do */
-			break;
-		}
-
-		if ((!cbc->is_computed) || (cbc->current_block_len != 0))
-			return TEE_ERROR_BAD_STATE;
-
-		memcpy(digest, cbc->digest, MIN(ltc_digest_len,
-						cbc->block_len));
-		crypto_cipher_final(&cbc->cbc, algo);
-		break;
-#endif
-#if defined(CFG_CRYPTO_CMAC)
-	case TEE_ALG_AES_CMAC:
-		if (CRYPT_OK != omac_done((omac_state *)ctx, digest,
-					  &ltc_digest_len))
-			return TEE_ERROR_BAD_STATE;
-		break;
-#endif
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-
-	return TEE_SUCCESS;
-}
-#endif /* _CFG_CRYPTO_WITH_MAC */
 
 /******************************************************************************
  * Authenticated encryption

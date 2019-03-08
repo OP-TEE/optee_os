@@ -68,4 +68,61 @@ TEE_Result crypto_sha512_alloc_ctx(struct crypto_hash_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha512, hash)
 #endif
 
+/*
+ * The crypto context used by the crypto_mac_*() functions is defined by
+ * struct crypto_mac_ctx.
+ */
+struct crypto_mac_ctx {
+	const struct crypto_mac_ops *ops;
+};
+
+struct crypto_mac_ops {
+	TEE_Result (*init)(struct crypto_mac_ctx *ctx, const uint8_t *key,
+			   size_t len);
+	TEE_Result (*update)(struct crypto_mac_ctx *ctx, const uint8_t *data,
+			     size_t len);
+	TEE_Result (*final)(struct crypto_mac_ctx *ctx, uint8_t *digest,
+			    size_t len);
+	void (*free_ctx)(struct crypto_mac_ctx *ctx);
+	void (*copy_state)(struct crypto_mac_ctx *dst_ctx,
+			   struct crypto_mac_ctx *src_ctx);
+};
+
+#if defined(CFG_CRYPTO_HMAC)
+TEE_Result crypto_hmac_md5_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_md5, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha1, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha224, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha256, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha384, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
+#endif
+
+#if defined(CFG_CRYPTO_CBC_MAC)
+TEE_Result crypto_aes_cbc_mac_nopad_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_aes_cbc_mac_pkcs5_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_des_cbc_mac_nopad_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_des_cbc_mac_pkcs5_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_des3_cbc_mac_nopad_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_des3_cbc_mac_pkcs5_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cbc_mac_nopad, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cbc_mac_pkcs5, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc_mac_nopad, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc_mac_pkcs5, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc_mac_nopad, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc_mac_pkcs5, mac)
+#endif
+
+#if defined(CFG_CRYPTO_CMAC)
+TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
+#endif
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/

@@ -151,43 +151,101 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 	}
 }
 
-#if !defined(_CFG_CRYPTO_WITH_MAC)
-TEE_Result crypto_mac_alloc_ctx(void **ctx __unused, uint32_t algo __unused)
+TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_SUCCESS;
+	struct crypto_mac_ctx *c = NULL;
+
+	switch (algo) {
+	case TEE_ALG_HMAC_MD5:
+		res = crypto_hmac_md5_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SHA1:
+		res = crypto_hmac_sha1_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SHA224:
+		res = crypto_hmac_sha224_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SHA256:
+		res = crypto_hmac_sha256_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SHA384:
+		res = crypto_hmac_sha384_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SHA512:
+		res = crypto_hmac_sha512_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+		res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+		res = crypto_aes_cbc_mac_pkcs5_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+		res = crypto_des_cbc_mac_nopad_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+		res = crypto_des_cbc_mac_pkcs5_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+		res = crypto_des3_cbc_mac_nopad_alloc_ctx(&c);
+		break;
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
+		break;
+	case TEE_ALG_AES_CMAC:
+		res = crypto_aes_cmac_alloc_ctx(&c);
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	if (!res)
+		*ctx = c;
+
+	return res;
+}
+
+static const struct crypto_mac_ops *mac_ops(void *ctx)
+{
+	struct crypto_mac_ctx *c = ctx;
+
+	assert(c && c->ops);
+
+	return c->ops;
 }
 
 void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
 {
 	if (ctx)
-		assert(0);
+		mac_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_mac_copy_state(void *dst_ctx __unused, void *src_ctx __unused,
-			   uint32_t algo __unused)
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo __unused)
 {
-	assert(0);
+	mac_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_mac_init(void *ctx __unused, uint32_t algo __unused,
-			   const uint8_t *key __unused, size_t len __unused)
+TEE_Result crypto_mac_init(void *ctx, uint32_t algo __unused,
+			   const uint8_t *key, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return mac_ops(ctx)->init(ctx, key, len);
 }
 
-TEE_Result crypto_mac_update(void *ctx __unused, uint32_t algo __unused,
-			     const uint8_t *data __unused, size_t len __unused)
+TEE_Result crypto_mac_update(void *ctx, uint32_t algo __unused,
+			     const uint8_t *data, size_t len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (!len)
+		return TEE_SUCCESS;
+
+	return mac_ops(ctx)->update(ctx, data, len);
 }
 
-TEE_Result crypto_mac_final(void *ctx __unused, uint32_t algo __unused,
-			    uint8_t *digest __unused,
-			    size_t digest_len __unused)
+TEE_Result crypto_mac_final(void *ctx, uint32_t algo __unused,
+			    uint8_t *digest, size_t digest_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return mac_ops(ctx)->final(ctx, digest, digest_len);
 }
-#endif /*_CFG_CRYPTO_WITH_MAC*/
 
 TEE_Result crypto_authenc_alloc_ctx(void **ctx, uint32_t algo)
 {
