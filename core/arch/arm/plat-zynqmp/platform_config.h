@@ -42,7 +42,7 @@
 
 #define GIC_BASE		0xF9010000
 #define UART0_BASE		0xFF000000
-#define UART1_BASE		0xFF001000
+#define UART1_BASE		0xFF010000
 
 #define IT_UART0		53
 #define IT_UART1		54
