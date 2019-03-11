@@ -166,3 +166,40 @@ TEE_Result crypto_sha512_alloc_ctx(struct crypto_hash_ctx **ctx)
 	return ltc_hash_alloc_ctx(ctx, find_hash("sha512"));
 }
 #endif
+
+#if defined(CFG_CRYPTO_SHA256)
+TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
+		size_t data_size)
+{
+	hash_state hs;
+	uint8_t digest[TEE_SHA256_HASH_SIZE];
+
+	if (sha256_init(&hs) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha256_process(&hs, data, data_size) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha256_done(&hs, digest) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (consttime_memcmp(digest, hash, sizeof(digest)) != 0)
+		return TEE_ERROR_SECURITY;
+	return TEE_SUCCESS;
+}
+#endif
+
+#if defined(CFG_CRYPTO_SHA512_256)
+TEE_Result hash_sha512_256_compute(uint8_t *digest, const uint8_t *data,
+		size_t data_size)
+{
+	hash_state hs;
+
+	if (sha512_256_init(&hs) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha512_256_process(&hs, data, data_size) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	if (sha512_256_done(&hs, digest) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+
+	return TEE_SUCCESS;
+}
+#endif
+
