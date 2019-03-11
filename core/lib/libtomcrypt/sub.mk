@@ -16,3 +16,4 @@ srcs-$(CFG_CRYPTO_XTS) += xts.c
 srcs-$(CFG_CRYPTO_CCM) += ccm.c
 srcs-$(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB) += gcm.c
 srcs-$(CFG_CRYPTO_DSA) += dsa.c
+srcs-$(CFG_CRYPTO_ECC) += ecc.c
