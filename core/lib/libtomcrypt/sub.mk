@@ -18,3 +18,4 @@ srcs-$(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB) += gcm.c
 srcs-$(CFG_CRYPTO_DSA) += dsa.c
 srcs-$(CFG_CRYPTO_ECC) += ecc.c
 srcs-$(CFG_CRYPTO_RSA) += rsa.c
+srcs-$(CFG_CRYPTO_DH) += dh.c
