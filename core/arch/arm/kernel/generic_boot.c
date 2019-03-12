@@ -934,6 +934,12 @@ static void init_external_dt(unsigned long phys_dt)
 	IMSG("Non-secure external DT found");
 }
 
+static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
+{
+	return add_res_mem_dt_node(dt, "optee_core", CFG_TZDRAM_START,
+				   CFG_TZDRAM_SIZE);
+}
+
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
@@ -950,6 +956,9 @@ static void update_external_dt(void)
 
 	if (mark_static_shm_as_reserved(dt))
 		panic("Failed to config non-secure memory");
+
+	if (mark_tzdram_as_reserved(dt))
+		panic("Failed to config secure memory");
 
 	ret = fdt_pack(dt->blob);
 	if (ret < 0) {
