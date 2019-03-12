@@ -8,6 +8,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <io.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/lockdep.h>
@@ -1630,21 +1631,23 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 	struct mobj *mobj = NULL;
 	uint64_t cookie = 0;
 	size_t psize = 0;
+	uint64_t attr = 0;
 
 	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
-	psize = arg->params[0].u.tmem.size;
+	psize = READ_ONCE(arg->params[0].u.tmem.size);
 	if (psize < size)
 		return NULL;
 
-	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
+	attr = READ_ONCE(arg->params[0].attr);
+	if (attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
 				      psize,
 				      cookie);
-	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
-					   OPTEE_MSG_ATTR_NONCONTIG)) {
+	} else if (attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
+			    OPTEE_MSG_ATTR_NONCONTIG)) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
