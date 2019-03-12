@@ -201,6 +201,7 @@ void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr);
 void tzc_region_enable(uint8_t region);
 void tzc_security_inversion_en(vaddr_t base);
 void tzc_set_action(enum tzc_action action);
+uint32_t tzc_get_action(void);
 void tzc_fail_dump(void);
 void tzc_int_clear(void);
 

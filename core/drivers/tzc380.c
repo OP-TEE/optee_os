@@ -62,6 +62,11 @@ static void tzc_write_action(vaddr_t base, enum tzc_action action)
 	io_write32(base + ACTION_OFF, action);
 }
 
+static uint32_t tzc_read_action(vaddr_t base)
+{
+	return io_read32(base + ACTION_OFF);
+}
+
 static void tzc_write_region_base_low(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
@@ -202,6 +207,13 @@ void tzc_set_action(enum tzc_action action)
 	 * - The interrupt action has not been tested.
 	 */
 	tzc_write_action(tzc.base, action);
+}
+
+uint32_t tzc_get_action(void)
+{
+	assert(tzc.base);
+
+	return tzc_read_action(tzc.base);
 }
 
 #if TRACE_LEVEL >= TRACE_DEBUG
