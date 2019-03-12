@@ -901,10 +901,10 @@ static void init_external_dt(unsigned long phys_dt)
 		return;
 	}
 
-	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_dt, CFG_DTB_MAX_SIZE))
+	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, phys_dt, CFG_DTB_MAX_SIZE))
 		panic("Failed to map external DTB");
 
-	fdt = phys_to_virt(phys_dt, MEM_AREA_IO_NSEC);
+	fdt = phys_to_virt(phys_dt, MEM_AREA_IO_SEC);
 	if (!fdt)
 		panic();
 
