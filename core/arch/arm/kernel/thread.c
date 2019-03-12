@@ -1625,25 +1625,30 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 }
 
 static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
-				      unsigned int bt)
+				      unsigned int bt, size_t size)
 {
 	struct mobj *mobj = NULL;
 	uint64_t cookie = 0;
+	size_t psize = 0;
 
 	if (arg->ret || arg->num_params != 1)
+		return NULL;
+
+	psize = arg->params[0].u.tmem.size;
+	if (psize < size)
 		return NULL;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size,
+				      psize,
 				      cookie);
 	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 					   OPTEE_MSG_ATTR_NONCONTIG)) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
-			arg->params[0].u.tmem.size,
+			psize,
 			cookie,
 			true);
 	} else {
@@ -1684,7 +1689,7 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
 
-	return get_rpc_alloc_res(arg, bt);
+	return get_rpc_alloc_res(arg, bt, size);
 }
 
 struct mobj *thread_rpc_alloc_payload(size_t size)
