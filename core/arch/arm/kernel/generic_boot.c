@@ -760,21 +760,28 @@ static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
 static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 			       paddr_t pa, size_t size)
 {
-	int offs;
-	int ret;
-	int addr_size = 2;
-	int len_size = 2;
-	char subnode_name[80];
+	int offs = 0;
+	int ret = 0;
+	int addr_size = -1;
+	int len_size = -1;
+	bool found = true;
+	char subnode_name[80] = { 0 };
 
 	offs = fdt_path_offset(dt->blob, "/reserved-memory");
-	if (offs >= 0) {
-		addr_size = fdt_address_cells(dt->blob, offs);
-		if (addr_size < 0)
-			return -1;
-		len_size = fdt_size_cells(dt->blob, offs);
-		if (len_size < 0)
-			return -1;
-	} else {
+
+	if (offs < 0) {
+		found = false;
+		offs = 0;
+	}
+
+	len_size = fdt_size_cells(dt->blob, offs);
+	if (len_size < 0)
+		return -1;
+	addr_size = fdt_address_cells(dt->blob, offs);
+	if (addr_size < 0)
+		return -1;
+
+	if (!found) {
 		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
 		if (offs < 0)
 			return -1;
