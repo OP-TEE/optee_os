@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file pkcs5.h
  *
  * \brief PKCS#5 functions
  *
  * \author Mathias Olsson <mathias@kompetensum.com>
- *
+ */
+/*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -43,6 +44,8 @@
 extern "C" {
 #endif
 
+#if defined(MBEDTLS_ASN1_PARSE_C)
+
 /**
  * \brief          PKCS#5 PBES2 function
  *
@@ -60,6 +63,8 @@ int mbedtls_pkcs5_pbes2( const mbedtls_asn1_buf *pbe_params, int mode,
                  const unsigned char *pwd,  size_t pwdlen,
                  const unsigned char *data, size_t datalen,
                  unsigned char *output );
+
+#endif /* MBEDTLS_ASN1_PARSE_C */
 
 /**
  * \brief          PKCS#5 PBKDF2 using HMAC

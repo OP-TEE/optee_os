@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file oid.c
  *
  * \brief Object Identifier (OID) database
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -625,6 +625,51 @@ static const oid_md_alg_t oid_md_alg[] =
 FN_OID_TYPED_FROM_ASN1(oid_md_alg_t, md_alg, oid_md_alg)
 FN_OID_GET_ATTR1(mbedtls_oid_get_md_alg, oid_md_alg_t, md_alg, mbedtls_md_type_t, md_alg)
 FN_OID_GET_OID_BY_ATTR1(mbedtls_oid_get_oid_by_md, oid_md_alg_t, oid_md_alg, mbedtls_md_type_t, md_alg)
+
+/*
+ * For HMAC digestAlgorithm
+ */
+typedef struct {
+    mbedtls_oid_descriptor_t    descriptor;
+    mbedtls_md_type_t           md_hmac;
+} oid_md_hmac_t;
+
+static const oid_md_hmac_t oid_md_hmac[] =
+{
+#if defined(MBEDTLS_SHA1_C)
+    {
+        { ADD_LEN( MBEDTLS_OID_HMAC_SHA1 ),      "hmacSHA1",      "HMAC-SHA-1" },
+        MBEDTLS_MD_SHA1,
+    },
+#endif /* MBEDTLS_SHA1_C */
+#if defined(MBEDTLS_SHA256_C)
+    {
+        { ADD_LEN( MBEDTLS_OID_HMAC_SHA224 ),    "hmacSHA224",    "HMAC-SHA-224" },
+        MBEDTLS_MD_SHA224,
+    },
+    {
+        { ADD_LEN( MBEDTLS_OID_HMAC_SHA256 ),    "hmacSHA256",    "HMAC-SHA-256" },
+        MBEDTLS_MD_SHA256,
+    },
+#endif /* MBEDTLS_SHA256_C */
+#if defined(MBEDTLS_SHA512_C)
+    {
+        { ADD_LEN( MBEDTLS_OID_HMAC_SHA384 ),    "hmacSHA384",    "HMAC-SHA-384" },
+        MBEDTLS_MD_SHA384,
+    },
+    {
+        { ADD_LEN( MBEDTLS_OID_HMAC_SHA512 ),    "hmacSHA512",    "HMAC-SHA-512" },
+        MBEDTLS_MD_SHA512,
+    },
+#endif /* MBEDTLS_SHA512_C */
+    {
+        { NULL, 0, NULL, NULL },
+        MBEDTLS_MD_NONE,
+    },
+};
+
+FN_OID_TYPED_FROM_ASN1(oid_md_hmac_t, md_hmac, oid_md_hmac)
+FN_OID_GET_ATTR1(mbedtls_oid_get_md_hmac, oid_md_hmac_t, md_hmac, mbedtls_md_type_t, md_hmac)
 #endif /* MBEDTLS_MD_C */
 
 #if defined(MBEDTLS_PKCS12_C)

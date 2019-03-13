@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  SSL session cache implementation
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -321,6 +321,7 @@ void mbedtls_ssl_cache_free( mbedtls_ssl_cache_context *cache )
 #if defined(MBEDTLS_THREADING_C)
     mbedtls_mutex_free( &cache->mutex );
 #endif
+    cache->chain = NULL;
 }
 
 #endif /* MBEDTLS_SSL_CACHE_C */

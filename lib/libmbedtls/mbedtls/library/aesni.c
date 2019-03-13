@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  AES-NI support functions
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -31,6 +31,12 @@
 #endif
 
 #if defined(MBEDTLS_AESNI_C)
+
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#warning "MBEDTLS_AESNI_C is known to cause spurious error reports with some memory sanitizers as they do not understand the assembly code."
+#endif
+#endif
 
 #include "mbedtls/aesni.h"
 
