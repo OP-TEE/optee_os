@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file base64.h
  *
  * \brief RFC 1521 base64 encoding/decoding
- *
+ */
+/*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
