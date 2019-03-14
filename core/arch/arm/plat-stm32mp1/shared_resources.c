@@ -3,6 +3,8 @@
  * Copyright (c) 2017-2019, STMicroelectronics
  */
 
+#include <drivers/stm32_etzpc.h>
+#include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <initcall.h>
@@ -564,6 +566,51 @@ static bool mckprot_resource(enum stm32mp_shres id)
 	}
 }
 
+#ifdef CFG_STM32_ETZPC
+static enum etzpc_decprot_attributes shres2decprot_attr(enum stm32mp_shres id)
+{
+	if (stm32mp_periph_is_non_secure(id))
+		return ETZPC_DECPROT_NS_RW;
+
+	if (mckprot_resource(id))
+		return ETZPC_DECPROT_MCU_ISOLATION;
+
+	return ETZPC_DECPROT_S_RW;
+}
+
+static void set_etzpc_secure_configuration(void)
+{
+	/* Some peripherals shall be secure */
+	etzpc_configure_decprot(STM32MP1_ETZPC_STGENC_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_BKPSRAM_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_DDRCTRL_ID, ETZPC_DECPROT_S_RW);
+	etzpc_configure_decprot(STM32MP1_ETZPC_DDRPHYC_ID, ETZPC_DECPROT_S_RW);
+
+	/* Configure ETZPC with peripheral registering */
+	etzpc_configure_decprot(STM32MP1_ETZPC_IWDG1_ID,
+				shres2decprot_attr(STM32MP1_SHRES_IWDG1));
+	etzpc_configure_decprot(STM32MP1_ETZPC_USART1_ID,
+				shres2decprot_attr(STM32MP1_SHRES_USART1));
+	etzpc_configure_decprot(STM32MP1_ETZPC_SPI6_ID,
+				shres2decprot_attr(STM32MP1_SHRES_SPI6));
+	etzpc_configure_decprot(STM32MP1_ETZPC_I2C4_ID,
+				shres2decprot_attr(STM32MP1_SHRES_I2C4));
+	etzpc_configure_decprot(STM32MP1_ETZPC_RNG1_ID,
+				shres2decprot_attr(STM32MP1_SHRES_RNG1));
+	etzpc_configure_decprot(STM32MP1_ETZPC_HASH1_ID,
+				shres2decprot_attr(STM32MP1_SHRES_HASH1));
+	etzpc_configure_decprot(STM32MP1_ETZPC_CRYP1_ID,
+				shres2decprot_attr(STM32MP1_SHRES_CRYP1));
+	etzpc_configure_decprot(STM32MP1_ETZPC_I2C6_ID,
+				shres2decprot_attr(STM32MP1_SHRES_I2C6));
+}
+#else
+static void set_etzpc_secure_configuration(void)
+{
+	/* Nothing to do */
+}
+#endif
+
 static void check_rcc_secure_configuration(void)
 {
 	bool secure = stm32_rcc_is_secure();
@@ -607,6 +654,7 @@ static TEE_Result stm32mp1_lock_shared_resources(void)
 		     shres2str_id(id), id, shres2str_state(*state));
 	}
 
+	set_etzpc_secure_configuration();
 	check_rcc_secure_configuration();
 
 	return TEE_SUCCESS;
