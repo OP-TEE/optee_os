@@ -183,23 +183,69 @@ static void register_periph(enum stm32mp_shres id, enum shres_state state)
 
 	shres_state[id] = state;
 
-	/* Explore clock tree to lock dependencies */
+	/* Explore clock tree to lock secure clock dependencies */
 	if (state == SHRES_SECURE) {
 		switch (id) {
+		case STM32MP1_SHRES_GPIOZ(0):
+		case STM32MP1_SHRES_GPIOZ(1):
+		case STM32MP1_SHRES_GPIOZ(2):
+		case STM32MP1_SHRES_GPIOZ(3):
+		case STM32MP1_SHRES_GPIOZ(4):
+		case STM32MP1_SHRES_GPIOZ(5):
+		case STM32MP1_SHRES_GPIOZ(6):
+		case STM32MP1_SHRES_GPIOZ(7):
+			stm32mp_register_clock_parents_secure(GPIOZ);
+			break;
+		case STM32MP1_SHRES_IWDG1:
+			stm32mp_register_clock_parents_secure(IWDG1);
+			break;
+		case STM32MP1_SHRES_USART1:
+			stm32mp_register_clock_parents_secure(USART1_K);
+			break;
+		case STM32MP1_SHRES_SPI6:
+			stm32mp_register_clock_parents_secure(SPI6_K);
+			break;
+		case STM32MP1_SHRES_I2C4:
+			stm32mp_register_clock_parents_secure(I2C4_K);
+			break;
+		case STM32MP1_SHRES_RNG1:
+			stm32mp_register_clock_parents_secure(RNG1_K);
+			break;
+		case STM32MP1_SHRES_HASH1:
+			stm32mp_register_clock_parents_secure(HASH1);
+			break;
+		case STM32MP1_SHRES_CRYP1:
+			stm32mp_register_clock_parents_secure(CRYP1);
+			break;
+		case STM32MP1_SHRES_I2C6:
+			stm32mp_register_clock_parents_secure(I2C6_K);
+			break;
+		case STM32MP1_SHRES_RTC:
+			stm32mp_register_clock_parents_secure(RTC);
+			break;
 		case STM32MP1_SHRES_PLL1_P:
 		case STM32MP1_SHRES_PLL1_Q:
 		case STM32MP1_SHRES_PLL1_R:
 			register_periph(STM32MP1_SHRES_PLL1, SHRES_SECURE);
+			break;
+		case STM32MP1_SHRES_PLL1:
+			stm32mp_register_clock_parents_secure(PLL1);
 			break;
 		case STM32MP1_SHRES_PLL2_P:
 		case STM32MP1_SHRES_PLL2_Q:
 		case STM32MP1_SHRES_PLL2_R:
 			register_periph(STM32MP1_SHRES_PLL2, SHRES_SECURE);
 			break;
+		case STM32MP1_SHRES_PLL2:
+			stm32mp_register_clock_parents_secure(PLL2);
+			break;
 		case STM32MP1_SHRES_PLL3_P:
 		case STM32MP1_SHRES_PLL3_Q:
 		case STM32MP1_SHRES_PLL3_R:
 			register_periph(STM32MP1_SHRES_PLL3, SHRES_SECURE);
+			break;
+		case STM32MP1_SHRES_PLL3:
+			stm32mp_register_clock_parents_secure(PLL3);
 			break;
 		default:
 			/* No expected resource dependency */

@@ -441,6 +441,43 @@ static const uint8_t stm32mp1_axi_div[8] = {
 	1, 2, 3, 4, 4, 4, 4, 4
 };
 
+static const char __maybe_unused *const stm32mp1_clk_parent_name[_PARENT_NB] = {
+	[_HSI] = "HSI",
+	[_HSE] = "HSE",
+	[_CSI] = "CSI",
+	[_LSI] = "LSI",
+	[_LSE] = "LSE",
+	[_I2S_CKIN] = "I2S_CKIN",
+	[_HSI_KER] = "HSI_KER",
+	[_HSE_KER] = "HSE_KER",
+	[_HSE_KER_DIV2] = "HSE_KER_DIV2",
+	[_CSI_KER] = "CSI_KER",
+	[_PLL1_P] = "PLL1_P",
+	[_PLL1_Q] = "PLL1_Q",
+	[_PLL1_R] = "PLL1_R",
+	[_PLL2_P] = "PLL2_P",
+	[_PLL2_Q] = "PLL2_Q",
+	[_PLL2_R] = "PLL2_R",
+	[_PLL3_P] = "PLL3_P",
+	[_PLL3_Q] = "PLL3_Q",
+	[_PLL3_R] = "PLL3_R",
+	[_PLL4_P] = "PLL4_P",
+	[_PLL4_Q] = "PLL4_Q",
+	[_PLL4_R] = "PLL4_R",
+	[_ACLK] = "ACLK",
+	[_PCLK1] = "PCLK1",
+	[_PCLK2] = "PCLK2",
+	[_PCLK3] = "PCLK3",
+	[_PCLK4] = "PCLK4",
+	[_PCLK5] = "PCLK5",
+	[_HCLK6] = "KCLK6",
+	[_HCLK2] = "HCLK2",
+	[_CK_PER] = "CK_PER",
+	[_CK_MPU] = "CK_MPU",
+	[_CK_MCU] = "CK_MCU",
+	[_USB_PHY_48] = "USB_PHY_48",
+};
+
 /*
  * Oscillator frequency in Hz. This array shall be initialized
  * according to platform.
@@ -940,6 +977,184 @@ unsigned long stm32_clock_get_rate(unsigned long id)
 		rate = get_timer_rate(rate, 2);
 
 	return rate;
+}
+
+/*
+ * Get the parent ID of the target parent clock, or -1 if no parent found.
+ */
+static int get_parent_id_parent(unsigned int parent_id)
+{
+	enum stm32mp1_parent_sel s = _UNKNOWN_SEL;
+	enum stm32mp1_pll_id pll_id = _PLL_NB;
+	uint32_t p_sel = 0;
+
+	switch (parent_id) {
+	case _ACLK:
+	case _PCLK4:
+	case _PCLK5:
+		s = _ASS_SEL;
+		break;
+	case _PLL1_P:
+	case _PLL1_Q:
+	case _PLL1_R:
+		pll_id = _PLL1;
+		break;
+	case _PLL2_P:
+	case _PLL2_Q:
+	case _PLL2_R:
+		pll_id = _PLL2;
+		break;
+	case _PLL3_P:
+	case _PLL3_Q:
+	case _PLL3_R:
+		pll_id = _PLL3;
+		break;
+	case _PLL4_P:
+	case _PLL4_Q:
+	case _PLL4_R:
+		pll_id = _PLL4;
+		break;
+	case _PCLK1:
+	case _PCLK2:
+	case _HCLK2:
+	case _HCLK6:
+	case _CK_PER:
+	case _CK_MPU:
+	case _CK_MCU:
+	case _USB_PHY_48:
+		/* We do not expected to access these */
+		panic();
+		break;
+	default:
+		/* Other parents have no parent */
+		return -1;
+	}
+
+	if (s != _UNKNOWN_SEL) {
+		const struct stm32mp1_clk_sel *sel = clk_sel_ref(s);
+		vaddr_t rcc_base = stm32_rcc_base();
+
+		p_sel = (io_read32(rcc_base + sel->offset) >> sel->src) &
+			sel->msk;
+
+		if (p_sel < sel->nb_parent)
+			return sel->parent[p_sel];
+	} else {
+		const struct stm32mp1_clk_pll *pll = pll_ref(pll_id);
+
+		p_sel = io_read32(stm32_rcc_base() + pll->rckxselr) &
+			RCC_SELR_REFCLK_SRC_MASK;
+
+		if (pll->refclk[p_sel] != _UNKNOWN_OSC_ID)
+			return pll->refclk[p_sel];
+	}
+
+	FMSG("No parent found for %s", stm32mp1_clk_parent_name[parent_id]);
+	return -1;
+}
+
+static void secure_parent_clocks(unsigned long parent_id)
+{
+	int grandparent_id = 0;
+
+	switch (parent_id) {
+	/* Secure only the parents for these clocks */
+	case _ACLK:
+	case _HCLK2:
+	case _HCLK6:
+	case _PCLK4:
+	case _PCLK5:
+		break;
+	/* PLLs */
+	case _PLL1_P:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_P);
+		break;
+	case _PLL1_Q:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_Q);
+		break;
+	case _PLL1_R:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_R);
+		break;
+
+	case _PLL2_P:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_P);
+		break;
+	case _PLL2_Q:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_Q);
+		break;
+	case _PLL2_R:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_R);
+		break;
+
+	case _PLL3_P:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_P);
+		break;
+	case _PLL3_Q:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_Q);
+		break;
+	case _PLL3_R:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_R);
+		break;
+
+	/* Source clocks */
+	case _HSI:
+	case _HSI_KER:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_HSI);
+		break;
+	case _LSI:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_LSI);
+		break;
+	case _CSI:
+	case _CSI_KER:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_CSI);
+		break;
+	case _HSE:
+	case _HSE_KER:
+	case _HSE_KER_DIV2:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_HSE);
+		break;
+	case _LSE:
+		stm32mp_register_secure_periph(STM32MP1_SHRES_LSE);
+		break;
+
+	default:
+		panic();
+	}
+
+	grandparent_id = get_parent_id_parent(parent_id);
+	if (grandparent_id >= 0)
+		secure_parent_clocks(grandparent_id);
+}
+
+void stm32mp_register_clock_parents_secure(unsigned long clock_id)
+{
+	int parent_id = 0;
+
+	switch (clock_id) {
+	case PLL1:
+		parent_id = get_parent_id_parent(_PLL1_P);
+		break;
+	case PLL2:
+		parent_id = get_parent_id_parent(_PLL2_P);
+		break;
+	case PLL3:
+		parent_id = get_parent_id_parent(_PLL3_P);
+		break;
+	case PLL4:
+		EMSG("PLL4 cannot be secure");
+		panic();
+	default:
+		/* Others are expected gateable clock */
+		parent_id = stm32mp1_clk_get_parent(clock_id);
+		break;
+	}
+
+	if (parent_id < 0) {
+		DMSG("No parent for clock %lu", clock_id);
+		panic();
+	}
+
+	secure_parent_clocks(parent_id);
 }
 
 #ifdef CFG_EMBED_DTB
