@@ -260,4 +260,7 @@ bool stm32mp_clock_is_shared(unsigned long clock_id);
 /* Return true if and only if @clock_id is assigned to non-secure world */
 bool stm32mp_clock_is_non_secure(unsigned long clock_id);
 
+/* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
+void stm32mp_register_clock_parents_secure(unsigned long clock_id);
+
 #endif /*__STM32_UTIL_H__*/
