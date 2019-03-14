@@ -57,26 +57,32 @@ struct bigint_hdr {
 
 #define BIGINT_HDR_SIZE_IN_U32	2
 
-static void init_static_mpi(mbedtls_mpi *mpi, TEE_BigInt *bigInt)
+static TEE_Result copy_mpi_to_bigint(mbedtls_mpi *mpi, TEE_BigInt *bigInt)
 {
 	struct bigint_hdr *hdr = (struct bigint_hdr *)bigInt;
+	size_t n = mpi->n;
 
-	mbedtls_mpi_init_static(mpi, (mbedtls_mpi_uint *)(hdr + 1),
-				hdr->sign, hdr->alloc_size, hdr->nblimbs);
+	/* Trim of eventual insignificant zeroes */
+	while (n && !mpi->p[n - 1])
+		n--;
+
+	if (hdr->alloc_size < n)
+		return TEE_ERROR_OVERFLOW;
+
+	hdr->nblimbs = n;
+	hdr->sign = mpi->s;
+	memcpy(hdr + 1, mpi->p, mpi->n * sizeof(mbedtls_mpi_uint));
+
+	return TEE_SUCCESS;
 }
 
 /*
  * Initializes a MPI.
  *
- * If a bigint is supplied it's initialized with the value of the bigint
- * and changes will be written back completely with a call to put_mpi().
- * The bigint dictates the size of the MPI which will be fixed to this
- * size.
- *
- * If no bigint is supplied a temporary MPI is allocated instead which will
- * be freed by put_mpi().
+ * A temporary MPI is allocated and if a bigInt is supplied the MPI is
+ * initialized with the value of the bigInt.
  */
-static void get_mpi(mbedtls_mpi *mpi, TEE_BigInt *bigInt)
+static void get_mpi(mbedtls_mpi *mpi, const TEE_BigInt *bigInt)
 {
 	/*
 	 * The way the GP spec is defining the bignums it's
@@ -92,45 +98,20 @@ static void get_mpi(mbedtls_mpi *mpi, TEE_BigInt *bigInt)
 	COMPILE_TIME_ASSERT(sizeof(struct bigint_hdr) ==
 			    sizeof(uint32_t) * BIGINT_HDR_SIZE_IN_U32);
 
-	if (bigInt)
-		init_static_mpi(mpi, bigInt);
-	else
-		mbedtls_mpi_init_mempool(mpi);
-}
+	mbedtls_mpi_init_mempool(mpi);
 
-/*
- * Initializes a MPI from a constant bigint.
- *
- * A MPI is allocated and given an initial value based on the supplied
- * bigint. When the MPI is freed with put_mpi() no changes are propagated
- * back.
- */
-static void get_const_mpi(mbedtls_mpi *mpi, const TEE_BigInt *bigInt)
-{
-	mbedtls_mpi mpi_const;
+	if (bigInt) {
+		const struct bigint_hdr *hdr = (struct bigint_hdr *)bigInt;
+		const mbedtls_mpi_uint *p = (const mbedtls_mpi_uint *)(hdr + 1);
+		size_t n = hdr->nblimbs;
 
-	init_static_mpi(&mpi_const, (TEE_BigInt *)bigInt);
-	get_mpi(mpi, NULL);
-	MPI_CHECK(mbedtls_mpi_copy(mpi, &mpi_const));
-}
+		/* Trim of eventual insignificant zeroes */
+		while (n && !p[n - 1])
+			n--;
 
-/*
- * Uninitialize a MPI.
- *
- * If the MPI is linked to a bigint the final changes (size and sign) will
- * be copied back.
- *
- * If the MPI isn't linked to bigint it's only freed.
- */
-static void put_mpi(mbedtls_mpi *mpi)
-{
-	if (mpi->alloc_type == MBEDTLS_MPI_ALLOC_TYPE_STATIC) {
-		struct bigint_hdr *hdr = ((struct bigint_hdr *)mpi->p) - 1;
-
-		hdr->sign = mpi->s;
-		hdr->nblimbs = mpi->n;
-	} else {
-		mbedtls_mpi_free(mpi);
+		MPI_CHECK(mbedtls_mpi_grow(mpi, n));
+		mpi->s = hdr->sign;
+		memcpy(mpi->p, p, n * sizeof(mbedtls_mpi_uint));
 	}
 }
 
@@ -154,7 +135,7 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	TEE_Result res;
 	mbedtls_mpi mpi_dest;
 
-	get_mpi(&mpi_dest, dest);
+	get_mpi(&mpi_dest, NULL);
 
 	if (mbedtls_mpi_read_binary(&mpi_dest,  buffer, bufferLen))
 		res = TEE_ERROR_OVERFLOW;
@@ -164,7 +145,10 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	if (sign < 0)
 		mpi_dest.s = -1;
 
-	put_mpi(&mpi_dest);
+	if (!res)
+		res = copy_mpi_to_bigint(&mpi_dest, dest);
+
+	mbedtls_mpi_free(&mpi_dest);
 
 	return res;
 }
@@ -176,7 +160,7 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
 	mbedtls_mpi mpi;
 	size_t sz;
 
-	get_const_mpi(&mpi, bigInt);
+	get_mpi(&mpi, bigInt);
 
 	sz = mbedtls_mpi_size(&mpi);
 	if (sz <= *bufferLen)
@@ -186,7 +170,7 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
 
 	*bufferLen = sz;
 
-	put_mpi(&mpi);
+	mbedtls_mpi_free(&mpi);
 
 	return res;
 }
@@ -199,7 +183,8 @@ void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal)
 
 	MPI_CHECK(mbedtls_mpi_lset(&mpi, shortVal));
 
-	put_mpi(&mpi);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi, dest));
+	mbedtls_mpi_free(&mpi);
 }
 
 TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
@@ -208,7 +193,7 @@ TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
 	mbedtls_mpi mpi;
 	uint32_t v;
 
-	get_const_mpi(&mpi, src);
+	get_mpi(&mpi, src);
 
 	if (mbedtls_mpi_write_binary(&mpi, (void *)&v, sizeof(v))) {
 		res = TEE_ERROR_OVERFLOW;
@@ -224,7 +209,7 @@ TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
 	}
 
 out:
-	put_mpi(&mpi);
+	mbedtls_mpi_free(&mpi);
 
 	return res;
 }
@@ -235,13 +220,13 @@ int32_t TEE_BigIntCmp(const TEE_BigInt *op1, const TEE_BigInt *op2)
 	mbedtls_mpi mpi2;
 	int32_t rc;
 
-	get_const_mpi(&mpi1, op1);
-	get_const_mpi(&mpi2, op2);
+	get_mpi(&mpi1, op1);
+	get_mpi(&mpi2, op2);
 
 	rc = mbedtls_mpi_cmp_mpi(&mpi1, &mpi2);
 
-	put_mpi(&mpi1);
-	put_mpi(&mpi2);
+	mbedtls_mpi_free(&mpi1);
+	mbedtls_mpi_free(&mpi2);
 
 	return rc;
 }
@@ -251,11 +236,11 @@ int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal)
 	mbedtls_mpi mpi;
 	int32_t rc;
 
-	get_const_mpi(&mpi, op);
+	get_mpi(&mpi, op);
 
 	rc = mbedtls_mpi_cmp_int(&mpi, shortVal);
 
-	put_mpi(&mpi);
+	mbedtls_mpi_free(&mpi);
 
 	return rc;
 }
@@ -272,7 +257,7 @@ void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op, size_t bits)
 		goto out;
 	}
 
-	get_const_mpi(&mpi_op, op);
+	get_mpi(&mpi_op, op);
 
 	if (mbedtls_mpi_size(&mpi_dest) >= mbedtls_mpi_size(&mpi_op)) {
 		MPI_CHECK(mbedtls_mpi_copy(&mpi_dest, &mpi_op));
@@ -291,13 +276,14 @@ void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op, size_t bits)
 		MPI_CHECK(mbedtls_mpi_shift_r(&mpi_t, bits));
 		MPI_CHECK(mbedtls_mpi_copy(&mpi_dest, &mpi_t));
 
-		put_mpi(&mpi_t);
+		mbedtls_mpi_free(&mpi_t);
 	}
 
-	put_mpi(&mpi_op);
+	mbedtls_mpi_free(&mpi_op);
 
 out:
-	put_mpi(&mpi_dest);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+	mbedtls_mpi_free(&mpi_dest);
 }
 
 bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex)
@@ -305,11 +291,11 @@ bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex)
 	bool rc;
 	mbedtls_mpi mpi;
 
-	get_const_mpi(&mpi, src);
+	get_mpi(&mpi, src);
 
 	rc = mbedtls_mpi_get_bit(&mpi, bitIndex);
 
-	put_mpi(&mpi);
+	mbedtls_mpi_free(&mpi);
 
 	return rc;
 }
@@ -319,11 +305,11 @@ uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
 	uint32_t rc;
 	mbedtls_mpi mpi;
 
-	get_const_mpi(&mpi, src);
+	get_mpi(&mpi, src);
 
 	rc = mbedtls_mpi_bitlen(&mpi);
 
-	put_mpi(&mpi);
+	mbedtls_mpi_free(&mpi);
 
 	return rc;
 }
@@ -344,22 +330,23 @@ static void bigint_binary(TEE_BigInt *dest, const TEE_BigInt *op1,
 	if (op1 == dest)
 		pop1 = &mpi_dest;
 	else
-		get_const_mpi(&mpi_op1, op1);
+		get_mpi(&mpi_op1, op1);
 
 	if (op2 == dest)
 		pop2 = &mpi_dest;
 	else if (op2 == op1)
 		pop2 = pop1;
 	else
-		get_const_mpi(&mpi_op2, op2);
+		get_mpi(&mpi_op2, op2);
 
 	MPI_CHECK(func(&mpi_dest, pop1, pop2));
 
-	put_mpi(&mpi_dest);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+	mbedtls_mpi_free(&mpi_dest);
 	if (pop1 == &mpi_op1)
-		put_mpi(&mpi_op1);
+		mbedtls_mpi_free(&mpi_op1);
 	if (pop2 == &mpi_op2)
-		put_mpi(&mpi_op2);
+		mbedtls_mpi_free(&mpi_op2);
 }
 
 static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
@@ -379,31 +366,32 @@ static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
 	mbedtls_mpi mpi_t;
 
 	get_mpi(&mpi_dest, dest);
-	get_const_mpi(&mpi_n, n);
+	get_mpi(&mpi_n, n);
 
 	if (op1 == dest)
 		pop1 = &mpi_dest;
 	else
-		get_const_mpi(&mpi_op1, op1);
+		get_mpi(&mpi_op1, op1);
 
 	if (op2 == dest)
 		pop2 = &mpi_dest;
 	else if (op2 == op1)
 		pop2 = pop1;
 	else
-		get_const_mpi(&mpi_op2, op2);
+		get_mpi(&mpi_op2, op2);
 
 	get_mpi(&mpi_t, NULL);
 
 	MPI_CHECK(func(&mpi_t, pop1, pop2));
 	MPI_CHECK(mbedtls_mpi_mod_mpi(&mpi_dest, &mpi_t, &mpi_n));
 
-	put_mpi(&mpi_dest);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+	mbedtls_mpi_free(&mpi_dest);
 	if (pop1 == &mpi_op1)
-		put_mpi(&mpi_op1);
+		mbedtls_mpi_free(&mpi_op1);
 	if (pop2 == &mpi_op2)
-		put_mpi(&mpi_op2);
-	put_mpi(&mpi_t);
+		mbedtls_mpi_free(&mpi_op2);
+	mbedtls_mpi_free(&mpi_t);
 }
 
 void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
@@ -427,16 +415,17 @@ void TEE_BigIntNeg(TEE_BigInt *dest, const TEE_BigInt *src)
 	if (dest != src) {
 		mbedtls_mpi mpi_src;
 
-		get_const_mpi(&mpi_src, src);
+		get_mpi(&mpi_src, src);
 
 		MPI_CHECK(mbedtls_mpi_copy(&mpi_dest, &mpi_src));
 
-		put_mpi(&mpi_src);
+		mbedtls_mpi_free(&mpi_src);
 	}
 
 	mpi_dest.s *= -1;
 
-	put_mpi(&mpi_dest);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+	mbedtls_mpi_free(&mpi_dest);
 }
 
 void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
@@ -485,7 +474,7 @@ void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
 	else if (op1 == dest_r)
 		pop1 = &mpi_dest_r;
 	else
-		get_const_mpi(&mpi_op1, op1);
+		get_mpi(&mpi_op1, op1);
 
 	if (op2 == dest_q)
 		pop2 = &mpi_dest_q;
@@ -494,16 +483,18 @@ void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
 	else if (op2 == op1)
 		pop2 = pop1;
 	else
-		get_const_mpi(&mpi_op2, op2);
+		get_mpi(&mpi_op2, op2);
 
 	MPI_CHECK(mbedtls_mpi_div_mpi(&mpi_dest_q, &mpi_dest_r, pop1, pop2));
 
-	put_mpi(&mpi_dest_q);
-	put_mpi(&mpi_dest_r);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_q, dest_q));
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_r, dest_r));
+	mbedtls_mpi_free(&mpi_dest_q);
+	mbedtls_mpi_free(&mpi_dest_r);
 	if (pop1 == &mpi_op1)
-		put_mpi(&mpi_op1);
+		mbedtls_mpi_free(&mpi_op1);
 	if (pop2 == &mpi_op2)
-		put_mpi(&mpi_op2);
+		mbedtls_mpi_free(&mpi_op2);
 }
 
 void TEE_BigIntMod(TEE_BigInt *dest, const TEE_BigInt *op, const TEE_BigInt *n)
@@ -550,19 +541,20 @@ void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 	mbedtls_mpi *pop = &mpi_op;
 
 	get_mpi(&mpi_dest, dest);
-	get_const_mpi(&mpi_n, n);
+	get_mpi(&mpi_n, n);
 
 	if (op == dest)
 		pop = &mpi_dest;
 	else
-		get_const_mpi(&mpi_op, op);
+		get_mpi(&mpi_op, op);
 
 	MPI_CHECK(mbedtls_mpi_inv_mod(&mpi_dest, pop, &mpi_n));
 
-	put_mpi(&mpi_dest);
-	put_mpi(&mpi_n);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+	mbedtls_mpi_free(&mpi_dest);
+	mbedtls_mpi_free(&mpi_n);
 	if (pop == &mpi_op)
-		put_mpi(&mpi_op);
+		mbedtls_mpi_free(&mpi_op);
 }
 
 bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
@@ -573,12 +565,12 @@ bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
 	mbedtls_mpi *pop2 = &mpi_op2;
 	mbedtls_mpi gcd;
 
-	get_const_mpi(&mpi_op1, op1);
+	get_mpi(&mpi_op1, op1);
 
 	if (op2 == op1)
 		pop2 = &mpi_op1;
 	else
-		get_const_mpi(&mpi_op2, op2);
+		get_mpi(&mpi_op2, op2);
 
 	get_mpi(&gcd, NULL);
 
@@ -586,10 +578,10 @@ bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
 
 	rc = !mbedtls_mpi_cmp_int(&gcd, 1);
 
-	put_mpi(&gcd);
-	put_mpi(&mpi_op1);
+	mbedtls_mpi_free(&gcd);
+	mbedtls_mpi_free(&mpi_op1);
 	if (pop2 == &mpi_op2)
-		put_mpi(&mpi_op2);
+		mbedtls_mpi_free(&mpi_op2);
 
 	return rc;
 }
@@ -691,13 +683,13 @@ static void mpi_egcd(mbedtls_mpi *gcd, mbedtls_mpi *a, mbedtls_mpi *b,
 	MPI_CHECK(mbedtls_mpi_shift_l(gcd, k));
 
 out:
-	put_mpi(&A);
-	put_mpi(&B);
-	put_mpi(&C);
-	put_mpi(&D);
-	put_mpi(&x);
-	put_mpi(&y);
-	put_mpi(&u);
+	mbedtls_mpi_free(&A);
+	mbedtls_mpi_free(&B);
+	mbedtls_mpi_free(&C);
+	mbedtls_mpi_free(&D);
+	mbedtls_mpi_free(&x);
+	mbedtls_mpi_free(&y);
+	mbedtls_mpi_free(&u);
 }
 
 void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
@@ -710,12 +702,12 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 	mbedtls_mpi *pop2 = &mpi_op2;
 
 	get_mpi(&mpi_gcd_res, gcd);
-	get_const_mpi(&mpi_op1, op1);
+	get_mpi(&mpi_op1, op1);
 
 	if (op2 == op1)
 		pop2 = &mpi_op1;
 	else
-		get_const_mpi(&mpi_op2, op2);
+		get_mpi(&mpi_op2, op2);
 
 	if (!u && !v) {
 		if (gcd)
@@ -748,14 +740,17 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 		mpi_u.s *= s1;
 		mpi_v.s *= s2;
 
-		put_mpi(&mpi_u);
-		put_mpi(&mpi_v);
+		MPI_CHECK(copy_mpi_to_bigint(&mpi_u, u));
+		MPI_CHECK(copy_mpi_to_bigint(&mpi_v, v));
+		mbedtls_mpi_free(&mpi_u);
+		mbedtls_mpi_free(&mpi_v);
 	}
 
-	put_mpi(&mpi_gcd_res);
-	put_mpi(&mpi_op1);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_gcd_res, gcd));
+	mbedtls_mpi_free(&mpi_gcd_res);
+	mbedtls_mpi_free(&mpi_op1);
 	if (pop2 == &mpi_op2)
-		put_mpi(&mpi_op2);
+		mbedtls_mpi_free(&mpi_op2);
 }
 
 static int rng_read(void *ignored __unused, unsigned char *buf, size_t blen)
@@ -771,11 +766,11 @@ int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
 	int rc;
 	mbedtls_mpi mpi_op;
 
-	get_const_mpi(&mpi_op, op);
+	get_mpi(&mpi_op, op);
 
 	rc = mbedtls_mpi_is_prime(&mpi_op, rng_read, NULL);
 
-	put_mpi(&mpi_op);
+	mbedtls_mpi_free(&mpi_op);
 
 	if (rc)
 		return 0;
@@ -828,12 +823,13 @@ void TEE_BigIntConvertFromFMM(TEE_BigInt *dest, const TEE_BigIntFMM *src,
 	mbedtls_mpi mpi_src;
 
 	get_mpi(&mpi_dst, dest);
-	get_const_mpi(&mpi_src, src);
+	get_mpi(&mpi_src, src);
 
 	MPI_CHECK(mbedtls_mpi_copy(&mpi_dst, &mpi_src));
 
-	put_mpi(&mpi_dst);
-	put_mpi(&mpi_src);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dst, dest));
+	mbedtls_mpi_free(&mpi_dst);
+	mbedtls_mpi_free(&mpi_src);
 }
 
 void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, const TEE_BigIntFMM *op1,
@@ -847,17 +843,18 @@ void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, const TEE_BigIntFMM *op1,
 	mbedtls_mpi mpi_t;
 
 	get_mpi(&mpi_dst, dest);
-	get_const_mpi(&mpi_op1, op1);
-	get_const_mpi(&mpi_op2, op2);
-	get_const_mpi(&mpi_n, n);
+	get_mpi(&mpi_op1, op1);
+	get_mpi(&mpi_op2, op2);
+	get_mpi(&mpi_n, n);
 	get_mpi(&mpi_t, NULL);
 
 	MPI_CHECK(mbedtls_mpi_mul_mpi(&mpi_t, &mpi_op1, &mpi_op2));
 	MPI_CHECK(mbedtls_mpi_mod_mpi(&mpi_dst, &mpi_t, &mpi_n));
 
-	put_mpi(&mpi_t);
-	put_mpi(&mpi_n);
-	put_mpi(&mpi_op2);
-	put_mpi(&mpi_op1);
-	put_mpi(&mpi_dst);
+	mbedtls_mpi_free(&mpi_t);
+	mbedtls_mpi_free(&mpi_n);
+	mbedtls_mpi_free(&mpi_op2);
+	mbedtls_mpi_free(&mpi_op1);
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dst, dest));
+	mbedtls_mpi_free(&mpi_dst);
 }
