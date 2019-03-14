@@ -4,6 +4,7 @@
  */
 
 #include <drivers/stm32_etzpc.h>
+#include <drivers/stm32_gpio.h>
 #include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
@@ -635,7 +636,19 @@ static void check_rcc_secure_configuration(void)
 		panic();
 }
 
-static TEE_Result stm32mp1_lock_shared_resources(void)
+static void set_gpio_secure_configuration(void)
+{
+	unsigned int pin = 0;
+
+	for (pin = 0; pin < get_gpioz_nbpin(); pin++) {
+		enum stm32mp_shres shres = STM32MP1_SHRES_GPIOZ(pin);
+		bool secure = stm32mp_periph_is_secure(shres);
+
+		stm32_gpio_set_secure_cfg(GPIO_BANK_Z, pin, secure);
+	}
+}
+
+static TEE_Result stm32mp1_init_shres(void)
 {
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 
@@ -655,8 +668,9 @@ static TEE_Result stm32mp1_lock_shared_resources(void)
 	}
 
 	set_etzpc_secure_configuration();
+	set_gpio_secure_configuration();
 	check_rcc_secure_configuration();
 
 	return TEE_SUCCESS;
 }
-driver_init_late(stm32mp1_lock_shared_resources);
+driver_init_late(stm32mp1_init_shres);
