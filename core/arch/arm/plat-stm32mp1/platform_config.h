@@ -14,6 +14,7 @@
 /* SoC interface registers base address */
 #define BSEC_BASE			0x5c005000
 #define ETZPC_BASE			0x5c007000
+#define CRYP1_BASE			0x54001000
 #define GIC_BASE			0xa0021000ul
 #define GPIOA_BASE			0x50002000
 #define GPIOB_BASE			0x50003000
@@ -27,9 +28,16 @@
 #define GPIOJ_BASE			0x5000b000
 #define GPIOK_BASE			0x5000c000
 #define GPIOZ_BASE			0x54004000
+#define HASH1_BASE			0x54002000
+#define I2C4_BASE			0x5c002000
+#define I2C6_BASE			0x5c009000
+#define IWDG1_BASE			0x5c003000
+#define IWDG2_BASE			0x5a002000
 #define PWR_BASE			0x50001000
 #define RCC_BASE			0x50000000
 #define RNG1_BASE			0x54003000
+#define RTC_BASE			0x5c004000
+#define SPI6_BASE			0x5c001000
 #define TAMP_BASE			0x5c00a000
 #define UART1_BASE			0x5c000000
 #define UART2_BASE			0x4000e000
