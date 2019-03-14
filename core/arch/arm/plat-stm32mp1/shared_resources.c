@@ -550,6 +550,44 @@ bool stm32mp_clock_is_non_secure(unsigned long clock_id)
 	return stm32mp_periph_is_non_secure(shres_id);
 }
 
+static bool mckprot_resource(enum stm32mp_shres id)
+{
+	switch (id) {
+	case STM32MP1_SHRES_MCU:
+	case STM32MP1_SHRES_PLL3:
+	case STM32MP1_SHRES_PLL3_P:
+	case STM32MP1_SHRES_PLL3_Q:
+	case STM32MP1_SHRES_PLL3_R:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void check_rcc_secure_configuration(void)
+{
+	bool secure = stm32_rcc_is_secure();
+	bool mckprot = stm32_rcc_is_mckprot();
+	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
+	bool have_error = false;
+
+	for (id = 0; id < STM32MP1_SHRES_COUNT; id++) {
+		if  (shres_state[id] != SHRES_SECURE)
+			continue;
+
+		if ((mckprot_resource(id) && !mckprot) || !secure) {
+			EMSG("RCC %s MCKPROT %s and %s (%u) secure",
+			      secure ? "secure" : "non-secure",
+			      mckprot ? "set" : "not set",
+			      shres2str_id(id), id);
+			have_error = true;
+		}
+	}
+
+	if (have_error)
+		panic();
+}
+
 static TEE_Result stm32mp1_lock_shared_resources(void)
 {
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
@@ -568,6 +606,8 @@ static TEE_Result stm32mp1_lock_shared_resources(void)
 		IMSG("stm32mp %-8s (%2u): %-14s",
 		     shres2str_id(id), id, shres2str_state(*state));
 	}
+
+	check_rcc_secure_configuration();
 
 	return TEE_SUCCESS;
 }
