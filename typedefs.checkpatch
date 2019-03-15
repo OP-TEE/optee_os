@@ -29,3 +29,5 @@ TEE_BigIntFMMContext
 TEE_BigIntFMM
 TEE_BigInt
 TEE_Attribute
+mbedtls_mpi_uint
+mbedtls_mpi
