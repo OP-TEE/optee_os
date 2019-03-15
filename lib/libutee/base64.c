@@ -84,7 +84,7 @@ bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 		if (!get_idx(data[n], &idx))
 			continue;
 
-		if (m > *blen)
+		if (m >= *blen)
 			b = NULL;
 
 		switch (s) {
@@ -97,7 +97,7 @@ bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 			if (b)
 				b[m] |= idx >> 4;
 			m++;
-			if (m > *blen)
+			if (m >= *blen)
 				b = NULL;
 			if (b)
 				b[m] = (idx & 0xf) << 4;
@@ -107,7 +107,7 @@ bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 			if (b)
 				b[m] |= idx >> 2;
 			m++;
-			if (m > *blen)
+			if (m >= *blen)
 				b = NULL;
 			if (b)
 				b[m] = (idx & 0x3) << 6;
