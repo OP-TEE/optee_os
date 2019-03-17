@@ -23,4 +23,21 @@
  */
 #define PTA_SYSTEM_ADD_RNG_ENTROPY	0
 
+/*
+ * libdl - dlopen(const char *filename, int flags)
+ *
+ * [in]     memref[0]: the UUID of the shared library to open (@filename)
+ * [in]     value[1].a: @flags, must be (RTLD_NOW | RTLD_GLOBAL)
+ */
+#define PTA_SYSTEM_DLOPEN		1
+
+/*
+ * libdl - dlsym(void *handle, const char *symbol)
+ *
+ * [in]     memref[0]: the UUID that corresponds to @handle
+ * [in]     memref[1]: @symbol
+ * [out]    value[2]: address of the symbol or NULL
+ */
+#define PTA_SYSTEM_DLSYM		2
+
 #endif /* __PTA_SYSTEM_H */

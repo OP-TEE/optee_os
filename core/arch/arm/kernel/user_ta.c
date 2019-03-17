@@ -436,6 +436,14 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 }
 KEEP_PAGER(user_ta_dump_state);
 
+static void free_elf_states(struct user_ta_ctx *utc)
+{
+	struct user_ta_elf *elf;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link)
+			elf_load_final(elf->elf_state);
+}
+
 static void release_ta_memory_by_mobj(struct mobj *mobj)
 {
 	void *va;
@@ -455,6 +463,7 @@ static void free_utc(struct user_ta_ctx *utc)
 {
 	struct user_ta_elf *elf;
 
+	free_elf_states(utc);
 	tee_pager_rem_uta_areas(utc);
 	TAILQ_FOREACH(elf, &utc->elfs, link)
 		release_ta_memory_by_mobj(elf->mobj_code);
@@ -825,7 +834,8 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		goto out;
 
 	if (prev)
-		elf->load_addr = prev->load_addr + prev->mobj_code->size;
+		elf->load_addr = prev->load_addr + prev->mobj_code->size +
+				 CORE_MMU_USER_CODE_SIZE; /* FIXME */
 	else
 		elf->load_addr = utc->stack_addr + utc->mobj_stack->size;
 	elf->load_addr = ROUNDUP(elf->load_addr, CORE_MMU_USER_CODE_SIZE);
@@ -888,14 +898,6 @@ static TEE_Result load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 	}
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
-}
-
-static void free_elf_states(struct user_ta_ctx *utc)
-{
-	struct user_ta_elf *elf;
-
-	TAILQ_FOREACH(elf, &utc->elfs, link)
-			elf_load_final(elf->elf_state);
 }
 
 static TEE_Result set_seg_prot(struct user_ta_ctx *utc,
@@ -1014,6 +1016,80 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc __unused)
 
 #endif /* CFG_UNWIND */
 
+TEE_Result tee_ta_load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
+{
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+	struct user_ta_elf *elf = NULL;
+
+	elf = find_ta_elf(uuid, utc);
+	if (elf) {
+		/* Already loaded */
+		return TEE_SUCCESS;
+	}
+
+	/* Load library and any dependencies */
+
+	res = load_elf(uuid, utc);
+	if (res)
+		goto err;
+
+	/* Perform relocations */
+
+	res = TEE_ERROR_ITEM_NOT_FOUND;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		if (elf->elf_state->reloc_done)
+			continue;
+		DMSG("Processing relocations in %pUl", (void *)&elf->uuid);
+		res = elf_process_rel(elf->elf_state, elf->load_addr);
+		if (res)
+			goto err;
+		res = set_seg_prot(utc, elf);
+		if (res)
+			goto err;
+	}
+
+	/* Update EXIDX table */
+	/* FIXME: discard previous one */
+	res = set_exidx(utc);
+	if (res)
+		goto err;
+err:
+	return res;
+}
+
+/*
+ * Find address of symbol @sym in binary @uuid in TA specified by context @utc.
+ * If @uuid is NULL, search the whole binary.
+ */
+TEE_Result tee_ta_resolve_symbol(const TEE_UUID *uuid, struct user_ta_ctx *utc,
+				 const char *name, void **ptr)
+{
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+	struct user_ta_elf *elf = NULL;
+	uintptr_t val = 0;
+
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		if (uuid && memcmp(&elf->uuid, uuid, sizeof(*uuid)))
+			continue;
+		res = elf_resolve_symbol(elf->elf_state, name, &val);
+		if (uuid) {
+			if (res)
+				goto err;
+		} else {
+			if (res)
+				continue;
+		}
+		val += elf->load_addr;
+		FMSG("%pUl/0x%" PRIxPTR " %s", (void *)&elf->uuid, val, name);
+		*ptr = (void *)val;
+		res = TEE_SUCCESS;
+		break;
+	}
+err:
+	return res;
+}
+
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 				       struct tee_ta_session *s)
 {
@@ -1100,7 +1176,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
 	s->ctx = &utc->ctx;
 
-	free_elf_states(utc);
 	tee_mmu_set_ctx(NULL);
 	return TEE_SUCCESS;
 

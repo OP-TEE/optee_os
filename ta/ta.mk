@@ -31,6 +31,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_MPI
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
+ta-mk-file-export-vars-$(sm) += CFG_TA_DL
 ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
 
 # Expand platform flags here as $(sm) will change if we have several TA
@@ -78,6 +79,14 @@ libdir = lib/libutee
 libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
 libl = $(mplib-for-utee) utils
 include mk/lib.mk
+
+ifeq ($(CFG_TA_DL),y)
+libname = dl
+libdir = lib/libdl
+libuuid = be807bbd-81e1-4dc4-bd99-3d363f240ece
+libl = utee utils
+include mk/lib.mk
+endif
 
 base-prefix :=
 

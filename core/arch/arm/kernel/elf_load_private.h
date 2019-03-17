@@ -17,6 +17,7 @@ struct user_ta_elf_head;
 struct elf_load_state {
 	bool is_32bit;
 	bool is_main; /* false for a library */
+	bool reloc_done; /* true once relocations have been applied */
 	struct user_ta_elf_head *elfs; /* All ELFs, starting with main */
 
 	struct user_ta_store_handle *ta_handle;

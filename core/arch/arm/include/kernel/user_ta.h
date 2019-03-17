@@ -94,6 +94,26 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 }
 #endif
 
+#ifdef CFG_WITH_USER_TA
+TEE_Result tee_ta_load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc);
+TEE_Result tee_ta_resolve_symbol(const TEE_UUID *uuid, struct user_ta_ctx *utc,
+				 const char *sym, void **ptr);
+#else
+static inline TEE_Result tee_ta_load_elf(const TEE_UUID *uuid __unused,
+					 struct user_ta_ctx *utc __unused)
+{
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static inline TEE_Result tee_ta_resolve_symbol(const TEE_UUID *uuid __unused,
+					       struct user_ta_ctx *utc __unused,
+					       const char *sym __unused,
+					       void **ptr __unused)
+{
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+#endif
+
 /*
  * Registers a TA storage.
  *

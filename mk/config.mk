@@ -265,6 +265,9 @@ endif
 # Support for dynamically linked user TAs
 CFG_TA_DYNLINK ?= y
 
+# Support for runtime dynamic linking in user TAs (libdl with dlopen()/dlsym())
+CFG_TA_DL ?= y
+
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 

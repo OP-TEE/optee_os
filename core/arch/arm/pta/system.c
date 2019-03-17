@@ -40,6 +40,93 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 	return TEE_SUCCESS;
 }
 
+#ifdef CFG_TA_DL
+
+#define	RTLD_NOW	2
+#define	RTLD_GLOBAL	0x100
+
+static TEE_Result system_dlopen(struct tee_ta_session *s __unused,
+				uint32_t param_types,
+				TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *cs = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_UUID *uuid = NULL;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (params[0].memref.size != sizeof(*uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (params[1].value.a != (RTLD_NOW | RTLD_GLOBAL))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* FIXME: check accessibility */
+	uuid = params[0].memref.buffer;
+
+	cs = tee_ta_get_calling_session();
+	if (!cs)
+		return TEE_ERROR_ACCESS_DENIED;
+	utc = to_user_ta_ctx(cs->ctx);
+
+	return tee_ta_load_elf(uuid, utc);
+}
+
+static TEE_Result system_dlsym(struct tee_ta_session *s __unused,
+			       uint32_t param_types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct tee_ta_session *cs = NULL;
+	struct user_ta_ctx *utc = NULL;
+	const char *sym = NULL;
+	void *ptr = NULL;
+	TEE_UUID *uuid = NULL;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	uuid = params[0].memref.buffer;
+	if (uuid && params[0].memref.size != sizeof(*uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	sym = params[1].memref.buffer;
+	if (!sym)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	cs = tee_ta_get_calling_session();
+	if (!cs)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	utc = to_user_ta_ctx(cs->ctx);
+
+	res = tee_ta_resolve_symbol(uuid, utc, sym, &ptr);
+	if (!res) {
+		vaddr_t va = (vaddr_t)ptr;
+
+		params[2].value.a = va;
+#ifdef ARM64
+		/*
+		 * 64-bit kernel: TA may be 32 or 64-bit, copy the higher bits
+		 * for the latter case.
+		 */
+		params[2].value.b = va >> 32;
+#endif
+	}
+
+	return res;
+}
+
+#endif /* CFG_TA_DL */
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx __unused)
@@ -65,6 +152,12 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:
 		return system_rng_reseed(s, param_types, params);
+#ifdef CFG_TA_DL
+	case PTA_SYSTEM_DLOPEN:
+		return system_dlopen(s, param_types, params);
+	case PTA_SYSTEM_DLSYM:
+		return system_dlsym(s, param_types, params);
+#endif
 	default:
 		break;
 	}

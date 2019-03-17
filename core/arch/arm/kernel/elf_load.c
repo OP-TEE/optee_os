@@ -651,6 +651,7 @@ TEE_Result elf_process_rel(struct elf_load_state *state, vaddr_t vabase)
 		}
 	}
 
+	state->reloc_done = true;
 	return TEE_SUCCESS;
 }
 
