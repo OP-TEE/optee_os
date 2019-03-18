@@ -26,6 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <imx.h>
 
 #include <compiler.h>
 #include <drivers/gic.h>
@@ -77,5 +78,6 @@ void plat_cpu_reset_late(void)
 		     addr != CSU_BASE + CSU_CSL_END;
 		     addr += 4)
 			io_setbits32(addr, CSU_SETTING_LOCK);
+		imx_configure_tzasc();
 	}
 }
