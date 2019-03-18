@@ -189,12 +189,24 @@ enum tzc_action {
 #define TZC_REGION_SIZE_MASK	GENMASK_32(6, 1)
 #define TZC_ATTR_REGION_SIZE(s)	((s) << TZC_REGION_SIZE_SHIFT)
 
+#define TZC_SUBREGION_DIS_SHIFT	8
+#define TZC_SUBREGION_DIS_MASK	GENMASK_32(15, 8)
+#define TZC_ATTR_SUBREGION_DIS(subreg) \
+	(BIT((subreg) + TZC_SUBREGION_DIS_SHIFT) & \
+	 TZC_SUBREGION_DIS_MASK)
+
 #define TZC_ATTR_REGION_EN_SHIFT	0x0
 #define TZC_ATTR_REGION_EN_MASK		0x1
 
 #define TZC_ATTR_REGION_EN
 #define TZC_ATTR_REGION_ENABLE	0x1
 #define TZC_ATTR_REGION_DISABLE	0x0
+
+#ifdef CFG_WITH_LPAE
+#define TZC380_POW	48
+#else
+#define TZC380_POW	34
+#endif
 
 void tzc_init(vaddr_t base);
 void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr);
@@ -204,6 +216,8 @@ void tzc_set_action(enum tzc_action action);
 uint32_t tzc_get_action(void);
 void tzc_fail_dump(void);
 void tzc_int_clear(void);
+int tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr,
+		       uint8_t region);
 
 #if TRACE_LEVEL >= TRACE_DEBUG
 void tzc_dump_state(void);
