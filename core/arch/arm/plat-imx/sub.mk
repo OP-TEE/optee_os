@@ -23,3 +23,5 @@ endif
 srcs-$(CFG_MX7) += imx7.c a7_plat_init.S
 
 subdirs-$(CFG_PSCI_ARM32) += pm
+
+subdirs-y += drivers
