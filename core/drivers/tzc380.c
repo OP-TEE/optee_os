@@ -216,6 +216,68 @@ uint32_t tzc_get_action(void)
 	return tzc_read_action(tzc.base);
 }
 
+int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
+		       uint8_t region)
+{
+	uint64_t sub_region_size = 0;
+	uint64_t area = 0;
+	uint8_t lregion = region;
+	uint64_t region_size = 0;
+	vaddr_t sub_address = 0;
+	vaddr_t address = addr;
+	uint64_t lsize = size;
+	uint32_t mask = 0;
+	int i = 0;
+	uint8_t pow = TZC380_POW;
+
+	while (lsize != 0 && pow > 15) {
+		region_size = 1ULL << pow;
+
+		/* Case region fits alignment and covers requested area */
+		if ((address % region_size == 0) &&
+		    ((address + lsize) % region_size == 0)) {
+			tzc_configure_region(lregion, address,
+					     TZC_ATTR_REGION_SIZE(pow - 1) |
+					     TZC_ATTR_REGION_EN_MASK |
+					     attr);
+			lregion++;
+			address += region_size;
+			lsize -= region_size;
+			pow--;
+			continue;
+		}
+
+		/* Cover area using several subregions */
+		sub_region_size = region_size / 8;
+		if (address % sub_region_size == 0 &&
+		    lsize > 2 * sub_region_size) {
+			sub_address = (address / region_size) * region_size;
+			mask = 0;
+			for (i = 0; i < 8; i++) {
+				area = (i + 1) * sub_region_size;
+				if (sub_address + area <= address ||
+				    sub_address + area > address + lsize) {
+					mask |= TZC_ATTR_SUBREGION_DIS(i);
+				} else {
+					address += sub_region_size;
+					lsize -= sub_region_size;
+				}
+			}
+			tzc_configure_region(lregion, sub_address,
+					     TZC_ATTR_REGION_SIZE(pow - 1) |
+					     TZC_ATTR_REGION_EN_MASK |
+					     mask | attr);
+			lregion++;
+			pow--;
+			continue;
+		}
+		pow--;
+	}
+	assert(lsize == 0);
+	assert(address == addr + size);
+	return lregion;
+}
+
 #if TRACE_LEVEL >= TRACE_DEBUG
 
 static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
