@@ -3,7 +3,8 @@
  * \file pem.h
  *
  * \brief Privacy Enhanced Mail (PEM) decoding
- *
+ */
+/*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -50,7 +51,7 @@ extern "C" {
 /**
  * \brief       PEM context structure
  */
-typedef struct
+typedef struct mbedtls_pem_context
 {
     unsigned char *buf;     /*!< buffer for decoded data             */
     size_t buflen;          /*!< length of the buffer                */

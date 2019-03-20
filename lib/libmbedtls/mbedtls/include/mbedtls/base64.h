@@ -3,7 +3,8 @@
  * \file base64.h
  *
  * \brief RFC 1521 base64 encoding/decoding
- *
+ */
+/*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
