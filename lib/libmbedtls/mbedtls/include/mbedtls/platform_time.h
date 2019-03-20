@@ -3,7 +3,8 @@
  * \file platform_time.h
  *
  * \brief mbed TLS Platform time abstraction
- *
+ */
+/*
  *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may

@@ -3,7 +3,8 @@
  * \file x509.h
  *
  * \brief X.509 generic defines and structures
- *
+ */
+/*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may

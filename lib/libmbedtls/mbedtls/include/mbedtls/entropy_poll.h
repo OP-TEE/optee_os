@@ -3,7 +3,8 @@
  * \file entropy_poll.h
  *
  * \brief Platform-specific and custom entropy polling functions
- *
+ */
+/*
  *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
