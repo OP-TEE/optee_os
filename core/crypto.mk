@@ -171,7 +171,8 @@ _CFG_CORE_LTC_SHA256_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_SHA384_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
-_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS)
+_CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
+_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
 endif
 
 ###############################################################
