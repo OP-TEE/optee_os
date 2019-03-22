@@ -89,7 +89,7 @@ platform-aflags-generic ?= -pipe
 
 arm32-platform-cflags-no-hard-float ?= -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
-arm32-platform-cflags-generic-thumb ?= -mthumb -mthumb-interwork \
+arm32-platform-cflags-generic-thumb ?= -mthumb \
 			-fno-short-enums -fno-common -mno-unaligned-access
 arm32-platform-cflags-generic-arm ?= -marm -fno-omit-frame-pointer -mapcs \
 			-fno-short-enums -fno-common -mno-unaligned-access
