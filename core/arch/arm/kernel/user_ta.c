@@ -1054,6 +1054,8 @@ TEE_Result tee_ta_load_elf(const TEE_UUID *uuid, struct user_ta_ctx *utc)
 	res = set_exidx(utc);
 	if (res)
 		goto err;
+
+	tee_mmu_set_ctx(&utc->ctx);
 err:
 	return res;
 }
