@@ -52,7 +52,7 @@ define gen-link-t
 $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefiles$(sm))
 	@$(cmd-echo-silent) '  CPP     $$@'
 	$(q)mkdir -p $$(dir $$@)
-	$(q)$(CPP$(sm)) -Wp,-P,-MT,$$@,-MD,$(link-script-dep$(sm)) \
+	$(q)$(CPP$(sm)) -Wp,-P,-MT,$$@,$(MDflag),$(link-script-dep$(sm)) \
 		$(link-script-cppflags-$(sm)) $$< > $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \

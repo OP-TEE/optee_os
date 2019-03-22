@@ -17,7 +17,7 @@ objs		:=
 # Disable all builtin rules
 .SUFFIXES:
 
-comp-cflags$(sm) = -std=gnu99
+comp-cflags$(sm) = $(cflags_compiler_$(COMPILER_$(sm))) -std=gnu99
 comp-aflags$(sm) =
 comp-cppflags$(sm) =
 
