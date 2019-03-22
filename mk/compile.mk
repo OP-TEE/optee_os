@@ -204,6 +204,7 @@ $3: $1 $(conf-file) FORCE
 	    $$(filter-out $$(old-cmd-$3), $$(comp-cmd-$3))), \
 		@set -e ;\
 		mkdir -p $$(dir $2) $$(dir $3) ;\
+		$(cmd-echo-silent) '  CC      $$@'; 			\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$3)) ;\
 		$$(comp-cmd-$3) ;\
 		echo "old-cmd-$3 := $$(subst \",\\\",$$(comp-cmd-$3))" > \
