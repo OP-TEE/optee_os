@@ -15,6 +15,9 @@ nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 libgcc$(sm)  	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) $(comp-cflags$(sm)) \
 			-print-libgcc-file-name 2> /dev/null)
 
+Wno-suggest-attribute--noreturn := -Wno-suggest-attribute=noreturn
+MDflag := -MD
+
 # Define these to something to discover accidental use
 CC		:= false
 CPP		:= false

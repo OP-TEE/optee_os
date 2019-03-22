@@ -1,0 +1,85 @@
+#!/bin/bash
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2019, Linaro Limited
+#
+# This is a wrapper script to llvm-objcopy to add support for:
+#  1) The --pad-to argument
+#  2) Regular expressions in --only-section= and --remove-section
+#
+# Depends on llvm-readelf.
+
+args=()
+only_section_re=()
+remove_section_re=()
+for arg in "$@"; do
+	if [ "$pad_found" ]; then
+		pad_addr="$arg"
+		pad_found=
+		continue
+	fi
+	case "$arg" in
+		--pad-to)
+			pad_found=1
+			continue
+			;;
+		--only-section=*)
+			re=$(echo "$arg" | sed s/--only-section=//)
+			only_section_re+=("$re")
+			continue
+			;;
+		--remove-section=*)
+			re=$(echo "$arg" | sed s/--remove-section=//)
+			remove_section_re+=("$re")
+			continue
+			;;
+	esac
+	args+=("$arg")
+done
+
+in="${@: -2:1}"
+out="${@: -1:1}"
+if [ ! -e "$in" ]; then
+	in=$out # That is good enough for our use cases
+fi
+
+if [ '${only_section_re[@]}''${remove_section_re[@]}' ]; then
+	sections=$(llvm-readelf -sections $in | grep ' *\[ *[0-9]*] [^ ]' | sed 's/ *\[ *[0-9]*] \(.[^ ]*\).*/\1/')
+	for s in $sections; do
+		for re in "${only_section_re[@]}"; do
+			if [ "$(echo $s | grep -- $re)" != "" ]; then
+				args+=("--only-section=$s")
+				break
+			fi
+		done
+		for re in "${remove_section_re[@]}"; do
+			if [ "$(echo $s | grep -- $re)" != "" ]; then
+				args+=("--remove-section=$s")
+				break
+			fi
+		done
+	done
+fi
+
+pad_sz=0
+if [ "$pad_addr" ]; then
+
+	# Find address and size of last PROGBITS section in input file
+	addr_sz=$(llvm-readelf -sections $in | grep PROGBITS | sed 's/.*PROGBITS *\([^ ]*\) [^ ]* \([^ ]*\).*/\1 \2/' | sort -n | tail -1)
+	read addr sz <<< "$addr_sz"
+
+	# Now figure out the size of the padding. Can be 0.
+	pad_sz=$(($pad_addr - 0x$addr - 0x$sz))
+fi
+
+# Run llvm-objcopy without "--pad-to <addr>" and with expanded
+# --only-section/--remove-section
+if [ "$VV" = 1 ]; then
+	echo Running: llvm-objcopy "${args[@]}"
+fi
+llvm-objcopy "${args[@]}" || exit $?
+
+# Pad with zeroes if necessary
+if [ $pad_sz -gt 0 ]; then
+	truncate -s +$pad_sz $out
+fi
