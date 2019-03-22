@@ -11,7 +11,6 @@ srcs-$(CFG_CRYPTO_HMAC) += hmac.c
 srcs-$(CFG_CRYPTO_CMAC) += cmac.c
 srcs-$(CFG_CRYPTO_ECB) += ecb.c
 srcs-$(CFG_CRYPTO_CBC) += cbc.c
-srcs-$(CFG_CRYPTO_CTS) += cts.c
 srcs-$(CFG_CRYPTO_CTR) += ctr.c
 srcs-$(CFG_CRYPTO_XTS) += xts.c
 srcs-$(CFG_CRYPTO_CCM) += ccm.c
