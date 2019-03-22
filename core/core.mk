@@ -101,11 +101,18 @@ libdir = lib/libmpa
 include mk/lib.mk
 endif
 
+ifeq ($(firstword $(subst /, ,$(CFG_CRYPTOLIB_DIR))),core)
+# If a library can be compiled for both core and user space a base-prefix
+# is needed in order to avoid conflicts in the output. However, if the
+# library resides under core then it can't be compiled to user space.
 base-prefix :=
+endif
 
 libname = $(CFG_CRYPTOLIB_NAME)
 libdir = $(CFG_CRYPTOLIB_DIR)
 include mk/lib.mk
+
+base-prefix :=
 
 ifeq ($(CFG_DT),y)
 libname = fdt
