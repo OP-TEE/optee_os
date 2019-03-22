@@ -85,6 +85,8 @@ include mk/lib.mk
 
 CFG_CRYPTOLIB_NAME ?= tomcrypt
 CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+# CFG_CRYPTOLIB_NAME must not be changed beyond this line
+CFG_CRYPTOLIB_NAME_$(CFG_CRYPTOLIB_NAME) := y
 
 CFG_CORE_MBEDTLS_MPI ?= y
 ifeq ($(CFG_CORE_MBEDTLS_MPI)_$(CFG_CRYPTOLIB_NAME),y_tomcrypt)
