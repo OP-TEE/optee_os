@@ -219,7 +219,7 @@ $(2): $(3)
 	mkdir -p $$(dir $$@);					\
 	echo "#ifndef $$(guard-$2)" >$$@.tmp;			\
 	echo "#define $$(guard-$2)" >>$$@.tmp;			\
-	sed -ne 's|^==>\([^ ]*\) [\$$$$#]*\([-0-9]*\) \([^@/]*\).*|#define \1\t\2\t/* \3*/|p' \
+	sed -ne 's|^.*==>\([^ ]*\) [\$$$$#]*\([-0-9]*\) \([^@/]*\).*|#define \1\t\2\t/* \3*/|p' \
 	< $$< >>$$@.tmp;					\
 	echo "#endif" >>$$@.tmp;				\
 	$$(call mv-if-changed,$$@.tmp,$$@)

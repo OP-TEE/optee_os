@@ -7,6 +7,6 @@
 #define DEFINES void __defines(void); void __defines(void)
 
 #define DEFINE(def, val) \
-	asm volatile("\n==>" #def " %0 " #val : : "i" (val))
+	asm volatile("\n.ascii \"==>" #def " %c0 " #val "\"" : : "i" (val));
 
 #endif /*GEN_ASM_DEFINES_H*/
