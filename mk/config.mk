@@ -433,9 +433,18 @@ CFG_TA_MBEDTLS ?= y
 # need to be called to test anything
 CFG_TA_MBEDTLS_SELF_TEST ?= y
 
+# By default use tomcrypt as the main crypto lib providing an implementation
+# for the API in <crypto/crypto.h>
+# CFG_CRYPTOLIB_NAME is used as libname and
+# CFG_CRYPTOLIB_DIR is used as libdir when compiling the library
+CFG_CRYPTOLIB_NAME ?= tomcrypt
+CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
-# # without ASN.1 around the hash.
+# without ASN.1 around the hash.
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_RSASSA_NA1 ?= y
+endif
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
