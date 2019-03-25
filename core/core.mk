@@ -87,7 +87,6 @@ include mk/lib.mk
 CFG_CRYPTOLIB_NAME_$(CFG_CRYPTOLIB_NAME) := y
 
 ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
-CFG_CORE_MBEDTLS_MPI ?= y
 ifeq ($(CFG_CORE_MBEDTLS_MPI),y)
 # We're compiling mbedtls too, but with a limited configuration which only
 # provides the MPI routines
