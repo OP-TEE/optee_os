@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isxdigit(int c)
+int isxdigit(int c)
 {
 	if (isdigit(c))
 		return 1;

@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isdigit(int c)
+int isdigit(int c)
 {
 	if (c >= '0' && c <= '9')
 		return 1;
