@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isgraph(int c)
+int isgraph(int c)
 {
 	if (c >= 0x21 && c < 0x7f)
 		return 1;

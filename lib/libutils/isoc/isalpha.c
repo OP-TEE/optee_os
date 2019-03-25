@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isalpha(int c)
+int isalpha(int c)
 {
 	if (c >= 'A' && c <= 'Z')
 		return 1;
