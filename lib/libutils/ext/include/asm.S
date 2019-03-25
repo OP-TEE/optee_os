@@ -6,7 +6,6 @@
 	.macro FUNC name colon
 	.section .text.\name
 	.global \name
-	.func \name
 	.type \name , %function
 	\name \colon
 	.endm
@@ -19,7 +18,6 @@
 
 	.macro LOCAL_FUNC name colon
 	.section .text.\name
-	.func \name
 	.type \name , %function
 	\name \colon
 	.endm
@@ -35,5 +33,4 @@
 
 	.macro END_FUNC name
 	.size \name , .-\name
-	.endfunc
 	.endm
