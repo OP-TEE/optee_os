@@ -20,32 +20,27 @@
 
 	.section .text.sm_asm
 
+	.macro save_regs mode
+	cps	\mode
+	mrs	r2, spsr
+	str	r2, [r0], #4
+	str	sp, [r0], #4
+	str	lr, [r0], #4
+	.endm
+
 FUNC sm_save_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
-	stm	r0!, {sp, lr}
+	str	sp, [r0], #4
+	str	lr, [r0], #4
 
-	cps	#CPSR_MODE_IRQ
-	mrs	r2, spsr
-	stm	r0!, {r2, sp, lr}
-
-	cps	#CPSR_MODE_FIQ
-	mrs	r2, spsr
-	stm	r0!, {r2, sp, lr}
-
-	cps	#CPSR_MODE_SVC
-	mrs	r2, spsr
-	stm	r0!, {r2, sp, lr}
-
-	cps	#CPSR_MODE_ABT
-	mrs	r2, spsr
-	stm	r0!, {r2, sp, lr}
-
-	cps	#CPSR_MODE_UND
-	mrs	r2, spsr
-	stm	r0!, {r2, sp, lr}
+	save_regs	#CPSR_MODE_IRQ
+	save_regs	#CPSR_MODE_FIQ
+	save_regs	#CPSR_MODE_SVC
+	save_regs	#CPSR_MODE_ABT
+	save_regs	#CPSR_MODE_UND
 
 #ifdef CFG_SM_NO_CYCLE_COUNTING
 	read_pmcr r2
@@ -56,33 +51,28 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC sm_save_unbanked_regs
 
+	.macro restore_regs mode
+	cps	\mode
+	ldr	r2, [r0], #4
+	ldr	sp, [r0], #4
+	ldr	lr, [r0], #4
+	msr	spsr_fsxc, r2
+	.endm
+
 /* Restores the mode specific registers */
 FUNC sm_restore_unbanked_regs , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
-	ldm	r0!, {sp, lr}
+	ldr	sp, [r0], #4
+	ldr	lr, [r0], #4
 
-	cps	#CPSR_MODE_IRQ
-	ldm	r0!, {r2, sp, lr}
-	msr	spsr_fsxc, r2
-
-	cps	#CPSR_MODE_FIQ
-	ldm	r0!, {r2, sp, lr}
-	msr	spsr_fsxc, r2
-
-	cps	#CPSR_MODE_SVC
-	ldm	r0!, {r2, sp, lr}
-	msr	spsr_fsxc, r2
-
-	cps	#CPSR_MODE_ABT
-	ldm	r0!, {r2, sp, lr}
-	msr	spsr_fsxc, r2
-
-	cps	#CPSR_MODE_UND
-	ldm	r0!, {r2, sp, lr}
-	msr	spsr_fsxc, r2
+	restore_regs	#CPSR_MODE_IRQ
+	restore_regs	#CPSR_MODE_FIQ
+	restore_regs	#CPSR_MODE_SVC
+	restore_regs	#CPSR_MODE_ABT
+	restore_regs	#CPSR_MODE_UND
 
 #ifdef CFG_SM_NO_CYCLE_COUNTING
 	ldm	r0!, {r2}
