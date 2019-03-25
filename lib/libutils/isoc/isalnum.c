@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isalnum(int c)
+int isalnum(int c)
 {
     return isalpha(c) || isdigit(c);
 }

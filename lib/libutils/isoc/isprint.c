@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isprint(int c)
+int isprint(int c)
 {
 	if (c >= 0x20 && c < 0x7f)
 		return 1;

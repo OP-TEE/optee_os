@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isupper(int c)
+int isupper(int c)
 {
 	return (c >= 'A' && c <= 'Z');
 }
