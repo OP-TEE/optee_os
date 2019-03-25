@@ -19,6 +19,7 @@
 
 #include "thread_private.h"
 
+	.syntax unified
 	.arch_extension sec
 
 	.macro cmp_spsr_user_mode reg:req
@@ -247,7 +248,7 @@ UNWIND(	.cantunwind)
 	mov	lr, r1
 	msr	spsr_fsxc, r2
 	ldm	r0, {r0-r12}
-	movnes	pc, lr
+	movsne	pc, lr
 	b	eret_to_user_mode
 UNWIND(	.fnend)
 END_FUNC thread_resume
@@ -675,7 +676,7 @@ END_FUNC thread_unwind_user_mode
 	pop	{r0-r3, r12, lr}
 	.endif
 
-	movnes	pc, lr
+	movsne	pc, lr
 	b	eret_to_user_mode
 .endm
 
@@ -954,7 +955,7 @@ thread_abort_common:
 
 	cmp_spsr_user_mode r1
 	ldm	ip, {r0-r11, ip}
-	movnes	pc, lr
+	movsne	pc, lr
 	b	eret_to_user_mode
 	/* end thread_abort_common */
 
@@ -973,7 +974,7 @@ thread_svc_handler:
 	msr	spsr_fsxc, r0
 	cmp_spsr_user_mode r0
 	pop	{r0-r7, lr}
-	movnes	pc, lr
+	movsne	pc, lr
 	b	eret_to_user_mode
 	/* end thread_svc_handler */
 
