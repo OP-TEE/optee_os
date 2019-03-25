@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_tolower(int c)
+int tolower(int c)
 {
 	if (c >= 'A' && c <= 'Z')
 		return c - 'A' + 'a';

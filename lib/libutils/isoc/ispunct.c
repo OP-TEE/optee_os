@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_ispunct(int c)
+int ispunct(int c)
 {
     return isgraph(c) && !isalnum(c);
 }

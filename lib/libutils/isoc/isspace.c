@@ -4,7 +4,7 @@
  */
 #include <ctype.h>
 
-int __builtin_isspace(int c)
+int isspace(int c)
 {
 	return (c == ' ');
 }
