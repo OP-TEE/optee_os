@@ -230,10 +230,13 @@ UNWIND(	.cantunwind)
 	add	r12, r0, #(13 * 4)	/* Restore registers r0-r12 later */
 
 	cps	#CPSR_MODE_SYS
-	ldm	r12!, {sp, lr}
+	ldr	sp, [r12], #4
+	ldr	lr, [r12], #4
 
 	cps	#CPSR_MODE_SVC
-	ldm	r12!, {r1, sp, lr}
+	ldr	r1, [r12], #4
+	ldr	sp, [r12], #4
+	ldr	lr, [r12], #4
 	msr	spsr_fsxc, r1
 
 	ldm	r12, {r1, r2}
@@ -285,11 +288,14 @@ UNWIND(	.cantunwind)
 
 	cps     #CPSR_MODE_SYS
 	stm	r0!, {r8-r12}
-	stm     r0!, {sp, lr}
+	str	sp, [r0], #4
+	str	lr, [r0], #4
 
 	cps     #CPSR_MODE_SVC
 	mrs     r1, spsr
-	stm     r0!, {r1, sp, lr}
+	str	r1, [r0], #4
+	str	sp, [r0], #4
+	str	lr, [r0], #4
 
 	/* back to fiq mode */
 	orr	r6, r6, #ARM32_CPSR_FIA	/* Disable Async abort, IRQ and FIQ */
@@ -335,11 +341,14 @@ UNWIND(	.cantunwind)
 	stm	r0!, {r12}
 
         cps     #CPSR_MODE_SYS
-        stm     r0!, {sp, lr}
+	str	sp, [r0], #4
+	str	lr, [r0], #4
 
         cps     #CPSR_MODE_SVC
         mrs     r1, spsr
-        stm     r0!, {r1, sp, lr}
+	str	r1, [r0], #4
+	str	sp, [r0], #4
+	str	lr, [r0], #4
 
 	orr	r6, r6, #ARM32_CPSR_FIA	/* Disable Async abort, IRQ and FIQ */
 	msr	cpsr, r6		/* Restore mode */
