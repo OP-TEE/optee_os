@@ -46,7 +46,7 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	/* Generate the DH key */
 	ltc_tmp_key.g = key->g;
 	ltc_tmp_key.p = key->p;
-	ltc_res = dh_make_key(NULL, find_prng("prng_mpa"), q, xbits,
+	ltc_res = dh_make_key(NULL, find_prng("prng_crypto"), q, xbits,
 			      &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;

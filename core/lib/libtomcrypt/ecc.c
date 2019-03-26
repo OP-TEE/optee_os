@@ -138,7 +138,7 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 		return res;
 
 	/* Generate the ECC key */
-	ltc_res = ecc_make_key(NULL, find_prng("prng_mpa"),
+	ltc_res = ecc_make_key(NULL, find_prng("prng_crypto"),
 			       key_size_bytes, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -277,7 +277,7 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	}
 
 	ltc_res = ecc_sign_hash_raw(msg, msg_len, r, s,
-				    NULL, find_prng("prng_mpa"), &ltc_key);
+				    NULL, find_prng("prng_crypto"), &ltc_key);
 
 	if (ltc_res == CRYPT_OK) {
 		*sig_len = 2 * key_size_bytes;

@@ -24,26 +24,26 @@
 #endif
 
 /* Random generator */
-static int prng_mpa_start(union Prng_state *prng __unused)
+static int prng_crypto_start(union Prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
-static int prng_mpa_add_entropy(const unsigned char *in __unused,
-				unsigned long inlen __unused,
-				union Prng_state *prng __unused)
+static int prng_crypto_add_entropy(const unsigned char *in __unused,
+				   unsigned long inlen __unused,
+				   union Prng_state *prng __unused)
 {
 	/* No entropy is required */
 	return CRYPT_OK;
 }
 
-static int prng_mpa_ready(union Prng_state *prng __unused)
+static int prng_crypto_ready(union Prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
-static unsigned long prng_mpa_read(unsigned char *out, unsigned long outlen,
-				   union Prng_state *prng __unused)
+static unsigned long prng_crypto_read(unsigned char *out, unsigned long outlen,
+				      union Prng_state *prng __unused)
 {
 	if (crypto_rng_read(out, outlen))
 		return 0;
@@ -51,41 +51,41 @@ static unsigned long prng_mpa_read(unsigned char *out, unsigned long outlen,
 	return outlen;
 }
 
-static int prng_mpa_done(union Prng_state *prng __unused)
+static int prng_crypto_done(union Prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
-static int prng_mpa_export(unsigned char *out __unused,
-			   unsigned long *outlen __unused,
-			   union Prng_state *prng __unused)
+static int prng_crypto_export(unsigned char *out __unused,
+			      unsigned long *outlen __unused,
+			      union Prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
-static int prng_mpa_import(const unsigned char *in  __unused,
-			   unsigned long inlen __unused,
-			   union Prng_state *prng __unused)
+static int prng_crypto_import(const unsigned char *in  __unused,
+			      unsigned long inlen __unused,
+			      union Prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
-static int prng_mpa_test(void)
+static int prng_crypto_test(void)
 {
 	return CRYPT_OK;
 }
 
-static const struct ltc_prng_descriptor prng_mpa_desc = {
-	.name = "prng_mpa",
+static const struct ltc_prng_descriptor prng_crypto_desc = {
+	.name = "prng_crypto",
 	.export_size = 64,
-	.start = &prng_mpa_start,
-	.add_entropy = &prng_mpa_add_entropy,
-	.ready = &prng_mpa_ready,
-	.read = &prng_mpa_read,
-	.done = &prng_mpa_done,
-	.pexport = &prng_mpa_export,
-	.pimport = &prng_mpa_import,
-	.test = &prng_mpa_test,
+	.start = &prng_crypto_start,
+	.add_entropy = &prng_crypto_add_entropy,
+	.ready = &prng_crypto_ready,
+	.read = &prng_crypto_read,
+	.done = &prng_crypto_done,
+	.pexport = &prng_crypto_export,
+	.pimport = &prng_crypto_import,
+	.test = &prng_crypto_test,
 };
 
 /*
@@ -122,7 +122,7 @@ static void tee_ltc_reg_algs(void)
 #if defined(CFG_CRYPTO_SHA512)
 	register_hash(&sha512_desc);
 #endif
-	register_prng(&prng_mpa_desc);
+	register_prng(&prng_crypto_desc);
 }
 
 TEE_Result crypto_init(void)

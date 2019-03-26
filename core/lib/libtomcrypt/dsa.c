@@ -76,7 +76,7 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 		group_size = 40;
 
 	/* Generate the DSA key */
-	ltc_res = dsa_make_key(NULL, find_prng("prng_mpa"), group_size,
+	ltc_res = dsa_make_key(NULL, find_prng("prng_crypto"), group_size,
 			       modulus_size, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -147,7 +147,7 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	}
 
 	ltc_res = dsa_sign_hash_raw(msg, msg_len, r, s, NULL,
-				    find_prng("prng_mpa"), &ltc_key);
+				    find_prng("prng_crypto"), &ltc_key);
 
 	if (ltc_res == CRYPT_OK) {
 		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
