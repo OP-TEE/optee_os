@@ -33,6 +33,7 @@ build:
     - _make CFG_CRYPTO_{G,C}CM=n
     - _make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512,512_256}}=n
     - _make CFG_WITH_PAGER=y
+    - _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
     - _make CFG_WITH_LPAE=y
     - _make CFG_RPMB_FS=y
