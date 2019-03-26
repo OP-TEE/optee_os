@@ -150,7 +150,7 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	e = mp_get_int(key->e);
 
 	/* Generate a temporary RSA key */
-	ltc_res = rsa_make_key(NULL, find_prng("prng_mpa"), key_size / 8, e,
+	ltc_res = rsa_make_key(NULL, find_prng("prng_crypto"), key_size / 8, e,
 			       &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -406,7 +406,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
-				     label_len, NULL, find_prng("prng_mpa"),
+				     label_len, NULL, find_prng("prng_crypto"),
 				     ltc_hashindex, ltc_rsa_algo, &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
@@ -504,7 +504,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	ltc_sig_len = mod_size;
 
 	ltc_res = rsa_sign_hash_ex(msg, msg_len, sig, &ltc_sig_len,
-				   ltc_rsa_algo, NULL, find_prng("prng_mpa"),
+				   ltc_rsa_algo, NULL, find_prng("prng_crypto"),
 				   ltc_hashindex, salt_len, &ltc_key);
 
 	*sig_len = ltc_sig_len;
