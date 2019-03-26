@@ -16,7 +16,12 @@ ifeq ($(PLATFORM_FLAVOR),salvator_h3_4x2g)
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 endif
 ifeq ($(PLATFORM_FLAVOR),salvator_m3)
-$(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_TEE_CORE_NB_CORE,6)
+# This somewhat abuses implementation of get_core_pos_mpidr()
+# M3 have 6 cores, but internaly they have ids 0, 1, 4, 5, 6, 7.
+# By setting CFG_CORE_CLUSTER_SHIFT to 1, get_core_pos_mpidr()
+# will produce correct numbers: 0, 1, 2, 3, 4, 5
+$(call force,CFG_CORE_CLUSTER_SHIFT,1)
 endif
 
 CFG_TZDRAM_START ?= 0x44100000
