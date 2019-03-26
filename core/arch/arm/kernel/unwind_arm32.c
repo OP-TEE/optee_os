@@ -476,10 +476,13 @@ vaddr_t *unw_get_kernel_stack(void)
 	size_t exidx_sz = 0;
 	vaddr_t *tmp = NULL;
 	vaddr_t *addr = NULL;
-	struct unwind_state_arm32 state = { 0 };
 	uaddr_t exidx = (vaddr_t)__exidx_start;
 	vaddr_t stack = thread_stack_start();
 	size_t stack_size = thread_stack_size();
+
+	struct unwind_state_arm32 state;
+
+	memset(&state, 0, sizeof(state));
 
 	if (SUB_OVERFLOW((vaddr_t)__exidx_end, (vaddr_t)__exidx_start,
 			 &exidx_sz))
