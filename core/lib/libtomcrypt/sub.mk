@@ -20,3 +20,17 @@ srcs-$(CFG_CRYPTO_ECC) += ecc.c
 srcs-$(CFG_CRYPTO_RSA) += rsa.c
 srcs-$(CFG_CRYPTO_DH) += dh.c
 srcs-$(CFG_CRYPTO_AES) += aes.c
+
+ifdef _CFG_CRYPTO_WITH_ACIPHER
+ifeq ($(CFG_CORE_MBEDTLS_MPI),y)
+srcs-y += mpi_desc.c
+else
+srcs-y += mpa_desc.c
+# Get mpa.h which normally is an internal .h file
+cppflags-mpa_desc.c-y += -Ilib/libmpa
+cflags-mpa_desc.c-y += -Wno-unused-parameter
+endif
+endif
+
+srcs-y += tomcrypt.c
+
