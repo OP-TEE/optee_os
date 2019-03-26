@@ -3,20 +3,12 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#include <assert.h>
 #include <crypto/crypto.h>
-#include <kernel/panic.h>
-#include <stdlib.h>
-#include <string_ext.h>
-#include <string.h>
 #include <tee_api_types.h>
-#include <tee_api_defines_extensions.h>
-#include <tee/tee_cryp_utl.h>
+#include <tee_api_defines.h>
 #include <tomcrypt.h>
 #include "tomcrypt_mp.h"
 #include <trace.h>
-#include <utee_defines.h>
-#include <util.h>
 
 #if defined(CFG_WITH_VFP)
 #include <tomcrypt_arm_neon.h>
