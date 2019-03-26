@@ -204,7 +204,9 @@ SYM (\name):
 	mov		ip, sp
 	stmea		a1!, { v1-v7, fp, ip, lr }
 #else
-	stmea		a1!, { v1-v7, fp, ip, sp, lr }
+	stmea		a1!, { v1-v7, fp, ip}
+	str 		sp, [a1], #4
+	str 		lr, [a1], #4
 #endif
 	
 #if 0	/* Simulator does not cope with FP instructions yet.  */
@@ -231,7 +233,9 @@ SYM (\name):
 	ldmfd		a1!, { v1-v7, fp, ip, lr }
 	mov		sp, ip
 #else
-	ldmfd		a1!, { v1-v7, fp, ip, sp, lr }
+	ldmfd		a1!, { v1-v7, fp, ip }
+	ldr		sp, [a1], #4
+	ldr 		lr, [a1], #4
 #endif
 	
 #if 0	/* Simulator does not cope with FP instructions yet.  */
