@@ -33,6 +33,15 @@ def main():
     key = RSA.importKey(f.read())
     f.close
 
+    # Refuse public exponent with more than 32 bits. Otherwise the C
+    # compiler may simply truncate the value and proceed.
+    # This will lead to TAs seemingly having invalid signatures with a
+    # possible security issue for any e = k*2^32 + 1 (for any integer k).
+    if key.publickey().e > 0xffffffff:
+        raise ValueError(
+            'Unsupported large public exponent detected. ' +
+            'OP-TEE handles only public exponents up to 2^32 - 1.')
+
     f = open(args.out, 'w')
 
     f.write("#include <stdint.h>\n")
