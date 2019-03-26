@@ -22,6 +22,9 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
 
+CFG_TZDRAM_START ?= 0x10100000
+CFG_TZDRAM_SIZE  ?= (15 * 1024 * 1024)
+
 arm32-platform-cflags += -Wno-error=cast-align
 arm64-platform-cflags += -Wno-error=cast-align
 
