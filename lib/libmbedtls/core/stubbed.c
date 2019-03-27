@@ -26,10 +26,6 @@
 	crypto_##name##_alloc_ctx(struct crypto_##type##_ctx **ctx __unused) \
 	{ return TEE_ERROR_NOT_IMPLEMENTED; }
 
-#if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_XTS)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_xts, cipher)
-#endif
-
 #if defined(CFG_CRYPTO_CCM)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_ccm, authenc)
 #endif
