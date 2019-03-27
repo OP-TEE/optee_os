@@ -9,7 +9,7 @@
 
 static inline bool bn_alloc_max(struct bignum **s)
 {
-	*s = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
+	*s = crypto_bignum_allocate(_CFG_CORE_LTC_BIGNUM_MAX_BITS);
 
 	return *s;
 }

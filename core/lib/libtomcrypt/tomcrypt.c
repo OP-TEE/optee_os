@@ -10,7 +10,7 @@
 #include "tomcrypt_mp.h"
 #include <trace.h>
 
-#if defined(CFG_WITH_VFP)
+#if defined(_CFG_CORE_LTC_VFP)
 #include <tomcrypt_arm_neon.h>
 #include <kernel/thread.h>
 #endif
@@ -89,29 +89,29 @@ static const struct ltc_prng_descriptor prng_crypto_desc = {
 
 static void tee_ltc_reg_algs(void)
 {
-#if defined(CFG_CRYPTO_AES)
+#if defined(_CFG_CORE_LTC_AES) || defined(_CFG_CORE_LTC_AES_DESC)
 	register_cipher(&aes_desc);
 #endif
-#if defined(CFG_CRYPTO_DES)
+#if defined(_CFG_CORE_LTC_DES)
 	register_cipher(&des_desc);
 	register_cipher(&des3_desc);
 #endif
-#if defined(CFG_CRYPTO_MD5)
+#if defined(_CFG_CORE_LTC_MD5)
 	register_hash(&md5_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA1)
+#if defined(_CFG_CORE_LTC_SHA1)
 	register_hash(&sha1_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA224)
+#if defined(_CFG_CORE_LTC_SHA224)
 	register_hash(&sha224_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA256)
+#if defined(_CFG_CORE_LTC_SHA256) || defined(_CFG_CORE_LTC_SHA256_DESC)
 	register_hash(&sha256_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA384)
+#if defined(_CFG_CORE_LTC_SHA384) || defined(_CFG_CORE_LTC_SHA384_DESC)
 	register_hash(&sha384_desc);
 #endif
-#if defined(CFG_CRYPTO_SHA512)
+#if defined(_CFG_CORE_LTC_SHA512) || defined(_CFG_CORE_LTC_SHA512_DESC)
 	register_hash(&sha512_desc);
 #endif
 	register_prng(&prng_crypto_desc);

@@ -13,7 +13,7 @@
 #include <tomcrypt_mp.h>
 #include <util.h>
 
-#if defined(CFG_WITH_PAGER)
+#if defined(_CFG_CORE_LTC_PAGER)
 #include <mm/core_mmu.h>
 #include <mm/tee_pager.h>
 #endif
@@ -21,7 +21,7 @@
 /* Size needed for xtest to pass reliably on both ARM32 and ARM64 */
 #define MPI_MEMPOOL_SIZE	(42 * 1024)
 
-#if defined(CFG_WITH_PAGER)
+#if defined(_CFG_CORE_LTC_PAGER)
 /* allocate pageable_zi vmem for mp scratch memory pool */
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
@@ -35,7 +35,7 @@ static struct mempool *get_mp_scratch_memory_pool(void)
 
 	return mempool_alloc_pool(data, size, tee_pager_release_phys);
 }
-#else /* CFG_WITH_PAGER */
+#else /* _CFG_CORE_LTC_PAGER */
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
 	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
