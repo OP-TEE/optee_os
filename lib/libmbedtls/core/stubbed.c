@@ -274,11 +274,6 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 }
 #endif /* CFG_CRYPTO_ECC */
 
-TEE_Result crypto_init(void)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
 #if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash  __unused,
 		const uint8_t *data __unused,
