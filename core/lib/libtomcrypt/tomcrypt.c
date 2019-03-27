@@ -7,6 +7,7 @@
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 #include <tomcrypt.h>
+#include <tomcrypt_init.h>
 #include "tomcrypt_mp.h"
 #include <trace.h>
 
@@ -121,15 +122,27 @@ static void tee_ltc_reg_algs(void)
 #endif
 }
 
-TEE_Result crypto_init(void)
+static void ltc_init(void)
 {
 #if defined(_CFG_CORE_LTC_ACIPHER)
 	init_mp_tomcrypt();
 #endif
 	tee_ltc_reg_algs();
+}
+
+#if defined(CFG_CRYPTOLIB_NAME_tomcrypt)
+TEE_Result crypto_init(void)
+{
+	ltc_init();
 
 	return TEE_SUCCESS;
 }
+#else
+void tomcrypt_init(void)
+{
+	ltc_init();
+}
+#endif
 
 #if defined(CFG_WITH_VFP)
 void tomcrypt_arm_neon_enable(struct tomcrypt_arm_neon_state *state)
