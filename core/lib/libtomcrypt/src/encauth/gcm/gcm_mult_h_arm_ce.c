@@ -35,7 +35,7 @@ void gcm_mult_h(gcm_state *gcm, unsigned char *I)
 	dg[0] = get_be64(I + 8);
 
 	tomcrypt_arm_neon_enable(&state);
-#ifdef CFG_HWSUPP_PMULL
+#ifdef _CFG_CORE_LTC_HWSUPP_PMULL
 	pmull_ghash_update_p64(1, dg, zeroes, k, NULL);
 #else
 	pmull_ghash_update_p8(1, dg, zeroes, k, NULL);
