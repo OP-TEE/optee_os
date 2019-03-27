@@ -182,18 +182,18 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 	return res;
 }
 
+#if defined(ARM32)
+void __noreturn __utee_entry_c(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id);
+
+void __noreturn __utee_entry_c(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id)
+#else
 void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
+#endif
 {
 	TEE_Result res;
-
-#if defined(ARM32) && defined(CFG_UNWIND)
-	/*
-	 * This function is the bottom of the user call stack: mark it as such
-	 * so that the unwinding code won't try to go further down.
-	 */
-	asm(".cantunwind");
-#endif
 
 	switch (func) {
 	case UTEE_ENTRY_FUNC_OPEN_SESSION:
