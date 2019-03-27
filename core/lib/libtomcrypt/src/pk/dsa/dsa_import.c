@@ -115,7 +115,7 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
        key->type = PK_PRIVATE;
    } else { /* public */
       ltc_asn1_list params[3];
-      unsigned long tmpbuf_len = MAX_RSA_SIZE*8;
+      unsigned long tmpbuf_len = inlen;
 
       LTC_SET_ASN1(params, 0, LTC_ASN1_INTEGER, key->p, 1UL);
       LTC_SET_ASN1(params, 1, LTC_ASN1_INTEGER, key->q, 1UL);
