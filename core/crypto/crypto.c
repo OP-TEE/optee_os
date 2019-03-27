@@ -401,7 +401,8 @@ void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx,
 	ae_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-#if !defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_CRYPTO_RSA) && !defined(CFG_CRYPTO_DSA) && \
+    !defined(CFG_CRYPTO_DH) && !defined(CFG_CRYPTO_ECC)
 struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
 {
 	return NULL;
@@ -469,9 +470,9 @@ int32_t crypto_bignum_compare(struct bignum *a __unused,
 	bignum_cant_happen();
 	return -1;
 }
-#endif /*!_CFG_CRYPTO_WITH_ACIPHER*/
+#endif
 
-#if !defined(CFG_CRYPTO_RSA) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_CRYPTO_RSA)
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s __unused,
 					    size_t key_size_bits __unused)
 {
@@ -558,9 +559,9 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
-#endif /*!CFG_CRYPTO_RSA || !_CFG_CRYPTO_WITH_ACIPHER*/
+#endif /*!CFG_CRYPTO_RSA*/
 
-#if !defined(CFG_CRYPTO_DSA) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_CRYPTO_DSA)
 TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s __unused,
 					    size_t key_size_bits __unused)
 {
@@ -599,9 +600,9 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
-#endif /*!CFG_CRYPTO_DSA || !_CFG_CRYPTO_WITH_ACIPHER*/
+#endif /*!CFG_CRYPTO_DSA*/
 
-#if !defined(CFG_CRYPTO_DH) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_CRYPTO_DH)
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
 					   size_t key_size_bits __unused)
 {
@@ -622,9 +623,9 @@ crypto_acipher_dh_shared_secret(struct dh_keypair *private_key __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
-#endif /*!CFG_CRYPTO_DH || !_CFG_CRYPTO_WITH_ACIPHER*/
+#endif /*!CFG_CRYPTO_DH*/
 
-#if !defined(CFG_CRYPTO_ECC) || !defined(_CFG_CRYPTO_WITH_ACIPHER)
+#if !defined(CFG_CRYPTO_ECC)
 TEE_Result
 crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s __unused,
 				    size_t key_size_bits __unused)
@@ -675,4 +676,4 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
-#endif /*!CFG_CRYPTO_ECC || !_CFG_CRYPTO_WITH_ACIPHER*/
+#endif /*!CFG_CRYPTO_ECC*/
