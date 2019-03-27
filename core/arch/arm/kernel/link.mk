@@ -171,12 +171,18 @@ $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 		$< $@
 
 cleanfiles += $(link-out-dir)/tee-pageable.bin
+ifeq ($(CFG_WITH_PAGER),y)
 $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  OBJCOPY $@'
 	$(q)$(OBJCOPYcore) -O binary \
 		--only-section="$(init_sections)" \
 		--only-section="$(pageable_sections)" \
 		$< $@
+else
+$(link-out-dir)/tee-pageable.bin:
+	@$(cmd-echo-silent) '  TOUCH   $@'
+	$(q)touch $@
+endif
 
 cleanfiles += $(link-out-dir)/tee-data_end.txt
 $(link-out-dir)/tee-data_end.txt: $(link-out-dir)/tee.elf
