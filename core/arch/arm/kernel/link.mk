@@ -16,8 +16,7 @@ link-ldflags += --fatal-warnings
 link-ldflags += --gc-sections
 
 link-ldadd  = $(LDADD)
-link-ldadd += $(addprefix -L,$(libdirs))
-link-ldadd += $(addprefix -l,$(libnames))
+link-ldadd += $(libdeps)
 link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
 			  $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
