@@ -63,8 +63,7 @@
 #define MBEDTLS_CIPHER_C
 #endif
 
-#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
-    defined(CFG_CRYPTO_DH) || defined(CFG_CRYPTO_ECC)
+#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DH) || defined(CFG_CRYPTO_ECC)
 #define MBEDTLS_BIGNUM_C
 #define MBEDTLS_OID_C
 #define MBEDTLS_PKCS1_V15

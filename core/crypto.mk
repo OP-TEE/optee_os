@@ -159,6 +159,20 @@ _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
 endif
 
 ###############################################################
+# mbedtls specifics
+###############################################################
+
+ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
+# mbedtls has to be complemented with some algorithms by LTC
+# Specify the algorithms here
+_CFG_CORE_LTC_DSA := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_MPI := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA256_DESC := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA384_DESC := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
+endif
+
+###############################################################
 # libtomcrypt (LTC) specifics, phase #2
 ###############################################################
 
