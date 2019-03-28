@@ -17,6 +17,26 @@
 /* Test if Mbedtls is the primary crypto lib */
 #ifdef CFG_CRYPTOLIB_NAME_mbedtls
 
+#if defined(CFG_CRYPTO_MD5)
+#define MBEDTLS_MD5_C
+#define MBEDTLS_MD_C
+#endif
+
+#if defined(CFG_CRYPTO_SHA1)
+#define MBEDTLS_SHA1_C
+#define MBEDTLS_MD_C
+#endif
+
+#if defined(CFG_CRYPTO_SHA224) || defined(CFG_CRYPTO_SHA256)
+#define MBEDTLS_SHA256_C
+#define MBEDTLS_MD_C
+#endif
+
+#if defined(CFG_CRYPTO_SHA384) || defined(CFG_CRYPTO_SHA512)
+#define MBEDTLS_SHA512_C
+#define MBEDTLS_MD_C
+#endif
+
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
 
 #include <mbedtls/check_config.h>
