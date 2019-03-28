@@ -23,6 +23,9 @@ REGION_RE = re.compile(r'region +[0-9]+: va (?P<addr>0x[0-9a-f]+) '
                        r'( flags .{6} (\[(?P<elf_idx>[0-9]+)\])?)?')
 ELF_LIST_RE = re.compile(r'\[(?P<idx>[0-9]+)\] (?P<uuid>[0-9a-f\-]+)'
                          r' @ (?P<load_addr>0x[0-9a-f\-]+)')
+FUNC_GRAPH_RE = re.compile(r'Function graph')
+GRAPH_ADDR_RE = re.compile(r'(?P<addr>0x[0-9a-f]+)')
+GRAPH_RE = re.compile(r'}')
 
 epilog = '''
 This scripts reads an OP-TEE abort or panic message from stdin and adds debug
@@ -57,13 +60,23 @@ Sample usage:
   $ scripts/symbolize.py -d out/arm-plat-hikey/core -d ../optee_test/out/ta/*
   <paste whole dump here>
   ^D
+
+Also, this script reads function graph generated for OP-TEE user TA from
+/tmp/ftrace-<ta_uuid>.out file and resolves function addresses to corresponding
+symbols.
+
+Sample usage:
+
+  $ cat /tmp/ftrace-<ta_uuid>.out | scripts/symbolize.py -d <ta_uuid>.elf
+  <paste function graph here>
+  ^D
 '''
 
 
 def get_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='Symbolizes OP-TEE abort dumps',
+        description='Symbolizes OP-TEE abort dumps or function graphs',
         epilog=epilog)
     parser.add_argument('-d', '--dir', action='append', nargs='+',
                         help='Search for ELF file in DIR. tee.elf is needed '
@@ -344,6 +357,8 @@ class Symbolizer(object):
         self._sections = {}  # {elf_name: [[name, addr, size], ...], ...}
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
+        self._func_graph_found = False
+        self._func_graph_skip_line = True
 
     def pretty_print_path(self, path):
         if self._strip_path:
@@ -363,6 +378,27 @@ class Symbolizer(object):
                 res = self.pretty_print_path(res)
                 self._out.write(' ' + res)
                 self._out.write(line[post:])
+                return
+            else:
+                self.reset()
+        if self._func_graph_found:
+            match = re.search(GRAPH_ADDR_RE, line)
+            match_re = re.search(GRAPH_RE, line)
+            if match:
+                addr = match.group('addr')
+                pre = match.start('addr')
+                post = match.end('addr')
+                self._out.write(line[:pre])
+                res = self.resolve(addr)
+                res_arr = re.split(' ', res)
+                self._out.write(res_arr[0])
+                self._out.write(line[post:])
+                self._func_graph_skip_line = False
+                return
+            elif match_re:
+                self._out.write(line)
+                return
+            elif self._func_graph_skip_line:
                 return
             else:
                 self.reset()
@@ -416,6 +452,9 @@ class Symbolizer(object):
             # have all the information we need
             if self._saved_abort_line:
                 self._out.write(self.process_abort(self._saved_abort_line))
+        match = re.search(FUNC_GRAPH_RE, line)
+        if match:
+            self._func_graph_found = True
         match = re.search(ABORT_ADDR_RE, line)
         if match:
             self.reset()
