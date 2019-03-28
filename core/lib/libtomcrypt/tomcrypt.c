@@ -15,6 +15,7 @@
 #include <kernel/thread.h>
 #endif
 
+#if defined(_CFG_CORE_LTC_ACIPHER)
 /* Random generator */
 static int prng_crypto_start(union Prng_state *prng __unused)
 {
@@ -79,6 +80,7 @@ static const struct ltc_prng_descriptor prng_crypto_desc = {
 	.pimport = &prng_crypto_import,
 	.test = &prng_crypto_test,
 };
+#endif /*_CFG_CORE_LTC_ACIPHER*/
 
 /*
  * tee_ltc_reg_algs(): Registers
@@ -114,12 +116,16 @@ static void tee_ltc_reg_algs(void)
 #if defined(_CFG_CORE_LTC_SHA512) || defined(_CFG_CORE_LTC_SHA512_DESC)
 	register_hash(&sha512_desc);
 #endif
+#if defined(_CFG_CORE_LTC_ACIPHER)
 	register_prng(&prng_crypto_desc);
+#endif
 }
 
 TEE_Result crypto_init(void)
 {
+#if defined(_CFG_CORE_LTC_ACIPHER)
 	init_mp_tomcrypt();
+#endif
 	tee_ltc_reg_algs();
 
 	return TEE_SUCCESS;
