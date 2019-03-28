@@ -7,9 +7,6 @@
 #include <arm.h>
 #include <platform_config.h>
 
-/* Let platforms override this if needed */
-.weak get_core_pos_mpidr
-
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , :
 	mrs	x0, mpidr_el1
@@ -24,3 +21,6 @@ FUNC get_core_pos_mpidr , :
 	add	x0, x1, x0, LSR #(MPIDR_CLUSTER_SHIFT - CFG_CORE_CLUSTER_SHIFT)
 	ret
 END_FUNC get_core_pos_mpidr
+
+/* Let platforms override this if needed */
+.weak get_core_pos_mpidr

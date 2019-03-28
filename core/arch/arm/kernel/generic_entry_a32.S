@@ -67,13 +67,13 @@ END_FUNC __assert_flat_mapped_range
 	.endm
 #endif /* CFG_PL310 */
 
-.weak plat_cpu_reset_early
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 KEEP_PAGER plat_cpu_reset_early
+.weak plat_cpu_reset_early
 
 	.section .text.reset_vect_table
 	.align 5
