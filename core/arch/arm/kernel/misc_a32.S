@@ -9,8 +9,6 @@
 #include <kernel/unwind.h>
 #include <platform_config.h>
 
-/* Let platforms override this if needed */
-.weak get_core_pos_mpidr
 
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , :
@@ -30,6 +28,9 @@ UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC get_core_pos_mpidr
+
+/* Let platforms override this if needed */
+.weak get_core_pos_mpidr
 
 /*
  * uint32_t temp_set_mode(int cpu_mode)
