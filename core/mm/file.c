@@ -90,13 +90,17 @@ struct file *file_new(uint8_t *tag, unsigned int taglen,
 	f->taglen = taglen;
 	refcount_set(&f->refc, 1);
 	for (n = 0; n < num_slices; n++) {
+		if (file_find_slice(f, slices[n].page_offset))
+			goto err;
+
 		f->slices[n].fobj = fobj_get(slices[n].fobj);
+		f->num_slices = n;
 		if (!f->slices[n].fobj ||
 		    ADD_OVERFLOW(slices[n].page_offset,
 				 slices[n].fobj->num_pages, &s))
 			goto err;
+		f->slices[n].page_offset = slices[n].page_offset;
 	}
-	f->num_slices = num_slices;
 
 	mutex_lock(&file_mu);
 	if (!file_find_tag_unlocked(tag, taglen)) {
