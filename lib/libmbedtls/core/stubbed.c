@@ -274,14 +274,6 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 }
 #endif /* CFG_CRYPTO_ECC */
 
-#if defined(CFG_CRYPTO_SHA256)
-TEE_Result hash_sha256_check(const uint8_t *hash  __unused,
-		const uint8_t *data __unused,
-		size_t data_size __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-#endif
 
 TEE_Result crypto_aes_expand_enc_key(const void *key __unused,
 				     size_t key_len __unused,
@@ -306,30 +298,6 @@ void crypto_aes_enc_block(const void *enc_key __unused,
 	TEE_Result \
 	crypto_##name##_alloc_ctx(struct crypto_##type##_ctx **ctx __unused) \
 	{ return TEE_ERROR_NOT_IMPLEMENTED; }
-
-#if defined(CFG_CRYPTO_MD5)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(md5, hash)
-#endif
-
-#if defined(CFG_CRYPTO_SHA1)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha1, hash)
-#endif
-
-#if defined(CFG_CRYPTO_SHA224)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha224, hash)
-#endif
-
-#if defined(CFG_CRYPTO_SHA256)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha256, hash)
-#endif
-
-#if defined(CFG_CRYPTO_SHA384)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha384, hash)
-#endif
-
-#if defined(CFG_CRYPTO_SHA512)
-CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha512, hash)
-#endif
 
 #if defined(CFG_CRYPTO_HMAC)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_md5, mac)
