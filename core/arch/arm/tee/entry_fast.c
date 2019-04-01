@@ -95,7 +95,7 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 		args->a1 |= OPTEE_SMC_SEC_CAP_DYNAMIC_SHM;
 #endif
 
-	IMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
+	DMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
