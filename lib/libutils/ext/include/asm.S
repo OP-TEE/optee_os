@@ -7,6 +7,7 @@
 	.section .text.\name
 	.global \name
 	.type \name , %function
+	.balign 4
 	\name \colon
 	.endm
 
@@ -19,6 +20,7 @@
 	.macro LOCAL_FUNC name colon
 	.section .text.\name
 	.type \name , %function
+	.balign 4
 	\name \colon
 	.endm
 
