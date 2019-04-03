@@ -76,8 +76,7 @@ END_FUNC plat_cpu_reset_early
 KEEP_PAGER plat_cpu_reset_early
 
 	.section .text.reset_vect_table
-	.align 5
-LOCAL_FUNC reset_vect_table , :
+LOCAL_FUNC_ALIGN 32, reset_vect_table , :
 	b	.
 	b	.	/* Undef */
 	b	.	/* Syscall */

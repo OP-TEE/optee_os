@@ -761,8 +761,7 @@ END_FUNC thread_unwind_user_mode
 .endm
 
 	.section .text.thread_excp_vect
-        .align	5
-FUNC thread_excp_vect , :
+FUNC_ALIGN 32, thread_excp_vect, :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
