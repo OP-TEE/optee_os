@@ -3,11 +3,16 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-	.macro FUNC name colon
+	.macro FUNC_ALIGN align name colon
 	.section .text.\name
 	.global \name
 	.type \name , %function
+	.balign \align
 	\name \colon
+	.endm
+
+	.macro FUNC name colon
+	FUNC_ALIGN 4, \name, \colon
 	.endm
 
 	.macro DATA name colon
@@ -16,10 +21,15 @@
 	\name \colon
 	.endm
 
-	.macro LOCAL_FUNC name colon
+	.macro LOCAL_FUNC_ALIGN align name colon
 	.section .text.\name
 	.type \name , %function
+	.balign \align
 	\name \colon
+	.endm
+
+	.macro LOCAL_FUNC name colon
+	LOCAL_FUNC_ALIGN 4, \name, \colon
 	.endm
 
 	.macro LOCAL_DATA name colon

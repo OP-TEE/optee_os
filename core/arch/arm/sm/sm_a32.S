@@ -255,8 +255,7 @@ UNWIND(	.fnend)
 END_FUNC sm_fiq_entry
 
 	.section .text.sm_vect_table
-        .align	5
-LOCAL_FUNC sm_vect_table , :
+LOCAL_FUNC_ALIGN 32, sm_vect_table , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.		/* Reset			*/
