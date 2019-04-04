@@ -115,8 +115,8 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	if (info.status == DT_STATUS_DISABLED)
 		return NULL;
 
-	if (info.clock < 0)
-		panic();
+	assert(info.clock != DT_INFO_INVALID_CLOCK &&
+	       info.reg != DT_INFO_INVALID_REG);
 
 	pd = calloc(1, sizeof(*pd));
 	if (!pd)
