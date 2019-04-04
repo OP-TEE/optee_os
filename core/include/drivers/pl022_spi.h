@@ -18,13 +18,8 @@ enum pl022_cs_control {
 	PL022_CS_CTRL_MANUAL
 };
 
-struct pl022_cs_gpio_data {
-	struct gpio_chip	*chip;
-	unsigned int		pin_num;
-};
-
 union pl022_cs_data {
-	struct pl022_cs_gpio_data	gpio_data;
+	struct gpio_desc		*gd;
 	void				(*cs_cb)(enum gpio_level value);
 };
 
