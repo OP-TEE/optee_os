@@ -253,19 +253,23 @@ static inline void tlbi_vaae1is(uint64_t mva)
  * Templates for register read/write functions based on mrs/msr
  */
 
-#define DEFINE_REG_READ_FUNC_(reg, type, asmreg)	\
-static inline type read_##reg(void)			\
-{							\
-	type val;					\
-							\
-	asm volatile("mrs %0, " #asmreg : "=r" (val));	\
-	return val;					\
+#define DEFINE_REG_READ_FUNC_(reg, type, asmreg)		\
+static inline type read_##reg(void)				\
+{								\
+	uint64_t val64;						\
+	type val;						\
+								\
+	asm volatile("mrs %0, " #asmreg : "=r" (val64));	\
+	val = (type)val64;					\
+	return val;						\
 }
 
 #define DEFINE_REG_WRITE_FUNC_(reg, type, asmreg)		\
 static inline void write_##reg(type val)			\
 {								\
-	asm volatile("msr " #asmreg ", %0" : : "r" (val));	\
+	uint64_t val64 = val;					\
+								\
+	asm volatile("msr " #asmreg ", %0" : : "r" (val64));	\
 }
 
 #define DEFINE_U32_REG_READ_FUNC(reg) \
