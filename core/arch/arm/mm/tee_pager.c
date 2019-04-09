@@ -921,7 +921,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 			/*
 			 * Here's a problem if this page already is shared.
 			 * We need do icache invalidate for each context
-			 * in which it is shared. In practice this is will
+			 * in which it is shared. In practice this will
 			 * never happen.
 			 */
 			if (flags & TEE_MATTR_UX) {
