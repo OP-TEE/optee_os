@@ -748,7 +748,8 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 
 #endif
 
-static TEE_Result register_ro_slices(struct file **file,
+static TEE_Result register_ro_slices(struct user_ta_ctx *utc,
+				     struct file **file,
 				     const struct user_ta_store_ops *ta_store,
 				     struct user_ta_store_handle *handle,
 				     struct load_seg *segs, size_t num_segs)
@@ -767,9 +768,15 @@ static TEE_Result register_ro_slices(struct file **file,
 	if (res)
 		return res;
 
-	for (n = 0; n < num_segs; n++)
-		if (!(segs[n].flags & PF_W))
+	for (n = 0; n < num_segs; n++) {
+		if (!(segs[n].flags & PF_W)) {
+			res = vm_set_prot(utc, segs[n].va, segs[n].size,
+					  elf_flags_to_mattr(segs[n].flags));
+			if (res)
+				return res;
 			num_slices++;
+		}
+	}
 
 	fs = calloc(num_slices, sizeof(*fs));
 	if (!fs)
@@ -994,7 +1001,7 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	 * relocation is updated.
 	 */
 	if (!file && ta_head->depr_entry == UINT64_MAX) {
-		res = register_ro_slices(&file, ta_store, handle,
+		res = register_ro_slices(utc, &file, ta_store, handle,
 					 segs, num_segs);
 		if (res)
 			goto out;
