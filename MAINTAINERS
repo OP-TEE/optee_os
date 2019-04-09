@@ -73,6 +73,7 @@ F:	core/arch/arm/plat-hikey/
 
 HiSilicon Poplar (Hi3798C V200)
 R:	Linaro <op-tee@linaro.org>
+R:	Igor Opaniuk <igor.opaniuk@gmail.com> [@igoropaniuk]
 S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
@@ -173,7 +174,6 @@ M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 M:	Linaro <op-tee@linaro.org>
 R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
-R:	Igor Opaniuk <igor.opaniuk@linaro.org> [@igoropaniuk]
 R:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 R:	Victor Chong <victor.chong@linaro.org> [@vchong]
 L:	tee-dev@lists.linaro.org
