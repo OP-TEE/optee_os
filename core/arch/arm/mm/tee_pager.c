@@ -874,13 +874,14 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 	struct tee_pager_pmem *pmem = NULL;
 	uint32_t a = 0;
 	uint32_t f = 0;
+	uint32_t mattr = 0;
 	uint32_t f2 = 0;
 	size_t tblidx = 0;
 
 	f = (flags & TEE_MATTR_URWX) | TEE_MATTR_UR | TEE_MATTR_PR;
 	if (f & TEE_MATTR_UW)
 		f |= TEE_MATTR_PW;
-	f = get_area_mattr(f);
+	mattr = get_area_mattr(f);
 
 	exceptions = pager_lock_check_stack(SMALL_PAGE_SIZE);
 
@@ -892,6 +893,9 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		}
 		b += s2;
 		s -= s2;
+
+		if (area->flags == f)
+			goto next_area;
 
 		TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
 			if (!pmem_is_covered_by_area(pmem, area))
@@ -906,9 +910,9 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 
 			pmem->flags &= ~PMEM_FLAG_HIDDEN;
 			if (pmem_is_dirty(pmem))
-				f2 = f;
+				f2 = mattr;
 			else
-				f2 = f & ~(TEE_MATTR_UW | TEE_MATTR_PW);
+				f2 = mattr & ~(TEE_MATTR_UW | TEE_MATTR_PW);
 			area_set_entry(area, tblidx, get_pmem_pa(pmem), f2);
 			if (!(a & TEE_MATTR_VALID_BLOCK))
 				pgt_inc_used_entries(area->pgt);
@@ -940,6 +944,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 		}
 
 		area->flags = f;
+next_area:
 		area = TAILQ_NEXT(area, link);
 	}
 
