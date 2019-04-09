@@ -120,9 +120,9 @@ static uint32_t elf_flags_to_mattr(uint32_t flags)
 	if (flags & PF_X)
 		mattr |= TEE_MATTR_UX;
 	if (flags & PF_W)
-		mattr |= TEE_MATTR_UW;
+		mattr |= TEE_MATTR_UW | TEE_MATTR_PW;
 	if (flags & PF_R)
-		mattr |= TEE_MATTR_UR;
+		mattr |= TEE_MATTR_UR | TEE_MATTR_PR;
 
 	return mattr;
 }
