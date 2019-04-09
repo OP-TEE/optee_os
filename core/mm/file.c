@@ -94,7 +94,7 @@ struct file *file_new(uint8_t *tag, unsigned int taglen,
 			goto err;
 
 		f->slices[n].fobj = fobj_get(slices[n].fobj);
-		f->num_slices = n;
+		f->num_slices = n + 1;
 		if (!f->slices[n].fobj ||
 		    ADD_OVERFLOW(slices[n].page_offset,
 				 slices[n].fobj->num_pages, &s))
