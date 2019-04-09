@@ -70,3 +70,23 @@ void stm32_reset_deassert(unsigned int id)
 	WAIT_COND_OR_PANIC(!(io_read32(rcc_base + offset) & bitmsk),
 			   timeout_ref);
 }
+
+void stm32mp_rcc_raw_setup_rng1(void)
+{
+	vaddr_t rng = (vaddr_t)phys_to_virt(RNG1_BASE, MEM_AREA_IO_SEC);
+	vaddr_t rcc = stm32_rcc_base();
+	uint64_t timeout_ref = timeout_init_us(RESET_TIMEOUT_US);
+
+	assert(rng && rcc);
+
+	io_setbits32(rcc + RCC_MP_AHB5ENSETR, RCC_MP_AHB5ENSETR_RNG1EN);
+	io_setbits32(rcc + RCC_MP_AHB5LPENCLRR, RCC_MP_AHB5LPENSETR_RNG1LPEN);
+	io_setbits32(rcc + RCC_AHB5RSTSETR, RCC_AHB5RSTSETR_RNG1RST);
+	while (!(io_read32(rcc + RCC_AHB5RSTSETR) & RCC_AHB5RSTSETR_RNG1RST))
+		if (timeout_elapsed(timeout_ref))
+			panic();
+	io_setbits32(rcc + RCC_AHB5RSTCLRR, RCC_AHB5RSTSETR_RNG1RST);
+	while (io_read32(rcc + RCC_AHB5RSTSETR) & RCC_AHB5RSTSETR_RNG1RST)
+		if (timeout_elapsed(timeout_ref))
+			panic();
+}

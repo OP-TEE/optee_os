@@ -545,6 +545,9 @@ static inline bool stm32_rcc_is_mckprot(void)
 {
 	return io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
 }
+
+/* Clock and reset RNG1 from RCC raw access aside clock/reset drviers */
+void stm32mp_rcc_raw_setup_rng1(void);
 #endif /*ASM*/
 
 #endif /*__STM32MP1_RCC_H__*/
