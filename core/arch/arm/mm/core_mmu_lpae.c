@@ -62,6 +62,7 @@
 #include <compiler.h>
 #include <inttypes.h>
 #include <keep.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -908,6 +909,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	thread_unmask_exceptions(exceptions);
 }
@@ -991,6 +993,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	thread_unmask_exceptions(exceptions);
 }

@@ -938,8 +938,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 
 				cache_op_inner(DCACHE_AREA_CLEAN, va,
 						SMALL_PAGE_SIZE);
-				cache_op_inner(ICACHE_AREA_INVALIDATE, va,
-						SMALL_PAGE_SIZE);
+				cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 			}
 		}
 
@@ -1354,8 +1353,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 			 */
 			cache_op_inner(DCACHE_AREA_CLEAN, (void *)page_va,
 				       SMALL_PAGE_SIZE);
-			cache_op_inner(ICACHE_AREA_INVALIDATE, (void *)page_va,
-				       SMALL_PAGE_SIZE);
+			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 
 			/* Set the final mapping */
 			area_set_entry(area, tblidx, pa, attr);
