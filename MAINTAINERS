@@ -57,7 +57,8 @@ S:	Maintained
 F:	core/arch/arm/plat-sam/
 
 Broadcom ns3
-R:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com> [@sandeepbrcm]
+R:	Sandeep Tripathy <sandeep.tripathy@broadcom.com> [@sandeepbrcm]
+L:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com>
 S:	Maintained
 F:	core/arch/arm/plat-bcm/
 
