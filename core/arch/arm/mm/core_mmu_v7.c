@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <keep.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tlb_helpers.h>
@@ -670,6 +671,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	/* Restore interrupts */
 	thread_unmask_exceptions(exceptions);
