@@ -370,6 +370,17 @@ endif
 #   in the same way as TAs so that they can be found at runtime.
 CFG_ULIBS_SHARED ?= n
 
+ifeq (yy,$(CFG_ULIBS_GPROF)$(CFG_ULIBS_SHARED))
+# FIXME:
+# If both are enabled, the linker will report an error when linking a TA:
+#  ta.lds:19: unresolvable symbol `__utee_mcount' referenced in expression
+# The allocation of the profiling buffer should probably be done at runtime
+# via a new syscall/PTA call instead of having it pre-allocated in .bss by the
+# linker, which is hackish. When the TA link script is processed, there is no
+# way the linker can tell if some file in some shared library uses -pg anyway.
+$(error CFG_ULIBS_GPROF and CFG_ULIBS_SHARED are incompatible)
+endif
+
 # CFG_GP_SOCKETS
 # Enable Global Platform Sockets support
 CFG_GP_SOCKETS ?= y
