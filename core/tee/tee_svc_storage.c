@@ -925,16 +925,17 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 
 	off = sizeof(struct tee_svc_storage_head) + attr_size;
 	res = o->pobj->fops->truncate(o->fh, len + off);
-	if (res != TEE_SUCCESS) {
-		if (res == TEE_ERROR_CORRUPT_OBJECT) {
-			EMSG("Object corrupt");
-			res = tee_svc_storage_remove_corrupt_obj(sess, o);
-			if (res != TEE_SUCCESS)
-				goto exit;
-			res = TEE_ERROR_CORRUPT_OBJECT;
-			goto exit;
-		} else
-			res = TEE_ERROR_GENERIC;
+	switch (res) {
+	case TEE_SUCCESS:
+		o->info.dataSize = len;
+		break;
+	case TEE_ERROR_CORRUPT_OBJECT:
+		EMSG("Object corruption");
+		(void)tee_svc_storage_remove_corrupt_obj(sess, o);
+		break;
+	default:
+		res = TEE_ERROR_GENERIC;
+		break;
 	}
 
 exit:
