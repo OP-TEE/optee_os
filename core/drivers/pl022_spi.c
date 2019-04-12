@@ -204,7 +204,7 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 			if (rdat)
 				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 					/* rx 1 packet */
-					rdat[j++] = io_read8(pd->base + SSPDR);
+					rdat[j++] = io_read16(pd->base + SSPDR);
 				}
 		}
 
@@ -213,7 +213,7 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 		while ((j < num_pkts) &&
 		       (io_read8(pd->base + SSPSR) & SSPSR_RNE)) {
 			/* rx 1 packet */
-			rdat[j++] = io_read8(pd->base + SSPDR);
+			rdat[j++] = io_read16(pd->base + SSPDR);
 		}
 
 		if (j < num_pkts) {
