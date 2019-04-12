@@ -918,8 +918,10 @@ static void free_elf_states(struct user_ta_ctx *utc)
 {
 	struct user_ta_elf *elf;
 
-	TAILQ_FOREACH(elf, &utc->elfs, link)
-			elf_load_final(elf->elf_state);
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		elf_load_final(elf->elf_state);
+		elf->elf_state = NULL;
+	}
 }
 
 static TEE_Result set_seg_prot(struct user_ta_ctx *utc,
