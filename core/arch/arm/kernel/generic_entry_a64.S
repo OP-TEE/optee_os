@@ -54,7 +54,11 @@
 
 FUNC _start , :
 	mov	x19, x0		/* Save pagable part address */
+#if defined(CFG_DT_ADDR)
+	ldr     x20, =CFG_DT_ADDR
+#else
 	mov	x20, x2		/* Save DT address */
+#endif
 
 	adr	x0, reset_vect_table
 	msr	vbar_el1, x0
