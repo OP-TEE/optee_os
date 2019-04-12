@@ -74,6 +74,9 @@ CFG_TEE_CORE_TA_TRACE ?= y
 #   $ make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_CORE_LOG_LEVEL=3
 CFG_TEE_CORE_MALLOC_DEBUG ?= n
 CFG_TEE_TA_MALLOC_DEBUG ?= n
+# Prints an error message and dumps the stack on failed memory allocations
+# using malloc() and friends.
+CFG_CORE_DUMP_OOM ?= $(CFG_TEE_CORE_MALLOC_DEBUG)
 
 # Mask to select which messages are prefixed with long debugging information
 # (severity, core ID, thread ID, component name, function name, line number)
