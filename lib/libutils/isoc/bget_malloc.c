@@ -181,6 +181,14 @@ static DEFINE_CTX(malloc_ctx);
 static __nex_data DEFINE_CTX(nex_malloc_ctx);
 #endif
 
+static void print_oom(size_t req_size __maybe_unused, void *ctx __maybe_unused)
+{
+#if defined(__KERNEL__) && defined(CFG_CORE_DUMP_OOM)
+	EMSG("Memory allocation failed: size %zu context %p", req_size, ctx);
+	EPRINT_STACK();
+#endif
+}
+
 #ifdef BufStats
 
 static void raw_malloc_return_hook(void *p, size_t requested_size,
@@ -191,6 +199,7 @@ static void raw_malloc_return_hook(void *p, size_t requested_size,
 
 	if (!p) {
 		ctx->mstats.num_alloc_fail++;
+		print_oom(requested_size, ctx);
 		if (requested_size > ctx->mstats.biggest_alloc_fail) {
 			ctx->mstats.biggest_alloc_fail = requested_size;
 			ctx->mstats.biggest_alloc_fail_used =
@@ -232,10 +241,11 @@ void malloc_get_stats(struct malloc_stats *stats)
 
 #else /* BufStats */
 
-static void raw_malloc_return_hook(void *p __unused,
-				   size_t requested_size __unused,
-				   struct malloc_ctx *ctx __unused)
+static void raw_malloc_return_hook(void *p, size_t requested_size,
+				   struct malloc_ctx *ctx )
 {
+	if (!p)
+		print_oom(requested_size, ctx);
 }
 
 #endif /* BufStats */
