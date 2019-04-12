@@ -6,16 +6,9 @@
 #include <gpio.h>
 #include <initcall.h>
 #include <io.h>
-#include <kernel/misc.h>
 #include <mm/core_memprot.h>
-#include <mm/core_mmu.h>
 #include <platform_config.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <trace.h>
-
-#define BCM_IPROC_GPIO  "bcm-iproc-gpio"
 
 #define IPROC_GPIO_DATA_IN_OFFSET   0x00
 #define IPROC_GPIO_DATA_OUT_OFFSET  0x04
@@ -29,22 +22,22 @@
 #define IPROC_GPIO_REG(pin, reg) (GPIO_BANK(pin) * GPIO_BANK_SIZE + (reg))
 #define IPROC_GPIO_SHIFT(pin)    ((pin) % NGPIOS_PER_BANK)
 
-static inline void iproc_set_bit(struct gpio_chip *gc, unsigned int reg,
-				 unsigned int gpio)
+static void iproc_set_bit(struct gpio_chip *gc, unsigned int reg,
+			  unsigned int gpio)
 {
 	unsigned int offset = IPROC_GPIO_REG(gpio, reg);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	io_setbits32((vaddr_t)gc->base + offset, BIT(shift));
+	io_setbits32(gc->base + offset, BIT(shift));
 }
 
-static inline void iproc_clr_bit(struct gpio_chip *gc, unsigned int reg,
-				 unsigned int gpio)
+static void iproc_clr_bit(struct gpio_chip *gc, unsigned int reg,
+			  unsigned int gpio)
 {
 	unsigned int offset = IPROC_GPIO_REG(gpio, reg);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	io_clrbits32((vaddr_t)gc->base + offset, BIT(shift));
+	io_clrbits32(gc->base + offset, BIT(shift));
 }
 
 static void iproc_gpio_set(struct gpio_chip *gc, unsigned int gpio,
@@ -60,15 +53,15 @@ static enum gpio_level iproc_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_DATA_IN_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
-	int val;
 
-	val = io_read32((vaddr_t)gc->base + offset) & BIT(shift);
-
-	return val ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW;
+	if (io_read32(gc->base + offset) & BIT(shift))
+		return GPIO_LEVEL_HIGH;
+	else
+		return GPIO_LEVEL_LOW;
 }
 
 static void iproc_gpio_set_dir(struct gpio_chip *gc, unsigned int gpio,
-			      enum gpio_dir dir)
+			       enum gpio_dir dir)
 {
 	if (dir == GPIO_DIR_OUT)
 		iproc_set_bit(gc, IPROC_GPIO_OUT_EN_OFFSET, gpio);
@@ -82,27 +75,27 @@ static enum gpio_dir iproc_gpio_get_dir(struct gpio_chip *gc,
 {
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_OUT_EN_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
-	uint32_t val;
 
-	val = io_read32((vaddr_t)gc->base + offset) & BIT(shift);
-
-	return val ? GPIO_DIR_OUT : GPIO_DIR_IN;
+	if (io_read32(gc->base + offset) & BIT(shift))
+		return GPIO_DIR_OUT;
+	else
+		return GPIO_DIR_IN;
 }
 
 static enum gpio_interrupt iproc_gpio_get_itr(struct gpio_chip *gc,
-					  unsigned int gpio)
+					      unsigned int gpio)
 {
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_INT_MSK_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
-	uint32_t val;
 
-	val = io_read32((vaddr_t)gc->base + offset) & BIT(shift);
-
-	return val ? GPIO_INTERRUPT_ENABLE : GPIO_INTERRUPT_DISABLE;
+	if (io_read32(gc->base + offset) & BIT(shift))
+		return GPIO_INTERRUPT_ENABLE;
+	else
+		return GPIO_INTERRUPT_DISABLE;
 }
 
 static void iproc_gpio_set_itr(struct gpio_chip *gc, unsigned int gpio,
-			  enum gpio_interrupt ena_dis)
+			       enum gpio_interrupt ena_dis)
 {
 	if (ena_dis == GPIO_INTERRUPT_ENABLE)
 		iproc_set_bit(gc, IPROC_GPIO_OUT_EN_OFFSET, gpio);
@@ -139,7 +132,7 @@ static TEE_Result bcm_gpio_init(void)
 	struct gpio_chip *gc = malloc(sizeof(*gc));
 
 	if (gc == NULL)
-		return -1;
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	iproc_gpio_init(gc, SECURE_GPIO_BASE0, GPIO_NUM_START0, NUM_GPIOS0);
 
