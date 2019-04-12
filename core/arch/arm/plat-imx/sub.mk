@@ -1,7 +1,7 @@
 global-incdirs-y += .
 srcs-y += main.c
 
-srcs-$(CFG_MX6)$(CFG_MX7) += mmdc.c imx-common.c
+srcs-$(CFG_MX6)$(CFG_MX7) += imx_src.c mmdc.c imx-common.c
 
 srcs-$(CFG_PL310) += imx_pl310.c
 ifeq ($(CFG_PSCI_ARM32),y)
