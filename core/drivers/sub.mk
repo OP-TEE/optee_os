@@ -25,3 +25,4 @@ srcs-$(CFG_STM32_GPIO) += stm32_gpio.c
 srcs-$(CFG_STM32_UART) += stm32_uart.c
 srcs-$(CFG_STM32_I2C) += stm32_i2c.c
 srcs-$(CFG_BCM_HWRNG) += bcm_hwrng.c
+srcs-$(CFG_BCM_SOTP) += bcm_sotp.c
