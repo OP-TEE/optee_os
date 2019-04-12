@@ -214,7 +214,7 @@ SECTIONS
 		__nex_heap_end = .;
 	}
 	.nex_nozi (NOLOAD) : {
-		ASSERT(!( . & (16 * 1024 - 1)), "align nozi to 16kB");
+		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
 		KEEP(*(.nozi.mmu.l1 .nozi.mmu.l2))
 	}
 
@@ -281,7 +281,7 @@ SECTIONS
 	 */
 	.nozi (NOLOAD) : {
 		__nozi_start = .;
-		ASSERT(!(__nozi_start & (16 * 1024 - 1)), "align nozi to 16kB");
+		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
 
 		KEEP(*(.nozi .nozi.*))
 		. = ALIGN(16);
