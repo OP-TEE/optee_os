@@ -16,19 +16,6 @@
 #include <malloc.h>
 #include "tee_api_private.h"
 
-/*
- * Pull in symbol __utee_mcount.
- * This symbol is implemented in assembly in its own compilation unit, and is
- * never referenced except by the linker script (in a PROVIDE() command).
- * Because the compilation units are packed into an archive (libutee.a), the
- * linker will discard the compilation units that are not explicitly
- * referenced. AFAICT this occurs *before* the linker processes the PROVIDE()
- * command, resulting in an "undefined symbol" error. We avoid this by
- * adding an explicit reference here.
- */
-extern uint8_t __utee_mcount[];
-void *_ref__utee_mcount __unused = &__utee_mcount;
-
 struct ta_session {
 	uint32_t session_id;
 	void *session_ctx;

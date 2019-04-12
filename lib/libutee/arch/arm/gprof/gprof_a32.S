@@ -23,11 +23,8 @@
  * stored on the top of the stack. The callee, i.e. the instrumented function
  * itself, is determined from the current value of lr. Then we call:
  *   void __mcount_internal(void *frompc, void *selfpc);
- *
- * __gnu_mcount_nc is defined and set to the value of this function by the
- * TA linker script, only if__gnu_mcount_nc is referenced
  */
-FUNC __utee_mcount, :
+FUNC __gnu_mcount_nc, :
 	stmdb		sp!, {r0-r3, lr}
 	ldr		r0, [sp, #20]		/* lr of instrumented func */
 	mcount_adj_pc	r0, r0
@@ -35,20 +32,6 @@ FUNC __utee_mcount, :
 	bl		__mcount_internal
 	ldmia		sp!, {r0-r3, ip, lr}
 	bx		ip
-END_FUNC __utee_mcount
-
-#else /* !CFG_TA_GPROF_SUPPORT */
-
-/*
- * The TA linker script always references __utee_mcount so provide a version
- * that just pops one register (lr) off the stack, since that's the ABI we must
- * follow.
- */
-	.weak __utee_mcount
-FUNC __utee_mcount, :
-	push		{lr}
-	pop		{ip, lr}
-	bx		ip
-END_FUNC __utee_mcount
+END_FUNC __gnu_mcount_nc
 
 #endif /* CFG_TA_GPROF_SUPPORT */

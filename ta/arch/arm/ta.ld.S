@@ -39,7 +39,6 @@ SECTIONS {
 		*(.gnu.linkonce.t.*)
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
-		PROVIDE(MCOUNT_SYM = __utee_mcount);
 		__text_end = .;
 	}
         .plt : { *(.plt) }
@@ -91,8 +90,6 @@ SECTIONS {
 		 * TA profiling with gprof
 		 * Reserve some space for the profiling buffer, only if the
 		 * TA is instrumented (i.e., some files were built with -pg).
-		 * Note that PROVIDE() above defines a symbol only if it is
-		 * referenced in the object files.
 		 * This also provides a way to detect at runtime if the TA is
 		 * instrumented or not.
 		 */
