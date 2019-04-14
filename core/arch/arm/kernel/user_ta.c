@@ -1134,6 +1134,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 err:
 	free_elf_states(utc);
 	tee_mmu_set_ctx(NULL);
+	pgt_flush_ctx(&utc->ctx);
 	free_utc(utc);
 	return res;
 }
