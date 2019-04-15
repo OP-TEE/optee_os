@@ -862,6 +862,20 @@ void tee_pager_rem_uta_areas(struct user_ta_ctx *utc)
 	free(utc->areas);
 }
 
+static bool __maybe_unused same_context(struct tee_pager_pmem *pmem)
+{
+	struct tee_pager_area *a = TAILQ_FIRST(&pmem->fobj->areas);
+	void *ctx = a->pgt->ctx;
+
+	do {
+		a = TAILQ_NEXT(a, fobj_link);
+		if (!a)
+			return true;
+	} while (a->pgt->ctx == ctx);
+
+	return false;
+}
+
 bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				 size_t size, uint32_t flags)
 {
@@ -932,9 +946,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				void *va = (void *)area_idx2va(area, tblidx);
 
 				/* Assert that the pmem isn't shared. */
-				assert(TAILQ_FIRST(&pmem->fobj->areas) ==
-				       TAILQ_LAST(&pmem->fobj->areas,
-						  tee_pager_area_head));
+				assert(same_context(pmem));
 
 				cache_op_inner(DCACHE_AREA_CLEAN, va,
 						SMALL_PAGE_SIZE);
