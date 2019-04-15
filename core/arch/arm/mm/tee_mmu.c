@@ -148,15 +148,32 @@ static TEE_Result alloc_pgt(struct user_ta_ctx *utc)
 	return TEE_SUCCESS;
 }
 
-static void free_pgt(struct user_ta_ctx *utc, vaddr_t base, size_t size)
+static void maybe_free_pgt(struct user_ta_ctx *utc, struct vm_region *r)
 {
-	struct thread_specific_data *tsd = thread_get_tsd();
+	struct thread_specific_data *tsd = NULL;
 	struct pgt_cache *pgt_cache = NULL;
+	vaddr_t begin = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+	vaddr_t last = ROUNDUP(r->va + r->size, CORE_MMU_PGDIR_SIZE);
+	struct vm_region *r2 = NULL;
 
+	r2 = TAILQ_NEXT(r, link);
+	if (r2)
+		last = MIN(last, ROUNDDOWN(r2->va, CORE_MMU_PGDIR_SIZE));
+
+	r2 = TAILQ_PREV(r, vm_region_head, link);
+	if (r2)
+		begin = MAX(begin,
+			    ROUNDUP(r2->va + r2->size, CORE_MMU_PGDIR_SIZE));
+
+	/* If there's no unused page tables, there's nothing left to do */
+	if (begin >= last)
+		return;
+
+	tsd = thread_get_tsd();
 	if (&utc->ctx == tsd->ctx)
 		pgt_cache = &tsd->pgt_cache;
 
-	pgt_flush_ctx_range(pgt_cache, &utc->ctx, base, base + size);
+	pgt_flush_ctx_range(pgt_cache, &utc->ctx, r->va, r->va + r->size);
 }
 
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg)
@@ -394,10 +411,9 @@ void tee_mmu_clean_param(struct user_ta_ctx *utc)
 
 	TAILQ_FOREACH_SAFE(r, &utc->vm_info->regions, link, next_r) {
 		if (r->attr & TEE_MATTR_EPHEMERAL) {
-			if (mobj_is_paged(r->mobj)) {
+			if (mobj_is_paged(r->mobj))
 				tee_pager_rem_uta_region(utc, r->va, r->size);
-				free_pgt(utc, r->va, r->size);
-			}
+			maybe_free_pgt(utc, r);
 			umap_remove_region(utc->vm_info, r);
 		}
 	}
@@ -589,12 +605,14 @@ TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
 
 void tee_mmu_rem_rwmem(struct user_ta_ctx *utc, struct mobj *mobj, vaddr_t va)
 {
-	struct vm_region *reg;
+	struct vm_region *r;
 
-	TAILQ_FOREACH(reg, &utc->vm_info->regions, link) {
-		if (reg->mobj == mobj && reg->va == va) {
-			free_pgt(utc, reg->va, reg->size);
-			umap_remove_region(utc->vm_info, reg);
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		if (r->mobj == mobj && r->va == va) {
+			if (mobj_is_paged(r->mobj))
+				tee_pager_rem_uta_region(utc, r->va, r->size);
+			maybe_free_pgt(utc, r);
+			umap_remove_region(utc->vm_info, r);
 			return;
 		}
 	}
