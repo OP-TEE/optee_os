@@ -38,12 +38,15 @@ CFG_MMAP_REGIONS ?= 23
 CFG_STM32_BSEC ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
+CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STATS ?= y
-# Non-secure UART for the output console
+
+# Non-secure UART and GPIO/pinctrl for the output console
+CFG_WITH_NSEC_GPIOS ?= y
 CFG_WITH_NSEC_UARTS ?= y
 # UART instance used for early console (0 disables early console)
 CFG_STM32_EARLY_CONSOLE_UART ?= 4

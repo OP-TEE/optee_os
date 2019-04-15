@@ -43,7 +43,7 @@
 
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
-	struct stm32_uart_pdata *pd;
+	struct stm32_uart_pdata *pd = NULL;
 
 	pd = container_of(chip, struct stm32_uart_pdata, chip);
 
@@ -107,16 +107,16 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 #ifdef CFG_DT
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 {
-	struct stm32_uart_pdata *pd;
-	struct dt_node_info info;
+	struct stm32_uart_pdata *pd = NULL;
+	struct dt_node_info info = { };
 
 	_fdt_fill_device_info(fdt, &info, node);
 
 	if (info.status == DT_STATUS_DISABLED)
 		return NULL;
 
-	if (info.clock < 0)
-		panic();
+	assert(info.clock != DT_INFO_INVALID_CLOCK &&
+	       info.reg != DT_INFO_INVALID_REG);
 
 	pd = calloc(1, sizeof(*pd));
 	if (!pd)

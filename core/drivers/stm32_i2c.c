@@ -648,7 +648,9 @@ static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
 }
 
 int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
-				 struct stm32_i2c_init_s *init)
+				 struct stm32_i2c_init_s *init,
+				 struct stm32_pinctrl **pinctrl,
+				 size_t *pinctrl_count)
 {
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
@@ -693,6 +695,24 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	} else {
 		init->speed_mode = STM32_I2C_SPEED_DEFAULT;
 	}
+
+	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
+	if (count <= 0) {
+		*pinctrl = NULL;
+		*pinctrl_count = 0;
+		return count;
+	}
+
+	if (count > 2)
+		panic("Too many PINCTRLs found");
+
+	*pinctrl = calloc(count, sizeof(**pinctrl));
+	if (!*pinctrl)
+		panic();
+
+	*pinctrl_count = stm32_pinctrl_fdt_get_pinctrl(fdt, node,
+						       *pinctrl, count);
+	assert(*pinctrl_count == (unsigned int)count);
 
 	return 0;
 }
@@ -1381,8 +1401,10 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 	    (hi2c->i2c_state != I2C_STATE_SUSPENDED))
 		panic();
 
+	stm32_pinctrl_load_active_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
+
 	if (hi2c->i2c_state == I2C_STATE_RESET) {
-		/* This is no valid I2C configuration loaded yet */
+		/* There is no valid I2C configuration to be loaded yet */
 		return;
 	}
 
@@ -1400,6 +1422,7 @@ void stm32_i2c_suspend(struct i2c_handle_s *hi2c)
 		panic();
 
 	save_cfg(hi2c, &hi2c->sec_cfg);
+	stm32_pinctrl_load_standby_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
 
 	hi2c->i2c_state = I2C_STATE_SUSPENDED;
 }

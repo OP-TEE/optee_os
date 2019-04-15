@@ -2,6 +2,12 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 
+CFG_SHMEM_START ?= 0x08000000
+CFG_SHMEM_SIZE ?= 0x00400000
+CFG_TZDRAM_START ?= 0x10100000
+CFG_TZDRAM_SIZE ?= 0x00F00000
+CFG_TEE_RAM_VA_SIZE ?= 0x00700000
+
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PM_STUBS,y)

@@ -95,21 +95,21 @@ static void __noreturn stm32_pm_cpu_power_down_wfi(void)
 void stm32mp_register_online_cpu(void)
 {
 	size_t pos = get_core_pos();
-	uint32_t excep = lock_state_access();
+	uint32_t exceptions = lock_state_access();
 
 	if (pos == 0) {
 		assert(core_state[pos] == CORE_OFF);
 	} else {
 		if (core_state[pos] != CORE_AWAKE) {
 			core_state[pos] = CORE_OFF;
-			unlock_state_access(excep);
+			unlock_state_access(exceptions);
 			stm32_pm_cpu_power_down_wfi();
 			panic();
 		}
 	}
 
 	core_state[pos] = CORE_ON;
-	unlock_state_access(excep);
+	unlock_state_access(exceptions);
 }
 
 #define GICD_SGIR		0xF00
@@ -139,8 +139,8 @@ static void release_secondary_early_hpen(size_t __unused pos)
 int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 {
 	size_t pos = get_core_pos_mpidr(core_id);
-	uint32_t excep;
-	int rc;
+	uint32_t exceptions = 0;
+	int rc = 0;
 
 	if (!pos || pos >= CFG_TEE_CORE_NB_CORE)
 		return PSCI_RET_INVALID_PARAMETERS;
@@ -148,7 +148,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	DMSG("core %zu, ns_entry 0x%" PRIx32 ", state %u",
 		pos, entry, core_state[pos]);
 
-	excep = lock_state_access();
+	exceptions = lock_state_access();
 
 	switch (core_state[pos]) {
 	case CORE_ON:
@@ -168,7 +168,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 		panic();
 	}
 
-	unlock_state_access(excep);
+	unlock_state_access(exceptions);
 
 	if (rc == PSCI_RET_SUCCESS) {
 		generic_boot_set_core_ns_entry(pos, entry, context_id);
@@ -182,7 +182,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 int psci_cpu_off(void)
 {
 	unsigned int pos = get_core_pos();
-	uint32_t excep;
+	uint32_t exceptions = 0;
 
 	if (pos == 0) {
 		EMSG("PSCI_CPU_OFF not supported for core #0");
@@ -191,12 +191,12 @@ int psci_cpu_off(void)
 
 	DMSG("core %u", pos);
 
-	excep = lock_state_access();
+	exceptions = lock_state_access();
 
 	assert(core_state[pos] == CORE_ON);
 	core_state[pos] = CORE_OFF;
 
-	unlock_state_access(excep);
+	unlock_state_access(exceptions);
 
 	thread_mask_exceptions(THREAD_EXCP_ALL);
 	stm32_pm_cpu_power_down_wfi();

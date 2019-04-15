@@ -40,7 +40,7 @@ comp-cflags-warns-medium = \
 	-Waggregate-return -Wredundant-decls
 comp-cflags-warns-low = \
 	-Wold-style-definition -Wstrict-aliasing=2 \
-	-Wundef -pedantic
+	-Wundef
 
 comp-cflags-warns-1:= $(comp-cflags-warns-high)
 comp-cflags-warns-2:= $(comp-cflags-warns-1) $(comp-cflags-warns-medium)
