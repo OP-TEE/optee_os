@@ -270,7 +270,11 @@ SECTIONS
 #ifndef CFG_WITH_PAGER
 		. += CFG_CORE_HEAP_SIZE;
 #endif
+#ifdef CFG_WITH_LPAE
+		. = ALIGN(4 * 1024);
+#else
 		. = ALIGN(16 * 1024);
+#endif
 		__heap1_end = .;
 	}
 	/*
@@ -281,8 +285,6 @@ SECTIONS
 	 */
 	.nozi (NOLOAD) : {
 		__nozi_start = .;
-		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
-
 		KEEP(*(.nozi .nozi.*))
 		. = ALIGN(16);
 		__nozi_end = .;
