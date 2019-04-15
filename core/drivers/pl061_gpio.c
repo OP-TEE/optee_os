@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <drivers/pl061_gpio.h>
 #include <io.h>
+#include <keep.h>
 #include <trace.h>
 #include <util.h>
 
@@ -164,6 +165,7 @@ static const struct gpio_ops pl061_ops = {
 	.get_interrupt = pl061_get_interrupt,
 	.set_interrupt = pl061_set_interrupt,
 };
+KEEP_PAGER(pl061_ops);
 
 /*
  * Initialize PL061 GPIO controller

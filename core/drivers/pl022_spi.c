@@ -8,6 +8,7 @@
 #include <drivers/pl022_spi.h>
 #include <initcall.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <platform_config.h>
@@ -498,6 +499,7 @@ static const struct spi_ops pl022_ops = {
 	.txrx16 = pl022_txrx16,
 	.end = pl022_end,
 };
+KEEP_PAGER(pl022_ops);
 
 void pl022_init(struct pl022_data *pd)
 {
