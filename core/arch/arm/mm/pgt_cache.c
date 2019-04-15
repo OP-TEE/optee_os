@@ -392,7 +392,8 @@ void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, void *ctx,
 {
 	mutex_lock(&pgt_mu);
 
-	flush_ctx_range_from_list(pgt_cache, ctx, begin, last);
+	if (pgt_cache)
+		flush_ctx_range_from_list(pgt_cache, ctx, begin, last);
 	flush_ctx_range_from_list(&pgt_cache_list, ctx, begin, last);
 
 	condvar_broadcast(&pgt_cv);
