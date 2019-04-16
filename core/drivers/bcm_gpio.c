@@ -28,7 +28,7 @@ static void iproc_set_bit(struct gpio_chip *gc, unsigned int reg,
 	unsigned int offset = IPROC_GPIO_REG(gpio, reg);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	io_setbits32(gc->base + offset, BIT(shift));
+	io_setbits32((vaddr_t)gc->pd + offset, BIT(shift));
 }
 
 static void iproc_clr_bit(struct gpio_chip *gc, unsigned int reg,
@@ -37,7 +37,7 @@ static void iproc_clr_bit(struct gpio_chip *gc, unsigned int reg,
 	unsigned int offset = IPROC_GPIO_REG(gpio, reg);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	io_clrbits32(gc->base + offset, BIT(shift));
+	io_clrbits32((vaddr_t)gc->pd + offset, BIT(shift));
 }
 
 static void iproc_gpio_set(struct gpio_chip *gc, unsigned int gpio,
@@ -54,7 +54,7 @@ static enum gpio_level iproc_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_DATA_IN_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	if (io_read32(gc->base + offset) & BIT(shift))
+	if (io_read32((vaddr_t)gc->pd + offset) & BIT(shift))
 		return GPIO_LEVEL_HIGH;
 	else
 		return GPIO_LEVEL_LOW;
@@ -76,7 +76,7 @@ static enum gpio_dir iproc_gpio_get_dir(struct gpio_chip *gc,
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_OUT_EN_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	if (io_read32(gc->base + offset) & BIT(shift))
+	if (io_read32((vaddr_t)gc->pd + offset) & BIT(shift))
 		return GPIO_DIR_OUT;
 	else
 		return GPIO_DIR_IN;
@@ -88,7 +88,7 @@ static enum gpio_interrupt iproc_gpio_get_itr(struct gpio_chip *gc,
 	unsigned int offset = IPROC_GPIO_REG(gpio, IPROC_GPIO_INT_MSK_OFFSET);
 	unsigned int shift = IPROC_GPIO_SHIFT(gpio);
 
-	if (io_read32(gc->base + offset) & BIT(shift))
+	if (io_read32((vaddr_t)gc->pd + offset) & BIT(shift))
 		return GPIO_INTERRUPT_ENABLE;
 	else
 		return GPIO_INTERRUPT_DISABLE;
@@ -117,14 +117,13 @@ KEEP_PAGER(bcm_gpio_ops);
 static void iproc_gpio_init(struct gpio_chip *gc, unsigned int paddr,
 			    unsigned int gpio_base, unsigned int ngpios)
 {
-	gc->base = (vaddr_t)phys_to_virt(paddr, MEM_AREA_IO_SEC);
+	gc->pd = (void *)core_mmu_get_va(paddr, MEM_AREA_IO_SEC);
 	gc->ops = &bcm_gpio_ops;
 	gc->gpio_base = gpio_base;
 	gc->ngpios = ngpios;
 
 	gpio_add_chip(gc);
-
-	EMSG("gpio probe success");
+	DMSG("gpio chip added for <%d - %d>", gpio_base, gpio_base + ngpios);
 }
 
 static TEE_Result bcm_gpio_init(void)
