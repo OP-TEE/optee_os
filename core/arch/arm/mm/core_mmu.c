@@ -1367,18 +1367,30 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			assert(*pgt); /* We should have alloced enough */
-
 			/* Virtual addresses must grow */
 			assert(r.va > pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
-			pg_info->table = (*pgt)->tbl;
 			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
+
 #ifdef CFG_PAGED_USER_TA
+			/*
+			 * Advance pgt to va_base, note that we may need to
+			 * skip multiple page tables if there are large
+			 * holes in the vm map.
+			 */
+			while ((*pgt)->vabase < pg_info->va_base) {
+				*pgt = SLIST_NEXT(*pgt, link);
+				/* We should have alloced enough */
+				assert(*pgt);
+			}
 			assert((*pgt)->vabase == pg_info->va_base);
-#endif
+			pg_info->table = (*pgt)->tbl;
+#else
+			assert(*pgt); /* We should have alloced enough */
+			pg_info->table = (*pgt)->tbl;
 			*pgt = SLIST_NEXT(*pgt, link);
+#endif
 
 			core_mmu_set_entry(dir_info, idx,
 					   virt_to_phys(pg_info->table),
