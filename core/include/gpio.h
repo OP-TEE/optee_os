@@ -25,17 +25,19 @@ enum gpio_interrupt {
 };
 
 /**
- * struct gpio_chip describes GPIO controller chip instance
- * @ops:        pointer to supported operations
- * @gpio_base:  starting GPIO number managed by this GPIO controller.
+ * struct gpio_chip describes GPIO controller chip instance for a
+ * range of GPIO number.
+ *
+ * @ops:        pointer to supported operations.
+ * @gpio_base:  base GPIO number managed by this GPIO controller.
  * @ngpios:     number of GPIOs managed by this GPIO controller.
- * @base:       virtual base address of the GPIO controller registers.
+ * @pd:         platform data. May hold base address of GPIO controller.
  */
 struct gpio_chip {
 	const struct gpio_ops *ops;
 	unsigned int gpio_base;
 	unsigned int ngpios;
-	vaddr_t base;
+	void *pd;
 
 	SLIST_ENTRY(gpio_chip) link;
 };
@@ -62,7 +64,6 @@ struct gpio_ops {
 struct gpio_desc {
 	unsigned int pin;
 	struct gpio_chip *gc;
-	void *owner;
 
 	SLIST_ENTRY(gpio_desc) link;
 };
@@ -76,7 +77,7 @@ void gpio_set_interrupt(struct gpio_desc *gd, enum gpio_interrupt ena_dis);
 /* creates an instance of GPIO controller */
 void gpio_add_chip(struct gpio_chip *gc);
 /* returns a descriptor handle if the pin is not in use by other consumer */
-struct gpio_desc *request_gpiod(unsigned int pin, void *dev);
+struct gpio_desc *request_gpiod(unsigned int pin);
 /* marks the pin as free */
 void release_gpiod(struct gpio_desc *gd);
 #endif	/* __GPIO_H__ */

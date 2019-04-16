@@ -23,6 +23,18 @@ static struct gpio_chip *gpio_pin_to_chip(unsigned int pin)
 	return NULL;
 }
 
+static bool __maybe_unused gpio_is_range_overlap(unsigned int start,
+						 unsigned int end)
+{
+	struct gpio_chip *gc;
+
+	SLIST_FOREACH(gc, &gclist, link)
+		if ((start < (gc->gpio_base + gc->ngpios)) &&
+		    (end > gc->gpio_base))
+			return true;
+	return false;
+}
+
 void gpio_set_direction(struct gpio_desc *gd, enum gpio_dir direction)
 {
 	gd->gc->ops->set_direction(gd->gc, gd->pin, direction);
@@ -53,7 +65,7 @@ void gpio_set_interrupt(struct gpio_desc *gd, enum gpio_interrupt ena_dis)
 	gd->gc->ops->set_interrupt(gd->gc, gd->pin, ena_dis);
 }
 
-struct gpio_desc *request_gpiod(unsigned int pin, void *owner)
+struct gpio_desc *request_gpiod(unsigned int pin)
 {
 	struct gpio_desc *gd = NULL;
 	struct gpio_chip *gc = NULL;
@@ -74,23 +86,26 @@ struct gpio_desc *request_gpiod(unsigned int pin, void *owner)
 		gd->gc = gc;
 		SLIST_INSERT_HEAD(&gdlist, gd, link);
 
-	} else if (gd->owner != NULL) {
+	} else {
 		EMSG("gpio in use\n");
 		return NULL;
 	}
 
-	gd->owner = owner;
 	return gd;
 }
 
 void release_gpiod(struct gpio_desc *gd)
 {
-	gd->owner = NULL;
+	SLIST_REMOVE(&gdlist, gd, gpio_desc, link);
+	free(gd);
 }
 
 void gpio_add_chip(struct gpio_chip *gc)
 {
-	assert(gc->ops && gc->base);
+	assert(gc->ops);
+
+	assert(!gpio_is_range_overlap(gc->gpio_base,
+	       gc->gpio_base + gc->ngpios));
 
 	SLIST_INSERT_HEAD(&gclist, gc, link);
 }
