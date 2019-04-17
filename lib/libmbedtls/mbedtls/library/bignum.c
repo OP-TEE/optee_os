@@ -61,6 +61,7 @@
 #endif
 
 #include <mempool.h>
+#include <util.h>
 
 #define MPI_VALIDATE_RET( cond )                                       \
     MBEDTLS_INTERNAL_VALIDATE_RET( cond, MBEDTLS_ERR_MPI_BAD_INPUT_DATA )
@@ -2112,7 +2113,8 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
     mbedtls_mpi_montg_init( &mm, N );
     mbedtls_mpi_init_mempool( &RR ); mbedtls_mpi_init_mempool( &T );
     mbedtls_mpi_init_mempool( &Apos );
-    memset( W, 0, sizeof( W ) );
+    for( i = 0; i < ARRAY_SIZE(W); i++ )
+        mbedtls_mpi_init_mempool( W + i );
 
     i = mbedtls_mpi_bitlen( E );
 
@@ -2286,10 +2288,10 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
 
 cleanup:
 
-    for( i = ( one << ( wsize - 1 ) ); i < ( one << wsize ); i++ )
-        mbedtls_mpi_free( &W[i] );
+    for( i = 0; i < ARRAY_SIZE(W); i++ )
+        mbedtls_mpi_free( W + i );
 
-    mbedtls_mpi_free( &W[1] ); mbedtls_mpi_free( &T ); mbedtls_mpi_free( &Apos );
+    mbedtls_mpi_free( &T ); mbedtls_mpi_free( &Apos );
 
     if( _RR == NULL || _RR->p == NULL )
         mbedtls_mpi_free( &RR );
