@@ -549,7 +549,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		res = vm_map(utc, &va, mem[n].size, prot, mem[n].mobj,
 			     mem[n].offs);
 		if (res)
-			return res;
+			goto out;
 	}
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -564,10 +564,15 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 
 		res = param_mem_to_user_va(utc, &param->u[n].mem, param_va + n);
 		if (res != TEE_SUCCESS)
-			return res;
+			goto out;
 	}
 
-	return alloc_pgt(utc);
+	res = alloc_pgt(utc);
+out:
+	if (res)
+		tee_mmu_clean_param(utc);
+
+	return res;
 }
 
 TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
