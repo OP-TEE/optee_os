@@ -924,8 +924,10 @@ int mbedtls_mpi_read_binary( mbedtls_mpi *X, const unsigned char *buf, size_t bu
     /* Ensure that target MPI has exactly the necessary number of limbs */
     if( X->n != limbs )
     {
+        short use_mempool = X->use_mempool;
+
         mbedtls_mpi_free( X );
-        mbedtls_mpi_init( X );
+        mpi_init( X, use_mempool );
         MBEDTLS_MPI_CHK( mbedtls_mpi_grow( X, limbs ) );
     }
     MBEDTLS_MPI_CHK( mbedtls_mpi_lset( X, 0 ) );
