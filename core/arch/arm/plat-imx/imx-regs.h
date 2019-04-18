@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * Copyright (c) 2016, Wind River Systems.
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,7 @@
 #define PLAT_IMX_IMX_REGS_H
 
 #ifdef CFG_MX6
+#include <registers/imx6-regs.h>
 #define UART1_BASE			0x2020000
 #define IOMUXC_BASE			0x020E0000
 #define IOMUXC_SIZE			0x4000
@@ -139,6 +141,7 @@
 #endif
 
 #elif defined(CFG_MX7)
+#include <registers/imx7-regs.h>
 #define GIC_BASE		0x31000000
 #define GIC_SIZE		0x8000
 #define GICC_OFFSET		0x2000
