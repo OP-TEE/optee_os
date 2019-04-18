@@ -876,6 +876,7 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 }
 #endif /*CFG_CORE_DYN_SHM*/
 
+#ifdef CFG_CORE_RESERVED_SHM
 static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 {
 	vaddr_t shm_start;
@@ -890,6 +891,7 @@ static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 	DMSG("No SHM configured");
 	return -1;
 }
+#endif /*CFG_CORE_RESERVED_SHM*/
 
 static void init_external_dt(unsigned long phys_dt)
 {
@@ -956,8 +958,10 @@ static void update_external_dt(void)
 	if (config_psci(dt))
 		panic("Failed to config PSCI");
 
+#ifdef CFG_CORE_RESERVED_SHM
 	if (mark_static_shm_as_reserved(dt))
 		panic("Failed to config non-secure memory");
+#endif
 
 	if (mark_tzdram_as_reserved(dt))
 		panic("Failed to config secure memory");

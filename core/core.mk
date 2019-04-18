@@ -52,6 +52,10 @@ endif
 
 cppflags$(sm)	+= -Ilib/libutee/include
 
+ifeq ($(filter y, $(CFG_CORE_DYN_SHM) $(CFG_CORE_RESERVED_SHM)),)
+$(error error: No shared memory configured)
+endif
+
 # Tell all libraries and sub-directories (included below) that we have a
 # configuration file
 

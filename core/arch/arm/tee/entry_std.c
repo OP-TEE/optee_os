@@ -31,15 +31,19 @@
 static struct tee_ta_session_head tee_open_sessions =
 TAILQ_HEAD_INITIALIZER(tee_open_sessions);
 
+#ifdef CFG_CORE_RESERVED_SHM
 static struct mobj *shm_mobj;
+#endif
 #ifdef CFG_SECURE_DATA_PATH
 static struct mobj **sdp_mem_mobjs;
 #endif
 
 static unsigned int session_pnum;
 
-static bool param_mem_from_mobj(struct param_mem *mem, struct mobj *mobj,
-				const paddr_t pa, const size_t sz)
+static bool __maybe_unused param_mem_from_mobj(struct param_mem *mem,
+					       struct mobj *mobj,
+					       const paddr_t pa,
+					       const size_t sz)
 {
 	paddr_t b;
 
@@ -84,9 +88,11 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 		return TEE_SUCCESS;
 	}
 
+#ifdef CFG_CORE_RESERVED_SHM
 	/* Handle memory reference in the contiguous shared memory */
 	if (param_mem_from_mobj(mem, shm_mobj, pa, sz))
 		return TEE_SUCCESS;
+#endif
 
 #ifdef CFG_SECURE_DATA_PATH
 	/* Handle memory reference to Secure Data Path memory areas */
@@ -599,11 +605,13 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 
 static TEE_Result default_mobj_init(void)
 {
+#ifdef CFG_CORE_RESERVED_SHM
 	shm_mobj = mobj_phys_alloc(default_nsec_shm_paddr,
 				   default_nsec_shm_size, SHM_CACHE_ATTRS,
 				   CORE_MEM_NSEC_SHM);
 	if (!shm_mobj)
 		panic("Failed to register shared memory");
+#endif
 
 #ifdef CFG_SECURE_DATA_PATH
 	sdp_mem_mobjs = core_sdp_mem_create_mobjs();

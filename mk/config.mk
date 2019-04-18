@@ -406,6 +406,10 @@ CFG_CORE_CLUSTER_SHIFT ?= 2
 # non-secure memory).
 CFG_CORE_DYN_SHM ?= y
 
+# Enable support for reserved shared memory (shared memory in a carved out
+# memory area).
+CFG_CORE_RESERVED_SHM ?= y
+
 # Do not report to NW that dynamic shared memory (shared memory outside
 # predefined region) is enabled.
 # Note that you can disable this feature for debug purposes. OP-TEE will not

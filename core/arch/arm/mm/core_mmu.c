@@ -44,9 +44,11 @@
  * even if they initially are zero.
  */
 
+#ifdef CFG_CORE_RESERVED_SHM
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
+#endif
 
 static struct tee_mmap_region
 	static_memory_map[CFG_MMAP_REGIONS + 1] __nex_bss;
@@ -66,7 +68,9 @@ static struct memaccess_area secure_only[] __nex_data = {
 };
 
 static struct memaccess_area nsec_shared[] __nex_data = {
+#ifdef CFG_CORE_RESERVED_SHM
 	MEMACCESS_AREA(TEE_SHMEM_START, TEE_SHMEM_SIZE),
+#endif
 };
 
 #if defined(CFG_SECURE_DATA_PATH)
@@ -112,7 +116,9 @@ register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 /* Every guest will have own TA RAM if virtualization support is enabled */
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 #endif
+#ifdef CFG_CORE_RESERVED_SHM
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
+#endif
 
 /*
  * Two ASIDs per context, one for kernel mode and one for user mode. ASID 0

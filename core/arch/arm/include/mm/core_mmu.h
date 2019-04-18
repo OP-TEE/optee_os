@@ -261,9 +261,11 @@ struct core_mmu_phys_mem {
 #define phys_mem_map_end \
 	SCATTERED_ARRAY_END(phys_mem_map, struct core_mmu_phys_mem)
 
+#ifdef CFG_CORE_RESERVED_SHM
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
+#endif
 
 void core_init_mmu_map(void);
 void core_init_mmu_regs(void);

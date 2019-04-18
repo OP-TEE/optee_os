@@ -52,8 +52,10 @@ TEE_Result __weak init_teecore(void)
 	tee_svc_uref_base = TEE_TEXT_VA_START;
 #endif
 
+#ifdef CFG_CORE_RESERVED_SHM
 	/* init support for future mapping of TAs */
 	teecore_init_pub_ram();
+#endif
 
 	/* time initialization */
 	time_source_init();
