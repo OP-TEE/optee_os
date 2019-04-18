@@ -735,28 +735,6 @@ static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 	}
 }
 
-static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
-				       uint32_t cell_size)
-{
-	uint64_t rv;
-
-	if (cell_size == 1) {
-		uint32_t v;
-
-		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
-		*offs += sizeof(v);
-		rv = fdt32_to_cpu(v);
-	} else {
-		uint64_t v;
-
-		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
-		*offs += sizeof(v);
-		rv = fdt64_to_cpu(v);
-	}
-
-	return rv;
-}
-
 static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 			       paddr_t pa, size_t size)
 {
@@ -818,16 +796,39 @@ static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	return 0;
 }
 
+#ifdef CFG_CORE_DYN_SHM
+static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
+				       uint32_t cell_size)
+{
+	uint64_t rv = 0;
+
+	if (cell_size == 1) {
+		uint32_t v;
+
+		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
+		*offs += sizeof(v);
+		rv = fdt32_to_cpu(v);
+	} else {
+		uint64_t v;
+
+		memcpy(&v, (const uint8_t *)data + *offs, sizeof(v));
+		*offs += sizeof(v);
+		rv = fdt64_to_cpu(v);
+	}
+
+	return rv;
+}
+
 static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 {
-	int offs;
-	int addr_size;
-	int len_size;
-	size_t prop_len;
-	const uint8_t *prop;
-	size_t prop_offs;
-	size_t n;
-	struct core_mmu_phys_mem *mem;
+	int offs = 0;
+	int addr_size = 0;
+	int len_size = 0;
+	size_t prop_len = 0;
+	const uint8_t *prop = NULL;
+	size_t prop_offs = 0;
+	size_t n = 0;
+	struct core_mmu_phys_mem *mem = NULL;
 
 	offs = fdt_subnode_offset(fdt, 0, "memory");
 	if (offs < 0)
@@ -873,6 +874,7 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 
 	return mem;
 }
+#endif /*CFG_CORE_DYN_SHM*/
 
 static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 {
@@ -985,13 +987,16 @@ static void update_external_dt(void)
 {
 }
 
+#ifdef CFG_CORE_DYN_SHM
 static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 					    size_t *nelems __unused)
 {
 	return NULL;
 }
+#endif /*CFG_CORE_DYN_SHM*/
 #endif /*!CFG_DT*/
 
+#ifdef CFG_CORE_DYN_SHM
 static void discover_nsec_memory(void)
 {
 	struct core_mmu_phys_mem *mem;
@@ -1022,6 +1027,11 @@ static void discover_nsec_memory(void)
 	memcpy(mem, phys_ddr_overall_begin, sizeof(*mem) * nelems);
 	core_mmu_set_discovered_nsec_ddr(mem, nelems);
 }
+#else /*CFG_CORE_DYN_SHM*/
+static void discover_nsec_memory(void)
+{
+}
+#endif /*!CFG_CORE_DYN_SHM*/
 
 void init_tee_runtime(void)
 {

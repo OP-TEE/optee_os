@@ -120,6 +120,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
 
+#ifdef CFG_CORE_DYN_SHM
 /* reg_shm represents TEE shared memory */
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie);
@@ -188,6 +189,17 @@ void mobj_reg_shm_unguard(struct mobj *mobj);
  */
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
+#else
+static inline TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /*CFG_CORE_DYN_SHM*/
 
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
 
