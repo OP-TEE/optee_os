@@ -30,6 +30,8 @@
 #ifndef __IMX6_H__
 #define __IMX6_H__
 
+#include <registers/imx6-crm_regs.h>
+
 #define UART1_BASE			0x2020000
 #define IOMUXC_BASE			0x020E0000
 #define IOMUXC_SIZE			0x4000
