@@ -100,8 +100,12 @@ F:	core/arch/arm/plat-ls/
 
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
+R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
+R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
+R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
+F:	core/arch/arm/plat-imx/registers
 
 NXP (Freescale) i.MX7 WaRP7
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
