@@ -98,6 +98,7 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
+#ifdef CFG_CORE_DYN_SHM
 static TEE_Result set_rmem_param(const struct optee_msg_param_rmem *rmem,
 				 struct param_mem *mem)
 {
@@ -121,6 +122,7 @@ static TEE_Result set_rmem_param(const struct optee_msg_param_rmem *rmem,
 
 	return TEE_SUCCESS;
 }
+#endif
 
 static TEE_Result copy_in_params(const struct optee_msg_param *params,
 				 uint32_t num_params,
@@ -167,6 +169,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_TMEM_INPUT;
 			break;
+#ifdef CFG_CORE_DYN_SHM
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
@@ -177,6 +180,7 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
 			break;
+#endif
 		default:
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -200,12 +204,13 @@ static void cleanup_shm_refs(const uint64_t *saved_attr,
 			if (saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
 				mobj_free(param->u[n].mem.mobj);
 			break;
-
+#ifdef CFG_CORE_DYN_SHM
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
 			mobj_reg_shm_put(param->u[n].mem.mobj);
 			break;
+#endif
 		default:
 			break;
 		}
@@ -425,6 +430,7 @@ out:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
+#ifdef CFG_CORE_DYN_SHM
 static void register_shm(struct thread_smc_args *smc_args,
 			 struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -497,6 +503,7 @@ err:
 	mobj_free(mobj);
 	return NULL;
 }
+#endif /*CFG_CORE_DYN_SHM*/
 
 static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 {
@@ -522,10 +529,10 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
  */
 void __weak tee_entry_std(struct thread_smc_args *smc_args)
 {
-	paddr_t parg;
-	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
-	uint32_t num_params = 0;		/* fix gcc warning */
-	struct mobj *mobj;
+	paddr_t parg = 0;
+	struct optee_msg_arg *arg = NULL;
+	uint32_t num_params = 0;
+	struct mobj *mobj = NULL;
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
@@ -539,13 +546,16 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg,
 			  sizeof(struct optee_msg_arg))) {
 		mobj = get_cmd_buffer(parg, &num_params);
-	} else {
+	}
+#ifdef CFG_CORE_DYN_SHM
+	else {
 		if (parg & SMALL_PAGE_MASK) {
 			smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
 			return;
 		}
 		mobj = map_cmd_buffer(parg, &num_params);
 	}
+#endif
 
 	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
@@ -572,13 +582,14 @@ void __weak tee_entry_std(struct thread_smc_args *smc_args)
 	case OPTEE_MSG_CMD_CANCEL:
 		entry_cancel(smc_args, arg, num_params);
 		break;
+#ifdef CFG_CORE_DYN_SHM
 	case OPTEE_MSG_CMD_REGISTER_SHM:
 		register_shm(smc_args, arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_UNREGISTER_SHM:
 		unregister_shm(smc_args, arg, num_params);
 		break;
-
+#endif
 	default:
 		EMSG("Unknown cmd 0x%x", arg->cmd);
 		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;

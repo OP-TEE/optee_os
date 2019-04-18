@@ -1414,8 +1414,10 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
 		mobj = mobj_shm_alloc(pa, size, co);
+#ifdef CFG_CORE_DYN_SHM
 	else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
 		mobj = mobj_mapped_shm_alloc(&pa, 1, 0, co);
+#endif
 
 	if (!mobj)
 		goto err;

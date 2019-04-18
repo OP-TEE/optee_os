@@ -260,6 +260,7 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 	return false;
 }
 
+#ifdef CFG_CORE_DYN_SHM
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 			       paddr_t pa, size_t size)
 {
@@ -417,6 +418,12 @@ bool core_mmu_nsec_ddr_is_defined(void)
 
 	return start != end;
 }
+#else
+static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
+{
+	return false;
+}
+#endif /*CFG_CORE_DYN_SHM*/
 
 #define MSG_MEM_INSTERSECT(pa1, sz1, pa2, sz2) \
 	EMSG("[%" PRIxPA " %" PRIx64 "] intersects [%" PRIxPA " %" PRIx64 "]", \
