@@ -410,13 +410,6 @@ CFG_CORE_DYN_SHM ?= y
 # memory area).
 CFG_CORE_RESERVED_SHM ?= y
 
-# Do not report to NW that dynamic shared memory (shared memory outside
-# predefined region) is enabled.
-# Note that you can disable this feature for debug purposes. OP-TEE will not
-# report to Normal World that it support dynamic SHM. But, nevertheles it
-# will accept dynamic SHM buffers.
-CFG_DYN_SHM_CAP ?= $(CFG_CORE_DYN_SHM)
-
 # Enables support for larger physical addresses, that is, it will define
 # paddr_t as a 64-bit type.
 CFG_CORE_LARGE_PHYS_ADDR ?= n
