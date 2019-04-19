@@ -27,6 +27,17 @@ struct crypto_hash_ops {
 			   struct crypto_hash_ctx *src_ctx);
 };
 
+#ifdef CFG_CRYPTO_DRIVER
+/* Cryptographic HASH driver context allocation */
+TEE_Result drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx,
+		uint32_t algo);
+#else
+static inline TEE_Result drvcrypt_hash_alloc_ctx(
+		struct crypto_hash_ctx **ctx __unused, uint32_t algo __unused) {
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
 #define CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(name, type) \
 	static inline TEE_Result \
 	crypto_##name##_alloc_ctx(struct crypto_##type##_ctx **ctx __unused) \

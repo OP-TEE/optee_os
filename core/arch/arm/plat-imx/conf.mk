@@ -49,6 +49,7 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ull-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6ULL,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_NXP_CAAM,n)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -66,6 +67,7 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6S,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_NXP_CAAM,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6SX,y)
@@ -211,7 +213,6 @@ $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_IMX_UART,y)
 $(call force,CFG_PM_STUBS,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 CFG_BOOT_SYNC_CPU ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= y
@@ -251,3 +252,21 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 24
+
+# Almost all platforms include CAAM HW Modules, except the
+# one force to be disabled
+CFG_NXP_CAAM ?= y
+
+ifeq ($(CFG_NXP_CAAM),y)
+# If NXP CAAM Driver is supported, the Crypto Driver interfacing
+# it with generic crypto API can be enabled.
+CFG_CRYPTO_DRIVER ?= y
+# Crypto Driver Debug
+CFG_CRYPTO_DRV_DBG ?= n
+else
+$(call force,CFG_CRYPTO_DRIVER,n)
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+endif
+
+# Cryptographic configuration
+include core/arch/arm/plat-imx/crypto_conf.mk
