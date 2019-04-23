@@ -95,39 +95,48 @@ TEE_Result crypto_hash_final(void *ctx, uint32_t algo __unused,
 
 TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_cipher_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_AES_ECB_NOPAD:
-		res = crypto_aes_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_NOPAD:
-		res = crypto_aes_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTR:
-		res = crypto_aes_ctr_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTS:
-		res = crypto_aes_cts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_XTS:
-		res = crypto_aes_xts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_ECB_NOPAD:
-		res = crypto_des_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_ECB_NOPAD:
-		res = crypto_des3_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_NOPAD:
-		res = crypto_des_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_NOPAD:
-		res = crypto_des3_cbc_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	/*
+	 * If a Cryptographic driver is supported, call first
+	 * the driver's allocation function. If return no success
+	 * call the SW defined library
+	 */
+	res = drvcrypt_cipher_alloc_ctx(&c, algo);
+
+	if (res != TEE_SUCCESS) {
+		switch (algo) {
+		case TEE_ALG_AES_ECB_NOPAD:
+			res = crypto_aes_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_NOPAD:
+			res = crypto_aes_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTR:
+			res = crypto_aes_ctr_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTS:
+			res = crypto_aes_cts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_XTS:
+			res = crypto_aes_xts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_ECB_NOPAD:
+			res = crypto_des_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_ECB_NOPAD:
+			res = crypto_des3_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_NOPAD:
+			res = crypto_des_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_NOPAD:
+			res = crypto_des3_cbc_alloc_ctx(&c);
+			break;
+		default:
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		}
 	}
 
 	if (!res)

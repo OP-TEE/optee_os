@@ -5,17 +5,20 @@
 #
 # CAAM Debug Trace
 #
-# DBG_TRACE_HAL  BIT32(0)  // HAL trace
-# DBG_TRACE_CTRL BIT32(1)  // Controller trace
-# DBG_TRACE_MEM  BIT32(2)  // Memory utility trace
-# DBG_TRACE_PWR  BIT32(3)  // Power trace
-# DBG_TRACE_JR   BIT32(4)  // Job Ring trace
-# DBG_DESC_JR    BIT32(5)  // Job Ring dump descriptor
-# DBG_TRACE_RNG  BIT32(6)  // RNG trace
-# DBG_DESC_RNG   BIT32(7)  // RNG dump descriptor
-# DBG_TRACE_HASH BIT32(8)  // Hash trace
-# DBG_DESC_HASH  BIT32(9)  // Hash dump descriptor
-# DBG_BUF_HASH   BIT32(10) // Hash dump Buffer
+# DBG_TRACE_HAL    BIT32(0)  // HAL trace
+# DBG_TRACE_CTRL   BIT32(1)  // Controller trace
+# DBG_TRACE_MEM    BIT32(2)  // Memory utility trace
+# DBG_TRACE_PWR    BIT32(3)  // Power trace
+# DBG_TRACE_JR     BIT32(4)  // Job Ring trace
+# DBG_DESC_JR      BIT32(5)  // Job Ring dump descriptor
+# DBG_TRACE_RNG    BIT32(6)  // RNG trace
+# DBG_DESC_RNG     BIT32(7)  // RNG dump descriptor
+# DBG_TRACE_HASH   BIT32(8)  // Hash trace
+# DBG_DESC_HASH    BIT32(9)  // Hash dump descriptor
+# DBG_BUF_HASH     BIT32(10) // Hash dump Buffer
+# DBG_TRACE_CIPHER BIT32(11) // Cipher trace
+# DBG_DESC_CIPHER  BIT32(12) // Cipher dump descriptor
+# DBG_BUF_CIPHER   BIT32(13) // Cipher dump Buffer
 CFG_CAAM_DBG ?= 0x2
 
 #
@@ -65,5 +68,6 @@ endef
 
 # Definition of the HW and Cryto Driver Algorithm supported by all i.MX
 $(eval $(call cryphw-enable-drv-hw, HASH))
+$(eval $(call cryphw-enable-drv-hw, CIPHER))
 
 endif

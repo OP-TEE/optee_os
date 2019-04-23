@@ -20,17 +20,21 @@
  * The CFG_CAAM_DBG is a bit mask 32 bits value defined
  * as followed:
  */
-#define DBG_TRACE_HAL  BIT32(0)  // HAL trace
-#define DBG_TRACE_CTRL BIT32(1)  // Controller trace
-#define DBG_TRACE_MEM  BIT32(2)  // Memory utility trace
-#define DBG_TRACE_PWR  BIT32(3)  // Power trace
-#define DBG_TRACE_JR   BIT32(4)  // Job Ring trace
-#define DBG_DESC_JR    BIT32(5)  // Job Ring dump descriptor
-#define DBG_TRACE_RNG  BIT32(6)  // RNG trace
-#define DBG_DESC_RNG   BIT32(7)  // RNG dump descriptor
-#define DBG_TRACE_HASH BIT32(8)  // Hash trace
-#define DBG_DESC_HASH  BIT32(9)  // Hash dump descriptor
-#define DBG_BUF_HASH   BIT32(10) // Hash dump Buffer
+#define DBG_TRACE_HAL    BIT32(0)  // HAL trace
+#define DBG_TRACE_CTRL   BIT32(1)  // Controller trace
+#define DBG_TRACE_MEM    BIT32(2)  // Memory utility trace
+#define DBG_TRACE_PWR    BIT32(3)  // Power trace
+#define DBG_TRACE_JR     BIT32(4)  // Job Ring trace
+#define DBG_DESC_JR      BIT32(5)  // Job Ring dump descriptor
+#define DBG_TRACE_RNG    BIT32(6)  // RNG trace
+#define DBG_DESC_RNG     BIT32(7)  // RNG dump descriptor
+#define DBG_TRACE_HASH   BIT32(8)  // Hash trace
+#define DBG_DESC_HASH    BIT32(9)  // Hash dump descriptor
+#define DBG_BUF_HASH     BIT32(10) // Hash dump Buffer
+#define DBG_TRACE_CIPHER BIT32(11) // Cipher trace
+#define DBG_DESC_CIPHER  BIT32(12) // Cipher dump descriptor
+#define DBG_BUF_CIPHER   BIT32(13) // Cipher dump Buffer
+
 
 /* HAL */
 #if (CFG_CAAM_DBG & DBG_TRACE_HAL)
@@ -105,6 +109,26 @@
 #define HASH_TRACE(...)
 #define HASH_DUMPDESC(desc)
 #define HASH_DUMPBUF(...)
+#endif
+
+/* Cipher */
+#if (CFG_CAAM_DBG & DBG_TRACE_CIPHER)
+#define CIPHER_TRACE            DRV_TRACE
+#if (CFG_CAAM_DBG & DBG_DESC_CIPHER)
+#define CIPHER_DUMPDESC(desc)   {CIPHER_TRACE("CIPHER Descriptor"); \
+	DRV_DUMPDESC(desc); }
+#else
+#define CIPHER_DUMPDESC(desc)
+#endif
+#if (CFG_CAAM_DBG & DBG_BUF_CIPHER)
+#define CIPHER_DUMPBUF         DRV_DUMPBUF
+#else
+#define CIPHER_DUMPBUF(...)
+#endif
+#else
+#define CIPHER_TRACE(...)
+#define CIPHER_DUMPDESC(desc)
+#define CIPHER_DUMPBUF(...)
 #endif
 
 
