@@ -6,12 +6,55 @@
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/tee_common_otp.h>
+#include <tee/tee_fs_key_manager.h>
 
 static TEE_Result mac_usage(void *ctx, uint32_t usage)
 {
 	return crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
 				 (const void *)&usage, sizeof(usage));
 }
+
+#ifdef CFG_CORE_HUK_SUBKEY_COMPAT
+/*
+ * This gives the result of the default tee_otp_get_die_id()
+ * implementation.
+ */
+static void get_dummy_die_id(uint8_t *buffer, size_t len)
+{
+	static const char pattern[4] = { 'B', 'E', 'E', 'F' };
+	size_t i;
+
+	for (i = 0; i < len; i++)
+		buffer[i] = pattern[i % 4];
+}
+
+/*
+ * This does special treatment for RPMB and SSK key derivations to give
+ * the same result as when huk_subkey_derive() wasn't used.
+ */
+static TEE_Result huk_compat(void *ctx, enum huk_subkey_usage usage)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t chip_id[TEE_FS_KM_CHIP_ID_LENGTH] = { 0 };
+	static uint8_t ssk_str[] = "ONLY_FOR_tee_fs_ssk";
+
+	switch (usage) {
+	case HUK_SUBKEY_RPMB:
+		return TEE_SUCCESS;
+	case HUK_SUBKEY_SSK:
+		get_dummy_die_id(chip_id, sizeof(chip_id));
+		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
+					chip_id, sizeof(chip_id));
+		if (res)
+			return res;
+		return crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
+					 ssk_str, sizeof(ssk_str));
+	default:
+		return mac_usage(ctx, usage);
+	}
+
+}
+#endif /*CFG_CORE_HUK_SUBKEY_COMPAT*/
 
 TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 			     const void *const_data, size_t const_data_len,
@@ -39,7 +82,11 @@ TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 	if (res)
 		goto out;
 
+#ifdef CFG_CORE_HUK_SUBKEY_COMPAT
+	res = huk_compat(ctx, usage);
+#else
 	res = mac_usage(ctx, usage);
+#endif
 	if (res)
 		goto out;
 
