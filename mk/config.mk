@@ -463,3 +463,5 @@ $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 CFG_VIRT_GUEST_COUNT ?= 2
 endif
 
+# Enables backwards compatible derivation of RPMB and SSK keys
+CFG_CORE_HUK_SUBKEY_COMPAT ?= y
