@@ -269,7 +269,7 @@ void stm32mp_register_non_secure_periph(enum stm32mp_shres id)
 }
 
 /* Register resource by IO memory base address */
-static void register_periph_iomem(uintptr_t base, enum shres_state state)
+static void register_periph_iomem(vaddr_t base, enum shres_state state)
 {
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 
@@ -343,12 +343,12 @@ static void register_periph_iomem(uintptr_t base, enum shres_state state)
 	register_periph(id, state);
 }
 
-void stm32mp_register_secure_periph_iomem(uintptr_t base)
+void stm32mp_register_secure_periph_iomem(vaddr_t base)
 {
 	register_periph_iomem(base, SHRES_SECURE);
 }
 
-void stm32mp_register_non_secure_periph_iomem(uintptr_t base)
+void stm32mp_register_non_secure_periph_iomem(vaddr_t base)
 {
 	register_periph_iomem(base, SHRES_NON_SECURE);
 }

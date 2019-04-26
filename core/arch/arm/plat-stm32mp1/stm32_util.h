@@ -10,6 +10,7 @@
 #include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
+#include <types_ext.h>
 
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
@@ -211,13 +212,13 @@ void stm32mp_register_non_secure_periph(enum stm32mp_shres id);
  * Register resource identified by @base as a secure peripheral
  * @base: IOMEM physical base address of the resource
  */
-void stm32mp_register_secure_periph_iomem(uintptr_t base);
+void stm32mp_register_secure_periph_iomem(vaddr_t base);
 
 /*
  * Register resource identified by @base as a non-secure peripheral
  * @base: IOMEM physical base address of the resource
  */
-void stm32mp_register_non_secure_periph_iomem(uintptr_t base);
+void stm32mp_register_non_secure_periph_iomem(vaddr_t base);
 
 /*
  * Register GPIO resource as a secure peripheral
