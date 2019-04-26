@@ -135,6 +135,21 @@ UNWIND(	.cantunwind)
 	add     r0, sp, #(SM_CTX_NSEC + SM_NSEC_CTX_R8)
 	ldm	r0, {r8-r12}
 
+#ifdef CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME
+	/*
+	 * Prevent leaking information about which code has been executed.
+	 * This is required to be used together with
+	 * CFG_CORE_WORKAROUND_SPECTRE_BP to protect Cortex A15 CPUs too.
+	 *
+	 * CFG_CORE_WORKAROUND_SPECTRE_BP also invalidates the branch
+	 * predictor on affected CPUs. In the cases where an alternative
+	 * vector has been installed the branch predictor is already
+	 * invalidated so invalidating here again would be redundant, but
+	 * testing for that is more trouble than it's worth.
+	 */
+	write_bpiall
+#endif
+
 	/* Update SCR */
 	read_scr r0
 	orr	r0, r0, #(SCR_NS | SCR_FIQ) /* Set NS and FIQ bit in SCR */
