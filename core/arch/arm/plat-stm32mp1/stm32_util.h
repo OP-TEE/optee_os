@@ -236,12 +236,6 @@ void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin);
 /* Return true if and only if resource @id is registered as secure */
 bool stm32mp_periph_is_secure(enum stm32mp_shres id);
 
-/* Return true if and only if the resource @id is registered as non-secure */
-bool stm32mp_periph_is_non_secure(enum stm32mp_shres id);
-
-/* Return true if and only if the resource @id is not registered */
-bool stm32mp_periph_is_unregistered(enum stm32mp_shres id);
-
 /* Return true if and only if GPIO bank @bank is registered as secure */
 bool stm32mp_gpio_bank_is_secure(unsigned int bank);
 
