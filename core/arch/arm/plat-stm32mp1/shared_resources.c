@@ -384,13 +384,6 @@ static void lock_registering(void)
 	registering_locked = true;
 }
 
-bool stm32mp_periph_is_non_secure(enum stm32mp_shres id)
-{
-	lock_registering();
-
-	return shres_state[id] == SHRES_NON_SECURE;
-}
-
 bool stm32mp_periph_is_secure(enum stm32mp_shres id)
 {
 	lock_registering();
@@ -398,16 +391,9 @@ bool stm32mp_periph_is_secure(enum stm32mp_shres id)
 	return shres_state[id] == SHRES_SECURE;
 }
 
-bool stm32mp_periph_is_unregistered(enum stm32mp_shres id)
-{
-	lock_registering();
-
-	return shres_state[id] == SHRES_UNREGISTERED;
-}
-
 bool stm32mp_gpio_bank_is_shared(unsigned int bank)
 {
-	unsigned int non_secure = 0;
+	unsigned int not_secure = 0;
 	unsigned int pin = 0;
 
 	lock_registering();
@@ -416,16 +402,15 @@ bool stm32mp_gpio_bank_is_shared(unsigned int bank)
 		return false;
 
 	for (pin = 0; pin < get_gpioz_nbpin(); pin++)
-		if (stm32mp_periph_is_non_secure(STM32MP1_SHRES_GPIOZ(pin)) ||
-		    stm32mp_periph_is_unregistered(STM32MP1_SHRES_GPIOZ(pin)))
-			non_secure++;
+		if (!stm32mp_periph_is_secure(STM32MP1_SHRES_GPIOZ(pin)))
+			not_secure++;
 
-	return non_secure > 0 && non_secure < get_gpioz_nbpin();
+	return not_secure > 0 && not_secure < get_gpioz_nbpin();
 }
 
 bool stm32mp_gpio_bank_is_non_secure(unsigned int bank)
 {
-	unsigned int non_secure = 0;
+	unsigned int not_secure = 0;
 	unsigned int pin = 0;
 
 	lock_registering();
@@ -434,11 +419,10 @@ bool stm32mp_gpio_bank_is_non_secure(unsigned int bank)
 		return true;
 
 	for (pin = 0; pin < get_gpioz_nbpin(); pin++)
-		if (stm32mp_periph_is_non_secure(STM32MP1_SHRES_GPIOZ(pin)) ||
-		    stm32mp_periph_is_unregistered(STM32MP1_SHRES_GPIOZ(pin)))
-			non_secure++;
+		if (!stm32mp_periph_is_secure(STM32MP1_SHRES_GPIOZ(pin)))
+			not_secure++;
 
-	return non_secure > 0 && non_secure == get_gpioz_nbpin();
+	return not_secure > 0 && not_secure == get_gpioz_nbpin();
 }
 
 bool stm32mp_gpio_bank_is_secure(unsigned int bank)
@@ -550,7 +534,7 @@ bool stm32mp_clock_is_non_secure(unsigned long clock_id)
 		return true;
 	}
 
-	return stm32mp_periph_is_non_secure(shres_id);
+	return !stm32mp_periph_is_secure(shres_id);
 }
 
 static bool mckprot_resource(enum stm32mp_shres id)
@@ -570,7 +554,7 @@ static bool mckprot_resource(enum stm32mp_shres id)
 #ifdef CFG_STM32_ETZPC
 static enum etzpc_decprot_attributes shres2decprot_attr(enum stm32mp_shres id)
 {
-	if (stm32mp_periph_is_non_secure(id))
+	if (!stm32mp_periph_is_secure(id))
 		return ETZPC_DECPROT_NS_RW;
 
 	if (mckprot_resource(id))
