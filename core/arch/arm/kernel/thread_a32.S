@@ -10,6 +10,7 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/abort.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/thread_defs.h>
 #include <kernel/unwind.h>
 #include <mm/core_mmu.h>
@@ -750,6 +751,17 @@ END_FUNC thread_unwind_user_mode
 	mov	r0, sp
 	cps	#CPSR_MODE_SVC
 	mov	sp, r0
+
+#ifdef CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME
+	/*
+	 * Prevent leaking information about which entries has been used in
+	 * cache. We're relying on the secure monitor/dispatcher to take
+	 * care of the BTB.
+	 */
+	mov	r0, #DCACHE_OP_CLEAN_INV
+	bl	dcache_op_louis
+	write_iciallu
+#endif
 
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	ldr	r1, =OPTEE_SMC_RETURN_RPC_FOREIGN_INTR

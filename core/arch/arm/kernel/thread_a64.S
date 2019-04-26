@@ -8,6 +8,7 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/thread_defs.h>
 #include <mm/core_mmu.h>
 #include <smccc.h>
@@ -1072,6 +1073,16 @@ END_FUNC el0_sync_abort
 	msr	spsel, #0
 	mov	sp, x1
 
+#ifdef CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME
+	/*
+	 * Prevent leaking information about which entries has been used in
+	 * cache. We're relying on the dispatcher in TF-A to take care of
+	 * the BTB.
+	 */
+	mov	x0, #DCACHE_OP_CLEAN_INV
+	bl	dcache_op_louis
+	ic	iallu
+#endif
 	/*
 	 * Mark current thread as suspended
 	 */

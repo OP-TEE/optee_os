@@ -44,6 +44,15 @@ CFG_CORE_WORKAROUND_SPECTRE_BP ?= y
 # secure EL0 instead of non-secure world.
 CFG_CORE_WORKAROUND_SPECTRE_BP_SEC ?= $(CFG_CORE_WORKAROUND_SPECTRE_BP)
 
+# Adds protection against a tool like Cachegrab
+# (https://github.com/nccgroup/cachegrab), which uses non-secure interrupts
+# to prime and later analyze the L1D, L1I and BTB caches to gain
+# information from secure world execution.
+CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME ?= y
+ifeq ($(CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME),y)
+$(call force,CFG_CORE_WORKAROUND_SPECTRE_BP,y,Required by CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME)
+endif
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
