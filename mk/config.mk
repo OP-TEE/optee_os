@@ -131,7 +131,7 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 # provides the actual storage.
 # This is the default FS when enabled (i.e., the one used when
 # TEE_STORAGE_PRIVATE is passed to the trusted storage API)
-CFG_REE_FS ?= y
+CFG_REE_FS ?= n
 
 # RPMB file system support
 CFG_RPMB_FS ?= y
@@ -149,7 +149,7 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # This option is useful in the following situations:
 # - Testing
 # - RPMB key provisioning in a controlled environment (factory setup)
-CFG_RPMB_WRITE_KEY ?= n
+CFG_RPMB_WRITE_KEY ?= y
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
