@@ -1048,6 +1048,113 @@ eret_to_user_mode:
 #endif
 
 	movs	pc, lr
+
+	/*
+	 * void icache_inv_user_range(void *addr, size_t size);
+	 *
+	 * This function has to execute with the user space ASID active,
+	 * this means executing with reduced mapping and the code needs
+	 * to be located here together with the vector.
+	 */
+	.global icache_inv_user_range
+	.type icache_inv_user_range , %function
+icache_inv_user_range:
+	push	{r4-r7}
+
+	/* Mask all exceptions */
+	mrs	r4, cpsr	/* This register must be preserved */
+	cpsid	aif
+
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	ldr	r2, =thread_user_kcode_offset
+	ldr	r2, [r2]
+	read_vbar r5		/* This register must be preserved */
+	sub	r3, r5, r2
+	write_vbar r3
+	isb
+
+	/* Jump into the reduced mapping before the full mapping is removed */
+	ldr	r3, =1f
+	sub	r3, r3, r2
+	bx	r3
+1:
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+
+#ifdef CFG_WITH_LPAE
+	read_ttbr0_64bit r6, r7	/* These registers must be preseved */
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	add	r2, r6, #CORE_MMU_L1_TBL_OFFSET
+#endif
+	/* switch to user ASID */
+	orr	r3, r7, #BIT(TTBR_ASID_SHIFT - 32)
+	write_ttbr0_64bit r2, r3
+	isb
+#else /*!CFG_WITH_LPAE*/
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	read_ttbr1 r6		/* This register must be preserved */
+	add	r2, r6, #CORE_MMU_L1_TBL_OFFSET
+	write_ttbr1 r2
+	isb
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+	read_contextidr r7	/* This register must be preserved */
+	orr	r2, r7, #BIT(0)
+	write_contextidr r2
+	isb
+#endif /*!CFG_WITH_LPAE*/
+
+	/*
+	 * Do the actual icache invalidation
+	 */
+
+	/* Calculate minimum icache line size, result in r2 */
+	read_ctr r3
+	and     r3, r3, #CTR_IMINLINE_MASK
+	mov     r2, #CTR_WORD_SIZE
+	lsl     r2, r2, r3
+
+	add	r1, r0, r1
+	sub	r3, r2, #1
+	bic	r0, r0, r3
+1:
+	write_icimvau r0
+	add	r0, r0, r2
+	cmp	r0, r1
+	blo	1b
+
+	/* Invalidate entire branch predictor array inner shareable */
+	write_bpiallis
+
+	dsb	ishst
+	isb
+
+#ifdef CFG_WITH_LPAE
+	write_ttbr0_64bit r6, r7
+	isb
+#else /*!CFG_WITH_LPAE*/
+	write_contextidr r7
+	isb
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	write_ttbr1 r6
+	isb
+#endif
+#endif /*!CFG_WITH_LPAE*/
+
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	write_vbar r5
+	isb
+	/*
+	 * The PC is adjusted unconditionally to guard against the
+	 * case there was an FIQ just before we did the "cpsid aif".
+	 */
+	ldr	r0, =1f
+	bx	r0
+1:
+#endif
+
+	msr	cpsr_fsxc, r4	/* Restore exceptions */
+	pop	{r4-r7}
+	bx	lr		/* End of icache_inv_user_range() */
+
 	/*
 	 * Make sure that literals are placed before the
 	 * thread_excp_vect_end label.

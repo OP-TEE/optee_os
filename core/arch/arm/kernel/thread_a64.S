@@ -703,6 +703,92 @@ eret_to_el0:
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 
 	eret
+
+	/*
+	 * void icache_inv_user_range(void *addr, size_t size);
+	 *
+	 * This function has to execute with the user space ASID active,
+	 * this means executing with reduced mapping and the code needs
+	 * to be located here together with the vector.
+	 */
+	.global icache_inv_user_range
+	.type icache_inv_user_range , %function
+icache_inv_user_range:
+	/* Mask all exceptions */
+	mrs	x6, daif	/* this register must be preserved */
+	msr	daifset, #DAIFBIT_ALL
+
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	/* Point to the vector into the reduced mapping */
+	adr	x2, thread_user_kcode_offset
+	ldr	x2, [x2]
+	mrs	x4, vbar_el1	/* this register must be preserved */
+	sub	x3, x4, x2
+	msr	vbar_el1, x3
+	isb
+
+	/* Jump into the reduced mapping and continue execution */
+	ldr	x3, =1f
+	sub	x3, x3, x2
+	br	x3
+1:
+
+	/* Update the mapping to exclude the full kernel mapping */
+	mrs	x5, ttbr0_el1	/* this register must be preserved */
+	add	x2, x5, #CORE_MMU_L1_TBL_OFFSET
+	orr	x2, x2, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
+	msr	ttbr0_el1, x2
+	isb
+
+#else
+	mrs	x5, ttbr0_el1	/* this register must be preserved */
+	orr	x2, x2, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
+	msr	ttbr0_el1, x2
+	isb
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+
+	/*
+	 * Do the actual icache invalidation
+	 */
+
+	/* Calculate minimum icache line size, result in x2 */
+	mrs	x3, ctr_el0
+	and	x3, x3, #CTR_IMINLINE_MASK
+	mov	x2, #CTR_WORD_SIZE
+	lsl	x2, x2, x3
+
+	add	x1, x0, x1
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+1:
+	ic	ivau, x0
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo    1b
+	dsb	ish
+
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	/* Update the mapping to use the full kernel mapping and ASID */
+	msr	ttbr0_el1, x5
+	isb
+
+	/* Jump into the full mapping and continue execution */
+	ldr	x0, =1f
+	br	x0
+1:
+
+	/* Point to the vector into the full mapping */
+	msr	vbar_el1, x4
+	isb
+#else
+	/* switch to kernel mode ASID */
+	msr	ttbr0_el1, x5
+	isb
+#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
+
+	msr	daif, x6	/* restore exceptions */
+	ret	/* End of icache_inv_user_range() */
+
 	/*
 	 * Make sure that literals are placed before the
 	 * thread_excp_vect_end label.
