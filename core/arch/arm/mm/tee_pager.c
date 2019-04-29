@@ -966,7 +966,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				assert(same_context(pmem));
 
 				dcache_clean_range_pou(va, SMALL_PAGE_SIZE);
-				cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
+				icache_inv_user_range(va, SMALL_PAGE_SIZE);
 			}
 		}
 
@@ -1020,6 +1020,7 @@ static bool tee_pager_unhide_page(struct tee_pager_area *area,
 	struct tee_pager_pmem *pmem = pmem_find(area, tblidx);
 	uint32_t a = get_area_mattr(area->flags);
 	uint32_t attr = 0;
+	paddr_t pa = 0;
 
 	if (!pmem)
 		return false;
@@ -1028,22 +1029,55 @@ static bool tee_pager_unhide_page(struct tee_pager_area *area,
 	if (attr & TEE_MATTR_VALID_BLOCK)
 		return false;
 
-	/* page is hidden, show and move to back */
+	/*
+	 * The page is hidden, or not not mapped yet. Unhide the page and
+	 * move it to the tail.
+	 *
+	 * Since the page isn't mapped there doesn't exist a valid TLB entry
+	 * for this address, so no TLB invalidation is required after setting
+	 * the new entry. A DSB is needed though, to make the write visible.
+	 *
+	 * For user executable pages it's more complicated. Those pages can
+	 * be shared between multiple TA mappings and thus populated by
+	 * another TA. The reference manual states that:
+	 *
+	 * "instruction cache maintenance is required only after writing
+	 * new data to a physical address that holds an instruction."
+	 *
+	 * So for hidden pages we would not need to invalidate i-cache, but
+	 * for newly populated pages we do. Since we don't know which we
+	 * have to assume the worst and always invalidate the i-cache. We
+	 * don't need to clean the d-cache though, since that has already
+	 * been done earlier.
+	 *
+	 * Additional bookkeeping to tell if the i-cache invalidation is
+	 * needed or not is left as a future optimization.
+	 */
 
 	/* If it's not a dirty block, then it should be read only. */
 	if (!pmem_is_dirty(pmem))
 		a &= ~(TEE_MATTR_PW | TEE_MATTR_UW);
 
+	pa = get_pmem_pa(pmem);
 	pmem->flags &= ~PMEM_FLAG_HIDDEN;
-	area_set_entry(area, tblidx, get_pmem_pa(pmem), a);
+	if (area->flags & TEE_MATTR_UX) {
+		void *va = (void *)area_idx2va(area, tblidx);
+
+		/* Set a temporary read-only mapping */
+		assert(!(a & (TEE_MATTR_UW | TEE_MATTR_PW)));
+		area_set_entry(area, tblidx, pa, a & ~TEE_MATTR_UX);
+		dsb_ishst();
+
+		icache_inv_user_range(va, SMALL_PAGE_SIZE);
+
+		/* Set the final mapping */
+		area_set_entry(area, tblidx, pa, a);
+		area_tlbi_entry(area, tblidx);
+	} else {
+		area_set_entry(area, tblidx, pa, a);
+		dsb_ishst();
+	}
 	pgt_inc_used_entries(area->pgt);
-	/*
-	 * Note that TLB invalidation isn't needed since
-	 * there wasn't a valid mapping before. We should
-	 * use a barrier though, to make sure that the
-	 * change is visible.
-	 */
-	dsb_ishst();
 
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
 	TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
@@ -1266,6 +1300,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	vaddr_t page_va = ai->va & ~SMALL_PAGE_MASK;
 	uint32_t exceptions;
 	bool ret;
+	bool clean_user_cache = false;
 
 #ifdef TEE_PAGER_DEBUG_PRINT
 	if (!abort_is_user_exception(ai))
@@ -1290,11 +1325,13 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	/* check if the access is valid */
 	if (abort_is_user_exception(ai)) {
 		area = find_uta_area(ai->va);
-
+		clean_user_cache = true;
 	} else {
 		area = find_area(&tee_pager_area_head, ai->va);
-		if (!area)
+		if (!area) {
 			area = find_uta_area(ai->va);
+			clean_user_cache = true;
+		}
 	}
 	if (!area || !area->pgt) {
 		ret = false;
@@ -1378,7 +1415,10 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 			area_tlbi_entry(area, tblidx);
 
 			dcache_clean_range_pou(va, SMALL_PAGE_SIZE);
-			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
+			if (clean_user_cache)
+				icache_inv_user_range(va, SMALL_PAGE_SIZE);
+			else
+				icache_inv_range(va, SMALL_PAGE_SIZE);
 
 			/* Set the final mapping */
 			area_set_entry(area, tblidx, pa, attr);
