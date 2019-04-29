@@ -22,6 +22,7 @@ void dcache_inv_range(void *addr, size_t size);
 
 void icache_inv_all(void);
 void icache_inv_range(void *addr, size_t size);
+void icache_inv_user_range(void *addr, size_t size);
 
 void dcache_op_louis(unsigned long op_type);
 void dcache_op_all(unsigned long op_type);
