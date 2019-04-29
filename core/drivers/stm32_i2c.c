@@ -234,28 +234,11 @@ struct i2c_timing_s {
 	bool is_saved;
 };
 
-/*
- * I2C specification values as per version 6.0, 4th of April 2014 [1],
- * table 10 page 48: Characteristics of the SDA and SCL bus lines for
- * Standard, Fast, and Fast-mode Plus I2C-bus devices.
- *
- * [1] https://www.nxp.com/docs/en/user-guide/UM10204.pdf
- */
-enum i2c_speed_e {
-	I2C_SPEED_STANDARD,	/* 100 kHz */
-	I2C_SPEED_FAST,		/* 400 kHz */
-	I2C_SPEED_FAST_PLUS,	/* 1 MHz   */
-};
-
-#define STANDARD_RATE				100000
-#define FAST_RATE				400000
-#define FAST_PLUS_RATE				1000000
-
 static const struct i2c_spec_s i2c_specs[] = {
 	[I2C_SPEED_STANDARD] = {
-		.rate = STANDARD_RATE,
-		.rate_min = (STANDARD_RATE * 80) / 100,
-		.rate_max = (STANDARD_RATE * 120) / 100,
+		.rate = I2C_STANDARD_RATE,
+		.rate_min = (I2C_STANDARD_RATE * 80) / 100,
+		.rate_max = (I2C_STANDARD_RATE * 120) / 100,
 		.fall_max = 300,
 		.rise_max = 1000,
 		.hddat_min = 0,
@@ -265,9 +248,9 @@ static const struct i2c_spec_s i2c_specs[] = {
 		.h_min = 4000,
 	},
 	[I2C_SPEED_FAST] = {
-		.rate = FAST_RATE,
-		.rate_min = (FAST_RATE * 80) / 100,
-		.rate_max = (FAST_RATE * 120) / 100,
+		.rate = I2C_FAST_RATE,
+		.rate_min = (I2C_FAST_RATE * 80) / 100,
+		.rate_max = (I2C_FAST_RATE * 120) / 100,
 		.fall_max = 300,
 		.rise_max = 300,
 		.hddat_min = 0,
@@ -277,9 +260,9 @@ static const struct i2c_spec_s i2c_specs[] = {
 		.h_min = 600,
 	},
 	[I2C_SPEED_FAST_PLUS] = {
-		.rate = FAST_PLUS_RATE,
-		.rate_min = (FAST_PLUS_RATE * 80) / 100,
-		.rate_max = (FAST_PLUS_RATE * 120) / 100,
+		.rate = I2C_FAST_PLUS_RATE,
+		.rate_min = (I2C_FAST_PLUS_RATE * 80) / 100,
+		.rate_max = (I2C_FAST_PLUS_RATE * 120) / 100,
 		.fall_max = 100,
 		.rise_max = 120,
 		.hddat_min = 0,
@@ -680,13 +663,13 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	cuint = fdt_getprop(fdt, node, "clock-frequency", NULL);
 	if (cuint) {
 		switch (fdt32_to_cpu(*cuint)) {
-		case STANDARD_RATE:
+		case I2C_STANDARD_RATE:
 			init->speed_mode = I2C_SPEED_STANDARD;
 			break;
-		case FAST_RATE:
+		case I2C_FAST_RATE:
 			init->speed_mode = I2C_SPEED_FAST;
 			break;
-		case FAST_PLUS_RATE:
+		case I2C_FAST_PLUS_RATE:
 			init->speed_mode = I2C_SPEED_FAST_PLUS;
 			break;
 		default:

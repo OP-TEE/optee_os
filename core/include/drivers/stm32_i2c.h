@@ -14,6 +14,23 @@
 #include <types_ext.h>
 
 /*
+ * I2C specification values as per version 6.0, 4th of April 2014 [1],
+ * table 10 page 48: Characteristics of the SDA and SCL bus lines for
+ * Standard, Fast, and Fast-mode Plus I2C-bus devices.
+ *
+ * [1] https://www.nxp.com/docs/en/user-guide/UM10204.pdf
+ */
+enum i2c_speed_e {
+	I2C_SPEED_STANDARD,	/* 100 kHz */
+	I2C_SPEED_FAST,		/* 400 kHz */
+	I2C_SPEED_FAST_PLUS,	/* 1 MHz   */
+};
+
+#define I2C_STANDARD_RATE	100000
+#define I2C_FAST_RATE		400000
+#define I2C_FAST_PLUS_RATE	1000000
+
+/*
  * Initialization configuration structure for the STM32 I2C bus.
  * Refer to the SoC Reference Manual for more details on configuration items.
  *
