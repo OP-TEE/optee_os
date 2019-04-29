@@ -178,10 +178,8 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 
 		/* Check bank register offset matches platform assumptions */
 		cuint = fdt_getprop(fdt, pinctrl_subnode, "reg", NULL);
-		if (!cuint)
-			panic();
 		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
-			panic();
+			continue;
 
 		/* Check bank clock matches platform assumptions */
 		cuint = fdt_getprop(fdt, pinctrl_subnode, "clocks", NULL);
