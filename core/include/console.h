@@ -35,7 +35,7 @@ void register_serial_console(struct serial_chip *chip);
  * Return a TEE_Result compliant return value
  *
  */
-TEE_Result get_console_node_from_dt(void **fdt_out, int *offs_out,
+TEE_Result get_console_node_from_dt(void *fdt, int *offs_out,
 				    const char **path_out,
 				    const char **params_out);
 

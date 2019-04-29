@@ -144,9 +144,18 @@ static TEE_Result init_console_from_dt(void)
 	struct stm32_uart_pdata *pd = NULL;
 	void *fdt = NULL;
 	int node = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (get_console_node_from_dt(&fdt, &node, NULL, NULL))
-		return TEE_SUCCESS;
+	fdt = get_embedded_dt();
+	res = get_console_node_from_dt(fdt, &node, NULL, NULL);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		fdt = get_external_dt();
+		res = get_console_node_from_dt(fdt, &node, NULL, NULL);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			return TEE_SUCCESS;
+		if (res != TEE_SUCCESS)
+			return res;
+	}
 
 	pd = stm32_uart_init_from_dt_node(fdt, node);
 	if (!pd) {
