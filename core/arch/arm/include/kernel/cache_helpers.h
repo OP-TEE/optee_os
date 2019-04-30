@@ -19,6 +19,7 @@
 void dcache_cleaninv_range(void *addr, size_t size);
 void dcache_clean_range(void *addr, size_t size);
 void dcache_inv_range(void *addr, size_t size);
+void dcache_clean_range_pou(void *addr, size_t size);
 
 void icache_inv_all(void);
 void icache_inv_range(void *addr, size_t size);
