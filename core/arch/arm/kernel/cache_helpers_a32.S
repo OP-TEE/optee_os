@@ -50,7 +50,6 @@ loop_\reg:
 	 * size. 'r0' = addr, 'r1' = size
 	 * ------------------------------------------
 	 */
-.section .text.dcache_cleaninv_range
 FUNC dcache_cleaninv_range , :
 UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dccimvac
@@ -62,7 +61,6 @@ END_FUNC dcache_cleaninv_range
 	 * 'r0' = addr, 'r1' = size
 	 * ------------------------------------------
 	 */
-.section .text.dcache_clean_range
 FUNC dcache_clean_range , :
 UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dccmvac
@@ -74,7 +72,6 @@ END_FUNC dcache_clean_range
 	 * size. 'r0' = addr, 'r1' = size
 	 * ------------------------------------------
 	 */
-.section .text.dcache_inv_range
 FUNC dcache_inv_range , :
 UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dcimvac
@@ -106,7 +103,6 @@ END_FUNC dcache_inv_range
 	b	do_dcsw_op
 	.endm
 
-.section .text.do_dcsw_op
 LOCAL_FUNC do_dcsw_op , :
 UNWIND(	.fnstart)
 	push	{r4-r12,lr}
@@ -170,7 +166,6 @@ END_FUNC do_dcsw_op
 	 * DCACHE_OP_CLEAN), as defined in cache_helpers.h
 	 * ---------------------------------------------------------------
 	 */
-.section .text.dcache_op_louis
 FUNC dcache_op_louis , :
 UNWIND(	.fnstart)
 	dcsw_op #CLIDR_LOUIS_SHIFT, #CLIDR_FIELD_WIDTH, #CSSELR_LEVEL_SHIFT
@@ -185,7 +180,6 @@ END_FUNC dcache_op_louis
 	 * DCACHE_OP_CLEAN), as defined in cache_helpers.h
 	 * ---------------------------------------------------------------
 	 */
-.section .text.dcache_op_all
 FUNC dcache_op_all , :
 UNWIND(	.fnstart)
 	dcsw_op #CLIDR_LOC_SHIFT, #CLIDR_FIELD_WIDTH, #CSSELR_LEVEL_SHIFT
@@ -213,7 +207,6 @@ END_FUNC dcache_op_all
 	 * DCACHE_OP_CLEAN), as defined in cache_helpers.h
 	 * ---------------------------------------------------------------
 	 */
-.section .text.dcache_op_level1
 FUNC dcache_op_level1 , :
 UNWIND(	.fnstart)
 	dcsw_op_level #(1 << CSSELR_LEVEL_SHIFT)
@@ -228,7 +221,6 @@ END_FUNC dcache_op_level1
 	 * DCACHE_OP_CLEAN), as defined in cache_helpers.h
 	 * ---------------------------------------------------------------
 	 */
-.section .text.dcache_op_level2
 FUNC dcache_op_level2 , :
 UNWIND(	.fnstart)
 	dcsw_op_level #(2 << CSSELR_LEVEL_SHIFT)
@@ -243,14 +235,12 @@ END_FUNC dcache_op_level2
 	 * DCACHE_OP_CLEAN), as defined in cache_helpers.h
 	 * ---------------------------------------------------------------
 	 */
-.section .text.dcache_op_level3
 FUNC dcache_op_level3 , :
 UNWIND(	.fnstart)
 	dcsw_op_level #(3 << CSSELR_LEVEL_SHIFT)
 UNWIND(	.fnend)
 END_FUNC dcache_op_level3
 
-.section .text.icache_inv_all
 FUNC icache_inv_all , :
 UNWIND(	.fnstart)
 	/* Invalidate Entire Instruction Cache (and branch predictors) */
@@ -268,7 +258,6 @@ END_FUNC icache_inv_all
 	 * size. 'r0' = addr, 'r1' = size
 	 * ------------------------------------------
 	 */
-.section .text.icache_inv_range
 FUNC icache_inv_range , :
 UNWIND(	.fnstart)
 	icache_line_size r2, r3
