@@ -76,7 +76,7 @@ $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  SIGN    $$@'
-	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(user-ta-uuid) --version 0 \
+	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(user-ta-uuid) \
 		--in $$< --out $$@
 endef
 
