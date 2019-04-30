@@ -15,6 +15,7 @@
 void tlbi_all(void);
 void tlbi_asid(unsigned long asid);
 void tlbi_mva_allasid(unsigned long addr);
+
 static inline void tlbi_mva_allasid_nosync(vaddr_t va)
 {
 #ifdef ARM64
@@ -22,6 +23,23 @@ static inline void tlbi_mva_allasid_nosync(vaddr_t va)
 #else
 	write_tlbimvaais(va);
 #endif
+}
+
+static inline void tlbi_mva_asid(vaddr_t va, uint32_t asid)
+{
+	uint32_t a = asid & TLBI_ASID_MASK;
+
+	dsb_ishst();
+#ifdef ARM64
+	tlbi_vale1is((va >> TLBI_MVA_SHIFT) | SHIFT_U64(a, TLBI_ASID_SHIFT));
+	tlbi_vale1is((va >> TLBI_MVA_SHIFT) |
+		     SHIFT_U64(a | 1, TLBI_ASID_SHIFT));
+#else
+	write_tlbimvais((va & ~(BIT32(TLBI_MVA_SHIFT) - 1)) | a);
+	write_tlbimvais((va & ~(BIT32(TLBI_MVA_SHIFT) - 1)) | a | 1);
+#endif
+	dsb_ish();
+	isb();
 }
 #endif /*!ASM*/
 
