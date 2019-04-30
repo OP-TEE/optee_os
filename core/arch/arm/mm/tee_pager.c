@@ -10,6 +10,7 @@
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/asan.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
@@ -948,8 +949,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 				/* Assert that the pmem isn't shared. */
 				assert(same_context(pmem));
 
-				cache_op_inner(DCACHE_AREA_CLEAN, va,
-						SMALL_PAGE_SIZE);
+				dcache_clean_range_pou(va, SMALL_PAGE_SIZE);
 				cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 			}
 		}
@@ -1355,17 +1355,13 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		if (area->flags & (TEE_MATTR_PX | TEE_MATTR_UX)) {
 			uint32_t mask = TEE_MATTR_PX | TEE_MATTR_UX |
 					TEE_MATTR_PW | TEE_MATTR_UW;
+			void *va = (void *)page_va;
 
 			/* Set a temporary read-only mapping */
 			area_set_entry(area, tblidx, pa, attr & ~mask);
 			tlbi_mva_allasid(page_va);
 
-			/*
-			 * Doing these operations to LoUIS (Level of
-			 * unification, Inner Shareable) would be enough
-			 */
-			cache_op_inner(DCACHE_AREA_CLEAN, (void *)page_va,
-				       SMALL_PAGE_SIZE);
+			dcache_clean_range_pou(va, SMALL_PAGE_SIZE);
 			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 
 			/* Set the final mapping */
