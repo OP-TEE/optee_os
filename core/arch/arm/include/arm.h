@@ -52,6 +52,7 @@
 #define CTR_L1IP_MASK		0x3
 #define CTR_IMINLINE_SHIFT	0
 #define CTR_IMINLINE_MASK	0xf
+#define CTR_WORD_SIZE		4
 
 #define ARM32_CPSR_MODE_MASK	0x1f
 #define ARM32_CPSR_MODE_USR	0x10
