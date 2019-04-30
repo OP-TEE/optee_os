@@ -143,6 +143,8 @@
 #define TTBR_ASID_MASK		0xff
 #define TTBR_ASID_SHIFT		48
 
+#define TLBI_MVA_SHIFT		12
+#define TLBI_ASID_MASK		0xff
 
 #define FSR_LPAE		BIT32(9)
 #define FSR_WNR			BIT32(11)
