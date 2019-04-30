@@ -65,6 +65,14 @@ FUNC dcache_inv_range , :
 	do_dcache_maintenance_by_mva ivac
 END_FUNC dcache_inv_range
 
+	/* ------------------------------------------
+	 * Clean from base address till size to point of unification
+	 * 'x0' = addr, 'x1' = size
+	 * ------------------------------------------
+	 */
+FUNC dcache_clean_range_pou , :
+	do_dcache_maintenance_by_mva cvau
+END_FUNC dcache_clean_range_pou
 
 	/* ---------------------------------------------------------------
 	 * Data cache operations by set/way to the level specified

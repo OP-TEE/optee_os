@@ -78,6 +78,18 @@ UNWIND(	.fnstart)
 UNWIND(	.fnend)
 END_FUNC dcache_inv_range
 
+
+	/* ------------------------------------------
+	 * Clean from base address till size to point of unification
+	 * 'r0' = addr, 'r1' = size
+	 * ------------------------------------------
+	 */
+FUNC dcache_clean_range_pou , :
+UNWIND(	.fnstart)
+	do_dcache_maintenance_by_mva dccmvau
+UNWIND(	.fnend)
+END_FUNC dcache_clean_range_pou
+
 	/* ----------------------------------------------------------------
 	 * Data cache operations by set/way to the level specified
 	 *
