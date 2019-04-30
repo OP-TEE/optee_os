@@ -8,20 +8,17 @@
 #include <arm.h>
 #include <asm.S>
 
-#define WORD_SIZE		4
-
-
 .macro  dcache_line_size  reg, tmp
 	mrs     \tmp, ctr_el0
 	ubfx    \tmp, \tmp, #CTR_DMINLINE_SHIFT, #CTR_DMINLINE_WIDTH
-	mov     \reg, #WORD_SIZE
+	mov     \reg, #CTR_WORD_SIZE
 	lsl     \reg, \reg, \tmp
 .endm
 
 .macro  icache_line_size  reg, tmp
 	mrs     \tmp, ctr_el0
 	and     \tmp, \tmp, #CTR_IMINLINE_MASK
-	mov     \reg, #WORD_SIZE
+	mov     \reg, #CTR_WORD_SIZE
 	lsl     \reg, \reg, \tmp
 .endm
 

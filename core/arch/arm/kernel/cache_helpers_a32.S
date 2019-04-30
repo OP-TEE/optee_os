@@ -11,22 +11,20 @@
 #include <kernel/cache_helpers.h>
 #include <kernel/unwind.h>
 
-#define WORD_SIZE		4
-
 /*
  * Cache line size helpers
  */
 .macro  dcache_line_size  reg, tmp
 	read_ctr \tmp
 	ubfx    \tmp, \tmp, #CTR_DMINLINE_SHIFT, #CTR_DMINLINE_WIDTH
-	mov     \reg, #WORD_SIZE
+	mov     \reg, #CTR_WORD_SIZE
 	lsl     \reg, \reg, \tmp
 .endm
 
 .macro  icache_line_size  reg, tmp
 	read_ctr \tmp
 	and     \tmp, \tmp, #CTR_IMINLINE_MASK
-	mov     \reg, #WORD_SIZE
+	mov     \reg, #CTR_WORD_SIZE
 	lsl     \reg, \reg, \tmp
 .endm
 
