@@ -411,6 +411,22 @@ static vaddr_t area_idx2va(struct tee_pager_area *area, size_t idx)
 	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
 }
 
+static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
+{
+	vaddr_t va = area_idx2va(area, idx);
+
+#if defined(CFG_PAGED_USER_TA)
+	assert(area->pgt);
+	if (area->pgt->ctx) {
+		uint32_t asid = to_user_ta_ctx(area->pgt->ctx)->vm_info->asid;
+
+		tlbi_mva_asid(va, asid);
+		return;
+	}
+#endif
+	tlbi_mva_allasid(va);
+}
+
 static void pmem_unmap(struct tee_pager_pmem *pmem, struct pgt *only_this_pgt)
 {
 	struct tee_pager_area *area = NULL;
@@ -431,7 +447,7 @@ static void pmem_unmap(struct tee_pager_pmem *pmem, struct pgt *only_this_pgt)
 		if (a & TEE_MATTR_VALID_BLOCK) {
 			area_set_entry(area, tblidx, 0, 0);
 			pgt_dec_used_entries(area->pgt);
-			tlbi_mva_allasid(area_idx2va(area, tblidx));
+			area_tlbi_entry(area, tblidx);
 		}
 	}
 }
@@ -821,7 +837,7 @@ static void rem_area(struct tee_pager_area_head *area_head,
 			continue;
 
 		area_set_entry(area, idx, 0, 0);
-		tlbi_mva_allasid(area_idx2va(area, idx));
+		area_tlbi_entry(area, idx);
 		pgt_dec_used_entries(area->pgt);
 	}
 
@@ -921,7 +937,7 @@ bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
 			if (a == f)
 				continue;
 			area_set_entry(area, tblidx, 0, 0);
-			tlbi_mva_allasid(area_idx2va(area, tblidx));
+			area_tlbi_entry(area, tblidx);
 
 			pmem->flags &= ~PMEM_FLAG_HIDDEN;
 			if (pmem_is_dirty(pmem))
@@ -1190,7 +1206,7 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 				pmem->flags |= PMEM_FLAG_DIRTY;
 				area_set_entry(area, pgidx, pa,
 					       get_area_mattr(area->flags));
-				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
+				area_tlbi_entry(area, pgidx);
 			}
 
 		} else {
@@ -1359,14 +1375,14 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 
 			/* Set a temporary read-only mapping */
 			area_set_entry(area, tblidx, pa, attr & ~mask);
-			tlbi_mva_allasid(page_va);
+			area_tlbi_entry(area, tblidx);
 
 			dcache_clean_range_pou(va, SMALL_PAGE_SIZE);
 			cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 
 			/* Set the final mapping */
 			area_set_entry(area, tblidx, pa, attr);
-			tlbi_mva_allasid(page_va);
+			area_tlbi_entry(area, tblidx);
 		} else {
 			area_set_entry(area, tblidx, pa, attr);
 			/*
