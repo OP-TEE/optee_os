@@ -902,7 +902,7 @@ static int i2c_wait_txis(struct i2c_handle_s *hi2c, uint64_t timeout_ref)
 /* Wait STOPF bit is 1 in I2C_ISR register */
 static int i2c_wait_stop(struct i2c_handle_s *hi2c, uint64_t timeout_ref)
 {
-	while (timeout_elapsed(timeout_ref)) {
+	while (!timeout_elapsed(timeout_ref)) {
 		if (io_read32(get_base(hi2c) + I2C_ISR) & I2C_ISR_STOPF)
 			break;
 
