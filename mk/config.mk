@@ -370,6 +370,19 @@ endif
 #   in the same way as TAs so that they can be found at runtime.
 CFG_ULIBS_SHARED ?= n
 
+ifeq (yy,$(CFG_TA_GPROF_SUPPORT)$(CFG_ULIBS_SHARED))
+# FIXME:
+# TA profiling with gprof does not work well with shared libraries (not limited
+# to CFG_ULIBS_SHARED=y actually), because the total .text size is not known at
+# link time. The symptom is an error trace when the TA starts (and no gprof
+# output is produced):
+#  E/TA: __utee_gprof_init:159 gprof: could not allocate profiling buffer
+# The allocation of the profiling buffer should probably be done at runtime
+# via a new syscall/PTA call instead of having it pre-allocated in .bss by the
+# linker.
+$(error CFG_TA_GPROF_SUPPORT and CFG_ULIBS_SHARED are currently incompatible)
+endif
+
 # CFG_GP_SOCKETS
 # Enable Global Platform Sockets support
 CFG_GP_SOCKETS ?= y
