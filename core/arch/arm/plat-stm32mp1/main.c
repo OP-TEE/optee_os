@@ -264,6 +264,11 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->closed_device_position = DATA0_OTP_SECURED_POS;
 }
 
+bool __weak stm32mp_with_pmic(void)
+{
+	return false;
+}
+
 uint32_t may_spin_lock(unsigned int *lock)
 {
 	if (!lock || !cpu_mmu_enabled())

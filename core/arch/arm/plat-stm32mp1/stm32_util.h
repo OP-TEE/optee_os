@@ -36,6 +36,9 @@ vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
 
+/* Platform util for PMIC support */
+bool stm32mp_with_pmic(void);
+
 /* Power management service */
 #ifdef CFG_PSCI_ARM32
 void stm32mp_register_online_cpu(void);
