@@ -88,6 +88,24 @@ struct stm32_bsec_static_cfg {
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 /*
+ * Shared registers support: common lock for accessing SoC registers
+ * shared between several drivers.
+ */
+void io_mask32_stm32shregs(vaddr_t va, uint32_t value, uint32_t mask);
+
+static inline void io_setbits32_stm32shregs(vaddr_t va, uint32_t value)
+{
+	io_mask32_stm32shregs(va, value, value);
+}
+
+static inline void io_clrbits32_stm32shregs(vaddr_t va, uint32_t value)
+{
+	io_mask32_stm32shregs(va, 0, value);
+}
+
+void io_clrsetbits32_stm32shregs(vaddr_t va, uint32_t clr, uint32_t set);
+
+/*
  * Shared reference counter: increments by 2 on secure increment
  * request, decrements by 2 on secure decrement request. Bit #0
  * is set to 1 on non-secure increment request and reset to 0 on
