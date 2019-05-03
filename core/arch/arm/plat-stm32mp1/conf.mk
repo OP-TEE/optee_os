@@ -35,9 +35,15 @@ CFG_WITH_LPAE ?= y
 CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 23
 
+ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
+# Some drivers mandate DT support
+$(call force,CFG_STM32_I2C,n)
+endif
+
 CFG_STM32_BSEC ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
+CFG_STM32_I2C ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
