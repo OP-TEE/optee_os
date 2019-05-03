@@ -654,6 +654,7 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 {
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
+	int count = 0;
 
 	/* Default STM32 specific configs caller may need to overwrite */
 	memset(init, 0, sizeof(*init));
