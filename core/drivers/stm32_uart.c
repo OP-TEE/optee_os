@@ -12,6 +12,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
+#include <stm32_util.h>
 #include <util.h>
 
 #define UART_REG_CR1			0x00	/* Control register 1 */
@@ -105,6 +106,16 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 }
 
 #ifdef CFG_DT
+static void register_secure_uart(struct stm32_uart_pdata *pd)
+{
+	stm32mp_register_secure_periph_iomem(pd->base.pa);
+}
+
+static void register_non_secure_uart(struct stm32_uart_pdata *pd)
+{
+	stm32mp_register_non_secure_periph_iomem(pd->base.pa);
+}
+
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 {
 	struct stm32_uart_pdata *pd = NULL;
@@ -131,6 +142,11 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
 					    pd->secure ? MEM_AREA_IO_SEC :
 					    MEM_AREA_IO_NSEC);
+
+	if (pd->secure)
+		register_secure_uart(pd);
+	else
+		register_non_secure_uart(pd);
 
 	return pd;
 }
