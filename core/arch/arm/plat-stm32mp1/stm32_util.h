@@ -55,11 +55,17 @@ void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
 /*
  * Util for clock gating and to get clock rate for stm32 and platform drivers
  * @id: Target clock ID, ID used in clock DT bindings
+ *
+ * stm32_clock_enable()/stm32_clock_disable() implicitly refer to secure
+ * clocks.
+ *
  */
 void stm32_clock_enable(unsigned long id);
 void stm32_clock_disable(unsigned long id);
 unsigned long stm32_clock_get_rate(unsigned long id);
 bool stm32_clock_is_enabled(unsigned long id);
+void stm32_nsec_clock_enable(unsigned long id);
+void stm32_nsec_clock_disable(unsigned long id);
 
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
