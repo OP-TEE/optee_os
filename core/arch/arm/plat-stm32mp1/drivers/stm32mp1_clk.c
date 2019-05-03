@@ -12,6 +12,7 @@
 #include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <platform_config.h>
 #include <stm32_util.h>
@@ -1395,10 +1396,45 @@ static void sync_earlyboot_clocks_state(void)
 #endif
 }
 
+static void stm32_clock_resume(void)
+{
+	unsigned int idx = 0;
+
+	/* Sync secure and shared clocks physical state on functional state */
+	for (idx = 0; idx < NB_GATES; idx++) {
+		struct stm32mp1_clk_gate const *gate = gate_ref(idx);
+
+		if (stm32mp_clock_is_non_secure(gate->clock_id))
+			continue;
+
+		if (gate_refcounts[idx]) {
+			DMSG("Force clock %d enable", gate->clock_id);
+			__clk_enable(gate);
+		} else {
+			DMSG("Force clock %d disable", gate->clock_id);
+			__clk_disable(gate);
+		}
+	}
+}
+
+static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
+				 const struct pm_callback_handle *hdl __unused)
+{
+	if (!stm32_rcc_is_secure())
+		panic("pm mandates secure clocks");
+
+	if (op == PM_OP_RESUME)
+		stm32_clock_resume();
+
+	return TEE_SUCCESS;
+}
+KEEP_PAGER(stm32_clock_pm);
+
 static TEE_Result stm32_clk_probe(void)
 {
 	stm32mp1_clk_early_init();
 	sync_earlyboot_clocks_state();
+	register_pm_core_service_cb(stm32_clock_pm, NULL);
 
 	return TEE_SUCCESS;
 }
