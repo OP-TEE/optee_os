@@ -214,6 +214,15 @@ int stm32_i2c_master_receive(struct i2c_handle_s *hi2c, uint32_t dev_addr,
 			     unsigned int timeout_ms);
 
 /*
+ * Optimized 1 byte read/write function for unpaged sequences.
+ * 8-bit addressing mode / single byte transferred / use default I2C timeout.
+ * Return 0 on success else a negative value
+ */
+int stm32_i2c_read_write_membyte(struct i2c_handle_s *hi2c, uint16_t dev_addr,
+				 unsigned int mem_addr, uint8_t *p_data,
+				 bool write);
+
+/*
  * Check link with the I2C device
  *
  * @hi2c: Reference to I2C bus handle structure
