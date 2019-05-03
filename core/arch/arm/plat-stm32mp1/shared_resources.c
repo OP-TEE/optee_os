@@ -13,6 +13,7 @@
 #include <keep.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -700,6 +701,16 @@ static void set_gpio_secure_configuration(void)
 	}
 }
 
+static TEE_Result gpioz_pm(enum pm_op op, uint32_t pm_hint __unused,
+			   const struct pm_callback_handle *hdl __unused)
+{
+	if (op == PM_OP_RESUME)
+		set_gpio_secure_configuration();
+
+	return TEE_SUCCESS;
+}
+KEEP_PAGER(gpioz_pm);
+
 static TEE_Result stm32mp1_init_final_shres(void)
 {
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
@@ -715,6 +726,7 @@ static TEE_Result stm32mp1_init_final_shres(void)
 
 	set_etzpc_secure_configuration();
 	set_gpio_secure_configuration();
+	register_pm_driver_cb(gpioz_pm, NULL);
 	check_rcc_secure_configuration();
 
 	return TEE_SUCCESS;
