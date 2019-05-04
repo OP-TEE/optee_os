@@ -79,5 +79,6 @@ void plat_cpu_reset_late(void)
 		     addr += 4)
 			io_setbits32(addr, CSU_SETTING_LOCK);
 		imx_configure_tzasc();
+		init_caam();
 	}
 }
