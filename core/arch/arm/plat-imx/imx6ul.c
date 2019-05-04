@@ -7,6 +7,7 @@
 
 #include <arm32.h>
 #include <io.h>
+#include <imx_caam.h>
 #include <kernel/generic_boot.h>
 #include <platform_config.h>
 #include <stdint.h>
@@ -32,4 +33,5 @@ static void init_csu(void)
 void plat_cpu_reset_late(void)
 {
 	init_csu();
+	init_caam();
 }
