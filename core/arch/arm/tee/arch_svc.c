@@ -225,36 +225,32 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 #ifdef ARM32
 #ifdef CFG_UNWIND
 /* Get register values pushed onto the stack by utee_panic() */
-static void get_panic_regs_a32_ta(uint32_t *pushed, struct abort_info *ai)
+static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
+				  uint32_t *pushed)
 {
-	struct thread_abort_regs *ar = ai->regs;
-
-	ai->abort_type = ABORT_TYPE_TA_PANIC;
-
-	memset(ar, 0, sizeof(*ar));
-	ai->pc = pushed[0];
-	ar->r0 = pushed[1];
-	ar->r1 = pushed[2];
-	ar->r2 = pushed[3];
-	ar->r3 = pushed[4];
-	ar->r4 = pushed[5];
-	ar->r5 = pushed[6];
-	ar->r6 = pushed[7];
-	ar->r7 = pushed[8];
-	ar->r8 = pushed[9];
-	ar->r9 = pushed[10];
-	ar->r10 = pushed[11];
-	ar->r11 = pushed[12];
-	ar->usr_sp = (uint32_t)pushed;
-	ar->usr_lr = pushed[13];
-	ar->spsr = read_spsr();
+	tsd->abort_regs = (struct thread_abort_regs){
+		.elr = pushed[0],
+		.r0 = pushed[1],
+		.r1 = pushed[2],
+		.r2 = pushed[3],
+		.r3 = pushed[4],
+		.r4 = pushed[5],
+		.r5 = pushed[6],
+		.r6 = pushed[7],
+		.r7 = pushed[8],
+		.r8 = pushed[9],
+		.r9 = pushed[10],
+		.r10 = pushed[11],
+		.r11 = pushed[12],
+		.usr_sp = (uint32_t)pushed,
+		.usr_lr = pushed[13],
+		.spsr = read_spsr(),
+	};
 }
 
-static void print_panic_stack(struct thread_svc_regs *regs)
+static void save_panic_stack(struct thread_svc_regs *regs)
 {
-	struct abort_info ai;
-	struct thread_abort_regs ar;
-	uint32_t *pregs = (uint32_t *)regs->r1;
+	struct thread_specific_data *tsd = thread_get_tsd();
 	struct tee_ta_session *s;
 
 	if (tee_ta_get_current_session(&s))
@@ -263,22 +259,22 @@ static void print_panic_stack(struct thread_svc_regs *regs)
 	if (tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,
-					(uaddr_t)pregs,
+					(uaddr_t)regs->r1,
 					TA32_CONTEXT_MAX_SIZE)) {
 		TAMSG_RAW("");
 		TAMSG_RAW("Can't unwind invalid user stack 0x%" PRIxUA,
-				(uaddr_t)pregs);
+				(uaddr_t)regs->r1);
 		return;
 	}
 
-	memset(&ai, 0, sizeof(ai));
-	ai.regs = &ar;
-	get_panic_regs_a32_ta(pregs, &ai);
+	tsd->abort_type = ABORT_TYPE_TA_PANIC;
+	tsd->abort_descr = 0;
+	tsd->abort_va = 0;
 
-	abort_print_error(&ai);
+	save_panic_regs_a32_ta(tsd, (uint32_t *)regs->r1);
 }
 #else /* CFG_UNWIND */
-static void print_panic_stack(struct thread_svc_regs *regs __unused)
+static void save_panic_stack(struct thread_svc_regs *regs __unused)
 {
 }
 #endif
@@ -289,7 +285,7 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	if (panic) {
 		TAMSG_RAW("");
 		TAMSG_RAW("TA panicked with code 0x%" PRIx32, panic_code);
-		print_panic_stack(regs);
+		save_panic_stack(regs);
 	}
 
 	regs->r1 = panic;
@@ -302,53 +298,45 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 #ifdef ARM64
 #ifdef CFG_UNWIND
 /* Get register values pushed onto the stack by utee_panic() (32-bit TA) */
-static void get_panic_regs_a32_ta(uint32_t *pushed, struct abort_info *ai)
+static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
+				   uint32_t *pushed)
 {
-	struct thread_abort_regs *ar = ai->regs;
-
-	ai->abort_type = ABORT_TYPE_TA_PANIC;
-
-	memset(ar, 0, sizeof(*ar));
-	ai->pc = pushed[0];
-	ar->x0 = pushed[1];
-	ar->x1 = pushed[2];
-	ar->x2 = pushed[3];
-	ar->x3 = pushed[4];
-	ar->x4 = pushed[5];
-	ar->x5 = pushed[6];
-	ar->x6 = pushed[7];
-	ar->x7 = pushed[8];
-	ar->x8 = pushed[9];
-	ar->x9 = pushed[10];
-	ar->x10 = pushed[11];
-	ar->x11 = pushed[12];
-	ar->x13 = (uint64_t)pushed;
-	ar->x14 = pushed[13];
-	ar->spsr = (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT);
+	tsd->abort_regs = (struct thread_abort_regs){
+		.elr = pushed[0],
+		.x0 = pushed[1],
+		.x1 = pushed[2],
+		.x2 = pushed[3],
+		.x3 = pushed[4],
+		.x4 = pushed[5],
+		.x5 = pushed[6],
+		.x6 = pushed[7],
+		.x7 = pushed[8],
+		.x8 = pushed[9],
+		.x9 = pushed[10],
+		.x10 = pushed[11],
+		.x11 = pushed[12],
+		.x13 = (uint64_t)pushed,
+		.x14 = pushed[13],
+		.spsr = (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT),
+	};
 }
 
 /* Get register values pushed onto the stack by utee_panic() (64-bit TA) */
-static void get_panic_regs_a64_ta(uint64_t *pushed, struct abort_info *ai)
+static void save_panic_regs_a64_ta(struct thread_specific_data *tsd,
+				   uint64_t *pushed)
 {
-	struct thread_abort_regs *ar = ai->regs;
-
-	ai->abort_type = ABORT_TYPE_TA_PANIC;
-
-	memset(ar, 0, sizeof(*ar));
-	ar->x29 = pushed[0];
-	ar->elr = pushed[1];
-	ar->spsr = (SPSR_64_MODE_EL0 << SPSR_64_MODE_EL_SHIFT);
+	tsd->abort_regs = (struct thread_abort_regs){
+		.x29 = pushed[0],
+		.elr = pushed[1],
+		.spsr = (SPSR_64_MODE_EL0 << SPSR_64_MODE_EL_SHIFT),
+	};
 }
 
-static void print_panic_stack(struct thread_svc_regs *regs)
+static void save_panic_stack(struct thread_svc_regs *regs)
 {
-	struct tee_ta_session *s;
-	struct user_ta_ctx *utc;
-	struct abort_info ai;
-	struct thread_abort_regs ar;
-
-	memset(&ai, 0, sizeof(ai));
-	ai.regs = &ar;
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct tee_ta_session *s = NULL;
+	struct user_ta_ctx *utc = NULL;
 
 	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
 		panic();
@@ -367,15 +355,17 @@ static void print_panic_stack(struct thread_svc_regs *regs)
 		return;
 	}
 
-	if (utc->is_32bit)
-		get_panic_regs_a32_ta((uint32_t *)regs->x1, &ai);
-	else
-		get_panic_regs_a64_ta((uint64_t *)regs->x1, &ai);
+	tsd->abort_type = ABORT_TYPE_TA_PANIC;
+	tsd->abort_descr = 0;
+	tsd->abort_va = 0;
 
-	abort_print_error(&ai);
+	if (utc->is_32bit)
+		save_panic_regs_a32_ta(tsd, (uint32_t *)regs->x1);
+	else
+		save_panic_regs_a64_ta(tsd, (uint64_t *)regs->x1);
 }
 #else /* CFG_UNWIND */
-static void print_panic_stack(struct thread_svc_regs *regs __unused)
+static void save_panic_stack(struct thread_svc_regs *regs __unused)
 {
 }
 #endif /* CFG_UNWIND */
@@ -386,7 +376,7 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 	if (panic) {
 		TAMSG_RAW("");
 		TAMSG_RAW("TA panicked with code 0x%" PRIx32, panic_code);
-		print_panic_stack(regs);
+		save_panic_stack(regs);
 	}
 
 	regs->x1 = panic;
