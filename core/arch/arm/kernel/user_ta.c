@@ -359,6 +359,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	serr = TEE_ORIGIN_TRUSTED_APP;
 
 	if (utc->ctx.panicked) {
+		abort_print_current_ta();
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x",
 		     utc->ctx.panic_code);
 		serr = TEE_ORIGIN_TEE;
@@ -486,7 +487,6 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	}
 	show_elfs(utc);
 }
-KEEP_PAGER(user_ta_dump_state);
 
 static void release_ta_memory_by_mobj(struct mobj *mobj)
 {

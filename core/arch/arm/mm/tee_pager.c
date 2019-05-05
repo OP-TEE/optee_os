@@ -1252,7 +1252,8 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 	bool ret;
 
 #ifdef TEE_PAGER_DEBUG_PRINT
-	abort_print(ai);
+	if (!abort_is_user_exception(ai))
+		abort_print(ai);
 #endif
 
 	/*
