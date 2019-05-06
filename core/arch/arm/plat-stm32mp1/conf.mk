@@ -15,6 +15,7 @@ $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
