@@ -161,4 +161,14 @@ static inline int stm32_pinctrl_get_gpio_level(struct stm32_pinctrl *pinctrl)
 void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin,
 			       bool secure);
 
+/*
+ * Get the number of GPIO pins supported by a target GPIO bank
+ *
+ * @fdt: device tree reference
+ * @pinctrl_node: pinctrl node which GPIO bank node belongs to
+ * @bank: target GPIO bank ID
+ * Return number of GPIO pins (>= 0) or a negative value on error
+ */
+int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank);
+
 #endif /*__STM32_GPIO_H*/
