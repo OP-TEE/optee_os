@@ -508,13 +508,14 @@ void *get_embedded_dt(void)
 	assert(cpu_mmu_enabled());
 
 	if (!checked) {
+		IMSG("Embedded DTB found");
+
 		if (fdt_check_header(embedded_secure_dtb))
 			panic("Invalid embedded DTB");
 
 		checked = true;
 	}
 
-	IMSG("Embedded DTB found");
 	return embedded_secure_dtb;
 }
 #else
