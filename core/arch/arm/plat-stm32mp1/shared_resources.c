@@ -657,13 +657,7 @@ static TEE_Result stm32mp1_init_shres(void)
 	for (id = (enum stm32mp_shres)0; id < STM32MP1_SHRES_COUNT; id++) {
 		uint8_t __maybe_unused *state = &shres_state[id];
 
-#if TRACE_LEVEL == TRACE_INFO
-		/* Print only the secure and shared resources */
-		if (*state == SHRES_NON_SECURE || *state == SHRES_UNREGISTERED)
-			continue;
-#endif
-
-		IMSG("stm32mp %-8s (%2u): %-14s",
+		DMSG("stm32mp %-8s (%2u): %-14s",
 		     shres2str_id(id), id, shres2str_state(*state));
 	}
 
