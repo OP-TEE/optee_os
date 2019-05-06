@@ -20,6 +20,10 @@
 #include <stdbool.h>
 #include <string.h>
 
+#ifdef CFG_DT
+#include <libfdt.h>
+#endif
+
 /*
  * Once one starts to get the resource registering state, one cannot register
  * new resources. This ensures resource state cannot change.
@@ -173,10 +177,40 @@ static __maybe_unused const char *shres2str_state(enum stm32mp_shres id)
 	return shres2str_state_tbl[id];
 }
 
+/* GPIOZ bank pin count depends on SoC variants */
+#ifdef CFG_DT
+/* A light count routine for unpaged context to not depend on DTB support */
+static int gpioz_nbpin = -1;
+
+static unsigned int get_gpioz_nbpin(void)
+{
+	if (gpioz_nbpin < 0)
+		panic();
+
+	return gpioz_nbpin;
+}
+
+static TEE_Result set_gpioz_nbpin_from_dt(void)
+{
+	void *fdt = get_embedded_dt();
+	int node = fdt_path_offset(fdt, "/soc/pin-controller-z");
+	int count = stm32_get_gpio_count(fdt, node, GPIO_BANK_Z);
+
+	if (count < 0 || count > STM32MP1_GPIOZ_PIN_MAX_COUNT)
+		panic();
+
+	gpioz_nbpin = count;
+
+	return TEE_SUCCESS;
+}
+/* Get GPIOZ pin count before drivers initialization, hence service_init() */
+service_init(set_gpioz_nbpin_from_dt);
+#else
 static unsigned int get_gpioz_nbpin(void)
 {
 	return STM32MP1_GPIOZ_PIN_MAX_COUNT;
 }
+#endif
 
 static void register_periph(enum stm32mp_shres id, enum shres_state state)
 {
@@ -666,7 +700,7 @@ static void set_gpio_secure_configuration(void)
 	}
 }
 
-static TEE_Result stm32mp1_init_shres(void)
+static TEE_Result stm32mp1_init_final_shres(void)
 {
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 
@@ -685,4 +719,5 @@ static TEE_Result stm32mp1_init_shres(void)
 
 	return TEE_SUCCESS;
 }
-driver_init_late(stm32mp1_init_shres);
+/* Finalize shres after drivers initialization, hence driver_init_late() */
+driver_init_late(stm32mp1_init_final_shres);
