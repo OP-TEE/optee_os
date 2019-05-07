@@ -817,9 +817,9 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	 *
 	 * Save translation tables in a cache if it's a user TA.
 	 */
-	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
+	pgt_free(&tsd->pgt_cache, is_user_ta_ctx(tsd->ctx));
 
-	if (ctx && is_user_ta_ctx(ctx)) {
+	if (is_user_ta_ctx(ctx)) {
 		struct core_mmu_user_map map;
 		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
