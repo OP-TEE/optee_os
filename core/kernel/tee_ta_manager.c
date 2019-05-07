@@ -330,7 +330,7 @@ static bool check_params(struct tee_ta_session *sess,
 	 * When CFG_SECURE_DATA_PATH is enabled, OP-TEE entry allows SHM and
 	 * SDP memory references. Only TAs flagged SDP can access SDP memory.
 	 */
-	if (sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
+	if (sess->ctx && sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
 		return true;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -734,7 +734,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	if (((ctx && is_user_ta_ctx(ctx) ?
+	if (((is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->vm_info : NULL) == NULL) ==
 					core_mmu_user_mapping_is_active())
 		panic("unexpected active mapping");
@@ -786,6 +786,11 @@ static void dump_state(struct tee_ta_ctx *ctx)
 {
 	struct tee_ta_session *s = NULL;
 	bool active __maybe_unused;
+
+	if (!ctx) {
+		EMSG("No TA status: null context reference");
+		return;
+	}
 
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);

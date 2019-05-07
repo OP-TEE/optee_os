@@ -581,7 +581,7 @@ static struct tee_pager_area *find_uta_area(vaddr_t va)
 {
 	struct tee_ta_ctx *ctx = thread_get_tsd()->ctx;
 
-	if (!ctx || !is_user_ta_ctx(ctx))
+	if (!is_user_ta_ctx(ctx))
 		return NULL;
 	return find_area(to_user_ta_ctx(ctx)->areas, va);
 }

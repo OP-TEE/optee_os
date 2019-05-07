@@ -525,7 +525,7 @@ static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 
 bool is_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
-	return ctx->ops == _user_ta_ops;
+	return ctx && ctx->ops == _user_ta_ops;
 }
 
 static TEE_Result check_ta_store(void)
