@@ -70,6 +70,21 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 				TEE_Param params[TEE_NUM_PARAMS],
 				uint32_t *returnOrigin);
 
+TEE_Result TEE_OpenREESession(REE_UUID *destination,
+				uint32_t cancellationRequestTimeout,
+				uint32_t paramTypes,
+				REE_Param params[REE_NUM_PARAMS],
+				TEE_REESessionHandle *session,
+				uint32_t *returnOrigin);
+
+void TEE_CloseREESession(TEE_REESessionHandle session);
+
+TEE_Result TEE_InvokeREECommand(TEE_REESessionHandle session,
+				uint32_t cancellationRequestTimeout,
+				uint32_t commandID, uint32_t paramTypes,
+				REE_Param params[REE_NUM_PARAMS],
+				uint32_t *returnOrigin);
+
 /* System API - Cancellations */
 
 bool TEE_GetCancellationFlag(void);

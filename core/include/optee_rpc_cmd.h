@@ -148,6 +148,21 @@
  */
 #define OPTEE_RPC_CMD_BENCH_REG		20
 
+/* Generic REE Service commands */
+
+/*
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_GENERIC
+ */
+
+/*
+ * The first parameter is reserved and filled as
+ *
+ * [in]     param[0].u.value.a	cmd
+ * [in]     param[0].u.value.b	TA instance id
+ * [out]    param[0].u.value.c	REE service handle
+ */
+#define OPTEE_RPC_CMD_GENERIC		30
+
 /*
  * Definition of protocol for command OPTEE_RPC_CMD_FS
  */
