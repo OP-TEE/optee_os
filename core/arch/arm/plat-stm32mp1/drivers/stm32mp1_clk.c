@@ -1289,6 +1289,16 @@ static void stm32mp1_clk_early_init(void)
 	if (ignored != 0)
 		IMSG("DT clock tree configurations were ignored");
 }
+#else
+static void stm32mp1_clk_early_init(void)
+{
+	vaddr_t rcc_base = stm32_rcc_base();
+
+	/* Expect booting from a secure setup */
+	if ((io_read32(rcc_base + RCC_TZCR) & RCC_TZCR_TZEN) == 0)
+		panic("RCC TZC[TZEN]");
+}
+#endif /*CFG_EMBED_DTB*/
 
 /*
  * Sync secure clock refcount after all drivers initializations.
@@ -1395,4 +1405,3 @@ static TEE_Result stm32_clk_probe(void)
 /* Setup clock support before driver initialization */
 service_init(stm32_clk_probe);
 
-#endif /*CFG_EMBED_DTB*/
