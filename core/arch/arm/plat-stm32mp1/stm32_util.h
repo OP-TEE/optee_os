@@ -67,6 +67,9 @@ bool stm32_clock_is_enabled(unsigned long id);
 void stm32_nsec_clock_enable(unsigned long id);
 void stm32_nsec_clock_disable(unsigned long id);
 
+/* Synchronise clock states after drivers initialization */
+void stm32mp_update_earlyboot_clocks_state(void);
+
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
  * @id: Target peripheral ID, ID used in reset DT bindings

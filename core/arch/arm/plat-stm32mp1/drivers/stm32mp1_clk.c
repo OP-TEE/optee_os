@@ -1231,7 +1231,7 @@ static void get_osc_freq_from_dt(void *fdt)
 	}
 }
 
-static TEE_Result stm32mp1_clk_early_init(void)
+static void stm32mp1_clk_early_init(void)
 {
 	void *fdt = NULL;
 	int node = 0;
@@ -1290,9 +1290,82 @@ static TEE_Result stm32mp1_clk_early_init(void)
 
 	if (ignored != 0)
 		IMSG("DT clock tree configurations were ignored");
+}
+
+/*
+ * Sync secure clock refcount after all drivers initializations.
+ * This function queries shared_resource peripheral state hence
+ * lokcing futher shared resource registration.
+ */
+void stm32mp_update_earlyboot_clocks_state(void)
+{
+	unsigned int idx = 0;
+
+	for (idx = 0; idx < NB_GATES; idx++) {
+		unsigned long clock_id = gate_ref(idx)->clock_id;
+
+		/*
+		 * Drop non-secure refcount set on shareable clocks that are
+		 * not shared. Secure clock should not hold a non-secure
+		 * refcount. Non-secure clock cannot hold any refcount.
+		 */
+		if (__clk_is_enabled(gate_ref(idx)) &&
+		    stm32mp_clock_is_shareable(clock_id) &&
+		    !stm32mp_clock_is_shared(clock_id))
+			stm32_nsec_clock_disable(clock_id);
+
+		/*
+		 * Disable secure clocks enabled from early boot but not
+		 * explicitly enabled from the secure world.
+		 */
+		if (__clk_is_enabled(gate_ref(idx)) &&
+		    !stm32mp_clock_is_non_secure(clock_id) &&
+		    !gate_refcounts[idx])
+			__clk_disable(gate_ref(idx));
+	}
+
+	/* Dump clocks state */
+	for (idx = 0; idx < NB_GATES; idx++) {
+		unsigned long __maybe_unused clock_id = gate_ref(idx)->clock_id;
+		int __maybe_unused p = stm32mp1_clk_get_parent(clock_id);
+
+		FMSG("stm32mp clock %3lu is %sabled (refcnt %d) (parent %d %s)",
+			clock_id,
+			__clk_is_enabled(gate_ref(idx)) ? "en" : "dis",
+			gate_refcounts[idx],
+			p, p < 0 ? "n.a" : stm32mp1_clk_parent_name[p]);
+	}
+}
+
+/* Set a non-secure refcount on shareable clock that were enabled from boot */
+static void sync_earlyboot_clocks_state(void)
+{
+	unsigned int idx = 0;
+
+	for (idx = 0; idx < NB_GATES; idx++)
+		assert(!gate_refcounts[idx]);
+
+	/*
+	 * Set a non-secure refcount for shareable clocks enabled from boot.
+	 * It will be dropped after core inits for secure-only clocks.
+	 */
+	for (idx = 0; idx < NB_GATES; idx++) {
+		struct stm32mp1_clk_gate const *gate = gate_ref(idx);
+
+		if (__clk_is_enabled(gate) &&
+		    stm32mp_clock_is_shareable(gate->clock_id))
+			gate_refcounts[idx] = SHREFCNT_NONSECURE_FLAG;
+	}
+}
+
+static TEE_Result stm32_clk_probe(void)
+{
+	stm32mp1_clk_early_init();
+	sync_earlyboot_clocks_state();
 
 	return TEE_SUCCESS;
 }
+/* Setup clock support before driver initialization */
+service_init(stm32_clk_probe);
 
-service_init(stm32mp1_clk_early_init);
 #endif /*CFG_EMBED_DTB*/
