@@ -1341,6 +1341,23 @@ void stm32mp_update_earlyboot_clocks_state(void)
 static void sync_earlyboot_clocks_state(void)
 {
 	unsigned int idx = 0;
+	/*
+	 * Register secure clock parents and init a refcount for
+	 * secure only resources that are not registered from a driver probe.
+	 * - DDR controller and phy clocks shall be enable
+	 * - TZC400, ETZPC and STGEN clocks shall be enable, BSEC
+	 * - BKSRAM and RTCAPB shall be secure.
+	 * - RTCAPB clocks shall remain enable on multi-core
+	 * - RNG1 and CRYP1 shall be secure as needed per power management
+	 */
+	const unsigned long secure_enable[] = {
+		DDRC1, DDRC1LP, DDRC2, DDRC2LP, DDRPHYC, DDRPHYCLP, DDRCAPB,
+		AXIDCG, DDRPHYCAPB, DDRPHYCAPBLP, TZPC, TZC1, TZC2, STGEN_K,
+		BSEC,
+	};
+	const unsigned long secure_only[] = {
+		BKPSRAM, RTCAPB, RNG1, CRYP1,
+	};
 
 	for (idx = 0; idx < NB_GATES; idx++)
 		assert(!gate_refcounts[idx]);
@@ -1356,6 +1373,18 @@ static void sync_earlyboot_clocks_state(void)
 		    stm32mp_clock_is_shareable(gate->clock_id))
 			gate_refcounts[idx] = SHREFCNT_NONSECURE_FLAG;
 	}
+
+	for (idx = 0; idx < ARRAY_SIZE(secure_enable); idx++) {
+		stm32mp_register_clock_parents_secure(secure_enable[idx]);
+		stm32_clock_enable(secure_enable[idx]);
+	}
+	for (idx = 0; idx < ARRAY_SIZE(secure_only); idx++)
+		stm32mp_register_clock_parents_secure(secure_only[idx]);
+
+#if CFG_TEE_CORE_NB_CORE > 1
+	/* RTCAPB shall remain enabled to boot secondary cores */
+	stm32_clock_enable(RTCAPB);
+#endif
 }
 
 static TEE_Result stm32_clk_probe(void)
