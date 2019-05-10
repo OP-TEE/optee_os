@@ -1174,8 +1174,6 @@ void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 }
 
 #ifdef CFG_EMBED_DTB
-#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
-
 static const char *stm32mp_osc_node_label[NB_OSC] = {
 	[_LSI] = "clk-lsi",
 	[_LSE] = "clk-lse",

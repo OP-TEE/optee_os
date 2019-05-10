@@ -6,9 +6,13 @@
 #ifndef __STM32MP1_RCC_H__
 #define __STM32MP1_RCC_H__
 
+#ifndef ASM
 #include <io.h>
 #include <stdbool.h>
 #include <util.h>
+#endif
+
+#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
 
 #define RCC_TZCR			0x00
 #define RCC_OCENSETR			0x0C
