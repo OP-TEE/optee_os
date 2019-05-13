@@ -249,6 +249,11 @@ static inline void tlbi_vaae1is(uint64_t mva)
 	asm volatile ("tlbi	vaae1is, %0" : : "r" (mva));
 }
 
+static inline void tlbi_vale1is(uint64_t mva)
+{
+	asm volatile ("tlbi	vale1is, %0" : : "r" (mva));
+}
+
 /*
  * Templates for register read/write functions based on mrs/msr
  */
