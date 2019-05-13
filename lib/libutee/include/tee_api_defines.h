@@ -63,6 +63,8 @@
 #define TEE_LOGIN_APPLICATION_USER      0x00000005
 #define TEE_LOGIN_APPLICATION_GROUP     0x00000006
 #define TEE_LOGIN_TRUSTED_APP           0xF0000000
+/* Private login method for REE kernel clients */
+#define TEE_LOGIN_REE_KERNEL		0x80000000
 
 /* Origin Code Constants */
 #define TEE_ORIGIN_API                  0x00000001

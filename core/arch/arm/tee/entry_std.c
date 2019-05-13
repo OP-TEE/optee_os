@@ -281,6 +281,7 @@ static TEE_Result get_open_session_meta(size_t num_params,
 	clnt_id->login = params[1].u.value.c;
 	switch (clnt_id->login) {
 	case TEE_LOGIN_PUBLIC:
+	case TEE_LOGIN_REE_KERNEL:
 		memset(&clnt_id->uuid, 0, sizeof(clnt_id->uuid));
 		break;
 	case TEE_LOGIN_USER:

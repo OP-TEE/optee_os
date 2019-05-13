@@ -83,7 +83,7 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 	if (!in_key || !out_key)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (size != TEE_FS_KM_FEK_SIZE)
+	if (size > TEE_SHA256_HASH_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (tee_fs_ssk.is_init == 0)

@@ -419,6 +419,10 @@ CFG_SYSTEM_PTA ?= y
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
+# Enable the pseudo TA for sealing and unsealing of REE kernel (Linux)
+# Trusted Keys using Secure Storage Key (SSK).
+CFG_REE_KERNEL_TRUSTED_KEY_PTA ?= y
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
