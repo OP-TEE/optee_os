@@ -500,16 +500,15 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 		return TEE_SUCCESS;
 	}
 
-	assert(!ctx->panicked);
-
-	tee_ta_set_busy(ctx);
-
-	set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
-	ctx->ops->enter_close_session(sess);
-
-	destroy_session(sess, open_sessions);
-
-	tee_ta_clear_busy(ctx);
+	if (ctx->panicked) {
+		destroy_session(sess, open_sessions);
+	} else {
+		tee_ta_set_busy(ctx);
+		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
+		ctx->ops->enter_close_session(sess);
+		destroy_session(sess, open_sessions);
+		tee_ta_clear_busy(ctx);
+	}
 
 	mutex_lock(&tee_ta_mutex);
 
