@@ -262,7 +262,6 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	char *file = NULL;
 	struct tee_pobj *po = NULL;
 	struct user_ta_ctx *utc;
-	size_t attr_size;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
 
@@ -316,10 +315,6 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	}
 
 	res = tee_svc_copy_kaddr_to_uref(obj, o);
-	if (res != TEE_SUCCESS)
-		goto oclose;
-
-	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -995,7 +990,6 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 	TEE_Result res;
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
-	size_t attr_size;
 	tee_fs_off_t new_pos;
 
 	res = tee_ta_get_current_session(&sess);
@@ -1009,10 +1003,6 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 
 	if (!(o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT))
 		return TEE_ERROR_BAD_STATE;
-
-	res = tee_obj_attr_to_binary(o, NULL, &attr_size);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	switch (whence) {
 	case TEE_DATA_SEEK_SET:
