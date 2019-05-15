@@ -11,5 +11,5 @@ vaddr_t stm32_pwr_base(void)
 {
 	static struct io_pa_va base = { .pa = PWR_BASE };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va_secure(&base);
 }

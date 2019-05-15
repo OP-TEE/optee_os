@@ -32,7 +32,7 @@ vaddr_t stm32_rcc_base(void)
 {
 	static struct io_pa_va base = { .pa = RCC_BASE };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va_secure(&base);
 }
 
 static size_t reset_id2reg_offset(unsigned int id)

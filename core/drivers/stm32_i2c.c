@@ -291,7 +291,7 @@ struct i2c_request {
 
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
-	return io_pa_or_va(&hi2c->base);
+	return io_pa_or_va_secure(&hi2c->base);
 }
 
 static void notif_i2c_timeout(struct i2c_handle_s *hi2c)
