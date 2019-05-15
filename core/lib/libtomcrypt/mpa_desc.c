@@ -60,6 +60,8 @@ void init_mp_tomcrypt(void)
 	if (!mem.pool)
 		panic();
 	external_mem_pool = &mem;
+	assert(!mempool_default);
+	mempool_default = mem.pool;
 }
 
 static int init_mpanum(mpanum *a)

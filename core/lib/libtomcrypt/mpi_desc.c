@@ -56,6 +56,8 @@ void init_mp_tomcrypt(void)
 	if (!p)
 		panic();
 	mbedtls_mpi_mempool = p;
+	assert(!mempool_default);
+	mempool_default = p;
 }
 
 static int init(void **a)
