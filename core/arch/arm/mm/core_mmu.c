@@ -2022,3 +2022,39 @@ void core_mmu_init_virtualization(void)
 	virt_init_memory(static_memory_map);
 }
 #endif
+
+vaddr_t io_pa_or_va(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt_io(p->pa);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}
+
+vaddr_t io_pa_or_va_secure(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt(p->pa, MEM_AREA_IO_SEC);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}
+
+vaddr_t io_pa_or_va_nsec(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt(p->pa, MEM_AREA_IO_NSEC);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}
