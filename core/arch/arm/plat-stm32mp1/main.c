@@ -245,14 +245,14 @@ vaddr_t get_gicc_base(void)
 {
 	struct io_pa_va base = { .pa = GIC_BASE + GICC_OFFSET };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va_secure(&base);
 }
 
 vaddr_t get_gicd_base(void)
 {
 	struct io_pa_va base = { .pa = GIC_BASE + GICD_OFFSET };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va_secure(&base);
 }
 
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
@@ -284,7 +284,7 @@ static vaddr_t stm32_tamp_base(void)
 {
 	static struct io_pa_va base = { .pa = TAMP_BASE };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va_secure(&base);
 }
 
 static vaddr_t bkpreg_base(void)
@@ -302,13 +302,14 @@ vaddr_t stm32_get_gpio_bank_base(unsigned int bank)
 	static struct io_pa_va gpios_nsec_base = { .pa = GPIOS_NSEC_BASE };
 	static struct io_pa_va gpioz_base = { .pa = GPIOZ_BASE };
 
+	/* Get non-secure mapping address for GPIOZ */
 	if (bank == GPIO_BANK_Z)
-		return io_pa_or_va(&gpioz_base);
+		io_pa_or_va_nsec(&gpioz_base);
 
 	COMPILE_TIME_ASSERT(GPIO_BANK_A == 0);
 	assert(bank <= GPIO_BANK_K);
 
-	return io_pa_or_va(&gpios_nsec_base) + (bank * GPIO_BANK_OFFSET);
+	return io_pa_or_va_nsec(&gpios_nsec_base) + (bank * GPIO_BANK_OFFSET);
 }
 
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank)

@@ -89,7 +89,7 @@ static struct etzpc_instance etzpc_dev;
 
 static vaddr_t etzpc_base(void)
 {
-	return io_pa_or_va(&etzpc_dev.base);
+	return io_pa_or_va_secure(&etzpc_dev.base);
 }
 
 static bool __maybe_unused valid_decprot_id(unsigned int id)

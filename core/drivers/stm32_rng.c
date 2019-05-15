@@ -193,6 +193,7 @@ static TEE_Result stm32_rng_init(void)
 	void *fdt = NULL;
 	int node = -1;
 	struct dt_node_info dt_info;
+	enum teecore_memtypes mtype = MEM_AREA_END;
 
 	memset(&dt_info, 0, sizeof(dt_info));
 
@@ -220,7 +221,13 @@ static TEE_Result stm32_rng_init(void)
 		assert(dt_info.clock != DT_INFO_INVALID_CLOCK &&
 		       dt_info.reg != DT_INFO_INVALID_REG);
 
+		if (dt_info.status & DT_STATUS_OK_NSEC)
+			mtype = MEM_AREA_IO_NSEC;
+		else
+			mtype = MEM_AREA_IO_SEC;
 		stm32_rng->base.pa = dt_info.reg;
+		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype);
+
 		stm32_rng->clock = (unsigned long)dt_info.clock;
 
 		DMSG("RNG init");
