@@ -254,7 +254,7 @@ void mutex_destroy(struct mutex *m)
 	 * Caller guarantees that no one will try to take the mutex so
 	 * there's no need to take the spinlock before accessing it.
 	 */
-	if (!m->state)
+	if (m->state)
 		panic();
 	if (!wq_is_empty(&m->wq))
 		panic("waitqueue not empty");
