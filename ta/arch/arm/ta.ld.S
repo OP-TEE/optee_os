@@ -46,6 +46,7 @@ SECTIONS {
 	/* Page align to allow dropping execute bit for RW data */
 	. = ALIGN(4096);
 
+	.dynamic : { *(.dynamic) }
 	.got : { *(.got.plt) *(.got) }
 	.rel.text : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
 	.rela.text : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
@@ -68,7 +69,6 @@ SECTIONS {
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-	.dynamic : { *(.dynamic) }
 
 	.data : { *(.data .data.* .gnu.linkonce.d.*) }
 	.bss : {
