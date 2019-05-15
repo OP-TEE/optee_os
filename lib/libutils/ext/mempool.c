@@ -70,6 +70,10 @@ struct mempool {
 #endif
 };
 
+#if defined(__KERNEL__)
+struct mempool *mempool_default;
+#endif
+
 static void get_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
