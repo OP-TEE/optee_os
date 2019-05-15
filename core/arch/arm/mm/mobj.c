@@ -606,6 +606,7 @@ static TEE_Result mobj_with_fobj_get_pa(struct mobj *mobj, size_t offs,
 
 	return TEE_SUCCESS;
 }
+KEEP_PAGER(mobj_with_fobj_get_pa);
 
 static const struct mobj_ops mobj_with_fobj_ops __rodata_unpaged = {
 	.matches = mobj_with_fobj_matches,
