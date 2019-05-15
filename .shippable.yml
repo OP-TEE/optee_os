@@ -44,6 +44,7 @@ build:
     - _make CFG_BUILT_IN_ARGS=y CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0 CFG_DT_ADDR=0 CFG_DT=y
     - _make CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
     - _make CFG_SECURE_DATA_PATH=y
+    - _make CFG_REE_FS_TA_BUFFERED=n
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_GPROF=y
