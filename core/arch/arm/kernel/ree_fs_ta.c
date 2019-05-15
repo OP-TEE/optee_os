@@ -281,7 +281,7 @@ TEE_TA_REGISTER_TA_STORE(9) = {
 	.description = "REE",
 	.open = ree_fs_ta_open,
 	.get_size = ree_fs_ta_get_size,
-	.get_tag = ta_get_tag,
+	.get_tag = ree_fs_ta_get_tag,
 	.read = ree_fs_ta_read,
 	.close = ree_fs_ta_close,
 };
