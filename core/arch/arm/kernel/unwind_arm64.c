@@ -30,6 +30,7 @@
  */
 
 #include <arm.h>
+#include <kernel/ftrace.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
 #include <kernel/tee_misc.h>
@@ -65,6 +66,10 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
 	/* LR (X30) */
 	if (!copy_in_reg(&frame->pc, fp + 8, kernel_stack))
 		return false;
+
+	if (!kernel_stack)
+		ftrace_ta_map_lr(&frame->pc);
+
 	frame->pc -= 4;
 
 	return true;
@@ -76,6 +81,9 @@ void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       bool kernel_stack, vaddr_t stack, size_t stack_size)
 {
 	trace_printf_helper_raw(level, true, "Call stack:");
+
+	if (!kernel_stack)
+		ftrace_ta_map_lr(&state->pc);
 	do {
 		trace_printf_helper_raw(level, true, " 0x%016" PRIx64,
 					state->pc);

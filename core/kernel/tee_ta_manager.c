@@ -10,6 +10,7 @@
 #include <string.h>
 #include <arm.h>
 #include <assert.h>
+#include <kernel/ftrace.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
@@ -265,6 +266,14 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 static void destroy_session(struct tee_ta_session *s,
 			    struct tee_ta_session_head *open_sessions)
 {
+#if defined(CFG_TA_FTRACE_SUPPORT)
+	if (s->ctx) {
+		tee_ta_push_current_session(s);
+		ta_fbuf_dump(s);
+		tee_ta_pop_current_session();
+	}
+#endif
+
 	tee_ta_unlink_session(s, open_sessions);
 #if defined(CFG_TA_GPROF_SUPPORT)
 	free(s->sbuf);
@@ -890,6 +899,8 @@ void tee_ta_dump_current(void)
 	}
 
 	dump_state(s->ctx);
+
+	ta_fbuf_dump(s);
 }
 
 #if defined(CFG_TA_GPROF_SUPPORT)
