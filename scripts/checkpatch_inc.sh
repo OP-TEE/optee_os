@@ -13,9 +13,12 @@ _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {
 		# Use --typedefsfile if supported by the checkpatch tool
-		typedefs_opt="--typedefsfile typedefs.checkpatch"
-		$CHECKPATCH --help 2>&1 | grep -q -- --typedefsfile || \
-				typedefs_opt="";
+		# AND this file is present
+		typedefs_opt="";
+		if $CHECKPATCH --help 2>&1 | grep -q -- --typedefsfile &&
+		    [ -r typedefs.checkpatch ]; then
+			typedefs_opt="--typedefsfile typedefs.checkpatch"
+		fi
 		# Ignore NOT_UNIFIED_DIFF in case patch has no diff
 		# (e.g., all paths filtered out)
 		$CHECKPATCH --quiet --ignore FILE_PATH_CHANGES \
