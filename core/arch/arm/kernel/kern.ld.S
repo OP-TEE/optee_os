@@ -134,7 +134,6 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-	.interp : { *(.interp) }
 	.hash : { *(.hash) }
 	.dynsym : { *(.dynsym) }
 	.dynstr : { *(.dynstr) }
@@ -441,7 +440,7 @@ SECTIONS
 
 	/DISCARD/ : {
 		/* Strip unnecessary stuff */
-		*(.comment .note .eh_frame)
+		*(.comment .note .eh_frame .interp)
 		/* Strip meta variables */
 		*(__keep_meta_vars*)
 	}
