@@ -355,9 +355,9 @@ CFG_TA_GPROF_SUPPORT ?= n
 
 # Enable to compile user TA libraries with profiling (-pg).
 # Depends on CFG_TA_GPROF_SUPPORT.
-CFG_ULIBS_GPROF ?= n
+CFG_ULIBS_MCOUNT ?= n
 
-ifeq ($(CFG_ULIBS_GPROF),y)
+ifeq ($(CFG_ULIBS_MCOUNT),y)
 ifneq ($(CFG_TA_GPROF_SUPPORT),y)
 $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif

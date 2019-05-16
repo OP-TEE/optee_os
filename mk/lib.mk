@@ -20,7 +20,7 @@
 subdirs = $(libdir)
 include mk/subdir.mk
 ifneq ($(sm),core) # User-mode
-ifeq ($(CFG_ULIBS_GPROF),y)
+ifeq ($(CFG_ULIBS_MCOUNT),y)
 cflags-lib$(libname)-$(sm) += -pg
 endif
 endif
