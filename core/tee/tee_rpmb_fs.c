@@ -1041,6 +1041,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info;
+	uint32_t nblocks = 0;
 
 	if (!rpmb_ctx) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
@@ -1071,12 +1072,11 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		}
 
 		if (MUL_OVERFLOW(dev_info.rpmb_size_mult,
-				 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE,
-				 &rpmb_ctx->max_blk_idx)) {
+				 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE, &nblocks) ||
+		    SUB_OVERFLOW(nblocks, 1, &rpmb_ctx->max_blk_idx)) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto func_exit;
 		}
-		rpmb_ctx->max_blk_idx--;
 
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
 
