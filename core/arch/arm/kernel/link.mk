@@ -14,6 +14,9 @@ link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
 link-ldflags += --gc-sections
+ifeq ($(CFG_TEE_CORE_PIE),y)
+link-ldflags += -pie
+endif
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(libdeps)
@@ -162,7 +165,7 @@ cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 		$(link-out-dir)/tee-data_end.txt
 	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)$(OBJCOPYcore) -O binary \
+	$(q)./scripts/objcopy.py -O binary \
 		--remove-section="$(pageable_sections)" \
 		--remove-section="$(init_sections)" \
 		--pad-to `cat $(link-out-dir)/tee-data_end.txt` \
@@ -171,7 +174,7 @@ $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 cleanfiles += $(link-out-dir)/tee-pageable.bin
 $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)$(OBJCOPYcore) -O binary \
+	$(q)./scripts/objcopy.py -O binary \
 		--only-section="$(init_sections)" \
 		--only-section="$(pageable_sections)" \
 		$< $@

@@ -49,6 +49,10 @@ srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
 ifeq ($(CFG_GENERIC_BOOT),y)
 srcs-$(CFG_ARM32_core) += generic_entry_a32.S
 srcs-$(CFG_ARM64_core) += generic_entry_a64.S
+ifeq ($(CFG_TEE_CORE_PIE),y)
+aflags-remove-generic_entry_a32.S-$(CFG_ARM32_core) = -fpic
+aflags-remove-generic_entry_a64.S-$(CFG_ARM64_core) = -fpic
+endif
 endif
 
 ifeq ($(CFG_UNWIND),y)

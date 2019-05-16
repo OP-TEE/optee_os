@@ -57,6 +57,14 @@ CFG_TEE_CORE_LOG_LEVEL ?= 1
 # when the TA is built.
 CFG_TEE_TA_LOG_LEVEL ?= 1
 
+# Build the TEE core as a Position Independent Executable
+# Currently pointless, but will allow changing the base virtual address of the
+# TEE core and ultimately implement KASLR
+CFG_TEE_CORE_PIE ?= n
+# At the moment, only "generic boot" has the required relocation code in the
+# _start() function
+$(eval $(call cfg-depends-all,CFG_TEE_CORE_PIE,CFG_GENERIC_BOOT))
+
 # TA enablement
 # When defined to "y", TA traces are output according to
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all

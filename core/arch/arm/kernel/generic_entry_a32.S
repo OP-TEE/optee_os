@@ -375,6 +375,32 @@ copy_init:
 	bgt	copy_init
 #endif
 
+#ifdef CFG_TEE_CORE_PIE
+	/* Process relocations */
+
+	ldr	r0, =__rel_start
+	mov	r1, #0			/* The offset to be applied */
+	ldr	r2, =__rel_end
+do_relocs:
+	cmp	r0, r2
+	beq	relocs_done
+	ldr	r8, [r0]		/* r_offset */
+	ldr	r9, [r8]
+	add 	r9, r9, r1
+	str	r9, [r8]
+	add	r0, r0, #4
+	ldr	r8, [r0]		/* r_info */
+#define R_ARM_RELATIVE 23
+	cmp 	r8, #R_ARM_RELATIVE
+	beq	next_rel
+	/* Unsupported relocation type */
+	b	.
+next_rel:
+	add	r0, r0, #4		/* Next entry */
+	b 	do_relocs
+relocs_done:
+#endif
+
 	/*
 	 * Clear .bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.

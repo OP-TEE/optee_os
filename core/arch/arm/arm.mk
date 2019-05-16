@@ -119,9 +119,15 @@ endif
 core-platform-cflags += $(platform-cflags-optimization)
 core-platform-cflags += $(platform-cflags-generic)
 core-platform-cflags += $(platform-cflags-debug-info)
+ifeq ($(CFG_TEE_CORE_PIE),y)
+core-platform-cflags += -fpic
+endif
 
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
+ifeq ($(CFG_TEE_CORE_PIE),y)
+core-platform-aflags += -fpic
+endif
 
 ifeq ($(CFG_ARM64_core),y)
 arch-bits-core := 64
