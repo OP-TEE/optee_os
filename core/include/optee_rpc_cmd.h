@@ -128,6 +128,18 @@
 #define OPTEE_RPC_CMD_SOCKET		10
 
 /*
+ * Send TA function graph data to normal world
+ *
+ * [in/out] value[0].a	    File identifier. Must be set to 0 on
+ *			    first call. A value >= 1 will be
+ *			    returned on success. Re-use this value
+ *			    to append data to the same file.
+ * [in]     memref[1]	    TA UUID
+ * [in]     memref[2]	    function graph data
+ */
+#define OPTEE_RPC_CMD_FTRACE		11
+
+/*
  * Register timestamp buffer in the linux kernel optee driver
  *
  * [in]     value[0].a	    Subcommand (register buffer, unregister buffer)

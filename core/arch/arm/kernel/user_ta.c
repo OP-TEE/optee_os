@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <initcall.h>
 #include <keep.h>
+#include <kernel/ftrace.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -1256,6 +1257,8 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	condvar_init(&utc->ctx.busy_cv);
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ctx, link);
 	s->ctx = &utc->ctx;
+
+	ta_fbuf_init(utc->load_addr, s, exe->elf_state);
 
 	free_elf_states(utc);
 	tee_mmu_set_ctx(NULL);

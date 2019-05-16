@@ -58,6 +58,8 @@ endif
 
 srcs-$(CFG_VIRTUALIZATION) += virtualization.c
 
+srcs-$(CFG_TA_FTRACE_SUPPORT) += ftrace.c
+
 srcs-y += link_dummies.c
 
 asm-defines-y += asm-defines.c

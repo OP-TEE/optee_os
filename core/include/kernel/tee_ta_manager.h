@@ -105,6 +105,9 @@ struct tee_ta_session {
 #if defined(CFG_TA_GPROF_SUPPORT)
 	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
 #endif
+#if defined(CFG_TA_FTRACE_SUPPORT)
+	struct ftrace_buf *fbuf; /* ftrace buffer */
+#endif
 };
 
 /* Registered contexts */
