@@ -134,9 +134,6 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-	.hash : { *(.hash) }
-	.dynsym : { *(.dynsym) }
-	.dynstr : { *(.dynstr) }
 	.rel.text : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
 	.rela.text : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
 	.rel.data : { *(.rel.data) *(.rel.gnu.linkonce.d*) }
@@ -157,7 +154,6 @@ SECTIONS
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-	.plt : { *(.plt) }
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : {
@@ -244,8 +240,6 @@ SECTIONS
 		KEEP(*(.dtors .dtors.* .fini_array .fini_array.*))
 		__dtor_end = .;
 	}
-	.got : { *(.got.plt) *(.got) }
-	.dynamic : { *(.dynamic) }
 
 	/* unintialized data */
 	.bss : {
