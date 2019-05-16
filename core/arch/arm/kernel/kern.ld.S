@@ -157,7 +157,6 @@ SECTIONS
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-	.init : { *(.init) } =0x9090
 	.plt : { *(.plt) }
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
