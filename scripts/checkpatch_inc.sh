@@ -19,12 +19,19 @@ function _checkpatch() {
 		    [ -r typedefs.checkpatch ]; then
 			typedefs_opt="--typedefsfile typedefs.checkpatch"
 		fi
+		# Use --root if supported by the checkpatch tool.
+		rootdir_opt=""
+		if $CHECKPATCH --help 2>&1 | grep -q -- --root; then
+		    local rootdir="${KERNEL_SRC_ROOT:-'.'}"
+		    rootdir_opt="--root=${rootdir}"
+		fi
 		# Ignore NOT_UNIFIED_DIFF in case patch has no diff
 		# (e.g., all paths filtered out)
 		$CHECKPATCH --quiet --ignore FILE_PATH_CHANGES \
 				--ignore GERRIT_CHANGE_ID \
 				--ignore NOT_UNIFIED_DIFF \
 				--no-tree \
+				$rootdir_opt \
 				$typedefs_opt \
 				-
 }
