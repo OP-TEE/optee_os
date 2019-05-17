@@ -644,6 +644,7 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	memset(init, 0, sizeof(*init));
 
 	_fdt_fill_device_info(fdt, &info, node);
+	init->dt_status = info.status;
 	init->pbase = info.reg;
 	init->clock = info.clock;
 	assert(info.reg != DT_INFO_INVALID_REG &&
@@ -710,6 +711,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	vaddr_t base = 0;
 	uint32_t val = 0;
 
+	hi2c->dt_status = init_data->dt_status;
 	hi2c->base.pa = init_data->pbase;
 	hi2c->clock = init_data->clock;
 

@@ -7,6 +7,7 @@
 #define __STM32_I2C_H
 
 #include <drivers/stm32_gpio.h>
+#include <kernel/dt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -34,6 +35,7 @@ enum i2c_speed_e {
  * Initialization configuration structure for the STM32 I2C bus.
  * Refer to the SoC Reference Manual for more details on configuration items.
  *
+ * @dt_status: non-secure/secure status read from DT
  * @pbase: I2C interface base address
  * @clock: I2C bus/interface clock
  * @addr_mode_10b_not_7b: True if 10bit addressing mode, otherwise 7bit mode
@@ -50,6 +52,7 @@ enum i2c_speed_e {
  * @digital_filter_coef: filter coef (below STM32_I2C_DIGITAL_FILTER_MAX)
  */
 struct stm32_i2c_init_s {
+	unsigned int dt_status;
 	paddr_t pbase;
 	unsigned int clock;
 	bool addr_mode_10b_not_7b;
@@ -103,6 +106,7 @@ struct i2c_cfg {
 /*
  * I2C bus device
  * @base: I2C SoC registers base address
+ * @dt_status: non-secure/secure status read from DT
  * @clock: clock ID
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
@@ -112,6 +116,7 @@ struct i2c_cfg {
  */
 struct i2c_handle_s {
 	struct io_pa_va base;
+	unsigned int dt_status;
 	unsigned long clock;
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
@@ -249,5 +254,13 @@ void stm32_i2c_suspend(struct i2c_handle_s *hi2c);
  * @hi2c: Reference to I2C bus handle structure
  */
 void stm32_i2c_resume(struct i2c_handle_s *hi2c);
+
+/*
+ * Return true if I2C bus is enabled for secure world only, false otherwise
+ */
+static inline bool i2c_is_secure(struct i2c_handle_s *hi2c)
+{
+	return hi2c->dt_status == DT_STATUS_OK_SEC;
+}
 
 #endif /* __STM32_I2C_H */
