@@ -1714,7 +1714,9 @@ int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
     size_t bufsize, nbits;
     size_t exponent_bits_in_window = 0;
     mbedtls_mpi_uint ei, mm, state;
-    mbedtls_mpi RR, T, W[(size_t) 1 << MBEDTLS_MPI_WINDOW_SIZE], WW, Apos;
+    mbedtls_mpi RR, T, WW, Apos;
+    mbedtls_mpi *W;
+    const size_t array_size_W = 2 << MBEDTLS_MPI_WINDOW_SIZE;
     int neg;
 
     MPI_VALIDATE_RET(X != NULL);
@@ -1735,6 +1737,11 @@ int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
         return MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
     }
 
+    W = mempool_alloc(mbedtls_mpi_mempool,
+                      sizeof( mbedtls_mpi ) * array_size_W);
+    if (W == NULL)
+        return MBEDTLS_ERR_MPI_ALLOC_FAILED;
+
     /*
      * Init temps and window size
      */
@@ -1742,7 +1749,7 @@ int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
     mbedtls_mpi_init_mempool(&RR); mbedtls_mpi_init(&T);
     mbedtls_mpi_init_mempool(&Apos);
     mbedtls_mpi_init_mempool(&WW);
-    for (i = 0; i < ARRAY_SIZE(W); i++)
+    for( i = 0; i < array_size_W; i++ )
         mbedtls_mpi_init_mempool(W + i);
 
     i = mbedtls_mpi_bitlen(E);
@@ -1983,8 +1990,9 @@ int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
 
 cleanup:
 
-    for (i = 0; i < ARRAY_SIZE(W); i++)
-        mbedtls_mpi_free( W + i );
+    for( i = 0; i < array_size_W; i++ )
+        mbedtls_mpi_free(W + i);
+    mempool_free(mbedtls_mpi_mempool , W);
 
     mbedtls_mpi_free(&T);
     mbedtls_mpi_free(&Apos);
