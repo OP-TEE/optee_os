@@ -304,7 +304,7 @@ vaddr_t stm32_get_gpio_bank_base(unsigned int bank)
 
 	/* Get non-secure mapping address for GPIOZ */
 	if (bank == GPIO_BANK_Z)
-		io_pa_or_va_nsec(&gpioz_base);
+		return io_pa_or_va_nsec(&gpioz_base);
 
 	COMPILE_TIME_ASSERT(GPIO_BANK_A == 0);
 	assert(bank <= GPIO_BANK_K);
