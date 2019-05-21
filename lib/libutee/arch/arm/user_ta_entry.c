@@ -182,7 +182,7 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 	return res;
 }
 
-void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
+TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
 {
 	TEE_Result res;
@@ -211,5 +211,6 @@ void __noreturn __utee_entry(unsigned long func, unsigned long session_id,
 		break;
 	}
 	ta_header_save_params(0, NULL);
-	utee_return(res);
+
+	return res;
 }

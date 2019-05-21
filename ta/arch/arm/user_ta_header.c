@@ -5,9 +5,10 @@
 #include <compiler.h>
 #include <tee_ta_api.h>
 #include <tee_internal_api_extensions.h>
+#include <trace.h>
 #include <user_ta_header.h>
 #include <user_ta_header_defines.h>
-#include <trace.h>
+#include <utee_syscalls.h>
 
 int trace_level = TRACE_LEVEL;
 
@@ -24,9 +25,8 @@ const char trace_ext_prefix[]  = "TA";
 /* exprted to user_ta_header.c, built within TA */
 struct utee_params;
 
-void __utee_entry(unsigned long func, unsigned long session_id,
-			struct utee_params *up, unsigned long cmd_id)
-			__noreturn;
+TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id);
 
 void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
 			   struct utee_params *up, unsigned long cmd_id);
@@ -34,7 +34,11 @@ void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
 void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
 			   struct utee_params *up, unsigned long cmd_id)
 {
-	__utee_entry(func, session_id, up, cmd_id);
+	TEE_Result res = TEE_SUCCESS;
+
+	res = __utee_entry(func, session_id, up, cmd_id);
+
+	utee_return(res);
 }
 
 /*
