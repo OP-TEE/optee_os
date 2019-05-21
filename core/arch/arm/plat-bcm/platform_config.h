@@ -34,6 +34,9 @@
 
 #define SOTP_BASE		0x68b50000
 
+/* NO ECC bits are present from ROW_0 to ROW_20, i.e Section 0 to Section 3 */
+#define SOTP_NO_ECC_ROWS	20
+
 /* Secure Watch Dog */
 #define SEC_WDT_BASE		0x68B30000
 #define SEC_WDT_END		(SEC_WDT_BASE + 0x1000)

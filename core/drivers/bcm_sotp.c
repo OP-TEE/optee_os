@@ -70,6 +70,10 @@ TEE_Result bcm_iproc_sotp_mem_read(uint32_t row_addr, uint32_t sotp_add_ecc,
 	io_setbits32((bcm_sotp_base + SOTP_PROG_CONTROL),
 		     SOTP_PROG_CONTROL__OTP_CPU_MODE_EN);
 
+	/* ROWS does not support ECC */
+	if (row_addr <= SOTP_NO_ECC_ROWS)
+		sotp_add_ecc = 0;
+
 	if (sotp_add_ecc == 1) {
 		io_clrbits32((bcm_sotp_base + SOTP_PROG_CONTROL),
 			     SOTP_PROG_CONTROL__OTP_DISABLE_ECC);
@@ -104,8 +108,9 @@ TEE_Result bcm_iproc_sotp_mem_read(uint32_t row_addr, uint32_t sotp_add_ecc,
 	read_data |= io_read32(bcm_sotp_base + SOTP_RDDATA_0);
 
 	reg_val = io_read32(bcm_sotp_base + SOTP_STATUS_1);
-	/* no ECC check till row 15 */
-	if ((row_addr > 15) && (reg_val & SOTP_STATUS_1__ECC_DET)) {
+	/* No ECC check till SOTP_NO_ECC_ROWS */
+	if (row_addr > SOTP_NO_ECC_ROWS &&
+	    reg_val & SOTP_STATUS_1__ECC_DET) {
 		EMSG("SOTP ECC ERROR Detected ROW %d\n", row_addr);
 		read_data = SOTP_ECC_ERR_DETECT;
 	}
