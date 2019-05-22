@@ -135,6 +135,12 @@ core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-cflags += $(arm64-platform-cflags-generic)
 core-platform-cflags += $(arm64-platform-cflags-no-hard-float)
+ifeq ($(CFG_TEE_CORE_PIE),y)
+# "hidden" visibility to prevent the compiler from emitting
+# R_AARCH64_ABS64 relocations
+core-platform-cflags += -fvisibility=hidden
+core-platform-aflags += -fvisibility=hidden
+endif
 core-platform-aflags += $(arm64-platform-aflags)
 else
 arch-bits-core := 32

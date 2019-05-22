@@ -143,6 +143,11 @@ SECTIONS
 		*(.rel.*)
 		__rel_end = .;
 	}
+	.rela : {
+		__rela_start = .;
+		*(.rela.*)
+		__rela_end = .;
+	}
 #endif
 	.plt : { *(.plt) }
 
@@ -445,8 +450,13 @@ __vcore_unpg_ro_size = 0;
 #endif
 
 /* Unpaged read-write memory */
-__vcore_unpg_rw_start = __flatmap_unpg_rw_start;
-__vcore_unpg_rw_size = __flatmap_unpg_rw_size;
+/*
+ * FIXME: why only these 2 symbols st_info need to be made STB_LOCAL
+ * instead of STB_GLOBAL? (that is what HIDDEN() does, BTW it does not change
+ * the symbol's visibility [st_other] to STV_HIDDEN from STV_DEFAULT).
+ */
+HIDDEN(__vcore_unpg_rw_start = __flatmap_unpg_rw_start);
+HIDDEN(__vcore_unpg_rw_size = __flatmap_unpg_rw_size);
 
 #ifdef CFG_VIRTUALIZATION
 /* Nexus read-write memory */

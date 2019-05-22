@@ -89,6 +89,38 @@ copy_init:
 	b.gt	copy_init
 #endif
 
+#ifdef CFG_TEE_CORE_PIE
+	/* Process relocations */
+
+	adr_l	x0, __rela_start
+	mov	x1, #0			/* The offset to be applied */
+	adr_l	x2, __rela_end
+do_relocs:
+	cmp	x0, x2
+	b.eq	relocs_done
+	ldr	x8, [x0]		/* r_offset */
+	add	x0, x0, #8
+	ldr	x9, [x0]		/* r_info */
+	cmp	x9, #0
+	b.eq	check_rel_type2
+	/* Not a valid reloction (padding) */
+	add	x0, x0, #16
+	b	do_relocs
+check_rel_type2:
+#define R_AARCH64_RELATIVE 1027
+	cmp	x9, #R_AARCH64_RELATIVE
+	b.eq	rel_type_ok
+	/* Unsupported relocation type */
+	b	.
+rel_type_ok:
+	add	x0, x0, #8
+	ldr	x9, [x0]		/* r_addend */
+	add	x9, x9, x1
+	str	x9, [x8]
+	b	do_relocs
+relocs_done:
+#endif
+
 	/*
 	 * Clear .bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
