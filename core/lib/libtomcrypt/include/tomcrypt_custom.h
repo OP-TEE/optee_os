@@ -146,91 +146,91 @@
 
 #define LTC_NO_CIPHERS
 
-#ifdef CFG_CRYPTO_AES
+#if defined(_CFG_CORE_LTC_AES) || defined(_CFG_CORE_LTC_AES_DESC)
    #define LTC_RIJNDAEL
 #endif
-#ifdef CFG_CRYPTO_DES
+#ifdef _CFG_CORE_LTC_DES
    #define LTC_DES
 #endif
 
 #define LTC_NO_MODES
 
-#ifdef CFG_CRYPTO_ECB
+#ifdef _CFG_CORE_LTC_ECB
    #define LTC_ECB_MODE
 #endif
-#if defined(CFG_CRYPTO_CBC) || defined(CFG_CRYPTO_CBC_MAC)
+#if defined(_CFG_CORE_LTC_CBC)
    #define LTC_CBC_MODE
 #endif
-#ifdef CFG_CRYPTO_CTR
+#ifdef _CFG_CORE_LTC_CTR
    #define LTC_CTR_MODE
 #endif
-#ifdef CFG_CRYPTO_XTS
+#ifdef _CFG_CORE_LTC_XTS
    #define LTC_XTS_MODE
 #endif
 
 #define LTC_NO_HASHES
 
-#ifdef CFG_CRYPTO_MD5
+#ifdef _CFG_CORE_LTC_MD5
 #define LTC_MD5
 #endif
-#ifdef CFG_CRYPTO_SHA1
+#ifdef _CFG_CORE_LTC_SHA1
 #define LTC_SHA1
 #endif
-#ifdef CFG_CRYPTO_SHA1_ARM32_CE
+#ifdef _CFG_CORE_LTC_SHA1_ARM32_CE
 #define LTC_SHA1_ARM32_CE
 #endif
-#ifdef CFG_CRYPTO_SHA1_ARM64_CE
+#ifdef _CFG_CORE_LTC_SHA1_ARM64_CE
 #define LTC_SHA1_ARM64_CE
 #endif
-#ifdef CFG_CRYPTO_SHA224
+#ifdef _CFG_CORE_LTC_SHA224
 #define LTC_SHA224
 #endif
-#ifdef CFG_CRYPTO_SHA256
+#if defined(_CFG_CORE_LTC_SHA256) || defined(_CFG_CORE_LTC_SHA256_DESC)
 #define LTC_SHA256
 #endif
-#ifdef CFG_CRYPTO_SHA256_ARM32_CE
+#ifdef _CFG_CORE_LTC_SHA256_ARM32_CE
 #define LTC_SHA256_ARM32_CE
 #endif
-#ifdef CFG_CRYPTO_SHA256_ARM64_CE
+#ifdef _CFG_CORE_LTC_SHA256_ARM64_CE
 #define LTC_SHA256_ARM64_CE
 #endif
-#ifdef CFG_CRYPTO_SHA384
+#if defined(_CFG_CORE_LTC_SHA384) || defined(_CFG_CORE_LTC_SHA384_DESC)
 #define LTC_SHA384
 #endif
-#ifdef CFG_CRYPTO_SHA512
+#if defined(_CFG_CORE_LTC_SHA512) || defined(_CFG_CORE_LTC_SHA512_DESC)
 #define LTC_SHA512
 #endif
-#ifdef CFG_CRYPTO_SHA512_256
+#ifdef _CFG_CORE_LTC_SHA512_256
 #define LTC_SHA512_256
 #endif
 
 #define LTC_NO_MACS
 
-#ifdef CFG_CRYPTO_HMAC
+#ifdef _CFG_CORE_LTC_HMAC
    #define LTC_HMAC
 #endif
-#ifdef CFG_CRYPTO_CMAC
+#ifdef _CFG_CORE_LTC_CMAC
    #define LTC_OMAC
 #endif
-#ifdef CFG_CRYPTO_CCM
+#ifdef _CFG_CORE_LTC_CCM
    #define LTC_CCM_MODE
 #endif
-#ifdef CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB
+#ifdef _CFG_CORE_LTC_GCM
    #define LTC_GCM_MODE
 #endif
 
 #define LTC_NO_PK
 
-#ifdef CFG_CRYPTO_RSA
+#ifdef _CFG_CORE_LTC_RSA
    #define LTC_MRSA
 #endif
-#ifdef CFG_CRYPTO_DSA
+#ifdef _CFG_CORE_LTC_DSA
    #define LTC_MDSA
 #endif
-#ifdef CFG_CRYPTO_DH
+#ifdef _CFG_CORE_LTC_DH
    #define LTC_MDH
 #endif
-#ifdef CFG_CRYPTO_ECC
+#ifdef _CFG_CORE_LTC_ECC
    #define LTC_MECC
 
    /* use Shamir's trick for point mul (speeds up signature verification) */
@@ -258,8 +258,8 @@
 
 #define LTC_NO_PKCS
 
-#if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_DSA) || \
-	    defined(CFG_CRYPTO_ECC)
+#if defined(_CFG_CORE_LTC_RSA) || defined(_CFG_CORE_LTC_DSA) || \
+	    defined(_CFG_CORE_LTC_ECC)
    #define LTC_DER
 #endif
 
@@ -476,7 +476,7 @@
 
 
 /* THREAD management */
-#if defined(CFG_LTC_OPTEE_THREAD)
+#if defined(_CFG_CORE_LTC_OPTEE_THREAD)
 
 #include <kernel/mutex.h>
 

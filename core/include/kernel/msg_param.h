@@ -29,11 +29,12 @@
 #ifndef KERNEL_MSG_PARAM_H
 #define KERNEL_MSG_PARAM_H
 
+#include <compiler.h>
+#include <kernel/msg_param.h>
+#include <mm/mobj.h>
 #include <optee_msg.h>
 #include <stdio.h>
 #include <types_ext.h>
-#include <kernel/msg_param.h>
-#include <mm/mobj.h>
 
 /**
  * msg_param_mobj_from_noncontig() - construct mobj from non-contiguous
@@ -47,8 +48,18 @@
  * return:
  *	mobj or NULL on error
  */
+#ifdef CFG_CORE_DYN_SHM
 struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 					   uint64_t shm_ref, bool map_buffer);
+#else
+static inline struct mobj *
+msg_param_mobj_from_noncontig(paddr_t buf_ptr __unused, size_t size __unused,
+			      uint64_t shm_ref __unused,
+			      bool map_buffer __unused)
+{
+	return NULL;
+}
+#endif
 
 /**
  * msg_param_attr_is_tmem - helper functions that cheks if attribute is tmem

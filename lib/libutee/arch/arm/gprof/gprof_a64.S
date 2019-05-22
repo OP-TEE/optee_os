@@ -17,7 +17,7 @@
 .endm
 
 /*
- * void __utee_mcount(void *return_address)
+ * void _mcount(void *return_address)
  * @return_address: return address to instrumented function
  *
  * With the -pg option, the compiler inserts a call to _mcount into
@@ -27,11 +27,8 @@
  * instrumented function itself, is determined from the current value of x30.
  * Then we call:
  *   void __mcount_internal(void *frompc, void *selfpc);
- *
- * _mcount is defined and set to the value of this function by the linker
- * script if the TA is instrumented, i.e., if _mcount is referenced
  */
-FUNC __utee_mcount, :
+FUNC _mcount, :
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
 	adjust_pc	x0, x0
@@ -39,17 +36,6 @@ FUNC __utee_mcount, :
 	bl		__mcount_internal
 	ldp		x29, x30, [sp], #16
 	ret
-END_FUNC __utee_mcount
-
-#else /* !CFG_TA_GPROF_SUPPORT */
-
-/*
- * The TA linker script always references __utee_mcount so provide a version
- * that does nothing
- */
-	.weak __utee_mcount
-FUNC __utee_mcount, :
-	ret
-END_FUNC __utee_mcount
+END_FUNC _mcount
 
 #endif /* CFG_TA_GPROF_SUPPORT */

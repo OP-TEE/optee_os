@@ -22,6 +22,7 @@ struct elf_load_state {
 	struct user_ta_store_handle *ta_handle;
 	const struct user_ta_store_ops *ta_store;
 	size_t data_len;
+	struct file *file;
 
 	size_t next_offs;
 

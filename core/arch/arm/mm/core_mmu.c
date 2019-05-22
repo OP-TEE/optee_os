@@ -44,9 +44,11 @@
  * even if they initially are zero.
  */
 
+#ifdef CFG_CORE_RESERVED_SHM
 /* Default NSec shared memory allocated from NSec world */
 unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
+#endif
 
 static struct tee_mmap_region
 	static_memory_map[CFG_MMAP_REGIONS + 1] __nex_bss;
@@ -66,7 +68,9 @@ static struct memaccess_area secure_only[] __nex_data = {
 };
 
 static struct memaccess_area nsec_shared[] __nex_data = {
+#ifdef CFG_CORE_RESERVED_SHM
 	MEMACCESS_AREA(TEE_SHMEM_START, TEE_SHMEM_SIZE),
+#endif
 };
 
 #if defined(CFG_SECURE_DATA_PATH)
@@ -112,7 +116,9 @@ register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 /* Every guest will have own TA RAM if virtualization support is enabled */
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 #endif
+#ifdef CFG_CORE_RESERVED_SHM
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
+#endif
 
 /*
  * Two ASIDs per context, one for kernel mode and one for user mode. ASID 0
@@ -260,6 +266,7 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 	return false;
 }
 
+#ifdef CFG_CORE_DYN_SHM
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 			       paddr_t pa, size_t size)
 {
@@ -417,6 +424,12 @@ bool core_mmu_nsec_ddr_is_defined(void)
 
 	return start != end;
 }
+#else
+static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
+{
+	return false;
+}
+#endif /*CFG_CORE_DYN_SHM*/
 
 #define MSG_MEM_INSTERSECT(pa1, sz1, pa2, sz2) \
 	EMSG("[%" PRIxPA " %" PRIx64 "] intersects [%" PRIxPA " %" PRIx64 "]", \
@@ -1354,18 +1367,30 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			 */
 			unsigned int idx;
 
-			assert(*pgt); /* We should have alloced enough */
-
 			/* Virtual addresses must grow */
 			assert(r.va > pg_info->va_base);
 
 			idx = core_mmu_va2idx(dir_info, r.va);
-			pg_info->table = (*pgt)->tbl;
 			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
+
 #ifdef CFG_PAGED_USER_TA
+			/*
+			 * Advance pgt to va_base, note that we may need to
+			 * skip multiple page tables if there are large
+			 * holes in the vm map.
+			 */
+			while ((*pgt)->vabase < pg_info->va_base) {
+				*pgt = SLIST_NEXT(*pgt, link);
+				/* We should have alloced enough */
+				assert(*pgt);
+			}
 			assert((*pgt)->vabase == pg_info->va_base);
-#endif
+			pg_info->table = (*pgt)->tbl;
+#else
+			assert(*pgt); /* We should have alloced enough */
+			pg_info->table = (*pgt)->tbl;
 			*pgt = SLIST_NEXT(*pgt, link);
+#endif
 
 			core_mmu_set_entry(dir_info, idx,
 					   virt_to_phys(pg_info->table),
@@ -1603,9 +1628,6 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
-
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
-		mobj_update_mapping(r->mobj, utc, r->va);
 
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
 		set_pg_region(dir_info, r, &pgt, &pg_info);
@@ -2000,3 +2022,39 @@ void core_mmu_init_virtualization(void)
 	virt_init_memory(static_memory_map);
 }
 #endif
+
+vaddr_t io_pa_or_va(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt_io(p->pa);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}
+
+vaddr_t io_pa_or_va_secure(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt(p->pa, MEM_AREA_IO_SEC);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}
+
+vaddr_t io_pa_or_va_nsec(struct io_pa_va *p)
+{
+	assert(p->pa);
+	if (cpu_mmu_enabled()) {
+		if (!p->va)
+			p->va = (vaddr_t)phys_to_virt(p->pa, MEM_AREA_IO_NSEC);
+		assert(p->va);
+		return p->va;
+	}
+	return p->pa;
+}

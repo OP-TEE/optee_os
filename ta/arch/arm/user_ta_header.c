@@ -5,9 +5,10 @@
 #include <compiler.h>
 #include <tee_ta_api.h>
 #include <tee_internal_api_extensions.h>
+#include <trace.h>
 #include <user_ta_header.h>
 #include <user_ta_header_defines.h>
-#include <trace.h>
+#include <utee_syscalls.h>
 
 int trace_level = TRACE_LEVEL;
 
@@ -24,9 +25,21 @@ const char trace_ext_prefix[]  = "TA";
 /* exprted to user_ta_header.c, built within TA */
 struct utee_params;
 
-void __utee_entry(unsigned long func, unsigned long session_id,
-			struct utee_params *up, unsigned long cmd_id)
-			__noreturn;
+TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id);
+
+void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
+			   struct utee_params *up, unsigned long cmd_id);
+
+void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
+			   struct utee_params *up, unsigned long cmd_id)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	res = __utee_entry(func, session_id, up, cmd_id);
+
+	utee_return(res);
+}
 
 /*
  * According to GP Internal API, TA_STACK_SIZE corresponds to the stack
@@ -50,15 +63,12 @@ const struct ta_head ta_head __section(".ta_head") = {
 	 */
 	.stack_size = TA_STACK_SIZE + TA_FRAMEWORK_STACK_SIZE,
 	.flags = TA_FLAGS,
-#ifdef __ILP32__
 	/*
-	 * This workaround is neded on 32-bit because it seems we can't
-	 * initialize a 64-bit integer from the address of a function.
+	 * The TA entry doesn't go via this field any longer, to be able to
+	 * reliably check that an old TA isn't loaded set this field to a
+	 * fixed value.
 	 */
-	.entry.ptr32 = { .lo = (uint32_t)__utee_entry },
-#else
-	.entry.ptr64 = (uint64_t)__utee_entry,
-#endif
+	.depr_entry = UINT64_MAX,
 };
 
 /* Keeping the heap in bss */

@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <crypto/crypto.h>
+#include <kernel/huk_subkey.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/mutex.h>
@@ -268,49 +269,15 @@ out:
 
 #else /* !CFG_RPMB_TESTKEY */
 
-/*
- * NOTE: We need a common API to get hw unique key and it
- * should return error when the hw unique is not a valid
- * one as stated below.
- * We need to make sure the hw unique we get is valid by:
- * 1. In case of HUK is used, checking if OTP is hidden (in
- *    which case only zeros will be returned) or not;
- * 2. In case of SSK is used, checking if SSK in OTP is
- *    write_locked (which means a valid key is provisioned)
- *    or not.
- *
- * Maybe tee_get_hw_unique_key() should be exposed as
- * generic API for getting hw unique key!
- */
-static TEE_Result tee_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
-{
-	if (!hwkey)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	return tee_otp_get_hw_unique_key(hwkey);
-}
-
 static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 				   uint8_t *key, uint32_t len)
 {
-	TEE_Result res;
-	struct tee_hw_unique_key hwkey;
 	uint8_t message[RPMB_EMMC_CID_SIZE];
-	void *ctx = NULL;
 
-	if (!key || RPMB_KEY_MAC_SIZE != len) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (!key || RPMB_KEY_MAC_SIZE != len)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	IMSG("RPMB: Using generated key");
-	res = tee_get_hw_unique_key(&hwkey);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = crypto_mac_alloc_ctx(&ctx, TEE_ALG_HMAC_SHA256);
-	if (res)
-		goto out;
 
 	/*
 	 * PRV/CRC would be changed when doing eMMC FFU
@@ -323,22 +290,8 @@ static TEE_Result tee_rpmb_key_gen(uint16_t dev_id __unused,
 	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
 	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
 	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
-	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, hwkey.data,
-			      HW_UNIQUE_KEY_LENGTH);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
-				    message,
-				    RPMB_EMMC_CID_SIZE);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, key, len);
-
-out:
-	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
-	return res;
+	return huk_subkey_derive(HUK_SUBKEY_RPMB, message, sizeof(message),
+				 key, len);
 }
 
 #endif /* !CFG_RPMB_TESTKEY */
@@ -1088,6 +1041,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info;
+	uint32_t nblocks = 0;
 
 	if (!rpmb_ctx) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
@@ -1118,12 +1072,11 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		}
 
 		if (MUL_OVERFLOW(dev_info.rpmb_size_mult,
-				 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE,
-				 &rpmb_ctx->max_blk_idx)) {
+				 RPMB_SIZE_SINGLE / RPMB_DATA_SIZE, &nblocks) ||
+		    SUB_OVERFLOW(nblocks, 1, &rpmb_ctx->max_blk_idx)) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto func_exit;
 		}
-		rpmb_ctx->max_blk_idx--;
 
 		memcpy(rpmb_ctx->cid, dev_info.cid, RPMB_EMMC_CID_SIZE);
 

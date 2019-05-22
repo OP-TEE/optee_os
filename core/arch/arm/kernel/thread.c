@@ -8,6 +8,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <io.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/lockdep.h>
@@ -875,14 +876,16 @@ static void init_handlers(const struct thread_handlers *handlers)
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)
 {
-	size_t n;
+	size_t n = 0;
 
 	/*
 	 * Allocate virtual memory for thread stacks.
 	 */
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		tee_mm_entry_t *mm;
-		vaddr_t sp;
+		tee_mm_entry_t *mm = NULL;
+		vaddr_t sp = 0;
+		size_t num_pages = 0;
+		struct fobj *fobj = NULL;
 
 		/* Find vmem for thread stack and its protection gap */
 		mm = tee_mm_alloc(&tee_mm_vcore,
@@ -893,11 +896,13 @@ static void init_thread_stacks(void)
 		tee_pager_add_pages(tee_mm_get_smem(mm), tee_mm_get_size(mm),
 				    true);
 
+		num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE - 1;
+		fobj = fobj_locked_paged_alloc(num_pages);
+
 		/* Add the area to the pager */
 		tee_pager_add_core_area(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
-					tee_mm_get_bytes(mm) - SMALL_PAGE_SIZE,
-					TEE_MATTR_PRW | TEE_MATTR_LOCKED,
-					NULL, NULL);
+					PAGER_AREA_TYPE_LOCK, fobj);
+		fobj_put(fobj);
 
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
@@ -1414,8 +1419,10 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
 		mobj = mobj_shm_alloc(pa, size, co);
+#ifdef CFG_CORE_DYN_SHM
 	else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
 		mobj = mobj_mapped_shm_alloc(&pa, 1, 0, co);
+#endif
 
 	if (!mobj)
 		goto err;
@@ -1619,25 +1626,32 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 }
 
 static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
-				      unsigned int bt)
+				      unsigned int bt, size_t size)
 {
 	struct mobj *mobj = NULL;
 	uint64_t cookie = 0;
+	size_t psize = 0;
+	uint64_t attr = 0;
 
 	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
-	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
+	psize = READ_ONCE(arg->params[0].u.tmem.size);
+	if (psize < size)
+		return NULL;
+
+	attr = READ_ONCE(arg->params[0].attr);
+	if (attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size,
+				      psize,
 				      cookie);
-	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
-					   OPTEE_MSG_ATTR_NONCONTIG)) {
+	} else if (attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
+			    OPTEE_MSG_ATTR_NONCONTIG)) {
 		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
-			arg->params[0].u.tmem.size,
+			psize,
 			cookie,
 			true);
 	} else {
@@ -1678,7 +1692,7 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
 
-	return get_rpc_alloc_res(arg, bt);
+	return get_rpc_alloc_res(arg, bt, size);
 }
 
 struct mobj *thread_rpc_alloc_payload(size_t size)

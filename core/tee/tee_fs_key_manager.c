@@ -15,14 +15,17 @@
  * RNG - Random Number Generator
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
+#include <kernel/huk_subkey.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_ta_manager.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_fs_key_manager.h>
 #include <trace.h>
@@ -34,8 +37,6 @@ struct tee_fs_ssk {
 };
 
 static struct tee_fs_ssk tee_fs_ssk;
-static uint8_t string_for_ssk_gen[] = "ONLY_FOR_tee_fs_ssk";
-
 
 static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 			  const void *in_key, size_t in_key_size,
@@ -126,6 +127,8 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 
 exit:
 	crypto_cipher_free_ctx(ctx, TEE_FS_KM_ENC_FEK_ALG);
+	memzero_explicit(tsk, sizeof(tsk));
+	memzero_explicit(dst_key, sizeof(dst_key));
 
 	return res;
 }
@@ -137,31 +140,16 @@ static TEE_Result generate_fek(uint8_t *key, uint8_t len)
 
 static TEE_Result tee_fs_init_key_manager(void)
 {
-	int res = TEE_SUCCESS;
-	struct tee_hw_unique_key huk;
-	uint8_t chip_id[TEE_FS_KM_CHIP_ID_LENGTH];
-	uint8_t message[sizeof(chip_id) + sizeof(string_for_ssk_gen)];
+	TEE_Result res = TEE_SUCCESS;
 
-	/* Secure Storage Key Generation:
-	 *
-	 *     SSK = HMAC(HUK, message)
-	 *     message := concatenate(chip_id, static string)
-	 * */
-	tee_otp_get_hw_unique_key(&huk);
-	memset(chip_id, 0, sizeof(chip_id));
-	if (tee_otp_get_die_id(chip_id, sizeof(chip_id)))
-		return TEE_ERROR_BAD_STATE;
+	COMPILE_TIME_ASSERT(TEE_FS_KM_SSK_SIZE <= HUK_SUBKEY_MAX_LEN);
 
-	memcpy(message, chip_id, sizeof(chip_id));
-	memcpy(message + sizeof(chip_id), string_for_ssk_gen,
-			sizeof(string_for_ssk_gen));
-
-	res = do_hmac(tee_fs_ssk.key, sizeof(tee_fs_ssk.key),
-			huk.data, sizeof(huk.data),
-			message, sizeof(message));
-
+	res = huk_subkey_derive(HUK_SUBKEY_SSK, NULL, 0,
+				tee_fs_ssk.key, sizeof(tee_fs_ssk.key));
 	if (res == TEE_SUCCESS)
 		tee_fs_ssk.is_init = 1;
+	else
+		memzero_explicit(&tee_fs_ssk, sizeof(tee_fs_ssk));
 
 	return res;
 }
@@ -233,7 +221,10 @@ static TEE_Result essiv(uint8_t iv[TEE_AES_BLOCK_SIZE],
 	pad_blkid[0] = (blk_idx & 0xFF);
 	pad_blkid[1] = (blk_idx & 0xFF00) >> 8;
 
-	return aes_ecb(iv, pad_blkid, sha, 16);
+	res = aes_ecb(iv, pad_blkid, sha, 16);
+
+	memzero_explicit(sha, sizeof(sha));
+	return res;
 }
 
 /*
@@ -257,17 +248,17 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 	res = tee_fs_fek_crypt(uuid, TEE_MODE_DECRYPT, encrypted_fek,
 			       TEE_FS_KM_FEK_SIZE, fek);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	/* Compute initialization vector for this block */
 	res = essiv(iv, fek, blk_idx);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	/* Run AES CBC */
 	res = crypto_cipher_alloc_ctx(&ctx, algo);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto wipe;
 
 	res = crypto_cipher_init(ctx, algo, mode, fek, sizeof(fek), NULL,
 				 0, iv, TEE_AES_BLOCK_SIZE);
@@ -281,6 +272,9 @@ TEE_Result tee_fs_crypt_block(const TEE_UUID *uuid, uint8_t *out,
 
 exit:
 	crypto_cipher_free_ctx(ctx, algo);
+wipe:
+	memzero_explicit(fek, sizeof(fek));
+	memzero_explicit(iv, sizeof(iv));
 	return res;
 }
 

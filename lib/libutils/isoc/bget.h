@@ -17,6 +17,7 @@
 
 */
 
+
 #ifndef _
 #ifdef PROTOTYPES
 #define  _(x)  x		      /* If compiler knows prototypes */
@@ -33,7 +34,7 @@ void   *bget	    _((bufsize size, struct bpoolset *poolset));
 void   *bgetz	    _((bufsize size, struct bpoolset *poolset));
 void   *bgetr	    _((void *buffer, bufsize newsize,
 		       struct bpoolset *poolset));
-void	brel	    _((void *buf, struct bpoolset *poolset));
+void	brel	    _((void *buf, struct bpoolset *poolset, int wipe));
 void	bectl	    _((int (*compact)(bufsize sizereq, int sequence),
 		       void *(*acquire)(bufsize size),
 		       void (*release)(void *buf), bufsize pool_incr,

@@ -74,6 +74,9 @@ CFG_TEE_CORE_TA_TRACE ?= y
 #   $ make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_CORE_LOG_LEVEL=3
 CFG_TEE_CORE_MALLOC_DEBUG ?= n
 CFG_TEE_TA_MALLOC_DEBUG ?= n
+# Prints an error message and dumps the stack on failed memory allocations
+# using malloc() and friends.
+CFG_CORE_DUMP_OOM ?= $(CFG_TEE_CORE_MALLOC_DEBUG)
 
 # Mask to select which messages are prefixed with long debugging information
 # (severity, core ID, thread ID, component name, function name, line number)
@@ -113,7 +116,7 @@ endif
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 4
+CFG_OPTEE_REVISION_MINOR ?= 5
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
@@ -204,6 +207,20 @@ CFG_WITH_USER_TA ?= y
 # <ta-name>. Can be either ta_arm32 or ta_arm64.
 # By default, in-tree TAs are built using the first architecture specified in
 # $(ta-targets).
+
+# Address Space Layout Randomization for user-mode Trusted Applications
+#
+# When this flag is enabled, the ELF loader will introduce a random offset
+# when mapping the application in user space. ASLR makes the exploitation of
+# memory corruption vulnerabilities more difficult.
+CFG_TA_ASLR ?= n
+
+# How much ASLR may shift the base address (in pages). The base address is
+# randomly shifted by an integer number of pages comprised between these two
+# values. Bigger ranges are more secure because they make the addresses harder
+# to guess at the expense of using more memory for the page tables.
+CFG_TA_ASLR_MIN_OFFSET_PAGES ?= 0
+CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 128
 
 # Load user TAs from the REE filesystem via tee-supplicant
 CFG_REE_FS_TA ?= y
@@ -356,6 +373,19 @@ endif
 #   in the same way as TAs so that they can be found at runtime.
 CFG_ULIBS_SHARED ?= n
 
+ifeq (yy,$(CFG_TA_GPROF_SUPPORT)$(CFG_ULIBS_SHARED))
+# FIXME:
+# TA profiling with gprof does not work well with shared libraries (not limited
+# to CFG_ULIBS_SHARED=y actually), because the total .text size is not known at
+# link time. The symptom is an error trace when the TA starts (and no gprof
+# output is produced):
+#  E/TA: __utee_gprof_init:159 gprof: could not allocate profiling buffer
+# The allocation of the profiling buffer should probably be done at runtime
+# via a new syscall/PTA call instead of having it pre-allocated in .bss by the
+# linker.
+$(error CFG_TA_GPROF_SUPPORT and CFG_ULIBS_SHARED are currently incompatible)
+endif
+
 # CFG_GP_SOCKETS
 # Enable Global Platform Sockets support
 CFG_GP_SOCKETS ?= y
@@ -388,12 +418,13 @@ CFG_DEVICE_ENUM_PTA ?= y
 # Default is 2**(2) = 4 cores per cluster.
 CFG_CORE_CLUSTER_SHIFT ?= 2
 
-# Do not report to NW that dynamic shared memory (shared memory outside
-# predefined region) is enabled.
-# Note that you can disable this feature for debug purposes. OP-TEE will not
-# report to Normal World that it support dynamic SHM. But, nevertheles it
-# will accept dynamic SHM buffers.
-CFG_DYN_SHM_CAP ?= y
+# Enable support for dynamic shared memory (shared memory anywhere in
+# non-secure memory).
+CFG_CORE_DYN_SHM ?= y
+
+# Enable support for reserved shared memory (shared memory in a carved out
+# memory area).
+CFG_CORE_RESERVED_SHM ?= y
 
 # Enables support for larger physical addresses, that is, it will define
 # paddr_t as a 64-bit type.
@@ -419,9 +450,23 @@ CFG_TA_MBEDTLS ?= y
 # need to be called to test anything
 CFG_TA_MBEDTLS_SELF_TEST ?= y
 
+# By default use tomcrypt as the main crypto lib providing an implementation
+# for the API in <crypto/crypto.h>
+# CFG_CRYPTOLIB_NAME is used as libname and
+# CFG_CRYPTOLIB_DIR is used as libdir when compiling the library
+#
+# It's also possible to configure to use mbedtls instead of tomcrypt.
+# Then the variables should be assigned as "CFG_CRYPTOLIB_NAME=mbedtls" and
+# "CFG_CRYPTOLIB_DIR=lib/libmbedtls" respectively.
+CFG_CRYPTOLIB_NAME ?= tomcrypt
+CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
+
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
-# # without ASN.1 around the hash.
+# without ASN.1 around the hash.
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_RSASSA_NA1 ?= y
+CFG_CORE_MBEDTLS_MPI ?= y
+endif
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
@@ -435,3 +480,5 @@ $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 CFG_VIRT_GUEST_COUNT ?= 2
 endif
 
+# Enables backwards compatible derivation of RPMB and SSK keys
+CFG_CORE_HUK_SUBKEY_COMPAT ?= y

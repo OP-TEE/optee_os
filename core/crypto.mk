@@ -124,17 +124,78 @@ $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 # If no DES cipher mode is left, disable DES
 $(eval $(call cryp-dep-one, DES, ECB CBC))
 
+###############################################################
+# libtomcrypt (LTC) specifics, phase #1
+# LTC is only configured via _CFG_CORE_LTC_ prefixed variables
+#
+# _CFG_CORE_LTC_xxx_DESC means that LTC will only register the
+# descriptor of the algorithm, not provide a
+# crypt_xxx_alloc_ctx() function.
+###############################################################
+
+# If LTC is the cryptolib, pull configuration from CFG_CRYPTO_xxx
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 # dsa_make_params() needs all three SHA-2 algorithms.
 # Disable DSA if any is missing.
 $(eval $(call cryp-dep-all, DSA, SHA256 SHA384 SHA512))
 
-cryp-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
-cryp-all-enabled = $(call cfg-all-enabled,$(foreach v,$(1),CFG_CRYPTO_$(v)))
+# Assign _CFG_CORE_LTC_xxx based on CFG_CRYPTO_yyy
+core-ltc-vars = AES DES
+core-ltc-vars += ECB CBC CTR CTS XTS
+core-ltc-vars += MD5 SHA1 SHA224 SHA256 SHA384 SHA512 SHA512_256
+core-ltc-vars += HMAC CMAC CBC_MAC
+core-ltc-vars += CCM
+ifeq ($(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB),y)
+core-ltc-vars += GCM
+endif
+core-ltc-vars += RSA DSA DH ECC
+core-ltc-vars += AES_ARM64_CE AES_ARM32_CE
+core-ltc-vars += SHA1_ARM32_CE SHA1_ARM64_CE
+core-ltc-vars += SHA256_ARM32_CE SHA256_ARM64_CE
+core-ltc-vars += SIZE_OPTIMIZATION
+# Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
+$(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
+_CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
+endif
 
-_CFG_CRYPTO_WITH_ACIPHER := $(call cryp-one-enabled, RSA DSA DH ECC)
-_CFG_CRYPTO_WITH_AUTHENC := $(and $(filter y,$(CFG_CRYPTO_AES)), $(call cryp-one-enabled, CCM GCM))
-_CFG_CRYPTO_WITH_CIPHER := $(call cryp-one-enabled, AES DES)
-_CFG_CRYPTO_WITH_HASH := $(call cryp-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 SHA512)
-_CFG_CRYPTO_WITH_MAC := $(call cryp-one-enabled, HMAC CMAC CBC_MAC)
-_CFG_CRYPTO_WITH_CBC := $(call cryp-one-enabled, CBC CBC_MAC)
-_CFG_CRYPTO_WITH_ASN1 := $(call cryp-one-enabled, RSA DSA ECC)
+###############################################################
+# mbedtls specifics
+###############################################################
+
+ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
+# mbedtls has to be complemented with some algorithms by LTC
+# Specify the algorithms here
+_CFG_CORE_LTC_DSA := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_MPI := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA256_DESC := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA384_DESC := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
+_CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
+_CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
+_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
+endif
+
+###############################################################
+# libtomcrypt (LTC) specifics, phase #2
+###############################################################
+
+# Assign system variables
+_CFG_CORE_LTC_CE := $(CFG_CRYPTO_WITH_CE)
+_CFG_CORE_LTC_VFP := $(CFG_WITH_VFP)
+_CFG_CORE_LTC_BIGNUM_MAX_BITS := $(CFG_CORE_BIGNUM_MAX_BITS)
+_CFG_CORE_LTC_PAGER := $(CFG_WITH_PAGER)
+_CFG_CORE_LTC_OPTEE_THREAD := $(CFG_LTC_OPTEE_THREAD)
+_CFG_CORE_LTC_HWSUPP_PMULL := $(CFG_HWSUPP_PMULL)
+
+# Assign aggregated variables
+ltc-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),_CFG_CORE_LTC_$(v)))
+_CFG_CORE_LTC_ACIPHER := $(call ltc-one-enabled, RSA DSA DH ECC)
+_CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES) \
+					  $(_CFG_CORE_LTC_AES_DESC)), \
+			       $(call ltc-one-enabled, CCM GCM))
+_CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES AES_DESC DES)
+_CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
+					      SHA512)
+_CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
+_CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
+_CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)

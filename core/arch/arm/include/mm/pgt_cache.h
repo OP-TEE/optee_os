@@ -13,6 +13,7 @@
 #define PGT_NUM_PGT_PER_PAGE	4
 #endif
 
+#include <assert.h>
 #include <kernel/tee_ta_manager.h>
 #include <sys/queue.h>
 #include <types_ext.h>
@@ -65,9 +66,6 @@ static inline void pgt_flush_ctx_range(struct pgt_cache *pgt_cache __unused,
 }
 #endif
 
-void pgt_transfer(struct pgt_cache *pgt_cache, void *old_ctx, vaddr_t old_va,
-		  void *new_ctx, vaddr_t new_va, size_t size);
-
 void pgt_init(void);
 
 #if defined(CFG_PAGED_USER_TA)
@@ -76,10 +74,12 @@ void pgt_flush_ctx(struct tee_ta_ctx *ctx);
 static inline void pgt_inc_used_entries(struct pgt *pgt)
 {
 	pgt->num_used_entries++;
+	assert(pgt->num_used_entries);
 }
 
 static inline void pgt_dec_used_entries(struct pgt *pgt)
 {
+	assert(pgt->num_used_entries);
 	pgt->num_used_entries--;
 }
 

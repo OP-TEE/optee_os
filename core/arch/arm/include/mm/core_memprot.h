@@ -102,17 +102,11 @@ struct io_pa_va {
 /*
  * Helper function to return a physical or virtual address for a device,
  * depending on whether the MMU is enabled or not
+ * io_pa_or_va() uses secure mapped IO memory if found or fallback to
+ * non-secure mapped IO memory.
  */
-static inline vaddr_t io_pa_or_va(struct io_pa_va *p)
-{
-	assert(p->pa);
-	if (cpu_mmu_enabled()) {
-		if (!p->va)
-			p->va = (vaddr_t)phys_to_virt_io(p->pa);
-		assert(p->va);
-		return p->va;
-	}
-	return p->pa;
-}
+vaddr_t io_pa_or_va_secure(struct io_pa_va *p);
+vaddr_t io_pa_or_va_nsec(struct io_pa_va *p);
+vaddr_t io_pa_or_va(struct io_pa_va *p);
 
 #endif /* CORE_MEMPROT_H */

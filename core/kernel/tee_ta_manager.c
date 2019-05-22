@@ -23,6 +23,7 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mmu.h>
+#include <tee/entry_std.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_storage.h>
@@ -261,6 +262,84 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 	mutex_unlock(&tee_ta_mutex);
 }
 
+static void destroy_session(struct tee_ta_session *s,
+			    struct tee_ta_session_head *open_sessions)
+{
+	tee_ta_unlink_session(s, open_sessions);
+#if defined(CFG_TA_GPROF_SUPPORT)
+	free(s->sbuf);
+#endif
+	free(s);
+}
+
+static void destroy_context(struct tee_ta_ctx *ctx)
+{
+	DMSG("Destroy TA ctx (0x%" PRIxVA ")",  (vaddr_t)ctx);
+
+	condvar_destroy(&ctx->busy_cv);
+	pgt_flush_ctx(ctx);
+	ctx->ops->destroy(ctx);
+}
+
+static void destroy_ta_ctx_from_session(struct tee_ta_session *s)
+{
+	struct tee_ta_session *sess = NULL;
+	struct tee_ta_session_head *open_sessions = NULL;
+	struct tee_ta_ctx *ctx = NULL;
+	struct user_ta_ctx *utc = NULL;
+	size_t count = 1; /* start counting the references to the context */
+
+	DMSG("Remove references to context (0x%" PRIxVA ")", (vaddr_t)s->ctx);
+
+	mutex_lock(&tee_ta_mutex);
+	nsec_sessions_list_head(&open_sessions);
+
+	/*
+	 * Next two loops will remove all references to the context which is
+	 * about to be destroyed, but avoiding such operation to the current
+	 * session. That will be done later in this function, only after
+	 * the context will be properly destroyed.
+	 */
+
+	/*
+	 * Scan the entire list of opened sessions by the clients from
+	 * non-secure world.
+	 */
+	TAILQ_FOREACH(sess, open_sessions, link) {
+		if (sess->ctx == s->ctx && sess != s) {
+			sess->ctx = NULL;
+			count++;
+		}
+	}
+
+	/*
+	 * Scan all sessions opened from secure side by searching through
+	 * all available TA instances and for each context, scan all opened
+	 * sessions.
+	 */
+	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
+		if (is_user_ta_ctx(ctx)) {
+			utc = to_user_ta_ctx(ctx);
+
+			TAILQ_FOREACH(sess, &utc->open_sessions, link) {
+				if (sess->ctx == s->ctx && sess != s) {
+					sess->ctx = NULL;
+					count++;
+				}
+			}
+		}
+	}
+
+	assert(count == s->ctx->ref_count);
+
+	TAILQ_REMOVE(&tee_ctxes, s->ctx, link);
+	mutex_unlock(&tee_ta_mutex);
+
+	destroy_context(s->ctx);
+
+	s->ctx = NULL;
+}
+
 /*
  * tee_ta_context_find - Find TA in session list based on a UUID (input)
  * Returns a pointer to the session
@@ -330,7 +409,7 @@ static bool check_params(struct tee_ta_session *sess,
 	 * When CFG_SECURE_DATA_PATH is enabled, OP-TEE entry allows SHM and
 	 * SDP memory references. Only TAs flagged SDP can access SDP memory.
 	 */
-	if (sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
+	if (sess->ctx && sess->ctx->flags & TA_FLAG_SECURE_DATA_PATH)
 		return true;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -416,20 +495,20 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	ctx = sess->ctx;
 	DMSG("Destroy session");
 
-	tee_ta_set_busy(ctx);
-
-	if (!ctx->panicked) {
-		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
-		ctx->ops->enter_close_session(sess);
+	if (!ctx) {
+		destroy_session(sess, open_sessions);
+		return TEE_SUCCESS;
 	}
 
-	tee_ta_unlink_session(sess, open_sessions);
-#if defined(CFG_TA_GPROF_SUPPORT)
-	free(sess->sbuf);
-#endif
-	free(sess);
-
-	tee_ta_clear_busy(ctx);
+	if (ctx->panicked) {
+		destroy_session(sess, open_sessions);
+	} else {
+		tee_ta_set_busy(ctx);
+		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
+		ctx->ops->enter_close_session(sess);
+		destroy_session(sess, open_sessions);
+		tee_ta_clear_busy(ctx);
+	}
 
 	mutex_lock(&tee_ta_mutex);
 
@@ -440,15 +519,10 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	keep_alive = (ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) &&
 			(ctx->flags & TA_FLAG_SINGLE_INSTANCE);
 	if (!ctx->ref_count && !keep_alive) {
-		DMSG("Destroy TA ctx");
-
 		TAILQ_REMOVE(&tee_ctxes, ctx, link);
 		mutex_unlock(&tee_ta_mutex);
 
-		condvar_destroy(&ctx->busy_cv);
-
-		pgt_flush_ctx(ctx);
-		ctx->ops->destroy(ctx);
+		destroy_context(ctx);
 	} else
 		mutex_unlock(&tee_ta_mutex);
 
@@ -594,7 +668,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	ctx = s->ctx;
 
-	if (ctx->panicked) {
+	if (!ctx || ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
 		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
@@ -650,8 +724,13 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	if (!check_params(sess, param))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (sess->ctx->panicked) {
+	if (!sess->ctx) {
+		/* The context has been already destroyed */
+		*err = TEE_ORIGIN_TEE;
+		return TEE_ERROR_TARGET_DEAD;
+	} else if (sess->ctx->panicked) {
 		DMSG("Panicked !");
+		destroy_ta_ctx_from_session(sess);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -661,12 +740,13 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	set_invoke_timeout(sess, cancel_req_to);
 	res = sess->ctx->ops->enter_invoke_cmd(sess, cmd, param, err);
 
-	if (sess->ctx->panicked) {
-		*err = TEE_ORIGIN_TEE;
-		res = TEE_ERROR_TARGET_DEAD;
-	}
-
 	tee_ta_clear_busy(sess->ctx);
+
+	if (sess->ctx->panicked) {
+		destroy_ta_ctx_from_session(sess);
+		*err = TEE_ORIGIN_TEE;
+		return TEE_ERROR_TARGET_DEAD;
+	}
 
 	/* Short buffer is not an effective error case */
 	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
@@ -734,7 +814,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	 * If ctx->mmu == NULL we must not have user mapping active,
 	 * if ctx->mmu != NULL we must have user mapping active.
 	 */
-	if (((ctx && is_user_ta_ctx(ctx) ?
+	if (((is_user_ta_ctx(ctx) ?
 			to_user_ta_ctx(ctx)->vm_info : NULL) == NULL) ==
 					core_mmu_user_mapping_is_active())
 		panic("unexpected active mapping");
@@ -786,6 +866,11 @@ static void dump_state(struct tee_ta_ctx *ctx)
 {
 	struct tee_ta_session *s = NULL;
 	bool active __maybe_unused;
+
+	if (!ctx) {
+		EMSG("No TA status: null context reference");
+		return;
+	}
 
 	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
 		  s && s->ctx == ctx);

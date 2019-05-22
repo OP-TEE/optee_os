@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016, Wind River Systems.
  * All rights reserved.
+ * Copyright 2019 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,6 +59,35 @@ FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
 	/*
+	 * Under very rare timing circumstances, transition into streaming
+	 * mode might create a data corruption
+	 * Configurations affected
+	 * This erratum affects configurations with either:
+	 * - One processor if the ACP is present
+	 * - Two or more processors
+	 * This erratum can be worked round by setting bit[22] of the
+	 * undocumented Diagnostic Control Register to 1. This
+	 * register is encoded as CP15 c15 0 c0 1.
+	 * The bit can be written in Secure state only, with the following
+	 * Read/Modify/Write code sequence:
+	 * MRC p15,0,rt,c15,c0,1
+	 * ORR rt,rt,#0x00400000
+	 * MCR p15,0,rt,c15,c0,1
+	 * When this bit is set, the processor is unable to switch into
+	 * Read-Allocate (streaming) mode, which means this erratum cannot
+	 * occur. Setting this bit could possibly result in a visible drop
+	 * in performance for routines that perform intensive memory
+	 * accesses, such as memset() or memcpy(). However, the workaround
+	 * is not expected to create any significant performance degradation
+	 * in most standard applications.
+	 */
+#if defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
+	 defined(CFG_MX6DL)
+	read_diag r0
+	orr r0, r0, #1 << 22
+	write_diag r0
+#endif
+	/*
 	 * Disallow NSec to mask FIQ [bit4: FW=0]
 	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
 	 * Imprecise Abort trapped to Abort Mode [bit3: EA=0]
@@ -74,10 +104,12 @@ UNWIND(	.fnstart)
 	 * SCTLR = 0x00004000
 	 * - Round-Robin replac. for icache, btac, i/duTLB (bit14: RoundRobin)
 	 *
-	 * ACTRL = 0x00000041
-	 * - core always in full SMP (FW bit0=1, SMP bit6=1)
+	 * ACTRL = 0x000000[46(i.MX6SLL),47]
+	 * - core always in full SMP (FW bit0=[0(i.MX6SLL),1], SMP bit6=1)
 	 * - L2 write full line of zero disabled (bit3=0)
 	 *   (keep WFLZ low. Will be set once outer L2 is ready)
+	 * - L1 Prefetch enable (bit2=1)
+	 * - L2 Prefetch hint enable (bit1=1)
 	 *
 	 * NSACR = 0x00020C00
 	 * - NSec cannot change ACTRL.SMP (NS_SMP bit18=0)
@@ -91,7 +123,11 @@ UNWIND(	.fnstart)
 	mov_imm r0, 0x00004000
 	write_sctlr r0
 
-	mov_imm r0, 0x00000041
+#ifdef CFG_MX6SLL
+	mov_imm r0, 0x00000046
+#else
+	mov_imm r0, 0x00000047
+#endif
 	write_actlr r0
 
 	mov_imm r0, 0x00020C00

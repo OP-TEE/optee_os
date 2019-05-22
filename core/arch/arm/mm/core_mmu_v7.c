@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <keep.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tlb_helpers.h>
@@ -78,8 +79,6 @@
 
 
 #define INVALID_DESC		0x0
-#define HIDDEN_DESC		0x4
-#define HIDDEN_DIRTY_DESC	0x8
 
 #define SECTION_SHIFT		20
 #define SECTION_MASK		0x000fffff
@@ -369,12 +368,6 @@ static uint32_t desc_to_mattr(unsigned level, uint32_t desc)
 		if (!(desc & SMALL_PAGE_NOTGLOBAL))
 			a |= TEE_MATTR_GLOBAL;
 		break;
-	case DESC_TYPE_INVALID:
-		if (desc & HIDDEN_DESC)
-			return TEE_MATTR_HIDDEN_BLOCK;
-		if (desc & HIDDEN_DIRTY_DESC)
-			return TEE_MATTR_HIDDEN_DIRTY_BLOCK;
-		return 0;
 	default:
 		return 0;
 	}
@@ -387,12 +380,6 @@ static uint32_t mattr_to_desc(unsigned level, uint32_t attr)
 	uint32_t desc;
 	uint32_t a = attr;
 	unsigned texcb;
-
-	if (a & TEE_MATTR_HIDDEN_BLOCK)
-		return INVALID_DESC | HIDDEN_DESC;
-
-	if (a & TEE_MATTR_HIDDEN_DIRTY_BLOCK)
-		return INVALID_DESC | HIDDEN_DIRTY_DESC;
 
 	if (level == 1 && (a & TEE_MATTR_TABLE)) {
 		desc = SECTION_PT_PT;
@@ -569,7 +556,7 @@ static paddr_t desc_to_pa(unsigned level, uint32_t desc)
 		shift_mask = 12;
 		break;
 	default:
-		/* Invalid section, HIDDEN_DESC, HIDDEN_DIRTY_DESC */
+		/* Invalid section */
 		shift_mask = 4;
 	}
 
@@ -684,6 +671,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	/* Restore interrupts */
 	thread_unmask_exceptions(exceptions);

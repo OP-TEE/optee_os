@@ -60,6 +60,10 @@ enum pm_callback_order {
 
 #define PM_CALLBACK_GET_HANDLE(pm_handle)	((pm_handle)->handle)
 
+struct pm_callback_handle;
+typedef TEE_Result (*pm_callback)(enum pm_op op, uint32_t pm_hint,
+				  const struct pm_callback_handle *pm_handle);
+
 /*
  * Drivers and services can register a callback function for the platform
  * suspend and resume sequences. A private address handle can be registered
@@ -98,8 +102,7 @@ enum pm_callback_order {
  */
 struct pm_callback_handle {
 	/* Set by the caller when registering a callback */
-	TEE_Result (*callback)(enum pm_op op, uint32_t pm_hint,
-			       const struct pm_callback_handle *pm_handle);
+	pm_callback callback;
 	void *handle;
 	uint8_t order;
 	/* Set by the system according to execution context */
@@ -123,14 +126,25 @@ void register_pm_cb(struct pm_callback_handle *pm_handle);
  * @callback: Registered callback function
  * @handle: Registered private handle argument for the callback
  */
-static inline void register_pm_driver_cb(
-		TEE_Result (*callback)(
-				enum pm_op op, uint32_t pm_hint,
-				const struct pm_callback_handle *pm_handle),
-		void *handle)
+static inline void register_pm_driver_cb(pm_callback callback, void *handle)
 {
 	register_pm_cb(&PM_CALLBACK_HANDLE_INITIALIZER(callback, handle,
 						       PM_CB_ORDER_DRIVER));
+}
+
+/*
+ * Register a core service callback for generic suspend/resume.
+ * Refer to struct pm_callback_handle for description of the callbacks
+ * API.
+ *
+ * @callback: Registered callback function
+ * @handle: Registered private handle argument for the callback
+ */
+static inline void register_pm_core_service_cb(pm_callback callback,
+					       void *handle)
+{
+	register_pm_cb(&PM_CALLBACK_HANDLE_INITIALIZER(callback, handle,
+						PM_CB_ORDER_CORE_SERVICE));
 }
 
 /*

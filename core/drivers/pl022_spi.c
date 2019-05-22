@@ -8,6 +8,7 @@
 #include <drivers/pl022_spi.h>
 #include <initcall.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <platform_config.h>
@@ -166,11 +167,10 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 	/* Capture remaining rdat not read above */
 	if (rdat) {
 		while ((j < num_pkts) &&
-			(io_read8(pd->base + SSPSR) & SSPSR_BSY))
-			if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
-				/* rx 1 packet */
-				rdat[j++] = io_read8(pd->base + SSPDR);
-			}
+		       (io_read8(pd->base + SSPSR) & SSPSR_RNE)) {
+			/* rx 1 packet */
+			rdat[j++] = io_read8(pd->base + SSPDR);
+		}
 
 		if (j < num_pkts) {
 			EMSG("Packets requested %zu, received %zu",
@@ -205,18 +205,17 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 			if (rdat)
 				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
 					/* rx 1 packet */
-					rdat[j++] = io_read8(pd->base + SSPDR);
+					rdat[j++] = io_read16(pd->base + SSPDR);
 				}
 		}
 
 	/* Capture remaining rdat not read above */
 	if (rdat) {
 		while ((j < num_pkts) &&
-			(io_read8(pd->base + SSPSR) & SSPSR_BSY))
-			if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
-				/* rx 1 packet */
-				rdat[j++] = io_read8(pd->base + SSPDR);
-			}
+		       (io_read8(pd->base + SSPSR) & SSPSR_RNE)) {
+			/* rx 1 packet */
+			rdat[j++] = io_read16(pd->base + SSPDR);
+		}
 
 		if (j < num_pkts) {
 			EMSG("Packets requested %zu, received %zu",
@@ -500,6 +499,7 @@ static const struct spi_ops pl022_ops = {
 	.txrx16 = pl022_txrx16,
 	.end = pl022_end,
 };
+KEEP_PAGER(pl022_ops);
 
 void pl022_init(struct pl022_data *pd)
 {

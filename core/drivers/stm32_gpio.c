@@ -95,7 +95,7 @@ static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 {
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
-	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	stm32_clock_enable(clock);
 
@@ -133,12 +133,12 @@ static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 	io_clrsetbits32(base + GPIO_ODR_OFFSET, BIT(pin), cfg->od << pin);
 
 	stm32_clock_disable(clock);
-	cpu_spin_unlock_xrestore(&gpio_lock, excep);
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
 
 void stm32_pinctrl_load_active_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 {
-	size_t n;
+	size_t n = 0;
 
 	for (n = 0; n < cnt; n++)
 		set_gpio_cfg(pinctrl[n].bank, pinctrl[n].pin,
@@ -147,7 +147,7 @@ void stm32_pinctrl_load_active_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 
 void stm32_pinctrl_load_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 {
-	size_t n;
+	size_t n = 0;
 
 	for (n = 0; n < cnt; n++)
 		set_gpio_cfg(pinctrl[n].bank, pinctrl[n].pin,
@@ -156,7 +156,7 @@ void stm32_pinctrl_load_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 
 void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 {
-	size_t n;
+	size_t n = 0;
 
 	for (n = 0; n < cnt; n++)
 		get_gpio_cfg(pinctrl[n].bank, pinctrl[n].pin,
@@ -164,13 +164,13 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 }
 
 #ifdef CFG_DT
-/* Return GPIO bank node if valid and a negative libfdt error othewise */
+/* Panic if GPIO bank information from platform do not match DTB description */
 static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 {
-	int pinctrl_subnode;
+	int pinctrl_subnode = 0;
 
 	fdt_for_each_subnode(pinctrl_subnode, fdt, pinctrl_node) {
-		const fdt32_t *cuint;
+		const fdt32_t *cuint = NULL;
 
 		if (fdt_getprop(fdt, pinctrl_subnode,
 				"gpio-controller", NULL) == NULL)
@@ -178,10 +178,8 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 
 		/* Check bank register offset matches platform assumptions */
 		cuint = fdt_getprop(fdt, pinctrl_subnode, "reg", NULL);
-		if (!cuint)
-			panic();
 		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
-			panic();
+			continue;
 
 		/* Check bank clock matches platform assumptions */
 		cuint = fdt_getprop(fdt, pinctrl_subnode, "clocks", NULL);
@@ -206,9 +204,9 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 				struct stm32_pinctrl *pinctrl, size_t count)
 {
 	const fdt32_t *cuint, *slewrate;
-	int len;
-	int pinctrl_node;
-	uint32_t i;
+	int len = 0;
+	int pinctrl_node = 0;
+	uint32_t i = 0;
 	uint32_t speed = GPIO_OSPEED_LOW;
 	uint32_t pull = GPIO_PUPD_NO_PULL;
 	size_t found = 0;
@@ -231,10 +229,10 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 		pull = GPIO_PUPD_PULL_DOWN;
 
 	for (i = 0; i < ((uint32_t)len / sizeof(uint32_t)); i++) {
-		uint32_t pincfg;
-		uint32_t bank;
-		uint32_t pin;
-		uint32_t mode;
+		uint32_t pincfg = 0;
+		uint32_t bank = 0;
+		uint32_t pin = 0;
+		uint32_t mode = 0;
 		uint32_t alternate = 0;
 		bool opendrain = false;
 
@@ -309,9 +307,9 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int device_node,
 				  struct stm32_pinctrl *pinctrl, size_t count)
 {
-	const fdt32_t *cuint;
-	int lenp;
-	int i;
+	const fdt32_t *cuint = NULL;
+	int lenp = 0;
+	int i = 0;
 	size_t found = 0;
 
 	cuint = fdt_getprop(fdt, device_node, "pinctrl-0", &lenp);
@@ -319,16 +317,16 @@ int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int device_node,
 		return -FDT_ERR_NOTFOUND;
 
 	for (i = 0; i < (lenp / 4); i++) {
-		int node;
-		int subnode;
+		int node = 0;
+		int subnode = 0;
 
 		node = fdt_node_offset_by_phandle(fdt, fdt32_to_cpu(*cuint));
 		if (node < 0)
 			return -FDT_ERR_NOTFOUND;
 
 		fdt_for_each_subnode(subnode, fdt, node) {
-			size_t n;
-			int rc;
+			size_t n = 0;
+			int rc = 0;
 
 			if (count > found)
 				n = count - found;
@@ -347,6 +345,32 @@ int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int device_node,
 	}
 
 	return (int)found;
+}
+
+int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
+{
+	int node = 0;
+	const fdt32_t *cuint = NULL;
+
+	fdt_for_each_subnode(node, fdt, pinctrl_node) {
+		if (!fdt_getprop(fdt, node, "gpio-controller", NULL))
+			continue;
+
+		cuint = fdt_getprop(fdt, node, "reg", NULL);
+		if (!cuint)
+			continue;
+
+		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
+			continue;
+
+		cuint = fdt_getprop(fdt, node, "ngpios", NULL);
+		if (!cuint)
+			panic();
+
+		return (int)fdt32_to_cpu(*cuint);
+	}
+
+	return -1;
 }
 #endif /*CFG_DT*/
 
@@ -405,7 +429,7 @@ void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 {
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	unsigned int clock = stm32_get_gpio_bank_clock(bank);
-	uint32_t excep = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	stm32_clock_enable(clock);
 
@@ -415,5 +439,5 @@ void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 		io_clrbits32(base + GPIO_SECR_OFFSET, BIT(pin));
 
 	stm32_clock_disable(clock);
-	cpu_spin_unlock_xrestore(&gpio_lock, excep);
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }

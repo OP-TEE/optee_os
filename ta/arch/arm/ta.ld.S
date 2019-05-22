@@ -15,21 +15,8 @@ OUTPUT_ARCH(aarch64)
 #define GPROF_BUF_MULT(x) ((x) * 177) / 100
 #endif
 
-PHDRS {
-	/*
-	 * Exec and rodata headers are hard coded to RX and RO
-	 * respectively. This is needed because the binary is relocatable
-	 * and the linker would automatically make any header writeable
-	 * that need to be updated during relocation.
-	 */
-	exec PT_LOAD FLAGS (5);		/* RX */
-	rodata PT_LOAD FLAGS (4);	/* RO */
-	rwdata PT_LOAD;
-	dyn PT_DYNAMIC;
-}
-
 SECTIONS {
-	.ta_head : {*(.ta_head)} :exec
+	.ta_head : {*(.ta_head)}
 	.text : {
 		__text_start = .;
 		*(.text .text.*)
@@ -39,12 +26,11 @@ SECTIONS {
 		*(.gnu.linkonce.t.*)
 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
 		*(.vfp11_veneer)
-		PROVIDE(MCOUNT_SYM = __utee_mcount);
 		__text_end = .;
 	}
         .plt : { *(.plt) }
 
-	.eh_frame : { *(.eh_frame) } :rodata
+	.eh_frame : { *(.eh_frame) }
 	.rodata : {
 		*(.gnu.linkonce.r.*)
 		*(.rodata .rodata.*)
@@ -53,6 +39,13 @@ SECTIONS {
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
         .ctors : { *(.ctors) }
         .dtors : { *(.dtors) }
+	.dynsym : { *(.dynsym) }
+	.dynstr : { *(.dynstr) }
+	.hash : { *(.hash) }
+
+	/* Page align to allow dropping execute bit for RW data */
+	. = ALIGN(4096);
+
 	.got : { *(.got.plt) *(.got) }
 	.rel.text : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
 	.rela.text : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
@@ -75,15 +68,9 @@ SECTIONS {
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-	.dynamic : { *(.dynamic) } :dyn :rodata
-	.dynsym : { *(.dynsym) } :rodata
-	.dynstr : { *(.dynstr) }
-	.hash : { *(.hash) }
+	.dynamic : { *(.dynamic) }
 
-	/* Page align to allow dropping execute bit for RW data */
-	. = ALIGN(4096);
-
-	.data : { *(.data .data.* .gnu.linkonce.d.*) } :rwdata
+	.data : { *(.data .data.* .gnu.linkonce.d.*) }
 	.bss : {
 		*(.bss .bss.* .gnu.linkonce.b.* COMMON)
 
@@ -91,8 +78,6 @@ SECTIONS {
 		 * TA profiling with gprof
 		 * Reserve some space for the profiling buffer, only if the
 		 * TA is instrumented (i.e., some files were built with -pg).
-		 * Note that PROVIDE() above defines a symbol only if it is
-		 * referenced in the object files.
 		 * This also provides a way to detect at runtime if the TA is
 		 * instrumented or not.
 		 */

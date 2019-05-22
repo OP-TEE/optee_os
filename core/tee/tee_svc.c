@@ -2,25 +2,25 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#include <util.h>
-#include <kernel/tee_common_otp.h>
-#include <kernel/tee_common.h>
-#include <tee_api_types.h>
-#include <kernel/tee_ta_manager.h>
-#include <utee_types.h>
-#include <tee/tee_svc.h>
-#include <tee/tee_cryp_utl.h>
-#include <mm/tee_mmu.h>
-#include <mm/tee_mm.h>
-#include <mm/core_memprot.h>
-#include <kernel/tee_time.h>
-
-#include <user_ta_header.h>
-#include <trace.h>
-#include <kernel/trace_ta.h>
 #include <kernel/chip_services.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/tee_common.h>
+#include <kernel/tee_common_otp.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/tee_time.h>
+#include <kernel/trace_ta.h>
+#include <mm/core_memprot.h>
 #include <mm/mobj.h>
+#include <mm/tee_mm.h>
+#include <mm/tee_mmu.h>
+#include <stdlib_ext.h>
+#include <tee_api_types.h>
+#include <tee/tee_cryp_utl.h>
+#include <tee/tee_svc.h>
+#include <trace.h>
+#include <user_ta_header.h>
+#include <utee_types.h>
+#include <util.h>
 
 vaddr_t tee_svc_uref_base;
 
@@ -41,7 +41,7 @@ void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
 		trace_ext_puts(kbuf);
 	}
 
-	free(kbuf);
+	free_wipe(kbuf);
 #endif
 }
 
@@ -490,7 +490,7 @@ TEE_Result syscall_get_property_name_to_index(unsigned long prop_set,
 	}
 
 out:
-	free(kname);
+	free_wipe(kname);
 	return res;
 }
 
@@ -564,6 +564,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				     struct utee_params *callee_params,
 				     struct tee_ta_param *param,
 				     void *tmp_buf_va[TEE_NUM_PARAMS],
+				     size_t tmp_buf_size[TEE_NUM_PARAMS],
 				     struct mobj **mobj_tmp)
 {
 	size_t n;
@@ -660,6 +661,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				param->u[n].mem.offs = dst_offs;
 				param->u[n].mem.mobj = *mobj_tmp;
 				tmp_buf_va[n] = dst;
+				tmp_buf_size[n] = param->u[n].mem.size;
 				dst += s;
 				dst_offs += s;
 			}
@@ -671,6 +673,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				param->u[n].mem.offs = dst_offs;
 				param->u[n].mem.mobj = *mobj_tmp;
 				tmp_buf_va[n] = dst;
+				tmp_buf_size[n] = param->u[n].mem.size;
 				dst += s;
 				dst_offs += s;
 			}
@@ -693,6 +696,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 static TEE_Result tee_svc_update_out_param(
 		struct tee_ta_param *param,
 		void *tmp_buf_va[TEE_NUM_PARAMS],
+		size_t tmp_buf_size[TEE_NUM_PARAMS],
 		struct utee_params *usr_param)
 {
 	size_t n;
@@ -714,11 +718,18 @@ static TEE_Result tee_svc_update_out_param(
 				void *dst = (void *)(uintptr_t)vals[n * 2];
 				TEE_Result res;
 
-				res = tee_svc_copy_to_user(dst, src,
-						 param->u[n].mem.size);
-				if (res != TEE_SUCCESS)
-					return res;
-
+				/*
+				 * TA is allowed to return a size larger than
+				 * the original size. However, in such cases no
+				 * data should be synchronized as per TEE Client
+				 * API spec.
+				 */
+				if (param->u[n].mem.size <= tmp_buf_size[n]) {
+					res = tee_svc_copy_to_user(dst, src,
+							param->u[n].mem.size);
+					if (res != TEE_SUCCESS)
+						return res;
+				}
 			}
 			usr_param->vals[n * 2 + 1] = param->u[n].mem.size;
 			break;
@@ -752,6 +763,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	struct tee_ta_param *param = malloc(sizeof(struct tee_ta_param));
 	TEE_Identity *clnt_id = malloc(sizeof(TEE_Identity));
 	void *tmp_buf_va[TEE_NUM_PARAMS] = { NULL };
+	size_t tmp_buf_size[TEE_NUM_PARAMS] = { 0 };
 	struct user_ta_ctx *utc;
 
 	if (uuid == NULL || param == NULL || clnt_id == NULL) {
@@ -774,7 +786,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	memcpy(&clnt_id->uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	res = tee_svc_copy_param(sess, NULL, usr_param, param, tmp_buf_va,
-				 &mobj_param);
+				 tmp_buf_size, &mobj_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -784,18 +796,19 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = tee_svc_update_out_param(param, tmp_buf_va, usr_param);
+	res = tee_svc_update_out_param(param, tmp_buf_va, tmp_buf_size,
+				       usr_param);
 
 function_exit:
-	mobj_free(mobj_param);
+	mobj_free_wipe(mobj_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_to_user(ta_sess, &s->id, sizeof(s->id));
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
-	free(param);
-	free(uuid);
-	free(clnt_id);
+	free_wipe(param);
+	free_wipe(uuid);
+	free_wipe(clnt_id);
 	return res;
 }
 
@@ -832,6 +845,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	struct tee_ta_session *called_sess;
 	struct mobj *mobj_param = NULL;
 	void *tmp_buf_va[TEE_NUM_PARAMS] = { NULL };
+	size_t tmp_buf_size[TEE_NUM_PARAMS] = { };
 	struct user_ta_ctx *utc;
 
 	res = tee_ta_get_current_session(&sess);
@@ -848,14 +862,17 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	res = tee_svc_copy_param(sess, called_sess, usr_param, &param,
-				 tmp_buf_va, &mobj_param);
+				 tmp_buf_va, tmp_buf_size, &mobj_param);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
 	res = tee_ta_invoke_command(&ret_o, called_sess, &clnt_id,
 				    cancel_req_to, cmd_id, &param);
+	if (res == TEE_ERROR_TARGET_DEAD)
+		goto function_exit;
 
-	res2 = tee_svc_update_out_param(&param, tmp_buf_va, usr_param);
+	res2 = tee_svc_update_out_param(&param, tmp_buf_va, tmp_buf_size,
+					usr_param);
 	if (res2 != TEE_SUCCESS) {
 		/*
 		 * Spec for TEE_InvokeTACommand() says:
@@ -874,7 +891,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 function_exit:
 	tee_ta_put_session(called_sess);
-	mobj_free(mobj_param);
+	mobj_free_wipe(mobj_param);
 	if (ret_orig)
 		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;

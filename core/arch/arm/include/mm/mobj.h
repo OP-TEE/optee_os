@@ -8,6 +8,8 @@
 
 #include <compiler.h>
 #include <mm/core_memprot.h>
+#include <mm/fobj.h>
+#include <string_ext.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -26,9 +28,8 @@ struct mobj_ops {
 	TEE_Result (*get_cattr)(struct mobj *mobj, uint32_t *cattr);
 	bool (*matches)(struct mobj *mobj, enum buf_is_attr attr);
 	void (*free)(struct mobj *mobj);
-	void (*update_mapping)(struct mobj *mobj, struct user_ta_ctx *utc,
-			       vaddr_t va);
 	uint64_t (*get_cookie)(struct mobj *mobj);
+	struct fobj *(*get_fobj)(struct mobj *mobj);
 };
 
 extern struct mobj mobj_virt;
@@ -77,11 +78,13 @@ static inline void mobj_free(struct mobj *mobj)
 		mobj->ops->free(mobj);
 }
 
-static inline void mobj_update_mapping(struct mobj *mobj,
-				       struct user_ta_ctx *utc, vaddr_t va)
+static inline void mobj_free_wipe(struct mobj *mobj)
 {
-	if (mobj && mobj->ops && mobj->ops->update_mapping)
-		mobj->ops->update_mapping(mobj, utc, va);
+	void *buf = mobj_get_va(mobj, 0);
+
+	if (buf)
+		memzero_explicit(buf, mobj->size);
+	mobj_free(mobj);
 }
 
 static inline uint64_t mobj_get_cookie(struct mobj *mobj)
@@ -90,6 +93,14 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 		return mobj->ops->get_cookie(mobj);
 
 	return 0;
+}
+
+static inline struct fobj *mobj_get_fobj(struct mobj *mobj)
+{
+	if (mobj && mobj->ops && mobj->ops->get_fobj)
+		return mobj->ops->get_fobj(mobj);
+
+	return NULL;
 }
 
 static inline bool mobj_is_nonsec(struct mobj *mobj)
@@ -120,6 +131,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
 
+#ifdef CFG_CORE_DYN_SHM
 /* reg_shm represents TEE shared memory */
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie);
@@ -188,10 +200,19 @@ void mobj_reg_shm_unguard(struct mobj *mobj);
  */
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
+#else
+static inline TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /*CFG_CORE_DYN_SHM*/
 
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
-
-struct mobj *mobj_paged_alloc(size_t size);
 
 #ifdef CFG_PAGED_USER_TA
 bool mobj_is_paged(struct mobj *mobj);
@@ -203,5 +224,7 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 #endif
 
 struct mobj *mobj_seccpy_shm_alloc(size_t size);
+
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj);
 
 #endif /*__MM_MOBJ_H*/

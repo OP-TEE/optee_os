@@ -261,9 +261,11 @@ struct core_mmu_phys_mem {
 #define phys_mem_map_end \
 	SCATTERED_ARRAY_END(phys_mem_map, struct core_mmu_phys_mem)
 
+#ifdef CFG_CORE_RESERVED_SHM
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
+#endif
 
 void core_init_mmu_map(void);
 void core_init_mmu_regs(void);
@@ -593,6 +595,7 @@ bool cpu_mmu_enabled(void);
 /* Do section mapping, not support on LPAE */
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
 
+#ifdef CFG_CORE_DYN_SHM
 /*
  * Check if platform defines nsec DDR range(s).
  * Static SHM (MEM_AREA_NSEC_SHM) is not covered by this API as it is
@@ -602,6 +605,7 @@ bool core_mmu_nsec_ddr_is_defined(void);
 
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems);
+#endif
 
 /* Initialize MMU partition */
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm);

@@ -62,6 +62,7 @@
 #include <compiler.h>
 #include <inttypes.h>
 #include <keep.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -97,9 +98,6 @@
 #define L3_BLOCK_DESC		0x3
 #define TABLE_DESC		0x3
 #define DESC_ENTRY_TYPE_MASK	0x3
-
-#define HIDDEN_DESC		0x4
-#define HIDDEN_DIRTY_DESC	0x8
 
 #define XN			(1ull << 2)
 #define PXN			(1ull << 1)
@@ -253,13 +251,8 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 {
 	uint32_t a;
 
-	if (!(desc & 1)) {
-		if (desc & HIDDEN_DESC)
-			return TEE_MATTR_HIDDEN_BLOCK;
-		if (desc & HIDDEN_DIRTY_DESC)
-			return TEE_MATTR_HIDDEN_DIRTY_BLOCK;
+	if (!(desc & 1))
 		return 0;
-	}
 
 	if (level == 3) {
 		if ((desc & DESC_ENTRY_TYPE_MASK) != L3_BLOCK_DESC)
@@ -306,12 +299,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 {
 	uint64_t desc;
 	uint32_t a = attr;
-
-	if (a & TEE_MATTR_HIDDEN_BLOCK)
-		return INVALID_DESC | HIDDEN_DESC;
-
-	if (a & TEE_MATTR_HIDDEN_DIRTY_BLOCK)
-		return INVALID_DESC | HIDDEN_DIRTY_DESC;
 
 	if (a & TEE_MATTR_TABLE)
 		return TABLE_DESC;
@@ -922,6 +909,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	thread_unmask_exceptions(exceptions);
 }
@@ -1005,6 +993,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	}
 
 	tlbi_all();
+	icache_inv_all();
 
 	thread_unmask_exceptions(exceptions);
 }

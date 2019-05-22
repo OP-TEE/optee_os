@@ -17,6 +17,6 @@
 
 #define PWR_OFFSET_MASK		0x3fUL
 
-uintptr_t stm32_pwr_base(void);
+vaddr_t stm32_pwr_base(void);
 
 #endif /*__STM32MP1_PWR_H*/

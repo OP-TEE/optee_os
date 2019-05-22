@@ -16,9 +16,9 @@ static mpa_scratch_mem external_mem_pool;
 
 #define LTC_MEMPOOL_U32_SIZE \
 	mpa_scratch_mem_size_in_U32(LTC_VARIABLE_NUMBER, \
-				    CFG_CORE_BIGNUM_MAX_BITS)
+				    _CFG_CORE_LTC_BIGNUM_MAX_BITS)
 
-#if defined(CFG_WITH_PAGER)
+#if defined(_CFG_CORE_LTC_PAGER)
 #include <mm/tee_pager.h>
 #include <util.h>
 #include <mm/core_mmu.h>
@@ -31,13 +31,13 @@ static struct mempool *get_mpa_scratch_memory_pool(void)
 
 	size = ROUNDUP((LTC_MEMPOOL_U32_SIZE * sizeof(uint32_t)),
 		        SMALL_PAGE_SIZE);
-	data = tee_pager_alloc(size, 0);
+	data = tee_pager_alloc(size);
 	if (!data)
 		panic();
 
 	return mempool_alloc_pool(data, size, tee_pager_release_phys);
 }
-#else /* CFG_WITH_PAGER */
+#else /* _CFG_CORE_LTC_PAGER */
 static struct mempool *get_mpa_scratch_memory_pool(void)
 {
 	static uint32_t data[LTC_MEMPOOL_U32_SIZE] __aligned(MEMPOOL_ALIGN);
@@ -55,11 +55,13 @@ void init_mp_tomcrypt(void)
 	 * equals the max size of the computation (for example 4096 bits),
 	 * multiplied by 2 to allow overflow in computation
 	 */
-	mem.bn_bits = CFG_CORE_BIGNUM_MAX_BITS * 2;
+	mem.bn_bits = _CFG_CORE_LTC_BIGNUM_MAX_BITS * 2;
 	mem.pool = get_mpa_scratch_memory_pool();
 	if (!mem.pool)
 		panic();
 	external_mem_pool = &mem;
+	assert(!mempool_default);
+	mempool_default = mem.pool;
 }
 
 static int init_mpanum(mpanum *a)

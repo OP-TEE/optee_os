@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
-#include <tomcrypt.h>
 #include <util.h>
 
 
@@ -30,30 +29,29 @@
  * From Global Platform: CTS = CBC-CS3
  */
 
-struct ltc_cts_ctx {
+struct cts_ctx {
 	struct crypto_cipher_ctx ctx;
 	struct crypto_cipher_ctx *ecb;
 	struct crypto_cipher_ctx *cbc;
 	TEE_OperationMode mode;
 };
 
-static const struct crypto_cipher_ops ltc_cts_ops;
+static const struct crypto_cipher_ops cts_ops;
 
-static struct ltc_cts_ctx *to_cts_ctx(struct crypto_cipher_ctx *ctx)
+static struct cts_ctx *to_cts_ctx(struct crypto_cipher_ctx *ctx)
 {
-	assert(ctx && ctx->ops == &ltc_cts_ops);
+	assert(ctx && ctx->ops == &cts_ops);
 
-	return container_of(ctx, struct ltc_cts_ctx, ctx);
+	return container_of(ctx, struct cts_ctx, ctx);
 }
 
-static TEE_Result ltc_cts_init(struct crypto_cipher_ctx *ctx,
-			       TEE_OperationMode mode, const uint8_t *key1,
-			       size_t key1_len, const uint8_t *key2,
-			       size_t key2_len, const uint8_t *iv,
-			       size_t iv_len)
+static TEE_Result cts_init(struct crypto_cipher_ctx *ctx,
+			   TEE_OperationMode mode, const uint8_t *key1,
+			   size_t key1_len, const uint8_t *key2,
+			   size_t key2_len, const uint8_t *iv, size_t iv_len)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct ltc_cts_ctx *c = to_cts_ctx(ctx);
+	struct cts_ctx *c = to_cts_ctx(ctx);
 
 	c->mode = mode;
 
@@ -66,55 +64,54 @@ static TEE_Result ltc_cts_init(struct crypto_cipher_ctx *ctx,
 				  key1_len, key2, key2_len, iv, iv_len);
 }
 
-static TEE_Result ltc_cts_update(struct crypto_cipher_ctx *ctx,
-				 bool last_block, const uint8_t *data,
-				 size_t len, uint8_t *dst)
+static TEE_Result cts_update(struct crypto_cipher_ctx *ctx, bool last_block,
+			     const uint8_t *data, size_t len, uint8_t *dst)
 {
-	struct ltc_cts_ctx *c = to_cts_ctx(ctx);
+	struct cts_ctx *c = to_cts_ctx(ctx);
 
 	return tee_aes_cbc_cts_update(c->cbc, c->ecb, c->mode, last_block,
 				      data, len, dst);
 }
 
-static void ltc_cts_final(struct crypto_cipher_ctx *ctx)
+static void cts_final(struct crypto_cipher_ctx *ctx)
 {
-	struct ltc_cts_ctx *c = to_cts_ctx(ctx);
+	struct cts_ctx *c = to_cts_ctx(ctx);
 
 	crypto_cipher_final(c->cbc, TEE_ALG_AES_CBC_NOPAD);
 	crypto_cipher_final(c->ecb, TEE_ALG_AES_ECB_NOPAD);
 }
 
-static void ltc_cts_free_ctx(struct crypto_cipher_ctx *ctx)
+static void cts_free_ctx(struct crypto_cipher_ctx *ctx)
 {
-	struct ltc_cts_ctx *c = to_cts_ctx(ctx);
+	struct cts_ctx *c = to_cts_ctx(ctx);
 
 	crypto_cipher_free_ctx(c->cbc, TEE_ALG_AES_CBC_NOPAD);
 	crypto_cipher_free_ctx(c->ecb, TEE_ALG_AES_ECB_NOPAD);
 	free(c);
 }
 
-static void ltc_cts_copy_state(struct crypto_cipher_ctx *dst_ctx,
-			       struct crypto_cipher_ctx *src_ctx)
+static void cts_copy_state(struct crypto_cipher_ctx *dst_ctx,
+			   struct crypto_cipher_ctx *src_ctx)
 {
-	struct ltc_cts_ctx *src = to_cts_ctx(src_ctx);
-	struct ltc_cts_ctx *dst = to_cts_ctx(dst_ctx);
+	struct cts_ctx *src = to_cts_ctx(src_ctx);
+	struct cts_ctx *dst = to_cts_ctx(dst_ctx);
 
 	crypto_cipher_copy_state(dst->cbc, src->cbc, TEE_ALG_AES_CBC_NOPAD);
 	crypto_cipher_copy_state(dst->ecb, src->ecb, TEE_ALG_AES_ECB_NOPAD);
 }
 
-static const struct crypto_cipher_ops ltc_cts_ops = {
-	.init = ltc_cts_init,
-	.update = ltc_cts_update,
-	.final = ltc_cts_final,
-	.free_ctx = ltc_cts_free_ctx,
-	.copy_state = ltc_cts_copy_state,
+static const struct crypto_cipher_ops cts_ops = {
+	.init = cts_init,
+	.update = cts_update,
+	.final = cts_final,
+	.free_ctx = cts_free_ctx,
+	.copy_state = cts_copy_state,
 };
 
 TEE_Result crypto_aes_cts_alloc_ctx(struct crypto_cipher_ctx **ctx)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct ltc_cts_ctx *c = calloc(1, sizeof(*c));
+	struct cts_ctx *c = calloc(1, sizeof(*c));
 
 	if (!c)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -126,7 +123,7 @@ TEE_Result crypto_aes_cts_alloc_ctx(struct crypto_cipher_ctx **ctx)
 	if (res)
 		goto err;
 
-	c->ctx.ops = &ltc_cts_ops;
+	c->ctx.ops = &cts_ops;
 	*ctx = &c->ctx;
 
 	return TEE_SUCCESS;

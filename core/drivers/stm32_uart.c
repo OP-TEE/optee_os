@@ -12,6 +12,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
+#include <stm32_util.h>
 #include <util.h>
 
 #define UART_REG_CR1			0x00	/* Control register 1 */
@@ -43,7 +44,7 @@
 
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
-	struct stm32_uart_pdata *pd;
+	struct stm32_uart_pdata *pd = NULL;
 
 	pd = container_of(chip, struct stm32_uart_pdata, chip);
 
@@ -105,18 +106,40 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 }
 
 #ifdef CFG_DT
+static void register_secure_uart(struct stm32_uart_pdata *pd)
+{
+	size_t n = 0;
+
+	stm32mp_register_secure_periph_iomem(pd->base.pa);
+	for (n = 0; n < pd->pinctrl_count; n++)
+		stm32mp_register_secure_gpio(pd->pinctrl[n].bank,
+					     pd->pinctrl[n].pin);
+}
+
+static void register_non_secure_uart(struct stm32_uart_pdata *pd)
+{
+	size_t n = 0;
+
+	stm32mp_register_non_secure_periph_iomem(pd->base.pa);
+	for (n = 0; n < pd->pinctrl_count; n++)
+		stm32mp_register_non_secure_gpio(pd->pinctrl[n].bank,
+						 pd->pinctrl[n].pin);
+}
+
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 {
-	struct stm32_uart_pdata *pd;
-	struct dt_node_info info;
+	struct stm32_uart_pdata *pd = NULL;
+	struct dt_node_info info = { };
+	struct stm32_pinctrl *pinctrl_cfg = NULL;
+	int count = 0;
 
 	_fdt_fill_device_info(fdt, &info, node);
 
 	if (info.status == DT_STATUS_DISABLED)
 		return NULL;
 
-	if (info.clock < 0)
-		panic();
+	assert(info.clock != DT_INFO_INVALID_CLOCK &&
+	       info.reg != DT_INFO_INVALID_REG);
 
 	pd = calloc(1, sizeof(*pd));
 	if (!pd)
@@ -131,6 +154,26 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
 					    pd->secure ? MEM_AREA_IO_SEC :
 					    MEM_AREA_IO_NSEC);
+
+	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
+	if (count < 0)
+		panic();
+
+	if (count) {
+		pinctrl_cfg = calloc(count, sizeof(*pinctrl_cfg));
+		if (!pinctrl_cfg)
+			panic();
+
+		stm32_pinctrl_fdt_get_pinctrl(fdt, node, pinctrl_cfg, count);
+		stm32_pinctrl_load_active_cfg(pinctrl_cfg, count);
+	}
+	pd->pinctrl = pinctrl_cfg;
+	pd->pinctrl_count = count;
+
+	if (pd->secure)
+		register_secure_uart(pd);
+	else
+		register_non_secure_uart(pd);
 
 	return pd;
 }

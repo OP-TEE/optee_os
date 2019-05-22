@@ -234,28 +234,11 @@ struct i2c_timing_s {
 	bool is_saved;
 };
 
-/*
- * I2C specification values as per version 6.0, 4th of April 2014 [1],
- * table 10 page 48: Characteristics of the SDA and SCL bus lines for
- * Standard, Fast, and Fast-mode Plus I2C-bus devices.
- *
- * [1] https://www.nxp.com/docs/en/user-guide/UM10204.pdf
- */
-enum i2c_speed_e {
-	I2C_SPEED_STANDARD,	/* 100 kHz */
-	I2C_SPEED_FAST,		/* 400 kHz */
-	I2C_SPEED_FAST_PLUS,	/* 1 MHz   */
-};
-
-#define STANDARD_RATE				100000
-#define FAST_RATE				400000
-#define FAST_PLUS_RATE				1000000
-
 static const struct i2c_spec_s i2c_specs[] = {
 	[I2C_SPEED_STANDARD] = {
-		.rate = STANDARD_RATE,
-		.rate_min = (STANDARD_RATE * 80) / 100,
-		.rate_max = (STANDARD_RATE * 120) / 100,
+		.rate = I2C_STANDARD_RATE,
+		.rate_min = (I2C_STANDARD_RATE * 80) / 100,
+		.rate_max = (I2C_STANDARD_RATE * 120) / 100,
 		.fall_max = 300,
 		.rise_max = 1000,
 		.hddat_min = 0,
@@ -265,9 +248,9 @@ static const struct i2c_spec_s i2c_specs[] = {
 		.h_min = 4000,
 	},
 	[I2C_SPEED_FAST] = {
-		.rate = FAST_RATE,
-		.rate_min = (FAST_RATE * 80) / 100,
-		.rate_max = (FAST_RATE * 120) / 100,
+		.rate = I2C_FAST_RATE,
+		.rate_min = (I2C_FAST_RATE * 80) / 100,
+		.rate_max = (I2C_FAST_RATE * 120) / 100,
 		.fall_max = 300,
 		.rise_max = 300,
 		.hddat_min = 0,
@@ -277,9 +260,9 @@ static const struct i2c_spec_s i2c_specs[] = {
 		.h_min = 600,
 	},
 	[I2C_SPEED_FAST_PLUS] = {
-		.rate = FAST_PLUS_RATE,
-		.rate_min = (FAST_PLUS_RATE * 80) / 100,
-		.rate_max = (FAST_PLUS_RATE * 120) / 100,
+		.rate = I2C_FAST_PLUS_RATE,
+		.rate_min = (I2C_FAST_PLUS_RATE * 80) / 100,
+		.rate_max = (I2C_FAST_PLUS_RATE * 120) / 100,
 		.fall_max = 100,
 		.rise_max = 120,
 		.hddat_min = 0,
@@ -308,7 +291,7 @@ struct i2c_request {
 
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
-	return io_pa_or_va(&hi2c->base);
+	return io_pa_or_va_secure(&hi2c->base);
 }
 
 static void notif_i2c_timeout(struct i2c_handle_s *hi2c)
@@ -648,10 +631,13 @@ static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
 }
 
 int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
-				 struct stm32_i2c_init_s *init)
+				 struct stm32_i2c_init_s *init,
+				 struct stm32_pinctrl **pinctrl,
+				 size_t *pinctrl_count)
 {
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
+	int count = 0;
 
 	/* Default STM32 specific configs caller may need to overwrite */
 	memset(init, 0, sizeof(*init));
@@ -677,13 +663,13 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	cuint = fdt_getprop(fdt, node, "clock-frequency", NULL);
 	if (cuint) {
 		switch (fdt32_to_cpu(*cuint)) {
-		case STANDARD_RATE:
+		case I2C_STANDARD_RATE:
 			init->speed_mode = I2C_SPEED_STANDARD;
 			break;
-		case FAST_RATE:
+		case I2C_FAST_RATE:
 			init->speed_mode = I2C_SPEED_FAST;
 			break;
-		case FAST_PLUS_RATE:
+		case I2C_FAST_PLUS_RATE:
 			init->speed_mode = I2C_SPEED_FAST_PLUS;
 			break;
 		default:
@@ -693,6 +679,24 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	} else {
 		init->speed_mode = STM32_I2C_SPEED_DEFAULT;
 	}
+
+	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
+	if (count <= 0) {
+		*pinctrl = NULL;
+		*pinctrl_count = 0;
+		return count;
+	}
+
+	if (count > 2)
+		panic("Too many PINCTRLs found");
+
+	*pinctrl = calloc(count, sizeof(**pinctrl));
+	if (!*pinctrl)
+		panic();
+
+	*pinctrl_count = stm32_pinctrl_fdt_get_pinctrl(fdt, node,
+						       *pinctrl, count);
+	assert(*pinctrl_count == (unsigned int)count);
 
 	return 0;
 }
@@ -881,7 +885,7 @@ static int i2c_wait_txis(struct i2c_handle_s *hi2c, uint64_t timeout_ref)
 /* Wait STOPF bit is 1 in I2C_ISR register */
 static int i2c_wait_stop(struct i2c_handle_s *hi2c, uint64_t timeout_ref)
 {
-	while (timeout_elapsed(timeout_ref)) {
+	while (!timeout_elapsed(timeout_ref)) {
 		if (io_read32(get_base(hi2c) + I2C_ISR) & I2C_ISR_STOPF)
 			break;
 
@@ -1381,8 +1385,10 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 	    (hi2c->i2c_state != I2C_STATE_SUSPENDED))
 		panic();
 
+	stm32_pinctrl_load_active_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
+
 	if (hi2c->i2c_state == I2C_STATE_RESET) {
-		/* This is no valid I2C configuration loaded yet */
+		/* There is no valid I2C configuration to be loaded yet */
 		return;
 	}
 
@@ -1400,6 +1406,7 @@ void stm32_i2c_suspend(struct i2c_handle_s *hi2c)
 		panic();
 
 	save_cfg(hi2c, &hi2c->sec_cfg);
+	stm32_pinctrl_load_standby_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
 
 	hi2c->i2c_state = I2C_STATE_SUSPENDED;
 }

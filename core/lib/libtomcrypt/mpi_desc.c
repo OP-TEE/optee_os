@@ -13,7 +13,7 @@
 #include <tomcrypt_mp.h>
 #include <util.h>
 
-#if defined(CFG_WITH_PAGER)
+#if defined(_CFG_CORE_LTC_PAGER)
 #include <mm/core_mmu.h>
 #include <mm/tee_pager.h>
 #endif
@@ -21,7 +21,12 @@
 /* Size needed for xtest to pass reliably on both ARM32 and ARM64 */
 #define MPI_MEMPOOL_SIZE	(42 * 1024)
 
-#if defined(CFG_WITH_PAGER)
+/* From mbedtls/library/bignum.c */
+#define ciL		(sizeof(mbedtls_mpi_uint))	/* chars in limb  */
+#define biL		(ciL << 3)			/* bits  in limb  */
+#define BITS_TO_LIMBS(i)	((i) / biL + ((i) % biL != 0))
+
+#if defined(_CFG_CORE_LTC_PAGER)
 /* allocate pageable_zi vmem for mp scratch memory pool */
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
@@ -29,13 +34,13 @@ static struct mempool *get_mp_scratch_memory_pool(void)
 	void *data;
 
 	size = ROUNDUP(MPI_MEMPOOL_SIZE, SMALL_PAGE_SIZE);
-	data = tee_pager_alloc(size, 0);
+	data = tee_pager_alloc(size);
 	if (!data)
 		panic();
 
 	return mempool_alloc_pool(data, size, tee_pager_release_phys);
 }
-#else /* CFG_WITH_PAGER */
+#else /* _CFG_CORE_LTC_PAGER */
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
 	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
@@ -51,6 +56,8 @@ void init_mp_tomcrypt(void)
 	if (!p)
 		panic();
 	mbedtls_mpi_mempool = p;
+	assert(!mempool_default);
+	mempool_default = p;
 }
 
 static int init(void **a)
@@ -714,12 +721,18 @@ void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
 	mbedtls_mpi_copy((mbedtls_mpi *)to, (const mbedtls_mpi *)from);
 }
 
-struct bignum *crypto_bignum_allocate(size_t size_bits __unused)
+struct bignum *crypto_bignum_allocate(size_t size_bits)
 {
 	mbedtls_mpi *bn = malloc(sizeof(*bn));
 
-	if (bn)
-		mbedtls_mpi_init(bn);
+	if (!bn)
+		return NULL;
+
+	mbedtls_mpi_init(bn);
+	if (mbedtls_mpi_grow(bn, BITS_TO_LIMBS(size_bits))) {
+		free(bn);
+		return NULL;
+	}
 
 	return (struct bignum *)bn;
 }

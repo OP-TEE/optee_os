@@ -7,6 +7,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <optee_rpc_cmd.h>
@@ -49,41 +50,15 @@ static int pos_to_block_num(int position)
 
 static struct mutex ree_fs_mutex = MUTEX_INITIALIZER;
 
-#ifdef CFG_WITH_PAGER
-static void *ree_fs_tmp_block;
-static bool ree_fs_tmp_block_busy;
-
 static void *get_tmp_block(void)
 {
-	assert(!ree_fs_tmp_block_busy);
-	if (!ree_fs_tmp_block)
-		ree_fs_tmp_block = tee_pager_alloc(BLOCK_SIZE,
-						   TEE_MATTR_LOCKED);
-
-	if (ree_fs_tmp_block)
-		ree_fs_tmp_block_busy = true;
-
-	return ree_fs_tmp_block;
+	return mempool_alloc(mempool_default, BLOCK_SIZE);
 }
 
 static void put_tmp_block(void *tmp_block)
 {
-	assert(ree_fs_tmp_block_busy);
-	assert(tmp_block == ree_fs_tmp_block);
-	tee_pager_release_phys(tmp_block, BLOCK_SIZE);
-	ree_fs_tmp_block_busy = false;
+	mempool_free(mempool_default, tmp_block);
 }
-#else
-static void *get_tmp_block(void)
-{
-	return malloc(BLOCK_SIZE);
-}
-
-static void put_tmp_block(void *tmp_block)
-{
-	free(tmp_block);
-}
-#endif
 
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 				     const void *buf, size_t len)

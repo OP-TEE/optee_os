@@ -5,6 +5,7 @@
 
 #include <inttypes.h>
 #include <kernel/tee_common_otp.h>
+#include <kernel/huk_subkey.h>
 
 /*
  * Override these in your platform code to really fetch device-unique
@@ -21,11 +22,8 @@ __weak TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 {
-	static const char pattern[4] = { 'B', 'E', 'E', 'F' };
-	size_t i;
-
-	for (i = 0; i < len; i++)
-		buffer[i] = pattern[i % 4];
+	if (huk_subkey_derive(HUK_SUBKEY_DIE_ID, NULL, 0, buffer, len))
+		return -1;
 
 	return 0;
 }

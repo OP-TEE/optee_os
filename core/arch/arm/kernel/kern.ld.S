@@ -134,7 +134,6 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-	.interp : { *(.interp) }
 	.hash : { *(.hash) }
 	.dynsym : { *(.dynsym) }
 	.dynstr : { *(.dynstr) }
@@ -158,7 +157,6 @@ SECTIONS
 	.rela.bss : { *(.rela.bss) }
 	.rel.plt : { *(.rel.plt) }
 	.rela.plt : { *(.rela.plt) }
-	.init : { *(.init) } =0x9090
 	.plt : { *(.plt) }
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
@@ -214,7 +212,7 @@ SECTIONS
 		__nex_heap_end = .;
 	}
 	.nex_nozi (NOLOAD) : {
-		ASSERT(!( . & (16 * 1024 - 1)), "align nozi to 16kB");
+		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
 		KEEP(*(.nozi.mmu.l1 .nozi.mmu.l2))
 	}
 
@@ -270,7 +268,11 @@ SECTIONS
 #ifndef CFG_WITH_PAGER
 		. += CFG_CORE_HEAP_SIZE;
 #endif
+#ifdef CFG_WITH_LPAE
+		. = ALIGN(4 * 1024);
+#else
 		. = ALIGN(16 * 1024);
+#endif
 		__heap1_end = .;
 	}
 	/*
@@ -281,8 +283,6 @@ SECTIONS
 	 */
 	.nozi (NOLOAD) : {
 		__nozi_start = .;
-		ASSERT(!(__nozi_start & (16 * 1024 - 1)), "align nozi to 16kB");
-
 		KEEP(*(.nozi .nozi.*))
 		. = ALIGN(16);
 		__nozi_end = .;
@@ -439,7 +439,7 @@ SECTIONS
 
 	/DISCARD/ : {
 		/* Strip unnecessary stuff */
-		*(.comment .note .eh_frame)
+		*(.comment .note .eh_frame .interp)
 		/* Strip meta variables */
 		*(__keep_meta_vars*)
 	}

@@ -44,6 +44,7 @@ TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, struct mobj *mobj,
 /* Map parameters for a user TA */
 TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 		struct tee_ta_param *param, void *param_va[TEE_NUM_PARAMS]);
+void tee_mmu_clean_param(struct user_ta_ctx *utc);
 
 TEE_Result tee_mmu_add_rwmem(struct user_ta_ctx *utc, struct mobj *mobj,
 			     vaddr_t *va);
@@ -99,7 +100,9 @@ uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx);
 
 /* init some allocation pools */
 void teecore_init_ta_ram(void);
+#ifdef CFG_CORE_RESERVED_SHM
 void teecore_init_pub_ram(void);
+#endif
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_ta_ctx *utc, void *va);
 

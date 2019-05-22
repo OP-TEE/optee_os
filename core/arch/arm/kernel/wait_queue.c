@@ -25,18 +25,17 @@ void wq_init(struct wait_queue *wq)
  * the unpaged area.
  */
 void __weak __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
-		     int owner __maybe_unused, const char *fname,
-		     int lineno __maybe_unused)
+		     const char *fname, int lineno __maybe_unused)
 {
 	uint32_t ret;
 	const char *cmd_str __maybe_unused =
 	     func == OPTEE_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ";
 
 	if (fname)
-		DMSG("%s thread %u %p %d %s:%d", cmd_str, id,
-		     sync_obj, owner, fname, lineno);
+		DMSG("%s thread %u %p %s:%d", cmd_str, id,
+		     sync_obj, fname, lineno);
 	else
-		DMSG("%s thread %u %p %d", cmd_str, id, sync_obj, owner);
+		DMSG("%s thread %u %p", cmd_str, id, sync_obj);
 
 	struct thread_param params = THREAD_PARAM_VALUE(IN, func, id, 0);
 
@@ -77,15 +76,14 @@ void wq_wait_init_condvar(struct wait_queue *wq, struct wait_queue_elem *wqe,
 }
 
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
-		   const void *sync_obj, int owner, const char *fname,
-		   int lineno)
+		   const void *sync_obj, const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 	unsigned done;
 
 	do {
 		__wq_rpc(OPTEE_RPC_WAIT_QUEUE_SLEEP, wqe->handle,
-			 sync_obj, owner, fname, lineno);
+			 sync_obj, fname, lineno);
 
 		old_itr_status = cpu_spin_lock_xsave(&wq_spin_lock);
 
@@ -139,8 +137,7 @@ void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
 
 		if (do_wakeup)
 			__wq_rpc(OPTEE_RPC_WAIT_QUEUE_WAKEUP, handle,
-				 sync_obj, MUTEX_OWNER_ID_MUTEX_UNLOCK,
-				 fname, lineno);
+				 sync_obj, fname, lineno);
 
 		if (!do_wakeup || !wake_read)
 			break;

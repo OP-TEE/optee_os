@@ -154,22 +154,15 @@ static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
 /* Kernel or user mode unwind (64-bit execution state) */
 static void __print_stack_unwind_arm64(struct abort_info *ai)
 {
-	struct unwind_state_arm64 state;
-	bool kernel_stack;
-	uaddr_t stack;
-	size_t stack_size;
+	struct unwind_state_arm64 state = { };
+	bool kernel_stack = false;
+	uaddr_t stack = 0;
+	size_t stack_size = 0;
 
 	if (abort_is_user_exception(ai)) {
-		struct tee_ta_session *s;
-		struct user_ta_ctx *utc;
-
-		if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-			panic();
-
-		utc = to_user_ta_ctx(s->ctx);
 		/* User stack */
-		stack = utc->stack_addr;
-		stack_size = utc->mobj_stack->size;
+		stack = 0;
+		stack_size = 0;
 		kernel_stack = false;
 	} else {
 		/* Kernel stack */
@@ -178,7 +171,6 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 		kernel_stack = true;
 	}
 
-	memset(&state, 0, sizeof(state));
 	state.pc = ai->regs->elr;
 	state.fp = ai->regs->x29;
 
@@ -234,19 +226,28 @@ static __maybe_unused void
 __print_abort_info(struct abort_info *ai __maybe_unused,
 		   const char *ctx __maybe_unused)
 {
+	__maybe_unused size_t core_pos = 0;
 #ifdef ARM32
 	uint32_t mode = ai->regs->spsr & CPSR_MODE_MASK;
-	__maybe_unused uint32_t sp;
-	__maybe_unused uint32_t lr;
+	__maybe_unused uint32_t sp = 0;
+	__maybe_unused uint32_t lr = 0;
 
 	if (mode == CPSR_MODE_USR || mode == CPSR_MODE_SYS) {
 		sp = ai->regs->usr_sp;
 		lr = ai->regs->usr_lr;
+		core_pos = thread_get_tsd()->abort_core;
 	} else {
 		sp = read_mode_sp(mode);
 		lr = read_mode_lr(mode);
+		core_pos = get_core_pos();
 	}
 #endif /*ARM32*/
+#ifdef ARM64
+	if (abort_is_user_exception(ai))
+		core_pos = thread_get_tsd()->abort_core;
+	else
+		core_pos = get_core_pos();
+#endif /*ARM64*/
 
 	EMSG_RAW("");
 	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
@@ -257,7 +258,7 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
 		 read_contextidr());
 	EMSG_RAW(" cpu #%zu          cpsr 0x%08x",
-		 get_core_pos(), ai->regs->spsr);
+		 core_pos, ai->regs->spsr);
 	EMSG_RAW(" r0 0x%08x      r4 0x%08x    r8 0x%08x   r12 0x%08x",
 		 ai->regs->r0, ai->regs->r4, ai->regs->r8, ai->regs->ip);
 	EMSG_RAW(" r1 0x%08x      r5 0x%08x    r9 0x%08x    sp 0x%08x",
@@ -272,7 +273,7 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 		 "   cidr 0x%X", ai->fault_descr, read_ttbr0_el1(),
 		 read_ttbr1_el1(), read_contextidr_el1());
 	EMSG_RAW(" cpu #%zu          cpsr 0x%08x",
-		 get_core_pos(), (uint32_t)ai->regs->spsr);
+		 core_pos, (uint32_t)ai->regs->spsr);
 	EMSG_RAW(" x0  %016" PRIx64 " x1  %016" PRIx64,
 		 ai->regs->x0, ai->regs->x1);
 	EMSG_RAW(" x2  %016" PRIx64 " x3  %016" PRIx64,
@@ -309,58 +310,24 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 #endif /*ARM64*/
 }
 
-#if defined(ARM32)
-static const bool kernel_is32bit = true;
-#elif defined(ARM64)
-static const bool kernel_is32bit;
-#endif
-
 /*
  * Print abort info and (optionally) stack dump to the console
- * @ai user-mode or kernel-mode abort info. If user mode, the current session
- * must be the one of the TA that caused the abort.
+ * @ai kernel-mode abort info.
  * @stack_dump true to show a stack trace
  */
 static void __abort_print(struct abort_info *ai, bool stack_dump)
 {
-	bool is_32bit;
-	bool paged_ta_abort = false;
+	assert(!abort_is_user_exception(ai));
 
-	if (abort_is_user_exception(ai)) {
-		struct tee_ta_session *s;
-		struct user_ta_ctx *utc;
+	__print_abort_info(ai, "Core");
 
-		if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-			panic();
-
-		utc = to_user_ta_ctx(s->ctx);
-		is_32bit = utc->is_32bit;
-#ifdef CFG_PAGED_USER_TA
-		/*
-		 * It is not safe to unwind paged TAs that received an abort,
-		 * because we currently don't handle page faults that could
-		 * occur when accessing the TA memory (unwind tables for
-		 * instance).
-		 */
-		if (ai->abort_type != ABORT_TYPE_TA_PANIC)
-			paged_ta_abort = true;
-#endif
-		if (ai->abort_type != ABORT_TYPE_TA_PANIC)
-			__print_abort_info(ai, "User TA");
-		tee_ta_dump_current();
-	} else {
-		is_32bit = kernel_is32bit;
-
-		__print_abort_info(ai, "Core");
-	}
-
-	if (!stack_dump || paged_ta_abort)
-		return;
-
-	if (is_32bit)
+	if (stack_dump) {
+#if defined(ARM32)
 		__print_stack_unwind_arm32(ai);
-	else
+#else
 		__print_stack_unwind_arm64(ai);
+#endif
+	}
 }
 
 void abort_print(struct abort_info *ai)
@@ -371,6 +338,43 @@ void abort_print(struct abort_info *ai)
 void abort_print_error(struct abort_info *ai)
 {
 	__abort_print(ai, true);
+}
+
+/* This function must be called from a normal thread */
+void abort_print_current_ta(void)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct abort_info ai = { };
+	struct tee_ta_session *s = NULL;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		panic();
+
+	ai.abort_type = tsd->abort_type;
+	ai.fault_descr = tsd->abort_descr;
+	ai.va = tsd->abort_va;
+	ai.pc = tsd->abort_regs.elr;
+	ai.regs = &tsd->abort_regs;
+
+	if (ai.abort_type != ABORT_TYPE_TA_PANIC)
+		__print_abort_info(&ai, "User TA");
+	tee_ta_dump_current();
+
+	if (to_user_ta_ctx(s->ctx)->is_32bit)
+		__print_stack_unwind_arm32(&ai);
+	else
+		__print_stack_unwind_arm64(&ai);
+}
+
+static void save_abort_info_in_tsd(struct abort_info *ai)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	tsd->abort_type = ai->abort_type;
+	tsd->abort_descr = ai->fault_descr;
+	tsd->abort_va = ai->va;
+	tsd->abort_regs = *ai->regs;
+	tsd->abort_core = get_core_pos();
 }
 
 #ifdef ARM32
@@ -582,7 +586,8 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		break;
 
 	case CORE_MMU_FAULT_DEBUG_EVENT:
-		abort_print(ai);
+		if (!abort_is_user_exception(ai))
+			abort_print(ai);
 		DMSG("[abort] Ignoring debug event!");
 		return FAULT_TYPE_IGNORE;
 
@@ -592,13 +597,15 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		return FAULT_TYPE_PAGEABLE;
 
 	case CORE_MMU_FAULT_ASYNC_EXTERNAL:
-		abort_print(ai);
+		if (!abort_is_user_exception(ai))
+			abort_print(ai);
 		DMSG("[abort] Ignoring async external abort!");
 		return FAULT_TYPE_IGNORE;
 
 	case CORE_MMU_FAULT_OTHER:
 	default:
-		abort_print(ai);
+		if (!abort_is_user_exception(ai))
+			abort_print(ai);
 		DMSG("[abort] Unhandled fault!");
 		return FAULT_TYPE_IGNORE;
 	}
@@ -616,7 +623,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
 		DMSG("[abort] abort in User mode (TA will panic)");
-		abort_print_error(&ai);
+		save_abort_info_in_tsd(&ai);
 		vfp_disable();
 		handle_user_ta_panic(&ai);
 		break;
@@ -635,10 +642,12 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		handled = tee_pager_handle_fault(&ai);
 		thread_kernel_restore_vfp();
 		if (!handled) {
-			abort_print_error(&ai);
-			if (!abort_is_user_exception(&ai))
+			if (!abort_is_user_exception(&ai)) {
+				abort_print_error(&ai);
 				panic("unhandled pageable abort");
+			}
 			DMSG("[abort] abort in User mode (TA will panic)");
+			save_abort_info_in_tsd(&ai);
 			vfp_disable();
 			handle_user_ta_panic(&ai);
 		}
