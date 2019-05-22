@@ -38,6 +38,15 @@ void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
 
 	res = __utee_entry(func, session_id, up, cmd_id);
 
+#if defined(CFG_TA_FTRACE_SUPPORT)
+	/*
+	 * __ta_entry is the first TA API called from TEE core. As it being
+	 * __noreturn API, we need to call ftrace_return in this API just
+	 * before utee_return syscall to get proper ftrace call graph.
+	 */
+	ftrace_return();
+#endif
+
 	utee_return(res);
 }
 
@@ -107,6 +116,14 @@ const struct user_ta_property ta_props[] = {
 };
 
 const size_t ta_num_props = sizeof(ta_props) / sizeof(ta_props[0]);
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+struct __ftrace_info __ftrace_info = {
+	.buf_start = (uintptr_t)&__ftrace_buf_start,
+	.buf_end = (uintptr_t)__ftrace_buf_end,
+	.ret_ptr = (uintptr_t)&__ftrace_return,
+};
+#endif
 
 int tahead_get_trace_level(void)
 {
