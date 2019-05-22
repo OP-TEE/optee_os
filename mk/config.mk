@@ -353,12 +353,19 @@ CFG_CORE_NEX_HEAP_SIZE ?= 16384
 # tee-supplicant)
 CFG_TA_GPROF_SUPPORT ?= n
 
+# TA function tracing.
+# When this option is enabled, OP-TEE can execute Trusted Applications
+# instrumented with GCC's -pg flag and will output function tracing
+# information in ftrace.out format to /tmp/ftrace-<ta_uuid>.out (path is
+# defined in tee-supplicant)
+CFG_TA_FTRACE_SUPPORT ?= n
+
 # Enable to compile user TA libraries with profiling (-pg).
-# Depends on CFG_TA_GPROF_SUPPORT.
+# Depends on CFG_TA_GPROF_SUPPORT or CFG_TA_FTRACE_SUPPORT.
 CFG_ULIBS_MCOUNT ?= n
 
 ifeq ($(CFG_ULIBS_MCOUNT),y)
-ifneq ($(CFG_TA_GPROF_SUPPORT),y)
+ifeq (,$(filter y,$(CFG_TA_GPROF_SUPPORT) $(CFG_TA_FTRACE_SUPPORT)))
 $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif

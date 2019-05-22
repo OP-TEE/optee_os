@@ -5,7 +5,7 @@
 
 #include <asm.S>
 
-#ifdef CFG_TA_GPROF_SUPPORT
+#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
 
 /*
  * Convert return address to call site address by subtracting the size of the
@@ -27,11 +27,25 @@
 FUNC __gnu_mcount_nc, :
 	stmdb		sp!, {r0-r3, lr}
 	ldr		r0, [sp, #20]		/* lr of instrumented func */
+#ifdef CFG_TA_GPROF_SUPPORT
 	mcount_adj_pc	r0, r0
 	mcount_adj_pc	r1, lr			/* instrumented func */
 	bl		__mcount_internal
+#endif
 	ldmia		sp!, {r0-r3, ip, lr}
 	bx		ip
 END_FUNC __gnu_mcount_nc
 
-#endif /* CFG_TA_GPROF_SUPPORT */
+#ifdef CFG_TA_FTRACE_SUPPORT
+/*
+ * ftrace is not yet supported in 32bit mode. Currently this is just a
+ * placeholder to avoid linking error.
+ */
+FUNC __ftrace_return, :
+	push		{lr}
+	pop		{ip, lr}
+	bx		ip
+END_FUNC __ftrace_return
+#endif
+
+#endif /* CFG_TA_GPROF_SUPPORT || CFG_TA_FTRACE_SUPPORT */

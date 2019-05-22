@@ -15,6 +15,10 @@ OUTPUT_ARCH(aarch64)
 #define GPROF_BUF_MULT(x) ((x) * 177) / 100
 #endif
 
+#ifndef CFG_FTRACE_BUF_SIZE
+#define CFG_FTRACE_BUF_SIZE 2048
+#endif
+
 SECTIONS {
 	.ta_head : {*(.ta_head)}
 	.text : {
@@ -86,6 +90,17 @@ SECTIONS {
 		. += DEFINED(MCOUNT_SYM) ?
 			GPROF_BUF_MULT(__text_end - __text_start) : 0;
 		__gprof_buf_end = .;
+
+		/*
+		 * TA tracing using ftrace
+		 * Reserve some space for the ftrace buffer, only if the
+		 * TA is instrumented (i.e., some files were built with -pg).
+		 */
+		. = ALIGN(8);
+		__ftrace_buf_start = .;
+		. += DEFINED(MCOUNT_SYM) ?
+			CFG_FTRACE_BUF_SIZE : 0;
+		__ftrace_buf_end = .;
 	}
 
 	/DISCARD/ : { *(.interp) }

@@ -5,8 +5,7 @@
 
 #include <asm.S>
 
-#ifdef CFG_TA_GPROF_SUPPORT
-
+#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
 
 /*
  * Convert return address to call site address by subtracting the size of one
@@ -14,6 +13,18 @@
  */
 .macro adjust_pc rd, rn
 	sub	\rd, \rn, #4
+.endm
+
+/* Get instrumented function's pc value */
+.macro get_pc reg
+	ldr	\reg, [x29, #8]
+	sub	\reg, \reg, #4
+.endm
+
+/* Get instrumented function's lr address pointer */
+.macro get_lr_addr reg
+	ldr	\reg, [x29]
+	add	\reg, \reg, #8
 .endm
 
 /*
@@ -31,11 +42,42 @@
 FUNC _mcount, :
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
+#ifdef CFG_TA_GPROF_SUPPORT
 	adjust_pc	x0, x0
 	adjust_pc	x1, x30
 	bl		__mcount_internal
+#endif
+#ifdef CFG_TA_FTRACE_SUPPORT
+	get_pc		x0
+	get_lr_addr	x1
+	bl		ftrace_enter
+#endif
 	ldp		x29, x30, [sp], #16
 	ret
 END_FUNC _mcount
 
-#endif /* CFG_TA_GPROF_SUPPORT */
+#ifdef CFG_TA_FTRACE_SUPPORT
+FUNC __ftrace_return, :
+	/* Save return value regs */
+	sub		sp, sp, #64
+	stp		x0, x1, [sp]
+	stp		x2, x3, [sp, #16]
+	stp		x4, x5, [sp, #32]
+	stp		x6, x7, [sp, #48]
+
+	/* Get return address of parent func */
+	bl		ftrace_return
+	mov		x30, x0
+
+	/* Restore return value regs */
+	ldp		x0, x1, [sp]
+	ldp		x2, x3, [sp, #16]
+	ldp		x4, x5, [sp, #32]
+	ldp		x6, x7, [sp, #48]
+	add		sp, sp, #64
+
+	ret
+END_FUNC __ftrace_return
+#endif
+
+#endif /* CFG_TA_GPROF_SUPPORT || CFG_TA_FTRACE_SUPPORT */
