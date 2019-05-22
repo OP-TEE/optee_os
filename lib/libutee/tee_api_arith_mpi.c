@@ -13,7 +13,7 @@
 #include <utee_syscalls.h>
 #include <util.h>
 
-#define MPI_MEMPOOL_SIZE	(8 * 1024)
+#define MPI_MEMPOOL_SIZE	(12 * 1024)
 
 static void __noreturn api_panic(const char *func, int line, const char *msg)
 {
