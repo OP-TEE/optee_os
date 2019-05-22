@@ -463,8 +463,8 @@ __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 
 #ifdef CFG_VIRTUALIZATION
 /* Nexus read-write memory */
-PROVIDE(__vcore_nex_rw_start = __flatmap_nex_rw_start);
-PROVIDE(__vcore_nex_rw_size = __flatmap_nex_rw_size);
+__vcore_nex_rw_start = __flatmap_nex_rw_start;
+__vcore_nex_rw_size = __flatmap_nex_rw_size;
 #endif
 
 #ifdef CFG_WITH_PAGER
