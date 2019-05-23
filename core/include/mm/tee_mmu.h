@@ -30,6 +30,8 @@ TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		       uint32_t prot);
 
+TEE_Result vm_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len);
+
 /* Map stack of a user TA.  */
 TEE_Result tee_mmu_map_stack(struct user_ta_ctx *utc, struct mobj *mobj);
 

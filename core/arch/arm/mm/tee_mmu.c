@@ -317,33 +317,17 @@ err_free_reg:
 	return res;
 }
 
-TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
-		       uint32_t prot)
+static TEE_Result find_exact_vm_region(struct user_ta_ctx *utc, vaddr_t va,
+				       size_t len, struct vm_region **r_ret)
 {
-	struct vm_region *r;
+	struct vm_region *r = NULL;
 
-	/*
-	 * To keep thing simple: specified va and len has to match exactly
-	 * with an already registered region.
-	 */
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
 		if (core_is_buffer_intersect(r->va, r->size, va, len)) {
 			if (r->va != va || r->size != len)
 				return TEE_ERROR_BAD_PARAMETERS;
-			if ((r->attr & TEE_MATTR_PROT_MASK) == prot)
-				return TEE_SUCCESS;
-			if (mobj_is_paged(r->mobj)) {
-				if (!tee_pager_set_uta_area_attr(utc, va, len,
-								 prot))
-					return TEE_ERROR_GENERIC;
-			} else if ((prot & TEE_MATTR_UX) &&
-				   (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))) {
-				cache_op_inner(DCACHE_AREA_CLEAN,
-					       (void *)va, len);
-				cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
-			}
-			r->attr &= ~TEE_MATTR_PROT_MASK;
-			r->attr |= prot & TEE_MATTR_PROT_MASK;
+
+			*r_ret = r;
 			return TEE_SUCCESS;
 		}
 	}
@@ -351,6 +335,66 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+		       uint32_t prot)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r = NULL;
+
+	/*
+	 * To keep thing simple: specified va and len have to match exactly
+	 * with an already registered region.
+	 */
+	res = find_exact_vm_region(utc, va, len, &r);
+	if (res)
+		return res;
+
+	if ((r->attr & TEE_MATTR_PROT_MASK) == prot)
+		return TEE_SUCCESS;
+
+	if (mobj_is_paged(r->mobj)) {
+		if (!tee_pager_set_uta_area_attr(utc, va, len,
+						 prot))
+			return TEE_ERROR_GENERIC;
+	} else if ((prot & TEE_MATTR_UX) &&
+		   (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))) {
+		cache_op_inner(DCACHE_AREA_CLEAN,
+			       (void *)va, len);
+		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
+	}
+
+	r->attr &= ~TEE_MATTR_PROT_MASK;
+	r->attr |= prot & TEE_MATTR_PROT_MASK;
+
+	return TEE_SUCCESS;
+}
+
+static void umap_remove_region(struct vm_info *vmi, struct vm_region *reg)
+{
+	TAILQ_REMOVE(&vmi->regions, reg, link);
+	free(reg);
+}
+
+TEE_Result vm_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r = NULL;
+
+	/*
+	 * To keep thing simple: specified va and len has to match exactly
+	 * with an already registered region.
+	 */
+	res = find_exact_vm_region(utc, va, ROUNDUP(len, SMALL_PAGE_SIZE), &r);
+	if (res)
+		return res;
+
+	if (mobj_is_paged(r->mobj))
+		tee_pager_rem_uta_region(utc, r->va, r->size);
+	maybe_free_pgt(utc, r);
+	umap_remove_region(utc->vm_info, r);
+
+	return TEE_SUCCESS;
+}
 
 static TEE_Result map_kinit(struct user_ta_ctx *utc __maybe_unused)
 {
@@ -398,12 +442,6 @@ TEE_Result vm_info_init(struct user_ta_ctx *utc)
 	if (res)
 		vm_info_final(utc);
 	return res;
-}
-
-static void umap_remove_region(struct vm_info *vmi, struct vm_region *reg)
-{
-	TAILQ_REMOVE(&vmi->regions, reg, link);
-	free(reg);
 }
 
 void tee_mmu_clean_param(struct user_ta_ctx *utc)
