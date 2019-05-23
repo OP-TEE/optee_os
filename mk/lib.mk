@@ -19,7 +19,7 @@
 
 subdirs = $(libdir)
 include mk/subdir.mk
-ifneq ($(sm),core) # User-mode
+ifeq ($(filter $(sm), core ldelf),) # TA
 ifeq ($(CFG_ULIBS_MCOUNT),y)
 cflags-lib$(libname)-$(sm) += -pg
 endif
