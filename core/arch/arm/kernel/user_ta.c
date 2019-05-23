@@ -51,7 +51,14 @@ struct load_seg {
 	vaddr_t va;
 	size_t size;
 	struct mobj *mobj;
+	SLIST_ENTRY(load_seg) link;
 };
+
+/*
+ * Note that the load segments are stored in reverse order, that is, the
+ * last segment first.
+ */
+SLIST_HEAD(load_seg_head, load_seg);
 
 /* ELF file used by a TA (main executable or dynamic library) */
 struct user_ta_elf {
@@ -60,20 +67,21 @@ struct user_ta_elf {
 	vaddr_t load_addr;
 	vaddr_t exidx_start; /* 32-bit ELF only */
 	size_t exidx_size;
-	struct load_seg *segs;
-	size_t num_segs;
+	struct load_seg_head segs;
 	struct file *file;
 
 	TAILQ_ENTRY(user_ta_elf) link;
 };
 
-static void free_segs(struct load_seg *segs, size_t num_segs)
+static void free_segs(struct load_seg_head *segs)
 {
-	size_t n = 0;
+	while (!SLIST_EMPTY(segs)) {
+		struct load_seg *s = SLIST_FIRST(segs);
 
-	for (n = 0; n < num_segs; n++)
-		mobj_free(segs[n].mobj);
-	free(segs);
+		SLIST_REMOVE_HEAD(segs, link);
+		mobj_free(s->mobj);
+		free(s);
+	}
 }
 
 static void free_elfs(struct user_ta_elf_head *elfs)
@@ -83,7 +91,7 @@ static void free_elfs(struct user_ta_elf_head *elfs)
 
 	TAILQ_FOREACH_SAFE(elf, elfs, link, next) {
 		TAILQ_REMOVE(elfs, elf, link);
-		free_segs(elf->segs, elf->num_segs);
+		free_segs(&elf->segs);
 		file_put(elf->file);
 		free(elf);
 	}
@@ -112,6 +120,7 @@ static struct user_ta_elf *ta_elf(const TEE_UUID *uuid,
 	if (!elf)
 		goto out;
 	elf->uuid = *uuid;
+	SLIST_INIT(&elf->segs);
 
 	TAILQ_INSERT_TAIL(&utc->elfs, elf, link);
 out:
@@ -132,15 +141,13 @@ static uint32_t elf_flags_to_mattr(uint32_t flags)
 	return mattr;
 }
 
-static TEE_Result get_elf_segments(struct user_ta_elf *elf,
-				   struct load_seg **segs_ret,
-				   size_t *num_segs_ret)
+static TEE_Result get_elf_segments(struct user_ta_elf *elf)
 {
 	struct elf_load_state *elf_state = elf->elf_state;
 	TEE_Result res;
 	size_t idx = 0;
-	size_t num_segs = 0;
-	struct load_seg *segs = NULL;
+	struct load_seg *seg = NULL;
+	struct load_seg *next_seg = NULL;
 
 	/*
 	 * Add code segment
@@ -160,31 +167,30 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 
 		if (type == PT_LOAD) {
 			size_t oend = 0;
-			void *p = realloc(segs, (num_segs + 1) * sizeof(*segs));
 
-			if (!p) {
-				free(segs);
+			seg = malloc(sizeof(*seg));
+			if (!seg)
 				return TEE_ERROR_OUT_OF_MEMORY;
-			}
-			segs = p;
-			segs[num_segs] = (struct load_seg) {
+			*seg = (struct load_seg) {
 				.va = ROUNDDOWN(va, SMALL_PAGE_SIZE),
 				.flags = flags,
 			};
 			oend = ROUNDUP(va + size, SMALL_PAGE_SIZE);
-			segs[num_segs].size = oend - segs[num_segs].va;
-			num_segs++;
+			seg->size = oend - seg->va;
+			SLIST_INSERT_HEAD(&elf->segs, seg, link);
 		} else if (type == PT_ARM_EXIDX) {
 			elf->exidx_start = va;
 			elf->exidx_size = size;
 		}
 	}
 
-	idx = 1;
-	while (idx < num_segs) {
-		if (core_is_buffer_intersect(segs[idx].va, segs[idx].size,
-					     segs[idx - 1].va,
-					     segs[idx - 1].size)) {
+	SLIST_FOREACH(seg, &elf->segs, link) {
+		next_seg = SLIST_NEXT(seg, link);
+		if (!next_seg)
+			break;
+
+		if (core_is_buffer_intersect(seg->va, seg->size,
+					     next_seg->va, next_seg->size)) {
 			size_t size = 0;
 
 			/*
@@ -192,25 +198,20 @@ static TEE_Result get_elf_segments(struct user_ta_elf *elf,
 			 * there's overlap it's only due to ROUNDUP() and
 			 * ROUNDDOWN() above.
 			 */
-			assert(segs[idx - 1].va <= segs[idx].va);
-			size = segs[idx].va + segs[idx].size - segs[idx - 1].va;
-			assert(segs[idx - 1].size <= size);
+			assert(next_seg->va <= seg->va);
+			size = seg->va + seg->size - next_seg->va;
+			assert(next_seg->size <= size);
 
 			/* Merge the segments and their attributes */
-			segs[idx - 1].size = size;
-			segs[idx - 1].flags |= segs[idx].flags;
+			seg->va = next_seg->va;
+			seg->size = size;
+			seg->flags |= next_seg->flags;
 
-			/* Remove this index */
-			memmove(segs + idx, segs + idx + 1,
-				(num_segs - idx - 1) * sizeof(*segs));
-			num_segs--;
-		} else {
-			idx++;
+			SLIST_REMOVE_AFTER(seg, link);
+			free(next_seg);
 		}
 	}
 
-	*segs_ret = segs;
-	*num_segs_ret = num_segs;
 	return TEE_SUCCESS;
 }
 
@@ -424,11 +425,10 @@ static int elf_idx(struct user_ta_ctx *utc, vaddr_t r_va, size_t r_size)
 	int idx = 0;
 
 	TAILQ_FOREACH(elf, &utc->elfs, link) {
-		size_t n;
+		struct load_seg *seg = NULL;
 
-		for (n = 0; n < elf->num_segs; n++)
-			if (elf->segs[n].va == r_va &&
-			    elf->segs[n].size == r_size)
+		SLIST_FOREACH(seg, &elf->segs, link)
+			if (seg->va == r_va && seg->size == r_size)
 				return idx;
 		idx++;
 	}
@@ -568,12 +568,12 @@ static void release_ta_memory_by_mobj(struct mobj *mobj)
 static void free_utc(struct user_ta_ctx *utc)
 {
 	struct user_ta_elf *elf = NULL;
-	size_t n = 0;
+	struct load_seg *seg = NULL;
 
 	tee_pager_rem_uta_areas(utc);
 	TAILQ_FOREACH(elf, &utc->elfs, link)
-		for (n = 0; n < elf->num_segs; n++)
-			release_ta_memory_by_mobj(elf->segs[n].mobj);
+		SLIST_FOREACH(seg, &elf->segs, link)
+			release_ta_memory_by_mobj(seg->mobj);
 	release_ta_memory_by_mobj(utc->mobj_stack);
 	release_ta_memory_by_mobj(utc->mobj_exidx);
 
@@ -813,30 +813,38 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 
 static TEE_Result register_ro_slices(struct user_ta_ctx *utc,
 				     struct elf_load_state *state,
-				     struct load_seg *segs, size_t num_segs)
+				     struct load_seg_head *segs)
 {
 	TEE_Result res = TEE_SUCCESS;
 	unsigned int page_offset = 0;
 	struct fobj *fobj = NULL;
-	size_t n = 0;
+	struct load_seg *seg = NULL;
+	struct load_seg *last_seg = NULL;
 
-	for (n = 0; n < num_segs; n++) {
-		if (segs[n].flags & PF_W)
+	/*
+	 * Find the last segment, that is the one with lowest virtual
+	 * address.
+	 */
+	SLIST_FOREACH(seg, segs, link)
+		last_seg = seg;
+
+	SLIST_FOREACH(seg, segs, link) {
+		if (seg->flags & PF_W)
 			continue;
 
-		res = vm_set_prot(utc, segs[n].va, segs[n].size,
-				  elf_flags_to_mattr(segs[n].flags));
+		res = vm_set_prot(utc, seg->va, seg->size,
+				  elf_flags_to_mattr(seg->flags));
 		if (res)
 			return res;
 
 		if (!state->file)
 			continue;
 
-		page_offset = (segs[n].va - segs[0].va) / SMALL_PAGE_SIZE;
+		page_offset = (seg->va - last_seg->va) / SMALL_PAGE_SIZE;
 		if (file_find_slice(state->file, page_offset))
 			continue;
 
-		fobj = mobj_get_fobj(segs[n].mobj);
+		fobj = mobj_get_fobj(seg->mobj);
 		res = file_add_slice(state->file, fobj, page_offset);
 
 		/*
@@ -911,9 +919,10 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	size_t vasize;
 	void *p;
 	size_t n;
-	size_t num_segs = 0;
-	struct load_seg *segs = NULL;
 	unsigned int next_page_offset = 0;
+	struct load_seg *seg = NULL;
+	struct load_seg **segs = NULL;
+	size_t num_segs = 0;
 
 	res = ta_store->open(uuid, &handle);
 	if (res)
@@ -983,19 +992,36 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 			goto out;
 	}
 
-	res = get_elf_segments(elf, &segs, &num_segs);
+	res = get_elf_segments(elf);
 	if (res != TEE_SUCCESS)
 		goto out;
 
 	if (prev)
-		elf->load_addr = prev->segs[prev->num_segs - 1].va +
-				 prev->segs[prev->num_segs - 1].size;
+		elf->load_addr = SLIST_FIRST(&prev->segs)->va +
+				 SLIST_FIRST(&prev->segs)->size;
 	else
 		elf->load_addr = utc->stack_addr + utc->mobj_stack->size;
 	elf->load_addr = ROUNDUP(elf->load_addr, CORE_MMU_USER_CODE_SIZE);
 
+	/*
+	 * Make an array of the load segments in the list in order to be
+	 * able to traverse it backwards.
+	 */
+	SLIST_FOREACH(seg, &elf->segs, link)
+		num_segs++;
+	segs = malloc(num_segs * sizeof(*segs));
+	if (!segs) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	n = num_segs;
+	SLIST_FOREACH(seg, &elf->segs, link) {
+		n--;
+		segs[n] = seg;
+	}
+
 	for (n = 0; n < num_segs; n++) {
-		uint32_t prot = elf_flags_to_mattr(segs[n].flags);
+		uint32_t prot = elf_flags_to_mattr(segs[n]->flags);
 		size_t end_va = 0;
 
 		/*
@@ -1004,10 +1030,10 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		 * results in va still 0 and thus will be chosen by
 		 * vm_map().
 		 */
-		segs[n].va += elf->load_addr;
+		segs[n]->va += elf->load_addr;
 		if (file) {
 			res = find_ta_mem(file, next_page_offset,
-					  &segs[n].mobj);
+					  &segs[n]->mobj);
 			if (res)
 				goto out;
 		}
@@ -1015,24 +1041,24 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		 * Note that segs[n].mobj can still be NULL if
 		 * corresponding fobj isn't found.
 		 */
-		if (!segs[n].mobj) {
-			segs[n].mobj = alloc_ta_mem(segs[n].size);
-			if (!segs[n].mobj) {
+		if (!segs[n]->mobj) {
+			segs[n]->mobj = alloc_ta_mem(segs[n]->size);
+			if (!segs[n]->mobj) {
 				res = TEE_ERROR_OUT_OF_MEMORY;
 				goto out;
 			}
 			prot |= TEE_MATTR_PRW;
 		}
-		res = vm_map(utc, &segs[n].va, segs[n].size, prot,
-			     segs[n].mobj, 0);
+		res = vm_map(utc, &segs[n]->va, segs[n]->size, prot,
+			     segs[n]->mobj, 0);
 		if (res)
 			goto out;
 		if (!n) {
-			elf->load_addr = segs[0].va;
+			elf->load_addr = segs[0]->va;
 			DMSG("ELF load address %#" PRIxVA, elf->load_addr);
 		}
 
-		if (ADD_OVERFLOW(segs[n].va, segs[n].size, &end_va) ||
+		if (ADD_OVERFLOW(segs[n]->va, segs[n]->size, &end_va) ||
 		    end_va < elf->load_addr)
 			panic();
 		next_page_offset = (end_va - elf->load_addr) / SMALL_PAGE_SIZE;
@@ -1044,26 +1070,21 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	if (res)
 		goto out;
 
-	/*
-	 * Legacy TAs can't share read-only memory due to the way
-	 * relocation is updated.
-	 */
-	res = register_ro_slices(utc, elf_state, segs, num_segs);
+	res = register_ro_slices(utc, elf_state, &elf->segs);
 	if (res)
 		goto out;
 
 	/* Find any external dependency (dynamically linked libraries) */
 	res = add_deps(utc, elf_state, elf->load_addr);
 out:
+	free(segs);
 	if (file)
 		file_unlock(file);
 	if (res) {
 		file_put(file);
-		free_segs(segs, num_segs);
+		free_segs(&elf->segs);
 	} else {
 		elf->file = elf_state->file;
-		elf->segs = segs;
-		elf->num_segs = num_segs;
 	}
 	ta_store->close(handle);
 	/* utc is cleaned by caller on error */
@@ -1104,12 +1125,10 @@ static void free_elf_states(struct user_ta_ctx *utc)
 static TEE_Result set_seg_prot(struct user_ta_ctx *utc,
 			       struct user_ta_elf *elf)
 {
-	TEE_Result res;
-	size_t n;
+	TEE_Result res = TEE_SUCCESS;
+	struct load_seg *seg = NULL;
 
-	for (n = 0; n < elf->num_segs; n++) {
-		struct load_seg *seg = &elf->segs[n];
-
+	SLIST_FOREACH(seg, &elf->segs, link) {
 		res = vm_set_prot(utc, seg->va, seg->size,
 				  elf_flags_to_mattr(seg->flags));
 		if (res)
@@ -1162,8 +1181,8 @@ static TEE_Result set_exidx(struct user_ta_ctx *utc)
 	utc->mobj_exidx = alloc_ta_mem(exidx_sz);
 	if (!utc->mobj_exidx)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	exidx = ROUNDUP(last_elf->segs[last_elf->num_segs - 1].va +
-				last_elf->segs[last_elf->num_segs - 1].size,
+	exidx = ROUNDUP(SLIST_FIRST(&last_elf->segs)->va +
+				SLIST_FIRST(&last_elf->segs)->size,
 			CORE_MMU_USER_CODE_SIZE);
 	res = vm_map(utc, &exidx, exidx_sz, TEE_MATTR_UR | TEE_MATTR_PRW,
 		     utc->mobj_exidx, 0);
