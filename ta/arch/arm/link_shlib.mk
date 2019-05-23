@@ -18,7 +18,7 @@ cleanfiles += $(link-out-dir)/$(shlibuuid).elf
 cleanfiles += $(link-out-dir)/$(shlibuuid).ta
 
 shlink-ldflags  = $(LDFLAGS)
-shlink-ldflags += -shared
+shlink-ldflags += -shared -z max-page-size=4096
 
 shlink-ldadd  = $(LDADD)
 ldargs-$(shlibname).so := $(shlink-ldflags) $(objs) $(shlink-ldadd)

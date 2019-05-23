@@ -63,7 +63,7 @@ $(lib-shlibfile): $(objs) $(lib-needed-so-files)
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) $(lib-Ll-args) -shared \
-		--soname=$(libuuid) -o $$@ $$^
+		-z max-page-size=4096 --soname=$(libuuid) -o $$@ $$^
 
 $(lib-shlibstrippedfile): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
