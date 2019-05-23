@@ -340,6 +340,9 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
+	bool was_writeable = false;
+
+	assert(thread_get_tsd()->ctx == &utc->ctx);
 
 	/*
 	 * To keep thing simple: specified va and len have to match exactly
@@ -352,19 +355,23 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 	if ((r->attr & TEE_MATTR_PROT_MASK) == prot)
 		return TEE_SUCCESS;
 
+	was_writeable = r->attr & (TEE_MATTR_UW | TEE_MATTR_PW);
+
+	r->attr &= ~TEE_MATTR_PROT_MASK;
+	r->attr |= prot & TEE_MATTR_PROT_MASK;
+
 	if (mobj_is_paged(r->mobj)) {
 		if (!tee_pager_set_uta_area_attr(utc, va, len,
 						 prot))
 			return TEE_ERROR_GENERIC;
-	} else if ((prot & TEE_MATTR_UX) &&
-		   (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))) {
+	} else if ((prot & TEE_MATTR_UX) && was_writeable) {
+		/* Synchronize changes to translation tables */
+		tee_mmu_set_ctx(&utc->ctx);
+
 		cache_op_inner(DCACHE_AREA_CLEAN,
 			       (void *)va, len);
 		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 	}
-
-	r->attr &= ~TEE_MATTR_PROT_MASK;
-	r->attr |= prot & TEE_MATTR_PROT_MASK;
 
 	return TEE_SUCCESS;
 }
@@ -380,6 +387,8 @@ TEE_Result vm_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
 
+	assert(thread_get_tsd()->ctx == &utc->ctx);
+
 	/*
 	 * To keep thing simple: specified va and len has to match exactly
 	 * with an already registered region.
@@ -392,6 +401,12 @@ TEE_Result vm_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
 		tee_pager_rem_uta_region(utc, r->va, r->size);
 	maybe_free_pgt(utc, r);
 	umap_remove_region(utc->vm_info, r);
+
+	/*
+	 * Synchronize change to translation tables. Even though the pager
+	 * case unmaps immediately we may still free a translation table.
+	 */
+	tee_mmu_set_ctx(&utc->ctx);
 
 	return TEE_SUCCESS;
 }
