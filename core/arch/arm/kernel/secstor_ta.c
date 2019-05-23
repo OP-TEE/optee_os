@@ -5,8 +5,8 @@
 
 #include <tee/tadb.h>
 #include <kernel/user_ta.h>
+#include <kernel/user_ta_store.h>
 #include <initcall.h>
-#include "elf_load.h"
 
 static TEE_Result secstor_ta_open(const TEE_UUID *uuid,
 				  struct user_ta_store_handle **handle)
