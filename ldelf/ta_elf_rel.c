@@ -1,0 +1,332 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) 2019, Linaro Limited
+ */
+
+#include <assert.h>
+#include <elf32.h>
+#include <elf64.h>
+#include <elf_common.h>
+#include <string.h>
+#include <tee_api_types.h>
+#include <util.h>
+
+#include "sys.h"
+#include "ta_elf.h"
+
+static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
+			  size_t st_shndx, size_t st_name, size_t st_value,
+			  const char *name, vaddr_t *val)
+{
+	if (bind != STB_GLOBAL)
+		return false;
+	if (st_shndx == SHN_UNDEF || st_shndx == SHN_XINDEX)
+		return false;
+	if (!st_name)
+		return false;
+	if (st_name > elf->dynstr_size)
+		err(TEE_ERROR_BAD_FORMAT, "Symbol out of range");
+
+	if (strcmp(name, elf->dynstr + st_name))
+		return false;
+
+	*val = st_value + elf->load_addr;
+	return true;
+}
+
+static void resolve_sym(const char *name, vaddr_t *val)
+{
+	struct ta_elf *elf = NULL;
+	size_t n = 0;
+
+	TAILQ_FOREACH(elf, &main_elf_queue, link) {
+		if (elf->is_32bit) {
+			Elf32_Sym *sym = elf->dynsymtab;
+
+			for (n = 0; n < elf->num_dynsyms; n++) {
+				if (__resolve_sym(elf,
+						  ELF32_ST_BIND(sym[n].st_info),
+						  sym[n].st_shndx,
+						  sym[n].st_name,
+						  sym[n].st_value, name, val))
+					return;
+			}
+		} else {
+			Elf64_Sym *sym = elf->dynsymtab;
+
+			for (n = 0; n < elf->num_dynsyms; n++) {
+				if (__resolve_sym(elf,
+						  ELF64_ST_BIND(sym[n].st_info),
+						  sym[n].st_shndx,
+						  sym[n].st_name,
+						  sym[n].st_value, name, val))
+					return;
+			}
+		}
+	}
+	err(TEE_ERROR_ITEM_NOT_FOUND, "Symbol %s not found", name);
+}
+
+static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
+				const char *str_tab, size_t str_tab_size,
+				Elf32_Rel *rel, Elf32_Addr *where)
+{
+	size_t sym_idx = 0;
+	const char *name = NULL;
+	vaddr_t val = 0;
+	size_t name_idx = 0;
+
+	sym_idx = ELF32_R_SYM(rel->r_info);
+	assert(sym_idx < num_syms);
+
+	name_idx = sym_tab[sym_idx].st_name;
+	assert(name_idx < str_tab_size);
+	name = str_tab + name_idx;
+
+	resolve_sym(name, &val);
+	*where = val;
+}
+
+static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
+{
+	Elf32_Shdr *shdr = elf->shdr;
+	Elf32_Rel *rel = NULL;
+	Elf32_Rel *rel_end = NULL;
+	size_t sym_tab_idx = 0;
+	Elf32_Sym *sym_tab = NULL;
+	size_t num_syms = 0;
+	size_t sh_end = 0;
+	const char *str_tab = NULL;
+	size_t str_tab_size = 0;
+
+	assert(shdr[rel_sidx].sh_type == SHT_REL);
+
+	assert(shdr[rel_sidx].sh_entsize == sizeof(Elf32_Rel));
+
+	sym_tab_idx = shdr[rel_sidx].sh_link;
+	if (sym_tab_idx) {
+		size_t str_tab_idx = 0;
+
+		assert(sym_tab_idx < elf->e_shnum);
+
+		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf32_Sym));
+
+		/* Check the address is inside ELF memory */
+		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
+				 shdr[sym_tab_idx].sh_size, &sh_end))
+			err(TEE_ERROR_SECURITY, "Overflow");
+		assert(sh_end < (elf->max_addr - elf->load_addr));
+
+		sym_tab = (Elf32_Sym *)(elf->load_addr +
+					shdr[sym_tab_idx].sh_addr);
+
+		num_syms = shdr[sym_tab_idx].sh_size / sizeof(Elf32_Sym);
+
+		str_tab_idx = shdr[sym_tab_idx].sh_link;
+		if (str_tab_idx) {
+			/* Check the address is inside ELF memory */
+			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
+					 shdr[str_tab_idx].sh_size, &sh_end))
+				err(TEE_ERROR_SECURITY, "Overflow");
+			assert(sh_end < (elf->max_addr - elf->load_addr));
+
+			str_tab = (const char *)(elf->load_addr +
+						 shdr[str_tab_idx].sh_addr);
+			str_tab_size = shdr[str_tab_idx].sh_size;
+		}
+	}
+
+	/* Check the address is inside TA memory */
+	assert(shdr[rel_sidx].sh_addr < (elf->max_addr - elf->load_addr));
+	rel = (Elf32_Rel *)(elf->load_addr + shdr[rel_sidx].sh_addr);
+
+	/* Check the address is inside TA memory */
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
+			 &sh_end))
+		err(TEE_ERROR_SECURITY, "Overflow");
+	assert(sh_end < (elf->max_addr - elf->load_addr));
+	rel_end = rel + shdr[rel_sidx].sh_size / sizeof(Elf32_Rel);
+	for (; rel < rel_end; rel++) {
+		Elf32_Addr *where = NULL;
+		size_t sym_idx = 0;
+
+		/* Check the address is inside TA memory */
+		assert(rel->r_offset < (elf->max_addr - elf->load_addr));
+		where = (Elf32_Addr *)(elf->load_addr + rel->r_offset);
+
+		switch (ELF32_R_TYPE(rel->r_info)) {
+		case R_ARM_ABS32:
+			sym_idx = ELF32_R_SYM(rel->r_info);
+			assert(sym_idx < num_syms);
+			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
+				/* Symbol is external */
+				e32_process_dyn_rel(sym_tab, num_syms, str_tab,
+						    str_tab_size, rel, where);
+			} else {
+				*where += elf->load_addr +
+					  sym_tab[sym_idx].st_value;
+			}
+			break;
+		case R_ARM_REL32:
+			sym_idx = ELF32_R_SYM(rel->r_info);
+			assert(sym_idx < num_syms);
+			*where += sym_tab[sym_idx].st_value - rel->r_offset;
+			break;
+		case R_ARM_RELATIVE:
+			*where += elf->load_addr;
+			break;
+		case R_ARM_GLOB_DAT:
+		case R_ARM_JUMP_SLOT:
+			e32_process_dyn_rel(sym_tab, num_syms, str_tab,
+					    str_tab_size, rel, where);
+			break;
+		default:
+			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %d",
+			     ELF32_R_TYPE(rel->r_info));
+		}
+	}
+}
+
+#ifdef ARM64
+static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
+				 const char *str_tab, size_t str_tab_size,
+				 Elf64_Rela *rela, Elf64_Addr *where)
+{
+	size_t sym_idx = 0;
+	const char *name = NULL;
+	uintptr_t val = 0;
+	size_t name_idx = 0;
+
+	sym_idx = ELF64_R_SYM(rela->r_info);
+	assert(sym_idx < num_syms);
+
+	name_idx = sym_tab[sym_idx].st_name;
+	assert(name_idx < str_tab_size);
+	name = str_tab + name_idx;
+
+	resolve_sym(name, &val);
+	*where = val;
+}
+
+static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
+{
+	Elf64_Shdr *shdr = elf->shdr;
+	Elf64_Rela *rela = NULL;
+	Elf64_Rela *rela_end = NULL;
+	size_t sym_tab_idx = 0;
+	Elf64_Sym *sym_tab = NULL;
+	size_t num_syms = 0;
+	size_t sh_end = 0;
+	const char *str_tab = NULL;
+	size_t str_tab_size = 0;
+
+	assert(shdr[rel_sidx].sh_type == SHT_RELA);
+
+	assert(shdr[rel_sidx].sh_entsize == sizeof(Elf64_Rela));
+
+	sym_tab_idx = shdr[rel_sidx].sh_link;
+	if (sym_tab_idx) {
+		size_t str_tab_idx = 0;
+
+		assert(sym_tab_idx < elf->e_shnum);
+
+		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf64_Sym));
+
+		/* Check the address is inside TA memory */
+		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
+				 shdr[sym_tab_idx].sh_size, &sh_end))
+			err(TEE_ERROR_SECURITY, "Overflow");
+		assert(sh_end < (elf->max_addr - elf->load_addr));
+
+		sym_tab = (Elf64_Sym *)(elf->load_addr +
+					shdr[sym_tab_idx].sh_addr);
+
+		num_syms = shdr[sym_tab_idx].sh_size / sizeof(Elf64_Sym);
+
+		str_tab_idx = shdr[sym_tab_idx].sh_link;
+		if (str_tab_idx) {
+			/* Check the address is inside ELF memory */
+			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
+					 shdr[str_tab_idx].sh_size, &sh_end))
+				err(TEE_ERROR_SECURITY, "Overflow");
+			assert(sh_end < (elf->max_addr - elf->load_addr));
+
+			str_tab = (const char *)(elf->load_addr +
+						 shdr[str_tab_idx].sh_addr);
+			str_tab_size = shdr[str_tab_idx].sh_size;
+		}
+	}
+
+	/* Check the address is inside TA memory */
+	assert(shdr[rel_sidx].sh_addr < (elf->max_addr - elf->load_addr));
+	rela = (Elf64_Rela *)(elf->load_addr + shdr[rel_sidx].sh_addr);
+
+	/* Check the address is inside TA memory */
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
+			 &sh_end))
+		err(TEE_ERROR_SECURITY, "Overflow");
+	assert(sh_end < (elf->max_addr - elf->load_addr));
+	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf64_Rela);
+	for (; rela < rela_end; rela++) {
+		Elf64_Addr *where = NULL;
+		size_t sym_idx = 0;
+
+		/* Check the address is inside TA memory */
+		assert(rela->r_offset < (elf->max_addr - elf->load_addr));
+
+		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
+
+		switch (ELF64_R_TYPE(rela->r_info)) {
+		case R_AARCH64_ABS64:
+			sym_idx = ELF64_R_SYM(rela->r_info);
+			assert(sym_idx < num_syms);
+			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
+				/* Symbol is external */
+				e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+						     str_tab_size, rela, where);
+			} else {
+				*where = rela->r_addend + elf->load_addr +
+					 sym_tab[sym_idx].st_value;
+			}
+			break;
+		case R_AARCH64_RELATIVE:
+			*where = rela->r_addend + elf->load_addr;
+			break;
+		case R_AARCH64_GLOB_DAT:
+		case R_AARCH64_JUMP_SLOT:
+			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			break;
+		default:
+			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %zd",
+			     ELF64_R_TYPE(rela->r_info));
+		}
+	}
+}
+#else /*ARM64*/
+static void e64_relocate(struct ta_elf *elf __unused,
+			 unsigned int rel_sidx __unused)
+{
+	err(TEE_ERROR_NOT_SUPPORTED, "arm64 not supported");
+}
+#endif /*ARM64*/
+
+void ta_elf_relocate(struct ta_elf *elf)
+{
+	size_t n = 0;
+
+	if (elf->is_32bit) {
+		Elf32_Shdr *shdr = elf->shdr;
+
+		for (n = 0; n < elf->e_shnum; n++)
+			if (shdr[n].sh_type == SHT_REL)
+				e32_relocate(elf, n);
+	} else {
+		Elf64_Shdr *shdr = elf->shdr;
+
+		for (n = 0; n < elf->e_shnum; n++)
+			if (shdr[n].sh_type == SHT_RELA)
+				e64_relocate(elf, n);
+
+	}
+}

@@ -3,7 +3,7 @@ global-incdirs-y += include
 srcs-y += abort.c
 srcs-y += trace_ext.c
 srcs-y += assert.c
-ifneq ($(sm-$(sm)-is-ld),y)
+ifneq ($(sm),ldelf)
 srcs-y += tee_api_property.c
 srcs-y += base64.c
 srcs-y += tee_api.c
@@ -20,6 +20,6 @@ srcs-y += tee_api_arith_mpi.c
 else
 srcs-y += tee_api_arith_mpa.c
 endif
-endif #$(sm-$(sm)-is-ld)
+endif #ifneq ($(sm),ldelf)
 
 subdirs-y += arch/$(ARCH)

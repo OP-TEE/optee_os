@@ -77,6 +77,7 @@ ta-targets ?= invalid
 default-user-ta-target ?= $(firstword $(ta-targets))
 
 ifeq ($(CFG_WITH_USER_TA),y)
+include ldelf/ldelf.mk
 define build-ta-target
 ta-target := $(1)
 include ta/ta.mk
