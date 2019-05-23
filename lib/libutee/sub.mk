@@ -11,6 +11,7 @@ srcs-y += tee_api_operations.c
 srcs-y += tee_api_panic.c
 srcs-y += tee_tcpudp_socket.c
 srcs-y += tee_socket_pta.c
+srcs-y += tee_system_pta.c
 
 
 ifeq ($(CFG_TA_MBEDTLS_MPI),y)
