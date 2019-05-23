@@ -47,6 +47,8 @@
 #define TEE_MATTR_PERMANENT		BIT(17)
 /* Tags TA mappings that may be shared with other TAs. */
 #define TEE_MATTR_SHAREABLE		BIT(18)
+/* Tags temporary mappings added to load the ldelf binary */
+#define TEE_MATTR_LDELF			BIT(19)
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 #define TEE_MMU_UMAP_KCODE_IDX	0
