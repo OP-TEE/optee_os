@@ -256,7 +256,8 @@ TEE_Result vm_map_pad(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 	struct vm_region *reg = calloc(1, sizeof(*reg));
 	uint32_t attr = 0;
 	const uint32_t prot_mask = TEE_MATTR_PROT_MASK | TEE_MATTR_PERMANENT |
-				   TEE_MATTR_EPHEMERAL | TEE_MATTR_SHAREABLE;
+				   TEE_MATTR_EPHEMERAL | TEE_MATTR_SHAREABLE |
+				   TEE_MATTR_LDELF;
 
 	if (!reg)
 		return TEE_ERROR_OUT_OF_MEMORY;
