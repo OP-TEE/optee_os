@@ -6,7 +6,7 @@
 #ifndef __LDELF_H
 #define __LDELF_H
 
-#include <stdint.h>
+#include <types_ext.h>
 #include <tee_api_types.h>
 
 /* Size of stack for TEE Core to allocate */
@@ -19,6 +19,7 @@
  * @flags:	[out] Flags field of TA header
  * @entry_func:	[out] TA entry function
  * @stack_ptr:	[out] TA stack pointer
+ * @dump_entry: [out] Dump TA mappings and stack trace
  */
 struct ldelf_arg {
 	TEE_UUID uuid;
@@ -26,6 +27,38 @@ struct ldelf_arg {
 	uint32_t flags;
 	uint64_t entry_func;
 	uint64_t stack_ptr;
+	uint64_t dump_entry;
+};
+
+#define DUMP_MAP_READ	BIT(0)
+#define DUMP_MAP_WRITE	BIT(1)
+#define DUMP_MAP_EXEC	BIT(2)
+#define DUMP_MAP_SECURE	BIT(3)
+#define DUMP_MAP_EPHEM	BIT(4)
+#define DUMP_MAP_LDELF	BIT(7)
+
+/*
+ * struct dump_entry_arg - argument for ldelf_dump()
+ */
+struct dump_entry_arg {
+	union {
+		struct {
+			uint32_t regs[16];
+		} arm32;
+		struct {
+			uint64_t fp;
+			uint64_t sp;
+			uint64_t pc;
+		} arm64;
+	};
+	bool is_arm32;
+	size_t num_maps;
+	struct dump_map {
+		vaddr_t va;
+		paddr_t pa;
+		size_t sz;
+		uint32_t flags;
+	} maps[];
 };
 
 /*

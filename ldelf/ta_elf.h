@@ -6,6 +6,7 @@
 #ifndef TA_ELF_H
 #define TA_ELF_H
 
+#include <ldelf.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -71,5 +72,8 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit,
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
 void ta_elf_finalize_mappings(struct ta_elf *elf);
+
+void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
+			   struct dump_map *maps, vaddr_t mpool_base);
 
 #endif /*TA_ELF_H*/

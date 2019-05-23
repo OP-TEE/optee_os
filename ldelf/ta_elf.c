@@ -8,7 +8,9 @@
 #include <elf32.h>
 #include <elf64.h>
 #include <elf_common.h>
+#include <ldelf.h>
 #include <pta_system.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -17,6 +19,8 @@
 
 #include "sys.h"
 #include "ta_elf.h"
+
+static vaddr_t ta_stack;
 
 struct ta_elf_queue main_elf_queue = TAILQ_HEAD_INITIALIZER(main_elf_queue);
 
@@ -771,6 +775,7 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit,
 
 	*ta_flags = head->flags;
 	*sp = va + head->stack_size;
+	ta_stack = va;
 }
 
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
@@ -811,5 +816,136 @@ void ta_elf_finalize_mappings(struct ta_elf *elf)
 		res = sys_set_prot(va, seg->memsz, flags);
 		if (res)
 			err(res, "sys_set_prot");
+	}
+}
+
+static void print_seg(size_t idx __maybe_unused, int elf_idx __maybe_unused,
+		      vaddr_t va __maybe_unused, paddr_t pa __maybe_unused,
+		      size_t sz __maybe_unused, uint32_t flags)
+{
+	int width __maybe_unused = 8;
+	char desc[14] __maybe_unused = "";
+	char flags_str[] __maybe_unused = "----";
+
+	if (elf_idx > -1) {
+		snprintf(desc, sizeof(desc), " [%d]", elf_idx);
+	} else {
+		if (flags & DUMP_MAP_EPHEM)
+			snprintf(desc, sizeof(desc), " (param)");
+		if (flags & DUMP_MAP_LDELF)
+			snprintf(desc, sizeof(desc), " (ldelf)");
+		if (va == ta_stack)
+			snprintf(desc, sizeof(desc), " (stack)");
+	}
+
+	if (flags & DUMP_MAP_READ)
+		flags_str[0] = 'r';
+	if (flags & DUMP_MAP_WRITE)
+		flags_str[1] = 'w';
+	if (flags & DUMP_MAP_EXEC)
+		flags_str[2] = 'x';
+	if (flags & DUMP_MAP_SECURE)
+		flags_str[3] = 's';
+
+	EMSG_RAW("region %2zu: va 0x%0*"PRIxVA" pa 0x%0*"PRIxPA" size 0x%06zx flags %s%s",
+		 idx, width, va, width, pa, sz, flags_str, desc);
+}
+
+void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
+			   struct dump_map *maps, vaddr_t mpool_base)
+{
+	struct segment *seg = NULL;
+	struct ta_elf *elf = NULL;
+	size_t elf_idx = 0;
+	size_t idx = 0;
+	size_t map_idx = 0;
+
+	/*
+	 * Loop over all segments and maps, printing virtual address in
+	 * order. Segment has priority if the virtual address is present
+	 * in both map and segment.
+	 */
+	elf = TAILQ_FIRST(elf_queue);
+	if (elf)
+		seg = TAILQ_FIRST(&elf->segs);
+	while (true) {
+		vaddr_t va = -1;
+		size_t sz = 0;
+		uint32_t flags = DUMP_MAP_SECURE;
+		size_t offs = 0;
+
+		if (seg) {
+			va = rounddown(seg->vaddr + elf->load_addr);
+			sz = roundup(seg->vaddr + seg->memsz) -
+				     rounddown(seg->vaddr);
+		}
+
+		while (map_idx < num_maps && maps[map_idx].va <= va) {
+			uint32_t f = 0;
+
+			/* If there's a match, it should be the same map */
+			if (maps[map_idx].va == va) {
+				/*
+				 * In shared libraries the first page is
+				 * mapped separately with the rest of that
+				 * segment following back to back in a
+				 * separate entry.
+				 */
+				if (map_idx + 1 < num_maps &&
+				    maps[map_idx].sz == SMALL_PAGE_SIZE) {
+					vaddr_t next_va = maps[map_idx].va +
+							  maps[map_idx].sz;
+					size_t comb_sz = maps[map_idx].sz +
+							 maps[map_idx + 1].sz;
+
+					if (next_va == maps[map_idx + 1].va &&
+					    comb_sz == sz &&
+					    maps[map_idx].flags ==
+					    maps[map_idx + 1].flags) {
+						/* Skip this and next entry */
+						map_idx += 2;
+						continue;
+					}
+				}
+				assert(maps[map_idx].sz == sz);
+			} else if (maps[map_idx].va < va) {
+				if (maps[map_idx].va == mpool_base)
+					f |= DUMP_MAP_LDELF;
+				print_seg(idx, -1, maps[map_idx].va,
+					  maps[map_idx].pa, maps[map_idx].sz,
+					  maps[map_idx].flags | f);
+				idx++;
+			}
+			map_idx++;
+		}
+
+		if (!seg)
+			break;
+
+		offs = rounddown(seg->offset);
+		if (seg->flags & PF_R)
+			flags |= DUMP_MAP_READ;
+		if (seg->flags & PF_W)
+			flags |= DUMP_MAP_WRITE;
+		if (seg->flags & PF_X)
+			flags |= DUMP_MAP_EXEC;
+
+		print_seg(idx, elf_idx, va, offs, sz, flags);
+		idx++;
+
+		seg = TAILQ_NEXT(seg, link);
+		if (!seg) {
+			elf = TAILQ_NEXT(elf, link);
+			if (elf)
+				seg = TAILQ_FIRST(&elf->segs);
+			elf_idx++;
+		}
+	};
+
+	elf_idx = 0;
+	TAILQ_FOREACH(elf, elf_queue, link) {
+		EMSG_RAW(" [%zu] %pUl @ 0x%0*" PRIxVA,
+			 elf_idx, (void *)&elf->uuid, 8, elf->load_addr);
+		elf_idx++;
 	}
 }

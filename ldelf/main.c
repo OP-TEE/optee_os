@@ -3,6 +3,7 @@
  * Copyright (c) 2019, Linaro Limited
  */
 
+#include <assert.h>
 #include <ldelf.h>
 #include <malloc.h>
 #include <sys/queue.h>
@@ -13,8 +14,22 @@
 #include "ta_elf.h"
 #include "sys.h"
 
+static struct ta_elf_queue elf_queue = TAILQ_HEAD_INITIALIZER(elf_queue);
 static size_t mpool_size = 2 * SMALL_PAGE_SIZE;
 static vaddr_t mpool_base;
+
+static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
+{
+	struct ta_elf *elf = TAILQ_FIRST(&main_elf_queue);
+
+	assert(elf && elf->is_main);
+	EMSG_RAW("Status of TA %pUl", (void *)&elf->uuid);
+	EMSG_RAW(" arch: %s", elf->is_32bit ? "arm" : "aarch64");
+
+
+	ta_elf_print_mappings(&elf_queue, arg->num_maps, arg->maps, mpool_base);
+	sys_return_cleanup();
+}
 
 /*
  * ldelf()- Loads ELF into memory
@@ -57,11 +72,11 @@ void ldelf(struct ldelf_arg *arg)
 		DMSG("ELF (%pUl) at %#"PRIxVA,
 		     (void *)&elf->uuid, elf->load_addr);
 
-	res = sys_unmap(mpool_base, mpool_size);
-	if (res) {
-		EMSG("sys_unmap(%p, %zu): result %"PRIx32,
-		     (void *)mpool_base, mpool_size, res);
-		panic();
-	}
+#if TRACE_LEVEL >= TRACE_ERROR
+	arg->dump_entry = (vaddr_t)(void *)dump_ta_state;
+#else
+	arg->dump_entry = 0;
+#endif
+
 	sys_return_cleanup();
 }
