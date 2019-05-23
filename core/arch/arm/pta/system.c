@@ -434,8 +434,8 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(to_user_ta_ctx(s->ctx), va,
-				  num_pages * SMALL_PAGE_SIZE, prot);
+		res = user_ta_set_prot(to_user_ta_ctx(s->ctx), va,
+				       num_pages * SMALL_PAGE_SIZE, prot);
 		if (res)
 			goto err_unmap_va;
 
@@ -496,6 +496,39 @@ static TEE_Result system_copy_from_ta_binary(struct system_ctx *ctx,
 			    params[0].value.b, params[1].memref.size);
 }
 
+static TEE_Result system_set_prot(struct tee_ta_session *s,
+				  uint32_t param_types,
+				  TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t accept_flags = PTA_SYSTEM_MAP_FLAG_WRITEABLE |
+				      PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	uint32_t prot = TEE_MATTR_UR | TEE_MATTR_PR;
+	uint32_t flags = 0;
+	vaddr_t va = 0;
+	size_t sz = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	flags = params[0].value.b;
+
+	if ((flags & accept_flags) != flags)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)
+		prot |= TEE_MATTR_UW | TEE_MATTR_PW;
+	if (flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE)
+		prot |= TEE_MATTR_UX;
+
+	va = reg_pair_to_64(params[1].value.a, params[1].value.b),
+	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
+
+	return user_ta_set_prot(to_user_ta_ctx(s->ctx), va, sz, prot);
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -551,6 +584,8 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 	case PTA_SYSTEM_COPY_FROM_TA_BINARY:
 		return system_copy_from_ta_binary(sess_ctx, param_types,
 						  params);
+	case PTA_SYSTEM_SET_PROT:
+		return system_set_prot(s, param_types, params);
 	default:
 		break;
 	}

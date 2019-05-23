@@ -131,4 +131,14 @@
  */
 #define PTA_SYSTEM_COPY_FROM_TA_BINARY	7
 
+/*
+ * Set memory protection
+ *
+ * [in]	    value[0].a: Number of bytes
+ * [in]     value[0].b:	Flags, PTA_SYSTEM_MAP_FLAG_*
+ * [in]	    value[1].a: Address upper 32-bits
+ * [in]	    value[1].b: Address lower 32-bits
+ */
+#define PTA_SYSTEM_SET_PROT		8
+
 #endif /* __PTA_SYSTEM_H */
