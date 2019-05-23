@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/thread.h>
+#include <kernel/user_ta_store.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/mobj.h>
@@ -16,8 +17,6 @@
 #include <tee_api_types.h>
 #include <tee/uuid.h>
 #include <utee_defines.h>
-
-#include "elf_load.h"
 
 struct ree_fs_ta_handle {
 	struct shdr *nw_ta; /* Non-secure (shared memory) */

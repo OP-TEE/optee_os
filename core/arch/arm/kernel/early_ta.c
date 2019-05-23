@@ -7,14 +7,13 @@
 #include <kernel/early_ta.h>
 #include <kernel/linker.h>
 #include <kernel/user_ta.h>
+#include <kernel/user_ta_store.h>
 #include <stdio.h>
 #include <string.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
 #include <zlib.h>
-
-#include "elf_load.h"
 
 struct user_ta_store_handle {
 	const struct early_ta *early_ta;
