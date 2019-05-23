@@ -18,48 +18,42 @@
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
-TAILQ_HEAD(user_ta_elf_head, user_ta_elf);
 SLIST_HEAD(load_seg_head, load_seg);
 
 /*
  * struct user_ta_ctx - user TA context
  * @entry_func:		Entry address in TA
- * @exidx_start:	32-bit TA: start of exception handling index table
- * @exidx_size:		32-bit TA: size of of exception handling index table
- * @mobj_exidx:         32-bit TA: consolidated EXIDX table (if several ELFs)
  * @is_32bit:		True if 32-bit TA, false if 64-bit TA
+ * @is_initializing:	True if TA is not fully loaded
  * @open_sessions:	List of sessions opened by this TA
  * @cryp_states:	List of cryp states created by this TA
  * @objects:		List of storage objects opened by this TA
  * @storage_enums:	List of storage enumerators opened by this TA
- * @mobj_code:		Secure world memory for code and data
- * @mobj_stack:		Secure world memory for stack
- * @stack_addr:		Virtual address of stack
+ * @stack_ptr:		Stack pointer
  * @load_addr:		ELF load addr (from TA address space)
  * @vm_info:		Virtual memory map of this context
  * @ta_time_offs:	Time reference used by the TA
  * @areas:		Memory areas registered by pager
- * @se_service:		Secure element services state
  * @vfp:		State of VFP registers
  * @ctx:		Generic TA context
  */
 struct user_ta_ctx {
 	uaddr_t entry_func;
-	uaddr_t exidx_start;
-	size_t exidx_size;
-	struct mobj *mobj_exidx;
 	bool is_32bit;
+	bool is_initializing;
 	struct tee_ta_session_head open_sessions;
 	struct tee_cryp_state_head cryp_states;
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
-	struct user_ta_elf_head elfs;
-	struct mobj *mobj_stack;
-	vaddr_t stack_addr;
+	vaddr_t stack_ptr;
 	vaddr_t load_addr;
 	struct vm_info *vm_info;
 	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
+	/*
+	 * Note that the load segments are stored in reverse order, that
+	 * is, the last segment first.
+	 */
 	struct load_seg_head segs;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;

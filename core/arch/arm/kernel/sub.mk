@@ -5,8 +5,6 @@ srcs-$(CFG_EARLY_TA) += early_ta.c
 srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
 srcs-y += pseudo_ta.c
-srcs-y += elf_load.c
-srcs-$(CFG_TA_DYNLINK) += elf_load_dyn.c
 srcs-y += tee_time.c
 srcs-y += otp_stubs.c
 srcs-y += delay.c
