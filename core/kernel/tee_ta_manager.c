@@ -868,41 +868,6 @@ struct tee_ta_session *tee_ta_get_calling_session(void)
 	return s;
 }
 
-/*
- * dump_state - Display TA state as an error log.
- */
-static void dump_state(struct tee_ta_ctx *ctx)
-{
-	struct tee_ta_session *s = NULL;
-	bool active __maybe_unused;
-
-	if (!ctx) {
-		EMSG("No TA status: null context reference");
-		return;
-	}
-
-	active = ((tee_ta_get_current_session(&s) == TEE_SUCCESS) &&
-		  s && s->ctx == ctx);
-
-	EMSG_RAW("Status of TA %pUl (%p) %s", (void *)&ctx->uuid, (void *)ctx,
-		active ? "(active)" : "");
-	ctx->ops->dump_state(ctx);
-}
-
-void tee_ta_dump_current(void)
-{
-	struct tee_ta_session *s = NULL;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS) {
-		EMSG("no valid session found, cannot log TA status");
-		return;
-	}
-
-	dump_state(s->ctx);
-
-	ta_fbuf_dump(s);
-}
-
 #if defined(CFG_TA_GPROF_SUPPORT)
 void tee_ta_gprof_sample_pc(vaddr_t pc)
 {

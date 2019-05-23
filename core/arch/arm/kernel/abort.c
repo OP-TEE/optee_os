@@ -5,6 +5,7 @@
 
 #include <arm.h>
 #include <kernel/abort.h>
+#include <kernel/ftrace.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -364,7 +365,12 @@ void abort_print_current_ta(void)
 
 	if (ai.abort_type != ABORT_TYPE_TA_PANIC)
 		__print_abort_info(&ai, "User TA");
-	tee_ta_dump_current();
+
+	EMSG_RAW("Status of TA %pUl (%p)",
+		 (void *)&s->ctx->uuid, (void *)s->ctx);
+	s->ctx->ops->dump_state(s->ctx);
+
+	ta_fbuf_dump(s);
 
 	if (to_user_ta_ctx(s->ctx)->is_32bit)
 		__print_stack_unwind_arm32(&ai);
