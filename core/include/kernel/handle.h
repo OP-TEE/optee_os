@@ -17,9 +17,10 @@ struct handle_db {
 /*
  * Frees all internal data structures of the database, but does not free
  * the db pointer. The database is safe to reuse after it's destroyed, it
- * just be empty again.
+ * will just be empty again. If ptr_destructor is non-null it will be
+ * called for each registered pointer before the database is cleared.
  */
-void handle_db_destroy(struct handle_db *db);
+void handle_db_destroy(struct handle_db *db, void (*ptr_destructor)(void *ptr));
 
 /*
  * Allocates a new handle and assigns the supplied pointer to it,
