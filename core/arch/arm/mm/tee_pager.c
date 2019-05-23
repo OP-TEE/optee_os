@@ -1477,9 +1477,13 @@ static struct pgt *find_pgt(struct pgt *pgt, vaddr_t va)
 
 void tee_pager_assign_uta_tables(struct user_ta_ctx *utc)
 {
-	struct tee_pager_area *area;
-	struct pgt *pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
+	struct tee_pager_area *area = NULL;
+	struct pgt *pgt = NULL;
 
+	if (!utc->areas)
+		return;
+
+	pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
 	TAILQ_FOREACH(area, utc->areas, link) {
 		if (!area->pgt)
 			area->pgt = find_pgt(pgt, area->base);
