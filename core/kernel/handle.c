@@ -14,9 +14,16 @@
  */
 #define HANDLE_DB_INITIAL_MAX_PTRS	4
 
-void handle_db_destroy(struct handle_db *db)
+void handle_db_destroy(struct handle_db *db, void (*ptr_destructor)(void *ptr))
 {
 	if (db) {
+		if (ptr_destructor) {
+			size_t n = 0;
+
+			for (n = 0; n < db->max_ptrs; n++)
+				if (db->ptrs[n])
+					ptr_destructor(db->ptrs[n]);
+		}
 		free(db->ptrs);
 		db->ptrs = NULL;
 		db->max_ptrs = 0;
