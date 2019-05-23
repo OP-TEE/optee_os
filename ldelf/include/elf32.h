@@ -30,7 +30,8 @@
 #ifndef _SYS_ELF32_H_
 #define _SYS_ELF32_H_ 1
 
-#include "elf_common.h"
+#include <elf_common.h>
+#include <stdint.h>
 
 /*
  * ELF definitions common to all 32-bit architectures.

@@ -50,6 +50,7 @@ ifneq ($(CFG_TEE_CORE_DEBUG),y)
 cppflags$(sm)  += -DNDEBUG
 endif
 
+cppflags$(sm)	+= -Ildelf/include
 cppflags$(sm)	+= -Ilib/libutee/include
 
 ifeq ($(filter y, $(CFG_CORE_DYN_SHM) $(CFG_CORE_RESERVED_SHM)),)

@@ -2,6 +2,9 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
+#include <elf32.h>
+#include <elf64.h>
+#include <elf_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/user_ta.h>
 #include <mm/core_mmu.h>
@@ -14,12 +17,10 @@
 #include <trace.h>
 #include <types_ext.h>
 #include <util.h>
-#include "elf_common.h"
+
 #include "elf_load.h"
 #include "elf_load_dyn.h"
 #include "elf_load_private.h"
-#include "elf32.h"
-#include "elf64.h"
 
 static TEE_Result advance_to(struct elf_load_state *state, size_t offs)
 {
