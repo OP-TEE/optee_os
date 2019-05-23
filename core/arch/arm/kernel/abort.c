@@ -29,6 +29,7 @@ enum fault_type {
 
 #ifdef CFG_UNWIND
 
+#ifdef ARM32
 static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
 				       vaddr_t *stack, size_t *stack_size)
 {
@@ -38,12 +39,10 @@ static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
 	*stack_size = 0;
 }
 
-#ifdef ARM32
-
 /*
  * Kernel or user mode unwind (32-bit execution state).
  */
-static void __print_stack_unwind_arm32(struct abort_info *ai)
+static void __print_stack_unwind(struct abort_info *ai)
 {
 	struct unwind_state_arm32 state;
 	vaddr_t exidx;
@@ -100,46 +99,11 @@ static void __print_stack_unwind_arm32(struct abort_info *ai)
 	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz, kernel_stack,
 			  stack, stack_size);
 }
-#else /* ARM32 */
-
-static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
-{
-	struct unwind_state_arm32 state;
-	vaddr_t exidx;
-	size_t exidx_sz;
-	vaddr_t stack;
-	size_t stack_size;
-
-	/* 64-bit kernel, hence 32-bit unwind must be for user mode */
-	assert(abort_is_user_exception(ai));
-
-	get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack, &stack_size);
-
-	memset(&state, 0, sizeof(state));
-	state.registers[0] = ai->regs->x0;
-	state.registers[1] = ai->regs->x1;
-	state.registers[2] = ai->regs->x2;
-	state.registers[3] = ai->regs->x3;
-	state.registers[4] = ai->regs->x4;
-	state.registers[5] = ai->regs->x5;
-	state.registers[6] = ai->regs->x6;
-	state.registers[7] = ai->regs->x7;
-	state.registers[8] = ai->regs->x8;
-	state.registers[9] = ai->regs->x9;
-	state.registers[10] = ai->regs->x10;
-	state.registers[11] = ai->regs->x11;
-
-	state.registers[13] = ai->regs->x13;
-	state.registers[14] = ai->regs->x14;
-	state.registers[15] = ai->pc;
-
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz,
-			  false /*!kernel_stack*/, stack, stack_size);
-}
 #endif /* ARM32 */
+
 #ifdef ARM64
 /* Kernel or user mode unwind (64-bit execution state) */
-static void __print_stack_unwind_arm64(struct abort_info *ai)
+static void __print_stack_unwind(struct abort_info *ai)
 {
 	struct unwind_state_arm64 state = { };
 	bool kernel_stack = false;
@@ -162,18 +126,10 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 
 	print_stack_arm64(TRACE_ERROR, &state, kernel_stack, stack, stack_size);
 }
-#else
-static void __print_stack_unwind_arm64(struct abort_info *ai __unused)
-{
-
-}
 #endif /*ARM64*/
-#else /* CFG_UNWIND */
-static void __print_stack_unwind_arm32(struct abort_info *ai __unused)
-{
-}
 
-static void __print_stack_unwind_arm64(struct abort_info *ai __unused)
+#else /* CFG_UNWIND */
+static void __print_stack_unwind(struct abort_info *ai __unused)
 {
 }
 #endif /* CFG_UNWIND */
@@ -307,13 +263,8 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 
 	__print_abort_info(ai, "Core");
 
-	if (stack_dump) {
-#if defined(ARM32)
-		__print_stack_unwind_arm32(ai);
-#else
-		__print_stack_unwind_arm64(ai);
-#endif
-	}
+	if (stack_dump)
+		__print_stack_unwind(ai);
 }
 
 void abort_print(struct abort_info *ai)
@@ -350,11 +301,6 @@ void abort_print_current_ta(void)
 	s->ctx->ops->dump_state(s->ctx);
 
 	ta_fbuf_dump(s);
-
-	if (to_user_ta_ctx(s->ctx)->is_32bit)
-		__print_stack_unwind_arm32(&ai);
-	else
-		__print_stack_unwind_arm64(&ai);
 }
 
 static void save_abort_info_in_tsd(struct abort_info *ai)
