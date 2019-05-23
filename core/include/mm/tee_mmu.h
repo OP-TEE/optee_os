@@ -23,9 +23,29 @@ void vm_info_final(struct user_ta_ctx *utc);
  * Creates a memory map of a mobj.
  * Desired virtual address can be specified in @va otherwise @va must be
  * initialized to 0 if the next available can be chosen.
+ *
+ * @pad_begin and @pad_end specify how much extra free space should be kept
+ * when establishing the map. This allows mapping the first part of for
+ * instance an ELF file while knowing that the next part which has to be of
+ * a certain offset from the first part also will succeed.
  */
-TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
-		  uint32_t prot, struct mobj *mobj, size_t offs);
+
+TEE_Result vm_map_pad(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
+		  uint32_t prot, struct mobj *mobj, size_t offs,
+		  size_t pad_begin, size_t pad_end);
+
+/*
+ * Creates a memory map of a mobj.
+ * Desired virtual address can be specified in @va otherwise @va must be
+ * initialized to 0 if the next available can be chosen.
+ */
+static inline TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va,
+				size_t len, uint32_t prot, struct mobj *mobj,
+				size_t offs)
+{
+	return vm_map_pad(utc, va, len, prot, mobj, offs, 0, 0);
+}
+
 
 TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		       uint32_t prot);
