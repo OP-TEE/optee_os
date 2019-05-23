@@ -31,6 +31,8 @@
 #ifndef _SYS_ELF_COMMON_H_
 #define	_SYS_ELF_COMMON_H_ 1
 
+#include <stdint.h>
+
 /*
  * ELF definitions that are independent of architecture or word size.
  */

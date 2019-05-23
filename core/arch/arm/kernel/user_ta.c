@@ -8,6 +8,7 @@
 #include <compiler.h>
 #include <crypto/crypto.h>
 #include <ctype.h>
+#include <elf_common.h>
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/ftrace.h>
@@ -42,7 +43,6 @@
 #include <utee_defines.h>
 #include <util.h>
 
-#include "elf_common.h"
 #include "elf_load.h"
 #include "elf_load_dyn.h"
 

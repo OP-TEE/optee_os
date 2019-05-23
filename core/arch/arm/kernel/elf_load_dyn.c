@@ -3,13 +3,14 @@
  * Copyright (c) 2018, Linaro Limited
  */
 
+#include <elf_common.h>
 #include <stdlib.h>
 #include <string.h>
-#include <types_ext.h>
-#include <tee_api_types.h>
 #include <tee_api_defines.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 #include <util.h>
-#include "elf_common.h"
+
 #include "elf_load_dyn.h"
 #include "elf_load_private.h"
 
