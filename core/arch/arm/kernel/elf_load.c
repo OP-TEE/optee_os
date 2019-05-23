@@ -95,8 +95,6 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 			 struct elf_load_state **ret_state)
 {
 	struct elf_load_state *state;
-	uint8_t tag[FILE_TAG_SIZE] = { 0 };
-	unsigned int tag_size = sizeof(tag);
 	TEE_Result res;
 
 	state = calloc(1, sizeof(*state));
@@ -112,11 +110,6 @@ TEE_Result elf_load_init(const struct user_ta_store_ops *ta_store,
 	if (res)
 		goto err;
 
-	res = ta_store->get_tag(ta_handle, tag, &tag_size);
-	if (res)
-		goto err;
-	state->file = file_get_by_tag(tag, tag_size);
-
 	*ret_state = state;
 	return TEE_SUCCESS;
 err:
@@ -124,9 +117,21 @@ err:
 	return res;
 }
 
-struct file *elf_load_get_file(struct elf_load_state *state)
+TEE_Result elf_load_get_file(struct elf_load_state *state, struct file **file)
 {
-	return file_get(state->file);
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t tag[FILE_TAG_SIZE] = { 0 };
+	unsigned int tag_size = sizeof(tag);
+
+	res = state->ta_store->get_tag(state->ta_handle, tag, &tag_size);
+	if (res)
+		return res;
+	state->file = file_get_by_tag(tag, tag_size);
+	if (!state->file)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*file = file_get(state->file);
+	return TEE_SUCCESS;
 }
 
 static TEE_Result e32_load_ehdr(struct elf_load_state *state, Elf32_Ehdr *ehdr,
@@ -615,8 +620,9 @@ TEE_Result elf_load_body(struct elf_load_state *state, vaddr_t vabase)
 			e_p_hdr_sz = 0;
 		}
 
-		fs = file_find_slice(state->file,
-				     phdr.p_vaddr / SMALL_PAGE_SIZE);
+		if (state->file)
+			fs = file_find_slice(state->file,
+					     phdr.p_vaddr / SMALL_PAGE_SIZE);
 		if (fs) {
 			/*
 			 * If we've found a fobj in state->file it has to
