@@ -125,6 +125,19 @@ static inline TEE_Result user_ta_unmap(struct user_ta_ctx *utc __unused,
 }
 #endif
 
+#ifdef CFG_WITH_USER_TA
+TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+			    uint32_t prot);
+#else
+static inline TEE_Result user_ta_set_prot(struct user_ta_ctx *utc __unused,
+					  vaddr_t va __unused,
+					  size_t len __unused,
+					  uint32_t prot __unused)
+{
+	return TEE_ERROR_GENERIC;
+}
+#endif
+
 /*
  * Registers a TA storage.
  *

@@ -1393,3 +1393,34 @@ TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
 
 	return TEE_SUCCESS;
 }
+
+TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+			    uint32_t prot)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct load_seg *seg = NULL;
+
+	SLIST_FOREACH(seg, &utc->segs, link)
+		if (seg->va == va && seg->size == len)
+			break;
+
+	if (!seg)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	/*
+	 * If the segment is a mapping of a part of a file (seg->file !=
+	 * NULL) it cannot be made writeable as all mapped files are mapped
+	 * read-only.
+	 */
+	if (seg->file && (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	res = vm_set_prot(utc, va, len, prot);
+	if (res)
+		return res;
+
+	seg->flags &= ~TEE_MATTR_PROT_MASK;
+	seg->flags |= prot & TEE_MATTR_PROT_MASK;
+
+	return TEE_SUCCESS;
+}
