@@ -125,4 +125,18 @@
 		_a > _b ? 1 : _a < _b ? -1 : 0; \
 	}))
 
+#ifndef ASM
+static inline uint64_t reg_pair_to_64(uint32_t reg0, uint32_t reg1)
+{
+	return (uint64_t)reg0 << 32 | reg1;
+}
+
+static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
+				    uint32_t *reg1)
+{
+	*reg0 = val >> 32;
+	*reg1 = val;
+}
+#endif
+
 #endif /*UTIL_H*/
