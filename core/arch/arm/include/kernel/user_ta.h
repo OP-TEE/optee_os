@@ -23,6 +23,10 @@ SLIST_HEAD(load_seg_head, load_seg);
 /*
  * struct user_ta_ctx - user TA context
  * @entry_func:		Entry address in TA
+ * @dump_entry_func:	Entry address in TA for dumping address mappings
+ *			and stack trace
+ * @ldelf_stack_ptr:	Stack pointer used for dumping address mappings and
+ *			stack trace
  * @is_32bit:		True if 32-bit TA, false if 64-bit TA
  * @is_initializing:	True if TA is not fully loaded
  * @open_sessions:	List of sessions opened by this TA
@@ -39,6 +43,8 @@ SLIST_HEAD(load_seg_head, load_seg);
  */
 struct user_ta_ctx {
 	uaddr_t entry_func;
+	uaddr_t dump_entry_func;
+	uaddr_t ldelf_stack_ptr;
 	bool is_32bit;
 	bool is_initializing;
 	struct tee_ta_session_head open_sessions;
