@@ -19,8 +19,10 @@
 
 #include "sys.h"
 #include "ta_elf.h"
+#include "unwind.h"
 
 static vaddr_t ta_stack;
+static vaddr_t ta_stack_size;
 
 struct ta_elf_queue main_elf_queue = TAILQ_HEAD_INITIALIZER(main_elf_queue);
 
@@ -255,11 +257,15 @@ static void parse_load_segments(struct ta_elf *elf)
 		Elf32_Phdr *phdr = elf->phdr;
 
 		for (n = 0; n < elf->e_phnum; n++)
-			if (phdr[n].p_type == PT_LOAD)
+			if (phdr[n].p_type == PT_LOAD) {
 				add_segment(elf, phdr[n].p_offset,
 					    phdr[n].p_vaddr, phdr[n].p_filesz,
 					    phdr[n].p_memsz, phdr[n].p_flags,
 					    phdr[n].p_align);
+			} else if (phdr[n].p_type == PT_ARM_EXIDX) {
+				elf->exidx_start = phdr[n].p_vaddr;
+				elf->exidx_size = phdr[n].p_filesz;
+			}
 	} else {
 		Elf64_Phdr *phdr = elf->phdr;
 
@@ -776,6 +782,7 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit,
 	*ta_flags = head->flags;
 	*sp = va + head->stack_size;
 	ta_stack = va;
+	ta_stack_size = head->stack_size;
 }
 
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
@@ -949,3 +956,20 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 		elf_idx++;
 	}
 }
+
+#ifdef CFG_UNWIND
+void ta_elf_stack_trace_a32(uint32_t regs[16])
+{
+	struct unwind_state_arm32 state = { };
+
+	memcpy(state.registers, regs, sizeof(state.registers));
+	print_stack_arm32(&state, ta_stack, ta_stack_size);
+}
+
+void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc)
+{
+	struct unwind_state_arm64 state = { .fp = fp, .sp = sp, .pc = pc };
+
+	print_stack_arm64(&state, ta_stack, ta_stack_size);
+}
+#endif

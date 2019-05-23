@@ -14,7 +14,6 @@
 #include "ta_elf.h"
 #include "sys.h"
 
-static struct ta_elf_queue elf_queue = TAILQ_HEAD_INITIALIZER(elf_queue);
 static size_t mpool_size = 2 * SMALL_PAGE_SIZE;
 static vaddr_t mpool_base;
 
@@ -27,7 +26,15 @@ static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 	EMSG_RAW(" arch: %s", elf->is_32bit ? "arm" : "aarch64");
 
 
-	ta_elf_print_mappings(&elf_queue, arg->num_maps, arg->maps, mpool_base);
+	ta_elf_print_mappings(&main_elf_queue, arg->num_maps, arg->maps,
+			      mpool_base);
+
+	if (arg->is_arm32)
+		ta_elf_stack_trace_a32(arg->arm32.regs);
+	else
+		ta_elf_stack_trace_a64(arg->arm64.fp, arg->arm64.sp,
+				       arg->arm64.pc);
+
 	sys_return_cleanup();
 }
 

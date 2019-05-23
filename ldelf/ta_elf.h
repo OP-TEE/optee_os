@@ -57,6 +57,9 @@ struct ta_elf {
 
 	struct segment_head segs;
 
+	vaddr_t exidx_start;
+	size_t exidx_size;
+
 	uint32_t handle;
 
 	TEE_UUID uuid;
@@ -75,5 +78,13 @@ void ta_elf_finalize_mappings(struct ta_elf *elf);
 
 void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 			   struct dump_map *maps, vaddr_t mpool_base);
-
+#ifdef CFG_UNWIND
+void ta_elf_stack_trace_a32(uint32_t regs[16]);
+void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc);
+#else
+static inline void ta_elf_stack_trace_a32(uint32_t regs[16] __unused) { }
+static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
+					  uint64_t sp __unused,
+					  uint64_t pc __unused) { }
+#endif /*CFG_UNWIND*/
 #endif /*TA_ELF_H*/
