@@ -51,14 +51,9 @@ struct load_seg {
 	vaddr_t va;
 	size_t size;
 	struct mobj *mobj;
+	struct file *file;
 	SLIST_ENTRY(load_seg) link;
 };
-
-/*
- * Note that the load segments are stored in reverse order, that is, the
- * last segment first.
- */
-SLIST_HEAD(load_seg_head, load_seg);
 
 /* ELF file used by a TA (main executable or dynamic library) */
 struct user_ta_elf {
@@ -67,6 +62,10 @@ struct user_ta_elf {
 	vaddr_t load_addr;
 	vaddr_t exidx_start; /* 32-bit ELF only */
 	size_t exidx_size;
+	/*
+	 * Note that the load segments are stored in reverse order, that
+	 * is, the last segment first.
+	 */
 	struct load_seg_head segs;
 	struct file *file;
 
@@ -1335,4 +1334,62 @@ err:
 	pgt_flush_ctx(&utc->ctx);
 	free_utc(utc);
 	return res;
+}
+
+TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
+		       uint32_t prot, struct file *file, size_t pad_begin,
+		       size_t pad_end)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct load_seg *seg = calloc(1, sizeof(*seg));
+
+	if (!seg)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	seg->mobj = mobj_with_fobj_alloc(f);
+	if (!seg->mobj) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	seg->size = f->num_pages * SMALL_PAGE_SIZE;
+
+	res = vm_map_pad(utc, va, seg->size, prot, seg->mobj, 0, pad_begin,
+			 pad_end);
+	if (res)
+		goto err;
+
+	seg->va = *va;
+	seg->file = file_get(file);
+	SLIST_INSERT_HEAD(&utc->segs, seg, link);
+
+	return TEE_SUCCESS;
+
+err:
+	mobj_free(seg->mobj);
+	free(seg);
+
+	return res;
+}
+
+TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct load_seg *seg = NULL;
+
+	SLIST_FOREACH(seg, &utc->segs, link)
+		if (seg->va == va && seg->size == len)
+			break;
+
+	if (!seg)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = vm_unmap(utc, va, len);
+	if (res)
+		return res;
+
+	SLIST_REMOVE(&utc->segs, seg, load_seg, link);
+	mobj_free(seg->mobj);
+	free(seg);
+
+	return TEE_SUCCESS;
 }
