@@ -296,8 +296,6 @@ void abort_print_current_ta(void)
 	if (ai.abort_type != ABORT_TYPE_TA_PANIC)
 		__print_abort_info(&ai, "User TA");
 
-	EMSG_RAW("Status of TA %pUl (%p)",
-		 (void *)&s->ctx->uuid, (void *)s->ctx);
 	s->ctx->ops->dump_state(s->ctx);
 
 	ta_fbuf_dump(s);

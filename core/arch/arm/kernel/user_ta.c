@@ -258,7 +258,7 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	/* Switch to user ctx */
 	tee_ta_push_current_session(sess);
 
-	usr_stack = utc->stack_ptr;
+	usr_stack = utc->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct ldelf_arg *)usr_stack;
 	memset(arg, 0, sizeof(*arg));
@@ -299,10 +299,9 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	utc->entry_func = arg->entry_func;
 	utc->stack_ptr = arg->stack_ptr;
 	utc->ctx.flags = arg->flags;
+	utc->dump_entry_func = arg->dump_entry;
 
 out:
-	clear_ldelf_mappings(utc);
-
 	s = tee_ta_pop_current_session();
 	assert(s == sess);
 
@@ -345,17 +344,12 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 	}
 }
 
-static void user_ta_dump_state(struct tee_ta_ctx *ctx)
+static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
 {
-	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct vm_region *r;
 	char flags[7] = { '\0', };
 	size_t n = 0;
 
-	EMSG_RAW(" arch: %s  load address: 0x%0*" PRIxVA " ctx-idr: %d",
-		 utc->is_32bit ? "arm" : "aarch64", PRIxVA_WIDTH,
-		 utc->load_addr, utc->vm_info->asid);
-	EMSG_RAW(" stack: 0x%0*" PRIxVA, PRIxVA_WIDTH, utc->stack_ptr);
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
 		paddr_t pa = 0;
 
@@ -369,6 +363,141 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 			 flags);
 		n++;
 	}
+}
+
+static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	struct dump_entry_arg *arg = NULL;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+	struct thread_specific_data *tsd = thread_get_tsd();
+	struct vm_region *r = NULL;
+	size_t n = 0;
+
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
+		if (r->attr & TEE_MATTR_URWX)
+			n++;
+
+	usr_stack = utc->ldelf_stack_ptr;
+	usr_stack -= ROUNDUP(sizeof(*arg) + n * sizeof(struct dump_map),
+			     STACK_ALIGNMENT);
+	arg = (struct dump_entry_arg *)usr_stack;
+
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)arg, sizeof(*arg));
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	memset(arg, 0, sizeof(*arg) + n * sizeof(struct dump_map));
+
+	arg->num_maps = n;
+	n = 0;
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		if (r->attr & TEE_MATTR_URWX) {
+			if (r->mobj)
+				mobj_get_pa(r->mobj, r->offset, 0,
+					    &arg->maps[n].pa);
+			arg->maps[n].va = r->va;
+			arg->maps[n].sz = r->size;
+			if (r->attr & TEE_MATTR_UR)
+				arg->maps[n].flags |= DUMP_MAP_READ;
+			if (r->attr & TEE_MATTR_UW)
+				arg->maps[n].flags |= DUMP_MAP_WRITE;
+			if (r->attr & TEE_MATTR_UX)
+				arg->maps[n].flags |= DUMP_MAP_EXEC;
+			if (r->attr & TEE_MATTR_SECURE)
+				arg->maps[n].flags |= DUMP_MAP_SECURE;
+			if (r->attr & TEE_MATTR_EPHEMERAL)
+				arg->maps[n].flags |= DUMP_MAP_EPHEM;
+			if (r->attr & TEE_MATTR_LDELF)
+				arg->maps[n].flags |= DUMP_MAP_LDELF;
+			n++;
+		}
+	}
+
+	arg->is_arm32 = utc->is_32bit;
+#ifdef ARM32
+		arg->arm32.regs[0] = tsd->abort_regs.r0;
+		arg->arm32.regs[1] = tsd->abort_regs.r1;
+		arg->arm32.regs[2] = tsd->abort_regs.r2;
+		arg->arm32.regs[3] = tsd->abort_regs.r3;
+		arg->arm32.regs[4] = tsd->abort_regs.r4;
+		arg->arm32.regs[5] = tsd->abort_regs.r5;
+		arg->arm32.regs[6] = tsd->abort_regs.r6;
+		arg->arm32.regs[7] = tsd->abort_regs.r7;
+		arg->arm32.regs[8] = tsd->abort_regs.r8;
+		arg->arm32.regs[9] = tsd->abort_regs.r9;
+		arg->arm32.regs[10] = tsd->abort_regs.r10;
+		arg->arm32.regs[11] = tsd->abort_regs.r11;
+		arg->arm32.regs[12] = tsd->abort_regs.ip;
+		arg->arm32.regs[13] = tsd->abort_regs.usr_sp; /*SP*/
+		arg->arm32.regs[14] = tsd->abort_regs.usr_lr; /*LR*/
+		arg->arm32.regs[15] = tsd->abort_regs.elr; /*PC*/
+#endif /*ARM32*/
+#ifdef ARM64
+	if (utc->is_32bit) {
+		arg->arm32.regs[0] = tsd->abort_regs.x0;
+		arg->arm32.regs[1] = tsd->abort_regs.x1;
+		arg->arm32.regs[2] = tsd->abort_regs.x2;
+		arg->arm32.regs[3] = tsd->abort_regs.x3;
+		arg->arm32.regs[4] = tsd->abort_regs.x4;
+		arg->arm32.regs[5] = tsd->abort_regs.x5;
+		arg->arm32.regs[6] = tsd->abort_regs.x6;
+		arg->arm32.regs[7] = tsd->abort_regs.x7;
+		arg->arm32.regs[8] = tsd->abort_regs.x8;
+		arg->arm32.regs[9] = tsd->abort_regs.x9;
+		arg->arm32.regs[10] = tsd->abort_regs.x10;
+		arg->arm32.regs[11] = tsd->abort_regs.x11;
+		arg->arm32.regs[12] = tsd->abort_regs.x12;
+		arg->arm32.regs[13] = tsd->abort_regs.x13; /*SP*/
+		arg->arm32.regs[14] = tsd->abort_regs.x14; /*LR*/
+		arg->arm32.regs[15] = tsd->abort_regs.elr; /*PC*/
+	} else {
+		arg->arm64.fp = tsd->abort_regs.x29;
+		arg->arm64.pc = tsd->abort_regs.elr;
+		arg->arm64.sp = tsd->abort_regs.sp_el0;
+	}
+#endif /*ARM64*/
+
+	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+				     usr_stack, utc->dump_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	clear_vfp_state(utc);
+	if (panicked) {
+		utc->dump_entry_func = 0;
+		EMSG("ldelf dump function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+
+	return res;
+}
+
+static void user_ta_dump_state(struct tee_ta_ctx *ctx)
+{
+	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+
+	if (utc->dump_entry_func) {
+		TEE_Result res = dump_state_ldelf_dbg(utc);
+
+		if (!res || res == TEE_ERROR_TARGET_DEAD)
+			return;
+		/*
+		 * Fall back to dump_state_no_ldelf_dbg() if
+		 * dump_state_ldelf_dbg() fails for some reason.
+		 *
+		 * If dump_state_ldelf_dbg() failed with panic
+		 * where done since abort_print_current_ta() will be
+		 * called which will dump the memory map.
+		 */
+	}
+
+	dump_state_no_ldelf_dbg(utc);
 }
 
 static void user_ta_dump_state_buffer(struct tee_ta_ctx *ctx __unused,
@@ -476,7 +605,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 	fobj_put(fobj);
 	if (res)
 		return res;
-	utc->stack_ptr = stack_addr + LDELF_STACK_SIZE;
+	utc->ldelf_stack_ptr = stack_addr + LDELF_STACK_SIZE;
 
 	num_pgs = ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	fobj = fobj_ta_mem_alloc(num_pgs);
