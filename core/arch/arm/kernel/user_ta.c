@@ -812,61 +812,43 @@ static TEE_Result add_deps(struct user_ta_ctx *utc __unused,
 #endif
 
 static TEE_Result register_ro_slices(struct user_ta_ctx *utc,
-				     struct file **file,
-				     const struct user_ta_store_ops *ta_store,
-				     struct user_ta_store_handle *handle,
+				     struct elf_load_state *state,
 				     struct load_seg *segs, size_t num_segs)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct file *f = NULL;
-	struct file_slice *fs = NULL;
-	size_t num_slices = 0;
+	unsigned int page_offset = 0;
+	struct fobj *fobj = NULL;
 	size_t n = 0;
-	uint8_t tag[FILE_TAG_SIZE] = { 0 };
-	unsigned int tag_len = sizeof(tag);
-
-	assert(!*file);
-
-	res = ta_store->get_tag(handle, tag, &tag_len);
-	if (res)
-		return res;
 
 	for (n = 0; n < num_segs; n++) {
-		if (!(segs[n].flags & PF_W)) {
-			res = vm_set_prot(utc, segs[n].va, segs[n].size,
-					  elf_flags_to_mattr(segs[n].flags));
-			if (res)
-				return res;
-			num_slices++;
-		}
+		if (segs[n].flags & PF_W)
+			continue;
+
+		res = vm_set_prot(utc, segs[n].va, segs[n].size,
+				  elf_flags_to_mattr(segs[n].flags));
+		if (res)
+			return res;
+
+		if (!state->file)
+			continue;
+
+		page_offset = (segs[n].va - segs[0].va) / SMALL_PAGE_SIZE;
+		if (file_find_slice(state->file, page_offset))
+			continue;
+
+		fobj = mobj_get_fobj(segs[n].mobj);
+		res = file_add_slice(state->file, fobj, page_offset);
+
+		/*
+		 * The fobjs is guaranteed to exist now, and
+		 * file_add_slice() has called fobj_get() on the
+		 * supplied fobj.
+		 */
+		fobj_put(fobj);
+		if (res)
+			return res;
 	}
 
-	fs = calloc(num_slices, sizeof(*fs));
-	if (!fs)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	num_slices = 0;
-	for (n = 0; n < num_segs; n++) {
-		if (!(segs[n].flags & PF_W)) {
-			fs[num_slices].fobj = mobj_get_fobj(segs[n].mobj);
-			fs[num_slices].page_offset = (segs[n].va - segs[0].va) /
-						     SMALL_PAGE_SIZE;
-			/*
-			 * The fobjs is guaranteed to exist now, and
-			 * file_new() will call fobj_get() on all supplied
-			 * fobjs later.
-			 */
-			fobj_put(fs[num_slices].fobj);
-			num_slices++;
-		}
-	}
-
-	f = file_new(tag, tag_len, fs, num_slices);
-	free(fs);
-	if (!f)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	*file = f;
 	return TEE_SUCCESS;
 }
 
@@ -963,7 +945,10 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 		DMSG("Using deprecated TA entry via ta_head");
 		utc->entry_func = ta_head->depr_entry;
 	} else {
-		file = elf_load_get_file(elf_state);
+		res = elf_load_get_file(elf_state, &file);
+		if (res)
+			goto out;
+		file_lock(file);
 	}
 
 	if (elf == exe) {
@@ -1025,11 +1010,11 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 					  &segs[n].mobj);
 			if (res)
 				goto out;
-			/*
-			 * Note that segs[n].mobj can still be NULL if
-			 * corresponding fobj isn't found.
-			 */
 		}
+		/*
+		 * Note that segs[n].mobj can still be NULL if
+		 * corresponding fobj isn't found.
+		 */
 		if (!segs[n].mobj) {
 			segs[n].mobj = alloc_ta_mem(segs[n].size);
 			if (!segs[n].mobj) {
@@ -1063,21 +1048,20 @@ static TEE_Result load_elf_from_store(const TEE_UUID *uuid,
 	 * Legacy TAs can't share read-only memory due to the way
 	 * relocation is updated.
 	 */
-	if (!file && ta_head->depr_entry == UINT64_MAX) {
-		res = register_ro_slices(utc, &file, ta_store, handle,
-					 segs, num_segs);
-		if (res)
-			goto out;
-	}
+	res = register_ro_slices(utc, elf_state, segs, num_segs);
+	if (res)
+		goto out;
 
 	/* Find any external dependency (dynamically linked libraries) */
 	res = add_deps(utc, elf_state, elf->load_addr);
 out:
+	if (file)
+		file_unlock(file);
 	if (res) {
 		file_put(file);
 		free_segs(segs, num_segs);
 	} else {
-		elf->file = file;
+		elf->file = elf_state->file;
 		elf->segs = segs;
 		elf->num_segs = num_segs;
 	}

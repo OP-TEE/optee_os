@@ -13,6 +13,11 @@
 #include <types_ext.h>
 #include <util.h>
 
+struct file_slice_elem {
+	struct file_slice slice;
+	SLIST_ENTRY(file_slice_elem) link;
+};
+
 /*
  * struct file - file resources
  * @tag:	Tag or hash uniquely identifying a file
@@ -31,8 +36,8 @@ struct file {
 	unsigned int taglen;
 	struct refcount refc;
 	TAILQ_ENTRY(file) link;
-	unsigned int num_slices;
-	struct file_slice slices[];
+	struct mutex mu;
+	SLIST_HEAD(, file_slice_elem) slice_head;
 };
 
 static struct mutex file_mu = MUTEX_INITIALIZER;
@@ -60,61 +65,45 @@ static struct file *file_find_tag_unlocked(const uint8_t *tag,
 
 static void file_free(struct file *f)
 {
-	size_t n = 0;
+	mutex_destroy(&f->mu);
 
-	for (n = 0; n < f->num_slices; n++)
-		fobj_put(f->slices[n].fobj);
+	while (!SLIST_EMPTY(&f->slice_head)) {
+		struct file_slice_elem *fse = SLIST_FIRST(&f->slice_head);
+
+		SLIST_REMOVE_HEAD(&f->slice_head, link);
+		fobj_put(fse->slice.fobj);
+		free(fse);
+	}
 
 	free(f);
 }
 
-struct file *file_new(uint8_t *tag, unsigned int taglen,
-		      struct file_slice *slices, unsigned int num_slices)
+TEE_Result file_add_slice(struct file *f, struct fobj *fobj,
+			  unsigned int page_offset)
 {
+	struct file_slice_elem *fse = NULL;
 	unsigned int s = 0;
-	unsigned int n = 0;
-	struct file *f = NULL;
-	bool did_insert = false;
 
-	if (taglen > sizeof(f->tag))
-		return NULL;
-	if (MUL_OVERFLOW(num_slices, sizeof(*slices), &s))
-		return NULL;
-	if (ADD_OVERFLOW(s, sizeof(*f), &s))
-		return NULL;
-	f = calloc(1, s);
-	if (!f)
-		return NULL;
+	/* Check for conflicts */
+	if (file_find_slice(f, page_offset))
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	memcpy(f->tag, tag, taglen);
-	f->taglen = taglen;
-	refcount_set(&f->refc, 1);
-	for (n = 0; n < num_slices; n++) {
-		if (file_find_slice(f, slices[n].page_offset))
-			goto err;
+	fse = calloc(1, sizeof(*fse));
+	if (!fse)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
-		f->slices[n].fobj = fobj_get(slices[n].fobj);
-		f->num_slices = n + 1;
-		if (!f->slices[n].fobj ||
-		    ADD_OVERFLOW(slices[n].page_offset,
-				 slices[n].fobj->num_pages, &s))
-			goto err;
-		f->slices[n].page_offset = slices[n].page_offset;
+	fse->slice.fobj = fobj_get(fobj);
+	if (!fse->slice.fobj ||
+	    ADD_OVERFLOW(page_offset, fse->slice.fobj->num_pages, &s)) {
+		fobj_put(fse->slice.fobj);
+		free(fse);
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	mutex_lock(&file_mu);
-	if (!file_find_tag_unlocked(tag, taglen)) {
-		TAILQ_INSERT_TAIL(&file_head, f, link);
-		did_insert = true;
-	}
-	mutex_unlock(&file_mu);
+	fse->slice.page_offset = page_offset;
+	SLIST_INSERT_HEAD(&f->slice_head, fse, link);
 
-	if (did_insert)
-		return f;
-err:
-	file_free(f);
-
-	return NULL;
+	return TEE_SUCCESS;
 }
 
 struct file *file_get(struct file *f)
@@ -125,12 +114,28 @@ struct file *file_get(struct file *f)
 	return f;
 }
 
-struct file *file_get_by_tag(uint8_t *tag, unsigned int taglen)
+struct file *file_get_by_tag(const uint8_t *tag, unsigned int taglen)
 {
 	struct file *f = NULL;
 
+	if (taglen > sizeof(f->tag))
+		return NULL;
+
 	mutex_lock(&file_mu);
 	f = file_get(file_find_tag_unlocked(tag, taglen));
+	if (f)
+		goto out;
+	f = calloc(1, sizeof(*f));
+	if (!f)
+		goto out;
+	memcpy(f->tag, tag, taglen);
+	f->taglen = taglen;
+	refcount_set(&f->refc, 1);
+	mutex_init(&f->mu);
+	SLIST_INIT(&f->slice_head);
+	TAILQ_INSERT_TAIL(&file_head, f, link);
+
+out:
 	mutex_unlock(&file_mu);
 
 	return f;
@@ -138,31 +143,24 @@ struct file *file_get_by_tag(uint8_t *tag, unsigned int taglen)
 
 void file_put(struct file *f)
 {
-	bool did_remove = false;
-
-	if (!f)
-		return;
-
-	mutex_lock(&file_mu);
-	if (refcount_dec(&f->refc)) {
+	if (f && refcount_dec(&f->refc)) {
+		mutex_lock(&file_mu);
 		TAILQ_REMOVE(&file_head, f, link);
-		did_remove = true;
-	}
-	mutex_unlock(&file_mu);
+		mutex_unlock(&file_mu);
 
-	if (did_remove)
 		file_free(f);
+	}
+
 }
 
 struct file_slice *file_find_slice(struct file *f, unsigned int page_offset)
 {
-	size_t n = 0;
+	struct file_slice_elem *fse = NULL;
 
-	if (!f)
-		return NULL;
+	assert(f->mu.state);
 
-	for (n = 0; n < f->num_slices; n++) {
-		struct file_slice *fs = f->slices + n;
+	SLIST_FOREACH(fse, &f->slice_head, link) {
+		struct file_slice *fs = &fse->slice;
 
 		if (page_offset >= fs->page_offset &&
 		    page_offset < fs->page_offset + fs->fobj->num_pages)
@@ -170,4 +168,19 @@ struct file_slice *file_find_slice(struct file *f, unsigned int page_offset)
 	}
 
 	return NULL;
+}
+
+void file_lock(struct file *f)
+{
+	mutex_lock(&f->mu);
+}
+
+bool file_trylock(struct file *f)
+{
+	return mutex_trylock(&f->mu);
+}
+
+void file_unlock(struct file *f)
+{
+	mutex_unlock(&f->mu);
 }

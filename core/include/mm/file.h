@@ -6,6 +6,7 @@
 #ifndef __MM_FILE_H
 #define __MM_FILE_H
 
+#include <tee_api_types.h>
 #include <types_ext.h>
 #include <utee_defines.h>
 
@@ -26,17 +27,43 @@ struct file_slice {
 struct file;
 
 /*
- * file_new() - allocate a new struct file
- * @tag:	Tag of the file
- * @taglen:	Length of @tag
- * @slices:	An array of file slices
- * @num_slices:	Number of elements in the @slices array
+ * file_lock() - Lock the file
+ * @f:		File pointer
  *
- * Returns a newly allocated file with the reference counters of the fobjs
- * in all the slices increased on success. Returns NULL on failure.
+ * Waits until the file can be locked and with the file put in locked state.
  */
-struct file *file_new(uint8_t *tag, unsigned int taglen,
-		      struct file_slice *slices, unsigned int num_slices);
+void file_lock(struct file *f);
+
+/*
+ * file_lock() - Try to lock the file without blocking
+ * @f:		File pointer
+ *
+ * Returns false if file cannot be locked without blocking.
+ * Returns true if the file has been put in locked state.
+ */
+bool file_trylock(struct file *f);
+
+/*
+ * file_unlock() - Unlock the file
+ * @f:		File pointer
+ *
+ * File must be in locked state. Releases the previous lock and returns.
+ */
+void file_unlock(struct file *f);
+
+/*
+ * file_add_slice() - Add a slice to a file
+ * @f:		 File pointer
+ * @fobj:	 Fobj holding the data of this slice
+ * @page_offset: Offset in pages into the file (@f) where the @fobj is
+ *		 located.
+ *
+ * File must be in locked state.
+ *
+ * Returns TEE_SUCCESS on success or a TEE_ERROR_* code on failure.
+ */
+TEE_Result file_add_slice(struct file *f, struct fobj *fobj,
+			  unsigned int page_offset);
 
 /*
  * file_get() - Increase file reference counter
@@ -51,10 +78,11 @@ struct file *file_get(struct file *f);
  * @tag:	Tag of the file
  * @taglen:	Length of @tag
  *
- * Returns a file with an increased reference counter if found, or NULL if
- * not found.
+ * If a file doesn't exist it's created with the supplied tag.
+ *
+ * Returns a file with an increased reference counter, or NULL on failure.
  */
-struct file *file_get_by_tag(uint8_t *tag, unsigned int taglen);
+struct file *file_get_by_tag(const uint8_t *tag, unsigned int taglen);
 
 /*
  * file_put() - Decrease reference counter of file
@@ -70,6 +98,8 @@ void file_put(struct file *f);
  * file_find_slice() - Find a slice covering the @page_offset
  * @f:		 File pointer
  * @page_offset: Offset that must be covered
+ *
+ * File must be in locked state.
  *
  * If a matching file slice is found it is returned, else NULL is returned.
  */
