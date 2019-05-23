@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2019, Linaro Limited
+#
+
+from __future__ import print_function
+from __future__ import division
+
+import argparse
+import sys
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
+from elftools.elf.constants import P_FLAGS
+import struct
+import re
+from collections import deque
+
+
+def round_up(n, m):
+    if n == 0:
+        return 0
+    else:
+        return (((n - 1) // m) + 1) * m
+
+
+def emit_load_segments(elffile, outf):
+    load_size = 0
+    n = 0
+    for segment in elffile.iter_segments():
+        if segment['p_type'] == 'PT_LOAD':
+            if n == 0:
+                if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_X):
+                    print('Expected first load segment to be read/execute')
+                    sys.exit(1)
+                code_size = segment['p_filesz']
+            if n == 1:
+                if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_W):
+                    print('Expected second load segment to be read/write')
+                    sys.exit(1)
+                data_size = segment['p_filesz']
+            if n > 1:
+                print('Only expected two load segments')
+                sys.exit(1)
+            load_size += segment['p_filesz']
+            n = n + 1
+
+    outf.write('const uint8_t ldelf_data[%d]' % round_up(load_size, 4096))
+    outf.write(' __aligned(4096) = {\n')
+    i = 0
+    for segment in elffile.iter_segments():
+        if segment['p_type'] == 'PT_LOAD':
+            data = segment.data()
+            for n in range(segment['p_filesz']):
+                if i % 8 == 0:
+                    outf.write('\t')
+                outf.write('0x' + '{:02x}'.format(ord(data[n])) + ',')
+                i = i + 1
+                if i % 8 == 0 or i == load_size:
+                    outf.write('\n')
+                else:
+                    outf.write(' ')
+    outf.write('};\n')
+
+    outf.write('const unsigned int ldelf_code_size = %d;\n' % code_size)
+    outf.write('const unsigned int ldelf_data_size = %d;\n' % data_size)
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--input',
+                        required=True, type=argparse.FileType('rb'),
+                        help='The input ldelf.elf')
+
+    parser.add_argument('--output',
+                        required=True, type=argparse.FileType('wb'),
+                        help='The output ldelf_hex.c')
+
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
+    inf = args.input
+    outf = args.output
+
+    elffile = ELFFile(inf)
+
+    outf.write('/* Automatically generated, do no edit */\n')
+    outf.write('#include <compiler.h>\n')
+    outf.write('#include <stdint.h>\n')
+    emit_load_segments(elffile, outf)
+    outf.write('const unsigned long ldelf_entry = %lu;\n' %
+               elffile.header['e_entry'])
+
+    inf.close()
+    outf.close()
+
+
+if __name__ == "__main__":
+    main()

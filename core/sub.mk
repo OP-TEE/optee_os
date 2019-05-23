@@ -11,6 +11,13 @@ depends-ta_pub_key = $(TA_SIGN_KEY) scripts/pem_to_pub_c.py
 recipe-ta_pub_key = scripts/pem_to_pub_c.py --prefix ta_pub_key \
 		--key $(TA_SIGN_KEY) --out $(sub-dir-out)/ta_pub_key.c
 cleanfiles += $(sub-dir-out)/ta_pub_key.c
+
+gensrcs-y += ldelf
+produce-ldelf = ldelf_hex.c
+depends-ldelf = scripts/gen_ldelf_hex.py $(out-dir)/ldelf/ldelf.elf
+recipe-ldelf = scripts/gen_ldelf_hex.py --input $(out-dir)/ldelf/ldelf.elf \
+			--output $(sub-dir-out)/ldelf_hex.c
+cleanfiles += $(sub-dir-out)/ldelf_hex.c
 endif
 
 ifeq ($(CFG_WITH_USER_TA)-$(CFG_EARLY_TA),y-y)
