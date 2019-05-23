@@ -8,16 +8,18 @@
 #include <assert.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <mm/file.h>
 #include <mm/tee_mm.h>
+#include <scattered_array.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
-#include <scattered_array.h>
 #include <util.h>
 
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
 TAILQ_HEAD(tee_storage_enum_head, tee_storage_enum);
 TAILQ_HEAD(user_ta_elf_head, user_ta_elf);
+SLIST_HEAD(load_seg_head, load_seg);
 
 /*
  * struct user_ta_ctx - user TA context
@@ -58,6 +60,7 @@ struct user_ta_ctx {
 	struct vm_info *vm_info;
 	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
+	struct load_seg_head segs;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif
@@ -91,6 +94,34 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 			struct tee_ta_session *s __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+#endif
+
+struct fobj;
+#ifdef CFG_WITH_USER_TA
+TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
+		       uint32_t prot, struct file *file, size_t pad_begin,
+		       size_t pad_end);
+#else
+static inline TEE_Result user_ta_map(struct user_ta_ctx *utc __unused,
+				     vaddr_t *va __unused,
+				     struct fobj *f __unused,
+				     uint32_t prot __unused,
+				     struct file *file __unused,
+				     size_t pad_begin __unused,
+				     size_t pad_end __unused)
+{
+	return TEE_ERROR_GENERIC;
+}
+#endif
+
+#ifdef CFG_WITH_USER_TA
+TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len);
+#else
+static inline TEE_Result user_ta_unmap(struct user_ta_ctx *utc __unused,
+				       vaddr_t va __unused, size_t len __unused)
+{
+	return TEE_ERROR_GENERIC;
 }
 #endif
 
