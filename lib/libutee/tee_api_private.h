@@ -12,12 +12,6 @@
 void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 			uint32_t attr_count);
 
-void __utee_from_param(struct utee_params *up, uint32_t param_types,
-			const TEE_Param params[TEE_NUM_PARAMS]);
-
-void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
-			uint32_t *param_types, const struct utee_params *up);
-
 TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id);
 

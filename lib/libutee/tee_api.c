@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
-
 #include <tee_api.h>
 #include <tee_internal_api_extensions.h>
+#include <types_ext.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
 #include "tee_api_private.h"
@@ -16,25 +16,88 @@ static const void *tee_api_instance_data;
 
 /* System API - Internal Client API */
 
-void __utee_from_param(struct utee_params *up, uint32_t param_types,
-			const TEE_Param params[TEE_NUM_PARAMS])
+static TEE_Result copy_param(struct utee_params *up, uint32_t param_types,
+			     const TEE_Param params[TEE_NUM_PARAMS],
+			     void **tmp_buf, size_t *tmp_len,
+			     void *tmp_va[TEE_NUM_PARAMS])
 {
-	size_t n;
+	size_t n = 0;
+	uint8_t *tb = NULL;
+	size_t tbl = 0;
+	size_t tmp_align = sizeof(vaddr_t) * 2;
+	bool is_tmp_mem[TEE_NUM_PARAMS] = { false };
+	void *b = NULL;
+	size_t s = 0;
+	const uint32_t flags = TEE_MEMORY_ACCESS_READ;
+
+	/*
+	 * If a memory parameter points to TA private memory we need to
+	 * allocate a temporary buffer to avoid exposing the memory
+	 * directly to the called TA.
+	 */
+
+	*tmp_buf = NULL;
+	*tmp_len = 0;
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		tmp_va[n] = NULL;
+		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			b = params[n].memref.buffer;
+			s = params[n].memref.size;
+			/*
+			 * We're only allocating temporary memory if the
+			 * buffer is completely within TA memory. If it's
+			 * NULL, empty, partially outside or completely
+			 * outside TA memory there's nothing more we need
+			 * to do here. If there's security/permissions
+			 * problem we'll get an error in the
+			 * invoke_command/open_session below.
+			 */
+			if (b && s &&
+			    !TEE_CheckMemoryAccessRights(flags, b, s)) {
+				is_tmp_mem[n] = true;
+				tbl += ROUNDUP(s, tmp_align);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (tbl) {
+		tb = tee_map_zi(tbl, TEE_MEMORY_ACCESS_ANY_OWNER);
+		if (!tb)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		*tmp_buf = tb;
+		*tmp_len = tbl;
+	}
 
 	up->types = param_types;
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
 		case TEE_PARAM_TYPE_VALUE_INPUT:
-		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
 			up->vals[n * 2] = params[n].value.a;
 			up->vals[n * 2 + 1] = params[n].value.b;
 			break;
-		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			up->vals[n * 2] = (uintptr_t)params[n].memref.buffer;
-			up->vals[n * 2 + 1] = params[n].memref.size;
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+			s = params[n].memref.size;
+			if (is_tmp_mem[n]) {
+				b = tb;
+				tmp_va[n] = tb;
+				tb += ROUNDUP(s, tmp_align);
+				if (TEE_PARAM_TYPE_GET(param_types, n) !=
+				    TEE_PARAM_TYPE_MEMREF_OUTPUT)
+					memcpy(b, params[n].memref.buffer, s);
+			} else {
+				b = params[n].memref.buffer;
+			}
+			up->vals[n * 2] = (vaddr_t)b;
+			up->vals[n * 2 + 1] = s;
 			break;
 		default:
 			up->vals[n * 2] = 0;
@@ -42,10 +105,13 @@ void __utee_from_param(struct utee_params *up, uint32_t param_types,
 			break;
 		}
 	}
+
+	return TEE_SUCCESS;
 }
 
-void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
-			uint32_t *param_types, const struct utee_params *up)
+static void update_out_param(TEE_Param params[TEE_NUM_PARAMS],
+			     void *tmp_va[TEE_NUM_PARAMS],
+			     const struct utee_params *up)
 {
 	size_t n;
 	uint32_t types = up->types;
@@ -55,25 +121,22 @@ void __utee_to_param(TEE_Param params[TEE_NUM_PARAMS],
 		uintptr_t b = up->vals[n * 2 + 1];
 
 		switch (TEE_PARAM_TYPE_GET(types, n)) {
-		case TEE_PARAM_TYPE_VALUE_INPUT:
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
 			params[n].value.a = a;
 			params[n].value.b = b;
 			break;
-		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			params[n].memref.buffer = (void *)a;
+			if (tmp_va[n])
+				memcpy(params[n].memref.buffer, tmp_va[n],
+				       MIN(b, params[n].memref.size));
 			params[n].memref.size = b;
 			break;
 		default:
 			break;
 		}
 	}
-
-	if (param_types)
-		*param_types = types;
 }
 
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
@@ -83,14 +146,27 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 				TEE_TASessionHandle *session,
 				uint32_t *returnOrigin)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	struct utee_params up;
-	uint32_t s;
+	uint32_t s = 0;
+	void *tmp_buf = NULL;
+	size_t tmp_len = 0;
+	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
 
-	__utee_from_param(&up, paramTypes, params);
+	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
+	if (res)
+		goto out;
 	res = utee_open_ta_session(destination, cancellationRequestTimeout,
 				   &up, &s, returnOrigin);
-	__utee_to_param(params, NULL, &up);
+	update_out_param(params, tmp_va, &up);
+	if (tmp_buf) {
+		TEE_Result res2 = tee_unmap(tmp_buf, tmp_len);
+
+		if (res2)
+			TEE_Panic(res2);
+	}
+
+out:
 	/*
 	 * Specification says that *session must hold TEE_HANDLE_NULL is
 	 * TEE_SUCCESS isn't returned. Set it here explicitly in case
@@ -119,16 +195,28 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 				TEE_Param params[TEE_NUM_PARAMS],
 				uint32_t *returnOrigin)
 {
-	TEE_Result res;
-	uint32_t ret_origin;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t ret_origin = TEE_ORIGIN_TEE;
 	struct utee_params up;
+	void *tmp_buf = NULL;
+	size_t tmp_len = 0;
+	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
 
-	__utee_from_param(&up, paramTypes, params);
+	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
+	if (res)
+		goto out;
 	res = utee_invoke_ta_command((uintptr_t)session,
 				      cancellationRequestTimeout,
 				      commandID, &up, &ret_origin);
-	__utee_to_param(params, NULL, &up);
+	update_out_param(params, tmp_va, &up);
+	if (tmp_buf) {
+		TEE_Result res2 = tee_unmap(tmp_buf, tmp_len);
 
+		if (res2)
+			TEE_Panic(res2);
+	}
+
+out:
 	if (returnOrigin != NULL)
 		*returnOrigin = ret_origin;
 
