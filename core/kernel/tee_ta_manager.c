@@ -101,6 +101,15 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 
 	mutex_lock(&tee_ta_mutex);
 
+	if (ctx->initializing) {
+		/*
+		 * Context is still initializing and flags cannot be relied
+		 * on for user TAs. Wait here until it's initialized.
+		 */
+		while (ctx->busy)
+			condvar_wait(&ctx->busy_cv, &tee_ta_mutex);
+	}
+
 	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
 		lock_single_instance();
 
@@ -148,8 +157,10 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
 
-	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+	if (!ctx->initializing && (ctx->flags & TA_FLAG_SINGLE_INSTANCE))
 		unlock_single_instance();
+
+	ctx->initializing = false;
 
 	mutex_unlock(&tee_ta_mutex);
 }
@@ -710,8 +721,6 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	 */
 	if (panicked || was_busy)
 		*err = TEE_ORIGIN_TEE;
-	else
-		*err = TEE_ORIGIN_TRUSTED_APP;
 
 	if (res != TEE_SUCCESS)
 		EMSG("Failed. Return error 0x%x", res);

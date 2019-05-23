@@ -32,24 +32,10 @@ enum fault_type {
 static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
 				       vaddr_t *stack, size_t *stack_size)
 {
-	struct tee_ta_session *s;
-	struct user_ta_ctx *utc;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		panic();
-
-	utc = to_user_ta_ctx(s->ctx);
-
-	/* Only 32-bit TAs use .ARM.exidx/.ARM.extab exception handling */
-	assert(utc->is_32bit);
-
-	*exidx = utc->exidx_start; /* NULL if TA has no unwind tables */
-	if (*exidx)
-		*exidx += utc->load_addr;
-	*exidx_sz = utc->exidx_size;
-
-	*stack = utc->stack_addr;
-	*stack_size = utc->mobj_stack->size;
+	*exidx = 0;
+	*exidx_sz = 0;
+	*stack = 0;
+	*stack_size = 0;
 }
 
 #ifdef ARM32
@@ -161,16 +147,9 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 	size_t stack_size = 0;
 
 	if (abort_is_user_exception(ai)) {
-		struct tee_ta_session *s = NULL;
-		struct user_ta_ctx *utc = NULL;
-
-		if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-			panic();
-
-		utc = to_user_ta_ctx(s->ctx);
 		/* User stack */
-		stack = utc->stack_addr;
-		stack_size = utc->mobj_stack->size;
+		stack = 0;
+		stack_size = 0;
 	} else {
 		/* Kernel stack */
 		stack = thread_stack_start();
