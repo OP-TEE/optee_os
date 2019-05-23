@@ -51,6 +51,10 @@
 
 /* Memory can be shared with other TAs */
 #define PTA_SYSTEM_MAP_FLAG_SHAREABLE	BIT32(0)
+/* Read/write memory */
+#define PTA_SYSTEM_MAP_FLAG_WRITEABLE	BIT32(1)
+/* Executable memory */
+#define PTA_SYSTEM_MAP_FLAG_EXECUTABLE	BIT32(2)
 
 /*
  * Map zero initialized memory
@@ -73,5 +77,58 @@
  * [in]	    value[1].b: Address lower 32-bits
  */
 #define PTA_SYSTEM_UNMAP		3
+
+/*
+ * Find and opens an TA binary and return a handle
+ *
+ * [in]	    memref[0]:	UUID of TA binary
+ * [out]    value[1].a:	Handle to TA binary
+ * [out]    value[1].b:	0
+ */
+#define PTA_SYSTEM_OPEN_TA_BINARY	4
+
+/*
+ * Close an TA binary handle
+ *
+ * When a TA is done mapping new parts of an TA binary it closes the handle
+ * to free resources, established mappings remains.
+ *
+ * [in]     value[1].a:	Handle to TA binary
+ * [in]     value[1].b:	Must be 0
+ *
+ * Returns TEE_SUCCESS if the TA binary was verified successfully.
+ */
+#define PTA_SYSTEM_CLOSE_TA_BINARY	5
+
+/*
+ * Map segment of TA binary
+ *
+ * Different parts of an TA binary file needs different permissions.
+ * Read-write mapped parts are private to the TA, while read-only (which
+ * includes execute) mapped parts are shared with other TAs. This is
+ * transparent to the TA. If the supplied address in value[3] is 0 a
+ * suitable address is selected, else it will either be mapped at that
+ * address of an error is returned.
+ *
+ * [in]     value[0].a:	Handle to TA binary
+ * [in]     value[0].b:	Flags, PTA_SYSTEM_MAP_FLAG_*
+ * [in]     value[1].a:	Offset into TA binary, must be page aligned
+ * [in]     value[1].b:	Number of bytes, the last page will be zero
+ *			extended if not page aligned
+ * [in/out] value[2].a:	Address upper 32-bits
+ * [in/out] value[2].b:	Address lower 32-bits
+ * [in]     value[3].a: Extra pad before memory range
+ * [in]     value[3].b: Extra pad after memory range
+ */
+#define PTA_SYSTEM_MAP_TA_BINARY	6
+
+/*
+ * Copy a memory range from TA binary
+ *
+ * [in]     value[0].a:	Handle to TA binary
+ * [in]     value[0].b:	Offset into TA binary
+ * [out]    memref[1]:	Destination
+ */
+#define PTA_SYSTEM_COPY_FROM_TA_BINARY	7
 
 #endif /* __PTA_SYSTEM_H */
