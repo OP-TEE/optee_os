@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2018, Linaro Limited
+ * Copyright (c) 2018-2019, Linaro Limited
  */
 #ifndef __PTA_SYSTEM_H
 #define __PTA_SYSTEM_H
+
+#include <util.h>
 
 /*
  * Interface to the pseudo TA, which is provides misc. auxiliary services,
@@ -46,5 +48,30 @@
  * [out] params[1].memref.size       Size of the derived key (16 to 32 bytes)
  */
 #define PTA_SYSTEM_DERIVE_TA_UNIQUE_KEY 1
+
+/* Memory can be shared with other TAs */
+#define PTA_SYSTEM_MAP_FLAG_SHAREABLE	BIT32(0)
+
+/*
+ * Map zero initialized memory
+ *
+ * [in]	    value[0].a: Number of bytes
+ * [in]	    value[0].b: Flags, 0 or PTA_SYSTEM_MAP_FLAG_SHAREABLE
+ * [out]    value[1].a: Address upper 32-bits
+ * [out]    value[1].b: Address lower 32-bits
+ * [in]     value[2].a: Extra pad before memory range
+ * [in]     value[2].b: Extra pad after memory range
+ */
+#define PTA_SYSTEM_MAP_ZI		2
+
+/*
+ * Unmap memory
+ *
+ * [in]	    value[0].a: Number of bytes
+ * [in]	    value[0].b: Must be 0
+ * [in]	    value[1].a: Address upper 32-bits
+ * [in]	    value[1].b: Address lower 32-bits
+ */
+#define PTA_SYSTEM_UNMAP		3
 
 #endif /* __PTA_SYSTEM_H */

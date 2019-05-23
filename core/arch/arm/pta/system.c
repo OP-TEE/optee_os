@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2018, Linaro Limited
+ * Copyright (c) 2018-2019, Linaro Limited
  */
 
 #include <crypto/crypto.h>
@@ -107,6 +107,67 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	return res;
 }
 
+static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
+				TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INOUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE);
+	uint32_t flags = TEE_MATTR_URW | TEE_MATTR_PRW;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t pad_begin = 0;
+	struct fobj *f = NULL;
+	uint32_t pad_end = 0;
+	vaddr_t va = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (params[0].value.b & ~PTA_SYSTEM_MAP_FLAG_SHAREABLE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (params[0].value.b & PTA_SYSTEM_MAP_FLAG_SHAREABLE)
+		flags |= TEE_MATTR_SHAREABLE;
+
+	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
+	pad_begin = params[2].value.a;
+	pad_end = params[2].value.b;
+
+	f = fobj_ta_mem_alloc(ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE) /
+			      SMALL_PAGE_SIZE);
+	if (!f)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f, flags, NULL,
+			  pad_begin, pad_end);
+	fobj_put(f);
+
+	if (!res)
+		reg_pair_from_64(va, &params[1].value.a, &params[1].value.b);
+
+	return res;
+}
+
+static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (params[0].value.b)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return user_ta_unmap(to_user_ta_ctx(s->ctx),
+			     reg_pair_to_64(params[1].value.a,
+					    params[1].value.b),
+			     ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE));
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx __unused)
@@ -132,10 +193,12 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:
 		return system_rng_reseed(s, param_types, params);
-
 	case PTA_SYSTEM_DERIVE_TA_UNIQUE_KEY:
 		return system_derive_ta_unique_key(s, param_types, params);
-
+	case PTA_SYSTEM_MAP_ZI:
+		return system_map_zi(s, param_types, params);
+	case PTA_SYSTEM_UNMAP:
+		return system_unmap(s, param_types, params);
 	default:
 		break;
 	}
