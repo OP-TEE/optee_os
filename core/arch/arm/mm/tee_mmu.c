@@ -330,6 +330,8 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		if (core_is_buffer_intersect(r->va, r->size, va, len)) {
 			if (r->va != va || r->size != len)
 				return TEE_ERROR_BAD_PARAMETERS;
+			if ((r->attr & TEE_MATTR_PROT_MASK) == prot)
+				return TEE_SUCCESS;
 			if (mobj_is_paged(r->mobj)) {
 				if (!tee_pager_set_uta_area_attr(utc, va, len,
 								 prot))
