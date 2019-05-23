@@ -144,6 +144,6 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 }
 
 pseudo_ta_register(.uuid = PTA_SYSTEM_UUID, .name = "system.pta",
-		   .flags = PTA_DEFAULT_FLAGS,
+		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_CONCURRENT,
 		   .open_session_entry_point = open_session,
 		   .invoke_command_entry_point = invoke_command);
