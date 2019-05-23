@@ -163,8 +163,6 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 
 void tee_ta_put_session(struct tee_ta_session *sess);
 
-void tee_ta_dump_current(void);
-
 #if defined(CFG_TA_GPROF_SUPPORT)
 void tee_ta_gprof_sample_pc(vaddr_t pc);
 void tee_ta_update_session_utime_suspend(void);
