@@ -49,15 +49,16 @@ static vaddr_t select_va_in_range(vaddr_t prev_end, uint32_t prev_attr,
 				  size_t pad_begin, size_t pad_end)
 {
 	size_t granul;
-	const uint32_t a = TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT;
+	const uint32_t a = TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT |
+			    TEE_MATTR_SHAREABLE;
 	size_t pad;
 	vaddr_t begin_va;
 	vaddr_t end_va;
 
 	/*
 	 * Insert an unmapped entry to separate regions with differing
-	 * TEE_MATTR_EPHEMERAL TEE_MATTR_PERMANENT bits as they never are
-	 * to be contiguous with another region.
+	 * TEE_MATTR_EPHEMERAL, TEE_MATTR_PERMANENT or TEE_MATTR_SHAREABLE
+	 * bits as they never are to be contiguous with another region.
 	 */
 	if (prev_attr && (prev_attr & a) != (reg->attr & a))
 		pad = SMALL_PAGE_SIZE;
@@ -255,7 +256,7 @@ TEE_Result vm_map_pad(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 	struct vm_region *reg = calloc(1, sizeof(*reg));
 	uint32_t attr = 0;
 	const uint32_t prot_mask = TEE_MATTR_PROT_MASK | TEE_MATTR_PERMANENT |
-				   TEE_MATTR_EPHEMERAL;
+				   TEE_MATTR_EPHEMERAL | TEE_MATTR_SHAREABLE;
 
 	if (!reg)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -605,7 +606,7 @@ TEE_Result tee_mmu_map_param(struct user_ta_ctx *utc,
 	for (n = 0; n < m; n++) {
 		vaddr_t va = 0;
 		const uint32_t prot = TEE_MATTR_PRW | TEE_MATTR_URW |
-				      TEE_MATTR_EPHEMERAL;
+				      TEE_MATTR_EPHEMERAL | TEE_MATTR_SHAREABLE;
 
 		res = vm_map(utc, &va, mem[n].size, prot, mem[n].mobj,
 			     mem[n].offs);
@@ -705,9 +706,11 @@ bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 				  const void *va, size_t size)
 {
 	struct vm_region *r;
+	uint32_t nonpriv_attrs = TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT |
+				 TEE_MATTR_SHAREABLE;
 
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
-		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
+		if (r->attr & nonpriv_attrs)
 			continue;
 		if (core_is_buffer_inside(va, size, r->va, r->size))
 			return true;
@@ -721,9 +724,11 @@ bool tee_mmu_is_vbuf_intersect_ta_private(const struct user_ta_ctx *utc,
 					  const void *va, size_t size)
 {
 	struct vm_region *r;
+	uint32_t nonpriv_attrs = TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT |
+				 TEE_MATTR_SHAREABLE;
 
 	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
-		if (r->attr & (TEE_MATTR_EPHEMERAL | TEE_MATTR_PERMANENT))
+		if (r->attr & nonpriv_attrs)
 			continue;
 		if (core_is_buffer_intersect(va, size, r->va, r->size))
 			return true;
