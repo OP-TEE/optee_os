@@ -69,6 +69,7 @@ cmd-echo-silent := true
 endif
 endif
 
+include mk/python.mk
 
 include core/core.mk
 
