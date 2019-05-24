@@ -12,8 +12,6 @@ import sys
 
 def get_args():
     parser = ArgumentParser()
-    parser.add_argument('-O', '--output-target', required='True',
-                        help='Output format. Must be "binary".')
     parser.add_argument('-R', '--remove-section', action='append', default=[],
                         help='Remove section REMOVE_SECTION from the output.')
     parser.add_argument('-j', '--only-section', action='append', default=[],
@@ -26,10 +24,6 @@ def get_args():
                         'replaced.')
 
     args = parser.parse_args()
-
-    if args.output_target != 'binary':
-        parser.print_usage()
-        sys.exit(1)
 
     return args
 
