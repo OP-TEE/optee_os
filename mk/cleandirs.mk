@@ -32,7 +32,7 @@ RMDIR := rmdir --ignore-fail-on-non-empty
 # (200 files at a time), to minimize the odds of having:
 # "/bin/bash: Argument list too long"
 define do-rm-f
-        $(call _do-rm-f, $(wordlist 1, 200, $(1)))
+        $(call _do-rm-f, $(wordlist 1, 200, $(1))) \
         $(eval _tail := $(wordlist 201, $(words $(1)), $(1)))
         $(if $(_tail), $(call do-rm-f, $(_tail)))
 endef
