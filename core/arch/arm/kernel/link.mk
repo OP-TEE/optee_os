@@ -165,7 +165,7 @@ cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 		$(link-out-dir)/tee-data_end.txt
 	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)./scripts/objcopy.py -O binary \
+	$(q)./scripts/tee_elf_to_bin.py \
 		--remove-section="$(pageable_sections)" \
 		--remove-section="$(init_sections)" \
 		--pad-to `cat $(link-out-dir)/tee-data_end.txt` \
@@ -174,7 +174,7 @@ $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 cleanfiles += $(link-out-dir)/tee-pageable.bin
 $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)./scripts/objcopy.py -O binary \
+	$(q)./scripts/tee_elf_to_bin.py \
 		--only-section="$(init_sections)" \
 		--only-section="$(pageable_sections)" \
 		$< $@
