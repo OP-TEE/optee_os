@@ -10,10 +10,15 @@
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/unwind.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
+
+#define TEE_RAM_VA_START        TEE_RAM_START
+#define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
+					(TEE_LOAD_ADDR - TEE_RAM_START))
 
 .arch_extension sec
 
@@ -251,6 +256,46 @@ UNWIND(	.cantunwind)
 	 */
 	cps	#CPSR_MODE_SVC
 
+#ifdef CFG_TEE_CORE_PIE
+	/* Process relocations */
+	adr	r0, rel_start_rel
+	ldr	r1, rel_start_rel
+	add	r1, r1, r0
+	adr	r0, rel_end_rel
+	ldr	r2, rel_end_rel
+	add	r2, r2, r0
+	cmp	r1, r2
+	beq	2f
+
+	/* Compute load_offset */
+	adr	r0, _start		/* Load address */
+	mov_imm	r3, TEE_TEXT_VA_START	/* Link time address */
+	sub	r0, r0, r3
+
+	/* Loop over the relocations (Elf32_Rel) and process all entries */
+1:	ldmia	r1!, {r3, r8}		/* r3 == r_offset, r8 = r_info */
+	and	r8, r8, #0xff
+#define R_ARM_RELATIVE 0x17
+	cmp	r8, #R_ARM_RELATIVE
+	/* Unsupported relocation type */
+	bne	.
+
+	/* Update the pointer at r_offset + load_offset */
+	add	r3, r3, r0
+	ldr	r8, [r3]
+	add	r8, r8, r0
+	str	r8, [r3]
+
+	cmp	r1, r2
+	blo	1b
+
+	b	2f
+rel_start_rel:
+	.word __rel_start - rel_start_rel
+rel_end_rel:
+	.word __rel_end - rel_end_rel
+2:
+#endif
 	/* Early ARM secure MP specific configuration */
 	bl	plat_cpu_reset_early
 	maybe_init_spectre_workaround
@@ -373,32 +418,6 @@ copy_init:
 	stmdb	r0!, {r3, r8-r12, sp}
 	cmp	r0, r2
 	bgt	copy_init
-#endif
-
-#ifdef CFG_TEE_CORE_PIE
-	/* Process relocations */
-
-	ldr	r0, =__rel_start
-	mov	r1, #0			/* The offset to be applied */
-	ldr	r2, =__rel_end
-do_relocs:
-	cmp	r0, r2
-	beq	relocs_done
-	ldr	r8, [r0]		/* r_offset */
-	ldr	r9, [r8]
-	add 	r9, r9, r1
-	str	r9, [r8]
-	add	r0, r0, #4
-	ldr	r8, [r0]		/* r_info */
-#define R_ARM_RELATIVE 23
-	cmp 	r8, #R_ARM_RELATIVE
-	beq	next_rel
-	/* Unsupported relocation type */
-	b	.
-next_rel:
-	add	r0, r0, #4		/* Next entry */
-	b 	do_relocs
-relocs_done:
 #endif
 
 	/*
