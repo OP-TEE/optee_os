@@ -11,8 +11,6 @@
 #include <string.h>
 #include <trace.h>
 
-#define STPMIC1_I2C_TIMEOUT_US		(10 * 1000)
-
 struct regul_struct {
 	const char *dt_node_name;
 	const uint16_t *voltage_table;
@@ -632,6 +630,73 @@ int stpmic1_regulator_mask_reset_set(const char *name)
 				       regul->mask_reset_pos);
 }
 
+int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg)
+{
+	return stpmic1_register_update(cfg->ctrl_reg, BIT(0), BIT(0));
+}
+
+/* Returns 1 if no configuration are expected applied at runtime, 0 otherwise */
+int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
+			   struct stpmic1_bo_cfg *cfg)
+{
+	uint8_t voltage_index = voltage_to_index(name, millivolts);
+	const struct regul_struct *regul = get_regulator_data(name);
+	uint8_t mask = 0;
+
+	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
+	if (!strcmp(name, "buck"))
+		mask = BUCK_VOLTAGE_MASK;
+	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
+		mask = LDO_VOLTAGE_MASK;
+	else
+		return 1;
+
+	cfg->ctrl_reg = regul->control_reg;
+	cfg->value = voltage_index << LDO_BUCK_VOLTAGE_SHIFT;
+	cfg->mask = mask;
+
+	return 0;
+}
+
+int stpmic1_bo_voltage_unpg(struct stpmic1_bo_cfg *cfg)
+{
+	return stpmic1_register_update(cfg->ctrl_reg, cfg->value, cfg->mask);
+}
+
+int stpmic1_bo_pull_down_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
+{
+	const struct regul_struct *regul = get_regulator_data(name);
+
+	cfg->pd_reg = regul->pull_down_reg;
+	cfg->pd_value = BIT(regul->pull_down_pos);
+	cfg->pd_mask = LDO_BUCK_PULL_DOWN_MASK << regul->pull_down_pos;
+
+	return 0;
+}
+
+int stpmic1_bo_pull_down_unpg(struct stpmic1_bo_cfg *cfg)
+{
+	return stpmic1_register_update(cfg->pd_reg, cfg->pd_value,
+				       cfg->pd_mask);
+}
+
+int stpmic1_bo_mask_reset_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
+{
+	const struct regul_struct *regul = get_regulator_data(name);
+
+	cfg->mrst_reg = regul->mask_reset_reg;
+	cfg->mrst_value = BIT(regul->mask_reset_pos);
+	cfg->mrst_mask = LDO_BUCK_RESET_MASK << regul->mask_reset_pos;
+
+	return 0;
+}
+
+int stpmic1_bo_mask_reset_unpg(struct stpmic1_bo_cfg *cfg)
+{
+	return stpmic1_register_update(cfg->mrst_reg, cfg->mrst_value,
+				       cfg->mrst_mask);
+}
+
 int stpmic1_regulator_voltage_get(const char *name)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
@@ -670,11 +735,40 @@ int stpmic1_lp_copy_reg(const char *name)
 	return stpmic1_register_write(regul->low_power_reg, val);
 }
 
+int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg)
+{
+	const struct regul_struct *regul = get_regulator_data(name);
+
+	cfg->ctrl_reg = regul->control_reg;
+	cfg->lp_reg = regul->low_power_reg;
+
+	return 0;
+}
+
+int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg)
+{
+	uint8_t val = 0;
+	int status = 0;
+
+	status = stpmic1_register_read(cfg->ctrl_reg, &val);
+	if (!status)
+		status = stpmic1_register_write(cfg->lp_reg, val);
+
+	return status;
+}
+
 int stpmic1_lp_reg_on_off(const char *name, uint8_t enable)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
 
 	return stpmic1_register_update(regul->low_power_reg, enable,
+				       LDO_BUCK_ENABLE_MASK);
+}
+
+int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable)
+{
+	assert(enable == 0 || enable == 1);
+	return stpmic1_register_update(cfg->lp_reg, enable,
 				       LDO_BUCK_ENABLE_MASK);
 }
 
@@ -684,6 +778,14 @@ int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
 
 	return stpmic1_register_update(regul->low_power_reg,
 				       hplp << LDO_BUCK_HPLP_SHIFT,
+				       LDO_BUCK_HPLP_ENABLE_MASK);
+}
+
+int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg, unsigned int mode)
+{
+	assert(mode == 0 || mode == 1);
+	return stpmic1_register_update(cfg->lp_reg,
+				       mode << LDO_BUCK_HPLP_SHIFT,
 				       LDO_BUCK_HPLP_ENABLE_MASK);
 }
 
@@ -705,12 +807,41 @@ int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts)
 				       mask);
 }
 
+/* Returns 1 if no configuration are expected applied at runtime, 0 otherwise */
+int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
+			   struct stpmic1_lp_cfg *cfg)
+
+{
+	uint8_t voltage_index = voltage_to_index(name, millivolts);
+	uint8_t mask = 0;
+
+	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
+	if (!strcmp(name, "buck"))
+		mask = BUCK_VOLTAGE_MASK;
+	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
+		mask = LDO_VOLTAGE_MASK;
+	else
+		return 1;
+
+	assert(cfg->lp_reg == get_regulator_data(name)->low_power_reg);
+	cfg->value = voltage_index << 2;
+	cfg->mask = mask;
+
+	return 0;
+}
+
+int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg)
+{
+	return stpmic1_register_update(cfg->lp_reg, cfg->value,	cfg->mask);
+}
+
 int stpmic1_register_read(uint8_t register_id,  uint8_t *value)
 {
 	struct i2c_handle_s *i2c = pmic_i2c_handle;
 
-	return stm32_i2c_mem_read(i2c, pmic_i2c_addr, register_id, 1,
-				  value, 1, STPMIC1_I2C_TIMEOUT_US);
+	return stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
+					    register_id, value,
+					    false /* !write */);
 }
 
 int stpmic1_register_write(uint8_t register_id, uint8_t value)
@@ -718,8 +849,9 @@ int stpmic1_register_write(uint8_t register_id, uint8_t value)
 	struct i2c_handle_s *i2c = pmic_i2c_handle;
 	uint8_t val = value;
 
-	return stm32_i2c_mem_write(i2c, pmic_i2c_addr, register_id, 1,
-				   &val, 1, STPMIC1_I2C_TIMEOUT_US);
+	return stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
+					    register_id, &val,
+					    true /* write */);
 }
 
 int stpmic1_register_update(uint8_t register_id, uint8_t value, uint8_t mask)
