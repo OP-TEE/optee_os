@@ -113,7 +113,7 @@ ssize_t _fdt_reg_size(const void *fdt, int offs);
  * Read the status and secure-status properties into a bitfield.
  * @status is set to DT_STATUS_DISABLED or a combination of DT_STATUS_OK_NSEC
  * and DT_STATUS_OK_SEC
- * Returns 0 on success or -1 in case of error.
+ * Returns positive or null status value on success or -1 in case of error.
  */
 int _fdt_get_status(const void *fdt, int offs);
 
