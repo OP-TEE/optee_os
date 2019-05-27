@@ -187,4 +187,61 @@ int stpmic1_lp_reg_on_off(const char *name, uint8_t enable);
 int stpmic1_lp_set_mode(const char *name, uint8_t hplp);
 int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts);
 
+/*
+ * Specific API for controlling regulators driven from STPMIC1 device
+ * from unpaged execution context of the STPMIC1 driver.
+ */
+
+/*
+ * The STPMIC1 is accessed during low power sequence in unpaged
+ * execution context. To prevent adding an unpaged constraint on
+ * STPMIC1 regulator definitions, conversion tables and device tree
+ * content, the regulators configurations are read from device tree
+ * at boot time and saved in memory for being applied at runtime
+ * without needing pager support.
+ *
+ * There are 2 types of regulator configuration loaded during such
+ * low power and unpaged sequences: boot-on (bo) configuration and
+ * low power (lp) configuration.
+ */
+struct stpmic1_bo_cfg {
+	uint8_t ctrl_reg;
+	uint8_t value;
+	uint8_t mask;
+	uint8_t pd_reg;
+	uint8_t pd_value;
+	uint8_t pd_mask;
+	uint8_t mrst_reg;
+	uint8_t mrst_value;
+	uint8_t mrst_mask;
+};
+
+struct stpmic1_lp_cfg {
+	uint8_t ctrl_reg;
+	uint8_t lp_reg;
+	uint8_t value;
+	uint8_t mask;
+};
+
+int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg);
+int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
+			   struct stpmic1_bo_cfg *cfg);
+int stpmic1_bo_voltage_unpg(struct stpmic1_bo_cfg *cfg);
+
+int stpmic1_bo_pull_down_cfg(const char *name,
+			     struct stpmic1_bo_cfg *cfg);
+int stpmic1_bo_pull_down_unpg(struct stpmic1_bo_cfg *cfg);
+
+int stpmic1_bo_mask_reset_cfg(const char *name, struct stpmic1_bo_cfg *cfg);
+int stpmic1_bo_mask_reset_unpg(struct stpmic1_bo_cfg *cfg);
+
+int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg);
+int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg);
+int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable);
+int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg,
+			     unsigned int mode);
+int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
+			   struct stpmic1_lp_cfg *cfg);
+int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg);
+
 #endif /*__STPMIC1_H__*/
