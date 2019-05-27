@@ -160,10 +160,16 @@ static void __print_stack_unwind_arm64(struct abort_info *ai)
 	size_t stack_size = 0;
 
 	if (abort_is_user_exception(ai)) {
+		struct tee_ta_session *s = NULL;
+		struct user_ta_ctx *utc = NULL;
+
+		if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+			panic();
+
+		utc = to_user_ta_ctx(s->ctx);
 		/* User stack */
-		stack = 0;
-		stack_size = 0;
-		kernel_stack = false;
+		stack = utc->stack_addr;
+		stack_size = utc->mobj_stack->size;
 	} else {
 		/* Kernel stack */
 		stack = thread_stack_start();
