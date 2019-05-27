@@ -2369,7 +2369,7 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
     size_t bufsize, nbits;
     mbedtls_mpi_uint ei, mm, state;
     mbedtls_mpi RR, T, WW, Apos;
-    mbedtls_mpi *W;
+    mbedtls_mpi *W = NULL;
     const size_t array_size_W = 2 << MBEDTLS_MPI_WINDOW_SIZE;
     int neg;
 
@@ -2388,11 +2388,6 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
         mbedtls_mpi_bitlen( N ) > MBEDTLS_MPI_MAX_BITS )
         return ( MBEDTLS_ERR_MPI_BAD_INPUT_DATA );
 
-    W = mempool_alloc( mbedtls_mpi_mempool,
-                       sizeof( mbedtls_mpi ) * array_size_W );
-    if( W == NULL )
-        return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-
     /*
      * Init temps and window size
      */
@@ -2400,8 +2395,6 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
     mbedtls_mpi_init_mempool( &RR ); mbedtls_mpi_init( &T );
     mbedtls_mpi_init_mempool( &Apos );
     mbedtls_mpi_init_mempool( &WW );
-    for( i = 0; i < array_size_W; i++ )
-        mbedtls_mpi_init_mempool( W + i );
 
     i = mbedtls_mpi_bitlen( E );
 
@@ -2420,7 +2413,7 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
      * They must not be shrunk midway through this function!
      */
     MBEDTLS_MPI_CHK( mbedtls_mpi_grow( X, j ) );
-    MBEDTLS_MPI_CHK( mbedtls_mpi_grow( &W[1],  j ) );
+
     MBEDTLS_MPI_CHK( mbedtls_mpi_grow( &T, j * 2 ) );
 
     /*
@@ -2448,6 +2441,16 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
     }
     else
         memcpy( &RR, _RR, sizeof( mbedtls_mpi ) );
+
+    W = mempool_alloc( mbedtls_mpi_mempool,
+                       sizeof( mbedtls_mpi ) * array_size_W );
+    if( W == NULL ) {
+        ret = MBEDTLS_ERR_MPI_ALLOC_FAILED;
+        goto cleanup;
+    }
+    for( i = 0; i < array_size_W; i++ )
+        mbedtls_mpi_init_mempool( W + i );
+    MBEDTLS_MPI_CHK( mbedtls_mpi_grow( &W[1],  j ) );
 
     /*
      * W[1] = A * R^2 * R^-1 mod N = A * R mod N
@@ -2589,8 +2592,9 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A,
 
 cleanup:
 
-    for( i = 0; i < array_size_W; i++ )
-        mbedtls_mpi_free( W + i );
+    if( W )
+        for( i = 0; i < array_size_W; i++ )
+            mbedtls_mpi_free( W + i );
     mempool_free( mbedtls_mpi_mempool , W );
 
     mbedtls_mpi_free( &T ); mbedtls_mpi_free( &Apos );
