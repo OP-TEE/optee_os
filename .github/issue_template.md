@@ -14,7 +14,7 @@
          -> Issues tab -> Filters
 
     5. Check the FAQ before posting a question:
-         https://www.op-tee.org/faq
+         https://optee.readthedocs.io/faq/faq.html
 
     NOTE: This comment will not be shown in the issue, so no harm keeping it,
     but feel free to remove it if you like.
