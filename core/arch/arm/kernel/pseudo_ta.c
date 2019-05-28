@@ -36,7 +36,7 @@ static bool validate_in_param(struct tee_ta_session *s, struct mobj *mobj)
 	if (client_is_secure(s))
 		return true;
 
-	/* all non-secure memory references are hanlded by PTAs */
+	/* all non-secure memory references are handled by PTAs */
 	if (mobj_is_nonsec(mobj))
 		return true;
 
