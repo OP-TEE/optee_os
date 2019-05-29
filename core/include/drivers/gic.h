@@ -11,6 +11,9 @@
 
 #define GIC_DIST_REG_SIZE	0x10000
 #define GIC_CPU_REG_SIZE	0x10000
+#define GIC_SGI(x)		(x)
+#define GIC_PPI(x)		((x) + 16)
+#define GIC_SPI(x)		((x) + 32)
 
 struct gic_data {
 	vaddr_t gicc_base;
