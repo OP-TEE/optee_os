@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2018, Linaro Limited
  */
+#include <kernel/huk_subkey.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
@@ -40,6 +41,52 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
+					      uint32_t param_types,
+					      TEE_Param params[TEE_NUM_PARAMS])
+{
+	size_t data_len = sizeof(TEE_UUID);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *data = NULL;
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (params[0].memref.size > TA_DERIVED_EXTRA_DATA_MAX_SIZE ||
+	    params[1].memref.size < TA_DERIVED_KEY_MIN_SIZE ||
+	    params[1].memref.size > TA_DERIVED_KEY_MAX_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* The derived key shall not end up in non-secure memory by mistake */
+	if (!tee_vbuf_is_sec(params[1].memref.buffer, params[1].memref.size))
+		return TEE_ERROR_SECURITY;
+
+	/* Take extra data into account. */
+	if (ADD_OVERFLOW(data_len, params[0].memref.size, &data_len))
+		return TEE_ERROR_SECURITY;
+
+	data = calloc(data_len, 1);
+	if (!data)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(data, &s->ctx->uuid, sizeof(TEE_UUID));
+
+	/* Append the user provided data */
+	memcpy(data + sizeof(TEE_UUID), params[0].memref.buffer,
+	       params[0].memref.size);
+
+	res = huk_subkey_derive(HUK_SUBKEY_UNIQUE_TA, data, data_len,
+				params[1].memref.buffer,
+				params[1].memref.size);
+	free(data);
+
+	return res;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx __unused)
@@ -65,6 +112,10 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:
 		return system_rng_reseed(s, param_types, params);
+
+	case PTA_SYSTEM_DERIVE_TA_UNIQUE_KEY:
+		return system_derive_ta_unique_key(s, param_types, params);
+
 	default:
 		break;
 	}
