@@ -12,9 +12,10 @@
 
 /*
  * enum huk_subkey_usage - subkey usage identifier
- * @HUK_SUBKEY_RPMB:	RPMB key
- * @HUK_SUBKEY_SSK:	Secure Storage key
- * @HUK_SUBKEY_DIE_ID:	Representing the die ID
+ * @HUK_SUBKEY_RPMB:	  RPMB key
+ * @HUK_SUBKEY_SSK:	  Secure Storage key
+ * @HUK_SUBKEY_DIE_ID:	  Representing the die ID
+ * @HUK_SUBKEY_UNIQUE_TA: TA unique key
  *
  * Add more identifiers as needed, be careful to not change the already
  * assigned numbers as that will affect the derived subkey.
@@ -27,6 +28,7 @@ enum huk_subkey_usage {
 	HUK_SUBKEY_RPMB = 0,
 	HUK_SUBKEY_SSK = 1,
 	HUK_SUBKEY_DIE_ID = 2,
+	HUK_SUBKEY_UNIQUE_TA = 3,
 };
 
 #define HUK_SUBKEY_MAX_LEN	TEE_SHA256_HASH_SIZE
