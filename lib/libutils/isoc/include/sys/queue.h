@@ -300,6 +300,12 @@ struct {								\
 	}								\
 } while (/* CONSTCOND */0)
 
+#define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
+	if ((STAILQ_NEXT(elm, field) =					\
+	     STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)	\
+		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
+} while (0)
+
 #define	STAILQ_FOREACH(var, head, field)				\
 	for ((var) = ((head)->stqh_first);				\
 		(var);							\
