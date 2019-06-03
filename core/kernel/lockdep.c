@@ -371,16 +371,21 @@ TEE_Result __lockdep_lock_release(struct lockdep_lock_head *owned, uintptr_t id)
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+static void lockdep_free_edge(struct lockdep_edge *edge)
+{
+	free(edge->call_stack_from);
+	free(edge->call_stack_to);
+	free(edge);
+}
+
 static void lockdep_node_delete(struct lockdep_node *node)
 {
 	struct lockdep_edge *edge = NULL;
 	struct lockdep_edge *next = NULL;
 
-	STAILQ_FOREACH_SAFE(edge, &node->edges, link, next) {
-		free(edge->call_stack_from);
-		free(edge->call_stack_to);
-		free(edge);
-	}
+	STAILQ_FOREACH_SAFE(edge, &node->edges, link, next)
+		lockdep_free_edge(edge);
+
 	free(node);
 }
 
@@ -403,5 +408,60 @@ void lockdep_queue_delete(struct lockdep_lock_head *owned)
 	TAILQ_FOREACH_SAFE(lock, owned, link, next) {
 		TAILQ_REMOVE(owned, lock, link);
 		free(lock);
+	}
+}
+
+static void lockdep_node_destroy(struct lockdep_node_head *graph,
+				 struct lockdep_node *node)
+{
+	struct lockdep_edge *edge = NULL;
+	struct lockdep_edge *next = NULL;
+	struct lockdep_node *from = NULL;
+
+	TAILQ_REMOVE(graph, node, link);
+
+	/*
+	 * Loop over all nodes in the graph to remove all edges with the
+	 * node to remove in the "to" field.
+	 */
+	TAILQ_FOREACH(from, graph, link) {
+		edge = STAILQ_FIRST(&from->edges);
+		while (edge && edge->to == node) {
+			STAILQ_REMOVE_HEAD(&from->edges, link);
+			lockdep_free_edge(edge);
+			edge = STAILQ_FIRST(&from->edges);
+		}
+
+		if (!edge)
+			continue;
+
+		next = STAILQ_NEXT(edge, link);
+		while (next) {
+			if (next->to == node) {
+				STAILQ_REMOVE_AFTER(&from->edges, edge, link);
+				lockdep_free_edge(next);
+			} else {
+				edge = next;
+			}
+			next = STAILQ_NEXT(edge, link);
+		}
+	}
+
+	STAILQ_FOREACH_SAFE(edge, &node->edges, link, next)
+		lockdep_free_edge(edge);
+
+	free(node);
+}
+
+void lockdep_lock_destroy(struct lockdep_node_head *graph, uintptr_t lock_id)
+{
+	struct lockdep_node *node = NULL;
+
+	assert(graph);
+	TAILQ_FOREACH(node, graph, link) {
+		if (node->lock_id == lock_id) {
+			lockdep_node_destroy(graph, node);
+			break;
+		}
 	}
 }

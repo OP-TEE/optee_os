@@ -53,3 +53,11 @@ void mutex_unlock_check(struct mutex *m)
 	lockdep_lock_release(&owned[thread], (uintptr_t)m);
 	cpu_spin_unlock_xrestore(&graph_lock, exceptions);
 }
+
+void mutex_destroy_check(struct mutex *m)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&graph_lock);
+
+	lockdep_lock_destroy(&graph, (uintptr_t)m);
+	cpu_spin_unlock_xrestore(&graph_lock, exceptions);
+}

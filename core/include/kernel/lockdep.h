@@ -103,6 +103,11 @@ static inline void lockdep_lock_release(struct lockdep_lock_head *owned,
 	}
 }
 
+/*
+ * Destroy lock @id in @graph. The lock is freed.
+ */
+void lockdep_lock_destroy(struct lockdep_node_head *graph, uintptr_t id);
+
 /* Initialize lockdep for mutex objects (kernel/mutex.h) */
 void mutex_lockdep_init(void);
 
@@ -115,6 +120,11 @@ static inline void lockdep_lock_acquire(struct lockdep_node_head *g __unused,
 
 static inline void lockdep_lock_release(struct lockdep_lock_head *o __unused,
 					uintptr_t id __unused)
+{}
+
+static inline void
+lockdep_lock_destroy(struct lockdep_node_head *graph __unused,
+		     uintptr_t id __unused)
 {}
 
 static inline void mutex_lockdep_init(void)
