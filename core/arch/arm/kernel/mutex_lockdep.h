@@ -14,12 +14,17 @@ void mutex_lock_check(struct mutex *m);
 
 void mutex_unlock_check(struct mutex *m);
 
+void mutex_destroy_check(struct mutex *m);
+
 #else
 
 static inline void mutex_lock_check(struct mutex *m __unused)
 {}
 
 static inline void mutex_unlock_check(struct mutex *m __unused)
+{}
+
+static inline void mutex_destroy_check(struct mutex *m __unused)
 {}
 
 #endif /* !CFG_LOCKDEP */

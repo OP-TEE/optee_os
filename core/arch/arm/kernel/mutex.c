@@ -258,6 +258,7 @@ void mutex_destroy(struct mutex *m)
 		panic();
 	if (!wq_is_empty(&m->wq))
 		panic("waitqueue not empty");
+	mutex_destroy_check(m);
 }
 
 void condvar_init(struct condvar *cv)
