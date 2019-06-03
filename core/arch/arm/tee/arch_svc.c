@@ -276,6 +276,9 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 #else /* CFG_UNWIND */
 static void save_panic_stack(struct thread_svc_regs *regs __unused)
 {
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	tsd->abort_type = ABORT_TYPE_TA_PANIC;
 }
 #endif
 
@@ -367,6 +370,9 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 #else /* CFG_UNWIND */
 static void save_panic_stack(struct thread_svc_regs *regs __unused)
 {
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	tsd->abort_type = ABORT_TYPE_TA_PANIC;
 }
 #endif /* CFG_UNWIND */
 
