@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2018, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2017-2019, STMicroelectronics
  */
 
 #include <drivers/stm32_i2c.h>
@@ -63,9 +63,8 @@ static bool dt_pmic_is_secure(void)
 }
 
 /*
- * @idx: Private identifier provided by the target PMIC driver
  * @flags: Operations expected when entering a low power sequence
- * @voltage: Target voltage to apply during low power sequences
+ * @cfg: Boot-on configuration to apply during low power sequences
  */
 struct regu_bo_config {
 	uint8_t flags;
@@ -130,7 +129,7 @@ static int save_boot_on_config(void)
 				    "regulator-min-microvolt", NULL);
 		if (cuint) {
 			/* DT uses microvolts and driver awaits millivolts */
-			mv = (uint16_t)(fdt32_to_cpu(*cuint) / 1000U);
+			mv = fdt32_to_cpu(*cuint) / 1000;
 
 			if (!stpmic1_bo_voltage_cfg(name, mv, &regu_cfg.cfg))
 				regu_cfg.flags |= REGU_BO_FLAG_SET_VOLTAGE;
@@ -143,8 +142,7 @@ static int save_boot_on_config(void)
 		if (!regu_bo_config)
 			panic();
 
-		memcpy(&regu_bo_config[regu_bo_count - 1], &regu_cfg,
-		       sizeof(regu_cfg));
+		regu_bo_config[regu_bo_count - 1] = regu_cfg;
 	}
 
 	return 0;
@@ -176,7 +174,6 @@ void stm32mp_pmic_apply_boot_on_config(void)
 }
 
 /*
- * @idx: Private identifier provided by the target PMIC driver
  * @flags: Operations expected when entering a low power sequence
  * @voltage: Target voltage to apply during low power sequences
  */
@@ -214,12 +211,9 @@ static unsigned int regu_lp_state2idx(const char *name)
 {
 	unsigned int i = 0;
 
-	for (i = 0; i < ARRAY_SIZE(regu_lp_state); i++) {
-		struct regu_lp_state *state = &regu_lp_state[i];
-
-		if (!strncmp(name, state->name, strlen(state->name)))
+	for (i = 0; i < ARRAY_SIZE(regu_lp_state); i++)
+		if (!strcmp(name, regu_lp_state[i].name))
 			return i;
-	}
 
 	panic();
 }
