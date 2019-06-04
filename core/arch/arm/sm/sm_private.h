@@ -6,7 +6,7 @@
 #ifndef SM_PRIVATE_H
 #define SM_PRIVATE_H
 
-/* Returns true if returning to sec, false if returning to nsec */
-bool sm_from_nsec(struct sm_ctx *ctx);
+/* Returns one of SM_EXIT_TO_* exit monitor in secure or non-secure world */
+uint32_t sm_from_nsec(struct sm_ctx *ctx);
 #endif /*SM_PRIVATE_H*/
 

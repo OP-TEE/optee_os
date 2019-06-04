@@ -11,6 +11,7 @@
 #include <keep.h>
 #include <kernel/unwind.h>
 #include <sm/optee_smc.h>
+#include <sm/sm.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <util.h>
@@ -175,7 +176,7 @@ UNWIND(	.cantunwind)
 
 	mov	r0, sp
 	bl	sm_from_nsec
-	cmp	r0, #0
+	cmp	r0, #SM_EXIT_TO_NON_SECURE
 	beq	.sm_ret_to_nsec
 
 	/*
