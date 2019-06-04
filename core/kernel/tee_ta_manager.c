@@ -35,6 +35,7 @@
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
 struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
+static bool is_open_ta_session_panicked;
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
@@ -501,6 +502,8 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	}
 
 	if (ctx->panicked) {
+		if (is_open_ta_session_panicked)
+			dec_session_ref_count(sess);
 		destroy_session(sess, open_sessions);
 	} else {
 		tee_ta_set_busy(ctx);
@@ -670,6 +673,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	if (!ctx || ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
+		is_open_ta_session_panicked = true;
 		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
