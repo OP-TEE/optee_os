@@ -31,8 +31,10 @@ bool sm_from_nsec(struct sm_ctx *ctx)
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
 
+#ifdef CFG_SM_PLATFORM_HANDLER
 	if (sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
 		return false;
+#endif
 
 #ifdef CFG_PSCI_ARM32
 	if (OPTEE_SMC_OWNER_NUM(*nsec_r0) == OPTEE_SMC_OWNER_STANDARD) {
