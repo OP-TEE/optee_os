@@ -19,10 +19,17 @@
 #define CONSOLE_UART_CLK_IN_HZ  48000000
 
 #define SCU_BASE        0x01800000
+#if defined(PLATFORM_FLAVOR_j721e)
+#define GICC_OFFSET     0x100000
+#define GICC_SIZE       0x100000
+#define GICD_OFFSET     0x0
+#define GICD_SIZE       0x10000
+#else
 #define GICC_OFFSET     0x80000
 #define GICC_SIZE       0x90000
 #define GICD_OFFSET     0x0
 #define GICD_SIZE       0x10000
+#endif
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
 
