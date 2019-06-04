@@ -13,6 +13,11 @@
 #include <string.h>
 #include "sm_private.h"
 
+/*
+ * Return false/0 if secure monitor shall retrun to non-secure and
+ * true/1 if secure monitor shall enter OP-TEE core to proceed
+ * invocation.
+ */
 bool sm_from_nsec(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
@@ -26,7 +31,7 @@ bool sm_from_nsec(struct sm_ctx *ctx)
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
 
-	if (!sm_platform_handler(ctx))
+	if (sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
 		return false;
 
 #ifdef CFG_PSCI_ARM32

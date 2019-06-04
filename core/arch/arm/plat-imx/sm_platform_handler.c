@@ -10,7 +10,7 @@
 #include "imx_sip.h"
 #include "imx_pl310.h"
 
-static bool imx_sip_handler(struct thread_smc_args *smc_args)
+static enum sm_handler_ret imx_sip_handler(struct thread_smc_args *smc_args)
 {
 	uint16_t sip_func = OPTEE_SMC_FUNC_NUM(smc_args->a0);
 
@@ -38,10 +38,10 @@ static bool imx_sip_handler(struct thread_smc_args *smc_args)
 		break;
 	}
 
-	return false;
+	return SM_HANDLER_SMC_HANDLED;
 }
 
-bool sm_platform_handler(struct sm_ctx *ctx)
+enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
 	uint16_t smc_owner = OPTEE_SMC_OWNER_NUM(*nsec_r0);
@@ -50,6 +50,6 @@ bool sm_platform_handler(struct sm_ctx *ctx)
 	case OPTEE_SMC_OWNER_SIP:
 		return imx_sip_handler((struct thread_smc_args *)nsec_r0);
 	default:
-		return true;
+		return SM_HANDLER_PENDING_SMC;
 	}
 }
