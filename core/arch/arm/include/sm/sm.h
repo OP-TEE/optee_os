@@ -112,13 +112,7 @@ enum sm_handler_ret {
 	SM_HANDLER_PENDING_SMC,
 };
 
-#ifndef CFG_SM_PLATFORM_HANDLER
-/* No platform handler in secure monitor, SMC shall reach OP-TEE core */
-static inline enum sm_handler_ret sm_platform_handler(__unused struct sm_ctx *c)
-{
-	return SM_HANDLER_PENDING_SMC;
-}
-#else
+#ifdef CFG_SM_PLATFORM_HANDLER
 /*
  * Returns whether SMC was handled from platform handler in secure monitor
  * or if it shall reach OP-TEE core .
