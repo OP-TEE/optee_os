@@ -670,6 +670,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 	if (!ctx || ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
+		tee_ta_put_session(s);
 		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
