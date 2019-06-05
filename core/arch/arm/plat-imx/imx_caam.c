@@ -13,7 +13,7 @@
 
 void init_caam(void)
 {
-	struct imx_caam_ctrl *caam = (struct caam_ctrl *)CAAM_BASE;
+	struct imx_caam_ctrl *caam = (struct imx_caam_ctrl *)(vaddr_t)CAAM_BASE;
 	uint32_t reg;
 	int i;
 
