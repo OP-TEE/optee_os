@@ -48,6 +48,9 @@ struct elf_load_state {
 	void *dynsym;
 	size_t dynsym_size;
 
+	/* .hash section */
+	void *hashtab;
+
 	TEE_Result (*resolve_sym)(struct user_ta_elf_head *elfs,
 				  const char *name, uintptr_t *val);
 };

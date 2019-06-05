@@ -13,13 +13,48 @@
 #include "elf_load_dyn.h"
 #include "elf_load_private.h"
 
+static uint32_t elf_hash(const char *name)
+{
+	const unsigned char *p = (const unsigned char *)name;
+	uint32_t h = 0;
+	uint32_t g = 0;
+
+	while (*p) {
+		h = (h << 4) + *p++;
+		g = h & 0xf0000000;
+		if (g)
+			h ^= g >> 24;
+		h &= ~g;
+	}
+	return h;
+}
+
 TEE_Result elf_resolve_symbol(struct elf_load_state *state,
 			      const char *name, uintptr_t *val)
 {
-	struct elf_sym sym;
-	size_t n;
+	struct elf_sym sym = { };
+	/*
+	 * Using uint32_t here for convenience since both Elf32_Word and
+	 * Elf64_Word are 32-bit types.
+	 */
+	uint32_t *hashtab = state->hashtab;
+	uint32_t *bucket = NULL;
+	uint32_t *chain = NULL;
+	uint32_t nbuckets = 0;
+	uint32_t nchains = 0;
+	uint32_t hash = 0;
+	size_t n = 0;
 
-	for (n = 0; copy_sym(&sym, n, state); n++) {
+	hash = elf_hash(name);
+	nbuckets = hashtab[0];
+	nchains = hashtab[1];
+	bucket = &hashtab[2];
+	chain = &bucket[nbuckets];
+
+	for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
+		if (n >= nchains)
+			return TEE_ERROR_BAD_FORMAT;
+		copy_sym(&sym, n, state);
 		if (sym.st_shndx == SHN_UNDEF)
 			continue;
 		if (!strcmp(name, &state->dynstr[sym.st_name])) {
@@ -129,6 +164,48 @@ TEE_Result e64_process_dyn_rela(struct elf_load_state *state, Elf64_Rela *rel,
 }
 #endif
 
+/*
+ * Check that the ELF hash structure @hashtab can be processed without reading
+ * past @vasize. @hashtab and @vasize are relative to @vabase.
+ * The structure layout is as follows:
+ *  struct elf_hash_table {
+ *          uint32_t nbucket;
+ *          uint32_t nchain;
+ *          uint32_t bucket[nbucket];
+ *          uint32_t chain[nchain];
+ *  };
+ */
+static TEE_Result check_hashtab_size(vaddr_t hashtab, vaddr_t vabase,
+				     vaddr_t vasize)
+{
+	Elf32_Word *phashtab = NULL;
+	Elf32_Word nbuckets = 0;
+	Elf32_Word nchains = 0;
+	vaddr_t bucket = 0;
+	vaddr_t chain = 0;
+	vaddr_t sz = 0;
+	vaddr_t max = 0;
+
+	if (hashtab > vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	phashtab = (Elf32_Word *)(hashtab + vabase);
+	if (ADD_OVERFLOW(hashtab, 2 * sizeof(Elf32_Word), &bucket) ||
+			 bucket > vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	nbuckets = phashtab[0];
+	if (MUL_OVERFLOW(nbuckets, sizeof(Elf32_Word), &sz))
+		return TEE_ERROR_BAD_FORMAT;
+	if (ADD_OVERFLOW(bucket, sz, &chain) || chain > vasize)
+		return TEE_ERROR_BAD_FORMAT;
+	nchains = phashtab[1];
+	if (MUL_OVERFLOW(nchains, sizeof(Elf32_Word), &sz))
+		return TEE_ERROR_BAD_FORMAT;
+	if (ADD_OVERFLOW(chain, sz, &max) || max > vasize)
+		return TEE_ERROR_BAD_FORMAT;
+
+	return TEE_SUCCESS;
+}
+
 /* Check the dynamic segment and save info for later */
 static TEE_Result read_dyn_segment(struct elf_load_state *state,
 				   vaddr_t vabase)
@@ -140,25 +217,33 @@ static TEE_Result read_dyn_segment(struct elf_load_state *state,
 	size_t dynstr_size = 0;
 	vaddr_t dynsym = 0;
 	size_t dynsym_size;
+	vaddr_t hashtab = 0;
 	vaddr_t max;
 	size_t n;
 
 	/*
 	 * Find the address and size of the string table (.strtab)
+	 * Also find the symbol hash table
 	 */
 	for (n = 0; copy_dyn(&dyn, n, state); n++) {
 		if (dyn.d_tag == DT_STRTAB)
 			dynstr = dyn.d_un.d_ptr;
 		else if (dyn.d_tag == DT_STRSZ)
 			dynstr_size = dyn.d_un.d_val;
+		else if (dyn.d_tag == DT_HASH)
+			hashtab = dyn.d_un.d_val;
 	}
 	if (!dynstr || dynstr >= state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
 	if (!dynstr_size || ADD_OVERFLOW(dynstr, dynstr_size, &max) ||
 			max > state->vasize)
 		return TEE_ERROR_BAD_FORMAT;
+	if (check_hashtab_size(hashtab, vabase, state->vasize))
+		return TEE_ERROR_BAD_FORMAT;
+
 	state->dynstr = (char *)(vabase + dynstr);
 	state->dynstr_size = dynstr_size;
+	state->hashtab = (char *)(vabase + hashtab);
 
 	/*
 	 * Find the .dynsym section (contains the global symbols).
