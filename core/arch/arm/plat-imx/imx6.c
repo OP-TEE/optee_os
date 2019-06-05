@@ -31,6 +31,7 @@
 #include <compiler.h>
 #include <drivers/gic.h>
 #include <io.h>
+#include <imx_caam.h>
 #include <kernel/generic_boot.h>
 #include <kernel/misc.h>
 #include <kernel/tz_ssvce_pl310.h>
