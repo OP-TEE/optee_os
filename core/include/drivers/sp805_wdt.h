@@ -3,11 +3,12 @@
  * Copyright 2019 Broadcom.
  */
 
-#ifndef SP805_H
-#define SP805_H
+#ifndef SP805_WDT_H
+#define SP805_WDT_H
 
 #include <drivers/wdt.h>
 #include <kernel/interrupt.h>
+#include <mm/core_memprot.h>
 #include <types_ext.h>
 
 /* SP805 register offset */
@@ -26,17 +27,16 @@
 #define WDT_INT_CLR		BIT(0)
 
 #define WDT_LOAD_MIN		0x1
-#define WDT_LOAD_MAX		0xffffffff
 
-typedef enum itr_return (*irq_handler_t)(struct itr_handler *h __unused);
+typedef void (*sp805_itr_handler_func_t)(struct wdt_chip *chip);
 
 struct sp805_wdt_data {
 	struct io_pa_va base;
 	struct wdt_chip chip;
 	uint32_t clk_rate;
 	uint32_t load_val;
-	uint32_t irq_num;
-	irq_handler_t irq_handler;
+	uint32_t itr_num;
+	sp805_itr_handler_func_t itr_handler;
 };
 
 /*
@@ -46,22 +46,23 @@ struct sp805_wdt_data {
  * @base: physical base address of sp805 watchdog timer
  * @clk_rate: rate of the clock driving the watchdog timer hardware
  * @timeout: watchdog timer timeout in seconds
+ * Return a TEE_Result compliant status
  */
-void sp805_wdt_init(struct sp805_wdt_data *pd, paddr_t base,
-			  uint32_t clk_rate, uint32_t timeout);
+TEE_Result sp805_wdt_init(struct sp805_wdt_data *pd, paddr_t base,
+		    uint32_t clk_rate, uint32_t timeout);
 
 /*
  * Optionally register sp805 watchdog timer interrupt handler
  *
  * @pd: platform data of sp805 watchdog timer for which interrupt handler
  * is to be registered
- * @irq_num: sp805 watchdog timer interrupt id
- * @irq_flag: interrupt attributes
- * @irq_handler: interrupt handler callback
+ * @itr_num: sp805 watchdog timer interrupt id
+ * @itr_flag: interrupt attributes
+ * @itr_handler: Optional interrupt handler callback
  * Return a TEE_Result compliant status
  */
-TEE_Result sp805_register_irq_handler(struct sp805_wdt_data *pd,
-				      uint32_t irq_num, uint32_t irq_flag,
-				      irq_handler_t irq_handler);
+TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
+				      uint32_t itr_num, uint32_t itr_flag,
+				      sp805_itr_handler_func_t itr_handler);
 
-#endif /* SP805_H */
+#endif /* SP805_WDT_H */
