@@ -139,7 +139,7 @@ CFG_RPMB_FS ?= y
 # Device identifier used when CFG_RPMB_FS = y.
 # The exact meaning of this value is platform-dependent. On Linux, the
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
-CFG_RPMB_FS_DEV_ID ?= 0
+CFG_RPMB_FS_DEV_ID ?= 1
 CFG_RPMB_FS_DEBUG_DATA ?= y
 
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
