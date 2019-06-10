@@ -19,6 +19,8 @@
 #define MIN_FTRACE_BUF_SIZE	1024
 #define MAX_HEADER_STRLEN	128
 
+#define MAX_STATE_BUF_SIZE	2048
+
 void ta_fbuf_init(vaddr_t load_addr, struct tee_ta_session *s,
 		  struct elf_load_state *state)
 {
@@ -87,7 +89,8 @@ void ta_fbuf_dump(struct tee_ta_session *s)
 	struct mobj *mobj = NULL;
 	char *va = NULL;
 	uint32_t ret = 0;
-	uint32_t dump_size = 0;
+	size_t dump_size = 0;
+	size_t state_buf_size = MAX_STATE_BUF_SIZE;
 	struct thread_param params[3] = { };
 
 	if (!s->fbuf)
@@ -100,7 +103,8 @@ void ta_fbuf_dump(struct tee_ta_session *s)
 
 	dump_size = fbuf->buf_off - fbuf->head_off + fbuf->curr_size;
 
-	mobj = thread_rpc_alloc_payload(sizeof(TEE_UUID) + dump_size);
+	mobj = thread_rpc_alloc_payload(sizeof(TEE_UUID) + state_buf_size +
+					dump_size);
 	if (!mobj) {
 		EMSG("Ftrace thread_rpc_alloc_payload failed");
 		return;
@@ -111,11 +115,15 @@ void ta_fbuf_dump(struct tee_ta_session *s)
 		goto exit;
 
 	memcpy(va, &s->ctx->uuid, sizeof(TEE_UUID));
-	memcpy(va + sizeof(TEE_UUID), (char *)fbuf + fbuf->head_off, dump_size);
+	s->ctx->ops->dump_state_buffer(s->ctx, va + sizeof(TEE_UUID),
+				       &state_buf_size);
+	memcpy(va + sizeof(TEE_UUID) + state_buf_size,
+	       (char *)fbuf + fbuf->head_off, dump_size);
 
 	params[0] = THREAD_PARAM_VALUE(INOUT, 0, 0, 0);
 	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(TEE_UUID));
-	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID), dump_size);
+	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID),
+					state_buf_size + dump_size);
 
 	ret = thread_rpc_cmd(OPTEE_RPC_CMD_FTRACE, 3, params);
 	if (ret)

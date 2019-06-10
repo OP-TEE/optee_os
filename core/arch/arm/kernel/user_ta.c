@@ -25,6 +25,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <printk.h>
 #include <signed_hdr.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -489,6 +490,66 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	show_elfs(utc);
 }
 
+#ifdef CFG_TA_FTRACE_SUPPORT
+static void user_ta_dump_state_buffer(struct tee_ta_ctx *ctx, char *buf,
+				      size_t *sz)
+{
+	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+	struct user_ta_elf *elf = NULL;
+	struct vm_region *r = NULL;
+	char flags[7] = { };
+	char desc[13] = { };
+	size_t idx = 0;
+	size_t n = 0;
+	size_t ip_size = *sz;
+	size_t write_sz = 0;
+
+	if (!buf || !ip_size)
+		return;
+
+	TAILQ_FOREACH(r, &utc->vm_info->regions, link) {
+		paddr_t pa = 0;
+
+		if (r->mobj)
+			mobj_get_pa(r->mobj, r->offset, 0, &pa);
+
+		mattr_perm_to_str(flags, sizeof(flags), r->attr);
+		describe_region(utc, r->va, r->size, desc, sizeof(desc));
+		write_sz = snprintk(buf, ip_size,
+				    " region %2zu: va 0x%0*" PRIxVA " pa 0x%0*"
+				    PRIxPA " size 0x%06zx flags %s %s\n",
+				    n, PRIxVA_WIDTH, r->va, PRIxPA_WIDTH, pa,
+				    r->size, flags, desc);
+		if (ip_size > write_sz) {
+			buf += write_sz;
+			ip_size -= write_sz;
+		} else {
+			return;
+		}
+		n++;
+	}
+
+	TAILQ_FOREACH(elf, &utc->elfs, link) {
+		write_sz = snprintk(buf, ip_size, " [%zu] %pUl @ 0x%0*" PRIxVA
+				    "\n", idx++, (void *)&elf->uuid,
+				    PRIxVA_WIDTH, elf->load_addr);
+		if (ip_size > write_sz) {
+			buf += write_sz;
+			ip_size -= write_sz;
+		} else {
+			return;
+		}
+	}
+
+	*sz -= ip_size;
+}
+#else /* CFG_TA_FTRACE_SUPPORT */
+static void user_ta_dump_state_buffer(struct tee_ta_ctx *ctx __unused,
+				      char *buf __unused, size_t *sz __unused)
+{
+}
+#endif /* CFG_TA_FTRACE_SUPPORT */
+
 static void release_ta_memory_by_mobj(struct mobj *mobj)
 {
 	void *va;
@@ -555,6 +616,7 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
 	.dump_state = user_ta_dump_state,
+	.dump_state_buffer = user_ta_dump_state_buffer,
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
 };
