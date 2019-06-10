@@ -10,6 +10,7 @@
  * profiled too.
  */
 
+#include <setjmp.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
 #include "ftrace.h"
@@ -141,4 +142,15 @@ unsigned long __noprof ftrace_return(void)
 	}
 
 	return fbuf->ret_stack[fbuf->ret_idx];
+}
+
+void __noprof ftrace_longjmp(unsigned int *ret_idx)
+{
+	while (__ftrace_buf_start.ret_idx > *ret_idx)
+		ftrace_return();
+}
+
+void __noprof ftrace_setjmp(unsigned int *ret_idx)
+{
+	*ret_idx = __ftrace_buf_start.ret_idx;
 }
