@@ -6,8 +6,10 @@
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
+#include <mm/tee_mmu.h>
 #include <pta_system.h>
 #include <crypto/crypto.h>
+#include <tee_api_defines.h>
 #include <util.h>
 
 #define MAX_ENTROPY_IN			32u
@@ -52,6 +54,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
+	struct user_ta_ctx *utc = NULL;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -61,8 +64,13 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	    params[1].memref.size > TA_DERIVED_KEY_MAX_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	utc = to_user_ta_ctx(s->ctx);
+
 	/* The derived key shall not end up in non-secure memory by mistake */
-	if (!tee_vbuf_is_sec(params[1].memref.buffer, params[1].memref.size))
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_WRITE,
+					  (uaddr_t)params[1].memref.buffer,
+					  params[1].memref.size);
+	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 
 	/* Take extra data into account. */
