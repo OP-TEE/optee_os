@@ -2,13 +2,15 @@
 /*
  * Copyright (c) 2018, Linaro Limited
  */
+
+#include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu.h>
 #include <pta_system.h>
-#include <crypto/crypto.h>
+#include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <util.h>
 
@@ -50,6 +52,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	size_t data_len = sizeof(TEE_UUID);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *data = NULL;
+	uint32_t access_flags = 0;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
@@ -66,8 +69,17 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 
 	utc = to_user_ta_ctx(s->ctx);
 
-	/* The derived key shall not end up in non-secure memory by mistake */
-	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_WRITE,
+	/*
+	 * The derived key shall not end up in non-secure memory by
+	 * mistake.
+	 *
+	 * Note that we're allowing shared memory as long as it's
+	 * secure. This is needed because a TA always uses shared memory
+	 * when communicating with another TA.
+	 */
+	access_flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER |
+		       TEE_MEMORY_ACCESS_SECURE;
+	res = tee_mmu_check_access_rights(utc, access_flags,
 					  (uaddr_t)params[1].memref.buffer,
 					  params[1].memref.size);
 	if (res != TEE_SUCCESS)
