@@ -529,6 +529,38 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	return user_ta_set_prot(to_user_ta_ctx(s->ctx), va, sz, prot);
 }
 
+static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INOUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t num_bytes = 0;
+	uint32_t pad_begin = 0;
+	uint32_t pad_end = 0;
+	vaddr_t old_va = 0;
+	vaddr_t new_va = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	num_bytes = params[0].value.a;
+	old_va = reg_pair_to_64(params[1].value.a, params[1].value.b);
+	new_va = reg_pair_to_64(params[2].value.a, params[2].value.b);
+	pad_begin = params[3].value.a;
+	pad_end = params[3].value.b;
+
+	res = user_ta_remap(to_user_ta_ctx(s->ctx), &new_va, old_va, num_bytes,
+			    pad_begin, pad_end);
+	if (!res)
+		reg_pair_from_64(new_va, &params[2].value.a,
+				 &params[2].value.b);
+
+	return res;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -586,6 +618,8 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 						  params);
 	case PTA_SYSTEM_SET_PROT:
 		return system_set_prot(s, param_types, params);
+	case PTA_SYSTEM_REMAP:
+		return system_remap(s, param_types, params);
 	default:
 		break;
 	}

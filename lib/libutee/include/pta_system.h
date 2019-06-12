@@ -141,4 +141,23 @@
  */
 #define PTA_SYSTEM_SET_PROT		8
 
+/*
+ * Remap a segment of a TA mapping
+ *
+ * Moves an already mapped segment of a TA to a new address. If the
+ * supplied new address is 0 a suitable address is selected, else it will
+ * either be mapped at that address or an error is returned.
+ *
+ * [in]	    value[0].a: Number of bytes, must match length rounded up to
+ *			closest page of original mapping
+ * [in]     value[0].b:	Must be 0
+ * [in]	    value[1].a:	Old address upper 32-bits
+ * [in]     value[1].b:	Old address lower 32-bits
+ * [in/out] value[2].a:	New address upper 32-bits
+ * [in/out] value[2].b:	New address lower 32-bits
+ * [in]     value[3].a: Extra pad before memory range
+ * [in]     value[3].b: Extra pad after memory range
+ */
+#define PTA_SYSTEM_REMAP		9
+
 #endif /* __PTA_SYSTEM_H */
