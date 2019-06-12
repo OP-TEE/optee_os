@@ -178,7 +178,6 @@ static void init_elf(struct ta_elf *elf)
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t va = 0;
 	uint32_t flags = PTA_SYSTEM_MAP_FLAG_SHAREABLE;
-	const size_t max_align = 0x10000;
 
 	res = sys_open_ta_bin(&elf->uuid, &elf->handle);
 	if (res)
@@ -190,13 +189,7 @@ static void init_elf(struct ta_elf *elf)
 	 */
 	if (!elf->is_main)
 		flags |= PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
-	/*
-	 * Add 1Mb pad at end in case a library with this large alignment
-	 * has been mapped before. We want to avoid ending up in a hole in
-	 * the mapping of a library.
-	 */
-	res = sys_map_ta_bin(&va, SMALL_PAGE_SIZE, flags, elf->handle, 0, 0,
-			     max_align);
+	res = sys_map_ta_bin(&va, SMALL_PAGE_SIZE, flags, elf->handle, 0, 0, 0);
 	if (res)
 		err(res, "sys_map_ta_bin");
 	elf->ehdr_addr = va;
@@ -548,8 +541,35 @@ static void populate_segments(struct ta_elf *elf)
 
 static void map_segments(struct ta_elf *elf)
 {
+	TEE_Result res = TEE_SUCCESS;
+
 	parse_load_segments(elf);
 	adjust_segments(elf);
+	if (TAILQ_FIRST(&elf->segs)->offset < SMALL_PAGE_SIZE) {
+		vaddr_t va = 0;
+		size_t sz = elf->max_addr - elf->load_addr;
+		struct segment *seg = TAILQ_LAST(&elf->segs, segment_head);
+
+		/*
+		 * We're loading a library, if not other parts of the code
+		 * need to be updated too.
+		 */
+		assert(!elf->is_main);
+
+		/*
+		 * Now that we know how much virtual memory is needed move
+		 * the already mapped part to a location which can
+		 * accommodate us.
+		 */
+		res = sys_remap(elf->load_addr, &va, sz, 0,
+				roundup(seg->vaddr + seg->memsz));
+		if (res)
+			err(res, "sys_remap");
+		elf->ehdr_addr = va;
+		elf->load_addr = va;
+		elf->max_addr = va + sz;
+		elf->phdr = (void *)(va + elf->e_phoff);
+	}
 	if (elf->is_legacy)
 		populate_segments_legacy(elf);
 	else

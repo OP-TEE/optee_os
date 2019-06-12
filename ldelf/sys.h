@@ -44,5 +44,7 @@ TEE_Result sys_map_ta_bin(vaddr_t *va, size_t num_bytes, uint32_t flags,
 TEE_Result sys_copy_from_ta_bin(void *dst, size_t num_bytes, uint32_t handle,
 				size_t offs);
 TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags);
+TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
+		     size_t pad_begin, size_t pad_end);
 
 #endif /*SYS_H*/
