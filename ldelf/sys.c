@@ -205,3 +205,31 @@ TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags)
 
 	return invoke_sys_ta(PTA_SYSTEM_SET_PROT, &params);
 }
+
+TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
+		     size_t pad_begin, size_t pad_end)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_params params = {
+		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					 TEE_PARAM_TYPE_VALUE_INPUT,
+					 TEE_PARAM_TYPE_VALUE_INOUT,
+					 TEE_PARAM_TYPE_VALUE_INPUT),
+	};
+	uint32_t r[2] = { 0 };
+
+	params.vals[0] = num_bytes;
+	reg_pair_from_64(old_va, r, r + 1);
+	params.vals[2] = r[0];
+	params.vals[3] = r[1];
+	reg_pair_from_64(*new_va, r, r + 1);
+	params.vals[4] = r[0];
+	params.vals[5] = r[1];
+	params.vals[6] = pad_begin;
+	params.vals[7] = pad_end;
+
+	res = invoke_sys_ta(PTA_SYSTEM_REMAP, &params);
+	if (!res)
+		*new_va = reg_pair_to_64(params.vals[4], params.vals[5]);
+	return res;
+}
