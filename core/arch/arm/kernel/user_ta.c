@@ -733,14 +733,22 @@ err:
 	return res;
 }
 
+static struct load_seg *find_exact_seg(struct load_seg_head *segs, vaddr_t va,
+				       size_t len)
+{
+	struct load_seg *seg = NULL;
+
+	SLIST_FOREACH(seg, segs, link)
+		if (seg->va == va && seg->size == len)
+			return seg;
+
+	return NULL;
+}
+
 TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = NULL;
-
-	SLIST_FOREACH(seg, &utc->segs, link)
-		if (seg->va == va && seg->size == len)
-			break;
+	struct load_seg *seg = find_exact_seg(&utc->segs, va, len);
 
 	if (!seg)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -759,11 +767,7 @@ TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 			    uint32_t prot)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = NULL;
-
-	SLIST_FOREACH(seg, &utc->segs, link)
-		if (seg->va == va && seg->size == len)
-			break;
+	struct load_seg *seg = find_exact_seg(&utc->segs, va, len);
 
 	if (!seg)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -784,4 +788,37 @@ TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 	seg->flags |= prot & TEE_MATTR_PROT_MASK;
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
+			 vaddr_t old_va, size_t len, size_t pad_begin,
+			 size_t pad_end)
+{
+	TEE_Result r2 = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct load_seg *seg = find_exact_seg(&utc->segs, old_va, len);
+	vaddr_t va = *new_va;
+
+	if (!seg)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = vm_unmap(utc, seg->va, seg->size);
+	if (res)
+		return res;
+
+	res = vm_map_pad(utc, &va, seg->size, seg->flags, seg->mobj, 0,
+			 pad_begin, pad_end);
+	if (res)
+		goto err;
+
+	seg->va = va;
+	*new_va = va;
+	return TEE_SUCCESS;
+err:
+	va = seg->va;
+	r2 = vm_map_pad(utc, &va, seg->size, seg->flags, seg->mobj, 0,
+			0, 0);
+	if (r2)
+		panic("Cannot restore mapping");
+	return res;
 }
