@@ -125,6 +125,7 @@
  * Physical address ranges for HiKey960 RAM:
  * 3G board: 0~3G
  * 4G board: 0~3G 3~3.5G 8~8.5G
+ * 6G board: 0~3G 4~7G
  */
 #if (CFG_DRAM_SIZE_GB == 3)
 #define DRAM1_SIZE_NSEC		0x80000000
@@ -132,6 +133,10 @@
 #define DRAM1_SIZE_NSEC		0xA0000000
 #define DRAM2_BASE		0x200000000
 #define DRAM2_SIZE_NSEC		0x20000000
+#elif (CFG_DRAM_SIZE_GB == 6)
+#define DRAM1_SIZE_NSEC		0x80000000
+#define DRAM2_BASE		0x100000000
+#define DRAM2_SIZE_NSEC		0xC0000000
 #else
 #error Unknown DRAM size
 #endif
