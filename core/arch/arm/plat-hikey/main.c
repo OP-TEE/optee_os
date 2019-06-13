@@ -55,6 +55,9 @@ register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE_NSEC);
 #ifdef DRAM1_SIZE_NSEC
 register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE_NSEC);
 #endif
+#ifdef DRAM2_SIZE_NSEC
+register_dynamic_shm(DRAM2_BASE, DRAM2_SIZE_NSEC);
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
