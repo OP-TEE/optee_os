@@ -16,6 +16,7 @@
 #include <string.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
+#include <utee_syscalls.h>
 
 #include "sys.h"
 #include "ta_elf.h"
@@ -429,11 +430,38 @@ static void populate_segments_legacy(struct ta_elf *elf)
 	}
 }
 
+static size_t get_pad_begin(void)
+{
+#ifdef CFG_TA_ASLR
+	size_t min = CFG_TA_ASLR_MIN_OFFSET_PAGES;
+	size_t max = CFG_TA_ASLR_MAX_OFFSET_PAGES;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t rnd32 = 0;
+	size_t rnd = 0;
+
+	COMPILE_TIME_ASSERT(CFG_TA_ASLR_MIN_OFFSET_PAGES <
+			    CFG_TA_ASLR_MAX_OFFSET_PAGES);
+	if (max > min) {
+		res = utee_cryp_random_number_generate(&rnd32, sizeof(rnd32));
+		if (res) {
+			DMSG("Random read failed: %#"PRIx32, res);
+			return min * SMALL_PAGE_SIZE;
+		}
+		rnd = rnd32 % (max - min);
+	}
+
+	return (min + rnd) * SMALL_PAGE_SIZE;
+#else /*!CFG_TA_ASLR*/
+	return 0;
+#endif /*!CFG_TA_ASLR*/
+}
+
 static void populate_segments(struct ta_elf *elf)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct segment *seg = NULL;
 	vaddr_t va = 0;
+	size_t pad_begin = 0;
 
 	TAILQ_FOREACH(seg, &elf->segs, link) {
 		struct segment *last_seg = TAILQ_LAST(&elf->segs, segment_head);
@@ -501,10 +529,18 @@ static void populate_segments(struct ta_elf *elf)
 				offset += SMALL_PAGE_SIZE;
 			}
 
-			if (!elf->load_addr)
+			if (!elf->load_addr) {
 				va = 0;
-			else
+				pad_begin = get_pad_begin();
+				/*
+				 * If mapping with pad_begin fails we'll
+				 * retry without pad_begin, effectively
+				 * disabling ASLR for the current ELF file.
+				 */
+			} else {
 				va = vaddr + elf->load_addr;
+				pad_begin = 0;
+			}
 
 			if (seg->flags & PF_W)
 				flags |= PTA_SYSTEM_MAP_FLAG_WRITEABLE;
@@ -516,7 +552,11 @@ static void populate_segments(struct ta_elf *elf)
 				err(TEE_ERROR_NOT_SUPPORTED,
 				    "Segment must be readable");
 			if (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE) {
-				res = sys_map_zi(memsz, 0, &va, 0, pad_end);
+				res = sys_map_zi(memsz, 0, &va, pad_begin,
+						 pad_end);
+				if (pad_begin && res == TEE_ERROR_OUT_OF_MEMORY)
+					res = sys_map_zi(memsz, 0, &va, 0,
+							 pad_end);
 				if (res)
 					err(res, "sys_map_zi");
 				res = sys_copy_from_ta_bin((void *)va, filesz,
@@ -526,7 +566,12 @@ static void populate_segments(struct ta_elf *elf)
 			} else {
 				res = sys_map_ta_bin(&va, filesz, flags,
 						     elf->handle, offset,
-						     0, pad_end);
+						     pad_begin, pad_end);
+				if (pad_begin && res == TEE_ERROR_OUT_OF_MEMORY)
+					res = sys_map_ta_bin(&va, filesz, flags,
+							     elf->handle,
+							     offset, 0,
+							     pad_end);
 				if (res)
 					err(res, "sys_map_ta_bin");
 			}
@@ -549,6 +594,7 @@ static void map_segments(struct ta_elf *elf)
 		vaddr_t va = 0;
 		size_t sz = elf->max_addr - elf->load_addr;
 		struct segment *seg = TAILQ_LAST(&elf->segs, segment_head);
+		size_t pad_begin = get_pad_begin();
 
 		/*
 		 * We're loading a library, if not other parts of the code
@@ -561,8 +607,11 @@ static void map_segments(struct ta_elf *elf)
 		 * the already mapped part to a location which can
 		 * accommodate us.
 		 */
-		res = sys_remap(elf->load_addr, &va, sz, 0,
+		res = sys_remap(elf->load_addr, &va, sz, pad_begin,
 				roundup(seg->vaddr + seg->memsz));
+		if (res == TEE_ERROR_OUT_OF_MEMORY)
+			res = sys_remap(elf->load_addr, &va, sz, 0,
+					roundup(seg->vaddr + seg->memsz));
 		if (res)
 			err(res, "sys_remap");
 		elf->ehdr_addr = va;
@@ -878,6 +927,53 @@ static void print_seg(size_t idx __maybe_unused, int elf_idx __maybe_unused,
 		 idx, width, va, width, pa, sz, flags_str, desc);
 }
 
+static bool get_next_in_order(struct ta_elf_queue *elf_queue,
+			      struct ta_elf **elf, struct segment **seg,
+			      size_t *elf_idx)
+{
+	struct ta_elf *e = NULL;
+	struct segment *s = NULL;
+	size_t idx = 0;
+	vaddr_t va = 0;
+	struct ta_elf *e2 = NULL;
+	size_t i2 = 0;
+
+	assert(elf && seg && elf_idx);
+	e = *elf;
+	s = *seg;
+	assert((e == NULL && s == NULL) || (e != NULL && s != NULL));
+
+	if (s) {
+		s = TAILQ_NEXT(s, link);
+		if (s) {
+			*seg = s;
+			return true;
+		}
+	}
+
+	if (e)
+		va = e->load_addr;
+
+	/* Find the ELF with next load address */
+	e = NULL;
+	TAILQ_FOREACH(e2, elf_queue, link) {
+		if (e2->load_addr > va) {
+			if (!e || e2->load_addr < e->load_addr) {
+				e = e2;
+				idx = i2;
+			}
+		}
+		i2++;
+	}
+	if (!e)
+		return false;
+
+	*elf = e;
+	*seg = TAILQ_FIRST(&e->segs);
+	*elf_idx = idx;
+	return true;
+}
+
 void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 			   struct dump_map *maps, vaddr_t mpool_base)
 {
@@ -892,9 +988,7 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 	 * order. Segment has priority if the virtual address is present
 	 * in both map and segment.
 	 */
-	elf = TAILQ_FIRST(elf_queue);
-	if (elf)
-		seg = TAILQ_FIRST(&elf->segs);
+	get_next_in_order(elf_queue, &elf, &seg, &elf_idx);
 	while (true) {
 		vaddr_t va = -1;
 		size_t sz = 0;
@@ -960,14 +1054,9 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 		print_seg(idx, elf_idx, va, offs, sz, flags);
 		idx++;
 
-		seg = TAILQ_NEXT(seg, link);
-		if (!seg) {
-			elf = TAILQ_NEXT(elf, link);
-			if (elf)
-				seg = TAILQ_FIRST(&elf->segs);
-			elf_idx++;
-		}
-	};
+		if (!get_next_in_order(elf_queue, &elf, &seg, &elf_idx))
+			seg = NULL;
+	}
 
 	elf_idx = 0;
 	TAILQ_FOREACH(elf, elf_queue, link) {
