@@ -121,19 +121,25 @@
 
 #elif defined(PLATFORM_FLAVOR_hikey960)
 
+/*
+ * Physical address ranges for HiKey960 RAM:
+ * 3G board: 0~3G
+ * 4G board: 0~3G 3~3.5G 8~8.5G
+ */
 #if (CFG_DRAM_SIZE_GB == 3)
 #define DRAM1_SIZE_NSEC		0x80000000
 #elif (CFG_DRAM_SIZE_GB == 4)
-/*
- * SoC reference manual [1] page 2-23 says that the DRAM address range
- * is 0x00000000 - 0xDFFFFFFF for a total of 3.5GB, so the limit would
- * seem to be 0xE0000000.
- *
- * [1] https://github.com/96boards/documentation/raw/master/consumer/hikey/hikey960/hardware-docs/HiKey960_SoC_Reference_Manual.pdf
- */
 #define DRAM1_SIZE_NSEC		0xA0000000
+#define DRAM2_BASE		0x200000000
+#define DRAM2_SIZE_NSEC		0x20000000
 #else
 #error Unknown DRAM size
+#endif
+
+#if (CFG_DRAM_SIZE_GB >= 4 && defined(CFG_ARM32_core) && \
+	defined(CFG_CORE_DYN_SHM) && !defined(CFG_LARGE_PHYS_ADDR))
+#error 32-bit TEE with CFG_CORE_DYN_SHM and without CFG_LARGE_PHYS_ADDR \
+	cannot support boards with 4G RAM or more
 #endif
 
 #else /* PLATFORM_FLAVOR_hikey */
