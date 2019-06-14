@@ -1048,6 +1048,7 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info;
 	uint32_t nblocks = 0;
+	uint8_t i;
 
 	if (!rpmb_ctx) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
@@ -1100,6 +1101,9 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 
 		res = tee_rpmb_key_gen(dev_id, rpmb_ctx->key,
 				       RPMB_KEY_MAC_SIZE);
+		for (i = 0; i < RPMB_KEY_MAC_SIZE; i++) {
+			DMSG("Derived key: 0x%x:", rpmb_ctx->key[i]);
+		}
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 
