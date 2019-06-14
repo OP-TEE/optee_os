@@ -752,6 +752,8 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	bytes_to_u16(lastfrm.op_result, &op_result);
 	if (rawdata->op_result)
 		*rawdata->op_result = op_result;
+	if (op_result == RPMB_RESULT_AUTH_KEY_NOT_PROGRAMMED)
+		return TEE_ERROR_ITEM_NOT_FOUND;
 	if (op_result != RPMB_RESULT_OK)
 		return TEE_ERROR_GENERIC;
 
@@ -1032,6 +1034,7 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id)
 #else
 static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
 {
+	DMSG("RPMB INIT: CFG_RPMB_WRITE_KEY is not set");
 	return TEE_ERROR_BAD_STATE;
 }
 #endif
@@ -1105,11 +1108,16 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 		DMSG("RPMB INIT: Verifying Key");
 
 		res = tee_rpmb_verify_key_sync_counter(dev_id);
-		if (res != TEE_SUCCESS && !rpmb_ctx->key_verified) {
+		if (res == TEE_ERROR_ITEM_NOT_FOUND &&
+			!rpmb_ctx->key_verified) {
 			/*
 			 * Need to write the key here and verify it.
 			 */
+			DMSG("RPMB INIT: Auth key not yet written");
 			res = tee_rpmb_write_and_verify_key(dev_id);
+		} else if (res != TEE_SUCCESS) {
+			EMSG("Verify key failed!");
+			EMSG("Make sure key here matches device key");
 		}
 	}
 
