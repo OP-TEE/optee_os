@@ -36,6 +36,14 @@ void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
 {
 	TEE_Result res = TEE_SUCCESS;
 
+#if defined(ARM32) && defined(CFG_UNWIND)
+	/*
+	 * This function is the bottom of the user call stack: mark it as such
+	 * so that the unwinding code won't try to go further down.
+	 */
+	asm(".cantunwind");
+#endif
+
 	res = __utee_entry(func, session_id, up, cmd_id);
 
 #if defined(CFG_TA_FTRACE_SUPPORT)
