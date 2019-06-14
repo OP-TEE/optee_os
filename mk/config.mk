@@ -151,6 +151,7 @@ CFG_RPMB_FS_DEBUG_DATA ?= y
 # - Testing
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= y
+CFG_RPMB_TESTKEY ?= y
 
 # Embed public part of this key in OP-TEE OS
 TA_SIGN_KEY ?= keys/default_ta.pem
