@@ -187,14 +187,6 @@ TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 {
 	TEE_Result res;
 
-#if defined(ARM32) && defined(CFG_UNWIND)
-	/*
-	 * This function is the bottom of the user call stack: mark it as such
-	 * so that the unwinding code won't try to go further down.
-	 */
-	asm(".cantunwind");
-#endif
-
 	switch (func) {
 	case UTEE_ENTRY_FUNC_OPEN_SESSION:
 		res = entry_open_session(session_id, up);
