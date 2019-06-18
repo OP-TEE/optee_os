@@ -55,6 +55,9 @@ struct ta_elf {
 	const char *dynstr;
 	size_t dynstr_size;
 
+	/* DT_HASH hash table for faster resolution of external symbols */
+	void *hashtab;
+
 	struct segment_head segs;
 
 	vaddr_t exidx_start;

@@ -121,6 +121,57 @@ static void read_dyn(struct ta_elf *elf, vaddr_t addr,
 	}
 }
 
+static void save_hashtab_from_segment(struct ta_elf *elf, unsigned int type,
+				      vaddr_t addr, size_t memsz)
+{
+	size_t dyn_entsize = 0;
+	size_t num_dyns = 0;
+	size_t n = 0;
+	unsigned int tag = 0;
+	size_t val = 0;
+
+	if (type != PT_DYNAMIC)
+		return;
+
+	if (elf->is_32bit)
+		dyn_entsize = sizeof(Elf32_Dyn);
+	else
+		dyn_entsize = sizeof(Elf64_Dyn);
+
+	assert(!(memsz % dyn_entsize));
+	num_dyns = memsz / dyn_entsize;
+
+	for (n = 0; n < num_dyns; n++) {
+		read_dyn(elf, addr, n, &tag, &val);
+		if (tag == DT_HASH) {
+			elf->hashtab = (void *)(val + elf->load_addr);
+			break;
+		}
+	}
+}
+
+static void save_hashtab(struct ta_elf *elf)
+{
+	size_t n = 0;
+
+	if (elf->is_32bit) {
+		Elf32_Phdr *phdr = elf->phdr;
+
+		for (n = 0; n < elf->e_phnum; n++)
+			save_hashtab_from_segment(elf, phdr[n].p_type,
+						  phdr[n].p_vaddr,
+						  phdr[n].p_memsz);
+	} else {
+		Elf64_Phdr *phdr = elf->phdr;
+
+		for (n = 0; n < elf->e_phnum; n++)
+			save_hashtab_from_segment(elf, phdr[n].p_type,
+						  phdr[n].p_vaddr,
+						  phdr[n].p_memsz);
+	}
+	assert(elf->hashtab);
+}
+
 static void e32_save_symtab(struct ta_elf *elf, size_t tab_idx)
 {
 	Elf32_Shdr *shdr = elf->shdr;
@@ -172,6 +223,8 @@ static void save_symtab(struct ta_elf *elf)
 		}
 
 	}
+
+	save_hashtab(elf);
 }
 
 static void init_elf(struct ta_elf *elf)
