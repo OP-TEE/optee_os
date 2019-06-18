@@ -14,6 +14,22 @@
 #include "sys.h"
 #include "ta_elf.h"
 
+static uint32_t elf_hash(const char *name)
+{
+	const unsigned char *p = (const unsigned char *)name;
+	uint32_t h = 0;
+	uint32_t g = 0;
+
+	while (*p) {
+		h = (h << 4) + *p++;
+		g = h & 0xf0000000;
+		if (g)
+			h ^= g >> 24;
+		h &= ~g;
+	}
+	return h;
+}
+
 static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
 			  size_t st_shndx, size_t st_name, size_t st_value,
 			  const char *name, vaddr_t *val)
@@ -36,14 +52,26 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
 
 static void resolve_sym(const char *name, vaddr_t *val)
 {
+	uint32_t hash = elf_hash(name);
 	struct ta_elf *elf = NULL;
 	size_t n = 0;
 
 	TAILQ_FOREACH(elf, &main_elf_queue, link) {
+		/*
+		 * Using uint32_t here for convenience because both Elf64_Word
+		 * and Elf32_Word are 32-bit types
+		 */
+		uint32_t *hashtab = elf->hashtab;
+		uint32_t nbuckets = hashtab[0];
+		uint32_t nchains = hashtab[1];
+		uint32_t *bucket = &hashtab[2];
+		uint32_t *chain = &bucket[nbuckets];
+
 		if (elf->is_32bit) {
 			Elf32_Sym *sym = elf->dynsymtab;
 
-			for (n = 0; n < elf->num_dynsyms; n++) {
+			for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
+				assert(n < nchains);
 				if (__resolve_sym(elf,
 						  ELF32_ST_BIND(sym[n].st_info),
 						  sym[n].st_shndx,
@@ -54,7 +82,8 @@ static void resolve_sym(const char *name, vaddr_t *val)
 		} else {
 			Elf64_Sym *sym = elf->dynsymtab;
 
-			for (n = 0; n < elf->num_dynsyms; n++) {
+			for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
+				assert(n < nchains);
 				if (__resolve_sym(elf,
 						  ELF64_ST_BIND(sym[n].st_info),
 						  sym[n].st_shndx,
