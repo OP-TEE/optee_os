@@ -11,7 +11,6 @@
 #include <elf_common.h>
 #include <initcall.h>
 #include <keep.h>
-#include <kernel/ftrace.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -28,6 +27,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <optee_rpc_cmd.h>
 #include <printk.h>
 #include <signed_hdr.h>
 #include <stdio.h>
@@ -300,6 +300,9 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	utc->stack_ptr = arg->stack_ptr;
 	utc->ctx.flags = arg->flags;
 	utc->dump_entry_func = arg->dump_entry;
+#ifdef CFG_TA_FTRACE_SUPPORT
+	utc->ftrace_entry_func = arg->ftrace_entry;
+#endif
 
 out:
 	s = tee_ta_pop_current_session();
@@ -500,10 +503,109 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	dump_state_no_ldelf_dbg(utc);
 }
 
-static void user_ta_dump_state_buffer(struct tee_ta_ctx *ctx __unused,
-				      char *buf __unused, size_t *sz __unused)
+#ifdef CFG_TA_FTRACE_SUPPORT
+static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
 {
+	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+	size_t *arg = NULL;
+
+	if (!utc->ftrace_entry_func)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
+	arg = (size_t *)usr_stack;
+
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)arg, sizeof(*arg));
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	*arg = *blen;
+
+	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
+				     usr_stack, utc->ftrace_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	clear_vfp_state(utc);
+	if (panicked) {
+		utc->ftrace_entry_func = 0;
+		EMSG("ldelf ftrace function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+
+	if (!res) {
+		if (*arg > *blen)
+			res = TEE_ERROR_SHORT_BUFFER;
+		*blen = *arg;
+	}
+
+	return res;
 }
+
+static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
+{
+	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_EPHEMERAL;
+	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+	struct thread_param params[3] = { };
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj *mobj = NULL;
+	uint8_t *ubuf = NULL;
+	void *buf = NULL;
+	size_t pl_sz = 0;
+	size_t blen = 0;
+	vaddr_t va = 0;
+
+	res = dump_ftrace(utc, NULL, &blen);
+	if (res != TEE_ERROR_SHORT_BUFFER)
+		return;
+
+	pl_sz = ROUNDUP(SMALL_PAGE_SIZE, blen + sizeof(TEE_UUID));
+
+	mobj = thread_rpc_alloc_payload(pl_sz);
+	if (!mobj) {
+		EMSG("Ftrace thread_rpc_alloc_payload failed");
+		return;
+	}
+
+	buf = mobj_get_va(mobj, 0);
+	if (!buf)
+		goto out_free_pl;
+
+	res = vm_map(utc, &va, mobj->size, prot, mobj, 0);
+	if (res)
+		goto out_free_pl;
+
+	ubuf = (uint8_t *)va + mobj_get_phys_offs(mobj, mobj->phys_granule);
+	memcpy(ubuf, &ctx->uuid, sizeof(TEE_UUID));
+	ubuf += sizeof(TEE_UUID);
+
+	res = dump_ftrace(utc, ubuf, &blen);
+	if (res) {
+		EMSG("Ftrace dump failed: %#"PRIx32, res);
+		goto out_unmap_pl;
+	}
+
+	params[0] = THREAD_PARAM_VALUE(INOUT, 0, 0, 0);
+	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(TEE_UUID));
+	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID), blen);
+
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_FTRACE, 3, params);
+	if (res)
+		EMSG("Ftrace thread_rpc_cmd res: %#"PRIx32, res);
+
+out_unmap_pl:
+	res = vm_unmap(utc, va, mobj->size);
+	assert(!res);
+out_free_pl:
+	thread_rpc_free_payload(mobj);
+}
+#endif /*CFG_TA_FTRACE_SUPPORT*/
 
 static void free_utc(struct user_ta_ctx *utc)
 {
@@ -546,7 +648,9 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
 	.dump_state = user_ta_dump_state,
-	.dump_state_buffer = user_ta_dump_state_buffer,
+#ifdef CFG_TA_FTRACE_SUPPORT
+	.dump_ftrace = user_ta_dump_ftrace,
+#endif
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
 };
