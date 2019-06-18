@@ -293,7 +293,7 @@ TEE_Result vm_map_pad(struct user_ta_ctx *utc, vaddr_t *va, size_t len,
 	if (res)
 		goto err_rem_reg;
 
-	if (!(reg->attr & TEE_MATTR_PERMANENT) && mobj_is_paged(mobj)) {
+	if (mobj_is_paged(mobj)) {
 		struct fobj *fobj = mobj_get_fobj(mobj);
 
 		if (!fobj) {
