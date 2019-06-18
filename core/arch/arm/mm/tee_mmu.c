@@ -323,6 +323,75 @@ static TEE_Result find_exact_vm_region(struct user_ta_ctx *utc, vaddr_t va,
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+TEE_Result vm_remap(struct user_ta_ctx *utc, vaddr_t *new_va, vaddr_t old_va,
+		    size_t len, size_t pad_begin, size_t pad_end)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r = NULL;
+	struct fobj *fobj = NULL;
+
+	assert(thread_get_tsd()->ctx == &utc->ctx);
+
+	res = find_exact_vm_region(utc, old_va, len, &r);
+	if (res)
+		return res;
+
+	if (mobj_is_paged(r->mobj)) {
+		fobj = mobj_get_fobj(r->mobj);
+		if (!fobj)
+			return TEE_ERROR_GENERIC;
+		tee_pager_rem_uta_region(utc, r->va, r->size);
+	}
+	maybe_free_pgt(utc, r);
+
+	TAILQ_REMOVE(&utc->vm_info->regions, r, link);
+
+	/*
+	 * Synchronize change to translation tables. Even though the pager
+	 * case unmaps immediately we may still free a translation table.
+	 */
+	tee_mmu_set_ctx(&utc->ctx);
+
+	r->va = *new_va;
+	res = umap_add_region(utc->vm_info, r, pad_begin, pad_end);
+	if (res)
+		goto err_restore_map;
+
+	res = alloc_pgt(utc);
+	if (res)
+		goto err_restore_map_rem_reg;
+
+	if (fobj) {
+		res = tee_pager_add_uta_area(utc, r->va, fobj, r->attr);
+		if (res)
+			goto err_restore_map_rem_reg;
+		fobj_put(fobj);
+	}
+
+	tee_mmu_set_ctx(&utc->ctx);
+	*new_va = r->va;
+
+	return TEE_SUCCESS;
+
+err_restore_map_rem_reg:
+	TAILQ_REMOVE(&utc->vm_info->regions, r, link);
+err_restore_map:
+	r->va = old_va;
+	if (umap_add_region(utc->vm_info, r, 0, 0))
+		panic("Cannot restore mapping");
+	if (alloc_pgt(utc))
+		panic("Cannot restore mapping");
+	if (fobj) {
+		if (tee_pager_add_uta_area(utc, r->va, fobj, r->attr))
+			panic("Cannot restore mapping");
+		fobj_put(fobj);
+	}
+
+	tee_mmu_set_ctx(&utc->ctx);
+
+	return res;
+}
+
 TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		       uint32_t prot)
 {

@@ -46,6 +46,8 @@ static inline TEE_Result vm_map(struct user_ta_ctx *utc, vaddr_t *va,
 	return vm_map_pad(utc, va, len, prot, flags, mobj, offs, 0, 0);
 }
 
+TEE_Result vm_remap(struct user_ta_ctx *utc, vaddr_t *new_va, vaddr_t old_va,
+		    size_t len, size_t pad_begin, size_t pad_end);
 
 TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		       uint32_t prot);
