@@ -14,12 +14,13 @@
 
 /*
  * struct ldelf_arg - argument for ldelf
- * @uuid:	[in] UUID of TA to load
- * @is_32bit:	[out] 1 if a 32bit TA or 0 if a 64bit TA
- * @flags:	[out] Flags field of TA header
- * @entry_func:	[out] TA entry function
- * @stack_ptr:	[out] TA stack pointer
- * @dump_entry: [out] Dump TA mappings and stack trace
+ * @uuid:	  [in] UUID of TA to load
+ * @is_32bit:	  [out] 1 if a 32bit TA or 0 if a 64bit TA
+ * @flags:	  [out] Flags field of TA header
+ * @entry_func:	  [out] TA entry function
+ * @stack_ptr:	  [out] TA stack pointer
+ * @dump_entry:	  [out] Dump TA mappings and stack trace
+ * @ftrace_entry: [out] Dump TA mappings and ftrace buffer
  */
 struct ldelf_arg {
 	TEE_UUID uuid;
@@ -28,6 +29,7 @@ struct ldelf_arg {
 	uint64_t entry_func;
 	uint64_t stack_ptr;
 	uint64_t dump_entry;
+	uint64_t ftrace_entry;
 };
 
 #define DUMP_MAP_READ	BIT(0)

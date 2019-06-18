@@ -50,7 +50,7 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
 	return true;
 }
 
-static void resolve_sym(const char *name, vaddr_t *val)
+TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val)
 {
 	uint32_t hash = elf_hash(name);
 	struct ta_elf *elf = NULL;
@@ -77,7 +77,7 @@ static void resolve_sym(const char *name, vaddr_t *val)
 						  sym[n].st_shndx,
 						  sym[n].st_name,
 						  sym[n].st_value, name, val))
-					return;
+					return TEE_SUCCESS;
 			}
 		} else {
 			Elf64_Sym *sym = elf->dynsymtab;
@@ -89,11 +89,20 @@ static void resolve_sym(const char *name, vaddr_t *val)
 						  sym[n].st_shndx,
 						  sym[n].st_name,
 						  sym[n].st_value, name, val))
-					return;
+					return TEE_SUCCESS;
 			}
 		}
 	}
-	err(TEE_ERROR_ITEM_NOT_FOUND, "Symbol %s not found", name);
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static void resolve_sym(const char *name, vaddr_t *val)
+{
+	TEE_Result res = ta_elf_resolve_sym(name, val);
+
+	if (res)
+		err(res, "Symbol %s not found", name);
 }
 
 static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,

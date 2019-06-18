@@ -71,6 +71,9 @@ struct ta_elf {
 
 TAILQ_HEAD(ta_elf_queue, ta_elf);
 
+typedef void (*print_func_t)(void *pctx, const char *fmt, va_list ap)
+	__printf(2, 0);
+
 extern struct ta_elf_queue main_elf_queue;
 
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit,
@@ -79,8 +82,10 @@ void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
 void ta_elf_finalize_mappings(struct ta_elf *elf);
 
-void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
+void ta_elf_print_mappings(void *pctx, print_func_t print_func,
+			   struct ta_elf_queue *elf_queue, size_t num_maps,
 			   struct dump_map *maps, vaddr_t mpool_base);
+
 #ifdef CFG_UNWIND
 void ta_elf_stack_trace_a32(uint32_t regs[16]);
 void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc);
@@ -90,4 +95,7 @@ static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 					  uint64_t sp __unused,
 					  uint64_t pc __unused) { }
 #endif /*CFG_UNWIND*/
+
+TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val);
+
 #endif /*TA_ELF_H*/
