@@ -948,7 +948,18 @@ void ta_elf_finalize_mappings(struct ta_elf *elf)
 	}
 }
 
-static void print_seg(size_t idx __maybe_unused, int elf_idx __maybe_unused,
+static void __printf(3, 4) print_wrapper(void *pctx, print_func_t print_func,
+					 const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	print_func(pctx, fmt, ap);
+	va_end(ap);
+}
+
+static void print_seg(void *pctx, print_func_t print_func,
+		      size_t idx __maybe_unused, int elf_idx __maybe_unused,
 		      vaddr_t va __maybe_unused, paddr_t pa __maybe_unused,
 		      size_t sz __maybe_unused, uint32_t flags)
 {
@@ -976,8 +987,9 @@ static void print_seg(size_t idx __maybe_unused, int elf_idx __maybe_unused,
 	if (flags & DUMP_MAP_SECURE)
 		flags_str[3] = 's';
 
-	EMSG_RAW("region %2zu: va 0x%0*"PRIxVA" pa 0x%0*"PRIxPA" size 0x%06zx flags %s%s",
-		 idx, width, va, width, pa, sz, flags_str, desc);
+	print_wrapper(pctx, print_func,
+		      "region %2zu: va 0x%0*"PRIxVA" pa 0x%0*"PRIxPA" size 0x%06zx flags %s%s\n",
+		      idx, width, va, width, pa, sz, flags_str, desc);
 }
 
 static bool get_next_in_order(struct ta_elf_queue *elf_queue,
@@ -1027,7 +1039,8 @@ static bool get_next_in_order(struct ta_elf_queue *elf_queue,
 	return true;
 }
 
-void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
+void ta_elf_print_mappings(void *pctx, print_func_t print_func,
+			   struct ta_elf_queue *elf_queue, size_t num_maps,
 			   struct dump_map *maps, vaddr_t mpool_base)
 {
 	struct segment *seg = NULL;
@@ -1085,8 +1098,9 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 			} else if (maps[map_idx].va < va) {
 				if (maps[map_idx].va == mpool_base)
 					f |= DUMP_MAP_LDELF;
-				print_seg(idx, -1, maps[map_idx].va,
-					  maps[map_idx].pa, maps[map_idx].sz,
+				print_seg(pctx, print_func, idx, -1,
+					  maps[map_idx].va, maps[map_idx].pa,
+					  maps[map_idx].sz,
 					  maps[map_idx].flags | f);
 				idx++;
 			}
@@ -1104,7 +1118,7 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 		if (seg->flags & PF_X)
 			flags |= DUMP_MAP_EXEC;
 
-		print_seg(idx, elf_idx, va, offs, sz, flags);
+		print_seg(pctx, print_func, idx, elf_idx, va, offs, sz, flags);
 		idx++;
 
 		if (!get_next_in_order(elf_queue, &elf, &seg, &elf_idx))
@@ -1113,8 +1127,9 @@ void ta_elf_print_mappings(struct ta_elf_queue *elf_queue, size_t num_maps,
 
 	elf_idx = 0;
 	TAILQ_FOREACH(elf, elf_queue, link) {
-		EMSG_RAW(" [%zu] %pUl @ 0x%0*" PRIxVA,
-			 elf_idx, (void *)&elf->uuid, 8, elf->load_addr);
+		print_wrapper(pctx, print_func,
+			      " [%zu] %pUl @ 0x%0*"PRIxVA"\n",
+			      elf_idx, (void *)&elf->uuid, 8, elf->load_addr);
 		elf_idx++;
 	}
 }

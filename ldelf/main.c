@@ -6,16 +6,26 @@
 #include <assert.h>
 #include <ldelf.h>
 #include <malloc.h>
+#include <printk.h>
+#include <string.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <types_ext.h>
+#include <util.h>
 
-#include "ta_elf.h"
+#include "ftrace.h"
 #include "sys.h"
+#include "ta_elf.h"
 
 static size_t mpool_size = 2 * SMALL_PAGE_SIZE;
 static vaddr_t mpool_base;
+
+static void __printf(2, 0) print_to_console(void *pctx __unused,
+					    const char *fmt, va_list ap)
+{
+	trace_vprintf(NULL, 0, TRACE_ERROR, true, fmt, ap);
+}
 
 static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 {
@@ -26,8 +36,8 @@ static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 	EMSG_RAW(" arch: %s", elf->is_32bit ? "arm" : "aarch64");
 
 
-	ta_elf_print_mappings(&main_elf_queue, arg->num_maps, arg->maps,
-			      mpool_base);
+	ta_elf_print_mappings(NULL, print_to_console, &main_elf_queue,
+			      arg->num_maps, arg->maps, mpool_base);
 
 	if (arg->is_arm32)
 		ta_elf_stack_trace_a32(arg->arm32.regs);
@@ -37,6 +47,60 @@ static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 
 	sys_return_cleanup();
 }
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+struct print_buf_ctx {
+	char *buf;
+	size_t blen;
+	size_t ret;
+};
+
+static void __printf(2, 0) print_to_pbuf(void *pctx, const char *fmt,
+					 va_list ap)
+{
+	struct print_buf_ctx *pbuf = pctx;
+	char *buf = NULL;
+	size_t blen = 0;
+	int ret = 0;
+
+	if (pbuf->buf && pbuf->blen > pbuf->ret) {
+		buf = pbuf->buf + pbuf->ret;
+		blen = pbuf->blen - pbuf->ret;
+	}
+
+	ret = vsnprintk(buf, blen, fmt, ap);
+	assert(ret >= 0);
+
+	pbuf->ret += ret;
+}
+
+static void copy_to_pbuf(void *pctx, void *b, size_t bl)
+{
+	struct print_buf_ctx *pbuf = pctx;
+	char *buf = NULL;
+	size_t blen = 0;
+
+	if (pbuf->buf && pbuf->blen > pbuf->ret) {
+		buf = pbuf->buf + pbuf->ret;
+		blen = pbuf->blen - pbuf->ret;
+		memcpy(buf, b, MIN(blen, bl));
+	}
+
+	pbuf->ret += bl;
+
+}
+
+static void __noreturn ftrace_dump(void *buf, size_t *blen)
+{
+	struct print_buf_ctx pbuf = { .buf = buf, .blen = *blen };
+
+	ta_elf_print_mappings(&pbuf, print_to_pbuf, &main_elf_queue,
+			      0, NULL, mpool_base);
+	ftrace_copy_buf(&pbuf, copy_to_pbuf);
+	*blen = pbuf.ret;
+	sys_return_cleanup();
+}
+#endif
 
 /*
  * ldelf()- Loads ELF into memory
@@ -74,6 +138,12 @@ void ldelf(struct ldelf_arg *arg)
 		ta_elf_relocate(elf);
 		ta_elf_finalize_mappings(elf);
 	}
+
+	arg->ftrace_entry = 0;
+#ifdef CFG_TA_FTRACE_SUPPORT
+	if (ftrace_init())
+		arg->ftrace_entry = (vaddr_t)(void *)ftrace_dump;
+#endif
 
 	TAILQ_FOREACH(elf, &main_elf_queue, link)
 		DMSG("ELF (%pUl) at %#"PRIxVA,

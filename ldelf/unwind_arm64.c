@@ -33,6 +33,7 @@
 #include <trace.h>
 #include <types_ext.h>
 
+#include "ftrace.h"
 #include "unwind.h"
 
 static bool copy_in_reg(uint64_t *reg, vaddr_t addr)
@@ -63,6 +64,9 @@ static bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 	/* LR (X30) */
 	if (!copy_in_reg(&frame->pc, fp + 8))
 		return false;
+
+	ftrace_map_lr(&frame->pc);
+
 	frame->pc -= 4;
 
 	return true;
@@ -72,6 +76,8 @@ void print_stack_arm64(struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
 	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
+
+	ftrace_map_lr(&state->pc);
 	do {
 		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%016" PRIx64,
 					state->pc);
