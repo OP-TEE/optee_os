@@ -56,8 +56,7 @@ struct tee_ta_ops {
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
 	void (*enter_close_session)(struct tee_ta_session *s);
 	void (*dump_state)(struct tee_ta_ctx *ctx);
-	void (*dump_state_buffer)(struct tee_ta_ctx *ctx, char *buf,
-				  size_t *sz);
+	void (*dump_ftrace)(struct tee_ta_ctx *ctx);
 	void (*destroy)(struct tee_ta_ctx *ctx);
 	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
 };
@@ -107,9 +106,6 @@ struct tee_ta_session {
 	bool unlink;		/* True if session is to be unlinked */
 #if defined(CFG_TA_GPROF_SUPPORT)
 	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
-#endif
-#if defined(CFG_TA_FTRACE_SUPPORT)
-	struct ftrace_buf *fbuf; /* ftrace buffer */
 #endif
 };
 

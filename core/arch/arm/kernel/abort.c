@@ -5,7 +5,6 @@
 
 #include <arm.h>
 #include <kernel/abort.h>
-#include <kernel/ftrace.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -298,7 +297,8 @@ void abort_print_current_ta(void)
 
 	s->ctx->ops->dump_state(s->ctx);
 
-	ta_fbuf_dump(s);
+	if (s->ctx->ops->dump_ftrace)
+		s->ctx->ops->dump_ftrace(s->ctx);
 }
 
 static void save_abort_info_in_tsd(struct abort_info *ai)
