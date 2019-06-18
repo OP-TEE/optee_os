@@ -103,15 +103,6 @@ struct unwind_idx {
 	uint32_t insn;
 };
 
-static bool copy_in(void *dst, const void *src, size_t n, bool kernel_data)
-{
-	if (!kernel_data)
-		return !tee_svc_copy_from_user(dst, src, n);
-
-	memcpy(dst, src, n);
-	return true;
-}
-
 /* Expand a 31-bit signed value to a 32-bit signed value */
 static int32_t expand_prel31(uint32_t prel31)
 {
@@ -159,12 +150,11 @@ static struct unwind_idx *find_index(uint32_t addr, vaddr_t exidx,
 
 /* Reads the next byte from the instruction list */
 static bool unwind_exec_read_byte(struct unwind_state_arm32 *state,
-				  uint32_t *ret_insn, bool kernel_stack)
+				  uint32_t *ret_insn)
 {
 	uint32_t insn;
 
-	if (!copy_in(&insn, (void *)state->insn, sizeof(insn), kernel_stack))
-		return false;
+	memcpy(&insn, (void *)state->insn, sizeof(insn));
 
 	/* Read the unwind instruction */
 	*ret_insn = (insn >> (state->byte * 8)) & 0xff;
@@ -180,29 +170,27 @@ static bool unwind_exec_read_byte(struct unwind_state_arm32 *state,
 	return true;
 }
 
-static bool pop_vsp(uint32_t *reg, vaddr_t *vsp, bool kernel_stack,
+static bool pop_vsp(uint32_t *reg, vaddr_t *vsp,
 		    vaddr_t stack, size_t stack_size)
 {
 	if (!core_is_buffer_inside(*vsp, sizeof(*reg), stack, stack_size))
 		return false;
 
-	if (!copy_in(reg, (void *)*vsp, sizeof(*reg), kernel_stack))
-		return false;
+	memcpy(reg, (void *)*vsp, sizeof(*reg));
 	(*vsp) += sizeof(*reg);
 	return true;
 }
 
 /* Executes the next instruction on the list */
 static bool unwind_exec_insn(struct unwind_state_arm32 *state,
-			     bool kernel_stack, vaddr_t stack,
-			     size_t stack_size)
+			     vaddr_t stack, size_t stack_size)
 {
 	uint32_t insn;
 	vaddr_t vsp = state->registers[SP];
 	int update_vsp = 0;
 
 	/* Read the next instruction */
-	if (!unwind_exec_read_byte(state, &insn, kernel_stack))
+	if (!unwind_exec_read_byte(state, &insn))
 		return false;
 
 	if ((insn & INSN_VSP_MASK) == INSN_VSP_INC) {
@@ -216,7 +204,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		unsigned int reg;
 
 		/* Load the mask */
-		if (!unwind_exec_read_byte(state, &mask, kernel_stack))
+		if (!unwind_exec_read_byte(state, &mask))
 			return false;
 		mask |= (insn & INSN_STD_DATA_MASK) << 8;
 
@@ -231,7 +219,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		for (reg = 4; mask && reg < 16; mask >>= 1, reg++) {
 			if (mask & 1) {
 				if (!pop_vsp(&state->registers[reg], &vsp,
-					     kernel_stack, stack, stack_size))
+					     stack, stack_size))
 					return false;
 				state->update_mask |= 1 << reg;
 
@@ -260,14 +248,14 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		/* Pop the registers */
 		for (reg = 4; reg <= 4 + count; reg++) {
 			if (!pop_vsp(&state->registers[reg], &vsp,
-				     kernel_stack, stack, stack_size))
+				     stack, stack_size))
 				return false;
 			state->update_mask |= 1 << reg;
 		}
 
 		/* Check if we are in the pop r14 version */
 		if ((insn & INSN_POP_TYPE_MASK) != 0) {
-			if (!pop_vsp(&state->registers[14], &vsp, kernel_stack,
+			if (!pop_vsp(&state->registers[14], &vsp,
 				     stack, stack_size))
 				return false;
 		}
@@ -280,7 +268,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		uint32_t mask;
 		unsigned int reg;
 
-		if (!unwind_exec_read_byte(state, &mask, kernel_stack))
+		if (!unwind_exec_read_byte(state, &mask))
 			return false;
 		if (mask == 0 || (mask & 0xf0) != 0)
 			return false;
@@ -292,7 +280,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		for (reg = 0; mask && reg < 4; mask >>= 1, reg++) {
 			if (mask & 1) {
 				if (!pop_vsp(&state->registers[reg], &vsp,
-					     kernel_stack, stack, stack_size))
+					     stack, stack_size))
 					return false;
 				state->update_mask |= 1 << reg;
 			}
@@ -302,7 +290,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 		uint32_t uleb128;
 
 		/* Read the increment value */
-		if (!unwind_exec_read_byte(state, &uleb128, kernel_stack))
+		if (!unwind_exec_read_byte(state, &uleb128))
 			return false;
 
 		state->registers[SP] += 0x204 + (uleb128 << 2);
@@ -320,7 +308,7 @@ static bool unwind_exec_insn(struct unwind_state_arm32 *state,
 }
 
 /* Performs the unwind of a function */
-static bool unwind_tab(struct unwind_state_arm32 *state, bool kernel_stack,
+static bool unwind_tab(struct unwind_state_arm32 *state,
 		       vaddr_t stack, size_t stack_size)
 {
 	uint32_t entry;
@@ -329,10 +317,7 @@ static bool unwind_tab(struct unwind_state_arm32 *state, bool kernel_stack,
 	/* Set PC to a known value */
 	state->registers[PC] = 0;
 
-	if (!copy_in(&insn, (void *)state->insn, sizeof(insn), kernel_stack)) {
-		DMSG("Bad insn addr %p", (void *)state->insn);
-		return true;
-	}
+	memcpy(&insn, (void *)state->insn, sizeof(insn));
 
 	/* Read the personality */
 	entry = insn & ENTRY_MASK;
@@ -349,7 +334,7 @@ static bool unwind_tab(struct unwind_state_arm32 *state, bool kernel_stack,
 	}
 
 	while (state->entries > 0) {
-		if (!unwind_exec_insn(state, kernel_stack, stack, stack_size))
+		if (!unwind_exec_insn(state, stack, stack_size))
 			return true;
 	}
 
@@ -370,8 +355,7 @@ static bool unwind_tab(struct unwind_state_arm32 *state, bool kernel_stack,
 }
 
 bool unwind_stack_arm32(struct unwind_state_arm32 *state, vaddr_t exidx,
-			size_t exidx_sz, bool kernel_stack, vaddr_t stack,
-			size_t stack_size)
+			size_t exidx_sz, vaddr_t stack, size_t stack_size)
 {
 	struct unwind_idx *index;
 	bool finished;
@@ -400,7 +384,7 @@ bool unwind_stack_arm32(struct unwind_state_arm32 *state, vaddr_t exidx,
 		}
 
 		/* Run the unwind function */
-		finished = unwind_tab(state, kernel_stack, stack, stack_size);
+		finished = unwind_tab(state, stack, stack_size);
 	}
 
 	/* This is the top of the stack, finish */
@@ -448,15 +432,14 @@ TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset)
 #if (TRACE_LEVEL > 0)
 
 void print_stack_arm32(int level, struct unwind_state_arm32 *state,
-		       vaddr_t exidx, size_t exidx_sz, bool kernel_stack,
+		       vaddr_t exidx, size_t exidx_sz,
 		       vaddr_t stack, size_t stack_size)
 {
 	trace_printf_helper_raw(level, true, "Call stack:");
 	do {
 		trace_printf_helper_raw(level, true, " 0x%08" PRIx32,
 					state->registers[PC]);
-	} while (unwind_stack_arm32(state, exidx, exidx_sz,
-				    kernel_stack, stack, stack_size));
+	} while (unwind_stack_arm32(state, exidx, exidx_sz, stack, stack_size));
 }
 
 #endif
@@ -480,8 +463,7 @@ void print_kernel_stack(int level)
 	state.registers[LR] = read_lr();
 	state.registers[PC] = (uint32_t)print_kernel_stack;
 
-	print_stack_arm32(level, &state, exidx, exidx_sz,
-			  true /*kernel_stack*/, stack, stack_size);
+	print_stack_arm32(level, &state, exidx, exidx_sz, stack, stack_size);
 }
 
 #endif
@@ -511,8 +493,7 @@ vaddr_t *unw_get_kernel_stack(void)
 	state.registers[LR] = read_lr();
 	state.registers[PC] = (uint32_t)unw_get_kernel_stack;
 
-	while (unwind_stack_arm32(&state, exidx, exidx_sz,
-				  true /*kernel stack*/, stack, stack_size)) {
+	while (unwind_stack_arm32(&state, exidx, exidx_sz, stack, stack_size)) {
 		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
 		if (!tmp)
 			goto err;

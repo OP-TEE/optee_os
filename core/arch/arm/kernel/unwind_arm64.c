@@ -40,16 +40,12 @@
 
 #include "unwind_private.h"
 
-static bool copy_in_reg(uint64_t *reg, vaddr_t addr, bool kernel_data)
+static void copy_in_reg(uint64_t *reg, vaddr_t addr)
 {
-	if (!kernel_data)
-		return !tee_svc_copy_from_user(reg, (void *)addr, sizeof(*reg));
-
 	memcpy(reg, (void *)addr, sizeof(*reg));
-	return true;
 }
 
-bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
+bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 			vaddr_t stack, size_t stack_size)
 {
 	vaddr_t fp = frame->fp;
@@ -60,12 +56,9 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
 
 	frame->sp = fp + 0x10;
 	/* FP to previous frame (X29) */
-	if (!copy_in_reg(&frame->fp, fp, kernel_stack))
-		return false;
+	copy_in_reg(&frame->fp, fp);
 	/* LR (X30) */
-	if (!copy_in_reg(&frame->pc, fp + 8, kernel_stack))
-		return false;
-
+	copy_in_reg(&frame->pc, fp + 8);
 	frame->pc -= 4;
 
 	return true;
@@ -74,14 +67,14 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame, bool kernel_stack,
 #if (TRACE_LEVEL > 0)
 
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
-		       bool kernel_stack, vaddr_t stack, size_t stack_size)
+		       vaddr_t stack, size_t stack_size)
 {
 	trace_printf_helper_raw(level, true, "Call stack:");
 
 	do {
 		trace_printf_helper_raw(level, true, " 0x%016" PRIx64,
 					state->pc);
-	} while (unwind_stack_arm64(state, kernel_stack, stack, stack_size));
+	} while (unwind_stack_arm64(state, stack, stack_size));
 }
 
 void print_kernel_stack(int level)
@@ -94,8 +87,7 @@ void print_kernel_stack(int level)
 	state.pc = read_pc();
 	state.fp = read_fp();
 
-	print_stack_arm64(level, &state,
-			  true /*kernel_stack*/, stack, stack_size);
+	print_stack_arm64(level, &state, stack, stack_size);
 }
 
 #endif
@@ -113,8 +105,7 @@ vaddr_t *unw_get_kernel_stack(void)
 	state.pc = read_pc();
 	state.fp = read_fp();
 
-	while (unwind_stack_arm64(&state, true /*kernel stack*/,
-				  stack, stack_size)) {
+	while (unwind_stack_arm64(&state, stack, stack_size)) {
 		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
 		if (!tmp)
 			goto err;
