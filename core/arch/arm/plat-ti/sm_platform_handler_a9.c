@@ -39,7 +39,7 @@
 
 uint32_t suspend_regs[16];
 
-bool sm_platform_handler(struct sm_ctx *ctx)
+enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
 {
 	if (ctx->nsec.r12 == 0x200)
 		return SM_HANDLER_PENDING_SMC;
