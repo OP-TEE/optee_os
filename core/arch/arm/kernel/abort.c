@@ -29,48 +29,21 @@ enum fault_type {
 #ifdef CFG_UNWIND
 
 #ifdef ARM32
-static void get_current_ta_exidx_stack(vaddr_t *exidx, size_t *exidx_sz,
-				       vaddr_t *stack, size_t *stack_size)
-{
-	*exidx = 0;
-	*exidx_sz = 0;
-	*stack = 0;
-	*stack_size = 0;
-}
-
 /*
  * Kernel or user mode unwind (32-bit execution state).
  */
 static void __print_stack_unwind(struct abort_info *ai)
 {
-	struct unwind_state_arm32 state;
-	vaddr_t exidx;
-	size_t exidx_sz;
+	struct unwind_state_arm32 state = { };
+	vaddr_t exidx = (vaddr_t)__exidx_start;
+	size_t exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
 	uint32_t mode = ai->regs->spsr & CPSR_MODE_MASK;
-	uint32_t sp;
-	uint32_t lr;
-	vaddr_t stack;
-	size_t stack_size;
-	bool kernel_stack;
+	uint32_t sp = 0;
+	uint32_t lr = 0;
 
-	if (abort_is_user_exception(ai)) {
-		get_current_ta_exidx_stack(&exidx, &exidx_sz, &stack,
-					   &stack_size);
-		if (!exidx) {
-			EMSG_RAW("Call stack not available");
-			return;
-		}
-		kernel_stack = false;
-	} else {
-		exidx = (vaddr_t)__exidx_start;
-		exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
-		/* Kernel stack */
-		stack = thread_stack_start();
-		stack_size = thread_stack_size();
-		kernel_stack = true;
-	}
+	assert(!abort_is_user_exception(ai));
 
-	if (mode == CPSR_MODE_USR || mode == CPSR_MODE_SYS) {
+	if (mode == CPSR_MODE_SYS) {
 		sp = ai->regs->usr_sp;
 		lr = ai->regs->usr_lr;
 	} else {
@@ -95,35 +68,22 @@ static void __print_stack_unwind(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz, kernel_stack,
-			  stack, stack_size);
+	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz,
+			  thread_stack_start(), thread_stack_size());
 }
 #endif /* ARM32 */
 
 #ifdef ARM64
-/* Kernel or user mode unwind (64-bit execution state) */
+/* Kernel mode unwind (64-bit execution state) */
 static void __print_stack_unwind(struct abort_info *ai)
 {
-	struct unwind_state_arm64 state = { };
-	bool kernel_stack = false;
-	uaddr_t stack = 0;
-	size_t stack_size = 0;
+	struct unwind_state_arm64 state = {
+		.pc = ai->regs->elr,
+		.fp = ai->regs->x29,
+	};
 
-	if (abort_is_user_exception(ai)) {
-		/* User stack */
-		stack = 0;
-		stack_size = 0;
-	} else {
-		/* Kernel stack */
-		stack = thread_stack_start();
-		stack_size = thread_stack_size();
-		kernel_stack = true;
-	}
-
-	state.pc = ai->regs->elr;
-	state.fp = ai->regs->x29;
-
-	print_stack_arm64(TRACE_ERROR, &state, kernel_stack, stack, stack_size);
+	print_stack_arm64(TRACE_ERROR, &state, thread_stack_start(),
+			  thread_stack_size());
 }
 #endif /*ARM64*/
 
