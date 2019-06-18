@@ -5,9 +5,10 @@
 #ifndef TRACE_H
 #define TRACE_H
 
+#include <compiler.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <compiler.h>
 #include <trace_levels.h>
 
 #define MAX_PRINT_SIZE      256
@@ -28,6 +29,8 @@ void trace_set_level(int level);
 int trace_get_level(void);
 
 /* Internal functions used by the macros below */
+void trace_vprintf(const char *func, int line, int level, bool level_ok,
+		   const char *fmt, va_list args) __printf(5, 0);
 void trace_printf(const char *func, int line, int level, bool level_ok,
 		  const char *fmt, ...) __printf(5, 6);
 
