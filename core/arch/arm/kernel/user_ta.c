@@ -900,7 +900,6 @@ TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
 			 vaddr_t old_va, size_t len, size_t pad_begin,
 			 size_t pad_end)
 {
-	TEE_Result r2 = TEE_SUCCESS;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct load_seg *seg = find_exact_seg(&utc->segs, old_va, len);
 	vaddr_t va = *new_va;
@@ -908,23 +907,11 @@ TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
 	if (!seg)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	res = vm_unmap(utc, seg->va, seg->size);
+	res = vm_remap(utc, &va, seg->va, seg->size, pad_begin, pad_end);
 	if (res)
 		return res;
-
-	res = vm_map_pad(utc, &va, seg->size, seg->attr, seg->flags,
-			 seg->mobj, 0, pad_begin, pad_end);
-	if (res)
-		goto err;
 
 	seg->va = va;
 	*new_va = va;
 	return TEE_SUCCESS;
-err:
-	va = seg->va;
-	r2 = vm_map_pad(utc, &va, seg->size, seg->attr, seg->flags, seg->mobj,
-			0, 0, 0);
-	if (r2)
-		panic("Cannot restore mapping");
-	return res;
 }
