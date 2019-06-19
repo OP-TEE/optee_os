@@ -513,12 +513,13 @@ bad:
 
 struct mobj_with_fobj {
 	struct fobj *fobj;
+	struct file *file;
 	struct mobj mobj;
 };
 
 static const struct mobj_ops mobj_with_fobj_ops;
 
-struct mobj *mobj_with_fobj_alloc(struct fobj *fobj)
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file)
 {
 	struct mobj_with_fobj *m = NULL;
 
@@ -533,6 +534,7 @@ struct mobj *mobj_with_fobj_alloc(struct fobj *fobj)
 	m->mobj.size = fobj->num_pages * SMALL_PAGE_SIZE;
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 	m->fobj = fobj_get(fobj);
+	m->file = file_get(file);
 
 	return &m->mobj;
 }
@@ -563,6 +565,7 @@ static void mobj_with_fobj_free(struct mobj *mobj)
 	struct mobj_with_fobj *m = to_mobj_with_fobj(mobj);
 
 	fobj_put(m->fobj);
+	file_put(m->file);
 	free(m);
 }
 
