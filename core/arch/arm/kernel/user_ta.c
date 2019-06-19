@@ -46,7 +46,8 @@
 #include <util.h>
 
 struct load_seg {
-	uint32_t flags;
+	uint16_t flags;
+	uint16_t attr;
 	vaddr_t va;
 	size_t size;
 	struct mobj *mobj;
@@ -232,7 +233,7 @@ static void clear_ldelf_mappings(struct user_ta_ctx *utc)
 	 */
 	while (true) {
 		SLIST_FOREACH(seg, &utc->segs, link)
-			if (seg->flags & TEE_MATTR_LDELF)
+			if (seg->flags & VM_FLAG_LDELF)
 				break;
 		if (!seg)
 			break;
@@ -415,9 +416,9 @@ static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
 				arg->maps[n].flags |= DUMP_MAP_EXEC;
 			if (r->attr & TEE_MATTR_SECURE)
 				arg->maps[n].flags |= DUMP_MAP_SECURE;
-			if (r->attr & TEE_MATTR_EPHEMERAL)
+			if (r->flags & VM_FLAG_EPHEMERAL)
 				arg->maps[n].flags |= DUMP_MAP_EPHEM;
-			if (r->attr & TEE_MATTR_LDELF)
+			if (r->flags & VM_FLAG_LDELF)
 				arg->maps[n].flags |= DUMP_MAP_LDELF;
 			n++;
 		}
@@ -550,7 +551,7 @@ static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
 
 static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 {
-	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_EPHEMERAL;
+	uint32_t prot = TEE_MATTR_URW;
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct thread_param params[3] = { };
 	TEE_Result res = TEE_SUCCESS;
@@ -577,7 +578,7 @@ static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 	if (!buf)
 		goto out_free_pl;
 
-	res = vm_map(utc, &va, mobj->size, prot, mobj, 0);
+	res = vm_map(utc, &va, mobj->size, prot, VM_FLAG_EPHEMERAL, mobj, 0);
 	if (res)
 		goto out_free_pl;
 
@@ -704,7 +705,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 	num_pgs = ROUNDUP(LDELF_STACK_SIZE, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	fobj = fobj_ta_mem_alloc(num_pgs);
 	res = user_ta_map(utc, &stack_addr, fobj,
-			  TEE_MATTR_URW | TEE_MATTR_PRW | TEE_MATTR_LDELF,
+			  TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
 			  NULL, 0, 0);
 	fobj_put(fobj);
 	if (res)
@@ -714,7 +715,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 	num_pgs = ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	fobj = fobj_ta_mem_alloc(num_pgs);
 	res = user_ta_map(utc, &code_addr, fobj,
-			  TEE_MATTR_PRW | TEE_MATTR_LDELF, NULL, 0, 0);
+			  TEE_MATTR_PRW, VM_FLAG_LDELF, NULL, 0, 0);
 	fobj_put(fobj);
 	if (res)
 		goto err;
@@ -724,7 +725,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 	rw_addr = ROUNDUP(code_addr + ldelf_code_size, SMALL_PAGE_SIZE);
 	fobj = fobj_ta_mem_alloc(num_pgs);
 	res = user_ta_map(utc, &rw_addr, fobj,
-			  TEE_MATTR_URW | TEE_MATTR_PRW | TEE_MATTR_LDELF,
+			  TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
 			  NULL, 0, 0);
 	fobj_put(fobj);
 	if (res)
@@ -802,8 +803,8 @@ err:
 }
 
 TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
-		       uint32_t prot, struct file *file, size_t pad_begin,
-		       size_t pad_end)
+		       uint32_t prot, uint32_t flags, struct file *file,
+		       size_t pad_begin, size_t pad_end)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct load_seg *seg = calloc(1, sizeof(*seg));
@@ -811,7 +812,8 @@ TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
 	if (!seg)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	seg->flags = prot;
+	seg->attr = prot;
+	seg->flags = flags;
 	seg->mobj = mobj_with_fobj_alloc(f);
 	if (!seg->mobj) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -819,8 +821,8 @@ TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
 	}
 	seg->size = f->num_pages * SMALL_PAGE_SIZE;
 
-	res = vm_map_pad(utc, va, seg->size, prot, seg->mobj, 0, pad_begin,
-			 pad_end);
+	res = vm_map_pad(utc, va, seg->size, prot, flags, seg->mobj, 0,
+			 pad_begin, pad_end);
 	if (res)
 		goto err;
 
@@ -888,8 +890,8 @@ TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 	if (res)
 		return res;
 
-	seg->flags &= ~TEE_MATTR_PROT_MASK;
-	seg->flags |= prot & TEE_MATTR_PROT_MASK;
+	seg->attr &= ~TEE_MATTR_PROT_MASK;
+	seg->attr |= prot & TEE_MATTR_PROT_MASK;
 
 	return TEE_SUCCESS;
 }
@@ -910,8 +912,8 @@ TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
 	if (res)
 		return res;
 
-	res = vm_map_pad(utc, &va, seg->size, seg->flags, seg->mobj, 0,
-			 pad_begin, pad_end);
+	res = vm_map_pad(utc, &va, seg->size, seg->attr, seg->flags,
+			 seg->mobj, 0, pad_begin, pad_end);
 	if (res)
 		goto err;
 
@@ -920,8 +922,8 @@ TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
 	return TEE_SUCCESS;
 err:
 	va = seg->va;
-	r2 = vm_map_pad(utc, &va, seg->size, seg->flags, seg->mobj, 0,
-			0, 0);
+	r2 = vm_map_pad(utc, &va, seg->size, seg->attr, seg->flags, seg->mobj,
+			0, 0, 0);
 	if (r2)
 		panic("Cannot restore mapping");
 	return res;

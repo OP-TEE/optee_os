@@ -38,16 +38,25 @@
  * Tags TA mappings which are only used during a single call (open session
  * or invoke command parameters).
  */
-#define TEE_MATTR_EPHEMERAL		BIT(16)
+#define VM_FLAG_EPHEMERAL		BIT(0)
 /*
  * Tags TA mappings that must not be removed (kernel mappings while in user
  * mode).
  */
-#define TEE_MATTR_PERMANENT		BIT(17)
+#define VM_FLAG_PERMANENT		BIT(1)
 /* Tags TA mappings that may be shared with other TAs. */
-#define TEE_MATTR_SHAREABLE		BIT(18)
+#define VM_FLAG_SHAREABLE		BIT(2)
 /* Tags temporary mappings added to load the ldelf binary */
-#define TEE_MATTR_LDELF			BIT(19)
+#define VM_FLAG_LDELF			BIT(3)
+
+/*
+ * Set of flags used by tee_mmu_is_vbuf_inside_ta_private() and
+ * tee_mmu_is_vbuf_intersect_ta_private() to tell if a certain region is
+ * mapping TA internal memory or not.
+ */
+#define VM_FLAGS_NONPRIV		(VM_FLAG_EPHEMERAL | \
+					 VM_FLAG_PERMANENT | \
+					 VM_FLAG_SHAREABLE | VM_FLAG_LDELF)
 
 struct tee_mmap_region {
 	unsigned int type; /* enum teecore_memtypes */
@@ -63,7 +72,8 @@ struct vm_region {
 	size_t offset;
 	vaddr_t va;
 	size_t size;
-	uint32_t attr; /* TEE_MATTR_* above */
+	uint16_t attr; /* TEE_MATTR_* above */
+	uint16_t flags; /* VM_FLAGS_* above */
 	TAILQ_ENTRY(vm_region) link;
 };
 
