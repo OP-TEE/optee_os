@@ -60,11 +60,6 @@ struct user_ta_ctx {
 	struct vm_info *vm_info;
 	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
-	/*
-	 * Note that the load segments are stored in reverse order, that
-	 * is, the last segment first.
-	 */
-	struct load_seg_head segs;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif

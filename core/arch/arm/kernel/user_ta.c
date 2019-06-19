@@ -45,15 +45,6 @@
 #include <utee_defines.h>
 #include <util.h>
 
-struct load_seg {
-	uint16_t flags;
-	uint16_t attr;
-	vaddr_t va;
-	size_t size;
-	struct mobj *mobj;
-	SLIST_ENTRY(load_seg) link;
-};
-
 extern uint8_t ldelf_data[];
 extern const unsigned int ldelf_code_size;
 extern const unsigned int ldelf_data_size;
@@ -63,22 +54,6 @@ const bool is_arm32 = true;
 #else
 const bool is_arm32;
 #endif
-
-static void free_seg(struct load_seg *seg)
-{
-	mobj_free(seg->mobj);
-	free(seg);
-}
-
-static void free_segs(struct load_seg_head *segs)
-{
-	while (!SLIST_EMPTY(segs)) {
-		struct load_seg *s = SLIST_FIRST(segs);
-
-		SLIST_REMOVE_HEAD(segs, link);
-		free_seg(s);
-	}
-}
 
 static void init_utee_param(struct utee_params *up,
 			const struct tee_ta_param *p, void *va[TEE_NUM_PARAMS])
@@ -218,30 +193,6 @@ cleanup_return:
 	*err = serr;
 
 	return res;
-}
-
-static void clear_ldelf_mappings(struct user_ta_ctx *utc)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct load_seg *seg = NULL;
-
-	/*
-	 * This can be done more efficient, but quite few segments are
-	 * expected so a naive implementation may actually be preferable.
-	 */
-	while (true) {
-		SLIST_FOREACH(seg, &utc->segs, link)
-			if (seg->flags & VM_FLAG_LDELF)
-				break;
-		if (!seg)
-			break;
-
-		SLIST_REMOVE(&utc->segs, seg, load_seg, link);
-		res = vm_unmap(utc, seg->va, seg->size);
-		if (res)
-			panic();
-		free_seg(seg);
-	}
 }
 
 static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
@@ -621,7 +572,6 @@ static void free_utc(struct user_ta_ctx *utc)
 	}
 
 	vm_info_final(utc);
-	free_segs(&utc->segs);
 
 	/* Free cryp states created by this TA */
 	tee_svc_cryp_free_states(utc);
@@ -689,6 +639,11 @@ static TEE_Result check_ta_store(void)
 }
 service_init(check_ta_store);
 
+/*
+ * This function may leave a few mappings behind on error, but that's taken
+ * care of by tee_ta_init_user_ta_session() since the entire context is
+ * removed then.
+ */
 static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -716,7 +671,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 			  TEE_MATTR_PRW, VM_FLAG_LDELF, NULL, 0, 0);
 	fobj_put(fobj);
 	if (res)
-		goto err;
+		return res;
 	utc->entry_func = code_addr + ldelf_entry;
 
 	num_pgs = ROUNDUP(ldelf_data_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
@@ -727,7 +682,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 			  NULL, 0, 0);
 	fobj_put(fobj);
 	if (res)
-		goto err;
+		return res;
 
 	tee_mmu_set_ctx(&utc->ctx);
 
@@ -738,15 +693,11 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 			  ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE),
 			  TEE_MATTR_URX);
 	if (res)
-		goto err;
+		return res;
 
 	DMSG("ldelf load address %#"PRIxVA, code_addr);
 
 	return TEE_SUCCESS;
-
-err:
-	clear_ldelf_mappings(utc);
-	return res;
 }
 
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
@@ -805,111 +756,50 @@ TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
 		       size_t pad_begin, size_t pad_end)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = calloc(1, sizeof(*seg));
+	struct mobj *mobj = mobj_with_fobj_alloc(f, file);
 
-	if (!seg)
+	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	seg->attr = prot;
-	seg->flags = flags;
-	seg->mobj = mobj_with_fobj_alloc(f, file);
-	if (!seg->mobj) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
-	seg->size = f->num_pages * SMALL_PAGE_SIZE;
-
-	res = vm_map_pad(utc, va, seg->size, prot, flags, seg->mobj, 0,
-			 pad_begin, pad_end);
+	res = vm_map_pad(utc, va, f->num_pages * SMALL_PAGE_SIZE,
+			 prot, flags | VM_FLAG_EXCLUSIVE_MOBJ,
+			 mobj, 0, pad_begin, pad_end);
 	if (res)
-		goto err;
-
-	seg->va = *va;
-	SLIST_INSERT_HEAD(&utc->segs, seg, link);
-
-	return TEE_SUCCESS;
-
-err:
-	mobj_free(seg->mobj);
-	free(seg);
+		mobj_free(mobj);
 
 	return res;
 }
 
-static struct load_seg *find_exact_seg(struct load_seg_head *segs, vaddr_t va,
-				       size_t len)
-{
-	struct load_seg *seg = NULL;
-
-	SLIST_FOREACH(seg, segs, link)
-		if (seg->va == va && seg->size == len)
-			return seg;
-
-	return NULL;
-}
-
 TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = find_exact_seg(&utc->segs, va, len);
-
-	if (!seg)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	res = vm_unmap(utc, va, len);
-	if (res)
-		return res;
-
-	SLIST_REMOVE(&utc->segs, seg, load_seg, link);
-	free_seg(seg);
-
-	return TEE_SUCCESS;
+	return vm_unmap(utc, va, len);
 }
 
 TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 			    uint32_t prot)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = find_exact_seg(&utc->segs, va, len);
+	uint32_t flags = 0;
 
-	if (!seg)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	res = vm_get_flags(utc, va, len, &flags);
+	if (res)
+		return res;
 
 	/*
 	 * If the segment is a mapping of a part of a file (seg->flags &
 	 * VM_FLAG_READONLY) it cannot be made writeable as all mapped
 	 * files are mapped read-only.
 	 */
-	if ((seg->flags & VM_FLAG_READONLY) &&
+	if ((flags & VM_FLAG_READONLY) &&
 	    (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = vm_set_prot(utc, va, len, prot);
-	if (res)
-		return res;
-
-	seg->attr &= ~TEE_MATTR_PROT_MASK;
-	seg->attr |= prot & TEE_MATTR_PROT_MASK;
-
-	return TEE_SUCCESS;
+	return vm_set_prot(utc, va, len, prot);
 }
 
 TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
 			 vaddr_t old_va, size_t len, size_t pad_begin,
 			 size_t pad_end)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct load_seg *seg = find_exact_seg(&utc->segs, old_va, len);
-	vaddr_t va = *new_va;
-
-	if (!seg)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	res = vm_remap(utc, &va, seg->va, seg->size, pad_begin, pad_end);
-	if (res)
-		return res;
-
-	seg->va = va;
-	*new_va = va;
-	return TEE_SUCCESS;
+	return vm_remap(utc, new_va, old_va, len, pad_begin, pad_end);
 }

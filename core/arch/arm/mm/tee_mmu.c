@@ -452,6 +452,8 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 static void umap_remove_region(struct vm_info *vmi, struct vm_region *reg)
 {
 	TAILQ_REMOVE(&vmi->regions, reg, link);
+	if (reg->flags & VM_FLAG_EXCLUSIVE_MOBJ)
+		mobj_free(reg->mobj);
 	free(reg);
 }
 
