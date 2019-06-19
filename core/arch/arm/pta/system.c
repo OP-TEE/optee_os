@@ -132,11 +132,12 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE);
-	uint32_t flags = TEE_MATTR_URW | TEE_MATTR_PRW;
+	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t pad_begin = 0;
 	struct fobj *f = NULL;
 	uint32_t pad_end = 0;
+	uint32_t flags = 0;
 	vaddr_t va = 0;
 
 	if (exp_pt != param_types)
@@ -145,7 +146,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (params[0].value.b & PTA_SYSTEM_MAP_FLAG_SHAREABLE)
-		flags |= TEE_MATTR_SHAREABLE;
+		flags |= VM_FLAG_SHAREABLE;
 
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	pad_begin = params[2].value.a;
@@ -156,7 +157,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f, flags, NULL,
+	res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f, prot, flags, NULL,
 			  pad_begin, pad_end);
 	fobj_put(f);
 
@@ -412,7 +413,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		}
 
 		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, fs->fobj, prot,
-				  binh->f, pad_begin, pad_end);
+				  0, binh->f, pad_begin, pad_end);
 		if (res)
 			goto err;
 	} else {
@@ -426,7 +427,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE))
 			file = binh->f;
 		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f,
-						 TEE_MATTR_PRW, file,
+						 TEE_MATTR_PRW, 0, file,
 						 pad_begin, pad_end);
 		fobj_put(f);
 		if (res)
