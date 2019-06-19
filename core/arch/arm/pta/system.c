@@ -413,22 +413,26 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		}
 
 		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, fs->fobj, prot,
-				  0, binh->f, pad_begin, pad_end);
+				  VM_FLAG_READONLY, binh->f,
+				  pad_begin, pad_end);
 		if (res)
 			goto err;
 	} else {
 		struct fobj *f = fobj_ta_mem_alloc(num_pages);
 		struct file *file = NULL;
+		uint32_t vm_flags = 0;
 
 		if (!f) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE))
+		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
 			file = binh->f;
+			vm_flags |= VM_FLAG_READONLY;
+		}
 		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f,
-						 TEE_MATTR_PRW, 0, file,
-						 pad_begin, pad_end);
+				   TEE_MATTR_PRW, vm_flags, file,
+				   pad_begin, pad_end);
 		fobj_put(f);
 		if (res)
 			goto err;
