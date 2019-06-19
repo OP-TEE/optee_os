@@ -50,20 +50,6 @@
 /* Tags temporary mappings added to load the ldelf binary */
 #define TEE_MATTR_LDELF			BIT(19)
 
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-#define TEE_MMU_UMAP_KCODE_IDX	0
-#define TEE_MMU_UMAP_STACK_IDX	1
-#else
-#define TEE_MMU_UMAP_STACK_IDX	0
-#endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
-#define TEE_MMU_UMAP_CODE_IDX	(TEE_MMU_UMAP_STACK_IDX + 1)
-#define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
-
-#define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
-					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
-#define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + \
-					 TEE_NUM_PARAMS)
-
 struct tee_mmap_region {
 	unsigned int type; /* enum teecore_memtypes */
 	unsigned int region_size;
