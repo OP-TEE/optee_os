@@ -34,7 +34,6 @@
 #define TEE_MATTR_CACHE_NONCACHE 0
 #define TEE_MATTR_CACHE_CACHED	1
 
-#define TEE_MATTR_LOCKED		BIT(15)
 /*
  * Tags TA mappings which are only used during a single call (open session
  * or invoke command parameters).

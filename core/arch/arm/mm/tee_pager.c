@@ -532,10 +532,8 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 		flags = TEE_MATTR_PRX;
 		break;
 	case PAGER_AREA_TYPE_RW:
-		flags = TEE_MATTR_PRW;
-		break;
 	case PAGER_AREA_TYPE_LOCK:
-		flags = TEE_MATTR_PRW | TEE_MATTR_LOCKED;
+		flags = TEE_MATTR_PRW;
 		break;
 	default:
 		panic();
