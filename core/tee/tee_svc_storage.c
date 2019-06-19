@@ -706,11 +706,16 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	if (e->dir) {
+		e->fops->closedir(e->dir);
+		e->dir = NULL;
+	}
+
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	e->fops = fops;
-	assert(!e->dir);
+
 	return fops->opendir(&sess->ctx->uuid, &e->dir);
 }
 
