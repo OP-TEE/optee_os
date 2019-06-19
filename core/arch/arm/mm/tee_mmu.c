@@ -392,6 +392,19 @@ err_restore_map:
 	return res;
 }
 
+TEE_Result vm_get_flags(struct user_ta_ctx *utc, vaddr_t va, size_t len,
+			uint32_t *flags)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r = NULL;
+
+	res = find_exact_vm_region(utc, va, len, &r);
+	if (!res)
+		*flags = r->flags;
+
+	return res;
+}
+
 TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 		       uint32_t prot)
 {
