@@ -353,6 +353,9 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 
 	assert(thread_get_tsd()->ctx == &utc->ctx);
 
+	if (prot & ~TEE_MATTR_PROT_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	/*
 	 * To keep thing simple: specified va and len have to match exactly
 	 * with an already registered region.
@@ -367,7 +370,7 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 	was_writeable = r->attr & (TEE_MATTR_UW | TEE_MATTR_PW);
 
 	r->attr &= ~TEE_MATTR_PROT_MASK;
-	r->attr |= prot & TEE_MATTR_PROT_MASK;
+	r->attr |= prot;
 
 	if (mobj_is_paged(r->mobj)) {
 		if (!tee_pager_set_uta_area_attr(utc, va, len,
