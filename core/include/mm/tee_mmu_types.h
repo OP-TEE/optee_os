@@ -48,6 +48,11 @@
 #define VM_FLAG_SHAREABLE		BIT(2)
 /* Tags temporary mappings added to load the ldelf binary */
 #define VM_FLAG_LDELF			BIT(3)
+/*
+ * The mapping should only be mapped read-only, not enforced by the vm_*
+ * functions.
+ */
+#define VM_FLAG_READONLY		BIT(4)
 
 /*
  * Set of flags used by tee_mmu_is_vbuf_inside_ta_private() and
