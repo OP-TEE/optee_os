@@ -51,7 +51,6 @@ struct load_seg {
 	vaddr_t va;
 	size_t size;
 	struct mobj *mobj;
-	struct file *file;
 	SLIST_ENTRY(load_seg) link;
 };
 
@@ -68,7 +67,6 @@ const bool is_arm32;
 static void free_seg(struct load_seg *seg)
 {
 	mobj_free(seg->mobj);
-	file_put(seg->file);
 	free(seg);
 }
 
@@ -814,7 +812,7 @@ TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
 
 	seg->attr = prot;
 	seg->flags = flags;
-	seg->mobj = mobj_with_fobj_alloc(f);
+	seg->mobj = mobj_with_fobj_alloc(f, file);
 	if (!seg->mobj) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
@@ -827,7 +825,6 @@ TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
 		goto err;
 
 	seg->va = *va;
-	seg->file = file_get(file);
 	SLIST_INSERT_HEAD(&utc->segs, seg, link);
 
 	return TEE_SUCCESS;

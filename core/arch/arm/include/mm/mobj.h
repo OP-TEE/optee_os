@@ -8,6 +8,7 @@
 
 #include <compiler.h>
 #include <mm/core_memprot.h>
+#include <mm/file.h>
 #include <mm/fobj.h>
 #include <string_ext.h>
 #include <sys/queue.h>
@@ -225,6 +226,6 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 
 struct mobj *mobj_seccpy_shm_alloc(size_t size);
 
-struct mobj *mobj_with_fobj_alloc(struct fobj *fobj);
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file);
 
 #endif /*__MM_MOBJ_H*/
