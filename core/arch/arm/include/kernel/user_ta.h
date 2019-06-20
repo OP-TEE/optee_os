@@ -96,64 +96,6 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 }
 #endif
 
-struct fobj;
-#ifdef CFG_WITH_USER_TA
-TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
-		       uint32_t prot, uint32_t flags, struct file *file,
-		       size_t pad_begin, size_t pad_end);
-#else
-static inline TEE_Result user_ta_map(struct user_ta_ctx *utc __unused,
-				     vaddr_t *va __unused,
-				     struct fobj *f __unused,
-				     uint32_t prot __unused,
-				     uint32_t flags __unused,
-				     struct file *file __unused,
-				     size_t pad_begin __unused,
-				     size_t pad_end __unused)
-{
-	return TEE_ERROR_GENERIC;
-}
-#endif
-
-#ifdef CFG_WITH_USER_TA
-TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len);
-#else
-static inline TEE_Result user_ta_unmap(struct user_ta_ctx *utc __unused,
-				       vaddr_t va __unused, size_t len __unused)
-{
-	return TEE_ERROR_GENERIC;
-}
-#endif
-
-#ifdef CFG_WITH_USER_TA
-TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
-			    uint32_t prot);
-#else
-static inline TEE_Result user_ta_set_prot(struct user_ta_ctx *utc __unused,
-					  vaddr_t va __unused,
-					  size_t len __unused,
-					  uint32_t prot __unused)
-{
-	return TEE_ERROR_GENERIC;
-}
-#endif
-
-#ifdef CFG_WITH_USER_TA
-TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
-			 vaddr_t old_va, size_t len, size_t pad_begin,
-			 size_t pad_end);
-#else
-static inline TEE_Result user_ta_remap(struct user_ta_ctx *utc __unused,
-				       vaddr_t *new_va __unused,
-				       vaddr_t old_va __unused,
-				       size_t len __unused,
-				       size_t pad_begin __unused,
-				       size_t pad_end __unused);
-{
-	return TEE_ERROR_GENERIC;
-}
-#endif
-
 /*
  * Registers a TA storage.
  *
