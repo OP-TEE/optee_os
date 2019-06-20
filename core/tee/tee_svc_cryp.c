@@ -3010,6 +3010,9 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
+		return TEE_ERROR_BAD_STATE;
+
 	res = crypto_authenc_update_aad(cs->ctx, cs->algo, cs->mode,
 					aad_data, aad_data_len);
 	if (res != TEE_SUCCESS)
@@ -3034,6 +3037,9 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
+		return TEE_ERROR_BAD_STATE;
 
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
@@ -3093,6 +3099,9 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 
 	if (cs->mode != TEE_MODE_ENCRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
+		return TEE_ERROR_BAD_STATE;
 
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
@@ -3174,6 +3183,9 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 
 	if (cs->mode != TEE_MODE_DECRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
+		return TEE_ERROR_BAD_STATE;
 
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
