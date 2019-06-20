@@ -132,12 +132,15 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE);
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
+	uint32_t vm_flags = VM_FLAG_EXCLUSIVE_MOBJ;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct mobj *mobj = NULL;
 	uint32_t pad_begin = 0;
 	struct fobj *f = NULL;
 	uint32_t pad_end = 0;
-	uint32_t flags = 0;
+	size_t num_bytes = 0;
 	vaddr_t va = 0;
 
 	if (exp_pt != param_types)
@@ -146,22 +149,26 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (params[0].value.b & PTA_SYSTEM_MAP_FLAG_SHAREABLE)
-		flags |= VM_FLAG_SHAREABLE;
+		vm_flags |= VM_FLAG_SHAREABLE;
 
+	num_bytes = params[0].value.a;
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	pad_begin = params[2].value.a;
 	pad_end = params[2].value.b;
 
-	f = fobj_ta_mem_alloc(ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE) /
+	f = fobj_ta_mem_alloc(ROUNDUP(num_bytes, SMALL_PAGE_SIZE) /
 			      SMALL_PAGE_SIZE);
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f, prot, flags, NULL,
-			  pad_begin, pad_end);
+	mobj = mobj_with_fobj_alloc(f, NULL);
 	fobj_put(f);
-
-	if (!res)
+	if (!mobj)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = vm_map_pad(utc, &va, num_bytes, prot, vm_flags,
+			 mobj, 0, pad_begin, pad_end);
+	if (res)
+		mobj_free(mobj);
+	else
 		reg_pair_from_64(va, &params[1].value.a, &params[1].value.b);
 
 	return res;
@@ -181,10 +188,9 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 	if (params[0].value.b)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return user_ta_unmap(to_user_ta_ctx(s->ctx),
-			     reg_pair_to_64(params[1].value.a,
-					    params[1].value.b),
-			     ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE));
+	return vm_unmap(to_user_ta_ctx(s->ctx),
+			reg_pair_to_64(params[1].value.a, params[1].value.b),
+			ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE));
 }
 
 static void ta_bin_close(void *ptr)
@@ -335,10 +341,12 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	struct bin_handle *binh = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct file_slice *fs = NULL;
 	bool file_is_locked = false;
+	struct mobj *mobj = NULL;
 	uint32_t offs_bytes = 0;
 	uint32_t offs_pages = 0;
 	uint32_t num_bytes = 0;
@@ -412,15 +420,20 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			goto err;
 		}
 
-		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, fs->fobj, prot,
-				  VM_FLAG_READONLY, binh->f,
-				  pad_begin, pad_end);
+		mobj = mobj_with_fobj_alloc(fs->fobj, binh->f);
+		if (!mobj) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE, prot,
+				 VM_FLAG_READONLY | VM_FLAG_EXCLUSIVE_MOBJ,
+				 mobj, 0, pad_begin, pad_end);
 		if (res)
 			goto err;
 	} else {
 		struct fobj *f = fobj_ta_mem_alloc(num_pages);
 		struct file *file = NULL;
-		uint32_t vm_flags = 0;
+		uint32_t vm_flags = VM_FLAG_EXCLUSIVE_MOBJ;
 
 		if (!f) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
@@ -430,17 +443,22 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			file = binh->f;
 			vm_flags |= VM_FLAG_READONLY;
 		}
-		res = user_ta_map(to_user_ta_ctx(s->ctx), &va, f,
-				   TEE_MATTR_PRW, vm_flags, file,
-				   pad_begin, pad_end);
+
+		mobj = mobj_with_fobj_alloc(f, file);
 		fobj_put(f);
+		if (!mobj) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE,
+				 TEE_MATTR_PRW, vm_flags, mobj, 0,
+				 pad_begin, pad_end);
 		if (res)
 			goto err;
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = user_ta_set_prot(to_user_ta_ctx(s->ctx), va,
-				       num_pages * SMALL_PAGE_SIZE, prot);
+		res = vm_set_prot(utc, va, num_pages * SMALL_PAGE_SIZE, prot);
 		if (res)
 			goto err_unmap_va;
 
@@ -463,8 +481,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (user_ta_unmap(to_user_ta_ctx(s->ctx), va,
-			  num_pages * SMALL_PAGE_SIZE))
+	if (vm_unmap(utc, va, num_pages * SMALL_PAGE_SIZE))
 		panic();
 
 	/*
@@ -474,6 +491,7 @@ err_unmap_va:
 	tee_mmu_set_ctx(s->ctx);
 
 err:
+	mobj_free(mobj);
 	if (file_is_locked)
 		file_unlock(binh->f);
 
@@ -511,7 +529,10 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	uint32_t prot = TEE_MATTR_UR | TEE_MATTR_PR;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t vm_flags = 0;
 	uint32_t flags = 0;
 	vaddr_t va = 0;
 	size_t sz = 0;
@@ -531,7 +552,20 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b),
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
 
-	return user_ta_set_prot(to_user_ta_ctx(s->ctx), va, sz, prot);
+	res = vm_get_flags(utc, va, sz, &vm_flags);
+	if (res)
+		return res;
+
+	/*
+	 * If the segment is a mapping of a part of a file (vm_flags &
+	 * VM_FLAG_READONLY) it cannot be made writeable as all mapped
+	 * files are mapped read-only.
+	 */
+	if ((vm_flags & VM_FLAG_READONLY) &&
+	    (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return vm_set_prot(utc, va, sz, prot);
 }
 
 static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
@@ -541,6 +575,7 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t num_bytes = 0;
 	uint32_t pad_begin = 0;
@@ -557,8 +592,7 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 	pad_begin = params[3].value.a;
 	pad_end = params[3].value.b;
 
-	res = user_ta_remap(to_user_ta_ctx(s->ctx), &new_va, old_va, num_bytes,
-			    pad_begin, pad_end);
+	res = vm_remap(utc, &new_va, old_va, num_bytes, pad_begin, pad_end);
 	if (!res)
 		reg_pair_from_64(new_va, &params[2].value.a,
 				 &params[2].value.b);

@@ -639,6 +639,25 @@ static TEE_Result check_ta_store(void)
 }
 service_init(check_ta_store);
 
+static TEE_Result alloc_and_map_ldelf_fobj(struct user_ta_ctx *utc, size_t sz,
+					   uint32_t prot, vaddr_t *va)
+{
+	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
+	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL);
+	TEE_Result res = TEE_SUCCESS;
+
+	fobj_put(fobj);
+	if (!mobj)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = vm_map(utc, va, num_pgs * SMALL_PAGE_SIZE,
+		     prot, VM_FLAG_LDELF | VM_FLAG_EXCLUSIVE_MOBJ, mobj, 0);
+	if (res)
+		mobj_free(mobj);
+
+	return res;
+}
+
 /*
  * This function may leave a few mappings behind on error, but that's taken
  * care of by tee_ta_init_user_ta_session() since the entire context is
@@ -647,40 +666,28 @@ service_init(check_ta_store);
 static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct fobj *fobj = NULL;
 	vaddr_t stack_addr = 0;
 	vaddr_t code_addr = 0;
 	vaddr_t rw_addr = 0;
-	size_t num_pgs = 0;
 
 	utc->is_32bit = is_arm32;
 
-	num_pgs = ROUNDUP(LDELF_STACK_SIZE, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
-	fobj = fobj_ta_mem_alloc(num_pgs);
-	res = user_ta_map(utc, &stack_addr, fobj,
-			  TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
-			  NULL, 0, 0);
-	fobj_put(fobj);
+	res = alloc_and_map_ldelf_fobj(utc, LDELF_STACK_SIZE,
+				       TEE_MATTR_URW | TEE_MATTR_PRW,
+				       &stack_addr);
 	if (res)
 		return res;
 	utc->ldelf_stack_ptr = stack_addr + LDELF_STACK_SIZE;
 
-	num_pgs = ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
-	fobj = fobj_ta_mem_alloc(num_pgs);
-	res = user_ta_map(utc, &code_addr, fobj,
-			  TEE_MATTR_PRW, VM_FLAG_LDELF, NULL, 0, 0);
-	fobj_put(fobj);
+	res = alloc_and_map_ldelf_fobj(utc, ldelf_code_size, TEE_MATTR_PRW,
+				       &code_addr);
 	if (res)
 		return res;
 	utc->entry_func = code_addr + ldelf_entry;
 
-	num_pgs = ROUNDUP(ldelf_data_size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	rw_addr = ROUNDUP(code_addr + ldelf_code_size, SMALL_PAGE_SIZE);
-	fobj = fobj_ta_mem_alloc(num_pgs);
-	res = user_ta_map(utc, &rw_addr, fobj,
-			  TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
-			  NULL, 0, 0);
-	fobj_put(fobj);
+	res = alloc_and_map_ldelf_fobj(utc, ldelf_data_size,
+				       TEE_MATTR_URW | TEE_MATTR_PRW, &rw_addr);
 	if (res)
 		return res;
 
@@ -749,57 +756,4 @@ err:
 	pgt_flush_ctx(&utc->ctx);
 	free_utc(utc);
 	return res;
-}
-
-TEE_Result user_ta_map(struct user_ta_ctx *utc, vaddr_t *va, struct fobj *f,
-		       uint32_t prot, uint32_t flags, struct file *file,
-		       size_t pad_begin, size_t pad_end)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct mobj *mobj = mobj_with_fobj_alloc(f, file);
-
-	if (!mobj)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = vm_map_pad(utc, va, f->num_pages * SMALL_PAGE_SIZE,
-			 prot, flags | VM_FLAG_EXCLUSIVE_MOBJ,
-			 mobj, 0, pad_begin, pad_end);
-	if (res)
-		mobj_free(mobj);
-
-	return res;
-}
-
-TEE_Result user_ta_unmap(struct user_ta_ctx *utc, vaddr_t va, size_t len)
-{
-	return vm_unmap(utc, va, len);
-}
-
-TEE_Result user_ta_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
-			    uint32_t prot)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t flags = 0;
-
-	res = vm_get_flags(utc, va, len, &flags);
-	if (res)
-		return res;
-
-	/*
-	 * If the segment is a mapping of a part of a file (seg->flags &
-	 * VM_FLAG_READONLY) it cannot be made writeable as all mapped
-	 * files are mapped read-only.
-	 */
-	if ((flags & VM_FLAG_READONLY) &&
-	    (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
-		return TEE_ERROR_ACCESS_DENIED;
-
-	return vm_set_prot(utc, va, len, prot);
-}
-
-TEE_Result user_ta_remap(struct user_ta_ctx *utc, vaddr_t *new_va,
-			 vaddr_t old_va, size_t len, size_t pad_begin,
-			 size_t pad_end)
-{
-	return vm_remap(utc, new_va, old_va, len, pad_begin, pad_end);
 }
