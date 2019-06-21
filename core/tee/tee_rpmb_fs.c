@@ -1023,7 +1023,9 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id)
 {
 	TEE_Result res;
 
-	DMSG("RPMB INIT: Writing Key");
+	DMSG("RPMB INIT: Writing Key value:");
+	DHEXDUMP(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
+
 	res = tee_rpmb_write_key(dev_id);
 	if (res == TEE_SUCCESS) {
 		DMSG("RPMB INIT: Verifying Key");
