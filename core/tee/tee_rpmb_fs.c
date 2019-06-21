@@ -964,9 +964,8 @@ static TEE_Result tee_rpmb_verify_key_sync_counter(uint16_t dev_id)
 	if (res == TEE_SUCCESS) {
 		rpmb_ctx->key_verified = true;
 		rpmb_ctx->wr_cnt_synced = true;
-	}
-
-	DMSG("Verify key returning 0x%x", res);
+	} else
+		EMSG("Verify key returning 0x%x", res);
 	return res;
 }
 
