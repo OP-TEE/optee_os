@@ -1099,8 +1099,11 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 
 		res = tee_rpmb_key_gen(dev_id, rpmb_ctx->key,
 				       RPMB_KEY_MAC_SIZE);
-		if (res != TEE_SUCCESS)
+		if (res != TEE_SUCCESS) {
+			EMSG("RPMB INIT: Deriving key failed with error 0x%x",
+				res);
 			goto func_exit;
+		}
 
 		rpmb_ctx->key_derived = true;
 	}
