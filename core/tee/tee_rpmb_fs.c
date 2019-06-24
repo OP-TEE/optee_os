@@ -1624,7 +1624,7 @@ static TEE_Result rpmb_fs_setup(void)
 			res = TEE_SUCCESS;
 			goto store_fs_par;
 		} else {
-			/* Wrong software is in use. */
+			EMSG("Wrong software is in use.");
 			res = TEE_ERROR_ACCESS_DENIED;
 			goto out;
 		}
