@@ -2416,6 +2416,9 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_CIPHER)
+		return TEE_ERROR_BAD_STATE;
+
 	res = tee_mmu_check_access_rights(utc,
 					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
