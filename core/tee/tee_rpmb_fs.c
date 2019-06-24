@@ -322,6 +322,11 @@ static void bytes_to_u16(uint8_t *bytes, uint16_t *u16)
 	*u16 = (uint16_t) ((*bytes << 8) + *(bytes + 1));
 }
 
+static void get_op_result_bits(uint8_t *bytes, uint8_t *res)
+{
+	*res = *(bytes + 1) & RPMB_RESULT_MASK;
+}
+
 static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 				    uint8_t *key, uint32_t keysize,
 				    struct rpmb_data_frame *datafrms,
@@ -731,7 +736,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	uint16_t msg_type;
 	uint32_t wr_cnt;
 	uint16_t blk_idx;
-	uint16_t op_result;
+	uint8_t op_result;
 	struct rpmb_data_frame lastfrm;
 
 	if (!datafrm || !rawdata || !nbr_frms)
@@ -749,9 +754,7 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	memcpy(&lastfrm, &datafrm[nbr_frms - 1], RPMB_DATA_FRAME_SIZE);
 
 	/* Handle operation result and translate to TEEC error code. */
-	bytes_to_u16(lastfrm.op_result, &op_result);
-	if (rawdata->op_result)
-		*rawdata->op_result = op_result;
+	get_op_result_bits(lastfrm.op_result, &op_result);
 	if (op_result == RPMB_RESULT_AUTH_KEY_NOT_PROGRAMMED)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	if (op_result != RPMB_RESULT_OK)
